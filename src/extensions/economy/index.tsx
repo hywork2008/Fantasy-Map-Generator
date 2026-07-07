@@ -3,6 +3,7 @@ import type { LayerConfig } from "../../store/layerState";
 import { regenerateFeatureDialogStore } from "../../store/regenerateFeatureDialogState";
 import { useUiPreferencesState } from "../../store/uiPreferencesState";
 import type { ExtensionAPI } from "../../types/extension-api";
+import { formatPrice } from "../hostUtils";
 import { getBurgEconomySummary } from "./burgEconomySummary";
 import { economyStyleConfig } from "./EconomyStyleConfig";
 import { clearEconomyContext, getWorldContext, initEconomyContext } from "./economyContext";
@@ -114,6 +115,69 @@ export const economyLayers: LayerConfig[] = [
     svgLayers: [{ id: "tradeAnimation", insertAfter: "marketsLayer" }]
   }
 ];
+
+/**
+ * Registers/unregisters the Product/Wealth/Treasury (Burgs Overview) and Treasury (States Editor)
+ * overview columns, plus the Good/Market/Cell Production/Burg Production Cell Info rows. Called
+ * from the enable/disable branches of subscribeExtensionState (and once at init() if already
+ * enabled) so these appear/disappear live with the extension toggle, instead of always showing —
+ * unlike registerDialog/registerAction/registerEditorTab, which are one-shot and only fully
+ * cleaned up on unregisterExtension().
+ */
+function registerOverviewColumns(api: ExtensionAPI): void {
+  api.registerBurgOverviewColumn({
+    id: "product",
+    extensionId: ECONOMY_EXTENSION_ID,
+    label: "Product",
+    tip: "Gross Product: local sale revenue minus purchased ingredient costs during the production",
+    getValue: burg => burg.product || 0,
+    format: formatPrice
+  });
+  api.registerBurgOverviewColumn({
+    id: "wealth",
+    extensionId: ECONOMY_EXTENSION_ID,
+    label: "Wealth",
+    tip: "Wealth: gross product divided by population",
+    getValue: burg => (burg.population && burg.population > 0 ? (burg.product || 0) / burg.population : 0),
+    format: formatPrice
+  });
+  api.registerBurgOverviewColumn({
+    id: "treasury",
+    extensionId: ECONOMY_EXTENSION_ID,
+    label: "Treasury",
+    tip: "Treasury: accumulated cash balance",
+    getValue: burg => burg.treasury || 0,
+    format: formatPrice
+  });
+  api.registerStateOverviewColumn({
+    id: "treasury",
+    extensionId: ECONOMY_EXTENSION_ID,
+    label: "Treasury",
+    tip: "Current treasury. Click to view and edit sales/poll tax rates",
+    getValue: state => state.treasury || 0,
+    format: formatPrice,
+    onClick: () =>
+      document.dispatchEvent(
+        new CustomEvent("fmg:activate-editor-tab", { detail: { editorId: "statesEditor", tabId: "states-treasury" } })
+      )
+  });
+
+  api.registerCellInfoRow({ id: "good", extensionId: ECONOMY_EXTENSION_ID, label: "Good" });
+  api.registerCellInfoRow({ id: "market", extensionId: ECONOMY_EXTENSION_ID, label: "Market" });
+  api.registerCellInfoRow({ id: "cellProduction", extensionId: ECONOMY_EXTENSION_ID, label: "Cell Production" });
+  api.registerCellInfoRow({ id: "burgProduction", extensionId: ECONOMY_EXTENSION_ID, label: "Burg Production" });
+}
+
+function unregisterOverviewColumns(api: ExtensionAPI): void {
+  api.unregisterBurgOverviewColumn("product");
+  api.unregisterBurgOverviewColumn("wealth");
+  api.unregisterBurgOverviewColumn("treasury");
+  api.unregisterStateOverviewColumn("treasury");
+  api.unregisterCellInfoRow("good");
+  api.unregisterCellInfoRow("market");
+  api.unregisterCellInfoRow("cellProduction");
+  api.unregisterCellInfoRow("burgProduction");
+}
 
 let _unsubscribe: (() => void) | null = null;
 let _generatePostCoreHandler: (() => void) | null = null;
@@ -324,6 +388,7 @@ export function init(api: ExtensionAPI): void {
       api.tooltipExtensions.showMapTooltip = showEconomyTooltip;
       api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
       api.burgEconomyExtensions.getBurgEconomySummary = getBurgEconomySummary;
+      registerOverviewColumns(api);
       // Generate economy if it's completely missing
       if (!worldContext.pack.goods || worldContext.pack.goods.length === 0) {
         if (
@@ -370,6 +435,7 @@ export function init(api: ExtensionAPI): void {
       api.tooltipExtensions.showMapTooltip = undefined;
       api.tooltipExtensions.updateCellInfo = undefined;
       api.burgEconomyExtensions.getBurgEconomySummary = undefined;
+      unregisterOverviewColumns(api);
       if (worldContext.pack.cells?.i) {
         worldContext.pack.cells.good = new Uint16Array(worldContext.pack.cells.i.length);
         worldContext.pack.cells.market = new Uint16Array(worldContext.pack.cells.i.length);
@@ -388,6 +454,7 @@ export function init(api: ExtensionAPI): void {
     api.tooltipExtensions.showMapTooltip = showEconomyTooltip;
     api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
     api.burgEconomyExtensions.getBurgEconomySummary = getBurgEconomySummary;
+    registerOverviewColumns(api);
   }
 
   // Listen for core map generation to generate economy
@@ -546,6 +613,7 @@ export function cleanup(api: ExtensionAPI): void {
   api.tooltipExtensions.showMapTooltip = undefined;
   api.tooltipExtensions.updateCellInfo = undefined;
   api.burgEconomyExtensions.getBurgEconomySummary = undefined;
+  unregisterOverviewColumns(api);
 
   // Unregister tool action handlers
   api.unregisterToolAction("editGoods");

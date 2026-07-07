@@ -22,11 +22,14 @@ import type { TimeTickHook } from "../generators/timeEngine";
 import type { BurgEconomySummary } from "../services/burgEconomyExtensions";
 import type { SkillModifierFn } from "../services/skillModifierService";
 import type {
+  BurgOverviewColumn,
+  CellInfoRow,
   ExtensionAction,
   ExtensionConfig,
   ExtensionDialog,
   ExtensionEditorTab,
-  ExtensionStyleConfig
+  ExtensionStyleConfig,
+  StateOverviewColumn
 } from "../store/extensionState";
 import type { LayerConfig } from "../store/layerState";
 import type { OpenDialogConfig, RichDialogOptions } from "../ui/dialogs/dialogService";
@@ -70,6 +73,24 @@ export interface ExtensionAPI {
   registerEditorTab(tab: ExtensionEditorTab): void;
   /** Register style configurations and React components for the StyleTab. */
   registerStyleConfig(config: ExtensionStyleConfig): void;
+  /**
+   * Register a numeric column shown in the Burgs Overview table (and every table sharing it),
+   * positioned after Population. Unlike registerDialog/registerAction/registerEditorTab, this
+   * is meant to be toggled live with extension enable state — call again in the enable branch
+   * of subscribeExtensionState, and unregisterBurgOverviewColumn in the disable branch.
+   */
+  registerBurgOverviewColumn(column: BurgOverviewColumn): void;
+  unregisterBurgOverviewColumn(id: string): void;
+  /** Same as registerBurgOverviewColumn, but for the States Editor overview table. */
+  registerStateOverviewColumn(column: StateOverviewColumn): void;
+  unregisterStateOverviewColumn(id: string): void;
+  /**
+   * Register a row appended to the Cell Info dialog. Same live-toggle contract as
+   * registerBurgOverviewColumn — the row's value is supplied separately via
+   * tooltipExtensions.updateCellInfo, keyed into cellInfoState's `extra` bag by this row's id.
+   */
+  registerCellInfoRow(row: CellInfoRow): void;
+  unregisterCellInfoRow(id: string): void;
   /** Remove all registrations for this extension id (called before cleanup/uninstall). */
   unregisterExtension(id: string): void;
   /** Returns false if the toggle was blocked by an unmet dependency requirement. */

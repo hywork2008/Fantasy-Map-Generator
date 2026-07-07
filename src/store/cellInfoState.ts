@@ -22,11 +22,8 @@ export interface CellInfoData {
   religion: string;
   burg: string;
   danger: string;
-  // Extension fields
-  good?: string;
-  market?: string;
-  cellProduction?: string;
-  burgProduction?: string;
+  /** Extension-supplied row values, keyed by the id passed to ExtensionAPI.registerCellInfoRow(). */
+  extra: Record<string, string>;
 }
 
 interface CellInfoState extends CellInfoData {
@@ -55,9 +52,7 @@ export const useCellInfoState = create<CellInfoState>(set => ({
   religion: "n/a",
   burg: "n/a",
   danger: "n/a",
-  good: "n/a",
-  market: "n/a",
-  cellProduction: "n/a",
-  burgProduction: "n/a",
-  updateInfo: data => set(state => ({ ...state, ...data }))
+  extra: {},
+  updateInfo: ({ extra, ...data }) =>
+    set(state => ({ ...state, ...data, extra: extra ? { ...state.extra, ...extra } : state.extra }))
 }));

@@ -58,11 +58,13 @@ export function refreshProductionOverview(): void {
     );
   }
 
+  const wealth = burg.population && burg.population > 0 ? (burg.product || 0) / burg.population : 0;
+
   setProductionOverviewState({
     burgId: burg.i ?? null,
     burgName: burg.name || "",
     rows,
-    wealth: formatPrice(burg.product || 0),
+    wealth: formatPrice(wealth),
     treasury: formatPrice(burg.treasury || 0),
     taxPaid: formatPrice(rn(taxPaid, 2))
   });

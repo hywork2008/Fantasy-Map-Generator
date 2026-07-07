@@ -1,6 +1,7 @@
 import type { Selection } from "d3";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { Burg, State } from "../types/models";
 
 export interface ExtensionDependency {
   id: string;
@@ -47,6 +48,35 @@ export interface ExtensionEditorTab {
   component: React.ComponentType;
 }
 
+/** An extension-supplied numeric column inserted into the Burgs Overview table (and any table sharing BurgsTable), positioned after Population. */
+export interface BurgOverviewColumn {
+  id: string;
+  extensionId: string;
+  label: string;
+  tip: string;
+  getValue: (burg: Burg) => number;
+  format: (value: number) => string;
+  onClick?: (burg: Burg) => void;
+}
+
+/** An extension-supplied numeric column inserted into the States Editor overview table, positioned after Population. */
+export interface StateOverviewColumn {
+  id: string;
+  extensionId: string;
+  label: string;
+  tip: string;
+  getValue: (state: State) => number;
+  format: (value: number) => string;
+  onClick?: (state: State) => void;
+}
+
+/** An extension-supplied row appended to the Cell Info dialog. The value itself is written into cellInfoState's `extra` bag (keyed by id) via tooltipExtensions.updateCellInfo. */
+export interface CellInfoRow {
+  id: string;
+  extensionId: string;
+  label: string;
+}
+
 export interface ExtensionStyleProps {
   visibility: Record<string, boolean>;
   values: Record<string, string | number>;
@@ -77,12 +107,24 @@ interface ExtensionState {
   dialogs: ExtensionDialog[];
   editorTabs: ExtensionEditorTab[];
   styleConfigs: ExtensionStyleConfig[];
+  burgOverviewColumns: BurgOverviewColumn[];
+  stateOverviewColumns: StateOverviewColumn[];
+  cellInfoRows: CellInfoRow[];
 
   registerExtension: (config: ExtensionConfig, defaultEnabled?: boolean) => void;
   registerAction: (action: ExtensionAction) => void;
   registerDialog: (dialog: ExtensionDialog) => void;
   registerEditorTab: (tab: ExtensionEditorTab) => void;
   registerStyleConfig: (config: ExtensionStyleConfig) => void;
+  /** Register a numeric column in the Burgs Overview table. Toggle on/off with extension enable state — call again on enable, unregister on disable. */
+  registerBurgOverviewColumn: (column: BurgOverviewColumn) => void;
+  unregisterBurgOverviewColumn: (id: string) => void;
+  /** Register a numeric column in the States Editor overview table. Toggle on/off with extension enable state — call again on enable, unregister on disable. */
+  registerStateOverviewColumn: (column: StateOverviewColumn) => void;
+  unregisterStateOverviewColumn: (id: string) => void;
+  /** Register a row in the Cell Info dialog. Toggle on/off with extension enable state — call again on enable, unregister on disable. */
+  registerCellInfoRow: (row: CellInfoRow) => void;
+  unregisterCellInfoRow: (id: string) => void;
   /** Replace the tracked dependency-graph info for all installed extensions. */
   setExtensionMeta: (meta: ExtensionMeta[]) => void;
   /**
@@ -106,6 +148,9 @@ export const useExtensionState = create<ExtensionState>()(
       dialogs: [],
       editorTabs: [],
       styleConfigs: [],
+      burgOverviewColumns: [],
+      stateOverviewColumns: [],
+      cellInfoRows: [],
 
       registerExtension: (config, defaultEnabled = true) => {
         set(state => {
@@ -143,6 +188,42 @@ export const useExtensionState = create<ExtensionState>()(
       registerStyleConfig: config => {
         set(state => ({
           styleConfigs: [...state.styleConfigs.filter(c => c.id !== config.id), config]
+        }));
+      },
+
+      registerBurgOverviewColumn: column => {
+        set(state => ({
+          burgOverviewColumns: [...state.burgOverviewColumns.filter(c => c.id !== column.id), column]
+        }));
+      },
+
+      unregisterBurgOverviewColumn: id => {
+        set(state => ({
+          burgOverviewColumns: state.burgOverviewColumns.filter(c => c.id !== id)
+        }));
+      },
+
+      registerStateOverviewColumn: column => {
+        set(state => ({
+          stateOverviewColumns: [...state.stateOverviewColumns.filter(c => c.id !== column.id), column]
+        }));
+      },
+
+      unregisterStateOverviewColumn: id => {
+        set(state => ({
+          stateOverviewColumns: state.stateOverviewColumns.filter(c => c.id !== id)
+        }));
+      },
+
+      registerCellInfoRow: row => {
+        set(state => ({
+          cellInfoRows: [...state.cellInfoRows.filter(r => r.id !== row.id), row]
+        }));
+      },
+
+      unregisterCellInfoRow: id => {
+        set(state => ({
+          cellInfoRows: state.cellInfoRows.filter(r => r.id !== id)
         }));
       },
 
@@ -196,7 +277,10 @@ export const useExtensionState = create<ExtensionState>()(
             actions: state.actions.filter(a => a.extensionId !== id),
             dialogs: state.dialogs.filter(d => d.extensionId !== id),
             editorTabs: state.editorTabs.filter(t => t.extensionId !== id),
-            styleConfigs: state.styleConfigs.filter(c => c.extensionId !== id)
+            styleConfigs: state.styleConfigs.filter(c => c.extensionId !== id),
+            burgOverviewColumns: state.burgOverviewColumns.filter(c => c.extensionId !== id),
+            stateOverviewColumns: state.stateOverviewColumns.filter(c => c.extensionId !== id),
+            cellInfoRows: state.cellInfoRows.filter(r => r.extensionId !== id)
           };
         });
       }

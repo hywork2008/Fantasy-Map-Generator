@@ -11,6 +11,7 @@ import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { useBurgsOverviewState } from "../store/burgsOverviewState";
 import { burgsRenamingDialogStore } from "../store/burgsRenamingDialogState";
+import { useExtensionState } from "../store/extensionState";
 import type { Burg } from "../types/models";
 import type { BurgsBubbleChartConfig } from "../ui/dialogs/BurgsBubbleChartDialog";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
@@ -50,7 +51,13 @@ export interface BurgRowData {
 export function filterAndSortBurgs(
   burgs: Burg[],
   options: BurgFilterOptions = {}
-): { rows: BurgRowData[]; totalPopulation: number; validCount: number } {
+): {
+  rows: BurgRowData[];
+  totalPopulation: number;
+  /** Sum of each registered burgOverviewColumn's value across the returned rows, keyed by column id. */
+  columnTotals: Record<string, number>;
+  validCount: number;
+} {
   const {
     searchText = "",
     filterStateId = -1,
@@ -100,6 +107,8 @@ export function filterAndSortBurgs(
     return { b, population, province, stateName, cultureName, features };
   });
 
+  const overviewColumns = useExtensionState.getState().burgOverviewColumns;
+
   const sorted = [...rows].sort((a, b) => {
     let valA: string | number = 0;
     let valB: string | number = 0;
@@ -124,13 +133,23 @@ export function filterAndSortBurgs(
     } else if (sortBy === "features") {
       valA = a.features;
       valB = b.features;
+    } else {
+      const column = overviewColumns.find(c => c.id === sortBy);
+      if (column) {
+        valA = column.getValue(a.b);
+        valB = column.getValue(b.b);
+      }
     }
     const cmp = typeof valA === "string" ? valA.localeCompare(valB as string) : valA - (valB as number);
     return sortOrder === "asc" ? cmp : -cmp;
   });
 
-  const total = sorted.reduce((acc, { population }) => acc + population, 0);
-  return { rows: sorted, totalPopulation: total, validCount: validBurgs.length };
+  const totalPopulation = sorted.reduce((acc, { population }) => acc + population, 0);
+  const columnTotals: Record<string, number> = {};
+  for (const column of overviewColumns) {
+    columnTotals[column.id] = sorted.reduce((acc, { b }) => acc + column.getValue(b), 0);
+  }
+  return { rows: sorted, totalPopulation, columnTotals, validCount: validBurgs.length };
 }
 
 export function overviewBurgs(settings: { stateId?: number | null; cultureId?: number | null } = {}): void {

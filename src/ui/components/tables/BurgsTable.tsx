@@ -6,6 +6,7 @@ import { editBurg } from "../../../controllers/burg-editor";
 import { burgHighlightOff, burgHighlightOn } from "../../../controllers/burg-highlight";
 import type { BurgRowData } from "../../../controllers/burgs-overview";
 import { showElementLockTip } from "../../../services/tooltipService";
+import { useExtensionState } from "../../../store/extensionState";
 import { si } from "../../../utils";
 import { IconButton } from "../IconButton";
 
@@ -32,6 +33,8 @@ export const BurgsTable: React.FC<BurgsTableProps> = ({
   onRemoveBurg,
   onToggleLock
 }) => {
+  const overviewColumns = useExtensionState(state => state.burgOverviewColumns);
+  const columnCount = 8 + overviewColumns.length;
   const parentRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
@@ -88,6 +91,20 @@ export const BurgsTable: React.FC<BurgsTableProps> = ({
             <SortHeader field="culture" label="Culture" width="7.2em" />
             <SortHeader field="group" label="Group" width="6.5em" />
             <SortHeader field="population" label="Population" numeric width="7em" />
+            {overviewColumns.map(column => (
+              <th
+                key={column.id}
+                data-tip={column.tip}
+                className={`sortable icon-sort-number-down ${sortBy === column.id ? "sort-active" : ""}`}
+                onClick={() => onSort(column.id)}
+                style={{ width: "5.5em", minWidth: "5.5em" }}
+              >
+                {column.label}
+                {sortBy === column.id && (
+                  <span className={sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down"} />
+                )}
+              </th>
+            ))}
             <SortHeader field="features" label="Feat." width="3.5em" />
             <th></th>
           </tr>
@@ -95,13 +112,13 @@ export const BurgsTable: React.FC<BurgsTableProps> = ({
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={8}>No burgs found</td>
+              <td colSpan={columnCount}>No burgs found</td>
             </tr>
           ) : (
             <>
               {paddingTop > 0 && (
                 <tr>
-                  <td colSpan={8} style={{ height: `${paddingTop}px` }} />
+                  <td colSpan={columnCount} style={{ height: `${paddingTop}px` }} />
                 </tr>
               )}
               {virtualItems.map(virtualRow => {
@@ -144,6 +161,17 @@ export const BurgsTable: React.FC<BurgsTableProps> = ({
                       <span data-tip="Burg population" className="icon-male" />
                       <input data-tip="Burg population" value={si(population)} disabled readOnly />
                     </td>
+                    {overviewColumns.map(column => (
+                      <td key={column.id} className={column.onClick ? "pointer" : undefined}>
+                        <input
+                          data-tip={column.tip}
+                          value={column.format(column.getValue(b))}
+                          disabled
+                          readOnly
+                          onClick={column.onClick ? () => column.onClick?.(b) : undefined}
+                        />
+                      </td>
+                    ))}
                     <td>
                       <div style={{ display: "inline-block" }}>
                         <span
@@ -174,7 +202,7 @@ export const BurgsTable: React.FC<BurgsTableProps> = ({
               })}
               {paddingBottom > 0 && (
                 <tr>
-                  <td colSpan={8} style={{ height: `${paddingBottom}px` }} />
+                  <td colSpan={columnCount} style={{ height: `${paddingBottom}px` }} />
                 </tr>
               )}
             </>

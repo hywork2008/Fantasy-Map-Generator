@@ -17,6 +17,7 @@ import { Burgs } from "../../generators/burgs-generator";
 import { tip } from "../../services/tooltipService";
 import { useBurgsOverviewState } from "../../store/burgsOverviewState";
 import { useDialogState } from "../../store/dialogState";
+import { useExtensionState } from "../../store/extensionState";
 import { si } from "../../utils";
 import { BurgsTable } from "../components/tables/BurgsTable";
 import { Dialog } from "./Dialog";
@@ -96,9 +97,11 @@ export const BurgsOverviewDialog: React.FC = () => {
     return Array.from(groups).sort();
   }, [refreshCounter]);
 
-  const { filteredBurgs, totalPopulation, validCount } = useMemo(() => {
+  const overviewColumns = useExtensionState(state => state.burgOverviewColumns);
+
+  const { filteredBurgs, totalPopulation, columnTotals, validCount } = useMemo(() => {
     void refreshCounter;
-    const { rows, totalPopulation, validCount } = filterAndSortBurgs(worldContext.pack?.burgs ?? [], {
+    const { rows, totalPopulation, columnTotals, validCount } = filterAndSortBurgs(worldContext.pack?.burgs ?? [], {
       searchText,
       filterStateId,
       filterCultureId,
@@ -107,7 +110,7 @@ export const BurgsOverviewDialog: React.FC = () => {
       sortBy,
       sortOrder
     });
-    return { filteredBurgs: rows, totalPopulation, validCount };
+    return { filteredBurgs: rows, totalPopulation, columnTotals, validCount };
   }, [refreshCounter, searchText, filterStateId, filterCultureId, filterProvinceId, filterGroup, sortBy, sortOrder]);
 
   const allLocked = useMemo(() => {
@@ -247,6 +250,12 @@ export const BurgsOverviewDialog: React.FC = () => {
             Average population:
             {filteredBurgs.length ? si(totalPopulation / filteredBurgs.length) : "0"}
           </div>
+          {overviewColumns.map(column => (
+            <div key={column.id} data-tip={`Average ${column.label.toLowerCase()}: ${column.tip}`}>
+              Average {column.label.toLowerCase()}:
+              {column.format(filteredBurgs.length ? (columnTotals[column.id] ?? 0) / filteredBurgs.length : 0)}
+            </div>
+          ))}
         </div>
 
         <div id="burgsFooter" className="footer">

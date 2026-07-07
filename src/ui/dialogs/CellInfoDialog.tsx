@@ -1,12 +1,14 @@
 import type React from "react";
 import { useCellInfoState } from "../../store/cellInfoState";
 import { useDialogState } from "../../store/dialogState";
+import { useExtensionState } from "../../store/extensionState";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 export const CellInfoDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("cellInfo"));
   const info = useCellInfoState();
+  const cellInfoRows = useExtensionState(state => state.cellInfoRows);
 
   return (
     <Dialog isOpen={isOpen} title="CellInfo" onClose={() => closeDialog("cellInfo")}>
@@ -69,18 +71,11 @@ export const CellInfoDialog: React.FC = () => {
           <p>
             <b>Danger:</b> <span>{info.danger}</span>
           </p>
-          <p>
-            <b>Good:</b> <span>{info.good}</span>
-          </p>
-          <p>
-            <b>Market:</b> <span>{info.market}</span>
-          </p>
-          <p>
-            <b>Cell Production:</b> <span>{info.cellProduction}</span>
-          </p>
-          <p>
-            <b>Burg Production:</b> <span>{info.burgProduction}</span>
-          </p>
+          {cellInfoRows.map(row => (
+            <p key={row.id}>
+              <b>{row.label}:</b> <span>{info.extra[row.id] ?? "n/a"}</span>
+            </p>
+          ))}
         </div>
       </div>
     </Dialog>

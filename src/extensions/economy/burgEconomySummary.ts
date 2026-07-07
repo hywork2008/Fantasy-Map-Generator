@@ -14,9 +14,11 @@ export function getBurgEconomySummary(burgId: number): BurgEconomySummary | null
     ? entries.map(([goodId, amount]) => `${Goods.get(+goodId)?.name ?? goodId} ${rn(amount, 2)}`).join(", ")
     : "none";
 
+  const wealth = burg.population && burg.population > 0 ? (burg.product || 0) / burg.population : 0;
+
   return {
     production,
-    wealth: formatPrice(burg.product || 0),
+    wealth: formatPrice(wealth),
     treasury: formatPrice(burg.treasury || 0)
   };
 }

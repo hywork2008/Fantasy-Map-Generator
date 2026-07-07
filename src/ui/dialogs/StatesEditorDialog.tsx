@@ -1,5 +1,6 @@
 import type React from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { worldContext } from "../../context/worldContext";
 import { statesEditorActions } from "../../controllers/states-editor";
 import { useExtensionState } from "../../store/extensionState";
 import { useStatesEditorState } from "../../store/statesEditorState";
@@ -13,6 +14,16 @@ export const StatesEditorContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const allEditorTabs = useExtensionState(state => state.editorTabs);
   const editorTabs = useMemo(() => allEditorTabs.filter(t => t.editorId === "statesEditor"), [allEditorTabs]);
+  const overviewColumns = useExtensionState(state => state.stateOverviewColumns);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { editorId?: string; tabId?: string } | undefined;
+      if (detail?.editorId === "statesEditor" && detail.tabId) setActiveTab(detail.tabId);
+    };
+    document.addEventListener("fmg:activate-editor-tab", handler);
+    return () => document.removeEventListener("fmg:activate-editor-tab", handler);
+  }, []);
   const {
     isPercentageMode,
     sortBy,
@@ -43,8 +54,15 @@ export const StatesEditorContent: React.FC = () => {
 
   const sortedStates = useMemo(() => {
     return [...states].sort((a, b) => {
-      let valA = a[sortBy as keyof typeof a];
-      let valB = b[sortBy as keyof typeof b];
+      let valA: string | number | undefined = a[sortBy as keyof typeof a] as string | number | undefined;
+      let valB: string | number | undefined = b[sortBy as keyof typeof b] as string | number | undefined;
+      if (valA === undefined && valB === undefined) {
+        const column = overviewColumns.find(c => c.id === sortBy);
+        if (column) {
+          valA = column.getValue(worldContext.pack.states[a.i]);
+          valB = column.getValue(worldContext.pack.states[b.i]);
+        }
+      }
       if (typeof valA === "string") valA = valA.toLowerCase();
       if (typeof valB === "string") valB = valB.toLowerCase();
 
@@ -52,7 +70,7 @@ export const StatesEditorContent: React.FC = () => {
       if (valA! > valB!) return 1 * sortDirection;
       return 0;
     });
-  }, [states, sortBy, sortDirection]);
+  }, [states, sortBy, sortDirection, overviewColumns]);
 
   const renderSortIcon = (field: string) => {
     if (sortBy !== field) return null;
@@ -168,6 +186,17 @@ export const StatesEditorContent: React.FC = () => {
                     Population
                     <span className={getSortIconNumber("population") || ""} />
                   </th>
+                  {overviewColumns.map(column => (
+                    <th
+                      key={column.id}
+                      data-tip={column.tip}
+                      className="sortable hide"
+                      onClick={() => statesEditorActions.changeSort(column.id)}
+                    >
+                      {column.label}
+                      <span className={getSortIconNumber(column.id) || ""} />
+                    </th>
+                  ))}
                   <th
                     data-tip="Click to sort by state type"
                     className="sortable alphabetically hidden show hide"
@@ -300,6 +329,22 @@ export const StatesEditorContent: React.FC = () => {
                           {populationText}
                         </span>
                       </td>
+                      {overviewColumns.map(column => {
+                        const state = worldContext.pack.states[s.i];
+                        return (
+                          <td
+                            key={column.id}
+                            className={`hide${column.onClick ? " pointer" : ""}`}
+                            onClick={() => (isNeutral || !column.onClick ? null : column.onClick(state))}
+                          >
+                            {isNeutral ? null : (
+                              <span data-tip={column.tip} className="hide">
+                                {column.format(column.getValue(state))}
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
                       <td className="hidden show hide">
                         {isNeutral ? null : (
                           <select
