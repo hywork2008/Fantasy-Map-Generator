@@ -3,11 +3,11 @@ export type Gender = "male" | "female";
 export interface TitleHolding {
   /** Gender-resolved display title, e.g. "King", "Prime Minister", "Khan". */
   title: string;
-  /** true = sovereign/territorial ruler; false = government office. */
+  /** true = sovereign/territorial ruler; false = government office or field command. */
   landed: boolean;
-  /** Literal union today; extend with "province" | "burg" once those levels are generated. */
-  entityType: "state";
-  /** pack.states[] id. */
+  /** "state" for rulers/central offices; "province" for landed frontier lords. Extend with "burg" once that level is generated. */
+  entityType: "state" | "province";
+  /** pack.states[] id when entityType is "state"; pack.provinces[] id when "province". */
   entityId: number;
   startYear?: number;
   endYear?: number;

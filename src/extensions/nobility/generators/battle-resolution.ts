@@ -1,6 +1,26 @@
 import type { StrategicGoal } from "../../../context/simulationContext";
-import type { ChronicleEvent } from "../../../types/models";
+import type { ChronicleEvent, MilitaryRegiment } from "../../../types/models";
 import { getWorldContext } from "../nobilityContext";
+import type { Character } from "./characterTypes";
+import { getRegimentCommander } from "./officerAssignment";
+
+/** Living character holding `title` for `stateId`, e.g. the state's Spymaster. */
+function findOfficeHolder(characters: Character[], stateId: number, title: string): Character | undefined {
+  return characters.find(
+    c => !c.dead && c.titles.some(t => t.entityType === "state" && t.entityId === stateId && t.title === title)
+  );
+}
+
+/**
+ * A regiment led by a dedicated officer (see officerAssignment.ts) fights above its raw
+ * headcount — up to +50% at Martial 100. Regiments without a commander fight at their
+ * plain troop count. This only scales the power total used to decide the battle's outcome;
+ * actual casualties below are still applied against real troop counts.
+ */
+function commanderPowerMultiplier(characters: Character[], regiment: MilitaryRegiment): number {
+  const commander = getRegimentCommander(characters, regiment);
+  return commander ? 1 + (commander.skills.martial / 100) * 0.5 : 1;
+}
 
 export const BattleResolutionGenerator = {
   resolveSiege(goal: StrategicGoal, attackerId: number) {
@@ -13,8 +33,10 @@ export const BattleResolutionGenerator = {
     if (!attackerState || !targetState || !targetBurg) return;
 
     // 1. Detection Phase (Spymaster vs Spymaster)
-    const attackerSpymaster = characters.find(c => c.i === attackerState.rulerId); // TODO: Get actual spymaster if implemented, fallback to ruler for now
-    const defenderSpymaster = characters.find(c => c.i === targetState.rulerId);
+    const attackerSpymaster =
+      findOfficeHolder(characters, attackerId, "Spymaster") ?? characters.find(c => c.i === attackerState.rulerId);
+    const defenderSpymaster =
+      findOfficeHolder(characters, goal.targetState, "Spymaster") ?? characters.find(c => c.i === targetState.rulerId);
 
     const attackerGuile = attackerSpymaster?.skills.intrigue ?? 50;
     const defenderGuile = defenderSpymaster?.skills.intrigue ?? 50;
@@ -60,7 +82,7 @@ export const BattleResolutionGenerator = {
       }
 
       if (arrives) {
-        defendingForceArrived += regiment.a;
+        defendingForceArrived += regiment.a * commanderPowerMultiplier(characters, regiment);
       }
     }
 
@@ -83,7 +105,7 @@ export const BattleResolutionGenerator = {
 
       // If they are on the same landmass, they can march. Or if they are very close (e.g., naval invasion across a strait).
       if (regimentLandmass === targetLandmass || dist < 300) {
-        attackerPower += regiment.a;
+        attackerPower += regiment.a * commanderPowerMultiplier(characters, regiment);
         attackingRegiments.push(regiment);
       }
     }

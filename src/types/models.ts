@@ -352,6 +352,8 @@ export interface MilitaryRegiment {
   garrisonHost?: number;
   /** True for the state's dedicated capital guard regiment (never merged with field armies). */
   isCapitalGuard?: boolean;
+  /** pack.characters id of the officer commanding this regiment, if one has been assigned. */
+  commanderId?: number;
 }
 
 export interface Platoon {

@@ -1,6 +1,7 @@
 import type React from "react";
 import { useState } from "react";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
+import type { TitleHolding } from "../../generators/characterTypes";
 import { getApi, getWorldContext } from "../../nobilityContext";
 import { RadarChart } from "../components/charts/RadarChart";
 import { useNobilityUiState } from "../nobilityUiState";
@@ -14,6 +15,7 @@ export const CharacterDetailsDialog: React.FC = () => {
   const worldContext = getWorldContext();
   const characters = worldContext.pack.characters ?? [];
   const states = worldContext.pack.states;
+  const provinces = worldContext.pack.provinces;
   const cultures = worldContext.pack.cultures;
   const burgs = worldContext.pack.burgs;
 
@@ -22,6 +24,13 @@ export const CharacterDetailsDialog: React.FC = () => {
   if (!isOpen || !character) {
     return null;
   }
+
+  // "state" titles (rulers, central offices, field/fleet officers) point at pack.states;
+  // "province" titles (frontier lords) point at pack.provinces — same entityId space, different table.
+  const getTitleEntityName = (t: TitleHolding) =>
+    t.entityType === "province"
+      ? (provinces?.[t.entityId]?.name ?? "Unknown")
+      : (states[t.entityId]?.name ?? "Unknown");
 
   const cultureName = cultures[character.culture]?.name ?? "Unknown";
 
@@ -107,9 +116,9 @@ export const CharacterDetailsDialog: React.FC = () => {
     if (character.titles && character.titles.length > 0) {
       rows.push("Titles");
       character.titles.forEach(t => {
-        const stateName = states[t.entityId]?.name ?? "Unknown";
+        const entityName = getTitleEntityName(t);
         rows.push(
-          `${t.title} of ${stateName}, ${t.landed ? "(Landed)" : ""} ${t.startYear ? `[Since ${t.startYear}]` : ""}`
+          `${t.title} of ${entityName}, ${t.landed ? "(Landed)" : ""} ${t.startYear ? `[Since ${t.startYear}]` : ""}`
         );
       });
     }
@@ -117,8 +126,8 @@ export const CharacterDetailsDialog: React.FC = () => {
     if (character.pastTitles && character.pastTitles.length > 0) {
       rows.push("Past Titles");
       character.pastTitles.forEach(t => {
-        const stateName = states[t.entityId]?.name ?? "Unknown";
-        let titleStr = `${t.title} of ${stateName}, ${t.startYear ?? "?"} - ${t.endYear ?? "?"}`;
+        const entityName = getTitleEntityName(t);
+        let titleStr = `${t.title} of ${entityName}, ${t.startYear ?? "?"} - ${t.endYear ?? "?"}`;
         if (t.reason) titleStr += ` (${t.reason})`;
         rows.push(titleStr);
       });
@@ -242,7 +251,7 @@ export const CharacterDetailsDialog: React.FC = () => {
                   <ul style={{ margin: 0, listStyleType: "none", padding: 0 }}>
                     {character.titles.map(t => (
                       <li key={`${t.entityType}-${t.entityId}-${t.title}`}>
-                        {t.title} of {states[t.entityId]?.name ?? "Unknown"} {t.landed ? "(Landed)" : ""}{" "}
+                        {t.title} of {getTitleEntityName(t)} {t.landed ? "(Landed)" : ""}{" "}
                         {t.startYear ? `[Since ${t.startYear}]` : ""}
                       </li>
                     ))}
@@ -258,7 +267,7 @@ export const CharacterDetailsDialog: React.FC = () => {
                     {character.pastTitles.map((t, idx) => (
                       // biome-ignore lint/suspicious/noArrayIndexKey: Past titles can be identical
                       <li key={`past-${idx}`}>
-                        {t.title} of {states[t.entityId]?.name ?? "Unknown"} ({t.startYear ?? "?"} - {t.endYear ?? "?"})
+                        {t.title} of {getTitleEntityName(t)} ({t.startYear ?? "?"} - {t.endYear ?? "?"})
                         {t.reason ? <span style={{ color: "#adb5bd", fontStyle: "italic" }}> - {t.reason}</span> : null}
                       </li>
                     ))}

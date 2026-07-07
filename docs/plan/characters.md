@@ -9,7 +9,7 @@
 * **Age (年齢)**: キャラクターの年齢。寿命や後継者問題に直結します。
 * **Gender (性別)**: 男性・女性。国家の継承法や文化によって扱いが変わる場合があります。
 * **Culture (文化/種族)**: キャラクターの属する文化圏や種族（例: 人間、エルフ、ゴブリンなど）。寿命や繁殖力、他文化との相性に影響します。
-* **Title (役職)**: 君主（Ruler）、軍務卿（Marshal）、諜報長官（Spymaster）などの役職。
+* **Title (役職)**: 君主（Ruler）、軍務卿（Marshal）、諜報長官（Spymaster）などの中央官職に加え、前線・部隊レベルのNPC（連隊指揮官の Commander/Admiral、辺境州の領主）も同じ `TitleHolding` の仕組みで表現される。詳細は `docs/plan/char.md` を参照。
 
 ## 2. トロフィー価値 (Trophy Value)
 政略結婚や外交において、他国から見た「魅力」や「ブランド力」を示す指標です。（1〜100）
@@ -94,3 +94,17 @@ AIによる国家の行動パターン（AI Personality）を決定づける最�
    * さらに `Guile`（狡猾さ）が高い場合、この横領は巧妙に隠蔽されて長期間にわたり国力を削ぎ落としますが、低い場合はすぐに露見して政争や粛清の引き金となります。
 
 このように、個人の能力と性格のゆらぎがマクロな国家の挙動を決定し、毎回異なる予測不可能な「歴史的事件」や「国際情勢の不安定さ」を自動生成するシステムの中核を担います。
+
+### 登場年齢と加齢による衰え
+
+src/extensions/nobility/generators/characters-generator.ts
+
+const MIN_RULER_AGE = 28;
+const MAX_RULER_AGE = 65;
+
+const MIN_OFFICER_AGE = 22;
+const MAX_OFFICER_AGE = 60;
+
+const DECLINE_AGE_THRESHOLD = 35;
+const APPEARANCE_DECLINE_PER_YEAR = 1.5;
+const PROWESS_DECLINE_PER_YEAR = 2;

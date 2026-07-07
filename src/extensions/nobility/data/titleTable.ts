@@ -1,4 +1,4 @@
-import type { State } from "../../hostTypes";
+import type { Province, State } from "../../hostTypes";
 import type { CharacterSkills, Gender } from "../generators/characterTypes";
 
 interface GenderedTitle {
@@ -46,6 +46,57 @@ export function resolveRulerTitle(state: Pick<State, "form" | "formName">, gende
     (state.formName && FORMNAME_TITLES[state.formName]) ||
     (state.form && FORM_FALLBACK_TITLES[state.form]) ||
     DEFAULT_TITLE;
+  return table[gender];
+}
+
+// Keyed by Province.formName, reusing the exact vocabulary produced by the per-state-form
+// title pools in defineProvinceForms() in src/generators/provinces-generator.ts. Landed
+// province lords (frontier margraves/counts/etc. — see assignProvinceLords()) resolve their
+// title from this table so it matches the flavor text already on the map instead of a
+// single generic "Margrave" for every frontier province.
+const PROVINCE_FORMNAME_TITLES: Record<string, GenderedTitle> = {
+  // Monarchy provinces
+  County: { male: "Count", female: "Countess" },
+  Earldom: { male: "Earl", female: "Countess" },
+  Shire: { male: "Sheriff", female: "Sheriff" },
+  Landgrave: { male: "Landgrave", female: "Landgravine" },
+  Margrave: { male: "Margrave", female: "Margravine" },
+  Barony: { male: "Baron", female: "Baroness" },
+  Captaincy: { male: "Captain", female: "Captain" },
+  Seneschalty: { male: "Seneschal", female: "Seneschal" },
+  // Theocracy provinces
+  Parish: { male: "Vicar", female: "Vicar" },
+  Deanery: { male: "Dean", female: "Dean" },
+  // Republic / Union provinces
+  Province: { male: "Governor", female: "Governor" },
+  Department: { male: "Prefect", female: "Prefect" },
+  Governorate: { male: "Governor", female: "Governor" },
+  District: { male: "Magistrate", female: "Magistrate" },
+  Canton: { male: "Magistrate", female: "Magistrate" },
+  Prefecture: { male: "Prefect", female: "Prefect" },
+  State: { male: "Governor", female: "Governor" },
+  Republic: { male: "Governor", female: "Governor" },
+  Council: { male: "Councilor", female: "Councilor" },
+  // Anarchy provinces
+  Commune: { male: "Chief", female: "Chief" },
+  Community: { male: "Elder", female: "Elder" },
+  Tribe: { male: "Chieftain", female: "Chieftain" },
+  // Wild/leftover provinces
+  Island: { male: "Lord", female: "Lady" },
+  Islands: { male: "Lord", female: "Lady" },
+  Colony: { male: "Governor", female: "Governor" },
+  Territory: { male: "Warden", female: "Warden" },
+  Land: { male: "Warden", female: "Warden" },
+  Region: { male: "Warden", female: "Warden" },
+  Clan: { male: "Clan Chief", female: "Clan Chief" },
+  Dependency: { male: "Steward", female: "Steward" },
+  Area: { male: "Warden", female: "Warden" }
+};
+
+const DEFAULT_PROVINCE_LORD_TITLE: GenderedTitle = { male: "Lord", female: "Lady" };
+
+export function resolveProvinceLordTitle(province: Pick<Province, "formName">, gender: Gender): string {
+  const table = (province.formName && PROVINCE_FORMNAME_TITLES[province.formName]) || DEFAULT_PROVINCE_LORD_TITLE;
   return table[gender];
 }
 

@@ -11,6 +11,8 @@ import { Characters } from "./generators/characters-generator";
 import type { CharacterSkills } from "./generators/characterTypes";
 import { applyAffinitiesToDiplomacy } from "./generators/diplomacy-modifier";
 import { Espionage } from "./generators/espionage-generator";
+import { assignOfficers } from "./generators/officerAssignment";
+import { assignProvinceLords } from "./generators/provinceLordGenerator";
 import { StrategicPlanner } from "./generators/strategic-planner";
 import { clearNobilityContext, getWorldContext, initNobilityContext } from "./nobilityContext";
 import { StatesEditorPersonalityTab } from "./ui/components/StatesEditorPersonalityTab";
@@ -90,6 +92,8 @@ export function init(api: ExtensionAPI): void {
       Characters.generate();
       applyAffinitiesToDiplomacy();
       applyPersonalityToCapitalGuard();
+      assignOfficers();
+      assignProvinceLords();
       Espionage.generate();
       StrategicPlanner.generate();
     }
@@ -124,6 +128,8 @@ export function init(api: ExtensionAPI): void {
       Characters.generate();
       applyAffinitiesToDiplomacy();
       applyPersonalityToCapitalGuard();
+      assignOfficers();
+      assignProvinceLords();
       Espionage.generate();
       StrategicPlanner.generate();
     }
@@ -133,6 +139,8 @@ export function init(api: ExtensionAPI): void {
   api.registerTimeTickHook(deltaYears => {
     if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return;
     Characters.advanceAge(deltaYears);
+    assignOfficers();
+    assignProvinceLords();
     Espionage.generate();
     StrategicPlanner.generate();
     const bordersChanged = StrategicPlanner.advanceTension();
@@ -140,6 +148,7 @@ export function init(api: ExtensionAPI): void {
     if (bordersChanged) {
       const worldState = window.fmg.actions.getWorldState();
       Military.generate(api.worldContext, api.viewContext, api.appServices, worldState);
+      assignOfficers(); // Military.generate() rebuilt state.military from scratch — refill commander slots
 
       if (api.layerIsOn("toggleStates")) StatesRenderer.render(api.worldContext, api.viewContext, api.appServices);
       if (api.layerIsOn("toggleBorders")) BordersRenderer.render(api.worldContext, api.viewContext, api.appServices);

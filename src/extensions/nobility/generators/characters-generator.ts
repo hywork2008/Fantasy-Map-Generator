@@ -1,7 +1,8 @@
 import Alea from "alea";
 import { Names } from "../../hostCore";
+import type { Province, State } from "../../hostTypes";
 import { P, rand, TIME } from "../../hostUtils";
-import { CENTRAL_OFFICES, resolveRulerTitle } from "../data/titleTable";
+import { CENTRAL_OFFICES, resolveProvinceLordTitle, resolveRulerTitle } from "../data/titleTable";
 import { getWorldContext } from "../nobilityContext";
 import { calculateCharacterTraits } from "../utils/personalityUtils";
 import type { Character, CharacterFamily, CharacterPersonality, CharacterSkills, Gender } from "./characterTypes";
@@ -17,6 +18,9 @@ export type {
 
 const MIN_RULER_AGE = 28;
 const MAX_RULER_AGE = 65;
+
+const MIN_OFFICER_AGE = 22;
+const MAX_OFFICER_AGE = 60;
 
 /** Physical decline sets in past this age — mirrors the generation-time formula in createPerson(). */
 const DECLINE_AGE_THRESHOLD = 35;
@@ -150,6 +154,54 @@ export class CharactersModule {
         ruler.affinities[other.i] = Math.max(-100, Math.min(100, affinity));
       }
     }
+  }
+
+  /**
+   * Creates a standalone field/fleet officer for `state` and appends them to pack.characters.
+   * Unlike the fixed central offices, officers are not part of every state's roster —
+   * callers (see officerAssignment.ts) decide sparsely and randomly which regiments get one.
+   */
+  createOfficer(
+    state: Pick<State, "i" | "culture" | "form" | "formName" | "capital">,
+    title: "Commander" | "Admiral"
+  ): Character {
+    const { pack } = this.worldContext;
+    const nextId = Math.max(0, ...pack.characters.map(c => c.i), -1) + 1;
+    const officer = this.createPerson(nextId, state.culture, "martial", state, rand(MIN_OFFICER_AGE, MAX_OFFICER_AGE));
+    officer.location = state.capital;
+    officer.titles.push({
+      title,
+      landed: false,
+      entityType: "state",
+      entityId: state.i,
+      startYear: this.worldContext.options.year
+    });
+    pack.characters.push(officer);
+    return officer;
+  }
+
+  /**
+   * Creates a landed lord for a frontier province and appends them to pack.characters.
+   * Only provinces flagged as a frontier by getProvinceThreats() get one — see
+   * provinceLordGenerator.ts — so interior provinces don't add to the character roster.
+   */
+  createProvinceLord(
+    state: Pick<State, "i" | "culture" | "form" | "formName">,
+    province: Pick<Province, "i" | "formName" | "burg">
+  ): Character {
+    const { pack } = this.worldContext;
+    const nextId = Math.max(0, ...pack.characters.map(c => c.i), -1) + 1;
+    const lord = this.createPerson(nextId, state.culture, "martial", state, rand(MIN_RULER_AGE, MAX_RULER_AGE));
+    lord.location = province.burg;
+    lord.titles.push({
+      title: resolveProvinceLordTitle(province, lord.gender),
+      landed: true,
+      entityType: "province",
+      entityId: province.i,
+      startYear: this.worldContext.options.year
+    });
+    pack.characters.push(lord);
+    return lord;
   }
 
   clear() {
@@ -391,7 +443,9 @@ export class CharactersModule {
     let nextId = Math.max(0, ...pack.characters.map(c => c.i)) + 1;
 
     for (const state of states) {
-      const livingStateChars = pack.characters.filter(c => !c.dead && c.titles.some(t => t.entityId === state.i));
+      const livingStateChars = pack.characters.filter(
+        c => !c.dead && c.titles.some(t => t.entityType === "state" && t.entityId === state.i)
+      );
 
       let rulerVacant = false;
       let currentRuler = pack.characters.find(c => c.i === state.rulerId);

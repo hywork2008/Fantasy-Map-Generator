@@ -48,7 +48,7 @@
 - 王や皇帝は首都に近衛兵団を持つ。首都が脅威にさらされていなければ普通サイズ、脅威が高いほど厚くする
 - 国家は州（Province）ごとに兵団を持たせるが、前線でない（周囲が自国領の）州の兵団は解体し、敵国に近い方面へ再配置する
 - 都市ごとの衛兵は不採用（アイコンが増えすぎるため）
-- 1国家あたり近衛兵団1＋野戦軍1〜2個、**合計2〜3個**に集約し、どの方面も手薄にならないようにする
+- 1国家あたり近衛兵団1＋野戦軍を少数に集約し、どの方面も手薄にならないようにする（当初の目安は野戦軍1〜2個だったが、`MAX_FIELD_ARMIES` は後の `refactor: increase MAX_FIELD_ARMIES...` コミットで9まで引き上げられている。州単位の粒度をなるべく保つための調整で、以下の「検証結果」の連隊数もそれに合わせて読み替えること）
 - 小隊・中隊・大隊・師団・旅団のような編成階級を、規模に応じた表示名として使う
 - 臆病で猜疑心の強い君主（Nobility 拡張）は、近衛兵団を自国の他のどの部隊よりも必ず多くする
 
@@ -75,7 +75,7 @@ getProvinceThreats(pack, segments): Map<provinceId, { totalWeight, primaryNeighb
 1. **首都の分離**: 首都のセルから生まれた `Platoon` は州のプールに混ぜず、別枠の「近衛候補プール」に集める。
 2. **州ごとのプール化**: 残りの陸上 `Platoon` を `province`（0なら国家全体をひとまとめの疑似州として扱う）ごとに合算する。
 3. **前線判定と統合**: `getProvinceThreats()` で得た州ごとの `primaryNeighbor` でグルーピングし、隣国ごとに1個の野戦軍バケットを作る。前線に接しない州は「予備プール」に合算し、最終的に残った野戦軍バケットへ脅威度比で按分して合流させる。
-   - 野戦軍バケットが `MAX_FIELD_ARMIES = 2` を超える場合、脅威度合計が低いバケットから順に、最も強いバケットへ吸収合併する。
+   - 野戦軍バケットが `MAX_FIELD_ARMIES` を超える場合、脅威度合計が低いバケットから順に、最も強いバケットへ吸収合併する（この値は当初2だったが、州単位の粒度を保つため後に9へ引き上げ済み — `src/generators/military-generator.ts` 参照）。
    - 敵対国境が1つも無い（完全に平和な）国家は、予備プール全体を1個の野戦軍としてまとめる。
 4. **近衛兵団**: 近衛候補プールから1個の専属連隊（`isCapitalGuard: true`）を作る。首都の州自体が前線（`getProvinceThreats` で脅威度あり）なら `1 + threatWeight * CAPITAL_GUARD_THREAT_MULTIPLIER`（0.5）倍のボーナスを掛け、脅威がなければ等倍（普通サイズ）のまま。
 5. **海軍**: 全ての海軍 `Platoon` を1個の艦隊（Fleet）に統合。
@@ -97,7 +97,7 @@ getProvinceThreats(pack, segments): Map<provinceId, { totalWeight, primaryNeighb
 
 ### 検証結果
 
-- 実マップ生成（複数seed）で、全国家の陸上連隊数が近衛兵団＋野戦軍最大2個＝**最大3個**に収まっていることを確認
+- 実マップ生成（複数seed）で、全国家の陸上連隊数が近衛兵団＋野戦軍（当時の上限で最大2個、合計**最大3個**）に収まっていることを確認 — 上限は後に`MAX_FIELD_ARMIES = 9`へ引き上げられているため、現行コードでの連隊数上限はこの記述より大きい
 - 内陸州の兵が前線の野戦軍に合流し、単独の州だけでは説明できない兵力になっていることを確認
 - 軍隊レイヤーのスクリーンショットで、連隊アイコンの数が修正前（数十個）から大幅に減少していることを目視確認
 
@@ -109,3 +109,4 @@ getProvinceThreats(pack, segments): Map<provinceId, { totalWeight, primaryNeighb
 - Economy 拡張の treasury（金）を使った貢納の上乗せ
 - `CharacterPersonality` への `paranoia`（猜疑心）パラメータの追加、および `capitalGuardModifier.ts` の判定ロジックの差し替え
 - 兵站（補給線）による野戦軍の兵力上限（`docs/analytics/military-frontier-repositioning.md` からの持ち越し課題）
+- ~~連隊を率いる武官（Commander/Admiral）と、辺境州の領主（Margrave等）の生成~~ → 実装済み。詳細は `docs/plan/char.md` と `src/extensions/nobility/generators/officerAssignment.ts` / `provinceLordGenerator.ts` を参照。`strategic-planner.ts`（AIの侵攻計画判定）の戦力見積もりはまだ武官ボーナスを見ていない点は未解消— `battle-resolution.ts` の実戦闘解決だけが対応済み。
