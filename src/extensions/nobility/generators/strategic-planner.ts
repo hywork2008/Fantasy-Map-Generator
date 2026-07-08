@@ -4,7 +4,12 @@ import { buildSeaRouteGraph, findSeaRouteDistance } from "../../../generators/se
 import { useOptionsState } from "../../../store/optionsState";
 import { getWorldContext } from "../nobilityContext";
 import { BattleResolutionGenerator } from "./battle-resolution";
-import { estimateLocalDefendingForce } from "./localDefense";
+import {
+  calculateEffectiveSiegePower,
+  commanderPowerMultiplier,
+  estimateLocalDefendingForce,
+  regimentReinforcementRadius
+} from "./localDefense";
 
 /**
  * Attack-force multiplier required over the perceived defense. A fortified target
@@ -63,6 +68,7 @@ export class StrategicPlannerGenerator {
         if (!intel) continue; // No intel? can't plan
 
         const isSeaSegment = segment.origin === "sea";
+        if (isSeaSegment) continue; // FUTURE: Naval invasions. Disable for now.
 
         // Find the frontier burg to target. Sea segments can only reasonably invade the
         // target's own ports (routes connect ports — see docs/plan/naval-sea-lanes.md §1.2
@@ -99,6 +105,10 @@ export class StrategicPlannerGenerator {
 
         if (targetBurg === -1) continue;
 
+        const targetBurgData = pack.burgs[targetBurg];
+        const isFortified = !!(targetBurgData?.citadel || targetBurgData?.walls);
+        const militaryOptions = options.military || [];
+
         // Calculate local attacker power. Sea segments only count naval regiments (fleets,
         // which also carry any embarked marines as part of the same regiment — see
         // military-generator.ts's marine-embark logic) reachable by charted sea route to the
@@ -110,23 +120,16 @@ export class StrategicPlannerGenerator {
           for (const regiment of attacker.military || []) {
             if (regiment.a <= 0 || !regiment.n) continue;
             if (findSeaRouteDistance(seaRouteGraph, regiment.cell, targetPortCell) !== null) {
-              localAttackerPower += regiment.a;
+              const effectivePower = calculateEffectiveSiegePower(regiment, isFortified, militaryOptions);
+              localAttackerPower += effectivePower * commanderPowerMultiplier(characters, regiment);
             }
           }
         } else {
-          const targetLandmass = pack.cells.f[pack.burgs[targetBurg].cell];
           for (const regiment of attacker.military || []) {
             if (regiment.a <= 0) continue;
 
-            const regimentCell = pack.cells.i.find(
-              (_, i) => pack.cells.p[i][0] === regiment.x && pack.cells.p[i][1] === regiment.y
-            );
-            const regimentLandmass = regimentCell !== undefined ? pack.cells.f[regimentCell] : -1;
-            const dist = Math.hypot(regiment.x - pack.burgs[targetBurg].x, regiment.y - pack.burgs[targetBurg].y);
-
-            if (regimentLandmass === targetLandmass || dist < 300) {
-              localAttackerPower += regiment.a;
-            }
+            const effectivePower = calculateEffectiveSiegePower(regiment, isFortified, militaryOptions);
+            localAttackerPower += effectivePower * commanderPowerMultiplier(characters, regiment);
           }
         }
 
@@ -138,12 +141,10 @@ export class StrategicPlannerGenerator {
         // state's total army is usually many times larger than what a single border
         // town can muster, and using it here made every burg look impregnable
         // regardless of how it was actually defended.
-        const targetBurgData = pack.burgs[targetBurg];
         const perceivedDefense = estimateLocalDefendingForce(pack, targetBurgData, characters, seaRouteGraph);
 
         // Fortified targets (citadel/walls) need the classic 3x siege ratio; an
         // unfortified town in the open only needs a solid numerical edge.
-        const isFortified = !!(targetBurgData?.citadel || targetBurgData?.walls);
         let requiredAttackForce = perceivedDefense * (isFortified ? FORTIFIED_ATTACK_RATIO : FIELD_ATTACK_RATIO);
 
         let expectedCasualties: StrategicGoal["expectedCasualties"] = "moderate";
@@ -193,7 +194,8 @@ export class StrategicPlannerGenerator {
             type: "siege",
             tension: 10 + Math.random() * 20,
             expectedCasualties,
-            justification: isCornered ? "overwhelming_force_crush" : "border_expansion"
+            justification: isCornered ? "overwhelming_force_crush" : "border_expansion",
+            requiredAttackForce
           });
         }
       }
@@ -247,17 +249,47 @@ export class StrategicPlannerGenerator {
           if (target?.diplomacy) {
             target.diplomacy[stateId] = "Enemy";
           }
-          const burgName = pack.burgs[goal.targetBurg]?.name || "Unknown City";
-          console.warn(
-            `⚔️ WAR DECLARED: State ${state.name} has laid siege to ${burgName} of State ${target?.name}! (Expected Casualties: ${goal.expectedCasualties})`
-          );
 
-          // Resolve the siege
-          BattleResolutionGenerator.resolveSiege(goal, stateId);
+          // Check if enough troops have arrived to initiate the siege
+          let arrivedAttackerPower = 0;
+          const targetBurgObj = pack.burgs[goal.targetBurg];
+          const isFortified = !!(targetBurgObj?.citadel || targetBurgObj?.walls);
+          const characters = pack.characters || [];
+          const militaryOptions = getWorldContext().options.military || [];
 
-          // Once war is triggered, this specific goal is "consumed"
-          // We don't add it to validGoals, so it gets removed
-          warOccurred = true;
+          if (targetBurgObj) {
+            for (const regiment of state.military || []) {
+              if (regiment.a <= 0) continue;
+              if (regiment.n) continue; // Skip naval for land sieges currently
+
+              const dist = Math.hypot(regiment.x - targetBurgObj.x, regiment.y - targetBurgObj.y);
+              if (dist <= regimentReinforcementRadius(regiment)) {
+                const effectivePower = calculateEffectiveSiegePower(regiment, isFortified, militaryOptions);
+                arrivedAttackerPower += effectivePower * commanderPowerMultiplier(characters, regiment);
+              }
+            }
+          }
+
+          // Wait until at least 50% of the originally required attack force has physically arrived
+          // AND at least SOME troops must have arrived (power > 0)
+          const required = (goal.requiredAttackForce || 0) * 0.5;
+          if (arrivedAttackerPower > 0 && arrivedAttackerPower >= required) {
+            const burgName = targetBurgObj?.name || "Unknown City";
+            console.warn(
+              `⚔️ WAR DECLARED & SIEGE BEGUN: State ${state.name} has laid siege to ${burgName} of State ${target?.name}!`
+            );
+
+            // Resolve the siege
+            BattleResolutionGenerator.resolveSiege(goal, stateId);
+
+            // Once war is triggered, this specific goal is "consumed"
+            warOccurred = true;
+          } else {
+            // Troops are still marching or haven't gathered enough force yet.
+            // Keep tension at 100 and wait for them to arrive.
+            goal.tension = 100;
+            validGoals.push(goal);
+          }
         } else {
           // Keep the goal
           validGoals.push(goal);
@@ -265,9 +297,65 @@ export class StrategicPlannerGenerator {
       }
 
       // Keep only valid and unresolved goals
-      strategicGoals[stateId] = validGoals;
     }
     return warOccurred;
+  }
+
+  public evaluatePlans(): void {
+    const { strategicGoals } = simulationContext;
+    const { pack, options } = getWorldContext();
+    const characters = pack.characters || [];
+    const militaryOptions = options.military || [];
+    const seaRouteGraph = buildSeaRouteGraph(pack);
+
+    for (const stateIdStr in strategicGoals) {
+      const stateId = Number(stateIdStr);
+      const goals = strategicGoals[stateId];
+      if (!goals || goals.length === 0) continue;
+
+      const attacker = pack.states[stateId];
+      if (!attacker || attacker.removed) continue;
+
+      for (let i = goals.length - 1; i >= 0; i--) {
+        const goal = goals[i];
+        const targetBurgObj = pack.burgs[goal.targetBurg];
+        if (!targetBurgObj || targetBurgObj.state === stateId) {
+          goals.splice(i, 1);
+          continue;
+        }
+
+        const isFortified = !!(targetBurgObj.citadel || targetBurgObj.walls);
+
+        let localAttackerPower = 0;
+        for (const regiment of attacker.military || []) {
+          if (regiment.a <= 0) continue;
+
+          const effectivePower = calculateEffectiveSiegePower(regiment, isFortified, militaryOptions);
+          localAttackerPower += effectivePower * commanderPowerMultiplier(characters, regiment);
+        }
+
+        // Just like in generate(), but we recalculate to see if situation changed
+        const perceivedDefense = estimateLocalDefendingForce(pack, targetBurgObj, characters, seaRouteGraph);
+        const requiredAttackForce = perceivedDefense * (isFortified ? FORTIFIED_ATTACK_RATIO : FIELD_ATTACK_RATIO);
+
+        // If the attacker force is less than 80% of required, cancel the goal
+        if (localAttackerPower < requiredAttackForce * 0.8) {
+          console.log(
+            `[StrategicPlanner] State ${stateId} withdrawing troops from siege of ${targetBurgObj.name} (Power: ${localAttackerPower.toFixed()} vs Req: ${requiredAttackForce.toFixed()})`
+          );
+          goals.splice(i, 1);
+
+          for (const regiment of attacker.military || []) {
+            if (regiment.destinationCell !== undefined) {
+              regiment.destinationCell = undefined;
+              regiment.path = undefined;
+              regiment.pathIndex = undefined;
+              regiment.actionStatus = "waiting";
+            }
+          }
+        }
+      }
+    }
   }
 }
 

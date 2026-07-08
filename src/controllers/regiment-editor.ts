@@ -38,7 +38,7 @@ let _regDragState: {
   baseLine: d3.Selection<SVGLineElement, unknown, null, undefined>;
   rotationControl: d3.Selection<SVGCircleElement, unknown, null, undefined>;
 } | null = null;
-let _baseDragReg: MilitaryRegiment | null = null;
+const _baseDragReg: MilitaryRegiment | null = null;
 
 function getRegEl(): SVGGElement {
   return elSelected!.node() as SVGGElement;
@@ -72,33 +72,39 @@ function syncRegimentState(regiment: MilitaryRegiment, stateId: number): void {
   });
 }
 
-function drawBase(): void {
+function drawMarchRoute(): void {
   const reg = getRegiment()!;
-  const clr = worldContext.pack.states[getRegimentEditorState().stateId!].color ?? "";
-  const base = view.viewbox
-    .insert("g", "g#armies")
-    .attr("id", "regimentBase")
-    .attr("stroke-width", 0.3)
-    .attr("stroke", "#000")
-    .attr("cursor", "move");
-  base
-    .on("mouseenter", () => tip("Regiment base. Drag to re-base the regiment", true))
-    .on("mouseleave", () => tip("", true));
+  const clr = worldContext.pack.states[getRegimentEditorState().stateId!].color ?? "#ff0000";
 
-  base
-    .append("line")
-    .attr("x1", reg.bx)
-    .attr("y1", reg.by)
-    .attr("x2", reg.x)
-    .attr("y2", reg.y)
-    .attr("class", "regimentDragLine");
-  base
-    .append("circle")
-    .attr("cx", reg.bx)
-    .attr("cy", reg.by)
-    .attr("r", 2)
-    .attr("fill", clr)
-    .call(drag<SVGCircleElement, unknown>().on("start", dragBaseStart).on("drag", dragBaseDrag).on("end", dragBaseEnd));
+  const routeGroup = view.viewbox
+    .insert("g", "g#armies")
+    .attr("id", "regimentMarchRoute")
+    .attr("pointer-events", "none");
+
+  if (!reg.path || reg.path.length === 0) return;
+
+  const pathIndex = reg.pathIndex || 0;
+  // Start from the current exact position
+  let d = `M ${reg.x},${reg.y}`;
+
+  // Connect through the remaining cells in the path
+  for (let i = pathIndex; i < reg.path.length; i++) {
+    const cellId = reg.path[i];
+    const p = worldContext.pack.cells.p[cellId];
+    if (p) {
+      d += ` L ${p[0]},${p[1]}`;
+    }
+  }
+
+  routeGroup
+    .append("path")
+    .attr("d", d)
+    .attr("fill", "none")
+    .attr("stroke", clr)
+    .attr("stroke-width", 2)
+    .attr("stroke-dasharray", "4,4")
+    .attr("opacity", 0.8)
+    .style("animation", "dash 1s linear infinite");
 }
 
 function drawRotationControl(): void {
@@ -186,26 +192,9 @@ function dragRegimentDrag(this: SVGGElement, event: d3.D3DragEvent<SVGGElement, 
   }
 }
 
-function dragBaseStart(): void {
-  _baseDragReg = getRegiment() ?? null;
-}
-
-function dragBaseDrag(this: SVGCircleElement, event: d3.D3DragEvent<SVGCircleElement, unknown, unknown>): void {
-  this.setAttribute("cx", String(event.x));
-  this.setAttribute("cy", String(event.y));
-  view.viewbox.select("g#regimentBase > line").attr("x1", event.x).attr("y1", event.y);
-}
-
-function dragBaseEnd(this: SVGCircleElement, event: d3.D3DragEvent<SVGCircleElement, unknown, unknown>): void {
-  if (_baseDragReg) {
-    _baseDragReg.bx = event.x;
-    _baseDragReg.by = event.y;
-  }
-}
-
 function closeEditor(): void {
   view.debug.selectAll("*").remove();
-  view.viewbox.selectAll("g#regimentBase").remove();
+  view.viewbox.selectAll("g#regimentMarchRoute").remove();
   view.armies.selectAll(":scope > g").classed("draggable", false);
   view.armies.selectAll<SVGGElement, unknown>("g>g").call(drag<SVGGElement, unknown>().on("drag", null));
   setRegimentEditorState({ isOpen: false, mode: "normal" });
@@ -234,7 +223,7 @@ export function editRegiment(selectorOrEl?: string | Element): void {
   if (!reg) return;
 
   syncRegimentState(reg, stateId);
-  drawBase();
+  drawMarchRoute();
   drawRotationControl();
 
   setRegimentEditorState({ isOpen: true, mode: "normal" });

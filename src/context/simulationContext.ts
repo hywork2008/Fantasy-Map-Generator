@@ -15,6 +15,7 @@ export interface StrategicGoal {
   tension: number;
   expectedCasualties: "low" | "moderate" | "high_cornered";
   justification: string;
+  requiredAttackForce: number;
 }
 
 export interface SimulationContext {

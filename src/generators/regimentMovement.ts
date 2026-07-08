@@ -180,10 +180,20 @@ function planLandMarchOrder(
     return;
   }
 
+  const oldNextCell =
+    r.path && r.pathIndex !== undefined && r.pathIndex < r.path.length - 1 ? r.path[r.pathIndex + 1] : undefined;
+
   r.destinationCell = destinationCell;
   r.path = path;
   r.pathIndex = 0;
-  r.edgeProgress = 0;
+
+  // If the new path starts by walking along the exact same edge we are currently on, preserve our progress
+  if (oldNextCell !== undefined && path.length > 1 && path[1] === oldNextCell) {
+    // leave r.edgeProgress as is
+  } else {
+    r.edgeProgress = 0;
+  }
+
   r.offRoad = !charted;
 }
 
@@ -467,10 +477,21 @@ function ensureFleetMarchOrder(
   }
   if (r.destinationCell === destinationCell && r.path && r.pathIndex !== undefined) return; // already marching there
 
+  const path = fullPath.slice(0, stepIndex + 1);
+  const oldNextCell =
+    r.path && r.pathIndex !== undefined && r.pathIndex < r.path.length - 1 ? r.path[r.pathIndex + 1] : undefined;
+
   r.destinationCell = destinationCell;
-  r.path = fullPath.slice(0, stepIndex + 1); // march only up to the garrison stance point, not all the way to the enemy's own port
+  r.path = path; // march only up to the garrison stance point, not all the way to the enemy's own port
   r.pathIndex = 0;
-  r.edgeProgress = 0;
+
+  // If the new path starts by walking along the exact same edge we are currently on, preserve our progress
+  if (oldNextCell !== undefined && path.length > 1 && path[1] === oldNextCell) {
+    // leave r.edgeProgress as is
+  } else {
+    r.edgeProgress = 0;
+  }
+
   r.offRoad = false;
 }
 

@@ -6,7 +6,7 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { advanceTime } from "../generators/timeEngine";
+import { runTimeSimulation } from "../generators/timeEngine";
 import { rankCells } from "../main";
 import {
   BordersRenderer,
@@ -229,7 +229,7 @@ document.addEventListener("react-tool-action", e => {
     const years = detail.years !== undefined ? Number(detail.years) : 0;
     const months = detail.months !== undefined ? Number(detail.months) : 0;
     const days = detail.days !== undefined ? Number(detail.days) : 0;
-    advanceTime(years, months, days);
+    runTimeSimulation(years, months, days);
   }
 });
 

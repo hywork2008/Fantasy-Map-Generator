@@ -6,8 +6,8 @@ import type { Character } from "./characterTypes";
 import { commanderPowerMultiplier } from "./localDefense";
 
 /** Distance (map units) within which two hostile land regiments are considered in direct contact. */
-const SKIRMISH_CONTACT_RADIUS = 150;
-const NAVAL_SKIRMISH_CONTACT_RADIUS = 400;
+const SKIRMISH_CONTACT_RADIUS = 20;
+const NAVAL_SKIRMISH_CONTACT_RADIUS = 100;
 
 function hasStrategicTension(stateA: State, stateB: State): boolean {
   const goalsA = simulationContext.strategicGoals[stateA.i] ?? [];
@@ -149,14 +149,18 @@ export class LocalSkirmishGenerator {
             const attack = powerA * (dieA / 10 + 0.4);
             const defense = powerB * (dieB / 10 + 0.4);
 
-            const totalCasualties = Math.random() * 0.2;
-            const casualtiesA = (totalCasualties * defense) / (attack + defense || 1);
-            const casualtiesB = (totalCasualties * attack) / (attack + defense || 1);
+            const lethalityA = Math.random() * 0.05 + 0.05; // 5% to 10%
+            const lethalityB = Math.random() * 0.05 + 0.05;
+            const absoluteCasualtiesA = defense * lethalityB;
+            const absoluteCasualtiesB = attack * lethalityA;
+            const casualtiesA = Math.min(1.0, absoluteCasualtiesA / (attack || 1));
+            const casualtiesB = Math.min(1.0, absoluteCasualtiesB / (defense || 1));
 
             let _totalA = 0;
             for (const r of regsA) {
               applyCasualties(r, casualtiesA);
               fought.add(r);
+              r.actionStatus = "battled";
               _totalA += r.a;
             }
 
@@ -164,6 +168,7 @@ export class LocalSkirmishGenerator {
             for (const r of regsB) {
               applyCasualties(r, casualtiesB);
               fought.add(r);
+              r.actionStatus = "battled";
               _totalB += r.a;
             }
 

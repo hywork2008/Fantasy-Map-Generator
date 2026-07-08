@@ -140,28 +140,34 @@ export function init(api: ExtensionAPI): void {
 
   api.registerTimeTickHook((deltaYears, deltaMonths, deltaDays) => {
     if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return;
-    Characters.advanceAge(deltaYears);
+
+    const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
+
+    Characters.advanceAge(effectiveDeltaYears);
     assignOfficers();
     assignProvinceLords();
+
+    if (api.simulationContext.currentDay === 1) {
+      StrategicPlanner.evaluatePlans();
+    }
+
     Espionage.generate();
     StrategicPlanner.generate();
     const siegeOccurred = StrategicPlanner.advanceTension();
-    const skirmishOccurred = LocalSkirmish.resolve(deltaYears, deltaMonths, deltaDays);
+    const skirmishOccurred = LocalSkirmish.resolve(effectiveDeltaYears, deltaMonths, deltaDays);
     const bordersChanged = siegeOccurred || skirmishOccurred;
 
     if (bordersChanged) {
-      const worldState = window.fmg.actions.getWorldState();
-      Military.generate(api.worldContext, api.viewContext, api.appServices, worldState);
-      assignOfficers(); // Military.generate() rebuilt state.military from scratch — refill commander slots
-
       if (api.layerIsOn("toggleStates")) StatesRenderer.render(api.worldContext, api.viewContext, api.appServices);
       if (api.layerIsOn("toggleBorders")) BordersRenderer.render(api.worldContext, api.viewContext, api.appServices);
     }
 
+    Military.updateDynamic(api.worldContext, effectiveDeltaYears);
+
     // Regiment marching (docs/plan/military-movement.md Phase 2) runs every tick regardless of
     // bordersChanged — armies keep advancing toward their destination continuously rather than
-    // only repositioning instantly whenever a siege/skirmish happens to resolve.
-    const regimentsMoved = advanceAllRegimentMovement(api.worldContext.pack, api.worldContext, deltaYears);
+    // teleporting instantly when borders change.
+    const regimentsMoved = advanceAllRegimentMovement(api.worldContext.pack, api.worldContext, effectiveDeltaYears);
     if ((bordersChanged || regimentsMoved) && api.layerIsOn("toggleMilitary")) {
       MilitaryRenderer.render(api.worldContext, api.viewContext, api.appServices);
     }

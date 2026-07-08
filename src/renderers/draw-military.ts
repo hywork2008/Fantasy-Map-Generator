@@ -111,6 +111,18 @@ export const drawRegiments = (
     .attr("height", h)
     .attr("width", h)
     .attr("href", d => (d.icon!.startsWith("http") || d.icon!.startsWith("data:image") ? d.icon! : ""));
+  g.append("rect")
+    .attr("fill", "currentColor")
+    .attr("x", d => x(d) + w(d))
+    .attr("y", d => y(d))
+    .attr("width", h)
+    .attr("height", h);
+  g.append("text")
+    .attr("class", "regimentActionIcon")
+    .attr("text-rendering", "optimizeSpeed")
+    .attr("x", d => x(d) + w(d) + size)
+    .attr("y", d => d.y)
+    .text(d => (d.actionStatus === "battled" ? "🎯" : "🎪"));
 };
 
 export const drawRegiment = (
@@ -169,6 +181,18 @@ export const drawRegiment = (
     .attr("height", h)
     .attr("width", h)
     .attr("href", reg.icon!.startsWith("http") || reg.icon!.startsWith("data:image") ? reg.icon! : "");
+  g.append("rect")
+    .attr("fill", "currentColor")
+    .attr("x", x1 + w)
+    .attr("y", y1)
+    .attr("width", h)
+    .attr("height", h);
+  g.append("text")
+    .attr("class", "regimentActionIcon")
+    .attr("text-rendering", "optimizeSpeed")
+    .attr("x", x1 + w + size)
+    .attr("y", reg.y)
+    .text(reg.actionStatus === "battled" ? "🎯" : "🎪");
 };
 
 // move one regiment to another
@@ -212,4 +236,12 @@ export const moveRegiment = (
     .attr("y", y1(y))
     .attr("height", "6")
     .attr("width", "6");
+  el.selectAll("rect:nth-of-type(3)")
+    .transition(move)
+    .attr("x", x1(x) + w)
+    .attr("y", y1(y));
+  el.select(".regimentActionIcon")
+    .transition(move)
+    .attr("x", x1(x) + w + size)
+    .attr("y", y);
 };

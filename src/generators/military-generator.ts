@@ -974,5 +974,75 @@ class MilitaryModule {
     const unit = options.military?.find((u: { name: string; icon: string }) => u.name === mainUnit);
     return unit ? unit.icon : "⚔️";
   }
+
+  /**
+   * Dynamically updates military regiments over time (e.g. from nobility time hooks)
+   * without destroying and recreating them from scratch. This allows active marches
+   * and skirmishes to persist without regiments teleporting back home.
+   */
+  updateDynamic(worldContext: WorldContext, deltaYears: number) {
+    if (deltaYears <= 0) return;
+    const { pack } = worldContext;
+    const states = pack.states;
+
+    // Recovery rate: approx 20% of max troops per year as reinforcement, bounded by some logic
+    const RECOVERY_RATE_PER_YEAR = 0.2;
+
+    for (const state of states) {
+      if (!state.i || state.removed || !state.military) continue;
+
+      const military = state.military;
+
+      for (let i = military.length - 1; i >= 0; i--) {
+        const r = military[i];
+
+        // 1. Cleanup dead regiments
+        if (r.a <= 0) {
+          // Find and clean up any notes associated with it
+          const id = `regiment${state.i}-${r.i}`;
+          const noteIndex = worldContext.notes.findIndex(n => n.id === id);
+          if (noteIndex !== -1) worldContext.notes.splice(noteIndex, 1);
+
+          military.splice(i, 1);
+          continue;
+        }
+
+        // 2. Natural reinforcement for surviving regiments
+        // If current troops are below max troops, recover slightly over time
+        if (r.a < r.t) {
+          // Compute how many troops can be recovered
+          const recoveryAmount = r.t * RECOVERY_RATE_PER_YEAR * deltaYears;
+
+          // Distribute recovered troops proportionally to unit composition
+          let totalRecovered = 0;
+          for (const [unitName, currentAmount] of Object.entries(r.u)) {
+            // We don't have the original max composition easily available,
+            // so we scale up existing proportions if possible.
+            // If we just add troops uniformly based on current ratio:
+            const ratio = currentAmount / r.a;
+            const recovered = Math.round(recoveryAmount * ratio);
+
+            // Ensure we don't exceed max troops r.t globally, though locally per unit it's unbounded
+            // but this is an approximation for reinforcement.
+            if (recovered > 0) {
+              r.u[unitName] = currentAmount + recovered;
+              totalRecovered += recovered;
+            }
+          }
+
+          r.a += totalRecovered;
+          // Clamp at max (r.t)
+          if (r.a > r.t) {
+            // Scale back down if we exceeded max
+            const scale = r.t / r.a;
+            for (const unitName in r.u) {
+              r.u[unitName] = Math.floor(r.u[unitName] * scale);
+            }
+            r.a = r.t;
+          }
+        }
+      }
+    }
+  }
 }
 export const Military = new MilitaryModule();

@@ -5,8 +5,19 @@ import { worldContext } from "../context/worldContext";
 import { BordersRenderer, BurgIconsRenderer, BurgLabelsRenderer, StateLabelsRenderer } from "../renderers";
 import { useDebugSnapshotState } from "../store/debugSnapshotState";
 import { useOptionsState } from "../store/optionsState";
+import { useTimeSimulationState } from "../store/timeSimulationState";
 import { captureSnapshotData } from "../utils/aiDebugExporter";
 import { simulateDemographics } from "./demography-simulator";
+
+export function isLeapYear(year: number) {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
+export function getDaysInMonth(year: number, month: number) {
+  if (month === 2) return isLeapYear(year) ? 29 : 28;
+  if (month === 4 || month === 6 || month === 9 || month === 11) return 30;
+  return 31;
+}
 
 export type TimeTickHook = (deltaYears: number, deltaMonths: number, deltaDays: number) => void;
 
@@ -71,19 +82,39 @@ export function initSimulationClock(): void {
 export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0): void {
   if (deltaYears <= 0 && deltaMonths <= 0 && deltaDays <= 0) return;
 
+  // Reset all regiments' action status to waiting before resolving events for the new tick
+  for (const state of worldContext.pack.states) {
+    if (state.i && !state.removed && state.military) {
+      for (const reg of state.military) {
+        reg.actionStatus = "waiting";
+      }
+    }
+  }
+
+  const targetMonth = simulationContext.currentMonth + deltaMonths;
+  const addedYearsFromMonths = Math.floor((targetMonth - 1) / 12);
+
+  const oldYear = simulationContext.currentYear;
+  simulationContext.currentMonth = ((targetMonth - 1) % 12) + 1;
+  simulationContext.currentYear += deltaYears + addedYearsFromMonths;
+
   simulationContext.currentDay += deltaDays;
-  while (simulationContext.currentDay > 30) {
-    simulationContext.currentDay -= 30;
-    deltaMonths++;
+  let dim = getDaysInMonth(simulationContext.currentYear, simulationContext.currentMonth);
+
+  // If we just advanced years/months and landed on an invalid day (e.g. Feb 29 on non-leap), clamp it.
+  if (deltaDays === 0 && simulationContext.currentDay > dim) {
+    simulationContext.currentDay = dim;
   }
 
-  simulationContext.currentMonth += deltaMonths;
-  while (simulationContext.currentMonth > 12) {
-    simulationContext.currentMonth -= 12;
-    deltaYears++;
+  while (simulationContext.currentDay > dim) {
+    simulationContext.currentDay -= dim;
+    simulationContext.currentMonth++;
+    if (simulationContext.currentMonth > 12) {
+      simulationContext.currentMonth = 1;
+      simulationContext.currentYear++;
+    }
+    dim = getDaysInMonth(simulationContext.currentYear, simulationContext.currentMonth);
   }
-
-  simulationContext.currentYear += deltaYears;
   simulationContext.tickCount += 1;
   worldContext.options.year = simulationContext.currentYear;
   // Also save month and day to options so they are persisted across loads
@@ -93,9 +124,11 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
   useOptionsState.getState().setOption("year", simulationContext.currentYear);
   // Ideally useOptionsState should set month and day too, but keeping minimal changes here
 
+  const actualYearsAdvanced = simulationContext.currentYear - oldYear;
+
   // Increase yearsAgo for all events in diplomacy history so their absolute year remains static
   const chronicle = worldContext.pack.states[0].diplomacy as unknown[];
-  if (chronicle) {
+  if (chronicle && actualYearsAdvanced > 0) {
     for (const group of chronicle) {
       if (Array.isArray(group)) {
         for (const entry of group) {
@@ -105,14 +138,15 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
             "yearsAgo" in entry &&
             typeof (entry as { yearsAgo: unknown }).yearsAgo === "number"
           ) {
-            (entry as { yearsAgo: number }).yearsAgo += deltaYears;
+            (entry as { yearsAgo: number }).yearsAgo += actualYearsAdvanced;
           }
         }
       }
     }
   }
 
-  const result = simulateDemographics(deltaYears);
+  const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
+  const result = simulateDemographics(effectiveDeltaYears);
 
   if (result.bordersChanged) {
     BordersRenderer.render(worldContext, viewContext, appServices);
@@ -141,4 +175,50 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
       data: captureSnapshotData()
     });
   }
+}
+
+export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: number, targetDeltaDays: number): void {
+  const store = useTimeSimulationState.getState();
+  if (store.isRunning) return;
+
+  let y = simulationContext.currentYear;
+  let m = simulationContext.currentMonth;
+  let totalDays = 0;
+
+  for (let i = 0; i < targetDeltaYears; i++) {
+    totalDays += isLeapYear(y) ? 366 : 365;
+    y++;
+  }
+  for (let i = 0; i < targetDeltaMonths; i++) {
+    totalDays += getDaysInMonth(y, m);
+    m++;
+    if (m > 12) {
+      m = 1;
+      y++;
+    }
+  }
+  totalDays += targetDeltaDays;
+
+  if (totalDays <= 0) return;
+
+  store.setSimulationProgress(0, totalDays);
+
+  let currentProgress = 0;
+
+  const loop = () => {
+    const currentState = useTimeSimulationState.getState();
+    if (currentState.stopRequested || currentProgress >= totalDays) {
+      currentState.clearSimulation();
+      return;
+    }
+
+    // Advance 1 day per tick
+    advanceTime(0, 0, 1);
+    currentProgress++;
+    useTimeSimulationState.getState().setSimulationProgress(currentProgress, totalDays);
+
+    requestAnimationFrame(loop);
+  };
+
+  requestAnimationFrame(loop);
 }

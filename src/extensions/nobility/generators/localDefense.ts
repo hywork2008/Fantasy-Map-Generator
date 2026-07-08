@@ -1,5 +1,5 @@
 import { findSeaRouteDistance, type SeaRouteGraph } from "../../../generators/seaRouteGraph";
-import type { Burg, MilitaryRegiment } from "../../../types/models";
+import type { Burg, MilitaryRegiment, MilitaryUnit } from "../../../types/models";
 import type { PackedGraph } from "../../../types/PackedGraph";
 import type { Character } from "./characterTypes";
 import { getRegimentCommander } from "./officerAssignment";
@@ -10,7 +10,7 @@ import { getRegimentCommander } from "./officerAssignment";
  * regimentDistanceTo), not straight-line — a fleet sailing an established lane covers more
  * ground than marching infantry, hence the larger figure.
  */
-export const REINFORCEMENT_RADIUS = { cavalry: 300, infantry: 100, naval: 500 } as const;
+export const REINFORCEMENT_RADIUS = { cavalry: 50, infantry: 50, naval: 500 } as const;
 
 /**
  * A regiment led by a dedicated officer (see officerAssignment.ts) fights above its raw
@@ -81,4 +81,46 @@ export function estimateLocalDefendingForce(
     }
   }
   return local;
+}
+
+/**
+ * Calculates the effective combat headcount of a regiment during a siege.
+ *
+ * TODO [Future Demotion System]:
+ * If a state wants to siege but lacks infantry, mounted and ranged units should be
+ * given the option to "dismount" or "drop bows" to become melee infantry before the siege.
+ * Currently, we simply penalize them: cavalry is useless (0%), archers are reduced (50%).
+ */
+export function calculateEffectiveSiegePower(
+  regiment: MilitaryRegiment,
+  isFortified: boolean,
+  militaryOptions: MilitaryUnit[]
+): number {
+  if (!isFortified) return regiment.a; // Field battles use raw headcount
+
+  let power = 0;
+  for (const [name, amount] of Object.entries(regiment.u || {})) {
+    const unitDef = militaryOptions.find(u => u.name === name);
+    const type = unitDef?.type ?? "melee";
+
+    let multiplier = 1.0;
+    switch (type) {
+      case "melee":
+        multiplier = 1.0;
+        break;
+      case "mounted":
+        multiplier = 0.0; // Cavalry cannot assault walls
+        break;
+      case "ranged":
+        multiplier = 0.5; // Archers provide covering fire but can't breach
+        break;
+      case "machinery":
+        multiplier = 2.0; // Siege engines are highly effective against walls
+        break;
+      default:
+        multiplier = 1.0;
+    }
+    power += amount * multiplier;
+  }
+  return power;
 }

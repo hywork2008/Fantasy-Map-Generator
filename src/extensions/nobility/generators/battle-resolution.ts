@@ -1,9 +1,14 @@
 import type { StrategicGoal } from "../../../context/simulationContext";
-import { buildSeaRouteGraph, findSeaRouteDistance } from "../../../generators/seaRouteGraph";
+import { buildSeaRouteGraph } from "../../../generators/seaRouteGraph";
 import type { ChronicleEvent } from "../../../types/models";
 import { getWorldContext } from "../nobilityContext";
 import type { Character } from "./characterTypes";
-import { commanderPowerMultiplier, regimentDistanceTo, regimentReinforcementRadius } from "./localDefense";
+import {
+  calculateEffectiveSiegePower,
+  commanderPowerMultiplier,
+  regimentDistanceTo,
+  regimentReinforcementRadius
+} from "./localDefense";
 
 /** Living character holding `title` for `stateId`, e.g. the state's Spymaster. */
 function findOfficeHolder(characters: Character[], stateId: number, title: string): Character | undefined {
@@ -14,14 +19,16 @@ function findOfficeHolder(characters: Character[], stateId: number, title: strin
 
 export const BattleResolutionGenerator = {
   resolveSiege(goal: StrategicGoal, attackerId: number) {
-    const { pack } = getWorldContext();
+    const { pack, options } = getWorldContext();
     const attackerState = pack.states[attackerId];
     const targetState = pack.states[goal.targetState];
     const targetBurg = pack.burgs[goal.targetBurg];
     const characters = pack.characters || [];
+    const militaryOptions = options.military || [];
 
     if (!attackerState || !targetState || !targetBurg) return;
 
+    const isFortified = !!(targetBurg.citadel || targetBurg.walls);
     const seaRouteGraph = buildSeaRouteGraph(pack);
 
     // 1. Detection Phase (Spymaster vs Spymaster)
@@ -76,24 +83,24 @@ export const BattleResolutionGenerator = {
     // port; see docs/plan/naval-sea-lanes.md.
     let attackerPower = 0;
     const attackingRegiments = [];
-    const targetLandmass = pack.cells.f[targetBurg.cell];
 
     for (const regiment of attackerState.military || []) {
       if (regiment.a <= 0) continue;
 
       let reachable: boolean;
       if (regiment.n) {
-        reachable = findSeaRouteDistance(seaRouteGraph, regiment.cell, targetBurg.cell) !== null;
+        // FUTURE: Naval invasions across the sea
+        reachable = false;
       } else {
-        const regimentCell = pack.cells.i.find(
-          (_, i) => pack.cells.p[i][0] === regiment.x && pack.cells.p[i][1] === regiment.y
-        );
-        const regimentLandmass = regimentCell !== undefined ? pack.cells.f[regimentCell] : -1;
-        reachable = regimentLandmass === targetLandmass;
+        // No teleporting: attackers must physically march to within reinforcement radius of the target
+        const dist = Math.hypot(regiment.x - targetBurg.x, regiment.y - targetBurg.y);
+        reachable = dist <= regimentReinforcementRadius(regiment);
       }
 
       if (reachable) {
-        attackerPower += regiment.a * commanderPowerMultiplier(characters, regiment);
+        const effectivePower = calculateEffectiveSiegePower(regiment, isFortified, militaryOptions);
+        attackerPower += effectivePower * commanderPowerMultiplier(characters, regiment);
+        regiment.actionStatus = "battled";
         attackingRegiments.push(regiment);
       }
     }
@@ -103,8 +110,9 @@ export const BattleResolutionGenerator = {
     let defenderCasualties = 0;
     let cityCaptured = false;
 
-    if (defendingForceArrived <= cityGarrison * 1.5) {
-      // BLOODLESS FALL: Only the local militia was there. They surrender.
+    // A bloodless fall requires the defenders to be caught off-guard (militia only) AND the attackers to be overwhelmingly stronger
+    if (defendingForceArrived <= cityGarrison * 1.5 && attackerPower >= Math.max(1, defendingForceArrived) * 1.5) {
+      // BLOODLESS FALL: Only the local militia was there, and they surrender to overwhelming force.
       console.warn(
         `⚔️ BLOODLESS FALL! The siege on ${targetBurg.name} was a total surprise. Defenders couldn't arrive in time.`
       );
@@ -114,36 +122,67 @@ export const BattleResolutionGenerator = {
     } else {
       // BLOODY SIEGE
       const forceRatio = attackerPower / Math.max(1, defendingForceArrived);
+      const requiredRatio = isFortified ? 3.0 : 1.5;
+
       console.warn(
-        `⚔️ BLOODY SIEGE on ${targetBurg.name}! Force ratio: ${forceRatio.toFixed(2)} (Arrived Defenders: ${Math.floor(defendingForceArrived)})`
+        `⚔️ BLOODY SIEGE on ${targetBurg.name}! Fortified: ${isFortified}, Force ratio: ${forceRatio.toFixed(2)} (Arrived Defenders: ${Math.floor(defendingForceArrived)})`
       );
 
       if (goal.expectedCasualties === "high_cornered") {
         // Fight to the death
-        defenderCasualties = defendingForceArrived; // Wipe out defenders
-        attackerCasualties = attackerPower * 0.4; // Horrific attacker losses
-        cityCaptured = attackerPower > defendingForceArrived * 1.5;
+        cityCaptured = forceRatio >= requiredRatio;
+        if (cityCaptured) {
+          defenderCasualties = defendingForceArrived; // Defenders wiped out
+          if (isFortified) {
+            attackerCasualties = defendingForceArrived * Math.max(1.0, 1.5 * (requiredRatio / forceRatio));
+          } else {
+            attackerCasualties = defendingForceArrived * Math.max(0.5, 0.8 * (requiredRatio / forceRatio));
+          }
+        } else {
+          // Attacker fails despite pushing hard
+          defenderCasualties = defendingForceArrived * 0.6;
+          attackerCasualties = Math.min(attackerPower, defendingForceArrived * 1.5); // E.g. Defender inflicts heavily
+        }
       } else {
         // Standard battle
-        if (forceRatio > 1.5) {
+        if (forceRatio >= requiredRatio) {
           // Attacker wins
           cityCaptured = true;
-          defenderCasualties = defendingForceArrived * 0.5;
-          attackerCasualties = attackerPower * 0.15;
+          if (isFortified) {
+            defenderCasualties = defendingForceArrived * 0.6;
+            // When ratio is exactly 3.0, attacker casualties = 0.6 * defenderForce (Mutual heavy losses)
+            attackerCasualties = defendingForceArrived * Math.max(0.3, 0.6 * (requiredRatio / forceRatio));
+          } else {
+            defenderCasualties = defendingForceArrived * 0.5;
+            attackerCasualties = defendingForceArrived * Math.max(0.15, 0.3 * (requiredRatio / forceRatio));
+          }
         } else {
           // Defender holds
           cityCaptured = false;
-          defenderCasualties = defendingForceArrived * 0.3;
-          attackerCasualties = attackerPower * 0.3;
+          if (isFortified) {
+            defenderCasualties = defendingForceArrived * 0.2;
+            attackerCasualties = Math.min(attackerPower, defendingForceArrived * 1.0); // Attackers break after heavy losses
+          } else {
+            defenderCasualties = defendingForceArrived * 0.3;
+            attackerCasualties = Math.min(attackerPower, defendingForceArrived * 0.8); // Attackers break after heavy losses
+          }
         }
       }
+
+      // Ensure attacker casualties don't exceed their total power
+      attackerCasualties = Math.min(attackerCasualties, attackerPower);
     }
 
     // Apply Casualties to Regiments (proportional reduction)
     if (attackerCasualties > 0 && attackingRegiments.length > 0) {
       const reductionRatio = Math.max(0, 1 - attackerCasualties / attackerPower);
       for (const reg of attackingRegiments) {
-        reg.a = Math.floor(reg.a * reductionRatio);
+        let survivors = 0;
+        for (const unit in reg.u) {
+          reg.u[unit] = Math.floor(reg.u[unit] * reductionRatio);
+          survivors += reg.u[unit];
+        }
+        reg.a = survivors;
       }
     }
 
@@ -158,8 +197,28 @@ export const BattleResolutionGenerator = {
         }
 
         if (arrives) {
+          reg.actionStatus = "battled";
           const reductionRatio = Math.max(0, 1 - defenderCasualties / defendingForceArrived);
-          reg.a = Math.floor(reg.a * reductionRatio);
+          let survivors = 0;
+          for (const unit in reg.u) {
+            reg.u[unit] = Math.floor(reg.u[unit] * reductionRatio);
+            survivors += reg.u[unit];
+          }
+          reg.a = survivors;
+        }
+      }
+    } else if (targetState.military) {
+      // If no casualties but they arrived, we still mark them as battled
+      for (const reg of targetState.military) {
+        let arrives = false;
+        if (!isSurpriseAttack) arrives = true;
+        else {
+          const dist = regimentDistanceTo(reg, targetBurg.cell, targetBurg.x, targetBurg.y, seaRouteGraph);
+          if (dist !== null && dist <= regimentReinforcementRadius(reg)) arrives = true;
+        }
+
+        if (arrives) {
+          reg.actionStatus = "battled";
         }
       }
     }

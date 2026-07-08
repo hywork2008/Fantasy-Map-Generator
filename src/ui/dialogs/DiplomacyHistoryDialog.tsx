@@ -196,7 +196,7 @@ export const DiplomacyHistoryDialog: React.FC = () => {
                             <span
                               className="icon-search"
                               title="Zoom to city"
-                              style={{ cursor: "pointer", fontSize: "16px" }}
+                              style={{ cursor: "pointer" }}
                               onClick={() => {
                                 // Guarded by the `toBurg !== undefined` check above.
                                 const burg = worldContext.pack.burgs[row.event.toBurg!];

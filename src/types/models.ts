@@ -375,6 +375,8 @@ export interface MilitaryRegiment {
    * full `Military.generate()` rebuild — like `i` itself, it is not a stable cross-rebuild identity.
    */
   parentId?: number;
+  /** Current tactical status for rendering action icons (e.g. 🎯 for battled, 🎪 for waiting) */
+  actionStatus?: "battled" | "waiting";
 }
 
 export interface Platoon {
