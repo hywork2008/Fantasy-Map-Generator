@@ -1,12 +1,24 @@
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDebugSnapshotState } from "../../store/debugSnapshotState";
+import { useToastStore } from "../../store/toastStore";
 import { exportSnapshotsToAPI, restoreSnapshot } from "../../utils/aiDebugExporter";
 import { Dialog } from "./Dialog";
 
 export const DebugSnapshotDialog: React.FC = () => {
   const { snapshots, isOpen, setIsOpen, toggleLock, removeSnapshot, clearUnlocked } = useDebugSnapshotState();
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [lastRestoredId, setLastRestoredId] = useState<number | null>(null);
+
+  // Deleting a snapshot (single trash button or "Delete Unlocked") must also drop it from
+  // the selection, otherwise "Export Selected (n)" keeps counting ids that no longer exist.
+  useEffect(() => {
+    setSelectedIds(prev => {
+      const validIds = new Set(snapshots.map(s => s.id));
+      const next = new Set([...prev].filter(id => validIds.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [snapshots]);
 
   if (!isOpen) return null;
 
@@ -21,10 +33,11 @@ export const DebugSnapshotDialog: React.FC = () => {
     const selected = snapshots.filter(s => selectedIds.has(s.id));
     if (selected.length === 0) return;
     const success = await exportSnapshotsToAPI(selected);
+    const { addToast } = useToastStore.getState();
     if (success) {
-      alert("Successfully exported to temp/debug/");
+      addToast("Successfully exported to temp/debug/", "success");
     } else {
-      alert("Failed to export. Check console.");
+      addToast("Failed to export. Check console.", "error");
     }
   };
 
@@ -32,7 +45,8 @@ export const DebugSnapshotDialog: React.FC = () => {
     const snapshot = snapshots.find(s => s.id === id);
     if (snapshot) {
       restoreSnapshot(snapshot.data);
-      alert(`Restored to Year ${snapshot.year} (${snapshot.label})`);
+      setLastRestoredId(id);
+      useToastStore.getState().addToast(`Restored to Year ${snapshot.year} (${snapshot.label})`, "success");
     }
   };
 
@@ -59,7 +73,13 @@ export const DebugSnapshotDialog: React.FC = () => {
           </thead>
           <tbody>
             {snapshots.map(s => (
-              <tr key={s.id} style={{ borderBottom: "1px solid #444" }}>
+              <tr
+                key={s.id}
+                style={{
+                  borderBottom: "1px solid #444",
+                  backgroundColor: s.id === lastRestoredId ? "rgba(76, 175, 80, 0.25)" : undefined
+                }}
+              >
                 <td style={{ padding: "8px" }}>
                   <input type="checkbox" checked={selectedIds.has(s.id)} onChange={() => handleToggleSelect(s.id)} />
                 </td>
