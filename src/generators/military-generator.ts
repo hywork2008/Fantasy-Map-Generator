@@ -15,7 +15,7 @@ import { getNavalTechBonus } from "./navalTechBonus";
 import { buildSeaRouteGraph } from "./seaRouteGraph";
 
 /** At most this many consolidated field armies per state (plus one capital guard, plus one fleet). */
-const MAX_FIELD_ARMIES = 9;
+const MAX_FIELD_ARMIES = 21;
 
 /** How much the capital guard grows per unit of threat weight on the capital's own province (0 = no threat, no bonus). */
 const CAPITAL_GUARD_THREAT_MULTIPLIER = 0.15;
