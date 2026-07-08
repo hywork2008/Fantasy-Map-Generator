@@ -163,7 +163,7 @@ export const ToolsTab: React.FC = () => {
     currentYear: window.fmg.simulation.currentYear,
     era: window.fmg.simulation.era
   }));
-  const [advanceYears, setAdvanceYears] = useState(10);
+  const [advanceYears, setAdvanceYears] = useState(1);
 
   useEffect(() => {
     const onSimulationUpdated = (e: Event) => {
@@ -445,7 +445,6 @@ export const ToolsTab: React.FC = () => {
             step={1}
             value={advanceYears}
             onChange={e => setAdvanceYears(Number(e.target.value))}
-            style={{ width: "60px" }}
             data-tip="Years to advance"
           />
           <button

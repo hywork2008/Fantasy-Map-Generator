@@ -1,11 +1,18 @@
 import type React from "react";
 import { regimentEditorActions } from "../../controllers/regiment-editor";
+import { tip } from "../../services/tooltipService";
 import { useRegimentEditorState } from "../../store/regimentEditorState";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
 export const RegimentEditorDialog: React.FC = () => {
-  const { isOpen, mode, name, isNaval, icon, units } = useRegimentEditorState();
+  const { isOpen, mode, name, isNaval, icon, units, stateId, regimentId } = useRegimentEditorState();
+
+  const handleCopyIds = () => {
+    const codeSnippet = `\`window.fmg.world.pack.states[${stateId}].military.find(r => r.i === ${regimentId})\``;
+    navigator.clipboard.writeText(codeSnippet);
+    tip("Copied to clipboard", true, "success", 2000);
+  };
 
   if (!isOpen) return null;
 
@@ -42,6 +49,23 @@ export const RegimentEditorDialog: React.FC = () => {
             data-tip="Click to restore regiment's default name"
             className="icon-ccw pointer"
             onClick={regimentEditorActions.restoreName}
+          />
+        </div>
+
+        <div
+          data-tip="Internal IDs to find in window.fmg.world.pack.states[stateId].military"
+          className="d-flex"
+          style={{ fontSize: "0.8em", color: "gray", marginTop: "4px", marginBottom: "4px" }}
+        >
+          <div className="label">IDs:</div>
+          <div>
+            State: {stateId}, Regiment: {regimentId}
+          </div>
+          <i
+            data-tip="Copy the path to this regiment to clipboard (for AI)"
+            className="icon-docs pointer"
+            style={{ marginLeft: "6px" }}
+            onClick={handleCopyIds}
           />
         </div>
 
