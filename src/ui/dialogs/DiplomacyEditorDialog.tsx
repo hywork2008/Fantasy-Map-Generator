@@ -55,13 +55,15 @@ export const DiplomacyEditorContent: React.FC = () => {
                     data-id={s.i}
                     data-tip={`List below shows relations to ${s.name}`}
                   >
-                    <td colSpan={3} className="d-flex">
+                    <td className="d-flex">
                       <div>{s.fullName}</div>
                       <svg className="coaIcon" viewBox="0 0 200 200">
                         <title>Coat of Arms for {s.fullName || s.name}</title>
                         <use href={`#stateCOA${s.i}`} />
                       </svg>
                     </td>
+                    <td></td>
+                    <td>{si(s.totalForces)}</td>
                   </tr>
                 );
               }

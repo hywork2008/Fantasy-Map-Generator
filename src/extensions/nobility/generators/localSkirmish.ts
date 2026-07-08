@@ -8,7 +8,7 @@ import type { Character } from "./characterTypes";
 import { commanderPowerMultiplier, regimentDistanceTo, regimentReinforcementRadius } from "./localDefense";
 
 /** Distance (map units) within which two hostile land regiments are considered in direct contact. */
-const SKIRMISH_CONTACT_RADIUS = 20;
+const SKIRMISH_CONTACT_RADIUS = 50;
 const NAVAL_SKIRMISH_CONTACT_RADIUS = 100;
 
 /**
