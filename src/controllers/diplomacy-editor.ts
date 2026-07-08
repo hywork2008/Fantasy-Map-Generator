@@ -109,8 +109,10 @@ export function editDiplomacy(): void {
 
   function diplomacyEditorAddLines(): void {
     const states = worldContext.pack.states;
-    const { selectedStateId } = getDiplomacyEditorState() ?? { selectedStateId: 0 };
-    const selectedId = selectedStateId || states.find(s => s.i && !s.removed)!.i;
+    let selectedId = getDiplomacyEditorState()?.selectedStateId || 0;
+    if (!selectedId || !states[selectedId] || states[selectedId].removed) {
+      selectedId = states.find(s => s.i && !s.removed)!.i;
+    }
 
     const rowData: DiplomacyRowData[] = [];
 
@@ -158,7 +160,11 @@ export function editDiplomacy(): void {
   }
 
   function showStateRelations(): void {
-    const sel = getDiplomacyEditorState()?.selectedStateId || worldContext.pack.states.find(s => s.i && !s.removed)?.i;
+    const states = worldContext.pack.states;
+    let sel = getDiplomacyEditorState()?.selectedStateId || 0;
+    if (!sel || !states[sel] || states[sel].removed) {
+      sel = states.find(s => s.i && !s.removed)?.i || 0;
+    }
     if (!sel) return;
     if (!layerIsOn("toggleStates")) toggleStates();
 
