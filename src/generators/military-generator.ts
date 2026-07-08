@@ -9,19 +9,9 @@ import type { MilitaryRegiment, MilitaryUnit, Platoon, State } from "../types/mo
 import type { WorldState } from "../types/WorldState";
 import { gauss, minmax, nth, ra, rand, rn, si } from "../utils";
 import { TIME } from "../utils/debug";
-import {
-  analyzeFrontiers,
-  analyzeSeaFrontiers,
-  type FrontierSegment,
-  getProvinceThreats,
-  mergeFrontiers,
-  pickPrimaryFrontier
-} from "./frontierAnalysis";
+import { analyzeFrontiers, analyzeSeaFrontiers, getProvinceThreats, mergeFrontiers } from "./frontierAnalysis";
 import { getNavalTechBonus } from "./navalTechBonus";
-import { buildSeaRouteGraph, findSeaRouteDistance, findSeaRoutePath } from "./seaRouteGraph";
-
-/** How far (0..1) a state's regiments are pulled from their recruitment site toward a hostile frontier. */
-const GARRISON_PULL_STRENGTH = 0.5;
+import { buildSeaRouteGraph } from "./seaRouteGraph";
 
 /** At most this many consolidated field armies per state (plus one capital guard, plus one fleet). */
 const MAX_FIELD_ARMIES = 9;
@@ -529,125 +519,6 @@ class MilitaryModule {
       };
     };
 
-    // Every state's own land cells, grouped by landmass, so a pulled regiment can be
-    // snapped back onto territory the state actually owns. Even though both the pull's
-    // start (a burg/province anchor) and end (a frontier segment's snapped border cell,
-    // see `getBorderAnchor`) are real land points, the straight line between them can
-    // still cross open water when the coastline is concave — a bay, a strait, or an
-    // exclave whose perimeter is mostly hostile border. Computed once up front (one pass
-    // over all cells) rather than per regiment.
-    const landCellsByStateAndLandmass = new Map<number, Map<number, number[]>>();
-    for (const i of cells.i) {
-      if (cells.h[i] < 20) continue;
-      const owner = cells.state[i];
-      if (!owner) continue;
-      if (!landCellsByStateAndLandmass.has(owner)) landCellsByStateAndLandmass.set(owner, new Map());
-      const byLandmass = landCellsByStateAndLandmass.get(owner)!;
-      const landmass = cells.f[i];
-      if (!byLandmass.has(landmass)) byLandmass.set(landmass, []);
-      byLandmass.get(landmass)!.push(i);
-    }
-
-    // Repositions a fleet toward whichever of the state's own sea-frontier segments (see
-    // analyzeSeaFrontiers()) is under the most threat, moving it partway along the actual
-    // charted route toward a reachable enemy port instead of a straight-line pull — a fleet
-    // only ever occupies a cell that's genuinely part of the sea-route network (§1 of
-    // docs/plan/naval-sea-lanes.md). No-ops (stays at its consolidation-time home port) when
-    // there's no naval threat on its own landmass, or no charted route toward it at all.
-    const redistributeFleet = (r: MilitaryRegiment, segments: FrontierSegment[]) => {
-      const ownLandmass = cells.f[r.cell];
-      const localSegments = segments.filter(seg => seg.origin === "sea" && seg.landmass === ownLandmass);
-      if (!localSegments.length) return;
-
-      const totalWeight = sum(localSegments.map(seg => seg.threatWeight));
-      if (!totalWeight) return;
-
-      const target = pickPrimaryFrontier(r.x, r.y, localSegments);
-      if (!target) return;
-
-      // Pick the nearest reachable port belonging to the threatening neighbor to path toward.
-      let enemyPortCell = -1;
-      let bestEnemyDist = Infinity;
-      for (const b of pack.burgs) {
-        if (!b.i || b.removed || b.state !== target.neighborState || !b.port) continue;
-        const d = findSeaRouteDistance(seaRouteGraph, r.cell, b.cell);
-        if (d !== null && d < bestEnemyDist) {
-          bestEnemyDist = d;
-          enemyPortCell = b.cell;
-        }
-      }
-      if (enemyPortCell === -1) return; // no reachable enemy port for this threat — stay put
-
-      const path = findSeaRoutePath(seaRouteGraph, r.cell, enemyPortCell);
-      if (!path || path.length < 2) return;
-
-      const pull = minmax(target.threatWeight / totalWeight, 0, 1) * GARRISON_PULL_STRENGTH;
-      const stepIndex = Math.round(pull * (path.length - 1));
-      const newCell = path[stepIndex];
-
-      r.cell = newCell;
-      r.x = cells.p[newCell][0];
-      r.y = cells.p[newCell][1];
-      r.bx = r.x;
-      r.by = r.y;
-    };
-
-    // Pulls each non-naval, non-capital-guard regiment from its stationing point toward the
-    // nearest/most threatening hostile frontier on its own landmass, proportional to that
-    // frontier's share of the state's total threat. With province-based consolidation, field
-    // armies are usually already anchored at their frontier province, so this mostly fine-tunes
-    // the position toward the actual border line rather than the province's administrative seat.
-    const redistributeGarrisons = (
-      regiments: MilitaryRegiment[],
-      segments: FrontierSegment[],
-      ownLandCellsByLandmass: Map<number, number[]> | undefined
-    ) => {
-      regiments.forEach(r => {
-        if (r.isCapitalGuard) return;
-        if (r.n) {
-          redistributeFleet(r, segments);
-          return;
-        }
-
-        const landmass = cells.f[r.cell];
-        const localSegments = segments.filter(seg => seg.landmass === landmass);
-        if (!localSegments.length) return;
-
-        const totalWeight = sum(localSegments.map(seg => seg.threatWeight));
-        if (!totalWeight) return;
-
-        const target = pickPrimaryFrontier(r.x, r.y, localSegments);
-        if (!target) return;
-
-        const pull = minmax(target.threatWeight / totalWeight, 0, 1) * GARRISON_PULL_STRENGTH;
-        const pulledX = r.x + (target.cx - r.x) * pull;
-        const pulledY = r.y + (target.cy - r.y) * pull;
-
-        const ownLandCells = ownLandCellsByLandmass?.get(landmass);
-        if (ownLandCells?.length) {
-          let bestCell = r.cell;
-          let bestDist = Infinity;
-          for (const c of ownLandCells) {
-            const dx = cells.p[c][0] - pulledX;
-            const dy = cells.p[c][1] - pulledY;
-            const dist = dx * dx + dy * dy;
-            if (dist < bestDist) {
-              bestDist = dist;
-              bestCell = c;
-            }
-          }
-          r.cell = bestCell;
-          r.x = cells.p[bestCell][0];
-          r.y = cells.p[bestCell][1];
-        } else {
-          r.x = pulledX;
-          r.y = pulledY;
-        }
-        r.bx = r.x;
-        r.by = r.y;
-      });
-    };
-
     // remove all existing regiment notes before regenerating
     for (let i = notes.length - 1; i >= 0; i--) {
       if (notes[i].id.startsWith("regiment")) notes.splice(i, 1);
@@ -925,7 +796,11 @@ class MilitaryModule {
 
       s.military = regiments;
 
-      if (segments.length) redistributeGarrisons(s.military, segments, landCellsByStateAndLandmass.get(s.i));
+      // Physical positioning (marching toward a threatened frontier) is no longer done here —
+      // see docs/plan/military-movement.md Phase 2 / src/generators/regimentMovement.ts. This
+      // function only ever sets a regiment's *initial* spawn position (its recruitment anchor);
+      // regimentMovement.ts owns repositioning from here on, across however many times
+      // generate() itself gets rebuilt (e.g. on every bordersChanged tick).
 
       // Prevent regiments from overlapping perfectly by applying a small visual offset
       // to any regiments that end up at the exact same coordinate.

@@ -1,6 +1,7 @@
 import "./types"; // activate module augmentation for PackedGraph/State
 
 import { Military } from "../../generators/military-generator";
+import { advanceAllRegimentMovement } from "../../generators/regimentMovement";
 import { BordersRenderer } from "../../renderers/draw-borders";
 import { MilitaryRenderer } from "../../renderers/draw-military";
 import { StatesRenderer } from "../../renderers/draw-states";
@@ -155,7 +156,14 @@ export function init(api: ExtensionAPI): void {
 
       if (api.layerIsOn("toggleStates")) StatesRenderer.render(api.worldContext, api.viewContext, api.appServices);
       if (api.layerIsOn("toggleBorders")) BordersRenderer.render(api.worldContext, api.viewContext, api.appServices);
-      if (api.layerIsOn("toggleMilitary")) MilitaryRenderer.render(api.worldContext, api.viewContext, api.appServices);
+    }
+
+    // Regiment marching (docs/plan/military-movement.md Phase 2) runs every tick regardless of
+    // bordersChanged — armies keep advancing toward their destination continuously rather than
+    // only repositioning instantly whenever a siege/skirmish happens to resolve.
+    const regimentsMoved = advanceAllRegimentMovement(api.worldContext.pack, api.worldContext, deltaYears);
+    if ((bordersChanged || regimentsMoved) && api.layerIsOn("toggleMilitary")) {
+      MilitaryRenderer.render(api.worldContext, api.viewContext, api.appServices);
     }
 
     refreshCharactersOverviewIfOpen(api.isDialogOpen("charactersOverview"));

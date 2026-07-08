@@ -1,0 +1,167 @@
+import { describe, expect, it } from "vitest";
+import type { PackedGraph } from "../types/PackedGraph";
+import {
+  buildLandRouteGraph,
+  findLandRouteDistance,
+  findLandRoutePath,
+  findReachableLandCells
+} from "./landRouteGraph";
+
+// Towns A(0) -- B(10) -- C(30) along a road, then a trail continuing to D(40), plus an
+// unrelated sea route that must be ignored, and an isolated town E(5) with no route at all.
+function makePack(): PackedGraph {
+  return {
+    routes: [
+      {
+        i: 0,
+        group: "roads",
+        feature: 1,
+        points: [
+          [0, 0, 0], // town A, cell 0
+          [10, 0, 1], // waypoint cell 1
+          [20, 0, 2] // town B, cell 2
+        ]
+      },
+      {
+        i: 1,
+        group: "trails",
+        feature: 1,
+        points: [
+          [20, 0, 2], // town B, cell 2
+          [50, 0, 3] // town C, cell 3
+        ]
+      },
+      {
+        i: 2,
+        group: "searoutes",
+        feature: 1,
+        points: [
+          [0, 0, 0],
+          [0, 100, 4] // isolated town D, cell 4 — only reachable by a sea route, not a road/trail
+        ]
+      }
+    ]
+  } as unknown as PackedGraph;
+}
+
+describe("buildLandRouteGraph", () => {
+  it("connects consecutive cells of a roads route in both directions with their real distance", () => {
+    const graph = buildLandRouteGraph(makePack());
+    expect(graph.adjacency.get(0)?.get(1)).toBe(10);
+    expect(graph.adjacency.get(1)?.get(0)).toBe(10);
+    expect(graph.adjacency.get(1)?.get(2)).toBe(10);
+  });
+
+  it("also connects consecutive cells of a trails route", () => {
+    const graph = buildLandRouteGraph(makePack());
+    expect(graph.adjacency.get(2)?.get(3)).toBe(30);
+    expect(graph.adjacency.get(3)?.get(2)).toBe(30);
+  });
+
+  it("ignores non-road/trail routes (searoutes)", () => {
+    const graph = buildLandRouteGraph(makePack());
+    expect(graph.adjacency.has(4)).toBe(false);
+    expect(graph.adjacency.get(0)?.has(4)).toBe(false);
+  });
+});
+
+describe("findLandRouteDistance", () => {
+  it("returns 0 for the same cell", () => {
+    const graph = buildLandRouteGraph(makePack());
+    expect(findLandRouteDistance(graph, 0, 0)).toBe(0);
+  });
+
+  it("sums edge distances across multiple hops on the same route", () => {
+    const graph = buildLandRouteGraph(makePack());
+    // A(0) -> waypoint(1) -> B(2): 10 + 10 = 20
+    expect(findLandRouteDistance(graph, 0, 2)).toBe(20);
+  });
+
+  it("finds a path that spans two merged route segments (B -> C, road then trail)", () => {
+    const graph = buildLandRouteGraph(makePack());
+    // A(0) -> ... -> B(2) -> C(3): 20 + 30 = 50
+    expect(findLandRouteDistance(graph, 0, 3)).toBe(50);
+  });
+
+  it("returns null when no charted road/trail connects the two cells", () => {
+    const graph = buildLandRouteGraph(makePack());
+    // Town D(4) is only linked by a sea route in the fixture, never by a road/trail.
+    expect(findLandRouteDistance(graph, 0, 4)).toBeNull();
+  });
+
+  it("returns null when either cell has no charted route at all", () => {
+    const graph = buildLandRouteGraph(makePack());
+    expect(findLandRouteDistance(graph, 0, 999)).toBeNull();
+  });
+});
+
+describe("findReachableLandCells", () => {
+  it("returns distances to every cell reachable from the start, and nothing else", () => {
+    const graph = buildLandRouteGraph(makePack());
+    const reachable = findReachableLandCells(graph, 0);
+
+    expect(reachable.get(0)).toBe(0);
+    expect(reachable.get(1)).toBe(10);
+    expect(reachable.get(2)).toBe(20);
+    expect(reachable.get(3)).toBe(50);
+    expect(reachable.has(4)).toBe(false); // only linked by a sea route, not a road/trail
+  });
+
+  it("returns an empty map when the start cell has no charted route at all", () => {
+    const graph = buildLandRouteGraph(makePack());
+    expect(findReachableLandCells(graph, 999).size).toBe(0);
+  });
+});
+
+describe("findLandRoutePath", () => {
+  it("returns the ordered cell sequence spanning multiple merged route segments", () => {
+    const graph = buildLandRouteGraph(makePack());
+    expect(findLandRoutePath(graph, 0, 3)).toEqual([0, 1, 2, 3]);
+  });
+
+  it("returns a single-element path for the same cell when it's part of the network", () => {
+    const graph = buildLandRouteGraph(makePack());
+    expect(findLandRoutePath(graph, 0, 0)).toEqual([0]);
+  });
+
+  it("returns null for the same cell when it isn't part of any charted route", () => {
+    const graph = buildLandRouteGraph(makePack());
+    expect(findLandRoutePath(graph, 999, 999)).toBeNull();
+  });
+
+  it("returns null when no charted road/trail connects the two cells", () => {
+    const graph = buildLandRouteGraph(makePack());
+    expect(findLandRoutePath(graph, 0, 4)).toBeNull();
+  });
+});
+
+describe("buildLandRouteGraph edge weights", () => {
+  it("keeps the shorter distance when two routes both connect the same pair of cells", () => {
+    const pack = {
+      routes: [
+        {
+          i: 0,
+          group: "roads",
+          feature: 1,
+          points: [
+            [0, 0, 10],
+            [100, 0, 11]
+          ]
+        }, // dist 100
+        {
+          i: 1,
+          group: "trails",
+          feature: 1,
+          points: [
+            [0, 0, 10],
+            [30, 40, 11]
+          ]
+        } // dist 50, shorter
+      ]
+    } as unknown as PackedGraph;
+
+    const graph = buildLandRouteGraph(pack);
+    expect(graph.adjacency.get(10)?.get(11)).toBe(50);
+    expect(graph.adjacency.get(11)?.get(10)).toBe(50);
+  });
+});

@@ -354,6 +354,21 @@ export interface MilitaryRegiment {
   isCapitalGuard?: boolean;
   /** pack.characters id of the officer commanding this regiment, if one has been assigned. */
   commanderId?: number;
+  /**
+   * Movement (docs/plan/military-movement.md Phase 2), all set together by
+   * regimentMovement.ts and cleared together once the destination is reached or abandoned.
+   * `undefined` destinationCell/path means the regiment is holding its current position.
+   */
+  /** Cell this regiment is currently marching toward. */
+  destinationCell?: number;
+  /** Ordered land/sea-route (or off-road BFS) cell sequence from march start to `destinationCell`, inclusive. */
+  path?: number[];
+  /** Index into `path` of the last fully-reached node; `path[pathIndex]` === `cell`. */
+  pathIndex?: number;
+  /** Map-unit distance advanced past `path[pathIndex]` toward `path[pathIndex + 1]`, used to interpolate `x`/`y` between ticks. */
+  edgeProgress?: number;
+  /** True when `path` came from the off-road cells.c fallback (no charted road/trail) rather than a route graph — see regimentMovement.ts's OFF_ROAD_SPEED_MULTIPLIER. */
+  offRoad?: boolean;
 }
 
 export interface Platoon {

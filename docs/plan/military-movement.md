@@ -83,10 +83,30 @@
 
 ## 3. 実装フェーズ案（叩き台、着手前に§4をユーザーと確認すること）
 
-1. **Phase 1**: 陸路版route graph新設（`seaRouteGraph.ts`と同じ設計）。低リスク——Naval Sea LanesのPhase 1で実証済みのパターンをそのまま転用するだけなので、最初に着手するのが自然。
-2. **Phase 2**: 移動予算モデル。`MilitaryRegiment`に移動関連フィールド（`destinationCell`/`remainingDistance`/経路配列とカーソル位置、等——具体的なデータ構造は要設計）を追加し、`advanceTime`のtick hook内で経過日数分の予算だけ経路上を前進させる。艦隊(`redistributeFleet`)も統一するならここで一緒に置き換える。
+1. **Phase 1**（実装済み）: 陸路版route graph新設（`seaRouteGraph.ts`と同じ設計）。低リスク——Naval Sea LanesのPhase 1で実証済みのパターンをそのまま転用するだけなので、最初に着手するのが自然。
+2. **Phase 2**（実装済み）: 移動予算モデル。`MilitaryRegiment`に移動関連フィールドを追加し、`advanceTime`のtick hook内で経過日数分の予算だけ経路上を前進させる。艦隊(`redistributeFleet`)も統一。
 3. **Phase 3**: 索敵・AI反応レイヤー新設。
 4. **Phase 4**: 部隊編成の階層化・動的分割/合流。4つの柱の中で最も設計難度が高く、Phase 1〜3が固まってから着手するのが安全。
+
+### Phase 1 実装ログ
+
+`src/generators/landRouteGraph.ts` / `landRouteGraph.test.ts` を新設。`seaRouteGraph.ts`と全く同じDijkstra設計（`FlatQueue`ベースの`dijkstraFrom`、`build*`/`find*Distance`/`find*ReachableCells`/`find*Path`の4関数構成）を、対象routeグループだけ`"searoutes"`→`"roads"`/`"trails"`に変えて転用した。
+
+- **統合はせず並存を選択**: `routeGraph.ts`への一般化（§1.2で「要検討」としていた案）は見送った。陸路は「全陸地セルが道路網でカバーされているとは限らない」（§1.2の未解決の懸念）という海路には無い固有のフォールバック要件をPhase 2以降で抱える見込みが高く、今の時点で共通化すると後で分岐が必要になった時に無理に剥がすことになる。今は2モジュールの重複で十分、実際に共通ロジックが安定してから統合を検討する。
+- **既存呼び出し元への影響なし**: `seaRouteGraph.ts`は無改修。今回追加したのはグラフ構築・探索の土台のみで、`redistributeGarrisons`等への配線（半島に迷い込まないようにする経路拘束の適用）はPhase 2の移動予算モデルと合わせて行う（naval-sea-lanes.md Phase 1も同様に「グラフを作るだけ」でPhase 4まで配線しなかった前例に倣った）。
+- テスト15件（グラフ構築時の双方向エッジ・距離計算、roads/trails混在の経路連結、searoutesの除外、並列route辺の最短距離採用、未到達ケース、`findLandRoutePath`の経路復元）追加。`npx tsc --noEmit`・`npm run lint`・`npm run madge`・`npx vitest run`（全31ファイル327件）すべてクリーン。
+
+### Phase 2 実装ログ
+
+**着手前にユーザーと確認したアーキテクチャ上の分岐点**: `Military.generate()`は`bordersChanged`のたびに`state.military`を完全に作り直す（連隊に永続的なID・identityが無い）。移動予算モデルを「経過ティックをまたいで前回位置から前進させる」ものにするには、この作り直しとどう共存させるかを先に決める必要があった。ユーザーの選択: **配置ロジックを`generate()`から完全に分離する**（`redistributeGarrisons`/`redistributeFleet`とその補助前計算を`military-generator.ts`から削除し、独立した「移動tick」システムを新設。`generate()`は兵力構成（徴兵・統合）と初期スポーン位置の設定のみを担当し、以後は二度と位置に触れない）。
+
+- **新設 `src/generators/regimentMovement.ts`**: `MilitaryRegiment`に`destinationCell`/`path`/`pathIndex`/`edgeProgress`/`offRoad`を追加（`src/types/models.ts`）。トップレベル`advanceAllRegimentMovement(pack, worldContext, deltaYears)`が全国家・全連隊を走査し、(1) `ensureGarrisonMarchOrder`/`ensureFleetMarchOrder`で目的地を決定（旧`redistributeGarrisons`/`redistributeFleet`と全く同じ「主要フロンティアへの按分プル→自国seno land cellへスナップ／航路上のノードへスナップ」ロジックをそのまま移植——ただし直接座標を書き換える代わりに`destinationCell`をセットするだけ）、(2) 目的地までの経路を`landRouteGraph`（Phase 1）または`seaRouteGraph`で探索し見つからなければ`findPath`（`pathUtils.ts`、`cells.c`の密な隣接グラフ前提、既存流用）で§1.2のオフロードBFSフォールバックを試す、(3) `dailySpeedMapUnits`（種別・オフロード有無・`distanceScale`/`distanceUnit`から算出した1日あたりの移動距離）× 経過日数（`deltaYears*365`）を予算として経路上を前進させる（`advanceAlongPath`）、という3段構成。
+- **移動速度モデル**（§4の回答1・2・6を反映）: 歩兵28km/日、騎兵56km/日（バースト56km/日を3日、その後徒歩ペース28km/日で1.5日休む、というサイクルを平均した実効速度——ユーザー回答2の「3日進んで1,2日休む、長距離の素早い移動は考慮しない」を日次ステートマシンではなく単純な加重平均でモデル化。理由:`advanceTime`の`deltaYears`は一度に何十年分にもなり得るため、日単位の状態遷移をシミュレートしても戦略ゲームのスケールでは精度向上に見合わない）、艦隊50km/日（叩き台、根拠となる数値未提示のため仮置き）。オフロード（§1.2のフォールバック時）は0.6倍のペナルティ。`distanceUnit`が"km"以外（"mi"）の場合はkm→mi換算してから`distanceScale`で地図単位に変換。
+- **オフロードフォールバック（§1.2の未解決懸念への対応）**: 選択肢(a)+(b)を両方採用。`findLandRoutePath`が失敗したら`findPath`（既存の密なcells.c隣接グラフ用Dijkstra、`h<20`のセルを通行不可として）でBFSし、その経路には速度ペナルティ（`offRoad=true`）を課す。
+- **`military-generator.ts`からの削除**: `GARRISON_PULL_STRENGTH`定数、`landCellsByStateAndLandmass`前計算、`redistributeFleet`/`redistributeGarrisons`関数、その呼び出し。`analyzeFrontiers`/`analyzeSeaFrontiers`/`getProvinceThreats`は部隊統合（軍団バケットの按分・合流判定）に引き続き必要なため残した。
+- **配線**: `src/extensions/nobility/index.tsx`のtick hookで、`bordersChanged`時のみ`Military.generate()`を呼ぶ従来の分岐とは別に、`advanceAllRegimentMovement`を**毎tick無条件で**呼ぶように変更（行軍は`bordersChanged`イベントの有無に関係なく継続すべきため）。戻り値（何か動いたか）と`bordersChanged`のいずれかが真なら軍事レイヤーを再描画。
+- **テスト**: `military-generator.test.ts`から配置系の2 describe（3テスト、うち1件は削除前は無変更の`redistributeGarrisons`の「航路が無ければ母港のまま」テストとして通っていたが、まとめて新モジュール側に移設）を削除し、consolidation系の4テストのみ残した（無改修で通過）。新設`regimentMovement.test.ts`に9テスト追加: 陸軍のオフロード進軍（十分な時間で自国land cellへスナップ到達／短い時間だと経路の途中で止まる／オフロードフラグの検証／charted roadがあればそちらを優先／経路不通なら現状維持）、艦隊（航路上のノードまで按分進軍／航路が無ければ母港のまま）、海上脅威による内陸陸軍の牽引（naval-sea-lanes.md §2.5の「海軍固有コード無しで陸軍も牽引される」という主張の回帰確認）、脅威が無い場合は行軍命令が発生しないこと。
+- `npx tsc --noEmit`・`npm run lint`・`npm run madge`・`npx vitest run`（全32ファイル332件）・`npm run build`すべてクリーン。
 
 ---
 
@@ -102,3 +122,12 @@
 6. 艦隊もこの日単位移動予算制に含めるか（naval-sea-lanes.md Phase 4の`redistributeFleet`との統一）。
 
 着手順は上記フェーズ案の通りPhase 1（陸路route graph）から始めるのが最もリスクが低いが、最終的にどこから着手するかもユーザーに確認すること。
+
+### 4のOpen Questionsへの回答
+
+1. 叩き台。1セルのサイズなど、ゲームの単位と合わせて柔軟に調整する必要がある。
+2. 草原・水源が無い地帯では馬が餓死・渇死する可能性が高い。最大で3日進んで1,2日休むなどピーキーで良い。基本的には戦闘時の爆発力に重きを置いて、長距離の素早い移動を考慮しない。長距離の場合は、馬の乗り換え、その為の馬の準備を中継点に行う必要があると思われ、このようなシステムは現時点では実装を計画しない。
+3. 偵察用の小隊をいくつか先に進ませて行動を補正する、という事が出来れば良いが、これは精妙な軍事シミュレーションのゲームでは無いので、150人ほどのグループが最小単位で良いかと思いますが、良い案があれば教えて下さい。
+4. Militaryの抽象化設定を用意し、軍隊なんてどうでも良いという人向けにMAX_FIELD_ARMIESを残して、それを使わせる。それを使わない場合は、<select>で今回の方式を選択して使うようにする。
+5. 今回は円形の固定半径で良い。各都市に密偵がいれば、密偵から軍の移動経路の報告も来るかと思われるので、それらは抽象化かつ成功率は高いものとして扱い、敵味方の軍隊は比較的高い確率でお互いに視界外でも寄っていく。
+6. 艦隊も含める。そのうち季節ごとの風向きや海流で、海路の使い勝手が悪いというのも実装したい。
