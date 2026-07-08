@@ -826,6 +826,8 @@ void (function addDragToUpload() {
 
 export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
   try {
+    useDebugSnapshotState.getState().clearAll();
+
     const timeStart = performance.now();
     const { seed: precreatedSeed, graph: precreatedGraph } = opts || {};
 

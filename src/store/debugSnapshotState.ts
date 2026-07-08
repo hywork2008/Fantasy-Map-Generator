@@ -27,6 +27,7 @@ interface DebugSnapshotState {
   removeSnapshot: (id: number) => void;
   toggleLock: (id: number) => void;
   clearUnlocked: () => void;
+  clearAll: () => void;
   getSnapshot: (id: number) => Snapshot | undefined;
 }
 
@@ -55,5 +56,6 @@ export const useDebugSnapshotState = create<DebugSnapshotState>((set, get) => ({
     set(state => ({
       snapshots: state.snapshots.filter(s => s.isLocked)
     })),
+  clearAll: () => set({ snapshots: [] }),
   getSnapshot: id => get().snapshots.find(s => s.id === id)
 }));
