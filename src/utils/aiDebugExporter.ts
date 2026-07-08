@@ -11,6 +11,7 @@ import {
   StateLabelsRenderer
 } from "../renderers";
 import type { Snapshot, SnapshotData } from "../store/debugSnapshotState";
+import { layerIsOn } from "./nodeUtils";
 
 /**
  * Extracts the relevant dynamic state for AI debugging.
@@ -84,12 +85,14 @@ export function restoreSnapshot(snapshotData: SnapshotData): void {
   }
 
   // Redraw the relevant map layers based on the restored data
-  BordersRenderer.render(worldContext, viewContext, appServices);
-  StateLabelsRenderer.render(worldContext, viewContext, appServices);
-  ProvincesRenderer.render(worldContext, viewContext, appServices);
-  BurgIconsRenderer.render(worldContext, viewContext, appServices);
-  BurgLabelsRenderer.render(worldContext, viewContext, appServices);
-  MilitaryRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleLabels")) {
+    StateLabelsRenderer.render(worldContext, viewContext, appServices);
+    BurgLabelsRenderer.render(worldContext, viewContext, appServices);
+  }
+  if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
 
   // Dispatch event so UI can update the calendar
   document.dispatchEvent(
