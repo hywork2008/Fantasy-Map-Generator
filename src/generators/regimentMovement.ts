@@ -214,23 +214,67 @@ function planLandMarchOrder(
 const GARRISON_DESTINATION_STABILITY_RADIUS = 60;
 
 /**
+ * map units — how far past the current threatened frontier point a reclaimable enclave may sit
+ * and still count as "ours to patrol back into". Without this cap, `Burg.stateHistory` alone can
+ * qualify a neighbor's *entire current territory* (e.g. after a state split/reconquest long ago)
+ * as a reclaim target, sending patrols on unbounded marches deep into what is now the neighbor's
+ * legitimate heartland — the "leaves home and never comes back" bug (docs/reviews/0709-military-
+ * passing-capture.md). Scaled a bit past MAX_PURSUIT_DEPTH_MAP_UNITS: an enclave is a static
+ * target (unlike a fleeing enemy regiment), so a slightly deeper reach is fine, but it must still
+ * be anchored to the actual border, not the map at large.
+ */
+const MAX_RECLAIM_DEPTH_MAP_UNITS = MAX_PURSUIT_DEPTH_MAP_UNITS * 1.5;
+
+/**
  * `neighborState`'s burgs on `landmass` that `ownState` used to own (per `Burg.stateHistory`) —
  * i.e. a lost enclave, not the neighbor's legitimate mainland. Added as extra destination
  * candidates in `ensureGarrisonMarchOrder` so a state's own patrols actually walk into (and, via
  * marchCapture.ts's `onCellEntered` hook, retake) territory the enemy captured and then marched
  * away from, instead of stopping dead at the border forever (see docs/debug — an occupied
- * enclave otherwise never gets reclaimed once the occupying force leaves).
+ * enclave otherwise never gets reclaimed once the occupying force leaves). `anchorX/anchorY` is
+ * the frontier's threat-weighted border point (`target.cx/cy` in the caller) — only enclaves
+ * within MAX_RECLAIM_DEPTH_MAP_UNITS of it qualify, see that constant's doc comment.
  */
-function reclaimableEnemyCells(pack: PackedGraph, ownState: number, neighborState: number, landmass: number): number[] {
+function reclaimableEnemyCells(
+  pack: PackedGraph,
+  ownState: number,
+  neighborState: number,
+  landmass: number,
+  anchorX: number,
+  anchorY: number
+): number[] {
   const { cells, burgs } = pack;
   const result: number[] = [];
   for (const b of burgs) {
     if (!b.i || b.removed || b.state !== neighborState) continue;
     if (cells.f[b.cell] !== landmass) continue;
     if (!b.stateHistory?.includes(ownState)) continue;
+    if (Math.hypot(b.x - anchorX, b.y - anchorY) > MAX_RECLAIM_DEPTH_MAP_UNITS) continue;
     result.push(b.cell);
   }
   return result;
+}
+
+/**
+ * Nearest cell `ownState` actually owns on `landmass` to (`x`, `y`), or null if it holds none
+ * there. Distinct from the candidate-picking loop in `ensureGarrisonMarchOrder`: that one snaps
+ * onto whatever's closest to a threat-pulled point; this one is "closest to home" for a regiment
+ * that has nothing threat-related to do and needs a plain way back onto its own soil.
+ */
+function nearestOwnLandCell(pack: PackedGraph, x: number, y: number, ownLandCells: number[]): number | null {
+  const { cells } = pack;
+  let nearest: number | null = null;
+  let bestDist = Infinity;
+  for (const c of ownLandCells) {
+    const dx = cells.p[c][0] - x;
+    const dy = cells.p[c][1] - y;
+    const dist = dx * dx + dy * dy;
+    if (dist < bestDist) {
+      bestDist = dist;
+      nearest = c;
+    }
+  }
+  return nearest;
 }
 
 /** Ports redistributeGarrisons's old target-selection (pull toward the primary threatened frontier, proportional to its share of total threat, snapped onto owned land) into a march order instead of an instant reposition. */
@@ -243,21 +287,40 @@ function ensureGarrisonMarchOrder(
 ): void {
   const { cells } = pack;
   const landmass = cells.f[r.cell];
+  const ownLandCells = landCellsByStateAndLandmass.get(r.state)?.get(landmass) ?? [];
+
+  // No frontier work to assign this regiment — if it's presently standing on foreign soil (e.g.
+  // it wandered off before MAX_RECLAIM_DEPTH_MAP_UNITS existed, or its last mission's territory
+  // changed hands under it), send it back onto its own land instead of leaving it stranded there
+  // forever. If it's already home, there's genuinely nothing to do.
+  const retreatOrHold = (): void => {
+    if (cells.state[r.cell] === r.state) {
+      clearMarchOrder(r);
+      return;
+    }
+    const home = nearestOwnLandCell(pack, r.x, r.y, ownLandCells);
+    if (home === null) {
+      clearMarchOrder(r);
+      return;
+    }
+    planLandMarchOrder(r, home, pack, landRouteGraph);
+  };
+
   const localSegments = segments.filter(seg => seg.landmass === landmass);
   if (!localSegments.length) {
-    clearMarchOrder(r);
+    retreatOrHold();
     return;
   }
 
   const totalWeight = sum(localSegments.map(seg => seg.threatWeight));
   if (!totalWeight) {
-    clearMarchOrder(r);
+    retreatOrHold();
     return;
   }
 
   const target = pickPrimaryFrontier(r.x, r.y, localSegments);
   if (!target) {
-    clearMarchOrder(r);
+    retreatOrHold();
     return;
   }
 
@@ -273,11 +336,10 @@ function ensureGarrisonMarchOrder(
     if (Math.hypot(dx, dy) < GARRISON_DESTINATION_STABILITY_RADIUS) return;
   }
 
-  const ownLandCells = landCellsByStateAndLandmass.get(r.state)?.get(landmass) ?? [];
-  const reclaimCells = reclaimableEnemyCells(pack, r.state, target.neighborState, landmass);
+  const reclaimCells = reclaimableEnemyCells(pack, r.state, target.neighborState, landmass, target.cx, target.cy);
   const candidates = reclaimCells.length ? ownLandCells.concat(reclaimCells) : ownLandCells;
   if (!candidates.length) {
-    clearMarchOrder(r);
+    retreatOrHold();
     return;
   }
 

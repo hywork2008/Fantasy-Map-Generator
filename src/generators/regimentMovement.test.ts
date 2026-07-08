@@ -248,6 +248,41 @@ describe("advanceAllRegimentMovement — reclaiming a lost enclave (Burg.stateHi
     // Falls back to its own border cell (cell0) since the enclave isn't a legitimate reclaim target.
     expect(garrison.cell).toBe(0);
   });
+
+  it("does not offer a historically-owned enclave far beyond the current frontier (MAX_RECLAIM_DEPTH_MAP_UNITS)", () => {
+    const pack = makeEnclavePack();
+    // Push the enclave far past the reclaim depth cap from the border anchor (cell0, at [100, 0]).
+    // stateHistory still says Alpha (state 1) owned it once, but this deep into Beta's current
+    // territory it reads as Beta's legitimate heartland now, not a nearby lost enclave to retake.
+    pack.cells.p[2] = [1100, 0];
+    (pack.burgs[1] as unknown as { x: number; y: number }).x = 1100;
+    const garrison = makeGarrison({ cell: 1, x: 0, y: 0, bx: 0, by: 0 });
+    pack.states[1].military = [garrison];
+
+    const worldContext = makeWorldContext();
+    advanceAllRegimentMovement(pack, worldContext, 100);
+
+    // Falls back to its own border cell (cell0) since the enclave is out of reclaim range.
+    expect(garrison.cell).toBe(0);
+  });
+});
+
+describe("advanceAllRegimentMovement — stranded regiment with no local threat", () => {
+  it("marches a regiment standing on foreign soil back onto its own land instead of leaving it stranded", () => {
+    const pack = makeLandThreatPack();
+    // No hostile diplomacy toward state 2 at all — analyzeFrontiers() produces no segment, so
+    // there's nothing threat-related to react to.
+    (pack.states[1].diplomacy as unknown[]) = [undefined, "x", undefined];
+    // Garrison is physically standing on cell4 — state 2's soil, not its own.
+    const garrison = makeGarrison({ cell: 4, x: 310, y: 0, bx: 310, by: 0 });
+    pack.states[1].military = [garrison];
+
+    const worldContext = makeWorldContext();
+    const moved = advanceAllRegimentMovement(pack, worldContext, 100);
+
+    expect(moved).toBe(true);
+    expect(garrison.cell).toBe(2); // nearest cell it actually owns, not left stranded on state 2's land
+  });
 });
 
 describe("advanceAllRegimentMovement — onCellEntered hook", () => {
