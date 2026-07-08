@@ -46,6 +46,10 @@ export default defineConfig({
                                 // Use timestamp if single export, or allow client to name it
                                 const filename = `fmg_state_dump_${Date.now()}.json`;
                                 fs.writeFileSync(path.join(dataDir, filename), body);
+                                // Always overwrite latest.json so AI tooling can read the most
+                                // recent export without comparing in-map `year` values (year resets
+                                // on every new map generation, so it cannot signal recency).
+                                fs.writeFileSync(path.join(dataDir, 'latest.json'), body);
                                 res.statusCode = 200;
                                 res.setHeader('Content-Type', 'application/json');
                                 res.end(JSON.stringify({ success: true, file: filename }));
