@@ -139,3 +139,41 @@ let requiredAttackForce = perceivedDefense * 3; // The 3x Attacker Rule
 実際にKautongwuのセーブデータの数値(Al Fara Kautongwu守備隊868 vs Jukrosia 1st Division 58,133、距離約21〜55ユニット、両国とも既にEnemy)で検証すると、提案3のロジックがそのまま次のtickで殲滅・都市陥落を起こす条件を満たしていました。
 
 テストは`localDefense.ts`のロジックを直接検証する`strategic-planner.test.ts`(新規、現地兵力ベースの計算・field/fortified比率の分岐を検証)と`localSkirmish.test.ts`(新規、上記のKautongwu相当シナリオ・射程外での不発・非交戦国での不発を検証)を追加。既存の`battle-resolution.test.ts`(リファクタ後も全パス)を含め、`npx vitest run`は29ファイル276件全てパス。`tsc --noEmit`・`npm run lint`・`npm run madge`・`npm run build`もすべてクリーンです。
+
+## バグを発見2: LocalSkirmishが過剰発火し、新規マップ1年目で全国規模の粛清が起きる
+
+`docs/plan/naval-sea-lanes.md`のPhase 5(実マップ検証)を実施したユーザーから、「海軍侵略は防げたが、陸軍は領内深くの都市がいきなり占領される。小国は自国の軍隊が密集しているのに近衛のいる首都が落とされ続け、近衛も特に兵が減ったり国が滅んだりしていない」という報告。
+
+### 検証
+
+同一シードで新規マップ生成→Nobility有効化→Advance Time 1年を実行すると、**16ヶ国中8ヶ国の首都が1年目で陥落**した。ブラウザのコンソールログを直接確認すると、原因は`resolveSiege()`(tension蓄積型の正式な包囲戦)ではなく`LocalSkirmish.resolve()`だった:
+
+```
+⚔️ LOCAL SKIRMISH: Halseara's Halseara Royal Guard annihilated Wargria's isolated 1st Fleet
+⚔️ LOCAL SKIRMISH: Halseara's 1st (Feland) Company annihilated Wargria's isolated Wargria Royal Guard (135 troops)
+🏆 Sidbury falls with its garrison to Halseara.
+⚔️ LOCAL SKIRMISH: Halseara's 1st (Feland) Company annihilated Wargria's isolated 1st (Sidbury) Company (199 troops)
+```
+
+念のため、海軍修正着手前のコミット(`8e27f225`)で同一シードを検証したところ**10ヶ国が陥落**しており、この問題は海軍修正が原因ではなく元から存在したバグと確認できた(むしろ海軍修正後は艦隊による無制限越境が2件塞がれ、8ヶ国に減っていた)。
+
+根本原因は`LocalSkirmish.resolve()`の設計そのもの:
+- マップ生成時点でランダムに割り当てられる`Enemy`外交ラベルだけで即発火し、`StrategicPlanner`のtension蓄積という本来のペース配分を完全にバイパスする。
+- `isCapitalGuard`を特別扱いしておらず、近衛兵団も「孤立した分遣隊」として無条件に殲滅対象になる。
+- 勝者側は3%の軽微な損耗だけでループを継続するため、**1つの連隊が同一tick内で敵の複数連隊を連続殲滅**でき、複数都市が一度に陥落する。
+- ユーザー報告の「近衛の兵は減っていないのに首都が落ちる」ケースも確認: Extedgiaの首都Northelは近衛ではなく`1st (Northel) Company`という別の野戦軍が同じセルに駐屯しており、そちらが殲滅されたことで陥落していた。
+
+### 修正(実装済み)
+
+`localSkirmish.ts`に4つのゲートを追加:
+
+1. **近衛兵団を対象外に**: `regA.isCapitalGuard || regB.isCapitalGuard`のペアはスキップ。首都防衛は正式な`resolveSiege()`経由のみになる。
+2. **1tickあたり1回の戦闘に制限**: `Set<MilitaryRegiment>`で「このtickで既に戦った連隊」を追跡し、勝者・敗者とも同じ`resolve()`呼び出し内では再度戦えないようにした。
+3. **「孤立」判定を追加**: 新設`isIsolated()`が、負ける側と同じ国の**他の**連隊が`regimentReinforcementRadius`(localDefense.ts、艦隊は航路距離)以内にいないかを確認。援軍が来られる距離にいれば殲滅は起きない — 元々の設計意図(Al Fara/Kautongwuのような真に孤立した飛地守備隊)に絞り込んだ。
+4. **実際の緊張度も条件に**: 新設`hasStrategicTension()`が、`simulationContext.strategicGoals`にどちらかの国から相手への`StrategicGoal`が実在するかを確認。`StrategicGoal`生成(strategic-planner.ts)は既に戦力比・抑止条件を計算済みなので、これを再利用することで「マップ生成時のフレーバーラベルだけ」のペアでは発火しなくなる。
+
+### 検証結果
+
+同一シードで再検証: **1年目の首都陥落は0件**(8件から)。さらにtickを重ねて(63tick、約180年相当)確認したところ、`LocalSkirmish`自体は一度も発火しなかったが、`resolveSiege()`経由の正式な包囲戦(戦力比に応じた攻略成功/撃退)は継続的に発生しており、システムが機能停止したわけではないことを確認した(例: `⚔️ BLOODY SIEGE on Causbury! Force ratio: 0.27` → 撃退、`Force ratio: 2.95` → 陥落、といった正常な力比べが継続)。
+
+`localSkirmish.test.ts`に4件追加(緊張度なしでの不発、近衛の除外、援軍がいる場合の不発、1tick1回制限)。`npx tsc --noEmit`・`npm run lint`・`npm run madge`・`npx vitest run`(全30ファイル312件)・`npm run build`すべてクリーン。

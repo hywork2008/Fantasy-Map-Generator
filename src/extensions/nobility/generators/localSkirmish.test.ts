@@ -1,19 +1,38 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { simulationContext } from "../../../context/simulationContext";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearNobilityContext, initNobilityContext } from "../nobilityContext";
 import "../types";
 import { LocalSkirmishGenerator } from "./localSkirmish";
 
+/** Marks state `attackerId` as genuinely tense toward `targetStateId` (hasStrategicTension). */
+function giveStrategicGoal(attackerId: number, targetStateId: number, targetBurg = 0) {
+  simulationContext.strategicGoals = {
+    [attackerId]: [
+      {
+        targetBurg,
+        targetState: targetStateId,
+        type: "siege",
+        tension: 80,
+        expectedCasualties: "moderate",
+        justification: "x"
+      }
+    ]
+  };
+}
+
 describe("LocalSkirmishGenerator.resolve", () => {
   const skirmish = new LocalSkirmishGenerator();
 
   beforeEach(() => {
     initNobilityContext({ worldContext } as unknown as ExtensionAPI);
+    simulationContext.strategicGoals = {};
   });
 
   afterEach(() => {
     clearNobilityContext();
+    simulationContext.strategicGoals = {};
   });
 
   it("annihilates an isolated garrison overwhelmed by an adjacent hostile army, and captures its burg", () => {
@@ -59,6 +78,7 @@ describe("LocalSkirmishGenerator.resolve", () => {
         }
       })
     } as unknown as PackedGraph;
+    giveStrategicGoal(13, 5, 1);
 
     const occurred = skirmish.resolve();
 
@@ -94,6 +114,7 @@ describe("LocalSkirmishGenerator.resolve", () => {
         }
       ]
     } as unknown as PackedGraph;
+    giveStrategicGoal(2, 1);
 
     expect(skirmish.resolve()).toBe(false);
     const defender = worldContext.pack.states[1] as unknown as { military: { a: number }[] };
@@ -121,10 +142,152 @@ describe("LocalSkirmishGenerator.resolve", () => {
         }
       ]
     } as unknown as PackedGraph;
+    giveStrategicGoal(2, 1);
 
     expect(skirmish.resolve()).toBe(false);
     const defender = worldContext.pack.states[1] as unknown as { military: { a: number }[] };
     expect(defender.military[0].a).toBe(10);
+  });
+
+  it("does not fire on an Enemy-labeled pair with no active strategic tension", () => {
+    // Same overwhelming force ratio and contact as the Kautongwu scenario, but no
+    // StrategicGoal exists for this pair — a leftover/flavor Relations History label alone
+    // must not be enough to trigger an instant, un-paced annihilation.
+    worldContext.pack = {
+      cells: { burg: [] },
+      burgs: [],
+      characters: [],
+      states: [
+        { i: 0, name: "Neutrals", diplomacy: [] },
+        {
+          i: 1,
+          name: "Defender",
+          diplomacy: [undefined, "x", "Enemy"],
+          military: [{ i: 0, a: 10, x: 0, y: 0, u: { infantry: 10 }, state: 1, cell: 0, name: "Weak" }]
+        },
+        {
+          i: 2,
+          name: "Attacker",
+          diplomacy: [undefined, "Enemy", "x"],
+          military: [{ i: 0, a: 10000, x: 0, y: 0, u: { infantry: 10000 }, state: 2, cell: 1, name: "Strong" }]
+        }
+      ]
+    } as unknown as PackedGraph;
+    // Deliberately not calling giveStrategicGoal() here.
+
+    expect(skirmish.resolve()).toBe(false);
+    const defender = worldContext.pack.states[1] as unknown as { military: { a: number }[] };
+    expect(defender.military[0].a).toBe(10);
+  });
+
+  it("never annihilates or is annihilated by a capital guard", () => {
+    worldContext.pack = {
+      cells: { burg: [] },
+      burgs: [],
+      characters: [],
+      states: [
+        { i: 0, name: "Neutrals", diplomacy: [] },
+        {
+          i: 1,
+          name: "Defender",
+          diplomacy: [undefined, "x", "Enemy"],
+          military: [
+            {
+              i: 0,
+              a: 10,
+              x: 0,
+              y: 0,
+              u: { infantry: 10 },
+              state: 1,
+              cell: 0,
+              name: "Royal Guard",
+              isCapitalGuard: true
+            }
+          ]
+        },
+        {
+          i: 2,
+          name: "Attacker",
+          diplomacy: [undefined, "Enemy", "x"],
+          military: [{ i: 0, a: 10000, x: 0, y: 0, u: { infantry: 10000 }, state: 2, cell: 1, name: "Strong" }]
+        }
+      ]
+    } as unknown as PackedGraph;
+    giveStrategicGoal(2, 1);
+
+    expect(skirmish.resolve()).toBe(false);
+    const defender = worldContext.pack.states[1] as unknown as { military: { a: number }[] };
+    expect(defender.military[0].a).toBe(10);
+  });
+
+  it("does not annihilate a regiment that has a friendly regiment nearby able to reinforce it", () => {
+    worldContext.pack = {
+      cells: { burg: [] },
+      burgs: [],
+      characters: [],
+      states: [
+        { i: 0, name: "Neutrals", diplomacy: [] },
+        {
+          i: 1,
+          name: "Defender",
+          diplomacy: [undefined, "x", "Enemy"],
+          military: [
+            { i: 0, a: 10, x: 0, y: 0, u: { infantry: 10 }, state: 1, cell: 0, name: "Weak" },
+            // Within regimentReinforcementRadius.infantry (100) of the Weak regiment above.
+            { i: 1, a: 500, x: 50, y: 0, u: { infantry: 500 }, state: 1, cell: 2, name: "Relief Force" }
+          ]
+        },
+        {
+          i: 2,
+          name: "Attacker",
+          diplomacy: [undefined, "Enemy", "x"],
+          military: [{ i: 0, a: 10000, x: 0, y: 0, u: { infantry: 10000 }, state: 2, cell: 1, name: "Strong" }]
+        }
+      ]
+    } as unknown as PackedGraph;
+    giveStrategicGoal(2, 1);
+
+    expect(skirmish.resolve()).toBe(false);
+    const defender = worldContext.pack.states[1] as unknown as { military: { a: number }[] };
+    expect(defender.military[0].a).toBe(10);
+    expect(defender.military[1].a).toBe(500);
+  });
+
+  it("caps a winning regiment at one kill per resolve() call, even with more valid targets in range", () => {
+    // Attacker's single regiment sits between two separate, mutually-unreachable-for-relief
+    // (280 apart, past the 100-unit infantry reinforcement radius) weak enemy regiments,
+    // each individually isolated and each within the 150-unit contact radius.
+    worldContext.pack = {
+      cells: { burg: [] },
+      burgs: [],
+      characters: [],
+      states: [
+        { i: 0, name: "Neutrals", diplomacy: [] },
+        {
+          i: 1,
+          name: "Defender",
+          diplomacy: [undefined, "x", "Enemy"],
+          military: [
+            { i: 0, a: 868, x: 140, y: 0, u: { infantry: 868 }, state: 1, cell: 0, name: "Garrison A" },
+            { i: 1, a: 868, x: -140, y: 0, u: { infantry: 868 }, state: 1, cell: 2, name: "Garrison B" }
+          ]
+        },
+        {
+          i: 2,
+          name: "Attacker",
+          diplomacy: [undefined, "Enemy", "x"],
+          military: [{ i: 0, a: 58133, x: 0, y: 0, u: { infantry: 58133 }, state: 2, cell: 1, name: "1st Division" }]
+        }
+      ]
+    } as unknown as PackedGraph;
+    giveStrategicGoal(2, 1);
+
+    expect(skirmish.resolve()).toBe(true);
+    const defender = worldContext.pack.states[1] as unknown as { military: { a: number }[] };
+    // Exactly one of the two garrisons falls this tick — the attacker's lone regiment
+    // already fought once and can't chain into the second target in the same call.
+    const survivors = defender.military.filter(r => r.a > 0).length;
+    expect(survivors).toBe(1);
   });
 
   // A fleet (state 13, cell 1, port at (100, 0)) vs a coastal garrison stationed right at a
@@ -176,6 +339,7 @@ describe("LocalSkirmishGenerator.resolve", () => {
 
   it("lets a fleet annihilate a coastal garrison when a charted sea route connects them", () => {
     worldContext.pack = makeNavalSkirmishPack({ withRoute: true });
+    giveStrategicGoal(13, 5, 1);
 
     const occurred = skirmish.resolve();
 
@@ -191,6 +355,7 @@ describe("LocalSkirmishGenerator.resolve", () => {
 
   it("does not let a fleet reach a coastal garrison with no charted sea route, even at close straight-line range", () => {
     worldContext.pack = makeNavalSkirmishPack({ withRoute: false });
+    giveStrategicGoal(13, 5, 1);
 
     expect(skirmish.resolve()).toBe(false);
     const defender = worldContext.pack.states[5] as unknown as { military: { a: number }[] };

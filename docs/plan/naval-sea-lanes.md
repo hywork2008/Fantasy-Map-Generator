@@ -143,6 +143,6 @@ export function findSeaRouteDistance(graph: SeaRouteGraph, start: number, end: n
    - **陸軍側は無改修で機能することを確認**: `getProvinceThreats()`と既存の`redistributeGarrisons`陸軍分岐は、`segment.origin`を区別せず`landmass`一致だけで海上セグメントも通常のセグメントとして扱うため、港を含む州が自動的に「前線州」として認識され、内陸の野戦軍がそちらへ引き寄せられる（テストで確認、追加コード不要という当初の見立て通り）。
    - テスト: `military-generator.test.ts`に3件追加（艦隊が航路上のノードまで移動する厳密な座標検証、航路が無ければ母港のまま、内陸陸軍が海上脅威のある港へ引き寄せられる比較検証）。全て`Military.generate()`をフルパイプラインで実行する統合テストとして記述（既存テストと同じスタイル）。
    - `npx tsc --noEmit`・`npm run lint`・`npm run madge`・`npx vitest run`（全30ファイル308件）・`npm run build`すべてクリーン。
-5. **Phase 5**: `temp/Auteia 2026-07-08-03-32.map`（`temp/map_parts` から復元）で実データ検証。Advance Time +10年後に、(a) 艦隊が航路の無い相手には侵攻計画すら立てない、(b) 沿岸州が前線州として陸軍に認識され再配置される、(c) 奪われた港が奪還計画の対象になる、の3点を確認。
+5. **Phase 5**（一部実施）: 新規マップ+同一シードでの検証（`temp/Auteia`セーブではなく、`dev`サーバー+`playwright-cli`で新規生成→Nobility有効化→Advance Time）で、海軍修正着手前のコミット(`8e27f225`)と現行コードを比較。**艦隊による無制限越境が2件塞がれていることを確認**（同一シードで首都陥落数が10→8に減少、差分の2件はいずれも航路なしの越境）。一方でこの検証中、陸軍側の別バグ（`LocalSkirmish`の過剰発火）を発見し、そちらを`docs/plan/regiments.md`「バグを発見2」で修正済み。(a)(b)(c)の当初チェック項目（`temp/Auteia`セーブでの奪還計画確認等）は未実施のまま残っている。
 
 どのフェーズから着手するか、あるいは通しで一気に実装するか、方針を教えてください。
