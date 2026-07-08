@@ -16,7 +16,7 @@ import { closeDialog, closeDialogs, openConfirm, openDialog } from "../ui/dialog
 import { findCell, last, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
-import type { BattleRegiment } from "./battle-screen";
+import { Battle, type BattleRegiment } from "./battle-screen";
 import { interactionManager } from "./interactionManager";
 import { toggleMilitary } from "./layers";
 import { editNotes } from "./notes-editor";
@@ -520,11 +520,8 @@ function attackRegimentOnClick(this: SVGElement, event: MouseEvent): void {
 
   moveRegiment(worldContext, viewContext, appServices, attacker, defender.x, defender.y - 8);
 
-  const attack = transition()
-    .delay(300)
-    .duration(700)
-    .ease(easeSinInOut)
-    .on("end", () => new Battle(attacker, defender));
+  const attack = transition().delay(300).duration(700).ease(easeSinInOut);
+
   view.svg
     .append("text")
     .attr("text-rendering", "optimizeSpeed")
@@ -538,6 +535,9 @@ function attackRegimentOnClick(this: SVGElement, event: MouseEvent): void {
     .transition(attack)
     .attr("font-size", 1000)
     .attr("opacity", 0.2)
+    .on("end", () => {
+      new Battle(attacker, defender);
+    })
     .remove();
 
   clearMainTip();

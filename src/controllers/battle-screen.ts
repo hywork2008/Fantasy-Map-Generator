@@ -34,7 +34,7 @@ interface BattleForces {
   die?: number;
 }
 
-class Battle {
+export class Battle {
   static context: Battle | undefined;
 
   iteration!: number;
