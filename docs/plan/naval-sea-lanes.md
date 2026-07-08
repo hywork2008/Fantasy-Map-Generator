@@ -145,4 +145,6 @@ export function findSeaRouteDistance(graph: SeaRouteGraph, start: number, end: n
    - `npx tsc --noEmit`・`npm run lint`・`npm run madge`・`npx vitest run`（全30ファイル308件）・`npm run build`すべてクリーン。
 5. **Phase 5**（一部実施）: 新規マップ+同一シードでの検証（`temp/Auteia`セーブではなく、`dev`サーバー+`playwright-cli`で新規生成→Nobility有効化→Advance Time）で、海軍修正着手前のコミット(`8e27f225`)と現行コードを比較。**艦隊による無制限越境が2件塞がれていることを確認**（同一シードで首都陥落数が10→8に減少、差分の2件はいずれも航路なしの越境）。一方でこの検証中、陸軍側の別バグ（`LocalSkirmish`の過剰発火）を発見し、そちらを`docs/plan/regiments.md`「バグを発見2」で修正済み。(a)(b)(c)の当初チェック項目（`temp/Auteia`セーブでの奪還計画確認等）は未実施のまま残っている。
 
-どのフェーズから着手するか、あるいは通しで一気に実装するか、方針を教えてください。
+## 関連: 移動・時間粒度の再設計（引き継ぎ）
+
+Phase 5の検証で、艦隊(`redistributeFleet`)も含め連隊全般に「時間をかけて移動する」概念が無く、瞬間移動していることが根本的な論点として浮上した（Advance Time 1年で騎馬隊なら大陸のどこへでも行けてしまう、等）。`§1.1`の陸路route graph（`seaRouteGraph.ts`と同じDijkstra設計を`"roads"`/`"trails"`に転用）は本ドキュメントのPhase 1で確立したパターンをそのまま流用できる。詳細な設計の叩き台は`docs/plan/military-movement.md`に切り出した。艦隊の移動をこの新しい日単位予算制に統一するかどうかも、そちらのOpen Questionsに含めてある。

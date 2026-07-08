@@ -177,3 +177,7 @@ let requiredAttackForce = perceivedDefense * 3; // The 3x Attacker Rule
 同一シードで再検証: **1年目の首都陥落は0件**(8件から)。さらにtickを重ねて(63tick、約180年相当)確認したところ、`LocalSkirmish`自体は一度も発火しなかったが、`resolveSiege()`経由の正式な包囲戦(戦力比に応じた攻略成功/撃退)は継続的に発生しており、システムが機能停止したわけではないことを確認した(例: `⚔️ BLOODY SIEGE on Causbury! Force ratio: 0.27` → 撃退、`Force ratio: 2.95` → 陥落、といった正常な力比べが継続)。
 
 `localSkirmish.test.ts`に4件追加(緊張度なしでの不発、近衛の除外、援軍がいる場合の不発、1tick1回制限)。`npx tsc --noEmit`・`npm run lint`・`npm run madge`・`npx vitest run`(全30ファイル312件)・`npm run build`すべてクリーン。
+
+## 次の課題: 「軍団は動かない」への本格対応
+
+このドキュメント冒頭の「軍隊は何をすべきか、どう動かすべきか」という当初の問いに、ここまでは瞬間移動（`redistributeGarrisons`等での座標書き換え）と即時戦闘解決（LocalSkirmish/resolveSiege）で対応してきたが、実際に**時間をかけて移動する**という概念は今も存在しない。ユーザーから「Advance Time 1年で騎馬隊なら大陸のどこへでも行けてしまう、現実的な移動速度・日単位のtick・陸路のpath finding・部隊の動的な分割/合流・索敵と反応行動が必要」という指摘があり、`docs/plan/military-movement.md`に設計の叩き台を切り出した。次のセッションはそちらから着手する。

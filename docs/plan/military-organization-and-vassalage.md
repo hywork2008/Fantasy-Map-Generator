@@ -110,3 +110,4 @@ getProvinceThreats(pack, segments): Map<provinceId, { totalWeight, primaryNeighb
 - `CharacterPersonality` への `paranoia`（猜疑心）パラメータの追加、および `capitalGuardModifier.ts` の判定ロジックの差し替え
 - 兵站（補給線）による野戦軍の兵力上限（`docs/analytics/military-frontier-repositioning.md` からの持ち越し課題）
 - ~~連隊を率いる武官（Commander/Admiral）と、辺境州の領主（Margrave等）の生成~~ → 実装済み。詳細は `docs/plan/char.md` と `src/extensions/nobility/generators/officerAssignment.ts` / `provinceLordGenerator.ts` を参照。`strategic-planner.ts`（AIの侵攻計画判定）の戦力見積もりはまだ武官ボーナスを見ていない点は未解消— `battle-resolution.ts` の実戦闘解決だけが対応済み。
+- **部隊編成の階層化・動的な分割/合流**（引き継ぎ、未着手）: 本ドキュメントの「2. 軍隊編成の集約」はあくまで`Military.generate()`実行時の一発生成（州単位プール化）であり、tick駆動で状況に応じて分割/合流する仕組みは無い。`MAX_FIELD_ARMIES = 9`の再設計も含め、設計の叩き台を`docs/plan/military-movement.md`に切り出した。連隊の移動（日単位の移動予算・陸路path finding）・索敵AIとセットで設計する必要があるため、独立した節ではなく同ドキュメントにまとめてある。
