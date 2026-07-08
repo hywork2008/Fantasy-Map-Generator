@@ -115,4 +115,4 @@ Fleetは恐らく大砲が前提のPowerになっている。
 詳細な調査結果・設計の叩き台・次にやるべきことは `docs/plan/military-movement.md` に切り出した。次のセッションはこのメモではなくそちらから着手する。
 占領するには都市人口のどれくらいの軍隊が驻留すべきか検討する。
 
-`docs/plan/military-movement.md` §4のOpen Questionsはユーザー回答済み。Phase 1（`src/generators/landRouteGraph.ts`、陸路route graph新設）・Phase 2（`src/generators/regimentMovement.ts`、日単位移動予算モデル。配置ロジックを`Military.generate()`から分離し、連隊は毎tick経路上を実距離分だけ前進するようになった）実装済み。次はPhase 3（索敵・AI反応レイヤー新設）から着手する。
+`docs/plan/military-movement.md` §4のOpen Questionsはユーザー回答済み。Phase 1（`src/generators/landRouteGraph.ts`、陸路route graph新設）・Phase 2（`src/generators/regimentMovement.ts`、日単位移動予算モデル。配置ロジックを`Military.generate()`から分離し、連隊は毎tick経路上を実距離分だけ前進するようになった）・Phase 3（同ファイルに索敵・AI反応レイヤー追加。陸軍のみ、視認範囲＋密偵の抽象化された高確率検知で敵を発見し、優勢なら迎撃・劣勢なら都市へ撤退）・Phase 4（部隊編成の動的分割/合流。`useOptionsState().militaryHierarchy`が`"dynamic"`のときのみ、複数方面の脅威を検知した野戦軍が`~150`兵の分遣隊を`parentId`付きで分離し、用が済めば親へ合流。デフォルトは`"simple"`＝従来のMAX_FIELD_ARMIES固定編成のまま）実装済み。4フェーズすべて完了。

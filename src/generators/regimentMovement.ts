@@ -1,7 +1,7 @@
 import { sum } from "d3";
 import type { WorldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
-import type { MilitaryRegiment } from "../types/models";
+import type { MilitaryRegiment, State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import { findPath, minmax } from "../utils";
 import {
@@ -55,6 +55,48 @@ const FLEET_SPEED_KM_PER_DAY = 50;
 
 /** Speed penalty for marching cross-country with no charted road/trail (§1.2's fallback option (b)). */
 const OFF_ROAD_SPEED_MULTIPLIER = 0.6;
+
+/** map units — within this radius a marching regiment always spots a nearby hostile regiment directly (§1.4/§4.5). */
+const VISUAL_DETECTION_RADIUS = 400;
+
+/**
+ * map units — beyond VISUAL_DETECTION_RADIUS but within this, a city's spies are assumed to
+ * report enemy troop movements at ESPIONAGE_DETECTION_CHANCE odds each tick (§4.5's answer:
+ * abstracted, high success rate, so hostile regiments converge fairly reliably even outside
+ * visual range). Beyond this radius, no report at all — spies cover their own region, not a
+ * distant front they have no presence in.
+ */
+const ESPIONAGE_AWARENESS_RADIUS = 1500;
+const ESPIONAGE_DETECTION_CHANCE = 0.85;
+
+/** Must have at least this power edge over a spotted enemy to break off the current march and intercept it instead. */
+const ENGAGE_POWER_RATIO = 1.2;
+
+/** Must be outmatched by at least this much to abandon the current march and retreat into the nearest own city instead. */
+const RETREAT_POWER_RATIO = 1.5;
+
+/**
+ * Smallest organizational sub-unit (docs/plan/military-movement.md §4 answer 3 — "150人ほどのグループが
+ * 最小単位で良い", not tied to real-world rank names). Also the floor for any detachment split off a
+ * larger field army in dynamic hierarchy mode (Phase 4).
+ */
+export const BASE_UNIT_TROOPS = 150;
+
+/** A field army must keep at least this many troops of its own after peeling off a detachment — splitting must never gut the main body. */
+const MIN_PARENT_TROOPS_AFTER_SPLIT = BASE_UNIT_TROOPS * 2;
+
+/** Share of the parent's current troops sent off as a detachment (subject to the MIN_PARENT_TROOPS_AFTER_SPLIT floor above). */
+const DETACHMENT_SHARE = 0.25;
+
+/**
+ * A second detected hostile must be at least this far (map units) from the nearest one before it counts
+ * as a distinct threat worth peeling off a detachment for, rather than something the regiment's existing
+ * march order already deals with just by closing in on the nearest enemy.
+ */
+const SECOND_THREAT_SEPARATION = 250;
+
+/** How close a detachment must get back to its parent before the two re-merge into one regiment. */
+const MERGE_DISTANCE_MAP_UNITS = 30;
 
 /** Miles-per-km, applied only when the user's chosen distanceUnit isn't "km" (§1.1's conversion note). */
 const KM_TO_MILES = 0.621371;
@@ -113,6 +155,38 @@ function clearMarchOrder(r: MilitaryRegiment): void {
   r.offRoad = undefined;
 }
 
+/**
+ * Plans a march to `destinationCell` (charted road/trail preferred, off-road BFS fallback) and
+ * commits it to `r`, unless already marching there. Shared tail for both the frontier-pull
+ * garrison logic below and the reaction layer's engage/retreat destinations, so there's one
+ * path-planning implementation instead of two near-identical copies.
+ */
+function planLandMarchOrder(
+  r: MilitaryRegiment,
+  destinationCell: number,
+  pack: PackedGraph,
+  landRouteGraph: LandRouteGraph
+): void {
+  if (destinationCell === r.cell) {
+    clearMarchOrder(r);
+    return;
+  }
+  if (r.destinationCell === destinationCell && r.path && r.pathIndex !== undefined) return; // already marching there
+
+  const charted = findLandRoutePath(landRouteGraph, r.cell, destinationCell);
+  const path = charted ?? findOffRoadLandPath(pack, r.cell, destinationCell);
+  if (!path || path.length < 2) {
+    clearMarchOrder(r);
+    return;
+  }
+
+  r.destinationCell = destinationCell;
+  r.path = path;
+  r.pathIndex = 0;
+  r.edgeProgress = 0;
+  r.offRoad = !charted;
+}
+
 /** Ports redistributeGarrisons's old target-selection (pull toward the primary threatened frontier, proportional to its share of total threat, snapped onto owned land) into a march order instead of an instant reposition. */
 function ensureGarrisonMarchOrder(
   r: MilitaryRegiment,
@@ -163,24 +237,177 @@ function ensureGarrisonMarchOrder(
     }
   }
 
-  if (destinationCell === r.cell) {
-    clearMarchOrder(r);
-    return;
-  }
-  if (r.destinationCell === destinationCell && r.path && r.pathIndex !== undefined) return; // already marching there
+  planLandMarchOrder(r, destinationCell, pack, landRouteGraph);
+}
 
-  const charted = findLandRoutePath(landRouteGraph, r.cell, destinationCell);
-  const path = charted ?? findOffRoadLandPath(pack, r.cell, destinationCell);
-  if (!path || path.length < 2) {
-    clearMarchOrder(r);
-    return;
+/**
+ * Every hostile regiment `r` currently notices, nearest first — either directly (within
+ * VISUAL_DETECTION_RADIUS) or via an abstracted, high-odds spy report (within
+ * ESPIONAGE_AWARENESS_RADIUS, at ESPIONAGE_DETECTION_CHANCE odds per tick). Only scans states
+ * `r`'s own state has a declared "Enemy" relation with, same gate localSkirmish.ts uses.
+ */
+function findHostileRegiments(r: MilitaryRegiment, pack: PackedGraph): MilitaryRegiment[] {
+  const ownState = pack.states[r.state];
+  const detected: { regiment: MilitaryRegiment; dist: number }[] = [];
+
+  for (const otherState of pack.states) {
+    if (!otherState.i || otherState.removed || otherState.i === r.state) continue;
+    if (ownState?.diplomacy?.[otherState.i] !== "Enemy") continue;
+
+    for (const other of otherState.military ?? []) {
+      if (other.a <= 0 || other.isCapitalGuard) continue;
+      const dist = Math.hypot(r.x - other.x, r.y - other.y);
+      if (dist > ESPIONAGE_AWARENESS_RADIUS) continue;
+      if (dist > VISUAL_DETECTION_RADIUS && Math.random() > ESPIONAGE_DETECTION_CHANCE) continue;
+      detected.push({ regiment: other, dist });
+    }
   }
 
-  r.destinationCell = destinationCell;
-  r.path = path;
-  r.pathIndex = 0;
-  r.edgeProgress = 0;
-  r.offRoad = !charted;
+  return detected.sort((a, b) => a.dist - b.dist).map(d => d.regiment);
+}
+
+/** Nearest hostile regiment `r` currently notices, or null if none — see findHostileRegiments. */
+function findNearestHostileRegiment(r: MilitaryRegiment, pack: PackedGraph): MilitaryRegiment | null {
+  return findHostileRegiments(r, pack)[0] ?? null;
+}
+
+/** Nearest burg cell belonging to `r`'s own state, for the retreat reaction below. */
+function findNearestOwnBurgCell(r: MilitaryRegiment, pack: PackedGraph): number | null {
+  let nearestCell: number | null = null;
+  let nearestDist = Infinity;
+  for (const b of pack.burgs) {
+    if (!b.i || b.removed || b.state !== r.state) continue;
+    const dist = Math.hypot(r.x - b.x, r.y - b.y);
+    if (dist < nearestDist) {
+      nearestDist = dist;
+      nearestCell = b.cell;
+    }
+  }
+  return nearestCell;
+}
+
+/**
+ * The "moving decision" reaction layer (docs/plan/military-movement.md §1.4, Phase 3) — a third
+ * layer alongside strategic-planner.ts's national tension and localSkirmish.ts's adjacent-contact
+ * resolution. On spotting a nearby hostile regiment, a land regiment either breaks off its current
+ * march to close in for the kill (comfortably stronger) or retreats into the nearest own city to
+ * garrison there (badly outmatched) — otherwise it holds its existing march order, since the fight
+ * is close enough that gambling on it isn't worth abandoning the frontier assignment.
+ *
+ * Land only for now — naval reaction (detecting/responding to enemy fleets) is a follow-up; fleets
+ * keep the plain frontier-pull behavior from Phase 2. Returns true if a reaction destination was
+ * set/held this tick, so the caller skips the normal frontier-pull march order for this regiment.
+ */
+function applyReactionMarchOrder(r: MilitaryRegiment, pack: PackedGraph, landRouteGraph: LandRouteGraph): boolean {
+  if (r.n) return false;
+
+  const enemy = findNearestHostileRegiment(r, pack);
+  if (!enemy) return false;
+
+  if (!enemy.n && r.a >= enemy.a * ENGAGE_POWER_RATIO) {
+    planLandMarchOrder(r, enemy.cell, pack, landRouteGraph);
+    return true;
+  }
+
+  if (enemy.a >= r.a * RETREAT_POWER_RATIO) {
+    const refugeCell = findNearestOwnBurgCell(r, pack);
+    if (refugeCell !== null) {
+      planLandMarchOrder(r, refugeCell, pack, landRouteGraph);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Peels a ~BASE_UNIT_TROOPS detachment (proportionally sharing `r`'s unit composition) off `r`,
+ * appends it to `state.military` with `parentId` pointing back at `r`, and sends it marching
+ * toward `targetCell`. Returns null (no-op) if `r` can't spare the troops without dropping below
+ * MIN_PARENT_TROOPS_AFTER_SPLIT. Part of docs/plan/military-movement.md §1.3/Phase 4's dynamic
+ * hierarchy mode — never called unless militaryHierarchy is "dynamic".
+ */
+function splitDetachment(
+  r: MilitaryRegiment,
+  state: State,
+  targetCell: number,
+  pack: PackedGraph,
+  landRouteGraph: LandRouteGraph
+): MilitaryRegiment | null {
+  const military = state.military!;
+  const detachmentTroops = Math.max(BASE_UNIT_TROOPS, Math.round(r.a * DETACHMENT_SHARE));
+  if (r.a - detachmentTroops < MIN_PARENT_TROOPS_AFTER_SPLIT) return null;
+
+  const fraction = detachmentTroops / r.a;
+  const detachmentUnits: Record<string, number> = {};
+  for (const [name, amount] of Object.entries(r.u)) {
+    const take = Math.round(amount * fraction);
+    if (take <= 0) continue;
+    detachmentUnits[name] = take;
+    r.u[name] = amount - take;
+  }
+  const takenTotal = sum(Object.values(detachmentUnits));
+  if (!takenTotal) return null;
+  r.a -= takenTotal;
+  r.t -= takenTotal;
+
+  const detachment: MilitaryRegiment = {
+    i: military.length,
+    t: takenTotal,
+    a: takenTotal,
+    s: r.s,
+    cell: r.cell,
+    x: r.x,
+    y: r.y,
+    bx: r.x,
+    by: r.y,
+    u: detachmentUnits,
+    n: 0,
+    type: r.type,
+    name: `${r.name} Detachment`,
+    state: r.state,
+    parentId: r.i
+  };
+
+  military.push(detachment);
+  planLandMarchOrder(detachment, targetCell, pack, landRouteGraph);
+  return detachment;
+}
+
+/**
+ * If `r` has spotted a second hostile force distinct from the nearest one (which its current
+ * march/reaction order is already closing in on or fleeing from), and can spare the troops,
+ * peels off a detachment to go deal with it — the "split to cover multiple fronts" half of
+ * docs/plan/military-movement.md §1.3/Phase 4. A regiment only ever splits off one detachment
+ * per tick; further threats are left for the next tick (or for the detachment itself, once it's
+ * had a chance to react). Returns the new detachment (already pushed onto `state.military`), or
+ * null if no split happened.
+ */
+function maybeSplitDetachment(
+  r: MilitaryRegiment,
+  state: State,
+  pack: PackedGraph,
+  landRouteGraph: LandRouteGraph
+): MilitaryRegiment | null {
+  if (r.a - BASE_UNIT_TROOPS < MIN_PARENT_TROOPS_AFTER_SPLIT) return null;
+
+  const hostiles = findHostileRegiments(r, pack);
+  if (hostiles.length < 2) return null;
+
+  const primary = hostiles[0];
+  const secondary = hostiles.find(h => Math.hypot(h.x - primary.x, h.y - primary.y) > SECOND_THREAT_SEPARATION);
+  if (!secondary) return null;
+
+  return splitDetachment(r, state, secondary.cell, pack, landRouteGraph);
+}
+
+/** Folds a returning detachment's troops back into its parent field army. */
+function mergeDetachmentIntoParent(parent: MilitaryRegiment, detachment: MilitaryRegiment): void {
+  for (const [name, amount] of Object.entries(detachment.u)) {
+    parent.u[name] = (parent.u[name] ?? 0) + amount;
+  }
+  parent.a += detachment.a;
+  parent.t += detachment.a;
 }
 
 /** Ports redistributeFleet's old target-selection (pull toward the nearest reachable enemy port, along the charted sea route) into a march order instead of an instant reposition. */
@@ -310,18 +537,72 @@ export function advanceAllRegimentMovement(pack: PackedGraph, worldContext: Worl
   );
   const landCellsByStateAndLandmass = buildLandCellsByStateAndLandmass(pack);
   const days = deltaYears * 365;
+  const hierarchyEnabled = useOptionsState.getState().militaryHierarchy === "dynamic";
 
   let anyMoved = false;
 
   for (const state of pack.states) {
     if (!state.i || state.removed || !state.military?.length) continue;
     const segments = frontiers.get(state.i) ?? [];
+    const military = state.military;
 
-    for (const r of state.military) {
+    // Phase 4 (dynamic hierarchy mode only): merge any detachment that has closed back in on its
+    // parent, before this tick's reaction/march-order pass runs. Position is one tick stale (from
+    // the end of the previous tick) — an acceptable approximation, since the next tick's pass
+    // would catch anything just missed here anyway.
+    if (hierarchyEnabled) {
+      for (let idx = military.length - 1; idx >= 0; idx--) {
+        const r = military[idx];
+        if (r.parentId === undefined) continue;
+        const parent = military.find(p => p.i === r.parentId);
+        if (!parent) {
+          r.parentId = undefined; // orphaned (parent itself was merged/removed elsewhere) — carry on as an independent regiment
+          continue;
+        }
+        if (Math.hypot(r.x - parent.x, r.y - parent.y) <= MERGE_DISTANCE_MAP_UNITS) {
+          mergeDetachmentIntoParent(parent, r);
+          military.splice(idx, 1);
+        }
+      }
+    }
+
+    const freshlySplit = new Set<MilitaryRegiment>();
+
+    for (const r of military) {
       if (r.isCapitalGuard) continue;
+      if (freshlySplit.has(r)) continue; // already given its mission order + movement budget below, this same tick
 
-      if (r.n) ensureFleetMarchOrder(r, segments, pack, seaRouteGraph);
-      else ensureGarrisonMarchOrder(r, segments, pack, landRouteGraph, landCellsByStateAndLandmass);
+      if (r.n) {
+        ensureFleetMarchOrder(r, segments, pack, seaRouteGraph);
+      } else if (hierarchyEnabled && r.parentId !== undefined) {
+        // A live detachment: keep reacting to its own local threats independently; once it has
+        // none left to react to, head back toward its parent instead of the usual frontier pull
+        // (which belongs to the parent's mission, not the detachment's).
+        const reacted = applyReactionMarchOrder(r, pack, landRouteGraph);
+        if (!reacted) {
+          const parent = military.find(p => p.i === r.parentId);
+          if (parent) planLandMarchOrder(r, parent.cell, pack, landRouteGraph);
+        }
+      } else {
+        const reacted = applyReactionMarchOrder(r, pack, landRouteGraph);
+        if (!reacted) ensureGarrisonMarchOrder(r, segments, pack, landRouteGraph, landCellsByStateAndLandmass);
+
+        if (hierarchyEnabled) {
+          // Splitting off a detachment appends it to `military` (the array this for-of loop is
+          // iterating), so it would otherwise get visited again later in this same pass — and
+          // immediately override its brand-new mission order, since sitting right next to
+          // whatever threat `r` itself is reacting to would make its own reaction layer want to
+          // retreat from that same nearby threat instead of marching off toward its assigned one.
+          // Mark it so this pass leaves it alone; from next tick on it's a normal live detachment.
+          const detachment = maybeSplitDetachment(r, state, pack, landRouteGraph);
+          if (detachment) {
+            freshlySplit.add(detachment);
+            const detachmentBudget = dailySpeedMapUnits(detachment, worldContext) * days;
+            advanceAlongPath(pack, detachment, detachmentBudget);
+            anyMoved = true;
+          }
+        }
+      }
 
       if (!r.path || r.pathIndex === undefined) continue;
 

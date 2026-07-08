@@ -85,8 +85,8 @@
 
 1. **Phase 1**（実装済み）: 陸路版route graph新設（`seaRouteGraph.ts`と同じ設計）。低リスク——Naval Sea LanesのPhase 1で実証済みのパターンをそのまま転用するだけなので、最初に着手するのが自然。
 2. **Phase 2**（実装済み）: 移動予算モデル。`MilitaryRegiment`に移動関連フィールドを追加し、`advanceTime`のtick hook内で経過日数分の予算だけ経路上を前進させる。艦隊(`redistributeFleet`)も統一。
-3. **Phase 3**: 索敵・AI反応レイヤー新設。
-4. **Phase 4**: 部隊編成の階層化・動的分割/合流。4つの柱の中で最も設計難度が高く、Phase 1〜3が固まってから着手するのが安全。
+3. **Phase 3**（実装済み）: 索敵・AI反応レイヤー新設。
+4. **Phase 4**（実装済み）: 部隊編成の階層化・動的分割/合流。
 
 ### Phase 1 実装ログ
 
@@ -107,6 +107,34 @@
 - **配線**: `src/extensions/nobility/index.tsx`のtick hookで、`bordersChanged`時のみ`Military.generate()`を呼ぶ従来の分岐とは別に、`advanceAllRegimentMovement`を**毎tick無条件で**呼ぶように変更（行軍は`bordersChanged`イベントの有無に関係なく継続すべきため）。戻り値（何か動いたか）と`bordersChanged`のいずれかが真なら軍事レイヤーを再描画。
 - **テスト**: `military-generator.test.ts`から配置系の2 describe（3テスト、うち1件は削除前は無変更の`redistributeGarrisons`の「航路が無ければ母港のまま」テストとして通っていたが、まとめて新モジュール側に移設）を削除し、consolidation系の4テストのみ残した（無改修で通過）。新設`regimentMovement.test.ts`に9テスト追加: 陸軍のオフロード進軍（十分な時間で自国land cellへスナップ到達／短い時間だと経路の途中で止まる／オフロードフラグの検証／charted roadがあればそちらを優先／経路不通なら現状維持）、艦隊（航路上のノードまで按分進軍／航路が無ければ母港のまま）、海上脅威による内陸陸軍の牽引（naval-sea-lanes.md §2.5の「海軍固有コード無しで陸軍も牽引される」という主張の回帰確認）、脅威が無い場合は行軍命令が発生しないこと。
 - `npx tsc --noEmit`・`npm run lint`・`npm run madge`・`npx vitest run`（全32ファイル332件）・`npm run build`すべてクリーン。
+
+### Phase 3 実装ログ
+
+`src/generators/regimentMovement.ts`に「移動中の意思決定」レイヤーを追加（`strategic-planner.ts`＝国家レベル長期tension、`localSkirmish.ts`＝隣接時即時判定、に続く第三の層。§1.4で述べた設計方針通り）。
+
+- **索敵**: `findNearestHostileRegiment(r, pack)`——`r`の所属国が`"Enemy"`関係を持つ国のみ走査（`localSkirmish.ts`と同じ関係ゲート）。`VISUAL_DETECTION_RADIUS=400`以内なら必ず検知、それを超えて`ESPIONAGE_AWARENESS_RADIUS=1500`以内なら`ESPIONAGE_DETECTION_CHANCE=0.85`の確率で検知（§4回答5「密偵からの報告は抽象化・高成功率」を反映）、`1500`を超えたら検知不可（密偵は自国周辺のみカバーする、という前提でスコープを切った——ユーザー回答は具体的な数値を示していないため、ここは実装上の裁量判断）。
+- **反応の意思決定**: `applyReactionMarchOrder(r, pack, landRouteGraph)`——敵を発見したら、`r.a >= enemy.a * ENGAGE_POWER_RATIO(1.2)`なら敵の現在セルへ進路変更（迎撃）、`enemy.a >= r.a * RETREAT_POWER_RATIO(1.5)`なら自国の最寄りの都市（`findNearestOwnBurgCell`）へ撤退、どちらの閾値も満たさない拮抗した戦力比なら何もせず既存のフロンティア牽引の行軍命令を維持（賭けに出ない）。迎撃は`!enemy.n`（陸上部隊同士）に限定——艦隊は上陸してこない限り陸戦部隊が直接交戦できないため。撤退は敵が艦隊でも陸軍でも発動する（沿岸に敵艦隊が現れたら陸軍が都市に籠城するのは自然な判断のため）。
+- **陸軍のみ・艦隊は今回スコープ外**: `r.n`（艦隊）は`applyReactionMarchOrder`の先頭で即`false`を返し、Phase 2までの航路牽引ロジックのみ適用される。艦隊の索敵・反応（発見した敵艦隊に応じて母港へ引き返す等）は今回見送り、将来のフォローアップとして残す。
+- **既存コードとの統合**: `ensureGarrisonMarchOrder`の末尾（目的地決定後の経路計画・`destinationCell`/`path`/`pathIndex`/`edgeProgress`/`offRoad`の設定）を`planLandMarchOrder(r, destinationCell, pack, landRouteGraph)`として切り出し、反応レイヤーの迎撃/撤退先設定と共有（同じ経路計画ロジックの二重実装を避けた）。`advanceAllRegimentMovement`の陸軍分岐は「まず反応レイヤーを試し、反応が発生しなければ（`applyReactionMarchOrder`が`false`を返せば）従来のフロンティア牽引`ensureGarrisonMarchOrder`にフォールバックする」という優先順位。
+- **アーキテクチャ判断（コアに留めた理由）**: 索敵・反応の判定に`commanderPowerMultiplier`（指揮官のMartialスキルによる戦力補正、`localDefense.ts`）は使わず、`regiment.a`（頭数）のみで判定する簡略版とした。理由: `commanderPowerMultiplier`はNobility拡張（`src/extensions/nobility/`）のcharacterデータに依存するため、コアジェネレータである`regimentMovement.ts`から参照すると層構造（コア→拡張への依存）が逆転してしまう。指揮官補正を加味した精緻な判定が必要になれば、Nobility拡張側にこのロジックを移設するか、コールバック注入の形にする再設計が必要——現時点では見送り、素の頭数比較に留めた。
+- **テスト**: `regimentMovement.test.ts`に8テスト追加——快勝できる敵を発見して進路変更（迎撃）、圧倒的に不利な敵から都市へ撤退、拮抗した戦力なら反応せず現状維持、索敵範囲外の敵には（乱数を`0`に固定して密偵判定を必ず成功させても）反応しないこと、索敵範囲内・視認範囲外の敵を乱数を固定して検知成功/失敗の両方を確認、艦隊は弱くても迎撃しないが圧倒的なら撤退はすること。
+- `npx tsc --noEmit`・`npm run lint`・`npm run madge`・`npx vitest run`（全32ファイル340件）・`npm run build`すべてクリーン。
+
+### Phase 4 実装ログ
+
+着手前に、§1.3で「要ユーザー相談」としていたデータ構造の分岐（`children`ネスト vs フラット配列+`parentId`）をAskUserQuestionで確認——ユーザーの選択: **フラット配列+`parentId`**（`officerAssignment.ts`の`commanderId`パターンを踏襲）。`state.military`はネストせず、分離した部隊は普通の`MilitaryRegiment`として配列に追加されるだけ。`parentId`は`Military.generate()`の次回フルリビルド（`bordersChanged`発生時、全既存連隊が使い捨てられ`temp.platoons`から再構成される）までしか有効でない一時的な参照——マーチ中の`destinationCell`/`path`等と全く同じ寿命であり、既存の設計と矛盾しない。
+
+- **`MilitaryRegiment.parentId?: number`**（`src/types/models.ts`）を追加。
+- **§4回答4のMilitary抽象化トグル**: `useOptionsState`（`src/store/optionsState.ts`）に`militaryHierarchy: "simple" | "dynamic"`（デフォルト`"simple"`——「軍隊なんてどうでも良い人」向けの安全なデフォルト）を追加し、`MilitaryOptionsDialog.tsx`に`<select>`（"Army organization"）を新設。`regimentMovement.ts`は`useOptionsState.getState().militaryHierarchy === "dynamic"`のときだけ分割/合流ロジックを実行し、`"simple"`のままなら`MAX_FIELD_ARMIES`ベースの既存の固定編成のみで、Phase 4のコードパスには一切触れない。
+- **最小単位**（§4回答3）: `BASE_UNIT_TROOPS = 150`（`regimentMovement.ts`でexport）。実際の階級名は導入せず、分離した部隊は単に`"{parent.name} Detachment"`と命名——ユーザーが「良い案があれば」と留保していたが、今回はまず動く仕組みを優先し、命名の凝った階級体系は見送った（将来の改善候補として残す）。
+- **分割トリガー**（`maybeSplitDetachment`）: Phase 3の`findNearestHostileRegiment`を`findHostileRegiments`（検知した敵を近い順の配列で返す）に一般化し、上位2件を見る——最も近い敵（既存のmarch/reaction orderが対応している相手）から`SECOND_THREAT_SEPARATION`（250 map units、実装上の裁量値）以上離れた2件目の敵を検知した場合のみ、2件目に向かう部隊を分離する。分離条件: 親が`MIN_PARENT_TROOPS_AFTER_SPLIT`（`BASE_UNIT_TROOPS * 2`）を割り込まないこと。分離量は親の現有兵力の25%（`DETACHMENT_SHARE`）、`u`の構成比をそのまま案分。
+- **重要なバグとその修正**: 分離直後の部隊を同tickのfor-ofループがそのまま拾って`applyReactionMarchOrder`を再度評価してしまうと、分離直後の部隊は（分離元と同じ場所にいるため）分離元が既に対峙している近い方の敵（1件目）を検知し、「都市へ撤退」を選んでしまい、せっかく設定した2件目への行軍命令を即座に上書きしてしまう不具合が発生（テストで実際に再現・発見）。対応: 分離時に`freshlySplit`（`Set<MilitaryRegiment>`、tickごとに新規作成）へ追加し、同tick内でのそれ以降の処理をスキップ——移動予算は分離のその場で直接`advanceAlongPath`を呼んで適用する。次tickからは通常の部隊として索敵・反応・撤退・親への合流ロジックを受ける。
+- **合流**（`mergeDetachmentIntoParent`）: 各stateループの先頭で（`hierarchyEnabled`時のみ）`parentId`を持つ既存部隊を後ろから走査し、親との距離が`MERGE_DISTANCE_MAP_UNITS`（30）以下なら`u`/`a`/`t`を親に合算し配列から削除。親が見つからない場合（親自体が既に合流/消滅済み）は`parentId`をクリアして独立部隊として扱う（孤児化のケア）。この合流判定パスは反応レイヤーより前に実行するため、位置は1tick古い（前tick終了時点）ものを見るが、取りこぼしがあっても次tickで拾えるため許容。
+- **分離中の部隊自身の挙動**: `parentId`を持つ部隊はPhase 3の`applyReactionMarchOrder`をそのまま適用——独自に索敵・交戦/撤退を判断する。反応が発火しなければ（対応すべき敵がもういない）、通常のフロンティア牽引ではなく親の現在地へ向かって行軍する（`planLandMarchOrder(r, parent.cell, ...)`）。これにより自然に親へ収束し、次tick以降の合流判定に引っかかる。
+- **`Military.generate()`のフルリビルドとの整合性**: 動的に生成した分離部隊は`Military.generate()`が呼ばれるたび（`bordersChanged`発生時）に丸ごと消える——他の全連隊と同様、`state.military`が兵站プールから作り直されるため。これはPhase 2で行軍中の位置（`destinationCell`/`path`等）も同じ理由で毎回リセットされるのと全く同じ既存の割り切りであり、新たな不整合ではない。
+- **艦隊は対象外**: 分割/合流は陸軍のみ（Phase 3の反応レイヤーが艦隊の索敵/反応を見送ったのと同じスコープ）。
+- **テスト**: `regimentMovement.test.ts`に4テスト追加——2つの離れた敵を検知して2件目に向かう部隊を分離すること（分離量・`parentId`・到達確認）、トグルが`"simple"`のままなら分離が一切起きないこと、兵力不足で分離を割愛すること、親に近づいた部隊が合流して兵力が合算されること。
+- `npx tsc --noEmit`・`npm run lint`・`npm run madge`・`npx vitest run`（全32ファイル344件）・`npm run build`すべてクリーン。
 
 ---
 

@@ -22,6 +22,13 @@ export interface OptionsState {
   resolveDepressionsSteps: number;
   lakeElevationLimit: number;
   threatCalculation: "additive" | "max" | "nonlinear";
+  /**
+   * "simple" keeps the classic fixed field-army cap (MAX_FIELD_ARMIES in military-generator.ts).
+   * "dynamic" opts into docs/plan/military-movement.md Phase 4: field armies can split off
+   * ~150-troop detachments to react to a second simultaneous threat and merge back once it's
+   * gone. Read live each movement tick by regimentMovement.ts, not a generation-time-only setting.
+   */
+  militaryHierarchy: "simple" | "dynamic";
   initialPopulationSaturation: number;
   demographicBirthRate: number;
   demographicChildMortalityRate: number;
@@ -120,6 +127,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   resolveDepressionsSteps: 250,
   lakeElevationLimit: 20,
   threatCalculation: "additive",
+  militaryHierarchy: "simple",
   initialPopulationSaturation: 60,
   demographicBirthRate: 0.25,
   demographicChildMortalityRate: 0.2,

@@ -369,6 +369,12 @@ export interface MilitaryRegiment {
   edgeProgress?: number;
   /** True when `path` came from the off-road cells.c fallback (no charted road/trail) rather than a route graph — see regimentMovement.ts's OFF_ROAD_SPEED_MULTIPLIER. */
   offRoad?: boolean;
+  /**
+   * `i` of the field army this regiment was split off from as a detachment (docs/plan/military-movement.md
+   * Phase 4, dynamic hierarchy mode only). Undefined for ordinary regiments. Only meaningful until the next
+   * full `Military.generate()` rebuild — like `i` itself, it is not a stable cross-rebuild identity.
+   */
+  parentId?: number;
 }
 
 export interface Platoon {

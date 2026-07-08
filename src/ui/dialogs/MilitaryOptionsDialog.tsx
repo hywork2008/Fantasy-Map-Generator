@@ -9,6 +9,7 @@ import { Military } from "../../generators/military-generator";
 import { tip } from "../../services/tooltipService";
 import { useDialogState } from "../../store/dialogState";
 import { useMilitaryOverviewState } from "../../store/militaryOverviewState";
+import { useOptionsState } from "../../store/optionsState";
 import type { MilitaryUnit } from "../../types/models";
 import { sanitizeId } from "../../utils";
 import { IconButton } from "../components/IconButton";
@@ -45,6 +46,7 @@ type SelectionDialogState = {
 
 export const MilitaryOptionsDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("militaryOptions"));
+  const militaryHierarchy = useOptionsState(state => state.militaryHierarchy);
   const [units, setUnits] = useState<MilitaryUnitConfig[]>([]);
   const [selectionDialog, setSelectionDialog] = useState<SelectionDialogState>(null);
 
@@ -105,6 +107,24 @@ export const MilitaryOptionsDialog: React.FC = () => {
       <Dialog isOpen={isOpen} title="Military Options" onClose={() => closeDialog("militaryOptions")}>
         <div id="militaryOptionsContainer">
           <div>
+            <div style={{ marginBottom: "10px" }}>
+              <label
+                htmlFor="militaryHierarchyMode"
+                data-tip="Simple keeps the classic fixed field-army cap. Dynamic lets a field army split off ~150-troop detachments to react to a second simultaneous threat, merging them back once it's gone (docs/plan/military-movement.md Phase 4)."
+              >
+                Army organization:{" "}
+              </label>
+              <select
+                id="militaryHierarchyMode"
+                value={militaryHierarchy}
+                onChange={e =>
+                  useOptionsState.getState().setOption("militaryHierarchy", e.target.value as "simple" | "dynamic")
+                }
+              >
+                <option value="simple">Simple (fixed field armies)</option>
+                <option value="dynamic">Dynamic (split/merge detachments)</option>
+              </select>
+            </div>
             <div className="table">
               <table id="militaryOptionsTable">
                 <thead>
