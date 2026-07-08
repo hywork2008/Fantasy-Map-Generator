@@ -108,3 +108,26 @@ const MAX_OFFICER_AGE = 60;
 const DECLINE_AGE_THRESHOLD = 35;
 const APPEARANCE_DECLINE_PER_YEAR = 1.5;
 const PROWESS_DECLINE_PER_YEAR = 2;
+
+国家タイプ  キャラクター欄でいいのか？
+  海洋国家
+  騎馬国家
+野望・野心
+  国家を繁栄させる為に何をするか
+    外洋との交易
+    内政
+    外征
+      大陸制覇・全国統一
+猜疑心
+
+## 国家運営の方針
+
+人口が少ない・国土が狭い
+  なのに隣国は敵  Relations historyの過剰な敵づくりを一回止める？
+  交易
+  海洋
+  従属
+    宗主国による血縁の強要と家系の乗っ取り
+  兵士が少ない=存亡の危機
+
+

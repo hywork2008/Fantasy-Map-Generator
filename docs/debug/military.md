@@ -116,3 +116,12 @@ Fleetは恐らく大砲が前提のPowerになっている。
 占領するには都市人口のどれくらいの軍隊が驻留すべきか検討する。
 
 `docs/plan/military-movement.md` §4のOpen Questionsはユーザー回答済み。Phase 1（`src/generators/landRouteGraph.ts`、陸路route graph新設）・Phase 2（`src/generators/regimentMovement.ts`、日単位移動予算モデル。配置ロジックを`Military.generate()`から分離し、連隊は毎tick経路上を実距離分だけ前進するようになった）・Phase 3（同ファイルに索敵・AI反応レイヤー追加。陸軍のみ、視認範囲＋密偵の抽象化された高確率検知で敵を発見し、優勢なら迎撃・劣勢なら都市へ撤退）・Phase 4（部隊編成の動的分割/合流。`useOptionsState().militaryHierarchy`が`"dynamic"`のときのみ、複数方面の脅威を検知した野戦軍が`~150`兵の分遣隊を`parentId`付きで分離し、用が済めば親へ合流。デフォルトは`"simple"`＝従来のMAX_FIELD_ARMIES固定編成のまま）実装済み。4フェーズすべて完了。
+
+
+docs/debug/military.md
+docs/plan/military-movement.md
+docs/plan/military-organization-and-vassalage.md
+
+で戦争における軍隊の移動と編成について改善を実施しました。
+今後Advance Timeで軍隊の移動を確認し、改善したい点を発見した時、現在の世界情勢、window.fmgオブジェクトの状態を人間である私とAIであるあなたが共有し、この軍隊がどのように動くべきかを相談する時に直接参照出来るようにしたい。
+サーバーの動かし方を変え、APIで各オブジェクトにアクセス出来るようにするなど、何か良い実装方法があれば提案して下さい。
