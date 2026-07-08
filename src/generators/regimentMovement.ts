@@ -381,7 +381,11 @@ function ensureGarrisonMarchOrder(
     planLandMarchOrder(r, home, pack, landRouteGraph);
   };
 
-  const localSegments = segments.filter(seg => seg.landmass === landmass);
+  let localSegments = segments.filter(seg => seg.landmass === landmass);
+  const landLocalSegments = localSegments.filter(seg => seg.origin !== "sea");
+  if (landLocalSegments.length > 0) {
+    localSegments = landLocalSegments;
+  }
   if (!localSegments.length) {
     retreatOrHold();
     return;
@@ -559,7 +563,11 @@ function applyRecaptureMarchOrder(
   }
   if (!nearestBurg) return false;
 
-  const localSegments = segments.filter(seg => seg.landmass === landmass);
+  let localSegments = segments.filter(seg => seg.landmass === landmass);
+  const landLocalSegments = localSegments.filter(seg => seg.origin !== "sea");
+  if (landLocalSegments.length > 0) {
+    localSegments = landLocalSegments;
+  }
   const primaryFrontier = pickPrimaryFrontier(r.x, r.y, localSegments);
   if (primaryFrontier) {
     const frontierDist = Math.hypot(primaryFrontier.cx - r.x, primaryFrontier.cy - r.y);
@@ -594,7 +602,11 @@ function applyStrategicMarchOrder(
   if (r.n || !activeSiegeTargetBurgs.length) return false;
 
   const landmass = pack.cells.f[r.cell];
-  const localSegments = segments.filter(seg => seg.landmass === landmass);
+  let localSegments = segments.filter(seg => seg.landmass === landmass);
+  const landLocalSegments = localSegments.filter(seg => seg.origin !== "sea");
+  if (landLocalSegments.length > 0) {
+    localSegments = landLocalSegments;
+  }
   if (!localSegments.length) return false;
 
   const primaryFrontier = pickPrimaryFrontier(r.x, r.y, localSegments);

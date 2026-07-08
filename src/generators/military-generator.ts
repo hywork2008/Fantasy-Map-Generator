@@ -589,7 +589,10 @@ class MilitaryModule {
       }
 
       const segments = frontiers.get(s.i) ?? [];
-      const provinceThreats = getProvinceThreats(pack, segments);
+      const landSegments = segments.filter(seg => seg.origin !== "sea");
+      const seaSegments = segments.filter(seg => seg.origin === "sea");
+      const landProvinceThreats = getProvinceThreats(pack, landSegments);
+      const seaProvinceThreats = getProvinceThreats(pack, seaSegments);
 
       const splitAndAddLandRegiments = (
         units: Record<string, number>,
@@ -636,7 +639,9 @@ class MilitaryModule {
       // threatened, in which case it grows proportionally to that threat.
       const guardUnits: Record<string, number> = capitalPlatoons.length ? poolToUnits(capitalPlatoons) : {};
       const capitalProvince = cells.province[s.center];
-      const capitalThreat = capitalProvince ? (provinceThreats.get(capitalProvince)?.totalWeight ?? 0) : 0;
+      const capLand = capitalProvince ? (landProvinceThreats.get(capitalProvince)?.totalWeight ?? 0) : 0;
+      const capSea = capitalProvince ? (seaProvinceThreats.get(capitalProvince)?.totalWeight ?? 0) : 0;
+      const capitalThreat = capLand + capSea * 0.001;
       // Cap the maximum bonus to 1.5x to prevent absurd numbers
       const bonus = Math.min(1.5, 1 + capitalThreat * CAPITAL_GUARD_THREAT_MULTIPLIER);
       Object.keys(guardUnits).forEach(name => {
@@ -682,13 +687,17 @@ class MilitaryModule {
 
       platoonsByProvince.forEach((provincePlatoons, provinceId) => {
         const units = poolToUnits(provincePlatoons);
-        const threat = provinceId ? provinceThreats.get(provinceId) : undefined;
+        const landThreat = provinceId ? landProvinceThreats.get(provinceId) : undefined;
+        const seaThreat = provinceId ? seaProvinceThreats.get(provinceId) : undefined;
         const troops = sumUnits(units);
 
         // Prioritize threatened provinces over all others by giving them massive weight,
         // so that unthreatened interior armies ALWAYS merge into the frontier.
-        const weight = troops + (threat?.totalWeight ?? 0) * 1e9;
-        const neighborState = threat ? threat.primaryNeighbor : 0;
+        // Land threats (1e9) completely dominate sea threats (1e6).
+        const landWeight = (landThreat?.totalWeight ?? 0) * 1e9;
+        const seaWeight = (seaThreat?.totalWeight ?? 0) * 1e6;
+        const weight = troops + landWeight + seaWeight;
+        const neighborState = landThreat ? landThreat.primaryNeighbor : seaThreat ? seaThreat.primaryNeighbor : 0;
         const anchor = getAnchor(provinceId, landPlatoons);
 
         armyBuckets.set(provinceId, {
