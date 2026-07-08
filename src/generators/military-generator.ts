@@ -922,7 +922,7 @@ class MilitaryModule {
 
   // utilize si function to make regiment total text fit regiment box
   getTotal(reg: MilitaryRegiment) {
-    return reg.a > (reg.n ? 999 : 99999) ? si(reg.a) : reg.a;
+    return reg.a > (reg.n ? 999 : 99999) ? si(reg.a) : rn(reg.a);
   }
 
   generateNote(r: MilitaryRegiment, s: State) {

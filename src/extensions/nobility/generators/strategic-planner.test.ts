@@ -267,3 +267,177 @@ describe("StrategicPlannerGenerator.generate — sea frontiers", () => {
     expect(simulationContext.strategicGoals[1] ?? []).toHaveLength(0);
   });
 });
+
+describe("StrategicPlannerGenerator.generate — reclaiming a historically-own burg (docs/plan/strategy.md)", () => {
+  const planner = new StrategicPlannerGenerator();
+
+  beforeEach(() => {
+    initNobilityContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.options = { year: 1000 } as never;
+    simulationContext.currentYear = 1000;
+    simulationContext.strategicGoals = {};
+    simulationContext.intelligence = {
+      1: {
+        2: {
+          estimatedMilitaryPower: 1,
+          estimatedWealth: 0,
+          lastUpdatedYear: 1000,
+          accuracyLevel: "accurate",
+          hiddenBySpymaster: false
+        }
+      }
+    };
+  });
+
+  afterEach(() => {
+    clearNobilityContext();
+  });
+
+  it("prefers a farther historically-own burg over a closer never-owned one", () => {
+    worldContext.pack = {
+      cells: {
+        i: [0, 1, 2],
+        h: [50, 50, 50],
+        c: [[1], [0], []],
+        state: [1, 2, 2],
+        f: [1, 1, 1],
+        p: [
+          [0, 0],
+          [10, 0],
+          [50, 0]
+        ]
+      },
+      states: [
+        { i: 0, name: "Neutrals", diplomacy: [] },
+        {
+          i: 1,
+          name: "Attacker",
+          diplomacy: [undefined, "x", "Enemy"],
+          military: [{ i: 0, a: 100000, x: 0, y: 0, u: { infantry: 100000 }, state: 1 }]
+        },
+        { i: 2, name: "Defender", diplomacy: [undefined, "Enemy", "x"], military: [] }
+      ],
+      burgs: [
+        { i: 0, cell: -1, x: 0, y: 0 },
+        { i: 1, cell: 1, x: 10, y: 0, state: 2, population: 10 }, // closer, never owned by Attacker
+        { i: 2, cell: 2, x: 50, y: 0, state: 2, population: 10, stateHistory: [1, 2] } // farther, historically Attacker's
+      ],
+      characters: []
+    } as unknown as PackedGraph;
+
+    planner.generate();
+
+    const goals = simulationContext.strategicGoals[1];
+    expect(goals).toHaveLength(1);
+    expect(goals[0].targetBurg).toBe(2);
+  });
+});
+
+describe("StrategicPlannerGenerator.advanceTension — stale goalTargetBurg cleanup", () => {
+  const planner = new StrategicPlannerGenerator();
+
+  beforeEach(() => {
+    initNobilityContext({ worldContext } as unknown as ExtensionAPI);
+  });
+
+  afterEach(() => {
+    clearNobilityContext();
+  });
+
+  it("clears a regiment's goalTargetBurg tag once its target burg is already owned by the state", () => {
+    const regiment = { i: 0, a: 100, state: 1, goalTargetBurg: 1, x: 0, y: 0, u: {} };
+    worldContext.pack = {
+      states: [
+        { i: 0, name: "Neutrals", diplomacy: [] },
+        { i: 1, name: "Attacker", diplomacy: [undefined, "x"], military: [regiment] }
+      ],
+      burgs: [
+        { i: 0, cell: -1 },
+        { i: 1, cell: 0, state: 1 }
+      ], // already owned by state 1
+      characters: []
+    } as unknown as PackedGraph;
+
+    simulationContext.strategicGoals = {
+      1: [
+        {
+          targetBurg: 1,
+          targetState: 2,
+          type: "siege",
+          tension: 40,
+          expectedCasualties: "moderate",
+          justification: "border_expansion",
+          requiredAttackForce: 10
+        }
+      ]
+    };
+
+    planner.advanceTension();
+
+    expect(simulationContext.strategicGoals[1]).toHaveLength(0);
+    expect((regiment as unknown as { goalTargetBurg?: number }).goalTargetBurg).toBeUndefined();
+  });
+});
+
+describe("StrategicPlannerGenerator.getActiveSiegeTargets", () => {
+  const planner = new StrategicPlannerGenerator();
+
+  it("returns only goals that have reached tension 100, keyed by attacker state", () => {
+    simulationContext.strategicGoals = {
+      1: [
+        {
+          targetBurg: 5,
+          targetState: 2,
+          type: "siege",
+          tension: 100,
+          expectedCasualties: "moderate",
+          justification: "x",
+          requiredAttackForce: 1
+        },
+        {
+          targetBurg: 6,
+          targetState: 2,
+          type: "siege",
+          tension: 40,
+          expectedCasualties: "moderate",
+          justification: "x",
+          requiredAttackForce: 1
+        }
+      ],
+      3: [
+        {
+          targetBurg: 9,
+          targetState: 4,
+          type: "siege",
+          tension: 100,
+          expectedCasualties: "moderate",
+          justification: "x",
+          requiredAttackForce: 1
+        }
+      ]
+    };
+
+    const targets = planner.getActiveSiegeTargets();
+
+    expect(targets.get(1)).toEqual([5]);
+    expect(targets.get(3)).toEqual([9]);
+  });
+
+  it("omits a state entirely once none of its goals are committed", () => {
+    simulationContext.strategicGoals = {
+      1: [
+        {
+          targetBurg: 5,
+          targetState: 2,
+          type: "siege",
+          tension: 40,
+          expectedCasualties: "moderate",
+          justification: "x",
+          requiredAttackForce: 1
+        }
+      ]
+    };
+
+    expect(planner.getActiveSiegeTargets().has(1)).toBe(false);
+  });
+});

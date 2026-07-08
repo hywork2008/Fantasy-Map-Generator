@@ -95,7 +95,13 @@ export class StrategicPlannerGenerator {
             }
           }
         } else {
-          for (const b of candidateTargets) {
+          // Reclaiming a burg that used to be ours (docs/plan/strategy.md — "十分な兵数があれば
+          // 敵国に落とされた自国内の都市の再占領") outranks pure nearest-distance expansion: a
+          // ruler settles old scores before picking a fresh fight. Only falls back to plain
+          // nearest-enemy-burg when this segment holds no historically-own candidate.
+          const historicallyOwn = candidateTargets.filter(b => b.stateHistory?.includes(attacker.i));
+          const pool = historicallyOwn.length ? historicallyOwn : candidateTargets;
+          for (const b of pool) {
             const dist = Math.hypot(b.x - segment.cx, b.y - segment.cy);
             if (dist < minDist && b.i !== undefined) {
               minDist = dist;
@@ -231,6 +237,12 @@ export class StrategicPlannerGenerator {
       for (const goal of goals) {
         // If the target burg is already owned by the state, the goal is achieved/invalid
         if (pack.burgs[goal.targetBurg]?.state === stateId) {
+          // Clear the stale tag from any regiments still counted toward this now-completed goal
+          // (mirrors evaluatePlans()'s withdrawal cleanup below) — otherwise a regiment keeps
+          // pointing at a burg that's no longer a meaningful siege target forever.
+          for (const regiment of state.military || []) {
+            if (regiment.goalTargetBurg === goal.targetBurg) regiment.goalTargetBurg = undefined;
+          }
           continue; // Goal accomplished or invalid, drop it
         }
 
@@ -383,6 +395,24 @@ export class StrategicPlannerGenerator {
         }
       }
     }
+  }
+
+  /**
+   * Every state's currently-committed siege targets (`goal.tension >= 100` — the point at which
+   * `advanceTension()` above already flips diplomacy to Enemy), keyed by attacker state id. Fed
+   * into `regimentMovement.ts`'s `advanceAllRegimentMovement()` so Generator-layer march-order
+   * logic can actually send regiments toward a goal instead of the goal sitting at tension=100
+   * forever with no one marching to make it happen (docs/plan/strategy.md).
+   */
+  public getActiveSiegeTargets(): Map<number, number[]> {
+    const { strategicGoals } = simulationContext;
+    const result = new Map<number, number[]>();
+    for (const stateIdStr in strategicGoals) {
+      const stateId = Number(stateIdStr);
+      const targets = (strategicGoals[stateId] ?? []).filter(g => g.tension >= 100).map(g => g.targetBurg);
+      if (targets.length) result.set(stateId, targets);
+    }
+    return result;
   }
 }
 

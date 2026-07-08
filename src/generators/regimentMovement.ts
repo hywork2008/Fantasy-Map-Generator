@@ -2,7 +2,7 @@ import { sum } from "d3";
 import { appServices } from "../context/appServices";
 import type { WorldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
-import type { MilitaryRegiment, State } from "../types/models";
+import type { Burg, MilitaryRegiment, State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import { findPath, minmax } from "../utils";
 import { isRegimentLockedForBattle } from "./battleLock";
@@ -148,6 +148,55 @@ function buildLandCellsByStateAndLandmass(pack: PackedGraph): Map<number, Map<nu
   return result;
 }
 
+/**
+ * Route-graph cells where 3+ charted road/trail edges meet — a fork that can't be walked around,
+ * unlike a plain degree-2 waypoint along a single road. These are de-facto chokepoints even
+ * without a settlement on them: garrison one, and an enemy following that road network has no way
+ * around it (docs/plan/military-defense.md). Candidate defense nodes alongside burgs, see
+ * `buildDefenseNodesByStateAndLandmass`.
+ */
+function identifyRouteJunctions(landRouteGraph: LandRouteGraph): Set<number> {
+  const junctions = new Set<number>();
+  for (const [cellId, neighbors] of landRouteGraph.adjacency) {
+    if (neighbors.size >= 3) junctions.add(cellId);
+  }
+  return junctions;
+}
+
+/**
+ * Every state's defensible chokepoints — its own burgs, plus any route junction it holds — grouped
+ * by landmass, the same shape as `buildLandCellsByStateAndLandmass`. `ensureGarrisonMarchOrder`
+ * prefers marching a garrison onto one of these real, blockable places instead of an arbitrary
+ * owned field cell; it falls back to the full owned-land set when a state holds none on a given
+ * landmass (e.g. no charted routes and no burgs nearby yet).
+ */
+function buildDefenseNodesByStateAndLandmass(
+  pack: PackedGraph,
+  routeJunctions: Set<number>
+): Map<number, Map<number, number[]>> {
+  const { cells, burgs } = pack;
+  const result = new Map<number, Map<number, number[]>>();
+
+  const addNode = (state: number, landmass: number, cell: number) => {
+    if (!result.has(state)) result.set(state, new Map());
+    const byLandmass = result.get(state)!;
+    if (!byLandmass.has(landmass)) byLandmass.set(landmass, []);
+    byLandmass.get(landmass)!.push(cell);
+  };
+
+  for (const b of burgs) {
+    if (!b.i || b.removed || !b.state) continue;
+    addNode(b.state, cells.f[b.cell], b.cell);
+  }
+  for (const cell of routeJunctions) {
+    const owner = cells.state[cell];
+    if (!owner) continue;
+    addNode(owner, cells.f[cell], cell);
+  }
+
+  return result;
+}
+
 /** Dense cells.c BFS/Dijkstra fallback for land cells with no charted road/trail (§1.2 option (a)). Avoids open water; otherwise unrestricted (crossing hostile territory is the point — it's an invasion). */
 function findOffRoadLandPath(pack: PackedGraph, start: number, end: number): number[] | null {
   if (start === end) return [start];
@@ -256,6 +305,31 @@ function reclaimableEnemyCells(
 }
 
 /**
+ * True if `burg` is `ownState`'s own historically-owned city (`Burg.stateHistory`) whose every
+ * land neighbor is currently `ownState`'s own territory — an isolated domestic pocket a raiding
+ * party captured and marched away from (docs/plan/military-defense.md), not a genuinely
+ * contested border town (which would still have at least one enemy-owned neighbor, and so is
+ * handled by `reclaimableEnemyCells`/`ensureGarrisonMarchOrder` instead). Exported so Nobility's
+ * homeRecapture.ts can apply this same "is this a domestic matter" test when a marching regiment
+ * actually arrives — this Generator module stays ignorant of capture/diplomacy rules themselves,
+ * it only exposes the detection.
+ */
+export function isOccupiedHomeBurg(pack: PackedGraph, burg: Burg, ownState: number): boolean {
+  if (!burg.i || burg.removed || burg.state === ownState) return false;
+  if (!burg.stateHistory?.includes(ownState)) return false;
+  const { cells } = pack;
+  const neighbors = (cells.c[burg.cell] ?? []).filter(n => cells.h[n] >= 20);
+  if (!neighbors.length) return false;
+  return neighbors.every(n => cells.state[n] === ownState);
+}
+
+/** Every burg on `landmass` that qualifies as `ownState`'s occupied home pocket — see `isOccupiedHomeBurg`. */
+function findOccupiedHomeBurgs(pack: PackedGraph, ownState: number, landmass: number): Burg[] {
+  const { cells } = pack;
+  return pack.burgs.filter(b => cells.f[b.cell] === landmass && isOccupiedHomeBurg(pack, b, ownState));
+}
+
+/**
  * Nearest cell `ownState` actually owns on `landmass` to (`x`, `y`), or null if it holds none
  * there. Distinct from the candidate-picking loop in `ensureGarrisonMarchOrder`: that one snaps
  * onto whatever's closest to a threat-pulled point; this one is "closest to home" for a regiment
@@ -283,7 +357,8 @@ function ensureGarrisonMarchOrder(
   segments: FrontierSegment[],
   pack: PackedGraph,
   landRouteGraph: LandRouteGraph,
-  landCellsByStateAndLandmass: Map<number, Map<number, number[]>>
+  landCellsByStateAndLandmass: Map<number, Map<number, number[]>>,
+  defenseNodesByStateAndLandmass: Map<number, Map<number, number[]>>
 ): void {
   const { cells } = pack;
   const landmass = cells.f[r.cell];
@@ -336,8 +411,15 @@ function ensureGarrisonMarchOrder(
     if (Math.hypot(dx, dy) < GARRISON_DESTINATION_STABILITY_RADIUS) return;
   }
 
+  // Candidates are this segment's own actual border cells (so holding the literal frontier is
+  // never lost) plus every real, blockable chokepoint the state holds on this landmass (burgs/
+  // route junctions) — a node behind the border is only chosen over the border cell itself when
+  // it's genuinely closer to the pulled stance point (docs/plan/military-defense.md).
+  const nodeCells = defenseNodesByStateAndLandmass.get(r.state)?.get(landmass) ?? [];
+  const ownCandidates = nodeCells.concat(target.cells);
+
   const reclaimCells = reclaimableEnemyCells(pack, r.state, target.neighborState, landmass, target.cx, target.cy);
-  const candidates = reclaimCells.length ? ownLandCells.concat(reclaimCells) : ownLandCells;
+  const candidates = reclaimCells.length ? ownCandidates.concat(reclaimCells) : ownCandidates;
   if (!candidates.length) {
     retreatOrHold();
     return;
@@ -441,6 +523,99 @@ function applyReactionMarchOrder(r: MilitaryRegiment, pack: PackedGraph, landRou
   }
 
   return false;
+}
+
+/**
+ * If `r`'s state holds any occupied home burg on this landmass (`isOccupiedHomeBurg`) that sits
+ * closer to `r` than the state's own primary external frontier point does, sends `r` to retake
+ * it instead of the usual frontier-pull garrison duty. The distance comparison is what keeps this
+ * from pulling a genuinely needed frontline regiment off the border: a regiment already close to
+ * the real front just isn't offered this mission (docs/plan/military-defense.md — "leave it to
+ * whichever safer interior force is available, not the front line"). No willingness/force-ratio
+ * check happens here — this Generator module only decides *who marches where*; whether the
+ * arrival actually succeeds in retaking the burg is Nobility's homeRecapture.ts's call once the
+ * regiment gets there (`onCellEntered`).
+ */
+function applyRecaptureMarchOrder(
+  r: MilitaryRegiment,
+  segments: FrontierSegment[],
+  pack: PackedGraph,
+  landRouteGraph: LandRouteGraph
+): boolean {
+  if (r.n) return false;
+
+  const landmass = pack.cells.f[r.cell];
+  const occupiedBurgs = findOccupiedHomeBurgs(pack, r.state, landmass);
+  if (!occupiedBurgs.length) return false;
+
+  let nearestBurg: Burg | null = null;
+  let nearestDist = Infinity;
+  for (const b of occupiedBurgs) {
+    const dist = Math.hypot(r.x - b.x, r.y - b.y);
+    if (dist < nearestDist) {
+      nearestDist = dist;
+      nearestBurg = b;
+    }
+  }
+  if (!nearestBurg) return false;
+
+  const localSegments = segments.filter(seg => seg.landmass === landmass);
+  const primaryFrontier = pickPrimaryFrontier(r.x, r.y, localSegments);
+  if (primaryFrontier) {
+    const frontierDist = Math.hypot(primaryFrontier.cx - r.x, primaryFrontier.cy - r.y);
+    if (nearestDist >= frontierDist) return false; // more urgently needed at the real front
+  }
+
+  planLandMarchOrder(r, nearestBurg.cell, pack, landRouteGraph);
+  return true;
+}
+
+/**
+ * Turns a committed strategic siege goal (docs/reviews/0709-military-passing-capture.md follow-up,
+ * docs/plan/strategy.md) into an actual march order — previously `strategic-planner.ts` would
+ * escalate `tension` to 100 (declaring war) and then just wait forever for regiments to wander
+ * into range on their own, since nothing ever sent them there. `activeSiegeTargetBurgs` is
+ * injected by the caller (Nobility's strategic-planner.ts owns what counts as "the ruler has
+ * committed to this war" — tension/diplomacy semantics) so this Generator module stays ignorant
+ * of siege business rules; it only knows "these burgs are march destinations for this state."
+ *
+ * Only regiments whose own nearest frontier segment (`pickPrimaryFrontier`, the same border duty
+ * `ensureGarrisonMarchOrder` would otherwise assign them to) faces the *same* neighbor state the
+ * target burg belongs to are sent — a border guard watching a different rival stays at its own
+ * post instead of piling onto one war and leaving another front empty.
+ */
+function applyStrategicMarchOrder(
+  r: MilitaryRegiment,
+  segments: FrontierSegment[],
+  pack: PackedGraph,
+  landRouteGraph: LandRouteGraph,
+  activeSiegeTargetBurgs: number[]
+): boolean {
+  if (r.n || !activeSiegeTargetBurgs.length) return false;
+
+  const landmass = pack.cells.f[r.cell];
+  const localSegments = segments.filter(seg => seg.landmass === landmass);
+  if (!localSegments.length) return false;
+
+  const primaryFrontier = pickPrimaryFrontier(r.x, r.y, localSegments);
+  if (!primaryFrontier) return false;
+
+  let targetBurgObj: Burg | null = null;
+  let nearestDist = Infinity;
+  for (const targetBurg of activeSiegeTargetBurgs) {
+    const burg = pack.burgs[targetBurg];
+    if (!burg || burg.state !== primaryFrontier.neighborState) continue;
+    if (pack.cells.f[burg.cell] !== landmass) continue;
+    const dist = Math.hypot(r.x - burg.x, r.y - burg.y);
+    if (dist < nearestDist) {
+      nearestDist = dist;
+      targetBurgObj = burg;
+    }
+  }
+  if (!targetBurgObj) return false;
+
+  planLandMarchOrder(r, targetBurgObj.cell, pack, landRouteGraph);
+  return true;
 }
 
 /**
@@ -671,13 +846,17 @@ export function advanceAlongPath(
  * should run every tick regardless of bordersChanged, since marching is continuous).
  * Returns true if any regiment's position actually changed, so the caller knows whether to
  * re-render the military layer. `onCellEntered` is threaded straight through to
- * `advanceAlongPath` — see its doc comment.
+ * `advanceAlongPath` — see its doc comment. `activeSiegeTargetsByState` (stateId -> burg ids)
+ * is injected by the caller (Nobility's strategic-planner.ts, via `getActiveSiegeTargets()`) so
+ * this Generator module never imports simulationContext/diplomacy semantics directly — see
+ * `applyStrategicMarchOrder`.
  */
 export function advanceAllRegimentMovement(
   pack: PackedGraph,
   worldContext: WorldContext,
   deltaYears: number,
-  onCellEntered?: (r: MilitaryRegiment, cell: number) => void
+  onCellEntered?: (r: MilitaryRegiment, cell: number) => void,
+  activeSiegeTargetsByState?: Map<number, number[]>
 ): boolean {
   if (deltaYears <= 0) return false;
 
@@ -689,6 +868,8 @@ export function advanceAllRegimentMovement(
     analyzeSeaFrontiers(pack, seaRouteGraph, currentYear)
   );
   const landCellsByStateAndLandmass = buildLandCellsByStateAndLandmass(pack);
+  const routeJunctions = identifyRouteJunctions(landRouteGraph);
+  const defenseNodesByStateAndLandmass = buildDefenseNodesByStateAndLandmass(pack, routeJunctions);
   const days = deltaYears * 365;
   const hierarchyEnabled = useOptionsState.getState().militaryHierarchy === "dynamic";
 
@@ -741,7 +922,27 @@ export function advanceAllRegimentMovement(
         }
       } else {
         const reacted = applyReactionMarchOrder(r, pack, landRouteGraph);
-        if (!reacted) ensureGarrisonMarchOrder(r, segments, pack, landRouteGraph, landCellsByStateAndLandmass);
+        if (!reacted) {
+          const recapturing = applyRecaptureMarchOrder(r, segments, pack, landRouteGraph);
+          if (!recapturing) {
+            const attacking = applyStrategicMarchOrder(
+              r,
+              segments,
+              pack,
+              landRouteGraph,
+              activeSiegeTargetsByState?.get(r.state) ?? []
+            );
+            if (!attacking)
+              ensureGarrisonMarchOrder(
+                r,
+                segments,
+                pack,
+                landRouteGraph,
+                landCellsByStateAndLandmass,
+                defenseNodesByStateAndLandmass
+              );
+          }
+        }
 
         if (hierarchyEnabled) {
           // Splitting off a detachment appends it to `military` (the array this for-of loop is

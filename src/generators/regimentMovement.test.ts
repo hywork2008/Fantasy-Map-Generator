@@ -3,7 +3,7 @@ import type { WorldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import type { MilitaryRegiment } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
-import { advanceAllRegimentMovement } from "./regimentMovement";
+import { advanceAllRegimentMovement, isOccupiedHomeBurg } from "./regimentMovement";
 
 function makeWorldContext(): WorldContext {
   return { distanceScale: 1, options: { year: 1000 } } as unknown as WorldContext;
@@ -264,6 +264,88 @@ describe("advanceAllRegimentMovement — reclaiming a lost enclave (Burg.stateHi
 
     // Falls back to its own border cell (cell0) since the enclave is out of reclaim range.
     expect(garrison.cell).toBe(0);
+  });
+});
+
+describe("advanceAllRegimentMovement — defense nodes (docs/plan/military-defense.md)", () => {
+  // cell1 (state 1's admin seat, garrison start) -- cell3 (state 1's route junction, no burg) --
+  // cell2 (state 1's border cell, adjacent to enemy cell4). Three charted road edges meet at
+  // cell3 (to cell1, cell2, and cell4), making it a route junction with no settlement — exactly
+  // the "burg-less chokepoint" docs/plan/military-defense.md describes. cell3 sits precisely at
+  // the pull-toward-the-border point, so it should be chosen over the plain border cell (cell2).
+  function makeJunctionPack(): PackedGraph {
+    return {
+      cells: {
+        i: [0, 1, 2, 3, 4],
+        h: [0, 50, 50, 50, 50],
+        c: [[], [], [4], [], []],
+        state: [0, 1, 1, 1, 2],
+        province: [0, 0, 0, 0, 0],
+        f: [0, 10, 10, 10, 10],
+        p: [
+          [-1, -1],
+          [0, 300],
+          [300, 0],
+          [150, 150],
+          [310, 0]
+        ]
+      },
+      burgs: [0],
+      provinces: [],
+      routes: [
+        {
+          i: 0,
+          group: "roads",
+          feature: 1,
+          points: [
+            [0, 300, 1],
+            [150, 150, 3]
+          ]
+        },
+        {
+          i: 1,
+          group: "roads",
+          feature: 1,
+          points: [
+            [150, 150, 3],
+            [300, 0, 2]
+          ]
+        },
+        {
+          i: 2,
+          group: "roads",
+          feature: 1,
+          points: [
+            [150, 150, 3],
+            [310, 0, 4]
+          ]
+        }
+      ],
+      states: [
+        { i: 0, name: "Neutrals", diplomacy: [] },
+        {
+          i: 1,
+          name: "Alpha",
+          diplomacy: [undefined, "x", "Enemy"],
+          campaigns: [],
+          military: [] as MilitaryRegiment[]
+        },
+        { i: 2, name: "Beta", diplomacy: [undefined, "Enemy", "x"], campaigns: [] }
+      ]
+    } as unknown as PackedGraph;
+  }
+
+  it("garrisons a burg-less route junction instead of marching all the way to the plain border cell", () => {
+    const pack = makeJunctionPack();
+    const garrison = makeGarrison({ cell: 1, x: 0, y: 300, bx: 0, by: 300 });
+    pack.states[1].military = [garrison];
+
+    const worldContext = makeWorldContext();
+    const moved = advanceAllRegimentMovement(pack, worldContext, 100);
+
+    expect(moved).toBe(true);
+    expect(garrison.cell).toBe(3); // the junction, not cell2 (the border cell itself)
+    expect(garrison.destinationCell).toBeUndefined();
   });
 });
 
@@ -775,5 +857,185 @@ describe("advanceAllRegimentMovement — dynamic hierarchy split/merge (docs/pla
     expect(pack.states[1].military!.length).toBe(1);
     expect(pack.states[1].military![0].a).toBe(1000);
     expect(pack.states[1].military![0].u.infantry).toBe(1000);
+  });
+});
+
+describe("isOccupiedHomeBurg", () => {
+  // cell0 (state 1, the burg's only neighbor) -- cell1 (state 2's burg, fully enclosed by state
+  // 1's own land). cell2 (state 2) is an extra, initially-disconnected neighbor some tests attach
+  // to the burg to make it no longer fully enclosed.
+  function makePack(): PackedGraph {
+    return {
+      cells: {
+        i: [0, 1, 2],
+        h: [50, 50, 50],
+        c: [[1], [0], []],
+        state: [1, 2, 2],
+        f: [10, 10, 10],
+        p: [
+          [100, 0],
+          [110, 0],
+          [120, 0]
+        ]
+      },
+      burgs: [0]
+    } as unknown as PackedGraph;
+  }
+
+  it("is true for a historically-own burg whose every land neighbor is now own territory", () => {
+    const pack = makePack();
+    const burg = { i: 1, cell: 1, x: 110, y: 0, state: 2, population: 100, stateHistory: [1, 2] };
+    expect(isOccupiedHomeBurg(pack, burg, 1)).toBe(true);
+  });
+
+  it("is false when the burg was never this state's own (stateHistory doesn't include it)", () => {
+    const pack = makePack();
+    const burg = { i: 1, cell: 1, x: 110, y: 0, state: 2, population: 100, stateHistory: [2] };
+    expect(isOccupiedHomeBurg(pack, burg, 1)).toBe(false);
+  });
+
+  it("is false when at least one land neighbor is still enemy territory (a genuinely contested border town)", () => {
+    const pack = makePack();
+    // Add a second neighbor (cell2, state 2) to the burg — no longer fully enclosed by state 1.
+    (pack.cells.c as unknown as number[][])[1] = [0, 2];
+    const burg = { i: 1, cell: 1, x: 110, y: 0, state: 2, population: 100, stateHistory: [1, 2] };
+    expect(isOccupiedHomeBurg(pack, burg, 1)).toBe(false);
+  });
+
+  it("is false when the burg is already owned by ownState again", () => {
+    const pack = makePack();
+    const burg = { i: 1, cell: 1, x: 110, y: 0, state: 1, population: 100, stateHistory: [1, 2, 1] };
+    expect(isOccupiedHomeBurg(pack, burg, 1)).toBe(false);
+  });
+});
+
+describe("advanceAllRegimentMovement — domestic recapture assignment (docs/plan/military-defense.md)", () => {
+  // cell1 (state 1's interior hub) -- cell5 (state 1's ring cell) -- cell3 (state 2's occupied
+  // home burg, fully enclosed by state 1's land — used to be state 1's per stateHistory).
+  // cell1 -- cell2 (state 1's real border cell) -- cell4 (state 2's actual, never-owned territory)
+  // is the genuine front, far away. A regiment starting at the interior hub is much closer to the
+  // domestic pocket (distance 110) than to the real front (distance 5000), so it should be sent to
+  // retake the pocket instead of garrisoning the border.
+  function makeHomeRecapturePack(): PackedGraph {
+    return {
+      cells: {
+        i: [0, 1, 2, 3, 4, 5],
+        h: [0, 50, 50, 50, 50, 50],
+        c: [[], [5, 2], [1, 4], [5], [2], [1, 3]],
+        state: [0, 1, 1, 2, 2, 1],
+        province: [0, 0, 0, 0, 0, 0],
+        f: [0, 10, 10, 10, 10, 10],
+        p: [
+          [-1, -1],
+          [0, 0],
+          [5000, 0],
+          [110, 0],
+          [5010, 0],
+          [100, 0]
+        ]
+      },
+      burgs: [0, { i: 1, cell: 3, x: 110, y: 0, state: 2, population: 100, stateHistory: [1, 2], removed: false }],
+      provinces: [],
+      routes: [],
+      states: [
+        { i: 0, name: "Neutrals", diplomacy: [] },
+        {
+          i: 1,
+          name: "Alpha",
+          diplomacy: [undefined, "x", "Enemy"],
+          campaigns: [],
+          military: [] as MilitaryRegiment[]
+        },
+        { i: 2, name: "Beta", diplomacy: [undefined, "Enemy", "x"], campaigns: [] }
+      ]
+    } as unknown as PackedGraph;
+  }
+
+  it("sends an interior regiment to retake a domestic pocket instead of garrisoning the (much farther) front", () => {
+    const pack = makeHomeRecapturePack();
+    const garrison = makeGarrison({ cell: 1, x: 0, y: 0, bx: 0, by: 0 });
+    pack.states[1].military = [garrison];
+
+    const worldContext = makeWorldContext();
+    const moved = advanceAllRegimentMovement(pack, worldContext, 100);
+
+    expect(moved).toBe(true);
+    expect(garrison.cell).toBe(3); // the occupied home burg, not the border
+    expect(garrison.destinationCell).toBeUndefined();
+  });
+
+  it("does not divert a regiment that's already at (and needed at) the real front", () => {
+    const pack = makeHomeRecapturePack();
+    const garrison = makeGarrison({ cell: 2, x: 5000, y: 0, bx: 5000, by: 0 });
+    pack.states[1].military = [garrison];
+
+    const worldContext = makeWorldContext();
+    const moved = advanceAllRegimentMovement(pack, worldContext, 100);
+
+    expect(moved).toBe(false);
+    expect(garrison.cell).toBe(2);
+    expect(garrison.destinationCell).toBeUndefined();
+  });
+});
+
+describe("advanceAllRegimentMovement — strategic siege march order (docs/plan/strategy.md)", () => {
+  // Reuses makeLandThreatPack's border: state 1 owns cell2, adjacent to hostile state 2's cell4.
+  function makeSiegeTargetPack(thirdPartyBurgState?: number): PackedGraph {
+    const pack = makeLandThreatPack();
+    pack.burgs = [
+      0,
+      { i: 1, cell: 4, x: 310, y: 0, state: 2, population: 10, removed: false },
+      ...(thirdPartyBurgState !== undefined
+        ? [{ i: 2, cell: 4, x: 310, y: 0, state: thirdPartyBurgState, population: 10, removed: false }]
+        : [])
+    ] as unknown as PackedGraph["burgs"];
+    return pack;
+  }
+
+  it("marches a border regiment into a committed siege target belonging to its own frontier neighbor", () => {
+    const pack = makeSiegeTargetPack();
+    const garrison = makeGarrison({ cell: 2, x: 300, y: 0, bx: 300, by: 0 });
+    pack.states[1].military = [garrison];
+
+    const worldContext = makeWorldContext();
+    const activeSiegeTargets = new Map([[1, [1]]]); // state 1's committed goal targets burg id 1
+
+    const moved = advanceAllRegimentMovement(pack, worldContext, 100, undefined, activeSiegeTargets);
+
+    expect(moved).toBe(true);
+    expect(garrison.cell).toBe(4); // marched onto the enemy burg itself, not just the border
+    expect(garrison.destinationCell).toBeUndefined();
+  });
+
+  it("does not march toward a siege target belonging to a different neighbor than its own frontier duty", () => {
+    // Burg id 2 sits on the same cell but belongs to state 3, a state this regiment has no
+    // border with at all — committing to that war isn't this regiment's job.
+    const pack = makeSiegeTargetPack(3);
+    const garrison = makeGarrison({ cell: 2, x: 300, y: 0, bx: 300, by: 0 });
+    pack.states[1].military = [garrison];
+
+    const worldContext = makeWorldContext();
+    const activeSiegeTargets = new Map([[1, [2]]]); // targets burg id 2 (state 3's), not id 1
+
+    const moved = advanceAllRegimentMovement(pack, worldContext, 100, undefined, activeSiegeTargets);
+
+    expect(moved).toBe(false);
+    expect(garrison.cell).toBe(2);
+    expect(garrison.destinationCell).toBeUndefined();
+  });
+
+  it("does not march toward its own already-owned burg (goal already achieved)", () => {
+    const pack = makeSiegeTargetPack();
+    pack.burgs[1].state = 1; // already captured
+    const garrison = makeGarrison({ cell: 2, x: 300, y: 0, bx: 300, by: 0 });
+    pack.states[1].military = [garrison];
+
+    const worldContext = makeWorldContext();
+    const activeSiegeTargets = new Map([[1, [1]]]);
+
+    const moved = advanceAllRegimentMovement(pack, worldContext, 100, undefined, activeSiegeTargets);
+
+    expect(moved).toBe(false);
+    expect(garrison.cell).toBe(2);
   });
 });

@@ -12,8 +12,10 @@ import { Characters } from "./generators/characters-generator";
 import type { CharacterSkills } from "./generators/characterTypes";
 import { applyAffinitiesToDiplomacy } from "./generators/diplomacy-modifier";
 import { Espionage } from "./generators/espionage-generator";
+import { tryRecaptureHomeBurg } from "./generators/homeRecapture";
 import { LocalSkirmish } from "./generators/localSkirmish";
 import { tryCaptureOnPassing } from "./generators/marchCapture";
+import { Mobilization } from "./generators/mobilization";
 import { assignOfficers } from "./generators/officerAssignment";
 import { assignProvinceLords } from "./generators/provinceLordGenerator";
 import { StrategicPlanner } from "./generators/strategic-planner";
@@ -150,6 +152,7 @@ export function init(api: ExtensionAPI): void {
 
     if (api.simulationContext.currentDay === 1) {
       StrategicPlanner.evaluatePlans();
+      Mobilization.conscript(api.worldContext.pack);
     }
 
     Espionage.generate();
@@ -174,8 +177,9 @@ export function init(api: ExtensionAPI): void {
       api.worldContext,
       effectiveDeltaYears,
       (r, cell) => {
-        if (tryCaptureOnPassing(r, cell)) marchCaptureOccurred = true;
-      }
+        if (tryRecaptureHomeBurg(r, cell) || tryCaptureOnPassing(r, cell)) marchCaptureOccurred = true;
+      },
+      StrategicPlanner.getActiveSiegeTargets()
     );
 
     if (marchCaptureOccurred) {
