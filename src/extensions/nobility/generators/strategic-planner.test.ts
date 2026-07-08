@@ -165,3 +165,105 @@ describe("StrategicPlannerGenerator.generate", () => {
     expect(simulationContext.strategicGoals[1]).toHaveLength(0);
   });
 });
+
+/**
+ * State 1's port (cell 0) and state 2's port (cell 2, the "lost" burg state 1 wants back)
+ * are on separate, unconnected landmasses (cells.c is empty everywhere — no land border
+ * exists between them at all, so analyzeFrontiers() alone would never see this pair). They
+ * are linked only by a searoutes route through water cell 1, when `withRoute` is true.
+ */
+function makeSeaFrontierPack(overrides: { withRoute: boolean; attackerNavalPower: number }): PackedGraph {
+  const { withRoute, attackerNavalPower } = overrides;
+
+  return {
+    cells: {
+      i: [0, 1, 2],
+      h: [50, 0, 50],
+      c: [[], [], []], // no land adjacency anywhere — isolates this scenario to the sea path
+      state: [1, 0, 2],
+      f: [1, 0, 5],
+      p: [
+        [0, 0],
+        [50, 50],
+        [100, 0]
+      ]
+    },
+    states: [
+      { i: 0, name: "Neutrals", diplomacy: [] },
+      {
+        i: 1,
+        name: "Attacker",
+        diplomacy: [undefined, "x", "Enemy"],
+        military: [
+          { i: 0, a: attackerNavalPower, x: 0, y: 0, cell: 0, n: 1, u: { fleet: attackerNavalPower }, state: 1 }
+        ]
+      },
+      { i: 2, name: "Defender", diplomacy: [undefined, "Enemy", "x"], military: [] }
+    ],
+    burgs: [
+      { i: 0, cell: -1, x: 0, y: 0 }, // unused placeholder index
+      { i: 1, cell: 0, x: 0, y: 0, state: 1, port: 1, population: 100 },
+      { i: 2, cell: 2, x: 100, y: 0, state: 2, port: 1, population: 20 }
+    ],
+    routes: withRoute
+      ? [
+          {
+            i: 0,
+            group: "searoutes",
+            feature: 1,
+            points: [
+              [0, 0, 0],
+              [50, 50, 1],
+              [100, 0, 2]
+            ]
+          }
+        ]
+      : [],
+    characters: []
+  } as unknown as PackedGraph;
+}
+
+describe("StrategicPlannerGenerator.generate — sea frontiers", () => {
+  const planner = new StrategicPlannerGenerator();
+
+  beforeEach(() => {
+    initNobilityContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.options = { year: 1000 } as never;
+    simulationContext.currentYear = 1000;
+    simulationContext.strategicGoals = {};
+    simulationContext.intelligence = {
+      1: {
+        2: {
+          estimatedMilitaryPower: 999999,
+          estimatedWealth: 0,
+          lastUpdatedYear: 1000,
+          accuracyLevel: "accurate",
+          hiddenBySpymaster: false
+        }
+      }
+    };
+  });
+
+  afterEach(() => {
+    clearNobilityContext();
+  });
+
+  it("plans a retake of an enemy-held port reachable only by a charted sea route", () => {
+    worldContext.pack = makeSeaFrontierPack({ withRoute: true, attackerNavalPower: 50 });
+
+    planner.generate();
+
+    const goals = simulationContext.strategicGoals[1];
+    expect(goals).toHaveLength(1);
+    expect(goals[0].targetBurg).toBe(2);
+    expect(goals[0].targetState).toBe(2);
+  });
+
+  it("plans no invasion at all when no charted sea route connects the two ports", () => {
+    worldContext.pack = makeSeaFrontierPack({ withRoute: false, attackerNavalPower: 50 });
+
+    planner.generate();
+
+    expect(simulationContext.strategicGoals[1] ?? []).toHaveLength(0);
+  });
+});

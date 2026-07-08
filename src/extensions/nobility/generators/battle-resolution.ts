@@ -1,8 +1,9 @@
 import type { StrategicGoal } from "../../../context/simulationContext";
+import { buildSeaRouteGraph, findSeaRouteDistance } from "../../../generators/seaRouteGraph";
 import type { ChronicleEvent } from "../../../types/models";
 import { getWorldContext } from "../nobilityContext";
 import type { Character } from "./characterTypes";
-import { commanderPowerMultiplier, regimentReinforcementRadius } from "./localDefense";
+import { commanderPowerMultiplier, regimentDistanceTo, regimentReinforcementRadius } from "./localDefense";
 
 /** Living character holding `title` for `stateId`, e.g. the state's Spymaster. */
 function findOfficeHolder(characters: Character[], stateId: number, title: string): Character | undefined {
@@ -20,6 +21,8 @@ export const BattleResolutionGenerator = {
     const characters = pack.characters || [];
 
     if (!attackerState || !targetState || !targetBurg) return;
+
+    const seaRouteGraph = buildSeaRouteGraph(pack);
 
     // 1. Detection Phase (Spymaster vs Spymaster)
     const attackerSpymaster =
@@ -51,10 +54,11 @@ export const BattleResolutionGenerator = {
         // Early detection: everyone arrives
         arrives = true;
       } else {
-        // Surprise Attack: Check distance, using the reinforcement radius appropriate
-        // to the regiment's unit composition (cavalry can cover more ground).
-        const dist = Math.hypot(regiment.x - targetBurg.x, regiment.y - targetBurg.y);
-        if (dist <= regimentReinforcementRadius(regiment)) {
+        // Surprise Attack: Check distance, using the reinforcement radius appropriate to the
+        // regiment's unit composition (cavalry can cover more ground; naval regiments are
+        // checked by charted sea-route distance instead of straight-line).
+        const dist = regimentDistanceTo(regiment, targetBurg.cell, targetBurg.x, targetBurg.y, seaRouteGraph);
+        if (dist !== null && dist <= regimentReinforcementRadius(regiment)) {
           arrives = true;
         }
       }
@@ -65,8 +69,11 @@ export const BattleResolutionGenerator = {
     }
 
     // 3. Attacker Force
-    // Prevent "teleporting" global military power. Only count regiments that are on the same landmass
-    // or within a reasonable invasion distance (e.g. 1000 units).
+    // Prevent "teleporting" military power. Land regiments only count if they're on the
+    // target's own landmass (they can't cross open water on their own). Naval regiments
+    // (fleets, which also carry any embarked marines — see military-generator.ts's
+    // marine-embark logic) count only if a charted sea route actually reaches the target
+    // port; see docs/plan/naval-sea-lanes.md.
     let attackerPower = 0;
     const attackingRegiments = [];
     const targetLandmass = pack.cells.f[targetBurg.cell];
@@ -74,15 +81,18 @@ export const BattleResolutionGenerator = {
     for (const regiment of attackerState.military || []) {
       if (regiment.a <= 0) continue;
 
-      const regimentCell = pack.cells.i.find(
-        (_, i) => pack.cells.p[i][0] === regiment.x && pack.cells.p[i][1] === regiment.y
-      );
-      const regimentLandmass = regimentCell !== undefined ? pack.cells.f[regimentCell] : -1;
+      let reachable: boolean;
+      if (regiment.n) {
+        reachable = findSeaRouteDistance(seaRouteGraph, regiment.cell, targetBurg.cell) !== null;
+      } else {
+        const regimentCell = pack.cells.i.find(
+          (_, i) => pack.cells.p[i][0] === regiment.x && pack.cells.p[i][1] === regiment.y
+        );
+        const regimentLandmass = regimentCell !== undefined ? pack.cells.f[regimentCell] : -1;
+        reachable = regimentLandmass === targetLandmass;
+      }
 
-      const dist = Math.hypot(regiment.x - targetBurg.x, regiment.y - targetBurg.y);
-
-      // If they are on the same landmass, they can march. Or if they are very close (e.g., naval invasion across a strait).
-      if (regimentLandmass === targetLandmass || dist < 300) {
+      if (reachable) {
         attackerPower += regiment.a * commanderPowerMultiplier(characters, regiment);
         attackingRegiments.push(regiment);
       }
@@ -143,8 +153,8 @@ export const BattleResolutionGenerator = {
         let arrives = false;
         if (!isSurpriseAttack) arrives = true;
         else {
-          const dist = Math.hypot(reg.x - targetBurg.x, reg.y - targetBurg.y);
-          if (dist <= regimentReinforcementRadius(reg)) arrives = true;
+          const dist = regimentDistanceTo(reg, targetBurg.cell, targetBurg.x, targetBurg.y, seaRouteGraph);
+          if (dist !== null && dist <= regimentReinforcementRadius(reg)) arrives = true;
         }
 
         if (arrives) {

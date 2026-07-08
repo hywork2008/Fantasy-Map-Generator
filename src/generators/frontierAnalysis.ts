@@ -1,6 +1,7 @@
-import type { ChronicleEvent } from "../types/models";
+import type { ChronicleEvent, State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import { minmax } from "../utils";
+import { findReachableCells, type SeaRouteGraph } from "./seaRouteGraph";
 
 /**
  * Threat weight per diplomatic relation, used only to score how much a border
@@ -32,6 +33,14 @@ export interface FrontierSegment {
   cy: number;
   /** The landmass/feature id (`cells.f`) shared by every cell in this segment. */
   landmass: number;
+  /**
+   * "land" (analyzeFrontiers, adjacency-based) or "sea" (analyzeSeaFrontiers,
+   * sea-route-based). Optional/absent is treated as "land" — callers that only ever see
+   * analyzeFrontiers() output (and existing tests) don't need to set it. Consumers that
+   * need to tell the two apart (e.g. strategic-planner.ts picking a target-selection
+   * strategy) should check `origin === "sea"` explicitly rather than inferring it.
+   */
+  origin?: "land" | "sea";
 }
 
 /**
@@ -65,6 +74,31 @@ function getBorderAnchor(borderCells: number[], points: [number, number][]): [nu
   return [points[bestCell][0], points[bestCell][1]];
 }
 
+/** `state.diplomacy[neighborState]` as a plain string label, or undefined if unset/not a string. */
+function getRelationLabel(state: State, neighborState: number): string | undefined {
+  const relation = state.diplomacy?.[neighborState];
+  return typeof relation === "string" ? relation : undefined;
+}
+
+/**
+ * Relation+war-history threat weight for `state`'s relationship with `neighborState`,
+ * shared by land (analyzeFrontiers) and sea (analyzeSeaFrontiers) frontier analysis. 0
+ * means "not hostile enough to matter" (including no diplomacy entry at all) — callers
+ * should skip the pair entirely rather than create a zero-weight segment.
+ */
+function getThreatWeight(state: State, neighborState: number, currentYear: number): number {
+  const relationLabel = getRelationLabel(state, neighborState);
+  const baseWeight = relationLabel ? (RELATION_THREAT_WEIGHT[relationLabel] ?? 0) : 0;
+  if (baseWeight <= 0) return 0;
+
+  const hasActiveOrRecentWar = state.campaigns?.some(
+    c =>
+      (c.attacker === neighborState || c.defender === neighborState) &&
+      (c.end === undefined || currentYear - c.end <= RECENT_WAR_YEARS)
+  );
+  return hasActiveOrRecentWar ? baseWeight * ACTIVE_WAR_BOOST : baseWeight;
+}
+
 /**
  * Groups each state's border cells by (hostile neighbor, landmass), weighted by
  * relation and boosted for active/recent wars (from `state.campaigns`). Non-hostile
@@ -75,6 +109,10 @@ function getBorderAnchor(borderCells: number[], points: [number, number][]): [nu
  * coherent: a regiment on an exclave's landmass should never be pointed at a
  * border segment that only exists on the mainland across open sea (see
  * `pickPrimaryFrontier`'s landmass-filtered callers).
+ *
+ * This only sees land-adjacent borders (`cells.c`) — a state separated from a hostile
+ * neighbor by open water gets no segment here at all, even if it's a short sail away.
+ * See analyzeSeaFrontiers() for the sea-route-based counterpart.
  */
 export function analyzeFrontiers(pack: PackedGraph, currentYear: number): Map<number, FrontierSegment[]> {
   const { cells, states } = pack;
@@ -109,22 +147,15 @@ export function analyzeFrontiers(pack: PackedGraph, currentYear: number): Map<nu
     const segments: FrontierSegment[] = [];
 
     byKey.forEach(({ neighborState: t, landmass, cells: rawCells }) => {
-      const relation = state.diplomacy?.[t];
-      const relationLabel = typeof relation === "string" ? relation : undefined;
-      const baseWeight = relationLabel ? (RELATION_THREAT_WEIGHT[relationLabel] ?? 0) : 0;
-      if (baseWeight <= 0) return;
-
-      const hasActiveOrRecentWar = state.campaigns?.some(
-        c => (c.attacker === t || c.defender === t) && (c.end === undefined || currentYear - c.end <= RECENT_WAR_YEARS)
-      );
-      const threatWeight = hasActiveOrRecentWar ? baseWeight * ACTIVE_WAR_BOOST : baseWeight;
+      const threatWeight = getThreatWeight(state, t, currentYear);
+      if (threatWeight <= 0) return;
 
       const borderCells = Array.from(new Set(rawCells));
       const [cx, cy] = getBorderAnchor(borderCells, cells.p);
 
       segments.push({
         neighborState: t,
-        relation: relationLabel ?? "Unknown",
+        relation: getRelationLabel(state, t) ?? "Unknown",
         threatWeight,
         cells: borderCells,
         cx,
@@ -136,6 +167,95 @@ export function analyzeFrontiers(pack: PackedGraph, currentYear: number): Map<nu
     if (segments.length) result.set(s, segments);
   });
 
+  return result;
+}
+
+/**
+ * Sea-going counterpart to analyzeFrontiers(): groups each state's own port cells by
+ * (hostile-ish neighbor, own port's landmass), where "reachable" comes from the charted
+ * sea-route graph (seaRouteGraph.ts) instead of cell adjacency. Two states separated by
+ * open, uncharted water get no segment at all — same "no border, no segment" rule as the
+ * land version, just gated by a shipping lane instead of a shared coastline.
+ *
+ * `landmass` on the returned segments is the *attacker's own* landmass (where its ports —
+ * and therefore its fleet — actually are), not the target's, so these segments slot
+ * directly into landmass-filtered callers like military-generator.ts's
+ * `redistributeGarrisons` and `pickPrimaryFrontier`. See docs/plan/naval-sea-lanes.md §2.1.
+ */
+export function analyzeSeaFrontiers(
+  pack: PackedGraph,
+  seaRouteGraph: SeaRouteGraph,
+  currentYear: number
+): Map<number, FrontierSegment[]> {
+  const { cells, states, burgs } = pack;
+
+  const allPorts = burgs.filter(b => b.i && !b.removed && b.state && b.port);
+  const portsByState = new Map<number, typeof allPorts>();
+  for (const port of allPorts) {
+    const owner = port.state!;
+    if (!portsByState.has(owner)) portsByState.set(owner, []);
+    portsByState.get(owner)!.push(port);
+  }
+
+  const result = new Map<number, FrontierSegment[]>();
+
+  portsByState.forEach((ownPorts, s) => {
+    const state = states[s];
+    if (!state) return;
+
+    const byKey = new Map<string, { neighborState: number; landmass: number; cells: Set<number> }>();
+
+    for (const ownPort of ownPorts) {
+      const reachable = findReachableCells(seaRouteGraph, ownPort.cell);
+      if (!reachable.size) continue;
+      const landmass = cells.f[ownPort.cell];
+
+      for (const otherPort of allPorts) {
+        if (otherPort.state === s) continue;
+        if (!reachable.has(otherPort.cell)) continue;
+
+        const t = otherPort.state!;
+        const key = `${t}:${landmass}`;
+        if (!byKey.has(key)) byKey.set(key, { neighborState: t, landmass, cells: new Set() });
+        byKey.get(key)!.cells.add(ownPort.cell);
+      }
+    }
+
+    const segments: FrontierSegment[] = [];
+
+    byKey.forEach(({ neighborState: t, landmass, cells: cellSet }) => {
+      const threatWeight = getThreatWeight(state, t, currentYear);
+      if (threatWeight <= 0) return;
+
+      const borderCells = Array.from(cellSet);
+      const [cx, cy] = getBorderAnchor(borderCells, cells.p);
+
+      segments.push({
+        neighborState: t,
+        relation: getRelationLabel(state, t) ?? "Unknown",
+        threatWeight,
+        cells: borderCells,
+        cx,
+        cy,
+        landmass,
+        origin: "sea"
+      });
+    });
+
+    if (segments.length) result.set(s, segments);
+  });
+
+  return result;
+}
+
+/** Merges multiple frontier maps (e.g. land + sea) into one, concatenating segment lists per state. */
+export function mergeFrontiers(...maps: Map<number, FrontierSegment[]>[]): Map<number, FrontierSegment[]> {
+  const result = new Map<number, FrontierSegment[]>();
+  for (const map of maps) {
+    map.forEach((segments, stateId) => {
+      result.set(stateId, (result.get(stateId) ?? []).concat(segments));
+    });
+  }
   return result;
 }
 

@@ -126,4 +126,74 @@ describe("LocalSkirmishGenerator.resolve", () => {
     const defender = worldContext.pack.states[1] as unknown as { military: { a: number }[] };
     expect(defender.military[0].a).toBe(10);
   });
+
+  // A fleet (state 13, cell 1, port at (100, 0)) vs a coastal garrison stationed right at a
+  // port town (state 5, cell 0, at (0, 0)) — same overwhelming force ratio as the Kautongwu
+  // scenario above, but the attacker is naval this time. `withRoute` controls whether a
+  // searoutes route links the two ports.
+  function makeNavalSkirmishPack(overrides: { withRoute: boolean }): PackedGraph {
+    const { withRoute } = overrides;
+
+    return {
+      cells: { burg: [1, 0], state: [5, 13] },
+      burgs: [
+        { i: 0, cell: -1, x: 0, y: 0 }, // unused placeholder index
+        { i: 1, cell: 0, x: 0, y: 0, state: 5, population: 15, removed: false }
+      ],
+      characters: [],
+      states: Object.assign([], {
+        0: { i: 0, name: "Neutrals", diplomacy: [] },
+        5: {
+          i: 5,
+          name: "Defender",
+          diplomacy: Object.assign([], { 5: "x", 13: "Enemy" }),
+          military: [
+            { i: 0, a: 868, x: 0, y: 0, u: { infantry: 859, cavalry: 9 }, state: 5, cell: 0, name: "Port Garrison" }
+          ]
+        },
+        13: {
+          i: 13,
+          name: "Attacker",
+          diplomacy: Object.assign([], { 5: "Enemy", 13: "x" }),
+          military: [{ i: 0, a: 58133, x: 100, y: 0, u: { fleet: 58133 }, state: 13, cell: 1, n: 1, name: "1st Fleet" }]
+        }
+      }),
+      routes: withRoute
+        ? [
+            {
+              i: 0,
+              group: "searoutes",
+              feature: 1,
+              points: [
+                [100, 0, 1],
+                [0, 0, 0]
+              ]
+            }
+          ]
+        : []
+    } as unknown as PackedGraph;
+  }
+
+  it("lets a fleet annihilate a coastal garrison when a charted sea route connects them", () => {
+    worldContext.pack = makeNavalSkirmishPack({ withRoute: true });
+
+    const occurred = skirmish.resolve();
+
+    expect(occurred).toBe(true);
+    const defender = worldContext.pack.states[5] as unknown as { military: { a: number }[] };
+    const attacker = worldContext.pack.states[13] as unknown as { military: { a: number }[] };
+    expect(defender.military[0].a).toBe(0);
+    expect(attacker.military[0].a).toBeGreaterThan(0);
+
+    const burg = worldContext.pack.burgs[1] as unknown as { state: number };
+    expect(burg.state).toBe(13);
+  });
+
+  it("does not let a fleet reach a coastal garrison with no charted sea route, even at close straight-line range", () => {
+    worldContext.pack = makeNavalSkirmishPack({ withRoute: false });
+
+    expect(skirmish.resolve()).toBe(false);
+    const defender = worldContext.pack.states[5] as unknown as { military: { a: number }[] };
+    expect(defender.military[0].a).toBe(868);
+  });
 });

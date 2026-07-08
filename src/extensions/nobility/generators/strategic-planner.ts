@@ -1,5 +1,6 @@
 import { type StrategicGoal, simulationContext } from "../../../context/simulationContext";
-import { analyzeFrontiers } from "../../../generators/frontierAnalysis";
+import { analyzeFrontiers, analyzeSeaFrontiers, mergeFrontiers } from "../../../generators/frontierAnalysis";
+import { buildSeaRouteGraph, findSeaRouteDistance } from "../../../generators/seaRouteGraph";
 import { useOptionsState } from "../../../store/optionsState";
 import { getWorldContext } from "../nobilityContext";
 import { BattleResolutionGenerator } from "./battle-resolution";
@@ -20,8 +21,13 @@ export class StrategicPlannerGenerator {
     const burgs = pack.burgs.filter(b => b.i && !b.removed);
     const characters = pack.characters || [];
 
-    // Analyze frontiers to find borders
-    const frontiers = analyzeFrontiers(pack, options.year || simulationContext.currentYear);
+    // Analyze frontiers to find borders — land (adjacency-based) and sea (charted
+    // sea-route-based, see docs/plan/naval-sea-lanes.md) merged into one map so the rest of
+    // this method doesn't need to know which kind of border produced a given segment except
+    // where target-selection/power math genuinely differs (segment.origin === "sea" below).
+    const year = options.year || simulationContext.currentYear;
+    const seaRouteGraph = buildSeaRouteGraph(pack);
+    const frontiers = mergeFrontiers(analyzeFrontiers(pack, year), analyzeSeaFrontiers(pack, seaRouteGraph, year));
 
     // Make sure strategicGoals is initialized
     simulationContext.strategicGoals = simulationContext.strategicGoals || {};
@@ -56,42 +62,76 @@ export class StrategicPlannerGenerator {
         const intel = attackerIntel[targetStateId];
         if (!intel) continue; // No intel? can't plan
 
-        // Find the frontier burg to target.
+        const isSeaSegment = segment.origin === "sea";
+
+        // Find the frontier burg to target. Sea segments can only reasonably invade the
+        // target's own ports (routes connect ports — see docs/plan/naval-sea-lanes.md §1.2
+        // for the non-port-landfall nuance, deferred), picked by charted sea-route distance
+        // instead of straight-line distance to the segment anchor.
         let targetBurg = -1;
         let minDist = Infinity;
-        const targetBurgsOnLandmass = burgs.filter(
-          b => b.state === targetStateId && pack.cells.f[b.cell] === segment.landmass
-        );
+        const candidateTargets = isSeaSegment
+          ? burgs.filter(b => b.state === targetStateId && b.port)
+          : burgs.filter(b => b.state === targetStateId && pack.cells.f[b.cell] === segment.landmass);
 
-        for (const b of targetBurgsOnLandmass) {
-          const dist = Math.hypot(b.x - segment.cx, b.y - segment.cy);
-          if (dist < minDist && b.i !== undefined) {
-            minDist = dist;
-            targetBurg = b.i;
+        if (isSeaSegment) {
+          for (const b of candidateTargets) {
+            if (b.i === undefined) continue;
+            let routeDist: number | null = null;
+            for (const ownPortCell of segment.cells) {
+              const d = findSeaRouteDistance(seaRouteGraph, ownPortCell, b.cell);
+              if (d !== null && (routeDist === null || d < routeDist)) routeDist = d;
+            }
+            if (routeDist !== null && routeDist < minDist) {
+              minDist = routeDist;
+              targetBurg = b.i;
+            }
+          }
+        } else {
+          for (const b of candidateTargets) {
+            const dist = Math.hypot(b.x - segment.cx, b.y - segment.cy);
+            if (dist < minDist && b.i !== undefined) {
+              minDist = dist;
+              targetBurg = b.i;
+            }
           }
         }
 
         if (targetBurg === -1) continue;
 
-        // Calculate local attacker power (troops on same landmass or close enough)
-        const targetLandmass = pack.cells.f[pack.burgs[targetBurg].cell];
+        // Calculate local attacker power. Sea segments only count naval regiments (fleets,
+        // which also carry any embarked marines as part of the same regiment — see
+        // military-generator.ts's marine-embark logic) reachable by charted sea route to the
+        // target port; land regiments can't project power across open water on their own in
+        // this model. Land segments keep the original same-landmass-or-close-enough logic.
         let localAttackerPower = 0;
-        for (const regiment of attacker.military || []) {
-          if (regiment.a <= 0) continue;
+        if (isSeaSegment) {
+          const targetPortCell = pack.burgs[targetBurg].cell;
+          for (const regiment of attacker.military || []) {
+            if (regiment.a <= 0 || !regiment.n) continue;
+            if (findSeaRouteDistance(seaRouteGraph, regiment.cell, targetPortCell) !== null) {
+              localAttackerPower += regiment.a;
+            }
+          }
+        } else {
+          const targetLandmass = pack.cells.f[pack.burgs[targetBurg].cell];
+          for (const regiment of attacker.military || []) {
+            if (regiment.a <= 0) continue;
 
-          const regimentCell = pack.cells.i.find(
-            (_, i) => pack.cells.p[i][0] === regiment.x && pack.cells.p[i][1] === regiment.y
-          );
-          const regimentLandmass = regimentCell !== undefined ? pack.cells.f[regimentCell] : -1;
-          const dist = Math.hypot(regiment.x - pack.burgs[targetBurg].x, regiment.y - pack.burgs[targetBurg].y);
+            const regimentCell = pack.cells.i.find(
+              (_, i) => pack.cells.p[i][0] === regiment.x && pack.cells.p[i][1] === regiment.y
+            );
+            const regimentLandmass = regimentCell !== undefined ? pack.cells.f[regimentCell] : -1;
+            const dist = Math.hypot(regiment.x - pack.burgs[targetBurg].x, regiment.y - pack.burgs[targetBurg].y);
 
-          if (regimentLandmass === targetLandmass || dist < 300) {
-            localAttackerPower += regiment.a;
+            if (regimentLandmass === targetLandmass || dist < 300) {
+              localAttackerPower += regiment.a;
+            }
           }
         }
 
         // Check retreat path (are they cornered?)
-        const isCornered = targetBurgsOnLandmass.length === 1;
+        const isCornered = candidateTargets.length === 1;
 
         // Calculate required force from the burg's actual local defenders (garrison +
         // nearby regiments), not the defending state's entire national military — a
@@ -99,7 +139,7 @@ export class StrategicPlannerGenerator {
         // town can muster, and using it here made every burg look impregnable
         // regardless of how it was actually defended.
         const targetBurgData = pack.burgs[targetBurg];
-        const perceivedDefense = estimateLocalDefendingForce(pack, targetBurgData, characters);
+        const perceivedDefense = estimateLocalDefendingForce(pack, targetBurgData, characters, seaRouteGraph);
 
         // Fortified targets (citadel/walls) need the classic 3x siege ratio; an
         // unfortified town in the open only needs a solid numerical edge.

@@ -142,3 +142,153 @@ describe("BattleResolutionGenerator.resolveSiege", () => {
     };
   }
 });
+
+describe("BattleResolutionGenerator.resolveSiege — sea routes", () => {
+  beforeEach(() => {
+    initNobilityContext({ worldContext } as unknown as ExtensionAPI);
+    vi.spyOn(Math, "random").mockReturnValue(0); // strip randomness out of the detection roll
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    clearNobilityContext();
+  });
+
+  // Attacker's fleet (cell 1, port at (100, 0)) vs a target port burg (cell 0, at (0, 0))
+  // defended by a co-located land regiment (guaranteed to arrive: equal default guile on
+  // both sides with Math.random mocked to 0 means no surprise attack). `withRoute` controls
+  // whether a searoutes route links the two ports.
+  function makeNavalAttackPack(overrides: { withRoute: boolean }): PackedGraph {
+    const { withRoute } = overrides;
+
+    return {
+      cells: {
+        i: [0, 1],
+        p: [
+          [0, 0],
+          [100, 0]
+        ],
+        f: [1, 1],
+        burg: [5, 0],
+        state: [2, 1]
+      },
+      burgs: { 5: { i: 5, cell: 0, x: 0, y: 0, population: 0, state: 2, citadel: false } },
+      characters: [],
+      states: [
+        { i: 0, name: "Neutrals", diplomacy: [] },
+        {
+          i: 1,
+          name: "Attackers",
+          military: [{ i: 0, a: 2000, x: 999, y: 999, cell: 1, n: 1, u: { fleet: 2000 }, state: 1 }]
+        },
+        {
+          i: 2,
+          name: "Defenders",
+          military: [{ i: 0, a: 1000, x: 0, y: 0, u: { infantry: 1000 }, state: 2 }]
+        }
+      ],
+      routes: withRoute
+        ? [
+            {
+              i: 0,
+              group: "searoutes",
+              feature: 1,
+              points: [
+                [100, 0, 1],
+                [0, 0, 0]
+              ]
+            }
+          ]
+        : []
+    } as unknown as PackedGraph;
+  }
+
+  it("counts a fleet's power and captures the port when a charted sea route reaches it", () => {
+    worldContext.pack = makeNavalAttackPack({ withRoute: true });
+    BattleResolutionGenerator.resolveSiege(makeGoal(), 1);
+    const pack = worldContext.pack as unknown as { burgs: Record<number, { state: number }> };
+    expect(pack.burgs[5].state).toBe(1);
+  });
+
+  it("does not count a fleet's power at all when no charted sea route reaches the target", () => {
+    worldContext.pack = makeNavalAttackPack({ withRoute: false });
+    BattleResolutionGenerator.resolveSiege(makeGoal(), 1);
+    const pack = worldContext.pack as unknown as { burgs: Record<number, { state: number }> };
+    expect(pack.burgs[5].state).toBe(2); // defender holds — attacker power was 0
+  });
+
+  // Defender's fleet (cell 2, port at (50, -50)) defends a port burg (cell 0, at (0, 0)) under
+  // a forced surprise attack (attacker has a far more skilled Spymaster), so only regiments
+  // that can actually be shown to arrive should count. `withRoute` controls whether a
+  // searoutes route links the defending fleet's home port to the target port.
+  function makeNavalDefensePack(overrides: { withRoute: boolean }): PackedGraph {
+    const { withRoute } = overrides;
+
+    return {
+      cells: {
+        i: [0, 1, 2],
+        p: [
+          [0, 0],
+          [100, 0],
+          [50, -50]
+        ],
+        f: [1, 1, 1],
+        burg: [5, 0, 0],
+        state: [2, 1, 2]
+      },
+      burgs: { 5: { i: 5, cell: 0, x: 0, y: 0, population: 10, state: 2, citadel: false } },
+      characters: [
+        { i: 10, dead: false, skills: { intrigue: 5 }, titles: [] },
+        {
+          i: 11,
+          dead: false,
+          skills: { intrigue: 95 },
+          titles: [{ title: "Spymaster", entityType: "state", entityId: 1, landed: false }]
+        },
+        { i: 20, dead: false, skills: { intrigue: 50 }, titles: [] }
+      ],
+      states: [
+        { i: 0, name: "Neutrals", diplomacy: [] },
+        {
+          i: 1,
+          name: "Attackers",
+          rulerId: 10,
+          military: [{ i: 0, a: 1000, x: 100, y: 0, u: { infantry: 1000 }, state: 1 }]
+        },
+        {
+          i: 2,
+          name: "Defenders",
+          rulerId: 20,
+          military: [{ i: 0, a: 1000, x: 50, y: -50, cell: 2, n: 1, u: { fleet: 1000 }, state: 2 }]
+        }
+      ],
+      routes: withRoute
+        ? [
+            {
+              i: 0,
+              group: "searoutes",
+              feature: 1,
+              points: [
+                [50, -50, 2],
+                [0, 0, 0]
+              ]
+            }
+          ]
+        : []
+    } as unknown as PackedGraph;
+  }
+
+  it("lets a defending fleet arrive under a surprise attack when a charted sea route reaches the target", () => {
+    worldContext.pack = makeNavalDefensePack({ withRoute: true });
+    BattleResolutionGenerator.resolveSiege(makeGoal(), 1);
+    const pack = worldContext.pack as unknown as { burgs: Record<number, { state: number }> };
+    expect(pack.burgs[5].state).toBe(2); // defender's fleet arrived and held the port
+  });
+
+  it("leaves an unreachable defending fleet behind, so only the militia defends", () => {
+    worldContext.pack = makeNavalDefensePack({ withRoute: false });
+    BattleResolutionGenerator.resolveSiege(makeGoal(), 1);
+    const pack = worldContext.pack as unknown as { burgs: Record<number, { state: number }> };
+    expect(pack.burgs[5].state).toBe(1); // bloodless fall — only the tiny militia was there
+  });
+});

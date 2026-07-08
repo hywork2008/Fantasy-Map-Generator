@@ -9,8 +9,16 @@ import type { MilitaryRegiment, MilitaryUnit, Platoon, State } from "../types/mo
 import type { WorldState } from "../types/WorldState";
 import { gauss, minmax, nth, ra, rand, rn, si } from "../utils";
 import { TIME } from "../utils/debug";
-import { analyzeFrontiers, type FrontierSegment, getProvinceThreats, pickPrimaryFrontier } from "./frontierAnalysis";
+import {
+  analyzeFrontiers,
+  analyzeSeaFrontiers,
+  type FrontierSegment,
+  getProvinceThreats,
+  mergeFrontiers,
+  pickPrimaryFrontier
+} from "./frontierAnalysis";
 import { getNavalTechBonus } from "./navalTechBonus";
+import { buildSeaRouteGraph, findSeaRouteDistance, findSeaRoutePath } from "./seaRouteGraph";
 
 /** How far (0..1) a state's regiments are pulled from their recruitment site toward a hostile frontier. */
 const GARRISON_PULL_STRENGTH = 0.5;
@@ -20,6 +28,17 @@ const MAX_FIELD_ARMIES = 9;
 
 /** How much the capital guard grows per unit of threat weight on the capital's own province (0 = no threat, no bonus). */
 const CAPITAL_GUARD_THREAT_MULTIPLIER = 0.15;
+
+/** Share of local land troops embarked as shipborne marines when a fleet needs them. */
+const MARINE_TRANSFER_RATE = 0.25;
+
+/**
+ * Ranged troops embark at a fraction of the normal marine transfer rate — a rocking deck
+ * ruins archery more than it ruins melee (see the "fleet" unit's own NAVAL_MELEE_PENALTY,
+ * getDefaultOptions() below), so states preferentially send melee troops to sea and keep
+ * proportionally more archers on land duty instead.
+ */
+const NAVAL_RANGED_EMBARK_PENALTY = 0.4;
 
 /** Regiment size tiers, expressed as multiples of populationRate so they scale with map settings. */
 const SIZE_TIERS: { max: number; name: string }[] = [
@@ -86,8 +105,16 @@ class MilitaryModule {
 
     // Hostile borders (from Relations History), used to decide which provinces are on the
     // frontier and garrison regiments toward active threats instead of leaving them wherever
-    // they were recruited. Peaceful states get no segments back.
-    const frontiers = analyzeFrontiers(pack, options.year ?? 0);
+    // they were recruited. Peaceful states get no segments back. Land (adjacency-based) and
+    // sea (charted sea-route-based, docs/plan/naval-sea-lanes.md) frontiers are merged so
+    // getProvinceThreats() below also flags port provinces under naval threat as frontier
+    // provinces — the existing land-regiment redistribution logic then pulls field armies
+    // toward them without any further changes, same as any other frontier province.
+    const seaRouteGraph = buildSeaRouteGraph(pack);
+    const frontiers = mergeFrontiers(
+      analyzeFrontiers(pack, options.year ?? 0),
+      analyzeSeaFrontiers(pack, seaRouteGraph, options.year ?? 0)
+    );
 
     const expn = sum(valid.map(s => s.expansionism)); // total expansion
     const area = sum(valid.map(s => s.area)); // total area
@@ -521,6 +548,50 @@ class MilitaryModule {
       byLandmass.get(landmass)!.push(i);
     }
 
+    // Repositions a fleet toward whichever of the state's own sea-frontier segments (see
+    // analyzeSeaFrontiers()) is under the most threat, moving it partway along the actual
+    // charted route toward a reachable enemy port instead of a straight-line pull — a fleet
+    // only ever occupies a cell that's genuinely part of the sea-route network (§1 of
+    // docs/plan/naval-sea-lanes.md). No-ops (stays at its consolidation-time home port) when
+    // there's no naval threat on its own landmass, or no charted route toward it at all.
+    const redistributeFleet = (r: MilitaryRegiment, segments: FrontierSegment[]) => {
+      const ownLandmass = cells.f[r.cell];
+      const localSegments = segments.filter(seg => seg.origin === "sea" && seg.landmass === ownLandmass);
+      if (!localSegments.length) return;
+
+      const totalWeight = sum(localSegments.map(seg => seg.threatWeight));
+      if (!totalWeight) return;
+
+      const target = pickPrimaryFrontier(r.x, r.y, localSegments);
+      if (!target) return;
+
+      // Pick the nearest reachable port belonging to the threatening neighbor to path toward.
+      let enemyPortCell = -1;
+      let bestEnemyDist = Infinity;
+      for (const b of pack.burgs) {
+        if (!b.i || b.removed || b.state !== target.neighborState || !b.port) continue;
+        const d = findSeaRouteDistance(seaRouteGraph, r.cell, b.cell);
+        if (d !== null && d < bestEnemyDist) {
+          bestEnemyDist = d;
+          enemyPortCell = b.cell;
+        }
+      }
+      if (enemyPortCell === -1) return; // no reachable enemy port for this threat — stay put
+
+      const path = findSeaRoutePath(seaRouteGraph, r.cell, enemyPortCell);
+      if (!path || path.length < 2) return;
+
+      const pull = minmax(target.threatWeight / totalWeight, 0, 1) * GARRISON_PULL_STRENGTH;
+      const stepIndex = Math.round(pull * (path.length - 1));
+      const newCell = path[stepIndex];
+
+      r.cell = newCell;
+      r.x = cells.p[newCell][0];
+      r.y = cells.p[newCell][1];
+      r.bx = r.x;
+      r.by = r.y;
+    };
+
     // Pulls each non-naval, non-capital-guard regiment from its stationing point toward the
     // nearest/most threatening hostile frontier on its own landmass, proportional to that
     // frontier's share of the state's total threat. With province-based consolidation, field
@@ -532,7 +603,11 @@ class MilitaryModule {
       ownLandCellsByLandmass: Map<number, number[]> | undefined
     ) => {
       regiments.forEach(r => {
-        if (r.n || r.isCapitalGuard) return;
+        if (r.isCapitalGuard) return;
+        if (r.n) {
+          redistributeFleet(r, segments);
+          return;
+        }
 
         const landmass = cells.f[r.cell];
         const localSegments = segments.filter(seg => seg.landmass === landmass);
@@ -623,7 +698,11 @@ class MilitaryModule {
             if (needsMarines) {
               const localLand = landPlatoons.filter(lp => lp.province === anchorPlatoon.province && lp.a > 0);
               localLand.forEach(lp => {
-                const amountToTransfer = Math.floor(lp.a * 0.25); // transfer 25% of local troops
+                const isRanged = military.find(u => u.name === lp.u)?.type === "ranged";
+                const transferRate = isRanged
+                  ? MARINE_TRANSFER_RATE * NAVAL_RANGED_EMBARK_PENALTY
+                  : MARINE_TRANSFER_RATE;
+                const amountToTransfer = Math.floor(lp.a * transferRate);
                 if (amountToTransfer > 0) {
                   fleetUnits[lp.u] = (fleetUnits[lp.u] ?? 0) + amountToTransfer;
                   lp.a -= amountToTransfer;
@@ -885,6 +964,13 @@ class MilitaryModule {
   }
 
   getDefaultOptions() {
+    // Ships stay unarmed transports until Shipbuilding tech unlocks cannons (docs/plan/shipbuilding.md) —
+    // a fleet unit's own combat power is just its crew fighting hand-to-hand, cut down for the cramped
+    // footing a rolling deck gives against a proper melee line. Troops it ferries/embarks (marines) are
+    // separate `MilitaryRegiment.u` entries with their own land-unit power, added on top of this.
+    const fleetCrew = 100;
+    const NAVAL_MELEE_PENALTY = 0.3;
+
     return [
       {
         icon: "⚔️",
@@ -932,8 +1018,8 @@ class MilitaryModule {
         name: "fleet",
         rural: 0,
         urban: 0.015,
-        crew: 100,
-        power: 50,
+        crew: fleetCrew,
+        power: rn(fleetCrew * NAVAL_MELEE_PENALTY),
         type: "naval",
         separate: 1
       }

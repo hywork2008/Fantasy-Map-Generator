@@ -329,3 +329,205 @@ describe("redistributeGarrisons — stays on owned land", () => {
     expect([army.x, army.y]).toEqual([300, 0]);
   });
 });
+
+describe("redistributeGarrisons — naval threats (docs/plan/naval-sea-lanes.md Phase 4)", () => {
+  // State 1's port/capital (cell 1, haven at cell 2) and state 2's port (cell 3) sit on
+  // separate, unconnected landmasses (cells.c is empty everywhere — no land border exists
+  // between them at all). `withRoute` controls whether a searoutes route (via water waypoint
+  // cell 4) links the two ports.
+  function makeFleetThreatPack(overrides: { withRoute: boolean }): PackedGraph {
+    const { withRoute } = overrides;
+
+    return {
+      cells: {
+        i: [0, 1, 2, 3, 4],
+        h: [0, 50, 0, 50, 0],
+        c: [[], [], [], [], []],
+        state: [0, 1, 0, 2, 0],
+        province: [0, 1, 0, 0, 0],
+        pop: [0, 0, 0, 0, 0],
+        biome: [0, 5, 5, 5, 5],
+        culture: [0, 1, 1, 1, 1],
+        religion: [0, 1, 1, 1, 1],
+        f: [0, 10, 0, 20, 0],
+        haven: [0, 2, 0, 0, 0],
+        burg: [0, 1, 0, 2, 0],
+        p: [
+          [0, 0],
+          [100, 0],
+          [110, 10],
+          [500, 0],
+          [300, 0]
+        ]
+      },
+      burgs: [
+        0,
+        { i: 1, cell: 1, x: 100, y: 0, capital: 1, state: 1, population: 10000, culture: 1, port: 1 },
+        { i: 2, cell: 3, x: 500, y: 0, capital: 1, state: 2, population: 5000, culture: 1, port: 1 }
+      ],
+      provinces: [null, { i: 1, state: 1, center: 1, burg: 1, name: "Capitalia" }],
+      states: [
+        { i: 0, name: "Neutrals", diplomacy: [] },
+        {
+          i: 1,
+          name: "Alpha",
+          type: "Generic",
+          expansionism: 1,
+          area: 100,
+          center: 1,
+          culture: 1,
+          formName: "Kingdom",
+          diplomacy: [undefined, "x", "Enemy"],
+          neighbors: [],
+          campaigns: []
+        },
+        {
+          i: 2,
+          name: "Beta",
+          type: "Generic",
+          expansionism: 1,
+          area: 100,
+          center: 3,
+          culture: 1,
+          formName: "Kingdom",
+          diplomacy: [undefined, "Enemy", "x"],
+          neighbors: [],
+          campaigns: []
+        }
+      ],
+      routes: withRoute
+        ? [
+            {
+              i: 0,
+              group: "searoutes",
+              feature: 1,
+              points: [
+                [100, 0, 1],
+                [300, 0, 4],
+                [500, 0, 3]
+              ]
+            }
+          ]
+        : []
+    } as unknown as PackedGraph;
+  }
+
+  it("moves a fleet partway along the charted route toward a threatening neighbor's port", () => {
+    const s1 = generate(makeFleetThreatPack({ withRoute: true }));
+    const fleet = s1.military!.find(r => r.n)!;
+
+    // Path is [port(1) -> waypoint(4) -> enemy port(3)]; a single sea segment means pull
+    // ratio is always 1, so GARRISON_PULL_STRENGTH (0.5) lands the fleet exactly on the
+    // path's midpoint node — the waypoint, not the home port and not the enemy's own port.
+    expect(fleet.cell).toBe(4);
+    expect([fleet.x, fleet.y]).toEqual([300, 0]);
+  });
+
+  it("leaves a fleet at its home port when no charted route reaches the threatening neighbor", () => {
+    const s1 = generate(makeFleetThreatPack({ withRoute: false }));
+    const fleet = s1.military!.find(r => r.n)!;
+
+    expect(fleet.cell).toBe(1);
+  });
+
+  // Same layout as makeFleetThreatPack, plus an interior land province (cell 5, far from the
+  // port) with no land border of its own anywhere. Confirms the claim from
+  // docs/plan/naval-sea-lanes.md §2.5: land regiments need no naval-specific code at all —
+  // merging sea frontier segments into the same frontiers map the existing
+  // redistributeGarrisons already reads is enough to pull them toward a threatened port.
+  function makeLandArmyNearSeaThreatPack(overrides: { withRoute: boolean }): PackedGraph {
+    const { withRoute } = overrides;
+
+    return {
+      cells: {
+        i: [0, 1, 2, 3, 4, 5],
+        h: [0, 50, 0, 50, 0, 50],
+        c: [[], [], [], [], [], []],
+        state: [0, 1, 0, 2, 0, 1],
+        province: [0, 1, 0, 0, 0, 2],
+        pop: [0, 0, 0, 0, 0, 10000],
+        biome: [0, 5, 5, 5, 5, 5],
+        culture: [0, 1, 1, 1, 1, 1],
+        religion: [0, 1, 1, 1, 1, 1],
+        f: [0, 10, 0, 20, 0, 10],
+        haven: [0, 2, 0, 0, 0, 0],
+        burg: [0, 1, 0, 2, 0, 0],
+        p: [
+          [0, 0],
+          [100, 0],
+          [110, 10],
+          [500, 0],
+          [300, 0],
+          [100, 300]
+        ]
+      },
+      burgs: [
+        0,
+        { i: 1, cell: 1, x: 100, y: 0, capital: 1, state: 1, population: 10000, culture: 1, port: 1 },
+        { i: 2, cell: 3, x: 500, y: 0, capital: 1, state: 2, population: 5000, culture: 1, port: 1 }
+      ],
+      provinces: [
+        null,
+        { i: 1, state: 1, center: 1, burg: 1, name: "Capitalia" },
+        { i: 2, state: 1, center: 5, burg: 0, name: "Interior" }
+      ],
+      states: [
+        { i: 0, name: "Neutrals", diplomacy: [] },
+        {
+          i: 1,
+          name: "Alpha",
+          type: "Generic",
+          expansionism: 1,
+          area: 100,
+          center: 1,
+          culture: 1,
+          formName: "Kingdom",
+          diplomacy: [undefined, "x", "Enemy"],
+          neighbors: [],
+          campaigns: []
+        },
+        {
+          i: 2,
+          name: "Beta",
+          type: "Generic",
+          expansionism: 1,
+          area: 100,
+          center: 3,
+          culture: 1,
+          formName: "Kingdom",
+          diplomacy: [undefined, "Enemy", "x"],
+          neighbors: [],
+          campaigns: []
+        }
+      ],
+      routes: withRoute
+        ? [
+            {
+              i: 0,
+              group: "searoutes",
+              feature: 1,
+              points: [
+                [100, 0, 1],
+                [300, 0, 4],
+                [500, 0, 3]
+              ]
+            }
+          ]
+        : []
+    } as unknown as PackedGraph;
+  }
+
+  it("pulls an interior land army toward a threatened port with no naval-specific code", () => {
+    const withThreat = generate(makeLandArmyNearSeaThreatPack({ withRoute: true }));
+    const armyWithThreat = withThreat.military!.find(r => !r.isCapitalGuard && !r.n)!;
+
+    const withoutThreat = generate(makeLandArmyNearSeaThreatPack({ withRoute: false }));
+    const armyWithoutThreat = withoutThreat.military!.find(r => !r.isCapitalGuard && !r.n)!;
+
+    // No route at all means analyzeSeaFrontiers() produces no segment for state 1 (its only
+    // port can't reach any hostile port), so the army stays exactly where it was recruited.
+    expect(armyWithoutThreat.y).toBe(300);
+    // With the route, the merged sea segment pulls the interior army toward the port (y: 0).
+    expect(armyWithThreat.y).toBeLessThan(armyWithoutThreat.y);
+  });
+});

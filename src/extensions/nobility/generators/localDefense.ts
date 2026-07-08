@@ -1,10 +1,16 @@
+import { findSeaRouteDistance, type SeaRouteGraph } from "../../../generators/seaRouteGraph";
 import type { Burg, MilitaryRegiment } from "../../../types/models";
 import type { PackedGraph } from "../../../types/PackedGraph";
 import type { Character } from "./characterTypes";
 import { getRegimentCommander } from "./officerAssignment";
 
-/** Distance (map units) within which cavalry/infantry regiments are assumed able to reinforce a besieged burg. */
-export const REINFORCEMENT_RADIUS = { cavalry: 300, infantry: 100 } as const;
+/**
+ * Distance (map units) within which cavalry/infantry regiments are assumed able to reinforce
+ * a besieged burg. `naval` is compared against charted sea-route distance (see
+ * regimentDistanceTo), not straight-line — a fleet sailing an established lane covers more
+ * ground than marching infantry, hence the larger figure.
+ */
+export const REINFORCEMENT_RADIUS = { cavalry: 300, infantry: 100, naval: 500 } as const;
 
 /**
  * A regiment led by a dedicated officer (see officerAssignment.ts) fights above its raw
@@ -17,25 +23,51 @@ export function commanderPowerMultiplier(characters: Character[], regiment: Mili
   return commander ? 1 + (commander.skills.martial / 100) * 0.5 : 1;
 }
 
-/** The marching radius a regiment can reinforce from, based on whether it's cavalry- or infantry-heavy. */
+/** The marching/sailing radius a regiment can reinforce from, based on its composition. */
 export function regimentReinforcementRadius(regiment: MilitaryRegiment): number {
+  if (regiment.n) return REINFORCEMENT_RADIUS.naval;
   const cavalryCount = (regiment.u?.cavalry || 0) + (regiment.u?.["light cavalry"] || 0);
   const infantryCount = (regiment.u?.infantry || 0) + (regiment.u?.archers || 0);
   return cavalryCount > infantryCount ? REINFORCEMENT_RADIUS.cavalry : REINFORCEMENT_RADIUS.infantry;
 }
 
 /**
+ * Distance from `regiment` to a target point, respecting the "no charted sea route, no safe
+ * crossing" rule for naval regiments (docs/plan/naval-sea-lanes.md) instead of straight-line
+ * distance across open water. Land regiments are unaffected — plain Euclidean distance, same
+ * as before Phase 3. Returns null only for a naval regiment with no charted route to
+ * `targetCell` at all; callers must treat that as "cannot reach," not "very far" (a naive
+ * `dist <= radius` comparison against null/NaN can silently evaluate to `false` — check for
+ * null explicitly, as the callers in this file and battle-resolution.ts do).
+ */
+export function regimentDistanceTo(
+  regiment: MilitaryRegiment,
+  targetCell: number,
+  targetX: number,
+  targetY: number,
+  seaRouteGraph: SeaRouteGraph
+): number | null {
+  if (regiment.n) return findSeaRouteDistance(seaRouteGraph, regiment.cell, targetCell);
+  return Math.hypot(regiment.x - targetX, regiment.y - targetY);
+}
+
+/**
  * Estimates how many troops could actually defend `targetBurg` — its own militia plus
- * friendly regiments within marching distance — instead of the defending state's entire
- * national military. A state's total army is almost always many times larger than what a
- * single border town can actually muster in its own defense, so using the national total
- * here (as strategic-planner.ts used to) makes every target look defended by the whole
+ * friendly regiments within marching/sailing distance — instead of the defending state's
+ * entire national military. A state's total army is almost always many times larger than
+ * what a single border town can actually muster in its own defense, so using the national
+ * total here (as strategic-planner.ts used to) makes every target look defended by the whole
  * country and makes weakly-garrisoned or isolated burgs effectively unconquerable.
  * Used both to decide whether attacking a burg is worth planning (strategic-planner.ts)
  * and, filtered further by surprise-attack fog, to actually resolve the siege
  * (battle-resolution.ts).
  */
-export function estimateLocalDefendingForce(pack: PackedGraph, targetBurg: Burg, characters: Character[]): number {
+export function estimateLocalDefendingForce(
+  pack: PackedGraph,
+  targetBurg: Burg,
+  characters: Character[],
+  seaRouteGraph: SeaRouteGraph
+): number {
   const cityGarrison = (targetBurg.population || 0) * 0.05;
   const targetState = pack.states[targetBurg.state ?? -1];
   const defendingRegiments = targetState?.military || [];
@@ -43,8 +75,8 @@ export function estimateLocalDefendingForce(pack: PackedGraph, targetBurg: Burg,
   let local = cityGarrison;
   for (const regiment of defendingRegiments) {
     if (regiment.a <= 0) continue;
-    const dist = Math.hypot(regiment.x - targetBurg.x, regiment.y - targetBurg.y);
-    if (dist <= regimentReinforcementRadius(regiment)) {
+    const dist = regimentDistanceTo(regiment, targetBurg.cell, targetBurg.x, targetBurg.y, seaRouteGraph);
+    if (dist !== null && dist <= regimentReinforcementRadius(regiment)) {
       local += regiment.a * commanderPowerMultiplier(characters, regiment);
     }
   }

@@ -1,3 +1,4 @@
+import { buildSeaRouteGraph, findSeaRouteDistance } from "../../../generators/seaRouteGraph";
 import type { ChronicleEvent, MilitaryRegiment, State } from "../../../types/models";
 import { getWorldContext } from "../nobilityContext";
 import type { Character } from "./characterTypes";
@@ -13,8 +14,17 @@ import { commanderPowerMultiplier } from "./localDefense";
  */
 const ANNIHILATION_RATIO = 3;
 
-/** Distance (map units) within which two hostile regiments are considered in direct contact. */
+/** Distance (map units) within which two hostile land regiments are considered in direct contact. */
 const SKIRMISH_CONTACT_RADIUS = 150;
+
+/**
+ * Sea-route distance within which a pair involving a fleet is considered in direct contact.
+ * Wider than the land radius — ships close distance along a charted lane faster than
+ * infantry on foot — but narrower than a fleet's full reinforcement range (see
+ * REINFORCEMENT_RADIUS.naval in localDefense.ts), since "in contact" means an imminent
+ * clash, not merely "could eventually arrive". See docs/plan/naval-sea-lanes.md §2.4.
+ */
+const NAVAL_SKIRMISH_CONTACT_RADIUS = 400;
 
 function logSkirmish(loserState: State, winnerState: State, loserBurgName: string | undefined) {
   const { pack } = getWorldContext();
@@ -73,6 +83,7 @@ export class LocalSkirmishGenerator {
     const { pack } = getWorldContext();
     const states = pack.states.filter(s => s.i && !s.removed);
     const characters: Character[] = pack.characters || [];
+    const seaRouteGraph = buildSeaRouteGraph(pack);
     let skirmishOccurred = false;
 
     for (const stateA of states) {
@@ -92,8 +103,18 @@ export class LocalSkirmishGenerator {
           for (const regB of regimentsB) {
             if (regB.a <= 0) continue;
 
-            const dist = Math.hypot(regA.x - regB.x, regA.y - regB.y);
-            if (dist > SKIRMISH_CONTACT_RADIUS) continue;
+            let inContact: boolean;
+            if (regA.n || regB.n) {
+              // At least one side is a fleet — contact requires an actual charted sea route
+              // between their positions; open, uncharted water is not a safe place for
+              // either side to close to boarding/melee range (docs/plan/naval-sea-lanes.md).
+              const routeDist = findSeaRouteDistance(seaRouteGraph, regA.cell, regB.cell);
+              inContact = routeDist !== null && routeDist <= NAVAL_SKIRMISH_CONTACT_RADIUS;
+            } else {
+              const dist = Math.hypot(regA.x - regB.x, regA.y - regB.y);
+              inContact = dist <= SKIRMISH_CONTACT_RADIUS;
+            }
+            if (!inContact) continue;
 
             const powerA = regA.a * commanderPowerMultiplier(characters, regA);
             const powerB = regB.a * commanderPowerMultiplier(characters, regB);
