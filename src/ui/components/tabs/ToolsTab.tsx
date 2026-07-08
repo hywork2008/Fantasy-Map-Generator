@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useState } from "react";
+import { useDebugSnapshotState } from "../../../store/debugSnapshotState";
 import { useDialogState } from "../../../store/dialogState";
 import { useExtensionState } from "../../../store/extensionState";
 import { useHeightmapEditModeState } from "../../../store/heightmapDialogState";
@@ -420,6 +421,16 @@ export const ToolsTab: React.FC = () => {
         >
           World
         </button>
+        {import.meta.env.DEV && (
+          <button
+            data-tip="Open the AI Debug Snapshot manager to export generation history"
+            type="button"
+            onClick={() => useDebugSnapshotState.getState().setIsOpen(true)}
+            style={{ marginTop: "4px" }}
+          >
+            Snapshots
+          </button>
+        )}
       </div>
       <div className="separator">Simulation</div>
       <div className="grid">

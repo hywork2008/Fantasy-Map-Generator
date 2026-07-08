@@ -3,7 +3,9 @@ import { simulationContext } from "../context/simulationContext";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { BordersRenderer, BurgIconsRenderer, BurgLabelsRenderer, StateLabelsRenderer } from "../renderers";
+import { useDebugSnapshotState } from "../store/debugSnapshotState";
 import { useOptionsState } from "../store/optionsState";
+import { captureSnapshotData } from "../utils/aiDebugExporter";
 import { simulateDemographics } from "./demography-simulator";
 
 export type TimeTickHook = (deltaYears: number) => void;
@@ -107,4 +109,13 @@ export function advanceTime(deltaYears: number): void {
     })
   );
   dispatchSimulationUpdated();
+
+  if (import.meta.env.DEV) {
+    useDebugSnapshotState.getState().addSnapshot({
+      tickCount: simulationContext.tickCount,
+      year: simulationContext.currentYear,
+      label: `Advance Time +${deltaYears}`,
+      data: captureSnapshotData()
+    });
+  }
 }

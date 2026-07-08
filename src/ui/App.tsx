@@ -8,6 +8,7 @@ import { FocusBanner } from "./components/FocusBanner";
 import { NotesBox } from "./components/NotesBox";
 import { OptionsContainer } from "./components/OptionsContainer";
 import { ToastContainer } from "./components/Toast";
+import { DebugSnapshotDialog } from "./dialogs/DebugSnapshotDialog";
 import { DialogsContainer } from "./dialogs/DialogsContainer";
 
 export const App = () => {
@@ -24,6 +25,8 @@ export const App = () => {
   return (
     <div id="react-ui-container" onMouseMove={handleMouseMove}>
       <ToastContainer />
+
+      {import.meta.env.DEV && <DebugSnapshotDialog />}
 
       <DialogsContainer />
       {/* The Options Menu */}
