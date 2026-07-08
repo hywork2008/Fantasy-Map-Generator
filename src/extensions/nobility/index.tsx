@@ -13,6 +13,7 @@ import type { CharacterSkills } from "./generators/characterTypes";
 import { applyAffinitiesToDiplomacy } from "./generators/diplomacy-modifier";
 import { Espionage } from "./generators/espionage-generator";
 import { LocalSkirmish } from "./generators/localSkirmish";
+import { tryCaptureOnPassing } from "./generators/marchCapture";
 import { assignOfficers } from "./generators/officerAssignment";
 import { assignProvinceLords } from "./generators/provinceLordGenerator";
 import { StrategicPlanner } from "./generators/strategic-planner";
@@ -167,8 +168,22 @@ export function init(api: ExtensionAPI): void {
     // Regiment marching (docs/plan/military-movement.md Phase 2) runs every tick regardless of
     // bordersChanged — armies keep advancing toward their destination continuously rather than
     // teleporting instantly when borders change.
-    const regimentsMoved = advanceAllRegimentMovement(api.worldContext.pack, api.worldContext, effectiveDeltaYears);
-    if ((bordersChanged || regimentsMoved) && api.layerIsOn("toggleMilitary")) {
+    let marchCaptureOccurred = false;
+    const regimentsMoved = advanceAllRegimentMovement(
+      api.worldContext.pack,
+      api.worldContext,
+      effectiveDeltaYears,
+      (r, cell) => {
+        if (tryCaptureOnPassing(r, cell)) marchCaptureOccurred = true;
+      }
+    );
+
+    if (marchCaptureOccurred) {
+      if (api.layerIsOn("toggleStates")) StatesRenderer.render(api.worldContext, api.viewContext, api.appServices);
+      if (api.layerIsOn("toggleBorders")) BordersRenderer.render(api.worldContext, api.viewContext, api.appServices);
+    }
+
+    if ((bordersChanged || marchCaptureOccurred || regimentsMoved) && api.layerIsOn("toggleMilitary")) {
       MilitaryRenderer.render(api.worldContext, api.viewContext, api.appServices);
     }
 

@@ -198,6 +198,7 @@ class StatesModule {
       .filter(b => b.i && !b.removed)
       .forEach(b => {
         b.state = cells.state[b.cell]; // assign state to burgs
+        b.stateHistory = [b.state]; // baseline ownership record — see Burg.stateHistory
       });
     TIME && console.timeEnd("expandStates");
   }

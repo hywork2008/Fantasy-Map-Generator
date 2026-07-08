@@ -93,6 +93,15 @@ export interface Burg {
   treasury?: number;
   market?: number;
   demographics?: BurgDemographics;
+  /**
+   * Every state that has ever owned this burg, oldest first, ending with the current owner
+   * (`state`) — appended to on every capture (see localDefense.ts's `captureBurg`). Lets
+   * reconquest logic answer "was this ever legitimately ours?" instead of only seeing whoever
+   * holds it now: regimentMovement.ts's garrison logic uses it to route patrols into a lost
+   * enclave (a burg previously owned by their own state) so they retake it in passing, and it's
+   * available for any future UI/AI decision that needs to judge a reclaim's legitimacy.
+   */
+  stateHistory?: number[];
 }
 
 export interface Culture {

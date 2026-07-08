@@ -6,6 +6,7 @@ import { getWorldContext } from "../nobilityContext";
 import type { Character } from "./characterTypes";
 import {
   calculateEffectiveSiegePower,
+  captureBurg,
   commanderPowerMultiplier,
   regimentDistanceTo,
   regimentReinforcementRadius
@@ -229,13 +230,7 @@ export const BattleResolutionGenerator = {
     let rawText = "";
 
     if (cityCaptured) {
-      targetBurg.state = attackerId;
-      // Transfer cells belonging to this burg
-      for (let i = 0; i < pack.cells.burg.length; i++) {
-        if (pack.cells.burg[i] === targetBurg.i) {
-          pack.cells.state[i] = attackerId;
-        }
-      }
+      captureBurg(pack, targetBurg, attackerId);
       console.warn(`🏆 City ${targetBurg.name} has fallen to ${attackerState.name}!`);
       actionText = "captured the city";
       rawText = `${attackerState.name} captured ${targetBurg.name} from ${targetState.name}. Casualties: ~${Math.round(attackerCasualties + defenderCasualties)}.`;

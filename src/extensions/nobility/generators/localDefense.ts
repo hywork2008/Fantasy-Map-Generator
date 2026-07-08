@@ -5,6 +5,35 @@ import type { Character } from "./characterTypes";
 import { getRegimentCommander } from "./officerAssignment";
 
 /**
+ * Minimum surviving occupying force, relative to a captured burg's population, needed to
+ * actually hold the city — a handful of survivors can't hold down a city of thousands, they'd
+ * be driven out or murdered in the night before ever consolidating control
+ * (docs/plan/military-time-advance-review-findings.md §1.1).
+ */
+export const OCCUPATION_FORCE_RATIO = 0.05;
+
+/** True if `occupyingForce` survivors are enough to actually hold `burg` down after taking it. */
+export function canOccupyBurg(burg: Burg, occupyingForce: number): boolean {
+  return occupyingForce >= (burg.population || 0) * OCCUPATION_FORCE_RATIO;
+}
+
+/**
+ * Transfers `burg` and every cell mapped to it over to `winnerStateId`, and records the change
+ * in `burg.stateHistory` (oldest first) — the single entry point every capture path (formal
+ * siege resolution, background skirmish annihilation, marching-through raids) must go through so
+ * the ownership trail stays complete for reconquest-legitimacy checks (see Burg.stateHistory).
+ */
+export function captureBurg(pack: PackedGraph, burg: Burg, winnerStateId: number): void {
+  burg.state = winnerStateId;
+  burg.stateHistory = [...(burg.stateHistory ?? []), winnerStateId];
+  for (let i = 0; i < pack.cells.burg.length; i++) {
+    if (pack.cells.burg[i] === burg.i) {
+      pack.cells.state[i] = winnerStateId;
+    }
+  }
+}
+
+/**
  * Distance (map units) within which cavalry/infantry regiments are assumed able to reinforce
  * a besieged burg. `naval` is compared against charted sea-route distance (see
  * regimentDistanceTo), not straight-line — a fleet sailing an established lane covers more

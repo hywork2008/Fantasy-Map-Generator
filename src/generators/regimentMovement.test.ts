@@ -182,6 +182,88 @@ describe("advanceAllRegimentMovement — no threat", () => {
   });
 });
 
+describe("advanceAllRegimentMovement — reclaiming a lost enclave (Burg.stateHistory)", () => {
+  // cell0 (state 1's border cell, the frontier anchor) -- cell1 (garrison start) -- cell2
+  // (enclave: owned by state 2 now, but stateHistory shows it used to be state 1's). cell2 sits
+  // essentially at the pull-toward-the-border midpoint, so it beats both cell0 and cell1 as the
+  // nearest destination candidate once it's included — proving ensureGarrisonMarchOrder actually
+  // offers it up instead of stopping dead at cell0 (its own border) forever.
+  function makeEnclavePack(): PackedGraph {
+    return {
+      cells: {
+        i: [0, 1, 2],
+        h: [50, 50, 50],
+        c: [[1, 2], [0], [0]],
+        state: [1, 1, 2],
+        province: [0, 0, 0],
+        f: [10, 10, 10],
+        burg: [0, 0, 3],
+        p: [
+          [100, 0],
+          [0, 0],
+          [50, 1]
+        ]
+      },
+      burgs: [
+        { i: 0, cell: -1, removed: true },
+        { i: 3, cell: 2, x: 50, y: 1, state: 2, population: 10, stateHistory: [1, 2] }
+      ],
+      provinces: [],
+      routes: [],
+      states: [
+        { i: 0, name: "Neutrals", diplomacy: [] },
+        {
+          i: 1,
+          name: "Alpha",
+          diplomacy: [undefined, "x", "Enemy"],
+          campaigns: [],
+          military: [] as MilitaryRegiment[]
+        },
+        { i: 2, name: "Beta", diplomacy: [undefined, "Enemy", "x"], campaigns: [] }
+      ]
+    } as unknown as PackedGraph;
+  }
+
+  it("routes a garrison patrol into a burg it used to own instead of stopping at its own border", () => {
+    const pack = makeEnclavePack();
+    const garrison = makeGarrison({ cell: 1, x: 0, y: 0, bx: 0, by: 0 });
+    pack.states[1].military = [garrison];
+
+    const worldContext = makeWorldContext();
+    const moved = advanceAllRegimentMovement(pack, worldContext, 100);
+
+    expect(moved).toBe(true);
+    expect(garrison.cell).toBe(2); // the enclave burg's cell, not cell0 (its own border)
+  });
+
+  it("does not offer a neighbor's burg that was never this state's own as a destination", () => {
+    const pack = makeEnclavePack();
+    (pack.burgs[1] as unknown as { stateHistory: number[] }).stateHistory = [2]; // never owned by state 1
+    const garrison = makeGarrison({ cell: 1, x: 0, y: 0, bx: 0, by: 0 });
+    pack.states[1].military = [garrison];
+
+    const worldContext = makeWorldContext();
+    advanceAllRegimentMovement(pack, worldContext, 100);
+
+    // Falls back to its own border cell (cell0) since the enclave isn't a legitimate reclaim target.
+    expect(garrison.cell).toBe(0);
+  });
+});
+
+describe("advanceAllRegimentMovement — onCellEntered hook", () => {
+  it("fires once for every cell newly entered while marching, in order", () => {
+    const pack = makeLandThreatPack();
+    const garrison = makeGarrison({ cell: 3, x: 0, y: 300, bx: 0, by: 300 });
+    pack.states[1].military = [garrison];
+
+    const entered: number[] = [];
+    const worldContext = makeWorldContext();
+    advanceAllRegimentMovement(pack, worldContext, 100, (_r, cell) => entered.push(cell));
+
+    expect(entered).toEqual([2]);
+  });
+});
+
 // State 1's port/capital (cell1, haven at cell2) and state 2's port (cell3) sit on separate,
 // unconnected landmasses (cells.c empty everywhere). `withRoute` controls whether a searoutes
 // route (via water waypoint cell4) links the two ports — mirrors naval-sea-lanes.md Phase 4.

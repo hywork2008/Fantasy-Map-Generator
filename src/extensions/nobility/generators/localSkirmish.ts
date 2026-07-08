@@ -5,22 +5,17 @@ import type { Burg, ChronicleEvent, MilitaryRegiment, MilitaryUnit, State } from
 import type { PackedGraph } from "../../../types/PackedGraph";
 import { getWorldContext } from "../nobilityContext";
 import type { Character } from "./characterTypes";
-import { commanderPowerMultiplier, regimentDistanceTo, regimentReinforcementRadius } from "./localDefense";
+import {
+  canOccupyBurg,
+  captureBurg,
+  commanderPowerMultiplier,
+  regimentDistanceTo,
+  regimentReinforcementRadius
+} from "./localDefense";
 
 /** Distance (map units) within which two hostile land regiments are considered in direct contact. */
 const SKIRMISH_CONTACT_RADIUS = 50;
 const NAVAL_SKIRMISH_CONTACT_RADIUS = 100;
-
-/**
- * Minimum surviving occupying force, relative to a captured burg's population, needed to
- * actually hold the city — mirrors localDefense.ts's `cityGarrison = population * 0.05`
- * convention for how much local muscle a settlement's own population represents. Wiping out
- * the defending garrison doesn't hand over a city outright if too few troops are left to
- * occupy and suppress it (docs/plan/military-time-advance-review-findings.md §1.1) — a
- * handful of survivors can't hold down a city of thousands, they'd be driven out or murdered
- * in the night before ever consolidating control.
- */
-const OCCUPATION_FORCE_RATIO = 0.05;
 
 /**
  * Power-ratio threshold above which an isolated side is routed outright this tick rather than
@@ -34,21 +29,6 @@ const ANNIHILATION_RATIO = 3;
 /** The burg (if any) that `regiment` was garrisoning — same lookup the old annihilate() used. */
 function findGarrisonedBurg(pack: PackedGraph, regiment: MilitaryRegiment, stateId: number): Burg | undefined {
   return pack.burgs.find(b => !b.removed && b.state === stateId && b.cell === regiment.cell);
-}
-
-/** True if `occupyingForce` survivors are enough to actually hold `burg` down after taking it. */
-function canOccupyBurg(burg: Burg, occupyingForce: number): boolean {
-  return occupyingForce >= (burg.population || 0) * OCCUPATION_FORCE_RATIO;
-}
-
-/** Transfers `burg` and every cell mapped to it over to `winnerState` — same mechanics as the old annihilate(). */
-function captureBurg(pack: PackedGraph, burg: Burg, winnerStateId: number): void {
-  burg.state = winnerStateId;
-  for (let i = 0; i < pack.cells.burg.length; i++) {
-    if (pack.cells.burg[i] === burg.i) {
-      pack.cells.state[i] = winnerStateId;
-    }
-  }
 }
 
 function hasStrategicTension(stateA: State, stateB: State): boolean {

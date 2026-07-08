@@ -210,6 +210,29 @@ function planLandMarchOrder(
   r.offRoad = !charted;
 }
 
+/** map units — if a garrison regiment's newly-recomputed pull target is still about this close to its current destination, keep marching there instead of replanning. A tiny threatWeight jitter between ticks otherwise flips the nearest-owned-cell pick to a neighboring cell every tick, resetting `edgeProgress` in a loop (docs/debug/0708-military-routes.md). */
+const GARRISON_DESTINATION_STABILITY_RADIUS = 60;
+
+/**
+ * `neighborState`'s burgs on `landmass` that `ownState` used to own (per `Burg.stateHistory`) —
+ * i.e. a lost enclave, not the neighbor's legitimate mainland. Added as extra destination
+ * candidates in `ensureGarrisonMarchOrder` so a state's own patrols actually walk into (and, via
+ * marchCapture.ts's `onCellEntered` hook, retake) territory the enemy captured and then marched
+ * away from, instead of stopping dead at the border forever (see docs/debug — an occupied
+ * enclave otherwise never gets reclaimed once the occupying force leaves).
+ */
+function reclaimableEnemyCells(pack: PackedGraph, ownState: number, neighborState: number, landmass: number): number[] {
+  const { cells, burgs } = pack;
+  const result: number[] = [];
+  for (const b of burgs) {
+    if (!b.i || b.removed || b.state !== neighborState) continue;
+    if (cells.f[b.cell] !== landmass) continue;
+    if (!b.stateHistory?.includes(ownState)) continue;
+    result.push(b.cell);
+  }
+  return result;
+}
+
 /** Ports redistributeGarrisons's old target-selection (pull toward the primary threatened frontier, proportional to its share of total threat, snapped onto owned land) into a march order instead of an instant reposition. */
 function ensureGarrisonMarchOrder(
   r: MilitaryRegiment,
@@ -242,15 +265,25 @@ function ensureGarrisonMarchOrder(
   const pulledX = r.x + (target.cx - r.x) * pull;
   const pulledY = r.y + (target.cy - r.y) * pull;
 
-  const ownLandCells = landCellsByStateAndLandmass.get(r.state)?.get(landmass);
-  if (!ownLandCells?.length) {
+  // Hysteresis: don't recompute/replan every single tick over a pull point that barely moved —
+  // see GARRISON_DESTINATION_STABILITY_RADIUS's doc comment.
+  if (r.destinationCell !== undefined && r.path && r.pathIndex !== undefined) {
+    const dx = cells.p[r.destinationCell][0] - pulledX;
+    const dy = cells.p[r.destinationCell][1] - pulledY;
+    if (Math.hypot(dx, dy) < GARRISON_DESTINATION_STABILITY_RADIUS) return;
+  }
+
+  const ownLandCells = landCellsByStateAndLandmass.get(r.state)?.get(landmass) ?? [];
+  const reclaimCells = reclaimableEnemyCells(pack, r.state, target.neighborState, landmass);
+  const candidates = reclaimCells.length ? ownLandCells.concat(reclaimCells) : ownLandCells;
+  if (!candidates.length) {
     clearMarchOrder(r);
     return;
   }
 
   let destinationCell = r.cell;
   let bestDist = Infinity;
-  for (const c of ownLandCells) {
+  for (const c of candidates) {
     const dx = cells.p[c][0] - pulledX;
     const dy = cells.p[c][1] - pulledY;
     const dist = dx * dx + dy * dy;
@@ -513,8 +546,20 @@ function ensureFleetMarchOrder(
   r.offRoad = false;
 }
 
-/** Spends `budget` map units walking `r` along its current path, updating cell/x/y/bx/by, and clears the march order once the destination is reached. No-op if the regiment has no active path. */
-export function advanceAlongPath(pack: PackedGraph, r: MilitaryRegiment, budget: number): void {
+/**
+ * Spends `budget` map units walking `r` along its current path, updating cell/x/y/bx/by, and
+ * clears the march order once the destination is reached. No-op if the regiment has no active
+ * path. `onCellEntered`, if given, fires once for every cell `r` newly enters this call (a single
+ * big `deltaYears` tick can cross several cells/burgs in one go) — the seam Nobility's
+ * marchCapture.ts hooks into to raid/capture settlements a regiment marches through, without this
+ * core Generator module needing to know anything about states/diplomacy/capture business rules.
+ */
+export function advanceAlongPath(
+  pack: PackedGraph,
+  r: MilitaryRegiment,
+  budget: number,
+  onCellEntered?: (r: MilitaryRegiment, cell: number) => void
+): void {
   if (!r.path || r.pathIndex === undefined || budget <= 0) return;
   const { cells } = pack;
   let remaining = budget;
@@ -531,6 +576,7 @@ export function advanceAlongPath(pack: PackedGraph, r: MilitaryRegiment, budget:
       r.pathIndex += 1;
       r.cell = toCell;
       progress = 0;
+      onCellEntered?.(r, toCell);
     } else {
       progress += remaining;
       remaining = 0;
@@ -562,9 +608,15 @@ export function advanceAlongPath(pack: PackedGraph, r: MilitaryRegiment, budget:
  * per-tick hook, e.g. Nobility's registerTimeTickHook — unlike Military.generate(), this
  * should run every tick regardless of bordersChanged, since marching is continuous).
  * Returns true if any regiment's position actually changed, so the caller knows whether to
- * re-render the military layer.
+ * re-render the military layer. `onCellEntered` is threaded straight through to
+ * `advanceAlongPath` — see its doc comment.
  */
-export function advanceAllRegimentMovement(pack: PackedGraph, worldContext: WorldContext, deltaYears: number): boolean {
+export function advanceAllRegimentMovement(
+  pack: PackedGraph,
+  worldContext: WorldContext,
+  deltaYears: number,
+  onCellEntered?: (r: MilitaryRegiment, cell: number) => void
+): boolean {
   if (deltaYears <= 0) return false;
 
   const currentYear = worldContext.options.year ?? 0;
@@ -640,7 +692,7 @@ export function advanceAllRegimentMovement(pack: PackedGraph, worldContext: Worl
           if (detachment) {
             freshlySplit.add(detachment);
             const detachmentBudget = dailySpeedMapUnits(detachment, worldContext) * days;
-            advanceAlongPath(pack, detachment, detachmentBudget);
+            advanceAlongPath(pack, detachment, detachmentBudget, onCellEntered);
             anyMoved = true;
           }
         }
@@ -651,7 +703,7 @@ export function advanceAllRegimentMovement(pack: PackedGraph, worldContext: Worl
       const budget = dailySpeedMapUnits(r, worldContext) * days;
       const beforeX = r.x;
       const beforeY = r.y;
-      advanceAlongPath(pack, r, budget);
+      advanceAlongPath(pack, r, budget, onCellEntered);
       if (r.x !== beforeX || r.y !== beforeY) anyMoved = true;
     }
   }
