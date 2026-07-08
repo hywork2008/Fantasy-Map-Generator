@@ -86,6 +86,9 @@ export function tryRecaptureHomeBurg(r: MilitaryRegiment, cell: number): boolean
   const targetState = pack.states[burg.state ?? -1];
   if (!ownState || !targetState) return false;
 
+  const targetDiplomacy = ownState.diplomacy?.[targetState.i];
+  if (targetDiplomacy === "Ally" || targetDiplomacy === "Friendly") return false;
+
   const characters = pack.characters || [];
   const defense = nearbyOccupierForce(pack, burg, characters);
 

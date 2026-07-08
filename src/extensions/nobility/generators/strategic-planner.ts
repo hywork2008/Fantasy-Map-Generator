@@ -246,6 +246,14 @@ export class StrategicPlannerGenerator {
           continue; // Goal accomplished or invalid, drop it
         }
 
+        const currentDiplomacy = state.diplomacy?.[goal.targetState];
+        if (currentDiplomacy === "Ally" || currentDiplomacy === "Friendly") {
+          for (const regiment of state.military || []) {
+            if (regiment.goalTargetBurg === goal.targetBurg) regiment.goalTargetBurg = undefined;
+          }
+          continue; // Goal invalid due to allied/friendly status, drop it
+        }
+
         // Tension calculation — top-down (ruler ambition) plus bottom-up (ground reality).
         // Base increment per year: +1 to +5 based on boldness
         const baseIncrement = 1 + boldness / 25;
@@ -351,6 +359,23 @@ export class StrategicPlannerGenerator {
         const targetBurgObj = pack.burgs[goal.targetBurg];
         if (!targetBurgObj || targetBurgObj.state === stateId) {
           goals.splice(i, 1);
+          continue;
+        }
+
+        const currentDiplomacy = attacker.diplomacy?.[goal.targetState];
+        if (currentDiplomacy === "Ally" || currentDiplomacy === "Friendly") {
+          goals.splice(i, 1);
+          for (const regiment of attacker.military || []) {
+            if (regiment.goalTargetBurg === goal.targetBurg) {
+              regiment.goalTargetBurg = undefined;
+              if (regiment.destinationCell !== undefined) {
+                regiment.destinationCell = undefined;
+                regiment.path = undefined;
+                regiment.pathIndex = undefined;
+                regiment.actionStatus = "waiting";
+              }
+            }
+          }
           continue;
         }
 
