@@ -525,7 +525,8 @@ class StatesModule {
       return false;
     };
 
-    for (let attempt = 0; attempt < 3; attempt++) {
+    const diplomacyHistoryAttempts = useOptionsState.getState().diplomacyHistoryAttempts ?? 1;
+    for (let attempt = 0; attempt < diplomacyHistoryAttempts; attempt++) {
       for (let attacker = 1; attacker < states.length; attacker++) {
         const ad = states[attacker].diplomacy as string[]; // attacker relations;
         if (states[attacker].removed) continue;
@@ -582,10 +583,18 @@ class StatesModule {
         const baseName = `The ${an}-${trimVowels(dn)}ian War`;
         const name = count === 1 ? baseName : `${baseName} ${romanize(count)}`;
         console.log(`WAR START: ${name} (count: ${count}, attempt: ${attempt})`);
-        // Base yearsAgo on the attempt to ensure War I is older than War II
-        // attempt 0 = ~80-100 years ago, attempt 1 = ~50-70, attempt 2 = ~10-30
-        const baseYears = 90 - attempt * (80 / 3);
-        const yearsAgo = Math.max(1, Math.min(100, Math.floor(baseYears + gauss(0, 10, -10, 10, 0))));
+        // Base yearsAgo on the attempt to ensure chronological order (War I is older than War II).
+        // Segment the 100-year history by the number of attempts.
+        const segment = 100 / diplomacyHistoryAttempts;
+        const minYears = Math.max(1, 100 - (attempt + 1) * segment);
+        const maxYears = 100 - attempt * segment;
+
+        // Randomize within the segment. Math.pow(Math.random(), 1.5) skews the result towards minYears (more recent).
+        // This makes it feel like wars typically happened 1-2 generations ago, spreading nicely up to recent times.
+        const yearsAgo = Math.max(
+          1,
+          Math.min(100, Math.floor(minYears + Math.random() ** 1.5 * (maxYears - minYears)))
+        );
 
         const createEvent = (from: number, to: number, action: string, rawText: string) => {
           const { fromBurg, toBurg } = getEventEndpoints(from, to);

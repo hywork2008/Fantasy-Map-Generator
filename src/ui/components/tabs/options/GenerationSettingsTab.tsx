@@ -282,6 +282,21 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
+          <tr data-tip="Define how many times wars are generated to build relations history.">
+            <td>
+              <LockIconButton id="diplomacyHistoryAttempts" />
+            </td>
+            <td>History attempts</td>
+            <td colSpan={2}>
+              <SliderInput
+                min="0"
+                max="10"
+                value={options.diplomacyHistoryAttempts}
+                onChange={v => updateOptionAndLock("diplomacyHistoryAttempts", Number(v))}
+              />
+            </td>
+          </tr>
+
           <tr data-tip="Set what share of eligible burgs in each state will become province centers. Higher values create more provinces">
             <td>
               <LockIconButton id="provincesRatio" />
