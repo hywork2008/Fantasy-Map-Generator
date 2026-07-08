@@ -20,6 +20,10 @@ export interface StrategicGoal {
 export interface SimulationContext {
   /** In-world calendar year, advanced by src/generators/timeEngine.ts's advanceTime(). */
   currentYear: number;
+  /** In-world calendar month (1-12). */
+  currentMonth: number;
+  /** In-world calendar day (1-30). */
+  currentDay: number;
   /** In-world era name, mirrors worldContext.options.era. */
   era: string;
   /** Number of times advanceTime() has run since the current map was generated. */
@@ -37,6 +41,8 @@ export interface SimulationContext {
  */
 export const simulationContext: SimulationContext = {
   currentYear: 0,
+  currentMonth: 1,
+  currentDay: 1,
   era: "",
   tickCount: 0,
   intelligence: {},

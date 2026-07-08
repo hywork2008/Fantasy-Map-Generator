@@ -138,7 +138,7 @@ export function init(api: ExtensionAPI): void {
   };
   document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
 
-  api.registerTimeTickHook(deltaYears => {
+  api.registerTimeTickHook((deltaYears, deltaMonths, deltaDays) => {
     if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return;
     Characters.advanceAge(deltaYears);
     assignOfficers();
@@ -146,7 +146,7 @@ export function init(api: ExtensionAPI): void {
     Espionage.generate();
     StrategicPlanner.generate();
     const siegeOccurred = StrategicPlanner.advanceTension();
-    const skirmishOccurred = LocalSkirmish.resolve();
+    const skirmishOccurred = LocalSkirmish.resolve(deltaYears, deltaMonths, deltaDays);
     const bordersChanged = siegeOccurred || skirmishOccurred;
 
     if (bordersChanged) {

@@ -18,7 +18,7 @@ import type { AppServices } from "../context/appServices";
 import type { SimulationContext } from "../context/simulationContext";
 import type { SvgGroup, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import type { TimeTickHook } from "../generators/timeEngine";
+
 import type { BurgEconomySummary } from "../services/burgEconomyExtensions";
 import type { SkillModifierFn } from "../services/skillModifierService";
 import type {
@@ -168,12 +168,9 @@ export interface ExtensionAPI {
   // ── Simulation clock ─────────────────────────────────────────────────────
   /**
    * Register a hook called on every advanceTime() call (i.e. every time the
-   * host's simulation clock advances). Use this to run per-tick simulation
-   * logic (e.g. ship production, forest regrowth). Hooks are permanent for the
-   * session — gate extension-specific behavior with api.isExtensionEnabled()
-   * inside the hook.
+   * simulation year/month/day changes). Hooks are permanent for the session.
    */
-  registerTimeTickHook(fn: TimeTickHook): void;
+  registerTimeTickHook(hook: (deltaYears: number, deltaMonths: number, deltaDays: number) => void): void;
 
   // ── Skill modifier chain ─────────────────────────────────────────────────
   /**

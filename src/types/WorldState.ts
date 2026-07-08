@@ -44,6 +44,10 @@ export interface WorldOptions {
   military?: MilitaryUnit[];
   /** In-world calendar year; set during map generation */
   year?: number;
+  /** In-world calendar month; set during map generation */
+  month?: number;
+  /** In-world calendar day; set during map generation */
+  day?: number;
   /** In-world era name; set during map generation */
   era?: string;
   /** Abbreviated era name; derived from era */

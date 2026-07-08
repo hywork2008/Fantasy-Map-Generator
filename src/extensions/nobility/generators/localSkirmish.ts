@@ -1,58 +1,18 @@
 import { simulationContext } from "../../../context/simulationContext";
 import { buildSeaRouteGraph, findSeaRouteDistance, type SeaRouteGraph } from "../../../generators/seaRouteGraph";
-import type { ChronicleEvent, MilitaryRegiment, State } from "../../../types/models";
+import type { ChronicleEvent, MilitaryRegiment, MilitaryUnit, State } from "../../../types/models";
 import { getWorldContext } from "../nobilityContext";
 import type { Character } from "./characterTypes";
-import { commanderPowerMultiplier, regimentDistanceTo, regimentReinforcementRadius } from "./localDefense";
-
-/**
- * Force-ratio threshold above which a front-line commander annihilates a weak, isolated
- * enemy detachment on their own initiative, without waiting for the state-level tension
- * clock (strategic-planner.ts) to reach a formal war declaration. Deliberately higher
- * than the field-battle attack ratio used for planned sieges — this only fires for
- * outright massacres (a handful of survivors facing an army), not close fights, since
- * those remain the sovereign's call.
- */
-const ANNIHILATION_RATIO = 3;
+import { commanderPowerMultiplier } from "./localDefense";
 
 /** Distance (map units) within which two hostile land regiments are considered in direct contact. */
 const SKIRMISH_CONTACT_RADIUS = 150;
-
-/**
- * Sea-route distance within which a pair involving a fleet is considered in direct contact.
- * Wider than the land radius — ships close distance along a charted lane faster than
- * infantry on foot — but narrower than a fleet's full reinforcement range (see
- * REINFORCEMENT_RADIUS.naval in localDefense.ts), since "in contact" means an imminent
- * clash, not merely "could eventually arrive". See docs/plan/naval-sea-lanes.md §2.4.
- */
 const NAVAL_SKIRMISH_CONTACT_RADIUS = 400;
 
-/**
- * A state pair only counts as "genuinely tense" — not just carrying a leftover/flavor
- * "Enemy" label from Relations History — if one side has an active StrategicGoal targeting
- * the other. StrategicGoal generation (strategic-planner.ts) already runs its own
- * force-ratio/deterrence checks before creating a goal, so reusing it here means local
- * skirmishes only fire where the AI has already calculated a real intention to fight.
- */
 function hasStrategicTension(stateA: State, stateB: State): boolean {
   const goalsA = simulationContext.strategicGoals[stateA.i] ?? [];
   const goalsB = simulationContext.strategicGoals[stateB.i] ?? [];
   return goalsA.some(g => g.targetState === stateB.i) || goalsB.some(g => g.targetState === stateA.i);
-}
-
-/**
- * True if no other still-standing regiment of the same state could reinforce `regiment` —
- * the original "isolated exclave garrison, no hope of relief" framing this generator was
- * built for (see docs/plan/regiments.md), rather than "any two regiments that happen to be
- * near each other." `siblings` is that state's full regiment list, including `regiment`
- * itself (excluded by the `other === regiment` check).
- */
-function isIsolated(regiment: MilitaryRegiment, siblings: MilitaryRegiment[], seaRouteGraph: SeaRouteGraph): boolean {
-  return !siblings.some(other => {
-    if (other === regiment || other.a <= 0) return false;
-    const dist = regimentDistanceTo(other, regiment.cell, regiment.x, regiment.y, seaRouteGraph);
-    return dist !== null && dist <= regimentReinforcementRadius(other);
-  });
 }
 
 function logSkirmish(loserState: State, winnerState: State, loserBurgName: string | undefined) {
@@ -65,116 +25,161 @@ function logSkirmish(loserState: State, winnerState: State, loserBurgName: strin
     yearsAgo: 0,
     from: winnerState.i,
     to: loserState.i,
-    action: "annihilated an isolated detachment",
+    action: "annihilated an enemy detachment",
     rawText: loserBurgName
-      ? `${winnerState.name} annihilated an isolated ${loserState.name} detachment and took ${loserBurgName}.`
-      : `${winnerState.name} annihilated an isolated ${loserState.name} detachment.`
+      ? `${winnerState.name} annihilated an enemy ${loserState.name} detachment and took ${loserBurgName}.`
+      : `${winnerState.name} annihilated an enemy ${loserState.name} detachment in battle.`
   };
 
   pack.states[0].diplomacy = [[`Skirmish: ${winnerState.name} vs ${loserState.name}`, event], ...chronicle];
 }
 
-/** Wipes out `loser`, applies light attrition to `winner`, and hands over any burg the loser was garrisoning. */
-function annihilate(loser: MilitaryRegiment, winner: MilitaryRegiment, loserState: State, winnerState: State): void {
-  const { pack } = getWorldContext();
+function isInContact(regA: MilitaryRegiment, regB: MilitaryRegiment, seaRouteGraph: SeaRouteGraph): boolean {
+  if (regA.n || regB.n) {
+    const routeDist = findSeaRouteDistance(seaRouteGraph, regA.cell, regB.cell);
+    return routeDist !== null && routeDist <= NAVAL_SKIRMISH_CONTACT_RADIUS;
+  }
+  const dist = Math.hypot(regA.x - regB.x, regA.y - regB.y);
+  return dist <= SKIRMISH_CONTACT_RADIUS;
+}
 
-  console.warn(
-    `⚔️ LOCAL SKIRMISH: ${winnerState.name}'s ${winner.name} annihilated ${loserState.name}'s isolated ${loser.name} (${loser.a} troops) without waiting for orders.`
-  );
+function calculateRegimentPower(reg: MilitaryRegiment, militaryOptions: MilitaryUnit[]): number {
+  let power = 0;
+  for (const name in reg.u) {
+    const unit = militaryOptions.find(u => u.name === name);
+    if (unit) {
+      // In battle-screen.ts, power is survivors * unit.power. We use the full unit.power here.
+      power += reg.u[name] * unit.power;
+    }
+  }
+  return power;
+}
 
-  loser.a = 0;
-  // A hopelessly lopsided fight is still a fight — the winner takes light attrition.
-  winner.a = Math.max(1, Math.floor(winner.a * 0.97));
+function applyCasualties(reg: MilitaryRegiment, casualtiesRate: number): void {
+  let totalSurvivors = 0;
+  for (const unit in reg.u) {
+    const randVal = 0.8 + Math.random() * 0.4;
+    const died = Math.min(Math.floor(reg.u[unit] * casualtiesRate * randVal), reg.u[unit]);
+    reg.u[unit] -= died;
+    totalSurvivors += reg.u[unit];
+  }
+  reg.a = totalSurvivors;
+}
 
-  const loserBurg = pack.burgs.find(b => !b.removed && b.state === loserState.i && b.cell === loser.cell);
-  if (loserBurg) {
-    loserBurg.state = winnerState.i;
-    for (let i = 0; i < pack.cells.burg.length; i++) {
-      if (pack.cells.burg[i] === loserBurg.i) {
-        pack.cells.state[i] = winnerState.i;
+function getContactCluster(
+  seedA: MilitaryRegiment,
+  regimentsA: MilitaryRegiment[],
+  regimentsB: MilitaryRegiment[],
+  seaRouteGraph: SeaRouteGraph
+) {
+  const clusterA = new Set([seedA]);
+  const clusterB = new Set<MilitaryRegiment>();
+
+  let added = true;
+  while (added) {
+    added = false;
+    for (const b of regimentsB) {
+      if (clusterB.has(b)) continue;
+      if (Array.from(clusterA).some(a => isInContact(a, b, seaRouteGraph))) {
+        clusterB.add(b);
+        added = true;
       }
     }
-    console.warn(`🏆 ${loserBurg.name} falls with its garrison to ${winnerState.name}.`);
+    for (const a of regimentsA) {
+      if (clusterA.has(a)) continue;
+      if (Array.from(clusterB).some(b => isInContact(a, b, seaRouteGraph))) {
+        clusterA.add(a);
+        added = true;
+      }
+    }
   }
-
-  logSkirmish(loserState, winnerState, loserBurg?.name);
+  return { regsA: Array.from(clusterA), regsB: Array.from(clusterB) };
 }
 
 export class LocalSkirmishGenerator {
-  /**
-   * Scans every pair of states already at declared war ("Enemy" diplomacy) AND carrying
-   * real strategic tension (hasStrategicTension — not just a leftover Relations History
-   * label) for isolated regiments standing close enough to be in direct contact. When one
-   * side's local force is overwhelmingly stronger than an isolated enemy detachment (no
-   * friendly regiment able to reinforce it — isIsolated), that detachment is wiped out
-   * immediately, modeling local initiative for genuinely hopeless exclave garrisons — as
-   * opposed to strategic-planner.ts's slow, centrally-gated sieges.
-   *
-   * Capital guards never participate (neither as attacker nor target): a capital's defense
-   * is decided by the formal siege pipeline (resolveSiege), not a local commander's snap
-   * judgment. Each regiment can fight at most once per resolve() call, win or lose, so one
-   * strong unit can't chain-annihilate its way through an entire neighboring army — and by
-   * extension capture several of its cities — in a single tick.
-   */
-  resolve(): boolean {
-    const { pack } = getWorldContext();
+  resolve(deltaYears = 0, deltaMonths = 0, deltaDays = 0): boolean {
+    const { pack, options } = getWorldContext();
+    let iterations = deltaDays;
+    if (iterations === 0 && (deltaMonths > 0 || deltaYears > 0)) {
+      // 簡略化計画までの暫定として1回だけ実行する
+      iterations = 1;
+    }
+    if (iterations <= 0) return false;
     const states = pack.states.filter(s => s.i && !s.removed);
     const characters: Character[] = pack.characters || [];
     const seaRouteGraph = buildSeaRouteGraph(pack);
-    const fought = new Set<MilitaryRegiment>();
+    const militaryOptions = options.military || [];
     let skirmishOccurred = false;
 
-    for (const stateA of states) {
-      const regimentsA = stateA.military || [];
-      if (!regimentsA.length) continue;
+    for (let iter = 0; iter < iterations; iter++) {
+      const fought = new Set<MilitaryRegiment>();
 
-      for (const stateB of states) {
-        if (stateB.i <= stateA.i) continue; // each unordered pair once
-        if (stateA.diplomacy?.[stateB.i] !== "Enemy") continue;
-        if (!hasStrategicTension(stateA, stateB)) continue;
+      for (const stateA of states) {
+        const regimentsA = stateA.military || [];
+        if (!regimentsA.length) continue;
 
-        const regimentsB = stateB.military || [];
-        if (!regimentsB.length) continue;
+        for (const stateB of states) {
+          if (stateB.i <= stateA.i) continue; // each unordered pair once
+          if (stateA.diplomacy?.[stateB.i] !== "Enemy") continue;
+          if (!hasStrategicTension(stateA, stateB)) continue;
 
-        for (const regA of regimentsA) {
-          if (regA.a <= 0) break;
-          if (fought.has(regA)) continue;
+          const regimentsB = stateB.military || [];
+          if (!regimentsB.length) continue;
 
-          for (const regB of regimentsB) {
-            if (regB.a <= 0) continue;
-            if (fought.has(regB)) continue;
-            if (regA.isCapitalGuard || regB.isCapitalGuard) continue;
+          for (const regA of regimentsA) {
+            if (regA.a <= 0 || fought.has(regA)) continue;
+            if (regA.isCapitalGuard) continue;
 
-            let inContact: boolean;
-            if (regA.n || regB.n) {
-              // At least one side is a fleet — contact requires an actual charted sea route
-              // between their positions; open, uncharted water is not a safe place for
-              // either side to close to boarding/melee range (docs/plan/naval-sea-lanes.md).
-              const routeDist = findSeaRouteDistance(seaRouteGraph, regA.cell, regB.cell);
-              inContact = routeDist !== null && routeDist <= NAVAL_SKIRMISH_CONTACT_RADIUS;
-            } else {
-              const dist = Math.hypot(regA.x - regB.x, regA.y - regB.y);
-              inContact = dist <= SKIRMISH_CONTACT_RADIUS;
+            const validB = regimentsB.filter(b => b.a > 0 && !fought.has(b) && !b.isCapitalGuard);
+            if (!validB.some(b => isInContact(regA, b, seaRouteGraph))) continue;
+
+            const validA = regimentsA.filter(a => a.a > 0 && !fought.has(a) && !a.isCapitalGuard);
+            const { regsA, regsB } = getContactCluster(regA, validA, validB, seaRouteGraph);
+
+            let powerA = 0;
+            for (const r of regsA)
+              powerA += calculateRegimentPower(r, militaryOptions) * commanderPowerMultiplier(characters, r);
+
+            let powerB = 0;
+            for (const r of regsB)
+              powerB += calculateRegimentPower(r, militaryOptions) * commanderPowerMultiplier(characters, r);
+
+            const dieA = 3.5;
+            const dieB = 3.5;
+            const attack = powerA * (dieA / 10 + 0.4);
+            const defense = powerB * (dieB / 10 + 0.4);
+
+            const totalCasualties = Math.random() * 0.2;
+            const casualtiesA = (totalCasualties * defense) / (attack + defense || 1);
+            const casualtiesB = (totalCasualties * attack) / (attack + defense || 1);
+
+            let _totalA = 0;
+            for (const r of regsA) {
+              applyCasualties(r, casualtiesA);
+              fought.add(r);
+              _totalA += r.a;
             }
-            if (!inContact) continue;
 
-            const powerA = regA.a * commanderPowerMultiplier(characters, regA);
-            const powerB = regB.a * commanderPowerMultiplier(characters, regB);
+            let _totalB = 0;
+            for (const r of regsB) {
+              applyCasualties(r, casualtiesB);
+              fought.add(r);
+              _totalB += r.a;
+            }
 
-            if (powerA >= powerB * ANNIHILATION_RATIO) {
-              if (!isIsolated(regB, regimentsB, seaRouteGraph)) continue;
-              annihilate(regB, regA, stateB, stateA);
-              fought.add(regA);
-              fought.add(regB);
-              skirmishOccurred = true;
-              break; // regA already fought this tick — stop matching it against more of stateB's regiments
-            } else if (powerB >= powerA * ANNIHILATION_RATIO) {
-              if (!isIsolated(regA, regimentsA, seaRouteGraph)) continue;
-              annihilate(regA, regB, stateA, stateB);
-              fought.add(regA);
-              fought.add(regB);
-              skirmishOccurred = true;
-              break; // regA is gone (and now marked fought) — stop matching it against the rest of stateB's regiments
+            skirmishOccurred = true;
+
+            for (const r of regsA) {
+              if (r.a <= 0) {
+                console.warn(`⚔️ BACKGROUND COMBAT: ${stateB.name} annihilated ${stateA.name}'s ${r.name}.`);
+                logSkirmish(stateA, stateB, undefined);
+              }
+            }
+            for (const r of regsB) {
+              if (r.a <= 0) {
+                console.warn(`⚔️ BACKGROUND COMBAT: ${stateA.name} annihilated ${stateB.name}'s ${r.name}.`);
+                logSkirmish(stateB, stateA, undefined);
+              }
             }
           }
         }

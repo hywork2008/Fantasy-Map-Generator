@@ -8,7 +8,7 @@ import { useOptionsState } from "../store/optionsState";
 import { captureSnapshotData } from "../utils/aiDebugExporter";
 import { simulateDemographics } from "./demography-simulator";
 
-export type TimeTickHook = (deltaYears: number) => void;
+export type TimeTickHook = (deltaYears: number, deltaMonths: number, deltaDays: number) => void;
 
 const _tickHooks: TimeTickHook[] = [];
 
@@ -29,7 +29,12 @@ export function registerTimeTickHook(fn: TimeTickHook): void {
 function dispatchSimulationUpdated(): void {
   document.dispatchEvent(
     new CustomEvent("fmg:simulation-updated", {
-      detail: { currentYear: simulationContext.currentYear, era: simulationContext.era }
+      detail: {
+        currentYear: simulationContext.currentYear,
+        currentMonth: simulationContext.currentMonth,
+        currentDay: simulationContext.currentDay,
+        era: simulationContext.era
+      }
     })
   );
 }
@@ -42,6 +47,8 @@ function dispatchSimulationUpdated(): void {
  */
 export function syncSimulationClockFromOptions(): void {
   simulationContext.currentYear = worldContext.options.year ?? 0;
+  simulationContext.currentMonth = worldContext.options.month ?? 1;
+  simulationContext.currentDay = worldContext.options.day ?? 1;
   simulationContext.era = worldContext.options.era ?? "";
   dispatchSimulationUpdated();
 }
@@ -61,14 +68,30 @@ export function initSimulationClock(): void {
  * worldContext.options.year so existing readers (military-generator.ts,
  * states-generator.ts, markers-generator.ts, battle-screen.ts) keep working unchanged.
  */
-export function advanceTime(deltaYears: number): void {
-  if (deltaYears <= 0) return;
+export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0): void {
+  if (deltaYears <= 0 && deltaMonths <= 0 && deltaDays <= 0) return;
+
+  simulationContext.currentDay += deltaDays;
+  while (simulationContext.currentDay > 30) {
+    simulationContext.currentDay -= 30;
+    deltaMonths++;
+  }
+
+  simulationContext.currentMonth += deltaMonths;
+  while (simulationContext.currentMonth > 12) {
+    simulationContext.currentMonth -= 12;
+    deltaYears++;
+  }
 
   simulationContext.currentYear += deltaYears;
   simulationContext.tickCount += 1;
   worldContext.options.year = simulationContext.currentYear;
+  // Also save month and day to options so they are persisted across loads
+  worldContext.options.month = simulationContext.currentMonth;
+  worldContext.options.day = simulationContext.currentDay;
 
   useOptionsState.getState().setOption("year", simulationContext.currentYear);
+  // Ideally useOptionsState should set month and day too, but keeping minimal changes here
 
   // Increase yearsAgo for all events in diplomacy history so their absolute year remains static
   const chronicle = worldContext.pack.states[0].diplomacy as unknown[];
@@ -101,11 +124,11 @@ export function advanceTime(deltaYears: number): void {
     BurgLabelsRenderer.render(worldContext, viewContext, appServices);
   }
 
-  for (const hook of _tickHooks) hook(deltaYears);
+  for (const hook of _tickHooks) hook(deltaYears, deltaMonths, deltaDays);
 
   document.dispatchEvent(
     new CustomEvent("fmg:time-advanced", {
-      detail: { deltaYears, currentYear: simulationContext.currentYear }
+      detail: { deltaYears, deltaMonths, deltaDays, currentYear: simulationContext.currentYear }
     })
   );
   dispatchSimulationUpdated();

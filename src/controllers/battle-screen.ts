@@ -881,6 +881,6 @@ export function battleAction_wiki(): void {
   wiki("Battle-Simulator");
 }
 
-export type { Battle, BattleRegiment };
+export type { BattleRegiment };
 
 export function initBattleScreen(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}

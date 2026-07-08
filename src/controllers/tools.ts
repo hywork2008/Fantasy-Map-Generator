@@ -226,8 +226,10 @@ document.addEventListener("react-tool-action", e => {
   else if (button === "openTransformTool") openTransformTool?.();
   else if (button === "openWorldConfigurator") editWorld();
   else if (button === "advanceTimeButton") {
-    const years = detail.years !== undefined ? Number(detail.years) : 10;
-    advanceTime(years);
+    const years = detail.years !== undefined ? Number(detail.years) : 0;
+    const months = detail.months !== undefined ? Number(detail.months) : 0;
+    const days = detail.days !== undefined ? Number(detail.days) : 0;
+    advanceTime(years, months, days);
   }
 });
 
