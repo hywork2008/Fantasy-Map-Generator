@@ -22,7 +22,7 @@ export const DebugSnapshotDialog: React.FC = () => {
     if (selected.length === 0) return;
     const success = await exportSnapshotsToAPI(selected);
     if (success) {
-      alert("Successfully exported to docs/debug/");
+      alert("Successfully exported to temp/debug/");
     } else {
       alert("Failed to export. Check console.");
     }

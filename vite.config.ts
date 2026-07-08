@@ -39,7 +39,7 @@ export default defineConfig({
                         });
                         req.on('end', () => {
                             try {
-                                const dataDir = path.resolve(__dirname, 'docs/debug');
+                                const dataDir = path.resolve(__dirname, 'temp/debug');
                                 if (!fs.existsSync(dataDir)) {
                                     fs.mkdirSync(dataDir, { recursive: true });
                                 }
