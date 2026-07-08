@@ -1,9 +1,11 @@
 import { sum } from "d3";
+import { appServices } from "../context/appServices";
 import type { WorldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import type { MilitaryRegiment, State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import { findPath, minmax } from "../utils";
+import { isRegimentLockedForBattle } from "./battleLock";
 import {
   analyzeFrontiers,
   analyzeSeaFrontiers,
@@ -74,6 +76,17 @@ const ENGAGE_POWER_RATIO = 1.2;
 
 /** Must be outmatched by at least this much to abandon the current march and retreat into the nearest own city instead. */
 const RETREAT_POWER_RATIO = 1.5;
+
+/**
+ * Map units — a chase-to-intercept reaction order (below) is only issued while the target is
+ * within this distance of the regiment's own nearest burg. Repelling an incursion or striking a
+ * threat right at the border is fair game; chasing a fleeing enemy deep into their own territory
+ * alone is not (docs/plan/military-time-advance-review-findings.md §1.4) — same scale as
+ * VISUAL_DETECTION_RADIUS, since beyond "nearby" the regiment shouldn't be initiating a chase at
+ * all. A deliberately reckless "hot-headed commander" archetype that ignores this leash may come
+ * later.
+ */
+const MAX_PURSUIT_DEPTH_MAP_UNITS = VISUAL_DETECTION_RADIUS;
 
 /**
  * Smallest organizational sub-unit (docs/plan/military-movement.md §4 answer 3 — "150人ほどのグループが
@@ -268,7 +281,7 @@ function findHostileRegiments(r: MilitaryRegiment, pack: PackedGraph): MilitaryR
       if (other.a <= 0 || other.isCapitalGuard) continue;
       const dist = Math.hypot(r.x - other.x, r.y - other.y);
       if (dist > ESPIONAGE_AWARENESS_RADIUS) continue;
-      if (dist > VISUAL_DETECTION_RADIUS && Math.random() > ESPIONAGE_DETECTION_CHANCE) continue;
+      if (dist > VISUAL_DETECTION_RADIUS && !appServices.rng.P(ESPIONAGE_DETECTION_CHANCE)) continue;
       detected.push({ regiment: other, dist });
     }
   }
@@ -281,19 +294,19 @@ function findNearestHostileRegiment(r: MilitaryRegiment, pack: PackedGraph): Mil
   return findHostileRegiments(r, pack)[0] ?? null;
 }
 
-/** Nearest burg cell belonging to `r`'s own state, for the retreat reaction below. */
-function findNearestOwnBurgCell(r: MilitaryRegiment, pack: PackedGraph): number | null {
-  let nearestCell: number | null = null;
+/** Nearest burg belonging to `r`'s own state — "home" for the retreat and chase-leash reactions below. */
+function findNearestOwnBurg(r: MilitaryRegiment, pack: PackedGraph): { cell: number; x: number; y: number } | null {
+  let nearest: { cell: number; x: number; y: number } | null = null;
   let nearestDist = Infinity;
   for (const b of pack.burgs) {
     if (!b.i || b.removed || b.state !== r.state) continue;
     const dist = Math.hypot(r.x - b.x, r.y - b.y);
     if (dist < nearestDist) {
       nearestDist = dist;
-      nearestCell = b.cell;
+      nearest = { cell: b.cell, x: b.x, y: b.y };
     }
   }
-  return nearestCell;
+  return nearest;
 }
 
 /**
@@ -315,14 +328,19 @@ function applyReactionMarchOrder(r: MilitaryRegiment, pack: PackedGraph, landRou
   if (!enemy) return false;
 
   if (!enemy.n && r.a >= enemy.a * ENGAGE_POWER_RATIO) {
+    // Border skirmishes and repelling incursions are fine regardless of exactly whose cell the
+    // enemy is standing on; chasing them far past MAX_PURSUIT_DEPTH_MAP_UNITS from home is not
+    // — see the constant's doc comment.
+    const home = findNearestOwnBurg(r, pack);
+    if (home && Math.hypot(enemy.x - home.x, enemy.y - home.y) > MAX_PURSUIT_DEPTH_MAP_UNITS) return false;
     planLandMarchOrder(r, enemy.cell, pack, landRouteGraph);
     return true;
   }
 
   if (enemy.a >= r.a * RETREAT_POWER_RATIO) {
-    const refugeCell = findNearestOwnBurgCell(r, pack);
-    if (refugeCell !== null) {
-      planLandMarchOrder(r, refugeCell, pack, landRouteGraph);
+    const refuge = findNearestOwnBurg(r, pack);
+    if (refuge !== null) {
+      planLandMarchOrder(r, refuge.cell, pack, landRouteGraph);
       return true;
     }
   }
@@ -417,7 +435,7 @@ function mergeDetachmentIntoParent(parent: MilitaryRegiment, detachment: Militar
     parent.u[name] = (parent.u[name] ?? 0) + amount;
   }
   parent.a += detachment.a;
-  parent.t += detachment.a;
+  parent.t += detachment.t;
 }
 
 /** Ports redistributeFleet's old target-selection (pull toward the nearest reachable enemy port, along the charted sea route) into a march order instead of an instant reposition. */
@@ -581,6 +599,9 @@ export function advanceAllRegimentMovement(pack: PackedGraph, worldContext: Worl
           continue;
         }
         if (Math.hypot(r.x - parent.x, r.y - parent.y) <= MERGE_DISTANCE_MAP_UNITS) {
+          // A pending UI attack may still hold a reference to this detachment or its parent —
+          // defer the merge until the lock releases (see battleLock.ts).
+          if (isRegimentLockedForBattle(r) || isRegimentLockedForBattle(parent)) continue;
           mergeDetachmentIntoParent(parent, r);
           military.splice(idx, 1);
         }

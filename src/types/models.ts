@@ -377,6 +377,16 @@ export interface MilitaryRegiment {
   parentId?: number;
   /** Current tactical status for rendering action icons (e.g. 🎯 for battled, 🎪 for waiting) */
   actionStatus?: "battled" | "waiting";
+  /**
+   * `targetBurg` of the owning state's StrategicGoal (simulationContext.ts) this regiment is
+   * currently counted toward, if any — set by strategic-planner.ts's advanceTension() when it
+   * tallies a regiment within reinforcement range of a siege target. Lets evaluatePlans() clear
+   * march orders only for regiments tied to a cancelled goal instead of the whole army (see
+   * docs/plan/military-time-advance-review-findings.md §1.7). A regiment left without a goal
+   * this way isn't immediately re-tasked — it falls back to its own local reaction-layer
+   * decision (regimentMovement.ts's applyReactionMarchOrder) until the ruler issues a new one.
+   */
+  goalTargetBurg?: number;
 }
 
 export interface Platoon {

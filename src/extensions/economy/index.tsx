@@ -506,9 +506,12 @@ export function init(api: ExtensionAPI): void {
   // whether Shipbuilding (or logging on that cell) is still active — a logged-out
   // shipyard's forest should eventually recover even if the extension is disabled
   // afterward. Harmless no-op while nothing has ever been depleted.
-  api.registerTimeTickHook(deltaYears => {
+  api.registerTimeTickHook((deltaYears, deltaMonths, deltaDays) => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
-    if (tickForestRegrowth(deltaYears)) scheduleProductionRefresh();
+    // The UI's daily Advance Time loop calls this with deltaYears=0, deltaDays=1 per tick —
+    // fold all three granularities into a years-equivalent so regrowth doesn't silently stall.
+    const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
+    if (tickForestRegrowth(effectiveDeltaYears)) scheduleProductionRefresh();
   });
 
   // Bind trade animation renderer (must happen before any toggle)

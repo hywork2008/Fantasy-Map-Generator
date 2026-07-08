@@ -19,7 +19,7 @@
 | ズーム・パン | D3 zoom + `ViewContext.zoom/viewX/viewY` |
 | アニメーション | 交易ルートアニメーション・人口バー（D3 transition） |
 | インタラクション | セル・都市クリックによるピッキング |
-| 3D ビュー | **Three.js が既存**（`src/controllers/view-3d.ts`）— 2D 側のみが移行対象 |
+| 3D ビュー | **Three.js が既存**（`src/renderers/three-d-renderer.ts`、UIは`src/ui/dialogs/Preview3dDialog.tsx`）— 2D 側のみが移行対象 |
 
 ---
 
@@ -153,5 +153,3 @@ npm install pixi.js
 
 - [architecture.md](upstream/architecture/architecture.md) — 4層アーキテクチャ定義、WebGL 代替レンダラーへの言及
 - [3d-view.md](upstream/domain/3d-view.md) — 既存 Three.js 実装の仕様
-- [layer-toggle-3d-sync.md](layer-toggle-3d-sync.md) — SVG レイヤーと 3D シーンの同期設計
-- [legacy-dom-migration-plan.md](legacy-dom-migration-plan.md) — jQuery/DOM 移行計画

@@ -37,6 +37,11 @@
 
 ## 2. Host層への最小追加: 時間経過エンジン
 
+> **追記**: 以下は初期設計時点の記述。実際の配置先は`src/modules/`ではなく`src/generators/timeEngine.ts`になっており、
+> その後`advanceTime(deltaYears)`は`advanceTime(deltaYears, deltaMonths, deltaDays)`へ、UIボタンは1日ずつ進める
+> `runTimeSimulation()`経由へと拡張されている（`docs/plan/military-movement.md`/`docs/plan/military-time-advance-review-findings.md`）。
+> 現在の仕様は`docs/simulation/advance-time.md`を参照。以下は歴史的経緯として残す。
+
 `src/modules/timeEngine.ts`（Generatorレイヤー）を新設する。
 
 * 年数カウンタは**ゼロから作らない**。既に `src/store/optionsState.ts` に `year`/`era` が存在するため、`advanceTime()` はこの既存フィールドをインクリメントする形にする（ただし現状は「UIオプション」として置かれており、実体は経時シミュレーション状態である。この置き場所自体が適切かは §6 で再検討する）。

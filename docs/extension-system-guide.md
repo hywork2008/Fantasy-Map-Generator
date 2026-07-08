@@ -47,9 +47,9 @@ Extensions must still respect the project's 4-layer architecture:
 
 | Layer | Extension role |
 | :--- | :--- |
-| **Generator** (`modules/`) | Produce and mutate data in `worldContext.pack.*` |
+| **Generator** (`generators/`) | Produce and mutate data in `worldContext.pack.*` |
 | **Renderer** (`renderers/`) | Read `Readonly<WorldContext>` and draw SVG — pure, no mutations |
-| **Editor** (`editors/`) | Handle UI events, call generators, trigger redraws via `api` |
+| **Editor** (`controllers/`) | Handle UI events, call generators, trigger redraws via `api` |
 | **State** | Read/write only through `api.worldContext` and `api.viewContext` |
 
 Direct `window.*` assignments and direct D3 manipulation outside `renderers/` are forbidden.
@@ -185,15 +185,16 @@ The host dispatches `document.dispatchEvent(new CustomEvent("fmg:generate-post-c
 
 ## 5. Context Holder Pattern
 
-For extensions with multiple sub-modules, a single `context.ts` file stores the `api` reference:
+For extensions with multiple sub-modules, a single `{name}Context.ts` file stores the `api` reference (e.g.
+`economyContext.ts`, `nobilityContext.ts`, `shipbuildingContext.ts`):
 
 ```
 src/extensions/{name}/
-├── context.ts       ← stores api, exports getApi() / getWorldContext() / getViewContext()
-├── index.ts         ← calls initContext(api) first, clearContext() in cleanup
-├── modules/         ← generators: call getWorldContext(), never import worldContext
+├── {name}Context.ts ← stores api, exports getApi() / getWorldContext() / getViewContext()
+├── index.ts         ← calls init{Name}Context(api) first, clear{Name}Context() in cleanup
+├── generators/      ← generators: call getWorldContext(), never import worldContext
 ├── renderers/       ← pure SVG: call getViewContext(), getWorldContext()
-├── editors/         ← UI handlers: call getApi() for toggles, zoomTo, dialogs
+├── controllers/     ← UI handlers: call getApi() for toggles, zoomTo, dialogs
 └── ui/dialogs/      ← React components
 ```
 
@@ -314,11 +315,11 @@ The economy extension (`src/extensions/economy/`) is the canonical example. It d
 | [index.tsx](../src/extensions/economy/index.tsx) | Full `init`/`cleanup` lifecycle, all registration calls, `subscribeExtensionState`, `registerLayerToggle`, `registerDrawLayerHook`, `TradeAnimation.bind` |
 | [economyContext.ts](../src/extensions/economy/economyContext.ts) | Context holder pattern |
 | [types.ts](../src/extensions/economy/types.ts) | Module augmentation for `PackedGraph` and `PackedGraphCells` |
-| [modules/goods-generator.ts](../src/extensions/economy/modules/goods-generator.ts) | Generator class with private getter pattern |
-| [modules/markets-generator.ts](../src/extensions/economy/modules/markets-generator.ts) | Generator with inline helper replacing host `States.getSalesTax()` |
-| [modules/trade-animation.ts](../src/extensions/economy/modules/trade-animation.ts) | Animated layer with `bind`/`start`/`stop` |
+| [generators/goods-generator.ts](../src/extensions/economy/generators/goods-generator.ts) | Generator class with private getter pattern |
+| [generators/markets-generator.ts](../src/extensions/economy/generators/markets-generator.ts) | Generator with inline helper replacing host `States.getSalesTax()` |
+| [generators/trade-animation.ts](../src/extensions/economy/generators/trade-animation.ts) | Animated layer with `bind`/`start`/`stop` |
 | [renderers/draw-goods.ts](../src/extensions/economy/renderers/draw-goods.ts) | Pure SVG renderer using `getViewContext()` |
-| [editors/markets-overview.ts](../src/extensions/economy/editors/markets-overview.ts) | Editor using `getApi().toggleLayerById()` instead of host controller import |
+| [controllers/markets-overview.ts](../src/extensions/economy/controllers/markets-overview.ts) | Editor using `getApi().toggleLayerById()` instead of host controller import |
 
 ---
 

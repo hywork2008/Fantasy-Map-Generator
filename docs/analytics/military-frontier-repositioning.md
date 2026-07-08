@@ -91,6 +91,16 @@ regiments.forEach(r => {
 
 ---
 
+## 4.5 後続の変更で陳腐化した箇所（`docs/plan/military-movement.md` 参照）
+
+§3の`redistributeGarrisons`（座標を直接書き換える瞬間移動）は**削除済み**。`docs/plan/military-movement.md` Phase 2で
+配置ロジックが `Military.generate()` から完全に分離され、`src/generators/regimentMovement.ts` の
+`ensureGarrisonMarchOrder()`/`ensureFleetMarchOrder()` に置き換わった。ロジックの意図（主要フロンティアへの
+按分プル、`GARRISON_PULL_STRENGTH = 0.5`、自国land cellへのスナップ）自体は引き継がれているが、実際の移動は
+瞬間移動ではなく、日単位の移動予算で経路（`landRouteGraph`/`seaRouteGraph`）上を実距離分だけ前進する形になった。
+`getProvinceThreats()`/`analyzeFrontiers()`/`pickPrimaryFrontier()`（本ドキュメントの§1で新設したもの）は
+無改修のまま引き続き使われている。
+
 ## 5. 今回のスコープ外（将来課題）
 
 - **Danger レイヤー（モンスター）との連動**: 単一国家では対抗できない脅威のため、軍隊は偵察部隊の配置や撤退準備程度に留まる想定。`FrontierSegment` の仕組みをモンスター勢力にも拡張すれば実現できる余地を残している。

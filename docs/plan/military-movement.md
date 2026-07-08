@@ -151,6 +151,21 @@
 
 着手順は上記フェーズ案の通りPhase 1（陸路route graph）から始めるのが最もリスクが低いが、最終的にどこから着手するかもユーザーに確認すること。
 
+### Phase 4以降の追記（`docs/plan/military-time-advance-review-findings.md`参照）
+
+Phase 1〜4完了後、`advanceTime`自体が日/月/年の粒度を持つように拡張され（`deltaYears`単体ではなく
+`deltaYears, deltaMonths, deltaDays`の3引数）、Tools タブのAdvance Timeボタンは1日ずつ`advanceTime(0,0,1)`を
+繰り返す`runTimeSimulation()`経由に切り替わった（詳細は`docs/simulation/advance-time.md`）。この変更に伴うレビューで、
+本ドキュメントのPhase 3/4のロジックに2件の追加修正が入っている:
+
+- **Phase 3の反応レイヤー**: `applyReactionMarchOrder`の迎撃判断（快勝できる敵を発見して進路変更）に
+  `MAX_PURSUIT_DEPTH_MAP_UNITS`（自国最寄りの都市からの距離リーシュ）を追加。国境付近での迎撃はそのまま許可しつつ、
+  逃げる敵を延々と敵国領内まで追いかけ続ける挙動を防ぐ。
+- **Phase 4の合流ロジック**: `mergeDetachmentIntoParent`が兵力上限(`t`)の加算元を誤っていたバグ（消耗後の現有兵力
+  `detachment.a`を足していた。正しくは分離時の最大兵力`detachment.t`）を修正。また、UIからの手動攻撃クリック（`Battle`
+  インスタンス化を約1秒遅延させる、`0d85bb2e`）とAdvance Timeの非同期ループが競合し、`mergeDetachmentIntoParent`の
+  splice処理がその途中の連隊参照を無効化しうる問題に対し、`src/generators/battleLock.ts`のロックを導入した。
+
 ### 4のOpen Questionsへの回答
 
 1. 叩き台。1セルのサイズなど、ゲームの単位と合わせて柔軟に調整する必要がある。

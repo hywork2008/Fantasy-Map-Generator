@@ -4,6 +4,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 
+import { lockRegimentForBattle, unlockRegimentForBattle } from "../generators/battleLock";
 import { drawRegiment, moveRegiment } from "../renderers/index";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
@@ -38,7 +39,6 @@ let _regDragState: {
   baseLine: d3.Selection<SVGLineElement, unknown, null, undefined>;
   rotationControl: d3.Selection<SVGCircleElement, unknown, null, undefined>;
 } | null = null;
-const _baseDragReg: MilitaryRegiment | null = null;
 
 function getRegEl(): SVGGElement {
   return elSelected!.node() as SVGGElement;
@@ -509,6 +509,17 @@ function attackRegimentOnClick(this: SVGElement, event: MouseEvent): void {
 
   moveRegiment(worldContext, viewContext, appServices, attacker, defender.x, defender.y - 8);
 
+  // Advance Time is async (requestAnimationFrame-driven) and can run during this ~1s charge
+  // animation. Lock both regiments so background simulation (Military.updateDynamic, detachment
+  // merges) doesn't splice either of them out of state.military before Battle is instantiated —
+  // see battleLock.ts.
+  lockRegimentForBattle(attacker);
+  lockRegimentForBattle(defender);
+  const releaseBattleLock = () => {
+    unlockRegimentForBattle(attacker);
+    unlockRegimentForBattle(defender);
+  };
+
   const attack = transition().delay(300).duration(700).ease(easeSinInOut);
 
   view.svg
@@ -524,8 +535,13 @@ function attackRegimentOnClick(this: SVGElement, event: MouseEvent): void {
     .transition(attack)
     .attr("font-size", 1000)
     .attr("opacity", 0.2)
+    .on("interrupt", releaseBattleLock)
     .on("end", () => {
-      new Battle(attacker, defender);
+      try {
+        new Battle(attacker, defender);
+      } finally {
+        releaseBattleLock();
+      }
     })
     .remove();
 

@@ -93,12 +93,16 @@ export function init(api: ExtensionAPI): void {
 
   api.registerLayerElement("toggleShipyards", () => document.getElementById("shipyards"));
 
-  api.registerTimeTickHook(deltaYears => {
+  api.registerTimeTickHook((deltaYears, deltaMonths, deltaDays) => {
     if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
-    runLoggingTick(_candidates, deltaYears);
+    // The UI's daily Advance Time loop calls this with deltaYears=0, deltaDays=1 per tick —
+    // fold all three granularities into a years-equivalent so logging/build progress doesn't
+    // silently stall (matches Economy's registerTimeTickHook and Nobility's tick hook).
+    const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
+    runLoggingTick(_candidates, effectiveDeltaYears);
     const { burgs, states } = getWorldContext().pack;
-    runShipyardTick(_candidates, burgs, states, deltaYears, api.getEffectiveSkill);
-    checkForeignInterference(_candidates, burgs, deltaYears);
+    runShipyardTick(_candidates, burgs, states, effectiveDeltaYears, api.getEffectiveSkill);
+    checkForeignInterference(_candidates, burgs, effectiveDeltaYears);
     // Refresh marker tooltips (build progress) and the overview dialog, if visible.
     if (api.layerIsOn("toggleShipyards")) drawShipyards(_candidates);
     refreshShipyardsOverviewIfOpen(_candidates);

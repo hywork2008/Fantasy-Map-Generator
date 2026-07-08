@@ -1,13 +1,55 @@
+import { appServices } from "../../../context/appServices";
 import { simulationContext } from "../../../context/simulationContext";
 import { buildSeaRouteGraph, findSeaRouteDistance, type SeaRouteGraph } from "../../../generators/seaRouteGraph";
-import type { ChronicleEvent, MilitaryRegiment, MilitaryUnit, State } from "../../../types/models";
+import type { Burg, ChronicleEvent, MilitaryRegiment, MilitaryUnit, State } from "../../../types/models";
+import type { PackedGraph } from "../../../types/PackedGraph";
 import { getWorldContext } from "../nobilityContext";
 import type { Character } from "./characterTypes";
-import { commanderPowerMultiplier } from "./localDefense";
+import { commanderPowerMultiplier, regimentDistanceTo, regimentReinforcementRadius } from "./localDefense";
 
 /** Distance (map units) within which two hostile land regiments are considered in direct contact. */
 const SKIRMISH_CONTACT_RADIUS = 20;
 const NAVAL_SKIRMISH_CONTACT_RADIUS = 100;
+
+/**
+ * Minimum surviving occupying force, relative to a captured burg's population, needed to
+ * actually hold the city — mirrors localDefense.ts's `cityGarrison = population * 0.05`
+ * convention for how much local muscle a settlement's own population represents. Wiping out
+ * the defending garrison doesn't hand over a city outright if too few troops are left to
+ * occupy and suppress it (docs/plan/military-time-advance-review-findings.md §1.1) — a
+ * handful of survivors can't hold down a city of thousands, they'd be driven out or murdered
+ * in the night before ever consolidating control.
+ */
+const OCCUPATION_FORCE_RATIO = 0.05;
+
+/**
+ * Power-ratio threshold above which an isolated side is routed outright this tick rather than
+ * ground down by the normal gradual daily lethality roll — restores the pre-daily-tick
+ * "hopeless exclave, no chance of surviving contact" outcome (the old ANNIHILATION_RATIO) for
+ * the subset of fights the isolation gate above already lets through. Ordinary skirmishes
+ * between forces within this ratio still resolve as gradual per-day attrition.
+ */
+const ANNIHILATION_RATIO = 3;
+
+/** The burg (if any) that `regiment` was garrisoning — same lookup the old annihilate() used. */
+function findGarrisonedBurg(pack: PackedGraph, regiment: MilitaryRegiment, stateId: number): Burg | undefined {
+  return pack.burgs.find(b => !b.removed && b.state === stateId && b.cell === regiment.cell);
+}
+
+/** True if `occupyingForce` survivors are enough to actually hold `burg` down after taking it. */
+function canOccupyBurg(burg: Burg, occupyingForce: number): boolean {
+  return occupyingForce >= (burg.population || 0) * OCCUPATION_FORCE_RATIO;
+}
+
+/** Transfers `burg` and every cell mapped to it over to `winnerState` — same mechanics as the old annihilate(). */
+function captureBurg(pack: PackedGraph, burg: Burg, winnerStateId: number): void {
+  burg.state = winnerStateId;
+  for (let i = 0; i < pack.cells.burg.length; i++) {
+    if (pack.cells.burg[i] === burg.i) {
+      pack.cells.state[i] = winnerStateId;
+    }
+  }
+}
 
 function hasStrategicTension(stateA: State, stateB: State): boolean {
   const goalsA = simulationContext.strategicGoals[stateA.i] ?? [];
@@ -15,7 +57,7 @@ function hasStrategicTension(stateA: State, stateB: State): boolean {
   return goalsA.some(g => g.targetState === stateB.i) || goalsB.some(g => g.targetState === stateA.i);
 }
 
-function logSkirmish(loserState: State, winnerState: State, loserBurgName: string | undefined) {
+function logSkirmish(loserState: State, winnerState: State, capturedBurgName: string | undefined) {
   const { pack } = getWorldContext();
   let chronicle = pack.states[0].diplomacy;
   if (!chronicle) chronicle = [];
@@ -26,12 +68,35 @@ function logSkirmish(loserState: State, winnerState: State, loserBurgName: strin
     from: winnerState.i,
     to: loserState.i,
     action: "annihilated an enemy detachment",
-    rawText: loserBurgName
-      ? `${winnerState.name} annihilated an enemy ${loserState.name} detachment and took ${loserBurgName}.`
+    rawText: capturedBurgName
+      ? `${winnerState.name} annihilated an enemy ${loserState.name} detachment and took ${capturedBurgName}.`
       : `${winnerState.name} annihilated an enemy ${loserState.name} detachment in battle.`
   };
 
   pack.states[0].diplomacy = [[`Skirmish: ${winnerState.name} vs ${loserState.name}`, event], ...chronicle];
+}
+
+/**
+ * True if any of `siblings` outside `cluster` (still standing) is within reinforcement range of
+ * some member of `cluster` — i.e. the cluster isn't truly cut off from the rest of its state's
+ * army. Restores the pre-daily-tick "isolated exclave, no hope of relief" protection (see
+ * docs/plan/military-time-advance-review-findings.md §1.4): a supported cluster is left to the
+ * formal siege/tension pipeline (strategic-planner.ts/battle-resolution.ts) instead of being
+ * ground down by this background mechanic every single day it stays in contact.
+ */
+function hasExternalReinforcement(
+  cluster: MilitaryRegiment[],
+  siblings: MilitaryRegiment[],
+  seaRouteGraph: SeaRouteGraph
+): boolean {
+  const clusterSet = new Set(cluster);
+  return siblings.some(sibling => {
+    if (clusterSet.has(sibling) || sibling.a <= 0) return false;
+    return cluster.some(member => {
+      const dist = regimentDistanceTo(sibling, member.cell, member.x, member.y, seaRouteGraph);
+      return dist !== null && dist <= regimentReinforcementRadius(sibling);
+    });
+  });
 }
 
 function isInContact(regA: MilitaryRegiment, regB: MilitaryRegiment, seaRouteGraph: SeaRouteGraph): boolean {
@@ -58,7 +123,7 @@ function calculateRegimentPower(reg: MilitaryRegiment, militaryOptions: Military
 function applyCasualties(reg: MilitaryRegiment, casualtiesRate: number): void {
   let totalSurvivors = 0;
   for (const unit in reg.u) {
-    const randVal = 0.8 + Math.random() * 0.4;
+    const randVal = 0.8 + appServices.rng.rand() * 0.4;
     const died = Math.min(Math.floor(reg.u[unit] * casualtiesRate * randVal), reg.u[unit]);
     reg.u[unit] -= died;
     totalSurvivors += reg.u[unit];
@@ -144,46 +209,79 @@ export class LocalSkirmishGenerator {
             for (const r of regsB)
               powerB += calculateRegimentPower(r, militaryOptions) * commanderPowerMultiplier(characters, r);
 
+            // Isolation protection: if the weaker side of this matchup still has reinforcement
+            // reachable from the rest of its state's army, leave the encounter to the formal
+            // siege/tension pipeline instead of grinding it down here every day it stays in
+            // contact — only genuinely cut-off forces (no hope of relief) take background
+            // skirmish casualties.
+            const [weakerCluster, weakerSiblings] = powerA <= powerB ? [regsA, regimentsA] : [regsB, regimentsB];
+            if (hasExternalReinforcement(weakerCluster, weakerSiblings, seaRouteGraph)) continue;
+
             const dieA = 3.5;
             const dieB = 3.5;
             const attack = powerA * (dieA / 10 + 0.4);
             const defense = powerB * (dieB / 10 + 0.4);
 
-            const lethalityA = Math.random() * 0.05 + 0.05; // 5% to 10%
-            const lethalityB = Math.random() * 0.05 + 0.05;
+            const lethalityA = appServices.rng.rand() * 0.05 + 0.05; // 5% to 10%
+            const lethalityB = appServices.rng.rand() * 0.05 + 0.05;
             const absoluteCasualtiesA = defense * lethalityB;
             const absoluteCasualtiesB = attack * lethalityA;
             const casualtiesA = Math.min(1.0, absoluteCasualtiesA / (attack || 1));
             const casualtiesB = Math.min(1.0, absoluteCasualtiesB / (defense || 1));
 
-            let _totalA = 0;
+            // An isolated side facing overwhelming force is routed outright this tick instead of
+            // grinding through the normal gradual roll — see ANNIHILATION_RATIO above. Zeroed
+            // directly rather than via applyCasualties(rate=1.0): its per-unit 0.8x-1.2x roll
+            // can leave survivors even at a 100% nominal casualty rate.
+            const annihilateA = powerB >= powerA * ANNIHILATION_RATIO;
+            const annihilateB = powerA >= powerB * ANNIHILATION_RATIO;
+
+            let totalA = 0;
             for (const r of regsA) {
-              applyCasualties(r, casualtiesA);
+              if (annihilateA) {
+                for (const unit in r.u) r.u[unit] = 0;
+                r.a = 0;
+              } else {
+                applyCasualties(r, casualtiesA);
+              }
               fought.add(r);
               r.actionStatus = "battled";
-              _totalA += r.a;
+              totalA += r.a;
             }
 
-            let _totalB = 0;
+            let totalB = 0;
             for (const r of regsB) {
-              applyCasualties(r, casualtiesB);
+              if (annihilateB) {
+                for (const unit in r.u) r.u[unit] = 0;
+                r.a = 0;
+              } else {
+                applyCasualties(r, casualtiesB);
+              }
               fought.add(r);
               r.actionStatus = "battled";
-              _totalB += r.a;
+              totalB += r.a;
             }
 
             skirmishOccurred = true;
 
+            // A dead regiment's burg only falls if the winning cluster's survivors are enough
+            // to actually occupy it — see canOccupyBurg/OCCUPATION_FORCE_RATIO above.
             for (const r of regsA) {
               if (r.a <= 0) {
                 console.warn(`⚔️ BACKGROUND COMBAT: ${stateB.name} annihilated ${stateA.name}'s ${r.name}.`);
-                logSkirmish(stateA, stateB, undefined);
+                const burg = findGarrisonedBurg(pack, r, stateA.i);
+                const captured = burg && canOccupyBurg(burg, totalB);
+                if (captured) captureBurg(pack, burg, stateB.i);
+                logSkirmish(stateA, stateB, captured ? burg.name : undefined);
               }
             }
             for (const r of regsB) {
               if (r.a <= 0) {
                 console.warn(`⚔️ BACKGROUND COMBAT: ${stateA.name} annihilated ${stateB.name}'s ${r.name}.`);
-                logSkirmish(stateB, stateA, undefined);
+                const burg = findGarrisonedBurg(pack, r, stateB.i);
+                const captured = burg && canOccupyBurg(burg, totalA);
+                if (captured) captureBurg(pack, burg, stateA.i);
+                logSkirmish(stateB, stateA, captured ? burg.name : undefined);
               }
             }
           }

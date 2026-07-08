@@ -1,3 +1,4 @@
+import { appServices } from "../../../context/appServices";
 import { type IntelligenceReport, simulationContext } from "../../../context/simulationContext";
 import { getWorldContext } from "../nobilityContext";
 
@@ -72,13 +73,13 @@ export class EspionageGenerator {
 
         if (diff > 10) {
           // Highly accurate
-          estimatedMilitary *= 1 + (Math.random() * 0.1 - 0.05);
-          estimatedWealth *= 1 + (Math.random() * 0.1 - 0.05);
+          estimatedMilitary *= 1 + (appServices.rng.rand() * 0.1 - 0.05);
+          estimatedWealth *= 1 + (appServices.rng.rand() * 0.1 - 0.05);
           accuracyLevel = "accurate";
         } else if (diff >= -10 && diff <= 10) {
           // Somewhat fuzzy (+/- 30%)
-          estimatedMilitary *= 1 + (Math.random() * 0.6 - 0.3);
-          estimatedWealth *= 1 + (Math.random() * 0.6 - 0.3);
+          estimatedMilitary *= 1 + (appServices.rng.rand() * 0.6 - 0.3);
+          estimatedWealth *= 1 + (appServices.rng.rand() * 0.6 - 0.3);
           accuracyLevel = "accurate"; // It's fuzzy but not intentionally manipulated
         } else {
           // Target successfully deceives observer
@@ -87,15 +88,15 @@ export class EspionageGenerator {
 
           if (targetBoldness < 40 || targetConfidence < 40) {
             // Paranoid/Cautious: Make themselves look stronger to deter attacks
-            estimatedMilitary *= 1 + (Math.random() * 0.5 + 0.5); // +50% to +100%
+            estimatedMilitary *= 1 + (appServices.rng.rand() * 0.5 + 0.5); // +50% to +100%
             accuracyLevel = "overestimated";
           } else if (targetBoldness > 60) {
             // Ambitious/Bold: Make themselves look weaker to bait an attack
-            estimatedMilitary *= 1 - (Math.random() * 0.3 + 0.2); // -20% to -50%
+            estimatedMilitary *= 1 - (appServices.rng.rand() * 0.3 + 0.2); // -20% to -50%
             accuracyLevel = "underestimated";
           } else {
             // General deception
-            estimatedMilitary *= 1 + (Math.random() * 0.8 - 0.4);
+            estimatedMilitary *= 1 + (appServices.rng.rand() * 0.8 - 0.4);
             accuracyLevel = "unknown";
           }
         }

@@ -12,7 +12,7 @@ import { DEBUG, ERROR, INFO, TIME, WARN } from "./utils/debug";
 import Alea from "alea";
 import * as d3 from "d3";
 import { getWorldState, resetZoom, zoomTo } from "./actions";
-import { appServices } from "./context/appServices";
+import { appServices, initRng } from "./context/appServices";
 import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
 import { applyLayersPreset, drawLayers } from "./controllers/layers";
@@ -962,6 +962,7 @@ function setSeed(precreatedSeed?: string) {
   const seedInput = getElementById<HTMLInputElement>("optionsSeed");
   if (seedInput) seedInput.value = worldContext.seed;
   Math.random = Alea(worldContext.seed);
+  initRng(worldContext.seed);
 }
 
 // ─── Lake helpers ──────────────────────────────────────────────────────────

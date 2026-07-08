@@ -9,6 +9,7 @@ import type { MilitaryRegiment, MilitaryUnit, Platoon, State } from "../types/mo
 import type { WorldState } from "../types/WorldState";
 import { gauss, minmax, nth, ra, rand, rn, si } from "../utils";
 import { TIME } from "../utils/debug";
+import { isRegimentLockedForBattle } from "./battleLock";
 import { analyzeFrontiers, analyzeSeaFrontiers, getProvinceThreats, mergeFrontiers } from "./frontierAnalysis";
 import { getNavalTechBonus } from "./navalTechBonus";
 import { buildSeaRouteGraph } from "./seaRouteGraph";
@@ -996,8 +997,11 @@ class MilitaryModule {
       for (let i = military.length - 1; i >= 0; i--) {
         const r = military[i];
 
-        // 1. Cleanup dead regiments
+        // 1. Cleanup dead regiments (unless a pending UI attack still holds a reference to it —
+        // see battleLock.ts)
         if (r.a <= 0) {
+          if (isRegimentLockedForBattle(r)) continue;
+
           // Find and clean up any notes associated with it
           const id = `regiment${state.i}-${r.i}`;
           const noteIndex = worldContext.notes.findIndex(n => n.id === id);

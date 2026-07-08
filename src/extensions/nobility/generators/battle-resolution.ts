@@ -1,3 +1,4 @@
+import { appServices } from "../../../context/appServices";
 import type { StrategicGoal } from "../../../context/simulationContext";
 import { buildSeaRouteGraph } from "../../../generators/seaRouteGraph";
 import type { ChronicleEvent } from "../../../types/models";
@@ -40,8 +41,8 @@ export const BattleResolutionGenerator = {
     const attackerGuile = attackerSpymaster?.skills.intrigue ?? 50;
     const defenderGuile = defenderSpymaster?.skills.intrigue ?? 50;
 
-    const attackerRoll = Math.random() * 100 + attackerGuile;
-    const defenderRoll = Math.random() * 100 + defenderGuile;
+    const attackerRoll = appServices.rng.rand() * 100 + attackerGuile;
+    const defenderRoll = appServices.rng.rand() * 100 + defenderGuile;
 
     const isSurpriseAttack = attackerRoll > defenderRoll;
 

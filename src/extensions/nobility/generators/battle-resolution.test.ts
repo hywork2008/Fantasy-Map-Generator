@@ -63,7 +63,8 @@ describe("BattleResolutionGenerator.resolveSiege", () => {
           i: 1,
           name: "Attackers",
           rulerId: 10,
-          military: [{ i: 0, a: 50, x: 500, y: 500, u: { infantry: 50 }, state: 1 }]
+          // Within REINFORCEMENT_RADIUS.infantry (50) of the target burg at (0, 0).
+          military: [{ i: 0, a: 50, x: 30, y: 30, u: { infantry: 50 }, state: 1 }]
         },
         {
           i: 2,
@@ -125,13 +126,14 @@ describe("BattleResolutionGenerator.resolveSiege", () => {
           i: 1,
           name: "Attackers",
           rulerId: 10,
-          military: [{ i: 0, a: 100, x: 500, y: 500, u: { infantry: 100 }, state: 1 }]
+          // Within REINFORCEMENT_RADIUS.infantry (50) of the target burg at (0, 0).
+          military: [{ i: 0, a: 100, x: 10, y: 10, u: { infantry: 100 }, state: 1 }]
         },
         {
           i: 2,
           name: "Defenders",
           rulerId: 20,
-          military: [{ i: 0, a: 90, x: 500, y: 500, u: { infantry: 90 }, state: 2 }]
+          military: [{ i: 0, a: 90, x: 10, y: 10, u: { infantry: 90 }, state: 2 }]
         }
       ]
     } as unknown as PackedGraph;
@@ -253,7 +255,8 @@ describe("BattleResolutionGenerator.resolveSiege — sea routes", () => {
           i: 1,
           name: "Attackers",
           rulerId: 10,
-          military: [{ i: 0, a: 1000, x: 100, y: 0, u: { infantry: 1000 }, state: 1 }]
+          // Within REINFORCEMENT_RADIUS.infantry (50) of the target burg at (0, 0).
+          military: [{ i: 0, a: 1000, x: 40, y: 0, u: { infantry: 1000 }, state: 1 }]
         },
         {
           i: 2,

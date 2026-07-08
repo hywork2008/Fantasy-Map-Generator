@@ -256,5 +256,5 @@ The canonical example is `src/extensions/economy/`. Key files:
 | [economy/index.tsx](../src/extensions/economy/index.tsx) | Entry point: `init` / `cleanup`, all registrations |
 | [economy/economyContext.ts](../src/extensions/economy/economyContext.ts) | Context holder: `getWorldContext`, `getViewContext`, `getApi` |
 | [economy/types.ts](../src/extensions/economy/types.ts) | Module augmentation for `PackedGraph` |
-| [economy/modules/goods-generator.ts](../src/extensions/economy/modules/goods-generator.ts) | Generator class using private getter pattern |
+| [economy/generators/goods-generator.ts](../src/extensions/economy/generators/goods-generator.ts) | Generator class using private getter pattern |
 | [economy/renderers/draw-goods.ts](../src/extensions/economy/renderers/draw-goods.ts) | Pure SVG renderer using `getViewContext()` |

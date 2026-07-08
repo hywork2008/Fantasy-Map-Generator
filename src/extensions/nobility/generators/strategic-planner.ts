@@ -1,3 +1,4 @@
+import { appServices } from "../../../context/appServices";
 import { type StrategicGoal, simulationContext } from "../../../context/simulationContext";
 import { analyzeFrontiers, analyzeSeaFrontiers, mergeFrontiers } from "../../../generators/frontierAnalysis";
 import { buildSeaRouteGraph, findSeaRouteDistance } from "../../../generators/seaRouteGraph";
@@ -192,7 +193,7 @@ export class StrategicPlannerGenerator {
             targetBurg,
             targetState: targetStateId,
             type: "siege",
-            tension: 10 + Math.random() * 20,
+            tension: 10 + appServices.rng.rand() * 20,
             expectedCasualties,
             justification: isCornered ? "overwhelming_force_crush" : "border_expansion",
             requiredAttackForce
@@ -233,13 +234,23 @@ export class StrategicPlannerGenerator {
           continue; // Goal accomplished or invalid, drop it
         }
 
-        // Tension calculation
+        // Tension calculation — top-down (ruler ambition) plus bottom-up (ground reality).
         // Base increment per year: +1 to +5 based on boldness
         const baseIncrement = 1 + boldness / 25;
         // Add random noise so they don't all progress identically
-        const noise = Math.random() * 4;
+        const noise = appServices.rng.rand() * 4;
 
-        goal.tension += (baseIncrement + noise) * frequencyMultiplier;
+        // Bottom-up: if any of this goal's regiments (tagged by the arrival check below) are
+        // already trading blows with the target on the ground this tick — localSkirmish.ts's
+        // background attrition sets actionStatus "battled" — tension escalates faster than the
+        // ruler's ambition alone would drive it. A fight already underway pushes the formal
+        // declaration, rather than the sovereign's clock being the sole source of truth.
+        const groundClash = (state.military || []).some(
+          r => r.goalTargetBurg === goal.targetBurg && r.actionStatus === "battled"
+        );
+        const groundClashBonus = groundClash ? 15 : 0;
+
+        goal.tension += (baseIncrement + noise) * frequencyMultiplier + groundClashBonus;
 
         if (goal.tension >= 100) {
           if (state.diplomacy) {
@@ -266,6 +277,9 @@ export class StrategicPlannerGenerator {
               if (dist <= regimentReinforcementRadius(regiment)) {
                 const effectivePower = calculateEffectiveSiegePower(regiment, isFortified, militaryOptions);
                 arrivedAttackerPower += effectivePower * commanderPowerMultiplier(characters, regiment);
+                // Tag this regiment as counted toward this specific goal, so cancelling it later
+                // (evaluatePlans()) only clears march orders for regiments actually tied to it.
+                regiment.goalTargetBurg = goal.targetBurg;
               }
             }
           }
@@ -296,7 +310,11 @@ export class StrategicPlannerGenerator {
         }
       }
 
-      // Keep only valid and unresolved goals
+      // Keep only valid and unresolved goals. Safe to write back now that regiment march
+      // orders are only ever cleared per-goal (evaluatePlans(), via goalTargetBurg — see §1.7)
+      // rather than for the whole army, which was the "teleporting"/order-stomping problem that
+      // originally motivated dropping this write-back.
+      strategicGoals[stateId] = validGoals;
     }
     return warOccurred;
   }
@@ -345,7 +363,16 @@ export class StrategicPlannerGenerator {
           );
           goals.splice(i, 1);
 
+          // Only release regiments actually tied to *this* goal (goalTargetBurg, set by
+          // advanceTension() above) — a state running two sieges at once must not have the
+          // still-valid one's marching regiments yanked back to "waiting" as collateral (see
+          // docs/plan/military-time-advance-review-findings.md §1.7). Released regiments aren't
+          // immediately re-tasked either: clearing their march order just lets the normal
+          // per-tick reaction layer (regimentMovement.ts) decide their next move locally until
+          // the ruler assigns a new goal.
           for (const regiment of attacker.military || []) {
+            if (regiment.goalTargetBurg !== goal.targetBurg) continue;
+            regiment.goalTargetBurg = undefined;
             if (regiment.destinationCell !== undefined) {
               regiment.destinationCell = undefined;
               regiment.path = undefined;

@@ -178,6 +178,17 @@ let requiredAttackForce = perceivedDefense * 3; // The 3x Attacker Rule
 
 `localSkirmish.test.ts`に4件追加(緊張度なしでの不発、近衛の除外、援軍がいる場合の不発、1tick1回制限)。`npx tsc --noEmit`・`npm run lint`・`npm run madge`・`npx vitest run`(全30ファイル312件)・`npm run build`すべてクリーン。
 
+## 追記: `isIsolated()`の削除と復元
+
+上記「実装完了」「バグを発見2」で作り込んだ`isIsolated()`（援軍が到達可能な距離にいれば殲滅を防ぐ保護）は、
+その後の日単位tick化（`docs/plan/military-movement.md`、`localSkirmish.ts`の`resolve()`が瞬間annihilateから
+毎日の漸進的な損耗ロールへ書き換えられた際）に無警告で失われていた。`docs/plan/military-time-advance-review-findings.md`
+§1.4でこれをレビューで発見し、`hasExternalReinforcement()`（クラスター全体を1単位として援軍の有無を判定する形に
+一般化）として復元済み。また、深追い（自国領土を追い出した後も敵国領内まで単独追撃し続ける挙動）を防ぐ
+`MAX_PURSUIT_DEPTH_MAP_UNITS`リーシュも同時に`regimentMovement.ts`の反応レイヤーへ追加した。接触半径・援軍半径の
+具体的な数値（`SKIRMISH_CONTACT_RADIUS`等）は日単位tick化の際に150→20などへ縮小されている点にも注意——本ドキュメント
+中盤の「150ユニット以内」といった記述は現在のコードの値とは一致しない。
+
 ## 次の課題: 「軍団は動かない」への本格対応
 
 このドキュメント冒頭の「軍隊は何をすべきか、どう動かすべきか」という当初の問いに、ここまでは瞬間移動（`redistributeGarrisons`等での座標書き換え）と即時戦闘解決（LocalSkirmish/resolveSiege）で対応してきたが、実際に**時間をかけて移動する**という概念は今も存在しない。ユーザーから「Advance Time 1年で騎馬隊なら大陸のどこへでも行けてしまう、現実的な移動速度・日単位のtick・陸路のpath finding・部隊の動的な分割/合流・索敵と反応行動が必要」という指摘があり、`docs/plan/military-movement.md`に設計の叩き台を切り出した。次のセッションはそちらから着手する。

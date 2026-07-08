@@ -76,7 +76,8 @@ generate()
   ├─ 20. Features.defineGroups()     — 地物グループ定義
   ├─ 21. Ice.generate()              — 氷河・氷山生成
   │
-  ├─ 22. rankCells()                 — セル優先度計算 (pack.cells.s/pop)
+  ├─ 21.5 Threats.generate()         — Danger/モンスター脅威生成 (pack.cells.danger等、rankCellsより前)
+  ├─ 22. rankCells()                 — セル優先度計算 (pack.cells.s/pop、Threatsの結果を反映)
   ├─ 23. Cultures.generate()         — 文化生成
   ├─ 24. Cultures.expand()           — 文化拡大（ボロノイ成長）
   │
@@ -96,15 +97,24 @@ generate()
   ├─ 35. Lakes.defineNames()         — 湖名定義
   │
   ├─ 36. Military.generate()         — 軍事ユニット生成
+  ├─ 36.5 establishVassalage()       — 属国の駐屯・貢納関係の初期化 (src/generators/vassalage.ts)
   ├─ 37. Markers.generate()          — マーカー生成
   ├─ 38. Zones.generate()            — ゾーン生成
   │
-  ├─ 39. dispatchEvent("fmg:generate-post-core")  ← Economy拡張がここで受信
+  ├─ 38.5 initSimulationClock()      — SimulationContext初期化（tickCount=0、options.year/era等から復元）
+  ├─ 39. dispatchEvent("fmg:generate-post-core")  ← Economy/Shipbuilding/Nobility拡張がここで受信
   │       └─ [Economy ON時] Goods.generate() → Markets.generate() → Production.produce()
+  │       └─ [Nobility ON時] Characters.generate() → StrategicPlanner.generate() 等
   │
+  ├─ 39.5 applyHistoricalWarScars()  — 過去の戦争史(chronicle)由来の人口減少を反映 (demography-simulator.ts)
+  ├─ 39.6 Threats.appendCasualtyNotes() — モンスター被害のフレーバーテキストをnotesへ追記
   ├─ 40. drawScaleBar()              — スケールバー描画
+  ├─ 40.5 drawCalendar()             — カレンダーオーバーレイ描画（`#calendar`、docs/simulation/advance-time.md参照）
   └─ 41. Names.getMapName()          — マップ名生成
 ```
+
+> 番号に `.5` が付いている行は、本ドキュメント作成後（Danger レイヤー・Advance Time 日/月粒度・属国統治の実装）に
+> 追加されたステップ。既存の番号を振り直すと他ドキュメントからの行番号参照が壊れるため、間に挿入する形にしている。
 
 ---
 
@@ -115,6 +125,8 @@ SVG の重ね順は DOM の追加順で決まる（**後に追加 = 上に表示
 
 ```
 #map (SVG)
+  ├─ #legend           ← viewboxの外、svg直下
+  ├─ #calendar         ← viewboxの外、svg直下（Advance Timeカレンダーオーバーレイ、docs/simulation/advance-time.md参照）
   ├─ #deftemp (defs)
   ├─ #viewbox (g)  ← すべての地図レイヤーの親
   │     │
@@ -135,6 +147,10 @@ SVG の重ね順は DOM の追加順で決まる（**後に追加 = 上に表示
   │     │     ├─ #lava
   │     │     └─ #dry
   │     ├─ #biomes
+  │     ├─ #danger          ← Dangerレイヤー（display:none）。biomesの直後・populationの直前
+  │     ├─ #population
+  │     │     ├─ #rural
+  │     │     └─ #urban
   │     ├─ #cells
   │     ├─ #gridOverlay
   │     ├─ #coordinates
@@ -161,9 +177,6 @@ SVG の重ね順は DOM の追加順で決まる（**後に追加 = 上に表示
   │     │     └─ #lake_island
   │     ├─ #ice
   │     ├─ #prec
-  │     ├─ #population
-  │     │     ├─ #rural
-  │     │     └─ #urban
   │     ├─ #emblems
   │     │     ├─ #burgEmblems
   │     │     ├─ #provinceEmblems
@@ -192,8 +205,9 @@ SVG の重ね順は DOM の追加順で決まる（**後に追加 = 上に表示
   │     │ ▲ 上（前景）
   │
   └─ #scaleBar
-  └─ #legend
 ```
+
+> `#danger`/`#population`の位置は`docs/plan/debug-danger.md`で「cellsレイヤーより下に移動させた」と記録されている変更を反映（旧版は`#population`を`#prec`の後に置いていたが誤り）。`#legend`/`#calendar`は`viewbox`の外（`svg`直下）にあるため、pan/zoomの影響を受けない固定要素として描画される。
 
 ---
 
@@ -228,6 +242,7 @@ drawLayers()
   ├─ 19. [togglePopulation] PopulationRenderer.render()
   ├─ 20. [toggleIce]       IceRenderer.render()
   ├─ 21. [togglePrecipitation] PrecipitationRenderer.render()
+  ├─ 21.5 [toggleDanger]   DangerRenderer.render()
   ├─ 22. [toggleEmblems]   EmblemsRenderer.render()
   ├─ 23. [toggleLabels]    drawLabels()
   │         ├─ drawStateLabels()
