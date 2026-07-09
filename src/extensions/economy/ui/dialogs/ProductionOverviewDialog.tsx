@@ -1,6 +1,6 @@
 import React from "react";
 
-import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
+import { closeDialog, Dialog, useDialogState, VirtualTableBody } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 
 import { open as openProductionOverview, refreshProductionOverview } from "../../controllers/production-overview";
@@ -27,6 +27,8 @@ export const ProductionOverviewDialog: React.FC = () => {
   const treasury = useProductionOverviewState(state => state.treasury);
   const taxPaid = useProductionOverviewState(state => state.taxPaid);
 
+  const parentRef = React.useRef<HTMLDivElement>(null);
+
   React.useEffect(() => {
     if (isOpen && burgId != null) {
       setTimeout(() => openProductionOverview(burgId), 0);
@@ -34,14 +36,19 @@ export const ProductionOverviewDialog: React.FC = () => {
   }, [isOpen, burgId]);
 
   return (
-    <Dialog isOpen={isOpen} title="Production Overview" onClose={() => closeDialog("productionOverview")}>
+    <Dialog
+      isOpen={isOpen}
+      title="Production Overview"
+      onClose={() => closeDialog("productionOverview")}
+      className="overflow-hidden"
+    >
       <div id="productionOverviewContainer">
-        <div id="productionOverviewName">
+        <div id="productionOverviewName" className="header">
           <b>{burgName}</b>
         </div>
 
-        <div id="productionOverviewBody" className="table">
-          <table className="states-table">
+        <div ref={parentRef} id="productionOverviewBody" className="table">
+          <table className="fmg-table">
             <colgroup>
               <col />
               <col />
@@ -60,17 +67,21 @@ export const ProductionOverviewDialog: React.FC = () => {
                 <th>Net</th>
               </tr>
             </thead>
-            <tbody>
-              {rows.length === 0 ? (
+            {rows.length === 0 ? (
+              <tbody>
                 <tr>
                   <td colSpan={6}>
                     <span>No production recorded for this burg</span>
                   </td>
                 </tr>
-              ) : (
-                rows.map(row => <ProductionRow key={row.id} row={row} />)
-              )}
-            </tbody>
+              </tbody>
+            ) : (
+              <VirtualTableBody
+                items={rows}
+                scrollElementRef={parentRef}
+                renderRow={(row: ProductionOverviewRow) => <ProductionRow key={row.id} row={row} />}
+              />
+            )}
           </table>
         </div>
 
@@ -86,7 +97,7 @@ export const ProductionOverviewDialog: React.FC = () => {
           </div>
         </div>
 
-        <div id="productionOverviewBottom">
+        <div id="productionOverviewBottom" className="footer">
           <button
             type="button"
             id="productionOverviewRefresh"

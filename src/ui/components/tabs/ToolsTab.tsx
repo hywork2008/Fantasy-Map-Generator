@@ -122,6 +122,13 @@ const STATIC_EDIT_BUTTONS: StaticEditButton[] = [
     dialogId: "riversOverview"
   },
   {
+    key: "regiments",
+    label: "Regiments",
+    tooltip: "Click to open Regiments Overview",
+    eventName: "overviewRegimentsButton",
+    dialogId: "regimentsOverview"
+  },
+  {
     key: "routes",
     label: "Routes",
     tooltip: "Click to open Routes Overview",

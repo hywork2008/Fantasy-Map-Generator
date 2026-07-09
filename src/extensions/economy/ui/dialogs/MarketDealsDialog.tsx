@@ -1,5 +1,5 @@
 import React from "react";
-
+import { VirtualTableBody } from "../../../../ui/components/VirtualTableBody";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { applySorting, formatPrice } from "../../../hostUtils";
 
@@ -24,10 +24,10 @@ export const MarketDealsDialog: React.FC = () => {
   }, [isOpen]);
 
   return (
-    <Dialog isOpen={isOpen} title="Market Deals" onClose={() => closeDialog("marketDeals")}>
+    <Dialog isOpen={isOpen} title="Market Deals" onClose={() => closeDialog("marketDeals")} className="overflow-hidden">
       <div id="marketDealsContainer">
         <div id="marketDealsBody" className="table">
-          <table className="states-table">
+          <table className="fmg-table">
             <colgroup>
               <col />
               <col />
@@ -60,17 +60,21 @@ export const MarketDealsDialog: React.FC = () => {
                 </th>
               </tr>
             </thead>
-            <tbody>
-              {rows.length === 0 ? (
+            {rows.length === 0 ? (
+              <tbody>
                 <tr>
                   <td colSpan={6}>
                     <span>No market deals recorded</span>
                   </td>
                 </tr>
-              ) : (
-                rows.map(row => <DealRow key={row.id} row={row} onRowClick={onRowClick} />)
-              )}
-            </tbody>
+              </tbody>
+            ) : (
+              <VirtualTableBody
+                items={rows}
+                scrollElementRef={headerRef}
+                renderRow={row => <DealRow key={row.id} row={row} onRowClick={onRowClick} />}
+              />
+            )}
           </table>
         </div>
 
@@ -83,7 +87,7 @@ export const MarketDealsDialog: React.FC = () => {
           </div>
         </div>
 
-        <div id="marketDealsBottom">
+        <div id="marketDealsBottom" className="footer">
           <button
             type="button"
             id="marketDealsRefresh"

@@ -207,8 +207,8 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
         { label: "Apply", onClick: handleApply }
       ]}
     >
-      <div style={styles.wrap}>
-        <div>
+      <div style={styles.wrap} className="fmg-dialog-content overflow-hidden">
+        <div className="header">
           Edit the good metadata and its raw resource distribution. Leave distribution empty for manufactured-only
           goods.
         </div>
@@ -264,7 +264,7 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
             />
           </label>
         </div>
-        <div style={styles.body}>
+        <div style={styles.body} className="table overflow-hidden">
           <div style={styles.builder}>
             {(() => {
               const groupOccurrences = new Map<string, number>();

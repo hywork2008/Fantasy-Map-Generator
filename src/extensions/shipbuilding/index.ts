@@ -73,8 +73,15 @@ export function init(api: ExtensionAPI): void {
     tab: "tools",
     section: "edit",
     label: "Shipyards",
+    dialogId: "ShipyardsOverviewDialog",
     tooltip: "View all shipyards, their build progress, and completed hulls",
-    onClick: () => openShipyardsOverview(_candidates, (x, y) => api.zoomTo(x, y, 8))
+    onClick: () => {
+      if (api.isDialogOpen("ShipyardsOverviewDialog")) {
+        closeShipyardsOverview();
+      } else {
+        openShipyardsOverview(_candidates, (x, y) => api.zoomTo(x, y, 8));
+      }
+    }
   });
 
   api.registerLayerToggle("toggleShipyards", (_event?: MouseEvent) => {

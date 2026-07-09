@@ -26,6 +26,7 @@ import { rn, si } from "../../utils";
 import { FillBox } from "../components/FillBox";
 import { IconButton } from "../components/IconButton";
 import { SliderInput } from "../components/SliderInput";
+import { SortableHeader } from "../components/tables/SortableHeader";
 
 type SortKey = "name" | "habitability" | "cells" | "area" | "population";
 
@@ -55,11 +56,6 @@ export const BiomesEditorContent: React.FC = () => {
     }
   };
 
-  const sortIcon = (col: SortKey, isAlpha: boolean) => {
-    if (sortBy !== col) return "";
-    return ` icon-sort-${isAlpha ? "alpha" : "number"}-${sortDesc ? "down" : "up"}`;
-  };
-
   const displayCells = (n: number) =>
     displayMode === "percentage" && footer.cells > 0 ? `${rn((n / footer.cells) * 100)}%` : String(n);
 
@@ -83,46 +79,54 @@ export const BiomesEditorContent: React.FC = () => {
         <table className="fmg-table">
           <thead>
             <tr>
-              <th
-                data-tip="Click to sort by biome name"
-                className={`sortable alphabetically${sortIcon("name", true)}`}
-                data-sortby="name"
-                onClick={() => handleSort("name", true)}
-              >
-                Biome
-              </th>
-              <th
-                data-tip="Click to sort by biome habitability"
-                className={`sortable ${hc()}${sortIcon("habitability", false)}`}
-                data-sortby="habitability"
-                onClick={() => handleSort("habitability", false)}
-              >
-                Habitability
-              </th>
-              <th
-                data-tip="Click to sort by biome cells number"
-                className={`sortable ${hc()}${sortIcon("cells", false)}`}
-                data-sortby="cells"
-                onClick={() => handleSort("cells", false)}
-              >
-                Cells
-              </th>
-              <th
-                data-tip="Click to sort by biome area"
-                className={`sortable ${hc()}${sortIcon("area", false)}`}
-                data-sortby="area"
-                onClick={() => handleSort("area", false)}
-              >
-                Area
-              </th>
-              <th
-                data-tip="Click to sort by biome population"
-                className={`sortable ${hc()}${sortIcon("population", false)}`}
-                data-sortby="population"
-                onClick={() => handleSort("population", false)}
-              >
-                Population
-              </th>
+              <SortableHeader
+                field="name"
+                label="Biome"
+                sortBy={sortBy}
+                sortOrder={sortDesc ? "desc" : "asc"}
+                onSort={col => handleSort(col as SortKey, true)}
+                tip="Click to sort by biome name"
+              />
+              <SortableHeader
+                field="habitability"
+                label="Habitability"
+                sortBy={sortBy}
+                sortOrder={sortDesc ? "desc" : "asc"}
+                onSort={col => handleSort(col as SortKey, false)}
+                numeric
+                tip="Click to sort by biome habitability"
+                className={hc()}
+              />
+              <SortableHeader
+                field="cells"
+                label="Cells"
+                sortBy={sortBy}
+                sortOrder={sortDesc ? "desc" : "asc"}
+                onSort={col => handleSort(col as SortKey, false)}
+                numeric
+                tip="Click to sort by biome cells number"
+                className={hc()}
+              />
+              <SortableHeader
+                field="area"
+                label="Area"
+                sortBy={sortBy}
+                sortOrder={sortDesc ? "desc" : "asc"}
+                onSort={col => handleSort(col as SortKey, false)}
+                numeric
+                tip="Click to sort by biome area"
+                className={hc()}
+              />
+              <SortableHeader
+                field="population"
+                label="Population"
+                sortBy={sortBy}
+                sortOrder={sortDesc ? "desc" : "asc"}
+                onSort={col => handleSort(col as SortKey, false)}
+                numeric
+                tip="Click to sort by biome population"
+                className={hc()}
+              />
               <th></th>
             </tr>
           </thead>

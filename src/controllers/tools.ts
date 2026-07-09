@@ -84,6 +84,7 @@ import { NamesbaseEditor } from "./namesbase-editor";
 import { editNotes } from "./notes-editor";
 import { cellsDensityMap } from "./options";
 import { editProvinces } from "./provinces-editor";
+import { overviewRegiments } from "./regiments-overview";
 import * as RiversOverview from "./rivers-overview";
 import { createRoute } from "./routes-editor";
 import { overviewRoutes } from "./routes-overview";
@@ -189,6 +190,7 @@ document.addEventListener("react-tool-action", e => {
   else if (button === "overviewRiversButton")
     toggleEditor("riversOverview", "toggleRivers", RiversOverview.overviewRivers);
   else if (button === "overviewMilitaryButton") toggleEditor("militaryOverview", "toggleMilitary", overviewMilitary);
+  else if (button === "overviewRegimentsButton") toggleEditor("regimentsOverview", "toggleMilitary", overviewRegiments);
   else if (button === "overviewMarkersButton")
     toggleEditor("markersOverview", "toggleMarkers", MarkersOverview.overviewMarkers);
   else if (button === "overviewCellsButton") viewCellDetails();

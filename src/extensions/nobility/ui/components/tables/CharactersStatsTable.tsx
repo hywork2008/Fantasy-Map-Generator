@@ -1,6 +1,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type React from "react";
 import { useRef } from "react";
+import { SortableHeader } from "../../../../hostUi";
 import type { CharacterRowData } from "../../../controllers/characters-overview";
 import { getCharacterRowStyle } from "../../../utils/personalityUtils";
 
@@ -33,18 +34,17 @@ export const CharactersStatsTable: React.FC<CharactersStatsTableProps> = ({
     virtualItems.length > 0 ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end : 0;
 
   function SortHeader({ field, label, tip, width }: { field: string; label: string; tip: string; width?: string }) {
-    const isActive = sortBy === field;
-    const directionIcon = sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down";
     return (
-      <th
-        data-tip={`Click to sort by ${tip}`}
-        className={`sortable ${isActive ? "sort-active" : ""}`}
-        onClick={() => onSort(field)}
+      <SortableHeader
+        field={field}
+        label={label}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSort={onSort}
+        numeric
+        tip={`Click to sort by ${tip}`}
         style={{ width, minWidth: width, fontSize: "0.85em", padding: "0 4px" }}
-      >
-        {label}
-        {isActive && <span className={directionIcon} />}
-      </th>
+      />
     );
   }
 
@@ -55,17 +55,15 @@ export const CharactersStatsTable: React.FC<CharactersStatsTableProps> = ({
       <table className="fmg-table" style={{ minWidth: "1000px" }}>
         <thead style={{ zIndex: 3 }}>
           <tr>
-            <th
-              data-tip="Click to sort by name"
-              className={`sortable alphabetically ${sortBy === "name" ? "sort-active" : ""}`}
-              onClick={() => onSort("name")}
+            <SortableHeader
+              field="name"
+              label="Name"
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={onSort}
+              tip="Click to sort by name"
               style={{ width: "12em", minWidth: "12em" }}
-            >
-              Name
-              {sortBy === "name" && (
-                <span className={sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down"} />
-              )}
-            </th>
+            />
             <SortHeader field="artistry" label="Arts" tip="Artistry" />
             <SortHeader field="diplomacy" label="Dipl" tip="Diplomacy" />
             <SortHeader field="engineering" label="Engi" tip="Engineering" />

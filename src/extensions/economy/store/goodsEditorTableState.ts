@@ -28,6 +28,8 @@ interface GoodsEditorTableState {
   hasTagFilter: boolean;
   isAssignMode: boolean;
   selectedAssignGoodId: number | null;
+  sortBy: string;
+  sortOrder: "asc" | "desc";
 }
 
 export const useGoodsEditorTableState = create<GoodsEditorTableState>(() => ({
@@ -38,7 +40,9 @@ export const useGoodsEditorTableState = create<GoodsEditorTableState>(() => ({
   isPercentageMode: false,
   hasTagFilter: false,
   isAssignMode: false,
-  selectedAssignGoodId: null
+  selectedAssignGoodId: null,
+  sortBy: "name",
+  sortOrder: "asc"
 }));
 
 export const getGoodsEditorTableState = useGoodsEditorTableState.getState;

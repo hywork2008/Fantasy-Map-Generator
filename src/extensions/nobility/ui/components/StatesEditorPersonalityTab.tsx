@@ -1,6 +1,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type React from "react";
 import { useMemo, useRef, useState } from "react";
+import { SortableHeader } from "../../../hostUi";
 import { getWorldContext } from "../../nobilityContext";
 
 const getPersonalityColor = (val: number): string | undefined => {
@@ -137,18 +138,17 @@ export const StatesEditorPersonalityTab: React.FC = () => {
     virtualItems.length > 0 ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end : 0;
 
   function SortHeader({ field, label, tip }: { field: string; label: string; tip: string }) {
-    const isActive = sortBy === field;
-    const directionIcon = sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down";
     return (
-      <th
-        data-tip={`Click to sort by ${tip}`}
-        className={`sortable ${isActive ? "sort-active" : ""}`}
-        onClick={() => handleSort(field)}
+      <SortableHeader
+        field={field}
+        label={label}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSort={handleSort}
+        numeric
+        tip={`Click to sort by ${tip}`}
         style={{ fontSize: "0.85em", padding: "0 4px" }}
-      >
-        {label}
-        {isActive && <span className={directionIcon} />}
-      </th>
+      />
     );
   }
 
@@ -163,17 +163,15 @@ export const StatesEditorPersonalityTab: React.FC = () => {
       <table className="fmg-table" style={{ minWidth: "800px" }}>
         <thead style={{ zIndex: 3 }}>
           <tr>
-            <th
-              data-tip="Click to sort by name"
-              className={`sortable alphabetically ${sortBy === "name" ? "sort-active" : ""}`}
-              onClick={() => handleSort("name")}
+            <SortableHeader
+              field="name"
+              label="State"
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={handleSort}
+              tip="Click to sort by name"
               style={{ width: "3em", minWidth: "3em" }}
-            >
-              State
-              {sortBy === "name" && (
-                <span className={sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down"} />
-              )}
-            </th>
+            />
             <SortHeader field="boldness" label="Bold" tip="Boldness" />
             <SortHeader field="compassion" label="Comp" tip="Compassion" />
             <SortHeader field="confidence" label="Conf" tip="Confidence" />

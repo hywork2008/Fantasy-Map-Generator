@@ -1,6 +1,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type React from "react";
 import { useRef } from "react";
+import { SortableHeader } from "../../../../hostUi";
 import type { CharacterRowData } from "../../../controllers/characters-overview";
 import { getCharacterRowStyle } from "../../../utils/personalityUtils";
 
@@ -43,24 +44,17 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
     numeric?: boolean;
     width?: string;
   }) {
-    const isActive = sortBy === field;
-    const directionIcon = numeric
-      ? sortOrder === "asc"
-        ? "icon-sort-number-up"
-        : "icon-sort-number-down"
-      : sortOrder === "asc"
-        ? "icon-sort-name-up"
-        : "icon-sort-name-down";
     return (
-      <th
-        data-tip={`Click to sort by ${label.toLowerCase()}`}
-        className={`sortable ${numeric ? "icon-sort-number-down" : "alphabetically"} ${isActive ? "sort-active" : ""}`}
-        onClick={() => onSort(field)}
+      <SortableHeader
+        field={field}
+        label={label}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSort={onSort}
+        numeric={numeric}
+        tip={`Click to sort by ${label.toLowerCase()}`}
         style={{ width, minWidth: width }}
-      >
-        {label}
-        {isActive && <span className={directionIcon} />}
-      </th>
+      />
     );
   }
 
@@ -129,7 +123,7 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
               })}
               {paddingBottom > 0 && (
                 <tr>
-                  <td colSpan={5} style={{ height: `${paddingBottom}px` }} />
+                  <td colSpan={7} style={{ height: `${paddingBottom}px` }} />
                 </tr>
               )}
             </>

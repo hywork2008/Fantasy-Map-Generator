@@ -7,6 +7,8 @@ import { capitalize, rn, si } from "../../utils";
 import { getAreaUnit } from "../../utils/domUtils";
 import { FillBox } from "../components/FillBox";
 import { IconButton } from "../components/IconButton";
+import { SortableHeader } from "../components/tables/SortableHeader";
+import { VirtualTableBody } from "../components/VirtualTableBody";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -35,6 +37,7 @@ export const CulturesEditorDialog: React.FC = () => {
   } = useCulturesEditorState();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const parentRef = useRef<HTMLDivElement>(null);
 
   const sortedCultures = useMemo(() => {
     return [...cultures].sort((a, b) => {
@@ -76,12 +79,15 @@ export const CulturesEditorDialog: React.FC = () => {
   const isBrushMode = customization === 4;
   const isAddMode = customization === 9;
 
+  const sortOrder = sortDirection === 1 ? "asc" : "desc";
+
   const SortHeader = ({
     label,
     col,
     tip,
     hide = false,
     hidden = false,
+    numeric = false,
     width
   }: {
     label: string;
@@ -89,16 +95,20 @@ export const CulturesEditorDialog: React.FC = () => {
     tip: string;
     hide?: boolean;
     hidden?: boolean;
+    numeric?: boolean;
     width?: string;
   }) => (
-    <th
-      data-tip={tip}
-      className={`sortable ${hide ? "hide" : ""} ${hidden ? "hidden" : ""} ${sortBy === col ? "sort-active" : ""}`}
-      onClick={() => culturesEditorActions.changeSort(col)}
+    <SortableHeader
+      field={col}
+      label={label}
+      sortBy={sortBy}
+      sortOrder={sortOrder}
+      onSort={culturesEditorActions.changeSort}
+      numeric={numeric}
+      tip={tip}
+      className={`${hide ? "hide" : ""} ${hidden ? "hidden" : ""}`}
       style={{ width }}
-    >
-      {label}
-    </th>
+    />
   );
 
   return (
@@ -109,21 +119,41 @@ export const CulturesEditorDialog: React.FC = () => {
       className="overflow-hidden"
     >
       <div id="culturesEditor">
-        <div id="culturesBody" className="table" data-type={isPercentageMode ? "percentage" : "absolute"}>
+        <div
+          ref={parentRef}
+          id="culturesBody"
+          className="table"
+          data-type={isPercentageMode ? "percentage" : "absolute"}
+        >
           <table className="fmg-table">
             <thead>
               <tr id="culturesHeader">
                 <SortHeader label="Culture" col="name" tip="Click to sort by culture name" width="10em" />
                 <SortHeader label="Type" col="type" tip="Click to sort by type" width="7em" />
                 <SortHeader label="Namesbase" col="base" tip="Click to sort by culture namesbase" width="9em" />
-                <SortHeader label="Cells" col="cells" tip="Click to sort by culture cells count" hide width="4em" />
-                <SortHeader label="Expansion" col="expansionism" tip="Click to sort by expansionism" hide width="8em" />
-                <SortHeader label="Area" col="area" tip="Click to sort by culture area" hide width="6em" />
+                <SortHeader
+                  label="Cells"
+                  col="cells"
+                  tip="Click to sort by culture cells count"
+                  hide
+                  numeric
+                  width="4em"
+                />
+                <SortHeader
+                  label="Expansion"
+                  col="expansionism"
+                  tip="Click to sort by expansionism"
+                  hide
+                  numeric
+                  width="8em"
+                />
+                <SortHeader label="Area" col="area" tip="Click to sort by culture area" hide numeric width="6em" />
                 <SortHeader
                   label="Population"
                   col="population"
                   tip="Click to sort by culture population"
                   hide
+                  numeric
                   width="4em"
                 />
                 <SortHeader
@@ -136,8 +166,10 @@ export const CulturesEditorDialog: React.FC = () => {
                 <th></th>
               </tr>
             </thead>
-            <tbody>
-              {sortedCultures.map(c => {
+            <VirtualTableBody
+              items={sortedCultures}
+              scrollElementRef={parentRef}
+              renderRow={c => {
                 const isNeutral = c.i === 0;
                 const areaText = isPercentageMode
                   ? `${totalArea > 0 ? rn((c.area / totalArea) * 100) : 0}%`
@@ -305,8 +337,8 @@ export const CulturesEditorDialog: React.FC = () => {
                     </td>
                   </tr>
                 );
-              })}
-            </tbody>
+              }}
+            />
           </table>
         </div>
 

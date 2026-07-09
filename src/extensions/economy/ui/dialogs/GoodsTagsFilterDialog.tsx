@@ -37,13 +37,13 @@ export const GoodsTagsFilterDialog: React.FC = () => {
         { label: "Cancel", onClick: close }
       ]}
     >
-      <div id="goodsTagsContainer">
+      <div id="goodsTagsContainer" className="fmg-dialog-content overflow-hidden">
         {tags.length === 0 ? (
-          <div>No tags available</div>
+          <div className="header">No tags available</div>
         ) : (
           <div
             data-tip="Only goods with at least one selected tag remain visible in the editor list"
-            className="d-grid"
+            className="table d-grid"
           >
             {tags.map(tag => (
               <label key={tag} className="d-flex">

@@ -322,6 +322,7 @@ export function init(api: ExtensionAPI): void {
     tab: "tools",
     section: "edit",
     label: "Goods",
+    dialogId: "goodsEditor",
     tooltip: "Click to open Goods Editor (Shortcut: Shift + G)",
     onClick: () => {
       document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: "editGoods" } }));
@@ -334,6 +335,7 @@ export function init(api: ExtensionAPI): void {
     tab: "tools",
     section: "edit",
     label: "Markets",
+    dialogId: "marketsOverview",
     tooltip: "Click to open Markets Overview",
     onClick: () => {
       document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: "overviewMarketsButton" } }));
@@ -346,6 +348,7 @@ export function init(api: ExtensionAPI): void {
     tab: "tools",
     section: "edit",
     label: "Trade",
+    dialogId: "tradeAnimationEditor",
     tooltip: "Click to open Trade Animation Editor",
     onClick: () => {
       document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: "editTradeAnimationButton" } }));

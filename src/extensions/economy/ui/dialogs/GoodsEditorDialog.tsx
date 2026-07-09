@@ -1,6 +1,7 @@
 import React from "react";
 import { IconButton } from "../../../../ui/components/IconButton";
-
+import { SortableHeader } from "../../../../ui/components/tables/SortableHeader";
+import { VirtualTableBody } from "../../../../ui/components/VirtualTableBody";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { rn } from "../../../hostUtils";
 
@@ -22,7 +23,8 @@ import {
   requestProductionRegeneration,
   toggleAllDisplayed,
   toggleDisplayedGood,
-  togglePercentageMode
+  togglePercentageMode,
+  toggleSortBy
 } from "../../controllers/goods-editor";
 import { useGoodsEditorTableState } from "../../store/goodsEditorTableState";
 
@@ -45,7 +47,9 @@ export const GoodsEditorDialog: React.FC = () => {
     isPercentageMode,
     hasTagFilter,
     isAssignMode,
-    selectedAssignGoodId
+    selectedAssignGoodId,
+    sortBy,
+    sortOrder
   } = useGoodsEditorTableState();
 
   React.useEffect(() => {
@@ -57,11 +61,13 @@ export const GoodsEditorDialog: React.FC = () => {
     closeDialog("goodsEditor");
   };
 
+  const parentRef = React.useRef<HTMLDivElement>(null);
+
   return (
-    <Dialog isOpen={isOpen} title="Goods Editor" onClose={handleClose}>
+    <Dialog isOpen={isOpen} title="Goods Editor" onClose={handleClose} className="overflow-hidden">
       <div id="goodsEditorContainer">
-        <div id="goodsBody" className="table" data-type={isPercentageMode ? "percentage" : "absolute"}>
-          <table className="states-table">
+        <div ref={parentRef} id="goodsBody" className="table" data-type={isPercentageMode ? "percentage" : "absolute"}>
+          <table className="fmg-table">
             <colgroup>
               {isAssignMode ? (
                 <>
@@ -86,12 +92,22 @@ export const GoodsEditorDialog: React.FC = () => {
                 {isAssignMode ? (
                   <>
                     <th />
-                    <th data-tip="Click to sort by good name" className="sortable alphabetically" data-sortby="name">
-                      Name
-                    </th>
-                    <th data-tip="Click to sort by type" className="sortable alphabetically" data-sortby="type">
-                      Type
-                    </th>
+                    <SortableHeader
+                      field="name"
+                      label="Name"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={toggleSortBy}
+                      tip="Click to sort by good name"
+                    />
+                    <SortableHeader
+                      field="type"
+                      label="Type"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={toggleSortBy}
+                      tip="Click to sort by type"
+                    />
                   </>
                 ) : (
                   <>
@@ -108,36 +124,58 @@ export const GoodsEditorDialog: React.FC = () => {
                         onChange={e => toggleAllDisplayed(e.target.checked)}
                       />
                     </th>
-                    <th data-tip="Click to sort by good name" className="sortable alphabetically" data-sortby="name">
-                      Name
-                    </th>
-                    <th data-tip="Click to sort by type" className="sortable alphabetically" data-sortby="type">
-                      Type
-                    </th>
-                    <th
-                      data-tip="Total production units aggregated from cells and burgs. Click to sort"
-                      className="sortable icon-sort-number-down"
-                      data-sortby="produced"
-                    >
-                      Produced
-                    </th>
-                    <th
-                      data-tip="Total units in stock across all markets and burg inventories. Click to sort"
-                      className="sortable"
-                      data-sortby="stock"
-                    >
-                      Stock
-                    </th>
-                    <th data-tip="Base (initial) price. Click to sort" className="sortable" data-sortby="baseprice">
-                      Price
-                    </th>
+                    <SortableHeader
+                      field="name"
+                      label="Name"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={toggleSortBy}
+                      tip="Click to sort by good name"
+                    />
+                    <SortableHeader
+                      field="type"
+                      label="Type"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={toggleSortBy}
+                      tip="Click to sort by type"
+                    />
+                    <SortableHeader
+                      field="produced"
+                      label="Produced"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={toggleSortBy}
+                      numeric
+                      tip="Total production units aggregated from cells and burgs. Click to sort"
+                    />
+                    <SortableHeader
+                      field="stock"
+                      label="Stock"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={toggleSortBy}
+                      numeric
+                      tip="Total units in stock across all markets and burg inventories. Click to sort"
+                    />
+                    <SortableHeader
+                      field="baseprice"
+                      label="Price"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={toggleSortBy}
+                      numeric
+                      tip="Base (initial) price. Click to sort"
+                    />
                     <th />
                   </>
                 )}
               </tr>
             </thead>
-            <tbody>
-              {goods.map(good => {
+            <VirtualTableBody
+              items={goods}
+              scrollElementRef={parentRef}
+              renderRow={good => {
                 const displayedProduced = isPercentageMode
                   ? `${rn(totalProduced ? (good.produced / totalProduced) * 100 : 0, 2)}%`
                   : String(good.produced);
@@ -245,8 +283,8 @@ export const GoodsEditorDialog: React.FC = () => {
                     )}
                   </tr>
                 );
-              })}
-            </tbody>
+              }}
+            />
           </table>
         </div>
 
@@ -262,7 +300,7 @@ export const GoodsEditorDialog: React.FC = () => {
           </div>
         </div>
 
-        <div id="goodsBottom">
+        <div id="goodsBottom" className="footer">
           <button
             type="button"
             id="goodsEditorRefresh"

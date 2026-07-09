@@ -1,30 +1,12 @@
 import type React from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { zonesEditorActions } from "../../controllers/zones-editor";
 import { setZonesEditorState, useZonesEditorState, type ZoneRowData } from "../../store/zonesEditorState";
 import { FillBox } from "../components/FillBox";
 import { IconButton } from "../components/IconButton";
 import { SliderInput } from "../components/SliderInput";
-
-const SortableHeader: React.FC<{
-  label: string;
-  field: string;
-  sortBy: string;
-  sortDirection: number;
-  width?: string;
-  hide?: boolean;
-  onSort: (field: string) => void;
-}> = ({ label, field, sortBy, sortDirection, width, hide, onSort }) => {
-  let icon = "";
-  if (sortBy === field) {
-    icon = sortDirection === 1 ? " icon-sort-down" : " icon-sort-up";
-  }
-  return (
-    <th className={`sortable ${hide ? "hide" : ""} ${icon}`} style={{ width }} onClick={() => onSort(field)}>
-      {label}
-    </th>
-  );
-};
+import { SortableHeader } from "../components/tables/SortableHeader";
+import { VirtualTableBody } from "../components/VirtualTableBody";
 
 export const ZonesEditorContent: React.FC = () => {
   const state = useZonesEditorState();
@@ -63,9 +45,12 @@ export const ZonesEditorContent: React.FC = () => {
 
   const si = (n: number) => (n > 1000000 ? `${(n / 1000000).toFixed(2)}M` : n > 1000 ? `${(n / 1000).toFixed(2)}k` : n);
 
+  const parentRef = useRef<HTMLDivElement>(null);
+  const sortOrder = sortDirection === 1 ? "asc" : "desc";
+
   return (
     <div id="zonesEditor" className="stable">
-      <div className="table" data-type={state.isPercentageMode ? "percentage" : "absolute"}>
+      <div ref={parentRef} className="table" data-type={state.isPercentageMode ? "percentage" : "absolute"}>
         <table className="fmg-table">
           <thead>
             <tr>
@@ -73,50 +58,55 @@ export const ZonesEditorContent: React.FC = () => {
                 label="Zone"
                 field="name"
                 sortBy={sortBy}
-                sortDirection={sortDirection}
+                sortOrder={sortOrder}
                 onSort={handleSort}
-                width="11em"
+                style={{ width: "11em" }}
               />
               <SortableHeader
                 label="Type"
                 field="type"
                 sortBy={sortBy}
-                sortDirection={sortDirection}
+                sortOrder={sortOrder}
                 onSort={handleSort}
-                width="8em"
+                style={{ width: "8em" }}
               />
               <SortableHeader
                 label="Cells"
                 field="cells"
                 sortBy={sortBy}
-                sortDirection={sortDirection}
-                hide
+                sortOrder={sortOrder}
+                numeric
+                className="hide"
                 onSort={handleSort}
-                width="6em"
+                style={{ width: "6em" }}
               />
               <SortableHeader
                 label="Area"
                 field="area"
                 sortBy={sortBy}
-                sortDirection={sortDirection}
-                hide
+                sortOrder={sortOrder}
+                numeric
+                className="hide"
                 onSort={handleSort}
-                width="7em"
+                style={{ width: "7em" }}
               />
               <SortableHeader
                 label="Population"
                 field="population"
                 sortBy={sortBy}
-                sortDirection={sortDirection}
-                hide
+                sortOrder={sortOrder}
+                numeric
+                className="hide"
                 onSort={handleSort}
-                width="6em"
+                style={{ width: "6em" }}
               />
               <th></th>
             </tr>
           </thead>
-          <tbody>
-            {sortedZones.map(z => (
+          <VirtualTableBody
+            items={sortedZones}
+            scrollElementRef={parentRef}
+            renderRow={z => (
               <tr
                 key={z.i}
                 className={`states ${z.focused ? "focused" : ""}`}
@@ -182,8 +172,8 @@ export const ZonesEditorContent: React.FC = () => {
                   ></IconButton>
                 </td>
               </tr>
-            ))}
-          </tbody>
+            )}
+          />
         </table>
       </div>
       {state.customizationMode === 0 && (

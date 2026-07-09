@@ -1,6 +1,6 @@
 import React from "react";
 import { IconButton } from "../../../../ui/components/IconButton";
-
+import { VirtualTableBody } from "../../../../ui/components/VirtualTableBody";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { formatPrice, rn } from "../../../hostUtils";
 
@@ -42,17 +42,20 @@ export const TradeDetailsDialog: React.FC = () => {
     return sortDirection === 1 ? "icon-sort-number-up" : "icon-sort-number-down";
   };
 
+  const parentRef = React.useRef<HTMLDivElement>(null);
+
   return (
     <Dialog
       isOpen={isOpen}
       title="Trade Details"
+      className="overflow-hidden"
       onClose={() => {
         closeDialog("tradeDetails");
         closeTradeDetails();
       }}
     >
       <div id="tradeDetailsContainer">
-        <div id="tradeDetailsSummary" className="totalLine">
+        <div id="tradeDetailsSummary" className="totalLine header">
           {summary && (
             <>
               <span>
@@ -75,8 +78,8 @@ export const TradeDetailsDialog: React.FC = () => {
           )}
         </div>
 
-        <div id="tradeDetailsBody" className="table">
-          <table className="states-table">
+        <div ref={parentRef} id="tradeDetailsBody" className="table">
+          <table className="fmg-table">
             <colgroup>
               <col />
               <col />
@@ -117,8 +120,10 @@ export const TradeDetailsDialog: React.FC = () => {
                 </th>
               </tr>
             </thead>
-            <tbody>
-              {sortedRows.map(row => (
+            <VirtualTableBody
+              items={sortedRows}
+              scrollElementRef={parentRef}
+              renderRow={row => (
                 <tr
                   key={row.goodId}
                   className="states tradeDeal"
@@ -140,12 +145,12 @@ export const TradeDetailsDialog: React.FC = () => {
                   <td className="goodPrice">{formatPrice(rn(row.price, 2))}</td>
                   <td className="goodValue">{formatPrice(rn(row.value, 2))}</td>
                 </tr>
-              ))}
-            </tbody>
+              )}
+            />
           </table>
         </div>
 
-        <div id="tradeDetailsFooter" className="totalLine">
+        <div id="tradeDetailsFooter" className="totalLine footer">
           <div>
             Distance: <span id="tradeDetailsFooterDistance">{distance}</span>
           </div>

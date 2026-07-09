@@ -1,6 +1,5 @@
 import { sum } from "d3";
-import type React from "react";
-import { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { worldContext } from "../../context/worldContext";
 import {
   addRegimentOnMap,
@@ -13,6 +12,7 @@ import { useDialogState } from "../../store/dialogState";
 import { useRegimentsOverviewState } from "../../store/regimentsOverviewState";
 import { capitalize, si } from "../../utils";
 import { FillBox } from "../components/FillBox";
+import { VirtualTableBody } from "../components/VirtualTableBody";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -33,14 +33,17 @@ export const RegimentsOverviewDialog: React.FC = () => {
   } = useRegimentsOverviewState();
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: refreshCounter intentionally triggers recompute of external worldContext data
-  const unitTypes = useMemo(() => worldContext.options?.military ?? [], [refreshCounter]);
+  const unitTypes = useMemo(
+    () => (worldContext.options?.military ?? []).filter(u => u.enabled !== false),
+    [refreshCounter]
+  );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: refreshCounter intentionally triggers recompute of external worldContext data
   const states = useMemo(() => (worldContext.pack?.states ?? []).filter(s => s.i && !s.removed), [refreshCounter]);
 
   const { rows, totals } = useMemo(() => {
     void refreshCounter;
-    const military = worldContext.options?.military ?? [];
+    const military = unitTypes;
     type RowItem = {
       stateId: number;
       stateName: string;
@@ -95,7 +98,7 @@ export const RegimentsOverviewDialog: React.FC = () => {
     }
 
     return { rows: sorted, totals: { units: sumUnits, total: sumTotal } };
-  }, [refreshCounter, filterStateId, sortBy, sortOrder]);
+  }, [refreshCounter, filterStateId, sortBy, sortOrder, unitTypes]);
 
   // Manage add-regiment map interaction
   useEffect(() => {
@@ -131,24 +134,49 @@ export const RegimentsOverviewDialog: React.FC = () => {
     return total ? `${Math.round((value / total) * 100)}%` : "0%";
   };
 
-  const SortHeader: React.FC<{ field: string; label: string; numeric?: boolean }> = ({ field, label, numeric }) => (
-    <th
-      data-tip={`${label}. Click to sort`}
-      className={`sortable ${numeric ? "icon-sort-number-down" : "alphabetically"}`}
-      onClick={() => toggleSortBy(field)}
-      data-sortby={field}
-    >
-      {label}
-    </th>
-  );
+  const SortHeader: React.FC<{ field: string; label: string; numeric?: boolean }> = ({ field, label, numeric }) => {
+    let sortClass = "";
+    if (sortBy === field) {
+      sortClass =
+        sortOrder === "asc"
+          ? numeric
+            ? "icon-sort-number-up"
+            : "icon-sort-name-up"
+          : numeric
+            ? "icon-sort-number-down"
+            : "icon-sort-name-down";
+    }
+    return (
+      <th
+        data-tip={`${label}. Click to sort`}
+        className={`sortable ${numeric ? "" : "alphabetically"} ${sortClass}`}
+        onClick={() => toggleSortBy(field)}
+        data-sortby={field}
+      >
+        {label}
+      </th>
+    );
+  };
 
   const sortedStates = useMemo(() => [...states].sort((a, b) => (a.name > b.name ? 1 : -1)), [states]);
 
+  const parentRef = React.useRef<HTMLDivElement>(null);
+
   return (
-    <Dialog isOpen={isOpen} title="Regiments Overview" onClose={() => closeDialog("regimentsOverview")}>
+    <Dialog
+      isOpen={isOpen}
+      title="Regiments Overview"
+      className="overflow-hidden"
+      onClose={() => closeDialog("regimentsOverview")}
+    >
       <div id="regimentsOverviewContainer">
-        <div id="regimentsBody" className="table" data-type={percentageMode ? "percentage" : "absolute"}>
-          <table className="states-table">
+        <div
+          ref={parentRef}
+          id="regimentsBody"
+          className="table"
+          data-type={percentageMode ? "percentage" : "absolute"}
+        >
+          <table className="fmg-table states-table">
             <colgroup>
               <col />
               <col />
@@ -167,7 +195,7 @@ export const RegimentsOverviewDialog: React.FC = () => {
                 <th
                   id="regimentsTotal"
                   data-tip="Total military personnel (not considering crew). Click to sort"
-                  className="sortable icon-sort-number-down"
+                  className={`sortable ${sortBy === "total" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
                   data-sortby="total"
                   onClick={() => toggleSortBy("total")}
                 >
@@ -175,8 +203,10 @@ export const RegimentsOverviewDialog: React.FC = () => {
                 </th>
               </tr>
             </thead>
-            <tbody>
-              {rows.map(({ stateId, stateName, stateFullName, stateColor, regiment: r }) => (
+            <VirtualTableBody
+              items={rows}
+              scrollElementRef={parentRef}
+              renderRow={({ stateId, stateName, stateFullName, stateColor, regiment: r }) => (
                 <tr
                   key={`${stateId}-${r.i}`}
                   className="states"
@@ -212,8 +242,8 @@ export const RegimentsOverviewDialog: React.FC = () => {
                     {displayValue(r.a, "total")}
                   </td>
                 </tr>
-              ))}
-            </tbody>
+              )}
+            />
             <tfoot>
               <tr id="regimentsTotalLine" className="totalLine" data-tip="Total of all displayed regiments">
                 <td colSpan={2}>Regiments: {rows.length}</td>
@@ -225,7 +255,7 @@ export const RegimentsOverviewDialog: React.FC = () => {
             </tfoot>
           </table>
         </div>
-        <div id="regimentsFooter">
+        <div id="regimentsFooter" className="footer">
           <button type="button" data-tip="Refresh the overview screen" className="icon-cw" onClick={refresh} />
           <button
             type="button"

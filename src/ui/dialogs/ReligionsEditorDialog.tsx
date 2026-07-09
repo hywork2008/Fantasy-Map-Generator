@@ -1,11 +1,12 @@
-import type React from "react";
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { religionsEditorActions } from "../../controllers/religions-editor";
 import { useReligionsEditorState } from "../../store/religionsEditorState";
 import { rn, si } from "../../utils";
 import { getAreaUnit } from "../../utils/domUtils";
 import { FillBox } from "../components/FillBox";
 import { IconButton } from "../components/IconButton";
+import { SortableHeader } from "../components/tables/SortableHeader";
+import { VirtualTableBody } from "../components/VirtualTableBody";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -63,10 +64,13 @@ export const ReligionsEditorDialog: React.FC = () => {
     });
   }, [religions, sortBy, sortDirection]);
 
+  const parentRef = React.useRef<HTMLDivElement>(null);
+
   if (!isOpen) return null;
 
   const unit = getAreaUnit();
   const isBrushMode = customization === 7;
+  const sortOrder = sortDirection === 1 ? "asc" : "desc";
 
   return (
     <Dialog
@@ -76,75 +80,93 @@ export const ReligionsEditorDialog: React.FC = () => {
       className="overflow-hidden"
     >
       <div id="religionsEditor">
-        <div id="religionsBody" className="table" data-type={isPercentageMode ? "percentage" : "absolute"}>
+        <div
+          ref={parentRef}
+          id="religionsBody"
+          className="table"
+          data-type={isPercentageMode ? "percentage" : "absolute"}
+        >
           <table className="fmg-table">
             <thead>
               <tr id="religionsHeader">
-                <th
-                  data-tip="Click to sort by religion name"
-                  className={`sortable alphabetically ${sortBy === "name" ? "sort-active" : ""}`}
-                  onClick={() => religionsEditorActions.changeSort("name")}
-                >
-                  Religion
-                </th>
-                <th
-                  data-tip="Click to sort by religion type"
-                  className={`sortable alphabetically ${sortBy === "type" ? "sort-active" : ""}`}
-                  onClick={() => religionsEditorActions.changeSort("type")}
-                >
-                  Type
-                </th>
-                <th
-                  data-tip="Click to sort by religion form"
-                  className={`sortable alphabetically ${sortBy === "form" ? "sort-active" : ""}`}
-                  onClick={() => religionsEditorActions.changeSort("form")}
-                >
-                  Form
-                </th>
+                <SortableHeader
+                  field="name"
+                  label="Religion"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={religionsEditorActions.changeSort}
+                  tip="Click to sort by religion name"
+                />
+                <SortableHeader
+                  field="type"
+                  label="Type"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={religionsEditorActions.changeSort}
+                  tip="Click to sort by religion type"
+                />
+                <SortableHeader
+                  field="form"
+                  label="Form"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={religionsEditorActions.changeSort}
+                  tip="Click to sort by religion form"
+                />
                 {!isBrushMode && (
                   <>
-                    <th
-                      data-tip="Click to sort by supreme deity"
-                      className={`sortable alphabetically ${sortBy === "deity" ? "sort-active" : ""}`}
-                      onClick={() => religionsEditorActions.changeSort("deity")}
-                    >
-                      Supreme Deity
-                    </th>
-                    <th
-                      data-tip="Click to sort by religion area"
-                      className={`sortable ${sortBy === "area" ? "sort-active" : ""}`}
-                      onClick={() => religionsEditorActions.changeSort("area")}
-                    >
-                      Area
-                    </th>
-                    <th
-                      data-tip="Click to sort by number of believers (religion area population)"
-                      className={`sortable ${sortBy === "population" ? "sort-active" : ""}`}
-                      onClick={() => religionsEditorActions.changeSort("population")}
-                    >
-                      Believers
-                    </th>
-                    <th
-                      data-tip="Click to sort by potential extent type"
-                      className={`sortable alphabetically ${sortBy === "expansion" ? "sort-active" : ""}`}
-                      onClick={() => religionsEditorActions.changeSort("expansion")}
-                    >
-                      Potential
-                    </th>
-                    <th
-                      data-tip="Click to sort by expansionism"
-                      className={`sortable ${sortBy === "expansionism" ? "sort-active" : ""}`}
-                      onClick={() => religionsEditorActions.changeSort("expansionism")}
-                    >
-                      Expansion
-                    </th>
+                    <SortableHeader
+                      field="deity"
+                      label="Supreme Deity"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={religionsEditorActions.changeSort}
+                      tip="Click to sort by supreme deity"
+                    />
+                    <SortableHeader
+                      field="area"
+                      label="Area"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={religionsEditorActions.changeSort}
+                      numeric
+                      tip="Click to sort by religion area"
+                    />
+                    <SortableHeader
+                      field="population"
+                      label="Believers"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={religionsEditorActions.changeSort}
+                      numeric
+                      tip="Click to sort by number of believers (religion area population)"
+                    />
+                    <SortableHeader
+                      field="expansion"
+                      label="Potential"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={religionsEditorActions.changeSort}
+                      tip="Click to sort by potential extent type"
+                    />
+                    <SortableHeader
+                      field="expansionism"
+                      label="Expansion"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={religionsEditorActions.changeSort}
+                      numeric
+                      tip="Click to sort by expansionism"
+                    />
                     <th></th>
                   </>
                 )}
               </tr>
             </thead>
-            <tbody>
-              {sortedReligions.map(r => {
+            <VirtualTableBody
+              items={sortedReligions}
+              scrollElementRef={parentRef}
+              renderRow={r => {
                 const populationTip = `Believers: ${si(r.population)}; Rural areas: ${si(r.rural)}; Urban areas: ${si(r.urban)}. Click to change`;
                 const areaText = isPercentageMode
                   ? `${totalArea > 0 ? rn((r.area / totalArea) * 100) : 0}%`
@@ -341,8 +363,8 @@ export const ReligionsEditorDialog: React.FC = () => {
                     )}
                   </tr>
                 );
-              })}
-            </tbody>
+              }}
+            />
           </table>
         </div>
 

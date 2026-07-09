@@ -1,15 +1,6 @@
 import { pointer } from "d3";
 import { clearMainTip, tip } from "../../hostServices";
-import {
-  applySorting,
-  confirmationDialog,
-  downloadFile,
-  findCell,
-  getFileName,
-  layerIsOn,
-  rn,
-  unique
-} from "../../hostUtils";
+import { confirmationDialog, downloadFile, findCell, getFileName, layerIsOn, rn, unique } from "../../hostUtils";
 import { getApi, getViewContext, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
@@ -102,8 +93,20 @@ export function goodsEditorAddLines(): void {
   );
   const totalStock = rn(Object.values(stockData).reduce((sum, d) => sum + d.total, 0));
 
+  const { sortBy, sortOrder } = getGoodsEditorTableState();
+  const sortedGoods = goods.sort((a, b) => {
+    let cmp = 0;
+    if (sortBy === "name") cmp = a.name.localeCompare(b.name);
+    else if (sortBy === "type") cmp = a.types.join(",").localeCompare(b.types.join(","));
+    else if (sortBy === "produced") cmp = a.produced - b.produced;
+    else if (sortBy === "stock") cmp = a.stock - b.stock;
+    else if (sortBy === "baseprice") cmp = a.basePrice - b.basePrice;
+
+    return sortOrder === "asc" ? cmp : -cmp;
+  });
+
   setGoodsEditorTableState({
-    goods,
+    goods: sortedGoods,
     totalProduced,
     totalStock,
     displayedCount: displayedGoods.size,
@@ -112,11 +115,29 @@ export function goodsEditorAddLines(): void {
     isAssignMode,
     selectedAssignGoodId
   });
+}
 
-  setTimeout(() => {
-    const header = document.getElementById("goodsHeader");
-    if (header) applySorting(header);
-  }, 0);
+export function toggleSortBy(column: string): void {
+  const { sortBy, sortOrder } = getGoodsEditorTableState();
+  if (sortBy === column) {
+    setGoodsEditorTableState({ sortOrder: sortOrder === "asc" ? "desc" : "asc" });
+  } else {
+    setGoodsEditorTableState({ sortBy: column, sortOrder: "desc" }); // usually desc first for numbers, but we can just use "asc" for names if we want, desc is a good default for numbers
+  }
+
+  // Re-sort current goods and update state without regenerating everything
+  const state = getGoodsEditorTableState();
+  const sortedGoods = [...state.goods].sort((a, b) => {
+    let cmp = 0;
+    if (state.sortBy === "name") cmp = a.name.localeCompare(b.name);
+    else if (state.sortBy === "type") cmp = a.types.join(",").localeCompare(b.types.join(","));
+    else if (state.sortBy === "produced") cmp = a.produced - b.produced;
+    else if (state.sortBy === "stock") cmp = a.stock - b.stock;
+    else if (state.sortBy === "baseprice") cmp = a.basePrice - b.basePrice;
+
+    return state.sortOrder === "asc" ? cmp : -cmp;
+  });
+  setGoodsEditorTableState({ goods: sortedGoods });
 }
 
 export function openProducersDialog(goodId: number): void {

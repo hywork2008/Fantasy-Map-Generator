@@ -1,6 +1,6 @@
 import React from "react";
 import { IconButton } from "../../../../ui/components/IconButton";
-
+import { VirtualTableBody } from "../../../../ui/components/VirtualTableBody";
 import { closeDialog, Dialog, FillBox, openConfirm, useDialogState } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 
@@ -131,11 +131,23 @@ export const MarketsOverviewDialog: React.FC = () => {
     );
   };
 
+  const parentRef = React.useRef<HTMLDivElement>(null);
+
   return (
-    <Dialog isOpen={isOpen} title="Markets Overview" onClose={() => closeDialog("marketsOverview")}>
+    <Dialog
+      isOpen={isOpen}
+      title="Markets Overview"
+      onClose={() => closeDialog("marketsOverview")}
+      className="overflow-hidden"
+    >
       <div id="marketsOverviewContainer">
-        <div id="marketsOverviewBody" className="table" data-type={isPercentageMode ? "percentage" : "absolute"}>
-          <table className="states-table">
+        <div
+          ref={parentRef}
+          id="marketsOverviewBody"
+          className="table"
+          data-type={isPercentageMode ? "percentage" : "absolute"}
+        >
+          <table className="fmg-table">
             <colgroup>
               <col />
               <col />
@@ -218,15 +230,19 @@ export const MarketsOverviewDialog: React.FC = () => {
                 )}
               </tr>
             </thead>
-            <tbody>
-              {markets.length === 0 ? (
+            {markets.length === 0 ? (
+              <tbody>
                 <tr>
                   <td colSpan={isManualMode ? 4 : 10}>
                     <span>No markets available</span>
                   </td>
                 </tr>
-              ) : (
-                sortedMarkets.map(m => {
+              </tbody>
+            ) : (
+              <VirtualTableBody
+                items={sortedMarkets}
+                scrollElementRef={parentRef}
+                renderRow={m => {
                   const displayVal = (val: number, total: number) => {
                     if (!isPercentageMode) return val;
                     return total ? `${((val / total) * 100).toFixed(2)}%` : "0%";
@@ -357,9 +373,9 @@ export const MarketsOverviewDialog: React.FC = () => {
                       )}
                     </tr>
                   );
-                })
-              )}
-            </tbody>
+                }}
+              />
+            )}
           </table>
         </div>
 
@@ -378,7 +394,7 @@ export const MarketsOverviewDialog: React.FC = () => {
           </div>
         </div>
 
-        <div id="marketsOverviewBottom">
+        <div id="marketsOverviewBottom" className="footer">
           {!isManualMode && (
             <>
               <button

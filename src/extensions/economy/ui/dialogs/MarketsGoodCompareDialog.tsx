@@ -1,5 +1,5 @@
 import React from "react";
-
+import { VirtualTableBody } from "../../../../ui/components/VirtualTableBody";
 import { closeDialog, Dialog, FillBox, useDialogState } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 
@@ -51,17 +51,20 @@ export const MarketsGoodCompareDialog: React.FC = () => {
     return avgPrice ? `${((value / avgPrice) * 100).toFixed(2)}%` : "0%";
   };
 
+  const parentRef = React.useRef<HTMLDivElement>(null);
+
   return (
     <Dialog
       isOpen={isOpen}
       title="Compare Good Stock"
+      className="overflow-hidden"
       onClose={() => {
         closeDialog("marketsGoodCompare");
         close();
       }}
     >
       <div id="marketsGoodCompareContainer">
-        <div className="d-flex">
+        <div className="d-flex header">
           <label htmlFor="marketsGoodCompareSelect" data-tip="Select good to compare stock across markets">
             Good:
           </label>
@@ -78,8 +81,13 @@ export const MarketsGoodCompareDialog: React.FC = () => {
           </select>
         </div>
 
-        <div id="marketsGoodCompareBody" className="table" data-type={isPercentageMode ? "percentage" : "absolute"}>
-          <table className="states-table">
+        <div
+          ref={parentRef}
+          id="marketsGoodCompareBody"
+          className="table"
+          data-type={isPercentageMode ? "percentage" : "absolute"}
+        >
+          <table className="fmg-table">
             <colgroup>
               <col />
               <col />
@@ -112,15 +120,19 @@ export const MarketsGoodCompareDialog: React.FC = () => {
                 </th>
               </tr>
             </thead>
-            <tbody>
-              {sortedRows.length === 0 ? (
+            {sortedRows.length === 0 ? (
+              <tbody>
                 <tr>
                   <td colSpan={4}>
                     <span>No market carries the selected good</span>
                   </td>
                 </tr>
-              ) : (
-                sortedRows.map(row => (
+              </tbody>
+            ) : (
+              <VirtualTableBody
+                items={sortedRows}
+                scrollElementRef={parentRef}
+                renderRow={row => (
                   <tr
                     key={row.marketId}
                     className="states pointer"
@@ -136,9 +148,9 @@ export const MarketsGoodCompareDialog: React.FC = () => {
                     <td>{displayValue(row.stock, totalStock)}</td>
                     <td>{displayPrice(row.price)}</td>
                   </tr>
-                ))
-              )}
-            </tbody>
+                )}
+              />
+            )}
           </table>
         </div>
 
@@ -151,7 +163,7 @@ export const MarketsGoodCompareDialog: React.FC = () => {
           </div>
         </div>
 
-        <div id="marketsGoodCompareBottom">
+        <div id="marketsGoodCompareBottom" className="footer">
           <button
             type="button"
             id="marketsGoodCompareRefresh"

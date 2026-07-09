@@ -1,6 +1,6 @@
 import React from "react";
 import { IconButton } from "../../../../ui/components/IconButton";
-
+import { VirtualTableBody } from "../../../../ui/components/VirtualTableBody";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { applySorting, formatPrice } from "../../../hostUtils";
 
@@ -37,9 +37,14 @@ export const MarketOverviewDialog: React.FC = () => {
   }, [isOpen]);
 
   return (
-    <Dialog isOpen={isOpen} title="Market Overview" onClose={() => closeDialog("marketOverview")}>
+    <Dialog
+      isOpen={isOpen}
+      title="Market Overview"
+      onClose={() => closeDialog("marketOverview")}
+      className="overflow-hidden"
+    >
       <div id="marketOverviewContainer">
-        <div id="marketOverviewNameLine" className="d-flex">
+        <div id="marketOverviewNameLine" className="d-flex header">
           <div className="label">Name:</div>
           <input
             id="marketOverviewName"
@@ -58,8 +63,8 @@ export const MarketOverviewDialog: React.FC = () => {
           />
         </div>
 
-        <div id="marketOverviewGoodsBody" className="table">
-          <table className="states-table">
+        <div ref={headerRef} id="marketOverviewGoodsBody" className="table">
+          <table className="fmg-table">
             <colgroup>
               <col />
               <col />
@@ -80,15 +85,19 @@ export const MarketOverviewDialog: React.FC = () => {
                 </th>
               </tr>
             </thead>
-            <tbody>
-              {rows.length === 0 ? (
+            {rows.length === 0 ? (
+              <tbody>
                 <tr>
                   <td colSpan={4}>
                     <span>No market goods available</span>
                   </td>
                 </tr>
-              ) : (
-                rows.map(row => (
+              </tbody>
+            ) : (
+              <VirtualTableBody
+                items={rows}
+                scrollElementRef={headerRef}
+                renderRow={row => (
                   <tr
                     key={row.goodId}
                     className="states marketGood"
@@ -112,9 +121,9 @@ export const MarketOverviewDialog: React.FC = () => {
                       {formatPrice(row.price)}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
+                )}
+              />
+            )}
           </table>
         </div>
 
@@ -135,7 +144,7 @@ export const MarketOverviewDialog: React.FC = () => {
           )}
         </div>
 
-        <div id="marketOverviewBottom">
+        <div id="marketOverviewBottom" className="footer">
           <button
             type="button"
             id="marketOverviewRefresh"

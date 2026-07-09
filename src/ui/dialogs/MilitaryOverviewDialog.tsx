@@ -1,5 +1,4 @@
-import type React from "react";
-import { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { worldContext } from "../../context/worldContext";
 import { downloadFile, getFileName } from "../../controllers/editors";
 import {
@@ -14,6 +13,8 @@ import { useMilitaryOverviewState } from "../../store/militaryOverviewState";
 import { capitalize, rn, si, wiki } from "../../utils";
 import { FillBox } from "../components/FillBox";
 import { IconButton } from "../components/IconButton";
+import { SortableHeader } from "../components/tables/SortableHeader";
+import { VirtualTableBody } from "../components/VirtualTableBody";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -160,6 +161,8 @@ export const MilitaryOverviewDialog: React.FC = () => {
     return si(val);
   };
 
+  const parentRef = React.useRef<HTMLDivElement>(null);
+
   return (
     <Dialog
       isOpen={isOpen}
@@ -168,60 +171,73 @@ export const MilitaryOverviewDialog: React.FC = () => {
       className="overflow-hidden"
     >
       <div id="militaryOverviewContainer">
-        <div id="militaryBody" className="table" data-type={percentageMode ? "percentage" : "absolute"}>
+        <div ref={parentRef} id="militaryBody" className="table" data-type={percentageMode ? "percentage" : "absolute"}>
           <table className="fmg-table">
             <thead>
               <tr id="militaryHeader">
-                <th
-                  data-tip="State name. Click to sort"
-                  className={`sortable alphabetically ${sortBy === "state" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
-                  onClick={() => toggleSortBy("state")}
-                >
-                  State
-                </th>
+                <SortableHeader
+                  field="state"
+                  label="State"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={toggleSortBy}
+                  tip="State name. Click to sort"
+                />
                 {militaryOptions.map(u => (
-                  <th
+                  <SortableHeader
                     key={u.name}
-                    data-tip={`State ${u.name} units number. Click to sort`}
-                    className={`sortable ${sortBy === u.name ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
-                    onClick={() => toggleSortBy(u.name)}
-                  >
-                    {capitalize(u.name.replace(/_/g, " "))}
-                  </th>
+                    field={u.name}
+                    label={capitalize(u.name.replace(/_/g, " "))}
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                    numeric
+                    tip={`State ${u.name} units number. Click to sort`}
+                  />
                 ))}
-                <th
-                  data-tip="Total military personnel (considering crew). Click to sort"
-                  className={`sortable ${sortBy === "total" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : "icon-sort-number-down"}`}
-                  onClick={() => toggleSortBy("total")}
-                >
-                  Total
-                </th>
-                <th
-                  data-tip="State population. Click to sort"
-                  className={`sortable ${sortBy === "population" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
-                  onClick={() => toggleSortBy("population")}
-                >
-                  Population
-                </th>
-                <th
-                  data-tip="Military personnel rate (% of state population). Depends on war alert. Click to sort"
-                  className={`sortable ${sortBy === "rate" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
-                  onClick={() => toggleSortBy("rate")}
-                >
-                  Rate
-                </th>
-                <th
-                  data-tip="War Alert. Modifier to military forces number, depends of political situation. Click to sort"
-                  className={`sortable ${sortBy === "alert" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : ""}`}
-                  onClick={() => toggleSortBy("alert")}
-                >
-                  War Alert
-                </th>
+                <SortableHeader
+                  field="total"
+                  label="Total"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={toggleSortBy}
+                  numeric
+                  tip="Total military personnel (considering crew). Click to sort"
+                />
+                <SortableHeader
+                  field="population"
+                  label="Population"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={toggleSortBy}
+                  numeric
+                  tip="State population. Click to sort"
+                />
+                <SortableHeader
+                  field="rate"
+                  label="Rate"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={toggleSortBy}
+                  numeric
+                  tip="Military personnel rate (% of state population). Depends on war alert. Click to sort"
+                />
+                <SortableHeader
+                  field="alert"
+                  label="War Alert"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={toggleSortBy}
+                  numeric
+                  tip="War Alert. Modifier to military forces number, depends of political situation. Click to sort"
+                />
                 <th></th>
               </tr>
             </thead>
-            <tbody>
-              {lines.map(l => (
+            <VirtualTableBody
+              items={lines}
+              scrollElementRef={parentRef}
+              renderRow={l => (
                 <tr
                   key={l.id}
                   className="states"
@@ -263,8 +279,8 @@ export const MilitaryOverviewDialog: React.FC = () => {
                     />
                   </td>
                 </tr>
-              ))}
-            </tbody>
+              )}
+            />
           </table>
         </div>
         <div id="militaryTotal" className="totalLine">

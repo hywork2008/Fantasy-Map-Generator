@@ -19,6 +19,7 @@ import { showElementLockTip } from "../../services/tooltipService";
 import { useDialogState } from "../../store/dialogState";
 import { useMarkersOverviewState } from "../../store/markersOverviewState";
 import { IconButton } from "../components/IconButton";
+import { VirtualTableBody } from "../components/VirtualTableBody";
 import { Dialog } from "./Dialog";
 import { closeDialog, openConfirm } from "./dialogService";
 
@@ -35,6 +36,7 @@ export const MarkersOverviewDialog: React.FC = () => {
     refresh
   } = useMarkersOverviewState();
   const menuRef = useRef<HTMLDivElement>(null);
+  const parentRef = useRef<HTMLDivElement>(null);
 
   const markerTypes = useMemo(() => [{ type: "empty", icon: "❓" }, ...Markers.getConfig()], []);
 
@@ -102,7 +104,7 @@ export const MarkersOverviewDialog: React.FC = () => {
       className="overflow-hidden"
     >
       <div id="markersOverviewContainer">
-        <div id="markersBody" className="table">
+        <div ref={parentRef} id="markersBody" className="table">
           <table className="fmg-table">
             <thead>
               <tr id="markersHeader">
@@ -122,8 +124,10 @@ export const MarkersOverviewDialog: React.FC = () => {
                 <th></th>
               </tr>
             </thead>
-            <tbody>
-              {filteredMarkers.map(({ i, type, icon, pinned, lock }) => (
+            <VirtualTableBody
+              items={filteredMarkers}
+              scrollElementRef={parentRef}
+              renderRow={({ i, type, icon, pinned, lock }) => (
                 <tr key={i} className="states" data-i={i} data-type={type}>
                   <td className="d-flex">
                     {icon.startsWith("http") || icon.startsWith("data:image") ? (
@@ -168,8 +172,8 @@ export const MarkersOverviewDialog: React.FC = () => {
                     />
                   </td>
                 </tr>
-              ))}
-            </tbody>
+              )}
+            />
           </table>
         </div>
 

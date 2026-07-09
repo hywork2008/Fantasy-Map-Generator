@@ -6,8 +6,8 @@ export const TradeAnimationDialog: React.FC = () => {
 
   return (
     <Dialog isOpen={isOpen} title="Trade Animation" onClose={() => closeDialog("tradeAnimationEditor")}>
-      <div id="tradeAnimationEditorContainer">
-        <div data-tip="Select which trade types to display">
+      <div id="tradeAnimationEditorContainer" className="fmg-dialog-content overflow-hidden">
+        <div data-tip="Select which trade types to display" className="header">
           <label htmlFor="tradeAnimationDisplayType">Display:</label>
           <select id="tradeAnimationDisplayType">
             <option value="both">Both local and global</option>

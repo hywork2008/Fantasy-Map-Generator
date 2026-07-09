@@ -1,5 +1,4 @@
-import type React from "react";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { worldContext } from "../../context/worldContext";
 import { statesEditorActions } from "../../controllers/states-editor";
 import { useExtensionState } from "../../store/extensionState";
@@ -9,6 +8,8 @@ import { getAreaUnit } from "../../utils/domUtils";
 import { FillBox } from "../components/FillBox";
 import { IconButton } from "../components/IconButton";
 import { SliderInput } from "../components/SliderInput";
+import { SortableHeader } from "../components/tables/SortableHeader";
+import { VirtualTableBody } from "../components/VirtualTableBody";
 
 export const StatesEditorContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -72,19 +73,13 @@ export const StatesEditorContent: React.FC = () => {
     });
   }, [states, sortBy, sortDirection, overviewColumns]);
 
-  const renderSortIcon = (field: string) => {
-    if (sortBy !== field) return null;
-    return sortDirection === 1 ? "icon-sort-name-up" : "icon-sort-name-down";
-  };
-
-  const getSortIconNumber = (field: string) => {
-    if (sortBy !== field) return null;
-    return sortDirection === 1 ? "icon-sort-number-up" : "icon-sort-number-down";
-  };
+  const sortOrder = sortDirection === 1 ? "asc" : "desc";
 
   const areaUnit = getAreaUnit();
 
   const ActiveExtensionComponent = editorTabs.find(t => t.id === activeTab)?.component;
+
+  const parentRef = React.useRef<HTMLDivElement>(null);
 
   return (
     <div id="statesEditor">
@@ -123,6 +118,7 @@ export const StatesEditorContent: React.FC = () => {
       {activeTab === "overview" ? (
         <>
           <div
+            ref={parentRef}
             id="statesBodySection"
             className="table -states-editor-dialog__max-height-400px--overflow-y-auto"
             data-type="absolute"
@@ -130,102 +126,118 @@ export const StatesEditorContent: React.FC = () => {
             <table className="fmg-table">
               <thead>
                 <tr id="statesHeader">
-                  <th
-                    data-tip="Click to sort by state name"
-                    className="sortable alphabetically"
-                    onClick={() => statesEditorActions.changeSort("name")}
-                  >
-                    State
-                    <span className={renderSortIcon("name") || ""} />
-                  </th>
-                  <th
-                    data-tip="Click to sort by state form name"
-                    className="sortable alphabetically"
-                    onClick={() => statesEditorActions.changeSort("formName")}
-                  >
-                    Form
-                    <span className={renderSortIcon("formName") || ""} />
-                  </th>
-                  <th
-                    data-tip="Click to sort by capital name"
-                    className="sortable alphabetically"
-                    onClick={() => statesEditorActions.changeSort("capitalName")}
-                  >
-                    Capital
-                    <span className={renderSortIcon("capitalName") || ""} />
-                  </th>
-                  <th
-                    data-tip="Click to sort by state dominant culture"
-                    className="sortable alphabetically hide"
-                    onClick={() => statesEditorActions.changeSort("cultureName")}
-                  >
-                    Culture
-                    <span className={renderSortIcon("cultureName") || ""} />
-                  </th>
-                  <th
-                    data-tip="Click to sort by state burgs count"
-                    className="sortable hide"
-                    onClick={() => statesEditorActions.changeSort("burgs")}
-                  >
-                    Burgs
-                    <span className={getSortIconNumber("burgs") || ""} />
-                  </th>
-                  <th
-                    data-tip="Click to sort by state area"
-                    className="sortable hide"
-                    onClick={() => statesEditorActions.changeSort("area")}
-                  >
-                    Area
-                    <span className={getSortIconNumber("area") || ""} />
-                  </th>
-                  <th
-                    data-tip="Click to sort by state population"
-                    className="sortable hide"
-                    onClick={() => statesEditorActions.changeSort("population")}
-                  >
-                    Population
-                    <span className={getSortIconNumber("population") || ""} />
-                  </th>
+                  <SortableHeader
+                    field="name"
+                    label="State"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={statesEditorActions.changeSort}
+                    tip="Click to sort by state name"
+                  />
+                  <SortableHeader
+                    field="formName"
+                    label="Form"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={statesEditorActions.changeSort}
+                    tip="Click to sort by state form name"
+                  />
+                  <SortableHeader
+                    field="capitalName"
+                    label="Capital"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={statesEditorActions.changeSort}
+                    tip="Click to sort by capital name"
+                  />
+                  <SortableHeader
+                    field="cultureName"
+                    label="Culture"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={statesEditorActions.changeSort}
+                    tip="Click to sort by state dominant culture"
+                    className="hide"
+                  />
+                  <SortableHeader
+                    field="burgs"
+                    label="Burgs"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={statesEditorActions.changeSort}
+                    numeric
+                    tip="Click to sort by state burgs count"
+                    className="hide"
+                  />
+                  <SortableHeader
+                    field="area"
+                    label="Area"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={statesEditorActions.changeSort}
+                    numeric
+                    tip="Click to sort by state area"
+                    className="hide"
+                  />
+                  <SortableHeader
+                    field="population"
+                    label="Population"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={statesEditorActions.changeSort}
+                    numeric
+                    tip="Click to sort by state population"
+                    className="hide"
+                  />
                   {overviewColumns.map(column => (
-                    <th
+                    <SortableHeader
                       key={column.id}
-                      data-tip={column.tip}
-                      className="sortable hide"
-                      onClick={() => statesEditorActions.changeSort(column.id)}
-                    >
-                      {column.label}
-                      <span className={getSortIconNumber(column.id) || ""} />
-                    </th>
+                      field={column.id}
+                      label={column.label}
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={statesEditorActions.changeSort}
+                      numeric
+                      tip={column.tip}
+                      className="hide"
+                    />
                   ))}
-                  <th
-                    data-tip="Click to sort by state type"
-                    className="sortable alphabetically hidden show hide"
-                    onClick={() => statesEditorActions.changeSort("type")}
-                  >
-                    Type
-                    <span className={renderSortIcon("type") || ""} />
-                  </th>
-                  <th
-                    data-tip="Click to sort by state expansion value"
-                    className="sortable hidden show hide"
-                    onClick={() => statesEditorActions.changeSort("expansionism")}
-                  >
-                    Expansion
-                    <span className={getSortIconNumber("expansionism") || ""} />
-                  </th>
-                  <th
-                    data-tip="Click to sort by state cells count"
-                    className="sortable hidden show hide"
-                    onClick={() => statesEditorActions.changeSort("cells")}
-                  >
-                    Cells
-                    <span className={getSortIconNumber("cells") || ""} />
-                  </th>
+                  <SortableHeader
+                    field="type"
+                    label="Type"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={statesEditorActions.changeSort}
+                    tip="Click to sort by state type"
+                    className="hidden show hide"
+                  />
+                  <SortableHeader
+                    field="expansionism"
+                    label="Expansion"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={statesEditorActions.changeSort}
+                    numeric
+                    tip="Click to sort by state expansion value"
+                    className="hidden show hide"
+                  />
+                  <SortableHeader
+                    field="cells"
+                    label="Cells"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={statesEditorActions.changeSort}
+                    numeric
+                    tip="Click to sort by state cells count"
+                    className="hidden show hide"
+                  />
                   <th></th>
                 </tr>
               </thead>
-              <tbody>
-                {sortedStates.map(s => {
+              <VirtualTableBody
+                items={sortedStates}
+                scrollElementRef={parentRef}
+                renderRow={s => {
                   const isNeutral = !s.i;
                   const areaText =
                     isPercentageMode && !isNeutral && totalArea
@@ -404,8 +416,8 @@ export const StatesEditorContent: React.FC = () => {
                       </td>
                     </tr>
                   );
-                })}
-              </tbody>
+                }}
+              />
             </table>
           </div>
           <div id="statesTotal" className="totalLine">

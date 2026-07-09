@@ -1,6 +1,7 @@
 import type React from "react";
+import { useRef } from "react";
+import { VirtualTableBody } from "../../../../ui/components/VirtualTableBody";
 import { Dialog } from "../../../hostUi";
-
 import { setGoodsProducersDialogState, useGoodsProducersDialogState } from "../../store/goodsProducersDialogState";
 
 export const GoodsProducersDialog: React.FC = () => {
@@ -11,14 +12,16 @@ export const GoodsProducersDialog: React.FC = () => {
 
   const close = () => setGoodsProducersDialogState({ isOpen: false });
 
+  const parentRef = useRef<HTMLDivElement>(null);
+
   return (
-    <Dialog isOpen={isOpen} title={`${goodName} — Producers`} onClose={close}>
+    <Dialog isOpen={isOpen} title={`${goodName} — Producers`} onClose={close} className="overflow-hidden">
       <div id="goodsProducersContainer">
         {producers.length === 0 ? (
           <i>No burgs produced {goodName}.</i>
         ) : (
-          <div className="table">
-            <table className="states-table">
+          <div ref={parentRef} className="table">
+            <table className="fmg-table">
               <colgroup>
                 <col />
                 <col />
@@ -31,8 +34,10 @@ export const GoodsProducersDialog: React.FC = () => {
                   <th>Units</th>
                 </tr>
               </thead>
-              <tbody>
-                {producers.map(p => (
+              <VirtualTableBody
+                items={producers}
+                scrollElementRef={parentRef}
+                renderRow={p => (
                   <tr
                     key={p.id}
                     data-tip="Click to zoom to burg"
@@ -45,8 +50,8 @@ export const GoodsProducersDialog: React.FC = () => {
                     <td>{p.name}</td>
                     <td>{p.units}</td>
                   </tr>
-                ))}
-              </tbody>
+                )}
+              />
             </table>
           </div>
         )}

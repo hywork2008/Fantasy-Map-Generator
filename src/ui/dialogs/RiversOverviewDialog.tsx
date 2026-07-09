@@ -1,6 +1,5 @@
 import { mean } from "d3";
-import type React from "react";
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { worldContext } from "../../context/worldContext";
 import { getFileName, highlightElement } from "../../controllers/editors";
 import { toggleRivers } from "../../controllers/layers";
@@ -15,6 +14,7 @@ import { useRiversOverviewState } from "../../store/riversOverviewState";
 import { rn } from "../../utils";
 import { layerIsOn } from "../../utils/nodeUtils";
 import { IconButton } from "../components/IconButton";
+import { VirtualTableBody } from "../components/VirtualTableBody";
 import { Dialog } from "./Dialog";
 import { closeDialog, openConfirm } from "./dialogService";
 
@@ -161,6 +161,8 @@ export const RiversOverviewDialog: React.FC = () => {
     link.click();
   }
 
+  const parentRef = React.useRef<HTMLDivElement>(null);
+
   return (
     <Dialog
       isOpen={isOpen}
@@ -169,7 +171,7 @@ export const RiversOverviewDialog: React.FC = () => {
       className="overflow-hidden"
     >
       <div id="riversOverviewContainer">
-        <div id="riversBody" className="table">
+        <div ref={parentRef} id="riversBody" className="table">
           <table className="fmg-table">
             <thead>
               <tr id="riversHeader">
@@ -218,8 +220,10 @@ export const RiversOverviewDialog: React.FC = () => {
                 <th></th>
               </tr>
             </thead>
-            <tbody>
-              {filteredRivers.map(r => {
+            <VirtualTableBody
+              items={filteredRivers}
+              scrollElementRef={parentRef}
+              renderRow={r => {
                 const basin = riversById.get(r.basin)?.name || "";
                 return (
                   <tr
@@ -284,8 +288,8 @@ export const RiversOverviewDialog: React.FC = () => {
                     </td>
                   </tr>
                 );
-              })}
-            </tbody>
+              }}
+            />
           </table>
         </div>
         <div id="riversTotal" className="totalLine">

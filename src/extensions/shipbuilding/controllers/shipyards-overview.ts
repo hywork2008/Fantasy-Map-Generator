@@ -1,3 +1,4 @@
+import { closeDialog, openDialog } from "../../../ui/dialogs/dialogService";
 import { getShipClass } from "../generators/shipClasses";
 import type { ShipyardCandidate } from "../generators/shipyardCandidates";
 import { getCompletedHulls, getQueueEntry } from "../generators/shipyardQueue";
@@ -47,6 +48,7 @@ export function openShipyardsOverview(
   onZoom: (x: number, y: number) => void
 ): void {
   setShipyardsOverviewState({ isOpen: true, rows: buildRows(candidates), onZoom });
+  openDialog("ShipyardsOverviewDialog");
 }
 
 /** Called after every simulation tick so an already-open dialog reflects live build progress. */
@@ -57,4 +59,5 @@ export function refreshShipyardsOverviewIfOpen(candidates: readonly ShipyardCand
 
 export function closeShipyardsOverview(): void {
   setShipyardsOverviewState({ isOpen: false });
+  closeDialog("ShipyardsOverviewDialog");
 }

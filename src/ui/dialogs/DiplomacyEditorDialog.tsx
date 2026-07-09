@@ -1,8 +1,10 @@
 import type React from "react";
+import { useRef } from "react";
 import { diplomacyEditorActions } from "../../controllers/diplomacy-editor";
 import { useDiplomacyEditorState } from "../../store/diplomacyEditorState";
 import { si } from "../../utils";
 import { IconButton } from "../components/IconButton";
+import { VirtualTableBody } from "../components/VirtualTableBody";
 
 export const DiplomacyEditorContent: React.FC = () => {
   const { states, selectedStateId } = useDiplomacyEditorState();
@@ -23,9 +25,11 @@ export const DiplomacyEditorContent: React.FC = () => {
     diplomacyEditorActions.stateHighlightOff();
   };
 
+  const parentRef = useRef<HTMLDivElement>(null);
+
   return (
     <div id="diplomacyEditorContainer">
-      <div id="diplomacyBodySection" className="table">
+      <div ref={parentRef} id="diplomacyBodySection" className="table">
         <table className="fmg-table">
           <thead>
             <tr id="diplomacyHeader">
@@ -44,8 +48,10 @@ export const DiplomacyEditorContent: React.FC = () => {
               </th>
             </tr>
           </thead>
-          <tbody>
-            {states.map(s => {
+          <VirtualTableBody
+            items={states}
+            scrollElementRef={parentRef}
+            renderRow={s => {
               const isSelf = s.i === selectedStateId;
               if (isSelf) {
                 return (
@@ -109,8 +115,8 @@ export const DiplomacyEditorContent: React.FC = () => {
                   <td data-tip={`${s.name} total military forces`}>{si(s.totalForces)}</td>
                 </tr>
               );
-            })}
-          </tbody>
+            }}
+          />
         </table>
       </div>
       <div className="info-line">

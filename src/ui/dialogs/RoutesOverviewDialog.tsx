@@ -1,5 +1,4 @@
-import type React from "react";
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { worldContext } from "../../context/worldContext";
 import { confirmationDialog, downloadFile, getFileName, highlightElement } from "../../controllers/editors";
 import { toggleRoutes } from "../../controllers/layers";
@@ -13,6 +12,8 @@ import { useRoutesOverviewState } from "../../store/routesOverviewState";
 import { rn } from "../../utils";
 import { layerIsOn } from "../../utils/nodeUtils";
 import { IconButton } from "../components/IconButton";
+import { SortableHeader } from "../components/tables/SortableHeader";
+import { VirtualTableBody } from "../components/VirtualTableBody";
 import { Dialog } from "./Dialog";
 import { closeDialog, openConfirm } from "./dialogService";
 
@@ -173,6 +174,8 @@ export const RoutesOverviewDialog: React.FC = () => {
 
   const allLocked = worldContext.pack?.routes?.length > 0 && worldContext.pack.routes.every(r => r.lock);
 
+  const parentRef = React.useRef<HTMLDivElement>(null);
+
   return (
     <Dialog
       isOpen={isOpen}
@@ -181,36 +184,42 @@ export const RoutesOverviewDialog: React.FC = () => {
       className="overflow-hidden"
     >
       <div id="routesOverviewContainer">
-        <div id="routesBody" className="table">
+        <div ref={parentRef} id="routesBody" className="table">
           <table className="fmg-table">
             <thead>
               <tr id="routesHeader">
-                <th
-                  data-tip="Click to sort by route name"
-                  className={`sortable alphabetically ${sortBy === "name" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
-                  onClick={() => toggleSortBy("name")}
-                >
-                  Route
-                </th>
-                <th
-                  data-tip="Click to sort by route group"
-                  className={`sortable alphabetically ${sortBy === "group" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
-                  onClick={() => toggleSortBy("group")}
-                >
-                  Group
-                </th>
-                <th
-                  data-tip="Click to sort by route length"
-                  className={`sortable ${sortBy === "length" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : "icon-sort-number-down"}`}
-                  onClick={() => toggleSortBy("length")}
-                >
-                  Length
-                </th>
+                <SortableHeader
+                  field="name"
+                  label="Route"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={toggleSortBy}
+                  tip="Click to sort by route name"
+                />
+                <SortableHeader
+                  field="group"
+                  label="Group"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={toggleSortBy}
+                  tip="Click to sort by route group"
+                />
+                <SortableHeader
+                  field="length"
+                  label="Length"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={toggleSortBy}
+                  numeric
+                  tip="Click to sort by route length"
+                />
                 <th></th>
               </tr>
             </thead>
-            <tbody>
-              {filteredRoutes.map(route => {
+            <VirtualTableBody
+              items={filteredRoutes}
+              scrollElementRef={parentRef}
+              renderRow={route => {
                 if (!route.points || route.points.length < 2) return null;
                 const lengthStr = `${rn((route.length || 0) * worldContext.distanceScale)} ${distanceUnit}`;
                 return (
@@ -258,8 +267,8 @@ export const RoutesOverviewDialog: React.FC = () => {
                     </td>
                   </tr>
                 );
-              })}
-            </tbody>
+              }}
+            />
           </table>
         </div>
         <div id="routesTotal" className="totalLine">

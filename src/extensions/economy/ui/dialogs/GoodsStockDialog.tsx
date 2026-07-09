@@ -1,6 +1,7 @@
 import type React from "react";
+import { useRef } from "react";
+import { VirtualTableBody } from "../../../../ui/components/VirtualTableBody";
 import { Dialog } from "../../../hostUi";
-
 import { setGoodsStockDialogState, useGoodsStockDialogState } from "../../store/goodsStockDialogState";
 
 export const GoodsStockDialog: React.FC = () => {
@@ -11,14 +12,16 @@ export const GoodsStockDialog: React.FC = () => {
 
   const close = () => setGoodsStockDialogState({ isOpen: false });
 
+  const parentRef = useRef<HTMLDivElement>(null);
+
   return (
-    <Dialog isOpen={isOpen} title={`${goodName} — Stock`} onClose={close}>
+    <Dialog isOpen={isOpen} title={`${goodName} — Stock`} onClose={close} className="overflow-hidden">
       <div id="goodsStockContainer">
         {sources.length === 0 ? (
           <i>No stock of {goodName} found in any market or burg inventory.</i>
         ) : (
-          <div className="table">
-            <table className="states-table">
+          <div ref={parentRef} className="table">
+            <table className="fmg-table">
               <colgroup>
                 <col />
                 <col />
@@ -31,8 +34,10 @@ export const GoodsStockDialog: React.FC = () => {
                   <th>Units</th>
                 </tr>
               </thead>
-              <tbody>
-                {sources.map(s => (
+              <VirtualTableBody
+                items={sources}
+                scrollElementRef={parentRef}
+                renderRow={s => (
                   <tr
                     key={`${s.type}-${s.id}`}
                     data-tip="Click to zoom to location"
@@ -45,8 +50,8 @@ export const GoodsStockDialog: React.FC = () => {
                     <td>{s.name}</td>
                     <td>{s.stock}</td>
                   </tr>
-                ))}
-              </tbody>
+                )}
+              />
             </table>
           </div>
         )}
