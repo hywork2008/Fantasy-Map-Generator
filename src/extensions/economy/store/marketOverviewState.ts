@@ -14,6 +14,7 @@ export interface MarketOverviewBurgMerchantRow {
   burgId: number;
   burgName: string;
   topMerchantName: string;
+  topMerchantId?: number;
   topShare: number;
   topRevenue: number;
   rivals: string;

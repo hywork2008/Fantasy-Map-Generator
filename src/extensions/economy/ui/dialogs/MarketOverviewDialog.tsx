@@ -2,7 +2,8 @@ import React from "react";
 import { IconButton } from "../../../../ui/components/IconButton";
 import { SortableHeader } from "../../../../ui/components/tables/SortableHeader";
 import { VirtualTableBody } from "../../../../ui/components/VirtualTableBody";
-import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
+import { useCharactersUiState } from "../../../characters/ui/charactersUiState";
+import { closeDialog, Dialog, openDialog, useDialogState } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 
 import {
@@ -61,8 +62,8 @@ export const MarketOverviewDialog: React.FC = () => {
   const sortedGoods = React.useMemo(() => {
     const arr = [...rows];
     arr.sort((a, b) => {
-      const aVal = a[goodsSortBy];
-      const bVal = b[goodsSortBy];
+      const aVal = a[goodsSortBy] ?? "";
+      const bVal = b[goodsSortBy] ?? "";
       const dir = goodsSortOrder === "asc" ? 1 : -1;
       if (aVal > bVal) return 1 * dir;
       if (aVal < bVal) return -1 * dir;
@@ -74,8 +75,8 @@ export const MarketOverviewDialog: React.FC = () => {
   const sortedMerchants = React.useMemo(() => {
     const arr = [...burgMerchantRows];
     arr.sort((a, b) => {
-      const aVal = a[merchantsSortBy];
-      const bVal = b[merchantsSortBy];
+      const aVal = a[merchantsSortBy] ?? "";
+      const bVal = b[merchantsSortBy] ?? "";
       const dir = merchantsSortOrder === "asc" ? 1 : -1;
       if (aVal > bVal) return 1 * dir;
       if (aVal < bVal) return -1 * dir;
@@ -319,7 +320,23 @@ export const MarketOverviewDialog: React.FC = () => {
                   renderRow={row => (
                     <tr key={row.burgId} className="states">
                       <td>{row.burgName}</td>
-                      <td>{row.topMerchantName}</td>
+                      <td
+                        className={row.topMerchantId !== undefined ? "pointer actionLink" : ""}
+                        data-tip={
+                          row.topMerchantId !== undefined
+                            ? "Merchant with the largest revenue share in this burg. Click to view details"
+                            : undefined
+                        }
+                        onClick={e => {
+                          if (row.topMerchantId !== undefined) {
+                            e.stopPropagation();
+                            useCharactersUiState.getState().setSelectedCharacterId(row.topMerchantId);
+                            openDialog("characterDetails");
+                          }
+                        }}
+                      >
+                        {row.topMerchantName}
+                      </td>
                       <td style={{ textAlign: "right" }}>{row.topShare.toFixed(1)}%</td>
                       <td style={{ textAlign: "right" }}>{formatPrice(row.topRevenue)}</td>
                       <td>{row.rivals}</td>

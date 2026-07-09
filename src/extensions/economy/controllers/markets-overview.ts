@@ -92,6 +92,7 @@ function marketsOverviewAddLines(): void {
       i: market.i,
       centerName,
       managerName,
+      managerId: market.managerCharacterId,
       cells,
       burgs,
       stock,

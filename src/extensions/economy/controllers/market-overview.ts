@@ -133,6 +133,7 @@ function getBurgMerchantRows(burgs: Burg[]): MarketOverviewBurgMerchantRow[] {
         burgId: burg.i,
         burgName: burg.name || `Burg ${burg.i}`,
         topMerchantName: getMerchantName(dominant?.characterId),
+        topMerchantId: dominant?.characterId,
         topShare: dominant?.share ?? 0,
         topRevenue: dominant?.revenue ?? 0,
         rivals

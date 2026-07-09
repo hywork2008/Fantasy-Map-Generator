@@ -4,6 +4,7 @@ export interface MarketRowData {
   i: number;
   centerName: string;
   managerName: string;
+  managerId?: number;
   cells: number;
   burgs: number;
   stock: number;

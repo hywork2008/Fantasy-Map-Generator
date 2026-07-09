@@ -1,7 +1,8 @@
 import React from "react";
 import { IconButton } from "../../../../ui/components/IconButton";
 import { VirtualTableBody } from "../../../../ui/components/VirtualTableBody";
-import { closeDialog, Dialog, FillBox, openConfirm, useDialogState } from "../../../hostUi";
+import { useCharactersUiState } from "../../../characters/ui/charactersUiState";
+import { closeDialog, Dialog, FillBox, openConfirm, openDialog, useDialogState } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 
 import {
@@ -73,13 +74,13 @@ export const MarketsOverviewDialog: React.FC = () => {
           ? left.centerName.toLowerCase()
           : sortBy === "manager"
             ? left.managerName.toLowerCase()
-            : left[sortBy as keyof typeof left];
+            : (left[sortBy as keyof typeof left] ?? "");
       const rightValue =
         sortBy === "market"
           ? right.centerName.toLowerCase()
           : sortBy === "manager"
             ? right.managerName.toLowerCase()
-            : right[sortBy as keyof typeof right];
+            : (right[sortBy as keyof typeof right] ?? "");
 
       if (leftValue < rightValue) return -1 * sortDirection;
       if (leftValue > rightValue) return 1 * sortDirection;
@@ -277,7 +278,12 @@ export const MarketsOverviewDialog: React.FC = () => {
                         >
                           {m.centerName}
                         </td>
-                        <td className="marketOwner">{m.managerName}</td>
+                        <td
+                          className="marketOwner"
+                          data-tip="Cells with no market; their burgs are excluded from production"
+                        >
+                          {m.managerName}
+                        </td>
                         <td className="marketCells" data-tip="Number of cells with no market" data-type="cells">
                           {displayVal(m.cells, totals.cells)}
                         </td>
@@ -331,7 +337,21 @@ export const MarketsOverviewDialog: React.FC = () => {
                       <td className="marketName" data-tip="Market name. Click to view details">
                         {m.centerName}
                       </td>
-                      <td className="marketOwner" data-tip="Responsible market manager character">
+                      <td
+                        className={`marketOwner ${m.managerId !== undefined ? "pointer actionLink" : ""}`}
+                        data-tip={
+                          m.managerId !== undefined
+                            ? "Responsible market manager character. Click to view details"
+                            : "Responsible market manager character"
+                        }
+                        onClick={e => {
+                          if (m.managerId !== undefined) {
+                            e.stopPropagation();
+                            useCharactersUiState.getState().setSelectedCharacterId(m.managerId);
+                            openDialog("characterDetails");
+                          }
+                        }}
+                      >
                         {m.managerName}
                       </td>
                       <td className="marketCells" data-tip="Number of cells in market territory" data-type="cells">
