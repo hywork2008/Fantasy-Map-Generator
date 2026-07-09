@@ -5,12 +5,14 @@ import type { WorldContext } from "../../../context/worldContext";
 import { Rivers } from "../../../generators/river-generator";
 import type { Route } from "../../../types/models";
 import type { PackedGraphCells, PackedGraphVertices } from "../../../types/PackedGraph";
+import type { WebglPickKind } from "../../../types/webglPicking";
 import { isCellInScope } from "../../core/focusScope";
 
 export type DeckPosition = [number, number];
 
 export interface DeckCellPolygon {
   id: string;
+  kind: WebglPickKind;
   cellId: number;
   polygon: DeckPosition[];
   fillColor: Color;
@@ -21,7 +23,8 @@ export interface DeckPath {
   path: DeckPosition[];
   color: Color;
   width: number;
-  kind: "cell" | "grid" | "border" | "river" | "route";
+  kind: WebglPickKind;
+  cellId: number | null;
 }
 
 export function colorToRgba(value: string | undefined, fallback: string, opacity = 1): Color {
@@ -36,6 +39,7 @@ export function buildBackgroundPolygons(worldContext: Readonly<WorldContext>): D
   return [
     {
       id: "background-ocean",
+      kind: "background",
       cellId: -1,
       polygon: [
         [0, 0],
@@ -48,11 +52,21 @@ export function buildBackgroundPolygons(worldContext: Readonly<WorldContext>): D
   ];
 }
 
+export function buildLandPolygonsBase(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  fill = "#eef6fb"
+): DeckCellPolygon[] {
+  return buildLandPolygons(worldContext, focusScope, "land", () => colorToRgba(fill, "#eef6fb"));
+}
+
 export function buildHeightPolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null
 ): DeckCellPolygon[] {
-  return buildCellPolygons(worldContext, focusScope, cellId => heightColor(worldContext.pack.cells.h[cellId]));
+  return buildCellPolygons(worldContext, focusScope, "height", cellId =>
+    heightColor(worldContext.pack.cells.h[cellId])
+  );
 }
 
 export function buildBiomesPolygons(
@@ -60,8 +74,8 @@ export function buildBiomesPolygons(
   focusScope: FocusScope | null
 ): DeckCellPolygon[] {
   const { pack, biomesData } = worldContext;
-  return buildLandPolygons(worldContext, focusScope, cellId =>
-    colorToRgba(biomesData.color[pack.cells.biome[cellId]], "#999999")
+  return buildLandPolygons(worldContext, focusScope, "biome", cellId =>
+    colorToRgba(biomesData.color[pack.cells.biome[cellId]], "#999999", 0.9)
   );
 }
 
@@ -70,8 +84,8 @@ export function buildCulturePolygons(
   focusScope: FocusScope | null
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
-  return buildLandPolygons(worldContext, focusScope, cellId =>
-    colorToRgba(pack.cultures[pack.cells.culture[cellId]]?.color, "#999999")
+  return buildLandPolygons(worldContext, focusScope, "culture", cellId =>
+    colorToRgba(pack.cultures[pack.cells.culture[cellId]]?.color, "#999999", 0.78)
   );
 }
 
@@ -80,8 +94,8 @@ export function buildReligionPolygons(
   focusScope: FocusScope | null
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
-  return buildLandPolygons(worldContext, focusScope, cellId =>
-    colorToRgba(pack.religions[pack.cells.religion[cellId]]?.color, "#999999")
+  return buildLandPolygons(worldContext, focusScope, "religion", cellId =>
+    colorToRgba(pack.religions[pack.cells.religion[cellId]]?.color, "#999999", 0.78)
   );
 }
 
@@ -90,8 +104,8 @@ export function buildStatePolygons(
   focusScope: FocusScope | null
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
-  return buildLandPolygons(worldContext, focusScope, cellId =>
-    colorToRgba(pack.states[pack.cells.state[cellId]]?.color, "#999999")
+  return buildLandPolygons(worldContext, focusScope, "state", cellId =>
+    colorToRgba(pack.states[pack.cells.state[cellId]]?.color, "#999999", 0.72)
   );
 }
 
@@ -100,8 +114,8 @@ export function buildProvincePolygons(
   focusScope: FocusScope | null
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
-  return buildLandPolygons(worldContext, focusScope, cellId =>
-    colorToRgba(pack.provinces[pack.cells.province[cellId]]?.color, "#999999")
+  return buildLandPolygons(worldContext, focusScope, "province", cellId =>
+    colorToRgba(pack.provinces[pack.cells.province[cellId]]?.color, "#999999", 0.68)
   );
 }
 
@@ -116,7 +130,7 @@ export function buildZonePolygons(
     for (const cellId of zone.cells ?? []) zoneByCell.set(cellId, zone.color);
   }
 
-  return buildLandPolygons(worldContext, focusScope, cellId => {
+  return buildLandPolygons(worldContext, focusScope, "zone", cellId => {
     const color = zoneByCell.get(cellId);
     return color ? colorToRgba(color, "#999999", 0.65) : [0, 0, 0, 0];
   }).filter(polygon => (polygon.fillColor[3] ?? 255) > 0);
@@ -127,7 +141,7 @@ export function buildTemperaturePolygons(
   focusScope: FocusScope | null
 ): DeckCellPolygon[] {
   const { grid, pack } = worldContext;
-  return buildCellPolygons(worldContext, focusScope, cellId => {
+  return buildCellPolygons(worldContext, focusScope, "temperature", cellId => {
     const temp = grid.cells.temp?.[pack.cells.g[cellId]] ?? 0;
     if (temp < -5) return colorToRgba("#3f7cc7", "#3f7cc7", 0.72);
     if (temp < 10) return colorToRgba("#8fc6da", "#8fc6da", 0.72);
@@ -141,7 +155,7 @@ export function buildPrecipitationPolygons(
   focusScope: FocusScope | null
 ): DeckCellPolygon[] {
   const { grid, pack } = worldContext;
-  return buildLandPolygons(worldContext, focusScope, cellId => {
+  return buildLandPolygons(worldContext, focusScope, "precipitation", cellId => {
     const precipitation = grid.cells.prec?.[pack.cells.g[cellId]] ?? 0;
     const alpha = Math.min(0.75, Math.max(0.18, precipitation / 220));
     return colorToRgba("#2d7dd2", "#2d7dd2", alpha);
@@ -153,7 +167,7 @@ export function buildDangerPolygons(
   focusScope: FocusScope | null
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
-  return buildLandPolygons(worldContext, focusScope, cellId => {
+  return buildLandPolygons(worldContext, focusScope, "danger", cellId => {
     const danger = pack.cells.danger?.[cellId] ?? 0;
     if (!danger) return [0, 0, 0, 0];
     return colorToRgba("#d0240f", "#d0240f", Math.min(0.75, Math.max(0.15, danger / 100)));
@@ -165,7 +179,7 @@ export function buildPopulationPolygons(
   focusScope: FocusScope | null
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
-  return buildLandPolygons(worldContext, focusScope, cellId => {
+  return buildLandPolygons(worldContext, focusScope, "population", cellId => {
     const population = pack.cells.pop[cellId] ?? 0;
     if (!population) return [0, 0, 0, 0];
     return colorToRgba("#8f3fb5", "#8f3fb5", Math.min(0.72, Math.max(0.18, population / 40)));
@@ -185,7 +199,8 @@ export function buildCellOutlinePaths(worldContext: Readonly<WorldContext>, focu
       path: [...polygon, polygon[0]],
       color: colorToRgba("#333333", "#333333", 0.45),
       width: 0.25,
-      kind: "cell"
+      kind: "cell",
+      cellId
     });
   }
 
@@ -211,7 +226,8 @@ export function buildGridPaths(worldContext: Readonly<WorldContext>, focusScope:
         path: edge,
         color: colorToRgba("#555555", "#555555", 0.45),
         width: 0.2,
-        kind: "grid"
+        kind: "grid",
+        cellId
       });
     }
   }
@@ -243,7 +259,8 @@ export function buildBorderPaths(worldContext: Readonly<WorldContext>, focusScop
         path: edge,
         color: colorToRgba("#111111", "#111111", isStateBorder ? 0.95 : 0.6),
         width: isStateBorder ? 1.1 : 0.45,
-        kind: "border"
+        kind: "border",
+        cellId
       });
     }
   }
@@ -264,7 +281,8 @@ export function buildRiverPaths(worldContext: Readonly<WorldContext>, focusScope
         path,
         color: colorToRgba("#3f75a2", "#3f75a2"),
         width: Math.max(0.6, river.sourceWidth + river.widthFactor),
-        kind: "river" as const
+        kind: "river" as const,
+        cellId: river.cells[0] ?? null
       };
     });
 }
@@ -280,21 +298,30 @@ export function buildRoutePaths(worldContext: Readonly<WorldContext>, focusScope
       path: route.points.map(point => [point[0], point[1]] as DeckPosition),
       color: getRouteColor(route),
       width: route.group === "searoutes" ? 0.7 : route.group === "roads" ? 1.1 : 0.65,
-      kind: "route" as const
+      kind: "route" as const,
+      cellId: route.cells?.[0] ?? null
     }));
 }
 
 function buildLandPolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
+  kind: WebglPickKind,
   getFillColor: (cellId: number) => Color
 ): DeckCellPolygon[] {
-  return buildCellPolygons(worldContext, focusScope, getFillColor, cellId => worldContext.pack.cells.h[cellId] >= 20);
+  return buildCellPolygons(
+    worldContext,
+    focusScope,
+    kind,
+    getFillColor,
+    cellId => worldContext.pack.cells.h[cellId] >= 20
+  );
 }
 
 function buildCellPolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
+  kind: WebglPickKind,
   getFillColor: (cellId: number) => Color,
   includeCell: (cellId: number) => boolean = () => true
 ): DeckCellPolygon[] {
@@ -305,7 +332,7 @@ function buildCellPolygons(
     if (!includeCell(cellId) || !isCellInScope(focusScope, cellId)) continue;
     const polygon = getCellPolygon(cells, vertices, cellId);
     if (!polygon) continue;
-    polygons.push({ id: `cell-${cellId}`, cellId, polygon, fillColor: getFillColor(cellId) });
+    polygons.push({ id: `${kind}-cell-${cellId}`, kind, cellId, polygon, fillColor: getFillColor(cellId) });
   }
 
   return polygons;

@@ -1,6 +1,7 @@
 import { Deck, OrthographicView, type OrthographicViewState, type PickingInfo } from "@deck.gl/core";
 import type { ViewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
+import type { WebglPickDetail, WebglPickKind } from "../../types/webglPicking";
 import { buildDeckLayers } from "./buildDeckLayers";
 
 const BODY_HYBRID_CLASS = "fmg-webgl-hybrid";
@@ -21,15 +22,68 @@ function getOrthographicViewState(viewContext: Readonly<ViewContext>): Orthograp
 }
 
 function sizeCanvas(canvas: HTMLCanvasElement, viewContext: Readonly<ViewContext>): void {
+  const ratio = Math.min(window.devicePixelRatio || 1, 2);
+  const width = Math.max(1, Math.round(viewContext.svgWidth * ratio));
+  const height = Math.max(1, Math.round(viewContext.svgHeight * ratio));
+  if (canvas.width !== width) canvas.width = width;
+  if (canvas.height !== height) canvas.height = height;
   canvas.style.width = `${viewContext.svgWidth}px`;
   canvas.style.height = `${viewContext.svgHeight}px`;
 }
 
-function getPickedObjectId(info: PickingInfo | null): string | null {
+function getPickedObjectId(info: WebglPickDetail | null): string | null {
+  return info ? `${info.layerId}:${info.id}` : null;
+}
+
+function isWebglPickKind(value: unknown): value is WebglPickKind {
+  return (
+    value === "background" ||
+    value === "land" ||
+    value === "height" ||
+    value === "biome" ||
+    value === "culture" ||
+    value === "religion" ||
+    value === "state" ||
+    value === "province" ||
+    value === "zone" ||
+    value === "temperature" ||
+    value === "population" ||
+    value === "precipitation" ||
+    value === "danger" ||
+    value === "cell" ||
+    value === "grid" ||
+    value === "border" ||
+    value === "river" ||
+    value === "route"
+  );
+}
+
+function toPickDetail(info: PickingInfo | null): WebglPickDetail | null {
   const object = info?.object;
   if (!object || typeof object !== "object") return null;
   const record = object as Record<string, unknown>;
-  return typeof record.id === "string" ? record.id : null;
+  const id = typeof record.id === "string" ? record.id : null;
+  const kind = isWebglPickKind(record.kind) ? record.kind : null;
+  if (!id || !kind || !info.layer?.id) return null;
+  const cellId = typeof record.cellId === "number" && Number.isFinite(record.cellId) ? record.cellId : null;
+  const coordinate =
+    Array.isArray(info.coordinate) && typeof info.coordinate[0] === "number" && typeof info.coordinate[1] === "number"
+      ? ([info.coordinate[0], info.coordinate[1], info.coordinate[2]].filter(value => typeof value === "number") as [
+          number,
+          number,
+          number?
+        ])
+      : null;
+  return {
+    kind,
+    id,
+    cellId,
+    layerId: info.layer.id,
+    index: info.index,
+    x: info.x,
+    y: info.y,
+    coordinate
+  };
 }
 
 function pickFromPointerEvent(event: PointerEvent, viewContext: ViewContext): PickingInfo | null {
@@ -57,17 +111,17 @@ function attachPickingBridge(viewContext: ViewContext): void {
 
 function handlePointerMove(event: PointerEvent): void {
   if (!activePickingViewContext) return;
-  const info = pickFromPointerEvent(event, activePickingViewContext);
+  const info = toPickDetail(pickFromPointerEvent(event, activePickingViewContext));
   const id = getPickedObjectId(info);
   if (id === lastHoverPickId) return;
   lastHoverPickId = id;
-  document.dispatchEvent(new CustomEvent<PickingInfo | null>("fmg:webgl-map-hover", { detail: info }));
+  document.dispatchEvent(new CustomEvent<WebglPickDetail | null>("fmg:webgl-map-hover", { detail: info }));
 }
 
 function handlePointerUp(event: PointerEvent): void {
   if (!activePickingViewContext) return;
-  const info = pickFromPointerEvent(event, activePickingViewContext);
-  document.dispatchEvent(new CustomEvent<PickingInfo | null>("fmg:webgl-map-pick", { detail: info }));
+  const info = toPickDetail(pickFromPointerEvent(event, activePickingViewContext));
+  document.dispatchEvent(new CustomEvent<WebglPickDetail | null>("fmg:webgl-map-pick", { detail: info }));
 }
 
 export const DeckGlRenderer = {

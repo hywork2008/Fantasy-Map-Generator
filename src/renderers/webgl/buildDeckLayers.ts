@@ -12,6 +12,7 @@ import {
   buildDangerPolygons,
   buildGridPaths,
   buildHeightPolygons,
+  buildLandPolygonsBase,
   buildPopulationPolygons,
   buildPrecipitationPolygons,
   buildProvincePolygons,
@@ -21,6 +22,7 @@ import {
   buildStatePolygons,
   buildTemperaturePolygons,
   buildZonePolygons,
+  colorToRgba,
   type DeckCellPolygon,
   type DeckPath
 } from "./adapters/deckDataAdapters";
@@ -69,14 +71,25 @@ export const WEBGL_LAYER_TOGGLES = new Set([
 
 export function buildDeckLayers(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>): LayersList {
   const { activeLayers } = useLayerState.getState();
+  const oceanFill = viewContext.oceanLayers?.select<SVGRectElement>("#oceanBase").attr("fill") || "#466eab";
+  const landFill = viewContext.landmass?.attr("fill") || "#eef6fb";
+  const oceanColor = colorToRgba(oceanFill, "#466eab");
   const layers: LayersList = [
     new SolidPolygonLayer<DeckCellPolygon>({
       id: "fmg-webgl-background",
       data: buildBackgroundPolygons(worldContext),
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
       getPolygon: datum => datum.polygon,
-      getFillColor: datum => datum.fillColor,
+      getFillColor: () => oceanColor,
       pickable: false
+    }),
+    new SolidPolygonLayer<DeckCellPolygon>({
+      id: "fmg-webgl-land",
+      data: buildLandPolygonsBase(worldContext, viewContext.focusScope, landFill),
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      getPolygon: datum => datum.polygon,
+      getFillColor: datum => datum.fillColor,
+      pickable: true
     })
   ];
 
@@ -104,8 +117,9 @@ export function buildDeckLayers(worldContext: Readonly<WorldContext>, viewContex
         getPath: datum => datum.path,
         getColor: datum => datum.color,
         getWidth: datum => datum.width,
-        widthUnits: "common",
+        widthUnits: "pixels",
         widthMinPixels: 0.5,
+        widthMaxPixels: layer.id === "rivers" ? 10 : 4,
         jointRounded: true,
         capRounded: true,
         pickable: true

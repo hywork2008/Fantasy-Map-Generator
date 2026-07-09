@@ -1,6 +1,19 @@
 import type { Page } from "@playwright/test";
 import path from "path";
 
+export interface CanvasPixelStats {
+  nonTransparentPixels: number;
+  coloredPixels: number;
+  width: number;
+  height: number;
+}
+
+export interface ViewTransformState {
+  scale: number;
+  viewX: number;
+  viewY: number;
+}
+
 // ── Map lifecycle ────────────────────────────────────────────────────────────
 
 /**
@@ -103,6 +116,88 @@ export async function getPack(page: Page) {
 /** Read the current mapId from the world context. */
 export async function getMapId(page: Page): Promise<number> {
   return page.evaluate(() => window.fmg.world.mapId);
+}
+
+export async function setRenderMode(page: Page, mode: "svg" | "webglHybrid"): Promise<void> {
+  await page.evaluate(renderMode => window.fmg.actions.setRenderMode(renderMode), mode);
+}
+
+export async function zoomToMapCenter(page: Page, scale: number): Promise<void> {
+  await page.evaluate(
+    zoomScale => {
+      window.fmg.actions.zoomTo(window.fmg.world.graphWidth / 2, window.fmg.world.graphHeight / 2, zoomScale, 0);
+    },
+    scale
+  );
+  await page.waitForFunction(zoomScale => Math.abs(window.fmg.view.scale - zoomScale) < 0.01, scale, {
+    timeout: 5000
+  });
+}
+
+export async function getViewTransformState(page: Page): Promise<ViewTransformState> {
+  return page.evaluate(() => ({
+    scale: window.fmg.view.scale,
+    viewX: window.fmg.view.viewX,
+    viewY: window.fmg.view.viewY
+  }));
+}
+
+export async function getWebglCanvasPixelStats(page: Page): Promise<CanvasPixelStats> {
+  return page.evaluate(() => {
+    const source = document.getElementById("webglMapCanvas");
+    if (!(source instanceof HTMLCanvasElement)) {
+      return { nonTransparentPixels: 0, coloredPixels: 0, width: 0, height: 0 };
+    }
+
+    const width = Math.max(1, Math.min(source.width, 240));
+    const height = Math.max(1, Math.min(source.height, 160));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) return { nonTransparentPixels: 0, coloredPixels: 0, width: source.width, height: source.height };
+
+    context.drawImage(source, 0, 0, width, height);
+    const data = context.getImageData(0, 0, width, height).data;
+    let nonTransparentPixels = 0;
+    let coloredPixels = 0;
+    for (let index = 0; index < data.length; index += 4) {
+      const alpha = data[index + 3] ?? 0;
+      if (alpha > 0) nonTransparentPixels++;
+      if ((data[index] ?? 0) !== 0 || (data[index + 1] ?? 0) !== 0 || (data[index + 2] ?? 0) !== 0) {
+        coloredPixels++;
+      }
+    }
+
+    return { nonTransparentPixels, coloredPixels, width: source.width, height: source.height };
+  });
+}
+
+export async function waitForWebglCanvasPixels(page: Page, minColoredPixels = 500): Promise<CanvasPixelStats> {
+  await page.waitForFunction(
+    minimum => {
+      const source = document.getElementById("webglMapCanvas");
+      if (!(source instanceof HTMLCanvasElement) || source.width === 0 || source.height === 0) return false;
+
+      const width = Math.max(1, Math.min(source.width, 160));
+      const height = Math.max(1, Math.min(source.height, 100));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) return false;
+      context.drawImage(source, 0, 0, width, height);
+      const data = context.getImageData(0, 0, width, height).data;
+      let colored = 0;
+      for (let index = 0; index < data.length; index += 4) {
+        if ((data[index] ?? 0) !== 0 || (data[index + 1] ?? 0) !== 0 || (data[index + 2] ?? 0) !== 0) colored++;
+      }
+      return colored >= minimum;
+    },
+    minColoredPixels,
+    { timeout: 15000 }
+  );
+  return getWebglCanvasPixelStats(page);
 }
 
 export interface SvgLayerPresence {

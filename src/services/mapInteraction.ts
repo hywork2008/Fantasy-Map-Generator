@@ -1,11 +1,12 @@
 import * as d3 from "d3";
 import { worldContext } from "../context/worldContext";
 import { useToastStore } from "../store/toastStore";
+import type { WebglPickDetail } from "../types/webglPicking";
 import { debounce } from "../utils/commonUtils";
 import { isDialogVisible } from "../utils/domUtils";
 import { findCell, findGridCell } from "../utils/graphUtils";
 import { updateCellInfo } from "./cellInfoService";
-import { showMainTip, showMapTooltip, showNotes } from "./tooltipService";
+import { showMainTip, showMapTooltip, showNotes, tip } from "./tooltipService";
 
 export const onMouseMove = debounce(handleMouseMove as (event: MouseEvent) => void, 100);
 export function handleMouseMove(this: Element, event: MouseEvent): void {
@@ -26,3 +27,10 @@ export function handleMouseMove(this: Element, event: MouseEvent): void {
     if (cellInfoEl) updateCellInfo(point, i, gridCell);
   }
 }
+
+document.addEventListener("fmg:webgl-map-hover", (event: CustomEvent<WebglPickDetail | null>) => {
+  const detail = event.detail;
+  if (!detail) return;
+  const suffix = detail.cellId === null ? "" : ` cell ${detail.cellId}`;
+  tip(`${detail.kind} ${detail.id}${suffix}`);
+});
