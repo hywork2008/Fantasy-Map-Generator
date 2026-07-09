@@ -25,6 +25,8 @@ export interface CreatePersonOptions {
   /** Denormalized pointer stored on Character.state, e.g. for UI grouping/filtering. */
   homeStateId: number;
   ageOverride?: number;
+  /** Caller-specified gender. Omit to use the default feudal/nobility-biased roll. */
+  genderOverride?: Gender;
   /** Ability preset id to roll into `abilityProfile` in addition to the mandatory skills/personality. Defaults to "ck3e" (no extra roll — same values, merged). */
   presetId?: string;
 }
@@ -84,12 +86,12 @@ export function generateFamily(age: number, gender: Gender, formName?: string): 
 
 /** Generic person factory — no title/office/state-political knowledge, reusable by any future NPC extension. */
 export function createPerson(i: number, cultureId: number, options: CreatePersonOptions): Character {
-  const { primarySkill, formName, ageOverride, homeStateId } = options;
+  const { primarySkill, formName, ageOverride, genderOverride, homeStateId } = options;
   const isReligiousRole = options.isReligiousRole ?? false;
   const presetId = options.presetId ?? "ck3e";
 
   // デフォルトで90%を男性とする（特殊な文化設定がない場合の歴史的な封建制の再現）
-  const gender: Gender = P(0.9) ? "male" : "female";
+  const gender: Gender = genderOverride ?? (P(0.9) ? "male" : "female");
   const age = ageOverride !== undefined ? ageOverride : rand(DEFAULT_MIN_AGE, DEFAULT_MAX_AGE);
 
   const guile = rand(1, 100);

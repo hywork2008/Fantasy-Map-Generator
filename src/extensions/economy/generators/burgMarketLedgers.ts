@@ -3,8 +3,9 @@ import { createPerson } from "../../characters/personFactory";
 import type { Burg } from "../../hostTypes";
 import { minmax, rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
+import { rollBalancedEconomyGender } from "./economyCharacterGender";
 import type { Deal, Market } from "./marketTypes";
-import { syncMerchantOrganizations } from "./merchantOrganizations";
+import { clearMerchantOrganizations, syncMerchantOrganizations } from "./merchantOrganizations";
 
 export interface BurgMarketLedger {
   burgId: number;
@@ -75,7 +76,8 @@ function createMerchant(burg: Burg): Character {
 
   const character = createPerson(getNextCharacterId(pack.characters), resolveBurgCulture(burg), {
     primarySkill: "stewardship",
-    homeStateId: burg.state ?? 0
+    homeStateId: burg.state ?? 0,
+    genderOverride: rollBalancedEconomyGender(pack.characters)
   });
 
   character.location = burg.i;
@@ -150,7 +152,7 @@ function assignRevenue(ledger: BurgMarketLedger, burg: Burg, market: Market | un
 }
 
 function ensureLedgerMerchants(ledger: BurgMarketLedger, burg: Burg, market: Market | undefined): void {
-  const desiredCount = getDesiredMerchantCount(burg);
+  const desiredCount = getDesiredMerchantCount(burg); // about 2000 merchants
   const retained: BurgMarketMerchantEntry[] = [];
   const seen = new Set<number>();
 
@@ -247,7 +249,7 @@ function pruneStaleMerchantRoles(ledgers: BurgMarketLedger[]): void {
 export function clearBurgMarketLedgers(): void {
   const { pack } = getWorldContext();
   pack.burgMarketLedgers = [];
-  pack.merchantOrganizations = [];
+  clearMerchantOrganizations();
 
   if (!pack.characters?.length) return;
 

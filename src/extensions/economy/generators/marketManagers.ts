@@ -2,6 +2,7 @@ import type { Character, CharacterRole } from "../../characters/characterTypes";
 import { createPerson } from "../../characters/personFactory";
 import type { Burg } from "../../hostTypes";
 import { getWorldContext } from "../economyContext";
+import { rollBalancedEconomyGender } from "./economyCharacterGender";
 import type { Market } from "./marketTypes";
 
 export const MARKET_MANAGER_ROLE_SOURCE = "economy";
@@ -53,7 +54,8 @@ function createMarketManager(market: Market): Character | null {
   pack.characters ??= [];
   const characters = pack.characters;
   const character = createPerson(getNextCharacterId(characters), resolveManagerCulture(centerBurg), {
-    homeStateId: centerBurg?.state ?? 0
+    homeStateId: centerBurg?.state ?? 0,
+    genderOverride: rollBalancedEconomyGender(characters)
   });
 
   character.location = centerBurg?.i;

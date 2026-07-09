@@ -1,7 +1,9 @@
-import type { Character } from "../../characters/characterTypes";
+import type { Character, CharacterRole, CharacterSkills } from "../../characters/characterTypes";
+import { createPerson } from "../../characters/personFactory";
 import type { Burg } from "../../hostTypes";
-import { rn } from "../../hostUtils";
+import { rand, rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
+import { rollBalancedEconomyGender } from "./economyCharacterGender";
 import type { Market } from "./marketTypes";
 
 export type MerchantOrganizationScale = "local" | "regional" | "major";
@@ -13,6 +15,10 @@ export interface MerchantOrganization {
   homeBurgId: number;
   homeMarketId: number;
   homeStateId: number;
+  chairpersonCharacterId: number;
+  secretaryCharacterId?: number;
+  bodyguardCharacterId?: number;
+  executiveCharacterIds?: number[];
   memberCharacterIds: number[];
   parentOrganizationId?: number;
   childOrganizationIds?: number[];
@@ -27,6 +33,21 @@ const LOCAL_TRADE_RANGE_KM = 120;
 const REGIONAL_TRADE_RANGE_KM = 260;
 const URBAN_POPULATION_THRESHOLD = 30;
 const SMALL_RURAL_POPULATION_THRESHOLD = 10;
+
+export const MERCHANT_ORGANIZATION_ROLE_SOURCE = "economy";
+export const MERCHANT_ORGANIZATION_HEAD_ROLE_KIND = "merchantOrganizationHead";
+export const MERCHANT_ORGANIZATION_SECRETARY_ROLE_KIND = "merchantOrganizationSecretary";
+export const MERCHANT_ORGANIZATION_BODYGUARD_ROLE_KIND = "merchantOrganizationBodyguard";
+export const MERCHANT_ORGANIZATION_EXECUTIVE_ROLE_KIND = "merchantOrganizationExecutive";
+const MERCHANT_ORGANIZATION_AGENT_ROLE_KIND = "merchantOrganizationAgent";
+
+const MERCHANT_ORGANIZATION_ROLE_KINDS = new Set([
+  MERCHANT_ORGANIZATION_HEAD_ROLE_KIND,
+  MERCHANT_ORGANIZATION_SECRETARY_ROLE_KIND,
+  MERCHANT_ORGANIZATION_BODYGUARD_ROLE_KIND,
+  MERCHANT_ORGANIZATION_EXECUTIVE_ROLE_KIND,
+  MERCHANT_ORGANIZATION_AGENT_ROLE_KIND
+]);
 
 interface LedgerProfile {
   ledger: MerchantOrganizationLedger;
@@ -94,6 +115,7 @@ export function syncMerchantOrganizations(
       homeBurgId: profile.ledger.burgId,
       homeMarketId: profile.ledger.marketId,
       homeStateId: profile.burg.state ?? 0,
+      chairpersonCharacterId: profile.dominantCharacterId,
       memberCharacterIds: profile.ledger.merchants.map(merchant => merchant.characterId),
       tradeRangeKm: getTradeRangeKm(scale),
       urbanPreference: getUrbanPreference(scale),
@@ -105,11 +127,14 @@ export function syncMerchantOrganizations(
   }
 
   assignParentOrganizations(organizations);
+  syncMerchantOrganizationCharacters(organizations, profiles);
   pack.merchantOrganizations = organizations;
 }
 
 export function clearMerchantOrganizations(): void {
-  getWorldContext().pack.merchantOrganizations = [];
+  const { pack } = getWorldContext();
+  pack.merchantOrganizations = [];
+  clearMerchantOrganizationRoles();
 }
 
 export function isMarketTradePermitted(source: Market, target: Market, distanceMapUnits: number): boolean {
@@ -192,6 +217,276 @@ function assignParentOrganizations(organizations: MerchantOrganization[]): void 
     parent.childOrganizationIds ??= [];
     parent.childOrganizationIds.push(organization.i);
   }
+}
+
+function syncMerchantOrganizationCharacters(organizations: MerchantOrganization[], profiles: LedgerProfile[]): void {
+  const { pack } = getWorldContext();
+  pack.characters ??= [];
+
+  const profilesByMarketId = new Map<number, LedgerProfile[]>();
+  for (const profile of profiles) {
+    const marketProfiles = profilesByMarketId.get(profile.market.i) ?? [];
+    marketProfiles.push(profile);
+    profilesByMarketId.set(profile.market.i, marketProfiles);
+  }
+
+  const activeRoleKeys = new Set<string>();
+
+  for (const organization of organizations) {
+    if (organization.scale !== "major") continue;
+
+    const chairperson = getCharacter(organization.chairpersonCharacterId);
+    if (chairperson) {
+      ensureOrganizationRole(chairperson, organization, MERCHANT_ORGANIZATION_HEAD_ROLE_KIND, "Merchant Company Head");
+      activeRoleKeys.add(getRoleKey(chairperson.i, MERCHANT_ORGANIZATION_HEAD_ROLE_KIND, organization.i));
+    }
+
+    const secretary = ensureOrganizationStaff(
+      organization,
+      MERCHANT_ORGANIZATION_SECRETARY_ROLE_KIND,
+      "Merchant Company Secretary",
+      "stewardship",
+      organization.homeBurgId,
+      activeRoleKeys
+    );
+    organization.secretaryCharacterId = secretary.i;
+
+    const bodyguard = ensureOrganizationStaff(
+      organization,
+      MERCHANT_ORGANIZATION_BODYGUARD_ROLE_KIND,
+      "Merchant Company Bodyguard",
+      "prowess",
+      organization.homeBurgId,
+      activeRoleKeys
+    );
+    organization.bodyguardCharacterId = bodyguard.i;
+
+    const servedBurgIds = (profilesByMarketId.get(organization.homeMarketId) ?? [])
+      .map(profile => profile.burg.i)
+      .filter((burgId): burgId is number => burgId !== undefined && burgId > 0);
+    const branchCount = getBranchStaffCount(servedBurgIds.length);
+
+    organization.executiveCharacterIds = syncBranchStaff(
+      organization,
+      MERCHANT_ORGANIZATION_EXECUTIVE_ROLE_KIND,
+      "Merchant Company Executive",
+      "stewardship",
+      servedBurgIds,
+      branchCount,
+      activeRoleKeys
+    );
+
+    organization.memberCharacterIds = uniqueCharacterIds([
+      ...organization.memberCharacterIds,
+      organization.chairpersonCharacterId,
+      organization.secretaryCharacterId,
+      organization.bodyguardCharacterId,
+      ...organization.executiveCharacterIds
+    ]);
+  }
+
+  pruneInactiveOrganizationRoles(activeRoleKeys);
+}
+
+function syncBranchStaff(
+  organization: MerchantOrganization,
+  roleKind: string,
+  label: string,
+  primarySkill: keyof CharacterSkills,
+  servedBurgIds: number[],
+  count: number,
+  activeRoleKeys: Set<string>
+): number[] {
+  const ids: number[] = [];
+  const fallbackBurgId = organization.homeBurgId;
+  const step = Math.max(1, Math.ceil(Math.max(1, servedBurgIds.length) / count));
+
+  for (let index = 0; index < count; index++) {
+    const burgId = servedBurgIds[index * step] ?? fallbackBurgId;
+    const character = ensureOrganizationStaff(
+      organization,
+      roleKind,
+      label,
+      primarySkill,
+      burgId,
+      activeRoleKeys,
+      index
+    );
+    ids.push(character.i);
+  }
+
+  return ids;
+}
+
+function ensureOrganizationStaff(
+  organization: MerchantOrganization,
+  roleKind: string,
+  label: string,
+  primarySkill: keyof CharacterSkills,
+  burgId: number,
+  activeRoleKeys: Set<string>,
+  ordinal = 0
+): Character {
+  const existing = getOrganizationRoleHolders(organization.i, roleKind)[ordinal];
+  const character = existing ?? createOrganizationStaff(organization, roleKind, label, primarySkill, burgId);
+  const created = !existing;
+
+  character.location = burgId;
+  const burg = getBurg(burgId);
+  character.birthStateId ??= burg?.state ?? organization.homeStateId;
+  character.nationalityStateId = burg?.state ?? organization.homeStateId;
+  character.state = burg?.state ?? organization.homeStateId;
+  if (roleKind === MERCHANT_ORGANIZATION_BODYGUARD_ROLE_KIND) {
+    if (created) applyBodyguardProwess(character);
+    else if (character.skills.prowess < 60) setProwess(character, 60);
+  }
+  ensureOrganizationRole(character, organization, roleKind, label, burgId);
+  activeRoleKeys.add(getRoleKey(character.i, roleKind, organization.i));
+
+  return character;
+}
+
+function createOrganizationStaff(
+  organization: MerchantOrganization,
+  roleKind: string,
+  label: string,
+  primarySkill: keyof CharacterSkills,
+  burgId: number
+): Character {
+  const { pack } = getWorldContext();
+  pack.characters ??= [];
+  const burg = getBurg(burgId);
+  const character = createPerson(getNextCharacterId(pack.characters), resolveBurgCulture(burg), {
+    primarySkill,
+    homeStateId: burg?.state ?? organization.homeStateId,
+    genderOverride: rollBalancedEconomyGender(pack.characters)
+  });
+
+  character.location = burg?.i ?? organization.homeBurgId;
+  character.birthStateId = burg?.state ?? organization.homeStateId;
+  character.nationalityStateId = burg?.state ?? organization.homeStateId;
+  character.roles = [createOrganizationRole(organization, roleKind, label, burg?.i ?? organization.homeBurgId)];
+  pack.characters.push(character);
+
+  return character;
+}
+
+function ensureOrganizationRole(
+  character: Character,
+  organization: MerchantOrganization,
+  roleKind: string,
+  label: string,
+  burgId = organization.homeBurgId
+): void {
+  character.roles ??= [];
+  character.roles = character.roles.filter(
+    role => !(isMerchantOrganizationRole(role) && role.kind === roleKind && role.organizationId === organization.i)
+  );
+  character.roles.unshift(createOrganizationRole(organization, roleKind, label, burgId));
+}
+
+function createOrganizationRole(
+  organization: MerchantOrganization,
+  roleKind: string,
+  label: string,
+  burgId = organization.homeBurgId
+): CharacterRole {
+  return {
+    source: MERCHANT_ORGANIZATION_ROLE_SOURCE,
+    kind: roleKind,
+    entityType: "burg",
+    entityId: burgId,
+    label,
+    organizationId: organization.i
+  };
+}
+
+function isMerchantOrganizationRole(role: CharacterRole): boolean {
+  return (
+    role.source === MERCHANT_ORGANIZATION_ROLE_SOURCE &&
+    MERCHANT_ORGANIZATION_ROLE_KINDS.has(role.kind) &&
+    role.organizationId !== undefined
+  );
+}
+
+function getOrganizationRoleHolders(organizationId: number, roleKind: string): Character[] {
+  const characters = getWorldContext().pack.characters ?? [];
+  return characters.filter(
+    character =>
+      !character.dead &&
+      character.roles?.some(
+        role => isMerchantOrganizationRole(role) && role.organizationId === organizationId && role.kind === roleKind
+      )
+  );
+}
+
+function pruneInactiveOrganizationRoles(activeRoleKeys: Set<string>): void {
+  const { pack } = getWorldContext();
+  if (!pack.characters?.length) return;
+
+  pack.characters = pack.characters.filter(character => {
+    if (!character.roles?.some(isMerchantOrganizationRole)) return true;
+
+    character.roles = character.roles.filter(role => {
+      if (!isMerchantOrganizationRole(role)) return true;
+      return activeRoleKeys.has(getRoleKey(character.i, role.kind, role.organizationId));
+    });
+    if (character.roles.length === 0) delete character.roles;
+
+    return character.titles.length > 0 || Boolean(character.roles?.length);
+  });
+}
+
+function clearMerchantOrganizationRoles(): void {
+  const { pack } = getWorldContext();
+  if (!pack.characters?.length) return;
+
+  pack.characters = pack.characters.filter(character => {
+    if (!character.roles?.some(isMerchantOrganizationRole)) return true;
+
+    character.roles = character.roles.filter(role => !isMerchantOrganizationRole(role));
+    if (character.roles.length === 0) delete character.roles;
+
+    return character.titles.length > 0 || Boolean(character.roles?.length);
+  });
+}
+
+function getRoleKey(characterId: number, roleKind: string, organizationId: number | undefined): string {
+  return `${characterId}:${roleKind}:${organizationId ?? 0}`;
+}
+
+function getBranchStaffCount(servedBurgCount: number): number {
+  return Math.max(1, Math.ceil(Math.max(1, servedBurgCount) / rand(3, 6)));
+}
+
+function applyBodyguardProwess(character: Character): void {
+  setProwess(character, Math.floor(60 + Math.random() ** 2.4 * 41));
+}
+
+function setProwess(character: Character, value: number): void {
+  character.skills.prowess = value;
+  if (character.abilityProfile?.presetId === "ck3e") {
+    character.abilityProfile.values.prowess = character.skills.prowess;
+  }
+}
+
+function uniqueCharacterIds(ids: (number | undefined)[]): number[] {
+  return [...new Set(ids.filter((id): id is number => id !== undefined))];
+}
+
+function getNextCharacterId(characters: Character[]): number {
+  return Math.max(0, ...characters.map(c => c.i), -1) + 1;
+}
+
+function getBurg(burgId: number): Burg | undefined {
+  return getWorldContext().pack.burgs[burgId] as Burg | undefined;
+}
+
+function resolveBurgCulture(burg: Burg | undefined): number {
+  const { pack } = getWorldContext();
+  const cellCulture = burg?.cell !== undefined ? pack.cells?.culture?.[burg.cell] : undefined;
+  const stateCulture = burg?.state !== undefined ? pack.states?.[burg.state]?.culture : undefined;
+  return burg?.culture ?? cellCulture ?? stateCulture ?? 0;
 }
 
 function getOrganizationScale(profile: LedgerProfile, rank: number, count: number): MerchantOrganizationScale {

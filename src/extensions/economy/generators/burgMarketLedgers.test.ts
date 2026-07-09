@@ -13,6 +13,12 @@ import {
   syncBurgMarketLedgers
 } from "./burgMarketLedgers";
 import { syncMarketManagers } from "./marketManagers";
+import {
+  MERCHANT_ORGANIZATION_BODYGUARD_ROLE_KIND,
+  MERCHANT_ORGANIZATION_EXECUTIVE_ROLE_KIND,
+  MERCHANT_ORGANIZATION_HEAD_ROLE_KIND,
+  MERCHANT_ORGANIZATION_SECRETARY_ROLE_KIND
+} from "./merchantOrganizations";
 
 describe("burg market ledgers", () => {
   beforeEach(() => {
@@ -95,6 +101,64 @@ describe("burg market ledgers", () => {
     ).toBe(true);
   });
 
+  it("keeps economy character gender generation balanced", () => {
+    syncMarketManagers();
+    syncBurgMarketLedgers();
+
+    const economyCharacters = worldContext.pack.characters.filter(character =>
+      character.roles?.some(role => role.source === "economy")
+    );
+    const maleCount = economyCharacters.filter(character => character.gender === "male").length;
+    const femaleCount = economyCharacters.filter(character => character.gender === "female").length;
+
+    expect(Math.abs(maleCount - femaleCount)).toBeLessThanOrEqual(1);
+  });
+
+  it("creates staff NPCs for major merchant organizations", () => {
+    syncMarketManagers();
+    syncBurgMarketLedgers();
+
+    const organization = worldContext.pack.merchantOrganizations.find(o => o.scale === "major")!;
+    expect(organization).toBeDefined();
+    expect(organization.chairpersonCharacterId).toBeDefined();
+    expect(organization.secretaryCharacterId).toBeDefined();
+    expect(organization.bodyguardCharacterId).toBeDefined();
+    expect(organization.executiveCharacterIds?.length).toBeGreaterThanOrEqual(1);
+    expect(organization).not.toHaveProperty("agentCharacterIds");
+
+    const chairperson = worldContext.pack.characters.find(c => c.i === organization.chairpersonCharacterId)!;
+    const secretary = worldContext.pack.characters.find(c => c.i === organization.secretaryCharacterId)!;
+    const bodyguard = worldContext.pack.characters.find(c => c.i === organization.bodyguardCharacterId)!;
+    const executive = worldContext.pack.characters.find(c => c.i === organization.executiveCharacterIds![0])!;
+
+    expect(chairperson.roles?.[0]).toMatchObject({
+      kind: MERCHANT_ORGANIZATION_HEAD_ROLE_KIND,
+      organizationId: organization.i
+    });
+    expect(secretary.roles?.[0]).toMatchObject({
+      kind: MERCHANT_ORGANIZATION_SECRETARY_ROLE_KIND,
+      organizationId: organization.i
+    });
+    expect(bodyguard.roles?.[0]).toMatchObject({
+      kind: MERCHANT_ORGANIZATION_BODYGUARD_ROLE_KIND,
+      organizationId: organization.i
+    });
+    expect(executive.roles?.[0]?.kind).toBe(MERCHANT_ORGANIZATION_EXECUTIVE_ROLE_KIND);
+    expect([1, 2]).toContain(executive.roles?.[0]?.entityId);
+    expect(secretary.location).toBe(organization.homeBurgId);
+    expect(bodyguard.location).toBe(organization.homeBurgId);
+    expect(bodyguard.skills.prowess).toBeGreaterThanOrEqual(60);
+    expect(bodyguard.skills.prowess).toBeLessThanOrEqual(100);
+    expect(organization.memberCharacterIds).toEqual(
+      expect.arrayContaining([
+        organization.chairpersonCharacterId,
+        organization.secretaryCharacterId,
+        organization.bodyguardCharacterId,
+        organization.executiveCharacterIds![0]
+      ])
+    );
+  });
+
   it("clears burg ledgers and removes burg merchant roles", () => {
     syncMarketManagers();
     syncBurgMarketLedgers();
@@ -105,6 +169,11 @@ describe("burg market ledgers", () => {
     expect(
       worldContext.pack.characters.some(character =>
         character.roles?.some(role => role.kind === BURG_MARKET_MERCHANT_ROLE_KIND)
+      )
+    ).toBe(false);
+    expect(
+      worldContext.pack.characters.some(character =>
+        character.roles?.some(role => role.kind === MERCHANT_ORGANIZATION_SECRETARY_ROLE_KIND)
       )
     ).toBe(false);
   });

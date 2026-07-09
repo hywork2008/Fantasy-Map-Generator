@@ -26,6 +26,8 @@ export interface CharacterRole {
   startYear?: number;
   endYear?: number;
   reason?: string;
+  /** Optional subsystem-specific organization pointer, e.g. economy merchant company id. */
+  organizationId?: number;
 }
 
 export interface CharacterSkills {
