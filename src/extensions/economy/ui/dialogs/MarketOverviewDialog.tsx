@@ -1,8 +1,9 @@
 import React from "react";
 import { IconButton } from "../../../../ui/components/IconButton";
+import { SortableHeader } from "../../../../ui/components/tables/SortableHeader";
 import { VirtualTableBody } from "../../../../ui/components/VirtualTableBody";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
-import { applySorting, formatPrice } from "../../../hostUtils";
+import { formatPrice } from "../../../hostUtils";
 
 import {
   downloadStockCsv,
@@ -13,7 +14,11 @@ import {
   renameActiveMarket,
   resetActiveMarketName
 } from "../../controllers/market-overview";
-import { useMarketOverviewState } from "../../store/marketOverviewState";
+import {
+  type MarketOverviewBurgMerchantRow,
+  type MarketOverviewRow,
+  useMarketOverviewState
+} from "../../store/marketOverviewState";
 
 export const MarketOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("marketOverview"));
@@ -29,15 +34,115 @@ export const MarketOverviewDialog: React.FC = () => {
   const headerRef = React.useRef<HTMLTableSectionElement | null>(null);
   const [activeTab, setActiveTab] = React.useState<"goods" | "burgMerchants">("goods");
 
+  const [goodsSortBy, setGoodsSortBy] = React.useState<keyof MarketOverviewRow>("stock");
+  const [goodsSortOrder, setGoodsSortOrder] = React.useState<"asc" | "desc">("desc");
+
+  const [merchantsSortBy, setMerchantsSortBy] = React.useState<keyof MarketOverviewBurgMerchantRow>("topRevenue");
+  const [merchantsSortOrder, setMerchantsSortOrder] = React.useState<"asc" | "desc">("desc");
+
+  const merchantsRef = React.useRef<HTMLDivElement | null>(null);
+
+  const handleGoodsSort = (field: string) => {
+    if (goodsSortBy === field) setGoodsSortOrder(prev => (prev === "asc" ? "desc" : "asc"));
+    else {
+      setGoodsSortBy(field as keyof MarketOverviewRow);
+      setGoodsSortOrder(field === "goodName" ? "asc" : "desc");
+    }
+  };
+
+  const handleMerchantsSort = (field: string) => {
+    if (merchantsSortBy === field) setMerchantsSortOrder(prev => (prev === "asc" ? "desc" : "asc"));
+    else {
+      setMerchantsSortBy(field as keyof MarketOverviewBurgMerchantRow);
+      setMerchantsSortOrder(field === "burgName" || field === "topMerchantName" || field === "rivals" ? "asc" : "desc");
+    }
+  };
+
+  const sortedGoods = React.useMemo(() => {
+    const arr = [...rows];
+    arr.sort((a, b) => {
+      const aVal = a[goodsSortBy];
+      const bVal = b[goodsSortBy];
+      const dir = goodsSortOrder === "asc" ? 1 : -1;
+      if (aVal > bVal) return 1 * dir;
+      if (aVal < bVal) return -1 * dir;
+      return 0;
+    });
+    return arr;
+  }, [rows, goodsSortBy, goodsSortOrder]);
+
+  const sortedMerchants = React.useMemo(() => {
+    const arr = [...burgMerchantRows];
+    arr.sort((a, b) => {
+      const aVal = a[merchantsSortBy];
+      const bVal = b[merchantsSortBy];
+      const dir = merchantsSortOrder === "asc" ? 1 : -1;
+      if (aVal > bVal) return 1 * dir;
+      if (aVal < bVal) return -1 * dir;
+      return 0;
+    });
+    return arr;
+  }, [burgMerchantRows, merchantsSortBy, merchantsSortOrder]);
+
+  function SortHeaderGoods({
+    field,
+    label,
+    tip,
+    numeric,
+    width
+  }: {
+    field: string;
+    label: string;
+    tip: string;
+    numeric?: boolean;
+    width?: string;
+  }) {
+    return (
+      <SortableHeader
+        field={field}
+        label={label}
+        sortBy={goodsSortBy}
+        sortOrder={goodsSortOrder}
+        onSort={handleGoodsSort}
+        tip={tip}
+        numeric={numeric}
+        style={width ? { width } : undefined}
+      />
+    );
+  }
+
+  function SortHeaderMerchants({
+    field,
+    label,
+    tip,
+    numeric,
+    width
+  }: {
+    field: string;
+    label: string;
+    tip: string;
+    numeric?: boolean;
+    width?: string;
+  }) {
+    return (
+      <SortableHeader
+        field={field}
+        label={label}
+        sortBy={merchantsSortBy}
+        sortOrder={merchantsSortOrder}
+        onSort={handleMerchantsSort}
+        tip={tip}
+        numeric={numeric}
+        style={width ? { width } : undefined}
+      />
+    );
+  }
+
   React.useEffect(() => {
     if (isOpen && marketId != null) {
       setTimeout(() => openMarketOverview(marketId), 0);
     }
   }, [isOpen, marketId]);
-
-  React.useEffect(() => {
-    if (isOpen && headerRef.current) applySorting(headerRef.current);
-  }, [isOpen]);
 
   return (
     <Dialog
@@ -93,22 +198,12 @@ export const MarketOverviewDialog: React.FC = () => {
                   <col />
                   <col />
                 </colgroup>
-                <thead id="marketOverviewHeader" ref={headerRef}>
+                <thead id="marketOverviewHeader">
                   <tr className="header">
                     <th />
-                    <th data-tip="Click to sort by good" className="sortable alphabetically" data-sortby="good">
-                      Good
-                    </th>
-                    <th
-                      data-tip="Click to sort by stock"
-                      className="sortable icon-sort-number-down"
-                      data-sortby="stock"
-                    >
-                      Stock
-                    </th>
-                    <th data-tip="Click to sort by price" className="sortable" data-sortby="price">
-                      Price
-                    </th>
+                    <SortHeaderGoods field="goodName" label="Good" tip="Click to sort by good" />
+                    <SortHeaderGoods field="stock" label="Stock" tip="Click to sort by stock" numeric />
+                    <SortHeaderGoods field="price" label="Price" tip="Click to sort by price" numeric />
                   </tr>
                 </thead>
                 {rows.length === 0 ? (
@@ -121,7 +216,7 @@ export const MarketOverviewDialog: React.FC = () => {
                   </tbody>
                 ) : (
                   <VirtualTableBody
-                    items={rows}
+                    items={sortedGoods}
                     scrollElementRef={headerRef}
                     renderRow={row => (
                       <tr
@@ -179,24 +274,49 @@ export const MarketOverviewDialog: React.FC = () => {
         )}
 
         {activeTab === "burgMerchants" && (
-          <div id="marketOverviewBurgMerchants" className="table">
+          <div ref={merchantsRef} id="marketOverviewBurgMerchants" className="table">
             <table className="fmg-table">
+              <colgroup>
+                <col />
+                <col />
+                <col />
+                <col />
+                <col />
+              </colgroup>
               <thead>
                 <tr className="header">
-                  <th data-tip="Burg inside this market territory">Burg</th>
-                  <th data-tip="Merchant with the largest revenue share in this burg">Top Merchant</th>
-                  <th data-tip="Top merchant's share of this burg's market revenue">Share</th>
-                  <th data-tip="Top merchant's revenue in this burg">Revenue</th>
-                  <th data-tip="Other merchants competing in this burg">Rivals</th>
+                  <SortHeaderMerchants field="burgName" label="Burg" tip="Burg inside this market territory" />
+                  <SortHeaderMerchants
+                    field="topMerchantName"
+                    label="Top Merchant"
+                    tip="Merchant with the largest revenue share in this burg"
+                  />
+                  <SortHeaderMerchants
+                    field="topShare"
+                    label="Share"
+                    tip="Top merchant's share of this burg's market revenue"
+                    numeric
+                  />
+                  <SortHeaderMerchants
+                    field="topRevenue"
+                    label="Revenue"
+                    tip="Top merchant's revenue in this burg"
+                    numeric
+                  />
+                  <SortHeaderMerchants field="rivals" label="Rivals" tip="Other merchants competing in this burg" />
                 </tr>
               </thead>
-              <tbody>
-                {burgMerchantRows.length === 0 ? (
+              {burgMerchantRows.length === 0 ? (
+                <tbody>
                   <tr>
                     <td colSpan={5}>No burg merchants available</td>
                   </tr>
-                ) : (
-                  burgMerchantRows.map(row => (
+                </tbody>
+              ) : (
+                <VirtualTableBody
+                  items={sortedMerchants}
+                  scrollElementRef={merchantsRef}
+                  renderRow={row => (
                     <tr key={row.burgId} className="states">
                       <td>{row.burgName}</td>
                       <td>{row.topMerchantName}</td>
@@ -204,9 +324,9 @@ export const MarketOverviewDialog: React.FC = () => {
                       <td style={{ textAlign: "right" }}>{formatPrice(row.topRevenue)}</td>
                       <td>{row.rivals}</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
+                  )}
+                />
+              )}
             </table>
           </div>
         )}
