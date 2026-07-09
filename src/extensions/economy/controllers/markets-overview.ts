@@ -73,6 +73,7 @@ function marketsOverviewAddLines(): void {
   let totalSales = 0;
   let totalBuys = 0;
   let totalValue = 0;
+  let totalPopulation = 0;
 
   const rowData: MarketRowData[] = [];
 
@@ -81,12 +82,14 @@ function marketsOverviewAddLines(): void {
     const managerName = getMarketManagerName(market);
     const cells = getMarketCells(market.i);
     const burgs = getMarketBurgs(market.i);
+    const population = getMarketPopulation(market.i);
     const stock = rn(getMarketTotalStock(market), 2);
     const { sales, buys, value } = getMarketFinancials(market);
 
     totalSales += sales;
     totalBuys += buys;
     totalValue += value;
+    totalPopulation += population;
 
     rowData.push({
       i: market.i,
@@ -100,7 +103,8 @@ function marketsOverviewAddLines(): void {
       buys,
       value,
       color: market.color,
-      isNoMarket: false
+      isNoMarket: false,
+      population
     });
   }
 
@@ -115,7 +119,8 @@ function marketsOverviewAddLines(): void {
     buys: 0,
     value: 0,
     color: "none",
-    isNoMarket: true
+    isNoMarket: true,
+    population: getMarketPopulation(0)
   });
 
   const count = markets.length;
@@ -131,6 +136,7 @@ function marketsOverviewAddLines(): void {
     avgSales: count ? rn(totalSales / count, 2) : 0,
     avgBuys: count ? rn(totalBuys / count, 2) : 0,
     avgValue: count ? rn(totalValue / count, 2) : 0,
+    totalPopulation,
     selectedMarketId: nextSelectedMarketId
   });
 
@@ -400,6 +406,15 @@ function getMarketBurgs(marketId: number): number {
     .length;
 }
 
+function getMarketPopulation(marketId: number): number {
+  const marketArr = getWorldContext().pack.cells.market;
+  if (!marketArr) return 0;
+  const context = getWorldContext();
+  const burgs = (context.pack.burgs as Burg[]).filter(b => b.i && !b.removed && marketArr[b.cell] === marketId);
+  const sum = burgs.reduce((acc, b) => acc + (b.population ?? 0), 0);
+  return rn(sum * context.populationRate * context.urbanization);
+}
+
 function getMarketFinancials(market: Market): {
   sales: number;
   buys: number;
@@ -456,13 +471,14 @@ function regenerateProduction(): void {
 }
 
 function downloadMarketsCsv(): void {
-  let csv = "Market,Manager,Cells,Burgs,Total Stock,Sales,Buys,Value\n";
+  let csv = "Market,Manager,Cells,Burgs,Population,Total Stock,Sales,Buys,Value\n";
   for (const market of getWorldContext().pack.markets) {
     const { sales, buys, value } = getMarketFinancials(market);
     const cells = getMarketCells(market.i);
     const burgs = getMarketBurgs(market.i);
+    const population = getMarketPopulation(market.i);
     const stock = rn(getMarketTotalStock(market), 2);
-    csv += `${[Markets.getName(market), getMarketManagerName(market), cells, burgs, stock, sales, buys, value].join(",")}\n`;
+    csv += `${[Markets.getName(market), getMarketManagerName(market), cells, burgs, population, stock, sales, buys, value].join(",")}\n`;
   }
   downloadFile(csv, `${getFileName("Markets_Overview")}.csv`);
 }

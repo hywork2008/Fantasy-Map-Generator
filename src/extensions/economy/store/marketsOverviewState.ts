@@ -13,6 +13,7 @@ export interface MarketRowData {
   value: number;
   color: string;
   isNoMarket: boolean;
+  population: number;
 }
 
 export interface MarketsOverviewState {
@@ -28,6 +29,7 @@ export interface MarketsOverviewState {
   avgSales: number;
   avgBuys: number;
   avgValue: number;
+  totalPopulation: number;
 }
 
 export const useMarketsOverviewState = create<MarketsOverviewState>(() => ({
@@ -42,7 +44,8 @@ export const useMarketsOverviewState = create<MarketsOverviewState>(() => ({
   totalMarkets: 0,
   avgSales: 0,
   avgBuys: 0,
-  avgValue: 0
+  avgValue: 0,
+  totalPopulation: 0
 }));
 
 export const getMarketsOverviewState = useMarketsOverviewState.getState;

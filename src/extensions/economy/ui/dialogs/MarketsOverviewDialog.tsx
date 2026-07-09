@@ -3,7 +3,7 @@ import { IconButton } from "../../../../ui/components/IconButton";
 import { VirtualTableBody } from "../../../../ui/components/VirtualTableBody";
 import { useCharactersUiState } from "../../../characters/ui/charactersUiState";
 import { closeDialog, Dialog, FillBox, openConfirm, openDialog, useDialogState } from "../../../hostUi";
-import { formatPrice } from "../../../hostUtils";
+import { formatPrice, si } from "../../../hostUtils";
 
 import {
   closeMarketsOverview,
@@ -20,6 +20,7 @@ export const MarketsOverviewDialog: React.FC = () => {
     avgSales,
     avgBuys,
     avgValue,
+    totalPopulation,
     isPercentageMode,
     mode,
     selectedMarketId,
@@ -61,9 +62,10 @@ export const MarketsOverviewDialog: React.FC = () => {
       stock: markets.reduce((sum, row) => sum + row.stock, 0),
       sales: markets.reduce((sum, row) => sum + row.sales, 0),
       buys: markets.reduce((sum, row) => sum + row.buys, 0),
-      value: markets.reduce((sum, row) => sum + row.value, 0)
+      value: markets.reduce((sum, row) => sum + row.value, 0),
+      population: totalPopulation
     }),
-    [markets]
+    [markets, totalPopulation]
   );
 
   const sortedMarkets = React.useMemo(() => {
@@ -162,6 +164,7 @@ export const MarketsOverviewDialog: React.FC = () => {
                   <col />
                   <col />
                   <col />
+                  <col />
                 </>
               )}
             </colgroup>
@@ -197,6 +200,13 @@ export const MarketsOverviewDialog: React.FC = () => {
                       onClick={() => marketsOverviewActions.setSorting("burgs")}
                     >
                       Burgs
+                    </th>
+                    <th
+                      data-tip="Total population of all burgs in market territory. Click to sort"
+                      className={`sortable ${getSortIcon("population")}`}
+                      onClick={() => marketsOverviewActions.setSorting("population")}
+                    >
+                      Population
                     </th>
                     <th
                       data-tip="Total stock of all goods. Click to sort"
@@ -252,6 +262,10 @@ export const MarketsOverviewDialog: React.FC = () => {
                     if (!isPercentageMode) return formatPrice(val);
                     return total ? `${((val / total) * 100).toFixed(2)}%` : "0%";
                   };
+                  const displayPop = (val: number, total: number) => {
+                    if (!isPercentageMode) return si(val);
+                    return total ? `${((val / total) * 100).toFixed(2)}%` : "0%";
+                  };
 
                   const commonRowProps = {
                     className: `states market${selectedMarketId === m.i ? " selected" : ""}`,
@@ -260,6 +274,7 @@ export const MarketsOverviewDialog: React.FC = () => {
                     "data-manager": m.managerName,
                     "data-cells": m.cells,
                     "data-burgs": m.burgs,
+                    "data-population": m.population,
                     "data-stock": m.stock,
                     "data-sales": m.sales,
                     "data-buys": m.buys,
@@ -291,6 +306,13 @@ export const MarketsOverviewDialog: React.FC = () => {
                           <>
                             <td className="marketBurgs" data-tip="Number of burgs with no market" data-type="burgs">
                               {displayVal(m.burgs, totals.burgs)}
+                            </td>
+                            <td
+                              className="marketPopulation"
+                              data-tip="Total population with no market"
+                              data-type="population"
+                            >
+                              {displayPop(m.population, totals.population)}
                             </td>
                             <td className="marketStock" data-type="stock">
                               —
@@ -361,6 +383,13 @@ export const MarketsOverviewDialog: React.FC = () => {
                         <>
                           <td className="marketBurgs" data-tip="Number of burgs in market territory" data-type="burgs">
                             {displayVal(m.burgs, totals.burgs)}
+                          </td>
+                          <td
+                            className="marketPopulation"
+                            data-tip="Total population in market territory"
+                            data-type="population"
+                          >
+                            {displayPop(m.population, totals.population)}
                           </td>
                           <td
                             className="marketStock"
