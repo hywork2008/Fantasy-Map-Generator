@@ -4,11 +4,13 @@ import _simplify from "simplify-js";
 import type { AppServices } from "../../../context/appServices";
 import type { FocusScope, ViewContext } from "../../../context/viewContext";
 import type { WorldContext } from "../../../context/worldContext";
+import { HeightThreshold } from "../../../data/constants";
 import { Rivers } from "../../../generators/river-generator";
 import type { IceElement, PackedGraphFeature, Route } from "../../../types/models";
 import type { PackedGraphCells, PackedGraphVertices } from "../../../types/PackedGraph";
 import type { WebglPickKind } from "../../../types/webglPicking";
 import { clipPoly } from "../../../utils";
+import { getColor, getColorScheme } from "../../../utils/colorUtils";
 import { fractalizeCoastline } from "../../coastline-fractal";
 import { isCellInScope, isGridCellInScope } from "../../core/focusScope";
 
@@ -20,6 +22,12 @@ export interface DeckCellPolygon {
   cellId: number;
   polygon: DeckPosition[];
   fillColor: Color;
+}
+
+export interface DeckHeightStyle {
+  scheme: string | null;
+  opacity: number;
+  includeOcean: boolean;
 }
 
 export interface DeckPath {
@@ -84,11 +92,30 @@ export function buildLandPolygonsBase(
 
 export function buildHeightPolygons(
   worldContext: Readonly<WorldContext>,
-  focusScope: FocusScope | null
+  focusScope: FocusScope | null,
+  style: DeckHeightStyle = { scheme: "bright", opacity: 1, includeOcean: false }
 ): DeckCellPolygon[] {
-  return buildCellPolygons(worldContext, focusScope, "height", cellId =>
-    heightColor(worldContext.pack.cells.h[cellId])
-  );
+  const { cells, vertices } = worldContext.grid;
+  if (!cells?.i || !cells.v || !vertices?.p) return [];
+
+  const scheme = getColorScheme(style.scheme);
+  const polygons: DeckCellPolygon[] = [];
+  for (const gridCellId of cells.i) {
+    if (!isGridCellInScope(focusScope, gridCellId)) continue;
+    const height = cells.h[gridCellId];
+    if (!style.includeOcean && height < HeightThreshold.WATER_MAX_HEIGHT) continue;
+    const polygon = getGridCellPolygon(cells, vertices, gridCellId);
+    if (!polygon) continue;
+    polygons.push({
+      id: `height-grid-cell-${gridCellId}`,
+      kind: "height",
+      cellId: -1,
+      polygon,
+      fillColor: colorToRgba(getColor(height, scheme), "#999999", style.opacity)
+    });
+  }
+
+  return polygons;
 }
 
 export function buildBiomesPolygons(
@@ -496,6 +523,19 @@ function getCellPolygon(
   return polygon.length >= 3 ? polygon : null;
 }
 
+function getGridCellPolygon(
+  cells: Readonly<{ v: number[][] }>,
+  vertices: Readonly<{ p: [number, number][] }>,
+  cellId: number
+): DeckPosition[] | null {
+  const polygon = (cells.v[cellId] ?? [])
+    .map(vertexId => vertices.p[vertexId])
+    .filter((point): point is [number, number] => Boolean(point))
+    .map(([x, y]) => [x, y] as DeckPosition);
+
+  return polygon.length >= 3 ? polygon : null;
+}
+
 function getRenderableFeatures(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
@@ -578,14 +618,6 @@ function getSharedEdge(
   const a = vertices.p[first];
   const b = vertices.p[second];
   return a && b ? ([a, b] as [DeckPosition, DeckPosition]) : null;
-}
-
-function heightColor(height: number): Color {
-  if (height < 20) return colorToRgba("#466eab", "#466eab");
-  if (height < 35) return colorToRgba("#d5cf8e", "#d5cf8e");
-  if (height < 55) return colorToRgba("#87a96b", "#87a96b");
-  if (height < 75) return colorToRgba("#8d8a75", "#8d8a75");
-  return colorToRgba("#f0f0f0", "#f0f0f0");
 }
 
 function getRouteColor(route: Route): Color {

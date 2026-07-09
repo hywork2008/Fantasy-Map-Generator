@@ -6,6 +6,7 @@ import { buildDeckLayers, clearDeckLayerDataCache, getDeckLayerDataCacheSize } f
 import {
   buildBiomesPolygons,
   buildCoastlinePaths,
+  buildHeightPolygons,
   buildIcePolygons,
   buildLakePolygons,
   buildLandPolygonsBase,
@@ -19,7 +20,42 @@ function createWorldContext(): WorldContext {
     graphWidth: 100,
     graphHeight: 100,
     biomesData: { color: ["#000000", "#55aa55"] },
-    grid: { cells: { temp: new Int8Array([12]), prec: new Uint8Array([40]) } },
+    grid: {
+      cells: {
+        i: new Uint32Array([0, 1]),
+        c: [[1], [0]],
+        v: [
+          [0, 1, 2],
+          [1, 3, 2]
+        ],
+        b: new Uint8Array([0, 0]),
+        h: new Uint8Array([45, 10]),
+        t: new Uint8Array([0, 0]),
+        f: new Uint8Array([0, 0]),
+        temp: new Int8Array([12, 10]),
+        prec: new Uint8Array([40, 20])
+      },
+      vertices: {
+        c: [
+          [0, -1, -1],
+          [0, 1, -1],
+          [0, 1, -1],
+          [1, -1, -1]
+        ],
+        v: [
+          [1, 2],
+          [0, 3, 2],
+          [0, 1, 3],
+          [1, 2]
+        ],
+        p: [
+          [0, 0],
+          [10, 0],
+          [0, 10],
+          [10, 10]
+        ]
+      }
+    },
     pack: {
       cells: {
         i: new Uint8Array([0, 1]),
@@ -126,6 +162,21 @@ describe("deck.gl data adapters", () => {
     expect(polygons).toHaveLength(1);
     expect(polygons[0]).toMatchObject({ id: "land-cell-0", kind: "land", cellId: 0 });
     expect(polygons[0].fillColor).toEqual([238, 246, 251, 255]);
+  });
+
+  it("builds height polygons from grid cells using the selected terrain color scheme", () => {
+    const worldContext = createWorldContext();
+
+    const polygons = buildHeightPolygons(worldContext, null, { scheme: "bright", opacity: 0.5, includeOcean: false });
+
+    expect(polygons).toHaveLength(1);
+    expect(polygons[0]).toMatchObject({ id: "height-grid-cell-0", kind: "height", cellId: -1 });
+    expect(polygons[0].polygon).toEqual([
+      [0, 0],
+      [10, 0],
+      [0, 10]
+    ]);
+    expect(polygons[0].fillColor[3]).toBe(128);
   });
 
   it("builds lake polygons and coastline paths from packed features", () => {

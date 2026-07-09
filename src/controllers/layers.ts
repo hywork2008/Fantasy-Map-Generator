@@ -399,7 +399,6 @@ function drawHybridSvgOverlays(): void {
     if (!view.compass.select("use").size()) view.compass.append("use").attr("xlink:href", "#defs-compass-rose");
     setLayerVisibility("toggleCompass", true);
   }
-  if (layerIsOn("toggleRelief")) ReliefIconsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleLabels")) drawLabels();
   if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
@@ -733,6 +732,14 @@ export function toggleCompass(event?: MouseEvent): void {
 }
 
 export function toggleRelief(event?: MouseEvent): void {
+  if (viewContext.renderMode === "webglHybrid") {
+    ReliefIconsRenderer.clear?.(viewContext);
+    setLayerVisibility("toggleRelief", false);
+    if (layerIsOn("toggleRelief")) turnButtonOff("toggleRelief");
+    if (event && isCtrlClick(event)) editStyle("terrain");
+    return;
+  }
+
   if (!layerIsOn("toggleRelief")) {
     turnButtonOn("toggleRelief");
     if (!view.terrain.selectAll("*").size()) ReliefIconsRenderer.render(worldContext, viewContext, appServices);

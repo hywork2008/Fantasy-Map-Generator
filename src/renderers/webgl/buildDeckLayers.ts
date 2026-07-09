@@ -32,6 +32,7 @@ import {
   type DeckCellPolygon,
   type DeckDivisionBoundaryKind,
   type DeckFeaturePolygon,
+  type DeckHeightStyle,
   type DeckIcePolygon,
   type DeckPath,
   type DeckPosition
@@ -54,7 +55,11 @@ const WEBGL_POLYGON_LAYERS: Array<{
   build: PolygonBuilder;
   boundary?: DeckDivisionBoundaryKind;
 }> = [
-  { toggle: "toggleHeight", id: "height", build: (world, view) => buildHeightPolygons(world, view.focusScope) },
+  {
+    toggle: "toggleHeight",
+    id: "height",
+    build: (world, view) => buildHeightPolygons(world, view.focusScope, getHeightStyle(view))
+  },
   { toggle: "toggleBiomes", id: "biomes", build: (world, view) => buildBiomesPolygons(world, view.focusScope) },
   {
     toggle: "toggleReligions",
@@ -322,6 +327,8 @@ function buildLayerSignatures(
   const { pack, grid, biomesData, mapId, graphWidth, graphHeight } = worldContext;
   const scope = getFocusScopeSignature(viewContext);
   const geometry = `${mapId}|${scope}|${pointListSignature(pack.vertices?.p)}|${nestedNumberListSignature(pack.cells?.v)}`;
+  const gridGeometry = `${mapId}|${scope}|${pointListSignature(grid.vertices?.p)}|${nestedNumberListSignature(grid.cells?.v)}`;
+  const gridHeights = numberListSignature(grid.cells?.h);
   const cellHeights = numberListSignature(pack.cells?.h);
   const landGeometry = `${geometry}|h:${cellHeights}`;
   const states = `${numberListSignature(pack.cells?.state)}|${colorListSignature(pack.states)}`;
@@ -333,7 +340,7 @@ function buildLayerSignatures(
     background: `${mapId}|${graphWidth}x${graphHeight}|${oceanFill}`,
     land: `${landGeometry}|${landFill}`,
     byLayer: {
-      height: `${geometry}|${cellHeights}`,
+      height: `${gridGeometry}|${gridHeights}|${heightStyleSignature(getHeightStyle(viewContext))}`,
       biomes: `${landGeometry}|${numberListSignature(pack.cells?.biome)}|${stringListSignature(biomesData.color)}`,
       religions: `${landGeometry}|${religions}`,
       "religions-boundaries": `${landGeometry}|${religions}`,
@@ -399,6 +406,16 @@ function getIcePaint(viewContext: Readonly<ViewContext>): LayerPaint {
     stroke: colorToRgba(viewContext.ice.attr("stroke") ?? viewContext.ice.style("stroke"), "#e8f0f6", opacity),
     strokeWidth:
       parseOptionalNumber(viewContext.ice.attr("stroke-width") ?? viewContext.ice.style("stroke-width")) ?? 0.5
+  };
+}
+
+function getHeightStyle(viewContext: Readonly<ViewContext>): DeckHeightStyle {
+  const land = viewContext.terrs?.select<SVGGElement>("#landHeights");
+  const ocean = viewContext.terrs?.select<SVGGElement>("#oceanHeights");
+  return {
+    scheme: land?.attr("scheme") ?? "bright",
+    opacity: parseOptionalNumber(land?.attr("opacity") ?? land?.style("opacity")) ?? 1,
+    includeOcean: Boolean(Number(ocean?.attr("data-render") ?? 0))
   };
 }
 
@@ -552,6 +569,10 @@ function iceSignature(
     }
   }
   return `${values.length}:${hash >>> 0}`;
+}
+
+function heightStyleSignature(style: DeckHeightStyle): string {
+  return `${style.scheme ?? ""}:${style.opacity}:${style.includeOcean ? 1 : 0}`;
 }
 
 function paintSignature(values: Record<string, LayerPaint>): string {

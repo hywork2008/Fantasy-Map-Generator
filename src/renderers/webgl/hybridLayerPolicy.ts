@@ -20,13 +20,13 @@ const WEBGL_MANAGED_SVG_LAYER_IDS = [
   "prec",
   "danger",
   "coastline",
-  "ice"
+  "ice",
+  "terrain"
 ] as const;
 
 export const HYBRID_WEBGL_MANAGED_SVG_LAYER_IDS: ReadonlySet<string> = new Set(WEBGL_MANAGED_SVG_LAYER_IDS);
 
 export const HYBRID_SVG_OVERLAY_LAYER_IDS = [
-  "terrain",
   "coordinates",
   "compass",
   "scaleBar",

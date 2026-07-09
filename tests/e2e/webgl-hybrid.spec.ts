@@ -51,6 +51,7 @@ test.describe("webgl hybrid renderer", () => {
     await expect(page.locator("#lakes")).toBeHidden();
     await expect(page.locator("#coastline")).toBeHidden();
     await expect(page.locator("#ice")).toBeHidden();
+    await expect(page.locator("#terrain")).toBeHidden();
     await expect
       .poll(() => getWebglDeckLayerIds(page), { timeout: 5000 })
       .toEqual(
@@ -175,6 +176,7 @@ test.describe("webgl hybrid renderer", () => {
       await expect(page.locator("#lakes")).toBeHidden();
       await expect(page.locator("#coastline")).toBeHidden();
       await expect(page.locator("#ice")).toBeHidden();
+      await expect(page.locator("#terrain")).toBeHidden();
       await expect(page.locator("#scaleBar")).toBeVisible();
     }
   });
