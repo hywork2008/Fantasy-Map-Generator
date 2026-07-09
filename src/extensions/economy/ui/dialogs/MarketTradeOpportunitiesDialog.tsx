@@ -3,7 +3,15 @@ import { VirtualTableBody } from "../../../../ui/components/VirtualTableBody";
 import { useOptionsState } from "../../../hostCore";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
-import { close, downloadCsv, refresh, setSelectedGoodId, setSorting } from "../../controllers/marketTradeOpportunities";
+import {
+  clearTradeOpportunityHighlight,
+  close,
+  downloadCsv,
+  highlightTradeOpportunity,
+  refresh,
+  setSelectedGoodId,
+  setSorting
+} from "../../controllers/marketTradeOpportunities";
 import {
   type MarketTradeOpportunityRow,
   type MarketTradeOpportunitySort,
@@ -167,7 +175,12 @@ export const MarketTradeOpportunitiesDialog: React.FC = () => {
                 items={sortedRows}
                 scrollElementRef={parentRef}
                 renderRow={row => (
-                  <tr key={`${row.sourceMarketId}-${row.targetMarketId}`} className="states">
+                  <tr
+                    key={`${row.sourceMarketId}-${row.targetMarketId}`}
+                    className="states"
+                    onMouseEnter={() => highlightTradeOpportunity(row)}
+                    onMouseLeave={clearTradeOpportunityHighlight}
+                  >
                     <td>{row.sourceMarketName}</td>
                     <td>{row.targetMarketName}</td>
                     <td style={{ textAlign: "right" }}>{`${row.distance} ${distanceUnit}`}</td>

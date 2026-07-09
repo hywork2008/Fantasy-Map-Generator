@@ -8,7 +8,9 @@ import { Goods } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
 import type { Market } from "../generators/marketTypes";
 import { isMarketTradePermitted } from "../generators/merchantOrganizations";
+import { TradeAnimation } from "../generators/trade-animation";
 import { estimateSpeculativeTrade, getTransportCost } from "../generators/tradeOpportunityEstimator";
+import { clearHighlight, highlight } from "../renderers/draw-trade-animation";
 import {
   getMarketTradeOpportunitiesState,
   type MarketTradeOpportunityOption,
@@ -56,6 +58,7 @@ export function open(selectedGoodId?: number): void {
 
 export function close(): void {
   setMarketTradeOpportunitiesState({ rows: [] });
+  clearHighlight();
 }
 
 export function refresh(): void {
@@ -182,6 +185,8 @@ function createRow({
   return {
     sourceMarketId: source.i,
     targetMarketId: target.i,
+    sourceBurgId: source.centerBurgId,
+    targetBurgId: target.centerBurgId,
     sourceMarketName: Markets.getName(source),
     targetMarketName: Markets.getName(target),
     distance: rn(distance.total * world.distanceScale),
@@ -333,6 +338,29 @@ export function setSorting(sortBy: MarketTradeOpportunitySort): void {
   const nextDirection =
     currentSortBy === sortBy ? sortDirection * -1 : sortBy === "source" || sortBy === "target" ? 1 : -1;
   setMarketTradeOpportunitiesState({ sortBy, sortDirection: nextDirection });
+}
+
+export function highlightTradeOpportunity(row: MarketTradeOpportunityRow): void {
+  const { burgs } = getWorldContext().pack;
+  const source = burgs[row.sourceBurgId];
+  const target = burgs[row.targetBurgId];
+  if (!source || !target) return;
+
+  const routePath = getWorldContext().pack.cells?.routes
+    ? TradeAnimation.findRoutePath(source.cell, target.cell)
+    : null;
+  highlight(
+    routePath?.points?.length
+      ? routePath.points
+      : [
+          [source.x, source.y],
+          [target.x, target.y]
+        ]
+  );
+}
+
+export function clearTradeOpportunityHighlight(): void {
+  clearHighlight();
 }
 
 export function downloadCsv(): void {

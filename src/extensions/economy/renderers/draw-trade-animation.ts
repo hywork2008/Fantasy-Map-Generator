@@ -147,14 +147,16 @@ export function highlight(points: Point[]): void {
   const anim = getTradeAnimLayer();
   if (!anim) return;
   anim.selectAll("path.highlight").remove();
+  anim.style("display", null);
   anim
     .append("path")
     .attr("class", "highlight")
     .attr("d", lineGen(points))
     .attr("fill", "none")
-    .attr("stroke", "#cc1111")
-    .attr("stroke-width", 0.5)
+    .attr("stroke", "red")
+    .attr("stroke-width", 2)
     .attr("stroke-opacity", 0.7)
+    .attr("stroke-dasharray", "none")
     .attr("stroke-linecap", "round");
 }
 

@@ -60,6 +60,8 @@ describe("market trade opportunities", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].sourceMarketName).toBe("Cheapport");
     expect(rows[0].targetMarketName).toBe("Dearport");
+    expect(rows[0].sourceBurgId).toBe(1);
+    expect(rows[0].targetBurgId).toBe(2);
     expect(rows[0].distance).toBe(100);
     expect(rows[0].landDistance).toBe(100);
     expect(rows[0].seaDistance).toBe(0);

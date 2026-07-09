@@ -8,6 +8,8 @@ export interface MarketTradeOpportunityOption {
 export interface MarketTradeOpportunityRow {
   sourceMarketId: number;
   targetMarketId: number;
+  sourceBurgId: number;
+  targetBurgId: number;
   sourceMarketName: string;
   targetMarketName: string;
   distance: number;
