@@ -70,3 +70,13 @@ src/extensions/economy/generators/goods-generator.ts
 - 穀物の輸入増加などで戦争準備を感知できる事もある
 - 敵国が最大の輸入・輸出相手だと勝てない時の損害が大きいので戦争が仕掛けにくい。市場を喪失する。
 - Relations history生成の為の遠い国との宣戦布告等が無くなりDiplomacy Editor上で遠い国はNeutralかUnknownなので長距離貿易は戦争による市場の喪失リスクは低い。ただし経路を封鎖される可能性が高い。
+
+## 交易路の表示
+
+`Routes Overview`ダイアログの行にマウスカーソルが乗ると、その経路が赤い線で強調表示される。
+
+`Trade Opportunities`ダイアログに`Buy at`と`Sell at`という項目があり、これらは都市を指している。
+この2点を`Routes Overview`の赤い線で結んで強調表示するようにして下さい。
+
+※Trade Animationとの連動を検討する。
+
