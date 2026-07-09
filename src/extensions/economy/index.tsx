@@ -7,6 +7,7 @@ import { formatPrice } from "../hostUtils";
 import { getBurgEconomySummary } from "./burgEconomySummary";
 import { economyStyleConfig } from "./EconomyStyleConfig";
 import { clearEconomyContext, getWorldContext, initEconomyContext } from "./economyContext";
+import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burgMarketLedgers";
 import {
   clearForestDepletion,
   consumeDirtyFlag,
@@ -33,6 +34,7 @@ import { MarketDealsDialog } from "./ui/dialogs/MarketDealsDialog";
 import { MarketOverviewDialog } from "./ui/dialogs/MarketOverviewDialog";
 import { MarketsGoodCompareDialog } from "./ui/dialogs/MarketsGoodCompareDialog";
 import { MarketsOverviewDialog } from "./ui/dialogs/MarketsOverviewDialog";
+import { MarketTradeOpportunitiesDialog } from "./ui/dialogs/MarketTradeOpportunitiesDialog";
 import { ProductionChainsDialog } from "./ui/dialogs/ProductionChainsDialog";
 import { ProductionOverviewDialog } from "./ui/dialogs/ProductionOverviewDialog";
 import { TradeAnimationDialog } from "./ui/dialogs/TradeAnimationDialog";
@@ -165,6 +167,7 @@ function registerOverviewColumns(api: ExtensionAPI): void {
 
   api.registerCellInfoRow({ id: "good", extensionId: ECONOMY_EXTENSION_ID, label: "Good" });
   api.registerCellInfoRow({ id: "market", extensionId: ECONOMY_EXTENSION_ID, label: "Market" });
+  api.registerCellInfoRow({ id: "marketHolder", extensionId: ECONOMY_EXTENSION_ID, label: "Market Holder" });
   api.registerCellInfoRow({ id: "cellProduction", extensionId: ECONOMY_EXTENSION_ID, label: "Cell Production" });
   api.registerCellInfoRow({ id: "burgProduction", extensionId: ECONOMY_EXTENSION_ID, label: "Burg Production" });
 }
@@ -176,6 +179,7 @@ function unregisterOverviewColumns(api: ExtensionAPI): void {
   api.unregisterStateOverviewColumn("treasury");
   api.unregisterCellInfoRow("good");
   api.unregisterCellInfoRow("market");
+  api.unregisterCellInfoRow("marketHolder");
   api.unregisterCellInfoRow("cellProduction");
   api.unregisterCellInfoRow("burgProduction");
 }
@@ -235,6 +239,11 @@ export function init(api: ExtensionAPI): void {
     component: MarketOverviewDialog
   });
   api.registerDialog({ id: "MarketDealsDialog", extensionId: ECONOMY_EXTENSION_ID, component: MarketDealsDialog });
+  api.registerDialog({
+    id: "MarketTradeOpportunitiesDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: MarketTradeOpportunitiesDialog
+  });
   api.registerDialog({
     id: "MarketsGoodCompareDialog",
     extensionId: ECONOMY_EXTENSION_ID,
@@ -410,6 +419,7 @@ export function init(api: ExtensionAPI): void {
         Taxes.collectTaxes();
       } else if (worldContext.pack.markets?.length) {
         syncMarketManagers();
+        syncBurgMarketLedgers();
       }
     } else if (!isEnabled && wasEnabled) {
       // Visually turn off layers before removing them
@@ -429,6 +439,7 @@ export function init(api: ExtensionAPI): void {
       api.closeDialog("marketsOverview");
       api.closeDialog("marketOverview");
       api.closeDialog("marketDeals");
+      api.closeDialog("marketTradeOpportunities");
       api.closeDialog("marketsGoodCompare");
       api.closeDialog("tradeDetails");
       api.closeDialog("productionChains");
@@ -436,10 +447,12 @@ export function init(api: ExtensionAPI): void {
       api.closeDialog("tradeAnimationEditor");
 
       // Clear economy data from worldContext when disabled
+      clearBurgMarketLedgers();
       clearMarketManagers();
       worldContext.pack.goods = [];
       worldContext.pack.markets = [];
       worldContext.pack.deals = [];
+      worldContext.pack.burgMarketLedgers = [];
       api.tooltipExtensions.showMapTooltip = undefined;
       api.tooltipExtensions.updateCellInfo = undefined;
       api.burgEconomyExtensions.getBurgEconomySummary = undefined;
@@ -463,7 +476,10 @@ export function init(api: ExtensionAPI): void {
     api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
     api.burgEconomyExtensions.getBurgEconomySummary = getBurgEconomySummary;
     registerOverviewColumns(api);
-    if (getWorldContext().pack.markets?.length) syncMarketManagers();
+    if (getWorldContext().pack.markets?.length) {
+      syncMarketManagers();
+      syncBurgMarketLedgers();
+    }
   }
 
   // Listen for core map generation to generate economy
@@ -560,6 +576,7 @@ export function init(api: ExtensionAPI): void {
     // Both calls are idempotent/cheap, so re-running them on every load is safe.
     Taxes.defineTaxRates();
     Taxes.collectTaxes();
+    if (getWorldContext().pack.markets?.length) syncBurgMarketLedgers();
   });
 
   // Register layer toggle handlers
@@ -616,6 +633,7 @@ export function cleanup(api: ExtensionAPI): void {
     _logHarvestedHandler = null;
   }
   clearForestDepletion();
+  clearBurgMarketLedgers();
   clearMarketManagers();
 
   // Remove layers, presets and clear tooltip hooks

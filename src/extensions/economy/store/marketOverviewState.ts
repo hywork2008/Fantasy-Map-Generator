@@ -10,6 +10,15 @@ export interface MarketOverviewRow {
   price: number;
 }
 
+export interface MarketOverviewBurgMerchantRow {
+  burgId: number;
+  burgName: string;
+  topMerchantName: string;
+  topShare: number;
+  topRevenue: number;
+  rivals: string;
+}
+
 interface MarketOverviewOwner {
   coaId: string;
   name: string;
@@ -21,6 +30,7 @@ interface MarketOverviewState {
   defaultName: string;
   owner: MarketOverviewOwner | null;
   rows: MarketOverviewRow[];
+  burgMerchantRows: MarketOverviewBurgMerchantRow[];
   cellsCount: number;
   burgsCount: number;
   totalStock: number;
@@ -32,6 +42,7 @@ export const useMarketOverviewState = create<MarketOverviewState>(() => ({
   defaultName: "",
   owner: null,
   rows: [],
+  burgMerchantRows: [],
   cellsCount: 0,
   burgsCount: 0,
   totalStock: 0

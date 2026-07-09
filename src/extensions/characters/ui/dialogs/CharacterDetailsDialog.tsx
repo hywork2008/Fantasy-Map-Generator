@@ -34,6 +34,15 @@ export const CharacterDetailsDialog: React.FC = () => {
       : (states[t.entityId]?.name ?? "Unknown");
 
   const getRoleEntityName = (role: CharacterRole) => {
+    if (role.entityType === "burg") {
+      const burg = burgs[role.entityId];
+      if (!burg) return `Burg ${role.entityId}`;
+      const market = markets.find(m => m.i === burg.market);
+      const marketCenter = market ? burgs[market.centerBurgId] : undefined;
+      const marketName = market?.name || marketCenter?.name || (market ? `Market ${market.i}` : "No market");
+      return `${burg.name ?? `Burg ${role.entityId}`} (${marketName} market)`;
+    }
+
     if (role.entityType !== "market") return `${role.entityType} ${role.entityId}`;
 
     const market = markets.find(m => m.i === role.entityId);

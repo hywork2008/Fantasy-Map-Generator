@@ -420,6 +420,13 @@ export const MarketsOverviewDialog: React.FC = () => {
               />
               <button
                 type="button"
+                id="marketsOverviewTradeOpportunities"
+                data-tip="Find buy-low / sell-high routes across markets"
+                className="icon-exchange"
+                onClick={marketsOverviewActions.openTradeOpportunities}
+              />
+              <button
+                type="button"
                 id="marketsOverviewExport"
                 data-tip="Save markets data as a CSV file"
                 className="icon-download"

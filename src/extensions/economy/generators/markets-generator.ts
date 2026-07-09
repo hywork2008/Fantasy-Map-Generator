@@ -4,6 +4,7 @@ import FlatQueue from "flatqueue";
 import type { Burg } from "../../hostTypes";
 import { getColors, getRandomColor, minmax, rn, TIME } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
+import { syncBurgMarketLedgers } from "./burgMarketLedgers";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, Goods } from "./goods-generator";
 import { syncMarketManagers } from "./marketManagers";
@@ -58,6 +59,7 @@ export class MarketsModule {
     this.worldContext.pack.markets = markets;
     this.worldContext.pack.deals = [];
     syncMarketManagers(markets);
+    syncBurgMarketLedgers(markets);
 
     TIME && console.timeEnd("generateMarkets");
     return markets;
@@ -292,6 +294,7 @@ export class MarketsModule {
     burg.market = marketId;
     burg.plaza = 1;
     syncMarketManagers([market]);
+    syncBurgMarketLedgers();
 
     return market;
   }
@@ -317,6 +320,8 @@ export class MarketsModule {
         burg.plaza = 0;
       }
     }
+
+    syncBurgMarketLedgers();
 
     return true;
   }

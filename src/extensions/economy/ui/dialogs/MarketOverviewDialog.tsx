@@ -8,6 +8,7 @@ import {
   downloadStockCsv,
   openActiveMarketDeals,
   open as openMarketOverview,
+  openTradeOpportunities,
   refreshMarketOverview,
   renameActiveMarket,
   resetActiveMarketName
@@ -21,10 +22,12 @@ export const MarketOverviewDialog: React.FC = () => {
   const defaultName = useMarketOverviewState(state => state.defaultName);
   const owner = useMarketOverviewState(state => state.owner);
   const rows = useMarketOverviewState(state => state.rows);
+  const burgMerchantRows = useMarketOverviewState(state => state.burgMerchantRows);
   const cellsCount = useMarketOverviewState(state => state.cellsCount);
   const burgsCount = useMarketOverviewState(state => state.burgsCount);
   const totalStock = useMarketOverviewState(state => state.totalStock);
   const headerRef = React.useRef<HTMLTableSectionElement | null>(null);
+  const [activeTab, setActiveTab] = React.useState<"goods" | "burgMerchants">("goods");
 
   React.useEffect(() => {
     if (isOpen && marketId != null) {
@@ -63,86 +66,150 @@ export const MarketOverviewDialog: React.FC = () => {
           />
         </div>
 
-        <div ref={headerRef} id="marketOverviewGoodsBody" className="table">
-          <table className="fmg-table">
-            <colgroup>
-              <col />
-              <col />
-              <col />
-              <col />
-            </colgroup>
-            <thead id="marketOverviewHeader" ref={headerRef}>
-              <tr className="header">
-                <th />
-                <th data-tip="Click to sort by good" className="sortable alphabetically" data-sortby="good">
-                  Good
-                </th>
-                <th data-tip="Click to sort by stock" className="sortable icon-sort-number-down" data-sortby="stock">
-                  Stock
-                </th>
-                <th data-tip="Click to sort by price" className="sortable" data-sortby="price">
-                  Price
-                </th>
-              </tr>
-            </thead>
-            {rows.length === 0 ? (
-              <tbody>
-                <tr>
-                  <td colSpan={4}>
-                    <span>No market goods available</span>
-                  </td>
-                </tr>
-              </tbody>
-            ) : (
-              <VirtualTableBody
-                items={rows}
-                scrollElementRef={headerRef}
-                renderRow={row => (
-                  <tr
-                    key={row.goodId}
-                    className="states marketGood"
-                    data-good={row.goodName}
-                    data-stock={row.stock}
-                    data-price={row.price}
-                  >
-                    <td>
-                      <svg aria-label={row.goodName} data-tip="Good icon" width="2em" height="2em" className="goodIcon">
-                        <circle cx="50%" cy="50%" r="42%" fill={row.goodColor} stroke={row.goodStroke} />
-                        <use href={`#${row.goodIcon}`} x="10%" y="10%" width="80%" height="80%" />
-                      </svg>
-                    </td>
-                    <td data-tip="Good name" className="goodName">
-                      {row.goodName}
-                    </td>
-                    <td data-tip="Good stock" className="marketGoodStock">
-                      {row.stock}
-                    </td>
-                    <td data-tip="Good price" className="marketGoodPrice">
-                      {formatPrice(row.price)}
-                    </td>
-                  </tr>
-                )}
-              />
-            )}
-          </table>
+        <div className="tab d-flex">
+          <button
+            type="button"
+            className={`options ${activeTab === "goods" ? "active" : ""}`}
+            onClick={() => setActiveTab("goods")}
+          >
+            Goods
+          </button>
+          <button
+            type="button"
+            className={`options ${activeTab === "burgMerchants" ? "active" : ""}`}
+            onClick={() => setActiveTab("burgMerchants")}
+          >
+            Burg merchants
+          </button>
         </div>
 
-        <div id="marketOverviewSummary" className="totalLine">
-          <div>Cells: {cellsCount}</div>
-          <div>Burgs: {burgsCount}</div>
-          <div>Stock: {totalStock}</div>
-        </div>
-        <div id="marketOverviewInfo">
-          {owner && (
-            <>
-              <svg className="coaIcon" viewBox="0 0 200 200">
-                <title>{`Coat of arms of ${owner.name}`}</title>
-                <use href={`#${owner.coaId}`} />
-              </svg>
-              <b>Owner:</b> {owner.name}
-            </>
-          )}
-        </div>
+        {activeTab === "goods" && (
+          <>
+            <div ref={headerRef} id="marketOverviewGoodsBody" className="table">
+              <table className="fmg-table">
+                <colgroup>
+                  <col />
+                  <col />
+                  <col />
+                  <col />
+                </colgroup>
+                <thead id="marketOverviewHeader" ref={headerRef}>
+                  <tr className="header">
+                    <th />
+                    <th data-tip="Click to sort by good" className="sortable alphabetically" data-sortby="good">
+                      Good
+                    </th>
+                    <th
+                      data-tip="Click to sort by stock"
+                      className="sortable icon-sort-number-down"
+                      data-sortby="stock"
+                    >
+                      Stock
+                    </th>
+                    <th data-tip="Click to sort by price" className="sortable" data-sortby="price">
+                      Price
+                    </th>
+                  </tr>
+                </thead>
+                {rows.length === 0 ? (
+                  <tbody>
+                    <tr>
+                      <td colSpan={4}>
+                        <span>No market goods available</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                ) : (
+                  <VirtualTableBody
+                    items={rows}
+                    scrollElementRef={headerRef}
+                    renderRow={row => (
+                      <tr
+                        key={row.goodId}
+                        className="states marketGood"
+                        data-good={row.goodName}
+                        data-stock={row.stock}
+                        data-price={row.price}
+                      >
+                        <td>
+                          <svg
+                            aria-label={row.goodName}
+                            data-tip="Good icon"
+                            width="2em"
+                            height="2em"
+                            className="goodIcon"
+                          >
+                            <circle cx="50%" cy="50%" r="42%" fill={row.goodColor} stroke={row.goodStroke} />
+                            <use href={`#${row.goodIcon}`} x="10%" y="10%" width="80%" height="80%" />
+                          </svg>
+                        </td>
+                        <td data-tip="Good name" className="goodName">
+                          {row.goodName}
+                        </td>
+                        <td data-tip="Good stock" className="marketGoodStock">
+                          {row.stock}
+                        </td>
+                        <td data-tip="Good price" className="marketGoodPrice">
+                          {formatPrice(row.price)}
+                        </td>
+                      </tr>
+                    )}
+                  />
+                )}
+              </table>
+            </div>
+
+            <div id="marketOverviewSummary" className="totalLine">
+              <div>Cells: {cellsCount}</div>
+              <div>Burgs: {burgsCount}</div>
+              <div>Stock: {totalStock}</div>
+            </div>
+            <div id="marketOverviewInfo">
+              {owner && (
+                <>
+                  <svg className="coaIcon" viewBox="0 0 200 200">
+                    <title>{`Coat of arms of ${owner.name}`}</title>
+                    <use href={`#${owner.coaId}`} />
+                  </svg>
+                  <b>Center State:</b> {owner.name}
+                </>
+              )}
+            </div>
+          </>
+        )}
+
+        {activeTab === "burgMerchants" && (
+          <div id="marketOverviewBurgMerchants" className="table">
+            <table className="fmg-table">
+              <thead>
+                <tr className="header">
+                  <th data-tip="Burg inside this market territory">Burg</th>
+                  <th data-tip="Merchant with the largest revenue share in this burg">Top Merchant</th>
+                  <th data-tip="Top merchant's share of this burg's market revenue">Share</th>
+                  <th data-tip="Top merchant's revenue in this burg">Revenue</th>
+                  <th data-tip="Other merchants competing in this burg">Rivals</th>
+                </tr>
+              </thead>
+              <tbody>
+                {burgMerchantRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={5}>No burg merchants available</td>
+                  </tr>
+                ) : (
+                  burgMerchantRows.map(row => (
+                    <tr key={row.burgId} className="states">
+                      <td>{row.burgName}</td>
+                      <td>{row.topMerchantName}</td>
+                      <td style={{ textAlign: "right" }}>{row.topShare.toFixed(1)}%</td>
+                      <td style={{ textAlign: "right" }}>{formatPrice(row.topRevenue)}</td>
+                      <td>{row.rivals}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         <div id="marketOverviewBottom" className="footer">
           <button
@@ -158,6 +225,13 @@ export const MarketOverviewDialog: React.FC = () => {
             data-tip="View market deals"
             className="icon-list-bullet"
             onClick={openActiveMarketDeals}
+          />
+          <button
+            type="button"
+            id="marketOverviewTradeOpportunities"
+            data-tip="Find buy-low / sell-high routes across markets"
+            className="icon-exchange"
+            onClick={openTradeOpportunities}
           />
           <button
             type="button"

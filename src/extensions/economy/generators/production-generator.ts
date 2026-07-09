@@ -1,6 +1,7 @@
 import type { Burg } from "../../hostTypes";
 import { DEBUG, ERROR, minmax, rn, TIME } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
+import { syncBurgMarketLedgers } from "./burgMarketLedgers";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, Goods, getDemandTargets } from "./goods-generator";
 import type { Deal, Market } from "./markets-generator";
@@ -49,6 +50,7 @@ export class ProductionModule {
 
     Markets.runGlobalTrade();
     this.fillBurgsDemand(sortedBurgs, index);
+    syncBurgMarketLedgers();
 
     TIME && console.timeEnd("generateProduction");
   }

@@ -16,6 +16,7 @@ import {
 } from "../../hostUtils";
 
 import { getApi, getMarketsLayer, getViewContext, getWorldContext } from "../economyContext";
+import { syncBurgMarketLedgers } from "../generators/burgMarketLedgers";
 import { getMarketManagerName } from "../generators/marketManagers";
 import type { Deal, Market } from "../generators/markets-generator";
 import { Markets } from "../generators/markets-generator";
@@ -23,6 +24,7 @@ import { Production } from "../generators/production-generator";
 import { drawMarketsLayer, highlightMarketOff, highlightMarketOn } from "../renderers/draw-markets";
 import { getMarketsOverviewState, type MarketRowData, setMarketsOverviewState } from "../store/marketsOverviewState";
 import { open as openMarketsGoodCompare } from "./marketsGoodCompare";
+import { open as openMarketTradeOpportunities } from "./marketTradeOpportunities";
 
 let isInitialized = false;
 // Working copy of getWorldContext().pack.cells.market mutated during manual assignment; applied on commit.
@@ -295,6 +297,7 @@ function exitMarketsManualAssignment(apply: boolean): void {
   removeCircle();
 
   if (apply) {
+    syncBurgMarketLedgers();
     drawMarketsLayer();
     marketsOverviewAddLines();
   }
@@ -504,6 +507,9 @@ export const marketsOverviewActions = {
   },
   openMarketCompare() {
     openMarketsGoodCompare();
+  },
+  openTradeOpportunities() {
+    openMarketTradeOpportunities();
   },
   setSorting(sortBy: string) {
     const { sortBy: currentSortBy, sortDirection } = getMarketsOverviewState();

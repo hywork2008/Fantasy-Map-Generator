@@ -1,3 +1,4 @@
+import type { BurgMarketLedger } from "./generators/burgMarketLedgers";
 import type { Good } from "./generators/goods-generator";
 import type { Deal, Market } from "./generators/markets-generator";
 
@@ -6,6 +7,7 @@ declare module "../../types/PackedGraph" {
     goods: Good[];
     markets: Market[];
     deals: Deal[];
+    burgMarketLedgers: BurgMarketLedger[];
   }
 
   interface PackedGraphCells {

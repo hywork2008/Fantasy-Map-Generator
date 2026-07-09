@@ -3,6 +3,7 @@ import { tip } from "../../services/tooltipService";
 import { useCellInfoState } from "../../store/cellInfoState";
 import { rn } from "../../utils/numberUtils";
 import { getWorldContext } from "./economyContext";
+import { getBurgMarketLedger, getDominantMerchant, getMerchantName } from "./generators/burgMarketLedgers";
 import { Goods } from "./generators/goods-generator";
 import { Markets } from "./generators/markets-generator";
 import { Production } from "./generators/production-generator";
@@ -98,8 +99,13 @@ export function updateEconomyCellInfo(_point: [number, number], i: number, _g: n
     extra.burgProduction = burgEntries.length
       ? burgEntries.map(([id, amt]) => `${Goods.get(+id)?.name ?? id}: ${rn(amt, 2)}`).join(", ")
       : "none";
+    const dominant = getDominantMerchant(getBurgMarketLedger(burgId));
+    extra.marketHolder = dominant
+      ? `${getMerchantName(dominant.characterId)} (${dominant.share.toFixed(1)}%)`
+      : "unassigned";
   } else {
     extra.burgProduction = "n/a";
+    extra.marketHolder = "n/a";
   }
 
   useCellInfoState.getState().updateInfo({ extra });
