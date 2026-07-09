@@ -25,13 +25,14 @@ Both types share the same lifecycle interface and interact with the host exclusi
 │                                                     │
 │  WorldContext ─────┐                                │
 │  ViewContext  ─────┼──► ExtensionAPI ──► init(api) │
-│  AppServices       │         ▲                      │
+│  AppServices  ─────┤         ▲                      │
+│  SimulationContext │         │                      │
 │  controllers/layers┘         │                      │
 │  actions/zoomTo ─────────────┘                      │
 └─────────────────────────────────────────────────────┘
 ```
 
-`ExtensionAPI` is a plain object assembled in `src/app.ts` (`buildExtensionAPI()`). It holds references to the live `WorldContext` and `ViewContext` objects and wraps the host's controller functions behind a stable interface.
+`ExtensionAPI` is a plain object assembled in `src/app.ts` (`buildExtensionAPI()`). It holds references to the live `WorldContext`, `ViewContext`, `AppServices`, and `SimulationContext` objects and wraps the host's controller functions behind a stable interface.
 
 The host calls `module.init(window.fmg.extensionAPI)` once when the extension is loaded. From that point the extension is self-driving: it subscribes to state changes, registers its layers and dialogs, and responds to user events — all through `api`.
 
@@ -39,7 +40,7 @@ The host calls `module.init(window.fmg.extensionAPI)` once when the extension is
 
 Dynamic extensions are loaded via `import(blobURL)`. The JavaScript module system treats a blob URL as a distinct module specifier, so any `import { worldContext } from "../../context/worldContext"` inside the extension would create a **new instance** of that module — a private copy with its own initial state, not the host's live object.
 
-DI sidesteps this entirely: the host passes its own `worldContext` and `viewContext` references as properties of `api`. The extension always reads the same objects the host mutates, with no need for shared module instances.
+DI sidesteps this entirely: the host passes its own `worldContext`, `viewContext`, service, and simulation references as properties of `api`. The extension always reads the same objects the host mutates, with no need for shared module instances.
 
 ### 2.3 The 4-Layer Rule
 
@@ -50,9 +51,11 @@ Extensions must still respect the project's 4-layer architecture:
 | **Generator** (`generators/`) | Produce and mutate data in `worldContext.pack.*` |
 | **Renderer** (`renderers/`) | Read `Readonly<WorldContext>` and draw SVG — pure, no mutations |
 | **Editor** (`controllers/`) | Handle UI events, call generators, trigger redraws via `api` |
-| **State** | Read/write only through `api.worldContext` and `api.viewContext` |
+| **State** | Read/write only through `api.worldContext`, `api.viewContext`, `api.appServices`, and `api.simulationContext` |
 
 Direct `window.*` assignments and direct D3 manipulation outside `renderers/` are forbidden.
+
+Some current built-in extension entry points still contain legacy direct imports from host modules because they are bundled with the host and share its module graph. Treat these as migration debt, not as a pattern for new code. Dynamic extensions must never import host modules, and new built-in extension sub-modules should use the context holder + `ExtensionAPI` pattern.
 
 ---
 
@@ -65,6 +68,8 @@ Defined in [src/types/extension-api.ts](../src/types/extension-api.ts). All meth
 ```typescript
 api.worldContext   // live WorldContext — same object the host holds
 api.viewContext    // live ViewContext  — SVG layers, zoom, dimensions
+api.appServices    // shared services — rng, storage, COA renderer
+api.simulationContext // live clock and tick-driven simulation state
 ```
 
 These are references, not snapshots. Never store them in module-level variables at init time; always dereference lazily (e.g. `api.worldContext.pack.cells`).
@@ -86,15 +91,26 @@ api.toggleExtension(id, forceState?)
 
 api.registerAction(action)   // adds a button to a ToolsTab section
 api.registerDialog(dialog)   // registers a React dialog component
+api.registerEditorTab(tab)   // adds a tab to an existing host editor
+api.registerStyleConfig(config) // adds extension style controls to StyleTab
+api.registerBurgOverviewColumn(column)
+api.unregisterBurgOverviewColumn(id)
+api.registerStateOverviewColumn(column)
+api.unregisterStateOverviewColumn(id)
+api.registerCellInfoRow(row)
+api.unregisterCellInfoRow(id)
 
 api.unregisterExtension(id)  // removes all registrations (call in cleanup)
 ```
+
+`registerBurgOverviewColumn`, `registerStateOverviewColumn`, and `registerCellInfoRow` are intended to be toggled live with extension enable state. Register them in the enable branch and unregister them in the disable branch if the rows/columns should disappear when the extension is off.
 
 ### 3.3 Layer Management
 
 ```typescript
 api.addLayers(layers: LayerConfig[])
-// Appends buttons to the Layers panel. Call when the extension is enabled.
+// Adds buttons to the Layers panel and creates/re-acquires declared svgLayers.
+// Call when the extension is enabled.
 
 api.removeLayers(ids: string[])
 // Removes buttons. Call when the extension is disabled.
@@ -113,17 +129,46 @@ api.registerDrawLayerHook(fn)
 
 api.registerLayerElement(id, getter)
 // Supplies the <g> element for drag-to-reorder in the Layers panel.
+
+api.getSvgLayer(id)
+// Returns the D3 selection for an extension-owned SVG <g>, or null.
+
+api.registerMapReinitHook(fn)
+// Called after saved-map SVG layer references are re-acquired.
 ```
+
+`LayerConfig.svgLayers` uses `SvgLayerSpec` from `src/store/layerState.tsx`. `insertBefore` and `insertAfter` are DOM ids inside `#viewbox`, and are the supported way to put extension layers in the correct z-order.
 
 ### 3.4 Navigation and Dialogs
 
 ```typescript
 api.zoomTo(x, y, scale, duration?)   // pan/zoom the map
 api.openRichDialog(options)           // open an imperative dialog
+api.openDialog(id, config?)           // open a registered React dialog
 api.closeDialog(id)
+api.isDialogOpen(id)
+api.restoreDefaultEvents()
+api.moveCircle(x, y, r?)
+api.removeCircle()
 ```
 
-### 3.5 Tooltip Hooks
+### 3.5 Tool Actions, Time, and Cross-extension Hooks
+
+```typescript
+api.registerToolAction(eventName, handler)
+api.unregisterToolAction(eventName)
+// Handles react-tool-action events without adding extension-specific logic to core tools.ts.
+
+api.registerTimeTickHook((deltaYears, deltaMonths, deltaDays) => { ... })
+// Called on every advanceTime() invocation. Gate with api.isExtensionEnabled().
+
+api.registerSkillModifier(source, fn)
+api.getEffectiveSkill(characterId, skill)
+// Cross-extension skill pipeline. Characters supplies base skill values; other
+// extensions can layer additional modifiers.
+```
+
+### 3.6 Tooltip and Burg Editor Hooks
 
 ```typescript
 api.tooltipExtensions.showMapTooltip = (point, e, i, g, group, subgroup) => boolean;
@@ -132,6 +177,9 @@ api.tooltipExtensions.showMapTooltip = (point, e, i, g, group, subgroup) => bool
 api.tooltipExtensions.updateCellInfo = (point, i, g) => void;
 // Called when the info panel cell is refreshed.
 // Assign in enable path, set to undefined in disable path.
+
+api.burgEconomyExtensions.getBurgEconomySummary = burgId => summary;
+// Supplies the Burg Editor's Production / Wealth / Treasury display.
 ```
 
 ---
@@ -147,9 +195,11 @@ app.ts: initExtensions()
     │       ├── api.registerExtension(...)
     │       ├── api.registerDialog(...)
     │       ├── api.registerAction(...)
+    │       ├── api.registerEditorTab(...) / api.registerStyleConfig(...)
     │       ├── api.subscribeExtensionState(...)
     │       ├── api.registerLayerToggle(...)  [for each layer]
     │       ├── api.registerDrawLayerHook(...)
+    │       ├── api.registerTimeTickHook(...)  [if simulation participates]
     │       └── document.addEventListener("fmg:generate-post-core", ...)
     │
     └── loadDynamicExtensions()      ← ZIP extensions from IndexedDB
@@ -160,6 +210,8 @@ User enables extension
     └── subscribeExtensionState callback fires
             └── api.addLayers(layers)
                 api.tooltipExtensions.showMapTooltip = ...
+                api.burgEconomyExtensions.getBurgEconomySummary = ...
+                register live overview columns / cell-info rows if needed
                 generate initial data if missing
 
 User disables extension
@@ -167,6 +219,7 @@ User disables extension
             └── turn off active layers
                 api.removeLayers(...)
                 api.tooltipExtensions.showMapTooltip = undefined
+                unregister live overview columns / cell-info rows
 
 app unload / extension uninstall
     └── cleanup(api)
@@ -177,9 +230,19 @@ app unload / extension uninstall
             └── clearContext()
 ```
 
-### Important: `fmg:generate-post-core`
+### Important Host Events
 
 The host dispatches `document.dispatchEvent(new CustomEvent("fmg:generate-post-core"))` after the core world has been generated (terrain, biomes, states, burgs, etc.). Extensions that produce derived data (economy, trade, etc.) should listen for this event and run their generators then — not at init time, because the world may not exist yet.
+
+Other relevant events:
+
+| Event | Source | Typical use |
+| :--- | :--- | :--- |
+| `fmg:generate-post-core` | `src/main.ts` | Generate extension data after core map generation |
+| `fmg:map-layers-reinitialized` | load/reinitialization flow | Re-acquire extension SVG groups and reattach handlers through `api.registerMapReinitHook()` |
+| `fmg:time-advanced` | `src/generators/timeEngine.ts` | Difference-based listeners after `advanceTime()` |
+| `fmg:simulation-updated` | `timeEngine` | UI refresh when year/month/day/era changes |
+| `react-tool-action` | React UI | Tool button actions handled by core or extension tool action registry |
 
 ---
 
@@ -199,6 +262,8 @@ src/extensions/{name}/
 ```
 
 Sub-modules import from `../context` — never from host paths. This is the mechanism that makes the extension safe to load as a blob URL.
+
+Built-in extensions often name this holder after the extension (`economyContext.ts`, `charactersContext.ts`, `nobilityContext.ts`, `shipbuildingContext.ts`) instead of the generic `context.ts`.
 
 ---
 
@@ -321,6 +386,14 @@ The economy extension (`src/extensions/economy/`) is the canonical example. It d
 | [renderers/draw-goods.ts](../src/extensions/economy/renderers/draw-goods.ts) | Pure SVG renderer using `getViewContext()` |
 | [controllers/markets-overview.ts](../src/extensions/economy/controllers/markets-overview.ts) | Editor using `getApi().toggleLayerById()` instead of host controller import |
 
+Other built-in extensions show narrower patterns:
+
+| Extension | Demonstrates |
+| :--- | :--- |
+| `characters` | Base character roster, dialog/tool action integration, skill modifier source |
+| `nobility` | Required dependency on `characters`, strategic tick hook, editor tab injection |
+| `shipbuilding` | Optional dependency on `economy`, SVG layer insertion, time tick processing, cross-extension CustomEvents |
+
 ---
 
 ## 11. Zustand Stores Used by Extensions
@@ -329,7 +402,7 @@ Extensions do not call Zustand stores directly — `ExtensionAPI` wraps them. Fo
 
 | Store | What it holds | Accessed via |
 | :--- | :--- | :--- |
-| `useExtensionState` | Registered extensions, enabled flags, actions, dialogs | `api.registerExtension`, `api.isExtensionEnabled`, etc. |
+| `useExtensionState` | Registered extensions, dependency metadata, enabled flags, actions, dialogs, editor tabs, style configs, overview columns, cell-info rows | `api.registerExtension`, `api.isExtensionEnabled`, etc. |
 | `useLayerState` | Layer configs, active preset | `api.addLayers`, `api.removeLayers`, `api.layerIsOn` |
 
 `useExtensionState` is persisted to `localStorage` (key `fmg-extensions`) — the `enabledExtensions` map survives page reloads.

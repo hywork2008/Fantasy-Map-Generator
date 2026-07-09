@@ -4,6 +4,64 @@ This document defines the strict constraints, architectural boundaries, and codi
 
 ---
 
+## 0. Project Orientation for AI Agents
+
+This repository is a fork of [Azgaar's Fantasy Map Generator](https://github.com/Azgaar/Fantasy-Map-Generator). The project is migrating the original JavaScript codebase to TypeScript / React / Zustand while adding project-specific simulation and extension systems.
+
+### Upstream Relationship
+
+- The upstream code is tracked on the `upstream/master` branch.
+- A local upstream clone exists at `/Users/h-yamaguchi/Projects/fmg-upstream`.
+- `docs/upstream/` contains upstream-derived reference documentation. For this fork's current behavior, prefer `src/` and the non-upstream `docs/` files over `docs/upstream/`.
+
+### Current Source Map
+
+| Path | Role |
+| :--- | :--- |
+| `src/app.ts` | `initApp()`, React UI bootstrap, `window.fmg` and `ExtensionAPI` assembly |
+| `src/main.ts` | Map generation pipeline, load-time behavior, zoom/focus, host event registration |
+| `src/initViewLayers.ts` | Single owner for creating and re-acquiring host SVG `<g>` layers |
+| `src/context/*.ts` | `WorldContext` / `ViewContext` / `AppServices` / `SimulationContext` |
+| `src/generators/` | Terrain, states, military, time, and other data generation/update logic |
+| `src/renderers/` | SVG rendering from `Readonly<WorldContext>` |
+| `src/controllers/` | UI/editing operations, layer control, redraw requests |
+| `src/ui/` | React app, tabs, dialogs, shared components |
+| `src/store/` | Zustand stores |
+| `src/extensions/` | Built-in extensions and dynamic ZIP extension infrastructure |
+
+### Built-in Extensions
+
+Built-in extensions are initialized from `src/extensions/index.ts` in this order:
+
+| ID | Scope | Default |
+| :--- | :--- | :--- |
+| `economy` | Goods, markets, production, trade, taxes, treasury | Disabled |
+| `characters` | Base character roster, skills, personality, family | Disabled |
+| `nobility` | Rulers, officers, province lords, diplomacy modifiers, strategic AI, espionage, mobilization, march capture | Disabled; requires `characters` |
+| `shipbuilding` | Shipyard candidates, logging, build queues, completed hulls, foreign interference logs | Disabled; `economy` is optional |
+
+Extensions must communicate with the host through `ExtensionAPI`. Dynamic ZIP extensions are imported from blob URLs and must never import host modules directly.
+
+### Documentation Map
+
+| Path | Use |
+| :--- | :--- |
+| `docs/this-project.md` | Fork-specific project entry point |
+| `docs/map-initialization-process.md` | Initialization, generation order, SVG layer order |
+| `docs/extension-system-guide.md` | Extension system technical guide |
+| `docs/extension-agent-spec.md` | Extension implementation rules for AI agents |
+| `docs/simulation/advance-time.md` | Advance Time and tick hook contract |
+| `docs/simulation/` | Simulation specs such as economy, population, and time |
+| `docs/analytics/` | Implementation investigations |
+| `docs/plan/` | Design plans and discussion logs; some entries describe already-implemented work |
+| `docs/debug/` / `docs/reviews/` | Bug investigation and review history |
+| `docs/ui/` | UI migration and UI/function mapping notes |
+| `docs/upstream/` | Upstream reference material only |
+
+Treat `docs/plan/`, `docs/debug/`, and `docs/reviews/` as time-stamped investigation history unless the implementation in `src/` confirms the behavior. Always reconcile them with source code before treating them as current specification.
+
+---
+
 ## 1. Core Architecture (4-Layer Rule)
 
 The codebase strictly adheres to a unidirectional 4-layer data flow architecture. Every module must be categorized under one of the following layers, passing state downward via read-only references:
@@ -60,7 +118,7 @@ The legacy practice of attaching objects and functions directly to the global `w
 
     `svgWidth`/`svgHeight` are `Math.min(graphWidth, window.innerWidth/Height)` — they depend on the browser window and change on resize, so they belong here, not in `WorldContext`. D3 rendering utilities (`lineGen`) are likewise view concerns. SVG layer selections are populated by `src/initViewLayers.ts` (`createViewLayers()` on startup, `reinitializeMapLayers()` on map load) via `Object.assign()` before any renderer runs. Renderers should declare only the group interface(s) they need rather than the full `ViewContext` type. When a renderer needs fields from multiple groups, declare them with an intersection type (e.g., `Readonly<RootLayers & PoliticalLayers>`). **String-based layer lookups via `viewContext.svg.select("#layerName")` are forbidden** when a typed `ViewContext` field exists for that layer — always use the field directly (e.g., `viewContext.statesBody` instead of `viewContext.svg.select("#statesBody")`).
   - `AppServices` (`src/context/appServices.ts`): Shared utility services — `rng` (pseudo-random number generator), `storage` (IndexedDB wrapper), `COArenderer` (coat-of-arms SVG renderer, nullable).
-  - `SimulationContext` (`src/context/simulationContext.ts`): Live, tick-driven simulation clock — `currentYear`, `era`, `tickCount`. Distinct from `WorldContext` because these values are not static generation output; they mutate repeatedly during a session as `src/generators/timeEngine.ts`'s `advanceTime()` runs. Initialized from `worldContext.options.year`/`era` once per generation (`initSimulationClock()`, called from `main.ts` after core generation completes) and mirrored back into `worldContext.options.year` on every `advanceTime()` call so legacy readers (`military-generator.ts`, `states-generator.ts`, `markers-generator.ts`, `battle-screen.ts`) keep working unchanged. Extensions read/react to it via `registerTimeTickHook()` on `ExtensionAPI`, not by importing this module directly.
+  - `SimulationContext` (`src/context/simulationContext.ts`): Live, tick-driven simulation state — `currentYear`, `currentMonth`, `currentDay`, `era`, `tickCount`, plus Nobility-owned live state such as `intelligence` and `strategicGoals`. Distinct from `WorldContext` because these values are not static generation output; they mutate repeatedly during a session as `src/generators/timeEngine.ts`'s `advanceTime()` runs. Initialized from `worldContext.options.year`/`month`/`day`/`era` once per generation (`initSimulationClock()`, called from `main.ts` after core generation completes) and mirrored back into `worldContext.options.year`/`month`/`day` on every `advanceTime()` call so legacy readers (`military-generator.ts`, `states-generator.ts`, `markers-generator.ts`, `battle-screen.ts`) keep working unchanged. Extensions read/react to it via `registerTimeTickHook()` on `ExtensionAPI`, not by importing this module directly.
 - **Object In-place Mutation Constraint**: Never replace `grid` or `pack` object references directly (e.g., `grid = newObject`). Use `Object.assign()` to perform in-place mutations so that shared references across module boundaries remain synchronized.
 
 ---

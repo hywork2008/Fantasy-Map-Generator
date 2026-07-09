@@ -1,7 +1,7 @@
 # 地図初期化プロセス
 
 > `src/app.ts` の `initApp()` から始まるデータ生成とレイヤー描画の全順序。
-> 作成日: 2026-06-27
+> 最終確認: 2026-07-09（`src/app.ts`, `src/main.ts`, `src/initViewLayers.ts`, `src/controllers/layers.ts`）
 
 ---
 
@@ -9,6 +9,9 @@
 
 ```
 initApp()
+  │
+  ├─ 0. injectInfrastructure() / injectVisibleUI()
+  │                              — DOM 基盤と表示 UI の差し込み
   │
   ├─ 1. initReactUI()          — React UI のマウント（ツールバー、ダイアログ）
   │
@@ -21,7 +24,8 @@ initApp()
   ├─ 5. initControllers()      — コントローラー初期化
   │       └─ initLayers()      — デフォルトレイヤー設定、カスタムプリセット復元
   │
-  ├─ 6. initMain()
+  ├─ 6. initMain(drawMap)
+  │       ├─ [drawMap] createViewLayers() / populateSizeRects()
   │       ├─ checkLoadParameters()
   │       │     └─ generateMapOnLoad() ← 通常ルート
   │       │           ├─ applyStyleOnLoad()
@@ -37,13 +41,14 @@ initApp()
 ```
 
 > **注意**: `main.ts` はモジュールとして `app.ts` に import された時点でモジュールレベルのコードが実行される。
-> SVG レイヤー `<g>` 要素の生成（§3）は `initMain()` 呼び出しより前に完了している。
+> ただし、ホスト SVG レイヤー `<g>` 要素の作成は現在 `src/initViewLayers.ts` に集約されており、
+> `initMain(drawMap)` の中で `createViewLayers()` / `populateSizeRects()` として実行される。
 
 ---
 
 ## 2. `generate()` — データ生成順序
 
-`generate()` は純粋なデータ生成フェーズ。SVG は一切描画しない。
+`generate()` はほぼデータ生成フェーズだが、実装上は海洋レイヤー、スケールバー、カレンダーなど一部の表示更新も含む。
 
 ```
 generate()
@@ -61,7 +66,7 @@ generate()
   ├─  8. addLakesInDeepDepressions()  — 窪地に湖を追加
   ├─  9. openNearSeaLakes()           — 海近くの湖を開口（海に接続）
   │
-  ├─ 10. OceanLayers()               — 海洋深度レイヤー描画（SVGではなくデータ）
+  ├─ 10. OceanLayers()               — 海洋レイヤー更新（`viewContext.renderMap` が true の場合）
   ├─ 11. defineMapSize()             — マップサイズ・緯度定義
   ├─ 12. calculateMapCoordinates()   — 地理座標計算
   ├─ 13. calculateTemperatures()     — 気温シミュレーション (grid.cells.temp)
@@ -103,8 +108,9 @@ generate()
   │
   ├─ 38.5 initSimulationClock()      — SimulationContext初期化（tickCount=0、options.year/era等から復元）
   ├─ 39. dispatchEvent("fmg:generate-post-core")  ← Economy/Shipbuilding/Nobility拡張がここで受信
-  │       └─ [Economy ON時] Goods.generate() → Markets.generate() → Production.produce()
-  │       └─ [Nobility ON時] Characters.generate() → StrategicPlanner.generate() 等
+  │       └─ [Economy ON時] Goods.generate() → Markets.generate() → Taxes/Production
+  │       └─ [Nobility ON時] Characters.generate() → offices/diplomacy/espionage/StrategicPlanner
+  │       └─ [Shipbuilding ON時] shipyard queues clear → candidates recompute/draw
   │
   ├─ 39.5 applyHistoricalWarScars()  — 過去の戦争史(chronicle)由来の人口減少を反映 (demography-simulator.ts)
   ├─ 39.6 Threats.appendCasualtyNotes() — モンスター被害のフレーバーテキストをnotesへ追記
@@ -118,10 +124,11 @@ generate()
 
 ---
 
-## 3. SVG レイヤーの DOM 構造と z-order（`src/main.ts` モジュールレベル）
+## 3. SVG レイヤーの DOM 構造と z-order（`src/initViewLayers.ts`）
 
 SVG の重ね順は DOM の追加順で決まる（**後に追加 = 上に表示**）。
-`main.ts` のモジュールレベルコードで `viewbox.append()` された順序が視覚的スタック順序になる。
+ホストレイヤーは `src/initViewLayers.ts` の `createViewLayers()` で `viewbox.append()` された順序が視覚的スタック順序になる。
+保存済み SVG を読み込んだ後は `reinitializeMapLayers()` が既存 DOM を再選択し、`viewContext` を in-place で更新する。
 
 ```
 #map (SVG)
@@ -182,7 +189,9 @@ SVG の重ね順は DOM の追加順で決まる（**後に追加 = 上に表示
   │     │     ├─ #provinceEmblems
   │     │     └─ #stateEmblems
   │     │
-  │     ├─ #marketsLayerFill  ⚠️ Economy拡張 (display:none, icons/labelsの下)
+  │     ├─ #marketsLayerFill  Economy拡張 (display:none, insertBefore:"icons")
+  │     ├─ #marketsLayer      Economy拡張 (display:none, insertBefore:"icons")
+  │     ├─ #goods             Economy拡張 (display:none, insertBefore:"icons")
   │     │
   │     ├─ #icons             ← burgIcons・anchors
   │     │     ├─ #burgIcons
@@ -194,9 +203,7 @@ SVG の重ね順は DOM の追加順で決まる（**後に追加 = 上に表示
   │     ├─ #armies
   │     ├─ #markers
   │     │
-  │     ├─ #goods             ⚠️ Economy拡張 (display:none, icons/labelsの上)
-  │     ├─ #marketsLayer      ⚠️ Economy拡張 (display:none, icons/labelsの上)
-  │     ├─ #tradeAnimation    ⚠️ Economy拡張 (icons/labelsの上)
+  │     ├─ #tradeAnimation    Economy拡張 (insertAfter:"marketsLayer")
   │     │
   │     ├─ #fogging-cont
   │     │     └─ #fogging
@@ -262,48 +269,25 @@ drawLayers()
 
 ---
 
-## 5. Economy 拡張レイヤーの重ね順問題
+## 5. Extension-owned SVG レイヤー
 
-### 問題の構造
+拡張機能の SVG レイヤーは `src/store/layerState.tsx` の `SvgLayerSpec` で宣言し、`api.addLayers()` 時に
+`src/app.ts` の `buildExtensionAPI()` が `#viewbox` の指定位置へ作成または再取得する。
 
-**移植元（upstream）** では Economy は基本機能のため、Markets レイヤーは `icons` / `labels` の**下**の DOM 位置に配置されている。
+現在の Economy 拡張の宣言:
 
-**本プロジェクト** では Economy は拡張機能のため、`main.ts` のモジュールレベルで Economy 用 SVG グループを末尾近くに追加している。結果として以下の DOM 順序になる。
-
-```
-              移植元                          本プロジェクト
-              ──────                          ──────────────
-  ...
-  #regions (States)             →     #regions (States)
-  #marketsLayerFill             →     #emblems
-  #marketsLayer    ← icons/labelsの下  #marketsLayerFill  ← icons/labelsの下（OK）
-  #icons                        →     #icons             ← burg icons
-  #labels                       →     #labels            ← burg labels
-  #armies                       →     #armies
-  #markers                      →     #markers
-  ...                           →     #goods             ← icons/labelsの上 ⚠️
-                                →     #marketsLayer      ← icons/labelsの上 ⚠️
-                                →     #tradeAnimation    ← icons/labelsの上
-```
-
-### 影響を受けるレイヤー
-
-| レイヤー | DOM ID | 問題 |
+| レイヤー | DOM ID | 配置 |
 | :-- | :-- | :-- |
-| Markets（市場エリア塗り） | `#marketsLayerFill` | `#icons` / `#labels` の前（下）なので問題なし |
-| Markets（市場アイコン） | `#marketsLayer` | `#icons` / `#labels` の後（上）なので覆い隠す ⚠️ |
-| Goods（物資アイコン） | `#goods` | `#icons` / `#labels` の後（上）なので覆い隠す ⚠️ |
-| Trade Animation | `#tradeAnimation` | `#icons` / `#labels` の後（上）だが視覚的に問題は軽微 |
+| Goods | `#goods` | `insertBefore: "icons"` で burg icons / labels より下 |
+| Markets fill | `#marketsLayerFill` | `insertBefore: "icons"` で burg icons / labels より下 |
+| Markets borders/icons/labels | `#marketsLayer` | `insertBefore: "icons"` で burg icons / labels より下 |
+| Trade animation | `#tradeAnimation` | `insertAfter: "marketsLayer"` |
 
-### 現在のデフォルト表示（Economy 拡張 OFF）
+過去には Economy レイヤーが `icons` / `labels` を覆う問題があったが、現在は `SvgLayerSpec.insertBefore` /
+`insertAfter` による差し込みで解消済み。保存済み SVG 読み込み後は `fmg:map-layers-reinitialized` を受けて
+extension API が登録済み `SvgLayerSpec` を再取得し、`registerMapReinitHook()` を呼ぶ。
 
-Economy 拡張が無効（デフォルト）の場合、`#marketsLayerFill` / `#goods` / `#marketsLayer` / `#tradeAnimation` はすべて `display:none` で非表示。視覚的な問題は発生しない。
-
-Economy 拡張を**有効化した場合**にのみ、`#marketsLayer` と `#goods` が `#icons`（burgIcons）・`#labels`（burgLabels）を覆い隠す問題が顕在化する。
-
-### 今後の対応方針（参考）
-
-拡張 ON 時に Economy レイヤーを `#icons` / `#labels` の前（下）に差し込む仕組みを追加することで解決できる。具体的には `api.addLayers()` 時に SVG `<g>` 要素を適切な DOM 位置に `insert` する機能が必要になる。これは現在の設計では未実装（追加予定）。
+Shipbuilding 拡張は `#shipyards` を `insertBefore: "icons"` で作成する。
 
 ---
 
@@ -332,7 +316,8 @@ Economy 拡張を**有効化した場合**にのみ、`#marketsLayer` と `#good
 | ファイル | 役割 |
 | :-- | :-- |
 | [src/app.ts](../src/app.ts) | `initApp()` エントリーポイント |
-| [src/main.ts](../src/main.ts) | SVG レイヤー生成・`generate()`・`generateMapOnLoad()` |
+| [src/main.ts](../src/main.ts) | `generate()`・`generateMapOnLoad()`・ズーム/ロード/ホストイベント |
+| [src/initViewLayers.ts](../src/initViewLayers.ts) | ホスト SVG レイヤー生成・再取得 |
 | [src/controllers/layers.ts](../src/controllers/layers.ts) | `drawLayers()`・`initLayers()`・プリセット管理 |
 | [src/store/layerState.tsx](../src/store/layerState.tsx) | `DEFAULT_LAYERS` 定義・レイヤー状態管理 |
 | [src/extensions/economy/index.tsx](../src/extensions/economy/index.tsx) | Economy 拡張の `init()` — レイヤー登録・フック登録 |
