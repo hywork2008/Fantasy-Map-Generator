@@ -3,8 +3,8 @@ import type { Point } from "../../hostCore";
 import type { Burg } from "../../hostTypes";
 import { ra } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
-import type { Deal } from "./markets-generator";
 import { Markets } from "./markets-generator";
+import type { Deal } from "./marketTypes";
 
 type DrawFn = (
   batch: TradeBatch,

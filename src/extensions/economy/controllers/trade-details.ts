@@ -5,7 +5,7 @@ import { rn } from "../../hostUtils";
 
 import { getApi, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
-import type { Deal } from "../generators/markets-generator";
+import type { Deal } from "../generators/marketTypes";
 import { TradeAnimation, type TradeBatch } from "../generators/trade-animation";
 import { clearHighlight, highlight } from "../renderers/draw-trade-animation";
 import { setTradeDetailsState } from "../store/tradeDetailsState";

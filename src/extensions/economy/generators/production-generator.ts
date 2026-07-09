@@ -4,8 +4,8 @@ import { getWorldContext } from "../economyContext";
 import { syncBurgMarketLedgers } from "./burgMarketLedgers";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, Goods, getDemandTargets } from "./goods-generator";
-import type { Deal, Market } from "./markets-generator";
 import { Markets } from "./markets-generator";
+import type { Deal, Market } from "./marketTypes";
 import { getModifiers, MAX_BONUS_PRODUCTION } from "./production-utils";
 
 const BONUS_URBAN_PRODUCTION = 1;

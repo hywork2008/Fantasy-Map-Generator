@@ -6,6 +6,9 @@ import { downloadFile, formatPrice, getFileName, rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
+import type { Market } from "../generators/marketTypes";
+import { isMarketTradePermitted } from "../generators/merchantOrganizations";
+import { estimateSpeculativeTrade, getTransportCost } from "../generators/tradeOpportunityEstimator";
 import {
   getMarketTradeOpportunitiesState,
   type MarketTradeOpportunityOption,
@@ -14,7 +17,6 @@ import {
   setMarketTradeOpportunitiesState
 } from "../store/marketTradeOpportunitiesState";
 
-const DISTANCE_COST_FACTOR = 0.5;
 const TRADE_ROUTE_GROUPS = new Set(["roads", "trails", "searoutes"]);
 
 type TradeRouteKind = "land" | "sea";
@@ -76,6 +78,7 @@ export function refresh(): void {
   const mapDiagonal = Math.hypot(world.graphWidth, world.graphHeight) || 1;
   const tradeRouteGraph = buildTradeRouteGraph(world.pack);
   const hasTradeRoutes = tradeRouteGraph.adjacency.size > 0;
+  const speculativeRows: MarketTradeOpportunityRow[] = [];
 
   for (const source of markets) {
     const sourceGood = source.goods[goodId];
@@ -96,33 +99,102 @@ export function refresh(): void {
       const sellPrice = Markets.customerSellPrice(targetGood.price, target.centerBurgId, goodId);
       const distance = getTradeDistance(sourceCenter, targetCenter, tradeRouteGraph, hasTradeRoutes);
       if (distance === null) continue;
+      if (!isMarketTradePermitted(source, target, distance.total)) continue;
 
       const transportCost = getTransportCost(distance.total, mapDiagonal) * good.value;
       const unitProfit = rn(sellPrice - buyPrice - transportCost, 2);
-      if (unitProfit <= 0) continue;
+      if (unitProfit <= 0) {
+        const estimate = estimateSpeculativeTrade({
+          good,
+          sourceMarketId: source.i,
+          targetMarketId: target.i,
+          sourceGood,
+          targetGood,
+          sourcePopulation: getMarketPopulation(source.i),
+          targetPopulation: getMarketPopulation(target.i),
+          distance: distance.total,
+          mapDiagonal,
+          buyPrice,
+          sellPrice
+        });
+        if (estimate) {
+          speculativeRows.push(
+            createRow({
+              source,
+              target,
+              distance,
+              buyPrice: estimate.buyPrice,
+              sellPrice: estimate.sellPrice,
+              transportCost: estimate.transportCost,
+              unitProfit: estimate.unitProfit,
+              maxUnits: estimate.maxUnits,
+              totalProfit: estimate.totalProfit
+            })
+          );
+        }
+        continue;
+      }
 
       const maxUnits = rn(sourceGood.stock, 2);
-      rows.push({
-        sourceMarketId: source.i,
-        targetMarketId: target.i,
-        sourceMarketName: Markets.getName(source),
-        targetMarketName: Markets.getName(target),
-        distance: rn(distance.total * world.distanceScale),
-        landDistance: rn(distance.land * world.distanceScale),
-        seaDistance: rn(distance.sea * world.distanceScale),
-        transferCount: distance.transfers,
-        buyPrice: rn(buyPrice, 2),
-        sellPrice: rn(sellPrice, 2),
-        transportCost: rn(transportCost, 2),
-        unitProfit,
-        maxUnits,
-        totalProfit: rn(unitProfit * maxUnits, 2)
-      });
+      rows.push(
+        createRow({
+          source,
+          target,
+          distance,
+          buyPrice: rn(buyPrice, 2),
+          sellPrice: rn(sellPrice, 2),
+          transportCost: rn(transportCost, 2),
+          unitProfit,
+          maxUnits,
+          totalProfit: rn(unitProfit * maxUnits, 2)
+        })
+      );
     }
   }
 
-  rows.sort((a, b) => b.totalProfit - a.totalProfit || b.unitProfit - a.unitProfit);
-  setMarketTradeOpportunitiesState({ rows: rows.slice(0, 200) });
+  const displayRows = rows.length ? rows : speculativeRows;
+  displayRows.sort((a, b) => b.totalProfit - a.totalProfit || b.unitProfit - a.unitProfit);
+  setMarketTradeOpportunitiesState({ rows: displayRows.slice(0, 200) });
+}
+
+function createRow({
+  source,
+  target,
+  distance,
+  buyPrice,
+  sellPrice,
+  transportCost,
+  unitProfit,
+  maxUnits,
+  totalProfit
+}: {
+  source: Market;
+  target: Market;
+  distance: TradeRouteDistance;
+  buyPrice: number;
+  sellPrice: number;
+  transportCost: number;
+  unitProfit: number;
+  maxUnits: number;
+  totalProfit: number;
+}): MarketTradeOpportunityRow {
+  const world = getWorldContext();
+  return {
+    sourceMarketId: source.i,
+    targetMarketId: target.i,
+    sourceMarketName: Markets.getName(source),
+    targetMarketName: Markets.getName(target),
+    distance: rn(distance.total * world.distanceScale),
+    landDistance: rn(distance.land * world.distanceScale),
+    seaDistance: rn(distance.sea * world.distanceScale),
+    transferCount: distance.transfers,
+    buyPrice,
+    sellPrice,
+    transportCost,
+    unitProfit,
+    maxUnits,
+    totalProfit
+  };
 }
 
 function buildTradeRouteGraph(pack: PackedGraph): TradeRouteGraph {
@@ -244,8 +316,11 @@ function getStraightLineApproximation(source: { x: number; y: number }, target: 
   return dx > dy ? dx + 0.414 * dy : dy + 0.414 * dx;
 }
 
-function getTransportCost(distance: number, mapDiagonal: number): number {
-  return (distance / mapDiagonal) * DISTANCE_COST_FACTOR;
+function getMarketPopulation(marketId: number): number {
+  return getWorldContext().pack.burgs.reduce((sum, burg) => {
+    if (!burg.i || burg.removed || burg.market !== marketId) return sum;
+    return sum + (burg.population ?? 0);
+  }, 0);
 }
 
 export function setSelectedGoodId(selectedGoodId: number): void {

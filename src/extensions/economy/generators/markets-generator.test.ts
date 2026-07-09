@@ -4,7 +4,8 @@ import { States, worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext } from "../economyContext";
 import "../types";
-import { type Market, MarketsModule } from "./markets-generator";
+import { MarketsModule } from "./markets-generator";
+import type { Market } from "./marketTypes";
 
 vi.mock("./goods-generator", async importOriginal => {
   const actual = await importOriginal<typeof import("./goods-generator")>();
@@ -36,6 +37,7 @@ describe("MarketsModule", () => {
       marketsModule = new MarketsModule();
       worldContext.graphWidth = 1000;
       worldContext.graphHeight = 800;
+      worldContext.distanceScale = 1;
       worldContext.nameBases = [{ i: 0, name: "Test", min: 3, max: 10, d: "", m: 0, b: "Anna,Bob,Carla,David,Erin" }];
       worldContext.pack = {
         characters: [],
@@ -154,6 +156,109 @@ describe("MarketsModule", () => {
       expect(tradeDeal!.tax).toBeGreaterThan(0);
       expect(tradeDeal!.tax).toBeCloseTo(0.2 * 5 * tradeDeal!.units, 1);
       expect(tradeDeal!.price).toBeGreaterThan(5);
+      expect(tradeDeal!.distance).toBe(100);
+      expect(tradeDeal!.durationDays).toBeGreaterThanOrEqual(3);
+      expect(tradeDeal!.accountingPeriodDays).toBe(7);
+    });
+
+    it("initializeMarketPrices() should create local price spread for nearby markets with equal stock", () => {
+      const market1: Market = { i: 1, centerBurgId: 1, color: "#ff0000", goods: { 0: { stock: 10, price: 10 } } };
+      const market2: Market = { i: 2, centerBurgId: 2, color: "#00ff00", goods: { 0: { stock: 10, price: 10 } } };
+      const burg1: Burg = { i: 1, population: 100, market: 1 } as unknown as Burg;
+      const burg2: Burg = { i: 2, population: 100, market: 2 } as unknown as Burg;
+      worldContext.pack.markets = [market1, market2];
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg1, burg2];
+
+      marketsModule.initializeMarketPrices();
+
+      expect(market1.goods[0].price).not.toBe(market2.goods[0].price);
+      expect(market1.goods[0].price).toBeGreaterThan(0);
+      expect(market2.goods[0].price).toBeGreaterThan(0);
+    });
+
+    it("runGlobalTrade() should skip market trades beyond the merchant range cap", () => {
+      const market1: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#ff0000",
+        goods: { 0: { stock: 100, price: 5 } }
+      };
+      const market2: Market = {
+        i: 2,
+        centerBurgId: 2,
+        color: "#00ff00",
+        goods: { 0: { stock: 0, price: 100 } }
+      };
+      const burg1: Burg = { i: 1, x: 0, y: 0, population: 100, market: 1 } as unknown as Burg;
+      const burg2: Burg = { i: 2, x: 900, y: 0, population: 100, market: 2 } as unknown as Burg;
+      worldContext.pack.markets = [market1, market2];
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg1, burg2];
+      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
+      marketsModule["marketById"] = [market1, market2];
+      marketsModule.runGlobalTrade();
+
+      expect(worldContext.pack.deals).toEqual([]);
+      expect(market2.goods[0].stock).toBe(0);
+      expect(market1.goods[0].stock).toBe(100);
+    });
+
+    it("runGlobalTrade() should fabricate nearby market trades when natural spread is absent", () => {
+      const market1: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#ff0000",
+        goods: { 0: { stock: 100, price: 10 } }
+      };
+      const market2: Market = {
+        i: 2,
+        centerBurgId: 2,
+        color: "#00ff00",
+        goods: { 0: { stock: 5, price: 10 } }
+      };
+      const burg1: Burg = { i: 1, x: 100, y: 100, population: 100, market: 1 } as unknown as Burg;
+      const burg2: Burg = { i: 2, x: 200, y: 100, population: 100, market: 2 } as unknown as Burg;
+      worldContext.pack.markets = [market1, market2];
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg1, burg2];
+      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
+      marketsModule["marketById"] = [market1, market2];
+
+      marketsModule.runGlobalTrade();
+
+      expect(worldContext.pack.deals.some(deal => deal.sellerType === "market" && deal.buyerType === "market")).toBe(
+        true
+      );
+      expect(market2.goods[0].stock).toBeGreaterThan(5);
+      expect(market1.goods[0].stock).toBeLessThan(100);
+    });
+
+    it("runGlobalTrade() should fabricate one-way nearby trades when stock and prices match", () => {
+      const market1: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#ff0000",
+        goods: { 0: { stock: 10, price: 10 } }
+      };
+      const market2: Market = {
+        i: 2,
+        centerBurgId: 2,
+        color: "#00ff00",
+        goods: { 0: { stock: 10, price: 10 } }
+      };
+      const burg1: Burg = { i: 1, x: 100, y: 100, population: 100, market: 1 } as unknown as Burg;
+      const burg2: Burg = { i: 2, x: 200, y: 100, population: 100, market: 2 } as unknown as Burg;
+      worldContext.pack.markets = [market1, market2];
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg1, burg2];
+      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
+      marketsModule["marketById"] = [market1, market2];
+
+      marketsModule.runGlobalTrade();
+
+      const tradeDeals = worldContext.pack.deals.filter(
+        deal => deal.sellerType === "market" && deal.buyerType === "market"
+      );
+      expect(tradeDeals).toHaveLength(1);
+      expect(market1.goods[0].stock).not.toBe(10);
+      expect(market2.goods[0].stock).not.toBe(10);
     });
 
     it("addMarket() should claim only the center burg's cell and preserve existing borders", () => {

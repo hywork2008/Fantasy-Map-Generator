@@ -16,6 +16,7 @@ describe("market trade opportunities", () => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
     worldContext.graphWidth = 1000;
     worldContext.graphHeight = 1000;
+    worldContext.distanceScale = 1;
     worldContext.pack = {
       goods: [
         {
@@ -84,7 +85,7 @@ describe("market trade opportunities", () => {
         feature: 0,
         points: [
           [100, 0, 10],
-          [100, 300, 20]
+          [100, 150, 20]
         ]
       },
       {
@@ -92,8 +93,8 @@ describe("market trade opportunities", () => {
         group: "trails",
         feature: 0,
         points: [
-          [100, 300, 20],
-          [100, 500, 2]
+          [100, 150, 20],
+          [100, 300, 2]
         ]
       }
     ];
@@ -105,11 +106,56 @@ describe("market trade opportunities", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].sourceMarketName).toBe("Cheapport");
     expect(rows[0].targetMarketName).toBe("Dearport");
-    expect(rows[0].distance).toBe(600);
-    expect(rows[0].landDistance).toBe(300);
-    expect(rows[0].seaDistance).toBe(300);
+    expect(rows[0].distance).toBe(400);
+    expect(rows[0].landDistance).toBe(250);
+    expect(rows[0].seaDistance).toBe(150);
     expect(rows[0].transferCount).toBe(2);
-    expect(rows[0].transportCost).toBeCloseTo(2.12, 2);
+    expect(rows[0].transportCost).toBeCloseTo(1.41, 2);
+  });
+
+  it("skips trade opportunities beyond the merchant range cap", () => {
+    worldContext.pack.markets[2].goods[1].price = 80;
+
+    setSelectedGoodId(1);
+    refresh();
+
+    const rows = getMarketTradeOpportunitiesState().rows;
+    expect(rows.map(row => row.targetMarketName)).not.toContain("Remoteport");
+  });
+
+  it("fabricates nearby opportunities when current prices have no natural spread", () => {
+    worldContext.pack.markets[0].goods[1] = { stock: 20, price: 10 };
+    worldContext.pack.markets[1].goods[1] = { stock: 5, price: 10 };
+    worldContext.pack.markets[2].goods[1] = { stock: 5, price: 10 };
+
+    setSelectedGoodId(1);
+    refresh();
+
+    const rows = getMarketTradeOpportunitiesState().rows;
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.some(row => row.sourceMarketName === "Cheapport" && row.targetMarketName === "Dearport")).toBe(true);
+    expect(rows.every(row => row.distance <= 400)).toBe(true);
+    expect(rows.every(row => row.unitProfit > 0)).toBe(true);
+  });
+
+  it("fabricates a one-way nearby opportunity even when stock and prices match", () => {
+    worldContext.pack.markets[0].goods[1] = { stock: 10, price: 10 };
+    worldContext.pack.markets[1].goods[1] = { stock: 10, price: 10 };
+    worldContext.pack.markets[2].goods[1] = { stock: 10, price: 10 };
+
+    setSelectedGoodId(1);
+    refresh();
+
+    const rows = getMarketTradeOpportunitiesState().rows;
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every(row => row.distance <= 400)).toBe(true);
+    expect(rows.every(row => row.unitProfit > 0)).toBe(true);
+    const nearPairRows = rows.filter(
+      row =>
+        (row.sourceMarketName === "Cheapport" && row.targetMarketName === "Dearport") ||
+        (row.sourceMarketName === "Dearport" && row.targetMarketName === "Cheapport")
+    );
+    expect(nearPairRows).toHaveLength(1);
   });
 
   it("skips market pairs that are not connected by routes when a trade route graph exists", () => {

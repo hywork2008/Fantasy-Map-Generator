@@ -6,7 +6,7 @@ import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext } from "../economyContext";
 import "../types";
 import { clearMarketManagers, MARKET_MANAGER_ROLE_KIND, syncMarketManagers } from "./marketManagers";
-import type { Market } from "./markets-generator";
+import type { Market } from "./marketTypes";
 
 describe("market managers", () => {
   beforeEach(() => {

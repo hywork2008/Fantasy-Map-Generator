@@ -3,7 +3,8 @@ import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph, State } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext } from "../economyContext";
 import "../types";
-import { type Market, Markets } from "./markets-generator";
+import { Markets } from "./markets-generator";
+import type { Market } from "./marketTypes";
 import { TaxesModule } from "./taxes-generator";
 
 describe("TaxesModule", () => {

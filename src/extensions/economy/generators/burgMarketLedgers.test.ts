@@ -70,6 +70,9 @@ describe("burg market ledgers", () => {
     expect(northShare).toBeCloseTo(100, 1);
     expect(southShare).toBeCloseTo(100, 1);
     expect(getDominantMerchant(northLedger)!.share).toBeGreaterThan(0);
+    expect(worldContext.pack.merchantOrganizations).toHaveLength(2);
+    expect(northLedger!.merchants.every(merchant => merchant.organizationId !== undefined)).toBe(true);
+    expect(worldContext.pack.merchantOrganizations.every(organization => organization.tradeRangeKm <= 400)).toBe(true);
   });
 
   it("assigns burg merchant roles and preserves the market manager as a center burg merchant", () => {

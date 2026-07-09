@@ -18,8 +18,8 @@ import {
 import { getApi, getMarketsLayer, getViewContext, getWorldContext } from "../economyContext";
 import { syncBurgMarketLedgers } from "../generators/burgMarketLedgers";
 import { getMarketManagerName } from "../generators/marketManagers";
-import type { Deal, Market } from "../generators/markets-generator";
 import { Markets } from "../generators/markets-generator";
+import type { Deal, Market } from "../generators/marketTypes";
 import { Production } from "../generators/production-generator";
 import { drawMarketsLayer, highlightMarketOff, highlightMarketOn } from "../renderers/draw-markets";
 import { getMarketsOverviewState, type MarketRowData, setMarketsOverviewState } from "../store/marketsOverviewState";

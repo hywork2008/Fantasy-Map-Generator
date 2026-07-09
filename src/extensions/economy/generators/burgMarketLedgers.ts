@@ -3,7 +3,8 @@ import { createPerson } from "../../characters/personFactory";
 import type { Burg } from "../../hostTypes";
 import { minmax, rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
-import type { Deal, Market } from "./markets-generator";
+import type { Deal, Market } from "./marketTypes";
+import { syncMerchantOrganizations } from "./merchantOrganizations";
 
 export interface BurgMarketLedger {
   burgId: number;
@@ -20,6 +21,7 @@ export interface BurgMarketMerchantEntry {
   revenue: number;
   share: number;
   influence?: number;
+  organizationId?: number;
 }
 
 export const BURG_MARKET_MERCHANT_ROLE_SOURCE = "economy";
@@ -218,6 +220,7 @@ export function syncBurgMarketLedgers(markets: Market[] = getWorldContext().pack
   }
 
   pack.burgMarketLedgers = nextLedgers;
+  syncMerchantOrganizations(nextLedgers, markets);
   pruneStaleMerchantRoles(nextLedgers);
 }
 
@@ -244,6 +247,7 @@ function pruneStaleMerchantRoles(ledgers: BurgMarketLedger[]): void {
 export function clearBurgMarketLedgers(): void {
   const { pack } = getWorldContext();
   pack.burgMarketLedgers = [];
+  pack.merchantOrganizations = [];
 
   if (!pack.characters?.length) return;
 

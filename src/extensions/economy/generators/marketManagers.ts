@@ -2,7 +2,7 @@ import type { Character, CharacterRole } from "../../characters/characterTypes";
 import { createPerson } from "../../characters/personFactory";
 import type { Burg } from "../../hostTypes";
 import { getWorldContext } from "../economyContext";
-import type { Market } from "./markets-generator";
+import type { Market } from "./marketTypes";
 
 export const MARKET_MANAGER_ROLE_SOURCE = "economy";
 export const MARKET_MANAGER_ROLE_KIND = "marketManager";

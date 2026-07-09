@@ -8,7 +8,16 @@ import { getBurgMarketLedger, syncBurgMarketLedgers } from "./burgMarketLedgers"
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, GOODS_DATA, Goods } from "./goods-generator";
 import { syncMarketManagers } from "./marketManagers";
+import type { Deal, Market } from "./marketTypes";
+import { isMarketTradePermitted } from "./merchantOrganizations";
 import { getCellProduction } from "./production-utils";
+import {
+  estimateSpeculativeTrade,
+  getLocalTradePriceMultiplier,
+  getTradeAccountingPeriodDays,
+  getTradeDurationDays,
+  getTransportCost
+} from "./tradeOpportunityEstimator";
 
 const PRICE_FLOOR_FACTOR = 0.25;
 const PRICE_CEILING_FACTOR = 3.0;
@@ -16,26 +25,7 @@ const LAPLACE_PRICE_SMOOTHING = 5;
 const MARKET_PRESSURE_FACTOR = 0.01;
 const MARKET_MARGIN = 0.1;
 
-export type Market = {
-  i: number;
-  centerBurgId: number;
-  color: string;
-  name?: string;
-  managerCharacterId?: number;
-  goods: Record<number, { stock: number; price: number }>;
-};
-
-export type Deal = {
-  i: number;
-  seller: number;
-  sellerType: "burg" | "market";
-  buyer: number;
-  buyerType: "burg" | "market";
-  good: number;
-  units: number;
-  price: number;
-  tax: number;
-};
+export type { Deal, Market } from "./marketTypes";
 
 export class MarketsModule {
   private get worldContext() {
@@ -263,11 +253,31 @@ export class MarketsModule {
         );
       }
     }
+    this.applyLocalTradePriceBias(populationByMarket);
   }
 
   public get(marketId: number | undefined): Market | undefined {
     if (!marketId) return undefined;
     return this.marketById[marketId];
+  }
+
+  private applyLocalTradePriceBias(populationByMarket: number[]): void {
+    for (const market of this.worldContext.pack.markets) {
+      const population = populationByMarket[market.i] || 0;
+      for (const good of this.worldContext.pack.goods || []) {
+        const marketGood = this.getMarketGood(market, good);
+        const multiplier = getLocalTradePriceMultiplier({
+          good,
+          marketId: market.i,
+          stock: marketGood.stock,
+          population
+        });
+        marketGood.price = rn(
+          minmax(good.value * PRICE_FLOOR_FACTOR, marketGood.price * multiplier, good.value * PRICE_CEILING_FACTOR),
+          2
+        );
+      }
+    }
   }
 
   // Display name: the custom name if set, otherwise derived from the center burg.
@@ -413,9 +423,8 @@ export class MarketsModule {
     const TRADE_RESERVE_FACTOR = 0.2;
     const MIN_UNIT = 0.1;
     const MIN_PROFIT = 1;
-    const DISTANCE_COST_FACTOR = 0.5;
 
-    const travelCost: Record<number, Record<number, number>> = {};
+    const travelCost: Record<number, Record<number, { cost: number; distance: number }>> = {};
     for (const m1 of this.worldContext.pack.markets) {
       travelCost[m1.i] = {};
       const burg1 = this.worldContext.pack.burgs[m1.centerBurgId];
@@ -428,7 +437,10 @@ export class MarketsModule {
         const dx = Math.abs(burg1.x - burg2.x);
         const dy = Math.abs(burg1.y - burg2.y);
         const distance = dx > dy ? dx + 0.414 * dy : dy + 0.414 * dx;
-        travelCost[m1.i][m2.i] = (distance / mapDiagonal) * DISTANCE_COST_FACTOR;
+        travelCost[m1.i][m2.i] = {
+          cost: getTransportCost(distance, mapDiagonal),
+          distance
+        };
       }
     }
 
@@ -453,8 +465,6 @@ export class MarketsModule {
         }
       }
 
-      if (!exporters.length || !importers.length) continue;
-
       const opportunities: {
         exporter: Market;
         importer: Market;
@@ -465,42 +475,60 @@ export class MarketsModule {
         units: number;
         unitProfit: number;
         totalProfit: number;
+        distance: number;
+        targetSalePrice?: number;
       }[] = [];
 
-      for (const exporter of exporters) {
-        const distances = travelCost[exporter.market.i];
-        if (!distances) continue;
+      if (exporters.length && importers.length) {
+        for (const exporter of exporters) {
+          const routes = travelCost[exporter.market.i];
+          if (!routes) continue;
 
-        const exporterGood = this.getMarketGood(exporter.market, good);
-        const available = Math.max(0, exporterGood.stock - exporter.reserve);
-        if (available < MIN_UNIT) continue;
+          const exporterGood = this.getMarketGood(exporter.market, good);
+          const available = Math.max(0, exporterGood.stock - exporter.reserve);
+          if (available < MIN_UNIT) continue;
 
-        const exporterCenter = this.worldContext.pack.burgs[exporter.market.centerBurgId];
-        const exporterTaxPerUnit = this.getSalesTax(exporterCenter) * exporterGood.price;
+          const exporterCenter = this.worldContext.pack.burgs[exporter.market.centerBurgId];
+          const exporterTaxPerUnit = this.getSalesTax(exporterCenter) * exporterGood.price;
 
-        for (const importer of importers) {
-          const importerGood = this.getMarketGood(importer.market, good);
-          const needed = Math.max(0, importer.reserve - importerGood.stock);
-          const units = Math.min(available, needed);
-          if (units < MIN_UNIT) continue;
+          for (const importer of importers) {
+            const importerGood = this.getMarketGood(importer.market, good);
+            const needed = Math.max(0, importer.reserve - importerGood.stock);
+            const units = Math.min(available, needed);
+            if (units < MIN_UNIT) continue;
 
-          const transportCost = distances[importer.market.i] * good.value;
-          const unitProfit = importerGood.price - (exporterGood.price + transportCost + exporterTaxPerUnit);
-          const totalProfit = unitProfit * units;
-          if (totalProfit < MIN_PROFIT) continue;
+            const route = routes[importer.market.i];
+            if (!route || !isMarketTradePermitted(exporter.market, importer.market, route.distance)) continue;
 
-          opportunities.push({
-            exporter: exporter.market,
-            importer: importer.market,
-            reserveExporter: exporter.reserve,
-            reserveImporter: importer.reserve,
-            transportCost,
-            exporterTaxPerUnit,
-            units,
-            unitProfit,
-            totalProfit
-          });
+            const transportCost = route.cost * good.value;
+            const unitProfit = importerGood.price - (exporterGood.price + transportCost + exporterTaxPerUnit);
+            const totalProfit = unitProfit * units;
+            if (totalProfit < MIN_PROFIT) continue;
+
+            opportunities.push({
+              exporter: exporter.market,
+              importer: importer.market,
+              reserveExporter: exporter.reserve,
+              reserveImporter: importer.reserve,
+              transportCost,
+              exporterTaxPerUnit,
+              units,
+              unitProfit,
+              totalProfit,
+              distance: route.distance
+            });
+          }
         }
+      }
+
+      if (!opportunities.length) {
+        this.addSpeculativeGlobalTradeOpportunities({
+          good,
+          populationByMarket,
+          travelCost,
+          mapDiagonal,
+          opportunities
+        });
       }
 
       opportunities.sort((a, b) => b.totalProfit - a.totalProfit || b.units - a.units);
@@ -514,9 +542,11 @@ export class MarketsModule {
         if (units < MIN_UNIT) continue;
 
         const landedCost = exporterGood.price + opportunity.transportCost + opportunity.exporterTaxPerUnit;
-        const totalProfit = (importerGood.price - landedCost) * units;
+        const targetSalePrice = opportunity.targetSalePrice ?? importerGood.price;
+        const totalProfit = (targetSalePrice - landedCost) * units;
         if (totalProfit < MIN_PROFIT) continue;
 
+        const durationDays = getTradeDurationDays(opportunity.distance * this.worldContext.distanceScale);
         const deal: Deal = {
           i: this.worldContext.pack.deals.length,
           seller: opportunity.exporter.i,
@@ -526,7 +556,10 @@ export class MarketsModule {
           good: good.i,
           units,
           price: landedCost,
-          tax: opportunity.exporterTaxPerUnit * units
+          tax: opportunity.exporterTaxPerUnit * units,
+          distance: rn(opportunity.distance * this.worldContext.distanceScale, 2),
+          durationDays,
+          accountingPeriodDays: getTradeAccountingPeriodDays(durationDays)
         };
         this.worldContext.pack.deals.push(deal);
 
@@ -534,6 +567,83 @@ export class MarketsModule {
         importerGood.price = rn(this.applyMarketPressure(good.value, importerGood.price, -units), 2);
         exporterGood.stock = rn(exporterGood.stock - units, 2);
         importerGood.stock = rn(importerGood.stock + units, 2);
+      }
+    }
+  }
+
+  private addSpeculativeGlobalTradeOpportunities({
+    good,
+    populationByMarket,
+    travelCost,
+    mapDiagonal,
+    opportunities
+  }: {
+    good: Good;
+    populationByMarket: number[];
+    travelCost: Record<number, Record<number, { cost: number; distance: number }>>;
+    mapDiagonal: number;
+    opportunities: {
+      exporter: Market;
+      importer: Market;
+      reserveExporter: number;
+      reserveImporter: number;
+      transportCost: number;
+      exporterTaxPerUnit: number;
+      units: number;
+      unitProfit: number;
+      totalProfit: number;
+      distance: number;
+      targetSalePrice?: number;
+    }[];
+  }): void {
+    const MIN_PROFIT = 1;
+    for (const exporter of this.worldContext.pack.markets) {
+      const routes = travelCost[exporter.i];
+      if (!routes) continue;
+
+      const exporterGood = this.getMarketGood(exporter, good);
+      if (exporterGood.stock < 0.1) continue;
+
+      const exporterCenter = this.worldContext.pack.burgs[exporter.centerBurgId];
+      const exporterTaxPerUnit = this.getSalesTax(exporterCenter) * exporterGood.price;
+
+      for (const importer of this.worldContext.pack.markets) {
+        if (importer.i === exporter.i) continue;
+        const route = routes[importer.i];
+        if (!route || !isMarketTradePermitted(exporter, importer, route.distance)) continue;
+
+        const importerGood = this.getMarketGood(importer, good);
+        const estimate = estimateSpeculativeTrade({
+          good,
+          sourceMarketId: exporter.i,
+          targetMarketId: importer.i,
+          sourceGood: exporterGood,
+          targetGood: importerGood,
+          sourcePopulation: populationByMarket[exporter.i] || 0,
+          targetPopulation: populationByMarket[importer.i] || 0,
+          distance: route.distance,
+          mapDiagonal
+        });
+        if (!estimate) continue;
+
+        const landedCost = exporterGood.price + estimate.transportCost + exporterTaxPerUnit;
+        const unitProfit = estimate.sellPrice - landedCost;
+        const totalProfit = unitProfit * estimate.maxUnits;
+        if (totalProfit < MIN_PROFIT) continue;
+
+        opportunities.push({
+          exporter,
+          importer,
+          reserveExporter: Math.max(0, exporterGood.stock - estimate.maxUnits),
+          reserveImporter: importerGood.stock + estimate.maxUnits,
+          transportCost: estimate.transportCost,
+          exporterTaxPerUnit,
+          units: estimate.maxUnits,
+          unitProfit,
+          totalProfit,
+          distance: route.distance,
+          targetSalePrice: estimate.sellPrice
+        });
       }
     }
   }

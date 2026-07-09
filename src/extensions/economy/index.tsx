@@ -17,6 +17,7 @@ import {
 import { Goods } from "./generators/goods-generator";
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
 import { Markets } from "./generators/markets-generator";
+import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
 import { Production } from "./generators/production-generator";
 import { Taxes } from "./generators/taxes-generator";
 import { TradeAnimation } from "./generators/trade-animation";
@@ -453,6 +454,7 @@ export function init(api: ExtensionAPI): void {
       worldContext.pack.markets = [];
       worldContext.pack.deals = [];
       worldContext.pack.burgMarketLedgers = [];
+      clearMerchantOrganizations();
       api.tooltipExtensions.showMapTooltip = undefined;
       api.tooltipExtensions.updateCellInfo = undefined;
       api.burgEconomyExtensions.getBurgEconomySummary = undefined;
