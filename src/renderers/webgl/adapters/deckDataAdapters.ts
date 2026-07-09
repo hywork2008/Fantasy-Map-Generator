@@ -27,6 +27,8 @@ export interface DeckPath {
   cellId: number | null;
 }
 
+export type DeckDivisionBoundaryKind = "state" | "province" | "culture" | "religion";
+
 export function colorToRgba(value: string | undefined, fallback: string, opacity = 1): Color {
   const parsed = parseColor(value || fallback) ?? parseColor(fallback);
   if (!parsed) return [153, 153, 153, Math.round(255 * opacity)];
@@ -85,7 +87,7 @@ export function buildCulturePolygons(
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
   return buildLandPolygons(worldContext, focusScope, "culture", cellId =>
-    colorToRgba(pack.cultures[pack.cells.culture[cellId]]?.color, "#999999", 0.78)
+    colorToRgba(pack.cultures[pack.cells.culture[cellId]]?.color, "#999999", 0.7)
   );
 }
 
@@ -95,7 +97,7 @@ export function buildReligionPolygons(
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
   return buildLandPolygons(worldContext, focusScope, "religion", cellId =>
-    colorToRgba(pack.religions[pack.cells.religion[cellId]]?.color, "#999999", 0.78)
+    colorToRgba(pack.religions[pack.cells.religion[cellId]]?.color, "#999999", 0.7)
   );
 }
 
@@ -105,7 +107,7 @@ export function buildStatePolygons(
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
   return buildLandPolygons(worldContext, focusScope, "state", cellId =>
-    colorToRgba(pack.states[pack.cells.state[cellId]]?.color, "#999999", 0.72)
+    colorToRgba(pack.states[pack.cells.state[cellId]]?.color, "#999999", 0.64)
   );
 }
 
@@ -115,7 +117,7 @@ export function buildProvincePolygons(
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
   return buildLandPolygons(worldContext, focusScope, "province", cellId =>
-    colorToRgba(pack.provinces[pack.cells.province[cellId]]?.color, "#999999", 0.68)
+    colorToRgba(pack.provinces[pack.cells.province[cellId]]?.color, "#999999", 0.58)
   );
 }
 
@@ -268,6 +270,45 @@ export function buildBorderPaths(worldContext: Readonly<WorldContext>, focusScop
   return paths;
 }
 
+export function buildDivisionBoundaryPaths(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  division: DeckDivisionBoundaryKind
+): DeckPath[] {
+  const { cells, vertices } = worldContext.pack;
+  const paths: DeckPath[] = [];
+  const seen = new Set<string>();
+
+  for (let cellId = 0; cellId < cells.i.length; cellId++) {
+    if (!isCellInScope(focusScope, cellId) || cells.h[cellId] < 20) continue;
+    const value = cells[division][cellId];
+    if (!value) continue;
+
+    for (const neighborId of cells.c[cellId] ?? []) {
+      if (neighborId < cellId || cells.h[neighborId] < 20 || !isCellInScope(focusScope, neighborId)) continue;
+      const neighborValue = cells[division][neighborId];
+      if (!neighborValue || value === neighborValue) continue;
+
+      const edge = getSharedEdge(cells, vertices, cellId, neighborId);
+      if (!edge) continue;
+
+      const key = `${division}-${cellId}-${neighborId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      paths.push({
+        id: `${division}-boundary-${cellId}-${neighborId}`,
+        path: edge,
+        color: getDivisionBoundaryColor(division),
+        width: getDivisionBoundaryWidth(division),
+        kind: "border",
+        cellId
+      });
+    }
+  }
+
+  return paths;
+}
+
 export function buildRiverPaths(worldContext: Readonly<WorldContext>, focusScope: FocusScope | null): DeckPath[] {
   return (worldContext.pack.rivers ?? [])
     .filter(
@@ -377,4 +418,16 @@ function getRouteColor(route: Route): Color {
   if (route.group === "searoutes") return colorToRgba("#4f8fc6", "#4f8fc6", 0.8);
   if (route.group === "roads") return colorToRgba("#7b4b2a", "#7b4b2a");
   return colorToRgba("#8b6f47", "#8b6f47", 0.9);
+}
+
+function getDivisionBoundaryColor(division: DeckDivisionBoundaryKind): Color {
+  if (division === "state") return colorToRgba("#111111", "#111111", 0.72);
+  if (division === "province") return colorToRgba("#222222", "#222222", 0.42);
+  return colorToRgba("#ffffff", "#ffffff", 0.45);
+}
+
+function getDivisionBoundaryWidth(division: DeckDivisionBoundaryKind): number {
+  if (division === "state") return 0.9;
+  if (division === "province") return 0.45;
+  return 0.55;
 }

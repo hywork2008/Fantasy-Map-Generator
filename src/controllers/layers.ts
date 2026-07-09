@@ -276,6 +276,16 @@ export function handleLayersPresetChange(preset: string): void {
   const layerState = useLayerState.getState();
   const layers = layerState.presets[preset] ?? [];
 
+  if (viewContext.renderMode === "webglHybrid") {
+    const nextActiveLayers: Record<string, boolean> = { ...layerState.activeLayers };
+    layerState.layers.forEach(l => {
+      nextActiveLayers[l.id] = layers.includes(l.id);
+    });
+    layerState.setAllActiveLayers(nextActiveLayers);
+    drawLayers();
+    return;
+  }
+
   layerState.layers.forEach(l => {
     const isOn = Boolean(layerState.activeLayers[l.id]);
     const shouldBeOn = layers.includes(l.id);

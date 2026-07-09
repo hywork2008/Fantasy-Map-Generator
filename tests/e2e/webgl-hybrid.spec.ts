@@ -1,7 +1,10 @@
 import { expect, type Page, test } from "@playwright/test";
 import {
+  getFirstLandScreenPoint,
+  getWebglDeckLayerIds,
   getWebglCanvasPixelStats,
   getViewTransformState,
+  setLayerPreset,
   setRenderMode,
   waitForMapLoad,
   waitForWebglCanvasPixels,
@@ -13,6 +16,20 @@ async function getSvgGroupState(page: Page, selector: string) {
     display: window.getComputedStyle(element).display,
     childCount: element.children.length
   }));
+}
+
+async function getTopElementAtCenter(page: Page, selector: string) {
+  return page.locator(selector).evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    const topElement = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    return {
+      id: topElement?.id ?? "",
+      tagName: topElement?.tagName ?? "",
+      className: topElement instanceof HTMLElement ? topElement.className : "",
+      targetZIndex: window.getComputedStyle(element).zIndex,
+      topZIndex: topElement ? window.getComputedStyle(topElement).zIndex : ""
+    };
+  });
 }
 
 test.describe("webgl hybrid renderer", () => {
@@ -57,6 +74,21 @@ test.describe("webgl hybrid renderer", () => {
     expect(mobileScreenshot.length).toBeGreaterThan(1000);
   });
 
+  test("keeps the left options UI above the WebGL canvas and SVG map", async ({ page }) => {
+    await page.goto("/?seed=webgl-ui-layering&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+
+    await expect(page.locator("#webglMapCanvas")).toBeVisible();
+    await expect(page.locator("#options")).toBeVisible();
+    await expect(page.locator("#optionsHide")).toBeVisible();
+    await expect.poll(() => getTopElementAtCenter(page, "#optionsHide")).toMatchObject({ id: "optionsHide" });
+
+    await page.locator("#optionsHide").click();
+    await expect(page.locator("#layersContent")).toBeVisible();
+  });
+
   test("emits stable pick detail without taking over editor clicks", async ({ page }) => {
     await page.goto("/?seed=webgl-pick&width=900&height=600");
     await waitForMapLoad(page);
@@ -79,7 +111,8 @@ test.describe("webgl hybrid renderer", () => {
         })
     );
 
-    await page.mouse.click(450, 300);
+    const point = await getFirstLandScreenPoint(page);
+    await page.mouse.click(point.x, point.y);
     const pick = await pickPromise;
 
     expect(pick).toMatchObject({
@@ -87,6 +120,38 @@ test.describe("webgl hybrid renderer", () => {
       id: expect.any(String),
       layerId: expect.stringMatching(/^fmg-webgl-/)
     });
+    await expect(page.locator("#debug .webgl-selected")).toHaveCount(1);
     await expect(getWebglCanvasPixelStats(page)).resolves.toMatchObject({ coloredPixels: expect.any(Number) });
+  });
+
+  test("renders migrated layers for major presets while keeping SVG overlays", async ({ page }) => {
+    await page.goto("/?seed=webgl-presets&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+
+    const presets = [
+      { name: "political", layers: ["fmg-webgl-states", "fmg-webgl-states-boundaries", "fmg-webgl-borders"] },
+      { name: "cultural", layers: ["fmg-webgl-cultures", "fmg-webgl-cultures-boundaries", "fmg-webgl-borders"] },
+      { name: "religions", layers: ["fmg-webgl-religions", "fmg-webgl-religions-boundaries", "fmg-webgl-borders"] },
+      { name: "provinces", layers: ["fmg-webgl-provinces", "fmg-webgl-provinces-boundaries", "fmg-webgl-borders"] },
+      { name: "biomes", layers: ["fmg-webgl-biomes", "fmg-webgl-rivers"] },
+      { name: "physical", layers: ["fmg-webgl-height", "fmg-webgl-rivers"] },
+      { name: "military", layers: ["fmg-webgl-states", "fmg-webgl-states-boundaries", "fmg-webgl-borders"] }
+    ];
+
+    for (const preset of presets) {
+      await setLayerPreset(page, preset.name);
+      await expect
+        .poll(() => getWebglDeckLayerIds(page), { timeout: 5000 })
+        .toEqual(expect.arrayContaining(["fmg-webgl-background", "fmg-webgl-land", ...preset.layers]));
+      const stats = await waitForWebglCanvasPixels(page);
+      expect(stats.coloredPixels).toBeGreaterThan(500);
+      await expect(page.locator("#webglMapCanvas")).toBeVisible();
+      await expect(page.locator("#landmass")).toBeHidden();
+      await expect(page.locator("#borders")).toBeHidden();
+      await expect(page.locator("#lakes")).toBeVisible();
+      await expect(page.locator("#scaleBar")).toBeVisible();
+    }
   });
 });

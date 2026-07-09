@@ -122,6 +122,29 @@ export async function setRenderMode(page: Page, mode: "svg" | "webglHybrid"): Pr
   await page.evaluate(renderMode => window.fmg.actions.setRenderMode(renderMode), mode);
 }
 
+export async function setLayerPreset(page: Page, preset: string): Promise<void> {
+  await page.evaluate(layerPreset => window.fmg.actions.handleLayersPresetChange(layerPreset), preset);
+}
+
+export async function getWebglDeckLayerIds(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const deck = window.fmg.view.webglDeck as unknown as { props?: { layers?: Array<{ id?: string }> } } | null;
+    return deck?.props?.layers?.map(layer => layer.id).filter((id): id is string => typeof id === "string") ?? [];
+  });
+}
+
+export async function getFirstLandScreenPoint(page: Page): Promise<{ x: number; y: number }> {
+  return page.evaluate(() => {
+    const { pack } = window.fmg.world;
+    const cellId = Array.from(pack.cells.i).find(cell => pack.cells.h[cell] >= 20) ?? 0;
+    const [mapX, mapY] = pack.cells.p[cellId];
+    return {
+      x: mapX * window.fmg.view.scale + window.fmg.view.viewX,
+      y: mapY * window.fmg.view.scale + window.fmg.view.viewY
+    };
+  });
+}
+
 export async function zoomToMapCenter(page: Page, scale: number): Promise<void> {
   await page.evaluate(
     zoomScale => {

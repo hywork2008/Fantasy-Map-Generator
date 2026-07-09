@@ -52,25 +52,7 @@ body.fmg-webgl-hybrid #webglMapCanvas {
   display: block;
 }
 
-body.fmg-webgl-hybrid #ocean,
-body.fmg-webgl-hybrid #landmass,
-body.fmg-webgl-hybrid #texture,
-body.fmg-webgl-hybrid #terrs,
-body.fmg-webgl-hybrid #biomes,
-body.fmg-webgl-hybrid #population,
-body.fmg-webgl-hybrid #cells,
-body.fmg-webgl-hybrid #gridOverlay,
-body.fmg-webgl-hybrid #rivers,
-body.fmg-webgl-hybrid #relig,
-body.fmg-webgl-hybrid #cults,
-body.fmg-webgl-hybrid #regions,
-body.fmg-webgl-hybrid #provs,
-body.fmg-webgl-hybrid #zones,
-body.fmg-webgl-hybrid #borders,
-body.fmg-webgl-hybrid #routes,
-body.fmg-webgl-hybrid #temperature,
-body.fmg-webgl-hybrid #prec,
-body.fmg-webgl-hybrid #danger {
+body.fmg-webgl-hybrid .fmg-webgl-managed-svg-layer {
   display: none !important;
 }
 
@@ -308,6 +290,7 @@ text.drag {
 
 #options {
   position: absolute;
+  z-index: 20;
 
   i {
     cursor: pointer;

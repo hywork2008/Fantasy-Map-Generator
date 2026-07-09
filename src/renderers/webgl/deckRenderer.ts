@@ -3,6 +3,7 @@ import type { ViewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
 import type { WebglPickDetail, WebglPickKind } from "../../types/webglPicking";
 import { buildDeckLayers } from "./buildDeckLayers";
+import { applyHybridLayerPolicy } from "./hybridLayerPolicy";
 
 const BODY_HYBRID_CLASS = "fmg-webgl-hybrid";
 let pickingEventTarget: SVGSVGElement | null = null;
@@ -65,7 +66,8 @@ function toPickDetail(info: PickingInfo | null): WebglPickDetail | null {
   const id = typeof record.id === "string" ? record.id : null;
   const kind = isWebglPickKind(record.kind) ? record.kind : null;
   if (!id || !kind || !info.layer?.id) return null;
-  const cellId = typeof record.cellId === "number" && Number.isFinite(record.cellId) ? record.cellId : null;
+  const cellId =
+    typeof record.cellId === "number" && Number.isFinite(record.cellId) && record.cellId >= 0 ? record.cellId : null;
   const coordinate =
     Array.isArray(info.coordinate) && typeof info.coordinate[0] === "number" && typeof info.coordinate[1] === "number"
       ? ([info.coordinate[0], info.coordinate[1], info.coordinate[2]].filter(value => typeof value === "number") as [
@@ -130,7 +132,7 @@ export const DeckGlRenderer = {
     if (!canvas) return false;
 
     sizeCanvas(canvas, viewContext);
-    document.body.classList.toggle(BODY_HYBRID_CLASS, viewContext.renderMode === "webglHybrid");
+    this.setModeClass(viewContext.renderMode === "webglHybrid");
     attachPickingBridge(viewContext);
 
     if (viewContext.webglDeck) return true;
@@ -198,6 +200,7 @@ export const DeckGlRenderer = {
   },
 
   setModeClass(enabled: boolean): void {
+    applyHybridLayerPolicy();
     document.body.classList.toggle(BODY_HYBRID_CLASS, enabled);
   }
 };
