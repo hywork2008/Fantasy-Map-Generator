@@ -3,7 +3,7 @@ import { create } from "zustand";
 export type SortOrder = "asc" | "desc";
 export type CharactersTab = "overview" | "stats";
 
-interface NobilityUiState {
+interface CharactersUiState {
   selectedCharacterId: number | null;
   sortBy: string;
   sortOrder: SortOrder;
@@ -21,7 +21,7 @@ interface NobilityUiState {
   bumpRefreshToken: () => void;
 }
 
-export const useNobilityUiState = create<NobilityUiState>((set, get) => ({
+export const useCharactersUiState = create<CharactersUiState>((set, get) => ({
   selectedCharacterId: null,
   sortBy: "name",
   sortOrder: "asc",

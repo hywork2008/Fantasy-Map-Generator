@@ -3,8 +3,8 @@ import { simulationContext } from "../../../context/simulationContext";
 import { buildSeaRouteGraph, findSeaRouteDistance, type SeaRouteGraph } from "../../../generators/seaRouteGraph";
 import type { Burg, ChronicleEvent, MilitaryRegiment, MilitaryUnit, State } from "../../../types/models";
 import type { PackedGraph } from "../../../types/PackedGraph";
+import type { Character } from "../../characters/characterTypes";
 import { getWorldContext } from "../nobilityContext";
-import type { Character } from "./characterTypes";
 import {
   canOccupyBurg,
   captureBurg,

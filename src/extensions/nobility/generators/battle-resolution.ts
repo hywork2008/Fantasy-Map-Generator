@@ -2,8 +2,8 @@ import { appServices } from "../../../context/appServices";
 import type { StrategicGoal } from "../../../context/simulationContext";
 import { buildSeaRouteGraph } from "../../../generators/seaRouteGraph";
 import type { ChronicleEvent } from "../../../types/models";
+import type { Character } from "../../characters/characterTypes";
 import { getWorldContext } from "../nobilityContext";
-import type { Character } from "./characterTypes";
 import {
   calculateEffectiveSiegePower,
   captureBurg,

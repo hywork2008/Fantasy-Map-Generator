@@ -1,8 +1,8 @@
+import type { Character } from "../../characters/characterTypes";
 import type { MilitaryRegiment } from "../../hostTypes";
 import { P } from "../../hostUtils";
 import { getWorldContext } from "../nobilityContext";
-import { Characters } from "./characters-generator";
-import type { Character } from "./characterTypes";
+import { Characters } from "./characterLifecycle";
 
 /** Titles that mark a character as an active field/fleet commander, as opposed to a central government office. */
 const COMMANDER_TITLES: readonly string[] = ["Commander", "Admiral"];

@@ -1,6 +1,6 @@
 import type { State } from "../../hostTypes";
-import type { Character } from "../generators/characters-generator";
-import { useNobilityUiState } from "../ui/nobilityUiState";
+import type { Character } from "../characterTypes";
+import { useCharactersUiState } from "../ui/charactersUiState";
 
 export interface CharacterRowData {
   c: Character;
@@ -125,5 +125,5 @@ export function filterAndSortCharacters(
 /** Called after every simulation tick so an already-open dialog reflects live character data. */
 export function refreshCharactersOverviewIfOpen(isOpen: boolean): void {
   if (!isOpen) return;
-  useNobilityUiState.getState().bumpRefreshToken();
+  useCharactersUiState.getState().bumpRefreshToken();
 }

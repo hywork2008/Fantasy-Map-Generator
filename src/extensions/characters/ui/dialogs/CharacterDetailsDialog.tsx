@@ -1,15 +1,15 @@
 import type React from "react";
 import { useState } from "react";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
-import type { TitleHolding } from "../../generators/characterTypes";
-import { getApi, getWorldContext } from "../../nobilityContext";
+import { getApi, getWorldContext } from "../../charactersContext";
+import type { TitleHolding } from "../../characterTypes";
+import { useCharactersUiState } from "../charactersUiState";
 import { RadarChart } from "../components/charts/RadarChart";
-import { useNobilityUiState } from "../nobilityUiState";
 
 export const CharacterDetailsDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("characterDetails"));
-  const selectedCharacterId = useNobilityUiState(state => state.selectedCharacterId);
-  useNobilityUiState(state => state.refreshToken);
+  const selectedCharacterId = useCharactersUiState(state => state.selectedCharacterId);
+  useCharactersUiState(state => state.refreshToken);
   const [activeTab, setActiveTab] = useState<"skills" | "personality">("skills");
 
   const worldContext = getWorldContext();

@@ -6,10 +6,11 @@ import { BordersRenderer } from "../../renderers/draw-borders";
 import { MilitaryRenderer } from "../../renderers/draw-military";
 import { StatesRenderer } from "../../renderers/draw-states";
 import type { ExtensionAPI } from "../../types/extension-api";
-import { refreshCharactersOverviewIfOpen } from "./controllers/characters-overview";
+import { advanceCharacterAging } from "../characters/advanceAge";
+import { refreshCharactersOverviewIfOpen } from "../characters/controllers/characters-overview";
+import { CHARACTERS_EXTENSION_ID } from "../characters/index";
 import { applyPersonalityToCapitalGuard } from "./generators/capitalGuardModifier";
-import { Characters } from "./generators/characters-generator";
-import type { CharacterSkills } from "./generators/characterTypes";
+import { Characters } from "./generators/characterLifecycle";
 import { applyAffinitiesToDiplomacy } from "./generators/diplomacy-modifier";
 import { Espionage } from "./generators/espionage-generator";
 import { tryRecaptureHomeBurg } from "./generators/homeRecapture";
@@ -21,34 +22,23 @@ import { assignProvinceLords } from "./generators/provinceLordGenerator";
 import { StrategicPlanner } from "./generators/strategic-planner";
 import { clearNobilityContext, getWorldContext, initNobilityContext } from "./nobilityContext";
 import { StatesEditorPersonalityTab } from "./ui/components/StatesEditorPersonalityTab";
-import { CharacterDetailsDialog } from "./ui/dialogs/CharacterDetailsDialog";
-import { CharactersOverviewDialog } from "./ui/dialogs/CharactersOverviewDialog";
 
 export const NOBILITY_EXTENSION_ID = "nobility";
 
 let _unsubscribe: (() => void) | null = null;
 let _generatePostCoreHandler: (() => void) | null = null;
-let _unregisterSkillModifier: (() => void) | null = null;
 
 export function init(api: ExtensionAPI): void {
   initNobilityContext(api);
-
-  // Supplies each character's base skill value to the generic cross-extension skill
-  // registry (see src/services/skillModifierService.ts) — e.g. Shipbuilding reads a
-  // state's ruler's Engineering skill via api.getEffectiveSkill() without importing
-  // Nobility directly.
-  _unregisterSkillModifier = api.registerSkillModifier(NOBILITY_EXTENSION_ID, (characterId, skill, currentValue) => {
-    const character = getWorldContext().pack.characters?.find(c => c.i === characterId);
-    if (!character) return currentValue;
-    const value = character.skills[skill as keyof CharacterSkills];
-    return value ?? currentValue;
-  });
 
   api.registerExtension(
     {
       id: NOBILITY_EXTENSION_ID,
       name: "Nobility & Characters",
-      description: "Adds ruler characters and central government offices for each state."
+      description: "Adds ruler characters and central government offices for each state.",
+      // Nobility assigns titles/offices to, and runs political AI over, characters generated
+      // by the Characters extension — it never generates or stores character data itself.
+      dependencies: [{ id: CHARACTERS_EXTENSION_ID, required: true }]
     },
     false
   );
@@ -59,31 +49,6 @@ export function init(api: ExtensionAPI): void {
     editorId: "statesEditor",
     label: "Personality",
     component: StatesEditorPersonalityTab
-  });
-
-  api.registerDialog({
-    id: "CharactersOverviewDialog",
-    extensionId: NOBILITY_EXTENSION_ID,
-    component: CharactersOverviewDialog
-  });
-
-  api.registerDialog({
-    id: "CharacterDetailsDialog",
-    extensionId: NOBILITY_EXTENSION_ID,
-    component: CharacterDetailsDialog
-  });
-
-  api.registerAction({
-    id: "nobility-view-characters",
-    extensionId: NOBILITY_EXTENSION_ID,
-    tab: "tools",
-    section: "edit",
-    dialogId: "charactersOverview",
-    label: "Characters",
-    tooltip: "Click to view generated rulers and government offices",
-    onClick: () => {
-      document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: "viewCharacters" } }));
-    }
   });
 
   api.registerAction({
@@ -104,11 +69,6 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
-  api.registerToolAction("viewCharacters", () => {
-    if (api.isDialogOpen("charactersOverview")) api.closeDialog("charactersOverview");
-    else api.openDialog("charactersOverview");
-  });
-
   _unsubscribe = api.subscribeExtensionState((state, prevState) => {
     const isEnabled = state.enabledExtensions[NOBILITY_EXTENSION_ID];
     const wasEnabled = prevState.enabledExtensions[NOBILITY_EXTENSION_ID];
@@ -123,7 +83,6 @@ export function init(api: ExtensionAPI): void {
         StrategicPlanner.generate();
       }
     } else if (!isEnabled && wasEnabled) {
-      api.closeDialog("charactersOverview");
       Characters.clear();
     }
   });
@@ -146,7 +105,8 @@ export function init(api: ExtensionAPI): void {
 
     const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
 
-    Characters.advanceAge(effectiveDeltaYears);
+    advanceCharacterAging(effectiveDeltaYears);
+    Characters.processResignationsAndSuccessions(effectiveDeltaYears);
     assignOfficers();
     assignProvinceLords();
 
@@ -204,13 +164,7 @@ export function cleanup(api: ExtensionAPI): void {
     document.removeEventListener("fmg:generate-post-core", _generatePostCoreHandler);
     _generatePostCoreHandler = null;
   }
-  if (_unregisterSkillModifier) {
-    _unregisterSkillModifier();
-    _unregisterSkillModifier = null;
-  }
 
-  api.closeDialog("charactersOverview");
-  api.unregisterToolAction("viewCharacters");
   api.unregisterExtension(NOBILITY_EXTENSION_ID);
   clearNobilityContext();
 }

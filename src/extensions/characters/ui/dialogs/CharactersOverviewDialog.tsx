@@ -1,11 +1,11 @@
 import type React from "react";
 import { useMemo } from "react";
 import { closeDialog, Dialog, openDialog, useDialogState } from "../../../hostUi";
+import { getWorldContext } from "../../charactersContext";
 import { filterAndSortCharacters } from "../../controllers/characters-overview";
-import { getWorldContext } from "../../nobilityContext";
+import { useCharactersUiState } from "../charactersUiState";
 import { CharactersStatsTable } from "../components/tables/CharactersStatsTable";
 import { CharactersTable } from "../components/tables/CharactersTable";
-import { useNobilityUiState } from "../nobilityUiState";
 
 export const CharactersOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("charactersOverview"));
@@ -22,7 +22,7 @@ export const CharactersOverviewDialog: React.FC = () => {
     setFilterStateId,
     setSelectedCharacterId,
     setActiveTab
-  } = useNobilityUiState();
+  } = useCharactersUiState();
 
   const worldContext = getWorldContext();
   const characters = (worldContext.pack.characters ?? []).filter(c => !c.dead);

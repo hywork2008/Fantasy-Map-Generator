@@ -1,6 +1,6 @@
 import { analyzeFrontiers, getProvinceThreats } from "../../../generators/frontierAnalysis";
 import { getWorldContext } from "../nobilityContext";
-import { Characters } from "./characters-generator";
+import { Characters } from "./characterLifecycle";
 
 /**
  * Sparsely assigns landed lords to frontier provinces — the "辺境伯" (margrave) role from

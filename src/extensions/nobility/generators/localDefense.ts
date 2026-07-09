@@ -1,7 +1,7 @@
 import { findSeaRouteDistance, type SeaRouteGraph } from "../../../generators/seaRouteGraph";
 import type { Burg, MilitaryRegiment, MilitaryUnit } from "../../../types/models";
 import type { PackedGraph } from "../../../types/PackedGraph";
-import type { Character } from "./characterTypes";
+import type { Character } from "../../characters/characterTypes";
 import { getRegimentCommander } from "./officerAssignment";
 
 /**

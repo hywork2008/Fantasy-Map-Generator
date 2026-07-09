@@ -52,6 +52,36 @@ export interface CharacterFamily {
   motherId?: number;
 }
 
+/** One entry in an ability-score preset's stat block, e.g. D&D 5e's "STR" or the built-in CK3-style "diplomacy". */
+export interface AbilityStatDef {
+  key: string;
+  label: string;
+  min: number;
+  max: number;
+  default: number;
+}
+
+/**
+ * A pluggable ability-score system (D&D 5e, CK3-style, or any future game's stat block).
+ * Registered via charactersContext's registerAbilityPreset() — see docs/plan/char-economy.md
+ * (質問3/回答3) for the design rationale. `generate()` uses the module-level rand()/P()
+ * helpers (backed by the currently-seeded Math.random), matching the world-gen-time RNG
+ * convention used elsewhere in this extension — not the injected AppServices.rng used by
+ * live-tick subsystems.
+ */
+export interface AbilityPreset {
+  id: string;
+  label: string;
+  stats: AbilityStatDef[];
+  generate(): Record<string, number>;
+}
+
+/** A character's rolled values under one AbilityPreset, keyed by AbilityStatDef.key. */
+export interface AbilityProfile {
+  presetId: string;
+  values: Record<string, number>;
+}
+
 export interface Character {
   i: number;
   name: string;
@@ -72,6 +102,15 @@ export interface Character {
   state: number;
   skills: CharacterSkills;
   personality: CharacterPersonality;
+  /**
+   * Pluggable ability-score profile, always populated at creation. For the default "ck3e"
+   * preset this is just `skills`+`personality` merged into one flat map (no extra RNG draw);
+   * for any other registered preset (e.g. "dnd5e") it holds that preset's own rolled values.
+   * `skills`/`personality` remain the source of truth for existing political logic — this
+   * field exists so future NPC extensions can read/display an arbitrary preset without the
+   * Character schema growing a new fixed field per game system.
+   */
+  abilityProfile?: AbilityProfile;
   family: CharacterFamily;
   appearance: number;
   prestige: number;

@@ -1,5 +1,5 @@
+import type { CharacterSkills, Gender } from "../../characters/characterTypes";
 import type { Province, State } from "../../hostTypes";
-import type { CharacterSkills, Gender } from "../generators/characterTypes";
 
 interface GenderedTitle {
   male: string;

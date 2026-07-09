@@ -1,5 +1,5 @@
 import type React from "react";
-import type { CharacterPersonality } from "../generators/characterTypes";
+import type { CharacterPersonality } from "../characterTypes";
 
 export function calculateCharacterTraits(p: CharacterPersonality) {
   const good = ((p.compassion ?? 0) + (p.honor ?? 0) + (p.sociability ?? 0)) / 3;

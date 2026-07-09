@@ -1,5 +1,5 @@
+import type { CharacterPersonality } from "../../characters/characterTypes";
 import { getWorldContext } from "../nobilityContext";
-import type { CharacterPersonality } from "./characterTypes";
 
 /** Below this boldness score, a ruler is considered cowardly. */
 const BOLDNESS_THRESHOLD = 30;
