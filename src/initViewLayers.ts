@@ -4,6 +4,17 @@ import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
 import { getElementById } from "./utils/nodeUtils";
 
+function createOrAcquireWebglCanvas(mapSvgEl: SVGSVGElement): HTMLCanvasElement {
+  const existing = document.getElementById("webglMapCanvas");
+  if (existing instanceof HTMLCanvasElement) return existing;
+
+  const canvas = document.createElement("canvas");
+  canvas.id = "webglMapCanvas";
+  canvas.setAttribute("aria-hidden", "true");
+  mapSvgEl.parentElement?.insertBefore(canvas, mapSvgEl);
+  return canvas;
+}
+
 /**
  * Creates all host SVG <g> layers in DOM render order and populates viewContext.
  * Called once during the synchronous SVG setup phase in app startup (before any renderer runs).
@@ -12,6 +23,7 @@ export function createViewLayers(): void {
   const mapSvgEl = getElementById<SVGSVGElement>("map");
   if (!mapSvgEl) throw new Error("Map SVG root #map is not found");
 
+  const webglCanvas = createOrAcquireWebglCanvas(mapSvgEl);
   const svg = d3.select<SVGSVGElement, unknown>(mapSvgEl) as Selection<SVGSVGElement, unknown, null, undefined>;
   const defs = svg.select("#deftemp") as Selection<SVGDefsElement, unknown, null, undefined>;
   const viewbox = svg.select("#viewbox") as Selection<SVGGElement, unknown, null, undefined>;
@@ -144,6 +156,7 @@ export function createViewLayers(): void {
 
   Object.assign(viewContext, {
     svg,
+    webglCanvas,
     defs,
     viewbox,
     scaleBar,
@@ -227,7 +240,11 @@ export function populateSizeRects(): void {
  * then updates viewContext in-place so all existing references stay valid.
  */
 export function reinitializeMapLayers(): void {
-  const svg = d3.select<SVGSVGElement, unknown>("#map") as unknown as Selection<
+  const mapSvgEl = getElementById<SVGSVGElement>("map");
+  if (!mapSvgEl) throw new Error("Map SVG root #map is not found");
+
+  const webglCanvas = createOrAcquireWebglCanvas(mapSvgEl);
+  const svg = d3.select<SVGSVGElement, unknown>(mapSvgEl) as unknown as Selection<
     SVGSVGElement,
     unknown,
     null,
@@ -296,6 +313,7 @@ export function reinitializeMapLayers(): void {
 
   Object.assign(viewContext, {
     svg,
+    webglCanvas,
     defs,
     viewbox,
     scaleBar,

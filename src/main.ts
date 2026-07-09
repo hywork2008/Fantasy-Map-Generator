@@ -47,6 +47,7 @@ import { renderGroupCOAs } from "./renderers/draw-emblems";
 import { CoordinatesRenderer, drawCalendar, drawScaleBar, fitScaleBar } from "./renderers/index";
 import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
+import { DeckGlRenderer } from "./renderers/webgl/deckRenderer";
 import { clearMainTip, tip } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
 import { useDebugSnapshotState } from "./store/debugSnapshotState";
@@ -134,6 +135,7 @@ export function fitMapView(): void {
 
   // Sync D3 zoom internal state so subsequent wheel/drag events compute correctly.
   viewContext.svg.call(zoom.transform, transform);
+  DeckGlRenderer.syncViewState(viewContext);
 }
 
 // ─── Main data variables ──────────────────────────────────────────────────────
@@ -213,6 +215,7 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
     pendingPositionChange = false;
 
     viewContext.viewbox.attr("transform", `translate(${viewX} ${viewY}) scale(${scale})`);
+    DeckGlRenderer.syncViewState(viewContext);
 
     if (didPositionChange) {
       if (layerIsOn("toggleCoordinates")) CoordinatesRenderer.render(worldContext, viewContext, appServices);
@@ -331,6 +334,9 @@ export async function initMain(drawMap: boolean = true): Promise<void> {
   });
   document.addEventListener("fmg:reinitialize-map-layers", reinitializeMapLayers);
   document.addEventListener("fmg:simulation-updated", () => drawCalendar(worldContext, viewContext));
+  document.addEventListener("fmg:render-mode-changed", () => {
+    if (viewContext.renderMap) drawLayers();
+  });
   document.addEventListener("fmg:show-statistics", showStatistics);
   document.addEventListener("fmg:generate-map-on-load", () => generateMapOnLoad(drawMap));
 

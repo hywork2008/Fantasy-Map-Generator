@@ -1,4 +1,4 @@
-import { getWorldState, resetZoom, zoomTo } from "./actions";
+import { getWorldState, resetZoom, setRenderMode, zoomTo } from "./actions";
 import { appServices } from "./context/appServices";
 import { simulationContext } from "./context/simulationContext";
 import type { SvgGroup } from "./context/viewContext";
@@ -241,6 +241,7 @@ export async function initApp(options: FMGInitOptions = {}): Promise<void> {
       regenerateMap,
       zoomTo,
       resetZoom,
+      setRenderMode,
       toggleLayer: toggleLayerById,
       handleLayersPresetChange,
       savePreset,

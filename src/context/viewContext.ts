@@ -1,6 +1,11 @@
+import type { Deck, OrthographicView } from "@deck.gl/core";
 import type { Line, Selection, ZoomBehavior } from "d3";
 
 export type SvgGroup = Selection<SVGGElement, unknown, null, undefined>;
+export type RenderMode = "svg" | "webglHybrid";
+
+const storedRenderMode =
+  typeof localStorage === "undefined" ? null : (localStorage.getItem("fmg-render-mode") as RenderMode | null);
 
 /** Core SVG structure and viewport infrastructure. */
 export interface RootLayers {
@@ -122,6 +127,12 @@ export interface ViewState {
   lineGen: Line<[number, number]>;
   /** Flag to determine if map drawing/rendering should occur */
   renderMap: boolean;
+  /** Active 2D map renderer. SVG remains the default and compatibility renderer. */
+  renderMode: RenderMode;
+  /** Canvas owned by the deck.gl hybrid renderer. Null until map infrastructure is initialized. */
+  webglCanvas: HTMLCanvasElement | null;
+  /** deck.gl instance owned by the hybrid renderer. Null when SVG rendering is active or unavailable. */
+  webglDeck: Deck<OrthographicView> | null;
 }
 
 /**
@@ -151,5 +162,8 @@ export const viewContext = {
   svgWidth: 0,
   svgHeight: 0,
   renderMap: true,
+  renderMode: storedRenderMode === "webglHybrid" ? "webglHybrid" : "svg",
+  webglCanvas: null,
+  webglDeck: null,
   lineGen: (() => "") as unknown as Line<[number, number]>
 } as ViewContext;

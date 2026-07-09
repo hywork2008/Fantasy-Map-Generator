@@ -47,6 +47,8 @@ let appServices: AppServices;
 let presets: Record<string, string[]> = {};
 
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
+import { WEBGL_LAYER_TOGGLES } from "../renderers/webgl/buildDeckLayers";
+import { DeckGlRenderer } from "../renderers/webgl/deckRenderer";
 import { tip } from "../services/tooltipService";
 import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
 import { getElementById, layerIsOn } from "../utils/nodeUtils";
@@ -336,6 +338,12 @@ export function getCurrentPreset(): void {
 // ─── Layer orchestration ──────────────────────────────────────────────────────
 
 export function drawLayers(): void {
+  if (viewContext.renderMode === "webglHybrid" && DeckGlRenderer.render(worldContext, viewContext)) {
+    drawHybridSvgOverlays();
+    return;
+  }
+
+  DeckGlRenderer.clear(viewContext);
   FeaturesRenderer.render(worldContext, viewContext, appServices);
   // FeaturesRenderer always renders lake paths (needed for masks), so explicitly
   // sync the #lakes display state with the toggle after rendering.
@@ -373,6 +381,25 @@ export function drawLayers(): void {
   if (layerIsOn("toggleRulers")) rulers.draw();
 }
 
+function drawHybridSvgOverlays(): void {
+  FeaturesRenderer.render(worldContext, viewContext, appServices);
+  if (!layerIsOn("toggleLakes")) setLayerVisibility("toggleLakes", false);
+  if (layerIsOn("toggleCoordinates")) CoordinatesRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleCompass")) {
+    if (!view.compass.select("use").size()) view.compass.append("use").attr("xlink:href", "#defs-compass-rose");
+    setLayerVisibility("toggleCompass", true);
+  }
+  if (layerIsOn("toggleRelief")) ReliefIconsRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleIce")) IceRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleLabels")) drawLabels();
+  if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleMarkers")) MarkersRenderer.render(worldContext, viewContext, appServices);
+  for (const hook of _drawLayerHooks) hook();
+  if (layerIsOn("toggleRulers")) rulers.draw();
+}
+
 function drawLabels(): void {
   StateLabelsRenderer.render(worldContext, viewContext, appServices);
   BurgLabelsRenderer.render(worldContext, viewContext, appServices);
@@ -385,21 +412,44 @@ export function turnButtonOff(el: string): void {
   useLayerState.getState().toggleLayer(el, false);
   getCurrentPreset();
   schedule3dUpdate();
+  scheduleWebglUpdate();
 }
 
 export function turnButtonOn(el: string): void {
   useLayerState.getState().toggleLayer(el, true);
   getCurrentPreset();
   schedule3dUpdate();
+  scheduleWebglUpdate();
 }
 
 // ─── Toggle functions ─────────────────────────────────────────────────────────
+
+function toggleWebglManagedLayer(id: string, styleElement: string, event?: MouseEvent): boolean {
+  if (viewContext.renderMode !== "webglHybrid" || !WEBGL_LAYER_TOGGLES.has(id)) return false;
+
+  const active = layerIsOn(id);
+  if (event && isCtrlClick(event) && active) {
+    editStyle(styleElement);
+    return true;
+  }
+
+  if (active) {
+    turnButtonOff(id);
+  } else {
+    turnButtonOn(id);
+    if (event && isCtrlClick(event)) editStyle(styleElement);
+  }
+
+  return true;
+}
 
 export function toggleHeight(event?: MouseEvent): void {
   if (view.customization === 1) {
     tip("You cannot turn off the layer when heightmap is in edit mode", false, "error");
     return;
   }
+
+  if (toggleWebglManagedLayer("toggleHeight", "terrs", event)) return;
 
   const children = view.terrs.selectAll("#oceanHeights > *, #landHeights > *");
   if (!children.size()) {
@@ -417,6 +467,8 @@ export function toggleHeight(event?: MouseEvent): void {
 }
 
 export function toggleTemperature(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleTemperature", "temperature", event)) return;
+
   if (!view.temperature.selectAll("*").size()) {
     turnButtonOn("toggleTemperature");
     TemperatureLayerRenderer.render(worldContext, viewContext, appServices);
@@ -432,6 +484,8 @@ export function toggleTemperature(event?: MouseEvent): void {
 }
 
 export function toggleBiomes(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleBiomes", "biomes", event)) return;
+
   if (!view.biomes.selectAll("path").size()) {
     turnButtonOn("toggleBiomes");
     BiomesRenderer.render(worldContext, viewContext, appServices);
@@ -447,6 +501,8 @@ export function toggleBiomes(event?: MouseEvent): void {
 }
 
 export function toggleDanger(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleDanger", "danger", event)) return;
+
   if (!layerIsOn("toggleDanger")) {
     turnButtonOn("toggleDanger");
     setLayerVisibility("toggleDanger", true);
@@ -464,6 +520,8 @@ export function toggleDanger(event?: MouseEvent): void {
 }
 
 export function togglePrecipitation(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("togglePrecipitation", "prec", event)) return;
+
   const layerIsActive = layerIsOn("togglePrecipitation");
   if (event && isCtrlClick(event) && layerIsActive) {
     editStyle("prec");
@@ -478,6 +536,8 @@ export function togglePrecipitation(event?: MouseEvent): void {
 }
 
 export function togglePopulation(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("togglePopulation", "population", event)) return;
+
   const layerIsActive = layerIsOn("togglePopulation");
   if (event && isCtrlClick(event) && layerIsActive) {
     editStyle("population");
@@ -492,6 +552,8 @@ export function togglePopulation(event?: MouseEvent): void {
 }
 
 export function toggleCells(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleCells", "cells", event)) return;
+
   if (!view.cells.selectAll("path").size()) {
     turnButtonOn("toggleCells");
     CellsRenderer.render(worldContext, viewContext, appServices);
@@ -523,6 +585,8 @@ export function toggleIce(event?: MouseEvent): void {
 }
 
 export function toggleCultures(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleCultures", "cults", event)) return;
+
   const activeCultures = worldContext.pack.cultures.filter(c => c.i && !c.removed);
   const empty = !view.cults.selectAll("path").size();
   if (empty && activeCultures.length) {
@@ -540,6 +604,8 @@ export function toggleCultures(event?: MouseEvent): void {
 }
 
 export function toggleReligions(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleReligions", "relig", event)) return;
+
   const activeReligions = worldContext.pack.religions.filter(r => r.i && !r.removed);
   if (!view.relig.selectAll("path").size() && activeReligions.length) {
     turnButtonOn("toggleReligions");
@@ -556,6 +622,8 @@ export function toggleReligions(event?: MouseEvent): void {
 }
 
 export function toggleStates(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleStates", "regions", event)) return;
+
   if (!layerIsOn("toggleStates")) {
     turnButtonOn("toggleStates");
     StatesRenderer.render(worldContext, viewContext, appServices);
@@ -571,6 +639,8 @@ export function toggleStates(event?: MouseEvent): void {
 }
 
 export function toggleBorders(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleBorders", "borders", event)) return;
+
   if (!layerIsOn("toggleBorders")) {
     turnButtonOn("toggleBorders");
     BordersRenderer.render(worldContext, viewContext, appServices);
@@ -586,6 +656,8 @@ export function toggleBorders(event?: MouseEvent): void {
 }
 
 export function toggleProvinces(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleProvinces", "provs", event)) return;
+
   if (!layerIsOn("toggleProvinces")) {
     turnButtonOn("toggleProvinces");
     ProvincesRenderer.render(worldContext, viewContext, appServices);
@@ -601,6 +673,8 @@ export function toggleProvinces(event?: MouseEvent): void {
 }
 
 export function toggleGrid(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleGrid", "gridOverlay", event)) return;
+
   if (!view.gridOverlay.selectAll("*").size()) {
     turnButtonOn("toggleGrid");
     GridRenderer.render(worldContext, viewContext, appServices);
@@ -694,6 +768,8 @@ export function toggleTexture(event?: MouseEvent): void {
 }
 
 export function toggleRivers(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleRivers", "rivers", event)) return;
+
   if (!layerIsOn("toggleRivers")) {
     turnButtonOn("toggleRivers");
     RiversRenderer.render(worldContext, viewContext, appServices);
@@ -709,6 +785,8 @@ export function toggleRivers(event?: MouseEvent): void {
 }
 
 export function toggleRoutes(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleRoutes", "routes", event)) return;
+
   if (!layerIsOn("toggleRoutes")) {
     turnButtonOn("toggleRoutes");
     RoutesRenderer.render(worldContext, viewContext, appServices);
@@ -819,6 +897,8 @@ export function toggleScaleBar(event?: MouseEvent): void {
 }
 
 export function toggleZones(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleZones", "zones", event)) return;
+
   if (!layerIsOn("toggleZones")) {
     turnButtonOn("toggleZones");
     ZonesRenderer.render(worldContext, viewContext, appServices);
@@ -925,6 +1005,7 @@ let precipitationTransitionToken = 0;
 let populationTransitionState: LayerToggleTransitionState = "off";
 let populationTargetState: LayerToggleTargetState = "off";
 let populationTransitionToken = 0;
+let pendingWebglUpdate = false;
 
 function syncPrecipitationTransitionState(): void {
   if (precipitationTransitionState === "turning-on" || precipitationTransitionState === "turning-off") return;
@@ -1052,6 +1133,15 @@ function schedule3dUpdate() {
       ThreeDRenderer.update();
     });
   }
+}
+
+function scheduleWebglUpdate(): void {
+  if (viewContext.renderMode !== "webglHybrid" || pendingWebglUpdate) return;
+  pendingWebglUpdate = true;
+  requestAnimationFrame(() => {
+    pendingWebglUpdate = false;
+    DeckGlRenderer.render(worldContext, viewContext);
+  });
 }
 
 /** Extension hooks called at the end of drawLayers() */

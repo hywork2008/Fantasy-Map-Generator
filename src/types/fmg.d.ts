@@ -1,5 +1,5 @@
 import type { SimulationContext } from "../context/simulationContext";
-import type { ViewContext } from "../context/viewContext";
+import type { RenderMode, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { UITourModule } from "../services/ui-tour";
 import type { Grid } from "../utils/graphUtils";
@@ -16,6 +16,7 @@ export interface FMGActionsAPI {
   regenerateMap(opts?: { seed?: string } | string): void;
   zoomTo(x: number, y: number, scale: number, duration?: number): void;
   resetZoom(duration?: number): void;
+  setRenderMode(mode: RenderMode): void;
   toggleLayer(id: string, event?: MouseEvent): void;
   handleLayersPresetChange(preset: string): void;
   savePreset(): void;

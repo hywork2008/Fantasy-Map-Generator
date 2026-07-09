@@ -1,4 +1,5 @@
 import * as d3 from "d3";
+import type { RenderMode } from "./context/viewContext";
 import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
 import type { BurgGroup } from "./types/models";
@@ -38,4 +39,10 @@ export function zoomIntoBurg(burgId: number): void {
 export function getWorldState() {
   const { pack, grid, seed, options, nameBases, biomesData, notes, style } = worldContext;
   return { pack, grid, seed, options, nameBases, biomesData, notes, style };
+}
+
+export function setRenderMode(mode: RenderMode): void {
+  viewContext.renderMode = mode;
+  localStorage.setItem("fmg-render-mode", mode);
+  document.dispatchEvent(new CustomEvent("fmg:render-mode-changed", { detail: mode }));
 }

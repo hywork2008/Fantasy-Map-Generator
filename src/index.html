@@ -42,6 +42,23 @@
 
     #map {
       position: absolute;
+      z-index: 2;
+    }
+
+    #webglMapCanvas {
+      position: absolute;
+      z-index: 1;
+      inset: 0;
+      display: none;
+      pointer-events: none;
+    }
+
+    body.fmg-webgl-hybrid #webglMapCanvas {
+      display: block;
+    }
+
+    body.fmg-webgl-hybrid #map {
+      background-color: transparent !important;
     }
 
     #loading>* {

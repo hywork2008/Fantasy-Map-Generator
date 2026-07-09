@@ -27,11 +27,51 @@ input[type="radio"] {
 }
 
 #map {
+  position: absolute;
+  z-index: 2;
   background-color: #000000;
   mask-mode: alpha;
   mask-clip: no-clip;
   fill-rule: evenodd;
   user-select: none;
+}
+
+#webglMapCanvas {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: none;
+  pointer-events: none;
+}
+
+body.fmg-webgl-hybrid #map {
+  background-color: transparent !important;
+}
+
+body.fmg-webgl-hybrid #webglMapCanvas {
+  display: block;
+}
+
+body.fmg-webgl-hybrid #ocean,
+body.fmg-webgl-hybrid #landmass,
+body.fmg-webgl-hybrid #texture,
+body.fmg-webgl-hybrid #terrs,
+body.fmg-webgl-hybrid #biomes,
+body.fmg-webgl-hybrid #population,
+body.fmg-webgl-hybrid #cells,
+body.fmg-webgl-hybrid #gridOverlay,
+body.fmg-webgl-hybrid #rivers,
+body.fmg-webgl-hybrid #relig,
+body.fmg-webgl-hybrid #cults,
+body.fmg-webgl-hybrid #regions,
+body.fmg-webgl-hybrid #provs,
+body.fmg-webgl-hybrid #zones,
+body.fmg-webgl-hybrid #borders,
+body.fmg-webgl-hybrid #routes,
+body.fmg-webgl-hybrid #temperature,
+body.fmg-webgl-hybrid #prec,
+body.fmg-webgl-hybrid #danger {
+  display: none !important;
 }
 
 #canvas {
