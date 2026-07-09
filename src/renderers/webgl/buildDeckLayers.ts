@@ -1,5 +1,6 @@
-import { COORDINATE_SYSTEM, type LayersList } from "@deck.gl/core";
+import { COORDINATE_SYSTEM, type Color, type LayersList } from "@deck.gl/core";
 import { PathLayer, SolidPolygonLayer } from "@deck.gl/layers";
+import type { AppServices } from "../../context/appServices";
 import type { ViewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
 import { useLayerState } from "../../store/layerState";
@@ -8,11 +9,14 @@ import {
   buildBiomesPolygons,
   buildBorderPaths,
   buildCellOutlinePaths,
+  buildCoastlinePaths,
   buildCulturePolygons,
   buildDangerPolygons,
   buildDivisionBoundaryPaths,
   buildGridPaths,
   buildHeightPolygons,
+  buildLakeOutlinePaths,
+  buildLakePolygons,
   buildLandPolygonsBase,
   buildPopulationPolygons,
   buildPrecipitationPolygons,
@@ -26,6 +30,7 @@ import {
   colorToRgba,
   type DeckCellPolygon,
   type DeckDivisionBoundaryKind,
+  type DeckFeaturePolygon,
   type DeckPath,
   type DeckPosition
 } from "./adapters/deckDataAdapters";
@@ -113,12 +118,18 @@ export function getDeckLayerDataCacheSize(): number {
   return deckLayerDataCache.size;
 }
 
-export function buildDeckLayers(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>): LayersList {
+export function buildDeckLayers(
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices
+): LayersList {
   const { activeLayers } = useLayerState.getState();
   const oceanFill = viewContext.oceanLayers?.select<SVGRectElement>("#oceanBase").attr("fill") || "#466eab";
   const landFill = viewContext.landmass?.attr("fill") || "#eef6fb";
   const oceanColor = colorToRgba(oceanFill, "#466eab");
   const signatures = buildLayerSignatures(worldContext, viewContext, oceanFill, landFill);
+  const lakePaint = getLakePaint(viewContext);
+  const coastlinePaint = getCoastlinePaint(viewContext);
   const layers: LayersList = [
     new SolidPolygonLayer<DeckCellPolygon>({
       id: "fmg-webgl-background",
@@ -139,6 +150,48 @@ export function buildDeckLayers(worldContext: Readonly<WorldContext>, viewContex
       pickable: true
     })
   ];
+
+  if (activeLayers.toggleLakes) {
+    layers.push(
+      new SolidPolygonLayer<DeckFeaturePolygon>({
+        id: "fmg-webgl-lakes",
+        data: getCachedDeckData("features:lakes", signatures.byLayer.lakes, () =>
+          buildLakePolygons(
+            worldContext,
+            viewContext.focusScope,
+            appServices,
+            group => lakePaint[group]?.fill ?? lakePaint.freshwater.fill
+          )
+        ),
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getPolygon: datum => datum.polygon,
+        getFillColor: datum => datum.fillColor,
+        pickable: true
+      }),
+      new PathLayer<DeckPath>({
+        id: "fmg-webgl-lakes-outlines",
+        data: getCachedDeckData("features:lakes-outlines", signatures.byLayer["lakes-outlines"], () =>
+          buildLakeOutlinePaths(
+            worldContext,
+            viewContext.focusScope,
+            appServices,
+            group => lakePaint[group]?.stroke ?? lakePaint.freshwater.stroke,
+            group => lakePaint[group]?.strokeWidth ?? lakePaint.freshwater.strokeWidth
+          )
+        ),
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getPath: datum => datum.path,
+        getColor: datum => datum.color,
+        getWidth: datum => datum.width,
+        widthUnits: "pixels",
+        widthMinPixels: 0,
+        widthMaxPixels: 6,
+        jointRounded: true,
+        capRounded: true,
+        pickable: false
+      })
+    );
+  }
 
   for (const layer of WEBGL_POLYGON_LAYERS) {
     if (!activeLayers[layer.toggle]) continue;
@@ -199,6 +252,31 @@ export function buildDeckLayers(worldContext: Readonly<WorldContext>, viewContex
     );
   }
 
+  layers.push(
+    new PathLayer<DeckPath>({
+      id: "fmg-webgl-coastline",
+      data: getCachedDeckData("features:coastline", signatures.byLayer.coastline, () =>
+        buildCoastlinePaths(
+          worldContext,
+          viewContext.focusScope,
+          appServices,
+          group => coastlinePaint[group]?.stroke ?? coastlinePaint.sea_island.stroke,
+          group => coastlinePaint[group]?.strokeWidth ?? coastlinePaint.sea_island.strokeWidth
+        )
+      ),
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      getPath: datum => datum.path,
+      getColor: datum => datum.color,
+      getWidth: datum => datum.width,
+      widthUnits: "pixels",
+      widthMinPixels: 0.25,
+      widthMaxPixels: 4,
+      jointRounded: true,
+      capRounded: true,
+      pickable: true
+    })
+  );
+
   return layers;
 }
 
@@ -245,6 +323,9 @@ function buildLayerSignatures(
       population: `${landGeometry}|${numberListSignature(pack.cells?.pop)}`,
       precipitation: `${landGeometry}|${numberListSignature(pack.cells?.g)}|${numberListSignature(grid.cells?.prec)}`,
       danger: `${landGeometry}|${numberListSignature(pack.cells?.danger)}`,
+      lakes: `${geometry}|${featuresSignature(pack.features, "lake")}|${paintSignature(getLakePaint(viewContext))}`,
+      "lakes-outlines": `${geometry}|${featuresSignature(pack.features, "lake")}|${paintSignature(getLakePaint(viewContext))}`,
+      coastline: `${geometry}|${featuresSignature(pack.features, "island")}|${paintSignature(getCoastlinePaint(viewContext))}`,
       cells: geometry,
       grid: `${geometry}|${nestedNumberListSignature(pack.cells?.c)}`,
       rivers: `${mapId}|${scope}|${riversSignature(pack.rivers)}`,
@@ -252,6 +333,63 @@ function buildLayerSignatures(
       routes: `${mapId}|${scope}|${routesSignature(pack.routes)}`
     }
   };
+}
+
+interface LayerPaint {
+  fill: Color;
+  stroke: Color;
+  strokeWidth: number;
+}
+
+function getLakePaint(viewContext: Readonly<ViewContext>): Record<string, LayerPaint> {
+  return {
+    freshwater: getLayerPaint(viewContext, "lakes", "freshwater", "#a6c1fd", "#5f799d", 0.7, 0.5),
+    salt: getLayerPaint(viewContext, "lakes", "salt", "#409b8a", "#388985", 0.7, 0.5),
+    sinkhole: getLayerPaint(viewContext, "lakes", "sinkhole", "#5bc9fd", "#53a3b0", 0.7, 1),
+    frozen: getLayerPaint(viewContext, "lakes", "frozen", "#cdd4e7", "#cfe0eb", 0, 0.95),
+    lava: getLayerPaint(viewContext, "lakes", "lava", "#90270d", "#f93e0c", 2, 0.7),
+    dry: getLayerPaint(viewContext, "lakes", "dry", "#c9bfa7", "#8e816f", 0.7, 1)
+  };
+}
+
+function getCoastlinePaint(viewContext: Readonly<ViewContext>): Record<string, LayerPaint> {
+  return {
+    sea_island: getLayerPaint(viewContext, "coastline", "sea_island", "transparent", "#1f3846", 0.5, 0.5),
+    lake_island: getLayerPaint(viewContext, "coastline", "lake_island", "transparent", "#7c8eaf", 0.35, 1)
+  };
+}
+
+function getLayerPaint(
+  viewContext: Readonly<ViewContext>,
+  root: "lakes" | "coastline",
+  id: string,
+  fillFallback: string,
+  strokeFallback: string,
+  strokeWidthFallback: number,
+  opacityFallback: number
+): LayerPaint {
+  if (!viewContext[root]) {
+    return {
+      fill: colorToRgba(fillFallback, fillFallback, opacityFallback),
+      stroke: colorToRgba(strokeFallback, strokeFallback, opacityFallback),
+      strokeWidth: strokeWidthFallback
+    };
+  }
+  const group = viewContext[root].select<SVGGElement>(`#${id}`);
+  const opacity = parseOptionalNumber(group.attr("opacity") ?? group.style("opacity")) ?? opacityFallback;
+  const fill = colorToRgba(group.attr("fill") ?? group.style("fill"), fillFallback, opacity);
+  const stroke = colorToRgba(group.attr("stroke") ?? group.style("stroke"), strokeFallback, opacity);
+  return {
+    fill,
+    stroke,
+    strokeWidth: parseOptionalNumber(group.attr("stroke-width") ?? group.style("stroke-width")) ?? strokeWidthFallback
+  };
+}
+
+function parseOptionalNumber(value: string | null | undefined): number | null {
+  if (!value || value === "none" || value === "null") return null;
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function getFocusScopeSignature(viewContext: Readonly<ViewContext>): string {
@@ -322,6 +460,39 @@ function zonesSignature(
     for (const cellId of zone?.cells ?? []) hash = hashNumber(hash, cellId);
   }
   return `${values.length}:${hash >>> 0}`;
+}
+
+function featuresSignature(
+  values:
+    | ReadonlyArray<{ i?: number; type?: string; group?: string; firstCell?: number; vertices?: number[] }>
+    | undefined,
+  type: "lake" | "island"
+): string {
+  if (!values) return "0:0";
+  let count = 0;
+  let hash = 2166136261;
+  for (const feature of values) {
+    if (!feature || feature.type !== type) continue;
+    count++;
+    hash = hashNumber(hash, feature.i ?? 0);
+    hash = hashString(hash, feature.group ?? "");
+    hash = hashNumber(hash, feature.firstCell ?? 0);
+    hash = hashNumber(hash, feature.vertices?.length ?? 0);
+    for (const vertexId of feature.vertices ?? []) hash = hashNumber(hash, vertexId);
+  }
+  return `${count}:${hash >>> 0}`;
+}
+
+function paintSignature(values: Record<string, LayerPaint>): string {
+  let hash = 2166136261;
+  for (const key of Object.keys(values).sort()) {
+    const paint = values[key];
+    hash = hashString(hash, key);
+    for (const value of paint.fill) hash = hashNumber(hash, value);
+    for (const value of paint.stroke) hash = hashNumber(hash, value);
+    hash = hashNumber(hash, paint.strokeWidth);
+  }
+  return hash.toString();
 }
 
 function riversSignature(

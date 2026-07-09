@@ -3,7 +3,15 @@ import type { ViewContext } from "../../../context/viewContext";
 import type { WorldContext } from "../../../context/worldContext";
 import { useLayerState } from "../../../store/layerState";
 import { buildDeckLayers, clearDeckLayerDataCache, getDeckLayerDataCacheSize } from "../buildDeckLayers";
-import { buildBiomesPolygons, buildLandPolygonsBase, buildRoutePaths } from "./deckDataAdapters";
+import {
+  buildBiomesPolygons,
+  buildCoastlinePaths,
+  buildLakePolygons,
+  buildLandPolygonsBase,
+  buildRoutePaths
+} from "./deckDataAdapters";
+
+const appServices = {} as Parameters<typeof buildDeckLayers>[2];
 
 function createWorldContext(): WorldContext {
   return {
@@ -118,18 +126,55 @@ describe("deck.gl data adapters", () => {
     expect(polygons[0].fillColor).toEqual([238, 246, 251, 255]);
   });
 
+  it("builds lake polygons and coastline paths from packed features", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.features = [
+      0,
+      {
+        i: 1,
+        type: "lake",
+        group: "freshwater",
+        firstCell: 0,
+        vertices: [0, 1, 3, 2]
+      },
+      {
+        i: 2,
+        type: "island",
+        group: "sea_island",
+        firstCell: 0,
+        vertices: [0, 1, 3, 2]
+      }
+    ] as never;
+
+    const lakes = buildLakePolygons(worldContext, null, appServices, () => [10, 20, 30, 128]);
+    const coastline = buildCoastlinePaths(
+      worldContext,
+      null,
+      appServices,
+      () => [1, 2, 3, 255],
+      () => 0.5
+    );
+
+    expect(lakes).toHaveLength(1);
+    expect(lakes[0]).toMatchObject({ id: "lake-1", kind: "lake", cellId: 0, group: "freshwater" });
+    expect(lakes[0].fillColor).toEqual([10, 20, 30, 128]);
+    expect(coastline).toHaveLength(1);
+    expect(coastline[0]).toMatchObject({ id: "coastline-2", kind: "coastline", cellId: 0, width: 0.5 });
+  });
+
   it("uses active layer state to build deck.gl layer ids in draw order", () => {
     const worldContext = createWorldContext();
     const viewContext = { focusScope: null } as ViewContext;
     useLayerState.getState().setAllActiveLayers({ toggleBiomes: true, toggleRoutes: true });
 
-    const layers = buildDeckLayers(worldContext, viewContext).filter(Boolean);
+    const layers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
 
     expect(layers.map(layer => layer.id)).toEqual([
       "fmg-webgl-background",
       "fmg-webgl-land",
       "fmg-webgl-biomes",
-      "fmg-webgl-routes"
+      "fmg-webgl-routes",
+      "fmg-webgl-coastline"
     ]);
     expect(layers.every(layer => layer.props.visible !== false)).toBe(true);
   });
@@ -139,9 +184,14 @@ describe("deck.gl data adapters", () => {
     const viewContext = { focusScope: null } as ViewContext;
     useLayerState.getState().setAllActiveLayers({ toggleBiomes: false, toggleRoutes: true, toggleStates: false });
 
-    const layers = buildDeckLayers(worldContext, viewContext).filter(Boolean);
+    const layers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
 
-    expect(layers.map(layer => layer.id)).toEqual(["fmg-webgl-background", "fmg-webgl-land", "fmg-webgl-routes"]);
+    expect(layers.map(layer => layer.id)).toEqual([
+      "fmg-webgl-background",
+      "fmg-webgl-land",
+      "fmg-webgl-routes",
+      "fmg-webgl-coastline"
+    ]);
   });
 
   it("adds visual boundary paths next to migrated division fills", () => {
@@ -167,16 +217,17 @@ describe("deck.gl data adapters", () => {
     const viewContext = { focusScope: null } as ViewContext;
     useLayerState.getState().setAllActiveLayers({ toggleStates: true });
 
-    const layers = buildDeckLayers(worldContext, viewContext).filter(Boolean);
+    const layers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
 
     expect(layers.map(layer => layer.id)).toEqual([
       "fmg-webgl-background",
       "fmg-webgl-land",
       "fmg-webgl-states",
-      "fmg-webgl-states-boundaries"
+      "fmg-webgl-states-boundaries",
+      "fmg-webgl-coastline"
     ]);
-    expect(layers.at(-1)?.props.pickable).toBe(false);
-    expect(layers.at(-1)?.props.data).toHaveLength(1);
+    expect(layers.find(layer => layer.id === "fmg-webgl-states-boundaries")?.props.pickable).toBe(false);
+    expect(layers.find(layer => layer.id === "fmg-webgl-states-boundaries")?.props.data).toHaveLength(1);
   });
 
   it("reuses cached deck.gl data while the layer signature is stable", () => {
@@ -184,8 +235,8 @@ describe("deck.gl data adapters", () => {
     const viewContext = { focusScope: null } as ViewContext;
     useLayerState.getState().setAllActiveLayers({ toggleBiomes: true });
 
-    const firstLayers = buildDeckLayers(worldContext, viewContext).filter(Boolean);
-    const secondLayers = buildDeckLayers(worldContext, viewContext).filter(Boolean);
+    const firstLayers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
+    const secondLayers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
 
     expect(getDeckLayerDataCacheSize()).toBeGreaterThan(0);
     expect(secondLayers.find(layer => layer.id === "fmg-webgl-biomes")?.props.data).toBe(
@@ -198,10 +249,10 @@ describe("deck.gl data adapters", () => {
     const viewContext = { focusScope: null } as ViewContext;
     useLayerState.getState().setAllActiveLayers({ toggleBiomes: true });
 
-    const firstLayers = buildDeckLayers(worldContext, viewContext).filter(Boolean);
+    const firstLayers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
     const firstBiomeData = firstLayers.find(layer => layer.id === "fmg-webgl-biomes")?.props.data;
     worldContext.biomesData.color[1] = "#336699";
-    const secondLayers = buildDeckLayers(worldContext, viewContext).filter(Boolean);
+    const secondLayers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
     const secondBiomeData = secondLayers.find(layer => layer.id === "fmg-webgl-biomes")?.props.data;
 
     expect(secondBiomeData).not.toBe(firstBiomeData);

@@ -3,6 +3,7 @@ const WEBGL_MANAGED_SVG_LAYER_IDS = [
   "landmass",
   "texture",
   "terrs",
+  "lakes",
   "biomes",
   "population",
   "cells",
@@ -17,14 +18,13 @@ const WEBGL_MANAGED_SVG_LAYER_IDS = [
   "routes",
   "temperature",
   "prec",
-  "danger"
+  "danger",
+  "coastline"
 ] as const;
 
 export const HYBRID_WEBGL_MANAGED_SVG_LAYER_IDS: ReadonlySet<string> = new Set(WEBGL_MANAGED_SVG_LAYER_IDS);
 
 export const HYBRID_SVG_OVERLAY_LAYER_IDS = [
-  "lakes",
-  "coastline",
   "ice",
   "terrain",
   "coordinates",

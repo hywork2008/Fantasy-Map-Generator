@@ -12,6 +12,8 @@ export type WebglPickKind =
   | "population"
   | "precipitation"
   | "danger"
+  | "lake"
+  | "coastline"
   | "cell"
   | "grid"
   | "border"

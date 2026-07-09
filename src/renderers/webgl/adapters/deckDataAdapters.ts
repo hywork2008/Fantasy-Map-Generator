@@ -1,11 +1,15 @@
 import type { Color } from "@deck.gl/core";
 import { color as parseColor } from "d3";
-import type { FocusScope } from "../../../context/viewContext";
+import _simplify from "simplify-js";
+import type { AppServices } from "../../../context/appServices";
+import type { FocusScope, ViewContext } from "../../../context/viewContext";
 import type { WorldContext } from "../../../context/worldContext";
 import { Rivers } from "../../../generators/river-generator";
-import type { Route } from "../../../types/models";
+import type { PackedGraphFeature, Route } from "../../../types/models";
 import type { PackedGraphCells, PackedGraphVertices } from "../../../types/PackedGraph";
 import type { WebglPickKind } from "../../../types/webglPicking";
+import { clipPoly } from "../../../utils";
+import { fractalizeCoastline } from "../../coastline-fractal";
 import { isCellInScope } from "../../core/focusScope";
 
 export type DeckPosition = [number, number];
@@ -25,6 +29,11 @@ export interface DeckPath {
   width: number;
   kind: WebglPickKind;
   cellId: number | null;
+}
+
+export interface DeckFeaturePolygon extends DeckCellPolygon {
+  featureId: number;
+  group: string;
 }
 
 export type DeckDivisionBoundaryKind = "state" | "province" | "culture" | "religion";
@@ -344,6 +353,63 @@ export function buildRoutePaths(worldContext: Readonly<WorldContext>, focusScope
     }));
 }
 
+export function buildLakePolygons(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  appServices: AppServices,
+  getFillColor: (group: string) => Color
+): DeckFeaturePolygon[] {
+  return getRenderableFeatures(worldContext, focusScope, "lake", appServices).map(feature => ({
+    id: `lake-${feature.feature.i}`,
+    kind: "lake",
+    cellId: feature.feature.firstCell,
+    featureId: feature.feature.i,
+    group: feature.feature.group || "freshwater",
+    polygon: feature.points,
+    fillColor: getFillColor(feature.feature.group || "freshwater")
+  }));
+}
+
+export function buildLakeOutlinePaths(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  appServices: AppServices,
+  getStrokeColor: (group: string) => Color,
+  getStrokeWidth: (group: string) => number
+): DeckPath[] {
+  return getRenderableFeatures(worldContext, focusScope, "lake", appServices).map(feature => {
+    const group = feature.feature.group || "freshwater";
+    return {
+      id: `lake-outline-${feature.feature.i}`,
+      path: closePath(feature.points),
+      color: getStrokeColor(group),
+      width: getStrokeWidth(group),
+      kind: "lake",
+      cellId: feature.feature.firstCell
+    };
+  });
+}
+
+export function buildCoastlinePaths(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  appServices: AppServices,
+  getStrokeColor: (group: string) => Color,
+  getStrokeWidth: (group: string) => number
+): DeckPath[] {
+  return getRenderableFeatures(worldContext, focusScope, "island", appServices).map(feature => {
+    const group = feature.feature.group === "lake_island" ? "lake_island" : "sea_island";
+    return {
+      id: `coastline-${feature.feature.i}`,
+      path: closePath(feature.points),
+      color: getStrokeColor(group),
+      width: getStrokeWidth(group),
+      kind: "coastline",
+      cellId: feature.feature.firstCell
+    };
+  });
+}
+
 function buildLandPolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
@@ -390,6 +456,76 @@ function getCellPolygon(
     .map(([x, y]) => [x, y] as DeckPosition);
 
   return polygon.length >= 3 ? polygon : null;
+}
+
+function getRenderableFeatures(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  type: "lake" | "island",
+  appServices: AppServices
+): Array<{ feature: PackedGraphFeature; points: DeckPosition[] }> {
+  const features = (
+    Array.isArray(worldContext.pack.features)
+      ? worldContext.pack.features
+      : Object.values(worldContext.pack.features || {})
+  ) as PackedGraphFeature[];
+
+  return features
+    .filter(
+      feature =>
+        Boolean(feature) &&
+        feature.type === type &&
+        (!focusScope || featureFeatureIntersectsScope(worldContext, focusScope, feature))
+    )
+    .map(feature => {
+      const points = getFeaturePolygon(worldContext, appServices, feature);
+      return points.length >= 3 ? { feature, points } : null;
+    })
+    .filter((feature): feature is { feature: PackedGraphFeature; points: DeckPosition[] } => Boolean(feature));
+}
+
+function featureFeatureIntersectsScope(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope,
+  feature: PackedGraphFeature
+): boolean {
+  if (focusScope.cellIds.has(feature.firstCell)) return true;
+  return worldContext.pack.cells.i.some(
+    cellId => worldContext.pack.cells.f[cellId] === feature.i && focusScope.cellIds.has(cellId)
+  );
+}
+
+function getFeaturePolygon(
+  worldContext: Readonly<WorldContext>,
+  appServices: AppServices,
+  feature: PackedGraphFeature
+): DeckPosition[] {
+  const points = feature.vertices
+    .map(vertexId => worldContext.pack.vertices.p[vertexId])
+    .filter((point): point is [number, number] => Boolean(point));
+  if (points.length < 3) return [];
+
+  const simplified = _simplify(
+    points.map(([x, y]) => ({ x, y })),
+    0.3
+  ).map(({ x, y }) => [x, y] as [number, number]);
+  const clipped = clipPoly(simplified, worldContext.graphWidth, worldContext.graphHeight, 1);
+  return fractalizeCoastline(
+    worldContext,
+    {} as Readonly<ViewContext>,
+    appServices,
+    clipped,
+    feature.i,
+    feature.type
+  ).points.map(([x, y]) => [x, y] as DeckPosition);
+}
+
+function closePath(points: DeckPosition[]): DeckPosition[] {
+  if (!points.length) return [];
+  const first = points[0];
+  const last = points.at(-1);
+  if (last && first[0] === last[0] && first[1] === last[1]) return points;
+  return [...points, first];
 }
 
 function getSharedEdge(

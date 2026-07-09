@@ -1,4 +1,5 @@
 import { Deck, OrthographicView, type OrthographicViewState, type PickingInfo } from "@deck.gl/core";
+import type { AppServices } from "../../context/appServices";
 import type { ViewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
 import type { WebglPickDetail, WebglPickKind } from "../../types/webglPicking";
@@ -51,6 +52,8 @@ function isWebglPickKind(value: unknown): value is WebglPickKind {
     value === "population" ||
     value === "precipitation" ||
     value === "danger" ||
+    value === "lake" ||
+    value === "coastline" ||
     value === "cell" ||
     value === "grid" ||
     value === "border" ||
@@ -154,7 +157,7 @@ export const DeckGlRenderer = {
     return true;
   },
 
-  render(worldContext: Readonly<WorldContext>, viewContext: ViewContext): boolean {
+  render(worldContext: Readonly<WorldContext>, viewContext: ViewContext, appServices: AppServices): boolean {
     if (viewContext.renderMode !== "webglHybrid") {
       this.setModeClass(false);
       return false;
@@ -165,7 +168,7 @@ export const DeckGlRenderer = {
       width: viewContext.svgWidth,
       height: viewContext.svgHeight,
       viewState: getOrthographicViewState(viewContext),
-      layers: buildDeckLayers(worldContext, viewContext)
+      layers: buildDeckLayers(worldContext, viewContext, appServices)
     });
     return true;
   },

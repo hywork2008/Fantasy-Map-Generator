@@ -348,7 +348,7 @@ export function getCurrentPreset(): void {
 // ─── Layer orchestration ──────────────────────────────────────────────────────
 
 export function drawLayers(): void {
-  if (viewContext.renderMode === "webglHybrid" && DeckGlRenderer.render(worldContext, viewContext)) {
+  if (viewContext.renderMode === "webglHybrid" && DeckGlRenderer.render(worldContext, viewContext, appServices)) {
     drawHybridSvgOverlays();
     return;
   }
@@ -1150,7 +1150,7 @@ function scheduleWebglUpdate(): void {
   pendingWebglUpdate = true;
   requestAnimationFrame(() => {
     pendingWebglUpdate = false;
-    DeckGlRenderer.render(worldContext, viewContext);
+    DeckGlRenderer.render(worldContext, viewContext, appServices);
   });
 }
 

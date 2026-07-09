@@ -43,6 +43,8 @@ function formatWebglPickTooltip(detail: WebglPickDetail): string {
   if (detail.kind === "background") return "Ocean";
   if (detail.kind === "river") return formatRiverTooltip(detail.id);
   if (detail.kind === "route") return formatRouteTooltip(detail.id);
+  if (detail.kind === "lake") return formatFeatureTooltip(detail.id, "Lake");
+  if (detail.kind === "coastline") return formatFeatureTooltip(detail.id, "Coastline");
   if (detail.kind === "border") return formatBorderTooltip(detail);
 
   const cellId = detail.cellId;
@@ -82,6 +84,13 @@ function formatWebglPickTooltip(detail: WebglPickDetail): string {
     default:
       return getFallbackPickTooltip(detail);
   }
+}
+
+function formatFeatureTooltip(id: string, fallback: string): string {
+  const featureId = parseTrailingNumber(id);
+  const feature = featureId === null ? undefined : worldContext.pack.features[featureId];
+  if (!feature) return fallback;
+  return feature.name ? `${feature.name} ${feature.type}` : `${capitalize(feature.group || feature.type)} ${feature.i}`;
 }
 
 function formatRiverTooltip(id: string): string {
