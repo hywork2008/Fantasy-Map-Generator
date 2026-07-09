@@ -366,7 +366,7 @@ export class ProductionModule {
         const marketGood = market.goods[candidate.goodId];
         const stock = marketGood?.stock || 0;
         if (stock <= 0.01) continue;
-        const price = Markets.customerBuyPrice(marketGood.price);
+        const price = Markets.customerBuyPrice(marketGood.price, market.centerBurgId, candidate.goodId);
         const costPerCoverage = price / candidate.coverageWeight;
         sortedCandidates.push({ candidate, costPerCoverage });
       }

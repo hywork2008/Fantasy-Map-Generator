@@ -506,13 +506,20 @@ export function init(api: ExtensionAPI): void {
   // regardless of hook registration order, and coalesces multiple log-harvested
   // events from the same tick into a single Production.produce() call.
   let refreshScheduled = false;
-  const scheduleProductionRefresh = () => {
+  let forceRefresh = false;
+
+  const scheduleProductionRefresh = (force = false) => {
+    if (force) forceRefresh = true;
     if (refreshScheduled) return;
     refreshScheduled = true;
     queueMicrotask(() => {
       refreshScheduled = false;
       if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
-      if (!consumeDirtyFlag()) return;
+
+      const forestDirty = consumeDirtyFlag();
+      if (!forestDirty && !forceRefresh) return;
+      forceRefresh = false;
+
       Production.produce();
       Taxes.collectTaxes();
       if (api.layerIsOn("toggleGoods")) drawGoods(getDefaultGoodsSet());
@@ -523,7 +530,7 @@ export function init(api: ExtensionAPI): void {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
     const { cellId, amount } = (e as CustomEvent).detail as { cellId: number; amount: number };
     registerLogHarvest(cellId, amount);
-    scheduleProductionRefresh();
+    scheduleProductionRefresh(true);
   };
   document.addEventListener("fmg:shipbuilding-log-harvested", _logHarvestedHandler);
 
@@ -531,12 +538,53 @@ export function init(api: ExtensionAPI): void {
   // whether Shipbuilding (or logging on that cell) is still active — a logged-out
   // shipyard's forest should eventually recover even if the extension is disabled
   // afterward. Harmless no-op while nothing has ever been depleted.
+  let daysSinceLastProduction = 0;
   api.registerTimeTickHook((deltaYears, deltaMonths, deltaDays) => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
-    // The UI's daily Advance Time loop calls this with deltaYears=0, deltaDays=1 per tick —
-    // fold all three granularities into a years-equivalent so regrowth doesn't silently stall.
+
+    const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
+
+    // Check which states are at war
+    const states = getWorldContext().pack.states;
+    const statesAtWar = new Set<number>();
+    if (states) {
+      for (const state of states) {
+        if (!state.removed && state.diplomacy && (state.diplomacy as unknown[]).includes("Enemy")) {
+          statesAtWar.add(state.i);
+        }
+      }
+    }
+
+    // Update war duration and intensity for burgs
+    const ledgers = getWorldContext().pack.burgMarketLedgers;
+    const burgs = getWorldContext().pack.burgs;
+    if (ledgers && burgs) {
+      for (const ledger of ledgers) {
+        const burg = burgs[ledger.burgId];
+        if (!burg || burg.removed) continue;
+
+        if (burg.state && statesAtWar.has(burg.state)) {
+          ledger.warIntensity = Math.min(2.5, (ledger.warIntensity || 0) + 0.1);
+          ledger.warDurationTicks = (ledger.warDurationTicks || 0) + effectiveDays;
+        } else if (ledger.warIntensity && ledger.warIntensity > 0) {
+          ledger.warIntensity = Math.max(0, ledger.warIntensity - 0.1);
+          if (ledger.warIntensity <= 0.001) {
+            ledger.warIntensity = 0;
+            ledger.warDurationTicks = 0;
+          }
+        }
+      }
+    }
+
+    daysSinceLastProduction += effectiveDays;
+
     const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
-    if (tickForestRegrowth(effectiveDeltaYears)) scheduleProductionRefresh();
+    const forestChanged = tickForestRegrowth(effectiveDeltaYears);
+
+    if (forestChanged || daysSinceLastProduction >= 30) {
+      if (daysSinceLastProduction >= 30) daysSinceLastProduction %= 30;
+      scheduleProductionRefresh(true);
+    }
   });
 
   // Bind trade animation renderer (must happen before any toggle)

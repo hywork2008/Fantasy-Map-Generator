@@ -149,8 +149,8 @@ export function downloadStockCsv(): void {
   for (const [goodId, marketGood] of Object.entries(market.goods)) {
     const good = Goods.get(Number(goodId));
     if (!good) continue;
-    const buyPrice = rn(Markets.customerBuyPrice(marketGood.price), 2);
-    const sellPrice = rn(Markets.customerSellPrice(marketGood.price), 2);
+    const buyPrice = rn(Markets.customerBuyPrice(marketGood.price, market.centerBurgId, good.i), 2);
+    const sellPrice = rn(Markets.customerSellPrice(marketGood.price, market.centerBurgId, good.i), 2);
     csv += `${[good.name, rn(marketGood.stock, 2), buyPrice, sellPrice].join(",")}\n`;
   }
   downloadFile(csv, `${getFileName("Market")}.csv`);

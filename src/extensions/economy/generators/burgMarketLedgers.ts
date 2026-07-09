@@ -11,6 +11,8 @@ export interface BurgMarketLedger {
   merchants: BurgMarketMerchantEntry[];
   lastUpdatedTick?: number;
   vacantSinceTick?: number;
+  warIntensity?: number;
+  warDurationTicks?: number;
 }
 
 export interface BurgMarketMerchantEntry {
@@ -253,4 +255,26 @@ export function clearBurgMarketLedgers(): void {
 
     return character.titles.length > 0 || Boolean(character.roles?.length);
   });
+}
+
+export function updateBurgWarState(burgId: number, intensity: number): void {
+  const { pack } = getWorldContext();
+  if (!pack.burgMarketLedgers) return;
+
+  const ledger = pack.burgMarketLedgers.find(l => l.burgId === burgId);
+  if (!ledger) return; // Only track for burgs with ledgers
+
+  const currentIntensity = ledger.warIntensity || 0;
+  ledger.warIntensity = Math.min(2.5, Math.max(0, intensity));
+
+  if (ledger.warIntensity === 0) {
+    ledger.warDurationTicks = 0;
+  } else if (currentIntensity > 0 && ledger.warIntensity > 0) {
+    // If it was already at war, we might want to manually advance duration if called periodically.
+    // For now, this just allows external callers to manage the duration too.
+    ledger.warDurationTicks = (ledger.warDurationTicks || 0) + 1;
+  } else {
+    // Just started war
+    ledger.warDurationTicks = 0;
+  }
 }

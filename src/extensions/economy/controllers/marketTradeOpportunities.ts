@@ -67,8 +67,8 @@ export function refresh(): void {
       const targetCenter = getWorldContext().pack.burgs[target.centerBurgId];
       if (!targetCenter) continue;
 
-      const buyPrice = Markets.customerBuyPrice(sourceGood.price);
-      const sellPrice = Markets.customerSellPrice(targetGood.price);
+      const buyPrice = Markets.customerBuyPrice(sourceGood.price, source.centerBurgId, goodId);
+      const sellPrice = Markets.customerSellPrice(targetGood.price, target.centerBurgId, goodId);
       const transportCost = getTransportCost(sourceCenter, targetCenter, mapDiagonal) * good.value;
       const unitProfit = rn(sellPrice - buyPrice - transportCost, 2);
       if (unitProfit <= 0) continue;

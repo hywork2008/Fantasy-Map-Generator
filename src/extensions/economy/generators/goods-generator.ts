@@ -4,7 +4,10 @@ import type { CultureType, PackedGraph } from "../../hostTypes";
 import { TIME } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 
+export type WarEconomyType = "military" | "essential" | "strategic" | "luxury";
+
 export interface Good {
+  warEconomyType?: WarEconomyType;
   i: number;
 
   // generation
@@ -59,9 +62,10 @@ export function getDemandTargets(population: number): number[] {
 }
 
 type GoodData = Omit<Good, "i"> & { recipes?: Record<string, number>[] };
-const GOODS_DATA: GoodData[] = [
+export const GOODS_DATA: GoodData[] = [
   {
     name: "Wood",
+    warEconomyType: "strategic",
     tags: ["construction", "fuel"],
     icon: "good-wood",
     color: "#966F33",
@@ -88,6 +92,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Marble",
+    warEconomyType: "luxury",
     tags: ["construction", "luxury"],
     icon: "good-marble",
     color: "#d6d0bf",
@@ -100,6 +105,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Iron",
+    warEconomyType: "strategic",
     tags: ["ore", "military"],
     icon: "good-iron",
     color: "#5D686E",
@@ -112,6 +118,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Copper",
+    warEconomyType: "strategic",
     tags: ["ore"],
     icon: "good-copper",
     color: "#b87333",
@@ -123,6 +130,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Tin",
+    warEconomyType: "strategic",
     tags: ["ore"],
     icon: "good-tin",
     color: "#454343",
@@ -134,6 +142,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Silver",
+    warEconomyType: "luxury",
     tags: ["ore", "luxury"],
     icon: "good-silver",
     color: "#C0C0C0",
@@ -145,6 +154,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Gold",
+    warEconomyType: "luxury",
     tags: ["ore", "luxury"],
     icon: "good-gold",
     color: "#ffd700",
@@ -156,6 +166,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Grain",
+    warEconomyType: "essential",
     tags: ["food"],
     icon: "good-grain",
     color: "#F5DEB3",
@@ -169,6 +180,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Cattle",
+    warEconomyType: "essential",
     tags: ["food"],
     icon: "good-cattle",
     color: "#56b000",
@@ -182,6 +194,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Fish",
+    warEconomyType: "essential",
     tags: ["food", "aquatic"],
     icon: "good-fish",
     color: "#7fcdff",
@@ -194,6 +207,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Game",
+    warEconomyType: "essential",
     tags: ["food"],
     icon: "good-game",
     color: "#c38a8a",
@@ -207,6 +221,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Wine",
+    warEconomyType: "luxury",
     tags: ["food", "luxury"],
     icon: "good-wine",
     color: "#963e48",
@@ -220,6 +235,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Olives",
+    warEconomyType: "essential",
     tags: ["food"],
     icon: "good-olives",
     color: "#BDBD7D",
@@ -233,6 +249,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Honey",
+    warEconomyType: "essential",
     tags: ["food", "preservative"],
     icon: "good-honey",
     color: "#DCBC66",
@@ -246,6 +263,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Salt",
+    warEconomyType: "essential",
     tags: ["preservative", "mineral"],
     icon: "good-salt",
     color: "#E5E4E5",
@@ -259,6 +277,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Dates",
+    warEconomyType: "essential",
     tags: ["food"],
     icon: "good-dates",
     color: "#dbb2a3",
@@ -272,6 +291,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Horses",
+    warEconomyType: "military",
     tags: ["supply", "military"],
     icon: "good-horses",
     color: "#ba7447",
@@ -285,6 +305,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Elephants",
+    warEconomyType: "military",
     tags: ["supply", "military"],
     icon: "good-elephants",
     color: "#C5CACD",
@@ -297,6 +318,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Camels",
+    warEconomyType: "military",
     tags: ["supply", "military"],
     icon: "good-camels",
     color: "#C19A6B",
@@ -322,6 +344,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Pearls",
+    warEconomyType: "luxury",
     tags: ["luxury", "aquatic"],
     icon: "good-pearls",
     color: "#EAE0C8",
@@ -334,6 +357,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Gemstones",
+    warEconomyType: "luxury",
     tags: ["luxury", "mineral"],
     icon: "good-gemstones",
     color: "#e463e4",
@@ -346,6 +370,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Dyes",
+    warEconomyType: "luxury",
     tags: ["luxury"],
     icon: "good-dyes",
     color: "#fecdea",
@@ -357,6 +382,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Incense",
+    warEconomyType: "luxury",
     tags: ["luxury", "ritual"],
     icon: "good-incense",
     color: "#ebe5a7",
@@ -368,6 +394,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Silk",
+    warEconomyType: "luxury",
     tags: ["luxury", "clothing"],
     icon: "good-silk",
     color: "#e0f0f8",
@@ -380,6 +407,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Spices",
+    warEconomyType: "luxury",
     tags: ["luxury"],
     icon: "good-spices",
     color: "#e99c75",
@@ -392,6 +420,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Amber",
+    warEconomyType: "luxury",
     tags: ["luxury"],
     icon: "good-amber",
     color: "#e68200",
@@ -430,6 +459,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Slaves",
+    warEconomyType: "essential",
     tags: ["supply"],
     icon: "good-slaves",
     color: "#757575",
@@ -442,6 +472,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Tar",
+    warEconomyType: "strategic",
     tags: ["naval"],
     icon: "good-tar",
     color: "#727272",
@@ -454,6 +485,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Saltpeter",
+    warEconomyType: "strategic",
     tags: ["military", "mineral"],
     icon: "good-saltpeter",
     color: "#e6e3e3",
@@ -465,6 +497,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Coal",
+    warEconomyType: "strategic",
     tags: ["fuel"],
     icon: "good-coal",
     color: "#5a6a75",
@@ -489,6 +522,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Mahogany",
+    warEconomyType: "luxury",
     tags: ["luxury"],
     icon: "good-tropicalTimber",
     color: "#a45a52",
@@ -500,6 +534,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Whales",
+    warEconomyType: "essential",
     tags: ["food", "aquatic", "fuel"],
     icon: "good-whales",
     color: "#7fcdff",
@@ -512,6 +547,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Sugarcane",
+    warEconomyType: "essential",
     tags: ["preservative", "food"],
     icon: "good-sugar",
     color: "#7abf87",
@@ -523,6 +559,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Tea",
+    warEconomyType: "luxury",
     tags: ["luxury"],
     icon: "good-tea",
     color: "#d0f0c0",
@@ -535,6 +572,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Tobacco",
+    warEconomyType: "luxury",
     tags: ["luxury"],
     icon: "good-tobacco",
     color: "#6D5843",
@@ -546,6 +584,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Clay",
+    warEconomyType: "luxury",
     tags: ["mineral", "construction"],
     icon: "good-clay",
     color: "#b07c60",
@@ -558,6 +597,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "White sand",
+    warEconomyType: "luxury",
     tags: ["mineral"],
     icon: "good-sand",
     color: "#e6d69c",
@@ -569,6 +609,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Leather",
+    warEconomyType: "strategic",
     tags: ["clothing", "military"],
     icon: "good-leather",
     color: "#8b5a2b",
@@ -580,6 +621,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Cloth",
+    warEconomyType: "strategic",
     tags: ["clothing"],
     icon: "good-cloth",
     color: "#e8e69c",
@@ -591,6 +633,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Garments",
+    warEconomyType: "essential",
     tags: ["clothing"],
     icon: "good-garments",
     color: "#bd21ec",
@@ -605,6 +648,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Ceramics",
+    warEconomyType: "luxury",
     tags: ["storage", "construction"],
     icon: "good-ceramics",
     color: "#c1440e",
@@ -616,6 +660,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Glass",
+    warEconomyType: "luxury",
     tags: ["storage", "construction"],
     icon: "good-glass",
     color: "#a0c8e8",
@@ -628,6 +673,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Ropes",
+    warEconomyType: "strategic",
     tags: ["naval", "construction"],
     icon: "good-ropes",
     color: "#ba9773",
@@ -639,6 +685,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Paper",
+    warEconomyType: "luxury",
     tags: ["ritual", "educational"],
     icon: "good-paper",
     color: "#f5f5dc",
@@ -650,6 +697,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Ink",
+    warEconomyType: "luxury",
     tags: ["ritual", "educational"],
     icon: "good-ink",
     color: "#000000",
@@ -661,6 +709,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Books",
+    warEconomyType: "luxury",
     tags: ["ritual", "educational"],
     icon: "good-books",
     color: "#deb887",
@@ -687,6 +736,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Ships",
+    warEconomyType: "military",
     tags: ["naval"],
     icon: "good-ships",
     color: "#654321",
@@ -699,6 +749,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Boots",
+    warEconomyType: "essential",
     tags: ["clothing", "military"],
     icon: "good-boots",
     color: "#654321",
@@ -710,6 +761,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Harnesses",
+    warEconomyType: "military",
     tags: ["military"],
     icon: "good-harnesses",
     color: "#a0522d",
@@ -737,6 +789,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Bronze",
+    warEconomyType: "strategic",
     tags: ["military"],
     icon: "good-bronze",
     color: "#e46f21",
@@ -751,6 +804,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Tools",
+    warEconomyType: "strategic",
     tags: ["construction", "military"],
     icon: "good-tools",
     color: "#808080",
@@ -765,6 +819,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Arms",
+    warEconomyType: "military",
     tags: ["military"],
     icon: "good-arms",
     color: "#333333",
@@ -779,6 +834,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Gunpowder",
+    warEconomyType: "military",
     tags: ["military"],
     icon: "good-gunpowder",
     color: "#b0c4de",
@@ -790,6 +846,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Artillery",
+    warEconomyType: "military",
     tags: ["military"],
     icon: "good-artillery",
     color: "#cd7f32",

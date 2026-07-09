@@ -4,9 +4,9 @@ import FlatQueue from "flatqueue";
 import type { Burg } from "../../hostTypes";
 import { getColors, getRandomColor, minmax, rn, TIME } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
-import { syncBurgMarketLedgers } from "./burgMarketLedgers";
+import { getBurgMarketLedger, syncBurgMarketLedgers } from "./burgMarketLedgers";
 import type { DemandCategory, Good } from "./goods-generator";
-import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, Goods } from "./goods-generator";
+import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, GOODS_DATA, Goods } from "./goods-generator";
 import { syncMarketManagers } from "./marketManagers";
 import { getCellProduction } from "./production-utils";
 
@@ -332,8 +332,8 @@ export class MarketsModule {
     const row = this.getMarketGood(market, good);
     return {
       stock: row.stock,
-      buyPrice: this.customerBuyPrice(row.price),
-      sellPrice: this.customerSellPrice(row.price)
+      buyPrice: this.customerBuyPrice(row.price, market.centerBurgId, goodId),
+      sellPrice: this.customerSellPrice(row.price, market.centerBurgId, goodId)
     };
   }
 
@@ -352,7 +352,7 @@ export class MarketsModule {
     if (!market) return null;
 
     const marketGood = this.getMarketGood(market, good);
-    const unitPrice = this.customerBuyPrice(marketGood.price);
+    const unitPrice = this.customerBuyPrice(marketGood.price, burg.i, good.i);
 
     const actualUnits = rn(Math.min(units, marketGood.stock, budget / unitPrice), 2);
     if (actualUnits < 0.01) return null;
@@ -380,7 +380,7 @@ export class MarketsModule {
     if (!market || units <= 0) return null;
 
     const marketGood = this.getMarketGood(market, good);
-    const price = this.customerSellPrice(marketGood.price);
+    const price = this.customerSellPrice(marketGood.price, burg.i, good.i);
     const tax = rn(units * price * taxRate, 2);
     marketGood.stock = rn(marketGood.stock + units, 2);
 
@@ -538,12 +538,69 @@ export class MarketsModule {
     }
   }
 
-  customerBuyPrice(midPrice: number): number {
-    return rn(midPrice * (1 + MARKET_MARGIN), 2);
+  getWarPriceModifier(burgId: number | undefined, goodId: number | undefined): number {
+    if (!burgId || !goodId) {
+      return 1;
+    }
+    const ledger = getBurgMarketLedger(burgId);
+    if (!ledger) {
+      return 1;
+    }
+
+    const intensity = ledger.warIntensity || 0;
+    if (intensity === 0) {
+      return 1;
+    }
+
+    const durationTicks = ledger.warDurationTicks || 0;
+    const durationFactor = Math.min(1.0, durationTicks / 10);
+    const good = Goods.get(goodId);
+    if (!good) {
+      return 1;
+    }
+
+    let warType = good.warEconomyType;
+    if (!warType) {
+      const defaultGood = GOODS_DATA.find((g: { name: string; warEconomyType?: string }) => g.name === good.name);
+      warType = defaultGood?.warEconomyType;
+    }
+
+    if (!warType) {
+      return 1;
+    }
+
+    let baseMultiplier = 0;
+    switch (warType) {
+      case "military":
+        baseMultiplier = 1.5;
+        break;
+      case "essential":
+        baseMultiplier = 1.2;
+        break;
+      case "strategic":
+        baseMultiplier = 0.8;
+        break;
+      case "luxury": {
+        const dropFactor = 0.3;
+        const luxuryMod = Math.max(0.1, 1 - dropFactor * intensity);
+        return luxuryMod;
+      }
+      default:
+        return 1;
+    }
+
+    const mod = 1 + baseMultiplier * intensity * (1 + durationFactor);
+    return mod;
   }
 
-  customerSellPrice(midPrice: number): number {
-    return rn(midPrice * (1 - MARKET_MARGIN), 2);
+  customerBuyPrice(midPrice: number, burgId?: number, goodId?: number): number {
+    const warMod = this.getWarPriceModifier(burgId, goodId);
+    return rn(midPrice * warMod * (1 + MARKET_MARGIN), 2);
+  }
+
+  customerSellPrice(midPrice: number, burgId?: number, goodId?: number): number {
+    const warMod = this.getWarPriceModifier(burgId, goodId);
+    return rn(midPrice * warMod * (1 - MARKET_MARGIN), 2);
   }
 
   private applyMarketPressure(basePrice: number, currentPrice: number | undefined, units: number): number {
