@@ -1,5 +1,5 @@
 import { COORDINATE_SYSTEM, type Color, type LayersList } from "@deck.gl/core";
-import { PathLayer, SolidPolygonLayer } from "@deck.gl/layers";
+import { PathLayer, PolygonLayer, SolidPolygonLayer } from "@deck.gl/layers";
 import type { AppServices } from "../../context/appServices";
 import type { ViewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
@@ -15,6 +15,7 @@ import {
   buildDivisionBoundaryPaths,
   buildGridPaths,
   buildHeightPolygons,
+  buildIcePolygons,
   buildLakeOutlinePaths,
   buildLakePolygons,
   buildLandPolygonsBase,
@@ -31,13 +32,14 @@ import {
   type DeckCellPolygon,
   type DeckDivisionBoundaryKind,
   type DeckFeaturePolygon,
+  type DeckIcePolygon,
   type DeckPath,
   type DeckPosition
 } from "./adapters/deckDataAdapters";
 
 type PolygonBuilder = (worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>) => DeckCellPolygon[];
 type PathBuilder = (worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>) => DeckPath[];
-type CachedDeckData = DeckCellPolygon[] | DeckPath[];
+type CachedDeckData = DeckCellPolygon[] | DeckIcePolygon[] | DeckPath[];
 
 interface CachedDeckDataEntry<T extends CachedDeckData> {
   signature: string;
@@ -107,7 +109,8 @@ const WEBGL_PATH_LAYERS: Array<{ toggle: string; id: string; build: PathBuilder 
 
 export const WEBGL_LAYER_TOGGLES = new Set([
   ...WEBGL_POLYGON_LAYERS.map(layer => layer.toggle),
-  ...WEBGL_PATH_LAYERS.map(layer => layer.toggle)
+  ...WEBGL_PATH_LAYERS.map(layer => layer.toggle),
+  "toggleIce"
 ]);
 
 export function clearDeckLayerDataCache(): void {
@@ -130,6 +133,7 @@ export function buildDeckLayers(
   const signatures = buildLayerSignatures(worldContext, viewContext, oceanFill, landFill);
   const lakePaint = getLakePaint(viewContext);
   const coastlinePaint = getCoastlinePaint(viewContext);
+  const icePaint = getIcePaint(viewContext);
   const layers: LayersList = [
     new SolidPolygonLayer<DeckCellPolygon>({
       id: "fmg-webgl-background",
@@ -230,6 +234,27 @@ export function buildDeckLayers(
     }
   }
 
+  if (activeLayers.toggleIce) {
+    layers.push(
+      new PolygonLayer<DeckIcePolygon>({
+        id: "fmg-webgl-ice",
+        data: getCachedDeckData("polygon:ice", signatures.byLayer.ice, () =>
+          buildIcePolygons(worldContext, viewContext.focusScope, icePaint.fill, icePaint.stroke, icePaint.strokeWidth)
+        ),
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getPolygon: datum => datum.polygon,
+        getFillColor: datum => datum.fillColor,
+        getLineColor: datum => datum.lineColor,
+        getLineWidth: datum => datum.lineWidth,
+        lineWidthUnits: "pixels",
+        lineWidthMinPixels: 0,
+        lineWidthMaxPixels: 2,
+        stroked: true,
+        pickable: true
+      })
+    );
+  }
+
   for (const layer of WEBGL_PATH_LAYERS) {
     if (!activeLayers[layer.toggle]) continue;
     layers.push(
@@ -326,6 +351,7 @@ function buildLayerSignatures(
       lakes: `${geometry}|${featuresSignature(pack.features, "lake")}|${paintSignature(getLakePaint(viewContext))}`,
       "lakes-outlines": `${geometry}|${featuresSignature(pack.features, "lake")}|${paintSignature(getLakePaint(viewContext))}`,
       coastline: `${geometry}|${featuresSignature(pack.features, "island")}|${paintSignature(getCoastlinePaint(viewContext))}`,
+      ice: `${scope}|${iceSignature(pack.ice)}|${paintSignature({ ice: getIcePaint(viewContext) })}`,
       cells: geometry,
       grid: `${geometry}|${nestedNumberListSignature(pack.cells?.c)}`,
       rivers: `${mapId}|${scope}|${riversSignature(pack.rivers)}`,
@@ -356,6 +382,23 @@ function getCoastlinePaint(viewContext: Readonly<ViewContext>): Record<string, L
   return {
     sea_island: getLayerPaint(viewContext, "coastline", "sea_island", "transparent", "#1f3846", 0.5, 0.5),
     lake_island: getLayerPaint(viewContext, "coastline", "lake_island", "transparent", "#7c8eaf", 0.35, 1)
+  };
+}
+
+function getIcePaint(viewContext: Readonly<ViewContext>): LayerPaint {
+  const fallback = {
+    fill: colorToRgba("#f1f8fe", "#f1f8fe", 0.9),
+    stroke: colorToRgba("#e8f0f6", "#e8f0f6", 0.9),
+    strokeWidth: 0.5
+  };
+  if (!viewContext.ice) return fallback;
+
+  const opacity = parseOptionalNumber(viewContext.ice.attr("opacity") ?? viewContext.ice.style("opacity")) ?? 0.9;
+  return {
+    fill: colorToRgba(viewContext.ice.attr("fill") ?? viewContext.ice.style("fill"), "#f1f8fe", opacity),
+    stroke: colorToRgba(viewContext.ice.attr("stroke") ?? viewContext.ice.style("stroke"), "#e8f0f6", opacity),
+    strokeWidth:
+      parseOptionalNumber(viewContext.ice.attr("stroke-width") ?? viewContext.ice.style("stroke-width")) ?? 0.5
   };
 }
 
@@ -481,6 +524,34 @@ function featuresSignature(
     for (const vertexId of feature.vertices ?? []) hash = hashNumber(hash, vertexId);
   }
   return `${count}:${hash >>> 0}`;
+}
+
+function iceSignature(
+  values:
+    | ReadonlyArray<{
+        i?: number;
+        type?: string;
+        cellId?: number;
+        points?: [number, number][];
+        offset?: [number, number];
+      }>
+    | undefined
+): string {
+  if (!values) return "0:0";
+  let hash = 2166136261;
+  for (const ice of values) {
+    hash = hashNumber(hash, ice?.i ?? 0);
+    hash = hashString(hash, ice?.type ?? "");
+    hash = hashNumber(hash, ice?.cellId ?? -1);
+    hash = hashNumber(hash, ice?.offset?.[0] ?? 0);
+    hash = hashNumber(hash, ice?.offset?.[1] ?? 0);
+    hash = hashNumber(hash, ice?.points?.length ?? 0);
+    for (const point of ice?.points ?? []) {
+      hash = hashNumber(hash, point[0]);
+      hash = hashNumber(hash, point[1]);
+    }
+  }
+  return `${values.length}:${hash >>> 0}`;
 }
 
 function paintSignature(values: Record<string, LayerPaint>): string {

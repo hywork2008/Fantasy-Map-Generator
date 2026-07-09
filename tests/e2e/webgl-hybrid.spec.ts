@@ -50,9 +50,17 @@ test.describe("webgl hybrid renderer", () => {
     await expect(page.locator("#rivers")).toBeHidden();
     await expect(page.locator("#lakes")).toBeHidden();
     await expect(page.locator("#coastline")).toBeHidden();
+    await expect(page.locator("#ice")).toBeHidden();
     await expect
       .poll(() => getWebglDeckLayerIds(page), { timeout: 5000 })
-      .toEqual(expect.arrayContaining(["fmg-webgl-lakes", "fmg-webgl-lakes-outlines", "fmg-webgl-coastline"]));
+      .toEqual(
+        expect.arrayContaining([
+          "fmg-webgl-lakes",
+          "fmg-webgl-lakes-outlines",
+          "fmg-webgl-coastline",
+          "fmg-webgl-ice"
+        ])
+      );
     const burgIconsState = await getSvgGroupState(page, "#burgIcons");
     expect(burgIconsState.display).not.toBe("none");
     expect(burgIconsState.childCount).toBeGreaterThan(0);
@@ -166,6 +174,7 @@ test.describe("webgl hybrid renderer", () => {
       await expect(page.locator("#borders")).toBeHidden();
       await expect(page.locator("#lakes")).toBeHidden();
       await expect(page.locator("#coastline")).toBeHidden();
+      await expect(page.locator("#ice")).toBeHidden();
       await expect(page.locator("#scaleBar")).toBeVisible();
     }
   });

@@ -6,6 +6,7 @@ import { buildDeckLayers, clearDeckLayerDataCache, getDeckLayerDataCacheSize } f
 import {
   buildBiomesPolygons,
   buildCoastlinePaths,
+  buildIcePolygons,
   buildLakePolygons,
   buildLandPolygonsBase,
   buildRoutePaths
@@ -62,6 +63,7 @@ function createWorldContext(): WorldContext {
       provinces: [],
       zones: [],
       rivers: [],
+      ice: [],
       routes: [
         {
           i: 1,
@@ -162,6 +164,62 @@ describe("deck.gl data adapters", () => {
     expect(coastline[0]).toMatchObject({ id: "coastline-2", kind: "coastline", cellId: 0, width: 0.5 });
   });
 
+  it("builds ice polygons with offsets and grid-cell focus filtering", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.ice = [
+      {
+        i: 1,
+        type: "glacier",
+        points: [
+          [0, 0],
+          [10, 0],
+          [0, 10]
+        ],
+        offset: [2, 3]
+      },
+      {
+        i: 2,
+        type: "iceberg",
+        cellId: 0,
+        size: 5,
+        points: [
+          [20, 20],
+          [30, 20],
+          [20, 30]
+        ]
+      },
+      {
+        i: 3,
+        type: "iceberg",
+        cellId: 1,
+        size: 5,
+        points: [
+          [40, 40],
+          [50, 40],
+          [40, 50]
+        ]
+      }
+    ];
+    const focusScope = {
+      kind: "state",
+      id: 1,
+      stateId: 1,
+      cellIds: new Set([0]),
+      gridCellIds: new Set([0])
+    } as ViewContext["focusScope"];
+
+    const ice = buildIcePolygons(worldContext, focusScope, [1, 2, 3, 200], [4, 5, 6, 200], 0.5);
+
+    expect(ice).toHaveLength(2);
+    expect(ice[0]).toMatchObject({ id: "glacier-1", kind: "ice", cellId: null, iceType: "glacier" });
+    expect(ice[0].polygon).toEqual([
+      [2, 3],
+      [12, 3],
+      [2, 13]
+    ]);
+    expect(ice[1]).toMatchObject({ id: "iceberg-2", kind: "ice", cellId: 0, iceType: "iceberg" });
+  });
+
   it("uses active layer state to build deck.gl layer ids in draw order", () => {
     const worldContext = createWorldContext();
     const viewContext = { focusScope: null } as ViewContext;
@@ -192,6 +250,35 @@ describe("deck.gl data adapters", () => {
       "fmg-webgl-routes",
       "fmg-webgl-coastline"
     ]);
+  });
+
+  it("adds active ice as a deck.gl polygon layer", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.ice = [
+      {
+        i: 1,
+        type: "iceberg",
+        cellId: 0,
+        size: 5,
+        points: [
+          [0, 0],
+          [10, 0],
+          [0, 10]
+        ]
+      }
+    ];
+    const viewContext = { focusScope: null } as ViewContext;
+    useLayerState.getState().setAllActiveLayers({ toggleIce: true });
+
+    const layers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
+
+    expect(layers.map(layer => layer.id)).toEqual([
+      "fmg-webgl-background",
+      "fmg-webgl-land",
+      "fmg-webgl-ice",
+      "fmg-webgl-coastline"
+    ]);
+    expect(layers.find(layer => layer.id === "fmg-webgl-ice")?.props.data).toHaveLength(1);
   });
 
   it("adds visual boundary paths next to migrated division fills", () => {

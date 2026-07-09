@@ -400,7 +400,6 @@ function drawHybridSvgOverlays(): void {
     setLayerVisibility("toggleCompass", true);
   }
   if (layerIsOn("toggleRelief")) ReliefIconsRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleIce")) IceRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleLabels")) drawLabels();
   if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
@@ -579,6 +578,8 @@ export function toggleCells(event?: MouseEvent): void {
 }
 
 export function toggleIce(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleIce", "ice", event)) return;
+
   if (!layerIsOn("toggleIce")) {
     turnButtonOn("toggleIce");
     setLayerVisibility("toggleIce", true);

@@ -5,12 +5,12 @@ import type { AppServices } from "../../../context/appServices";
 import type { FocusScope, ViewContext } from "../../../context/viewContext";
 import type { WorldContext } from "../../../context/worldContext";
 import { Rivers } from "../../../generators/river-generator";
-import type { PackedGraphFeature, Route } from "../../../types/models";
+import type { IceElement, PackedGraphFeature, Route } from "../../../types/models";
 import type { PackedGraphCells, PackedGraphVertices } from "../../../types/PackedGraph";
 import type { WebglPickKind } from "../../../types/webglPicking";
 import { clipPoly } from "../../../utils";
 import { fractalizeCoastline } from "../../coastline-fractal";
-import { isCellInScope } from "../../core/focusScope";
+import { isCellInScope, isGridCellInScope } from "../../core/focusScope";
 
 export type DeckPosition = [number, number];
 
@@ -34,6 +34,17 @@ export interface DeckPath {
 export interface DeckFeaturePolygon extends DeckCellPolygon {
   featureId: number;
   group: string;
+}
+
+export interface DeckIcePolygon {
+  id: string;
+  kind: "ice";
+  cellId: number | null;
+  polygon: DeckPosition[];
+  fillColor: Color;
+  lineColor: Color;
+  lineWidth: number;
+  iceType: IceElement["type"];
 }
 
 export type DeckDivisionBoundaryKind = "state" | "province" | "culture" | "religion";
@@ -390,6 +401,28 @@ export function buildLakeOutlinePaths(
   });
 }
 
+export function buildIcePolygons(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  fillColor: Color,
+  lineColor: Color,
+  lineWidth: number
+): DeckIcePolygon[] {
+  return (worldContext.pack.ice ?? [])
+    .filter(iceElement => iceElement.type === "glacier" || isGridCellInScope(focusScope, iceElement.cellId))
+    .map(iceElement => ({
+      id: `${iceElement.type}-${iceElement.i}`,
+      kind: "ice" as const,
+      cellId: iceElement.type === "iceberg" ? iceElement.cellId : null,
+      polygon: applyOffset(iceElement.points, iceElement.offset),
+      fillColor,
+      lineColor,
+      lineWidth,
+      iceType: iceElement.type
+    }))
+    .filter(iceElement => iceElement.polygon.length >= 3);
+}
+
 export function buildCoastlinePaths(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
@@ -408,6 +441,11 @@ export function buildCoastlinePaths(
       cellId: feature.feature.firstCell
     };
   });
+}
+
+function applyOffset(points: [number, number][], offset: [number, number] | undefined): DeckPosition[] {
+  if (!offset) return points.map(([x, y]) => [x, y]);
+  return points.map(([x, y]) => [x + offset[0], y + offset[1]]);
 }
 
 function buildLandPolygons(

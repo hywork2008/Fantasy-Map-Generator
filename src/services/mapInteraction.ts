@@ -45,6 +45,7 @@ function formatWebglPickTooltip(detail: WebglPickDetail): string {
   if (detail.kind === "route") return formatRouteTooltip(detail.id);
   if (detail.kind === "lake") return formatFeatureTooltip(detail.id, "Lake");
   if (detail.kind === "coastline") return formatFeatureTooltip(detail.id, "Coastline");
+  if (detail.kind === "ice") return detail.id.startsWith("glacier-") ? "Glacier" : "Iceberg";
   if (detail.kind === "border") return formatBorderTooltip(detail);
 
   const cellId = detail.cellId;

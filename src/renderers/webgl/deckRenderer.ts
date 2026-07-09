@@ -54,6 +54,7 @@ function isWebglPickKind(value: unknown): value is WebglPickKind {
     value === "danger" ||
     value === "lake" ||
     value === "coastline" ||
+    value === "ice" ||
     value === "cell" ||
     value === "grid" ||
     value === "border" ||
