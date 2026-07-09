@@ -5,6 +5,25 @@ import { TIME } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 
 export type WarEconomyType = "military" | "essential" | "strategic" | "luxury";
+type TradeScale = 1 | 2 | 3 | 4 | 5;
+type TradeTrend = -2 | -1 | 0 | 1 | 2 | 3;
+
+export interface GoodTradeProfile {
+  /** Low values are easier to transport. */
+  weight: TradeScale;
+  /** Low values fit more units into a cart, ship hold, or warehouse. */
+  bulk: TradeScale;
+  /** How constrained the good is by rare origin, skill, or materials. */
+  rarity: TradeScale;
+  /** Value change from moving the good away from its origin. Negative means local sale is usually better. */
+  distancePremium: TradeTrend;
+  /** Value change while cargo waits in transit or storage. Negative means rapid spoilage. */
+  timeValueTrend: TradeTrend;
+  /** Resistance to spoilage, breakage, escape, theft-prone handling loss, and similar cargo damage. */
+  durability: TradeScale;
+  /** Expected loss rate in normal carriage. High values are worse. */
+  lossRisk: TradeScale;
+}
 
 export interface Good {
   warEconomyType?: WarEconomyType;
@@ -28,6 +47,7 @@ export interface Good {
 
   // effects
   demandCoverage?: Partial<Record<DemandCategory, number>>;
+  trade?: GoodTradeProfile;
 
   // lore
   name: string;
@@ -1010,6 +1030,115 @@ export const GOODS_DATA: GoodData[] = [
   }
 ];
 
+function tradeProfile(
+  weight: TradeScale,
+  bulk: TradeScale,
+  rarity: TradeScale,
+  distancePremium: TradeTrend,
+  timeValueTrend: TradeTrend,
+  durability: TradeScale,
+  lossRisk: TradeScale
+): GoodTradeProfile {
+  return { weight, bulk, rarity, distancePremium, timeValueTrend, durability, lossRisk };
+}
+
+const DEFAULT_TRADE_PROFILE = tradeProfile(3, 3, 2, 0, 0, 3, 2);
+
+const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
+  Wood: tradeProfile(4, 5, 1, -1, 0, 4, 2),
+  Stone: tradeProfile(5, 5, 1, -2, 0, 5, 1),
+  Marble: tradeProfile(5, 5, 4, 1, 0, 4, 3),
+  Iron: tradeProfile(5, 4, 3, 1, 0, 5, 2),
+  Copper: tradeProfile(5, 4, 3, 1, 0, 5, 2),
+  Tin: tradeProfile(4, 3, 4, 2, 0, 5, 2),
+  Silver: tradeProfile(2, 1, 4, 2, 0, 5, 2),
+  Gold: tradeProfile(2, 1, 5, 3, 0, 5, 2),
+  Grain: tradeProfile(4, 4, 1, -1, -1, 2, 3),
+  Cattle: tradeProfile(5, 5, 2, 0, -2, 1, 5),
+  Fish: tradeProfile(3, 3, 1, -1, -2, 1, 5),
+  Game: tradeProfile(3, 3, 2, 0, -2, 1, 5),
+  Wine: tradeProfile(3, 3, 3, 2, 2, 4, 2),
+  Olives: tradeProfile(3, 3, 2, 1, -1, 3, 2),
+  Honey: tradeProfile(3, 3, 2, 1, 0, 4, 1),
+  Salt: tradeProfile(3, 2, 2, 1, 0, 5, 1),
+  Dates: tradeProfile(2, 3, 2, 1, -1, 3, 2),
+  Horses: tradeProfile(5, 5, 3, 1, -2, 2, 5),
+  Elephants: tradeProfile(5, 5, 5, 2, -2, 1, 5),
+  Camels: tradeProfile(5, 5, 3, 1, -2, 2, 5),
+  Hemp: tradeProfile(3, 4, 2, 0, 0, 3, 2),
+  Pearls: tradeProfile(1, 1, 5, 3, 0, 5, 2),
+  Gemstones: tradeProfile(1, 1, 5, 3, 0, 5, 2),
+  Dyes: tradeProfile(2, 2, 4, 3, 0, 3, 2),
+  Incense: tradeProfile(1, 2, 4, 3, 0, 4, 2),
+  Silk: tradeProfile(1, 2, 5, 3, 0, 3, 2),
+  Spices: tradeProfile(1, 2, 5, 3, 0, 4, 2),
+  Amber: tradeProfile(1, 1, 4, 2, 0, 5, 1),
+  Furs: tradeProfile(2, 4, 3, 2, 0, 3, 2),
+  Sheep: tradeProfile(5, 5, 2, 0, -2, 1, 5),
+  Slaves: tradeProfile(5, 5, 3, 1, -2, 1, 5),
+  Tar: tradeProfile(4, 3, 2, 0, 0, 4, 2),
+  Saltpeter: tradeProfile(3, 3, 4, 2, 0, 4, 2),
+  Coal: tradeProfile(5, 4, 2, 0, 0, 5, 2),
+  Oil: tradeProfile(3, 3, 2, 1, 0, 4, 2),
+  Mahogany: tradeProfile(4, 5, 5, 3, 0, 4, 2),
+  Whales: tradeProfile(4, 4, 2, 0, -2, 1, 5),
+  Sugarcane: tradeProfile(3, 4, 3, 2, -1, 2, 3),
+  Tea: tradeProfile(1, 2, 4, 3, 0, 3, 2),
+  Tobacco: tradeProfile(1, 2, 4, 3, 1, 3, 2),
+  Clay: tradeProfile(5, 5, 1, -2, 0, 4, 2),
+  "White sand": tradeProfile(5, 5, 1, -2, 0, 5, 1),
+  Leather: tradeProfile(3, 3, 2, 0, 0, 4, 2),
+  Cloth: tradeProfile(2, 3, 2, 1, 0, 3, 2),
+  Garments: tradeProfile(2, 3, 3, 2, 0, 3, 2),
+  Ceramics: tradeProfile(4, 4, 3, 1, 0, 2, 4),
+  Glass: tradeProfile(3, 4, 4, 2, 0, 1, 5),
+  Ropes: tradeProfile(3, 4, 2, 0, 0, 4, 2),
+  Paper: tradeProfile(1, 2, 3, 2, 0, 2, 3),
+  Ink: tradeProfile(1, 1, 3, 2, 0, 3, 2),
+  Books: tradeProfile(2, 2, 4, 3, 0, 3, 3),
+  Sails: tradeProfile(3, 4, 3, 1, 0, 3, 2),
+  Ships: tradeProfile(5, 5, 5, 0, 0, 4, 3),
+  Boots: tradeProfile(2, 3, 2, 1, 0, 4, 2),
+  Harnesses: tradeProfile(3, 3, 3, 1, 0, 4, 2),
+  Barrels: tradeProfile(4, 5, 1, -1, 0, 4, 2),
+  Bronze: tradeProfile(5, 4, 3, 1, 0, 5, 2),
+  Tools: tradeProfile(4, 3, 3, 2, 0, 5, 2),
+  Arms: tradeProfile(4, 3, 4, 2, 0, 5, 3),
+  Gunpowder: tradeProfile(3, 3, 4, 2, 0, 2, 5),
+  Artillery: tradeProfile(5, 5, 4, 1, 0, 5, 3),
+  Coins: tradeProfile(2, 1, 5, 3, 0, 5, 3),
+  Jewelry: tradeProfile(1, 1, 5, 3, 0, 4, 3),
+  "Preserved food": tradeProfile(4, 4, 2, 1, 0, 4, 2),
+  Vinegar: tradeProfile(3, 3, 2, 1, 1, 4, 2),
+  Cheese: tradeProfile(3, 3, 3, 1, 1, 3, 2),
+  Beer: tradeProfile(4, 4, 2, 1, -1, 2, 3),
+  Liquor: tradeProfile(2, 2, 4, 2, 1, 4, 2),
+  Candles: tradeProfile(2, 3, 3, 1, 0, 3, 2),
+  Soap: tradeProfile(3, 3, 3, 1, 0, 4, 2),
+  Perfume: tradeProfile(1, 1, 5, 3, 0, 3, 3)
+};
+
+export function getDefaultGoodTradeProfile(good: Pick<Good, "name" | "tags" | "unit" | "value">): GoodTradeProfile {
+  const profile = GOOD_TRADE_PROFILES[good.name];
+  if (profile) return { ...profile };
+
+  const isLuxury = good.tags.includes("luxury") || good.value >= 8;
+  const isFood = good.tags.includes("food");
+  const isMineral = good.tags.includes("mineral") || good.tags.includes("ore");
+  const isLiveCargo = good.unit === "head" || good.unit === "slave";
+
+  return {
+    ...DEFAULT_TRADE_PROFILE,
+    weight: isMineral ? 5 : isLiveCargo ? 5 : isLuxury ? 2 : DEFAULT_TRADE_PROFILE.weight,
+    bulk: isLiveCargo ? 5 : isLuxury ? 2 : DEFAULT_TRADE_PROFILE.bulk,
+    rarity: isLuxury ? 4 : DEFAULT_TRADE_PROFILE.rarity,
+    distancePremium: isLuxury ? 2 : DEFAULT_TRADE_PROFILE.distancePremium,
+    timeValueTrend: isFood || isLiveCargo ? -1 : DEFAULT_TRADE_PROFILE.timeValueTrend,
+    durability: isFood || isLiveCargo ? 2 : DEFAULT_TRADE_PROFILE.durability,
+    lossRisk: isLiveCargo ? 5 : isFood ? 3 : DEFAULT_TRADE_PROFILE.lossRisk
+  };
+}
+
 export class GoodsModule {
   private get worldContext() {
     return getWorldContext();
@@ -1174,7 +1303,12 @@ export class GoodsModule {
       });
     }
 
-    return { i: index + 1, ...good, ...(recipes && { recipes }) };
+    return {
+      i: index + 1,
+      ...good,
+      trade: good.trade ?? getDefaultGoodTradeProfile(good),
+      ...(recipes && { recipes })
+    };
   });
 }
 

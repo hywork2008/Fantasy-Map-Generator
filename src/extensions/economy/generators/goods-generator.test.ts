@@ -81,6 +81,14 @@ describe("GoodsModule", () => {
     expect(worldContext.pack.goods[0].name).not.toBe("Custom A");
   });
 
+  it("restores default goods with trade cargo profiles", () => {
+    goodsModule.restoreDefaults();
+
+    expect(worldContext.pack.goods.every(good => good.trade)).toBe(true);
+    expect(worldContext.pack.goods.find(good => good.name === "Gold")?.trade?.distancePremium).toBe(3);
+    expect(worldContext.pack.goods.find(good => good.name === "Fish")?.trade?.timeValueTrend).toBe(-2);
+  });
+
   it("restores the original defaults even after the current catalogue was edited", () => {
     goodsModule.generate();
     worldContext.pack.goods[0].name = "Edited Wood";

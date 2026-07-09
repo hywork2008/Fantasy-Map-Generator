@@ -2,7 +2,7 @@ import { pointer } from "d3";
 import { clearMainTip, tip } from "../../hostServices";
 import { confirmationDialog, downloadFile, findCell, getFileName, layerIsOn, rn, unique } from "../../hostUtils";
 import { getApi, getViewContext, getWorldContext } from "../economyContext";
-import { Goods } from "../generators/goods-generator";
+import { Goods, getDefaultGoodTradeProfile } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
 import { isDealRecord, isMfgRecord, Production } from "../generators/production-generator";
 import { getCellProduction } from "../generators/production-utils";
@@ -376,7 +376,8 @@ export function downloadGoodsData(): void {
   const production = getProduction();
   const stockData = getAllStockData();
 
-  let data = "Id,Good,Color,Type,Tags,Value,Demand Coverage,Chance,Model,Cells,Produced,Stock\n";
+  let data =
+    "Id,Good,Color,Type,Tags,Value,Demand Coverage,Chance,Model,Trade Weight,Trade Bulk,Rarity,Distance Premium,Time Value Trend,Durability,Loss Risk,Cells,Produced,Stock\n";
 
   for (const good of worldContext().pack.goods || []) {
     const types = [good.recipes && "MFG", good.distribution && "RAW"].filter(Boolean).join(";");
@@ -389,7 +390,9 @@ export function downloadGoodsData(): void {
     const produced = rn(goodProduction.burg + goodProduction.cell);
     const stock = stockData[good.i]?.total ?? 0;
 
-    data += `${good.i},${good.name},${good.color},${types},${tags},${good.value},${demandCoverage},${good.chance ?? ""},${good.distribution ?? ""},${cells},${produced},${stock}\n`;
+    const trade = good.trade ?? getDefaultGoodTradeProfile(good);
+
+    data += `${good.i},${good.name},${good.color},${types},${tags},${good.value},${demandCoverage},${good.chance ?? ""},${good.distribution ?? ""},${trade.weight},${trade.bulk},${trade.rarity},${trade.distancePremium},${trade.timeValueTrend},${trade.durability},${trade.lossRisk},${cells},${produced},${stock}\n`;
   }
 
   downloadFile(data, `${getFileName("Goods")}.csv`);
@@ -484,7 +487,7 @@ export function addGood(): void {
     const nextId = goods.reduce((maxId, existingGood) => Math.max(maxId, existingGood.i), 0) + 1;
     const normalizedDistribution = draft.distribution.trim();
 
-    worldContext().pack.goods.push({
+    const good = {
       i: nextId,
       name: draft.name,
       tags: draft.tagsText
@@ -497,7 +500,9 @@ export function addGood(): void {
       color: draft.color,
       chance: normalizedDistribution ? Math.max(0, Math.min(100, draft.chance)) : undefined,
       distribution: normalizedDistribution || undefined
-    });
+    };
+
+    worldContext().pack.goods.push({ ...good, trade: getDefaultGoodTradeProfile(good) });
 
     Goods.sync();
     displayedGoods.add(nextId);
