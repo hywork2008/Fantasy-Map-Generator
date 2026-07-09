@@ -173,7 +173,7 @@ export const CharactersOverviewDialog: React.FC = () => {
         )}
 
         <div id="charactersFilters" data-tip="Apply a filter" className="d-flex" style={{ padding: "5px" }}>
-          <label htmlFor="charactersSearch" data-tip="Filter by name, state, title, or gender">
+          <label htmlFor="charactersSearch" data-tip="Filter by name, state, title, role, or gender">
             Search:{" "}
             <input
               id="charactersSearch"

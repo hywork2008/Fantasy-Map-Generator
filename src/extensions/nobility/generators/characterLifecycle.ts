@@ -1,5 +1,4 @@
 import Alea from "alea";
-import { clearCharacters } from "../../characters/advanceAge";
 import type { Character, CharacterSkills } from "../../characters/characterTypes";
 import { createPerson } from "../../characters/personFactory";
 import { calculateCharacterTraits } from "../../characters/utils/personalityUtils";
@@ -23,6 +22,26 @@ const MAX_RULER_AGE = 65;
 const MIN_OFFICER_AGE = 22;
 const MAX_OFFICER_AGE = 60;
 
+function getNextCharacterId(characters: Character[]): number {
+  return Math.max(0, ...characters.map(c => c.i), -1) + 1;
+}
+
+function clearStateRulerIds(): void {
+  const { pack } = getWorldContext();
+  for (const state of pack.states ?? []) delete state.rulerId;
+}
+
+function preserveNonPoliticalCharacters(characters: Character[] = []): Character[] {
+  return characters.filter(character => {
+    if (!character.roles?.length) return false;
+
+    character.titles = [];
+    character.affinities = {};
+    character.marriages = [];
+    return true;
+  });
+}
+
 /** True for state forms whose central offices should skew towards a devout/zealous personality roll. */
 function isReligiousForm(
   stateData: { form?: string; formName?: string },
@@ -41,8 +60,9 @@ function generate(options: { randomSeed?: number } = {}): void {
   Math.random = Alea(options.randomSeed ?? worldContext.seed);
 
   const { pack } = worldContext;
-  const characters: Character[] = [];
-  let nextId = 0;
+  clearStateRulerIds();
+  const characters: Character[] = [...preserveNonPoliticalCharacters(pack.characters)];
+  let nextId = getNextCharacterId(characters);
 
   const currentYear = Number(worldContext.options.year) || 1000;
   const states = pack.states.filter(s => s.i && !s.removed);
@@ -173,7 +193,7 @@ function createOfficer(
   title: "Commander" | "Admiral"
 ): Character {
   const { pack } = getWorldContext();
-  const nextId = Math.max(0, ...pack.characters.map(c => c.i), -1) + 1;
+  const nextId = getNextCharacterId(pack.characters);
   const officer = createPerson(nextId, state.culture, {
     homeStateId: state.i,
     formName: state.formName,
@@ -203,7 +223,7 @@ function createProvinceLord(
   province: Pick<Province, "i" | "formName" | "burg">
 ): Character {
   const { pack } = getWorldContext();
-  const nextId = Math.max(0, ...pack.characters.map(c => c.i), -1) + 1;
+  const nextId = getNextCharacterId(pack.characters);
   const lord = createPerson(nextId, state.culture, {
     homeStateId: state.i,
     formName: state.formName,
@@ -224,9 +244,9 @@ function createProvinceLord(
 }
 
 function clear(): void {
-  clearCharacters();
   const { pack } = getWorldContext();
-  for (const state of pack.states) delete state.rulerId;
+  pack.characters = preserveNonPoliticalCharacters(pack.characters);
+  clearStateRulerIds();
 }
 
 /**

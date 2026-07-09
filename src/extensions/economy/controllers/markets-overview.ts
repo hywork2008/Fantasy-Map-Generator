@@ -16,6 +16,7 @@ import {
 } from "../../hostUtils";
 
 import { getApi, getMarketsLayer, getViewContext, getWorldContext } from "../economyContext";
+import { getMarketManagerName } from "../generators/marketManagers";
 import type { Deal, Market } from "../generators/markets-generator";
 import { Markets } from "../generators/markets-generator";
 import { Production } from "../generators/production-generator";
@@ -75,7 +76,7 @@ function marketsOverviewAddLines(): void {
 
   for (const market of markets) {
     const centerName = Markets.getName(market);
-    const ownerName = getOwnerStateName(market);
+    const managerName = getMarketManagerName(market);
     const cells = getMarketCells(market.i);
     const burgs = getMarketBurgs(market.i);
     const stock = rn(getMarketTotalStock(market), 2);
@@ -88,7 +89,7 @@ function marketsOverviewAddLines(): void {
     rowData.push({
       i: market.i,
       centerName,
-      ownerName,
+      managerName,
       cells,
       burgs,
       stock,
@@ -103,7 +104,7 @@ function marketsOverviewAddLines(): void {
   rowData.push({
     i: 0,
     centerName: "No market",
-    ownerName: "—",
+    managerName: "—",
     cells: getMarketCells(0),
     burgs: getMarketBurgs(0),
     stock: 0,
@@ -437,13 +438,6 @@ function togglePercentageMode(): void {
 
 // updateFooter removed
 
-function getOwnerStateName(market: Market): string {
-  const center = getWorldContext().pack.burgs[market.centerBurgId];
-  if (!center) return "Unknown";
-  if (!center.state) return "Independent";
-  return getWorldContext().pack.states[center.state]?.name || `State ${center.state}`;
-}
-
 function regenerateMarkets(regenerateTrade = true): void {
   Markets.generate(true);
   if (regenerateTrade) Production.produce();
@@ -458,13 +452,13 @@ function regenerateProduction(): void {
 }
 
 function downloadMarketsCsv(): void {
-  let csv = "Market,Owner,Cells,Burgs,Total Stock,Sales,Buys,Value\n";
+  let csv = "Market,Manager,Cells,Burgs,Total Stock,Sales,Buys,Value\n";
   for (const market of getWorldContext().pack.markets) {
     const { sales, buys, value } = getMarketFinancials(market);
     const cells = getMarketCells(market.i);
     const burgs = getMarketBurgs(market.i);
     const stock = rn(getMarketTotalStock(market), 2);
-    csv += `${[Markets.getName(market), getOwnerStateName(market), cells, burgs, stock, sales, buys, value].join(",")}\n`;
+    csv += `${[Markets.getName(market), getMarketManagerName(market), cells, burgs, stock, sales, buys, value].join(",")}\n`;
   }
   downloadFile(csv, `${getFileName("Markets_Overview")}.csv`);
 }
@@ -514,7 +508,7 @@ export const marketsOverviewActions = {
   setSorting(sortBy: string) {
     const { sortBy: currentSortBy, sortDirection } = getMarketsOverviewState();
     const nextDirection =
-      currentSortBy === sortBy ? sortDirection * -1 : sortBy === "market" || sortBy === "owner" ? 1 : -1;
+      currentSortBy === sortBy ? sortDirection * -1 : sortBy === "market" || sortBy === "manager" ? 1 : -1;
     setMarketsOverviewState({ sortBy, sortDirection: nextDirection });
   }
 };

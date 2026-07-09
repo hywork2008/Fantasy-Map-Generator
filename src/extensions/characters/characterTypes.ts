@@ -14,6 +14,20 @@ export interface TitleHolding {
   reason?: string;
 }
 
+export interface CharacterRole {
+  /** Extension or subsystem that owns this non-political role. */
+  source: string;
+  /** Stable role discriminator, e.g. "marketManager". */
+  kind: string;
+  /** Target entity namespace. Market roles point at pack.markets[]. */
+  entityType: "market" | "state" | "province" | "burg";
+  entityId: number;
+  label: string;
+  startYear?: number;
+  endYear?: number;
+  reason?: string;
+}
+
 export interface CharacterSkills {
   artistry: number;
   diplomacy: number;
@@ -99,7 +113,14 @@ export interface Character {
   affinities: Record<number, number>;
   /** State IDs of marriage ties */
   marriages: number[];
+  /**
+   * Legacy/UI grouping state. This is not a universal allegiance model; use
+   * birthStateId, nationalityStateId, location, and roles for explicit relations.
+   */
   state: number;
+  birthStateId?: number;
+  nationalityStateId?: number;
+  roles?: CharacterRole[];
   skills: CharacterSkills;
   personality: CharacterPersonality;
   /**

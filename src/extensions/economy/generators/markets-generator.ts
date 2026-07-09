@@ -6,6 +6,7 @@ import { getColors, getRandomColor, minmax, rn, TIME } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, Goods } from "./goods-generator";
+import { syncMarketManagers } from "./marketManagers";
 import { getCellProduction } from "./production-utils";
 
 const PRICE_FLOOR_FACTOR = 0.25;
@@ -19,6 +20,7 @@ export type Market = {
   centerBurgId: number;
   color: string;
   name?: string;
+  managerCharacterId?: number;
   goods: Record<number, { stock: number; price: number }>;
 };
 
@@ -55,6 +57,7 @@ export class MarketsModule {
 
     this.worldContext.pack.markets = markets;
     this.worldContext.pack.deals = [];
+    syncMarketManagers(markets);
 
     TIME && console.timeEnd("generateMarkets");
     return markets;
@@ -288,6 +291,7 @@ export class MarketsModule {
     this.worldContext.pack.cells.market[burg.cell] = marketId;
     burg.market = marketId;
     burg.plaza = 1;
+    syncMarketManagers([market]);
 
     return market;
   }

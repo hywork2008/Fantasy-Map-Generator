@@ -73,4 +73,59 @@ describe("Characters (nobility characterLifecycle)", () => {
     expect(worldContext.pack.characters).toHaveLength(0);
     expect(worldContext.pack.states.every(s => s.rulerId === undefined)).toBe(true);
   });
+
+  it("preserves non-political characters when regenerating nobility characters", () => {
+    worldContext.pack.characters = [
+      {
+        i: 99,
+        name: "Market Keeper",
+        age: 40,
+        gender: "male",
+        culture: 0,
+        titles: [],
+        affinities: {},
+        marriages: [],
+        state: 1,
+        birthStateId: 1,
+        nationalityStateId: 1,
+        roles: [
+          { source: "economy", kind: "marketManager", entityType: "market", entityId: 1, label: "Market Manager" }
+        ],
+        skills: {
+          artistry: 1,
+          diplomacy: 1,
+          engineering: 1,
+          geography: 1,
+          intrigue: 1,
+          learning: 1,
+          martial: 1,
+          prowess: 1,
+          stewardship: 1
+        },
+        personality: {
+          boldness: 1,
+          compassion: 1,
+          greed: 1,
+          honor: 1,
+          rationality: 1,
+          sociability: 1,
+          vengefulness: 1,
+          zeal: 1,
+          energy: 1,
+          piety: 1,
+          guile: 1,
+          confidence: 1
+        },
+        family: { spouses: 0, children: 0, grandchildren: 0, greatGrandchildren: 0 },
+        appearance: 1,
+        prestige: 1,
+        pastTitles: []
+      }
+    ];
+
+    Characters.generate({ randomSeed: 5 });
+
+    expect(worldContext.pack.characters.some(c => c.i === 99 && c.roles?.[0]?.kind === "marketManager")).toBe(true);
+    expect(worldContext.pack.characters).toHaveLength(13);
+  });
 });

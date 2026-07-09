@@ -2,7 +2,7 @@ import type React from "react";
 import { useState } from "react";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { getApi, getWorldContext } from "../../charactersContext";
-import type { TitleHolding } from "../../characterTypes";
+import type { CharacterRole, TitleHolding } from "../../characterTypes";
 import { useCharactersUiState } from "../charactersUiState";
 import { RadarChart } from "../components/charts/RadarChart";
 
@@ -18,6 +18,7 @@ export const CharacterDetailsDialog: React.FC = () => {
   const provinces = worldContext.pack.provinces;
   const cultures = worldContext.pack.cultures;
   const burgs = worldContext.pack.burgs;
+  const markets = worldContext.pack.markets ?? [];
 
   const character = characters.find(c => c.i === selectedCharacterId);
 
@@ -31,6 +32,17 @@ export const CharacterDetailsDialog: React.FC = () => {
     t.entityType === "province"
       ? (provinces?.[t.entityId]?.name ?? "Unknown")
       : (states[t.entityId]?.name ?? "Unknown");
+
+  const getRoleEntityName = (role: CharacterRole) => {
+    if (role.entityType !== "market") return `${role.entityType} ${role.entityId}`;
+
+    const market = markets.find(m => m.i === role.entityId);
+    if (!market) return `Market ${role.entityId}`;
+
+    const center = burgs[market.centerBurgId];
+    const marketName = market.name || center?.name || `Market ${market.i}`;
+    return center ? `${marketName} (${center.name})` : marketName;
+  };
 
   const cultureName = cultures[character.culture]?.name ?? "Unknown";
 
@@ -120,6 +132,13 @@ export const CharacterDetailsDialog: React.FC = () => {
         rows.push(
           `${t.title} of ${entityName}, ${t.landed ? "(Landed)" : ""} ${t.startYear ? `[Since ${t.startYear}]` : ""}`
         );
+      });
+    }
+
+    if (character.roles && character.roles.length > 0) {
+      rows.push("Roles");
+      character.roles.forEach(role => {
+        rows.push(`${role.label}, ${getRoleEntityName(role)}`);
       });
     }
 
@@ -253,6 +272,20 @@ export const CharacterDetailsDialog: React.FC = () => {
                       <li key={`${t.entityType}-${t.entityId}-${t.title}`}>
                         {t.title} of {getTitleEntityName(t)} {t.landed ? "(Landed)" : ""}{" "}
                         {t.startYear ? `[Since ${t.startYear}]` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </td>
+              </tr>
+            )}
+            {character.roles && character.roles.length > 0 && (
+              <tr>
+                <th style={{ padding: "4px 0", verticalAlign: "top" }}>Roles</th>
+                <td>
+                  <ul style={{ margin: 0, listStyleType: "none", padding: 0 }}>
+                    {character.roles.map(role => (
+                      <li key={`${role.source}-${role.kind}-${role.entityType}-${role.entityId}`}>
+                        {role.label}: {getRoleEntityName(role)}
                       </li>
                     ))}
                   </ul>

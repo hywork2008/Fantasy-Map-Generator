@@ -14,6 +14,7 @@ import {
   tickForestRegrowth
 } from "./generators/forestDepletion";
 import { Goods } from "./generators/goods-generator";
+import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
 import { Markets } from "./generators/markets-generator";
 import { Production } from "./generators/production-generator";
 import { Taxes } from "./generators/taxes-generator";
@@ -191,7 +192,8 @@ export function init(api: ExtensionAPI): void {
     {
       id: ECONOMY_EXTENSION_ID,
       name: "Economy, Goods & Trade",
-      description: "Adds economy system including goods production, markets, and trade routes."
+      description: "Adds economy system including goods production, markets, and trade routes.",
+      dependencies: [{ id: "characters", required: true }]
     },
     false
   );
@@ -406,6 +408,8 @@ export function init(api: ExtensionAPI): void {
         Taxes.defineTaxRates();
         Production.produce();
         Taxes.collectTaxes();
+      } else if (worldContext.pack.markets?.length) {
+        syncMarketManagers();
       }
     } else if (!isEnabled && wasEnabled) {
       // Visually turn off layers before removing them
@@ -432,6 +436,7 @@ export function init(api: ExtensionAPI): void {
       api.closeDialog("tradeAnimationEditor");
 
       // Clear economy data from worldContext when disabled
+      clearMarketManagers();
       worldContext.pack.goods = [];
       worldContext.pack.markets = [];
       worldContext.pack.deals = [];
@@ -458,6 +463,7 @@ export function init(api: ExtensionAPI): void {
     api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
     api.burgEconomyExtensions.getBurgEconomySummary = getBurgEconomySummary;
     registerOverviewColumns(api);
+    if (getWorldContext().pack.markets?.length) syncMarketManagers();
   }
 
   // Listen for core map generation to generate economy
@@ -610,6 +616,7 @@ export function cleanup(api: ExtensionAPI): void {
     _logHarvestedHandler = null;
   }
   clearForestDepletion();
+  clearMarketManagers();
 
   // Remove layers, presets and clear tooltip hooks
   api.removeLayers(economyLayers.map(l => l.id));

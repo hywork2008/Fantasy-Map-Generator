@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { clearCharactersContext, initCharactersContext } from "../../characters/charactersContext";
 import { States, worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext } from "../economyContext";
@@ -25,14 +26,20 @@ describe("MarketsModule", () => {
     let marketsModule: MarketsModule;
     afterEach(() => {
       clearEconomyContext();
+      clearCharactersContext();
     });
 
     beforeEach(() => {
-      initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+      const api = { worldContext } as unknown as ExtensionAPI;
+      initEconomyContext(api);
+      initCharactersContext(api);
       marketsModule = new MarketsModule();
       worldContext.graphWidth = 1000;
       worldContext.graphHeight = 800;
+      worldContext.nameBases = [{ i: 0, name: "Test", min: 3, max: 10, d: "", m: 0, b: "Anna,Bob,Carla,David,Erin" }];
       worldContext.pack = {
+        characters: [],
+        cultures: [{ i: 0, name: "Test culture", base: 0, shield: "" }],
         goods: [
           {
             i: 0,

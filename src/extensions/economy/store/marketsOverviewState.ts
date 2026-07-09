@@ -3,7 +3,7 @@ import { create } from "zustand";
 export interface MarketRowData {
   i: number;
   centerName: string;
-  ownerName: string;
+  managerName: string;
   cells: number;
   burgs: number;
   stock: number;

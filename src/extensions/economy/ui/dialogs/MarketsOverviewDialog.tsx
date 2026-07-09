@@ -71,14 +71,14 @@ export const MarketsOverviewDialog: React.FC = () => {
       const leftValue =
         sortBy === "market"
           ? left.centerName.toLowerCase()
-          : sortBy === "owner"
-            ? left.ownerName.toLowerCase()
+          : sortBy === "manager"
+            ? left.managerName.toLowerCase()
             : left[sortBy as keyof typeof left];
       const rightValue =
         sortBy === "market"
           ? right.centerName.toLowerCase()
-          : sortBy === "owner"
-            ? right.ownerName.toLowerCase()
+          : sortBy === "manager"
+            ? right.managerName.toLowerCase()
             : right[sortBy as keyof typeof right];
 
       if (leftValue < rightValue) return -1 * sortDirection;
@@ -175,11 +175,11 @@ export const MarketsOverviewDialog: React.FC = () => {
                   Market
                 </th>
                 <th
-                  data-tip="Owning state. Click to sort"
-                  className={`sortable alphabetically ${getSortIcon("owner", true)}`}
-                  onClick={() => marketsOverviewActions.setSorting("owner")}
+                  data-tip="Responsible market manager character. Click to sort"
+                  className={`sortable alphabetically ${getSortIcon("manager", true)}`}
+                  onClick={() => marketsOverviewActions.setSorting("manager")}
                 >
-                  Owner
+                  Manager
                 </th>
                 <th
                   data-tip="Number of cells in market territory. Click to sort"
@@ -256,7 +256,7 @@ export const MarketsOverviewDialog: React.FC = () => {
                     className: `states market${selectedMarketId === m.i ? " selected" : ""}`,
                     "data-id": m.i,
                     "data-market": m.centerName,
-                    "data-owner": m.ownerName,
+                    "data-manager": m.managerName,
                     "data-cells": m.cells,
                     "data-burgs": m.burgs,
                     "data-stock": m.stock,
@@ -277,7 +277,7 @@ export const MarketsOverviewDialog: React.FC = () => {
                         >
                           {m.centerName}
                         </td>
-                        <td className="marketOwner">{m.ownerName}</td>
+                        <td className="marketOwner">{m.managerName}</td>
                         <td className="marketCells" data-tip="Number of cells with no market" data-type="cells">
                           {displayVal(m.cells, totals.cells)}
                         </td>
@@ -331,8 +331,8 @@ export const MarketsOverviewDialog: React.FC = () => {
                       <td className="marketName" data-tip="Market name. Click to view details">
                         {m.centerName}
                       </td>
-                      <td className="marketOwner" data-tip="Owning state">
-                        {m.ownerName}
+                      <td className="marketOwner" data-tip="Responsible market manager character">
+                        {m.managerName}
                       </td>
                       <td className="marketCells" data-tip="Number of cells in market territory" data-type="cells">
                         {displayVal(m.cells, totals.cells)}

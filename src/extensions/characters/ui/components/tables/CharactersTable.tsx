@@ -68,7 +68,7 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
             <SortHeader field="appearance" label="App" numeric width="4em" />
             <SortHeader field="prestige" label="Pre" numeric width="4em" />
             <SortHeader field="gender" label="Gender" width="6em" />
-            <SortHeader field="title" label="Title" width="10em" />
+            <SortHeader field="title" label="Title / Role" width="10em" />
             <SortHeader field="state" label="State" width="10em" />
           </tr>
         </thead>

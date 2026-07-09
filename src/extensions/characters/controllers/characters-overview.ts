@@ -24,13 +24,14 @@ export function filterAndSortCharacters(
   // 1. Map to row data
   let rows: CharacterRowData[] = characters.map(c => {
     const holding = c.titles[0];
+    const role = c.roles?.[0];
     const stateId = c.state ?? holding?.entityId ?? -1;
     const stateName = states[stateId]?.name ?? "Unknown";
     return {
       c,
       stateId,
       stateName,
-      title: holding?.title ?? ""
+      title: holding?.title ?? role?.label ?? ""
     };
   });
 
@@ -46,6 +47,11 @@ export function filterAndSortCharacters(
       if (r.c.name.toLowerCase().includes(search)) return true;
       if (r.stateName.toLowerCase().includes(search)) return true;
       if (r.title.toLowerCase().includes(search)) return true;
+      if (
+        r.c.roles?.some(role => role.kind.toLowerCase().includes(search) || role.label.toLowerCase().includes(search))
+      ) {
+        return true;
+      }
       if (r.c.gender.toLowerCase().startsWith(search)) return true;
       return false;
     });
