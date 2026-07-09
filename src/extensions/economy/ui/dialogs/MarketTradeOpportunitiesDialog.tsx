@@ -1,5 +1,6 @@
 import React from "react";
 import { VirtualTableBody } from "../../../../ui/components/VirtualTableBody";
+import { useOptionsState } from "../../../hostCore";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 import { close, downloadCsv, refresh, setSelectedGoodId, setSorting } from "../../controllers/marketTradeOpportunities";
@@ -12,6 +13,7 @@ import {
 export const MarketTradeOpportunitiesDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("marketTradeOpportunities"));
   const { options, selectedGoodId, sortBy, sortDirection, rows } = useMarketTradeOpportunitiesState();
+  const distanceUnit = useOptionsState(state => state.distanceUnit);
   const parentRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -83,6 +85,34 @@ export const MarketTradeOpportunitiesDialog: React.FC = () => {
                   Sell at
                 </th>
                 <th
+                  data-tip="Estimated route distance between market centers. Click to sort"
+                  className={`sortable ${getSortIcon("distance")}`}
+                  onClick={() => setSorting("distance")}
+                >
+                  Distance
+                </th>
+                <th
+                  data-tip="Land distance along the selected route. Click to sort"
+                  className={`sortable ${getSortIcon("landDistance")}`}
+                  onClick={() => setSorting("landDistance")}
+                >
+                  Land
+                </th>
+                <th
+                  data-tip="Sea distance along the selected route. Click to sort"
+                  className={`sortable ${getSortIcon("seaDistance")}`}
+                  onClick={() => setSorting("seaDistance")}
+                >
+                  Sea
+                </th>
+                <th
+                  data-tip="Number of land/sea mode changes on the route. Click to sort"
+                  className={`sortable ${getSortIcon("transferCount")}`}
+                  onClick={() => setSorting("transferCount")}
+                >
+                  Transfers
+                </th>
+                <th
                   data-tip="Price paid when buying from source market. Click to sort"
                   className={`sortable ${getSortIcon("buyPrice")}`}
                   onClick={() => setSorting("buyPrice")}
@@ -129,7 +159,7 @@ export const MarketTradeOpportunitiesDialog: React.FC = () => {
             {sortedRows.length === 0 ? (
               <tbody>
                 <tr>
-                  <td colSpan={8}>No profitable routes for the selected good</td>
+                  <td colSpan={12}>No profitable routes for the selected good</td>
                 </tr>
               </tbody>
             ) : (
@@ -140,6 +170,10 @@ export const MarketTradeOpportunitiesDialog: React.FC = () => {
                   <tr key={`${row.sourceMarketId}-${row.targetMarketId}`} className="states">
                     <td>{row.sourceMarketName}</td>
                     <td>{row.targetMarketName}</td>
+                    <td style={{ textAlign: "right" }}>{`${row.distance} ${distanceUnit}`}</td>
+                    <td style={{ textAlign: "right" }}>{`${row.landDistance} ${distanceUnit}`}</td>
+                    <td style={{ textAlign: "right" }}>{`${row.seaDistance} ${distanceUnit}`}</td>
+                    <td style={{ textAlign: "right" }}>{row.transferCount}</td>
                     <td style={{ textAlign: "right" }}>{formatPrice(row.buyPrice)}</td>
                     <td style={{ textAlign: "right" }}>{formatPrice(row.sellPrice)}</td>
                     <td style={{ textAlign: "right" }}>{formatPrice(row.transportCost)}</td>

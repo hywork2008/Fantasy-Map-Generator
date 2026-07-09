@@ -10,6 +10,10 @@ export interface MarketTradeOpportunityRow {
   targetMarketId: number;
   sourceMarketName: string;
   targetMarketName: string;
+  distance: number;
+  landDistance: number;
+  seaDistance: number;
+  transferCount: number;
   buyPrice: number;
   sellPrice: number;
   transportCost: number;
@@ -21,6 +25,10 @@ export interface MarketTradeOpportunityRow {
 export type MarketTradeOpportunitySort =
   | "source"
   | "target"
+  | "distance"
+  | "landDistance"
+  | "seaDistance"
+  | "transferCount"
   | "buyPrice"
   | "sellPrice"
   | "transportCost"

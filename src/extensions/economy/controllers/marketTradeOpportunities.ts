@@ -1,3 +1,6 @@
+import FlatQueue from "flatqueue";
+
+import type { Burg, PackedGraph } from "../../hostTypes";
 import { openDialog } from "../../hostUi";
 import { downloadFile, formatPrice, getFileName, rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
@@ -12,6 +15,25 @@ import {
 } from "../store/marketTradeOpportunitiesState";
 
 const DISTANCE_COST_FACTOR = 0.5;
+const TRADE_ROUTE_GROUPS = new Set(["roads", "trails", "searoutes"]);
+
+type TradeRouteKind = "land" | "sea";
+
+interface TradeRouteEdge {
+  readonly distance: number;
+  readonly kind: TradeRouteKind;
+}
+
+interface TradeRouteGraph {
+  readonly adjacency: Map<number, Map<number, TradeRouteEdge>>;
+}
+
+interface TradeRouteDistance {
+  readonly total: number;
+  readonly land: number;
+  readonly sea: number;
+  readonly transfers: number;
+}
 
 export function open(selectedGoodId?: number): void {
   const goods = getWorldContext().pack.goods || [];
@@ -49,14 +71,17 @@ export function refresh(): void {
   const goodId = selectedGoodId;
 
   const rows: MarketTradeOpportunityRow[] = [];
-  const markets = getWorldContext().pack.markets || [];
-  const mapDiagonal = Math.hypot(getWorldContext().graphWidth, getWorldContext().graphHeight) || 1;
+  const world = getWorldContext();
+  const markets = world.pack.markets || [];
+  const mapDiagonal = Math.hypot(world.graphWidth, world.graphHeight) || 1;
+  const tradeRouteGraph = buildTradeRouteGraph(world.pack);
+  const hasTradeRoutes = tradeRouteGraph.adjacency.size > 0;
 
   for (const source of markets) {
     const sourceGood = source.goods[goodId];
     if (!sourceGood || sourceGood.stock <= 0) continue;
 
-    const sourceCenter = getWorldContext().pack.burgs[source.centerBurgId];
+    const sourceCenter = world.pack.burgs[source.centerBurgId];
     if (!sourceCenter) continue;
 
     for (const target of markets) {
@@ -64,12 +89,15 @@ export function refresh(): void {
       const targetGood = target.goods[goodId];
       if (!targetGood) continue;
 
-      const targetCenter = getWorldContext().pack.burgs[target.centerBurgId];
+      const targetCenter = world.pack.burgs[target.centerBurgId];
       if (!targetCenter) continue;
 
       const buyPrice = Markets.customerBuyPrice(sourceGood.price, source.centerBurgId, goodId);
       const sellPrice = Markets.customerSellPrice(targetGood.price, target.centerBurgId, goodId);
-      const transportCost = getTransportCost(sourceCenter, targetCenter, mapDiagonal) * good.value;
+      const distance = getTradeDistance(sourceCenter, targetCenter, tradeRouteGraph, hasTradeRoutes);
+      if (distance === null) continue;
+
+      const transportCost = getTransportCost(distance.total, mapDiagonal) * good.value;
       const unitProfit = rn(sellPrice - buyPrice - transportCost, 2);
       if (unitProfit <= 0) continue;
 
@@ -79,6 +107,10 @@ export function refresh(): void {
         targetMarketId: target.i,
         sourceMarketName: Markets.getName(source),
         targetMarketName: Markets.getName(target),
+        distance: rn(distance.total * world.distanceScale),
+        landDistance: rn(distance.land * world.distanceScale),
+        seaDistance: rn(distance.sea * world.distanceScale),
+        transferCount: distance.transfers,
         buyPrice: rn(buyPrice, 2),
         sellPrice: rn(sellPrice, 2),
         transportCost: rn(transportCost, 2),
@@ -93,14 +125,126 @@ export function refresh(): void {
   setMarketTradeOpportunitiesState({ rows: rows.slice(0, 200) });
 }
 
-function getTransportCost(
-  source: { x: number; y: number },
-  target: { x: number; y: number },
-  mapDiagonal: number
-): number {
+function buildTradeRouteGraph(pack: PackedGraph): TradeRouteGraph {
+  const adjacency = new Map<number, Map<number, TradeRouteEdge>>();
+
+  const addEdge = (from: number, to: number, edge: TradeRouteEdge) => {
+    if (!adjacency.has(from)) adjacency.set(from, new Map());
+    const neighbors = adjacency.get(from)!;
+    const existing = neighbors.get(to);
+    if (existing === undefined || edge.distance < existing.distance) neighbors.set(to, edge);
+  };
+
+  for (const route of pack.routes ?? []) {
+    if (!TRADE_ROUTE_GROUPS.has(route.group)) continue;
+    const kind: TradeRouteKind = route.group === "searoutes" ? "sea" : "land";
+
+    const points = route.points;
+    for (let i = 0; i < points.length - 1; i++) {
+      const [x1, y1, cell1] = points[i];
+      const [x2, y2, cell2] = points[i + 1];
+      if (cell1 === cell2) continue;
+
+      const dist = Math.hypot(x2 - x1, y2 - y1);
+      const edge = { distance: dist, kind };
+      addEdge(cell1, cell2, edge);
+      addEdge(cell2, cell1, edge);
+    }
+  }
+
+  return { adjacency };
+}
+
+function getTradeDistance(
+  source: Burg,
+  target: Burg,
+  tradeRouteGraph: TradeRouteGraph,
+  hasTradeRoutes: boolean
+): TradeRouteDistance | null {
+  const routeDistance = findTradeRouteDistance(tradeRouteGraph, source.cell, target.cell);
+  if (routeDistance !== null) return routeDistance;
+  if (hasTradeRoutes) return null;
+  const fallbackDistance = getStraightLineApproximation(source, target);
+  return { total: fallbackDistance, land: fallbackDistance, sea: 0, transfers: 0 };
+}
+
+function findTradeRouteDistance(graph: TradeRouteGraph, start: number, end: number): TradeRouteDistance | null {
+  if (start === end) return { total: 0, land: 0, sea: 0, transfers: 0 };
+  if (!graph.adjacency.has(start) || !graph.adjacency.has(end)) return null;
+
+  const dist = new Map<number, number>();
+  const from = new Map<number, number>();
+  const fromEdge = new Map<number, TradeRouteEdge>();
+  dist.set(start, 0);
+
+  const queue = new FlatQueue<number>();
+  queue.push(start, 0);
+  const settled = new Set<number>();
+
+  while (queue.length) {
+    const currentDist = queue.peekValue();
+    const current = queue.pop();
+    if (current === undefined || currentDist === undefined) break;
+    if (settled.has(current)) continue;
+    settled.add(current);
+    if (current === end) return summarizeTradeRoute(currentDist, end, from, fromEdge);
+
+    const neighbors = graph.adjacency.get(current);
+    if (!neighbors) continue;
+
+    for (const [next, edge] of neighbors) {
+      if (settled.has(next)) continue;
+      const total = currentDist + edge.distance;
+      if (total < (dist.get(next) ?? Infinity)) {
+        dist.set(next, total);
+        from.set(next, current);
+        fromEdge.set(next, edge);
+        queue.push(next, total);
+      }
+    }
+  }
+
+  return null;
+}
+
+function summarizeTradeRoute(
+  total: number,
+  end: number,
+  from: Map<number, number>,
+  fromEdge: Map<number, TradeRouteEdge>
+): TradeRouteDistance {
+  const edges: TradeRouteEdge[] = [];
+  let node = end;
+  while (from.has(node)) {
+    const edge = fromEdge.get(node);
+    if (edge) edges.push(edge);
+    node = from.get(node)!;
+  }
+  edges.reverse();
+
+  let land = 0;
+  let sea = 0;
+  let transfers = 0;
+  let previousKind: TradeRouteKind | null = null;
+
+  for (const edge of edges) {
+    if (edge.kind === "sea") sea += edge.distance;
+    else land += edge.distance;
+
+    if (previousKind !== null && edge.kind !== previousKind) transfers++;
+    previousKind = edge.kind;
+  }
+
+  return { total, land, sea, transfers };
+}
+
+function getStraightLineApproximation(source: { x: number; y: number }, target: { x: number; y: number }): number {
   const dx = Math.abs(source.x - target.x);
   const dy = Math.abs(source.y - target.y);
-  const distance = dx > dy ? dx + 0.414 * dy : dy + 0.414 * dx;
+  return dx > dy ? dx + 0.414 * dy : dy + 0.414 * dx;
+}
+
+function getTransportCost(distance: number, mapDiagonal: number): number {
   return (distance / mapDiagonal) * DISTANCE_COST_FACTOR;
 }
 
@@ -121,12 +265,17 @@ export function downloadCsv(): void {
   const good = selectedGoodId === null ? null : Goods.get(selectedGoodId);
   if (!good) return;
 
-  let csv = "Good,Buy Market,Sell Market,Buy Price,Sell Price,Transport Cost,Unit Profit,Max Units,Total Profit\n";
+  let csv =
+    "Good,Buy Market,Sell Market,Distance,Land Distance,Sea Distance,Transfers,Buy Price,Sell Price,Transport Cost,Unit Profit,Max Units,Total Profit\n";
   for (const row of getMarketTradeOpportunitiesState().rows) {
     csv += [
       good.name,
       row.sourceMarketName,
       row.targetMarketName,
+      row.distance,
+      row.landDistance,
+      row.seaDistance,
+      row.transferCount,
       formatPrice(row.buyPrice),
       formatPrice(row.sellPrice),
       formatPrice(row.transportCost),
