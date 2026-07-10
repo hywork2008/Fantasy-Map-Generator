@@ -109,10 +109,17 @@ deck.gl 移行は、以下を満たした時点で「既定レンダラー化可
 
 - [ ] `public/styles/*.json` の代表スタイルを `webglHybrid` で巡回し、主要レイヤーの色・opacity・stroke幅をSVG版と比較する。
 - [ ] `draw-*` renderer が参照しているSVG属性のうち、deck data adapter側に反映していないものを棚卸しする。
-- [ ] `getLakePaint`, `getCoastlinePaint`, `getIcePaint`, `getLabelStyle`, `getMarkerStyle`, `getBurgIconStyle`, `getEmblemStyle` をテスト可能な小関数へ分割する。
+- [x] `getLakePaint`, `getCoastlinePaint`, `getIcePaint`, `getLabelStyle`, `getMarkerStyle`, `getBurgIconStyle`, `getEmblemStyle` をテスト可能な小関数へ分割する。
 - [ ] CSS custom properties / SVG attributes / layerState のどれをWebGL style source of truthにするか決める。
 - [ ] `widthUnits: "pixels"` と map coordinate幅の使い分けをレイヤー別に明文化する。
 - [ ] HiDPI時の線幅、文字サイズ、アイコンサイズを desktop / mobile で確認する。
+
+### Phase 3 開始ログ
+
+- `src/renderers/webgl/webglStyleExtractors.ts` を追加し、SVG属性 / `worldContext.style` / fallback から WebGL paint・label・icon style を読む処理を `buildDeckLayers.ts` から分離した。
+- `webglStyleExtractors.test.ts` で lakes / coastline / ice / height / emblems / markers / burg icons / labels の style extraction を単体検証する。
+- `webgl-hybrid.spec.ts` に代表 style preset (`default`, `atlas`, `watercolor`, `night`, `cyberpunk`) の smoke test を追加した。現時点では canvas non-blank、主要 deck layer、deck data上の style metadata 変化を検証し、SVG版とのピクセル/属性比較は次タスクとして残す。
+- 現在の暫定 source of truth は「既存SVG属性を優先し、burg icon / label group は `worldContext.style` を fallback とする」。CSS custom properties への集約可否は未決定。
 
 ## Phase 4: Picking と編集導線
 
@@ -155,7 +162,7 @@ deck.gl 移行は、以下を満たした時点で「既定レンダラー化可
 
 - [x] `tests/e2e/webgl-hybrid.spec.ts` に `svg -> webglHybrid -> svg` の往復テストを追加する。
 - [x] `.map` load 後の webglHybrid 再描画テストを追加する。
-- [ ] style presetごとの smoke test を追加する。
+- [x] style presetごとの smoke test を追加する。
 - [ ] layer presetごとの deck layer id と canvas pixelを検証する既存テストを維持・拡張する。
 - [ ] `elementFromPoint()` によるUI stacking検査を options以外の主要UIにも拡張する。
 - [ ] pick detail の kind / id / cellId / coordinate を代表レイヤー別に検証する。

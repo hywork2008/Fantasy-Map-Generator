@@ -4,9 +4,11 @@ import {
   WEBGL_MANAGED_SVG_LAYER_IDS
 } from "../../src/renderers/webgl/hybridLayerPolicy";
 import {
+  applyStylePreset,
   getFirstLandScreenPoint,
   getWebglDeckLayerIds,
   getWebglCanvasPixelStats,
+  getWebglLayerStyleSamples,
   getWebglLayerPolicyState,
   getWebglRendererDomState,
   getViewTransformState,
@@ -323,5 +325,54 @@ test.describe("webgl hybrid renderer", () => {
       await expect(page.locator("#armies")).toBeHidden();
       await expect(page.locator("#scaleBar")).toBeVisible();
     }
+  });
+
+  test("keeps WebGL style data populated across representative style presets", async ({ page }) => {
+    await page.goto("/?seed=webgl-style-fidelity&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await setLayerPreset(page, "political");
+    await waitForWebglCanvasPixels(page);
+
+    const styleSignatures = new Set<string>();
+    for (const preset of ["default", "atlas", "watercolor", "night", "cyberpunk"]) {
+      await applyStylePreset(page, preset);
+      await waitForWebglCanvasPixels(page);
+      await expect
+        .poll(() => getWebglDeckLayerIds(page), { timeout: 5000 })
+        .toEqual(
+          expect.arrayContaining([
+            "fmg-webgl-background",
+            "fmg-webgl-land",
+            "fmg-webgl-lakes",
+            "fmg-webgl-lakes-outlines",
+            "fmg-webgl-coastline",
+            "fmg-webgl-states",
+            "fmg-webgl-labels"
+          ])
+        );
+
+      const samples = await getWebglLayerStyleSamples(page, [
+        "fmg-webgl-land",
+        "fmg-webgl-lakes",
+        "fmg-webgl-lakes-outlines",
+        "fmg-webgl-coastline",
+        "fmg-webgl-labels"
+      ]);
+      for (const sample of samples) expect(sample.dataCount, `${preset}:${sample.layerId}`).toBeGreaterThan(0);
+      expect(samples.find(sample => sample.layerId === "fmg-webgl-land")?.fillColor).toEqual(
+        expect.arrayContaining([expect.any(Number)])
+      );
+      expect(samples.find(sample => sample.layerId === "fmg-webgl-lakes-outlines")?.width).toEqual(
+        expect.any(Number)
+      );
+      expect(samples.find(sample => sample.layerId === "fmg-webgl-coastline")?.color).toEqual(
+        expect.arrayContaining([expect.any(Number)])
+      );
+      expect(samples.find(sample => sample.layerId === "fmg-webgl-labels")?.size).toEqual(expect.any(Number));
+      styleSignatures.add(JSON.stringify(samples));
+    }
+
+    expect(styleSignatures.size).toBeGreaterThan(1);
   });
 });

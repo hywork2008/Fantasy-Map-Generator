@@ -129,6 +129,23 @@ export async function setLayerPreset(page: Page, preset: string): Promise<void> 
   await page.evaluate(layerPreset => window.fmg.actions.handleLayersPresetChange(layerPreset), preset);
 }
 
+export async function applyStylePreset(page: Page, preset: string): Promise<void> {
+  if ((await page.locator("#optionsHide").textContent())?.trim() === "►") {
+    await page.locator("#optionsHide").click();
+  }
+  await page.locator("#styleTab").click();
+  await page.locator("#stylePreset").waitFor({ state: "attached", timeout: 5000 });
+  await page.locator("#stylePreset").selectOption(preset);
+  await page
+    .locator(".alert-dialog button", { hasText: "Change" })
+    .click({ timeout: 2000 })
+    .catch(() => undefined);
+  await page.waitForFunction(stylePreset => localStorage.getItem("presetStyle") === stylePreset, preset, {
+    timeout: 10000
+  });
+  await setRenderMode(page, "webglHybrid");
+}
+
 export async function toggleLayer(page: Page, layerId: string): Promise<void> {
   await page.evaluate(id => window.fmg.actions.toggleLayer(id), layerId);
 }
@@ -138,6 +155,53 @@ export async function getWebglDeckLayerIds(page: Page): Promise<string[]> {
     const deck = window.fmg.view.webglDeck as unknown as { props?: { layers?: Array<{ id?: string }> } } | null;
     return deck?.props?.layers?.map(layer => layer.id).filter((id): id is string => typeof id === "string") ?? [];
   });
+}
+
+export interface WebglLayerStyleSample {
+  layerId: string;
+  dataCount: number;
+  fillColor: number[] | null;
+  color: number[] | null;
+  width: number | null;
+  size: number | null;
+}
+
+export async function getWebglLayerStyleSamples(
+  page: Page,
+  layerIds: readonly string[]
+): Promise<WebglLayerStyleSample[]> {
+  return page.evaluate(ids => {
+    function isRecord(value: unknown): value is Record<string, unknown> {
+      return value !== null && typeof value === "object";
+    }
+
+    function numberArray(value: unknown): number[] | null {
+      return Array.isArray(value) && value.every(item => typeof item === "number") ? value : null;
+    }
+
+    function numberValue(value: unknown): number | null {
+      return typeof value === "number" && Number.isFinite(value) ? value : null;
+    }
+
+    const deck = window.fmg.view.webglDeck as unknown as {
+      props?: { layers?: Array<{ id?: string; props?: { data?: unknown[] } }> };
+    } | null;
+    const layers = deck?.props?.layers ?? [];
+
+    return ids.map(layerId => {
+      const layer = layers.find(candidate => candidate.id === layerId);
+      const data = Array.isArray(layer?.props?.data) ? layer.props.data : [];
+      const first = data.find(isRecord);
+      return {
+        layerId,
+        dataCount: data.length,
+        fillColor: first ? numberArray(first.fillColor) : null,
+        color: first ? numberArray(first.color) : null,
+        width: first ? numberValue(first.width) : null,
+        size: first ? numberValue(first.size) : null
+      };
+    });
+  }, layerIds);
 }
 
 export interface WebglLayerPolicyEntry {
