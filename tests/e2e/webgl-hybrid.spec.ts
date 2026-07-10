@@ -5,10 +5,13 @@ import {
 } from "../../src/renderers/webgl/hybridLayerPolicy";
 import {
   applyStylePreset,
+  ensureLayerOn,
   getFirstLandScreenPoint,
   getWebglDeckLayerIds,
   getWebglCanvasPixelStats,
+  getWebglLayerRenderingProps,
   getWebglLayerStyleSamples,
+  getWebglStyleComparisons,
   getWebglLayerPolicyState,
   getWebglRendererDomState,
   getViewTransformState,
@@ -370,9 +373,114 @@ test.describe("webgl hybrid renderer", () => {
         expect.arrayContaining([expect.any(Number)])
       );
       expect(samples.find(sample => sample.layerId === "fmg-webgl-labels")?.size).toEqual(expect.any(Number));
+
+      const comparisons = await getWebglStyleComparisons(page);
+      expect(comparisons.length, preset).toBeGreaterThan(3);
+      for (const comparison of comparisons) {
+        for (let index = 0; index < comparison.svgColor.length; index++) {
+          expect(
+            Math.abs((comparison.deckColor[index] ?? 0) - (comparison.svgColor[index] ?? 0)),
+            `${preset}:${comparison.source}:${comparison.group}:color[${index}]`
+          ).toBeLessThanOrEqual(1);
+        }
+        if (comparison.svgWidth !== null && comparison.deckWidth !== null) {
+          expect(
+            Math.abs(comparison.deckWidth - comparison.svgWidth),
+            `${preset}:${comparison.source}:${comparison.group}:width`
+          ).toBeLessThanOrEqual(0.001);
+        }
+        if (comparison.svgSize !== null && comparison.deckSize !== null) {
+          expect(
+            Math.abs(comparison.deckSize - comparison.svgSize),
+            `${preset}:${comparison.source}:${comparison.group}:size`
+          ).toBeLessThanOrEqual(0.001);
+        }
+      }
       styleSignatures.add(JSON.stringify(samples));
     }
 
     expect(styleSignatures.size).toBeGreaterThan(1);
+  });
+});
+
+test.describe("webgl hybrid renderer on HiDPI", () => {
+  test.use({ viewport: { width: 1000, height: 700 }, deviceScaleFactor: 2 });
+
+  test("keeps canvas density and representative style units stable on desktop and mobile", async ({ page }) => {
+    await page.goto("/?seed=webgl-hidpi-style&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await setLayerPreset(page, "political");
+    await ensureLayerOn(page, "toggleBurgIcons");
+    await waitForWebglCanvasPixels(page);
+
+    const desktopStats = await getWebglCanvasPixelStats(page);
+    expect(desktopStats.width).toBe(2000);
+    expect(desktopStats.height).toBe(1400);
+    expect(desktopStats.coloredPixels).toBeGreaterThan(500);
+
+    await expect.poll(() => getWebglLayerRenderingProps(page, [
+      "fmg-webgl-lakes-outlines",
+      "fmg-webgl-coastline",
+      "fmg-webgl-states-boundaries",
+      "fmg-webgl-labels",
+      "fmg-webgl-burg-icons"
+    ])).toEqual([
+      expect.objectContaining({
+        layerId: "fmg-webgl-lakes-outlines",
+        exists: true,
+        widthUnits: "pixels",
+        widthMinPixels: 0,
+        widthMaxPixels: 6
+      }),
+      expect.objectContaining({
+        layerId: "fmg-webgl-coastline",
+        exists: true,
+        widthUnits: "pixels",
+        widthMinPixels: 0.25,
+        widthMaxPixels: 4
+      }),
+      expect.objectContaining({
+        layerId: "fmg-webgl-states-boundaries",
+        exists: true,
+        widthUnits: "pixels",
+        widthMinPixels: 0.35,
+        widthMaxPixels: 2.5
+      }),
+      expect.objectContaining({ layerId: "fmg-webgl-labels", exists: true, sizeUnits: "common" }),
+      expect.objectContaining({ layerId: "fmg-webgl-burg-icons", exists: true, sizeUnits: "common" })
+    ]);
+
+    const desktopSamples = await getWebglLayerStyleSamples(page, [
+      "fmg-webgl-lakes-outlines",
+      "fmg-webgl-coastline",
+      "fmg-webgl-labels",
+      "fmg-webgl-burg-icons"
+    ]);
+    for (const sample of desktopSamples) {
+      expect(sample.dataCount, sample.layerId).toBeGreaterThan(0);
+      expect(sample.width ?? sample.size, sample.layerId).toEqual(expect.any(Number));
+    }
+
+    await page.setViewportSize({ width: 390, height: 720 });
+    await page.waitForFunction(() => {
+      const canvas = document.getElementById("webglMapCanvas");
+      return canvas instanceof HTMLCanvasElement && canvas.style.width === "390px";
+    });
+    const mobileStats = await waitForWebglCanvasPixels(page, 300);
+    expect(mobileStats.width).toBe(780);
+    expect(mobileStats.height).toBe(1440);
+    expect(mobileStats.coloredPixels).toBeGreaterThan(300);
+
+    const mobileSamples = await getWebglLayerStyleSamples(page, [
+      "fmg-webgl-lakes-outlines",
+      "fmg-webgl-coastline",
+      "fmg-webgl-labels",
+      "fmg-webgl-burg-icons"
+    ]);
+    for (const sample of mobileSamples) {
+      expect(sample.dataCount, `mobile:${sample.layerId}`).toBeGreaterThan(0);
+      expect(sample.width ?? sample.size, `mobile:${sample.layerId}`).toEqual(expect.any(Number));
+    }
   });
 });

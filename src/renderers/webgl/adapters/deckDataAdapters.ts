@@ -47,6 +47,7 @@ export interface DeckPath {
   width: number;
   kind: WebglPickKind;
   cellId: number | null;
+  group?: string;
 }
 
 export interface DeckFeaturePolygon extends DeckCellPolygon {
@@ -546,7 +547,8 @@ export function buildLakeOutlinePaths(
       color: getStrokeColor(group),
       width: getStrokeWidth(group),
       kind: "lake",
-      cellId: feature.feature.firstCell
+      cellId: feature.feature.firstCell,
+      group
     };
   });
 }
@@ -924,7 +926,8 @@ export function buildCoastlinePaths(
       color: getStrokeColor(group),
       width: getStrokeWidth(group),
       kind: "coastline",
-      cellId: feature.feature.firstCell
+      cellId: feature.feature.firstCell,
+      group
     };
   });
 }

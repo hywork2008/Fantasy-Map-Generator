@@ -107,19 +107,41 @@ deck.gl 移行は、以下を満たした時点で「既定レンダラー化可
 
 ## Phase 3: Style Fidelity
 
-- [ ] `public/styles/*.json` の代表スタイルを `webglHybrid` で巡回し、主要レイヤーの色・opacity・stroke幅をSVG版と比較する。
-- [ ] `draw-*` renderer が参照しているSVG属性のうち、deck data adapter側に反映していないものを棚卸しする。
+- [x] `public/styles/*.json` の代表スタイルを `webglHybrid` で巡回し、主要レイヤーの色・opacity・stroke幅をSVG版と比較する。
+- [x] `draw-*` renderer が参照しているSVG属性のうち、deck data adapter側に反映していないものを棚卸しする。
 - [x] `getLakePaint`, `getCoastlinePaint`, `getIcePaint`, `getLabelStyle`, `getMarkerStyle`, `getBurgIconStyle`, `getEmblemStyle` をテスト可能な小関数へ分割する。
-- [ ] CSS custom properties / SVG attributes / layerState のどれをWebGL style source of truthにするか決める。
-- [ ] `widthUnits: "pixels"` と map coordinate幅の使い分けをレイヤー別に明文化する。
-- [ ] HiDPI時の線幅、文字サイズ、アイコンサイズを desktop / mobile で確認する。
+- [x] CSS custom properties / SVG attributes / layerState のどれをWebGL style source of truthにするか決める。
+- [x] `widthUnits: "pixels"` と map coordinate幅の使い分けをレイヤー別に明文化する。
+- [x] HiDPI時の線幅、文字サイズ、アイコンサイズを desktop / mobile で確認する。
 
 ### Phase 3 開始ログ
 
 - `src/renderers/webgl/webglStyleExtractors.ts` を追加し、SVG属性 / `worldContext.style` / fallback から WebGL paint・label・icon style を読む処理を `buildDeckLayers.ts` から分離した。
 - `webglStyleExtractors.test.ts` で lakes / coastline / ice / height / emblems / markers / burg icons / labels の style extraction を単体検証する。
-- `webgl-hybrid.spec.ts` に代表 style preset (`default`, `atlas`, `watercolor`, `night`, `cyberpunk`) の smoke test を追加した。現時点では canvas non-blank、主要 deck layer、deck data上の style metadata 変化を検証し、SVG版とのピクセル/属性比較は次タスクとして残す。
+- `webgl-hybrid.spec.ts` に代表 style preset (`default`, `atlas`, `watercolor`, `night`, `cyberpunk`) の fidelity test を追加した。canvas non-blank、主要 deck layer、deck data上の style metadata 変化に加えて、lakes / lake outlines / coastline / labels の deck data color・stroke width・size が SVG 属性由来の値と一致することを検証する。
 - 現在の暫定 source of truth は「既存SVG属性を優先し、burg icon / label group は `worldContext.style` を fallback とする」。CSS custom properties への集約可否は未決定。
+- 幅単位の暫定ルール: SVG の stroke width に追従する境界・湖岸・海岸線・rivers/routes/grid/cells は `widthUnits: "pixels"` を使う。burg icons / emblems / military boxes / labels のように地図上の実寸や既存 symbol size を再現するものは map coordinate 系 (`sizeUnits: "common"` または polygon座標) を使う。marker glyph / external marker image は既存 marker UI の pixel size に合わせるため `sizeUnits: "pixels"` を維持する。
+- HiDPI test は `deviceScaleFactor: 2` で desktop (`1000x700`) と mobile (`390x720`) を同一テスト内で確認する。canvas backing store が CSS size の2倍になり、代表 path/text/icon layer の `widthUnits` / `sizeUnits` と data上の width/size が欠落しないことを検証する。
+
+### Phase 3 style source of truth
+
+既定化までは SVG 版との互換性を優先し、WebGL style source of truth は既存 SVG 属性とする。deck data は `webglStyleExtractors.ts` を通じて SVG 属性を読む。burg icons / anchors / burg labels は既存 renderer が `worldContext.style` も更新するため、DOM selection が未生成または空の場合だけ `worldContext.style` を fallback とする。layer visibility は引き続き `useLayerState.activeLayers` を source of truth とする。CSS custom properties は UI theme / global font family の source に留め、WebGL map layer paint の主 source にはしない。
+
+### Phase 3 SVG attribute audit
+
+| SVG renderer / layer | SVG attributes read by SVG renderer | WebGL mapping | Remaining gap |
+| :-- | :-- | :-- | :-- |
+| `draw-heightmap.ts` / `#terrs #landHeights`, `#oceanHeights` | `scheme`, `opacity`, `data-render` | `getHeightStyle()` -> `buildHeightPolygons()` | SVG heightmap filter/mask details are not reproduced; color scheme and ocean inclusion are covered |
+| `draw-features.ts` / `#lakes`, `#coastline` | group `fill`, `stroke`, `stroke-width`, `opacity` | `getLakePaint()`, `getCoastlinePaint()` -> lake fill/outlines and coastline paths | Fractal coastline geometry parity is tracked under Phase 2 visual-diff follow-up |
+| `draw-ice.ts` / `#ice` | `fill`, `stroke`, `stroke-width`, `opacity` | `getIcePaint()` -> `buildIcePolygons()` | SVG pattern/filter effects, if introduced by a preset, are not mapped |
+| `draw-burg-labels.ts` / `#burgLabels` | group `fill`, `opacity`, `font-size`, `data-size`, `data-dx`, `data-dy` | `getLabelStyle()` -> `buildLabelSymbols()` | SVG text font family, halo/shadow and exact `em` baseline behavior remain Phase 6 text work |
+| `draw-state-labels.ts` / `#labels #states` | `fill`, `opacity`, `font-size`, `data-size` | `getLabelStyle()` -> state labels | Rotation/path layout and collision parity remain Phase 6 text work |
+| `draw-burg-icons.ts` / `#burgIcons`, `#anchors` | group `fill`, `opacity`, `font-size`, `data-size`, `data-icon` | `getBurgIconStyle()` -> `buildBurgIconSymbols()` | `data-icon` custom SVG symbol is not mapped; current WebGL uses circle/anchor placeholder icons pending Phase 6 atlas work |
+| `draw-emblems.ts` / `#emblems` | `opacity`, `#stateEmblems/#provinceEmblems/#burgEmblems data-size` | `getEmblemStyle()` -> `buildEmblemIcons()` | Actual COA rendering is not mapped; placeholder shield remains until Phase 6 |
+| `draw-markers.ts` / `#markers` | `pinned`, `rescale`; marker record `pin`, `fill`, `stroke`, `icon`, `px`, `dx`, `dy`, `size` | `getMarkerStyle()` plus marker data -> pin/icon/image layers | Custom external image load fallback and full icon atlas policy remain Phase 6 |
+| `draw-military.ts` / `#armies` | `box-size`; state/regiment color/icon/action fields | `getMilitaryBoxSize()` plus regiment data -> military box/text/image layers | SVG font metrics and custom image edge cases remain Phase 6 |
+| `draw-grid.ts`, cell/border/path renderers | stroke color/width/dash/linecap or generated constants | WebGL uses fixed path colors/widths for cells/grid/borders/rivers/routes | Grid `stroke-dasharray`, `stroke-linecap`, pattern type/offset/scale are not mapped; styles are acceptable for current hybrid but need Phase 9 defaulting review |
+| `draw-biomes.ts`, `draw-cultures.ts`, `draw-religions.ts`, `draw-provinces.ts`, population/temperature/precipitation/danger | isoline fill/water gap and generated color values | WebGL adapters use generated pack/grid colors and fixed overlay opacities | SVG water-gap/mask details and some contour-specific effects are not mapped |
 
 ## Phase 4: Picking と編集導線
 

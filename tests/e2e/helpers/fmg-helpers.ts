@@ -150,6 +150,12 @@ export async function toggleLayer(page: Page, layerId: string): Promise<void> {
   await page.evaluate(id => window.fmg.actions.toggleLayer(id), layerId);
 }
 
+export async function ensureLayerOn(page: Page, layerId: string): Promise<void> {
+  await page.evaluate(id => {
+    if (!window.fmg.actions.layerIsOn(id)) window.fmg.actions.toggleLayer(id);
+  }, layerId);
+}
+
 export async function getWebglDeckLayerIds(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const deck = window.fmg.view.webglDeck as unknown as { props?: { layers?: Array<{ id?: string }> } } | null;
@@ -160,10 +166,61 @@ export async function getWebglDeckLayerIds(page: Page): Promise<string[]> {
 export interface WebglLayerStyleSample {
   layerId: string;
   dataCount: number;
+  group: string | null;
   fillColor: number[] | null;
   color: number[] | null;
   width: number | null;
   size: number | null;
+}
+
+export interface WebglLayerRenderingProps {
+  layerId: string;
+  exists: boolean;
+  widthUnits: string | null;
+  lineWidthUnits: string | null;
+  sizeUnits: string | null;
+  widthMinPixels: number | null;
+  widthMaxPixels: number | null;
+  lineWidthMinPixels: number | null;
+  lineWidthMaxPixels: number | null;
+  dataCount: number;
+}
+
+export async function getWebglLayerRenderingProps(
+  page: Page,
+  layerIds: readonly string[]
+): Promise<WebglLayerRenderingProps[]> {
+  return page.evaluate(ids => {
+    function stringValue(value: unknown): string | null {
+      return typeof value === "string" ? value : null;
+    }
+
+    function numberValue(value: unknown): number | null {
+      return typeof value === "number" && Number.isFinite(value) ? value : null;
+    }
+
+    const deck = window.fmg.view.webglDeck as unknown as {
+      props?: { layers?: Array<{ id?: string; props?: Record<string, unknown> }> };
+    } | null;
+    const layers = deck?.props?.layers ?? [];
+    return ids.map(layerId => {
+      const layer = layers.find(candidate => candidate.id === layerId);
+      const props = layer?.props ?? {};
+      const data = props.data;
+      return {
+        layerId,
+        exists: Boolean(layer),
+        widthUnits: stringValue(props.widthUnits),
+        lineWidthUnits: stringValue(props.lineWidthUnits),
+        sizeUnits: stringValue(props.sizeUnits),
+        widthMinPixels: numberValue(props.widthMinPixels),
+        widthMaxPixels: numberValue(props.widthMaxPixels),
+        lineWidthMinPixels: numberValue(props.lineWidthMinPixels),
+        lineWidthMaxPixels: numberValue(props.lineWidthMaxPixels),
+        dataCount: Array.isArray(data) ? data.length : 0
+      };
+    });
+  }, layerIds);
 }
 
 export async function getWebglLayerStyleSamples(
@@ -195,6 +252,7 @@ export async function getWebglLayerStyleSamples(
       return {
         layerId,
         dataCount: data.length,
+        group: first && typeof first.group === "string" ? first.group : null,
         fillColor: first ? numberArray(first.fillColor) : null,
         color: first ? numberArray(first.color) : null,
         width: first ? numberValue(first.width) : null,
@@ -202,6 +260,202 @@ export async function getWebglLayerStyleSamples(
       };
     });
   }, layerIds);
+}
+
+export interface WebglStyleComparison {
+  source: string;
+  group: string;
+  svgColor: number[];
+  deckColor: number[];
+  svgWidth: number | null;
+  deckWidth: number | null;
+  svgSize: number | null;
+  deckSize: number | null;
+}
+
+export async function getWebglStyleComparisons(page: Page): Promise<WebglStyleComparison[]> {
+  return page.evaluate(() => {
+    function isRecord(value: unknown): value is Record<string, unknown> {
+      return value !== null && typeof value === "object";
+    }
+
+    function numberArray(value: unknown): number[] | null {
+      return Array.isArray(value) && value.every(item => typeof item === "number") ? value : null;
+    }
+
+    function numberValue(value: unknown): number | null {
+      return typeof value === "number" && Number.isFinite(value) ? value : null;
+    }
+
+    function attrOrStyle(element: Element | null, name: string): string | null {
+      if (!element) return null;
+      const attr = element.getAttribute(name);
+      if (attr) return attr;
+      const style = window.getComputedStyle(element).getPropertyValue(name);
+      return style || null;
+    }
+
+    function optionalNumber(value: string | null): number | null {
+      if (!value || value === "none" || value === "null") return null;
+      const parsed = Number.parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function resolveCssColor(value: string | null, fallback: string, opacity: number): number[] {
+      const probe = document.createElement("span");
+      probe.style.color = value || fallback;
+      if (!probe.style.color) probe.style.color = fallback;
+      document.body.append(probe);
+      const computed = window.getComputedStyle(probe).color;
+      probe.remove();
+      const match = computed.match(/rgba?\(([^)]+)\)/);
+      if (!match) return [153, 153, 153, Math.round(255 * opacity)];
+      const parts = match[1].split(",").map(part => part.trim());
+      const red = Number.parseFloat(parts[0] ?? "153");
+      const green = Number.parseFloat(parts[1] ?? "153");
+      const blue = Number.parseFloat(parts[2] ?? "153");
+      const alpha = parts[3] === undefined ? 1 : Number.parseFloat(parts[3]);
+      return [red, green, blue, Math.round(255 * alpha * opacity)];
+    }
+
+    function readPaint(
+      rootId: "lakes" | "coastline",
+      group: string,
+      fillFallback: string,
+      strokeFallback: string,
+      strokeWidthFallback: number,
+      opacityFallback: number
+    ): { fill: number[]; stroke: number[]; strokeWidth: number } {
+      const element = document.querySelector(`#${rootId} #${CSS.escape(group)}`);
+      const opacity = optionalNumber(attrOrStyle(element, "opacity")) ?? opacityFallback;
+      return {
+        fill: resolveCssColor(attrOrStyle(element, "fill"), fillFallback, opacity),
+        stroke: resolveCssColor(attrOrStyle(element, "stroke"), strokeFallback, opacity),
+        strokeWidth: optionalNumber(attrOrStyle(element, "stroke-width")) ?? strokeWidthFallback
+      };
+    }
+
+    function readLabel(group: string): { color: number[]; size: number } {
+      const selector = group === "states" ? "#labels #states" : `#burgLabels #${CSS.escape(group)}`;
+      const element = document.querySelector(selector);
+      const opacity = optionalNumber(attrOrStyle(element, "opacity")) ?? 1;
+      const size =
+        optionalNumber(attrOrStyle(element, "data-size")) ??
+        optionalNumber(attrOrStyle(element, "font-size")) ??
+        (group === "states" ? 22 : 4);
+      return {
+        color: resolveCssColor(attrOrStyle(element, "fill"), "#3e3e4b", opacity),
+        size
+      };
+    }
+
+    function getLayerData(layerId: string): Record<string, unknown>[] {
+      const deck = window.fmg.view.webglDeck as unknown as {
+        props?: { layers?: Array<{ id?: string; props?: { data?: unknown[] } }> };
+      } | null;
+      const layer = deck?.props?.layers?.find(candidate => candidate.id === layerId);
+      return (Array.isArray(layer?.props?.data) ? layer.props.data : []).filter(isRecord);
+    }
+
+    function uniqueByGroup(data: Record<string, unknown>[]): Record<string, Record<string, unknown>> {
+      const byGroup: Record<string, Record<string, unknown>> = {};
+      for (const item of data) {
+        const group = typeof item.group === "string" ? item.group : "";
+        if (group && !byGroup[group]) byGroup[group] = item;
+      }
+      return byGroup;
+    }
+
+    const comparisons: WebglStyleComparison[] = [];
+    const lakeFillFallbacks: Record<string, [string, string, number, number]> = {
+      freshwater: ["#a6c1fd", "#5f799d", 0.7, 0.5],
+      salt: ["#409b8a", "#388985", 0.7, 0.5],
+      sinkhole: ["#5bc9fd", "#53a3b0", 0.7, 1],
+      frozen: ["#cdd4e7", "#cfe0eb", 0, 0.95],
+      lava: ["#90270d", "#f93e0c", 2, 0.7],
+      dry: ["#c9bfa7", "#8e816f", 0.7, 1]
+    };
+
+    for (const [group, item] of Object.entries(uniqueByGroup(getLayerData("fmg-webgl-lakes")))) {
+      const fallback = lakeFillFallbacks[group] ?? lakeFillFallbacks.freshwater;
+      const paint = readPaint("lakes", group, fallback[0], fallback[1], fallback[2], fallback[3]);
+      const deckColor = numberArray(item.fillColor);
+      if (deckColor) {
+        comparisons.push({
+          source: "lake-fill",
+          group,
+          svgColor: paint.fill,
+          deckColor,
+          svgWidth: null,
+          deckWidth: null,
+          svgSize: null,
+          deckSize: null
+        });
+      }
+    }
+
+    for (const [group, item] of Object.entries(uniqueByGroup(getLayerData("fmg-webgl-lakes-outlines")))) {
+      const fallback = lakeFillFallbacks[group] ?? lakeFillFallbacks.freshwater;
+      const paint = readPaint("lakes", group, fallback[0], fallback[1], fallback[2], fallback[3]);
+      const deckColor = numberArray(item.color);
+      const deckWidth = numberValue(item.width);
+      if (deckColor && deckWidth !== null) {
+        comparisons.push({
+          source: "lake-outline",
+          group,
+          svgColor: paint.stroke,
+          deckColor,
+          svgWidth: paint.strokeWidth,
+          deckWidth,
+          svgSize: null,
+          deckSize: null
+        });
+      }
+    }
+
+    const coastlineFallbacks: Record<string, [string, string, number, number]> = {
+      sea_island: ["transparent", "#1f3846", 0.5, 0.5],
+      lake_island: ["transparent", "#7c8eaf", 0.35, 1]
+    };
+    for (const [group, item] of Object.entries(uniqueByGroup(getLayerData("fmg-webgl-coastline")))) {
+      const fallback = coastlineFallbacks[group] ?? coastlineFallbacks.sea_island;
+      const paint = readPaint("coastline", group, fallback[0], fallback[1], fallback[2], fallback[3]);
+      const deckColor = numberArray(item.color);
+      const deckWidth = numberValue(item.width);
+      if (deckColor && deckWidth !== null) {
+        comparisons.push({
+          source: "coastline",
+          group,
+          svgColor: paint.stroke,
+          deckColor,
+          svgWidth: paint.strokeWidth,
+          deckWidth,
+          svgSize: null,
+          deckSize: null
+        });
+      }
+    }
+
+    for (const [group, item] of Object.entries(uniqueByGroup(getLayerData("fmg-webgl-labels")))) {
+      const label = readLabel(group);
+      const deckColor = numberArray(item.color);
+      const deckSize = numberValue(item.size);
+      if (deckColor && deckSize !== null) {
+        comparisons.push({
+          source: "label",
+          group,
+          svgColor: label.color,
+          deckColor,
+          svgWidth: null,
+          deckWidth: null,
+          svgSize: label.size,
+          deckSize
+        });
+      }
+    }
+
+    return comparisons;
+  });
 }
 
 export interface WebglLayerPolicyEntry {
