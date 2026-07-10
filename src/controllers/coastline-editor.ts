@@ -618,6 +618,18 @@ function drawShapePreview(canvas: HTMLCanvasElement): void {
 
 class CoastlineEditorModule {
   editCoastline(event?: MouseEvent): void {
+    const node = (event?.target ?? getElementBySelector<SVGElement>(".coastline path")) as SVGElement | null;
+    this.openCoastlineEditor(node, event);
+  }
+
+  /** Opens the Coastline Editor for a feature id, without depending on a clicked SVG element (WebGL pick). */
+  editCoastlineById(featureId: number): void {
+    const node = view.coastline.select<SVGElement>(`use[data-f="${featureId}"]`).node();
+    if (!node) return;
+    this.openCoastlineEditor(node);
+  }
+
+  private openCoastlineEditor(node: SVGElement | null, event?: MouseEvent): void {
     if (view.customization) return;
     closeDialogs(".stable");
     if (layerIsOn("toggleCells")) toggleCells();
@@ -625,11 +637,10 @@ class CoastlineEditorModule {
     openDialog("coastlineEditor", {
       title: "Edit Coastline",
       resizable: false,
-      position: { my: "center top+20", at: "top", of: event, collision: "fit" },
+      position: { my: "center top+20", at: "top", of: event ?? "#map", collision: "fit" },
       onClose: closeCoastlineEditor
     });
 
-    const node = (event?.target ?? getElementBySelector<SVGElement>(".coastline path")) as SVGElement | null;
     view.debug.append("g").attr("id", "vertices");
     setElSelected(node ? select(node as Element) : null);
     if (node) {
@@ -660,6 +671,7 @@ class CoastlineEditorModule {
 
 export const coastlineEditor = new CoastlineEditorModule();
 export const editCoastline = (event?: MouseEvent) => coastlineEditor.editCoastline(event);
+export const editCoastlineById = (featureId: number) => coastlineEditor.editCoastlineById(featureId);
 
 export function initCoastlineEditor(wc: WorldContext, _vc: Readonly<ViewContext>, as: AppServices) {
   worldContext = wc;

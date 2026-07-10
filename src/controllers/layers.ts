@@ -393,6 +393,10 @@ export function drawLayers(): void {
 function drawHybridSvgOverlays(): void {
   FeaturesRenderer.render(worldContext, viewContext, appServices);
   if (!layerIsOn("toggleLakes")) setLayerVisibility("toggleLakes", false);
+  // Ice, like lakes/coastline above, is kept in sync as a hidden SVG layer so WebGL pick
+  // candidates (kind: "ice") can resolve to a real element via editIceById().
+  IceRenderer.render(worldContext, viewContext, appServices);
+  if (!layerIsOn("toggleIce")) setLayerVisibility("toggleIce", false);
   if (layerIsOn("toggleTexture")) {
     if (!view.texture.select("image").size()) TextureRenderer.render(worldContext, viewContext, appServices);
     setLayerVisibility("toggleTexture", true);

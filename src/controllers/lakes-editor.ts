@@ -75,6 +75,18 @@ function updateLakeGroups(): void {
 }
 
 export function editLake(event?: MouseEvent): void {
+  const node = (event?.target ?? getElementBySelector<SVGElement>(".lakes path")) as SVGElement;
+  openLakeEditor(node, event);
+}
+
+/** Opens the Lake Editor for a feature id, without depending on a clicked SVG element (WebGL pick). */
+export function editLakeById(featureId: number): void {
+  const node = view.lakes.select<SVGElement>(`use[data-f="${featureId}"]`).node();
+  if (!node) return;
+  openLakeEditor(node);
+}
+
+function openLakeEditor(node: SVGElement, event?: MouseEvent): void {
   if (view.customization) return;
   closeDialogs(".stable");
   if (layerIsOn("toggleCells")) toggleCells();
@@ -82,11 +94,10 @@ export function editLake(event?: MouseEvent): void {
   openDialog("lakeEditor", {
     title: "Edit Lake",
     resizable: false,
-    position: { my: "center top+20", at: "top", of: event, collision: "fit" },
+    position: { my: "center top+20", at: "top", of: event ?? "#map", collision: "fit" },
     onClose: closeLakesEditor
   });
 
-  const node = (event?.target ?? getElementBySelector<SVGElement>(".lakes path")) as SVGElement;
   view.debug.append("g").attr("id", "vertices");
   setElSelected(select(node as Element));
 

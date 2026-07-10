@@ -94,7 +94,10 @@ function isSingleClickEditablePick(detail: WebglPickDetail): boolean {
     detail.kind === "marker" ||
     detail.kind === "military" ||
     detail.kind === "river" ||
-    detail.kind === "route"
+    detail.kind === "route" ||
+    detail.kind === "lake" ||
+    detail.kind === "coastline" ||
+    detail.kind === "ice"
   );
 }
 

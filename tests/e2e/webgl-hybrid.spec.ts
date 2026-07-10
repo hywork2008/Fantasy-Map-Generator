@@ -8,6 +8,7 @@ import {
   clickAndGetWebglPickCandidates,
   ensureLayerOn,
   forceOverlappingWebglRegiments,
+  forceWebglGlacierFixture,
   getFirstLandScreenPoint,
   getWebglDeckLayerIds,
   getWebglCanvasPixelStats,
@@ -43,12 +44,24 @@ async function getTopElementAtCenter(page: Page, selector: string) {
   });
 }
 
+async function closeAllOpenEditorDialogs(page: Page): Promise<void> {
+  // Not every editor dialog is tracked by the shared dialogStore (e.g. burg/marker/lake/ice
+  // editors use their own Zustand "isOpen" state), so "Close all dialogs" alone can leave one
+  // open and stacked behind the next dialog. Click each visible dialog's own Close button
+  // directly via the DOM instead of a simulated pointer click, which sidesteps z-order stacking.
+  await page.evaluate(() => {
+    document.querySelectorAll<HTMLElement>(".fmg-dialog").forEach(dialog => {
+      if (dialog.style.display === "none") return;
+      dialog.querySelector<HTMLButtonElement>('.titlebar-btn[aria-label="Close"]')?.click();
+    });
+  });
+}
+
 async function clickWebglEditTargetAndExpectEditor(
   page: Page,
   target: { layerId: string; kind: string; editorSelector: string }
 ) {
-  const closeAllDialogs = page.getByRole("button", { name: "Close all dialogs" }).first();
-  if (await closeAllDialogs.isVisible()) await closeAllDialogs.click();
+  await closeAllOpenEditorDialogs(page);
 
   const pick =
     (await getFirstWebglLayerDatumClickPoint(page, target.layerId)) ??
@@ -445,10 +458,52 @@ test.describe("webgl hybrid renderer", () => {
       { layerId: "fmg-webgl-burg-icons", kind: "burgIcon", editorSelector: "#burgBody" },
       { layerId: "fmg-webgl-markers", kind: "marker", editorSelector: "#markerBody" },
       { layerId: "fmg-webgl-rivers", kind: "river", editorSelector: "#riverBody" },
-      { layerId: "fmg-webgl-routes", kind: "route", editorSelector: "#routeEditor" }
+      { layerId: "fmg-webgl-routes", kind: "route", editorSelector: "#routeEditor" },
+      { layerId: "fmg-webgl-coastline", kind: "coastline", editorSelector: "#coastlineGroupsShow" }
     ]) {
       await clickWebglEditTargetAndExpectEditor(page, target);
     }
+  });
+
+  test("opens the Lake Editor from a WebGL pick target", async ({ page }) => {
+    // This seed is known to generate at least one lake (see "reports pick detail" above).
+    await page.goto("/?seed=webgl-pick-targets&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+    await ensureLayerOn(page, "toggleLakes");
+
+    await clickWebglEditTargetAndExpectEditor(page, {
+      layerId: "fmg-webgl-lakes",
+      kind: "lake",
+      editorSelector: "#lakeBody"
+    });
+  });
+
+  test("opens the Ice Editor from a WebGL pick target", async ({ page }) => {
+    // Ice generation is seed/latitude dependent, so a glacier is forced at the map center.
+    await page.goto("/?seed=webgl-ice-click-edit&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+    await ensureLayerOn(page, "toggleIce");
+
+    const point = await forceWebglGlacierFixture(page);
+    const pickResult = await clickAndGetWebglPickCandidates(page, point);
+    const candidate = pickResult.candidates.find(item => item.kind === "ice" && item.id === `glacier-${point.glacierId}`);
+    expect(candidate).toMatchObject({ kind: "ice", id: `glacier-${point.glacierId}` });
+
+    const chooserItem = page
+      .locator(`#mapPickChooser .map-pick-chooser__item[data-kind="ice"][data-pick-id="glacier-${point.glacierId}"]`)
+      .first();
+    try {
+      await expect(chooserItem).toBeVisible({ timeout: 700 });
+      await chooserItem.click();
+    } catch {
+      // Single-candidate clicks dispatch the same selected event without showing the chooser.
+    }
+
+    await expect(page.locator("#iceEditStyle")).toBeVisible();
   });
 
   test("shows a chooser when multiple WebGL edit targets overlap", async ({ page }) => {

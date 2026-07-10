@@ -22,6 +22,16 @@ import { editStyle } from "./style";
 let worldContext: WorldContext;
 let appServices: AppServices;
 
+/** Resolves and opens the Ice Editor for a glacier/iceberg id, without a clicked SVG element (WebGL pick). */
+export function editIceById(id: number, isGlacier: boolean): void {
+  const selector = isGlacier
+    ? `polygon[data-id="${id}"][type="glacier"]`
+    : `polygon[data-id="${id}"]:not([type="glacier"])`;
+  const element = view.ice.select<SVGElement>(selector).node();
+  if (!element) return;
+  editIce(element);
+}
+
 export function editIce(element: SVGElement): void {
   if (view.customization) return;
   if (elSelected && element === elSelected.node()) return;

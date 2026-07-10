@@ -148,8 +148,8 @@ deck.gl 移行は、以下を満たした時点で「既定レンダラー化可
 - [x] `WebglPickDetail.kind` と既存編集対象の対応表を作る。
 - [ ] hover tooltip が SVG と WebGL で同じセル・同じ対象を指すことを確認する。
 - [x] 同一点・近傍に複数オブジェクトが重なる場合の候補列挙と選択UIを定義する。
-- [ ] click edit 導線をWebGL pick経由に寄せる。SVG DOM event前提の箇所は `mapInteraction.ts` か controller action に集約する。
-- [ ] burg / marker / regiment / route / river / lake / province / state のクリック編集をE2E化する。
+- [x] click edit 導線をWebGL pick経由に寄せる。SVG DOM event前提の箇所は `mapInteraction.ts` か controller action に集約する。burg / marker / regiment / river / route / lake / coastline / ice が対応済み。province / state は対応不要と判断（理由は対応表の下の注記）。残るは emblem / label / coastline(vertex drag) など編集導線の deeper 部分。
+- [x] burg / marker / regiment / route / river / lake / province / state のクリック編集をE2E化する。province / state は「地図クリックでの個別 editor 起動」自体を実装しない判断のため対象外（下記注記）。burg / marker / river / route / coastline は `webgl-hybrid.spec.ts` の `opens existing editors from WebGL pick targets` で、lake / ice は専用テストで検証する。
 - [ ] drag系操作が必要な対象は、deck.gl pick結果から既存controllerへ渡す最小APIを定義する。
 - [ ] `#debug .webgl-selected` は一時可視化として維持し、正式な選択表示に統合するか判断する。
 
@@ -166,6 +166,10 @@ deck.gl 移行は、以下を満たした時点で「既定レンダラー化可
 - 単一の editable pick (`burgIcon` / `marker` / `military` / `river` / `route`) は chooser を出さずに `fmg:webgl-map-pick-candidate-selected` へ流す。複数候補時と同じ controller adapter を通すことで、クリック編集の入口を `WebglPickDetail` に寄せた。
 - `controllers/editors.ts` は `WebglPickDetail.id` から burg / marker / regiment / river / route の既存 editor API へ変換する。`MarkersEditor.editMarker()` は WebGL hybrid で SVG marker DOM が無い場合も editor state を開けるようにし、drag 接続は SVG element が存在する場合だけ行う。
 - `webgl-hybrid.spec.ts` は burg / marker / river / route の WebGL candidates と既存 editor 起動を検証する。`clickAndGetWebglPickCandidates()` は listener setup と click の race を避けるため、一時 snapshot を登録してから click する形へ更新した。
+- lake / coastline / ice も WebGL pick 経由でクリック編集できるようにした。`LakesEditor.editLakeById()` / `CoastlineEditor.editCoastlineById()` は `event.target` ではなく feature id から SVG `use[data-f]` 要素を再取得して既存の open処理を呼ぶ（`editLake(event)` / `editCoastline(event)` はそれぞれこの共通処理の薄いラッパーになった）。`IceEditor.editIceById(id, isGlacier)` は `polygon[data-id][type="glacier"]` を再取得する。`isSingleClickEditablePick()` に `lake` / `coastline` / `ice` を追加し、SVG版同様に単一候補ではchooserを出さず直接editorを開く。
+- 上記の実装中に判明した既存の欠落を修正: `drawHybridSvgOverlays()` は lake / coastline は毎回 `FeaturesRenderer.render()` で同期していたが、`ice` は同期していなかった（`toggleIce` の WebGL hybrid 分岐が `IceRenderer.render()` を一切呼ばないため、`#ice` SVG が空のままになりうる）。lake と同じ理由（`WEBGL_MANAGED_SVG_LAYER_IDS` にある非表示レイヤーを WebGL pick からの再選択用に実体として維持する）で `IceRenderer.render()` の呼び出しを追加した。
+- province / state はSVG版でも「地図クリックで個別 editor を開く」導線がそもそも存在しない（States/Provinces Editor の一覧から `openStateEditor(stateId)` / `openProvinceEditor(provinceId)` を呼ぶのみ）。WebGL版だけに新規挙動を足すと「SVG版と実用上同等」という完了定義に反するため、地図クリックでの個別 editor 起動は実装しない。tooltip 表示（`getCellPoliticalSummary()`）のみで対応済みとする。
+- テスト基盤の是正: `clickWebglEditTargetAndExpectEditor()` の「前の editor を閉じる」処理が `getByRole("button", { name: "Close all dialogs" }).first()` の実クリックに依存していたが、burg / marker / lake / ice 等の editor dialog は `dialogStore` ではなく個別の Zustand `isOpen` state を持つため `closeAllDialogs()` では閉じられず、DOM順で先頭に来る（が z-index的には背面に回っている）editorのボタンをクリックしようとして pointer interception でタイムアウトすることがあった（対象を4種から5種以上に増やすと顕在化）。`closeAllOpenEditorDialogs()` に置き換え、表示中の全 `.fmg-dialog` の Close ボタンを `page.evaluate()` 内で直接 `.click()` するようにした。
 
 ### 重なりオブジェクトの選択方針
 
@@ -187,20 +191,20 @@ deck.gl 移行は、以下を満たした時点で「既定レンダラー化可
 | :-- | :-- | :-- | :-- | :-- |
 | `state` | `id = state-cell-<cellId>`, `cellId`あり | State / state editor | toolbarの States Editor、個別 state は `openStateEditor(stateId)` | `cellId -> pack.cells.state[cellId]` で `stateId` を解決 |
 | `province` | `id = province-cell-<cellId>`, `cellId`あり | Province / province editor | toolbarの Provinces Editor、個別 province は `openProvinceEditor(provinceId)` | `cellId -> pack.cells.province[cellId]` で `provinceId` を解決 |
-| `lake` | `id = lake-<featureId>` または `lake-outline-<featureId>`, `cellId = feature.firstCell` | Lake Editor | `LakesEditor.editLake(event)` が SVG path の `data-f` を読む | `featureId` を直接渡せる controller API が必要。暫定で SVG path 再選択 adapter が必要 |
+| `lake` | `id = lake-<featureId>` または `lake-outline-<featureId>`, `cellId = feature.firstCell` | Lake Editor | `LakesEditor.editLake(event)` が SVG path の `data-f` を読む | 対応済み: `LakesEditor.editLakeById(featureId)` |
 | `burgIcon` | `id = burg-<burgId>` / `anchor-<burgId>`, `cellId`あり | Burg Editor | `BurgEditor.editBurg(dataset.id)` | `burgId` を parse して `editBurg(burgId)` |
 | `marker` | `id = marker-<markerId>`, `cellId`あり | Marker Editor | `MarkersEditor.editMarker(markerI)` | `markerId` を parse して `editMarker(markerId)` |
 | `military` | `id = regiment-<stateId>-<regimentId>-<part>`, `cellId`あり | Regiment Editor | `RegimentEditor.editRegiment(element)` が SVG group dataset を読む | `stateId` / `regimentId` を直接渡せる controller API が必要。暫定で `#regiment<stateId>-<regimentId>` 再選択 adapter が必要 |
 | `river` | `id = river-<riverId>`, `cellId = river.cells[0]` | River Editor | `RiversEditor.editRiver("river<riverId>")` | `riverId` を parse し、既存形式 `river<riverId>` へ変換 |
 | `route` | `id = route-<routeId>`, `cellId = route.cells[0]` | Route Editor | `RoutesEditor.editRoute("route<routeId>")` | `routeId` を parse し、既存形式 `route<routeId>` へ変換 |
-| `coastline` | `id = coastline-<featureId>`, `cellId = feature.firstCell` | Coastline Editor | `CoastlineEditor.editCoastline(event)` | 現状は event 依存。feature/cell 指定 API を作るか、WebGL clickでは settings/editor入口に限定する判断が必要 |
-| `ice` | `id = glacier-<id>` / `iceberg-<id>` | Ice Editor | `IceEditor.editIce(svgElement)` | 既存 editor が SVG element 依存。WebGL対象化するなら id 指定 API が必要 |
+| `coastline` | `id = coastline-<featureId>`, `cellId = feature.firstCell` | Coastline Editor | `CoastlineEditor.editCoastline(event)` | 対応済み: `CoastlineEditor.editCoastlineById(featureId)` |
+| `ice` | `id = glacier-<id>` / `iceberg-<id>` | Ice Editor | `IceEditor.editIce(svgElement)` | 対応済み: `IceEditor.editIceById(id, isGlacier)` |
 | `emblem` | `id = state-<id>` / `province-<id>` / `burg-<id>` | Emblem Editor | `editEmblem(..., element)` | type/id を parse して COA target を解決 |
 | `label` | `id = state-label-<id>` / `burg-label-<id>` | Label Editor / related entity | `LabelsEditor.editLabel(tspan)` | SVG text/tspan 依存。label type/id 指定 API が必要 |
 | `land` / `height` / `biome` / `culture` / `religion` / `zone` / `temperature` / `population` / `precipitation` / `danger` / `cell` / `grid` / `border` | 主に `cellId` | セル情報、各 overlay tooltip、必要なら該当 editor の context | hover tooltip / cell info | `cellId` を canonical input とする |
 | `background` | `cellId = null` | なし | ocean tooltip | 編集対象外 |
 
-Phase 4 の次の実装単位は、残る editor の SVG element / DOM event 依存を薄くすること。burg / marker / regiment / river / route は `WebglPickDetail` から既存 editor を開ける。lake / coastline / ice / label / emblem は id 指定 API を作るか、WebGL click では settings/editor 入口に限定する判断が必要。province / state は個別 editor の起動方針を別途決める。
+Phase 4 の次の実装単位は、残る editor の SVG element / DOM event 依存を薄くすること。burg / marker / regiment / river / route / lake / coastline / ice は `WebglPickDetail` から既存 editor を開ける。label / emblem は id 指定 API を作るか、WebGL click では settings/editor 入口に限定する判断が必要。province / state は「地図クリックでの個別 editor 起動は実装しない」と決定した（SVG版にも同等の導線がないため）。
 
 ## Phase 5: キャッシュと性能
 

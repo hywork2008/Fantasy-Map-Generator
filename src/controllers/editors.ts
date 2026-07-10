@@ -92,6 +92,9 @@ function editWebglPickCandidate(detail: WebglPickDetail): void {
   else if (detail.kind === "military") editWebglRegiment(detail.id);
   else if (detail.kind === "river") editWebglRiver(detail.id);
   else if (detail.kind === "route") editWebglRoute(detail.id);
+  else if (detail.kind === "lake") editWebglLake(detail.id);
+  else if (detail.kind === "coastline") editWebglCoastline(detail.id);
+  else if (detail.kind === "ice") editWebglIce(detail.id);
 }
 
 function editWebglBurg(id: string): void {
@@ -122,6 +125,24 @@ function editWebglRoute(id: string): void {
   const entityId = parseWebglEntityId(id, /^route-(\d+)$/);
   if (entityId === null) return;
   RoutesEditor.editRoute(`route${entityId}`);
+}
+
+function editWebglLake(id: string): void {
+  const entityId = parseWebglEntityId(id, /^lake-(?:outline-)?(\d+)$/);
+  if (entityId === null) return;
+  LakesEditor.editLakeById(entityId);
+}
+
+function editWebglCoastline(id: string): void {
+  const entityId = parseWebglEntityId(id, /^coastline-(\d+)$/);
+  if (entityId === null) return;
+  CoastlineEditor.editCoastlineById(entityId);
+}
+
+function editWebglIce(id: string): void {
+  const match = id.match(/^(glacier|iceberg)-(\d+)$/);
+  if (!match) return;
+  IceEditor.editIceById(Number(match[2]), match[1] === "glacier");
 }
 
 function parseWebglEntityId(id: string, pattern: RegExp): number | null {
