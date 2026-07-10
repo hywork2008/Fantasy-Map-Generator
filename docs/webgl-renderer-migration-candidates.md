@@ -40,10 +40,10 @@ deck.gl 移行は、以下を満たした時点で「既定レンダラー化可
 
 ## Phase 1: Hybrid 基盤の安定化
 
-- [ ] `setRenderMode()` を `FMGActionsAPI` / `tests/fmg.d.ts` / public docs に明記する。
-- [ ] `webglHybrid` から `svg` に戻した時、deck.gl layers と body class と SVG managed class の表示状態が完全に戻ることをE2E化する。
-- [ ] `.map` load 後に `webglMapCanvas` が再取得され、`DeckGlRenderer` が古い canvas 参照を保持しないことを検証する。
-- [ ] `DeckGlRenderer.finalize()` を呼ぶべき lifecycle を整理する。hot reload / map reload / renderer disable で GPU resource が残らないこと。
+- [x] `setRenderMode()` を `FMGActionsAPI` / `tests/fmg.d.ts` / public docs に明記する。
+- [x] `webglHybrid` から `svg` に戻した時、deck.gl layers と body class と SVG managed class の表示状態が完全に戻ることをE2E化する。
+- [x] `.map` load 後に `webglMapCanvas` が再取得され、`DeckGlRenderer` が古い canvas 参照を保持しないことを検証する。
+- [ ] `DeckGlRenderer.finalize()` を呼ぶべき lifecycle を整理する。map reload は `parseLoadedData()` で finalize 済み。hot reload / renderer disable で GPU resource が残らないことは未整理。
 - [ ] `#options`, dialogs, tooltip, tour prompt, map overlay の stacking order を一覧化し、地図 canvas / SVG より常に上に出すUIを明文化する。
 - [ ] `body.fmg-webgl-hybrid .fmg-webgl-managed-svg-layer` の対象を `hybridLayerPolicy.ts` のみで管理し、CSS側に個別SVG IDを増やさない運用にする。
 
@@ -117,8 +117,8 @@ deck.gl 移行は、以下を満たした時点で「既定レンダラー化可
 
 ## Phase 8: テスト追加
 
-- [ ] `tests/e2e/webgl-hybrid.spec.ts` に `svg -> webglHybrid -> svg` の往復テストを追加する。
-- [ ] `.map` load 後の webglHybrid 再描画テストを追加する。
+- [x] `tests/e2e/webgl-hybrid.spec.ts` に `svg -> webglHybrid -> svg` の往復テストを追加する。
+- [x] `.map` load 後の webglHybrid 再描画テストを追加する。
 - [ ] style presetごとの smoke test を追加する。
 - [ ] layer presetごとの deck layer id と canvas pixelを検証する既存テストを維持・拡張する。
 - [ ] `elementFromPoint()` によるUI stacking検査を options以外の主要UIにも拡張する。

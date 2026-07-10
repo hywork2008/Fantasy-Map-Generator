@@ -43,8 +43,34 @@ export async function waitForMapLoad(page: Page, timeout = 60000): Promise<void>
 }
 
 /**
+ * Upload a saved .map file from tests/fixtures/ into the current app session.
+ * Returns after the loaded map id and SVG viewbox are available.
+ */
+export async function uploadMapFixture(page: Page, filename: string): Promise<void> {
+  await waitForMapLoad(page);
+  const previousMapId = await getMapId(page);
+  await page.waitForSelector("#fileInputs #mapToLoad", { state: "attached" });
+
+  await page.locator("#fileInputs #mapToLoad").setInputFiles(path.join(__dirname, `../../fixtures/${filename}`));
+
+  await page.waitForFunction(
+    mapIdBeforeUpload => {
+      const viewbox = document.getElementById("viewbox");
+      return (
+        typeof window.fmg !== "undefined" &&
+        window.fmg.world.mapId !== mapIdBeforeUpload &&
+        viewbox !== null &&
+        viewbox.children.length > 5
+      );
+    },
+    previousMapId,
+    { timeout: 60000 }
+  );
+}
+
+/**
  * Navigate to "/" and load a saved .map file from tests/fixtures/.
- * Returns after map:generated fires and the SVG viewbox is rendered.
+ * Returns after the loaded map id and SVG viewbox are available.
  */
 export async function loadMapFile(page: Page, filename: string): Promise<void> {
   await page.context().clearCookies();
@@ -53,30 +79,7 @@ export async function loadMapFile(page: Page, filename: string): Promise<void> {
     localStorage.clear();
     sessionStorage.clear();
   });
-  await page.waitForSelector("#mapToLoad", { state: "attached" });
-
-  // Register the map:generated listener before uploading so we don't miss it.
-  await page.evaluate(() => {
-    (window as Window & { __fmgMapLoaded?: boolean }).__fmgMapLoaded = false;
-    window.addEventListener(
-      "map:generated",
-      () => {
-        (window as Window & { __fmgMapLoaded?: boolean }).__fmgMapLoaded = true;
-      },
-      { once: true }
-    );
-  });
-
-  await page.locator("#mapToLoad").setInputFiles(
-    path.join(__dirname, `../../fixtures/${filename}`)
-  );
-
-  await page.waitForFunction(
-    () => Boolean((window as Window & { __fmgMapLoaded?: boolean }).__fmgMapLoaded),
-    { timeout: 60000 }
-  );
-
-  await waitForMapLoad(page);
+  await uploadMapFixture(page, filename);
 }
 
 // ── Error collection ─────────────────────────────────────────────────────────
@@ -130,6 +133,46 @@ export async function getWebglDeckLayerIds(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const deck = window.fmg.view.webglDeck as unknown as { props?: { layers?: Array<{ id?: string }> } } | null;
     return deck?.props?.layers?.map(layer => layer.id).filter((id): id is string => typeof id === "string") ?? [];
+  });
+}
+
+export interface WebglRendererDomState {
+  bodyHasHybridClass: boolean;
+  canvasDisplay: string;
+  landmassHasManagedClass: boolean;
+  landmassDisplay: string;
+  scaleBarHasOverlayClass: boolean;
+  scaleBarDisplay: string;
+  deckHasTestMarker: boolean;
+  deckCanvasMatchesDom: boolean;
+  viewCanvasMatchesDom: boolean;
+}
+
+export async function markCurrentWebglDeck(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const deck = window.fmg.view.webglDeck as unknown as { __testMarker?: string } | null;
+    if (deck) deck.__testMarker = "before-map-load";
+  });
+}
+
+export async function getWebglRendererDomState(page: Page): Promise<WebglRendererDomState> {
+  return page.evaluate(() => {
+    const canvas = document.getElementById("webglMapCanvas");
+    const landmass = document.getElementById("landmass");
+    const scaleBar = document.getElementById("scaleBar");
+    const deck = window.fmg.view.webglDeck as unknown as { __testMarker?: string; canvas?: HTMLCanvasElement } | null;
+
+    return {
+      bodyHasHybridClass: document.body.classList.contains("fmg-webgl-hybrid"),
+      canvasDisplay: canvas ? window.getComputedStyle(canvas).display : "",
+      landmassHasManagedClass: Boolean(landmass?.classList.contains("fmg-webgl-managed-svg-layer")),
+      landmassDisplay: landmass ? window.getComputedStyle(landmass).display : "",
+      scaleBarHasOverlayClass: Boolean(scaleBar?.classList.contains("fmg-webgl-svg-overlay-layer")),
+      scaleBarDisplay: scaleBar ? window.getComputedStyle(scaleBar).display : "",
+      deckHasTestMarker: deck?.__testMarker === "before-map-load",
+      deckCanvasMatchesDom: Boolean(deck && canvas instanceof HTMLCanvasElement && deck.canvas === canvas),
+      viewCanvasMatchesDom: Boolean(canvas instanceof HTMLCanvasElement && window.fmg.view.webglCanvas === canvas)
+    };
   });
 }
 

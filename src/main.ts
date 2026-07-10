@@ -292,6 +292,8 @@ Object.assign(viewContext, {
 // ─── App initialization ───────────────────────────────────────────────────────
 
 export async function initMain(drawMap: boolean = true): Promise<void> {
+  registerMapFileInput();
+
   if (drawMap) {
     createViewLayers();
     populateSizeRects();
@@ -344,6 +346,28 @@ export async function initMain(drawMap: boolean = true): Promise<void> {
     if (!viewContext.renderMap) return;
     fitMapToScreen();
     fitMapView();
+  });
+}
+
+function registerMapFileInput(): void {
+  const input = document.querySelector<HTMLInputElement>("#fileInputs #mapToLoad");
+  if (!input) return;
+
+  input.addEventListener("change", event => {
+    const target = event.currentTarget;
+    if (!(target instanceof HTMLInputElement)) return;
+    const file = target.files?.[0];
+    target.value = "";
+    if (!file) return;
+
+    if (!file.name.endsWith(".map") && !file.name.endsWith(".gz")) {
+      openAlert("Please upload a map file (<i>.map</i> or <i>.gz</i> formats) you have previously downloaded", {
+        title: "Invalid file format"
+      });
+      return;
+    }
+
+    uploadMap(file);
   });
 }
 

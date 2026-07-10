@@ -3,9 +3,12 @@ import {
   getFirstLandScreenPoint,
   getWebglDeckLayerIds,
   getWebglCanvasPixelStats,
+  getWebglRendererDomState,
   getViewTransformState,
+  markCurrentWebglDeck,
   setLayerPreset,
   setRenderMode,
+  uploadMapFixture,
   waitForMapLoad,
   waitForWebglCanvasPixels,
   zoomToMapCenter
@@ -99,6 +102,54 @@ test.describe("webgl hybrid renderer", () => {
 
     await page.locator("#optionsHide").click();
     await expect(page.locator("#layersContent")).toBeVisible();
+  });
+
+  test("restores SVG layer visibility and clears deck layers after switching back to svg", async ({ page }) => {
+    await page.goto("/?seed=webgl-svg-roundtrip&width=1000&height=700");
+    await waitForMapLoad(page);
+
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+    await expect.poll(() => getWebglRendererDomState(page)).toMatchObject({
+      bodyHasHybridClass: true,
+      canvasDisplay: "block",
+      landmassHasManagedClass: true,
+      landmassDisplay: "none",
+      scaleBarHasOverlayClass: true
+    });
+
+    await setRenderMode(page, "svg");
+    await expect.poll(() => getWebglDeckLayerIds(page), { timeout: 5000 }).toEqual([]);
+    await expect.poll(() => getWebglRendererDomState(page)).toMatchObject({
+      bodyHasHybridClass: false,
+      canvasDisplay: "none",
+      landmassHasManagedClass: true,
+      landmassDisplay: "inline",
+      scaleBarHasOverlayClass: true
+    });
+    await expect(page.locator("#landmass")).toBeVisible();
+    await expect(page.locator("#scaleBar")).toBeVisible();
+  });
+
+  test("recreates deck renderer and redraws canvas after loading a map", async ({ page }) => {
+    await page.goto("/?seed=webgl-load-before&width=1000&height=700");
+    await waitForMapLoad(page);
+
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+    await markCurrentWebglDeck(page);
+
+    await uploadMapFixture(page, "demo.map");
+    await expect(page.locator("#webglMapCanvas")).toBeVisible();
+    const stats = await waitForWebglCanvasPixels(page);
+    expect(stats.coloredPixels).toBeGreaterThan(500);
+    await expect.poll(() => getWebglDeckLayerIds(page), { timeout: 5000 }).toContain("fmg-webgl-background");
+    await expect.poll(() => getWebglRendererDomState(page)).toMatchObject({
+      bodyHasHybridClass: true,
+      deckHasTestMarker: false,
+      deckCanvasMatchesDom: true,
+      viewCanvasMatchesDom: true
+    });
   });
 
   test("emits stable pick detail without taking over editor clicks", async ({ page }) => {

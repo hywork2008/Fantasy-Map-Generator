@@ -38,6 +38,10 @@
 
 `SimulationContext` はセッション中に tick ごとに変化する「生きた状態」です。`worldContext.options.year/month/day/era` とは同期されますが、意味論としては別物です。
 
+## Public API
+
+外部から参照してよいグローバルは `window.fmg` だけです。レンダラー切替は `window.fmg.actions.setRenderMode(mode)` を使い、`mode` は `"svg"` または `"webglHybrid"` です。直接 `viewContext.renderMode` を書き換えず、この action 経由で body class、SVG fallback、deck.gl 再描画を同期させます。
+
 ## 生成と描画
 
 マップ生成の正確な順序は `docs/map-initialization-process.md` を参照してください。現在の大枠は以下です。

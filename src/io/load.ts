@@ -8,6 +8,7 @@ import { Features } from "../generators/features";
 import { Routes } from "../generators/routes-generator";
 import { initSimulationClock } from "../generators/timeEngine";
 import { GridRenderer } from "../renderers";
+import { DeckGlRenderer } from "../renderers/webgl/deckRenderer";
 import { declareFont, fonts } from "../services/fonts";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -361,6 +362,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         worldContext.biomesData.cost.push(50);
       }
     }
+    DeckGlRenderer.finalize(viewContext);
     view.svg.remove();
     document.body.insertAdjacentHTML("afterbegin", data[5]);
     document.dispatchEvent(new CustomEvent("fmg:reinitialize-map-layers"));
@@ -891,6 +893,9 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
     document.dispatchEvent(new CustomEvent("fmg:fit-map-to-screen"));
     document.dispatchEvent(new CustomEvent("fmg:fit-map-view"));
+    if (viewContext.renderMode === "webglHybrid") {
+      document.dispatchEvent(new CustomEvent("fmg:render-mode-changed"));
+    }
 
     WARN &&
       console.warn(
