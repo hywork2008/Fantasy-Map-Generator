@@ -14,6 +14,8 @@ import {
   getWebglStyleComparisons,
   getWebglLayerPolicyState,
   getWebglRendererDomState,
+  getFirstWebglLayerDatumIdentity,
+  pickFirstWebglLayerDatum,
   getViewTransformState,
   markCurrentWebglDeck,
   setLayerPreset,
@@ -256,6 +258,71 @@ test.describe("webgl hybrid renderer", () => {
     });
     await expect(page.locator("#debug .webgl-selected")).toHaveCount(1);
     await expect(getWebglCanvasPixelStats(page)).resolves.toMatchObject({ coloredPixels: expect.any(Number) });
+  });
+
+  test("reports pick detail for WebGL migrated edit targets", async ({ page }) => {
+    await page.goto("/?seed=webgl-pick-targets&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+
+    for (const toggleId of [
+      "toggleStates",
+      "toggleProvinces",
+      "toggleLakes",
+      "toggleBurgIcons",
+      "toggleMarkers",
+      "toggleMilitary",
+      "toggleRivers",
+      "toggleRoutes"
+    ]) {
+      await ensureLayerOn(page, toggleId);
+    }
+
+    const pickCases = [
+      { layerId: "fmg-webgl-states", kind: "state", requiresCell: true },
+      { layerId: "fmg-webgl-provinces", kind: "province", requiresCell: true },
+      { layerId: "fmg-webgl-lakes", kind: "lake", requiresCell: true },
+      { layerId: "fmg-webgl-military", kind: "military", requiresCell: true },
+      { layerId: "fmg-webgl-rivers", kind: "river", requiresCell: false },
+      { layerId: "fmg-webgl-routes", kind: "route", requiresCell: false }
+    ];
+    const dataIdentityCases = [
+      { layerId: "fmg-webgl-burg-icons", kind: "burgIcon" },
+      { layerId: "fmg-webgl-markers", kind: "marker" }
+    ];
+
+    await expect
+      .poll(() => getWebglDeckLayerIds(page), { timeout: 5000 })
+      .toEqual(expect.arrayContaining([...pickCases, ...dataIdentityCases].map(item => item.layerId)));
+
+    for (const item of pickCases) {
+      const pick = await pickFirstWebglLayerDatum(page, item.layerId);
+      expect(pick, item.layerId).toMatchObject({
+        requestedLayerId: item.layerId,
+        layerId: item.layerId,
+        kind: item.kind,
+        id: expect.any(String),
+        index: expect.any(Number),
+        x: expect.any(Number),
+        y: expect.any(Number)
+      });
+      expect(pick?.id.length, item.layerId).toBeGreaterThan(0);
+      expect(pick?.coordinate?.[0], item.layerId).toEqual(expect.any(Number));
+      expect(pick?.coordinate?.[1], item.layerId).toEqual(expect.any(Number));
+      if (item.requiresCell) expect(pick?.cellId, item.layerId).toEqual(expect.any(Number));
+    }
+
+    for (const item of dataIdentityCases) {
+      const datum = await getFirstWebglLayerDatumIdentity(page, item.layerId);
+      expect(datum, item.layerId).toMatchObject({
+        layerId: item.layerId,
+        kind: item.kind,
+        id: expect.any(String),
+        cellId: expect.any(Number)
+      });
+      expect(datum?.id.length, item.layerId).toBeGreaterThan(0);
+    }
   });
 
   test("renders migrated layers for major presets while keeping SVG overlays", async ({ page }) => {

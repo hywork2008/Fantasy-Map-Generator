@@ -542,6 +542,154 @@ export async function getFirstLandScreenPoint(page: Page): Promise<{ x: number; 
   });
 }
 
+export interface WebglPickSnapshot {
+  requestedLayerId: string;
+  layerId: string;
+  kind: string;
+  id: string;
+  cellId: number | null;
+  index: number;
+  coordinate: [number, number, number?] | null;
+  x: number;
+  y: number;
+}
+
+export interface WebglLayerDatumIdentity {
+  layerId: string;
+  kind: string;
+  id: string;
+  cellId: number | null;
+}
+
+export async function getFirstWebglLayerDatumIdentity(
+  page: Page,
+  layerId: string
+): Promise<WebglLayerDatumIdentity | null> {
+  return page.evaluate(requestedLayerId => {
+    function isRecord(value: unknown): value is Record<string, unknown> {
+      return value !== null && typeof value === "object";
+    }
+
+    function numberValue(value: unknown): number | null {
+      return typeof value === "number" && Number.isFinite(value) ? value : null;
+    }
+
+    const deck = window.fmg.view.webglDeck as unknown as {
+      props?: { layers?: Array<{ id?: string; props?: { data?: unknown } }> };
+    } | null;
+    const layer = deck?.props?.layers?.find(candidate => candidate.id === requestedLayerId);
+    const data = Array.isArray(layer?.props?.data) ? layer.props.data.filter(isRecord) : [];
+    const datum = data.find(item => typeof item.kind === "string" && typeof item.id === "string");
+    if (!datum || typeof datum.kind !== "string" || typeof datum.id !== "string") return null;
+
+    return {
+      layerId: requestedLayerId,
+      kind: datum.kind,
+      id: datum.id,
+      cellId: numberValue(datum.cellId)
+    };
+  }, layerId);
+}
+
+export async function pickFirstWebglLayerDatum(
+  page: Page,
+  layerId: string,
+  radius = 12
+): Promise<WebglPickSnapshot | null> {
+  return page.evaluate(
+    ({ requestedLayerId, pickingRadius }) => {
+      type DeckDatum = Record<string, unknown>;
+      type DeckLayerLike = { id?: string; props?: { data?: unknown } };
+      type DeckLike = {
+        props?: { layers?: DeckLayerLike[] };
+        pickObject?: (options: { x: number; y: number; radius: number; layerIds: string[] }) => unknown;
+      };
+
+      function isRecord(value: unknown): value is DeckDatum {
+        return value !== null && typeof value === "object";
+      }
+
+      function isNumberPair(value: unknown): value is [number, number] {
+        return (
+          Array.isArray(value) &&
+          typeof value[0] === "number" &&
+          Number.isFinite(value[0]) &&
+          typeof value[1] === "number" &&
+          Number.isFinite(value[1])
+        );
+      }
+
+      function getPointList(value: unknown): Array<[number, number]> {
+        return Array.isArray(value) ? value.filter(isNumberPair) : [];
+      }
+
+      function getCentroid(points: Array<[number, number]>): [number, number] | null {
+        if (!points.length) return null;
+        const sums = points.reduce(
+          (acc, point) => ({ x: acc.x + point[0], y: acc.y + point[1] }),
+          { x: 0, y: 0 }
+        );
+        return [sums.x / points.length, sums.y / points.length];
+      }
+
+      function getMapPoint(datum: DeckDatum): [number, number] | null {
+        if (isNumberPair(datum.position)) return datum.position;
+        const polygon = getPointList(datum.polygon);
+        if (polygon.length) return getCentroid(polygon);
+        const path = getPointList(datum.path);
+        if (path.length) return path[Math.floor(path.length / 2)] ?? null;
+        return null;
+      }
+
+      function numberValue(value: unknown): number | null {
+        return typeof value === "number" && Number.isFinite(value) ? value : null;
+      }
+
+      const deck = window.fmg.view.webglDeck as DeckLike | null;
+      const layer = deck?.props?.layers?.find(candidate => candidate.id === requestedLayerId);
+      const data = Array.isArray(layer?.props?.data) ? layer.props.data.filter(isRecord) : [];
+      const datum = data.find(item => getMapPoint(item) !== null);
+      const mapPoint = datum ? getMapPoint(datum) : null;
+      if (!deck?.pickObject || !datum || !mapPoint) return null;
+
+      const x = mapPoint[0] * window.fmg.view.scale + window.fmg.view.viewX;
+      const y = mapPoint[1] * window.fmg.view.scale + window.fmg.view.viewY;
+      const picked = deck.pickObject({ x, y, radius: pickingRadius, layerIds: [requestedLayerId] });
+      if (!isRecord(picked) || !isRecord(picked.object)) return null;
+
+      const pickedObject = picked.object;
+      const pickedLayer = isRecord(picked.layer) ? picked.layer : null;
+      const pickedLayerId = typeof pickedLayer?.id === "string" ? pickedLayer.id : requestedLayerId;
+      const kind = typeof pickedObject.kind === "string" ? pickedObject.kind : "";
+      const id = typeof pickedObject.id === "string" ? pickedObject.id : "";
+      if (!kind || !id) return null;
+
+      const rawCoordinate = Array.isArray(picked.coordinate) ? picked.coordinate : null;
+      const coordinate =
+        typeof rawCoordinate?.[0] === "number" && typeof rawCoordinate[1] === "number"
+          ? ([rawCoordinate[0], rawCoordinate[1], rawCoordinate[2]].filter(value => typeof value === "number") as [
+              number,
+              number,
+              number?
+            ])
+          : null;
+
+      return {
+        requestedLayerId,
+        layerId: pickedLayerId,
+        kind,
+        id,
+        cellId: numberValue(pickedObject.cellId),
+        index: numberValue(picked.index) ?? -1,
+        coordinate,
+        x: numberValue(picked.x) ?? x,
+        y: numberValue(picked.y) ?? y
+      };
+    },
+    { requestedLayerId: layerId, pickingRadius: radius }
+  );
+}
+
 export async function zoomToMapCenter(page: Page, scale: number): Promise<void> {
   await page.evaluate(
     zoomScale => {

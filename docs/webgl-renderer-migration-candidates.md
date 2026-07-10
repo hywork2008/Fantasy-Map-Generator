@@ -145,12 +145,53 @@ deck.gl 移行は、以下を満たした時点で「既定レンダラー化可
 
 ## Phase 4: Picking と編集導線
 
-- [ ] `WebglPickDetail.kind` と既存編集対象の対応表を作る。
+- [x] `WebglPickDetail.kind` と既存編集対象の対応表を作る。
 - [ ] hover tooltip が SVG と WebGL で同じセル・同じ対象を指すことを確認する。
+- [ ] 同一点・近傍に複数オブジェクトが重なる場合の候補列挙と選択UIを定義する。
 - [ ] click edit 導線をWebGL pick経由に寄せる。SVG DOM event前提の箇所は `mapInteraction.ts` か controller action に集約する。
 - [ ] burg / marker / regiment / route / river / lake / province / state のクリック編集をE2E化する。
 - [ ] drag系操作が必要な対象は、deck.gl pick結果から既存controllerへ渡す最小APIを定義する。
 - [ ] `#debug .webgl-selected` は一時可視化として維持し、正式な選択表示に統合するか判断する。
+
+### Phase 4 開始ログ
+
+- WebGL pick bridge は `deckRenderer.ts` で `fmg:webgl-map-hover` / `fmg:webgl-map-pick` を dispatch し、`mapInteraction.ts` が tooltip と `#debug .webgl-selected` を受け持つ。
+- `tests/e2e/webgl-hybrid.spec.ts` に、主要な編集対象レイヤーごとの `kind` / `id` / `cellId` / `coordinate` 検証を追加した。現時点で `deck.pickObject()` まで検証する対象は state / province / lake / military / river / route。burgIcon / marker は deck data identity の検証に留め、後述の重なり解決UIと合わせてクリック編集E2Eで再度扱う。
+- クリック編集の本配線では、SVG DOM event の `event.target` 依存をそのまま増やさず、`WebglPickDetail` から既存 controller へ渡す adapter を `mapInteraction.ts` か controller action 側に置く。ただし単一 hit を前提にした adapter だけでは不十分で、同一点・近傍の複数 hit を扱える選択導線を先に設計する。
+
+### 重なりオブジェクトの選択方針
+
+現状の SVG 版は描画順と DOM event target に依存しており、同じ街や同じセルに burg / marker / regiment / label / emblem / route / river が重なると、ユーザーが意図した対象を選べる保証がない。軍隊は `advanceTime()` 後に複数 regiment が同じ burg 座標へ集まりやすく、上に描かれた一部だけが実質クリック可能になる。この問題は WebGL 移行で自然には解決しないため、Phase 4 では「最前面の単一オブジェクトをクリックできること」ではなく、「カーソル近傍の編集候補を列挙し、ユーザーが対象を明示選択できること」を完了条件にする。
+
+実装方針:
+
+- `deck.pickObject()` ではなく `deck.pickMultipleObjects()` 相当の候補収集を使い、同一 pointer 座標の近傍から `WebglPickDetail[]` を作る。
+- 候補は `kind` / entity id / 表示名 / 距離 / layer priority を持つ `MapPickCandidate` に正規化する。SVG fallback でも同じ candidate 型へ変換できるようにする。
+- 候補が1件なら直接 editor action を呼ぶ。候補が複数なら pointer 近傍に小さな chooser を出す。
+- chooser はリスト形式を第一候補にする。数が少ない対象だけ radial fan-out を検討する。地図座標そのものを勝手に動かす fan-out は、ドラッグ編集や座標編集と衝突するため preview 表示に留める。
+- regiment のように同一座標へ頻繁に重なる対象は、描画上も微小オフセットや集約 badge を検討する。ただし保存データの座標は変更せず、view-only offset として扱う。
+- E2E は「同一点に複数 regiment / marker がある fixture」を作り、単一クリックで chooser が出て、任意候補を選べることを検証する。
+
+### `WebglPickDetail.kind` と既存編集対象の対応
+
+| `kind` | WebGL `id` / `cellId` | 既存編集対象 | 既存SVG導線 | WebGL側で渡す最小情報 |
+| :-- | :-- | :-- | :-- | :-- |
+| `state` | `id = state-cell-<cellId>`, `cellId`あり | State / state editor | toolbarの States Editor、個別 state は `openStateEditor(stateId)` | `cellId -> pack.cells.state[cellId]` で `stateId` を解決 |
+| `province` | `id = province-cell-<cellId>`, `cellId`あり | Province / province editor | toolbarの Provinces Editor、個別 province は `openProvinceEditor(provinceId)` | `cellId -> pack.cells.province[cellId]` で `provinceId` を解決 |
+| `lake` | `id = lake-<featureId>` または `lake-outline-<featureId>`, `cellId = feature.firstCell` | Lake Editor | `LakesEditor.editLake(event)` が SVG path の `data-f` を読む | `featureId` を直接渡せる controller API が必要。暫定で SVG path 再選択 adapter が必要 |
+| `burgIcon` | `id = burg-<burgId>` / `anchor-<burgId>`, `cellId`あり | Burg Editor | `BurgEditor.editBurg(dataset.id)` | `burgId` を parse して `editBurg(burgId)` |
+| `marker` | `id = marker-<markerId>`, `cellId`あり | Marker Editor | `MarkersEditor.editMarker(markerI)` | `markerId` を parse して `editMarker(markerId)` |
+| `military` | `id = regiment-<stateId>-<regimentId>-<part>`, `cellId`あり | Regiment Editor | `RegimentEditor.editRegiment(element)` が SVG group dataset を読む | `stateId` / `regimentId` を直接渡せる controller API が必要。暫定で `#regiment<stateId>-<regimentId>` 再選択 adapter が必要 |
+| `river` | `id = river-<riverId>`, `cellId = river.cells[0]` | River Editor | `RiversEditor.editRiver("river<riverId>")` | `riverId` を parse し、既存形式 `river<riverId>` へ変換 |
+| `route` | `id = route-<routeId>`, `cellId = route.cells[0]` | Route Editor | `RoutesEditor.editRoute("route<routeId>")` | `routeId` を parse し、既存形式 `route<routeId>` へ変換 |
+| `coastline` | `id = coastline-<featureId>`, `cellId = feature.firstCell` | Coastline Editor | `CoastlineEditor.editCoastline(event)` | 現状は event 依存。feature/cell 指定 API を作るか、WebGL clickでは settings/editor入口に限定する判断が必要 |
+| `ice` | `id = glacier-<id>` / `iceberg-<id>` | Ice Editor | `IceEditor.editIce(svgElement)` | 既存 editor が SVG element 依存。WebGL対象化するなら id 指定 API が必要 |
+| `emblem` | `id = state-<id>` / `province-<id>` / `burg-<id>` | Emblem Editor | `editEmblem(..., element)` | type/id を parse して COA target を解決 |
+| `label` | `id = state-label-<id>` / `burg-label-<id>` | Label Editor / related entity | `LabelsEditor.editLabel(tspan)` | SVG text/tspan 依存。label type/id 指定 API が必要 |
+| `land` / `height` / `biome` / `culture` / `religion` / `zone` / `temperature` / `population` / `precipitation` / `danger` / `cell` / `grid` / `border` | 主に `cellId` | セル情報、各 overlay tooltip、必要なら該当 editor の context | hover tooltip / cell info | `cellId` を canonical input とする |
+| `background` | `cellId = null` | なし | ocean tooltip | 編集対象外 |
+
+Phase 4 の次の実装単位は、上表のうち「既に controller が id を受け取れるもの」から `mapInteraction.ts` に click dispatch を足すこと。対象は burg / marker / river / route。lake / regiment / coastline / ice / label / emblem は既存 editor の SVG element 依存を先に薄くする。
 
 ## Phase 5: キャッシュと性能
 
