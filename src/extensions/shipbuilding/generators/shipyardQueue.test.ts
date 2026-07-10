@@ -5,8 +5,10 @@ import {
   clearShipyardQueues,
   type GetEffectiveSkillFn,
   getCompletedHulls,
+  getHullsAtBurg,
   getQueueEntry,
   getStateTechPoints,
+  isStateAtWar,
   runShipyardTick
 } from "./shipyardQueue";
 
@@ -138,5 +140,48 @@ describe("shipyardQueue", () => {
     runShipyardTick(candidates, burgs, states, 10, engineering100);
 
     expect(getStateTechPoints(1)).toBe(10);
+  });
+
+  describe("hull lifecycle (docs/plan/ships.md 航海訓練・偽装通商・諜報)", () => {
+    it("launches a peacetime-completed market hull straight to voyage, occupying no berth", () => {
+      const burgs = makeBurgs([{ i: 1, state: 0 }]);
+      const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];
+
+      runShipyardTick(candidates, burgs, [], 5, noSkill);
+
+      const hulls = getHullsAtBurg(1);
+      expect(hulls).toHaveLength(1);
+      expect(hulls[0]).toMatchObject({ owner: "market", ownerId: 1, homeBurgId: 1, status: "voyage" });
+    });
+
+    it("launches a peacetime-completed state hull straight to voyage as well", () => {
+      const burgs = makeBurgs([{ i: 1, state: 1, capital: 1 }]);
+      const states = makeStates([{ i: 1, diplomacy: [] }]);
+      const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];
+
+      runShipyardTick(candidates, burgs, states, 5, noSkill);
+
+      expect(getHullsAtBurg(1)[0]).toMatchObject({ owner: "state", ownerId: 1, status: "voyage" });
+    });
+
+    it("keeps a wartime-completed state hull docked/mobilized", () => {
+      const burgs = makeBurgs([{ i: 1, state: 1, capital: 1 }]);
+      const states = makeStates([{ i: 1, diplomacy: ["Neutral", "Enemy"] }]);
+      const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];
+
+      runShipyardTick(candidates, burgs, states, 5, noSkill);
+
+      expect(getHullsAtBurg(1)[0]).toMatchObject({ owner: "state", status: "docked" });
+    });
+
+    it("isStateAtWar is true only when diplomacy includes an Enemy relation", () => {
+      const states = makeStates([
+        { i: 1, diplomacy: ["Neutral", "Ally"] },
+        { i: 2, diplomacy: ["Neutral", "Enemy"] }
+      ]);
+
+      expect(isStateAtWar(1, states)).toBe(false);
+      expect(isStateAtWar(2, states)).toBe(true);
+    });
   });
 });

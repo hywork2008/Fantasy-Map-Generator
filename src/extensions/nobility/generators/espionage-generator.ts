@@ -2,6 +2,30 @@ import { appServices } from "../../../context/appServices";
 import { type IntelligenceReport, simulationContext } from "../../../context/simulationContext";
 import { getWorldContext } from "../nobilityContext";
 
+// Cumulative intrigue bonus one state's ships gather on another by spying while
+// disguised as merchants on trade voyages (Shipbuilding extension,
+// fmg:shipbuilding-voyage-intel — see docs/plan/ships.md "航海訓練・偽装通商・諜報（暫定案）").
+// Keyed "observerStateId:targetStateId", capped so a long-running rivalry can't make
+// espionage perfectly omniscient. Never decays on its own — it represents an
+// accumulated network of contacts/informants built up over repeated voyages.
+const _voyageIntelBonus = new Map<string, number>();
+const MAX_VOYAGE_INTEL_BONUS = 20;
+
+function voyageIntelKey(observerStateId: number, targetStateId: number): string {
+  return `${observerStateId}:${targetStateId}`;
+}
+
+/** Called by nobility/index.tsx's fmg:shipbuilding-voyage-intel listener. Harmless no-op if Shipbuilding is never enabled. */
+export function addVoyageIntel(observerStateId: number, targetStateId: number, amount: number): void {
+  const key = voyageIntelKey(observerStateId, targetStateId);
+  const current = _voyageIntelBonus.get(key) ?? 0;
+  _voyageIntelBonus.set(key, Math.min(MAX_VOYAGE_INTEL_BONUS, current + amount));
+}
+
+export function clearVoyageIntel(): void {
+  _voyageIntelBonus.clear();
+}
+
 export class EspionageGenerator {
   generate() {
     const { pack } = getWorldContext();
@@ -69,7 +93,8 @@ export class EspionageGenerator {
         let estimatedWealth = actualWealth;
         let accuracyLevel: IntelligenceReport["accuracyLevel"] = "unknown";
 
-        const diff = observerIntrigue - targetIntrigue;
+        const voyageIntelBonus = _voyageIntelBonus.get(voyageIntelKey(observer.i, target.i)) ?? 0;
+        const diff = observerIntrigue + voyageIntelBonus - targetIntrigue;
 
         if (diff > 10) {
           // Highly accurate

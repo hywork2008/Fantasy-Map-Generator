@@ -25,6 +25,8 @@ export const ShipyardsOverviewDialog: React.FC = () => {
                 <col />
                 <col />
                 <col />
+                <col />
+                <col />
               </colgroup>
               <thead>
                 <tr className="header">
@@ -33,6 +35,8 @@ export const ShipyardsOverviewDialog: React.FC = () => {
                   <th>Building</th>
                   <th>Progress</th>
                   <th>Completed hulls</th>
+                  <th data-tip="Docked / port capacity, by size tier">Port (docked/capacity)</th>
+                  <th data-tip="Hulls out on a trade/training voyage, not occupying a berth">At sea</th>
                 </tr>
               </thead>
               <VirtualTableBody
@@ -50,6 +54,8 @@ export const ShipyardsOverviewDialog: React.FC = () => {
                     <td>{row.shipClassName}</td>
                     <td>{row.progressPct}%</td>
                     <td>{row.completedHulls}</td>
+                    <td>{row.portOccupancyLabel}</td>
+                    <td>{row.atSeaCount}</td>
                   </tr>
                 )}
               />

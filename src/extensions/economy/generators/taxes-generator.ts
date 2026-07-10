@@ -15,6 +15,21 @@ const DEFAULT_TAX_BY_FORM: Record<string, TaxBases> = {
 };
 const DEFAULT_TAX: TaxBases = DEFAULT_TAX_BY_FORM.Monarchy;
 
+// Gold from Shipbuilding's trade-voyage ships (fmg:shipbuilding-voyage-income), buffered
+// here until the next collectTaxes() fold-in — mirrors how `deals` represents "income
+// since the last cycle" rather than a running total, so it composes cleanly with a
+// method that recomputes treasury from scratch every call. See docs/plan/ships.md
+// ("航海訓練・偽装通商・諜報（暫定案）").
+const _voyageIncomeByState = new Map<number, number>();
+
+export function registerVoyageIncome(stateId: number, amount: number): void {
+  _voyageIncomeByState.set(stateId, (_voyageIncomeByState.get(stateId) ?? 0) + amount);
+}
+
+export function clearVoyageIncome(): void {
+  _voyageIncomeByState.clear();
+}
+
 export class TaxesModule {
   private get worldContext() {
     return getWorldContext();
@@ -53,8 +68,10 @@ export class TaxesModule {
     for (const state of states) {
       if (!state.i) continue;
       const population = (state.rural || 0) + (state.urban || 0);
-      state.treasury = rn((state.treasury || 0) + (state.pollTax || 0) * population, 2);
+      const voyageIncome = _voyageIncomeByState.get(state.i) ?? 0;
+      state.treasury = rn((state.treasury || 0) + (state.pollTax || 0) * population + voyageIncome, 2);
     }
+    _voyageIncomeByState.clear();
 
     TIME && console.timeEnd("collectTaxes");
   }

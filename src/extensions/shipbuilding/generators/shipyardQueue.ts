@@ -14,6 +14,25 @@ export interface ShipyardQueueEntry {
   progress: number;
 }
 
+export type ShipHullStatus = "docked" | "voyage";
+
+/**
+ * A single completed hull. `ownerId` is a stateId for `owner: "state"` (navy hulls are
+ * pooled at the state level, matching `_completedHulls`'s existing key scheme) or a
+ * burgId for `owner: "market"`. `homeBurgId` is always the burg that built it — hulls
+ * don't relocate to other ports in this model. `status` tracks whether it currently
+ * occupies a port berth (`"docked"`) or is out on a trade/training voyage (`"voyage"`,
+ * see `shipVoyages.ts` and docs/plan/ships.md "航海訓練・偽装通商・諜報（暫定案）").
+ */
+export interface ShipHull {
+  id: number;
+  shipClassId: string;
+  owner: ShipyardOwner;
+  ownerId: number;
+  homeBurgId: number;
+  status: ShipHullStatus;
+}
+
 const TECH_POINTS_PER_YEAR_PER_SHIPYARD = 1;
 const BUILD_POINTS_PER_YEAR = 2;
 
@@ -21,6 +40,27 @@ const _queues = new Map<number, ShipyardQueueEntry>(); // burgId -> active queue
 const _stateTechPoints = new Map<number, number>(); // stateId -> accumulated tech points
 // "state:<stateId>:<shipClassId>" or "market:<burgId>:<shipClassId>" -> completed hull count
 const _completedHulls = new Map<string, number>();
+const _hulls = new Map<number, ShipHull>(); // hullId -> hull record
+let _nextHullId = 1;
+
+/** True if the state has an active "Enemy" diplomacy relation with anyone — same idiom Economy's own tick hook already uses (`economy/index.tsx`) to decide wartime behavior, replicated here rather than imported since it's a plain read of `pack.states`. */
+export function isStateAtWar(stateId: number, states: readonly State[]): boolean {
+  const state = states[stateId];
+  return Boolean(state?.diplomacy && (state.diplomacy as unknown[]).includes("Enemy"));
+}
+
+export function getHulls(): readonly ShipHull[] {
+  return Array.from(_hulls.values());
+}
+
+export function getHullsAtBurg(burgId: number): ShipHull[] {
+  return Array.from(_hulls.values()).filter(h => h.homeBurgId === burgId);
+}
+
+export function setHullStatus(hullId: number, status: ShipHullStatus): void {
+  const hull = _hulls.get(hullId);
+  if (hull) hull.status = status;
+}
 
 /**
  * A shipyard is state-run (a naval arsenal) only at a burg significant enough to
@@ -64,10 +104,24 @@ export function getQueueEntry(burgId: number): ShipyardQueueEntry | undefined {
   return _queues.get(burgId);
 }
 
-function completeHull(burg: Burg, owner: ShipyardOwner, shipClassId: string): void {
+function completeHull(burg: Burg, owner: ShipyardOwner, shipClassId: string, states: readonly State[]): void {
   const ownerId = owner === "state" ? burg.state! : burg.i!;
   const key = completedHullKey(owner, ownerId, shipClassId);
   _completedHulls.set(key, (_completedHulls.get(key) ?? 0) + 1);
+
+  // Wartime navies launch straight into a docked/mobilized state; everything else
+  // (peacetime navies and all merchant hulls) heads straight out to sea rather than
+  // sitting idle — see docs/plan/ships.md "航海訓練・偽装通商・諜報（暫定案）".
+  const staysDocked = owner === "state" && isStateAtWar(ownerId, states);
+  const hull: ShipHull = {
+    id: _nextHullId++,
+    shipClassId,
+    owner,
+    ownerId,
+    homeBurgId: burg.i!,
+    status: staysDocked ? "docked" : "voyage"
+  };
+  _hulls.set(hull.id, hull);
 
   document.dispatchEvent(
     new CustomEvent("fmg:shipbuilding-ship-completed", {
@@ -126,7 +180,7 @@ export function runShipyardTick(
     // hulls in one tick, so drain all of them rather than crediting only one.
     while (entry.progress >= classDef.buildPointsRequired) {
       entry.progress -= classDef.buildPointsRequired;
-      completeHull(burg, owner, classDef.id);
+      completeHull(burg, owner, classDef.id, states);
     }
     // Re-evaluate the target class for the next hull — tech may have advanced.
     entry.shipClassId = unlockedClass.id;
@@ -137,4 +191,6 @@ export function clearShipyardQueues(): void {
   _queues.clear();
   _stateTechPoints.clear();
   _completedHulls.clear();
+  _hulls.clear();
+  _nextHullId = 1;
 }

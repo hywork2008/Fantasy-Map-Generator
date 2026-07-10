@@ -12,7 +12,7 @@ import { CHARACTERS_EXTENSION_ID } from "../characters/index";
 import { applyPersonalityToCapitalGuard } from "./generators/capitalGuardModifier";
 import { Characters } from "./generators/characterLifecycle";
 import { applyAffinitiesToDiplomacy } from "./generators/diplomacy-modifier";
-import { Espionage } from "./generators/espionage-generator";
+import { addVoyageIntel, clearVoyageIntel, Espionage } from "./generators/espionage-generator";
 import { tryRecaptureHomeBurg } from "./generators/homeRecapture";
 import { LocalSkirmish } from "./generators/localSkirmish";
 import { tryCaptureOnPassing } from "./generators/marchCapture";
@@ -27,6 +27,7 @@ export const NOBILITY_EXTENSION_ID = "nobility";
 
 let _unsubscribe: (() => void) | null = null;
 let _generatePostCoreHandler: (() => void) | null = null;
+let _voyageIntelHandler: ((e: Event) => void) | null = null;
 
 export function init(api: ExtensionAPI): void {
   initNobilityContext(api);
@@ -89,6 +90,9 @@ export function init(api: ExtensionAPI): void {
 
   _generatePostCoreHandler = () => {
     if (api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) {
+      // A new map reuses state ids from 0 — any voyage-intel bonus accrued against the
+      // previous map's states must not carry over.
+      clearVoyageIntel();
       Characters.generate();
       applyAffinitiesToDiplomacy();
       applyPersonalityToCapitalGuard();
@@ -99,6 +103,23 @@ export function init(api: ExtensionAPI): void {
     }
   };
   document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
+
+  // Listen for Shipbuilding's trade-voyage espionage (optional dependency — harmless
+  // no-op if Shipbuilding is never enabled). State-navy hulls posing as merchants feed
+  // an intrigue bonus into Espionage.generate()'s next recompute rather than writing
+  // simulationContext.intelligence directly, since that's fully overwritten every tick
+  // by Espionage.generate() itself. See docs/plan/ships.md ("航海訓練・偽装通商・諜報（暫定案）").
+  _voyageIntelHandler = e => {
+    if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return;
+    const { observerStateId, targetStateId, amount } = (e as CustomEvent).detail as {
+      observerStateId: number;
+      targetStateId: number;
+      amount: number;
+    };
+    if (!(amount > 0)) return;
+    addVoyageIntel(observerStateId, targetStateId, amount);
+  };
+  document.addEventListener("fmg:shipbuilding-voyage-intel", _voyageIntelHandler);
 
   api.registerTimeTickHook((deltaYears, deltaMonths, deltaDays) => {
     if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return;
@@ -164,6 +185,11 @@ export function cleanup(api: ExtensionAPI): void {
     document.removeEventListener("fmg:generate-post-core", _generatePostCoreHandler);
     _generatePostCoreHandler = null;
   }
+  if (_voyageIntelHandler) {
+    document.removeEventListener("fmg:shipbuilding-voyage-intel", _voyageIntelHandler);
+    _voyageIntelHandler = null;
+  }
+  clearVoyageIntel();
 
   api.unregisterExtension(NOBILITY_EXTENSION_ID);
   clearNobilityContext();

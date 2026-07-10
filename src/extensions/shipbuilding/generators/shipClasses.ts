@@ -34,3 +34,12 @@ export function getHighestUnlockedShipClass(techPoints: number): ShipClass {
 export function getShipClass(id: string): ShipClass | undefined {
   return SHIP_CLASSES.find(c => c.id === id);
 }
+
+export type ShipSizeTier = "small" | "medium" | "large";
+
+/** Maps the tech-tree tier onto the small/medium/large port-berth categories used by `portCapacity.ts`. */
+export function getShipSizeTier(shipClass: ShipClass): ShipSizeTier {
+  if (shipClass.tier <= 0) return "small";
+  if (shipClass.tier === 1) return "medium";
+  return "large";
+}

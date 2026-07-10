@@ -7,6 +7,8 @@ import {
 } from "./controllers/shipyards-overview";
 import { checkForeignInterference } from "./generators/foreignInterference";
 import { runLoggingTick } from "./generators/logging";
+import { computePortCapacity, type PortCapacity } from "./generators/portCapacity";
+import { runVoyageTick } from "./generators/shipVoyages";
 import { computeShipyardCandidates, type ShipyardCandidate } from "./generators/shipyardCandidates";
 import { clearShipyardQueues, runShipyardTick } from "./generators/shipyardQueue";
 import { clearShipyards, drawShipyards } from "./renderers/drawShipyards";
@@ -26,11 +28,15 @@ export const shipbuildingLayers: LayerConfig[] = [
 ];
 
 let _candidates: ShipyardCandidate[] = [];
+// Provisional per-burg port capacity (docs/plan/ships.md "港湾収容力（暫定案）"), fed to the
+// Shipyards overview dialog via openShipyardsOverview()/refreshShipyardsOverviewIfOpen().
+let _portCapacity: Map<number, PortCapacity> = new Map();
 let _unsubscribe: (() => void) | null = null;
 let _generatePostCoreHandler: (() => void) | null = null;
 
 function recomputeAndMaybeDraw(api: ExtensionAPI): void {
   _candidates = computeShipyardCandidates();
+  _portCapacity = computePortCapacity(_candidates);
   if (api.layerIsOn("toggleShipyards")) drawShipyards(_candidates);
 }
 
@@ -79,7 +85,7 @@ export function init(api: ExtensionAPI): void {
       if (api.isDialogOpen("ShipyardsOverviewDialog")) {
         closeShipyardsOverview();
       } else {
-        openShipyardsOverview(_candidates, (x, y) => api.zoomTo(x, y, 8));
+        openShipyardsOverview(_candidates, _portCapacity, (x, y) => api.zoomTo(x, y, 8));
       }
     }
   });
@@ -109,10 +115,11 @@ export function init(api: ExtensionAPI): void {
     runLoggingTick(_candidates, effectiveDeltaYears);
     const { burgs, states } = getWorldContext().pack;
     runShipyardTick(_candidates, burgs, states, effectiveDeltaYears, api.getEffectiveSkill);
+    runVoyageTick(burgs, states, effectiveDeltaYears);
     checkForeignInterference(_candidates, burgs, effectiveDeltaYears);
     // Refresh marker tooltips (build progress) and the overview dialog, if visible.
     if (api.layerIsOn("toggleShipyards")) drawShipyards(_candidates);
-    refreshShipyardsOverviewIfOpen(_candidates);
+    refreshShipyardsOverviewIfOpen(_candidates, _portCapacity);
   });
 
   _unsubscribe = api.subscribeExtensionState((state, prevState) => {
@@ -126,6 +133,7 @@ export function init(api: ExtensionAPI): void {
       if (api.layerIsOn("toggleShipyards")) api.toggleLayerById("toggleShipyards");
       api.removeLayers(shipbuildingLayers.map(l => l.id));
       _candidates = [];
+      _portCapacity = new Map();
       clearShipyardQueues();
       closeShipyardsOverview();
     }
@@ -141,7 +149,7 @@ export function init(api: ExtensionAPI): void {
     // state tied to the previous map's ids must not carry over.
     clearShipyardQueues();
     recomputeAndMaybeDraw(api);
-    refreshShipyardsOverviewIfOpen(_candidates);
+    refreshShipyardsOverviewIfOpen(_candidates, _portCapacity);
   };
   document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
 }
@@ -158,6 +166,7 @@ export function cleanup(api: ExtensionAPI): void {
 
   api.removeLayers(shipbuildingLayers.map(l => l.id));
   _candidates = [];
+  _portCapacity = new Map();
   clearShipyardQueues();
   closeShipyardsOverview();
 

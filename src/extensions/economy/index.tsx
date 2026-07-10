@@ -19,7 +19,7 @@ import { clearMarketManagers, syncMarketManagers } from "./generators/marketMana
 import { Markets } from "./generators/markets-generator";
 import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
 import { Production } from "./generators/production-generator";
-import { Taxes } from "./generators/taxes-generator";
+import { clearVoyageIncome, registerVoyageIncome, Taxes } from "./generators/taxes-generator";
 import { TradeAnimation } from "./generators/trade-animation";
 import { drawGoods } from "./renderers/draw-goods";
 import { drawMarketsLayer } from "./renderers/draw-markets";
@@ -188,6 +188,7 @@ function unregisterOverviewColumns(api: ExtensionAPI): void {
 let _unsubscribe: (() => void) | null = null;
 let _generatePostCoreHandler: (() => void) | null = null;
 let _logHarvestedHandler: ((e: Event) => void) | null = null;
+let _voyageIncomeHandler: ((e: Event) => void) | null = null;
 
 export function init(api: ExtensionAPI): void {
   initEconomyContext(api);
@@ -487,6 +488,9 @@ export function init(api: ExtensionAPI): void {
   // Listen for core map generation to generate economy
   _generatePostCoreHandler = () => {
     if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+      // A new map reuses state ids from 0 — any voyage income buffered against the
+      // previous map's states must not carry over.
+      clearVoyageIncome();
       Goods.generate();
       Markets.generate();
       Taxes.defineTaxRates();
@@ -535,6 +539,19 @@ export function init(api: ExtensionAPI): void {
     scheduleProductionRefresh(true);
   };
   document.addEventListener("fmg:shipbuilding-log-harvested", _logHarvestedHandler);
+
+  // Listen for Shipbuilding's trade-voyage income (optional dependency — harmless no-op
+  // if Shipbuilding is never enabled). Buffered in taxes-generator.ts and folded into
+  // treasury on the next collectTaxes() call rather than written directly, since
+  // collectTaxes() recomputes treasury from scratch every time it runs.
+  _voyageIncomeHandler = e => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    const { stateId, amount } = (e as CustomEvent).detail as { stateId: number; amount: number };
+    if (!stateId || !(amount > 0)) return;
+    registerVoyageIncome(stateId, amount);
+    scheduleProductionRefresh(true);
+  };
+  document.addEventListener("fmg:shipbuilding-voyage-income", _voyageIncomeHandler);
 
   // Depleted cells recover a little on every advanceTime() call, independent of
   // whether Shipbuilding (or logging on that cell) is still active — a logged-out
@@ -682,6 +699,11 @@ export function cleanup(api: ExtensionAPI): void {
     document.removeEventListener("fmg:shipbuilding-log-harvested", _logHarvestedHandler);
     _logHarvestedHandler = null;
   }
+  if (_voyageIncomeHandler) {
+    document.removeEventListener("fmg:shipbuilding-voyage-income", _voyageIncomeHandler);
+    _voyageIncomeHandler = null;
+  }
+  clearVoyageIncome();
   clearForestDepletion();
   clearBurgMarketLedgers();
   clearMarketManagers();

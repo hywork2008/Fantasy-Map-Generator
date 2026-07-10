@@ -10,6 +10,10 @@ export interface ShipyardOverviewRow {
   shipClassName: string;
   progressPct: number;
   completedHulls: number;
+  /** "docked small/medium/large of capacity small/medium/large" — see docs/plan/ships.md "港湾収容力（暫定案）". */
+  portOccupancyLabel: string;
+  /** Hulls currently out on a trade/training voyage (docs/plan/ships.md "航海訓練・偽装通商・諜報（暫定案）"), not occupying a berth. */
+  atSeaCount: number;
 }
 
 interface ShipyardsOverviewState {

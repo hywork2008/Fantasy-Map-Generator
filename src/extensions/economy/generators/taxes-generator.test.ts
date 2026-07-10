@@ -5,7 +5,7 @@ import { clearEconomyContext, initEconomyContext } from "../economyContext";
 import "../types";
 import { Markets } from "./markets-generator";
 import type { Market } from "./marketTypes";
-import { TaxesModule } from "./taxes-generator";
+import { clearVoyageIncome, registerVoyageIncome, TaxesModule } from "./taxes-generator";
 
 describe("TaxesModule", () => {
   let taxesModule: TaxesModule;
@@ -23,6 +23,7 @@ describe("TaxesModule", () => {
       markets: [],
       deals: []
     } as unknown as PackedGraph;
+    clearVoyageIncome();
   });
 
   describe("defineTaxRates()", () => {
@@ -155,6 +156,32 @@ describe("TaxesModule", () => {
       worldContext.pack.burgs = [];
       worldContext.pack.deals = [];
 
+      taxesModule.collectTaxes();
+
+      expect(state1.treasury).toBe(0);
+    });
+
+    it("folds in Shipbuilding's buffered voyage income (docs/plan/ships.md 航海訓練・偽装通商・諜報)", () => {
+      const state1: State = { i: 1, salesTax: 0, pollTax: 0, rural: 0, urban: 0 } as unknown as State;
+      worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
+      worldContext.pack.burgs = [];
+      worldContext.pack.deals = [];
+      registerVoyageIncome(1, 40);
+      registerVoyageIncome(1, 10); // accumulates across multiple voyage-income events in one cycle
+
+      taxesModule.collectTaxes();
+
+      expect(state1.treasury).toBe(50);
+    });
+
+    it("consumes the voyage income buffer — a second collectTaxes() call without new income adds nothing more", () => {
+      const state1: State = { i: 1, salesTax: 0, pollTax: 0, rural: 0, urban: 0 } as unknown as State;
+      worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
+      worldContext.pack.burgs = [];
+      worldContext.pack.deals = [];
+      registerVoyageIncome(1, 40);
+
+      taxesModule.collectTaxes();
       taxesModule.collectTaxes();
 
       expect(state1.treasury).toBe(0);
