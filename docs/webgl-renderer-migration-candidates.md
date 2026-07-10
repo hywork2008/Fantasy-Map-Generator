@@ -1,155 +1,168 @@
-# WebGL レンダラー移行候補ライブラリ
+# deck.gl レンダラー移行タスク
 
-> SVG レンダリング（D3 + `src/renderers/`）を全面的に WebGL へ移行する場合の候補評価。
-> 作成日: 2026-06-27
+> 以前の候補比較は削除済み。以後この文書は、既に採用済みの deck.gl hybrid renderer を完成させるための作業台帳として扱う。
 
----
+## 現在地
 
-## 1. 前提：このプロジェクトのレンダリング要件
+deck.gl 化は `svg` / `webglHybrid` の並列レンダラーとして開始済み。
 
-`docs/upstream/domain/3d-view.md` および `src/renderers/` の構成から読み取った要件:
+主な実装箇所:
 
-| 要件 | 現在の実装 |
+| 領域 | 現在の主担当 |
 | :-- | :-- |
-| ポリゴン塗りつぶし | ボロノイセル（バイオーム・地域・高度）を `<polygon>` / `<path>` で描画 |
-| パス描画 | 河川・海岸線・道路・境界線を D3 `lineGen` で生成 |
-| テキストラベル | 国名・都市名を `<text>` 要素で配置（フォント・サイズ・色・回転） |
-| スプライト / アイコン | burg icons・markers・紋章（COA SVG）を `<use>` / `<image>` で配置 |
-| レイヤー合成 | 20以上の独立 `<g>` 要素（ON/OFF トグル、`ViewContext` で管理） |
-| ズーム・パン | D3 zoom + `ViewContext.zoom/viewX/viewY` |
-| アニメーション | 交易ルートアニメーション・人口バー（D3 transition） |
-| インタラクション | セル・都市クリックによるピッキング |
-| 3D ビュー | **Three.js が既存**（`src/renderers/three-d-renderer.ts`、UIは`src/ui/dialogs/Preview3dDialog.tsx`）— 2D 側のみが移行対象 |
+| モード切替 | `src/actions.ts` の `setRenderMode()` |
+| Canvas / layer 再取得 | `src/initViewLayers.ts` の `webglMapCanvas` 生成・再取得 |
+| deck.gl インスタンス | `src/renderers/webgl/deckRenderer.ts` |
+| deck.gl レイヤー組み立て | `src/renderers/webgl/buildDeckLayers.ts` |
+| WorldContext から deck.gl data への変換 | `src/renderers/webgl/adapters/deckDataAdapters.ts` |
+| SVG / WebGL hybrid 表示ポリシー | `src/renderers/webgl/hybridLayerPolicy.ts` |
+| WebGL pick bridge | `src/types/webglPicking.ts`, `src/services/mapInteraction.ts` |
+| E2E | `tests/e2e/webgl-hybrid.spec.ts`, `tests/e2e/helpers/fmg-helpers.ts` |
 
----
+現在の方針:
 
-## 2. 候補ライブラリ
+- `Renderer` 層は引き続き `Readonly<WorldContext>` / `Readonly<ViewContext>` から描画データを作る。`pack` / `grid` へ書き込まない。
+- `webglHybrid` では deck.gl canvas を地図本体として使い、必要な SVG overlay だけを残す。
+- SVG レイヤーの非表示は ID 列挙を CSS に直接書かず、`hybridLayerPolicy.ts` で管理クラスを付与して行う。
+- UI は地図レイヤーより前面に出す。特に左上の `#options` は `#map` / `#webglMapCanvas` に隠れないこと。
 
-### A. deck.gl（最有力）
+## 完了定義
 
+deck.gl 移行は、以下を満たした時点で「既定レンダラー化可能」と判断する。
+
+- 主要プリセットで見た目と操作が SVG 版と実用上同等。
+- zoom / pan / resize / focus view / map load 後も canvas が非 blank で、座標同期が崩れない。
+- cell / feature / burg / marker / regiment など、編集導線に必要な picking が SVG 版と同じ粒度で機能する。
+- SVG fallback にいつでも戻せる。
+- E2E が canvas pixel、layer id、SVG overlay、UI stacking、picking を検証している。
+- `.map` load 後の `fmg:reinitialize-map-layers` で WebGL canvas と SVG layer policy が破綻しない。
+- `npm run lint`, `npx tsc --noEmit`, `npx tsc --noEmit -p tests/tsconfig.json`, WebGL E2E が通る。
+
+## Phase 1: Hybrid 基盤の安定化
+
+- [ ] `setRenderMode()` を `FMGActionsAPI` / `tests/fmg.d.ts` / public docs に明記する。
+- [ ] `webglHybrid` から `svg` に戻した時、deck.gl layers と body class と SVG managed class の表示状態が完全に戻ることをE2E化する。
+- [ ] `.map` load 後に `webglMapCanvas` が再取得され、`DeckGlRenderer` が古い canvas 参照を保持しないことを検証する。
+- [ ] `DeckGlRenderer.finalize()` を呼ぶべき lifecycle を整理する。hot reload / map reload / renderer disable で GPU resource が残らないこと。
+- [ ] `#options`, dialogs, tooltip, tour prompt, map overlay の stacking order を一覧化し、地図 canvas / SVG より常に上に出すUIを明文化する。
+- [ ] `body.fmg-webgl-hybrid .fmg-webgl-managed-svg-layer` の対象を `hybridLayerPolicy.ts` のみで管理し、CSS側に個別SVG IDを増やさない運用にする。
+
+## Phase 2: 描画レイヤーの残差解消
+
+優先順位は「大面積・高ノード数・頻繁に切替されるもの」を先にする。
+
+| レイヤー | 状態 | 次タスク |
+| :-- | :-- | :-- |
+| background / land | 実装済み | style preset差分の再現性確認 |
+| height | 実装済み | color scheme / opacity / ocean含有設定のSVG版差分確認 |
+| biomes | 実装済み |境界・focus view・凡例との整合確認 |
+| cultures / religions / states / provinces | 実装済み | boundary layer の太さ・透明度・mask差分確認 |
+| zones / temperature / population / precipitation / danger | 実装済み |プリセット切替と legend / tooltip の整合確認 |
+| lakes / coastline / ice | 実装済み | outline / stroke width / fractal coastline の見た目差分確認 |
+| cells / grid | 実装済み | zoom倍率別の線幅と hit target の確認 |
+| rivers / routes / borders | 実装済み | route group style, sea routes, selected state borders の差分確認 |
+| burg icons | 実装済み | group style, capital/port表現, zoom scaling の差分確認 |
+| markers | 実装済み | custom marker icon / external image / pinned-only表示の差分確認 |
+| military | 実装済み | regiment box, icons, totals, action markers, drag/edit導線の差分確認 |
+| labels / burg labels | 実装済み |フォント、回転、衝突回避、CJK表示、zoom threshold の差分確認 |
+| emblems | 実装済み | placeholder icon から COA texture 化へ進める |
+| texture / terrain / relief | 未確定 | deck.gl化するかSVG overlayとして残すか決める |
+| coordinates / compass / scaleBar / legend / ruler / debug / fogging | SVG overlay | overlayとして残す前提でE2Eを補強する |
+
+## Phase 3: Style Fidelity
+
+- [ ] `public/styles/*.json` の代表スタイルを `webglHybrid` で巡回し、主要レイヤーの色・opacity・stroke幅をSVG版と比較する。
+- [ ] `draw-*` renderer が参照しているSVG属性のうち、deck data adapter側に反映していないものを棚卸しする。
+- [ ] `getLakePaint`, `getCoastlinePaint`, `getIcePaint`, `getLabelStyle`, `getMarkerStyle`, `getBurgIconStyle`, `getEmblemStyle` をテスト可能な小関数へ分割する。
+- [ ] CSS custom properties / SVG attributes / layerState のどれをWebGL style source of truthにするか決める。
+- [ ] `widthUnits: "pixels"` と map coordinate幅の使い分けをレイヤー別に明文化する。
+- [ ] HiDPI時の線幅、文字サイズ、アイコンサイズを desktop / mobile で確認する。
+
+## Phase 4: Picking と編集導線
+
+- [ ] `WebglPickDetail.kind` と既存編集対象の対応表を作る。
+- [ ] hover tooltip が SVG と WebGL で同じセル・同じ対象を指すことを確認する。
+- [ ] click edit 導線をWebGL pick経由に寄せる。SVG DOM event前提の箇所は `mapInteraction.ts` か controller action に集約する。
+- [ ] burg / marker / regiment / route / river / lake / province / state のクリック編集をE2E化する。
+- [ ] drag系操作が必要な対象は、deck.gl pick結果から既存controllerへ渡す最小APIを定義する。
+- [ ] `#debug .webgl-selected` は一時可視化として維持し、正式な選択表示に統合するか判断する。
+
+## Phase 5: キャッシュと性能
+
+- [ ] `buildLayerSignatures()` の粒度を見直し、不要な全レイヤー再構築を減らす。
+- [ ] `deckLayerDataCache` の invalidation 条件を文書化する。
+- [ ] map generation / style変更 / layer toggle / zoom-only 更新のどれで data rebuild が発生するか計測する。
+- [ ] zoom / pan では `viewState` 更新だけに抑え、data adapter が再実行されないことを確認する。
+- [ ] 10k / 50k / 100k cell 相当の seed で初回描画、preset切替、zoom操作の時間を計測する。
+- [ ] data adapter の重い処理は、shared geometry cache または typed array 化を検討する。
+- [ ] deck.gl layer id の安定性を保ち、差分更新が効くようにする。
+
+## Phase 6: COA / アイコン / テキスト
+
+- [ ] COA を placeholder icon から実際の紋章表示へ移行する方式を決める。
+- [ ] 候補: `COArenderer` でSVGを生成し、offscreen canvas / image bitmap / texture atlas として `IconLayer` または `BitmapLayer` に渡す。
+- [ ] burg icons / marker icons / military unit icons の atlas 化を検討する。
+- [ ] external marker image のCORS / load failure時の fallback を定義する。
+- [ ] `TextLayer` のフォント、CJK、回転、halo / shadow、line wrapping をSVG版と比較する。
+- [ ] ラベル衝突回避を deck.gl 側で完結させるか、既存SVG layout結果を adapter が読むか決める。
+
+## Phase 7: 保存・読み込み・拡張との整合
+
+- [ ] `.map` load 後に WebGL managed class と extension layer 再取得が壊れないことをE2E化する。
+- [ ] extension-owned SVG layers は `ViewContext` に入れず、`ExtensionAPI.getSvgLayer()` 管理のままにする。
+- [ ] built-in extensions の描画レイヤーを WebGL に移す場合、host module import ではなく `ExtensionAPI` 経由にする設計を先に決める。
+- [ ] economy goods / markets / trade animation の deck.gl 化可否を別タスク化する。
+- [ ] save / export / PNG tiles が SVG + deck.gl canvas の合成に対応しているか確認する。
+- [ ] 3D preview との canvas / WebGL context 共存を確認する。
+
+## Phase 8: テスト追加
+
+- [ ] `tests/e2e/webgl-hybrid.spec.ts` に `svg -> webglHybrid -> svg` の往復テストを追加する。
+- [ ] `.map` load 後の webglHybrid 再描画テストを追加する。
+- [ ] style presetごとの smoke test を追加する。
+- [ ] layer presetごとの deck layer id と canvas pixelを検証する既存テストを維持・拡張する。
+- [ ] `elementFromPoint()` によるUI stacking検査を options以外の主要UIにも拡張する。
+- [ ] pick detail の kind / id / cellId / coordinate を代表レイヤー別に検証する。
+- [ ] adapter単体テストで focusScope, removed entity, missing style attr, malformed route/path を追加する。
+- [ ] canvas blank検出は colored pixel だけでなく alpha / bounding area も見る。
+
+## Phase 9: 既定化の判断
+
+`webglHybrid` を既定レンダラーにする前に、以下を確認する。
+
+- [ ] 新規生成、seed指定生成、map load、regenerate でWebGL表示が安定する。
+- [ ] 主要編集UIがWebGL pickで動く。
+- [ ] SVG版との差分が許容範囲として明文化されている。
+- [ ] 低性能環境やWebGL unavailable時に自動で `svg` にfallbackできる。
+- [ ] renderer mode preference の保存・復元がユーザーにとって自然に動く。
+- [ ] export系機能がWebGL表示時にも期待通りの画像を出力する。
+
+## 作業時の確認コマンド
+
+通常確認:
+
+```bash
+npm run lint
+npx tsc --noEmit
+npx tsc --noEmit -p tests/tsconfig.json
+npx playwright test tests/e2e/webgl-hybrid.spec.ts
 ```
-npm install deck.gl @luma.gl/core
+
+必要に応じて:
+
+```bash
+npm run madge
+npx playwright test tests/e2e/layers.spec.ts
+npx playwright test tests/e2e/click-edit.spec.ts
+npx playwright test tests/e2e/load-map.spec.ts
 ```
 
-**概要**: Uber/vis.gl が開発したデータビジュアライゼーション向け WebGL レイヤーシステム。地図・大規模データ特化。
+## 実装ルール
 
-#### 現レイヤーとの対応
-
-| FMG の現レイヤー（`ViewContext`） | deck.gl 対応レイヤークラス |
-| :-- | :-- |
-| `biomes` / `regions`（ポリゴン） | `PolygonLayer` / `SolidPolygonLayer` |
-| `rivers` / `routes` / `borders`（パス） | `PathLayer` |
-| `burgIcons` / `markers`（アイコン） | `IconLayer` / `ScatterplotLayer` |
-| `burgLabels` / `labels`（テキスト） | `TextLayer` |
-| `coastline`（ライン） | `PathLayer` |
-| `armies`（スプライト） | `BitmapLayer` |
-
-#### 強み
-
-- `PolygonLayer` / `PathLayer` / `TextLayer` など、このプロジェクトの描画要素と **1:1 に近いレイヤークラス** が揃っている
-- 既存の `ViewContext` のレイヤー分類（`EnvironmentLayers`, `PoliticalLayers`, `InfrastructureLayers` 等）がそのまま deck.gl のレイヤー構成に対応できる
-- **10万セル規模のデータでも GPU 側でカリング・バッチングを行うため高パフォーマンス**
-- `data=` プロパティに `WorldContext` のデータオブジェクトをそのまま渡せるため、4層アーキテクチャの `Renderer` 層の責務（`Readonly<WorldContext> → 描画`）と設計哲学が一致する
-- 独立した `Viewport` クラスがあり、現在の `ViewContext.zoom/viewX/viewY` の置き換えが自然
-
-#### 懸念点
-
-- テキスト描画品質が SVG より劣る場合がある（特に CJK フォント・カスタムウェブフォント）
-- COA（紋章）のような複雑な SVG の再現がネイティブではできない  
-  → 別途 Canvas 2D でオフスクリーンレンダリングしてテクスチャとして貼る手法が必要
-- 学習コストが比較的高い（luma.gl / WebGPU バックエンドの概念）
-
----
-
-### B. Pixi.js v8
-
-```
-npm install pixi.js
-```
-
-**概要**: 2D ゲームエンジン寄りの WebGL / WebGPU レンダラー。柔軟な Graphics API と Container によるシーングラフが特徴。
-
-#### 強み
-
-- `Graphics` API が Canvas 2D に近く、`moveTo / lineTo / fill` で河川・境界線をそのまま記述できる
-- `BitmapFont` による高速テキスト、または `Text` オブジェクトで SVG 相当の品質が得られる
-- `Container` によるレイヤー管理が現在の `<g id="biomes">` 等の DOM 構造と対応しやすく、**段階的な差し替え**（レイヤー単位の移行）がしやすい
-- `hitArea` / `eventMode` でセルクリックのインタラクションを組みやすい
-- **Three.js との共存実績あり** — 3D ビューとの画面切り替えがしやすい
-
-#### 懸念点
-
-- 大量のポリゴンを毎フレーム再描画する場合、deck.gl より手動最適化が必要（`GeometryCache`、`RenderTexture` などの活用が必要）
-- データビジュアライゼーション向けではなくゲームエンジン寄りの設計のため、`WorldContext → レンダリング` のデータバインドは自前で実装する必要がある
-- v8 は 2024 年リリースで API が変わっており、既存のネット上のサンプルは v7 以前のものが多い
-
----
-
-### C. Three.js（既存依存の活用）
-
-```
-// 既に package.json に存在（src/controllers/view-3d.ts で使用中）
-```
-
-**概要**: 3D グラフィクスライブラリ。`OrthographicCamera` を用いることで 2D マップとしても利用可能。
-
-#### 強み
-
-- **新規依存ゼロ** — プロジェクトに既に存在し、3D ビューで動作実績がある
-- `OrthographicCamera` + `PlaneGeometry` で 2D マップとして使用できる
-- `CanvasTexture` で SVG 由来のテクスチャを貼る既存パターン（`src/renderers/draw-satellite-texture.ts`）が再利用できる
-- GPU ベイク（侵食地形）の実装知見がそのまま活かせる
-
-#### 懸念点
-
-- 2D テキスト・ラベルが弱い — [troika-three-text](https://github.com/protectwise/troika/tree/main/packages/troika-three-text) など追加ライブラリが必要
-- 2D ポリゴンは `ShapeGeometry` で可能だが、deck.gl / Pixi より記述量が大幅に多い
-- 本来 3D 向けライブラリであり、2D マップレンダリングには設計のミスマッチがある
-- レイヤーのトグル・順序管理を Three.js の `Scene` / `Object3D` で実現するのは間接的になる
-
----
-
-### D. MapLibre GL JS（参考：地図特化）
-
-**採用しない理由**:
-- タイル座標系・地理投影前提の設計であり、このプロジェクトのボロノイ座標系とは相性が悪い
-- カスタム手続き生成マップとの統合コストが高く、汎用 WebGL ライブラリより移行コストが増す
-
----
-
-## 3. 推奨順位まとめ
-
-| 順位 | ライブラリ | 総合評価 | 主な根拠 |
-| :--: | :-- | :-- | :-- |
-| **1位** | **deck.gl** | ◎ | データ → レイヤーの設計が4層アーキテクチャと最適合。大規模セルデータのパフォーマンスが最高 |
-| **2位** | **Pixi.js** | ○ | 描画 API の柔軟性が高く、COA 等の複雑な図形も扱いやすい。段階移行（レイヤー単位の差し替え）がしやすい |
-| **3位** | **Three.js** | △ | 新規依存ゼロで済む利点はあるが、2D 特化ライブラリと比べて記述コストが高い |
-
----
-
-## 4. 移行戦略の指針
-
-`docs/upstream/architecture/architecture.md` の方針（`Allow alternative renderers in the future (e.g. WebGL)`）に基づけば、**全廃よりも段階的な並列レンダラー化**が現実的。
-
-### 推奨アプローチ
-
-1. **SVG と WebGL Canvas のオーバーレイ構成から開始**  
-   `<canvas>` の上に `<svg>` を `position: absolute` で重ねることで、テキストラベルと COA は SVG のままにしつつ、地形・バイオームなどの大面積ポリゴン層から WebGL に移行できる。
-
-2. **`src/renderers/` のレイヤー単位で差し替え**  
-   既存の Renderer 層の各ファイル（`draw-biomes.ts`, `draw-rivers.ts` 等）を WebGL 実装に順次差し替える。インターフェース（`render(worldContext, viewContext, appServices)`）は変えない。
-
-3. **最難関の移行を後回し**  
-   - COA（紋章）: SVG → Canvas 2D オフスクリーン → WebGL テクスチャ
-   - カスタムフォントラベル: troika-three-text または deck.gl `TextLayer` で対応
-   - これらは最後のフェーズに回す
-
-4. **4層アーキテクチャのルールを維持**  
-   WebGL 移行後も `Renderer` 層は `Readonly<WorldContext>` を受け取り、描画のみを行う純粋な関数として実装する。`WorldContext` や `pack`/`grid` への書き込みは引き続き禁止。
-
----
-
-## 5. 関連ドキュメント
-
-- [architecture.md](upstream/architecture/architecture.md) — 4層アーキテクチャ定義、WebGL 代替レンダラーへの言及
-- [3d-view.md](upstream/domain/3d-view.md) — 既存 Three.js 実装の仕様
+- 新しい WebGL レイヤーは `buildDeckLayers.ts` に直接巨大化させず、まず `deckDataAdapters.ts` に `WorldContext -> deck data` の純粋変換を追加する。
+- adapter は `Readonly<WorldContext>` / `Readonly<ViewContext>` を受け取り、DOMを書き換えない。
+- SVG属性を読む必要がある場合は、style extraction関数として局所化し、adapter本体にDOM依存を広げない。
+- `any` は使わない。未知のdeck.gl propsや外部データは `unknown` から型ガードする。
+- `viewContext.svg.select("#layerName")` で typed layer があるものを探さない。既存 `ViewContext` field を使う。
+- extension-owned layer は `ViewContext` に追加しない。
+- WebGL migration中も SVG fallback を壊さない。
