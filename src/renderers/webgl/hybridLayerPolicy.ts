@@ -1,7 +1,6 @@
-const WEBGL_MANAGED_SVG_LAYER_IDS = [
+export const WEBGL_MANAGED_SVG_LAYER_IDS = [
   "ocean",
   "landmass",
-  "texture",
   "terrs",
   "lakes",
   "biomes",
@@ -21,7 +20,6 @@ const WEBGL_MANAGED_SVG_LAYER_IDS = [
   "danger",
   "coastline",
   "ice",
-  "terrain",
   "emblems",
   "icons",
   "burgIcons",
@@ -35,6 +33,8 @@ const WEBGL_MANAGED_SVG_LAYER_IDS = [
 export const HYBRID_WEBGL_MANAGED_SVG_LAYER_IDS: ReadonlySet<string> = new Set(WEBGL_MANAGED_SVG_LAYER_IDS);
 
 export const HYBRID_SVG_OVERLAY_LAYER_IDS = [
+  "texture",
+  "terrain",
   "coordinates",
   "compass",
   "scaleBar",

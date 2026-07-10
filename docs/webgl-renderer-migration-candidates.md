@@ -96,8 +96,14 @@ deck.gl 移行は、以下を満たした時点で「既定レンダラー化可
 | military | 実装済み | regiment box, icons, totals, action markers, drag/edit導線の差分確認 |
 | labels / burg labels | 実装済み |フォント、回転、衝突回避、CJK表示、zoom threshold の差分確認 |
 | emblems | 実装済み | placeholder icon から COA texture 化へ進める |
-| texture / terrain / relief | 未確定 | deck.gl化するかSVG overlayとして残すか決める |
-| coordinates / compass / scaleBar / legend / ruler / debug / fogging | SVG overlay | overlayとして残す前提でE2Eを補強する |
+| texture / terrain / relief | SVG overlay継続 | deck.gl化は後続判断。WebGL hybrid中もtoggle可能なことをE2Eで維持する |
+| coordinates / compass / scaleBar / legend / ruler / debug / fogging | SVG overlay | overlay policy classと主要常時表示overlayをE2Eで維持する |
+
+### Phase 2 開始ログ
+
+- `texture` / `terrain` は Phase 2 では deck.gl 化せず、SVG overlay として残す。texture は raster image overlay、terrain / relief は既存 SVG symbol 利用が強く、COA / icon atlas 方針と同じく Phase 6 以降でまとめて再検討する。
+- `drawHybridSvgOverlays()` は `texture` / `relief` の表示状態を active layer state と同期する。preset変更で off になった場合も古い SVG overlay を残さない。
+- E2E は `WEBGL_MANAGED_SVG_LAYER_IDS` / `HYBRID_SVG_OVERLAY_LAYER_IDS` のDOM class分類、`scaleBar` / `calendar` の常時overlay表示、WebGL hybrid中の `toggleTexture` / `toggleRelief` を検証する。
 
 ## Phase 3: Style Fidelity
 

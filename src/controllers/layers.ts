@@ -393,6 +393,18 @@ export function drawLayers(): void {
 function drawHybridSvgOverlays(): void {
   FeaturesRenderer.render(worldContext, viewContext, appServices);
   if (!layerIsOn("toggleLakes")) setLayerVisibility("toggleLakes", false);
+  if (layerIsOn("toggleTexture")) {
+    if (!view.texture.select("image").size()) TextureRenderer.render(worldContext, viewContext, appServices);
+    setLayerVisibility("toggleTexture", true);
+  } else {
+    setLayerVisibility("toggleTexture", false);
+  }
+  if (layerIsOn("toggleRelief")) {
+    ReliefIconsRenderer.render(worldContext, viewContext, appServices);
+    setLayerVisibility("toggleRelief", true);
+  } else {
+    setLayerVisibility("toggleRelief", false);
+  }
   if (layerIsOn("toggleCoordinates")) CoordinatesRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleCompass")) {
     if (!view.compass.select("use").size()) view.compass.append("use").attr("xlink:href", "#defs-compass-rose");
@@ -726,14 +738,6 @@ export function toggleCompass(event?: MouseEvent): void {
 }
 
 export function toggleRelief(event?: MouseEvent): void {
-  if (viewContext.renderMode === "webglHybrid") {
-    ReliefIconsRenderer.clear?.(viewContext);
-    setLayerVisibility("toggleRelief", false);
-    if (layerIsOn("toggleRelief")) turnButtonOff("toggleRelief");
-    if (event && isCtrlClick(event)) editStyle("terrain");
-    return;
-  }
-
   if (!layerIsOn("toggleRelief")) {
     turnButtonOn("toggleRelief");
     if (!view.terrain.selectAll("*").size()) ReliefIconsRenderer.render(worldContext, viewContext, appServices);
@@ -768,6 +772,7 @@ export function toggleTexture(event?: MouseEvent): void {
   if (!layerIsOn("toggleTexture")) {
     turnButtonOn("toggleTexture");
     TextureRenderer.render(worldContext, viewContext, appServices);
+    setLayerVisibility("toggleTexture", true);
     if (event && isCtrlClick(event)) editStyle("texture");
   } else {
     if (event && isCtrlClick(event)) {
@@ -775,6 +780,7 @@ export function toggleTexture(event?: MouseEvent): void {
       return;
     }
     turnButtonOff("toggleTexture");
+    setLayerVisibility("toggleTexture", false);
     TextureRenderer.clear?.(viewContext);
   }
 }

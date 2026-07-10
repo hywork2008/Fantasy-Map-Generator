@@ -76,6 +76,7 @@ declare global {
         zoomTo(x: number, y: number, scale: number, duration?: number): void;
         resetZoom(duration?: number): void;
         setRenderMode(mode: "svg" | "webglHybrid"): void;
+        toggleLayer(id: string, event?: MouseEvent): void;
         handleLayersPresetChange(preset: string): void;
         getWorldState(): unknown;
         layerIsOn(id: string): boolean;

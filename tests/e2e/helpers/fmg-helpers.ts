@@ -129,11 +129,45 @@ export async function setLayerPreset(page: Page, preset: string): Promise<void> 
   await page.evaluate(layerPreset => window.fmg.actions.handleLayersPresetChange(layerPreset), preset);
 }
 
+export async function toggleLayer(page: Page, layerId: string): Promise<void> {
+  await page.evaluate(id => window.fmg.actions.toggleLayer(id), layerId);
+}
+
 export async function getWebglDeckLayerIds(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const deck = window.fmg.view.webglDeck as unknown as { props?: { layers?: Array<{ id?: string }> } } | null;
     return deck?.props?.layers?.map(layer => layer.id).filter((id): id is string => typeof id === "string") ?? [];
   });
+}
+
+export interface WebglLayerPolicyEntry {
+  id: string;
+  exists: boolean;
+  display: string;
+  hasManagedClass: boolean;
+  hasOverlayClass: boolean;
+  childCount: number;
+}
+
+export async function getWebglLayerPolicyState(
+  page: Page,
+  layerIds: readonly string[]
+): Promise<WebglLayerPolicyEntry[]> {
+  return page.evaluate(
+    ids =>
+      ids.map(id => {
+        const element = document.getElementById(id);
+        return {
+          id,
+          exists: Boolean(element),
+          display: element ? window.getComputedStyle(element).display : "",
+          hasManagedClass: Boolean(element?.classList.contains("fmg-webgl-managed-svg-layer")),
+          hasOverlayClass: Boolean(element?.classList.contains("fmg-webgl-svg-overlay-layer")),
+          childCount: element?.children.length ?? 0
+        };
+      }),
+    layerIds
+  );
 }
 
 export interface WebglRendererDomState {

@@ -1,13 +1,19 @@
 import { expect, type Page, test } from "@playwright/test";
 import {
+  HYBRID_SVG_OVERLAY_LAYER_IDS,
+  WEBGL_MANAGED_SVG_LAYER_IDS
+} from "../../src/renderers/webgl/hybridLayerPolicy";
+import {
   getFirstLandScreenPoint,
   getWebglDeckLayerIds,
   getWebglCanvasPixelStats,
+  getWebglLayerPolicyState,
   getWebglRendererDomState,
   getViewTransformState,
   markCurrentWebglDeck,
   setLayerPreset,
   setRenderMode,
+  toggleLayer,
   uploadMapFixture,
   waitForMapLoad,
   waitForWebglCanvasPixels,
@@ -102,6 +108,63 @@ test.describe("webgl hybrid renderer", () => {
 
     await page.locator("#optionsHide").click();
     await expect(page.locator("#layersContent")).toBeVisible();
+  });
+
+  test("applies the hybrid SVG layer policy to managed map layers and overlays", async ({ page }) => {
+    await page.goto("/?seed=webgl-layer-policy&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+
+    const managedLayers = await getWebglLayerPolicyState(page, WEBGL_MANAGED_SVG_LAYER_IDS);
+    for (const layer of managedLayers) {
+      expect(layer, layer.id).toMatchObject({
+        exists: true,
+        display: "none",
+        hasManagedClass: true,
+        hasOverlayClass: false
+      });
+    }
+
+    const overlayLayers = await getWebglLayerPolicyState(page, HYBRID_SVG_OVERLAY_LAYER_IDS);
+    for (const layer of overlayLayers) {
+      expect(layer, layer.id).toMatchObject({
+        exists: true,
+        hasManagedClass: false,
+        hasOverlayClass: true
+      });
+    }
+    expect(overlayLayers.find(layer => layer.id === "scaleBar")?.display).not.toBe("none");
+    expect(overlayLayers.find(layer => layer.id === "calendar")?.display).not.toBe("none");
+  });
+
+  test("keeps texture and relief available as SVG overlays in WebGL hybrid mode", async ({ page }) => {
+    await page.goto("/?seed=webgl-residual-overlays&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+
+    await toggleLayer(page, "toggleTexture");
+    await toggleLayer(page, "toggleRelief");
+
+    await expect(page.locator("#texture image")).toHaveCount(1);
+    await expect(page.locator("#terrain use").first()).toBeVisible();
+    await expect
+      .poll(() => getWebglDeckLayerIds(page), { timeout: 5000 })
+      .not.toEqual(expect.arrayContaining(["fmg-webgl-texture", "fmg-webgl-terrain"]));
+
+    const overlayLayers = await getWebglLayerPolicyState(page, ["texture", "terrain"]);
+    for (const layer of overlayLayers) {
+      expect(layer, layer.id).toMatchObject({
+        display: "inline",
+        hasManagedClass: false,
+        hasOverlayClass: true
+      });
+      expect(layer.childCount).toBeGreaterThan(0);
+    }
+
+    const stats = await waitForWebglCanvasPixels(page);
+    expect(stats.coloredPixels).toBeGreaterThan(500);
   });
 
   test("restores SVG layer visibility and clears deck layers after switching back to svg", async ({ page }) => {
