@@ -186,18 +186,18 @@ export const WEBGL_LAYER_TOGGLES = new Set([
 ]);
 
 const EMBLEM_ICON_URL = `data:image/svg+xml,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><path fill="white" d="M64 6l46 16v35c0 31-19 53-46 65-27-12-46-34-46-65V22z"/></svg>'
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><path fill="white" d="M64 6l46 16v35c0 31-19 53-46 65-27-12-46-34-46-65V22z"/></svg>'
 )}`;
 const BURG_ICON_URLS: Record<DeckBurgIconType, string> = {
   burg: `data:image/svg+xml,${encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><circle fill="white" cx="64" cy="64" r="54"/></svg>'
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><circle fill="white" cx="64" cy="64" r="54"/></svg>'
   )}`,
   anchor: `data:image/svg+xml,${encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><path fill="white" d="M58 14h12v16h24v12H70v49c12-3 22-11 29-23l10 6c-10 21-26 33-45 39-19-6-35-18-45-39l10-6c7 12 17 20 29 23V42H34V30h24z"/></svg>'
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><path fill="white" d="M58 14h12v16h24v12H70v49c12-3 22-11 29-23l10 6c-10 21-26 33-45 39-19-6-35-18-45-39l10-6c7 12 17 20 29 23V42H34V30h24z"/></svg>'
   )}`
 };
 const EMPTY_ICON_URL = `data:image/svg+xml,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30"></svg>'
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" width="30" height="30"></svg>'
 )}`;
 
 export function clearDeckLayerDataCache(): void {
@@ -861,7 +861,7 @@ function buildLayerSignatures(
 
 function getMarkerPinUrl(pin: string, fill: string, stroke: string): string {
   return `data:image/svg+xml,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30">${getMarkerPinSvg(pin, fill, stroke)}</svg>`
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" width="30" height="30">${getMarkerPinSvg(pin, fill, stroke)}</svg>`
   )}`;
 }
 

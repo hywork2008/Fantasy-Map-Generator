@@ -110,6 +110,10 @@ export function initLayers(wc: WorldContext, _vc: Readonly<ViewContext>, as: App
   // fell back to a default font. Rebuilding whenever any font finishes loading (fired repeatedly,
   // unlike the one-shot `document.fonts.ready` promise) picks up the correct glyphs shortly after.
   document.fonts.addEventListener("loadingdone", () => scheduleWebglUpdate());
+
+  // A time tick finished — rebuild so that military movement, demographic border changes,
+  // or new burgs are reflected in the WebGL layers.
+  document.addEventListener("fmg:time-advanced", () => scheduleWebglUpdate());
 }
 
 // ─── Preset management ───────────────────────────────────────────────────────
@@ -367,7 +371,7 @@ export function drawLayers(): void {
     return;
   }
 
-  DeckGlRenderer.finalize(viewContext);
+  DeckGlRenderer.clear(viewContext);
   FeaturesRenderer.render(worldContext, viewContext, appServices);
   // FeaturesRenderer always renders lake paths (needed for masks), so explicitly
   // sync the #lakes display state with the toggle after rendering.
@@ -407,10 +411,16 @@ export function drawLayers(): void {
 function drawHybridSvgOverlays(): void {
   FeaturesRenderer.render(worldContext, viewContext, appServices);
   if (!layerIsOn("toggleLakes")) setLayerVisibility("toggleLakes", false);
-  // Ice, like lakes/coastline above, is kept in sync as a hidden SVG layer so WebGL pick
-  // candidates (kind: "ice") can resolve to a real element via editIceById().
+  // Ice and Rivers are kept in sync as hidden SVG layers so WebGL pick
+  // candidates can resolve to a real element via their editors.
   IceRenderer.render(worldContext, viewContext, appServices);
   if (!layerIsOn("toggleIce")) setLayerVisibility("toggleIce", false);
+
+  RiversRenderer.render(worldContext, viewContext, appServices);
+  if (!layerIsOn("toggleRivers")) setLayerVisibility("toggleRivers", false);
+
+  RoutesRenderer.render(worldContext, viewContext, appServices);
+  if (!layerIsOn("toggleRoutes")) setLayerVisibility("toggleRoutes", false);
   if (layerIsOn("toggleTexture")) {
     if (!view.texture.select("image").size()) TextureRenderer.render(worldContext, viewContext, appServices);
     setLayerVisibility("toggleTexture", true);

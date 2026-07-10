@@ -546,7 +546,16 @@ export const DeckGlRenderer = {
       layers: [],
       useDevicePixels: Math.min(window.devicePixelRatio || 1, 2),
       pickingRadius: 4,
-      _pickable: true
+      _pickable: true,
+      onError: (error: Error) => {
+        console.error("deck.gl initialization or rendering error:", error);
+        if (viewContext.renderMode === "webglHybrid") {
+          import("../../actions").then(({ setRenderMode }) => {
+            setRenderMode("svg");
+            // Optionally dispatch a notification or show a toast
+          });
+        }
+      }
     });
 
     return true;
@@ -601,7 +610,7 @@ export const DeckGlRenderer = {
   },
 
   setModeClass(enabled: boolean): void {
-    applyHybridLayerPolicy();
+    applyHybridLayerPolicy(enabled);
     document.body.classList.toggle(BODY_HYBRID_CLASS, enabled);
   }
 };

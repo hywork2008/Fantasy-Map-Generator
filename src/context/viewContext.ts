@@ -7,6 +7,25 @@ export type RenderMode = "svg" | "webglHybrid";
 const storedRenderMode =
   typeof localStorage === "undefined" ? null : (localStorage.getItem("fmg-render-mode") as RenderMode | null);
 
+export function isWebgl2Available(): boolean {
+  if (typeof document === "undefined") return false;
+  try {
+    const canvas = document.createElement("canvas");
+    return !!(window.WebGL2RenderingContext && canvas.getContext("webgl2"));
+  } catch (_e) {
+    return false;
+  }
+}
+
+const canUseWebgl = isWebgl2Available();
+const defaultRenderMode: RenderMode = "svg";
+const initialRenderMode: RenderMode =
+  storedRenderMode === "svg"
+    ? "svg"
+    : storedRenderMode === "webglHybrid" && canUseWebgl
+      ? "webglHybrid"
+      : defaultRenderMode;
+
 /** Core SVG structure and viewport infrastructure. */
 export interface RootLayers {
   svg: Selection<SVGSVGElement, unknown, null, undefined>;
@@ -162,7 +181,7 @@ export const viewContext = {
   svgWidth: 0,
   svgHeight: 0,
   renderMap: true,
-  renderMode: storedRenderMode === "webglHybrid" ? "webglHybrid" : "svg",
+  renderMode: initialRenderMode,
   webglCanvas: null,
   webglDeck: null,
   lineGen: (() => "") as unknown as Line<[number, number]>

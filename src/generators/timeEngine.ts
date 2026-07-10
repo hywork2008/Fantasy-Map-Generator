@@ -2,13 +2,22 @@ import { appServices } from "../context/appServices";
 import { simulationContext } from "../context/simulationContext";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { BordersRenderer, BurgIconsRenderer, BurgLabelsRenderer, StateLabelsRenderer } from "../renderers";
+import {
+  BordersRenderer,
+  BurgIconsRenderer,
+  BurgLabelsRenderer,
+  MilitaryRenderer,
+  StateLabelsRenderer
+} from "../renderers";
 import { useDebugSnapshotState } from "../store/debugSnapshotState";
 import { useOptionsState } from "../store/optionsState";
 import { useTimeSimulationState } from "../store/timeSimulationState";
 import { captureSnapshotData } from "../utils/aiDebugExporter";
+import { layerIsOn } from "../utils/nodeUtils";
 import { getDaysInMonth, getSeason, isLeapYear } from "../utils/seasonUtils";
 import { simulateDemographics } from "./demography-simulator";
+import { Military } from "./military-generator";
+import { advanceAllRegimentMovement } from "./regimentMovement";
 
 export type TimeTickHook = (deltaYears: number, deltaMonths: number, deltaDays: number) => void;
 
@@ -164,6 +173,17 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
   }
 
   for (const hook of _tickHooks) hook(deltaYears, deltaMonths, deltaDays);
+
+  // Fallback: if Nobility extension is disabled, run the core military movement here.
+  // (If Nobility is enabled, it handles this internally with additional siege/capture logic).
+  const isNobilityEnabled = window.fmg?.extensionAPI?.isExtensionEnabled("nobility");
+  if (!isNobilityEnabled) {
+    Military.updateDynamic(worldContext, effectiveDeltaYears);
+    const regimentsMoved = advanceAllRegimentMovement(worldContext.pack, worldContext, effectiveDeltaYears);
+    if (regimentsMoved && layerIsOn("toggleMilitary")) {
+      MilitaryRenderer.render(worldContext, viewContext, appServices);
+    }
+  }
 
   document.dispatchEvent(
     new CustomEvent("fmg:time-advanced", {

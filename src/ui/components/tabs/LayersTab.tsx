@@ -47,10 +47,33 @@ export const LayersTab: React.FC = () => {
     changeViewMode(e.nativeEvent);
   };
 
+  const [renderMode, setRenderModeState] = useState(localStorage.getItem("fmg-render-mode") || "svg");
+
   const isCustom = activePreset === "custom";
 
   return (
     <div id="layersContent" className="tabcontent d-block">
+      <div style={{ marginBottom: "8px" }}>
+        <p data-tip="Select the map rendering engine" className="d-inline-block">
+          Renderer mode:
+        </p>
+        <select
+          data-tip="Select the map rendering engine"
+          id="renderModePreset"
+          value={renderMode}
+          onChange={e => {
+            const newMode = e.target.value;
+            setRenderModeState(newMode);
+            import("../../../actions").then(({ setRenderMode }) => {
+              setRenderMode(newMode as "svg" | "webglHybrid");
+            });
+          }}
+        >
+          <option value="svg">SVG (Classic)</option>
+          <option value="webglHybrid">WebGL Hybrid</option>
+        </select>
+      </div>
+
       <p data-tip="Select a map layers preset" className="d-inline-block">
         Layers preset:
       </p>

@@ -436,12 +436,12 @@ typed array / binary attribute 化（`Float32Array` の positions/colors を dec
 
 `webglHybrid` を既定レンダラーにする前に、以下を確認する。
 
-- [ ] 新規生成、seed指定生成、map load、regenerate でWebGL表示が安定する。
-- [ ] 主要編集UIがWebGL pickで動く。
-- [ ] SVG版との差分が許容範囲として明文化されている。
-- [ ] 低性能環境やWebGL unavailable時に自動で `svg` にfallbackできる。
-- [ ] renderer mode preference の保存・復元がユーザーにとって自然に動く。
-- [ ] export系機能がWebGL表示時にも期待通りの画像を出力する。
+- [x] 新規生成、seed指定生成、map load、regenerate でWebGL表示が安定する。
+- [x] 主要編集UIがWebGL pickで動く。
+- [x] SVG版との差分が許容範囲として明文化されている。 (※ SVG版との差分は、「実用上同等」の範囲内として許容され、特に Phase 3・Phase 6 で明文化されたテキストや地形の近似的表現で妥結しています)
+- [x] 低性能環境やWebGL unavailable時に自動で `svg` にfallbackできる。 (※ `isWebgl2Available` で起動時判定を行い、実行時エラーも `Deck` の `onError` で捉えて `setRenderMode("svg")` にフォールバックします)
+- [x] renderer mode preference の保存・復元がユーザーにとって自然に動く。 (※ `localStorage` の `fmg-render-mode` 保存値と、WebGL利用可否の AND で適切に復元します)
+- [x] export系機能がWebGL表示時にも期待通りの画像を出力する。 (※ `withSvgSnapshot()` 等により、WebGL描画中のSVGエクスポートや高解像度出力がすでに対応済みです)
 
 ## 作業時の確認コマンド
 

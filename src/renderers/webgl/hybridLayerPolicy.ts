@@ -48,12 +48,12 @@ export const HYBRID_SVG_OVERLAY_LAYER_IDS = [
 const WEBGL_MANAGED_CLASS = "fmg-webgl-managed-svg-layer";
 const HYBRID_SVG_OVERLAY_CLASS = "fmg-webgl-svg-overlay-layer";
 
-export function applyHybridLayerPolicy(root: ParentNode = document): void {
+export function applyHybridLayerPolicy(enabled = true, root: ParentNode = document): void {
   for (const id of WEBGL_MANAGED_SVG_LAYER_IDS) {
-    root.querySelector(`#${id}`)?.classList.add(WEBGL_MANAGED_CLASS);
+    root.querySelector(`#${id}`)?.classList.toggle(WEBGL_MANAGED_CLASS, enabled);
   }
 
   for (const id of HYBRID_SVG_OVERLAY_LAYER_IDS) {
-    root.querySelector(`#${id}`)?.classList.add(HYBRID_SVG_OVERLAY_CLASS);
+    root.querySelector(`#${id}`)?.classList.toggle(HYBRID_SVG_OVERLAY_CLASS, enabled);
   }
 }
