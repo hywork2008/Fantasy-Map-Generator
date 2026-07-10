@@ -135,7 +135,15 @@ export function getLabelStyle(
   visibleBurgGroups: ReadonlySet<string>;
 } {
   const stateGroup = viewContext.labels?.select<SVGGElement>("#states");
-  const state = readLabelStyle(stateGroup, null, { fill: "#3e3e4b", opacity: 1, size: 22, dx: 0, dy: 0 });
+  const state = readLabelStyle(stateGroup, null, {
+    fill: "#3e3e4b",
+    opacity: 1,
+    size: 22,
+    dx: 0,
+    dy: 0,
+    fontFamily: "Almendra SC",
+    haloColor: "white"
+  });
   const burgLabels: Record<string, DeckLabelStyle> = {};
   const visibleBurgGroups = new Set<string>();
 
@@ -149,12 +157,22 @@ export function getLabelStyle(
         opacity: 1,
         size: getDefaultBurgLabelSize(group.name),
         dx: 0,
-        dy: group.name === "capital" ? -0.5 : -0.4
+        dy: group.name === "capital" ? -0.5 : -0.4,
+        fontFamily: "Almendra SC",
+        haloColor: "white"
       }
     );
   }
 
-  burgLabels.town ??= { fill: "#3e3e4b", opacity: 1, size: 4, dx: 0, dy: -0.4 };
+  burgLabels.town ??= {
+    fill: "#3e3e4b",
+    opacity: 1,
+    size: 4,
+    dx: 0,
+    dy: -0.4,
+    fontFamily: "Almendra SC",
+    haloColor: "white"
+  };
   if (!visibleBurgGroups.size) visibleBurgGroups.add("town");
   return { state, burgLabels, visibleBurgGroups };
 }
@@ -191,7 +209,24 @@ function readLabelStyle(
     fallback.size;
   const dx = parseOptionalNumber(getStyleString(selection, stored, "data-dx")) ?? fallback.dx;
   const dy = parseOptionalNumber(getStyleString(selection, stored, "data-dy")) ?? fallback.dy;
-  return { fill, opacity, size, dx, dy };
+  const fontFamily = getStyleString(selection, stored, "font-family") ?? fallback.fontFamily;
+  const haloColor = getHaloColor(selection, stored) ?? fallback.haloColor;
+  return { fill, opacity, size, dx, dy, fontFamily, haloColor };
+}
+
+// Label groups set their halo via a CSS text-shadow (e.g. "text-shadow: white 0px 0px 4px" as the
+// group's `style` attribute) rather than an SVG stroke, so there's no single presentation
+// attribute to read directly — the color is the first token of the text-shadow value across every
+// built-in style preset (public/styles/*.json), even though offsets/blur vary.
+function getHaloColor(
+  selection: LayerStyleSelection | undefined,
+  stored: Record<string, unknown> | null
+): string | null {
+  const styleAttr = getStyleString(selection, stored, "style");
+  const shadowMatch = styleAttr?.match(/text-shadow\s*:\s*([^;]+)/);
+  if (!shadowMatch) return null;
+  const colorMatch = shadowMatch[1].trim().match(/^([a-zA-Z]+|#[0-9a-fA-F]{3,8})/);
+  return colorMatch ? colorMatch[1] : null;
 }
 
 function readBurgIconGroupStyle(

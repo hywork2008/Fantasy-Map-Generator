@@ -343,6 +343,46 @@ export async function getWebglMarkerIconState(page: Page, markerId: number): Pro
   }, markerId);
 }
 
+export interface WebglLabelLayerSettings {
+  exists: boolean;
+  fontFamily: string | null;
+  sdf: boolean | null;
+  outlineWidth: number | null;
+  outlineColor: number[] | null;
+  total: number;
+  stateCount: number;
+  nonZeroAngleStateCount: number;
+  angles: Record<string, number>;
+}
+
+/** Reads the fmg-webgl-labels TextLayer's static props and per-datum angles (Phase 6.3). */
+export async function getWebglLabelLayerSettings(page: Page): Promise<WebglLabelLayerSettings> {
+  return page.evaluate(() => {
+    const deck = window.fmg.view.webglDeck as unknown as {
+      props?: { layers?: Array<{ id?: string; props?: Record<string, unknown> }> };
+    } | null;
+    const layers = deck?.props?.layers ?? [];
+    const layer = layers.find(candidate => candidate.id === "fmg-webgl-labels");
+    const props = layer?.props ?? {};
+    const data = Array.isArray(props.data)
+      ? (props.data as Array<{ id?: string; type?: string; angle?: number }>)
+      : [];
+    const stateLabels = data.filter(datum => datum.type === "state");
+    const fontSettings = props.fontSettings as { sdf?: boolean } | undefined;
+    return {
+      exists: Boolean(layer),
+      fontFamily: typeof props.fontFamily === "string" ? props.fontFamily : null,
+      sdf: typeof fontSettings?.sdf === "boolean" ? fontSettings.sdf : null,
+      outlineWidth: typeof props.outlineWidth === "number" ? props.outlineWidth : null,
+      outlineColor: Array.isArray(props.outlineColor) ? (props.outlineColor as number[]) : null,
+      total: data.length,
+      stateCount: stateLabels.length,
+      nonZeroAngleStateCount: stateLabels.filter(datum => Number.isFinite(datum.angle) && datum.angle !== 0).length,
+      angles: Object.fromEntries(stateLabels.map(datum => [datum.id ?? "", datum.angle ?? 0]))
+    };
+  });
+}
+
 export interface WebglStyleComparison {
   source: string;
   group: string;

@@ -105,6 +105,11 @@ export function initLayers(wc: WorldContext, _vc: Readonly<ViewContext>, as: App
   // An external marker image failed to load — rebuild so buildMarkerSymbols() picks up the
   // known-failed fallback (externalIconFailureCache.ts) instead of retrying it every frame.
   document.addEventListener("fmg:webgl-external-icon-failed", () => scheduleWebglUpdate());
+  // deck.gl's TextLayer builds its own canvas-based glyph atlas via ctx.font; if a custom web font
+  // (fonts.ts) hadn't finished loading yet when a label layer first rendered, the canvas silently
+  // fell back to a default font. Rebuilding whenever any font finishes loading (fired repeatedly,
+  // unlike the one-shot `document.fonts.ready` promise) picks up the correct glyphs shortly after.
+  document.fonts.addEventListener("loadingdone", () => scheduleWebglUpdate());
 }
 
 // ─── Preset management ───────────────────────────────────────────────────────

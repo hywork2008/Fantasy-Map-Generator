@@ -152,7 +152,47 @@ describe("webgl style extractors", () => {
     expect([...burgIconStyle.visibleGroups]).toEqual(["town", "city"]);
     expect(burgIconStyle.burgIcons.city).toEqual({ fill: "#123456", opacity: 0.5, size: 8, icon: "#icon-circle" });
     expect(burgIconStyle.anchors.city).toEqual({ fill: "#abcdef", opacity: 0.75, size: 2, icon: "#icon-anchor" });
-    expect(labelStyle.state).toMatchObject({ fill: "#111111", size: 30 });
+    expect(labelStyle.state).toMatchObject({
+      fill: "#111111",
+      size: 30,
+      fontFamily: "Almendra SC",
+      haloColor: "white"
+    });
     expect(labelStyle.burgLabels.town).toMatchObject({ fill: "#654321", opacity: 0.6, size: 5, dy: -0.8 });
+  });
+
+  it("reads font-family and the halo color out of a text-shadow style string", () => {
+    const worldContext = createWorldContext();
+    const viewContext = {
+      labels: new MockSelection(
+        {},
+        {},
+        {
+          "#states": new MockSelection({
+            "font-family": "Orbitron",
+            style: "text-shadow: black 0px 0px 0.1px"
+          })
+        }
+      ),
+      burgLabels: new MockSelection(),
+      burgIcons: new MockSelection(),
+      anchors: new MockSelection()
+    } as unknown as ViewContext;
+
+    const labelStyle = getLabelStyle(worldContext, viewContext);
+    expect(labelStyle.state).toMatchObject({ fontFamily: "Orbitron", haloColor: "black" });
+  });
+
+  it("falls back to the default font/halo when neither a selection nor stored style is available", () => {
+    const worldContext = createWorldContext();
+    const viewContext = {
+      labels: new MockSelection(),
+      burgLabels: new MockSelection(),
+      burgIcons: new MockSelection(),
+      anchors: new MockSelection()
+    } as unknown as ViewContext;
+
+    const labelStyle = getLabelStyle(worldContext, viewContext);
+    expect(labelStyle.state).toMatchObject({ fontFamily: "Almendra SC", haloColor: "white" });
   });
 });

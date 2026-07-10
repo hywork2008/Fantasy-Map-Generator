@@ -636,11 +636,24 @@ export function buildDeckLayers(
         getText: datum => datum.text,
         getSize: datum => datum.size,
         getColor: datum => datum.color,
+        getAngle: datum => datum.angle,
         getTextAnchor: "middle",
         getAlignmentBaseline: "center",
         sizeUnits: "common",
         billboard: false,
-        pickable: true
+        pickable: true,
+        // fontFamily/outlineColor are layer-wide (deck.gl's TextLayer has no per-datum equivalent
+        // for either), so the state label's style stands in for burg labels too — every built-in
+        // style preset already keeps these consistent across all label groups.
+        fontFamily: labelStyle.state.fontFamily,
+        fontSettings: { sdf: true },
+        outlineWidth: 1,
+        outlineColor: colorToRgba(labelStyle.state.haloColor, "#ffffff"),
+        // TextLayer's font atlas defaults to ASCII 32-127 only, which silently drops CJK (and any
+        // other non-ASCII) glyphs instead of falling back — "auto" makes it scan the actual label
+        // text and include whatever characters are really used, matching the SVG renderer (a plain
+        // <text> element has no such restriction).
+        characterSet: "auto"
       })
     );
   }
@@ -786,7 +799,10 @@ function buildLayerSignatures(
   setIfActive(
     "labels",
     "toggleLabels",
-    () => `${scope}|${labelsSignature(pack.states, pack.burgs)}|${labelStyleSignature(styles.labelStyle)}`
+    // states() (cell membership + color) is included because state label rotation is approximated
+    // from each state's cell geometry (computeStateOrientationAngles in deckDataAdapters.ts) — a
+    // border edit that doesn't move `state.pole`/`center` would otherwise leave a stale angle.
+    () => `${scope}|${labelsSignature(pack.states, pack.burgs)}|${states()}|${labelStyleSignature(styles.labelStyle)}`
   );
   setIfActive("cells", "toggleCells", () => geometry());
   setIfActive("grid", "toggleGrid", () => `${geometry()}|${nestedNumberListSignature(pack.cells?.c)}`);
@@ -1221,6 +1237,8 @@ function hashLabelStyle(hash: number, key: string, style: DeckLabelStyle): numbe
   next = hashNumber(next, style.size);
   next = hashNumber(next, style.dx);
   next = hashNumber(next, style.dy);
+  next = hashString(next, style.fontFamily);
+  next = hashString(next, style.haloColor);
   return next;
 }
 

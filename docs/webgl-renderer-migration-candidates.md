@@ -367,13 +367,33 @@ typed array / binary attribute 化（`Float32Array` の positions/colors を dec
 
 現状 `buildDeckLayers.ts` の label `TextLayer` (`fmg-webgl-labels`) は `getPosition` / `getText` / `getSize` / `getColor` / `getTextAnchor` のみで、`fontFamily` / `getAngle` / halo (`outlineWidth`/`outlineColor`) はいずれも未設定。state label の湾曲 `textPath` 配置 (`draw-state-labels.ts` のレイキャスト + 自動フィット) は `TextLayer` の直線ベースラインでは再現できない。
 
-- [ ] 受け入れ基準を先に決める: state label の湾曲配置は再現不可能と判断し、直線 + 回転角（state polygon の主軸角度などから近似）で代替する。この差分は恒久的なものとして Phase 3 の SVG attribute audit 表に反映する。
-- [ ] burg label / state label の `TextLayer` に `fontFamily` / `fontSettings` を明示し、既存 CSS フォントスタックと CJK グリフの表示を確認する。
-- [ ] `outlineWidth` / `outlineColor` (halo) を設定し、SVG版の可読性を WebGL でも再現する。
-- [ ] state label に `getAngle`（近似角度）を追加し、「湾曲なし・回転あり」で実用上許容できるか判断する。
-- [ ] multi-line 分割 (`getLinesAndRatio` 相当) を WebGL 側にも実装するか、1行表示に単純化するかを決める。
-- [ ] ラベル同士の衝突回避は本 phase のスコープ外とし、Phase 9 以降の課題として明記する（deck.gl にビルトインの collision-avoidance layer が無いため）。
-- [ ] E2E で代表 style における label の font / color / size / halo / rotation が SVG版と「近似的に」一致することを検証する（湾曲なしの許容差分を明文化した上で）。
+- [x] 受け入れ基準を先に決める: state label の湾曲配置は再現不可能と判断し、直線 + 回転角（state polygon の主軸角度などから近似）で代替する。この差分は恒久的なものとして Phase 3 の SVG attribute audit 表に反映する。→ 反映済み(下記の追記を参照)。
+- [x] burg label / state label の `TextLayer` に `fontFamily` / `fontSettings` を明示し、既存 CSS フォントスタックと CJK グリフの表示を確認する。
+- [x] `outlineWidth` / `outlineColor` (halo) を設定し、SVG版の可読性を WebGL でも再現する。
+- [x] state label に `getAngle`（近似角度）を追加し、「湾曲なし・回転あり」で実用上許容できるか判断する。→ 州の cell 分布から主軸角度を計算する方式を採用し、実用上許容できると判断した(詳細は開始ログ)。
+- [x] multi-line 分割 (`getLinesAndRatio` 相当) を WebGL 側にも実装するか、1行表示に単純化するかを決める。→ 1行表示に単純化する判断とした。理由は開始ログ参照。
+- [x] ラベル同士の衝突回避は本 phase のスコープ外とし、Phase 9 以降の課題として明記する（deck.gl にビルトインの collision-avoidance layer が無いため）。
+- [x] E2E で代表 style における label の font / color / size / halo / rotation が SVG版と「近似的に」一致することを検証する（湾曲なしの許容差分を明文化した上で）。
+
+### Phase 6.3 開始ログ
+
+- `DeckLabelStyle` に `fontFamily: string` と `haloColor: string` を追加した。`fontFamily` は `font-family` 属性からそのまま読む。`haloColor` は SVG版が halo を SVG stroke ではなく CSS `text-shadow`(例: `"text-shadow: white 0px 0px 4px"`、group の `style` 属性経由)で実装しているため、`webglStyleExtractors.ts` の `getHaloColor()` がこの文字列の先頭トークン(色)を正規表現で取り出す。built-in style preset 全件(`public/styles/*.json`)を確認し、offset/blur の値は preset ごとに異なるが色が常に先頭トークンであることを確認済み。
+- `fontFamily`/`outlineWidth`/`outlineColor`/`fontSettings` は `TextLayer` の**レイヤー全体設定**(deck.gl は per-datum accessor をサポートしない)。state と burg のラベルスタイルは通常同一 preset 内で一致するため、`labelStyle.state` の値を代表値として layer 全体に適用する(burg 側だけ別フォントの preset があった場合はその差分が失われるが、許容する近似とする)。
+- halo は `fontSettings: { sdf: true }` を設定しないと `outlineWidth`/`outlineColor` が効かない(deck.gl の仕様)。`outlineWidth: 1` で SVG 版の `text-shadow` に近い可読性のグロー効果を得た。
+- **CJK が全く描画されない不具合を発見**: `fontFamily` を正しく設定しても、CJK文字(や他の非ASCII文字)が完全に無描画になっていた。原因は deck.gl `TextLayer` のデフォルト `characterSet`(`getDefaultCharacterSet()`)が ASCII 32-127 のみを対象にフォントアトラスを事前生成する仕様のため — ブラウザの通常のフォールバック(SVG `<text>` や通常の DOM テキストが行う「フォントに無いグリフだけシステムフォントに委譲する」動作)とは異なり、**アトラスに無い文字は不可視のまま**になる。`characterSet: "auto"` を設定することで、実際に使われているテキストをスキャンして必要な文字を動的にアトラスへ含めるようにした。ブラウザで実際に CJK burg/state 名を注入して確認し、修正前は完全に不可視、修正後は正しく描画されることを確認した。
+- state label の回転角は `computeStateOrientationAngles()`(`deckDataAdapters.ts`)で、州に属する全 cell の座標から 2x2 共分散行列の主軸角度を閉形式(`0.5 * atan2(2*covXY, varX-varY)`)で計算する。全 cell を1回走査して州ごとの moment を集計し、その後州の数だけ角度を解決する O(cells + states) の実装(州ごとに O(cells) を繰り返す O(cells*states) は避けた)。ブラウザで実際の生成マップに適用し、州の形状に沿って自然に傾いたラベルになることを確認した(スクリーンショットで、細長い州のラベルが斜めに、幅広い州のラベルがほぼ水平になることを確認)。
+- 上記の角度計算は `pack.cells.state` に依存するため、`buildLayerSignatures()` の `labels` signature に既存の `states()` memo(cell membership + color のシグネチャ)を追加した。理由: state の境界だけが変わり `state.pole`/`center` が変わらないケースでも、角度の再計算が必要なため。
+- multi-line 分割(`getLinesAndRatio` 相当)は実装しないと判断した。理由: SVG版は state polygon 内に収まるよう幅に応じて改行・縮小するが、deck.gl 側で同等の「polygon内に収まるかどうか」判定を行うには、回転角計算と同様に state の形状データが追加で必要になり、かつ改行位置の言語依存(CJKは文字単位、Latinは単語単位)の分岐も要る。「近似で良い、再現性を高める施策はそれほど気にしなくて良い」という方針のもと、1行表示のまま(長い州名は横に伸びる)を許容する。
+- ラベル同士の衝突回避は本 phase では未着手。deck.gl にはビルトインの collision-avoidance layer が無く、実装するには独自の overlap 判定+配置調整ロジックが必要なため、Phase 9 以降の課題として送る。
+- E2E (`webgl-hybrid.spec.ts` の `sets label font/halo from style and approximates state label rotation`) は、`fmg-webgl-labels` レイヤーの `fontFamily`/`fontSettings.sdf`/`outlineWidth`/`outlineColor` が style preset(`default`→"Almendra SC"/白、`night`→"Courier New"/黒)を反映すること、および少なくとも1州の `angle` が非ゼロであることを検証する。
+- 手動確認: ブラウザで実際の生成マップを表示し、(1) 州ラベルが州の形状に沿って傾いていること、(2) halo(白フチ)により背景色に関わらず可読であること、(3) burg/state 名を CJK 文字列に差し替えても正しくグリフが描画されること、をスクリーンショットで確認した。
+
+### Phase 3 SVG attribute audit 表への追記
+
+`draw-state-labels.ts` / `draw-burg-labels.ts` の行の「Remaining gap」は以下の通り更新する(Phase 6.3 実施により一部解消、残りは恒久的な近似として確定):
+
+- 解消: `fontFamily` 属性の反映、halo(`outlineWidth`/`outlineColor` による近似)、CJK グリフ表示(`characterSet: "auto"`)。
+- 恒久的な近似として確定(Phase 6 完了定義上「実用上同等」の範囲内とする): state label の湾曲 `textPath` 配置は主軸角度による直線回転で代替(完全な曲線追従はしない)。長い state 名の multi-line 折り返し・自動縮小は行わず1行表示。ラベル同士の衝突回避は未実装(Phase 9 課題)。
 
 ## Phase 7: 保存・読み込み・拡張との整合
 

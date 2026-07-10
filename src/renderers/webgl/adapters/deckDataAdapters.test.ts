@@ -472,8 +472,10 @@ describe("deck.gl data adapters", () => {
     worldContext.pack.burgs = [{ i: 1, cell: 0, x: 6, y: 6, name: "Northburg", group: "town" }];
 
     const labels = buildLabelSymbols(worldContext, null, {
-      state: { fill: "#111111", opacity: 1, size: 20, dx: 0, dy: 0 },
-      burgLabels: { town: { fill: "#222222", opacity: 0.9, size: 4, dx: 1, dy: -0.5 } },
+      state: { fill: "#111111", opacity: 1, size: 20, dx: 0, dy: 0, fontFamily: "Almendra SC", haloColor: "white" },
+      burgLabels: {
+        town: { fill: "#222222", opacity: 0.9, size: 4, dx: 1, dy: -0.5, fontFamily: "Almendra SC", haloColor: "white" }
+      },
       visibleBurgGroups: new Set(["town"])
     });
 
@@ -481,6 +483,50 @@ describe("deck.gl data adapters", () => {
     expect(labels[0]).toMatchObject({ kind: "label", type: "state", itemId: 1, text: "North" });
     expect(labels[1]).toMatchObject({ kind: "label", type: "burg", itemId: 1, text: "Northburg" });
     expect(labels[1].position).toEqual([10, 4]);
+    expect(labels[1].angle).toBe(0);
+  });
+
+  it("approximates a state label's rotation from its cells' principal axis", () => {
+    const labelStyleOptions = {
+      state: { fill: "#111111", opacity: 1, size: 20, dx: 0, dy: 0, fontFamily: "Almendra SC", haloColor: "white" },
+      burgLabels: {},
+      visibleBurgGroups: new Set<string>()
+    };
+
+    function angleForCellPoints(points: [number, number][]): number {
+      const worldContext = createWorldContext();
+      worldContext.pack.cells.state = new Uint8Array(points.map(() => 1));
+      worldContext.pack.cells.p = points;
+      worldContext.pack.states = [
+        { i: 0, name: "Neutral", expansionism: 0, capital: 0, type: "", center: 0, culture: 0, coa: null },
+        { i: 1, name: "North", expansionism: 0, capital: 0, type: "", center: 0, culture: 0, coa: null, pole: [1, 1] }
+      ];
+      const [label] = buildLabelSymbols(worldContext, null, labelStyleOptions);
+      return label.angle;
+    }
+
+    // A diagonal spread of cells has its principal axis at ~45°.
+    expect(
+      angleForCellPoints([
+        [0, 0],
+        [1, 1],
+        [2, 2],
+        [3, 3]
+      ])
+    ).toBeCloseTo(45, 5);
+
+    // A horizontal spread has its principal axis at 0°.
+    expect(
+      angleForCellPoints([
+        [0, 0],
+        [1, 0],
+        [2, 0],
+        [3, 0]
+      ])
+    ).toBeCloseTo(0, 5);
+
+    // Fewer than 2 cells can't define an axis — falls back to unrotated.
+    expect(angleForCellPoints([[0, 0]])).toBe(0);
   });
 
   it("uses active layer state to build deck.gl layer ids in draw order", () => {

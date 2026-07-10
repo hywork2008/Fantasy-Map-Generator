@@ -161,6 +161,10 @@ export interface DeckLabelStyle {
   size: number;
   dx: number;
   dy: number;
+  /** CSS font-family, e.g. "Almendra SC". Only `state`'s value is used as the (layer-wide) TextLayer fontFamily. */
+  fontFamily: string;
+  /** Halo/text-shadow color, e.g. "white". Only `state`'s value is used as the (layer-wide) TextLayer outlineColor. */
+  haloColor: string;
 }
 
 export interface DeckLabelSymbol {
@@ -174,6 +178,9 @@ export interface DeckLabelSymbol {
   position: [number, number];
   size: number;
   color: Color;
+  /** Rotation in degrees. Always 0 for burg labels; approximated from state geometry for state labels
+   * (deck.gl's TextLayer cannot follow a curved path like draw-state-labels.ts's SVG textPath). */
+  angle: number;
 }
 
 export interface DeckEmblemIcon {
@@ -902,6 +909,7 @@ export function buildLabelSymbols(
   }
 ): DeckLabelSymbol[] {
   const labels: DeckLabelSymbol[] = [];
+  const stateAngles = computeStateOrientationAngles(worldContext);
   for (const state of worldContext.pack.states) {
     if (!state.i || state.removed || state.lock || !state.pole) continue;
     if (focusScope && state.i !== focusScope.stateId) continue;
@@ -915,7 +923,8 @@ export function buildLabelSymbols(
       text: getStateLabelText(worldContext, state),
       position: state.pole,
       size: styles.state.size,
-      color: colorToRgba(styles.state.fill, "#3e3e4b", styles.state.opacity)
+      color: colorToRgba(styles.state.fill, "#3e3e4b", styles.state.opacity),
+      angle: stateAngles.get(state.i) ?? 0
     });
   }
 
@@ -934,11 +943,65 @@ export function buildLabelSymbols(
       text: burg.name ?? `Burg ${burg.i}`,
       position: [burg.x + style.dx * style.size, burg.y + style.dy * style.size],
       size: style.size,
-      color: colorToRgba(style.fill, "#3e3e4b", style.opacity)
+      color: colorToRgba(style.fill, "#3e3e4b", style.opacity),
+      angle: 0
     });
   }
 
   return labels;
+}
+
+// Approximates draw-state-labels.ts's curved textPath raycast layout, which deck.gl's TextLayer
+// architecturally cannot follow (it only lays out straight lines). Instead each state's cells are
+// used to compute a principal-axis angle (2x2 covariance eigenvector, closed form for symmetric
+// 2x2 matrices) so the flat label at least follows the state's general orientation. One pass over
+// all cells accumulates the moments for every state at once, then one pass over (few) states
+// resolves each angle — O(cells + states) rather than O(cells * states).
+function computeStateOrientationAngles(worldContext: Readonly<WorldContext>): Map<number, number> {
+  const { cells } = worldContext.pack;
+  const stateIds = cells.state;
+  const points = cells.p;
+  if (!stateIds || !points) return new Map();
+
+  interface Moments {
+    count: number;
+    sumX: number;
+    sumY: number;
+    sumXX: number;
+    sumYY: number;
+    sumXY: number;
+  }
+  const moments = new Map<number, Moments>();
+  for (let cellId = 0; cellId < stateIds.length; cellId++) {
+    const stateId = stateIds[cellId];
+    if (!stateId) continue;
+    const p = points[cellId];
+    if (!p) continue;
+    let m = moments.get(stateId);
+    if (!m) {
+      m = { count: 0, sumX: 0, sumY: 0, sumXX: 0, sumYY: 0, sumXY: 0 };
+      moments.set(stateId, m);
+    }
+    m.count++;
+    m.sumX += p[0];
+    m.sumY += p[1];
+    m.sumXX += p[0] * p[0];
+    m.sumYY += p[1] * p[1];
+    m.sumXY += p[0] * p[1];
+  }
+
+  const angles = new Map<number, number>();
+  for (const [stateId, m] of moments) {
+    if (m.count < 2) continue;
+    const meanX = m.sumX / m.count;
+    const meanY = m.sumY / m.count;
+    const varX = m.sumXX / m.count - meanX * meanX;
+    const varY = m.sumYY / m.count - meanY * meanY;
+    const covXY = m.sumXY / m.count - meanX * meanY;
+    const angleRad = 0.5 * Math.atan2(2 * covXY, varX - varY);
+    angles.set(stateId, (angleRad * 180) / Math.PI);
+  }
+  return angles;
 }
 
 function getStateLabelText(worldContext: Readonly<WorldContext>, state: State): string {
@@ -1145,7 +1208,15 @@ function getBurgEmblemsSize(graphWidth: number, graphHeight: number, burgs: Burg
 
 const DEFAULT_BURG_ICON_STYLE: DeckBurgIconStyle = { fill: "#3e3e4b", opacity: 1, size: 4, icon: "#icon-circle" };
 const DEFAULT_ANCHOR_ICON_STYLE: DeckBurgIconStyle = { fill: "#ffffff", opacity: 1, size: 1, icon: "#icon-anchor" };
-const DEFAULT_BURG_LABEL_STYLE: DeckLabelStyle = { fill: "#3e3e4b", opacity: 1, size: 4, dx: 0, dy: -0.4 };
+const DEFAULT_BURG_LABEL_STYLE: DeckLabelStyle = {
+  fill: "#3e3e4b",
+  opacity: 1,
+  size: 4,
+  dx: 0,
+  dy: -0.4,
+  fontFamily: "Almendra SC",
+  haloColor: "white"
+};
 
 function getBurgGroupName(worldContext: Readonly<WorldContext>, burg: Burg): string {
   const groups = worldContext.options.burgs?.groups as BurgGroup[] | undefined;

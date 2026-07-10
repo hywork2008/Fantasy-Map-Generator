@@ -17,6 +17,7 @@ import {
   getWebglDeckLayerIds,
   getWebglCanvasPixelStats,
   getWebglEmblemIconSummary,
+  getWebglLabelLayerSettings,
   getWebglLayerRenderingProps,
   getWebglMarkerIconState,
   getWebglLayerStyleSamples,
@@ -825,6 +826,32 @@ test.describe("webgl hybrid renderer", () => {
       .poll(async () => (await getWebglMarkerIconState(page, markerId))?.isExternalIcon, { timeout: 10000 })
       .toBe(false);
     expect((await getWebglMarkerIconState(page, markerId))?.icon).toBe("");
+  });
+
+  test("sets label font/halo from style and approximates state label rotation", async ({ page }) => {
+    await page.goto("/?seed=webgl-label-style&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await setLayerPreset(page, "political");
+    await waitForWebglCanvasPixels(page);
+
+    const defaultSettings = await getWebglLabelLayerSettings(page);
+    expect(defaultSettings.exists).toBe(true);
+    expect(defaultSettings.fontFamily).toBe("Almendra SC");
+    expect(defaultSettings.sdf).toBe(true);
+    expect(defaultSettings.outlineWidth).toBeGreaterThan(0);
+    expect(defaultSettings.outlineColor).toEqual([255, 255, 255, 255]);
+    // A curved textPath (SVG) can't be reproduced by TextLayer's straight baseline (Phase 6.3
+    // acceptance) — this checks the accepted approximation instead: at least one state's flat
+    // label is rotated to follow the state's general orientation rather than staying horizontal.
+    expect(defaultSettings.stateCount).toBeGreaterThan(0);
+    expect(defaultSettings.nonZeroAngleStateCount).toBeGreaterThan(0);
+
+    await applyStylePreset(page, "night");
+    await waitForWebglCanvasPixels(page);
+    const nightSettings = await getWebglLabelLayerSettings(page);
+    expect(nightSettings.fontFamily).toBe("Courier New");
+    expect(nightSettings.outlineColor).toEqual([0, 0, 0, 255]);
   });
 
   test("keeps WebGL style data populated across representative style presets", async ({ page }) => {
