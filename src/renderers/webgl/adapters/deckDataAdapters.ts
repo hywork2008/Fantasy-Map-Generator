@@ -23,7 +23,9 @@ import { clipPoly } from "../../../utils";
 import { getColor, getColorScheme } from "../../../utils/colorUtils";
 import { fractalizeCoastline } from "../../coastline-fractal";
 import { isCellInScope, isGridCellInScope } from "../../core/focusScope";
+import { getCachedBurgIconRaster } from "../burgIconRasterCache";
 import { getCachedEmblemIconUrl } from "../emblemIconCache";
+import { hasExternalIconFailed } from "../externalIconFailureCache";
 
 export type DeckPosition = [number, number];
 
@@ -74,6 +76,8 @@ export interface DeckBurgIconStyle {
   fill: string;
   opacity: number;
   size: number;
+  /** SVG `data-icon` href, e.g. "#icon-circle" or "#icon-watabou-capital". */
+  icon: string;
 }
 
 export interface DeckBurgIconSymbol {
@@ -86,6 +90,10 @@ export interface DeckBurgIconSymbol {
   position: [number, number];
   size: number;
   color: Color;
+  /** Rasterized data-icon symbol as a data URI, or null while it's still being generated. */
+  iconUrl: string | null;
+  /** True to tint iconUrl via `color` (monochrome glyph); false to show its own baked-in colors. */
+  mask: boolean;
 }
 
 export interface DeckMarkerStyle {
@@ -726,6 +734,7 @@ export function buildBurgIconSymbols(
     if (!styles.visibleGroups.has(group)) continue;
 
     const iconStyle = styles.burgIcons[group] ?? styles.burgIcons.town ?? DEFAULT_BURG_ICON_STYLE;
+    const iconRaster = getCachedBurgIconRaster(iconStyle.icon);
     icons.push({
       id: `burg-${burg.i}`,
       kind: "burgIcon",
@@ -735,11 +744,17 @@ export function buildBurgIconSymbols(
       group,
       position: [burg.x, burg.y],
       size: iconStyle.size,
-      color: colorToRgba(iconStyle.fill, "#3e3e4b", iconStyle.opacity)
+      color:
+        iconRaster && !iconRaster.mask
+          ? colorToRgba("#ffffff", "#ffffff", iconStyle.opacity)
+          : colorToRgba(iconStyle.fill, "#3e3e4b", iconStyle.opacity),
+      iconUrl: iconRaster?.url ?? null,
+      mask: iconRaster?.mask ?? true
     });
 
     if (!burg.port) continue;
     const anchorStyle = styles.anchors[group] ?? styles.anchors.town ?? DEFAULT_ANCHOR_ICON_STYLE;
+    const anchorRaster = getCachedBurgIconRaster(anchorStyle.icon);
     icons.push({
       id: `anchor-${burg.i}`,
       kind: "burgIcon",
@@ -749,7 +764,12 @@ export function buildBurgIconSymbols(
       group,
       position: [burg.x, burg.y],
       size: anchorStyle.size,
-      color: colorToRgba(anchorStyle.fill, "#ffffff", anchorStyle.opacity)
+      color:
+        anchorRaster && !anchorRaster.mask
+          ? colorToRgba("#ffffff", "#ffffff", anchorStyle.opacity)
+          : colorToRgba(anchorStyle.fill, "#ffffff", anchorStyle.opacity),
+      iconUrl: anchorRaster?.url ?? null,
+      mask: anchorRaster?.mask ?? true
     });
   }
 
@@ -771,7 +791,12 @@ export function buildMarkerSymbols(
       const x = marker.x ?? worldContext.pack.cells.p[marker.cell]?.[0] ?? 0;
       const y = marker.y ?? worldContext.pack.cells.p[marker.cell]?.[1] ?? 0;
       const size = getMarkerSize(marker.size ?? 30, style);
-      const icon = marker.icon || "";
+      const rawIcon = marker.icon || "";
+      const isExternal = isExternalMarkerIcon(rawIcon);
+      // A previously failed (404/CORS-blocked) external image is treated like "no icon" rather
+      // than left as a permanently broken image request — same fallback the marker already has
+      // when it has no icon at all.
+      const icon = isExternal && hasExternalIconFailed(rawIcon) ? "" : rawIcon;
       const dx = marker.dx ?? 50;
       const dy = marker.dy ?? 50;
       return {
@@ -1118,8 +1143,8 @@ function getBurgEmblemsSize(graphWidth: number, graphHeight: number, burgs: Burg
   return Math.round((startSize / burgsMod) * sizeMod);
 }
 
-const DEFAULT_BURG_ICON_STYLE: DeckBurgIconStyle = { fill: "#3e3e4b", opacity: 1, size: 4 };
-const DEFAULT_ANCHOR_ICON_STYLE: DeckBurgIconStyle = { fill: "#ffffff", opacity: 1, size: 1 };
+const DEFAULT_BURG_ICON_STYLE: DeckBurgIconStyle = { fill: "#3e3e4b", opacity: 1, size: 4, icon: "#icon-circle" };
+const DEFAULT_ANCHOR_ICON_STYLE: DeckBurgIconStyle = { fill: "#ffffff", opacity: 1, size: 1, icon: "#icon-anchor" };
 const DEFAULT_BURG_LABEL_STYLE: DeckLabelStyle = { fill: "#3e3e4b", opacity: 1, size: 4, dx: 0, dy: -0.4 };
 
 function getBurgGroupName(worldContext: Readonly<WorldContext>, burg: Burg): string {

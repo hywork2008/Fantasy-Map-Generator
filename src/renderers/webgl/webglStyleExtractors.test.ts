@@ -150,8 +150,8 @@ describe("webgl style extractors", () => {
     const labelStyle = getLabelStyle(worldContext, viewContext);
 
     expect([...burgIconStyle.visibleGroups]).toEqual(["town", "city"]);
-    expect(burgIconStyle.burgIcons.city).toEqual({ fill: "#123456", opacity: 0.5, size: 8 });
-    expect(burgIconStyle.anchors.city).toEqual({ fill: "#abcdef", opacity: 0.75, size: 2 });
+    expect(burgIconStyle.burgIcons.city).toEqual({ fill: "#123456", opacity: 0.5, size: 8, icon: "#icon-circle" });
+    expect(burgIconStyle.anchors.city).toEqual({ fill: "#abcdef", opacity: 0.75, size: 2, icon: "#icon-anchor" });
     expect(labelStyle.state).toMatchObject({ fill: "#111111", size: 30 });
     expect(labelStyle.burgLabels.town).toMatchObject({ fill: "#654321", opacity: 0.6, size: 5, dy: -0.8 });
   });

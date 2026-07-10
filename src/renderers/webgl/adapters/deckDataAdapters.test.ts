@@ -351,12 +351,12 @@ describe("deck.gl data adapters", () => {
 
     const icons = buildBurgIconSymbols(worldContext, null, {
       burgIcons: {
-        city: { fill: "#111111", opacity: 1, size: 5 },
-        town: { fill: "#222222", opacity: 0.8, size: 4 }
+        city: { fill: "#111111", opacity: 1, size: 5, icon: "#icon-circle" },
+        town: { fill: "#222222", opacity: 0.8, size: 4, icon: "#icon-circle" }
       },
       anchors: {
-        city: { fill: "#ffffff", opacity: 0.9, size: 1.5 },
-        town: { fill: "#ffffff", opacity: 0.9, size: 1 }
+        city: { fill: "#ffffff", opacity: 0.9, size: 1.5, icon: "#icon-anchor" },
+        town: { fill: "#ffffff", opacity: 0.9, size: 1, icon: "#icon-anchor" }
       },
       visibleGroups: new Set(["city", "town"])
     });

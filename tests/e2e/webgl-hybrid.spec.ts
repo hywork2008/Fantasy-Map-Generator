@@ -13,10 +13,12 @@ import {
   getFirstLandScreenPoint,
   getFirstStateScreenPoint,
   getToastText,
+  getWebglBurgIconSummary,
   getWebglDeckLayerIds,
   getWebglCanvasPixelStats,
   getWebglEmblemIconSummary,
   getWebglLayerRenderingProps,
+  getWebglMarkerIconState,
   getWebglLayerStyleSamples,
   getWebglStyleComparisons,
   getWebglLayerPolicyState,
@@ -754,6 +756,75 @@ test.describe("webgl hybrid renderer", () => {
 
     const summary = await getWebglEmblemIconSummary(page);
     expect(summary.burgWithIconUrl).toBe(0);
+  });
+
+  test("rasterizes distinct data-icon glyph shapes for burg groups using the atlas style preset", async ({
+    page
+  }) => {
+    await page.goto("/?seed=webgl-burg-icon-atlas&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setLayerPreset(page, "political");
+    await applyStylePreset(page, "atlas");
+    await waitForWebglCanvasPixels(page);
+
+    // atlas.json assigns distinct data-icon glyphs (circle/square/triangle/cross) per burg group,
+    // none of which have their own fill — rasterization is async (burgIconRasterCache.ts), so poll
+    // until more than one distinct icon shape has resolved.
+    await expect
+      .poll(async () => (await getWebglBurgIconSummary(page)).distinctIconUrls, { timeout: 10000 })
+      .toBeGreaterThan(1);
+
+    const summary = await getWebglBurgIconSummary(page);
+    expect(summary.unmaskedCount).toBe(0);
+    expect(summary.maskedCount).toBe(summary.withIconUrl);
+  });
+
+  test("rasterizes multi-color data-icon pictures for burg groups using the ancient style preset", async ({
+    page
+  }) => {
+    await page.goto("/?seed=webgl-burg-icon-ancient&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setLayerPreset(page, "political");
+    await applyStylePreset(page, "ancient");
+    await waitForWebglCanvasPixels(page);
+
+    // ancient.json assigns #icon-watabou-* pictures per burg group, all of which bake in their
+    // own fill colors — these must render unmasked (own colors), not tinted via getColor.
+    await expect
+      .poll(async () => (await getWebglBurgIconSummary(page)).unmaskedCount, { timeout: 10000 })
+      .toBeGreaterThan(0);
+  });
+
+  test("falls back to no icon after a marker's external image fails to load", async ({ page }) => {
+    await page.goto("/?seed=webgl-marker-icon-failure&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await ensureLayerOn(page, "toggleMarkers");
+    await waitForWebglCanvasPixels(page);
+
+    const markerId = await page.evaluate(() => {
+      type TestMarker = { i: number; type: string; icon: string; cell: number; x: number; y: number; size: number };
+      type TestPack = { markers: TestMarker[] };
+      const pack = window.fmg.world.pack as unknown as TestPack;
+      const id = pack.markers.reduce((max, item) => Math.max(max, item.i), 0) + 1;
+      const cx = window.fmg.world.graphWidth / 2;
+      const cy = window.fmg.world.graphHeight / 2;
+      const url = `${window.location.origin}/definitely-missing-marker-icon-404.png`;
+      pack.markers.push({ i: id, type: "marker-icon-failure-fixture", icon: url, cell: 0, x: cx, y: cy, size: 30 });
+      return id;
+    });
+    await page.evaluate(() => window.fmg.actions.setRenderMode("webglHybrid"));
+
+    await expect
+      .poll(async () => (await getWebglMarkerIconState(page, markerId))?.isExternalIcon, { timeout: 5000 })
+      .toBe(true);
+
+    // The failed load is detected via IconLayer's onIconError (externalIconFailureCache.ts), which
+    // triggers a rebuild that falls the marker back to no icon instead of leaving it broken.
+    await expect
+      .poll(async () => (await getWebglMarkerIconState(page, markerId))?.isExternalIcon, { timeout: 10000 })
+      .toBe(false);
+    expect((await getWebglMarkerIconState(page, markerId))?.icon).toBe("");
   });
 
   test("keeps WebGL style data populated across representative style presets", async ({ page }) => {

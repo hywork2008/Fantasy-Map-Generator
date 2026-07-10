@@ -10,6 +10,7 @@ import { shieldSize } from "../generators/emblem/size";
 import { templates } from "../generators/emblem/templates";
 import { ERROR } from "../utils/debug";
 import { layerIsOn } from "../utils/nodeUtils";
+import { rasterizeSvgToPngDataUrl } from "./svgRasterize";
 
 interface Division {
   division: string;
@@ -349,26 +350,6 @@ class EmblemRenderModule {
 }
 
 export const EMBLEM_ICON_RASTER_SIZE = 64;
-
-function rasterizeSvgToPngDataUrl(svg: string, size: number): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        reject(new Error("2d canvas context unavailable"));
-        return;
-      }
-      ctx.drawImage(image, 0, 0, size, size);
-      resolve(canvas.toDataURL("image/png"));
-    };
-    image.onerror = () => reject(new Error("Failed to rasterize coa svg"));
-    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-  });
-}
 
 export const COArenderer = new EmblemRenderModule();
 appServices.COArenderer = COArenderer;

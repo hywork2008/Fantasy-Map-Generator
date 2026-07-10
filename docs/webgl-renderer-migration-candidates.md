@@ -344,12 +344,24 @@ typed array / binary attribute 化（`Float32Array` の positions/colors を dec
 
 現状 `buildBurgIconSymbols()` (`deckDataAdapters.ts:709`) は `type: "burg" | "anchor"` のみを出力し、`buildDeckLayers.ts` がこの2種類の画像を固定 (`BURG_ICON_URLS`) でハードコードしている。SVG版 (`draw-burg-icons.ts`) は burg group の `data-icon` 属性で任意の `#icon-*` symbol を指定できるが、WebGL側はこれを無視している。military unit icon (`buildMilitaryRegimentSymbols()` / `getMilitaryEmblem()`) は SVG版とほぼ同じ emoji/外部画像判定ロジック (`isExternalMarkerIcon`) が既に移植済みで、この項目の対象外とする。
 
-- [ ] SVG版で `data-icon` が参照しうる `#icon-*` symbol の一覧を洗い出す。
-- [ ] 洗い出した symbol 群を一枚の icon atlas 画像として事前生成する処理を追加する（`IconLayer` の `iconAtlas` + `iconMapping`）。生成タイミングは起動時1回、または style 変更時のみの再生成とする。
-- [ ] `buildBurgIconSymbols()` が `data-icon` 由来の icon id を持つようにし、`buildDeckLayers.ts` の burg icon `IconLayer` をハードコード2種から `iconAtlas` 参照に切り替える。
-- [ ] military unit icon は現状の `TextLayer` + `IconLayer` ペアを維持し、atlas化は行わない。SVG版との差分が見つかった場合のみ追従修正する。
-- [ ] external marker image (`isExternalIcon`) の CORS / 読み込み失敗時フォールバックを定義する。画像読み込みの成否を URL 単位でキャッシュし、失敗した URL は次回以降プレースホルダー icon にフォールバックする。
-- [ ] E2E で、複数の `data-icon` を持つ burg が対応する icon（丸以外）で描画されること、読み込み失敗 marker がフォールバック表示になることを検証する。
+- [x] SVG版で `data-icon` が参照しうる `#icon-*` symbol の一覧を洗い出す。
+- [x] 洗い出した symbol 群を一枚の icon atlas 画像として事前生成する処理を追加する（`IconLayer` の `iconAtlas` + `iconMapping`）。→ 明示的な `iconAtlas`/`iconMapping` ではなく、6.1 の coa と同じ「`getIcon` が distinct `{id,url}` を返す auto-packing」方式を転用した（詳細は開始ログ）。生成タイミングは symbol ごとに初回参照時（起動時ではなく遅延）。
+- [x] `buildBurgIconSymbols()` が `data-icon` 由来の icon id を持つようにし、`buildDeckLayers.ts` の burg icon `IconLayer` をハードコード2種から `iconAtlas` 参照に切り替える。
+- [x] military unit icon は現状の `TextLayer` + `IconLayer` ペアを維持し、atlas化は行わない。SVG版との差分が見つかった場合のみ追従修正する。→ 今回は変更なし。
+- [x] external marker image (`isExternalIcon`) の CORS / 読み込み失敗時フォールバックを定義する。画像読み込みの成否を URL 単位でキャッシュし、失敗した URL は次回以降プレースホルダー icon にフォールバックする。
+- [x] E2E で、複数の `data-icon` を持つ burg が対応する icon（丸以外）で描画されること、読み込み失敗 marker がフォールバック表示になることを検証する。
+
+### Phase 6.2 開始ログ
+
+- `data-icon` が参照しうる symbol は `src/index.html` に静的定義された固定・少数集合（`#icon-circle` / `-square` / `-triangle` / `-cross` / `-star` / `-circled` / `-squared` / `-star-circled` / `-star-circled-empty` / `-star-squared` と、`#icon-watabou-capital/city/town/village/hamlet/fort/caravanserai/monastery/post`、`#icon-anchor`）。coa と違い entity ごとに内容が変わらないため、burg 数ではなく symbol 種別数（実質数burg group分、多くて十数種）だけ atlas に載る。この性質差から、6.1 のような content-addressed cache は不要で、`href` 文字列だけをキーにした module-level cache (`burgIconRasterCache.ts`) で十分と判断した。
+- `iconAtlas`/`iconMapping` を手動構築する案は採らず、6.1 の coa と同じ「`getIcon` が symbol ごとに distinct `{id,url}` を返し、deck.gl の auto-packing に任せる」方式にした。symbol 種別数が少ないため、どちらの方式でも atlas サイズは問題にならず、実装をより単純にできる auto-packing を選んだ。
+- symbol は `fill` 属性の有無で二分される: `#icon-circle` 系は内部に `fill` を持たず、親 `<g>` の色を継承する単色グリフ (`mask:true` でグループ色にtintして描画)。`#icon-watabou-*` は内部の `<path>` に `fill="#EBE8DF"` 等の複数色が直接指定された絵柄アイコン (`mask:false` で元の色をそのまま表示)。`burgIconRasterCache.ts` の `rasterizeIconSymbol()` は `symbol.querySelector("[fill]")` の有無でこの2種を自動判定する。`ancient.json` 等の実在プリセットが watabou 系を、`atlas.json`/`cyberpunk.json` 等が単色グリフ系を使っており、両方が実運用されていることを確認した。
+- **символ座標系の罠**: `<symbol viewBox="0 0 10 10" overflow="visible">` は、SVG本体への `<use>` 埋め込みでは「viewBox外に描画がはみ出しても隠さない」設定だが、これは同じ symbol を単体の raster 画像として書き出す際には通用しない（raster化は常に自身の bounds で切り取られる）。特に `#icon-watabou-*` は `translate(-60 -194) scale(2 2)` のような大きな transform を内部に持ち、宣言された viewBox の数値をそのまま使うと大きく欠けて描画される。対策として、symbol の実際の幾何を測定する `measureSymbolBBox()` を追加した: 一時的な `<svg><use href="#icon-x"/></svg>` を `document.body` に(画面外・非表示で)差し込み `getBBox()` を呼び、実測した bounding box (+8%のpadding) を独自の viewBox として使う。
+- rasterization 自体は 6.1 で追加した `rasterizeSvgToPngDataUrl()` を `src/renderers/svgRasterize.ts` に切り出して共有した（元は `emblem-renderer.ts` 内のプライベート関数だった）。配置は `emblem-renderer.ts`（SVG生成）と `webgl/`（WebGL専用ロジック）のどちらにも属さない中立的な場所として `src/renderers/` 直下を選んだ。
+- 非同期解決 → 再描画のトリガーは 6.1 の `emblemIconCache.ts` と同じパターン: `burgIconRasterCache.ts` が `fmg:webgl-burg-icon-ready` を dispatch し、`controllers/layers.ts` の `initLayers()` がこれを購読して `scheduleWebglUpdate()` を呼ぶ。`buildLayerSignatures()` の `burgIcons` signature にも `getBurgIconRasterCacheVersion()` を折り込み、解決後に再構築されるようにした。
+- external marker image の失敗フォールバック: `IconLayer` (`fmg-webgl-marker-images`) の `onIconError` から `externalIconFailureCache.ts` の `markExternalIconFailed(url)` を呼ぶ。失敗した URL は `buildMarkerSymbols()` が `icon: ""` に差し替える（`isExternalIcon` も re-evaluate されて `false` になる）。これは「icon が未設定のマーカー」と全く同じ表示（pin bubble のみ、glyph/image なし）にフォールバックする形で、新しい表示パターンを追加していない。失敗検知も `markers` signature にキャッシュバージョンとして折り込み、`fmg:webgl-external-icon-failed` → `scheduleWebglUpdate()` で再構築する。
+- E2E (`webgl-hybrid.spec.ts`) は3本追加: (1) `atlas` style preset で burg group ごとに異なる単色グリフ (`mask:true`) が複数種類ラスタライズされること、(2) `ancient` style preset で watabou 系の絵柄アイコン (`mask:false`) が少なくとも1つラスタライズされること、(3) 存在しない同一オリジン URL を外部画像に持つ marker を注入し、`isExternalIcon` が一度 `true` になった後、読み込み失敗を検知して `false`（`icon: ""`）にフォールバックすること。
+- 手動確認: `atlas` preset で burg group ごとに丸・四角・三角・十字の異なる形状が実際に描画されること、`ancient` preset で単色プレースホルダーではなく実際の建物風アイコン（複数色）が描画されることをブラウザで確認した。
 
 ### 6.3 TextLayer: フォント・CJK・回転・halo
 

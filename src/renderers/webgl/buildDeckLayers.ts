@@ -57,7 +57,9 @@ import {
   type DeckPath,
   type DeckPosition
 } from "./adapters/deckDataAdapters";
+import { BURG_ICON_RASTER_SIZE, getBurgIconRasterCacheVersion } from "./burgIconRasterCache";
 import { getEmblemIconCacheVersion } from "./emblemIconCache";
+import { getExternalIconFailureCacheVersion, markExternalIconFailed } from "./externalIconFailureCache";
 import {
   getBurgIconStyle,
   getCoastlinePaint,
@@ -397,15 +399,26 @@ export function buildDeckLayers(
         ),
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         getPosition: datum => datum.position,
-        getIcon: datum => ({
-          id: datum.type,
-          url: BURG_ICON_URLS[datum.type],
-          width: 128,
-          height: 128,
-          anchorX: 64,
-          anchorY: 64,
-          mask: true
-        }),
+        getIcon: datum =>
+          datum.iconUrl
+            ? {
+                id: datum.iconUrl,
+                url: datum.iconUrl,
+                width: BURG_ICON_RASTER_SIZE,
+                height: BURG_ICON_RASTER_SIZE,
+                anchorX: BURG_ICON_RASTER_SIZE / 2,
+                anchorY: BURG_ICON_RASTER_SIZE / 2,
+                mask: datum.mask
+              }
+            : {
+                id: datum.type,
+                url: BURG_ICON_URLS[datum.type],
+                width: 128,
+                height: 128,
+                anchorX: 64,
+                anchorY: 64,
+                mask: true
+              },
         getColor: datum => datum.color,
         getSize: datum => datum.size,
         sizeUnits: "common",
@@ -473,7 +486,8 @@ export function buildDeckLayers(
         sizeUnits: "pixels",
         sizeBasis: "width",
         billboard: false,
-        pickable: false
+        pickable: false,
+        onIconError: context => markExternalIconFailed(context.url)
       })
     );
   }
@@ -755,12 +769,14 @@ function buildLayerSignatures(
   setIfActive(
     "burgIcons",
     "toggleBurgIcons",
-    () => `${scope}|${burgIconsSignature(pack.burgs)}|${burgIconStyleSignature(styles.burgIconStyle)}`
+    () =>
+      `${scope}|${burgIconsSignature(pack.burgs)}|${burgIconStyleSignature(styles.burgIconStyle)}|icons:${getBurgIconRasterCacheVersion()}`
   );
   setIfActive(
     "markers",
     "toggleMarkers",
-    () => `${scope}|${markersSignature(pack.markers)}|${markerStyleSignature(styles.markerStyle)}`
+    () =>
+      `${scope}|${markersSignature(pack.markers)}|${markerStyleSignature(styles.markerStyle)}|failed:${getExternalIconFailureCacheVersion()}`
   );
   setIfActive(
     "military",
@@ -1228,6 +1244,7 @@ function hashBurgIconStyleMap(hash: number, styles: Record<string, DeckBurgIconS
     next = hashString(next, style.fill);
     next = hashNumber(next, style.opacity);
     next = hashNumber(next, style.size);
+    next = hashString(next, style.icon);
   }
   return next;
 }

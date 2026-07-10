@@ -291,6 +291,58 @@ export async function getWebglEmblemIconSummary(page: Page): Promise<WebglEmblem
   });
 }
 
+export interface WebglBurgIconSummary {
+  total: number;
+  withIconUrl: number;
+  distinctIconUrls: number;
+  maskedCount: number;
+  unmaskedCount: number;
+}
+
+/** Reads the fmg-webgl-burg-icons deck layer data to check data-icon rasterization (Phase 6.2). */
+export async function getWebglBurgIconSummary(page: Page): Promise<WebglBurgIconSummary> {
+  return page.evaluate(() => {
+    const deck = window.fmg.view.webglDeck as unknown as {
+      props?: { layers?: Array<{ id?: string; props?: { data?: unknown[] } }> };
+    } | null;
+    const layers = deck?.props?.layers ?? [];
+    const layer = layers.find(candidate => candidate.id === "fmg-webgl-burg-icons");
+    const data = Array.isArray(layer?.props?.data)
+      ? (layer!.props!.data as Array<{ iconUrl?: string | null; mask?: boolean }>)
+      : [];
+    const withIconUrl = data.filter(datum => Boolean(datum.iconUrl));
+    return {
+      total: data.length,
+      withIconUrl: withIconUrl.length,
+      distinctIconUrls: new Set(withIconUrl.map(datum => datum.iconUrl)).size,
+      maskedCount: withIconUrl.filter(datum => datum.mask).length,
+      unmaskedCount: withIconUrl.filter(datum => !datum.mask).length
+    };
+  });
+}
+
+export interface WebglMarkerIconState {
+  icon: string;
+  isExternalIcon: boolean;
+}
+
+/** Reads a single marker's icon state from the fmg-webgl-markers deck layer data (Phase 6.2). */
+export async function getWebglMarkerIconState(page: Page, markerId: number): Promise<WebglMarkerIconState | null> {
+  return page.evaluate(id => {
+    const deck = window.fmg.view.webglDeck as unknown as {
+      props?: { layers?: Array<{ id?: string; props?: { data?: unknown[] } }> };
+    } | null;
+    const layers = deck?.props?.layers ?? [];
+    const layer = layers.find(candidate => candidate.id === "fmg-webgl-markers");
+    const data = Array.isArray(layer?.props?.data)
+      ? (layer!.props!.data as Array<{ id?: string; icon?: string; isExternalIcon?: boolean }>)
+      : [];
+    const datum = data.find(item => item.id === `marker-${id}`);
+    if (!datum) return null;
+    return { icon: datum.icon ?? "", isExternalIcon: Boolean(datum.isExternalIcon) };
+  }, markerId);
+}
+
 export interface WebglStyleComparison {
   source: string;
   group: string;

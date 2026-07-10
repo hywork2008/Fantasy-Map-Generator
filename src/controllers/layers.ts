@@ -99,6 +99,12 @@ export function initLayers(wc: WorldContext, _vc: Readonly<ViewContext>, as: App
   // A coa icon finished rasterizing asynchronously (emblemIconCache.ts) after the WebGL emblems
   // layer already rendered the flat-color placeholder shield for it — rebuild to pick it up.
   document.addEventListener("fmg:webgl-emblem-icon-ready", () => scheduleWebglUpdate());
+  // A burg/anchor data-icon symbol finished rasterizing (burgIconRasterCache.ts) — rebuild to swap
+  // out the flat-color placeholder circle for the real icon shape.
+  document.addEventListener("fmg:webgl-burg-icon-ready", () => scheduleWebglUpdate());
+  // An external marker image failed to load — rebuild so buildMarkerSymbols() picks up the
+  // known-failed fallback (externalIconFailureCache.ts) instead of retrying it every frame.
+  document.addEventListener("fmg:webgl-external-icon-failed", () => scheduleWebglUpdate());
 }
 
 // ─── Preset management ───────────────────────────────────────────────────────

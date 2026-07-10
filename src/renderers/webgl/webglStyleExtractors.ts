@@ -97,20 +97,31 @@ export function getBurgIconStyle(
 
   for (const group of groups) {
     visibleGroups.add(group.name);
-    burgIcons[group.name] = readBurgIconGroupStyle(
-      viewContext.burgIcons?.select<SVGGElement>(`#${group.name}`),
-      getStyleRecord(worldContext.style.burgIcons, group.name),
-      { fill: "#3e3e4b", opacity: 1, size: getDefaultBurgIconSize(group.name) }
-    );
-    anchors[group.name] = readBurgIconGroupStyle(
-      viewContext.anchors?.select<SVGGElement>(`#${group.name}`),
-      getStyleRecord(worldContext.style.anchors, group.name),
-      { fill: "#ffffff", opacity: 1, size: getDefaultAnchorSize(group.name) }
-    );
+    const burgSelection = viewContext.burgIcons?.select<SVGGElement>(`#${group.name}`);
+    const burgStored = getStyleRecord(worldContext.style.burgIcons, group.name);
+    burgIcons[group.name] = {
+      ...readBurgIconGroupStyle(burgSelection, burgStored, {
+        fill: "#3e3e4b",
+        opacity: 1,
+        size: getDefaultBurgIconSize(group.name),
+        icon: "#icon-circle"
+      }),
+      icon: getStyleString(burgSelection, burgStored, "data-icon") ?? "#icon-circle"
+    };
+    // Anchors always render via the hardcoded "#icon-anchor" symbol regardless of any stored
+    // data-icon (draw-burg-icons.ts's port rendering does not read a per-group icon override).
+    anchors[group.name] = {
+      ...readBurgIconGroupStyle(
+        viewContext.anchors?.select<SVGGElement>(`#${group.name}`),
+        getStyleRecord(worldContext.style.anchors, group.name),
+        { fill: "#ffffff", opacity: 1, size: getDefaultAnchorSize(group.name), icon: "#icon-anchor" }
+      ),
+      icon: "#icon-anchor"
+    };
   }
 
-  burgIcons.town ??= { fill: "#3e3e4b", opacity: 1, size: 4 };
-  anchors.town ??= { fill: "#ffffff", opacity: 1, size: 1 };
+  burgIcons.town ??= { fill: "#3e3e4b", opacity: 1, size: 4, icon: "#icon-circle" };
+  anchors.town ??= { fill: "#ffffff", opacity: 1, size: 1, icon: "#icon-anchor" };
   if (!visibleGroups.size) visibleGroups.add("town");
   return { burgIcons, anchors, visibleGroups };
 }
@@ -197,7 +208,9 @@ function readBurgIconGroupStyle(
     fallback.size;
 
   if (!hasSelection && !stored) return fallback;
-  return { fill, opacity, size };
+  // `icon` is resolved by the caller (getBurgIconStyle) and spread over this result — this
+  // function only ever contributes fill/opacity/size.
+  return { fill, opacity, size, icon: fallback.icon };
 }
 
 function getStyleString(
