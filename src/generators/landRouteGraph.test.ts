@@ -135,6 +135,71 @@ describe("findLandRoutePath", () => {
   });
 });
 
+describe("buildLandRouteGraph seasonal winter blocking", () => {
+  // A single road segment high in the mountains (h=80) at a temperate latitude, and a second
+  // segment at sea level (h=10) but far north (subarctic). Map spans latitude 90 (top, y=0) to
+  // 0 (bottom, y=100), so y=40 -> latitude 90-0.4*90=54 (just under the closure threshold) and
+  // y=10 -> latitude 81 (well past it).
+  function makeSeasonalPack(): PackedGraph {
+    return {
+      routes: [
+        {
+          i: 0,
+          group: "roads",
+          feature: 1,
+          points: [
+            [0, 40, 0], // mountain-pass endpoint, temperate latitude (~54)
+            [10, 40, 1] // mountain-pass endpoint, temperate latitude (~54)
+          ]
+        },
+        {
+          i: 1,
+          group: "roads",
+          feature: 1,
+          points: [
+            [0, 10, 2], // lowland endpoint, subarctic latitude (~81)
+            [10, 10, 3] // lowland endpoint, subarctic latitude (~81)
+          ]
+        }
+      ],
+      cells: {
+        h: Uint8Array.from({ length: 4 }, (_, i) => (i < 2 ? 80 : 10)) // cells 0,1 = mountain; 2,3 = lowland
+      }
+    } as unknown as PackedGraph;
+  }
+
+  const mapCoordinates = { latN: 90, latT: 90 };
+  const graphHeight = 100;
+
+  it("keeps all segments open when no seasonal context is given", () => {
+    const graph = buildLandRouteGraph(makeSeasonalPack());
+    expect(graph.adjacency.get(0)?.has(1)).toBe(true);
+    expect(graph.adjacency.get(2)?.has(3)).toBe(true);
+  });
+
+  it("keeps all segments open in summer regardless of latitude/elevation", () => {
+    const graph = buildLandRouteGraph(makeSeasonalPack(), { month: 7, mapCoordinates, graphHeight });
+    expect(graph.adjacency.get(0)?.has(1)).toBe(true);
+    expect(graph.adjacency.get(2)?.has(3)).toBe(true);
+  });
+
+  it("closes a high-elevation mountain-pass segment in winter even at temperate latitude", () => {
+    const graph = buildLandRouteGraph(makeSeasonalPack(), { month: 1, mapCoordinates, graphHeight });
+    expect(graph.adjacency.get(0)?.has(1)).toBeFalsy();
+  });
+
+  it("closes a high-latitude lowland segment in winter even without mountain elevation", () => {
+    const graph = buildLandRouteGraph(makeSeasonalPack(), { month: 1, mapCoordinates, graphHeight });
+    expect(graph.adjacency.get(2)?.has(3)).toBeFalsy();
+  });
+
+  it("reopens both segments once winter ends", () => {
+    const graph = buildLandRouteGraph(makeSeasonalPack(), { month: 4, mapCoordinates, graphHeight });
+    expect(graph.adjacency.get(0)?.has(1)).toBe(true);
+    expect(graph.adjacency.get(2)?.has(3)).toBe(true);
+  });
+});
+
 describe("buildLandRouteGraph edge weights", () => {
   it("keeps the shorter distance when two routes both connect the same pair of cells", () => {
     const pack = {

@@ -3,7 +3,7 @@ import type { WorldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import type { MilitaryRegiment } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
-import { advanceAllRegimentMovement, isOccupiedHomeBurg } from "./regimentMovement";
+import { advanceAllRegimentMovement, advanceAlongPath, isOccupiedHomeBurg } from "./regimentMovement";
 
 function makeWorldContext(): WorldContext {
   return { distanceScale: 1, options: { year: 1000 } } as unknown as WorldContext;
@@ -1037,5 +1037,73 @@ describe("advanceAllRegimentMovement — strategic siege march order (docs/plan/
 
     expect(moved).toBe(false);
     expect(garrison.cell).toBe(2);
+  });
+});
+
+describe("advanceAlongPath seasonal ocean currents", () => {
+  // Two cells 100 map units apart, due east of each other (increasing x = east).
+  function makeFleetPack(): PackedGraph {
+    return {
+      cells: {
+        p: [
+          [0, 0],
+          [100, 0]
+        ]
+      }
+    } as unknown as PackedGraph;
+  }
+
+  function makeFleet(overrides: Partial<MilitaryRegiment> = {}): MilitaryRegiment {
+    return {
+      i: 0,
+      t: 10,
+      a: 10,
+      name: "Test Fleet",
+      s: 0,
+      cell: 0,
+      x: 0,
+      y: 0,
+      bx: 0,
+      by: 0,
+      u: { naval: 10 },
+      n: 5,
+      type: "naval",
+      state: 1,
+      path: [0, 1],
+      pathIndex: 0,
+      edgeProgress: 0,
+      ...overrides
+    } as unknown as MilitaryRegiment;
+  }
+
+  it("covers more eastward distance in a current-favorable month than an unfavorable one, for the same budget", () => {
+    const budget = 50; // half the 100-unit edge, if unaffected by current
+
+    const favorable = makeFleet();
+    advanceAlongPath(makeFleetPack(), favorable, budget, undefined, 7); // July -> current favors east
+
+    const unfavorable = makeFleet();
+    advanceAlongPath(makeFleetPack(), unfavorable, budget, undefined, 1); // January -> current favors west
+
+    expect(favorable.x).toBeGreaterThan(unfavorable.x);
+  });
+
+  it("does not affect land regiments (n=0) regardless of month", () => {
+    const budget = 50;
+
+    const july = makeFleet({ n: 0 });
+    advanceAlongPath(makeFleetPack(), july, budget, undefined, 7);
+
+    const january = makeFleet({ n: 0 });
+    advanceAlongPath(makeFleetPack(), january, budget, undefined, 1);
+
+    expect(july.x).toBe(january.x);
+  });
+
+  it("does not apply a current effect when month is omitted", () => {
+    const noMonth = makeFleet();
+    advanceAlongPath(makeFleetPack(), noMonth, 50);
+
+    expect(noMonth.x).toBe(50);
   });
 });

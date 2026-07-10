@@ -7,17 +7,8 @@ import { useDebugSnapshotState } from "../store/debugSnapshotState";
 import { useOptionsState } from "../store/optionsState";
 import { useTimeSimulationState } from "../store/timeSimulationState";
 import { captureSnapshotData } from "../utils/aiDebugExporter";
+import { getDaysInMonth, getSeason, isLeapYear } from "../utils/seasonUtils";
 import { simulateDemographics } from "./demography-simulator";
-
-export function isLeapYear(year: number) {
-  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-}
-
-export function getDaysInMonth(year: number, month: number) {
-  if (month === 2) return isLeapYear(year) ? 29 : 28;
-  if (month === 4 || month === 6 || month === 9 || month === 11) return 30;
-  return 31;
-}
 
 export type TimeTickHook = (deltaYears: number, deltaMonths: number, deltaDays: number) => void;
 
@@ -31,6 +22,18 @@ const _tickHooks: TimeTickHook[] = [];
  */
 export function registerTimeTickHook(fn: TimeTickHook): void {
   _tickHooks.push(fn);
+}
+
+/**
+ * Recomputes simulationContext.worldSeason from the map's reference (central) latitude and
+ * the current month. This is a display-only convenience for the calendar UI — a map can span
+ * both hemispheres, so per-cell/per-market seasonal logic (economy, roads, sea routes) must
+ * call getSeason(latitude, month) itself with its own local latitude, never read this field.
+ */
+function updateWorldSeason(): void {
+  const { latN, latS } = worldContext.mapCoordinates;
+  const referenceLatitude = latN !== undefined && latS !== undefined ? (latN + latS) / 2 : 0;
+  simulationContext.worldSeason = getSeason(referenceLatitude, simulationContext.currentMonth);
 }
 
 /**
@@ -61,6 +64,7 @@ export function syncSimulationClockFromOptions(): void {
   simulationContext.currentMonth = worldContext.options.month ?? 1;
   simulationContext.currentDay = worldContext.options.day ?? 1;
   simulationContext.era = worldContext.options.era ?? "";
+  updateWorldSeason();
   dispatchSimulationUpdated();
 }
 
@@ -120,6 +124,7 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
   // Also save month and day to options so they are persisted across loads
   worldContext.options.month = simulationContext.currentMonth;
   worldContext.options.day = simulationContext.currentDay;
+  updateWorldSeason();
 
   useOptionsState.getState().setOption("year", simulationContext.currentYear);
   // Ideally useOptionsState should set month and day too, but keeping minimal changes here

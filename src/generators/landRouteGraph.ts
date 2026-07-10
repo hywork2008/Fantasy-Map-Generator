@@ -1,5 +1,8 @@
 import FlatQueue from "flatqueue";
+import type { MapCoordinates } from "../context/worldContext";
 import type { PackedGraph } from "../types/PackedGraph";
+import { getLatitude } from "../utils/commonUtils";
+import { getSeason } from "../utils/seasonUtils";
 
 /**
  * Navigable graph over every charted "roads"/"trails" route, keyed by cell id. Same design as
@@ -18,8 +21,53 @@ export interface LandRouteGraph {
   readonly adjacency: Map<number, Map<number, number>>;
 }
 
-/** Builds the land-route graph from `pack.routes`. Rebuild whenever routes are (re)generated. */
-export function buildLandRouteGraph(pack: PackedGraph): LandRouteGraph {
+/** Latitude beyond which winter closes a road/trail regardless of elevation (subarctic/arctic). */
+const WINTER_ROAD_CLOSURE_LATITUDE = 55;
+/** Elevation (pack.cells.h) beyond which winter closes a road/trail regardless of latitude (mountain passes). */
+const WINTER_ROAD_CLOSURE_ELEVATION = 60;
+
+/** The map context needed to decide whether a route segment is snowed in this month — see docs/simulation/seasons.md. */
+export interface SeasonalRouteContext {
+  month: number;
+  mapCoordinates: MapCoordinates;
+  graphHeight: number;
+}
+
+/**
+ * True if the segment between cell1/cell2 is closed by winter snow: high latitude (subarctic/
+ * arctic) or high elevation (mountain pass), evaluated at the segment's midpoint/highest
+ * endpoint. Only route *selection* is affected — see landRouteGraph.ts's module doc comment on
+ * docs/simulation/seasons.md's documented limitation that an already-marching regiment isn't
+ * stopped mid-journey by this.
+ */
+function isWinterBlocked(
+  pack: PackedGraph,
+  y1: number,
+  y2: number,
+  cell1: number,
+  cell2: number,
+  seasonal: SeasonalRouteContext
+): boolean {
+  // Defensive: callers/tests that build a minimal WorldContext without map coordinates (e.g.
+  // before generation completes) shouldn't crash — just skip seasonal blocking entirely.
+  if (!seasonal.mapCoordinates || !seasonal.graphHeight) return false;
+
+  const midY = (y1 + y2) / 2;
+  const latitude = getLatitude(midY, seasonal.mapCoordinates, seasonal.graphHeight);
+  if (getSeason(latitude, seasonal.month) !== "winter") return false;
+
+  const elevation = Math.max(pack.cells.h[cell1] ?? 0, pack.cells.h[cell2] ?? 0);
+  return Math.abs(latitude) >= WINTER_ROAD_CLOSURE_LATITUDE || elevation >= WINTER_ROAD_CLOSURE_ELEVATION;
+}
+
+/**
+ * Builds the land-route graph from `pack.routes`. Rebuild whenever routes are (re)generated, or
+ * (for seasonal road blocking) every tick — see regimentMovement.ts's advanceAllRegimentMovement,
+ * which already rebuilds this graph fresh every call. `seasonal`, if given, omits segments that
+ * are snowed in for the given month (see isWinterBlocked); omitting it preserves the old
+ * always-open behavior, e.g. for callers that don't care about seasonal passability.
+ */
+export function buildLandRouteGraph(pack: PackedGraph, seasonal?: SeasonalRouteContext): LandRouteGraph {
   const adjacency = new Map<number, Map<number, number>>();
 
   const addEdge = (from: number, to: number, dist: number) => {
@@ -37,6 +85,7 @@ export function buildLandRouteGraph(pack: PackedGraph): LandRouteGraph {
       const [x1, y1, cell1] = points[i];
       const [x2, y2, cell2] = points[i + 1];
       if (cell1 === cell2) continue;
+      if (seasonal && isWinterBlocked(pack, y1, y2, cell1, cell2, seasonal)) continue;
 
       const dist = Math.hypot(x2 - x1, y2 - y1);
       addEdge(cell1, cell2, dist);

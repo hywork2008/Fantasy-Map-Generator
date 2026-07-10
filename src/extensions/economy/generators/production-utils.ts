@@ -1,6 +1,6 @@
 import { sum } from "d3";
 import { DEFAULT_CULTURE_TYPE, type Zone } from "../../hostTypes";
-import { rn } from "../../hostUtils";
+import { getLatitude, getSeason, getSeasonalityStrength, rn, type Season } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 import { getDepletionFactor } from "./forestDepletion";
 import { type Good, Goods } from "./goods-generator";
@@ -61,13 +61,51 @@ function getDepletionMultiplier(good: Good, cellId: number): number {
   return 1 - getDepletionFactor(cellId);
 }
 
+/**
+ * Per-season output multiplier for food-tagged goods (Grain, etc.) at full latitudinal
+ * seasonality (high latitudes), modeling a real annual harvest cycle instead of a flat
+ * year-round trickle: most of the year's yield lands at once in autumn, with fields largely
+ * dormant the rest of the year. Averages to exactly 1 across the four seasons, so annual total
+ * food production at high latitude is unchanged from the old always-1x baseline — only its
+ * distribution across the year changes. This is what makes grain cheap right after harvest and
+ * expensive in the lean season before the next one: the existing demand/stock price formula in
+ * markets-generator.ts reacts to the resulting stock swing with no separate price-modifier code
+ * needed (see docs/simulation/seasons.md).
+ */
+const SEASONAL_FOOD_PRODUCTION_MULTIPLIER: Record<Season, number> = {
+  spring: 0.3,
+  summer: 0.3,
+  autumn: 3.0,
+  winter: 0.4
+};
+
+/**
+ * Blends the full-swing multiplier above toward a flat 1x baseline as latitude approaches the
+ * equator (getSeasonalityStrength -> 0), since near-equatorial climates don't have the
+ * temperate single-autumn-harvest cycle the table models. The blend is linear in the deviation
+ * from 1, so the four-season average stays exactly 1 at every latitude, not just at the poles.
+ */
+function getSeasonalProductionMultiplier(good: Good, cellId: number): number {
+  if (!good.tags.includes("food")) return 1;
+
+  const worldContext = getWorldContext();
+  const point = worldContext.pack.cells.p[cellId];
+  if (!point) return 1;
+
+  const latitude = getLatitude(point[1], worldContext.mapCoordinates, worldContext.graphHeight);
+  const season = getSeason(latitude, worldContext.options.month ?? 1);
+  const strength = getSeasonalityStrength(latitude);
+  return 1 + (SEASONAL_FOOD_PRODUCTION_MULTIPLIER[season] - 1) * strength;
+}
+
 export function getCellProduction(
   cellId: number,
   biomeProduction: Record<number, { goodId: number; production: number }[]>
 ): Record<number, number> {
   const produced: Record<number, number> = {};
 
-  const modifier = (good: Good) => getModifiers(good, cellId) * getDepletionMultiplier(good, cellId);
+  const modifier = (good: Good) =>
+    getModifiers(good, cellId) * getDepletionMultiplier(good, cellId) * getSeasonalProductionMultiplier(good, cellId);
   const add = (goodId: number, amount: number) => {
     produced[goodId] = rn((produced[goodId] || 0) + amount, 2);
   };

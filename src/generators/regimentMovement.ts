@@ -5,6 +5,7 @@ import { useOptionsState } from "../store/optionsState";
 import type { Burg, MilitaryRegiment, State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import { findPath, minmax } from "../utils";
+import { getCurrentDirection } from "../utils/seasonUtils";
 import { isRegimentLockedForBattle } from "./battleLock";
 import {
   analyzeFrontiers,
@@ -57,6 +58,32 @@ const FLEET_SPEED_KM_PER_DAY = 50;
 
 /** Speed penalty for marching cross-country with no charted road/trail (§1.2's fallback option (b)). */
 const OFF_ROAD_SPEED_MULTIPLIER = 0.6;
+
+/**
+ * Seasonal ocean-current cost multipliers for fleet-type regiments (docs/simulation/seasons.md):
+ * sailing with the current effectively costs less of a fleet's daily travel budget per map unit
+ * of distance (faster), sailing against it costs more (slower/pushed back). Applied inside
+ * advanceAlongPath's per-edge budget consumption, not as an edge-weight bias in seaRouteGraph.ts
+ * — seaRouteGraph's stored distances are only consulted for route *selection*, never read here.
+ */
+const CURRENT_FAVORABLE_MULTIPLIER = 0.7;
+const CURRENT_UNFAVORABLE_MULTIPLIER = 1.4;
+
+/**
+ * Cost multiplier for a fleet traveling from `fromPoint` to `toPoint` this month: favorable if
+ * the edge's east/west component aligns with the month's current direction, unfavorable if it
+ * opposes it, 1 (no effect) for a purely north-south edge. Increasing x is east (matches
+ * getLongitude's convention in commonUtils.ts).
+ */
+function getCurrentCostMultiplier(fromPoint: [number, number], toPoint: [number, number], month: number): number {
+  const dx = toPoint[0] - fromPoint[0];
+  if (dx === 0) return 1;
+
+  const travelingEast = dx > 0;
+  const currentFavorsEast = getCurrentDirection(month) === 1;
+  const withCurrent = travelingEast === currentFavorsEast;
+  return withCurrent ? CURRENT_FAVORABLE_MULTIPLIER : CURRENT_UNFAVORABLE_MULTIPLIER;
+}
 
 /** map units — within this radius a marching regiment always spots a nearby hostile regiment directly (§1.4/§4.5). */
 const VISUAL_DETECTION_RADIUS = 400;
@@ -802,32 +829,43 @@ function ensureFleetMarchOrder(
  * big `deltaYears` tick can cross several cells/burgs in one go) — the seam Nobility's
  * marchCapture.ts hooks into to raid/capture settlements a regiment marches through, without this
  * core Generator module needing to know anything about states/diplomacy/capture business rules.
+ *
+ * `month`, if given, applies a seasonal ocean-current cost multiplier to fleet-type regiments
+ * (`r.n` truthy) per edge crossed this call — see getCurrentCostMultiplier's doc comment. Land
+ * regiments and calls with no `month` are unaffected. `r.edgeProgress`/`r.x`/`r.y` always stay in
+ * true physical map units regardless of the multiplier — only how much *budget* an edge consumes
+ * changes, so other consumers of position/distance are unaffected.
  */
 export function advanceAlongPath(
   pack: PackedGraph,
   r: MilitaryRegiment,
   budget: number,
-  onCellEntered?: (r: MilitaryRegiment, cell: number) => void
+  onCellEntered?: (r: MilitaryRegiment, cell: number) => void,
+  month?: number
 ): void {
   if (!r.path || r.pathIndex === undefined || budget <= 0) return;
   const { cells } = pack;
   let remaining = budget;
   let progress = r.edgeProgress ?? 0;
+  const isFleet = Boolean(r.n);
 
   while (remaining > 0 && r.pathIndex < r.path.length - 1) {
     const fromCell = r.path[r.pathIndex];
     const toCell = r.path[r.pathIndex + 1];
-    const edgeLength = Math.hypot(cells.p[toCell][0] - cells.p[fromCell][0], cells.p[toCell][1] - cells.p[fromCell][1]);
-    const remainingOnEdge = edgeLength - progress;
+    const fromPoint = cells.p[fromCell];
+    const toPoint = cells.p[toCell];
+    const edgeLength = Math.hypot(toPoint[0] - fromPoint[0], toPoint[1] - fromPoint[1]);
+    const costMultiplier = isFleet && month !== undefined ? getCurrentCostMultiplier(fromPoint, toPoint, month) : 1;
+    const remainingOnEdgeCost = (edgeLength - progress) * costMultiplier;
 
-    if (remainingOnEdge <= remaining) {
-      remaining -= Math.max(remainingOnEdge, 0);
+    if (remainingOnEdgeCost <= remaining) {
+      remaining -= Math.max(remainingOnEdgeCost, 0);
       r.pathIndex += 1;
       r.cell = toCell;
       progress = 0;
       onCellEntered?.(r, toCell);
     } else {
-      progress += remaining;
+      progress += remaining / costMultiplier;
       remaining = 0;
     }
   }
@@ -873,8 +911,13 @@ export function advanceAllRegimentMovement(
   if (deltaYears <= 0) return false;
 
   const currentYear = worldContext.options.year ?? 0;
+  const currentMonth = worldContext.options.month ?? 1;
   const seaRouteGraph = buildSeaRouteGraph(pack);
-  const landRouteGraph = buildLandRouteGraph(pack);
+  const landRouteGraph = buildLandRouteGraph(pack, {
+    month: currentMonth,
+    mapCoordinates: worldContext.mapCoordinates,
+    graphHeight: worldContext.graphHeight
+  });
   const frontiers = mergeFrontiers(
     analyzeFrontiers(pack, currentYear),
     analyzeSeaFrontiers(pack, seaRouteGraph, currentYear)
@@ -967,7 +1010,7 @@ export function advanceAllRegimentMovement(
           if (detachment) {
             freshlySplit.add(detachment);
             const detachmentBudget = dailySpeedMapUnits(detachment, worldContext) * days;
-            advanceAlongPath(pack, detachment, detachmentBudget, onCellEntered);
+            advanceAlongPath(pack, detachment, detachmentBudget, onCellEntered, currentMonth);
             anyMoved = true;
           }
         }
@@ -978,7 +1021,7 @@ export function advanceAllRegimentMovement(
       const budget = dailySpeedMapUnits(r, worldContext) * days;
       const beforeX = r.x;
       const beforeY = r.y;
-      advanceAlongPath(pack, r, budget, onCellEntered);
+      advanceAlongPath(pack, r, budget, onCellEntered, currentMonth);
       if (r.x !== beforeX || r.y !== beforeY) anyMoved = true;
     }
   }

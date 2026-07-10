@@ -16,7 +16,10 @@ export function drawCalendar(
 
   calendar.selectAll("*").remove();
 
-  const text = `${simulationContext.currentYear} ${simulationContext.era}`.trim();
+  const seasonLabel = simulationContext.worldSeason
+    ? simulationContext.worldSeason[0].toUpperCase() + simulationContext.worldSeason.slice(1)
+    : "";
+  const text = `${simulationContext.currentYear} ${simulationContext.era} · ${seasonLabel}`.trim();
   if (!text) return;
 
   const label = calendar

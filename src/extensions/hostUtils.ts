@@ -6,6 +6,7 @@ export {
   formatPrice,
   gauss,
   getIsolines,
+  getLatitude,
   getVertexPath,
   list,
   minmax,
@@ -21,3 +22,4 @@ export { confirmationDialog, downloadFile, getFileName } from "../utils/editorHe
 export { getPackPolygon } from "../utils/graphUtils";
 export { layerIsOn } from "../utils/nodeUtils";
 export { P, ra, rand } from "../utils/probabilityUtils";
+export { getSeason, getSeasonalityStrength, type Season } from "../utils/seasonUtils";
