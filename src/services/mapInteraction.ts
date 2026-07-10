@@ -46,6 +46,11 @@ function formatWebglPickTooltip(detail: WebglPickDetail): string {
   if (detail.kind === "lake") return formatFeatureTooltip(detail.id, "Lake");
   if (detail.kind === "coastline") return formatFeatureTooltip(detail.id, "Coastline");
   if (detail.kind === "ice") return detail.id.startsWith("glacier-") ? "Glacier" : "Iceberg";
+  if (detail.kind === "emblem") return formatEmblemTooltip(detail.id);
+  if (detail.kind === "burgIcon") return formatBurgIconTooltip(detail.id);
+  if (detail.kind === "marker") return formatMarkerTooltip(detail.id);
+  if (detail.kind === "military") return formatMilitaryTooltip(detail.id);
+  if (detail.kind === "label") return formatLabelTooltip(detail.id);
   if (detail.kind === "border") return formatBorderTooltip(detail);
 
   const cellId = detail.cellId;
@@ -128,6 +133,57 @@ function formatBorderTooltip(detail: WebglPickDetail): string {
   }
 
   return detail.cellId === null ? "Border" : getCellPoliticalSummary(detail.cellId) || "Border";
+}
+
+function formatEmblemTooltip(id: string): string {
+  const emblem = parseTypedId(id);
+  if (!emblem) return "Emblem";
+  const [type, itemId] = emblem;
+  if (type === "burg") return worldContext.pack.burgs[itemId]?.name ?? `Burg ${itemId}`;
+  if (type === "province") return getProvinceName(itemId);
+  if (type === "state") return getStateName(itemId);
+  return "Emblem";
+}
+
+function formatBurgIconTooltip(id: string): string {
+  const [, itemId] = parseTypedId(id) ?? [];
+  if (!itemId) return "Burg";
+  const burg = worldContext.pack.burgs[itemId];
+  if (!burg) return `Burg ${itemId}`;
+  const name = burg.name ?? `Burg ${itemId}`;
+  return id.startsWith("anchor-") ? `${name} port` : name;
+}
+
+function formatMarkerTooltip(id: string): string {
+  const markerId = parseTrailingNumber(id);
+  const marker = markerId === null ? undefined : worldContext.pack.markers.find(item => item.i === markerId);
+  if (!marker) return "Marker";
+  const note = worldContext.notes.find(item => item.id === `marker${marker.i}`);
+  return note?.name || marker.type || `Marker ${marker.i}`;
+}
+
+function formatMilitaryTooltip(id: string): string {
+  const parts = id.split("-");
+  const stateId = Number(parts[1]);
+  const regimentId = Number(parts[2]);
+  if (!Number.isFinite(stateId) || !Number.isFinite(regimentId)) return "Regiment";
+  const regiment = worldContext.pack.states[stateId]?.military?.find(item => item.i === regimentId);
+  return regiment?.name ?? `Regiment ${regimentId}`;
+}
+
+function formatLabelTooltip(id: string): string {
+  const label = parseTypedId(id.replace("-label-", "-"));
+  if (!label) return "Label";
+  const [type, itemId] = label;
+  if (type === "state") return getStateName(itemId);
+  if (type === "burg") return worldContext.pack.burgs[itemId]?.name ?? `Burg ${itemId}`;
+  return "Label";
+}
+
+function parseTypedId(id: string): [string, number] | null {
+  const [type, rawId] = id.split("-");
+  const itemId = Number(rawId);
+  return type && Number.isFinite(itemId) ? [type, itemId] : null;
 }
 
 function formatBiomeTooltip(cellId: number): string {

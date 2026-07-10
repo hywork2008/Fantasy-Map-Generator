@@ -1,12 +1,22 @@
 import type { Color } from "@deck.gl/core";
-import { color as parseColor } from "d3";
+import { forceCollide, forceSimulation, color as parseColor } from "d3";
 import _simplify from "simplify-js";
 import type { AppServices } from "../../../context/appServices";
 import type { FocusScope, ViewContext } from "../../../context/viewContext";
 import type { WorldContext } from "../../../context/worldContext";
 import { HeightThreshold } from "../../../data/constants";
 import { Rivers } from "../../../generators/river-generator";
-import type { IceElement, PackedGraphFeature, Route } from "../../../types/models";
+import type {
+  Burg,
+  BurgGroup,
+  IceElement,
+  Marker,
+  MilitaryRegiment,
+  PackedGraphFeature,
+  Province,
+  Route,
+  State
+} from "../../../types/models";
 import type { PackedGraphCells, PackedGraphVertices } from "../../../types/PackedGraph";
 import type { WebglPickKind } from "../../../types/webglPicking";
 import { clipPoly } from "../../../utils";
@@ -53,6 +63,119 @@ export interface DeckIcePolygon {
   lineColor: Color;
   lineWidth: number;
   iceType: IceElement["type"];
+}
+
+export type DeckEmblemType = "burg" | "province" | "state";
+export type DeckBurgIconType = "burg" | "anchor";
+
+export interface DeckBurgIconStyle {
+  fill: string;
+  opacity: number;
+  size: number;
+}
+
+export interface DeckBurgIconSymbol {
+  id: string;
+  kind: "burgIcon";
+  type: DeckBurgIconType;
+  burgId: number;
+  cellId: number;
+  group: string;
+  position: [number, number];
+  size: number;
+  color: Color;
+}
+
+export interface DeckMarkerStyle {
+  pinnedOnly: boolean;
+  rescale: boolean;
+  scale: number;
+}
+
+export interface DeckMarkerSymbol {
+  id: string;
+  kind: "marker";
+  markerId: number;
+  cellId: number;
+  position: [number, number];
+  textPosition: [number, number];
+  imagePosition: [number, number];
+  size: number;
+  icon: string;
+  iconSize: number;
+  fillColor: string;
+  strokeColor: string;
+  pin: string;
+  isExternalIcon: boolean;
+}
+
+export type DeckMilitaryBoxPart = "main" | "unit" | "action";
+
+export interface DeckMilitaryRegimentSymbol {
+  id: string;
+  kind: "military";
+  regimentId: number;
+  stateId: number;
+  cellId: number;
+  position: [number, number];
+  totalPosition: [number, number];
+  unitIconPosition: [number, number];
+  unitImagePosition: [number, number];
+  actionIconPosition: [number, number];
+  width: number;
+  height: number;
+  size: number;
+  angle: number;
+  total: string;
+  unitIcon: string;
+  actionIcon: string;
+  isExternalIcon: boolean;
+}
+
+export interface DeckMilitaryBoxPolygon {
+  id: string;
+  kind: "military";
+  regimentId: number;
+  stateId: number;
+  cellId: number;
+  part: DeckMilitaryBoxPart;
+  polygon: DeckPosition[];
+  fillColor: Color;
+}
+
+export type DeckLabelType = "state" | "burg";
+
+export interface DeckLabelStyle {
+  fill: string;
+  opacity: number;
+  size: number;
+  dx: number;
+  dy: number;
+}
+
+export interface DeckLabelSymbol {
+  id: string;
+  kind: "label";
+  type: DeckLabelType;
+  itemId: number;
+  cellId: number | null;
+  group: string;
+  text: string;
+  position: [number, number];
+  size: number;
+  color: Color;
+}
+
+export interface DeckEmblemIcon {
+  id: string;
+  kind: "emblem";
+  type: DeckEmblemType;
+  cellId: number | null;
+  x: number;
+  y: number;
+  position: [number, number];
+  size: number;
+  color: Color;
 }
 
 export type DeckDivisionBoundaryKind = "state" | "province" | "culture" | "religion";
@@ -450,6 +573,342 @@ export function buildIcePolygons(
     .filter(iceElement => iceElement.polygon.length >= 3);
 }
 
+export function buildEmblemIcons(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  sizes: Record<DeckEmblemType, number>,
+  opacity: number
+): DeckEmblemIcon[] {
+  const { pack, graphHeight, graphWidth } = worldContext;
+  const states = pack.states.filter(
+    state =>
+      state.i && !state.removed && state.coa && state.coa.size !== 0 && (!focusScope || state.i === focusScope.stateId)
+  );
+  const provinces = (pack.provinces as Province[]).filter(
+    province =>
+      province.i &&
+      !province.removed &&
+      province.coa &&
+      province.coa.size !== 0 &&
+      isCellInScope(focusScope, province.center)
+  );
+  const burgs = pack.burgs.filter(
+    burg => burg.i && !burg.removed && burg.coa && burg.coa.size !== 0 && isCellInScope(focusScope, burg.cell)
+  );
+
+  const baseSizes = {
+    state: getStateEmblemsSize(graphWidth, graphHeight, states, sizes.state),
+    province: getProvinceEmblemsSize(graphWidth, graphHeight, provinces, sizes.province),
+    burg: getBurgEmblemsSize(graphWidth, graphHeight, burgs, sizes.burg)
+  };
+
+  const nodes = [
+    ...burgs.map(burg => buildBurgEmblem(worldContext, burg, baseSizes.burg, opacity)),
+    ...provinces.map(province => buildProvinceEmblem(worldContext, province, baseSizes.province, opacity)),
+    ...states.map(state => buildStateEmblem(worldContext, state, baseSizes.state, opacity))
+  ];
+
+  const simulation = forceSimulation(nodes)
+    .alphaMin(0.6)
+    .alphaDecay(0.2)
+    .velocityDecay(0.6)
+    .force(
+      "collision",
+      forceCollide<DeckEmblemIcon>().radius(emblem => emblem.size / 2)
+    )
+    .stop();
+  const ticks = Math.ceil(Math.log(simulation.alphaMin()) / Math.log(1 - simulation.alphaDecay()));
+  for (let index = 0; index < ticks; index++) simulation.tick();
+
+  return nodes.map(node => ({ ...node, position: [node.x, node.y] }));
+}
+
+export function buildBurgIconSymbols(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  styles: {
+    burgIcons: Record<string, DeckBurgIconStyle>;
+    anchors: Record<string, DeckBurgIconStyle>;
+    visibleGroups: ReadonlySet<string>;
+  }
+): DeckBurgIconSymbol[] {
+  const icons: DeckBurgIconSymbol[] = [];
+  for (const burg of worldContext.pack.burgs) {
+    if (!burg.i || burg.removed || !isCellInScope(focusScope, burg.cell)) continue;
+    const group = burg.group || getBurgGroupName(worldContext, burg);
+    if (!styles.visibleGroups.has(group)) continue;
+
+    const iconStyle = styles.burgIcons[group] ?? styles.burgIcons.town ?? DEFAULT_BURG_ICON_STYLE;
+    icons.push({
+      id: `burg-${burg.i}`,
+      kind: "burgIcon",
+      type: "burg",
+      burgId: burg.i,
+      cellId: burg.cell,
+      group,
+      position: [burg.x, burg.y],
+      size: iconStyle.size,
+      color: colorToRgba(iconStyle.fill, "#3e3e4b", iconStyle.opacity)
+    });
+
+    if (!burg.port) continue;
+    const anchorStyle = styles.anchors[group] ?? styles.anchors.town ?? DEFAULT_ANCHOR_ICON_STYLE;
+    icons.push({
+      id: `anchor-${burg.i}`,
+      kind: "burgIcon",
+      type: "anchor",
+      burgId: burg.i,
+      cellId: burg.cell,
+      group,
+      position: [burg.x, burg.y],
+      size: anchorStyle.size,
+      color: colorToRgba(anchorStyle.fill, "#ffffff", anchorStyle.opacity)
+    });
+  }
+
+  return icons;
+}
+
+export function buildMarkerSymbols(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  style: DeckMarkerStyle
+): DeckMarkerSymbol[] {
+  const markers = style.pinnedOnly
+    ? worldContext.pack.markers.filter((marker: Marker) => marker.pinned)
+    : worldContext.pack.markers;
+
+  return markers
+    .filter(marker => !marker.hidden && isCellInScope(focusScope, marker.cell))
+    .map(marker => {
+      const x = marker.x ?? worldContext.pack.cells.p[marker.cell]?.[0] ?? 0;
+      const y = marker.y ?? worldContext.pack.cells.p[marker.cell]?.[1] ?? 0;
+      const size = getMarkerSize(marker.size ?? 30, style);
+      const icon = marker.icon || "";
+      const dx = marker.dx ?? 50;
+      const dy = marker.dy ?? 50;
+      return {
+        id: `marker-${marker.i}`,
+        kind: "marker" as const,
+        markerId: marker.i,
+        cellId: marker.cell,
+        position: [x, y],
+        textPosition: [x - size / 2 + size * (dx / 100), y - size + size * (dy / 100)],
+        imagePosition: [x - size / 2 + size * (dx / 200), y - size + size * (dy / 200)],
+        size,
+        icon,
+        iconSize: marker.px ?? 12,
+        fillColor: marker.fill ?? "#ffffff",
+        strokeColor: marker.stroke ?? "#000000",
+        pin: marker.pin ?? "bubble",
+        isExternalIcon: isExternalMarkerIcon(icon)
+      };
+    });
+}
+
+export function buildMilitaryRegimentSymbols(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  boxSize: number
+): DeckMilitaryRegimentSymbol[] {
+  const regiments: DeckMilitaryRegimentSymbol[] = [];
+  for (const state of worldContext.pack.states) {
+    if (!state.i || state.removed || (focusScope && state.i !== focusScope.stateId)) continue;
+    for (const regiment of state.military ?? []) {
+      if (!isCellInScope(focusScope, regiment.cell)) continue;
+      const size = Math.max(boxSize || 6, 1);
+      const width = regiment.n ? size * 4 : size * 6;
+      const height = size * 2;
+      const left = regiment.x - width / 2;
+      const top = regiment.y - size;
+      const unitIcon = regiment.icon || getMilitaryEmblem(worldContext, regiment);
+      regiments.push({
+        id: `regiment-${state.i}-${regiment.i}`,
+        kind: "military",
+        regimentId: regiment.i,
+        stateId: state.i,
+        cellId: regiment.cell,
+        position: [regiment.x, regiment.y],
+        totalPosition: [regiment.x, regiment.y],
+        unitIconPosition: [left - size, regiment.y],
+        unitImagePosition: [left - height + height / 2, top + height / 2],
+        actionIconPosition: [left + width + size, regiment.y],
+        width,
+        height,
+        size,
+        angle: regiment.angle ?? 0,
+        total: formatMilitaryTotal(regiment.a, Boolean(regiment.n)),
+        unitIcon,
+        actionIcon: regiment.actionStatus === "battled" ? "🎯" : "🎪",
+        isExternalIcon: isExternalMarkerIcon(unitIcon)
+      });
+    }
+  }
+
+  return regiments;
+}
+
+export function buildMilitaryBoxPolygons(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  boxSize: number
+): DeckMilitaryBoxPolygon[] {
+  const boxes: DeckMilitaryBoxPolygon[] = [];
+  for (const state of worldContext.pack.states) {
+    if (!state.i || state.removed || (focusScope && state.i !== focusScope.stateId)) continue;
+    const baseColor = state.color && state.color[0] === "#" ? state.color : "#999999";
+    const darkerColor = parseColor(baseColor)?.darker().formatHex() ?? "#666666";
+    const mainColor = colorToRgba(baseColor, "#999999", 0.9);
+    const sideColor = colorToRgba(darkerColor, "#666666", 0.9);
+
+    for (const regiment of state.military ?? []) {
+      if (!isCellInScope(focusScope, regiment.cell)) continue;
+      const size = Math.max(boxSize || 6, 1);
+      const width = regiment.n ? size * 4 : size * 6;
+      const height = size * 2;
+      const left = regiment.x - width / 2;
+      const top = regiment.y - size;
+      const angle = regiment.angle ?? 0;
+      boxes.push(
+        buildMilitaryBox(regiment, state.i, "main", left, top, width, height, angle, mainColor),
+        buildMilitaryBox(regiment, state.i, "unit", left - height, top, height, height, angle, sideColor),
+        buildMilitaryBox(regiment, state.i, "action", left + width, top, height, height, angle, sideColor)
+      );
+    }
+  }
+
+  return boxes;
+}
+
+export function buildLabelSymbols(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  styles: {
+    state: DeckLabelStyle;
+    burgLabels: Record<string, DeckLabelStyle>;
+    visibleBurgGroups: ReadonlySet<string>;
+  }
+): DeckLabelSymbol[] {
+  const labels: DeckLabelSymbol[] = [];
+  for (const state of worldContext.pack.states) {
+    if (!state.i || state.removed || state.lock || !state.pole) continue;
+    if (focusScope && state.i !== focusScope.stateId) continue;
+    labels.push({
+      id: `state-label-${state.i}`,
+      kind: "label",
+      type: "state",
+      itemId: state.i,
+      cellId: state.center ?? null,
+      group: "states",
+      text: getStateLabelText(worldContext, state),
+      position: state.pole,
+      size: styles.state.size,
+      color: colorToRgba(styles.state.fill, "#3e3e4b", styles.state.opacity)
+    });
+  }
+
+  for (const burg of worldContext.pack.burgs) {
+    if (!burg.i || burg.removed || !isCellInScope(focusScope, burg.cell)) continue;
+    const group = burg.group || "town";
+    if (!styles.visibleBurgGroups.has(group)) continue;
+    const style = styles.burgLabels[group] ?? styles.burgLabels.town ?? DEFAULT_BURG_LABEL_STYLE;
+    labels.push({
+      id: `burg-label-${burg.i}`,
+      kind: "label",
+      type: "burg",
+      itemId: burg.i,
+      cellId: burg.cell,
+      group,
+      text: burg.name ?? `Burg ${burg.i}`,
+      position: [burg.x + style.dx * style.size, burg.y + style.dy * style.size],
+      size: style.size,
+      color: colorToRgba(style.fill, "#3e3e4b", style.opacity)
+    });
+  }
+
+  return labels;
+}
+
+function getStateLabelText(worldContext: Readonly<WorldContext>, state: State): string {
+  const mode = worldContext.options.stateLabelsMode || "auto";
+  if (mode === "full") return state.fullName || state.name || `State ${state.i}`;
+  return state.name || state.fullName || `State ${state.i}`;
+}
+
+function buildMilitaryBox(
+  regiment: MilitaryRegiment,
+  stateId: number,
+  part: DeckMilitaryBoxPart,
+  left: number,
+  top: number,
+  width: number,
+  height: number,
+  angle: number,
+  fillColor: Color
+): DeckMilitaryBoxPolygon {
+  const polygon = rotatePolygon(
+    [
+      [left, top],
+      [left + width, top],
+      [left + width, top + height],
+      [left, top + height]
+    ],
+    [regiment.x, regiment.y],
+    angle
+  );
+  return {
+    id: `regiment-${stateId}-${regiment.i}-${part}`,
+    kind: "military",
+    regimentId: regiment.i,
+    stateId,
+    cellId: regiment.cell,
+    part,
+    polygon,
+    fillColor
+  };
+}
+
+function rotatePolygon(points: DeckPosition[], origin: DeckPosition, angle: number): DeckPosition[] {
+  if (!angle) return points;
+  const radians = (angle * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const [originX, originY] = origin;
+  return points.map(([x, y]) => {
+    const dx = x - originX;
+    const dy = y - originY;
+    return [originX + dx * cos - dy * sin, originY + dx * sin + dy * cos];
+  });
+}
+
+function formatMilitaryTotal(amount: number, naval: boolean): string {
+  const threshold = naval ? 999 : 99999;
+  if (amount <= threshold) return String(Math.round(amount));
+  if (amount >= 1_000_000) return `${Math.round(amount / 100_000) / 10}M`;
+  return `${Math.round(amount / 100) / 10}k`;
+}
+
+function getMilitaryEmblem(worldContext: Readonly<WorldContext>, regiment: MilitaryRegiment): string {
+  if (regiment.isCapitalGuard) return "👑";
+  if (regiment.n) {
+    const navalUnit = worldContext.options.military?.find(unit => unit.type === "naval");
+    return navalUnit?.icon ?? "🌊";
+  }
+  const units = Object.entries(regiment.u);
+  if (!units.length) return "🔰";
+  const [mainUnit] = units.sort((left, right) => right[1] - left[1])[0];
+  const unit = worldContext.options.military?.find(item => item.name === mainUnit);
+  return unit?.icon ?? "⚔️";
+}
+
+function getMarkerSize(size: number, style: DeckMarkerStyle): number {
+  return style.rescale ? Math.max(Math.round((size / 5 + 24 / Math.max(style.scale, 0.0001)) * 100) / 100, 1) : size;
+}
+
+function isExternalMarkerIcon(icon: string): boolean {
+  return icon.startsWith("http") || icon.startsWith("data:image");
+}
+
 export function buildCoastlinePaths(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
@@ -468,6 +927,106 @@ export function buildCoastlinePaths(
       cellId: feature.feature.firstCell
     };
   });
+}
+
+function buildBurgEmblem(
+  worldContext: Readonly<WorldContext>,
+  burg: Burg,
+  baseSize: number,
+  opacity: number
+): DeckEmblemIcon {
+  const size = Math.max(1, baseSize * (burg.coa?.size || 1));
+  const state = burg.state ? worldContext.pack.states[burg.state] : null;
+  return {
+    id: `burg-${burg.i}`,
+    kind: "emblem",
+    type: "burg",
+    cellId: burg.cell,
+    x: burg.coa?.x || burg.x,
+    y: burg.coa?.y || burg.y,
+    position: [burg.coa?.x || burg.x, burg.coa?.y || burg.y],
+    size,
+    color: colorToRgba(state?.color, "#ffffff", opacity)
+  };
+}
+
+function buildProvinceEmblem(
+  worldContext: Readonly<WorldContext>,
+  province: Province,
+  baseSize: number,
+  opacity: number
+): DeckEmblemIcon {
+  const [x, y] = province.pole || worldContext.pack.cells.p[province.center];
+  const size = Math.max(1, baseSize * (province.coa?.size || 1));
+  return {
+    id: `province-${province.i}`,
+    kind: "emblem",
+    type: "province",
+    cellId: province.center,
+    x: province.coa?.x || x,
+    y: province.coa?.y || y,
+    position: [province.coa?.x || x, province.coa?.y || y],
+    size,
+    color: colorToRgba(province.color, "#ffffff", opacity)
+  };
+}
+
+function buildStateEmblem(
+  worldContext: Readonly<WorldContext>,
+  state: State,
+  baseSize: number,
+  opacity: number
+): DeckEmblemIcon {
+  const [x, y] = state.pole || worldContext.pack.cells.p[state.center];
+  const size = Math.max(1, baseSize * (state.coa?.size || 1));
+  return {
+    id: `state-${state.i}`,
+    kind: "emblem",
+    type: "state",
+    cellId: state.center,
+    x: state.coa?.x || x,
+    y: state.coa?.y || y,
+    position: [state.coa?.x || x, state.coa?.y || y],
+    size,
+    color: colorToRgba(state.color, "#ffffff", opacity)
+  };
+}
+
+function getStateEmblemsSize(graphWidth: number, graphHeight: number, states: State[], sizeMod: number): number {
+  const startSize = clamp((graphHeight + graphWidth) / 40, 10, 100);
+  const statesMod = 1 + states.length / 100 - (15 - states.length) / 200;
+  return Math.round((startSize / statesMod) * sizeMod);
+}
+
+function getProvinceEmblemsSize(
+  graphWidth: number,
+  graphHeight: number,
+  provinces: Province[],
+  sizeMod: number
+): number {
+  const startSize = clamp((graphHeight + graphWidth) / 100, 5, 70);
+  const provincesMod = 1 + provinces.length / 1000 - (115 - provinces.length) / 1000;
+  return Math.round((startSize / provincesMod) * sizeMod);
+}
+
+function getBurgEmblemsSize(graphWidth: number, graphHeight: number, burgs: Burg[], sizeMod: number): number {
+  const startSize = clamp((graphHeight + graphWidth) / 185, 2, 50);
+  const burgsMod = 1 + burgs.length / 1000 - (450 - burgs.length) / 1000;
+  return Math.round((startSize / burgsMod) * sizeMod);
+}
+
+const DEFAULT_BURG_ICON_STYLE: DeckBurgIconStyle = { fill: "#3e3e4b", opacity: 1, size: 4 };
+const DEFAULT_ANCHOR_ICON_STYLE: DeckBurgIconStyle = { fill: "#ffffff", opacity: 1, size: 1 };
+const DEFAULT_BURG_LABEL_STYLE: DeckLabelStyle = { fill: "#3e3e4b", opacity: 1, size: 4, dx: 0, dy: -0.4 };
+
+function getBurgGroupName(worldContext: Readonly<WorldContext>, burg: Burg): string {
+  const groups = worldContext.options.burgs?.groups as BurgGroup[] | undefined;
+  if (burg.capital) return "capital";
+  return groups?.find(group => group.name === burg.group)?.name ?? "town";
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
 }
 
 function applyOffset(points: [number, number][], offset: [number, number] | undefined): DeckPosition[] {

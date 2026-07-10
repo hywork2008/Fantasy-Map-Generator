@@ -5,11 +5,17 @@ import { useLayerState } from "../../../store/layerState";
 import { buildDeckLayers, clearDeckLayerDataCache, getDeckLayerDataCacheSize } from "../buildDeckLayers";
 import {
   buildBiomesPolygons,
+  buildBurgIconSymbols,
   buildCoastlinePaths,
+  buildEmblemIcons,
   buildHeightPolygons,
   buildIcePolygons,
+  buildLabelSymbols,
   buildLakePolygons,
   buildLandPolygonsBase,
+  buildMarkerSymbols,
+  buildMilitaryBoxPolygons,
+  buildMilitaryRegimentSymbols,
   buildRoutePaths
 } from "./deckDataAdapters";
 
@@ -20,6 +26,19 @@ function createWorldContext(): WorldContext {
     graphWidth: 100,
     graphHeight: 100,
     biomesData: { color: ["#000000", "#55aa55"] },
+    options: {
+      burgs: {
+        groups: [
+          { name: "town", active: true, order: 1 },
+          { name: "city", active: true, order: 2 }
+        ]
+      },
+      military: [{ name: "infantry", icon: "⚔️", type: "melee" }]
+    },
+    style: {
+      burgIcons: {},
+      anchors: {}
+    },
     grid: {
       cells: {
         i: new Uint32Array([0, 1]),
@@ -97,6 +116,8 @@ function createWorldContext(): WorldContext {
       religions: [],
       states: [],
       provinces: [],
+      burgs: [],
+      markers: [],
       zones: [],
       rivers: [],
       ice: [],
@@ -271,6 +292,196 @@ describe("deck.gl data adapters", () => {
     expect(ice[1]).toMatchObject({ id: "iceberg-2", kind: "ice", cellId: 0, iceType: "iceberg" });
   });
 
+  it("builds emblem icons for states, provinces, and burgs", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.cells.state[0] = 1;
+    worldContext.pack.states = [
+      { i: 0, name: "Neutral", expansionism: 0, capital: 0, type: "", center: 0, culture: 0, coa: null },
+      {
+        i: 1,
+        name: "North",
+        expansionism: 0,
+        capital: 1,
+        type: "",
+        center: 0,
+        culture: 0,
+        color: "#ff0000",
+        coa: { size: 1 }
+      }
+    ];
+    worldContext.pack.provinces = [
+      {
+        i: 1,
+        state: 1,
+        center: 0,
+        burg: 1,
+        name: "Northland",
+        formName: "Province",
+        fullName: "Northland Province",
+        color: "#00ff00",
+        coa: { size: 1 }
+      }
+    ];
+    worldContext.pack.burgs = [
+      {
+        i: 1,
+        cell: 0,
+        state: 1,
+        x: 5,
+        y: 5,
+        name: "Northburg",
+        coa: { size: 1 }
+      }
+    ];
+
+    const emblems = buildEmblemIcons(worldContext, null, { state: 1, province: 1, burg: 1 }, 0.9);
+
+    expect(emblems.map(emblem => emblem.id)).toEqual(["burg-1", "province-1", "state-1"]);
+    expect(emblems.every(emblem => emblem.kind === "emblem")).toBe(true);
+    expect(emblems.every(emblem => emblem.size > 0)).toBe(true);
+  });
+
+  it("builds burg and anchor icon symbols from burg groups", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.burgs = [
+      { i: 1, cell: 0, x: 5, y: 5, name: "Portburg", group: "city", port: 1 },
+      { i: 2, cell: 1, x: 8, y: 5, name: "Waterburg", group: "town" }
+    ];
+
+    const icons = buildBurgIconSymbols(worldContext, null, {
+      burgIcons: {
+        city: { fill: "#111111", opacity: 1, size: 5 },
+        town: { fill: "#222222", opacity: 0.8, size: 4 }
+      },
+      anchors: {
+        city: { fill: "#ffffff", opacity: 0.9, size: 1.5 },
+        town: { fill: "#ffffff", opacity: 0.9, size: 1 }
+      },
+      visibleGroups: new Set(["city", "town"])
+    });
+
+    expect(icons.map(icon => icon.id)).toEqual(["burg-1", "anchor-1", "burg-2"]);
+    expect(icons[0]).toMatchObject({ kind: "burgIcon", type: "burg", burgId: 1, cellId: 0, group: "city" });
+    expect(icons[1]).toMatchObject({ kind: "burgIcon", type: "anchor", burgId: 1, cellId: 0, group: "city" });
+    expect(icons[0].color).toEqual([17, 17, 17, 255]);
+    expect(icons[1].size).toBe(1.5);
+  });
+
+  it("builds marker symbols with pinned filtering and rescaled size", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.markers = [
+      {
+        i: 1,
+        type: "volcano",
+        icon: "🌋",
+        cell: 0,
+        x: 5,
+        y: 5,
+        size: 30,
+        pinned: true,
+        fill: "#ffffff",
+        stroke: "#000000"
+      },
+      { i: 2, type: "cave", icon: "○", cell: 0, x: 6, y: 6, pinned: false }
+    ];
+
+    const markers = buildMarkerSymbols(worldContext, null, { pinnedOnly: true, rescale: true, scale: 2 });
+
+    expect(markers).toHaveLength(1);
+    expect(markers[0]).toMatchObject({
+      id: "marker-1",
+      kind: "marker",
+      markerId: 1,
+      cellId: 0,
+      icon: "🌋",
+      size: 18
+    });
+  });
+
+  it("builds military regiment symbols and box polygons", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.states = [
+      { i: 0, name: "Neutral", expansionism: 0, capital: 0, type: "", center: 0, culture: 0, coa: null },
+      {
+        i: 1,
+        name: "North",
+        expansionism: 0,
+        capital: 0,
+        type: "",
+        center: 0,
+        culture: 0,
+        coa: null,
+        color: "#ff0000",
+        military: [
+          {
+            i: 0,
+            name: "1st Army",
+            a: 1200,
+            s: 1,
+            t: 1,
+            cell: 0,
+            x: 5,
+            y: 5,
+            bx: 5,
+            by: 5,
+            u: { infantry: 1200 },
+            n: 0,
+            type: "land",
+            state: 1
+          }
+        ]
+      }
+    ];
+
+    const regiments = buildMilitaryRegimentSymbols(worldContext, null, 6);
+    const boxes = buildMilitaryBoxPolygons(worldContext, null, 6);
+
+    expect(regiments).toHaveLength(1);
+    expect(regiments[0]).toMatchObject({
+      id: "regiment-1-0",
+      kind: "military",
+      regimentId: 0,
+      stateId: 1,
+      cellId: 0,
+      total: "1200",
+      unitIcon: "⚔️"
+    });
+    expect(boxes).toHaveLength(3);
+    expect(boxes.map(box => box.part)).toEqual(["main", "unit", "action"]);
+    expect(boxes[0]).toMatchObject({ id: "regiment-1-0-main", kind: "military", stateId: 1 });
+  });
+
+  it("builds state and burg label symbols", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.states = [
+      { i: 0, name: "Neutral", expansionism: 0, capital: 0, type: "", center: 0, culture: 0, coa: null },
+      {
+        i: 1,
+        name: "North",
+        fullName: "Kingdom of North",
+        expansionism: 0,
+        capital: 0,
+        type: "",
+        center: 0,
+        culture: 0,
+        coa: null,
+        pole: [5, 5]
+      }
+    ];
+    worldContext.pack.burgs = [{ i: 1, cell: 0, x: 6, y: 6, name: "Northburg", group: "town" }];
+
+    const labels = buildLabelSymbols(worldContext, null, {
+      state: { fill: "#111111", opacity: 1, size: 20, dx: 0, dy: 0 },
+      burgLabels: { town: { fill: "#222222", opacity: 0.9, size: 4, dx: 1, dy: -0.5 } },
+      visibleBurgGroups: new Set(["town"])
+    });
+
+    expect(labels.map(label => label.id)).toEqual(["state-label-1", "burg-label-1"]);
+    expect(labels[0]).toMatchObject({ kind: "label", type: "state", itemId: 1, text: "North" });
+    expect(labels[1]).toMatchObject({ kind: "label", type: "burg", itemId: 1, text: "Northburg" });
+    expect(labels[1].position).toEqual([10, 4]);
+  });
+
   it("uses active layer state to build deck.gl layer ids in draw order", () => {
     const worldContext = createWorldContext();
     const viewContext = { focusScope: null } as ViewContext;
@@ -330,6 +541,176 @@ describe("deck.gl data adapters", () => {
       "fmg-webgl-coastline"
     ]);
     expect(layers.find(layer => layer.id === "fmg-webgl-ice")?.props.data).toHaveLength(1);
+  });
+
+  it("adds active emblems as a deck.gl icon layer", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.states = [
+      { i: 0, name: "Neutral", expansionism: 0, capital: 0, type: "", center: 0, culture: 0, coa: null },
+      {
+        i: 1,
+        name: "North",
+        expansionism: 0,
+        capital: 1,
+        type: "",
+        center: 0,
+        culture: 0,
+        color: "#ff0000",
+        coa: { size: 1 }
+      }
+    ];
+    const viewContext = { focusScope: null } as ViewContext;
+    useLayerState.getState().setAllActiveLayers({ toggleEmblems: true });
+
+    const layers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
+
+    expect(layers.map(layer => layer.id)).toEqual([
+      "fmg-webgl-background",
+      "fmg-webgl-land",
+      "fmg-webgl-emblems",
+      "fmg-webgl-coastline"
+    ]);
+    expect(layers.find(layer => layer.id === "fmg-webgl-emblems")?.props.data).toHaveLength(1);
+  });
+
+  it("adds active burg icons as a deck.gl icon layer", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.burgs = [{ i: 1, cell: 0, x: 5, y: 5, name: "Northburg", group: "town", port: 1 }];
+    const viewContext = { focusScope: null } as ViewContext;
+    useLayerState.getState().setAllActiveLayers({ toggleBurgIcons: true });
+
+    const layers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
+
+    expect(layers.map(layer => layer.id)).toEqual([
+      "fmg-webgl-background",
+      "fmg-webgl-land",
+      "fmg-webgl-burg-icons",
+      "fmg-webgl-coastline"
+    ]);
+    expect(layers.find(layer => layer.id === "fmg-webgl-burg-icons")?.props.data).toHaveLength(2);
+  });
+
+  it("adds active markers as deck.gl pin and icon layers", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.markers = [{ i: 1, type: "volcano", icon: "🌋", cell: 0, x: 5, y: 5 }];
+    const viewContext = {
+      focusScope: null,
+      scale: 1,
+      markers: {
+        attr: (name: string) => (name === "rescale" ? "1" : null)
+      }
+    } as ViewContext;
+    useLayerState.getState().setAllActiveLayers({ toggleMarkers: true });
+
+    const layers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
+
+    expect(layers.map(layer => layer.id)).toEqual([
+      "fmg-webgl-background",
+      "fmg-webgl-land",
+      "fmg-webgl-markers",
+      "fmg-webgl-marker-icons",
+      "fmg-webgl-marker-images",
+      "fmg-webgl-coastline"
+    ]);
+    expect(layers.find(layer => layer.id === "fmg-webgl-markers")?.props.data).toHaveLength(1);
+    expect(layers.find(layer => layer.id === "fmg-webgl-marker-icons")?.props.data).toHaveLength(1);
+  });
+
+  it("adds active military as deck.gl box and text layers", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.states = [
+      { i: 0, name: "Neutral", expansionism: 0, capital: 0, type: "", center: 0, culture: 0, coa: null },
+      {
+        i: 1,
+        name: "North",
+        expansionism: 0,
+        capital: 0,
+        type: "",
+        center: 0,
+        culture: 0,
+        coa: null,
+        color: "#ff0000",
+        military: [
+          {
+            i: 0,
+            name: "1st Army",
+            a: 1200,
+            s: 1,
+            t: 1,
+            cell: 0,
+            x: 5,
+            y: 5,
+            bx: 5,
+            by: 5,
+            u: { infantry: 1200 },
+            n: 0,
+            type: "land",
+            state: 1
+          }
+        ]
+      }
+    ];
+    const viewContext = {
+      focusScope: null,
+      armies: {
+        attr: (name: string) => (name === "box-size" ? "6" : null)
+      }
+    } as ViewContext;
+    useLayerState.getState().setAllActiveLayers({ toggleMilitary: true });
+
+    const layers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
+
+    expect(layers.map(layer => layer.id)).toEqual([
+      "fmg-webgl-background",
+      "fmg-webgl-land",
+      "fmg-webgl-military",
+      "fmg-webgl-military-totals",
+      "fmg-webgl-military-icons",
+      "fmg-webgl-military-images",
+      "fmg-webgl-military-actions",
+      "fmg-webgl-coastline"
+    ]);
+    expect(layers.find(layer => layer.id === "fmg-webgl-military")?.props.data).toHaveLength(3);
+    expect(layers.find(layer => layer.id === "fmg-webgl-military-totals")?.props.data).toHaveLength(1);
+  });
+
+  it("adds active labels as a deck.gl text layer above map features", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.states = [
+      { i: 0, name: "Neutral", expansionism: 0, capital: 0, type: "", center: 0, culture: 0, coa: null },
+      {
+        i: 1,
+        name: "North",
+        expansionism: 0,
+        capital: 0,
+        type: "",
+        center: 0,
+        culture: 0,
+        coa: null,
+        pole: [5, 5]
+      }
+    ];
+    const viewContext = {
+      focusScope: null,
+      labels: {
+        select: () => ({
+          empty: () => true,
+          attr: () => null,
+          style: () => ""
+        })
+      }
+    } as unknown as ViewContext;
+    useLayerState.getState().setAllActiveLayers({ toggleLabels: true });
+
+    const layers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
+
+    expect(layers.map(layer => layer.id)).toEqual([
+      "fmg-webgl-background",
+      "fmg-webgl-land",
+      "fmg-webgl-coastline",
+      "fmg-webgl-labels"
+    ]);
+    expect(layers.find(layer => layer.id === "fmg-webgl-labels")?.props.data).toHaveLength(1);
   });
 
   it("adds visual boundary paths next to migrated division fills", () => {

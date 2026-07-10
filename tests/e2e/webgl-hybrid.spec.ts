@@ -11,13 +11,6 @@ import {
   zoomToMapCenter
 } from "./helpers/fmg-helpers";
 
-async function getSvgGroupState(page: Page, selector: string) {
-  return page.locator(selector).evaluate(element => ({
-    display: window.getComputedStyle(element).display,
-    childCount: element.children.length
-  }));
-}
-
 async function getTopElementAtCenter(page: Page, selector: string) {
   return page.locator(selector).evaluate(element => {
     const rect = element.getBoundingClientRect();
@@ -44,7 +37,7 @@ test.describe("webgl hybrid renderer", () => {
     expect(desktopScreenshot.length).toBeGreaterThan(1000);
 
     await expect(page.locator("#webglMapCanvas")).toBeVisible();
-    await expect(page.locator("#labels")).toBeVisible();
+    await expect(page.locator("#labels")).toBeHidden();
     await expect(page.locator("#scaleBar")).toBeVisible();
     await expect(page.locator("#regions")).toBeHidden();
     await expect(page.locator("#rivers")).toBeHidden();
@@ -52,6 +45,12 @@ test.describe("webgl hybrid renderer", () => {
     await expect(page.locator("#coastline")).toBeHidden();
     await expect(page.locator("#ice")).toBeHidden();
     await expect(page.locator("#terrain")).toBeHidden();
+    await expect(page.locator("#emblems")).toBeHidden();
+    await expect(page.locator("#icons")).toBeHidden();
+    await expect(page.locator("#burgIcons")).toBeHidden();
+    await expect(page.locator("#anchors")).toBeHidden();
+    await expect(page.locator("#markers")).toBeHidden();
+    await expect(page.locator("#armies")).toBeHidden();
     await expect
       .poll(() => getWebglDeckLayerIds(page), { timeout: 5000 })
       .toEqual(
@@ -59,18 +58,17 @@ test.describe("webgl hybrid renderer", () => {
           "fmg-webgl-lakes",
           "fmg-webgl-lakes-outlines",
           "fmg-webgl-coastline",
-          "fmg-webgl-ice"
+          "fmg-webgl-ice",
+          "fmg-webgl-burg-icons",
+          "fmg-webgl-labels"
         ])
       );
-    const burgIconsState = await getSvgGroupState(page, "#burgIcons");
-    expect(burgIconsState.display).not.toBe("none");
-    expect(burgIconsState.childCount).toBeGreaterThan(0);
 
     const beforeZoomTransform = await getViewTransformState(page);
     await zoomToMapCenter(page, 3);
     const afterZoomStats = await waitForWebglCanvasPixels(page);
     expect(afterZoomStats.coloredPixels).toBeGreaterThan(500);
-    await expect(page.locator("#labels")).toBeVisible();
+    await expect(page.locator("#labels")).toBeHidden();
     const afterZoomTransform = await getViewTransformState(page);
     expect(beforeZoomTransform).not.toEqual(afterZoomTransform);
     expect(afterZoomTransform.scale).toBeCloseTo(3, 1);
@@ -145,13 +143,37 @@ test.describe("webgl hybrid renderer", () => {
     await waitForWebglCanvasPixels(page);
 
     const presets = [
-      { name: "political", layers: ["fmg-webgl-states", "fmg-webgl-states-boundaries", "fmg-webgl-borders"] },
-      { name: "cultural", layers: ["fmg-webgl-cultures", "fmg-webgl-cultures-boundaries", "fmg-webgl-borders"] },
-      { name: "religions", layers: ["fmg-webgl-religions", "fmg-webgl-religions-boundaries", "fmg-webgl-borders"] },
+      {
+        name: "political",
+        layers: ["fmg-webgl-states", "fmg-webgl-states-boundaries", "fmg-webgl-borders", "fmg-webgl-labels"]
+      },
+      {
+        name: "cultural",
+        layers: ["fmg-webgl-cultures", "fmg-webgl-cultures-boundaries", "fmg-webgl-borders", "fmg-webgl-labels"]
+      },
+      {
+        name: "religions",
+        layers: ["fmg-webgl-religions", "fmg-webgl-religions-boundaries", "fmg-webgl-borders", "fmg-webgl-labels"]
+      },
       { name: "provinces", layers: ["fmg-webgl-provinces", "fmg-webgl-provinces-boundaries", "fmg-webgl-borders"] },
       { name: "biomes", layers: ["fmg-webgl-biomes", "fmg-webgl-rivers"] },
       { name: "physical", layers: ["fmg-webgl-height", "fmg-webgl-rivers"] },
-      { name: "military", layers: ["fmg-webgl-states", "fmg-webgl-states-boundaries", "fmg-webgl-borders"] }
+      { name: "poi", layers: ["fmg-webgl-height", "fmg-webgl-markers", "fmg-webgl-marker-icons"] },
+      {
+        name: "military",
+        layers: [
+          "fmg-webgl-states",
+          "fmg-webgl-states-boundaries",
+          "fmg-webgl-borders",
+          "fmg-webgl-military",
+          "fmg-webgl-military-totals",
+          "fmg-webgl-labels"
+        ]
+      },
+      {
+        name: "emblems",
+        layers: ["fmg-webgl-emblems", "fmg-webgl-states", "fmg-webgl-states-boundaries", "fmg-webgl-borders"]
+      }
     ];
 
     for (const preset of presets) {
@@ -177,6 +199,11 @@ test.describe("webgl hybrid renderer", () => {
       await expect(page.locator("#coastline")).toBeHidden();
       await expect(page.locator("#ice")).toBeHidden();
       await expect(page.locator("#terrain")).toBeHidden();
+      await expect(page.locator("#emblems")).toBeHidden();
+      await expect(page.locator("#icons")).toBeHidden();
+      await expect(page.locator("#labels")).toBeHidden();
+      await expect(page.locator("#markers")).toBeHidden();
+      await expect(page.locator("#armies")).toBeHidden();
       await expect(page.locator("#scaleBar")).toBeVisible();
     }
   });

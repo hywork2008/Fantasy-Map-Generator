@@ -382,7 +382,6 @@ export function drawLayers(): void {
   if (layerIsOn("toggleIce")) IceRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("togglePrecipitation")) PrecipitationRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleDanger")) DangerRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleLabels")) drawLabels();
   if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
@@ -399,11 +398,6 @@ function drawHybridSvgOverlays(): void {
     if (!view.compass.select("use").size()) view.compass.append("use").attr("xlink:href", "#defs-compass-rose");
     setLayerVisibility("toggleCompass", true);
   }
-  if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleLabels")) drawLabels();
-  if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
-  if (layerIsOn("toggleMarkers")) MarkersRenderer.render(worldContext, viewContext, appServices);
   for (const hook of _drawLayerHooks) hook();
   if (layerIsOn("toggleRulers")) rulers.draw();
 }
@@ -820,6 +814,7 @@ export function toggleRoutes(event?: MouseEvent): void {
 }
 
 export function toggleMilitary(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleMilitary", "armies", event)) return;
   if (!layerIsOn("toggleMilitary")) {
     turnButtonOn("toggleMilitary");
     MilitaryRenderer.render(worldContext, viewContext, appServices);
@@ -835,6 +830,7 @@ export function toggleMilitary(event?: MouseEvent): void {
 }
 
 export function toggleMarkers(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleMarkers", "markers", event)) return;
   if (!layerIsOn("toggleMarkers")) {
     turnButtonOn("toggleMarkers");
     MarkersRenderer.render(worldContext, viewContext, appServices);
@@ -851,6 +847,7 @@ export function toggleMarkers(event?: MouseEvent): void {
 
 export function toggleLabels(event?: MouseEvent): void {
   if (!viewContext.renderMap) return;
+  if (toggleWebglManagedLayer("toggleLabels", "labels", event)) return;
   if (!layerIsOn("toggleLabels")) {
     turnButtonOn("toggleLabels");
     setLayerVisibility("toggleLabels", true);
@@ -868,6 +865,7 @@ export function toggleLabels(event?: MouseEvent): void {
 
 export function toggleBurgIcons(event?: MouseEvent): void {
   if (!viewContext.renderMap) return;
+  if (toggleWebglManagedLayer("toggleBurgIcons", "burgIcons", event)) return;
   if (!layerIsOn("toggleBurgIcons")) {
     turnButtonOn("toggleBurgIcons");
     BurgIconsRenderer.render(worldContext, viewContext, appServices);
@@ -932,6 +930,8 @@ export function toggleZones(event?: MouseEvent): void {
 }
 
 export function toggleEmblems(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleEmblems", "emblems", event)) return;
+
   if (!layerIsOn("toggleEmblems")) {
     turnButtonOn("toggleEmblems");
     if (!view.emblems.selectAll("use").size()) EmblemsRenderer.render(worldContext, viewContext, appServices);

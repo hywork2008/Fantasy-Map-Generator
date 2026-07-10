@@ -21,7 +21,15 @@ const WEBGL_MANAGED_SVG_LAYER_IDS = [
   "danger",
   "coastline",
   "ice",
-  "terrain"
+  "terrain",
+  "emblems",
+  "icons",
+  "burgIcons",
+  "anchors",
+  "markers",
+  "armies",
+  "labels",
+  "burgLabels"
 ] as const;
 
 export const HYBRID_WEBGL_MANAGED_SVG_LAYER_IDS: ReadonlySet<string> = new Set(WEBGL_MANAGED_SVG_LAYER_IDS);
@@ -33,14 +41,6 @@ export const HYBRID_SVG_OVERLAY_LAYER_IDS = [
   "calendar",
   "ruler",
   "legend",
-  "labels",
-  "burgLabels",
-  "burgIcons",
-  "icons",
-  "anchors",
-  "armies",
-  "markers",
-  "emblems",
   "debug",
   "fogging"
 ] as const;
