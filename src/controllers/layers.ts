@@ -96,6 +96,9 @@ export function initLayers(wc: WorldContext, _vc: Readonly<ViewContext>, as: App
   document.addEventListener("fmg:turn-button-on", (e: Event) => turnButtonOn((e as CustomEvent<string>).detail));
   document.addEventListener("fmg:turn-button-off", (e: Event) => turnButtonOff((e as CustomEvent<string>).detail));
   document.addEventListener("fmg:get-current-preset", () => getCurrentPreset());
+  // A coa icon finished rasterizing asynchronously (emblemIconCache.ts) after the WebGL emblems
+  // layer already rendered the flat-color placeholder shield for it — rebuild to pick it up.
+  document.addEventListener("fmg:webgl-emblem-icon-ready", () => scheduleWebglUpdate());
 }
 
 // ─── Preset management ───────────────────────────────────────────────────────

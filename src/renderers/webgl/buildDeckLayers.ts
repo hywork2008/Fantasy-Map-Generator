@@ -4,6 +4,7 @@ import type { AppServices } from "../../context/appServices";
 import type { ViewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
 import { useLayerState } from "../../store/layerState";
+import { EMBLEM_ICON_RASTER_SIZE } from "../emblem-renderer";
 import {
   buildBackgroundPolygons,
   buildBiomesPolygons,
@@ -56,6 +57,7 @@ import {
   type DeckPath,
   type DeckPosition
 } from "./adapters/deckDataAdapters";
+import { getEmblemIconCacheVersion } from "./emblemIconCache";
 import {
   getBurgIconStyle,
   getCoastlinePaint,
@@ -360,19 +362,22 @@ export function buildDeckLayers(
       new IconLayer<DeckEmblemIcon>({
         id: "fmg-webgl-emblems",
         data: getCachedDeckData("icons:emblems", signatures.byLayer.emblems, () =>
-          buildEmblemIcons(worldContext, viewContext.focusScope, emblemStyle.sizes, emblemStyle.opacity)
+          buildEmblemIcons(worldContext, viewContext.focusScope, emblemStyle.sizes, emblemStyle.opacity, appServices)
         ),
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         getPosition: datum => datum.position,
-        getIcon: () => ({
-          id: "shield",
-          url: EMBLEM_ICON_URL,
-          width: 128,
-          height: 128,
-          anchorX: 64,
-          anchorY: 64,
-          mask: true
-        }),
+        getIcon: datum =>
+          datum.iconUrl
+            ? {
+                id: datum.id,
+                url: datum.iconUrl,
+                width: EMBLEM_ICON_RASTER_SIZE,
+                height: EMBLEM_ICON_RASTER_SIZE,
+                anchorX: EMBLEM_ICON_RASTER_SIZE / 2,
+                anchorY: EMBLEM_ICON_RASTER_SIZE / 2,
+                mask: false
+              }
+            : { id: "shield", url: EMBLEM_ICON_URL, width: 128, height: 128, anchorX: 64, anchorY: 64, mask: true },
         getColor: datum => datum.color,
         getSize: datum => datum.size,
         sizeUnits: "common",
@@ -745,7 +750,7 @@ function buildLayerSignatures(
     "emblems",
     "toggleEmblems",
     () =>
-      `${scope}|${emblemsSignature(pack.states, pack.provinces, pack.burgs)}|${emblemStyleSignature(styles.emblemStyle)}`
+      `${scope}|${emblemsSignature(pack.states, pack.provinces, pack.burgs)}|${emblemStyleSignature(styles.emblemStyle)}|icons:${getEmblemIconCacheVersion()}`
   );
   setIfActive(
     "burgIcons",

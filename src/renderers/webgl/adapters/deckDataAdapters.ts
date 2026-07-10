@@ -23,6 +23,7 @@ import { clipPoly } from "../../../utils";
 import { getColor, getColorScheme } from "../../../utils/colorUtils";
 import { fractalizeCoastline } from "../../coastline-fractal";
 import { isCellInScope, isGridCellInScope } from "../../core/focusScope";
+import { getCachedEmblemIconUrl } from "../emblemIconCache";
 
 export type DeckPosition = [number, number];
 
@@ -177,6 +178,8 @@ export interface DeckEmblemIcon {
   position: [number, number];
   size: number;
   color: Color;
+  /** Rendered coa artwork as a data URI, or null while it's still being generated (see emblemIconCache.ts). */
+  iconUrl: string | null;
 }
 
 export type DeckDivisionBoundaryKind = "state" | "province" | "culture" | "religion";
@@ -660,7 +663,8 @@ export function buildEmblemIcons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
   sizes: Record<DeckEmblemType, number>,
-  opacity: number
+  opacity: number,
+  appServices: Readonly<AppServices>
 ): DeckEmblemIcon[] {
   const { pack, graphHeight, graphWidth } = worldContext;
   const states = pack.states.filter(
@@ -686,9 +690,9 @@ export function buildEmblemIcons(
   };
 
   const nodes = [
-    ...burgs.map(burg => buildBurgEmblem(worldContext, burg, baseSizes.burg, opacity)),
-    ...provinces.map(province => buildProvinceEmblem(worldContext, province, baseSizes.province, opacity)),
-    ...states.map(state => buildStateEmblem(worldContext, state, baseSizes.state, opacity))
+    ...burgs.map(burg => buildBurgEmblem(worldContext, burg, baseSizes.burg, opacity, appServices)),
+    ...provinces.map(province => buildProvinceEmblem(worldContext, province, baseSizes.province, opacity, appServices)),
+    ...states.map(state => buildStateEmblem(worldContext, state, baseSizes.state, opacity, appServices))
   ];
 
   const simulation = forceSimulation(nodes)
@@ -1017,10 +1021,16 @@ function buildBurgEmblem(
   worldContext: Readonly<WorldContext>,
   burg: Burg,
   baseSize: number,
-  opacity: number
+  opacity: number,
+  _appServices: Readonly<AppServices>
 ): DeckEmblemIcon {
   const size = Math.max(1, baseSize * (burg.coa?.size || 1));
   const state = burg.state ? worldContext.pack.states[burg.state] : null;
+  // Burgs keep the flat placeholder shield rather than rasterized coa art: a map can have
+  // hundreds to thousands of burgs (vs. tens/low hundreds of states+provinces), and deck.gl's
+  // IconLayer auto-packing lays every distinct icon into one shared atlas texture whose height
+  // grows with icon count — rasterizing coa art for every burg risks exceeding GPU texture size
+  // limits on large maps. States/provinces are few enough that this isn't a concern for them.
   return {
     id: `burg-${burg.i}`,
     kind: "emblem",
@@ -1030,7 +1040,8 @@ function buildBurgEmblem(
     y: burg.coa?.y || burg.y,
     position: [burg.coa?.x || burg.x, burg.coa?.y || burg.y],
     size,
-    color: colorToRgba(state?.color, "#ffffff", opacity)
+    color: colorToRgba(state?.color, "#ffffff", opacity),
+    iconUrl: null
   };
 }
 
@@ -1038,12 +1049,15 @@ function buildProvinceEmblem(
   worldContext: Readonly<WorldContext>,
   province: Province,
   baseSize: number,
-  opacity: number
+  opacity: number,
+  appServices: Readonly<AppServices>
 ): DeckEmblemIcon {
   const [x, y] = province.pole || worldContext.pack.cells.p[province.center];
   const size = Math.max(1, baseSize * (province.coa?.size || 1));
+  const id = `province-${province.i}`;
+  const iconUrl = getCachedEmblemIconUrl(id, province.coa, appServices);
   return {
-    id: `province-${province.i}`,
+    id,
     kind: "emblem",
     type: "province",
     cellId: province.center,
@@ -1051,7 +1065,8 @@ function buildProvinceEmblem(
     y: province.coa?.y || y,
     position: [province.coa?.x || x, province.coa?.y || y],
     size,
-    color: colorToRgba(province.color, "#ffffff", opacity)
+    color: iconUrl ? colorToRgba("#ffffff", "#ffffff", opacity) : colorToRgba(province.color, "#ffffff", opacity),
+    iconUrl
   };
 }
 
@@ -1059,12 +1074,15 @@ function buildStateEmblem(
   worldContext: Readonly<WorldContext>,
   state: State,
   baseSize: number,
-  opacity: number
+  opacity: number,
+  appServices: Readonly<AppServices>
 ): DeckEmblemIcon {
   const [x, y] = state.pole || worldContext.pack.cells.p[state.center];
   const size = Math.max(1, baseSize * (state.coa?.size || 1));
+  const id = `state-${state.i}`;
+  const iconUrl = getCachedEmblemIconUrl(id, state.coa, appServices);
   return {
-    id: `state-${state.i}`,
+    id,
     kind: "emblem",
     type: "state",
     cellId: state.center,
@@ -1072,7 +1090,8 @@ function buildStateEmblem(
     y: state.coa?.y || y,
     position: [state.coa?.x || x, state.coa?.y || y],
     size,
-    color: colorToRgba(state.color, "#ffffff", opacity)
+    color: iconUrl ? colorToRgba("#ffffff", "#ffffff", opacity) : colorToRgba(state.color, "#ffffff", opacity),
+    iconUrl
   };
 }
 

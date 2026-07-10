@@ -262,6 +262,35 @@ export async function getWebglLayerStyleSamples(
   }, layerIds);
 }
 
+export interface WebglEmblemIconSummary {
+  total: number;
+  withIconUrl: number;
+  burgWithIconUrl: number;
+  stateOrProvinceWithIconUrl: number;
+}
+
+/** Reads the fmg-webgl-emblems deck layer data to check coa icon rasterization progress (Phase 6). */
+export async function getWebglEmblemIconSummary(page: Page): Promise<WebglEmblemIconSummary> {
+  return page.evaluate(() => {
+    const deck = window.fmg.view.webglDeck as unknown as {
+      props?: { layers?: Array<{ id?: string; props?: { data?: unknown[] } }> };
+    } | null;
+    const layers = deck?.props?.layers ?? [];
+    const layer = layers.find(candidate => candidate.id === "fmg-webgl-emblems");
+    const data = Array.isArray(layer?.props?.data)
+      ? (layer!.props!.data as Array<{ type?: string; iconUrl?: string | null }>)
+      : [];
+    const withIconUrl = data.filter(datum => Boolean(datum.iconUrl));
+    return {
+      total: data.length,
+      withIconUrl: withIconUrl.length,
+      burgWithIconUrl: withIconUrl.filter(datum => datum.type === "burg").length,
+      stateOrProvinceWithIconUrl: withIconUrl.filter(datum => datum.type === "state" || datum.type === "province")
+        .length
+    };
+  });
+}
+
 export interface WebglStyleComparison {
   source: string;
   group: string;

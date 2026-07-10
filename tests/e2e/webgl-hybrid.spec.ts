@@ -15,6 +15,7 @@ import {
   getToastText,
   getWebglDeckLayerIds,
   getWebglCanvasPixelStats,
+  getWebglEmblemIconSummary,
   getWebglLayerRenderingProps,
   getWebglLayerStyleSamples,
   getWebglStyleComparisons,
@@ -730,6 +731,29 @@ test.describe("webgl hybrid renderer", () => {
       await expect(page.locator("#armies")).toBeHidden();
       await expect(page.locator("#scaleBar")).toBeVisible();
     }
+  });
+
+  test("rasterizes real coa artwork for state/province emblems but keeps burgs on the placeholder shield", async ({
+    page
+  }) => {
+    await page.goto("/?seed=webgl-emblem-coa&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await setLayerPreset(page, "emblems");
+    await waitForWebglCanvasPixels(page);
+
+    await expect.poll(async () => (await getWebglEmblemIconSummary(page)).total, { timeout: 5000 }).toBeGreaterThan(
+      0
+    );
+
+    // Coa rasterization is async (emblemIconCache.ts); poll until at least one state/province
+    // icon resolves and triggers the redraw that picks it up.
+    await expect
+      .poll(async () => (await getWebglEmblemIconSummary(page)).stateOrProvinceWithIconUrl, { timeout: 10000 })
+      .toBeGreaterThan(0);
+
+    const summary = await getWebglEmblemIconSummary(page);
+    expect(summary.burgWithIconUrl).toBe(0);
   });
 
   test("keeps WebGL style data populated across representative style presets", async ({ page }) => {

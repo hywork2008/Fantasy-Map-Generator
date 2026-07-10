@@ -335,7 +335,7 @@ describe("deck.gl data adapters", () => {
       }
     ];
 
-    const emblems = buildEmblemIcons(worldContext, null, { state: 1, province: 1, burg: 1 }, 0.9);
+    const emblems = buildEmblemIcons(worldContext, null, { state: 1, province: 1, burg: 1 }, 0.9, appServices);
 
     expect(emblems.map(emblem => emblem.id)).toEqual(["burg-1", "province-1", "state-1"]);
     expect(emblems.every(emblem => emblem.kind === "emblem")).toBe(true);

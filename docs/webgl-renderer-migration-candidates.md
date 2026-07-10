@@ -310,12 +310,58 @@ typed array / binary attribute 化（`Float32Array` の positions/colors を dec
 
 ## Phase 6: COA / アイコン / テキスト
 
-- [ ] COA を placeholder icon から実際の紋章表示へ移行する方式を決める。
-- [ ] 候補: `COArenderer` でSVGを生成し、offscreen canvas / image bitmap / texture atlas として `IconLayer` または `BitmapLayer` に渡す。
-- [ ] burg icons / marker icons / military unit icons の atlas 化を検討する。
-- [ ] external marker image のCORS / load failure時の fallback を定義する。
-- [ ] `TextLayer` のフォント、CJK、回転、halo / shadow、line wrapping をSVG版と比較する。
-- [ ] ラベル衝突回避を deck.gl 側で完結させるか、既存SVG layout結果を adapter が読むか決める。
+### 進め方
+
+- 実施順序は 6.1 (COA) → 6.2 (icon atlas) → 6.3 (テキスト)。
+- 6.1 と 6.2 は「SVGコンテンツ → 画像 → `IconLayer`」という同じ配線パターンを共有する。先に 6.1 でこのパイプライン（非同期ラスタライズ、content-addressed cache、大量オブジェクト時のコスト）のリスクを潰し、6.2 では同じ仕組みを burg icon atlas に転用する。
+- 現状のパッケージ構成は `@deck.gl/core` / `@deck.gl/layers` のみ（`package.json`）。`IconLayer` / `TextLayer` / `BitmapLayer` はいずれも `@deck.gl/layers` に含まれ追加パッケージは不要。COA・icon atlas とも `IconLayer` の個別URL自動アトラス化（marker external image で既に使っている方式）で対応でき、新規に `BitmapLayer` を導入する必要はないと判断する。
+- 6.3 (TextLayer) は `TextLayer` のアーキテクチャ上、state label の湾曲 `textPath` 配置を再現できない。着手前に受け入れ基準を明文化し、「SVG版と完全一致」ではなく「実用上同等 + 差分の明文化」を完了条件にする（Phase 2 が texture/terrain の deck.gl 化を見送った判断と同じ考え方）。
+
+### 6.1 COA (紋章) 描画
+
+現状 `buildEmblemIcons()` (`deckDataAdapters.ts:659`) は state/province/burg の色を `getColor` で塗るだけの単色シールド `IconLayer`（`EMBLEM_ICON_URL` 固定、`mask:true`）で、実際の紋章は一切描かれていない。SVG版の紋章生成は `emblem-renderer.ts` の `EmblemRenderModule.draw()` が担っており、charge SVGを非同期fetchして合成SVG文字列を組み立て、`#coas` に `insertAdjacentHTML` した上で `<use href="#id">` から参照する設計になっている。
+
+- [x] `emblem-renderer.ts` の `draw()` から、DOM挿入 (`insertAdjacentHTML` to `#coas`) に依存しない「coa定義 → SVGマークアップ文字列」を返す純粋関数を切り出す。既存の `trigger(id, coa)` はこの関数 + DOM挿入のラッパーとして残し、SVG版の挙動・呼び出し元は変えない。
+- [x] 上記のSVG文字列を `IconLayer` の `getIcon` が返す `{url, width, height, id}` 用に data URI 化する。charge SVG の fetch が絡むため非同期解決になる前提で、Promiseベースのキャッシュを設計する。
+- [x] state / province / burg の coa ごとにラスタライズ結果を content-addressed cache する（Phase 5 の `deckLayerDataCache` の `emblems` キー方針と同様、coa の構成要素が変わらない限り再生成しない）。
+- [x] `buildEmblemIcons()` を上記 data URI を使う経路に切り替え、`mask:true` を外して coa 自体の配色をそのまま使う（現状の flat fill color 依存をやめる）。
+- [x] 数百 state/province/burg 分の coa を一括ラスタライズするコストを計測する。重い場合は SVG版の `renderGroupCOAs()` と同様に、表示範囲・zoom しきい値に入ったものだけ生成する遅延生成を検討する。→ 遅延生成ではなく、burg tier を対象外にしてスコープを絞る方式を採用した（詳細は開始ログ）。
+- [x] E2E で代表 state / province / burg の coa が単色プレースホルダーではなく実際の紋章画像として WebGL canvas に現れることを検証する。→ burg は仕様上プレースホルダーのまま（開始ログ参照）。
+
+### Phase 6.1 開始ログ
+
+- `emblem-renderer.ts` の `draw()` から DOM挿入前の SVG 文字列組み立てを `buildMarkup(id, coa)` として切り出した。`draw()`（SVG版、`#coas` に挿入）はこれを呼ぶ薄いラッパーになった。新規 `renderIconDataUrl(id, coa)` が WebGL 向けの入口で、`buildMarkup()` の結果を後述の理由で PNG data URI にラスタライズして返す（`custom` coa は `null` を返し呼び出し側でプレースホルダーにフォールバックする）。
+- `appServices.COArenderer` インターフェースに `renderIconDataUrl(id, coa): Promise<string | null>` を追加した。dynamic extension は host module を直接 import できない設計のため、この経路も `ExtensionAPI` 同様に `appServices` 経由で解決する。
+- 非同期解決とキャッシュは新規 `src/renderers/webgl/emblemIconCache.ts` に切り出した。`getCachedEmblemIconUrl(id, coa, appServices)` は同期的に呼べる関数で、キャッシュ hit なら data URI を、miss なら `null` を返しつつ裏で `renderIconDataUrl()` を起動する。adapter (`deckDataAdapters.ts`) 側は同期呼び出しのまま保て、DOM/非同期の詳細は `emblemIconCache.ts` に閉じ込めている。
+- content-addressed cache key は `id + JSON.stringify(coa)`（`id` 単独だと、新しい map 生成で同じ state/province index が別の coa を持つ場合に古い紋章画像を誤って再利用してしまうため）。
+- 解決済み icon が後から利用可能になったことを描画に反映するため、`emblemIconCache.ts` は解決時に `fmg:webgl-emblem-icon-ready` を dispatch する。`controllers/layers.ts`（`initLayers()` 内）がこれを購読して `scheduleWebglUpdate()` を呼ぶ。また `buildLayerSignatures()` の `emblems` signature に `getEmblemIconCacheVersion()`（新しい icon が解決されるたびに増える module-level counter）を含めた。理由: `getCachedDeckData()` は signature が変わらない限り前回の配列参照をそのまま返すため、version を signature に含めないと非同期解決後の再描画が picked up されない。
+- **SVG data URI をそのまま `IconLayer` の icon url にするのは不可**という実装中の発見: deck.gl の `IconLayer` auto-packing は内部で `@loaders.gl/images` の `parseToImageBitmap()` を経由し、SVG 画像は一旦 `<img>` に読み込んだ上で `createImageBitmap(imgElement)` を **resize オプション無しで** 呼ぶ。この呼び出しは Chromium 上で `"The image element contains an SVG image without natural dimensions, and no resize options are specified."` を投げることがある（`width`/`height` 属性を明示していても発生しうる既知の挙動）。対策として `emblem-renderer.ts` に `rasterizeSvgToPngDataUrl()` を追加し、SVG を `<img>` → `<canvas>` 経由で PNG data URI に変換してから `IconLayer` に渡すようにした。PNG は `isSVG()` 判定に掛からないため、この経路自体を回避できる。なお、この `createImageBitmap` エラー自体は既存の burg icon / marker pin 用プレースホルダー SVG（`width`/`height` 属性なし）でも Phase 6 以前から発生しており、本 phase が原因ではない（stash して確認済み）。実害はなく（対象アイコンが読み込み失敗しても他のアイコンには影響しない)、Phase 6 のスコープ外の別件として未対応のまま残す。
+- **burg emblem は意図的に対象外**にした: 生成される地図では burg 数が state/province 数よりずっと多く（実測で state 14 / province 171 / burg 682 という map もあった）、deck.gl の `IconLayer` auto-packing は「distinct icon ごとに固有サイズを an 1 枚の共有 atlas texture に敷き詰める」実装のため、burg 全件に紋章を持たせると atlas の高さが GPU のテクスチャサイズ上限（多くの環境で 8192〜16384px）を超えるリスクがある。実際、200×200px でラスタライズしたまま burg も含めて試したところ、emblems レイヤー全体が黒い正方形になる形で可視的に壊れた（atlas 溢れによる corruption と推定）。対応として (1) ラスタライズ解像度を 200px から `EMBLEM_ICON_RASTER_SIZE = 64px` に縮小し、(2) burg emblem は常に `iconUrl: null`（= 既存の flat color プレースホルダーシールド）のままにする、の2点で atlas サイズを state/province 数（地図サイズに対して burg よりずっと緩やかにしか増えない）に閉じ込めた。E2E (`webgl-hybrid.spec.ts` の `rasterizes real coa artwork for state/province emblems but keeps burgs on the placeholder shield`) はこの分担を固定仕様として検証する。
+- E2E は `tests/e2e/helpers/fmg-helpers.ts` の `getWebglEmblemIconSummary()` 経由で `fmg-webgl-emblems` レイヤーの deck data を読み、state/province の少なくとも1件が非同期解決後に `iconUrl` を持つこと、burg は常に `iconUrl: null` のままであることを検証する。非同期解決を待つため `expect.poll()` を使う。
+- 手動確認: `webglHybrid` で `emblems` プリセットを表示し、実際に紋章（盾の分割・charge 込み）が州・属州単位で描画されることをブラウザで確認した。burg アイコンは従来通りの単色シールドのまま。
+
+### 6.2 burg / marker / military アイコンの atlas 化
+
+現状 `buildBurgIconSymbols()` (`deckDataAdapters.ts:709`) は `type: "burg" | "anchor"` のみを出力し、`buildDeckLayers.ts` がこの2種類の画像を固定 (`BURG_ICON_URLS`) でハードコードしている。SVG版 (`draw-burg-icons.ts`) は burg group の `data-icon` 属性で任意の `#icon-*` symbol を指定できるが、WebGL側はこれを無視している。military unit icon (`buildMilitaryRegimentSymbols()` / `getMilitaryEmblem()`) は SVG版とほぼ同じ emoji/外部画像判定ロジック (`isExternalMarkerIcon`) が既に移植済みで、この項目の対象外とする。
+
+- [ ] SVG版で `data-icon` が参照しうる `#icon-*` symbol の一覧を洗い出す。
+- [ ] 洗い出した symbol 群を一枚の icon atlas 画像として事前生成する処理を追加する（`IconLayer` の `iconAtlas` + `iconMapping`）。生成タイミングは起動時1回、または style 変更時のみの再生成とする。
+- [ ] `buildBurgIconSymbols()` が `data-icon` 由来の icon id を持つようにし、`buildDeckLayers.ts` の burg icon `IconLayer` をハードコード2種から `iconAtlas` 参照に切り替える。
+- [ ] military unit icon は現状の `TextLayer` + `IconLayer` ペアを維持し、atlas化は行わない。SVG版との差分が見つかった場合のみ追従修正する。
+- [ ] external marker image (`isExternalIcon`) の CORS / 読み込み失敗時フォールバックを定義する。画像読み込みの成否を URL 単位でキャッシュし、失敗した URL は次回以降プレースホルダー icon にフォールバックする。
+- [ ] E2E で、複数の `data-icon` を持つ burg が対応する icon（丸以外）で描画されること、読み込み失敗 marker がフォールバック表示になることを検証する。
+
+### 6.3 TextLayer: フォント・CJK・回転・halo
+
+現状 `buildDeckLayers.ts` の label `TextLayer` (`fmg-webgl-labels`) は `getPosition` / `getText` / `getSize` / `getColor` / `getTextAnchor` のみで、`fontFamily` / `getAngle` / halo (`outlineWidth`/`outlineColor`) はいずれも未設定。state label の湾曲 `textPath` 配置 (`draw-state-labels.ts` のレイキャスト + 自動フィット) は `TextLayer` の直線ベースラインでは再現できない。
+
+- [ ] 受け入れ基準を先に決める: state label の湾曲配置は再現不可能と判断し、直線 + 回転角（state polygon の主軸角度などから近似）で代替する。この差分は恒久的なものとして Phase 3 の SVG attribute audit 表に反映する。
+- [ ] burg label / state label の `TextLayer` に `fontFamily` / `fontSettings` を明示し、既存 CSS フォントスタックと CJK グリフの表示を確認する。
+- [ ] `outlineWidth` / `outlineColor` (halo) を設定し、SVG版の可読性を WebGL でも再現する。
+- [ ] state label に `getAngle`（近似角度）を追加し、「湾曲なし・回転あり」で実用上許容できるか判断する。
+- [ ] multi-line 分割 (`getLinesAndRatio` 相当) を WebGL 側にも実装するか、1行表示に単純化するかを決める。
+- [ ] ラベル同士の衝突回避は本 phase のスコープ外とし、Phase 9 以降の課題として明記する（deck.gl にビルトインの collision-avoidance layer が無いため）。
+- [ ] E2E で代表 style における label の font / color / size / halo / rotation が SVG版と「近似的に」一致することを検証する（湾曲なしの許容差分を明文化した上で）。
 
 ## Phase 7: 保存・読み込み・拡張との整合
 

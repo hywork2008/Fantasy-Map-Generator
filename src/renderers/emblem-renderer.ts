@@ -158,7 +158,9 @@ class EmblemRenderModule {
       .join("");
   }
 
-  private async draw(id: string, coa: Emblem) {
+  // Builds the composed <svg> markup for a coa without touching the DOM, so it can be reused
+  // both by draw() (SVG renderer, inserted into #coas) and renderIconDataUrl() (WebGL renderer).
+  private async buildMarkup(id: string, coa: Emblem) {
     const { shield = "heater", division, ordinaries = [], charges = [] } = coa;
 
     const ordinariesRegular = ordinaries.filter(o => !o.above);
@@ -297,11 +299,16 @@ class EmblemRenderModule {
     const divisionGroup = division ? templateDivision() : "";
     const overlay = `<path d="${shieldPath}" fill="url(#backlight_${id})" stroke="#333"/>`;
 
-    const svg = `<svg id="${id}" width="200" height="200" viewBox="${viewBox}">
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" id="${id}" width="200" height="200" viewBox="${viewBox}">
         <defs>${shieldClip}${divisionClip}${loadedCharges}${loadedPatterns}${blacklight}${style}</defs>
         <g clip-path="url(#${shield}_${id})">${field}${divisionGroup}${templateAboveAll()}</g>
         ${overlay}</svg>`;
 
+    return svg;
+  }
+
+  private async draw(id: string, coa: Emblem) {
+    const svg = await this.buildMarkup(id, coa);
     document.getElementById("coas")!.insertAdjacentHTML("beforeend", svg);
     return true;
   }
@@ -311,6 +318,21 @@ class EmblemRenderModule {
     if (!coa) return console.warn(`Emblem ${id} is undefined`);
     if (coa.custom) return console.warn("Cannot render custom emblem", coa);
     if (!document.getElementById(id)) return this.draw(id, coa);
+  }
+
+  // WebGL renderer entry point: returns a self-contained data URI for the coa artwork instead of
+  // inserting into the DOM, so it can be used directly as a deck.gl IconLayer icon url. Approximate
+  // by design (Phase 6 acceptance: WebGL coa art doesn't need to be pixel-identical to SVG's).
+  async renderIconDataUrl(id: string, coa: Emblem): Promise<string | null> {
+    if (!coa || coa.custom) return null;
+    const svg = await this.buildMarkup(id, coa);
+    // Rasterized to a small PNG rather than handed to deck.gl as a raw SVG data URI, for two
+    // reasons: (1) loaders.gl's SVG image path calls createImageBitmap() on an <img> with no
+    // resize options, which throws ("...SVG image without natural dimensions...") under deck.gl's
+    // IconLayer auto-packing when loading many distinct coa icons concurrently; (2) a smaller
+    // raster keeps the shared icon atlas texture deck.gl builds from all distinct icons well
+    // within GPU texture size limits even when many states/provinces are on screen at once.
+    return rasterizeSvgToPngDataUrl(svg, EMBLEM_ICON_RASTER_SIZE);
   }
 
   async add(type: string, i: number, coa: Emblem, x: number, y: number) {
@@ -325,5 +347,28 @@ class EmblemRenderModule {
     if (layerIsOn("toggleEmblems")) this.trigger(id, coa);
   }
 }
+
+export const EMBLEM_ICON_RASTER_SIZE = 64;
+
+function rasterizeSvgToPngDataUrl(svg: string, size: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("2d canvas context unavailable"));
+        return;
+      }
+      ctx.drawImage(image, 0, 0, size, size);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    image.onerror = () => reject(new Error("Failed to rasterize coa svg"));
+    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  });
+}
+
 export const COArenderer = new EmblemRenderModule();
 appServices.COArenderer = COArenderer;

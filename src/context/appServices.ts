@@ -12,7 +12,11 @@ export interface StorageService {
 export interface AppServices {
   rng: RNGService;
   storage: StorageService;
-  COArenderer: { trigger(id: string, coa: unknown): unknown; shieldPaths: Record<string, string> } | null;
+  COArenderer: {
+    trigger(id: string, coa: unknown): unknown;
+    shieldPaths: Record<string, string>;
+    renderIconDataUrl(id: string, coa: unknown): Promise<string | null>;
+  } | null;
 }
 
 /**
