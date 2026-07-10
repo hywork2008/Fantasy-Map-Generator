@@ -68,6 +68,7 @@ import {
 } from "./adapters/deckDataAdapters";
 import { BURG_ICON_RASTER_SIZE, getBurgIconRasterCacheVersion } from "./burgIconRasterCache";
 import { getEmblemIconCacheVersion } from "./emblemIconCache";
+import { getCachedEmojiIconUrl, getEmojiIconCacheVersion } from "./emojiIconCache";
 import { getExtensionWebglLayers } from "./extensionWebglLayerRegistry";
 import { getExternalIconFailureCacheVersion, markExternalIconFailed } from "./externalIconFailureCache";
 import {
@@ -208,9 +209,11 @@ const BURG_ICON_URLS: Record<DeckBurgIconType, string> = {
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><path fill="white" d="M58 14h12v16h24v12H70v49c12-3 22-11 29-23l10 6c-10 21-26 33-45 39-19-6-35-18-45-39l10-6c7 12 17 20 29 23V42H34V30h24z"/></svg>'
   )}`
 };
-const EMPTY_ICON_URL = `data:image/svg+xml,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" width="30" height="30"></svg>'
-)}`;
+// A 1×1 transparent PNG used as a placeholder while real icon images are being loaded/rasterized.
+// Must NOT be an SVG data URL: createImageBitmap() rejects SVGs without explicit natural dimensions
+// (width/height attributes), which crashes the WebGL renderer and triggers SVG mode fallback.
+const EMPTY_ICON_URL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQAABjE+ibYAAAAASUVORK5CYII=";
 
 export function clearDeckLayerDataCache(): void {
   deckLayerDataCache.clear();
@@ -599,16 +602,30 @@ export function buildDeckLayers(
         billboard: false,
         pickable: false
       }),
-      new TextLayer<DeckMilitaryRegimentSymbol>({
+      // Unit icon (emoji): rendered as a full-color IconLayer via Canvas 2D rasterization.
+      // TextLayer uses a monochrome font atlas that flattens emoji to black silhouettes.
+      // Filter out data whose emoji URL is not yet ready to avoid "Icon url is missing" errors;
+      // fmg:webgl-emoji-icon-ready will trigger a rebuild once the raster is available.
+      new IconLayer<DeckMilitaryRegimentSymbol>({
         id: "fmg-webgl-military-icons",
-        data: militarySymbols.filter(regiment => !regiment.isExternalIcon),
+        data: militarySymbols.filter(
+          regiment => !regiment.isExternalIcon && !!getCachedEmojiIconUrl(regiment.unitIcon)
+        ),
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         getPosition: datum => datum.unitIconPosition,
-        getText: datum => datum.unitIcon,
+        getIcon: datum => {
+          const url = getCachedEmojiIconUrl(datum.unitIcon) || EMPTY_ICON_URL;
+          return {
+            id: `emoji-unit-${datum.unitIcon}`,
+            url,
+            width: 64,
+            height: 64,
+            anchorX: 32,
+            anchorY: 32,
+            mask: false
+          };
+        },
         getSize: datum => datum.size * 2,
-        getColor: () => [0, 0, 0, 255],
-        getTextAnchor: "middle",
-        getAlignmentBaseline: "center",
         getAngle: datum => datum.angle,
         sizeUnits: "common",
         billboard: false,
@@ -635,16 +652,26 @@ export function buildDeckLayers(
         billboard: false,
         pickable: false
       }),
-      new TextLayer<DeckMilitaryRegimentSymbol>({
+      // Action status icon (emoji): same canvas-rasterized IconLayer approach.
+      // Filter out records not yet ready (see fmg:webgl-emoji-icon-ready for rebuild trigger).
+      new IconLayer<DeckMilitaryRegimentSymbol>({
         id: "fmg-webgl-military-actions",
-        data: militarySymbols,
+        data: militarySymbols.filter(regiment => !!getCachedEmojiIconUrl(regiment.actionIcon)),
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         getPosition: datum => datum.actionIconPosition,
-        getText: datum => datum.actionIcon,
+        getIcon: datum => {
+          const url = getCachedEmojiIconUrl(datum.actionIcon) || EMPTY_ICON_URL;
+          return {
+            id: `emoji-action-${datum.actionIcon}`,
+            url,
+            width: 64,
+            height: 64,
+            anchorX: 32,
+            anchorY: 32,
+            mask: false
+          };
+        },
         getSize: datum => datum.size * 2,
-        getColor: () => [0, 0, 0, 255],
-        getTextAnchor: "middle",
-        getAlignmentBaseline: "center",
         getAngle: datum => datum.angle,
         sizeUnits: "common",
         billboard: false,
@@ -870,7 +897,8 @@ function buildLayerSignatures(
   setIfActive(
     "military",
     "toggleMilitary",
-    () => `${scope}|${militarySignature(pack.states)}|size:${getMilitaryBoxSize(viewContext)}`
+    () =>
+      `${scope}|${militarySignature(pack.states)}|size:${getMilitaryBoxSize(viewContext)}|emoji:${getEmojiIconCacheVersion()}`
   );
   setIfActive(
     "labels",
