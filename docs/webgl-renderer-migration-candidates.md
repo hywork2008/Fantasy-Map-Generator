@@ -397,12 +397,20 @@ typed array / binary attribute 化（`Float32Array` の positions/colors を dec
 
 ## Phase 7: 保存・読み込み・拡張との整合
 
-- [ ] `.map` load 後に WebGL managed class と extension layer 再取得が壊れないことをE2E化する。
-- [ ] extension-owned SVG layers は `ViewContext` に入れず、`ExtensionAPI.getSvgLayer()` 管理のままにする。
-- [ ] built-in extensions の描画レイヤーを WebGL に移す場合、host module import ではなく `ExtensionAPI` 経由にする設計を先に決める。
-- [ ] economy goods / markets / trade animation の deck.gl 化可否を別タスク化する。
+- [x] `.map` load 後に WebGL managed class と extension layer 再取得が壊れないことをE2E化する。
+- [x] extension-owned SVG layers は `ViewContext` に入れず、`ExtensionAPI.getSvgLayer()` 管理のままにする。
+- [x] built-in extensions の描画レイヤーを WebGL に移す場合、host module import ではなく `ExtensionAPI` 経由にする設計を先に決める。
+- [x] economy goods / markets / trade animation の deck.gl 化可否を別タスク化する。
 - [ ] save / export / PNG tiles が SVG + deck.gl canvas の合成に対応しているか確認する。
 - [ ] 3D preview との canvas / WebGL context 共存を確認する。
+
+### Phase 7 開始ログ
+
+- `webgl-hybrid.spec.ts` に Economy（Characters を prerequisite として UI から有効化）を使う `.map` load 回帰テストを追加した。読み込み前の `#goods` に付けた test attribute が新しい DOM に残らないこと、`goods` / `marketsLayerFill` / `marketsLayer` / `tradeAnimation` が `#viewbox` に再取得されること、host 側の `#landmass` managed class と deck canvas が新しい DOM を指すことを検証する。extension layer 自身には host managed class を付与しない。
+- extension-owned SVG layer の所有権は現状のままとする。`src/app.ts` 内の private registry が `fmg:map-layers-reinitialized` 後に `SvgLayerSpec` を re-acquire し、extension は `ExtensionAPI.getSvgLayer()` / `registerMapReinitHook()` だけを利用する。`ViewContext` に extension field や文字列 lookup を追加しない。
+- 将来 extension layer を WebGL 化する場合は、extension が host renderer module を import する方式を採らない。dynamic ZIP extension でも利用できる declarative な `ExtensionWebglLayerSpec` を `ExtensionAPI` に追加し、extension は `worldContext` から純粋な data / style descriptor を返す。host 側が許可済みの deck layer type を生成し、host の signature cache・visibility・picking・finalize lifecycle に統合する。`@deck.gl/*` class や host module の import を extension entry point に漏らさない。具体的な最初の consumer ができるまで API は追加しない。
+- Economy の可否と段階的な候補は [webgl-economy-layer-migration.md](webgl-economy-layer-migration.md) に分離した。Phase 7 では SVG overlay のまま維持する。
+- export / tiles / 3D は未対応として残す。現行の `getMapURL()` は SVG clone を基にするため、WebGL managed SVG の実体が未描画または hybrid CSS で hidden の場合に deck canvas を含められない。`ThreeDRenderer.createMeshTextureUrl()` も同経路を使う。可視 viewport の raster composite と、full-map / tiles / mesh 用の offscreen deck render を分けて設計・実装する必要がある。
 
 ## Phase 8: テスト追加
 

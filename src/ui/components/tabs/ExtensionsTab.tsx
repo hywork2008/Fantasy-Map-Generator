@@ -149,6 +149,7 @@ export const ExtensionsTab: React.FC = () => {
                   >
                     <input
                       type="checkbox"
+                      aria-label={`Toggle ${meta.name} extension`}
                       checked={isEnabled}
                       disabled={disabled}
                       onChange={() => handleToggle(meta.id, isEnabled, meta.builtin)}

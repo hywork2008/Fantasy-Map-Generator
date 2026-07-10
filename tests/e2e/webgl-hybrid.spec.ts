@@ -360,6 +360,53 @@ test.describe("webgl hybrid renderer", () => {
     });
   });
 
+  test("reacquires Economy SVG layers without disturbing the hybrid host layer policy after map load", async ({ page }) => {
+    await page.goto("/?seed=webgl-extension-map-load&width=1000&height=700");
+    await waitForMapLoad(page);
+
+    await page.locator("#optionsHide").click();
+    await page.locator("#extensionsTab").click();
+    const charactersToggle = page.getByRole("checkbox", { name: "Toggle Characters extension" });
+    await expect(charactersToggle).not.toBeChecked();
+    await charactersToggle.check();
+    await expect(charactersToggle).toBeChecked();
+
+    const economyToggle = page.getByRole("checkbox", { name: "Toggle Economy, Goods & Trade extension" });
+    await expect(economyToggle).not.toBeChecked();
+    await expect(economyToggle).toBeEnabled();
+    await economyToggle.check();
+    await expect(economyToggle).toBeChecked();
+
+    const extensionLayerIds = ["goods", "marketsLayerFill", "marketsLayer", "tradeAnimation"] as const;
+    for (const id of extensionLayerIds) {
+      await expect(page.locator(`#${id}`)).toBeAttached();
+    }
+    await page.locator("#goods").evaluate(element => element.setAttribute("data-phase7-preload", "true"));
+
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+    await uploadMapFixture(page, "demo.map");
+
+    const stats = await waitForWebglCanvasPixels(page);
+    expect(stats.coloredPixels).toBeGreaterThan(500);
+    for (const id of extensionLayerIds) {
+      const layer = page.locator(`#${id}`);
+      await expect(layer).toBeAttached();
+      await expect(layer).not.toHaveAttribute("data-phase7-preload");
+      await expect(layer).not.toHaveClass(/fmg-webgl-managed-svg-layer/);
+    }
+    await expect
+      .poll(() => page.locator("#goods").evaluate(element => element.parentElement?.id ?? ""))
+      .toBe("viewbox");
+    await expect.poll(() => getWebglRendererDomState(page)).toMatchObject({
+      bodyHasHybridClass: true,
+      landmassHasManagedClass: true,
+      landmassDisplay: "none",
+      deckCanvasMatchesDom: true,
+      viewCanvasMatchesDom: true
+    });
+  });
+
   test("emits stable pick detail without taking over editor clicks", async ({ page }) => {
     await page.goto("/?seed=webgl-pick&width=900&height=600");
     await waitForMapLoad(page);
