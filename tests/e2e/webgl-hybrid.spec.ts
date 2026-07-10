@@ -113,6 +113,7 @@ test.describe("webgl hybrid renderer", () => {
     await expect.poll(() => getWebglRendererDomState(page)).toMatchObject({
       bodyHasHybridClass: true,
       canvasDisplay: "block",
+      deckExists: true,
       landmassHasManagedClass: true,
       landmassDisplay: "none",
       scaleBarHasOverlayClass: true
@@ -123,6 +124,7 @@ test.describe("webgl hybrid renderer", () => {
     await expect.poll(() => getWebglRendererDomState(page)).toMatchObject({
       bodyHasHybridClass: false,
       canvasDisplay: "none",
+      deckExists: false,
       landmassHasManagedClass: true,
       landmassDisplay: "inline",
       scaleBarHasOverlayClass: true
@@ -146,6 +148,7 @@ test.describe("webgl hybrid renderer", () => {
     await expect.poll(() => getWebglDeckLayerIds(page), { timeout: 5000 }).toContain("fmg-webgl-background");
     await expect.poll(() => getWebglRendererDomState(page)).toMatchObject({
       bodyHasHybridClass: true,
+      deckExists: true,
       deckHasTestMarker: false,
       deckCanvasMatchesDom: true,
       viewCanvasMatchesDom: true

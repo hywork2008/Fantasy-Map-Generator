@@ -353,7 +353,7 @@ export function drawLayers(): void {
     return;
   }
 
-  DeckGlRenderer.clear(viewContext);
+  DeckGlRenderer.finalize(viewContext);
   FeaturesRenderer.render(worldContext, viewContext, appServices);
   // FeaturesRenderer always renders lake paths (needed for masks), so explicitly
   // sync the #lakes display state with the toggle after rendering.

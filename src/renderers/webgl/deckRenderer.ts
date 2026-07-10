@@ -1,6 +1,6 @@
 import { Deck, OrthographicView, type OrthographicViewState, type PickingInfo } from "@deck.gl/core";
 import type { AppServices } from "../../context/appServices";
-import type { ViewContext } from "../../context/viewContext";
+import { type ViewContext, viewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
 import type { WebglPickDetail, WebglPickKind } from "../../types/webglPicking";
 import { buildDeckLayers } from "./buildDeckLayers";
@@ -213,3 +213,9 @@ export const DeckGlRenderer = {
     document.body.classList.toggle(BODY_HYBRID_CLASS, enabled);
   }
 };
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    DeckGlRenderer.finalize(viewContext);
+  });
+}

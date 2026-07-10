@@ -43,9 +43,39 @@ deck.gl 移行は、以下を満たした時点で「既定レンダラー化可
 - [x] `setRenderMode()` を `FMGActionsAPI` / `tests/fmg.d.ts` / public docs に明記する。
 - [x] `webglHybrid` から `svg` に戻した時、deck.gl layers と body class と SVG managed class の表示状態が完全に戻ることをE2E化する。
 - [x] `.map` load 後に `webglMapCanvas` が再取得され、`DeckGlRenderer` が古い canvas 参照を保持しないことを検証する。
-- [ ] `DeckGlRenderer.finalize()` を呼ぶべき lifecycle を整理する。map reload は `parseLoadedData()` で finalize 済み。hot reload / renderer disable で GPU resource が残らないことは未整理。
-- [ ] `#options`, dialogs, tooltip, tour prompt, map overlay の stacking order を一覧化し、地図 canvas / SVG より常に上に出すUIを明文化する。
-- [ ] `body.fmg-webgl-hybrid .fmg-webgl-managed-svg-layer` の対象を `hybridLayerPolicy.ts` のみで管理し、CSS側に個別SVG IDを増やさない運用にする。
+- [x] `DeckGlRenderer.finalize()` を呼ぶべき lifecycle を整理する。map reload は `parseLoadedData()`、renderer disable は `drawLayers()` の SVG fallback、hot reload は `deckRenderer.ts` の HMR dispose で finalize する。
+- [x] `#options`, dialogs, tooltip, tour prompt, map overlay の stacking order を一覧化し、地図 canvas / SVG より常に上に出すUIを明文化する。
+- [x] `body.fmg-webgl-hybrid .fmg-webgl-managed-svg-layer` の対象を `hybridLayerPolicy.ts` のみで管理し、CSS側に個別SVG IDを増やさない運用にする。
+
+### Phase 1 運用メモ
+
+#### deck.gl lifecycle
+
+| lifecycle | finalize 呼び出し元 | 目的 | 検証 |
+| :-- | :-- | :-- | :-- |
+| `.map` reload | `src/io/load.ts` の `parseLoadedData()` | 保存 SVG の DOM 差し替え前に旧 canvas / listener / GPU resource を破棄する | `webgl-hybrid.spec.ts` の map load テストで deck marker が残らず、deck canvas が新 DOM canvas と一致する |
+| renderer disable (`webglHybrid` -> `svg`) | `src/controllers/layers.ts` の `drawLayers()` SVG fallback | SVG renderer に戻るとき deck layer だけでなく deck instance も破棄する | roundtrip テストで `deckExists: false`、body class と SVG display の復元を確認する |
+| hot reload | `src/renderers/webgl/deckRenderer.ts` の `import.meta.hot.dispose` | Vite HMR 時に module-local picking listener と deck instance を破棄する | 手動確認対象。HMR dispose は通常 E2E では発火しない |
+
+#### stacking order
+
+地図本体は `#webglMapCanvas` (`z-index: 1`) と `#map` (`z-index: 2`) が最下層。WebGL hybrid では canvas が描画本体、SVG は overlay と pointer event target として残る。
+
+| 要素 | z-index | 地図より前面に出す理由 |
+| :-- | :-- | :-- |
+| `#mapOverlay` | `10` | map upload / loading overlay。`pointer-events: none` のまま canvas / SVG より上に出す |
+| `#options` | `20` | 左上の常設操作 UI。WebGL canvas と SVG map に隠れないことを E2E で検証する |
+| `.fmg-dialog` | `100` 以上 | editor / prompt / extension dialogs。`useDraggable()` が visible dialog の最大 z-index + 1 に引き上げる |
+| `#tourPromptButton` | `9999` | tour 起動ボタン。地図操作中も前面に出す |
+| `.driver-popover` / `.driver-overlay` | driver.js 管理 | UI tour。CSS override は `body.tour-free-roam .driver-overlay` のみ |
+| `#tooltip` | `99999` | hover tooltip。地図・ダイアログより上に表示する |
+
+#### hybrid SVG layer policy
+
+- WebGL が代替描画する SVG layer は `src/renderers/webgl/hybridLayerPolicy.ts` の `WEBGL_MANAGED_SVG_LAYER_IDS` に追加する。
+- WebGL hybrid でも SVG として残す layer は同ファイルの `HYBRID_SVG_OVERLAY_LAYER_IDS` に追加する。
+- CSS は `body.fmg-webgl-hybrid .fmg-webgl-managed-svg-layer { display: none !important; }` だけで managed SVG layer を隠す。`public/index.css` や `src/index.html` に `body.fmg-webgl-hybrid #<svg-layer-id>` のような個別 SVG ID selector を増やさない。
+- `#map` と `#webglMapCanvas` は layer policy の対象ではなく、地図コンテナ / canvas として CSS 側で扱う。
 
 ## Phase 2: 描画レイヤーの残差解消
 

@@ -139,6 +139,7 @@ export async function getWebglDeckLayerIds(page: Page): Promise<string[]> {
 export interface WebglRendererDomState {
   bodyHasHybridClass: boolean;
   canvasDisplay: string;
+  deckExists: boolean;
   landmassHasManagedClass: boolean;
   landmassDisplay: string;
   scaleBarHasOverlayClass: boolean;
@@ -165,6 +166,7 @@ export async function getWebglRendererDomState(page: Page): Promise<WebglRendere
     return {
       bodyHasHybridClass: document.body.classList.contains("fmg-webgl-hybrid"),
       canvasDisplay: canvas ? window.getComputedStyle(canvas).display : "",
+      deckExists: Boolean(deck),
       landmassHasManagedClass: Boolean(landmass?.classList.contains("fmg-webgl-managed-svg-layer")),
       landmassDisplay: landmass ? window.getComputedStyle(landmass).display : "",
       scaleBarHasOverlayClass: Boolean(scaleBar?.classList.contains("fmg-webgl-svg-overlay-layer")),
