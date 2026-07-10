@@ -51,6 +51,17 @@ async function getTopElementAtCenter(page: Page, selector: string) {
   });
 }
 
+async function isTopElementWithin(page: Page, selector: string, expectedAncestor: string): Promise<boolean> {
+  return page.locator(selector).evaluate(
+    (element, ancestorSelector) => {
+      const rect = element.getBoundingClientRect();
+      const topElement = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      return Boolean(topElement?.closest(ancestorSelector));
+    },
+    expectedAncestor
+  );
+}
+
 async function closeAllOpenEditorDialogs(page: Page): Promise<void> {
   // Not every editor dialog is tracked by the shared dialogStore (e.g. burg/marker/lake/ice
   // editors use their own Zustand "isOpen" state), so "Close all dialogs" alone can leave one
@@ -184,6 +195,8 @@ test.describe("webgl hybrid renderer", () => {
     await setRenderMode(page, "webglHybrid");
     const initialStats = await waitForWebglCanvasPixels(page);
     expect(initialStats.coloredPixels).toBeGreaterThan(500);
+    expect(initialStats.nonTransparentPixels).toBeGreaterThan(500);
+    expect(initialStats.alphaBoundingArea).toBeGreaterThan(500);
     const desktopScreenshot = await page.locator("#webglMapCanvas").screenshot();
     expect(desktopScreenshot.length).toBeGreaterThan(1000);
 
@@ -219,6 +232,8 @@ test.describe("webgl hybrid renderer", () => {
     await zoomToMapCenter(page, 3);
     const afterZoomStats = await waitForWebglCanvasPixels(page);
     expect(afterZoomStats.coloredPixels).toBeGreaterThan(500);
+    expect(afterZoomStats.nonTransparentPixels).toBeGreaterThan(500);
+    expect(afterZoomStats.alphaBoundingArea).toBeGreaterThan(500);
     await expect(page.locator("#labels")).toBeHidden();
     const afterZoomTransform = await getViewTransformState(page);
     expect(beforeZoomTransform).not.toEqual(afterZoomTransform);
@@ -232,6 +247,8 @@ test.describe("webgl hybrid renderer", () => {
     const mobileStats = await waitForWebglCanvasPixels(page);
     expect(mobileStats.width).toBeGreaterThanOrEqual(390);
     expect(mobileStats.coloredPixels).toBeGreaterThan(300);
+    expect(mobileStats.nonTransparentPixels).toBeGreaterThan(300);
+    expect(mobileStats.alphaBoundingArea).toBeGreaterThan(300);
 
     const mobileScreenshot = await page.locator("#webglMapCanvas").screenshot();
     expect(mobileScreenshot.length).toBeGreaterThan(1000);
@@ -250,6 +267,23 @@ test.describe("webgl hybrid renderer", () => {
 
     await page.locator("#optionsHide").click();
     await expect(page.locator("#layersContent")).toBeVisible();
+  });
+
+  test("keeps dialogs and the tour prompt above the WebGL canvas", async ({ page }) => {
+    await page.goto("/?seed=webgl-ui-stacking&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+
+    const tourPrompt = page.locator("#tourPromptButton");
+    await expect(tourPrompt).toBeVisible();
+    await expect.poll(() => isTopElementWithin(page, "#tourPromptButton button", "#tourPromptButton")).toBe(true);
+
+    await page.locator("#optionsHide").click();
+    await page.getByRole("button", { name: "Export", exact: true }).click();
+    const dialog = page.locator(".fmg-dialog", { has: page.locator("#exportMapData") });
+    await expect(dialog).toBeVisible();
+    await expect.poll(() => isTopElementWithin(page, "#exportMapData", ".fmg-dialog")).toBe(true);
   });
 
   test("exports a visible WebGL map as a composited PNG", async ({ page }) => {
@@ -547,7 +581,11 @@ test.describe("webgl hybrid renderer", () => {
       layerId: expect.stringMatching(/^fmg-webgl-/)
     });
     await expect(page.locator("#debug .webgl-selected")).toHaveCount(1);
-    await expect(getWebglCanvasPixelStats(page)).resolves.toMatchObject({ coloredPixels: expect.any(Number) });
+    await expect(getWebglCanvasPixelStats(page)).resolves.toMatchObject({
+      coloredPixels: expect.any(Number),
+      nonTransparentPixels: expect.any(Number),
+      alphaBoundingArea: expect.any(Number)
+    });
   });
 
   test("reports pick detail for WebGL migrated edit targets", async ({ page }) => {
@@ -613,6 +651,38 @@ test.describe("webgl hybrid renderer", () => {
       });
       expect(datum?.id.length, item.layerId).toBeGreaterThan(0);
     }
+
+    const markerPoint = await forceWebglMarkerFixture(page);
+    const markerCandidates = await clickAndGetWebglPickCandidates(page, markerPoint);
+    expect(markerCandidates.candidates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          layerId: "fmg-webgl-markers",
+          kind: "marker",
+          id: `marker-${markerPoint.markerId}`,
+          cellId: expect.any(Number),
+          coordinate: expect.arrayContaining([expect.any(Number), expect.any(Number)])
+        })
+      ])
+    );
+    await closeAllOpenEditorDialogs(page);
+
+    const burgPoint = await getFirstWebglLayerDatumClickPoint(page, "fmg-webgl-burg-icons");
+    expect(burgPoint).not.toBeNull();
+    if (!burgPoint) return;
+
+    const burgCandidates = await clickAndGetWebglPickCandidates(page, burgPoint);
+    expect(burgCandidates.candidates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          layerId: "fmg-webgl-burg-icons",
+          kind: "burgIcon",
+          id: burgPoint.id,
+          cellId: expect.any(Number),
+          coordinate: expect.arrayContaining([expect.any(Number), expect.any(Number)])
+        })
+      ])
+    );
   });
 
   test("opens existing editors from WebGL pick targets", async ({ page }) => {
@@ -875,6 +945,8 @@ test.describe("webgl hybrid renderer", () => {
         );
       const stats = await waitForWebglCanvasPixels(page);
       expect(stats.coloredPixels).toBeGreaterThan(500);
+      expect(stats.nonTransparentPixels).toBeGreaterThan(500);
+      expect(stats.alphaBoundingArea).toBeGreaterThan(500);
       await expect(page.locator("#webglMapCanvas")).toBeVisible();
       await expect(page.locator("#landmass")).toBeHidden();
       await expect(page.locator("#borders")).toBeHidden();

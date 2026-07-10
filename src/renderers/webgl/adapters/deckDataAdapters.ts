@@ -599,19 +599,25 @@ export function buildRiverPaths(worldContext: Readonly<WorldContext>, focusScope
 }
 
 export function buildRoutePaths(worldContext: Readonly<WorldContext>, focusScope: FocusScope | null): DeckPath[] {
-  return (worldContext.pack.routes ?? [])
-    .filter(
-      route =>
-        route.points?.length >= 2 && (!focusScope || (route.cells ?? []).some(cell => isCellInScope(focusScope, cell)))
-    )
-    .map(route => ({
-      id: `route-${route.i}`,
-      path: route.points.map(point => [point[0], point[1]] as DeckPosition),
-      color: getRouteColor(route),
-      width: route.group === "searoutes" ? 0.7 : route.group === "roads" ? 1.1 : 0.65,
-      kind: "route" as const,
-      cellId: route.cells?.[0] ?? null
-    }));
+  return (worldContext.pack.routes ?? []).flatMap(route => {
+    if (focusScope && !(route.cells ?? []).some(cell => isCellInScope(focusScope, cell))) return [];
+
+    // Imported maps can contain incomplete route point arrays. deck.gl cannot render NaN / missing
+    // coordinates reliably, so omit the entire route instead of connecting unrelated valid endpoints.
+    const path = getValidDeckPath(route.points);
+    if (!path) return [];
+
+    return [
+      {
+        id: `route-${route.i}`,
+        path,
+        color: getRouteColor(route),
+        width: route.group === "searoutes" ? 0.7 : route.group === "roads" ? 1.1 : 0.65,
+        kind: "route" as const,
+        cellId: route.cells?.[0] ?? null
+      }
+    ];
+  });
 }
 
 export function buildLakePolygons(
@@ -1303,6 +1309,31 @@ function getGridCellPolygon(
     .map(([x, y]) => [x, y] as DeckPosition);
 
   return polygon.length >= 3 ? polygon : null;
+}
+
+/**
+ * Convert a persisted route's untrusted point array into a deck.gl-safe path.
+ * A single corrupt point invalidates the route: silently removing only that point could join
+ * two non-adjacent segments and visually invent a road.
+ */
+function getValidDeckPath(points: unknown): DeckPosition[] | null {
+  if (!Array.isArray(points) || points.length < 2) return null;
+
+  const path: DeckPosition[] = [];
+  for (const point of points) {
+    if (
+      !Array.isArray(point) ||
+      typeof point[0] !== "number" ||
+      !Number.isFinite(point[0]) ||
+      typeof point[1] !== "number" ||
+      !Number.isFinite(point[1])
+    ) {
+      return null;
+    }
+    path.push([point[0], point[1]]);
+  }
+
+  return path;
 }
 
 function getRenderableFeatures(

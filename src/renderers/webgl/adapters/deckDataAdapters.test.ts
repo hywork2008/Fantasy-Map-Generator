@@ -176,6 +176,116 @@ describe("deck.gl data adapters", () => {
     });
   });
 
+  it("filters land, route, and height adapters to the active focus scope", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.cells.h[1] = 30;
+    const focusScope = {
+      kind: "state",
+      id: 1,
+      stateId: 1,
+      cellIds: new Set([0]),
+      gridCellIds: new Set([0])
+    } as ViewContext["focusScope"];
+
+    expect(buildLandPolygonsBase(worldContext, focusScope).map(polygon => polygon.cellId)).toEqual([0]);
+    expect(buildRoutePaths(worldContext, focusScope).map(path => path.cellId)).toEqual([0]);
+    expect(buildHeightPolygons(worldContext, focusScope).map(polygon => polygon.id)).toEqual(["height-grid-cell-0"]);
+  });
+
+  it("omits removed entities from emblem, burg icon, military, and label adapters", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.states = [
+      { i: 0, name: "Neutral", expansionism: 0, capital: 0, type: "", center: 0, culture: 0, coa: null },
+      {
+        i: 1,
+        name: "Removed",
+        expansionism: 0,
+        capital: 0,
+        type: "",
+        center: 0,
+        culture: 0,
+        coa: { size: 1 },
+        pole: [5, 5],
+        removed: true,
+        military: [
+          {
+            i: 0,
+            name: "Removed army",
+            a: 100,
+            s: 1,
+            t: 1,
+            cell: 0,
+            x: 5,
+            y: 5,
+            bx: 5,
+            by: 5,
+            u: { infantry: 100 },
+            n: 0,
+            type: "land",
+            state: 1
+          }
+        ]
+      }
+    ] as WorldContext["pack"]["states"];
+    worldContext.pack.burgs = [
+      { i: 1, cell: 0, x: 5, y: 5, name: "Removed burg", coa: { size: 1 }, group: "town", removed: true }
+    ];
+
+    expect(buildEmblemIcons(worldContext, null, { state: 1, province: 1, burg: 1 }, 1, appServices)).toEqual([]);
+    expect(
+      buildBurgIconSymbols(worldContext, null, {
+        burgIcons: { town: { fill: "#000000", opacity: 1, size: 4, icon: "#icon-circle" } },
+        anchors: { town: { fill: "#ffffff", opacity: 1, size: 1, icon: "#icon-anchor" } },
+        visibleGroups: new Set(["town"])
+      })
+    ).toEqual([]);
+    expect(buildMilitaryRegimentSymbols(worldContext, null, 6)).toEqual([]);
+    expect(
+      buildLabelSymbols(worldContext, null, {
+        state: { fill: "#000000", opacity: 1, size: 10, dx: 0, dy: 0, fontFamily: "sans-serif", haloColor: "white" },
+        burgLabels: {
+          town: { fill: "#000000", opacity: 1, size: 4, dx: 0, dy: 0, fontFamily: "sans-serif", haloColor: "white" }
+        },
+        visibleBurgGroups: new Set(["town"])
+      })
+    ).toEqual([]);
+  });
+
+  it("omits malformed persisted route paths instead of passing invalid coordinates to deck.gl", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.routes = [
+      {
+        i: 1,
+        group: "roads",
+        feature: 1,
+        cells: [0],
+        points: [
+          [0, 0, 0],
+          [10, 10, 0]
+        ]
+      },
+      {
+        i: 2,
+        group: "roads",
+        feature: 1,
+        cells: [0],
+        points: [
+          [0, 0, 0],
+          [Number.NaN, 10, 0]
+        ] as unknown as [number, number, number][]
+      },
+      {
+        i: 3,
+        group: "roads",
+        feature: 1,
+        cells: [0],
+        points: [[0, 0, 0], [10] as unknown as [number, number, number]]
+      }
+    ];
+
+    expect(buildRoutePaths(worldContext, null).map(route => route.id)).toEqual(["route-1"]);
+  });
+
   it("builds base land polygons separately from water cells", () => {
     const worldContext = createWorldContext();
 

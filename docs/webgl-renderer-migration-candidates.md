@@ -419,11 +419,18 @@ typed array / binary attribute 化（`Float32Array` の positions/colors を dec
 - [x] `tests/e2e/webgl-hybrid.spec.ts` に `svg -> webglHybrid -> svg` の往復テストを追加する。
 - [x] `.map` load 後の webglHybrid 再描画テストを追加する。
 - [x] style presetごとの smoke test を追加する。
-- [ ] layer presetごとの deck layer id と canvas pixelを検証する既存テストを維持・拡張する。
-- [ ] `elementFromPoint()` によるUI stacking検査を options以外の主要UIにも拡張する。
-- [ ] pick detail の kind / id / cellId / coordinate を代表レイヤー別に検証する。
-- [ ] adapter単体テストで focusScope, removed entity, missing style attr, malformed route/path を追加する。
-- [ ] canvas blank検出は colored pixel だけでなく alpha / bounding area も見る。
+- [x] layer presetごとの deck layer id と canvas pixelを検証する既存テストを維持・拡張する。
+- [x] `elementFromPoint()` によるUI stacking検査を options以外の主要UIにも拡張する。
+- [x] pick detail の kind / id / cellId / coordinate を代表レイヤー別に検証する。
+- [x] adapter単体テストで focusScope, removed entity, missing style attr, malformed route/path を追加する。
+- [x] canvas blank検出は colored pixel だけでなく alpha / bounding area も見る。
+
+### Phase 8 完了ログ
+
+- layer preset smoke test は deck layer ID、色付き pixel に加え、alpha を持つ pixel 数と alpha bounding area を確認する。これにより黒一色・透明な極小描画を map render として誤判定しない。
+- UI stacking は options に加え、tour prompt と Export dialog を `elementFromPoint()` で検証する。
+- pick regression は polygon/path 層に加えて、semantic hit test を使う marker / burg icon についても kind / id / cellId / coordinate を確認する。
+- adapter test は focus scope、removed state/burg、SVG style attributes の欠落、保存データに含まれる malformed route point をカバーする。壊れた route は部分的に接続せず deck.gl layer から除外する。
 
 ## Phase 9: 既定化の判断
 

@@ -4,6 +4,9 @@ import path from "path";
 export interface CanvasPixelStats {
   nonTransparentPixels: number;
   coloredPixels: number;
+  alphaBoundingArea: number;
+  alphaBoundingWidth: number;
+  alphaBoundingHeight: number;
   width: number;
   height: number;
 }
@@ -1178,7 +1181,15 @@ export async function getWebglCanvasPixelStats(page: Page): Promise<CanvasPixelS
   return page.evaluate(() => {
     const source = document.getElementById("webglMapCanvas");
     if (!(source instanceof HTMLCanvasElement)) {
-      return { nonTransparentPixels: 0, coloredPixels: 0, width: 0, height: 0 };
+      return {
+        nonTransparentPixels: 0,
+        coloredPixels: 0,
+        alphaBoundingArea: 0,
+        alphaBoundingWidth: 0,
+        alphaBoundingHeight: 0,
+        width: 0,
+        height: 0
+      };
     }
 
     const width = Math.max(1, Math.min(source.width, 240));
@@ -1187,21 +1198,54 @@ export async function getWebglCanvasPixelStats(page: Page): Promise<CanvasPixelS
     canvas.width = width;
     canvas.height = height;
     const context = canvas.getContext("2d");
-    if (!context) return { nonTransparentPixels: 0, coloredPixels: 0, width: source.width, height: source.height };
+    if (!context) {
+      return {
+        nonTransparentPixels: 0,
+        coloredPixels: 0,
+        alphaBoundingArea: 0,
+        alphaBoundingWidth: 0,
+        alphaBoundingHeight: 0,
+        width: source.width,
+        height: source.height
+      };
+    }
 
     context.drawImage(source, 0, 0, width, height);
     const data = context.getImageData(0, 0, width, height).data;
     let nonTransparentPixels = 0;
     let coloredPixels = 0;
+    let minX = width;
+    let minY = height;
+    let maxX = -1;
+    let maxY = -1;
     for (let index = 0; index < data.length; index += 4) {
       const alpha = data[index + 3] ?? 0;
-      if (alpha > 0) nonTransparentPixels++;
+      if (alpha > 0) {
+        nonTransparentPixels++;
+        const pixelIndex = index / 4;
+        const x = pixelIndex % width;
+        const y = Math.floor(pixelIndex / width);
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
       if ((data[index] ?? 0) !== 0 || (data[index + 1] ?? 0) !== 0 || (data[index + 2] ?? 0) !== 0) {
         coloredPixels++;
       }
     }
 
-    return { nonTransparentPixels, coloredPixels, width: source.width, height: source.height };
+    const alphaBoundingWidth = maxX >= minX ? maxX - minX + 1 : 0;
+    const alphaBoundingHeight = maxY >= minY ? maxY - minY + 1 : 0;
+    return {
+      nonTransparentPixels,
+      coloredPixels,
+      alphaBoundingArea: alphaBoundingWidth * alphaBoundingHeight,
+      alphaBoundingWidth,
+      alphaBoundingHeight,
+      width: source.width,
+      height: source.height
+    };
   });
 }
 
@@ -1221,10 +1265,26 @@ export async function waitForWebglCanvasPixels(page: Page, minColoredPixels = 50
       context.drawImage(source, 0, 0, width, height);
       const data = context.getImageData(0, 0, width, height).data;
       let colored = 0;
+      let nonTransparent = 0;
+      let minX = width;
+      let minY = height;
+      let maxX = -1;
+      let maxY = -1;
       for (let index = 0; index < data.length; index += 4) {
+        if ((data[index + 3] ?? 0) > 0) {
+          nonTransparent++;
+          const pixelIndex = index / 4;
+          const x = pixelIndex % width;
+          const y = Math.floor(pixelIndex / width);
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+        }
         if ((data[index] ?? 0) !== 0 || (data[index + 1] ?? 0) !== 0 || (data[index + 2] ?? 0) !== 0) colored++;
       }
-      return colored >= minimum;
+      const alphaBoundingArea = maxX >= minX && maxY >= minY ? (maxX - minX + 1) * (maxY - minY + 1) : 0;
+      return colored >= minimum && nonTransparent >= minimum && alphaBoundingArea >= minimum;
     },
     minColoredPixels,
     { timeout: 15000 }

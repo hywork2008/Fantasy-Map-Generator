@@ -195,4 +195,29 @@ describe("webgl style extractors", () => {
     const labelStyle = getLabelStyle(worldContext, viewContext);
     expect(labelStyle.state).toMatchObject({ fontFamily: "Almendra SC", haloColor: "white" });
   });
+
+  it("uses safe fallback paint when optional SVG style attributes are missing", () => {
+    const viewContext = {
+      scale: 1,
+      lakes: new MockSelection({}, {}, { "#freshwater": new MockSelection() }),
+      coastline: new MockSelection({}, {}, { "#sea_island": new MockSelection() }),
+      ice: new MockSelection(),
+      terrs: new MockSelection({}, {}, { "#landHeights": new MockSelection(), "#oceanHeights": new MockSelection() }),
+      emblems: new MockSelection(
+        {},
+        {},
+        {
+          "#stateEmblems": new MockSelection(),
+          "#provinceEmblems": new MockSelection(),
+          "#burgEmblems": new MockSelection()
+        }
+      )
+    } as unknown as ViewContext;
+
+    expect(getLakePaint(viewContext).freshwater).toMatchObject({ fill: [166, 193, 253, 128], strokeWidth: 0.7 });
+    expect(getCoastlinePaint(viewContext).sea_island).toMatchObject({ strokeWidth: 0.5 });
+    expect(getIcePaint(viewContext)).toMatchObject({ strokeWidth: 0.5 });
+    expect(getHeightStyle(viewContext)).toEqual({ scheme: "bright", opacity: 1, includeOcean: false });
+    expect(getEmblemStyle(viewContext)).toEqual({ opacity: 0.9, sizes: { state: 1, province: 1, burg: 1 } });
+  });
 });
