@@ -542,6 +542,58 @@ export async function getFirstLandScreenPoint(page: Page): Promise<{ x: number; 
   });
 }
 
+export interface OverlappingRegimentPoint {
+  x: number;
+  y: number;
+  stateId: number;
+  regimentIds: [number, number];
+}
+
+export async function forceOverlappingWebglRegiments(page: Page): Promise<OverlappingRegimentPoint> {
+  const point = await page.evaluate(() => {
+    type TestRegiment = { i: number; x: number; y: number; cell: number; angle?: number };
+    type TestState = { i?: number; removed?: boolean; military?: TestRegiment[] };
+
+    const states = window.fmg.world.pack.states as TestState[];
+    const state = states.find(item => item.i && !item.removed && (item.military?.length ?? 0) >= 2);
+    if (!state?.i || !state.military) throw new Error("No state with at least two regiments");
+
+    const [first, second] = state.military;
+    second.x = first.x;
+    second.y = first.y;
+    second.cell = first.cell;
+    second.angle = first.angle ?? 0;
+
+    return {
+      x: first.x * window.fmg.view.scale + window.fmg.view.viewX,
+      y: first.y * window.fmg.view.scale + window.fmg.view.viewY,
+      stateId: state.i,
+      regimentIds: [first.i, second.i] as [number, number]
+    };
+  });
+
+  await page.evaluate(() => window.fmg.actions.setRenderMode("webglHybrid"));
+  await page.waitForFunction(
+    ({ stateId, regimentIds }) => {
+      const deck = window.fmg.view.webglDeck as unknown as {
+        props?: { layers?: Array<{ id?: string; props?: { data?: unknown[] } }> };
+      } | null;
+      const layer = deck?.props?.layers?.find(item => item.id === "fmg-webgl-military");
+      const data = Array.isArray(layer?.props?.data) ? layer.props.data : [];
+      return regimentIds.every(regimentId =>
+        data.some(item => {
+          const record = item as Record<string, unknown>;
+          return record.id === `regiment-${stateId}-${regimentId}-main`;
+        })
+      );
+    },
+    point,
+    { timeout: 5000 }
+  );
+
+  return point;
+}
+
 export interface WebglPickSnapshot {
   requestedLayerId: string;
   layerId: string;

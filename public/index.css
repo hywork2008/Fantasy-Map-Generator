@@ -406,6 +406,69 @@ input[type="color"] {
   z-index: 99999;
 }
 
+.map-pick-chooser {
+  position: fixed;
+  width: min(260px, calc(100vw - 16px));
+  max-height: min(320px, calc(100vh - 16px));
+  overflow: hidden;
+  z-index: 99998;
+  border: 1px solid rgba(42, 47, 54, 0.35);
+  border-radius: 6px;
+  background: rgba(252, 252, 250, 0.96);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  color: #252a30;
+  font: 12px Arial, sans-serif;
+  pointer-events: auto;
+}
+
+.map-pick-chooser[hidden] {
+  display: none;
+}
+
+.map-pick-chooser__header {
+  padding: 7px 9px;
+  border-bottom: 1px solid rgba(42, 47, 54, 0.18);
+  font-weight: 700;
+}
+
+.map-pick-chooser__list {
+  max-height: 276px;
+  overflow-y: auto;
+}
+
+.map-pick-chooser__item {
+  display: block;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 9px;
+  border: 0;
+  border-bottom: 1px solid rgba(42, 47, 54, 0.1);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.map-pick-chooser__item:hover,
+.map-pick-chooser__item:focus {
+  background: rgba(60, 122, 184, 0.12);
+  outline: none;
+}
+
+.map-pick-chooser__title,
+.map-pick-chooser__meta {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-pick-chooser__meta {
+  margin-top: 2px;
+  color: #68707a;
+  font-size: 11px;
+}
+
 .emblemShapePreview {
   width: 1.5em;
   height: 1.5em;

@@ -2,11 +2,13 @@ import { Deck, OrthographicView, type OrthographicViewState, type PickingInfo } 
 import type { AppServices } from "../../context/appServices";
 import { type ViewContext, viewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
-import type { WebglPickDetail, WebglPickKind } from "../../types/webglPicking";
+import type { WebglPickCandidatesDetail, WebglPickDetail, WebglPickKind } from "../../types/webglPicking";
 import { buildDeckLayers } from "./buildDeckLayers";
 import { applyHybridLayerPolicy } from "./hybridLayerPolicy";
 
 const BODY_HYBRID_CLASS = "fmg-webgl-hybrid";
+const PICK_RADIUS = 6;
+const PICK_CANDIDATE_DEPTH = 20;
 let pickingEventTarget: SVGSVGElement | null = null;
 let lastHoverPickId: string | null = null;
 let activePickingViewContext: ViewContext | null = null;
@@ -97,14 +99,53 @@ function toPickDetail(info: PickingInfo | null): WebglPickDetail | null {
   };
 }
 
+function toUniquePickDetails(infos: PickingInfo[]): WebglPickDetail[] {
+  const details: WebglPickDetail[] = [];
+  const seen = new Set<string>();
+  for (const info of infos) {
+    const detail = toPickDetail(info);
+    if (!detail) continue;
+    const key = `${detail.layerId}:${detail.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    details.push(detail);
+  }
+  return details;
+}
+
 function pickFromPointerEvent(event: PointerEvent, viewContext: ViewContext): PickingInfo | null {
   if (viewContext.renderMode !== "webglHybrid" || !viewContext.webglDeck || !viewContext.webglCanvas) return null;
   const rect = viewContext.webglCanvas.getBoundingClientRect();
   return viewContext.webglDeck.pickObject({
     x: event.clientX - rect.left,
     y: event.clientY - rect.top,
-    radius: 4
+    radius: PICK_RADIUS
   });
+}
+
+function pickCandidatesFromPointerEvent(
+  event: PointerEvent,
+  viewContext: ViewContext
+): WebglPickCandidatesDetail | null {
+  if (viewContext.renderMode !== "webglHybrid" || !viewContext.webglDeck || !viewContext.webglCanvas) return null;
+  const rect = viewContext.webglCanvas.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  const infos = viewContext.webglDeck.pickMultipleObjects({
+    x,
+    y,
+    radius: PICK_RADIUS,
+    depth: PICK_CANDIDATE_DEPTH
+  });
+  const candidates = toUniquePickDetails(infos);
+  return {
+    primary: candidates[0] ?? null,
+    candidates,
+    x,
+    y,
+    clientX: event.clientX,
+    clientY: event.clientY
+  };
 }
 
 function attachPickingBridge(viewContext: ViewContext): void {
@@ -131,8 +172,17 @@ function handlePointerMove(event: PointerEvent): void {
 
 function handlePointerUp(event: PointerEvent): void {
   if (!activePickingViewContext) return;
-  const info = toPickDetail(pickFromPointerEvent(event, activePickingViewContext));
-  document.dispatchEvent(new CustomEvent<WebglPickDetail | null>("fmg:webgl-map-pick", { detail: info }));
+  const detail = pickCandidatesFromPointerEvent(event, activePickingViewContext) ?? {
+    primary: toPickDetail(pickFromPointerEvent(event, activePickingViewContext)),
+    candidates: [],
+    x: event.clientX,
+    y: event.clientY,
+    clientX: event.clientX,
+    clientY: event.clientY
+  };
+  const primary = detail.primary ?? null;
+  document.dispatchEvent(new CustomEvent<WebglPickCandidatesDetail>("fmg:webgl-map-pick-candidates", { detail }));
+  document.dispatchEvent(new CustomEvent<WebglPickDetail | null>("fmg:webgl-map-pick", { detail: primary }));
 }
 
 export const DeckGlRenderer = {

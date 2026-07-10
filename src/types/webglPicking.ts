@@ -36,3 +36,12 @@ export interface WebglPickDetail {
   y: number;
   coordinate: [number, number, number?] | null;
 }
+
+export interface WebglPickCandidatesDetail {
+  primary: WebglPickDetail | null;
+  candidates: WebglPickDetail[];
+  x: number;
+  y: number;
+  clientX: number;
+  clientY: number;
+}

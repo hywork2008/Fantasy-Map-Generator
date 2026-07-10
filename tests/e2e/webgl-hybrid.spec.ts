@@ -6,6 +6,7 @@ import {
 import {
   applyStylePreset,
   ensureLayerOn,
+  forceOverlappingWebglRegiments,
   getFirstLandScreenPoint,
   getWebglDeckLayerIds,
   getWebglCanvasPixelStats,
@@ -323,6 +324,39 @@ test.describe("webgl hybrid renderer", () => {
       });
       expect(datum?.id.length, item.layerId).toBeGreaterThan(0);
     }
+  });
+
+  test("shows a chooser when multiple WebGL edit targets overlap", async ({ page }) => {
+    await page.goto("/?seed=webgl-overlap-picker&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+    await ensureLayerOn(page, "toggleMilitary");
+
+    const point = await forceOverlappingWebglRegiments(page);
+    await page.mouse.click(point.x, point.y);
+
+    const chooser = page.locator("#mapPickChooser");
+    await expect(chooser).toBeVisible();
+
+    const regimentItems = chooser.locator(".map-pick-chooser__item[data-kind='military']");
+    await expect.poll(() => regimentItems.count(), { timeout: 5000 }).toBeGreaterThanOrEqual(2);
+
+    const selectedPromise = page.evaluate(
+      () =>
+        new Promise<{ kind: string; id: string }>(resolve => {
+          document.addEventListener(
+            "fmg:webgl-map-pick-candidate-selected",
+            event => resolve((event as CustomEvent<{ kind: string; id: string }>).detail),
+            { once: true }
+          );
+        })
+    );
+    await regimentItems.nth(1).click();
+
+    await expect(chooser).toBeHidden();
+    await expect(page.locator("#debug .webgl-selected")).toHaveCount(1);
+    await expect(selectedPromise).resolves.toMatchObject({ kind: "military", id: expect.stringMatching(/^regiment-/) });
   });
 
   test("renders migrated layers for major presets while keeping SVG overlays", async ({ page }) => {

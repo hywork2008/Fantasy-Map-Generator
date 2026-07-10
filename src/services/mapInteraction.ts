@@ -1,13 +1,15 @@
 import * as d3 from "d3";
 import { worldContext } from "../context/worldContext";
 import { useToastStore } from "../store/toastStore";
-import type { WebglPickDetail } from "../types/webglPicking";
+import type { WebglPickCandidatesDetail, WebglPickDetail } from "../types/webglPicking";
 import { debounce } from "../utils/commonUtils";
 import { isDialogVisible } from "../utils/domUtils";
 import { findCell, findGridCell } from "../utils/graphUtils";
 import { convertTemperature } from "../utils/unitUtils";
 import { getFriendlyHeight, getFriendlyPrecipitation, getPopulationTip, updateCellInfo } from "./cellInfoService";
 import { showMainTip, showMapTooltip, showNotes, tip } from "./tooltipService";
+
+const PICK_CHOOSER_ID = "mapPickChooser";
 
 export const onMouseMove = debounce(handleMouseMove as (event: MouseEvent) => void, 100);
 export function handleMouseMove(this: Element, event: MouseEvent): void {
@@ -37,6 +39,12 @@ document.addEventListener("fmg:webgl-map-hover", (event: CustomEvent<WebglPickDe
 
 document.addEventListener("fmg:webgl-map-pick", (event: CustomEvent<WebglPickDetail | null>) => {
   drawWebglSelectionHighlight(event.detail);
+});
+
+document.addEventListener("fmg:webgl-map-pick-candidates", (event: CustomEvent<WebglPickCandidatesDetail>) => {
+  const { candidates, clientX, clientY } = event.detail;
+  if (candidates.length > 1) showPickChooser(candidates, clientX, clientY);
+  else hidePickChooser();
 });
 
 function formatWebglPickTooltip(detail: WebglPickDetail): string {
@@ -262,6 +270,95 @@ function drawWebglSelectionHighlight(detail: WebglPickDetail | null): void {
     .attr("stroke-width", 1.25)
     .attr("vector-effect", "non-scaling-stroke")
     .attr("pointer-events", "none");
+}
+
+function showPickChooser(candidates: WebglPickDetail[], clientX: number, clientY: number): void {
+  const chooser = getOrCreatePickChooser();
+  chooser.replaceChildren();
+
+  const header = document.createElement("div");
+  header.className = "map-pick-chooser__header";
+  header.textContent = `${candidates.length} selectable objects`;
+  chooser.append(header);
+
+  const list = document.createElement("div");
+  list.className = "map-pick-chooser__list";
+  chooser.append(list);
+
+  for (const candidate of candidates) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "map-pick-chooser__item";
+    button.dataset.kind = candidate.kind;
+    button.dataset.pickId = candidate.id;
+
+    const title = document.createElement("span");
+    title.className = "map-pick-chooser__title";
+    title.textContent = formatWebglPickTooltip(candidate);
+
+    const meta = document.createElement("span");
+    meta.className = "map-pick-chooser__meta";
+    meta.textContent = `${candidate.kind} · ${candidate.id}`;
+
+    button.append(title, meta);
+    button.addEventListener("click", event => {
+      event.stopPropagation();
+      hidePickChooser();
+      drawWebglSelectionHighlight(candidate);
+      document.dispatchEvent(
+        new CustomEvent<WebglPickDetail>("fmg:webgl-map-pick-candidate-selected", { detail: candidate })
+      );
+    });
+    list.append(button);
+  }
+
+  document.addEventListener("keydown", handlePickChooserKeydown);
+  document.addEventListener("pointerdown", handleOutsidePickChooserPointerDown);
+  positionPickChooser(chooser, clientX, clientY);
+}
+
+function getOrCreatePickChooser(): HTMLDivElement {
+  const existing = document.getElementById(PICK_CHOOSER_ID);
+  if (existing instanceof HTMLDivElement) {
+    existing.hidden = false;
+    return existing;
+  }
+
+  const chooser = document.createElement("div");
+  chooser.id = PICK_CHOOSER_ID;
+  chooser.className = "map-pick-chooser";
+  chooser.hidden = false;
+  document.body.append(chooser);
+  return chooser;
+}
+
+function positionPickChooser(chooser: HTMLDivElement, clientX: number, clientY: number): void {
+  chooser.style.left = "0px";
+  chooser.style.top = "0px";
+  const margin = 8;
+  const offset = 12;
+  const rect = chooser.getBoundingClientRect();
+  const left = Math.min(Math.max(clientX + offset, margin), window.innerWidth - rect.width - margin);
+  const top = Math.min(Math.max(clientY + offset, margin), window.innerHeight - rect.height - margin);
+  chooser.style.left = `${Math.round(left)}px`;
+  chooser.style.top = `${Math.round(top)}px`;
+}
+
+function hidePickChooser(): void {
+  const chooser = document.getElementById(PICK_CHOOSER_ID);
+  if (chooser) chooser.hidden = true;
+  document.removeEventListener("keydown", handlePickChooserKeydown);
+  document.removeEventListener("pointerdown", handleOutsidePickChooserPointerDown);
+}
+
+function handlePickChooserKeydown(event: KeyboardEvent): void {
+  if (event.key === "Escape") hidePickChooser();
+}
+
+function handleOutsidePickChooserPointerDown(event: PointerEvent): void {
+  const chooser = document.getElementById(PICK_CHOOSER_ID);
+  if (!chooser || chooser.hidden || chooser.contains(event.target as Node | null)) return;
+  hidePickChooser();
 }
 
 function parseTrailingNumber(id: string): number | null {

@@ -147,7 +147,7 @@ deck.gl 移行は、以下を満たした時点で「既定レンダラー化可
 
 - [x] `WebglPickDetail.kind` と既存編集対象の対応表を作る。
 - [ ] hover tooltip が SVG と WebGL で同じセル・同じ対象を指すことを確認する。
-- [ ] 同一点・近傍に複数オブジェクトが重なる場合の候補列挙と選択UIを定義する。
+- [x] 同一点・近傍に複数オブジェクトが重なる場合の候補列挙と選択UIを定義する。
 - [ ] click edit 導線をWebGL pick経由に寄せる。SVG DOM event前提の箇所は `mapInteraction.ts` か controller action に集約する。
 - [ ] burg / marker / regiment / route / river / lake / province / state のクリック編集をE2E化する。
 - [ ] drag系操作が必要な対象は、deck.gl pick結果から既存controllerへ渡す最小APIを定義する。
@@ -158,6 +158,9 @@ deck.gl 移行は、以下を満たした時点で「既定レンダラー化可
 - WebGL pick bridge は `deckRenderer.ts` で `fmg:webgl-map-hover` / `fmg:webgl-map-pick` を dispatch し、`mapInteraction.ts` が tooltip と `#debug .webgl-selected` を受け持つ。
 - `tests/e2e/webgl-hybrid.spec.ts` に、主要な編集対象レイヤーごとの `kind` / `id` / `cellId` / `coordinate` 検証を追加した。現時点で `deck.pickObject()` まで検証する対象は state / province / lake / military / river / route。burgIcon / marker は deck data identity の検証に留め、後述の重なり解決UIと合わせてクリック編集E2Eで再度扱う。
 - クリック編集の本配線では、SVG DOM event の `event.target` 依存をそのまま増やさず、`WebglPickDetail` から既存 controller へ渡す adapter を `mapInteraction.ts` か controller action 側に置く。ただし単一 hit を前提にした adapter だけでは不十分で、同一点・近傍の複数 hit を扱える選択導線を先に設計する。
+- `deckRenderer.ts` は `fmg:webgl-map-pick-candidates` を追加で dispatch する。候補は `pickMultipleObjects()` 由来の `WebglPickDetail[]` で、既存の `fmg:webgl-map-pick` は後方互換の primary pick として維持する。
+- `mapInteraction.ts` は候補が複数ある場合に `#mapPickChooser` を表示する。候補を選ぶと `fmg:webgl-map-pick-candidate-selected` を dispatch し、暫定的に `#debug .webgl-selected` へ選択セルを表示する。
+- E2E は同一座標に2つの regiment を重ね、クリックで chooser が出て任意候補を選べることを検証する。
 
 ### 重なりオブジェクトの選択方針
 
