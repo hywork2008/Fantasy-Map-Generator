@@ -1163,7 +1163,7 @@ function schedule3dUpdate() {
   }
 }
 
-function scheduleWebglUpdate(): void {
+export function scheduleWebglUpdate(): void {
   if (viewContext.renderMode !== "webglHybrid" || pendingWebglUpdate) return;
   pendingWebglUpdate = true;
   requestAnimationFrame(() => {

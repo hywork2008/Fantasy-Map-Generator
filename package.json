@@ -27,7 +27,8 @@
     "madge": "madge --circular --extensions ts,tsx src/app.ts",
     "prepare": "simple-git-hooks",
     "analyze-globals": "tsx scripts/analyze-window-globals.ts",
-    "convert-global": "tsx scripts/convert-global.ts"
+    "convert-global": "tsx scripts/convert-global.ts",
+    "perf:webgl-layers": "tsx scripts/benchmarkWebglLayers.ts"
   },
   "simple-git-hooks": {
     "pre-commit": "npx lint-staged && npm run lint:legacy"

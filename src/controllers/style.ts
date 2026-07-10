@@ -34,7 +34,7 @@ import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, uploadFile } from "../utils/editorHelpers";
 import { getElementById, layerIsOn, getElementBySelector as queryElementBySelector } from "../utils/nodeUtils";
 import { VERSION } from "../versioning";
-import { toggleRelief } from "./layers";
+import { scheduleWebglUpdate, toggleRelief } from "./layers";
 import { showOptions } from "./options";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -582,6 +582,7 @@ function changeFontSize(el: AnySelection, size: number): void {
   el.attr("data-size", size).attr("font-size", scaleSize);
 
   if (styleElement === "legend") EditorBus.redrawLegend();
+  scheduleWebglUpdate();
 }
 
 // ─── updateElements ───────────────────────────────────────────────────────────
@@ -704,6 +705,10 @@ export function applySliderChange(id: string, value: string): void {
       view.scaleBar.select<SVGRectElement>("#scaleBarBack").attr("opacity", value);
       break;
   }
+
+  // getEl() above may target any style element (lakes, coastline, ice, burg icons, emblems, armies, ...),
+  // several of which feed webglStyleExtractors.ts; scheduleWebglUpdate() is a no-op outside webglHybrid mode.
+  scheduleWebglUpdate();
 }
 
 // ─── Handler functions (exported for React event handlers) ────────────────────
@@ -711,6 +716,7 @@ export function applySliderChange(id: string, value: string): void {
 export function applyFillColor(value: string): void {
   useStyleState.getState().updateValue("styleFillInput", value);
   getEl().attr("fill", value);
+  scheduleWebglUpdate();
 }
 
 export function applyStrokeColor(value: string): void {
@@ -718,6 +724,7 @@ export function applyStrokeColor(value: string): void {
   getEl().attr("stroke", value);
   if (useStyleState.getState().activeElement === "gridOverlay" && layerIsOn("toggleGrid"))
     GridRenderer.render(worldContext, viewContext, appServices);
+  scheduleWebglUpdate();
 }
 
 export function applyStrokeDasharray(value: string): void {
@@ -725,6 +732,7 @@ export function applyStrokeDasharray(value: string): void {
   getEl().attr("stroke-dasharray", value);
   if (useStyleState.getState().activeElement === "gridOverlay" && layerIsOn("toggleGrid"))
     GridRenderer.render(worldContext, viewContext, appServices);
+  scheduleWebglUpdate();
 }
 
 export function applyStrokeLinecap(value: string): void {
@@ -732,6 +740,7 @@ export function applyStrokeLinecap(value: string): void {
   getEl().attr("stroke-linecap", value);
   if (useStyleState.getState().activeElement === "gridOverlay" && layerIsOn("toggleGrid"))
     GridRenderer.render(worldContext, viewContext, appServices);
+  scheduleWebglUpdate();
 }
 
 export function applyLabelsHideGroup(checked: boolean): void {
@@ -809,6 +818,7 @@ export function applyRescaleMarkers(checked: boolean): void {
   useStyleState.getState().updateValue("styleRescaleMarkers", checked ? "1" : "0");
   view.markers.attr("rescale", +checked);
   document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
+  scheduleWebglUpdate();
 }
 
 export function applyCoastlineAuto(checked: boolean): void {
@@ -843,6 +853,7 @@ export function applyHeightmapScheme(value: string): void {
   useStyleState.getState().updateValue("styleHeightmapScheme", value);
   getEl().attr("scheme", value);
   HeightmapRenderer.render(worldContext, viewContext, appServices);
+  scheduleWebglUpdate();
 }
 
 export function openHeightmapSchemeDialog(): void {
@@ -861,6 +872,7 @@ export function openHeightmapSchemeDialog(): void {
       addCustomColorScheme(stopsStr);
       getEl().attr("scheme", stopsStr);
       HeightmapRenderer.render(worldContext, viewContext, appServices);
+      scheduleWebglUpdate();
     }
   };
   openDialog("heightmapScheme", schemeConfig);
@@ -870,12 +882,14 @@ export function applyHeightmapRenderOcean(checked: boolean): void {
   useStyleState.getState().updateValue("styleHeightmapRenderOcean", checked ? "1" : "0");
   getEl().attr("data-render", +checked);
   HeightmapRenderer.render(worldContext, viewContext, appServices);
+  scheduleWebglUpdate();
 }
 
 export function applyHeightmapCurve(value: string): void {
   useStyleState.getState().updateValue("styleHeightmapCurve", value);
   getEl().attr("curve", value);
   HeightmapRenderer.render(worldContext, viewContext, appServices);
+  scheduleWebglUpdate();
 }
 
 export function applyReliefSet(value: string): void {
@@ -903,11 +917,13 @@ export function applyPopulationUrbanStroke(value: string): void {
 export function applyBurgIconsIcon(value: string): void {
   useStyleState.getState().updateValue("styleBurgIconsIcon", value);
   getEl().attr("data-icon", value).selectAll<SVGUseElement, unknown>("use").attr("href", value);
+  scheduleWebglUpdate();
 }
 
 export function applyBurgIconsLinejoin(value: string): void {
   useStyleState.getState().updateValue("styleBurgIconsStrokeLinejoin", value);
   getEl().attr("stroke-linejoin", value);
+  scheduleWebglUpdate();
 }
 
 export function applyCompassShiftX(value: string): void {
@@ -947,11 +963,13 @@ export function applyFontSizeMinus(): void {
 export function applyFontShiftX(value: string): void {
   useStyleState.getState().updateValue("styleFontShiftX", value);
   getEl().attr("data-dx", value).selectAll<SVGTextElement, unknown>("text").attr("dx", `${value}em`);
+  scheduleWebglUpdate();
 }
 
 export function applyFontShiftY(value: string): void {
   useStyleState.getState().updateValue("styleFontShiftY", value);
   getEl().attr("data-dy", value).selectAll<SVGTextElement, unknown>("text").attr("dy", `${value}em`);
+  scheduleWebglUpdate();
 }
 
 export function applyStatesBodyFilter(value: string): void {
@@ -1204,6 +1222,7 @@ function applyStyleWithUiRefresh(styleJSON: StyleJSON, presetName?: string): voi
   document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
   drawScaleBar(worldContext, viewContext, appServices, view.scaleBar, view.scale);
   fitScaleBar(worldContext, viewContext, appServices, view.scaleBar, view.svgWidth, view.svgHeight);
+  scheduleWebglUpdate();
 }
 
 function updateMapFilter(): void {

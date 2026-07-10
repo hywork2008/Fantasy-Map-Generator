@@ -181,6 +181,11 @@ export interface DeckEmblemIcon {
 
 export type DeckDivisionBoundaryKind = "state" | "province" | "culture" | "religion";
 
+export interface DeckLandCellGeometry {
+  cellId: number;
+  polygon: DeckPosition[];
+}
+
 export function colorToRgba(value: string | undefined, fallback: string, opacity = 1): Color {
   const parsed = parseColor(value || fallback) ?? parseColor(fallback);
   if (!parsed) return [153, 153, 153, Math.round(255 * opacity)];
@@ -206,12 +211,35 @@ export function buildBackgroundPolygons(worldContext: Readonly<WorldContext>): D
   ];
 }
 
+/**
+ * Land-cell vertex-to-polygon geometry, shared by every land-based cell overlay (land fill, biomes,
+ * cultures, religions, states, provinces, zones, precipitation, danger, population) so simultaneously
+ * active overlays don't each repeat the same per-cell vertex lookup — only `fillColor` differs between them.
+ */
+export function buildLandCellGeometry(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null
+): DeckLandCellGeometry[] {
+  const { cells, vertices } = worldContext.pack;
+  const geometry: DeckLandCellGeometry[] = [];
+
+  for (let cellId = 0; cellId < cells.i.length; cellId++) {
+    if (cells.h[cellId] < 20 || !isCellInScope(focusScope, cellId)) continue;
+    const polygon = getCellPolygon(cells, vertices, cellId);
+    if (!polygon) continue;
+    geometry.push({ cellId, polygon });
+  }
+
+  return geometry;
+}
+
 export function buildLandPolygonsBase(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  fill = "#eef6fb"
+  fill = "#eef6fb",
+  landCells?: ReadonlyArray<DeckLandCellGeometry>
 ): DeckCellPolygon[] {
-  return buildLandPolygons(worldContext, focusScope, "land", () => colorToRgba(fill, "#eef6fb"));
+  return buildLandPolygons(worldContext, focusScope, "land", () => colorToRgba(fill, "#eef6fb"), landCells);
 }
 
 export function buildHeightPolygons(
@@ -244,57 +272,83 @@ export function buildHeightPolygons(
 
 export function buildBiomesPolygons(
   worldContext: Readonly<WorldContext>,
-  focusScope: FocusScope | null
+  focusScope: FocusScope | null,
+  landCells?: ReadonlyArray<DeckLandCellGeometry>
 ): DeckCellPolygon[] {
   const { pack, biomesData } = worldContext;
-  return buildLandPolygons(worldContext, focusScope, "biome", cellId =>
-    colorToRgba(biomesData.color[pack.cells.biome[cellId]], "#999999", 0.9)
+  return buildLandPolygons(
+    worldContext,
+    focusScope,
+    "biome",
+    cellId => colorToRgba(biomesData.color[pack.cells.biome[cellId]], "#999999", 0.9),
+    landCells
   );
 }
 
 export function buildCulturePolygons(
   worldContext: Readonly<WorldContext>,
-  focusScope: FocusScope | null
+  focusScope: FocusScope | null,
+  landCells?: ReadonlyArray<DeckLandCellGeometry>
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
-  return buildLandPolygons(worldContext, focusScope, "culture", cellId =>
-    colorToRgba(pack.cultures[pack.cells.culture[cellId]]?.color, "#999999", 0.7)
+  return buildLandPolygons(
+    worldContext,
+    focusScope,
+    "culture",
+    cellId => colorToRgba(pack.cultures[pack.cells.culture[cellId]]?.color, "#999999", 0.7),
+    landCells
   );
 }
 
 export function buildReligionPolygons(
   worldContext: Readonly<WorldContext>,
-  focusScope: FocusScope | null
+  focusScope: FocusScope | null,
+  landCells?: ReadonlyArray<DeckLandCellGeometry>
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
-  return buildLandPolygons(worldContext, focusScope, "religion", cellId =>
-    colorToRgba(pack.religions[pack.cells.religion[cellId]]?.color, "#999999", 0.7)
+  return buildLandPolygons(
+    worldContext,
+    focusScope,
+    "religion",
+    cellId => colorToRgba(pack.religions[pack.cells.religion[cellId]]?.color, "#999999", 0.7),
+    landCells
   );
 }
 
 export function buildStatePolygons(
   worldContext: Readonly<WorldContext>,
-  focusScope: FocusScope | null
+  focusScope: FocusScope | null,
+  landCells?: ReadonlyArray<DeckLandCellGeometry>
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
-  return buildLandPolygons(worldContext, focusScope, "state", cellId =>
-    colorToRgba(pack.states[pack.cells.state[cellId]]?.color, "#999999", 0.64)
+  return buildLandPolygons(
+    worldContext,
+    focusScope,
+    "state",
+    cellId => colorToRgba(pack.states[pack.cells.state[cellId]]?.color, "#999999", 0.64),
+    landCells
   );
 }
 
 export function buildProvincePolygons(
   worldContext: Readonly<WorldContext>,
-  focusScope: FocusScope | null
+  focusScope: FocusScope | null,
+  landCells?: ReadonlyArray<DeckLandCellGeometry>
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
-  return buildLandPolygons(worldContext, focusScope, "province", cellId =>
-    colorToRgba(pack.provinces[pack.cells.province[cellId]]?.color, "#999999", 0.58)
+  return buildLandPolygons(
+    worldContext,
+    focusScope,
+    "province",
+    cellId => colorToRgba(pack.provinces[pack.cells.province[cellId]]?.color, "#999999", 0.58),
+    landCells
   );
 }
 
 export function buildZonePolygons(
   worldContext: Readonly<WorldContext>,
-  focusScope: FocusScope | null
+  focusScope: FocusScope | null,
+  landCells?: ReadonlyArray<DeckLandCellGeometry>
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
   const zoneByCell = new Map<number, string>();
@@ -303,10 +357,16 @@ export function buildZonePolygons(
     for (const cellId of zone.cells ?? []) zoneByCell.set(cellId, zone.color);
   }
 
-  return buildLandPolygons(worldContext, focusScope, "zone", cellId => {
-    const color = zoneByCell.get(cellId);
-    return color ? colorToRgba(color, "#999999", 0.65) : [0, 0, 0, 0];
-  }).filter(polygon => (polygon.fillColor[3] ?? 255) > 0);
+  return buildLandPolygons(
+    worldContext,
+    focusScope,
+    "zone",
+    cellId => {
+      const color = zoneByCell.get(cellId);
+      return color ? colorToRgba(color, "#999999", 0.65) : [0, 0, 0, 0];
+    },
+    landCells
+  ).filter(polygon => (polygon.fillColor[3] ?? 255) > 0);
 }
 
 export function buildTemperaturePolygons(
@@ -325,38 +385,59 @@ export function buildTemperaturePolygons(
 
 export function buildPrecipitationPolygons(
   worldContext: Readonly<WorldContext>,
-  focusScope: FocusScope | null
+  focusScope: FocusScope | null,
+  landCells?: ReadonlyArray<DeckLandCellGeometry>
 ): DeckCellPolygon[] {
   const { grid, pack } = worldContext;
-  return buildLandPolygons(worldContext, focusScope, "precipitation", cellId => {
-    const precipitation = grid.cells.prec?.[pack.cells.g[cellId]] ?? 0;
-    const alpha = Math.min(0.75, Math.max(0.18, precipitation / 220));
-    return colorToRgba("#2d7dd2", "#2d7dd2", alpha);
-  });
+  return buildLandPolygons(
+    worldContext,
+    focusScope,
+    "precipitation",
+    cellId => {
+      const precipitation = grid.cells.prec?.[pack.cells.g[cellId]] ?? 0;
+      const alpha = Math.min(0.75, Math.max(0.18, precipitation / 220));
+      return colorToRgba("#2d7dd2", "#2d7dd2", alpha);
+    },
+    landCells
+  );
 }
 
 export function buildDangerPolygons(
   worldContext: Readonly<WorldContext>,
-  focusScope: FocusScope | null
+  focusScope: FocusScope | null,
+  landCells?: ReadonlyArray<DeckLandCellGeometry>
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
-  return buildLandPolygons(worldContext, focusScope, "danger", cellId => {
-    const danger = pack.cells.danger?.[cellId] ?? 0;
-    if (!danger) return [0, 0, 0, 0];
-    return colorToRgba("#d0240f", "#d0240f", Math.min(0.75, Math.max(0.15, danger / 100)));
-  }).filter(polygon => (polygon.fillColor[3] ?? 255) > 0);
+  return buildLandPolygons(
+    worldContext,
+    focusScope,
+    "danger",
+    cellId => {
+      const danger = pack.cells.danger?.[cellId] ?? 0;
+      if (!danger) return [0, 0, 0, 0];
+      return colorToRgba("#d0240f", "#d0240f", Math.min(0.75, Math.max(0.15, danger / 100)));
+    },
+    landCells
+  ).filter(polygon => (polygon.fillColor[3] ?? 255) > 0);
 }
 
 export function buildPopulationPolygons(
   worldContext: Readonly<WorldContext>,
-  focusScope: FocusScope | null
+  focusScope: FocusScope | null,
+  landCells?: ReadonlyArray<DeckLandCellGeometry>
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
-  return buildLandPolygons(worldContext, focusScope, "population", cellId => {
-    const population = pack.cells.pop[cellId] ?? 0;
-    if (!population) return [0, 0, 0, 0];
-    return colorToRgba("#8f3fb5", "#8f3fb5", Math.min(0.72, Math.max(0.18, population / 40)));
-  }).filter(polygon => (polygon.fillColor[3] ?? 255) > 0);
+  return buildLandPolygons(
+    worldContext,
+    focusScope,
+    "population",
+    cellId => {
+      const population = pack.cells.pop[cellId] ?? 0;
+      if (!population) return [0, 0, 0, 0];
+      return colorToRgba("#8f3fb5", "#8f3fb5", Math.min(0.72, Math.max(0.18, population / 40)));
+    },
+    landCells
+  ).filter(polygon => (polygon.fillColor[3] ?? 255) > 0);
 }
 
 export function buildCellOutlinePaths(worldContext: Readonly<WorldContext>, focusScope: FocusScope | null): DeckPath[] {
@@ -1041,8 +1122,19 @@ function buildLandPolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
   kind: WebglPickKind,
-  getFillColor: (cellId: number) => Color
+  getFillColor: (cellId: number) => Color,
+  landCells?: ReadonlyArray<DeckLandCellGeometry>
 ): DeckCellPolygon[] {
+  if (landCells) {
+    return landCells.map(({ cellId, polygon }) => ({
+      id: `${kind}-cell-${cellId}`,
+      kind,
+      cellId,
+      polygon,
+      fillColor: getFillColor(cellId)
+    }));
+  }
+
   return buildCellPolygons(
     worldContext,
     focusScope,

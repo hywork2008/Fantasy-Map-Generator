@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ViewContext } from "../../../context/viewContext";
 import type { WorldContext } from "../../../context/worldContext";
 import { useLayerState } from "../../../store/layerState";
 import { buildDeckLayers, clearDeckLayerDataCache, getDeckLayerDataCacheSize } from "../buildDeckLayers";
+import * as deckDataAdapters from "./deckDataAdapters";
 import {
   buildBiomesPolygons,
   buildBurgIconSymbols,
@@ -761,6 +762,62 @@ describe("deck.gl data adapters", () => {
     expect(secondLayers.find(layer => layer.id === "fmg-webgl-biomes")?.props.data).toBe(
       firstLayers.find(layer => layer.id === "fmg-webgl-biomes")?.props.data
     );
+  });
+
+  it("computes shared land-cell geometry once for multiple simultaneously active land-based overlays", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.cells.h[1] = 30;
+    worldContext.pack.cells.state[0] = 1;
+    worldContext.pack.cells.state[1] = 2;
+    worldContext.pack.states = [
+      { i: 0, name: "Neutral", expansionism: 0, capital: 0, type: "", center: 0, culture: 0, coa: null },
+      {
+        i: 1,
+        name: "North",
+        expansionism: 0,
+        capital: 0,
+        type: "",
+        center: 0,
+        culture: 0,
+        coa: null,
+        color: "#ff0000"
+      },
+      { i: 2, name: "South", expansionism: 0, capital: 0, type: "", center: 1, culture: 0, coa: null, color: "#00ff00" }
+    ] as WorldContext["pack"]["states"];
+    worldContext.pack.provinces = [
+      { i: 0, name: "None", state: 0, center: 0, burg: 0, formName: "", color: "" },
+      { i: 1, name: "Provincia", state: 1, center: 0, burg: 0, formName: "", color: "#0000ff" }
+    ] as WorldContext["pack"]["provinces"];
+    worldContext.pack.cells.province[0] = 1;
+    const viewContext = { focusScope: null } as ViewContext;
+    useLayerState.getState().setAllActiveLayers({ toggleStates: true, toggleProvinces: true, toggleBiomes: true });
+    const geometrySpy = vi.spyOn(deckDataAdapters, "buildLandCellGeometry");
+
+    const layers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
+
+    expect(geometrySpy).toHaveBeenCalledTimes(1);
+    expect(layers.find(layer => layer.id === "fmg-webgl-states")?.props.data).toHaveLength(2);
+    expect(layers.find(layer => layer.id === "fmg-webgl-provinces")?.props.data).toHaveLength(2);
+    expect(layers.find(layer => layer.id === "fmg-webgl-biomes")?.props.data).toHaveLength(2);
+    geometrySpy.mockRestore();
+  });
+
+  it("keeps deck.gl layer ids and cached data references stable when an unrelated layer is toggled", () => {
+    const worldContext = createWorldContext();
+    const viewContext = { focusScope: null } as ViewContext;
+    useLayerState.getState().setAllActiveLayers({ toggleBiomes: true });
+
+    const firstLayers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
+    const firstIds = firstLayers.map(layer => layer.id);
+    const firstBiomeData = firstLayers.find(layer => layer.id === "fmg-webgl-biomes")?.props.data;
+
+    useLayerState.getState().setAllActiveLayers({ toggleBiomes: true, toggleGrid: true });
+    const secondLayers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
+    const secondIds = secondLayers.map(layer => layer.id);
+    const secondBiomeData = secondLayers.find(layer => layer.id === "fmg-webgl-biomes")?.props.data;
+
+    expect(secondIds).toEqual(expect.arrayContaining(firstIds));
+    expect(secondBiomeData).toBe(firstBiomeData);
   });
 
   it("invalidates cached deck.gl data after in-place world data changes", () => {
