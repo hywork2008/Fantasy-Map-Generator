@@ -1,5 +1,5 @@
 import { COORDINATE_SYSTEM, type LayersList } from "@deck.gl/core";
-import { IconLayer, PathLayer, PolygonLayer, SolidPolygonLayer, TextLayer } from "@deck.gl/layers";
+import { IconLayer, PathLayer, PolygonLayer, ScatterplotLayer, SolidPolygonLayer, TextLayer } from "@deck.gl/layers";
 import type { AppServices } from "../../context/appServices";
 import type { ViewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
@@ -59,6 +59,7 @@ import {
 } from "./adapters/deckDataAdapters";
 import { BURG_ICON_RASTER_SIZE, getBurgIconRasterCacheVersion } from "./burgIconRasterCache";
 import { getEmblemIconCacheVersion } from "./emblemIconCache";
+import { getExtensionWebglLayers } from "./extensionWebglLayerRegistry";
 import { getExternalIconFailureCacheVersion, markExternalIconFailed } from "./externalIconFailureCache";
 import {
   getBurgIconStyle,
@@ -355,6 +356,39 @@ export function buildDeckLayers(
         lineWidthMaxPixels: 2,
         stroked: true,
         pickable: true
+      })
+    );
+  }
+
+  for (const layer of getExtensionWebglLayers(activeLayers)) {
+    if (layer.type === "polygon") {
+      layers.push(
+        new SolidPolygonLayer({
+          id: `fmg-webgl-extension-${layer.id}`,
+          data: layer.data,
+          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+          getPolygon: datum => datum.polygon,
+          getFillColor: datum => datum.fillColor,
+          pickable: false
+        })
+      );
+      continue;
+    }
+
+    layers.push(
+      new ScatterplotLayer({
+        id: `fmg-webgl-extension-${layer.id}`,
+        data: layer.data,
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getPosition: datum => datum.position,
+        getFillColor: datum => datum.fillColor,
+        getLineColor: datum => datum.lineColor ?? datum.fillColor,
+        getRadius: datum => datum.radius,
+        getLineWidth: datum => datum.lineWidth ?? 0,
+        radiusUnits: layer.radiusUnits ?? "common",
+        lineWidthUnits: "pixels",
+        stroked: true,
+        pickable: false
       })
     );
   }

@@ -385,6 +385,30 @@ test.describe("webgl hybrid renderer", () => {
 
     await setRenderMode(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
+    await page.locator("#layersTab").click();
+    await page.getByRole("button", { name: "Goods", exact: true }).click();
+    await page.getByRole("button", { name: "Markets", exact: true }).click();
+    await expect
+      .poll(() => getWebglDeckLayerIds(page), { timeout: 5000 })
+      .toEqual(
+        expect.arrayContaining([
+          "fmg-webgl-extension-economy-goods-cells",
+          "fmg-webgl-extension-economy-goods-sources",
+          "fmg-webgl-extension-economy-market-areas",
+          "fmg-webgl-extension-economy-market-centers"
+        ])
+      );
+    await expect(page.locator("#goods")).toBeHidden();
+    await expect(page.locator("#marketsLayer")).toBeHidden();
+    const economyLayerData = await getWebglLayerStyleSamples(page, [
+      "fmg-webgl-extension-economy-goods-cells",
+      "fmg-webgl-extension-economy-goods-sources",
+      "fmg-webgl-extension-economy-market-areas",
+      "fmg-webgl-extension-economy-market-centers"
+    ]);
+    for (const layer of economyLayerData) {
+      expect(layer.dataCount, layer.layerId).toBeGreaterThan(0);
+    }
     await uploadMapFixture(page, "demo.map");
 
     const stats = await waitForWebglCanvasPixels(page);
@@ -395,6 +419,16 @@ test.describe("webgl hybrid renderer", () => {
       await expect(layer).not.toHaveAttribute("data-phase7-preload");
       await expect(layer).not.toHaveClass(/fmg-webgl-managed-svg-layer/);
     }
+    await expect
+      .poll(() => getWebglDeckLayerIds(page), { timeout: 5000 })
+      .toEqual(
+        expect.arrayContaining([
+          "fmg-webgl-extension-economy-goods-cells",
+          "fmg-webgl-extension-economy-goods-sources",
+          "fmg-webgl-extension-economy-market-areas",
+          "fmg-webgl-extension-economy-market-centers"
+        ])
+      );
     await expect
       .poll(() => page.locator("#goods").evaluate(element => element.parentElement?.id ?? ""))
       .toBe("viewbox");

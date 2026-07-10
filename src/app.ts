@@ -16,6 +16,7 @@ import {
   registerToolAction,
   removePreset,
   savePreset,
+  scheduleWebglUpdate,
   toggleBurgIcons,
   toggleLabels,
   toggleLayerById,
@@ -32,6 +33,10 @@ import { advanceTime, registerTimeTickHook } from "./generators/timeEngine";
 import { buildGeoJsonZones, saveGeoJsonZones } from "./io/export";
 import { generate, initMain, regenerateMap } from "./main";
 import { initRenderers } from "./renderers/index";
+import {
+  registerExtensionWebglLayers,
+  unregisterExtensionWebglLayers
+} from "./renderers/webgl/extensionWebglLayerRegistry";
 import { burgEconomyExtensions } from "./services/burgEconomyExtensions";
 import { getEffectiveSkill, registerSkillModifier } from "./services/skillModifierService";
 import { tooltipExtensions } from "./services/tooltipService";
@@ -148,6 +153,9 @@ function buildExtensionAPI(): ExtensionAPI {
     registerMapReinitHook: fn => {
       _mapReinitHooks.push(fn);
     },
+    registerWebglLayers: registerExtensionWebglLayers,
+    unregisterWebglLayers: unregisterExtensionWebglLayers,
+    requestWebglRender: scheduleWebglUpdate,
 
     openRichDialog,
     openDialog: (id, config) => openDialog(id, config),

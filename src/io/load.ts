@@ -13,7 +13,7 @@ import { declareFont, fonts } from "../services/fonts";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers } from "../store/editorState";
-import { useLayerState } from "../store/layerState";
+import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
 import { loadErrorDialogStore } from "../store/loadErrorDialogState";
 import { loadMapDialogStore } from "../store/loadMapDialogState";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
@@ -504,9 +504,20 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         selector: string
       ) => (selection.node() as Element | null)?.querySelector(selector);
 
+      const layerState = useLayerState.getState();
+      const extensionLayerIds = new Set(
+        layerState.layers
+          .filter(layer => !DEFAULT_LAYERS.some(defaultLayer => defaultLayer.id === layer.id))
+          .map(layer => layer.id)
+      );
       const nextActiveLayers: Record<string, boolean> = {};
-      useLayerState.getState().layers.forEach(l => {
-        nextActiveLayers[l.id] = false;
+      layerState.layers.forEach(layer => {
+        // A .map file serializes host SVG visibility, but extension-owned layers are not part of
+        // ViewContext and may be recreated after the SVG is replaced. Keep their current toggle
+        // state instead of inferring "off" from the loaded host SVG.
+        nextActiveLayers[layer.id] = extensionLayerIds.has(layer.id)
+          ? (layerState.activeLayers[layer.id] ?? false)
+          : false;
       });
       const turnOn = (el: string) => {
         nextActiveLayers[el] = true;

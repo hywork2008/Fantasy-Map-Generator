@@ -54,6 +54,48 @@ export interface ExtensionStateSnapshot {
   enabledExtensions: Record<string, boolean>;
 }
 
+export type ExtensionWebglPosition = readonly [number, number];
+export type ExtensionWebglColor = readonly [number, number, number, number];
+
+export interface ExtensionWebglPolygonDatum {
+  id: string;
+  polygon: readonly ExtensionWebglPosition[];
+  fillColor: ExtensionWebglColor;
+}
+
+export interface ExtensionWebglScatterDatum {
+  id: string;
+  position: ExtensionWebglPosition;
+  fillColor: ExtensionWebglColor;
+  lineColor?: ExtensionWebglColor;
+  radius: number;
+  lineWidth?: number;
+}
+
+/**
+ * A declarative WebGL layer supplied by an extension. The host owns deck.gl class
+ * construction, caching, visibility and lifecycle; extensions only return data.
+ */
+export type ExtensionWebglLayer =
+  | {
+      type: "polygon";
+      id: string;
+      toggle: string;
+      data: readonly ExtensionWebglPolygonDatum[];
+    }
+  | {
+      type: "scatter";
+      id: string;
+      toggle: string;
+      data: readonly ExtensionWebglScatterDatum[];
+      radiusUnits?: "common" | "pixels";
+    };
+
+export interface ExtensionWebglLayerSpec {
+  /** Must be pure: read extension-owned state and return serializable render descriptors only. */
+  build(): readonly ExtensionWebglLayer[];
+}
+
 export interface ExtensionAPI {
   // ── Core contexts ────────────────────────────────────────────────────────
   /** Readonly reference to the host app's world context — same object, shared state. */
@@ -138,6 +180,14 @@ export interface ExtensionAPI {
    * Use this to re-attach event handlers to extension-owned SVG elements after a map load.
    */
   registerMapReinitHook(fn: () => void): void;
+
+  // ── WebGL layer management ──────────────────────────────────────────────
+  /** Register declarative extension render data for the host deck.gl renderer. */
+  registerWebglLayers(extensionId: string, spec: ExtensionWebglLayerSpec): void;
+  /** Stop contributing deck.gl layers for this extension. */
+  unregisterWebglLayers(extensionId: string): void;
+  /** Rebuild deck.gl layers when extension-owned display data changes. No-op outside WebGL hybrid mode. */
+  requestWebglRender(): void;
 
   // ── Dialog service ───────────────────────────────────────────────────────
   openRichDialog(options: RichDialogOptions): void;

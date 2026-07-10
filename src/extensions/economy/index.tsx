@@ -24,6 +24,7 @@ import { TradeAnimation } from "./generators/trade-animation";
 import { drawGoods } from "./renderers/draw-goods";
 import { drawMarketsLayer } from "./renderers/draw-markets";
 import { clear as clearTradeAnimation, draw as drawTradeAnimation } from "./renderers/draw-trade-animation";
+import { createEconomyWebglLayerSpec } from "./renderers/economyWebglLayers";
 import { showEconomyTooltip, updateEconomyCellInfo } from "./tooltipHandler";
 import { StatesEditorTreasuryTab } from "./ui/components/StatesEditorTreasuryTab";
 import { GoodsDistributionEditorDialog } from "./ui/dialogs/GoodsDistributionEditorDialog";
@@ -55,6 +56,7 @@ function withRegenerateConfirmation(featureName: string, _id: string, onConfirm:
 }
 
 export const ECONOMY_EXTENSION_ID = "economy";
+const economyWebglLayerSpec = createEconomyWebglLayerSpec();
 
 const ECONOMY_PRESETS: Record<string, { label: string; layers: string[] }> = {
   goods: {
@@ -397,6 +399,7 @@ export function init(api: ExtensionAPI): void {
 
     if (isEnabled && !wasEnabled) {
       api.addLayers(economyLayers);
+      api.registerWebglLayers(ECONOMY_EXTENSION_ID, economyWebglLayerSpec);
       attachSvgClickHandlers();
       for (const [id, { label, layers }] of Object.entries(ECONOMY_PRESETS)) {
         api.registerPreset(id, label, layers);
@@ -431,6 +434,7 @@ export function init(api: ExtensionAPI): void {
         }
       });
       api.removeLayers(economyLayers.map(l => l.id));
+      api.unregisterWebglLayers(ECONOMY_EXTENSION_ID);
       for (const id of Object.keys(ECONOMY_PRESETS)) {
         api.unregisterPreset(id);
       }
@@ -471,6 +475,7 @@ export function init(api: ExtensionAPI): void {
   // If already enabled at load time (e.g. persisted preference), add layers immediately
   if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
     api.addLayers(economyLayers);
+    api.registerWebglLayers(ECONOMY_EXTENSION_ID, economyWebglLayerSpec);
     attachSvgClickHandlers();
     for (const [id, { label, layers }] of Object.entries(ECONOMY_PRESETS)) {
       api.registerPreset(id, label, layers);
@@ -650,6 +655,11 @@ export function init(api: ExtensionAPI): void {
   api.registerLayerToggle("toggleGoods", (_event?: MouseEvent) => {
     if (!api.layerIsOn("toggleGoods")) {
       api.turnLayerOn("toggleGoods");
+      if (api.viewContext.renderMode === "webglHybrid") {
+        api.getSvgLayer("goods")?.style("display", "none");
+        api.requestWebglRender();
+        return;
+      }
       drawGoods(getDefaultGoodsSet());
     } else {
       api.getSvgLayer("goods")?.selectAll("#goodsCells,#goodsIcons,#goodsBurgs").html("");
@@ -660,6 +670,12 @@ export function init(api: ExtensionAPI): void {
   api.registerLayerToggle("toggleMarketsLayer", (_event?: MouseEvent) => {
     if (!api.layerIsOn("toggleMarketsLayer")) {
       api.turnLayerOn("toggleMarketsLayer");
+      if (api.viewContext.renderMode === "webglHybrid") {
+        api.getSvgLayer("marketsLayerFill")?.style("display", "none");
+        api.getSvgLayer("marketsLayer")?.style("display", "none");
+        api.requestWebglRender();
+        return;
+      }
       drawMarketsLayer();
     } else {
       api.getSvgLayer("marketsLayerFill")?.html("").style("display", "none");
@@ -680,6 +696,14 @@ export function init(api: ExtensionAPI): void {
 
   // Redraw economy layers whenever the host calls drawLayers()
   api.registerDrawLayerHook(() => {
+    if (api.viewContext.renderMode === "webglHybrid") {
+      api.getSvgLayer("goods")?.style("display", "none");
+      api.getSvgLayer("marketsLayerFill")?.style("display", "none");
+      api.getSvgLayer("marketsLayer")?.style("display", "none");
+      api.requestWebglRender();
+      if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
+      return;
+    }
     if (api.layerIsOn("toggleGoods")) drawGoods(getDefaultGoodsSet());
     if (api.layerIsOn("toggleMarketsLayer")) drawMarketsLayer();
     if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
@@ -710,6 +734,7 @@ export function cleanup(api: ExtensionAPI): void {
 
   // Remove layers, presets and clear tooltip hooks
   api.removeLayers(economyLayers.map(l => l.id));
+  api.unregisterWebglLayers(ECONOMY_EXTENSION_ID);
   for (const id of Object.keys(ECONOMY_PRESETS)) {
     api.unregisterPreset(id);
   }
