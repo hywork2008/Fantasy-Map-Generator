@@ -251,6 +251,61 @@ export function buildLandCellGeometry(
   return geometry;
 }
 
+/**
+ * Build per-cell polygons for ocean cells, shaded by depth.
+ *
+ * `pack.cells.h` values range roughly 0–19 for ocean (0 = deep, 19 = shallow transition).
+ * We blend the base ocean colour toward a lighter "shallow" tint proportionally so that
+ * deep water appears as the base colour and shallow areas are brighter.
+ *
+ * @param oceanBaseColor  Base ocean fill colour string (e.g. "#466eab") read from the SVG style.
+ */
+export function buildOceanDepthPolygons(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  oceanBaseColor = "#466eab"
+): DeckCellPolygon[] {
+  const { cells, vertices } = worldContext.pack;
+  const polygons: DeckCellPolygon[] = [];
+
+  // Parse the base ocean colour once.
+  const base = parseColor(oceanBaseColor)?.rgb() ?? parseColor("#466eab")!.rgb();
+  // Shallow highlight colour: lighter / more saturated — mix toward near-white (#ecf2f9).
+  const shallowR = 236,
+    shallowG = 242,
+    shallowB = 249; // #ecf2f9
+
+  for (let cellId = 0; cellId < cells.i.length; cellId++) {
+    const h = cells.h[cellId];
+    // Only ocean cells (h < 20). Skip cells outside focus scope.
+    if (h >= 20 || !isCellInScope(focusScope, cellId)) continue;
+
+    const polygon = getCellPolygon(cells, vertices, cellId);
+    if (!polygon) continue;
+
+    // t is in [0, 1]: 0 = deepest (h ≈ 0), 1 = shallowest (h ≈ 19).
+    const t = Math.min(1, Math.max(0, h / 19));
+
+    // Interpolate base → shallow and layer a translucent shallow tint on top.
+    // Using a small base alpha so deep cells are almost opaque ocean colour,
+    // and shallow cells receive more of the #ecf2f9 tint.
+    const alpha = Math.round(t * 180); // 0 (fully transparent) at depth, 180/255 at shore
+    const r = Math.round(base.r + (shallowR - base.r) * t);
+    const g = Math.round(base.g + (shallowG - base.g) * t);
+    const b = Math.round(base.b + (shallowB - base.b) * t);
+
+    polygons.push({
+      id: `ocean-depth-cell-${cellId}`,
+      kind: "background",
+      cellId: -1,
+      polygon,
+      fillColor: [r, g, b, alpha]
+    });
+  }
+
+  return polygons;
+}
+
 export function buildLandPolygonsBase(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,

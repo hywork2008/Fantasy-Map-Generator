@@ -1,8 +1,17 @@
 import { COORDINATE_SYSTEM, type LayersList } from "@deck.gl/core";
-import { IconLayer, PathLayer, PolygonLayer, ScatterplotLayer, SolidPolygonLayer, TextLayer } from "@deck.gl/layers";
+import {
+  BitmapLayer,
+  IconLayer,
+  PathLayer,
+  PolygonLayer,
+  ScatterplotLayer,
+  SolidPolygonLayer,
+  TextLayer
+} from "@deck.gl/layers";
 import type { AppServices } from "../../context/appServices";
 import type { ViewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
+import { getOceanPathsCacheSize, renderOceanDepthToOffscreenCanvas } from "../../renderers/ocean-layers";
 import { useLayerState } from "../../store/layerState";
 import { EMBLEM_ICON_RASTER_SIZE } from "../emblem-renderer";
 import {
@@ -98,6 +107,9 @@ interface CachedDeckDataEntry<T extends CachedDeckData> {
 }
 
 const deckLayerDataCache = new Map<string, CachedDeckDataEntry<CachedDeckData>>();
+
+/** Module-level cache for the ocean-depth offscreen canvas (not in deckLayerDataCache because HTMLCanvasElement is not CachedDeckData). */
+const oceanDepthCanvasCache: { signature: string; canvas: HTMLCanvasElement | null } = { signature: "", canvas: null };
 
 const WEBGL_POLYGON_LAYERS: Array<{
   toggle: string;
@@ -248,6 +260,36 @@ export function buildDeckLayers(
       getFillColor: () => oceanColor,
       pickable: false
     }),
+    // Ocean depth gradient rendered as a BitmapLayer from the same offscreen canvas that SVG mode
+    // uses (same curveBasisClosed paths, same #ecf2f9 overlay, same cumulative opacity stacking).
+    // This gives pixel-identical appearance to the SVG canvas effect.
+    // The canvas is cached in oceanDepthCanvasCache (separate from deckLayerDataCache because
+    // HTMLCanvasElement is not a CachedDeckData array type) and is only re-generated — and
+    // re-uploaded to the GPU as a WebGL texture — when the ocean path data actually changes.
+    ...(() => {
+      const oceanPathSignature = `ocean-depth|${worldContext.mapId}|paths:${getOceanPathsCacheSize()}|${worldContext.graphWidth}x${worldContext.graphHeight}`;
+      if (oceanDepthCanvasCache.signature !== oceanPathSignature) {
+        oceanDepthCanvasCache.canvas = renderOceanDepthToOffscreenCanvas(
+          worldContext.graphWidth,
+          worldContext.graphHeight
+        );
+        oceanDepthCanvasCache.signature = oceanPathSignature;
+      }
+      const oceanDepthCanvas = oceanDepthCanvasCache.canvas;
+      if (!oceanDepthCanvas) return [];
+      return [
+        new BitmapLayer({
+          id: "fmg-webgl-ocean-depth",
+          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+          image: oceanDepthCanvas,
+          // bounds = [left, bottom, right, top] in CARTESIAN space (Y increases downward).
+          // The OffscreenCanvas is drawn with Y=0 at the top (standard Canvas convention), so
+          // swapping the Y values (bottom=graphHeight, top=0) un-flips the image.
+          bounds: [0, worldContext.graphHeight, worldContext.graphWidth, 0],
+          pickable: false
+        })
+      ];
+    })(),
     new SolidPolygonLayer<DeckCellPolygon>({
       id: "fmg-webgl-land",
       data: getCachedDeckData("land", signatures.land, () =>
