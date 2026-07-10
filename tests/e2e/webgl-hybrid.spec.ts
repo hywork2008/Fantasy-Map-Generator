@@ -252,6 +252,80 @@ test.describe("webgl hybrid renderer", () => {
     await expect(page.locator("#layersContent")).toBeVisible();
   });
 
+  test("exports a visible WebGL map as a composited PNG", async ({ page }) => {
+    await page.goto("/?seed=webgl-raster-export&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Export", exact: true }).click();
+    await page.locator("#exportMapData").getByRole("button", { name: ".png", exact: true }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/\.png$/);
+    expect(await download.failure()).toBeNull();
+
+    const stream = await download.createReadStream();
+    let size = 0;
+    for await (const chunk of stream ?? []) size += chunk.length;
+    expect(size).toBeGreaterThan(1000);
+    await expect.poll(() => getWebglRendererDomState(page)).toMatchObject({
+      bodyHasHybridClass: true,
+      deckExists: true,
+      deckCanvasMatchesDom: true
+    });
+  });
+
+  test("saves a WebGL map through a fresh SVG snapshot and restores the deck", async ({ page }) => {
+    await page.goto("/?seed=webgl-save-snapshot&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByRole("button", { name: "machine", exact: true }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/\.map$/);
+    expect(await download.failure()).toBeNull();
+
+    const stream = await download.createReadStream();
+    let size = 0;
+    for await (const chunk of stream ?? []) size += chunk.length;
+    expect(size).toBeGreaterThan(10000);
+    await expect.poll(() => getWebglRendererDomState(page)).toMatchObject({
+      bodyHasHybridClass: true,
+      deckExists: true,
+      deckCanvasMatchesDom: true
+    });
+  });
+
+  test("keeps the deck context alive while a 3D view owns its own canvas", async ({ page }) => {
+    await page.goto("/?seed=webgl-3d-context&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+
+    await page.locator("#optionsHide").click();
+    await page.locator("#layersTab").click();
+    await page.locator("#viewMesh").click();
+
+    await expect(page.locator("#canvas3d")).toBeVisible({ timeout: 15000 });
+    await expect(page.locator("#map")).toBeHidden();
+    await expect(page.locator("#webglMapCanvas")).toBeHidden();
+    await expect.poll(() => getWebglRendererDomState(page)).toMatchObject({ deckExists: true });
+
+    await page.locator("#viewStandard").click();
+    await expect(page.locator("#canvas3d")).toHaveCount(0);
+    await expect(page.locator("#map")).toBeVisible();
+    await expect(page.locator("#webglMapCanvas")).toBeVisible();
+    await expect.poll(() => getWebglRendererDomState(page)).toMatchObject({
+      bodyHasHybridClass: true,
+      deckExists: true,
+      deckCanvasMatchesDom: true
+    });
+  });
+
   test("applies the hybrid SVG layer policy to managed map layers and overlays", async ({ page }) => {
     await page.goto("/?seed=webgl-layer-policy&width=1000&height=700");
     await waitForMapLoad(page);

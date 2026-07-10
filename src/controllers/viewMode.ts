@@ -1,3 +1,4 @@
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { tip } from "../services/tooltipService";
@@ -41,6 +42,10 @@ export function enterStandardView(): void {
   if (mapEl) {
     mapEl.style.visibility = "visible";
     mapEl.style.pointerEvents = "auto";
+  }
+  if (viewContext.webglCanvas) {
+    viewContext.webglCanvas.style.visibility = "";
+    viewContext.webglCanvas.style.pointerEvents = "";
   }
 
   if (isDialogOpen("options3d")) closeDialog("options3d");
@@ -93,6 +98,12 @@ async function enter3dView(type: string): Promise<void> {
     if (mapEl) {
       mapEl.style.visibility = "hidden";
       mapEl.style.pointerEvents = "none";
+    }
+    if (viewContext.webglCanvas) {
+      // Keep the deck instance alive while 3D owns a second WebGL context. This avoids a costly
+      // rebuild when returning to Standard view and prevents its canvas showing behind canvas3d.
+      viewContext.webglCanvas.style.visibility = "hidden";
+      viewContext.webglCanvas.style.pointerEvents = "none";
     }
 
     if (typeof EditorBus.unselect === "function") EditorBus.unselect();

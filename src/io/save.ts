@@ -1,6 +1,7 @@
 import { worldContext } from "../context/worldContext";
 import { Names } from "../generators/names-generator";
 import { appendOceanPathsToSaveSVG } from "../renderers/ocean-layers";
+import { withSvgSnapshot } from "../services/svgSnapshot";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers } from "../store/editorState";
@@ -16,7 +17,11 @@ import { ldb } from "./ldb";
 
 // ─── Map serialization ────────────────────────────────────────────────────────
 
-export function prepareMapData(): string {
+export async function prepareMapData(): Promise<string> {
+  return withSvgSnapshot(prepareMapDataFromSvg);
+}
+
+function prepareMapDataFromSvg(): string {
   const date = new Date();
   const dateString = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
   const license = "File can be loaded in azgaar.github.io/Fantasy-Map-Generator";
@@ -245,7 +250,7 @@ export async function saveMap(method: string): Promise<void> {
   closeDialogs("#alert");
 
   try {
-    const mapData = prepareMapData();
+    const mapData = await prepareMapData();
     const filename = `${getFileName()}.map`;
 
     if (method === "storage") await saveToStorage(mapData, true);
@@ -284,7 +289,7 @@ export async function initiateAutosave(): Promise<void> {
 
     try {
       tip("Autosave: saving map...", false, "warning" as never, 3000);
-      const mapData = prepareMapData();
+      const mapData = await prepareMapData();
       await saveToStorage(mapData);
       tip("Autosave: map is saved", false, "success", 2000);
       lastSavedAt = Date.now();

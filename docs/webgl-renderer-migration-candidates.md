@@ -401,8 +401,8 @@ typed array / binary attribute 化（`Float32Array` の positions/colors を dec
 - [x] extension-owned SVG layers は `ViewContext` に入れず、`ExtensionAPI.getSvgLayer()` 管理のままにする。
 - [x] built-in extensions の描画レイヤーを WebGL に移す場合、host module import ではなく `ExtensionAPI` 経由にする設計を先に決める。
 - [x] economy goods / markets / trade animation の deck.gl 化可否を別タスク化する。
-- [ ] save / export / PNG tiles が SVG + deck.gl canvas の合成に対応しているか確認する。
-- [ ] 3D preview との canvas / WebGL context 共存を確認する。
+- [x] save / export / PNG tiles が SVG + deck.gl canvas の合成に対応しているか確認する。
+- [x] 3D preview との canvas / WebGL context 共存を確認する。
 
 ### Phase 7 開始ログ
 
@@ -410,7 +410,9 @@ typed array / binary attribute 化（`Float32Array` の positions/colors を dec
 - extension-owned SVG layer の所有権は現状のままとする。`src/app.ts` 内の private registry が `fmg:map-layers-reinitialized` 後に `SvgLayerSpec` を re-acquire し、extension は `ExtensionAPI.getSvgLayer()` / `registerMapReinitHook()` だけを利用する。`ViewContext` に extension field や文字列 lookup を追加しない。
 - Economy を最初の consumer として、`ExtensionAPI.registerWebglLayers()` / `ExtensionWebglLayerSpec` を追加した。extension は `worldContext` から純粋な polygon / scatter data descriptor を返し、host の `extensionWebglLayerRegistry` と `buildDeckLayers()` が deck layer に変換する。`@deck.gl/*` class や host renderer module の import を extension entry point に漏らさない。
 - Economy の可否と段階的な候補は [webgl-economy-layer-migration.md](webgl-economy-layer-migration.md) に分離した。Phase 7 では SVG overlay のまま維持する。
-- export / tiles / 3D は未対応として残す。現行の `getMapURL()` は SVG clone を基にするため、WebGL managed SVG の実体が未描画または hybrid CSS で hidden の場合に deck canvas を含められない。`ThreeDRenderer.createMeshTextureUrl()` も同経路を使う。可視 viewport の raster composite と、full-map / tiles / mesh 用の offscreen deck render を分けて設計・実装する必要がある。
+- export の方針を実装した。可視 viewport の PNG/JPEG は deck canvas を先に raster canvas へ描画し、hybrid policy を維持した SVG clone（overlay のみ）を重ねる。SVG、full-map PNG tiles、3D mesh texture、`.map` save は viewport-sized deck canvas を拡大しない。`withSvgSnapshot()` が一時的に canonical SVG renderer を再描画してから snapshot を取り、完了後に `webglHybrid` を復元する。
+- 3D view は deck instance を finalize しない。`#canvas3d` を表示している間だけ `webglMapCanvas` を hidden にして二重表示を防ぎ、Standard view への復帰時に同じ canvas / deck instance を再表示する。`ThreeDRenderer.createMeshTextureUrl()` は full-map `getMapURL("mesh")` を使うため、上記 SVG snapshot を自動的に利用する。
+- E2E は hybrid mode の PNG download が非空であることと export 後に deck instance が維持されること、3D scene 中の `#map` / `#webglMapCanvas` 非表示、Standard view 復帰後の deck canvas 復元を検証する。
 
 ## Phase 8: テスト追加
 
