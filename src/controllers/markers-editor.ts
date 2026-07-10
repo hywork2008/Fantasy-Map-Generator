@@ -17,6 +17,7 @@ import { closeDialog, closeDialogs } from "../ui/dialogs/dialogService";
 import { findCell, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
+import { drawLayers } from "./layers";
 import { editNotes } from "./notes-editor";
 
 let worldContext: WorldContext;
@@ -24,6 +25,9 @@ let appServices: AppServices;
 
 let _mdx = 0;
 let _mdy = 0;
+
+let _webglDragOffsetX = 0;
+let _webglDragOffsetY = 0;
 
 export function editMarker(markerI?: number): void {
   if (view.customization) return;
@@ -105,6 +109,44 @@ function dragMarkerEnd(this: Element, event: D3DragEvent<Element, unknown, unkno
   marker.x = rn(x + _mdx + zoomSize / 2, 1);
   marker.y = rn(y + _mdy + zoomSize, 1);
   marker.cell = findCell(marker.x, marker.y);
+}
+
+/** Whether `markerI` is the currently open/selected marker, i.e. eligible for a WebGL pick-driven drag. */
+export function isDragTarget(markerI: number): boolean {
+  const { isOpen, selectedId } = getMarkersEditorState();
+  return isOpen && selectedId === markerI;
+}
+
+/** Cheap "is any marker drag-eligible at all right now" check; see `registerWebglDragAvailability`. */
+export function hasDragTarget(): boolean {
+  return getMarkersEditorState().isOpen;
+}
+
+/**
+ * WebGL hybrid equivalent of `dragMarkerStart` / `dragMarkerDrag` / `dragMarkerEnd`: there is no
+ * SVG `#marker{id}` element to attach a d3-drag behavior to (markers render via deck.gl), so
+ * `controllers/editors.ts` drives this directly from the `fmg:webgl-map-drag-*` events dispatched
+ * by `deckRenderer.ts`. `coordinate` is already map-space (see `WebglDragDetail`).
+ */
+export function beginWebglMarkerDrag(markerI: number, coordinate: [number, number]): void {
+  const marker = getMarker(markerI);
+  if (!marker) return;
+  _webglDragOffsetX = (marker.x ?? coordinate[0]) - coordinate[0];
+  _webglDragOffsetY = (marker.y ?? coordinate[1]) - coordinate[1];
+}
+
+export function updateWebglMarkerDrag(markerI: number, coordinate: [number, number], commit: boolean): void {
+  const marker = getMarker(markerI);
+  if (!marker) return;
+
+  const x = rn(coordinate[0] + _webglDragOffsetX, 2);
+  const y = rn(coordinate[1] + _webglDragOffsetY, 2);
+  marker.x = x;
+  marker.y = y;
+  if (commit) marker.cell = findCell(x, y);
+  // WebGL markers are deck.gl data, not SVG attributes, so unlike the SVG drag above there is no
+  // single-node update to make — the marker layer's data must be rebuilt for the move to render.
+  drawLayers();
 }
 
 function changeMarkerType(newType: string): void {

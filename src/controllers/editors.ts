@@ -152,6 +152,47 @@ function parseWebglEntityId(id: string, pattern: RegExp): number | null {
   return Number.isFinite(entityId) ? entityId : null;
 }
 
+// ─── WebGL pick -> controller drag adapter ─────────────────────────────────
+// Markers render as deck.gl data in webglHybrid mode, so there is no SVG element for
+// MarkersEditor to attach a d3-drag behavior to. deckRenderer.ts asks this predicate before
+// starting a drag gesture (only the already-open/selected marker is drag-eligible, matching the
+// SVG flow where drag only activates after MarkersEditor.editMarker() has run) and dispatches
+// fmg:webgl-map-drag-start/-drag/-drag-end for the listeners below to apply.
+function isWebglDragTarget(detail: WebglPickDetail): boolean {
+  if (detail.kind !== "marker") return false;
+  const entityId = parseWebglEntityId(detail.id, /^marker-(\d+)$/);
+  return entityId !== null && MarkersEditor.isDragTarget(entityId);
+}
+
+registerWebglDragTargetPredicate(isWebglDragTarget);
+registerWebglDragAvailability(() => MarkersEditor.hasDragTarget());
+
+function withWebglDragMarkerId(
+  detail: WebglDragDetail,
+  fn: (markerId: number, coordinate: [number, number]) => void
+): void {
+  if (detail.kind !== "marker") return;
+  const markerId = parseWebglEntityId(detail.id, /^marker-(\d+)$/);
+  if (markerId === null) return;
+  fn(markerId, detail.coordinate);
+}
+
+document.addEventListener("fmg:webgl-map-drag-start", (e: Event) => {
+  withWebglDragMarkerId((e as CustomEvent<WebglDragDetail>).detail, (markerId, coordinate) =>
+    MarkersEditor.beginWebglMarkerDrag(markerId, coordinate)
+  );
+});
+document.addEventListener("fmg:webgl-map-drag", (e: Event) => {
+  withWebglDragMarkerId((e as CustomEvent<WebglDragDetail>).detail, (markerId, coordinate) =>
+    MarkersEditor.updateWebglMarkerDrag(markerId, coordinate, false)
+  );
+});
+document.addEventListener("fmg:webgl-map-drag-end", (e: Event) => {
+  withWebglDragMarkerId((e as CustomEvent<WebglDragDetail>).detail, (markerId, coordinate) =>
+    MarkersEditor.updateWebglMarkerDrag(markerId, coordinate, true)
+  );
+});
+
 export function unselect(): void {
   EditorBus.restoreDefaultEvents();
   if (!elSelected) return;
@@ -179,8 +220,10 @@ export function moveCircle(x: number, y: number, r = 20): void {
   }
 }
 
+import { registerWebglDragAvailability, registerWebglDragTargetPredicate } from "../renderers/webgl/deckRenderer";
 import { onMouseMove, shouldSuppressWebglPickChooserClick } from "../services/mapInteraction";
 import { tip } from "../services/tooltipService";
+import type { WebglDragDetail } from "../types/webglPicking";
 import { removeCircle } from "../utils/domUtils";
 import * as BurgEditor from "./burg-editor";
 import * as CoastlineEditor from "./coastline-editor";

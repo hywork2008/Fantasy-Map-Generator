@@ -2,7 +2,12 @@ import { Deck, OrthographicView, type OrthographicViewState, type PickingInfo } 
 import type { AppServices } from "../../context/appServices";
 import { type ViewContext, viewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
-import type { WebglPickCandidatesDetail, WebglPickDetail, WebglPickKind } from "../../types/webglPicking";
+import type {
+  WebglDragDetail,
+  WebglPickCandidatesDetail,
+  WebglPickDetail,
+  WebglPickKind
+} from "../../types/webglPicking";
 import { buildDeckLayers } from "./buildDeckLayers";
 import { applyHybridLayerPolicy } from "./hybridLayerPolicy";
 
@@ -10,9 +15,42 @@ const BODY_HYBRID_CLASS = "fmg-webgl-hybrid";
 const PICK_RADIUS = 6;
 const PICK_CANDIDATE_DEPTH = 20;
 const SEMANTIC_PICK_RADIUS = 8;
+const WEBGL_DRAGGABLE_KINDS: ReadonlySet<WebglPickKind> = new Set(["marker"]);
 let pickingEventTarget: SVGSVGElement | null = null;
 let lastHoverPickId: string | null = null;
 let activePickingViewContext: ViewContext | null = null;
+
+interface ActiveWebglDrag {
+  kind: "marker";
+  id: string;
+  cellId: number | null;
+  startCoordinate: [number, number];
+}
+
+let activeDrag: ActiveWebglDrag | null = null;
+
+/**
+ * Lets a controller declare which currently-picked WebGL object is drag-eligible right now
+ * (e.g. "this marker is selected and its editor is open"), without deckRenderer importing
+ * controller modules directly. See `registerWebglDragTargetPredicate` usage in `controllers/editors.ts`.
+ */
+let dragTargetPredicate: (detail: WebglPickDetail) => boolean = () => false;
+
+export function registerWebglDragTargetPredicate(predicate: (detail: WebglPickDetail) => boolean): void {
+  dragTargetPredicate = predicate;
+}
+
+/**
+ * Cheap companion to `dragTargetPredicate`: "is there any drag-eligible entity right now at all"
+ * (e.g. "a marker editor is open"), without needing a pick result to ask. `handlePointerDown`
+ * checks this before running the multi-object candidate pick so ordinary clicks (no editor open,
+ * the overwhelming majority of pointerdowns) skip that extra GPU readback entirely.
+ */
+let hasWebglDragTarget: () => boolean = () => false;
+
+export function registerWebglDragAvailability(check: () => boolean): void {
+  hasWebglDragTarget = check;
+}
 
 type DeckDatum = Record<string, unknown>;
 type DeckLayerLike = { id?: string; props?: { data?: unknown } };
@@ -120,16 +158,18 @@ function uniquePickDetails(source: WebglPickDetail[]): WebglPickDetail[] {
   return details;
 }
 
+/** Converts canvas-local pointer coordinates to map-space coordinates (inverse of the deck.gl orthographic view transform driven by pan/zoom). */
+function screenToMapPoint(viewContext: ViewContext, x: number, y: number): [number, number] {
+  return [(x - viewContext.viewX) / viewContext.scale, (y - viewContext.viewY) / viewContext.scale];
+}
+
 function collectSemanticPickDetails(
   viewContext: ViewContext,
   x: number,
   y: number,
   visualCandidates: WebglPickDetail[]
 ): WebglPickDetail[] {
-  const mapPoint: [number, number] = [
-    (x - viewContext.viewX) / viewContext.scale,
-    (y - viewContext.viewY) / viewContext.scale
-  ];
+  const mapPoint = screenToMapPoint(viewContext, x, y);
   const padding = Math.max(SEMANTIC_PICK_RADIUS / Math.max(viewContext.scale, 0.0001), 1);
   const military = collectMilitaryBoxCandidates(viewContext, mapPoint, x, y, padding);
   const militaryBounds = military.map(candidate => candidate.bounds);
@@ -362,6 +402,16 @@ function pickCandidatesFromPointerEvent(
 function attachPickingBridge(viewContext: ViewContext): void {
   const svg = viewContext.svg.node();
   if (!svg || pickingEventTarget === svg) return;
+  if (!pickingEventTarget) {
+    // d3-zoom binds "mousedown.zoom" directly on the svg element (AT_TARGET, since pointerdown
+    // for these gestures always targets the svg root itself, not a descendant): registering our
+    // own suppressor there too would run in listener-registration order, i.e. after zoom's, which
+    // is already attached during early init — too late to stop it. Registering on `document` with
+    // `capture: true` instead guarantees our listener runs during the capturing phase, strictly
+    // before the event reaches svg's AT_TARGET listeners, regardless of registration order.
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    document.addEventListener("mousedown", handleMouseDownCapture, true);
+  }
   if (pickingEventTarget) {
     pickingEventTarget.removeEventListener("pointermove", handlePointerMove);
     pickingEventTarget.removeEventListener("pointerup", handlePointerUp);
@@ -372,8 +422,75 @@ function attachPickingBridge(viewContext: ViewContext): void {
   pickingEventTarget.addEventListener("pointerup", handlePointerUp);
 }
 
+function handleMouseDownCapture(event: MouseEvent): void {
+  if (!activeDrag) return;
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function canvasPoint(event: PointerEvent, viewContext: ViewContext): [number, number] | null {
+  if (!viewContext.webglCanvas) return null;
+  const rect = viewContext.webglCanvas.getBoundingClientRect();
+  return [event.clientX - rect.left, event.clientY - rect.top];
+}
+
+function dispatchDragEvent(
+  type: "fmg:webgl-map-drag-start" | "fmg:webgl-map-drag" | "fmg:webgl-map-drag-end",
+  drag: ActiveWebglDrag,
+  coordinate: [number, number],
+  event: PointerEvent
+): void {
+  document.dispatchEvent(
+    new CustomEvent<WebglDragDetail>(type, {
+      detail: {
+        kind: drag.kind,
+        id: drag.id,
+        cellId: drag.cellId,
+        coordinate,
+        startCoordinate: drag.startCoordinate,
+        clientX: event.clientX,
+        clientY: event.clientY
+      }
+    })
+  );
+}
+
+function handlePointerDown(event: PointerEvent): void {
+  if (!activePickingViewContext || activeDrag || !hasWebglDragTarget()) return;
+  // A single nearest pick (pickObject) is not enough here: at the drag target's own position
+  // several overlapping layers (land/state/route/burgIcon/...) are usually picked first, so this
+  // looks at every candidate at the pointer the same way the click pick-chooser does and drags
+  // whichever one is both a draggable kind and the entity the caller currently has selected.
+  const candidates = pickCandidatesFromPointerEvent(event, activePickingViewContext)?.candidates ?? [];
+  const detail = candidates.find(item => WEBGL_DRAGGABLE_KINDS.has(item.kind) && dragTargetPredicate(item));
+  if (!detail) return;
+
+  const point = canvasPoint(event, activePickingViewContext);
+  if (!point) return;
+  const startCoordinate = screenToMapPoint(activePickingViewContext, point[0], point[1]);
+  activeDrag = { kind: detail.kind as "marker", id: detail.id, cellId: detail.cellId, startCoordinate };
+  // The compatibility mousedown for this same gesture fires right after this pointerdown;
+  // handleMouseDownCapture (registered on "mousedown", capture phase) reads activeDrag and
+  // suppresses it there, since that's the event type the pan/zoom behavior actually listens for.
+  event.preventDefault();
+  dispatchDragEvent("fmg:webgl-map-drag-start", activeDrag, startCoordinate, event);
+}
+
 function handlePointerMove(event: PointerEvent): void {
   if (!activePickingViewContext) return;
+
+  if (activeDrag) {
+    const point = canvasPoint(event, activePickingViewContext);
+    if (!point) return;
+    dispatchDragEvent(
+      "fmg:webgl-map-drag",
+      activeDrag,
+      screenToMapPoint(activePickingViewContext, point[0], point[1]),
+      event
+    );
+    return;
+  }
+
   const info = toPickDetail(pickFromPointerEvent(event, activePickingViewContext));
   const id = getPickedObjectId(info);
   if (id === lastHoverPickId) return;
@@ -383,6 +500,17 @@ function handlePointerMove(event: PointerEvent): void {
 
 function handlePointerUp(event: PointerEvent): void {
   if (!activePickingViewContext) return;
+
+  if (activeDrag) {
+    const point = canvasPoint(event, activePickingViewContext);
+    const coordinate = point
+      ? screenToMapPoint(activePickingViewContext, point[0], point[1])
+      : activeDrag.startCoordinate;
+    dispatchDragEvent("fmg:webgl-map-drag-end", activeDrag, coordinate, event);
+    activeDrag = null;
+    return;
+  }
+
   const detail = pickCandidatesFromPointerEvent(event, activePickingViewContext) ?? {
     primary: toPickDetail(pickFromPointerEvent(event, activePickingViewContext)),
     candidates: [],
@@ -459,11 +587,14 @@ export const DeckGlRenderer = {
 
   finalize(viewContext: ViewContext): void {
     if (pickingEventTarget) {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+      document.removeEventListener("mousedown", handleMouseDownCapture, true);
       pickingEventTarget.removeEventListener("pointermove", handlePointerMove);
       pickingEventTarget.removeEventListener("pointerup", handlePointerUp);
       pickingEventTarget = null;
       activePickingViewContext = null;
     }
+    activeDrag = null;
     viewContext.webglDeck?.finalize();
     viewContext.webglDeck = null;
     this.setModeClass(false);

@@ -542,6 +542,89 @@ export async function getFirstLandScreenPoint(page: Page): Promise<{ x: number; 
   });
 }
 
+export interface StateHoverPoint {
+  x: number;
+  y: number;
+  stateName: string;
+}
+
+/**
+ * Finds a screen point guaranteed to land inside a rendered state polygon, for tooltip-parity
+ * checks between SVG and WebGL hover. Takes a pack cell's Voronoi centroid (always inside that
+ * cell's slice of its state's merged polygon, unlike a path bounding-box center, which a
+ * concave/multi-part state shape or an overlapping state-label `<tspan>` can miss) and converts it
+ * to client coordinates via the `#statesBody` path's actual `getScreenCTM()`, so it is correct
+ * regardless of the current pan/zoom transform. Requires `toggleStates` to already be on.
+ */
+export async function getFirstStateScreenPoint(page: Page): Promise<StateHoverPoint | null> {
+  return page.evaluate(() => {
+    type TestState = { i: number; center: number; removed?: boolean; fullName?: string; name?: string };
+    type TestRoute = { cells?: number[] };
+    type TestBurg = { i?: number; removed?: boolean; x: number; y: number };
+    type TestPack = {
+      cells: { i: number[]; h: number[]; state: number[]; r: number[]; burg: number[]; p: [number, number][] };
+      states: TestState[];
+      routes: TestRoute[];
+      burgs: TestBurg[];
+    };
+
+    const statesBody = document.getElementById("statesBody");
+    if (!statesBody) return null;
+
+    const pack = window.fmg.world.pack as unknown as TestPack;
+    // `state.center` (the cell the state was seeded/grown from, also used for label placement) is
+    // reliably inside the rendered polygon, unlike an arbitrary cell whose stale `cells.state`
+    // metadata doesn't always match the current polygon (e.g. post-war border reassignment). But
+    // capitals/centers also tend to have roads/burgs on or near them, and a WebGL single-object
+    // pick (deck.gl pickObject) can prioritize an overlapping route/burg icon a few pixels wide over
+    // the land polygon underneath — so prefer the land cell of this state closest to its center that
+    // has no river/route on it and is not within burg-icon range of any burg.
+    const state = pack.states.find(item => item.i && !item.removed);
+    if (!state) return null;
+
+    const routeCells = new Set<number>();
+    for (const route of pack.routes) for (const cell of route.cells ?? []) routeCells.add(cell);
+
+    const burgs = pack.burgs.filter(burg => burg.i);
+    const BURG_CLEARANCE = 20;
+    const nearBurg = (x: number, y: number): boolean =>
+      burgs.some(burg => (burg.x - x) ** 2 + (burg.y - y) ** 2 < BURG_CLEARANCE ** 2);
+
+    const [centerX, centerY] = pack.cells.p[state.center];
+    let bestCell = state.center;
+    let bestDist = Number.POSITIVE_INFINITY;
+    for (const cell of pack.cells.i) {
+      if (pack.cells.state[cell] !== state.i || pack.cells.h[cell] < 20) continue;
+      if (pack.cells.r[cell] || routeCells.has(cell)) continue;
+      const [x, y] = pack.cells.p[cell];
+      if (nearBurg(x, y)) continue;
+      const dist = (x - centerX) ** 2 + (y - centerY) ** 2;
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestCell = cell;
+      }
+    }
+
+    const path = statesBody.querySelector<SVGPathElement>(`#state${state.i}`);
+    const ctm = path?.getScreenCTM();
+    if (!path || !ctm) return null;
+
+    const svg = path.ownerSVGElement;
+    const localPoint = svg?.createSVGPoint();
+    if (!localPoint) return null;
+    localPoint.x = pack.cells.p[bestCell][0];
+    localPoint.y = pack.cells.p[bestCell][1];
+    const clientPoint = localPoint.matrixTransform(ctm);
+
+    return { x: clientPoint.x, y: clientPoint.y, stateName: state.fullName ?? state.name ?? "" };
+  });
+}
+
+/** Reads the current visible toast/tooltip text from the shared #toast-container (used for both SVG and WebGL hover tips). */
+export async function getToastText(page: Page): Promise<string> {
+  return page.locator("#toast-container").innerText().catch(() => "");
+}
+
 export interface OverlappingRegimentPoint {
   x: number;
   y: number;
@@ -654,6 +737,48 @@ export async function forceWebglGlacierFixture(page: Page): Promise<GlacierFixtu
       const layer = deck?.props?.layers?.find(item => item.id === "fmg-webgl-ice");
       const data = Array.isArray(layer?.props?.data) ? layer.props.data : [];
       return data.some(item => (item as Record<string, unknown>).id === `glacier-${glacierId}`);
+    },
+    point,
+    { timeout: 5000 }
+  );
+
+  return point;
+}
+
+export interface MarkerFixturePoint {
+  x: number;
+  y: number;
+  markerId: number;
+}
+
+/** Adds a marker at the map center so marker click-edit/drag tests don't depend on seed-specific marker generation. */
+export async function forceWebglMarkerFixture(page: Page): Promise<MarkerFixturePoint> {
+  const point = await page.evaluate(() => {
+    type TestMarker = { i: number; type: string; icon: string; cell: number; x: number; y: number; size: number };
+    type TestPack = { markers: TestMarker[] };
+
+    const pack = window.fmg.world.pack as unknown as TestPack;
+    const markerId = pack.markers.reduce((max, item) => Math.max(max, item.i), 0) + 1;
+    const cx = window.fmg.world.graphWidth / 2;
+    const cy = window.fmg.world.graphHeight / 2;
+    pack.markers.push({ i: markerId, type: "marker-drag-fixture", icon: "📍", cell: 0, x: cx, y: cy, size: 30 });
+
+    return {
+      x: cx * window.fmg.view.scale + window.fmg.view.viewX,
+      y: cy * window.fmg.view.scale + window.fmg.view.viewY,
+      markerId
+    };
+  });
+
+  await page.evaluate(() => window.fmg.actions.setRenderMode("webglHybrid"));
+  await page.waitForFunction(
+    ({ markerId }) => {
+      const deck = window.fmg.view.webglDeck as unknown as {
+        props?: { layers?: Array<{ id?: string; props?: { data?: unknown[] } }> };
+      } | null;
+      const layer = deck?.props?.layers?.find(item => item.id === "fmg-webgl-markers");
+      const data = Array.isArray(layer?.props?.data) ? layer.props.data : [];
+      return data.some(item => (item as Record<string, unknown>).id === `marker-${markerId}`);
     },
     point,
     { timeout: 5000 }

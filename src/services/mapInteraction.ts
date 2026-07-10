@@ -6,7 +6,15 @@ import { debounce } from "../utils/commonUtils";
 import { isDialogVisible } from "../utils/domUtils";
 import { findCell, findGridCell } from "../utils/graphUtils";
 import { convertTemperature } from "../utils/unitUtils";
-import { getFriendlyHeight, getFriendlyPrecipitation, getPopulationTip, updateCellInfo } from "./cellInfoService";
+import {
+  getCellPoliticalSummary,
+  getFriendlyHeight,
+  getFriendlyPrecipitation,
+  getPopulationTip,
+  getProvinceName,
+  getStateName,
+  updateCellInfo
+} from "./cellInfoService";
 import { showMainTip, showMapTooltip, showNotes, tip } from "./tooltipService";
 
 const PICK_CHOOSER_ID = "mapPickChooser";
@@ -273,26 +281,6 @@ function formatZoneTooltip(cellId: number): string {
   return zone?.name ?? "Zone";
 }
 
-function getCellPoliticalSummary(cellId: number): string {
-  const stateId = worldContext.pack.cells.state[cellId];
-  if (!stateId) return "";
-
-  const stateName = getStateName(stateId);
-  const provinceId = worldContext.pack.cells.province[cellId];
-  if (!provinceId) return stateName;
-  return `${getProvinceName(provinceId)}, ${stateName}`;
-}
-
-function getStateName(stateId: number): string {
-  const state = worldContext.pack.states[stateId];
-  return state?.fullName || state?.name || `State ${stateId}`;
-}
-
-function getProvinceName(provinceId: number): string {
-  const province = worldContext.pack.provinces[provinceId];
-  return province?.fullName || province?.name || `Province ${provinceId}`;
-}
-
 function getFallbackPickTooltip(detail: WebglPickDetail): string {
   const suffix = detail.cellId === null ? "" : ` cell ${detail.cellId}`;
   return `${capitalize(detail.kind)} ${detail.id}${suffix}`;
@@ -315,13 +303,13 @@ function drawWebglSelectionHighlight(detail: WebglPickDetail | null): void {
     .join(" ");
   if (!points) return;
 
+  // Styling (stroke/fill) comes from `#debug polygon.webgl-selected` in public/index.css, the same
+  // rule used by the SVG province selection highlight (`#debug path.selected` in draw-provinces.ts)
+  // so WebGL pick selection reads as the same visual language, not a separate debug-only marker.
   d3.select("#debug")
     .append("polygon")
     .attr("class", "webgl-selected")
     .attr("points", points)
-    .attr("fill", "none")
-    .attr("stroke", "#d0240f")
-    .attr("stroke-width", 1.25)
     .attr("vector-effect", "non-scaling-stroke")
     .attr("pointer-events", "none");
 }

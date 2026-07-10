@@ -7,7 +7,12 @@ import type { EmblemEl } from "../types/models";
 import { getVisibleDialogElement, isDialogVisible } from "../utils/domUtils";
 import { getComposedPath, layerIsOn } from "../utils/nodeUtils";
 import { convertTemperature, si } from "../utils/unitUtils";
-import { getFriendlyHeight, getFriendlyPrecipitation, getPopulationTip } from "./cellInfoService";
+import {
+  getCellPoliticalSummary,
+  getFriendlyHeight,
+  getFriendlyPrecipitation,
+  getPopulationTip
+} from "./cellInfoService";
 
 import { tooltipExtensions } from "./tooltipExtensions";
 
@@ -257,10 +262,8 @@ export function showMapTooltip(point: [number, number], e: MouseEvent, i: number
     if (religionsEditorEl) highlightEditorLine(religionsEditorEl, religion);
   } else if (worldContext.pack.cells.state[i] && (layerIsOn("toggleProvinces") || layerIsOn("toggleStates"))) {
     const state = worldContext.pack.cells.state[i];
-    const stateName = worldContext.pack.states[state].fullName;
     const province = worldContext.pack.cells.province[i];
-    const prov = province ? `${worldContext.pack.provinces[province].fullName}, ` : "";
-    tip(prov + stateName);
+    tip(getCellPoliticalSummary(i));
     const statesEditorEl = getVisibleDialogElement("statesEditor");
     if (statesEditorEl) highlightEditorLine(statesEditorEl, state);
     const diplomacyEditorEl = getVisibleDialogElement("diplomacyEditor");

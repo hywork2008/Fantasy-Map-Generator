@@ -9,7 +9,10 @@ import {
   ensureLayerOn,
   forceOverlappingWebglRegiments,
   forceWebglGlacierFixture,
+  forceWebglMarkerFixture,
   getFirstLandScreenPoint,
+  getFirstStateScreenPoint,
+  getToastText,
   getWebglDeckLayerIds,
   getWebglCanvasPixelStats,
   getWebglLayerRenderingProps,
@@ -158,6 +161,15 @@ async function getFirstWebglLayerDatumClickPoint(
 
     return null;
   }, layerId);
+}
+
+async function getMarkerPosition(page: Page, markerId: number): Promise<{ x: number; y: number } | null> {
+  return page.evaluate(id => {
+    type TestMarker = { i: number; x?: number; y?: number };
+    const markers = window.fmg.world.pack.markers as TestMarker[];
+    const marker = markers.find(item => item.i === id);
+    return marker ? { x: marker.x ?? 0, y: marker.y ?? 0 } : null;
+  }, markerId);
 }
 
 test.describe("webgl hybrid renderer", () => {
@@ -463,6 +475,92 @@ test.describe("webgl hybrid renderer", () => {
     ]) {
       await clickWebglEditTargetAndExpectEditor(page, target);
     }
+  });
+
+  test("drags the selected WebGL marker without panning the map", async ({ page }) => {
+    await page.goto("/?seed=webgl-marker-drag&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+    await ensureLayerOn(page, "toggleMarkers");
+    const fixture = await forceWebglMarkerFixture(page);
+    await waitForWebglCanvasPixels(page);
+
+    // Dragging is only wired up for the marker whose editor is already open (mirrors the SVG
+    // flow, where MarkersEditor.editMarker() attaches d3-drag only after the marker is selected).
+    const pickResult = await clickAndGetWebglPickCandidates(page, fixture);
+    const candidateId = `marker-${fixture.markerId}`;
+    const candidate =
+      pickResult.candidates.find(item => item.kind === "marker" && item.id === candidateId) ??
+      pickResult.candidates.find(item => item.kind === "marker");
+    expect(candidate).toMatchObject({ kind: "marker", id: candidateId });
+    if (!candidate) return;
+
+    const chooserItem = page
+      .locator(`#mapPickChooser .map-pick-chooser__item[data-kind="marker"][data-pick-id="${candidate.id}"]`)
+      .first();
+    try {
+      await expect(chooserItem).toBeVisible({ timeout: 700 });
+      await chooserItem.click();
+    } catch {
+      // Single-candidate clicks dispatch the same selected event without showing the chooser.
+    }
+    await expect(page.locator("#markerBody")).toBeVisible();
+
+    const before = await getMarkerPosition(page, fixture.markerId);
+    expect(before).not.toBeNull();
+    const viewBefore = await getViewTransformState(page);
+
+    const dragTarget = { x: fixture.x + 60, y: fixture.y - 40 };
+    await page.mouse.move(fixture.x, fixture.y);
+    await page.mouse.down();
+    await page.mouse.move(dragTarget.x, dragTarget.y, { steps: 5 });
+    await page.mouse.up();
+
+    const viewAfter = await getViewTransformState(page);
+    expect(viewAfter).toEqual(viewBefore);
+
+    const after = await getMarkerPosition(page, fixture.markerId);
+    expect(after).not.toBeNull();
+    if (!before || !after) return;
+
+    const expectedDx = (dragTarget.x - fixture.x) / viewBefore.scale;
+    const expectedDy = (dragTarget.y - fixture.y) / viewBefore.scale;
+    expect(after.x - before.x).toBeCloseTo(expectedDx, 0);
+    expect(after.y - before.y).toBeCloseTo(expectedDy, 0);
+  });
+
+  test("hover tooltip names the same state cell in SVG and WebGL mode", async ({ page }) => {
+    await page.goto("/?seed=webgl-tooltip-parity&width=1000&height=700");
+    await waitForMapLoad(page);
+    await ensureLayerOn(page, "toggleStates");
+
+    const point = await getFirstStateScreenPoint(page);
+    expect(point).not.toBeNull();
+    if (!point) return;
+
+    // The SVG hover handler (src/services/mapInteraction.ts onMouseMove) fires on the leading edge
+    // of a 100ms cooldown, so two moves issued back-to-back would have the second one (the actual
+    // target) swallowed by the first move's cooldown — space them out instead of moving away first.
+    await page.mouse.move(point.x - 50, point.y - 50);
+    await page.waitForTimeout(150);
+    await page.mouse.move(point.x, point.y);
+    await expect.poll(() => getToastText(page), { timeout: 2000 }).not.toBe("");
+    const svgTooltip = await getToastText(page);
+    expect(svgTooltip).toContain(point.stateName);
+
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+    await page.mouse.move(point.x - 50, point.y - 50);
+    await page.waitForTimeout(150);
+    await page.mouse.move(point.x, point.y);
+    await expect.poll(() => getToastText(page), { timeout: 2000 }).toBe(svgTooltip);
+    const webglTooltip = await getToastText(page);
+
+    // Both hover paths now share getCellPoliticalSummary() (src/services/cellInfoService.ts), so
+    // SVG and WebGL hover text for a state (+ province, if any) cell is expected to match exactly,
+    // not just name the same state.
+    expect(webglTooltip).toBe(svgTooltip);
   });
 
   test("opens the Lake Editor from a WebGL pick target", async ({ page }) => {

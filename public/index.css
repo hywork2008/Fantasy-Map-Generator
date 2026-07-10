@@ -667,7 +667,8 @@ div#regimentSelectorBody>div>div {
   cursor: pointer;
 }
 
-#debug path.selected {
+#debug path.selected,
+#debug polygon.webgl-selected {
   stroke-width: 0.8;
   stroke: #da3126;
   fill: none;

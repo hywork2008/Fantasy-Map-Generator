@@ -51,6 +51,31 @@ export function updateCellInfo(point: [number, number], i: number, g: number): v
 
   tooltipExtensions.updateCellInfo?.(point, i, g);
 }
+/**
+ * Shared by the SVG hover tooltip (`tooltipService.ts`) and the WebGL hover/pick tooltip
+ * (`mapInteraction.ts`) so a cell resolves to the same "province, state" text in either render
+ * mode instead of two independently-maintained implementations drifting apart.
+ */
+export function getCellPoliticalSummary(cellId: number): string {
+  const stateId = worldContext.pack.cells.state[cellId];
+  if (!stateId) return "";
+
+  const stateName = getStateName(stateId);
+  const provinceId = worldContext.pack.cells.province[cellId];
+  if (!provinceId) return stateName;
+  return `${getProvinceName(provinceId)}, ${stateName}`;
+}
+
+export function getStateName(stateId: number): string {
+  const state = worldContext.pack.states[stateId];
+  return state?.fullName || state?.name || `State ${stateId}`;
+}
+
+export function getProvinceName(provinceId: number): string {
+  const province = worldContext.pack.provinces[provinceId];
+  return province?.fullName || province?.name || `Province ${provinceId}`;
+}
+
 export function getGeozone(latitude: number): string {
   if (latitude > 66.5) return "Arctic";
   if (latitude > 35) return "Temperate North";
