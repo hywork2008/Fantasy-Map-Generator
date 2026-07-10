@@ -1,8 +1,10 @@
 import { COORDINATE_SYSTEM, type LayersList } from "@deck.gl/core";
+import { PathStyleExtension, type PathStyleExtensionProps } from "@deck.gl/extensions";
 import {
   BitmapLayer,
   IconLayer,
   PathLayer,
+  type PathLayerProps,
   PolygonLayer,
   ScatterplotLayer,
   SolidPolygonLayer,
@@ -81,6 +83,7 @@ import {
   getLakePaint,
   getMarkerStyle,
   getMilitaryBoxSize,
+  getPathDashStyles,
   type LayerPaint
 } from "./webglStyleExtractors";
 
@@ -89,7 +92,11 @@ type PolygonBuilder = (
   viewContext: Readonly<ViewContext>,
   landCells?: ReadonlyArray<DeckLandCellGeometry>
 ) => DeckCellPolygon[];
-type PathBuilder = (worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>) => DeckPath[];
+type PathBuilder = (
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  dashStyles: ReturnType<typeof getPathDashStyles>
+) => DeckPath[];
 type CachedDeckData =
   | DeckBurgIconSymbol[]
   | DeckCellPolygon[]
@@ -183,9 +190,29 @@ const WEBGL_PATH_LAYERS: Array<{ toggle: string; id: string; build: PathBuilder 
   { toggle: "toggleCells", id: "cells", build: (world, view) => buildCellOutlinePaths(world, view.focusScope) },
   { toggle: "toggleGrid", id: "grid", build: (world, view) => buildGridPaths(world, view.focusScope) },
   { toggle: "toggleRivers", id: "rivers", build: (world, view) => buildRiverPaths(world, view.focusScope) },
-  { toggle: "toggleBorders", id: "borders", build: (world, view) => buildBorderPaths(world, view.focusScope) },
-  { toggle: "toggleRoutes", id: "routes", build: (world, view) => buildRoutePaths(world, view.focusScope) }
+  {
+    toggle: "toggleBorders",
+    id: "borders",
+    build: (world, view, dashStyles) =>
+      buildBorderPaths(world, view.focusScope, {
+        state: dashStyles.stateBorders,
+        province: dashStyles.provinceBorders
+      })
+  },
+  {
+    toggle: "toggleRoutes",
+    id: "routes",
+    build: (world, view, dashStyles) =>
+      buildRoutePaths(world, view.focusScope, {
+        roads: dashStyles.roads,
+        trails: dashStyles.trails,
+        searoutes: dashStyles.searoutes
+      })
+  }
 ];
+
+const PATH_STYLE_EXTENSION = new PathStyleExtension({ dash: true, highPrecisionDash: true });
+const SOLID_DASH_ARRAY = [0, 0] as const;
 
 export const WEBGL_LAYER_TOGGLES = new Set([
   ...WEBGL_POLYGON_LAYERS.map(layer => layer.toggle),
@@ -239,6 +266,7 @@ export function buildDeckLayers(
   const burgIconStyle = getBurgIconStyle(worldContext, viewContext);
   const markerStyle = getMarkerStyle(viewContext);
   const labelStyle = getLabelStyle(worldContext, viewContext);
+  const pathDashStyles = getPathDashStyles(viewContext);
   const signatures = buildLayerSignatures(worldContext, viewContext, oceanFill, landFill, activeLayers, {
     lakePaint,
     coastlinePaint,
@@ -246,7 +274,8 @@ export function buildDeckLayers(
     emblemStyle,
     burgIconStyle,
     markerStyle,
-    labelStyle
+    labelStyle,
+    pathDashStyles
   });
   // Shared land-cell vertex geometry: the "land" layer always needs it, and every simultaneously
   // active land-based overlay (biomes/cultures/religions/states/provinces/zones/precipitation/
@@ -683,10 +712,10 @@ export function buildDeckLayers(
   for (const layer of WEBGL_PATH_LAYERS) {
     if (!activeLayers[layer.toggle]) continue;
     layers.push(
-      new PathLayer<DeckPath>({
+      createDashedPathLayer({
         id: `fmg-webgl-${layer.id}`,
         data: getCachedDeckData(`path:${layer.id}`, signatures.byLayer[layer.id], () =>
-          layer.build(worldContext, viewContext)
+          layer.build(worldContext, viewContext, pathDashStyles)
         ),
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         getPath: datum => datum.path,
@@ -697,6 +726,10 @@ export function buildDeckLayers(
         widthMaxPixels: layer.id === "rivers" ? 10 : 4,
         jointRounded: true,
         capRounded: true,
+        extensions: [PATH_STYLE_EXTENSION],
+        getDashArray: datum => datum.dashArray ?? SOLID_DASH_ARRAY,
+        // Keep picking behavior unchanged: a route or border remains selectable inside a visual gap.
+        dashGapPickable: true,
         pickable: true
       })
     );
@@ -772,6 +805,16 @@ function getCachedDeckData<T extends CachedDeckData>(key: string, signature: str
   return data;
 }
 
+/**
+ * PathLayer's constructor type does not infer extension props, so accept the combined props here
+ * and retain the extension's typed getDashArray accessor at the call site.
+ */
+function createDashedPathLayer(
+  props: PathLayerProps<DeckPath> & PathStyleExtensionProps<DeckPath>
+): PathLayer<DeckPath, PathStyleExtensionProps<DeckPath>> {
+  return new PathLayer<DeckPath, PathStyleExtensionProps<DeckPath>>(props);
+}
+
 /** Wraps a computation so it runs at most once per `buildLayerSignatures()` call, on first use. */
 function memo<T>(compute: () => T): () => T {
   let cached: T | undefined;
@@ -793,6 +836,7 @@ interface SignatureStyles {
   burgIconStyle: ReturnType<typeof getBurgIconStyle>;
   markerStyle: DeckMarkerStyle;
   labelStyle: ReturnType<typeof getLabelStyle>;
+  pathDashStyles: ReturnType<typeof getPathDashStyles>;
 }
 
 /**
@@ -914,9 +958,15 @@ function buildLayerSignatures(
   setIfActive(
     "borders",
     "toggleBorders",
-    () => `${landGeometry()}|${states()}|${provinces()}|${nestedNumberListSignature(pack.cells?.c)}`
+    () =>
+      `${landGeometry()}|${states()}|${provinces()}|${nestedNumberListSignature(pack.cells?.c)}|${pathDashStyleSignature(styles.pathDashStyles, ["stateBorders", "provinceBorders"])}`
   );
-  setIfActive("routes", "toggleRoutes", () => `${mapId}|${scope}|${routesSignature(pack.routes)}`);
+  setIfActive(
+    "routes",
+    "toggleRoutes",
+    () =>
+      `${mapId}|${scope}|${routesSignature(pack.routes)}|${pathDashStyleSignature(styles.pathDashStyles, ["roads", "trails", "searoutes"])}`
+  );
 
   // The coastline layer always renders (not toggle-gated), so its signature is always needed.
   byLayer.coastline = `${geometry()}|${featuresSignature(pack.features, "island")}|${paintSignature(styles.coastlinePaint)}`;
@@ -1413,6 +1463,13 @@ function paintSignature(values: Record<string, LayerPaint>): string {
     hash = hashNumber(hash, paint.strokeWidth);
   }
   return hash.toString();
+}
+
+function pathDashStyleSignature(
+  styles: ReturnType<typeof getPathDashStyles>,
+  keys: ReadonlyArray<keyof ReturnType<typeof getPathDashStyles>>
+): string {
+  return keys.map(key => `${key}:${styles[key][0]},${styles[key][1]}`).join("|");
 }
 
 function riversSignature(

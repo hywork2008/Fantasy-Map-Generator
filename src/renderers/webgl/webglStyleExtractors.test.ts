@@ -4,12 +4,14 @@ import type { WorldContext } from "../../context/worldContext";
 import {
   getBurgIconStyle,
   getCoastlinePaint,
+  getDashArray,
   getEmblemStyle,
   getHeightStyle,
   getIcePaint,
   getLabelStyle,
   getLakePaint,
   getMarkerStyle,
+  getPathDashStyles,
   type LayerStyleSelection,
   parseOptionalNumber
 } from "./webglStyleExtractors";
@@ -69,6 +71,26 @@ describe("webgl style extractors", () => {
     expect(parseOptionalNumber("none")).toBeNull();
     expect(parseOptionalNumber("null")).toBeNull();
     expect(parseOptionalNumber(undefined)).toBeNull();
+  });
+
+  it("extracts SVG dash patterns for WebGL border and route paths", () => {
+    const viewContext = {
+      stateBorders: new MockSelection({ "stroke-dasharray": "2" }),
+      provinceBorders: new MockSelection({ "stroke-dasharray": "0 2" }),
+      roads: new MockSelection({ "stroke-dasharray": "3, 1" }),
+      trails: new MockSelection({ "stroke-dasharray": "none" }),
+      searoutes: new MockSelection({}, { "stroke-dasharray": "1 2" })
+    } as unknown as ViewContext;
+
+    expect(getPathDashStyles(viewContext)).toEqual({
+      stateBorders: [2, 2],
+      provinceBorders: [0, 2],
+      roads: [3, 1],
+      trails: [0, 0],
+      searoutes: [1, 2]
+    });
+    expect(getDashArray(new MockSelection({ "stroke-dasharray": "0 0" }))).toEqual([0, 0]);
+    expect(getDashArray(new MockSelection({ "stroke-dasharray": "4 2 1 2" }))).toEqual([4, 2]);
   });
 
   it("reads lake and coastline paint from SVG group attributes", () => {

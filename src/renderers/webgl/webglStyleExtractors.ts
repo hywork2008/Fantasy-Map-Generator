@@ -7,7 +7,8 @@ import {
   type DeckEmblemType,
   type DeckHeightStyle,
   type DeckLabelStyle,
-  type DeckMarkerStyle
+  type DeckMarkerStyle,
+  type DeckPathDashArray
 } from "./adapters/deckDataAdapters";
 
 export interface LayerPaint {
@@ -20,6 +21,44 @@ export interface LayerStyleSelection {
   empty(): boolean;
   attr(name: string): string | null;
   style(name: string): string;
+}
+
+export interface PathDashStyles {
+  stateBorders: DeckPathDashArray;
+  provinceBorders: DeckPathDashArray;
+  roads: DeckPathDashArray;
+  trails: DeckPathDashArray;
+  searoutes: DeckPathDashArray;
+}
+
+/** Reads the SVG stroke-dasharray values used by WebGL-backed border and route layers. */
+export function getPathDashStyles(viewContext: Readonly<ViewContext>): PathDashStyles {
+  return {
+    stateBorders: getDashArray(viewContext.stateBorders),
+    provinceBorders: getDashArray(viewContext.provinceBorders),
+    roads: getDashArray(viewContext.roads),
+    trails: getDashArray(viewContext.trails),
+    searoutes: getDashArray(viewContext.searoutes)
+  };
+}
+
+/**
+ * deck.gl supports a dash and a gap. SVG permits longer repeating sequences, so use its first
+ * pair; the map's border and route style controls use one or two values in all built-in presets.
+ */
+export function getDashArray(selection: LayerStyleSelection | undefined): DeckPathDashArray {
+  if (!selection || selection.empty()) return [0, 0];
+  const value = selection.attr("stroke-dasharray") || selection.style("stroke-dasharray");
+  if (!value || value === "none") return [0, 0];
+
+  const values = value
+    .trim()
+    .split(/[\s,]+/)
+    .map(Number)
+    .filter(number => Number.isFinite(number) && number >= 0);
+  if (!values.length || values.every(number => number === 0)) return [0, 0];
+  if (values.length === 1) return [values[0], values[0]];
+  return [values[0], values[1]];
 }
 
 export function getLakePaint(viewContext: Readonly<ViewContext>): Record<string, LayerPaint> {

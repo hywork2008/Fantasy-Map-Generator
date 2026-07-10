@@ -6,6 +6,7 @@ import { buildDeckLayers, clearDeckLayerDataCache, getDeckLayerDataCacheSize } f
 import * as deckDataAdapters from "./deckDataAdapters";
 import {
   buildBiomesPolygons,
+  buildBorderPaths,
   buildBurgIconSymbols,
   buildCoastlinePaths,
   buildEmblemIcons,
@@ -174,6 +175,31 @@ describe("deck.gl data adapters", () => {
         [10, 10]
       ]
     });
+  });
+
+  it("normalizes SVG dash lengths for deck.gl border and route paths", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.cells.h[1] = 30;
+    worldContext.pack.cells.state[0] = 1;
+    worldContext.pack.cells.state[1] = 2;
+    worldContext.pack.routes.push({
+      i: 2,
+      group: "trails",
+      feature: 1,
+      points: [
+        [0, 0, 0],
+        [10, 10, 0]
+      ],
+      cells: [0]
+    });
+
+    const borders = buildBorderPaths(worldContext, null, { state: [2, 2], province: [0, 2] });
+    const routes = buildRoutePaths(worldContext, null, { roads: [2, 2], trails: [0.8, 1.6], searoutes: [1, 2] });
+
+    expect(borders).toHaveLength(1);
+    expect(borders[0].dashArray).toEqual([2 / 1.1, 2 / 1.1]);
+    expect(routes.find(route => route.id === "route-1")?.dashArray).toEqual([2 / 1.1, 2 / 1.1]);
+    expect(routes.find(route => route.id === "route-2")?.dashArray).toEqual([0.8 / 0.65, 1.6 / 0.65]);
   });
 
   it("filters land, route, and height adapters to the active focus scope", () => {

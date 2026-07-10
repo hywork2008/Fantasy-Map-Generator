@@ -28,6 +28,7 @@ import { getCachedEmblemIconUrl } from "../emblemIconCache";
 import { hasExternalIconFailed } from "../externalIconFailureCache";
 
 export type DeckPosition = [number, number];
+export type DeckPathDashArray = readonly [number, number];
 
 export interface DeckCellPolygon {
   id: string;
@@ -51,6 +52,8 @@ export interface DeckPath {
   kind: WebglPickKind;
   cellId: number | null;
   group?: string;
+  /** Dash and gap lengths normalized for deck.gl's PathStyleExtension, if this path is dashed. */
+  dashArray?: DeckPathDashArray;
 }
 
 export interface DeckFeaturePolygon extends DeckCellPolygon {
@@ -562,7 +565,11 @@ export function buildGridPaths(worldContext: Readonly<WorldContext>, focusScope:
   return paths;
 }
 
-export function buildBorderPaths(worldContext: Readonly<WorldContext>, focusScope: FocusScope | null): DeckPath[] {
+export function buildBorderPaths(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  dashArrays?: { state: DeckPathDashArray; province: DeckPathDashArray }
+): DeckPath[] {
   const { cells, vertices } = worldContext.pack;
   const paths: DeckPath[] = [];
   const seen = new Set<string>();
@@ -581,13 +588,15 @@ export function buildBorderPaths(worldContext: Readonly<WorldContext>, focusScop
       const key = `${cellId}-${neighborId}`;
       if (seen.has(key)) continue;
       seen.add(key);
+      const width = isStateBorder ? 1.1 : 0.45;
       paths.push({
         id: `border-${key}`,
         path: edge,
         color: colorToRgba("#111111", "#111111", isStateBorder ? 0.95 : 0.6),
-        width: isStateBorder ? 1.1 : 0.45,
+        width,
         kind: "border",
-        cellId
+        cellId,
+        dashArray: getNormalizedDashArray(isStateBorder ? dashArrays?.state : dashArrays?.province, width)
       });
     }
   }
@@ -653,7 +662,11 @@ export function buildRiverPaths(worldContext: Readonly<WorldContext>, focusScope
     });
 }
 
-export function buildRoutePaths(worldContext: Readonly<WorldContext>, focusScope: FocusScope | null): DeckPath[] {
+export function buildRoutePaths(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  dashArrays?: Partial<Record<"roads" | "trails" | "searoutes", DeckPathDashArray>>
+): DeckPath[] {
   return (worldContext.pack.routes ?? []).flatMap(route => {
     if (focusScope && !(route.cells ?? []).some(cell => isCellInScope(focusScope, cell))) return [];
 
@@ -662,17 +675,36 @@ export function buildRoutePaths(worldContext: Readonly<WorldContext>, focusScope
     const path = getValidDeckPath(route.points);
     if (!path) return [];
 
+    const width = route.group === "searoutes" ? 0.7 : route.group === "roads" ? 1.1 : 0.65;
+    const dashArray =
+      route.group === "roads" || route.group === "trails" || route.group === "searoutes"
+        ? dashArrays?.[route.group]
+        : undefined;
+
     return [
       {
         id: `route-${route.i}`,
         path,
         color: getRouteColor(route),
-        width: route.group === "searoutes" ? 0.7 : route.group === "roads" ? 1.1 : 0.65,
+        width,
         kind: "route" as const,
-        cellId: route.cells?.[0] ?? null
+        cellId: route.cells?.[0] ?? null,
+        dashArray: getNormalizedDashArray(dashArray, width)
       }
     ];
   });
+}
+
+/**
+ * PathStyleExtension interprets dash sizes in multiples of the path width. SVG stores absolute
+ * stroke-dasharray lengths, so normalize here to retain the configured visual rhythm.
+ */
+function getNormalizedDashArray(
+  dashArray: DeckPathDashArray | undefined,
+  width: number
+): DeckPathDashArray | undefined {
+  if (!dashArray || width <= 0) return undefined;
+  return [dashArray[0] / width, dashArray[1] / width];
 }
 
 export function buildLakePolygons(

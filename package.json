@@ -74,6 +74,7 @@
   },
   "dependencies": {
     "@deck.gl/core": "^9.3.6",
+    "@deck.gl/extensions": "^9.3.6",
     "@deck.gl/layers": "^9.3.6",
     "@tanstack/react-virtual": "^3.14.5",
     "@tinymce/tinymce-react": "^6.3.0",
