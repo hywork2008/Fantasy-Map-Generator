@@ -9,9 +9,14 @@ import { applyHybridLayerPolicy } from "./hybridLayerPolicy";
 const BODY_HYBRID_CLASS = "fmg-webgl-hybrid";
 const PICK_RADIUS = 6;
 const PICK_CANDIDATE_DEPTH = 20;
+const SEMANTIC_PICK_RADIUS = 8;
 let pickingEventTarget: SVGSVGElement | null = null;
 let lastHoverPickId: string | null = null;
 let activePickingViewContext: ViewContext | null = null;
+
+type DeckDatum = Record<string, unknown>;
+type DeckLayerLike = { id?: string; props?: { data?: unknown } };
+type Bounds = { minX: number; minY: number; maxX: number; maxY: number };
 
 function getOrthographicViewState(viewContext: Readonly<ViewContext>): OrthographicViewState {
   const scale = Math.max(viewContext.scale || 1, 0.0001);
@@ -100,17 +105,221 @@ function toPickDetail(info: PickingInfo | null): WebglPickDetail | null {
 }
 
 function toUniquePickDetails(infos: PickingInfo[]): WebglPickDetail[] {
+  return uniquePickDetails(infos.map(toPickDetail).filter((detail): detail is WebglPickDetail => detail !== null));
+}
+
+function uniquePickDetails(source: WebglPickDetail[]): WebglPickDetail[] {
   const details: WebglPickDetail[] = [];
   const seen = new Set<string>();
-  for (const info of infos) {
-    const detail = toPickDetail(info);
-    if (!detail) continue;
+  for (const detail of source) {
     const key = `${detail.layerId}:${detail.id}`;
     if (seen.has(key)) continue;
     seen.add(key);
     details.push(detail);
   }
   return details;
+}
+
+function collectSemanticPickDetails(
+  viewContext: ViewContext,
+  x: number,
+  y: number,
+  visualCandidates: WebglPickDetail[]
+): WebglPickDetail[] {
+  const mapPoint: [number, number] = [
+    (x - viewContext.viewX) / viewContext.scale,
+    (y - viewContext.viewY) / viewContext.scale
+  ];
+  const padding = Math.max(SEMANTIC_PICK_RADIUS / Math.max(viewContext.scale, 0.0001), 1);
+  const military = collectMilitaryBoxCandidates(viewContext, mapPoint, x, y, padding);
+  const militaryBounds = military.map(candidate => candidate.bounds);
+  const burgs = collectBurgIconCandidates(viewContext, mapPoint, x, y, padding, militaryBounds);
+  const markers = collectMarkerCandidates(viewContext, mapPoint, x, y, padding);
+
+  return uniquePickDetails([
+    ...visualCandidates,
+    ...military.map(candidate => candidate.detail),
+    ...burgs,
+    ...markers
+  ]).slice(visualCandidates.length);
+}
+
+function collectMilitaryBoxCandidates(
+  viewContext: ViewContext,
+  mapPoint: [number, number],
+  x: number,
+  y: number,
+  padding: number
+): Array<{ detail: WebglPickDetail; bounds: Bounds }> {
+  const candidates: Array<{ detail: WebglPickDetail; bounds: Bounds }> = [];
+  getLayerData(viewContext, "fmg-webgl-military").forEach((datum, index) => {
+    const polygon = getPointList(datum.polygon);
+    const bounds = getBounds(polygon);
+    if (!bounds || !boundsContainsPoint(bounds, mapPoint, padding)) return;
+    const id = stringValue(datum.id);
+    const cellId = numberValue(datum.cellId);
+    if (!id || cellId === null) return;
+    candidates.push({
+      bounds,
+      detail: {
+        kind: "military",
+        id,
+        cellId,
+        layerId: "fmg-webgl-military",
+        index,
+        x,
+        y,
+        coordinate: getBoundsCenter(bounds)
+      }
+    });
+  });
+  return candidates;
+}
+
+function collectBurgIconCandidates(
+  viewContext: ViewContext,
+  mapPoint: [number, number],
+  x: number,
+  y: number,
+  padding: number,
+  militaryBounds: Bounds[]
+): WebglPickDetail[] {
+  const candidates: WebglPickDetail[] = [];
+  getLayerData(viewContext, "fmg-webgl-burg-icons").forEach((datum, index) => {
+    const position = getPoint(datum.position);
+    if (!position) return;
+    const bounds = getIconBounds(position, numberValue(datum.size) ?? 0, padding);
+    const isNearPointer = boundsContainsPoint(bounds, mapPoint, padding);
+    const overlapsMilitary = militaryBounds.some(military => boundsIntersect(bounds, military, padding));
+    if (!isNearPointer && !overlapsMilitary) return;
+    const id = stringValue(datum.id);
+    const cellId = numberValue(datum.cellId);
+    if (!id || cellId === null) return;
+    candidates.push({
+      kind: "burgIcon",
+      id,
+      cellId,
+      layerId: "fmg-webgl-burg-icons",
+      index,
+      x,
+      y,
+      coordinate: position
+    });
+  });
+  return candidates;
+}
+
+function collectMarkerCandidates(
+  viewContext: ViewContext,
+  mapPoint: [number, number],
+  x: number,
+  y: number,
+  padding: number
+): WebglPickDetail[] {
+  const candidates: WebglPickDetail[] = [];
+  getLayerData(viewContext, "fmg-webgl-markers").forEach((datum, index) => {
+    const position = getPoint(datum.position);
+    if (!position) return;
+    const size = numberValue(datum.size) ?? 0;
+    const bounds: Bounds = {
+      minX: position[0] - size / 2,
+      minY: position[1] - size,
+      maxX: position[0] + size / 2,
+      maxY: position[1]
+    };
+    if (!boundsContainsPoint(bounds, mapPoint, padding)) return;
+    const id = stringValue(datum.id);
+    const cellId = numberValue(datum.cellId);
+    if (!id || cellId === null) return;
+    candidates.push({
+      kind: "marker",
+      id,
+      cellId,
+      layerId: "fmg-webgl-markers",
+      index,
+      x,
+      y,
+      coordinate: position
+    });
+  });
+  return candidates;
+}
+
+function getLayerData(viewContext: ViewContext, layerId: string): DeckDatum[] {
+  const deck = viewContext.webglDeck as unknown as { props?: { layers?: DeckLayerLike[] } } | null;
+  const layer = deck?.props?.layers?.find(candidate => candidate.id === layerId);
+  const data = layer?.props?.data;
+  return Array.isArray(data) ? data.filter(isRecord) : [];
+}
+
+function isRecord(value: unknown): value is DeckDatum {
+  return value !== null && typeof value === "object";
+}
+
+function stringValue(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function numberValue(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function getPoint(value: unknown): [number, number] | null {
+  return Array.isArray(value) &&
+    typeof value[0] === "number" &&
+    Number.isFinite(value[0]) &&
+    typeof value[1] === "number" &&
+    Number.isFinite(value[1])
+    ? [value[0], value[1]]
+    : null;
+}
+
+function getPointList(value: unknown): Array<[number, number]> {
+  return Array.isArray(value) ? value.map(getPoint).filter((point): point is [number, number] => point !== null) : [];
+}
+
+function getBounds(points: Array<[number, number]>): Bounds | null {
+  if (!points.length) return null;
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  for (const [x, y] of points) {
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  }
+  return { minX, minY, maxX, maxY };
+}
+
+function getIconBounds(position: [number, number], size: number, padding: number): Bounds {
+  const half = Math.max(size / 2, padding);
+  return {
+    minX: position[0] - half,
+    minY: position[1] - half,
+    maxX: position[0] + half,
+    maxY: position[1] + half
+  };
+}
+
+function boundsContainsPoint(bounds: Bounds, [x, y]: [number, number], padding = 0): boolean {
+  return (
+    x >= bounds.minX - padding && x <= bounds.maxX + padding && y >= bounds.minY - padding && y <= bounds.maxY + padding
+  );
+}
+
+function boundsIntersect(left: Bounds, right: Bounds, padding = 0): boolean {
+  return !(
+    left.maxX < right.minX - padding ||
+    left.minX > right.maxX + padding ||
+    left.maxY < right.minY - padding ||
+    left.minY > right.maxY + padding
+  );
+}
+
+function getBoundsCenter(bounds: Bounds): [number, number] {
+  return [(bounds.minX + bounds.maxX) / 2, (bounds.minY + bounds.maxY) / 2];
 }
 
 function pickFromPointerEvent(event: PointerEvent, viewContext: ViewContext): PickingInfo | null {
@@ -137,7 +346,9 @@ function pickCandidatesFromPointerEvent(
     radius: PICK_RADIUS,
     depth: PICK_CANDIDATE_DEPTH
   });
-  const candidates = toUniquePickDetails(infos);
+  const visualCandidates = toUniquePickDetails(infos);
+  const semanticCandidates = collectSemanticPickDetails(viewContext, x, y, visualCandidates);
+  const candidates = uniquePickDetails([...visualCandidates, ...semanticCandidates]);
   return {
     primary: candidates[0] ?? null,
     candidates,

@@ -10,6 +10,9 @@ import { getFriendlyHeight, getFriendlyPrecipitation, getPopulationTip, updateCe
 import { showMainTip, showMapTooltip, showNotes, tip } from "./tooltipService";
 
 const PICK_CHOOSER_ID = "mapPickChooser";
+const PICK_CHOOSER_CLICK_SUPPRESSION_MS = 500;
+const PICK_CHOOSER_CLICK_SUPPRESSION_DISTANCE = 4;
+let suppressedChooserClick: { clientX: number; clientY: number; expiresAt: number } | null = null;
 
 export const onMouseMove = debounce(handleMouseMove as (event: MouseEvent) => void, 100);
 export function handleMouseMove(this: Element, event: MouseEvent): void {
@@ -42,10 +45,58 @@ document.addEventListener("fmg:webgl-map-pick", (event: CustomEvent<WebglPickDet
 });
 
 document.addEventListener("fmg:webgl-map-pick-candidates", (event: CustomEvent<WebglPickCandidatesDetail>) => {
-  const { candidates, clientX, clientY } = event.detail;
-  if (candidates.length > 1) showPickChooser(candidates, clientX, clientY);
-  else hidePickChooser();
+  const { primary, candidates, clientX, clientY } = event.detail;
+  if (candidates.length > 1) {
+    suppressNextChooserClick(clientX, clientY);
+    showPickChooser(candidates, clientX, clientY);
+  } else {
+    suppressedChooserClick = null;
+    hidePickChooser();
+    if (primary && isSingleClickEditablePick(primary)) {
+      suppressNextChooserClick(clientX, clientY);
+      document.dispatchEvent(
+        new CustomEvent<WebglPickDetail>("fmg:webgl-map-pick-candidate-selected", { detail: primary })
+      );
+    }
+  }
 });
+
+export function shouldSuppressWebglPickChooserClick(event: MouseEvent): boolean {
+  if (!suppressedChooserClick) return false;
+  if (performance.now() > suppressedChooserClick.expiresAt) {
+    suppressedChooserClick = null;
+    return false;
+  }
+
+  const distance = Math.hypot(
+    event.clientX - suppressedChooserClick.clientX,
+    event.clientY - suppressedChooserClick.clientY
+  );
+  if (distance > PICK_CHOOSER_CLICK_SUPPRESSION_DISTANCE) return false;
+
+  suppressedChooserClick = null;
+  event.preventDefault();
+  event.stopPropagation();
+  return true;
+}
+
+function suppressNextChooserClick(clientX: number, clientY: number): void {
+  suppressedChooserClick = {
+    clientX,
+    clientY,
+    expiresAt: performance.now() + PICK_CHOOSER_CLICK_SUPPRESSION_MS
+  };
+}
+
+function isSingleClickEditablePick(detail: WebglPickDetail): boolean {
+  return (
+    detail.kind === "burgIcon" ||
+    detail.kind === "marker" ||
+    detail.kind === "military" ||
+    detail.kind === "river" ||
+    detail.kind === "route"
+  );
+}
 
 function formatWebglPickTooltip(detail: WebglPickDetail): string {
   if (detail.kind === "background") return "Ocean";

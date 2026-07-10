@@ -4,6 +4,7 @@ import { worldContext } from "../context/worldContext";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { useColorPickerDialogState } from "../store/colorPickerDialogState";
 import { elSelected, setElSelected } from "../store/editorState";
+import type { WebglPickDetail } from "../types/webglPicking";
 
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { parseTransform, rn } from "../utils";
@@ -59,6 +60,8 @@ export function restoreDefaultEvents(): void {
 }
 
 function clicked(this: Element, event: MouseEvent): void {
+  if (shouldSuppressWebglPickChooserClick(event)) return;
+
   const el = event.target as Element | null;
   const parent = el?.parentElement;
   const grand = parent?.parentElement;
@@ -81,6 +84,51 @@ function clicked(this: Element, event: MouseEvent): void {
   } else if (grand?.id === "coastline") CoastlineEditor.editCoastline(event);
   else if (grand?.id === "lakes") LakesEditor.editLake(event);
   else if (great?.id === "armies") RegimentEditor.editRegiment(el?.parentElement ?? undefined);
+}
+
+function editWebglPickCandidate(detail: WebglPickDetail): void {
+  if (detail.kind === "burgIcon") editWebglBurg(detail.id);
+  else if (detail.kind === "marker") editWebglMarker(detail.id);
+  else if (detail.kind === "military") editWebglRegiment(detail.id);
+  else if (detail.kind === "river") editWebglRiver(detail.id);
+  else if (detail.kind === "route") editWebglRoute(detail.id);
+}
+
+function editWebglBurg(id: string): void {
+  const entityId = parseWebglEntityId(id, /^(?:burg|anchor)-(\d+)$/);
+  if (entityId === null) return;
+  BurgEditor.editBurg(entityId);
+}
+
+function editWebglMarker(id: string): void {
+  const entityId = parseWebglEntityId(id, /^marker-(\d+)$/);
+  if (entityId === null) return;
+  MarkersEditor.editMarker(entityId);
+}
+
+function editWebglRegiment(id: string): void {
+  const match = id.match(/^regiment-(\d+)-(\d+)/);
+  if (!match) return;
+  RegimentEditor.editRegimentById(Number(match[1]), Number(match[2]));
+}
+
+function editWebglRiver(id: string): void {
+  const entityId = parseWebglEntityId(id, /^river-(\d+)$/);
+  if (entityId === null) return;
+  RiversEditor.editRiver(`river${entityId}`);
+}
+
+function editWebglRoute(id: string): void {
+  const entityId = parseWebglEntityId(id, /^route-(\d+)$/);
+  if (entityId === null) return;
+  RoutesEditor.editRoute(`route${entityId}`);
+}
+
+function parseWebglEntityId(id: string, pattern: RegExp): number | null {
+  const match = id.match(pattern);
+  if (!match) return null;
+  const entityId = Number(match[1]);
+  return Number.isFinite(entityId) ? entityId : null;
 }
 
 export function unselect(): void {
@@ -110,7 +158,7 @@ export function moveCircle(x: number, y: number, r = 20): void {
   }
 }
 
-import { onMouseMove } from "../services/mapInteraction";
+import { onMouseMove, shouldSuppressWebglPickChooserClick } from "../services/mapInteraction";
 import { tip } from "../services/tooltipService";
 import { removeCircle } from "../utils/domUtils";
 import * as BurgEditor from "./burg-editor";
@@ -635,6 +683,9 @@ document.addEventListener("fmg:move-circle", (e: Event) => {
 document.addEventListener("fmg:edit-river", (e: Event) => {
   const { id } = (e as CustomEvent<{ id: string }>).detail;
   RiversEditor.editRiver(id);
+});
+document.addEventListener("fmg:webgl-map-pick-candidate-selected", (e: Event) => {
+  editWebglPickCandidate((e as CustomEvent<WebglPickDetail>).detail);
 });
 document.addEventListener("fmg:edit-states", () => editStates());
 document.addEventListener("fmg:remove-circle", () => removeCircle());

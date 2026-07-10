@@ -5,6 +5,7 @@ import {
 } from "../../src/renderers/webgl/hybridLayerPolicy";
 import {
   applyStylePreset,
+  clickAndGetWebglPickCandidates,
   ensureLayerOn,
   forceOverlappingWebglRegiments,
   getFirstLandScreenPoint,
@@ -40,6 +41,110 @@ async function getTopElementAtCenter(page: Page, selector: string) {
       topZIndex: topElement ? window.getComputedStyle(topElement).zIndex : ""
     };
   });
+}
+
+async function clickWebglEditTargetAndExpectEditor(
+  page: Page,
+  target: { layerId: string; kind: string; editorSelector: string }
+) {
+  const closeAllDialogs = page.getByRole("button", { name: "Close all dialogs" }).first();
+  if (await closeAllDialogs.isVisible()) await closeAllDialogs.click();
+
+  const pick =
+    (await getFirstWebglLayerDatumClickPoint(page, target.layerId)) ??
+    (await pickFirstWebglLayerDatum(page, target.layerId, 18));
+  expect(pick, target.layerId).not.toBeNull();
+  if (!pick) return;
+
+  const pickResult = await clickAndGetWebglPickCandidates(page, pick);
+  const candidate =
+    pickResult.candidates.find(item => item.kind === target.kind && item.id === pick.id) ??
+    pickResult.candidates.find(item => item.kind === target.kind);
+  expect(candidate, target.layerId).toMatchObject({
+    kind: target.kind,
+    id: expect.any(String),
+    layerId: target.layerId
+  });
+  if (!candidate) return;
+
+  const chooserItem = page
+    .locator(`#mapPickChooser .map-pick-chooser__item[data-kind="${target.kind}"][data-pick-id="${candidate.id}"]`)
+    .first();
+  try {
+    await expect(chooserItem).toBeVisible({ timeout: 700 });
+    await chooserItem.click();
+  } catch {
+    // Single-candidate clicks dispatch the same selected event without showing the chooser.
+  }
+
+  await expect(page.locator(target.editorSelector)).toBeVisible();
+}
+
+async function getFirstWebglLayerDatumClickPoint(
+  page: Page,
+  layerId: string
+): Promise<{ kind: string; id: string; x: number; y: number } | null> {
+  return page.evaluate(requestedLayerId => {
+    type DeckDatum = Record<string, unknown>;
+    type DeckLayerLike = { id?: string; props?: { data?: unknown } };
+    type DeckLike = { props?: { layers?: DeckLayerLike[] } };
+
+    function isRecord(value: unknown): value is DeckDatum {
+      return value !== null && typeof value === "object";
+    }
+
+    function isNumberPair(value: unknown): value is [number, number] {
+      return (
+        Array.isArray(value) &&
+        typeof value[0] === "number" &&
+        Number.isFinite(value[0]) &&
+        typeof value[1] === "number" &&
+        Number.isFinite(value[1])
+      );
+    }
+
+    function getPointList(value: unknown): Array<[number, number]> {
+      return Array.isArray(value) ? value.filter(isNumberPair) : [];
+    }
+
+    function getCentroid(points: Array<[number, number]>): [number, number] | null {
+      if (!points.length) return null;
+      const sums = points.reduce(
+        (acc, point) => ({ x: acc.x + point[0], y: acc.y + point[1] }),
+        { x: 0, y: 0 }
+      );
+      return [sums.x / points.length, sums.y / points.length];
+    }
+
+    function getMapPoint(datum: DeckDatum): [number, number] | null {
+      if (isNumberPair(datum.position)) return datum.position;
+      const polygon = getPointList(datum.polygon);
+      if (polygon.length) return getCentroid(polygon);
+      const path = getPointList(datum.path);
+      if (path.length) return path[Math.floor(path.length / 2)] ?? null;
+      return null;
+    }
+
+    const deck = window.fmg.view.webglDeck as DeckLike | null;
+    const layer = deck?.props?.layers?.find(candidate => candidate.id === requestedLayerId);
+    const data = Array.isArray(layer?.props?.data) ? layer.props.data.filter(isRecord) : [];
+    for (const datum of data) {
+      const mapPoint = getMapPoint(datum);
+      const kind = typeof datum.kind === "string" ? datum.kind : "";
+      const id = typeof datum.id === "string" ? datum.id : "";
+      if (!mapPoint || !kind || !id) continue;
+
+      const x = mapPoint[0] * window.fmg.view.scale + window.fmg.view.viewX;
+      const y = mapPoint[1] * window.fmg.view.scale + window.fmg.view.viewY;
+      if (x < 0 || y < 0 || x >= window.innerWidth || y >= window.innerHeight) continue;
+
+      const topElement = document.elementFromPoint(x, y);
+      if (topElement?.closest("#options, .fmg-dialog, #tourPromptButton, #mapOverlay")) continue;
+      return { kind, id, x, y };
+    }
+
+    return null;
+  }, layerId);
 }
 
 test.describe("webgl hybrid renderer", () => {
@@ -326,18 +431,59 @@ test.describe("webgl hybrid renderer", () => {
     }
   });
 
+  test("opens existing editors from WebGL pick targets", async ({ page }) => {
+    await page.goto("/?seed=webgl-click-edit&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+
+    for (const toggleId of ["toggleBurgIcons", "toggleMarkers", "toggleRivers", "toggleRoutes"]) {
+      await ensureLayerOn(page, toggleId);
+    }
+
+    for (const target of [
+      { layerId: "fmg-webgl-burg-icons", kind: "burgIcon", editorSelector: "#burgBody" },
+      { layerId: "fmg-webgl-markers", kind: "marker", editorSelector: "#markerBody" },
+      { layerId: "fmg-webgl-rivers", kind: "river", editorSelector: "#riverBody" },
+      { layerId: "fmg-webgl-routes", kind: "route", editorSelector: "#routeEditor" }
+    ]) {
+      await clickWebglEditTargetAndExpectEditor(page, target);
+    }
+  });
+
   test("shows a chooser when multiple WebGL edit targets overlap", async ({ page }) => {
     await page.goto("/?seed=webgl-overlap-picker&width=1000&height=700");
     await waitForMapLoad(page);
     await setRenderMode(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
     await ensureLayerOn(page, "toggleMilitary");
+    await ensureLayerOn(page, "toggleBurgIcons");
 
     const point = await forceOverlappingWebglRegiments(page);
-    await page.mouse.click(point.x, point.y);
+    const pick = await clickAndGetWebglPickCandidates(page, point);
+
+    expect(pick.candidates.length).toBeGreaterThanOrEqual(2);
+    expect(pick.primary).toEqual(pick.candidates[0]);
+    if (pick.legacyPick) expect(pick.primary).toEqual(pick.legacyPick);
+    expect(pick.clientX).toBeCloseTo(point.x, 0);
+    expect(pick.clientY).toBeCloseTo(point.y, 0);
+
+    const candidateKeys = pick.candidates.map(candidate => `${candidate.layerId}:${candidate.id}`);
+    expect(new Set(candidateKeys).size).toBe(candidateKeys.length);
+    expect(pick.candidates.filter(candidate => candidate.kind === "military").length).toBeGreaterThanOrEqual(2);
+    expect(pick.candidates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "burgIcon",
+          id: `burg-${point.burgId}`,
+          layerId: "fmg-webgl-burg-icons"
+        })
+      ])
+    );
 
     const chooser = page.locator("#mapPickChooser");
     await expect(chooser).toBeVisible();
+    await expect(page.locator("#regimentEditorContainer")).toBeHidden();
 
     const regimentItems = chooser.locator(".map-pick-chooser__item[data-kind='military']");
     await expect.poll(() => regimentItems.count(), { timeout: 5000 }).toBeGreaterThanOrEqual(2);
@@ -353,10 +499,12 @@ test.describe("webgl hybrid renderer", () => {
         })
     );
     await regimentItems.nth(1).click();
+    const selected = await selectedPromise;
 
     await expect(chooser).toBeHidden();
+    await expect(page.locator("#regimentEditorContainer")).toBeVisible();
     await expect(page.locator("#debug .webgl-selected")).toHaveCount(1);
-    await expect(selectedPromise).resolves.toMatchObject({ kind: "military", id: expect.stringMatching(/^regiment-/) });
+    expect(selected).toMatchObject({ kind: "military", id: expect.stringMatching(/^regiment-/) });
   });
 
   test("renders migrated layers for major presets while keeping SVG overlays", async ({ page }) => {

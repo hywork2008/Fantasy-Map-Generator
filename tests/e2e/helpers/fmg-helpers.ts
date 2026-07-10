@@ -547,28 +547,44 @@ export interface OverlappingRegimentPoint {
   y: number;
   stateId: number;
   regimentIds: [number, number];
+  burgId: number;
 }
 
 export async function forceOverlappingWebglRegiments(page: Page): Promise<OverlappingRegimentPoint> {
   const point = await page.evaluate(() => {
     type TestRegiment = { i: number; x: number; y: number; cell: number; angle?: number };
     type TestState = { i?: number; removed?: boolean; military?: TestRegiment[] };
+    type TestBurg = { i?: number; removed?: boolean; state?: number; x: number; y: number; cell: number };
 
     const states = window.fmg.world.pack.states as TestState[];
-    const state = states.find(item => item.i && !item.removed && (item.military?.length ?? 0) >= 2);
-    if (!state?.i || !state.military) throw new Error("No state with at least two regiments");
+    const burgs = window.fmg.world.pack.burgs as TestBurg[];
+    const state = states.find(
+      item =>
+        item.i &&
+        !item.removed &&
+        (item.military?.length ?? 0) >= 2 &&
+        burgs.some(burg => burg.i && !burg.removed && burg.state === item.i)
+    );
+    if (!state?.i || !state.military) throw new Error("No state with at least two regiments and one burg");
+    const burg = burgs.find(item => item.i && !item.removed && item.state === state.i);
+    if (!burg?.i) throw new Error("No burg for overlapping regiment test");
 
     const [first, second] = state.military;
-    second.x = first.x;
-    second.y = first.y;
-    second.cell = first.cell;
+    first.x = burg.x;
+    first.y = burg.y;
+    first.cell = burg.cell;
+    first.angle = 0;
+    second.x = burg.x;
+    second.y = burg.y;
+    second.cell = burg.cell;
     second.angle = first.angle ?? 0;
 
     return {
-      x: first.x * window.fmg.view.scale + window.fmg.view.viewX,
-      y: first.y * window.fmg.view.scale + window.fmg.view.viewY,
+      x: burg.x * window.fmg.view.scale + window.fmg.view.viewX,
+      y: burg.y * window.fmg.view.scale + window.fmg.view.viewY,
       stateId: state.i,
-      regimentIds: [first.i, second.i] as [number, number]
+      regimentIds: [first.i, second.i] as [number, number],
+      burgId: burg.i
     };
   });
 
@@ -604,6 +620,104 @@ export interface WebglPickSnapshot {
   coordinate: [number, number, number?] | null;
   x: number;
   y: number;
+}
+
+export interface WebglCandidateSnapshot {
+  layerId: string;
+  kind: string;
+  id: string;
+  cellId: number | null;
+  index: number;
+  coordinate: [number, number, number?] | null;
+  x: number;
+  y: number;
+}
+
+export interface WebglPickCandidatesSnapshot {
+  primary: WebglCandidateSnapshot | null;
+  candidates: WebglCandidateSnapshot[];
+  legacyPick: WebglCandidateSnapshot | null;
+  x: number;
+  y: number;
+  clientX: number;
+  clientY: number;
+}
+
+export async function clickAndGetWebglPickCandidates(
+  page: Page,
+  point: { x: number; y: number }
+): Promise<WebglPickCandidatesSnapshot> {
+  await page.evaluate(() => {
+    type TestWindow = Window & {
+      __fmgWebglPickCandidatesSnapshot?: Omit<WebglPickCandidatesSnapshot, "legacyPick">;
+      __fmgWebglLegacyPickSnapshot?: WebglCandidateSnapshot | null;
+    };
+    const testWindow = window as TestWindow;
+    testWindow.__fmgWebglPickCandidatesSnapshot = undefined;
+    testWindow.__fmgWebglLegacyPickSnapshot = null;
+
+    function normalizePick(value: unknown): WebglCandidateSnapshot | null {
+      if (!value || typeof value !== "object") return null;
+      const record = value as Record<string, unknown>;
+      const coordinate = Array.isArray(record.coordinate)
+        ? ([record.coordinate[0], record.coordinate[1], record.coordinate[2]].filter(
+            item => typeof item === "number"
+          ) as [number, number, number?])
+        : null;
+      return {
+        layerId: typeof record.layerId === "string" ? record.layerId : "",
+        kind: typeof record.kind === "string" ? record.kind : "",
+        id: typeof record.id === "string" ? record.id : "",
+        cellId: typeof record.cellId === "number" ? record.cellId : null,
+        index: typeof record.index === "number" ? record.index : -1,
+        coordinate,
+        x: typeof record.x === "number" ? record.x : 0,
+        y: typeof record.y === "number" ? record.y : 0
+      };
+    }
+
+    document.addEventListener(
+      "fmg:webgl-map-pick-candidates",
+      event => {
+        const detail = (event as CustomEvent<Record<string, unknown>>).detail;
+        const rawCandidates = Array.isArray(detail.candidates) ? detail.candidates : [];
+        testWindow.__fmgWebglPickCandidatesSnapshot = {
+          primary: normalizePick(detail.primary),
+          candidates: rawCandidates.map(normalizePick).filter((item): item is WebglCandidateSnapshot => item !== null),
+          x: typeof detail.x === "number" ? detail.x : 0,
+          y: typeof detail.y === "number" ? detail.y : 0,
+          clientX: typeof detail.clientX === "number" ? detail.clientX : 0,
+          clientY: typeof detail.clientY === "number" ? detail.clientY : 0
+        };
+      },
+      { once: true }
+    );
+
+    document.addEventListener(
+      "fmg:webgl-map-pick",
+      event => {
+        testWindow.__fmgWebglLegacyPickSnapshot = normalizePick((event as CustomEvent<unknown>).detail);
+      },
+      { once: true }
+    );
+  });
+
+  await page.mouse.click(point.x, point.y);
+  await page.waitForFunction(() =>
+    Boolean((window as { __fmgWebglPickCandidatesSnapshot?: unknown }).__fmgWebglPickCandidatesSnapshot)
+  );
+  return page.evaluate(() => {
+    const testWindow = window as Window & {
+      __fmgWebglPickCandidatesSnapshot?: Omit<WebglPickCandidatesSnapshot, "legacyPick">;
+      __fmgWebglLegacyPickSnapshot?: WebglCandidateSnapshot | null;
+    };
+    const candidatesSnapshot = testWindow.__fmgWebglPickCandidatesSnapshot;
+    if (!candidatesSnapshot) throw new Error("Missing WebGL pick candidates snapshot");
+    return {
+      ...candidatesSnapshot,
+      legacyPick: testWindow.__fmgWebglLegacyPickSnapshot ?? null
+    };
+  });
 }
 
 export interface WebglLayerDatumIdentity {

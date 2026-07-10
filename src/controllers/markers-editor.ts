@@ -27,18 +27,23 @@ let _mdy = 0;
 
 export function editMarker(markerI?: number): void {
   if (view.customization) return;
+  if (markerI === undefined) return;
   closeDialogs(".stable");
 
-  const result = getElement(markerI!);
-  if (!result) return;
-  const { element, marker } = result;
+  const marker = getMarker(markerI);
+  if (!marker) return;
 
-  setElSelected(select(element as Element))
-    .raise()
-    .call(drag<Element, unknown>().on("start", dragMarkerStart).on("drag", dragMarkerDrag).on("end", dragMarkerEnd))
-    .classed("draggable", true);
+  const element = getElement(markerI);
+  if (element) {
+    setElSelected(select(element as Element))
+      .raise()
+      .call(drag<Element, unknown>().on("start", dragMarkerStart).on("drag", dragMarkerDrag).on("end", dragMarkerEnd))
+      .classed("draggable", true);
+  } else {
+    setElSelected(null);
+  }
 
-  if (useNotesEditorState.getState().isOpen) editNotes(element.id, element.id);
+  if (element && useNotesEditorState.getState().isOpen) editNotes(element.id, element.id);
 
   setMarkersEditorState({
     isOpen: true,
@@ -57,11 +62,12 @@ export function editMarker(markerI?: number): void {
   });
 }
 
-function getElement(idx: number): { element: SVGElement; marker: Marker } | null {
-  const el = view.markers.select<SVGElement>(`#marker${idx}`).node();
-  const m = worldContext.pack.markers.find(({ i }) => i === idx);
-  if (!el || !m) return null;
-  return { element: el, marker: m };
+function getElement(idx: number): SVGElement | null {
+  return view.markers.select<SVGElement>(`#marker${idx}`).node();
+}
+
+function getMarker(idx: number): Marker | undefined {
+  return worldContext.pack.markers.find(({ i }) => i === idx);
 }
 
 function getSameTypeMarkers(): Marker[] {

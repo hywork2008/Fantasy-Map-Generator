@@ -160,7 +160,12 @@ deck.gl 移行は、以下を満たした時点で「既定レンダラー化可
 - クリック編集の本配線では、SVG DOM event の `event.target` 依存をそのまま増やさず、`WebglPickDetail` から既存 controller へ渡す adapter を `mapInteraction.ts` か controller action 側に置く。ただし単一 hit を前提にした adapter だけでは不十分で、同一点・近傍の複数 hit を扱える選択導線を先に設計する。
 - `deckRenderer.ts` は `fmg:webgl-map-pick-candidates` を追加で dispatch する。候補は `pickMultipleObjects()` 由来の `WebglPickDetail[]` で、既存の `fmg:webgl-map-pick` は後方互換の primary pick として維持する。
 - `mapInteraction.ts` は候補が複数ある場合に `#mapPickChooser` を表示する。候補を選ぶと `fmg:webgl-map-pick-candidate-selected` を dispatch し、暫定的に `#debug .webgl-selected` へ選択セルを表示する。
-- E2E は同一座標に2つの regiment を重ね、クリックで chooser が出て任意候補を選べることを検証する。
+- E2E は同一座標に2つの regiment を重ね、`pickMultipleObjects()` 由来の候補が複数返ること、`layerId:id` で重複排除されること、primary pick が候補先頭と一致すること、chooser が出て任意候補を選べることを検証する。
+- `deckRenderer.ts` は `pickMultipleObjects()` だけでは拾えない対象を補う semantic hit test も行う。対象は military box bbox、burg icon bbox、marker pin bbox の交差/近傍判定。軍隊矩形に隠れた burg icon や visual pick が不安定な marker pin を chooser 候補へ補完する。
+- chooser 表示時は直後の従来 SVG click handler を抑止し、最前面の regiment editor が即座に開かないようにした。military 候補を選んだ場合は `regiment-<stateId>-<regimentId>-<part>` から state/regiment id を取り出し、SVG regiment DOM が無い WebGL hybrid でも Regiment Editor を開く。
+- 単一の editable pick (`burgIcon` / `marker` / `military` / `river` / `route`) は chooser を出さずに `fmg:webgl-map-pick-candidate-selected` へ流す。複数候補時と同じ controller adapter を通すことで、クリック編集の入口を `WebglPickDetail` に寄せた。
+- `controllers/editors.ts` は `WebglPickDetail.id` から burg / marker / regiment / river / route の既存 editor API へ変換する。`MarkersEditor.editMarker()` は WebGL hybrid で SVG marker DOM が無い場合も editor state を開けるようにし、drag 接続は SVG element が存在する場合だけ行う。
+- `webgl-hybrid.spec.ts` は burg / marker / river / route の WebGL candidates と既存 editor 起動を検証する。`clickAndGetWebglPickCandidates()` は listener setup と click の race を避けるため、一時 snapshot を登録してから click する形へ更新した。
 
 ### 重なりオブジェクトの選択方針
 
@@ -169,6 +174,7 @@ deck.gl 移行は、以下を満たした時点で「既定レンダラー化可
 実装方針:
 
 - `deck.pickObject()` ではなく `deck.pickMultipleObjects()` 相当の候補収集を使い、同一 pointer 座標の近傍から `WebglPickDetail[]` を作る。
+- `pickMultipleObjects()` の候補だけに依存しない。deck data から semantic hit test を行い、描画順や picking buffer の都合で隠れた編集対象を補完する。最初の具体策は military box bbox / burg icon bbox / marker pin bbox の交差・近傍判定。
 - 候補は `kind` / entity id / 表示名 / 距離 / layer priority を持つ `MapPickCandidate` に正規化する。SVG fallback でも同じ candidate 型へ変換できるようにする。
 - 候補が1件なら直接 editor action を呼ぶ。候補が複数なら pointer 近傍に小さな chooser を出す。
 - chooser はリスト形式を第一候補にする。数が少ない対象だけ radial fan-out を検討する。地図座標そのものを勝手に動かす fan-out は、ドラッグ編集や座標編集と衝突するため preview 表示に留める。
@@ -194,7 +200,7 @@ deck.gl 移行は、以下を満たした時点で「既定レンダラー化可
 | `land` / `height` / `biome` / `culture` / `religion` / `zone` / `temperature` / `population` / `precipitation` / `danger` / `cell` / `grid` / `border` | 主に `cellId` | セル情報、各 overlay tooltip、必要なら該当 editor の context | hover tooltip / cell info | `cellId` を canonical input とする |
 | `background` | `cellId = null` | なし | ocean tooltip | 編集対象外 |
 
-Phase 4 の次の実装単位は、上表のうち「既に controller が id を受け取れるもの」から `mapInteraction.ts` に click dispatch を足すこと。対象は burg / marker / river / route。lake / regiment / coastline / ice / label / emblem は既存 editor の SVG element 依存を先に薄くする。
+Phase 4 の次の実装単位は、残る editor の SVG element / DOM event 依存を薄くすること。burg / marker / regiment / river / route は `WebglPickDetail` から既存 editor を開ける。lake / coastline / ice / label / emblem は id 指定 API を作るか、WebGL click では settings/editor 入口に限定する判断が必要。province / state は個別 editor の起動方針を別途決める。
 
 ## Phase 5: キャッシュと性能
 
