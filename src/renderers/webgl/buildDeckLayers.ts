@@ -49,7 +49,7 @@ import {
   buildPrecipitationPolygons,
   buildProvincePolygons,
   buildReligionPolygons,
-  buildRiverPaths,
+  buildRiverPolygons,
   buildRoutePaths,
   buildStatePolygons,
   buildTemperaturePolygons,
@@ -74,7 +74,8 @@ import {
   type DeckMilitaryBoxPolygon,
   type DeckMilitaryRegimentSymbol,
   type DeckPath,
-  type DeckPosition
+  type DeckPosition,
+  type DeckRiverPolygon
 } from "./adapters/deckDataAdapters";
 import { BURG_ICON_RASTER_SIZE, getBurgIconRasterCacheVersion } from "./burgIconRasterCache";
 import { getEmblemIconCacheVersion } from "./emblemIconCache";
@@ -112,7 +113,6 @@ type PathBuilder = (
 interface PathStyles {
   dashStyles: ReturnType<typeof getPathDashStyles>;
   paintStyles: ReturnType<typeof getPathPaintStyles>;
-  riverPaint: ReturnType<typeof getRiverPaint>;
 }
 type CachedDeckData =
   | DeckBurgIconSymbol[]
@@ -125,7 +125,8 @@ type CachedDeckData =
   | DeckMarkerSymbol[]
   | DeckMilitaryBoxPolygon[]
   | DeckMilitaryRegimentSymbol[]
-  | DeckPath[];
+  | DeckPath[]
+  | DeckRiverPolygon[];
 
 interface CachedDeckDataEntry<T extends CachedDeckData> {
   signature: string;
@@ -220,11 +221,6 @@ const WEBGL_PATH_LAYERS: Array<{ toggle: string; id: string; build: PathBuilder 
   { toggle: "toggleCells", id: "cells", build: (world, view) => buildCellOutlinePaths(world, view.focusScope) },
   { toggle: "toggleGrid", id: "grid", build: (world, view) => buildGridPaths(world, view.focusScope) },
   {
-    toggle: "toggleRivers",
-    id: "rivers",
-    build: (world, view, styles) => buildRiverPaths(world, view.focusScope, styles.riverPaint.color)
-  },
-  {
     toggle: "toggleBorders",
     id: "borders",
     build: (world, view, styles) =>
@@ -270,6 +266,7 @@ const LAND_MASK_EXTENSION = new MaskExtension();
 export const WEBGL_LAYER_TOGGLES = new Set([
   ...WEBGL_POLYGON_LAYERS.map(layer => layer.toggle),
   ...WEBGL_PATH_LAYERS.map(layer => layer.toggle),
+  "toggleRivers",
   "toggleBurgIcons",
   "toggleIce",
   "toggleEmblems",
@@ -827,6 +824,21 @@ export function buildDeckLayers(
     );
   }
 
+  if (activeLayers.toggleRivers) {
+    layers.push(
+      new SolidPolygonLayer<DeckRiverPolygon>({
+        id: "fmg-webgl-rivers",
+        data: getCachedDeckData("polygon:rivers", signatures.byLayer.rivers, () =>
+          buildRiverPolygons(worldContext, viewContext.focusScope, riverPaint.color)
+        ),
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getPolygon: datum => datum.polygon,
+        getFillColor: datum => datum.fillColor,
+        pickable: true
+      })
+    );
+  }
+
   for (const layer of WEBGL_PATH_LAYERS) {
     if (!activeLayers[layer.toggle]) continue;
     layers.push(
@@ -835,8 +847,7 @@ export function buildDeckLayers(
         data: getCachedDeckData(`path:${layer.id}`, signatures.byLayer[layer.id], () =>
           layer.build(worldContext, viewContext, {
             dashStyles: pathDashStyles,
-            paintStyles: pathPaintStyles,
-            riverPaint
+            paintStyles: pathPaintStyles
           })
         ),
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,

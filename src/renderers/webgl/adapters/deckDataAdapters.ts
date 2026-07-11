@@ -56,6 +56,14 @@ export interface DeckPath {
   dashArray?: DeckPathDashArray;
 }
 
+export interface DeckRiverPolygon {
+  id: string;
+  kind: "river";
+  cellId: number | null;
+  polygon: DeckPosition[];
+  fillColor: Color;
+}
+
 export interface DeckFeaturePolygon extends DeckCellPolygon {
   featureId: number;
   group: string;
@@ -691,6 +699,64 @@ export function buildRiverPaths(
         cellId: river.cells[0] ?? null
       };
     });
+}
+
+/**
+ * Convert each river into tapered bank-to-bank quads. Unlike PathLayer's one width per path,
+ * these polygons preserve SVG's source-to-mouth width progression and flow-derived colour depth.
+ */
+export function buildRiverPolygons(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  baseColor: Color = colorToRgba("#3f75a2", "#3f75a2")
+): DeckRiverPolygon[] {
+  return (worldContext.pack.rivers ?? []).flatMap(river => {
+    if (river.cells.length < 2 || (focusScope && !river.cells.some(cell => isCellInScope(focusScope, cell)))) return [];
+
+    const resolvedPoints = river.points && river.points.length === river.cells.length ? river.points : null;
+    const points = Rivers.addMeandering(river.cells, resolvedPoints);
+    if (points.length < 2) return [];
+
+    const banks = Rivers.getRiverBanks(points, river.widthFactor, river.sourceWidth);
+    const maxWidth = Math.max(...banks.widths, 0.0001);
+    const maxFlux = Math.max(...banks.fluxes, 0.0001);
+    const polygons: DeckRiverPolygon[] = [];
+
+    for (let index = 0; index < points.length - 1; index++) {
+      const left = banks.left[index];
+      const nextLeft = banks.left[index + 1];
+      const right = banks.right[index];
+      const nextRight = banks.right[index + 1];
+      if (!left || !nextLeft || !right || !nextRight) continue;
+
+      polygons.push({
+        // Keep the river id as the trailing segment so existing tooltip/editor pick parsing still works.
+        id: `river-segment-${index}-${river.i}`,
+        kind: "river",
+        cellId: river.cells[0] ?? null,
+        polygon: [left, nextLeft, nextRight, right],
+        fillColor: getRiverSegmentColor(
+          baseColor,
+          Math.max(banks.widths[index], banks.widths[index + 1]) / maxWidth,
+          Math.max(banks.fluxes[index], banks.fluxes[index + 1]) / maxFlux
+        )
+      });
+    }
+
+    return polygons;
+  });
+}
+
+function getRiverSegmentColor(baseColor: Color, widthRatio: number, fluxRatio: number): Color {
+  const intensity = Math.min(1, Math.max(0, Math.sqrt(widthRatio * fluxRatio)));
+  const shade = 1 - intensity * 0.12;
+  const alpha = (baseColor[3] ?? 255) * (0.68 + intensity * 0.32);
+  return [
+    Math.round(baseColor[0] * shade),
+    Math.round(baseColor[1] * shade),
+    Math.round(baseColor[2] * shade),
+    Math.round(alpha)
+  ];
 }
 
 export function buildRoutePaths(

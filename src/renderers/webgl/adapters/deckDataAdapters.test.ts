@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ViewContext } from "../../../context/viewContext";
 import type { WorldContext } from "../../../context/worldContext";
+import { Rivers } from "../../../generators/river-generator";
 import { useLayerState } from "../../../store/layerState";
 import { buildDeckLayers, clearDeckLayerDataCache, getDeckLayerDataCacheSize } from "../buildDeckLayers";
 import * as deckDataAdapters from "./deckDataAdapters";
@@ -20,6 +21,7 @@ import {
   buildMarkerSymbols,
   buildMilitaryBoxPolygons,
   buildMilitaryRegimentSymbols,
+  buildRiverPolygons,
   buildRoutePaths
 } from "./deckDataAdapters";
 
@@ -177,6 +179,32 @@ describe("deck.gl data adapters", () => {
         [10, 10]
       ]
     });
+  });
+
+  it("builds tapered river ribbons with downstream flow-based colour depth", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.rivers = [
+      { i: 7, cells: [0, 1], widthFactor: 1, sourceWidth: 0.1 }
+    ] as unknown as WorldContext["pack"]["rivers"];
+    const meanderSpy = vi.spyOn(Rivers, "addMeandering").mockReturnValue([
+      [0, 0, 10],
+      [10, 0, 100],
+      [20, 0, 400]
+    ]);
+
+    try {
+      const ribbons = buildRiverPolygons(worldContext, null, [80, 140, 200, 200]);
+
+      expect(ribbons).toHaveLength(2);
+      expect(ribbons.map(ribbon => ribbon.id)).toEqual(["river-segment-0-7", "river-segment-1-7"]);
+      expect(Math.abs(ribbons[0].polygon[0][1] - ribbons[0].polygon[3][1])).toBeLessThan(
+        Math.abs(ribbons[1].polygon[1][1] - ribbons[1].polygon[2][1])
+      );
+      expect(ribbons[1].fillColor[3]).toBeGreaterThan(ribbons[0].fillColor[3]);
+      expect(ribbons[1].fillColor[0]).toBeLessThan(ribbons[0].fillColor[0]);
+    } finally {
+      meanderSpy.mockRestore();
+    }
   });
 
   it("normalizes SVG dash lengths for deck.gl border and route paths", () => {
