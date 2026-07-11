@@ -24,6 +24,7 @@ This repository is a fork of [Azgaar's Fantasy Map Generator](https://github.com
 | `src/context/*.ts` | `WorldContext` / `ViewContext` / `AppServices` / `SimulationContext` |
 | `src/generators/` | Terrain, states, military, time, and other data generation/update logic |
 | `src/renderers/` | SVG rendering from `Readonly<WorldContext>` |
+| `src/renderers/webgl/` | deck.gl-based WebGL hybrid rendering (`webglHybrid` render mode, now the default); see §1.1 |
 | `src/controllers/` | UI/editing operations, layer control, redraw requests |
 | `src/ui/` | React app, tabs, dialogs, shared components |
 | `src/store/` | Zustand stores |
@@ -48,6 +49,8 @@ Extensions must communicate with the host through `ExtensionAPI`. Dynamic ZIP ex
 | :--- | :--- |
 | `docs/this-project.md` | Fork-specific project entry point |
 | `docs/map-initialization-process.md` | Initialization, generation order, SVG layer order |
+| `docs/webgl-renderer-migration-candidates.md` | WebGL hybrid renderer (deck.gl) architecture, per-layer implementation status, caching/invalidation rules, phase history |
+| `docs/webgl-economy-layer-migration.md` | Economy extension's WebGL layer migration notes |
 | `docs/extension-system-guide.md` | Extension system technical guide |
 | `docs/extension-agent-spec.md` | Extension implementation rules for AI agents |
 | `docs/simulation/advance-time.md` | Advance Time and tick hook contract |
@@ -70,19 +73,19 @@ The codebase strictly adheres to a unidirectional 4-layer data flow architecture
 State (WorldContext / ViewContext / AppServices / SimulationContext)
   ↓ Passed down as Readonly references
 Generator (src/modules/)   → Generates and mutates world data
-Renderer (src/renderers/)  → Pure SVG visualization (No mutations allowed)
+Renderer (src/renderers/)  → Pure visualization, SVG or WebGL (No mutations allowed)
 Editor (src/controllers/)  → Handles UI/User operations, mutates State, triggers redraws
 ```
 
 - **State Layer**: Houses `WorldContext`, `ViewContext`, `AppServices`, and `SimulationContext` schemas.
 - **Generator Layer (`src/modules/`)**: Implements procedural world simulation and mutates raw data.
-- **Renderer Layer (`src/renderers/`)**: Evaluates `Readonly<WorldContext>` to draw SVG infrastructure.
+- **Renderer Layer (`src/renderers/`)**: Evaluates `Readonly<WorldContext>` / `Readonly<ViewContext>` to draw the map. Two implementations run side by side — legacy SVG renderers (`src/renderers/*.ts`) and the deck.gl-based WebGL hybrid renderer (`src/renderers/webgl/`) — selected at runtime by `viewContext.renderMode` (see §1.1).
 - **Editor Layer (`src/controllers/`)**: Captures UI events, mutates State, and requests redraw operations.
 
 | Layer | Direct DOM / SVG Modification | Writing to `pack` / `grid` | Permitted Actions |
 | :--- | :--- | :--- | :--- |
 | **Generator** | ❌ Forbidden | ✅ Allowed | Procedural state generation and structural mutation. |
-| **Renderer** | ✅ Allowed (SVG only) | ❌ Forbidden | Map state visualization (`Readonly<WorldContext> -> SVG`). Must remain pure. |
+| **Renderer** | ✅ Allowed (SVG, or the WebGL hybrid `<canvas>` depending on `renderMode`) | ❌ Forbidden | Map state visualization (`Readonly<WorldContext> -> SVG` or `-> deck.gl layers`). Must remain pure. |
 | **Editor** | ✅ Allowed (Strictly via events, no direct SVG drawing) | ✅ Allowed | User input handling, controlling state mutations, and triggering re-renders. |
 
 ### SVG Layer Initialization (`src/initViewLayers.ts`)
@@ -96,6 +99,25 @@ Editor (src/controllers/)  → Handles UI/User operations, mutates State, trigge
 | `reinitializeMapLayers()` | On `fmg:reinitialize-map-layers` event (when a saved map SVG is loaded) | Re-selects all layers from the new DOM, updates `viewContext` in-place, dispatches `fmg:map-layers-reinitialized` |
 
 No other file may create or manage host SVG layers. Extension-owned layers are managed exclusively through `api.addLayers()` / `api.removeLayers()` in the extension system.
+
+### 1.1 Render Modes: SVG vs WebGL Hybrid (`viewContext.renderMode`)
+
+The map has two selectable 2D renderers, tracked by `viewContext.renderMode: "svg" | "webglHybrid"` (`src/context/viewContext.ts`):
+
+| Mode | When active | Map body | SVG layers |
+| :--- | :--- | :--- | :--- |
+| `webglHybrid` | Default when `isWebgl2Available()` is true | deck.gl canvas (`#webglMapCanvas`; `src/renderers/webgl/deckRenderer.ts` + `buildDeckLayers.ts`) draws most layers directly from `pack`/`grid` | Layers in `hybridLayerPolicy.ts`'s `WEBGL_MANAGED_SVG_LAYER_IDS` are hidden (`body.fmg-webgl-hybrid .fmg-webgl-managed-svg-layer { display: none }`); layers in `HYBRID_SVG_OVERLAY_LAYER_IDS` (texture, relief, scaleBar, legend, coordinates, compass, calendar, etc.) stay as real SVG overlays on top of the canvas |
+| `svg` | Default when WebGL2 is unavailable, or the user explicitly switches back | Pure SVG rendering — no deck.gl instance; the original/compatibility path | All layers render as SVG, unchanged |
+
+Key rules:
+
+- The user's explicit choice is sticky and wins over the default: `setRenderMode()` (`src/actions.ts`) writes `viewContext.renderMode` and persists it to `localStorage["fmg-render-mode"]`. A stored `"svg"` or `"webglHybrid"` (when WebGL2 is available) preference is always honored; only a missing/invalid stored value falls back to `isWebgl2Available() ? "webglHybrid" : "svg"`.
+- The WebGL renderer is a first-class member of the Renderer layer and must obey the same purity rule as SVG renderers — read `Readonly<WorldContext>` / `Readonly<ViewContext>`, never write `pack` or `grid`.
+- Style values (color, opacity, stroke width, font size, dash pattern, etc.) are read from live SVG attributes / `worldContext.style` via `src/renderers/webgl/webglStyleExtractors.ts` — the SVG DOM stays the style source of truth even while hidden by the hybrid layer policy. Any new style-changing handler in `src/controllers/style.ts` that touches a WebGL-mapped attribute must call `scheduleWebglUpdate()` (`src/controllers/layers.ts`), or the change will silently fail to reach the canvas.
+- Editing/picking in `webglHybrid` mode goes through `WebglPickDetail` (`src/types/webglPicking.ts`), bridged by `src/services/mapInteraction.ts` into the same editor controllers the SVG path uses. Do not add new DOM-event-only editing paths without a WebGL pick equivalent.
+- Full architecture, per-layer implementation status, caching/invalidation rules, and phase history live in `docs/webgl-renderer-migration-candidates.md` — consult it before touching either renderer.
+
+**E2E test hazard**: only specs that call `setRenderMode(page, mode)` (`tests/e2e/helpers/fmg-helpers.ts`) pin their render mode explicitly. Any other spec runs under whatever `renderMode` defaults to in the test browser — currently `webglHybrid` whenever it reports WebGL2 support. A spec that asserts on or clicks SVG elements listed in `WEBGL_MANAGED_SVG_LAYER_IDS` will silently break under that default unless it pins `renderMode: "svg"` or is rewritten against the WebGL pick helpers.
 
 ## 2. Global State Elimination & Context Isolation
 
@@ -112,7 +134,7 @@ The legacy practice of attaching objects and functions directly to the global `w
     - `InfrastructureLayers` — `routes`, `roads`, `trails`, `searoutes`
     - `SettlementLayers` — `icons`, `labels`, `burgLabels`, `burgIcons`, `anchors`, `armies`, `markers`, `emblems`, `population`
     - `OverlayLayers` — `cells`, `gridOverlay`, `coordinates`, `compass`
-    - `ViewState` — `zoom`, `viewX`, `viewY`, `scale`, `customization`, `svgWidth`, `svgHeight`, `lineGen`
+    - `ViewState` — `zoom`, `viewX`, `viewY`, `scale`, `customization`, `svgWidth`, `svgHeight`, `lineGen`, `renderMode`, `webglCanvas`, `webglDeck`
 
     Extension-owned SVG layers (e.g. `goods`, `marketsLayer`, `tradeAnimation`) are **not** part of `ViewContext`. They are created dynamically by the extension system via `addLayers()` and tracked inside `buildExtensionAPI()` in `app.ts`. Access them via `api.getSvgLayer(id)`, not via `viewContext`.
 
