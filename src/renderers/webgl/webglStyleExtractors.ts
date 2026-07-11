@@ -229,6 +229,49 @@ export function getMilitaryBoxSize(viewContext: Readonly<ViewContext>): number {
   return parseOptionalNumber(viewContext.armies?.attr("box-size")) ?? 6;
 }
 
+/**
+ * Reads per-layer opacity from SVG elements so that WebGL polygon layers
+ * visually match the SVG renderer when opacity has been customized by the user.
+ * Falls back to the default opacity values from public/styles/clean.json.
+ *
+ * Note: temperature, precipitation, danger, and population layers do not have
+ * a direct parent SVG element with a single opacity attribute — their opacity is
+ * baked into per-cell colour intensity. For those layers the default values serve
+ * as the "maximum opacity" cap, matching the SVG renderer's unset (null) convention.
+ */
+export function getCellLayerOpacities(viewContext: Readonly<ViewContext>): {
+  biomes: number;
+  religions: number;
+  cultures: number;
+  states: number;
+  provinces: number;
+  zones: number;
+  temperature: number;
+  precipitation: number;
+  danger: number;
+  population: number;
+} {
+  const readOp = (
+    el: { attr(n: string): string | null; style(n: string): string } | null | undefined,
+    fallback: number
+  ): number => parseOptionalNumber(el?.attr("opacity") ?? el?.style("opacity")) ?? fallback;
+
+  return {
+    biomes: readOp(viewContext.biomes, 0.5),
+    religions: readOp(viewContext.relig, 0.7),
+    cultures: readOp(viewContext.cults, 0.6),
+    states: readOp(viewContext.statesBody, 0.3),
+    // provinces share the regions/provs SVG group; use provs opacity.
+    provinces: readOp(viewContext.provs, 0.7),
+    zones: readOp(viewContext.zones, 0.7),
+    // These layers have no parent element with a single opacity — use clean.json defaults.
+    temperature: 0.72,
+    precipitation: 0.75,
+    danger: 0.75,
+    population: 0.72
+  };
+}
+
 export function parseOptionalNumber(value: string | null | undefined): number | null {
   if (!value || value === "none" || value === "null") return null;
   const parsed = Number.parseFloat(value);

@@ -75,6 +75,7 @@ import { getExtensionWebglLayers } from "./extensionWebglLayerRegistry";
 import { getExternalIconFailureCacheVersion, markExternalIconFailed } from "./externalIconFailureCache";
 import {
   getBurgIconStyle,
+  getCellLayerOpacities,
   getCoastlinePaint,
   getEmblemStyle,
   getHeightStyle,
@@ -133,56 +134,65 @@ const WEBGL_POLYGON_LAYERS: Array<{
   {
     toggle: "toggleBiomes",
     id: "biomes",
-    build: (world, view, landCells) => buildBiomesPolygons(world, view.focusScope, landCells)
+    build: (world, view, landCells) =>
+      buildBiomesPolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).biomes)
   },
   {
     toggle: "toggleReligions",
     id: "religions",
-    build: (world, view, landCells) => buildReligionPolygons(world, view.focusScope, landCells),
+    build: (world, view, landCells) =>
+      buildReligionPolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).religions),
     boundary: "religion"
   },
   {
     toggle: "toggleCultures",
     id: "cultures",
-    build: (world, view, landCells) => buildCulturePolygons(world, view.focusScope, landCells),
+    build: (world, view, landCells) =>
+      buildCulturePolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).cultures),
     boundary: "culture"
   },
   {
     toggle: "toggleStates",
     id: "states",
-    build: (world, view, landCells) => buildStatePolygons(world, view.focusScope, landCells),
+    build: (world, view, landCells) =>
+      buildStatePolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).states),
     boundary: "state"
   },
   {
     toggle: "toggleProvinces",
     id: "provinces",
-    build: (world, view, landCells) => buildProvincePolygons(world, view.focusScope, landCells),
+    build: (world, view, landCells) =>
+      buildProvincePolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).provinces),
     boundary: "province"
   },
   {
     toggle: "toggleZones",
     id: "zones",
-    build: (world, view, landCells) => buildZonePolygons(world, view.focusScope, landCells)
+    build: (world, view, landCells) =>
+      buildZonePolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).zones)
   },
   {
     toggle: "toggleTemperature",
     id: "temperature",
-    build: (world, view) => buildTemperaturePolygons(world, view.focusScope)
+    build: (world, view) => buildTemperaturePolygons(world, view.focusScope, getCellLayerOpacities(view).temperature)
   },
   {
     toggle: "togglePopulation",
     id: "population",
-    build: (world, view, landCells) => buildPopulationPolygons(world, view.focusScope, landCells)
+    build: (world, view, landCells) =>
+      buildPopulationPolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).population)
   },
   {
     toggle: "togglePrecipitation",
     id: "precipitation",
-    build: (world, view, landCells) => buildPrecipitationPolygons(world, view.focusScope, landCells)
+    build: (world, view, landCells) =>
+      buildPrecipitationPolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).precipitation)
   },
   {
     toggle: "toggleDanger",
     id: "danger",
-    build: (world, view, landCells) => buildDangerPolygons(world, view.focusScope, landCells)
+    build: (world, view, landCells) =>
+      buildDangerPolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).danger)
   }
 ];
 
@@ -267,6 +277,7 @@ export function buildDeckLayers(
   const markerStyle = getMarkerStyle(viewContext);
   const labelStyle = getLabelStyle(worldContext, viewContext);
   const pathDashStyles = getPathDashStyles(viewContext);
+  const cellLayerOpacities = getCellLayerOpacities(viewContext);
   const signatures = buildLayerSignatures(worldContext, viewContext, oceanFill, landFill, activeLayers, {
     lakePaint,
     coastlinePaint,
@@ -275,7 +286,8 @@ export function buildDeckLayers(
     burgIconStyle,
     markerStyle,
     labelStyle,
-    pathDashStyles
+    pathDashStyles,
+    cellLayerOpacities
   });
   // Shared land-cell vertex geometry: the "land" layer always needs it, and every simultaneously
   // active land-based overlay (biomes/cultures/religions/states/provinces/zones/precipitation/
@@ -837,6 +849,7 @@ interface SignatureStyles {
   markerStyle: DeckMarkerStyle;
   labelStyle: ReturnType<typeof getLabelStyle>;
   pathDashStyles: ReturnType<typeof getPathDashStyles>;
+  cellLayerOpacities: ReturnType<typeof getCellLayerOpacities>;
 }
 
 /**
@@ -882,29 +895,56 @@ function buildLayerSignatures(
   setIfActive(
     "biomes",
     "toggleBiomes",
-    () => `${landGeometry()}|${numberListSignature(pack.cells?.biome)}|${stringListSignature(biomesData.color)}`
+    () =>
+      `${landGeometry()}|${numberListSignature(pack.cells?.biome)}|${stringListSignature(biomesData.color)}|op:${styles.cellLayerOpacities.biomes}`
   );
-  setIfActive("religions", "toggleReligions", () => `${landGeometry()}|${religions()}`);
+  setIfActive(
+    "religions",
+    "toggleReligions",
+    () => `${landGeometry()}|${religions()}|op:${styles.cellLayerOpacities.religions}`
+  );
   setIfActive("religions-boundaries", "toggleReligions", () => `${landGeometry()}|${religions()}`);
-  setIfActive("cultures", "toggleCultures", () => `${landGeometry()}|${cultures()}`);
+  setIfActive(
+    "cultures",
+    "toggleCultures",
+    () => `${landGeometry()}|${cultures()}|op:${styles.cellLayerOpacities.cultures}`
+  );
   setIfActive("cultures-boundaries", "toggleCultures", () => `${landGeometry()}|${cultures()}`);
-  setIfActive("states", "toggleStates", () => `${landGeometry()}|${states()}`);
+  setIfActive("states", "toggleStates", () => `${landGeometry()}|${states()}|op:${styles.cellLayerOpacities.states}`);
   setIfActive("states-boundaries", "toggleStates", () => `${landGeometry()}|${states()}`);
-  setIfActive("provinces", "toggleProvinces", () => `${landGeometry()}|${provinces()}`);
+  setIfActive(
+    "provinces",
+    "toggleProvinces",
+    () => `${landGeometry()}|${provinces()}|op:${styles.cellLayerOpacities.provinces}`
+  );
   setIfActive("provinces-boundaries", "toggleProvinces", () => `${landGeometry()}|${provinces()}`);
-  setIfActive("zones", "toggleZones", () => `${landGeometry()}|${zonesSignature(pack.zones)}`);
+  setIfActive(
+    "zones",
+    "toggleZones",
+    () => `${landGeometry()}|${zonesSignature(pack.zones)}|op:${styles.cellLayerOpacities.zones}`
+  );
   setIfActive(
     "temperature",
     "toggleTemperature",
-    () => `${geometry()}|${numberListSignature(pack.cells?.g)}|${numberListSignature(grid.cells?.temp)}`
+    () =>
+      `${geometry()}|${numberListSignature(pack.cells?.g)}|${numberListSignature(grid.cells?.temp)}|op:${styles.cellLayerOpacities.temperature}`
   );
-  setIfActive("population", "togglePopulation", () => `${landGeometry()}|${numberListSignature(pack.cells?.pop)}`);
+  setIfActive(
+    "population",
+    "togglePopulation",
+    () => `${landGeometry()}|${numberListSignature(pack.cells?.pop)}|op:${styles.cellLayerOpacities.population}`
+  );
   setIfActive(
     "precipitation",
     "togglePrecipitation",
-    () => `${landGeometry()}|${numberListSignature(pack.cells?.g)}|${numberListSignature(grid.cells?.prec)}`
+    () =>
+      `${landGeometry()}|${numberListSignature(pack.cells?.g)}|${numberListSignature(grid.cells?.prec)}|op:${styles.cellLayerOpacities.precipitation}`
   );
-  setIfActive("danger", "toggleDanger", () => `${landGeometry()}|${numberListSignature(pack.cells?.danger)}`);
+  setIfActive(
+    "danger",
+    "toggleDanger",
+    () => `${landGeometry()}|${numberListSignature(pack.cells?.danger)}|op:${styles.cellLayerOpacities.danger}`
+  );
   setIfActive(
     "lakes",
     "toggleLakes",
