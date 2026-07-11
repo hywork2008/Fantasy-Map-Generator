@@ -240,6 +240,7 @@ class ViewLayerServiceImpl {
       toggleLabels: viewContext.labels,
       toggleBurgIcons: viewContext.icons,
       toggleMarkers: viewContext.markers,
+      toggleMilitary: viewContext.armies,
       toggleRulers: viewContext.ruler,
       toggleScaleBar: viewContext.scaleBar
     };

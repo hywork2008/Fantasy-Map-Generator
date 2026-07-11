@@ -480,6 +480,29 @@ test.describe("webgl hybrid renderer", () => {
     await expect(page.locator("#scaleBar")).toBeVisible();
   });
 
+  test("keeps labels hidden after switching from WebGL to SVG", async ({ page }) => {
+    await page.goto("/?seed=webgl-svg-label-visibility&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+
+    await page.locator("#optionsHide").click();
+    await page.locator("#layersTab").click();
+    await page.locator("#layersPreset").selectOption("political");
+    await expect(page.locator("#labels text").first()).toBeAttached();
+    await page.getByRole("button", { name: "Labels", exact: true }).click();
+
+    await expect(page.locator("#toggleLabels")).toHaveClass(/buttonoff/);
+    await expect
+      .poll(() => getWebglDeckLayerIds(page), { timeout: 5000 })
+      .not.toContain("fmg-webgl-labels");
+
+    await page.getByRole("switch", { name: "WebGL rendering" }).uncheck();
+
+    await expect(page.locator("#labels")).toBeHidden();
+    await expect.poll(() => getWebglDeckLayerIds(page), { timeout: 5000 }).toEqual([]);
+  });
+
   test("recreates deck renderer and redraws canvas after loading a map", async ({ page }) => {
     await page.goto("/?seed=webgl-load-before&width=1000&height=700");
     await waitForMapLoad(page);

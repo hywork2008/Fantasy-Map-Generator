@@ -409,6 +409,7 @@ export function drawLayers(): void {
   if (layerIsOn("toggleMarkers")) MarkersRenderer.render(worldContext, viewContext, appServices);
   for (const hook of _drawLayerHooks) hook();
   if (layerIsOn("toggleRulers")) rulers.draw();
+  syncWebglManagedSvgLayerVisibility();
 }
 
 function drawHybridSvgOverlays(): void {
@@ -449,6 +450,17 @@ function drawLabels(): void {
   StateLabelsRenderer.render(worldContext, viewContext, appServices);
   BurgLabelsRenderer.render(worldContext, viewContext, appServices);
   document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
+}
+
+/**
+ * WebGL mode hides its SVG counterparts through the hybrid layer policy, so toggling one there
+ * only needs to update activeLayers and deck.gl. When returning to SVG, make the retained SVG
+ * groups match that same source of truth instead of exposing stale generation-time content.
+ */
+function syncWebglManagedSvgLayerVisibility(): void {
+  for (const id of WEBGL_LAYER_TOGGLES) {
+    setLayerVisibility(id, layerIsOn(id));
+  }
 }
 
 // ─── Button helpers ───────────────────────────────────────────────────────────
