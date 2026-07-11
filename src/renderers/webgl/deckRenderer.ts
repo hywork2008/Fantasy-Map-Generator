@@ -113,7 +113,8 @@ function isWebglPickKind(value: unknown): value is WebglPickKind {
     value === "grid" ||
     value === "border" ||
     value === "river" ||
-    value === "route"
+    value === "route" ||
+    value === "extension"
   );
 }
 
@@ -124,6 +125,8 @@ function toPickDetail(info: PickingInfo | null): WebglPickDetail | null {
   const id = typeof record.id === "string" ? record.id : null;
   const kind = isWebglPickKind(record.kind) ? record.kind : null;
   if (!id || !kind || !info.layer?.id) return null;
+  const extensionId = typeof record.extensionId === "string" ? record.extensionId : null;
+  if (kind === "extension" && !extensionId) return null;
   const cellId =
     typeof record.cellId === "number" && Number.isFinite(record.cellId) && record.cellId >= 0 ? record.cellId : null;
   const coordinate =
@@ -136,6 +139,7 @@ function toPickDetail(info: PickingInfo | null): WebglPickDetail | null {
       : null;
   return {
     kind,
+    extensionId,
     id,
     cellId,
     layerId: info.layer.id,
@@ -207,6 +211,7 @@ function collectMilitaryBoxCandidates(
       bounds,
       detail: {
         kind: "military",
+        extensionId: null,
         id,
         cellId,
         layerId: "fmg-webgl-military",
@@ -241,6 +246,7 @@ function collectBurgIconCandidates(
     if (!id || cellId === null) return;
     candidates.push({
       kind: "burgIcon",
+      extensionId: null,
       id,
       cellId,
       layerId: "fmg-webgl-burg-icons",
@@ -277,6 +283,7 @@ function collectMarkerCandidates(
     if (!id || cellId === null) return;
     candidates.push({
       kind: "marker",
+      extensionId: null,
       id,
       cellId,
       layerId: "fmg-webgl-markers",

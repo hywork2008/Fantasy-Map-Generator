@@ -20,27 +20,31 @@ export function createEconomyWebglLayerSpec(): ExtensionWebglLayerSpec {
           type: "polygon" as const,
           id: "economy-goods-cells",
           toggle: "toggleGoods",
-          data: buildGoodsCellPolygons(displayedGoods)
+          data: buildGoodsCellPolygons(displayedGoods),
+          pickable: true
         },
         {
           type: "scatter" as const,
           id: "economy-goods-sources",
           toggle: "toggleGoods",
           data: buildGoodsSourceSymbols(displayedGoods),
-          radiusUnits: "common" as const
+          radiusUnits: "common" as const,
+          pickable: true
         },
         {
           type: "polygon" as const,
           id: "economy-market-areas",
           toggle: "toggleMarketsLayer",
-          data: buildMarketAreaPolygons()
+          data: buildMarketAreaPolygons(),
+          pickable: true
         },
         {
           type: "scatter" as const,
           id: "economy-market-centers",
           toggle: "toggleMarketsLayer",
           data: buildMarketCenterSymbols(),
-          radiusUnits: "common" as const
+          radiusUnits: "common" as const,
+          pickable: true
         }
       ];
     }
@@ -87,6 +91,9 @@ function buildGoodsCellPolygons(displayedGoods: ReadonlySet<number>): ExtensionW
       if (!good) continue;
       polygons.push({
         id: `economy-goods-cell-${cell.cellId}-${goodId}`,
+        kind: "extension",
+        extensionId: "economy",
+        cellId: cell.cellId,
         polygon,
         fillColor: colorToRgba(good.color, alpha)
       });
@@ -107,6 +114,9 @@ function buildGoodsSourceSymbols(displayedGoods: ReadonlySet<number>): Extension
     const color = colorToRgba(good.color);
     symbols.push({
       id: `economy-goods-source-${cellId}`,
+      kind: "extension",
+      extensionId: "economy",
+      cellId,
       position,
       fillColor: color,
       lineColor: getContrastingColor(color),
@@ -130,6 +140,9 @@ function buildMarketAreaPolygons(): ExtensionWebglPolygonDatum[] {
     if (!market || !polygon) continue;
     polygons.push({
       id: `economy-market-area-${marketId}-${cellId}`,
+      kind: "extension",
+      extensionId: "economy",
+      cellId,
       polygon,
       fillColor: colorToRgba(market.color || "#dababf", 72)
     });
@@ -146,6 +159,9 @@ function buildMarketCenterSymbols(): ExtensionWebglScatterDatum[] {
     const fillColor = colorToRgba(market.color || "#dababf");
     symbols.push({
       id: `economy-market-center-${market.i}`,
+      kind: "extension",
+      extensionId: "economy",
+      cellId: burg.cell,
       position: [burg.x, burg.y],
       fillColor,
       lineColor: getContrastingColor(fillColor),

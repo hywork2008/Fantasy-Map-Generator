@@ -15,6 +15,7 @@ import {
   getStateName,
   updateCellInfo
 } from "./cellInfoService";
+import { getExtensionMapPickHandler } from "./extensionMapPickHandlers";
 import { showMainTip, showMapTooltip, showNotes, tip } from "./tooltipService";
 
 const PICK_CHOOSER_ID = "mapPickChooser";
@@ -70,9 +71,7 @@ document.addEventListener("fmg:webgl-map-pick-candidates", (event: CustomEvent<W
     hidePickChooser();
     if (primary && isSingleClickEditablePick(primary)) {
       suppressNextChooserClick(clientX, clientY);
-      document.dispatchEvent(
-        new CustomEvent<WebglPickDetail>("fmg:webgl-map-pick-candidate-selected", { detail: primary })
-      );
+      selectWebglPickCandidate(primary);
     }
   }
 });
@@ -105,6 +104,7 @@ function suppressNextChooserClick(clientX: number, clientY: number): void {
 }
 
 function isSingleClickEditablePick(detail: WebglPickDetail): boolean {
+  if (detail.kind === "extension") return Boolean(getExtensionMapPickHandler(detail.extensionId)?.selectPick);
   return (
     detail.kind === "burgIcon" ||
     detail.kind === "marker" ||
@@ -136,6 +136,10 @@ function dedupePickCandidates(candidates: WebglPickDetail[]): WebglPickDetail[] 
 }
 
 function pickCandidateEntityKey(candidate: WebglPickDetail): string {
+  if (candidate.kind === "extension") {
+    const handler = getExtensionMapPickHandler(candidate.extensionId);
+    if (handler?.getEntityKey) return `${candidate.extensionId}-${handler.getEntityKey(candidate)}`;
+  }
   if (candidate.kind === "river") {
     const riverId = parseTrailingNumber(candidate.id);
     if (riverId !== null) return `river-${riverId}`;
@@ -144,6 +148,9 @@ function pickCandidateEntityKey(candidate: WebglPickDetail): string {
 }
 
 function formatWebglPickTooltip(detail: WebglPickDetail): string {
+  if (detail.kind === "extension") {
+    return getExtensionMapPickHandler(detail.extensionId)?.formatPick(detail) ?? "Extension object";
+  }
   if (detail.kind === "background") return "Ocean";
   if (detail.kind === "river") return formatRiverTooltip(detail.id);
   if (detail.kind === "route") return formatRouteTooltip(detail.id);
@@ -381,9 +388,7 @@ function showPickChooser(candidates: WebglPickDetail[], clientX: number, clientY
       event.stopPropagation();
       hidePickChooser();
       drawWebglSelectionHighlight(candidate);
-      document.dispatchEvent(
-        new CustomEvent<WebglPickDetail>("fmg:webgl-map-pick-candidate-selected", { detail: candidate })
-      );
+      selectWebglPickCandidate(candidate);
     });
     list.append(button);
   }
@@ -391,6 +396,17 @@ function showPickChooser(candidates: WebglPickDetail[], clientX: number, clientY
   document.addEventListener("keydown", handlePickChooserKeydown);
   document.addEventListener("pointerdown", handleOutsidePickChooserPointerDown);
   positionPickChooser(chooser, clientX, clientY);
+}
+
+function selectWebglPickCandidate(candidate: WebglPickDetail): void {
+  const handler = candidate.kind === "extension" ? getExtensionMapPickHandler(candidate.extensionId) : null;
+  if (handler?.selectPick) {
+    handler.selectPick(candidate);
+    return;
+  }
+  document.dispatchEvent(
+    new CustomEvent<WebglPickDetail>("fmg:webgl-map-pick-candidate-selected", { detail: candidate })
+  );
 }
 
 function getOrCreatePickChooser(): HTMLDivElement {

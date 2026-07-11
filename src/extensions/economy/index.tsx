@@ -24,6 +24,7 @@ import { TradeAnimation } from "./generators/trade-animation";
 import { drawGoods } from "./renderers/draw-goods";
 import { drawMarketsLayer } from "./renderers/draw-markets";
 import { clear as clearTradeAnimation, draw as drawTradeAnimation } from "./renderers/draw-trade-animation";
+import { economyMapPickHandler } from "./renderers/economyMapPickHandler";
 import { createEconomyWebglLayerSpec } from "./renderers/economyWebglLayers";
 import { showEconomyTooltip, updateEconomyCellInfo } from "./tooltipHandler";
 import { StatesEditorTreasuryTab } from "./ui/components/StatesEditorTreasuryTab";
@@ -400,6 +401,7 @@ export function init(api: ExtensionAPI): void {
     if (isEnabled && !wasEnabled) {
       api.addLayers(economyLayers);
       api.registerWebglLayers(ECONOMY_EXTENSION_ID, economyWebglLayerSpec);
+      api.registerMapPickHandler(ECONOMY_EXTENSION_ID, economyMapPickHandler);
       attachSvgClickHandlers();
       for (const [id, { label, layers }] of Object.entries(ECONOMY_PRESETS)) {
         api.registerPreset(id, label, layers);
@@ -435,6 +437,7 @@ export function init(api: ExtensionAPI): void {
       });
       api.removeLayers(economyLayers.map(l => l.id));
       api.unregisterWebglLayers(ECONOMY_EXTENSION_ID);
+      api.unregisterMapPickHandler(ECONOMY_EXTENSION_ID);
       for (const id of Object.keys(ECONOMY_PRESETS)) {
         api.unregisterPreset(id);
       }
@@ -476,6 +479,7 @@ export function init(api: ExtensionAPI): void {
   if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
     api.addLayers(economyLayers);
     api.registerWebglLayers(ECONOMY_EXTENSION_ID, economyWebglLayerSpec);
+    api.registerMapPickHandler(ECONOMY_EXTENSION_ID, economyMapPickHandler);
     attachSvgClickHandlers();
     for (const [id, { label, layers }] of Object.entries(ECONOMY_PRESETS)) {
       api.registerPreset(id, label, layers);
@@ -735,6 +739,7 @@ export function cleanup(api: ExtensionAPI): void {
   // Remove layers, presets and clear tooltip hooks
   api.removeLayers(economyLayers.map(l => l.id));
   api.unregisterWebglLayers(ECONOMY_EXTENSION_ID);
+  api.unregisterMapPickHandler(ECONOMY_EXTENSION_ID);
   for (const id of Object.keys(ECONOMY_PRESETS)) {
     api.unregisterPreset(id);
   }

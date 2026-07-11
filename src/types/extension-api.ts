@@ -18,7 +18,6 @@ import type { AppServices } from "../context/appServices";
 import type { SimulationContext } from "../context/simulationContext";
 import type { SvgGroup, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-
 import type { BurgEconomySummary } from "../services/burgEconomyExtensions";
 import type { SkillModifierFn } from "../services/skillModifierService";
 import type {
@@ -33,6 +32,7 @@ import type {
 } from "../store/extensionState";
 import type { LayerConfig } from "../store/layerState";
 import type { OpenDialogConfig, RichDialogOptions } from "../ui/dialogs/dialogService";
+import type { WebglPickDetail } from "./webglPicking";
 
 export interface TooltipExtensionHooks {
   showMapTooltip?: (
@@ -57,10 +57,20 @@ export interface ExtensionStateSnapshot {
 export type ExtensionWebglPosition = readonly [number, number];
 export type ExtensionWebglColor = readonly [number, number, number, number];
 
+/** Pick metadata that lets an extension-owned deck.gl datum enter the map pick chooser. */
+export interface ExtensionWebglPickMetadata {
+  kind: "extension";
+  extensionId: string;
+  cellId: number | null;
+}
+
 export interface ExtensionWebglPolygonDatum {
   id: string;
   polygon: readonly ExtensionWebglPosition[];
   fillColor: ExtensionWebglColor;
+  kind?: ExtensionWebglPickMetadata["kind"];
+  extensionId?: string;
+  cellId?: number | null;
 }
 
 export interface ExtensionWebglScatterDatum {
@@ -70,6 +80,21 @@ export interface ExtensionWebglScatterDatum {
   lineColor?: ExtensionWebglColor;
   radius: number;
   lineWidth?: number;
+  kind?: ExtensionWebglPickMetadata["kind"];
+  extensionId?: string;
+  cellId?: number | null;
+}
+
+/**
+ * Extension-provided presentation and selection behavior for a `kind: "extension"` pick.
+ * The host keeps chooser DOM and event plumbing, while the extension owns its domain labels
+ * and follow-up action.
+ */
+export interface ExtensionMapPickHandler {
+  formatPick(detail: Readonly<WebglPickDetail>): string;
+  selectPick?(detail: Readonly<WebglPickDetail>): void;
+  /** Optional key for collapsing multiple visual primitives that represent one entity. */
+  getEntityKey?(detail: Readonly<WebglPickDetail>): string;
 }
 
 /**
@@ -82,6 +107,7 @@ export type ExtensionWebglLayer =
       id: string;
       toggle: string;
       data: readonly ExtensionWebglPolygonDatum[];
+      pickable?: boolean;
     }
   | {
       type: "scatter";
@@ -89,6 +115,7 @@ export type ExtensionWebglLayer =
       toggle: string;
       data: readonly ExtensionWebglScatterDatum[];
       radiusUnits?: "common" | "pixels";
+      pickable?: boolean;
     };
 
 export interface ExtensionWebglLayerSpec {
@@ -188,6 +215,12 @@ export interface ExtensionAPI {
   unregisterWebglLayers(extensionId: string): void;
   /** Rebuild deck.gl layers when extension-owned display data changes. No-op outside WebGL hybrid mode. */
   requestWebglRender(): void;
+
+  // ── WebGL map picking ───────────────────────────────────────────────────
+  /** Register formatter and optional selection behavior for this extension's WebGL pick candidates. */
+  registerMapPickHandler(extensionId: string, handler: ExtensionMapPickHandler): void;
+  /** Remove a previously registered WebGL map pick handler. */
+  unregisterMapPickHandler(extensionId: string): void;
 
   // ── Dialog service ───────────────────────────────────────────────────────
   openRichDialog(options: RichDialogOptions): void;

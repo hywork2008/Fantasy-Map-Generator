@@ -38,6 +38,10 @@ import {
   unregisterExtensionWebglLayers
 } from "./renderers/webgl/extensionWebglLayerRegistry";
 import { burgEconomyExtensions } from "./services/burgEconomyExtensions";
+import {
+  registerExtensionMapPickHandler,
+  unregisterExtensionMapPickHandler
+} from "./services/extensionMapPickHandlers";
 import { getEffectiveSkill, registerSkillModifier } from "./services/skillModifierService";
 import { tooltipExtensions } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
@@ -156,6 +160,8 @@ function buildExtensionAPI(): ExtensionAPI {
     registerWebglLayers: registerExtensionWebglLayers,
     unregisterWebglLayers: unregisterExtensionWebglLayers,
     requestWebglRender: scheduleWebglUpdate,
+    registerMapPickHandler: registerExtensionMapPickHandler,
+    unregisterMapPickHandler: unregisterExtensionMapPickHandler,
 
     openRichDialog,
     openDialog: (id, config) => openDialog(id, config),

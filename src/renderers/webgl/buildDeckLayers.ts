@@ -561,7 +561,7 @@ export function buildDeckLayers(
           coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
           getPolygon: datum => datum.polygon,
           getFillColor: datum => datum.fillColor,
-          pickable: false
+          pickable: layer.pickable ?? false
         })
       );
       continue;
@@ -580,7 +580,7 @@ export function buildDeckLayers(
         radiusUnits: layer.radiusUnits ?? "common",
         lineWidthUnits: "pixels",
         stroked: true,
-        pickable: false
+        pickable: layer.pickable ?? false
       })
     );
   }

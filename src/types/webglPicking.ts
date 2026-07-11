@@ -24,10 +24,14 @@ export type WebglPickKind =
   | "grid"
   | "border"
   | "river"
-  | "route";
+  | "route"
+  /** Pickable data contributed by a registered extension WebGL layer. */
+  | "extension";
 
 export interface WebglPickDetail {
   kind: WebglPickKind;
+  /** Owning extension for `kind: "extension"`; null for host-rendered data. */
+  extensionId: string | null;
   id: string;
   cellId: number | null;
   layerId: string;

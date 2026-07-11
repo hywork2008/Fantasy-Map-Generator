@@ -606,6 +606,57 @@ test.describe("webgl hybrid renderer", () => {
     });
   });
 
+  test("lists Economy goods and markets in the WebGL map pick chooser", async ({ page }) => {
+    await page.goto("/?seed=webgl-economy-pick-chooser&width=1000&height=700");
+    await waitForMapLoad(page);
+
+    await page.locator("#optionsHide").click();
+    await page.locator("#extensionsTab").click();
+    await page.getByRole("checkbox", { name: "Toggle Characters extension" }).check();
+    await page.getByRole("checkbox", { name: "Toggle Economy, Goods & Trade extension" }).check();
+
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+    await page.locator("#layersTab").click();
+    await page.getByRole("button", { name: "Goods", exact: true }).click();
+    await page.getByRole("button", { name: "Markets", exact: true }).click();
+
+    const cases = [
+      {
+        layerId: "fmg-webgl-extension-economy-goods-cells",
+        label: /^Good:/,
+        dialogSelector: "#goodsEditorContainer"
+      },
+      {
+        layerId: "fmg-webgl-extension-economy-market-areas",
+        label: /^Market:/,
+        dialogSelector: "#marketOverviewContainer"
+      }
+    ];
+
+    for (const item of cases) {
+      const point = await getFirstWebglLayerDatumClickPoint(page, item.layerId);
+      expect(point, item.layerId).not.toBeNull();
+      if (!point) return;
+
+      const pick = await clickAndGetWebglPickCandidates(page, point);
+      const candidate = pick.candidates.find(
+        value => value.kind === "extension" && value.layerId === item.layerId && value.id === point.id
+      );
+      expect(candidate, item.layerId).toBeDefined();
+      if (!candidate) return;
+
+      const chooserItem = page
+        .locator(`#mapPickChooser .map-pick-chooser__item[data-kind="extension"][data-pick-id="${candidate.id}"]`)
+        .first();
+      await expect(chooserItem).toBeVisible();
+      await expect(chooserItem.locator(".map-pick-chooser__title")).toHaveText(item.label);
+      await chooserItem.click();
+      await expect(page.locator(item.dialogSelector)).toBeVisible();
+      await closeAllOpenEditorDialogs(page);
+    }
+  });
+
   test("emits stable pick detail without taking over editor clicks", async ({ page }) => {
     await page.goto("/?seed=webgl-pick&width=900&height=600");
     await waitForMapLoad(page);

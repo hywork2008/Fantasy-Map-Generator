@@ -139,7 +139,40 @@ api.registerMapReinitHook(fn)
 
 `LayerConfig.svgLayers` uses `SvgLayerSpec` from `src/store/layerState.tsx`. `insertBefore` and `insertAfter` are DOM ids inside `#viewbox`, and are the supported way to put extension layers in the correct z-order.
 
-### 3.4 Navigation and Dialogs
+### 3.4 WebGL Render Data and Map Pick Chooser
+
+Extensions can contribute declarative deck.gl data through `registerWebglLayers()`. By default these layers are not
+pickable. To expose an extension object in the WebGL map pick chooser, set `pickable: true` on its layer and add this
+metadata to each pickable datum:
+
+```typescript
+{
+  id: "my-extension-item-42",
+  kind: "extension",
+  extensionId: "my-extension",
+  cellId: 123, // or null when the object is not attached to a map cell
+  // ...geometry and paint properties
+}
+```
+
+Register the chooser presentation and optional selection action through the API. The host owns candidate collection,
+deduplication, chooser DOM, and click suppression; the extension only formats its domain object and opens its own UI.
+
+```typescript
+api.registerMapPickHandler("my-extension", {
+  formatPick: detail => `My item: ${detail.id}`,
+  selectPick: detail => api.openDialog("myExtensionEditor", { id: detail.id }),
+  getEntityKey: detail => detail.id // optional: merge multiple visual primitives for one entity
+});
+
+// Call on extension disable and cleanup.
+api.unregisterMapPickHandler("my-extension");
+```
+
+The handler must be registered while the extension is enabled, and unregistered when it is disabled. Do not add
+extension-specific cases to the host's `mapInteraction.ts`.
+
+### 3.5 Navigation and Dialogs
 
 ```typescript
 api.zoomTo(x, y, scale, duration?)   // pan/zoom the map
@@ -152,7 +185,7 @@ api.moveCircle(x, y, r?)
 api.removeCircle()
 ```
 
-### 3.5 Tool Actions, Time, and Cross-extension Hooks
+### 3.6 Tool Actions, Time, and Cross-extension Hooks
 
 ```typescript
 api.registerToolAction(eventName, handler)
@@ -168,7 +201,7 @@ api.getEffectiveSkill(characterId, skill)
 // extensions can layer additional modifiers.
 ```
 
-### 3.6 Tooltip and Burg Editor Hooks
+### 3.7 Tooltip and Burg Editor Hooks
 
 ```typescript
 api.tooltipExtensions.showMapTooltip = (point, e, i, g, group, subgroup) => boolean;
