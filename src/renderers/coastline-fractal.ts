@@ -429,3 +429,72 @@ export function sampleCoastlineShape(shape: FractalizedShape, tolerance: number 
 
   return out;
 }
+
+/**
+ * Sample a Catmull-Rom spline as a dense polyline.
+ * Used for smoothly curving routes and rivers in WebGL.
+ * @param points Original control points
+ * @param alpha 0 = uniform, 0.5 = centripetal, 1 = chordal
+ * @param closed Whether the curve is a closed loop
+ * @param tolerance Curve sampling tolerance
+ */
+export function sampleCatmullRomPolyline(
+  points: [number, number][],
+  alpha: number = 0.5,
+  closed: boolean = false,
+  tolerance: number = 0.5
+): [number, number][] {
+  const N = points.length;
+  if (N < 3) return points;
+
+  const out: [number, number][] = [];
+  const toleranceSq = tolerance * tolerance;
+
+  const getPoint = (i: number) => {
+    if (closed) return points[((i % N) + N) % N];
+    if (i < 0) return points[0];
+    if (i >= N) return points[N - 1];
+    return points[i];
+  };
+
+  out.push(points[0]);
+  const end = closed ? N : N - 1;
+
+  for (let i = 0; i < end; i++) {
+    const p0 = getPoint(i - 1);
+    const p1 = getPoint(i);
+    const p2 = getPoint(i + 1);
+    const p3 = getPoint(i + 2);
+
+    const d01 = Math.sqrt((p1[0] - p0[0]) ** 2 + (p1[1] - p0[1]) ** 2) ** alpha;
+    const d12 = Math.sqrt((p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2) ** alpha;
+    const d23 = Math.sqrt((p3[0] - p2[0]) ** 2 + (p3[1] - p2[1]) ** 2) ** alpha;
+
+    let cp1x = p1[0];
+    let cp1y = p1[1];
+    let cp2x = p2[0];
+    let cp2y = p2[1];
+
+    if (d12 > 1e-4) {
+      if (d01 > 1e-4) {
+        cp1x = p1[0] + ((p2[0] - p0[0]) * d12) / (3 * (d01 + d12));
+        cp1y = p1[1] + ((p2[1] - p0[1]) * d12) / (3 * (d01 + d12));
+      } else {
+        cp1x = p1[0] + (p2[0] - p1[0]) / 3;
+        cp1y = p1[1] + (p2[1] - p1[1]) / 3;
+      }
+
+      if (d23 > 1e-4) {
+        cp2x = p2[0] - ((p3[0] - p1[0]) * d12) / (3 * (d12 + d23));
+        cp2y = p2[1] - ((p3[1] - p1[1]) * d12) / (3 * (d12 + d23));
+      } else {
+        cp2x = p2[0] - (p2[0] - p1[0]) / 3;
+        cp2y = p2[1] - (p2[1] - p1[1]) / 3;
+      }
+    }
+
+    sampleCubicBezier(p1[0], p1[1], cp1x, cp1y, cp2x, cp2y, p2[0], p2[1], toleranceSq, out);
+  }
+
+  return out;
+}

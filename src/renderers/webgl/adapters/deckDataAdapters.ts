@@ -21,7 +21,7 @@ import type { PackedGraphCells, PackedGraphVertices } from "../../../types/Packe
 import type { WebglPickKind } from "../../../types/webglPicking";
 import { clipPoly } from "../../../utils";
 import { getColor, getColorScheme } from "../../../utils/colorUtils";
-import { fractalizeCoastline, sampleCoastlineShape } from "../../coastline-fractal";
+import { fractalizeCoastline, sampleCatmullRomPolyline, sampleCoastlineShape } from "../../coastline-fractal";
 import { isCellInScope, isGridCellInScope } from "../../core/focusScope";
 import { getCachedBurgIconRaster } from "../burgIconRasterCache";
 import { getCachedEmblemIconUrl } from "../emblemIconCache";
@@ -694,7 +694,10 @@ export function buildRiverPaths(
     )
     .map(river => {
       const resolvedPoints = river.points && river.points.length === river.cells.length ? river.points : null;
-      const path = Rivers.addMeandering(river.cells, resolvedPoints).map(([x, y]) => [x, y] as DeckPosition);
+      let path = Rivers.addMeandering(river.cells, resolvedPoints).map(([x, y]) => [x, y] as DeckPosition);
+      if (path.length >= 3) {
+        path = sampleCatmullRomPolyline(path, 0.1, false, 0.5);
+      }
       return {
         id: `river-${river.i}`,
         path,
@@ -719,7 +722,11 @@ export function buildRiverPolygons(
     if (river.cells.length < 2 || (focusScope && !river.cells.some(cell => isCellInScope(focusScope, cell)))) return [];
 
     const resolvedPoints = river.points && river.points.length === river.cells.length ? river.points : null;
-    const points = Rivers.addMeandering(river.cells, resolvedPoints);
+    let points = Rivers.addMeandering(river.cells, resolvedPoints);
+    if (points.length >= 3) {
+      const sampled = sampleCatmullRomPolyline(points as unknown as [number, number][], 0.1, false, 0.5);
+      points = interpolateRiverWidths(points, sampled);
+    }
     if (points.length < 2) return [];
 
     const banks = Rivers.getRiverBanks(points, river.widthFactor, river.sourceWidth);
@@ -752,6 +759,62 @@ export function buildRiverPolygons(
   });
 }
 
+function interpolateRiverWidths(
+  original: [number, number, number][],
+  sampled: [number, number][]
+): [number, number, number][] {
+  if (original.length === 0 || sampled.length === 0) return [];
+
+  const out: [number, number, number][] = [];
+  const origDists = [0];
+  let totalOrigDist = 0;
+  for (let i = 1; i < original.length; i++) {
+    const dx = original[i][0] - original[i - 1][0];
+    const dy = original[i][1] - original[i - 1][1];
+    totalOrigDist += Math.sqrt(dx * dx + dy * dy);
+    origDists.push(totalOrigDist);
+  }
+
+  if (totalOrigDist === 0) {
+    return sampled.map(p => [p[0], p[1], original[0][2]]);
+  }
+
+  let totalSampleDist = 0;
+  for (let i = 1; i < sampled.length; i++) {
+    const dx = sampled[i][0] - sampled[i - 1][0];
+    const dy = sampled[i][1] - sampled[i - 1][1];
+    totalSampleDist += Math.sqrt(dx * dx + dy * dy);
+  }
+
+  const ratio = totalOrigDist / (totalSampleDist || 1);
+  let dist = 0;
+  let origIdx = 0;
+
+  out.push([sampled[0][0], sampled[0][1], original[0][2]]);
+
+  for (let i = 1; i < sampled.length; i++) {
+    const dx = sampled[i][0] - sampled[i - 1][0];
+    const dy = sampled[i][1] - sampled[i - 1][1];
+    dist += Math.sqrt(dx * dx + dy * dy) * ratio;
+
+    while (origIdx < original.length - 2 && origDists[origIdx + 1] <= dist) {
+      origIdx++;
+    }
+
+    const d0 = origDists[origIdx];
+    const d1 = origDists[origIdx + 1];
+    let t = (dist - d0) / (d1 - d0 || 1);
+    if (t < 0) t = 0;
+    if (t > 1) t = 1;
+
+    const z0 = original[origIdx][2];
+    const z1 = original[origIdx + 1][2];
+    out.push([sampled[i][0], sampled[i][1], z0 + (z1 - z0) * t]);
+  }
+
+  return out;
+}
+
 function getRiverSegmentColor(baseColor: Color, widthRatio: number, fluxRatio: number): Color {
   const intensity = Math.min(1, Math.max(0, Math.sqrt(widthRatio * fluxRatio)));
   const shade = 1 - intensity * 0.12;
@@ -775,8 +838,14 @@ export function buildRoutePaths(
 
     // Imported maps can contain incomplete route point arrays. deck.gl cannot render NaN / missing
     // coordinates reliably, so omit the entire route instead of connecting unrelated valid endpoints.
-    const path = getValidDeckPath(route.points);
+    let path = getValidDeckPath(route.points);
     if (!path) return [];
+
+    if (path.length >= 3) {
+      // FMG uses alpha 0.5 for searoutes, 0.1 for land routes
+      const alpha = route.group === "searoutes" ? 0.5 : 0.1;
+      path = sampleCatmullRomPolyline(path, alpha, false, 0.5);
+    }
 
     const width = route.group === "searoutes" ? 0.7 : route.group === "roads" ? 1.1 : 0.65;
     const dashArray =
