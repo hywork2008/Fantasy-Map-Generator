@@ -20,6 +20,10 @@ import { showMainTip, showMapTooltip, showNotes, tip } from "./tooltipService";
 const PICK_CHOOSER_ID = "mapPickChooser";
 const PICK_CHOOSER_CLICK_SUPPRESSION_MS = 500;
 const PICK_CHOOSER_CLICK_SUPPRESSION_DISTANCE = 4;
+// These kinds are picked implicitly under almost every click (the land cell, its owning state,
+// its border) and would otherwise dominate the chooser list with entries the user rarely wants
+// to disambiguate on.
+const PICK_CHOOSER_HIDDEN_KINDS = new Set<WebglPickDetail["kind"]>(["land", "state", "border"]);
 let suppressedChooserClick: { clientX: number; clientY: number; expiresAt: number } | null = null;
 
 export const onMouseMove = debounce(handleMouseMove as (event: MouseEvent) => void, 100);
@@ -54,9 +58,11 @@ document.addEventListener("fmg:webgl-map-pick", (event: CustomEvent<WebglPickDet
 
 document.addEventListener("fmg:webgl-map-pick-candidates", (event: CustomEvent<WebglPickCandidatesDetail>) => {
   const { primary, candidates, clientX, clientY } = event.detail;
-  if (candidates.length > 1) {
+  const chooserCandidates =
+    candidates.length > 1 ? candidates.filter(candidate => !PICK_CHOOSER_HIDDEN_KINDS.has(candidate.kind)) : [];
+  if (chooserCandidates.length > 0) {
     suppressNextChooserClick(clientX, clientY);
-    showPickChooser(candidates, clientX, clientY);
+    showPickChooser(chooserCandidates, clientX, clientY);
   } else {
     suppressedChooserClick = null;
     hidePickChooser();
