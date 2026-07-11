@@ -960,12 +960,12 @@ describe("deck.gl data adapters", () => {
     expect(layers.map(layer => layer.id)).toEqual([
       "fmg-webgl-background",
       "fmg-webgl-land",
+      "fmg-webgl-coastline",
       "fmg-webgl-military",
       "fmg-webgl-military-totals",
       "fmg-webgl-military-icons",
       "fmg-webgl-military-images",
-      "fmg-webgl-military-actions",
-      "fmg-webgl-coastline"
+      "fmg-webgl-military-actions"
     ]);
     expect(layers.find(layer => layer.id === "fmg-webgl-military")?.props.data).toHaveLength(3);
     expect(layers.find(layer => layer.id === "fmg-webgl-military-totals")?.props.data).toHaveLength(1);

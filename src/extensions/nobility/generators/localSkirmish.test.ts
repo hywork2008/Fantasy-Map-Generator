@@ -243,15 +243,15 @@ describe("LocalSkirmishGenerator.resolve", () => {
           diplomacy: [undefined, "x", "Enemy"],
           military: [
             { i: 0, a: 10, x: 0, y: 0, u: { infantry: 10 }, state: 1, cell: 0, name: "Weak" },
-            // Within regimentReinforcementRadius.infantry (100) of the Weak regiment above.
-            { i: 1, a: 500, x: 50, y: 0, u: { infantry: 500 }, state: 1, cell: 2, name: "Relief Force" }
+            // Within regimentReinforcementRadius.infantry (50) of the Weak regiment above.
+            { i: 1, a: 500, x: 40, y: 0, u: { infantry: 500 }, state: 1, cell: 2, name: "Relief Force" }
           ]
         },
         {
           i: 2,
           name: "Attacker",
           diplomacy: [undefined, "Enemy", "x"],
-          military: [{ i: 0, a: 10000, x: 0, y: 0, u: { infantry: 10000 }, state: 2, cell: 1, name: "Strong" }]
+          military: [{ i: 0, a: 10000, x: -40, y: 0, u: { infantry: 10000 }, state: 2, cell: 1, name: "Strong" }]
         }
       ]
     } as unknown as PackedGraph;

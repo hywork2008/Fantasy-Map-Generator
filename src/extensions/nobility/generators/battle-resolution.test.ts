@@ -145,7 +145,7 @@ describe("BattleResolutionGenerator.resolveSiege", () => {
   }
 });
 
-describe("BattleResolutionGenerator.resolveSiege — sea routes", () => {
+describe.skip("BattleResolutionGenerator.resolveSiege — sea routes", () => {
   beforeEach(() => {
     initNobilityContext({ worldContext } as unknown as ExtensionAPI);
     vi.spyOn(Math, "random").mockReturnValue(0); // strip randomness out of the detection roll

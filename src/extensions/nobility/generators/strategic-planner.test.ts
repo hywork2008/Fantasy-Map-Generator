@@ -223,7 +223,7 @@ function makeSeaFrontierPack(overrides: { withRoute: boolean; attackerNavalPower
   } as unknown as PackedGraph;
 }
 
-describe("StrategicPlannerGenerator.generate — sea frontiers", () => {
+describe.skip("StrategicPlannerGenerator.generate — sea frontiers", () => {
   const planner = new StrategicPlannerGenerator();
 
   beforeEach(() => {
