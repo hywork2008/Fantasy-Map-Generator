@@ -31,6 +31,18 @@ export interface PathDashStyles {
   searoutes: DeckPathDashArray;
 }
 
+export interface PathPaintStyles {
+  stateBorders: Color;
+  provinceBorders: Color;
+  roads: Color;
+  trails: Color;
+  searoutes: Color;
+}
+
+export interface RiverPaint {
+  color: Color;
+}
+
 /** Reads the SVG stroke-dasharray values used by WebGL-backed border and route layers. */
 export function getPathDashStyles(viewContext: Readonly<ViewContext>): PathDashStyles {
   return {
@@ -39,6 +51,26 @@ export function getPathDashStyles(viewContext: Readonly<ViewContext>): PathDashS
     roads: getDashArray(viewContext.roads),
     trails: getDashArray(viewContext.trails),
     searoutes: getDashArray(viewContext.searoutes)
+  };
+}
+
+/** Reads SVG stroke colors and opacity for borders and route groups. */
+export function getPathPaintStyles(viewContext: Readonly<ViewContext>): PathPaintStyles {
+  return {
+    stateBorders: getStrokePaint(viewContext.stateBorders, "#56566d", 0.8),
+    provinceBorders: getStrokePaint(viewContext.provinceBorders, "#56566d", 0.8),
+    roads: getStrokePaint(viewContext.roads, "#d06324", 0.9),
+    trails: getStrokePaint(viewContext.trails, "#d06324", 0.9),
+    searoutes: getStrokePaint(viewContext.searoutes, "#ffffff", 0.9)
+  };
+}
+
+/** Reads the SVG river fill and opacity, which are applied to every generated river path. */
+export function getRiverPaint(viewContext: Readonly<ViewContext>): RiverPaint {
+  const rivers = viewContext.rivers;
+  const opacity = parseOptionalNumber(rivers?.attr("opacity") ?? rivers?.style("opacity")) ?? 1;
+  return {
+    color: colorToRgba(rivers?.attr("fill") ?? rivers?.style("fill"), "#5d97bb", opacity)
   };
 }
 
@@ -59,6 +91,12 @@ export function getDashArray(selection: LayerStyleSelection | undefined): DeckPa
   if (!values.length || values.every(number => number === 0)) return [0, 0];
   if (values.length === 1) return [values[0], values[0]];
   return [values[0], values[1]];
+}
+
+function getStrokePaint(selection: LayerStyleSelection | undefined, fallback: string, opacityFallback: number): Color {
+  if (!selection || selection.empty()) return colorToRgba(fallback, fallback, opacityFallback);
+  const opacity = parseOptionalNumber(selection.attr("opacity") ?? selection.style("opacity")) ?? opacityFallback;
+  return colorToRgba(selection.attr("stroke") ?? selection.style("stroke"), fallback, opacity);
 }
 
 export function getLakePaint(viewContext: Readonly<ViewContext>): Record<string, LayerPaint> {

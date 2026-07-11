@@ -61,6 +61,13 @@ export interface DeckFeaturePolygon extends DeckCellPolygon {
   group: string;
 }
 
+/** One land feature with zero or more lake holes for deck.gl's nested polygon representation. */
+export interface DeckLandMaskPolygon {
+  id: string;
+  polygon: DeckPosition[][];
+  fillColor: Color;
+}
+
 export interface DeckIcePolygon {
   id: string;
   kind: "ice";
@@ -578,7 +585,8 @@ export function buildGridPaths(worldContext: Readonly<WorldContext>, focusScope:
 export function buildBorderPaths(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  dashArrays?: { state: DeckPathDashArray; province: DeckPathDashArray }
+  dashArrays?: { state: DeckPathDashArray; province: DeckPathDashArray },
+  colors?: { state: Color; province: Color }
 ): DeckPath[] {
   const { cells, vertices } = worldContext.pack;
   const paths: DeckPath[] = [];
@@ -599,14 +607,19 @@ export function buildBorderPaths(
       if (seen.has(key)) continue;
       seen.add(key);
       const width = isStateBorder ? 1.1 : 0.45;
+      const dashArray = isStateBorder ? dashArrays?.state : dashArrays?.province;
       paths.push({
         id: `border-${key}`,
         path: edge,
-        color: colorToRgba("#111111", "#111111", isStateBorder ? 0.95 : 0.6),
+        color: applyDashOpacity(
+          isStateBorder ? (colors?.state ?? getBorderColor()) : (colors?.province ?? getBorderColor()),
+          dashArray,
+          width
+        ),
         width,
         kind: "border",
         cellId,
-        dashArray: getNormalizedDashArray(isStateBorder ? dashArrays?.state : dashArrays?.province, width)
+        dashArray: getNormalizedDashArray(dashArray, width)
       });
     }
   }
@@ -617,7 +630,9 @@ export function buildBorderPaths(
 export function buildDivisionBoundaryPaths(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  division: DeckDivisionBoundaryKind
+  division: DeckDivisionBoundaryKind,
+  dashArray?: DeckPathDashArray,
+  color?: Color
 ): DeckPath[] {
   const { cells, vertices } = worldContext.pack;
   const paths: DeckPath[] = [];
@@ -639,13 +654,15 @@ export function buildDivisionBoundaryPaths(
       const key = `${division}-${cellId}-${neighborId}`;
       if (seen.has(key)) continue;
       seen.add(key);
+      const width = getDivisionBoundaryWidth(division);
       paths.push({
         id: `${division}-boundary-${cellId}-${neighborId}`,
         path: edge,
-        color: getDivisionBoundaryColor(division),
-        width: getDivisionBoundaryWidth(division),
+        color: applyDashOpacity(color ?? getDivisionBoundaryColor(division), dashArray, width),
+        width,
         kind: "border",
-        cellId
+        cellId,
+        dashArray: getNormalizedDashArray(dashArray, width)
       });
     }
   }
@@ -653,7 +670,11 @@ export function buildDivisionBoundaryPaths(
   return paths;
 }
 
-export function buildRiverPaths(worldContext: Readonly<WorldContext>, focusScope: FocusScope | null): DeckPath[] {
+export function buildRiverPaths(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  color: Color = colorToRgba("#3f75a2", "#3f75a2")
+): DeckPath[] {
   return (worldContext.pack.rivers ?? [])
     .filter(
       river => river.cells?.length >= 2 && (!focusScope || river.cells.some(cell => isCellInScope(focusScope, cell)))
@@ -664,7 +685,7 @@ export function buildRiverPaths(worldContext: Readonly<WorldContext>, focusScope
       return {
         id: `river-${river.i}`,
         path,
-        color: colorToRgba("#3f75a2", "#3f75a2"),
+        color,
         width: Math.max(0.6, river.sourceWidth + river.widthFactor),
         kind: "river" as const,
         cellId: river.cells[0] ?? null
@@ -675,7 +696,8 @@ export function buildRiverPaths(worldContext: Readonly<WorldContext>, focusScope
 export function buildRoutePaths(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  dashArrays?: Partial<Record<"roads" | "trails" | "searoutes", DeckPathDashArray>>
+  dashArrays?: Partial<Record<"roads" | "trails" | "searoutes", DeckPathDashArray>>,
+  colors?: Partial<Record<"roads" | "trails" | "searoutes", Color>>
 ): DeckPath[] {
   return (worldContext.pack.routes ?? []).flatMap(route => {
     if (focusScope && !(route.cells ?? []).some(cell => isCellInScope(focusScope, cell))) return [];
@@ -690,12 +712,16 @@ export function buildRoutePaths(
       route.group === "roads" || route.group === "trails" || route.group === "searoutes"
         ? dashArrays?.[route.group]
         : undefined;
+    const color =
+      route.group === "roads" || route.group === "trails" || route.group === "searoutes"
+        ? (colors?.[route.group] ?? getRouteColor(route))
+        : getRouteColor(route);
 
     return [
       {
         id: `route-${route.i}`,
         path,
-        color: getRouteColor(route),
+        color: applyDashOpacity(color, dashArray, width),
         width,
         kind: "route" as const,
         cellId: route.cells?.[0] ?? null,
@@ -715,6 +741,21 @@ function getNormalizedDashArray(
 ): DeckPathDashArray | undefined {
   if (!dashArray || width <= 0) return undefined;
   return [dashArray[0] / width, dashArray[1] / width];
+}
+
+/**
+ * SVG's blank dash segments reduce a line's perceived colour density. deck.gl may reset the dash
+ * phase at short path segments, so apply the same dash-to-gap coverage to its alpha explicitly.
+ */
+function applyDashOpacity(color: Color, dashArray: DeckPathDashArray | undefined, width: number): Color {
+  if (!dashArray) return color;
+  const [dash, gap] = dashArray;
+  if (dash <= 0 && gap <= 0) return color;
+
+  // SVG's `0 gap` pattern with round caps renders dots one stroke-width long.
+  const visibleLength = dash > 0 ? dash : width;
+  const coverage = visibleLength / (visibleLength + gap);
+  return [color[0], color[1], color[2], Math.round((color[3] ?? 255) * coverage)];
 }
 
 export function buildLakePolygons(
@@ -1208,6 +1249,45 @@ export function buildCoastlinePaths(
   });
 }
 
+/**
+ * Build the curved, fractalized island geometry used as a GPU land mask. SVG applies the same
+ * feature geometry through #land, preventing political and land overlays from spilling into sea.
+ */
+export function buildLandMaskPolygons(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  appServices: AppServices
+): DeckLandMaskPolygon[] {
+  const islands = getRenderableFeatures(worldContext, focusScope, "island", appServices);
+  // Lakes must remain in the mask even when a focused state excludes their water cells. Otherwise
+  // the state polygons around the lake would bridge straight across its surface.
+  const lakes = getRenderableFeatures(worldContext, null, "lake", appServices);
+
+  return islands.map(island => ({
+    id: `land-mask-${island.feature.i}`,
+    polygon: [
+      island.points,
+      ...lakes.filter(lake => isPointInsidePolygon(lake.points[0], island.points)).map(lake => lake.points)
+    ],
+    fillColor: [255, 255, 255, 255]
+  }));
+}
+
+function isPointInsidePolygon(point: DeckPosition | undefined, polygon: DeckPosition[]): boolean {
+  if (!point || polygon.length < 3) return false;
+  const [x, y] = point;
+  let inside = false;
+  for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index++) {
+    const [currentX, currentY] = polygon[index];
+    const [previousX, previousY] = polygon[previous];
+    const intersects =
+      currentY > y !== previousY > y &&
+      x < ((previousX - currentX) * (y - currentY)) / (previousY - currentY) + currentX;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
 function buildBurgEmblem(
   worldContext: Readonly<WorldContext>,
   burg: Burg,
@@ -1521,6 +1601,10 @@ function getRouteColor(route: Route): Color {
   if (route.group === "searoutes") return colorToRgba("#4f8fc6", "#4f8fc6", 0.8);
   if (route.group === "roads") return colorToRgba("#7b4b2a", "#7b4b2a");
   return colorToRgba("#8b6f47", "#8b6f47", 0.9);
+}
+
+function getBorderColor(): Color {
+  return colorToRgba("#56566d", "#56566d", 0.8);
 }
 
 function getDivisionBoundaryColor(division: DeckDivisionBoundaryKind): Color {

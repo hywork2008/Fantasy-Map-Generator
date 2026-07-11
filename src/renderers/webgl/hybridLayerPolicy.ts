@@ -1,5 +1,5 @@
 export const WEBGL_MANAGED_SVG_LAYER_IDS = [
-  "ocean",
+  "oceanLayers",
   "landmass",
   "terrs",
   "lakes",

@@ -9,11 +9,13 @@ import {
   buildBorderPaths,
   buildBurgIconSymbols,
   buildCoastlinePaths,
+  buildDivisionBoundaryPaths,
   buildEmblemIcons,
   buildHeightPolygons,
   buildIcePolygons,
   buildLabelSymbols,
   buildLakePolygons,
+  buildLandMaskPolygons,
   buildLandPolygonsBase,
   buildMarkerSymbols,
   buildMilitaryBoxPolygons,
@@ -192,14 +194,39 @@ describe("deck.gl data adapters", () => {
       ],
       cells: [0]
     });
+    worldContext.pack.routes.push({
+      i: 3,
+      group: "searoutes",
+      feature: 1,
+      points: [
+        [0, 0, 0],
+        [10, 10, 0]
+      ],
+      cells: [0]
+    });
 
-    const borders = buildBorderPaths(worldContext, null, { state: [2, 2], province: [0, 2] });
-    const routes = buildRoutePaths(worldContext, null, { roads: [2, 2], trails: [0.8, 1.6], searoutes: [1, 2] });
+    const borders = buildBorderPaths(
+      worldContext,
+      null,
+      { state: [2, 2], province: [0, 2] },
+      { state: [86, 86, 109, 204], province: [86, 86, 109, 204] }
+    );
+    const divisionBoundaries = buildDivisionBoundaryPaths(worldContext, null, "state", [2, 2]);
+    const routes = buildRoutePaths(
+      worldContext,
+      null,
+      { roads: [2, 2], trails: [0.8, 1.6], searoutes: [1, 2] },
+      { roads: [208, 99, 36, 230], trails: [208, 99, 36, 230], searoutes: [255, 255, 255, 230] }
+    );
 
     expect(borders).toHaveLength(1);
     expect(borders[0].dashArray).toEqual([2 / 1.1, 2 / 1.1]);
+    expect(borders[0].color).toEqual([86, 86, 109, 102]);
+    expect(divisionBoundaries[0].dashArray).toEqual([2 / 0.9, 2 / 0.9]);
     expect(routes.find(route => route.id === "route-1")?.dashArray).toEqual([2 / 1.1, 2 / 1.1]);
     expect(routes.find(route => route.id === "route-2")?.dashArray).toEqual([0.8 / 0.65, 1.6 / 0.65]);
+    expect(routes.find(route => route.id === "route-1")?.color).toEqual([208, 99, 36, 115]);
+    expect(routes.find(route => route.id === "route-3")?.color).toEqual([255, 255, 255, 77]);
   });
 
   it("filters land, route, and height adapters to the active focus scope", () => {
@@ -697,6 +724,63 @@ describe("deck.gl data adapters", () => {
     ]);
   });
 
+  it("clips land-derived WebGL fills with the fractalized island mask", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.features = [
+      {
+        i: 1,
+        type: "island",
+        group: "sea_island",
+        firstCell: 0,
+        vertices: [0, 1, 2]
+      }
+    ] as unknown as WorldContext["pack"]["features"];
+    const viewContext = { focusScope: null } as ViewContext;
+    useLayerState.getState().setAllActiveLayers({ toggleStates: true });
+
+    const layers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
+    const maskLayer = layers.find(layer => layer.id === "fmg-webgl-land-mask");
+    const statesLayer = layers.find(layer => layer.id === "fmg-webgl-states");
+
+    expect(maskLayer?.props.operation).toBe("mask");
+    expect((statesLayer?.props as { maskId?: string } | undefined)?.maskId).toBe("fmg-webgl-land-mask");
+  });
+
+  it("cuts lake holes out of the WebGL land mask", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.vertices.p = [
+      [0, 0],
+      [20, 0],
+      [20, 20],
+      [0, 20],
+      [5, 5],
+      [10, 5],
+      [5, 10]
+    ];
+    worldContext.pack.features = [
+      {
+        i: 1,
+        type: "island",
+        group: "sea_island",
+        firstCell: 0,
+        vertices: [0, 1, 2, 3]
+      },
+      {
+        i: 2,
+        type: "lake",
+        group: "freshwater",
+        firstCell: 0,
+        vertices: [4, 5, 6]
+      }
+    ] as unknown as WorldContext["pack"]["features"];
+
+    const [mask] = buildLandMaskPolygons(worldContext, null, appServices);
+
+    expect(mask.polygon).toHaveLength(2);
+    expect(mask.polygon[0].length).toBeGreaterThanOrEqual(3);
+    expect(mask.polygon[1].length).toBeGreaterThanOrEqual(3);
+  });
+
   it("adds active ice as a deck.gl polygon layer", () => {
     const worldContext = createWorldContext();
     worldContext.pack.ice = [
@@ -1014,6 +1098,6 @@ describe("deck.gl data adapters", () => {
     const secondBiomeData = secondLayers.find(layer => layer.id === "fmg-webgl-biomes")?.props.data;
 
     expect(secondBiomeData).not.toBe(firstBiomeData);
-    expect(secondBiomeData?.[0].fillColor).toEqual([51, 102, 153, 230]);
+    expect(secondBiomeData?.[0].fillColor).toEqual([51, 102, 153, 128]);
   });
 });

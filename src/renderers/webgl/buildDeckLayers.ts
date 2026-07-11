@@ -1,5 +1,10 @@
 import { COORDINATE_SYSTEM, type LayersList } from "@deck.gl/core";
-import { PathStyleExtension, type PathStyleExtensionProps } from "@deck.gl/extensions";
+import {
+  MaskExtension,
+  type MaskExtensionProps,
+  PathStyleExtension,
+  type PathStyleExtensionProps
+} from "@deck.gl/extensions";
 import {
   BitmapLayer,
   IconLayer,
@@ -8,6 +13,7 @@ import {
   PolygonLayer,
   ScatterplotLayer,
   SolidPolygonLayer,
+  type SolidPolygonLayerProps,
   TextLayer
 } from "@deck.gl/layers";
 import type { AppServices } from "../../context/appServices";
@@ -34,6 +40,7 @@ import {
   buildLakeOutlinePaths,
   buildLakePolygons,
   buildLandCellGeometry,
+  buildLandMaskPolygons,
   buildLandPolygonsBase,
   buildMarkerSymbols,
   buildMilitaryBoxPolygons,
@@ -61,6 +68,7 @@ import {
   type DeckLabelStyle,
   type DeckLabelSymbol,
   type DeckLandCellGeometry,
+  type DeckLandMaskPolygon,
   type DeckMarkerStyle,
   type DeckMarkerSymbol,
   type DeckMilitaryBoxPolygon,
@@ -85,6 +93,8 @@ import {
   getMarkerStyle,
   getMilitaryBoxSize,
   getPathDashStyles,
+  getPathPaintStyles,
+  getRiverPaint,
   type LayerPaint
 } from "./webglStyleExtractors";
 
@@ -96,8 +106,14 @@ type PolygonBuilder = (
 type PathBuilder = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  dashStyles: ReturnType<typeof getPathDashStyles>
+  styles: PathStyles
 ) => DeckPath[];
+
+interface PathStyles {
+  dashStyles: ReturnType<typeof getPathDashStyles>;
+  paintStyles: ReturnType<typeof getPathPaintStyles>;
+  riverPaint: ReturnType<typeof getRiverPaint>;
+}
 type CachedDeckData =
   | DeckBurgIconSymbol[]
   | DeckCellPolygon[]
@@ -105,6 +121,7 @@ type CachedDeckData =
   | DeckIcePolygon[]
   | DeckLabelSymbol[]
   | DeckLandCellGeometry[]
+  | DeckLandMaskPolygon[]
   | DeckMarkerSymbol[]
   | DeckMilitaryBoxPolygon[]
   | DeckMilitaryRegimentSymbol[]
@@ -125,6 +142,7 @@ const WEBGL_POLYGON_LAYERS: Array<{
   id: string;
   build: PolygonBuilder;
   boundary?: DeckDivisionBoundaryKind;
+  maskLand?: boolean;
 }> = [
   {
     toggle: "toggleHeight",
@@ -156,14 +174,16 @@ const WEBGL_POLYGON_LAYERS: Array<{
     id: "states",
     build: (world, view, landCells) =>
       buildStatePolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).states),
-    boundary: "state"
+    boundary: "state",
+    maskLand: true
   },
   {
     toggle: "toggleProvinces",
     id: "provinces",
     build: (world, view, landCells) =>
       buildProvincePolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).provinces),
-    boundary: "province"
+    boundary: "province",
+    maskLand: true
   },
   {
     toggle: "toggleZones",
@@ -199,30 +219,53 @@ const WEBGL_POLYGON_LAYERS: Array<{
 const WEBGL_PATH_LAYERS: Array<{ toggle: string; id: string; build: PathBuilder }> = [
   { toggle: "toggleCells", id: "cells", build: (world, view) => buildCellOutlinePaths(world, view.focusScope) },
   { toggle: "toggleGrid", id: "grid", build: (world, view) => buildGridPaths(world, view.focusScope) },
-  { toggle: "toggleRivers", id: "rivers", build: (world, view) => buildRiverPaths(world, view.focusScope) },
+  {
+    toggle: "toggleRivers",
+    id: "rivers",
+    build: (world, view, styles) => buildRiverPaths(world, view.focusScope, styles.riverPaint.color)
+  },
   {
     toggle: "toggleBorders",
     id: "borders",
-    build: (world, view, dashStyles) =>
-      buildBorderPaths(world, view.focusScope, {
-        state: dashStyles.stateBorders,
-        province: dashStyles.provinceBorders
-      })
+    build: (world, view, styles) =>
+      buildBorderPaths(
+        world,
+        view.focusScope,
+        {
+          state: styles.dashStyles.stateBorders,
+          province: styles.dashStyles.provinceBorders
+        },
+        {
+          state: styles.paintStyles.stateBorders,
+          province: styles.paintStyles.provinceBorders
+        }
+      )
   },
   {
     toggle: "toggleRoutes",
     id: "routes",
-    build: (world, view, dashStyles) =>
-      buildRoutePaths(world, view.focusScope, {
-        roads: dashStyles.roads,
-        trails: dashStyles.trails,
-        searoutes: dashStyles.searoutes
-      })
+    build: (world, view, styles) =>
+      buildRoutePaths(
+        world,
+        view.focusScope,
+        {
+          roads: styles.dashStyles.roads,
+          trails: styles.dashStyles.trails,
+          searoutes: styles.dashStyles.searoutes
+        },
+        {
+          roads: styles.paintStyles.roads,
+          trails: styles.paintStyles.trails,
+          searoutes: styles.paintStyles.searoutes
+        }
+      )
   }
 ];
 
 const PATH_STYLE_EXTENSION = new PathStyleExtension({ dash: true, highPrecisionDash: true });
 const SOLID_DASH_ARRAY = [0, 0] as const;
+const LAND_MASK_ID = "fmg-webgl-land-mask";
+const LAND_MASK_EXTENSION = new MaskExtension();
 
 export const WEBGL_LAYER_TOGGLES = new Set([
   ...WEBGL_POLYGON_LAYERS.map(layer => layer.toggle),
@@ -277,6 +320,8 @@ export function buildDeckLayers(
   const markerStyle = getMarkerStyle(viewContext);
   const labelStyle = getLabelStyle(worldContext, viewContext);
   const pathDashStyles = getPathDashStyles(viewContext);
+  const pathPaintStyles = getPathPaintStyles(viewContext);
+  const riverPaint = getRiverPaint(viewContext);
   const cellLayerOpacities = getCellLayerOpacities(viewContext);
   const signatures = buildLayerSignatures(worldContext, viewContext, oceanFill, landFill, activeLayers, {
     lakePaint,
@@ -287,6 +332,8 @@ export function buildDeckLayers(
     markerStyle,
     labelStyle,
     pathDashStyles,
+    pathPaintStyles,
+    riverPaint,
     cellLayerOpacities
   });
   // Shared land-cell vertex geometry: the "land" layer always needs it, and every simultaneously
@@ -295,6 +342,10 @@ export function buildDeckLayers(
   const landCells = getCachedDeckData("land-geometry", signatures.landGeometrySignature, () =>
     buildLandCellGeometry(worldContext, viewContext.focusScope)
   );
+  const landMaskPolygons = getCachedDeckData("land-mask", signatures.landMask, () =>
+    buildLandMaskPolygons(worldContext, viewContext.focusScope, appServices)
+  );
+  const hasLandMask = landMaskPolygons.length > 0;
   const layers: LayersList = [
     new SolidPolygonLayer<DeckCellPolygon>({
       id: "fmg-webgl-background",
@@ -334,16 +385,44 @@ export function buildDeckLayers(
         })
       ];
     })(),
-    new SolidPolygonLayer<DeckCellPolygon>({
-      id: "fmg-webgl-land",
-      data: getCachedDeckData("land", signatures.land, () =>
-        buildLandPolygonsBase(worldContext, viewContext.focusScope, landFill, landCells)
-      ),
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      getPolygon: datum => datum.polygon,
-      getFillColor: datum => datum.fillColor,
-      pickable: true
-    })
+    ...(hasLandMask
+      ? [
+          new SolidPolygonLayer<DeckLandMaskPolygon>({
+            id: LAND_MASK_ID,
+            data: landMaskPolygons,
+            coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+            getPolygon: datum => datum.polygon,
+            getFillColor: datum => datum.fillColor,
+            operation: "mask",
+            pickable: false
+          })
+        ]
+      : []),
+    ...(hasLandMask
+      ? [
+          createLandMaskedPolygonLayer({
+            id: "fmg-webgl-land",
+            data: getCachedDeckData("land", signatures.land, () =>
+              buildLandPolygonsBase(worldContext, viewContext.focusScope, landFill, landCells)
+            ),
+            coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+            getPolygon: datum => datum.polygon,
+            getFillColor: datum => datum.fillColor,
+            pickable: true
+          })
+        ]
+      : [
+          new SolidPolygonLayer<DeckCellPolygon>({
+            id: "fmg-webgl-land",
+            data: getCachedDeckData("land", signatures.land, () =>
+              buildLandPolygonsBase(worldContext, viewContext.focusScope, landFill, landCells)
+            ),
+            coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+            getPolygon: datum => datum.polygon,
+            getFillColor: datum => datum.fillColor,
+            pickable: true
+          })
+        ])
   ];
 
   if (activeLayers.toggleLakes) {
@@ -391,24 +470,49 @@ export function buildDeckLayers(
   for (const layer of WEBGL_POLYGON_LAYERS) {
     if (!activeLayers[layer.toggle]) continue;
     layers.push(
-      new SolidPolygonLayer<DeckCellPolygon>({
-        id: `fmg-webgl-${layer.id}`,
-        data: getCachedDeckData(`polygon:${layer.id}`, signatures.byLayer[layer.id], () =>
-          layer.build(worldContext, viewContext, landCells)
-        ),
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-        getPolygon: datum => datum.polygon,
-        getFillColor: datum => datum.fillColor,
-        pickable: true
-      })
+      layer.maskLand && hasLandMask
+        ? createLandMaskedPolygonLayer({
+            id: `fmg-webgl-${layer.id}`,
+            data: getCachedDeckData(`polygon:${layer.id}`, signatures.byLayer[layer.id], () =>
+              layer.build(worldContext, viewContext, landCells)
+            ),
+            coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+            getPolygon: datum => datum.polygon,
+            getFillColor: datum => datum.fillColor,
+            pickable: true
+          })
+        : new SolidPolygonLayer<DeckCellPolygon>({
+            id: `fmg-webgl-${layer.id}`,
+            data: getCachedDeckData(`polygon:${layer.id}`, signatures.byLayer[layer.id], () =>
+              layer.build(worldContext, viewContext, landCells)
+            ),
+            coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+            getPolygon: datum => datum.polygon,
+            getFillColor: datum => datum.fillColor,
+            pickable: true
+          })
     );
     if (layer.boundary) {
       const boundary = layer.boundary;
       layers.push(
-        new PathLayer<DeckPath>({
+        createDashedPathLayer({
           id: `fmg-webgl-${layer.id}-boundaries`,
           data: getCachedDeckData(`boundary:${layer.boundary}`, signatures.byLayer[`${layer.id}-boundaries`], () =>
-            buildDivisionBoundaryPaths(worldContext, viewContext.focusScope, boundary)
+            buildDivisionBoundaryPaths(
+              worldContext,
+              viewContext.focusScope,
+              boundary,
+              boundary === "state"
+                ? pathDashStyles.stateBorders
+                : boundary === "province"
+                  ? pathDashStyles.provinceBorders
+                  : undefined,
+              boundary === "state"
+                ? pathPaintStyles.stateBorders
+                : boundary === "province"
+                  ? pathPaintStyles.provinceBorders
+                  : undefined
+            )
           ),
           coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
           getPath: datum => datum.path,
@@ -419,6 +523,8 @@ export function buildDeckLayers(
           widthMaxPixels: 2.5,
           jointRounded: true,
           capRounded: true,
+          extensions: [PATH_STYLE_EXTENSION],
+          getDashArray: datum => datum.dashArray ?? SOLID_DASH_ARRAY,
           pickable: false
         })
       );
@@ -727,7 +833,11 @@ export function buildDeckLayers(
       createDashedPathLayer({
         id: `fmg-webgl-${layer.id}`,
         data: getCachedDeckData(`path:${layer.id}`, signatures.byLayer[layer.id], () =>
-          layer.build(worldContext, viewContext, pathDashStyles)
+          layer.build(worldContext, viewContext, {
+            dashStyles: pathDashStyles,
+            paintStyles: pathPaintStyles,
+            riverPaint
+          })
         ),
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         getPath: datum => datum.path,
@@ -827,6 +937,20 @@ function createDashedPathLayer(
   return new PathLayer<DeckPath, PathStyleExtensionProps<DeckPath>>(props);
 }
 
+/** Applies the curved island mask to a land-derived polygon layer. */
+function createLandMaskedPolygonLayer(
+  props: SolidPolygonLayerProps<DeckCellPolygon>
+): SolidPolygonLayer<DeckCellPolygon, MaskExtensionProps> {
+  const maskedProps: SolidPolygonLayerProps<DeckCellPolygon> & MaskExtensionProps = {
+    ...props,
+    extensions: [LAND_MASK_EXTENSION],
+    maskId: LAND_MASK_ID,
+    // A land cell may cross the coastline. Clip its fragments rather than only testing its anchor.
+    maskByInstance: false
+  };
+  return new SolidPolygonLayer<DeckCellPolygon, MaskExtensionProps>(maskedProps);
+}
+
 /** Wraps a computation so it runs at most once per `buildLayerSignatures()` call, on first use. */
 function memo<T>(compute: () => T): () => T {
   let cached: T | undefined;
@@ -849,6 +973,8 @@ interface SignatureStyles {
   markerStyle: DeckMarkerStyle;
   labelStyle: ReturnType<typeof getLabelStyle>;
   pathDashStyles: ReturnType<typeof getPathDashStyles>;
+  pathPaintStyles: ReturnType<typeof getPathPaintStyles>;
+  riverPaint: ReturnType<typeof getRiverPaint>;
   cellLayerOpacities: ReturnType<typeof getCellLayerOpacities>;
 }
 
@@ -864,7 +990,13 @@ function buildLayerSignatures(
   landFill: string,
   activeLayers: Record<string, boolean>,
   styles: SignatureStyles
-): { background: string; land: string; landGeometrySignature: string; byLayer: Record<string, string> } {
+): {
+  background: string;
+  land: string;
+  landGeometrySignature: string;
+  landMask: string;
+  byLayer: Record<string, string>;
+} {
   const { pack, grid, biomesData, mapId, graphWidth, graphHeight } = worldContext;
   const scope = getFocusScopeSignature(viewContext);
 
@@ -911,13 +1043,23 @@ function buildLayerSignatures(
   );
   setIfActive("cultures-boundaries", "toggleCultures", () => `${landGeometry()}|${cultures()}`);
   setIfActive("states", "toggleStates", () => `${landGeometry()}|${states()}|op:${styles.cellLayerOpacities.states}`);
-  setIfActive("states-boundaries", "toggleStates", () => `${landGeometry()}|${states()}`);
+  setIfActive(
+    "states-boundaries",
+    "toggleStates",
+    () =>
+      `${landGeometry()}|${states()}|${pathDashStyleSignature(styles.pathDashStyles, ["stateBorders"])}|${pathPaintStyleSignature(styles.pathPaintStyles, ["stateBorders"])}`
+  );
   setIfActive(
     "provinces",
     "toggleProvinces",
     () => `${landGeometry()}|${provinces()}|op:${styles.cellLayerOpacities.provinces}`
   );
-  setIfActive("provinces-boundaries", "toggleProvinces", () => `${landGeometry()}|${provinces()}`);
+  setIfActive(
+    "provinces-boundaries",
+    "toggleProvinces",
+    () =>
+      `${landGeometry()}|${provinces()}|${pathDashStyleSignature(styles.pathDashStyles, ["provinceBorders"])}|${pathPaintStyleSignature(styles.pathPaintStyles, ["provinceBorders"])}`
+  );
   setIfActive(
     "zones",
     "toggleZones",
@@ -994,18 +1136,22 @@ function buildLayerSignatures(
   );
   setIfActive("cells", "toggleCells", () => geometry());
   setIfActive("grid", "toggleGrid", () => `${geometry()}|${nestedNumberListSignature(pack.cells?.c)}`);
-  setIfActive("rivers", "toggleRivers", () => `${mapId}|${scope}|${riversSignature(pack.rivers)}`);
+  setIfActive(
+    "rivers",
+    "toggleRivers",
+    () => `${mapId}|${scope}|${riversSignature(pack.rivers)}|${colorSignature(styles.riverPaint.color)}`
+  );
   setIfActive(
     "borders",
     "toggleBorders",
     () =>
-      `${landGeometry()}|${states()}|${provinces()}|${nestedNumberListSignature(pack.cells?.c)}|${pathDashStyleSignature(styles.pathDashStyles, ["stateBorders", "provinceBorders"])}`
+      `${landGeometry()}|${states()}|${provinces()}|${nestedNumberListSignature(pack.cells?.c)}|${pathDashStyleSignature(styles.pathDashStyles, ["stateBorders", "provinceBorders"])}|${pathPaintStyleSignature(styles.pathPaintStyles, ["stateBorders", "provinceBorders"])}`
   );
   setIfActive(
     "routes",
     "toggleRoutes",
     () =>
-      `${mapId}|${scope}|${routesSignature(pack.routes)}|${pathDashStyleSignature(styles.pathDashStyles, ["roads", "trails", "searoutes"])}`
+      `${mapId}|${scope}|${routesSignature(pack.routes)}|${pathDashStyleSignature(styles.pathDashStyles, ["roads", "trails", "searoutes"])}|${pathPaintStyleSignature(styles.pathPaintStyles, ["roads", "trails", "searoutes"])}`
   );
 
   // The coastline layer always renders (not toggle-gated), so its signature is always needed.
@@ -1015,6 +1161,7 @@ function buildLayerSignatures(
     background: `${mapId}|${graphWidth}x${graphHeight}|${oceanFill}`,
     land: `${landGeometry()}|${landFill}`,
     landGeometrySignature: landGeometry(),
+    landMask: `${scope}|${featuresSignature(pack.features, "island")}|lakes:${featuresSignature(pack.features, "lake")}`,
     byLayer
   };
 }
@@ -1505,11 +1652,22 @@ function paintSignature(values: Record<string, LayerPaint>): string {
   return hash.toString();
 }
 
+function colorSignature(color: ArrayLike<number>): string {
+  return Array.from(color).join(",");
+}
+
 function pathDashStyleSignature(
   styles: ReturnType<typeof getPathDashStyles>,
   keys: ReadonlyArray<keyof ReturnType<typeof getPathDashStyles>>
 ): string {
   return keys.map(key => `${key}:${styles[key][0]},${styles[key][1]}`).join("|");
+}
+
+function pathPaintStyleSignature(
+  styles: ReturnType<typeof getPathPaintStyles>,
+  keys: ReadonlyArray<keyof ReturnType<typeof getPathPaintStyles>>
+): string {
+  return keys.map(key => `${key}:${colorSignature(styles[key])}`).join("|");
 }
 
 function riversSignature(

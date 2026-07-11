@@ -12,6 +12,8 @@ import {
   getLakePaint,
   getMarkerStyle,
   getPathDashStyles,
+  getPathPaintStyles,
+  getRiverPaint,
   type LayerStyleSelection,
   parseOptionalNumber
 } from "./webglStyleExtractors";
@@ -91,6 +93,21 @@ describe("webgl style extractors", () => {
     });
     expect(getDashArray(new MockSelection({ "stroke-dasharray": "0 0" }))).toEqual([0, 0]);
     expect(getDashArray(new MockSelection({ "stroke-dasharray": "4 2 1 2" }))).toEqual([4, 2]);
+    expect(getPathPaintStyles(viewContext)).toEqual({
+      stateBorders: [86, 86, 109, 204],
+      provinceBorders: [86, 86, 109, 204],
+      roads: [208, 99, 36, 230],
+      trails: [208, 99, 36, 230],
+      searoutes: [255, 255, 255, 230]
+    });
+  });
+
+  it("reads river fill and opacity from its SVG layer", () => {
+    const viewContext = {
+      rivers: new MockSelection({ fill: "#123456", opacity: "0.4" })
+    } as unknown as ViewContext;
+
+    expect(getRiverPaint(viewContext).color).toEqual([18, 52, 86, 102]);
   });
 
   it("reads lake and coastline paint from SVG group attributes", () => {
