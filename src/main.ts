@@ -15,7 +15,7 @@ import { getWorldState, resetZoom, zoomTo } from "./actions";
 import { appServices, initRng } from "./context/appServices";
 import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
-import { applyLayersPreset, drawLayers } from "./controllers/layers";
+import { applyLayersPreset, drawLayers, scheduleWebglUpdate } from "./controllers/layers";
 import { createDefaultRuler } from "./controllers/measurers";
 import { updateMinimap } from "./controllers/minimap";
 import { applyGraphSize, applyStoredOptions, fitMapToScreen, randomizeOptions } from "./controllers/options";
@@ -76,6 +76,7 @@ import {
 import { captureSnapshotData } from "./utils/aiDebugExporter";
 import { locked } from "./utils/domUtils";
 import { EditorBus } from "./utils/editorBus";
+import { dampenBurgLabelSize, dampenStateLabelSize } from "./utils/labelZoomScale";
 import { getElementById, layerIsOn } from "./utils/nodeUtils";
 import { cleanupData } from "./versioning";
 
@@ -580,9 +581,6 @@ function findBurgForMFCG(params: URLSearchParams) {
 
 export { zoomTo } from "./actions";
 
-// At max zoom (scale=20), reduce screen size of labels/icons/emblems to 50% of unscaled size.
-// Derived from: (base / scale^e) * scale = base * scale^(1-e), want scale^(1-e)=10 at scale=20 → e=log(2)/log(20)
-const ZOOM_SIZE_EXP = Math.log(2) / Math.log(20);
 // Hide state-level labels and emblems when zoomed in past this scale (city-level view)
 const STATE_HIDE_SCALE = 7;
 
@@ -654,7 +652,7 @@ export function invokeActiveZooming() {
           const baseSize = +(this.getAttribute("data-size") || this.getAttribute("font-size") || 0);
           if (baseSize > 0) {
             if (!this.hasAttribute("data-size")) this.setAttribute("data-size", String(baseSize));
-            this.setAttribute("font-size", String(rn(Math.max(baseSize / scale ** ZOOM_SIZE_EXP, 0.1), 2)));
+            this.setAttribute("font-size", String(dampenBurgLabelSize(baseSize, scale)));
           }
         }
         return;
@@ -667,7 +665,7 @@ export function invokeActiveZooming() {
       }
 
       const desired = +(this.getAttribute("data-size") || 0);
-      const relative = Math.max(rn((desired + desired / scale) / 2, 2), 1);
+      const relative = dampenStateLabelSize(desired, scale);
       if (useOptionsState.getState().rescaleLabels) this.setAttribute("font-size", String(relative));
 
       const hidden = useOptionsState.getState().hideLabels && (relative * scale < 6 || relative * scale > 60);
@@ -689,7 +687,7 @@ export function invokeActiveZooming() {
         const baseSize = +(this.getAttribute("data-size") || this.getAttribute("font-size") || 0);
         if (baseSize > 0) {
           if (!this.hasAttribute("data-size")) this.setAttribute("data-size", String(baseSize));
-          this.setAttribute("font-size", String(rn(Math.max(baseSize / scale ** ZOOM_SIZE_EXP, 0.1), 2)));
+          this.setAttribute("font-size", String(dampenBurgLabelSize(baseSize, scale)));
         }
       }
     });
@@ -703,7 +701,7 @@ export function invokeActiveZooming() {
       if (this.id === "burgEmblems") {
         const baseSize = +(this.getAttribute("data-zoom-size") || this.getAttribute("font-size") || 0);
         if (baseSize > 0) {
-          this.setAttribute("font-size", String(rn(Math.max(baseSize / scale ** ZOOM_SIZE_EXP, 0.1), 2)));
+          this.setAttribute("font-size", String(dampenBurgLabelSize(baseSize, scale)));
         }
         return;
       }
@@ -721,7 +719,7 @@ export function invokeActiveZooming() {
       // Reduce font-size at high zoom so state/province COAs don't grow too large
       const baseSize = +(this.getAttribute("data-zoom-size") || this.getAttribute("font-size") || 0);
       if (baseSize > 0) {
-        this.setAttribute("font-size", String(rn(Math.max(baseSize / scale ** ZOOM_SIZE_EXP, 0.1), 2)));
+        this.setAttribute("font-size", String(dampenBurgLabelSize(baseSize, scale)));
       }
       const scaledSize = +(this.getAttribute("font-size") ?? 0) * scale;
       const isStateEmblem = this.id === "stateEmblems";
@@ -795,6 +793,11 @@ export function invokeActiveZooming() {
     const size = rn((10 / scale ** 0.3) * 2, 2);
     viewContext.ruler.selectAll("text").attr("font-size", size);
   }
+
+  // WebGL labels read their base size directly from data-size (not the SVG font-size attribute
+  // updated above) and dampen it themselves using the current scale, so a rebuild here just
+  // reflects the settled zoom level. No-op when the render mode isn't webglHybrid.
+  scheduleWebglUpdate();
 }
 
 // ─── Drag-to-upload ───────────────────────────────────────────────────────────

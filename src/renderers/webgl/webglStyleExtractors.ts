@@ -1,6 +1,8 @@
 import type { Color } from "@deck.gl/core";
 import type { ViewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
+import { useOptionsState } from "../../store/optionsState";
+import { dampenBurgLabelSize, dampenStateLabelSize } from "../../utils/labelZoomScale";
 import {
   colorToRgba,
   type DeckBurgIconStyle,
@@ -211,6 +213,12 @@ export function getLabelStyle(
   burgLabels: Record<string, DeckLabelStyle>;
   visibleBurgGroups: ReadonlySet<string>;
 } {
+  // Label sizes are stored (via data-size) as the same zoom-independent base the SVG renderer
+  // uses, then dampened here with the identical formula src/main.ts's invokeActiveZooming()
+  // applies to the SVG font-size attribute — otherwise WebGL's TextLayer (which scales size
+  // linearly with the deck.gl viewport zoom) renders text up to 2x larger than SVG at high zoom.
+  const scale = Math.max(viewContext.scale || 1, 0.0001);
+
   const stateGroup = viewContext.labels?.select<SVGGElement>("#states");
   const state = readLabelStyle(stateGroup, null, {
     fill: "#3e3e4b",
@@ -221,12 +229,14 @@ export function getLabelStyle(
     fontFamily: "Almendra SC",
     haloColor: "white"
   });
+  if (useOptionsState.getState().rescaleLabels) state.size = dampenStateLabelSize(state.size, scale);
+
   const burgLabels: Record<string, DeckLabelStyle> = {};
   const visibleBurgGroups = new Set<string>();
 
   for (const group of worldContext.options.burgs?.groups ?? []) {
     visibleBurgGroups.add(group.name);
-    burgLabels[group.name] = readLabelStyle(
+    const style = readLabelStyle(
       viewContext.burgLabels?.select<SVGGElement>(`#${group.name}`),
       getStyleRecord(worldContext.style.burgLabels, group.name),
       {
@@ -239,12 +249,14 @@ export function getLabelStyle(
         haloColor: "white"
       }
     );
+    style.size = dampenBurgLabelSize(style.size, scale);
+    burgLabels[group.name] = style;
   }
 
   burgLabels.town ??= {
     fill: "#3e3e4b",
     opacity: 1,
-    size: 4,
+    size: dampenBurgLabelSize(4, scale),
     dx: 0,
     dy: -0.4,
     fontFamily: "Almendra SC",
