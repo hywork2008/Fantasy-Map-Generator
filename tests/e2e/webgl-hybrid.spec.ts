@@ -9,6 +9,7 @@ import {
   ensureLayerOn,
   forceOverlappingWebglRegiments,
   forceWebglGlacierFixture,
+  forceWebglIcebergFixture,
   forceWebglMarkerFixture,
   getFirstLandScreenPoint,
   getFirstStateScreenPoint,
@@ -185,6 +186,14 @@ async function getMarkerPosition(page: Page, markerId: number): Promise<{ x: num
     const marker = markers.find(item => item.i === id);
     return marker ? { x: marker.x ?? 0, y: marker.y ?? 0 } : null;
   }, markerId);
+}
+
+async function getIceOffset(page: Page, iceId: number): Promise<[number, number] | null> {
+  return page.evaluate(id => {
+    type TestIce = { i: number; offset?: [number, number] };
+    const ice = (window.fmg.world.pack.ice as TestIce[]).find(item => item.i === id);
+    return ice?.offset ?? [0, 0];
+  }, iceId);
 }
 
 test.describe("webgl hybrid renderer", () => {
@@ -782,6 +791,60 @@ test.describe("webgl hybrid renderer", () => {
     const expectedDy = (dragTarget.y - fixture.y) / viewBefore.scale;
     expect(after.x - before.x).toBeCloseTo(expectedDx, 0);
     expect(after.y - before.y).toBeCloseTo(expectedDy, 0);
+  });
+
+  test("drags the selected WebGL glacier and iceberg without panning the map", async ({ page }) => {
+    await page.goto("/?seed=webgl-ice-drag&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+    await ensureLayerOn(page, "toggleIce");
+
+    const glacier = await forceWebglGlacierFixture(page);
+    const iceberg = await forceWebglIcebergFixture(page);
+    await waitForWebglCanvasPixels(page);
+
+    for (const fixture of [
+      { id: glacier.glacierId, pickId: `glacier-${glacier.glacierId}`, x: glacier.x, y: glacier.y },
+      { id: iceberg.icebergId, pickId: `iceberg-${iceberg.icebergId}`, x: iceberg.x, y: iceberg.y }
+    ]) {
+      const pickResult = await clickAndGetWebglPickCandidates(page, fixture);
+      const candidate = pickResult.candidates.find(item => item.kind === "ice" && item.id === fixture.pickId);
+      expect(candidate).toMatchObject({ kind: "ice", id: fixture.pickId });
+      if (!candidate) return;
+
+      const chooserItem = page
+        .locator(`#mapPickChooser .map-pick-chooser__item[data-kind="ice"][data-pick-id="${fixture.pickId}"]`)
+        .first();
+      try {
+        await expect(chooserItem).toBeVisible({ timeout: 700 });
+        await chooserItem.click();
+      } catch {
+        // Single-candidate clicks dispatch the same selected event without showing the chooser.
+      }
+      await expect(page.locator("#iceEditStyle")).toBeVisible();
+
+      const before = await getIceOffset(page, fixture.id);
+      expect(before).not.toBeNull();
+      if (!before) return;
+      const viewBefore = await getViewTransformState(page);
+      const dragTarget = { x: fixture.x + 60, y: fixture.y - 40 };
+
+      await page.mouse.move(fixture.x, fixture.y);
+      await page.mouse.down();
+      await page.mouse.move(dragTarget.x, dragTarget.y, { steps: 5 });
+      await page.mouse.up();
+
+      expect(await getViewTransformState(page)).toEqual(viewBefore);
+      const after = await getIceOffset(page, fixture.id);
+      expect(after).not.toBeNull();
+      if (!after) return;
+
+      const expectedDx = (dragTarget.x - fixture.x) / viewBefore.scale;
+      const expectedDy = (dragTarget.y - fixture.y) / viewBefore.scale;
+      expect(after[0] - before[0]).toBeCloseTo(expectedDx, 0);
+      expect(after[1] - before[1]).toBeCloseTo(expectedDy, 0);
+    }
   });
 
   test("hover tooltip names the same state cell in SVG and WebGL mode", async ({ page }) => {

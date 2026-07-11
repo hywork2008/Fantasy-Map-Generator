@@ -4,6 +4,7 @@ import { type ViewContext, viewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
 import type {
   WebglDragDetail,
+  WebglDragKind,
   WebglPickCandidatesDetail,
   WebglPickDetail,
   WebglPickKind
@@ -15,19 +16,22 @@ const BODY_HYBRID_CLASS = "fmg-webgl-hybrid";
 const PICK_RADIUS = 6;
 const PICK_CANDIDATE_DEPTH = 20;
 const SEMANTIC_PICK_RADIUS = 8;
-const WEBGL_DRAGGABLE_KINDS: ReadonlySet<WebglPickKind> = new Set(["marker"]);
 let pickingEventTarget: SVGSVGElement | null = null;
 let lastHoverPickId: string | null = null;
 let activePickingViewContext: ViewContext | null = null;
 
 interface ActiveWebglDrag {
-  kind: "marker";
+  kind: WebglDragKind;
   id: string;
   cellId: number | null;
   startCoordinate: [number, number];
 }
 
 let activeDrag: ActiveWebglDrag | null = null;
+
+function isWebglDraggableKind(kind: WebglPickKind): kind is WebglDragKind {
+  return kind === "marker" || kind === "ice";
+}
 
 /**
  * Lets a controller declare which currently-picked WebGL object is drag-eligible right now
@@ -462,13 +466,13 @@ function handlePointerDown(event: PointerEvent): void {
   // looks at every candidate at the pointer the same way the click pick-chooser does and drags
   // whichever one is both a draggable kind and the entity the caller currently has selected.
   const candidates = pickCandidatesFromPointerEvent(event, activePickingViewContext)?.candidates ?? [];
-  const detail = candidates.find(item => WEBGL_DRAGGABLE_KINDS.has(item.kind) && dragTargetPredicate(item));
-  if (!detail) return;
+  const detail = candidates.find(item => isWebglDraggableKind(item.kind) && dragTargetPredicate(item));
+  if (!detail || !isWebglDraggableKind(detail.kind)) return;
 
   const point = canvasPoint(event, activePickingViewContext);
   if (!point) return;
   const startCoordinate = screenToMapPoint(activePickingViewContext, point[0], point[1]);
-  activeDrag = { kind: detail.kind as "marker", id: detail.id, cellId: detail.cellId, startCoordinate };
+  activeDrag = { kind: detail.kind, id: detail.id, cellId: detail.cellId, startCoordinate };
   // The compatibility mousedown for this same gesture fires right after this pointerdown;
   // handleMouseDownCapture (registered on "mousedown", capture phase) reads activeDrag and
   // suppresses it there, since that's the event type the pan/zoom behavior actually listens for.

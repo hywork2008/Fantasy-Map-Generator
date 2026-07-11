@@ -51,7 +51,7 @@ export interface WebglPickCandidatesDetail {
  * controller both registers it as drag-eligible (see `registerWebglDragTargetPredicate` in
  * `deckRenderer.ts`) and consumes the `fmg:webgl-map-drag-*` events to mutate its data.
  */
-export type WebglDragKind = "marker";
+export type WebglDragKind = "marker" | "ice";
 
 /**
  * Minimal payload for the deck.gl pick -> controller drag bridge. Dispatched on `document` as

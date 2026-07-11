@@ -823,6 +823,12 @@ export interface GlacierFixturePoint {
   glacierId: number;
 }
 
+export interface IcebergFixturePoint {
+  x: number;
+  y: number;
+  icebergId: number;
+}
+
 /** Adds a glacier at the map center so ice click-edit tests don't depend on seed-specific ice generation. */
 export async function forceWebglGlacierFixture(page: Page): Promise<GlacierFixturePoint> {
   const point = await page.evaluate(() => {
@@ -861,6 +867,60 @@ export async function forceWebglGlacierFixture(page: Page): Promise<GlacierFixtu
       const layer = deck?.props?.layers?.find(item => item.id === "fmg-webgl-ice");
       const data = Array.isArray(layer?.props?.data) ? layer.props.data : [];
       return data.some(item => (item as Record<string, unknown>).id === `glacier-${glacierId}`);
+    },
+    point,
+    { timeout: 5000 }
+  );
+
+  return point;
+}
+
+/** Adds an iceberg at the map center so ice drag tests cover both ice feature types. */
+export async function forceWebglIcebergFixture(page: Page): Promise<IcebergFixturePoint> {
+  const point = await page.evaluate(() => {
+    type IceIceberg = {
+      i: number;
+      points: [number, number][];
+      type: "iceberg";
+      cellId: number;
+      size: number;
+    };
+    type TestPack = { ice: IceIceberg[] };
+
+    const pack = window.fmg.world.pack as unknown as TestPack;
+    const icebergId = pack.ice.reduce((max, item) => Math.max(max, item.i), 0) + 1;
+    const cx = window.fmg.world.graphWidth / 2;
+    const cy = window.fmg.world.graphHeight / 2;
+    const size = 6;
+    pack.ice.push({
+      i: icebergId,
+      type: "iceberg",
+      cellId: 0,
+      size,
+      points: [
+        [cx - size, cy - size],
+        [cx + size, cy - size],
+        [cx + size, cy + size],
+        [cx - size, cy + size]
+      ]
+    });
+
+    return {
+      x: cx * window.fmg.view.scale + window.fmg.view.viewX,
+      y: cy * window.fmg.view.scale + window.fmg.view.viewY,
+      icebergId
+    };
+  });
+
+  await page.evaluate(() => window.fmg.actions.setRenderMode("webglHybrid"));
+  await page.waitForFunction(
+    ({ icebergId }) => {
+      const deck = window.fmg.view.webglDeck as unknown as {
+        props?: { layers?: Array<{ id?: string; props?: { data?: unknown[] } }> };
+      } | null;
+      const layer = deck?.props?.layers?.find(item => item.id === "fmg-webgl-ice");
+      const data = Array.isArray(layer?.props?.data) ? layer.props.data : [];
+      return data.some(item => (item as Record<string, unknown>).id === `iceberg-${icebergId}`);
     },
     point,
     { timeout: 5000 }

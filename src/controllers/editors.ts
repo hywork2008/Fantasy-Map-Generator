@@ -143,9 +143,17 @@ function editWebglCoastline(id: string): void {
 }
 
 function editWebglIce(id: string): void {
+  const ice = parseWebglIceId(id);
+  if (!ice) return;
+  IceEditor.editIceById(ice.id, ice.isGlacier);
+}
+
+function parseWebglIceId(id: string): { id: number; isGlacier: boolean } | null {
   const match = id.match(/^(glacier|iceberg)-(\d+)$/);
-  if (!match) return;
-  IceEditor.editIceById(Number(match[2]), match[1] === "glacier");
+  if (!match) return null;
+  const entityId = Number(match[2]);
+  if (!Number.isFinite(entityId)) return null;
+  return { id: entityId, isGlacier: match[1] === "glacier" };
 }
 
 function parseWebglEntityId(id: string, pattern: RegExp): number | null {
@@ -156,19 +164,24 @@ function parseWebglEntityId(id: string, pattern: RegExp): number | null {
 }
 
 // ─── WebGL pick -> controller drag adapter ─────────────────────────────────
-// Markers render as deck.gl data in webglHybrid mode, so there is no SVG element for
-// MarkersEditor to attach a d3-drag behavior to. deckRenderer.ts asks this predicate before
-// starting a drag gesture (only the already-open/selected marker is drag-eligible, matching the
-// SVG flow where drag only activates after MarkersEditor.editMarker() has run) and dispatches
-// fmg:webgl-map-drag-start/-drag/-drag-end for the listeners below to apply.
+// Markers and ice render as deck.gl data in webglHybrid mode, so there is no visible SVG element
+// for their editors to attach a d3-drag behavior to. deckRenderer.ts asks this predicate before
+// starting a drag gesture (only an already-open/selected entity is drag-eligible, matching the SVG
+// flow) and dispatches fmg:webgl-map-drag-start/-drag/-drag-end for the listeners below to apply.
 function isWebglDragTarget(detail: WebglPickDetail): boolean {
-  if (detail.kind !== "marker") return false;
-  const entityId = parseWebglEntityId(detail.id, /^marker-(\d+)$/);
-  return entityId !== null && MarkersEditor.isDragTarget(entityId);
+  if (detail.kind === "marker") {
+    const entityId = parseWebglEntityId(detail.id, /^marker-(\d+)$/);
+    return entityId !== null && MarkersEditor.isDragTarget(entityId);
+  }
+  if (detail.kind === "ice") {
+    const ice = parseWebglIceId(detail.id);
+    return ice !== null && IceEditor.isDragTarget(ice.id, ice.isGlacier);
+  }
+  return false;
 }
 
 registerWebglDragTargetPredicate(isWebglDragTarget);
-registerWebglDragAvailability(() => MarkersEditor.hasDragTarget());
+registerWebglDragAvailability(() => MarkersEditor.hasDragTarget() || IceEditor.hasDragTarget());
 
 function withWebglDragMarkerId(
   detail: WebglDragDetail,
@@ -193,6 +206,29 @@ document.addEventListener("fmg:webgl-map-drag", (e: Event) => {
 document.addEventListener("fmg:webgl-map-drag-end", (e: Event) => {
   withWebglDragMarkerId((e as CustomEvent<WebglDragDetail>).detail, (markerId, coordinate) =>
     MarkersEditor.updateWebglMarkerDrag(markerId, coordinate, true)
+  );
+});
+
+function withWebglDragIce(detail: WebglDragDetail, fn: (iceId: number, coordinate: [number, number]) => void): void {
+  if (detail.kind !== "ice") return;
+  const ice = parseWebglIceId(detail.id);
+  if (!ice) return;
+  fn(ice.id, detail.coordinate);
+}
+
+document.addEventListener("fmg:webgl-map-drag-start", (e: Event) => {
+  withWebglDragIce((e as CustomEvent<WebglDragDetail>).detail, (iceId, coordinate) =>
+    IceEditor.beginWebglIceDrag(iceId, coordinate)
+  );
+});
+document.addEventListener("fmg:webgl-map-drag", (e: Event) => {
+  withWebglDragIce((e as CustomEvent<WebglDragDetail>).detail, (iceId, coordinate) =>
+    IceEditor.updateWebglIceDrag(iceId, coordinate)
+  );
+});
+document.addEventListener("fmg:webgl-map-drag-end", (e: Event) => {
+  withWebglDragIce((e as CustomEvent<WebglDragDetail>).detail, (iceId, coordinate) =>
+    IceEditor.updateWebglIceDrag(iceId, coordinate)
   );
 });
 
