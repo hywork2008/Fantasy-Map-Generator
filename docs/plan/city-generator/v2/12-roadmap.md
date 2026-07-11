@@ -53,6 +53,15 @@
 - **スコープ**: [06-walls.md](06-walls.md) §3（郊外・耕地・壁外施設）、plannedQuarter、HUD の ValidationReport 化、エクスポート v2 追従、golden seeds 確定。
 - **受け入れ**: M11（密度勾配）・M14（性能）を含む **全メトリクス合格**。目視チェックリスト全項目クリア。README の背景資料（docs/*.md）との矛盾がないか最終確認。
 
+### M9: FMG site モード
+- **スコープ**: [13-fmg-site-input.md](13-fmg-site-input.md) 全部。`BurgSiteDescriptor` の io バリデータと UI インポート欄、S1 の heightfield 合成・descriptor 中心線河川・waterbody 再構成、S2 の門アンカー全数採用、S3 の街道端点接続、fit メトリクス F1–F5。
+- **受け入れ**: FMG から実出力した descriptor 数種（riverCrossing / harbor / hillTop / crossroads / 村落規模）で fit メトリクス F1–F5 合格。site なし生成の golden seeds に差分がない（回帰なし）。
+- **注意**: FMG 側は実装済み（`window.fmg.actions.getBurgSiteDescriptor` / Burg エディタのコピー・ボタン）。契約の変更が必要になった場合は 13 を更新し、FMG 側 `src/services/burgSiteDescriptor.ts` と `version` を同期させること。
+
+### M10: 村落モード（settlementType: "village"）
+- **スコープ**: 城壁・地区割当・バスティードを省いた縮退パイプライン。教会 + 緑地（village green）核、街道沿いリボン集落または広場村の 2 類型、農家敷地（間口 15–40 m、母屋 + 納屋 + 囲い庭）、集落を囲む耕地短冊。site モード（FMG の village / hamlet 規模 burg）でも成立すること。
+- **受け入れ**: フロンテージ保証（M1）は維持。建物数 15–80。壁関連メトリクス（M13 等）はスキップとして明示。FMG の村 descriptor からの生成が目視で「地図の川・街道と整合した村」になっている。
+
 ## 3. バックログ（v2 完了後の候補。着手しない）
 
 - 地下構造の復活（中世考証版: 開渠溝・氷室・地下貯蔵庫・クリプト。ローマ水道は「遺構」として演出）

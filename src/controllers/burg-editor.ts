@@ -7,6 +7,7 @@ import { worldContext } from "../context/worldContext";
 import { drawBurgIcon, drawBurgLabel, removeBurgCOA } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { burgEconomyExtensions } from "../services/burgEconomyExtensions";
+import { getBurgSiteDescriptor } from "../services/burgSiteDescriptor";
 import { getHeight } from "../services/cellInfoService";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
@@ -347,6 +348,19 @@ export const burgEditorActions = {
     const burg = worldContext.pack.burgs[burgId];
     const link = GenerationPipeline.Burgs.getPreview(burg).link;
     if (link) openURL(link);
+  },
+
+  copyCityGeneratorInput(): void {
+    const burgId = burgEditorInternal.getBurgId();
+    const descriptor = getBurgSiteDescriptor(burgId);
+    if (!descriptor) {
+      tip("Cannot build the site descriptor for this burg", false, "error");
+      return;
+    }
+    navigator.clipboard
+      .writeText(JSON.stringify(descriptor, null, 2))
+      .then(() => tip("City Generator site input is copied to clipboard as JSON", false, "success", 4000))
+      .catch(() => tip("Failed to copy the site input to clipboard", false, "error"));
   },
 
   setCustomPreview(): void {

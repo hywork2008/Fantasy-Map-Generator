@@ -8,6 +8,7 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { removeBurgIcon, removeBurgLabel } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { countBurgRoadLegs } from "../services/burgSiteDescriptor";
 import { tip } from "../services/tooltipService";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, Route } from "../types/models";
@@ -711,6 +712,9 @@ class BurgModule {
     const temple = +(burg.temple as number);
     const shantytown = +(burg.shanty as number);
 
+    // pass the real number of land-route legs as the gate count; -1 lets watabou decide
+    const gates = countBurgRoadLegs(burg) || -1;
+
     const style = "natural";
 
     const url = new URL("https://watabou.github.io/city-generator/");
@@ -729,7 +733,7 @@ class BurgModule {
       temple: temple.toString(),
       walls: walls.toString(),
       shantytown: shantytown.toString(),
-      gates: (-1).toString(),
+      gates: gates.toString(),
       style
     }).toString();
     if (sea) url.searchParams.append("sea", sea.toString());

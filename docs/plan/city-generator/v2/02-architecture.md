@@ -149,16 +149,20 @@ interface CityModel {
 ```ts
 interface CityParams {
   seed: string;
-  sizePreset: "small" | "medium" | "large";   // 15 / 40 / 100 ha
+  settlementType: "city" | "village";         // 村落モードは 12 参照
+  sizePreset: "small" | "medium" | "large";   // 15 / 40 / 100 ha（city のみ）
   siteArchetype: "riverCrossing" | "hillTop" | "harbor" | "crossroads"; // 04 参照
   numGates: number;            // 3–6
   plannedQuarter: boolean;     // バスティード地区を 1 つ含めるか
   irregularity: number;        // 0–1。道路・敷地の揺らぎ量の全体係数
   wallShape: "organic" | "polygon";
+  /** FMG 立地入力（13 参照）。存在すれば S0–S3 の地形・アンカー入力を差し替える */
+  site?: BurgSiteDescriptor;
 }
 ```
 
 `numWards`・`wallStarDepth` など v1 のボロノイ由来パラメータは廃止する。
+`site` が与えられた場合、`seed`・`sizePreset`・`siteArchetype`・`numGates` の既定値は descriptor から導出する（[13-fmg-site-input.md](13-fmg-site-input.md) §3）。
 
 ## 5. 決定論と乱数
 

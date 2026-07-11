@@ -38,6 +38,7 @@ import {
   unregisterExtensionWebglLayers
 } from "./renderers/webgl/extensionWebglLayerRegistry";
 import { burgEconomyExtensions } from "./services/burgEconomyExtensions";
+import { getBurgSiteDescriptor } from "./services/burgSiteDescriptor";
 import {
   registerExtensionMapPickHandler,
   unregisterExtensionMapPickHandler
@@ -271,7 +272,8 @@ export async function initApp(options: FMGInitOptions = {}): Promise<void> {
       saveGeoJsonZones,
       getGeoJsonZones: buildGeoJsonZones,
       editBurg,
-      advanceTime
+      advanceTime,
+      getBurgSiteDescriptor
     }),
     extensionAPI: buildExtensionAPI()
   });

@@ -86,7 +86,7 @@ describe("advanceCharacterAging", () => {
     worldContext.pack.characters = [
       {
         i: 0,
-        age: 20,
+        age: 28, // past the random skill-growth cap (25) after aging, so the test stays deterministic
         appearance: 50,
         skills: { prowess: 50 } as never,
         personality: { confidence: 50 } as never,
@@ -94,7 +94,7 @@ describe("advanceCharacterAging", () => {
       } as never
     ];
 
-    advanceCharacterAging(5); // 20 -> 25, still under 35
+    advanceCharacterAging(5); // 28 -> 33, still under 35
 
     const character = worldContext.pack.characters[0];
     expect(character.appearance).toBe(50);

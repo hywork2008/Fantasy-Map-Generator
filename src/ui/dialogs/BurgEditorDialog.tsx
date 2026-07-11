@@ -321,6 +321,13 @@ export const BurgEditorDialog: React.FC = () => {
             ></button>
             <button
               type="button"
+              id="burgCopySiteDescriptor"
+              data-tip="Copy the City Generator site input (local terrain, river course, road entries) as JSON"
+              className="icon-docs"
+              onClick={() => burgEditorActions.copyCityGeneratorInput()}
+            ></button>
+            <button
+              type="button"
               id="burgLocate"
               data-tip="Zoom map and center view in the burg"
               className="icon-target"

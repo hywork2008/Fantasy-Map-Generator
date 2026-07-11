@@ -21,6 +21,7 @@
 | 10 | [10-rendering-ui.md](10-rendering-ui.md) | deck.gl 描画・デバッグ表示・UI・エクスポート | 仕様 |
 | 11 | [11-validation.md](11-validation.md) | 構造妥当性メトリクス・テスト戦略 | 仕様 |
 | 12 | [12-roadmap.md](12-roadmap.md) | マイルストーン・受け入れ基準・実装者への作業指示 | 指示 |
+| 13 | [13-fmg-site-input.md](13-fmg-site-input.md) | FMG 立地入力（Burg Site Descriptor）契約・site モード | 仕様 |
 
 ## 本計画書の位置づけ
 

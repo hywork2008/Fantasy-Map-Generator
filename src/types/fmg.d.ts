@@ -1,6 +1,7 @@
 import type { SimulationContext } from "../context/simulationContext";
 import type { RenderMode, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import type { BurgSiteDescriptor } from "../services/burgSiteDescriptor";
 import type { UITourModule } from "../services/ui-tour";
 import type { Grid } from "../utils/graphUtils";
 import type { ExtensionAPI } from "./extension-api";
@@ -34,6 +35,13 @@ export interface FMGActionsAPI {
   editBurg(id?: number): void;
   /** Advances the world's simulation clock by deltaYears and runs all registered time-tick hooks. */
   advanceTime(deltaYears: number): void;
+  /**
+   * Machine-readable site survey of a burg's local geography (river course and
+   * chord position, road entry azimuths, shoreline, coarse heightfield) in a
+   * local meters frame — the input contract for external city generators.
+   * See docs/plan/city-generator/v2/13-fmg-site-input.md.
+   */
+  getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null;
 }
 
 export interface FMGNamespace {
