@@ -188,6 +188,31 @@ async function getMarkerPosition(page: Page, markerId: number): Promise<{ x: num
 }
 
 test.describe("webgl hybrid renderer", () => {
+  test("switches WebGL rendering on and off with an accessible toggle", async ({ page }) => {
+    await page.goto("/?seed=webgl-renderer-toggle&width=1000&height=700");
+    await waitForMapLoad(page);
+
+    if ((await page.locator("#optionsHide").textContent())?.trim() === "►") {
+      await page.locator("#optionsHide").click();
+    }
+    await page.getByRole("button", { name: "Layers", exact: true }).click();
+
+    const toggle = page.getByRole("switch", { name: "WebGL rendering" });
+    await expect(toggle).not.toBeChecked();
+    await expect(page.getByText("WebGL rendering", { exact: true })).toBeVisible();
+
+    await toggle.check();
+    await expect(toggle).toBeChecked();
+    await expect.poll(() => page.evaluate(() => localStorage.getItem("fmg-render-mode"))).toBe("webglHybrid");
+    await expect(page.locator("#webglMapCanvas")).toBeVisible();
+    await waitForWebglCanvasPixels(page);
+
+    await toggle.uncheck();
+    await expect(toggle).not.toBeChecked();
+    await expect.poll(() => page.evaluate(() => localStorage.getItem("fmg-render-mode"))).toBe("svg");
+    await expect(page.locator("#webglMapCanvas")).toBeHidden();
+  });
+
   test("renders non-empty canvas and keeps SVG overlays after zoom and resize", async ({ page }) => {
     await page.goto("/?seed=webgl-hybrid&width=1280&height=720");
     await waitForMapLoad(page);

@@ -979,6 +979,76 @@ input[type="checkbox"].native {
   cursor: pointer;
 }
 
+.renderer-mode-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.renderer-mode-label {
+  font-weight: 600;
+}
+
+.renderer-mode-switch {
+  position: relative;
+  display: inline-block;
+  width: 32px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.renderer-mode-switch input {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.renderer-mode-switch-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 9px;
+  background: #aaa;
+  transition: background 0.15s;
+  pointer-events: none;
+}
+
+.renderer-mode-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: left 0.15s;
+  pointer-events: none;
+}
+
+.renderer-mode-switch input:checked + .renderer-mode-switch-track {
+  background: #4a9e4a;
+}
+
+.renderer-mode-switch input:checked ~ .renderer-mode-switch-thumb {
+  left: 16px;
+}
+
+.renderer-mode-switch input:focus-visible + .renderer-mode-switch-track {
+  outline: 2px solid #0da6ff;
+  outline-offset: 2px;
+}
+
+.renderer-mode-status {
+  min-width: 22px;
+  color: #666;
+  font-size: 0.85em;
+}
+
 #namesbaseExamples {
   cursor: pointer;
 }

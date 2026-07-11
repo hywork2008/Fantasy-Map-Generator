@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useState } from "react";
+import { setRenderMode } from "../../../actions";
 import { handleLayersPresetChange, removePreset, savePreset, toggleLayerById } from "../../../controllers/layers";
 import { changeViewMode } from "../../../controllers/viewMode";
 import { DEFAULT_LAYERS, type LayerConfig, useLayerState } from "../../../store/layerState";
@@ -47,31 +48,47 @@ export const LayersTab: React.FC = () => {
     changeViewMode(e.nativeEvent);
   };
 
-  const [renderMode, setRenderModeState] = useState(localStorage.getItem("fmg-render-mode") || "svg");
+  const [isWebglRendering, setIsWebglRendering] = useState(
+    () => localStorage.getItem("fmg-render-mode") === "webglHybrid"
+  );
+
+  useEffect(() => {
+    const syncRenderMode = (event: Event) => {
+      const mode = (event as CustomEvent<"svg" | "webglHybrid">).detail;
+      if (mode === "svg" || mode === "webglHybrid") setIsWebglRendering(mode === "webglHybrid");
+    };
+    document.addEventListener("fmg:render-mode-changed", syncRenderMode);
+    return () => document.removeEventListener("fmg:render-mode-changed", syncRenderMode);
+  }, []);
 
   const isCustom = activePreset === "custom";
 
   return (
     <div id="layersContent" className="tabcontent d-block">
-      <div style={{ marginBottom: "8px" }}>
-        <p data-tip="Select the map rendering engine" className="d-inline-block">
-          Renderer mode:
-        </p>
-        <select
-          data-tip="Select the map rendering engine"
-          id="renderModePreset"
-          value={renderMode}
-          onChange={e => {
-            const newMode = e.target.value;
-            setRenderModeState(newMode);
-            import("../../../actions").then(({ setRenderMode }) => {
-              setRenderMode(newMode as "svg" | "webglHybrid");
-            });
-          }}
-        >
-          <option value="svg">SVG (Classic)</option>
-          <option value="webglHybrid">WebGL Hybrid</option>
-        </select>
+      <div className="renderer-mode-control" data-tip="Use WebGL Hybrid rendering instead of classic SVG rendering">
+        <span id="webglRenderingLabel" className="renderer-mode-label">
+          WebGL rendering
+        </span>
+        <label className="renderer-mode-switch" title={isWebglRendering ? "Use SVG rendering" : "Use WebGL rendering"}>
+          <input
+            id="webglRenderingToggle"
+            type="checkbox"
+            role="switch"
+            aria-labelledby="webglRenderingLabel"
+            aria-checked={isWebglRendering}
+            checked={isWebglRendering}
+            onChange={event => {
+              const enabled = event.target.checked;
+              setIsWebglRendering(enabled);
+              setRenderMode(enabled ? "webglHybrid" : "svg");
+            }}
+          />
+          <span className="renderer-mode-switch-track" aria-hidden="true" />
+          <span className="renderer-mode-switch-thumb" aria-hidden="true" />
+        </label>
+        <output className="renderer-mode-status" aria-live="polite">
+          {isWebglRendering ? "On" : "Off"}
+        </output>
       </div>
 
       <p data-tip="Select a map layers preset" className="d-inline-block">
