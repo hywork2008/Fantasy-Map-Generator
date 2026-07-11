@@ -79,7 +79,7 @@ import {
 } from "./adapters/deckDataAdapters";
 import { BURG_ICON_RASTER_SIZE, getBurgIconRasterCacheVersion } from "./burgIconRasterCache";
 import { getEmblemIconCacheVersion } from "./emblemIconCache";
-import { getCachedEmojiIconUrl, getEmojiIconCacheVersion } from "./emojiIconCache";
+import { getCachedEmojiIconUrl, getEmojiIconCacheVersion, pickEmojiIconResolution } from "./emojiIconCache";
 import { getExtensionWebglLayers } from "./extensionWebglLayerRegistry";
 import { getExternalIconFailureCacheVersion, markExternalIconFailed } from "./externalIconFailureCache";
 import {
@@ -840,6 +840,11 @@ export function buildDeckLayers(
     const militarySymbols = getCachedDeckData("military:symbols", signatures.byLayer.military, () =>
       buildMilitaryRegimentSymbols(worldContext, viewContext.focusScope, militarySize)
     );
+    // Emoji icons are canvas-rasterized (see emojiIconCache.ts) so a single fixed-size raster
+    // blurs once zoomed in past its own resolution. Pick a raster tier that covers the icon's
+    // actual on-screen footprint at the current zoom, capped like deck.gl's own useDevicePixels.
+    const devicePixelCap = Math.min(window.devicePixelRatio || 1, 2);
+    const emojiIconResolution = pickEmojiIconResolution(militarySize * 2 * viewContext.scale * devicePixelCap);
     layers.push(
       new SolidPolygonLayer<DeckMilitaryBoxPolygon>({
         id: "fmg-webgl-military",
@@ -873,19 +878,22 @@ export function buildDeckLayers(
       new IconLayer<DeckMilitaryRegimentSymbol>({
         id: "fmg-webgl-military-icons",
         data: militarySymbols.filter(
-          regiment => !regiment.isExternalIcon && !!getCachedEmojiIconUrl(regiment.unitIcon)
+          regiment => !regiment.isExternalIcon && !!getCachedEmojiIconUrl(regiment.unitIcon, emojiIconResolution)
         ),
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         getPosition: datum => datum.unitIconPosition,
         getIcon: datum => {
-          const url = getCachedEmojiIconUrl(datum.unitIcon) || EMPTY_ICON_URL;
+          const url = getCachedEmojiIconUrl(datum.unitIcon, emojiIconResolution) || EMPTY_ICON_URL;
           return {
-            id: `emoji-unit-${datum.unitIcon}`,
+            // Resolution is folded into the id (not just the url) because deck.gl's IconLayer
+            // atlas keys texture slots by id — reusing the same id across resolution tiers would
+            // let a stale, lower-res texture survive instead of being swapped for the new one.
+            id: `emoji-unit-${datum.unitIcon}-${emojiIconResolution}`,
             url,
-            width: 64,
-            height: 64,
-            anchorX: 32,
-            anchorY: 32,
+            width: emojiIconResolution,
+            height: emojiIconResolution,
+            anchorX: emojiIconResolution / 2,
+            anchorY: emojiIconResolution / 2,
             mask: false
           };
         },
@@ -920,18 +928,18 @@ export function buildDeckLayers(
       // Filter out records not yet ready (see fmg:webgl-emoji-icon-ready for rebuild trigger).
       new IconLayer<DeckMilitaryRegimentSymbol>({
         id: "fmg-webgl-military-actions",
-        data: militarySymbols.filter(regiment => !!getCachedEmojiIconUrl(regiment.actionIcon)),
+        data: militarySymbols.filter(regiment => !!getCachedEmojiIconUrl(regiment.actionIcon, emojiIconResolution)),
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         getPosition: datum => datum.actionIconPosition,
         getIcon: datum => {
-          const url = getCachedEmojiIconUrl(datum.actionIcon) || EMPTY_ICON_URL;
+          const url = getCachedEmojiIconUrl(datum.actionIcon, emojiIconResolution) || EMPTY_ICON_URL;
           return {
-            id: `emoji-action-${datum.actionIcon}`,
+            id: `emoji-action-${datum.actionIcon}-${emojiIconResolution}`,
             url,
-            width: 64,
-            height: 64,
-            anchorX: 32,
-            anchorY: 32,
+            width: emojiIconResolution,
+            height: emojiIconResolution,
+            anchorX: emojiIconResolution / 2,
+            anchorY: emojiIconResolution / 2,
             mask: false
           };
         },
