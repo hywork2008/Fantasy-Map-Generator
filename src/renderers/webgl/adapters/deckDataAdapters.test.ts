@@ -752,7 +752,7 @@ describe("deck.gl data adapters", () => {
     ]);
   });
 
-  it("clips land-derived WebGL fills with the fractalized island mask", () => {
+  it("clips land-derived WebGL fills and rivers with the fractalized island mask", () => {
     const worldContext = createWorldContext();
     worldContext.pack.features = [
       {
@@ -764,14 +764,16 @@ describe("deck.gl data adapters", () => {
       }
     ] as unknown as WorldContext["pack"]["features"];
     const viewContext = { focusScope: null } as ViewContext;
-    useLayerState.getState().setAllActiveLayers({ toggleStates: true });
+    useLayerState.getState().setAllActiveLayers({ toggleStates: true, toggleRivers: true });
 
     const layers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
     const maskLayer = layers.find(layer => layer.id === "fmg-webgl-land-mask");
     const statesLayer = layers.find(layer => layer.id === "fmg-webgl-states");
+    const riversLayer = layers.find(layer => layer.id === "fmg-webgl-rivers");
 
     expect(maskLayer?.props.operation).toBe("mask");
     expect((statesLayer?.props as { maskId?: string } | undefined)?.maskId).toBe("fmg-webgl-land-mask");
+    expect((riversLayer?.props as { maskId?: string } | undefined)?.maskId).toBe("fmg-webgl-land-mask");
   });
 
   it("cuts lake holes out of the WebGL land mask", () => {

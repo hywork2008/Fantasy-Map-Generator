@@ -826,16 +826,27 @@ export function buildDeckLayers(
 
   if (activeLayers.toggleRivers) {
     layers.push(
-      new SolidPolygonLayer<DeckRiverPolygon>({
-        id: "fmg-webgl-rivers",
-        data: getCachedDeckData("polygon:rivers", signatures.byLayer.rivers, () =>
-          buildRiverPolygons(worldContext, viewContext.focusScope, riverPaint.color)
-        ),
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-        getPolygon: datum => datum.polygon,
-        getFillColor: datum => datum.fillColor,
-        pickable: true
-      })
+      hasLandMask
+        ? createLandMaskedPolygonLayer<DeckRiverPolygon>({
+            id: "fmg-webgl-rivers",
+            data: getCachedDeckData("polygon:rivers", signatures.byLayer.rivers, () =>
+              buildRiverPolygons(worldContext, viewContext.focusScope, riverPaint.color)
+            ),
+            coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+            getPolygon: datum => datum.polygon,
+            getFillColor: datum => datum.fillColor,
+            pickable: true
+          })
+        : new SolidPolygonLayer<DeckRiverPolygon>({
+            id: "fmg-webgl-rivers",
+            data: getCachedDeckData("polygon:rivers", signatures.byLayer.rivers, () =>
+              buildRiverPolygons(worldContext, viewContext.focusScope, riverPaint.color)
+            ),
+            coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+            getPolygon: datum => datum.polygon,
+            getFillColor: datum => datum.fillColor,
+            pickable: true
+          })
     );
   }
 
@@ -949,17 +960,17 @@ function createDashedPathLayer(
 }
 
 /** Applies the curved island mask to a land-derived polygon layer. */
-function createLandMaskedPolygonLayer(
-  props: SolidPolygonLayerProps<DeckCellPolygon>
-): SolidPolygonLayer<DeckCellPolygon, MaskExtensionProps> {
-  const maskedProps: SolidPolygonLayerProps<DeckCellPolygon> & MaskExtensionProps = {
+function createLandMaskedPolygonLayer<T extends DeckCellPolygon | DeckRiverPolygon>(
+  props: SolidPolygonLayerProps<T>
+): SolidPolygonLayer<T, MaskExtensionProps> {
+  const maskedProps: SolidPolygonLayerProps<T> & MaskExtensionProps = {
     ...props,
     extensions: [LAND_MASK_EXTENSION],
     maskId: LAND_MASK_ID,
     // A land cell may cross the coastline. Clip its fragments rather than only testing its anchor.
     maskByInstance: false
   };
-  return new SolidPolygonLayer<DeckCellPolygon, MaskExtensionProps>(maskedProps);
+  return new SolidPolygonLayer<T, MaskExtensionProps>(maskedProps);
 }
 
 /** Wraps a computation so it runs at most once per `buildLayerSignatures()` call, on first use. */

@@ -1326,7 +1326,7 @@ export function buildLandMaskPolygons(
 ): DeckLandMaskPolygon[] {
   const islands = getRenderableFeatures(worldContext, focusScope, "island", appServices);
   // Lakes must remain in the mask even when a focused state excludes their water cells. Otherwise
-  // the state polygons around the lake would bridge straight across its surface.
+  // adjacent land fills and river polygons would bridge straight across their surface.
   const lakes = getRenderableFeatures(worldContext, null, "lake", appServices);
 
   return islands.map(island => ({
