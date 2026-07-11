@@ -380,7 +380,11 @@ function getStyleString(
     if (style) return style;
   }
   const storedValue = stored?.[key];
-  return typeof storedValue === "string" && storedValue ? storedValue : null;
+  if (typeof storedValue === "string" && storedValue) return storedValue;
+  // Style presets are parsed from JSON before SVG group nodes exist. Numeric attributes such as
+  // `font-size` retain their JSON number type until SVG mode has rendered the groups once.
+  if (typeof storedValue === "number" && Number.isFinite(storedValue)) return String(storedValue);
+  return null;
 }
 
 function getStyleRecord(source: object | null | undefined, key: string): Record<string, unknown> | null {

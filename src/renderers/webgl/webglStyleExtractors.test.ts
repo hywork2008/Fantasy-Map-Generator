@@ -55,10 +55,10 @@ function createWorldContext(): WorldContext {
     },
     style: {
       burgIcons: {
-        city: { fill: "#123456", opacity: "0.5", "data-size": "8" }
+        city: { fill: "#123456", opacity: 0.5, "font-size": 1.5 }
       },
       anchors: {
-        city: { fill: "#abcdef", opacity: "0.75", "font-size": "2" }
+        city: { fill: "#abcdef", opacity: 0.75, "font-size": 1.5 }
       },
       burgLabels: {
         town: { fill: "#654321", opacity: "0.6", "font-size": "5", "data-dy": "-0.8" }
@@ -189,8 +189,8 @@ describe("webgl style extractors", () => {
     const labelStyle = getLabelStyle(worldContext, viewContext);
 
     expect([...burgIconStyle.visibleGroups]).toEqual(["town", "city"]);
-    expect(burgIconStyle.burgIcons.city).toEqual({ fill: "#123456", opacity: 0.5, size: 8, icon: "#icon-circle" });
-    expect(burgIconStyle.anchors.city).toEqual({ fill: "#abcdef", opacity: 0.75, size: 2, icon: "#icon-anchor" });
+    expect(burgIconStyle.burgIcons.city).toEqual({ fill: "#123456", opacity: 0.5, size: 1.5, icon: "#icon-circle" });
+    expect(burgIconStyle.anchors.city).toEqual({ fill: "#abcdef", opacity: 0.75, size: 1.5, icon: "#icon-anchor" });
     expect(labelStyle.state).toMatchObject({
       fill: "#111111",
       size: 30,
