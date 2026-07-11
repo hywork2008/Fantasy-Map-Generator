@@ -80,5 +80,6 @@
 | `docs/debug/` / `docs/reviews/` | バグ調査・レビュー履歴 |
 | `docs/ui/` | UI 移行・UI 関数対応表 |
 | `docs/upstream/` | upstream 由来の参考資料 |
+| `docs/temp/` | 草案・メモ書き・アイデア置き場。.gitignoreに登録 |
 
 `docs/plan/`、`docs/debug/`、`docs/reviews/` には会話・調査時点の記録が多く含まれます。現在の仕様として扱う前に、必ず `src/` の実装と照合してください。
