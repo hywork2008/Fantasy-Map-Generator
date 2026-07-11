@@ -1615,75 +1615,6 @@ function getCellPolygon(
   return polygon.length >= 3 ? polygon : null;
 }
 
-function getOutwardVector(
-  vId: number,
-  cells: Readonly<PackedGraphCells>,
-  vertices: Readonly<PackedGraphVertices>
-): [number, number] {
-  const adjCells = vertices.c[vId];
-  if (!adjCells || adjCells.length !== 3) return [0, 0];
-
-  let landCount = 0;
-  for (const c of adjCells) {
-    if (cells.h[c] >= 20) landCount++;
-  }
-
-  if (landCount === 0 || landCount === 3) return [0, 0];
-
-  const adjVertices = vertices.v[vId];
-  if (!adjVertices) return [0, 0];
-
-  const vPos = vertices.p[vId];
-  if (!vPos) return [0, 0];
-
-  let targetU = -1;
-  let pushSign = 1;
-
-  if (landCount === 2) {
-    for (const u of adjVertices) {
-      const shared = vertices.c[u]?.filter(c => adjCells.includes(c));
-      if (shared && shared.length === 2 && cells.h[shared[0]] >= 20 && cells.h[shared[1]] >= 20) {
-        targetU = u;
-        pushSign = 1; // v - u
-        break;
-      }
-    }
-  } else if (landCount === 1) {
-    for (const u of adjVertices) {
-      const shared = vertices.c[u]?.filter(c => adjCells.includes(c));
-      if (shared && shared.length === 2 && cells.h[shared[0]] < 20 && cells.h[shared[1]] < 20) {
-        targetU = u;
-        pushSign = -1; // u - v
-        break;
-      }
-    }
-  }
-
-  if (targetU !== -1) {
-    const uPos = vertices.p[targetU];
-    if (uPos) {
-      const dx = (vPos[0] - uPos[0]) * pushSign;
-      const dy = (vPos[1] - uPos[1]) * pushSign;
-      const len = Math.sqrt(dx * dx + dy * dy) || 1;
-
-      let minEdgeLen = Infinity;
-      for (const w of adjVertices) {
-        const wPos = vertices.p[w];
-        if (wPos) {
-          const ddx = vPos[0] - wPos[0];
-          const ddy = vPos[1] - wPos[1];
-          const dist = Math.sqrt(ddx * ddx + ddy * ddy);
-          if (dist > 0 && dist < minEdgeLen) minEdgeLen = dist;
-        }
-      }
-      const expansion = Math.min(15, minEdgeLen * 0.8);
-      return [(dx / len) * expansion, (dy / len) * expansion];
-    }
-  }
-
-  return [0, 0];
-}
-
 function getCoastalFringePolygons(
   cells: Readonly<PackedGraphCells>,
   vertices: Readonly<PackedGraphVertices>,
@@ -1693,29 +1624,58 @@ function getCoastalFringePolygons(
   const vIds = cells.v[cellId] ?? [];
   if (vIds.length < 3) return fringes;
 
+  const edgeDisplacements: { vA: number; vB: number; vA_out: DeckPosition; vB_out: DeckPosition }[] = [];
+
   for (let i = 0; i < vIds.length; i++) {
     const vA_id = vIds[i];
     const vB_id = vIds[(i + 1) % vIds.length];
 
     const sharedCells = vertices.c[vA_id]?.filter(c => vertices.c[vB_id]?.includes(c)) || [];
-    const isCoastalEdge = sharedCells.some(c => cells.h[c] < 20);
+    const neighborId = sharedCells.find(c => c !== cellId);
+    if (neighborId === undefined) continue;
+
+    const isCoastalEdge = cells.h[neighborId] < 20;
 
     if (isCoastalEdge) {
       const vA = vertices.p[vA_id];
       const vB = vertices.p[vB_id];
+      const neighborP = cells.p[neighborId];
 
-      if (vA && vB) {
-        const vA_vec = getOutwardVector(vA_id, cells, vertices);
-        const vB_vec = getOutwardVector(vB_id, cells, vertices);
+      if (vA && vB && neighborP) {
+        let nx = -(vB[1] - vA[1]);
+        let ny = vB[0] - vA[0];
+        const len = Math.sqrt(nx * nx + ny * ny) || 1;
+        nx /= len;
+        ny /= len;
 
-        if (vA_vec[0] === 0 && vA_vec[1] === 0 && vB_vec[0] === 0 && vB_vec[1] === 0) {
-          continue;
+        const midX = (vA[0] + vB[0]) / 2;
+        const midY = (vA[1] + vB[1]) / 2;
+        const dot = nx * (neighborP[0] - midX) + ny * (neighborP[1] - midY);
+
+        if (dot < 0) {
+          nx = -nx;
+          ny = -ny;
         }
 
-        const vA_out: DeckPosition = [vA[0] + vA_vec[0], vA[1] + vA_vec[1]];
-        const vB_out: DeckPosition = [vB[0] + vB_vec[0], vB[1] + vB_vec[1]];
+        const distToNeighbor = Math.sqrt((neighborP[0] - midX) ** 2 + (neighborP[1] - midY) ** 2);
+        const expansion = Math.min(15, Math.max(1, distToNeighbor * 0.9));
+
+        const vA_out: DeckPosition = [vA[0] + nx * expansion, vA[1] + ny * expansion];
+        const vB_out: DeckPosition = [vB[0] + nx * expansion, vB[1] + ny * expansion];
 
         fringes.push([[vA[0], vA[1]], [vB[0], vB[1]], vB_out, vA_out]);
+        edgeDisplacements.push({ vA: vA_id, vB: vB_id, vA_out, vB_out });
+      }
+    }
+  }
+
+  for (let i = 0; i < edgeDisplacements.length; i++) {
+    const current = edgeDisplacements[i];
+    const next = edgeDisplacements.find(e => e.vA === current.vB);
+    if (next) {
+      const vB = vertices.p[current.vB];
+      if (vB) {
+        fringes.push([[vB[0], vB[1]], current.vB_out, next.vA_out]);
       }
     }
   }
