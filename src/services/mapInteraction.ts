@@ -59,7 +59,9 @@ document.addEventListener("fmg:webgl-map-pick", (event: CustomEvent<WebglPickDet
 document.addEventListener("fmg:webgl-map-pick-candidates", (event: CustomEvent<WebglPickCandidatesDetail>) => {
   const { primary, candidates, clientX, clientY } = event.detail;
   const chooserCandidates =
-    candidates.length > 1 ? candidates.filter(candidate => !PICK_CHOOSER_HIDDEN_KINDS.has(candidate.kind)) : [];
+    candidates.length > 1
+      ? dedupePickCandidates(candidates.filter(candidate => !PICK_CHOOSER_HIDDEN_KINDS.has(candidate.kind)))
+      : [];
   if (chooserCandidates.length > 0) {
     suppressNextChooserClick(clientX, clientY);
     showPickChooser(chooserCandidates, clientX, clientY);
@@ -113,6 +115,32 @@ function isSingleClickEditablePick(detail: WebglPickDetail): boolean {
     detail.kind === "coastline" ||
     detail.kind === "ice"
   );
+}
+
+/**
+ * Collapses candidates that resolve to the same editable entity so the chooser doesn't list it
+ * twice. Rivers are picked per bank-to-bank segment (`river-segment-{index}-{river.i}`, see
+ * buildRiverPolygons in deckDataAdapters.ts), so a single click can return several segments of
+ * the same river; they all open the same River Editor, so only the first is kept.
+ */
+function dedupePickCandidates(candidates: WebglPickDetail[]): WebglPickDetail[] {
+  const seen = new Set<string>();
+  const result: WebglPickDetail[] = [];
+  for (const candidate of candidates) {
+    const key = pickCandidateEntityKey(candidate);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(candidate);
+  }
+  return result;
+}
+
+function pickCandidateEntityKey(candidate: WebglPickDetail): string {
+  if (candidate.kind === "river") {
+    const riverId = parseTrailingNumber(candidate.id);
+    if (riverId !== null) return `river-${riverId}`;
+  }
+  return `${candidate.kind}-${candidate.id}`;
 }
 
 function formatWebglPickTooltip(detail: WebglPickDetail): string {

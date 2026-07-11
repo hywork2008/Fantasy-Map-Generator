@@ -1186,7 +1186,10 @@ function buildLayerSignatures(
     background: `${mapId}|${graphWidth}x${graphHeight}|${oceanFill}`,
     land: `${landGeometry()}|${landFill}`,
     landGeometrySignature: landGeometry(),
-    landMask: `${scope}|${featuresSignature(pack.features, "island")}|lakes:${featuresSignature(pack.features, "lake")}`,
+    // geometry() is included so coastline/lake vertex edits (which move pack.vertices.p without
+    // changing feature.vertices membership, so featuresSignature alone is unaffected) invalidate
+    // the cached land mask polygon, matching the `land`/`byLayer.coastline` signatures above.
+    landMask: `${geometry()}|${scope}|${featuresSignature(pack.features, "island")}|lakes:${featuresSignature(pack.features, "lake")}`,
     byLayer
   };
 }

@@ -23,15 +23,21 @@ import { getLakeEditorState } from "../store/lakeEditorState";
 import type { PackedGraphFeature } from "../types/models";
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { rn, unique } from "../utils";
+import { debounce } from "../utils/commonUtils";
 import { getArea } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
 import { generateRandomName } from "../utils/nameGenerator";
 import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
 import { interactionManager } from "./interactionManager";
-import { toggleCells } from "./layers";
+import { drawLayers, toggleCells } from "./layers";
 import { editNotes } from "./notes-editor";
 import { editStyle } from "./style";
+
+// Recoloring land fills (states/provinces/biomes/...) after a lake shape change is expensive, so
+// during a drag it's throttled via debounce rather than run on every tick; the un-debounced call
+// in handleVertexDragEnd guarantees the final position is always accurate.
+const DRAG_LAND_FILL_REDRAW_MS = 50;
 
 function getLake(): PackedGraphFeature {
   const lakeId = +elSelected!.attr("data-f");
@@ -165,15 +171,40 @@ function handleVertexDrag(this: SVGCircleElement, event: D3DragEvent<SVGCircleEl
     .select("#vertices")
     .selectAll("polygon")
     .attr("points", (d: unknown) => getPackPolygon(d as number, worldContext.pack).join(" "));
+
+  redrawLandFillsDebounced();
 }
 
-function handleVertexDragEnd(): void {
+function redrawLandFills(): void {
   if (layerIsOn("toggleStates")) StatesRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleBiomes")) BiomesRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleReligions")) ReligionsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleCultures")) CulturesRenderer.render(worldContext, viewContext, appServices);
+
+  // In webgl hybrid mode the lake fill is a deck.gl polygon layer, not the SVG #lakes/#water mask
+  // touched above; its data must be rebuilt for the moved vertex to show live instead of only
+  // appearing after the editor closes.
+  if (viewContext.renderMode === "webglHybrid") {
+    const featureId = elSelected ? +elSelected.attr("data-f") : Number.NaN;
+
+    drawLayers();
+
+    // drawLayers() -> drawHybridSvgOverlays() re-runs FeaturesRenderer, which rebuilds every
+    // <use> under #lakes from scratch and detaches the element elSelected was pointing at;
+    // re-acquire it by feature id so the still-active drag keeps working.
+    if (!Number.isNaN(featureId)) {
+      const node = view.lakes.select<SVGElement>(`use[data-f="${featureId}"]`).node();
+      if (node) setElSelected(select(node as Element));
+    }
+  }
+}
+
+const redrawLandFillsDebounced = debounce(redrawLandFills, DRAG_LAND_FILL_REDRAW_MS);
+
+function handleVertexDragEnd(): void {
+  redrawLandFills();
 }
 
 function closeLakesEditor(): void {

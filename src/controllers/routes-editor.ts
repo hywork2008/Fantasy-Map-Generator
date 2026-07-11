@@ -22,7 +22,7 @@ import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { openElevationProfile } from "./elevation-profile";
 import { interactionManager } from "./interactionManager";
-import { toggleCells, toggleRoutes } from "./layers";
+import { drawLayers, toggleCells, toggleRoutes } from "./layers";
 import { editNotes } from "./notes-editor";
 import { editRouteGroups } from "./route-group-editor";
 import { editStyle } from "./style";
@@ -185,6 +185,11 @@ function redrawRoute(route: Route): void {
   elSelected!.attr("d", GenerationPipeline.Routes.getPath(route));
   updateRouteLength(route);
   if (dialogStore.getState().openDialogs.has("elevationProfile")) routesEditorActions.showRouteElevationProfile();
+
+  // In webgl hybrid mode the visible route is a deck.gl PathLayer, not the SVG path
+  // updated above (that path is kept hidden, in sync only for WebGL pick resolution).
+  // Its data must be rebuilt for edits to appear live instead of only on dialog close.
+  if (viewContext.renderMode === "webglHybrid") drawLayers();
 }
 
 function addControlPoint(this: SVGPathElement, event: MouseEvent): void {

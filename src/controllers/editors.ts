@@ -116,7 +116,10 @@ function editWebglRegiment(id: string): void {
 }
 
 function editWebglRiver(id: string): void {
-  const entityId = parseWebglEntityId(id, /^river-(\d+)$/);
+  // River picks come from the bank-to-bank polygon layer, whose ids are
+  // `river-segment-{index}-{river.i}` (see buildRiverPolygons), so the river id is the
+  // trailing number rather than the token immediately after "river-".
+  const entityId = parseWebglEntityId(id, /(\d+)$/);
   if (entityId === null) return;
   RiversEditor.editRiver(`river${entityId}`);
 }
