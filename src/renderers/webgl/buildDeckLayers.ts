@@ -154,21 +154,24 @@ const WEBGL_POLYGON_LAYERS: Array<{
     toggle: "toggleBiomes",
     id: "biomes",
     build: (world, view, landCells) =>
-      buildBiomesPolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).biomes)
+      buildBiomesPolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).biomes),
+    maskLand: true
   },
   {
     toggle: "toggleReligions",
     id: "religions",
     build: (world, view, landCells) =>
       buildReligionPolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).religions),
-    boundary: "religion"
+    boundary: "religion",
+    maskLand: true
   },
   {
     toggle: "toggleCultures",
     id: "cultures",
     build: (world, view, landCells) =>
       buildCulturePolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).cultures),
-    boundary: "culture"
+    boundary: "culture",
+    maskLand: true
   },
   {
     toggle: "toggleStates",
@@ -422,48 +425,6 @@ export function buildDeckLayers(
         ])
   ];
 
-  if (activeLayers.toggleLakes) {
-    layers.push(
-      new SolidPolygonLayer<DeckFeaturePolygon>({
-        id: "fmg-webgl-lakes",
-        data: getCachedDeckData("features:lakes", signatures.byLayer.lakes, () =>
-          buildLakePolygons(
-            worldContext,
-            viewContext.focusScope,
-            appServices,
-            group => lakePaint[group]?.fill ?? lakePaint.freshwater.fill
-          )
-        ),
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-        getPolygon: datum => datum.polygon,
-        getFillColor: datum => datum.fillColor,
-        pickable: true
-      }),
-      new PathLayer<DeckPath>({
-        id: "fmg-webgl-lakes-outlines",
-        data: getCachedDeckData("features:lakes-outlines", signatures.byLayer["lakes-outlines"], () =>
-          buildLakeOutlinePaths(
-            worldContext,
-            viewContext.focusScope,
-            appServices,
-            group => lakePaint[group]?.stroke ?? lakePaint.freshwater.stroke,
-            group => lakePaint[group]?.strokeWidth ?? lakePaint.freshwater.strokeWidth
-          )
-        ),
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-        getPath: datum => datum.path,
-        getColor: datum => datum.color,
-        getWidth: datum => datum.width,
-        widthUnits: "pixels",
-        widthMinPixels: 0,
-        widthMaxPixels: 6,
-        jointRounded: true,
-        capRounded: true,
-        pickable: false
-      })
-    );
-  }
-
   for (const layer of WEBGL_POLYGON_LAYERS) {
     if (!activeLayers[layer.toggle]) continue;
     layers.push(
@@ -526,6 +487,48 @@ export function buildDeckLayers(
         })
       );
     }
+  }
+
+  if (activeLayers.toggleLakes) {
+    layers.push(
+      new SolidPolygonLayer<DeckFeaturePolygon>({
+        id: "fmg-webgl-lakes",
+        data: getCachedDeckData("features:lakes", signatures.byLayer.lakes, () =>
+          buildLakePolygons(
+            worldContext,
+            viewContext.focusScope,
+            appServices,
+            group => lakePaint[group]?.fill ?? lakePaint.freshwater.fill
+          )
+        ),
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getPolygon: datum => datum.polygon,
+        getFillColor: datum => datum.fillColor,
+        pickable: true
+      }),
+      new PathLayer<DeckPath>({
+        id: "fmg-webgl-lakes-outlines",
+        data: getCachedDeckData("features:lakes-outlines", signatures.byLayer["lakes-outlines"], () =>
+          buildLakeOutlinePaths(
+            worldContext,
+            viewContext.focusScope,
+            appServices,
+            group => lakePaint[group]?.stroke ?? lakePaint.freshwater.stroke,
+            group => lakePaint[group]?.strokeWidth ?? lakePaint.freshwater.strokeWidth
+          )
+        ),
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getPath: datum => datum.path,
+        getColor: datum => datum.color,
+        getWidth: datum => datum.width,
+        widthUnits: "pixels",
+        widthMinPixels: 0,
+        widthMaxPixels: 6,
+        jointRounded: true,
+        capRounded: true,
+        pickable: false
+      })
+    );
   }
 
   if (activeLayers.toggleIce) {

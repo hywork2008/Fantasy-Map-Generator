@@ -21,7 +21,7 @@ import type { PackedGraphCells, PackedGraphVertices } from "../../../types/Packe
 import type { WebglPickKind } from "../../../types/webglPicking";
 import { clipPoly } from "../../../utils";
 import { getColor, getColorScheme } from "../../../utils/colorUtils";
-import { fractalizeCoastline } from "../../coastline-fractal";
+import { fractalizeCoastline, sampleCoastlineShape } from "../../coastline-fractal";
 import { isCellInScope, isGridCellInScope } from "../../core/focusScope";
 import { getCachedBurgIconRaster } from "../burgIconRasterCache";
 import { getCachedEmblemIconUrl } from "../emblemIconCache";
@@ -264,6 +264,11 @@ export function buildLandCellGeometry(
     const polygon = getCellPolygon(cells, vertices, cellId);
     if (!polygon) continue;
     geometry.push({ cellId, polygon });
+
+    const fringes = getCoastalFringePolygons(cells, vertices, cellId);
+    for (const fringe of fringes) {
+      geometry.push({ cellId, polygon: fringe });
+    }
   }
 
   return geometry;
@@ -1541,6 +1546,54 @@ function getCellPolygon(
   return polygon.length >= 3 ? polygon : null;
 }
 
+function getCoastalFringePolygons(
+  cells: Readonly<PackedGraphCells>,
+  vertices: Readonly<PackedGraphVertices>,
+  cellId: number
+): DeckPosition[][] {
+  const fringes: DeckPosition[][] = [];
+  const vIds = cells.v[cellId] ?? [];
+  if (vIds.length < 3) return fringes;
+
+  for (let i = 0; i < vIds.length; i++) {
+    const vA_id = vIds[i];
+    const vB_id = vIds[(i + 1) % vIds.length];
+
+    const sharedCells = vertices.c[vA_id]?.filter(c => vertices.c[vB_id]?.includes(c)) || [];
+    const isCoastalEdge = sharedCells.some(c => cells.h[c] < 20);
+
+    if (isCoastalEdge) {
+      const vA = vertices.p[vA_id];
+      const vB = vertices.p[vB_id];
+
+      if (vA && vB) {
+        const edgeDx = vB[0] - vA[0];
+        const edgeDy = vB[1] - vA[1];
+        const edgeLen = Math.sqrt(edgeDx * edgeDx + edgeDy * edgeDy) || 1;
+        let nx = edgeDy / edgeLen;
+        let ny = -edgeDx / edgeLen;
+
+        const cx = cells.p[cellId][0];
+        const cy = cells.p[cellId][1];
+        const mx = (vA[0] + vB[0]) / 2;
+        const my = (vA[1] + vB[1]) / 2;
+        if (nx * (mx - cx) + ny * (my - cy) < 0) {
+          nx = -nx;
+          ny = -ny;
+        }
+
+        const expansion = Math.min(15, edgeLen * 0.8);
+        const vA_out: DeckPosition = [vA[0] + nx * expansion, vA[1] + ny * expansion];
+        const vB_out: DeckPosition = [vB[0] + nx * expansion, vB[1] + ny * expansion];
+
+        fringes.push([[vA[0], vA[1]], [vB[0], vB[1]], vB_out, vA_out]);
+      }
+    }
+  }
+
+  return fringes;
+}
+
 function getGridCellPolygon(
   cells: Readonly<{ v: number[][] }>,
   vertices: Readonly<{ p: [number, number][] }>,
@@ -1631,14 +1684,15 @@ function getFeaturePolygon(
     0.3
   ).map(({ x, y }) => [x, y] as [number, number]);
   const clipped = clipPoly(simplified, worldContext.graphWidth, worldContext.graphHeight, 1);
-  return fractalizeCoastline(
+  const fractalShape = fractalizeCoastline(
     worldContext,
     {} as Readonly<ViewContext>,
     appServices,
     clipped,
     feature.i,
     feature.type
-  ).points.map(([x, y]) => [x, y] as DeckPosition);
+  );
+  return sampleCoastlineShape(fractalShape, 0.5).map(([x, y]) => [x, y] as DeckPosition);
 }
 
 function closePath(points: DeckPosition[]): DeckPosition[] {
