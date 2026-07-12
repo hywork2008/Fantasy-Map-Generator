@@ -2,6 +2,7 @@ import type { Burg } from "../../hostTypes";
 import { DEBUG, ERROR, minmax, rn, TIME } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 import { syncBurgMarketLedgers } from "./burgMarketLedgers";
+import { Caravans } from "./caravans";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, Goods, getDemandTargets } from "./goods-generator";
 import { Markets } from "./markets-generator";
@@ -49,6 +50,7 @@ export class ProductionModule {
     }
 
     Markets.runGlobalTrade();
+    Caravans.spawnFromDeals(this.worldContext.pack.deals);
     this.fillBurgsDemand(sortedBurgs, index);
     syncBurgMarketLedgers();
 

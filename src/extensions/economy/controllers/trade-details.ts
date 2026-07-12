@@ -1,31 +1,34 @@
 import { type Point, useOptionsState } from "../../hostCore";
-import type { Burg } from "../../hostTypes";
 import { openDialog } from "../../hostUi";
 import { rn } from "../../hostUtils";
 
 import { getApi, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
-import type { Deal } from "../generators/marketTypes";
-import { TradeAnimation, type TradeBatch } from "../generators/trade-animation";
+import type { Caravan } from "../generators/marketTypes";
 import { clearHighlight, highlight } from "../renderers/draw-trade-animation";
 import { setTradeDetailsState } from "../store/tradeDetailsState";
 
-let activeBatch: TradeBatch | undefined;
+let activeCaravan: Caravan | undefined;
 
-export function open(batch: TradeBatch): void {
-  if (!batch?.deals.length) return;
+export function open(caravan: Caravan): void {
+  if (!caravan) return;
 
-  activeBatch = batch;
+  activeCaravan = caravan;
 
-  const { burgs } = getWorldContext().pack;
-  const startBurg = burgs[batch.startBurgId];
-  const endBurg = burgs[batch.endBurgId];
+  const { markets, burgs } = getWorldContext().pack;
+  const sellerMarket = markets[caravan.seller];
+  const buyerMarket = markets[caravan.buyer];
+  if (!sellerMarket || !buyerMarket) return;
+  const startBurg = burgs[sellerMarket.centerBurgId];
+  const endBurg = burgs[buyerMarket.centerBurgId];
   if (!startBurg || !endBurg) return;
-  const path = TradeAnimation.findRoutePath(startBurg.cell, endBurg.cell);
-  if (!path) return;
 
-  tradeDetailsAddLines(path.points);
-  highlight(path.points);
+  const points = caravan.routeSegments
+    .flatMap((s, idx) => (idx === 0 ? s.points : s.points.slice(1)))
+    .map(p => [p[0], p[1]] as Point);
+
+  tradeDetailsAddLines(points);
+  highlight(points);
   openDialog("tradeDetails");
 }
 
@@ -34,84 +37,53 @@ export function closeTradeDetails(): void {
   clearHighlight();
 }
 
-function tradeDetailsAddLines(points: Point[]): void {
-  if (!activeBatch) return;
+function tradeDetailsAddLines(_points: Point[]): void {
+  if (!activeCaravan) return;
 
-  const batch = activeBatch;
-  const { burgs } = getWorldContext().pack;
-  const from = burgs[batch.startBurgId];
-  const to = burgs[batch.endBurgId];
-  const fromType = getClientType(batch.deals[0], from, "from");
-  const toType = getClientType(batch.deals[0], to, "to");
+  const caravan = activeCaravan;
+  const { burgs, markets } = getWorldContext().pack;
+  const sellerMarket = markets[caravan.seller];
+  const buyerMarket = markets[caravan.buyer];
+  const from = burgs[sellerMarket.centerBurgId];
+  const to = burgs[buyerMarket.centerBurgId];
 
-  let totalUnits = 0;
-  let totalValue = 0;
-  const combined = new Map<number, { units: number; value: number }>();
-  for (const deal of batch.deals) {
-    const entry = combined.get(deal.good) ?? { units: 0, value: 0 };
-    entry.units += deal.units;
-    entry.value += deal.units * deal.price;
-    combined.set(deal.good, entry);
-    totalUnits += deal.units;
-    totalValue += deal.units * deal.price;
-  }
-
-  const rows = Array.from(combined, ([goodId, { units, value }]) => {
-    const good = Goods.get(goodId);
-    if (!good) return null;
-    const price = units ? value / units : 0;
+  const rows = (caravan.payload || []).map(item => {
+    const good = Goods.get(item.goodId);
     return {
-      goodId,
-      goodName: good.name,
-      goodColor: good.color,
-      goodStroke: Goods.getStroke(good.color),
-      goodIcon: good.icon,
-      units: rn(units, 2),
-      price: rn(price, 2),
-      value: rn(value, 2)
+      goodId: item.goodId,
+      goodName: good?.name ?? "Unknown",
+      goodColor: good?.color ?? "#fff",
+      goodStroke: good ? Goods.getStroke(good.color) : "#000",
+      goodIcon: good?.icon ?? "",
+      units: rn(item.units, 2),
+      price: rn(item.value / item.units, 2),
+      value: rn(item.value, 2)
     };
-  }).filter((r): r is NonNullable<typeof r> => r !== null);
-
-  const length = rn(
-    points.reduce((sum, p, i) => {
-      if (i === 0) return 0;
-      const prev = points[i - 1];
-      return sum + Math.hypot(p[0] - prev[0], p[1] - prev[1]);
-    }, 0),
-    2
-  );
+  });
 
   const distUnit = useOptionsState.getState().distanceUnit || "km";
 
   setTradeDetailsState({
     summary: {
       sellerName: from?.name ?? "",
-      sellerType: fromType,
+      sellerType: "market",
       buyerName: to?.name ?? "",
-      buyerType: toType,
+      buyerType: "market",
       onZoomSeller: () => {
-        const burg = getWorldContext().pack.burgs[batch.startBurgId];
-        if (burg) getApi().zoomTo(burg.x, burg.y, 8, 1500);
+        if (from) getApi().zoomTo(from.x, from.y, 8, 1500);
       },
       onZoomBuyer: () => {
-        const burg = getWorldContext().pack.burgs[batch.endBurgId];
-        if (burg) getApi().zoomTo(burg.x, burg.y, 8, 1500);
+        if (to) getApi().zoomTo(to.x, to.y, 8, 1500);
       }
     },
     rows,
-    distance: `${rn(length * getWorldContext().distanceScale)} ${distUnit}`,
-    totalUnits: rn(totalUnits, 2),
-    totalValue
+    distance: `${rn(caravan.totalDistance)} ${distUnit} (progress: ${Math.round((caravan.currentDistance / caravan.totalDistance) * 100)}%)`,
+    totalUnits: rn(caravan.units, 2),
+    totalValue: caravan.value
   });
 }
 
-function getClientType(deal: Deal, burg: Burg, direction: "from" | "to"): string {
-  const type = direction === "from" ? deal.sellerType : deal.buyerType;
-  if (type === "market") return "market";
-  return burg.group || "burg";
-}
-
 document.addEventListener("trade:showDetails", (e: Event) => {
-  const batch = (e as CustomEvent<{ batch: TradeBatch }>).detail.batch;
-  open(batch);
+  const caravan = (e as CustomEvent<{ caravan: Caravan }>).detail.caravan;
+  open(caravan);
 });

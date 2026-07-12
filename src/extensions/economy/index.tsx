@@ -3,11 +3,14 @@ import type { LayerConfig } from "../../store/layerState";
 import { regenerateFeatureDialogStore } from "../../store/regenerateFeatureDialogState";
 import { useUiPreferencesState } from "../../store/uiPreferencesState";
 import type { ExtensionAPI } from "../../types/extension-api";
+import type { Point } from "../hostCore";
 import { formatPrice } from "../hostUtils";
 import { getBurgEconomySummary } from "./burgEconomySummary";
 import { economyStyleConfig } from "./EconomyStyleConfig";
 import { clearEconomyContext, getWorldContext, initEconomyContext } from "./economyContext";
 import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burgMarketLedgers";
+import { Caravans } from "./generators/caravans";
+import { FoodProduction } from "./generators/foodProduction";
 import {
   clearForestDepletion,
   consumeDirtyFlag,
@@ -23,7 +26,12 @@ import { clearVoyageIncome, registerVoyageIncome, Taxes } from "./generators/tax
 import { TradeAnimation } from "./generators/trade-animation";
 import { drawGoods } from "./renderers/draw-goods";
 import { drawMarketsLayer } from "./renderers/draw-markets";
-import { clear as clearTradeAnimation, draw as drawTradeAnimation } from "./renderers/draw-trade-animation";
+import {
+  clear as clearTradeAnimation,
+  draw as drawTradeAnimation,
+  getCaravanPosition,
+  getCaravansAtPoint
+} from "./renderers/draw-trade-animation";
 import { economyMapPickHandler } from "./renderers/economyMapPickHandler";
 import { createEconomyWebglLayerSpec } from "./renderers/economyWebglLayers";
 import { showEconomyTooltip, updateEconomyCellInfo } from "./tooltipHandler";
@@ -192,6 +200,7 @@ let _unsubscribe: (() => void) | null = null;
 let _generatePostCoreHandler: (() => void) | null = null;
 let _logHarvestedHandler: ((e: Event) => void) | null = null;
 let _voyageIncomeHandler: ((e: Event) => void) | null = null;
+let _mapPickCandidatesHandler: ((e: Event) => void) | null = null;
 
 export function init(api: ExtensionAPI): void {
   initEconomyContext(api);
@@ -287,6 +296,7 @@ export function init(api: ExtensionAPI): void {
         Goods.generate();
         Markets.generate(true);
         Taxes.defineTaxRates();
+        FoodProduction.generateQuarterlyLedger(0);
         Production.produce();
         Taxes.collectTaxes();
       });
@@ -326,6 +336,7 @@ export function init(api: ExtensionAPI): void {
     tooltip: "Click to regenerate production and trade deals",
     onClick: () => {
       withRegenerateConfirmation("Production", "regenerateProduction", () => {
+        FoodProduction.generateQuarterlyLedger(0);
         Production.produce();
         Taxes.collectTaxes();
       });
@@ -422,6 +433,7 @@ export function init(api: ExtensionAPI): void {
         Goods.generate();
         Markets.generate();
         Taxes.defineTaxRates();
+        FoodProduction.generateQuarterlyLedger(0);
         Production.produce();
         Taxes.collectTaxes();
       } else if (worldContext.pack.markets?.length) {
@@ -503,6 +515,7 @@ export function init(api: ExtensionAPI): void {
       Goods.generate();
       Markets.generate();
       Taxes.defineTaxRates();
+      FoodProduction.generateQuarterlyLedger(0);
       Production.produce();
       Taxes.collectTaxes();
     }
@@ -562,15 +575,61 @@ export function init(api: ExtensionAPI): void {
   };
   document.addEventListener("fmg:shipbuilding-voyage-income", _voyageIncomeHandler);
 
+  _mapPickCandidatesHandler = e => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    if (!api.layerIsOn("toggleTrade")) return;
+
+    const detail = (e as CustomEvent<unknown>).detail as Record<string, unknown>;
+    if (!detail || typeof detail !== "object") return;
+
+    const mapPoint = detail.mapPoint as Point | undefined;
+    const candidates = detail.candidates as Array<Record<string, unknown>> | undefined;
+    const padding = typeof detail.padding === "number" ? detail.padding : 0;
+
+    if (!mapPoint || !candidates) return;
+
+    const caravans = getCaravansAtPoint(mapPoint, padding);
+    for (const caravan of caravans) {
+      const pos = getCaravanPosition(caravan);
+      candidates.push({
+        kind: "extension",
+        extensionId: ECONOMY_EXTENSION_ID,
+        layerId: "trade-animation",
+        id: `economy-caravan-${caravan.i}`,
+        cellId: -1,
+        index: caravan.i,
+        coordinate: [pos.x, pos.y]
+      });
+    }
+  };
+  document.addEventListener("fmg:webgl-map-pick-candidates", _mapPickCandidatesHandler, { capture: true });
+
   // Depleted cells recover a little on every advanceTime() call, independent of
   // whether Shipbuilding (or logging on that cell) is still active — a logged-out
   // shipyard's forest should eventually recover even if the extension is disabled
   // afterward. Harmless no-op while nothing has ever been depleted.
   let daysSinceLastProduction = 0;
+  let daysSinceLastQuarterlyUpdate = 0;
+  let currentQuarterIndex = 0;
   api.registerTimeTickHook((deltaYears, deltaMonths, deltaDays) => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
 
     const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
+
+    Caravans.tick(effectiveDays);
+    if (api.layerIsOn("toggleTrade")) {
+      TradeAnimation.start();
+    }
+
+    daysSinceLastQuarterlyUpdate += effectiveDays;
+    if (daysSinceLastQuarterlyUpdate >= 90) {
+      const quartersPassed = Math.floor(daysSinceLastQuarterlyUpdate / 90);
+      daysSinceLastQuarterlyUpdate %= 90;
+      for (let i = 0; i < quartersPassed; i++) {
+        currentQuarterIndex = (currentQuarterIndex + 1) % 4;
+        FoodProduction.generateQuarterlyLedger(currentQuarterIndex);
+      }
+    }
 
     // Check which states are at war
     const states = getWorldContext().pack.states;
@@ -730,6 +789,10 @@ export function cleanup(api: ExtensionAPI): void {
   if (_voyageIncomeHandler) {
     document.removeEventListener("fmg:shipbuilding-voyage-income", _voyageIncomeHandler);
     _voyageIncomeHandler = null;
+  }
+  if (_mapPickCandidatesHandler) {
+    document.removeEventListener("fmg:webgl-map-pick-candidates", _mapPickCandidatesHandler, { capture: true });
+    _mapPickCandidatesHandler = null;
   }
   clearVoyageIncome();
   clearForestDepletion();

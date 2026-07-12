@@ -5,6 +5,16 @@ export interface Market {
   name?: string;
   managerCharacterId?: number;
   goods: Record<number, { stock: number; price: number }>;
+  foodLedger?: FoodLedger;
+}
+
+export interface FoodLedger {
+  foodProduced: number;
+  ruralNeed: number;
+  urbanNeed: number;
+  exportable: number;
+  importNeed: number;
+  targetStock: number;
 }
 
 export interface Deal {
@@ -20,4 +30,21 @@ export interface Deal {
   distance?: number;
   durationDays?: number;
   accountingPeriodDays?: 7 | 30;
+  spawned?: boolean;
+}
+
+export interface Caravan {
+  i: number;
+  seller: number;
+  sellerType: "burg" | "market";
+  buyer: number;
+  buyerType: "burg" | "market";
+  payload: { goodId: number; dealId: number; units: number; value: number }[];
+  units: number; // total units
+  value: number; // total payload value
+  merchantOrganizationId?: number;
+  routeSegments: { type: "land" | "water"; points: [number, number][] }[];
+  totalDistance: number;
+  currentDistance: number;
+  state: "transit" | "arrived" | "lost";
 }

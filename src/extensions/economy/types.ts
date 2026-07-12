@@ -1,6 +1,6 @@
 import type { BurgMarketLedger } from "./generators/burgMarketLedgers";
 import type { Good } from "./generators/goods-generator";
-import type { Deal, Market } from "./generators/marketTypes";
+import type { Caravan, Deal, Market } from "./generators/marketTypes";
 import type { MerchantOrganization } from "./generators/merchantOrganizations";
 
 declare module "../../types/PackedGraph" {
@@ -8,6 +8,7 @@ declare module "../../types/PackedGraph" {
     goods: Good[];
     markets: Market[];
     deals: Deal[];
+    caravans: Caravan[];
     burgMarketLedgers: BurgMarketLedger[];
     merchantOrganizations: MerchantOrganization[];
   }

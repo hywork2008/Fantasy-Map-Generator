@@ -479,6 +479,8 @@ export class MarketsModule {
         targetSalePrice?: number;
       }[] = [];
 
+      const importerStockAdjustments = new Map<number, number>();
+
       if (exporters.length && importers.length) {
         for (const exporter of exporters) {
           const routes = travelCost[exporter.market.i];
@@ -537,7 +539,8 @@ export class MarketsModule {
         const importerGood = this.getMarketGood(opportunity.importer, good);
 
         const available = Math.max(0, exporterGood.stock - opportunity.reserveExporter);
-        const needed = Math.max(0, opportunity.reserveImporter - importerGood.stock);
+        const importerAdj = importerStockAdjustments.get(opportunity.importer.i) || 0;
+        const needed = Math.max(0, opportunity.reserveImporter - (importerGood.stock + importerAdj));
         const units = Math.min(available, needed);
         if (units < MIN_UNIT) continue;
 
@@ -566,7 +569,8 @@ export class MarketsModule {
         exporterGood.price = rn(this.applyMarketPressure(good.value, exporterGood.price, units), 2);
         importerGood.price = rn(this.applyMarketPressure(good.value, importerGood.price, -units), 2);
         exporterGood.stock = rn(exporterGood.stock - units, 2);
-        importerGood.stock = rn(importerGood.stock + units, 2);
+        importerStockAdjustments.set(opportunity.importer.i, importerAdj + units);
+        // Note: importerGood.stock is NO LONGER instantly increased. Caravans physically transport it.
       }
     }
   }
