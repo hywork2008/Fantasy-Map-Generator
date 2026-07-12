@@ -265,7 +265,19 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
               items={sortedRows}
               scrollElementRef={parentRef}
               renderRow={row => (
-                <tr key={row.i} className="states">
+                <tr
+                  key={row.i}
+                  className="states"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => {
+                    const targetCaravan = caravans.find(c => c.i === row.i);
+                    if (targetCaravan) {
+                      document.dispatchEvent(
+                        new CustomEvent("trade:showDetails", { detail: { caravan: targetCaravan } })
+                      );
+                    }
+                  }}
+                >
                   <td>{row.goodName}</td>
                   <td>{row.sourceBurgName}</td>
                   <td>{row.targetBurgName}</td>
