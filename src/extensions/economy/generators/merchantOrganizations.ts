@@ -32,6 +32,8 @@ const REGIONAL_TRADE_RANGE_KM = 260;
 const MAJOR_HOME_GROUND_RADIUS_KM = 400;
 const URBAN_POPULATION_THRESHOLD = 30;
 const SMALL_RURAL_POPULATION_THRESHOLD = 10;
+/** Temporary hard-coded switch until the generation options expose this setting. */
+export const MERCHANT_ORGANIZATION_STAFF_ENABLED = false;
 
 const ORGANIZATION_MAX_TRADE_DAYS: Record<MerchantOrganizationScale, number> = {
   local: 12,
@@ -54,13 +56,10 @@ const MERCHANT_ORGANIZATION_ROLE_KINDS = new Set([
   MERCHANT_ORGANIZATION_AGENT_ROLE_KIND
 ]);
 
-interface LedgerProfile {
-  ledger: MerchantOrganizationLedger;
+interface MarketOrganizationProfile {
   burg: Burg;
   market: Market;
-  dominantCharacterId: number;
-  revenue: number;
-  score: number;
+  memberCharacterIds: number[];
 }
 
 interface MerchantOrganizationLedger {
@@ -79,60 +78,44 @@ export function syncMerchantOrganizations(
   markets: Market[] = getWorldContext().pack.markets ?? []
 ): void {
   const { pack } = getWorldContext();
-  const marketsById = new Map<number, Market>();
-  for (const market of markets) marketsById.set(market.i, market);
+  const profiles: MarketOrganizationProfile[] = [];
+  for (const market of markets) {
+    const burg = pack.burgs[market.centerBurgId] as Burg | undefined;
+    const manager = getCharacter(market.managerCharacterId);
+    if (!burg || !manager) continue;
 
-  const profiles = ledgers.flatMap(ledger => {
-    const burg = pack.burgs[ledger.burgId] as Burg | undefined;
-    const market = marketsById.get(ledger.marketId);
-    const dominant = getDominantMerchantEntry(ledger);
-    if (!burg || !market || !dominant) return [];
-
-    const revenue = ledger.merchants.reduce((sum, merchant) => sum + merchant.revenue, 0);
-    const population = burg.population ?? 0;
-    const isMarketCenter = market.centerBurgId === burg.i;
-    return [
-      {
-        ledger,
-        burg,
-        market,
-        dominantCharacterId: dominant.characterId,
-        revenue,
-        score: revenue + population * 10 + (isMarketCenter ? 250 : 0)
-      }
-    ];
-  });
-
-  const rankedProfiles = [...profiles].sort((a, b) => b.score - a.score);
-  const rankByBurgId = new Map<number, number>();
-  for (const [index, profile] of rankedProfiles.entries()) {
-    rankByBurgId.set(profile.ledger.burgId, index);
+    const memberCharacterIds = uniqueCharacterIds([
+      manager.i,
+      ...(market.rivalCharacterIds ?? []).filter(characterId => Boolean(getCharacter(characterId)))
+    ]);
+    profiles.push({ burg, market, memberCharacterIds });
   }
 
   const organizations: MerchantOrganization[] = [];
   for (const profile of profiles) {
-    const rank = rankByBurgId.get(profile.ledger.burgId) ?? profiles.length;
-    const scale = getOrganizationScale(profile, rank, profiles.length);
     const organization: MerchantOrganization = {
       i: organizations.length + 1,
-      name: getOrganizationName(profile.dominantCharacterId, profile.burg, scale),
-      scale,
-      homeBurgId: profile.ledger.burgId,
-      homeMarketId: profile.ledger.marketId,
+      name: getOrganizationName(profile.market.managerCharacterId ?? 0, profile.burg, "major"),
+      scale: "major",
+      homeBurgId: profile.burg.i ?? profile.market.centerBurgId,
+      homeMarketId: profile.market.i,
       homeStateId: profile.burg.state ?? 0,
-      chairpersonCharacterId: profile.dominantCharacterId,
-      memberCharacterIds: profile.ledger.merchants.map(merchant => merchant.characterId),
-      tradeRangeKm: getTradeRangeKm(scale),
-      urbanPreference: getUrbanPreference(scale),
-      ruralFocus: getRuralFocus(scale)
+      chairpersonCharacterId: profile.market.managerCharacterId ?? 0,
+      memberCharacterIds: profile.memberCharacterIds,
+      tradeRangeKm: getTradeRangeKm("major"),
+      urbanPreference: getUrbanPreference("major"),
+      ruralFocus: getRuralFocus("major")
     };
 
     organizations.push(organization);
-    for (const merchant of profile.ledger.merchants) merchant.organizationId = organization.i;
+    for (const ledger of ledgers) {
+      if (ledger.marketId !== organization.homeMarketId) continue;
+      for (const merchant of ledger.merchants) merchant.organizationId = organization.i;
+    }
   }
 
   assignParentOrganizations(organizations);
-  syncMerchantOrganizationCharacters(organizations, profiles);
+  syncMerchantOrganizationCharacters(organizations);
   pack.merchantOrganizations = organizations;
 }
 
@@ -229,26 +212,28 @@ function assignParentOrganizations(organizations: MerchantOrganization[]): void 
   }
 }
 
-function syncMerchantOrganizationCharacters(organizations: MerchantOrganization[], profiles: LedgerProfile[]): void {
+function syncMerchantOrganizationCharacters(organizations: MerchantOrganization[]): void {
   const { pack } = getWorldContext();
   pack.characters ??= [];
-
-  const profilesByMarketId = new Map<number, LedgerProfile[]>();
-  for (const profile of profiles) {
-    const marketProfiles = profilesByMarketId.get(profile.market.i) ?? [];
-    marketProfiles.push(profile);
-    profilesByMarketId.set(profile.market.i, marketProfiles);
-  }
 
   const activeRoleKeys = new Set<string>();
 
   for (const organization of organizations) {
-    if (organization.scale !== "major") continue;
-
     const chairperson = getCharacter(organization.chairpersonCharacterId);
     if (chairperson) {
       ensureOrganizationRole(chairperson, organization, MERCHANT_ORGANIZATION_HEAD_ROLE_KIND, "Merchant Company Head");
       activeRoleKeys.add(getRoleKey(chairperson.i, MERCHANT_ORGANIZATION_HEAD_ROLE_KIND, organization.i));
+    }
+
+    if (!MERCHANT_ORGANIZATION_STAFF_ENABLED) {
+      delete organization.secretaryCharacterId;
+      delete organization.bodyguardCharacterId;
+      delete organization.executiveCharacterIds;
+      organization.memberCharacterIds = uniqueCharacterIds([
+        ...organization.memberCharacterIds,
+        organization.chairpersonCharacterId
+      ]);
+      continue;
     }
 
     const secretary = ensureOrganizationStaff(
@@ -271,9 +256,9 @@ function syncMerchantOrganizationCharacters(organizations: MerchantOrganization[
     );
     organization.bodyguardCharacterId = bodyguard.i;
 
-    const servedBurgIds = (profilesByMarketId.get(organization.homeMarketId) ?? [])
-      .map(profile => profile.burg.i)
-      .filter((burgId): burgId is number => burgId !== undefined && burgId > 0);
+    const servedBurgIds = getWorldContext()
+      .pack.burgs.filter((burg): burg is Burg => Boolean(burg?.i && burg.market === organization.homeMarketId))
+      .map(burg => burg.i!);
     const branchCount = getBranchStaffCount(servedBurgIds.length);
 
     organization.executiveCharacterIds = syncBranchStaff(
@@ -499,16 +484,6 @@ function resolveBurgCulture(burg: Burg | undefined): number {
   return burg?.culture ?? cellCulture ?? stateCulture ?? 0;
 }
 
-function getOrganizationScale(profile: LedgerProfile, rank: number, count: number): MerchantOrganizationScale {
-  const population = profile.burg.population ?? 0;
-  const majorRankCutoff = Math.max(1, Math.ceil(count * 0.15));
-  const regionalRankCutoff = Math.max(majorRankCutoff + 1, Math.ceil(count * 0.45));
-
-  if (rank < majorRankCutoff || profile.score >= 750 || population >= 80) return "major";
-  if (rank < regionalRankCutoff || profile.score >= 250 || population >= 20) return "regional";
-  return "local";
-}
-
 function getTradeRangeKm(scale: MerchantOrganizationScale): number {
   if (scale === "major") return MAJOR_HOME_GROUND_RADIUS_KM;
   if (scale === "regional") return REGIONAL_TRADE_RANGE_KM;
@@ -535,14 +510,8 @@ function getOrganizationName(characterId: number, burg: Burg, scale: MerchantOrg
   return `${baseName} Traders`;
 }
 
-function getDominantMerchantEntry(
-  ledger: MerchantOrganizationLedger
-): { characterId: number; revenue: number; share: number } | undefined {
-  if (!ledger.merchants.length) return undefined;
-  return [...ledger.merchants].sort((a, b) => b.share - a.share || b.revenue - a.revenue)[0];
-}
-
-function getCharacter(characterId: number): Character | undefined {
+function getCharacter(characterId: number | undefined): Character | undefined {
+  if (characterId === undefined) return undefined;
   return getWorldContext().pack.characters?.find(character => character.i === characterId && !character.dead);
 }
 

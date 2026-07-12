@@ -4,6 +4,8 @@ export interface Market {
   color: string;
   name?: string;
   managerCharacterId?: number;
+  /** Two merchants competing with the market manager across this market's burgs. */
+  rivalCharacterIds?: number[];
   goods: Record<number, { stock: number; price: number }>;
   foodLedger?: FoodLedger;
 }

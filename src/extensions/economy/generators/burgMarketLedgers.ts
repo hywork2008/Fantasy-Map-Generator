@@ -1,9 +1,7 @@
 import type { Character, CharacterRole } from "../../characters/characterTypes";
-import { createPerson } from "../../characters/personFactory";
 import type { Burg } from "../../hostTypes";
 import { minmax, rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
-import { rollBalancedEconomyGender } from "./economyCharacterGender";
 import type { Deal, Market } from "./marketTypes";
 import { clearMerchantOrganizations, syncMerchantOrganizations } from "./merchantOrganizations";
 
@@ -47,20 +45,9 @@ function createBurgMarketMerchantRole(burgId: number): CharacterRole {
   };
 }
 
-function getNextCharacterId(characters: Character[]): number {
-  return Math.max(0, ...characters.map(c => c.i), -1) + 1;
-}
-
 function getCharacter(characterId: number | undefined): Character | undefined {
   if (characterId === undefined) return undefined;
   return getWorldContext().pack.characters?.find(c => c.i === characterId && !c.dead);
-}
-
-function resolveBurgCulture(burg: Burg): number {
-  const { pack } = getWorldContext();
-  const cellCulture = burg.cell !== undefined ? pack.cells?.culture?.[burg.cell] : undefined;
-  const stateCulture = burg.state !== undefined ? pack.states?.[burg.state]?.culture : undefined;
-  return burg.culture ?? cellCulture ?? stateCulture ?? 0;
 }
 
 function ensureMerchantRole(character: Character, burgId: number): void {
@@ -70,29 +57,11 @@ function ensureMerchantRole(character: Character, burgId: number): void {
   }
 }
 
-function createMerchant(burg: Burg): Character {
-  const { pack } = getWorldContext();
-  pack.characters ??= [];
-
-  const character = createPerson(getNextCharacterId(pack.characters), resolveBurgCulture(burg), {
-    primarySkill: "stewardship",
-    homeStateId: burg.state ?? 0,
-    genderOverride: rollBalancedEconomyGender(pack.characters)
-  });
-
-  character.location = burg.i;
-  character.birthStateId = burg.state;
-  character.nationalityStateId = burg.state;
-  character.roles = [createBurgMarketMerchantRole(burg.i ?? 0)];
-  pack.characters.push(character);
-  return character;
-}
-
 function getDesiredMerchantCount(burg: Burg): number {
   const population = burg.population ?? 0;
   const populationBonus = population >= 50 ? 2 : population >= 20 ? 1 : 0;
-  const urbanBonus = (burg.capital ? 1 : 0) + (burg.port ? 1 : 0) + (burg.plaza ? 1 : 0);
-  return Math.round(minmax(2 + populationBonus + urbanBonus, 2, 5));
+  const urbanBonus = burg.capital || burg.port || burg.plaza ? 1 : 0;
+  return Math.round(minmax(1 + populationBonus + urbanBonus, 1, 3));
 }
 
 function getBurgGrossRevenue(burg: Burg, deals: Deal[]): number {
@@ -152,7 +121,12 @@ function assignRevenue(ledger: BurgMarketLedger, burg: Burg, market: Market | un
 }
 
 function ensureLedgerMerchants(ledger: BurgMarketLedger, burg: Burg, market: Market | undefined): void {
-  const desiredCount = getDesiredMerchantCount(burg); // about 2000 merchants
+  if (!market) {
+    ledger.merchants = [];
+    return;
+  }
+
+  const desiredCount = getDesiredMerchantCount(burg);
   const retained: BurgMarketMerchantEntry[] = [];
   const seen = new Set<number>();
 
@@ -163,19 +137,16 @@ function ensureLedgerMerchants(ledger: BurgMarketLedger, burg: Burg, market: Mar
     seen.add(character.i);
   };
 
-  if (market && market.centerBurgId === burg.i) {
-    addCharacter(getCharacter(market.managerCharacterId));
+  const pool = [market.managerCharacterId, ...(market.rivalCharacterIds ?? [])]
+    .map(getCharacter)
+    .filter((character): character is Character => Boolean(character));
+  const rotation = market.centerBurgId === burg.i ? 0 : (burg.i ?? 0) % Math.max(1, pool.length);
+
+  for (let offset = 0; offset < pool.length && retained.length < desiredCount; offset++) {
+    addCharacter(pool[(rotation + offset) % pool.length]);
   }
 
-  for (const entry of ledger.merchants) {
-    addCharacter(getCharacter(entry.characterId), entry.revenue, entry.share);
-  }
-
-  while (retained.length < desiredCount) {
-    addCharacter(createMerchant(burg));
-  }
-
-  ledger.merchants = retained.slice(0, desiredCount);
+  ledger.merchants = retained;
 }
 
 export function getBurgMarketLedger(burgId: number | undefined): BurgMarketLedger | undefined {

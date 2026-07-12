@@ -5,7 +5,12 @@ import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext } from "../economyContext";
 import "../types";
-import { clearMarketManagers, MARKET_MANAGER_ROLE_KIND, syncMarketManagers } from "./marketManagers";
+import {
+  clearMarketManagers,
+  MARKET_MANAGER_ROLE_KIND,
+  MARKET_RIVAL_MERCHANT_ROLE_KIND,
+  syncMarketManagers
+} from "./marketManagers";
 import type { Market } from "./marketTypes";
 
 describe("market managers", () => {
@@ -41,7 +46,7 @@ describe("market managers", () => {
     clearCharactersContext();
   });
 
-  it("creates one distinct character manager per market even within the same state", () => {
+  it("creates one manager and two rivals per market even within the same state", () => {
     syncMarketManagers();
 
     const [northMarket, southMarket] = worldContext.pack.markets;
@@ -54,6 +59,13 @@ describe("market managers", () => {
     );
     expect(managers).toHaveLength(2);
     expect(managers.map(c => c.location).sort()).toEqual([1, 2]);
+
+    expect(northMarket.rivalCharacterIds).toHaveLength(2);
+    expect(southMarket.rivalCharacterIds).toHaveLength(2);
+    expect(new Set([...northMarket.rivalCharacterIds!, ...southMarket.rivalCharacterIds!]).size).toBe(4);
+    expect(
+      worldContext.pack.characters.filter(c => c.roles?.some(role => role.kind === MARKET_RIVAL_MERCHANT_ROLE_KIND))
+    ).toHaveLength(4);
   });
 
   it("clears economy-only managers but keeps characters that still have titles", () => {
