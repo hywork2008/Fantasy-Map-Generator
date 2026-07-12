@@ -3,7 +3,7 @@ import { DEFAULT_CULTURE_TYPE, type Zone } from "../../hostTypes";
 import { getLatitude, getSeason, getSeasonalityStrength, rn, type Season } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 import { getDepletionFactor } from "./forestDepletion";
-import { type Good, Goods } from "./goods-generator";
+import { type Good, Goods, isGoodEnabled } from "./goods-generator";
 
 export const BONUS_RURAL_PRODUCTION = 0.25;
 export const MAX_BONUS_PRODUCTION = 5;
@@ -118,13 +118,13 @@ export function getCellProduction(
   if (pop > 0) {
     for (const { goodId, production } of biomeProduction[getWorldContext().pack.cells.biome[cellId]] || []) {
       const good = Goods.get(goodId);
-      if (good) add(goodId, pop * production * modifier(good));
+      if (good && isGoodEnabled(good)) add(goodId, pop * production * modifier(good));
     }
 
     const bonusGoodId = getWorldContext().pack.cells.good[cellId];
     if (bonusGoodId) {
       const good = Goods.get(bonusGoodId);
-      if (good) {
+      if (good && isGoodEnabled(good)) {
         const bonus = Math.min(pop * BONUS_RURAL_PRODUCTION, MAX_BONUS_PRODUCTION);
         add(bonusGoodId, bonus * modifier(good));
       }

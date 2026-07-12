@@ -6,7 +6,7 @@ import { getColors, getRandomColor, minmax, rn, TIME } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 import { getBurgMarketLedger, syncBurgMarketLedgers } from "./burgMarketLedgers";
 import type { DemandCategory, Good } from "./goods-generator";
-import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, GOODS_DATA, Goods } from "./goods-generator";
+import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, GOODS_DATA, Goods, isGoodEnabled } from "./goods-generator";
 import { syncMarketManagers } from "./marketManagers";
 import type { Deal, Market, TradeRouteSegment } from "./marketTypes";
 import { isMarketTradePermitted } from "./merchantOrganizations";
@@ -210,7 +210,7 @@ export class MarketsModule {
       const produced = getCellProduction(cellId, biomeProduction);
       for (const [goodId, amount] of Object.entries(produced)) {
         const good = Goods.get(+goodId);
-        if (!good) continue;
+        if (!good || !isGoodEnabled(good)) continue;
         const marketGood = this.getMarketGood(market, good);
         marketGood.stock = rn(marketGood.stock + amount, 2);
       }
@@ -227,19 +227,17 @@ export class MarketsModule {
   }
 
   initializeMarketPrices(): void {
-    const consumerDemandFactors = this.collectConsumerDemand(this.worldContext.pack.goods || []);
-    const industrialDemandFactors = this.collectIndustrialDemand(
-      this.worldContext.pack.goods || [],
-      consumerDemandFactors
-    );
-    const avgIngredientsCostByGood = this.calculateAverageBaseCostByGood(this.worldContext.pack.goods || []);
+    const goods = (this.worldContext.pack.goods || []).filter(isGoodEnabled);
+    const consumerDemandFactors = this.collectConsumerDemand(goods);
+    const industrialDemandFactors = this.collectIndustrialDemand(goods, consumerDemandFactors);
+    const avgIngredientsCostByGood = this.calculateAverageBaseCostByGood(goods);
     const populationByMarket = this.calculatePopulationByMarket();
 
     for (const market of this.worldContext.pack.markets) {
       const population = populationByMarket[market.i] || 0;
 
       // First pass: raw goods - price from demand/supply ratio
-      for (const good of this.worldContext.pack.goods || []) {
+      for (const good of goods) {
         if (!good.distribution) continue;
         const marketGood = this.getMarketGood(market, good);
         const consumerDemand = consumerDemandFactors[good.i] || 0;
@@ -250,7 +248,7 @@ export class MarketsModule {
       }
 
       // Second pass: manufactured goods - average local ingredient cost + base value-added
-      for (const good of this.worldContext.pack.goods || []) {
+      for (const good of goods) {
         if (!good.recipes?.length) continue;
         const marketGood = this.getMarketGood(market, good);
         let totalMarketCost = 0;
@@ -258,7 +256,7 @@ export class MarketsModule {
           for (const [ingIdStr, amount] of Object.entries(recipe)) {
             const ingId = +ingIdStr;
             const ing = Goods.get(ingId);
-            if (!ing) continue;
+            if (!ing || !isGoodEnabled(ing)) continue;
             totalMarketCost += amount * this.getMarketGood(market, ing).price;
           }
         }
@@ -282,7 +280,7 @@ export class MarketsModule {
   private applyLocalTradePriceBias(populationByMarket: number[]): void {
     for (const market of this.worldContext.pack.markets) {
       const population = populationByMarket[market.i] || 0;
-      for (const good of this.worldContext.pack.goods || []) {
+      for (const good of (this.worldContext.pack.goods || []).filter(isGoodEnabled)) {
         const marketGood = this.getMarketGood(market, good);
         const multiplier = getLocalTradePriceMultiplier({
           good,
@@ -356,7 +354,7 @@ export class MarketsModule {
 
   quoteMarket(market: Market, goodId: number): { stock: number; buyPrice: number; sellPrice: number } {
     const good = Goods.get(goodId);
-    if (!good) return { stock: 0, buyPrice: 0, sellPrice: 0 };
+    if (!good || !isGoodEnabled(good)) return { stock: 0, buyPrice: 0, sellPrice: 0 };
     const row = this.getMarketGood(market, good);
     return {
       stock: row.stock,
@@ -376,6 +374,7 @@ export class MarketsModule {
     units: number;
     budget?: number;
   }): Deal | null {
+    if (!isGoodEnabled(good)) return null;
     const market = this.get(burg.market);
     if (!market) return null;
 
@@ -404,6 +403,7 @@ export class MarketsModule {
   }
 
   sell({ burg, good, units, taxRate }: { burg: Burg; good: Good; units: number; taxRate: number }): Deal | null {
+    if (!isGoodEnabled(good)) return null;
     const market = this.get(burg.market);
     if (!market || units <= 0) return null;
 
@@ -430,11 +430,9 @@ export class MarketsModule {
   }
 
   runGlobalTrade(): void {
-    const consumerDemandFactors = this.collectConsumerDemand(this.worldContext.pack.goods || []);
-    const industrialDemandFactors = this.collectIndustrialDemand(
-      this.worldContext.pack.goods || [],
-      consumerDemandFactors
-    );
+    const goods = (this.worldContext.pack.goods || []).filter(isGoodEnabled);
+    const consumerDemandFactors = this.collectConsumerDemand(goods);
+    const industrialDemandFactors = this.collectIndustrialDemand(goods, consumerDemandFactors);
     const populationByMarket = this.calculatePopulationByMarket();
 
     const mapDiagonal = Math.hypot(this.worldContext.graphWidth, this.worldContext.graphHeight) || 1;
@@ -454,7 +452,7 @@ export class MarketsModule {
       }
     }
 
-    for (const good of this.worldContext.pack.goods || []) {
+    for (const good of goods) {
       if (!good.distribution && !good.recipes?.length) continue;
 
       const safetyReserves: number[] = [];
@@ -827,6 +825,8 @@ export class MarketsModule {
       for (const recipe of good.recipes) {
         for (const [ingredientIdStr, amount] of Object.entries(recipe)) {
           const ingredientId = +ingredientIdStr;
+          const ingredient = Goods.get(ingredientId);
+          if (!ingredient || !isGoodEnabled(ingredient)) continue;
           demandFactor[ingredientId] = (demandFactor[ingredientId] || 0) + amount * outputDemand;
         }
       }
@@ -842,7 +842,7 @@ export class MarketsModule {
       for (const recipe of good.recipes) {
         for (const [ingIdStr, amount] of Object.entries(recipe)) {
           const ing = Goods.get(+ingIdStr);
-          if (ing) totalBaseCost += amount * ing.value;
+          if (ing && isGoodEnabled(ing)) totalBaseCost += amount * ing.value;
         }
       }
       avgBaseCostByGood[good.i] = totalBaseCost / good.recipes.length;

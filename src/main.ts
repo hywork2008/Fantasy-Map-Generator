@@ -870,6 +870,7 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
 
     applyGraphSize();
     randomizeOptions();
+    worldContext.options.gunpowderEraEnabled = useOptionsState.getState().gunpowderEraEnabled;
 
     if (
       shouldRegenerateGrid(worldContext.grid, +(precreatedSeed ?? 0), worldContext.graphWidth, worldContext.graphHeight)

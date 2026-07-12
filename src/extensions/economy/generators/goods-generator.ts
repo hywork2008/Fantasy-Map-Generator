@@ -81,6 +81,14 @@ export function getDemandTargets(population: number): number[] {
   return DEMAND_PRIORITY.map(category => population * DEMAND_TARGET_FACTORS[category]);
 }
 
+const GUNPOWDER_ERA_GOODS = new Set(["gunpowder", "artillery"]);
+
+/** Returns whether a good is available under the current world's era settings. */
+export function isGoodEnabled(good: Pick<Good, "name">): boolean {
+  if (getWorldContext().options.gunpowderEraEnabled !== false) return true;
+  return !GUNPOWDER_ERA_GOODS.has(good.name.toLowerCase());
+}
+
 type GoodData = Omit<Good, "i"> & { recipes?: Record<string, number>[] };
 export const GOODS_DATA: GoodData[] = [
   {
@@ -1164,7 +1172,7 @@ export class GoodsModule {
 
     const methods = `{${Object.keys(this.getMethods()).join(", ")}}`;
     const shuffledCells = shuffle(Array.from(this.cells.i));
-    const goods = [...this.worldContext.pack.goods];
+    const goods = this.worldContext.pack.goods.filter(isGoodEnabled);
 
     for (const cellId of shuffledCells) {
       if (!(cellId % 10)) shuffle(goods);
@@ -1202,6 +1210,11 @@ export class GoodsModule {
 
     for (const cellId of this.cells.i) {
       if (this.cells.good[cellId] === goodId) this.cells.good[cellId] = 0;
+    }
+
+    if (!isGoodEnabled(good)) {
+      TIME && console.timeEnd("regenerateGoodPlacement");
+      return;
     }
 
     if (!good.distribution || !good.chance) {
@@ -1262,6 +1275,7 @@ export class GoodsModule {
   getBiomesProduction(): Record<number, { goodId: number; production: number }[]> {
     return (this.worldContext.pack.goods || []).reduce(
       (acc, good) => {
+        if (!isGoodEnabled(good)) return acc;
         if (!good.biomeOutput) return acc;
         for (const [biomeIdStr, production] of Object.entries(good.biomeOutput)) {
           const biomeId = +biomeIdStr;

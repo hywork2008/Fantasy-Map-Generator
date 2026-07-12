@@ -4,7 +4,7 @@ import type { Burg, PackedGraph } from "../../hostTypes";
 import { openDialog } from "../../hostUi";
 import { downloadFile, formatPrice, getFileName, rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
-import { Goods } from "../generators/goods-generator";
+import { Goods, isGoodEnabled } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
 import type { Market } from "../generators/marketTypes";
 import { isMarketTradePermitted } from "../generators/merchantOrganizations";
@@ -47,7 +47,7 @@ interface TradeRouteDistance {
 }
 
 export function open(selectedGoodId?: number): void {
-  const goods = getWorldContext().pack.goods || [];
+  const goods = (getWorldContext().pack.goods || []).filter(isGoodEnabled);
   const options: MarketTradeOpportunityOption[] = goods.map(good => ({ goodId: good.i, goodName: good.name }));
   const currentSelectedGoodId = getMarketTradeOpportunitiesState().selectedGoodId;
   const nextSelectedGoodId = selectedGoodId ?? currentSelectedGoodId ?? options[0]?.goodId ?? null;

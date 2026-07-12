@@ -17,7 +17,7 @@ import {
   registerLogHarvest,
   tickForestRegrowth
 } from "./generators/forestDepletion";
-import { Goods } from "./generators/goods-generator";
+import { Goods, isGoodEnabled } from "./generators/goods-generator";
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
 import { Markets } from "./generators/markets-generator";
 import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
@@ -201,6 +201,34 @@ let _generatePostCoreHandler: (() => void) | null = null;
 let _logHarvestedHandler: ((e: Event) => void) | null = null;
 let _voyageIncomeHandler: ((e: Event) => void) | null = null;
 let _mapPickCandidatesHandler: ((e: Event) => void) | null = null;
+let _gunpowderEraChangedHandler: (() => void) | null = null;
+
+function refreshEconomyForGunpowderEra(api: ExtensionAPI): void {
+  const worldContext = getWorldContext();
+  Goods.generate();
+  Markets.generate(true);
+  Production.produce();
+  if (worldContext.pack.caravans) {
+    worldContext.pack.caravans = worldContext.pack.caravans
+      .map(caravan => {
+        const payload = caravan.payload.filter(item => {
+          const good = Goods.get(item.goodId);
+          return good !== undefined && isGoodEnabled(good);
+        });
+        if (payload.length === caravan.payload.length) return caravan;
+        if (!payload.length) return null;
+        return {
+          ...caravan,
+          payload,
+          units: payload.reduce((sum, item) => sum + item.units, 0),
+          value: payload.reduce((sum, item) => sum + item.value, 0)
+        };
+      })
+      .filter((caravan): caravan is Exclude<typeof caravan, null> => caravan !== null);
+  }
+  if (api.layerIsOn("toggleGoods")) drawGoods(getDefaultGoodsSet());
+  api.requestWebglRender();
+}
 
 export function init(api: ExtensionAPI): void {
   initEconomyContext(api);
@@ -522,6 +550,12 @@ export function init(api: ExtensionAPI): void {
   };
   document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
 
+  _gunpowderEraChangedHandler = () => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    refreshEconomyForGunpowderEra(api);
+  };
+  document.addEventListener("fmg:gunpowder-era-changed", _gunpowderEraChangedHandler);
+
   // Listen for Shipbuilding's logging ticks (optional dependency — harmless no-op if
   // Shipbuilding is never enabled) and reduce local Wood output over time.
   //
@@ -707,6 +741,7 @@ export function init(api: ExtensionAPI): void {
   api.registerMapReinitHook(() => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
     attachSvgClickHandlers();
+    if (getWorldContext().options.gunpowderEraEnabled === false) refreshEconomyForGunpowderEra(api);
     // Backfill sales/poll tax rates and recompute treasury for maps saved before this feature existed.
     // Both calls are idempotent/cheap, so re-running them on every load is safe.
     Taxes.defineTaxRates();
@@ -793,6 +828,10 @@ export function cleanup(api: ExtensionAPI): void {
   if (_mapPickCandidatesHandler) {
     document.removeEventListener("fmg:webgl-map-pick-candidates", _mapPickCandidatesHandler, { capture: true });
     _mapPickCandidatesHandler = null;
+  }
+  if (_gunpowderEraChangedHandler) {
+    document.removeEventListener("fmg:gunpowder-era-changed", _gunpowderEraChangedHandler);
+    _gunpowderEraChangedHandler = null;
   }
   clearVoyageIncome();
   clearForestDepletion();

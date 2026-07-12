@@ -52,6 +52,8 @@ export interface WorldOptions {
   era?: string;
   /** Abbreviated era name; derived from era */
   eraShort?: string;
+  /** Whether gunpowder-era military units and goods are available. Undefined preserves legacy maps' enabled behavior. */
+  gunpowderEraEnabled?: boolean;
 }
 
 /** Top-level world state. All generators and renderers operate on this object. */

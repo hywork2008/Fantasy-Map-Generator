@@ -9,6 +9,7 @@ import type { MilitaryRegiment, MilitaryUnit, Platoon, State } from "../types/mo
 import type { WorldState } from "../types/WorldState";
 import { gauss, minmax, nth, ra, rand, rn, si } from "../utils";
 import { TIME } from "../utils/debug";
+import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../utils/gunpowderEra";
 import { isRegimentLockedForBattle } from "./battleLock";
 import { analyzeFrontiers, analyzeSeaFrontiers, getProvinceThreats, mergeFrontiers } from "./frontierAnalysis";
 import { getNavalTechBonus } from "./navalTechBonus";
@@ -92,7 +93,9 @@ class MilitaryModule {
     const { p } = cells;
     const valid = states.filter(s => s.i && !s.removed); // valid states
     if (!options.military) options.military = this.getDefaultOptions();
-    const military = options.military.filter(unit => unit.enabled !== false);
+    const military = options.military.filter(
+      unit => unit.enabled !== false && (isGunpowderEraEnabled(options) || !isGunpowderEraMilitaryUnit(unit))
+    );
 
     // Hostile borders (from Relations History), used to decide which provinces are on the
     // frontier and garrison regiments toward active threats instead of leaving them wherever

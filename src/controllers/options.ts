@@ -497,10 +497,12 @@ export function applyStoredOptions(): void {
       "tooltipSize",
       "themeColor",
       "transparency",
-      "threatCalculation"
+      "threatCalculation",
+      "gunpowderEraEnabled"
     ];
     if (validKeys.includes(key)) {
-      (loadedOptions as Record<string, string | number>)[key] = Number.isNaN(+value) ? value : +value;
+      (loadedOptions as Record<string, string | number | boolean>)[key] =
+        key === "gunpowderEraEnabled" ? value === "true" : Number.isNaN(+value) ? value : +value;
     }
   }
   optionsStore.setOptions(loadedOptions);
@@ -526,6 +528,9 @@ export function applyStoredOptions(): void {
   if (stored("temperatureNorthPole")) worldContext.options.temperatureNorthPole = +stored("temperatureNorthPole")!;
   if (stored("temperatureSouthPole")) worldContext.options.temperatureSouthPole = +stored("temperatureSouthPole")!;
   if (stored("military")) worldContext.options.military = JSON.parse(stored("military")!);
+  if (stored("gunpowderEraEnabled")) {
+    worldContext.options.gunpowderEraEnabled = stored("gunpowderEraEnabled") === "true";
+  }
 
   if (stored("tooltipSize")) changeTooltipSize(stored("tooltipSize")!);
   if (stored("regions")) changeStatesNumber(stored("regions")!);

@@ -15,6 +15,7 @@ describe("GoodsModule", () => {
   beforeEach(async () => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
     worldContext.grid = { cells: { temp: [20, 20, 20, 20] } } as unknown as Grid;
+    worldContext.options = { gunpowderEraEnabled: true } as typeof worldContext.options;
     worldContext.biomesData = {
       habitability: Array(20).fill(50),
       i: [],
@@ -123,5 +124,15 @@ describe("GoodsModule", () => {
     const goodIds = Array.from(worldContext.pack.cells.good);
     expect(goodIds.some(id => id === 1)).toBe(false);
     expect(goodIds.filter(id => id === 2)).toHaveLength(2);
+  });
+
+  it("does not place Gunpowder or Artillery when the gunpowder era is disabled", () => {
+    worldContext.pack.goods[0].name = "Gunpowder";
+    worldContext.pack.goods[1].name = "Artillery";
+    worldContext.options.gunpowderEraEnabled = false;
+
+    goodsModule.generate({ randomSeed: 123 });
+
+    expect(Array.from(worldContext.pack.cells.good)).toEqual([0, 0, 0, 0]);
   });
 });

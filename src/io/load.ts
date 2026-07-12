@@ -321,6 +321,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       if (worldContext.options.stateLabelsMode) zustandUpdates.stateLabelsMode = worldContext.options.stateLabelsMode;
       if (worldContext.options.year != null) zustandUpdates.year = worldContext.options.year;
       if (worldContext.options.era != null) zustandUpdates.era = worldContext.options.era;
+      zustandUpdates.gunpowderEraEnabled = worldContext.options.gunpowderEraEnabled !== false;
       useOptionsState.getState().setOptions(zustandUpdates);
     }
 

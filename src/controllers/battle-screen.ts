@@ -16,6 +16,7 @@ import { useOptionsState } from "../store/optionsState";
 import type { MilitaryRegiment } from "../types/models";
 import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective, last, list, minmax, P, Pint, rand, rn, wiki } from "../utils";
+import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../utils/gunpowderEra";
 
 interface BattleRegiment extends MilitaryRegiment {
   casualties: Record<string, number>;
@@ -32,6 +33,12 @@ interface BattleForces {
   power: number;
   phase?: string;
   die?: number;
+}
+
+function getAvailableMilitaryUnits() {
+  return (worldContext.options.military ?? []).filter(
+    unit => isGunpowderEraEnabled(worldContext.options) || !isGunpowderEraMilitaryUnit(unit)
+  );
 }
 
 export class Battle {
@@ -62,7 +69,7 @@ export class Battle {
 
     const store = getBattleScreenState();
     store.setBattleState({
-      militaryUnits: worldContext.options.military ?? [],
+      militaryUnits: getAvailableMilitaryUnits(),
       attackers: { regiments: [], morale: 100, power: 0, phase: "", die: 1 },
       defenders: { regiments: [], morale: 100, power: 0, phase: "", die: 1 },
       nameSectionVisible: false
@@ -405,7 +412,7 @@ export class Battle {
     const phase = this[side].phase!;
     const adjuster = Math.max(worldContext.populationRate / 10, 10);
     this[side].power =
-      sum(worldContext.options.military!.map(u => (forces[u.name] || 0) * u.power * scheme[phase][u.type])) / adjuster;
+      sum(getAvailableMilitaryUnits().map(u => (forces[u.name] || 0) * u.power * scheme[phase][u.type])) / adjuster;
 
     getBattleScreenState().setSidePower(side, this[side].power ? Math.max(this[side].power | 0, 1) : 0);
   }
@@ -497,7 +504,9 @@ export class Battle {
       if (P((powerRatio - 1) / 2)) return ["storming", "defense"];
 
       if (prev[0] !== "storming") {
-        const machinery = worldContext.options.military!.filter(u => u.type === "machinery").map(u => u.name);
+        const machinery = getAvailableMilitaryUnits()
+          .filter(unit => unit.type === "machinery")
+          .map(unit => unit.name);
 
         const attackersForces = this.getJoinedForces(this.attackers.regiments);
         const machineryA = sum(machinery.map((u: string) => attackersForces[u]));

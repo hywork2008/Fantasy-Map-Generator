@@ -16,6 +16,7 @@ import type { WorldNote } from "../types/WorldState";
 import { closeDialog, closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, last, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
+import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../utils/gunpowderEra";
 import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
 import { Battle, type BattleRegiment } from "./battle-screen";
 import { interactionManager } from "./interactionManager";
@@ -63,7 +64,9 @@ function getRegiment(): MilitaryRegiment | undefined {
 }
 
 function syncRegimentState(regiment: MilitaryRegiment, stateId: number): void {
-  const unitOptions = worldContext.options.military ?? [];
+  const unitOptions = (worldContext.options.military ?? []).filter(
+    unit => isGunpowderEraEnabled(worldContext.options) || !isGunpowderEraMilitaryUnit(unit)
+  );
   setRegimentEditorState({
     regimentId: regiment.i,
     stateId,

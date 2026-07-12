@@ -11,6 +11,7 @@ import { overviewRegiments } from "../../controllers/regiments-overview";
 import { dialogStore, useDialogState } from "../../store/dialogState";
 import { useMilitaryOverviewState } from "../../store/militaryOverviewState";
 import { capitalize, rn, si, wiki } from "../../utils";
+import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../../utils/gunpowderEra";
 import { FillBox } from "../components/FillBox";
 import { IconButton } from "../components/IconButton";
 import { SortableHeader } from "../components/tables/SortableHeader";
@@ -31,7 +32,9 @@ export const MilitaryOverviewDialog: React.FC = () => {
 
   const { militaryOptions, lines, totals } = useMemo(() => {
     void refreshCounter;
-    const options = worldContext.options?.military || [];
+    const options = (worldContext.options?.military || []).filter(
+      unit => isGunpowderEraEnabled(worldContext.options) || !isGunpowderEraMilitaryUnit(unit)
+    );
 
     let processedLines = (worldContext.pack?.states || [])
       .filter(s => s.i && !s.removed)

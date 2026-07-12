@@ -11,6 +11,7 @@ import {
 import { useDialogState } from "../../store/dialogState";
 import { useRegimentsOverviewState } from "../../store/regimentsOverviewState";
 import { capitalize, si } from "../../utils";
+import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../../utils/gunpowderEra";
 import { FillBox } from "../components/FillBox";
 import { VirtualTableBody } from "../components/VirtualTableBody";
 import { Dialog } from "./Dialog";
@@ -34,7 +35,11 @@ export const RegimentsOverviewDialog: React.FC = () => {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: refreshCounter intentionally triggers recompute of external worldContext data
   const unitTypes = useMemo(
-    () => (worldContext.options?.military ?? []).filter(u => u.enabled !== false),
+    () =>
+      (worldContext.options?.military ?? []).filter(
+        unit =>
+          unit.enabled !== false && (isGunpowderEraEnabled(worldContext.options) || !isGunpowderEraMilitaryUnit(unit))
+      ),
     [refreshCounter]
   );
 

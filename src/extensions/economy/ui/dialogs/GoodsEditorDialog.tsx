@@ -56,6 +56,12 @@ export const GoodsEditorDialog: React.FC = () => {
     if (isOpen) openGoodsEditor();
   }, [isOpen]);
 
+  React.useEffect(() => {
+    if (!isOpen) return;
+    document.addEventListener("fmg:gunpowder-era-changed", goodsEditorAddLines);
+    return () => document.removeEventListener("fmg:gunpowder-era-changed", goodsEditorAddLines);
+  }, [isOpen]);
+
   const handleClose = () => {
     closeGoodsEditor();
     closeDialog("goodsEditor");

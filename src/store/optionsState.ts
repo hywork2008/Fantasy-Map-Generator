@@ -29,6 +29,8 @@ export interface OptionsState {
    * gone. Read live each movement tick by regimentMovement.ts, not a generation-time-only setting.
    */
   militaryHierarchy: "simple" | "dynamic";
+  /** Default for newly generated maps; saved maps retain their value in WorldOptions. */
+  gunpowderEraEnabled: boolean;
   initialPopulationSaturation: number;
   demographicBirthRate: number;
   demographicChildMortalityRate: number;
@@ -129,6 +131,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   lakeElevationLimit: 20,
   threatCalculation: "additive",
   militaryHierarchy: "simple",
+  gunpowderEraEnabled: false,
   initialPopulationSaturation: 60,
   demographicBirthRate: 0.25,
   demographicChildMortalityRate: 0.2,

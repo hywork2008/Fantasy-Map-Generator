@@ -101,6 +101,30 @@ function makeBasePack(relation: string): PackedGraph {
 }
 
 describe("MilitaryModule.generate — consolidated regiment structure", () => {
+  it("excludes artillery from regiments when the gunpowder era is disabled", () => {
+    const pack = makeBasePack("Enemy");
+    const state = makeState(pack);
+    state.options = {
+      year: 1000,
+      gunpowderEraEnabled: false,
+      military: Military.getDefaultOptions().map(unit =>
+        unit.name === "artillery" ? { ...unit, enabled: true } : unit
+      )
+    };
+    worldContext.pack = pack;
+    worldContext.populationRate = 1;
+    worldContext.urbanization = 1;
+    worldContext.notes = [];
+
+    Military.generate(worldContext, viewContext, appServices, state);
+
+    const artillery = worldContext.pack.states
+      .flatMap(stateEntry => stateEntry.military || [])
+      .flatMap(regiment => Object.keys(regiment.u))
+      .filter(unitName => unitName === "artillery");
+    expect(artillery).toEqual([]);
+  });
+
   it("keeps interior province's troops as a distinct field army when MAX_FIELD_ARMIES allows", () => {
     const withInterior = generate(makeBasePack("Enemy"));
 

@@ -4,7 +4,7 @@ import { getWorldContext } from "../economyContext";
 import { syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { Caravans } from "./caravans";
 import type { DemandCategory, Good } from "./goods-generator";
-import { DEMAND_PRIORITY, Goods, getDemandTargets } from "./goods-generator";
+import { DEMAND_PRIORITY, Goods, getDemandTargets, isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
 import type { Deal, Market } from "./marketTypes";
 import { getModifiers, MAX_BONUS_PRODUCTION } from "./production-utils";
@@ -29,7 +29,7 @@ export class ProductionModule {
     Markets.collectRuralProduction();
     Markets.initializeMarketPrices();
 
-    const index = this.buildProductionIndex(this.worldContext.pack.goods || []);
+    const index = this.buildProductionIndex((this.worldContext.pack.goods || []).filter(isGoodEnabled));
     const sortedBurgs = this.worldContext.pack.burgs
       .filter(burg => burg.i && !burg.removed)
       .sort((a, b) => a.population! - b.population!);
@@ -96,7 +96,7 @@ export class ProductionModule {
     const records: ProductionRecord[] = [];
 
     const good = Goods.get(this.worldContext.pack.cells.good[burg.cell]);
-    if (good) {
+    if (good && isGoodEnabled(good)) {
       const modifier = getModifiers(good, burg.cell);
       const bonus = minmax(population * BONUS_URBAN_PRODUCTION, MIN_BONUS_PRODUCTION, MAX_BONUS_PRODUCTION);
       const localBonus = bonus * modifier;
@@ -210,7 +210,8 @@ export class ProductionModule {
       const units = state.inventory[goodId];
       if (units <= 0) continue;
 
-      const good = Goods.get(goodId)!;
+      const good = Goods.get(goodId);
+      if (!good || !isGoodEnabled(good)) continue;
       const deal = Markets.sell({ burg: state.burg, good, units, taxRate });
       if (!deal) continue;
 
@@ -669,7 +670,15 @@ export class ProductionModule {
           goodId: +goodId,
           amount
         }));
-        if (!entries.length) continue;
+        if (
+          !entries.length ||
+          entries.some(entry => {
+            const ingredient = Goods.get(entry.goodId);
+            return !ingredient || !isGoodEnabled(ingredient);
+          })
+        ) {
+          continue;
+        }
         recipes.push({ good, ingredients: entries });
       }
     }

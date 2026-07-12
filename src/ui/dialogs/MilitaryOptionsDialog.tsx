@@ -12,6 +12,7 @@ import { useMilitaryOverviewState } from "../../store/militaryOverviewState";
 import { useOptionsState } from "../../store/optionsState";
 import type { MilitaryUnit } from "../../types/models";
 import { sanitizeId } from "../../utils";
+import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../../utils/gunpowderEra";
 import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
@@ -48,11 +49,13 @@ export const MilitaryOptionsDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("militaryOptions"));
   const militaryHierarchy = useOptionsState(state => state.militaryHierarchy);
   const [units, setUnits] = useState<MilitaryUnitConfig[]>([]);
+  const [gunpowderEraEnabled, setGunpowderEraEnabled] = useState(true);
   const [selectionDialog, setSelectionDialog] = useState<SelectionDialogState>(null);
 
   useEffect(() => {
     if (isOpen) {
       setUnits([...(worldContext.options?.military || [])]);
+      setGunpowderEraEnabled(isGunpowderEraEnabled(worldContext.options));
     }
   }, [isOpen]);
 
@@ -95,9 +98,17 @@ export const MilitaryOptionsDialog: React.FC = () => {
       return;
     }
 
-    worldContext.options.military = units;
-    localStorage.setItem("military", JSON.stringify(units));
+    const updatedUnits = units.map(unit =>
+      !gunpowderEraEnabled && isGunpowderEraMilitaryUnit(unit) ? { ...unit, enabled: false } : unit
+    );
+    worldContext.options.military = updatedUnits;
+    worldContext.options.gunpowderEraEnabled = gunpowderEraEnabled;
+    useOptionsState.getState().setOption("gunpowderEraEnabled", gunpowderEraEnabled);
+    localStorage.setItem("military", JSON.stringify(updatedUnits));
+    localStorage.setItem("gunpowderEraEnabled", String(gunpowderEraEnabled));
     Military.generate(worldContext, viewContext, appServices, getWorldState());
+    document.dispatchEvent(new CustomEvent("fmg:refresh-military"));
+    document.dispatchEvent(new CustomEvent("fmg:gunpowder-era-changed"));
     useMilitaryOverviewState.getState().refresh();
     closeDialog("militaryOptions");
   };
@@ -125,6 +136,20 @@ export const MilitaryOptionsDialog: React.FC = () => {
                 <option value="dynamic">Dynamic (split/merge detachments)</option>
               </select>
             </div>
+            <div style={{ marginBottom: "10px" }}>
+              <label
+                htmlFor="gunpowderEraEnabled"
+                data-tip="Enables artillery recruitment and the Gunpowder and Artillery goods. Turning it off removes them from production and trade."
+              >
+                <input
+                  id="gunpowderEraEnabled"
+                  type="checkbox"
+                  checked={gunpowderEraEnabled}
+                  onChange={event => setGunpowderEraEnabled(event.target.checked)}
+                />{" "}
+                Enable gunpowder era
+              </label>
+            </div>
             <div className="table">
               <table id="militaryOptionsTable">
                 <thead>
@@ -151,6 +176,7 @@ export const MilitaryOptionsDialog: React.FC = () => {
                 </thead>
                 <tbody>
                   {units.map((unit, index) => {
+                    if (!gunpowderEraEnabled && isGunpowderEraMilitaryUnit(unit)) return null;
                     const {
                       name,
                       icon,
@@ -179,7 +205,13 @@ export const MilitaryOptionsDialog: React.FC = () => {
                               type="checkbox"
                               checked={enabled}
                               onChange={e => updateUnit(index, "enabled", e.target.checked)}
-                              style={{ position: "absolute", inset: 0, opacity: 0, margin: 0, cursor: "pointer" }}
+                              style={{
+                                position: "absolute",
+                                inset: 0,
+                                opacity: 0,
+                                margin: 0,
+                                cursor: "pointer"
+                              }}
                             />
                             <span
                               style={{

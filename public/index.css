@@ -1030,15 +1030,15 @@ input[type="checkbox"].native {
   pointer-events: none;
 }
 
-.renderer-mode-switch input:checked + .renderer-mode-switch-track {
+.renderer-mode-switch input:checked+.renderer-mode-switch-track {
   background: #4a9e4a;
 }
 
-.renderer-mode-switch input:checked ~ .renderer-mode-switch-thumb {
+.renderer-mode-switch input:checked~.renderer-mode-switch-thumb {
   left: 16px;
 }
 
-.renderer-mode-switch input:focus-visible + .renderer-mode-switch-track {
+.renderer-mode-switch input:focus-visible+.renderer-mode-switch-track {
   outline: 2px solid #0da6ff;
   outline-offset: 2px;
 }

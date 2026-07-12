@@ -2,7 +2,7 @@ import { pointer } from "d3";
 import { clearMainTip, tip } from "../../hostServices";
 import { confirmationDialog, downloadFile, findCell, getFileName, layerIsOn, rn, unique } from "../../hostUtils";
 import { getApi, getViewContext, getWorldContext } from "../economyContext";
-import { Goods, getDefaultGoodTradeProfile } from "../generators/goods-generator";
+import { Goods, getDefaultGoodTradeProfile, isGoodEnabled } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
 import { isDealRecord, isMfgRecord, Production } from "../generators/production-generator";
 import { getCellProduction } from "../generators/production-utils";
@@ -36,10 +36,11 @@ function regenerateEconomyForGood(goodId: number): void {
 function ensureDisplayedGoodsInitialized(): void {
   if (displayedGoodsInitialized) return;
   displayedGoodsInitialized = true;
-  if (!worldContext().pack.goods?.length) return;
+  const enabledGoods = (worldContext().pack.goods ?? []).filter(isGoodEnabled);
+  if (!enabledGoods.length) return;
 
-  const wood = worldContext().pack.goods.find(g => g.name === "Wood");
-  displayedGoods.add(wood ? wood.i : worldContext().pack.goods[0].i);
+  const wood = enabledGoods.find(g => g.name === "Wood");
+  displayedGoods.add(wood ? wood.i : enabledGoods[0].i);
 }
 
 export function open(): void {
@@ -57,7 +58,8 @@ export function goodsEditorAddLines(): void {
   const production = getProduction();
   const stockData = getAllStockData();
 
-  const goods = (worldContext().pack.goods ?? []).map(good => {
+  const enabledGoods = (worldContext().pack.goods ?? []).filter(isGoodEnabled);
+  const goods = enabledGoods.map(good => {
     const types = [good.recipes && "MFG", good.distribution && "RAW"].filter(Boolean) as string[];
     const goodProduction = production[good.i] ?? { burg: 0, cell: 0 };
     const produced = rn(goodProduction.burg + goodProduction.cell);
@@ -109,7 +111,7 @@ export function goodsEditorAddLines(): void {
     goods: sortedGoods,
     totalProduced,
     totalStock,
-    displayedCount: displayedGoods.size,
+    displayedCount: goods.filter(good => displayedGoods.has(good.i)).length,
     isPercentageMode: false,
     hasTagFilter: visibleTags.size > 0,
     isAssignMode,
@@ -170,7 +172,9 @@ type StockSource = { name: string; type: "market" | "burg"; x: number; y: number
 function getAllStockData(): Record<number, { total: number; sources: StockSource[] }> {
   const dealById = new Map((worldContext().pack.deals || []).map(d => [d.i, d]));
   const result: Record<number, { total: number; sources: StockSource[] }> = {};
-  for (const good of worldContext().pack.goods || []) result[good.i] = { total: 0, sources: [] };
+  for (const good of (worldContext().pack.goods || []).filter(isGoodEnabled)) {
+    result[good.i] = { total: 0, sources: [] };
+  }
 
   for (const market of worldContext().pack.markets || []) {
     const centerBurg = worldContext().pack.burgs[market.centerBurgId];
@@ -273,7 +277,7 @@ function getProduction(): Record<number, { burg: number; cell: number }> {
 }
 
 export function openTagsVisibilityDialog(): void {
-  const tags = unique((worldContext().pack.goods || []).flatMap(good => good.tags));
+  const tags = unique((worldContext().pack.goods || []).filter(isGoodEnabled).flatMap(good => good.tags));
 
   setGoodsTagsDialogState({
     isOpen: true,
@@ -411,7 +415,7 @@ export function toggleDisplayedGood(goodId: number, show: boolean): void {
 
 export function toggleAllDisplayed(show: boolean): void {
   if (show) {
-    for (const good of worldContext().pack.goods || []) displayedGoods.add(good.i);
+    for (const good of (worldContext().pack.goods || []).filter(isGoodEnabled)) displayedGoods.add(good.i);
   } else {
     displayedGoods.clear();
   }

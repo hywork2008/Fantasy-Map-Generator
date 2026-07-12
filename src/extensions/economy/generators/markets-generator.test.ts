@@ -38,6 +38,7 @@ describe("MarketsModule", () => {
       worldContext.graphWidth = 1000;
       worldContext.graphHeight = 800;
       worldContext.distanceScale = 1;
+      worldContext.options = { gunpowderEraEnabled: true } as typeof worldContext.options;
       worldContext.nameBases = [{ i: 0, name: "Test", min: 3, max: 10, d: "", m: 0, b: "Anna,Bob,Carla,David,Erin" }];
       worldContext.pack = {
         characters: [],
@@ -97,6 +98,25 @@ describe("MarketsModule", () => {
       worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg];
       const deal = marketsModule.buy({ burg, good: worldContext.pack.goods[0], units: 5, budget: 0.05 });
       expect(deal).toBeNull();
+    });
+
+    it("does not buy a gunpowder-era good while the era is disabled", () => {
+      const market: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#ff0000",
+        goods: { 0: { stock: 100, price: 10 } }
+      };
+      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
+      marketsModule["marketById"] = [market, market];
+      worldContext.pack.markets = [market];
+      const burg: Burg = { i: 1, market: 1, treasury: 100 } as unknown as Burg;
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg];
+      worldContext.pack.goods[0].name = "Gunpowder";
+      worldContext.options.gunpowderEraEnabled = false;
+
+      expect(marketsModule.buy({ burg, good: worldContext.pack.goods[0], units: 5 })).toBeNull();
+      expect(worldContext.pack.deals).toEqual([]);
     });
 
     it("runGlobalTrade() should transfer excess stock to importers", () => {
