@@ -1,7 +1,7 @@
 import { curveCatmullRom, easeLinear, line, select } from "d3";
 import type { Point } from "../../hostCore";
 import { minmax } from "../../hostUtils";
-import { getTradeAnimLayer, getWorldContext } from "../economyContext";
+import { getApi, getTradeAnimLayer, getViewContext, getWorldContext } from "../economyContext";
 import type { Caravan } from "../generators/marketTypes";
 import { TradeAnimation } from "../generators/trade-animation";
 
@@ -13,6 +13,11 @@ const MARKER_SYMBOLS = {
 } as const;
 
 let symbolsReady: Promise<void> | null = null;
+let highlightedPoints: Point[] | null = null;
+
+export function getHighlightedPoints(): Point[] | null {
+  return highlightedPoints;
+}
 
 function getOrCreateDefs(): Element {
   const layer = getTradeAnimLayer();
@@ -75,6 +80,11 @@ export function getCaravanPosition(caravan: Caravan): { x: number; y: number; an
 }
 
 export async function draw(): Promise<void> {
+  if (getViewContext().renderMode === "webglHybrid") {
+    getApi().requestWebglRender();
+    return;
+  }
+
   const layer = getTradeAnimLayer();
   if (!layer) return;
 
@@ -143,10 +153,19 @@ export async function draw(): Promise<void> {
 }
 
 export function clear(): void {
+  if (getViewContext().renderMode === "webglHybrid") {
+    getApi().requestWebglRender();
+    return;
+  }
   getTradeAnimLayer()?.selectAll("g.caravan").interrupt().remove();
 }
 
 export function highlight(points: Point[]): void {
+  highlightedPoints = points;
+  if (getViewContext().renderMode === "webglHybrid") {
+    getApi().requestWebglRender();
+    return;
+  }
   const anim = getTradeAnimLayer();
   if (!anim) return;
   anim.selectAll("path.highlight").remove();
@@ -164,6 +183,11 @@ export function highlight(points: Point[]): void {
 }
 
 export function clearHighlight(): void {
+  highlightedPoints = null;
+  if (getViewContext().renderMode === "webglHybrid") {
+    getApi().requestWebglRender();
+    return;
+  }
   getTradeAnimLayer()?.selectAll("path.highlight").remove();
 }
 

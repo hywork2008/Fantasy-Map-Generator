@@ -85,6 +85,29 @@ export interface ExtensionWebglScatterDatum {
   cellId?: number | null;
 }
 
+export interface ExtensionWebglIconDatum {
+  id: string;
+  position: ExtensionWebglPosition;
+  angle: number;
+  size: number;
+  iconUrl: string;
+  kind?: ExtensionWebglPickMetadata["kind"];
+  extensionId?: string;
+  cellId?: number | null;
+  /** Keep reference to raw caravan object if needed by custom pick handler */
+  caravan?: unknown;
+}
+
+export interface ExtensionWebglPathDatum {
+  id: string;
+  path: ExtensionWebglPosition[];
+  color: ExtensionWebglColor;
+  width: number;
+  kind?: ExtensionWebglPickMetadata["kind"];
+  extensionId?: string;
+  cellId?: number | null;
+}
+
 /**
  * Extension-provided presentation and selection behavior for a `kind: "extension"` pick.
  * The host keeps chooser DOM and event plumbing, while the extension owns its domain labels
@@ -115,6 +138,20 @@ export type ExtensionWebglLayer =
       toggle: string;
       data: readonly ExtensionWebglScatterDatum[];
       radiusUnits?: "common" | "pixels";
+      pickable?: boolean;
+    }
+  | {
+      type: "icon";
+      id: string;
+      toggle: string;
+      data: readonly ExtensionWebglIconDatum[];
+      pickable?: boolean;
+    }
+  | {
+      type: "path";
+      id: string;
+      toggle: string;
+      data: readonly ExtensionWebglPathDatum[];
       pickable?: boolean;
     };
 

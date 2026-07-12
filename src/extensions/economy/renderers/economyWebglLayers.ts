@@ -1,19 +1,24 @@
 import type {
   ExtensionWebglColor,
+  ExtensionWebglIconDatum,
+  ExtensionWebglLayer,
   ExtensionWebglLayerSpec,
+  ExtensionWebglPathDatum,
   ExtensionWebglPolygonDatum,
   ExtensionWebglScatterDatum
 } from "../../../types/extension-api";
 import { getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import { getCellProduction } from "../generators/production-utils";
+import { TradeAnimation } from "../generators/trade-animation";
+import { getCaravanPosition, getHighlightedPoints } from "./draw-trade-animation";
 
 const MIN_GOODS_ALPHA = 26;
 const MAX_GOODS_ALPHA = 230;
 
 export function createEconomyWebglLayerSpec(): ExtensionWebglLayerSpec {
   return {
-    build: () => {
+    build: (): readonly ExtensionWebglLayer[] => {
       const displayedGoods = getDefaultGoodsSet();
       return [
         {
@@ -45,6 +50,20 @@ export function createEconomyWebglLayerSpec(): ExtensionWebglLayerSpec {
           data: buildMarketCenterSymbols(),
           radiusUnits: "common" as const,
           pickable: true
+        },
+        {
+          type: "icon" as const,
+          id: "economy-trade-caravans",
+          toggle: "toggleTrade",
+          data: buildTradeCaravanIcons(),
+          pickable: true
+        },
+        {
+          type: "path" as const,
+          id: "economy-trade-highlight",
+          toggle: "toggleTrade",
+          data: buildTradeHighlightPaths(),
+          pickable: false
         }
       ];
     }
@@ -210,4 +229,45 @@ function colorToRgba(value: string, alpha = 255): ExtensionWebglColor {
 function getContrastingColor([red, green, blue]: ExtensionWebglColor): ExtensionWebglColor {
   const lightness = red * 0.299 + green * 0.587 + blue * 0.114;
   return lightness > 160 ? [40, 40, 47, 255] : [245, 245, 245, 255];
+}
+
+function buildTradeCaravanIcons(): ExtensionWebglIconDatum[] {
+  const worldContext = getWorldContext();
+  const caravans = (worldContext.pack.caravans || []).filter(c => c.state === "transit");
+  if (!caravans.length) return [];
+
+  const animOptions = TradeAnimation.getOptions();
+  const size = animOptions.markerSize;
+
+  return caravans.map(c => {
+    const { x, y, angle, type } = getCaravanPosition(c);
+    const imgSize = type === "land" ? size / 1.6 : size;
+    const iconUrl = type === "land" ? "./images/markers/wagon.svg" : "./images/markers/ship.svg";
+
+    const dealId = c.payload[0]?.dealId ?? 0;
+    return {
+      id: `economy-caravan-${c.i}-${c.seller}-${c.buyer}-${dealId}`,
+      position: [x, y],
+      angle,
+      size: imgSize,
+      iconUrl,
+      kind: "extension",
+      extensionId: "economy",
+      caravan: c
+    };
+  });
+}
+
+function buildTradeHighlightPaths(): ExtensionWebglPathDatum[] {
+  const points = getHighlightedPoints();
+  if (!points || points.length === 0) return [];
+
+  return [
+    {
+      id: "economy-trade-highlight-line",
+      path: points,
+      color: [255, 0, 0, 178], // Red with ~0.7 opacity
+      width: 2
+    }
+  ];
 }

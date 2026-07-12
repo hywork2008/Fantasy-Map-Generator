@@ -1204,6 +1204,7 @@ function schedule3dUpdate() {
 
 export function scheduleWebglUpdate(): void {
   if (viewContext.renderMode !== "webglHybrid" || pendingWebglUpdate) return;
+  if (!worldContext?.pack?.cells?.i) return;
   pendingWebglUpdate = true;
   requestAnimationFrame(() => {
     pendingWebglUpdate = false;

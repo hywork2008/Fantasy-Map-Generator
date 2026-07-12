@@ -11,7 +11,17 @@ export class CaravansModule {
     const world = getWorldContext();
     if (!world.pack.caravans) world.pack.caravans = [];
 
-    let nextId = world.pack.caravans.length > 0 ? Math.max(...world.pack.caravans.map(c => c.i)) + 1 : 0;
+    // tick() below filters arrived/lost caravans out of world.pack.caravans, so deriving
+    // nextId from Math.max over that live array would eventually reuse a completed caravan's
+    // id. The SVG renderer's d3 join is keyed on caravan.i, and a reused id makes it treat an
+    // unrelated new caravan as a continuation of the old one, animating a huge jump between
+    // their positions. A counter stored on the pack (independent of the filtered array) keeps
+    // ids unique for the pack's lifetime.
+    if (world.pack.nextCaravanId === undefined) {
+      world.pack.nextCaravanId =
+        world.pack.caravans.length > 0 ? Math.max(...world.pack.caravans.map(c => c.i)) + 1 : 0;
+    }
+    let nextId = world.pack.nextCaravanId;
 
     const markets = world.pack.markets;
     const burgs = world.pack.burgs;
@@ -113,6 +123,8 @@ export class CaravansModule {
 
       world.pack.caravans.push(caravan);
     }
+
+    world.pack.nextCaravanId = nextId;
   }
 
   tick(deltaDays: number) {

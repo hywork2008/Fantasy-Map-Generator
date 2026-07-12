@@ -5,7 +5,7 @@ import { Goods } from "../generators/goods-generator";
 const GOODS_CELL_ID = /^economy-goods-cell-(\d+)-(\d+)$/;
 const GOODS_SOURCE_ID = /^economy-goods-source-(\d+)$/;
 const MARKET_ID = /^economy-market-(?:area|center)-(\d+)(?:-\d+)?$/;
-const CARAVAN_ID = /^economy-caravan-(\d+)$/;
+const CARAVAN_ID = /^economy-caravan-(\d+)(?:-.*)?$/;
 
 export const economyMapPickHandler: ExtensionMapPickHandler = {
   formatPick(detail) {

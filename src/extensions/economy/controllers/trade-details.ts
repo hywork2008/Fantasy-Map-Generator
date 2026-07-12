@@ -16,11 +16,15 @@ export function open(caravan: Caravan): void {
   activeCaravan = caravan;
 
   const { markets, burgs } = getWorldContext().pack;
-  const sellerMarket = markets[caravan.seller];
-  const buyerMarket = markets[caravan.buyer];
-  if (!sellerMarket || !buyerMarket) return;
-  const startBurg = burgs[sellerMarket.centerBurgId];
-  const endBurg = burgs[buyerMarket.centerBurgId];
+  const sellerMarket = caravan.sellerType === "market" ? markets[caravan.seller] : null;
+  const buyerMarket = caravan.buyerType === "market" ? markets[caravan.buyer] : null;
+
+  const startBurg =
+    caravan.sellerType === "burg" ? burgs[caravan.seller] : sellerMarket ? burgs[sellerMarket.centerBurgId] : null;
+
+  const endBurg =
+    caravan.buyerType === "burg" ? burgs[caravan.buyer] : buyerMarket ? burgs[buyerMarket.centerBurgId] : null;
+
   if (!startBurg || !endBurg) return;
 
   const points = caravan.routeSegments
@@ -42,14 +46,19 @@ function tradeDetailsAddLines(_points: Point[]): void {
 
   const caravan = activeCaravan;
   const { burgs, markets } = getWorldContext().pack;
-  const sellerMarket = markets[caravan.seller];
-  const buyerMarket = markets[caravan.buyer];
-  const from = burgs[sellerMarket.centerBurgId];
-  const to = burgs[buyerMarket.centerBurgId];
+
+  const sellerMarket = caravan.sellerType === "market" ? markets[caravan.seller] : null;
+  const buyerMarket = caravan.buyerType === "market" ? markets[caravan.buyer] : null;
+
+  const from =
+    caravan.sellerType === "burg" ? burgs[caravan.seller] : sellerMarket ? burgs[sellerMarket.centerBurgId] : null;
+
+  const to = caravan.buyerType === "burg" ? burgs[caravan.buyer] : buyerMarket ? burgs[buyerMarket.centerBurgId] : null;
 
   const rows = (caravan.payload || []).map(item => {
     const good = Goods.get(item.goodId);
     return {
+      dealId: item.dealId,
       goodId: item.goodId,
       goodName: good?.name ?? "Unknown",
       goodColor: good?.color ?? "#fff",
@@ -66,9 +75,9 @@ function tradeDetailsAddLines(_points: Point[]): void {
   setTradeDetailsState({
     summary: {
       sellerName: from?.name ?? "",
-      sellerType: "market",
+      sellerType: caravan.sellerType,
       buyerName: to?.name ?? "",
-      buyerType: "market",
+      buyerType: caravan.buyerType,
       onZoomSeller: () => {
         if (from) getApi().zoomTo(from.x, from.y, 8, 1500);
       },

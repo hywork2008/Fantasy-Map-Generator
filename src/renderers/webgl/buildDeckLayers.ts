@@ -21,6 +21,7 @@ import type { ViewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
 import { getOceanPathsCacheSize, renderOceanDepthToOffscreenCanvas } from "../../renderers/ocean-layers";
 import { useLayerState } from "../../store/layerState";
+import type { ExtensionWebglIconDatum, ExtensionWebglPathDatum } from "../../types/extension-api";
 import { EMBLEM_ICON_RASTER_SIZE } from "../emblem-renderer";
 import {
   buildBackgroundPolygons,
@@ -567,22 +568,65 @@ export function buildDeckLayers(
       continue;
     }
 
-    layers.push(
-      new ScatterplotLayer({
-        id: `fmg-webgl-extension-${layer.id}`,
-        data: layer.data,
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-        getPosition: datum => datum.position,
-        getFillColor: datum => datum.fillColor,
-        getLineColor: datum => datum.lineColor ?? datum.fillColor,
-        getRadius: datum => datum.radius,
-        getLineWidth: datum => datum.lineWidth ?? 0,
-        radiusUnits: layer.radiusUnits ?? "common",
-        lineWidthUnits: "pixels",
-        stroked: true,
-        pickable: layer.pickable ?? false
-      })
-    );
+    if (layer.type === "scatter") {
+      layers.push(
+        new ScatterplotLayer({
+          id: `fmg-webgl-extension-${layer.id}`,
+          data: layer.data,
+          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+          getPosition: datum => datum.position,
+          getFillColor: datum => datum.fillColor,
+          getLineColor: datum => datum.lineColor ?? datum.fillColor,
+          getRadius: datum => datum.radius,
+          getLineWidth: datum => datum.lineWidth ?? 0,
+          radiusUnits: layer.radiusUnits ?? "common",
+          lineWidthUnits: "pixels",
+          stroked: true,
+          pickable: layer.pickable ?? false
+        })
+      );
+      continue;
+    }
+
+    if (layer.type === "icon") {
+      layers.push(
+        new IconLayer<ExtensionWebglIconDatum>({
+          id: `fmg-webgl-extension-${layer.id}`,
+          data: layer.data as ExtensionWebglIconDatum[],
+          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+          getPosition: (datum: ExtensionWebglIconDatum) => datum.position as [number, number],
+          getAngle: (datum: ExtensionWebglIconDatum) => (datum.angle * 180) / Math.PI,
+          getSize: (datum: ExtensionWebglIconDatum) => datum.size,
+          getIcon: (datum: ExtensionWebglIconDatum) => ({
+            id: datum.iconUrl,
+            url: datum.iconUrl,
+            width: 128,
+            height: 128,
+            anchorX: 64,
+            anchorY: 64
+          }),
+          sizeUnits: "common",
+          billboard: false,
+          pickable: layer.pickable ?? false
+        })
+      );
+      continue;
+    }
+
+    if (layer.type === "path") {
+      layers.push(
+        new PathLayer<ExtensionWebglPathDatum>({
+          id: `fmg-webgl-extension-${layer.id}`,
+          data: layer.data as ExtensionWebglPathDatum[],
+          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+          getPath: (datum: ExtensionWebglPathDatum) => datum.path as [number, number][],
+          getColor: (datum: ExtensionWebglPathDatum) => datum.color,
+          getWidth: (datum: ExtensionWebglPathDatum) => datum.width,
+          widthUnits: "pixels",
+          pickable: layer.pickable ?? false
+        })
+      );
+    }
   }
 
   if (activeLayers.toggleEmblems) {

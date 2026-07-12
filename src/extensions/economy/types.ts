@@ -9,6 +9,7 @@ declare module "../../types/PackedGraph" {
     markets: Market[];
     deals: Deal[];
     caravans: Caravan[];
+    nextCaravanId: number;
     burgMarketLedgers: BurgMarketLedger[];
     merchantOrganizations: MerchantOrganization[];
   }

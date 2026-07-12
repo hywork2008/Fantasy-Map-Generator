@@ -257,6 +257,7 @@ export function buildLandCellGeometry(
   focusScope: FocusScope | null
 ): DeckLandCellGeometry[] {
   const { cells, vertices } = worldContext.pack;
+  if (!cells?.i || !vertices) return [];
   const geometry: DeckLandCellGeometry[] = [];
 
   for (let cellId = 0; cellId < cells.i.length; cellId++) {

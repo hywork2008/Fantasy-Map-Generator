@@ -125,7 +125,7 @@ export const TradeDetailsDialog: React.FC = () => {
               scrollElementRef={parentRef}
               renderRow={row => (
                 <tr
-                  key={row.goodId}
+                  key={row.dealId}
                   className="states tradeDeal"
                   data-good={row.goodName}
                   data-units={row.units}

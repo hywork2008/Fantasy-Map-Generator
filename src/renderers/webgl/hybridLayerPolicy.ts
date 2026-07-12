@@ -27,7 +27,8 @@ export const WEBGL_MANAGED_SVG_LAYER_IDS = [
   "markers",
   "armies",
   "labels",
-  "burgLabels"
+  "burgLabels",
+  "tradeAnimation"
 ] as const;
 
 export const HYBRID_WEBGL_MANAGED_SVG_LAYER_IDS: ReadonlySet<string> = new Set(WEBGL_MANAGED_SVG_LAYER_IDS);

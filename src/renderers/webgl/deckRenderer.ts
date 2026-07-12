@@ -177,18 +177,20 @@ function collectSemanticPickDetails(
   y: number,
   visualCandidates: WebglPickDetail[]
 ): WebglPickDetail[] {
-  const mapPoint = screenToMapPoint(viewContext, x, y);
+  const mapPointVal = screenToMapPoint(viewContext, x, y);
   const padding = Math.max(SEMANTIC_PICK_RADIUS / Math.max(viewContext.scale, 0.0001), 1);
-  const military = collectMilitaryBoxCandidates(viewContext, mapPoint, x, y, padding);
+  const military = collectMilitaryBoxCandidates(viewContext, mapPointVal, x, y, padding);
   const militaryBounds = military.map(candidate => candidate.bounds);
-  const burgs = collectBurgIconCandidates(viewContext, mapPoint, x, y, padding, militaryBounds);
-  const markers = collectMarkerCandidates(viewContext, mapPoint, x, y, padding);
+  const burgs = collectBurgIconCandidates(viewContext, mapPointVal, x, y, padding, militaryBounds);
+  const markers = collectMarkerCandidates(viewContext, mapPointVal, x, y, padding);
+  const caravans = collectCaravanCandidates(viewContext, mapPointVal, x, y, padding);
 
   return uniquePickDetails([
     ...visualCandidates,
     ...military.map(candidate => candidate.detail),
     ...burgs,
-    ...markers
+    ...markers,
+    ...caravans
   ]).slice(visualCandidates.length);
 }
 
@@ -287,6 +289,37 @@ function collectMarkerCandidates(
       id,
       cellId,
       layerId: "fmg-webgl-markers",
+      index,
+      x,
+      y,
+      coordinate: position
+    });
+  });
+  return candidates;
+}
+
+function collectCaravanCandidates(
+  viewContext: ViewContext,
+  mapPoint: [number, number],
+  x: number,
+  y: number,
+  padding: number
+): WebglPickDetail[] {
+  const candidates: WebglPickDetail[] = [];
+  getLayerData(viewContext, "fmg-webgl-extension-economy-trade-caravans").forEach((datum, index) => {
+    const position = getPoint(datum.position);
+    if (!position) return;
+    const size = numberValue(datum.size) ?? 0;
+    const bounds = getIconBounds(position, size, padding);
+    if (!boundsContainsPoint(bounds, mapPoint, padding)) return;
+    const id = stringValue(datum.id);
+    if (!id) return;
+    candidates.push({
+      kind: "extension",
+      extensionId: "economy",
+      id,
+      cellId: null,
+      layerId: "fmg-webgl-extension-economy-trade-caravans",
       index,
       x,
       y,
