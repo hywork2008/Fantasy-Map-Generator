@@ -9,7 +9,14 @@ import { Markets } from "../generators/markets-generator";
 import type { Market } from "../generators/marketTypes";
 import { isMarketTradePermitted } from "../generators/merchantOrganizations";
 import { TradeAnimation } from "../generators/trade-animation";
-import { estimateSpeculativeTrade, getTransportCost } from "../generators/tradeOpportunityEstimator";
+import {
+  estimateSpeculativeTrade,
+  getNetTradeProfit,
+  getTransportCost,
+  isGoodTradePermitted,
+  MIN_TRADE_PROFIT
+} from "../generators/tradeOpportunityEstimator";
+import { calculateRouteDurationFromDistances } from "../generators/tradeRouteDuration";
 import { clearHighlight, highlight } from "../renderers/draw-trade-animation";
 import {
   getMarketTradeOpportunitiesState,
@@ -102,7 +109,12 @@ export function refresh(): void {
       const sellPrice = Markets.customerSellPrice(targetGood.price, target.centerBurgId, goodId);
       const distance = getTradeDistance(sourceCenter, targetCenter, tradeRouteGraph, hasTradeRoutes);
       if (distance === null) continue;
-      if (!isMarketTradePermitted(source, target, distance.total)) continue;
+      const durationDays = calculateRouteDurationFromDistances(
+        distance.land * world.distanceScale,
+        distance.sea * world.distanceScale,
+        distance.transfers
+      );
+      if (!isGoodTradePermitted(good, durationDays) || !isMarketTradePermitted(source, target, durationDays)) continue;
 
       const transportCost = getTransportCost(distance.total, mapDiagonal) * good.value;
       const unitProfit = rn(sellPrice - buyPrice - transportCost, 2);
@@ -117,6 +129,7 @@ export function refresh(): void {
           targetPopulation: getMarketPopulation(target.i),
           distance: distance.total,
           mapDiagonal,
+          durationDays,
           buyPrice,
           sellPrice
         });
@@ -139,6 +152,8 @@ export function refresh(): void {
       }
 
       const maxUnits = rn(sourceGood.stock, 2);
+      const totalProfit = getNetTradeProfit(unitProfit, maxUnits, durationDays);
+      if (totalProfit < MIN_TRADE_PROFIT) continue;
       rows.push(
         createRow({
           source,
@@ -149,7 +164,7 @@ export function refresh(): void {
           transportCost: rn(transportCost, 2),
           unitProfit,
           maxUnits,
-          totalProfit: rn(unitProfit * maxUnits, 2)
+          totalProfit: rn(totalProfit, 2)
         })
       );
     }

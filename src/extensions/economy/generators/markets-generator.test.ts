@@ -119,7 +119,9 @@ describe("MarketsModule", () => {
       // biome-ignore lint/complexity/useLiteralKeys: private access for testing
       marketsModule["marketById"] = [market1, market2];
       marketsModule.runGlobalTrade();
-      expect(market2.goods[0].stock).toBeGreaterThan(0);
+      expect(worldContext.pack.deals).toHaveLength(1);
+      // Goods remain in transit until the spawned caravan reaches the importer.
+      expect(market2.goods[0].stock).toBe(0);
       expect(market1.goods[0].stock).toBeLessThan(100);
     });
 
@@ -176,7 +178,7 @@ describe("MarketsModule", () => {
       expect(market2.goods[0].price).toBeGreaterThan(0);
     });
 
-    it("runGlobalTrade() should skip market trades beyond the merchant range cap", () => {
+    it("runGlobalTrade() should skip low-value trades beyond their value-density day limit", () => {
       const market1: Market = {
         i: 1,
         centerBurgId: 1,
@@ -227,7 +229,7 @@ describe("MarketsModule", () => {
       expect(worldContext.pack.deals.some(deal => deal.sellerType === "market" && deal.buyerType === "market")).toBe(
         true
       );
-      expect(market2.goods[0].stock).toBeGreaterThan(5);
+      expect(market2.goods[0].stock).toBe(5);
       expect(market1.goods[0].stock).toBeLessThan(100);
     });
 
@@ -257,8 +259,11 @@ describe("MarketsModule", () => {
         deal => deal.sellerType === "market" && deal.buyerType === "market"
       );
       expect(tradeDeals).toHaveLength(1);
-      expect(market1.goods[0].stock).not.toBe(10);
-      expect(market2.goods[0].stock).not.toBe(10);
+      const [tradeDeal] = tradeDeals;
+      const seller = tradeDeal.seller === market1.i ? market1 : market2;
+      const buyer = tradeDeal.buyer === market1.i ? market1 : market2;
+      expect(seller.goods[0].stock).toBeLessThan(10);
+      expect(buyer.goods[0].stock).toBe(10);
     });
 
     it("addMarket() should claim only the center burg's cell and preserve existing borders", () => {

@@ -8,8 +8,11 @@ import {
   getDraftAnimalType,
   getSeaConditionMultiplier
 } from "./caravanMovement";
-import type { Caravan, Deal } from "./marketTypes";
+import type { Good } from "./goods-generator";
+import type { Caravan, Deal, TradeRouteSegment } from "./marketTypes";
 import { TradeAnimation } from "./trade-animation";
+import { getCaravanMaintenanceCost, isGoodTradePermitted, MIN_TRADE_PROFIT } from "./tradeOpportunityEstimator";
+import { calculateRouteDurationDays, getRouteDistanceKm } from "./tradeRouteDuration";
 
 interface SegmentBoundary {
   type: "land" | "water";
@@ -172,21 +175,23 @@ export class CaravansModule {
       const routePath = TradeAnimation.findRoutePath(startBurg.cell, endBurg.cell);
       if (!routePath || routePath.segments.length === 0) continue;
 
-      let calculatedDistance = 0;
-      for (const seg of routePath.segments) {
-        for (let i = 0; i < seg.points.length - 1; i++) {
-          const [x1, y1] = seg.points[i];
-          const [x2, y2] = seg.points[i + 1];
-          calculatedDistance += Math.hypot(x2 - x1, y2 - y1);
-        }
-      }
-
-      const distance = calculatedDistance * world.distanceScale;
+      const routeSegments: TradeRouteSegment[] = routePath.segments.map(segment => ({
+        type: segment.type,
+        points: segment.points.map(([x, y]) => [x, y])
+      }));
+      const distance = getRouteDistanceKm(routeSegments, world.distanceScale);
       if (distance <= 0) continue;
+
+      const durationDays = calculateRouteDurationDays(routeSegments, world.distanceScale);
+      const maintenanceCost = getCaravanMaintenanceCost(durationDays);
+      const transportedDeals = bundle.deals.filter(deal =>
+        isDealWorthTransporting(deal, world.pack.goods, durationDays, maintenanceCost)
+      );
+      if (!transportedDeals.length) continue;
 
       let totalUnits = 0;
       let totalValue = 0;
-      const payload = bundle.deals.map(d => {
+      const payload = transportedDeals.map(d => {
         const value = d.price * d.units;
         totalUnits += d.units;
         totalValue += value;
@@ -203,7 +208,7 @@ export class CaravansModule {
         units: rn(totalUnits, 2),
         value: rn(totalValue, 2),
         draftAnimalId: DEFAULT_DRAFT_ANIMAL_ID,
-        routeSegments: routePath.segments as { type: "land" | "water"; points: [number, number][] }[],
+        routeSegments,
         totalDistance: distance,
         currentDistance: 0,
         state: "transit"
@@ -268,6 +273,18 @@ export class CaravansModule {
     // Clean up arrived/lost caravans
     world.pack.caravans = world.pack.caravans.filter(c => c.state === "transit");
   }
+}
+
+function isDealWorthTransporting(deal: Deal, goods: Good[], durationDays: number, maintenanceCost: number): boolean {
+  const good = goods[deal.good];
+  if (!good || !isGoodTradePermitted(good, durationDays)) return false;
+
+  // Market-to-market deals have already passed the full net-profit calculation in
+  // Markets.runGlobalTrade. Burg↔market deals represent local market aggregation and do not
+  // retain a margin, so use their cargo value as a conservative upper bound: a shipment whose
+  // entire value cannot cover the route's fixed cost must never appear as a caravan.
+  if (deal.sellerType === "market" && deal.buyerType === "market") return true;
+  return deal.price * deal.units - maintenanceCost >= MIN_TRADE_PROFIT;
 }
 
 export const Caravans = new CaravansModule();

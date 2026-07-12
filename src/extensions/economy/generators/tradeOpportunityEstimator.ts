@@ -1,13 +1,20 @@
-import type { Good, GoodTradeProfile } from "./goods-generator";
+import { type Good, type GoodTradeProfile, getDefaultGoodTradeProfile } from "./goods-generator";
+import type { TradeRouteSegment } from "./marketTypes";
+import { calculateRouteDurationDays } from "./tradeRouteDuration";
 
 const DISTANCE_COST_FACTOR = 0.5;
+export const MIN_TRADE_PROFIT = 1;
+export const CARAVAN_DAILY_MAINTENANCE_COST = 0.5;
+export const VALUE_DENSITY_BASE_MAX_DAYS = 12;
+export const VALUE_DENSITY_MULTIPLIER = 4;
+export const PERISHABLE_MAX_TRADE_DAYS = 10;
 
 interface MarketGoodState {
   stock: number;
   price: number;
 }
 
-interface SpeculativeTradeInput {
+export interface SpeculativeTradeInput {
   good: Good;
   sourceMarketId: number;
   targetMarketId: number;
@@ -17,6 +24,9 @@ interface SpeculativeTradeInput {
   targetPopulation: number;
   distance: number;
   mapDiagonal: number;
+  routeSegments?: readonly TradeRouteSegment[];
+  distanceScale?: number;
+  durationDays?: number;
   buyPrice?: number;
   sellPrice?: number;
 }
@@ -35,6 +45,7 @@ export interface SpeculativeTradeEstimate {
   unitProfit: number;
   maxUnits: number;
   totalProfit: number;
+  maintenanceCost: number;
 }
 
 const DEFAULT_TRADE_PROFILE: GoodTradeProfile = {
@@ -62,11 +73,27 @@ export function getLocalTradePriceMultiplier({ good, marketId, stock, population
   return clamp(1 + scarcityPressure + localSupplyPressure, 0.75, 1.45);
 }
 
-export function getTradeDurationDays(distanceKm: number): number {
-  const wagonKmPerDay = 30;
-  const handlingDays = 2;
-  const restAndDelayDays = Math.ceil(distanceKm / 200);
-  return Math.max(3, Math.ceil(distanceKm / wagonKmPerDay + handlingDays + restAndDelayDays));
+export function getGoodValueDensity(good: Good): number {
+  const trade = good.trade ?? getDefaultGoodTradeProfile(good);
+  return good.value / Math.max(1, trade.weight + trade.bulk);
+}
+
+export function getGoodMaxTradeDurationDays(good: Good): number {
+  const trade = good.trade ?? getDefaultGoodTradeProfile(good);
+  const densityLimit = Math.max(1, VALUE_DENSITY_BASE_MAX_DAYS * getGoodValueDensity(good) * VALUE_DENSITY_MULTIPLIER);
+  return trade.timeValueTrend < 0 ? Math.min(densityLimit, PERISHABLE_MAX_TRADE_DAYS) : densityLimit;
+}
+
+export function isGoodTradePermitted(good: Good, durationDays: number): boolean {
+  return Number.isFinite(durationDays) && durationDays <= getGoodMaxTradeDurationDays(good);
+}
+
+export function getCaravanMaintenanceCost(durationDays: number): number {
+  return durationDays * CARAVAN_DAILY_MAINTENANCE_COST;
+}
+
+export function getNetTradeProfit(unitProfit: number, units: number, durationDays: number): number {
+  return unitProfit * units - getCaravanMaintenanceCost(durationDays);
 }
 
 export function getTradeAccountingPeriodDays(durationDays: number): 7 | 30 {
@@ -83,9 +110,19 @@ export function estimateSpeculativeTrade(input: SpeculativeTradeInput): Speculat
     sourcePopulation,
     targetPopulation,
     distance,
-    mapDiagonal
+    mapDiagonal,
+    routeSegments,
+    distanceScale,
+    durationDays: suppliedDurationDays
   } = input;
   if (sourceGood.stock < 0.1) return null;
+
+  const durationDays =
+    suppliedDurationDays ??
+    (routeSegments && distanceScale !== undefined
+      ? calculateRouteDurationDays(routeSegments, distanceScale)
+      : Infinity);
+  if (!isGoodTradePermitted(good, durationDays)) return null;
 
   const transportCost = getTransportCost(distance, mapDiagonal) * good.value;
   const demandWeight = getDemandWeight(good);
@@ -122,13 +159,18 @@ export function estimateSpeculativeTrade(input: SpeculativeTradeInput): Speculat
   const maxUnits = roundUnits(Math.min(sourceGood.stock * 0.25, targetCapacity));
   if (maxUnits < 0.1) return null;
 
+  const maintenanceCost = getCaravanMaintenanceCost(durationDays);
+  const totalProfit = getNetTradeProfit(unitProfit, maxUnits, durationDays);
+  if (totalProfit < MIN_TRADE_PROFIT) return null;
+
   return {
     buyPrice,
     sellPrice,
     transportCost: roundPrice(transportCost),
     unitProfit,
     maxUnits,
-    totalProfit: roundPrice(unitProfit * maxUnits)
+    totalProfit: roundPrice(totalProfit),
+    maintenanceCost: roundPrice(maintenanceCost)
   };
 }
 

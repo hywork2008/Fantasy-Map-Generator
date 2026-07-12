@@ -29,9 +29,15 @@ export interface Deal {
   tax: number;
   distance?: number;
   durationDays?: number;
+  maintenanceCost?: number;
   accountingPeriodDays?: 7 | 30;
   spawned?: boolean;
 }
+
+export type TradeRouteSegment = {
+  type: "land" | "water";
+  points: [number, number][];
+};
 
 export interface Caravan {
   i: number;
@@ -45,7 +51,7 @@ export interface Caravan {
   merchantOrganizationId?: number;
   /** Land draft-animal type id (see DRAFT_ANIMAL_TYPES in caravanMovement.ts); "horse" for every caravan today. */
   draftAnimalId: string;
-  routeSegments: { type: "land" | "water"; points: [number, number][] }[];
+  routeSegments: TradeRouteSegment[];
   totalDistance: number;
   currentDistance: number;
   state: "transit" | "arrived" | "lost";

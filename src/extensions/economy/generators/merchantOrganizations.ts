@@ -27,12 +27,17 @@ export interface MerchantOrganization {
   ruralFocus: number;
 }
 
-export const MAX_MERCHANT_TRADE_RANGE_KM = 400;
-
 const LOCAL_TRADE_RANGE_KM = 120;
 const REGIONAL_TRADE_RANGE_KM = 260;
+const MAJOR_HOME_GROUND_RADIUS_KM = 400;
 const URBAN_POPULATION_THRESHOLD = 30;
 const SMALL_RURAL_POPULATION_THRESHOLD = 10;
+
+const ORGANIZATION_MAX_TRADE_DAYS: Record<MerchantOrganizationScale, number> = {
+  local: 12,
+  regional: 25,
+  major: 50
+};
 
 export const MERCHANT_ORGANIZATION_ROLE_SOURCE = "economy";
 export const MERCHANT_ORGANIZATION_HEAD_ROLE_KIND = "merchantOrganizationHead";
@@ -137,24 +142,29 @@ export function clearMerchantOrganizations(): void {
   clearMerchantOrganizationRoles();
 }
 
-export function isMarketTradePermitted(source: Market, target: Market, distanceMapUnits: number): boolean {
+/**
+ * Merchant organizations limit trade by travelling time, not a map-wide kilometre cap. The
+ * remaining kilometre ranges describe each organization's home-ground reach only.
+ */
+export function isMarketTradePermitted(source: Market, target: Market, durationDays: number): boolean {
   const world = getWorldContext();
-  const distanceKm = toKm(distanceMapUnits);
-  if (distanceKm > MAX_MERCHANT_TRADE_RANGE_KM) return false;
-
   const organizations = world.pack.merchantOrganizations ?? [];
   if (!organizations.length) return true;
 
-  return organizations.some(organization => canOrganizationServeTrade(organization, source, target, distanceKm));
+  return organizations.some(organization => canOrganizationServeTrade(organization, source, target, durationDays));
+}
+
+export function getOrganizationMaxTradeDays(scale: MerchantOrganizationScale): number {
+  return ORGANIZATION_MAX_TRADE_DAYS[scale];
 }
 
 function canOrganizationServeTrade(
   organization: MerchantOrganization,
   source: Market,
   target: Market,
-  distanceKm: number
+  durationDays: number
 ): boolean {
-  if (distanceKm > organization.tradeRangeKm) return false;
+  if (durationDays > getOrganizationMaxTradeDays(organization.scale)) return false;
   if (!isInHomeGround(organization, source, target)) return false;
 
   const sourceBurg = getMarketCenter(source);
@@ -173,7 +183,7 @@ function canOrganizationServeTrade(
   if (organization.scale === "major") {
     const hasTinyRuralEndpoint =
       sourcePopulation < SMALL_RURAL_POPULATION_THRESHOLD || targetPopulation < SMALL_RURAL_POPULATION_THRESHOLD;
-    return !hasTinyRuralEndpoint || distanceKm <= LOCAL_TRADE_RANGE_KM;
+    return !hasTinyRuralEndpoint || durationDays <= getOrganizationMaxTradeDays("local");
   }
 
   return true;
@@ -500,7 +510,7 @@ function getOrganizationScale(profile: LedgerProfile, rank: number, count: numbe
 }
 
 function getTradeRangeKm(scale: MerchantOrganizationScale): number {
-  if (scale === "major") return MAX_MERCHANT_TRADE_RANGE_KM;
+  if (scale === "major") return MAJOR_HOME_GROUND_RADIUS_KM;
   if (scale === "regional") return REGIONAL_TRADE_RANGE_KM;
   return LOCAL_TRADE_RANGE_KM;
 }

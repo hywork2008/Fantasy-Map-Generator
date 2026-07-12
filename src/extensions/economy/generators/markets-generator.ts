@@ -8,22 +8,40 @@ import { getBurgMarketLedger, syncBurgMarketLedgers } from "./burgMarketLedgers"
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, GOODS_DATA, Goods } from "./goods-generator";
 import { syncMarketManagers } from "./marketManagers";
-import type { Deal, Market } from "./marketTypes";
+import type { Deal, Market, TradeRouteSegment } from "./marketTypes";
 import { isMarketTradePermitted } from "./merchantOrganizations";
 import { getCellProduction } from "./production-utils";
+import { TradeAnimation } from "./trade-animation";
 import {
   estimateSpeculativeTrade,
+  getCaravanMaintenanceCost,
   getLocalTradePriceMultiplier,
+  getNetTradeProfit,
   getTradeAccountingPeriodDays,
-  getTradeDurationDays,
-  getTransportCost
+  getTransportCost,
+  isGoodTradePermitted,
+  MIN_TRADE_PROFIT
 } from "./tradeOpportunityEstimator";
+import { calculateRouteDurationDays, getRouteDistanceMapUnits } from "./tradeRouteDuration";
 
 const PRICE_FLOOR_FACTOR = 0.25;
 const PRICE_CEILING_FACTOR = 3.0;
 const LAPLACE_PRICE_SMOOTHING = 5;
 const MARKET_PRESSURE_FACTOR = 0.01;
 const MARKET_MARGIN = 0.1;
+
+interface MarketTradeRoute {
+  distance: number;
+  distanceKm: number;
+  durationDays: number;
+  segments: TradeRouteSegment[];
+}
+
+function getMarketDistanceMapUnits(source: Pick<Burg, "x" | "y">, target: Pick<Burg, "x" | "y">): number {
+  const dx = Math.abs(source.x - target.x);
+  const dy = Math.abs(source.y - target.y);
+  return dx > dy ? dx + 0.414 * dy : dy + 0.414 * dx;
+}
 
 export type { Deal, Market } from "./marketTypes";
 
@@ -422,25 +440,17 @@ export class MarketsModule {
     const mapDiagonal = Math.hypot(this.worldContext.graphWidth, this.worldContext.graphHeight) || 1;
     const TRADE_RESERVE_FACTOR = 0.2;
     const MIN_UNIT = 0.1;
-    const MIN_PROFIT = 1;
-
-    const travelCost: Record<number, Record<number, { cost: number; distance: number }>> = {};
+    const travelRoutes: Record<number, Record<number, MarketTradeRoute>> = {};
     for (const m1 of this.worldContext.pack.markets) {
-      travelCost[m1.i] = {};
+      travelRoutes[m1.i] = {};
       const burg1 = this.worldContext.pack.burgs[m1.centerBurgId];
       if (!burg1) continue;
 
       for (const m2 of this.worldContext.pack.markets) {
         const burg2 = this.worldContext.pack.burgs[m2.centerBurgId];
         if (!burg2) continue;
-
-        const dx = Math.abs(burg1.x - burg2.x);
-        const dy = Math.abs(burg1.y - burg2.y);
-        const distance = dx > dy ? dx + 0.414 * dy : dy + 0.414 * dx;
-        travelCost[m1.i][m2.i] = {
-          cost: getTransportCost(distance, mapDiagonal),
-          distance
-        };
+        const route = this.getMarketTradeRoute(burg1, burg2);
+        if (route) travelRoutes[m1.i][m2.i] = route;
       }
     }
 
@@ -476,6 +486,10 @@ export class MarketsModule {
         unitProfit: number;
         totalProfit: number;
         distance: number;
+        distanceKm: number;
+        durationDays: number;
+        maintenanceCost: number;
+        routeSegments: TradeRouteSegment[];
         targetSalePrice?: number;
       }[] = [];
 
@@ -483,7 +497,7 @@ export class MarketsModule {
 
       if (exporters.length && importers.length) {
         for (const exporter of exporters) {
-          const routes = travelCost[exporter.market.i];
+          const routes = travelRoutes[exporter.market.i];
           if (!routes) continue;
 
           const exporterGood = this.getMarketGood(exporter.market, good);
@@ -500,12 +514,18 @@ export class MarketsModule {
             if (units < MIN_UNIT) continue;
 
             const route = routes[importer.market.i];
-            if (!route || !isMarketTradePermitted(exporter.market, importer.market, route.distance)) continue;
+            if (
+              !route ||
+              !isGoodTradePermitted(good, route.durationDays) ||
+              !isMarketTradePermitted(exporter.market, importer.market, route.durationDays)
+            ) {
+              continue;
+            }
 
-            const transportCost = route.cost * good.value;
+            const transportCost = getTransportCost(route.distance, mapDiagonal) * good.value;
             const unitProfit = importerGood.price - (exporterGood.price + transportCost + exporterTaxPerUnit);
-            const totalProfit = unitProfit * units;
-            if (totalProfit < MIN_PROFIT) continue;
+            const totalProfit = getNetTradeProfit(unitProfit, units, route.durationDays);
+            if (totalProfit < MIN_TRADE_PROFIT) continue;
 
             opportunities.push({
               exporter: exporter.market,
@@ -517,7 +537,11 @@ export class MarketsModule {
               units,
               unitProfit,
               totalProfit,
-              distance: route.distance
+              distance: route.distance,
+              distanceKm: route.distanceKm,
+              durationDays: route.durationDays,
+              maintenanceCost: getCaravanMaintenanceCost(route.durationDays),
+              routeSegments: route.segments
             });
           }
         }
@@ -527,7 +551,7 @@ export class MarketsModule {
         this.addSpeculativeGlobalTradeOpportunities({
           good,
           populationByMarket,
-          travelCost,
+          travelRoutes,
           mapDiagonal,
           opportunities
         });
@@ -546,10 +570,9 @@ export class MarketsModule {
 
         const landedCost = exporterGood.price + opportunity.transportCost + opportunity.exporterTaxPerUnit;
         const targetSalePrice = opportunity.targetSalePrice ?? importerGood.price;
-        const totalProfit = (targetSalePrice - landedCost) * units;
-        if (totalProfit < MIN_PROFIT) continue;
+        const totalProfit = getNetTradeProfit(targetSalePrice - landedCost, units, opportunity.durationDays);
+        if (totalProfit < MIN_TRADE_PROFIT) continue;
 
-        const durationDays = getTradeDurationDays(opportunity.distance * this.worldContext.distanceScale);
         const deal: Deal = {
           i: this.worldContext.pack.deals.length,
           seller: opportunity.exporter.i,
@@ -560,9 +583,10 @@ export class MarketsModule {
           units,
           price: landedCost,
           tax: opportunity.exporterTaxPerUnit * units,
-          distance: rn(opportunity.distance * this.worldContext.distanceScale, 2),
-          durationDays,
-          accountingPeriodDays: getTradeAccountingPeriodDays(durationDays)
+          distance: rn(opportunity.distanceKm, 2),
+          durationDays: opportunity.durationDays,
+          maintenanceCost: rn(opportunity.maintenanceCost, 2),
+          accountingPeriodDays: getTradeAccountingPeriodDays(opportunity.durationDays)
         };
         this.worldContext.pack.deals.push(deal);
 
@@ -578,13 +602,13 @@ export class MarketsModule {
   private addSpeculativeGlobalTradeOpportunities({
     good,
     populationByMarket,
-    travelCost,
+    travelRoutes,
     mapDiagonal,
     opportunities
   }: {
     good: Good;
     populationByMarket: number[];
-    travelCost: Record<number, Record<number, { cost: number; distance: number }>>;
+    travelRoutes: Record<number, Record<number, MarketTradeRoute>>;
     mapDiagonal: number;
     opportunities: {
       exporter: Market;
@@ -597,12 +621,15 @@ export class MarketsModule {
       unitProfit: number;
       totalProfit: number;
       distance: number;
+      distanceKm: number;
+      durationDays: number;
+      maintenanceCost: number;
+      routeSegments: TradeRouteSegment[];
       targetSalePrice?: number;
     }[];
   }): void {
-    const MIN_PROFIT = 1;
     for (const exporter of this.worldContext.pack.markets) {
-      const routes = travelCost[exporter.i];
+      const routes = travelRoutes[exporter.i];
       if (!routes) continue;
 
       const exporterGood = this.getMarketGood(exporter, good);
@@ -614,7 +641,13 @@ export class MarketsModule {
       for (const importer of this.worldContext.pack.markets) {
         if (importer.i === exporter.i) continue;
         const route = routes[importer.i];
-        if (!route || !isMarketTradePermitted(exporter, importer, route.distance)) continue;
+        if (
+          !route ||
+          !isGoodTradePermitted(good, route.durationDays) ||
+          !isMarketTradePermitted(exporter, importer, route.durationDays)
+        ) {
+          continue;
+        }
 
         const importerGood = this.getMarketGood(importer, good);
         const estimate = estimateSpeculativeTrade({
@@ -626,14 +659,15 @@ export class MarketsModule {
           sourcePopulation: populationByMarket[exporter.i] || 0,
           targetPopulation: populationByMarket[importer.i] || 0,
           distance: route.distance,
-          mapDiagonal
+          mapDiagonal,
+          routeSegments: route.segments,
+          distanceScale: this.worldContext.distanceScale
         });
         if (!estimate) continue;
 
         const landedCost = exporterGood.price + estimate.transportCost + exporterTaxPerUnit;
         const unitProfit = estimate.sellPrice - landedCost;
-        const totalProfit = unitProfit * estimate.maxUnits;
-        if (totalProfit < MIN_PROFIT) continue;
+        const totalProfit = estimate.totalProfit;
 
         opportunities.push({
           exporter,
@@ -646,10 +680,52 @@ export class MarketsModule {
           unitProfit,
           totalProfit,
           distance: route.distance,
+          distanceKm: route.distanceKm,
+          durationDays: route.durationDays,
+          maintenanceCost: estimate.maintenanceCost,
+          routeSegments: route.segments,
           targetSalePrice: estimate.sellPrice
         });
       }
     }
+  }
+
+  private getMarketTradeRoute(source: Burg, target: Burg): MarketTradeRoute | null {
+    if (source.i === target.i) return null;
+
+    const routePath = this.worldContext.pack.cells?.routes
+      ? TradeAnimation.findRoutePath(source.cell, target.cell)
+      : null;
+    const segments: TradeRouteSegment[] = routePath?.segments?.length
+      ? routePath.segments.map(segment => ({
+          type: segment.type,
+          points: segment.points.map(([x, y]) => [x, y])
+        }))
+      : [
+          {
+            type: "land",
+            points: [
+              [source.x, source.y],
+              [target.x, target.y]
+            ]
+          }
+        ];
+    const routeDistance = getRouteDistanceMapUnits(segments);
+    if (routeDistance <= 0) return null;
+
+    // Keep the existing distance-based transport-price model intact. Step 1 only changes
+    // eligibility and fixed maintenance to route travel days; sea-priority and route-cost
+    // pricing remain deferred to the next routing phase.
+    const distance = getMarketDistanceMapUnits(source, target);
+    const distanceKm = distance * this.worldContext.distanceScale;
+    if (distance <= 0 || distanceKm <= 0) return null;
+
+    return {
+      distance,
+      distanceKm,
+      durationDays: calculateRouteDurationDays(segments, this.worldContext.distanceScale),
+      segments
+    };
   }
 
   getWarPriceModifier(burgId: number | undefined, goodId: number | undefined): number {

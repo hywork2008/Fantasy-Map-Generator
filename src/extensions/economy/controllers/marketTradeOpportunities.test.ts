@@ -21,9 +21,9 @@ describe("market trade opportunities", () => {
       goods: [
         {
           i: 1,
-          name: "Wheat",
+          name: "Silk",
           value: 10,
-          tags: ["food"],
+          tags: ["luxury"],
           unit: "unit",
           icon: "icon",
           color: "#fff",
@@ -67,7 +67,7 @@ describe("market trade opportunities", () => {
     expect(rows[0].seaDistance).toBe(0);
     expect(rows[0].transferCount).toBe(0);
     expect(rows[0].unitProfit).toBeGreaterThan(0);
-    expect(rows[0].totalProfit).toBeCloseTo(rows[0].unitProfit * 20, 1);
+    expect(rows[0].totalProfit).toBeCloseTo(rows[0].unitProfit * 20 - 2, 1);
   });
 
   it("uses route distance and reports land / sea legs for transport cost", () => {
@@ -115,7 +115,14 @@ describe("market trade opportunities", () => {
     expect(rows[0].transportCost).toBeCloseTo(1.41, 2);
   });
 
-  it("skips trade opportunities beyond the merchant range cap", () => {
+  it("skips low-value trade opportunities that exceed their value-density day limit", () => {
+    worldContext.pack.goods[0] = {
+      ...worldContext.pack.goods[0],
+      name: "Wood",
+      value: 1,
+      tags: ["construction"]
+    };
+    Goods.sync();
     worldContext.pack.markets[2].goods[1].price = 80;
 
     setSelectedGoodId(1);
