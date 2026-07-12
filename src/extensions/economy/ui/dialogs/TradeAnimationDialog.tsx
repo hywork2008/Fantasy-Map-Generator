@@ -5,6 +5,7 @@ import { useOptionsState } from "../../../hostCore";
 import { closeDialog, Dialog, SliderInput, useDialogState } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 import { getWorldContext } from "../../economyContext";
+import { CaravanMovement, type CaravanMovementSettings } from "../../generators/caravanMovement";
 import type { Caravan } from "../../generators/marketTypes";
 
 export const TradeAnimationDialog: React.FC = () => {
@@ -349,6 +350,62 @@ const SettingsTab: React.FC = () => {
           data-tip="Stop the animation"
           className="icon-stop"
           style={{ marginLeft: "0.3em" }}
+        />
+      </div>
+
+      <MovementSettingsSection />
+    </div>
+  );
+};
+
+const MovementSettingsSection: React.FC = () => {
+  const [movement, setMovement] = React.useState<CaravanMovementSettings>(() => ({ ...CaravanMovement.getOptions() }));
+
+  const update = (partial: Partial<CaravanMovementSettings>) => {
+    setMovement(current => ({ ...current, ...partial }));
+    CaravanMovement.configure(partial);
+  };
+
+  return (
+    <div
+      id="caravanMovementSettings"
+      style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid #555" }}
+    >
+      <div style={{ fontWeight: "bold", marginBottom: "0.25rem" }}>Movement Speed</div>
+
+      <div data-tip="Wagon/cart base pace on land, km per day">
+        <label htmlFor="caravanLandSpeed">Land (wagon):</label>
+        <SliderInput
+          id="caravanLandSpeed"
+          min="5"
+          max="100"
+          step="1"
+          value={movement.landKmPerDay}
+          onChange={value => update({ landKmPerDay: Number(value) })}
+        />
+      </div>
+
+      <div data-tip="Ship base pace at sea, km per day">
+        <label htmlFor="caravanSeaSpeed">Sea (ship):</label>
+        <SliderInput
+          id="caravanSeaSpeed"
+          min="5"
+          max="200"
+          step="1"
+          value={movement.seaKmPerDay}
+          onChange={value => update({ seaKmPerDay: Number(value) })}
+        />
+      </div>
+
+      <div data-tip="Seasonal tailwind/current speed swing applied to sea legs; 0% means no correction">
+        <label htmlFor="caravanSeaCurrentStrength">Seasonal current (%):</label>
+        <SliderInput
+          id="caravanSeaCurrentStrength"
+          min="0"
+          max="80"
+          step="5"
+          value={Math.round(movement.seaCurrentStrength * 100)}
+          onChange={value => update({ seaCurrentStrength: Number(value) / 100 })}
         />
       </div>
     </div>

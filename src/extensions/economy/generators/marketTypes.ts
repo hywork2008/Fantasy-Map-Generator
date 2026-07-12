@@ -43,6 +43,8 @@ export interface Caravan {
   units: number; // total units
   value: number; // total payload value
   merchantOrganizationId?: number;
+  /** Land draft-animal type id (see DRAFT_ANIMAL_TYPES in caravanMovement.ts); "horse" for every caravan today. */
+  draftAnimalId: string;
   routeSegments: { type: "land" | "water"; points: [number, number][] }[];
   totalDistance: number;
   currentDistance: number;

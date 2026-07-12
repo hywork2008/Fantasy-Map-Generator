@@ -1,10 +1,97 @@
 import { rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 import { getBurgMarketLedger } from "./burgMarketLedgers";
+import {
+  CaravanMovement,
+  type CaravanMovementSettings,
+  DEFAULT_DRAFT_ANIMAL_ID,
+  getDraftAnimalType,
+  getSeaConditionMultiplier
+} from "./caravanMovement";
 import type { Caravan, Deal } from "./marketTypes";
 import { TradeAnimation } from "./trade-animation";
 
-const AVERAGE_SPEED_KM_PER_DAY = 40;
+interface SegmentBoundary {
+  type: "land" | "water";
+  endKm: number;
+  fromPoint: [number, number];
+  toPoint: [number, number];
+}
+
+function buildSegmentBoundaries(caravan: Caravan, distanceScale: number): SegmentBoundary[] {
+  let cursorKm = 0;
+  return caravan.routeSegments.map(seg => {
+    let lengthRaw = 0;
+    for (let i = 0; i < seg.points.length - 1; i++) {
+      const [x1, y1] = seg.points[i];
+      const [x2, y2] = seg.points[i + 1];
+      lengthRaw += Math.hypot(x2 - x1, y2 - y1);
+    }
+    cursorKm += lengthRaw * distanceScale;
+    return {
+      type: seg.type,
+      endKm: cursorKm,
+      fromPoint: seg.points[0],
+      toPoint: seg.points[seg.points.length - 1]
+    };
+  });
+}
+
+function getSegmentSpeedKmPerDay(
+  segment: SegmentBoundary,
+  caravan: Caravan,
+  month: number,
+  movement: CaravanMovementSettings
+): number {
+  if (segment.type === "land") {
+    return movement.landKmPerDay * getDraftAnimalType(caravan.draftAnimalId).speedMultiplier;
+  }
+  const currentMultiplier = getSeaConditionMultiplier(
+    segment.fromPoint,
+    segment.toPoint,
+    month,
+    movement.seaCurrentStrength
+  );
+  return movement.seaKmPerDay * currentMultiplier;
+}
+
+/**
+ * Walks currentDistance forward by deltaDays, crossing land/water segment boundaries within a
+ * single call (e.g. "Advance Month" spans many segments at once) so each segment consumes the
+ * day budget at its own speed instead of one flat rate for the whole route.
+ */
+function advanceCaravan(
+  caravan: Caravan,
+  deltaDays: number,
+  distanceScale: number,
+  month: number,
+  movement: CaravanMovementSettings
+): void {
+  const boundaries = buildSegmentBoundaries(caravan, distanceScale);
+  if (boundaries.length === 0) return;
+
+  let remainingDays = deltaDays;
+  let segIndex = boundaries.findIndex(b => caravan.currentDistance < b.endKm);
+  if (segIndex === -1) segIndex = boundaries.length - 1;
+
+  while (remainingDays > 0 && segIndex < boundaries.length) {
+    const segment = boundaries[segIndex];
+    const speed = getSegmentSpeedKmPerDay(segment, caravan, month, movement);
+    if (speed <= 0) break;
+
+    const remainingInSegment = Math.max(0, segment.endKm - caravan.currentDistance);
+    const daysToFinishSegment = remainingInSegment / speed;
+
+    if (daysToFinishSegment <= remainingDays) {
+      caravan.currentDistance = segment.endKm;
+      remainingDays -= daysToFinishSegment;
+      segIndex++;
+    } else {
+      caravan.currentDistance += speed * remainingDays;
+      remainingDays = 0;
+    }
+  }
+}
 
 export class CaravansModule {
   spawnFromDeals(deals: Deal[]) {
@@ -115,6 +202,7 @@ export class CaravansModule {
         payload,
         units: rn(totalUnits, 2),
         value: rn(totalValue, 2),
+        draftAnimalId: DEFAULT_DRAFT_ANIMAL_ID,
         routeSegments: routePath.segments as { type: "land" | "water"; points: [number, number][] }[],
         totalDistance: distance,
         currentDistance: 0,
@@ -131,10 +219,13 @@ export class CaravansModule {
     const world = getWorldContext();
     if (!world.pack.caravans) return;
 
+    const movement = CaravanMovement.getOptions();
+    const month = world.options.month ?? 1;
+
     for (const caravan of world.pack.caravans) {
       if (caravan.state !== "transit") continue;
 
-      caravan.currentDistance += AVERAGE_SPEED_KM_PER_DAY * deltaDays;
+      advanceCaravan(caravan, deltaDays, world.distanceScale, month, movement);
 
       // Calculate Bandit Risk based on route path or simple market states
       // For now, default is 0. If there's a war in the region, risk increases.

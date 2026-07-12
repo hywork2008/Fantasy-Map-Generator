@@ -1,6 +1,6 @@
 import { type Point, useOptionsState } from "../../hostCore";
 import { openDialog } from "../../hostUi";
-import { rn } from "../../hostUtils";
+import { minmax, rn } from "../../hostUtils";
 
 import { getApi, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
@@ -31,17 +31,18 @@ export function open(caravan: Caravan): void {
     .flatMap((s, idx) => (idx === 0 ? s.points : s.points.slice(1)))
     .map(p => [p[0], p[1]] as Point);
 
-  tradeDetailsAddLines(points);
+  tradeDetailsAddLines();
   highlight(points);
   openDialog("tradeDetails");
 }
 
 export function closeTradeDetails(): void {
+  activeCaravan = undefined;
   setTradeDetailsState({ summary: null, rows: [], distance: "", totalUnits: 0, totalValue: 0 });
   clearHighlight();
 }
 
-function tradeDetailsAddLines(_points: Point[]): void {
+function tradeDetailsAddLines(): void {
   if (!activeCaravan) return;
 
   const caravan = activeCaravan;
@@ -86,7 +87,7 @@ function tradeDetailsAddLines(_points: Point[]): void {
       }
     },
     rows,
-    distance: `${rn(caravan.totalDistance)} ${distUnit} (progress: ${Math.round((caravan.currentDistance / caravan.totalDistance) * 100)}%)`,
+    distance: `${rn(caravan.totalDistance)} ${distUnit} (progress: ${Math.round(minmax(caravan.currentDistance / caravan.totalDistance, 0, 1) * 100)}%)`,
     totalUnits: rn(caravan.units, 2),
     totalValue: caravan.value
   });
@@ -95,4 +96,13 @@ function tradeDetailsAddLines(_points: Point[]): void {
 document.addEventListener("trade:showDetails", (e: Event) => {
   const caravan = (e as CustomEvent<{ caravan: Caravan }>).detail.caravan;
   open(caravan);
+});
+
+// Keep the open dialog's rows/progress in sync with the caravan it's showing (the same
+// object instance is mutated in place by Caravans.tick() every advanceTime() call) — the
+// dialog otherwise has no way to learn that time has passed while it stayed open.
+document.addEventListener("fmg:time-advanced", () => {
+  if (!activeCaravan) return;
+  if (!getApi().isDialogOpen("tradeDetails")) return;
+  tradeDetailsAddLines();
 });
