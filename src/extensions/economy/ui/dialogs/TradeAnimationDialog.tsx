@@ -6,6 +6,7 @@ import { closeDialog, Dialog, SliderInput, useDialogState } from "../../../hostU
 import { formatPrice } from "../../../hostUtils";
 import { getWorldContext } from "../../economyContext";
 import { CaravanMovement, type CaravanMovementSettings } from "../../generators/caravanMovement";
+import { Goods } from "../../generators/goods-generator";
 import type { Caravan } from "../../generators/marketTypes";
 
 export const TradeAnimationDialog: React.FC = () => {
@@ -100,7 +101,6 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
   const world = getWorldContext();
   const burgs = world?.pack?.burgs ?? [];
   const markets = world?.pack?.markets ?? [];
-  const goods = world?.pack?.goods ?? [];
 
   const rows = React.useMemo(() => {
     return caravans.map(c => {
@@ -122,7 +122,7 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
 
       let goodName = "Mixed";
       if (c.payload && c.payload.length === 1) {
-        goodName = goods[c.payload[0].goodId]?.name ?? "Unknown";
+        goodName = Goods.get(c.payload[0].goodId)?.name ?? "Unknown";
       } else if (c.payload && c.payload.length > 1) {
         goodName = `Mixed (${c.payload.length})`;
       }
@@ -161,7 +161,7 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [caravans, goods, world.distanceScale, world, markets, burgs]);
+  }, [caravans, world.distanceScale, world, markets, burgs]);
 
   const sortedRows = React.useMemo(() => {
     return [...rows].sort((a, b) => {

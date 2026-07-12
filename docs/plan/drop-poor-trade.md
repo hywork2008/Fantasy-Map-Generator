@@ -7,6 +7,23 @@
 
 ---
 
+## 0. 現在の実装状況
+
+ステップ1は実装済み。ステップ2（荷役・集積）は未実装である。
+
+| 項目 | 状態 | 実装内容 |
+| :--- | :--- | :--- |
+| 案B: 価値密度 | 実装済み | `getGoodMaxTradeDurationDays` が `12 * valueDensity * 4` 日を上限にする。`timeValueTrend < 0` の商品は最大10日でさらに制限する。 |
+| 新仕様1: 日数ベース | 実装済み | `tradeRouteDuration.ts` が陸32km/day・海60km/day・陸海切替2日で日数を算出し、端数は1日へ切り上げる。商会の上限は Local 12 / Regional 25 / Major 50日。旧来の一律400km取引上限は廃止した。 |
+| 案D: 維持費 | 実装済み | `0.5 * durationDays` を通常取引・投機取引の総利益から控除し、純利益が1未満なら不成立にする。 |
+| Caravansの最終足切り | 実装済み | `burg → market` 納入が市場間取引の判定を迂回して長距離キャラバン化していたため、`spawnFromDeals` でも価値密度・日数・維持費を再判定する。市場間取引は生成時の採算判定を通過済みとして扱う。 |
+| 新仕様2: 海路優先ルーティング | 未実装 | 現在の `TradeAnimation.findRoutePath` の探索コストは変更していない。 |
+| ステップ2: 荷役・集積 | 未実装 | `loading` 状態、同一路線の貨物マージ、定期出港は未導入。 |
+
+`burg → market` の納入 Deal は市場在庫の集計としては残るが、価値密度・維持費を満たさない場合は Trade Animation 用の Caravan を生成しない。これにより、Distance 2295km / Value 0.2 のような表示を防ぐ。
+
+---
+
 ## 1. 根本原因の分析
 
 現在の `markets-generator.ts` における `runGlobalTrade` と `tradeOpportunityEstimator.ts` のロジックには、以下の特徴があります。
@@ -29,7 +46,7 @@
 
 ## 2. 再設計仕様案
 
-### 案B (採用確定): 商品の「価値密度」による最大輸送日数制限
+### 案B (実装済み): 商品の「価値密度」による最大輸送日数制限
 中世の交易において、穀物や木材、石材などの「低価値・大容積」な商品は長距離輸送には適さず、主に地元で消費されていました。一方で、香辛料や絹、宝石などの「高価値・小容積（高価値密度）」な商品だけが長距離交易に用いられました。
 
 - **仕様**:
@@ -41,11 +58,12 @@
 
 ---
 
-### 新仕様1: 距離制限から「移動日数制限」への移行
+### 新仕様1 (実装済み): 距離制限から「移動日数制限」への移行
 従来の `MAX_MERCHANT_TRADE_RANGE_KM = 400` による一律の距離制限を廃止し、陸海それぞれの移動速度を考慮した「移動日数（Duration Days）」による制限に移行します。
 
 - **移動日数の算出式**:
-  `durationDays = (陸路の距離 / 32) + (海路の距離 / 60) + (陸海切り替え回数 * 乗り換え日数ペナルティ) + 荷役準備日数`
+  `durationDays = ceil((陸路の距離 / 32) + (海路の距離 / 60) + (陸海切り替え回数 * 2))`
+  - 荷役・集積期間はステップ2のため、現時点ではこの日数に含めない。
 - **商会規模に応じた最大許容日数の設定**:
   - **Local（小規模・個人）**: 最大 12 日（陸路で約380km、海路で約720km相当）
   - **Regional（中規模）**: 最大 25 日（陸路で約800km、海路で約1500km相当）
@@ -55,7 +73,7 @@
 
 ---
 
-### 新仕様2: 海路優先ルーティング (All-Water Route First)
+### 新仕様2 (未実装): 海路優先ルーティング (All-Water Route First)
 目的地（Exporter市場 ⇄ Importer市場）が決まった際、陸海混合の最短経路を探す前に、**「海路（searoutes）だけで接続可能か」**を検証し、接続可能であればその海路ルートを最優先で割り当てます。これにより、海路だけで行ける目的地へ不要な陸路を経由してしまう不条理な経路選択を防ぎます。
 
 - **ルーティング処理の流れ**:
@@ -68,7 +86,7 @@
 
 ---
 
-### 案D (推奨・検討): Caravan維持費（時間・距離に応じた固定コスト）の導入
+### 案D (実装済み): Caravan維持費（時間・距離に応じた固定コスト）の導入
 移動日数 `durationDays` に応じた Caravan（運搬隊）の固定維持経費（日当、食費、護衛費用など）を導入し、取引の最終的な純利益（Net Profit）から差し引きます。
 
 - **仕様**:
@@ -83,101 +101,41 @@
 
 | アプローチ | 追加される計算負荷 | 処理への影響 | 採用ステータス |
 | :--- | :--- | :--- | :--- |
-| **案B: 価値密度による日数制限** | **極小**（事前計算可） | 遠距離ペアを即時スキップでき、**全体処理を高速化**する。 | **採用確定** |
-| **新仕様1: 日数ベース制限** | **極小**（四則演算数回） | 距離判定を日数判定に置き換えるだけなので、負荷変化なし。 | **採用確定**（400km上限廃止） |
-| **新仕様2: 海路優先ルーティング** | **小〜中**（Dijkstraの最大2回実行） | 探索回数が最大2倍になるが、海路のみの探索は探索空間（エッジ数）が極めて狭いため高速。全体の経路探索回数が数千回程度であれば無視できるレベル。 | **採用検討**（ルートの不条理解消に必須） |
-| **案D: Caravan維持費の導入** | **極小**（四則演算とMath.ceil） | 見積もり後に足切りするため、ループ回数は減らないが計算負荷はほぼゼロ。 | **採用推奨**（不経済な長距離小口取引を自然に排除可能） |
+| **案B: 価値密度による日数制限** | **極小**（事前計算可） | 遠距離ペアを即時スキップする。 | **実装済み** |
+| **新仕様1: 日数ベース制限** | **極小**（四則演算数回） | 距離判定を日数判定へ置き換える。 | **実装済み**（一律400km上限を廃止） |
+| **新仕様2: 海路優先ルーティング** | **小〜中**（Dijkstraの最大2回実行） | 探索回数が最大2倍になる。 | **未実装** |
+| **案D: Caravan維持費の導入** | **極小**（四則演算とMath.ceil） | 純利益で不経済な取引を足切りする。 | **実装済み** |
 
 ---
 
-## 4. 設計・実装イメージ
+## 4. 実装構成
 
-### 1) 経路探索の改修 (`findRoutePath` の海路優先化)
-`src/extensions/economy/generators/trade-animation.ts` 内の `findRoutePath` を改修。
+### 1) 日数・距離の共通計算
 
-```typescript
-// trade-animation.ts
+`src/extensions/economy/generators/tradeRouteDuration.ts` を追加した。
 
-// 速度設定の反映
-const LAND_SPEED = 32;
-const SEA_SPEED = 60;
-const PORT_TRANSFER_PENALTY_DAYS = 2; // 乗り換えペナルティ（2日）
+- `calculateRouteDurationDays(routeSegments, distanceScale)` はキャラバンの実経路セグメントから移動日数を算出する。
+- 陸海の速度は `CaravanMovement` の設定を参照する。既定値は陸32km/day、海60km/day。
+- セグメント種別が切り替わるたびに2日を加算し、最終結果を切り上げる。
+- 既存の輸送費価格計算は直線近似距離を維持する。海路優先化・経路コストの再設計は新仕様2の対象として分離している。
 
-// ダイクストラ探索の共通化
-function runDijkstra(
-  startCell: number,
-  endCell: number,
-  isWaterOnly: boolean
-) {
-  // isWaterOnly が true の場合、エッジ判定で searoutes 以外をスキップする
-  // 重み(cost)を移動時間ベースで計算:
-  // - 海路エッジ: 距離 / SEA_SPEED
-  // - 陸路エッジ: (isWaterOnlyなら進入不可) / 距離 / LAND_SPEED
-  // - 陸海切り替え時: PORT_TRANSFER_PENALTY_DAYS を加算
-}
+### 2) グローバル取引の足切り
 
-export function findRoutePath(startCell: number, endCell: number) {
-  // Step 1: まず海路のみでのルートを探索
-  const waterRoute = runDijkstra(startCell, endCell, true);
-  if (waterRoute) return waterRoute;
+`markets-generator.ts` は市場ペアごとに実経路・日数をキャッシュし、通常取引と投機取引の双方で以下を適用する。
 
-  // Step 2: 海路のみで見つからない場合、陸海混合の最速ルートを探索
-  return runDijkstra(startCell, endCell, false);
-}
-```
+1. `isGoodTradePermitted` による価値密度・生鮮品の日数上限。
+2. `isMarketTradePermitted` による商会規模の日数上限と既存の地盤判定。
+3. `getNetTradeProfit` による維持費控除後の最低利益判定。
 
-### 2) 日数ベースの取引許容判定 (`isMarketTradePermitted` の拡張)
-`src/extensions/economy/generators/merchantOrganizations.ts` を修正。
+生成された市場間 Deal には `durationDays` と `maintenanceCost` を保存する。取引候補ダイアログにも同じ判定を適用する。
 
-```typescript
-export function isMarketTradePermitted(source: Market, target: Market, distanceMapUnits: number, routeSegments: any[]): boolean {
-  const world = getWorldContext();
-  
-  // ルートから移動日数を計算
-  const durationDays = calculateRouteDurationDays(routeSegments, world.distanceScale);
-  
-  const organizations = world.pack.merchantOrganizations ?? [];
-  if (!organizations.length) return true;
+### 3) Trade Animation の最終足切り
 
-  // 商会の中に、この移動日数を許容できる規模のものが存在するかチェック
-  return organizations.some(organization => {
-    const maxDays = getOrganizationMaxDays(organization.scale);
-    if (durationDays > maxDays) return false;
-    
-    return isInHomeGround(organization, source, target);
-  });
-}
-```
+`caravans.ts` の `spawnFromDeals` は、経路決定後に Deal ごとの貨物を再判定する。
 
-### 3) 利益計算における維持費の控除 (`estimateSpeculativeTrade` の改修)
-`src/extensions/economy/generators/tradeOpportunityEstimator.ts` の `estimateSpeculativeTrade` を修正。
-
-```typescript
-const CARAVAN_DAILY_COST = 0.5; // 1日あたりの固定維持費
-
-export function estimateSpeculativeTrade(input: SpeculativeTradeInput): SpeculativeTradeEstimate | null {
-  // ... (前段処理)
-
-  // ルート日数に応じた Caravan 維持費の計算
-  const durationDays = calculateRouteDurationDays(input.routeSegments, input.distanceScale);
-  const caravanMaintenance = durationDays * CARAVAN_DAILY_COST;
-
-  // 総利益から維持費を引いた純利益で判定
-  const rawTotalProfit = unitProfit * maxUnits;
-  const netTotalProfit = rawTotalProfit - caravanMaintenance;
-  
-  if (netTotalProfit < MIN_PROFIT) return null; // 維持費負けする取引を排除
-
-  return {
-    buyPrice,
-    sellPrice,
-    transportCost: roundPrice(transportCost),
-    unitProfit,
-    maxUnits,
-    totalProfit: roundPrice(netTotalProfit) // 純利益を返す
-  };
-}
-```
+- 市場間 Deal は生成時に純利益判定済みであるため、そのまま許可する。
+- `burg → market` / `market → burg` Deal は利益率を保持しないため、貨物価値を保守的な上限として使う。`貨物価値 - 維持費 < 1`、または価値密度・日数上限を超える貨物はキャラバンに載せない。
+- これは市場在庫の会計処理を変更せず、長距離・小額のローカル納入だけを Trade Animation から除外する。
 
 ---
 
@@ -206,12 +164,11 @@ Deals が発生した際、即座に Caravan を出発させるのではなく�
   - 移動中の Caravan のアップデート（`Caravans.tick`）は毎日行いますが、新規出発は10日ごとになるため、海路が「細切れの船の列」になるのを防ぎ、大船団が一定間隔で進むような見栄えになります。
 
 ### 3) そもそも取引数自体を自然に減らす（案B・案Dによる足切り効果）
-最も根本的かつ効果的な間引きは、**「無駄な取引（Deals）そのものを生成しない」**ことです。
+最も根本的かつ効果的な間引きは、**「無駄な市場間取引（Deals）そのものを生成しない」**ことです。
 - **価値密度制限（案B）** と **日数制限（新仕様1）** により、長距離の低価値取引がそもそも不成立になります。
 - **Caravan維持費（案D）** により、遠方への小口取引は維持費で赤字になるため、商人が取引を諦めます。
-- この二重の足切りにより、Deals の総数自体が激減するため、特別な集積ロジックを入れずとも、海路上の船の密度は自然と適正なレベル（数分の一以下）に落ち着く可能性が高いです。
+- この二重の足切りにより、市場間 Deals と Caravan の総数が減る。`burg → market` のローカル納入 Deal は市場在庫の会計として残るが、最終足切りにより不経済なものは Caravan 化されない。そのため、特別な集積ロジックを入れずとも、海路上の船の密度は自然と適正なレベル（数分の一以下）に落ち着く可能性が高いです。
 
-#### 開発フェーズの推奨ステップ
-1. **ステップ1**: **案B**、**新仕様1（日数ベース）**、**案D（維持費）** をまず実装し、Deals 数と Caravan 数がどの程度自然に間引かれるかを測定する。
-2. **ステップ2**: それでも海路の混雑が目立つ場合、上記 **1) 荷役・集積期間（10日間の loading 状態）** を導入し、同一ルートの Caravan を時間軸上でマージするロジックを追加する。
-
+#### 開発フェーズ
+1. **ステップ1（実装済み）**: **案B**、**新仕様1（日数ベース）**、**案D（維持費）** を実装した。加えて、`burg → market` 納入が無条件でキャラバン化する漏れを `spawnFromDeals` の最終足切りで防止した。同一seedで、全Deals数（`pack.deals.length`）、市場間Deals数、Caravan数（`pack.caravans.length`）を分けて比較する。
+2. **ステップ2（未実装）**: それでも海路の混雑が目立つ場合、上記 **1) 荷役・集積期間（10日間の loading 状態）** を導入し、同一ルートの Caravan を時間軸上でマージするロジックを追加する。
