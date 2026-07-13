@@ -399,6 +399,25 @@ test.describe("webgl hybrid renderer", () => {
     });
   });
 
+  test("renders population-scaled city lights in Nightscape mode", async ({ page }) => {
+    await page.goto("/?seed=webgl-nightscape-city-lights&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+    await ensureLayerOn(page, "toggleBurgIcons");
+
+    await page.locator("#optionsHide").click();
+    await page.locator("#layersTab").click();
+    await page.locator("#viewMesh").click();
+
+    await expect(page.locator("#canvas3d")).toBeVisible({ timeout: 15000 });
+    const nightscape = page.getByLabel("Nightscape: population city lights");
+    await expect(nightscape).toBeVisible();
+    await nightscape.check();
+    await expect(nightscape).toBeChecked();
+    await waitForCanvasPixels(page, "canvas3d");
+  });
+
   test("applies the hybrid SVG layer policy to managed map layers and overlays", async ({ page }) => {
     await page.goto("/?seed=webgl-layer-policy&width=1000&height=700");
     await waitForMapLoad(page);

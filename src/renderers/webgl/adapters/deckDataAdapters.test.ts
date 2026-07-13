@@ -603,8 +603,8 @@ describe("deck.gl data adapters", () => {
   it("maps burg and port icons to reusable low-poly mesh descriptors", () => {
     const worldContext = createWorldContext();
     worldContext.pack.burgs = [
-      { i: 1, cell: 0, x: 5, y: 5, name: "Fort", group: "city", port: 1 },
-      { i: 2, cell: 1, x: 8, y: 5, name: "Town", group: "town" }
+      { i: 1, cell: 0, x: 5, y: 5, name: "Fort", group: "city", port: 1, population: 10_000 },
+      { i: 2, cell: 1, x: 8, y: 5, name: "Town", group: "town", population: 200 }
     ];
 
     const icons = buildLowPolyBurgSymbols(worldContext, null, {
@@ -620,9 +620,9 @@ describe("deck.gl data adapters", () => {
     });
 
     expect(icons).toMatchObject([
-      { id: "burg-1", burgId: 1, shape: "cube", color: "#111111" },
+      { id: "burg-1", burgId: 1, population: 10_000, shape: "cube", color: "#111111" },
       { id: "anchor-1", burgId: 1, shape: "anchor" },
-      { id: "burg-2", burgId: 2, shape: "sphere", color: "#222222" }
+      { id: "burg-2", burgId: 2, population: 200, shape: "sphere", color: "#222222" }
     ]);
   });
 

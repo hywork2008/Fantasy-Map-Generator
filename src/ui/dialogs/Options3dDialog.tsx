@@ -196,7 +196,7 @@ export const Options3dDialog: React.FC = () => {
                 <i>Show 3D labels</i>
               </label>
             </div>
-            <div data-tip="Hide the terrain and show only floating low-poly map objects in the dark scene">
+            <div data-tip="Hide terrain and show floating low-poly objects; city lights scale with population">
               <input
                 id="options3dNightscape"
                 className="checkbox"
@@ -205,7 +205,7 @@ export const Options3dDialog: React.FC = () => {
                 onChange={() => handleChange("sceneOnly", !options.sceneOnly, () => ThreeDRenderer.toggleNightscape())}
               />
               <label htmlFor="options3dNightscape" className="checkbox-label">
-                <i>Nightscape: show icons only</i>
+                <i>Nightscape: population city lights</i>
               </label>
             </div>
             <div data-tip="Toggle sky mode">

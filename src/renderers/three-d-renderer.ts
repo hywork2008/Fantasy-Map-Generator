@@ -22,6 +22,7 @@ import { getMapURL } from "../io/export";
 import { tip } from "../services/tooltipService";
 import { revokeObjectURL, rn, throttle } from "../utils";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
+import { getNightscapePopulationGlow } from "./nightscapeGlow";
 import { buildLowPolyBurgSymbols, type LowPolyBurgShape } from "./webgl/adapters/deckDataAdapters";
 import { renderWebglMapTexture } from "./webgl/webglMapTexture";
 import { getBurgIconStyle } from "./webgl/webglStyleExtractors";
@@ -63,6 +64,12 @@ interface TimeOfDayPreset {
 
 type LabelSprite = THREE.Sprite & { size: number };
 type IconBatch = THREE.InstancedMesh<THREE.BufferGeometry, THREE.MeshPhongMaterial>;
+type NightscapeGlowBatch = THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
+interface NightscapeGlowInstance {
+  position: THREE.Vector3;
+  intensity: number;
+  level: number;
+}
 
 class ThreeDModule {
   options: ThreeDOptions = {
@@ -138,6 +145,8 @@ class ThreeDModule {
   private raycaster: THREE.Raycaster | undefined;
   private labels: LabelSprite[] = [];
   private iconBatches: IconBatch[] = [];
+  private nightscapeGlowBatches: NightscapeGlowBatch[] = [];
+  private nightscapeGlowTexture: THREE.CanvasTexture | undefined;
   private gridToPackCellMap: Map<number, number> | null = null;
   private erosionBakeActive: boolean = false;
   private erosionBakeData: ErosionBake.ErosionBakeResult | null = null;
@@ -320,6 +329,10 @@ class ThreeDModule {
       if (this.mesh) this.mesh.visible = false;
       if (this.waterMesh) this.waterMesh.visible = false;
       if (this.scene) this.scene.background = new THREE.Color("#03050b");
+      // Icons were initially built for the terrain scene. Rebuild them now so their per-city
+      // emissive bands and halo batches use the newly enabled Nightscape presentation.
+      this.deleteLowPolyBurgIcons();
+      this.createLowPolyBurgIcons();
       this.render();
       return;
     }
@@ -537,16 +550,26 @@ class ThreeDModule {
       viewContext.focusScope,
       getBurgIconStyle(worldContext, viewContext)
     );
+    const largestPopulation = Math.max(
+      1,
+      ...symbols
+        .filter(symbol => symbol.type === "burg")
+        .map(symbol => (Number.isFinite(symbol.population) ? (symbol.population ?? 0) : 0))
+    );
     const batches = new Map<
       string,
-      { shape: LowPolyBurgShape; color: string; opacity: number; symbols: typeof symbols }
+      { shape: LowPolyBurgShape; opacity: number; glowLevel: number; symbols: typeof symbols }
     >();
     for (const symbol of symbols) {
-      const key = `${symbol.shape}|${symbol.color}|${symbol.opacity}`;
+      const glow =
+        this.options.sceneOnly && symbol.type === "burg"
+          ? getNightscapePopulationGlow(symbol.population, largestPopulation)
+          : { intensity: 0, level: 0 };
+      const key = `${symbol.shape}|${symbol.opacity}|${glow.level}`;
       const batch = batches.get(key) ?? {
         shape: symbol.shape,
-        color: symbol.color,
         opacity: symbol.opacity,
+        glowLevel: glow.level,
         symbols: []
       };
       batch.symbols.push(symbol);
@@ -556,11 +579,15 @@ class ThreeDModule {
     const up = new THREE.Vector3(0, 1, 0);
     const matrix = new THREE.Matrix4();
     const quaternion = new THREE.Quaternion();
+    const nightscapeGlowInstances: NightscapeGlowInstance[] = [];
     for (const batch of batches.values()) {
+      const glowIntensity = this.options.sceneOnly ? 0.06 + batch.glowLevel * 0.32 : 0;
       const material = new THREE.MeshPhongMaterial({
-        color: batch.color,
+        color: "#ffffff",
         opacity: batch.opacity,
         transparent: batch.opacity < 1,
+        emissive: "#ffdca0",
+        emissiveIntensity: glowIntensity,
         wireframe: Boolean(this.options.wireframe)
       });
       const mesh = new THREE.InstancedMesh(this.createLowPolyIconGeometry(batch.shape), material, batch.symbols.length);
@@ -570,6 +597,10 @@ class ThreeDModule {
 
       for (let index = 0; index < batch.symbols.length; index++) {
         const symbol = batch.symbols[index];
+        const glow =
+          this.options.sceneOnly && symbol.type === "burg"
+            ? getNightscapePopulationGlow(symbol.population, largestPopulation)
+            : { intensity: 0, level: 0 };
         const surface = this.get3dSurface(symbol.position[0], symbol.position[1]);
         // Lift from the sampled terrain along its normal. The half-size term keeps the centre of
         // each sphere/cube/anchor above the surface instead of leaving its lower half embedded.
@@ -578,11 +609,92 @@ class ThreeDModule {
         quaternion.setFromUnitVectors(up, surface.normal);
         matrix.compose(position, quaternion, new THREE.Vector3(symbol.size, symbol.size, symbol.size));
         mesh.setMatrixAt(index, matrix);
+
+        const color = new THREE.Color(symbol.color);
+        if (this.options.sceneOnly && symbol.type === "burg") {
+          color.lerp(new THREE.Color("#fff1c4"), glow.intensity * 0.72);
+          color.multiplyScalar(0.5 + glow.intensity * 0.9);
+          if (glow.level > 0) {
+            nightscapeGlowInstances.push({
+              position: position.clone().addScaledVector(surface.normal, symbol.size * 0.35),
+              intensity: glow.intensity,
+              level: glow.level
+            });
+          }
+        }
+        mesh.setColorAt(index, color);
       }
       mesh.instanceMatrix.needsUpdate = true;
+      // setColorAt above creates instanceColor for every non-empty batch.
+      mesh.instanceColor!.needsUpdate = true;
       this.iconBatches.push(mesh);
       this.scene.add(mesh);
     }
+
+    this.createNightscapeBurgGlow(nightscapeGlowInstances);
+  }
+
+  private createNightscapeBurgGlow(instances: NightscapeGlowInstance[]): void {
+    if (!this.scene || !this.options.sceneOnly || !instances.length) return;
+
+    const byLevel = new Map<number, NightscapeGlowInstance[]>();
+    for (const instance of instances) {
+      const group = byLevel.get(instance.level) ?? [];
+      group.push(instance);
+      byLevel.set(instance.level, group);
+    }
+
+    const texture = this.getNightscapeGlowTexture();
+    for (const [level, group] of byLevel) {
+      const positions = new Float32Array(group.length * 3);
+      const colors = new Float32Array(group.length * 3);
+      for (let index = 0; index < group.length; index++) {
+        const instance = group[index];
+        positions.set(instance.position.toArray(), index * 3);
+        const color = new THREE.Color("#ffe4a8").multiplyScalar(0.35 + instance.intensity * 0.9);
+        colors.set([color.r, color.g, color.b], index * 3);
+      }
+
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+      const material = new THREE.PointsMaterial({
+        map: texture,
+        size: 2.5 + level * 2.2,
+        sizeAttenuation: true,
+        transparent: true,
+        opacity: 0.35 + level * 0.12,
+        vertexColors: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      });
+      const points = new THREE.Points(geometry, material);
+      points.renderOrder = 1;
+      this.nightscapeGlowBatches.push(points);
+      this.scene.add(points);
+    }
+  }
+
+  private getNightscapeGlowTexture(): THREE.CanvasTexture {
+    if (this.nightscapeGlowTexture) return this.nightscapeGlowTexture;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 64;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Unable to create Nightscape glow texture");
+
+    const gradient = context.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gradient.addColorStop(0, "rgba(255, 250, 224, 1)");
+    gradient.addColorStop(0.16, "rgba(255, 235, 172, 0.95)");
+    gradient.addColorStop(0.48, "rgba(255, 204, 114, 0.32)");
+    gradient.addColorStop(1, "rgba(255, 180, 80, 0)");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    this.nightscapeGlowTexture = new THREE.CanvasTexture(canvas);
+    this.nightscapeGlowTexture.colorSpace = THREE.SRGBColorSpace;
+    return this.nightscapeGlowTexture;
   }
 
   private createLowPolyIconGeometry(shape: LowPolyBurgShape): THREE.BufferGeometry {
@@ -808,6 +920,15 @@ class ThreeDModule {
       releaseGeometry(m.geometry as THREE.BufferGeometry);
     }
     this.iconBatches = [];
+
+    for (const glow of this.nightscapeGlowBatches) {
+      this.scene!.remove(glow);
+      releaseMaterial(glow.material);
+      releaseGeometry(glow.geometry);
+    }
+    this.nightscapeGlowBatches = [];
+    this.nightscapeGlowTexture?.dispose();
+    this.nightscapeGlowTexture = undefined;
   }
 
   private async createMeshTexture(): Promise<THREE.CanvasTexture | null> {

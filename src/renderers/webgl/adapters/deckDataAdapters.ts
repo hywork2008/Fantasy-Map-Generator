@@ -128,6 +128,8 @@ export interface LowPolyBurgSymbol {
   id: string;
   burgId: number;
   cellId: number;
+  /** Source burg population, retained for population-driven 3D presentation effects. */
+  population: number | undefined;
   group: string;
   type: DeckBurgIconType;
   shape: LowPolyBurgShape;
@@ -1196,6 +1198,7 @@ export function buildLowPolyBurgSymbols(
       id: `burg-${burg.i}`,
       burgId: burg.i,
       cellId: burg.cell,
+      population: burg.population,
       group,
       type: "burg",
       shape: getLowPolyBurgShape(iconStyle.icon, "burg"),
@@ -1211,6 +1214,7 @@ export function buildLowPolyBurgSymbols(
       id: `anchor-${burg.i}`,
       burgId: burg.i,
       cellId: burg.cell,
+      population: burg.population,
       group,
       type: "anchor",
       shape: "anchor",
