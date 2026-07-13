@@ -196,7 +196,7 @@ export const Options3dDialog: React.FC = () => {
                 <i>Show 3D labels</i>
               </label>
             </div>
-            <div data-tip="Hide terrain and show floating low-poly objects; city lights scale with population">
+            <div data-tip="Hide terrain; population lights are shaped by one camera-aligned beam from the far side">
               <input
                 id="options3dNightscape"
                 className="checkbox"
@@ -205,9 +205,49 @@ export const Options3dDialog: React.FC = () => {
                 onChange={() => handleChange("sceneOnly", !options.sceneOnly, () => ThreeDRenderer.toggleNightscape())}
               />
               <label htmlFor="options3dNightscape" className="checkbox-label">
-                <i>Nightscape: population city lights</i>
+                <i>Nightscape: city lights and beam</i>
               </label>
             </div>
+            {options.sceneOnly && (
+              <>
+                <div data-tip="Turn the shared camera-aligned Nightscape beam on or off; city population lights remain visible">
+                  <input
+                    id="options3dNightscapeBeam"
+                    className="checkbox"
+                    type="checkbox"
+                    checked={options.nightscapeBeamEnabled}
+                    onChange={() =>
+                      handleChange("nightscapeBeamEnabled", !options.nightscapeBeamEnabled, () =>
+                        ThreeDRenderer.setNightscapeBeamEnabled(!options.nightscapeBeamEnabled)
+                      )
+                    }
+                  />
+                  <label htmlFor="options3dNightscapeBeam" className="checkbox-label">
+                    <i>Enable Nightscape beam</i>
+                  </label>
+                </div>
+                <div
+                  data-tip="Reverse the shared beam between far-to-near and near-to-far camera directions"
+                  style={{ opacity: options.nightscapeBeamEnabled ? 1 : 0.5 }}
+                >
+                  <input
+                    id="options3dNightscapeBeamFlip"
+                    className="checkbox"
+                    type="checkbox"
+                    disabled={!options.nightscapeBeamEnabled}
+                    checked={options.nightscapeBeamReversed}
+                    onChange={() =>
+                      handleChange("nightscapeBeamReversed", !options.nightscapeBeamReversed, () =>
+                        ThreeDRenderer.setNightscapeBeamReversed(!options.nightscapeBeamReversed)
+                      )
+                    }
+                  />
+                  <label htmlFor="options3dNightscapeBeamFlip" className="checkbox-label">
+                    <i>Flip beam: near to far</i>
+                  </label>
+                </div>
+              </>
+            )}
             <div data-tip="Toggle sky mode">
               <input
                 id="options3dMeshSkyMode"

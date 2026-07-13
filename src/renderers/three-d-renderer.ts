@@ -22,7 +22,7 @@ import { getMapURL } from "../io/export";
 import { tip } from "../services/tooltipService";
 import { revokeObjectURL, rn, throttle } from "../utils";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
-import { getNightscapePopulationGlow } from "./nightscapeGlow";
+import { getNightscapeBeamPose, getNightscapePopulationGlow } from "./nightscapeGlow";
 import { buildLowPolyBurgSymbols, type LowPolyBurgShape } from "./webgl/adapters/deckDataAdapters";
 import { renderWebglMapTexture } from "./webgl/webglMapTexture";
 import { getBurgIconStyle } from "./webgl/webglStyleExtractors";
@@ -50,6 +50,8 @@ interface ThreeDOptions {
   erosionOctaves: number;
   satellite: boolean;
   sceneOnly: boolean;
+  nightscapeBeamEnabled: boolean;
+  nightscapeBeamReversed: boolean;
   isOn?: boolean;
   isGlobe?: boolean;
 }
@@ -94,7 +96,9 @@ class ThreeDModule {
     erosionRiverDepth: 10,
     erosionOctaves: 2,
     satellite: false,
-    sceneOnly: false
+    sceneOnly: false,
+    nightscapeBeamEnabled: true,
+    nightscapeBeamReversed: false
   };
 
   readonly timeOfDayPresets: Record<string, TimeOfDayPreset> = {
@@ -139,6 +143,9 @@ class ThreeDModule {
   private mesh: THREE.Mesh | undefined;
   private ambientLight: THREE.AmbientLight | undefined;
   private spotLight: THREE.SpotLight | undefined;
+  private nightscapeBeamLight: THREE.SpotLight | undefined;
+  private nightscapeBeamTarget: THREE.Object3D | undefined;
+  private readonly nightscapeBeamDirection = new THREE.Vector3();
   private waterPlane: THREE.PlaneGeometry | undefined;
   private waterMaterial: THREE.MeshBasicMaterial | undefined;
   private waterMesh: THREE.Mesh | undefined;
@@ -222,6 +229,8 @@ class ThreeDModule {
     this.scene!.remove(this.mesh!);
     this.scene!.remove(this.spotLight!);
     this.scene!.remove(this.ambientLight!);
+    this.scene!.remove(this.nightscapeBeamLight!);
+    this.scene!.remove(this.nightscapeBeamTarget!);
     this.scene!.remove(this.waterMesh!);
 
     this.Renderer = undefined;
@@ -232,6 +241,8 @@ class ThreeDModule {
     this.texture = undefined;
     this.geometry = undefined;
     this.mesh = undefined;
+    this.nightscapeBeamLight = undefined;
+    this.nightscapeBeamTarget = undefined;
 
     this.options.isOn = false;
   }
@@ -261,7 +272,7 @@ class ThreeDModule {
 
   setLightness(intensity: number): void {
     this.options.lightness = intensity;
-    this.ambientLight!.intensity = intensity * Math.PI;
+    this.syncNightscapeLighting();
     this.render();
   }
 
@@ -322,6 +333,7 @@ class ThreeDModule {
   /** Shows only the floating low-poly scene objects against the existing dark scene background. */
   toggleNightscape(): void {
     this.options.sceneOnly = !this.options.sceneOnly;
+    this.syncNightscapeLighting();
     if (this.options.sceneOnly) {
       if (this.texture) this.texture.dispose();
       this.texture = undefined;
@@ -341,6 +353,30 @@ class ThreeDModule {
     if (this.waterMesh) this.waterMesh.visible = Boolean(this.options.extendedWater);
     if (this.scene) this.scene.background = this.options.extendedWater ? new THREE.Color(this.options.skyColor) : null;
     this.redraw();
+  }
+
+  setNightscapeBeamEnabled(enabled: boolean): void {
+    this.options.nightscapeBeamEnabled = enabled;
+    this.syncNightscapeLighting();
+    this.render();
+  }
+
+  setNightscapeBeamReversed(reversed: boolean): void {
+    this.options.nightscapeBeamReversed = reversed;
+    this.updateNightscapeBeam();
+    this.render();
+  }
+
+  private syncNightscapeLighting(): void {
+    const ambientIntensity = this.options.lightness * Math.PI;
+    if (this.ambientLight) {
+      // A nearly black ambient term leaves the camera-aligned beam responsible for visible facets.
+      this.ambientLight.intensity = this.options.sceneOnly ? Math.min(ambientIntensity, 0.12) : ambientIntensity;
+    }
+    if (this.spotLight) this.spotLight.visible = !this.options.sceneOnly;
+    const beamVisible = this.options.sceneOnly && this.options.nightscapeBeamEnabled;
+    if (this.nightscapeBeamLight) this.nightscapeBeamLight.visible = beamVisible;
+    if (beamVisible) this.updateNightscapeBeam();
   }
 
   private shouldRefreshTextureAfterLabelsToggle(): boolean {
@@ -445,12 +481,6 @@ class ThreeDModule {
     this.Renderer.shadowMap.enabled = true;
     this.Renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     if (this.options.extendedWater) this.extendWater(worldContext.graphWidth, worldContext.graphHeight);
-    this.createMesh(
-      worldContext.graphWidth,
-      worldContext.graphHeight,
-      worldContext.grid.cellsX,
-      worldContext.grid.cellsY
-    );
 
     this.camera = new THREE.PerspectiveCamera(70, canvas.width / canvas.height, 0.1, 2000);
     this.camera.position.set(0, 400, 500);
@@ -474,10 +504,29 @@ class ThreeDModule {
 
     this.controls.autoRotate = Boolean(this.options.rotateMesh);
     this.controls.autoRotateSpeed = this.options.rotateMesh;
+    this.createNightscapeBeamLight();
+    this.syncNightscapeLighting();
+    void this.createMesh(
+      worldContext.graphWidth,
+      worldContext.graphHeight,
+      worldContext.grid.cellsX,
+      worldContext.grid.cellsY
+    );
     this.animate();
 
     this.controls.addEventListener("change", () => this.render());
     return true;
+  }
+
+  private createNightscapeBeamLight(): void {
+    if (!this.scene) return;
+
+    this.nightscapeBeamTarget = new THREE.Object3D();
+    this.nightscapeBeamLight = new THREE.SpotLight("#dcecff", 4.2, 0, 0.8, 0.88, 0);
+    this.nightscapeBeamLight.castShadow = false;
+    this.nightscapeBeamLight.visible = false;
+    this.nightscapeBeamLight.target = this.nightscapeBeamTarget;
+    this.scene.add(this.nightscapeBeamLight, this.nightscapeBeamTarget);
   }
 
   private textureToSprite(canvas: HTMLCanvasElement, width: number, height: number): THREE.Sprite {
@@ -588,6 +637,8 @@ class ThreeDModule {
         transparent: batch.opacity < 1,
         emissive: "#ffdca0",
         emissiveIntensity: glowIntensity,
+        specular: this.options.sceneOnly ? "#fff0c5" : "#111111",
+        shininess: this.options.sceneOnly ? 84 : 30,
         wireframe: Boolean(this.options.wireframe)
       });
       const mesh = new THREE.InstancedMesh(this.createLowPolyIconGeometry(batch.shape), material, batch.symbols.length);
@@ -1245,8 +1296,36 @@ class ThreeDModule {
 
   private render(): void {
     if (!this.Renderer) return;
+    this.updateNightscapeBeam();
     this.Renderer.render(this.scene!, this.camera!);
     this.renderThrottled();
+  }
+
+  private updateNightscapeBeam(): void {
+    if (
+      !this.options.sceneOnly ||
+      !this.options.nightscapeBeamEnabled ||
+      !this.camera ||
+      !this.nightscapeBeamLight ||
+      !this.nightscapeBeamTarget
+    ) {
+      return;
+    }
+
+    this.camera.getWorldDirection(this.nightscapeBeamDirection);
+    const pose = getNightscapeBeamPose(
+      [this.camera.position.x, this.camera.position.y, this.camera.position.z],
+      [this.nightscapeBeamDirection.x, this.nightscapeBeamDirection.y, this.nightscapeBeamDirection.z],
+      worldContext.graphWidth,
+      worldContext.graphHeight,
+      this.camera.fov,
+      this.camera.aspect,
+      this.options.nightscapeBeamReversed
+    );
+    this.nightscapeBeamLight.position.set(...pose.source);
+    this.nightscapeBeamLight.angle = pose.angle;
+    this.nightscapeBeamTarget.position.set(...pose.target);
+    this.nightscapeBeamTarget.updateMatrixWorld();
   }
 
   private doWorkOnRender(): void {
@@ -1398,6 +1477,8 @@ interface ThreeDAPI {
   setRotation: (speed: number) => void;
   toggleLabels: () => void;
   toggleNightscape: () => void;
+  setNightscapeBeamEnabled: (enabled: boolean) => void;
+  setNightscapeBeamReversed: (reversed: boolean) => void;
   toggle3dSubdivision: () => void;
   toggleWireframe: () => void;
   toggleSky: () => void;

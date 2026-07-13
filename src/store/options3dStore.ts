@@ -23,6 +23,8 @@ interface ThreeDOptions {
   erosionOctaves: number;
   satellite: boolean;
   sceneOnly: boolean;
+  nightscapeBeamEnabled: boolean;
+  nightscapeBeamReversed: boolean;
   isOn?: boolean;
   isGlobe?: boolean;
 }
@@ -55,6 +57,8 @@ interface Options3DState {
   // Erosion
   satellite: boolean;
   sceneOnly: boolean;
+  nightscapeBeamEnabled: boolean;
+  nightscapeBeamReversed: boolean;
   erosion: boolean;
   erosionDetail: number;
   erosionStrength: number;
@@ -84,6 +88,8 @@ export const use3DOptionsStore = create<Options3DState>((set, get) => ({
   waterColor: "#1e90ff",
   satellite: false,
   sceneOnly: false,
+  nightscapeBeamEnabled: true,
+  nightscapeBeamReversed: false,
   erosion: false,
   erosionDetail: 0,
   erosionStrength: 0.5,
@@ -108,6 +114,8 @@ export const use3DOptionsStore = create<Options3DState>((set, get) => ({
       waterColor: options.waterColor ?? "#1e90ff",
       satellite: options.satellite ?? false,
       sceneOnly: options.sceneOnly ?? false,
+      nightscapeBeamEnabled: options.nightscapeBeamEnabled ?? true,
+      nightscapeBeamReversed: options.nightscapeBeamReversed ?? false,
       erosion: options.erosion ?? false,
       erosionDetail: options.erosionDetail ?? 0,
       erosionStrength: options.erosionStrength ?? 0.5,
@@ -141,6 +149,8 @@ export const use3DOptionsStore = create<Options3DState>((set, get) => ({
       waterColor: state.waterColor,
       satellite: state.satellite,
       sceneOnly: state.sceneOnly,
+      nightscapeBeamEnabled: state.nightscapeBeamEnabled,
+      nightscapeBeamReversed: state.nightscapeBeamReversed,
       erosion: state.erosion,
       erosionDetail: state.erosionDetail,
       erosionStrength: state.erosionStrength,

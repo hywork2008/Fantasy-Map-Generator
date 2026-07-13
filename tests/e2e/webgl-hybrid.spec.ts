@@ -411,10 +411,23 @@ test.describe("webgl hybrid renderer", () => {
     await page.locator("#viewMesh").click();
 
     await expect(page.locator("#canvas3d")).toBeVisible({ timeout: 15000 });
-    const nightscape = page.getByLabel("Nightscape: population city lights");
+    const nightscape = page.getByLabel("Nightscape: city lights and beam");
+    const beam = page.getByLabel("Enable Nightscape beam");
     await expect(nightscape).toBeVisible();
+    await expect(beam).toHaveCount(0);
     await nightscape.check();
     await expect(nightscape).toBeChecked();
+    const flipBeam = page.getByLabel("Flip beam: near to far");
+    await expect(beam).toBeChecked();
+    await expect(flipBeam).toBeEnabled();
+    await flipBeam.check();
+    await expect(flipBeam).toBeChecked();
+    await beam.uncheck();
+    await expect(beam).not.toBeChecked();
+    await expect(flipBeam).toBeDisabled();
+    await beam.check();
+    await expect(beam).toBeChecked();
+    await expect(flipBeam).toBeChecked();
     await waitForCanvasPixels(page, "canvas3d");
   });
 
