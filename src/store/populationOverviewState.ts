@@ -16,12 +16,18 @@ export interface PopulationOverviewState {
 }
 
 export const usePopulationOverviewState = create<PopulationOverviewState>(set => ({
-  activeTab: "deaths",
+  activeTab: "living",
   deathWindow: "week",
   sortBy: "total",
   sortOrder: "desc",
   refreshCounter: 0,
-  setActiveTab: activeTab => set({ activeTab }),
+  setActiveTab: activeTab =>
+    set({
+      activeTab,
+      // Sensible default sort when switching tabs
+      sortBy: "total",
+      sortOrder: "desc"
+    }),
   setDeathWindow: deathWindow => set({ deathWindow }),
   toggleSortBy: sortBy =>
     set(state => {
