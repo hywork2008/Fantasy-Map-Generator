@@ -194,7 +194,8 @@ const WEBGL_POLYGON_LAYERS: Array<{
     toggle: "toggleZones",
     id: "zones",
     build: (world, view, landCells) =>
-      buildZonePolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).zones)
+      buildZonePolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).zones),
+    maskLand: true
   },
   {
     toggle: "toggleTemperature",
@@ -205,7 +206,8 @@ const WEBGL_POLYGON_LAYERS: Array<{
     toggle: "togglePopulation",
     id: "population",
     build: (world, view, landCells) =>
-      buildPopulationPolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).population)
+      buildPopulationPolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).population),
+    maskLand: true
   },
   {
     toggle: "togglePrecipitation",
@@ -216,8 +218,8 @@ const WEBGL_POLYGON_LAYERS: Array<{
   {
     toggle: "toggleDanger",
     id: "danger",
-    build: (world, view, landCells) =>
-      buildDangerPolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).danger)
+    build: (world, view) => buildDangerPolygons(world, view.focusScope, getCellLayerOpacities(view).danger),
+    maskLand: false
   }
 ];
 
@@ -428,8 +430,9 @@ export function buildDeckLayers(
 
   for (const layer of WEBGL_POLYGON_LAYERS) {
     if (!activeLayers[layer.toggle]) continue;
+    const shouldMask = layer.id === "height" ? !getHeightStyle(viewContext).includeOcean : layer.maskLand;
     layers.push(
-      layer.maskLand && hasLandMask
+      shouldMask && hasLandMask
         ? createLandMaskedPolygonLayer({
             id: `fmg-webgl-${layer.id}`,
             data: getCachedDeckData(`polygon:${layer.id}`, signatures.byLayer[layer.id], () =>

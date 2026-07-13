@@ -1,5 +1,5 @@
 import type { Color } from "@deck.gl/core";
-import { forceCollide, forceSimulation, color as parseColor } from "d3";
+import { forceCollide, forceSimulation, interpolateMagma, interpolateYlOrRd, color as parseColor } from "d3";
 import _simplify from "simplify-js";
 import type { AppServices } from "../../../context/appServices";
 import type { FocusScope, ViewContext } from "../../../context/viewContext";
@@ -510,20 +510,40 @@ export function buildPrecipitationPolygons(
 export function buildDangerPolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  landCells?: ReadonlyArray<DeckLandCellGeometry>,
   maxOpacity = 0.75
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
-  return buildLandPolygons(
+  const { cells } = pack;
+  if (!cells?.i || !cells.danger) return [];
+
+  let maxDanger = 0;
+  for (const i of cells.i) {
+    if (!isCellInScope(focusScope, i)) continue;
+    const d = cells.danger[i] as number;
+    if (d > maxDanger) maxDanger = d;
+  }
+
+  if (maxDanger === 0) return [];
+
+  const getDangerBucket = (cellId: number): number => {
+    const d = cells.danger[cellId] as number;
+    if (d <= 0) return -1;
+
+    const ratio = d / maxDanger;
+    return Math.min(9, Math.floor(ratio * 10));
+  };
+
+  return buildCellPolygons(
     worldContext,
     focusScope,
     "danger",
     cellId => {
-      const danger = pack.cells.danger?.[cellId] ?? 0;
-      if (!danger) return [0, 0, 0, 0];
-      return colorToRgba("#d0240f", "#d0240f", Math.min(maxOpacity, Math.max(maxOpacity * 0.2, danger / 100)));
+      const bucket = getDangerBucket(cellId);
+      if (bucket < 0) return [0, 0, 0, 0];
+      const hexColor = interpolateMagma((bucket + 1) / 10);
+      return colorToRgba(hexColor, "#999999", maxOpacity);
     },
-    landCells
+    cellId => (cells.danger[cellId] ?? 0) > 0
   ).filter(polygon => (polygon.fillColor[3] ?? 255) > 0);
 }
 
@@ -533,15 +553,55 @@ export function buildPopulationPolygons(
   landCells?: ReadonlyArray<DeckLandCellGeometry>,
   maxOpacity = 0.72
 ): DeckCellPolygon[] {
-  const { pack } = worldContext;
+  const { pack, populationRate, urbanization } = worldContext;
+  const { cells, burgs } = pack;
+  if (!cells?.i) return [];
+
+  const totalPop = new Float32Array(cells.i.length);
+  const densities = new Float32Array(cells.i.length);
+  let maxDensity = 0;
+
+  for (const i of cells.i) {
+    if (!isCellInScope(focusScope, i)) continue;
+    const pop = cells.pop[i] as number;
+    totalPop[i] = pop * populationRate;
+  }
+
+  for (const b of burgs) {
+    if (b.i && !b.removed && isCellInScope(focusScope, b.cell)) {
+      const uPop = (b.population ?? 0) * populationRate * urbanization;
+      totalPop[b.cell] += uPop;
+    }
+  }
+
+  for (const i of cells.i) {
+    if (!isCellInScope(focusScope, i)) continue;
+    const area = cells.area[i];
+    if (area > 0) {
+      const density = totalPop[i] / area;
+      densities[i] = density;
+      if (density > maxDensity) maxDensity = density;
+    }
+  }
+
+  const getPopBucket = (cellId: number): number => {
+    const density = densities[cellId];
+    if (density < 1) return -1;
+    if (maxDensity <= 1) return 0;
+
+    const ratio = Math.log(density) / Math.log(maxDensity);
+    return Math.min(9, Math.floor(ratio * 10));
+  };
+
   return buildLandPolygons(
     worldContext,
     focusScope,
     "population",
     cellId => {
-      const population = pack.cells.pop[cellId] ?? 0;
-      if (!population) return [0, 0, 0, 0];
-      return colorToRgba("#8f3fb5", "#8f3fb5", Math.min(maxOpacity, Math.max(maxOpacity * 0.25, population / 40)));
+      const bucket = getPopBucket(cellId);
+      if (bucket < 0) return [0, 0, 0, 0];
+      const hexColor = interpolateYlOrRd((bucket + 1) / 10);
+      return colorToRgba(hexColor, "#999999", maxOpacity);
     },
     landCells
   ).filter(polygon => (polygon.fillColor[3] ?? 255) > 0);
