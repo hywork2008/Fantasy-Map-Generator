@@ -1,5 +1,12 @@
 import type { Color } from "@deck.gl/core";
-import { forceCollide, forceSimulation, interpolateMagma, interpolateYlOrRd, color as parseColor } from "d3";
+import {
+  forceCollide,
+  forceSimulation,
+  interpolateMagma,
+  interpolateSpectral,
+  interpolateYlOrRd,
+  color as parseColor
+} from "d3";
 import _simplify from "simplify-js";
 import type { AppServices } from "../../../context/appServices";
 import type { FocusScope, ViewContext } from "../../../context/viewContext";
@@ -477,13 +484,16 @@ export function buildTemperaturePolygons(
   focusScope: FocusScope | null,
   opacity = 0.72
 ): DeckCellPolygon[] {
-  const { grid, pack } = worldContext;
-  return buildCellPolygons(worldContext, focusScope, "temperature", cellId => {
-    const temp = grid.cells.temp?.[pack.cells.g[cellId]] ?? 0;
-    if (temp < -5) return colorToRgba("#3f7cc7", "#3f7cc7", opacity);
-    if (temp < 10) return colorToRgba("#8fc6da", "#8fc6da", opacity);
-    if (temp < 25) return colorToRgba("#e3d36f", "#e3d36f", opacity);
-    return colorToRgba("#c8583a", "#c8583a", opacity);
+  const { grid } = worldContext;
+  const tMax = 50;
+  const tMin = -50;
+  const delta = tMax - tMin;
+
+  return buildGridCellPolygons(worldContext, focusScope, "temperature", cellId => {
+    const temp = grid.cells.temp?.[cellId] ?? 0;
+    const tNormalized = 1 - (temp - tMin) / delta;
+    const hexColor = interpolateSpectral(Math.max(0, Math.min(1, tNormalized)));
+    return colorToRgba(hexColor, "#999999", opacity);
   });
 }
 
@@ -1641,6 +1651,37 @@ function buildLandPolygons(
     getFillColor,
     cellId => worldContext.pack.cells.h[cellId] >= 20
   );
+}
+
+function buildGridCellPolygons(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  kind: WebglPickKind,
+  getFillColor: (cellId: number) => Color
+): DeckCellPolygon[] {
+  const { cells, vertices } = worldContext.grid;
+  const polygons: DeckCellPolygon[] = [];
+
+  for (let cellId = 0; cellId < cells.i.length; cellId++) {
+    if (!isGridCellInScope(focusScope, cellId)) continue;
+    const vertexIds = cells.v[cellId] ?? [];
+    const polygon = vertexIds
+      .map(vertexId => vertices.p[vertexId])
+      .filter((point): point is [number, number] => Boolean(point))
+      .map(([x, y]) => [x, y] as DeckPosition);
+
+    if (polygon.length >= 3) {
+      polygons.push({
+        id: `${kind}-grid-cell-${cellId}`,
+        kind,
+        cellId,
+        polygon,
+        fillColor: getFillColor(cellId)
+      });
+    }
+  }
+
+  return polygons;
 }
 
 function buildCellPolygons(
