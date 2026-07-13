@@ -28,6 +28,21 @@ export const ANNUAL_DRAFT_SHARE = 0.5;
 export const DEMOBILIZATION_SHARE_PEACE = 0.3;
 /** Headcount recovery toward r.t per year (capped by civilian males when ledger is on). */
 export const RECOVERY_RATE_PER_YEAR = 0.2;
+/** Peacetime disease/desertion of under-arms (fraction of headcount per year). */
+export const ANNUAL_NATURAL_WASTAGE = 0.02;
+/** Draft weight for rural cells. */
+export const RURAL_LEVY_WEIGHT = 1.0;
+/** Draft weight for ordinary urban burgs. */
+export const URBAN_LEVY_WEIGHT = 1.5;
+/** Draft weight for fort-group burgs (already militarised bases). */
+export const FORT_LEVY_WEIGHT = 0.2;
+/** Extra weight multiplier when drawing from a regiment's home province. */
+export const HOME_PROVINCE_LEVY_BONUS = 3;
+
+export interface MaleDraftOptions {
+  /** Prefer cells/burgs in this province when skimming males (0 = no preference). */
+  preferredProvince?: number;
+}
 
 export function troopsToPoints(troops: number, populationRate = worldContext.populationRate): number {
   const rate = populationRate || 1;
@@ -58,25 +73,32 @@ export function statePopulationPeople(state: State): number {
 export function sumCivilianMalePoints(pack: PackedGraph, stateId: number): number {
   const { cells, burgs } = pack;
   let total = 0;
-  for (let i = 0; i < cells.i.length; i++) {
-    if (cells.state[i] === stateId) total += cells.maleAdults[i] ?? 0;
+  if (cells.maleAdults) {
+    for (let i = 0; i < cells.i.length; i++) {
+      if (cells.state[i] === stateId) total += cells.maleAdults[i] ?? 0;
+    }
   }
-  for (const burg of burgs) {
+  for (const burg of burgs ?? []) {
     if (burg?.state === stateId && burg.demographics) total += burg.demographics.maleAdults;
   }
   return total;
 }
 
 /**
- * Remove `points` of civilian adult males from the state, weighted rural:urban = 1 : 1.5.
+ * Remove `points` of civilian adult males from the state.
+ * Weights: rural 1.0, urban 1.5, fort 0.2; home province ×3 when preferred.
  * Returns points actually removed.
  */
-export function removeCivilianMalePoints(pack: PackedGraph, stateId: number, points: number): number {
+export function removeCivilianMalePoints(
+  pack: PackedGraph,
+  stateId: number,
+  points: number,
+  options?: MaleDraftOptions
+): number {
   if (points <= 0) return 0;
 
   const { cells, burgs } = pack;
-  const RURAL_W = 1;
-  const URBAN_W = 1.5;
+  const preferred = options?.preferredProvince ?? 0;
 
   type Slot = { kind: "cell" | "burg"; id: number; male: number; weight: number };
   const slots: Slot[] = [];
@@ -84,9 +106,11 @@ export function removeCivilianMalePoints(pack: PackedGraph, stateId: number, poi
 
   for (let i = 0; i < cells.i.length; i++) {
     if (cells.state[i] !== stateId) continue;
-    const male = cells.maleAdults[i] ?? 0;
+    const male = cells.maleAdults?.[i] ?? 0;
     if (male <= 0) continue;
-    const w = male * RURAL_W;
+    const province = cells.province?.[i] ?? 0;
+    let w = male * RURAL_LEVY_WEIGHT;
+    if (preferred && province === preferred) w *= HOME_PROVINCE_LEVY_BONUS;
     slots.push({ kind: "cell", id: i, male, weight: w });
     weighted += w;
   }
@@ -94,7 +118,10 @@ export function removeCivilianMalePoints(pack: PackedGraph, stateId: number, poi
     if (!burg?.i || burg.removed || burg.state !== stateId || !burg.demographics) continue;
     const male = burg.demographics.maleAdults;
     if (male <= 0) continue;
-    const w = male * URBAN_W;
+    const isFort = burg.group === "fort";
+    const province = cells.province?.[burg.cell] ?? 0;
+    let w = male * (isFort ? FORT_LEVY_WEIGHT : URBAN_LEVY_WEIGHT);
+    if (preferred && province === preferred) w *= HOME_PROVINCE_LEVY_BONUS;
     slots.push({ kind: "burg", id: burg.i, male, weight: w });
     weighted += w;
   }
@@ -112,7 +139,7 @@ export function removeCivilianMalePoints(pack: PackedGraph, stateId: number, poi
     const actual = Math.min(slot.male, share, remaining);
     if (actual <= 0) continue;
     if (slot.kind === "cell") {
-      cells.maleAdults[slot.id] -= actual;
+      if (cells.maleAdults) cells.maleAdults[slot.id] -= actual;
       cells.pop[slot.id] = Math.max(0, cells.pop[slot.id] - actual);
     } else {
       const burg = burgs[slot.id];
@@ -128,11 +155,11 @@ export function removeCivilianMalePoints(pack: PackedGraph, stateId: number, poi
     for (const slot of slots) {
       if (remaining <= 0) break;
       const maleLeft =
-        slot.kind === "cell" ? (cells.maleAdults[slot.id] ?? 0) : (burgs[slot.id].demographics?.maleAdults ?? 0);
+        slot.kind === "cell" ? (cells.maleAdults?.[slot.id] ?? 0) : (burgs[slot.id].demographics?.maleAdults ?? 0);
       const actual = Math.min(maleLeft, remaining);
       if (actual <= 0) continue;
       if (slot.kind === "cell") {
-        cells.maleAdults[slot.id] -= actual;
+        if (cells.maleAdults) cells.maleAdults[slot.id] -= actual;
         cells.pop[slot.id] = Math.max(0, cells.pop[slot.id] - actual);
       } else {
         const burg = burgs[slot.id];
@@ -148,32 +175,45 @@ export function removeCivilianMalePoints(pack: PackedGraph, stateId: number, poi
 }
 
 /** Return adult male points to civilian population (demobilization survivors). */
-export function addCivilianMalePoints(pack: PackedGraph, stateId: number, points: number): number {
+export function addCivilianMalePoints(
+  pack: PackedGraph,
+  stateId: number,
+  points: number,
+  options?: MaleDraftOptions
+): number {
   if (points <= 0) return 0;
 
   const { cells, burgs } = pack;
-  type Slot = { kind: "cell" | "burg"; id: number; pop: number };
+  const preferred = options?.preferredProvince ?? 0;
+  type Slot = { kind: "cell" | "burg"; id: number; weight: number };
   const slots: Slot[] = [];
-  let popSum = 0;
+  let weightSum = 0;
 
   for (let i = 0; i < cells.i.length; i++) {
     if (cells.state[i] !== stateId || cells.pop[i] <= 0) continue;
-    slots.push({ kind: "cell", id: i, pop: cells.pop[i] });
-    popSum += cells.pop[i];
+    const province = cells.province?.[i] ?? 0;
+    let w = cells.pop[i] * RURAL_LEVY_WEIGHT;
+    if (preferred && province === preferred) w *= HOME_PROVINCE_LEVY_BONUS;
+    slots.push({ kind: "cell", id: i, weight: w });
+    weightSum += w;
   }
   for (const burg of burgs) {
     if (!burg?.i || burg.removed || burg.state !== stateId) continue;
     const pop = burg.population ?? 0;
     if (pop <= 0) continue;
-    slots.push({ kind: "burg", id: burg.i, pop });
-    popSum += pop;
+    const isFort = burg.group === "fort";
+    const province = cells.province?.[burg.cell] ?? 0;
+    let w = pop * (isFort ? FORT_LEVY_WEIGHT : URBAN_LEVY_WEIGHT);
+    if (preferred && province === preferred) w *= HOME_PROVINCE_LEVY_BONUS;
+    slots.push({ kind: "burg", id: burg.i, weight: w });
+    weightSum += w;
   }
 
-  if (popSum <= 0 || !slots.length) return 0;
+  if (weightSum <= 0 || !slots.length) return 0;
 
   let added = 0;
   for (const slot of slots) {
-    const share = (slot.pop / popSum) * points;
+    const share = (slot.weight / weightSum) * points;
     if (slot.kind === "cell") {
       cells.maleAdults[slot.id] = (cells.maleAdults[slot.id] ?? 0) + share;
       cells.pop[slot.id] += share;
@@ -279,7 +319,7 @@ export function registerTroopLosses(stateId: number, deadTroops: number): void {
 
 /**
  * Raise land regiment capacity (r.t) toward the effective target, then grow r.a by drawing
- * civilian males. In peacetime, demobilize surplus capacity and return men.
+ * civilian males (preferring home province). In peacetime, demobilize surplus and apply light wastage.
  */
 export function tickManpower(
   pack: PackedGraph,
@@ -305,26 +345,45 @@ export function tickManpower(
     } else if (!atWar && capacity > target * 1.05) {
       const surplus = (capacity - target) * DEMOBILIZATION_SHARE_PEACE * deltaYears;
       const scale = Math.max(0, 1 - surplus / capacity);
-      let releasedTroops = 0;
       for (const r of regiments) {
-        const newT = Math.max(r.a * 0.5, r.t * scale); // keep some room above current a
-        // Prefer lowering empty slots first: if a > newT, demobilize headcount too
+        const newT = Math.max(r.a * 0.5, r.t * scale);
+        let releasedTroops = 0;
         if (r.a > newT) {
-          releasedTroops += r.a - newT;
+          releasedTroops = r.a - newT;
           const ratio = newT / r.a;
           for (const u of Object.keys(r.u)) r.u[u] = (r.u[u] ?? 0) * ratio;
           r.a = newT;
         }
         r.t = Math.max(newT, r.a);
-      }
-      if (releasedTroops > 0) {
-        addCivilianMalePoints(pack, state.i, troopsToPoints(releasedTroops, populationRate));
+        if (releasedTroops > 0) {
+          addCivilianMalePoints(pack, state.i, troopsToPoints(releasedTroops, populationRate), {
+            preferredProvince: r.homeProvince
+          });
+        }
       }
     }
 
-    // Fill a toward t from civilian males
+    // Peacetime wastage (disease / desertion) — dead, not returned to civilian pool
+    if (!atWar && ANNUAL_NATURAL_WASTAGE > 0) {
+      for (const r of regiments) {
+        if (r.a <= 0) continue;
+        const loss = r.a * ANNUAL_NATURAL_WASTAGE * deltaYears;
+        if (loss < 0.5) continue;
+        const keep = Math.max(0, r.a - loss) / r.a;
+        for (const u of Object.keys(r.u)) r.u[u] = (r.u[u] ?? 0) * keep;
+        const dead = r.a * (1 - keep);
+        r.a *= keep;
+        if (dead > 0) recordDeaths(state.i, dead, "other");
+      }
+    }
+
+    // Fill a toward t from civilian males (home province first)
     for (const r of regiments) {
       fillRegimentFromManpower(pack, state, r, deltaYears, populationRate);
+    }
+
+    if (import.meta.env.DEV) {
+      assertManpowerInvariant(pack, state.i, populationRate);
     }
   }
 }
@@ -338,11 +397,18 @@ export function fillRegimentFromManpower(
 ): void {
   if (r.n || r.a >= r.t || deltaYears <= 0) return;
 
+  // Ensure home province is set for older regiments
+  if (r.homeProvince === undefined && pack.cells.province) {
+    r.homeProvince = pack.cells.province[r.cell] ?? 0;
+  }
+
   const want = Math.min(r.t - r.a, r.t * RECOVERY_RATE_PER_YEAR * deltaYears);
   if (want <= 0) return;
 
   const needPts = troopsToPoints(want, populationRate);
-  const gotPts = removeCivilianMalePoints(pack, state.i, needPts);
+  const gotPts = removeCivilianMalePoints(pack, state.i, needPts, {
+    preferredProvince: r.homeProvince
+  });
   const got = pointsToTroops(gotPts, populationRate);
   if (got <= 0) return;
 
@@ -384,4 +450,49 @@ export function markStatesNeedManpowerReconcile(pack: PackedGraph, populationRat
 
 export function isManpowerSimEnabled(): boolean {
   return useOptionsState.getState().simManpower;
+}
+
+/**
+ * Soft invariant check (docs/plan/military/manpower-ecosystem.md §11).
+ * under-arms headcount must not exceed war max levy of the male stock by much.
+ * Returns true when OK; logs a warning in DEV when violated.
+ */
+export function assertManpowerInvariant(
+  pack: PackedGraph,
+  stateId: number,
+  populationRate = worldContext.populationRate,
+  epsilonPeople = 5
+): boolean {
+  const state = pack.states[stateId];
+  if (!state?.i || state.removed) return true;
+
+  const civilianPts = sumCivilianMalePoints(pack, stateId);
+  const underArmsPts = troopsToPoints(currentLandTroops(state), populationRate);
+  const stockPts = civilianPts + underArmsPts;
+  const maxUnder = stockPts * WAR_MAX_LEVY_OF_MALE_ADULTS + troopsToPoints(epsilonPeople, populationRate);
+
+  if (underArmsPts > maxUnder + 1e-6) {
+    if (import.meta.env.DEV) {
+      console.warn(
+        `[manpower] state ${stateId} under-arms ${pointsToTroops(underArmsPts, populationRate).toFixed(0)} exceeds ` +
+          `max levy of male stock ${pointsToTroops(maxUnder, populationRate).toFixed(0)}`
+      );
+    }
+    return false;
+  }
+  return true;
+}
+
+/** Scale every land regiment's a/t/u by `multiplier` (e.g. historical war scars). */
+export function scaleLandMilitary(state: State, multiplier: number): void {
+  if (!state.military || multiplier >= 1) return;
+  const m = Math.max(0, multiplier);
+  for (const r of state.military) {
+    if (r.n) continue;
+    for (const u of Object.keys(r.u)) {
+      r.u[u] = (r.u[u] ?? 0) * m;
+    }
+    r.a *= m;
+    r.t *= m;
+  }
 }

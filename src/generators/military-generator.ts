@@ -525,7 +525,9 @@ class MilitaryModule {
         type: opts.n ? "naval" : dominantUnitType(units),
         name: "",
         state: s.i,
-        isCapitalGuard: opts.isCapitalGuard
+        isCapitalGuard: opts.isCapitalGuard,
+        // Manpower fill prefers this province (cells.province; 0 = statewide)
+        homeProvince: pack.cells.province?.[anchor.cell] ?? 0
       };
     };
 

@@ -3,11 +3,13 @@ import { worldContext } from "../context/worldContext";
 import type { Burg, MilitaryRegiment, State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import {
+  assertManpowerInvariant,
   currentLandTroops,
   effectiveTroopTarget,
   fillRegimentFromManpower,
   reconcileStateManpower,
   removeCivilianMalePoints,
+  scaleLandMilitary,
   sumCivilianMalePoints,
   tickManpower,
   troopsToPoints
@@ -17,6 +19,7 @@ function makePack(): PackedGraph {
   const cells = {
     i: [0, 1, 2],
     state: [0, 1, 1],
+    province: [0, 5, 9],
     pop: [0, 100, 50],
     maleAdults: new Float32Array([0, 22, 11]),
     femaleAdults: new Float32Array([0, 23, 12]),
@@ -147,5 +150,37 @@ describe("manpower ledger", () => {
     // policy target would be 10_000 people; with ~0 males physical cap ≈ 0
     expect(target).toBeLessThan(1);
     expect(sumCivilianMalePoints(pack, 1)).toBeCloseTo(0, 5);
+  });
+
+  it("preferred province takes a larger share of the draft", () => {
+    const pack = worldContext.pack as PackedGraph;
+    const maleBefore5 = pack.cells.maleAdults[1]; // province 5
+    const maleBefore9 = pack.cells.maleAdults[2]; // province 9
+    removeCivilianMalePoints(pack, 1, 10, { preferredProvince: 5 });
+    const lost5 = maleBefore5 - pack.cells.maleAdults[1];
+    const lost9 = maleBefore9 - pack.cells.maleAdults[2];
+    expect(lost5).toBeGreaterThan(lost9);
+  });
+
+  it("scaleLandMilitary shrinks land regiments only", () => {
+    const pack = worldContext.pack as PackedGraph;
+    const state = pack.states[1];
+    const r = state.military![0];
+    r.a = 1000;
+    r.t = 1000;
+    r.u = { infantry: 1000 };
+    scaleLandMilitary(state, 0.9);
+    expect(r.a).toBeCloseTo(900);
+    expect(r.t).toBeCloseTo(900);
+    expect(r.u.infantry).toBeCloseTo(900);
+  });
+
+  it("assertManpowerInvariant fails when under-arms exceed war max levy", () => {
+    const pack = worldContext.pack as PackedGraph;
+    const state = pack.states[1];
+    removeCivilianMalePoints(pack, 1, 1e9);
+    state.military![0].a = 50_000;
+    state.military![0].t = 50_000;
+    expect(assertManpowerInvariant(pack, 1, 1000)).toBe(false);
   });
 });

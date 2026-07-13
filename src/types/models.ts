@@ -376,6 +376,11 @@ export interface MilitaryRegiment {
   angle?: number;
   /** State id of the vassal territory this regiment is garrisoned in, if not stationed at home. */
   garrisonHost?: number;
+  /**
+   * Primary recruitment province for manpower fill/draft (docs/plan/military/manpower-ecosystem.md §4.2).
+   * Set at Military.generate from the spawn anchor cell; 0 = no province / statewide pool.
+   */
+  homeProvince?: number;
   /** True for the state's dedicated capital guard regiment (never merged with field armies). */
   isCapitalGuard?: boolean;
   /** pack.characters id of the officer commanding this regiment, if one has been assigned. */

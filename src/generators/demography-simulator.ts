@@ -2,7 +2,7 @@ import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import { applyFoodStressToDemographics } from "./agriculturalStress";
 import { Burgs } from "./burgs-generator";
-import { isManpowerSimEnabled } from "./manpower";
+import { isManpowerSimEnabled, scaleLandMilitary } from "./manpower";
 import { recordDeaths } from "./populationLossTracker";
 
 export interface DemographicsSimulationResult {
@@ -292,15 +292,18 @@ export function applyDemographicCasualties(stateId: number, deadTroops: number):
 }
 
 /**
- * Applies historical war scars to population generated at map start.
+ * Applies historical war scars to population (and military) generated at map start.
  * Scans state history for major wars in the last 30 years and applies a flat
  * 3% - 5% casualty rate to maleAdults and elders to create a "widow village" effect.
+ * When simManpower is on, land regiments are scaled by the same multiplier so army
+ * size stays consistent with the scarred male pool (manpower-ecosystem §6.1).
  */
 export function applyHistoricalWarScars(): void {
   const { pack, options } = worldContext;
   if (!pack?.cells || !pack.burgs || !pack.states) return;
 
   const currentYear = options.year || 1000;
+  const manpowerOn = isManpowerSimEnabled();
 
   for (const state of pack.states) {
     if (!state.i || state.removed || !state.campaigns) continue;
@@ -340,6 +343,11 @@ export function applyHistoricalWarScars(): void {
           burg.demographics.elders *= multiplier;
           burg.population -= maleAdultsLost + eldersLost;
         }
+      }
+
+      // Under-strength armies after recent wars (same rate as civilian male scars)
+      if (manpowerOn) {
+        scaleLandMilitary(state, multiplier);
       }
     }
   }

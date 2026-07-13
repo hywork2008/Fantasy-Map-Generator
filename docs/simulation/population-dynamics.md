@@ -34,8 +34,10 @@ FMGのコアエンジンがバイオームや地形から算出する初期人�
 その期間内に国家間で戦争が行われていた場合、**「成人男性」のバケツからのみ**直接的な戦死者（例: 動員数の10〜30%）を引き算します。
 これにより、人口ピラミッドがいびつ（女性・老人余り）になります。
 
-> **拡張設計**: 兵力台帳との整合は `docs/plan/military/manpower-ecosystem.md`。  
-> 春／秋の戦争→食料不足→性別を問わない餓死は同ドキュメント §18（`foodStress`）。
+> **実装済み連携**: 兵力台帳（民間男 ↔ 在営）・徴兵/補充・戦死者 Overview 集計は
+> `docs/plan/military/manpower-ecosystem.md` と `src/generators/manpower.ts`。  
+> 春／秋の戦争→食料不足→餓死は同ドキュメント §18（`foodStress` / `agriculturalStress.ts`）。  
+> 生成時の戦傷（`applyHistoricalWarScars`）は民間 male に加え、manpower ON 時は陸上連隊も同率で縮小する。
 
 ### 3.3 出生と自然死（ロジスティック成長）
 出生数は「成人の総数」ではなく、**「成人女性の数」**に依存して計算されます。

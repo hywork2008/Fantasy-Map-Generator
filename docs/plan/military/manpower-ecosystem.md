@@ -1,7 +1,7 @@
 # 兵力・男女比・都市人口の統合エコシステム設計
 
-**Status**: partial implementation（2026-07-13）— Phase 1/2/4 のコアループを実装済み。日次 Advance 向けの機能トグル付き。  
-**Date**: 2026-07-13（§18 農業・季節戦争を追記 / 実装着手）  
+**Status**: partial implementation（2026-07-14）— Phase 0–4 の主要部分を実装。Phase 5 は未着手。  
+**Date**: 2026-07-13（§18 農業）/ 2026-07-14（Phase 0/2 戦傷連動 / Phase 3 homeProvince）  
 **Related**:
 
 | Doc / Code | Relation |
@@ -544,32 +544,34 @@ Economy の `warIntensity`（`docs/plan/economy-war.md`）は **一般的な戦�
 
 ## 13. フェーズ計画（実装は別タスク）
 
-### Phase 0 — 計測と不変条件（低リスク）
+### Phase 0 — 計測と不変条件（低リスク） ✅（粗い）
 
-- 現状の `Σ r.a` と `Σ maleAdults * populationRate` の比をデバッグ出力
-- 戦闘前後で人口・兵数がどうズレるかシナリオ記録
-- 単位系ドキュメントを `docs/simulation/population-dynamics.md` に追記リンク
+- `assertManpowerInvariant`（DEV で tick ごとに under-arms ≤ war max levy of male stock）
+- `docs/simulation/population-dynamics.md` に実装リンク追記
+- Population Overview（Living / Deaths）で戦闘前後の人数を手で確認可能
 
 ### Phase 1 — 台帳の導入（コア） ✅
 
 - `src/generators/manpower.ts` + State 集計 / reconcile
 - 徴兵時に civilian male を減らす（generate reconcile + `tickManpower` fill）
 - `applyDemographicCasualties` は simManpower 時に民間二重削りしない
+- combat 計上: battle screen / local skirmish / siege resolution
 - 単体テストあり
 
-### Phase 2 — 目標と上限の統合 ✅（粗い）
+### Phase 2 — 目標と上限の統合 ✅
 
 - `targetRate` vs `maxLevyRate` の min（`effectiveTroopTarget`）
-- 平和時 demobilize（`tickManpower`）
-- Historical war scars は従来どおり人口のみ（兵力圧縮は未連動）
+- 平和時 demobilize + 軽微 wastage（`ANNUAL_NATURAL_WASTAGE` → Deaths “other”）
+- **Historical war scars**: 民間 male/elders と同率で陸上連隊を `scaleLandMilitary`（manpower ON 時）
 - Nobility `Mobilization.conscript` は simManpower 時 no-op（core が担当）
 - Options: `simManpower` / `simDemographics` / `simAgriculture` / `simMilitaryRecovery`
 
-### Phase 3 — 地理配分の改善
+### Phase 3 — 地理配分の改善 ✅（粗い）
 
-- province 徴兵区
-- rural/urban weight 見直し（現状 rural:urban = 1:1.5 の粗い按分）
-- `homeProvince` による補充元
+- 徴兵ウェイト: rural 1.0 / urban 1.5 / fort 0.2
+- `MilitaryRegiment.homeProvince` を generate 時に anchor cell の province から設定
+- fill / demobilize は `preferredProvince: homeProvince` で ×3 バイアス
+- 州単位の独立 ledger オブジェクトは持たず、重み付き按分で代替（パフォーマンス優先）
 
 ### Phase 4 — 農業 Disruption（§18） ✅（粗い）
 
@@ -577,6 +579,7 @@ Economy の `warIntensity`（`docs/plan/economy-war.md`）は **一般的な戦�
 - core: 人口フェーズへの餓死者相当（`applyFoodStressToDemographics`）
 - Economy ON: food 生産倍率・`getWarPriceModifier` に foodStress 加算
 - 緯度 `seasonalityStrength` で赤道を弱める
+- Living タブに Food stress 列
 
 ### Phase 5 — 拡張接続
 
