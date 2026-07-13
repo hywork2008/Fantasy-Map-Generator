@@ -132,6 +132,34 @@ export const SimulationSettingsTab: React.FC = () => {
               />
             </td>
           </tr>
+          <tr data-tip="New recruits dilute regiment quality; combat power scales with quality (green troops fight poorly)">
+            <td />
+            <td>
+              <label htmlFor="recruitQualityEnabled">Recruit quality</label>
+            </td>
+            <td colSpan={2}>
+              <input
+                id="recruitQualityEnabled"
+                type="checkbox"
+                checked={options.recruitQualityEnabled}
+                onChange={e => updateOption("recruitQualityEnabled", e.target.checked)}
+              />
+            </td>
+          </tr>
+          <tr data-tip="When male adults are scarce, draft a limited share of adult females into under-arms (experimental)">
+            <td />
+            <td>
+              <label htmlFor="femaleLevyEnabled">Female levy</label>
+            </td>
+            <td colSpan={2}>
+              <input
+                id="femaleLevyEnabled"
+                type="checkbox"
+                checked={options.femaleLevyEnabled}
+                onChange={e => updateOption("femaleLevyEnabled", e.target.checked)}
+              />
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>

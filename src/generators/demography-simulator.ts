@@ -2,7 +2,7 @@ import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import { applyFoodStressToDemographics } from "./agriculturalStress";
 import { Burgs } from "./burgs-generator";
-import { isManpowerSimEnabled, scaleLandMilitary } from "./manpower";
+import { applyWoundedReturn, isManpowerSimEnabled, scaleLandMilitary } from "./manpower";
 import { recordDeaths } from "./populationLossTracker";
 
 export interface DemographicsSimulationResult {
@@ -250,8 +250,12 @@ export function applyDemographicCasualties(stateId: number, deadTroops: number):
   const { pack, populationRate } = worldContext;
   if (!pack?.cells || !pack.burgs) return;
 
-  // Manpower ledger: under-arms already shrank with regiment.a; civilians were deducted at draft.
-  if (isManpowerSimEnabled()) return;
+  // Phase 5: a share of combat dead return home as wounded civilians (not combat-effective)
+  if (isManpowerSimEnabled()) {
+    applyWoundedReturn(pack, stateId, deadTroops, populationRate);
+    // Under-arms already shrank with regiment.a; bulk of civilians were deducted at draft.
+    return;
+  }
 
   const deadPopPoints = deadTroops / populationRate;
 

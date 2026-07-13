@@ -46,6 +46,16 @@ export interface OptionsState {
   simAgriculture: boolean;
   /** Regiment a→t recovery / dead-regiment cleanup (uses manpower pool when simManpower). */
   simMilitaryRecovery: boolean;
+  /**
+   * When true (and simManpower on), scarce male pools may draft a limited share of adult
+   * females (manpower-ecosystem Phase 5). Default off.
+   */
+  femaleLevyEnabled: boolean;
+  /**
+   * When true, new recruits dilute regiment.quality and combat power scales by quality.
+   * Default on with the manpower ledger.
+   */
+  recruitQualityEnabled: boolean;
   warFrequency: number;
   diplomacyHistoryAttempts: number;
 
@@ -151,6 +161,8 @@ export const useOptionsState = create<OptionsState>(set => ({
   simManpower: true,
   simAgriculture: true,
   simMilitaryRecovery: true,
+  femaleLevyEnabled: false,
+  recruitQualityEnabled: true,
   warFrequency: 1.0,
   diplomacyHistoryAttempts: 1,
 

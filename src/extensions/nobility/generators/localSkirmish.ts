@@ -1,6 +1,7 @@
 import { appServices } from "../../../context/appServices";
 import { simulationContext } from "../../../context/simulationContext";
 import { applyDemographicCasualties } from "../../../generators/demography-simulator";
+import { regimentQualityMultiplier } from "../../../generators/manpower";
 import { buildSeaRouteGraph, findSeaRouteDistance, type SeaRouteGraph } from "../../../generators/seaRouteGraph";
 import type { Burg, ChronicleEvent, MilitaryRegiment, MilitaryUnit, State } from "../../../types/models";
 import type { PackedGraph } from "../../../types/PackedGraph";
@@ -98,7 +99,8 @@ function calculateRegimentPower(reg: MilitaryRegiment, militaryOptions: Military
       power += reg.u[name] * unit.power;
     }
   }
-  return power;
+  // Phase 5: green recruits fight below paper strength
+  return power * regimentQualityMultiplier(reg);
 }
 
 /** Apply attrition; returns headcount killed. */

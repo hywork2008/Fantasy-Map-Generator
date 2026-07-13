@@ -38,6 +38,18 @@ export const URBAN_LEVY_WEIGHT = 1.5;
 export const FORT_LEVY_WEIGHT = 0.2;
 /** Extra weight multiplier when drawing from a regiment's home province. */
 export const HOME_PROVINCE_LEVY_BONUS = 3;
+/** Fraction of combat dead who return to civilian life as wounded (Phase 5). */
+export const WOUNDED_RETURN_RATE = 0.1;
+/** Quality assigned to brand-new recruits (1 = veteran standing army). */
+export const GREEN_RECRUIT_QUALITY = 0.55;
+/** foodStress (0..1.5) contribution to draft efficiency penalty at max stress. */
+export const FOOD_STRESS_DRAFT_PENALTY = 0.45;
+/** supplyStrain (0..1) contribution to draft efficiency penalty at max strain. */
+export const SUPPLY_STRAIN_DRAFT_PENALTY = 0.4;
+/** How much draft efficiency also shrinks physical max levy. */
+export const DRAFT_EFFICIENCY_ON_MAX_LEVY = 0.5;
+/** When female levy is on, max share of female adults that may be drafted per request. */
+export const FEMALE_LEVY_MAX_SHARE = 0.15;
 
 export interface MaleDraftOptions {
   /** Prefer cells/burgs in this province when skimming males (0 = no preference). */
@@ -184,20 +196,22 @@ export function addCivilianMalePoints(
   if (points <= 0) return 0;
 
   const { cells, burgs } = pack;
+  if (!cells?.i?.length) return 0;
   const preferred = options?.preferredProvince ?? 0;
   type Slot = { kind: "cell" | "burg"; id: number; weight: number };
   const slots: Slot[] = [];
   let weightSum = 0;
 
   for (let i = 0; i < cells.i.length; i++) {
-    if (cells.state[i] !== stateId || cells.pop[i] <= 0) continue;
+    if (cells.state[i] !== stateId || (cells.pop?.[i] ?? 0) <= 0) continue;
     const province = cells.province?.[i] ?? 0;
     let w = cells.pop[i] * RURAL_LEVY_WEIGHT;
     if (preferred && province === preferred) w *= HOME_PROVINCE_LEVY_BONUS;
     slots.push({ kind: "cell", id: i, weight: w });
     weightSum += w;
   }
-  for (const burg of burgs) {
+  const burgList = Array.isArray(burgs) ? burgs : [];
+  for (const burg of burgList) {
     if (!burg?.i || burg.removed || burg.state !== stateId) continue;
     const pop = burg.population ?? 0;
     if (pop <= 0) continue;
@@ -215,10 +229,10 @@ export function addCivilianMalePoints(
   for (const slot of slots) {
     const share = (slot.weight / weightSum) * points;
     if (slot.kind === "cell") {
-      cells.maleAdults[slot.id] = (cells.maleAdults[slot.id] ?? 0) + share;
-      cells.pop[slot.id] += share;
+      if (cells.maleAdults) cells.maleAdults[slot.id] = (cells.maleAdults[slot.id] ?? 0) + share;
+      if (cells.pop) cells.pop[slot.id] = (cells.pop[slot.id] ?? 0) + share;
     } else {
-      const burg = burgs[slot.id];
+      const burg = burgList[slot.id] ?? burgs?.[slot.id];
       if (!burg.demographics) {
         burg.demographics = {
           capacity: burg.population ?? share,
@@ -265,19 +279,46 @@ export function getTargetMobilizationRatio(state: State): number {
 }
 
 export function getMaxLevyRate(state: State): number {
+  let base: number;
   if (hostilePowerFromIntel(state) > currentLandTroops(state) || (state.alert ?? 0) >= 2) {
-    return WAR_MAX_LEVY_OF_MALE_ADULTS;
+    base = WAR_MAX_LEVY_OF_MALE_ADULTS;
+  } else if (stateHasEnemy(state)) {
+    base = (MAX_LEVY_OF_MALE_ADULTS + WAR_MAX_LEVY_OF_MALE_ADULTS) / 2;
+  } else {
+    base = MAX_LEVY_OF_MALE_ADULTS;
   }
-  if (stateHasEnemy(state)) return (MAX_LEVY_OF_MALE_ADULTS + WAR_MAX_LEVY_OF_MALE_ADULTS) / 2;
-  return MAX_LEVY_OF_MALE_ADULTS;
+  // Supply/food stress trims how hard a state can push its male pool
+  const eff = getDraftEfficiency(state);
+  return base * (1 - DRAFT_EFFICIENCY_ON_MAX_LEVY * (1 - eff));
+}
+
+/**
+ * 0..1 how well the state can equip and feed new levies.
+ * Combines foodStress (agriculture) and supplyStrain (Economy war logistics when set).
+ */
+export function getDraftEfficiency(state: State): number {
+  const food = Math.min(1, (state.foodStress ?? 0) / 1.5);
+  const supply = Math.min(1, Math.max(0, state.supplyStrain ?? 0));
+  const penalty = FOOD_STRESS_DRAFT_PENALTY * food + SUPPLY_STRAIN_DRAFT_PENALTY * supply;
+  return Math.max(0.15, 1 - penalty);
+}
+
+/** Regiment combat multiplier from recruit quality (1 if feature off / unset). */
+export function regimentQualityMultiplier(regiment: MilitaryRegiment): number {
+  if (!useOptionsState.getState().recruitQualityEnabled) return 1;
+  const q = regiment.quality;
+  if (q === undefined || q === null || !Number.isFinite(q)) return 1;
+  return Math.max(0.2, Math.min(1.2, q));
 }
 
 /**
  * Effective troop ceiling: min(population policy target, male physical cap including men already under arms).
+ * Policy target is also scaled by draft efficiency (harder to *raise* ceilings under famine/war strain).
  */
 export function effectiveTroopTarget(pack: PackedGraph, state: State, populationRate: number): number {
   const people = statePopulationPeople(state);
-  const policyTroops = people * getTargetMobilizationRatio(state);
+  const eff = getDraftEfficiency(state);
+  const policyTroops = people * getTargetMobilizationRatio(state) * (0.5 + 0.5 * eff);
 
   const civilianPts = sumCivilianMalePoints(pack, state.i);
   const underArmsPts = troopsToPoints(currentLandTroops(state), populationRate);
@@ -402,15 +443,32 @@ export function fillRegimentFromManpower(
     r.homeProvince = pack.cells.province[r.cell] ?? 0;
   }
 
-  const want = Math.min(r.t - r.a, r.t * RECOVERY_RATE_PER_YEAR * deltaYears);
+  const eff = getDraftEfficiency(state);
+  const want = Math.min(r.t - r.a, r.t * RECOVERY_RATE_PER_YEAR * deltaYears * eff);
   if (want <= 0) return;
 
   const needPts = troopsToPoints(want, populationRate);
-  const gotPts = removeCivilianMalePoints(pack, state.i, needPts, {
+  let gotPts = removeCivilianMalePoints(pack, state.i, needPts, {
     preferredProvince: r.homeProvince
   });
+
+  // Optional female levy when male pool is short (Phase 5)
+  if (gotPts + 1e-9 < needPts && useOptionsState.getState().femaleLevyEnabled && isManpowerSimEnabled()) {
+    const shortfall = needPts - gotPts;
+    gotPts += removeCivilianFemalePoints(pack, state.i, shortfall * FEMALE_LEVY_MAX_SHARE, {
+      preferredProvince: r.homeProvince
+    });
+  }
+
   const got = pointsToTroops(gotPts, populationRate);
   if (got <= 0) return;
+
+  // Blend quality: veterans keep strength, green recruits pull it down
+  if (useOptionsState.getState().recruitQualityEnabled) {
+    const oldQ = r.quality ?? 1;
+    const oldA = Math.max(0, r.a);
+    r.quality = (oldQ * oldA + GREEN_RECRUIT_QUALITY * got) / (oldA + got);
+  }
 
   // Distribute into unit composition by current ratios (or dump into a single key)
   const unitKeys = Object.keys(r.u);
@@ -429,6 +487,80 @@ export function fillRegimentFromManpower(
     for (const key of Object.keys(r.u)) r.u[key] = (r.u[key] ?? 0) * scale;
     r.a = r.t;
   }
+}
+
+/**
+ * Limited female draft for optional femaleLevyEnabled. Returns points actually removed.
+ */
+export function removeCivilianFemalePoints(
+  pack: PackedGraph,
+  stateId: number,
+  points: number,
+  options?: MaleDraftOptions
+): number {
+  if (points <= 0) return 0;
+  const { cells, burgs } = pack;
+  const preferred = options?.preferredProvince ?? 0;
+  type Slot = { kind: "cell" | "burg"; id: number; female: number; weight: number };
+  const slots: Slot[] = [];
+  let weighted = 0;
+
+  for (let i = 0; i < cells.i.length; i++) {
+    if (cells.state[i] !== stateId) continue;
+    const female = cells.femaleAdults?.[i] ?? 0;
+    if (female <= 0) continue;
+    const province = cells.province?.[i] ?? 0;
+    let w = female * RURAL_LEVY_WEIGHT;
+    if (preferred && province === preferred) w *= HOME_PROVINCE_LEVY_BONUS;
+    slots.push({ kind: "cell", id: i, female, weight: w });
+    weighted += w;
+  }
+  for (const burg of burgs ?? []) {
+    if (!burg?.i || burg.removed || burg.state !== stateId || !burg.demographics) continue;
+    const female = burg.demographics.femaleAdults;
+    if (female <= 0) continue;
+    if (burg.group === "fort") continue; // forts stay male-skewed bases
+    const province = cells.province?.[burg.cell] ?? 0;
+    let w = female * URBAN_LEVY_WEIGHT;
+    if (preferred && province === preferred) w *= HOME_PROVINCE_LEVY_BONUS;
+    slots.push({ kind: "burg", id: burg.i, female, weight: w });
+    weighted += w;
+  }
+  if (weighted <= 0) return 0;
+
+  const totalFemale = slots.reduce((s, x) => s + x.female, 0);
+  let remaining = Math.min(points, totalFemale);
+  let removed = 0;
+  for (const slot of slots) {
+    if (remaining <= 0) break;
+    const share = (slot.weight / weighted) * Math.min(points, totalFemale);
+    const actual = Math.min(slot.female, share, remaining);
+    if (actual <= 0) continue;
+    if (slot.kind === "cell") {
+      if (cells.femaleAdults) cells.femaleAdults[slot.id] -= actual;
+      cells.pop[slot.id] = Math.max(0, cells.pop[slot.id] - actual);
+    } else {
+      const burg = burgs[slot.id];
+      if (!burg.demographics) continue;
+      burg.demographics.femaleAdults -= actual;
+      burg.population = Math.max(0, (burg.population ?? 0) - actual);
+    }
+    removed += actual;
+    remaining -= actual;
+  }
+  return removed;
+}
+
+/** Return a fraction of combat dead to civilian males as wounded (not under arms). */
+export function applyWoundedReturn(
+  pack: PackedGraph,
+  stateId: number,
+  deadTroops: number,
+  populationRate: number
+): void {
+  if (deadTroops <= 0 || WOUNDED_RETURN_RATE <= 0 || !pack?.cells?.i?.length) return;
+  const returned = deadTroops * WOUNDED_RETURN_RATE;
+  addCivilianMalePoints(pack, stateId, troopsToPoints(returned, populationRate));
 }
 
 /**

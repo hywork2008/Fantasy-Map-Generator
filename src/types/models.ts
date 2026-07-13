@@ -328,6 +328,11 @@ export interface State {
   agricultureCarryOver?: number;
   /** Calendar year the exposure buffers belong to. */
   agricultureYear?: number;
+  /**
+   * 0..1 wartime supply strain (Economy warIntensity / food logistics).
+   * Core derives draft/recovery penalties from this + foodStress when set.
+   */
+  supplyStrain?: number;
 }
 
 export interface Zone {
@@ -381,6 +386,11 @@ export interface MilitaryRegiment {
    * Set at Military.generate from the spawn anchor cell; 0 = no province / statewide pool.
    */
   homeProvince?: number;
+  /**
+   * Combat effectiveness 0..1 (1 = fully trained). Fresh recruits dilute quality
+   * (manpower-ecosystem Phase 5). Omitted/undefined treated as 1 for legacy data.
+   */
+  quality?: number;
   /** True for the state's dedicated capital guard regiment (never merged with field armies). */
   isCapitalGuard?: boolean;
   /** pack.characters id of the officer commanding this regiment, if one has been assigned. */

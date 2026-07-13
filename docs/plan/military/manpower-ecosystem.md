@@ -1,7 +1,7 @@
 # 兵力・男女比・都市人口の統合エコシステム設計
 
-**Status**: partial implementation（2026-07-14）— Phase 0–4 の主要部分を実装。Phase 5 は未着手。  
-**Date**: 2026-07-13（§18 農業）/ 2026-07-14（Phase 0/2 戦傷連動 / Phase 3 homeProvince）  
+**Status**: implemented through Phase 5（粗い・2026-07-14）。定数チューニングと Phase 5 の細部は継続可。  
+**Date**: 2026-07-13（§18）/ 2026-07-14（Phase 0–5）  
 **Related**:
 
 | Doc / Code | Relation |
@@ -581,13 +581,14 @@ Economy の `warIntensity`（`docs/plan/economy-war.md`）は **一般的な戦�
 - 緯度 `seasonalityStrength` で赤道を弱める
 - Living タブに Food stress 列
 
-### Phase 5 — 拡張接続
+### Phase 5 — 拡張接続 ✅（粗い）
 
-- Economy: 戦時給養不足 → draft 効率・maxLevy 低下
-- fort 表示と駐留連隊の視覚的対応
-- 女性徴兵オプション、傷病兵帰還
-- 新兵質（訓練不足 power ペナルティ）— strategy.md の将来項目
-- 作付け失敗 → 翌年の capacity 微減（任意・長期）
+- **Supply / draft efficiency**: `state.supplyStrain`（Economy が warIntensity 平均から 0..1 を書く）+ `foodStress` → `getDraftEfficiency` が補充速度・政策兵力・maxLevy を低下
+- **新兵質**: `MilitaryRegiment.quality`（生成時 1）。fill で緑兵 0.55 と加重平均。小競り合い・包囲 power に `regimentQualityMultiplier` を適用。Options: `recruitQualityEnabled`
+- **傷病帰還**: combat 死の 10% を民間 male に戻す（`applyWoundedReturn` / `WOUNDED_RETURN_RATE`）
+- **女性徴兵**: Options `femaleLevyEnabled`（既定 OFF）。male 不足時に female の一部を draft
+- **作付け失敗 → capacity**: `foodStress > 0.55` の年確定時に cell/burg capacity を最大 ~8% 削減
+- **砦ツールチップ**: fort グループに on-site / nearby 陸上兵力を表示
 
 ### 非目標（明示的にやらない）
 

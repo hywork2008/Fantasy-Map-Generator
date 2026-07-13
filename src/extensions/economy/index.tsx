@@ -676,9 +676,10 @@ export function init(api: ExtensionAPI): void {
       }
     }
 
-    // Update war duration and intensity for burgs
+    // Update war duration and intensity for burgs; roll up supplyStrain onto states for manpower draft
     const ledgers = getWorldContext().pack.burgMarketLedgers;
     const burgs = getWorldContext().pack.burgs;
+    const supplyByState = new Map<number, { sum: number; n: number }>();
     if (ledgers && burgs) {
       for (const ledger of ledgers) {
         const burg = burgs[ledger.burgId];
@@ -694,6 +695,21 @@ export function init(api: ExtensionAPI): void {
             ledger.warDurationTicks = 0;
           }
         }
+
+        if (burg.state && ledger.warIntensity) {
+          const entry = supplyByState.get(burg.state) ?? { sum: 0, n: 0 };
+          entry.sum += ledger.warIntensity;
+          entry.n += 1;
+          supplyByState.set(burg.state, entry);
+        }
+      }
+    }
+    // Manpower Phase 5: 0..1 supply strain from average burg warIntensity (cap 2.5 → 1.0)
+    if (states) {
+      for (const state of states) {
+        if (!state?.i || state.removed) continue;
+        const entry = supplyByState.get(state.i);
+        state.supplyStrain = entry && entry.n > 0 ? Math.min(1, entry.sum / entry.n / 2.5) : 0;
       }
     }
 

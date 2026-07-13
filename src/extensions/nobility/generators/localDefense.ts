@@ -1,3 +1,4 @@
+import { regimentQualityMultiplier } from "../../../generators/manpower";
 import { findSeaRouteDistance, type SeaRouteGraph } from "../../../generators/seaRouteGraph";
 import type { Burg, MilitaryRegiment, MilitaryUnit } from "../../../types/models";
 import type { PackedGraph } from "../../../types/PackedGraph";
@@ -125,7 +126,8 @@ export function calculateEffectiveSiegePower(
   isFortified: boolean,
   militaryOptions: MilitaryUnit[]
 ): number {
-  if (!isFortified) return regiment.a; // Field battles use raw headcount
+  const quality = regimentQualityMultiplier(regiment);
+  if (!isFortified) return regiment.a * quality; // Field battles use headcount × recruit quality
 
   let power = 0;
   for (const [name, amount] of Object.entries(regiment.u || {})) {
@@ -151,5 +153,5 @@ export function calculateEffectiveSiegePower(
     }
     power += amount * multiplier;
   }
-  return power;
+  return power * quality;
 }

@@ -278,6 +278,33 @@ export const PopulationOverviewDialog: React.FC = () => {
                       numeric
                       tip="Agricultural food stress 0–1.5 from spring/autumn war disruption"
                     />
+                    <SortableHeader
+                      label="Supply"
+                      field="supplyStrain"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={toggleSortBy}
+                      numeric
+                      tip="0–1 wartime supply strain (Economy warIntensity when enabled)"
+                    />
+                    <SortableHeader
+                      label="Draft%"
+                      field="draftEfficiency"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={toggleSortBy}
+                      numeric
+                      tip="How well the state can equip/feed new levies (food + supply)"
+                    />
+                    <SortableHeader
+                      label="Qual"
+                      field="meanQuality"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={toggleSortBy}
+                      numeric
+                      tip="Mean land regiment quality (1=veteran, green recruits lower this)"
+                    />
                   </tr>
                 </thead>
                 <tbody>
@@ -309,6 +336,9 @@ export const PopulationOverviewDialog: React.FC = () => {
                       <td className="total">{fmtPct(r.mobilizationPct)}</td>
                       <td className="total">{fmtPct(r.adultMalePct)}</td>
                       <td className="total">{rn(r.foodStress, 2)}</td>
+                      <td className="total">{rn(r.supplyStrain, 2)}</td>
+                      <td className="total">{fmtPct(r.draftEfficiency * 100)}</td>
+                      <td className="total">{rn(r.meanQuality, 2)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -347,6 +377,9 @@ export const PopulationOverviewDialog: React.FC = () => {
                     <td className="total">
                       <strong>{fmtPct(worldAdultMalePct)}</strong>
                     </td>
+                    <td className="total">—</td>
+                    <td className="total">—</td>
+                    <td className="total">—</td>
                     <td className="total">—</td>
                   </tr>
                 </tfoot>

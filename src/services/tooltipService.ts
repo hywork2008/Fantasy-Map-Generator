@@ -162,7 +162,23 @@ export function showMapTooltip(point: [number, number], e: MouseEvent, i: number
     if (burgId) {
       const burg = worldContext.pack.burgs[burgId];
       const population = si((burg.population ?? 0) * worldContext.populationRate * worldContext.urbanization);
-      tip(`${burg.name} ${burg.group}. Population: ${population}. Click to edit`);
+      let garrisonNote = "";
+      if (burg.group === "fort" && burg.state) {
+        // Phase 5: show land troops stationed on / near this fort cell
+        const state = worldContext.pack.states[burg.state];
+        const garrison =
+          state?.military?.filter(r => !r.n && r.cell === burg.cell).reduce((sum, r) => sum + (r.a || 0), 0) ?? 0;
+        if (garrison > 0) {
+          garrisonNote = ` Garrison on site: ${si(Math.round(garrison))}.`;
+        } else {
+          const nearby =
+            state?.military
+              ?.filter(r => !r.n && Math.hypot(r.x - burg.x, r.y - burg.y) < 15)
+              .reduce((sum, r) => sum + (r.a || 0), 0) ?? 0;
+          if (nearby > 0) garrisonNote = ` Nearby troops: ${si(Math.round(nearby))}.`;
+        }
+      }
+      tip(`${burg.name} ${burg.group}. Population: ${population}.${garrisonNote} Click to edit`);
       const burgsOverviewEl = getVisibleDialogElement("burgsOverview");
       if (burgsOverviewEl) highlightEditorLine(burgsOverviewEl, burgId, 5000);
       return;

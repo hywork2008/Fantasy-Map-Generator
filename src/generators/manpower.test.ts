@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
 import type { Burg, MilitaryRegiment, State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import {
@@ -7,7 +8,10 @@ import {
   currentLandTroops,
   effectiveTroopTarget,
   fillRegimentFromManpower,
+  GREEN_RECRUIT_QUALITY,
+  getDraftEfficiency,
   reconcileStateManpower,
+  regimentQualityMultiplier,
   removeCivilianMalePoints,
   scaleLandMilitary,
   sumCivilianMalePoints,
@@ -182,5 +186,34 @@ describe("manpower ledger", () => {
     state.military![0].a = 50_000;
     state.military![0].t = 50_000;
     expect(assertManpowerInvariant(pack, 1, 1000)).toBe(false);
+  });
+
+  it("getDraftEfficiency falls with foodStress and supplyStrain", () => {
+    const pack = worldContext.pack as PackedGraph;
+    const state = pack.states[1];
+    state.foodStress = 0;
+    state.supplyStrain = 0;
+    expect(getDraftEfficiency(state)).toBeCloseTo(1, 5);
+    state.foodStress = 1.5;
+    state.supplyStrain = 1;
+    expect(getDraftEfficiency(state)).toBeLessThan(0.3);
+  });
+
+  it("fillRegimentFromManpower dilutes quality with green recruits", () => {
+    useOptionsState.getState().setOption("recruitQualityEnabled", true);
+    useOptionsState.getState().setOption("simManpower", true);
+    const pack = worldContext.pack as PackedGraph;
+    const state = pack.states[1];
+    const r = state.military![0];
+    r.a = 100;
+    r.t = 1000;
+    r.u = { infantry: 100 };
+    r.quality = 1;
+    r.homeProvince = 5;
+    fillRegimentFromManpower(pack, state, r, 1, 1000);
+    expect(r.a).toBeGreaterThan(100);
+    expect(r.quality!).toBeLessThan(1);
+    expect(r.quality!).toBeGreaterThanOrEqual(GREEN_RECRUIT_QUALITY - 0.01);
+    expect(regimentQualityMultiplier(r)).toBeCloseTo(r.quality!, 5);
   });
 });

@@ -8,7 +8,7 @@
  * - underArms: regiment headcount (already people)
  */
 import type { PackedGraph } from "../types/PackedGraph";
-import { currentLandTroops } from "./manpower";
+import { currentLandTroops, getDraftEfficiency, landRegiments } from "./manpower";
 
 export interface StateLivingStats {
   id: number;
@@ -34,6 +34,12 @@ export interface StateLivingStats {
   adultMalePct: number;
   /** Current food disruption 0–~1.5 if present on state. */
   foodStress: number;
+  /** 0..1 wartime supply strain (Economy warIntensity rollup). */
+  supplyStrain: number;
+  /** Mean land regiment quality 0..1 when recruit quality is tracked. */
+  meanQuality: number;
+  /** Draft efficiency 0..1 (food + supply). */
+  draftEfficiency: number;
 }
 
 export function collectLivingStatsByState(
@@ -105,6 +111,15 @@ export function collectLivingStatsByState(
     const adultMalePct = adultPool > 0 ? ((civilianMale + underArms) / adultPool) * 100 : 50;
     const mobilizationPct = total > 0 ? (underArms / total) * 100 : 0;
 
+    const land = landRegiments(state);
+    let qSum = 0;
+    let qN = 0;
+    for (const r of land) {
+      if (r.a <= 0) continue;
+      qSum += (r.quality ?? 1) * r.a;
+      qN += r.a;
+    }
+
     rows.push({
       id,
       name: state.name,
@@ -120,7 +135,10 @@ export function collectLivingStatsByState(
       elders,
       mobilizationPct,
       adultMalePct,
-      foodStress: state.foodStress ?? 0
+      foodStress: state.foodStress ?? 0,
+      supplyStrain: state.supplyStrain ?? 0,
+      meanQuality: qN > 0 ? qSum / qN : 1,
+      draftEfficiency: getDraftEfficiency(state)
     });
   }
   return rows;
