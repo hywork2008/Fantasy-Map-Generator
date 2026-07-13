@@ -26,6 +26,16 @@ import {
   buildRoutePaths
 } from "./deckDataAdapters";
 
+vi.mock("../emojiIconCache", async importOriginal => {
+  const original = await importOriginal<typeof import("../emojiIconCache")>();
+  return {
+    ...original,
+    getCachedEmojiIconUrl: vi.fn(
+      (emoji: string, resolution: number) => `data:image/png;base64,mockUrlFor-${emoji}@${resolution}`
+    )
+  };
+});
+
 const appServices = {} as Parameters<typeof buildDeckLayers>[2];
 
 function createWorldContext(): WorldContext {

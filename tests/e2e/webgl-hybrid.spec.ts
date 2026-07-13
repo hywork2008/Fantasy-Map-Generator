@@ -466,6 +466,29 @@ test.describe("webgl hybrid renderer", () => {
     expect(rendererWarnings).toEqual([]);
   });
 
+  test("updates the viewMesh terrain texture after changing the layers preset", async ({ page }) => {
+    await page.goto("/?seed=webgl-3d-preset-texture&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await setLayerPreset(page, "landmass");
+    await waitForWebglCanvasPixels(page);
+
+    await page.locator("#optionsHide").click();
+    await page.locator("#layersTab").click();
+    await page.locator("#viewMesh").click();
+    await expect(page.locator("#canvas3d")).toBeVisible({ timeout: 15000 });
+    await waitForCanvasPixels(page, "canvas3d");
+    const checksumBeforePresetChange = await getCanvasColorChecksum(page, "canvas3d");
+
+    await page.locator("#layersPreset").selectOption("heightmap");
+    await expect
+      .poll(() => getWebglDeckLayerIds(page), { timeout: 15000 })
+      .toContain("fmg-webgl-height");
+    await expect.poll(() => getCanvasColorChecksum(page, "canvas3d"), { timeout: 20000 }).not.toBe(
+      checksumBeforePresetChange
+    );
+  });
+
   test("renders population-scaled city lights in Nightscape mode", async ({ page }) => {
     await page.goto("/?seed=webgl-nightscape-city-lights&width=1000&height=700");
     await waitForMapLoad(page);

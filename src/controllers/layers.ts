@@ -304,6 +304,9 @@ export function handleLayersPresetChange(preset: string): void {
     });
     layerState.setAllActiveLayers(nextActiveLayers);
     drawLayers();
+    // drawLayers refreshes the visible hybrid canvas, but viewMesh owns a separate terrain
+    // bitmap. Keep that bitmap in sync after a preset changes several WebGL layers at once.
+    schedule3dUpdate();
     return;
   }
 

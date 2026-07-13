@@ -17,6 +17,7 @@ THREE.ColorManagement.enabled = false;
 import { cloudImage } from "../assets/cloud-image";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
+import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { getMapURL } from "../io/export";
 import { tip } from "../services/tooltipService";
@@ -71,6 +72,30 @@ interface NightscapeGlowInstance {
   position: THREE.Vector3;
   intensity: number;
   level: number;
+}
+
+const SEA_LEVEL = 20;
+
+/**
+ * Resolves a water vertex to its visual surface height. The grid feature is
+ * authoritative here: reGraph intentionally omits most ocean cells from the
+ * packed graph, so using the packed-cell lookup to classify an ocean makes
+ * the same sea switch between height 0 and height 20 near islands.
+ */
+export function getWaterSurfaceHeight(
+  world: Readonly<Pick<WorldContext, "grid" | "pack">>,
+  gridCellId: number,
+  gridToPackCellMap: ReadonlyMap<number, number>
+): number {
+  const gridFeature = world.grid.features[world.grid.cells.f[gridCellId]];
+  if (gridFeature?.type !== "lake") return SEA_LEVEL;
+
+  const packCellId = gridToPackCellMap.get(gridCellId);
+  if (packCellId === undefined) return SEA_LEVEL;
+
+  const featureId = world.pack.cells.f?.[packCellId];
+  const feature = featureId === undefined ? undefined : world.pack.features?.[featureId];
+  return feature?.type === "lake" && feature.height > SEA_LEVEL ? feature.height : SEA_LEVEL;
 }
 
 class ThreeDModule {
@@ -1179,19 +1204,14 @@ class ThreeDModule {
     const height = worldContext.grid.cells.h[i];
 
     let waterCellId: number | null = null;
-    if (height < 20) {
+    if (height < SEA_LEVEL) {
       waterCellId = i;
     } else if (worldContext.grid.cells.c![i]) {
-      waterCellId = worldContext.grid.cells.c![i].find((c: number) => worldContext.grid.cells.h[c] < 20) ?? null;
+      waterCellId = worldContext.grid.cells.c![i].find((c: number) => worldContext.grid.cells.h[c] < SEA_LEVEL) ?? null;
     }
 
     if (waterCellId !== null) {
-      const packCellIndex = this.gridToPackCellMap!.get(waterCellId);
-      const featureId = worldContext.pack.cells.f![packCellIndex!];
-      if (featureId === undefined) return 0;
-
-      const feature = worldContext.pack.features![featureId];
-      const waterHeight = feature.type === "lake" && feature.height ? feature.height : 20;
+      const waterHeight = getWaterSurfaceHeight(worldContext, waterCellId, this.gridToPackCellMap!);
       return ((waterHeight - this.LOWER_BY_WATER) / this.DIVIDER) * this.options.scale;
     }
 

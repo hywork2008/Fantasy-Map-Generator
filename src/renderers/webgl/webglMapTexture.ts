@@ -66,7 +66,9 @@ async function renderWebglMapTextureFrame(
   const result = document.createElement("canvas");
   result.width = width;
   result.height = height;
-  const resultContext = result.getContext("2d");
+  // The settled hybrid frame is probed repeatedly before accepting it as the terrain texture.
+  // Prefer CPU-backed reads here to avoid Chrome's repeated getImageData readback warning.
+  const resultContext = result.getContext("2d", { willReadFrequently: true });
   if (!resultContext) return null;
 
   const scale = Math.min(width / graphWidth, height / graphHeight);

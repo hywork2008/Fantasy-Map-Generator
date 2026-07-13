@@ -707,6 +707,9 @@ export function buildDeckLayers(
     const markerData = getCachedDeckData("icons:markers", signatures.byLayer.markers, () =>
       buildMarkerSymbols(worldContext, viewContext.focusScope, markerStyle)
     );
+    const devicePixelCap = Math.min(window.devicePixelRatio || 1, 2);
+    const maxIconSize = markerData.reduce((max, marker) => Math.max(max, marker.iconSize), 12);
+    const emojiIconResolution = pickEmojiIconResolution(maxIconSize * markerStyle.scale * devicePixelCap);
     layers.push(
       new IconLayer<DeckMarkerSymbol>({
         id: "fmg-webgl-markers",
@@ -728,16 +731,26 @@ export function buildDeckLayers(
         billboard: false,
         pickable: true
       }),
-      new TextLayer<DeckMarkerSymbol>({
+      new IconLayer<DeckMarkerSymbol>({
         id: "fmg-webgl-marker-icons",
-        data: markerData.filter(marker => !marker.isExternalIcon && marker.icon),
+        data: markerData.filter(
+          marker => !marker.isExternalIcon && marker.icon && !!getCachedEmojiIconUrl(marker.icon, emojiIconResolution)
+        ),
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         getPosition: datum => datum.textPosition,
-        getText: datum => datum.icon,
+        getIcon: datum => {
+          const url = getCachedEmojiIconUrl(datum.icon, emojiIconResolution) || EMPTY_ICON_URL;
+          return {
+            id: `emoji-marker-${datum.icon}-${emojiIconResolution}`,
+            url,
+            width: emojiIconResolution,
+            height: emojiIconResolution,
+            anchorX: emojiIconResolution / 2,
+            anchorY: emojiIconResolution / 2,
+            mask: false
+          };
+        },
         getSize: datum => datum.iconSize,
-        getColor: () => [0, 0, 0, 255],
-        getTextAnchor: "middle",
-        getAlignmentBaseline: "center",
         sizeUnits: "pixels",
         billboard: false,
         pickable: false
@@ -1203,7 +1216,7 @@ function buildLayerSignatures(
     "markers",
     "toggleMarkers",
     () =>
-      `${scope}|${markersSignature(pack.markers)}|${markerStyleSignature(styles.markerStyle)}|failed:${getExternalIconFailureCacheVersion()}`
+      `${scope}|${markersSignature(pack.markers)}|${markerStyleSignature(styles.markerStyle)}|failed:${getExternalIconFailureCacheVersion()}|emoji:${getEmojiIconCacheVersion()}`
   );
   setIfActive(
     "military",
@@ -1256,7 +1269,7 @@ function buildLayerSignatures(
 
 function getMarkerPinUrl(pin: string, fill: string, stroke: string): string {
   return `data:image/svg+xml,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" width="30" height="30">${getMarkerPinSvg(pin, fill, stroke)}</svg>`
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" width="30" height="30"><g transform="scale(1, -1) translate(0, -30)">${getMarkerPinSvg(pin, fill, stroke)}</g></svg>`
   )}`;
 }
 
