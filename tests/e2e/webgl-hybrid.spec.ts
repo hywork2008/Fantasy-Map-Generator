@@ -542,6 +542,7 @@ test.describe("webgl hybrid renderer", () => {
     await setRenderMode(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
     await ensureLayerOn(page, "toggleBurgIcons");
+    await ensureLayerOn(page, "toggleRoutes");
 
     await page.locator("#optionsHide").click();
     await page.locator("#layersTab").click();
@@ -550,13 +551,16 @@ test.describe("webgl hybrid renderer", () => {
     await expect(page.locator("#canvas3d")).toBeVisible({ timeout: 15000 });
     const nightscape = page.getByLabel("Nightscape: city lights and beam");
     const beam = page.getByLabel("Enable Nightscape beam");
+    const routes = page.getByLabel("Show glowing routes");
     await expect(nightscape).toBeVisible();
     await expect(beam).toHaveCount(0);
+    await expect(routes).toHaveCount(0);
     await nightscape.check();
     await expect(nightscape).toBeChecked();
     const flipBeam = page.getByLabel("Flip beam: near to far");
     await expect(beam).toBeChecked();
     await expect(flipBeam).toBeEnabled();
+    await expect(routes).not.toBeChecked();
     await flipBeam.check();
     await expect(flipBeam).toBeChecked();
     await beam.uncheck();
@@ -566,6 +570,10 @@ test.describe("webgl hybrid renderer", () => {
     await expect(beam).toBeChecked();
     await expect(flipBeam).toBeChecked();
     await waitForCanvasPixels(page, "canvas3d");
+    const checksumWithoutRoutes = await getCanvasColorChecksum(page, "canvas3d");
+    await routes.check();
+    await expect(routes).toBeChecked();
+    await expect.poll(() => getCanvasColorChecksum(page, "canvas3d")).not.toBe(checksumWithoutRoutes);
   });
 
   test("applies the hybrid SVG layer policy to managed map layers and overlays", async ({ page }) => {

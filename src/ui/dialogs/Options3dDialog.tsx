@@ -246,6 +246,22 @@ export const Options3dDialog: React.FC = () => {
                     <i>Flip beam: near to far</i>
                   </label>
                 </div>
+                <div data-tip="Render floating routes as thin additive light trails with a soft halo">
+                  <input
+                    id="options3dNightscapeRoutes"
+                    className="checkbox"
+                    type="checkbox"
+                    checked={options.nightscapeRouteGlowEnabled}
+                    onChange={() =>
+                      handleChange("nightscapeRouteGlowEnabled", !options.nightscapeRouteGlowEnabled, () =>
+                        ThreeDRenderer.setNightscapeRouteGlowEnabled(!options.nightscapeRouteGlowEnabled)
+                      )
+                    }
+                  />
+                  <label htmlFor="options3dNightscapeRoutes" className="checkbox-label">
+                    <i>Show glowing routes</i>
+                  </label>
+                </div>
               </>
             )}
             <div data-tip="Toggle sky mode">

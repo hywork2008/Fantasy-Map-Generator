@@ -2,6 +2,9 @@ import * as THREE from "three";
 import { MapControls } from "three/examples/jsm/controls/MapControls.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { OBJExporter } from "three/examples/jsm/exporters/OBJExporter.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import { LoopSubdivision } from "three-subdivide";
 import { layerIsOn } from "../utils/nodeUtils";
 import {
@@ -58,6 +61,7 @@ interface ThreeDOptions {
   sceneOnly: boolean;
   nightscapeBeamEnabled: boolean;
   nightscapeBeamReversed: boolean;
+  nightscapeRouteGlowEnabled: boolean;
   isOn?: boolean;
   isGlobe?: boolean;
 }
@@ -73,7 +77,11 @@ interface TimeOfDayPreset {
 type LabelSprite = THREE.Sprite & { size: number };
 type IconBatch = THREE.InstancedMesh<THREE.BufferGeometry, THREE.MeshPhongMaterial>;
 type NightscapeGlowBatch = THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
-type FloatingRouteBatch = THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial | THREE.LineDashedMaterial>;
+type FloatingRouteBatch =
+  | THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial | THREE.LineDashedMaterial>
+  | LineSegments2;
+// @types/three currently omits LineMaterial.linewidth, though the Three.js implementation exposes it.
+type ScreenLineMaterial = LineMaterial & { linewidth: number };
 interface ThreeDBurgPointerStart {
   pointerId: number;
   clientX: number;
@@ -143,7 +151,8 @@ class ThreeDModule {
     satellite: false,
     sceneOnly: false,
     nightscapeBeamEnabled: true,
-    nightscapeBeamReversed: false
+    nightscapeBeamReversed: false,
+    nightscapeRouteGlowEnabled: false
   };
 
   readonly timeOfDayPresets: Record<string, TimeOfDayPreset> = {
@@ -424,8 +433,8 @@ class ThreeDModule {
       // emissive bands and halo batches use the newly enabled Nightscape presentation.
       this.deleteLowPolyBurgIcons();
       this.createLowPolyBurgIcons();
-      // Route lines are a relief-reading aid; Nightscape shows only glowing city lights.
       this.deleteFloatingRoutes();
+      this.createFloatingRoutes();
       this.render();
       return;
     }
@@ -445,6 +454,15 @@ class ThreeDModule {
   setNightscapeBeamReversed(reversed: boolean): void {
     this.options.nightscapeBeamReversed = reversed;
     this.updateNightscapeBeam();
+    this.render();
+  }
+
+  setNightscapeRouteGlowEnabled(enabled: boolean): void {
+    this.options.nightscapeRouteGlowEnabled = enabled;
+    if (!this.options.sceneOnly) return;
+
+    this.deleteFloatingRoutes();
+    this.createFloatingRoutes();
     this.render();
   }
 
@@ -841,7 +859,14 @@ class ThreeDModule {
    * so the whole route network costs a handful of draw calls rather than one object per route.
    */
   private createFloatingRoutes(): void {
-    if (!this.scene || !this.mesh || this.options.sceneOnly || !layerIsOn("toggleRoutes")) return;
+    if (
+      !this.scene ||
+      !this.mesh ||
+      !layerIsOn("toggleRoutes") ||
+      (this.options.sceneOnly && !this.options.nightscapeRouteGlowEnabled)
+    ) {
+      return;
+    }
 
     const dashStyles = getPathDashStyles(viewContext);
     const paintStyles = getPathPaintStyles(viewContext);
@@ -898,6 +923,11 @@ class ThreeDModule {
   private addFloatingRouteBatch(batch: RouteLineBatch): void {
     if (!this.scene) return;
 
+    if (this.options.sceneOnly) {
+      this.addNightscapeRouteGlowBatch(batch);
+      return;
+    }
+
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(batch.positions, 3));
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(batch.colors, 3));
@@ -924,6 +954,45 @@ class ThreeDModule {
     line.renderOrder = 1;
     this.floatingRoutes.push(line);
     this.scene.add(line);
+  }
+
+  /**
+   * Uses Three's screen-space line renderer instead of LineBasicMaterial so the soft halo remains
+   * visible on devices that clamp native WebGL line widths to one pixel. Two batched passes keep
+   * the route's original colour and dash rhythm while producing a city-light-like glow.
+   */
+  private addNightscapeRouteGlowBatch(batch: RouteLineBatch): void {
+    if (!this.scene) return;
+    const scene = this.scene;
+
+    const isDashed = batch.dashSize > 0 && batch.gapSize > 0;
+    const addPass = (linewidth: number, opacity: number, renderOrder: number): void => {
+      const geometry = new LineSegmentsGeometry();
+      geometry.setPositions(batch.positions);
+      geometry.setColors(batch.colors);
+      const material = new LineMaterial({
+        vertexColors: true,
+        transparent: true,
+        opacity,
+        dashed: isDashed,
+        dashSize: batch.dashSize,
+        gapSize: batch.gapSize,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        toneMapped: false
+      }) as ScreenLineMaterial;
+      material.linewidth = linewidth;
+      material.resolution.set(this.Renderer?.domElement.width ?? 1, this.Renderer?.domElement.height ?? 1);
+
+      const line = new LineSegments2(geometry, material);
+      if (isDashed) line.computeLineDistances();
+      line.renderOrder = renderOrder;
+      this.floatingRoutes.push(line);
+      scene.add(line);
+    };
+
+    addPass(5.5, batch.opacity * 0.22, 1);
+    addPass(1.4, Math.min(1, batch.opacity * 1.8), 2);
   }
 
   /**

@@ -25,6 +25,7 @@ interface ThreeDOptions {
   sceneOnly: boolean;
   nightscapeBeamEnabled: boolean;
   nightscapeBeamReversed: boolean;
+  nightscapeRouteGlowEnabled: boolean;
   isOn?: boolean;
   isGlobe?: boolean;
 }
@@ -59,6 +60,7 @@ interface Options3DState {
   sceneOnly: boolean;
   nightscapeBeamEnabled: boolean;
   nightscapeBeamReversed: boolean;
+  nightscapeRouteGlowEnabled: boolean;
   erosion: boolean;
   erosionDetail: number;
   erosionStrength: number;
@@ -90,6 +92,7 @@ export const use3DOptionsStore = create<Options3DState>((set, get) => ({
   sceneOnly: false,
   nightscapeBeamEnabled: true,
   nightscapeBeamReversed: false,
+  nightscapeRouteGlowEnabled: false,
   erosion: false,
   erosionDetail: 0,
   erosionStrength: 0.5,
@@ -116,6 +119,7 @@ export const use3DOptionsStore = create<Options3DState>((set, get) => ({
       sceneOnly: options.sceneOnly ?? false,
       nightscapeBeamEnabled: options.nightscapeBeamEnabled ?? true,
       nightscapeBeamReversed: options.nightscapeBeamReversed ?? false,
+      nightscapeRouteGlowEnabled: options.nightscapeRouteGlowEnabled ?? false,
       erosion: options.erosion ?? false,
       erosionDetail: options.erosionDetail ?? 0,
       erosionStrength: options.erosionStrength ?? 0.5,
@@ -151,6 +155,7 @@ export const use3DOptionsStore = create<Options3DState>((set, get) => ({
       sceneOnly: state.sceneOnly,
       nightscapeBeamEnabled: state.nightscapeBeamEnabled,
       nightscapeBeamReversed: state.nightscapeBeamReversed,
+      nightscapeRouteGlowEnabled: state.nightscapeRouteGlowEnabled,
       erosion: state.erosion,
       erosionDetail: state.erosionDetail,
       erosionStrength: state.erosionStrength,
