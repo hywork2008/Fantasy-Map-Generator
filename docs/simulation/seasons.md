@@ -43,6 +43,10 @@
 
 ## 3. 農業と穀物価格の季節サイクル（`src/extensions/economy/`）
 
+> **将来拡張（未実装）**: 春の戦争→作付け遅れ、秋の戦争→収穫遅れ、を粗い `foodStress` として
+> 人口餓死・交易・価格へ渡す設計は `docs/plan/military/manpower-ecosystem.md` §18。
+> 本節の季節生産倍率・`getSeasonalityStrength` をそのまま前提にする。
+
 - `src/extensions/economy/generators/production-utils.ts` の `getCellProduction()` 内、既存の
   `modifier(good)` 合成チェーン（`getModifiers` × `getDepletionMultiplier`）に
   `getSeasonalProductionMultiplier(good, cellId)` を追加した。

@@ -1,32 +1,38 @@
 # 兵力・男女比・都市人口の統合エコシステム設計
 
 **Status**: design only（本ドキュメントは設計・計画。実装には進まない）  
-**Date**: 2026-07-13  
+**Date**: 2026-07-13（§18 農業・季節戦争を追記）  
 **Related**:
 
 | Doc / Code | Relation |
 | :--- | :--- |
 | `docs/simulation/population-dynamics.md` | 年齢コホート・収容力 K・出生の基礎設計（実装の骨格あり） |
+| `docs/simulation/seasons.md` | 緯度別季節・食料の季節生産倍率（Economy 実装済み） |
+| `docs/plan/economy-war.md` | `warIntensity` による価格変動（実装済み） |
 | `docs/plan/military/fort.md` | burg group 別人口構成（砦は未成年0・成人8:2） |
 | `docs/plan/military-organization-and-vassalage.md` | 連隊編成・近衛・野戦軍の形（兵「数」の源ではない） |
 | `docs/reviews/0709-strategic-march-and-mobilization.md` | Nobility 年次徴兵 `Mobilization.conscript`（人口%目標） |
 | `docs/analytics/population.md` | 既存 FMG 兵力算出の説明 |
 | `src/generators/military-generator.ts` | 生成時兵力・`updateDynamic` 回復 |
-| `src/generators/demography-simulator.ts` | 加齢・出生・`applyDemographicCasualties`・戦傷 |
+| `src/generators/demography-simulator.ts` | 加齢・出生・餓死者相当の overpop 減・戦傷 |
+| `src/utils/seasonUtils.ts` | `getSeason` / `getSeasonalityStrength` |
+| `src/extensions/economy/generators/production-utils.ts` | 秋収穫型の food 季節倍率 |
 | `src/extensions/nobility/generators/mobilization.ts` | 年次 `r.t` 引き上げ |
 
 ---
 
 ## 0. 目的
 
-プレイヤーが地図上で見る次のものが、**同じ「成人男性」資源の別の見え方**になるようにする。
+プレイヤーが地図上で見る次のものが、**同じ世界の因果**として連動するようにする。
 
 1. **都市・農村の人口**（総人口・人口ピラミッド）
 2. **男女比**（特に成人・戦後の未亡人効果）
 3. **Military レイヤーの兵数**（連隊 `r.a` / 上限 `r.t`）
 4. **戦争**（動員の加速・戦闘死・戦後回復・徴兵限界）
+5. **農業・食料**（季節の作付け／収穫、戦時の遅延、交易・価格、翌期の餓死者）
 
-現状はそれぞれが独立した式で動いており、数字が「きれいに連動」しない。本設計は **Manpower（兵役可能人口）を単一の台帳** に置き、そこから徴兵・戦死・回復・除隊を双方向で記帳するエコシステムを定義する。
+兵力まわりは **Manpower（兵役可能人口）を単一の台帳** に置き、徴兵・戦死・回復・除隊を双方向で記帳する。  
+農業まわりは **緻密な作物モデルは作らず**、季節クリティカル期に戦争していたら「今年の食料事情が悪くなる」という **粗い Disruption 指数** を立て、Economy（任意）と人口フェーズ（core）へ渡す。
 
 ---
 
@@ -466,7 +472,9 @@ Post-war (years)
 targetRate = basePeaceOrWar * f(alert)  // 例: clamp(alert, 0.5, 2.0) で微調整
 ```
 
-Economy の `warIntensity`（`docs/plan/economy-war.md`）は **価格** に使い、兵力台帳とは独立。将来「戦時税・兵器不足で draft 効率低下」を掛ける拡張ポイントにする。
+Economy の `warIntensity`（`docs/plan/economy-war.md`）は **一般的な戦時価格** に使い続ける。  
+農業 Disruption（§18）はそれと **加算的に** 食料へ効かせる（同じ war でも「春／秋に戦ったか」が差になる）。  
+将来「戦時税・兵器不足で draft 効率低下」も同系統の拡張ポイント。
 
 ---
 
@@ -484,6 +492,14 @@ Economy の `warIntensity`（`docs/plan/economy-war.md`）は **価格** に使�
 | `allocateInitialLevy(stateId)` | generate 用初期徴兵 |
 | `assertManpowerInvariant(stateId)` | dev: M = civilian + underArms |
 
+新規（案）: `src/generators/agriculturalStress.ts`（core・軽量）
+
+| 関数 | 役割 |
+| :--- | :--- |
+| `tickAgriculturalCalendar(deltaDays)` | 春／秋の戦争フラグ蓄積、年次 `foodStress` 確定 |
+| `getStateFoodStress(stateId)` | 人口・Economy が読む 0..1+ ストレス |
+| `applyFoodStressToDemographics(deltaYears)` | 餓死者相当の粗い減算（simulateDemographics 内または直後） |
+
 改訂:
 
 | 既存 | 変更要点 |
@@ -494,6 +510,8 @@ Economy の `warIntensity`（`docs/plan/economy-war.md`）は **価格** に使�
 | `applyHistoricalWarScars` | male 減少と初期 levy 圧縮をセットで |
 | `Mobilization.conscript` | 目標率の決定 + `draftTroops` 呼び出し（core へ依存） |
 | battle-screen / localSkirmish | 必ず `registerTroopLosses` |
+| Economy `getCellProduction` / 交易 | food に `foodStress` 由来の生産・流通倍率（§18.5） |
+| Economy `getWarPriceModifier` | essential/food に `harvestShock` 加算（§18.5） |
 
 ---
 
@@ -517,8 +535,10 @@ Economy の `warIntensity`（`docs/plan/economy-war.md`）は **価格** に使�
 | State / Military Overview | 「民間成人男 / 在営 / 動員率 / 上限まで残り」 |
 | Regiment tip | `a/t` に加え「補充不能（人手不足）」フラグ |
 | 戦後 | 未亡人寄りのピラミッド + 数年後の子供増加 |
+| カレンダー / State tip（任意） | 「作付け妨害」「収穫妨害」「食料逼迫」フラグ |
+| Economy 市場（任意） | Grain 高騰の理由ヒント（戦時 + 季節ショック） |
 
-数値の「きれいさ」は、プレイヤーが **同じ男を二度数えられない** ことを体感できれば達成とする。
+数値の「きれいさ」は、プレイヤーが **同じ男を二度数えられない** こと、および **春／秋に戦争すると翌年きつい** ことが体感できれば達成とする。
 
 ---
 
@@ -550,12 +570,20 @@ Economy の `warIntensity`（`docs/plan/economy-war.md`）は **価格** に使�
 - rural/urban weight 見直し（10×廃止）
 - `homeProvince` による補充元
 
-### Phase 4 — 拡張接続
+### Phase 4 — 農業 Disruption（§18）
+
+- core: `agriculturalStress.ts`（季節クリティカル蓄積 + 年次 `foodStress`）
+- core: 人口フェーズへの餓死者相当（Economy なしでも動く）
+- Economy ON: food 生産・交易・`warPrice` への加算
+- 緯度 `seasonalityStrength` で赤道を弱める（既存 seasons 設計と一致）
+
+### Phase 5 — 拡張接続
 
 - Economy: 戦時給養不足 → draft 効率・maxLevy 低下
 - fort 表示と駐留連隊の視覚的対応
 - 女性徴兵オプション、傷病兵帰還
 - 新兵質（訓練不足 power ペナルティ）— strategy.md の将来項目
+- 作付け失敗 → 翌年の capacity 微減（任意・長期）
 
 ### 非目標（明示的にやらない）
 
@@ -563,6 +591,8 @@ Economy の `warIntensity`（`docs/plan/economy-war.md`）は **価格** に使�
 - リアルタイムな世帯シミュレーション
 - 兵力の完全な会計監査 UI（Phase 1–2 は内部台帳と概要表示まで）
 - Military.generate の兵科バイオーム式の全面やり直し（比率ロジックは流用）
+- **作物別・圃場別の農業シミュ**（水分ストレス日次、品種、二毛作カレンダーの精密化）
+- **ヘクトリットル単位の国家備蓄簿**（Economy 在庫で足りる範囲に寄せる）
 
 ---
 
@@ -636,6 +666,9 @@ female 230 のまま → 永続的な女性余剰 = 未亡人効果
 4. 平和が続くと除隊で民間 male が戻り、出生で総人口が回復する
 5. Military Overview の「人口比1%」が、台帳上の underArms / 総人口と一致する
 6. fort の特殊人口が、徴兵台帳の不変条件を壊さない
+7. **同じ戦争強度でも、春または秋に戦った年は翌人口ティックで死亡率／人口減が明らかに大きい**
+8. **Economy ON 時、その年の Grain は「作付け／収穫ショックあり」の国で高く・流通しにくい**
+9. **赤道付近（季節性≈0）では農業 Disruption がほぼ効かない**
 
 ---
 
@@ -645,6 +678,272 @@ female 230 のまま → 永続的な女性余剰 = 未亡人効果
 2. `manpower.ts` スケルトンと不変条件テスト  
 3. `registerTroopLosses` に battle / skirmish を集約  
 4. generate / conscript / updateDynamic の順で draft 転送を有効化  
-5. 本ドキュメントの数値例をフィクスチャ化した回帰テスト
+5. 本ドキュメントの数値例をフィクスチャ化した回帰テスト  
+6. Phase 4: `agriculturalStress` の年次フラグ + 人口減の単体テスト（春戦争 vs 夏戦争）
 
 **このファイル自体は設計 freeze のたたき台であり、実装 PR では本ドキュメントの Phase 境界に沿って分割すること。**
+
+---
+
+## 18. 農業生産・季節戦争・食料ストレス
+
+### 18.1 ねらい
+
+中世的な一年一作（温帯）を前提に:
+
+- **春**に戦争 → 作付けが遅れる／手が足りない → 当年の収量が落ちる
+- **秋**に戦争 → 収穫が遅れる／略奪・輸送不能 → 当年の収量が落ちる・備蓄が載らない
+- その結果、**交易の食料流通が細り、価格が高騰しやすくなり**、次の人口計算で **餓死者相当** が出る
+
+厳密な作物フェノロジーは不要。既存の:
+
+- 季節: `getSeason(lat, month)` / `getSeasonalityStrength(lat)`（`docs/simulation/seasons.md`）
+- 秋ピーク生産: `SEASONAL_FOOD_PRODUCTION_MULTIPLIER`（Economy）
+- 戦時価格: `warIntensity`（`docs/plan/economy-war.md`）
+
+を **薄い Disruption 層** でつなぐ。
+
+### 18.2 設計原則（農業パート）
+
+1. **Core が真実、Economy は増幅**  
+   餓死者相当は Economy OFF でも人口に効く。Economy ON なら在庫・価格・隊商でも同じストレスを見える化する。
+2. **クリティカル季節だけ見る**  
+   夏・冬の戦争は `warIntensity` 既存分のみ。春・秋に追加ペナルティ。
+3. **緯度で振幅を落とす**  
+   赤道は季節農業が弱いので `seasonalityStrength ≈ 0` なら Disruption ≈ 0（既存 food 季節倍率と同じ思想）。
+4. **年1回まとめて確定**  
+   日次で作物を育てず、「その季節に戦争していた日数／強度」を溜め、収穫年次（または年末）に `foodStress` を確定。
+5. **兵力台帳と因果を共有**  
+   徴兵率が高いほど農村労働が減り、同じ戦争でも Disruption が増える（男が出征していると作付けも収穫も弱い）。
+
+### 18.3 農事カレンダー（粗い）
+
+| 季節（セル緯度の `getSeason`） | 農事 | 戦争が与える意味 |
+| :--- | :--- | :--- |
+| **spring** | 作付け・播種 | `plantingShock` が溜まる |
+| summer | 成長・除草（簡略化で無視） | 追加ショックなし（通常 war のみ） |
+| **autumn** | 収穫・脱穀 | `harvestShock` が溜まる |
+| winter | 端境・備蓄食い | ショック確定後の消費期。新規ショックなし |
+
+南半球は `getSeason` が既に反転するため、そのまま使える。  
+「一年に一回秋が収穫」は **温帯フル振幅** の話であり、`seasonalityStrength` で薄まる。
+
+### 18.4 国家アグリゲーション（何をもって「その季節に戦争していた」か）
+
+state ごとに、その tick で **atWar** を定義する（既存 warIntensity 更新と同系統）:
+
+```
+atWar(state) =
+  diplomacy に "Enemy" がある
+  OR 自領セル上に敵連隊がいる
+  OR 自連隊が敵領で戦闘／siege 中（任意・精度アップ用）
+```
+
+v1 は **Enemy 外交だけで十分**（Economy の warIntensity と同じ粗さ）。  
+v1.1 で「自国領に敵軍がいる」「前線 province のみ」に重みを寄せてもよい。
+
+### 18.5 蓄積と年次確定
+
+state（または主要農業セルの平均）に年次バッファ:
+
+```ts
+interface AgriculturalYearBuffer {
+  year: number;
+  /** 春クリティカル中に atWar だった「有効日数」× 強度の積分 0..∞ */
+  plantingExposure: number;
+  /** 秋クリティカル中の同様 */
+  harvestExposure: number;
+  /** 確定後 0..約1.5 — 人口・Economy が読む */
+  foodStress: number;
+  /** foodStress の減衰用（翌々年に持ち越す分量） */
+  carryOver: number;
+}
+```
+
+**日次（または advanceTime ごと）**:
+
+```
+strength = average seasonalityStrength over state's populated cells
+           // または capital latitude の strength で近似（v1 推奨・安い）
+
+if atWar(state):
+  if season == spring:
+    plantingExposure += effectiveDays * strength * (1 + 0.5 * mobilizationRatio)
+  if season == autumn:
+    harvestExposure  += effectiveDays * strength * (1 + 0.5 * mobilizationRatio)
+
+// mobilizationRatio = underArms / maleAdultStock  （0..maxLevy）
+// 男が出ているほど農作業が回らない
+```
+
+**年次確定のタイミング**（いずれか一方を採用）:
+
+| 案 | タイミング | 向き不向き |
+| :--- | :--- | :--- |
+| **A（推奨）** | その state の緯度で **autumn が終わる月**（北半球なら 11 月末） | 収穫後すぐストレスが効く。半球混在マップは state ごとに異なる |
+| **B** | カレンダー年末（`currentMonth` 繰り上がりで year++） | 実装が単純。南半球の「収穫後」とズレる |
+
+v1 は **案 B + capital の seasonality** でよい。精密化するなら案 A。
+
+**確定式（叩き台）**:
+
+```
+// 90 日フル戦争 ≈ exposure の参照点（strength=1 のとき）
+PLANT_REF_DAYS = 60
+HARVEST_REF_DAYS = 60
+
+plantFactor   = min(1.2, plantingExposure / PLANT_REF_DAYS)
+harvestFactor = min(1.2, harvestExposure / HARVEST_REF_DAYS)
+
+// 作付け失敗は収量全体に効き、収穫期戦争は取りこぼし・輸送破壊として効く
+raw = 0.55 * plantFactor + 0.70 * harvestFactor
+// 両方やられると 1.0 超もあり → 飢饉級
+
+foodStress = min(1.5, raw + 0.4 * carryOver)
+carryOver  = 0.35 * foodStress   // 翌年へ一部持ち越し（連年戦争で悪化）
+plantingExposure = harvestExposure = 0
+```
+
+平和な温帯国家: exposures=0 → foodStress≈0。  
+春だけ 60 日戦争: plantFactor=1 → raw≈0.55。  
+春+秋フル: raw≈1.25 → 重い飢饉寄り。
+
+### 18.6 Economy への効き方（拡張 ON 時）
+
+既存パイプラインを壊さず倍率を足す。
+
+**1. 生産（food タグ）** — `getCellProduction` チェーン:
+
+```
+output *= seasonalFoodMultiplier          // 既存（秋 3.0 等）
+output *= (1 - 0.65 * state.foodStress)   // 新規: 最大 roughly 65% 減
+```
+
+`foodStress` は **確定後の値を翌収穫年まで保持**（確定直後の冬〜翌秋前まで効く）。  
+年次確定のたびに上書き。
+
+**2. 交易・流通**
+
+- 隊商の food 積載成功率／経路選択: 出発・到着 state の `foodStress` が高いと  
+  `tradeFoodFlow *= (1 - 0.5 * max(stressFrom, stressTo))`
+- または単純に caravan の food 貨物量を同じ倍率で削る
+- banditRisk は既存 `warIntensity` のままでもよい（二重に戦争を載せすぎない）
+
+**3. 価格**
+
+既存:
+
+```
+price *= getWarPriceModifier(...)   // warIntensity × warEconomyType
+```
+
+追加（essential / food のみ）:
+
+```
+price *= (1 + 0.8 * foodStress)     // stress 1.0 → +80%
+// 在庫比による既存高騰と乗算されるので、天井 PRICE_CEILING でクリップ
+```
+
+luxury には載せない。military 兵器には載せない（食料ショックと切り離す）。
+
+**4. warIntensity との役割分担**
+
+| シグナル | 意味 | 主な効果 |
+| :--- | :--- | :--- |
+| `warIntensity` | 今戦争している／していた熱 | 兵器・必需品の一般的高騰、隊商危険 |
+| `foodStress` | **今年の農事クリティカルを戦争で潰したか** | 食料生産減・流通減・食料価格・餓死 |
+
+同じ Enemy でも「夏だけ小競り合い」と「収穫期に全面戦争」で差がつくのがポイント。
+
+### 18.7 人口フェーズへの効き方（core・必須）
+
+`simulateDemographics` のロジスティック／overpop 減に加え、**食料不足死**を独立項で入れる。
+
+```
+// state 所属の cell / burg ごと
+stress = state.foodStress
+// 都市は備蓄・交易依存でやや脆い、農村は自給でやや耐える（大雑把）
+loc = isBurg ? 1.15 : 0.85
+
+// 年率ベースの追加死亡率（全員に薄く。male 偏重にしない＝飢饉は性別を選ばない）
+starveRate = min(0.25, 0.12 * stress * loc) * deltaYears
+
+children    *= 1 - starveRate * 1.3   // 子供がやや弱い
+maleAdults  *= 1 - starveRate
+femaleAdults*= 1 - starveRate
+elders      *= 1 - starveRate * 1.2
+// pop / burg.population をバケツ合計に同期
+```
+
+既存の `roomForGrowth < 0` starvation は **収容力超過**用のまま残し、本項は **食料ショック**用。混ぜない。
+
+出生は female 依存のまま → 飢饉で女も減ると翌年出生も落ちる（意図どおり）。
+
+**Manpower 接続**: 餓死で maleAdults が減ると、翌年の `maxTroops` も下がる。  
+「収穫期に無理な戦争 → 飢饉 → 翌年徴兵できない」ループが自然に出る。
+
+### 18.8 動員との相互作用（式のまとめ）
+
+```
+mobilizationRatio = underArms / max(maleStock, ε)     // 0..0.4
+exposureGain      = days * seasonality * (1 + 0.5 * mobilizationRatio)
+foodStress        = f(plantExposure, harvestExposure, carryOver)
+popLoss           ∝ foodStress
+nextYearMalePool  ↓
+nextYearMaxLevy   ↓
+```
+
+徴兵しすぎた国家は、同じ春秋戦争でも **より飢える**（労働力不足）。
+
+### 18.9 数値例
+
+温帯 state（strength=1）、表示人口 100 万、平時在営 1%、`populationRate` 任意。
+
+| シナリオ | plantExp | harvestExp | foodStress（概算） | 翌年追加死亡率の目安 |
+| :--- | ---: | ---: | ---: | ---: |
+| 平和 | 0 | 0 | 0 | 0 |
+| 夏だけ 90 日戦争 | 0 | 0 | 0（+通常 war 価格のみ） | 0（本システム） |
+| 春 60 日戦争 | 60 | 0 | ~0.55 | 農村 ~5–6%/年 相当を `deltaYears` で按分 |
+| 秋 60 日戦争 | 0 | 60 | ~0.70 | やや重め |
+| 春+秋 各 60 日 | 60 | 60 | ~1.25（cap 前） | 飢饉級、都市でさらに悪い |
+| 上記 + 動員 25% male | ×1.125 | ×1.125 | さらに上昇 | 最悪ケース |
+
+Economy ON なら stress 0.7 で food 生産 ~45% 減、価格 ×1.56 に war 倍率をさらに乗算。
+
+### 18.10 データ置き場
+
+| 置き場 | 内容 |
+| :--- | :--- |
+| `State` または `simulationContext.agricultureByState[stateId]` | `foodStress`, exposures, carryOver, year |
+| cell 単位 | v1 では持たない（capital lat で近似） |
+| BurgMarketLedger | 変更必須ではない。価格は読み取り時に `getStateFoodStress(stateId)` を参照 |
+
+セーブ: exposures は年途中セーブ用に残す。`foodStress` / `carryOver` は必須。
+
+### 18.11 advanceTime 内の順序（推奨）
+
+```
+1. 時計更新
+2. tickAgriculturalCalendar()     // 季節 exposure 加算。年跨ぎなら foodStress 確定
+3. simulateDemographics()         // 加齢・出生・移住 + applyFoodStress 餓死
+4. manpower draft/fill/demobilize // 減った人口に対して徴兵上限が効く
+5. extension hooks（Economy produce / warIntensity / 隊商）
+6. military movement
+```
+
+Economy の生産が demographics より後でも、`foodStress` は「確定済みの当年〜翌年値」を読むので順序は許容。  
+重要なのは **同じ `foodStress` を人口と Economy が共有する**こと。
+
+### 18.12 非目標（農業）
+
+- 日次の生育度・降水量シミュレーション
+- 作物マルチタイプ（小麦／米／芋）の個別カレンダー（将来タグで分岐可）
+- プレイヤーの手動「収穫命令」
+- 軍隊の個別略奪ミクロ（v1 は state atWar で代理。略奪は stress に含意）
+
+### 18.13 実装フェーズとの対応
+
+§13 Phase 4 が本節の実装単位。Manpower Phase 1–2 が無くても、
+
+- `mobilizationRatio` を仮に `Σ r.a / (pop * 0.22)` で近似すれば
+- **農業 Disruption だけ先に**入れることも可能（推奨は Manpower 台帳の後だが、依存は薄い）。
