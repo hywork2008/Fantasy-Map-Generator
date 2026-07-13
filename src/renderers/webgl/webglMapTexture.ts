@@ -78,6 +78,15 @@ async function renderWebglMapTextureFrame(
   };
   const deckRef: { current: Deck<OrthographicView> | null } = { current: null };
   try {
+    // 09e070 removed the primary-Deck capture entirely. Its replacement offscreen Deck can keep
+    // an old layer tree after a viewMesh toggle, so the terrain bitmap stops following layer
+    // ON/OFF state. Reuse the already-live Deck, but render its hidden canvas with a full-map
+    // view state first; copying its ordinary viewport would regress the zoomed-in viewMesh bug.
+    if (await captureFullMapFromActiveDeck(resultContext, worldContext, viewContext, appServices, options)) {
+      await compositeSvgTextureOverlay(resultContext, worldContext, viewContext, appServices, width, height);
+      return result;
+    }
+
     const device = getTerrainTextureDevice();
     const source = device.source;
     // Resizing clears the previous framebuffer while keeping the same WebGL2 context alive.
@@ -88,6 +97,7 @@ async function renderWebglMapTextureFrame(
       let settled = false;
       let timeout: number | null = null;
       let emptyFrameRetries = 0;
+      let captureScheduled = false;
       const redrawAfterEmptyFrame = (): void => {
         emptyFrameRetries++;
         if (emptyFrameRetries > 3) {
@@ -121,6 +131,39 @@ async function renderWebglMapTextureFrame(
         if (timeout !== null) window.clearTimeout(timeout);
         reject(error);
       };
+      const captureSettledFrame = (): void => {
+        if (settled || captureScheduled) return;
+        captureScheduled = true;
+        // Deck can invoke this callback for its initial clear before all layers submit. Force two
+        // full redraws of this exact layer tree and copy only the frame after the second one.
+        // The second redraw matters for asynchronous layer/resource initialization.
+        window.requestAnimationFrame(() => {
+          if (settled) return;
+          deckRef.current?.setProps({
+            layers: buildDeckLayers(worldContext, viewContext, appServices, {
+              includeLabels: options.includeLabels,
+              includeBurgIcons: options.includeBurgIcons
+            })
+          });
+          deckRef.current?.redraw("fmg-webgl-map-texture-settle-1");
+          window.requestAnimationFrame(() => {
+            if (settled) return;
+            deckRef.current?.setProps({
+              layers: buildDeckLayers(worldContext, viewContext, appServices, {
+                includeLabels: options.includeLabels,
+                includeBurgIcons: options.includeBurgIcons
+              })
+            });
+            deckRef.current?.redraw("fmg-webgl-map-texture-settle-2");
+            // `redraw` queues GPU work; copying in the same animation tick can still observe
+            // the preceding clear-only framebuffer on Chromium. Let the GPU finish the second
+            // layer-tree redraw before reading it back.
+            window.setTimeout(() => {
+              if (!settled) complete();
+            }, 100);
+          });
+        });
+      };
       timeout = window.setTimeout(
         () => fail(new Error("Timed out while rendering the full-map WebGL texture")),
         10_000
@@ -140,7 +183,7 @@ async function renderWebglMapTextureFrame(
           includeBurgIcons: options.includeBurgIcons
         }),
         useDevicePixels: false,
-        onAfterRender: complete,
+        onAfterRender: captureSettledFrame,
         onError: error => fail(error instanceof Error ? error : new Error(String(error)))
       });
     });
@@ -152,6 +195,66 @@ async function renderWebglMapTextureFrame(
   } finally {
     deckRef.current?.finalize();
   }
+}
+
+async function captureFullMapFromActiveDeck(
+  resultContext: CanvasRenderingContext2D,
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  appServices: AppServices,
+  options: WebglMapTextureOptions
+): Promise<boolean> {
+  const deck = viewContext.webglDeck;
+  const canvas = viewContext.webglCanvas;
+  if (!deck || !canvas) return false;
+
+  const deckWidth = typeof deck.props.width === "number" ? deck.props.width : viewContext.svgWidth;
+  const deckHeight = typeof deck.props.height === "number" ? deck.props.height : viewContext.svgHeight;
+  const graphWidth = Math.max(1, worldContext.graphWidth);
+  const graphHeight = Math.max(1, worldContext.graphHeight);
+  const fullMapScale = Math.min(deckWidth / graphWidth, deckHeight / graphHeight);
+  const originalViewState = deck.props.viewState;
+
+  try {
+    deck.setProps({
+      viewState: {
+        target: [graphWidth / 2, graphHeight / 2, 0],
+        zoom: Math.log2(Math.max(fullMapScale, 0.0001))
+      },
+      layers: buildDeckLayers(worldContext, viewContext, appServices, {
+        includeLabels: options.includeLabels,
+        includeBurgIcons: options.includeBurgIcons
+      })
+    });
+    deck.redraw("fmg-viewmesh-full-map-texture");
+    await waitForAnimationFrames(3);
+
+    resultContext.clearRect(0, 0, resultContext.canvas.width, resultContext.canvas.height);
+    resultContext.drawImage(canvas, 0, 0, resultContext.canvas.width, resultContext.canvas.height);
+    return hasDrawnPixels(resultContext, resultContext.canvas.width, resultContext.canvas.height);
+  } finally {
+    deck.setProps({
+      viewState: originalViewState,
+      layers: buildDeckLayers(worldContext, viewContext, appServices, {
+        includeLabels: options.includeLabels,
+        includeBurgIcons: options.includeBurgIcons
+      })
+    });
+    deck.redraw("fmg-viewmesh-full-map-restore");
+  }
+}
+
+function waitForAnimationFrames(count: number): Promise<void> {
+  return new Promise(resolve => {
+    const next = (remaining: number): void => {
+      if (remaining <= 0) {
+        resolve();
+        return;
+      }
+      window.requestAnimationFrame(() => next(remaining - 1));
+    };
+    next(count);
+  });
 }
 
 function getTerrainTextureDevice(): TerrainTextureDevice {

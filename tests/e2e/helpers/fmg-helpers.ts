@@ -941,6 +941,30 @@ export interface MarkerFixturePoint {
   markerId: number;
 }
 
+export interface ThreeDBurgFixture {
+  burgId: number;
+  burgName: string;
+}
+
+/** Moves and enlarges a burg at the map center so viewMesh click tests have a deterministic target. */
+export async function forceThreeDBurgFixture(page: Page): Promise<ThreeDBurgFixture> {
+  return page.evaluate(() => {
+    const world = window.fmg.world;
+    const burg = world.pack.burgs.find(item => Boolean(item.i) && !item.removed);
+    if (!burg) throw new Error("A generated map must contain a burg for the 3D click fixture");
+
+    const groupName = world.options.burgs?.groups?.[0]?.name ?? "town";
+    burg.x = world.graphWidth / 2;
+    burg.y = world.graphHeight / 2;
+    burg.group = groupName;
+    // `buildLowPolyBurgSymbols` maps SVG icon size to the low-poly mesh size. A larger fixture
+    // makes the centre-targeted Canvas click stable without changing production hit-testing.
+    window.fmg.view.burgIcons.select<SVGGElement>(`#${groupName}`).attr("data-size", 400);
+
+    return { burgId: burg.i, burgName: burg.name ?? "" };
+  });
+}
+
 /** Adds a marker at the map center so marker click-edit/drag tests don't depend on seed-specific marker generation. */
 export async function forceWebglMarkerFixture(page: Page): Promise<MarkerFixturePoint> {
   const point = await page.evaluate(() => {

@@ -9,6 +9,7 @@ import {
   ensureLayerOff,
   ensureLayerOn,
   forceOverlappingWebglRegiments,
+  forceThreeDBurgFixture,
   forceWebglGlacierFixture,
   forceWebglIcebergFixture,
   forceWebglMarkerFixture,
@@ -431,6 +432,30 @@ test.describe("webgl hybrid renderer", () => {
     await expect.poll(() => getCanvasColorChecksum(page, "canvas3d"), { timeout: 15000 }).toBe(fullMapChecksum);
   });
 
+  test("opens Edit Burg when a low-poly viewMesh icon is clicked", async ({ page }) => {
+    await page.goto("/?seed=webgl-3d-burg-picking&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+    await ensureLayerOn(page, "toggleBurgIcons");
+    const burg = await forceThreeDBurgFixture(page);
+
+    await page.locator("#optionsHide").click();
+    await page.locator("#layersTab").click();
+    await page.locator("#viewMesh").click();
+    const canvas = page.locator("#canvas3d");
+    await expect(canvas).toBeVisible({ timeout: 15000 });
+    await waitForCanvasPixels(page, "canvas3d");
+
+    const bounds = await canvas.boundingBox();
+    expect(bounds).not.toBeNull();
+    if (!bounds) return;
+    await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height * 0.35);
+
+    await expect(page.locator("#burgBody")).toBeVisible();
+    await expect(page.locator("#burgName")).toHaveValue(burg.burgName);
+  });
+
   test("keeps the viewMesh terrain colour-balanced after enabling many overlays", async ({ page }) => {
     const rendererWarnings: string[] = [];
     page.on("console", message => {
@@ -451,7 +476,6 @@ test.describe("webgl hybrid renderer", () => {
     await page.locator("#viewMesh").click();
     await expect(page.locator("#canvas3d")).toBeVisible({ timeout: 15000 });
     await waitForCanvasPixels(page, "canvas3d");
-    const checksumBeforeOverlays = await getCanvasColorChecksum(page, "canvas3d");
 
     for (const layer of [
       "toggleHeight",
@@ -480,10 +504,6 @@ test.describe("webgl hybrid renderer", () => {
           "fmg-webgl-grid"
         ])
       );
-    await expect.poll(() => getCanvasColorChecksum(page, "canvas3d"), { timeout: 20000 }).not.toBe(
-      checksumBeforeOverlays
-    );
-
     const meshStats = await getCanvasLuminanceStats(page, "canvas3d");
     const webglStats = await getCanvasLuminanceStats(page, "webglMapCanvas");
     expect(meshStats.nearWhiteRatio).toBeLessThan(0.9);

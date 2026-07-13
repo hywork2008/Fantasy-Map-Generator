@@ -68,6 +68,11 @@ interface TimeOfDayPreset {
 type LabelSprite = THREE.Sprite & { size: number };
 type IconBatch = THREE.InstancedMesh<THREE.BufferGeometry, THREE.MeshPhongMaterial>;
 type NightscapeGlowBatch = THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
+interface ThreeDBurgPointerStart {
+  pointerId: number;
+  clientX: number;
+  clientY: number;
+}
 interface NightscapeGlowInstance {
   position: THREE.Vector3;
   intensity: number;
@@ -177,6 +182,10 @@ class ThreeDModule {
   private raycaster: THREE.Raycaster | undefined;
   private labels: LabelSprite[] = [];
   private iconBatches: IconBatch[] = [];
+  private burgPickCanvas: HTMLCanvasElement | null = null;
+  private burgPointerStart: ThreeDBurgPointerStart | null = null;
+  private readonly burgPickRaycaster = new THREE.Raycaster();
+  private readonly burgPickPointer = new THREE.Vector2();
   private nightscapeGlowBatches: NightscapeGlowBatch[] = [];
   private nightscapeGlowTexture: THREE.CanvasTexture | undefined;
   private gridToPackCellMap: Map<number, number> | null = null;
@@ -187,6 +196,9 @@ class ThreeDModule {
   // than competing GPU renders that can temporarily exhaust the shared WebGL resources.
   private textureUpdateInFlight: boolean = false;
   private textureUpdateQueued: boolean = false;
+  // Layer changes can arrive while the initial full-map bitmap is still rendering and before
+  // `material` exists. Preserve the latest request rather than silently losing it.
+  private textureRefreshPendingDuringMeshBuild: boolean = false;
   private textureRetryTimer: number | null = null;
   private textureRetryCount: number = 0;
   private waterAnimationFrame: number | null = null;
@@ -202,7 +214,6 @@ class ThreeDModule {
     qz: Number.NaN,
     qw: Number.NaN
   };
-  private readonly context2d = document.createElement("canvas").getContext("2d") as CanvasRenderingContext2D;
   private renderThrottled: () => void;
 
   constructor() {
@@ -246,15 +257,18 @@ class ThreeDModule {
       return;
     }
     if (this.options.sceneOnly) this.render();
+    else if (!this.material || !this.Renderer) this.textureRefreshPendingDuringMeshBuild = true;
     else this.update3dTexture();
   }
 
   stop(): void {
+    this.detachBurgPicking();
     if (this.controls) this.controls.dispose();
     if (this.textureRetryTimer !== null) window.clearTimeout(this.textureRetryTimer);
     this.textureRetryTimer = null;
     this.textureRetryCount = 0;
     this.textureUpdateQueued = false;
+    this.textureRefreshPendingDuringMeshBuild = false;
     cancelAnimationFrame(this.animationFrame);
     if (this.texture) this.texture.dispose();
     if (this.geometry) this.geometry.dispose();
@@ -531,7 +545,7 @@ class ThreeDModule {
     this.Renderer.setClearColor(0x000000, 1);
     this.Renderer.setSize(canvas.width, canvas.height);
     this.Renderer.shadowMap.enabled = true;
-    this.Renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.Renderer.shadowMap.type = THREE.PCFShadowMap;
     if (this.options.extendedWater) this.extendWater(worldContext.graphWidth, worldContext.graphHeight);
 
     this.camera = new THREE.PerspectiveCamera(70, canvas.width / canvas.height, 0.1, 2000);
@@ -556,6 +570,7 @@ class ThreeDModule {
 
     this.controls.autoRotate = Boolean(this.options.rotateMesh);
     this.controls.autoRotateSpeed = this.options.rotateMesh;
+    this.attachBurgPicking(canvas);
     this.createNightscapeBeamLight();
     this.syncNightscapeLighting();
     void this.createMesh(
@@ -605,20 +620,22 @@ class ThreeDModule {
     color: string;
     quality: number;
   }): THREE.Sprite {
-    this.context2d.font = `${size * quality}px ${font}`;
-    this.context2d.canvas.width = this.context2d.measureText(text).width;
-    this.context2d.canvas.height = size * quality * 1.25;
-    this.context2d.clearRect(0, 0, this.context2d.canvas.width, this.context2d.canvas.height);
+    // CanvasTexture keeps a reference to its source canvas. Reusing one canvas for every label
+    // means a later `fillText` overwrites every existing sprite after the next GPU upload.
+    // Allocate one small canvas per sprite so a label keeps its own city/state text forever.
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Unable to create the 3D label canvas");
 
-    this.context2d.font = `${size * quality}px ${font}`;
-    this.context2d.fillStyle = color;
-    this.context2d.fillText(text, 0, size * quality);
+    context.font = `${size * quality}px ${font}`;
+    canvas.width = Math.max(1, Math.ceil(context.measureText(text).width));
+    canvas.height = Math.max(1, Math.ceil(size * quality * 1.25));
+    // Setting canvas dimensions resets its 2D context state, including the font.
+    context.font = `${size * quality}px ${font}`;
+    context.fillStyle = color;
+    context.fillText(text, 0, size * quality);
 
-    return this.textureToSprite(
-      this.context2d.canvas,
-      this.context2d.canvas.width / quality,
-      this.context2d.canvas.height / quality
-    );
+    return this.textureToSprite(canvas, canvas.width / quality, canvas.height / quality);
   }
 
   private get3dCoords(baseX: number, baseY: number): [number, number, number] {
@@ -641,6 +658,66 @@ class ThreeDModule {
       normal.copy(intersection.face.normal).transformDirection(this.mesh.matrixWorld).normalize();
     }
     return { position, normal };
+  }
+
+  private attachBurgPicking(canvas: HTMLCanvasElement): void {
+    this.detachBurgPicking();
+    this.burgPickCanvas = canvas;
+    canvas.addEventListener("pointerdown", this.onBurgPointerDown);
+    canvas.addEventListener("pointerup", this.onBurgPointerUp);
+    canvas.addEventListener("pointercancel", this.onBurgPointerCancel);
+  }
+
+  private detachBurgPicking(): void {
+    if (!this.burgPickCanvas) return;
+    this.burgPickCanvas.removeEventListener("pointerdown", this.onBurgPointerDown);
+    this.burgPickCanvas.removeEventListener("pointerup", this.onBurgPointerUp);
+    this.burgPickCanvas.removeEventListener("pointercancel", this.onBurgPointerCancel);
+    this.burgPickCanvas = null;
+    this.burgPointerStart = null;
+  }
+
+  private onBurgPointerDown = (event: PointerEvent): void => {
+    if (event.button !== 0) return;
+    this.burgPointerStart = { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY };
+  };
+
+  private onBurgPointerUp = (event: PointerEvent): void => {
+    const pointerStart = this.burgPointerStart;
+    this.burgPointerStart = null;
+    if (!pointerStart || pointerStart.pointerId !== event.pointerId || event.button !== 0) return;
+    // MapControls uses the same canvas for drag panning. Treat only a stationary primary-button
+    // gesture as a burg selection so releasing after a camera move never opens an editor.
+    if (Math.hypot(event.clientX - pointerStart.clientX, event.clientY - pointerStart.clientY) > 5) return;
+    this.pickBurgAt(event.clientX, event.clientY);
+  };
+
+  private onBurgPointerCancel = (): void => {
+    this.burgPointerStart = null;
+  };
+
+  private pickBurgAt(clientX: number, clientY: number): void {
+    const canvas = this.burgPickCanvas;
+    if (!canvas || !this.camera || !this.iconBatches.length) return;
+
+    const bounds = canvas.getBoundingClientRect();
+    if (bounds.width <= 0 || bounds.height <= 0) return;
+    this.burgPickPointer.set(
+      ((clientX - bounds.left) / bounds.width) * 2 - 1,
+      -((clientY - bounds.top) / bounds.height) * 2 + 1
+    );
+    this.burgPickRaycaster.setFromCamera(this.burgPickPointer, this.camera);
+
+    for (const intersection of this.burgPickRaycaster.intersectObjects(this.iconBatches, false)) {
+      const instanceId = intersection.instanceId;
+      if (instanceId === undefined) continue;
+      const burgIds: unknown = intersection.object.userData.burgIds;
+      if (!Array.isArray(burgIds)) continue;
+      const burgId = burgIds[instanceId];
+      if (!Number.isInteger(burgId) || burgId <= 0) continue;
+      document.dispatchEvent(new CustomEvent<{ burgId: number }>("fmg:3d-burg-select", { detail: { burgId } }));
+      return;
+    }
   }
 
   private createLowPolyBurgIcons(): void {
@@ -1191,6 +1268,14 @@ class ThreeDModule {
     this.createLowPolyBurgIcons();
     this.render();
 
+    // If the user changed a layer while `createMeshTexture()` awaited its first deck.gl frame,
+    // the initial bitmap can reflect the old layer state. Immediately request one fresh bitmap
+    // now that a material exists; update3dTexture coalesces further rapid toggles.
+    if (this.textureRefreshPendingDuringMeshBuild) {
+      this.textureRefreshPendingDuringMeshBuild = false;
+      this.update3dTexture();
+    }
+
     if (this.options.labels3d) {
       this.createLabels();
       this.render();
@@ -1239,48 +1324,56 @@ class ThreeDModule {
 
   private async flush3dTextureUpdates(): Promise<void> {
     this.textureUpdateInFlight = true;
+    try {
+      while (this.textureUpdateQueued) {
+        this.textureUpdateQueued = false;
+        if (!this.material || !this.Renderer || !this.options.isOn || this.options.sceneOnly) continue;
 
-    while (this.textureUpdateQueued) {
-      this.textureUpdateQueued = false;
-      if (!this.material || !this.Renderer || !this.options.isOn || this.options.sceneOnly) continue;
+        if (this.options.satellite && this.erosionBakeData && !this.options.isGlobe && !this.options.wireframe) {
+          const satelliteTexture = generateSatelliteTexture(this.Renderer, this.erosionBakeData, {
+            scale: this.options.scale,
+            maxOutput: Math.max(512, Math.min(this.options.resolutionScale, 8192))
+          });
+          if (satelliteTexture) {
+            this.material.map = satelliteTexture;
+            this.render();
+            continue;
+          }
+        }
 
-      if (this.options.satellite && this.erosionBakeData && !this.options.isGlobe && !this.options.wireframe) {
-        const satelliteTexture = generateSatelliteTexture(this.Renderer, this.erosionBakeData, {
-          scale: this.options.scale,
-          maxOutput: Math.max(512, Math.min(this.options.resolutionScale, 8192))
-        });
-        if (satelliteTexture) {
-          this.material.map = satelliteTexture;
-          this.render();
+        const material = this.material;
+        const nextTexture = await this.createMeshTexture();
+        // Keep the visible bitmap until the last requested deck.gl frame is ready. Any frame made
+        // obsolete while it was rendering is discarded without touching the terrain material.
+        if (this.material !== material || !this.options.isOn || this.options.sceneOnly || this.textureUpdateQueued) {
+          nextTexture?.dispose();
           continue;
         }
-      }
+        if (!nextTexture) {
+          this.retryTextureUpdate(material);
+          continue;
+        }
 
-      const material = this.material;
-      const nextTexture = await this.createMeshTexture();
-      // Keep the visible bitmap until the last requested deck.gl frame is ready. Any frame made
-      // obsolete while it was rendering is discarded without touching the terrain material.
-      if (this.material !== material || !this.options.isOn || this.options.sceneOnly || this.textureUpdateQueued) {
-        nextTexture?.dispose();
-        continue;
+        const previousTexture = this.texture;
+        this.texture = nextTexture;
+        // CanvasTexture normally marks itself dirty in its constructor, but this canvas is fed
+        // by a separate WebGL renderer. Mark it explicitly so Three uploads the replacement
+        // bitmap even when the preceding texture used the same dimensions.
+        nextTexture.needsUpdate = true;
+        this.material.map = nextTexture;
+        this.material.transparent = false;
+        this.material.depthWrite = true;
+        this.material.needsUpdate = true;
+        previousTexture?.dispose();
+        this.textureRetryCount = 0;
+        this.render();
       }
-      if (!nextTexture) {
-        this.retryTextureUpdate(material);
-        continue;
-      }
-
-      const previousTexture = this.texture;
-      this.texture = nextTexture;
-      this.material.map = nextTexture;
-      this.material.transparent = false;
-      this.material.depthWrite = true;
-      this.material.needsUpdate = true;
-      previousTexture?.dispose();
-      this.textureRetryCount = 0;
-      this.render();
+    } finally {
+      this.textureUpdateInFlight = false;
+      // A layer toggle may land after the `while` condition observed an empty queue but before
+      // the in-flight flag is cleared. Start one more pass so that final request is never lost.
+      if (this.textureUpdateQueued) void this.flush3dTextureUpdates();
     }
-
-    this.textureUpdateInFlight = false;
   }
 
   private retryTextureUpdate(material: THREE.Material): void {

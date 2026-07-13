@@ -9,12 +9,24 @@ import { closeDialog, isDialogOpen, openDialog } from "../ui/dialogs/dialogServi
 import { fitContent } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { getElementById } from "../utils/nodeUtils";
+import { editBurg } from "./burg-editor";
 
 function getRequiredElementById<T extends Element>(id: string): T {
   const element = getElementById<T>(id);
   if (!element) throw new Error(`Element #${id} is not found`);
   return element;
 }
+
+document.addEventListener("fmg:3d-burg-select", event => {
+  if (!(event instanceof CustomEvent)) return;
+  const detail: unknown = event.detail;
+  if (!detail || typeof detail !== "object" || !("burgId" in detail)) return;
+  const burgId = detail.burgId;
+  const canvas = getElementById<HTMLCanvasElement>("canvas3d");
+  if (typeof burgId !== "number" || !Number.isInteger(burgId) || burgId <= 0 || canvas?.dataset.type !== "viewMesh")
+    return;
+  editBurg(burgId);
+});
 
 // ─── View mode / 3D ───────────────────────────────────────────────────────────
 
