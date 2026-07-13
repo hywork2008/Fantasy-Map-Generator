@@ -149,7 +149,7 @@ const WEBGL_POLYGON_LAYERS: Array<{
   {
     toggle: "toggleHeight",
     id: "height",
-    build: (world, view) => buildHeightPolygons(world, view.focusScope, getHeightStyle(view))
+    build: (world, view, landCells) => buildHeightPolygons(world, view.focusScope, getHeightStyle(view), landCells)
   },
   {
     toggle: "toggleBiomes",
@@ -1105,7 +1105,7 @@ function buildLayerSignatures(
   setIfActive(
     "height",
     "toggleHeight",
-    () => `${gridGeometry()}|${gridHeights()}|${heightStyleSignature(getHeightStyle(viewContext))}`
+    () => `${gridGeometry()}|${gridHeights()}|${landGeometry()}|${heightStyleSignature(getHeightStyle(viewContext))}`
   );
   setIfActive(
     "biomes",

@@ -349,13 +349,30 @@ export function buildLandPolygonsBase(
 export function buildHeightPolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  style: DeckHeightStyle = { scheme: "bright", opacity: 1, includeOcean: false }
+  style: DeckHeightStyle = { scheme: "bright", opacity: 1, includeOcean: false },
+  landCells?: ReadonlyArray<DeckLandCellGeometry>
 ): DeckCellPolygon[] {
   const { cells, vertices } = worldContext.grid;
   if (!cells?.i || !cells.v || !vertices?.p) return [];
 
   const scheme = getColorScheme(style.scheme);
   const polygons: DeckCellPolygon[] = [];
+
+  // When rendering land heights without ocean, prepend base land polygons colored with the
+  // height 20 color to cover the landmass down to the detailed coastline and lake shores.
+  if (!style.includeOcean && landCells) {
+    const baseColor = colorToRgba(getColor(20, scheme), "#999999", style.opacity);
+    for (const { cellId, polygon } of landCells) {
+      polygons.push({
+        id: `height-base-cell-${cellId}`,
+        kind: "height",
+        cellId,
+        polygon,
+        fillColor: baseColor
+      });
+    }
+  }
+
   for (const gridCellId of cells.i) {
     if (!isGridCellInScope(focusScope, gridCellId)) continue;
     const height = cells.h[gridCellId];

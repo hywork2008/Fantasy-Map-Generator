@@ -392,6 +392,46 @@ describe("deck.gl data adapters", () => {
     expect(polygons[0].fillColor[3]).toBe(128);
   });
 
+  it("prepends base land polygons when includeOcean is false and landCells are provided", () => {
+    const worldContext = createWorldContext();
+    const mockLandCells = [
+      {
+        cellId: 42,
+        polygon: [
+          [0, 0],
+          [5, 0],
+          [0, 5]
+        ] as [number, number][]
+      }
+    ];
+
+    const polygons = buildHeightPolygons(
+      worldContext,
+      null,
+      { scheme: "bright", opacity: 0.5, includeOcean: false },
+      mockLandCells
+    );
+
+    expect(polygons).toHaveLength(2);
+    expect(polygons[0]).toMatchObject({
+      id: "height-base-cell-42",
+      kind: "height",
+      cellId: 42,
+      polygon: [
+        [0, 0],
+        [5, 0],
+        [0, 5]
+      ]
+    });
+    expect(polygons[0].fillColor[3]).toBe(128);
+
+    expect(polygons[1]).toMatchObject({
+      id: "height-grid-cell-0",
+      kind: "height",
+      cellId: -1
+    });
+  });
+
   it("builds lake polygons and coastline paths from packed features", () => {
     const worldContext = createWorldContext();
     worldContext.pack.features = [
