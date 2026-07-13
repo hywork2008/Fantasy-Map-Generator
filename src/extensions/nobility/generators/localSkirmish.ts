@@ -1,5 +1,6 @@
 import { appServices } from "../../../context/appServices";
 import { simulationContext } from "../../../context/simulationContext";
+import { applyDemographicCasualties } from "../../../generators/demography-simulator";
 import { buildSeaRouteGraph, findSeaRouteDistance, type SeaRouteGraph } from "../../../generators/seaRouteGraph";
 import type { Burg, ChronicleEvent, MilitaryRegiment, MilitaryUnit, State } from "../../../types/models";
 import type { PackedGraph } from "../../../types/PackedGraph";
@@ -100,7 +101,9 @@ function calculateRegimentPower(reg: MilitaryRegiment, militaryOptions: Military
   return power;
 }
 
-function applyCasualties(reg: MilitaryRegiment, casualtiesRate: number): void {
+/** Apply attrition; returns headcount killed. */
+function applyCasualties(reg: MilitaryRegiment, casualtiesRate: number): number {
+  const before = reg.a;
   let totalSurvivors = 0;
   for (const unit in reg.u) {
     const randVal = 0.8 + appServices.rng.rand() * 0.4;
@@ -109,6 +112,7 @@ function applyCasualties(reg: MilitaryRegiment, casualtiesRate: number): void {
     totalSurvivors += reg.u[unit];
   }
   reg.a = totalSurvivors;
+  return Math.max(0, before - totalSurvivors);
 }
 
 function getContactCluster(
@@ -217,12 +221,14 @@ export class LocalSkirmishGenerator {
             const annihilateB = powerA >= powerB * ANNIHILATION_RATIO;
 
             let totalA = 0;
+            let deadA = 0;
             for (const r of regsA) {
               if (annihilateA) {
+                deadA += r.a;
                 for (const unit in r.u) r.u[unit] = 0;
                 r.a = 0;
               } else {
-                applyCasualties(r, casualtiesA);
+                deadA += applyCasualties(r, casualtiesA);
               }
               fought.add(r);
               r.actionStatus = "battled";
@@ -230,17 +236,23 @@ export class LocalSkirmishGenerator {
             }
 
             let totalB = 0;
+            let deadB = 0;
             for (const r of regsB) {
               if (annihilateB) {
+                deadB += r.a;
                 for (const unit in r.u) r.u[unit] = 0;
                 r.a = 0;
               } else {
-                applyCasualties(r, casualtiesB);
+                deadB += applyCasualties(r, casualtiesB);
               }
               fought.add(r);
               r.actionStatus = "battled";
               totalB += r.a;
             }
+
+            // Population Overview combat tally (+ civilian male loss when manpower ledger is off)
+            if (deadA > 0) applyDemographicCasualties(stateA.i, deadA);
+            if (deadB > 0) applyDemographicCasualties(stateB.i, deadB);
 
             skirmishOccurred = true;
 

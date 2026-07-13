@@ -2,7 +2,7 @@ import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import { applyFoodStressToDemographics } from "./agriculturalStress";
 import { Burgs } from "./burgs-generator";
-import { isManpowerSimEnabled, registerTroopLosses } from "./manpower";
+import { isManpowerSimEnabled } from "./manpower";
 import { recordDeaths } from "./populationLossTracker";
 
 export interface DemographicsSimulationResult {
@@ -234,23 +234,24 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
 }
 
 /**
- * Combat deaths feedback into population.
+ * Combat deaths feedback into population + Population Overview combat tally.
  *
+ * Always records headcount under cause "combat" for the overview dialog.
  * When simManpower is on, men were already removed from civilian stocks at draft time —
  * regiment.a is the under-arms ledger, so we must not subtract civilians again.
  * When simManpower is off, fall back to the legacy "kill civilian males" path.
  */
 export function applyDemographicCasualties(stateId: number, deadTroops: number): void {
-  const { pack, populationRate } = worldContext;
-  if (!pack?.cells || !pack.burgs || deadTroops <= 0) return;
+  if (!stateId || deadTroops <= 0 || !Number.isFinite(deadTroops)) return;
 
-  if (isManpowerSimEnabled()) {
-    registerTroopLosses(stateId, deadTroops);
-    return;
-  }
-
-  // Legacy path: also kill civilians — still count as combat deaths for the overview
+  // Overview tally first — independent of pack readiness / manpower mode
   recordDeaths(stateId, deadTroops, "combat");
+
+  const { pack, populationRate } = worldContext;
+  if (!pack?.cells || !pack.burgs) return;
+
+  // Manpower ledger: under-arms already shrank with regiment.a; civilians were deducted at draft.
+  if (isManpowerSimEnabled()) return;
 
   const deadPopPoints = deadTroops / populationRate;
 

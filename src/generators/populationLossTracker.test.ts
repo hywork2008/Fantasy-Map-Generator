@@ -37,4 +37,14 @@ describe("populationLossTracker", () => {
     recordDeaths(1, -5, "famine");
     expect(getDeathsByState("month").size).toBe(0);
   });
+
+  it("accumulates combat deaths for overview windows", () => {
+    recordDeaths(3, 250, "combat");
+    recordDeaths(3, 50, "combat");
+    recordDeaths(4, 10, "combat");
+    const byState = getDeathsByState("week");
+    expect(byState.get(3)?.combat).toBe(300);
+    expect(byState.get(3)?.total).toBe(300);
+    expect(byState.get(4)?.combat).toBe(10);
+  });
 });

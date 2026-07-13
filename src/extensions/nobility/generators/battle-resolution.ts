@@ -1,5 +1,6 @@
 import { appServices } from "../../../context/appServices";
 import type { StrategicGoal } from "../../../context/simulationContext";
+import { applyDemographicCasualties } from "../../../generators/demography-simulator";
 import { buildSeaRouteGraph } from "../../../generators/seaRouteGraph";
 import type { ChronicleEvent } from "../../../types/models";
 import type { Character } from "../../characters/characterTypes";
@@ -175,16 +176,21 @@ export const BattleResolutionGenerator = {
       attackerCasualties = Math.min(attackerCasualties, attackerPower);
     }
 
-    // Apply Casualties to Regiments (proportional reduction)
+    // Apply Casualties to Regiments (proportional reduction) and tally combat deaths
+    let attackerDead = 0;
+    let defenderDead = 0;
+
     if (attackerCasualties > 0 && attackingRegiments.length > 0) {
       const reductionRatio = Math.max(0, 1 - attackerCasualties / attackerPower);
       for (const reg of attackingRegiments) {
+        const before = reg.a;
         let survivors = 0;
         for (const unit in reg.u) {
           reg.u[unit] = Math.floor(reg.u[unit] * reductionRatio);
           survivors += reg.u[unit];
         }
         reg.a = survivors;
+        attackerDead += Math.max(0, before - survivors);
       }
     }
 
@@ -201,12 +207,14 @@ export const BattleResolutionGenerator = {
         if (arrives) {
           reg.actionStatus = "battled";
           const reductionRatio = Math.max(0, 1 - defenderCasualties / defendingForceArrived);
+          const before = reg.a;
           let survivors = 0;
           for (const unit in reg.u) {
             reg.u[unit] = Math.floor(reg.u[unit] * reductionRatio);
             survivors += reg.u[unit];
           }
           reg.a = survivors;
+          defenderDead += Math.max(0, before - survivors);
         }
       }
     } else if (targetState.military) {
@@ -224,6 +232,9 @@ export const BattleResolutionGenerator = {
         }
       }
     }
+
+    if (attackerDead > 0) applyDemographicCasualties(attackerId, attackerDead);
+    if (defenderDead > 0) applyDemographicCasualties(goal.targetState, defenderDead);
 
     // Handle City Capture
     let actionText = "";

@@ -269,10 +269,9 @@ export function reconcileAllStatesManpower(pack: PackedGraph, populationRate = w
 }
 
 /**
- * Combat deaths: headcount is already removed from regiment.a by the caller.
- * With the ledger on, civilians were deducted at draft time — do not subtract again.
- * (Legacy double-count path lives in applyDemographicCasualties when simManpower is off.)
- * Always record combat losses for Population Overview.
+ * Record combat deaths for Population Overview only (no civilian pop mutation).
+ * Prefer `applyDemographicCasualties` from combat resolution sites so legacy
+ * (non-manpower) maps still lose civilian males.
  */
 export function registerTroopLosses(stateId: number, deadTroops: number): void {
   if (deadTroops > 0) recordDeaths(stateId, deadTroops, "combat");
