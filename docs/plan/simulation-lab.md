@@ -6,6 +6,7 @@
 
 | Doc / Code | Relation |
 | :--- | :--- |
+| `docs/plan/simulation-lab-infra.md` | ノート 2 台（Ubuntu 24.04 / 26.04）のインフラ構築手順書 |
 | `docs/simulation/advance-time.md` | `advanceTime` / day loop / tick hooks |
 | `docs/plan/military/manpower-ecosystem.md` | 人口・兵力・死者台帳（in-memory 現状） |
 | `src/generators/timeEngine.ts` | 時計・人口・manpower・拡張 hook |
@@ -71,7 +72,7 @@ Population Overview の Deaths（1d/7d/30d の集約）は **対話用の窓**�
 
 ## 2. 全体アーキテクチャ
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │  Operator (dev laptop / SSH)                                    │
 │  fmg-lab CLI  |  curl / scripts  |  Jupyter / SQL client        │
@@ -123,7 +124,7 @@ DB は **分析用の二次派生**。一次ソースは常に Run Store。
 
 ### 3.1 ルート
 
-```
+```text
 $FMG_LAB_ROOT/                    # 例: /var/fmg-lab  or  tmpfs mount
   runs/
     {runId}/
@@ -232,7 +233,7 @@ interface LabEventBase {
 {"v":1,"runId":"...","tick":42,"cal":{...},"t":"ai.decision","stateId":3,"rulerId":17,"kind":"strategicGoal","summary":"Siege burg 88 — enemy weak","inputs":{"ownTroops":12000,"enemyEst":800,"tension":100},"outputs":{"goalType":"siege","targetBurg":88,"requiredAttackForce":0.8},"rationale":["outnumbered_enemy","lost_enclave_in_stateHistory"]}
 ```
 
-**重要**: 既存 AI は rationale を出していない。Lab 用に **strategic-planner / mobilization の分岐点で構造化ログを emit する hook** を後から足す（§7.3）。
+**重要**: 既存 AI は rationale を出していない。Lab 用に **strategic-planner / mobilization の分岐点で構造化ログを emit する hook** を後から足す（§11 Phase L1b）。
 
 ### 4.5 ticks メタ行（必須・軽い）
 
@@ -357,7 +358,7 @@ fmg-lab etl load <runId> --dsn 'mysql://...'
 
 ### 6.3 CLI と API の関係
 
-```
+```text
 CLI ──HTTP──► Lab API ──► Worker(Engine)
   └─ (local mode) ──► Worker を子プロセスで直接起動
 ```
@@ -384,6 +385,12 @@ for (let i = 0; i < days; i++) {
   // または evaluate で差分を引き抜いて Node 側で flush
 }
 ```
+
+**L0 の注意点**（コード確認済みの罠）:
+
+- **必ず本番ビルドを serve する**（`vite build` + `preview` / 静的配信）。dev サーバーだと `import.meta.env.DEV` により `advanceTime` 終端が毎 tick `captureSnapshotData()` を Zustand debug store（`useDebugSnapshotState`）へ積み、長期 run でメモリが際限なく増える（`src/generators/timeEngine.ts` 終端参照）
+- **拡張の有効化は localStorage 経由**: enable 状態は Zustand persist（`localStorage["fmg-extensions"]`）。worker は `page.goto` 前に `context.addInitScript` で seed する（または load 後に `extensionAPI.toggleExtension` を呼ぶ）。`fmg:generate-post-core` ハンドラは `isExtensionEnabled` を見るため、**生成前に有効化されていないと拡張データが作られない**。また `nobility` は `characters` に依存するので、CLI の `--extensions` は依存を自動展開する
+- **render mode も seed する**: headless Chromium は SwiftShader 経由で WebGL2 を報告するため、既定では `webglHybrid` がソフトウェアレンダリングで走る。skipRender（L1）実装前でも `localStorage["fmg-render-mode"] = "svg"` を積むだけで安くなる
 
 **ページ内バッファ案**（書き込み回数削減）:
 
@@ -471,7 +478,7 @@ fmg-lab run tick $ID --days 3650
 
 ### 8.3 データの寿命
 
-```
+```text
 tmpfs (hot, volatile)
   → fmg-lab run export $ID ./archive/$ID.tar.zst   # 興味あり
   → fmg-lab run rm $ID                             # 捨てる
@@ -534,6 +541,7 @@ UI は Lab を必須にしない。Lab は UI を必須にしない（ただし 
 - Lab API は **LAN 限定**、Bearer token
 - run 削除は破壊的 — `rm` は確認フラグ `--yes`
 - 生成マップの著作・シードは `meta.json` に残し再現可能に
+- **再現性の限界**: seed から再現できるのは **マップ生成まで**。tick シミュレーションは `appServices.rng` と生の `Math.random`（例: `demography-simulator.ts` の casualtyRate）が混在しており、**bit-exact な replay は保証されない**。だからこそイベントログを一次記録とする。将来課題: sim 乱数を seeded rng に統一し `meta.json` に sim seed を記録
 - Chromium のサンドボックスは Docker 内で既知の flag が必要な場合あり
 
 ---
@@ -575,6 +583,7 @@ fmg-lab run rm $ID --yes
 | 本番と Lab の挙動差 | 同じ bundle を headless で動かす（L0）；L3 は golden tick 比較テスト |
 | 毎 tick 全データ欲しい | 禁止。関心で layer（deaths / moves / ai）を ON/OFF |
 | `advanceTime` の年一括と日次の差 | Lab CLI は既定 `--sync-day`；bulk は明示フラグ |
+| run を replay で再現できない（`Math.random` 混在） | イベントログを一次記録とする（§10）；将来 sim 乱数を seeded rng に統一 |
 
 ---
 
