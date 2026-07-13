@@ -101,6 +101,13 @@ const STATIC_EDIT_BUTTONS: StaticEditButton[] = [
     dialogId: "notesEditor"
   },
   {
+    key: "population",
+    label: "Population",
+    tooltip: "Open Population Overview — living counts and death tallies by state (for rulers and design review)",
+    eventName: "overviewPopulationButton",
+    dialogId: "populationOverview"
+  },
+  {
     key: "provinces",
     label: "Provinces",
     tooltip: "Click to open Provinces Editor",

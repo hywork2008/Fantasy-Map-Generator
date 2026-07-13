@@ -19,6 +19,7 @@ import { tickAgriculturalCalendar } from "./agriculturalStress";
 import { simulateDemographics } from "./demography-simulator";
 import { tickManpower } from "./manpower";
 import { Military } from "./military-generator";
+import { advancePopulationLossClock, resetPopulationLossTracker } from "./populationLossTracker";
 import { advanceAllRegimentMovement } from "./regimentMovement";
 
 /** Day is the base simulation unit. Month/Year UI buttons expand to ~this many days. */
@@ -90,6 +91,7 @@ export function syncSimulationClockFromOptions(): void {
 export function initSimulationClock(): void {
   syncSimulationClockFromOptions();
   simulationContext.tickCount = 0;
+  resetPopulationLossTracker();
 }
 
 /**
@@ -170,6 +172,9 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
   const effectiveDeltaYears = effectiveDeltaDays / DAYS_PER_YEAR;
 
   const sim = useOptionsState.getState();
+
+  // Rolling death tallies (Population Overview) — advance clock before deaths are recorded this tick
+  advancePopulationLossClock(effectiveDeltaDays);
 
   // 1) Agricultural calendar (spring/autumn war exposure → foodStress on year roll)
   if (sim.simAgriculture && worldContext.pack?.states) {

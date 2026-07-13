@@ -12,6 +12,7 @@ import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import type { MilitaryRegiment, State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
+import { recordDeaths } from "./populationLossTracker";
 
 /** Peacetime under-arms target as a share of total people. */
 export const PEACE_TARGET_MOBILIZATION = 0.01;
@@ -271,9 +272,10 @@ export function reconcileAllStatesManpower(pack: PackedGraph, populationRate = w
  * Combat deaths: headcount is already removed from regiment.a by the caller.
  * With the ledger on, civilians were deducted at draft time — do not subtract again.
  * (Legacy double-count path lives in applyDemographicCasualties when simManpower is off.)
+ * Always record combat losses for Population Overview.
  */
-export function registerTroopLosses(_stateId: number, _deadTroops: number): void {
-  // Bookkeeping only for now; under-arms shrink with regiment.a. Future: homeProvince scars.
+export function registerTroopLosses(stateId: number, deadTroops: number): void {
+  if (deadTroops > 0) recordDeaths(stateId, deadTroops, "combat");
 }
 
 /**

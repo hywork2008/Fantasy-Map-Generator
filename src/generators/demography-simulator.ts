@@ -3,6 +3,7 @@ import { useOptionsState } from "../store/optionsState";
 import { applyFoodStressToDemographics } from "./agriculturalStress";
 import { Burgs } from "./burgs-generator";
 import { isManpowerSimEnabled, registerTroopLosses } from "./manpower";
+import { recordDeaths } from "./populationLossTracker";
 
 export interface DemographicsSimulationResult {
   bordersChanged: boolean;
@@ -23,11 +24,20 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
 
   const { demographicBirthRate, demographicChildMortalityRate, simAgriculture } = useOptionsState.getState();
   const baseGrowthRate = demographicBirthRate;
+  const populationRate = worldContext.populationRate || 1;
+  /** Batch natural/famine point losses per state, convert once to people. */
+  const naturalPts = new Map<number, number>();
+  const faminePts = new Map<number, number>();
+  const addLoss = (map: Map<number, number>, stateId: number, pts: number) => {
+    if (!stateId || pts <= 0) return;
+    map.set(stateId, (map.get(stateId) ?? 0) + pts);
+  };
 
   // 1. Process Rural Cells
   for (let i = 0; i < pack.cells.i.length; i++) {
     if (pack.cells.pop[i] <= 0) continue;
 
+    const stateId = pack.cells.state[i];
     const capacity = pack.cells.capacity[i];
     let children = pack.cells.children[i];
     let maleAdults = pack.cells.maleAdults[i];
@@ -42,6 +52,7 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
 
     // Apply child mortality linearly across childhood
     const childDeaths = children * (demographicChildMortalityRate / 15) * deltaYears;
+    addLoss(naturalPts, stateId, elderDeaths + childDeaths);
 
     children = Math.max(0, children - childrenToAdults - childDeaths);
     maleAdults = Math.max(0, maleAdults + childrenToAdults / 2 - adultsToEldersMale);
@@ -114,10 +125,12 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
       } else {
         // No migration possible -> Starvation reduction
         const starvationRate = Math.min(0.99, Math.abs(roomForGrowth) * deltaYears * 0.02);
+        const before = children + maleAdults + femaleAdults + elders;
         children *= 1 - starvationRate;
         maleAdults *= 1 - starvationRate;
         femaleAdults *= 1 - starvationRate;
         elders *= 1 - starvationRate;
+        addLoss(faminePts, stateId, before - (children + maleAdults + femaleAdults + elders));
       }
     }
 
@@ -161,6 +174,7 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
   for (const burg of pack.burgs) {
     if (!burg?.population || !burg.demographics) continue;
 
+    const stateId = burg.state ?? 0;
     const { capacity } = burg.demographics;
     let { children, maleAdults, femaleAdults, elders } = burg.demographics;
 
@@ -169,6 +183,7 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     const adultsToEldersFemale = femaleAdults * (deltaYears / 35);
     const elderDeaths = elders * (deltaYears / 10);
     const childDeaths = children * (demographicChildMortalityRate / 15) * deltaYears;
+    addLoss(naturalPts, stateId, elderDeaths + childDeaths);
 
     children = Math.max(0, children - childrenToAdults - childDeaths);
     maleAdults = Math.max(0, maleAdults + childrenToAdults / 2 - adultsToEldersMale);
@@ -186,10 +201,12 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
       }
     } else if (roomForGrowth < 0) {
       const starvationRate = Math.min(0.99, Math.abs(roomForGrowth) * deltaYears * 0.02);
+      const before = children + maleAdults + femaleAdults + elders;
       children *= 1 - starvationRate;
       maleAdults *= 1 - starvationRate;
       femaleAdults *= 1 - starvationRate;
       elders *= 1 - starvationRate;
+      addLoss(faminePts, stateId, before - (children + maleAdults + femaleAdults + elders));
     }
 
     const newPop = children + maleAdults + femaleAdults + elders;
@@ -201,9 +218,16 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     burg.population = newPop;
   }
 
-  // Food disruption from fighting in planting/harvest seasons (manpower-ecosystem §18)
+  // Food disruption from fighting in planting/harvest seasons (records famine deaths itself)
   if (simAgriculture) {
     applyFoodStressToDemographics(pack, deltaYears);
+  }
+
+  for (const [stateId, pts] of naturalPts) {
+    recordDeaths(stateId, pts * populationRate, "natural");
+  }
+  for (const [stateId, pts] of faminePts) {
+    recordDeaths(stateId, pts * populationRate, "famine");
   }
 
   return { bordersChanged, newBurgsAdded };
@@ -224,6 +248,9 @@ export function applyDemographicCasualties(stateId: number, deadTroops: number):
     registerTroopLosses(stateId, deadTroops);
     return;
   }
+
+  // Legacy path: also kill civilians — still count as combat deaths for the overview
+  recordDeaths(stateId, deadTroops, "combat");
 
   const deadPopPoints = deadTroops / populationRate;
 

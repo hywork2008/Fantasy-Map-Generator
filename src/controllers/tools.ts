@@ -83,6 +83,7 @@ import { openMinimapDialog } from "./minimap";
 import { NamesbaseEditor } from "./namesbase-editor";
 import { editNotes } from "./notes-editor";
 import { cellsDensityMap } from "./options";
+import { overviewPopulation } from "./population-overview";
 import { editProvinces } from "./provinces-editor";
 import { overviewRegiments } from "./regiments-overview";
 import * as RiversOverview from "./rivers-overview";
@@ -190,6 +191,7 @@ document.addEventListener("react-tool-action", e => {
   else if (button === "overviewRiversButton")
     toggleEditor("riversOverview", "toggleRivers", RiversOverview.overviewRivers);
   else if (button === "overviewMilitaryButton") toggleEditor("militaryOverview", "toggleMilitary", overviewMilitary);
+  else if (button === "overviewPopulationButton") toggleEditor("populationOverview", null, overviewPopulation);
   else if (button === "overviewRegimentsButton") toggleEditor("regimentsOverview", "toggleMilitary", overviewRegiments);
   else if (button === "overviewMarkersButton")
     toggleEditor("markersOverview", "toggleMarkers", MarkersOverview.overviewMarkers);

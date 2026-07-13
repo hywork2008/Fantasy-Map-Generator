@@ -46,6 +46,7 @@ import { MilitaryOverviewDialog } from "./MilitaryOverviewDialog";
 import { MinimapDialog } from "./MinimapDialog";
 import { Options3dDialog } from "./Options3dDialog";
 import { PopulationChangeDialog } from "./PopulationChangeDialog";
+import { PopulationOverviewDialog } from "./PopulationOverviewDialog";
 import { Preview3dDialog } from "./Preview3dDialog";
 import { PromptDialog } from "./PromptDialog";
 import { ProvinceEditorDialog } from "./ProvinceEditorDialog";
@@ -144,6 +145,7 @@ export const DialogsContainer: React.FC = () => {
           <MinimapDialog />
           <Options3dDialog />
           <PopulationChangeDialog />
+          <PopulationOverviewDialog />
           <Preview3dDialog />
           <PromptDialog />
           <ProvinceEditorDialog />

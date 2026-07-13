@@ -9,6 +9,7 @@ import type { PackedGraph } from "../types/PackedGraph";
 import { getLatitude } from "../utils/commonUtils";
 import { getSeason, getSeasonalityStrength } from "../utils/seasonUtils";
 import { currentLandTroops, stateHasEnemy, sumCivilianMalePoints, troopsToPoints } from "./manpower";
+import { recordDeaths } from "./populationLossTracker";
 
 const PLANT_REF_DAYS = 60;
 const HARVEST_REF_DAYS = 60;
@@ -109,6 +110,8 @@ export function starveDemographics(
  */
 export function applyFoodStressToDemographics(pack: PackedGraph, deltaYears: number): void {
   if (deltaYears <= 0) return;
+  const populationRate = worldContext.populationRate || 1;
+  const faminePts = new Map<number, number>();
 
   for (const state of pack.states) {
     if (!state?.i || state.removed) continue;
@@ -116,10 +119,12 @@ export function applyFoodStressToDemographics(pack: PackedGraph, deltaYears: num
     if (stress <= 0.001) continue;
 
     const baseRate = Math.min(0.25, 0.12 * stress) * deltaYears;
+    let lostPts = 0;
 
     for (let i = 0; i < pack.cells.i.length; i++) {
       if (pack.cells.state[i] !== state.i || pack.cells.pop[i] <= 0) continue;
       const rate = baseRate * 0.85;
+      const before = pack.cells.pop[i];
       const next = starveDemographics(
         pack.cells.children[i],
         pack.cells.maleAdults[i],
@@ -132,19 +137,28 @@ export function applyFoodStressToDemographics(pack: PackedGraph, deltaYears: num
       pack.cells.femaleAdults[i] = next.femaleAdults;
       pack.cells.elders[i] = next.elders;
       pack.cells.pop[i] = next.total;
+      lostPts += before - next.total;
     }
 
     for (const burg of pack.burgs) {
       if (!burg?.i || burg.removed || burg.state !== state.i || !burg.demographics) continue;
       const d = burg.demographics;
       const rate = baseRate * 1.15;
+      const before = d.children + d.maleAdults + d.femaleAdults + d.elders;
       const next = starveDemographics(d.children, d.maleAdults, d.femaleAdults, d.elders, rate);
       d.children = next.children;
       d.maleAdults = next.maleAdults;
       d.femaleAdults = next.femaleAdults;
       d.elders = next.elders;
       burg.population = next.total;
+      lostPts += before - next.total;
     }
+
+    if (lostPts > 0) faminePts.set(state.i, lostPts);
+  }
+
+  for (const [stateId, pts] of faminePts) {
+    recordDeaths(stateId, pts * populationRate, "famine");
   }
 }
 
