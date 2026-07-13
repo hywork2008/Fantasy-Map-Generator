@@ -12,6 +12,8 @@ import {
   forceWebglGlacierFixture,
   forceWebglIcebergFixture,
   forceWebglMarkerFixture,
+  getCanvasColorChecksum,
+  getCanvasLuminanceStats,
   getFirstLandScreenPoint,
   getFirstStateScreenPoint,
   getToastText,
@@ -377,12 +379,17 @@ test.describe("webgl hybrid renderer", () => {
     await waitForWebglCanvasPixels(page);
     // Prove that the terrain texture itself rendered, rather than merely the low-poly burg icons.
     await ensureLayerOff(page, "toggleBurgIcons");
+    await ensureLayerOn(page, "toggleTexture");
 
     await page.locator("#optionsHide").click();
     await page.locator("#layersTab").click();
     await page.locator("#viewMesh").click();
 
     await expect(page.locator("#canvas3d")).toBeVisible({ timeout: 15000 });
+    await waitForCanvasPixels(page, "canvas3d");
+    const texturedChecksum = await getCanvasColorChecksum(page, "canvas3d");
+    await toggleLayer(page, "toggleTexture");
+    await expect.poll(() => getCanvasColorChecksum(page, "canvas3d"), { timeout: 15000 }).not.toBe(texturedChecksum);
     await waitForCanvasPixels(page, "canvas3d");
     await expect(page.locator("#map")).toBeHidden();
     await expect(page.locator("#webglMapCanvas")).toBeHidden();
@@ -397,6 +404,66 @@ test.describe("webgl hybrid renderer", () => {
       deckExists: true,
       deckCanvasMatchesDom: true
     });
+  });
+
+  test("keeps the viewMesh terrain colour-balanced after enabling many overlays", async ({ page }) => {
+    const rendererWarnings: string[] = [];
+    page.on("console", message => {
+      const text = message.text();
+      if (/Too many active WebGL contexts|Context Lost|Could not render the WebGL terrain texture/.test(text)) {
+        rendererWarnings.push(text);
+      }
+    });
+
+    await page.goto("/?seed=webgl-3d-many-overlays&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await setLayerPreset(page, "landmass");
+    await waitForWebglCanvasPixels(page);
+
+    await page.locator("#optionsHide").click();
+    await page.locator("#layersTab").click();
+    await page.locator("#viewMesh").click();
+    await expect(page.locator("#canvas3d")).toBeVisible({ timeout: 15000 });
+    await waitForCanvasPixels(page, "canvas3d");
+    const checksumBeforeOverlays = await getCanvasColorChecksum(page, "canvas3d");
+
+    for (const layer of [
+      "toggleHeight",
+      "toggleBiomes",
+      "toggleCultures",
+      "toggleProvinces",
+      "toggleTemperature",
+      "togglePopulation",
+      "toggleCells",
+      "toggleGrid"
+    ]) {
+      await ensureLayerOn(page, layer);
+    }
+
+    await expect
+      .poll(() => getWebglDeckLayerIds(page), { timeout: 15000 })
+      .toEqual(
+        expect.arrayContaining([
+          "fmg-webgl-height",
+          "fmg-webgl-biomes",
+          "fmg-webgl-cultures",
+          "fmg-webgl-provinces",
+          "fmg-webgl-temperature",
+          "fmg-webgl-population",
+          "fmg-webgl-cells",
+          "fmg-webgl-grid"
+        ])
+      );
+    await expect.poll(() => getCanvasColorChecksum(page, "canvas3d"), { timeout: 20000 }).not.toBe(
+      checksumBeforeOverlays
+    );
+
+    const meshStats = await getCanvasLuminanceStats(page, "canvas3d");
+    const webglStats = await getCanvasLuminanceStats(page, "webglMapCanvas");
+    expect(meshStats.nearWhiteRatio).toBeLessThan(0.9);
+    expect(webglStats.nearWhiteRatio).toBeLessThan(0.9);
+    expect(rendererWarnings).toEqual([]);
   });
 
   test("renders population-scaled city lights in Nightscape mode", async ({ page }) => {

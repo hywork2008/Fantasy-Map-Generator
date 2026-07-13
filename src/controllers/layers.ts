@@ -477,14 +477,14 @@ function syncWebglManagedSvgLayerVisibility(): void {
 export function turnButtonOff(el: string): void {
   useLayerState.getState().toggleLayer(el, false);
   getCurrentPreset();
-  schedule3dUpdate();
+  schedule3dUpdate(el === "toggleBurgIcons");
   scheduleWebglUpdate();
 }
 
 export function turnButtonOn(el: string): void {
   useLayerState.getState().toggleLayer(el, true);
   getCurrentPreset();
-  schedule3dUpdate();
+  schedule3dUpdate(el === "toggleBurgIcons");
   scheduleWebglUpdate();
 }
 
@@ -1070,6 +1070,7 @@ const TOGGLE_REGISTRY: Record<string, (event?: MouseEvent) => void> = {
 };
 
 let pending3dUpdate = false;
+let pending3dSceneObjectsRebuild = false;
 let precipitationAnimRafId: number | null = null;
 let populationAnimRafId: number | null = null;
 type LayerToggleTransitionState = "off" | "turning-on" | "on" | "turning-off";
@@ -1200,14 +1201,19 @@ function startPopulationTurnOff(): void {
   });
 }
 
-function schedule3dUpdate() {
-  if (ThreeDRenderer.options.isOn && !pending3dUpdate) {
-    pending3dUpdate = true;
-    requestAnimationFrame(() => {
-      pending3dUpdate = false;
-      ThreeDRenderer.update();
-    });
-  }
+function schedule3dUpdate(rebuildSceneObjects = false) {
+  if (!ThreeDRenderer.options.isOn) return;
+  pending3dSceneObjectsRebuild ||= rebuildSceneObjects;
+  if (pending3dUpdate) return;
+
+  pending3dUpdate = true;
+  requestAnimationFrame(() => {
+    pending3dUpdate = false;
+    const shouldRebuildSceneObjects = pending3dSceneObjectsRebuild;
+    pending3dSceneObjectsRebuild = false;
+    if (shouldRebuildSceneObjects) ThreeDRenderer.update();
+    else ThreeDRenderer.updateTerrainTexture();
+  });
 }
 
 export function scheduleWebglUpdate(): void {

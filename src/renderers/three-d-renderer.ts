@@ -157,6 +157,13 @@ class ThreeDModule {
   private gridToPackCellMap: Map<number, number> | null = null;
   private erosionBakeActive: boolean = false;
   private erosionBakeData: ErosionBake.ErosionBakeResult | null = null;
+  // A full map texture is rendered by a short-lived deck.gl instance. Keep at most one such
+  // render in flight: rapidly enabling several layers must resolve to one final bitmap, rather
+  // than competing GPU renders that can temporarily exhaust the shared WebGL resources.
+  private textureUpdateInFlight: boolean = false;
+  private textureUpdateQueued: boolean = false;
+  private textureRetryTimer: number | null = null;
+  private textureRetryCount: number = 0;
   private waterAnimationFrame: number | null = null;
   private waterTime = { value: 0 };
   private labelBuildToken = 0;
@@ -203,13 +210,26 @@ class ThreeDModule {
     else {
       this.deleteLowPolyBurgIcons();
       this.createLowPolyBurgIcons();
-      if (this.options.sceneOnly) this.render();
-      else this.update3dTexture();
+      this.updateTerrainTexture();
     }
+  }
+
+  /** Refreshes only the terrain bitmap; layer toggles must not rebuild every 3D burg icon batch. */
+  updateTerrainTexture(): void {
+    if (this.options.isGlobe) {
+      this.updateGlobeTexure();
+      return;
+    }
+    if (this.options.sceneOnly) this.render();
+    else this.update3dTexture();
   }
 
   stop(): void {
     if (this.controls) this.controls.dispose();
+    if (this.textureRetryTimer !== null) window.clearTimeout(this.textureRetryTimer);
+    this.textureRetryTimer = null;
+    this.textureRetryCount = 0;
+    this.textureUpdateQueued = false;
     cancelAnimationFrame(this.animationFrame);
     if (this.texture) this.texture.dispose();
     if (this.geometry) this.geometry.dispose();
@@ -476,7 +496,14 @@ class ThreeDModule {
     this.scene.add(this.spotLight);
 
     this.Renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
-    this.Renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+    // CanvasTexture is explicitly tagged as sRGB in createMeshTexture. Encode the rendered
+    // frame back to sRGB as well, otherwise viewMesh writes linear values straight to the
+    // browser canvas and its colours no longer match the 2D WebGL map.
+    this.Renderer.outputColorSpace = THREE.SRGBColorSpace;
+    // The full-map deck texture always has a background layer. Treat it as opaque so areas
+    // outside the tilted terrain cannot blend with the page's white background while layers are
+    // being refreshed.
+    this.Renderer.setClearColor(0x000000, 1);
     this.Renderer.setSize(canvas.width, canvas.height);
     this.Renderer.shadowMap.enabled = true;
     this.Renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1024,13 +1051,17 @@ class ThreeDModule {
     }
 
     if (this.material) this.material.dispose();
-    this.material = new THREE.MeshLambertMaterial();
+    // The map texture is already composited by deck.gl. Lighting it again makes overlapping,
+    // semi-transparent layers clip to white, so preserve its 2D colours with an unlit material.
+    // Satellite terrain remains lit because its procedural texture intentionally includes relief.
+    this.material = useSatellite ? new THREE.MeshLambertMaterial() : new THREE.MeshBasicMaterial();
 
     if (this.options.wireframe) {
       this.material.wireframe = true;
     } else if (!useSatellite && !sceneOnly) {
       this.material.map = this.texture ?? null;
-      this.material.transparent = true;
+      this.material.transparent = false;
+      this.material.depthWrite = true;
     }
 
     let bakeResult: ErosionBake.ErosionBakeResult | null = null;
@@ -1180,25 +1211,66 @@ class ThreeDModule {
     this.scene!.add(this.waterMesh);
   }
 
-  private async update3dTexture(): Promise<void> {
+  private update3dTexture(): void {
     if (!this.material || !this.Renderer) return;
+    this.textureUpdateQueued = true;
+    if (!this.textureUpdateInFlight) void this.flush3dTextureUpdates();
+  }
 
-    if (this.options.satellite && this.erosionBakeData && !this.options.isGlobe && !this.options.wireframe) {
-      const satelliteTexture = generateSatelliteTexture(this.Renderer, this.erosionBakeData, {
-        scale: this.options.scale,
-        maxOutput: Math.max(512, Math.min(this.options.resolutionScale, 8192))
-      });
-      if (satelliteTexture) {
-        this.material.map = satelliteTexture;
-        this.render();
-        return;
+  private async flush3dTextureUpdates(): Promise<void> {
+    this.textureUpdateInFlight = true;
+
+    while (this.textureUpdateQueued) {
+      this.textureUpdateQueued = false;
+      if (!this.material || !this.Renderer || !this.options.isOn || this.options.sceneOnly) continue;
+
+      if (this.options.satellite && this.erosionBakeData && !this.options.isGlobe && !this.options.wireframe) {
+        const satelliteTexture = generateSatelliteTexture(this.Renderer, this.erosionBakeData, {
+          scale: this.options.scale,
+          maxOutput: Math.max(512, Math.min(this.options.resolutionScale, 8192))
+        });
+        if (satelliteTexture) {
+          this.material.map = satelliteTexture;
+          this.render();
+          continue;
+        }
       }
+
+      const material = this.material;
+      const nextTexture = await this.createMeshTexture();
+      // Keep the visible bitmap until the last requested deck.gl frame is ready. Any frame made
+      // obsolete while it was rendering is discarded without touching the terrain material.
+      if (this.material !== material || !this.options.isOn || this.options.sceneOnly || this.textureUpdateQueued) {
+        nextTexture?.dispose();
+        continue;
+      }
+      if (!nextTexture) {
+        this.retryTextureUpdate(material);
+        continue;
+      }
+
+      const previousTexture = this.texture;
+      this.texture = nextTexture;
+      this.material.map = nextTexture;
+      this.material.transparent = false;
+      this.material.depthWrite = true;
+      this.material.needsUpdate = true;
+      previousTexture?.dispose();
+      this.textureRetryCount = 0;
+      this.render();
     }
 
-    if (this.texture) this.texture.dispose();
-    this.texture = (await this.createMeshTexture()) ?? undefined;
-    this.material.map = this.texture ?? null;
-    this.render();
+    this.textureUpdateInFlight = false;
+  }
+
+  private retryTextureUpdate(material: THREE.Material): void {
+    if (this.textureRetryTimer !== null || this.textureRetryCount >= 2) return;
+    this.textureRetryCount++;
+    this.textureRetryTimer = window.setTimeout(() => {
+      this.textureRetryTimer = null;
+      if (this.material !== material || !this.options.isOn || this.options.sceneOnly) return;
+      this.update3dTexture();
+    }, 180);
   }
 
   private async newGlobe(canvas: HTMLCanvasElement): Promise<boolean> {
@@ -1209,7 +1281,7 @@ class ThreeDModule {
     );
 
     this.Renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
-    this.Renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+    this.Renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.Renderer.setSize(canvas.width, canvas.height);
 
     if (this.material) this.material.dispose();

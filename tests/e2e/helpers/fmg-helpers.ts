@@ -1385,6 +1385,67 @@ export async function waitForCanvasPixels(page: Page, canvasId: string, minColor
   );
 }
 
+/** A compact colour fingerprint for asserting that a canvas frame was actually replaced. */
+export async function getCanvasColorChecksum(page: Page, canvasId: string): Promise<number> {
+  return page.evaluate(id => {
+    const source = document.getElementById(id);
+    if (!(source instanceof HTMLCanvasElement) || source.width === 0 || source.height === 0) return 0;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 40;
+    const context = canvas.getContext("2d");
+    if (!context) return 0;
+    context.drawImage(source, 0, 0, canvas.width, canvas.height);
+
+    let checksum = 2166136261;
+    for (const value of context.getImageData(0, 0, canvas.width, canvas.height).data) {
+      checksum = Math.imul(checksum ^ value, 16777619) >>> 0;
+    }
+    return checksum;
+  }, canvasId);
+}
+
+export interface CanvasLuminanceStats {
+  averageLuminance: number;
+  nearWhiteRatio: number;
+  sampledPixels: number;
+}
+
+/** Samples a canvas colour distribution without relying on pixel-perfect 3D camera alignment. */
+export async function getCanvasLuminanceStats(page: Page, canvasId: string): Promise<CanvasLuminanceStats> {
+  return page.evaluate(id => {
+    const source = document.getElementById(id);
+    if (!(source instanceof HTMLCanvasElement) || source.width === 0 || source.height === 0) {
+      return { averageLuminance: 0, nearWhiteRatio: 0, sampledPixels: 0 };
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 96;
+    canvas.height = 64;
+    const context = canvas.getContext("2d");
+    if (!context) return { averageLuminance: 0, nearWhiteRatio: 0, sampledPixels: 0 };
+    context.drawImage(source, 0, 0, canvas.width, canvas.height);
+
+    let totalLuminance = 0;
+    let nearWhite = 0;
+    const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    for (let index = 0; index < data.length; index += 4) {
+      const red = data[index] ?? 0;
+      const green = data[index + 1] ?? 0;
+      const blue = data[index + 2] ?? 0;
+      totalLuminance += red * 0.2126 + green * 0.7152 + blue * 0.0722;
+      if (red >= 245 && green >= 245 && blue >= 245) nearWhite++;
+    }
+    const sampledPixels = canvas.width * canvas.height;
+    return {
+      averageLuminance: totalLuminance / sampledPixels,
+      nearWhiteRatio: nearWhite / sampledPixels,
+      sampledPixels
+    };
+  }, canvasId);
+}
+
 export interface SvgLayerPresence {
   ocean: boolean;
   lakes: boolean;
