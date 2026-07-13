@@ -176,8 +176,11 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     const roomForGrowth = capacity > 0 ? Math.max(-0.5, 1 - currentTotal / capacity) : 0;
 
     if (roomForGrowth > 0) {
-      const births = femaleAdults * baseGrowthRate * deltaYears * roomForGrowth;
-      children += births;
+      // Garrison forts have negligible resident families — suppress natural increase.
+      if (burg.group !== "fort") {
+        const births = femaleAdults * baseGrowthRate * deltaYears * roomForGrowth;
+        children += births;
+      }
     } else if (roomForGrowth < 0) {
       const starvationRate = Math.min(0.99, Math.abs(roomForGrowth) * deltaYears * 0.02);
       children *= 1 - starvationRate;

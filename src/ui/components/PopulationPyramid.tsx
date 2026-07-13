@@ -13,14 +13,17 @@ export const PopulationPyramid: React.FC<PopulationPyramidProps> = ({
   femaleAdults,
   elders
 }) => {
-  // Split children and elders 49:51 for the pyramid display to match natural birth ratio
-  const maleChildren = Math.round(childrenCount * 0.49);
-  const femaleChildren = Math.round(childrenCount * 0.51);
-  const maleElders = Math.round(elders * 0.49);
-  const femaleElders = Math.round(elders * 0.51);
-
   const mAdults = Math.round(maleAdults);
   const fAdults = Math.round(femaleAdults);
+  const adultTotal = mAdults + fAdults;
+
+  // Children keep a natural birth sex ratio. Elders inherit the settlement's adult sex ratio
+  // so military forts (etc.) show a male-heavy older cohort instead of a fixed 49:51 split.
+  const maleChildren = Math.round(childrenCount * 0.49);
+  const femaleChildren = Math.round(childrenCount * 0.51);
+  const elderMaleRatio = adultTotal > 0 ? mAdults / adultTotal : 0.49;
+  const maleElders = Math.round(elders * elderMaleRatio);
+  const femaleElders = Math.max(0, Math.round(elders) - maleElders);
 
   const maxVal = Math.max(maleChildren, femaleChildren, mAdults, fAdults, maleElders, femaleElders);
 

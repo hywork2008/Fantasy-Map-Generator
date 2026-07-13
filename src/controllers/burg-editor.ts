@@ -238,7 +238,8 @@ export const burgEditorActions = {
     GenerationPipeline.Burgs.changeGroup(burg, newGroup);
     drawBurgIcon(worldContext, viewContext, appServices, burg);
     drawBurgLabel(worldContext, viewContext, appServices, burg);
-    getBurgEditorState().updateBurgData({ group: newGroup });
+    // changeGroup reapplies group-based demographics (e.g. fort: no children, 8:2 sex ratio)
+    burgEditorInternal.updateBurgValues();
   },
 
   editBurgGroups(): void {
@@ -269,10 +270,24 @@ export const burgEditorActions = {
     const burg = worldContext.pack.burgs[burgId];
 
     const parsedPop = rn(+newPopulation / worldContext.populationRate / worldContext.urbanization, 4);
-    worldContext.pack.burgs[burgId].population = parsedPop;
+    burg.population = parsedPop;
+    // Rebuild age/sex buckets with the same group profile at the new total.
+    GenerationPipeline.Burgs.applyDemographics(burg);
 
     getBurgEditorState().updateBurgData({
-      population: rn((burg.population ?? 0) * worldContext.populationRate * worldContext.urbanization)
+      population: rn((burg.population ?? 0) * worldContext.populationRate * worldContext.urbanization),
+      children: burg.demographics?.children
+        ? rn(burg.demographics.children * worldContext.populationRate * worldContext.urbanization)
+        : 0,
+      maleAdults: burg.demographics?.maleAdults
+        ? rn(burg.demographics.maleAdults * worldContext.populationRate * worldContext.urbanization)
+        : 0,
+      femaleAdults: burg.demographics?.femaleAdults
+        ? rn(burg.demographics.femaleAdults * worldContext.populationRate * worldContext.urbanization)
+        : 0,
+      elders: burg.demographics?.elders
+        ? rn(burg.demographics.elders * worldContext.populationRate * worldContext.urbanization)
+        : 0
     });
     burgEditorInternal.updateBurgPreview(burg);
   },

@@ -15,6 +15,7 @@ import type { Burg, Route } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { each, findCell, gauss, minmax, normalize, P, rn } from "../utils";
 import { ERROR, TIME, WARN } from "../utils/debug";
+import { buildBurgDemographics } from "./burgDemographics";
 import { COA, type Emblem } from "./emblem/generator";
 import { NON_NAVIGABLE_LAKE_GROUPS } from "./features";
 import {
@@ -440,13 +441,19 @@ class BurgModule {
 
     const initialPopulationSaturation = useOptionsState.getState().initialPopulationSaturation / 100;
     burg.population = rn(capacity * initialPopulationSaturation, 3);
-    burg.demographics = {
-      capacity,
-      children: burg.population * 0.4,
-      maleAdults: burg.population * 0.2205,
-      femaleAdults: burg.population * 0.2295,
-      elders: burg.population * 0.15
-    };
+    // Group is usually assigned later in defineGroup(); apply default shares first, then
+    // applyDemographics() after the group is known so fort/monastery/etc. get the right mix.
+    this.applyDemographics(burg, capacity);
+  }
+
+  /**
+   * Rebuild age/sex buckets from total population using the burg group's demographic profile.
+   * Preserves capacity when already present; pass `capacity` on first population definition.
+   */
+  applyDemographics(burg: Burg, capacity?: number): void {
+    const population = burg.population ?? 0;
+    const resolvedCapacity = capacity ?? burg.demographics?.capacity ?? population;
+    burg.demographics = buildBurgDemographics(population, resolvedCapacity, burg.group);
   }
 
   private defineEmblem(burg: Burg) {
@@ -671,6 +678,8 @@ class BurgModule {
     pack.burgs.forEach(burg => {
       if (!burg.i || burg.removed) return;
       this.defineGroup(burg, populations);
+      // Re-apply after group so fort / monastery / etc. get specialised age/sex shares.
+      if (!burg.lock) this.applyDemographics(burg);
     });
 
     TIME && console.timeEnd("specifyBurgs");
@@ -879,6 +888,7 @@ class BurgModule {
       .map(b => b.population as number)
       .sort((a: number, b: number) => a - b); // ascending
     this.defineGroup(burg, populations);
+    this.applyDemographics(burg);
 
     pack.burgs.push(burg);
     cells.burg[cellId as number] = burgId;
@@ -892,6 +902,9 @@ class BurgModule {
     const { pack } = this.worldContext;
     if (group) {
       burg.group = group;
+      // Explicit group assignment (e.g. burg editor): rebuild age/sex from the new profile.
+      // Auto reassignment paths omit `group` so simulated demographics stay intact.
+      this.applyDemographics(burg);
     } else {
       const validBurgs = pack.burgs.filter(b => b.i && !b.removed);
       const populations = validBurgs.map(b => b.population as number).sort((a, b) => a - b);
