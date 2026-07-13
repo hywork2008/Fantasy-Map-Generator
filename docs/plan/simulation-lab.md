@@ -550,7 +550,7 @@ UI は Lab を必須にしない。Lab は UI を必須にしない（ただし 
 
 | Phase | 成果 | 目安 |
 | :--- | :--- | :--- |
-| **L0a** | `SimulationTelemetry` + `recordDeaths` / tick end ミラー | 小 |
+| **L0a** ✅ | `SimulationTelemetry`（`src/services/simulationTelemetry.ts`）+ `recordDeaths` / tick end ミラー | 小 |
 | **L0b** | Playwright worker + `fmg-lab run create/tick/rm` + deaths 日次 NDJSON | 中 |
 | **L0c** | military moves + tick.ndjson + skipRender | 中 |
 | **L1** | Docker compose + tmpfs volume + API | 中 |

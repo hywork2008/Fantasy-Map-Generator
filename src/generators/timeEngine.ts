@@ -9,6 +9,7 @@ import {
   MilitaryRenderer,
   StateLabelsRenderer
 } from "../renderers";
+import { telemetry } from "../services/simulationTelemetry";
 import { useDebugSnapshotState } from "../store/debugSnapshotState";
 import { useOptionsState } from "../store/optionsState";
 import { useTimeSimulationState } from "../store/timeSimulationState";
@@ -228,6 +229,19 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
     })
   );
   dispatchSimulationUpdated();
+
+  telemetry()?.onTickEnd?.(
+    {
+      tick: simulationContext.tickCount,
+      cal: {
+        y: simulationContext.currentYear,
+        m: simulationContext.currentMonth,
+        d: simulationContext.currentDay,
+        era: simulationContext.era
+      }
+    },
+    { deltaYears, deltaMonths, deltaDays }
+  );
 
   if (import.meta.env.DEV) {
     useDebugSnapshotState.getState().addSnapshot({

@@ -5,6 +5,9 @@
  *
  * All amounts are stored as *display people* (headcount), not population points.
  */
+import { simulationContext } from "../context/simulationContext";
+import { telemetry } from "../services/simulationTelemetry";
+
 export type DeathCause = "combat" | "famine" | "natural" | "other";
 
 export interface StateDeathTotals {
@@ -76,6 +79,19 @@ export function recordDeaths(stateId: number, people: number, cause: DeathCause)
   }
   row[cause] += people;
   row.total += people;
+
+  telemetry()?.onDeath?.({
+    tick: simulationContext.tickCount,
+    cal: {
+      y: simulationContext.currentYear,
+      m: simulationContext.currentMonth,
+      d: simulationContext.currentDay,
+      era: simulationContext.era
+    },
+    stateId,
+    people,
+    cause
+  });
 }
 
 export type DeathWindow = "day" | "week" | "month";
