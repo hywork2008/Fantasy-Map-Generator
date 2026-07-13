@@ -152,6 +152,8 @@ export interface ViewState {
   webglCanvas: HTMLCanvasElement | null;
   /** deck.gl instance owned by the hybrid renderer. Null when SVG rendering is active or unavailable. */
   webglDeck: Deck<OrthographicView> | null;
+  /** State selected in the Diplomacy Editor; null restores normal political colours. */
+  diplomacySelectedStateId: number | null;
 }
 
 /**
@@ -184,5 +186,6 @@ export const viewContext = {
   renderMode: initialRenderMode,
   webglCanvas: null,
   webglDeck: null,
+  diplomacySelectedStateId: null,
   lineGen: (() => "") as unknown as Line<[number, number]>
 } as ViewContext;

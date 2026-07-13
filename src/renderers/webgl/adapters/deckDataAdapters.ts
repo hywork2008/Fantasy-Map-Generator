@@ -28,6 +28,7 @@ import type { PackedGraphCells, PackedGraphVertices } from "../../../types/Packe
 import type { WebglPickKind } from "../../../types/webglPicking";
 import { clipPoly } from "../../../utils";
 import { getColor, getColorScheme } from "../../../utils/colorUtils";
+import { type RelationKey, relations } from "../../../utils/diplomacyRelations";
 import { fractalizeCoastline, sampleCatmullRomPolyline, sampleCoastlineShape } from "../../coastline-fractal";
 import { isCellInScope, isGridCellInScope } from "../../core/focusScope";
 import { getCachedBurgIconRaster } from "../burgIconRasterCache";
@@ -462,14 +463,24 @@ export function buildStatePolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
   landCells?: ReadonlyArray<DeckLandCellGeometry>,
-  opacity = 0.3
+  opacity = 0.3,
+  diplomacySelectedStateId: number | null = null
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
   return buildLandPolygons(
     worldContext,
     focusScope,
     "state",
-    cellId => colorToRgba(pack.states[pack.cells.state[cellId]]?.color, "#999999", opacity),
+    cellId => {
+      const state = pack.states[pack.cells.state[cellId]];
+      const relationValue =
+        diplomacySelectedStateId === null ? undefined : state?.diplomacy?.[diplomacySelectedStateId];
+      const relation = typeof relationValue === "string" ? (relationValue as RelationKey) : undefined;
+      // Keep the SVG editor's fallback colour for the selected state and malformed relation data.
+      const relationColor = relation ? relations[relation]?.color : undefined;
+      const fill = diplomacySelectedStateId === null ? state?.color : relationColor || "#4682b4";
+      return colorToRgba(fill, "#999999", opacity);
+    },
     landCells
   );
 }

@@ -23,7 +23,8 @@ import {
   buildMilitaryBoxPolygons,
   buildMilitaryRegimentSymbols,
   buildRiverPolygons,
-  buildRoutePaths
+  buildRoutePaths,
+  buildStatePolygons
 } from "./deckDataAdapters";
 
 vi.mock("../emojiIconCache", async importOriginal => {
@@ -173,6 +174,49 @@ describe("deck.gl data adapters", () => {
       [0, 10]
     ]);
     expect(worldContext.pack.vertices.p).toEqual(originalVertices);
+  });
+
+  it("uses diplomacy relation colours without changing persisted state colours", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.cells.h[1] = 30;
+    worldContext.pack.cells.state[0] = 1;
+    worldContext.pack.cells.state[1] = 2;
+    worldContext.pack.states = [
+      { i: 0, name: "Neutral", expansionism: 0, capital: 0, type: "", center: 0, culture: 0, coa: null },
+      {
+        i: 1,
+        name: "North",
+        expansionism: 0,
+        capital: 0,
+        type: "",
+        center: 0,
+        culture: 0,
+        coa: null,
+        color: "#123456",
+        diplomacy: ["x", "Neutral", "Enemy"]
+      },
+      {
+        i: 2,
+        name: "South",
+        expansionism: 0,
+        capital: 0,
+        type: "",
+        center: 1,
+        culture: 0,
+        coa: null,
+        color: "#abcdef",
+        diplomacy: ["x", "Enemy", "Neutral"]
+      }
+    ] as WorldContext["pack"]["states"];
+
+    const polygons = buildStatePolygons(worldContext, null, undefined, 1, 1);
+
+    expect(polygons.map(polygon => polygon.fillColor)).toEqual([
+      [237, 238, 232, 255],
+      [230, 75, 64, 255]
+    ]);
+    expect(worldContext.pack.states[1].color).toBe("#123456");
+    expect(worldContext.pack.states[2].color).toBe("#abcdef");
   });
 
   it("builds route paths from route points", () => {

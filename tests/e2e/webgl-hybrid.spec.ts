@@ -17,9 +17,11 @@ import {
   getCanvasLuminanceStats,
   getFirstLandScreenPoint,
   getFirstStateScreenPoint,
+  getPack,
   getToastText,
   getWebglBurgIconSummary,
   getWebglDeckLayerIds,
+  getWebglDiplomacyStateLayerState,
   getWebglCanvasPixelStats,
   getWebglEmblemIconSummary,
   getWebglLabelLayerSettings,
@@ -866,6 +868,62 @@ test.describe("webgl hybrid renderer", () => {
       nonTransparentPixels: expect.any(Number),
       alphaBoundingArea: expect.any(Number)
     });
+  });
+
+  test("colours WebGL states by relation when the Diplomacy Editor selects a state on the map", async ({ page }) => {
+    await page.goto("/?seed=webgl-diplomacy&width=900&height=600");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+
+    if ((await page.locator("#optionsHide").textContent())?.trim() === "►") {
+      await page.locator("#optionsHide").click();
+    }
+    await page.getByRole("button", { name: "Tools", exact: true }).click();
+    await page.getByRole("button", { name: "Diplomacy", exact: true }).click();
+    await expect(page.locator("#diplomacyEditorContainer")).toBeVisible();
+
+    const point = await getFirstStateScreenPoint(page);
+    expect(point).not.toBeNull();
+    if (!point) return;
+    await clickAndGetWebglPickCandidates(page, point);
+
+    await expect
+      .poll(() => getWebglDiplomacyStateLayerState(page))
+      .toMatchObject({ selectedStateId: expect.any(Number) });
+
+    const stateLayer = await getWebglDiplomacyStateLayerState(page);
+    const pack = (await getPack(page)) as {
+      states: Array<{ i: number; removed?: boolean; diplomacy?: readonly unknown[] }>;
+    };
+    const selectedStateId = stateLayer.selectedStateId;
+    expect(selectedStateId).not.toBeNull();
+    if (selectedStateId === null) return;
+
+    const relationColors: Record<string, number[]> = {
+      Ally: [0, 179, 0],
+      Friendly: [212, 248, 170],
+      Neutral: [237, 238, 232],
+      Suspicion: [238, 175, 170],
+      Enemy: [230, 75, 64],
+      Unknown: [169, 169, 169],
+      Rival: [173, 90, 31],
+      Vassal: [135, 206, 250],
+      Suzerain: [0, 0, 139]
+    };
+    const getRelation = (state: (typeof pack.states)[number]): string => {
+      const relation = state.diplomacy?.[selectedStateId];
+      return typeof relation === "string" ? relation : "";
+    };
+    const relatedState = pack.states.find(
+      state => state.i && !state.removed && state.i !== selectedStateId && relationColors[getRelation(state)]
+    );
+    expect(relatedState).toBeDefined();
+    if (!relatedState) return;
+
+    expect(stateLayer.colorsByStateId[relatedState.i]?.slice(0, 3)).toEqual(
+      relationColors[getRelation(relatedState)]
+    );
   });
 
   test("reports pick detail for WebGL migrated edit targets", async ({ page }) => {

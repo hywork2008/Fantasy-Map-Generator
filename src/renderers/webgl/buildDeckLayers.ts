@@ -178,7 +178,13 @@ const WEBGL_POLYGON_LAYERS: Array<{
     toggle: "toggleStates",
     id: "states",
     build: (world, view, landCells) =>
-      buildStatePolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).states),
+      buildStatePolygons(
+        world,
+        view.focusScope,
+        landCells,
+        getCellLayerOpacities(view).states,
+        view.diplomacySelectedStateId
+      ),
     boundary: "state",
     maskLand: true
   },
@@ -1107,7 +1113,13 @@ function buildLayerSignatures(
     () => `${mapId}|${scope}|${pointListSignature(grid.vertices?.p)}|${nestedNumberListSignature(grid.cells?.v)}`
   );
   const gridHeights = memo(() => numberListSignature(grid.cells?.h));
-  const states = memo(() => `${numberListSignature(pack.cells?.state)}|${colorListSignature(pack.states)}`);
+  const states = memo(
+    () =>
+      `${numberListSignature(pack.cells?.state)}|${colorListSignature(pack.states)}|${diplomacyStateSignature(
+        pack.states,
+        viewContext.diplomacySelectedStateId
+      )}`
+  );
   const provinces = memo(() => `${numberListSignature(pack.cells?.province)}|${colorListSignature(pack.provinces)}`);
   const cultures = memo(() => `${numberListSignature(pack.cells?.culture)}|${colorListSignature(pack.cultures)}`);
   const religions = memo(() => `${numberListSignature(pack.cells?.religion)}|${colorListSignature(pack.religions)}`);
@@ -1358,6 +1370,23 @@ function colorListSignature(values: ReadonlyArray<{ color?: string }> | undefine
   let hash = 2166136261;
   for (const value of values) hash = hashString(hash, value?.color ?? "");
   return `${values.length}:${hash >>> 0}`;
+}
+
+/**
+ * State colours normally depend only on their own colour. While the Diplomacy Editor is open,
+ * they instead depend on each state's relation to the selected state, so those values must also
+ * participate in the cache signature.
+ */
+function diplomacyStateSignature(
+  states: ReadonlyArray<{ diplomacy?: readonly unknown[] }> | undefined,
+  selectedStateId: number | null
+): string {
+  if (selectedStateId === null) return "diplomacy:none";
+  const relations = (states ?? []).map(state => {
+    const relation = state.diplomacy?.[selectedStateId];
+    return typeof relation === "string" ? relation : "";
+  });
+  return `diplomacy:${selectedStateId}:${relations.join(",")}`;
 }
 
 function zonesSignature(

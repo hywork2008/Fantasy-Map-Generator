@@ -271,6 +271,41 @@ export async function getWebglLayerStyleSamples(
   }, layerIds);
 }
 
+export interface WebglDiplomacyStateLayerState {
+  selectedStateId: number | null;
+  colorsByStateId: Record<number, number[]>;
+}
+
+/** Reads the temporary Diplomacy Editor colouring currently rendered by the WebGL states layer. */
+export async function getWebglDiplomacyStateLayerState(page: Page): Promise<WebglDiplomacyStateLayerState> {
+  return page.evaluate(() => {
+    type StatePolygonDatum = { cellId?: unknown; fillColor?: unknown };
+    type TestFmg = {
+      view: { webglDeck: unknown; diplomacySelectedStateId: unknown };
+      world: { pack: { cells: { state: ArrayLike<number> } } };
+    };
+    const fmg = window.fmg as unknown as TestFmg;
+    const deck = window.fmg.view.webglDeck as unknown as {
+      props?: { layers?: Array<{ id?: string; props?: { data?: unknown } }> };
+    } | null;
+    const stateLayer = deck?.props?.layers?.find(layer => layer.id === "fmg-webgl-states");
+    const data = Array.isArray(stateLayer?.props?.data) ? stateLayer.props.data : [];
+    const colorsByStateId: Record<number, number[]> = {};
+
+    for (const item of data) {
+      if (!item || typeof item !== "object") continue;
+      const datum = item as StatePolygonDatum;
+      if (typeof datum.cellId !== "number" || !Array.isArray(datum.fillColor)) continue;
+      if (!datum.fillColor.every(value => typeof value === "number")) continue;
+      const stateId = fmg.world.pack.cells.state[datum.cellId];
+      if (stateId) colorsByStateId[stateId] = datum.fillColor;
+    }
+
+    const selectedStateId = fmg.view.diplomacySelectedStateId;
+    return { selectedStateId: typeof selectedStateId === "number" ? selectedStateId : null, colorsByStateId };
+  });
+}
+
 export interface WebglEmblemIconSummary {
   total: number;
   withIconUrl: number;

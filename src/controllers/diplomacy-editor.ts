@@ -14,64 +14,24 @@ import { type DiplomacyRowData, getDiplomacyEditorState, setDiplomacyEditorState
 import { diplomacyHistoryDialogStore } from "../store/diplomacyHistoryDialogState";
 import { closeDialogs, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective } from "../utils";
+import { type RelationKey, relations } from "../utils/diplomacyRelations";
 import { EditorBus } from "../utils/editorBus";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../utils/gunpowderEra";
 import { layerIsOn } from "../utils/nodeUtils";
 import { interactionManager } from "./interactionManager";
-import { toggleBiomes, toggleBorders, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
+import {
+  scheduleWebglUpdate,
+  toggleBiomes,
+  toggleBorders,
+  toggleCultures,
+  toggleProvinces,
+  toggleReligions,
+  toggleStates
+} from "./layers";
 import { editStyle } from "./style";
 
-export type RelationKey =
-  | "Ally"
-  | "Friendly"
-  | "Neutral"
-  | "Suspicion"
-  | "Enemy"
-  | "Unknown"
-  | "Rival"
-  | "Vassal"
-  | "Suzerain";
-
-export const relations: Record<RelationKey, { inText: string; color: string; tip: string }> = {
-  Ally: {
-    inText: "is an ally of",
-    color: "#00b300",
-    tip: "Allies formed a defensive pact and protect each other in case of third party aggression"
-  },
-  Friendly: {
-    inText: "is friendly to",
-    color: "#d4f8aa",
-    tip: "State is friendly to anouther state when they share some common interests"
-  },
-  Neutral: {
-    inText: "is neutral to",
-    color: "#edeee8",
-    tip: "Neutral means states relations are neither positive nor negative"
-  },
-  Suspicion: {
-    inText: "is suspicious of",
-    color: "#eeafaa",
-    tip: "Suspicion means state has a cautious distrust of another state"
-  },
-  Enemy: { inText: "is at war with", color: "#e64b40", tip: "Enemies are states at war with each other" },
-  Unknown: {
-    inText: "does not know about",
-    color: "#a9a9a9",
-    tip: "Relations are unknown if states do not have enough information about each other"
-  },
-  Rival: {
-    inText: "is a rival of",
-    color: "#ad5a1f",
-    tip: "Rivalry is a state of competing for dominance in the region"
-  },
-  Vassal: { inText: "is a vassal of", color: "#87CEFA", tip: "Vassal is a state having obligation to its suzerain" },
-  Suzerain: {
-    inText: "is suzerain to",
-    color: "#00008B",
-    tip: "Suzerain is a state having some control over its vassals"
-  }
-};
+export { type RelationKey, relations };
 
 export function editDiplomacy(): void {
   if (view.customization) return;
@@ -93,6 +53,8 @@ export function editDiplomacy(): void {
   interactionManager.setClickHandler(selectStateOnMapClick);
 
   if (isDialogOpen("diplomacyEditor")) return;
+
+  document.addEventListener("fmg:webgl-map-pick", selectStateOnWebglMapPick);
 
   openDialog("diplomacyEditor");
 
@@ -171,6 +133,9 @@ export function editDiplomacy(): void {
     if (!sel) return;
     if (!layerIsOn("toggleStates")) toggleStates();
 
+    viewContext.diplomacySelectedStateId = sel;
+    scheduleWebglUpdate();
+
     view.statesBody.selectAll("path").each(function () {
       const el = this as SVGPathElement;
       if (el.id.slice(0, 9) === "state-gap") return;
@@ -190,6 +155,17 @@ export function editDiplomacy(): void {
     const i = findCell(point[0], point[1]);
     const state = worldContext.pack.cells.state![i];
     if (!state) return;
+
+    setDiplomacyEditorState({ selectedStateId: state });
+    refreshDiplomacyEditor();
+  }
+
+  function selectStateOnWebglMapPick(event: CustomEvent<import("../types/webglPicking").WebglPickDetail | null>): void {
+    if (viewContext.renderMode !== "webglHybrid") return;
+    const cellId = event.detail?.cellId;
+    if (cellId === null || cellId === undefined) return;
+    const state = worldContext.pack.cells.state?.[cellId];
+    if (!state || worldContext.pack.states[state]?.removed) return;
 
     setDiplomacyEditorState({ selectedStateId: state });
     refreshDiplomacyEditor();
@@ -313,6 +289,9 @@ export function editDiplomacy(): void {
   }
 
   function closeDiplomacyEditorImpl(): void {
+    document.removeEventListener("fmg:webgl-map-pick", selectStateOnWebglMapPick);
+    viewContext.diplomacySelectedStateId = null;
+    scheduleWebglUpdate();
     EditorBus.restoreDefaultEvents();
     clearMainTip();
     if (layerIsOn("toggleStates")) StatesRenderer.render(worldContext, viewContext, appServices);
@@ -336,7 +315,10 @@ export const diplomacyEditorActions = {
   stateHighlightOn: (stateId: number) => {
     if (!layerIsOn("toggleStates")) return;
     if (view.customization || !stateId) return;
-    const d = view.regions.select(`#state${stateId}`).attr("d");
+    // WebGL hybrid hides the SVG state paths, so this SVG-only outline is not always available.
+    const statePath = view.regions.select<SVGPathElement>(`#state${stateId}`).node();
+    const d = statePath?.getAttribute("d");
+    if (!d) return;
 
     const path = view.debug
       .append("path")
