@@ -1051,6 +1051,138 @@ test.describe("webgl hybrid renderer", () => {
     expect(selected).toMatchObject({ kind: "military", id: expect.stringMatching(/^regiment-/) });
   });
 
+  test("omits display-only WebGL layers from the map pick chooser", async ({ page }) => {
+    await page.goto("/?seed=webgl-chooser-display-only-layers&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+
+    await page.evaluate(() => {
+      const hiddenKinds = [
+        "background",
+        "land",
+        "height",
+        "biome",
+        "culture",
+        "religion",
+        "state",
+        "province",
+        "zone",
+        "temperature",
+        "population",
+        "precipitation",
+        "danger",
+        "cell",
+        "grid",
+        "border"
+      ];
+      const candidates = [
+        ...hiddenKinds.map((kind, index) => ({
+          kind,
+          extensionId: null,
+          id: `${kind}-${index}`,
+          cellId: index,
+          layerId: `fmg-webgl-${kind}`,
+          index,
+          x: 120,
+          y: 120,
+          coordinate: [100, 100]
+        })),
+        {
+          kind: "burgIcon",
+          extensionId: null,
+          id: "burg-1",
+          cellId: 1,
+          layerId: "fmg-webgl-burg-icons",
+          index: 0,
+          x: 120,
+          y: 120,
+          coordinate: [100, 100]
+        },
+        {
+          kind: "emblem",
+          extensionId: null,
+          id: "state-1",
+          cellId: 1,
+          layerId: "fmg-webgl-emblems",
+          index: 0,
+          x: 120,
+          y: 120,
+          coordinate: [100, 100]
+        },
+        {
+          kind: "label",
+          extensionId: null,
+          id: "burg-label-1",
+          cellId: 1,
+          layerId: "fmg-webgl-labels",
+          index: 0,
+          x: 120,
+          y: 120,
+          coordinate: [100, 100]
+        }
+      ];
+      document.dispatchEvent(
+        new CustomEvent("fmg:webgl-map-pick-candidates", {
+          detail: { primary: candidates[0], candidates, x: 120, y: 120, clientX: 120, clientY: 120 }
+        })
+      );
+    });
+
+    const chooser = page.locator("#mapPickChooser");
+    await expect(chooser).toBeVisible();
+    await expect(chooser.locator(".map-pick-chooser__item")).toHaveCount(3);
+    await expect(chooser.locator('.map-pick-chooser__item[data-kind="burgIcon"]')).toHaveCount(1);
+    await expect(chooser.locator('.map-pick-chooser__item[data-kind="emblem"]')).toHaveCount(1);
+    await expect(chooser.locator('.map-pick-chooser__item[data-kind="label"]')).toHaveCount(1);
+  });
+
+  test("opens the matching editor from WebGL emblem and burg label picks", async ({ page }) => {
+    await page.goto("/?seed=webgl-emblem-and-label-picks&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+
+    await page.evaluate(() => {
+      const detail = {
+        kind: "label",
+        extensionId: null,
+        id: "burg-label-1",
+        cellId: 1,
+        layerId: "fmg-webgl-labels",
+        index: 0,
+        x: 120,
+        y: 120,
+        coordinate: [100, 100]
+      };
+      document.dispatchEvent(
+        new CustomEvent("fmg:webgl-map-pick-candidates", {
+          detail: { primary: detail, candidates: [detail], x: 120, y: 120, clientX: 120, clientY: 120 }
+        })
+      );
+    });
+    await expect(page.locator("#burgBody")).toBeVisible();
+
+    await closeAllOpenEditorDialogs(page);
+    await page.evaluate(() => {
+      const detail = {
+        kind: "emblem",
+        extensionId: null,
+        id: "state-1",
+        cellId: 1,
+        layerId: "fmg-webgl-emblems",
+        index: 0,
+        x: 120,
+        y: 120,
+        coordinate: [100, 100]
+      };
+      document.dispatchEvent(
+        new CustomEvent("fmg:webgl-map-pick-candidates", {
+          detail: { primary: detail, candidates: [detail], x: 120, y: 120, clientX: 120, clientY: 120 }
+        })
+      );
+    });
+    await expect(page.locator("#emblemEditor")).toBeVisible();
+  });
+
   test("renders migrated layers for major presets while keeping SVG overlays", async ({ page }) => {
     await page.goto("/?seed=webgl-presets&width=1000&height=700");
     await waitForMapLoad(page);

@@ -87,7 +87,9 @@ function clicked(this: Element, event: MouseEvent): void {
 }
 
 function editWebglPickCandidate(detail: WebglPickDetail): void {
-  if (detail.kind === "burgIcon") editWebglBurg(detail.id);
+  if (detail.kind === "emblem") editWebglEmblem(detail.id);
+  else if (detail.kind === "burgIcon") editWebglBurg(detail.id);
+  else if (detail.kind === "label") editWebglLabel(detail.id);
   else if (detail.kind === "marker") editWebglMarker(detail.id);
   else if (detail.kind === "military") editWebglRegiment(detail.id);
   else if (detail.kind === "river") editWebglRiver(detail.id);
@@ -95,6 +97,39 @@ function editWebglPickCandidate(detail: WebglPickDetail): void {
   else if (detail.kind === "lake") editWebglLake(detail.id);
   else if (detail.kind === "coastline") editWebglCoastline(detail.id);
   else if (detail.kind === "ice") editWebglIce(detail.id);
+}
+
+function editWebglEmblem(id: string): void {
+  const match = id.match(/^(burg|province|state)-(\d+)$/);
+  if (!match) return;
+
+  const [, type, rawEntityId] = match;
+  const entityId = Number(rawEntityId);
+  if (!Number.isFinite(entityId)) return;
+
+  if (type === "burg") {
+    const burg = worldContext.pack.burgs[entityId];
+    if (burg) EmblemsEditor.editEmblem("burg", `burgCOA${entityId}`, burg);
+  } else if (type === "province") {
+    const province = worldContext.pack.provinces[entityId];
+    if (province) EmblemsEditor.editEmblem("province", `provinceCOA${entityId}`, province);
+  } else {
+    const state = worldContext.pack.states[entityId];
+    if (state) EmblemsEditor.editEmblem("state", `stateCOA${entityId}`, state);
+  }
+}
+
+function editWebglLabel(id: string): void {
+  const burgId = parseWebglEntityId(id, /^burg-label-(\d+)$/);
+  if (burgId !== null) {
+    BurgEditor.editBurg(burgId);
+    return;
+  }
+
+  const stateId = parseWebglEntityId(id, /^state-label-(\d+)$/);
+  if (stateId === null) return;
+  const stateLabel = document.querySelector<SVGTSpanElement>(`#stateLabel${stateId} tspan`);
+  if (stateLabel) LabelsEditor.editLabel(stateLabel);
 }
 
 function editWebglBurg(id: string): void {

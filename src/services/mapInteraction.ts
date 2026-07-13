@@ -21,10 +21,28 @@ import { showMainTip, showMapTooltip, showNotes, tip } from "./tooltipService";
 const PICK_CHOOSER_ID = "mapPickChooser";
 const PICK_CHOOSER_CLICK_SUPPRESSION_MS = 500;
 const PICK_CHOOSER_CLICK_SUPPRESSION_DISTANCE = 4;
-// These kinds are picked implicitly under almost every click (the land cell, its owning state,
-// its border) and would otherwise dominate the chooser list with entries the user rarely wants
-// to disambiguate on.
-const PICK_CHOOSER_HIDDEN_KINDS = new Set<WebglPickDetail["kind"]>(["land", "state", "border"]);
+// A chooser item must lead to an editor/action through editWebglPickCandidate. These display-only
+// layers have no WebGL bridge branch, so listing them only produces no-op buttons. `label` and
+// `emblem` are intentionally not listed: their id identifies a burg/state/province editor target.
+// `extension` remains eligible because its registered pick handler may provide its own selectPick action.
+const PICK_CHOOSER_HIDDEN_KINDS = new Set<WebglPickDetail["kind"]>([
+  "background",
+  "land",
+  "height",
+  "biome",
+  "culture",
+  "religion",
+  "state",
+  "province",
+  "zone",
+  "temperature",
+  "population",
+  "precipitation",
+  "danger",
+  "cell",
+  "grid",
+  "border"
+]);
 let suppressedChooserClick: { clientX: number; clientY: number; expiresAt: number } | null = null;
 
 export const onMouseMove = debounce(handleMouseMove as (event: MouseEvent) => void, 100);
@@ -106,7 +124,9 @@ function suppressNextChooserClick(clientX: number, clientY: number): void {
 function isSingleClickEditablePick(detail: WebglPickDetail): boolean {
   if (detail.kind === "extension") return Boolean(getExtensionMapPickHandler(detail.extensionId)?.selectPick);
   return (
+    detail.kind === "emblem" ||
     detail.kind === "burgIcon" ||
+    detail.kind === "label" ||
     detail.kind === "marker" ||
     detail.kind === "military" ||
     detail.kind === "river" ||
