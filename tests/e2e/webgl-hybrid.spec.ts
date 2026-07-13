@@ -406,6 +406,31 @@ test.describe("webgl hybrid renderer", () => {
     });
   });
 
+  test("builds the full viewMesh terrain after zooming the hybrid map", async ({ page }) => {
+    await page.goto("/?seed=webgl-3d-full-map-texture&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+    await ensureLayerOff(page, "toggleBurgIcons");
+
+    await page.locator("#optionsHide").click();
+    await page.locator("#layersTab").click();
+    await page.locator("#viewMesh").click();
+    await expect(page.locator("#canvas3d")).toBeVisible({ timeout: 15000 });
+    await waitForCanvasPixels(page, "canvas3d");
+    const fullMapChecksum = await getCanvasColorChecksum(page, "canvas3d");
+
+    await page.locator("#viewStandard").click();
+    await expect(page.locator("#canvas3d")).toHaveCount(0);
+    await zoomToMapCenter(page, 16);
+    await waitForWebglCanvasPixels(page);
+
+    await page.locator("#viewMesh").click();
+    await expect(page.locator("#canvas3d")).toBeVisible({ timeout: 15000 });
+    await waitForCanvasPixels(page, "canvas3d");
+    await expect.poll(() => getCanvasColorChecksum(page, "canvas3d"), { timeout: 15000 }).toBe(fullMapChecksum);
+  });
+
   test("keeps the viewMesh terrain colour-balanced after enabling many overlays", async ({ page }) => {
     const rendererWarnings: string[] = [];
     page.on("console", message => {

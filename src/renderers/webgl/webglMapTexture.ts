@@ -76,20 +76,6 @@ async function renderWebglMapTextureFrame(
     target: [graphWidth / 2, graphHeight / 2, 0],
     zoom: Math.log2(Math.max(scale, 0.0001))
   };
-  const activeDeckCanvas = viewContext.webglCanvas;
-  if (viewContext.webglDeck && activeDeckCanvas) {
-    // The primary hybrid Deck is the authoritative, already-updated layer renderer. While
-    // viewMesh owns the visible canvas it remains alive but hidden, so copy its settled frame
-    // instead of racing a second Deck instance with the same layer state.
-    await waitForAnimationFrames(2);
-    resultContext.clearRect(0, 0, width, height);
-    resultContext.drawImage(activeDeckCanvas, 0, 0, width, height);
-    if (hasDrawnPixels(resultContext, width, height)) {
-      await compositeSvgTextureOverlay(resultContext, worldContext, viewContext, appServices, width, height);
-      return result;
-    }
-  }
-
   const deckRef: { current: Deck<OrthographicView> | null } = { current: null };
   try {
     const device = getTerrainTextureDevice();
@@ -166,19 +152,6 @@ async function renderWebglMapTextureFrame(
   } finally {
     deckRef.current?.finalize();
   }
-}
-
-function waitForAnimationFrames(count: number): Promise<void> {
-  return new Promise(resolve => {
-    const next = (remaining: number): void => {
-      if (remaining <= 0) {
-        resolve();
-        return;
-      }
-      window.requestAnimationFrame(() => next(remaining - 1));
-    };
-    next(count);
-  });
 }
 
 function getTerrainTextureDevice(): TerrainTextureDevice {
