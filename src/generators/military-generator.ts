@@ -5,6 +5,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { useOptionsState } from "../store/optionsState";
 import type { MilitaryRegiment, MilitaryUnit, Platoon, State } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { gauss, minmax, nth, ra, rand, rn, si } from "../utils";
@@ -12,6 +13,7 @@ import { TIME } from "../utils/debug";
 import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../utils/gunpowderEra";
 import { isRegimentLockedForBattle } from "./battleLock";
 import { analyzeFrontiers, analyzeSeaFrontiers, getProvinceThreats, mergeFrontiers } from "./frontierAnalysis";
+import { isManpowerSimEnabled, markStatesNeedManpowerReconcile, reconcileAllStatesManpower } from "./manpower";
 import { getNavalTechBonus } from "./navalTechBonus";
 import { buildSeaRouteGraph } from "./seaRouteGraph";
 
@@ -91,6 +93,10 @@ class MilitaryModule {
     TIME && console.time("generateMilitary");
     const { cells, states } = pack;
     const { p } = cells;
+    // Return previous under-arms to civilians before wiping regiments (avoids double-deduct).
+    if (isManpowerSimEnabled()) {
+      markStatesNeedManpowerReconcile(pack, populationRate);
+    }
     const valid = states.filter(s => s.i && !s.removed); // valid states
     if (!options.military) options.military = this.getDefaultOptions();
     const military = options.military.filter(
@@ -848,6 +854,11 @@ class MilitaryModule {
       });
     });
 
+    // Deduct the newly generated under-arms from civilian adult males (ledger).
+    if (isManpowerSimEnabled()) {
+      reconcileAllStatesManpower(pack, populationRate);
+    }
+
     TIME && console.timeEnd("generateMilitary");
   }
 
@@ -995,10 +1006,13 @@ class MilitaryModule {
    */
   updateDynamic(worldContext: WorldContext, deltaYears: number) {
     if (deltaYears <= 0) return;
+    if (!useOptionsState.getState().simMilitaryRecovery) return;
+
     const { pack } = worldContext;
     const states = pack.states;
+    const useLedger = isManpowerSimEnabled();
 
-    // Recovery rate: approx 20% of max troops per year as reinforcement, bounded by some logic
+    // Recovery rate when not using the manpower ledger (legacy infinite refill)
     const RECOVERY_RATE_PER_YEAR = 0.2;
 
     for (const state of states) {
@@ -1023,23 +1037,15 @@ class MilitaryModule {
           continue;
         }
 
-        // 2. Natural reinforcement for surviving regiments
-        // If current troops are below max troops, recover slightly over time
-        if (r.a < r.t) {
-          // Compute how many troops can be recovered
-          const recoveryAmount = r.t * RECOVERY_RATE_PER_YEAR * deltaYears;
+        // 2. Reinforcement — when simManpower is on, tickManpower() already fills from civilians.
+        if (useLedger) continue;
 
-          // Distribute recovered troops proportionally to unit composition
+        if (r.a < r.t) {
+          const recoveryAmount = r.t * RECOVERY_RATE_PER_YEAR * deltaYears;
           let totalRecovered = 0;
           for (const [unitName, currentAmount] of Object.entries(r.u)) {
-            // We don't have the original max composition easily available,
-            // so we scale up existing proportions if possible.
-            // If we just add troops uniformly based on current ratio:
-            const ratio = currentAmount / r.a;
+            const ratio = r.a > 0 ? currentAmount / r.a : 1 / Math.max(1, Object.keys(r.u).length);
             const recovered = Math.round(recoveryAmount * ratio);
-
-            // Ensure we don't exceed max troops r.t globally, though locally per unit it's unbounded
-            // but this is an approximation for reinforcement.
             if (recovered > 0) {
               r.u[unitName] = currentAmount + recovered;
               totalRecovered += recovered;
@@ -1047,9 +1053,7 @@ class MilitaryModule {
           }
 
           r.a += totalRecovered;
-          // Clamp at max (r.t)
           if (r.a > r.t) {
-            // Scale back down if we exceeded max
             const scale = r.t / r.a;
             for (const unitName in r.u) {
               r.u[unitName] = Math.floor(r.u[unitName] * scale);

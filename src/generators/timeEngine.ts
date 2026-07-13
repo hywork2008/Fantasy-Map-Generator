@@ -15,9 +15,15 @@ import { useTimeSimulationState } from "../store/timeSimulationState";
 import { captureSnapshotData } from "../utils/aiDebugExporter";
 import { layerIsOn } from "../utils/nodeUtils";
 import { getDaysInMonth, getSeason, isLeapYear } from "../utils/seasonUtils";
+import { tickAgriculturalCalendar } from "./agriculturalStress";
 import { simulateDemographics } from "./demography-simulator";
+import { tickManpower } from "./manpower";
 import { Military } from "./military-generator";
 import { advanceAllRegimentMovement } from "./regimentMovement";
+
+/** Day is the base simulation unit. Month/Year UI buttons expand to ~this many days. */
+const DAYS_PER_YEAR = 365.2425;
+const DAYS_PER_MONTH = DAYS_PER_YEAR / 12; // ≈ 30.436875
 
 export type TimeTickHook = (deltaYears: number, deltaMonths: number, deltaDays: number) => void;
 
@@ -159,8 +165,27 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
     }
   }
 
-  const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
-  const result = simulateDemographics(effectiveDeltaYears);
+  // Prefer day-based elapsed time so Advance Day / Month(~30.5d) / Year(~365d) share one scale.
+  const effectiveDeltaDays = deltaYears * DAYS_PER_YEAR + deltaMonths * DAYS_PER_MONTH + deltaDays;
+  const effectiveDeltaYears = effectiveDeltaDays / DAYS_PER_YEAR;
+
+  const sim = useOptionsState.getState();
+
+  // 1) Agricultural calendar (spring/autumn war exposure → foodStress on year roll)
+  if (sim.simAgriculture && worldContext.pack?.states) {
+    tickAgriculturalCalendar(
+      worldContext.pack,
+      effectiveDeltaDays,
+      simulationContext.currentYear,
+      simulationContext.currentMonth
+    );
+  }
+
+  // 2) Demographics (aging/births + optional famine from foodStress)
+  let result = { bordersChanged: false, newBurgsAdded: false };
+  if (sim.simDemographics) {
+    result = simulateDemographics(effectiveDeltaYears);
+  }
 
   if (result.bordersChanged) {
     BordersRenderer.render(worldContext, viewContext, appServices);
@@ -172,13 +197,20 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
     BurgLabelsRenderer.render(worldContext, viewContext, appServices);
   }
 
+  // 3) Manpower ledger: draft capacity + fill/demobilize from civilian males
+  if (sim.simManpower && worldContext.pack?.states) {
+    tickManpower(worldContext.pack, effectiveDeltaYears, worldContext.populationRate);
+  }
+
   for (const hook of _tickHooks) hook(deltaYears, deltaMonths, deltaDays);
 
   // Fallback: if Nobility extension is disabled, run the core military movement here.
   // (If Nobility is enabled, it handles this internally with additional siege/capture logic).
   const isNobilityEnabled = window.fmg?.extensionAPI?.isExtensionEnabled("nobility");
   if (!isNobilityEnabled) {
-    Military.updateDynamic(worldContext, effectiveDeltaYears);
+    if (sim.simMilitaryRecovery) {
+      Military.updateDynamic(worldContext, effectiveDeltaYears);
+    }
     const regimentsMoved = advanceAllRegimentMovement(worldContext.pack, worldContext, effectiveDeltaYears);
     if (regimentsMoved && layerIsOn("toggleMilitary")) {
       MilitaryRenderer.render(worldContext, viewContext, appServices);

@@ -1,7 +1,7 @@
 # 兵力・男女比・都市人口の統合エコシステム設計
 
-**Status**: design only（本ドキュメントは設計・計画。実装には進まない）  
-**Date**: 2026-07-13（§18 農業・季節戦争を追記）  
+**Status**: partial implementation（2026-07-13）— Phase 1/2/4 のコアループを実装済み。日次 Advance 向けの機能トグル付き。  
+**Date**: 2026-07-13（§18 農業・季節戦争を追記 / 実装着手）  
 **Related**:
 
 | Doc / Code | Relation |
@@ -550,32 +550,33 @@ Economy の `warIntensity`（`docs/plan/economy-war.md`）は **一般的な戦�
 - 戦闘前後で人口・兵数がどうズレるかシナリオ記録
 - 単位系ドキュメントを `docs/simulation/population-dynamics.md` に追記リンク
 
-### Phase 1 — 台帳の導入（コア）
+### Phase 1 — 台帳の導入（コア） ✅
 
-- `manpower.ts` + State 集計
-- 徴兵時に civilian male を減らす（generate + conscript + fill）
-- `applyDemographicCasualties` を二重計上しない形に置換
-- 不変条件テスト
+- `src/generators/manpower.ts` + State 集計 / reconcile
+- 徴兵時に civilian male を減らす（generate reconcile + `tickManpower` fill）
+- `applyDemographicCasualties` は simManpower 時に民間二重削りしない
+- 単体テストあり
 
-### Phase 2 — 目標と上限の統合
+### Phase 2 — 目標と上限の統合 ✅（粗い）
 
-- `targetRate` vs `maxLevyRate` の min
-- 平和時 demobilize
-- Historical war scars と初期兵力の連動
-- Nobility Mobilization を薄ラッパ化（core 必須化）
+- `targetRate` vs `maxLevyRate` の min（`effectiveTroopTarget`）
+- 平和時 demobilize（`tickManpower`）
+- Historical war scars は従来どおり人口のみ（兵力圧縮は未連動）
+- Nobility `Mobilization.conscript` は simManpower 時 no-op（core が担当）
+- Options: `simManpower` / `simDemographics` / `simAgriculture` / `simMilitaryRecovery`
 
 ### Phase 3 — 地理配分の改善
 
 - province 徴兵区
-- rural/urban weight 見直し（10×廃止）
+- rural/urban weight 見直し（現状 rural:urban = 1:1.5 の粗い按分）
 - `homeProvince` による補充元
 
-### Phase 4 — 農業 Disruption（§18）
+### Phase 4 — 農業 Disruption（§18） ✅（粗い）
 
 - core: `agriculturalStress.ts`（季節クリティカル蓄積 + 年次 `foodStress`）
-- core: 人口フェーズへの餓死者相当（Economy なしでも動く）
-- Economy ON: food 生産・交易・`warPrice` への加算
-- 緯度 `seasonalityStrength` で赤道を弱める（既存 seasons 設計と一致）
+- core: 人口フェーズへの餓死者相当（`applyFoodStressToDemographics`）
+- Economy ON: food 生産倍率・`getWarPriceModifier` に foodStress 加算
+- 緯度 `seasonalityStrength` で赤道を弱める
 
 ### Phase 5 — 拡張接続
 

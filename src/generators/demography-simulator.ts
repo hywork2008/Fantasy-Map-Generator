@@ -1,6 +1,8 @@
 import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
+import { applyFoodStressToDemographics } from "./agriculturalStress";
 import { Burgs } from "./burgs-generator";
+import { isManpowerSimEnabled, registerTroopLosses } from "./manpower";
 
 export interface DemographicsSimulationResult {
   bordersChanged: boolean;
@@ -17,8 +19,9 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
   let newBurgsAdded = false;
 
   if (!pack?.cells || !pack.burgs) return { bordersChanged, newBurgsAdded };
+  if (deltaYears <= 0) return { bordersChanged, newBurgsAdded };
 
-  const { demographicBirthRate, demographicChildMortalityRate } = useOptionsState.getState();
+  const { demographicBirthRate, demographicChildMortalityRate, simAgriculture } = useOptionsState.getState();
   const baseGrowthRate = demographicBirthRate;
 
   // 1. Process Rural Cells
@@ -198,18 +201,29 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     burg.population = newPop;
   }
 
+  // Food disruption from fighting in planting/harvest seasons (manpower-ecosystem §18)
+  if (simAgriculture) {
+    applyFoodStressToDemographics(pack, deltaYears);
+  }
+
   return { bordersChanged, newBurgsAdded };
 }
 
 /**
- * Distributes military casualties (troops) across a state's population demographics.
- * Casualties are converted back to population points, and drawn primarily from
- * the `maleAdults` bucket. Urban areas (burgs) suffer 10x higher casualty rates
- * than rural areas to protect agricultural output.
+ * Combat deaths feedback into population.
+ *
+ * When simManpower is on, men were already removed from civilian stocks at draft time —
+ * regiment.a is the under-arms ledger, so we must not subtract civilians again.
+ * When simManpower is off, fall back to the legacy "kill civilian males" path.
  */
 export function applyDemographicCasualties(stateId: number, deadTroops: number): void {
   const { pack, populationRate } = worldContext;
   if (!pack?.cells || !pack.burgs || deadTroops <= 0) return;
+
+  if (isManpowerSimEnabled()) {
+    registerTroopLosses(stateId, deadTroops);
+    return;
+  }
 
   const deadPopPoints = deadTroops / populationRate;
 

@@ -68,6 +68,70 @@ export const SimulationSettingsTab: React.FC = () => {
               />
             </td>
           </tr>
+
+          <tr>
+            <td colSpan={4}>
+              <p data-tip="Toggle advance-time subsystems. Day is the base unit (Month ≈ 30.5 days, Year ≈ 365). Turn off unused systems to speed up long runs.">
+                Advance-time systems (skip when off):
+              </p>
+            </td>
+          </tr>
+          <tr data-tip="Aging, births, migration, and overpopulation losses each advance tick">
+            <td />
+            <td>
+              <label htmlFor="simDemographics">Demographics</label>
+            </td>
+            <td colSpan={2}>
+              <input
+                id="simDemographics"
+                type="checkbox"
+                checked={options.simDemographics}
+                onChange={e => updateOption("simDemographics", e.target.checked)}
+              />
+            </td>
+          </tr>
+          <tr data-tip="Civilian adult males ↔ troops under arms: draft, refill, demobilize, and non-double-counted battle deaths">
+            <td />
+            <td>
+              <label htmlFor="simManpower">Manpower ledger</label>
+            </td>
+            <td colSpan={2}>
+              <input
+                id="simManpower"
+                type="checkbox"
+                checked={options.simManpower}
+                onChange={e => updateOption("simManpower", e.target.checked)}
+              />
+            </td>
+          </tr>
+          <tr data-tip="Spring/autumn war hurts planting/harvest → foodStress → famine deaths and (with Economy) food prices/production">
+            <td />
+            <td>
+              <label htmlFor="simAgriculture">Agriculture / famine</label>
+            </td>
+            <td colSpan={2}>
+              <input
+                id="simAgriculture"
+                type="checkbox"
+                checked={options.simAgriculture}
+                onChange={e => updateOption("simAgriculture", e.target.checked)}
+              />
+            </td>
+          </tr>
+          <tr data-tip="Regiment reinforcement and cleanup of destroyed units (uses manpower pool when Manpower ledger is on)">
+            <td />
+            <td>
+              <label htmlFor="simMilitaryRecovery">Military recovery</label>
+            </td>
+            <td colSpan={2}>
+              <input
+                id="simMilitaryRecovery"
+                type="checkbox"
+                checked={options.simMilitaryRecovery}
+                onChange={e => updateOption("simMilitaryRecovery", e.target.checked)}
+              />
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>

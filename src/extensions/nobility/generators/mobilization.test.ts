@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { simulationContext } from "../../../context/simulationContext";
+import { useOptionsState } from "../../../store/optionsState";
 import type { PackedGraph } from "../../hostTypes";
 import { Mobilization } from "./mobilization";
 
@@ -36,6 +37,8 @@ function makeRegiment(overrides: Partial<{ a: number; t: number; n: number }> = 
 describe("Mobilization.conscript", () => {
   beforeEach(() => {
     simulationContext.intelligence = {};
+    // Legacy path under test — core tickManpower owns drafting when simManpower is on.
+    useOptionsState.getState().setOption("simManpower", false);
   });
 
   it("raises regiment capacity toward the 1% population baseline when under-conscripted", () => {

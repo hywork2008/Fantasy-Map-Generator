@@ -34,6 +34,18 @@ export interface OptionsState {
   initialPopulationSaturation: number;
   demographicBirthRate: number;
   demographicChildMortalityRate: number;
+  /**
+   * Advance-time simulation feature toggles — skip expensive subsystems when OFF.
+   * Day is the base unit; month/year buttons are multi-day loops of the same ticks.
+   */
+  /** Aging, births, migration, overpopulation starvation. */
+  simDemographics: boolean;
+  /** Male civilian ↔ under-arms ledger, draft/fill/demobilize, combat loss bookkeeping. */
+  simManpower: boolean;
+  /** Spring/autumn war → foodStress → famine deaths (+ Economy multipliers when enabled). */
+  simAgriculture: boolean;
+  /** Regiment a→t recovery / dead-regiment cleanup (uses manpower pool when simManpower). */
+  simMilitaryRecovery: boolean;
   warFrequency: number;
   diplomacyHistoryAttempts: number;
 
@@ -135,6 +147,10 @@ export const useOptionsState = create<OptionsState>(set => ({
   initialPopulationSaturation: 60,
   demographicBirthRate: 0.25,
   demographicChildMortalityRate: 0.2,
+  simDemographics: true,
+  simManpower: true,
+  simAgriculture: true,
+  simMilitaryRecovery: true,
   warFrequency: 1.0,
   diplomacyHistoryAttempts: 1,
 

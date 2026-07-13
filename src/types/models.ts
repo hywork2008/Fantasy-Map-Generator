@@ -311,6 +311,23 @@ export interface State {
   tributeRate?: number;
   /** Computed grain-equivalent tribute amount paid to the suzerain (Vassal states only). */
   tributePaid?: number;
+
+  // ── Manpower / agriculture simulation (docs/plan/military/manpower-ecosystem.md) ──
+  /**
+   * True after initial under-arms headcount has been deducted from civilian maleAdults
+   * so troops are not double-counted in the population pyramid.
+   */
+  manpowerReconciled?: boolean;
+  /** 0..~1.5 food disruption from fighting in planting/harvest seasons. */
+  foodStress?: number;
+  /** In-year spring war exposure (day-weighted, seasonality-scaled). */
+  plantingExposure?: number;
+  /** In-year autumn war exposure. */
+  harvestExposure?: number;
+  /** Carry-over fraction of last year's foodStress into the next year. */
+  agricultureCarryOver?: number;
+  /** Calendar year the exposure buffers belong to. */
+  agricultureYear?: number;
 }
 
 export interface Zone {
