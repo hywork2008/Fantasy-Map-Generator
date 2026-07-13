@@ -18,6 +18,7 @@ import {
   buildLakePolygons,
   buildLandMaskPolygons,
   buildLandPolygonsBase,
+  buildLowPolyBurgSymbols,
   buildMarkerSymbols,
   buildMilitaryBoxPolygons,
   buildMilitaryRegimentSymbols,
@@ -599,6 +600,32 @@ describe("deck.gl data adapters", () => {
     expect(icons[1].size).toBe(1.5);
   });
 
+  it("maps burg and port icons to reusable low-poly mesh descriptors", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.burgs = [
+      { i: 1, cell: 0, x: 5, y: 5, name: "Fort", group: "city", port: 1 },
+      { i: 2, cell: 1, x: 8, y: 5, name: "Town", group: "town" }
+    ];
+
+    const icons = buildLowPolyBurgSymbols(worldContext, null, {
+      burgIcons: {
+        city: { fill: "#111111", opacity: 1, size: 5, icon: "#icon-square" },
+        town: { fill: "#222222", opacity: 0.8, size: 4, icon: "#icon-circle" }
+      },
+      anchors: {
+        city: { fill: "#ffffff", opacity: 0.9, size: 1.5, icon: "#icon-anchor" },
+        town: { fill: "#ffffff", opacity: 0.9, size: 1, icon: "#icon-anchor" }
+      },
+      visibleGroups: new Set(["city", "town"])
+    });
+
+    expect(icons).toMatchObject([
+      { id: "burg-1", burgId: 1, shape: "cube", color: "#111111" },
+      { id: "anchor-1", burgId: 1, shape: "anchor" },
+      { id: "burg-2", burgId: 2, shape: "sphere", color: "#222222" }
+    ]);
+  });
+
   it("builds marker symbols with pinned filtering and rescaled size", () => {
     const worldContext = createWorldContext();
     worldContext.pack.markers = [
@@ -1011,7 +1038,7 @@ describe("deck.gl data adapters", () => {
     expect(layers.find(layer => layer.id === "fmg-webgl-military-totals")?.props.data).toHaveLength(1);
   });
 
-  it("adds active labels as a deck.gl text layer above map features", () => {
+  it("keeps an empty burg-label deck layer while state labels stay SVG overlays", () => {
     const worldContext = createWorldContext();
     worldContext.pack.states = [
       { i: 0, name: "Neutral", expansionism: 0, capital: 0, type: "", center: 0, culture: 0, coa: null },
@@ -1047,7 +1074,7 @@ describe("deck.gl data adapters", () => {
       "fmg-webgl-coastline",
       "fmg-webgl-labels"
     ]);
-    expect(layers.find(layer => layer.id === "fmg-webgl-labels")?.props.data).toHaveLength(1);
+    expect(layers.find(layer => layer.id === "fmg-webgl-labels")?.props.data).toEqual([]);
   });
 
   it("adds visual boundary paths next to migrated division fills", () => {

@@ -309,7 +309,8 @@ export function getDeckLayerDataCacheSize(): number {
 export function buildDeckLayers(
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  appServices: AppServices
+  appServices: AppServices,
+  options: { includeLabels?: boolean; includeBurgIcons?: boolean } = {}
 ): LayersList {
   const { activeLayers } = useLayerState.getState();
   const oceanFill = viewContext.oceanLayers?.select<SVGRectElement>("#oceanBase").attr("fill") || "#466eab";
@@ -663,7 +664,7 @@ export function buildDeckLayers(
     );
   }
 
-  if (activeLayers.toggleBurgIcons) {
+  if (activeLayers.toggleBurgIcons && options.includeBurgIcons !== false) {
     layers.push(
       new IconLayer<DeckBurgIconSymbol>({
         id: "fmg-webgl-burg-icons",
@@ -845,12 +846,14 @@ export function buildDeckLayers(
     })
   );
 
-  if (activeLayers.toggleLabels) {
+  if (activeLayers.toggleLabels && options.includeLabels !== false) {
     layers.push(
       new TextLayer<DeckLabelSymbol>({
         id: "fmg-webgl-labels",
         data: getCachedDeckData("text:labels", signatures.byLayer.labels, () =>
-          buildLabelSymbols(worldContext, viewContext.focusScope, labelStyle)
+          // State labels remain SVG overlays: their curved textPath is also Label Editor's
+          // editable geometry. deck.gl only owns the straight burg labels here.
+          buildLabelSymbols(worldContext, viewContext.focusScope, labelStyle, { includeStateLabels: false })
         ),
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         getPosition: datum => datum.position,
@@ -863,13 +866,12 @@ export function buildDeckLayers(
         sizeUnits: "common",
         billboard: false,
         pickable: true,
-        // fontFamily/outlineColor are layer-wide (deck.gl's TextLayer has no per-datum equivalent
-        // for either), so the state label's style stands in for burg labels too — every built-in
-        // style preset already keeps these consistent across all label groups.
-        fontFamily: labelStyle.state.fontFamily,
+        // fontFamily/outlineColor are layer-wide in deck.gl. Burg labels already share one
+        // fallback-compatible style in the built-in presets.
+        fontFamily: labelStyle.burgLabels.town?.fontFamily ?? labelStyle.state.fontFamily,
         fontSettings: { sdf: true },
         outlineWidth: 1,
-        outlineColor: colorToRgba(labelStyle.state.haloColor, "#ffffff"),
+        outlineColor: colorToRgba(labelStyle.burgLabels.town?.haloColor ?? labelStyle.state.haloColor, "#ffffff"),
         // TextLayer's font atlas defaults to ASCII 32-127 only, which silently drops CJK (and any
         // other non-ASCII) glyphs instead of falling back — "auto" makes it scan the actual label
         // text and include whatever characters are really used, matching the SVG renderer (a plain

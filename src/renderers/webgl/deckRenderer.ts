@@ -10,7 +10,7 @@ import type {
   WebglPickKind
 } from "../../types/webglPicking";
 import { buildDeckLayers } from "./buildDeckLayers";
-import { applyHybridLayerPolicy } from "./hybridLayerPolicy";
+import { applyHybridLayerPolicy, isHybridSvgOverlayElement } from "./hybridLayerPolicy";
 
 const BODY_HYBRID_CLASS = "fmg-webgl-hybrid";
 const PICK_RADIUS = 6;
@@ -466,6 +466,10 @@ function attachPickingBridge(viewContext: ViewContext): void {
   pickingEventTarget.addEventListener("pointerup", handlePointerUp);
 }
 
+function eventTargetsHybridSvgOverlay(event: Event): boolean {
+  return event.target instanceof Element && isHybridSvgOverlayElement(event.target);
+}
+
 function handleMouseDownCapture(event: MouseEvent): void {
   if (!activeDrag) return;
   event.preventDefault();
@@ -500,6 +504,7 @@ function dispatchDragEvent(
 }
 
 function handlePointerDown(event: PointerEvent): void {
+  if (eventTargetsHybridSvgOverlay(event)) return;
   if (!activePickingViewContext || activeDrag || !hasWebglDragTarget()) return;
   // A single nearest pick (pickObject) is not enough here: at the drag target's own position
   // several overlapping layers (land/state/route/burgIcon/...) are usually picked first, so this
@@ -535,6 +540,14 @@ function handlePointerMove(event: PointerEvent): void {
     return;
   }
 
+  if (eventTargetsHybridSvgOverlay(event)) {
+    if (lastHoverPickId !== null) {
+      lastHoverPickId = null;
+      document.dispatchEvent(new CustomEvent<WebglPickDetail | null>("fmg:webgl-map-hover", { detail: null }));
+    }
+    return;
+  }
+
   const info = toPickDetail(pickFromPointerEvent(event, activePickingViewContext));
   const id = getPickedObjectId(info);
   if (id === lastHoverPickId) return;
@@ -554,6 +567,8 @@ function handlePointerUp(event: PointerEvent): void {
     activeDrag = null;
     return;
   }
+
+  if (eventTargetsHybridSvgOverlay(event)) return;
 
   const detail = pickCandidatesFromPointerEvent(event, activePickingViewContext) ?? {
     primary: toPickDetail(pickFromPointerEvent(event, activePickingViewContext)),

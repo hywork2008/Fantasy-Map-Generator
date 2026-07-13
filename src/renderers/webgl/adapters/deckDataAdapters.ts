@@ -121,6 +121,23 @@ export interface DeckBurgIconSymbol {
   mask: boolean;
 }
 
+/** Geometry-neutral burg icon data for real 3D renderers. */
+export type LowPolyBurgShape = "sphere" | "cube" | "anchor";
+
+export interface LowPolyBurgSymbol {
+  id: string;
+  burgId: number;
+  cellId: number;
+  group: string;
+  type: DeckBurgIconType;
+  shape: LowPolyBurgShape;
+  position: [number, number];
+  /** Map-space radius/half-size used when composing an instance transform. */
+  size: number;
+  color: string;
+  opacity: number;
+}
+
 export interface DeckMarkerStyle {
   pinnedOnly: boolean;
   rescale: boolean;
@@ -1155,6 +1172,62 @@ export function buildBurgIconSymbols(
   return icons;
 }
 
+/**
+ * Builds the same visible burg/port set as the 2D icon adapter, but deliberately does not
+ * rasterize SVG symbols. Mesh mode uses these descriptors to choose small shared geometries.
+ */
+export function buildLowPolyBurgSymbols(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  styles: {
+    burgIcons: Record<string, DeckBurgIconStyle>;
+    anchors: Record<string, DeckBurgIconStyle>;
+    visibleGroups: ReadonlySet<string>;
+  }
+): LowPolyBurgSymbol[] {
+  const icons: LowPolyBurgSymbol[] = [];
+  for (const burg of worldContext.pack.burgs) {
+    if (!burg.i || burg.removed || !isCellInScope(focusScope, burg.cell)) continue;
+    const group = burg.group || getBurgGroupName(worldContext, burg);
+    if (!styles.visibleGroups.has(group)) continue;
+
+    const iconStyle = styles.burgIcons[group] ?? styles.burgIcons.town ?? DEFAULT_BURG_ICON_STYLE;
+    icons.push({
+      id: `burg-${burg.i}`,
+      burgId: burg.i,
+      cellId: burg.cell,
+      group,
+      type: "burg",
+      shape: getLowPolyBurgShape(iconStyle.icon, "burg"),
+      position: [burg.x, burg.y],
+      size: Math.max(0.6, iconStyle.size * 0.2),
+      color: iconStyle.fill,
+      opacity: iconStyle.opacity
+    });
+
+    if (!burg.port) continue;
+    const anchorStyle = styles.anchors[group] ?? styles.anchors.town ?? DEFAULT_ANCHOR_ICON_STYLE;
+    icons.push({
+      id: `anchor-${burg.i}`,
+      burgId: burg.i,
+      cellId: burg.cell,
+      group,
+      type: "anchor",
+      shape: "anchor",
+      position: [burg.x, burg.y],
+      size: Math.max(0.45, anchorStyle.size * 0.32),
+      color: anchorStyle.fill,
+      opacity: anchorStyle.opacity
+    });
+  }
+  return icons;
+}
+
+function getLowPolyBurgShape(icon: string, type: DeckBurgIconType): LowPolyBurgShape {
+  if (type === "anchor" || icon.includes("anchor")) return "anchor";
+  return /square|castle|capital|fort/.test(icon) ? "cube" : "sphere";
+}
+
 export function buildMarkerSymbols(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
@@ -1278,26 +1351,29 @@ export function buildLabelSymbols(
     state: DeckLabelStyle;
     burgLabels: Record<string, DeckLabelStyle>;
     visibleBurgGroups: ReadonlySet<string>;
-  }
+  },
+  options: { includeStateLabels?: boolean } = {}
 ): DeckLabelSymbol[] {
   const labels: DeckLabelSymbol[] = [];
-  const stateAngles = computeStateOrientationAngles(worldContext);
-  for (const state of worldContext.pack.states) {
-    if (!state.i || state.removed || state.lock || !state.pole) continue;
-    if (focusScope && state.i !== focusScope.stateId) continue;
-    labels.push({
-      id: `state-label-${state.i}`,
-      kind: "label",
-      type: "state",
-      itemId: state.i,
-      cellId: state.center ?? null,
-      group: "states",
-      text: getStateLabelText(worldContext, state),
-      position: state.pole,
-      size: styles.state.size,
-      color: colorToRgba(styles.state.fill, "#3e3e4b", styles.state.opacity),
-      angle: stateAngles.get(state.i) ?? 0
-    });
+  if (options.includeStateLabels !== false) {
+    const stateAngles = computeStateOrientationAngles(worldContext);
+    for (const state of worldContext.pack.states) {
+      if (!state.i || state.removed || state.lock || !state.pole) continue;
+      if (focusScope && state.i !== focusScope.stateId) continue;
+      labels.push({
+        id: `state-label-${state.i}`,
+        kind: "label",
+        type: "state",
+        itemId: state.i,
+        cellId: state.center ?? null,
+        group: "states",
+        text: getStateLabelText(worldContext, state),
+        position: state.pole,
+        size: styles.state.size,
+        color: colorToRgba(styles.state.fill, "#3e3e4b", styles.state.opacity),
+        angle: stateAngles.get(state.i) ?? 0
+      });
+    }
   }
 
   for (const burg of worldContext.pack.burgs) {

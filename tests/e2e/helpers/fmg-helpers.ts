@@ -159,6 +159,12 @@ export async function ensureLayerOn(page: Page, layerId: string): Promise<void> 
   }, layerId);
 }
 
+export async function ensureLayerOff(page: Page, layerId: string): Promise<void> {
+  await page.evaluate(id => {
+    if (window.fmg.actions.layerIsOn(id)) window.fmg.actions.toggleLayer(id);
+  }, layerId);
+}
+
 export async function getWebglDeckLayerIds(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const deck = window.fmg.view.webglDeck as unknown as { props?: { layers?: Array<{ id?: string }> } } | null;
@@ -1350,6 +1356,33 @@ export async function waitForWebglCanvasPixels(page: Page, minColoredPixels = 50
     { timeout: 15000 }
   );
   return getWebglCanvasPixelStats(page);
+}
+
+/** Waits until a canvas has enough non-black pixels to prove that its renderer produced a frame. */
+export async function waitForCanvasPixels(page: Page, canvasId: string, minColoredPixels = 500): Promise<void> {
+  await page.waitForFunction(
+    ({ id, minimum }) => {
+      const source = document.getElementById(id);
+      if (!(source instanceof HTMLCanvasElement) || source.width === 0 || source.height === 0) return false;
+
+      const width = Math.max(1, Math.min(source.width, 160));
+      const height = Math.max(1, Math.min(source.height, 100));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) return false;
+      context.drawImage(source, 0, 0, width, height);
+      const data = context.getImageData(0, 0, width, height).data;
+      let colored = 0;
+      for (let index = 0; index < data.length; index += 4) {
+        if ((data[index] ?? 0) !== 0 || (data[index + 1] ?? 0) !== 0 || (data[index + 2] ?? 0) !== 0) colored++;
+      }
+      return colored >= minimum;
+    },
+    { id: canvasId, minimum: minColoredPixels },
+    { timeout: 15000 }
+  );
 }
 
 export interface SvgLayerPresence {

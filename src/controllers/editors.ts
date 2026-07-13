@@ -60,8 +60,6 @@ export function restoreDefaultEvents(): void {
 }
 
 function clicked(this: Element, event: MouseEvent): void {
-  if (shouldSuppressWebglPickChooserClick(event)) return;
-
   const el = event.target as Element | null;
   const parent = el?.parentElement;
   const grand = parent?.parentElement;
@@ -69,10 +67,18 @@ function clicked(this: Element, event: MouseEvent): void {
   const ancestor = great?.parentElement;
   if (!ancestor) return;
 
+  // State labels are kept as clickable SVG overlays in hybrid mode. Handle them before
+  // a stale WebGL chooser suppression can consume the DOM click.
+  if (ancestor.id === "labels" && el?.tagName === "tspan") {
+    LabelsEditor.editLabel(el);
+    return;
+  }
+
+  if (shouldSuppressWebglPickChooserClick(event)) return;
+
   if (grand?.id === "emblems") EmblemsEditor.editEmblem(undefined, undefined, el ?? undefined);
   else if (parent?.id === "rivers") RiversEditor.editRiver(el!.id);
   else if (grand?.id === "routes") RoutesEditor.editRoute(el!.id);
-  else if (ancestor.id === "labels" && el?.tagName === "tspan") LabelsEditor.editLabel(el as Element);
   else if (grand?.id === "burgLabels") BurgEditor.editBurg(+(el as SVGElement).dataset.id!);
   else if (grand?.id === "burgIcons") BurgEditor.editBurg(+(el as SVGElement).dataset.id!);
   else if (parent?.id === "ice") IceEditor.editIce(el as SVGElement);

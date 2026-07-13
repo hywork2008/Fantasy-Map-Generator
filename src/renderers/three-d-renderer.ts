@@ -15,12 +15,16 @@ import * as ErosionBake from "./erosion-bake";
 THREE.ColorManagement.enabled = false;
 
 import { cloudImage } from "../assets/cloud-image";
+import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { getMapURL } from "../io/export";
 import { tip } from "../services/tooltipService";
-import { createObjectURL, revokeObjectURL, rn, throttle } from "../utils";
+import { revokeObjectURL, rn, throttle } from "../utils";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
+import { buildLowPolyBurgSymbols, type LowPolyBurgShape } from "./webgl/adapters/deckDataAdapters";
+import { renderWebglMapTexture } from "./webgl/webglMapTexture";
+import { getBurgIconStyle } from "./webgl/webglStyleExtractors";
 
 interface ThreeDOptions {
   scale: number;
@@ -44,6 +48,7 @@ interface ThreeDOptions {
   erosionRiverDepth: number;
   erosionOctaves: number;
   satellite: boolean;
+  sceneOnly: boolean;
   isOn?: boolean;
   isGlobe?: boolean;
 }
@@ -57,6 +62,7 @@ interface TimeOfDayPreset {
 }
 
 type LabelSprite = THREE.Sprite & { size: number };
+type IconBatch = THREE.InstancedMesh<THREE.BufferGeometry, THREE.MeshPhongMaterial>;
 
 class ThreeDModule {
   options: ThreeDOptions = {
@@ -80,7 +86,8 @@ class ThreeDModule {
     erosionStrength: 30,
     erosionRiverDepth: 10,
     erosionOctaves: 2,
-    satellite: false
+    satellite: false,
+    sceneOnly: false
   };
 
   readonly timeOfDayPresets: Record<string, TimeOfDayPreset> = {
@@ -130,8 +137,7 @@ class ThreeDModule {
   private waterMesh: THREE.Mesh | undefined;
   private raycaster: THREE.Raycaster | undefined;
   private labels: LabelSprite[] = [];
-  private icons: THREE.Mesh[] = [];
-  private lines: THREE.Line[] = [];
+  private iconBatches: IconBatch[] = [];
   private gridToPackCellMap: Map<number, number> | null = null;
   private erosionBakeActive: boolean = false;
   private erosionBakeData: ErosionBake.ErosionBakeResult | null = null;
@@ -178,7 +184,12 @@ class ThreeDModule {
 
   update(): void {
     if (this.options.isGlobe) this.updateGlobeTexure();
-    else this.update3dTexture();
+    else {
+      this.deleteLowPolyBurgIcons();
+      this.createLowPolyBurgIcons();
+      if (this.options.sceneOnly) this.render();
+      else this.update3dTexture();
+    }
   }
 
   stop(): void {
@@ -281,7 +292,7 @@ class ThreeDModule {
 
     if (this.options.labels3d) {
       this.invalidateLabelVisibilityCache();
-      if (!this.labels.length && !this.icons.length && !this.lines.length) {
+      if (!this.labels.length) {
         this.createLabels();
       } else {
         this.setLabelsVisibility(true);
@@ -299,11 +310,29 @@ class ThreeDModule {
     }
   }
 
+  /** Shows only the floating low-poly scene objects against the existing dark scene background. */
+  toggleNightscape(): void {
+    this.options.sceneOnly = !this.options.sceneOnly;
+    if (this.options.sceneOnly) {
+      if (this.texture) this.texture.dispose();
+      this.texture = undefined;
+      if (this.material) this.material.map = null;
+      if (this.mesh) this.mesh.visible = false;
+      if (this.waterMesh) this.waterMesh.visible = false;
+      if (this.scene) this.scene.background = new THREE.Color("#03050b");
+      this.render();
+      return;
+    }
+
+    if (this.mesh) this.mesh.visible = true;
+    if (this.waterMesh) this.waterMesh.visible = Boolean(this.options.extendedWater);
+    if (this.scene) this.scene.background = this.options.extendedWater ? new THREE.Color(this.options.skyColor) : null;
+    this.redraw();
+  }
+
   private shouldRefreshTextureAfterLabelsToggle(): boolean {
-    if (this.options.isGlobe) return false;
-    if (this.options.satellite) return false;
-    // No need to regenerate texture if 2D labels layer is hidden.
-    return layerIsOn("toggleLabels");
+    // Mesh labels are sprites and never baked into the WebGL terrain texture.
+    return false;
   }
 
   toggle3dSubdivision(): void {
@@ -479,21 +508,109 @@ class ThreeDModule {
   }
 
   private get3dCoords(baseX: number, baseY: number): [number, number, number] {
-    const x = baseX - worldContext.graphWidth / 2;
-    const z = baseY - worldContext.graphHeight / 2;
+    const surface = this.get3dSurface(baseX, baseY);
+    return [surface.position.x, surface.position.y, surface.position.z];
+  }
 
-    if (this.erosionBakeActive) {
-      const y = ErosionBake.heightAt(baseX, baseY, this.options.scale);
-      return [x, y, z];
+  private get3dSurface(baseX: number, baseY: number): { position: THREE.Vector3; normal: THREE.Vector3 } {
+    const position = new THREE.Vector3(baseX - worldContext.graphWidth / 2, 0, baseY - worldContext.graphHeight / 2);
+    const normal = new THREE.Vector3(0, 1, 0);
+    if (!this.mesh) return { position, normal };
+
+    this.raycaster ??= new THREE.Raycaster();
+    this.raycaster.set(new THREE.Vector3(position.x, 10_000, position.z), new THREE.Vector3(0, -1, 0));
+    const intersection = this.raycaster.intersectObject(this.mesh, false)[0];
+    if (!intersection) return { position, normal };
+
+    position.copy(intersection.point);
+    if (intersection.face) {
+      normal.copy(intersection.face.normal).transformDirection(this.mesh.matrixWorld).normalize();
+    }
+    return { position, normal };
+  }
+
+  private createLowPolyBurgIcons(): void {
+    if (!this.scene || !layerIsOn("toggleBurgIcons")) return;
+
+    const symbols = buildLowPolyBurgSymbols(
+      worldContext,
+      viewContext.focusScope,
+      getBurgIconStyle(worldContext, viewContext)
+    );
+    const batches = new Map<
+      string,
+      { shape: LowPolyBurgShape; color: string; opacity: number; symbols: typeof symbols }
+    >();
+    for (const symbol of symbols) {
+      const key = `${symbol.shape}|${symbol.color}|${symbol.opacity}`;
+      const batch = batches.get(key) ?? {
+        shape: symbol.shape,
+        color: symbol.color,
+        opacity: symbol.opacity,
+        symbols: []
+      };
+      batch.symbols.push(symbol);
+      batches.set(key, batch);
     }
 
-    if (!this.raycaster || !this.mesh) return [x, 0, z];
+    const up = new THREE.Vector3(0, 1, 0);
+    const matrix = new THREE.Matrix4();
+    const quaternion = new THREE.Quaternion();
+    for (const batch of batches.values()) {
+      const material = new THREE.MeshPhongMaterial({
+        color: batch.color,
+        opacity: batch.opacity,
+        transparent: batch.opacity < 1,
+        wireframe: Boolean(this.options.wireframe)
+      });
+      const mesh = new THREE.InstancedMesh(this.createLowPolyIconGeometry(batch.shape), material, batch.symbols.length);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData.burgIds = batch.symbols.map(symbol => symbol.burgId);
 
-    this.raycaster.ray.origin.x = x;
-    this.raycaster.ray.origin.z = z;
-    const intersections = this.raycaster.intersectObject(this.mesh);
-    const y = intersections[0]?.point.y ?? 0;
-    return [x, y, z];
+      for (let index = 0; index < batch.symbols.length; index++) {
+        const symbol = batch.symbols[index];
+        const surface = this.get3dSurface(symbol.position[0], symbol.position[1]);
+        // Lift from the sampled terrain along its normal. The half-size term keeps the centre of
+        // each sphere/cube/anchor above the surface instead of leaving its lower half embedded.
+        const clearance = Math.max(1.2, symbol.size * 0.35) + symbol.size;
+        const position = surface.position.addScaledVector(surface.normal, clearance);
+        quaternion.setFromUnitVectors(up, surface.normal);
+        matrix.compose(position, quaternion, new THREE.Vector3(symbol.size, symbol.size, symbol.size));
+        mesh.setMatrixAt(index, matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      this.iconBatches.push(mesh);
+      this.scene.add(mesh);
+    }
+  }
+
+  private createLowPolyIconGeometry(shape: LowPolyBurgShape): THREE.BufferGeometry {
+    if (shape === "sphere") return new THREE.IcosahedronGeometry(1, 1);
+    if (shape === "cube") return new THREE.BoxGeometry(1.6, 1.6, 1.6);
+
+    const anchor = new THREE.Shape();
+    anchor.moveTo(-0.12, 1.1);
+    anchor.lineTo(0.12, 1.1);
+    anchor.lineTo(0.12, 0.62);
+    anchor.lineTo(0.38, 0.62);
+    anchor.lineTo(0.38, 0.44);
+    anchor.lineTo(0.16, 0.44);
+    anchor.lineTo(0.16, -0.35);
+    anchor.lineTo(0.55, -0.08);
+    anchor.lineTo(0.72, -0.32);
+    anchor.lineTo(0, -0.8);
+    anchor.lineTo(-0.72, -0.32);
+    anchor.lineTo(-0.55, -0.08);
+    anchor.lineTo(-0.16, -0.35);
+    anchor.lineTo(-0.16, 0.44);
+    anchor.lineTo(-0.38, 0.44);
+    anchor.lineTo(-0.38, 0.62);
+    anchor.lineTo(-0.12, 0.62);
+    anchor.closePath();
+    const geometry = new THREE.ExtrudeGeometry(anchor, { depth: 0.35, bevelEnabled: false, curveSegments: 1 });
+    geometry.center();
+    return geometry;
   }
 
   private createLabels(): void {
@@ -517,11 +634,7 @@ class ThreeDModule {
       quality: 80
     };
 
-    const iconMaterials: Record<string, THREE.Material> = {};
-    const iconGeometries: Record<string, THREE.BufferGeometry> = {};
-    const lineMaterials: Record<string, THREE.Material> = {};
     const labelsLayerOn = layerIsOn("toggleLabels");
-    const burgIconsLayerOn = layerIsOn("toggleBurgIcons");
 
     const getBurgLabelOptions = (burg: {
       group?: string;
@@ -532,8 +645,6 @@ class ThreeDModule {
       color: string;
       elevation: number;
       quality: number;
-      iconSize: number;
-      iconColor: string;
     } | null => {
       if (!burg.group) return null;
 
@@ -545,34 +656,7 @@ class ThreeDModule {
       const color = labelGroup.attr("fill") || "#000";
 
       const elevation = Math.max(5, size * 0.5);
-      const iconSize = Math.max(0.3, size * 0.08);
-      const iconColor = "#666";
-
-      return { font, size, color, elevation, quality: 40, iconSize, iconColor };
-    };
-
-    const getIconMaterial = (groupName: string, iconColor: string): THREE.Material => {
-      if (!iconMaterials[groupName]) {
-        const mat = new THREE.MeshPhongMaterial({ color: iconColor });
-        mat.wireframe = Boolean(this.options.wireframe);
-        iconMaterials[groupName] = mat;
-      }
-      return iconMaterials[groupName];
-    };
-
-    const getIconGeometry = (groupName: string, iconSize: number): THREE.BufferGeometry => {
-      const key = `${groupName}_${iconSize.toFixed(2)}`;
-      if (!iconGeometries[key]) {
-        iconGeometries[key] = new THREE.CylinderGeometry(iconSize * 2, iconSize * 2, iconSize, 16, 1);
-      }
-      return iconGeometries[key];
-    };
-
-    const getLineMaterial = (groupName: string, iconColor: string): THREE.Material => {
-      if (!lineMaterials[groupName]) {
-        lineMaterials[groupName] = new THREE.LineBasicMaterial({ color: iconColor });
-      }
-      return lineMaterials[groupName];
+      return { font, size, color, elevation, quality: 40 };
     };
 
     let burgIndex = 1;
@@ -642,24 +726,6 @@ class ThreeDModule {
           this.scene.add(burgSprite);
         }
 
-        if (burgIconsLayerOn) {
-          const geo = getIconGeometry(burg.group ?? "", burgOptions.iconSize);
-          const mat = getIconMaterial(burg.group ?? "", burgOptions.iconColor);
-          const iconMesh = new THREE.Mesh(geo, mat);
-          iconMesh.position.set(x, y, z);
-          this.icons.push(iconMesh);
-          this.scene.add(iconMesh);
-
-          const lineMat = getLineMaterial(burg.group ?? "", burgOptions.iconColor);
-          const lineStart = y + burgOptions.iconSize / 2;
-          const lineEnd = y + burgOptions.elevation - burgOptions.size * 0.5;
-          const points = [new THREE.Vector3(x, lineStart, z), new THREE.Vector3(x, lineEnd, z)];
-          const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-          const line = new THREE.Line(lineGeo, lineMat);
-          this.lines.push(line);
-          this.scene.add(line);
-        }
-
         processed = true;
       }
 
@@ -683,8 +749,6 @@ class ThreeDModule {
 
   private setLabelsVisibility(visible: boolean): void {
     for (const label of this.labels) label.visible = visible;
-    for (const icon of this.icons) icon.visible = visible;
-    for (const line of this.lines) line.visible = visible;
   }
 
   private invalidateLabelVisibilityCache(): void {
@@ -729,47 +793,37 @@ class ThreeDModule {
     }
     this.labels = [];
 
-    for (const m of this.icons) {
-      this.scene!.remove(m);
-      disposeMaterial(m.material as THREE.Material);
-      disposeGeometry(m.geometry as THREE.BufferGeometry);
-    }
-    this.icons = [];
-
-    for (const line of this.lines) {
-      this.scene!.remove(line);
-      disposeMaterial(line.material as THREE.Material);
-      disposeGeometry(line.geometry as THREE.BufferGeometry);
-    }
-    this.lines = [];
+    this.deleteLowPolyBurgIcons(disposeMaterial, disposeGeometry);
   }
 
-  private async createMeshTextureUrl(): Promise<string> {
-    const url = await getMapURL("mesh", {
-      noLabels: Boolean(this.options.labels3d),
-      noWater: Boolean(this.options.extendedWater),
-      fullMap: true
-    });
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
-    canvas.width = this.options.resolutionScale;
-    canvas.height = this.options.resolutionScale;
-    const img = new Image();
-    img.src = url;
+  private deleteLowPolyBurgIcons(
+    disposeMaterial?: (material: THREE.Material) => void,
+    disposeGeometry?: (geometry: THREE.BufferGeometry) => void
+  ): void {
+    const releaseMaterial = disposeMaterial ?? ((material: THREE.Material) => material.dispose());
+    const releaseGeometry = disposeGeometry ?? ((geometry: THREE.BufferGeometry) => geometry.dispose());
+    for (const m of this.iconBatches) {
+      this.scene!.remove(m);
+      releaseMaterial(m.material as THREE.Material);
+      releaseGeometry(m.geometry as THREE.BufferGeometry);
+    }
+    this.iconBatches = [];
+  }
 
-    return new Promise(resolve => {
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob(blob => {
-          const blobObj = createObjectURL(blob!);
-          window.setTimeout(() => {
-            canvas.remove();
-            revokeObjectURL(blobObj);
-          }, 100);
-          resolve(blobObj);
-        });
-      };
+  private async createMeshTexture(): Promise<THREE.CanvasTexture | null> {
+    const canvas = await renderWebglMapTexture(worldContext, viewContext, appServices, {
+      resolution: Math.min(this.options.resolutionScale, 8192),
+      // Labels are separate scene sprites, and burg/anchor symbols are instanced low-poly mesh.
+      // Leaving either in the terrain bitmap would duplicate them and make them appear painted on.
+      includeLabels: false,
+      includeBurgIcons: false
     });
+    if (!canvas) return null;
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    if (this.Renderer) texture.anisotropy = this.Renderer.capabilities.getMaxAnisotropy();
+    return texture;
   }
 
   private async createMesh(width: number, height: number, segmentsX: number, segmentsY: number): Promise<void> {
@@ -784,22 +838,17 @@ class ThreeDModule {
       }
     }
 
-    const useSatellite = Boolean(this.options.satellite && !this.options.isGlobe && !this.options.wireframe);
+    const sceneOnly = this.options.sceneOnly;
+    const useSatellite = Boolean(
+      this.options.satellite && !this.options.isGlobe && !this.options.wireframe && !sceneOnly
+    );
 
-    if (this.texture && !this.options.wireframe && !useSatellite) this.texture.dispose();
-    if (!this.options.wireframe && !useSatellite) {
-      const url = await this.createMeshTextureUrl();
-      await new Promise<void>(resolve => {
-        this.texture = new THREE.TextureLoader().load(
-          url,
-          () => resolve(),
-          undefined,
-          () => resolve()
-        );
-      });
-      if (this.texture && this.Renderer) {
-        this.texture.anisotropy = this.Renderer.capabilities.getMaxAnisotropy();
-      }
+    if (this.texture && !this.options.wireframe && !useSatellite) {
+      this.texture.dispose();
+      this.texture = undefined;
+    }
+    if (!this.options.wireframe && !useSatellite && !sceneOnly) {
+      this.texture = (await this.createMeshTexture()) ?? undefined;
     }
 
     if (this.material) this.material.dispose();
@@ -807,7 +856,7 @@ class ThreeDModule {
 
     if (this.options.wireframe) {
       this.material.wireframe = true;
-    } else if (!useSatellite) {
+    } else if (!useSatellite && !sceneOnly) {
       this.material.map = this.texture ?? null;
       this.material.transparent = true;
     }
@@ -898,18 +947,7 @@ class ThreeDModule {
         this.applyWaterAnimation(this.material as THREE.MeshLambertMaterial, generateRiverFlowTexture());
         this.startWaterAnimation();
       } else {
-        const url = await this.createMeshTextureUrl();
-        await new Promise<void>(resolve => {
-          this.texture = new THREE.TextureLoader().load(
-            url,
-            () => resolve(),
-            undefined,
-            () => resolve()
-          );
-        });
-        if (this.texture && this.Renderer) {
-          this.texture.anisotropy = this.Renderer.capabilities.getMaxAnisotropy();
-        }
+        this.texture = (await this.createMeshTexture()) ?? undefined;
         this.material.map = this.texture ?? null;
         this.material.transparent = true;
       }
@@ -918,7 +956,11 @@ class ThreeDModule {
     this.mesh.rotation.x = -Math.PI / 2;
     this.mesh.castShadow = true;
     this.mesh.receiveShadow = true;
+    this.mesh.visible = !sceneOnly;
     this.scene!.add(this.mesh);
+    if (this.waterMesh) this.waterMesh.visible = !sceneOnly;
+    this.mesh.updateMatrixWorld();
+    this.createLowPolyBurgIcons();
     this.render();
 
     if (this.options.labels3d) {
@@ -982,10 +1024,9 @@ class ThreeDModule {
     }
 
     if (this.texture) this.texture.dispose();
-    const url = await this.createMeshTextureUrl();
-    revokeObjectURL(url, 4000);
-    this.texture = new THREE.TextureLoader().load(url, () => this.render());
+    this.texture = (await this.createMeshTexture()) ?? undefined;
     this.material.map = this.texture ?? null;
+    this.render();
   }
 
   private async newGlobe(canvas: HTMLCanvasElement): Promise<boolean> {
@@ -1125,7 +1166,6 @@ class ThreeDModule {
       const minDist = label.size * 6;
       const isVisible = distSq < maxDist * maxDist && distSq > minDist * minDist;
       label.visible = isVisible;
-      if (this.lines[i]) this.lines[i].visible = isVisible;
     }
   }
 
@@ -1236,6 +1276,7 @@ interface ThreeDAPI {
   setSun: (x: number, y: number, z: number) => void;
   setRotation: (speed: number) => void;
   toggleLabels: () => void;
+  toggleNightscape: () => void;
   toggle3dSubdivision: () => void;
   toggleWireframe: () => void;
   toggleSky: () => void;

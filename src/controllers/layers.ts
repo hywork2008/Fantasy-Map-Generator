@@ -423,6 +423,15 @@ function drawHybridSvgOverlays(): void {
   RiversRenderer.render(worldContext, viewContext, appServices);
   if (!layerIsOn("toggleRivers")) setLayerVisibility("toggleRivers", false);
 
+  // State labels stay as a real SVG overlay in hybrid mode. The nested #burgLabels group is still
+  // hidden by the hybrid policy and continues to be rendered by deck.gl.
+  if (layerIsOn("toggleLabels")) {
+    drawLabels();
+    setLayerVisibility("toggleLabels", true);
+  } else {
+    setLayerVisibility("toggleLabels", false);
+  }
+
   RoutesRenderer.render(worldContext, viewContext, appServices);
   if (!layerIsOn("toggleRoutes")) setLayerVisibility("toggleRoutes", false);
   if (layerIsOn("toggleTexture")) {
@@ -896,7 +905,6 @@ export function toggleMarkers(event?: MouseEvent): void {
 
 export function toggleLabels(event?: MouseEvent): void {
   if (!viewContext.renderMap) return;
-  if (toggleWebglManagedLayer("toggleLabels", "labels", event)) return;
   if (!layerIsOn("toggleLabels")) {
     turnButtonOn("toggleLabels");
     setLayerVisibility("toggleLabels", true);

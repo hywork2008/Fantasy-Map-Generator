@@ -6,6 +6,7 @@ import {
 import {
   applyStylePreset,
   clickAndGetWebglPickCandidates,
+  ensureLayerOff,
   ensureLayerOn,
   forceOverlappingWebglRegiments,
   forceWebglGlacierFixture,
@@ -33,6 +34,7 @@ import {
   setRenderMode,
   toggleLayer,
   uploadMapFixture,
+  waitForCanvasPixels,
   waitForMapLoad,
   waitForWebglCanvasPixels,
   zoomToMapCenter
@@ -235,7 +237,7 @@ test.describe("webgl hybrid renderer", () => {
     expect(desktopScreenshot.length).toBeGreaterThan(1000);
 
     await expect(page.locator("#webglMapCanvas")).toBeVisible();
-    await expect(page.locator("#labels")).toBeHidden();
+    await expect(page.locator("#labels")).toBeVisible();
     await expect(page.locator("#scaleBar")).toBeVisible();
     await expect(page.locator("#regions")).toBeHidden();
     await expect(page.locator("#rivers")).toBeHidden();
@@ -268,7 +270,7 @@ test.describe("webgl hybrid renderer", () => {
     expect(afterZoomStats.coloredPixels).toBeGreaterThan(500);
     expect(afterZoomStats.nonTransparentPixels).toBeGreaterThan(500);
     expect(afterZoomStats.alphaBoundingArea).toBeGreaterThan(500);
-    await expect(page.locator("#labels")).toBeHidden();
+    await expect(page.locator("#labels")).toBeVisible();
     const afterZoomTransform = await getViewTransformState(page);
     expect(beforeZoomTransform).not.toEqual(afterZoomTransform);
     expect(afterZoomTransform.scale).toBeCloseTo(3, 1);
@@ -373,12 +375,15 @@ test.describe("webgl hybrid renderer", () => {
     await waitForMapLoad(page);
     await setRenderMode(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
+    // Prove that the terrain texture itself rendered, rather than merely the low-poly burg icons.
+    await ensureLayerOff(page, "toggleBurgIcons");
 
     await page.locator("#optionsHide").click();
     await page.locator("#layersTab").click();
     await page.locator("#viewMesh").click();
 
     await expect(page.locator("#canvas3d")).toBeVisible({ timeout: 15000 });
+    await waitForCanvasPixels(page, "canvas3d");
     await expect(page.locator("#map")).toBeHidden();
     await expect(page.locator("#webglMapCanvas")).toBeHidden();
     await expect.poll(() => getWebglRendererDomState(page)).toMatchObject({ deckExists: true });
@@ -1183,6 +1188,31 @@ test.describe("webgl hybrid renderer", () => {
     await expect(page.locator("#emblemEditor")).toBeVisible();
   });
 
+  test("keeps state labels as editable SVG overlays", async ({ page }) => {
+    await page.goto("/?seed=webgl-state-label-pick&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await expect(page.locator("#labels")).toBeVisible();
+    await expect(page.locator("#labels #states text").first()).toBeVisible();
+    await expect(page.locator("#labels #states tspan").first()).toHaveCSS("cursor", "pointer");
+    await page.evaluate(() => {
+      document.body.dataset.webglOverlayPickEvent = "0";
+      document.addEventListener(
+        "fmg:webgl-map-pick-candidates",
+        () => {
+          document.body.dataset.webglOverlayPickEvent = "1";
+        },
+        { once: true }
+      );
+    });
+    await page.locator("#labels #states tspan").first().click();
+    await expect(page.locator("body")).toHaveAttribute("data-webgl-overlay-pick-event", "0");
+    await expect(page.locator("#mapPickChooser")).toBeHidden();
+    await expect(page.getByText("Label Editor", { exact: true })).toBeVisible();
+    const labelData = await getFirstWebglLayerDatumIdentity(page, "fmg-webgl-labels");
+    expect(labelData?.id).toMatch(/^burg-label-\d+$/);
+  });
+
   test("renders migrated layers for major presets while keeping SVG overlays", async ({ page }) => {
     await page.goto("/?seed=webgl-presets&width=1000&height=700");
     await waitForMapLoad(page);
@@ -1250,7 +1280,11 @@ test.describe("webgl hybrid renderer", () => {
       await expect(page.locator("#terrain")).toBeHidden();
       await expect(page.locator("#emblems")).toBeHidden();
       await expect(page.locator("#icons")).toBeHidden();
-      await expect(page.locator("#labels")).toBeHidden();
+      if (preset.layers.includes("fmg-webgl-labels")) {
+        await expect(page.locator("#labels")).toBeVisible();
+      } else {
+        await expect(page.locator("#labels")).toBeHidden();
+      }
       await expect(page.locator("#markers")).toBeHidden();
       await expect(page.locator("#armies")).toBeHidden();
       await expect(page.locator("#scaleBar")).toBeVisible();
@@ -1349,7 +1383,7 @@ test.describe("webgl hybrid renderer", () => {
     expect((await getWebglMarkerIconState(page, markerId))?.icon).toBe("");
   });
 
-  test("sets label font/halo from style and approximates state label rotation", async ({ page }) => {
+  test("uses deck.gl only for burg labels while state labels keep their SVG textPath", async ({ page }) => {
     await page.goto("/?seed=webgl-label-style&width=1000&height=700");
     await waitForMapLoad(page);
     await setRenderMode(page, "webglHybrid");
@@ -1362,11 +1396,10 @@ test.describe("webgl hybrid renderer", () => {
     expect(defaultSettings.sdf).toBe(true);
     expect(defaultSettings.outlineWidth).toBeGreaterThan(0);
     expect(defaultSettings.outlineColor).toEqual([255, 255, 255, 255]);
-    // A curved textPath (SVG) can't be reproduced by TextLayer's straight baseline (Phase 6.3
-    // acceptance) — this checks the accepted approximation instead: at least one state's flat
-    // label is rotated to follow the state's general orientation rather than staying horizontal.
-    expect(defaultSettings.stateCount).toBeGreaterThan(0);
-    expect(defaultSettings.nonZeroAngleStateCount).toBeGreaterThan(0);
+    expect(defaultSettings.total).toBeGreaterThan(0);
+    expect(defaultSettings.stateCount).toBe(0);
+    expect(defaultSettings.nonZeroAngleStateCount).toBe(0);
+    await expect(page.locator("#labels #states textPath").first()).toBeVisible();
 
     await applyStylePreset(page, "night");
     await waitForWebglCanvasPixels(page);

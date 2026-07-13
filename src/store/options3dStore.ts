@@ -22,6 +22,7 @@ interface ThreeDOptions {
   erosionRiverDepth: number;
   erosionOctaves: number;
   satellite: boolean;
+  sceneOnly: boolean;
   isOn?: boolean;
   isGlobe?: boolean;
 }
@@ -53,6 +54,7 @@ interface Options3DState {
 
   // Erosion
   satellite: boolean;
+  sceneOnly: boolean;
   erosion: boolean;
   erosionDetail: number;
   erosionStrength: number;
@@ -81,6 +83,7 @@ export const use3DOptionsStore = create<Options3DState>((set, get) => ({
   skyColor: "#87ceeb",
   waterColor: "#1e90ff",
   satellite: false,
+  sceneOnly: false,
   erosion: false,
   erosionDetail: 0,
   erosionStrength: 0.5,
@@ -104,6 +107,7 @@ export const use3DOptionsStore = create<Options3DState>((set, get) => ({
       skyColor: options.skyColor ?? "#87ceeb",
       waterColor: options.waterColor ?? "#1e90ff",
       satellite: options.satellite ?? false,
+      sceneOnly: options.sceneOnly ?? false,
       erosion: options.erosion ?? false,
       erosionDetail: options.erosionDetail ?? 0,
       erosionStrength: options.erosionStrength ?? 0.5,
@@ -136,6 +140,7 @@ export const use3DOptionsStore = create<Options3DState>((set, get) => ({
       skyColor: state.skyColor,
       waterColor: state.waterColor,
       satellite: state.satellite,
+      sceneOnly: state.sceneOnly,
       erosion: state.erosion,
       erosionDetail: state.erosionDetail,
       erosionStrength: state.erosionStrength,

@@ -56,6 +56,14 @@ body.fmg-webgl-hybrid .fmg-webgl-managed-svg-layer {
   display: none !important;
 }
 
+/* State labels remain live SVG controls in hybrid mode. Limit the affordance to
+   their painted text so the map and the WebGL-rendered burg labels stay neutral. */
+body.fmg-webgl-hybrid #labels > #states text,
+body.fmg-webgl-hybrid #labels > #states textPath,
+body.fmg-webgl-hybrid #labels > #states tspan {
+  cursor: pointer;
+}
+
 #canvas {
   position: absolute;
   pointer-events: none;

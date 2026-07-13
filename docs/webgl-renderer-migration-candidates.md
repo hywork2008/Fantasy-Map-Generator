@@ -22,7 +22,7 @@ deck.gl 化は `svg` / `webglHybrid` の並列レンダラーとして開始済�
 現在の方針:
 
 - `Renderer` 層は引き続き `Readonly<WorldContext>` / `Readonly<ViewContext>` から描画データを作る。`pack` / `grid` へ書き込まない。
-- `webglHybrid` では deck.gl canvas を地図本体として使い、必要な SVG overlay だけを残す。
+- `webglHybrid` では deck.gl canvas を地図本体として使う。ただし国家ラベル (`#labels #states`) は曲線 `textPath` と Label Editor の編集ジオメトリを維持するため SVG overlay とする。内側の `#burgLabels` は引き続き deck.gl が担当する。
 - SVG レイヤーの非表示は ID 列挙を CSS に直接書かず、`hybridLayerPolicy.ts` で管理クラスを付与して行う。
 - UI は地図レイヤーより前面に出す。特に左上の `#options` は `#map` / `#webglMapCanvas` に隠れないこと。
 
@@ -94,7 +94,8 @@ deck.gl 移行は、以下を満たした時点で「既定レンダラー化可
 | burg icons | 実装済み | group style, capital/port表現, zoom scaling の差分確認 |
 | markers | 実装済み | custom marker icon / external image / pinned-only表示の差分確認 |
 | military | 実装済み | regiment box, icons, totals, action markers, drag/edit導線の差分確認 |
-| labels / burg labels | 実装済み |フォント、回転、衝突回避、CJK表示、zoom threshold の差分確認 |
+| 国家ラベル | SVG overlay |曲線 `textPath`、直接クリックによる Label Editor を SVG のまま維持 |
+| burg labels | 実装済み |フォント、halo、CJK表示、zoom threshold の差分確認 |
 | emblems | 実装済み | placeholder icon から COA texture 化へ進める |
 | texture / terrain / relief | SVG overlay継続 | deck.gl化は後続判断。WebGL hybrid中もtoggle可能なことをE2Eで維持する |
 | coordinates / compass / scaleBar / legend / ruler / debug / fogging | SVG overlay | overlay policy classと主要常時表示overlayをE2Eで維持する |
@@ -135,7 +136,7 @@ deck.gl 移行は、以下を満たした時点で「既定レンダラー化可
 | `draw-features.ts` / `#lakes`, `#coastline` | group `fill`, `stroke`, `stroke-width`, `opacity` | `getLakePaint()`, `getCoastlinePaint()` -> lake fill/outlines and coastline paths | Fractal coastline geometry parity is tracked under Phase 2 visual-diff follow-up |
 | `draw-ice.ts` / `#ice` | `fill`, `stroke`, `stroke-width`, `opacity` | `getIcePaint()` -> `buildIcePolygons()` | SVG pattern/filter effects, if introduced by a preset, are not mapped |
 | `draw-burg-labels.ts` / `#burgLabels` | group `fill`, `opacity`, `font-size`, `data-size`, `data-dx`, `data-dy` | `getLabelStyle()` -> `buildLabelSymbols()` | SVG text font family, halo/shadow and exact `em` baseline behavior remain Phase 6 text work |
-| `draw-state-labels.ts` / `#labels #states` | `fill`, `opacity`, `font-size`, `data-size` | `getLabelStyle()` -> state labels | Rotation/path layout and collision parity remain Phase 6 text work |
+| `draw-state-labels.ts` / `#labels #states` | `fill`, `opacity`, `font-size`, `data-size` | SVG overlay |曲線 `textPath` をそのまま表示し、Label Editor の編集対象も同一SVG要素にする |
 | `draw-burg-icons.ts` / `#burgIcons`, `#anchors` | group `fill`, `opacity`, `font-size`, `data-size`, `data-icon` | `getBurgIconStyle()` -> `buildBurgIconSymbols()` | `data-icon` custom SVG symbol is not mapped; current WebGL uses circle/anchor placeholder icons pending Phase 6 atlas work |
 | `draw-emblems.ts` / `#emblems` | `opacity`, `#stateEmblems/#provinceEmblems/#burgEmblems data-size` | `getEmblemStyle()` -> `buildEmblemIcons()` | Actual COA rendering is not mapped; placeholder shield remains until Phase 6 |
 | `draw-markers.ts` / `#markers` | `pinned`, `rescale`; marker record `pin`, `fill`, `stroke`, `icon`, `px`, `dx`, `dy`, `size` | `getMarkerStyle()` plus marker data -> pin/icon/image layers | Custom external image load fallback and full icon atlas policy remain Phase 6 |
@@ -365,6 +366,8 @@ typed array / binary attribute 化（`Float32Array` の positions/colors を dec
 
 ### 6.3 TextLayer: フォント・CJK・回転・halo
 
+> 更新: 国家ラベルはこの後の方針変更で SVG overlay に戻した。以下の state label の直線・回転近似は履歴であり、現在 `fmg-webgl-labels` が描くのは burg label のみである。burg label のフォント、halo、CJK 対応は引き続き有効。
+
 現状 `buildDeckLayers.ts` の label `TextLayer` (`fmg-webgl-labels`) は `getPosition` / `getText` / `getSize` / `getColor` / `getTextAnchor` のみで、`fontFamily` / `getAngle` / halo (`outlineWidth`/`outlineColor`) はいずれも未設定。state label の湾曲 `textPath` 配置 (`draw-state-labels.ts` のレイキャスト + 自動フィット) は `TextLayer` の直線ベースラインでは再現できない。
 
 - [x] 受け入れ基準を先に決める: state label の湾曲配置は再現不可能と判断し、直線 + 回転角（state polygon の主軸角度などから近似）で代替する。この差分は恒久的なものとして Phase 3 の SVG attribute audit 表に反映する。→ 反映済み(下記の追記を参照)。
@@ -411,7 +414,7 @@ typed array / binary attribute 化（`Float32Array` の positions/colors を dec
 - Economy を最初の consumer として、`ExtensionAPI.registerWebglLayers()` / `ExtensionWebglLayerSpec` を追加した。extension は `worldContext` から純粋な polygon / scatter data descriptor を返し、host の `extensionWebglLayerRegistry` と `buildDeckLayers()` が deck layer に変換する。`@deck.gl/*` class や host renderer module の import を extension entry point に漏らさない。
 - Economy の可否と段階的な候補は [webgl-economy-layer-migration.md](webgl-economy-layer-migration.md) に分離した。Phase 7 では SVG overlay のまま維持する。
 - export の方針を実装した。可視 viewport の PNG/JPEG は deck canvas を先に raster canvas へ描画し、hybrid policy を維持した SVG clone（overlay のみ）を重ねる。SVG、full-map PNG tiles、3D mesh texture、`.map` save は viewport-sized deck canvas を拡大しない。`withSvgSnapshot()` が一時的に canonical SVG renderer を再描画してから snapshot を取り、完了後に `webglHybrid` を復元する。
-- 3D view は deck instance を finalize しない。`#canvas3d` を表示している間だけ `webglMapCanvas` を hidden にして二重表示を防ぎ、Standard view への復帰時に同じ canvas / deck instance を再表示する。`ThreeDRenderer.createMeshTextureUrl()` は full-map `getMapURL("mesh")` を使うため、上記 SVG snapshot を自動的に利用する。
+- 3D view は deck instance を finalize しない。`#canvas3d` を表示している間だけ `webglMapCanvas` を hidden にして二重表示を防ぎ、Standard view への復帰時に同じ canvas / deck instance を再表示する。viewMesh の地形テクスチャは `webglMapTexture.ts` が同じ `buildDeckLayers()` を全地図範囲でオフスクリーン描画して生成する。SVG export や viewport canvas のコピーには依存しない。burg/anchor は地形へ焼き込まず、Three.js の共有低ポリゴン `InstancedMesh` として地表法線から浮かせて描画する。3D Options の `Nightscape: show icons only` は地形を明示的に隠し、この低ポリゴン景観だけを暗い背景に残す。
 - E2E は hybrid mode の PNG download が非空であることと export 後に deck instance が維持されること、3D scene 中の `#map` / `#webglMapCanvas` 非表示、Standard view 復帰後の deck canvas 復元を検証する。
 
 ## Phase 8: テスト追加
