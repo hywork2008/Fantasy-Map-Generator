@@ -34,7 +34,7 @@ import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, uploadFile } from "../utils/editorHelpers";
 import { getElementById, layerIsOn, getElementBySelector as queryElementBySelector } from "../utils/nodeUtils";
 import { VERSION } from "../versioning";
-import { scheduleWebglUpdate, toggleRelief } from "./layers";
+import { schedule3dSceneUpdate, scheduleWebglUpdate, toggleRelief } from "./layers";
 import { showOptions } from "./options";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -709,6 +709,12 @@ export function applySliderChange(id: string, value: string): void {
   // getEl() above may target any style element (lakes, coastline, ice, burg icons, emblems, armies, ...),
   // several of which feed webglStyleExtractors.ts; scheduleWebglUpdate() is a no-op outside webglHybrid mode.
   scheduleWebglUpdate();
+  scheduleRoutes3dUpdate();
+}
+
+/** Routes are also rendered as floating lines in viewMesh; rebuild them when their live style changes. */
+function scheduleRoutes3dUpdate(): void {
+  if (useStyleState.getState().activeElement === "routes") schedule3dSceneUpdate();
 }
 
 // ─── Handler functions (exported for React event handlers) ────────────────────
@@ -725,6 +731,7 @@ export function applyStrokeColor(value: string): void {
   if (useStyleState.getState().activeElement === "gridOverlay" && layerIsOn("toggleGrid"))
     GridRenderer.render(worldContext, viewContext, appServices);
   scheduleWebglUpdate();
+  scheduleRoutes3dUpdate();
 }
 
 export function applyStrokeDasharray(value: string): void {
@@ -733,6 +740,7 @@ export function applyStrokeDasharray(value: string): void {
   if (useStyleState.getState().activeElement === "gridOverlay" && layerIsOn("toggleGrid"))
     GridRenderer.render(worldContext, viewContext, appServices);
   scheduleWebglUpdate();
+  scheduleRoutes3dUpdate();
 }
 
 export function applyStrokeLinecap(value: string): void {
@@ -741,6 +749,7 @@ export function applyStrokeLinecap(value: string): void {
   if (useStyleState.getState().activeElement === "gridOverlay" && layerIsOn("toggleGrid"))
     GridRenderer.render(worldContext, viewContext, appServices);
   scheduleWebglUpdate();
+  scheduleRoutes3dUpdate();
 }
 
 export function applyLabelsHideGroup(checked: boolean): void {

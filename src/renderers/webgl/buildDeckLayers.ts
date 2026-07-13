@@ -316,7 +316,7 @@ export function buildDeckLayers(
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
   appServices: AppServices,
-  options: { includeLabels?: boolean; includeBurgIcons?: boolean } = {}
+  options: { includeLabels?: boolean; includeBurgIcons?: boolean; includeRoutes?: boolean } = {}
 ): LayersList {
   const { activeLayers } = useLayerState.getState();
   const oceanFill = viewContext.oceanLayers?.select<SVGRectElement>("#oceanBase").attr("fill") || "#466eab";
@@ -813,6 +813,9 @@ export function buildDeckLayers(
 
   for (const layer of WEBGL_PATH_LAYERS) {
     if (!activeLayers[layer.toggle]) continue;
+    // viewMesh renders routes as terrain-following Three.js lines rather than baking them into
+    // the flat terrain bitmap, where they would remain painted onto the surface.
+    if (layer.id === "routes" && options.includeRoutes === false) continue;
     layers.push(
       createDashedPathLayer({
         id: `fmg-webgl-${layer.id}`,

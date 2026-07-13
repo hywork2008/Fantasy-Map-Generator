@@ -480,14 +480,14 @@ function syncWebglManagedSvgLayerVisibility(): void {
 export function turnButtonOff(el: string): void {
   useLayerState.getState().toggleLayer(el, false);
   getCurrentPreset();
-  schedule3dUpdate(el === "toggleBurgIcons");
+  schedule3dUpdate(el === "toggleBurgIcons" || el === "toggleRoutes");
   scheduleWebglUpdate();
 }
 
 export function turnButtonOn(el: string): void {
   useLayerState.getState().toggleLayer(el, true);
   getCurrentPreset();
-  schedule3dUpdate(el === "toggleBurgIcons");
+  schedule3dUpdate(el === "toggleBurgIcons" || el === "toggleRoutes");
   scheduleWebglUpdate();
 }
 
@@ -1217,6 +1217,11 @@ function schedule3dUpdate(rebuildSceneObjects = false) {
     if (shouldRebuildSceneObjects) ThreeDRenderer.update();
     else ThreeDRenderer.updateTerrainTexture();
   });
+}
+
+/** Queues a full viewMesh scene-object rebuild — used when routes' live SVG style changes. */
+export function schedule3dSceneUpdate(): void {
+  schedule3dUpdate(true);
 }
 
 export function scheduleWebglUpdate(): void {

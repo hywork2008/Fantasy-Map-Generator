@@ -24,9 +24,14 @@ import { tip } from "../services/tooltipService";
 import { revokeObjectURL, rn, throttle } from "../utils";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { getNightscapeBeamPose, getNightscapePopulationGlow } from "./nightscapeGlow";
-import { buildLowPolyBurgSymbols, type LowPolyBurgShape } from "./webgl/adapters/deckDataAdapters";
+import {
+  buildLowPolyBurgSymbols,
+  buildRoutePaths,
+  type DeckPath,
+  type LowPolyBurgShape
+} from "./webgl/adapters/deckDataAdapters";
 import { renderWebglMapTexture } from "./webgl/webglMapTexture";
-import { getBurgIconStyle } from "./webgl/webglStyleExtractors";
+import { getBurgIconStyle, getPathDashStyles, getPathPaintStyles } from "./webgl/webglStyleExtractors";
 
 interface ThreeDOptions {
   scale: number;
@@ -68,6 +73,7 @@ interface TimeOfDayPreset {
 type LabelSprite = THREE.Sprite & { size: number };
 type IconBatch = THREE.InstancedMesh<THREE.BufferGeometry, THREE.MeshPhongMaterial>;
 type NightscapeGlowBatch = THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
+type FloatingRouteBatch = THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial | THREE.LineDashedMaterial>;
 interface ThreeDBurgPointerStart {
   pointerId: number;
   clientX: number;
@@ -78,8 +84,17 @@ interface NightscapeGlowInstance {
   intensity: number;
   level: number;
 }
+interface RouteLineBatch {
+  positions: number[];
+  colors: number[];
+  opacity: number;
+  dashSize: number;
+  gapSize: number;
+}
 
 const SEA_LEVEL = 20;
+/** Vertical lift above the sampled terrain surface so route lines stay visually distinct from relief. */
+const ROUTE_SURFACE_CLEARANCE = 0.75;
 
 /**
  * Resolves a water vertex to its visual surface height. The grid feature is
@@ -182,6 +197,7 @@ class ThreeDModule {
   private raycaster: THREE.Raycaster | undefined;
   private labels: LabelSprite[] = [];
   private iconBatches: IconBatch[] = [];
+  private floatingRoutes: FloatingRouteBatch[] = [];
   private burgPickCanvas: HTMLCanvasElement | null = null;
   private burgPointerStart: ThreeDBurgPointerStart | null = null;
   private readonly burgPickRaycaster = new THREE.Raycaster();
@@ -228,6 +244,7 @@ class ThreeDModule {
 
   redraw(): void {
     this.deleteLabels();
+    this.deleteFloatingRoutes();
     this.scene!.remove(this.mesh!);
     this.Renderer!.setSize(this.Renderer!.domElement.width, this.Renderer!.domElement.height);
     if (this.options.isGlobe) this.updateGlobeTexure();
@@ -246,6 +263,8 @@ class ThreeDModule {
     else {
       this.deleteLowPolyBurgIcons();
       this.createLowPolyBurgIcons();
+      this.deleteFloatingRoutes();
+      this.createFloatingRoutes();
       this.updateTerrainTexture();
     }
   }
@@ -282,6 +301,7 @@ class ThreeDModule {
     this.erosionBakeActive = false;
     this.erosionBakeData = null;
     this.deleteLabels();
+    this.deleteFloatingRoutes();
 
     this.Renderer!.renderLists.dispose();
     this.Renderer!.dispose();
@@ -404,6 +424,8 @@ class ThreeDModule {
       // emissive bands and halo batches use the newly enabled Nightscape presentation.
       this.deleteLowPolyBurgIcons();
       this.createLowPolyBurgIcons();
+      // Route lines are a relief-reading aid; Nightscape shows only glowing city lights.
+      this.deleteFloatingRoutes();
       this.render();
       return;
     }
@@ -814,6 +836,126 @@ class ThreeDModule {
     this.createNightscapeBurgGlow(nightscapeGlowInstances);
   }
 
+  /**
+   * Renders routes as lines floating above the terrain surface, batched by dash pattern and color
+   * so the whole route network costs a handful of draw calls rather than one object per route.
+   */
+  private createFloatingRoutes(): void {
+    if (!this.scene || !this.mesh || this.options.sceneOnly || !layerIsOn("toggleRoutes")) return;
+
+    const dashStyles = getPathDashStyles(viewContext);
+    const paintStyles = getPathPaintStyles(viewContext);
+    const routes = buildRoutePaths(
+      worldContext,
+      viewContext.focusScope,
+      { roads: dashStyles.roads, trails: dashStyles.trails, searoutes: dashStyles.searoutes },
+      { roads: paintStyles.roads, trails: paintStyles.trails, searoutes: paintStyles.searoutes }
+    );
+
+    const batches = new Map<string, RouteLineBatch>();
+
+    for (const route of routes) {
+      const points = this.projectRoutePoints(route);
+      if (points.length < 2) continue;
+
+      const [red, green, blue, alpha = 255] = route.color;
+      // route.dashArray is normalized to multiples of path width (see getNormalizedDashArray in
+      // deckDataAdapters.ts) for deck.gl's PathStyleExtension; convert back to world-space lengths.
+      const [dashRatio = 0, gapRatio = 0] = route.dashArray ?? [];
+      const dashSize = dashRatio * route.width;
+      const gapSize = gapRatio * route.width;
+
+      const key = `${dashSize.toFixed(3)}|${gapSize.toFixed(3)}|${red}|${green}|${blue}|${alpha}`;
+      let batch = batches.get(key);
+      if (!batch) {
+        batch = { positions: [], colors: [], opacity: alpha / 255, dashSize, gapSize };
+        batches.set(key, batch);
+      }
+
+      const r = red / 255;
+      const g = green / 255;
+      const b = blue / 255;
+      for (let i = 1; i < points.length; i++) {
+        const a = points[i - 1];
+        const c = points[i];
+        batch.positions.push(a.x, a.y, a.z, c.x, c.y, c.z);
+        batch.colors.push(r, g, b, r, g, b);
+      }
+    }
+
+    for (const batch of batches.values()) {
+      if (batch.positions.length) this.addFloatingRouteBatch(batch);
+    }
+  }
+
+  private projectRoutePoints(route: DeckPath): THREE.Vector3[] {
+    return route.path.map(([x, y]) => {
+      const height = this.sampleTerrainHeight(x, y) + ROUTE_SURFACE_CLEARANCE;
+      return new THREE.Vector3(x - worldContext.graphWidth / 2, height, y - worldContext.graphHeight / 2);
+    });
+  }
+
+  private addFloatingRouteBatch(batch: RouteLineBatch): void {
+    if (!this.scene) return;
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(batch.positions, 3));
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(batch.colors, 3));
+
+    const isDashed = batch.dashSize > 0 && batch.gapSize > 0;
+    const material = isDashed
+      ? new THREE.LineDashedMaterial({
+          vertexColors: true,
+          opacity: batch.opacity,
+          transparent: batch.opacity < 1,
+          dashSize: batch.dashSize,
+          gapSize: batch.gapSize,
+          depthWrite: false
+        })
+      : new THREE.LineBasicMaterial({
+          vertexColors: true,
+          opacity: batch.opacity,
+          transparent: batch.opacity < 1,
+          depthWrite: false
+        });
+
+    const line = new THREE.LineSegments(geometry, material);
+    if (isDashed) line.computeLineDistances();
+    line.renderOrder = 1;
+    this.floatingRoutes.push(line);
+    this.scene.add(line);
+  }
+
+  /**
+   * Height at arbitrary map coordinates without raycasting the dense terrain mesh: bilinearly
+   * interpolates the same per-vertex heights the mesh geometry was built from (getMeshHeight),
+   * or samples the erosion bake's own analytic field when that is the active height source —
+   * mirroring erosion-bake.ts's heightAt(), which exists precisely to avoid raycasting the mesh.
+   */
+  private sampleTerrainHeight(baseX: number, baseY: number): number {
+    if (this.erosionBakeActive) return ErosionBake.heightAt(baseX, baseY, this.options.scale);
+
+    const cellsX = worldContext.grid.cellsX;
+    const cellsY = worldContext.grid.cellsY;
+    const fx = Math.min(Math.max((baseX / worldContext.graphWidth) * (cellsX - 1), 0), cellsX - 1);
+    const fy = Math.min(Math.max((baseY / worldContext.graphHeight) * (cellsY - 1), 0), cellsY - 1);
+    const col0 = Math.floor(fx);
+    const row0 = Math.floor(fy);
+    const col1 = Math.min(col0 + 1, cellsX - 1);
+    const row1 = Math.min(row0 + 1, cellsY - 1);
+    const tx = fx - col0;
+    const ty = fy - row0;
+
+    const topLeft = this.getMeshHeight(row0 * cellsX + col0);
+    const topRight = this.getMeshHeight(row0 * cellsX + col1);
+    const bottomLeft = this.getMeshHeight(row1 * cellsX + col0);
+    const bottomRight = this.getMeshHeight(row1 * cellsX + col1);
+
+    const top = topLeft * (1 - tx) + topRight * tx;
+    const bottom = bottomLeft * (1 - tx) + bottomRight * tx;
+    return top * (1 - ty) + bottom * ty;
+  }
+
   private createNightscapeBurgGlow(instances: NightscapeGlowInstance[]): void {
     if (!this.scene || !this.options.sceneOnly || !instances.length) return;
 
@@ -1111,13 +1253,24 @@ class ThreeDModule {
     this.nightscapeGlowTexture = undefined;
   }
 
+  private deleteFloatingRoutes(): void {
+    for (const route of this.floatingRoutes) {
+      this.scene?.remove(route);
+      route.geometry.dispose();
+      route.material.dispose();
+    }
+    this.floatingRoutes = [];
+  }
+
   private async createMeshTexture(): Promise<THREE.CanvasTexture | null> {
     const canvas = await renderWebglMapTexture(worldContext, viewContext, appServices, {
       resolution: Math.min(this.options.resolutionScale, 8192),
-      // Labels are separate scene sprites, and burg/anchor symbols are instanced low-poly mesh.
-      // Leaving either in the terrain bitmap would duplicate them and make them appear painted on.
+      // Labels, burg/anchor symbols, and routes are separate scene objects (sprites, instanced
+      // mesh, and floating lines respectively). Leaving any of them in the terrain bitmap would
+      // duplicate them and make them appear painted on.
       includeLabels: false,
-      includeBurgIcons: false
+      includeBurgIcons: false,
+      includeRoutes: false
     });
     if (!canvas) return null;
 
@@ -1266,6 +1419,7 @@ class ThreeDModule {
     if (this.waterMesh) this.waterMesh.visible = !sceneOnly;
     this.mesh.updateMatrixWorld();
     this.createLowPolyBurgIcons();
+    this.createFloatingRoutes();
     this.render();
 
     // If the user changed a layer while `createMeshTexture()` awaited its first deck.gl frame,

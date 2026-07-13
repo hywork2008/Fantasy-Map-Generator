@@ -9,9 +9,10 @@ import { buildDeckLayers } from "./buildDeckLayers";
 export interface WebglMapTextureOptions {
   /** Maximum texture dimension in physical pixels. */
   resolution: number;
-  /** Text and burg icons are rendered as real 3D scene objects, not baked into the terrain. */
+  /** Text, burg icons, and routes are rendered as real 3D scene objects, not baked into the terrain. */
   includeLabels?: boolean;
   includeBurgIcons?: boolean;
+  includeRoutes?: boolean;
 }
 
 interface TerrainTextureDevice {
@@ -142,7 +143,8 @@ async function renderWebglMapTextureFrame(
           deckRef.current?.setProps({
             layers: buildDeckLayers(worldContext, viewContext, appServices, {
               includeLabels: options.includeLabels,
-              includeBurgIcons: options.includeBurgIcons
+              includeBurgIcons: options.includeBurgIcons,
+              includeRoutes: options.includeRoutes
             })
           });
           deckRef.current?.redraw("fmg-webgl-map-texture-settle-1");
@@ -151,7 +153,8 @@ async function renderWebglMapTextureFrame(
             deckRef.current?.setProps({
               layers: buildDeckLayers(worldContext, viewContext, appServices, {
                 includeLabels: options.includeLabels,
-                includeBurgIcons: options.includeBurgIcons
+                includeBurgIcons: options.includeBurgIcons,
+                includeRoutes: options.includeRoutes
               })
             });
             deckRef.current?.redraw("fmg-webgl-map-texture-settle-2");
@@ -180,7 +183,8 @@ async function renderWebglMapTextureFrame(
         viewState,
         layers: buildDeckLayers(worldContext, viewContext, appServices, {
           includeLabels: options.includeLabels,
-          includeBurgIcons: options.includeBurgIcons
+          includeBurgIcons: options.includeBurgIcons,
+          includeRoutes: options.includeRoutes
         }),
         useDevicePixels: false,
         onAfterRender: captureSettledFrame,
@@ -223,7 +227,8 @@ async function captureFullMapFromActiveDeck(
       },
       layers: buildDeckLayers(worldContext, viewContext, appServices, {
         includeLabels: options.includeLabels,
-        includeBurgIcons: options.includeBurgIcons
+        includeBurgIcons: options.includeBurgIcons,
+        includeRoutes: options.includeRoutes
       })
     });
     deck.redraw("fmg-viewmesh-full-map-texture");
@@ -237,7 +242,8 @@ async function captureFullMapFromActiveDeck(
       viewState: originalViewState,
       layers: buildDeckLayers(worldContext, viewContext, appServices, {
         includeLabels: options.includeLabels,
-        includeBurgIcons: options.includeBurgIcons
+        includeBurgIcons: options.includeBurgIcons,
+        includeRoutes: options.includeRoutes
       })
     });
     deck.redraw("fmg-viewmesh-full-map-restore");
