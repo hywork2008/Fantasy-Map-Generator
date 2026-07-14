@@ -59,15 +59,32 @@
 - **注意**: FMG 側は実装済み（`window.fmg.actions.getBurgSiteDescriptor` / Burg エディタのコピー・ボタン）。契約の変更が必要になった場合は 13 を更新し、FMG 側 `src/services/burgSiteDescriptor.ts` と `version` を同期させること。
 
 ### M10: 村落モード（settlementType: "village"）
-- **スコープ**: 城壁・地区割当・バスティードを省いた縮退パイプライン。教会 + 緑地（village green）核、街道沿いリボン集落または広場村の 2 類型、農家敷地（間口 15–40 m、母屋 + 納屋 + 囲い庭）、集落を囲む耕地短冊。site モード（FMG の village / hamlet 規模 burg）でも成立すること。
-- **受け入れ**: フロンテージ保証（M1）は維持。建物数 15–80。壁関連メトリクス（M13 等）はスキップとして明示。FMG の村 descriptor からの生成が目視で「地図の川・街道と整合した村」になっている。
+- **詳細設計**: **[16-compact-village.md](16-compact-village.md)**（コンパクト先駆村 + 連続人口スケール方針）。
+- **スコープ（Phase A / 先駆村）**: 城壁なしの真の縮退パイプライン。`population` 10–100 を一次サイズ入力。教会 + 任意 green、リボン（または green）村、農家敷地（間口 15–40 m）、envelope 外の耕地短冊。道路は 1 spine または Y + 短い dead-end。詳細は 16 の PR1–PR6。
+- **受け入れ（Phase A）**: 16 の **V1–V7** が拘束（母屋 ≈ pop/5、全建物 ≤40、スパン/道路延長の上限、耕地）。M1 維持。壁メトリクス（M11/M13 等）は village で N/A。city golden 差分なし。
+- **旧「建物数 15–80」**: 先駆村（pop 10–100）には適用しない。**市場村・大きな hamlet（Phase B, pop ~100–500）** の将来帯として 16 §1.5 に移す。
+- **連続人口スケール**: 長期理想は pop ~10 → 大都市。10–100 は最終上限ではなく Phase A。帯拡張（marketHamlet / openTown / walledCity）は 16 §1.5。site モード（FMG hamlet）は PR7 以降で整合。
+### M11–M16: 地域様式プリセット（regionPreset）
 
-## 3. バックログ（v2 完了後の候補。着手しない）
+詳細仕様・プロファイル・受け入れ基準は **[15-region-presets.md](15-region-presets.md)** に従う。史実スコープの根拠は [14-historical-morphology-review.md](14-historical-morphology-review.md)。
+
+| ID | 要約 |
+|----|------|
+| M11 | `regionPreset` インフラ + NW 既定の移設（回帰なし） |
+| M12 | `mediterraneanCourtyard`（地中海中庭型） |
+| M13 | `canalLowland`（低地運河都市） |
+| M14 | `bastidePlanned` + `romanGridLegacy` |
+| M15 | `hillOrganic` + `eastCentralOrganic` |
+| M16 | archetype×preset 正規化・ドキュメント収束・golden seeds |
+
+**M10 完了まで M11 に着手しない。** プリセットは 1 つずつ受け入れを通す。
+
+## 3. バックログ（地域プリセット以降の候補。着手しない）
 
 - 地下構造の復活（中世考証版: 開渠溝・氷室・地下貯蔵庫・クリプト。ローマ水道は「遺構」として演出）
 - 成長リングモデル（旧壁跡が環状路になる二重壁都市）
 - 時代スライダー（同一シードで 1100 年→1400 年の成長差分）
-- 運河都市（ブルージュ型）の水路網
+- deep burgage オプション（英系 80–120 m 奥行）— 15 の NW 拡張として吸収可
 - 3D 視点・建物ファサード
 - 名前生成（通り名・地区名・都市名）
 

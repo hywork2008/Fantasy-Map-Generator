@@ -121,7 +121,7 @@ interface Building {
 interface Wall {
   ring: Ring;
   towers: Point2[];
-  gates: Gate[];                    // { position, direction, roadId } — 必ず幹線上にある
+  gates: Gate[];                    // { position, direction, type: "road" | "water", roadId? } — 道路門は必ず幹線上にある
   moat?: Ring;
 }
 
