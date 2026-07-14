@@ -283,7 +283,7 @@ export const BurgsOverviewDialog: React.FC = () => {
             type="button"
             data-tip="Save burgs-related data as a text file (.csv)"
             className="icon-download"
-            onClick={downloadBurgsData}
+            onClick={() => downloadBurgsData()}
           />
           <button
             type="button"

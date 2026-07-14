@@ -2,7 +2,7 @@ import FlatQueue from "flatqueue";
 
 import type { Burg, PackedGraph } from "../../hostTypes";
 import { openDialog } from "../../hostUi";
-import { downloadFile, formatPrice, getFileName, rn } from "../../hostUtils";
+import { downloadFile, getFileName, rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 import { Goods, isGoodEnabled } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
@@ -394,12 +394,12 @@ export function downloadCsv(): void {
       row.landDistance,
       row.seaDistance,
       row.transferCount,
-      formatPrice(row.buyPrice),
-      formatPrice(row.sellPrice),
-      formatPrice(row.transportCost),
-      formatPrice(row.unitProfit),
+      rn(row.buyPrice, 2),
+      rn(row.sellPrice, 2),
+      rn(row.transportCost, 2),
+      rn(row.unitProfit, 2),
       row.maxUnits,
-      formatPrice(row.totalProfit)
+      rn(row.totalProfit, 2)
     ].join(",");
     csv += "\n";
   }

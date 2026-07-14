@@ -5,11 +5,16 @@ import { clearEconomyContext, initEconomyContext } from "../economyContext";
 import "../types";
 import { Goods } from "../generators/goods-generator";
 import { getMarketTradeOpportunitiesState } from "../store/marketTradeOpportunitiesState";
-import { refresh, setSelectedGoodId } from "./marketTradeOpportunities";
+import { downloadCsv, refresh, setSelectedGoodId } from "./marketTradeOpportunities";
 
 vi.mock("../../hostUi", () => ({
   openDialog: vi.fn()
 }));
+
+vi.mock("../../hostUtils", async importOriginal => {
+  const actual = await importOriginal<typeof import("../../hostUtils")>();
+  return { ...actual, downloadFile: vi.fn() };
+});
 
 describe("market trade opportunities", () => {
   beforeEach(() => {
@@ -186,5 +191,17 @@ describe("market trade opportunities", () => {
 
     const rows = getMarketTradeOpportunitiesState().rows;
     expect(rows.map(row => row.targetMarketName)).not.toContain("Remoteport");
+  });
+
+  it("writes plain numeric prices in the CSV export, without display-only decoration", async () => {
+    const { downloadFile } = await import("../../hostUtils");
+
+    setSelectedGoodId(1);
+    refresh();
+    downloadCsv();
+
+    expect(downloadFile).toHaveBeenCalledTimes(1);
+    const [csv] = vi.mocked(downloadFile).mock.calls[0];
+    expect(csv).not.toMatch(/\p{Extended_Pictographic}/u);
   });
 });

@@ -48,7 +48,13 @@ export interface ExtensionEditorTab {
   component: React.ComponentType;
 }
 
-/** An extension-supplied numeric column inserted into the Burgs Overview table (and any table sharing BurgsTable), positioned after Population. */
+/**
+ * An extension-supplied numeric column inserted into the Burgs Overview table (and any table
+ * sharing BurgsTable), positioned after Population.
+ *
+ * `format` is for on-screen rendering only and may embed decorative characters (icons, unit
+ * suffixes, etc.) — CSV/data exports must read `getValue` directly instead of calling `format`.
+ */
 export interface BurgOverviewColumn {
   id: string;
   extensionId: string;
@@ -59,7 +65,13 @@ export interface BurgOverviewColumn {
   onClick?: (burg: Burg) => void;
 }
 
-/** An extension-supplied numeric column inserted into the States Editor overview table, positioned after Population. */
+/**
+ * An extension-supplied numeric column inserted into the States Editor overview table,
+ * positioned after Population.
+ *
+ * `format` is for on-screen rendering only and may embed decorative characters (icons, unit
+ * suffixes, etc.) — CSV/data exports must read `getValue` directly instead of calling `format`.
+ */
 export interface StateOverviewColumn {
   id: string;
   extensionId: string;

@@ -209,42 +209,87 @@ export function regenerateBurgNames(refresh: () => void): void {
   refresh();
 }
 
-export function downloadBurgsData(): void {
+/**
+ * Downloads the Burgs Overview data as a delimited text file. Defaults to TAB rather than comma
+ * because the Emblem column embeds a JSON blob that may itself contain commas.
+ */
+export function downloadBurgsData(delimiter: string = "\t"): void {
   const heightUnitVal = localStorage.getItem("heightUnit") ?? "m";
+  const overviewColumns = useExtensionState.getState().burgOverviewColumns;
 
-  let data = `Id,Burg,Province,Province Full Name,State,State Full Name,Culture,Religion,Group,Population,X,Y,Latitude,Longitude,Elevation (${heightUnitVal}),Temperature,Temperature likeness,Capital,Port,Citadel,Walls,Plaza,Temple,Shanty Town,Emblem,Preview link\n`;
+  // Fields (names, JSON blobs, etc.) may incidentally contain the chosen delimiter; neutralize it.
+  const sanitize = (value: string): string => value.split(delimiter).join(" ");
+
+  const headers = [
+    "Id",
+    "Burg",
+    "Province",
+    "Province Full Name",
+    "State",
+    "State Full Name",
+    "Culture",
+    "Religion",
+    "Group",
+    "Population",
+    ...overviewColumns.map(column => column.label),
+    "X",
+    "Y",
+    "Latitude",
+    "Longitude",
+    `Elevation (${heightUnitVal})`,
+    "Temperature",
+    "Temperature likeness",
+    "Capital",
+    "Port",
+    "Citadel",
+    "Walls",
+    "Plaza",
+    "Temple",
+    "Shanty Town",
+    "Emblem",
+    "Preview link"
+  ];
+  let data = `${headers.join(delimiter)}\n`;
+
   const valid = worldContext.pack.burgs.filter(b => b.i && !b.removed);
 
   valid.forEach(b => {
-    data += `${b.i},`;
-    data += `${b.name},`;
     const province = worldContext.pack.cells.province![b.cell];
-    data += province ? `${worldContext.pack.provinces![province].name},` : ",";
-    data += province ? `${worldContext.pack.provinces![province].fullName},` : ",";
-    data += `${worldContext.pack.states[b.state!].name},`;
-    data += `${worldContext.pack.states[b.state!].fullName},`;
-    data += `${worldContext.pack.cultures[b.culture!].name},`;
-    data += `${worldContext.pack.religions![worldContext.pack.cells.religion![b.cell]].name},`;
-    data += `${b.group!},`;
-    data += `${rn(b.population! * worldContext.populationRate * worldContext.urbanization)},`;
-    data += `${b.x},`;
-    data += `${b.y},`;
-    data += `${getLatitude(b.y, worldContext.mapCoordinates, worldContext.graphHeight, 2)},`;
-    data += `${getLongitude(b.x, worldContext.mapCoordinates, worldContext.graphWidth, 2)},`;
-    data += `${parseInt(getHeight(worldContext.pack.cells.h[b.cell]), 10)},`;
     const temperature = worldContext.grid.cells.temp![worldContext.pack.cells.g![b.cell]];
-    data += `${convertTemperature(temperature)},`;
-    data += `${getTemperatureLikeness(temperature)},`;
-    data += b.capital ? "capital," : ",";
-    data += b.port ? "port," : ",";
-    data += b.citadel ? "citadel," : ",";
-    data += b.walls ? "walls," : ",";
-    data += b.plaza ? "plaza," : ",";
-    data += b.temple ? "temple," : ",";
-    data += b.shanty ? "shanty town," : ",";
-    data += b.coa ? `${JSON.stringify(b.coa).replace(/"/g, "").replace(/,/g, ";")},` : ",";
-    data += GenerationPipeline.Burgs.getPreview(b).link;
-    data += "\n";
+
+    const row = [
+      `${b.i}`,
+      `${b.name}`,
+      province ? `${worldContext.pack.provinces![province].name}` : "",
+      province ? `${worldContext.pack.provinces![province].fullName}` : "",
+      `${worldContext.pack.states[b.state!].name}`,
+      `${worldContext.pack.states[b.state!].fullName}`,
+      `${worldContext.pack.cultures[b.culture!].name}`,
+      `${worldContext.pack.religions![worldContext.pack.cells.religion![b.cell]].name}`,
+      `${b.group!}`,
+      `${rn(b.population! * worldContext.populationRate * worldContext.urbanization)}`,
+      // Extension columns' `format()` is for on-screen display only (may embed decorative
+      // icons); CSV must use the raw numeric value instead.
+      ...overviewColumns.map(column => `${rn(column.getValue(b), 2)}`),
+      `${b.x}`,
+      `${b.y}`,
+      `${getLatitude(b.y, worldContext.mapCoordinates, worldContext.graphHeight, 2)}`,
+      `${getLongitude(b.x, worldContext.mapCoordinates, worldContext.graphWidth, 2)}`,
+      `${parseInt(getHeight(worldContext.pack.cells.h[b.cell]), 10)}`,
+      `${convertTemperature(temperature)}`,
+      `${getTemperatureLikeness(temperature)}`,
+      b.capital ? "capital" : "",
+      b.port ? "port" : "",
+      b.citadel ? "citadel" : "",
+      b.walls ? "walls" : "",
+      b.plaza ? "plaza" : "",
+      b.temple ? "temple" : "",
+      b.shanty ? "shanty town" : "",
+      b.coa ? JSON.stringify(b.coa).replace(/"/g, "") : "",
+      `${GenerationPipeline.Burgs.getPreview(b).link}`
+    ];
+
+    data += `${row.map(sanitize).join(delimiter)}\n`;
   });
 
   const name = `${getFileName("GenerationPipeline.Burgs")}.csv`;

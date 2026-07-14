@@ -1,5 +1,5 @@
 import { openDialog } from "../../hostUi";
-import { downloadFile, formatPrice, getFileName, rn } from "../../hostUtils";
+import { downloadFile, getFileName, rn } from "../../hostUtils";
 import { getApi, getWorldContext } from "../economyContext";
 import { Goods, isGoodEnabled } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
@@ -96,7 +96,7 @@ export function downloadCsv(): void {
 
   let csv = "Market,Stock,Price\n";
   for (const row of getMarketsGoodCompareState().rows) {
-    csv += `${[row.marketName, row.stock, formatPrice(row.price)].join(",")}\n`;
+    csv += `${[row.marketName, row.stock, rn(row.price, 2)].join(",")}\n`;
   }
   downloadFile(csv, `${getFileName(`${good.name}_Market_Compare`)}.csv`);
 }

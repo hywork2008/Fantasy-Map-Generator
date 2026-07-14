@@ -1,5 +1,5 @@
 import type { Burg } from "../../hostTypes";
-import { DEBUG, ERROR, minmax, rn, TIME } from "../../hostUtils";
+import { DEBUG, ERROR, rn, TIME } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 import { syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { Caravans } from "./caravans";
@@ -10,7 +10,6 @@ import type { Deal, Market } from "./marketTypes";
 import { getModifiers, MAX_BONUS_PRODUCTION } from "./production-utils";
 
 const BONUS_URBAN_PRODUCTION = 1;
-const MIN_BONUS_PRODUCTION = 1;
 
 export class ProductionModule {
   private get worldContext() {
@@ -98,7 +97,12 @@ export class ProductionModule {
     const good = Goods.get(this.worldContext.pack.cells.good[burg.cell]);
     if (good && isGoodEnabled(good)) {
       const modifier = getModifiers(good, burg.cell);
-      const bonus = minmax(population * BONUS_URBAN_PRODUCTION, MIN_BONUS_PRODUCTION, MAX_BONUS_PRODUCTION);
+      // No lower clamp (matches the rural counterpart, getCellProduction in production-utils.ts):
+      // burg.population is the raw pre-scaling population score (~0.05-20, the same unit
+      // burgs-generator.ts's group thresholds use — e.g. fort: max 1, village: 0.1-2), so a MIN
+      // floor here would give every hamlet/village/fort the same flat bonus regardless of how far
+      // below that floor its actual size is. See docs/analytics/urban-resource-bonus-rebalance.md.
+      const bonus = Math.min(population * BONUS_URBAN_PRODUCTION, MAX_BONUS_PRODUCTION);
       const localBonus = bonus * modifier;
       if (localBonus > 0) {
         inventory[good.i] = (inventory[good.i] || 0) + localBonus;

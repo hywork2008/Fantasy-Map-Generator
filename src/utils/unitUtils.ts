@@ -101,6 +101,7 @@ export const getIntegerFromSI = (value: string): number => {
   return parseInt(value, 10);
 };
 
+/** Display-only currency formatting (embeds a decorative icon) — never use for CSV/data exports; write the raw numeric value instead. */
 export function formatPrice(value: number): string {
   return `🟡 ${rn(value, 2)}`;
 }
