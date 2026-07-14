@@ -75,6 +75,7 @@ import {
   shouldRegenerateGrid
 } from "./utils";
 import { captureSnapshotData } from "./utils/aiDebugExporter";
+import { normalizeConflictAutonomy } from "./utils/conflictAutonomy";
 import { locked } from "./utils/domUtils";
 import { EditorBus } from "./utils/editorBus";
 import { dampenBurgLabelSize, dampenStateLabelSize } from "./utils/labelZoomScale";
@@ -872,6 +873,7 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     applyGraphSize();
     randomizeOptions();
     worldContext.options.gunpowderEraEnabled = useOptionsState.getState().gunpowderEraEnabled;
+    worldContext.options.conflictAutonomy = normalizeConflictAutonomy(useOptionsState.getState().conflictAutonomy);
 
     if (
       shouldRegenerateGrid(worldContext.grid, +(precreatedSeed ?? 0), worldContext.graphWidth, worldContext.graphHeight)

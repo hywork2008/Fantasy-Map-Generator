@@ -21,6 +21,7 @@ import type { NameBase, River } from "../types/models";
 import { closeDialogs, openConfirm } from "../ui/dialogs/dialogService";
 import { calculateVoronoi, findCell, last, link, minmax, parseError, rn } from "../utils";
 import { heightmapColorSchemes } from "../utils/colorUtils";
+import { normalizeConflictAutonomy } from "../utils/conflictAutonomy";
 import { ERROR, INFO, WARN } from "../utils/debug";
 
 import { layerIsOn } from "../utils/nodeUtils";
@@ -299,6 +300,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
 
       useOptionsState.getState().setOptions(updates);
       if (settings[19]) worldContext.options = JSON.parse(settings[19]);
+      worldContext.options.conflictAutonomy = normalizeConflictAutonomy(worldContext.options.conflictAutonomy);
       if (settings[16]) worldContext.options.temperatureEquator = +settings[16];
       if (settings[17])
         worldContext.options.temperatureNorthPole = worldContext.options.temperatureSouthPole = +settings[17];
@@ -322,6 +324,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       if (worldContext.options.year != null) zustandUpdates.year = worldContext.options.year;
       if (worldContext.options.era != null) zustandUpdates.era = worldContext.options.era;
       zustandUpdates.gunpowderEraEnabled = worldContext.options.gunpowderEraEnabled !== false;
+      zustandUpdates.conflictAutonomy = normalizeConflictAutonomy(worldContext.options.conflictAutonomy);
       useOptionsState.getState().setOptions(zustandUpdates);
     }
 

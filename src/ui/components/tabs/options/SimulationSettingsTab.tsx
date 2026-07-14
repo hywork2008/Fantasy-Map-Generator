@@ -1,4 +1,5 @@
 import type React from "react";
+import { setConflictAutonomy } from "../../../../controllers/simulationSettings";
 import { useOptionsState } from "../../../../store/optionsState";
 import { lock } from "../../../../utils/domUtils";
 import { LockIconButton } from "../../LockIconButton";
@@ -53,7 +54,34 @@ export const SimulationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Multiplier for how often wars occur in the world. 1.0 is default (wars take roughly a generation to brew). 0.0 means complete peace. 2.0 means frequent wars.">
+          <tr data-tip="Autonomous lets rulers begin wars as time advances. Player-directed prevents automatic declarations, battles, and occupations while economic and demographic simulation continues.">
+            <td />
+            <td>Conflict autonomy</td>
+            <td colSpan={2}>
+              <label>
+                <input
+                  type="radio"
+                  name="conflictAutonomy"
+                  value="autonomous"
+                  checked={options.conflictAutonomy === "autonomous"}
+                  onChange={e => setConflictAutonomy(e.target.value)}
+                />{" "}
+                Autonomous
+              </label>{" "}
+              <label>
+                <input
+                  type="radio"
+                  name="conflictAutonomy"
+                  value="playerDirected"
+                  checked={options.conflictAutonomy === "playerDirected"}
+                  onChange={e => setConflictAutonomy(e.target.value)}
+                />{" "}
+                Player-directed
+              </label>
+            </td>
+          </tr>
+
+          <tr data-tip="Multiplier for how quickly autonomous wars mature. 1.0 is default (wars take roughly a generation to brew). 0.0 prevents autonomous escalation. 2.0 means frequent wars.">
             <td>
               <LockIconButton id="warFrequency" />
             </td>

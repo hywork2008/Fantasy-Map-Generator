@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { ConflictAutonomy } from "../types/WorldState";
 
 export interface OptionsState {
   // Map settings
@@ -56,6 +57,8 @@ export interface OptionsState {
    * Default on with the manpower ledger.
    */
   recruitQualityEnabled: boolean;
+  /** Default for newly generated maps; the active map stores its value in WorldOptions. */
+  conflictAutonomy: ConflictAutonomy;
   warFrequency: number;
   diplomacyHistoryAttempts: number;
 
@@ -165,6 +168,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   simMilitaryRecovery: true,
   femaleLevyEnabled: false,
   recruitQualityEnabled: true,
+  conflictAutonomy: "autonomous",
   warFrequency: 1.0,
   diplomacyHistoryAttempts: 1,
 

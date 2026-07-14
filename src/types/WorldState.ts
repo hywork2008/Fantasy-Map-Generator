@@ -8,6 +8,9 @@ export interface WorldNote {
   legend: string;
 }
 
+/** Controls whether Advance Time may autonomously initiate or advance interstate conflict. */
+export type ConflictAutonomy = "autonomous" | "playerDirected";
+
 export interface MapStyle {
   burgLabels: Record<string, Record<string, string>>;
   burgIcons: Record<string, Record<string, string>>;
@@ -54,6 +57,11 @@ export interface WorldOptions {
   eraShort?: string;
   /** Whether gunpowder-era military units and goods are available. Undefined preserves legacy maps' enabled behavior. */
   gunpowderEraEnabled?: boolean;
+  /**
+   * Map-level interstate-conflict policy. Undefined is interpreted as "autonomous" for old maps.
+   * This lives with the saved world rather than in UI preferences so reloading a map preserves its simulation rules.
+   */
+  conflictAutonomy?: ConflictAutonomy;
 }
 
 /** Top-level world state. All generators and renderers operate on this object. */

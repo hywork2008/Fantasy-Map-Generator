@@ -9,6 +9,7 @@ import type { ExtensionAPI } from "../../types/extension-api";
 import { advanceCharacterAging } from "../characters/advanceAge";
 import { refreshCharactersOverviewIfOpen } from "../characters/controllers/characters-overview";
 import { CHARACTERS_EXTENSION_ID } from "../characters/index";
+import { applyConflictAutonomy, mayAdvanceAutonomousConflict } from "./conflictDirector";
 import { applyPersonalityToCapitalGuard } from "./generators/capitalGuardModifier";
 import { Characters } from "./generators/characterLifecycle";
 import { applyAffinitiesToDiplomacy } from "./generators/diplomacy-modifier";
@@ -28,6 +29,7 @@ export const NOBILITY_EXTENSION_ID = "nobility";
 let _unsubscribe: (() => void) | null = null;
 let _generatePostCoreHandler: (() => void) | null = null;
 let _voyageIntelHandler: ((e: Event) => void) | null = null;
+let _conflictAutonomyChangedHandler: ((e: Event) => void) | null = null;
 
 export function init(api: ExtensionAPI): void {
   initNobilityContext(api);
@@ -66,7 +68,7 @@ export function init(api: ExtensionAPI): void {
       assignOfficers();
       assignProvinceLords();
       Espionage.generate();
-      StrategicPlanner.generate();
+      if (mayAdvanceAutonomousConflict()) StrategicPlanner.generate();
     }
   });
 
@@ -81,7 +83,7 @@ export function init(api: ExtensionAPI): void {
         applyAffinitiesToDiplomacy();
         applyPersonalityToCapitalGuard();
         Espionage.generate();
-        StrategicPlanner.generate();
+        if (mayAdvanceAutonomousConflict()) StrategicPlanner.generate();
       }
     } else if (!isEnabled && wasEnabled) {
       Characters.clear();
@@ -99,7 +101,7 @@ export function init(api: ExtensionAPI): void {
       assignOfficers();
       assignProvinceLords();
       Espionage.generate();
-      StrategicPlanner.generate();
+      if (mayAdvanceAutonomousConflict()) StrategicPlanner.generate();
     }
   };
   document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
@@ -121,6 +123,16 @@ export function init(api: ExtensionAPI): void {
   };
   document.addEventListener("fmg:shipbuilding-voyage-intel", _voyageIntelHandler);
 
+  _conflictAutonomyChangedHandler = event => {
+    const detail = (event as CustomEvent<unknown>).detail;
+    const mode =
+      typeof detail === "object" && detail !== null && "mode" in detail
+        ? (detail as { mode: unknown }).mode
+        : undefined;
+    applyConflictAutonomy(mode);
+  };
+  document.addEventListener("fmg:conflict-autonomy-changed", _conflictAutonomyChangedHandler);
+
   api.registerTimeTickHook((deltaYears, deltaMonths, deltaDays) => {
     if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return;
 
@@ -131,15 +143,18 @@ export function init(api: ExtensionAPI): void {
     assignOfficers();
     assignProvinceLords();
 
+    const canAdvanceConflict = mayAdvanceAutonomousConflict();
     if (api.simulationContext.currentDay === 1) {
-      StrategicPlanner.evaluatePlans();
+      if (canAdvanceConflict) StrategicPlanner.evaluatePlans();
       Mobilization.conscript(api.worldContext.pack);
     }
 
     Espionage.generate();
-    StrategicPlanner.generate();
-    const siegeOccurred = StrategicPlanner.advanceTension();
-    const skirmishOccurred = LocalSkirmish.resolve(effectiveDeltaYears, deltaMonths, deltaDays);
+    if (canAdvanceConflict) StrategicPlanner.generate();
+    const siegeOccurred = canAdvanceConflict ? StrategicPlanner.advanceTension() : false;
+    const skirmishOccurred = canAdvanceConflict
+      ? LocalSkirmish.resolve(effectiveDeltaYears, deltaMonths, deltaDays)
+      : false;
     const bordersChanged = siegeOccurred || skirmishOccurred;
 
     if (bordersChanged) {
@@ -158,9 +173,10 @@ export function init(api: ExtensionAPI): void {
       api.worldContext,
       effectiveDeltaYears,
       (r, cell) => {
+        if (!canAdvanceConflict) return;
         if (tryRecaptureHomeBurg(r, cell) || tryCaptureOnPassing(r, cell)) marchCaptureOccurred = true;
       },
-      StrategicPlanner.getActiveSiegeTargets()
+      canAdvanceConflict ? StrategicPlanner.getActiveSiegeTargets() : undefined
     );
 
     if (marchCaptureOccurred) {
@@ -188,6 +204,10 @@ export function cleanup(api: ExtensionAPI): void {
   if (_voyageIntelHandler) {
     document.removeEventListener("fmg:shipbuilding-voyage-intel", _voyageIntelHandler);
     _voyageIntelHandler = null;
+  }
+  if (_conflictAutonomyChangedHandler) {
+    document.removeEventListener("fmg:conflict-autonomy-changed", _conflictAutonomyChangedHandler);
+    _conflictAutonomyChangedHandler = null;
   }
   clearVoyageIntel();
 

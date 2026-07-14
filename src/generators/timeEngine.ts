@@ -92,6 +92,8 @@ export function syncSimulationClockFromOptions(): void {
 export function initSimulationClock(): void {
   syncSimulationClockFromOptions();
   simulationContext.tickCount = 0;
+  simulationContext.intelligence = {};
+  simulationContext.strategicGoals = {};
   resetPopulationLossTracker();
 }
 
