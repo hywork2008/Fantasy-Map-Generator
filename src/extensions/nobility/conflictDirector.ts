@@ -1,4 +1,5 @@
 import { type StrategicGoal, simulationContext } from "../../context/simulationContext";
+import type { ChronicleEvent } from "../../types/models";
 import type { ConflictAutonomy } from "../../types/WorldState";
 import { normalizeConflictAutonomy } from "../../utils/conflictAutonomy";
 import { getWorldContext, hasNobilityContext } from "./nobilityContext";
@@ -10,6 +11,11 @@ export interface PlayerConflictIntent {
 }
 
 export type StartPlayerConflictResult = { started: true } | { started: false; reason: "invalid-state" | "same-state" };
+
+export interface SuspendedConflictSummary {
+  goalCount: number;
+  statePairs: string[];
+}
 
 /** Returns the saved map policy, preserving autonomous behavior for pre-policy maps. */
 export function getConflictAutonomy(): ConflictAutonomy {
@@ -134,14 +140,41 @@ function discardStrategicGoals(shouldDiscard: (stateId: number, goal: StrategicG
   }
 }
 
-function clearAutonomousConflictState(): void {
+function clearAutonomousConflictState(): SuspendedConflictSummary | null {
+  const { pack } = getWorldContext();
+  const statePairs = new Set<string>();
+  let goalCount = 0;
+  for (const [stateId, goals] of Object.entries(simulationContext.strategicGoals)) {
+    const attacker = pack.states[Number(stateId)];
+    for (const goal of goals) {
+      const defender = pack.states[goal.targetState];
+      goalCount++;
+      statePairs.add(`${attacker?.name ?? `State ${stateId}`}–${defender?.name ?? `State ${goal.targetState}`}`);
+    }
+  }
   discardStrategicGoals(() => true);
+  if (!goalCount) return null;
+
+  const pairList = Array.from(statePairs);
+  const event: ChronicleEvent = {
+    id: `conflict-autonomy-suspended-${Date.now()}`,
+    yearsAgo: 0,
+    from: 0,
+    to: 0,
+    action: "suspended autonomous conflict plans",
+    rawText: `Player-directed conflict policy suspended ${goalCount} autonomous plan${goalCount === 1 ? "" : "s"}${pairList.length ? `: ${pairList.join(", ")}` : ""}.`
+  };
+  const chronicle = pack.states[0]?.diplomacy ?? [];
+  if (pack.states[0]) {
+    pack.states[0].diplomacy = [["Conflict plans suspended", event], ...chronicle];
+  }
+  return { goalCount, statePairs: pairList };
 }
 
 /**
  * Applies a mode selected by the host UI. The host persists the value before calling this through
  * fmg:conflict-autonomy-changed; this function owns Nobility's mode-transition cleanup.
  */
-export function applyConflictAutonomy(value: unknown): void {
-  if (normalizeConflictAutonomy(value) === "playerDirected") clearAutonomousConflictState();
+export function applyConflictAutonomy(value: unknown): SuspendedConflictSummary | null {
+  return normalizeConflictAutonomy(value) === "playerDirected" ? clearAutonomousConflictState() : null;
 }

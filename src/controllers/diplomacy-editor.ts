@@ -10,7 +10,12 @@ import { StatesRenderer } from "../renderers";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
-import { type DiplomacyRowData, getDiplomacyEditorState, setDiplomacyEditorState } from "../store/diplomacyEditorState";
+import {
+  type ConflictStatus,
+  type DiplomacyRowData,
+  getDiplomacyEditorState,
+  setDiplomacyEditorState
+} from "../store/diplomacyEditorState";
 import { diplomacyHistoryDialogStore } from "../store/diplomacyHistoryDialogState";
 import { closeDialogs, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective } from "../utils";
@@ -80,6 +85,11 @@ export function editDiplomacy(): void {
     }
 
     const rowData: DiplomacyRowData[] = [];
+    const getConflictStatus = (subjectId: number, objectId: number, relation: string): ConflictStatus => {
+      if (relation !== "Enemy") return "none";
+      if (worldContext.options.conflictAutonomy !== "playerDirected") return "autonomous";
+      return worldContext.pack.states[subjectId].conflictAuthorizations?.[objectId] ? "player" : "suspended";
+    };
 
     // Self Row
     rowData.push({
@@ -88,6 +98,7 @@ export function editDiplomacy(): void {
       fullName: states[selectedId].fullName || "",
       color: "none",
       relation: "Self",
+      conflictStatus: "none",
       inText: "Self",
       totalForces: getTotalForces(states[selectedId])
     });
@@ -104,6 +115,7 @@ export function editDiplomacy(): void {
         fullName: state.fullName || "",
         color,
         relation,
+        conflictStatus: getConflictStatus(selectedId, state.i, relation),
         inText,
         totalForces: getTotalForces(state)
       });

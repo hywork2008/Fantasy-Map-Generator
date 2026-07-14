@@ -1,13 +1,49 @@
 import type React from "react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { diplomacyEditorActions } from "../../controllers/diplomacy-editor";
-import { useDiplomacyEditorState } from "../../store/diplomacyEditorState";
+import { type ConflictStatus, useDiplomacyEditorState } from "../../store/diplomacyEditorState";
+import { useOptionsState } from "../../store/optionsState";
 import { si } from "../../utils";
 import { IconButton } from "../components/IconButton";
 import { VirtualTableBody } from "../components/VirtualTableBody";
 
+const conflictStatusCopy: Record<ConflictStatus, { label: string; tip: string; color: string }> = {
+  autonomous: {
+    label: "Autonomous",
+    tip: "This Enemy relationship may be advanced by the political AI.",
+    color: "#4f6f52"
+  },
+  player: {
+    label: "Player-directed",
+    tip: "This conflict was explicitly authorized by the player and may advance during time simulation.",
+    color: "#7656a6"
+  },
+  suspended: {
+    label: "Suspended",
+    tip: "Player-directed mode prevents this Enemy relationship from advancing until the player explicitly authorizes it.",
+    color: "#9a6a20"
+  },
+  none: { label: "—", tip: "No active conflict", color: "#777777" }
+};
+
+const ConflictStatusBadge: React.FC<{ status: ConflictStatus }> = ({ status }) => {
+  const { label, tip, color } = conflictStatusCopy[status];
+  return (
+    <span data-tip={tip} style={{ color, fontSize: "0.85em", fontWeight: 600, whiteSpace: "nowrap" }}>
+      {label}
+    </span>
+  );
+};
+
 export const DiplomacyEditorContent: React.FC = () => {
   const { states, selectedStateId } = useDiplomacyEditorState();
+  const conflictAutonomy = useOptionsState(s => s.conflictAutonomy);
+
+  useEffect(() => {
+    const refreshConflictStatuses = () => diplomacyEditorActions.refreshDiplomacyEditor();
+    document.addEventListener("fmg:conflict-autonomy-changed", refreshConflictStatuses);
+    return () => document.removeEventListener("fmg:conflict-autonomy-changed", refreshConflictStatuses);
+  }, []);
 
   const handleStateClick = (stateId: number) => {
     diplomacyEditorActions.selectState(stateId);
@@ -46,6 +82,7 @@ export const DiplomacyEditorContent: React.FC = () => {
               <th data-tip="Click to sort by total military forces" className="sortable" data-sortby="totalForces">
                 Total Forces
               </th>
+              <th data-tip="Shows whether this state pair may advance a conflict as time passes">Conflict</th>
             </tr>
           </thead>
           <VirtualTableBody
@@ -70,6 +107,9 @@ export const DiplomacyEditorContent: React.FC = () => {
                     </td>
                     <td></td>
                     <td>{si(s.totalForces)}</td>
+                    <td>
+                      <ConflictStatusBadge status="none" />
+                    </td>
                   </tr>
                 );
               }
@@ -113,6 +153,9 @@ export const DiplomacyEditorContent: React.FC = () => {
                     </IconButton>
                   </td>
                   <td data-tip={`${s.name} total military forces`}>{si(s.totalForces)}</td>
+                  <td>
+                    <ConflictStatusBadge status={s.conflictStatus} />
+                  </td>
                 </tr>
               );
             }}
@@ -120,6 +163,11 @@ export const DiplomacyEditorContent: React.FC = () => {
         </table>
       </div>
       <div className="info-line">
+        Conflict policy: {conflictAutonomy === "autonomous" ? "Autonomous" : "Player-directed"}.{" "}
+        {conflictAutonomy === "autonomous"
+          ? "Rulers may advance eligible conflicts."
+          : "Only explicitly authorized Enemy relationships advance."}
+        <br />
         Click on state name to see relations.
         <br />
         Click on relations name to change it

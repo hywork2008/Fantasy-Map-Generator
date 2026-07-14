@@ -5,6 +5,7 @@ import { advanceAllRegimentMovement } from "../../generators/regimentMovement";
 import { BordersRenderer } from "../../renderers/draw-borders";
 import { MilitaryRenderer } from "../../renderers/draw-military";
 import { StatesRenderer } from "../../renderers/draw-states";
+import { tip } from "../../services/tooltipService";
 import type { ExtensionAPI } from "../../types/extension-api";
 import { advanceCharacterAging } from "../characters/advanceAge";
 import { refreshCharactersOverviewIfOpen } from "../characters/controllers/characters-overview";
@@ -137,7 +138,16 @@ export function init(api: ExtensionAPI): void {
       typeof detail === "object" && detail !== null && "mode" in detail
         ? (detail as { mode: unknown }).mode
         : undefined;
-    applyConflictAutonomy(mode);
+    const suspended = applyConflictAutonomy(mode);
+    if (suspended) {
+      const affected = suspended.statePairs.length ? ` (${suspended.statePairs.join(", ")})` : "";
+      tip(
+        `${suspended.goalCount} autonomous conflict plan${suspended.goalCount === 1 ? "" : "s"} suspended${affected}`,
+        false,
+        "info",
+        6000
+      );
+    }
   };
   document.addEventListener("fmg:conflict-autonomy-changed", _conflictAutonomyChangedHandler);
 

@@ -71,7 +71,8 @@ describe("conflictDirector", () => {
               actionStatus: "moving"
             }
           ]
-        }
+        },
+        { i: 2, name: "Defender", diplomacy: [undefined, "Enemy", "x"] }
       ]
     } as unknown as PackedGraph;
     simulationContext.strategicGoals = {
@@ -88,9 +89,10 @@ describe("conflictDirector", () => {
       ]
     };
 
-    applyConflictAutonomy("playerDirected");
+    const suspended = applyConflictAutonomy("playerDirected");
 
     const [siegeRegiment, manualRegiment] = worldContext.pack.states[1].military!;
+    expect(suspended).toEqual({ goalCount: 1, statePairs: ["Attacker–Defender"] });
     expect(simulationContext.strategicGoals).toEqual({});
     expect(siegeRegiment.goalTargetBurg).toBeUndefined();
     expect(siegeRegiment.destinationCell).toBeUndefined();
@@ -98,6 +100,8 @@ describe("conflictDirector", () => {
     expect(siegeRegiment.actionStatus).toBe("waiting");
     expect(manualRegiment.destinationCell).toBe(99);
     expect(mayAdvanceAutonomousConflict()).toBe(false);
+    const chronicle = worldContext.pack.states[0].diplomacy as unknown as [string, unknown][];
+    expect(chronicle[0][0]).toBe("Conflict plans suspended");
   });
 
   it("authorizes, persists, and ends an explicit player conflict", () => {
