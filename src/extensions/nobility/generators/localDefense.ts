@@ -13,9 +13,19 @@ import { getRegimentCommander } from "./officerAssignment";
  */
 export const OCCUPATION_FORCE_RATIO = 0.05;
 
+/** Absolute inhabitants represented by a burg's internal population points. */
+export function burgPopulationPeople(burg: Burg, populationRate: number, urbanization: number): number {
+  return (burg.population ?? 0) * (populationRate || 1) * (urbanization || 1);
+}
+
 /** True if `occupyingForce` survivors are enough to actually hold `burg` down after taking it. */
-export function canOccupyBurg(burg: Burg, occupyingForce: number): boolean {
-  return occupyingForce >= (burg.population || 0) * OCCUPATION_FORCE_RATIO;
+export function canOccupyBurg(
+  burg: Burg,
+  occupyingForce: number,
+  populationRate: number,
+  urbanization: number
+): boolean {
+  return occupyingForce >= burgPopulationPeople(burg, populationRate, urbanization) * OCCUPATION_FORCE_RATIO;
 }
 
 /**
@@ -96,9 +106,11 @@ export function estimateLocalDefendingForce(
   pack: PackedGraph,
   targetBurg: Burg,
   characters: Character[],
-  seaRouteGraph: SeaRouteGraph
+  seaRouteGraph: SeaRouteGraph,
+  populationRate: number,
+  urbanization: number
 ): number {
-  const cityGarrison = (targetBurg.population || 0) * 0.05;
+  const cityGarrison = burgPopulationPeople(targetBurg, populationRate, urbanization) * 0.05;
   const targetState = pack.states[targetBurg.state ?? -1];
   const defendingRegiments = targetState?.military || [];
 

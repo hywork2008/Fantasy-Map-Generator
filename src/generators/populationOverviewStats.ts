@@ -53,10 +53,14 @@ export function collectLivingStatsByState(
 
   const ruralPts = new Float64Array(n);
   const urbanPts = new Float64Array(n);
-  const childPts = new Float64Array(n);
-  const malePts = new Float64Array(n);
-  const femalePts = new Float64Array(n);
-  const elderPts = new Float64Array(n);
+  const ruralChildPts = new Float64Array(n);
+  const ruralMalePts = new Float64Array(n);
+  const ruralFemalePts = new Float64Array(n);
+  const ruralElderPts = new Float64Array(n);
+  const urbanChildPts = new Float64Array(n);
+  const urbanMalePts = new Float64Array(n);
+  const urbanFemalePts = new Float64Array(n);
+  const urbanElderPts = new Float64Array(n);
 
   const { cells, burgs, states } = pack;
   if (!cells || !states) return [];
@@ -65,10 +69,10 @@ export function collectLivingStatsByState(
     const s = cells.state[i];
     if (!s || s >= n) continue;
     ruralPts[s] += cells.pop[i] ?? 0;
-    childPts[s] += cells.children?.[i] ?? 0;
-    malePts[s] += cells.maleAdults?.[i] ?? 0;
-    femalePts[s] += cells.femaleAdults?.[i] ?? 0;
-    elderPts[s] += cells.elders?.[i] ?? 0;
+    ruralChildPts[s] += cells.children?.[i] ?? 0;
+    ruralMalePts[s] += cells.maleAdults?.[i] ?? 0;
+    ruralFemalePts[s] += cells.femaleAdults?.[i] ?? 0;
+    ruralElderPts[s] += cells.elders?.[i] ?? 0;
   }
 
   for (const burg of burgs ?? []) {
@@ -78,10 +82,10 @@ export function collectLivingStatsByState(
     const pop = burg.population ?? 0;
     urbanPts[s] += pop;
     if (burg.demographics) {
-      childPts[s] += burg.demographics.children;
-      malePts[s] += burg.demographics.maleAdults;
-      femalePts[s] += burg.demographics.femaleAdults;
-      elderPts[s] += burg.demographics.elders;
+      urbanChildPts[s] += burg.demographics.children;
+      urbanMalePts[s] += burg.demographics.maleAdults;
+      urbanFemalePts[s] += burg.demographics.femaleAdults;
+      urbanElderPts[s] += burg.demographics.elders;
     } else {
       // Fallback if demographics missing: treat whole burg pop as unsplit mass in urban only
     }
@@ -92,19 +96,12 @@ export function collectLivingStatsByState(
     if (!state?.i || state.removed) continue;
     const id = state.i;
     const rural = ruralPts[id] * rate;
-    // Urban display uses urbanization; age buckets for burgs are mixed into malePts etc. at rural rate.
-    // Split rural vs urban bucket display is approximate: age columns use rate only so they match
-    // "population points × rate". Under-arms are separate.
-    // For consistency with Burg Editor urban display, scale urban share of buckets by urbanization:
-    // we don't track which age points came from urban vs rural cheaply — use blended approach:
-    // children/male/female/elders all × rate (same as casualty tracker). Urban/rural totals use proper formula.
     const urban = urbanPts[id] * rate * urb;
     const underArms = currentLandTroops(state);
-    const children = childPts[id] * rate;
-    const civilianMale = malePts[id] * rate;
-    const civilianFemale = femalePts[id] * rate;
-    const elders = elderPts[id] * rate;
-    // Civilian settlement total from geography; age sum may differ slightly due to urban multiplier on pop only
+    const children = ruralChildPts[id] * rate + urbanChildPts[id] * rate * urb;
+    const civilianMale = ruralMalePts[id] * rate + urbanMalePts[id] * rate * urb;
+    const civilianFemale = ruralFemalePts[id] * rate + urbanFemalePts[id] * rate * urb;
+    const elders = ruralElderPts[id] * rate + urbanElderPts[id] * rate * urb;
     const civilianGeo = rural + urban;
     const total = civilianGeo + underArms;
     const adultPool = civilianMale + underArms + civilianFemale;

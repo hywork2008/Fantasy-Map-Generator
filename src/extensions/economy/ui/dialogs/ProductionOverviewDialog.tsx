@@ -86,8 +86,8 @@ export const ProductionOverviewDialog: React.FC = () => {
         </div>
 
         <div id="productionOverviewFooter" className="totalLine">
-          <div data-tip="Gross product per population point for the current production run">
-            Wealth: <span id="productionOverviewFooterWealth">{wealth}</span>
+          <div data-tip="Gross product per 1,000 actual residents for the current production run">
+            Product / 1k: <span id="productionOverviewFooterWealth">{wealth}</span>
           </div>
           <div data-tip="Total sales tax paid to the state on this burg's sell deals this cycle">
             Tax paid: <span id="productionOverviewFooterTax">{taxPaid}</span>

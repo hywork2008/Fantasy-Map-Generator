@@ -149,7 +149,7 @@ function getContactCluster(
 
 export class LocalSkirmishGenerator {
   resolve(deltaYears = 0, deltaMonths = 0, deltaDays = 0): boolean {
-    const { pack, options } = getWorldContext();
+    const { pack, options, populationRate, urbanization } = getWorldContext();
     let iterations = deltaDays;
     if (iterations === 0 && (deltaMonths > 0 || deltaYears > 0)) {
       // 簡略化計画までの暫定として1回だけ実行する
@@ -264,7 +264,7 @@ export class LocalSkirmishGenerator {
               if (r.a <= 0) {
                 console.warn(`⚔️ BACKGROUND COMBAT: ${stateB.name} annihilated ${stateA.name}'s ${r.name}.`);
                 const burg = findGarrisonedBurg(pack, r, stateA.i);
-                const captured = burg && canOccupyBurg(burg, totalB);
+                const captured = burg && canOccupyBurg(burg, totalB, populationRate, urbanization);
                 if (captured) captureBurg(pack, burg, stateB.i);
                 logSkirmish(stateA, stateB, captured ? burg.name : undefined);
               }
@@ -273,7 +273,7 @@ export class LocalSkirmishGenerator {
               if (r.a <= 0) {
                 console.warn(`⚔️ BACKGROUND COMBAT: ${stateA.name} annihilated ${stateB.name}'s ${r.name}.`);
                 const burg = findGarrisonedBurg(pack, r, stateB.i);
-                const captured = burg && canOccupyBurg(burg, totalA);
+                const captured = burg && canOccupyBurg(burg, totalA, populationRate, urbanization);
                 if (captured) captureBurg(pack, burg, stateA.i);
                 logSkirmish(stateB, stateA, captured ? burg.name : undefined);
               }

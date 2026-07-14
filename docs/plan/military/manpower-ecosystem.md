@@ -161,20 +161,22 @@ displayPop = sum(buckets) + underArmsAttributedToSettlement
 
 ### 3.3 単位系（必ず固定）
 
-すべて **人口ポイント**（内部単位）で計算し、表示時だけ `populationRate` / `urbanization` を掛ける。
+セル／burg の人口構造は **人口ポイント**（内部単位）で保持するが、Manpower Ledger の入出庫と軍隊は常に **実人数**で計算する。都市ポイントは農村ポイントと異なる倍率を持つため、国家全体の在営兵を単一の「人口ポイント」へ可逆変換してはならない。
 
 | 量 | 内部単位 | 表示 |
 | :--- | :--- | :--- |
-| `cells.pop`, `burg.population`, demographics 各バケツ | 人口ポイント | × `populationRate`（都市はさらに × `urbanization` の既存慣習に従う） |
-| `regiment.a`, `regiment.t` | **実人数**（現状どおり `populationRate` 込みの人数） | そのまま |
-| 台帳の underArms | **人口ポイント** = `troopHeadcount / populationRate` | — |
+| `cells.pop`, cells demographics | 人口ポイント | × `populationRate` |
+| `burg.population`, burg demographics | 人口ポイント | × `populationRate` × `urbanization` |
+| `regiment.a`, `regiment.t`, 台帳の underArms | **実人数** | そのまま |
 
 変換:
 
 ```
-manpowerPointsFromTroops(troops) = troops / populationRate
-troopsFromManpowerPoints(pts)    = pts * populationRate
+ruralPeople(points) = points * populationRate
+urbanPeople(points) = points * populationRate * urbanization
 ```
+
+徴兵・復員時は、各セル／burg の実人数重みで配分し、引いた（または戻した）実人数を各地点の倍率でポイントへ逆変換する。`troops / populationRate` は農村だけで成立する変換であり、都市を含む国家台帳には使わない。
 
 `crew > 1` のユニット（騎兵 crew=2 等）は「1 スロットあたり複数人」なので、徴兵コストは `troops * crew` ではなく **現状の `r.a` が既に人数合計** である前提を維持する（`Military.getTotal` / 表示と一致）。unit.crew は戦闘力計算用とみなし、台帳は `sum(r.u values)` = headcount のみ使う。
 
@@ -188,9 +190,9 @@ troopsFromManpowerPoints(pts)    = pts * populationRate
 
 ```ts
 interface StateManpower {
-  /** 民間 adult male 合計（人口ポイント） */
+  /** 民間 adult male 合計（実人数） */
   civilianMaleAdults: number;
-  /** 在営合計（人口ポイント）= Σ landRegiment.a / populationRate */
+  /** 在営合計（実人数）= Σ landRegiment.a */
   underArms: number;
   /** 政策目標: 総人口に対する在営比率のターゲット（0.01 peacetime, up to 0.03+ wartime） */
   targetMobilizationRate: number;
@@ -211,9 +213,9 @@ interface StateManpower {
 interface LevyDistrict {
   stateId: number;
   provinceId: number; // 0 = statewide bucket
-  /** この区の民間 maleAdults 合計（rural cells + burgs in province） */
+  /** この区の民間 maleAdults 合計（実人数、rural cells + burgs in province） */
   civilianMaleAdults: number;
-  /** この区から出ている在営（ポイント） */
+  /** この区から出ている在営（実人数） */
   underArms: number;
   /** この区の総人口（徴兵率の分母表示用） */
   population: number;
@@ -271,8 +273,9 @@ targetTroops = totalPopPeople * targetMobilizationRate
 **物理上限（人数）**:
 
 ```
-malePeople = civilianMaleAdults_pts * populationRate + underArms_pts * populationRate
-// または M_total * populationRate
+malePeople = sum(ruralMalePoints * populationRate)
+           + sum(urbanMalePoints * populationRate * urbanization)
+           + underArmsPeople
 maxTroops = malePeople * maxLevyRate
 effectiveTarget = min(targetTroops, maxTroops)
 ```
@@ -295,7 +298,7 @@ effectiveTarget = min(targetTroops, maxTroops)
    a. 各 LevyDistrict の civilianMaleAdults を集計
    b. alert / 外交 / 文化宗教ペナルティで unit 構成比を決める（現行ロジック流用）
    c. effectiveTarget = min(pop*alert調整後ターゲット, male*maxLevy)
-   d. 各地区から draftPoints を転送:
+   d. 各地区から draftPeople を転送:
         civilianMaleAdults -= d
         underArms += d
    e. underArms を platoon → 連隊に編成（現行の近衛・野戦軍ロジック）
@@ -319,7 +322,7 @@ for each state:
   capacityTroops = Σ r.t (land)
   if capacityTroops < target:
     gap = (target - capacityTroops) * ANNUAL_DRAFT_SHARE
-    draft = min(gap, availableCivilianMale * populationRate * MAX_FRACTION_PER_YEAR)
+    draft = min(gap, availableCivilianMalePeople * MAX_FRACTION_PER_YEAR)
     // 各地区の civilianMale 比例で draft を割り当て
     for each district:
       transfer civilian → raise r.t (and optionally seed r.a partially)
@@ -339,10 +342,10 @@ for each state:
 ```
 if r.a < r.t:
   want = r.t * RECOVERY_RATE * deltaYears
-  available = homeDistrict.civilianMaleAdults * populationRate * localDraftCap
+  available = homeDistrict.civilianMaleAdultsPeople * localDraftCap
   got = min(want, available, r.t - r.a)
   r.a += got
-  homeDistrict.civilianMaleAdults -= got / populationRate
+  homeDistrict.civilianMaleAdults -= got // 実人数。地点へは各地点倍率で按分反映
   // burg/cell demographics に按分反映
 ```
 
@@ -353,7 +356,7 @@ male が空なら **補充停止**（現在の「人口を無視して年20%回�
 ```
 on regiment casualties (deadTroops):
   1. r.a / r.u を減らす（現行）
-  2. underArms_pts -= deadTroops / populationRate
+  2. underArmsPeople -= deadTroops
   3. 民間 male は既に在営へ移済みなので、民間から二重に削らない
   4. 代わりに「死亡」として M_total から永久削除
   5. 人口ピラミッド効果:
@@ -519,8 +522,8 @@ Economy の `warIntensity`（`docs/plan/economy-war.md`）は **一般的な戦�
 
 開発時 assert / デバッグパネル用。
 
-1. `civilianMaleAdults + underArms ≈ maleAdultStock`（許容誤差 1e-3 ポイント）
-2. `Σ regiment.a (land) / populationRate ≈ underArms`
+1. `civilianMaleAdults + underArms ≈ maleAdultStock`（すべて実人数、許容誤差は浮動小数点誤差）
+2. `Σ regiment.a (land) ≈ underArms`
 3. `underArms <= maleAdultStock * WAR_MAX_LEVY_OF_MALE_ADULTS + ε`
 4. いずれの demographics バケツも負にならない
 5. `pop`（民間合計）+ 按分 underArms = 従来の総人口意味と矛盾しないよう UI 定義を文書化
@@ -603,8 +606,8 @@ Economy の `warIntensity`（`docs/plan/economy-war.md`）は **一般的な戦�
 
 ## 14. 数値例（健全性チェック）
 
-仮定: `populationRate = 1000`、ある国の表示総人口 1,000,000 人  
-→ 内部総人口ポイント ≈ 1000（rural+urban の持ち方は実装に合わせる；ここでは「表示人口 / populationRate」= 1000 ポイントと単純化）
+仮定: `populationRate = 1000`、`urbanization = 1`、ある国の表示総人口 1,000,000 人
+→ 内部総人口ポイント ≈ 1000（rural+urban の持ち方は実装に合わせる；ここでは「表示人口 / populationRate」= 1000 ポイントと単純化）。`urbanization ≠ 1` の都市ポイントにはこの単純変換を使わない。
 
 | バケツ | ポイント | 表示人数 |
 | :--- | ---: | ---: |
@@ -619,7 +622,7 @@ Economy の `warIntensity`（`docs/plan/economy-war.md`）は **一般的な戦�
 targetTroops = 1,000,000 * 0.01 = 10,000
 maxByMale   = 220,000 * 0.25 = 55,000
 effective   = 10,000
-draftPoints = 10,000 / 1000 = 10
+draftPeople = 10,000
 ```
 
 徴兵後:
@@ -627,13 +630,13 @@ draftPoints = 10,000 / 1000 = 10
 | | ポイント | 表示 |
 | :--- | ---: | ---: |
 | civilian male | 210 | 210,000 |
-| underArms | 10 | 10,000 兵 |
+| underArms | — | 10,000 兵 |
 | 民間ピラミッドの成人男女 | 210 : 230 ≈ **47.7 : 52.3** | すでに女性寄り |
 
 戦闘で 4,000 戦死:
 
 ```
-underArms → 6 ポイント（6,000 兵）
+underArms → 6,000 人
 civilian male は 210 のまま
 成人男性総数 216 → 表示上「出征中」が減り国全体の男が減る
 帰還なし → 民間は戦前より男が少ないまま（徴兵で出て戦死）

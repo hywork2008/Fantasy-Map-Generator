@@ -27,6 +27,8 @@ function makeRegiment(overrides: Partial<{ a: number; state: number; n: number }
 describe("tryCaptureOnPassing", () => {
   beforeEach(() => {
     initNobilityContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.populationRate = 1000;
+    worldContext.urbanization = 1;
     worldContext.options.military = [{ name: "infantry", power: 1 }] as unknown as typeof worldContext.options.military;
   });
 
@@ -46,7 +48,7 @@ describe("tryCaptureOnPassing", () => {
           y: 0,
           state: 2,
           stateHistory: [2],
-          population: 5000,
+          population: 5,
           treasury: 1000,
           product: 1000,
           walls: 0,
@@ -102,7 +104,7 @@ describe("tryCaptureOnPassing", () => {
 
     tryCaptureOnPassing(r as never, 0);
 
-    expect(pack.burgs[1].population).toBeLessThan(5000);
+    expect(pack.burgs[1].population).toBeLessThan(5);
     expect(pack.burgs[1].treasury).toBeLessThan(1000);
     expect(pack.burgs[1].product).toBeLessThan(1000);
   });
@@ -115,18 +117,28 @@ describe("tryCaptureOnPassing", () => {
     const captured = tryCaptureOnPassing(r as never, 0);
 
     expect(captured).toBe(false);
-    expect(pack.burgs[1].population).toBe(5000);
+    expect(pack.burgs[1].population).toBe(5);
     expect(pack.burgs[1].treasury).toBe(1000);
   });
 
   it("barely dents a real city's population/wealth when only a small patrol passes through", () => {
-    const pack = makePack({ population: 50000 });
+    const pack = makePack({ population: 50 });
     const r = makeRegiment({ a: 100 });
 
     const captured = tryCaptureOnPassing(r as never, 0);
 
     expect(captured).toBe(false); // 100 troops can't take a 50,000-population city's militia
-    expect(pack.burgs[1].population).toBeGreaterThan(49900);
+    expect(pack.burgs[1].population).toBeGreaterThan(49.9);
+  });
+
+  it("keeps a small burg above zero when a passing army raids it", () => {
+    const pack = makePack({ population: 0.2, walls: 1 }); // 200 inhabitants
+    const r = makeRegiment({ a: 100 });
+
+    tryCaptureOnPassing(r as never, 0);
+
+    expect(pack.burgs[1].population).toBeGreaterThan(0);
+    expect(pack.burgs[1].population).toBeLessThan(0.2);
   });
 
   it("fleets don't trigger passing capture on land burgs", () => {

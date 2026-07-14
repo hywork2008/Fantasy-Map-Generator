@@ -1,6 +1,7 @@
 import { tip } from "../../hostServices";
 import { openDialog } from "../../hostUi";
 import { formatPrice, rn } from "../../hostUtils";
+import { getBurgProductPerThousandResidents } from "../burgEconomySummary";
 import { getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import { isDealRecord, isMfgRecord } from "../generators/production-generator";
@@ -58,7 +59,7 @@ export function refreshProductionOverview(): void {
     );
   }
 
-  const wealth = burg.population && burg.population > 0 ? (burg.product || 0) / burg.population : 0;
+  const wealth = getBurgProductPerThousandResidents(burg);
 
   setProductionOverviewState({
     burgId: burg.i ?? null,

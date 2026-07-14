@@ -85,9 +85,14 @@ describe("collectLivingStatsByState", () => {
     expect(r.adultMalePct).toBeCloseTo(adultMalePct, 5);
   });
 
-  it("applies urbanization to urban display only", () => {
+  it("applies urbanization consistently to urban totals and age buckets", () => {
     const rows = collectLivingStatsByState(makePack(), 1000, 2);
-    expect(rows[0].urban).toBeCloseTo(20_000);
-    expect(rows[0].rural).toBeCloseTo(150_000);
+    const row = rows[0];
+    expect(row.urban).toBeCloseTo(20_000);
+    expect(row.rural).toBeCloseTo(150_000);
+    expect(row.children).toBeCloseTo(68_000); // 60 rural points + 4 urban points × 2
+    expect(row.civilianMale).toBeCloseTo(37_000); // 33 rural points + 2 urban points × 2
+    expect(row.civilianFemale).toBeCloseTo(41_000); // 35 rural points + 3 urban points × 2
+    expect(row.elders).toBeCloseTo(24_000); // 22 rural points + 1 urban point × 2
   });
 });

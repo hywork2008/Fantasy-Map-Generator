@@ -8,7 +8,7 @@ import type { State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import { getLatitude } from "../utils/commonUtils";
 import { getSeason, getSeasonalityStrength } from "../utils/seasonUtils";
-import { currentLandTroops, stateHasEnemy, sumCivilianMalePoints, troopsToPoints } from "./manpower";
+import { currentLandTroops, stateHasEnemy, sumCivilianMalePeople } from "./manpower";
 import { recordDeaths } from "./populationLossTracker";
 
 const PLANT_REF_DAYS = 60;
@@ -30,8 +30,8 @@ function capitalLatitude(pack: PackedGraph, state: State): number {
 
 function mobilizationRatio(pack: PackedGraph, state: State): number {
   const rate = worldContext.populationRate || 1;
-  const underArms = troopsToPoints(currentLandTroops(state), rate);
-  const civilian = sumCivilianMalePoints(pack, state.i);
+  const underArms = currentLandTroops(state);
+  const civilian = sumCivilianMalePeople(pack, state.i, rate, worldContext.urbanization);
   const stock = underArms + civilian;
   if (stock <= 0) return 0;
   return Math.min(1, underArms / stock);

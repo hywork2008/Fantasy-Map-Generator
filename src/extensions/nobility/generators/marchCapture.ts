@@ -3,6 +3,7 @@ import type { Burg, ChronicleEvent, MilitaryRegiment, State } from "../../../typ
 import { minmax, rn } from "../../../utils";
 import { getWorldContext } from "../nobilityContext";
 import {
+  burgPopulationPeople,
   calculateEffectiveSiegePower,
   captureBurg,
   commanderPowerMultiplier,
@@ -69,7 +70,7 @@ function logPassingCapture(winnerState: State, loserState: State, burg: Burg): v
 export function tryCaptureOnPassing(r: MilitaryRegiment, cell: number): boolean {
   if (r.n || r.a <= 0) return false; // land only; fleets don't "pass through" land burgs
 
-  const { pack, options } = getWorldContext();
+  const { pack, options, populationRate, urbanization } = getWorldContext();
   const burg = pack.burgs.find(b => !b.removed && b.cell === cell);
   if (!burg || burg.state === r.state) return false;
 
@@ -85,9 +86,10 @@ export function tryCaptureOnPassing(r: MilitaryRegiment, cell: number): boolean 
   // Living off the land: any hostile settlement a regiment marches through gets its
   // countryside foraged proportional to how large the passing force is next to the town —
   // independent of whether it's actually strong enough to hold the place (checked below).
-  const raidSeverity = minmax(power / ((burg.population || 1) * RAID_SEVERITY_POPULATION_SCALE), 0, 1);
+  const populationPeople = burgPopulationPeople(burg, populationRate, urbanization);
+  const raidSeverity = minmax(power / (Math.max(populationPeople, 1) * RAID_SEVERITY_POPULATION_SCALE), 0, 1);
   if (raidSeverity > 0) {
-    burg.population = Math.round((burg.population || 0) * (1 - raidSeverity * RAID_POPULATION_LOSS_MAX));
+    burg.population = (burg.population ?? 0) * (1 - raidSeverity * RAID_POPULATION_LOSS_MAX);
     burg.treasury = rn(Math.max(0, (burg.treasury || 0) * (1 - raidSeverity * RAID_WEALTH_LOSS_MAX)), 2);
     burg.product = rn(Math.max(0, (burg.product || 0) * (1 - raidSeverity * RAID_WEALTH_LOSS_MAX)), 2);
   }
@@ -97,7 +99,7 @@ export function tryCaptureOnPassing(r: MilitaryRegiment, cell: number): boolean 
   if (burg.citadel || burg.walls) return false;
 
   const seaRouteGraph = buildSeaRouteGraph(pack);
-  const defense = estimateLocalDefendingForce(pack, burg, characters, seaRouteGraph);
+  const defense = estimateLocalDefendingForce(pack, burg, characters, seaRouteGraph, populationRate, urbanization);
   if (power < defense * PASSING_CAPTURE_RATIO) return false;
 
   captureBurg(pack, burg, r.state);

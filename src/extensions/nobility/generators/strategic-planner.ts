@@ -22,7 +22,7 @@ const FIELD_ATTACK_RATIO = 1.3;
 
 export class StrategicPlannerGenerator {
   generate() {
-    const { pack, options } = getWorldContext();
+    const { pack, options, populationRate, urbanization } = getWorldContext();
     const states = pack.states.filter(s => s.i && !s.removed);
     const burgs = pack.burgs.filter(b => b.i && !b.removed);
     const characters = pack.characters || [];
@@ -148,7 +148,14 @@ export class StrategicPlannerGenerator {
         // state's total army is usually many times larger than what a single border
         // town can muster, and using it here made every burg look impregnable
         // regardless of how it was actually defended.
-        const perceivedDefense = estimateLocalDefendingForce(pack, targetBurgData, characters, seaRouteGraph);
+        const perceivedDefense = estimateLocalDefendingForce(
+          pack,
+          targetBurgData,
+          characters,
+          seaRouteGraph,
+          populationRate,
+          urbanization
+        );
 
         // Fortified targets (citadel/walls) need the classic 3x siege ratio; an
         // unfortified town in the open only needs a solid numerical edge.
@@ -390,7 +397,15 @@ export class StrategicPlannerGenerator {
         }
 
         // Just like in generate(), but we recalculate to see if situation changed
-        const perceivedDefense = estimateLocalDefendingForce(pack, targetBurgObj, characters, seaRouteGraph);
+        const { populationRate, urbanization } = getWorldContext();
+        const perceivedDefense = estimateLocalDefendingForce(
+          pack,
+          targetBurgObj,
+          characters,
+          seaRouteGraph,
+          populationRate,
+          urbanization
+        );
         const requiredAttackForce = perceivedDefense * (isFortified ? FORTIFIED_ATTACK_RATIO : FIELD_ATTACK_RATIO);
 
         // If the attacker force is less than 80% of required, cancel the goal

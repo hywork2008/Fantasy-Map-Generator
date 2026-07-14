@@ -5,7 +5,7 @@ import { useUiPreferencesState } from "../../store/uiPreferencesState";
 import type { ExtensionAPI } from "../../types/extension-api";
 import type { Point } from "../hostCore";
 import { formatPrice } from "../hostUtils";
-import { getBurgEconomySummary } from "./burgEconomySummary";
+import { getBurgEconomySummary, getBurgProductPerThousandResidents } from "./burgEconomySummary";
 import { economyStyleConfig } from "./EconomyStyleConfig";
 import { clearEconomyContext, getWorldContext, initEconomyContext } from "./economyContext";
 import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burgMarketLedgers";
@@ -151,9 +151,9 @@ function registerOverviewColumns(api: ExtensionAPI): void {
   api.registerBurgOverviewColumn({
     id: "wealth",
     extensionId: ECONOMY_EXTENSION_ID,
-    label: "Wealth",
-    tip: "Wealth: gross product divided by population",
-    getValue: burg => (burg.population && burg.population > 0 ? (burg.product || 0) / burg.population : 0),
+    label: "Product / 1k",
+    tip: "Gross product per 1,000 actual residents during the production cycle",
+    getValue: getBurgProductPerThousandResidents,
     format: formatPrice
   });
   api.registerBurgOverviewColumn({

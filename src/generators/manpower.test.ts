@@ -12,11 +12,10 @@ import {
   getDraftEfficiency,
   reconcileStateManpower,
   regimentQualityMultiplier,
-  removeCivilianMalePoints,
+  removeCivilianMalePeople,
   scaleLandMilitary,
-  sumCivilianMalePoints,
-  tickManpower,
-  troopsToPoints
+  sumCivilianMalePeople,
+  tickManpower
 } from "./manpower";
 
 function makePack(): PackedGraph {
@@ -87,33 +86,34 @@ function makePack(): PackedGraph {
 describe("manpower ledger", () => {
   beforeEach(() => {
     worldContext.populationRate = 1000;
+    worldContext.urbanization = 2;
     worldContext.pack = makePack();
   });
 
-  it("sums civilian male points across cells and burgs", () => {
+  it("sums civilian males as people across rural and urban populations", () => {
     const pack = worldContext.pack as PackedGraph;
-    // cells: 22+11, burg: 2.2 → 35.2
-    expect(sumCivilianMalePoints(pack, 1)).toBeCloseTo(35.2, 5);
+    // rural: (22+11) × 1000, burg: 2.2 × 1000 × 2
+    expect(sumCivilianMalePeople(pack, 1, 1000, 2)).toBeCloseTo(37400, 5);
   });
 
   it("reconcile deducts under-arms from civilians once", () => {
     const pack = worldContext.pack as PackedGraph;
     const state = pack.states[1];
-    const before = sumCivilianMalePoints(pack, 1);
-    const troopPts = troopsToPoints(currentLandTroops(state), 1000);
-    reconcileStateManpower(pack, state, 1000);
+    const before = sumCivilianMalePeople(pack, 1, 1000, 2);
+    const troops = currentLandTroops(state);
+    reconcileStateManpower(pack, state, 1000, 2);
     expect(state.manpowerReconciled).toBe(true);
-    expect(sumCivilianMalePoints(pack, 1)).toBeCloseTo(before - troopPts, 4);
+    expect(sumCivilianMalePeople(pack, 1, 1000, 2)).toBeCloseTo(before - troops, 2);
     // second call is a no-op
-    reconcileStateManpower(pack, state, 1000);
-    expect(sumCivilianMalePoints(pack, 1)).toBeCloseTo(before - troopPts, 4);
+    reconcileStateManpower(pack, state, 1000, 2);
+    expect(sumCivilianMalePeople(pack, 1, 1000, 2)).toBeCloseTo(before - troops, 2);
   });
 
-  it("removeCivilianMalePoints never goes negative", () => {
+  it("removeCivilianMalePeople never goes negative", () => {
     const pack = worldContext.pack as PackedGraph;
-    const removed = removeCivilianMalePoints(pack, 1, 1e9);
-    expect(removed).toBeCloseTo(35.2, 4);
-    expect(sumCivilianMalePoints(pack, 1)).toBeCloseTo(0, 5);
+    const removed = removeCivilianMalePeople(pack, 1, 1e9, undefined, 1000, 2);
+    expect(removed).toBeCloseTo(37400, 4);
+    expect(sumCivilianMalePeople(pack, 1, 1000, 2)).toBeCloseTo(0, 5);
   });
 
   it("fillRegimentFromManpower draws civilians and raises a", () => {
@@ -123,10 +123,10 @@ describe("manpower ledger", () => {
     r.a = 1000;
     r.t = 5000;
     r.u = { infantry: 1000 };
-    const maleBefore = sumCivilianMalePoints(pack, 1);
+    const maleBefore = sumCivilianMalePeople(pack, 1, 1000, 2);
     fillRegimentFromManpower(pack, state, r, 1, 1000);
     expect(r.a).toBeGreaterThan(1000);
-    expect(sumCivilianMalePoints(pack, 1)).toBeLessThan(maleBefore);
+    expect(sumCivilianMalePeople(pack, 1, 1000, 2)).toBeLessThan(maleBefore);
   });
 
   it("tickManpower raises capacity when under peacetime target", () => {
@@ -146,21 +146,21 @@ describe("manpower ledger", () => {
     const pack = worldContext.pack as PackedGraph;
     const state = pack.states[1];
     // wipe males almost entirely and field no troops
-    removeCivilianMalePoints(pack, 1, 1e9);
+    removeCivilianMalePeople(pack, 1, 1e9, undefined, 1000, 2);
     state.military![0].a = 0;
     state.military![0].t = 0;
     state.military![0].u = { infantry: 0 };
     const target = effectiveTroopTarget(pack, state, 1000);
     // policy target would be 10_000 people; with ~0 males physical cap ≈ 0
     expect(target).toBeLessThan(1);
-    expect(sumCivilianMalePoints(pack, 1)).toBeCloseTo(0, 5);
+    expect(sumCivilianMalePeople(pack, 1, 1000, 2)).toBeCloseTo(0, 5);
   });
 
   it("preferred province takes a larger share of the draft", () => {
     const pack = worldContext.pack as PackedGraph;
     const maleBefore5 = pack.cells.maleAdults[1]; // province 5
     const maleBefore9 = pack.cells.maleAdults[2]; // province 9
-    removeCivilianMalePoints(pack, 1, 10, { preferredProvince: 5 });
+    removeCivilianMalePeople(pack, 1, 10_000, { preferredProvince: 5 }, 1000, 2);
     const lost5 = maleBefore5 - pack.cells.maleAdults[1];
     const lost9 = maleBefore9 - pack.cells.maleAdults[2];
     expect(lost5).toBeGreaterThan(lost9);
@@ -182,7 +182,7 @@ describe("manpower ledger", () => {
   it("assertManpowerInvariant fails when under-arms exceed war max levy", () => {
     const pack = worldContext.pack as PackedGraph;
     const state = pack.states[1];
-    removeCivilianMalePoints(pack, 1, 1e9);
+    removeCivilianMalePeople(pack, 1, 1e9, undefined, 1000, 2);
     state.military![0].a = 50_000;
     state.military![0].t = 50_000;
     expect(assertManpowerInvariant(pack, 1, 1000)).toBe(false);
