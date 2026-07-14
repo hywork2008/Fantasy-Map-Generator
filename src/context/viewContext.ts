@@ -90,6 +90,7 @@ export interface SettlementLayers {
   anchors: SvgGroup;
   armies: SvgGroup;
   markers: SvgGroup;
+  frontierForts: SvgGroup;
   emblems: SvgGroup;
   population: SvgGroup;
 }

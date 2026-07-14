@@ -103,6 +103,12 @@ export function createViewLayers(): void {
   const anchors = icons.append("g").attr("id", "anchors") as Selection<SVGGElement, unknown, null, undefined>;
   const armies = viewbox.append("g").attr("id", "armies") as Selection<SVGGElement, unknown, null, undefined>;
   const markers = viewbox.append("g").attr("id", "markers") as Selection<SVGGElement, unknown, null, undefined>;
+  const frontierForts = viewbox.append("g").attr("id", "frontierForts") as Selection<
+    SVGGElement,
+    unknown,
+    null,
+    undefined
+  >;
   const fogging = viewbox
     .append("g")
     .attr("id", "fogging-cont")
@@ -204,6 +210,7 @@ export function createViewLayers(): void {
     anchors,
     armies,
     markers,
+    frontierForts,
     fogging,
     ruler,
     debug,
@@ -299,6 +306,10 @@ export function reinitializeMapLayers(): void {
   const anchors = icons.select("#anchors") as Selection<SVGGElement, unknown, null, undefined>;
   const armies = viewbox.select("#armies") as Selection<SVGGElement, unknown, null, undefined>;
   const markers = viewbox.select("#markers") as Selection<SVGGElement, unknown, null, undefined>;
+  // Maps saved before this layer existed won't have #frontierForts — append it so old saves gain it too.
+  let frontierForts = viewbox.select("#frontierForts") as Selection<SVGGElement, unknown, null, undefined>;
+  if (!frontierForts.size())
+    frontierForts = viewbox.append("g").attr("id", "frontierForts") as Selection<SVGGElement, unknown, null, undefined>;
 
   // Pre-1.125.x saves used #markets; rename in-place so subsequent saves use the new id.
   // The economy extension's reinit hook will re-acquire #marketsLayer after this rename.
@@ -361,6 +372,7 @@ export function reinitializeMapLayers(): void {
     anchors,
     armies,
     markers,
+    frontierForts,
     fogging,
     ruler,
     debug

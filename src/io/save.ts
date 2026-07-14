@@ -135,6 +135,7 @@ function prepareMapDataFromSvg(): string {
   const provinces = JSON.stringify(worldContext.pack.provinces);
   const rivers = JSON.stringify(worldContext.pack.rivers);
   const markers = JSON.stringify(worldContext.pack.markers);
+  const frontierForts = JSON.stringify(worldContext.pack.frontierForts ?? []);
   const cellRoutes = JSON.stringify(worldContext.pack.cells.routes);
   const routes = JSON.stringify(worldContext.pack.routes);
   const zones = JSON.stringify(worldContext.pack.zones);
@@ -212,7 +213,8 @@ function prepareMapDataFromSvg(): string {
     demoChildren, // [47] cells.children
     demoMaleAdults, // [48] cells.maleAdults
     demoFemaleAdults, // [49] cells.femaleAdults
-    demoElders // [50] cells.elders
+    demoElders, // [50] cells.elders
+    frontierForts // [51] pack.frontierForts
   ].join("\r\n");
 
   return mapData;

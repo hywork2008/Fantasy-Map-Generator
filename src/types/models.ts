@@ -186,6 +186,33 @@ export interface Marker {
   hidden?: boolean;
 }
 
+/**
+ * Standalone frontier fort/marcher-castle marker guarding a hostile land border at a
+ * chokepoint (river crossing, mountain pass, or road). Independent of any burg — distinct
+ * from the "fort" burg group (see burgs-generator.ts getDefaultGroups()) and from a burg's
+ * own `citadel` flag.
+ */
+export interface FrontierFort {
+  i: number;
+  /** Owning state — the side this fort defends. */
+  state: number;
+  /** The chokepoint cell the fort sits on. Never a burg cell — a town's own citadel already covers that. */
+  cell: number;
+  x: number;
+  y: number;
+  /** Why this cell was chosen; drives icon/legend flavor. */
+  siteType: "river" | "mountain" | "road";
+  /** The hostile state from FrontierSegment.neighborState. */
+  neighborState: number;
+  /** Snapshot of FrontierSegment.threatWeight at generation time. */
+  threatWeight: number;
+  name: string;
+  icon: string;
+  pin: string;
+  size?: number;
+  hidden?: boolean;
+}
+
 export interface Monster {
   i: number;
   cell: number;

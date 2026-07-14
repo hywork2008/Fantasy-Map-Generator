@@ -404,6 +404,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     GenerationPipeline.Lakes.defineNames(state);
     GenerationPipeline.Ice.generate(worldContext, viewContext, appServices, state);
     GenerationPipeline.Military.generate(worldContext, viewContext, appServices, state);
+    GenerationPipeline.FrontierForts.generate(worldContext, viewContext, appServices, state);
     GenerationPipeline.Markers.generate(worldContext, viewContext, appServices, state);
     GenerationPipeline.Zones.generate(worldContext, viewContext, appServices, state);
 

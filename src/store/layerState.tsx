@@ -157,6 +157,12 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     tooltip: "Markers: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
   },
   {
+    id: "toggleFrontierForts",
+    name: <>Frontier Forts</>,
+    shortcut: null,
+    tooltip: "Frontier forts: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
     id: "toggleMilitary",
     name: (
       <>

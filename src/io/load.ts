@@ -410,6 +410,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     worldContext.pack.provinces = data[30] ? JSON.parse(data[30]) : [0];
     worldContext.pack.rivers = data[32] ? JSON.parse(data[32]) : [];
     worldContext.pack.markers = data[35] ? JSON.parse(data[35]) : [];
+    worldContext.pack.frontierForts = data[51] ? JSON.parse(data[51]) : [];
     worldContext.pack.routes = data[37] ? JSON.parse(data[37]) : [];
     worldContext.pack.zones = data[38] ? JSON.parse(data[38]) : [];
     worldContext.pack.cells.biome = Uint8Array.from(data[16].split(","), Number);

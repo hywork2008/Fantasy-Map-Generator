@@ -25,6 +25,7 @@ import { Burgs } from "./generators/burgs-generator";
 import { Cultures } from "./generators/cultures-generator";
 import { applyHistoricalWarScars } from "./generators/demography-simulator";
 import { Features } from "./generators/features";
+import { FrontierForts } from "./generators/frontierFortsGenerator";
 import { HeightmapGenerator } from "./generators/heightmap-generator";
 import { Ice } from "./generators/ice";
 import { Lakes } from "./generators/lakes";
@@ -937,6 +938,7 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
 
     Military.generate(worldContext, viewContext, appServices, state);
     establishVassalage(worldContext.pack, worldContext.populationRate);
+    FrontierForts.generate(worldContext, viewContext, appServices, state);
     Markers.generate(worldContext, viewContext, appServices, state);
     Zones.generate(worldContext, viewContext, appServices, state);
 

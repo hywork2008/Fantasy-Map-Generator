@@ -3,6 +3,7 @@ import type { Quadtree } from "d3";
 import type {
   Burg,
   Culture,
+  FrontierFort,
   IceElement,
   Marker,
   Monster,
@@ -73,6 +74,7 @@ export interface PackedGraph {
   religions: Religion[];
   zones: Zone[];
   markers: Marker[];
+  frontierForts: FrontierFort[];
   ice: IceElement[];
   provinces: Province[];
   monsters: Monster[];

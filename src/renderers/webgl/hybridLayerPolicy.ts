@@ -26,6 +26,7 @@ export const WEBGL_MANAGED_SVG_LAYER_IDS = [
   "anchors",
   "markers",
   "armies",
+  "frontierForts",
   "burgLabels",
   "tradeAnimation"
 ] as const;

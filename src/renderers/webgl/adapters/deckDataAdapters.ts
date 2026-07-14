@@ -16,6 +16,7 @@ import { Rivers } from "../../../generators/river-generator";
 import type {
   Burg,
   BurgGroup,
+  FrontierFort,
   IceElement,
   Marker,
   MilitaryRegiment,
@@ -162,6 +163,22 @@ export interface DeckMarkerSymbol {
   strokeColor: string;
   pin: string;
   isExternalIcon: boolean;
+}
+
+export interface DeckFrontierFortSymbol {
+  id: string;
+  kind: "frontierFort";
+  fortId: number;
+  stateId: number;
+  cellId: number;
+  position: [number, number];
+  textPosition: [number, number];
+  size: number;
+  icon: string;
+  iconSize: number;
+  fillColor: string;
+  strokeColor: string;
+  pin: string;
 }
 
 export type DeckMilitaryBoxPart = "main" | "unit" | "action";
@@ -1325,6 +1342,37 @@ export function buildMilitaryRegimentSymbols(
   }
 
   return regiments;
+}
+
+export function buildFrontierFortSymbols(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null
+): DeckFrontierFortSymbol[] {
+  const { pack } = worldContext;
+  return pack.frontierForts
+    .filter((fort: FrontierFort) => !fort.hidden && isCellInScope(focusScope, fort.cell))
+    .map(fort => {
+      const stateColor = pack.states[fort.state]?.color;
+      const fillColor = stateColor && stateColor[0] === "#" ? stateColor : "#999999";
+      const strokeColor = parseColor(fillColor)?.darker().formatHex() ?? "#666666";
+      const size = 22 + Math.min(fort.threatWeight, 2) * 6;
+
+      return {
+        id: `frontierFort-${fort.i}`,
+        kind: "frontierFort" as const,
+        fortId: fort.i,
+        stateId: fort.state,
+        cellId: fort.cell,
+        position: [fort.x, fort.y],
+        textPosition: [fort.x, fort.y - size / 2],
+        size,
+        icon: fort.icon,
+        iconSize: 12,
+        fillColor,
+        strokeColor,
+        pin: fort.pin
+      };
+    });
 }
 
 export function buildMilitaryBoxPolygons(

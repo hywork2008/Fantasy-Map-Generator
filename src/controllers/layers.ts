@@ -17,6 +17,7 @@ import {
   DangerRenderer,
   EmblemsRenderer,
   FeaturesRenderer,
+  FrontierFortsRenderer,
   GridRenderer,
   HeightmapRenderer,
   IceRenderer,
@@ -195,6 +196,7 @@ function getDefaultPresets(): Record<string, string[]> {
     poi: [
       "toggleBorders",
       "toggleBurgIcons",
+      "toggleFrontierForts",
       "toggleHeight",
       "toggleIce",
       "toggleLakes",
@@ -207,6 +209,7 @@ function getDefaultPresets(): Record<string, string[]> {
     military: [
       "toggleBorders",
       "toggleBurgIcons",
+      "toggleFrontierForts",
       "toggleLabels",
       "toggleLakes",
       "toggleMilitary",
@@ -410,6 +413,7 @@ export function drawLayers(): void {
   if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleMarkers")) MarkersRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleFrontierForts")) FrontierFortsRenderer.render(worldContext, viewContext, appServices);
   for (const hook of _drawLayerHooks) hook();
   if (layerIsOn("toggleRulers")) rulers.draw();
   syncWebglManagedSvgLayerVisibility();
@@ -906,6 +910,22 @@ export function toggleMarkers(event?: MouseEvent): void {
   }
 }
 
+export function toggleFrontierForts(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleFrontierForts", "frontierForts", event)) return;
+  if (!layerIsOn("toggleFrontierForts")) {
+    turnButtonOn("toggleFrontierForts");
+    FrontierFortsRenderer.render(worldContext, viewContext, appServices);
+    if (event && isCtrlClick(event)) editStyle("frontierForts");
+  } else {
+    if (event && isCtrlClick(event)) {
+      editStyle("frontierForts");
+      return;
+    }
+    FrontierFortsRenderer.clear?.(viewContext);
+    turnButtonOff("toggleFrontierForts");
+  }
+}
+
 export function toggleLabels(event?: MouseEvent): void {
   if (!viewContext.renderMap) return;
   if (!layerIsOn("toggleLabels")) {
@@ -1063,6 +1083,7 @@ const TOGGLE_REGISTRY: Record<string, (event?: MouseEvent) => void> = {
   toggleRoutes,
   toggleMilitary,
   toggleMarkers,
+  toggleFrontierForts,
   toggleLabels,
   toggleBurgIcons,
   toggleRulers,

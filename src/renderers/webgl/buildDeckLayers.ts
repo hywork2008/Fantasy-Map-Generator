@@ -34,6 +34,7 @@ import {
   buildDangerPolygons,
   buildDivisionBoundaryPaths,
   buildEmblemIcons,
+  buildFrontierFortSymbols,
   buildGridPaths,
   buildHeightPolygons,
   buildIcePolygons,
@@ -64,6 +65,7 @@ import {
   type DeckEmblemIcon,
   type DeckEmblemType,
   type DeckFeaturePolygon,
+  type DeckFrontierFortSymbol,
   type DeckHeightStyle,
   type DeckIcePolygon,
   type DeckLabelStyle,
@@ -119,6 +121,7 @@ type CachedDeckData =
   | DeckBurgIconSymbol[]
   | DeckCellPolygon[]
   | DeckEmblemIcon[]
+  | DeckFrontierFortSymbol[]
   | DeckIcePolygon[]
   | DeckLabelSymbol[]
   | DeckLandCellGeometry[]
@@ -284,6 +287,7 @@ export const WEBGL_LAYER_TOGGLES = new Set([
   "toggleEmblems",
   "toggleMarkers",
   "toggleMilitary",
+  "toggleFrontierForts",
   "toggleLabels"
 ]);
 
@@ -1023,6 +1027,61 @@ export function buildDeckLayers(
     );
   }
 
+  // Pushed after armies (last in the stack today), matching the SVG renderer's stacking order,
+  // where #frontierForts is appended right after #markers/#armies in initViewLayers.ts.
+  if (activeLayers.toggleFrontierForts) {
+    const fortData = getCachedDeckData("icons:frontierForts", signatures.byLayer.frontierForts, () =>
+      buildFrontierFortSymbols(worldContext, viewContext.focusScope)
+    );
+    const devicePixelCap = Math.min(window.devicePixelRatio || 1, 2);
+    const maxIconSize = fortData.reduce((max, fort) => Math.max(max, fort.iconSize), 12);
+    const emojiIconResolution = pickEmojiIconResolution(maxIconSize * viewContext.scale * devicePixelCap);
+    layers.push(
+      new IconLayer<DeckFrontierFortSymbol>({
+        id: "fmg-webgl-frontier-forts",
+        data: fortData,
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getPosition: datum => datum.position,
+        getIcon: datum => ({
+          id: `pin:${datum.pin}:${datum.fillColor}:${datum.strokeColor}`,
+          url: getMarkerPinUrl(datum.pin, datum.fillColor, datum.strokeColor),
+          width: 30,
+          height: 30,
+          anchorX: 15,
+          anchorY: 30,
+          mask: false
+        }),
+        getSize: datum => datum.size,
+        sizeUnits: "common",
+        sizeBasis: "width",
+        billboard: false,
+        pickable: true
+      }),
+      new IconLayer<DeckFrontierFortSymbol>({
+        id: "fmg-webgl-frontier-fort-icons",
+        data: fortData.filter(fort => !!getCachedEmojiIconUrl(fort.icon, emojiIconResolution)),
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getPosition: datum => datum.textPosition,
+        getIcon: datum => {
+          const url = getCachedEmojiIconUrl(datum.icon, emojiIconResolution) || EMPTY_ICON_URL;
+          return {
+            id: `emoji-frontier-fort-${datum.icon}-${emojiIconResolution}`,
+            url,
+            width: emojiIconResolution,
+            height: emojiIconResolution,
+            anchorX: emojiIconResolution / 2,
+            anchorY: emojiIconResolution / 2,
+            mask: false
+          };
+        },
+        getSize: datum => datum.iconSize,
+        sizeUnits: "pixels",
+        billboard: false,
+        pickable: false
+      })
+    );
+  }
+
   return layers;
 }
 
@@ -1238,6 +1297,11 @@ function buildLayerSignatures(
     "toggleMilitary",
     () =>
       `${scope}|${militarySignature(pack.states)}|size:${getMilitaryBoxSize(viewContext)}|emoji:${getEmojiIconCacheVersion()}`
+  );
+  setIfActive(
+    "frontierForts",
+    "toggleFrontierForts",
+    () => `${scope}|${frontierFortsSignature(pack.frontierForts, pack.states)}|emoji:${getEmojiIconCacheVersion()}`
   );
   setIfActive(
     "labels",
@@ -1631,6 +1695,45 @@ function militarySignature(
         hash = hashNumber(hash, amount);
       }
     }
+  }
+  return `${count}:${hash >>> 0}`;
+}
+
+function frontierFortsSignature(
+  forts:
+    | ReadonlyArray<{
+        i?: number;
+        state?: number;
+        cell?: number;
+        x?: number;
+        y?: number;
+        siteType?: string;
+        neighborState?: number;
+        threatWeight?: number;
+        icon?: string;
+        pin?: string;
+        hidden?: boolean;
+      }>
+    | undefined,
+  states: ReadonlyArray<{ i?: number; color?: string }> | undefined
+): string {
+  if (!forts) return "0:0";
+  let count = 0;
+  let hash = 2166136261;
+  for (const fort of forts) {
+    if ((!fort.i && fort.i !== 0) || fort.hidden) continue;
+    count++;
+    hash = hashNumber(hash, fort.i);
+    hash = hashNumber(hash, fort.state ?? 0);
+    hash = hashString(hash, states?.find(s => s.i === fort.state)?.color ?? "");
+    hash = hashNumber(hash, fort.cell ?? 0);
+    hash = hashNumber(hash, fort.x ?? 0);
+    hash = hashNumber(hash, fort.y ?? 0);
+    hash = hashString(hash, fort.siteType ?? "");
+    hash = hashNumber(hash, fort.neighborState ?? 0);
+    hash = hashNumber(hash, fort.threatWeight ?? 0);
+    hash = hashString(hash, fort.icon ?? "");
+    hash = hashString(hash, fort.pin ?? "");
   }
   return `${count}:${hash >>> 0}`;
 }
