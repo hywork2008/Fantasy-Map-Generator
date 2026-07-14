@@ -406,9 +406,10 @@ export function reconcileAllStatesManpower(
  * Record combat deaths for Population Overview only (no civilian pop mutation).
  * Prefer `applyDemographicCasualties` from combat resolution sites so legacy
  * (non-manpower) maps still lose civilian males.
+ * Optional `cellId` feeds the Combat Deaths map layer.
  */
-export function registerTroopLosses(stateId: number, deadTroops: number): void {
-  if (deadTroops > 0) recordDeaths(stateId, deadTroops, "combat");
+export function registerTroopLosses(stateId: number, deadTroops: number, cellId?: number): void {
+  if (deadTroops > 0) recordDeaths(stateId, deadTroops, "combat", cellId !== undefined ? { cellId } : undefined);
 }
 
 /**

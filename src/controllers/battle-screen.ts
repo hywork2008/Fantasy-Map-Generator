@@ -6,7 +6,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { applyDemographicCasualties } from "../generators/demography-simulator";
-import { appendMarkerToLayer, moveRegiment } from "../renderers/index";
+import { appendMarkerToLayer, CombatDeathsRenderer, moveRegiment } from "../renderers/index";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -17,6 +17,7 @@ import type { MilitaryRegiment } from "../types/models";
 import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective, last, list, minmax, P, Pint, rand, rn, wiki } from "../utils";
 import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../utils/gunpowderEra";
+import { layerIsOn } from "../utils/nodeUtils";
 
 interface BattleRegiment extends MilitaryRegiment {
   casualties: Record<string, number>;
@@ -707,6 +708,8 @@ export class Battle {
       return ["stalemate", "stalemate"];
     }
 
+    const battlefieldCell = this.cell;
+
     this.attackers.regiments.forEach(r => {
       applyResultForSide(r, "attackers");
     });
@@ -751,10 +754,10 @@ export class Battle {
 
       moveRegiment(worldContext, viewContext, appServices, r, r.px as number, r.py as number);
 
-      // Apply casualties to the underlying demographic populations
+      // Apply casualties to the underlying demographic populations (battlefield = this engagement)
       const totalDead = Math.abs(sum(Object.values(r.casualties) as number[]));
       if (totalDead > 0) {
-        applyDemographicCasualties(r.state, totalDead);
+        applyDemographicCasualties(r.state, totalDead, battlefieldCell);
       }
     }
 
@@ -781,6 +784,10 @@ export class Battle {
     worldContext.notes.push({ id: `marker${markerI}`, name: this.name, legend });
 
     tip(`${this.name} is over. ${result}`, true, "success", 4000);
+
+    if (layerIsOn("toggleCombatDeaths")) {
+      CombatDeathsRenderer.render(worldContext, viewContext, appServices);
+    }
 
     closeDialog("battleScreen");
     this.cleanData();

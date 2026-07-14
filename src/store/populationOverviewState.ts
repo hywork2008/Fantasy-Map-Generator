@@ -28,7 +28,11 @@ export const usePopulationOverviewState = create<PopulationOverviewState>(set =>
       sortBy: "total",
       sortOrder: "desc"
     }),
-  setDeathWindow: deathWindow => set({ deathWindow }),
+  setDeathWindow: deathWindow => {
+    set({ deathWindow });
+    // Combat Deaths layer shares this window — notify so it can redraw.
+    document.dispatchEvent(new CustomEvent("fmg:death-window-changed", { detail: { deathWindow } }));
+  },
   toggleSortBy: sortBy =>
     set(state => {
       if (state.sortBy === sortBy) {

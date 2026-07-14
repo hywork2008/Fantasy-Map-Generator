@@ -1,3 +1,4 @@
+export { CombatDeathsRenderer } from "./combatDeathsRenderer";
 export { DangerRenderer } from "./danger-renderer";
 export { BiomesRenderer } from "./draw-biomes";
 export { BordersRenderer } from "./draw-borders";

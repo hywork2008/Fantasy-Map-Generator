@@ -149,7 +149,8 @@ export const PopulationOverviewDialog: React.FC = () => {
         <p style={{ fontSize: "0.85em", opacity: 0.85, marginTop: 0 }}>
           Vital statistics a ruler might consult when setting policy — and a designer can use to judge which losses
           wars, famine, and demography actually inflict. Under arms are living men already drawn from the civilian male
-          pool when the manpower ledger is on.
+          pool when the manpower ledger is on. Combat deaths also feed the <strong>Combat Deaths</strong> map layer
+          (battlefield heatmap); its time window matches the Deaths tab selector below.
         </p>
 
         <div style={{ display: "flex", gap: "0.5em", marginBottom: "0.75em" }}>

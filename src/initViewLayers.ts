@@ -101,6 +101,13 @@ export function createViewLayers(): void {
   const labels = viewbox.append("g").attr("id", "labels") as Selection<SVGGElement, unknown, null, undefined>;
   const burgIcons = icons.append("g").attr("id", "burgIcons") as Selection<SVGGElement, unknown, null, undefined>;
   const anchors = icons.append("g").attr("id", "anchors") as Selection<SVGGElement, unknown, null, undefined>;
+  // Combat death heatmap paints just under armies so regiments stay readable on top.
+  const combatDeaths = viewbox.append("g").attr("id", "combatDeaths").style("display", "none") as Selection<
+    SVGGElement,
+    unknown,
+    null,
+    undefined
+  >;
   const armies = viewbox.append("g").attr("id", "armies") as Selection<SVGGElement, unknown, null, undefined>;
   const markers = viewbox.append("g").attr("id", "markers") as Selection<SVGGElement, unknown, null, undefined>;
   const frontierForts = viewbox.append("g").attr("id", "frontierForts") as Selection<
@@ -198,6 +205,7 @@ export function createViewLayers(): void {
     searoutes,
     temperature,
     danger,
+    combatDeaths,
     coastline,
     ice,
     prec,
@@ -305,6 +313,27 @@ export function reinitializeMapLayers(): void {
   const burgIcons = icons.select("#burgIcons") as Selection<SVGGElement, unknown, null, undefined>;
   const anchors = icons.select("#anchors") as Selection<SVGGElement, unknown, null, undefined>;
   const armies = viewbox.select("#armies") as Selection<SVGGElement, unknown, null, undefined>;
+  // Maps saved before this layer existed won't have #combatDeaths — insert just under #armies.
+  let combatDeaths = viewbox.select("#combatDeaths") as Selection<SVGGElement, unknown, null, undefined>;
+  if (!combatDeaths.size()) {
+    const node = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    node.id = "combatDeaths";
+    node.style.display = "none";
+    const armiesNode = armies.node();
+    if (armiesNode?.parentNode) {
+      armiesNode.parentNode.insertBefore(node, armiesNode);
+    } else {
+      viewbox.node()?.appendChild(node);
+    }
+    combatDeaths = d3.select(node) as Selection<SVGGElement, unknown, null, undefined>;
+  } else {
+    // Older sessions may have created #combatDeaths earlier in the stack — pin under armies.
+    const combatNode = combatDeaths.node();
+    const armiesNode = armies.node();
+    if (combatNode && armiesNode?.parentNode && combatNode.nextSibling !== armiesNode) {
+      armiesNode.parentNode.insertBefore(combatNode, armiesNode);
+    }
+  }
   const markers = viewbox.select("#markers") as Selection<SVGGElement, unknown, null, undefined>;
   // Maps saved before this layer existed won't have #frontierForts — append it so old saves gain it too.
   let frontierForts = viewbox.select("#frontierForts") as Selection<SVGGElement, unknown, null, undefined>;
@@ -360,6 +389,7 @@ export function reinitializeMapLayers(): void {
     searoutes,
     temperature,
     danger,
+    combatDeaths,
     coastline,
     ice,
     prec,

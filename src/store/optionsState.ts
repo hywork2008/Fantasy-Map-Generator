@@ -125,6 +125,8 @@ export interface OptionsState {
   hideLabels: boolean;
   populationRenderingMode: "original" | "contour" | "choropleth";
   dangerRenderingMode: "contour" | "choropleth";
+  /** Contour = density heatmap; choropleth = per-cell battlefield intensity. */
+  combatDeathsRenderingMode: "contour" | "choropleth";
 
   // Actions
   setOption: <K extends keyof Omit<OptionsState, "setOption">>(key: K, value: OptionsState[K]) => void;
@@ -223,6 +225,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   hideLabels: false,
   populationRenderingMode: "choropleth",
   dangerRenderingMode: "contour",
+  combatDeathsRenderingMode: "contour",
 
   setOption: (key, value) => set({ [key]: value }),
   setOptions: updates => set(updates)

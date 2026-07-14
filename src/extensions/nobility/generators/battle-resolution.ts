@@ -233,8 +233,9 @@ export const BattleResolutionGenerator = {
       }
     }
 
-    if (attackerDead > 0) applyDemographicCasualties(attackerId, attackerDead);
-    if (defenderDead > 0) applyDemographicCasualties(goal.targetState, defenderDead);
+    const battlefieldCell = targetBurg.cell;
+    if (attackerDead > 0) applyDemographicCasualties(attackerId, attackerDead, battlefieldCell);
+    if (defenderDead > 0) applyDemographicCasualties(goal.targetState, defenderDead, battlefieldCell);
 
     // Handle City Capture
     let actionText = "";

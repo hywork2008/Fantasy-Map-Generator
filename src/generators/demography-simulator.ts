@@ -237,15 +237,16 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
  * Combat deaths feedback into population + Population Overview combat tally.
  *
  * Always records headcount under cause "combat" for the overview dialog.
+ * Optional `cellId` is the battlefield cell for the Combat Deaths map layer.
  * When simManpower is on, men were already removed from civilian stocks at draft time —
  * regiment.a is the under-arms ledger, so we must not subtract civilians again.
  * When simManpower is off, fall back to the legacy "kill civilian males" path.
  */
-export function applyDemographicCasualties(stateId: number, deadTroops: number): void {
+export function applyDemographicCasualties(stateId: number, deadTroops: number, cellId?: number): void {
   if (!stateId || deadTroops <= 0 || !Number.isFinite(deadTroops)) return;
 
   // Overview tally first — independent of pack readiness / manpower mode
-  recordDeaths(stateId, deadTroops, "combat");
+  recordDeaths(stateId, deadTroops, "combat", cellId !== undefined ? { cellId } : undefined);
 
   const { pack, populationRate } = worldContext;
   if (!pack?.cells || !pack.burgs) return;

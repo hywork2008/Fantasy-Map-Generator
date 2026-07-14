@@ -4,6 +4,10 @@
  * queries stay O(days × states) and never grow without bound.
  *
  * All amounts are stored as *display people* (headcount), not population points.
+ *
+ * Combat deaths may also carry an optional battlefield `cellId` so the Combat
+ * Deaths map layer can show where fighting happened (state totals still always
+ * accumulate for the Overview dialog).
  */
 import { simulationContext } from "../context/simulationContext";
 import { telemetry } from "../services/simulationTelemetry";
@@ -18,11 +22,18 @@ export interface StateDeathTotals {
   total: number;
 }
 
+export interface RecordDeathsOptions {
+  /** Battlefield packed-cell index (combat only; ignored for other causes). */
+  cellId?: number;
+}
+
 interface DayBucket {
   /** Floor of simulation day index when the bucket was opened. */
   day: number;
   /** stateId → cause totals (people) */
   byState: Map<number, StateDeathTotals>;
+  /** cellId → combat death headcount at that battlefield */
+  combatByCell: Map<number, number>;
 }
 
 const MAX_HISTORY_DAYS = 40;
@@ -38,7 +49,7 @@ function emptyTotals(): StateDeathTotals {
 function getOrCreateCurrentBucket(): DayBucket {
   const day = Math.floor(simDay);
   if (current && current.day === day) return current;
-  current = { day, byState: new Map() };
+  current = { day, byState: new Map(), combatByCell: new Map() };
   history.push(current);
   pruneHistory();
   return current;
@@ -51,6 +62,10 @@ function pruneHistory(): void {
   } else {
     while (history.length && history[0].day < cutoff) history.shift();
   }
+}
+
+function isValidCellId(cellId: number): boolean {
+  return Number.isFinite(cellId) && cellId >= 0 && Number.isInteger(cellId);
 }
 
 /** Call at the start of each advanceTime with elapsed days (can be fractional). */
@@ -68,8 +83,9 @@ export function advancePopulationLossClock(deltaDays: number): void {
 /**
  * Record deaths for a state. `people` is headcount (already × populationRate when
  * converting from demographic points). No-op for non-positive amounts or invalid ids.
+ * Optional `opts.cellId` records combat deaths at a battlefield cell for the map layer.
  */
-export function recordDeaths(stateId: number, people: number, cause: DeathCause): void {
+export function recordDeaths(stateId: number, people: number, cause: DeathCause, opts?: RecordDeathsOptions): void {
   if (!stateId || people <= 0 || !Number.isFinite(people)) return;
   const bucket = getOrCreateCurrentBucket();
   let row = bucket.byState.get(stateId);
@@ -79,6 +95,11 @@ export function recordDeaths(stateId: number, people: number, cause: DeathCause)
   }
   row[cause] += people;
   row.total += people;
+
+  if (cause === "combat" && opts?.cellId !== undefined && isValidCellId(opts.cellId)) {
+    const cellId = opts.cellId;
+    bucket.combatByCell.set(cellId, (bucket.combatByCell.get(cellId) ?? 0) + people);
+  }
 
   telemetry()?.onDeath?.({
     tick: simulationContext.tickCount,
@@ -90,7 +111,8 @@ export function recordDeaths(stateId: number, people: number, cause: DeathCause)
     },
     stateId,
     people,
-    cause
+    cause,
+    ...(cause === "combat" && opts?.cellId !== undefined && isValidCellId(opts.cellId) ? { cellId: opts.cellId } : {})
   });
 }
 
@@ -125,6 +147,30 @@ export function getDeathsByState(window: DeathWindow): Map<number, StateDeathTot
     }
   }
   return result;
+}
+
+/**
+ * Sum combat deaths per battlefield cell over the last `window`.
+ * Only cells that recorded combat in the window are present.
+ */
+export function getCombatDeathsByCell(window: DeathWindow): Map<number, number> {
+  const days = deathWindowDays(window);
+  const cutoff = simDay - days;
+  const result = new Map<number, number>();
+
+  for (const bucket of history) {
+    if (bucket.day + 1 <= cutoff) continue;
+    for (const [cellId, people] of bucket.combatByCell) {
+      result.set(cellId, (result.get(cellId) ?? 0) + people);
+    }
+  }
+  return result;
+}
+
+/** Combat deaths recorded for a single cell over the window (0 if none). */
+export function getCombatDeathsAtCell(cellId: number, window: DeathWindow): number {
+  if (!isValidCellId(cellId)) return 0;
+  return getCombatDeathsByCell(window).get(cellId) ?? 0;
 }
 
 export function getPopulationLossSimDay(): number {

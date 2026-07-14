@@ -1,6 +1,8 @@
 import { worldContext } from "../context/worldContext";
+import { deathWindowDays, getCombatDeathsAtCell } from "../generators/populationLossTracker";
 import { useCellInfoState } from "../store/cellInfoState";
 import { useOptionsState } from "../store/optionsState";
+import { usePopulationOverviewState } from "../store/populationOverviewState";
 import type { PackedGraphFeature } from "../types/models";
 import { getLatitude, getLongitude } from "../utils/commonUtils";
 import { getArea, getAreaUnit } from "../utils/domUtils";
@@ -158,4 +160,13 @@ export function getFriendlyPopulation(i: number): string {
 export function getPopulationTip(i: number): string {
   const [rural, urban] = getCellPopulation(i);
   return `Cell population: ${si(rural + urban)}; Rural: ${si(rural)}; Urban: ${si(urban)}`;
+}
+
+/** Tip for the Combat Deaths layer (rolling battlefield casualties). */
+export function getCombatDeathsTip(cellId: number): string {
+  const window = usePopulationOverviewState.getState().deathWindow;
+  const deaths = getCombatDeathsAtCell(cellId, window);
+  const days = deathWindowDays(window);
+  if (deaths <= 0) return `Combat deaths (last ${days}d): none`;
+  return `Combat deaths (last ${days}d): ${si(Math.round(deaths))}`;
 }

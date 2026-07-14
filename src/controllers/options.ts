@@ -909,6 +909,14 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
     }
   });
 
+  document.addEventListener("react-change-combat-deaths-rendering-mode", () => {
+    if (layerIsOn("toggleCombatDeaths")) {
+      import("../renderers").then(({ CombatDeathsRenderer }) => {
+        CombatDeathsRenderer.render(worldContext, viewContext, appServices);
+      });
+    }
+  });
+
   document.addEventListener("react-load-google-translate", loadGoogleTranslate);
   document.addEventListener("react-reset-language", resetLanguage);
   document.addEventListener("react-open-world-configurator", editWorld);

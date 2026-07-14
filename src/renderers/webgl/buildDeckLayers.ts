@@ -19,8 +19,10 @@ import {
 import type { AppServices } from "../../context/appServices";
 import type { ViewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
+import { getCombatDeathsByCell, getPopulationLossSimDay } from "../../generators/populationLossTracker";
 import { getOceanPathsCacheSize, renderOceanDepthToOffscreenCanvas } from "../../renderers/ocean-layers";
 import { useLayerState } from "../../store/layerState";
+import { usePopulationOverviewState } from "../../store/populationOverviewState";
 import type { ExtensionWebglIconDatum, ExtensionWebglPathDatum } from "../../types/extension-api";
 import { EMBLEM_ICON_RASTER_SIZE } from "../emblem-renderer";
 import {
@@ -30,6 +32,7 @@ import {
   buildBurgIconSymbols,
   buildCellOutlinePaths,
   buildCoastlinePaths,
+  buildCombatDeathsPolygons,
   buildCulturePolygons,
   buildDangerPolygons,
   buildDivisionBoundaryPaths,
@@ -228,6 +231,16 @@ const WEBGL_POLYGON_LAYERS: Array<{
     toggle: "toggleDanger",
     id: "danger",
     build: (world, view) => buildDangerPolygons(world, view.focusScope, getCellLayerOpacities(view).danger),
+    maskLand: false
+  },
+  {
+    // Stacked with other cell polygons (before military icons) so regiments paint on top.
+    toggle: "toggleCombatDeaths",
+    id: "combatDeaths",
+    build: (world, view) => {
+      const deathWindow = usePopulationOverviewState.getState().deathWindow;
+      return buildCombatDeathsPolygons(world, view.focusScope, getCombatDeathsByCell(deathWindow), 0.7);
+    },
     maskLand: false
   }
 ];
@@ -1259,6 +1272,15 @@ function buildLayerSignatures(
     "toggleDanger",
     () => `${landGeometry()}|${numberListSignature(pack.cells?.danger)}|op:${styles.cellLayerOpacities.danger}`
   );
+  setIfActive("combatDeaths", "toggleCombatDeaths", () => {
+    const deathWindow = usePopulationOverviewState.getState().deathWindow;
+    const byCell = getCombatDeathsByCell(deathWindow);
+    let parts = `${landGeometry()}|win:${deathWindow}|day:${getPopulationLossSimDay()}|n:${byCell.size}`;
+    for (const [cellId, people] of byCell) {
+      parts += `|${cellId}:${Math.round(people)}`;
+    }
+    return parts;
+  });
   setIfActive(
     "lakes",
     "toggleLakes",

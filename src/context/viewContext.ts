@@ -57,6 +57,8 @@ export interface EnvironmentLayers {
   prec: SvgGroup;
   temperature: SvgGroup;
   danger: SvgGroup;
+  /** Rolling combat-death heatmap (battlefield cells); SVG overlay, not WebGL-managed. */
+  combatDeaths: SvgGroup;
 }
 
 /** Political and cultural division layers. */

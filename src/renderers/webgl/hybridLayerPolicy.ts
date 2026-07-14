@@ -24,6 +24,8 @@ export const WEBGL_MANAGED_SVG_LAYER_IDS = [
   "icons",
   "burgIcons",
   "anchors",
+  // Under #armies in SVG order; WebGL polygon is also pushed before military.
+  "combatDeaths",
   "markers",
   "armies",
   "frontierForts",

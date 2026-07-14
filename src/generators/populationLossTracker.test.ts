@@ -3,6 +3,8 @@ import { simulationContext } from "../context/simulationContext";
 import { setSimulationTelemetry } from "../services/simulationTelemetry";
 import {
   advancePopulationLossClock,
+  getCombatDeathsAtCell,
+  getCombatDeathsByCell,
   getDeathsByState,
   recordDeaths,
   resetPopulationLossTracker
@@ -90,5 +92,46 @@ describe("populationLossTracker", () => {
     recordDeaths(1, -5, "famine");
 
     expect(onDeath).not.toHaveBeenCalled();
+  });
+
+  it("records combat deaths by battlefield cell for the map layer", () => {
+    recordDeaths(1, 100, "combat", { cellId: 42 });
+    recordDeaths(1, 50, "combat", { cellId: 42 });
+    recordDeaths(2, 30, "combat", { cellId: 7 });
+    recordDeaths(1, 20, "famine"); // no cell attribution
+    recordDeaths(1, 10, "combat"); // combat without cell
+
+    const byCell = getCombatDeathsByCell("day");
+    expect(byCell.get(42)).toBe(150);
+    expect(byCell.get(7)).toBe(30);
+    expect(byCell.size).toBe(2);
+    expect(getCombatDeathsAtCell(42, "day")).toBe(150);
+    expect(getCombatDeathsAtCell(99, "day")).toBe(0);
+
+    // State totals still include all combat, with or without cell
+    expect(getDeathsByState("day").get(1)?.combat).toBe(160);
+  });
+
+  it("expires combat-by-cell entries outside the death window", () => {
+    recordDeaths(1, 200, "combat", { cellId: 5 });
+    advancePopulationLossClock(10);
+    recordDeaths(1, 15, "combat", { cellId: 5 });
+    expect(getCombatDeathsByCell("week").get(5)).toBe(15);
+  });
+
+  it("ignores invalid cell ids for combat-by-cell but still tallies the state", () => {
+    recordDeaths(1, 40, "combat", { cellId: -1 });
+    recordDeaths(1, 40, "combat", { cellId: 1.5 });
+    expect(getCombatDeathsByCell("day").size).toBe(0);
+    expect(getDeathsByState("day").get(1)?.combat).toBe(80);
+  });
+
+  it("includes cellId on telemetry for combat with a battlefield cell", () => {
+    const onDeath = vi.fn();
+    setSimulationTelemetry({ onDeath });
+    recordDeaths(1, 12, "combat", { cellId: 9 });
+    expect(onDeath).toHaveBeenCalledWith(
+      expect.objectContaining({ stateId: 1, people: 12, cause: "combat", cellId: 9 })
+    );
   });
 });

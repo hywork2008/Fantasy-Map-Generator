@@ -12,6 +12,7 @@ import {
   BurgIconsRenderer,
   BurgLabelsRenderer,
   CellsRenderer,
+  CombatDeathsRenderer,
   CoordinatesRenderer,
   CulturesRenderer,
   DangerRenderer,
@@ -117,7 +118,20 @@ export function initLayers(wc: WorldContext, _vc: Readonly<ViewContext>, as: App
 
   // A time tick finished — rebuild so that military movement, demographic border changes,
   // or new burgs are reflected in the WebGL layers.
-  document.addEventListener("fmg:time-advanced", () => scheduleWebglUpdate());
+  document.addEventListener("fmg:time-advanced", () => {
+    scheduleWebglUpdate();
+    // Combat deaths heatmap is SVG-only; refresh when the rolling window slides.
+    if (layerIsOn("toggleCombatDeaths")) {
+      CombatDeathsRenderer.render(worldContext, viewContext, appServices);
+    }
+  });
+
+  // Population Overview death window (day/week/month) drives the combat heatmap window.
+  document.addEventListener("fmg:death-window-changed", () => {
+    if (layerIsOn("toggleCombatDeaths")) {
+      CombatDeathsRenderer.render(worldContext, viewContext, appServices);
+    }
+  });
 }
 
 // ─── Preset management ───────────────────────────────────────────────────────
@@ -409,6 +423,7 @@ export function drawLayers(): void {
   if (layerIsOn("toggleIce")) IceRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("togglePrecipitation")) PrecipitationRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleDanger")) DangerRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleCombatDeaths")) CombatDeathsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleLabels")) drawLabels();
   if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
@@ -589,6 +604,21 @@ export function toggleDanger(event?: MouseEvent): void {
     setLayerVisibility("toggleDanger", false);
     turnButtonOff("toggleDanger");
     DangerRenderer.clear?.(viewContext);
+  }
+}
+
+/** Combat death heatmap — WebGL-managed in hybrid (under military); SVG otherwise. */
+export function toggleCombatDeaths(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleCombatDeaths", "combatDeaths", event)) return;
+
+  if (!layerIsOn("toggleCombatDeaths")) {
+    turnButtonOn("toggleCombatDeaths");
+    setLayerVisibility("toggleCombatDeaths", true);
+    CombatDeathsRenderer.render(worldContext, viewContext, appServices);
+  } else {
+    setLayerVisibility("toggleCombatDeaths", false);
+    turnButtonOff("toggleCombatDeaths");
+    CombatDeathsRenderer.clear?.(viewContext);
   }
 }
 
@@ -1063,6 +1093,7 @@ const TOGGLE_REGISTRY: Record<string, (event?: MouseEvent) => void> = {
   toggleHeight,
   toggleTemperature,
   toggleDanger,
+  toggleCombatDeaths,
   toggleBiomes,
   togglePrecipitation,
   togglePopulation,

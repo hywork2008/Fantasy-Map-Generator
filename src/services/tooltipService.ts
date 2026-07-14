@@ -9,6 +9,7 @@ import { getComposedPath, layerIsOn } from "../utils/nodeUtils";
 import { convertTemperature, si } from "../utils/unitUtils";
 import {
   getCellPoliticalSummary,
+  getCombatDeathsTip,
   getFriendlyHeight,
   getFriendlyPrecipitation,
   getPopulationTip
@@ -256,12 +257,18 @@ export function showMapTooltip(point: [number, number], e: MouseEvent, i: number
     return;
   }
 
+  if (group === "combatDeaths") {
+    tip(getCombatDeathsTip(i));
+    return;
+  }
+
   if (group === "ice") {
     tip("Click to edit the Ice");
     return;
   }
 
   if (layerIsOn("togglePrecipitation") && land) tip(`Annual Precipitation: ${getFriendlyPrecipitation(i)}`);
+  else if (layerIsOn("toggleCombatDeaths")) tip(getCombatDeathsTip(i));
   else if (layerIsOn("togglePopulation")) tip(getPopulationTip(i));
   else if (layerIsOn("toggleTemperature")) tip(`Temperature: ${convertTemperature(worldContext.grid.cells.temp[g])}`);
   else if (layerIsOn("toggleBiomes") && worldContext.pack.cells.biome[i]) {

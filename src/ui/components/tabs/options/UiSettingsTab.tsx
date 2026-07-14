@@ -350,6 +350,26 @@ export const UiSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
+          <tr data-tip="Select how recent combat deaths are drawn (window matches Population Overview Deaths)">
+            <td></td>
+            <td>Combat deaths rendering</td>
+            <td>
+              <select
+                id="combatDeathsRenderingMode"
+                value={options.combatDeathsRenderingMode}
+                onChange={e => {
+                  const mode = e.target.value as "contour" | "choropleth";
+                  options.setOption("combatDeathsRenderingMode", mode);
+                  document.dispatchEvent(new CustomEvent("react-change-combat-deaths-rendering-mode"));
+                }}
+              >
+                <option value="contour">Smooth Contours</option>
+                <option value="choropleth">Cell Heatmap</option>
+              </select>
+            </td>
+            <td></td>
+          </tr>
+
           <tr data-tip="Select rendering model. Try to set to 'optimized' if you face performance issues">
             <td></td>
             <td>Rendering</td>

@@ -252,9 +252,12 @@ export class LocalSkirmishGenerator {
               totalB += r.a;
             }
 
-            // Population Overview combat tally (+ civilian male loss when manpower ledger is off)
-            if (deadA > 0) applyDemographicCasualties(stateA.i, deadA);
-            if (deadB > 0) applyDemographicCasualties(stateB.i, deadB);
+            // Population Overview combat tally (+ civilian male loss when manpower ledger is off).
+            // Attribute battlefield deaths to the contact seed's cell (cluster centroid alternative
+            // would need pack.cells lookup; seed cell is stable and already on the regiment).
+            const battlefieldCell = regA.cell;
+            if (deadA > 0) applyDemographicCasualties(stateA.i, deadA, battlefieldCell);
+            if (deadB > 0) applyDemographicCasualties(stateB.i, deadB, battlefieldCell);
 
             skirmishOccurred = true;
 

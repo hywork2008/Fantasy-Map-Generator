@@ -621,6 +621,49 @@ export function buildDangerPolygons(
   ).filter(polygon => (polygon.fillColor[3] ?? 255) > 0);
 }
 
+/**
+ * Battlefield combat-death heatmap (rolling window from populationLossTracker).
+ * Choropleth only — matches danger/population WebGL path; SVG still supports contour.
+ */
+export function buildCombatDeathsPolygons(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  byCell: ReadonlyMap<number, number>,
+  maxOpacity = 0.7
+): DeckCellPolygon[] {
+  const { pack } = worldContext;
+  const { cells } = pack;
+  if (!cells?.i || byCell.size === 0) return [];
+
+  let maxDeaths = 0;
+  for (const [cellId, people] of byCell) {
+    if (!isCellInScope(focusScope, cellId)) continue;
+    if (people > maxDeaths) maxDeaths = people;
+  }
+  if (maxDeaths <= 0) return [];
+
+  const getBucket = (cellId: number): number => {
+    const people = byCell.get(cellId) ?? 0;
+    if (people <= 0) return -1;
+    if (maxDeaths <= 1) return 0;
+    const ratio = Math.log(people + 1) / Math.log(maxDeaths + 1);
+    return Math.min(9, Math.floor(ratio * 10));
+  };
+
+  return buildCellPolygons(
+    worldContext,
+    focusScope,
+    "combatDeaths",
+    cellId => {
+      const bucket = getBucket(cellId);
+      if (bucket < 0) return [0, 0, 0, 0];
+      const hexColor = interpolateYlOrRd((bucket + 1) / 10);
+      return colorToRgba(hexColor, "#999999", maxOpacity);
+    },
+    cellId => (byCell.get(cellId) ?? 0) > 0
+  ).filter(polygon => (polygon.fillColor[3] ?? 255) > 0);
+}
+
 export function buildPopulationPolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,

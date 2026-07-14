@@ -5,9 +5,11 @@ import type { WebglPickCandidatesDetail, WebglPickDetail } from "../types/webglP
 import { debounce } from "../utils/commonUtils";
 import { isDialogVisible } from "../utils/domUtils";
 import { findCell, findGridCell } from "../utils/graphUtils";
+import { layerIsOn } from "../utils/nodeUtils";
 import { convertTemperature } from "../utils/unitUtils";
 import {
   getCellPoliticalSummary,
+  getCombatDeathsTip,
   getFriendlyHeight,
   getFriendlyPrecipitation,
   getPopulationTip,
@@ -187,6 +189,12 @@ function formatWebglPickTooltip(detail: WebglPickDetail): string {
   const cellId = detail.cellId;
   if (cellId === null) return getFallbackPickTooltip(detail);
 
+  // Combat Deaths is an SVG overlay (not a WebGL pick kind). When the layer is on,
+  // prefer its tip for any cell-backed hover so hybrid mode matches SVG tooltips.
+  if (layerIsOn("toggleCombatDeaths")) {
+    return getCombatDeathsTip(cellId);
+  }
+
   switch (detail.kind) {
     case "land":
       return getCellPoliticalSummary(cellId) || "Land";
@@ -213,6 +221,8 @@ function formatWebglPickTooltip(detail: WebglPickDetail): string {
       return `Annual Precipitation: ${getFriendlyPrecipitation(cellId)}`;
     case "danger":
       return `Danger: ${worldContext.pack.cells.danger[cellId] ?? 0}`;
+    case "combatDeaths":
+      return getCombatDeathsTip(cellId);
     case "cell":
     case "grid":
       return getCellPoliticalSummary(cellId) || `Cell ${cellId}`;
