@@ -505,6 +505,12 @@ export function turnButtonOff(el: string): void {
 
 export function turnButtonOn(el: string): void {
   useLayerState.getState().toggleLayer(el, true);
+  // A prior drawLayers() SVG pass (e.g. right after generation, or on switching from
+  // webglHybrid back to svg) may have left this layer's <g> marked fmg-layer-hidden via
+  // syncWebglManagedSvgLayerVisibility() if it was off at that moment. Individual toggle
+  // functions only add/remove SVG content — clearing that stale class here, centrally,
+  // ensures a manual click always makes the layer visible regardless of that history.
+  setLayerVisibility(el, true);
   getCurrentPreset();
   schedule3dUpdate(el === "toggleBurgIcons" || el === "toggleRoutes");
   scheduleWebglUpdate();
@@ -539,10 +545,10 @@ export function toggleHeight(event?: MouseEvent): void {
 
   if (toggleWebglManagedLayer("toggleHeight", "terrs", event)) return;
 
-  const children = view.terrs.selectAll("#oceanHeights > *, #landHeights > *");
-  if (!children.size()) {
+  if (!layerIsOn("toggleHeight")) {
     turnButtonOn("toggleHeight");
-    HeightmapRenderer.render(worldContext, viewContext, appServices);
+    const children = view.terrs.selectAll("#oceanHeights > *, #landHeights > *");
+    if (!children.size()) HeightmapRenderer.render(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("terrs");
   } else {
     if (event && isCtrlClick(event)) {
@@ -557,9 +563,10 @@ export function toggleHeight(event?: MouseEvent): void {
 export function toggleTemperature(event?: MouseEvent): void {
   if (toggleWebglManagedLayer("toggleTemperature", "temperature", event)) return;
 
-  if (!view.temperature.selectAll("*").size()) {
+  if (!layerIsOn("toggleTemperature")) {
     turnButtonOn("toggleTemperature");
-    TemperatureLayerRenderer.render(worldContext, viewContext, appServices);
+    if (!view.temperature.selectAll("*").size())
+      TemperatureLayerRenderer.render(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("temperature");
   } else {
     if (event && isCtrlClick(event)) {
@@ -574,9 +581,9 @@ export function toggleTemperature(event?: MouseEvent): void {
 export function toggleBiomes(event?: MouseEvent): void {
   if (toggleWebglManagedLayer("toggleBiomes", "biomes", event)) return;
 
-  if (!view.biomes.selectAll("path").size()) {
+  if (!layerIsOn("toggleBiomes")) {
     turnButtonOn("toggleBiomes");
-    BiomesRenderer.render(worldContext, viewContext, appServices);
+    if (!view.biomes.selectAll("path").size()) BiomesRenderer.render(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("biomes");
   } else {
     if (event && isCtrlClick(event)) {
@@ -657,9 +664,9 @@ export function togglePopulation(event?: MouseEvent): void {
 export function toggleCells(event?: MouseEvent): void {
   if (toggleWebglManagedLayer("toggleCells", "cells", event)) return;
 
-  if (!view.cells.selectAll("path").size()) {
+  if (!layerIsOn("toggleCells")) {
     turnButtonOn("toggleCells");
-    CellsRenderer.render(worldContext, viewContext, appServices);
+    if (!view.cells.selectAll("path").size()) CellsRenderer.render(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("cells");
   } else {
     if (event && isCtrlClick(event)) {
@@ -693,10 +700,9 @@ export function toggleCultures(event?: MouseEvent): void {
   if (toggleWebglManagedLayer("toggleCultures", "cults", event)) return;
 
   const activeCultures = worldContext.pack.cultures.filter(c => c.i && !c.removed);
-  const empty = !view.cults.selectAll("path").size();
-  if (empty && activeCultures.length) {
+  if (!layerIsOn("toggleCultures") && activeCultures.length) {
     turnButtonOn("toggleCultures");
-    CulturesRenderer.render(worldContext, viewContext, appServices);
+    if (!view.cults.selectAll("path").size()) CulturesRenderer.render(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("cults");
   } else {
     if (event && isCtrlClick(event)) {
@@ -712,9 +718,9 @@ export function toggleReligions(event?: MouseEvent): void {
   if (toggleWebglManagedLayer("toggleReligions", "relig", event)) return;
 
   const activeReligions = worldContext.pack.religions.filter(r => r.i && !r.removed);
-  if (!view.relig.selectAll("path").size() && activeReligions.length) {
+  if (!layerIsOn("toggleReligions") && activeReligions.length) {
     turnButtonOn("toggleReligions");
-    ReligionsRenderer.render(worldContext, viewContext, appServices);
+    if (!view.relig.selectAll("path").size()) ReligionsRenderer.render(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("relig");
   } else {
     if (event && isCtrlClick(event)) {
@@ -780,9 +786,9 @@ export function toggleProvinces(event?: MouseEvent): void {
 export function toggleGrid(event?: MouseEvent): void {
   if (toggleWebglManagedLayer("toggleGrid", "gridOverlay", event)) return;
 
-  if (!view.gridOverlay.selectAll("*").size()) {
+  if (!layerIsOn("toggleGrid")) {
     turnButtonOn("toggleGrid");
-    GridRenderer.render(worldContext, viewContext, appServices);
+    if (!view.gridOverlay.selectAll("*").size()) GridRenderer.render(worldContext, viewContext, appServices);
     calculateFriendlyGridSize();
     if (event && isCtrlClick(event)) editStyle("gridOverlay");
   } else {
@@ -796,9 +802,9 @@ export function toggleGrid(event?: MouseEvent): void {
 }
 
 export function toggleCoordinates(event?: MouseEvent): void {
-  if (!view.coordinates.selectAll("*").size()) {
+  if (!layerIsOn("toggleCoordinates")) {
     turnButtonOn("toggleCoordinates");
-    CoordinatesRenderer.render(worldContext, viewContext, appServices);
+    if (!view.coordinates.selectAll("*").size()) CoordinatesRenderer.render(worldContext, viewContext, appServices);
     if (event && isCtrlClick(event)) editStyle("coordinates");
   } else {
     if (event && isCtrlClick(event)) {
