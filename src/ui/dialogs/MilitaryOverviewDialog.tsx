@@ -153,7 +153,7 @@ export const MilitaryOverviewDialog: React.FC = () => {
       if (total === 0) return "0%";
       return `${rn((val / total) * 100)}%`;
     }
-    return val;
+    return Math.round(val).toLocaleString();
   };
 
   const getDisplayValueSi = (val: number, total: number) => {
