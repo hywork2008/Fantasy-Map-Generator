@@ -1,6 +1,8 @@
+import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
+import { DeckGlRenderer } from "../renderers/webgl/deckRenderer";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { use3DOptionsStore } from "../store/options3dStore";
@@ -28,6 +30,15 @@ document.addEventListener("fmg:3d-burg-select", event => {
   editBurg(burgId);
 });
 
+document.addEventListener("fmg:viewmesh-satellite-terrain-mode-changed", event => {
+  if (!(event instanceof CustomEvent) || typeof event.detail !== "boolean") return;
+  const canvas = getElementById<HTMLCanvasElement>("canvas3d");
+  if (canvas?.dataset.type !== "viewMesh") return;
+
+  if (event.detail) DeckGlRenderer.suspend(viewContext);
+  else DeckGlRenderer.resume(worldContext, viewContext, appServices);
+});
+
 // ─── View mode / 3D ───────────────────────────────────────────────────────────
 
 export function changeViewMode(event: MouseEvent): void {
@@ -48,6 +59,7 @@ export function enterStandardView(): void {
   const canvas3d = getElementById<HTMLCanvasElement>("canvas3d");
   if (!canvas3d) return;
   ThreeDRenderer.stop();
+  DeckGlRenderer.resume(worldContext, viewContext, appServices);
   canvas3d.remove();
 
   const mapEl = getElementById<SVGSVGElement>("map");
@@ -82,7 +94,15 @@ async function enter3dView(type: string): Promise<void> {
     canvas.style.pointerEvents = "auto";
   }
 
+  const isSatelliteTerrain =
+    type === "viewMesh" &&
+    ThreeDRenderer.options.satellite &&
+    !ThreeDRenderer.options.wireframe &&
+    !ThreeDRenderer.options.sceneOnly;
+  if (isSatelliteTerrain) DeckGlRenderer.suspend(viewContext);
+
   const started = await ThreeDRenderer.create(canvas, type);
+  if (!started && isSatelliteTerrain) DeckGlRenderer.resume(worldContext, viewContext, appServices);
   if (!started) return;
 
   canvas.style.display = "block";

@@ -76,6 +76,7 @@ interface TimeOfDayPreset {
 
 type LabelSprite = THREE.Sprite & { size: number };
 type IconBatch = THREE.InstancedMesh<THREE.BufferGeometry, THREE.MeshPhongMaterial>;
+type LowPolyBurgSymbol = ReturnType<typeof buildLowPolyBurgSymbols>[number];
 type NightscapeGlowBatch = THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
 type FloatingRouteBatch =
   | THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial | THREE.LineDashedMaterial>
@@ -100,9 +101,29 @@ interface RouteLineBatch {
   gapSize: number;
 }
 
+interface IconBatchBuild {
+  shape: LowPolyBurgShape;
+  opacity: number;
+  glowLevel: number;
+  symbols: LowPolyBurgSymbol[];
+  mesh: IconBatch;
+}
+
+interface MeshRebuildOptions {
+  /** Re-render the 2D map bitmap before rebuilding the 3D geometry. */
+  refreshTerrainTexture: boolean;
+  /** Keep scene overlays at their previous heights while a terrain-only change is processed. */
+  preserveTerrainOverlays: boolean;
+  /** Drives the 3D options lock while the latest erosion request is running. */
+  erosionBuild: boolean;
+}
+
 const SEA_LEVEL = 20;
 /** Vertical lift above the sampled terrain surface so route lines stay visually distinct from relief. */
 const ROUTE_SURFACE_CLEARANCE = 0.75;
+const ICONS_PER_FRAME = 24;
+const ROUTES_PER_FRAME = 12;
+const PORT_BURG_LIFT_MULTIPLIER = 3;
 
 /**
  * Resolves a water vertex to its visual surface height. The grid feature is
@@ -144,7 +165,10 @@ class ThreeDModule {
     resolutionScale: 2048,
     subdivide: 0,
     erosion: false,
-    erosionDetail: 1024,
+    // Erosion also runs a CPU river-bed correction pass. Start at a density that remains
+    // responsive with the hybrid Deck context alive; higher densities remain available in 3D
+    // options for users who need them.
+    erosionDetail: 512,
     erosionStrength: 30,
     erosionRiverDepth: 10,
     erosionOctaves: 2,
@@ -226,6 +250,15 @@ class ThreeDModule {
   private textureRefreshPendingDuringMeshBuild: boolean = false;
   private textureRetryTimer: number | null = null;
   private textureRetryCount: number = 0;
+  // Mesh creation waits on a Deck full-map capture. Multiple controls can be used while that
+  // capture is pending, so serialize builds and let only the newest request commit a scene.
+  private meshBuildRequestId: number = 0;
+  private meshBuildQueue: Promise<void> = Promise.resolve();
+  private erosionBuildPending: boolean = false;
+  // Terrain must appear before CPU-projected scene overlays. Building the latter in small frames
+  // keeps the camera and the Erode terrain controls responsive on dense maps.
+  private terrainOverlayBuildToken: number = 0;
+  private terrainOverlayBuildFrame: number | null = null;
   private waterAnimationFrame: number | null = null;
   private waterTime = { value: 0 };
   private labelBuildToken = 0;
@@ -251,29 +284,44 @@ class ThreeDModule {
     return this.options.isGlobe ? this.newGlobe(canvas) : this.newMesh(canvas);
   }
 
-  redraw(): void {
-    this.deleteLabels();
-    this.deleteFloatingRoutes();
-    this.scene!.remove(this.mesh!);
+  isErosionBuildPending(): boolean {
+    return this.erosionBuildPending;
+  }
+
+  private setErosionBuildPending(pending: boolean): void {
+    if (this.erosionBuildPending === pending) return;
+    this.erosionBuildPending = pending;
+    document.dispatchEvent(new CustomEvent<boolean>("fmg:3d-erosion-build-state", { detail: pending }));
+  }
+
+  redraw({
+    refreshTerrainTexture = true,
+    preserveTerrainOverlays = false,
+    erosionBuild = false
+  }: Partial<MeshRebuildOptions> = {}): void {
+    // Keep the controls locked through a follow-up terrain request (for example a scale change
+    // made after turning erosion off), until the newest queued geometry has committed.
+    const locksErosionControls = erosionBuild || this.options.erosion || this.erosionBuildPending;
+    if (!preserveTerrainOverlays) {
+      this.deleteLabels();
+      this.cancelTerrainOverlayBuild();
+      this.deleteLowPolyBurgIcons();
+      this.deleteFloatingRoutes();
+    }
+    if (locksErosionControls) this.setErosionBuildPending(true);
     this.Renderer!.setSize(this.Renderer!.domElement.width, this.Renderer!.domElement.height);
     if (this.options.isGlobe) this.updateGlobeTexure();
-    else
-      this.createMesh(
-        worldContext.graphWidth,
-        worldContext.graphHeight,
-        worldContext.grid.cellsX,
-        worldContext.grid.cellsY
-      );
+    else this.queueMeshBuild({ refreshTerrainTexture, preserveTerrainOverlays, erosionBuild: locksErosionControls });
     this.render();
   }
 
   update(): void {
     if (this.options.isGlobe) this.updateGlobeTexure();
     else {
+      this.cancelTerrainOverlayBuild();
       this.deleteLowPolyBurgIcons();
-      this.createLowPolyBurgIcons();
       this.deleteFloatingRoutes();
-      this.createFloatingRoutes();
+      this.scheduleTerrainOverlays();
       this.updateTerrainTexture();
     }
   }
@@ -297,6 +345,11 @@ class ThreeDModule {
     this.textureRetryCount = 0;
     this.textureUpdateQueued = false;
     this.textureRefreshPendingDuringMeshBuild = false;
+    // An in-flight terrain texture capture cannot be cancelled, but it must never attach its
+    // result to a renderer that has already been stopped.
+    this.meshBuildRequestId++;
+    this.setErosionBuildPending(false);
+    this.cancelTerrainOverlayBuild();
     cancelAnimationFrame(this.animationFrame);
     if (this.texture) this.texture.dispose();
     if (this.geometry) this.geometry.dispose();
@@ -310,6 +363,7 @@ class ThreeDModule {
     this.erosionBakeActive = false;
     this.erosionBakeData = null;
     this.deleteLabels();
+    this.deleteLowPolyBurgIcons();
     this.deleteFloatingRoutes();
 
     this.Renderer!.renderLists.dispose();
@@ -398,7 +452,7 @@ class ThreeDModule {
   toggleLabels(): void {
     this.options.labels3d = this.options.labels3d ? 0 : 1;
 
-    if (this.options.labels3d) {
+    if (this.options.labels3d && !this.isSatelliteTerrainMode()) {
       this.invalidateLabelVisibilityCache();
       if (!this.labels.length) {
         this.createLabels();
@@ -421,6 +475,7 @@ class ThreeDModule {
   /** Shows only the floating low-poly scene objects against the existing dark scene background. */
   toggleNightscape(): void {
     this.options.sceneOnly = !this.options.sceneOnly;
+    this.notifySatelliteTerrainMode();
     this.syncNightscapeLighting();
     if (this.options.sceneOnly) {
       if (this.texture) this.texture.dispose();
@@ -431,10 +486,10 @@ class ThreeDModule {
       if (this.scene) this.scene.background = new THREE.Color("#03050b");
       // Icons were initially built for the terrain scene. Rebuild them now so their per-city
       // emissive bands and halo batches use the newly enabled Nightscape presentation.
+      this.cancelTerrainOverlayBuild();
       this.deleteLowPolyBurgIcons();
-      this.createLowPolyBurgIcons();
       this.deleteFloatingRoutes();
-      this.createFloatingRoutes();
+      this.scheduleTerrainOverlays();
       this.render();
       return;
     }
@@ -462,7 +517,7 @@ class ThreeDModule {
     if (!this.options.sceneOnly) return;
 
     this.deleteFloatingRoutes();
-    this.createFloatingRoutes();
+    this.scheduleFloatingRoutes();
     this.render();
   }
 
@@ -485,42 +540,47 @@ class ThreeDModule {
 
   toggle3dSubdivision(): void {
     this.options.subdivide = this.options.subdivide ? 0 : 1;
-    this.redraw();
+    this.redraw({ refreshTerrainTexture: false });
   }
 
   toggleErosion(): void {
     this.options.erosion = !this.options.erosion;
-    this.redraw();
+    // Erosion changes only terrain height. Keeping the already-composited map bitmap avoids
+    // a second full-map Deck render while the hidden hybrid Deck and Three.js renderer coexist.
+    this.redraw({ refreshTerrainTexture: false, preserveTerrainOverlays: true, erosionBuild: true });
   }
 
   setErosionStrength(value: number): void {
     this.options.erosionStrength = value;
-    this.redraw();
+    this.redraw({ refreshTerrainTexture: false, preserveTerrainOverlays: true, erosionBuild: true });
   }
 
   setErosionRiverDepth(value: number): void {
     this.options.erosionRiverDepth = value;
-    this.redraw();
+    this.redraw({ refreshTerrainTexture: false, preserveTerrainOverlays: true, erosionBuild: true });
   }
 
   setErosionDetail(value: number): void {
     this.options.erosionDetail = value;
-    this.redraw();
+    this.redraw({ refreshTerrainTexture: false, preserveTerrainOverlays: true, erosionBuild: true });
   }
 
   setErosionOctaves(value: number): void {
     this.options.erosionOctaves = value;
-    this.redraw();
+    this.redraw({ refreshTerrainTexture: false, preserveTerrainOverlays: true, erosionBuild: true });
   }
 
   toggleSatellite(): void {
     this.options.satellite = !this.options.satellite;
-    this.redraw();
+    this.notifySatelliteTerrainMode();
+    // Satellite replaces only the terrain texture; burg and route heights remain valid.
+    this.redraw({ refreshTerrainTexture: false, preserveTerrainOverlays: true });
   }
 
   toggleWireframe(): void {
     this.options.wireframe = this.options.wireframe ? 0 : 1;
-    this.redraw();
+    this.notifySatelliteTerrainMode();
+    this.redraw({ refreshTerrainTexture: false });
   }
 
   setColors(sky: string, water: string): void {
@@ -613,12 +673,9 @@ class ThreeDModule {
     this.attachBurgPicking(canvas);
     this.createNightscapeBeamLight();
     this.syncNightscapeLighting();
-    void this.createMesh(
-      worldContext.graphWidth,
-      worldContext.graphHeight,
-      worldContext.grid.cellsX,
-      worldContext.grid.cellsY
-    );
+    const erosionBuild = this.options.erosion;
+    if (erosionBuild) this.setErosionBuildPending(true);
+    this.queueMeshBuild({ refreshTerrainTexture: true, preserveTerrainOverlays: false, erosionBuild });
     this.animate();
 
     this.controls.addEventListener("change", () => this.render());
@@ -760,8 +817,11 @@ class ThreeDModule {
     }
   }
 
-  private createLowPolyBurgIcons(): void {
-    if (!this.scene || !layerIsOn("toggleBurgIcons")) return;
+  private createLowPolyBurgIcons(buildToken: number, onComplete: () => void): void {
+    if (!this.scene || !layerIsOn("toggleBurgIcons")) {
+      onComplete();
+      return;
+    }
 
     const symbols = buildLowPolyBurgSymbols(
       worldContext,
@@ -774,10 +834,8 @@ class ThreeDModule {
         .filter(symbol => symbol.type === "burg")
         .map(symbol => (Number.isFinite(symbol.population) ? (symbol.population ?? 0) : 0))
     );
-    const batches = new Map<
-      string,
-      { shape: LowPolyBurgShape; opacity: number; glowLevel: number; symbols: typeof symbols }
-    >();
+    const portBurgIds = new Set(symbols.filter(symbol => symbol.type === "anchor").map(symbol => symbol.burgId));
+    const batches = new Map<string, Omit<IconBatchBuild, "mesh">>();
     for (const symbol of symbols) {
       const glow =
         this.options.sceneOnly && symbol.type === "burg"
@@ -794,10 +852,7 @@ class ThreeDModule {
       batches.set(key, batch);
     }
 
-    const up = new THREE.Vector3(0, 1, 0);
-    const matrix = new THREE.Matrix4();
-    const quaternion = new THREE.Quaternion();
-    const nightscapeGlowInstances: NightscapeGlowInstance[] = [];
+    const jobs: IconBatchBuild[] = [];
     for (const batch of batches.values()) {
       const glowIntensity = this.options.sceneOnly ? 0.06 + batch.glowLevel * 0.32 : 0;
       const material = new THREE.MeshPhongMaterial({
@@ -814,21 +869,48 @@ class ThreeDModule {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.userData.burgIds = batch.symbols.map(symbol => symbol.burgId);
+      // Allocate each style batch once, then reveal its instances over several animation frames.
+      // This keeps the final scene at the same draw-call count as an eager instanced build.
+      mesh.count = 0;
+      // Three computes an instanced mesh's bounds before its first visible instance otherwise;
+      // progressive population would leave that stale empty bound eligible for frustum culling.
+      mesh.frustumCulled = false;
+      this.iconBatches.push(mesh);
+      this.scene.add(mesh);
+      jobs.push({ ...batch, mesh });
+    }
 
-      for (let index = 0; index < batch.symbols.length; index++) {
-        const symbol = batch.symbols[index];
+    const up = new THREE.Vector3(0, 1, 0);
+    const matrix = new THREE.Matrix4();
+    const quaternion = new THREE.Quaternion();
+    const nightscapeGlowInstances: NightscapeGlowInstance[] = [];
+    let batchIndex = 0;
+    let symbolIndex = 0;
+
+    const processChunk = (): void => {
+      if (!this.isTerrainOverlayBuildCurrent(buildToken)) return;
+
+      const deadline = performance.now() + 8;
+      let processed = 0;
+      const updatedMeshes = new Set<IconBatch>();
+      while (batchIndex < jobs.length && processed < ICONS_PER_FRAME && performance.now() < deadline) {
+        const job = jobs[batchIndex];
+        const symbol = job.symbols[symbolIndex];
         const glow =
           this.options.sceneOnly && symbol.type === "burg"
             ? getNightscapePopulationGlow(symbol.population, largestPopulation)
             : { intensity: 0, level: 0 };
         const surface = this.get3dSurface(symbol.position[0], symbol.position[1]);
-        // Lift from the sampled terrain along its normal. The half-size term keeps the centre of
-        // each sphere/cube/anchor above the surface instead of leaving its lower half embedded.
-        const clearance = Math.max(1.2, symbol.size * 0.35) + symbol.size;
+        // Lift from the sampled terrain along its normal. A port's anchor shares its burg's map
+        // point, so reduce only the burg sphere/cube lift and leave the anchor's clearance intact.
+        // This keeps the anchor from being visually swallowed by the larger city symbol.
+        const isPortBurg = symbol.type === "burg" && portBurgIds.has(symbol.burgId);
+        const clearance =
+          Math.max(1.2, symbol.size * 0.35) + symbol.size * (isPortBurg ? PORT_BURG_LIFT_MULTIPLIER : 1);
         const position = surface.position.addScaledVector(surface.normal, clearance);
         quaternion.setFromUnitVectors(up, surface.normal);
         matrix.compose(position, quaternion, new THREE.Vector3(symbol.size, symbol.size, symbol.size));
-        mesh.setMatrixAt(index, matrix);
+        job.mesh.setMatrixAt(symbolIndex, matrix);
 
         const color = new THREE.Color(symbol.color);
         if (this.options.sceneOnly && symbol.type === "burg") {
@@ -842,23 +924,105 @@ class ThreeDModule {
             });
           }
         }
-        mesh.setColorAt(index, color);
-      }
-      mesh.instanceMatrix.needsUpdate = true;
-      // setColorAt above creates instanceColor for every non-empty batch.
-      mesh.instanceColor!.needsUpdate = true;
-      this.iconBatches.push(mesh);
-      this.scene.add(mesh);
-    }
+        job.mesh.setColorAt(symbolIndex, color);
+        job.mesh.count = symbolIndex + 1;
+        updatedMeshes.add(job.mesh);
+        symbolIndex++;
+        processed++;
 
-    this.createNightscapeBurgGlow(nightscapeGlowInstances);
+        if (symbolIndex === job.symbols.length) {
+          batchIndex++;
+          symbolIndex = 0;
+        }
+      }
+
+      for (const mesh of updatedMeshes) {
+        mesh.instanceMatrix.needsUpdate = true;
+        // setColorAt above creates instanceColor for every non-empty batch.
+        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      }
+      this.render();
+
+      if (batchIndex < jobs.length) {
+        this.terrainOverlayBuildFrame = requestAnimationFrame(processChunk);
+        return;
+      }
+
+      this.terrainOverlayBuildFrame = null;
+      this.createNightscapeBurgGlow(nightscapeGlowInstances);
+      onComplete();
+    };
+
+    processChunk();
+  }
+
+  /** Satellite terrain uses a dedicated texture and suspends Deck; Three.js scene overlays still remain available. */
+  private isSatelliteTerrainMode(): boolean {
+    return Boolean(
+      this.options.satellite && !this.options.isGlobe && !this.options.wireframe && !this.options.sceneOnly
+    );
+  }
+
+  private notifySatelliteTerrainMode(): void {
+    document.dispatchEvent(
+      new CustomEvent<boolean>("fmg:viewmesh-satellite-terrain-mode-changed", {
+        detail: this.isSatelliteTerrainMode()
+      })
+    );
+  }
+
+  private cancelTerrainOverlayBuild(): void {
+    this.terrainOverlayBuildToken++;
+    if (this.terrainOverlayBuildFrame !== null) {
+      cancelAnimationFrame(this.terrainOverlayBuildFrame);
+      this.terrainOverlayBuildFrame = null;
+    }
+  }
+
+  /** Defers non-terrain scene work until the first terrain frame has been committed. */
+  private scheduleTerrainOverlays(): void {
+    if (!this.scene || !this.mesh) return;
+
+    this.cancelTerrainOverlayBuild();
+    const token = this.terrainOverlayBuildToken;
+    this.terrainOverlayBuildFrame = requestAnimationFrame(() => {
+      this.terrainOverlayBuildFrame = null;
+      if (!this.isTerrainOverlayBuildCurrent(token)) return;
+
+      this.createLowPolyBurgIcons(token, () => {
+        if (!this.isTerrainOverlayBuildCurrent(token)) return;
+        this.createFloatingRoutes(token);
+      });
+    });
+  }
+
+  /** Rebuilds only route batches when a route-specific display option changes. */
+  private scheduleFloatingRoutes(): void {
+    if (!this.scene || !this.mesh) return;
+
+    this.cancelTerrainOverlayBuild();
+    const token = this.terrainOverlayBuildToken;
+    this.terrainOverlayBuildFrame = requestAnimationFrame(() => {
+      this.terrainOverlayBuildFrame = null;
+      if (this.isTerrainOverlayBuildCurrent(token)) this.createFloatingRoutes(token);
+    });
+  }
+
+  private isTerrainOverlayBuildCurrent(token: number): boolean {
+    return (
+      token === this.terrainOverlayBuildToken &&
+      this.options.isOn === true &&
+      this.options.isGlobe !== true &&
+      Boolean(this.scene && this.mesh)
+    );
   }
 
   /**
-   * Renders routes as lines floating above the terrain surface, batched by dash pattern and color
-   * so the whole route network costs a handful of draw calls rather than one object per route.
+   * Renders routes as lines floating above the terrain surface. Routes are grouped by dash pattern
+   * and color within each animation-frame chunk, so a dense network becomes visible progressively
+   * instead of blocking the terrain's first render.
    */
-  private createFloatingRoutes(): void {
+  private createFloatingRoutes(buildToken: number): void {
     if (
       !this.scene ||
       !this.mesh ||
@@ -877,11 +1041,11 @@ class ThreeDModule {
       { roads: paintStyles.roads, trails: paintStyles.trails, searoutes: paintStyles.searoutes }
     );
 
-    const batches = new Map<string, RouteLineBatch>();
+    let routeIndex = 0;
 
-    for (const route of routes) {
+    const processRoute = (route: DeckPath, batches: Map<string, RouteLineBatch>): void => {
       const points = this.projectRoutePoints(route);
-      if (points.length < 2) continue;
+      if (points.length < 2) return;
 
       const [red, green, blue, alpha = 255] = route.color;
       // route.dashArray is normalized to multiples of path width (see getNormalizedDashArray in
@@ -889,7 +1053,6 @@ class ThreeDModule {
       const [dashRatio = 0, gapRatio = 0] = route.dashArray ?? [];
       const dashSize = dashRatio * route.width;
       const gapSize = gapRatio * route.width;
-
       const key = `${dashSize.toFixed(3)}|${gapSize.toFixed(3)}|${red}|${green}|${blue}|${alpha}`;
       let batch = batches.get(key);
       if (!batch) {
@@ -906,11 +1069,35 @@ class ThreeDModule {
         batch.positions.push(a.x, a.y, a.z, c.x, c.y, c.z);
         batch.colors.push(r, g, b, r, g, b);
       }
-    }
+    };
 
-    for (const batch of batches.values()) {
-      if (batch.positions.length) this.addFloatingRouteBatch(batch);
-    }
+    const processChunk = (): void => {
+      if (!this.isTerrainOverlayBuildCurrent(buildToken)) return;
+
+      const deadline = performance.now() + 8;
+      const routeBatches = new Map<string, RouteLineBatch>();
+      let processed = 0;
+      while (routeIndex < routes.length && processed < ROUTES_PER_FRAME && performance.now() < deadline) {
+        processRoute(routes[routeIndex], routeBatches);
+        routeIndex++;
+        processed++;
+      }
+
+      for (const batch of routeBatches.values()) {
+        if (batch.positions.length) this.addFloatingRouteBatch(batch);
+      }
+      this.render();
+
+      if (routeIndex < routes.length) {
+        this.terrainOverlayBuildFrame = requestAnimationFrame(processChunk);
+        return;
+      }
+
+      this.terrainOverlayBuildFrame = null;
+      if (!this.isTerrainOverlayBuildCurrent(buildToken)) return;
+    };
+
+    processChunk();
   }
 
   private projectRoutePoints(route: DeckPath): THREE.Vector3[] {
@@ -1349,7 +1536,45 @@ class ThreeDModule {
     return texture;
   }
 
-  private async createMesh(width: number, height: number, segmentsX: number, segmentsY: number): Promise<void> {
+  private queueMeshBuild(options: MeshRebuildOptions): void {
+    const requestId = ++this.meshBuildRequestId;
+    const build = async (): Promise<void> => {
+      if (!this.isMeshBuildCurrent(requestId)) return;
+      try {
+        // Let React paint the disabled erosion controls before a GPU readback / CPU terrain pass
+        // can monopolize the main thread. The current request is checked again after that frame.
+        if (options.erosionBuild) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+        if (!this.isMeshBuildCurrent(requestId)) return;
+        await this.createMesh(
+          worldContext.graphWidth,
+          worldContext.graphHeight,
+          worldContext.grid.cellsX,
+          worldContext.grid.cellsY,
+          options,
+          requestId
+        );
+      } finally {
+        if (options.erosionBuild && requestId === this.meshBuildRequestId) this.setErosionBuildPending(false);
+      }
+    };
+
+    this.meshBuildQueue = this.meshBuildQueue.then(build, build).catch(error => {
+      console.error("3D mesh rebuild failed:", error);
+    });
+  }
+
+  private isMeshBuildCurrent(requestId: number): boolean {
+    return this.options.isOn === true && this.options.isGlobe !== true && requestId === this.meshBuildRequestId;
+  }
+
+  private async createMesh(
+    width: number,
+    height: number,
+    segmentsX: number,
+    segmentsY: number,
+    { refreshTerrainTexture, preserveTerrainOverlays }: MeshRebuildOptions,
+    requestId: number
+  ): Promise<void> {
     this.stopWaterAnimation();
     this.gridToPackCellMap = new Map();
     if (worldContext.pack.cells?.g && worldContext.pack.cells?.i) {
@@ -1366,15 +1591,26 @@ class ThreeDModule {
       this.options.satellite && !this.options.isGlobe && !this.options.wireframe && !sceneOnly
     );
 
-    if (this.texture && !this.options.wireframe && !useSatellite) {
-      this.texture.dispose();
-      this.texture = undefined;
-    }
-    if (!this.options.wireframe && !useSatellite && !sceneOnly) {
-      this.texture = (await this.createMeshTexture()) ?? undefined;
+    const usesTerrainTexture = !this.options.wireframe && !useSatellite && !sceneOnly;
+    let nextTerrainTexture: THREE.CanvasTexture | undefined;
+    if (usesTerrainTexture && (refreshTerrainTexture || !this.texture)) {
+      nextTerrainTexture = (await this.createMeshTexture()) ?? undefined;
+      if (!this.isMeshBuildCurrent(requestId)) {
+        nextTerrainTexture?.dispose();
+        return;
+      }
     }
 
-    if (this.material) this.material.dispose();
+    if (!this.isMeshBuildCurrent(requestId)) return;
+
+    const previousTexture = this.texture;
+    const previousMaterial = this.material;
+    if (nextTerrainTexture) this.texture = nextTerrainTexture;
+    else if (useSatellite || sceneOnly) this.texture = undefined;
+
+    // A terrain-only erosion rebuild keeps the previous mesh on-screen while the bake runs.
+    // Its material and texture must stay alive until the replacement mesh is committed below.
+    if (this.material && !preserveTerrainOverlays) this.material.dispose();
     // The map texture is already composited by deck.gl. Lighting it again makes overlapping,
     // semi-transparent layers clip to white, so preserve its 2D colours with an unlit material.
     // Satellite terrain remains lit because its procedural texture intentionally includes relief.
@@ -1382,16 +1618,19 @@ class ThreeDModule {
 
     if (this.options.wireframe) {
       this.material.wireframe = true;
-    } else if (!useSatellite && !sceneOnly) {
+    } else if (usesTerrainTexture) {
       this.material.map = this.texture ?? null;
       this.material.transparent = false;
       this.material.depthWrite = true;
     }
+    if (previousTexture && previousTexture !== this.texture && !preserveTerrainOverlays) previousTexture.dispose();
 
     let bakeResult: ErosionBake.ErosionBakeResult | null = null;
     if ((this.options.erosion || useSatellite) && !this.options.isGlobe) {
-      const baseBakeResolution =
-        this.options.erosionDetail >= 2048 ? 4096 : this.options.erosionDetail > 512 ? 2048 : 1024;
+      // The old mapping silently amplified the selected mesh detail (1024 -> 2048 bake,
+      // 2048 -> 4096 bake). The bake has a synchronous CPU post-process, so that amplification
+      // can monopolize the UI thread after entering viewMesh from the hybrid renderer.
+      const baseBakeResolution = Math.max(512, Math.min(this.options.erosionDetail, 2048));
       const satelliteBakeResolution =
         this.options.resolutionScale >= 8192 ? 8192 : this.options.resolutionScale >= 4096 ? 2048 : 1024;
       const desiredBakeResolution = useSatellite
@@ -1405,6 +1644,7 @@ class ThreeDModule {
         octaves: this.options.erosion ? this.options.erosionOctaves : 1,
         bakeResolution: Math.min(desiredBakeResolution, maxBakeResolution)
       });
+      if (!this.isMeshBuildCurrent(requestId)) return;
       if (!bakeResult && this.options.erosion) {
         console.warn("3D erosion bake failed, falling back to standard mesh");
         tip("Eroded terrain is not supported on this device", false, "warn", 4000);
@@ -1422,6 +1662,10 @@ class ThreeDModule {
 
     if (this.geometry) this.geometry.dispose();
     if (this.mesh) this.scene!.remove(this.mesh);
+    if (preserveTerrainOverlays) {
+      previousMaterial?.dispose();
+      if (previousTexture && previousTexture !== this.texture) previousTexture.dispose();
+    }
 
     if (this.erosionBakeActive) {
       const segLong = this.options.erosionDetail;
@@ -1473,11 +1717,8 @@ class ThreeDModule {
         this.material.map = satelliteTexture;
         this.applyWaterAnimation(this.material as THREE.MeshLambertMaterial, generateRiverFlowTexture());
         this.startWaterAnimation();
-      } else {
-        this.texture = (await this.createMeshTexture()) ?? undefined;
-        this.material.map = this.texture ?? null;
-        this.material.transparent = true;
-      }
+      } else
+        console.warn("Satellite terrain texture generation failed; rendering the height mesh without a map texture");
     }
 
     this.mesh.rotation.x = -Math.PI / 2;
@@ -1487,8 +1728,7 @@ class ThreeDModule {
     this.scene!.add(this.mesh);
     if (this.waterMesh) this.waterMesh.visible = !sceneOnly;
     this.mesh.updateMatrixWorld();
-    this.createLowPolyBurgIcons();
-    this.createFloatingRoutes();
+    if (!preserveTerrainOverlays) this.scheduleTerrainOverlays();
     this.render();
 
     // If the user changed a layer while `createMeshTexture()` awaited its first deck.gl frame,
@@ -1499,7 +1739,7 @@ class ThreeDModule {
       this.update3dTexture();
     }
 
-    if (this.options.labels3d) {
+    if (!preserveTerrainOverlays && this.options.labels3d && !useSatellite) {
       this.createLabels();
       this.render();
     }
@@ -1552,16 +1792,19 @@ class ThreeDModule {
         this.textureUpdateQueued = false;
         if (!this.material || !this.Renderer || !this.options.isOn || this.options.sceneOnly) continue;
 
-        if (this.options.satellite && this.erosionBakeData && !this.options.isGlobe && !this.options.wireframe) {
-          const satelliteTexture = generateSatelliteTexture(this.Renderer, this.erosionBakeData, {
-            scale: this.options.scale,
-            maxOutput: Math.max(512, Math.min(this.options.resolutionScale, 8192))
-          });
-          if (satelliteTexture) {
-            this.material.map = satelliteTexture;
-            this.render();
-            continue;
+        if (this.isSatelliteTerrainMode()) {
+          if (this.erosionBakeData) {
+            const satelliteTexture = generateSatelliteTexture(this.Renderer, this.erosionBakeData, {
+              scale: this.options.scale,
+              maxOutput: Math.max(512, Math.min(this.options.resolutionScale, 8192))
+            });
+            if (satelliteTexture) {
+              this.material.map = satelliteTexture;
+              this.render();
+            }
           }
+          // Satellite mode deliberately never falls back to a composited Deck bitmap.
+          continue;
         }
 
         const material = this.material;
@@ -1897,6 +2140,7 @@ interface ThreeDAPI {
   saveScreenshot: () => Promise<void>;
   saveOBJ: () => void;
   toggleErosion: () => void;
+  isErosionBuildPending: () => boolean;
   setErosionStrength: (value: number) => void;
   setErosionRiverDepth: (value: number) => void;
   setErosionDetail: (value: number) => void;

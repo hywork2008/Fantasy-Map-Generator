@@ -19,6 +19,10 @@ const SEMANTIC_PICK_RADIUS = 8;
 let pickingEventTarget: SVGSVGElement | null = null;
 let lastHoverPickId: string | null = null;
 let activePickingViewContext: ViewContext | null = null;
+// Satellite viewMesh renders its own terrain and procedural texture. Keep the Deck instance
+// available for a fast return to Standard view, but release its map layers while that mode owns
+// the second WebGL context.
+let deckLayersSuspended = false;
 
 interface ActiveWebglDrag {
   kind: WebglDragKind;
@@ -627,6 +631,7 @@ export const DeckGlRenderer = {
     }
 
     if (!this.ensureInitialized(viewContext)) return false;
+    if (deckLayersSuspended) return true;
     viewContext.webglDeck?.setProps({
       width: viewContext.svgWidth,
       height: viewContext.svgHeight,
@@ -648,12 +653,36 @@ export const DeckGlRenderer = {
     });
   },
 
+  /**
+   * Keeps the Deck/WebGL context reusable while releasing all map layers for Satellite viewMesh.
+   * The hybrid SVG policy intentionally remains enabled: canvas3d, not SVG, owns the visible map.
+   */
+  suspend(viewContext: ViewContext): boolean {
+    if (viewContext.renderMode !== "webglHybrid") return false;
+    deckLayersSuspended = true;
+    viewContext.webglDeck?.setProps({ layers: [] });
+    return true;
+  },
+
+  /** Rebuilds the normal hybrid layers after Satellite mode is disabled or 3D view is closed. */
+  resume(worldContext: Readonly<WorldContext>, viewContext: ViewContext, appServices: AppServices): boolean {
+    if (!deckLayersSuspended) return false;
+    deckLayersSuspended = false;
+    return this.render(worldContext, viewContext, appServices);
+  },
+
+  isSuspended(): boolean {
+    return deckLayersSuspended;
+  },
+
   clear(viewContext: ViewContext): void {
+    deckLayersSuspended = false;
     viewContext.webglDeck?.setProps({ layers: [] });
     this.setModeClass(false);
   },
 
   finalize(viewContext: ViewContext): void {
+    deckLayersSuspended = false;
     if (pickingEventTarget) {
       document.removeEventListener("pointerdown", handlePointerDown, true);
       document.removeEventListener("mousedown", handleMouseDownCapture, true);

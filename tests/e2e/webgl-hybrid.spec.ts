@@ -409,6 +409,66 @@ test.describe("webgl hybrid renderer", () => {
     });
   });
 
+  test("keeps viewMesh interactive when erosion is enabled from hybrid WebGL", async ({ page }) => {
+    await page.goto("/?seed=webgl-3d-erosion&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+
+    await page.locator("#optionsHide").click();
+    await page.locator("#layersTab").click();
+    await page.locator("#viewMesh").click();
+    await expect(page.locator("#canvas3d")).toBeVisible({ timeout: 15000 });
+    await waitForCanvasPixels(page, "canvas3d");
+
+    const erosion = page.locator("#options3dErosion");
+    await erosion.check();
+    await expect(erosion).toBeChecked();
+    // The rebuild is expensive, but the next view action must still be processed after it.
+    await page.locator("#viewStandard").click({ timeout: 30000 });
+    await expect(page.locator("#canvas3d")).toHaveCount(0);
+    await expect.poll(() => getWebglRendererDomState(page)).toMatchObject({ deckExists: true });
+  });
+
+  test("suspends Deck layers only while viewMesh uses the satellite terrain texture", async ({ page }) => {
+    await page.goto("/?seed=webgl-3d-satellite-suspend&width=1000&height=700");
+    await waitForMapLoad(page);
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+
+    await page.locator("#optionsHide").click();
+    await page.locator("#layersTab").click();
+    await page.locator("#viewMesh").click();
+    await expect(page.locator("#canvas3d")).toBeVisible({ timeout: 15000 });
+    await waitForCanvasPixels(page, "canvas3d");
+
+    const satellite = page.locator("#options3dSatellite");
+    await satellite.check();
+    await expect(satellite).toBeChecked();
+    await expect.poll(() => getWebglRendererDomState(page)).toMatchObject({
+      deckExists: true,
+      deckLayersSuspended: true
+    });
+    await waitForCanvasPixels(page, "canvas3d");
+
+    await satellite.uncheck();
+    await expect(satellite).not.toBeChecked();
+    await expect.poll(() => getWebglRendererDomState(page)).toMatchObject({
+      deckExists: true,
+      deckLayersSuspended: false
+    });
+    await waitForCanvasPixels(page, "canvas3d");
+
+    await page.locator("#viewStandard").click();
+    await expect(page.locator("#canvas3d")).toHaveCount(0);
+    await waitForWebglCanvasPixels(page);
+    await expect.poll(() => getWebglRendererDomState(page)).toMatchObject({
+      deckExists: true,
+      deckLayersSuspended: false,
+      bodyHasHybridClass: true
+    });
+  });
+
   test("builds the full viewMesh terrain after zooming the hybrid map", async ({ page }) => {
     await page.goto("/?seed=webgl-3d-full-map-texture&width=1000&height=700");
     await waitForMapLoad(page);
@@ -447,6 +507,11 @@ test.describe("webgl hybrid renderer", () => {
     await page.locator("#viewMesh").click();
     const canvas = page.locator("#canvas3d");
     await expect(canvas).toBeVisible({ timeout: 15000 });
+    await waitForCanvasPixels(page, "canvas3d");
+
+    // Satellite must keep Three.js burg icons interactive even though it suspends every Deck layer.
+    await page.locator("#options3dSatellite").check();
+    await expect.poll(() => getWebglRendererDomState(page)).toMatchObject({ deckLayersSuspended: true });
     await waitForCanvasPixels(page, "canvas3d");
 
     const bounds = await canvas.boundingBox();

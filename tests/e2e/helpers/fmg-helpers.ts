@@ -662,6 +662,7 @@ export interface WebglRendererDomState {
   scaleBarHasOverlayClass: boolean;
   scaleBarDisplay: string;
   deckHasTestMarker: boolean;
+  deckLayersSuspended: boolean;
   deckCanvasMatchesDom: boolean;
   viewCanvasMatchesDom: boolean;
 }
@@ -678,7 +679,11 @@ export async function getWebglRendererDomState(page: Page): Promise<WebglRendere
     const canvas = document.getElementById("webglMapCanvas");
     const landmass = document.getElementById("landmass");
     const scaleBar = document.getElementById("scaleBar");
-    const deck = window.fmg.view.webglDeck as unknown as { __testMarker?: string; canvas?: HTMLCanvasElement } | null;
+    const deck = window.fmg.view.webglDeck as unknown as {
+      __testMarker?: string;
+      canvas?: HTMLCanvasElement;
+      props?: { layers?: unknown[] };
+    } | null;
 
     return {
       bodyHasHybridClass: document.body.classList.contains("fmg-webgl-hybrid"),
@@ -689,6 +694,7 @@ export async function getWebglRendererDomState(page: Page): Promise<WebglRendere
       scaleBarHasOverlayClass: Boolean(scaleBar?.classList.contains("fmg-webgl-svg-overlay-layer")),
       scaleBarDisplay: scaleBar ? window.getComputedStyle(scaleBar).display : "",
       deckHasTestMarker: deck?.__testMarker === "before-map-load",
+      deckLayersSuspended: Boolean(deck && Array.isArray(deck.props?.layers) && deck.props.layers.length === 0),
       deckCanvasMatchesDom: Boolean(deck && canvas instanceof HTMLCanvasElement && deck.canvas === canvas),
       viewCanvasMatchesDom: Boolean(canvas instanceof HTMLCanvasElement && window.fmg.view.webglCanvas === canvas)
     };

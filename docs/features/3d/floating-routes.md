@@ -10,3 +10,5 @@ Nightscape 中は **Show glowing routes** を有効にすると、浮遊ルー�
 - 初期値はオフ。Nightscape を都市灯りだけの表示として使う既存の演出を維持する
 - 元の道路・小道・海路の色と破線パターンを引き継ぐ
 - `toggleRoutes` レイヤーが有効な場合だけ描画する
+
+`src/renderers/three-d-renderer.ts`

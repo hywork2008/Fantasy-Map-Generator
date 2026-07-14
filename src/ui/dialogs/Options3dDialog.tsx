@@ -11,6 +11,17 @@ export const Options3dDialog: React.FC = () => {
   const options = use3DOptionsStore();
   const [isGlobe, setIsGlobe] = useState(false);
   const [timeOfDay, setTimeOfDay] = useState("custom");
+  const [isErosionBuilding, setIsErosionBuilding] = useState(() => ThreeDRenderer.isErosionBuildPending());
+
+  useEffect(() => {
+    const syncErosionBuildState = (event: Event): void => {
+      if (event instanceof CustomEvent && typeof event.detail === "boolean") setIsErosionBuilding(event.detail);
+      else setIsErosionBuilding(ThreeDRenderer.isErosionBuildPending());
+    };
+    document.addEventListener("fmg:3d-erosion-build-state", syncErosionBuildState);
+    syncErosionBuildState(new Event("fmg:3d-erosion-build-state"));
+    return () => document.removeEventListener("fmg:3d-erosion-build-state", syncErosionBuildState);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -313,18 +324,25 @@ export const Options3dDialog: React.FC = () => {
                 id="options3dErosion"
                 className="checkbox"
                 type="checkbox"
+                disabled={isErosionBuilding}
                 checked={options.erosion}
                 onChange={() => handleChange("erosion", !options.erosion, () => ThreeDRenderer.toggleErosion())}
               />
               <label htmlFor="options3dErosion" className="checkbox-label">
                 <i>Erode terrain</i>
               </label>
+              {isErosionBuilding && (
+                <span id="options3dErosionStatus" role="status" aria-live="polite">
+                  Applying erosion…
+                </span>
+              )}
             </div>
 
             <div style={{ display: options.erosion ? "block" : "none" }}>
               <div data-tip="Set eroded mesh detail level (vertices on the long side)">
                 <div>Mesh detail:</div>
                 <select
+                  disabled={isErosionBuilding}
                   value={options.erosionDetail}
                   onChange={e =>
                     handleChange("erosionDetail", +e.target.value, () =>
@@ -343,6 +361,7 @@ export const Options3dDialog: React.FC = () => {
                 <div>Gully strength:</div>
                 <input
                   type="range"
+                  disabled={isErosionBuilding}
                   min={0}
                   max={100}
                   value={options.erosionStrength}
@@ -354,6 +373,7 @@ export const Options3dDialog: React.FC = () => {
                 />
                 <input
                   type="number"
+                  disabled={isErosionBuilding}
                   min={0}
                   max={100}
                   value={options.erosionStrength}
@@ -369,6 +389,7 @@ export const Options3dDialog: React.FC = () => {
                 <div>River valleys:</div>
                 <input
                   type="range"
+                  disabled={isErosionBuilding}
                   min={0}
                   max={100}
                   value={options.erosionRiverDepth}
@@ -380,6 +401,7 @@ export const Options3dDialog: React.FC = () => {
                 />
                 <input
                   type="number"
+                  disabled={isErosionBuilding}
                   min={0}
                   max={100}
                   value={options.erosionRiverDepth}
@@ -394,6 +416,7 @@ export const Options3dDialog: React.FC = () => {
               <div data-tip="Set the number of erosion detail layers. More octaves add finer gullies">
                 <div>Detail octaves:</div>
                 <select
+                  disabled={isErosionBuilding}
                   value={options.erosionOctaves}
                   onChange={e =>
                     handleChange("erosionOctaves", +e.target.value, () =>
