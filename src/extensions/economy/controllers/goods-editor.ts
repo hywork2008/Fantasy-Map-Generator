@@ -230,7 +230,9 @@ function getAllStockData(): Record<number, { total: number; sources: StockSource
     }
   }
 
-  for (const good of worldContext().pack.goods || []) result[good.i].total = rn(result[good.i].total, 2);
+  for (const good of (worldContext().pack.goods || []).filter(isGoodEnabled)) {
+    result[good.i].total = rn(result[good.i].total, 2);
+  }
 
   return result;
 }

@@ -6,8 +6,10 @@ import {
 import {
   applyStylePreset,
   clickAndGetWebglPickCandidates,
+  collectPageErrors,
   ensureLayerOff,
   ensureLayerOn,
+  filterCriticalErrors,
   forceOverlappingWebglRegiments,
   forceThreeDBurgFixture,
   forceWebglGlacierFixture,
@@ -854,6 +856,7 @@ test.describe("webgl hybrid renderer", () => {
   });
 
   test("lists Economy goods and markets in the WebGL map pick chooser", async ({ page }) => {
+    const errors = collectPageErrors(page);
     await page.goto("/?seed=webgl-economy-pick-chooser&width=1000&height=700");
     await waitForMapLoad(page);
 
@@ -902,6 +905,8 @@ test.describe("webgl hybrid renderer", () => {
       await expect(page.locator(item.dialogSelector)).toBeVisible();
       await closeAllOpenEditorDialogs(page);
     }
+
+    expect(filterCriticalErrors(errors)).toEqual([]);
   });
 
   test("emits stable pick detail without taking over editor clicks", async ({ page }) => {
