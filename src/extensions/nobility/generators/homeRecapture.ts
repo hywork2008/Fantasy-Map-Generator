@@ -2,6 +2,7 @@ import { isOccupiedHomeBurg } from "../../../generators/regimentMovement";
 import type { Burg, ChronicleEvent, MilitaryRegiment, State } from "../../../types/models";
 import type { PackedGraph } from "../../../types/PackedGraph";
 import type { Character } from "../../characters/characterTypes";
+import { mayAdvanceConflict } from "../conflictDirector";
 import { getWorldContext } from "../nobilityContext";
 import { calculateEffectiveSiegePower, captureBurg, commanderPowerMultiplier } from "./localDefense";
 
@@ -85,6 +86,7 @@ export function tryRecaptureHomeBurg(r: MilitaryRegiment, cell: number): boolean
   const ownState = pack.states[r.state];
   const targetState = pack.states[burg.state ?? -1];
   if (!ownState || !targetState) return false;
+  if (!mayAdvanceConflict(ownState.i, targetState.i)) return false;
 
   const targetDiplomacy = ownState.diplomacy?.[targetState.i];
   if (targetDiplomacy === "Ally" || targetDiplomacy === "Friendly") return false;

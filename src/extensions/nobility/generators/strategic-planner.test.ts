@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { simulationContext } from "../../../context/simulationContext";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
+import { startPlayerConflict } from "../conflictDirector";
 import { clearNobilityContext, initNobilityContext } from "../nobilityContext";
 import "../types";
 import { StrategicPlannerGenerator } from "./strategic-planner";
@@ -138,6 +139,24 @@ describe("StrategicPlannerGenerator.generate", () => {
     planner.generate();
 
     expect(simulationContext.strategicGoals[1]).toHaveLength(0);
+  });
+
+  it("only plans a player-authorized conflict in player-directed mode", () => {
+    worldContext.options = { year: 1000, conflictAutonomy: "playerDirected" } as never;
+    worldContext.pack = makeFrontierPack({
+      defenderBurgPopulation: 20,
+      defenderLocalRegimentPower: 10,
+      defenderBulkRegimentPower: 100000,
+      attackerPower: 100,
+      fortified: false
+    });
+
+    planner.generate();
+    expect(simulationContext.strategicGoals[1]).toHaveLength(0);
+
+    startPlayerConflict({ attackerStateId: 1, defenderStateId: 2 });
+    planner.generate();
+    expect(simulationContext.strategicGoals[1]).toHaveLength(1);
   });
 
   it("requires only a modest edge against an unfortified target but the full 3x ratio against a fortified one", () => {

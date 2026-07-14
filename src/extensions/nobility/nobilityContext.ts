@@ -18,6 +18,11 @@ export function clearNobilityContext(): void {
   _api = null;
 }
 
+/** Supports pure generator helpers that are exercised without the extension lifecycle in unit tests. */
+export function hasNobilityContext(): boolean {
+  return _api !== null;
+}
+
 export function getApi(): ExtensionAPI {
   if (!_api) throw new Error("[nobility] Extension context not initialized — call init(api) first");
   return _api;

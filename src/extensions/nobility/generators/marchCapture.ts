@@ -1,6 +1,7 @@
 import { buildSeaRouteGraph } from "../../../generators/seaRouteGraph";
 import type { Burg, ChronicleEvent, MilitaryRegiment, State } from "../../../types/models";
 import { minmax, rn } from "../../../utils";
+import { mayAdvanceConflict } from "../conflictDirector";
 import { getWorldContext } from "../nobilityContext";
 import {
   burgPopulationPeople,
@@ -77,6 +78,7 @@ export function tryCaptureOnPassing(r: MilitaryRegiment, cell: number): boolean 
   const ownState = pack.states[r.state];
   const targetState = pack.states[burg.state ?? -1];
   if (!ownState || !targetState) return false;
+  if (!mayAdvanceConflict(ownState.i, targetState.i)) return false;
   if (ownState.diplomacy?.[targetState.i] !== "Enemy") return false;
 
   const characters = pack.characters || [];

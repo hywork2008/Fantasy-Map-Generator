@@ -9,7 +9,13 @@ import type { ExtensionAPI } from "../../types/extension-api";
 import { advanceCharacterAging } from "../characters/advanceAge";
 import { refreshCharactersOverviewIfOpen } from "../characters/controllers/characters-overview";
 import { CHARACTERS_EXTENSION_ID } from "../characters/index";
-import { applyConflictAutonomy, mayAdvanceAutonomousConflict } from "./conflictDirector";
+import {
+  applyConflictAutonomy,
+  endPlayerConflict,
+  mayAdvanceAnyConflict,
+  mayAdvanceAutonomousConflict,
+  startPlayerConflict
+} from "./conflictDirector";
 import { applyPersonalityToCapitalGuard } from "./generators/capitalGuardModifier";
 import { Characters } from "./generators/characterLifecycle";
 import { applyAffinitiesToDiplomacy } from "./generators/diplomacy-modifier";
@@ -30,6 +36,8 @@ let _unsubscribe: (() => void) | null = null;
 let _generatePostCoreHandler: (() => void) | null = null;
 let _voyageIntelHandler: ((e: Event) => void) | null = null;
 let _conflictAutonomyChangedHandler: ((e: Event) => void) | null = null;
+let _playerConflictRequestedHandler: ((e: Event) => void) | null = null;
+let _playerConflictEndedHandler: ((e: Event) => void) | null = null;
 
 export function init(api: ExtensionAPI): void {
   initNobilityContext(api);
@@ -133,6 +141,35 @@ export function init(api: ExtensionAPI): void {
   };
   document.addEventListener("fmg:conflict-autonomy-changed", _conflictAutonomyChangedHandler);
 
+  _playerConflictRequestedHandler = event => {
+    if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return;
+    const detail = (event as CustomEvent<unknown>).detail;
+    if (
+      typeof detail !== "object" ||
+      detail === null ||
+      !("attackerStateId" in detail) ||
+      !("defenderStateId" in detail)
+    ) {
+      return;
+    }
+    startPlayerConflict(detail as { attackerStateId: number; defenderStateId: number });
+  };
+  document.addEventListener("fmg:player-conflict-requested", _playerConflictRequestedHandler);
+
+  _playerConflictEndedHandler = event => {
+    const detail = (event as CustomEvent<unknown>).detail;
+    if (
+      typeof detail !== "object" ||
+      detail === null ||
+      !("attackerStateId" in detail) ||
+      !("defenderStateId" in detail)
+    ) {
+      return;
+    }
+    endPlayerConflict(detail as { attackerStateId: number; defenderStateId: number });
+  };
+  document.addEventListener("fmg:player-conflict-ended", _playerConflictEndedHandler);
+
   api.registerTimeTickHook((deltaYears, deltaMonths, deltaDays) => {
     if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return;
 
@@ -143,7 +180,7 @@ export function init(api: ExtensionAPI): void {
     assignOfficers();
     assignProvinceLords();
 
-    const canAdvanceConflict = mayAdvanceAutonomousConflict();
+    const canAdvanceConflict = mayAdvanceAnyConflict();
     if (api.simulationContext.currentDay === 1) {
       if (canAdvanceConflict) StrategicPlanner.evaluatePlans();
       Mobilization.conscript(api.worldContext.pack);
@@ -208,6 +245,14 @@ export function cleanup(api: ExtensionAPI): void {
   if (_conflictAutonomyChangedHandler) {
     document.removeEventListener("fmg:conflict-autonomy-changed", _conflictAutonomyChangedHandler);
     _conflictAutonomyChangedHandler = null;
+  }
+  if (_playerConflictRequestedHandler) {
+    document.removeEventListener("fmg:player-conflict-requested", _playerConflictRequestedHandler);
+    _playerConflictRequestedHandler = null;
+  }
+  if (_playerConflictEndedHandler) {
+    document.removeEventListener("fmg:player-conflict-ended", _playerConflictEndedHandler);
+    _playerConflictEndedHandler = null;
   }
   clearVoyageIntel();
 

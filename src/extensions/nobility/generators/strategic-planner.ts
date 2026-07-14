@@ -3,6 +3,7 @@ import { type StrategicGoal, simulationContext } from "../../../context/simulati
 import { analyzeFrontiers, analyzeSeaFrontiers, mergeFrontiers } from "../../../generators/frontierAnalysis";
 import { buildSeaRouteGraph, findSeaRouteDistance } from "../../../generators/seaRouteGraph";
 import { useOptionsState } from "../../../store/optionsState";
+import { mayAdvanceAutonomousConflict, mayAdvanceConflict } from "../conflictDirector";
 import { getWorldContext } from "../nobilityContext";
 import { BattleResolutionGenerator } from "./battle-resolution";
 import {
@@ -61,6 +62,7 @@ export class StrategicPlannerGenerator {
         const targetStateId = segment.neighborState;
         const targetState = pack.states[targetStateId];
         if (!targetState) continue;
+        if (!mayAdvanceConflict(attacker.i, targetStateId)) continue;
 
         // Only plan against Rivals or Enemies for now, or if bold and massive power difference
         if (segment.threatWeight < 0.5) continue;
@@ -222,9 +224,9 @@ export class StrategicPlannerGenerator {
     const characters = pack.characters || [];
     let warOccurred = false;
 
-    // War frequency modifier from options (default 1.0)
-    // 0.0 means no war. 2.0 means double speed.
-    const frequencyMultiplier = useOptionsState.getState().warFrequency ?? 1.0;
+    // War Frequency controls autonomous AI escalation only. A conflict explicitly approved
+    // by the player must remain actionable even when autonomous escalation is set to 0.
+    const frequencyMultiplier = mayAdvanceAutonomousConflict() ? (useOptionsState.getState().warFrequency ?? 1.0) : 1;
 
     for (const stateIdStr in strategicGoals) {
       const stateId = Number(stateIdStr);
@@ -242,6 +244,8 @@ export class StrategicPlannerGenerator {
       const validGoals = [];
 
       for (const goal of goals) {
+        if (!mayAdvanceConflict(stateId, goal.targetState)) continue;
+
         // If the target burg is already owned by the state, the goal is achieved/invalid
         if (pack.burgs[goal.targetBurg]?.state === stateId) {
           // Clear the stale tag from any regiments still counted toward this now-completed goal
@@ -363,6 +367,10 @@ export class StrategicPlannerGenerator {
 
       for (let i = goals.length - 1; i >= 0; i--) {
         const goal = goals[i];
+        if (!mayAdvanceConflict(stateId, goal.targetState)) {
+          goals.splice(i, 1);
+          continue;
+        }
         const targetBurgObj = pack.burgs[goal.targetBurg];
         if (!targetBurgObj || targetBurgObj.state === stateId) {
           goals.splice(i, 1);
@@ -449,7 +457,9 @@ export class StrategicPlannerGenerator {
     const result = new Map<number, number[]>();
     for (const stateIdStr in strategicGoals) {
       const stateId = Number(stateIdStr);
-      const targets = (strategicGoals[stateId] ?? []).filter(g => g.tension >= 100).map(g => g.targetBurg);
+      const targets = (strategicGoals[stateId] ?? [])
+        .filter(g => g.tension >= 100 && mayAdvanceConflict(stateId, g.targetState))
+        .map(g => g.targetBurg);
       if (targets.length) result.set(stateId, targets);
     }
     return result;

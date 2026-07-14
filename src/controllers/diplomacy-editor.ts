@@ -234,6 +234,20 @@ export function editDiplomacy(): void {
     else if (newRelation === "Rival") chronicle.push(rival());
     else chronicle.push(change());
 
+    if (newRelation === "Enemy") {
+      document.dispatchEvent(
+        new CustomEvent("fmg:player-conflict-requested", {
+          detail: { attackerStateId: subjectId, defenderStateId: objectId }
+        })
+      );
+    } else if (oldRelation === "Enemy") {
+      document.dispatchEvent(
+        new CustomEvent("fmg:player-conflict-ended", {
+          detail: { attackerStateId: subjectId, defenderStateId: objectId }
+        })
+      );
+    }
+
     refreshDiplomacyEditor();
   }
 
@@ -249,6 +263,13 @@ export function editDiplomacy(): void {
 
     (states[selectedId].diplomacy as string[]).forEach((rel, index) => {
       if (rel !== "x") {
+        if (rel === "Enemy") {
+          document.dispatchEvent(
+            new CustomEvent("fmg:player-conflict-ended", {
+              detail: { attackerStateId: selectedId, defenderStateId: index }
+            })
+          );
+        }
         states[selectedId].diplomacy![index] = "Neutral";
         states[index].diplomacy![selectedId] = "Neutral";
       }

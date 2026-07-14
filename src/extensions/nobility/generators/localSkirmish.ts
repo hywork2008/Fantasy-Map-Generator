@@ -6,6 +6,7 @@ import { buildSeaRouteGraph, type SeaRouteGraph } from "../../../generators/seaR
 import type { Burg, ChronicleEvent, MilitaryRegiment, MilitaryUnit, State } from "../../../types/models";
 import type { PackedGraph } from "../../../types/PackedGraph";
 import type { Character } from "../../characters/characterTypes";
+import { mayAdvanceConflict } from "../conflictDirector";
 import { getWorldContext } from "../nobilityContext";
 import {
   canOccupyBurg,
@@ -163,6 +164,7 @@ export class LocalSkirmishGenerator {
         for (const stateB of states) {
           if (stateB.i <= stateA.i) continue; // each unordered pair once
           if (stateA.diplomacy?.[stateB.i] !== "Enemy") continue;
+          if (!mayAdvanceConflict(stateA.i, stateB.i) && !mayAdvanceConflict(stateB.i, stateA.i)) continue;
           if (!hasStrategicTension(stateA, stateB)) continue;
 
           const regimentsB = stateB.military || [];

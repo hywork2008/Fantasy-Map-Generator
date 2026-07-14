@@ -2,7 +2,15 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { simulationContext } from "../../context/simulationContext";
 import { worldContext } from "../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../hostTypes";
-import { applyConflictAutonomy, getConflictAutonomy, mayAdvanceAutonomousConflict } from "./conflictDirector";
+import {
+  applyConflictAutonomy,
+  endPlayerConflict,
+  getConflictAutonomy,
+  mayAdvanceAnyConflict,
+  mayAdvanceAutonomousConflict,
+  mayAdvanceConflict,
+  startPlayerConflict
+} from "./conflictDirector";
 import { clearNobilityContext, initNobilityContext } from "./nobilityContext";
 
 describe("conflictDirector", () => {
@@ -90,5 +98,50 @@ describe("conflictDirector", () => {
     expect(siegeRegiment.actionStatus).toBe("waiting");
     expect(manualRegiment.destinationCell).toBe(99);
     expect(mayAdvanceAutonomousConflict()).toBe(false);
+  });
+
+  it("authorizes, persists, and ends an explicit player conflict", () => {
+    worldContext.options = { conflictAutonomy: "playerDirected" } as never;
+    worldContext.pack = {
+      burgs: Object.assign([], { 7: { i: 7, cell: 42, x: 0, y: 0 } }),
+      states: [
+        { i: 0, name: "Neutrals", diplomacy: [] },
+        { i: 1, name: "Attacker", diplomacy: [undefined, "x", "Rival"] },
+        { i: 2, name: "Defender", diplomacy: [undefined, "Rival", "x"] }
+      ]
+    } as unknown as PackedGraph;
+    simulationContext.currentYear = 120;
+    simulationContext.currentMonth = 6;
+    simulationContext.currentDay = 9;
+    simulationContext.strategicGoals = {
+      1: [
+        {
+          targetBurg: 7,
+          targetState: 2,
+          type: "siege",
+          tension: 80,
+          expectedCasualties: "moderate",
+          justification: "border_expansion",
+          requiredAttackForce: 10
+        }
+      ]
+    };
+
+    expect(startPlayerConflict({ attackerStateId: 1, defenderStateId: 2 })).toEqual({ started: true });
+    expect(worldContext.pack.states[1].conflictAuthorizations?.[2]).toEqual({
+      origin: "player",
+      startedAt: { year: 120, month: 6, day: 9 }
+    });
+    expect(worldContext.pack.states[2].conflictAuthorizations?.[1]?.origin).toBe("player");
+    expect(worldContext.pack.states[1].diplomacy?.[2]).toBe("Enemy");
+    expect(mayAdvanceAnyConflict()).toBe(true);
+    expect(mayAdvanceConflict(1, 2)).toBe(true);
+
+    endPlayerConflict({ attackerStateId: 1, defenderStateId: 2 });
+
+    expect(worldContext.pack.states[1].conflictAuthorizations?.[2]).toBeUndefined();
+    expect(worldContext.pack.states[2].conflictAuthorizations?.[1]).toBeUndefined();
+    expect(simulationContext.strategicGoals).toEqual({});
+    expect(mayAdvanceAnyConflict()).toBe(false);
   });
 });
