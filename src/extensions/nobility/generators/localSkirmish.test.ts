@@ -44,9 +44,9 @@ describe("LocalSkirmishGenerator.resolve", () => {
     simulationContext.strategicGoals = {};
   });
 
-  it("annihilates an isolated garrison overwhelmed by an adjacent hostile army, and captures its burg", () => {
-    // Mirrors the reported scenario: a tiny exclave garrison (868 troops) sits right next
-    // to a much larger enemy division (58,133 troops), both already at declared war, but
+  it("annihilates an isolated garrison overwhelmed by a co-located hostile army, and captures its burg", () => {
+    // Mirrors the reported scenario: a tiny exclave garrison (868 troops) shares a cell with
+    // a much larger enemy division (58,133 troops), both already at declared war, but
     // the state-level tension clock would take years to ever resolve it.
     worldContext.pack = {
       cells: {
@@ -82,8 +82,8 @@ describe("LocalSkirmishGenerator.resolve", () => {
           name: "Attacker",
           diplomacy: Object.assign([], { 5: "Enemy", 13: "x" }),
           military: [
-            // Within SKIRMISH_CONTACT_RADIUS (20) of the garrison at (620, 570).
-            { i: 0, a: 58133, x: 625, y: 575, u: { infantry: 58133 }, state: 13, cell: 1, name: "1st Division" }
+            // Same packed cell as the garrison — required for background combat.
+            { i: 0, a: 58133, x: 625, y: 575, u: { infantry: 58133 }, state: 13, cell: 0, name: "1st Division" }
           ]
         }
       })
@@ -103,7 +103,7 @@ describe("LocalSkirmishGenerator.resolve", () => {
     expect(burg.state).toBe(13);
   });
 
-  it("does not touch regiments outside the contact radius", () => {
+  it("does not touch regiments on different cells, even when close in map coordinates", () => {
     worldContext.pack = {
       cells: { burg: [] },
       burgs: [],
@@ -120,7 +120,8 @@ describe("LocalSkirmishGenerator.resolve", () => {
           i: 2,
           name: "Attacker",
           diplomacy: [undefined, "Enemy", "x"],
-          military: [{ i: 0, a: 10000, x: 5000, y: 5000, u: { infantry: 10000 }, state: 2, cell: 1, name: "Strong" }]
+          // Adjacent cell, tiny Euclidean distance — must still not fight without co-location.
+          military: [{ i: 0, a: 10000, x: 1, y: 0, u: { infantry: 10000 }, state: 2, cell: 1, name: "Strong" }]
         }
       ]
     } as unknown as PackedGraph;
@@ -148,7 +149,7 @@ describe("LocalSkirmishGenerator.resolve", () => {
           i: 2,
           name: "Attacker",
           diplomacy: [undefined, "Rival", "x"],
-          military: [{ i: 0, a: 10000, x: 0, y: 0, u: { infantry: 10000 }, state: 2, cell: 1, name: "Strong" }]
+          military: [{ i: 0, a: 10000, x: 0, y: 0, u: { infantry: 10000 }, state: 2, cell: 0, name: "Strong" }]
         }
       ]
     } as unknown as PackedGraph;
@@ -160,7 +161,7 @@ describe("LocalSkirmishGenerator.resolve", () => {
   });
 
   it("does not fire on an Enemy-labeled pair with no active strategic tension", () => {
-    // Same overwhelming force ratio and contact as the Kautongwu scenario, but no
+    // Same overwhelming force ratio and co-location as the Kautongwu scenario, but no
     // StrategicGoal exists for this pair — a leftover/flavor Relations History label alone
     // must not be enough to trigger an instant, un-paced annihilation.
     worldContext.pack = {
@@ -179,7 +180,7 @@ describe("LocalSkirmishGenerator.resolve", () => {
           i: 2,
           name: "Attacker",
           diplomacy: [undefined, "Enemy", "x"],
-          military: [{ i: 0, a: 10000, x: 0, y: 0, u: { infantry: 10000 }, state: 2, cell: 1, name: "Strong" }]
+          military: [{ i: 0, a: 10000, x: 0, y: 0, u: { infantry: 10000 }, state: 2, cell: 0, name: "Strong" }]
         }
       ]
     } as unknown as PackedGraph;
@@ -219,7 +220,7 @@ describe("LocalSkirmishGenerator.resolve", () => {
           i: 2,
           name: "Attacker",
           diplomacy: [undefined, "Enemy", "x"],
-          military: [{ i: 0, a: 10000, x: 0, y: 0, u: { infantry: 10000 }, state: 2, cell: 1, name: "Strong" }]
+          military: [{ i: 0, a: 10000, x: 0, y: 0, u: { infantry: 10000 }, state: 2, cell: 0, name: "Strong" }]
         }
       ]
     } as unknown as PackedGraph;
@@ -251,7 +252,7 @@ describe("LocalSkirmishGenerator.resolve", () => {
           i: 2,
           name: "Attacker",
           diplomacy: [undefined, "Enemy", "x"],
-          military: [{ i: 0, a: 10000, x: -40, y: 0, u: { infantry: 10000 }, state: 2, cell: 1, name: "Strong" }]
+          military: [{ i: 0, a: 10000, x: 0, y: 0, u: { infantry: 10000 }, state: 2, cell: 0, name: "Strong" }]
         }
       ]
     } as unknown as PackedGraph;
@@ -263,13 +264,11 @@ describe("LocalSkirmishGenerator.resolve", () => {
     expect(defender.military[1].a).toBe(500);
   });
 
-  it("caps a winning regiment at one kill per resolve() call, even with more valid targets in range", () => {
-    // Attacker's single regiment sits within SKIRMISH_CONTACT_RADIUS (20) of two separate weak
-    // enemy regiments belonging to two *different* states — each is isolated on its own terms
-    // (no sibling of its own state nearby), so both are eligible, but the attacker can still
-    // only fight once per resolve() call. (Two regiments of the *same* state both within 20 of
-    // the attacker would necessarily be within REINFORCEMENT_RADIUS (50) of each other too, by
-    // the triangle inequality, so this scenario needs two states to keep them mutually isolated.)
+  it("caps a winning regiment at one kill per resolve() call, even with more valid targets on the same cell", () => {
+    // Attacker's single regiment shares a cell with two separate weak enemy regiments
+    // belonging to two *different* states — each is isolated on its own terms (no sibling of
+    // its own state nearby), so both are eligible, but the attacker can still only fight once
+    // per resolve() call.
     worldContext.pack = {
       cells: { burg: [] },
       burgs: [],
@@ -280,19 +279,19 @@ describe("LocalSkirmishGenerator.resolve", () => {
           i: 1,
           name: "Defender A",
           diplomacy: [undefined, "x", undefined, "Enemy"],
-          military: [{ i: 0, a: 868, x: 15, y: 0, u: { infantry: 868 }, state: 1, cell: 0, name: "Garrison A" }]
+          military: [{ i: 0, a: 868, x: 0, y: 0, u: { infantry: 868 }, state: 1, cell: 0, name: "Garrison A" }]
         },
         {
           i: 2,
           name: "Defender B",
           diplomacy: [undefined, undefined, "x", "Enemy"],
-          military: [{ i: 0, a: 868, x: -15, y: 0, u: { infantry: 868 }, state: 2, cell: 2, name: "Garrison B" }]
+          military: [{ i: 0, a: 868, x: 1, y: 0, u: { infantry: 868 }, state: 2, cell: 0, name: "Garrison B" }]
         },
         {
           i: 3,
           name: "Attacker",
           diplomacy: [undefined, "Enemy", "Enemy", "x"],
-          military: [{ i: 0, a: 58133, x: 0, y: 0, u: { infantry: 58133 }, state: 3, cell: 1, name: "1st Division" }]
+          military: [{ i: 0, a: 58133, x: 0, y: 0, u: { infantry: 58133 }, state: 3, cell: 0, name: "1st Division" }]
         }
       ]
     } as unknown as PackedGraph;
@@ -316,12 +315,11 @@ describe("LocalSkirmishGenerator.resolve", () => {
     expect(survivors).toBe(1);
   });
 
-  // A fleet (state 13, cell 1, port at (100, 0)) vs a coastal garrison stationed right at a
-  // port town (state 5, cell 0, at (0, 0)) — same overwhelming force ratio as the Kautongwu
-  // scenario above, but the attacker is naval this time. `withRoute` controls whether a
-  // searoutes route links the two ports.
-  function makeNavalSkirmishPack(overrides: { withRoute: boolean }): PackedGraph {
-    const { withRoute } = overrides;
+  // A fleet (state 13) vs a coastal garrison (state 5) — same overwhelming force ratio as the
+  // Kautongwu scenario, but the attacker is naval this time. Combat requires co-location on
+  // the same packed cell (not merely a charted sea-route link at distance).
+  function makeNavalSkirmishPack(overrides: { sameCell: boolean }): PackedGraph {
+    const { sameCell } = overrides;
 
     return {
       cells: { burg: [1, 0], state: [5, 13] },
@@ -344,27 +342,37 @@ describe("LocalSkirmishGenerator.resolve", () => {
           i: 13,
           name: "Attacker",
           diplomacy: Object.assign([], { 5: "Enemy", 13: "x" }),
-          military: [{ i: 0, a: 58133, x: 100, y: 0, u: { fleet: 58133 }, state: 13, cell: 1, n: 1, name: "1st Fleet" }]
-        }
-      }),
-      routes: withRoute
-        ? [
+          military: [
             {
               i: 0,
-              group: "searoutes",
-              feature: 1,
-              points: [
-                [100, 0, 1],
-                [0, 0, 0]
-              ]
+              a: 58133,
+              x: sameCell ? 0 : 100,
+              y: 0,
+              u: { fleet: 58133 },
+              state: 13,
+              cell: sameCell ? 0 : 1,
+              n: 1,
+              name: "1st Fleet"
             }
           ]
-        : []
+        }
+      }),
+      routes: [
+        {
+          i: 0,
+          group: "searoutes",
+          feature: 1,
+          points: [
+            [100, 0, 1],
+            [0, 0, 0]
+          ]
+        }
+      ]
     } as unknown as PackedGraph;
   }
 
-  it("lets a fleet annihilate a coastal garrison when a charted sea route connects them", () => {
-    worldContext.pack = makeNavalSkirmishPack({ withRoute: true });
+  it("lets a fleet annihilate a coastal garrison when they share a cell", () => {
+    worldContext.pack = makeNavalSkirmishPack({ sameCell: true });
     giveStrategicGoal(13, 5, 1);
 
     const occurred = skirmish.resolve(0, 0, 1);
@@ -379,8 +387,8 @@ describe("LocalSkirmishGenerator.resolve", () => {
     expect(burg.state).toBe(13);
   });
 
-  it("does not let a fleet reach a coastal garrison with no charted sea route, even at close straight-line range", () => {
-    worldContext.pack = makeNavalSkirmishPack({ withRoute: false });
+  it("does not let a fleet fight a coastal garrison on a different cell, even with a charted sea route", () => {
+    worldContext.pack = makeNavalSkirmishPack({ sameCell: false });
     giveStrategicGoal(13, 5, 1);
 
     expect(skirmish.resolve(0, 0, 1)).toBe(false);

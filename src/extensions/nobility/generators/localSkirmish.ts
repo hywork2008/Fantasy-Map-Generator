@@ -2,7 +2,7 @@ import { appServices } from "../../../context/appServices";
 import { simulationContext } from "../../../context/simulationContext";
 import { applyDemographicCasualties } from "../../../generators/demography-simulator";
 import { regimentQualityMultiplier } from "../../../generators/manpower";
-import { buildSeaRouteGraph, findSeaRouteDistance, type SeaRouteGraph } from "../../../generators/seaRouteGraph";
+import { buildSeaRouteGraph, type SeaRouteGraph } from "../../../generators/seaRouteGraph";
 import type { Burg, ChronicleEvent, MilitaryRegiment, MilitaryUnit, State } from "../../../types/models";
 import type { PackedGraph } from "../../../types/PackedGraph";
 import type { Character } from "../../characters/characterTypes";
@@ -14,10 +14,6 @@ import {
   regimentDistanceTo,
   regimentReinforcementRadius
 } from "./localDefense";
-
-/** Distance (map units) within which two hostile land regiments are considered in direct contact. */
-const SKIRMISH_CONTACT_RADIUS = 50;
-const NAVAL_SKIRMISH_CONTACT_RADIUS = 100;
 
 /**
  * Power-ratio threshold above which an isolated side is routed outright this tick rather than
@@ -81,13 +77,13 @@ function hasExternalReinforcement(
   });
 }
 
-function isInContact(regA: MilitaryRegiment, regB: MilitaryRegiment, seaRouteGraph: SeaRouteGraph): boolean {
-  if (regA.n || regB.n) {
-    const routeDist = findSeaRouteDistance(seaRouteGraph, regA.cell, regB.cell);
-    return routeDist !== null && routeDist <= NAVAL_SKIRMISH_CONTACT_RADIUS;
-  }
-  const dist = Math.hypot(regA.x - regB.x, regA.y - regB.y);
-  return dist <= SKIRMISH_CONTACT_RADIUS;
+/**
+ * Background skirmishes only fire when hostile regiments share a packed cell.
+ * Adjacent-but-different cells (or close Euclidean distance) is not enough — that used to
+ * wipe exclaves before armies actually arrived on the same battlefield cell.
+ */
+function isInContact(regA: MilitaryRegiment, regB: MilitaryRegiment): boolean {
+  return regA.cell === regB.cell;
 }
 
 function calculateRegimentPower(reg: MilitaryRegiment, militaryOptions: MilitaryUnit[]): number {
@@ -117,12 +113,7 @@ function applyCasualties(reg: MilitaryRegiment, casualtiesRate: number): number 
   return Math.max(0, before - totalSurvivors);
 }
 
-function getContactCluster(
-  seedA: MilitaryRegiment,
-  regimentsA: MilitaryRegiment[],
-  regimentsB: MilitaryRegiment[],
-  seaRouteGraph: SeaRouteGraph
-) {
+function getContactCluster(seedA: MilitaryRegiment, regimentsA: MilitaryRegiment[], regimentsB: MilitaryRegiment[]) {
   const clusterA = new Set([seedA]);
   const clusterB = new Set<MilitaryRegiment>();
 
@@ -131,14 +122,14 @@ function getContactCluster(
     added = false;
     for (const b of regimentsB) {
       if (clusterB.has(b)) continue;
-      if (Array.from(clusterA).some(a => isInContact(a, b, seaRouteGraph))) {
+      if (Array.from(clusterA).some(a => isInContact(a, b))) {
         clusterB.add(b);
         added = true;
       }
     }
     for (const a of regimentsA) {
       if (clusterA.has(a)) continue;
-      if (Array.from(clusterB).some(b => isInContact(a, b, seaRouteGraph))) {
+      if (Array.from(clusterB).some(b => isInContact(a, b))) {
         clusterA.add(a);
         added = true;
       }
@@ -182,10 +173,10 @@ export class LocalSkirmishGenerator {
             if (regA.isCapitalGuard) continue;
 
             const validB = regimentsB.filter(b => b.a > 0 && !fought.has(b) && !b.isCapitalGuard);
-            if (!validB.some(b => isInContact(regA, b, seaRouteGraph))) continue;
+            if (!validB.some(b => isInContact(regA, b))) continue;
 
             const validA = regimentsA.filter(a => a.a > 0 && !fought.has(a) && !a.isCapitalGuard);
-            const { regsA, regsB } = getContactCluster(regA, validA, validB, seaRouteGraph);
+            const { regsA, regsB } = getContactCluster(regA, validA, validB);
 
             let powerA = 0;
             for (const r of regsA)
