@@ -1,9 +1,14 @@
 import FlatQueue from "flatqueue";
 import type { Point } from "../../hostCore";
 import { getWorldContext } from "../economyContext";
+import { CaravanMovement } from "./caravanMovement";
+import { PORT_TRANSFER_PENALTY_DAYS } from "./tradeRouteDuration";
 
 type DrawFn = () => Promise<void>;
 type ClearFn = () => void;
+type RouteSegmentType = "land" | "water";
+type RoutePath = { points: Point[]; segments: { type: RouteSegmentType; points: Point[] }[] };
+type RouteGeometry = { points: number[][] };
 
 export type TradeAnimationOptions = {
   displayType: string;
@@ -74,24 +79,33 @@ export class TradeAnimationModule {
     return this.options;
   }
 
-  private WATER_COST = 1;
-  private LAND_COST = 5;
-  private SWITCH_COST = 20;
-
-  findRoutePath(startCell: number, endCell: number) {
+  findRoutePath(startCell: number, endCell: number): RoutePath | null {
     if (startCell === endCell) return null;
 
-    const cellRoutes = getWorldContext().pack.cells.routes;
+    // A sea-only connection is intentionally chosen even when a mixed route is shorter. Ports
+    // should use their established sea lane instead of needlessly unloading cargo inland.
+    return (
+      this.findRoutePathWithAllowedEdges(startCell, endCell, true) ??
+      this.findRoutePathWithAllowedEdges(startCell, endCell, false)
+    );
+  }
+
+  private findRoutePathWithAllowedEdges(startCell: number, endCell: number, waterOnly: boolean): RoutePath | null {
+    const world = getWorldContext();
+    const { cells, routes } = world.pack;
+    const cellRoutes = cells.routes;
     const startNeighbors = cellRoutes[startCell];
     if (!startNeighbors) return null;
 
     const isWaterRoute = new Map<number, boolean>();
-    for (const route of getWorldContext().pack.routes) {
+    const routeById = new Map<number, RouteGeometry>();
+    for (const route of routes) {
       isWaterRoute.set(route.i, route.group === "searoutes");
+      routeById.set(route.i, route);
     }
 
     // State encoding: stateId = cell * 2 + (isWater ? 1 : 0)
-    const maxState = getWorldContext().pack.cells.h.length * 2;
+    const maxState = cells.h.length * 2;
     const distArr = new Float64Array(maxState).fill(Infinity);
     const prevCellArr = new Int32Array(maxState).fill(-1);
     const prevStateArr = new Int32Array(maxState).fill(-1); // -1 = came directly from startCell
@@ -103,8 +117,11 @@ export class TradeAnimationModule {
     const queue = new FlatQueue<number>();
     for (const nextStr of Object.keys(startNeighbors)) {
       const next = Number(nextStr);
-      const water = isWaterRoute.get(startNeighbors[next]) ?? false;
-      const cost = water ? this.WATER_COST : this.LAND_COST;
+      const routeId = startNeighbors[next];
+      const water = isWaterRoute.get(routeId) ?? false;
+      if (waterOnly && !water) continue;
+
+      const cost = this.getEdgeTravelDays(startCell, next, routeId, water, undefined, routeById);
       const state = next * 2 + (water ? 1 : 0);
       if (cost < distArr[state]) {
         distArr[state] = cost;
@@ -128,10 +145,11 @@ export class TradeAnimationModule {
 
       for (const nextStr of Object.keys(neighbors)) {
         const next = Number(nextStr);
-        const water = isWaterRoute.get(neighbors[next]) ?? false;
-        const isSwitch = water !== wasWater;
+        const routeId = neighbors[next];
+        const water = isWaterRoute.get(routeId) ?? false;
+        if (waterOnly && !water) continue;
 
-        const edgeCost = isSwitch ? this.SWITCH_COST : water ? this.WATER_COST : this.LAND_COST;
+        const edgeCost = this.getEdgeTravelDays(cell, next, routeId, water, wasWater, routeById);
         const newCost = cost + edgeCost;
         const nextState = next * 2 + (water ? 1 : 0);
 
@@ -147,11 +165,35 @@ export class TradeAnimationModule {
     return null;
   }
 
-  private buildPathResult(
-    terminalState: number,
-    prevCellArr: Int32Array,
-    prevStateArr: Int32Array
-  ): { points: Point[]; segments: { type: "land" | "water"; points: Point[] }[] } {
+  /**
+   * Dijkstra costs are journey days, matching the duration model used for deal eligibility.
+   * Route geometry is used where available so winding roads and sea lanes retain their real
+   * relative cost; a straight cell-to-cell edge is a safe fallback for incomplete route data.
+   */
+  private getEdgeTravelDays(
+    fromCell: number,
+    toCell: number,
+    routeId: number | undefined,
+    water: boolean,
+    previousWasWater: boolean | undefined,
+    routeById: Map<number, RouteGeometry>
+  ): number {
+    const world = getWorldContext();
+    const movement = CaravanMovement.getOptions();
+    const speed = water ? movement.seaKmPerDay : movement.landKmPerDay;
+    if (speed <= 0) return Infinity;
+
+    const points = this.extractEdgePoints(fromCell, toCell, routeId, routeById);
+    let distanceMapUnits = 0;
+    for (let index = 0; index < points.length - 1; index++) {
+      distanceMapUnits += Math.hypot(points[index + 1][0] - points[index][0], points[index + 1][1] - points[index][1]);
+    }
+
+    const transferDays = previousWasWater !== undefined && previousWasWater !== water ? PORT_TRANSFER_PENALTY_DAYS : 0;
+    return (distanceMapUnits * world.distanceScale) / speed + transferDays;
+  }
+
+  private buildPathResult(terminalState: number, prevCellArr: Int32Array, prevStateArr: Int32Array): RoutePath {
     const cells: number[] = [terminalState >> 1]; // endCell
     const waterEdges: boolean[] = [];
     let state = terminalState;
@@ -165,16 +207,14 @@ export class TradeAnimationModule {
     cells.reverse();
     waterEdges.reverse();
 
-    type Segment = "land" | "water";
-
     if (cells.length < 2) return { points: [], segments: [] };
 
     // Build a fast routeId→route lookup to avoid repeated linear scans.
-    const routeById = new Map<number, { points: number[][] }>();
+    const routeById = new Map<number, RouteGeometry>();
     for (const route of getWorldContext().pack.routes) routeById.set(route.i, route);
 
-    const segments: { type: Segment; points: Point[] }[] = [];
-    let currentType: Segment = waterEdges[0] ? "water" : "land";
+    const segments: { type: RouteSegmentType; points: Point[] }[] = [];
+    let currentType: RouteSegmentType = waterEdges[0] ? "water" : "land";
 
     const firstEdge = this.extractEdgePoints(
       cells[0],
@@ -187,7 +227,7 @@ export class TradeAnimationModule {
     for (let i = 1; i < cells.length - 1; i++) {
       const fromCell = cells[i];
       const toCell = cells[i + 1];
-      const type: Segment = waterEdges[i] ? "water" : "land";
+      const type: RouteSegmentType = waterEdges[i] ? "water" : "land";
 
       if (type !== currentType) {
         segments.push({ type: currentType, points: currentPoints });
@@ -230,7 +270,7 @@ export class TradeAnimationModule {
     fromCell: number,
     toCell: number,
     routeId: number | undefined,
-    routeById: Map<number, { points: number[][] }>
+    routeById: Map<number, RouteGeometry>
   ): [number, number, number][] {
     const fallback = (): [number, number, number][] => [
       [...this.getCellPoint(fromCell), fromCell] as [number, number, number],

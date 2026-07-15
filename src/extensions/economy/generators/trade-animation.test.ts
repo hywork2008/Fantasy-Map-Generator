@@ -26,18 +26,19 @@ import { TradeAnimationModule } from "./trade-animation";
 
 function makePack(
   cellRoutes: Record<number, Record<number, number>> = {},
-  routeData: Array<{ i: number; group: "roads" | "trails" | "searoutes" }> = []
+  routeData: Array<{ i: number; group: "roads" | "trails" | "searoutes" }> = [],
+  points: [number, number][] = [
+    [0, 0],
+    [10, 0],
+    [20, 0],
+    [30, 0]
+  ]
 ) {
   return {
     cells: {
       h: [20, 20, 10, 10],
       burg: [0, 0, 0, 0],
-      p: [
-        [0, 0],
-        [10, 0],
-        [20, 0],
-        [30, 0]
-      ] as [number, number][],
+      p: points,
       routes: cellRoutes
     },
     burgs: [
@@ -86,5 +87,70 @@ describe("findRoutePath", () => {
     expect(result!.points).toHaveLength(2);
     expect(result!.segments).toHaveLength(1);
     expect(result!.segments[0].type).toBe("land");
+  });
+
+  it("prefers an all-water route before considering a shorter mixed route", () => {
+    worldContext.pack = makePack(
+      {
+        0: { 1: 0, 2: 2 },
+        1: { 0: 0, 3: 1 },
+        2: { 0: 2, 3: 3 },
+        3: { 1: 1, 2: 3 }
+      },
+      [
+        { i: 0, group: "roads" },
+        { i: 1, group: "roads" },
+        { i: 2, group: "searoutes" },
+        { i: 3, group: "searoutes" }
+      ],
+      [
+        [0, 0],
+        [15, 0],
+        [0, 20],
+        [30, 0]
+      ]
+    ) as unknown as PackedGraph;
+
+    const result = ta.findRoutePath(0, 3);
+
+    expect(result?.segments.map(segment => segment.type)).toEqual(["water"]);
+    expect(result?.points).toEqual([
+      [0, 0],
+      [0, 20],
+      [30, 0]
+    ]);
+  });
+
+  it("falls back to the fastest mixed route using travel days and port transfer time", () => {
+    worldContext.pack = makePack(
+      {
+        0: { 1: 0, 2: 2 },
+        1: { 0: 0, 3: 1 },
+        2: { 0: 2, 3: 3 },
+        3: { 1: 1, 2: 3 }
+      },
+      [
+        { i: 0, group: "roads" },
+        { i: 1, group: "roads" },
+        { i: 2, group: "roads" },
+        { i: 3, group: "searoutes" }
+      ],
+      [
+        [0, 0],
+        [100, 0],
+        [10, 0],
+        [200, 0]
+      ]
+    ) as unknown as PackedGraph;
+
+    const result = ta.findRoutePath(0, 3);
+
+    // 10km by land + 190km by sea + a two-day port transfer beats 200km by land.
+    expect(result?.segments.map(segment => segment.type)).toEqual(["land", "water"]);
+    expect(result?.points).toEqual([
+      [0, 0],
+      [10, 0],
+      [200, 0]
+    ]);
   });
 });
