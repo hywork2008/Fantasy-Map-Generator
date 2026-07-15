@@ -3,8 +3,21 @@ interface HeightmapTemplateEntry {
   name: string;
   template: string;
   probability: number;
+  /** Mean share of grid cells at or above height 20, rounded to one decimal place. */
+  averageLandPercentage: number;
   [key: string]: unknown;
 }
+
+export type HeightmapTemplateRandomization = "all" | "landRich" | "oceanRich";
+
+/**
+ * Boundaries used to narrow the pool for random heightmap selection.
+ * They deliberately leave the middle range available through the "All templates" option.
+ */
+export const heightmapLandmassThresholds = {
+  landRichMinimum: 50,
+  oceanRichMaximum: 30
+} as const;
 
 const volcano = `Hill 1 90-100 44-56 40-60
   Multiply 0.8 50-100 0 0
@@ -153,18 +166,37 @@ const fractious = `Hill 12-15 50-80 5-95 5-95
   Range 6-8 40-50 5-95 10-90`;
 
 export const heightmapTemplates: Record<string, HeightmapTemplateEntry> = {
-  volcano: { id: 0, name: "Volcano", template: volcano, probability: 3 },
-  highIsland: { id: 1, name: "High Island", template: highIsland, probability: 19 },
-  lowIsland: { id: 2, name: "Low Island", template: lowIsland, probability: 9 },
-  continents: { id: 3, name: "Continents", template: continents, probability: 16 },
-  archipelago: { id: 4, name: "Archipelago", template: archipelago, probability: 18 },
-  atoll: { id: 5, name: "Atoll", template: atoll, probability: 1 },
-  mediterranean: { id: 6, name: "Mediterranean", template: mediterranean, probability: 5 },
-  peninsula: { id: 7, name: "Peninsula", template: peninsula, probability: 3 },
-  pangea: { id: 8, name: "Pangea", template: pangea, probability: 5 },
-  isthmus: { id: 9, name: "Isthmus", template: isthmus, probability: 2 },
-  shattered: { id: 10, name: "Shattered", template: shattered, probability: 7 },
-  taklamakan: { id: 11, name: "Taklamakan", template: taklamakan, probability: 1 },
-  oldWorld: { id: 12, name: "Old World", template: oldWorld, probability: 8 },
-  fractious: { id: 13, name: "Fractious", template: fractious, probability: 3 }
+  // Measured across 100 seeded 960×540 maps at the default 10K-cell density.
+  // A cell is land when its generated height is at least 20.
+  volcano: { id: 0, name: "Volcano", template: volcano, probability: 3, averageLandPercentage: 25.8 },
+  highIsland: { id: 1, name: "High Island", template: highIsland, probability: 19, averageLandPercentage: 32 },
+  lowIsland: { id: 2, name: "Low Island", template: lowIsland, probability: 9, averageLandPercentage: 29.5 },
+  continents: { id: 3, name: "Continents", template: continents, probability: 16, averageLandPercentage: 36 },
+  archipelago: { id: 4, name: "Archipelago", template: archipelago, probability: 18, averageLandPercentage: 16.5 },
+  atoll: { id: 5, name: "Atoll", template: atoll, probability: 1, averageLandPercentage: 6.2 },
+  mediterranean: { id: 6, name: "Mediterranean", template: mediterranean, probability: 5, averageLandPercentage: 56.2 },
+  peninsula: { id: 7, name: "Peninsula", template: peninsula, probability: 3, averageLandPercentage: 30.6 },
+  pangea: { id: 8, name: "Pangea", template: pangea, probability: 5, averageLandPercentage: 47.5 },
+  isthmus: { id: 9, name: "Isthmus", template: isthmus, probability: 2, averageLandPercentage: 59 },
+  shattered: { id: 10, name: "Shattered", template: shattered, probability: 7, averageLandPercentage: 24.8 },
+  taklamakan: { id: 11, name: "Taklamakan", template: taklamakan, probability: 1, averageLandPercentage: 90.7 },
+  oldWorld: { id: 12, name: "Old World", template: oldWorld, probability: 8, averageLandPercentage: 43.1 },
+  fractious: { id: 13, name: "Fractious", template: fractious, probability: 3, averageLandPercentage: 59.7 }
 };
+
+/** Returns the original probability weights narrowed to the requested landmass profile. */
+export function getHeightmapTemplateWeights(randomization: HeightmapTemplateRandomization): Record<string, number> {
+  return Object.fromEntries(
+    Object.entries(heightmapTemplates)
+      .filter(([, template]) => {
+        if (randomization === "landRich") {
+          return template.averageLandPercentage >= heightmapLandmassThresholds.landRichMinimum;
+        }
+        if (randomization === "oceanRich") {
+          return template.averageLandPercentage <= heightmapLandmassThresholds.oceanRichMaximum;
+        }
+        return true;
+      })
+      .map(([id, template]) => [id, template.probability])
+  );
+}

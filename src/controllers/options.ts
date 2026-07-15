@@ -5,7 +5,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { heightmapTemplates } from "../data";
+import { getHeightmapTemplateWeights } from "../data";
 import { THEME_COLOR } from "../data/constants";
 import { Cultures } from "../generators/cultures-generator";
 import { COA } from "../generators/emblem/generator";
@@ -597,11 +597,8 @@ export function randomizeOptions(): void {
 }
 
 function randomizeHeightmapTemplate(): void {
-  const templates: Record<string, number> = {};
-  for (const key in heightmapTemplates) {
-    templates[key] = (heightmapTemplates[key].probability as number) || 0;
-  }
-  const template = rw(templates);
+  const { templateRandomization } = useOptionsState.getState();
+  const template = rw(getHeightmapTemplateWeights(templateRandomization));
   useOptionsState.getState().setOption("template", template);
 }
 

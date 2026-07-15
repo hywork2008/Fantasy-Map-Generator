@@ -1,4 +1,5 @@
 import type React from "react";
+import { heightmapLandmassThresholds } from "../../../../data";
 import { useOptionsState } from "../../../../store/optionsState";
 import { lock } from "../../../../utils/domUtils";
 import { IconButton } from "../../IconButton";
@@ -199,6 +200,25 @@ export const GenerationSettingsTab: React.FC = () => {
               <input id="templateInput" type="hidden" value={options.template} readOnly />
             </td>
             <td></td>
+          </tr>
+
+          <tr data-tip="When Heightmap is unlocked, limit random selection to templates with the selected average land or ocean coverage">
+            <td></td>
+            <td>Random heightmap pool</td>
+            <td colSpan={2}>
+              <select
+                value={options.templateRandomization}
+                onChange={e =>
+                  updateOption("templateRandomization", e.target.value as typeof options.templateRandomization)
+                }
+              >
+                <option value="all">All templates</option>
+                <option value="landRich">Land-rich ({heightmapLandmassThresholds.landRichMinimum}%+ land)</option>
+                <option value="oceanRich">
+                  Ocean-rich ({100 - heightmapLandmassThresholds.oceanRichMaximum}%+ ocean)
+                </option>
+              </select>
+            </td>
           </tr>
 
           <tr data-tip="Define how many Cultures should be generated">

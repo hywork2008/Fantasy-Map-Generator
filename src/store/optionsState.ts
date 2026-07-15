@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { HeightmapTemplateRandomization } from "../data";
 import type { ConflictAutonomy } from "../types/WorldState";
 
 export interface OptionsState {
@@ -11,6 +12,8 @@ export interface OptionsState {
   year: number;
   era: string;
   template: string;
+  /** Restricts unlocked random heightmap selection by the templates' mean land coverage. */
+  templateRandomization: HeightmapTemplateRandomization;
   cultures: number;
   culturesSet: string;
   statesNumber: number;
@@ -145,6 +148,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   year: 100,
   era: "Era",
   template: "highIsland",
+  templateRandomization: "all",
   cultures: 12,
   culturesSet: "world",
   statesNumber: 15,
