@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| Status | In progress — M9.0〜M9.2 implemented; M9.3〜M9.4 planned |
+| Status | In progress — M9.0〜M9.3 implemented; M9.4 planned |
 | Parent | [shipbuilding.md](shipbuilding.md) Phase 9 |
 | Prerequisite | Phase 8 の資材消費ゲート |
 | Scope | 国家の造船需要を国内優先の調達・交易・生産・集約型雇用へ接続する |
@@ -11,7 +11,8 @@
 
 Phase 8 により、造船所は所属市場に Wood / Sails / Ropes / Tar が同時に存在するときだけ進むようになった。
 M9.2 では、state-owned 造船所が材料の年間需要を Economy に通知し、Economy が国家の戦略調達注文・国庫決済・
-Caravan を管理するようになった。ただし、未充足注文を生産者・商人の期待利益や雇用へ反映する M9.3〜M9.4 は未実装である。
+Caravan を管理するようになった。M9.3 では、未充足注文を既存の都市生産判断へ期待利益として渡す。職業 cohort・
+賃金・設備能力を持つ M9.4 は未実装である。
 
 Phase 9 は、為政者の「殖産興業」と平民・事業者の「利益のある仕事への移動」を、次の因果として実装する。
 
@@ -32,7 +33,7 @@ Phase 9 は、為政者の「殖産興業」と平民・事業者の「利益の
 | 領域 | 現状 | 問題 |
 | :--- | :--- | :--- |
 | 造船 | `shipyardQueue.ts` が市場在庫を原子的に消費し、state-owned queue の年間材料需要を CustomEvent で Economy に通知する。 | market-owned queue は戦略調達の対象外。 |
-| 生産 | `Production.produce()` は通常の人口需要と既存 recipe をもとに労働を配分する。 | 造船材料の戦略的な不足は、生産判断へ入らない。 |
+| 生産 | `Production.produce()` は通常の人口需要、既存 recipe、未充足の戦略調達注文をもとに労働を配分する。 | 職業 cohort による中長期の capacity 拡張は未実装。 |
 | 交易 | `Markets.runGlobalTrade()` は従来どおり民間の投機交易を扱う。`StrategicProcurement` は別経路で国内優先・Enemy 禁輸の候補を選ぶ。 | 敵対国禁輸は戦略調達にだけ適用する。 |
 | 物流 | 戦略調達は `Deal.purpose = "strategicProcurement"` と order id 付き Caravan を起票する。出発時に輸出元 stock、到着時に輸入先 stock を更新する。 | Caravan の損失は注文を blocked にする。注文の明示的な取消 UI は未実装。 |
 | 雇用 | 都市生産は各生産周期に人口を worker loop へ割り当てる。 | 職業別の人数、賃金、技能、転職の慣性を保持しない。 |
@@ -115,6 +116,7 @@ interface ProcurementOrder {
   sourceMarketId?: number;
   caravanId?: number;
   blockedReason?: "noDomesticSupply" | "foreignPolicy" | "noRoute" | "insufficientTreasury";
+  priorityCycles?: number; // 未充足のまま受けた需要通知の回数
 }
 ```
 
@@ -124,6 +126,10 @@ Economy は Good 名を Good id に解決して、材料ごとに `targetStock =
 
 注文は Economy が所有する。Shipbuilding は「どの state の、どの市場に、どの資材が、どれだけ必要か」だけを通知し、
 Economy は在庫、供給地、経路、Caravan、国庫決済を一貫して更新する。
+
+M9.3 では `priorityCycles` を同一の未充足注文へ加算する。これは Shipbuilding が日次 tick で送る需要通知を
+注文数へ積み増さず、長く解消しない需要だけを生産判断で強くするための状態である。新規注文は 1 から始まり、
+既存セーブデータで値がない場合も 1 として扱う。
 
 ### 4.3 供給地選択
 
@@ -217,11 +223,16 @@ interface LaborMarket {
 
 受け入れ: 国内在庫があれば国内候補を外国候補より優先して Caravan が起票され、到着後にだけ造船所市場の在庫と進捗が回復する。国庫不足では在庫を生成しない。
 
-### M9.3 — 造船材料の需要駆動生産
+### M9.3 — 造船材料の需要駆動生産（実装済み）
 
-- 生産判断に、未充足の戦略調達注文を需要として加える。
-- 通常の人口需要を下回らない安全制約を持つ。
-- 注文が続く材料ほど、生産の期待利益・優先度が上がる。
+- `strategicProductionDemand.ts` が未充足注文を市場ごとの Good id → 残量・継続回数へ集約し、
+  `Production.produce()` の各 burg の生産候補へ渡す。`open` / `assigned` / `blocked` は到着市場、
+  `inTransit` は在庫を実際に輸出した供給市場の補充需要として扱う。`fulfilled` / `cancelled` は除外する。
+- burg に最高優先の人口需要が残る間、戦略需要の倍率は 1 のままとする。既存の人口需要優先を下げず、
+  その需要が満たされた余力でのみ戦略注文を候補の期待売上へ上乗せする。
+- 上乗せ倍率は未充足量と `priorityCycles` に比例し、過大な単一注文が全労働者を固定しないよう上限を持つ。
+- 生産計画・実行は既存の `planGoodAction()` と `executeManufacture()` を通る。最終財の recipe と原料在庫／
+  市場購入が成立しなければ候補は不成立または製造失敗となり、戦略注文だけで資材を生成しない。
 
 受け入れ: 継続的な国内発注により、Sails / Ropes / Tar の生産が既存 recipe を通じて増える。原料が不足すれば最終財を魔法のように増やさない。
 
@@ -239,7 +250,7 @@ interface LaborMarket {
 | :--- | :--- |
 | Pure unit | **実装済み**: 外交関係→取引可否、tier順の供給地選定、年間需要・365日目標備蓄、国庫不足。 |
 | Economy integration | **実装済み**: 国内供給が敵国供給より優先されること、Enemy だけが供給可能なら注文が blocked になること、Caravan 到着まで在庫が増えないこと、重複需要で active order が増えないこと。 |
-| Production integration | 継続注文が材料生産の優先度を上げ、原料不足では生産を増やせないこと。 |
+| Production integration | **実装済み**: 未充足注文の市場別集約、輸送済み供給地の補充需要、fulfilled/cancelled 除外、人口需要が未達のときの戦略倍率抑制、継続注文の優先度上昇。実際の recipe 実行は既存の生産計画・原料購入ゲートを再利用する。 |
 | Simulation regression | 日次 Advance Time と一括 Advance Time で、資材や国庫が負にならず、同一注文が重複起票されないこと。 |
 | E2E | UI で政策・注文・輸送中・停止理由を確認し、敵国材に依存せず国内補給で造船が再開すること。 |
 
@@ -259,5 +270,6 @@ interface LaborMarket {
 1. **確認・実装済み**: state treasury は生産周期ごとに再計算される。注文時に引き落とし、支出を次回の税収計算へ一度だけ繰り越す。
 2. **確認・実装済み**: `Enemy` は両方向検査で禁輸、state 0 は中立として扱う。Enemy 以外の外交ラベルを個別に区別する通商政策は未実装。
 3. **確認・実装済み**: `Deal` と Caravan payload に `purpose`、支払 state、戦略注文 id を追加した。
-4. **未決定**: 新規マップ初期在庫を、生成時の過去シミュレーションと明示的な備蓄のどちらで作るか。
-5. M9.4 の `LaborMarket` を Economy の永続 world data に置くか、Economy 拡張データとして保存・復元するかを決める。
+4. **確認・実装済み**: 未充足注文は通常人口需要を抑えずに生産候補の期待利益へ反映する。輸送中注文は供給市場の補充需要、blocked/open/assigned 注文は到着市場の供給需要として扱う。
+5. **未決定**: 新規マップ初期在庫を、生成時の過去シミュレーションと明示的な備蓄のどちらで作るか。
+6. M9.4 の `LaborMarket` を Economy の永続 world data に置くか、Economy 拡張データとして保存・復元するかを決める。

@@ -8,6 +8,11 @@ import { DEMAND_PRIORITY, Goods, getDemandTargets, isGoodEnabled } from "./goods
 import { Markets } from "./markets-generator";
 import type { Deal, Market } from "./marketTypes";
 import { getModifiers, MAX_BONUS_PRODUCTION } from "./production-utils";
+import {
+  getStrategicDemandMultiplier,
+  getStrategicProductionDemandByGood,
+  type StrategicProductionDemand
+} from "./strategicProductionDemand";
 
 const BONUS_URBAN_PRODUCTION = 1;
 
@@ -119,7 +124,11 @@ export class ProductionModule {
       demandCoverage,
       records,
       ingredientCosts: 0,
-      activeGoalGoodId: null
+      activeGoalGoodId: null,
+      strategicDemandByGood: getStrategicProductionDemandByGood(
+        this.worldContext.pack.strategicProcurementOrders ?? [],
+        market.i
+      )
     };
   }
 
@@ -643,7 +652,15 @@ export class ProductionModule {
     let chosenGoal: GoalActionPlan | null = null;
     let activeGoal: GoalActionPlan | null = null;
     for (const good of index.productiveGoods) {
-      const demandEffect = this.getDemandEffect(good, demandFocus, index.demandCoverageByGood);
+      const populationDemandEffect = this.getDemandEffect(good, demandFocus, index.demandCoverageByGood);
+      const strategicDemandMultiplier = getStrategicDemandMultiplier(
+        state.strategicDemandByGood.get(good.i),
+        demandFocus !== null
+      );
+      const demandEffect: DemandEffect = {
+        multiplier: populationDemandEffect.multiplier * strategicDemandMultiplier,
+        category: populationDemandEffect.category
+      };
       const goalPlan = this.planGoodAction(index, state, good, fraction, fraction, workersLeft, demandEffect);
       if (!goalPlan || goalPlan.projectedGain <= 0) continue;
       candidates.push(goalPlan.candidate);
@@ -654,7 +671,13 @@ export class ProductionModule {
     if (activeGoalGoodId !== null && chosenGoal && !activeGoal) {
       const activeGood = Goods.get(activeGoalGoodId);
       if (activeGood) {
-        const activeDemand = this.getDemandEffect(activeGood, demandFocus, index.demandCoverageByGood);
+        const populationDemandEffect = this.getDemandEffect(activeGood, demandFocus, index.demandCoverageByGood);
+        const activeDemand: DemandEffect = {
+          multiplier:
+            populationDemandEffect.multiplier *
+            getStrategicDemandMultiplier(state.strategicDemandByGood.get(activeGood.i), demandFocus !== null),
+          category: populationDemandEffect.category
+        };
         activeGoal = this.planGoodAction(index, state, activeGood, fraction, fraction, workersLeft, activeDemand);
       }
     }
@@ -731,6 +754,7 @@ type BurgProductionState = {
   records: ProductionRecord[];
   ingredientCosts: number;
   activeGoalGoodId: number | null;
+  strategicDemandByGood: ReadonlyMap<number, StrategicProductionDemand>;
 };
 
 type DemandEffect = { multiplier: number; category: DemandCategory | null };

@@ -125,6 +125,7 @@ describe("StrategicProcurementModule", () => {
 
     expect(procurement.getOrders()).toHaveLength(1);
     expect(worldContext.pack.caravans).toHaveLength(1);
+    expect(procurement.getOrders()[0].priorityCycles).toBe(2);
   });
 
   it("records a foreign-policy block when only an Enemy source can supply the material", () => {

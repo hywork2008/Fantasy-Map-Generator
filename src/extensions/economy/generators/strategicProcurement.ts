@@ -36,6 +36,8 @@ export interface ProcurementOrder {
   sourceMarketId?: number;
   caravanId?: number;
   blockedReason?: ProcurementOrderBlockedReason;
+  /** Shipbuilding demand signals received while the order remains unfulfilled. */
+  priorityCycles?: number;
 }
 
 interface ProcurementRoute {
@@ -125,6 +127,7 @@ export class StrategicProcurementModule {
       if (!(annualDemand > 0)) continue;
       const good = pack.goods.find(candidate => candidate.name === name);
       if (!good || !policy.goodIds.includes(good.i)) continue;
+      this.refreshOpenOrderPriority(demand.stateId, demand.destinationMarketId, good.i);
       this.procureToReserve({ stateId: demand.stateId, destination, good, annualDemand, policy });
     }
   }
@@ -345,9 +348,26 @@ export class StrategicProcurementModule {
     const orders = this.worldContext.pack.strategicProcurementOrders;
     const nextId = this.worldContext.pack.nextStrategicProcurementOrderId ?? 0;
     this.worldContext.pack.nextStrategicProcurementOrderId = nextId + 1;
-    const created: ProcurementOrder = { id: nextId, fulfilledUnits: 0, status: "open", ...order };
+    const created: ProcurementOrder = { id: nextId, fulfilledUnits: 0, status: "open", priorityCycles: 1, ...order };
     orders.push(created);
     return created;
+  }
+
+  private refreshOpenOrderPriority(stateId: number, destinationMarketId: number, goodId: number): void {
+    for (const order of this.getOrders()) {
+      if (
+        order.stateId !== stateId ||
+        order.destinationMarketId !== destinationMarketId ||
+        order.goodId !== goodId ||
+        (order.status !== "open" &&
+          order.status !== "assigned" &&
+          order.status !== "inTransit" &&
+          order.status !== "blocked")
+      ) {
+        continue;
+      }
+      order.priorityCycles = (order.priorityCycles ?? 1) + 1;
+    }
   }
 
   private createBlockedOrder({
