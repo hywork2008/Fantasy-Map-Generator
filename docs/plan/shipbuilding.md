@@ -2,7 +2,7 @@
 
 本ドキュメントは、海と森に近接する都市を起点とした造船技術の発展、大型船の技術開発、伐採による森林バイオームの変化、および技術発展を脅威と見なす外国からの干渉——という一連の「大航海時代」シミュレーションを、既存の拡張機能エコシステム（Economy / Nobility / Military）にどう割り振るかを定義する設計・相談用資料です。
 
-> **現行状態（2026-07-15）**: §0〜§2 の一部は実装前の調査・設計経緯であり、現在の実装を表すものではない。時間経過、造船キュー、森林減衰・回復、船体の航海、Economy との物理的な市場間交易は実装済みである。現在の未着手項目である「造船の資材消費ゲート」の正本は [shipbuilding-material-consumption.md](shipbuilding-material-consumption.md) とし、本書はその前提となる全体設計と実装履歴を保持する。
+> **現行状態（2026-07-15）**: §0〜§2 の一部は実装前の調査・設計経緯であり、現在の実装を表すものではない。時間経過、造船キュー、森林減衰・回復、船体の航海、Economy との物理的な市場間交易、資材消費ゲートは実装済みである。次の未着手項目である国内優先の戦略調達と産業循環の正本は [shipbuilding-industrial-policy.md](shipbuilding-industrial-policy.md) とし、本書はその前提となる全体設計と実装履歴を保持する。
 
 ## 現在のエコシステム概要（資材消費ゲート着手前）
 
@@ -118,8 +118,9 @@ getEffectiveSkill(characterId: number, skill: string): number
 7. **Phase 6**（実装済み）: Economy拡張側での森林回復（`tickForestRegrowth`）。
 8. **Phase 7**（実装済み）: 外国干渉イベント（`console.log`スタブ）。
 9. **Phase 8**（実装済み）: Economy の市場在庫を唯一の資材源とする造船資材消費ゲート。Wood / Sails / Ropes / Tar が揃わない造船所は進捗を停止し、物流到着・生産・森林再生による供給回復後に再開する。詳細と残る E2E 回帰確認は [shipbuilding-material-consumption.md](shipbuilding-material-consumption.md)。
+10. **Phase 9**（計画中）: 敵対国を除外し、国内・近距離を優先する国家の戦略調達、需要駆動生産、集約型の職替え・設備投資。詳細は [shipbuilding-industrial-policy.md](shipbuilding-industrial-policy.md)。
 
-**Phase 0〜8 は実装済み。Phase 8 の E2E 回帰確認は継続する。**
+**Phase 0〜8 は実装済み。次課題は Phase 9 であり、Phase 8 の E2E 回帰確認も継続する。**
 
 ---
 

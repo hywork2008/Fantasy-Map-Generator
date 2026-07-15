@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { getHighestUnlockedShipClass, getMaterialsForWork, getShipClass, SHIP_CLASSES } from "./shipClasses";
+import {
+  getAnnualShipbuildingMaterialDemand,
+  getHighestUnlockedShipClass,
+  getMaterialsForWork,
+  getShipClass,
+  SHIP_CLASSES
+} from "./shipClasses";
 
 describe("shipClasses", () => {
   it("unlocks sloop by default (0 tech points)", () => {
@@ -37,5 +43,14 @@ describe("shipClasses", () => {
 
   it("does not request negative work", () => {
     expect(getMaterialsForWork(SHIP_CLASSES[0], -5)).toEqual({ Wood: 0, Sails: 0, Ropes: 0, Tar: 0 });
+  });
+
+  it("derives one shipyard's annual material forecast from its build rate", () => {
+    expect(getAnnualShipbuildingMaterialDemand(SHIP_CLASSES[0])).toEqual({
+      Wood: 0.4,
+      Sails: 0.4,
+      Ropes: 0.4,
+      Tar: 0.2
+    });
   });
 });

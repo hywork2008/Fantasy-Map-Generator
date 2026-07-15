@@ -6,7 +6,13 @@ import type {
   ShipbuildingMaterialShortage,
   State
 } from "../../hostTypes";
-import { getHighestUnlockedShipClass, getMaterialsForWork, getShipClass, type ShipClass } from "./shipClasses";
+import {
+  getHighestUnlockedShipClass,
+  getMaterialsForWork,
+  getShipClass,
+  SHIPYARD_BUILD_POINTS_PER_YEAR,
+  type ShipClass
+} from "./shipClasses";
 import type { ShipyardCandidate } from "./shipyardCandidates";
 
 export type ShipyardOwner = "state" | "market";
@@ -45,7 +51,6 @@ export interface ShipHull {
 }
 
 const TECH_POINTS_PER_YEAR_PER_SHIPYARD = 1;
-const BUILD_POINTS_PER_YEAR = 2;
 /** 0.5 points maps to material quantities representable by Economy's two-decimal stocks. */
 const MATERIAL_REQUEST_WORK_POINTS = 0.5;
 const EPSILON = 0.000001;
@@ -209,7 +214,7 @@ function advanceQueueWithMaterials(
   requestMaterials: RequestShipbuildingMaterialsFn,
   states: readonly State[]
 ): void {
-  let availableWorkPoints = entry.pendingWorkPoints + BUILD_POINTS_PER_YEAR * deltaYears;
+  let availableWorkPoints = entry.pendingWorkPoints + SHIPYARD_BUILD_POINTS_PER_YEAR * deltaYears;
   entry.pendingWorkPoints = 0;
 
   while (availableWorkPoints > EPSILON) {

@@ -35,6 +35,12 @@ export const MATERIALS_PER_TEN_BUILD_POINTS: ShipbuildingMaterials = {
   Tar: 1
 };
 
+/**
+ * Baseline construction throughput of one shipyard. Keep this beside the material
+ * recipe so strategic-procurement forecasts cannot drift from queue progress.
+ */
+export const SHIPYARD_BUILD_POINTS_PER_YEAR = 2;
+
 export function getMaterialsForWork(_shipClass: ShipClass, workPoints: number): ShipbuildingMaterials {
   const ratio = Math.max(0, workPoints) / SHIP_CLASSES[0].buildPointsRequired;
   const materials = {} as Record<(typeof SHIPBUILDING_MATERIAL_IDS)[number], number>;
@@ -42,6 +48,16 @@ export function getMaterialsForWork(_shipClass: ShipClass, workPoints: number): 
     materials[material] = MATERIALS_PER_TEN_BUILD_POINTS[material] * ratio;
   }
   return materials;
+}
+
+/**
+ * Material demand forecast for one continuously supplied shipyard over one year.
+ * The current recipe scales solely with construction work, but retaining the ship
+ * class parameter makes this the single call site to update if later tiers acquire
+ * distinct material recipes.
+ */
+export function getAnnualShipbuildingMaterialDemand(shipClass: ShipClass): ShipbuildingMaterials {
+  return getMaterialsForWork(shipClass, SHIPYARD_BUILD_POINTS_PER_YEAR);
 }
 
 /** The highest ship class whose tech requirement has been met by the given tech points. */

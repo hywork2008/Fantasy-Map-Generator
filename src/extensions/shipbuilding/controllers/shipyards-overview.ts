@@ -4,6 +4,7 @@ import type { PortCapacity } from "../generators/portCapacity";
 import { getShipClass, getShipSizeTier, type ShipSizeTier } from "../generators/shipClasses";
 import type { ShipyardCandidate } from "../generators/shipyardCandidates";
 import { getCompletedHulls, getHullsAtBurg, getQueueEntry } from "../generators/shipyardQueue";
+import { getShipyardMaterialObservations } from "../generators/strategicMaterialObservations";
 import { getWorldContext } from "../shipbuildingContext";
 import {
   type ShipyardOverviewRow,
@@ -54,6 +55,20 @@ function getMaterialStatusLabel(burgId: number): string {
   return missing.length ? `Waiting: ${missing.join(", ")}` : "Waiting: materials";
 }
 
+function getStrategicMaterialSummary(shipClassId: string, marketId: number | undefined): string {
+  const { pack } = getWorldContext();
+  const shipClass = getShipClass(shipClassId);
+  if (!shipClass) return "Unavailable";
+
+  const market = marketId === undefined ? undefined : pack.markets.find(candidate => candidate.i === marketId);
+  return getShipyardMaterialObservations(shipClass, pack.goods, market?.goods)
+    .map(observation => {
+      const stock = observation.stock === null ? "—" : observation.stock.toFixed(2);
+      return `${observation.material} ${stock}/${observation.annualDemand.toFixed(2)}/${observation.targetReserve.toFixed(2)}`;
+    })
+    .join(" · ");
+}
+
 function buildRows(
   candidates: readonly ShipyardCandidate[],
   portCapacity: ReadonlyMap<number, PortCapacity>
@@ -88,6 +103,8 @@ function buildRows(
       progressPct: Math.floor((entry.progress / shipClass.buildPointsRequired) * 100),
       completedHulls: getCompletedHulls(entry.owner, ownerId!, shipClass.id),
       materialStatus: getMaterialStatusLabel(burgId),
+      strategicMaterialSummary: getStrategicMaterialSummary(shipClass.id, burg.market),
+      procurementStatus: entry.owner === "state" ? "No procurement order" : "Merchant queue",
       portOccupancyLabel,
       atSeaCount
     });
