@@ -1,5 +1,12 @@
-import type { Burg, State } from "../../hostTypes";
-import { getHighestUnlockedShipClass, getShipClass } from "./shipClasses";
+import type {
+  Burg,
+  ShipbuildingMaterialBlockedReason,
+  ShipbuildingMaterialRequest,
+  ShipbuildingMaterialRequestResult,
+  ShipbuildingMaterialShortage,
+  State
+} from "../../hostTypes";
+import { getHighestUnlockedShipClass, getMaterialsForWork, getShipClass, type ShipClass } from "./shipClasses";
 import type { ShipyardCandidate } from "./shipyardCandidates";
 
 export type ShipyardOwner = "state" | "market";
@@ -12,6 +19,10 @@ export interface ShipyardQueueEntry {
   shipClassId: string;
   owner: ShipyardOwner;
   progress: number;
+  /** Potential work accumulated since the last material request, not yet construction progress. */
+  pendingWorkPoints: number;
+  blockedReason?: ShipbuildingMaterialBlockedReason;
+  missingMaterials?: ShipbuildingMaterialShortage;
 }
 
 export type ShipHullStatus = "docked" | "voyage";
@@ -35,6 +46,15 @@ export interface ShipHull {
 
 const TECH_POINTS_PER_YEAR_PER_SHIPYARD = 1;
 const BUILD_POINTS_PER_YEAR = 2;
+/** 0.5 points maps to material quantities representable by Economy's two-decimal stocks. */
+const MATERIAL_REQUEST_WORK_POINTS = 0.5;
+const EPSILON = 0.000001;
+
+export type RequestShipbuildingMaterialsFn = (
+  request: Omit<ShipbuildingMaterialRequest, "result">
+) => ShipbuildingMaterialRequestResult;
+
+const allowMaterialsForUnitTests: RequestShipbuildingMaterialsFn = () => ({ status: "fulfilled" });
 
 const _queues = new Map<number, ShipyardQueueEntry>(); // burgId -> active queue entry
 const _stateTechPoints = new Map<number, number>(); // stateId -> accumulated tech points
@@ -142,7 +162,8 @@ export function runShipyardTick(
   burgs: readonly Burg[],
   states: readonly State[],
   deltaYears: number,
-  getEffectiveSkill: GetEffectiveSkillFn
+  getEffectiveSkill: GetEffectiveSkillFn,
+  requestMaterials: RequestShipbuildingMaterialsFn = allowMaterialsForUnitTests
 ): void {
   if (candidates.length === 0 || deltaYears <= 0) return;
 
@@ -167,23 +188,67 @@ export function runShipyardTick(
 
     let entry = _queues.get(burgId);
     if (!entry) {
-      entry = { shipClassId: unlockedClass.id, owner, progress: 0 };
+      entry = { shipClassId: unlockedClass.id, owner, progress: 0, pendingWorkPoints: 0 };
       _queues.set(burgId, entry);
     } else {
       entry.owner = owner;
     }
 
-    entry.progress += BUILD_POINTS_PER_YEAR * deltaYears;
-
     const classDef = getShipClass(entry.shipClassId) ?? unlockedClass;
-    // A large deltaYears (e.g. from a big "advance time" jump) can complete several
-    // hulls in one tick, so drain all of them rather than crediting only one.
-    while (entry.progress >= classDef.buildPointsRequired) {
-      entry.progress -= classDef.buildPointsRequired;
-      completeHull(burg, owner, classDef.id, states);
-    }
+    advanceQueueWithMaterials(entry, burg, classDef, deltaYears, requestMaterials, states);
     // Re-evaluate the target class for the next hull — tech may have advanced.
     entry.shipClassId = unlockedClass.id;
+  }
+}
+
+function advanceQueueWithMaterials(
+  entry: ShipyardQueueEntry,
+  burg: Burg,
+  shipClass: ShipClass,
+  deltaYears: number,
+  requestMaterials: RequestShipbuildingMaterialsFn,
+  states: readonly State[]
+): void {
+  let availableWorkPoints = entry.pendingWorkPoints + BUILD_POINTS_PER_YEAR * deltaYears;
+  entry.pendingWorkPoints = 0;
+
+  while (availableWorkPoints > EPSILON) {
+    const remainingWorkPoints = Math.max(0, shipClass.buildPointsRequired - entry.progress);
+    const requestedWorkPoints = Math.min(availableWorkPoints, remainingWorkPoints, MATERIAL_REQUEST_WORK_POINTS);
+    const completesHull = requestedWorkPoints + EPSILON >= remainingWorkPoints;
+
+    // Daily progress accumulates until material quantities are representable by Economy's
+    // two-decimal market stock. A final partial chunk still settles the hull exactly.
+    if (!completesHull && requestedWorkPoints + EPSILON < MATERIAL_REQUEST_WORK_POINTS) {
+      entry.pendingWorkPoints = requestedWorkPoints;
+      return;
+    }
+
+    const result = requestMaterials({
+      burgId: burg.i!,
+      marketId: burg.market ?? 0,
+      shipClassId: shipClass.id,
+      owner: entry.owner,
+      workPoints: requestedWorkPoints,
+      materials: getMaterialsForWork(shipClass, requestedWorkPoints)
+    });
+
+    if (result.status !== "fulfilled") {
+      entry.blockedReason = result.status;
+      entry.missingMaterials = result.status === "insufficientMaterials" ? result.missing : undefined;
+      // Work attempted while materials are unavailable is deliberately not backfilled.
+      return;
+    }
+
+    entry.blockedReason = undefined;
+    entry.missingMaterials = undefined;
+    entry.progress += requestedWorkPoints;
+    availableWorkPoints -= requestedWorkPoints;
+
+    if (entry.progress + EPSILON < shipClass.buildPointsRequired) continue;
+
+    entry.progress = 0;
+    completeHull(burg, entry.owner, shipClass.id, states);
   }
 }
 

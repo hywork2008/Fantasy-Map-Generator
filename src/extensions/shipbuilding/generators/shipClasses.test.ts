@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getHighestUnlockedShipClass, getShipClass, SHIP_CLASSES } from "./shipClasses";
+import { getHighestUnlockedShipClass, getMaterialsForWork, getShipClass, SHIP_CLASSES } from "./shipClasses";
 
 describe("shipClasses", () => {
   it("unlocks sloop by default (0 tech points)", () => {
@@ -14,7 +14,7 @@ describe("shipClasses", () => {
     expect(getHighestUnlockedShipClass(50).id).toBe("caravel");
   });
 
-  it("unlocks galleon once tech points clear its threshold", () => {
+  it("unlocks galleon once tech points clear the threshold", () => {
     expect(getHighestUnlockedShipClass(150).id).toBe("galleon");
   });
 
@@ -24,5 +24,18 @@ describe("shipClasses", () => {
 
   it("getShipClass returns undefined for an unknown id", () => {
     expect(getShipClass("dreadnought")).toBeUndefined();
+  });
+
+  it("uses the Economy Ships recipe for a full Sloop", () => {
+    expect(getMaterialsForWork(SHIP_CLASSES[0], 10)).toEqual({ Wood: 2, Sails: 2, Ropes: 2, Tar: 1 });
+  });
+
+  it("scales material requirements by construction work", () => {
+    expect(getMaterialsForWork(SHIP_CLASSES[1], 25)).toEqual({ Wood: 5, Sails: 5, Ropes: 5, Tar: 2.5 });
+    expect(getMaterialsForWork(SHIP_CLASSES[2], 60)).toEqual({ Wood: 12, Sails: 12, Ropes: 12, Tar: 6 });
+  });
+
+  it("does not request negative work", () => {
+    expect(getMaterialsForWork(SHIP_CLASSES[0], -5)).toEqual({ Wood: 0, Sails: 0, Ropes: 0, Tar: 0 });
   });
 });

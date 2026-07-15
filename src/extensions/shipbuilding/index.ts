@@ -1,5 +1,5 @@
 import type { LayerConfig } from "../../store/layerState";
-import type { ExtensionAPI } from "../hostTypes";
+import type { ExtensionAPI, ShipbuildingMaterialRequest, ShipbuildingMaterialRequestResult } from "../hostTypes";
 import {
   closeShipyardsOverview,
   openShipyardsOverview,
@@ -33,6 +33,14 @@ let _candidates: ShipyardCandidate[] = [];
 let _portCapacity: Map<number, PortCapacity> = new Map();
 let _unsubscribe: (() => void) | null = null;
 let _generatePostCoreHandler: (() => void) | null = null;
+
+function requestShipbuildingMaterials(
+  request: Omit<ShipbuildingMaterialRequest, "result">
+): ShipbuildingMaterialRequestResult {
+  const detail: ShipbuildingMaterialRequest = { ...request };
+  document.dispatchEvent(new CustomEvent("fmg:shipbuilding-materials-requested", { detail }));
+  return detail.result ?? { status: "economyUnavailable" };
+}
 
 function recomputeAndMaybeDraw(api: ExtensionAPI): void {
   _candidates = computeShipyardCandidates();
@@ -114,7 +122,14 @@ export function init(api: ExtensionAPI): void {
     const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
     runLoggingTick(_candidates, effectiveDeltaYears);
     const { burgs, states } = getWorldContext().pack;
-    runShipyardTick(_candidates, burgs, states, effectiveDeltaYears, api.getEffectiveSkill);
+    runShipyardTick(
+      _candidates,
+      burgs,
+      states,
+      effectiveDeltaYears,
+      api.getEffectiveSkill,
+      requestShipbuildingMaterials
+    );
     runVoyageTick(burgs, states, effectiveDeltaYears);
     checkForeignInterference(_candidates, burgs, effectiveDeltaYears);
     // Refresh marker tooltips (build progress) and the overview dialog, if visible.

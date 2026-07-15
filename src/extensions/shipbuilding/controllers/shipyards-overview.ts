@@ -1,4 +1,5 @@
 import { closeDialog, openDialog } from "../../../ui/dialogs/dialogService";
+import { SHIPBUILDING_MATERIAL_IDS } from "../../hostTypes";
 import type { PortCapacity } from "../generators/portCapacity";
 import { getShipClass, getShipSizeTier, type ShipSizeTier } from "../generators/shipClasses";
 import type { ShipyardCandidate } from "../generators/shipyardCandidates";
@@ -39,6 +40,20 @@ function buildPortOccupancyLabel(
   return { label, atSeaCount };
 }
 
+function getMaterialStatusLabel(burgId: number): string {
+  const entry = getQueueEntry(burgId);
+  if (!entry?.blockedReason) return "Supplied";
+  if (entry.blockedReason === "economyUnavailable") return "Waiting: Economy disabled";
+  if (entry.blockedReason === "noMarket") return "Waiting: no market";
+  if (entry.blockedReason === "missingGood") return "Waiting: material Good unavailable";
+
+  const missing = SHIPBUILDING_MATERIAL_IDS.flatMap(material => {
+    const amount = entry.missingMaterials?.[material] ?? 0;
+    return amount > 0 ? [`${material} ${amount.toFixed(2)}`] : [];
+  });
+  return missing.length ? `Waiting: ${missing.join(", ")}` : "Waiting: materials";
+}
+
 function buildRows(
   candidates: readonly ShipyardCandidate[],
   portCapacity: ReadonlyMap<number, PortCapacity>
@@ -72,6 +87,7 @@ function buildRows(
       shipClassName: shipClass.name,
       progressPct: Math.floor((entry.progress / shipClass.buildPointsRequired) * 100),
       completedHulls: getCompletedHulls(entry.owner, ownerId!, shipClass.id),
+      materialStatus: getMaterialStatusLabel(burgId),
       portOccupancyLabel,
       atSeaCount
     });

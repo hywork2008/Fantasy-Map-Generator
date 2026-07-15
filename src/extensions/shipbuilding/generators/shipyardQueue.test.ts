@@ -107,6 +107,43 @@ describe("shipyardQueue", () => {
     expect(getQueueEntry(1)?.progress).toBe(2);
   });
 
+  it("only advances work batches whose materials Economy fulfills", () => {
+    const burgs = makeBurgs([{ i: 1, state: 0, market: 1 }]);
+    const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];
+    const requests: number[] = [];
+
+    runShipyardTick(candidates, burgs, [], 1, noSkill, request => {
+      requests.push(request.workPoints);
+      return { status: "insufficientMaterials", missing: { Wood: 0.1 } };
+    });
+
+    expect(getQueueEntry(1)).toMatchObject({ progress: 0, blockedReason: "insufficientMaterials" });
+    expect(requests).toEqual([0.5]);
+
+    runShipyardTick(candidates, burgs, [], 1, noSkill, () => ({ status: "fulfilled" }));
+
+    expect(getQueueEntry(1)).toMatchObject({ progress: 2, blockedReason: undefined });
+  });
+
+  it("requests exactly one Sloop recipe over its full construction progress", () => {
+    const burgs = makeBurgs([{ i: 1, state: 0, market: 1 }]);
+    const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];
+    const consumed = { Wood: 0, Sails: 0, Ropes: 0, Tar: 0 };
+
+    runShipyardTick(candidates, burgs, [], 5, noSkill, request => {
+      for (const material of Object.keys(consumed) as Array<keyof typeof consumed>) {
+        consumed[material] += request.materials[material];
+      }
+      return { status: "fulfilled" };
+    });
+
+    expect(consumed.Wood).toBeCloseTo(2, 10);
+    expect(consumed.Sails).toBeCloseTo(2, 10);
+    expect(consumed.Ropes).toBeCloseTo(2, 10);
+    expect(consumed.Tar).toBeCloseTo(1, 10);
+    expect(getCompletedHulls("market", 1, "sloop")).toBe(1);
+  });
+
   it("upgrades a state's queue to caravel once tech points clear the threshold", () => {
     const burgs = makeBurgs([{ i: 1, state: 1, capital: 1 }]);
     const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];

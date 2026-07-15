@@ -4,6 +4,7 @@ import { regenerateFeatureDialogStore } from "../../store/regenerateFeatureDialo
 import { useUiPreferencesState } from "../../store/uiPreferencesState";
 import type { ExtensionAPI } from "../../types/extension-api";
 import type { Point } from "../hostCore";
+import { isShipbuildingMaterialRequest } from "../hostTypes";
 import { formatPrice } from "../hostUtils";
 import { getBurgEconomySummary, getBurgProductPerThousandResidents } from "./burgEconomySummary";
 import { economyStyleConfig } from "./EconomyStyleConfig";
@@ -193,6 +194,7 @@ function unregisterOverviewColumns(api: ExtensionAPI): void {
 let _unsubscribe: (() => void) | null = null;
 let _generatePostCoreHandler: (() => void) | null = null;
 let _logHarvestedHandler: ((e: Event) => void) | null = null;
+let _materialsRequestedHandler: ((e: Event) => void) | null = null;
 let _voyageIncomeHandler: ((e: Event) => void) | null = null;
 let _mapPickCandidatesHandler: ((e: Event) => void) | null = null;
 let _gunpowderEraChangedHandler: (() => void) | null = null;
@@ -590,6 +592,17 @@ export function init(api: ExtensionAPI): void {
   };
   document.addEventListener("fmg:shipbuilding-log-harvested", _logHarvestedHandler);
 
+  // Shipbuilding asks synchronously so it can only advance construction work that this
+  // market can fund with every required material. No direct Shipbuilding import: the
+  // mutable CustomEvent detail is the extension boundary.
+  _materialsRequestedHandler = e => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    const detail = (e as CustomEvent<unknown>).detail;
+    if (!isShipbuildingMaterialRequest(detail)) return;
+    detail.result = Markets.tryConsumeShipbuildingMaterials(detail.marketId, detail.materials);
+  };
+  document.addEventListener("fmg:shipbuilding-materials-requested", _materialsRequestedHandler);
+
   // Listen for Shipbuilding's trade-voyage income (optional dependency — harmless no-op
   // if Shipbuilding is never enabled). Buffered in taxes-generator.ts and folded into
   // treasury on the next collectTaxes() call rather than written directly, since
@@ -830,6 +843,10 @@ export function cleanup(api: ExtensionAPI): void {
   if (_logHarvestedHandler) {
     document.removeEventListener("fmg:shipbuilding-log-harvested", _logHarvestedHandler);
     _logHarvestedHandler = null;
+  }
+  if (_materialsRequestedHandler) {
+    document.removeEventListener("fmg:shipbuilding-materials-requested", _materialsRequestedHandler);
+    _materialsRequestedHandler = null;
   }
   if (_voyageIncomeHandler) {
     document.removeEventListener("fmg:shipbuilding-voyage-income", _voyageIncomeHandler);

@@ -407,3 +407,95 @@ describe("MarketsModule", () => {
     });
   });
 });
+
+describe("MarketsModule shipbuilding material consumption", () => {
+  let marketsModule: MarketsModule;
+  let market: Market;
+
+  beforeEach(() => {
+    const api = { worldContext } as unknown as ExtensionAPI;
+    initEconomyContext(api);
+    marketsModule = new MarketsModule();
+    worldContext.options = { gunpowderEraEnabled: true } as typeof worldContext.options;
+    worldContext.pack = {
+      goods: [
+        { i: 0, name: "Wood", value: 4, tags: [], unit: "pile", icon: "", color: "", distribution: "", recipes: [] },
+        { i: 1, name: "Sails", value: 8, tags: [], unit: "set", icon: "", color: "", distribution: "", recipes: [] },
+        { i: 2, name: "Ropes", value: 6, tags: [], unit: "coil", icon: "", color: "", distribution: "", recipes: [] },
+        { i: 3, name: "Tar", value: 3, tags: [], unit: "barrel", icon: "", color: "", distribution: "", recipes: [] }
+      ],
+      markets: [],
+      burgs: [],
+      deals: []
+    } as unknown as PackedGraph;
+    market = {
+      i: 1,
+      centerBurgId: 1,
+      color: "#000",
+      goods: {
+        0: { stock: 10, price: 4 },
+        1: { stock: 10, price: 8 },
+        2: { stock: 10, price: 6 },
+        3: { stock: 10, price: 3 }
+      }
+    };
+    worldContext.pack.markets = [market];
+    // biome-ignore lint/complexity/useLiteralKeys: public consumption is tested against a controlled market index
+    marketsModule["marketById"] = [market, market];
+  });
+
+  afterEach(() => {
+    clearEconomyContext();
+  });
+
+  it("atomically consumes every construction material and raises its market pressure", () => {
+    const result = marketsModule.tryConsumeShipbuildingMaterials(1, { Wood: 2, Sails: 2, Ropes: 2, Tar: 1 });
+
+    expect(result).toEqual({ status: "fulfilled" });
+    expect(market.goods[0]).toMatchObject({ stock: 8 });
+    expect(market.goods[1]).toMatchObject({ stock: 8 });
+    expect(market.goods[2]).toMatchObject({ stock: 8 });
+    expect(market.goods[3]).toMatchObject({ stock: 9 });
+    expect(market.goods[0].price).toBeGreaterThan(4);
+  });
+
+  it("does not consume any material when one required stock is insufficient", () => {
+    market.goods[2].stock = 0.25;
+    const before = structuredClone(market.goods);
+
+    const result = marketsModule.tryConsumeShipbuildingMaterials(1, { Wood: 2, Sails: 2, Ropes: 2, Tar: 1 });
+
+    expect(result).toEqual({ status: "insufficientMaterials", missing: { Ropes: 1.75 } });
+    expect(market.goods).toEqual(before);
+  });
+
+  it("does not create an empty stock row when a material has never reached the market", () => {
+    delete market.goods[3];
+    const before = structuredClone(market.goods);
+
+    expect(marketsModule.tryConsumeShipbuildingMaterials(1, { Wood: 2, Sails: 2, Ropes: 2, Tar: 1 })).toEqual({
+      status: "insufficientMaterials",
+      missing: { Tar: 1 }
+    });
+    expect(market.goods).toEqual(before);
+  });
+
+  it("reports a missing market without mutating any stock", () => {
+    const before = structuredClone(market.goods);
+
+    expect(marketsModule.tryConsumeShipbuildingMaterials(99, { Wood: 2, Sails: 2, Ropes: 2, Tar: 1 })).toEqual({
+      status: "noMarket"
+    });
+    expect(market.goods).toEqual(before);
+  });
+
+  it("resolves a loaded market before the transient market index is synchronized", () => {
+    // biome-ignore lint/complexity/useLiteralKeys: emulate a loaded map before Markets.sync()
+    marketsModule["marketById"] = [];
+
+    expect(marketsModule.tryConsumeShipbuildingMaterials(1, { Wood: 2, Sails: 2, Ropes: 2, Tar: 1 })).toEqual({
+      status: "fulfilled"
+    });
+    expect(market.goods[0].stock).toBe(8);
+  });
+});

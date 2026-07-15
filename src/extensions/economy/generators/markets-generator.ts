@@ -3,6 +3,12 @@ import { quadtree } from "d3-quadtree";
 import FlatQueue from "flatqueue";
 import { foodStressPriceMultiplier } from "../../../generators/agriculturalStress";
 import type { Burg } from "../../hostTypes";
+import {
+  SHIPBUILDING_MATERIAL_IDS,
+  type ShipbuildingMaterialRequestResult,
+  type ShipbuildingMaterialShortage,
+  type ShipbuildingMaterials
+} from "../../hostTypes";
 import { getColors, getRandomColor, minmax, rn, TIME } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 import { getBurgMarketLedger, syncBurgMarketLedgers } from "./burgMarketLedgers";
@@ -428,6 +434,49 @@ export class MarketsModule {
 
     marketGood.price = rn(this.applyMarketPressure(good.value, marketGood.price, -units), 2);
     return deal;
+  }
+
+  /**
+   * Atomically consumes construction materials from one market for Shipbuilding.
+   * Unlike buy(), Phase 8 intentionally does not create a Deal or charge an owner;
+   * it only models the physical inventory draw and resulting market price pressure.
+   */
+  tryConsumeShipbuildingMaterials(
+    marketId: number,
+    materials: ShipbuildingMaterials
+  ): ShipbuildingMaterialRequestResult {
+    // `marketById` is populated during generation; saved maps can reach this path
+    // before an explicit `Markets.sync()`, so retain a canonical pack fallback.
+    const market = this.get(marketId) ?? this.worldContext.pack.markets.find(candidate => candidate.i === marketId);
+    if (!market) return { status: "noMarket" };
+
+    const required: Array<{ good: Good; amount: number; stock: { stock: number; price: number } }> = [];
+    const missing: ShipbuildingMaterialShortage = {};
+
+    for (const material of SHIPBUILDING_MATERIAL_IDS) {
+      const amount = materials[material];
+      const good = this.worldContext.pack.goods.find(candidate => candidate.name === material);
+      if (!good || !isGoodEnabled(good)) return { status: "missingGood" };
+
+      // Do not call getMarketGood() while validating: creating an empty stock row
+      // would itself violate the all-or-nothing contract on a failed request.
+      const stock = market.goods[good.i];
+      if (!stock || stock.stock + 0.000001 < amount) {
+        missing[material] = rn(Math.max(0, amount - (stock?.stock ?? 0)), 2);
+        continue;
+      }
+      required.push({ good, amount, stock });
+    }
+
+    // Validate every material before touching a single stock row.
+    if (Object.keys(missing).length) return { status: "insufficientMaterials", missing };
+
+    for (const { good, amount, stock } of required) {
+      stock.stock = rn(Math.max(0, stock.stock - amount), 2);
+      stock.price = rn(this.applyMarketPressure(good.value, stock.price, amount), 2);
+    }
+
+    return { status: "fulfilled" };
   }
 
   runGlobalTrade(): void {

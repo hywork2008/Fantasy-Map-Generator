@@ -4,4 +4,14 @@ export type { Grid } from "../types/Grid";
 export type { Burg, CultureType, MilitaryRegiment, Province, State, Zone } from "../types/models";
 export { DEFAULT_CULTURE_TYPE } from "../types/models";
 export type { PackedGraph } from "../types/PackedGraph";
+export {
+  isShipbuildingMaterialRequest,
+  SHIPBUILDING_MATERIAL_IDS,
+  type ShipbuildingMaterialBlockedReason,
+  type ShipbuildingMaterialId,
+  type ShipbuildingMaterialRequest,
+  type ShipbuildingMaterialRequestResult,
+  type ShipbuildingMaterialShortage,
+  type ShipbuildingMaterials
+} from "../types/shipbuildingMaterials";
 export type { BiomesData } from "../types/WorldState";

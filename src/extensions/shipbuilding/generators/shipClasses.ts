@@ -1,3 +1,5 @@
+import { SHIPBUILDING_MATERIAL_IDS, type ShipbuildingMaterials } from "../../hostTypes";
+
 /**
  * Age-of-Sail ship class tech tree. Deliberately cannon-free: this world's baseline
  * combat doctrine is melee/bow (see docs/plan/shipbuilding.md), so tiers are built
@@ -21,6 +23,26 @@ export const SHIP_CLASSES: readonly ShipClass[] = [
   { id: "caravel", name: "Caravel", tier: 1, techPointsRequired: 50, buildPointsRequired: 25 },
   { id: "galleon", name: "Galleon", tier: 2, techPointsRequired: 150, buildPointsRequired: 60 }
 ];
+
+/**
+ * The Economy Ships recipe for one Sloop-sized hull, normalized to ten construction
+ * points. Larger ship classes consume proportionally to their build-point requirement.
+ */
+export const MATERIALS_PER_TEN_BUILD_POINTS: ShipbuildingMaterials = {
+  Wood: 2,
+  Sails: 2,
+  Ropes: 2,
+  Tar: 1
+};
+
+export function getMaterialsForWork(_shipClass: ShipClass, workPoints: number): ShipbuildingMaterials {
+  const ratio = Math.max(0, workPoints) / SHIP_CLASSES[0].buildPointsRequired;
+  const materials = {} as Record<(typeof SHIPBUILDING_MATERIAL_IDS)[number], number>;
+  for (const material of SHIPBUILDING_MATERIAL_IDS) {
+    materials[material] = MATERIALS_PER_TEN_BUILD_POINTS[material] * ratio;
+  }
+  return materials;
+}
 
 /** The highest ship class whose tech requirement has been met by the given tech points. */
 export function getHighestUnlockedShipClass(techPoints: number): ShipClass {

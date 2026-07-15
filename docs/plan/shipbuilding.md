@@ -2,6 +2,25 @@
 
 本ドキュメントは、海と森に近接する都市を起点とした造船技術の発展、大型船の技術開発、伐採による森林バイオームの変化、および技術発展を脅威と見なす外国からの干渉——という一連の「大航海時代」シミュレーションを、既存の拡張機能エコシステム（Economy / Nobility / Military）にどう割り振るかを定義する設計・相談用資料です。
 
+> **現行状態（2026-07-15）**: §0〜§2 の一部は実装前の調査・設計経緯であり、現在の実装を表すものではない。時間経過、造船キュー、森林減衰・回復、船体の航海、Economy との物理的な市場間交易は実装済みである。現在の未着手項目である「造船の資材消費ゲート」の正本は [shipbuilding-material-consumption.md](shipbuilding-material-consumption.md) とし、本書はその前提となる全体設計と実装履歴を保持する。
+
+## 現在のエコシステム概要（資材消費ゲート着手前）
+
+| 領域 | 現在の実装 | 資材消費ゲートとの関係 |
+| :--- | :--- | :--- |
+| 時間経過 | `advanceTime()` の tick hook は日・月・年差分を受け、UI の Advance Time は日次ループで呼び出す。詳細は [advance-time.md](../simulation/advance-time.md)。 | 進捗・伐採・資材引当はいずれも同じ tick で処理する。`window.fmg.actions.advanceTime()` の一括呼び出しは日次 UI 経路と粒度が異なるため、資材処理は大きな差分で無料進捗や過剰消費を起こしてはならない。 |
+| 造船適性・伐採 | `shipyardCandidates.ts` は外洋に面し近傍森林比率が 30% 以上の港を候補にする。`logging.ts` は候補ごとに伐採イベントを発行する。 | 伐採量は建造量とはまだ無関係。資材ゲート後も伐採は Wood の供給能力を下げる環境効果であり、完成船ごとの Wood 消費の代替にはしない。 |
+| 森林の再生と生産 | Economy は伐採イベントを `forestDepletion.ts` に記録し、Wood の**セル産出量だけ**を最大 90% まで下げる。毎年 2% の減衰量が回復し、変更時または約30日ごとに `Production.produce()` を再実行する。`pack.cells.biome` は変えない。 | Wood の在庫は後述の市場在庫に現れる。再生は在庫を直接増やさず、次の生産周期以降の供給を回復させる。 |
+| 生産と在庫 | Economy の在庫の正本は各 `Market.goods[goodId].stock`。農村生産、都市製造、消費、取引がここを増減させる。`Ships` Good のレシピも存在するが、個別の `ShipHull` とは意図的に別概念である。 | 資材ゲートが読む・減らすべき唯一の在庫は、造船所 burg が属する市場の `stock`。`Ships` Good を完成船の代替在庫として使わない。 |
+| 市場間交易 | `runGlobalTrade()` は輸出元在庫を即時に減らし、Caravan が到着した時だけ輸入先在庫を増やす。経路・日数・積替え時間を使う。 | 遠方の Wood/Sails/Ropes/Tar は到着するまで造船所で使えない。資材ゲートは、輸送中の貨物を利用可能在庫として扱ってはならない。 |
+| 造船キュー | `shipyardQueue.ts` は `BUILD_POINTS_PER_YEAR = 2` を無条件に進捗へ加算し、閾値到達で船体を完成させる。資材、価格、所有者資金、港湾収容力は判定していない。 | 今回の対象。市場が全資材を原子的に供給できた進捗分だけを加算し、不足時には停止理由を保持する。 |
+
+### 現在確認済みの注意点
+
+1. Economy の生産更新は通常の UI 操作では日次 tick から約30日ごとに実行される。一方、プログラムから大きな `advanceTime()` 差分を一度に渡すと、現状は生産周期が一度しか再計算されない。この既存の粒度差を資材消費が隠蔽・増幅しないよう、計画では大差分を資材請求単位に分割する。
+2. `ShipyardOwner` は `state` と `market` の二種類だが、現行キューに予算台帳はない。資材**在庫の消費**と、誰がどの価格を支払うかという**資金決済**は別の問題である。今回の MVP は前者だけを対象とし、国家 treasury / 商会資金への課金は後続フェーズに分離する。
+3. 港湾収容力は現在、表示・航海状態の導出データであり、建造開始・完成を止める制約ではない。資材消費ゲートと同時に収容力ゲートを導入しない。
+
 ## 0. 前提となる調査結果
 
 実装に着手する前に、現状のコードベースを確認したところ、以下の事実が判明した。これが本設計全体の前提になる。
@@ -82,7 +101,7 @@ getEffectiveSkill(characterId: number, skill: string): number
 * **技術ツリー（Phase 3で実装済み）**: `shipClasses.ts` に Sloop → Caravel → Galleon の3ティアを定義（`techPointsRequired`, `buildPointsRequired`）。研究ポイントは**国家（State）単位**で蓄積し（`shipyardQueue.ts` の `_stateTechPoints`、その国が持つ造船適性都市の数に比例して加算）、その国に属す都市の建造キューはこのティアに従う。無所属（stateless/自由都市）の都市はティア0（Sloop）に固定。研究ポイント蓄積速度は、その国の為政者(ruler)のEngineeringスキルにより`1 + engineering/100`倍される（Phase 5で実装済み）。**大砲は前提にしない**: 世界観として銃火器は標準ルール外（弓矢・白兵戦が基本）であるため、船級ティアは「積載量・航洋性・乗員数」を軸にした輸送・遠洋航行寄りの木で設計し、`Gunpowder`/`Artillery` Good（既存）を用いた本格的な戦列艦（Ship of the Line）ルートは、オプション機能として別ゲート（`options`フラグ）の裏に隠す。
 * **建造キューと所有者（Phase 3で実装済み）**: 造船適性都市1つにつき単一のキュー（`ShipyardQueueEntry { shipClassId, owner, progress }`）を持つ。所有者は都市の属性から毎tick自動判定する: 国家に属し、かつ首都(`capital`)または城塞(`citadel`)を持つ都市は `"state"`（国家/海軍の艦隊）、それ以外は `"market"`（商家の商船）。両者とも同じ国家技術ツリーからティアを引く（商家だけ技術的に劣る、という制約は設けていない）。完成した船体は `getCompletedHulls(owner, ownerId, shipClassId)` でカウントを保持し（国家所有は `stateId` 単位、商家所有は `burgId` 単位）、完成時に `fmg:shipbuilding-ship-completed` イベントも発火する。**Economyの`Ships`Goodへは接続しない**: `Ships` は交易品としての汎用ボートを表す既存の需要駆動クラフト良品であり、ここでいう「特定ティアの船体を1隻建造した」という出来事とは概念が異なるため、混同を避けて意図的に分離した。
 * **Military連携（Phase 4で実装済み）**: `src/generators/navalTechBonus.ts`（core、Shipbuildingを一切importしない）が `fmg:shipbuilding-ship-completed` イベントを購読し、`owner === "state"` の完成のみを対象に国家単位のボーナス係数（`1 + 0.1 * 完成数`、上限3倍）を蓄積する。`military-generator.ts` は艦隊(`fleet`)ユニットの状態別補正係数 `s.temp["fleet"]` にこの係数を掛けるだけの1行差し込みで、Shipbuildingが無効/未導入でもボーナスは常に1（無効果）。**このボーナスは`Military.generate()`が次に実行されたときに反映される**（Economy PhaseのようなmicrotaskベースのAuto-refreshは行わない。理由: `Military.generate()`はGenerationPipeline経由の重い処理で、それを呼ぶには`navalTechBonus.ts`が`generationPipeline.ts`に依存する必要があり、`military-generator.ts → navalTechBonus.ts → generationPipeline.ts → military-generator.ts`の循環依存を招くため）。新規マップ生成時（`fmg:generate-post-core`）にボーナスは自動リセットされる。ブラウザE2Eで、国家所有の造船完成後に手動でMilitary再生成を行うと艦隊戦力が実際に増加することを確認済み。
-* **資材消費（未実装）**: 建造の進行自体は現状、素材(Wood/Sails/Ropes/Tar)在庫の十分性をチェックしない。伐採(Phase 2)による木材枯渇とは独立して進む。実際の資材消費ゲートは今後の拡張候補。
+* **資材消費（Phase 8 実装済み）**: 建造進捗は所属市場の Wood / Sails / Ropes / Tar を 0.5 build points 単位で同時に引き当てられたときだけ進む。Economy が全資材を検査してから原子的に stock を減らし、価格圧力を更新する。一つでも不足すれば在庫を変えず、キューは不足量または Economy / 市場不在を Overview に表示して待機する。伐採(Phase 2)は将来の Wood 生産量、資材消費は現在の市場在庫に作用するため、二重消費しない。詳細は [shipbuilding-material-consumption.md](shipbuilding-material-consumption.md) を参照。
 * **森林の回復（Phase 6で実装済み）**: `economy/generators/forestDepletion.ts` の `tickForestRegrowth(deltaYears)` が、`api.registerTimeTickHook` 経由で `advanceTime()` のたびに全ての伐採済みセルの depletion係数を線形に回復させる（年2%、MAX_DEPLETION=0.9からの完全回復に約45年）。**Shipbuilding拡張が無効化されていても回復は止まらない**（`isExtensionEnabled("economy")` のみをチェックし、Shipbuildingの状態は見ない）——伐採が止まった森は主体が居なくなっても回復し続ける、という意図的な設計。Production再計算は既存のmicrotaskベースの `scheduleProductionRefresh()` を再利用し、伐採イベントと回復ティックのどちらが先に走っても1回の `advanceTime()` 呼び出しにつき`Production.produce()`は高々1回にまとめられる。
 * **外国からの干渉（Phase 7で実装済み）**: `generators/foreignInterference.ts`。tick毎に候補都市ごとの複利確率（年1%、`1 - (1-0.01)^deltaYears`）を判定し、該当すれば `console.log()` でフレーバーメッセージ（例: "Foreign agents sabotage the shipyard at X"）を出すだけ。状態管理・UI・イベント配信は一切持たない。判定ロジックは`checkForeignInterference()`1関数に隔離し、将来の外交/戦争シミュレーションが実装された時点で丸ごと差し替えられるようにしてある。
 
@@ -98,8 +117,9 @@ getEffectiveSkill(characterId: number, skill: string): number
 6. **Phase 5**（実装済み）: `skillModifierService.ts`新設 + Nobility Engineeringスキルのモディファイア連携。
 7. **Phase 6**（実装済み）: Economy拡張側での森林回復（`tickForestRegrowth`）。
 8. **Phase 7**（実装済み）: 外国干渉イベント（`console.log`スタブ）。
+9. **Phase 8**（実装済み）: Economy の市場在庫を唯一の資材源とする造船資材消費ゲート。Wood / Sails / Ropes / Tar が揃わない造船所は進捗を停止し、物流到着・生産・森林再生による供給回復後に再開する。詳細と残る E2E 回帰確認は [shipbuilding-material-consumption.md](shipbuilding-material-consumption.md)。
 
-**ロードマップ（Phase 0〜7）は以上で全て実装済み。**
+**Phase 0〜8 は実装済み。Phase 8 の E2E 回帰確認は継続する。**
 
 ---
 
