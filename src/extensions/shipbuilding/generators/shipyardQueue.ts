@@ -298,7 +298,15 @@ function advanceQueueWithMaterials(
     if (result.status !== "fulfilled") {
       entry.blockedReason = result.status;
       entry.missingMaterials = result.status === "insufficientMaterials" ? result.missing : undefined;
-      // Work attempted while materials are unavailable is deliberately not backfilled.
+      // Preserve the work points this attempt was for — they represent capacity the shipyard has
+      // already earned (SHIPYARD_BUILD_POINTS_PER_YEAR accrual), not capacity contingent on the
+      // material check succeeding. Discarding them here (as this used to do) meant a single
+      // materials shortfall reset the accumulator to 0, forcing MATERIAL_REQUEST_WORK_POINTS worth
+      // of days (~91 at the default rate) to reaccumulate from scratch before the next attempt —
+      // so a state-owned shipyard whose supply chain simply hadn't caught up yet by the first
+      // ~quarterly checkpoint could show 0% progress for an entire year even once material became
+      // available on every other day. Carrying it forward means next tick retries immediately.
+      entry.pendingWorkPoints = requestedWorkPoints;
       return;
     }
 

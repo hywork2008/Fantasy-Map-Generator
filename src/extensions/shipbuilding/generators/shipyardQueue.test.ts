@@ -108,7 +108,7 @@ describe("shipyardQueue", () => {
     expect(getQueueEntry(1)?.progress).toBe(2);
   });
 
-  it("only advances work batches whose materials Economy fulfills", () => {
+  it("only advances work batches whose materials Economy fulfills, and preserves the attempted work points across the failure", () => {
     const burgs = makeBurgs([{ i: 1, state: 0, market: 1 }]);
     const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];
     const requests: number[] = [];
@@ -118,12 +118,44 @@ describe("shipyardQueue", () => {
       return { status: "insufficientMaterials", missing: { Wood: 0.1 } };
     });
 
-    expect(getQueueEntry(1)).toMatchObject({ progress: 0, blockedReason: "insufficientMaterials" });
+    expect(getQueueEntry(1)).toMatchObject({
+      progress: 0,
+      blockedReason: "insufficientMaterials",
+      pendingWorkPoints: 0.5
+    });
     expect(requests).toEqual([0.5]);
 
+    // The failed attempt's 0.5 carries over on top of this tick's own 2 build points (BUILD_POINTS_PER_YEAR),
+    // so all 2.5 accumulated work points clear once materials become available — not just the new tick's 2.
     runShipyardTick(candidates, burgs, [], 1, noSkill, () => ({ status: "fulfilled" }));
 
-    expect(getQueueEntry(1)).toMatchObject({ progress: 2, blockedReason: undefined });
+    expect(getQueueEntry(1)).toMatchObject({ progress: 2.5, blockedReason: undefined });
+  });
+
+  it("does not force a state-owned shipyard to reaccumulate a full MATERIAL_REQUEST_WORK_POINTS threshold from zero after one bad day", () => {
+    // Mirrors real daily Advance Time: SHIPYARD_BUILD_POINTS_PER_YEAR=2 accrued over ~1/365.2425
+    // of a year per tick, ~0.00548 build points/day. Reaching the 0.5 request threshold from zero
+    // takes ~91 days; before the fix, one failed attempt at that threshold reset the accumulator
+    // and forced another ~91-day wait — so a shipyard could show 0% for an entire year even though
+    // materials were only ever missing on the one day each ~quarter that the threshold was hit.
+    const oneDay = 1 / 365.2425;
+    const burgs = makeBurgs([{ i: 1, state: 0, market: 1 }]);
+    const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];
+
+    for (let day = 0; day < 91; day++) {
+      runShipyardTick(candidates, burgs, [], oneDay, noSkill, () => ({ status: "fulfilled" }));
+    }
+    // ~91 days accumulates just under the 0.5 request threshold — no request attempted yet.
+    expect(getQueueEntry(1)?.progress).toBe(0);
+    expect(getQueueEntry(1)?.blockedReason).toBeUndefined();
+
+    // The day the threshold is finally crossed, materials happen to be unavailable.
+    runShipyardTick(candidates, burgs, [], oneDay, noSkill, () => ({ status: "insufficientMaterials", missing: {} }));
+    expect(getQueueEntry(1)).toMatchObject({ progress: 0, blockedReason: "insufficientMaterials" });
+
+    // Materials arrive the very next day — this must succeed immediately, not ~91 days later.
+    runShipyardTick(candidates, burgs, [], oneDay, noSkill, () => ({ status: "fulfilled" }));
+    expect(getQueueEntry(1)?.progress).toBeGreaterThan(0);
   });
 
   it("notifies Economy of annual material demand for state-owned queues only", () => {
