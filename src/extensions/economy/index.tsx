@@ -34,6 +34,7 @@ import {
 } from "./renderers/draw-trade-animation";
 import { economyMapPickHandler } from "./renderers/economyMapPickHandler";
 import { createEconomyWebglLayerSpec } from "./renderers/economyWebglLayers";
+import { getDisplayedGoodIds } from "./store/goodsDisplaySelection";
 import { showEconomyTooltip, updateEconomyCellInfo } from "./tooltipHandler";
 import { StatesEditorTreasuryTab } from "./ui/components/StatesEditorTreasuryTab";
 import { GoodsDistributionEditorDialog } from "./ui/dialogs/GoodsDistributionEditorDialog";
@@ -50,13 +51,6 @@ import { ProductionChainsDialog } from "./ui/dialogs/ProductionChainsDialog";
 import { ProductionOverviewDialog } from "./ui/dialogs/ProductionOverviewDialog";
 import { TradeAnimationDialog } from "./ui/dialogs/TradeAnimationDialog";
 import { TradeDetailsDialog } from "./ui/dialogs/TradeDetailsDialog";
-
-/** Default goods set shown when the goods layer is first toggled on. */
-function getDefaultGoodsSet(): Set<number> {
-  const goods = getWorldContext().pack.goods ?? [];
-  const wood = goods.find(g => g.name === "Wood");
-  return wood ? new Set([wood.i]) : new Set(goods.map(g => g.i));
-}
 
 function withRegenerateConfirmation(featureName: string, _id: string, onConfirm: () => void) {
   if (useUiPreferencesState.getState().dontAskRegenerateFeature) return onConfirm();
@@ -226,7 +220,7 @@ function refreshEconomyForGunpowderEra(api: ExtensionAPI): void {
       })
       .filter((caravan): caravan is Exclude<typeof caravan, null> => caravan !== null);
   }
-  if (api.layerIsOn("toggleGoods")) drawGoods(getDefaultGoodsSet());
+  if (api.layerIsOn("toggleGoods")) drawGoods(getDisplayedGoodIds());
   api.requestWebglRender();
 }
 
@@ -584,7 +578,7 @@ export function init(api: ExtensionAPI): void {
 
       Production.produce();
       Taxes.collectTaxes();
-      if (api.layerIsOn("toggleGoods")) drawGoods(getDefaultGoodsSet());
+      if (api.layerIsOn("toggleGoods")) drawGoods(getDisplayedGoodIds());
     });
   };
 
@@ -774,7 +768,7 @@ export function init(api: ExtensionAPI): void {
         api.requestWebglRender();
         return;
       }
-      drawGoods(getDefaultGoodsSet());
+      drawGoods(getDisplayedGoodIds());
     } else {
       api.getSvgLayer("goods")?.selectAll("#goodsCells,#goodsIcons,#goodsBurgs").html("");
       api.turnLayerOff("toggleGoods");
@@ -818,7 +812,7 @@ export function init(api: ExtensionAPI): void {
       if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
       return;
     }
-    if (api.layerIsOn("toggleGoods")) drawGoods(getDefaultGoodsSet());
+    if (api.layerIsOn("toggleGoods")) drawGoods(getDisplayedGoodIds());
     if (api.layerIsOn("toggleMarketsLayer")) drawMarketsLayer();
     if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
   });

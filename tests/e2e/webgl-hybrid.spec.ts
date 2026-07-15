@@ -909,6 +909,42 @@ test.describe("webgl hybrid renderer", () => {
     expect(filterCriticalErrors(errors)).toEqual([]);
   });
 
+  test("removes deselected Goods from WebGL rendering", async ({ page }) => {
+    await page.goto("/?seed=webgl-economy-goods-selection&width=1000&height=700");
+    await waitForMapLoad(page);
+
+    await page.locator("#optionsHide").click();
+    await page.locator("#extensionsTab").click();
+    await page.getByRole("checkbox", { name: "Toggle Characters extension" }).check();
+    await page.getByRole("checkbox", { name: "Toggle Economy, Goods & Trade extension" }).check();
+
+    await setRenderMode(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+    await page.locator("#layersTab").click();
+    await page.getByRole("button", { name: "Goods", exact: true }).click();
+
+    const goodsLayerIds = ["fmg-webgl-extension-economy-goods-cells", "fmg-webgl-extension-economy-goods-sources"];
+    await expect
+      .poll(async () => (await getWebglLayerRenderingProps(page, goodsLayerIds)).every(layer => layer.dataCount > 0))
+      .toBe(true);
+
+    await clickWebglEditTargetAndExpectEditor(page, {
+      layerId: "fmg-webgl-extension-economy-goods-cells",
+      kind: "extension",
+      editorSelector: "#goodsEditorContainer"
+    });
+
+    await page.locator("#goodsBody").hover();
+    await page.mouse.wheel(0, 6000);
+    const woodToggle = page.locator('tr[data-name="Wood"] input.goodDisplayed');
+    await expect(woodToggle).toBeChecked();
+    await woodToggle.uncheck();
+
+    await expect
+      .poll(() => getWebglLayerRenderingProps(page, goodsLayerIds))
+      .toEqual(goodsLayerIds.map(layerId => expect.objectContaining({ layerId, dataCount: 0 })));
+  });
+
   test("emits stable pick detail without taking over editor clicks", async ({ page }) => {
     await page.goto("/?seed=webgl-pick&width=900&height=600");
     await waitForMapLoad(page);

@@ -7,6 +7,12 @@ import { Markets } from "../generators/markets-generator";
 import { isDealRecord, isMfgRecord, Production } from "../generators/production-generator";
 import { getCellProduction } from "../generators/production-utils";
 import { drawGoods } from "../renderers/draw-goods";
+import {
+  getDisplayedGoodIds,
+  initializeDisplayedGoodIds,
+  setAllGoodsDisplayed,
+  setGoodDisplayed
+} from "../store/goodsDisplaySelection";
 import { getGoodsEditorTableState, setGoodsEditorTableState } from "../store/goodsEditorTableState";
 import { setGoodsProducersDialogState } from "../store/goodsProducersDialogState";
 import { setGoodsStockDialogState } from "../store/goodsStockDialogState";
@@ -17,13 +23,12 @@ const viewbox = () => getViewContext().viewbox;
 const worldContext = () => getWorldContext();
 
 const visibleTags = new Set<string>();
-const displayedGoods = new Set<number>();
-let displayedGoodsInitialized = false;
 let cellsWasForced = false;
 
 function refreshEditor(): void {
   goodsEditorAddLines();
-  drawGoods(displayedGoods);
+  drawGoods(getDisplayedGoodIds());
+  getApi().requestWebglRender();
 }
 
 function regenerateEconomyForGood(goodId: number): void {
@@ -33,22 +38,12 @@ function regenerateEconomyForGood(goodId: number): void {
   refreshEditor();
 }
 
-function ensureDisplayedGoodsInitialized(): void {
-  if (displayedGoodsInitialized) return;
-  displayedGoodsInitialized = true;
-  const enabledGoods = (worldContext().pack.goods ?? []).filter(isGoodEnabled);
-  if (!enabledGoods.length) return;
-
-  const wood = enabledGoods.find(g => g.name === "Wood");
-  displayedGoods.add(wood ? wood.i : enabledGoods[0].i);
-}
-
 export function open(): void {
   if (getViewContext().customization) return;
 
-  ensureDisplayedGoodsInitialized();
+  initializeDisplayedGoodIds();
   if (!layerIsOn("toggleGoods")) getApi().toggleLayerById("toggleGoods");
-  else drawGoods(displayedGoods);
+  else drawGoods(getDisplayedGoodIds());
 
   goodsEditorAddLines();
 }
@@ -83,7 +78,7 @@ export function goodsEditorAddLines(): void {
       stock,
       stockTip,
       basePrice: good.value,
-      isDisplayed: displayedGoods.has(good.i),
+      isDisplayed: getDisplayedGoodIds().has(good.i),
       isTagVisible
     };
   });
@@ -111,7 +106,7 @@ export function goodsEditorAddLines(): void {
     goods: sortedGoods,
     totalProduced,
     totalStock,
-    displayedCount: goods.filter(good => displayedGoods.has(good.i)).length,
+    displayedCount: goods.filter(good => getDisplayedGoodIds().has(good.i)).length,
     isPercentageMode: false,
     hasTagFilter: visibleTags.size > 0,
     isAssignMode,
@@ -346,10 +341,11 @@ export function enterResourceAssignMode(): void {
       const resource = Goods.get(selectedGoodId);
       if (!resource) return;
       worldContext().pack.cells.good[cellId] = selectedGoodId;
-      displayedGoods.add(selectedGoodId);
+      setGoodDisplayed(selectedGoodId, true);
     }
 
-    drawGoods(displayedGoods);
+    drawGoods(getDisplayedGoodIds());
+    getApi().requestWebglRender();
   });
 }
 
@@ -405,24 +401,22 @@ export function downloadGoodsData(): void {
 }
 
 export function toggleDisplayedGood(goodId: number, show: boolean): void {
-  if (show) displayedGoods.add(goodId);
-  else displayedGoods.delete(goodId);
+  setGoodDisplayed(goodId, show);
+  const displayedGoods = getDisplayedGoodIds();
 
   setGoodsEditorTableState({
     displayedCount: displayedGoods.size,
     goods: getGoodsEditorTableState().goods.map(g => (g.i === goodId ? { ...g, isDisplayed: show } : g))
   });
   drawGoods(displayedGoods);
+  getApi().requestWebglRender();
 }
 
 export function toggleAllDisplayed(show: boolean): void {
-  if (show) {
-    for (const good of (worldContext().pack.goods || []).filter(isGoodEnabled)) displayedGoods.add(good.i);
-  } else {
-    displayedGoods.clear();
-  }
+  setAllGoodsDisplayed(show);
   goodsEditorAddLines();
-  drawGoods(displayedGoods);
+  drawGoods(getDisplayedGoodIds());
+  getApi().requestWebglRender();
 }
 
 export function requestGoodsRegeneration(): void {
@@ -511,7 +505,7 @@ export function addGood(): void {
     worldContext().pack.goods.push({ ...good, trade: getDefaultGoodTradeProfile(good) });
 
     Goods.sync();
-    displayedGoods.add(nextId);
+    setGoodDisplayed(nextId, true);
     regenerateEconomyForGood(nextId);
   });
 }
@@ -532,9 +526,10 @@ export function removeGood(goodId: number): void {
       }
       worldContext().pack.goods = worldContext().pack.goods.filter(g => g.i !== good.i);
       Goods.sync();
-      displayedGoods.delete(good.i);
+      setGoodDisplayed(good.i, false);
       goodsEditorAddLines();
-      drawGoods(displayedGoods);
+      drawGoods(getDisplayedGoodIds());
+      getApi().requestWebglRender();
     }
   });
 }

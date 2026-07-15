@@ -11,6 +11,7 @@ import { getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import { getCellProduction } from "../generators/production-utils";
 import { TradeAnimation } from "../generators/trade-animation";
+import { getDisplayedGoodIds } from "../store/goodsDisplaySelection";
 import { getCaravanPosition, getHighlightedPoints } from "./draw-trade-animation";
 
 const MIN_GOODS_ALPHA = 26;
@@ -19,7 +20,7 @@ const MAX_GOODS_ALPHA = 230;
 export function createEconomyWebglLayerSpec(): ExtensionWebglLayerSpec {
   return {
     build: (): readonly ExtensionWebglLayer[] => {
-      const displayedGoods = getDefaultGoodsSet();
+      const displayedGoods = getDisplayedGoodIds();
       return [
         {
           type: "polygon" as const,
@@ -68,12 +69,6 @@ export function createEconomyWebglLayerSpec(): ExtensionWebglLayerSpec {
       ];
     }
   };
-}
-
-function getDefaultGoodsSet(): Set<number> {
-  const goods = getWorldContext().pack.goods ?? [];
-  const wood = goods.find(good => good.name === "Wood");
-  return wood ? new Set([wood.i]) : new Set(goods.map(good => good.i));
 }
 
 function buildGoodsCellPolygons(displayedGoods: ReadonlySet<number>): ExtensionWebglPolygonDatum[] {

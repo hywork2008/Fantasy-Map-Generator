@@ -3,6 +3,7 @@ import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
+import { getDisplayedGoodIds, setGoodDisplayed } from "../store/goodsDisplaySelection";
 import { getGoodsEditorTableState, setGoodsEditorTableState } from "../store/goodsEditorTableState";
 import { goodsEditorAddLines } from "./goods-editor";
 
@@ -64,5 +65,13 @@ describe("goodsEditorAddLines", () => {
       goods: [expect.objectContaining({ i: 1, name: "Wood", stock: 0 })],
       totalStock: 0
     });
+  });
+
+  it("keeps the map selection empty after the default Wood selection is disabled", () => {
+    expect(getDisplayedGoodIds()).toEqual(new Set([1]));
+
+    setGoodDisplayed(1, false);
+
+    expect(getDisplayedGoodIds()).toEqual(new Set());
   });
 });
