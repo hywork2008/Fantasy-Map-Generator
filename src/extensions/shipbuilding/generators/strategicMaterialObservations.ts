@@ -1,4 +1,8 @@
-import { SHIPBUILDING_MATERIAL_IDS, type ShipbuildingMaterialId } from "../../hostTypes";
+import {
+  SHIPBUILDING_MATERIAL_IDS,
+  type ShipbuildingMaterialId,
+  type ShipbuildingProcurementStatus
+} from "../../hostTypes";
 import { getAnnualShipbuildingMaterialDemand, type ShipClass } from "./shipClasses";
 
 /** One year's reserve avoids treating a single successful construction batch as supply security. */
@@ -27,7 +31,8 @@ type MaterialGood = Readonly<{ i: number; name: string }>;
 export function getShipyardMaterialObservations(
   shipClass: ShipClass,
   goods: readonly MaterialGood[],
-  marketGoods: MarketGoods | undefined
+  marketGoods: MarketGoods | undefined,
+  procurementStatuses: readonly ShipbuildingProcurementStatus[] = []
 ): ShipyardMaterialObservation[] {
   const annualDemand = getAnnualShipbuildingMaterialDemand(shipClass);
   const goodIdByName = new Map(goods.map(good => [good.name, good.i]));
@@ -38,13 +43,14 @@ export function getShipyardMaterialObservations(
     const stock = goodId === undefined ? null : (marketGoods?.[goodId]?.stock ?? 0);
     const yearlyAmount = annualDemand[material];
 
+    const procurementStatus = procurementStatuses.find(status => status.material === material);
     return {
       material,
       stock,
       annualDemand: yearlyAmount,
       targetReserve: yearlyAmount * reserveFactor,
-      inTransit: 0,
-      sourceStateId: null
+      inTransit: procurementStatus?.inTransit ?? 0,
+      sourceStateId: procurementStatus?.sourceStateId ?? null
     };
   });
 }

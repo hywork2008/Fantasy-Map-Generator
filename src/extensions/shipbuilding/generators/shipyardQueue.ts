@@ -4,9 +4,11 @@ import type {
   ShipbuildingMaterialRequest,
   ShipbuildingMaterialRequestResult,
   ShipbuildingMaterialShortage,
+  ShipbuildingStrategicProcurementDemand,
   State
 } from "../../hostTypes";
 import {
+  getAnnualShipbuildingMaterialDemand,
   getHighestUnlockedShipClass,
   getMaterialsForWork,
   getShipClass,
@@ -59,7 +61,10 @@ export type RequestShipbuildingMaterialsFn = (
   request: Omit<ShipbuildingMaterialRequest, "result">
 ) => ShipbuildingMaterialRequestResult;
 
+export type NotifyStrategicProcurementDemandFn = (demand: ShipbuildingStrategicProcurementDemand) => void;
+
 const allowMaterialsForUnitTests: RequestShipbuildingMaterialsFn = () => ({ status: "fulfilled" });
+const ignoreStrategicProcurementDemand: NotifyStrategicProcurementDemandFn = () => {};
 
 const _queues = new Map<number, ShipyardQueueEntry>(); // burgId -> active queue entry
 const _stateTechPoints = new Map<number, number>(); // stateId -> accumulated tech points
@@ -168,7 +173,8 @@ export function runShipyardTick(
   states: readonly State[],
   deltaYears: number,
   getEffectiveSkill: GetEffectiveSkillFn,
-  requestMaterials: RequestShipbuildingMaterialsFn = allowMaterialsForUnitTests
+  requestMaterials: RequestShipbuildingMaterialsFn = allowMaterialsForUnitTests,
+  notifyStrategicProcurementDemand: NotifyStrategicProcurementDemandFn = ignoreStrategicProcurementDemand
 ): void {
   if (candidates.length === 0 || deltaYears <= 0) return;
 
@@ -197,6 +203,15 @@ export function runShipyardTick(
       _queues.set(burgId, entry);
     } else {
       entry.owner = owner;
+    }
+
+    if (entry.owner === "state" && burg.state && burg.market) {
+      notifyStrategicProcurementDemand({
+        source: "shipbuilding",
+        stateId: burg.state,
+        destinationMarketId: burg.market,
+        annualMaterials: getAnnualShipbuildingMaterialDemand(getShipClass(entry.shipClassId) ?? unlockedClass)
+      });
     }
 
     const classDef = getShipClass(entry.shipClassId) ?? unlockedClass;

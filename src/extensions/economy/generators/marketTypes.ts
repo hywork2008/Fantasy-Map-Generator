@@ -34,6 +34,10 @@ export interface Deal {
   maintenanceCost?: number;
   accountingPeriodDays?: 7 | 30;
   spawned?: boolean;
+  /** Purpose metadata is only set for state-funded strategic procurement. */
+  purpose?: "strategicProcurement";
+  payerStateId?: number;
+  strategicProcurementOrderId?: number;
 }
 
 export type TradeRouteSegment = {
@@ -47,7 +51,13 @@ export interface Caravan {
   sellerType: "burg" | "market";
   buyer: number;
   buyerType: "burg" | "market";
-  payload: { goodId: number; dealId: number; units: number; value: number }[];
+  payload: {
+    goodId: number;
+    dealId: number;
+    units: number;
+    value: number;
+    strategicProcurementOrderId?: number;
+  }[];
   units: number; // total units
   value: number; // total payload value
   merchantOrganizationId?: number;

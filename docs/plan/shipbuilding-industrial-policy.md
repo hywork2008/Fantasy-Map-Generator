@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| Status | Draft — implementation plan |
+| Status | In progress — M9.0〜M9.2 implemented; M9.3〜M9.4 planned |
 | Parent | [shipbuilding.md](shipbuilding.md) Phase 9 |
 | Prerequisite | Phase 8 の資材消費ゲート |
 | Scope | 国家の造船需要を国内優先の調達・交易・生産・集約型雇用へ接続する |
@@ -10,8 +10,8 @@
 ## 1. 目的
 
 Phase 8 により、造船所は所属市場に Wood / Sails / Ropes / Tar が同時に存在するときだけ進むようになった。
-しかし現在の Economy は、造船材料の不足を将来需要として生産者・商人に通知しない。その結果、造船所は
-在庫を待つだけで、通常の時間経過だけでは必要な産業と流通が育ちにくい。
+M9.2 では、state-owned 造船所が材料の年間需要を Economy に通知し、Economy が国家の戦略調達注文・国庫決済・
+Caravan を管理するようになった。ただし、未充足注文を生産者・商人の期待利益や雇用へ反映する M9.3〜M9.4 は未実装である。
 
 Phase 9 は、為政者の「殖産興業」と平民・事業者の「利益のある仕事への移動」を、次の因果として実装する。
 
@@ -31,10 +31,10 @@ Phase 9 は、為政者の「殖産興業」と平民・事業者の「利益の
 
 | 領域 | 現状 | 問題 |
 | :--- | :--- | :--- |
-| 造船 | `shipyardQueue.ts` が市場在庫を原子的に消費する。 | 不足しても次期需要を Economy に表せない。 |
+| 造船 | `shipyardQueue.ts` が市場在庫を原子的に消費し、state-owned queue の年間材料需要を CustomEvent で Economy に通知する。 | market-owned queue は戦略調達の対象外。 |
 | 生産 | `Production.produce()` は通常の人口需要と既存 recipe をもとに労働を配分する。 | 造船材料の戦略的な不足は、生産判断へ入らない。 |
-| 交易 | `Markets.runGlobalTrade()` は在庫・価格差・輸送費・日数・商会到達範囲で取引を選ぶ。 | 同一国家優先・敵対国禁輸の判断がない。 |
-| 物流 | Caravan は出発時に輸出元 stock を減らし、到着時に輸入先 stock を増やす。 | 戦略調達として予約・追跡・国庫決済する経路がない。 |
+| 交易 | `Markets.runGlobalTrade()` は従来どおり民間の投機交易を扱う。`StrategicProcurement` は別経路で国内優先・Enemy 禁輸の候補を選ぶ。 | 敵対国禁輸は戦略調達にだけ適用する。 |
+| 物流 | 戦略調達は `Deal.purpose = "strategicProcurement"` と order id 付き Caravan を起票する。出発時に輸出元 stock、到着時に輸入先 stock を更新する。 | Caravan の損失は注文を blocked にする。注文の明示的な取消 UI は未実装。 |
 | 雇用 | 都市生産は各生産周期に人口を worker loop へ割り当てる。 | 職業別の人数、賃金、技能、転職の慣性を保持しない。 |
 
 特に、造船の消費は `Production.produce()` 後に起きるため、単に市場の価格を上げるだけでは次回生産までの
@@ -76,12 +76,17 @@ interface StrategicGoodsPolicy {
 ```
 
 - `domesticOnly`: 同一国家の市場だけから調達する。不足は建造停止として残る。
-- `alliesAndNeutral`: 国内を優先し、国内が不十分なときだけ非敵対国へ広げる。
+- `alliesAndNeutral`: 国内を優先し、国内が不十分なときだけ非敵対国へ広げる。現実装では外交ラベルを Ally / Neutral に限定せず、`Enemy` 以外を許可する。
 - `unrestricted`: 敵対国以外を着地価格順で選ぶ。初期値にはしない。
 - `enemyTrade: "prohibited"` は初期 Phase 9 では固定とする。密輸・封鎖突破は将来の外交・諜報 Phase で扱う。
 
 通常の民間交易にも敵対国禁輸を適用するかは明示的に選ぶ必要がある。最初の実装では、**戦略物資だけ**を禁輸し、
 食料などすべての交易を一度に政治化しない。
+
+現在の既定 policy は `foreignProcurement: "alliesAndNeutral"`、`targetReserveDays: 365`、
+`maxProcurementDays: 90`、`domesticPurchasePremium: 0` である。policy は Economy の pack 拡張データとして
+state ごとに保存される。`domesticPurchasePremium` の UI 設定および価格比較への個別反映は後続課題であり、
+現時点の国内優先は tier 順そのもので実現している。
 
 ### 4.2 調達需要・注文・輸送
 
@@ -89,14 +94,13 @@ interface StrategicGoodsPolicy {
 Sloop基準の造船所1つあたりの年間需要は Wood/Sails/Ropes 各 0.4、Tar 0.2 である。
 
 ```ts
-interface StrategicProcurementDemand {
+// Shipbuilding -> Economy のイベント契約。Good id の解決は Economy が所有する
+// （Shipbuilding は Economy を直接 import しない）。
+interface ShipbuildingStrategicProcurementDemand {
   stateId: number;
   destinationMarketId: number;
   source: "shipbuilding";
-  goodId: number;
-  annualDemand: number;
-  targetStock: number;
-  priority: number;
+  annualMaterials: ShipbuildingMaterials; // Wood / Sails / Ropes / Tar の年間需要
 }
 
 interface ProcurementOrder {
@@ -114,33 +118,35 @@ interface ProcurementOrder {
 }
 ```
 
-`targetStock` は `annualDemand * targetReserveDays / 365` を基本とし、短期の品切れを防ぐ。初期値は 365〜730日を
-候補とするが、マップ規模と実測生産量に基づく調整が必要である。
+Economy は Good 名を Good id に解決して、材料ごとに `targetStock = annualDemand * targetReserveDays / 365` を
+計算する。現在の既定備蓄は 365 日（造船所 1 つあたり Wood / Sails / Ropes 各 0.4、Tar 0.2）である。
+初期在庫の warm-up や 730 日備蓄への較正は未実装であり、マップ規模と実測生産量に基づく調整が必要である。
 
 注文は Economy が所有する。Shipbuilding は「どの state の、どの市場に、どの資材が、どれだけ必要か」だけを通知し、
 Economy は在庫、供給地、経路、Caravan、国庫決済を一貫して更新する。
 
 ### 4.3 供給地選択
 
-候補市場を次の tier で探索する。
+到着市場の現在 stock は備蓄達成量として先に差し引く。残りの不足に対して、**別市場**の候補を次の tier で探索する。
 
-1. 到着市場自身の利用可能在庫
-2. 同一 state の市場
-3. 同盟・中立 state の市場（方針が許す場合のみ）
+1. 到着市場自身の現在 stock（備蓄達成量として扱い、Caravan は起票しない）
+2. 同一 state の別市場
+3. 非敵対 state の別市場（方針が許す場合のみ）
 
-各 tier 内では、通常市場の安全在庫を差し引いた利用可能量を対象に、次の順で選ぶ。
+各 tier 内では、安全在庫として現在 stock の 20% を残した利用可能量を対象に、次の順で選ぶ。
 
 1. 経路が存在し、`maxProcurementDays` 以下であること
 2. 着地価格が低いこと
 3. 到着日数が短いこと
 4. 供給余力が大きいこと
 
-敵対関係は、両市場の中心 burg の `state` と外交状態から判定する。無所属市場（state 0）は中立として扱うが、
-将来は海賊・封鎖・関税を別途導入する。
+敵対関係は、両市場の中心 burg の `state` と外交状態から判定する。外交表が片側だけ `Enemy` の不整合な
+セーブデータでも禁輸となるよう、両方向を検査する。無所属市場（state 0）は中立として扱うが、将来は海賊・封鎖・
+関税を別途導入する。
 
-選定された注文は既存の `Deal` / Caravan 経路を再利用できるなら再利用する。通常の投機交易と区別が必要なら
-`Deal` に `purpose: "strategicProcurement"` と `payerStateId` を追加し、Caravan が到着したときに注文を完了へ進める。
-輸出元 stock は出発時、輸入先 stock は到着時に変わるという現在の物理モデルを壊さない。
+選定された注文は `Deal.purpose = "strategicProcurement"`、`payerStateId`、order id を付けて専用起票する。
+Caravan が到着したときに注文を `fulfilled`、損失時には `blocked` へ進める。輸出元 stock は出発時、輸入先 stock は
+到着時に変わるという物理モデルを維持する。
 
 ### 4.4 国庫と国内循環
 
@@ -150,10 +156,13 @@ Economy は在庫、供給地、経路、Caravan、国庫決済を一貫して�
 - 国内取引であれば sales tax と生産者の収益が同一国家内へ残る。
 - 外国取引であれば、購入額は輸出国側の収益となり、輸入国の国庫から流出する。
 - `domesticPurchasePremium` は、外国品がわずかに安くても国内品を選ぶために国家が許容する追加負担である。
+  フィールドは保存されるが、現在の既定値は 0 であり、個別の価格補正は未実装である。
 - 国庫不足なら注文は `insufficientTreasury` で停止し、在庫も造船進捗も増えない。
 
 Phase 8 では資材消費を無償の物理消費とした。Phase 9 で資金決済を導入する場合、既存キューの消費時課金と
-調達時課金を二重にしない。**注文時に国庫が支払い、到着在庫は通常市場在庫として造船所が消費する**方式を採用する。
+調達時課金を二重にしない。実装は**注文の起票時に国庫が着地価格を支払い、到着在庫を通常市場在庫として
+造船所が消費する**方式である。供給市場の中心 burg には売却収益を記帳し、国庫が生産周期ごとに再計算される
+既存仕様に合わせて、調達支出も次回の税収計算へ一度だけ繰り越す。
 商船（`owner: "market"`）の調達財源は Phase 9 の初期範囲外とし、国家の戦略調達だけを対象にする。
 
 ### 4.5 集約型の雇用・産業能力（後半 Phase）
@@ -183,15 +192,15 @@ interface LaborMarket {
 
 ## 5. 実装マイルストーン
 
-### M9.0 — 観測と較正
+### M9.0 — 観測と較正（実装済み: warm-up を除く）
 
 - Shipyards Overview または Economy の専用画面に、材料別の在庫、年間予測需要、目標備蓄、輸送中量、供給地 state を表示する。
-- 新規生成時の材料在庫を観測し、必要なら「通常生産数周期に相当する初期在庫」または経済 warm-up を導入する。
+- 新規生成時の材料在庫を観測し、必要なら「通常生産数周期に相当する初期在庫」または経済 warm-up を導入する。**未実装**。
 - 造船所ごとの `BUILD_POINTS_PER_YEAR` と材料レシピから年需要を一箇所で算出する。
 
-受け入れ: 「なぜ止まっているか」を、在庫不足・輸送中・経路不通・政策禁止・国庫不足に分けて読める。
+受け入れ: Shipyards Overview で、在庫不足・輸送中量・供給元 state・経路不通・政策禁止・国庫不足を読める。
 
-### M9.1 — 敵対国禁輸と国内優先スコア
+### M9.1 — 敵対国禁輸と国内優先スコア（実装済み）
 
 - 市場中心 burg の state と外交状態から取引関係を導出する純粋関数を追加する。
 - 造船材料について、Enemy 関係の市場間取引を禁止する。
@@ -199,14 +208,14 @@ interface LaborMarket {
 
 受け入れ: 敵対国の安い Tar が存在しても、国家所有造船所向け注文は生成されない。同一国家内の複数候補では着地価格と距離で選ばれる。
 
-### M9.2 — 国家の戦略調達注文
+### M9.2 — 国家の戦略調達注文（実装済み: 取消 UI を除く）
 
-- `StrategicProcurementDemand` を Shipbuilding から通知するイベントまたは汎用登録 API を設計する。
-- Economy に `StrategicProcurement` を追加し、注文作成、供給地選定、Deal/Caravan 起票、到着、取消を所有させる。
+- `ShipbuildingStrategicProcurementDemand` を Shipbuilding から通知するイベントを設計する。
+- Economy に `StrategicProcurement` を追加し、注文作成、供給地選定、Deal/Caravan 起票、到着、損失を所有させる。取消 UI は未実装。
 - state treasury を支払元とし、国庫不足・経路なし・国内供給なしを明示的に記録する。
 - state-owned queue のみを対象にする。market-owned queue の商会資金は後続 Phase に分離する。
 
-受け入れ: 国内在庫があれば近い国内市場から Caravan が起票され、到着後にだけ造船所市場の在庫と進捗が回復する。国庫不足では在庫を生成しない。
+受け入れ: 国内在庫があれば国内候補を外国候補より優先して Caravan が起票され、到着後にだけ造船所市場の在庫と進捗が回復する。国庫不足では在庫を生成しない。
 
 ### M9.3 — 造船材料の需要駆動生産
 
@@ -228,8 +237,8 @@ interface LaborMarket {
 
 | 層 | 検証 |
 | :--- | :--- |
-| Pure unit | 外交関係→取引可否、tier順の供給地選定、着地価格、国庫不足、目標備蓄計算。 |
-| Economy integration | 国内供給が敵国供給より優先されること、Enemy だけが供給可能なら注文が blocked になること、Caravan 到着まで在庫が増えないこと。 |
+| Pure unit | **実装済み**: 外交関係→取引可否、tier順の供給地選定、年間需要・365日目標備蓄、国庫不足。 |
+| Economy integration | **実装済み**: 国内供給が敵国供給より優先されること、Enemy だけが供給可能なら注文が blocked になること、Caravan 到着まで在庫が増えないこと、重複需要で active order が増えないこと。 |
 | Production integration | 継続注文が材料生産の優先度を上げ、原料不足では生産を増やせないこと。 |
 | Simulation regression | 日次 Advance Time と一括 Advance Time で、資材や国庫が負にならず、同一注文が重複起票されないこと。 |
 | E2E | UI で政策・注文・輸送中・停止理由を確認し、敵国材に依存せず国内補給で造船が再開すること。 |
@@ -245,10 +254,10 @@ interface LaborMarket {
 これらは、国家所有の造船調達と集約雇用モデルが安定した後に扱う。特に密輸は「敵対国との取引禁止」が
 実装されて初めて、例外として意味を持つ。
 
-## 8. 実装前に確認する事項
+## 8. 実装状況と残る確認事項
 
-1. state treasury の正本・更新周期を確認し、注文時支払いに耐えるかを決める。
-2. `Enemy` 以外の外交状態（同盟・中立）の表現と、無所属市場の扱いを確認する。
-3. 既存 Deal / Caravan に目的・支払者を拡張するか、戦略調達専用レコードを併設するかを決める。
-4. 新規マップ初期在庫を、生成時の過去シミュレーションと明示的な備蓄のどちらで作るかを決める。
+1. **確認・実装済み**: state treasury は生産周期ごとに再計算される。注文時に引き落とし、支出を次回の税収計算へ一度だけ繰り越す。
+2. **確認・実装済み**: `Enemy` は両方向検査で禁輸、state 0 は中立として扱う。Enemy 以外の外交ラベルを個別に区別する通商政策は未実装。
+3. **確認・実装済み**: `Deal` と Caravan payload に `purpose`、支払 state、戦略注文 id を追加した。
+4. **未決定**: 新規マップ初期在庫を、生成時の過去シミュレーションと明示的な備蓄のどちらで作るか。
 5. M9.4 の `LaborMarket` を Economy の永続 world data に置くか、Economy 拡張データとして保存・復元するかを決める。

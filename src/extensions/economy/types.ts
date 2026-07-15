@@ -2,6 +2,8 @@ import type { BurgMarketLedger } from "./generators/burgMarketLedgers";
 import type { Good } from "./generators/goods-generator";
 import type { Caravan, Deal, Market } from "./generators/marketTypes";
 import type { MerchantOrganization } from "./generators/merchantOrganizations";
+import type { ProcurementOrder } from "./generators/strategicProcurement";
+import type { StrategicGoodsPolicy } from "./generators/strategicProcurementPolicy";
 
 declare module "../../types/PackedGraph" {
   interface PackedGraph {
@@ -12,6 +14,9 @@ declare module "../../types/PackedGraph" {
     nextCaravanId: number;
     burgMarketLedgers: BurgMarketLedger[];
     merchantOrganizations: MerchantOrganization[];
+    strategicProcurementOrders: ProcurementOrder[];
+    strategicGoodsPolicies: StrategicGoodsPolicy[];
+    nextStrategicProcurementOrderId: number;
   }
 
   interface PackedGraphCells {

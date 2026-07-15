@@ -125,6 +125,31 @@ describe("shipyardQueue", () => {
     expect(getQueueEntry(1)).toMatchObject({ progress: 2, blockedReason: undefined });
   });
 
+  it("notifies Economy of annual material demand for state-owned queues only", () => {
+    const burgs = makeBurgs([{ i: 1, state: 1, capital: 1, market: 2 }]);
+    const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];
+    const demands: unknown[] = [];
+
+    runShipyardTick(
+      candidates,
+      burgs,
+      [],
+      1,
+      noSkill,
+      () => ({ status: "fulfilled" }),
+      demand => demands.push(demand)
+    );
+
+    expect(demands).toEqual([
+      {
+        source: "shipbuilding",
+        stateId: 1,
+        destinationMarketId: 2,
+        annualMaterials: { Wood: 0.4, Sails: 0.4, Ropes: 0.4, Tar: 0.2 }
+      }
+    ]);
+  });
+
   it("requests exactly one Sloop recipe over its full construction progress", () => {
     const burgs = makeBurgs([{ i: 1, state: 0, market: 1 }]);
     const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];

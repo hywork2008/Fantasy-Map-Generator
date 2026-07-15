@@ -1,5 +1,9 @@
 import { closeDialog, openDialog } from "../../../ui/dialogs/dialogService";
-import { SHIPBUILDING_MATERIAL_IDS } from "../../hostTypes";
+import {
+  SHIPBUILDING_MATERIAL_IDS,
+  type ShipbuildingProcurementStatus,
+  type ShipbuildingProcurementStatusRequest
+} from "../../hostTypes";
 import type { PortCapacity } from "../generators/portCapacity";
 import { getShipClass, getShipSizeTier, type ShipSizeTier } from "../generators/shipClasses";
 import type { ShipyardCandidate } from "../generators/shipyardCandidates";
@@ -55,18 +59,52 @@ function getMaterialStatusLabel(burgId: number): string {
   return missing.length ? `Waiting: ${missing.join(", ")}` : "Waiting: materials";
 }
 
-function getStrategicMaterialSummary(shipClassId: string, marketId: number | undefined): string {
+function getProcurementStatuses(
+  stateId: number | undefined,
+  destinationMarketId: number | undefined
+): ShipbuildingProcurementStatus[] {
+  if (!stateId || !destinationMarketId) return [];
+  const detail: ShipbuildingProcurementStatusRequest = { stateId, destinationMarketId };
+  document.dispatchEvent(new CustomEvent("fmg:shipbuilding-strategic-procurement-status-request", { detail }));
+  return detail.result ?? [];
+}
+
+function getStrategicMaterialSummary(
+  shipClassId: string,
+  marketId: number | undefined,
+  procurementStatuses: readonly ShipbuildingProcurementStatus[]
+): string {
   const { pack } = getWorldContext();
   const shipClass = getShipClass(shipClassId);
   if (!shipClass) return "Unavailable";
 
   const market = marketId === undefined ? undefined : pack.markets.find(candidate => candidate.i === marketId);
-  return getShipyardMaterialObservations(shipClass, pack.goods, market?.goods)
+  return getShipyardMaterialObservations(shipClass, pack.goods, market?.goods, procurementStatuses)
     .map(observation => {
       const stock = observation.stock === null ? "—" : observation.stock.toFixed(2);
-      return `${observation.material} ${stock}/${observation.annualDemand.toFixed(2)}/${observation.targetReserve.toFixed(2)}`;
+      const source = observation.sourceStateId
+        ? `→${pack.states[observation.sourceStateId]?.name ?? "Unknown state"}`
+        : "";
+      const inTransit = observation.inTransit > 0 ? ` +${observation.inTransit.toFixed(2)} transit${source}` : "";
+      return `${observation.material} ${stock}/${observation.annualDemand.toFixed(2)}/${observation.targetReserve.toFixed(2)}${inTransit}`;
     })
     .join(" · ");
+}
+
+function getProcurementStatusLabel(
+  owner: "state" | "market",
+  procurementStatuses: readonly ShipbuildingProcurementStatus[]
+): string {
+  if (owner === "market") return "Merchant queue";
+  const transit = procurementStatuses
+    .filter(status => status.inTransit > 0)
+    .map(status => `${status.material} ${status.inTransit.toFixed(2)} in transit`);
+  const blocked = procurementStatuses
+    .filter(status => status.blockedReason)
+    .map(status => `${status.material}: ${status.blockedReason}`);
+  if (transit.length) return transit.join(", ");
+  if (blocked.length) return `Blocked: ${blocked.join(", ")}`;
+  return "No active order";
 }
 
 function buildRows(
@@ -89,6 +127,7 @@ function buildRows(
     const ownerId = entry.owner === "state" ? burg.state : burg.i;
     const ownerLabel =
       entry.owner === "state" ? (pack.states[ownerId!]?.name ?? "Unnamed state") : `${burg.name} (merchant)`;
+    const procurementStatuses = getProcurementStatuses(entry.owner === "state" ? burg.state : undefined, burg.market);
 
     const { label: portOccupancyLabel, atSeaCount } = buildPortOccupancyLabel(burgId, portCapacity);
 
@@ -103,8 +142,8 @@ function buildRows(
       progressPct: Math.floor((entry.progress / shipClass.buildPointsRequired) * 100),
       completedHulls: getCompletedHulls(entry.owner, ownerId!, shipClass.id),
       materialStatus: getMaterialStatusLabel(burgId),
-      strategicMaterialSummary: getStrategicMaterialSummary(shipClass.id, burg.market),
-      procurementStatus: entry.owner === "state" ? "No procurement order" : "Merchant queue",
+      strategicMaterialSummary: getStrategicMaterialSummary(shipClass.id, burg.market, procurementStatuses),
+      procurementStatus: getProcurementStatusLabel(entry.owner, procurementStatuses),
       portOccupancyLabel,
       atSeaCount
     });

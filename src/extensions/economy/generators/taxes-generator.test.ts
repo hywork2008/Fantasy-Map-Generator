@@ -5,7 +5,13 @@ import { clearEconomyContext, initEconomyContext } from "../economyContext";
 import "../types";
 import { Markets } from "./markets-generator";
 import type { Market } from "./marketTypes";
-import { clearVoyageIncome, registerVoyageIncome, TaxesModule } from "./taxes-generator";
+import {
+  clearStrategicProcurementExpenses,
+  clearVoyageIncome,
+  registerStrategicProcurementExpense,
+  registerVoyageIncome,
+  TaxesModule
+} from "./taxes-generator";
 
 describe("TaxesModule", () => {
   let taxesModule: TaxesModule;
@@ -24,6 +30,7 @@ describe("TaxesModule", () => {
       deals: []
     } as unknown as PackedGraph;
     clearVoyageIncome();
+    clearStrategicProcurementExpenses();
   });
 
   describe("defineTaxRates()", () => {
@@ -185,6 +192,20 @@ describe("TaxesModule", () => {
       taxesModule.collectTaxes();
 
       expect(state1.treasury).toBe(0);
+    });
+
+    it("subtracts state-funded strategic procurement from the next fiscal recalculation exactly once", () => {
+      const state1: State = { i: 1, salesTax: 0, pollTax: 1, rural: 100, urban: 0 } as unknown as State;
+      worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
+      worldContext.pack.burgs = [];
+      worldContext.pack.deals = [];
+      registerStrategicProcurementExpense(1, 30);
+
+      taxesModule.collectTaxes();
+      expect(state1.treasury).toBe(70);
+
+      taxesModule.collectTaxes();
+      expect(state1.treasury).toBe(100);
     });
   });
 });

@@ -21,6 +21,11 @@ interface SegmentBoundary {
   toPoint: [number, number];
 }
 
+export interface CaravanTickResult {
+  arrived: Caravan[];
+  lost: Caravan[];
+}
+
 function buildSegmentBoundaries(caravan: Caravan, distanceScale: number): SegmentBoundary[] {
   let cursorKm = 0;
   return caravan.routeSegments.map(seg => {
@@ -97,21 +102,69 @@ function advanceCaravan(
 }
 
 export class CaravansModule {
-  spawnFromDeals(deals: Deal[]) {
+  private ensureNextCaravanId(): number {
     const world = getWorldContext();
     if (!world.pack.caravans) world.pack.caravans = [];
+    if (world.pack.nextCaravanId === undefined) {
+      world.pack.nextCaravanId =
+        world.pack.caravans.length > 0 ? Math.max(...world.pack.caravans.map(c => c.i)) + 1 : 0;
+    }
+    return world.pack.nextCaravanId;
+  }
 
+  /**
+   * Creates a state-funded procurement caravan from an already-priced Deal. Unlike
+   * generic deal spawning, this path receives the route selected by procurement so
+   * a policy order can report `noRoute` instead of silently becoming an unshipped Deal.
+   */
+  spawnStrategicProcurement(deal: Deal, routeSegments: TradeRouteSegment[]): Caravan | null {
+    if (deal.sellerType !== "market" || deal.buyerType !== "market" || deal.strategicProcurementOrderId === undefined) {
+      return null;
+    }
+
+    const world = getWorldContext();
+    const totalDistance = getRouteDistanceKm(routeSegments, world.distanceScale);
+    if (totalDistance <= 0) return null;
+
+    const caravan: Caravan = {
+      i: this.ensureNextCaravanId(),
+      seller: deal.seller,
+      sellerType: deal.sellerType,
+      buyer: deal.buyer,
+      buyerType: deal.buyerType,
+      payload: [
+        {
+          goodId: deal.good,
+          dealId: deal.i,
+          units: deal.units,
+          value: deal.price * deal.units,
+          strategicProcurementOrderId: deal.strategicProcurementOrderId
+        }
+      ],
+      units: rn(deal.units, 2),
+      value: rn(deal.price * deal.units, 2),
+      draftAnimalId: DEFAULT_DRAFT_ANIMAL_ID,
+      routeSegments,
+      totalDistance,
+      currentDistance: 0,
+      state: "transit"
+    };
+
+    world.pack.caravans.push(caravan);
+    world.pack.nextCaravanId = caravan.i + 1;
+    deal.spawned = true;
+    return caravan;
+  }
+
+  spawnFromDeals(deals: Deal[]) {
+    const world = getWorldContext();
     // tick() below filters arrived/lost caravans out of world.pack.caravans, so deriving
     // nextId from Math.max over that live array would eventually reuse a completed caravan's
     // id. The SVG renderer's d3 join is keyed on caravan.i, and a reused id makes it treat an
     // unrelated new caravan as a continuation of the old one, animating a huge jump between
     // their positions. A counter stored on the pack (independent of the filtered array) keeps
     // ids unique for the pack's lifetime.
-    if (world.pack.nextCaravanId === undefined) {
-      world.pack.nextCaravanId =
-        world.pack.caravans.length > 0 ? Math.max(...world.pack.caravans.map(c => c.i)) + 1 : 0;
-    }
-    let nextId = world.pack.nextCaravanId;
+    let nextId = this.ensureNextCaravanId();
 
     const markets = world.pack.markets;
     const burgs = world.pack.burgs;
@@ -195,7 +248,13 @@ export class CaravansModule {
         const value = d.price * d.units;
         totalUnits += d.units;
         totalValue += value;
-        return { goodId: d.good, dealId: d.i, units: d.units, value };
+        return {
+          goodId: d.good,
+          dealId: d.i,
+          units: d.units,
+          value,
+          strategicProcurementOrderId: d.strategicProcurementOrderId
+        };
       });
 
       const caravan: Caravan = {
@@ -220,12 +279,14 @@ export class CaravansModule {
     world.pack.nextCaravanId = nextId;
   }
 
-  tick(deltaDays: number) {
+  tick(deltaDays: number): CaravanTickResult {
     const world = getWorldContext();
-    if (!world.pack.caravans) return;
+    if (!world.pack.caravans) return { arrived: [], lost: [] };
 
     const movement = CaravanMovement.getOptions();
     const month = world.options.month ?? 1;
+    const arrived: Caravan[] = [];
+    const lost: Caravan[] = [];
 
     for (const caravan of world.pack.caravans) {
       if (caravan.state !== "transit") continue;
@@ -234,7 +295,7 @@ export class CaravansModule {
 
       // Calculate Bandit Risk based on route path or simple market states
       // For now, default is 0. If there's a war in the region, risk increases.
-      const buyerMarket = world.pack.markets[caravan.buyer];
+      const buyerMarket = world.pack.markets.find(market => market.i === caravan.buyer);
       let banditRiskPerDay = 0;
       if (buyerMarket) {
         const ledger = getBurgMarketLedger(buyerMarket.centerBurgId);
@@ -247,6 +308,7 @@ export class CaravansModule {
         const risk = banditRiskPerDay * deltaDays;
         if (Math.random() < risk) {
           caravan.state = "lost";
+          lost.push(caravan);
           // We could optionally generate a news log or notification here
           continue;
         }
@@ -257,7 +319,7 @@ export class CaravansModule {
 
         // Add goods to target market
         if (caravan.buyerType === "market") {
-          const buyerMarket = world.pack.markets[caravan.buyer];
+          const buyerMarket = world.pack.markets.find(market => market.i === caravan.buyer);
           if (buyerMarket) {
             for (const item of caravan.payload) {
               const good = buyerMarket.goods[item.goodId];
@@ -267,11 +329,13 @@ export class CaravansModule {
             }
           }
         }
+        arrived.push(caravan);
       }
     }
 
     // Clean up arrived/lost caravans
     world.pack.caravans = world.pack.caravans.filter(c => c.state === "transit");
+    return { arrived, lost };
   }
 }
 

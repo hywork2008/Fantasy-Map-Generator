@@ -4,7 +4,11 @@ import { regenerateFeatureDialogStore } from "../../store/regenerateFeatureDialo
 import { useUiPreferencesState } from "../../store/uiPreferencesState";
 import type { ExtensionAPI } from "../../types/extension-api";
 import type { Point } from "../hostCore";
-import { isShipbuildingMaterialRequest } from "../hostTypes";
+import {
+  isShipbuildingMaterialRequest,
+  isShipbuildingProcurementStatusRequest,
+  isShipbuildingStrategicProcurementDemand
+} from "../hostTypes";
 import { formatPrice } from "../hostUtils";
 import { getBurgEconomySummary, getBurgProductPerThousandResidents } from "./burgEconomySummary";
 import { economyStyleConfig } from "./EconomyStyleConfig";
@@ -23,7 +27,13 @@ import { clearMarketManagers, syncMarketManagers } from "./generators/marketMana
 import { Markets } from "./generators/markets-generator";
 import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
 import { Production } from "./generators/production-generator";
-import { clearVoyageIncome, registerVoyageIncome, Taxes } from "./generators/taxes-generator";
+import { StrategicProcurement } from "./generators/strategicProcurement";
+import {
+  clearStrategicProcurementExpenses,
+  clearVoyageIncome,
+  registerVoyageIncome,
+  Taxes
+} from "./generators/taxes-generator";
 import { TradeAnimation } from "./generators/trade-animation";
 import { drawGoods } from "./renderers/draw-goods";
 import { drawMarketsLayer } from "./renderers/draw-markets";
@@ -195,6 +205,8 @@ let _unsubscribe: (() => void) | null = null;
 let _generatePostCoreHandler: (() => void) | null = null;
 let _logHarvestedHandler: ((e: Event) => void) | null = null;
 let _materialsRequestedHandler: ((e: Event) => void) | null = null;
+let _strategicProcurementDemandHandler: ((e: Event) => void) | null = null;
+let _strategicProcurementStatusHandler: ((e: Event) => void) | null = null;
 let _voyageIncomeHandler: ((e: Event) => void) | null = null;
 let _mapPickCandidatesHandler: ((e: Event) => void) | null = null;
 let _gunpowderEraChangedHandler: (() => void) | null = null;
@@ -508,6 +520,8 @@ export function init(api: ExtensionAPI): void {
         worldContext.pack.cells.market = new Uint16Array(worldContext.pack.cells.i.length);
       }
       clearForestDepletion();
+      clearStrategicProcurementExpenses();
+      StrategicProcurement.clear();
     }
   });
 
@@ -536,6 +550,8 @@ export function init(api: ExtensionAPI): void {
       // A new map reuses state ids from 0 — any voyage income buffered against the
       // previous map's states must not carry over.
       clearVoyageIncome();
+      clearStrategicProcurementExpenses();
+      StrategicProcurement.clear();
       Goods.generate();
       Markets.generate();
       Taxes.defineTaxRates();
@@ -603,6 +619,27 @@ export function init(api: ExtensionAPI): void {
   };
   document.addEventListener("fmg:shipbuilding-materials-requested", _materialsRequestedHandler);
 
+  // Shipbuilding only signals demand. Economy owns policy, payment, Deal, Caravan,
+  // and delivery lifecycle after this extension boundary.
+  _strategicProcurementDemandHandler = e => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    const detail = (e as CustomEvent<unknown>).detail;
+    if (!isShipbuildingStrategicProcurementDemand(detail)) return;
+    StrategicProcurement.handleShipbuildingDemand(detail);
+  };
+  document.addEventListener("fmg:shipbuilding-strategic-procurement-demand", _strategicProcurementDemandHandler);
+
+  _strategicProcurementStatusHandler = e => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    const detail = (e as CustomEvent<unknown>).detail;
+    if (!isShipbuildingProcurementStatusRequest(detail)) return;
+    detail.result = StrategicProcurement.getShipbuildingProcurementStatus(detail.stateId, detail.destinationMarketId);
+  };
+  document.addEventListener(
+    "fmg:shipbuilding-strategic-procurement-status-request",
+    _strategicProcurementStatusHandler
+  );
+
   // Listen for Shipbuilding's trade-voyage income (optional dependency — harmless no-op
   // if Shipbuilding is never enabled). Buffered in taxes-generator.ts and folded into
   // treasury on the next collectTaxes() call rather than written directly, since
@@ -657,7 +694,8 @@ export function init(api: ExtensionAPI): void {
 
     const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
 
-    Caravans.tick(effectiveDays);
+    const caravanTick = Caravans.tick(effectiveDays);
+    StrategicProcurement.reconcileCaravans(caravanTick.arrived, caravanTick.lost);
     if (api.layerIsOn("toggleTrade")) {
       TradeAnimation.start();
     }
@@ -848,6 +886,17 @@ export function cleanup(api: ExtensionAPI): void {
     document.removeEventListener("fmg:shipbuilding-materials-requested", _materialsRequestedHandler);
     _materialsRequestedHandler = null;
   }
+  if (_strategicProcurementDemandHandler) {
+    document.removeEventListener("fmg:shipbuilding-strategic-procurement-demand", _strategicProcurementDemandHandler);
+    _strategicProcurementDemandHandler = null;
+  }
+  if (_strategicProcurementStatusHandler) {
+    document.removeEventListener(
+      "fmg:shipbuilding-strategic-procurement-status-request",
+      _strategicProcurementStatusHandler
+    );
+    _strategicProcurementStatusHandler = null;
+  }
   if (_voyageIncomeHandler) {
     document.removeEventListener("fmg:shipbuilding-voyage-income", _voyageIncomeHandler);
     _voyageIncomeHandler = null;
@@ -861,7 +910,9 @@ export function cleanup(api: ExtensionAPI): void {
     _gunpowderEraChangedHandler = null;
   }
   clearVoyageIncome();
+  clearStrategicProcurementExpenses();
   clearForestDepletion();
+  StrategicProcurement.clear();
   clearBurgMarketLedgers();
   clearMarketManagers();
 

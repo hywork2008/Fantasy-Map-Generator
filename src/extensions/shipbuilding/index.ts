@@ -1,5 +1,10 @@
 import type { LayerConfig } from "../../store/layerState";
-import type { ExtensionAPI, ShipbuildingMaterialRequest, ShipbuildingMaterialRequestResult } from "../hostTypes";
+import type {
+  ExtensionAPI,
+  ShipbuildingMaterialRequest,
+  ShipbuildingMaterialRequestResult,
+  ShipbuildingStrategicProcurementDemand
+} from "../hostTypes";
 import {
   closeShipyardsOverview,
   openShipyardsOverview,
@@ -40,6 +45,10 @@ function requestShipbuildingMaterials(
   const detail: ShipbuildingMaterialRequest = { ...request };
   document.dispatchEvent(new CustomEvent("fmg:shipbuilding-materials-requested", { detail }));
   return detail.result ?? { status: "economyUnavailable" };
+}
+
+function notifyStrategicProcurementDemand(demand: ShipbuildingStrategicProcurementDemand): void {
+  document.dispatchEvent(new CustomEvent("fmg:shipbuilding-strategic-procurement-demand", { detail: demand }));
 }
 
 function recomputeAndMaybeDraw(api: ExtensionAPI): void {
@@ -128,7 +137,8 @@ export function init(api: ExtensionAPI): void {
       states,
       effectiveDeltaYears,
       api.getEffectiveSkill,
-      requestShipbuildingMaterials
+      requestShipbuildingMaterials,
+      notifyStrategicProcurementDemand
     );
     runVoyageTick(burgs, states, effectiveDeltaYears);
     checkForeignInterference(_candidates, burgs, effectiveDeltaYears);

@@ -21,6 +21,10 @@ const DEFAULT_TAX: TaxBases = DEFAULT_TAX_BY_FORM.Monarchy;
 // method that recomputes treasury from scratch every call. See docs/plan/ships.md
 // ("航海訓練・偽装通商・諜報（暫定案）").
 const _voyageIncomeByState = new Map<number, number>();
+// State treasuries are recomputed per Economy production cycle. Procurement spends
+// recorded between those recalculations must therefore be carried into the next
+// calculation rather than disappearing when collectTaxes() resets the balances.
+const _strategicProcurementExpenseByState = new Map<number, number>();
 
 export function registerVoyageIncome(stateId: number, amount: number): void {
   _voyageIncomeByState.set(stateId, (_voyageIncomeByState.get(stateId) ?? 0) + amount);
@@ -28,6 +32,15 @@ export function registerVoyageIncome(stateId: number, amount: number): void {
 
 export function clearVoyageIncome(): void {
   _voyageIncomeByState.clear();
+}
+
+export function registerStrategicProcurementExpense(stateId: number, amount: number): void {
+  if (!stateId || !(amount > 0)) return;
+  _strategicProcurementExpenseByState.set(stateId, (_strategicProcurementExpenseByState.get(stateId) ?? 0) + amount);
+}
+
+export function clearStrategicProcurementExpenses(): void {
+  _strategicProcurementExpenseByState.clear();
 }
 
 export class TaxesModule {
@@ -69,9 +82,14 @@ export class TaxesModule {
       if (!state.i) continue;
       const population = (state.rural || 0) + (state.urban || 0);
       const voyageIncome = _voyageIncomeByState.get(state.i) ?? 0;
-      state.treasury = rn((state.treasury || 0) + (state.pollTax || 0) * population + voyageIncome, 2);
+      const procurementExpense = _strategicProcurementExpenseByState.get(state.i) ?? 0;
+      state.treasury = rn(
+        Math.max(0, (state.treasury || 0) + (state.pollTax || 0) * population + voyageIncome - procurementExpense),
+        2
+      );
     }
     _voyageIncomeByState.clear();
+    _strategicProcurementExpenseByState.clear();
 
     TIME && console.timeEnd("collectTaxes");
   }
