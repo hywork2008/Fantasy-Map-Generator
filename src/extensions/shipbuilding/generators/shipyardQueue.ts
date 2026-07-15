@@ -8,19 +8,23 @@ import {
   type ShipbuildingMaterialShortage,
   type ShipbuildingMaterials,
   type ShipbuildingStrategicProcurementDemand,
+  type ShipGoodStock,
   type State
 } from "../../hostTypes";
+import type { PortCapacity } from "./portCapacity";
 import {
   getAnnualShipbuildingMaterialDemand,
   getHighestUnlockedShipClass,
   getMaterialsForWork,
   getShipClass,
+  getShipSizeTier,
   SHIPYARD_BUILD_POINTS_PER_YEAR,
   type ShipClass
 } from "./shipClasses";
 import type { ShipyardCandidate } from "./shipyardCandidates";
 
-export type ShipyardOwner = "state" | "market";
+export type ShipyardOwner = "state" | "market" | "shipyard";
+type ShipHullOwner = Exclude<ShipyardOwner, "shipyard">;
 
 /** Signature of ExtensionAPI.getEffectiveSkill — injected rather than imported so this
  * module stays a plain, host-independent unit under test (see AGENTS.md §7.3). */
@@ -28,12 +32,16 @@ export type GetEffectiveSkillFn = (characterId: number, skill: string) => number
 
 export interface ShipyardQueueEntry {
   shipClassId: string;
-  owner: ShipyardOwner;
+  owner: ShipHullOwner;
   progress: number;
   /** Potential work accumulated since the last material request, not yet construction progress. */
   pendingWorkPoints: number;
   blockedReason?: ShipbuildingMaterialBlockedReason;
   missingMaterials?: ShipbuildingMaterialShortage;
+}
+
+interface SurplusShipyardQueueEntry extends Omit<ShipyardQueueEntry, "owner"> {
+  owner: "shipyard";
 }
 
 export type ShipHullStatus = "docked" | "voyage";
@@ -49,7 +57,7 @@ export type ShipHullStatus = "docked" | "voyage";
 export interface ShipHull {
   id: number;
   shipClassId: string;
-  owner: ShipyardOwner;
+  owner: ShipHullOwner;
   ownerId: number;
   homeBurgId: number;
   status: ShipHullStatus;
@@ -65,11 +73,16 @@ export type RequestShipbuildingMaterialsFn = (
 ) => ShipbuildingMaterialRequestResult;
 
 export type NotifyStrategicProcurementDemandFn = (demand: ShipbuildingStrategicProcurementDemand) => void;
+export type RequestShipGoodStockFn = (marketId: number) => ShipGoodStock | undefined;
+export type NotifySurplusShipCompletedFn = (burgId: number, marketId: number, shipClassId: string) => boolean;
 
 const allowMaterialsForUnitTests: RequestShipbuildingMaterialsFn = () => ({ status: "fulfilled" });
 const ignoreStrategicProcurementDemand: NotifyStrategicProcurementDemandFn = () => {};
+const noShipGoodStock: RequestShipGoodStockFn = () => undefined;
+const doNotAddSurplusShip: NotifySurplusShipCompletedFn = () => false;
 
 const _queues = new Map<number, ShipyardQueueEntry>(); // burgId -> active queue entry
+const _surplusQueues = new Map<number, SurplusShipyardQueueEntry>(); // burgId -> generic market-stock build stream
 const _stateTechPoints = new Map<number, number>(); // stateId -> accumulated tech points
 // "state:<stateId>:<shipClassId>" or "market:<burgId>:<shipClassId>" -> completed hull count
 const _completedHulls = new Map<string, number>();
@@ -100,7 +113,7 @@ export function setHullStatus(hullId: number, status: ShipHullStatus): void {
  * warrant one — its state's capital or a fortified (citadel) port. Every other
  * shipyard candidate defaults to a commercial/merchant queue funded by local trade.
  */
-function determineOwner(burg: Burg): ShipyardOwner {
+function determineOwner(burg: Burg): ShipHullOwner {
   return burg.state && (burg.capital || burg.citadel) ? "state" : "market";
 }
 
@@ -163,12 +176,12 @@ function getEngineeringMultiplier(
   return 1 + getEffectiveSkill(rulerId, "engineering") / 100;
 }
 
-function completedHullKey(owner: ShipyardOwner, ownerId: number, shipClassId: string): string {
+function completedHullKey(owner: ShipHullOwner, ownerId: number, shipClassId: string): string {
   return `${owner}:${ownerId}:${shipClassId}`;
 }
 
 /** Completed hulls for a state's navy (owner: "state") or a single port's merchant fleet (owner: "market"). */
-export function getCompletedHulls(owner: ShipyardOwner, ownerId: number, shipClassId: string): number {
+export function getCompletedHulls(owner: ShipHullOwner, ownerId: number, shipClassId: string): number {
   return _completedHulls.get(completedHullKey(owner, ownerId, shipClassId)) ?? 0;
 }
 
@@ -176,7 +189,7 @@ export function getQueueEntry(burgId: number): ShipyardQueueEntry | undefined {
   return _queues.get(burgId);
 }
 
-function completeHull(burg: Burg, owner: ShipyardOwner, shipClassId: string, states: readonly State[]): void {
+function completeHull(burg: Burg, owner: ShipHullOwner, shipClassId: string, states: readonly State[]): void {
   const ownerId = owner === "state" ? burg.state! : burg.i!;
   const key = completedHullKey(owner, ownerId, shipClassId);
   _completedHulls.set(key, (_completedHulls.get(key) ?? 0) + 1);
@@ -216,7 +229,10 @@ export function runShipyardTick(
   deltaYears: number,
   getEffectiveSkill: GetEffectiveSkillFn,
   requestMaterials: RequestShipbuildingMaterialsFn = allowMaterialsForUnitTests,
-  notifyStrategicProcurementDemand: NotifyStrategicProcurementDemandFn = ignoreStrategicProcurementDemand
+  notifyStrategicProcurementDemand: NotifyStrategicProcurementDemandFn = ignoreStrategicProcurementDemand,
+  requestShipGoodStock: RequestShipGoodStockFn = noShipGoodStock,
+  notifySurplusShipCompleted: NotifySurplusShipCompletedFn = doNotAddSurplusShip,
+  portCapacityByBurg: ReadonlyMap<number, PortCapacity> = new Map()
 ): void {
   if (candidates.length === 0 || deltaYears <= 0) return;
 
@@ -257,7 +273,18 @@ export function runShipyardTick(
     }
 
     const classDef = getShipClass(entry.shipClassId) ?? unlockedClass;
-    advanceQueueWithMaterials(entry, burg, classDef, deltaYears, requestMaterials, states);
+    const unusedWorkPoints = advanceQueueWithMaterials(entry, burg, classDef, deltaYears, requestMaterials, states);
+    if (owner === "market" && unusedWorkPoints > EPSILON) {
+      advanceSurplusQueue(
+        burg,
+        techPoints,
+        unusedWorkPoints,
+        requestMaterials,
+        requestShipGoodStock,
+        notifySurplusShipCompleted,
+        portCapacityByBurg.get(burgId)
+      );
+    }
     // Re-evaluate the target class for the next hull — tech may have advanced.
     entry.shipClassId = unlockedClass.id;
   }
@@ -270,7 +297,7 @@ function advanceQueueWithMaterials(
   deltaYears: number,
   requestMaterials: RequestShipbuildingMaterialsFn,
   states: readonly State[]
-): void {
+): number {
   let availableWorkPoints = entry.pendingWorkPoints + SHIPYARD_BUILD_POINTS_PER_YEAR * deltaYears;
   entry.pendingWorkPoints = 0;
 
@@ -283,7 +310,7 @@ function advanceQueueWithMaterials(
     // two-decimal market stock. A final partial chunk still settles the hull exactly.
     if (!completesHull && requestedWorkPoints + EPSILON < MATERIAL_REQUEST_WORK_POINTS) {
       entry.pendingWorkPoints = requestedWorkPoints;
-      return;
+      return 0;
     }
 
     const result = requestMaterials({
@@ -307,7 +334,7 @@ function advanceQueueWithMaterials(
       // ~quarterly checkpoint could show 0% progress for an entire year even once material became
       // available on every other day. Carrying it forward means next tick retries immediately.
       entry.pendingWorkPoints = requestedWorkPoints;
-      return;
+      return Math.max(0, availableWorkPoints - requestedWorkPoints);
     }
 
     entry.blockedReason = undefined;
@@ -320,10 +347,106 @@ function advanceQueueWithMaterials(
     entry.progress = 0;
     completeHull(burg, entry.owner, shipClass.id, states);
   }
+  return 0;
+}
+
+/**
+ * Converts capacity left unused by a merchant queue into a separate, generic market-stock
+ * stream. It never creates ShipHull records, so voyage and owner lifecycle logic remains
+ * confined to the existing state/market queues.
+ */
+function advanceSurplusQueue(
+  burg: Burg,
+  techPoints: number,
+  availableWorkPoints: number,
+  requestMaterials: RequestShipbuildingMaterialsFn,
+  requestShipGoodStock: RequestShipGoodStockFn,
+  notifySurplusShipCompleted: NotifySurplusShipCompletedFn,
+  portCapacity: PortCapacity | undefined
+): void {
+  if (!burg.market || !burg.i || !portCapacity) return;
+
+  const stock = requestShipGoodStock(burg.market);
+  if (!stock) return;
+  const mutableStock = { ...stock };
+
+  // A hull already under construction (materials already spent on it) keeps its class
+  // until it completes, even if the heuristic below would now pick a different one —
+  // re-selecting mid-build would silently discard the sunk progress/materials.
+  const inProgress = _surplusQueues.get(burg.i);
+  const hasSunkProgress = Boolean(inProgress) && inProgress!.progress + inProgress!.pendingWorkPoints > EPSILON;
+  const shipClass = hasSunkProgress
+    ? getShipClass(inProgress!.shipClassId)
+    : selectSurplusShipClass(techPoints, mutableStock);
+  if (!shipClass || !hasFreePortBerth(burg.i, shipClass, mutableStock, portCapacity)) return;
+
+  let entry = inProgress;
+  if (!entry || entry.shipClassId !== shipClass.id) {
+    entry = { shipClassId: shipClass.id, owner: "shipyard", progress: 0, pendingWorkPoints: 0 };
+    _surplusQueues.set(burg.i, entry);
+  }
+
+  let workPoints = entry.pendingWorkPoints + availableWorkPoints;
+  entry.pendingWorkPoints = 0;
+  while (workPoints > EPSILON) {
+    if (!hasFreePortBerth(burg.i, shipClass, mutableStock, portCapacity)) return;
+    const remaining = Math.max(0, shipClass.buildPointsRequired - entry.progress);
+    const requested = Math.min(workPoints, remaining, MATERIAL_REQUEST_WORK_POINTS);
+    const completesShip = requested + EPSILON >= remaining;
+    if (!completesShip && requested + EPSILON < MATERIAL_REQUEST_WORK_POINTS) {
+      entry.pendingWorkPoints = requested;
+      return;
+    }
+
+    const result = requestMaterials({
+      burgId: burg.i,
+      marketId: burg.market,
+      shipClassId: shipClass.id,
+      owner: "shipyard",
+      workPoints: requested,
+      materials: getMaterialsForWork(shipClass, requested)
+    });
+    if (result.status !== "fulfilled") {
+      entry.blockedReason = result.status;
+      entry.missingMaterials = result.status === "insufficientMaterials" ? result.missing : undefined;
+      entry.pendingWorkPoints = requested;
+      return;
+    }
+
+    entry.blockedReason = undefined;
+    entry.missingMaterials = undefined;
+    entry.progress += requested;
+    workPoints -= requested;
+    if (entry.progress + EPSILON < shipClass.buildPointsRequired) continue;
+
+    if (!notifySurplusShipCompleted(burg.i, burg.market, shipClass.id)) return;
+    mutableStock[shipClass.name as keyof ShipGoodStock]++;
+    entry.progress = 0;
+  }
+}
+
+function selectSurplusShipClass(techPoints: number, stock: ShipGoodStock): ShipClass | undefined {
+  const sloop = getShipClass("sloop");
+  const caravel = getShipClass("caravel");
+  if (!sloop || !caravel) return undefined;
+  if (techPoints >= caravel.techPointsRequired && stock.Sloop > 0 && stock.Caravel === 0) return caravel;
+  return sloop;
+}
+
+function hasFreePortBerth(burgId: number, shipClass: ShipClass, stock: ShipGoodStock, capacity: PortCapacity): boolean {
+  const tier = getShipSizeTier(shipClass);
+  const dockedHulls = getHullsAtBurg(burgId).filter(hull => {
+    const hullClass = getShipClass(hull.shipClassId);
+    return hull.status === "docked" && hullClass?.tier === shipClass.tier;
+  }).length;
+  const storedShips =
+    shipClass.id === "sloop" ? stock.Sloop : shipClass.id === "caravel" ? stock.Caravel : stock.Galleon;
+  return dockedHulls + storedShips < capacity[tier];
 }
 
 export function clearShipyardQueues(): void {
   _queues.clear();
+  _surplusQueues.clear();
   _stateTechPoints.clear();
   _completedHulls.clear();
   _hulls.clear();

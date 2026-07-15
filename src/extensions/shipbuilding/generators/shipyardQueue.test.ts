@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Burg, State } from "../../hostTypes";
+import type { PortCapacity } from "./portCapacity";
 import type { ShipyardCandidate } from "./shipyardCandidates";
 import {
   clearShipyardQueues,
@@ -10,7 +11,8 @@ import {
   getQueueEntry,
   getStateTechPoints,
   isStateAtWar,
-  runShipyardTick
+  runShipyardTick,
+  setHullStatus
 } from "./shipyardQueue";
 
 function makeBurgs(overrides: Partial<Burg>[]): Burg[] {
@@ -211,6 +213,261 @@ describe("shipyardQueue", () => {
 
     expect(getStateTechPoints(1)).toBe(60);
     expect(getQueueEntry(1)?.shipClassId).toBe("caravel");
+  });
+
+  it("turns only a market queue's unused capacity into a port-limited generic ship stock", () => {
+    const burgs = makeBurgs([{ i: 1, state: 0, market: 1 }]);
+    const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];
+    const portCapacity: ReadonlyMap<number, PortCapacity> = new Map([[1, { small: 1, medium: 1, large: 0 }]]);
+    const stock = { Sloop: 0, Caravel: 0, Galleon: 0 };
+    const completed: string[] = [];
+
+    const requestMaterials = ({ owner }: { owner: string }) =>
+      owner === "market"
+        ? { status: "insufficientMaterials" as const, missing: { Wood: 0.1 } }
+        : { status: "fulfilled" as const };
+    const getShipStock = () => ({ ...stock });
+    const addShipStock = (_burgId: number, _marketId: number, shipClassId: string) => {
+      completed.push(shipClassId);
+      stock[shipClassId === "sloop" ? "Sloop" : shipClassId === "caravel" ? "Caravel" : "Galleon"]++;
+      return true;
+    };
+
+    runShipyardTick(
+      candidates,
+      burgs,
+      [],
+      5,
+      noSkill,
+      requestMaterials,
+      undefined,
+      getShipStock,
+      addShipStock,
+      portCapacity
+    );
+    runShipyardTick(
+      candidates,
+      burgs,
+      [],
+      1,
+      noSkill,
+      requestMaterials,
+      undefined,
+      getShipStock,
+      addShipStock,
+      portCapacity
+    );
+
+    expect(completed).toEqual(["sloop"]);
+    expect(stock).toEqual({ Sloop: 1, Caravel: 0, Galleon: 0 });
+    expect(getHullsAtBurg(1)).toEqual([]);
+    expect(getCompletedHulls("market", 1, "sloop")).toBe(0);
+  });
+
+  it("never starts the surplus stream at a state-owned shipyard", () => {
+    const burgs = makeBurgs([{ i: 1, state: 1, capital: 1, market: 1 }]);
+    const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];
+    const completed: string[] = [];
+
+    runShipyardTick(
+      candidates,
+      burgs,
+      [],
+      5,
+      noSkill,
+      ({ owner }) => (owner === "market" ? { status: "insufficientMaterials", missing: {} } : { status: "fulfilled" }),
+      undefined,
+      () => ({ Sloop: 0, Caravel: 0, Galleon: 0 }),
+      (_burgId, _marketId, shipClassId) => {
+        completed.push(shipClassId);
+        return true;
+      },
+      new Map([[1, { small: 99, medium: 99, large: 99 }]])
+    );
+
+    expect(completed).toEqual([]);
+  });
+
+  it("shares a berth tier between docked hulls and generic ship stock", () => {
+    const burgs = makeBurgs([{ i: 1, state: 1, capital: 1, market: 1 }]);
+    const states = makeStates([{ i: 1, diplomacy: ["Enemy"] }]);
+    const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];
+    const capacity = new Map([[1, { small: 1, medium: 1, large: 0 }]]);
+    const completed: string[] = [];
+    const getShipStock = () => ({ Sloop: 0, Caravel: 0, Galleon: 0 });
+    const addShipStock = (_burgId: number, _marketId: number, shipClassId: string) => {
+      completed.push(shipClassId);
+      return true;
+    };
+
+    // Build a docked state hull first, then make this same burg an ordinary market yard.
+    runShipyardTick(candidates, burgs, states, 5, noSkill);
+    expect(getHullsAtBurg(1)[0]?.status).toBe("docked");
+    burgs[1].capital = 0;
+
+    runShipyardTick(
+      candidates,
+      burgs,
+      states,
+      5,
+      noSkill,
+      ({ owner }) => (owner === "market" ? { status: "insufficientMaterials", missing: {} } : { status: "fulfilled" }),
+      undefined,
+      getShipStock,
+      addShipStock,
+      capacity
+    );
+    expect(completed).toEqual([]);
+
+    setHullStatus(getHullsAtBurg(1)[0].id, "voyage");
+    runShipyardTick(
+      candidates,
+      burgs,
+      states,
+      5,
+      noSkill,
+      ({ owner }) => (owner === "market" ? { status: "insufficientMaterials", missing: {} } : { status: "fulfilled" }),
+      undefined,
+      getShipStock,
+      addShipStock,
+      capacity
+    );
+    runShipyardTick(
+      candidates,
+      burgs,
+      states,
+      1,
+      noSkill,
+      ({ owner }) => (owner === "market" ? { status: "insufficientMaterials", missing: {} } : { status: "fulfilled" }),
+      undefined,
+      getShipStock,
+      addShipStock,
+      capacity
+    );
+
+    expect(completed).toEqual(["sloop"]);
+  });
+
+  it("uses one Caravel stock slot when unlocked, then returns to Sloop instead of producing Galleons", () => {
+    const burgs = makeBurgs([{ i: 1, state: 1, market: 1 }]);
+    const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];
+    const capacity = new Map([[1, { small: 2, medium: 1, large: 1 }]]);
+    const stock = { Sloop: 1, Caravel: 0, Galleon: 0 };
+    const completed: string[] = [];
+    const requestMaterials = ({ owner }: { owner: string }) =>
+      owner === "market" ? { status: "insufficientMaterials" as const, missing: {} } : { status: "fulfilled" as const };
+    const getShipStock = () => ({ ...stock });
+    const addShipStock = (_burgId: number, _marketId: number, shipClassId: string) => {
+      completed.push(shipClassId);
+      stock[shipClassId === "sloop" ? "Sloop" : shipClassId === "caravel" ? "Caravel" : "Galleon"]++;
+      return true;
+    };
+
+    // Unlock Caravel while allowing the existing merchant queue to retain its normal hull lifecycle.
+    runShipyardTick(candidates, burgs, [], 50, noSkill);
+    runShipyardTick(
+      candidates,
+      burgs,
+      [],
+      12.5,
+      noSkill,
+      requestMaterials,
+      undefined,
+      getShipStock,
+      addShipStock,
+      capacity
+    );
+    runShipyardTick(
+      candidates,
+      burgs,
+      [],
+      0.5,
+      noSkill,
+      requestMaterials,
+      undefined,
+      getShipStock,
+      addShipStock,
+      capacity
+    );
+    expect(completed).toEqual(["caravel"]);
+
+    runShipyardTick(
+      candidates,
+      burgs,
+      [],
+      5,
+      noSkill,
+      requestMaterials,
+      undefined,
+      getShipStock,
+      addShipStock,
+      capacity
+    );
+    runShipyardTick(
+      candidates,
+      burgs,
+      [],
+      1,
+      noSkill,
+      requestMaterials,
+      undefined,
+      getShipStock,
+      addShipStock,
+      capacity
+    );
+
+    expect(completed).toEqual(["caravel", "sloop"]);
+    expect(completed).not.toContain("galleon");
+  });
+
+  it("finishes a partially built surplus hull's class even if the heuristic would switch mid-build", () => {
+    const burgs = makeBurgs([{ i: 1, state: 1, market: 1 }]);
+    const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];
+    const capacity = new Map([[1, { small: 5, medium: 5, large: 5 }]]);
+    const completed: string[] = [];
+    const requestMaterials = ({ owner }: { owner: string }) =>
+      owner === "market" ? { status: "insufficientMaterials" as const, missing: {} } : { status: "fulfilled" as const };
+    const addShipStock = (_burgId: number, _marketId: number, shipClassId: string) => {
+      completed.push(shipClassId);
+      return true;
+    };
+
+    // Sink half a Sloop's worth of progress (and materials) while Caravel is still locked.
+    runShipyardTick(candidates, burgs, [], 1, noSkill); // tech warm-up, doesn't touch the surplus stream
+    runShipyardTick(
+      candidates,
+      burgs,
+      [],
+      2.75,
+      noSkill,
+      requestMaterials,
+      undefined,
+      () => ({ Sloop: 0, Caravel: 0, Galleon: 0 }),
+      addShipStock,
+      capacity
+    );
+    expect(completed).toEqual([]);
+
+    // Cross the Caravel tech threshold via a plain (non-surplus) tick, then report a Sloop
+    // already in stock (e.g. imported by trade) — exactly the condition that would otherwise
+    // make the heuristic switch the in-progress hull to Caravel.
+    runShipyardTick(candidates, burgs, [], 50, noSkill);
+    runShipyardTick(
+      candidates,
+      burgs,
+      [],
+      2.75,
+      noSkill,
+      requestMaterials,
+      undefined,
+      () => ({ Sloop: 1, Caravel: 0, Galleon: 0 }),
+      addShipStock,
+      capacity
+    );
+
+    // The half-finished hull must complete as the Sloop it was started as, not be silently
+    // reset into a fresh, still-incomplete Caravel that throws away the materials already spent.
+    expect(completed).toEqual(["sloop"]);
   });
 
   it("boosts tech point accumulation with the state ruler's Engineering skill", () => {

@@ -3,7 +3,9 @@ import type {
   ExtensionAPI,
   ShipbuildingMaterialRequest,
   ShipbuildingMaterialRequestResult,
-  ShipbuildingStrategicProcurementDemand
+  ShipbuildingShipGoodStockRequest,
+  ShipbuildingStrategicProcurementDemand,
+  ShipbuildingSurplusShipRequest
 } from "../hostTypes";
 import {
   closeShipyardsOverview,
@@ -49,6 +51,18 @@ function requestShipbuildingMaterials(
 
 function notifyStrategicProcurementDemand(demand: ShipbuildingStrategicProcurementDemand): void {
   document.dispatchEvent(new CustomEvent("fmg:shipbuilding-strategic-procurement-demand", { detail: demand }));
+}
+
+function requestShipGoodStock(marketId: number) {
+  const detail: ShipbuildingShipGoodStockRequest = { marketId };
+  document.dispatchEvent(new CustomEvent("fmg:shipbuilding-ship-good-stock-request", { detail }));
+  return detail.result;
+}
+
+function notifySurplusShipCompleted(burgId: number, marketId: number, shipClassId: string): boolean {
+  const detail: ShipbuildingSurplusShipRequest = { burgId, marketId, shipClassId };
+  document.dispatchEvent(new CustomEvent("fmg:shipbuilding-surplus-ship-completed", { detail }));
+  return detail.result === "fulfilled";
 }
 
 function recomputeAndMaybeDraw(api: ExtensionAPI): void {
@@ -138,7 +152,10 @@ export function init(api: ExtensionAPI): void {
       effectiveDeltaYears,
       api.getEffectiveSkill,
       requestShipbuildingMaterials,
-      notifyStrategicProcurementDemand
+      notifyStrategicProcurementDemand,
+      requestShipGoodStock,
+      notifySurplusShipCompleted,
+      _portCapacity
     );
     runVoyageTick(burgs, states, effectiveDeltaYears);
     checkForeignInterference(_candidates, burgs, effectiveDeltaYears);

@@ -1,5 +1,6 @@
 import Alea from "alea";
 import { color, shuffler } from "d3";
+import { SHIP_CLASS_DEFINITIONS, SHIP_VALUE_PER_BUILD_POINT } from "../../../types/shipClasses";
 import type { CultureType, PackedGraph } from "../../hostTypes";
 import { TIME } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
@@ -27,6 +28,8 @@ export interface GoodTradeProfile {
 
 export interface Good {
   warEconomyType?: WarEconomyType;
+  /** This cargo can only travel over water-only trade routes. */
+  seaOnly?: boolean;
   i: number;
 
   // generation
@@ -90,6 +93,13 @@ export function isGoodEnabled(good: Pick<Good, "name">): boolean {
 }
 
 type GoodData = Omit<Good, "i"> & { recipes?: Record<string, number>[] };
+const shipClassById = new Map(SHIP_CLASS_DEFINITIONS.map(shipClass => [shipClass.id, shipClass]));
+const shipGoodValue = (shipClassId: string): number => {
+  const shipClass = shipClassById.get(shipClassId);
+  if (!shipClass) throw new Error(`Unknown ship class: ${shipClassId}`);
+  return shipClass.buildPointsRequired * SHIP_VALUE_PER_BUILD_POINT;
+};
+
 export const GOODS_DATA: GoodData[] = [
   {
     name: "Wood",
@@ -763,16 +773,42 @@ export const GOODS_DATA: GoodData[] = [
     demandCoverage: { military: 1 }
   },
   {
-    name: "Ships",
+    name: "Sloop",
     warEconomyType: "military",
+    seaOnly: true,
     tags: ["naval"],
     icon: "good-ships",
     color: "#654321",
-    value: 80,
+    value: shipGoodValue("sloop"),
     chance: 0,
-    recipes: [{ Wood: 2, Sails: 2, Ropes: 2, Tar: 1 }],
     unit: "ship",
     demandCoverage: { military: 0.5 },
+    multipliers: { cultureType: { Naval: 2 } }
+  },
+  {
+    name: "Caravel",
+    warEconomyType: "military",
+    seaOnly: true,
+    tags: ["naval"],
+    icon: "good-ships",
+    color: "#654321",
+    value: shipGoodValue("caravel"),
+    chance: 0,
+    unit: "ship",
+    demandCoverage: { military: 1.25 },
+    multipliers: { cultureType: { Naval: 2 } }
+  },
+  {
+    name: "Galleon",
+    warEconomyType: "military",
+    seaOnly: true,
+    tags: ["naval"],
+    icon: "good-ships",
+    color: "#654321",
+    value: shipGoodValue("galleon"),
+    chance: 0,
+    unit: "ship",
+    demandCoverage: { military: 3 },
     multipliers: { cultureType: { Naval: 2 } }
   },
   {
@@ -1105,7 +1141,9 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Ink: tradeProfile(1, 1, 3, 2, 0, 3, 2),
   Books: tradeProfile(2, 2, 4, 3, 0, 3, 3),
   Sails: tradeProfile(3, 4, 3, 1, 0, 3, 2),
-  Ships: tradeProfile(5, 5, 5, 0, 0, 4, 3),
+  Sloop: tradeProfile(5, 5, 5, 0, 0, 4, 3),
+  Caravel: tradeProfile(5, 5, 5, 0, 0, 4, 3),
+  Galleon: tradeProfile(5, 5, 5, 0, 0, 4, 3),
   Boots: tradeProfile(2, 3, 2, 1, 0, 4, 2),
   Harnesses: tradeProfile(3, 3, 3, 1, 0, 4, 2),
   Barrels: tradeProfile(4, 5, 1, -1, 0, 4, 2),

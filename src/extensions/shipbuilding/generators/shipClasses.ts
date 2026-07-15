@@ -1,3 +1,4 @@
+import { SHIP_CLASS_DEFINITIONS, type ShipClassDefinition } from "../../../types/shipClasses";
 import { SHIPBUILDING_MATERIAL_IDS, type ShipbuildingMaterials } from "../../hostTypes";
 
 /**
@@ -7,22 +8,9 @@ import { SHIPBUILDING_MATERIAL_IDS, type ShipbuildingMaterials } from "../../hos
  * Gunpowder-driven ships of the line are an explicit future option, gated behind a
  * separate rule, not part of this default tree.
  */
-export interface ShipClass {
-  id: string;
-  name: string;
-  /** 0-indexed; higher tiers are larger/more advanced hulls. */
-  tier: number;
-  /** Cumulative state tech points required to unlock this tier. */
-  techPointsRequired: number;
-  /** Construction effort (build-points) required to complete one hull of this class. */
-  buildPointsRequired: number;
-}
+export interface ShipClass extends ShipClassDefinition {}
 
-export const SHIP_CLASSES: readonly ShipClass[] = [
-  { id: "sloop", name: "Sloop", tier: 0, techPointsRequired: 0, buildPointsRequired: 10 },
-  { id: "caravel", name: "Caravel", tier: 1, techPointsRequired: 50, buildPointsRequired: 25 },
-  { id: "galleon", name: "Galleon", tier: 2, techPointsRequired: 150, buildPointsRequired: 60 }
-];
+export const SHIP_CLASSES: readonly ShipClass[] = SHIP_CLASS_DEFINITIONS;
 
 /**
  * The Economy Ships recipe for one Sloop-sized hull, normalized to ten construction

@@ -55,6 +55,23 @@ describe("trade route duration and viability", () => {
     expect(isGoodTradePermitted(valuableCargo, 10)).toBe(true);
   });
 
+  it("permits sea-only cargo only on water-only routes", () => {
+    const ship = {
+      i: 1,
+      name: "Sloop",
+      value: 80,
+      seaOnly: true,
+      tags: ["naval"],
+      unit: "ship",
+      icon: "good-ships",
+      color: "#654321"
+    };
+
+    expect(isGoodTradePermitted(ship, 1, [{ type: "water" }])).toBe(true);
+    expect(isGoodTradePermitted(ship, 1, [{ type: "land" }, { type: "water" }])).toBe(false);
+    expect(isGoodTradePermitted({ ...ship, seaOnly: false }, 1, [{ type: "land" }])).toBe(true);
+  });
+
   it("subtracts daily caravan maintenance before applying the minimum-profit threshold", () => {
     expect(getCaravanMaintenanceCost(8)).toBe(4);
     expect(getNetTradeProfit(1, 4, 8)).toBe(0);

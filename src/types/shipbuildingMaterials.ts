@@ -13,6 +13,11 @@ export type ShipbuildingMaterialBlockedReason =
   | "missingGood"
   | "insufficientMaterials";
 
+export type ShipbuildingOwner = "state" | "market" | "shipyard";
+export const SHIP_GOOD_NAMES = ["Sloop", "Caravel", "Galleon"] as const;
+export type ShipGoodName = (typeof SHIP_GOOD_NAMES)[number];
+export type ShipGoodStock = Readonly<Record<ShipGoodName, number>>;
+
 export type ShipbuildingMaterialRequestResult =
   | { status: "fulfilled" }
   | { status: Exclude<ShipbuildingMaterialBlockedReason, "insufficientMaterials"> }
@@ -26,7 +31,7 @@ export interface ShipbuildingMaterialRequest {
   burgId: number;
   marketId: number;
   shipClassId: string;
-  owner: "state" | "market";
+  owner: ShipbuildingOwner;
   workPoints: number;
   materials: ShipbuildingMaterials;
   result?: ShipbuildingMaterialRequestResult;
@@ -71,7 +76,7 @@ export function isShipbuildingMaterialRequest(value: unknown): value is Shipbuil
     !Number.isInteger(request.burgId) ||
     !Number.isInteger(request.marketId) ||
     typeof request.shipClassId !== "string" ||
-    (request.owner !== "state" && request.owner !== "market") ||
+    (request.owner !== "state" && request.owner !== "market" && request.owner !== "shipyard") ||
     typeof request.workPoints !== "number" ||
     !Number.isFinite(request.workPoints) ||
     request.workPoints <= 0 ||
@@ -85,6 +90,40 @@ export function isShipbuildingMaterialRequest(value: unknown): value is Shipbuil
     const amount = request.materials?.[material];
     return typeof amount === "number" && Number.isFinite(amount) && amount >= 0;
   });
+}
+
+/** Synchronous Economy query used only to choose a market shipyard's next surplus hull. */
+export interface ShipbuildingShipGoodStockRequest {
+  marketId: number;
+  result?: ShipGoodStock;
+}
+
+/** Completion signal for a generic market ship built from otherwise idle shipyard capacity. */
+export interface ShipbuildingSurplusShipRequest {
+  burgId: number;
+  marketId: number;
+  shipClassId: string;
+  result?: "fulfilled" | "noMarket" | "missingGood";
+}
+
+export function isShipbuildingShipGoodStockRequest(value: unknown): value is ShipbuildingShipGoodStockRequest {
+  if (!value || typeof value !== "object") return false;
+  const request = value as Partial<ShipbuildingShipGoodStockRequest>;
+  return typeof request.marketId === "number" && Number.isInteger(request.marketId) && request.marketId > 0;
+}
+
+export function isShipbuildingSurplusShipRequest(value: unknown): value is ShipbuildingSurplusShipRequest {
+  if (!value || typeof value !== "object") return false;
+  const request = value as Partial<ShipbuildingSurplusShipRequest>;
+  return (
+    typeof request.burgId === "number" &&
+    Number.isInteger(request.burgId) &&
+    request.burgId > 0 &&
+    typeof request.marketId === "number" &&
+    Number.isInteger(request.marketId) &&
+    request.marketId > 0 &&
+    typeof request.shipClassId === "string"
+  );
 }
 
 /**

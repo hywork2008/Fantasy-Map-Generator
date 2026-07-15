@@ -8,7 +8,10 @@ export {
   isShipbuildingInitialStockRequest,
   isShipbuildingMaterialRequest,
   isShipbuildingProcurementStatusRequest,
+  isShipbuildingShipGoodStockRequest,
   isShipbuildingStrategicProcurementDemand,
+  isShipbuildingSurplusShipRequest,
+  SHIP_GOOD_NAMES,
   SHIPBUILDING_MATERIAL_IDS,
   type ShipbuildingInitialStockRequest,
   type ShipbuildingMaterialBlockedReason,
@@ -17,8 +20,13 @@ export {
   type ShipbuildingMaterialRequestResult,
   type ShipbuildingMaterialShortage,
   type ShipbuildingMaterials,
+  type ShipbuildingOwner,
   type ShipbuildingProcurementStatus,
   type ShipbuildingProcurementStatusRequest,
-  type ShipbuildingStrategicProcurementDemand
+  type ShipbuildingShipGoodStockRequest,
+  type ShipbuildingStrategicProcurementDemand,
+  type ShipbuildingSurplusShipRequest,
+  type ShipGoodName,
+  type ShipGoodStock
 } from "../types/shipbuildingMaterials";
 export type { BiomesData } from "../types/WorldState";

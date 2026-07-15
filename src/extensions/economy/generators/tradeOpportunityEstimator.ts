@@ -84,8 +84,16 @@ export function getGoodMaxTradeDurationDays(good: Good): number {
   return trade.timeValueTrend < 0 ? Math.min(densityLimit, PERISHABLE_MAX_TRADE_DAYS) : densityLimit;
 }
 
-export function isGoodTradePermitted(good: Good, durationDays: number): boolean {
-  return Number.isFinite(durationDays) && durationDays <= getGoodMaxTradeDurationDays(good);
+export function isGoodTradePermitted(
+  good: Good,
+  durationDays: number,
+  routeSegments?: readonly Pick<TradeRouteSegment, "type">[]
+): boolean {
+  if (!Number.isFinite(durationDays) || durationDays > getGoodMaxTradeDurationDays(good)) return false;
+  return (
+    !good.seaOnly ||
+    (Boolean(routeSegments?.length) && routeSegments?.every(segment => segment.type === "water") === true)
+  );
 }
 
 export function getCaravanMaintenanceCost(durationDays: number): number {
@@ -122,7 +130,7 @@ export function estimateSpeculativeTrade(input: SpeculativeTradeInput): Speculat
     (routeSegments && distanceScale !== undefined
       ? calculateRouteDurationDays(routeSegments, distanceScale)
       : Infinity);
-  if (!isGoodTradePermitted(good, durationDays)) return null;
+  if (!isGoodTradePermitted(good, durationDays, routeSegments)) return null;
 
   const transportCost = getTransportCost(distance, mapDiagonal) * good.value;
   const demandWeight = getDemandWeight(good);

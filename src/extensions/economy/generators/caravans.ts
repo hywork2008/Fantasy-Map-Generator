@@ -238,7 +238,7 @@ export class CaravansModule {
       const durationDays = calculateRouteDurationDays(routeSegments, world.distanceScale);
       const maintenanceCost = getCaravanMaintenanceCost(durationDays);
       const transportedDeals = bundle.deals.filter(deal =>
-        isDealWorthTransporting(deal, world.pack.goods, durationDays, maintenanceCost)
+        isDealWorthTransporting(deal, world.pack.goods, durationDays, maintenanceCost, routeSegments)
       );
       if (!transportedDeals.length) continue;
 
@@ -339,9 +339,15 @@ export class CaravansModule {
   }
 }
 
-function isDealWorthTransporting(deal: Deal, goods: Good[], durationDays: number, maintenanceCost: number): boolean {
+function isDealWorthTransporting(
+  deal: Deal,
+  goods: Good[],
+  durationDays: number,
+  maintenanceCost: number,
+  routeSegments: readonly TradeRouteSegment[]
+): boolean {
   const good = goods[deal.good];
-  if (!good || !isGoodTradePermitted(good, durationDays)) return false;
+  if (!good || !isGoodTradePermitted(good, durationDays, routeSegments)) return false;
 
   // Market-to-market deals have already passed the full net-profit calculation in
   // Markets.runGlobalTrade. Burg↔market deals represent local market aggregation and do not

@@ -8,7 +8,9 @@ import {
   isShipbuildingInitialStockRequest,
   isShipbuildingMaterialRequest,
   isShipbuildingProcurementStatusRequest,
-  isShipbuildingStrategicProcurementDemand
+  isShipbuildingShipGoodStockRequest,
+  isShipbuildingStrategicProcurementDemand,
+  isShipbuildingSurplusShipRequest
 } from "../hostTypes";
 import { formatPrice } from "../hostUtils";
 import { getBurgEconomySummary, getBurgProductPerThousandResidents } from "./burgEconomySummary";
@@ -210,6 +212,8 @@ let _materialsRequestedHandler: ((e: Event) => void) | null = null;
 let _strategicProcurementDemandHandler: ((e: Event) => void) | null = null;
 let _strategicProcurementStatusHandler: ((e: Event) => void) | null = null;
 let _shipbuildingInitialStockRequestHandler: ((e: Event) => void) | null = null;
+let _shipbuildingShipGoodStockRequestHandler: ((e: Event) => void) | null = null;
+let _shipbuildingSurplusShipRequestHandler: ((e: Event) => void) | null = null;
 let _voyageIncomeHandler: ((e: Event) => void) | null = null;
 let _mapPickCandidatesHandler: ((e: Event) => void) | null = null;
 let _gunpowderEraChangedHandler: (() => void) | null = null;
@@ -622,6 +626,22 @@ export function init(api: ExtensionAPI): void {
   };
   document.addEventListener("fmg:shipbuilding-materials-requested", _materialsRequestedHandler);
 
+  _shipbuildingShipGoodStockRequestHandler = e => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    const detail = (e as CustomEvent<unknown>).detail;
+    if (!isShipbuildingShipGoodStockRequest(detail)) return;
+    detail.result = Markets.getShipGoodStock(detail.marketId);
+  };
+  document.addEventListener("fmg:shipbuilding-ship-good-stock-request", _shipbuildingShipGoodStockRequestHandler);
+
+  _shipbuildingSurplusShipRequestHandler = e => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    const detail = (e as CustomEvent<unknown>).detail;
+    if (!isShipbuildingSurplusShipRequest(detail)) return;
+    detail.result = Markets.addSurplusShipStock(detail.marketId, detail.shipClassId);
+  };
+  document.addEventListener("fmg:shipbuilding-surplus-ship-completed", _shipbuildingSurplusShipRequestHandler);
+
   // Shipbuilding only signals demand. Economy owns policy, payment, Deal, Caravan,
   // and delivery lifecycle after this extension boundary.
   _strategicProcurementDemandHandler = e => {
@@ -900,6 +920,14 @@ export function cleanup(api: ExtensionAPI): void {
   if (_materialsRequestedHandler) {
     document.removeEventListener("fmg:shipbuilding-materials-requested", _materialsRequestedHandler);
     _materialsRequestedHandler = null;
+  }
+  if (_shipbuildingShipGoodStockRequestHandler) {
+    document.removeEventListener("fmg:shipbuilding-ship-good-stock-request", _shipbuildingShipGoodStockRequestHandler);
+    _shipbuildingShipGoodStockRequestHandler = null;
+  }
+  if (_shipbuildingSurplusShipRequestHandler) {
+    document.removeEventListener("fmg:shipbuilding-surplus-ship-completed", _shipbuildingSurplusShipRequestHandler);
+    _shipbuildingSurplusShipRequestHandler = null;
   }
   if (_strategicProcurementDemandHandler) {
     document.removeEventListener("fmg:shipbuilding-strategic-procurement-demand", _strategicProcurementDemandHandler);

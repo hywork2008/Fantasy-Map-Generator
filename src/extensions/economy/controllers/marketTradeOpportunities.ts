@@ -114,7 +114,12 @@ export function refresh(): void {
         distance.sea * world.distanceScale,
         distance.transfers
       );
-      if (!isGoodTradePermitted(good, durationDays) || !isMarketTradePermitted(source, target, durationDays)) continue;
+      const routeSegments = [{ type: distance.land > 0 ? ("land" as const) : ("water" as const) }];
+      if (
+        !isGoodTradePermitted(good, durationDays, routeSegments) ||
+        !isMarketTradePermitted(source, target, durationDays)
+      )
+        continue;
 
       const transportCost = getTransportCost(distance.total, mapDiagonal) * good.value;
       const unitProfit = rn(sellPrice - buyPrice - transportCost, 2);
@@ -129,6 +134,7 @@ export function refresh(): void {
           targetPopulation: getMarketPopulation(target.i),
           distance: distance.total,
           mapDiagonal,
+          routeSegments: routeSegments.map(segment => ({ ...segment, points: [] as [number, number][] })),
           durationDays,
           buyPrice,
           sellPrice

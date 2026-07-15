@@ -2,7 +2,7 @@ import Alea from "alea";
 import { quadtree } from "d3-quadtree";
 import FlatQueue from "flatqueue";
 import { foodStressPriceMultiplier } from "../../../generators/agriculturalStress";
-import type { Burg } from "../../hostTypes";
+import type { Burg, ShipGoodName, ShipGoodStock } from "../../hostTypes";
 import {
   SHIPBUILDING_MATERIAL_IDS,
   type ShipbuildingMaterialRequestResult,
@@ -64,6 +64,35 @@ export class MarketsModule {
   }
 
   private marketById: Market[] = [];
+
+  /** Returns the current market stock for the three ship-class Goods. */
+  getShipGoodStock(marketId: number): ShipGoodStock | undefined {
+    const market = this.worldContext.pack.markets.find(candidate => candidate.i === marketId);
+    if (!market) return undefined;
+
+    const stock = {} as Record<ShipGoodName, number>;
+    for (const name of ["Sloop", "Caravel", "Galleon"] as const) {
+      const good = this.worldContext.pack.goods.find(candidate => candidate.name === name);
+      if (!good || !isGoodEnabled(good)) return undefined;
+      stock[name] = market.goods[good.i]?.stock ?? 0;
+    }
+    return stock;
+  }
+
+  /** Adds a finished generic hull to the local market's ship-class Good stock. */
+  addSurplusShipStock(marketId: number, shipClassId: string): "fulfilled" | "noMarket" | "missingGood" {
+    const market = this.worldContext.pack.markets.find(candidate => candidate.i === marketId);
+    if (!market) return "noMarket";
+
+    const goodName = { sloop: "Sloop", caravel: "Caravel", galleon: "Galleon" }[shipClassId];
+    if (!goodName) return "missingGood";
+    const good = this.worldContext.pack.goods.find(candidate => candidate.name === goodName);
+    const marketGood = good ? market.goods[good.i] : undefined;
+    if (!good || !marketGood || !isGoodEnabled(good)) return "missingGood";
+
+    marketGood.stock = rn(marketGood.stock + 1, 2);
+    return "fulfilled";
+  }
 
   generate(regenerate: boolean = false): Market[] {
     TIME && console.time("generateMarkets");
@@ -567,7 +596,7 @@ export class MarketsModule {
             const route = routes[importer.market.i];
             if (
               !route ||
-              !isGoodTradePermitted(good, route.durationDays) ||
+              !isGoodTradePermitted(good, route.durationDays, route.segments) ||
               !isMarketTradePermitted(exporter.market, importer.market, route.durationDays)
             ) {
               continue;
@@ -694,7 +723,7 @@ export class MarketsModule {
         const route = routes[importer.i];
         if (
           !route ||
-          !isGoodTradePermitted(good, route.durationDays) ||
+          !isGoodTradePermitted(good, route.durationDays, route.segments) ||
           !isMarketTradePermitted(exporter, importer, route.durationDays)
         ) {
           continue;
