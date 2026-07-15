@@ -22,6 +22,7 @@ import { tickManpower } from "./manpower";
 import { Military } from "./military-generator";
 import { advancePopulationLossClock, resetPopulationLossTracker } from "./populationLossTracker";
 import { advanceAllRegimentMovement } from "./regimentMovement";
+import { logTickProfile, measureTickStep, resetTickProfile } from "./tickProfiler";
 
 /** Day is the base simulation unit. Month/Year UI buttons expand to ~this many days. */
 const DAYS_PER_YEAR = 365.2425;
@@ -29,16 +30,23 @@ const DAYS_PER_MONTH = DAYS_PER_YEAR / 12; // ≈ 30.436875
 
 export type TimeTickHook = (deltaYears: number, deltaMonths: number, deltaDays: number) => void;
 
-const _tickHooks: TimeTickHook[] = [];
+interface RegisteredTickHook {
+  fn: TimeTickHook;
+  /** Identifies this hook in the tickProfiler output (see tickProfiler.ts) — pass the extension id. */
+  label: string;
+}
+
+const _tickHooks: RegisteredTickHook[] = [];
 
 /**
  * Register a hook called on every advanceTime() call. Extensions use this via
  * ExtensionAPI.registerTimeTickHook() to run their own per-tick simulation logic
  * (e.g. ship production, forest regrowth). Hooks are permanent for the session —
  * gate extension-specific behavior with api.isExtensionEnabled() inside the hook.
+ * `label` (e.g. the extension id) identifies this hook's cost in tickProfiler.ts's output.
  */
-export function registerTimeTickHook(fn: TimeTickHook): void {
-  _tickHooks.push(fn);
+export function registerTimeTickHook(fn: TimeTickHook, label = "unlabeled"): void {
+  _tickHooks.push({ fn, label });
 }
 
 /**
@@ -181,18 +189,20 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
 
   // 1) Agricultural calendar (spring/autumn war exposure → foodStress on year roll)
   if (sim.simAgriculture && worldContext.pack?.states) {
-    tickAgriculturalCalendar(
-      worldContext.pack,
-      effectiveDeltaDays,
-      simulationContext.currentYear,
-      simulationContext.currentMonth
+    measureTickStep("core:agriculturalStress", () =>
+      tickAgriculturalCalendar(
+        worldContext.pack,
+        effectiveDeltaDays,
+        simulationContext.currentYear,
+        simulationContext.currentMonth
+      )
     );
   }
 
   // 2) Demographics (aging/births + optional famine from foodStress)
   let result = { bordersChanged: false, newBurgsAdded: false };
   if (sim.simDemographics) {
-    result = simulateDemographics(effectiveDeltaYears);
+    result = measureTickStep("core:demographics", () => simulateDemographics(effectiveDeltaYears));
   }
 
   if (result.bordersChanged) {
@@ -207,22 +217,28 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
 
   // 3) Manpower ledger: draft capacity + fill/demobilize from civilian males
   if (sim.simManpower && worldContext.pack?.states) {
-    tickManpower(worldContext.pack, effectiveDeltaYears, worldContext.populationRate);
+    measureTickStep("core:manpower", () =>
+      tickManpower(worldContext.pack, effectiveDeltaYears, worldContext.populationRate)
+    );
   }
 
-  for (const hook of _tickHooks) hook(deltaYears, deltaMonths, deltaDays);
+  for (const hook of _tickHooks) {
+    measureTickStep(`hook:${hook.label}`, () => hook.fn(deltaYears, deltaMonths, deltaDays));
+  }
 
   // Fallback: if Nobility extension is disabled, run the core military movement here.
   // (If Nobility is enabled, it handles this internally with additional siege/capture logic).
   const isNobilityEnabled = window.fmg?.extensionAPI?.isExtensionEnabled("nobility");
   if (!isNobilityEnabled) {
-    if (sim.simMilitaryRecovery) {
-      Military.updateDynamic(worldContext, effectiveDeltaYears);
-    }
-    const regimentsMoved = advanceAllRegimentMovement(worldContext.pack, worldContext, effectiveDeltaYears);
-    if (regimentsMoved && layerIsOn("toggleMilitary")) {
-      MilitaryRenderer.render(worldContext, viewContext, appServices);
-    }
+    measureTickStep("core:militaryFallback", () => {
+      if (sim.simMilitaryRecovery) {
+        Military.updateDynamic(worldContext, effectiveDeltaYears);
+      }
+      const regimentsMoved = advanceAllRegimentMovement(worldContext.pack, worldContext, effectiveDeltaYears);
+      if (regimentsMoved && layerIsOn("toggleMilitary")) {
+        MilitaryRenderer.render(worldContext, viewContext, appServices);
+      }
+    });
   }
 
   document.dispatchEvent(
@@ -280,12 +296,16 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
   if (totalDays <= 0) return;
 
   store.setSimulationProgress(0, totalDays);
+  // Reset so the summary logTickProfile() prints at the end of this run reflects only this
+  // Advance Day/Month/Year batch, not stats carried over from a previous run.
+  resetTickProfile();
 
   let currentProgress = 0;
 
   const loop = () => {
     const currentState = useTimeSimulationState.getState();
     if (currentState.stopRequested || currentProgress >= totalDays) {
+      logTickProfile();
       currentState.clearSimulation();
       return;
     }

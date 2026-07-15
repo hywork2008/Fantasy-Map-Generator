@@ -289,8 +289,14 @@ export interface ExtensionAPI {
   /**
    * Register a hook called on every advanceTime() call (i.e. every time the
    * simulation year/month/day changes). Hooks are permanent for the session.
+   * `label` (e.g. the extension id) identifies this hook's cost in the tick profiler's
+   * output (src/generators/tickProfiler.ts) — pass one so per-extension tick cost is
+   * distinguishable when diagnosing slow Advance Time batches.
    */
-  registerTimeTickHook(hook: (deltaYears: number, deltaMonths: number, deltaDays: number) => void): void;
+  registerTimeTickHook(
+    hook: (deltaYears: number, deltaMonths: number, deltaDays: number) => void,
+    label?: string
+  ): void;
 
   // ── Skill modifier chain ─────────────────────────────────────────────────
   /**

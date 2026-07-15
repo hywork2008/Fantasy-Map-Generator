@@ -145,7 +145,7 @@ export function init(api: ExtensionAPI): void {
     // Refresh marker tooltips (build progress) and the overview dialog, if visible.
     if (api.layerIsOn("toggleShipyards")) drawShipyards(_candidates);
     refreshShipyardsOverviewIfOpen(_candidates, _portCapacity);
-  });
+  }, SHIPBUILDING_EXTENSION_ID);
 
   _unsubscribe = api.subscribeExtensionState((state, prevState) => {
     const isEnabled = state.enabledExtensions[SHIPBUILDING_EXTENSION_ID];

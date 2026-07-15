@@ -782,7 +782,7 @@ export function init(api: ExtensionAPI): void {
       if (daysSinceLastProduction >= 30) daysSinceLastProduction %= 30;
       scheduleProductionRefresh(true);
     }
-  });
+  }, ECONOMY_EXTENSION_ID);
 
   // Bind trade animation renderer (must happen before any toggle)
   TradeAnimation.bind({

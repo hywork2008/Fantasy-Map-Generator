@@ -236,7 +236,7 @@ export function init(api: ExtensionAPI): void {
     }
 
     refreshCharactersOverviewIfOpen(api.isDialogOpen("charactersOverview"));
-  });
+  }, NOBILITY_EXTENSION_ID);
 }
 
 export function cleanup(api: ExtensionAPI): void {
