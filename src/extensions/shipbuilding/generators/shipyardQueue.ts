@@ -1,11 +1,14 @@
-import type {
-  Burg,
-  ShipbuildingMaterialBlockedReason,
-  ShipbuildingMaterialRequest,
-  ShipbuildingMaterialRequestResult,
-  ShipbuildingMaterialShortage,
-  ShipbuildingStrategicProcurementDemand,
-  State
+import {
+  type Burg,
+  SHIPBUILDING_MATERIAL_IDS,
+  type ShipbuildingMaterialBlockedReason,
+  type ShipbuildingMaterialId,
+  type ShipbuildingMaterialRequest,
+  type ShipbuildingMaterialRequestResult,
+  type ShipbuildingMaterialShortage,
+  type ShipbuildingMaterials,
+  type ShipbuildingStrategicProcurementDemand,
+  type State
 } from "../../hostTypes";
 import {
   getAnnualShipbuildingMaterialDemand,
@@ -103,6 +106,45 @@ function determineOwner(burg: Burg): ShipyardOwner {
 
 export function getStateTechPoints(stateId: number): number {
   return _stateTechPoints.get(stateId) ?? 0;
+}
+
+/**
+ * Aggregated state-owned shipyard material demand for new-map initial stock warm-up
+ * (docs/plan/shipbuilding-industrial-policy.md §4.6). Unlike the per-shipyard notifications
+ * `runShipyardTick()` fires every tick, this runs once at generation time before any queue
+ * exists, so ownership/ship-class come straight from burgs/tech points (both queue-independent)
+ * and multiple state-owned shipyards sharing a market are summed into one entry per (state, market).
+ */
+export function getInitialStateOwnedDemand(
+  candidates: readonly ShipyardCandidate[],
+  burgs: readonly Burg[]
+): ShipbuildingStrategicProcurementDemand[] {
+  const demandByKey = new Map<string, ShipbuildingStrategicProcurementDemand>();
+
+  for (const { burgId } of candidates) {
+    const burg = burgs[burgId];
+    if (!burg || burg.removed || !burg.state || !burg.market || determineOwner(burg) !== "state") continue;
+
+    const unlockedClass = getHighestUnlockedShipClass(getStateTechPoints(burg.state));
+    const annualMaterials = getAnnualShipbuildingMaterialDemand(unlockedClass);
+    const key = `${burg.state}:${burg.market}`;
+    const existing = demandByKey.get(key);
+
+    demandByKey.set(key, {
+      source: "shipbuilding",
+      stateId: burg.state,
+      destinationMarketId: burg.market,
+      annualMaterials: existing ? mergeAnnualMaterials(existing.annualMaterials, annualMaterials) : annualMaterials
+    });
+  }
+
+  return Array.from(demandByKey.values());
+}
+
+function mergeAnnualMaterials(a: ShipbuildingMaterials, b: ShipbuildingMaterials): ShipbuildingMaterials {
+  const merged = {} as Record<ShipbuildingMaterialId, number>;
+  for (const material of SHIPBUILDING_MATERIAL_IDS) merged[material] = (a[material] ?? 0) + (b[material] ?? 0);
+  return merged;
 }
 
 /**

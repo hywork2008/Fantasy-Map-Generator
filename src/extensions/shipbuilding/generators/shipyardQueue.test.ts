@@ -6,6 +6,7 @@ import {
   type GetEffectiveSkillFn,
   getCompletedHulls,
   getHullsAtBurg,
+  getInitialStateOwnedDemand,
   getQueueEntry,
   getStateTechPoints,
   isStateAtWar,
@@ -244,6 +245,88 @@ describe("shipyardQueue", () => {
 
       expect(isStateAtWar(1, states)).toBe(false);
       expect(isStateAtWar(2, states)).toBe(true);
+    });
+  });
+
+  // New-map initial-stock warm-up input (docs/plan/shipbuilding-industrial-policy.md §4.6).
+  describe("getInitialStateOwnedDemand", () => {
+    const sloopDemand = { Wood: 0.4, Sails: 0.4, Ropes: 0.4, Tar: 0.2 };
+
+    it("returns nothing for an empty candidate list", () => {
+      expect(getInitialStateOwnedDemand([], [])).toEqual([]);
+    });
+
+    it("includes only state-owned (capital/citadel) shipyards, not ordinary market-owned ports", () => {
+      const burgs = makeBurgs([
+        { i: 1, state: 1, capital: 1, market: 10 },
+        { i: 2, state: 1, capital: 0, citadel: 0, market: 10 }
+      ]);
+      const candidates: ShipyardCandidate[] = [
+        { burgId: 1, forestRatio: 0.5 },
+        { burgId: 2, forestRatio: 0.5 }
+      ];
+
+      const demands = getInitialStateOwnedDemand(candidates, burgs);
+
+      expect(demands).toEqual([
+        { source: "shipbuilding", stateId: 1, destinationMarketId: 10, annualMaterials: sloopDemand }
+      ]);
+    });
+
+    it("sums multiple state-owned shipyards that share the same (state, market) pair", () => {
+      const burgs = makeBurgs([
+        { i: 1, state: 1, capital: 1, market: 10 },
+        { i: 2, state: 1, capital: 0, citadel: 1, market: 10 }
+      ]);
+      const candidates: ShipyardCandidate[] = [
+        { burgId: 1, forestRatio: 0.5 },
+        { burgId: 2, forestRatio: 0.5 }
+      ];
+
+      const demands = getInitialStateOwnedDemand(candidates, burgs);
+
+      expect(demands).toEqual([
+        {
+          source: "shipbuilding",
+          stateId: 1,
+          destinationMarketId: 10,
+          annualMaterials: { Wood: 0.8, Sails: 0.8, Ropes: 0.8, Tar: 0.4 }
+        }
+      ]);
+    });
+
+    it("keeps separate entries for different (state, market) pairs", () => {
+      const burgs = makeBurgs([
+        { i: 1, state: 1, capital: 1, market: 10 },
+        { i: 2, state: 2, capital: 1, market: 20 }
+      ]);
+      const candidates: ShipyardCandidate[] = [
+        { burgId: 1, forestRatio: 0.5 },
+        { burgId: 2, forestRatio: 0.5 }
+      ];
+
+      const demands = getInitialStateOwnedDemand(candidates, burgs);
+
+      expect(demands).toHaveLength(2);
+      expect(demands).toEqual(
+        expect.arrayContaining([
+          { source: "shipbuilding", stateId: 1, destinationMarketId: 10, annualMaterials: sloopDemand },
+          { source: "shipbuilding", stateId: 2, destinationMarketId: 20, annualMaterials: sloopDemand }
+        ])
+      );
+    });
+
+    it("skips a candidate with no market or no state, even if otherwise state-owned", () => {
+      const burgs = makeBurgs([
+        { i: 1, state: 1, capital: 1 }, // no market assigned yet
+        { i: 2, state: 0, capital: 1, market: 20 } // stateless (free city)
+      ]);
+      const candidates: ShipyardCandidate[] = [
+        { burgId: 1, forestRatio: 0.5 },
+        { burgId: 2, forestRatio: 0.5 }
+      ];
+
+      expect(getInitialStateOwnedDemand(candidates, burgs)).toEqual([]);
     });
   });
 });

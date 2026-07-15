@@ -204,12 +204,84 @@ cohort は未実装である。既存の生産周期ごとに、以下の順で�
 為政者の国内買上補助、職人育成、道路／港／倉庫投資、森林保全の政策 UI・国庫決済は未実装である。後続実装では
 買上価格・訓練速度・輸送費・保管可能量を変えるだけとし、労働者や工場の出力を直接増やさない。
 
+### 4.6 初期在庫（新規マップ Warm-up Stock）— 実装済み
+
+新規生成直後の造船所は資材ゼロから始まるため、初回の生産・戦略調達サイクルが回るまで完全に停止する。
+`docs/temp/todo/shipbuilding.md` §8.5 は、この立ち上がりを「生成時の過去シミュレーション再生」ではなく
+**明示的な備蓄**で解決する方針としていた。`docs/analytics/shipbuilding-goods-biome-distribution.md` の調査
+（Goods 配置アルゴリズムのコードリーディング）から得られた次の2点を、この備蓄の配分方針の根拠とする。
+
+1. 原料（Wood / Hemp）はバイオーム 5–9 の habitability が高く、人口を伴えばどの国家圏にも一定量存在しうる
+   一方、単位 value は低い（Wood/Hemp = 1）。原料側に初期在庫を厚く配分しても、造船能力の底上げには
+   直結しにくい。
+2. 富は加工の完成度（Tar/Ropes/Sails まで到達しているか）に強く依存する。M9.4 の労働 cohort は
+   1 周期あたり戦略労働力の最大 5% しか職替えしないため、ゼロから中間財生産が立ち上がるまで数十周期を
+   要する。初期在庫はこの立ち上がりの谷を埋める役割が中心であり、原料より **中間財（Tar/Ropes/Sails）に
+   厚く配分する**方が理にかなう。
+
+`docs/temp/todo/shipbuilding.md` §8.5 の2候補（① 裕福な国かつ港が多い／② 小国で海洋にしか生き残りの
+チャンスが無い）は、どちらか一方を満たせば十分な初期在庫を持てる**独立した2経路**として設計する（「かつ」
+ではなく「或いは」の関係をそのまま反映する）。
+
+実装は `src/extensions/economy/generators/shipbuildingInitialStock.ts`（式本体）と
+`src/extensions/shipbuilding/generators/shipyardQueue.ts` の `getInitialStateOwnedDemand()`（state-owned
+造船所を market 単位に集計）に分かれる。既存の `ShipbuildingStrategicProcurementDemand` 型をそのまま再利用し、
+新イベント `fmg:shipbuilding-initial-stock-request`（`ShipbuildingInitialStockRequest`,
+`src/types/shipbuildingMaterials.ts`）で Shipbuilding → Economy へ一度きり渡す。
+
+```ts
+// src/extensions/economy/generators/shipbuildingInitialStock.ts（実装済み、要旨）
+// targetStock = annualDemand(material) * initialStockDays / 365 として §4.2 と同じ式を流用する
+function getInitialStockDays(material, market, stateId, access): number {
+  const wealthFactor = normalizeToMedian(access.treasuryByState.get(stateId) ?? 0, access.medianTreasury); // 候補①: 富
+  const portFactor = normalizeToMedian(access.portCountByState.get(stateId) ?? 0, access.medianPortCount); // 候補①: 港
+  const wealthPath = (wealthFactor + portFactor) / 2;
+  const selfSufficiencyPath = getLocalMaterialSuitability(material, market, stateId); // 候補②: バイオーム/Naval文化
+
+  const accessScore = Math.max(wealthPath, selfSufficiencyPath); // ①「或いは」②
+  const materialBias = INTERMEDIATE_GOODS.has(material) ? 1.5 : 0.6; // 中間財を厚く、原料を薄く
+  const days = MIN_RESERVE_DAYS + (MAX_RESERVE_DAYS - MIN_RESERVE_DAYS) * accessScore * materialBias; // 90〜365日
+  return minmax(days, 0, MAX_RESERVE_DAYS * 1.5);
+}
+```
+
+- `getLocalMaterialSuitability()`: 対象 state の陸セルのうち、当該 material の一次原料（Wood→Wood、Tar→Wood、
+  Ropes→Hemp、Sails→Sheep/Hemp）の `biomeOutput` 対象バイオームに該当する割合に、市場中心 burg の文化タイプが
+  `Naval` なら `+0.25` を加算したスコア（0–1）。ハードコードのバイオームID表ではなく、`pack.goods` の実際の
+  `biomeOutput` を都度参照するため、Goods バランス変更に自動追従する。
+- `normalizeToMedian()`: 同一マップ内の全 state 分布の中央値に対する相対値（0–1、中央値の2倍以上で1）。
+- 対象は state-owned 造船所を持つ市場のみ（§4.2 M9.2 と同じスコープ、`determineOwner()` を再利用）。
+  同じ市場を共有する複数の state-owned 造船所は `getInitialStateOwnedDemand()` が加算集計する。
+- 適用タイミング: Shipbuilding の `fmg:generate-post-core` ハンドラが `queueMicrotask()` 経由で
+  `fmg:shipbuilding-initial-stock-request` を発火し、同一パス内の Economy 側 `Goods.generate()` /
+  `Markets.generate()` / `Production.produce()` / `Taxes.collectTaxes()`（extension 初期化順に依存しない）の
+  完了後に確実に実行される。保存済みマップのロード時にはこのイベント自体が発火しないため再適用されない
+  （初期在庫は新規生成専用）。
+- 国庫からの支出は発生させない。`market.goods[goodId].stock` を直接書き込むのみで、`ProcurementOrder` の
+  起票（§4.2〜4.4）や Caravan 生成は行わない。既存在庫を下回る場合のみ底上げし、上回る場合は変更しない。
+
+**診断ログ**: `accessScore >= 0.75`（候補①・②のどちらかを明確に満たした状態）の場合、
+`seedShipbuildingInitialStock()` が対象 state/market・材料・実際の在庫量・日数・accessScore を
+`console.warn("[shipbuilding] Abundant initial stock — ...")` で1エントリずつ出力する。マップ生成直後に
+コンソールを見るだけで「潤沢な初期在庫を配備された造船所」を目視確認でき、§6 の実測較正で
+Shipyards Overview を毎回開かずに済む。閾値 0.75 は他の係数と同様、較正前の暫定値。
+
+**テスト**: `shipbuildingInitialStock.test.ts`（富+港のパス／自給パス／床値／既存在庫を下げない／不正な
+demand の無害な無視／abundant-stock の console.warn 発火条件とメッセージ内容）と `shipyardQueue.test.ts` の
+`getInitialStateOwnedDemand` 系（state-owned のみ集計、同一市場の合算、市場/state 欠落のスキップ）で
+式のふるまいを固定している。
+
+**未検証のリスク**: `normalizeToMedian` の分布形状や `materialBias` の係数（1.5 / 0.6）は式として単体テスト
+済みだが、実マップでの較正は未実施。`docs/analytics/shipbuilding-goods-biome-distribution.md` §6 に挙げた
+複数シードでの Wealth/Port 分布の実測を経て調整が必要。
+
 ## 5. 実装マイルストーン
 
-### M9.0 — 観測と較正（実装済み: warm-up を除く）
+### M9.0 — 観測と較正（実装済み）
 
 - Shipyards Overview または Economy の専用画面に、材料別の在庫、年間予測需要、目標備蓄、輸送中量、供給地 state を表示する。
-- 新規生成時の材料在庫を観測し、必要なら「通常生産数周期に相当する初期在庫」または経済 warm-up を導入する。**未実装**。
+- 新規生成時の材料在庫を観測し、必要なら「通常生産数周期に相当する初期在庫」または経済 warm-up を導入する。
+  明示的な備蓄として実装済み（§4.6）。実マップでの係数較正は未実施。
 - 造船所ごとの `BUILD_POINTS_PER_YEAR` と材料レシピから年需要を一箇所で算出する。
 
 受け入れ: Shipyards Overview で、在庫不足・輸送中量・供給元 state・経路不通・政策禁止・国庫不足を読める。
@@ -281,6 +353,10 @@ cohort は未実装である。既存の生産周期ごとに、以下の順で�
 2. **確認・実装済み**: `Enemy` は両方向検査で禁輸、state 0 は中立として扱う。Enemy 以外の外交ラベルを個別に区別する通商政策は未実装。
 3. **確認・実装済み**: `Deal` と Caravan payload に `purpose`、支払 state、戦略注文 id を追加した。
 4. **確認・実装済み**: 未充足注文は通常人口需要を抑えずに生産候補の期待利益へ反映する。輸送中注文は供給市場の補充需要、blocked/open/assigned 注文は到着市場の供給需要として扱う。
-5. **未決定**: 新規マップ初期在庫を、生成時の過去シミュレーションと明示的な備蓄のどちらで作るか。
+5. **決定・実装済み**: 新規マップ初期在庫は明示的な備蓄で作る。配分方針は §4.6 参照 —
+   富（treasury）／港数（候補①）と、バイオーム・Naval 文化による自給適性（候補②）のどちらか高い方を
+   `accessScore` とし、原料より中間財（Tar/Ropes/Sails）に厚く配分する。根拠は
+   `docs/analytics/shipbuilding-goods-biome-distribution.md` のコードリーディング調査。式は単体テスト済みだが
+   実マップでの係数較正は未実施。
 6. **決定・実装済み**: M9.4 の `LaborMarket` は Economy の `pack.strategicLaborMarkets` として保存・復元する。市場再生成時は market id と交易圏が変わるため初期化する。
 7. **未決定**: 政策 UI の配置と、補助・育成・道路／港／倉庫・森林保全を state treasury へどの周期で記帳するかを決める。

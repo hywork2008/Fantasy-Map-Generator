@@ -5,10 +5,12 @@ export type { Burg, CultureType, MilitaryRegiment, Province, State, Zone } from 
 export { DEFAULT_CULTURE_TYPE } from "../types/models";
 export type { PackedGraph } from "../types/PackedGraph";
 export {
+  isShipbuildingInitialStockRequest,
   isShipbuildingMaterialRequest,
   isShipbuildingProcurementStatusRequest,
   isShipbuildingStrategicProcurementDemand,
   SHIPBUILDING_MATERIAL_IDS,
+  type ShipbuildingInitialStockRequest,
   type ShipbuildingMaterialBlockedReason,
   type ShipbuildingMaterialId,
   type ShipbuildingMaterialRequest,

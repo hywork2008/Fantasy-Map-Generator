@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { HeightmapTemplateRandomization } from "../data";
 import type { ConflictAutonomy } from "../types/WorldState";
+import { DEFAULT_CONFLICT_AUTONOMY } from "../utils/conflictAutonomy";
 
 export interface OptionsState {
   // Map settings
@@ -172,7 +173,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   simMilitaryRecovery: true,
   femaleLevyEnabled: false,
   recruitQualityEnabled: true,
-  conflictAutonomy: "autonomous",
+  conflictAutonomy: DEFAULT_CONFLICT_AUTONOMY,
   warFrequency: 1.0,
   diplomacyHistoryAttempts: 1,
 

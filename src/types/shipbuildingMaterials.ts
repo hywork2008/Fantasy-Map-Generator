@@ -87,6 +87,18 @@ export function isShipbuildingMaterialRequest(value: unknown): value is Shipbuil
   });
 }
 
+/**
+ * One-shot, generation-time warm-up signal (docs/plan/shipbuilding-industrial-policy.md §4.6).
+ * Reuses ShipbuildingStrategicProcurementDemand's shape but, unlike the per-shipyard/per-tick
+ * demand notifications, is dispatched once per new map, already aggregated by (state, market).
+ * The listener must only seed market stock directly — never spend treasury or spawn Caravans/
+ * ProcurementOrders, which is what the reactive demand handler does with the same-shaped data.
+ */
+export interface ShipbuildingInitialStockRequest {
+  source: "shipbuilding";
+  demands: readonly ShipbuildingStrategicProcurementDemand[];
+}
+
 export function isShipbuildingStrategicProcurementDemand(
   value: unknown
 ): value is ShipbuildingStrategicProcurementDemand {
@@ -110,6 +122,16 @@ export function isShipbuildingStrategicProcurementDemand(
     const amount = demand.annualMaterials?.[material];
     return typeof amount === "number" && Number.isFinite(amount) && amount >= 0;
   });
+}
+
+export function isShipbuildingInitialStockRequest(value: unknown): value is ShipbuildingInitialStockRequest {
+  if (!value || typeof value !== "object") return false;
+  const request = value as Partial<ShipbuildingInitialStockRequest>;
+  return (
+    request.source === "shipbuilding" &&
+    Array.isArray(request.demands) &&
+    request.demands.every(isShipbuildingStrategicProcurementDemand)
+  );
 }
 
 export function isShipbuildingProcurementStatusRequest(value: unknown): value is ShipbuildingProcurementStatusRequest {

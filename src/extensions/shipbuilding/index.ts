@@ -15,7 +15,7 @@ import { runLoggingTick } from "./generators/logging";
 import { computePortCapacity, type PortCapacity } from "./generators/portCapacity";
 import { runVoyageTick } from "./generators/shipVoyages";
 import { computeShipyardCandidates, type ShipyardCandidate } from "./generators/shipyardCandidates";
-import { clearShipyardQueues, runShipyardTick } from "./generators/shipyardQueue";
+import { clearShipyardQueues, getInitialStateOwnedDemand, runShipyardTick } from "./generators/shipyardQueue";
 import { clearShipyards, drawShipyards } from "./renderers/drawShipyards";
 import { clearShipbuildingContext, getWorldContext, initShipbuildingContext } from "./shipbuildingContext";
 import { ShipyardsOverviewDialog } from "./ui/dialogs/ShipyardsOverviewDialog";
@@ -175,6 +175,20 @@ export function init(api: ExtensionAPI): void {
     clearShipyardQueues();
     recomputeAndMaybeDraw(api);
     refreshShipyardsOverviewIfOpen(_candidates, _portCapacity);
+
+    // Deferred to a microtask so this always runs after every fmg:generate-post-core listener
+    // (including Economy's Goods/Markets/Production generation) has finished, regardless of
+    // extensions/index.ts init order — same idiom Economy's own tick-hook ordering fix uses
+    // (see economy/index.tsx's scheduleProductionRefresh comment). Economy must already have
+    // pack.markets/pack.goods populated for the initial-stock warm-up request to do anything.
+    queueMicrotask(() => {
+      if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
+      const demands = getInitialStateOwnedDemand(_candidates, getWorldContext().pack.burgs);
+      if (!demands.length) return;
+      document.dispatchEvent(
+        new CustomEvent("fmg:shipbuilding-initial-stock-request", { detail: { source: "shipbuilding", demands } })
+      );
+    });
   };
   document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
 }

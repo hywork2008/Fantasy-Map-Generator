@@ -5,6 +5,7 @@ import { useUiPreferencesState } from "../../store/uiPreferencesState";
 import type { ExtensionAPI } from "../../types/extension-api";
 import type { Point } from "../hostCore";
 import {
+  isShipbuildingInitialStockRequest,
   isShipbuildingMaterialRequest,
   isShipbuildingProcurementStatusRequest,
   isShipbuildingStrategicProcurementDemand
@@ -27,6 +28,7 @@ import { clearMarketManagers, syncMarketManagers } from "./generators/marketMana
 import { Markets } from "./generators/markets-generator";
 import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
 import { Production } from "./generators/production-generator";
+import { seedShipbuildingInitialStock } from "./generators/shipbuildingInitialStock";
 import { StrategicProcurement } from "./generators/strategicProcurement";
 import {
   clearStrategicProcurementExpenses,
@@ -207,6 +209,7 @@ let _logHarvestedHandler: ((e: Event) => void) | null = null;
 let _materialsRequestedHandler: ((e: Event) => void) | null = null;
 let _strategicProcurementDemandHandler: ((e: Event) => void) | null = null;
 let _strategicProcurementStatusHandler: ((e: Event) => void) | null = null;
+let _shipbuildingInitialStockRequestHandler: ((e: Event) => void) | null = null;
 let _voyageIncomeHandler: ((e: Event) => void) | null = null;
 let _mapPickCandidatesHandler: ((e: Event) => void) | null = null;
 let _gunpowderEraChangedHandler: (() => void) | null = null;
@@ -629,6 +632,18 @@ export function init(api: ExtensionAPI): void {
   };
   document.addEventListener("fmg:shipbuilding-strategic-procurement-demand", _strategicProcurementDemandHandler);
 
+  // New-map initial-stock warm-up only (§4.6). Unlike the reactive demand handler above, this
+  // never spends treasury or spawns Caravans — it seeds market stock directly, once, from a
+  // microtask Shipbuilding schedules right after this same fmg:generate-post-core pass generates
+  // Goods/Markets/Production.
+  _shipbuildingInitialStockRequestHandler = e => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    const detail = (e as CustomEvent<unknown>).detail;
+    if (!isShipbuildingInitialStockRequest(detail)) return;
+    seedShipbuildingInitialStock(detail.demands);
+  };
+  document.addEventListener("fmg:shipbuilding-initial-stock-request", _shipbuildingInitialStockRequestHandler);
+
   _strategicProcurementStatusHandler = e => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
     const detail = (e as CustomEvent<unknown>).detail;
@@ -889,6 +904,10 @@ export function cleanup(api: ExtensionAPI): void {
   if (_strategicProcurementDemandHandler) {
     document.removeEventListener("fmg:shipbuilding-strategic-procurement-demand", _strategicProcurementDemandHandler);
     _strategicProcurementDemandHandler = null;
+  }
+  if (_shipbuildingInitialStockRequestHandler) {
+    document.removeEventListener("fmg:shipbuilding-initial-stock-request", _shipbuildingInitialStockRequestHandler);
+    _shipbuildingInitialStockRequestHandler = null;
   }
   if (_strategicProcurementStatusHandler) {
     document.removeEventListener(
