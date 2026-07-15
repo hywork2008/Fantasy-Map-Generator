@@ -682,6 +682,92 @@ export function buildDeckLayers(
     }
   }
 
+  if (activeLayers.toggleRivers) {
+    layers.push(
+      hasLandMask
+        ? createLandMaskedPolygonLayer<DeckRiverPolygon>({
+            id: "fmg-webgl-rivers",
+            data: getCachedDeckData("polygon:rivers", signatures.byLayer.rivers, () =>
+              buildRiverPolygons(worldContext, viewContext.focusScope, riverPaint.color)
+            ),
+            coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+            getPolygon: datum => datum.polygon,
+            getFillColor: datum => datum.fillColor,
+            pickable: true
+          })
+        : new SolidPolygonLayer<DeckRiverPolygon>({
+            id: "fmg-webgl-rivers",
+            data: getCachedDeckData("polygon:rivers", signatures.byLayer.rivers, () =>
+              buildRiverPolygons(worldContext, viewContext.focusScope, riverPaint.color)
+            ),
+            coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+            getPolygon: datum => datum.polygon,
+            getFillColor: datum => datum.fillColor,
+            pickable: true
+          })
+    );
+  }
+
+  for (const layer of WEBGL_PATH_LAYERS) {
+    if (!activeLayers[layer.toggle]) continue;
+    // viewMesh renders routes as terrain-following Three.js lines rather than baking them into
+    // the flat terrain bitmap, where they would remain painted onto the surface.
+    if (layer.id === "routes" && options.includeRoutes === false) continue;
+    layers.push(
+      createDashedPathLayer({
+        id: `fmg-webgl-${layer.id}`,
+        data: getCachedDeckData(`path:${layer.id}`, signatures.byLayer[layer.id], () =>
+          layer.build(worldContext, viewContext, {
+            dashStyles: pathDashStyles,
+            paintStyles: pathPaintStyles
+          })
+        ),
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getPath: datum => datum.path,
+        getColor: datum => datum.color,
+        getWidth: datum => datum.width,
+        widthUnits: "pixels",
+        widthMinPixels: 0.5,
+        widthMaxPixels: layer.id === "rivers" ? 10 : 4,
+        jointRounded: true,
+        capRounded: true,
+        extensions: [PATH_STYLE_EXTENSION],
+        getDashArray: datum => datum.dashArray ?? SOLID_DASH_ARRAY,
+        // Keep picking behavior unchanged: a route or border remains selectable inside a visual gap.
+        dashGapPickable: true,
+        pickable: true
+      })
+    );
+  }
+
+  layers.push(
+    new PathLayer<DeckPath>({
+      id: "fmg-webgl-coastline",
+      data: getCachedDeckData("features:coastline", signatures.byLayer.coastline, () =>
+        buildCoastlinePaths(
+          worldContext,
+          viewContext.focusScope,
+          appServices,
+          group => coastlinePaint[group]?.stroke ?? coastlinePaint.sea_island.stroke,
+          group => coastlinePaint[group]?.strokeWidth ?? coastlinePaint.sea_island.strokeWidth
+        )
+      ),
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      getPath: datum => datum.path,
+      getColor: datum => datum.color,
+      getWidth: datum => datum.width,
+      widthUnits: "pixels",
+      widthMinPixels: 0.25,
+      widthMaxPixels: 4,
+      jointRounded: true,
+      capRounded: true,
+      pickable: true
+    })
+  );
+
+  // Pushed after rivers/borders/routes/coastline (and before labels) to match the SVG renderer's
+  // stacking order, where #emblems and #icons are appended after #coastline and before #labels
+  // in initViewLayers.ts.
   if (activeLayers.toggleEmblems) {
     layers.push(
       new IconLayer<DeckEmblemIcon>({
@@ -827,89 +913,6 @@ export function buildDeckLayers(
       })
     );
   }
-
-  if (activeLayers.toggleRivers) {
-    layers.push(
-      hasLandMask
-        ? createLandMaskedPolygonLayer<DeckRiverPolygon>({
-            id: "fmg-webgl-rivers",
-            data: getCachedDeckData("polygon:rivers", signatures.byLayer.rivers, () =>
-              buildRiverPolygons(worldContext, viewContext.focusScope, riverPaint.color)
-            ),
-            coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-            getPolygon: datum => datum.polygon,
-            getFillColor: datum => datum.fillColor,
-            pickable: true
-          })
-        : new SolidPolygonLayer<DeckRiverPolygon>({
-            id: "fmg-webgl-rivers",
-            data: getCachedDeckData("polygon:rivers", signatures.byLayer.rivers, () =>
-              buildRiverPolygons(worldContext, viewContext.focusScope, riverPaint.color)
-            ),
-            coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-            getPolygon: datum => datum.polygon,
-            getFillColor: datum => datum.fillColor,
-            pickable: true
-          })
-    );
-  }
-
-  for (const layer of WEBGL_PATH_LAYERS) {
-    if (!activeLayers[layer.toggle]) continue;
-    // viewMesh renders routes as terrain-following Three.js lines rather than baking them into
-    // the flat terrain bitmap, where they would remain painted onto the surface.
-    if (layer.id === "routes" && options.includeRoutes === false) continue;
-    layers.push(
-      createDashedPathLayer({
-        id: `fmg-webgl-${layer.id}`,
-        data: getCachedDeckData(`path:${layer.id}`, signatures.byLayer[layer.id], () =>
-          layer.build(worldContext, viewContext, {
-            dashStyles: pathDashStyles,
-            paintStyles: pathPaintStyles
-          })
-        ),
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-        getPath: datum => datum.path,
-        getColor: datum => datum.color,
-        getWidth: datum => datum.width,
-        widthUnits: "pixels",
-        widthMinPixels: 0.5,
-        widthMaxPixels: layer.id === "rivers" ? 10 : 4,
-        jointRounded: true,
-        capRounded: true,
-        extensions: [PATH_STYLE_EXTENSION],
-        getDashArray: datum => datum.dashArray ?? SOLID_DASH_ARRAY,
-        // Keep picking behavior unchanged: a route or border remains selectable inside a visual gap.
-        dashGapPickable: true,
-        pickable: true
-      })
-    );
-  }
-
-  layers.push(
-    new PathLayer<DeckPath>({
-      id: "fmg-webgl-coastline",
-      data: getCachedDeckData("features:coastline", signatures.byLayer.coastline, () =>
-        buildCoastlinePaths(
-          worldContext,
-          viewContext.focusScope,
-          appServices,
-          group => coastlinePaint[group]?.stroke ?? coastlinePaint.sea_island.stroke,
-          group => coastlinePaint[group]?.strokeWidth ?? coastlinePaint.sea_island.strokeWidth
-        )
-      ),
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      getPath: datum => datum.path,
-      getColor: datum => datum.color,
-      getWidth: datum => datum.width,
-      widthUnits: "pixels",
-      widthMinPixels: 0.25,
-      widthMaxPixels: 4,
-      jointRounded: true,
-      capRounded: true,
-      pickable: true
-    })
-  );
 
   if (activeLayers.toggleLabels && options.includeLabels !== false) {
     layers.push(
