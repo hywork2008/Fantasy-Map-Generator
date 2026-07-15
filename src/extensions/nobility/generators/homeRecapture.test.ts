@@ -28,6 +28,9 @@ describe("tryRecaptureHomeBurg", () => {
   beforeEach(() => {
     initNobilityContext({ worldContext } as unknown as ExtensionAPI);
     worldContext.options.military = [{ name: "infantry", power: 1 }] as unknown as typeof worldContext.options.military;
+    // These tests exercise autonomous-conflict combat resolution directly; the default policy
+    // (conflictAutonomy.ts) is player-directed, so it must be set explicitly here.
+    worldContext.options.conflictAutonomy = "autonomous";
   });
 
   afterEach(() => {

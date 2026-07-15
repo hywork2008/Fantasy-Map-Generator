@@ -24,13 +24,19 @@ describe("conflictDirector", () => {
     simulationContext.strategicGoals = {};
   });
 
-  it("defaults missing and invalid saved values to autonomous behavior", () => {
+  it("defaults missing and invalid saved values to the default policy (playerDirected)", () => {
     worldContext.options = {} as never;
-    expect(getConflictAutonomy()).toBe("autonomous");
-    expect(mayAdvanceAutonomousConflict()).toBe(true);
+    expect(getConflictAutonomy()).toBe("playerDirected");
+    expect(mayAdvanceAutonomousConflict()).toBe(false);
 
     worldContext.options = { conflictAutonomy: "unexpected" } as never;
+    expect(getConflictAutonomy()).toBe("playerDirected");
+  });
+
+  it("preserves an explicit autonomous policy instead of coercing it to the default", () => {
+    worldContext.options = { conflictAutonomy: "autonomous" } as never;
     expect(getConflictAutonomy()).toBe("autonomous");
+    expect(mayAdvanceAutonomousConflict()).toBe(true);
   });
 
   it("clears AI siege goals and only their matching march orders in player-directed mode", () => {

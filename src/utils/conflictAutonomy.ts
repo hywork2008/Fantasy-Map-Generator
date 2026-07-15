@@ -4,5 +4,6 @@ export const DEFAULT_CONFLICT_AUTONOMY: ConflictAutonomy = "playerDirected"; // 
 
 /** Converts untrusted saved/UI input to a supported conflict-autonomy policy. */
 export function normalizeConflictAutonomy(value: unknown): ConflictAutonomy {
-  return value === "playerDirected" ? "playerDirected" : DEFAULT_CONFLICT_AUTONOMY;
+  if (value === "playerDirected" || value === "autonomous") return value;
+  return DEFAULT_CONFLICT_AUTONOMY;
 }

@@ -87,7 +87,10 @@ describe("StrategicPlannerGenerator.generate", () => {
 
   beforeEach(() => {
     initNobilityContext({ worldContext } as unknown as ExtensionAPI);
-    worldContext.options = { year: 1000 } as never;
+    // The default policy (conflictAutonomy.ts) is player-directed; most tests in this block
+    // exercise autonomous conflict planning directly, so it's set explicitly here. The
+    // player-directed-specific test below overrides this on top.
+    worldContext.options = { year: 1000, conflictAutonomy: "autonomous" } as never;
     simulationContext.currentYear = 1000;
     simulationContext.strategicGoals = {};
     simulationContext.intelligence = {
@@ -292,7 +295,9 @@ describe("StrategicPlannerGenerator.generate — reclaiming a historically-own b
 
   beforeEach(() => {
     initNobilityContext({ worldContext } as unknown as ExtensionAPI);
-    worldContext.options = { year: 1000 } as never;
+    // The default policy (conflictAutonomy.ts) is player-directed; this block exercises
+    // autonomous conflict planning directly, so it's set explicitly here.
+    worldContext.options = { year: 1000, conflictAutonomy: "autonomous" } as never;
     simulationContext.currentYear = 1000;
     simulationContext.strategicGoals = {};
     simulationContext.intelligence = {
@@ -357,6 +362,9 @@ describe("StrategicPlannerGenerator.advanceTension — stale goalTargetBurg clea
 
   beforeEach(() => {
     initNobilityContext({ worldContext } as unknown as ExtensionAPI);
+    // The default policy (conflictAutonomy.ts) is player-directed; advanceTension()'s cleanup
+    // path is gated by mayAdvanceConflict(), so it's set explicitly here.
+    worldContext.options = { conflictAutonomy: "autonomous" } as never;
   });
 
   afterEach(() => {
