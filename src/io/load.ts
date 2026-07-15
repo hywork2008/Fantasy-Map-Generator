@@ -445,6 +445,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       ? Uint16Array.from(data[44].split(","), Number)
       : new Uint16Array(worldContext.pack.cells.i.length);
     worldContext.pack.characters = data[45] ? JSON.parse(data[45]) : [];
+    restoreStrategicEconomyState(data[52]);
 
     {
       // Demography arrays (capacity, age-structure breakdown) were added after this save format was
@@ -932,4 +933,51 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       onNewMap: () => document.dispatchEvent(new CustomEvent("fmg:regenerate-map", { detail: "loading error" }))
     });
   }
+}
+
+function restoreStrategicEconomyState(serialized: string | undefined): void {
+  worldContext.pack.strategicProcurementOrders = [];
+  worldContext.pack.strategicGoodsPolicies = [];
+  worldContext.pack.nextStrategicProcurementOrderId = 0;
+  worldContext.pack.strategicLaborMarkets = [];
+  if (!serialized) return;
+
+  try {
+    const parsed: unknown = JSON.parse(serialized);
+    if (!isRecord(parsed)) return;
+
+    if (Array.isArray(parsed.strategicProcurementOrders)) {
+      worldContext.pack.strategicProcurementOrders =
+        parsed.strategicProcurementOrders as typeof worldContext.pack.strategicProcurementOrders;
+    }
+    if (Array.isArray(parsed.strategicGoodsPolicies)) {
+      worldContext.pack.strategicGoodsPolicies =
+        parsed.strategicGoodsPolicies as typeof worldContext.pack.strategicGoodsPolicies;
+    }
+    if (
+      typeof parsed.nextStrategicProcurementOrderId === "number" &&
+      Number.isSafeInteger(parsed.nextStrategicProcurementOrderId)
+    ) {
+      worldContext.pack.nextStrategicProcurementOrderId = Math.max(0, parsed.nextStrategicProcurementOrderId);
+    }
+    if (Array.isArray(parsed.strategicLaborMarkets)) {
+      worldContext.pack.strategicLaborMarkets =
+        parsed.strategicLaborMarkets as typeof worldContext.pack.strategicLaborMarkets;
+    }
+    // Caravans are not part of the host .map format. Treat strategic cargo that
+    // was in transit at save time as lost, rather than retaining an order whose
+    // active allocation can never arrive after a reload.
+    for (const order of worldContext.pack.strategicProcurementOrders) {
+      if (order.status !== "inTransit") continue;
+      order.status = "blocked";
+      order.blockedReason = "noRoute";
+      order.caravanId = undefined;
+    }
+  } catch {
+    // A malformed optional extension slot must not block loading the host map.
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }

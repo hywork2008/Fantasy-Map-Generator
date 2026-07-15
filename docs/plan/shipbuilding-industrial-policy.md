@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :--- | :--- |
-| Status | In progress — M9.0〜M9.3 implemented; M9.4 planned |
+| Status | In progress — M9.0〜M9.3 implemented; M9.4 cohort core implemented; policy UI/infrastructure investment planned |
 | Parent | [shipbuilding.md](shipbuilding.md) Phase 9 |
 | Prerequisite | Phase 8 の資材消費ゲート |
 | Scope | 国家の造船需要を国内優先の調達・交易・生産・集約型雇用へ接続する |
@@ -33,7 +33,7 @@ Phase 9 は、為政者の「殖産興業」と平民・事業者の「利益の
 | 領域 | 現状 | 問題 |
 | :--- | :--- | :--- |
 | 造船 | `shipyardQueue.ts` が市場在庫を原子的に消費し、state-owned queue の年間材料需要を CustomEvent で Economy に通知する。 | market-owned queue は戦略調達の対象外。 |
-| 生産 | `Production.produce()` は通常の人口需要、既存 recipe、未充足の戦略調達注文をもとに労働を配分する。 | 職業 cohort による中長期の capacity 拡張は未実装。 |
+| 生産 | `Production.produce()` は通常の人口需要、既存 recipe、未充足の戦略調達注文をもとに労働を配分する。市場ごとの戦略職 cohort が賃金・技能・capacity を更新し、該当する戦略注文の生産性へ反映する。 | 政策 UI、職業別の厳密な人員上限、輸送／保管設備への投資は未実装。 |
 | 交易 | `Markets.runGlobalTrade()` は従来どおり民間の投機交易を扱う。`StrategicProcurement` は別経路で国内優先・Enemy 禁輸の候補を選ぶ。 | 敵対国禁輸は戦略調達にだけ適用する。 |
 | 物流 | 戦略調達は `Deal.purpose = "strategicProcurement"` と order id 付き Caravan を起票する。出発時に輸出元 stock、到着時に輸入先 stock を更新する。 | Caravan の損失は注文を blocked にする。注文の明示的な取消 UI は未実装。 |
 | 雇用 | 都市生産は各生産周期に人口を worker loop へ割り当てる。 | 職業別の人数、賃金、技能、転職の慣性を保持しない。 |
@@ -131,6 +131,10 @@ M9.3 では `priorityCycles` を同一の未充足注文へ加算する。これ
 注文数へ積み増さず、長く解消しない需要だけを生産判断で強くするための状態である。新規注文は 1 から始まり、
 既存セーブデータで値がない場合も 1 として扱う。
 
+戦略注文・policy・cohort は `.map` の末尾互換スロットへ保存する。一方、既存の Caravan 本体は `.map` に保存されないため、
+保存時点で `inTransit` の戦略注文はロード時に `blocked: "noRoute"` として復元する。これにより、到着しない active order が
+再調達を永久に妨げない。
+
 ### 4.3 供給地選択
 
 到着市場の現在 stock は備蓄達成量として先に差し引く。残りの不足に対して、**別市場**の候補を次の tier で探索する。
@@ -173,10 +177,12 @@ Phase 8 では資材消費を無償の物理消費とした。Phase 9 で資金�
 
 ### 4.5 集約型の雇用・産業能力（後半 Phase）
 
-個人を全員追跡する代わりに、burg または market に職業 cohort を保持する。
+個人を全員追跡する代わりに、market に職業 cohort を保持する。`LaborMarket` は Economy の `pack` 拡張データとして
+保存される。市場の再生成時は market id と交易圏が変わるため cohort を初期化する。
 
 ```ts
-type StrategicOccupation = "forestry" | "sailmaking" | "ropeMaking" | "tarBurning" | "shipbuilding" | "trade";
+type StrategicOccupation = "forestry" | "sailmaking" | "ropeMaking" | "tarBurning";
+// Future: "shipbuilding" | "trade"
 
 interface LaborMarket {
   marketId: number;
@@ -187,14 +193,16 @@ interface LaborMarket {
 }
 ```
 
-毎月または既存の生産周期ごとに、以下の順で更新する。
+現在の初期実装は `forestry` / `sailmaking` / `ropeMaking` / `tarBurning` の4職種を保持する。`shipbuilding` / `trade`
+cohort は未実装である。既存の生産周期ごとに、以下の順で更新する。
 
-1. 開放注文、通常需要、販売価格、原料費から職業別の期待利益と求人を計算する。
-2. 労働者は期待賃金、失業、技能不一致、転職コストに従い、上限人数だけ別職種へ移る。
-3. 同じ高採算が複数周期続くと、事業者は capacity を増やす。低採算が続くと縮小する。
-4. 生産量は `workers * skill * capacity` を上限に、既存 recipe と市場在庫を使って決める。
+1. 未充足の戦略注文を Good ごとに集約し、残量・継続回数から職種別の期待賃金を算出する。通常人口需要の優先順位は M9.3 のまま維持する。
+2. cohort は1周期に市場の戦略労働力の最大5%だけ、低需要職から高需要職へ移る。個人・失業・地理的な移住は追跡しない。
+3. 注文がある職種は技能と capacity が漸増し、注文がない職種の技能は基準値へ緩やかに戻る。capacity の増減も周期ごとに上限を持つ。
+4. 該当する未充足注文を生産する場合だけ、`skill * capacity/worker` を既存 recipe の出力生産性へ反映する。原料は同じ recipe と市場購入ゲートを通るため、cohort は資材を直接生成しない。
 
-為政者の政策は、買上価格・訓練速度・輸送費・保管可能量を変える。労働者や工場の出力を直接増やさない。
+為政者の国内買上補助、職人育成、道路／港／倉庫投資、森林保全の政策 UI・国庫決済は未実装である。後続実装では
+買上価格・訓練速度・輸送費・保管可能量を変えるだけとし、労働者や工場の出力を直接増やさない。
 
 ## 5. 実装マイルストーン
 
@@ -236,13 +244,14 @@ interface LaborMarket {
 
 受け入れ: 継続的な国内発注により、Sails / Ropes / Tar の生産が既存 recipe を通じて増える。原料が不足すれば最終財を魔法のように増やさない。
 
-### M9.4 — 集約型の職替え・設備投資
+### M9.4 — 集約型の職替え・設備投資（cohort core 実装済み）
 
-- `LaborMarket`、職業別賃金、技能、capacity を追加する。
-- 転職速度、訓練、事業拡張を月次/生産周期で更新する。
-- 政策として国内買上補助、職人育成、道路/港/倉庫投資、森林保全を追加する。
+- Economy の永続 `pack.strategicLaborMarkets` に `LaborMarket`、職業別賃金、技能、capacity を追加した。市場再生成時は cohort を初期化する。
+- 未充足注文の期待利益で `forestry` / `sailmaking` / `ropeMaking` / `tarBurning` の cohort を更新する。労働移動は生産周期ごとに戦略労働力の最大5%、技能・capacity の変化も上限付きである。
+- 該当注文の生産候補だけが cohort 生産性を受け、既存 recipe・原料購入チェックを通す。通常の人口需要が未達のときは M9.3 と同様に戦略生産の優先度を上げない。
+- 国内買上補助、職人育成、道路／港／倉庫投資、森林保全の政策設定・UI・国庫支出は**未実装**。`shipbuilding` / `trade` cohort、職種別の厳密な採用上限と失業も後続課題である。
 
-受け入れ: 高い造船材料需要は時間をかけて関連職の人数・賃金・生産能力を上げる。政策停止後は、収益性に応じて縮小または他産業へ転換する。
+受け入れ（cohort core）: 高い造船材料需要は時間をかけて関連職の人数・賃金・生産能力を上げ、既存 recipe を通る生産性へ反映する。政策停止後の国庫支出・制度効果の縮小は政策実装後に検証する。
 
 ## 6. テスト計画
 
@@ -251,6 +260,7 @@ interface LaborMarket {
 | Pure unit | **実装済み**: 外交関係→取引可否、tier順の供給地選定、年間需要・365日目標備蓄、国庫不足。 |
 | Economy integration | **実装済み**: 国内供給が敵国供給より優先されること、Enemy だけが供給可能なら注文が blocked になること、Caravan 到着まで在庫が増えないこと、重複需要で active order が増えないこと。 |
 | Production integration | **実装済み**: 未充足注文の市場別集約、輸送済み供給地の補充需要、fulfilled/cancelled 除外、人口需要が未達のときの戦略倍率抑制、継続注文の優先度上昇。実際の recipe 実行は既存の生産計画・原料購入ゲートを再利用する。 |
+| Labor market unit | **実装済み**: 市場人口からの cohort 初期化、需要方向への最大5%の職替え、賃金・技能・capacity の漸進更新、生産性への反映、削除市場の cohort 除去。 |
 | Simulation regression | 日次 Advance Time と一括 Advance Time で、資材や国庫が負にならず、同一注文が重複起票されないこと。 |
 | E2E | UI で政策・注文・輸送中・停止理由を確認し、敵国材に依存せず国内補給で造船が再開すること。 |
 
@@ -272,4 +282,5 @@ interface LaborMarket {
 3. **確認・実装済み**: `Deal` と Caravan payload に `purpose`、支払 state、戦略注文 id を追加した。
 4. **確認・実装済み**: 未充足注文は通常人口需要を抑えずに生産候補の期待利益へ反映する。輸送中注文は供給市場の補充需要、blocked/open/assigned 注文は到着市場の供給需要として扱う。
 5. **未決定**: 新規マップ初期在庫を、生成時の過去シミュレーションと明示的な備蓄のどちらで作るか。
-6. M9.4 の `LaborMarket` を Economy の永続 world data に置くか、Economy 拡張データとして保存・復元するかを決める。
+6. **決定・実装済み**: M9.4 の `LaborMarket` は Economy の `pack.strategicLaborMarkets` として保存・復元する。市場再生成時は market id と交易圏が変わるため初期化する。
+7. **未決定**: 政策 UI の配置と、補助・育成・道路／港／倉庫・森林保全を state treasury へどの周期で記帳するかを決める。

@@ -144,6 +144,14 @@ function prepareMapDataFromSvg(): string {
   const markets = JSON.stringify(worldContext.pack.markets ?? []);
   const deals = JSON.stringify(worldContext.pack.deals ?? []);
   const characters = JSON.stringify(worldContext.pack.characters ?? []);
+  // Extension-owned strategic economy state is kept in one trailing slot so older
+  // map files remain readable without changing the host's established indices.
+  const strategicEconomy = JSON.stringify({
+    strategicProcurementOrders: worldContext.pack.strategicProcurementOrders ?? [],
+    strategicGoodsPolicies: worldContext.pack.strategicGoodsPolicies ?? [],
+    nextStrategicProcurementOrderId: worldContext.pack.nextStrategicProcurementOrderId ?? 0,
+    strategicLaborMarkets: worldContext.pack.strategicLaborMarkets ?? []
+  });
 
   // store name array only if not the same as default
   const defaultNB = Names.getNameBases();
@@ -214,7 +222,8 @@ function prepareMapDataFromSvg(): string {
     demoMaleAdults, // [48] cells.maleAdults
     demoFemaleAdults, // [49] cells.femaleAdults
     demoElders, // [50] cells.elders
-    frontierForts // [51] pack.frontierForts
+    frontierForts, // [51] pack.frontierForts
+    strategicEconomy // [52] economy strategic procurement and labor cohorts
   ].join("\r\n");
 
   return mapData;

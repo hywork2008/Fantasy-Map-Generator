@@ -9,6 +9,12 @@ import { Markets } from "./markets-generator";
 import type { Deal, Market } from "./marketTypes";
 import { getModifiers, MAX_BONUS_PRODUCTION } from "./production-utils";
 import {
+  getStrategicLaborProductivity,
+  getStrategicOccupation,
+  type LaborMarket,
+  reconcileStrategicLaborMarkets
+} from "./strategicLaborMarkets";
+import {
   getStrategicDemandMultiplier,
   getStrategicProductionDemandByGood,
   type StrategicProductionDemand
@@ -34,6 +40,19 @@ export class ProductionModule {
     Markets.initializeMarketPrices();
 
     const index = this.buildProductionIndex((this.worldContext.pack.goods || []).filter(isGoodEnabled));
+    const strategicLaborMarkets = reconcileStrategicLaborMarkets(
+      {
+        markets: this.worldContext.pack.markets,
+        burgs: this.worldContext.pack.burgs,
+        goods: index.goods,
+        orders: this.worldContext.pack.strategicProcurementOrders ?? []
+      },
+      this.worldContext.pack.strategicLaborMarkets ?? []
+    );
+    this.worldContext.pack.strategicLaborMarkets = strategicLaborMarkets;
+    const strategicLaborMarketById = new Map(
+      strategicLaborMarkets.map(laborMarket => [laborMarket.marketId, laborMarket])
+    );
     const sortedBurgs = this.worldContext.pack.burgs
       .filter(burg => burg.i && !burg.removed)
       .sort((a, b) => a.population! - b.population!);
@@ -43,7 +62,7 @@ export class ProductionModule {
       const market = Markets.get(burg.market);
       if (!market) continue;
 
-      const state = this.createBurgProductionState(burg, market, index);
+      const state = this.createBurgProductionState(burg, market, index, strategicLaborMarketById.get(market.i));
       this.runWorkerLoop(index, state);
 
       const phaseRevenue = this.sellInventoryToMarket(state);
@@ -92,7 +111,12 @@ export class ProductionModule {
     };
   }
 
-  private createBurgProductionState(burg: Burg, market: Market, index: ProductionIndex): BurgProductionState {
+  private createBurgProductionState(
+    burg: Burg,
+    market: Market,
+    index: ProductionIndex,
+    strategicLaborMarket: LaborMarket | undefined
+  ): BurgProductionState {
     const population = rn(burg.population || 0, 2);
     const inventory: number[] = [];
     const demandTargets = getDemandTargets(population);
@@ -125,6 +149,7 @@ export class ProductionModule {
       records,
       ingredientCosts: 0,
       activeGoalGoodId: null,
+      strategicLaborMarket,
       strategicDemandByGood: getStrategicProductionDemandByGood(
         this.worldContext.pack.strategicProcurementOrders ?? [],
         market.i
@@ -166,7 +191,7 @@ export class ProductionModule {
     const { good, ingredients, maxYield } = decision.action;
     const actualYield = Math.min(workerFraction, maxYield);
     const cultureModifier = getModifiers(good, state.burg.cell);
-    const produced = rn(actualYield * cultureModifier, 2);
+    const produced = rn(actualYield * cultureModifier * decision.laborProductivity, 2);
     if (!produced) return;
 
     // Plan all ingredient sourcing first; bail out before mutating state if any market buy fails.
@@ -685,7 +710,13 @@ export class ProductionModule {
     if (activeGoal && chosenGoal && activeGoal.normalizedGain >= chosenGoal.normalizedGain) chosenGoal = activeGoal;
     if (!chosenGoal) return null;
 
-    return { action: chosenGoal.action, candidates, goalGoodId: chosenGoal.goalGoodId };
+    const goalGood = Goods.get(chosenGoal.goalGoodId);
+    const appliesStrategicLabor = goalGood && state.strategicDemandByGood.has(goalGood.i);
+    const laborProductivity = appliesStrategicLabor
+      ? getStrategicLaborProductivity(state.strategicLaborMarket, getStrategicOccupation(goalGood))
+      : 1;
+
+    return { action: chosenGoal.action, candidates, goalGoodId: chosenGoal.goalGoodId, laborProductivity };
   }
 
   private buildRecipesArray(goods: Good[]): Recipe[] {
@@ -755,6 +786,7 @@ type BurgProductionState = {
   ingredientCosts: number;
   activeGoalGoodId: number | null;
   strategicDemandByGood: ReadonlyMap<number, StrategicProductionDemand>;
+  strategicLaborMarket: LaborMarket | undefined;
 };
 
 type DemandEffect = { multiplier: number; category: DemandCategory | null };
@@ -767,6 +799,7 @@ type ProductionDecision = {
   action: PlannedAction;
   candidates: ProductionCandidate[];
   goalGoodId: number | null;
+  laborProductivity: number;
 };
 
 export type ProductionCandidate = {

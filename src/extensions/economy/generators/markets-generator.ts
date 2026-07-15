@@ -73,6 +73,9 @@ export class MarketsModule {
 
     this.worldContext.pack.markets = markets;
     this.worldContext.pack.deals = [];
+    // Market ids are regenerated together with territories, so a cohort tied to a
+    // previous market map must not be reused for a different settlement network.
+    this.worldContext.pack.strategicLaborMarkets = [];
     syncMarketManagers(markets);
     syncBurgMarketLedgers(markets);
 
