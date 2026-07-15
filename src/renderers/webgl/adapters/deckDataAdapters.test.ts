@@ -22,6 +22,7 @@ import {
   buildMarkerSymbols,
   buildMilitaryBoxPolygons,
   buildMilitaryRegimentSymbols,
+  buildPrecipitationSymbols,
   buildRiverPolygons,
   buildRoutePaths,
   buildStatePolygons
@@ -58,6 +59,10 @@ function createWorldContext(): WorldContext {
       anchors: {}
     },
     grid: {
+      points: [
+        [5, 5],
+        [8, 5]
+      ],
       cells: {
         i: new Uint32Array([0, 1]),
         c: [[1], [0]],
@@ -174,6 +179,30 @@ describe("deck.gl data adapters", () => {
       [0, 10]
     ]);
     expect(worldContext.pack.vertices.p).toEqual(originalVertices);
+  });
+
+  it("builds precipitation as radius-scaled grid circles instead of land-wide fills", () => {
+    const worldContext = createWorldContext();
+    worldContext.grid.cells.h[1] = 35;
+    worldContext.grid.cells.prec[0] = 4;
+    worldContext.grid.cells.prec[1] = 100;
+
+    const precipitation = buildPrecipitationSymbols(worldContext, null, [0, 61, 255, 255], 4);
+
+    expect(precipitation).toEqual([
+      expect.objectContaining({
+        id: "precipitation-grid-cell-0",
+        position: [5, 5],
+        radius: 1,
+        fillColor: [0, 61, 255, 255]
+      }),
+      expect.objectContaining({
+        id: "precipitation-grid-cell-1",
+        position: [8, 5],
+        radius: 5,
+        fillColor: [0, 61, 255, 255]
+      })
+    ]);
   });
 
   it("uses diplomacy relation colours without changing persisted state colours", () => {
@@ -856,6 +885,28 @@ describe("deck.gl data adapters", () => {
       "fmg-webgl-coastline"
     ]);
     expect(layers.every(layer => layer.props.visible !== false)).toBe(true);
+  });
+
+  it("renders precipitation as radius-scaled ScatterplotLayer data", () => {
+    const worldContext = createWorldContext();
+    worldContext.grid.cells.h[1] = 35;
+    worldContext.grid.cells.prec[0] = 4;
+    worldContext.grid.cells.prec[1] = 100;
+    const viewContext = { focusScope: null } as ViewContext;
+    useLayerState.getState().setAllActiveLayers({ togglePrecipitation: true });
+
+    const layers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
+    const precipitation = layers.find(layer => layer.id === "fmg-webgl-precipitation");
+    const data = precipitation?.props.data as
+      | Array<{ position: [number, number]; radius: number; fillColor: number[] }>
+      | undefined;
+
+    expect(precipitation).toBeDefined();
+    expect(precipitation?.props.radiusUnits).toBe("common");
+    expect(data).toEqual([
+      expect.objectContaining({ position: [5, 5], radius: 1 }),
+      expect.objectContaining({ position: [8, 5], radius: 5 })
+    ]);
   });
 
   it("omits inactive migrated layers from deck.gl layer list", () => {

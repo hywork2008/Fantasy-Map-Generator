@@ -262,7 +262,7 @@ texture / vignette / scaleBar / legend / compass / ocean pattern / grid overlay 
 | `zones` | land geometry + `pack.zones[]` の `color`/`hidden`/`cells` 内容 |
 | `temperature` | `mapId`, focus scope, `pack.vertices.p`/`pack.cells.v` 内容, `pack.cells.g` 内容, `grid.cells.temp` 内容 |
 | `population` | land geometry + `pack.cells.pop` 内容 |
-| `precipitation` | land geometry + `pack.cells.g` 内容 + `grid.cells.prec` 内容 |
+| `precipitation` | grid geometry + `grid.cells.h`/`grid.cells.prec` 内容 + precipitation circle fill + map point-density option |
 | `danger` | land geometry + `pack.cells.danger` 内容 |
 | `lakes` / `lakes-outlines` | `mapId`, focus scope, `pack.vertices.p`/`pack.cells.v` 内容, `pack.features`(type=lake) 内容, lake paint（fill/stroke/stroke-width、SVG由来） |
 | `coastline` | 同上の geometry + `pack.features`(type=island) 内容 + coastline paint。**常時 active** 扱いで、他レイヤーの表示状態に関わらず毎回シグネチャを計算する |
@@ -305,7 +305,7 @@ cache hit のみのケース（zoom/pan 相当）は cell 数に対してほぼ�
 
 #### shared land-cell geometry cache
 
-`biomes`/`cultures`/`religions`/`states`/`provinces`/`zones`/`precipitation`/`danger`/`population`/`land` の10レイヤーは全て `h >= 20` の land cell に対する同一の頂点→ポリゴン変換を独立に行っていた。`deckDataAdapters.ts` に `buildLandCellGeometry()` を追加し、`buildDeckLayers()` 側で `land-geometry` cache key（`landGeometry` シグネチャのみに依存し、fill color には依存しない）を介して1回だけ計算した結果を上記10レイヤーすべてで再利用するようにした（`buildLandPolygons()` の新しい任意引数 `landCells` 経由）。既存の直接呼び出し・単体テストとの互換性のため、`landCells` 未指定時は従来通り内部で再計算するフォールバックを残した。
+`biomes`/`cultures`/`religions`/`states`/`provinces`/`zones`/`danger`/`population`/`land` の9レイヤーは全て `h >= 20` の land cell に対する同一の頂点→ポリゴン変換を独立に行っていた。`deckDataAdapters.ts` に `buildLandCellGeometry()` を追加し、`buildDeckLayers()` 側で `land-geometry` cache key（`landGeometry` シグネチャのみに依存し、fill color には依存しない）を介して1回だけ計算した結果を上記9レイヤーすべてで再利用するようにした（`buildLandPolygons()` の新しい任意引数 `landCells` 経由）。降水量は SVG と同様に grid cell 中心の半径可変円なので、この共有ポリゴンキャッシュには含めない。既存の直接呼び出し・単体テストとの互換性のため、`landCells` 未指定時は従来通り内部で再計算するフォールバックを残した。
 
 typed array / binary attribute 化（`Float32Array` の positions/colors を deck.gl に直接渡し、`getPolygon`/`getFillColor` アクセサでの per-datum オブジェクト生成を避ける方式）は、adapter の出力形状そのものを作り替える必要がある大きな構造変更のため、Phase 2 が texture/terrain の deck.gl 化を Phase 6 以降に持ち越したのと同じ理由で今回は着手せず、Phase 6 以降の課題として残す。
 

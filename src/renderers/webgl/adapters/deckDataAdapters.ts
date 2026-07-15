@@ -47,6 +47,17 @@ export interface DeckCellPolygon {
   fillColor: Color;
 }
 
+/** A precipitation circle, matching the radius-based SVG precipitation renderer. */
+export interface DeckPrecipitationSymbol {
+  id: string;
+  kind: "precipitation";
+  /** Grid-cell id. Precipitation is generated on the grid, before reGraph creates pack cells. */
+  cellId: number;
+  position: DeckPosition;
+  radius: number;
+  fillColor: Color;
+}
+
 export interface DeckHeightStyle {
   scheme: string | null;
   opacity: number;
@@ -561,24 +572,38 @@ export function buildTemperaturePolygons(
   });
 }
 
-export function buildPrecipitationPolygons(
+/**
+ * Builds the same rain circles as `PrecipitationRenderer`: precipitation controls each circle's
+ * area, rather than tinting every land polygon. The latter obscured the rainfall distribution in
+ * WebGL hybrid mode.
+ */
+export function buildPrecipitationSymbols(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  landCells?: ReadonlyArray<DeckLandCellGeometry>,
-  maxOpacity = 0.75
-): DeckCellPolygon[] {
-  const { grid, pack } = worldContext;
-  return buildLandPolygons(
-    worldContext,
-    focusScope,
-    "precipitation",
-    cellId => {
-      const precipitation = grid.cells.prec?.[pack.cells.g[cellId]] ?? 0;
-      const alpha = Math.min(maxOpacity, Math.max(maxOpacity * 0.24, precipitation / 220));
-      return colorToRgba("#2d7dd2", "#2d7dd2", alpha);
-    },
-    landCells
-  );
+  fillColor: Color,
+  pointsOption: number
+): DeckPrecipitationSymbol[] {
+  const { cells, points } = worldContext.grid;
+  const cellsNumberModifier = ((pointsOption === 4 ? 10000 : pointsOption * 2500) / 10000) ** 0.25;
+  const symbols: DeckPrecipitationSymbol[] = [];
+
+  for (const cellId of cells.i) {
+    const precipitation = cells.prec[cellId] ?? 0;
+    if (cells.h[cellId] < 20 || !precipitation || !isGridCellInScope(focusScope, cellId)) continue;
+
+    const position = points[cellId];
+    if (!position) continue;
+    symbols.push({
+      id: `precipitation-grid-cell-${cellId}`,
+      kind: "precipitation",
+      cellId,
+      position: [position[0], position[1]],
+      radius: Math.round((Math.sqrt(precipitation / 4) / cellsNumberModifier) * 100) / 100,
+      fillColor
+    });
+  }
+
+  return symbols;
 }
 
 export function buildDangerPolygons(

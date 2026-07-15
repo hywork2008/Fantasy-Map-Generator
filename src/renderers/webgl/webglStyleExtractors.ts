@@ -45,6 +45,15 @@ export interface RiverPaint {
   color: Color;
 }
 
+/** Reads the SVG precipitation circle fill so hybrid mode honors style presets and edits. */
+export function getPrecipitationPaint(viewContext: Readonly<ViewContext>): { color: Color } {
+  const precipitation = viewContext.prec;
+  const opacity = parseOptionalNumber(precipitation?.attr("opacity") ?? precipitation?.style("opacity")) ?? 1;
+  return {
+    color: colorToRgba(precipitation?.attr("fill") ?? precipitation?.style("fill"), "#0080ff", opacity)
+  };
+}
+
 /** Reads the SVG stroke-dasharray values used by WebGL-backed border and route layers. */
 export function getPathDashStyles(viewContext: Readonly<ViewContext>): PathDashStyles {
   return {
@@ -284,7 +293,7 @@ export function getMilitaryBoxSize(viewContext: Readonly<ViewContext>): number {
  * visually match the SVG renderer when opacity has been customized by the user.
  * Falls back to the default opacity values from public/styles/clean.json.
  *
- * Note: temperature, precipitation, danger, and population layers do not have
+ * Note: temperature, danger, and population layers do not have
  * a direct parent SVG element with a single opacity attribute — their opacity is
  * baked into per-cell colour intensity. For those layers the default values serve
  * as the "maximum opacity" cap, matching the SVG renderer's unset (null) convention.
@@ -297,7 +306,6 @@ export function getCellLayerOpacities(viewContext: Readonly<ViewContext>): {
   provinces: number;
   zones: number;
   temperature: number;
-  precipitation: number;
   danger: number;
   population: number;
 } {
@@ -316,7 +324,6 @@ export function getCellLayerOpacities(viewContext: Readonly<ViewContext>): {
     zones: readOp(viewContext.zones, 0.7),
     // These layers have no parent element with a single opacity — use clean.json defaults.
     temperature: 0.72,
-    precipitation: 0.75,
     danger: 0.75,
     population: 0.72
   };

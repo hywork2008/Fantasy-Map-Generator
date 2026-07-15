@@ -22,6 +22,7 @@ import type { WorldContext } from "../../context/worldContext";
 import { getCombatDeathsByCell, getPopulationLossSimDay } from "../../generators/populationLossTracker";
 import { getOceanPathsCacheSize, renderOceanDepthToOffscreenCanvas } from "../../renderers/ocean-layers";
 import { useLayerState } from "../../store/layerState";
+import { useOptionsState } from "../../store/optionsState";
 import { usePopulationOverviewState } from "../../store/populationOverviewState";
 import type { ExtensionWebglIconDatum, ExtensionWebglPathDatum } from "../../types/extension-api";
 import { EMBLEM_ICON_RASTER_SIZE } from "../emblem-renderer";
@@ -51,7 +52,7 @@ import {
   buildMilitaryBoxPolygons,
   buildMilitaryRegimentSymbols,
   buildPopulationPolygons,
-  buildPrecipitationPolygons,
+  buildPrecipitationSymbols,
   buildProvincePolygons,
   buildReligionPolygons,
   buildRiverPolygons,
@@ -81,6 +82,7 @@ import {
   type DeckMilitaryRegimentSymbol,
   type DeckPath,
   type DeckPosition,
+  type DeckPrecipitationSymbol,
   type DeckRiverPolygon
 } from "./adapters/deckDataAdapters";
 import { BURG_ICON_RASTER_SIZE, getBurgIconRasterCacheVersion } from "./burgIconRasterCache";
@@ -101,6 +103,7 @@ import {
   getMilitaryBoxSize,
   getPathDashStyles,
   getPathPaintStyles,
+  getPrecipitationPaint,
   getRiverPaint,
   type LayerPaint
 } from "./webglStyleExtractors";
@@ -133,6 +136,7 @@ type CachedDeckData =
   | DeckMilitaryBoxPolygon[]
   | DeckMilitaryRegimentSymbol[]
   | DeckPath[]
+  | DeckPrecipitationSymbol[]
   | DeckRiverPolygon[];
 
 interface CachedDeckDataEntry<T extends CachedDeckData> {
@@ -220,12 +224,6 @@ const WEBGL_POLYGON_LAYERS: Array<{
     build: (world, view, landCells) =>
       buildPopulationPolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).population),
     maskLand: true
-  },
-  {
-    toggle: "togglePrecipitation",
-    id: "precipitation",
-    build: (world, view, landCells) =>
-      buildPrecipitationPolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).precipitation)
   },
   {
     toggle: "toggleDanger",
@@ -348,6 +346,8 @@ export function buildDeckLayers(
   const labelStyle = getLabelStyle(worldContext, viewContext);
   const pathDashStyles = getPathDashStyles(viewContext);
   const pathPaintStyles = getPathPaintStyles(viewContext);
+  const precipitationPaint = getPrecipitationPaint(viewContext);
+  const precipitationPointsOption = useOptionsState.getState().points;
   const riverPaint = getRiverPaint(viewContext);
   const cellLayerOpacities = getCellLayerOpacities(viewContext);
   const signatures = buildLayerSignatures(worldContext, viewContext, oceanFill, landFill, activeLayers, {
@@ -360,12 +360,15 @@ export function buildDeckLayers(
     labelStyle,
     pathDashStyles,
     pathPaintStyles,
+    precipitationPaint,
+    precipitationPointsOption,
     riverPaint,
     cellLayerOpacities
   });
   // Shared land-cell vertex geometry: the "land" layer always needs it, and every simultaneously
-  // active land-based overlay (biomes/cultures/religions/states/provinces/zones/precipitation/
-  // danger/population) reuses this same array instead of repeating the per-cell vertex lookup.
+  // active land-based overlay (biomes/cultures/religions/states/provinces/zones/danger/population)
+  // reuses this same array instead of repeating the per-cell vertex lookup. Precipitation is made
+  // of grid-cell circles, matching the SVG renderer, so it intentionally does not use this cache.
   const landCells = getCachedDeckData("land-geometry", signatures.landGeometrySignature, () =>
     buildLandCellGeometry(worldContext, viewContext.focusScope)
   );
@@ -515,6 +518,29 @@ export function buildDeckLayers(
         })
       );
     }
+  }
+
+  if (activeLayers.togglePrecipitation) {
+    layers.push(
+      new ScatterplotLayer<DeckPrecipitationSymbol>({
+        id: "fmg-webgl-precipitation",
+        data: getCachedDeckData("scatter:precipitation", signatures.byLayer.precipitation, () =>
+          buildPrecipitationSymbols(
+            worldContext,
+            viewContext.focusScope,
+            precipitationPaint.color,
+            precipitationPointsOption
+          )
+        ),
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getPosition: datum => datum.position,
+        getRadius: datum => datum.radius,
+        getFillColor: datum => datum.fillColor,
+        radiusUnits: "common",
+        stroked: false,
+        pickable: true
+      })
+    );
   }
 
   if (activeLayers.toggleLakes) {
@@ -1153,6 +1179,8 @@ interface SignatureStyles {
   labelStyle: ReturnType<typeof getLabelStyle>;
   pathDashStyles: ReturnType<typeof getPathDashStyles>;
   pathPaintStyles: ReturnType<typeof getPathPaintStyles>;
+  precipitationPaint: ReturnType<typeof getPrecipitationPaint>;
+  precipitationPointsOption: number;
   riverPaint: ReturnType<typeof getRiverPaint>;
   cellLayerOpacities: ReturnType<typeof getCellLayerOpacities>;
 }
@@ -1265,7 +1293,7 @@ function buildLayerSignatures(
     "precipitation",
     "togglePrecipitation",
     () =>
-      `${landGeometry()}|${numberListSignature(pack.cells?.g)}|${numberListSignature(grid.cells?.prec)}|op:${styles.cellLayerOpacities.precipitation}`
+      `${gridGeometry()}|centers:${pointListSignature(grid.points)}|${gridHeights()}|${numberListSignature(grid.cells?.prec)}|${colorSignature(styles.precipitationPaint.color)}|points:${styles.precipitationPointsOption}`
   );
   setIfActive(
     "danger",
