@@ -59,9 +59,17 @@ export const DiplomacyRelationDialog: React.FC = () => {
   };
 
   return (
-    <Dialog isOpen={isOpen} title="Change relations" onClose={closeRelationDialog}>
-      <div className="d-flex">
-        <header className="d-flex">
+    <Dialog
+      isOpen={isOpen}
+      title="Change relations"
+      onClose={closeRelationDialog}
+      buttons={[
+        { label: "Apply", onClick: handleApply },
+        { label: "Cancel", onClick: closeRelationDialog }
+      ]}
+    >
+      <form className="diplomacy-relation-form" onSubmit={event => event.preventDefault()}>
+        <header className="diplomacy-relation-subject">
           <svg className="coaIcon" viewBox="0 0 200 200">
             <title>Coat of Arms for {subject.fullName || subject.name}</title>
             <use href={`#stateCOA${subject.i}`} />
@@ -69,66 +77,72 @@ export const DiplomacyRelationDialog: React.FC = () => {
           <b>{subject.fullName || subject.name}</b>
         </header>
 
-        <main className="d-flex">
-          <section className="d-flex">
-            {Object.entries(relations).map(([relation, data]) => {
-              const { color, inText, tip } = data as { color: string; inText: string; tip: string };
-              return (
-                <div key={relation} data-tip={tip}>
-                  <label className="pointer d-flex">
-                    <input
-                      type="radio"
-                      name="relationSelect"
-                      value={relation}
-                      checked={selectedRelation === relation}
-                      onChange={() => setSelectedRelation(relation)}
-                    />
-                    <FillBox fill={color} size=".8em" />
-                    {inText}
-                  </label>
-                </div>
-              );
-            })}
-          </section>
+        <div className="diplomacy-relation-tables">
+          <table className="diplomacy-relation-table">
+            <thead>
+              <tr>
+                <th scope="col">Relation</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(relations).map(([relation, data]) => {
+                const { color, inText, tip } = data as { color: string; inText: string; tip: string };
+                return (
+                  <tr key={relation} data-tip={tip}>
+                    <td>
+                      <label className="pointer diplomacy-relation-choice">
+                        <input
+                          type="radio"
+                          name="relationSelect"
+                          value={relation}
+                          checked={selectedRelation === relation}
+                          onChange={() => setSelectedRelation(relation)}
+                        />
+                        <FillBox fill={color} size=".8em" />
+                        {inText}
+                      </label>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
 
-          <section className="d-flex">
-            <div className="d-flex">
-              <span>States:</span>
-              <button type="button" data-tip="Toggle selection of all states" onClick={toggleAll}>
-                Select All / None
-              </button>
-            </div>
-            <div className="d-flex">
+          <table className="diplomacy-relation-table diplomacy-relation-states-table">
+            <thead>
+              <tr>
+                <th scope="col">States</th>
+                <th scope="col" className="diplomacy-relation-selection-control">
+                  <button type="button" data-tip="Toggle selection of all states" onClick={toggleAll}>
+                    Select All / None
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
               {objectStates.map(s => (
-                <div key={s.i} data-tip={s.fullName || s.name}>
-                  <label className="checkbox-label d-flex">
-                    <input
-                      className="checkbox"
-                      type="checkbox"
-                      checked={selectedObjects.has(s.i)}
-                      onChange={() => toggleObject(s.i)}
-                    />
-                    <svg className="coaIcon" viewBox="0 0 200 200">
-                      <title>Coat of Arms for {s.fullName || s.name}</title>
-                      <use href={`#stateCOA${s.i}`} />
-                    </svg>
-                    {s.fullName || s.name}
-                  </label>
-                </div>
+                <tr key={s.i} data-tip={s.fullName || s.name}>
+                  <td colSpan={2}>
+                    <label className="checkbox-label diplomacy-relation-choice">
+                      <input
+                        className="checkbox"
+                        type="checkbox"
+                        checked={selectedObjects.has(s.i)}
+                        onChange={() => toggleObject(s.i)}
+                      />
+                      <svg className="coaIcon" viewBox="0 0 200 200">
+                        <title>Coat of Arms for {s.fullName || s.name}</title>
+                        <use href={`#stateCOA${s.i}`} />
+                      </svg>
+                      {s.fullName || s.name}
+                    </label>
+                  </td>
+                </tr>
               ))}
-            </div>
-          </section>
-        </main>
-
-        <div className="d-flex">
-          <button type="button" className="button" onClick={closeRelationDialog}>
-            Cancel
-          </button>
-          <button type="button" className="button" onClick={handleApply}>
-            Apply
-          </button>
+            </tbody>
+          </table>
         </div>
-      </div>
+      </form>
     </Dialog>
   );
 };
