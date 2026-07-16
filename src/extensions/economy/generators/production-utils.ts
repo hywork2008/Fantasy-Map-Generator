@@ -86,7 +86,7 @@ const SEASONAL_FOOD_PRODUCTION_MULTIPLIER: Record<Season, number> = {
  * temperate single-autumn-harvest cycle the table models. The blend is linear in the deviation
  * from 1, so the four-season average stays exactly 1 at every latitude, not just at the poles.
  */
-function getSeasonalProductionMultiplier(good: Good, cellId: number): number {
+export function getSeasonalFoodProductionMultiplier(good: Good, cellId: number, month: number): number {
   if (!good.tags.includes("food")) return 1;
 
   const worldContext = getWorldContext();
@@ -94,13 +94,60 @@ function getSeasonalProductionMultiplier(good: Good, cellId: number): number {
   if (!point) return 1;
 
   const latitude = getLatitude(point[1], worldContext.mapCoordinates, worldContext.graphHeight);
-  const season = getSeason(latitude, worldContext.options.month ?? 1);
+  const season = getSeason(latitude, month);
   const strength = getSeasonalityStrength(latitude);
-  const seasonal = 1 + (SEASONAL_FOOD_PRODUCTION_MULTIPLIER[season] - 1) * strength;
+  return 1 + (SEASONAL_FOOD_PRODUCTION_MULTIPLIER[season] - 1) * strength;
+}
+
+function getSeasonalProductionMultiplier(good: Good, cellId: number): number {
+  const worldContext = getWorldContext();
+  const seasonal = getSeasonalFoodProductionMultiplier(good, cellId, worldContext.options.month ?? 1);
 
   // Spring/autumn war disruption (manpower-ecosystem §18) — 1 when foodStress is 0
   const stateId = worldContext.pack.cells.state[cellId] ?? 0;
   return seasonal * foodStressProductionMultiplier(stateId);
+}
+
+export type RuralProductionContribution = { goodId: number; amount: number };
+
+export function getRuralCellPopulation(cellId: number): number {
+  const cells = getWorldContext().pack.cells;
+  if (cells.h[cellId] >= 20) return cells.pop[cellId];
+  return sum(cells.c[cellId].map(neighborId => cells.pop[neighborId])) || 0;
+}
+
+/**
+ * Returns the pre-season, pre-depletion quantities for this cell. The market
+ * production index uses these stable contributions to aggregate rural output
+ * once per topology/goods change, then applies time-varying factors at settlement.
+ */
+export function getRuralProductionContributions(
+  cellId: number,
+  biomeProduction: Record<number, { goodId: number; production: number }[]>
+): RuralProductionContribution[] {
+  const worldContext = getWorldContext();
+  const cells = worldContext.pack.cells;
+  const population = getRuralCellPopulation(cellId);
+  if (population <= 0) return [];
+
+  const contributions: RuralProductionContribution[] = [];
+  for (const { goodId, production } of biomeProduction[cells.biome[cellId]] || []) {
+    const good = Goods.get(goodId);
+    if (good && isGoodEnabled(good)) {
+      contributions.push({ goodId, amount: population * production * getModifiers(good, cellId) });
+    }
+  }
+
+  const bonusGoodId = cells.good[cellId];
+  if (bonusGoodId) {
+    const good = Goods.get(bonusGoodId);
+    if (good && isGoodEnabled(good)) {
+      const bonus = Math.min(population * BONUS_RURAL_PRODUCTION, MAX_BONUS_PRODUCTION);
+      contributions.push({ goodId: bonusGoodId, amount: bonus * getModifiers(good, cellId) });
+    }
+  }
+
+  return contributions;
 }
 
 export function getCellProduction(
@@ -109,31 +156,15 @@ export function getCellProduction(
 ): Record<number, number> {
   const produced: Record<number, number> = {};
 
-  const modifier = (good: Good) =>
-    getModifiers(good, cellId) * getDepletionMultiplier(good, cellId) * getSeasonalProductionMultiplier(good, cellId);
   const add = (goodId: number, amount: number) => {
     produced[goodId] = rn((produced[goodId] || 0) + amount, 2);
   };
 
-  const isWater = getWorldContext().pack.cells.h[cellId] < 20;
-  const pop = isWater
-    ? sum(getWorldContext().pack.cells.c[cellId].map(c => getWorldContext().pack.cells.pop[c])) || 0
-    : getWorldContext().pack.cells.pop[cellId];
-
-  if (pop > 0) {
-    for (const { goodId, production } of biomeProduction[getWorldContext().pack.cells.biome[cellId]] || []) {
-      const good = Goods.get(goodId);
-      if (good && isGoodEnabled(good)) add(goodId, pop * production * modifier(good));
-    }
-
-    const bonusGoodId = getWorldContext().pack.cells.good[cellId];
-    if (bonusGoodId) {
-      const good = Goods.get(bonusGoodId);
-      if (good && isGoodEnabled(good)) {
-        const bonus = Math.min(pop * BONUS_RURAL_PRODUCTION, MAX_BONUS_PRODUCTION);
-        add(bonusGoodId, bonus * modifier(good));
-      }
-    }
+  for (const contribution of getRuralProductionContributions(cellId, biomeProduction)) {
+    const good = Goods.get(contribution.goodId);
+    if (!good) continue;
+    const multiplier = getDepletionMultiplier(good, cellId) * getSeasonalProductionMultiplier(good, cellId);
+    add(contribution.goodId, contribution.amount * multiplier);
   }
 
   return produced;

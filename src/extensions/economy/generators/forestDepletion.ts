@@ -46,6 +46,11 @@ export function getDepletionFactor(cellId: number): number {
   return _depletion.get(cellId) ?? 0;
 }
 
+/** Sparse read-only view used by rural production aggregation to adjust only logged cells. */
+export function getDepletedCells(): ReadonlyMap<number, number> {
+  return _depletion;
+}
+
 /** Returns whether any depletion changed since the last call, and clears the flag. */
 export function consumeDirtyFlag(): boolean {
   const wasDirty = _dirty;

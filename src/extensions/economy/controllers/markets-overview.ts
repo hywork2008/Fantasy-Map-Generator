@@ -292,6 +292,7 @@ function exitMarketsManualAssignment(apply: boolean): void {
       const burgId = getWorldContext().pack.cells.burg[cellId];
       if (burgId) (getWorldContext().pack.burgs as Burg[])[burgId].market = marketId;
     }
+    Markets.invalidateRuralProductionCache();
   }
 
   marketsWorking = null;

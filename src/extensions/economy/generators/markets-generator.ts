@@ -1,7 +1,7 @@
 import Alea from "alea";
 import { quadtree } from "d3-quadtree";
 import FlatQueue from "flatqueue";
-import { foodStressPriceMultiplier } from "../../../generators/agriculturalStress";
+import { foodStressPriceMultiplier, foodStressProductionMultiplier } from "../../../generators/agriculturalStress";
 import type { Burg, ShipGoodName, ShipGoodStock } from "../../hostTypes";
 import {
   SHIPBUILDING_MATERIAL_IDS,
@@ -13,12 +13,13 @@ import { getColors, getRandomColor, minmax, rn, TIME } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 import { getBurgMarketLedger, syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { CaravanMovement } from "./caravanMovement";
+import { getDepletedCells } from "./forestDepletion";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, GOODS_DATA, Goods, isGoodEnabled } from "./goods-generator";
 import { syncMarketManagers } from "./marketManagers";
 import type { Deal, Market, TradeRouteSegment } from "./marketTypes";
 import { isMarketTradePermitted } from "./merchantOrganizations";
-import { getCellProduction } from "./production-utils";
+import { getRuralProductionContributions, getSeasonalFoodProductionMultiplier } from "./production-utils";
 import { TradeAnimation } from "./trade-animation";
 import {
   estimateSpeculativeTrade,
@@ -47,6 +48,17 @@ interface MarketTradeRoute {
 
 type MarketTradeRoutes = Record<number, Record<number, MarketTradeRoute>>;
 
+type MarketGoodTotals = Map<number, number>;
+type FoodTotalsByState = Map<number, Map<number, number[]>>;
+type WoodContribution = { marketId: number; goodId: number; amount: number };
+type RuralProductionIndex = {
+  populationSnapshotPeriod: string;
+  standard: Map<number, MarketGoodTotals>;
+  food: Map<number, FoodTotalsByState>;
+  wood: Map<number, MarketGoodTotals>;
+  woodByCell: Map<number, WoodContribution[]>;
+};
+
 function getMarketDistanceMapUnits(source: Pick<Burg, "x" | "y">, target: Pick<Burg, "x" | "y">): number {
   const dx = Math.abs(source.x - target.x);
   const dy = Math.abs(source.y - target.y);
@@ -68,6 +80,7 @@ export class MarketsModule {
 
   private marketById: Market[] = [];
   private tradeRouteCache: { key: string; routes: MarketTradeRoutes } | null = null;
+  private ruralProductionIndex: RuralProductionIndex | null = null;
 
   /** Returns the current market stock for the three ship-class Goods. */
   getShipGoodStock(marketId: number): ShipGoodStock | undefined {
@@ -101,6 +114,7 @@ export class MarketsModule {
   generate(regenerate: boolean = false): Market[] {
     TIME && console.time("generateMarkets");
     this.invalidateTradeRouteCache();
+    this.invalidateRuralProductionCache();
     if (!regenerate) Math.random = Alea(this.worldContext.seed);
     const markets = this.createMarkets();
     this.expandMarkets(markets);
@@ -167,7 +181,9 @@ export class MarketsModule {
 
   expandTerritories(markets: Market[] = this.worldContext.pack.markets): Uint16Array {
     this.indexMarkets(markets);
-    return this.expandMarkets(markets);
+    const territories = this.expandMarkets(markets);
+    this.invalidateRuralProductionCache();
+    return territories;
   }
 
   private indexMarkets(markets: Market[] = this.worldContext.pack.markets): void {
@@ -180,6 +196,7 @@ export class MarketsModule {
     // A loaded map replaces route and market objects in place. Drop any routes
     // retained from the previous map before its first trade settlement.
     this.invalidateTradeRouteCache();
+    this.invalidateRuralProductionCache();
   }
 
   private expandMarkets(markets: Market[]): Uint16Array {
@@ -248,20 +265,47 @@ export class MarketsModule {
   }
 
   collectRuralProduction(): void {
-    const biomeProduction = Goods.getBiomesProduction();
+    const populationSnapshotPeriod = this.getRuralPopulationSnapshotPeriod();
+    const index =
+      this.ruralProductionIndex?.populationSnapshotPeriod === populationSnapshotPeriod
+        ? this.ruralProductionIndex
+        : this.buildRuralProductionIndex(populationSnapshotPeriod);
+    const monthIndex = Math.max(0, Math.min(11, (this.worldContext.options.month ?? 1) - 1));
+    const woodAdjustments = new Map<number, MarketGoodTotals>();
 
-    for (const cellId of this.worldContext.pack.cells.i) {
-      const market = this.marketById[this.worldContext.pack.cells.market[cellId]];
-      if (!market) continue;
-
-      const produced = getCellProduction(cellId, biomeProduction);
-      for (const [goodId, amount] of Object.entries(produced)) {
-        const good = Goods.get(+goodId);
-        if (!good || !isGoodEnabled(good)) continue;
-        const marketGood = this.getMarketGood(market, good);
-        marketGood.stock = rn(marketGood.stock + amount, 2);
+    for (const [cellId, depletion] of getDepletedCells()) {
+      for (const contribution of index.woodByCell.get(cellId) ?? []) {
+        this.addMarketGoodTotal(
+          woodAdjustments,
+          contribution.marketId,
+          contribution.goodId,
+          -contribution.amount * depletion
+        );
       }
     }
+
+    this.applyRuralTotals(index.standard);
+
+    for (const [marketId, totalsByState] of index.food) {
+      for (const [stateId, totals] of totalsByState) {
+        const multiplier = foodStressProductionMultiplier(stateId);
+        for (const [goodId, monthlyTotals] of totals) {
+          this.addRuralOutput(marketId, goodId, monthlyTotals[monthIndex] * multiplier);
+        }
+      }
+    }
+
+    for (const [marketId, totals] of index.wood) {
+      const adjustments = woodAdjustments.get(marketId);
+      for (const [goodId, amount] of totals) {
+        this.addRuralOutput(marketId, goodId, amount + (adjustments?.get(goodId) ?? 0));
+      }
+    }
+  }
+
+  /** Rebuild rural market totals after an editor changes market territories or source data. */
+  invalidateRuralProductionCache(): void {
+    this.ruralProductionIndex = null;
   }
 
   private getMarketGood(market: Market, good: Good) {
@@ -271,6 +315,100 @@ export class MarketsModule {
     const initial = { stock: 0, price: good.value };
     market.goods[good.i] = initial;
     return initial;
+  }
+
+  // getRuralProductionContributions() bakes in getModifiers(), which can key off
+  // state/religion/culture/zone (not just cultureType/biome). Those only change via
+  // conquest, conversion, migration, or zone edits, none of which call
+  // invalidateRuralProductionCache() today, so such a multiplier would stay stale
+  // until the next quarterly rebuild. Harmless while every good's multipliers key
+  // only on cultureType/biome (static per cell) — revisit if that changes.
+  private buildRuralProductionIndex(populationSnapshotPeriod: string): RuralProductionIndex {
+    const index: RuralProductionIndex = {
+      populationSnapshotPeriod,
+      standard: new Map(),
+      food: new Map(),
+      wood: new Map(),
+      woodByCell: new Map()
+    };
+    const { cells, markets } = this.worldContext.pack;
+    const marketIds = new Set(markets.map(market => market.i));
+    const biomeProduction = Goods.getBiomesProduction();
+
+    for (const cellId of cells.i) {
+      const marketId = cells.market[cellId];
+      if (!marketId || !marketIds.has(marketId)) continue;
+
+      for (const contribution of getRuralProductionContributions(cellId, biomeProduction)) {
+        const good = Goods.get(contribution.goodId);
+        if (!good || !isGoodEnabled(good) || contribution.amount <= 0) continue;
+
+        if (good.name === "Wood") {
+          this.addMarketGoodTotal(index.wood, marketId, good.i, contribution.amount);
+          const entries = index.woodByCell.get(cellId) ?? [];
+          entries.push({ marketId, goodId: good.i, amount: contribution.amount });
+          index.woodByCell.set(cellId, entries);
+          continue;
+        }
+
+        if (good.tags.includes("food")) {
+          const stateId = cells.state?.[cellId] ?? 0;
+          const totalsByState = index.food.get(marketId) ?? new Map<number, Map<number, number[]>>();
+          const totals = totalsByState.get(stateId) ?? new Map<number, number[]>();
+          const monthlyTotals = totals.get(good.i) ?? Array.from({ length: 12 }, () => 0);
+          for (let month = 1; month <= 12; month++) {
+            monthlyTotals[month - 1] += contribution.amount * getSeasonalFoodProductionMultiplier(good, cellId, month);
+          }
+          totals.set(good.i, monthlyTotals);
+          totalsByState.set(stateId, totals);
+          index.food.set(marketId, totalsByState);
+          continue;
+        }
+
+        this.addMarketGoodTotal(index.standard, marketId, good.i, contribution.amount);
+      }
+    }
+
+    this.ruralProductionIndex = index;
+    return index;
+  }
+
+  /**
+   * Rural population changes continuously under the demographics simulation, so a
+   * topology cache cannot be permanent. Refreshing at the quarterly food-ledger
+   * cadence bounds that drift while reducing the normal 12 monthly cell scans to
+   * four snapshots per simulated year.
+   */
+  private getRuralPopulationSnapshotPeriod(): string {
+    const month = this.worldContext.options.month ?? 1;
+    const year = this.worldContext.options.year ?? 0;
+    return `${year}:${Math.floor((month - 1) / 3)}`;
+  }
+
+  private applyRuralTotals(totalsByMarket: Map<number, MarketGoodTotals>): void {
+    for (const [marketId, totals] of totalsByMarket) {
+      for (const [goodId, amount] of totals) this.addRuralOutput(marketId, goodId, amount);
+    }
+  }
+
+  private addRuralOutput(marketId: number, goodId: number, amount: number): void {
+    if (amount <= 0) return;
+    const market = this.marketById[marketId];
+    const good = Goods.get(goodId);
+    if (!market || !good || !isGoodEnabled(good)) return;
+    const marketGood = this.getMarketGood(market, good);
+    marketGood.stock = rn(marketGood.stock + amount, 2);
+  }
+
+  private addMarketGoodTotal(
+    totalsByMarket: Map<number, MarketGoodTotals>,
+    marketId: number,
+    goodId: number,
+    amount: number
+  ): void {
+    const totals = totalsByMarket.get(marketId) ?? new Map<number, number>();
+    totals.set(goodId, (totals.get(goodId) ?? 0) + amount);
+    totalsByMarket.set(marketId, totals);
   }
 
   initializeMarketPrices(): void {
@@ -362,6 +500,7 @@ export class MarketsModule {
     this.worldContext.pack.markets.push(market);
     this.worldContext.pack.deals = [];
     this.invalidateTradeRouteCache();
+    this.invalidateRuralProductionCache();
 
     this.indexMarkets();
     this.worldContext.pack.cells.market[burg.cell] = marketId;
@@ -384,6 +523,7 @@ export class MarketsModule {
     this.worldContext.pack.markets.splice(marketIndex, 1);
     this.worldContext.pack.deals = [];
     this.invalidateTradeRouteCache();
+    this.invalidateRuralProductionCache();
 
     if (this.worldContext.pack.markets.length) {
       this.expandTerritories();
