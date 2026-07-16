@@ -10,7 +10,12 @@
 
 ## 1. 未修正の不具合
 
-### 1.1 3Dビュー(viewMesh)で集落を再配置しても低ポリアイコンのクリック判定位置に反映されない
+### 1.1 [解決済み 2026-07-17 追加調査] 3Dビュー(viewMesh)で集落を再配置しても低ポリアイコンのクリック判定位置に反映されない
+
+**追記(2026-07-17、別セッション)**: 根本原因は`three-d-renderer.ts`側ではなく、**テストフィクスチャ`forceThreeDBurgFixture()`自体のバグ**だった。同関数は対象集落を`groupName`(`options.burgs.groups[0].name`、このseedでは`"capital"`)へ強制的に再割り当てした上で、その**グループ全体**のSVG要素に`data-size=400`を設定していた。`buildLowPolyBurgSymbols()`のアイコンサイズはグループ単位のスタイル(`getBurgIconStyle()`)から決まるため、この変更は対象の1集落だけでなく**同じ`"capital"`グループに属する集落全て(このseedでは17件)**を巨大な球体アイコンに変えてしまい、地図中央付近で多数の巨大アイコンが重なり合った結果、レイキャストが対象と異なる集落(例: `Breimel`)を拾っていた。`pack.burgs[i].x/y`への直接代入自体は正しく3D側に反映されており、「再配置が無視される」という当初の仮説は誤りだった。
+修正(`tests/e2e/helpers/fmg-helpers.ts`の`forceThreeDBurgFixture()`): `data-size`変更で巻き添えになる同グループの他の集落を、`options.burgs.groups`に存在しないダミーgroup名へ再割り当てし、`buildLowPolyBurgSymbols()`の`visibleGroups`チェックで3Dシーンから除外することで、対象集落のアイコンのみを残すようにした。あわせて、カメラ・地形フレーミングに依存する固定クリック座標(`bounds.height * 0.2`等)をやめ、`clickLowPolyBurgIconUntilSelected()`(キャンバス全面グリッド探索+実際の`pointerdown`/`pointerup`イベント)に置き換え、将来のフレーミング変更にも耐性を持たせた。関連テストは`--workers=1`で8回連続、フルスイートで43/43成功を確認済み。
+
+以下は解決前の調査ログ(誤っていた「未確認の仮説」を含むため、上記の追記を正としてください)。
 
 - **ファイル**: `src/renderers/three-d-renderer.ts`、`createLowPolyBurgIcons()` / `scheduleTerrainOverlays()`
 - **経緯**: `docs/webgl-renderer-migration-candidates.md`のWebGLハイブリッドレンダラーには、SVGとは別に3D表示(`viewMesh`)がある。3D表示では集落(burg)を低ポリのインスタンス化メッシュ(`THREE.InstancedMesh`)として描画し、`pickBurgAt()`でレイキャストによりクリック判定を行う。テスト用フィクスチャ`forceThreeDBurgFixture()`(`tests/e2e/helpers/fmg-helpers.ts`)は、クリック位置を安定させるため`burg.x`/`burg.y`を地図中央へ直接書き換えるが、**再配置後もその集落の3Dアイコンは元の位置relatedのままクリック不能**であることを、キャンバス全面のグリッド探索(`document.addEventListener("fmg:3d-burg-select", ...)`を仕込んで9×9〜10×10グリッドで総当たりクリック)で確認した。

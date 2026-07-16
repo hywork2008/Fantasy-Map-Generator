@@ -6,6 +6,7 @@ import {
 import {
   applyStylePreset,
   clickAndGetWebglPickCandidates,
+  clickLowPolyBurgIconUntilSelected,
   collectPageErrors,
   ensureLayerOff,
   ensureLayerOn,
@@ -16,6 +17,7 @@ import {
   forceWebglIcebergFixture,
   forceWebglMarkerFixture,
   getCanvasColorChecksum,
+  getCanvasColorDiversity,
   getCanvasLuminanceStats,
   getFirstLandScreenPoint,
   getFirstStateScreenPoint,
@@ -494,7 +496,7 @@ test.describe("webgl hybrid renderer", () => {
     await page.locator("#viewMesh").click();
     await expect(page.locator("#canvas3d")).toBeVisible({ timeout: 15000 });
     await waitForCanvasPixels(page, "canvas3d");
-    const fullMapChecksum = await getCanvasColorChecksum(page, "canvas3d");
+    const fullMapColorDiversity = await getCanvasColorDiversity(page, "canvas3d");
 
     await page.locator("#viewStandard").click();
     await expect(page.locator("#canvas3d")).toHaveCount(0);
@@ -504,7 +506,14 @@ test.describe("webgl hybrid renderer", () => {
     await page.locator("#viewMesh").click();
     await expect(page.locator("#canvas3d")).toBeVisible({ timeout: 15000 });
     await waitForCanvasPixels(page, "canvas3d");
-    await expect.poll(() => getCanvasColorChecksum(page, "canvas3d"), { timeout: 15000 }).toBe(fullMapChecksum);
+    // A regression here (the terrain texture reflecting the current 2D zoom instead of the full
+    // map) shows as a mostly-uniform close-up crop with far fewer distinct colours than the true
+    // full map — measured 14 vs. 73-75 for this seed. An exact-match pixel/checksum comparison
+    // isn't viable across two separate mesh rebuilds (see getCanvasColorDiversity for why), so
+    // assert the rebuilt texture is still comparably rich rather than bit-identical.
+    await expect
+      .poll(() => getCanvasColorDiversity(page, "canvas3d"), { timeout: 15000 })
+      .toBeGreaterThanOrEqual(fullMapColorDiversity * 0.5);
   });
 
   test("opens Edit Burg when a low-poly viewMesh icon is clicked", async ({ page }) => {
@@ -527,12 +536,8 @@ test.describe("webgl hybrid renderer", () => {
     await expect.poll(() => getWebglRendererDomState(page)).toMatchObject({ deckLayersSuspended: true });
     await waitForCanvasPixels(page, "canvas3d");
 
-    const bounds = await canvas.boundingBox();
-    expect(bounds).not.toBeNull();
-    if (!bounds) return;
-    // The fixture burg sits at the map's centre (forceThreeDBurgFixture), which the current
-    // camera/mesh framing projects to roughly this height fraction of the canvas.
-    await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height * 0.2);
+    const found = await clickLowPolyBurgIconUntilSelected(page, burg.burgId);
+    expect(found).toBe(true);
 
     await expect(page.locator("#burgBody")).toBeVisible();
     await expect(page.locator("#burgName")).toHaveValue(burg.burgName);

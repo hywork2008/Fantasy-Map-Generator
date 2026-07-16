@@ -218,21 +218,42 @@ async function captureFullMapFromActiveDeck(
   const graphHeight = Math.max(1, worldContext.graphHeight);
   const fullMapScale = Math.min(deckWidth / graphWidth, deckHeight / graphHeight);
   const originalViewState = deck.props.viewState;
+  const fullMapZoom = Math.log2(Math.max(fullMapScale, 0.0001));
+  const fullMapViewState = {
+    target: [graphWidth / 2, graphHeight / 2, 0] as [number, number, number],
+    zoom: fullMapZoom
+  };
 
-  try {
+  const applyFullMapViewState = (redrawReason: string): void => {
     deck.setProps({
-      viewState: {
-        target: [graphWidth / 2, graphHeight / 2, 0],
-        zoom: Math.log2(Math.max(fullMapScale, 0.0001))
-      },
+      viewState: fullMapViewState,
       layers: buildDeckLayers(worldContext, viewContext, appServices, {
         includeLabels: options.includeLabels,
         includeBurgIcons: options.includeBurgIcons,
         includeRoutes: options.includeRoutes
       })
     });
-    deck.redraw("fmg-viewmesh-full-map-texture");
+    deck.redraw(redrawReason);
+  };
+  const currentZoom = (): number | undefined => (deck.props.viewState as { zoom?: number } | undefined)?.zoom;
+
+  try {
+    applyFullMapViewState("fmg-viewmesh-full-map-texture");
     await waitForAnimationFrames(3);
+
+    // This shared, live Deck instance is also driven by the 2D hybrid view (DeckGlRenderer):
+    // e.g. main.ts's zoomRaf debounces its own deck.setProps({viewState}) sync onto
+    // requestAnimationFrame, so a pan/zoom made just before entering viewMesh can still be
+    // in flight here, delayed behind the heavy synchronous 3D scene setup. If that callback
+    // fires during our wait above, it silently reverts our override back to the current 2D
+    // pan/zoom. Re-assert and retry a few times, and never report success unless the viewState
+    // actually held through — otherwise the caller falls back to the independent (race-free)
+    // offscreen-Deck path below instead of capturing the wrong (still-zoomed) content.
+    for (let attempt = 0; attempt < 4 && currentZoom() !== fullMapZoom; attempt++) {
+      applyFullMapViewState("fmg-viewmesh-full-map-texture-reassert");
+      await waitForAnimationFrames(3);
+    }
+    if (currentZoom() !== fullMapZoom) return false;
 
     resultContext.clearRect(0, 0, resultContext.canvas.width, resultContext.canvas.height);
     resultContext.drawImage(canvas, 0, 0, resultContext.canvas.width, resultContext.canvas.height);

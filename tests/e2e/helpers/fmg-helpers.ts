@@ -1071,8 +1071,88 @@ export async function forceThreeDBurgFixture(page: Page): Promise<ThreeDBurgFixt
     // makes the centre-targeted Canvas click stable without changing production hit-testing.
     window.fmg.view.burgIcons.select<SVGGElement>(`#${groupName}`).attr("data-size", 400);
 
+    // The `data-size` override above is a group-wide style (buildLowPolyBurgSymbols reads it
+    // per `burg.group`, not per burg), so every other burg sharing `groupName` would also become
+    // a giant 3D sphere and compete with the fixture for the click ray. Reassign siblings to a
+    // group id that is absent from `options.burgs.groups` so they're filtered out of the 3D
+    // scene entirely (`visibleGroups.has(group)` in getBurgIconStyle) and only the fixture's
+    // icon remains clickable.
+    for (const other of world.pack.burgs) {
+      if (other.i && !other.removed && other.i !== burg.i && other.group === groupName) {
+        other.group = "__e2e-3d-fixture-hidden__";
+      }
+    }
+
     return { burgId: burg.i, burgName: burg.name ?? "" };
   });
+}
+
+/**
+ * Clicks a grid of points on `#canvas3d` (dispatching real pointerdown/pointerup, the same
+ * events ThreeDRenderer.attachBurgPicking listens for) until `fmg:3d-burg-select` reports
+ * `expectedBurgId`, or every point has been tried. The screen position of a low-poly burg icon
+ * depends on the current camera/terrain framing (angle, mesh elevation under the icon, viewport
+ * size), which is impractical to precompute or hardcode reliably from a test — a grid search is
+ * the stable alternative. Returns whether the burg was found.
+ */
+export async function clickLowPolyBurgIconUntilSelected(page: Page, expectedBurgId: number): Promise<boolean> {
+  const bounds = await page.locator("#canvas3d").boundingBox();
+  if (!bounds) return false;
+
+  return page.evaluate(
+    ({ bounds, expectedBurgId }) => {
+      return new Promise<boolean>(resolve => {
+        const canvasEl = document.getElementById("canvas3d");
+        if (!(canvasEl instanceof HTMLCanvasElement)) {
+          resolve(false);
+          return;
+        }
+
+        const steps = 12;
+        const points: Array<{ x: number; y: number }> = [];
+        for (let gx = 1; gx < steps; gx++) {
+          for (let gy = 1; gy < steps; gy++) {
+            points.push({
+              x: bounds.x + (bounds.width * gx) / steps,
+              y: bounds.y + (bounds.height * gy) / steps
+            });
+          }
+        }
+
+        let index = 0;
+        let settled = false;
+        const finish = (result: boolean) => {
+          if (settled) return;
+          settled = true;
+          document.removeEventListener("fmg:3d-burg-select", onSelect);
+          resolve(result);
+        };
+        const onSelect = (event: Event) => {
+          const detail = (event as CustomEvent<{ burgId: number }>).detail;
+          if (detail?.burgId === expectedBurgId) finish(true);
+        };
+        document.addEventListener("fmg:3d-burg-select", onSelect);
+
+        const tryNext = (): void => {
+          if (settled) return;
+          if (index >= points.length) {
+            finish(false);
+            return;
+          }
+          const point = points[index++];
+          canvasEl.dispatchEvent(
+            new PointerEvent("pointerdown", { clientX: point.x, clientY: point.y, button: 0, bubbles: true })
+          );
+          canvasEl.dispatchEvent(
+            new PointerEvent("pointerup", { clientX: point.x, clientY: point.y, button: 0, bubbles: true })
+          );
+          setTimeout(tryNext, 10);
+        };
+        tryNext();
+      });
+    },
+    { bounds, expectedBurgId }
+  );
 }
 
 /** Adds a marker at the map center so marker click-edit/drag tests don't depend on seed-specific marker generation. */
@@ -1538,6 +1618,44 @@ export async function getCanvasColorChecksum(page: Page, canvasId: string): Prom
     }
     return checksum;
   }, canvasId);
+}
+
+/**
+ * Counts distinct (coarsely-bucketed) RGB colors in a canvas's downsampled content. This is what
+ * actually separates "renders the full, detailed map" from "renders a zoomed-in, mostly-uniform
+ * crop" for the 3D terrain texture: an exact-hash checksum (`getCanvasColorChecksum`) decorrelates
+ * from harmless per-frame rendering noise (water shimmer, anti-aliasing jitter across separate
+ * mesh rebuilds) just as much as it would from a genuine regression, and a raw per-pixel diff
+ * measured ~16-20/255 for both a same-content pair and a deliberately cropped-viewport regression
+ * (both captures share large solid-black letterboxing and solid-blue ocean regions that swamp the
+ * actual signal) — whereas distinct color count measured 73-75 for two genuinely-same-content
+ * full-map captures vs. 14 for a reproduced cropped-viewport regression, a wide, reliable margin.
+ */
+export async function getCanvasColorDiversity(page: Page, canvasId: string, bucket = 16): Promise<number> {
+  return page.evaluate(
+    ({ id, bucket }) => {
+      const source = document.getElementById(id);
+      if (!(source instanceof HTMLCanvasElement) || source.width === 0 || source.height === 0) return 0;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 64;
+      canvas.height = 40;
+      const context = canvas.getContext("2d");
+      if (!context) return 0;
+      context.drawImage(source, 0, 0, canvas.width, canvas.height);
+
+      const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      const seen = new Set<string>();
+      for (let index = 0; index < data.length; index += 4) {
+        const r = Math.floor((data[index] ?? 0) / bucket);
+        const g = Math.floor((data[index + 1] ?? 0) / bucket);
+        const b = Math.floor((data[index + 2] ?? 0) / bucket);
+        seen.add(`${r},${g},${b}`);
+      }
+      return seen.size;
+    },
+    { id: canvasId, bucket }
+  );
 }
 
 export interface CanvasLuminanceStats {
