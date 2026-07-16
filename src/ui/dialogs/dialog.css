@@ -101,17 +101,17 @@
  * the legacy .table / .totalLine / .footer classes above remain supported as
  * adapters until each existing dialog is migrated.
  */
-.fmg-table-dialog {
+.fmg-dialog-table {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 0;
 }
 
-.fmg-table-dialog__header,
-.fmg-table-dialog__controls,
-.fmg-table-dialog__summary,
-.fmg-table-dialog__footer {
+.fmg-dialog-table__header,
+.fmg-dialog-table__controls,
+.fmg-dialog-table__summary,
+.fmg-dialog-table__footer {
   flex-shrink: 0;
 }
 
@@ -175,7 +175,7 @@
   overflow: auto;
 }
 
-.fmg-table-dialog__body {
+.fmg-dialog-table__body {
   display: flex;
   flex: 1;
   flex-direction: column;

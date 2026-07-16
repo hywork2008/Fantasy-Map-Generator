@@ -38,15 +38,15 @@ export const TableDialogLayout: React.FC<TableDialogLayoutProps> = ({
   const controlsBeforeFooter = controlsPlacement === "beforeFooter" ? controls : undefined;
 
   return (
-    <div className={`fmg-table-dialog ${className}`.trim()}>
-      {header && <div className="fmg-table-dialog__header">{header}</div>}
-      {controlsBeforeTable && <div className="fmg-table-dialog__controls">{controlsBeforeTable}</div>}
-      <div ref={bodyRef} className="fmg-table-dialog__body">
+    <div className={`fmg-dialog-table ${className}`.trim()}>
+      {header && <div className="fmg-dialog-table__header">{header}</div>}
+      {controlsBeforeTable && <div className="fmg-dialog-table__controls">{controlsBeforeTable}</div>}
+      <div ref={bodyRef} className="fmg-dialog-table__body">
         {children}
       </div>
-      {summary && <div className="fmg-table-dialog__summary">{summary}</div>}
-      {controlsBeforeFooter && <div className="fmg-table-dialog__controls">{controlsBeforeFooter}</div>}
-      {footer && <div className="fmg-table-dialog__footer">{footer}</div>}
+      {summary && <div className="fmg-dialog-table__summary">{summary}</div>}
+      {controlsBeforeFooter && <div className="fmg-dialog-table__controls">{controlsBeforeFooter}</div>}
+      {footer && <div className="fmg-dialog-table__footer">{footer}</div>}
     </div>
   );
 };
