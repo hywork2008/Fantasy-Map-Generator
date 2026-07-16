@@ -178,6 +178,18 @@ All `page.evaluate()` calls that touch `window.fmg` must be encapsulated in help
 
 User interactions must be driven through DOM clicks and events (Playwright locators), not by calling controller functions via `window.fmg`. `window.fmg` access in tests is reserved for **setup/teardown** and **state assertions** only.
 
+### 5.1 Test Maintenance Discipline
+
+Lessons from a session that spent far longer diagnosing test failures than fixing them (full account: `docs/debug/0717-test-suite-fixes-retrospective.md`). Almost every failure was a legitimate source change the tests hadn't caught up with, not an app bug — these are the checks that would have caught it at change time instead of at debugging time:
+
+- Before renaming or removing a DOM `id`/class referenced by tests, `grep -rn` `tests/e2e/` for it first. React-migration-era DOM restructuring (`#optionsTrigger` → `#optionsHide`, `#mapLayers > li` → `> button`, `#statesBodySection > div[data-id]` → virtualized `<tr data-id>`) has repeatedly broken specs silently — a stale selector fails with a generic Playwright timeout, never a "this id doesn't exist" message.
+- When flipping a shared simulation/options default (e.g. `useOptionsState`'s `simManpower: false → true`), audit unit tests that call the affected generator directly: their fixtures may be missing fields the new code path now requires (e.g. `cells.maleAdults`/`femaleAdults` for manpower reconciliation in `src/generators/manpower.ts`). The failure symptom is a silently-wrong computed value (e.g. every regiment scaled to 0 troops), not a crash pointing at the missing field.
+- When adding an entry to a shared array that some test iterates in full (e.g. `WEBGL_MANAGED_SVG_LAYER_IDS`), check whether the new entry's DOM existence depends on runtime state the iterating test doesn't set up (an extension being enabled, a layer toggle, etc.) — the same source change can break two different tests in opposite directions if one asserts the old behavior and another assumes the new one is already in effect.
+- When intentionally reordering rendered layers or other array output, `grep` for order-sensitive `toEqual([...])` assertions over that data and update them in the same change — this drift is invisible to lint/tsc.
+- Before "fixing" a component that looks inconsistent with its siblings (e.g. missing an `id` convention other similar dialogs have), `grep` across **all** siblings — including built-in extensions — to find the actual dominant convention before deciding whether the outlier is a bug (fix source) or the newer convention (fix the test's assumption instead).
+- In Tools-tab-style UIs, an "edit" button and a "regenerate" button can share the same visible label (e.g. both named "States"). Select by a unique `data-tip`/tooltip attribute in tests instead of `getByRole("button", { name })`, which resolves ambiguously once both exist.
+- Any test helper that computes a screen point to click on the map must also guard against interactive SVG overlays sitting on top of the WebGL canvas (state/burg labels, open `.fmg-dialog` panels — see `HYBRID_SVG_OVERLAY_LAYER_IDS` in §1.1) — not just other in-world objects (routes, burg icons). A `page.mouse.click()` at a point covered by one of these never reaches deck.gl's picking layer, and the only symptom is a generic `page.waitForFunction` timeout with no indication of what absorbed the click.
+
 ---
 
 ## 6. `window.fmg` — The Public API Namespace

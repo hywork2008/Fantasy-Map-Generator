@@ -1,5 +1,6 @@
+# 交易品
 
-src/extensions/economy/generators/goods-generator.ts
+`src/extensions/economy/generators/goods-generator.ts`
 
 GOODS_DATAの編集機能が必要。
 
@@ -10,3 +11,16 @@ GOODS_DATAの編集機能が必要。
 芋 Potatoes
 
 綿 Cotton
+Cacao
+Narwhalの角
+ゴムの木
+ゴム
+煉瓦
+
+文化タイプによる建築物の違い
+
+家を何で建てるか
+
+- 石
+- 煉瓦
+- 木
