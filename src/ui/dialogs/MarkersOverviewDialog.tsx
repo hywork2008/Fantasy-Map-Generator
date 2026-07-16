@@ -18,6 +18,8 @@ import { Markers } from "../../generators/markers-generator";
 import { showElementLockTip } from "../../services/tooltipService";
 import { useDialogState } from "../../store/dialogState";
 import { useMarkersOverviewState } from "../../store/markersOverviewState";
+import { IconButton } from "../components/IconButton";
+import { VirtualTableBody } from "../components/VirtualTableBody";
 import { Dialog } from "./Dialog";
 import { closeDialog, openConfirm } from "./dialogService";
 
@@ -25,7 +27,6 @@ export const MarkersOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("markersOverview"));
   const {
     searchText,
-    addedMarkerType,
     addedMarkerIcon,
     typeMenuOpen,
     refreshCounter,
@@ -35,6 +36,7 @@ export const MarkersOverviewDialog: React.FC = () => {
     refresh
   } = useMarkersOverviewState();
   const menuRef = useRef<HTMLDivElement>(null);
+  const parentRef = useRef<HTMLDivElement>(null);
 
   const markerTypes = useMemo(() => [{ type: "empty", icon: "❓" }, ...Markers.getConfig()], []);
 
@@ -91,10 +93,6 @@ export const MarkersOverviewDialog: React.FC = () => {
   }
 
   function handleAddMarkerMode(): void {
-    // Set the selected marker type before triggering add mode
-    const input = document.getElementById("addedMarkerType") as HTMLInputElement | null;
-    if (input) input.value = addedMarkerType;
-
     document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: "addMarker" } }));
   }
 
@@ -103,75 +101,80 @@ export const MarkersOverviewDialog: React.FC = () => {
       isOpen={isOpen}
       title="Markers Overview"
       onClose={() => closeDialog("markersOverview")}
-      className="fmg-dialog--overflow-hidden"
+      className="fmg-dialog--table"
     >
       <div id="markersOverviewContainer">
-        <div id="markersHeader" className="header" style={{ gridTemplateColumns: "15em 1em 3em" }}>
-          <div data-tip="Click to sort by marker type" className="sortable alphabetically" data-sortby="type">
-            Type&nbsp;
-          </div>
-          <div
-            style={{ color: "#6e5e66" }}
-            data-tip="Click to invert pin state for all markers"
-            className="icon-pin pointer"
-            onClick={handleInvertPin}
-          />
-          <div
-            style={{ color: "#6e5e66" }}
-            data-tip="Click to invert lock state for all markers"
-            className="icon-lock pointer"
-            onClick={handleInvertLock}
-          />
-        </div>
-
-        <div id="markersBody" className="table">
-          {filteredMarkers.map(({ i, type, icon, pinned, lock }) => (
-            <div key={i} className="states" data-i={i} data-type={type}>
-              {icon.startsWith("http") || icon.startsWith("data:image") ? (
-                <img
-                  src={icon}
-                  data-tip="Marker icon"
-                  style={{ width: "1.2em", height: "1.2em", verticalAlign: "middle" }}
-                  alt="marker icon"
+        <div ref={parentRef} id="markersBody" className="table">
+          <table className="fmg-table">
+            <thead>
+              <tr id="markersHeader">
+                <th data-tip="Click to sort by marker type" className="sortable alphabetically" data-sortby="type">
+                  Type
+                </th>
+                <th
+                  className="icon-pin pointer"
+                  data-tip="Click to invert pin state for all markers"
+                  onClick={handleInvertPin}
                 />
-              ) : (
-                <span data-tip="Marker icon" style={{ width: "1.2em" }}>
-                  {icon}
-                </span>
+                <th
+                  className="icon-lock pointer"
+                  data-tip="Click to invert lock state for all markers"
+                  onClick={handleInvertLock}
+                />
+                <th></th>
+              </tr>
+            </thead>
+            <VirtualTableBody
+              items={filteredMarkers}
+              scrollElementRef={parentRef}
+              renderRow={({ i, type, icon, pinned, lock }) => (
+                <tr key={i} className="states" data-i={i} data-type={type}>
+                  <td className="d-flex">
+                    {icon.startsWith("http") || icon.startsWith("data:image") ? (
+                      <img src={icon} data-tip="Marker icon" alt="marker icon" />
+                    ) : (
+                      <span data-tip="Marker icon">{icon}</span>
+                    )}
+                    <div data-tip="Marker type">{type}</div>
+                  </td>
+                  <td>
+                    <IconButton
+                      className={`icon-pin pointer${pinned ? "" : " inactive"}`}
+                      data-tip="Pin marker (display only pinned markers)"
+                      onClick={() => handlePinClick(i)}
+                    />
+                  </td>
+                  <td>
+                    <IconButton
+                      className={`locks pointer${lock ? " icon-lock" : " icon-lock-open inactive"}`}
+                      onMouseOver={e => showElementLockTip(e.nativeEvent)}
+                      onClick={() => handleLockClick(i)}
+                    />
+                  </td>
+                  <td>
+                    <IconButton
+                      className="icon-target pointer"
+                      data-tip="Locate the marker"
+                      onClick={() => markerHighlightById(i)}
+                    />
+                    <IconButton
+                      className="icon-pencil pointer"
+                      data-tip="Edit marker"
+                      onClick={() => {
+                        markerZoomTo(i);
+                        editMarker(i);
+                      }}
+                    />
+                    <IconButton
+                      data-tip="Remove marker"
+                      className="icon-trash-empty pointer"
+                      onClick={() => handleRemove(i)}
+                    />
+                  </td>
+                </tr>
               )}
-              <div data-tip="Marker type" style={{ width: "10em" }}>
-                {type}
-              </div>
-              <span
-                style={{ paddingRight: ".1em" }}
-                data-tip="Edit marker"
-                className="icon-pencil pointer"
-                onClick={() => {
-                  markerZoomTo(i);
-                  editMarker(i);
-                }}
-              />
-              <span
-                style={{ paddingRight: ".1em" }}
-                data-tip="Locate the marker"
-                className="icon-target pointer"
-                onClick={() => markerHighlightById(i)}
-              />
-              <span
-                style={{ paddingRight: ".1em" }}
-                data-tip="Pin marker (display only pinned markers)"
-                className={`icon-pin pointer${pinned ? "" : " inactive"}`}
-                onClick={() => handlePinClick(i)}
-              />
-              <span
-                style={{ paddingRight: ".1em" }}
-                className={`locks pointer${lock ? " icon-lock" : " icon-lock-open inactive"}`}
-                onMouseOver={e => showElementLockTip(e.nativeEvent)}
-                onClick={() => handleLockClick(i)}
-              />
-              <span data-tip="Remove marker" className="icon-trash-empty pointer" onClick={() => handleRemove(i)} />
-            </div>
-          ))}
+            />
+          </table>
         </div>
 
         <div id="markersSearchRow">
@@ -187,10 +190,9 @@ export const MarkersOverviewDialog: React.FC = () => {
           </div>
         </div>
 
-        <div id="markersFooter" className="fmg-dialog-footer">
+        <div id="markersFooter" className="footer">
           <button type="button" data-tip="Refresh the Overview screen" className="icon-cw" onClick={refresh} />
-          <input type="hidden" id="addedMarkerType" name="addedMarkerType" defaultValue={addedMarkerType} />
-          <span id="markerTypeSelectorWrapper" style={{ position: "relative", display: "inline-block" }}>
+          <span id="markerTypeSelectorWrapper" className="d-inline-block">
             <button
               type="button"
               data-tip="Select marker type for newly added markers."
@@ -199,25 +201,9 @@ export const MarkersOverviewDialog: React.FC = () => {
               {addedMarkerIcon}
             </button>
             {typeMenuOpen && (
-              <div
-                ref={menuRef}
-                id="markerTypeSelectMenu"
-                className="visible"
-                style={{
-                  position: "absolute",
-                  zIndex: 10,
-                  background: "#fff",
-                  border: "1px solid #ccc",
-                  padding: "4px"
-                }}
-              >
+              <div ref={menuRef} id="markerTypeSelectMenu" className="visible">
                 {markerTypes.map(({ icon, type }) => (
-                  <button
-                    key={type}
-                    type="button"
-                    style={{ display: "block", width: "100%", textAlign: "left" }}
-                    onClick={() => setAddedMarkerType(type, icon)}
-                  >
+                  <button key={type} type="button" className="d-block" onClick={() => setAddedMarkerType(type, icon)}>
                     {icon} {type}
                   </button>
                 ))}

@@ -5,8 +5,8 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-
-import { appendMarkerToLayer, moveRegiment } from "../renderers/index";
+import { applyDemographicCasualties } from "../generators/demography-simulator";
+import { appendMarkerToLayer, CombatDeathsRenderer, moveRegiment } from "../renderers/index";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -16,6 +16,8 @@ import { useOptionsState } from "../store/optionsState";
 import type { MilitaryRegiment } from "../types/models";
 import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective, last, list, minmax, P, Pint, rand, rn, wiki } from "../utils";
+import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../utils/gunpowderEra";
+import { layerIsOn } from "../utils/nodeUtils";
 
 interface BattleRegiment extends MilitaryRegiment {
   casualties: Record<string, number>;
@@ -34,7 +36,13 @@ interface BattleForces {
   die?: number;
 }
 
-class Battle {
+function getAvailableMilitaryUnits() {
+  return (worldContext.options.military ?? []).filter(
+    unit => isGunpowderEraEnabled(worldContext.options) || !isGunpowderEraMilitaryUnit(unit)
+  );
+}
+
+export class Battle {
   static context: Battle | undefined;
 
   iteration!: number;
@@ -62,7 +70,7 @@ class Battle {
 
     const store = getBattleScreenState();
     store.setBattleState({
-      militaryUnits: worldContext.options.military ?? [],
+      militaryUnits: getAvailableMilitaryUnits(),
       attackers: { regiments: [], morale: 100, power: 0, phase: "", die: 1 },
       defenders: { regiments: [], morale: 100, power: 0, phase: "", die: 1 },
       nameSectionVisible: false
@@ -405,7 +413,7 @@ class Battle {
     const phase = this[side].phase!;
     const adjuster = Math.max(worldContext.populationRate / 10, 10);
     this[side].power =
-      sum(worldContext.options.military!.map(u => (forces[u.name] || 0) * u.power * scheme[phase][u.type])) / adjuster;
+      sum(getAvailableMilitaryUnits().map(u => (forces[u.name] || 0) * u.power * scheme[phase][u.type])) / adjuster;
 
     getBattleScreenState().setSidePower(side, this[side].power ? Math.max(this[side].power | 0, 1) : 0);
   }
@@ -497,7 +505,9 @@ class Battle {
       if (P((powerRatio - 1) / 2)) return ["storming", "defense"];
 
       if (prev[0] !== "storming") {
-        const machinery = worldContext.options.military!.filter(u => u.type === "machinery").map(u => u.name);
+        const machinery = getAvailableMilitaryUnits()
+          .filter(unit => unit.type === "machinery")
+          .map(unit => unit.name);
 
         const attackersForces = this.getJoinedForces(this.attackers.regiments);
         const machineryA = sum(machinery.map((u: string) => attackersForces[u]));
@@ -698,6 +708,8 @@ class Battle {
       return ["stalemate", "stalemate"];
     }
 
+    const battlefieldCell = this.cell;
+
     this.attackers.regiments.forEach(r => {
       applyResultForSide(r, "attackers");
     });
@@ -741,6 +753,12 @@ class Battle {
       view.armies.select(`g#${id} > text`).text(GenerationPipeline.Military.getTotal(r));
 
       moveRegiment(worldContext, viewContext, appServices, r, r.px as number, r.py as number);
+
+      // Apply casualties to the underlying demographic populations (battlefield = this engagement)
+      const totalDead = Math.abs(sum(Object.values(r.casualties) as number[]));
+      if (totalDead > 0) {
+        applyDemographicCasualties(r.state, totalDead, battlefieldCell);
+      }
     }
 
     const markerI = last(worldContext.pack.markers)?.i + 1 || 0;
@@ -766,6 +784,10 @@ class Battle {
     worldContext.notes.push({ id: `marker${markerI}`, name: this.name, legend });
 
     tip(`${this.name} is over. ${result}`, true, "success", 4000);
+
+    if (layerIsOn("toggleCombatDeaths")) {
+      CombatDeathsRenderer.render(worldContext, viewContext, appServices);
+    }
 
     closeDialog("battleScreen");
     this.cleanData();
@@ -875,6 +897,6 @@ export function battleAction_wiki(): void {
   wiki("Battle-Simulator");
 }
 
-export type { Battle, BattleRegiment };
+export type { BattleRegiment };
 
 export function initBattleScreen(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}

@@ -1,13 +1,15 @@
 import { worldContext } from "../context/worldContext";
+import { deathWindowDays, getCombatDeathsAtCell } from "../generators/populationLossTracker";
 import { useCellInfoState } from "../store/cellInfoState";
 import { useOptionsState } from "../store/optionsState";
+import { usePopulationOverviewState } from "../store/populationOverviewState";
 import type { PackedGraphFeature } from "../types/models";
 import { getLatitude, getLongitude } from "../utils/commonUtils";
 import { getArea, getAreaUnit } from "../utils/domUtils";
 import { findCell, findGridCell } from "../utils/graphUtils";
 import { rn } from "../utils/numberUtils";
 import { convertTemperature, si } from "../utils/unitUtils";
-import { tooltipExtensions } from "./tooltipService";
+import { tooltipExtensions } from "./tooltipExtensions";
 
 export function updateCellInfo(point: [number, number], i: number, g: number): void {
   const cells = worldContext.pack.cells;
@@ -44,12 +46,38 @@ export function updateCellInfo(point: [number, number], i: number, g: number): v
       : "no",
     population: getFriendlyPopulation(i),
     burg: cells.burg[i] ? `${worldContext.pack.burgs[cells.burg[i]].name} (${cells.burg[i]})` : "no",
+    danger: cells.danger ? String(cells.danger[i]) : "n/a",
     feature: f ? `${worldContext.pack.features[f].group} (${f})` : "n/a",
     biome: worldContext.biomesData.name[cells.biome[i]]
   });
 
   tooltipExtensions.updateCellInfo?.(point, i, g);
 }
+/**
+ * Shared by the SVG hover tooltip (`tooltipService.ts`) and the WebGL hover/pick tooltip
+ * (`mapInteraction.ts`) so a cell resolves to the same "province, state" text in either render
+ * mode instead of two independently-maintained implementations drifting apart.
+ */
+export function getCellPoliticalSummary(cellId: number): string {
+  const stateId = worldContext.pack.cells.state[cellId];
+  if (!stateId) return "";
+
+  const stateName = getStateName(stateId);
+  const provinceId = worldContext.pack.cells.province[cellId];
+  if (!provinceId) return stateName;
+  return `${getProvinceName(provinceId)}, ${stateName}`;
+}
+
+export function getStateName(stateId: number): string {
+  const state = worldContext.pack.states[stateId];
+  return state?.fullName || state?.name || `State ${stateId}`;
+}
+
+export function getProvinceName(provinceId: number): string {
+  const province = worldContext.pack.provinces[provinceId];
+  return province?.fullName || province?.name || `Province ${provinceId}`;
+}
+
 export function getGeozone(latitude: number): string {
   if (latitude > 66.5) return "Arctic";
   if (latitude > 35) return "Temperate North";
@@ -132,4 +160,13 @@ export function getFriendlyPopulation(i: number): string {
 export function getPopulationTip(i: number): string {
   const [rural, urban] = getCellPopulation(i);
   return `Cell population: ${si(rural + urban)}; Rural: ${si(rural)}; Urban: ${si(urban)}`;
+}
+
+/** Tip for the Combat Deaths layer (rolling battlefield casualties). */
+export function getCombatDeathsTip(cellId: number): string {
+  const window = usePopulationOverviewState.getState().deathWindow;
+  const deaths = getCombatDeathsAtCell(cellId, window);
+  const days = deathWindowDays(window);
+  if (deaths <= 0) return `Combat deaths (last ${days}d): none`;
+  return `Combat deaths (last ${days}d): ${si(Math.round(deaths))}`;
 }

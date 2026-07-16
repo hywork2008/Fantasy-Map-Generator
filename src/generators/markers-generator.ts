@@ -48,14 +48,18 @@ class MarkersModule {
     this.appServices = appServices;
     const { pack } = state;
     this.resetConfig();
-    pack.markers = [];
+    if (!pack.markers) pack.markers = [];
+    else
+      pack.markers.forEach(m => {
+        this.occupied[m.cell] = true;
+      });
     this.generateTypes();
   }
 
   regenerate() {
     const { pack, notes } = this.worldContext;
-    pack.markers = pack.markers.filter(({ i, lock, cell }) => {
-      if (lock) {
+    pack.markers = pack.markers.filter(({ i, lock, cell, type }) => {
+      if (lock || type === "monster") {
         this.occupied[cell] = true;
         return true;
       }
@@ -1296,7 +1300,7 @@ class MarkersModule {
       .map(() => ra(script.split("")))
       .join("");
     const legend = `An ancient ${variant.toLowerCase()}. It has an inscription, but no one can translate it:
-        <div style="font-size: 1.8em; line-break: anywhere;">${inscription}</div>`;
+        <div>${inscription}</div>`;
     notes.push({ id, name, legend });
   }
 

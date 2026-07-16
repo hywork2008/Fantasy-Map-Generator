@@ -16,6 +16,13 @@ import { Lakes } from "./lakes";
 import { Names } from "./names-generator";
 import type { Point } from "./voronoi";
 
+export interface RiverBankGeometry {
+  left: [number, number][];
+  right: [number, number][];
+  widths: number[];
+  fluxes: number[];
+}
+
 class RiverModule {
   worldContext: WorldContext = worldContext;
   viewContext: Readonly<ViewContext> = viewContext;
@@ -476,11 +483,12 @@ class RiverModule {
     return rn(Math.min(flux ** 0.9 / this.FLUX_FACTOR, this.MAX_FLUX_WIDTH), 2);
   }
 
-  // build polygon from a list of points and calculated offset (width)
-  getRiverPath(points: [number, number, number][], widthFactor: number, startingWidth: number) {
-    this.lineGen.curve(curveCatmullRom.alpha(0.1));
+  /** Build the variable-width river banks shared by SVG and WebGL renderers. */
+  getRiverBanks(points: [number, number, number][], widthFactor: number, startingWidth: number): RiverBankGeometry {
     const riverPointsLeft: [number, number][] = [];
     const riverPointsRight: [number, number][] = [];
+    const widths: number[] = [];
+    const fluxes: number[] = [];
     let flux = 0;
 
     for (let pointIndex = 0; pointIndex < points.length; pointIndex++) {
@@ -501,9 +509,19 @@ class RiverModule {
 
       riverPointsLeft.push([x1 - sinOffset, y1 + cosOffset]);
       riverPointsRight.push([x1 + sinOffset, y1 - cosOffset]);
+      widths.push(offset * 2);
+      fluxes.push(flux);
     }
 
-    const right = this.lineGen(riverPointsRight.reverse());
+    return { left: riverPointsLeft, right: riverPointsRight, widths, fluxes };
+  }
+
+  // build SVG polygon from the shared variable-width river banks
+  getRiverPath(points: [number, number, number][], widthFactor: number, startingWidth: number) {
+    this.lineGen.curve(curveCatmullRom.alpha(0.1));
+    const { left: riverPointsLeft, right: riverPointsRight } = this.getRiverBanks(points, widthFactor, startingWidth);
+
+    const right = this.lineGen([...riverPointsRight].reverse());
     let left = this.lineGen(riverPointsLeft) || "";
     left = left.substring(left.indexOf("C"));
 

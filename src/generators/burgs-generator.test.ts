@@ -1,8 +1,10 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { worldContext } from "../context/worldContext";
+import type { Grid } from "../types/Grid";
+import type { Burg } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
-import type { Grid } from "../utils/graphUtils";
 import { Burgs } from "./burgs-generator";
+import type { FrontierSegment } from "./frontierAnalysis";
 
 // ---------------------------------------------------------------------------
 // Minimal pack geometry used across all scenarios
@@ -404,5 +406,106 @@ describe("BurgsModule.shift — river-bank shift", () => {
     const burg = worldContext.pack.burgs[1];
     // Still shifted (axis-aligned fallback), just not crashing on the missing course.
     expect(burg.x === 5 && burg.y === 5).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+interface StrategicContext {
+  frontiers: Map<number, FrontierSegment[]>;
+  contestedBurgs: Set<number>;
+  meanS: number;
+  maxS: number;
+}
+
+const emptyStrategicContext: StrategicContext = {
+  frontiers: new Map(),
+  contestedBurgs: new Set(),
+  meanS: 0,
+  maxS: 0
+};
+
+const callDefineFeatures = (burg: Burg, context: StrategicContext) => (Burgs as any).defineFeatures(burg, context);
+
+describe("BurgsModule.defineFeatures — strategic citadel bonus", () => {
+  beforeEach(() => {
+    worldContext.pack = {
+      cells: { routes: {}, religion: [0, 0], s: [0, 0] },
+      states: [{ i: 0 }, { i: 1, form: "Monarchy" }],
+      routes: []
+    } as unknown as PackedGraph;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("does not grant a citadel when there is no strategic bonus and the base roll fails", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99); // fails every P() roll, including the base P(0.1)
+    const burg = { i: 1, cell: 0, state: 1, capital: 0, population: 10 } as unknown as Burg;
+
+    callDefineFeatures(burg, emptyStrategicContext);
+
+    expect(burg.citadel).toBe(0);
+  });
+
+  it("grants a citadel via the frontier bonus for a chronicle-contested burg, even when the base roll fails", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.3); // fails base P(0.1) (pop <= 15), passes bonus P(0.5)
+    const burg = { i: 1, cell: 0, state: 1, capital: 0, population: 10 } as unknown as Burg;
+    const context: StrategicContext = { ...emptyStrategicContext, contestedBurgs: new Set([1]) };
+
+    callDefineFeatures(burg, context);
+
+    expect(burg.citadel).toBe(1);
+  });
+
+  it("grants a citadel via the frontier bonus for a burg sitting on a hostile border segment", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.3);
+    const burg = { i: 2, cell: 0, state: 1, capital: 0, population: 10 } as unknown as Burg;
+    const segment: FrontierSegment = {
+      neighborState: 2,
+      relation: "Enemy",
+      threatWeight: 1,
+      cells: [0],
+      cx: 0,
+      cy: 0,
+      landmass: 1
+    };
+    const context: StrategicContext = { ...emptyStrategicContext, frontiers: new Map([[1, [segment]]]) };
+
+    callDefineFeatures(burg, context);
+
+    expect(burg.citadel).toBe(1);
+  });
+
+  it("grants a citadel via the breadbasket bonus for a high-habitability burg", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.3);
+    worldContext.pack.cells.s = [100, 0] as unknown as PackedGraph["cells"]["s"]; // this burg's cell has the highest habitability on the map
+    const burg = { i: 3, cell: 0, state: 1, capital: 0, population: 10 } as unknown as Burg;
+    const context: StrategicContext = { ...emptyStrategicContext, meanS: 20, maxS: 100 };
+
+    callDefineFeatures(burg, context);
+
+    expect(burg.citadel).toBe(1);
+  });
+
+  it("ignores a border segment belonging to a different state", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.3);
+    const burg = { i: 4, cell: 0, state: 1, capital: 0, population: 10 } as unknown as Burg;
+    const segment: FrontierSegment = {
+      neighborState: 3,
+      relation: "Enemy",
+      threatWeight: 1,
+      cells: [0],
+      cx: 0,
+      cy: 0,
+      landmass: 1
+    };
+    // segment stored under state 2, not this burg's state (1)
+    const context: StrategicContext = { ...emptyStrategicContext, frontiers: new Map([[2, [segment]]]) };
+
+    callDefineFeatures(burg, context);
+
+    expect(burg.citadel).toBe(0);
   });
 });

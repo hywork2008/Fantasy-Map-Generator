@@ -5,8 +5,8 @@ import { downloadFile, getFileName, rn } from "../../hostUtils";
 
 import { getApi, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
-import type { Deal } from "../generators/markets-generator";
 import { Markets } from "../generators/markets-generator";
+import type { Deal } from "../generators/marketTypes";
 import { type MarketDealRow, type MarketDealsFilter, setMarketDealsState } from "../store/marketDealsState";
 
 let activeMarketId = 0;

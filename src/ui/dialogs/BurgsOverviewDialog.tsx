@@ -1,25 +1,25 @@
 import type React from "react";
 import { useEffect, useMemo, useRef } from "react";
 import { worldContext } from "../../context/worldContext";
-import { editBurg } from "../../controllers/burg-editor";
 import { editBurgGroups } from "../../controllers/burg-group-editor";
-import { burgHighlightOff, burgHighlightOn } from "../../controllers/burg-highlight";
 import {
   downloadBurgsData,
+  filterAndSortBurgs,
   importBurgNames,
   regenerateBurgNames,
   renameBurgsInBulk,
   showBurgsChart,
   startAddBurgMode,
-  stopAddBurgMode,
-  zoomIntoBurg
+  stopAddBurgMode
 } from "../../controllers/burgs-overview";
 import { uploadFile } from "../../controllers/editors";
 import { Burgs } from "../../generators/burgs-generator";
-import { showElementLockTip, tip } from "../../services/tooltipService";
+import { tip } from "../../services/tooltipService";
 import { useBurgsOverviewState } from "../../store/burgsOverviewState";
 import { useDialogState } from "../../store/dialogState";
+import { useExtensionState } from "../../store/extensionState";
 import { si } from "../../utils";
+import { BurgsTable } from "../components/tables/BurgsTable";
 import { Dialog } from "./Dialog";
 import { closeDialog, openConfirm } from "./dialogService";
 
@@ -31,12 +31,16 @@ export const BurgsOverviewDialog: React.FC = () => {
     searchText,
     filterStateId,
     filterCultureId,
+    filterProvinceId,
+    filterGroup,
     addMode,
     refreshCounter,
     toggleSortBy,
     setSearchText,
     setFilterStateId,
     setFilterCultureId,
+    setFilterProvinceId,
+    setFilterGroup,
     setAddMode,
     refresh
   } = useBurgsOverviewState();
@@ -77,73 +81,37 @@ export const BurgsOverviewDialog: React.FC = () => {
       .sort((a, b) => (a.name > b.name ? 1 : -1));
   }, [refreshCounter]);
 
-  const { filteredBurgs, totalPopulation, validCount } = useMemo(() => {
+  const sortedProvinces = useMemo(() => {
     void refreshCounter;
-    const validBurgs = (worldContext.pack?.burgs ?? []).filter(b => b.i && !b.removed);
-    let filtered = validBurgs;
+    return (worldContext.pack?.provinces ?? [])
+      .filter(p => p.i && !p.removed)
+      .sort((a, b) => (a.name > b.name ? 1 : -1));
+  }, [refreshCounter]);
 
-    if (searchText) {
-      const lower = searchText.toLowerCase();
-      filtered = filtered.filter(b => {
-        const state = (worldContext.pack.states[b.state!]?.name ?? "").toLowerCase();
-        const prov = worldContext.pack.cells.province![b.cell];
-        const province = prov ? (worldContext.pack.provinces![prov]?.name ?? "").toLowerCase() : "";
-        const culture = (worldContext.pack.cultures[b.culture!]?.name ?? "").toLowerCase();
-        return (
-          (b.name ?? "").toLowerCase().includes(lower) ||
-          state.includes(lower) ||
-          province.includes(lower) ||
-          culture.includes(lower) ||
-          (b.group ?? "").toLowerCase().includes(lower)
-        );
-      });
-    }
-    if (filterStateId !== -1) filtered = filtered.filter(b => b.state === filterStateId);
-    if (filterCultureId !== -1) filtered = filtered.filter(b => b.culture === filterCultureId);
-
-    const rows = filtered.map(b => {
-      const population = (b.population ?? 0) * worldContext.populationRate * worldContext.urbanization;
-      const prov = worldContext.pack.cells.province![b.cell];
-      const province = prov ? (worldContext.pack.provinces![prov]?.name ?? "") : "";
-      const stateName = worldContext.pack.states[b.state!]?.name ?? "";
-      const cultureName = worldContext.pack.cultures[b.culture!]?.name ?? "";
-      const features = b.capital && b.port ? "a-capital-port" : b.capital ? "c-capital" : b.port ? "p-port" : "z-burg";
-      return { b, population, province, stateName, cultureName, features };
+  const uniqueGroups = useMemo(() => {
+    void refreshCounter;
+    const groups = new Set<string>();
+    (worldContext.pack?.burgs ?? []).forEach(b => {
+      if (b.i && !b.removed && b.group) groups.add(b.group);
     });
+    return Array.from(groups).sort();
+  }, [refreshCounter]);
 
-    // Sort
-    const sorted = [...rows].sort((a, b) => {
-      let valA: string | number = 0;
-      let valB: string | number = 0;
-      if (sortBy === "name") {
-        valA = a.b.name ?? "";
-        valB = b.b.name ?? "";
-      } else if (sortBy === "province") {
-        valA = a.province;
-        valB = b.province;
-      } else if (sortBy === "state") {
-        valA = a.stateName;
-        valB = b.stateName;
-      } else if (sortBy === "culture") {
-        valA = a.cultureName;
-        valB = b.cultureName;
-      } else if (sortBy === "group") {
-        valA = a.b.group ?? "";
-        valB = b.b.group ?? "";
-      } else if (sortBy === "population") {
-        valA = a.population;
-        valB = b.population;
-      } else if (sortBy === "features") {
-        valA = a.features;
-        valB = b.features;
-      }
-      const cmp = typeof valA === "string" ? valA.localeCompare(valB as string) : valA - (valB as number);
-      return sortOrder === "asc" ? cmp : -cmp;
+  const overviewColumns = useExtensionState(state => state.burgOverviewColumns);
+
+  const { filteredBurgs, totalPopulation, columnTotals, validCount } = useMemo(() => {
+    void refreshCounter;
+    const { rows, totalPopulation, columnTotals, validCount } = filterAndSortBurgs(worldContext.pack?.burgs ?? [], {
+      searchText,
+      filterStateId,
+      filterCultureId,
+      filterProvinceId,
+      filterGroup,
+      sortBy,
+      sortOrder
     });
-
-    const total = sorted.reduce((acc, { population }) => acc + population, 0);
-    return { filteredBurgs: sorted, totalPopulation: total, validCount: validBurgs.length };
-  }, [refreshCounter, searchText, filterStateId, filterCultureId, sortBy, sortOrder]);
+    return { filteredBurgs: rows, totalPopulation, columnTotals, validCount };
+  }, [refreshCounter, searchText, filterStateId, filterCultureId, filterProvinceId, filterGroup, sortBy, sortOrder]);
 
   const allLocked = useMemo(() => {
     void refreshCounter;
@@ -151,26 +119,19 @@ export const BurgsOverviewDialog: React.FC = () => {
     return active.length > 0 && active.every(b => b.lock);
   }, [refreshCounter]);
 
-  function SortHeader({ field, label, numeric }: { field: string; label: string; numeric?: boolean }) {
-    return (
-      <div
-        data-tip={`Click to sort by ${label.toLowerCase()}`}
-        className={`sortable ${numeric ? "icon-sort-number-down" : "alphabetically"}`}
-        data-sortby={field}
-        onClick={() => toggleSortBy(field)}
-        style={{ cursor: "pointer" }}
-      >
-        {label}
-      </div>
-    );
-  }
-
   function handleToggleLockAll(): void {
     const activeBurgs = (worldContext.pack?.burgs ?? []).filter(b => b.i && !b.removed);
     const locked = activeBurgs.every(b => b.lock);
     activeBurgs.forEach(b => {
       b.lock = !locked;
     });
+    refresh();
+  }
+
+  function handleToggleLock(burgId: number): void {
+    const burg = worldContext.pack.burgs[burgId];
+    if (!burg) return;
+    burg.lock = !burg.lock;
     refresh();
   }
 
@@ -210,85 +171,19 @@ export const BurgsOverviewDialog: React.FC = () => {
       isOpen={isOpen}
       title="Burgs Overview"
       onClose={() => closeDialog("burgsOverview")}
-      className="fmg-dialog--overflow-hidden"
+      className="fmg-dialog--table"
     >
       <div id="burgsOverviewContainer">
-        <div id="burgsHeader" className="header" style={{ gridTemplateColumns: "9em 7em 7.5em 7.2em 6.5em 7em 6em" }}>
-          <SortHeader field="name" label="Burg" />
-          <SortHeader field="province" label="Province" />
-          <SortHeader field="state" label="State" />
-          <SortHeader field="culture" label="Culture" />
-          <SortHeader field="group" label="Group" />
-          <SortHeader field="population" label="Population" numeric />
-          <SortHeader field="features" label="Features" />
-        </div>
+        <BurgsTable
+          rows={filteredBurgs}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onSort={toggleSortBy}
+          onRemoveBurg={handleRemoveBurg}
+          onToggleLock={handleToggleLock}
+        />
 
-        <div id="burgsBody" className="table">
-          {filteredBurgs.length === 0 ? (
-            <div style={{ paddingBlock: "0.3em" }}>No burgs found</div>
-          ) : (
-            filteredBurgs.map(({ b, population, province, stateName, cultureName }) => (
-              <div
-                key={b.i}
-                className="states"
-                data-id={b.i}
-                data-name={b.name}
-                data-state={stateName}
-                data-province={province}
-                data-culture={cultureName}
-                data-group={b.group}
-                data-population={population}
-                onMouseEnter={() => burgHighlightOn(b.i!)}
-                onMouseLeave={() => burgHighlightOff()}
-              >
-                <span
-                  data-tip="Click to zoom into view"
-                  className="icon-dot-circled pointer"
-                  onClick={() => zoomIntoBurg(b.i!)}
-                />
-                <input data-tip="Burg name" className="burgName" value={b.name ?? ""} disabled readOnly />
-                <input data-tip="Burg province" value={province} disabled readOnly />
-                <input data-tip="Burg state" value={stateName} disabled readOnly />
-                <input data-tip="Dominant culture" value={cultureName} disabled readOnly />
-                <input data-tip="Burg group" value={b.group ?? ""} disabled readOnly />
-                <span data-tip="Burg population" className="icon-male" />
-                <input data-tip="Burg population" value={si(population)} style={{ width: "5em" }} disabled readOnly />
-                <div style={{ width: "3em" }}>
-                  <span
-                    data-tip={b.capital ? "This burg is a state capital" : "This burg is NOT a state capital"}
-                    className={`icon-star-empty${b.capital ? "" : " inactive"}`}
-                    style={{ padding: "0 1px" }}
-                  />
-                  <span
-                    data-tip={b.port ? "This burg is a port" : "This burg is NOT a port"}
-                    className={`icon-anchor${b.port ? "" : " inactive"}`}
-                    style={{ fontSize: ".9em", padding: "0 1px" }}
-                  />
-                </div>
-                <span data-tip="Edit burg" className="icon-pencil pointer" onClick={() => editBurg(b.i!)} />
-                <span
-                  className={`locks pointer${b.lock ? " icon-lock" : " icon-lock-open inactive"}`}
-                  onMouseOver={e => showElementLockTip(e.nativeEvent)}
-                  onClick={() => {
-                    b.lock = !b.lock;
-                    refresh();
-                  }}
-                />
-                <span
-                  data-tip="Remove burg"
-                  className="icon-trash-empty pointer"
-                  onClick={() => handleRemoveBurg(b.i!)}
-                />
-              </div>
-            ))
-          )}
-        </div>
-
-        <div
-          id="burgsFilters"
-          data-tip="Apply a filter"
-          style={{ paddingBlock: "0.1em", display: "flex", gap: "0.5em", width: "100%" }}
-        >
+        <div id="burgsFilters" data-tip="Apply a filter" className="d-flex">
           <label htmlFor="burgsSearch" data-tip="Filter by name, province, state, culture, or group">
             Search:{" "}
             <input id="burgsSearch" type="search" value={searchText} onChange={e => setSearchText(e.target.value)} />
@@ -319,19 +214,51 @@ export const BurgsOverviewDialog: React.FC = () => {
               ))}
             </select>
           </label>
+          <label htmlFor="burgsFilterProvince">
+            Province:
+            <select
+              id="burgsFilterProvince"
+              value={filterProvinceId}
+              onChange={e => setFilterProvinceId(+e.target.value)}
+            >
+              <option value="-1">all</option>
+              {sortedProvinces.map(p => (
+                <option key={p.i} value={p.i}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label htmlFor="burgsFilterGroup">
+            Group:
+            <select id="burgsFilterGroup" value={filterGroup} onChange={e => setFilterGroup(e.target.value)}>
+              <option value="">all</option>
+              {uniqueGroups.map(g => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         <div id="burgsTotal" className="totalLine">
-          <div data-tip="Burgs displayed" style={{ marginLeft: 4 }}>
-            Burgs:&nbsp;{filteredBurgs.length} of {validCount}
+          <div data-tip="Burgs displayed">
+            Burgs:{filteredBurgs.length} of {validCount}
           </div>
-          <div data-tip="Average population" style={{ marginLeft: 14 }}>
-            Average population:&nbsp;
+          <div data-tip="Average population">
+            Average population:
             {filteredBurgs.length ? si(totalPopulation / filteredBurgs.length) : "0"}
           </div>
+          {overviewColumns.map(column => (
+            <div key={column.id} data-tip={`Average ${column.label.toLowerCase()}: ${column.tip}`}>
+              Average {column.label.toLowerCase()}:
+              {column.format(filteredBurgs.length ? (columnTotals[column.id] ?? 0) / filteredBurgs.length : 0)}
+            </div>
+          ))}
         </div>
 
-        <div id="burgsFooter" className="fmg-dialog-footer">
+        <div id="burgsFooter" className="footer">
           <button type="button" data-tip="Refresh the Editor" className="icon-cw" onClick={refresh} />
           <button type="button" data-tip="Edit burg groups" className="icon-cog" onClick={() => editBurgGroups()} />
           <button
@@ -356,7 +283,7 @@ export const BurgsOverviewDialog: React.FC = () => {
             type="button"
             data-tip="Save burgs-related data as a text file (.csv)"
             className="icon-download"
-            onClick={downloadBurgsData}
+            onClick={() => downloadBurgsData()}
           />
           <button
             type="button"
@@ -380,7 +307,7 @@ export const BurgsOverviewDialog: React.FC = () => {
             ref={fileInputRef}
             type="file"
             id="burgsListToLoad"
-            style={{ display: "none" }}
+            className="d-none"
             onChange={e => {
               if (e.target.files?.[0]) uploadFile(e.target as HTMLInputElement, data => importBurgNames(data, refresh));
             }}

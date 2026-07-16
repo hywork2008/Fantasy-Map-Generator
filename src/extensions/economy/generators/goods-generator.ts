@@ -1,10 +1,39 @@
 import Alea from "alea";
 import { color, shuffler } from "d3";
-import type { CultureType, PackedGraph } from "../../hostTypes";
+import {
+  type CultureType,
+  type PackedGraph,
+  SHIP_CLASS_DEFINITIONS,
+  SHIP_VALUE_PER_BUILD_POINT
+} from "../../hostTypes";
 import { TIME } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 
+export type WarEconomyType = "military" | "essential" | "strategic" | "luxury";
+type TradeScale = 1 | 2 | 3 | 4 | 5;
+type TradeTrend = -2 | -1 | 0 | 1 | 2 | 3;
+
+export interface GoodTradeProfile {
+  /** Low values are easier to transport. */
+  weight: TradeScale;
+  /** Low values fit more units into a cart, ship hold, or warehouse. */
+  bulk: TradeScale;
+  /** How constrained the good is by rare origin, skill, or materials. */
+  rarity: TradeScale;
+  /** Value change from moving the good away from its origin. Negative means local sale is usually better. */
+  distancePremium: TradeTrend;
+  /** Value change while cargo waits in transit or storage. Negative means rapid spoilage. */
+  timeValueTrend: TradeTrend;
+  /** Resistance to spoilage, breakage, escape, theft-prone handling loss, and similar cargo damage. */
+  durability: TradeScale;
+  /** Expected loss rate in normal carriage. High values are worse. */
+  lossRisk: TradeScale;
+}
+
 export interface Good {
+  warEconomyType?: WarEconomyType;
+  /** This cargo can only travel over water-only trade routes. */
+  seaOnly?: boolean;
   i: number;
 
   // generation
@@ -25,6 +54,7 @@ export interface Good {
 
   // effects
   demandCoverage?: Partial<Record<DemandCategory, number>>;
+  trade?: GoodTradeProfile;
 
   // lore
   name: string;
@@ -58,10 +88,26 @@ export function getDemandTargets(population: number): number[] {
   return DEMAND_PRIORITY.map(category => population * DEMAND_TARGET_FACTORS[category]);
 }
 
+const GUNPOWDER_ERA_GOODS = new Set(["gunpowder", "artillery"]);
+
+/** Returns whether a good is available under the current world's era settings. */
+export function isGoodEnabled(good: Pick<Good, "name">): boolean {
+  if (getWorldContext().options.gunpowderEraEnabled !== false) return true;
+  return !GUNPOWDER_ERA_GOODS.has(good.name.toLowerCase());
+}
+
 type GoodData = Omit<Good, "i"> & { recipes?: Record<string, number>[] };
-const GOODS_DATA: GoodData[] = [
+const shipClassById = new Map(SHIP_CLASS_DEFINITIONS.map(shipClass => [shipClass.id, shipClass]));
+const shipGoodValue = (shipClassId: string): number => {
+  const shipClass = shipClassById.get(shipClassId);
+  if (!shipClass) throw new Error(`Unknown ship class: ${shipClassId}`);
+  return shipClass.buildPointsRequired * SHIP_VALUE_PER_BUILD_POINT;
+};
+
+export const GOODS_DATA: GoodData[] = [
   {
     name: "Wood",
+    warEconomyType: "strategic",
     tags: ["construction", "fuel"],
     icon: "good-wood",
     color: "#966F33",
@@ -78,7 +124,7 @@ const GOODS_DATA: GoodData[] = [
     tags: ["construction"],
     icon: "good-stone",
     color: "#979EA2",
-    value: 2,
+    value: 1,
     chance: 4,
     distribution: "(minHeight(40) || (minHeight(20) && elevation())) && biome(1, 2, 3, 4)",
     unit: "pallet",
@@ -88,10 +134,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Marble",
+    warEconomyType: "luxury",
     tags: ["construction", "luxury"],
     icon: "good-marble",
     color: "#d6d0bf",
-    value: 6,
+    value: 8,
     chance: 1,
     distribution: "minHeight(60) || (minHeight(30) && elevation())",
     unit: "pallet",
@@ -100,10 +147,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Iron",
+    warEconomyType: "strategic",
     tags: ["ore", "military"],
     icon: "good-iron",
     color: "#5D686E",
-    value: 3,
+    value: 4,
     chance: 5,
     distribution: "minHeight(60) || (biome(12) && nth(7)) || (minHeight(20) && nth(10))",
     unit: "wagon",
@@ -112,10 +160,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Copper",
+    warEconomyType: "strategic",
     tags: ["ore"],
     icon: "good-copper",
     color: "#b87333",
-    value: 4,
+    value: 5,
     chance: 2,
     distribution: "minHeight(60) || (minHeight(30) && elevation())",
     unit: "wagon",
@@ -123,10 +172,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Tin",
+    warEconomyType: "strategic",
     tags: ["ore"],
     icon: "good-tin",
     color: "#454343",
-    value: 4,
+    value: 6,
     chance: 2,
     distribution: "minHeight(60) || (minHeight(30) && elevation())",
     unit: "wagon",
@@ -134,10 +184,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Silver",
+    warEconomyType: "luxury",
     tags: ["ore", "luxury"],
     icon: "good-silver",
     color: "#C0C0C0",
-    value: 8,
+    value: 20,
     chance: 2,
     distribution: "minHeight(60) || (minHeight(30) && elevation())",
     unit: "bullion",
@@ -145,10 +196,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Gold",
+    warEconomyType: "luxury",
     tags: ["ore", "luxury"],
     icon: "good-gold",
     color: "#ffd700",
-    value: 15,
+    value: 40,
     chance: 2,
     distribution: "river() && minHeight(40)",
     unit: "bullion",
@@ -156,6 +208,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Grain",
+    warEconomyType: "essential",
     tags: ["food"],
     icon: "good-grain",
     color: "#F5DEB3",
@@ -169,10 +222,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Cattle",
+    warEconomyType: "essential",
     tags: ["food"],
     icon: "good-cattle",
     color: "#56b000",
-    value: 2,
+    value: 5,
     chance: 4,
     distribution: "(biome(3, 4) && !elevation()) || (biome(6) && random(70)) || (biome(5) && nth(5))",
     unit: "head",
@@ -182,6 +236,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Fish",
+    warEconomyType: "essential",
     tags: ["food", "aquatic"],
     icon: "good-fish",
     color: "#7fcdff",
@@ -194,6 +249,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Game",
+    warEconomyType: "essential",
     tags: ["food"],
     icon: "good-game",
     color: "#c38a8a",
@@ -207,10 +263,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Wine",
+    warEconomyType: "luxury",
     tags: ["food", "luxury"],
     icon: "good-wine",
     color: "#963e48",
-    value: 2,
+    value: 5,
     chance: 3,
     distribution: "biome(6) || (biome(4) && random(50) && river())",
     unit: "barrel",
@@ -220,10 +277,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Olives",
+    warEconomyType: "essential",
     tags: ["food"],
     icon: "good-olives",
     color: "#BDBD7D",
-    value: 2,
+    value: 3,
     chance: 3,
     distribution: "biome(6) || (biome(4) && random(50) && river())",
     unit: "barrel",
@@ -233,10 +291,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Honey",
+    warEconomyType: "essential",
     tags: ["food", "preservative"],
     icon: "good-honey",
     color: "#DCBC66",
-    value: 2,
+    value: 4,
     chance: 3,
     distribution: "biome(6, 8, 9)",
     unit: "barrel",
@@ -246,10 +305,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Salt",
+    warEconomyType: "essential",
     tags: ["preservative", "mineral"],
     icon: "good-salt",
     color: "#E5E4E5",
-    value: 2,
+    value: 3,
     chance: 3,
     distribution: 'shore(1) && type("salt", "dry") || (biome(1, 2) && random(70)) || (biome(12) && nth(10))',
     unit: "bag",
@@ -259,25 +319,27 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Dates",
+    warEconomyType: "essential",
     tags: ["food"],
     icon: "good-dates",
     color: "#dbb2a3",
-    value: 2,
+    value: 7,
     chance: 2,
     distribution: "biome(1)",
-    unit: "wain",
+    unit: "chest",
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { Hunting: 0.8, Highland: 0.8 } },
     biomeOutput: { 1: 0.1 }
   },
   {
     name: "Horses",
+    warEconomyType: "military",
     tags: ["supply", "military"],
     icon: "good-horses",
     color: "#ba7447",
-    value: 5,
+    value: 10,
     chance: 4,
-    distribution: "biome(3) || (biome(2) && nth(4))",
+    distribution: "biome(3, 4) || (biome(2) && nth(4))",
     unit: "head",
     demandCoverage: { utilities: 0.6, military: 0.4 },
     multipliers: { cultureType: { Nomadic: 2 } },
@@ -285,10 +347,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Elephants",
+    warEconomyType: "military",
     tags: ["supply", "military"],
     icon: "good-elephants",
     color: "#C5CACD",
-    value: 7,
+    value: 30,
     chance: 2,
     distribution: "biome(1, 3, 5, 7)",
     unit: "head",
@@ -297,10 +360,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Camels",
+    warEconomyType: "military",
     tags: ["supply", "military"],
     icon: "good-camels",
     color: "#C19A6B",
-    value: 5,
+    value: 12,
     chance: 3,
     distribution: "biome(1, 2)",
     unit: "head",
@@ -322,10 +386,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Pearls",
+    warEconomyType: "luxury",
     tags: ["luxury", "aquatic"],
     icon: "good-pearls",
     color: "#EAE0C8",
-    value: 13,
+    value: 18,
     chance: 2,
     distribution: "shore(-1) && minTemp(18)",
     unit: "pearl",
@@ -334,10 +399,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Gemstones",
+    warEconomyType: "luxury",
     tags: ["luxury", "mineral"],
     icon: "good-gemstones",
     color: "#e463e4",
-    value: 15,
+    value: 20,
     chance: 2,
     distribution: "minHeight(60) || (minHeight(30) && elevation())",
     unit: "gem",
@@ -346,10 +412,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Dyes",
+    warEconomyType: "luxury",
     tags: ["luxury"],
     icon: "good-dyes",
     color: "#fecdea",
-    value: 5,
+    value: 8,
     chance: 1,
     distribution: "shore(-1) || minHabitability(1)",
     unit: "bag",
@@ -357,10 +424,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Incense",
+    warEconomyType: "luxury",
     tags: ["luxury", "ritual"],
     icon: "good-incense",
     color: "#ebe5a7",
-    value: 10,
+    value: 12,
     chance: 2,
     distribution: "biome(1, 7)",
     unit: "chest",
@@ -368,10 +436,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Silk",
+    warEconomyType: "luxury",
     tags: ["luxury", "clothing"],
     icon: "good-silk",
     color: "#e0f0f8",
-    value: 9,
+    value: 16,
     chance: 1,
     distribution: "biome(7)",
     unit: "bolt",
@@ -380,10 +449,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Spices",
+    warEconomyType: "luxury",
     tags: ["luxury"],
     icon: "good-spices",
     color: "#e99c75",
-    value: 14,
+    value: 18,
     chance: 2,
     distribution: "biome(7)",
     unit: "chest",
@@ -392,10 +462,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Amber",
+    warEconomyType: "luxury",
     tags: ["luxury"],
     icon: "good-amber",
     color: "#e68200",
-    value: 7,
+    value: 8,
     chance: 2,
     distribution: "shore(1) && biome(6, 7, 8, 9)",
     unit: "stone",
@@ -407,7 +478,7 @@ const GOODS_DATA: GoodData[] = [
     tags: ["clothing", "luxury"],
     icon: "good-furs",
     color: "#8a5e51",
-    value: 4,
+    value: 6,
     chance: 2,
     distribution: "biome(9) || (biome(10) && nth(2)) || (biome(6, 8) && nth(5)) || (biome(12) && nth(10))",
     unit: "pelt",
@@ -420,7 +491,7 @@ const GOODS_DATA: GoodData[] = [
     tags: ["clothing"],
     icon: "good-sheep",
     color: "#53b574",
-    value: 2,
+    value: 1,
     chance: 3,
     distribution: "(biome(3, 4) && !elevation()) || (biome(6) && random(70)) || (biome(5) && nth(5))",
     unit: "head",
@@ -430,10 +501,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Slaves",
+    warEconomyType: "essential",
     tags: ["supply"],
     icon: "good-slaves",
     color: "#757575",
-    value: 7,
+    value: 10,
     chance: 2,
     distribution: "shore(1) && minHabitability(1) && !habitability()",
     unit: "slave",
@@ -442,10 +514,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Tar",
+    warEconomyType: "strategic",
     tags: ["naval"],
     icon: "good-tar",
     color: "#727272",
-    value: 3,
+    value: 2,
     chance: 0,
     unit: "barrel",
     demandCoverage: { utilities: 0.4, military: 0.1 },
@@ -454,10 +527,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Saltpeter",
+    warEconomyType: "strategic",
     tags: ["military", "mineral"],
     icon: "good-saltpeter",
     color: "#e6e3e3",
-    value: 2,
+    value: 4,
     chance: 3,
     distribution: "biome(1, 2) || (minHeight(50) && random(20))",
     unit: "barrel",
@@ -465,10 +539,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Coal",
+    warEconomyType: "strategic",
     tags: ["fuel"],
     icon: "good-coal",
     color: "#5a6a75",
-    value: 3,
+    value: 2,
     chance: 3,
     distribution: "minHeight(40) || (minHeight(20) && elevation(25))",
     unit: "wain",
@@ -480,7 +555,7 @@ const GOODS_DATA: GoodData[] = [
     tags: ["fuel"],
     icon: "good-oil",
     color: "#565656",
-    value: 3,
+    value: 4,
     chance: 2,
     distribution: "biome(1, 2, 10) || (shore(-1) && minTemp(18) && random(15))",
     unit: "barrel",
@@ -489,10 +564,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Mahogany",
+    warEconomyType: "luxury",
     tags: ["luxury"],
     icon: "good-tropicalTimber",
     color: "#a45a52",
-    value: 7,
+    value: 10,
     chance: 1,
     distribution: "biome(5, 7) && random(50)",
     unit: "pile",
@@ -500,10 +576,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Whales",
+    warEconomyType: "essential",
     tags: ["food", "aquatic", "fuel"],
     icon: "good-whales",
     color: "#7fcdff",
-    value: 1,
+    value: 3,
     chance: 3,
     distribution: "shore(-1) && type('ocean') && maxTemp(7)",
     unit: "barrel",
@@ -512,6 +589,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Sugarcane",
+    warEconomyType: "essential",
     tags: ["preservative", "food"],
     icon: "good-sugar",
     color: "#7abf87",
@@ -523,10 +601,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Tea",
+    warEconomyType: "luxury",
     tags: ["luxury"],
     icon: "good-tea",
     color: "#d0f0c0",
-    value: 5,
+    value: 10,
     chance: 2,
     distribution: "minHeight(40) && (biome(5) || (biome(7) || biome(8)))",
     unit: "bag",
@@ -535,10 +614,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Tobacco",
+    warEconomyType: "luxury",
     tags: ["luxury"],
     icon: "good-tobacco",
     color: "#6D5843",
-    value: 5,
+    value: 8,
     chance: 1,
     distribution: "random(20) && (biome(3) || (biome(5) || biome(6)))",
     unit: "bag",
@@ -546,6 +626,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Clay",
+    warEconomyType: "luxury",
     tags: ["mineral", "construction"],
     icon: "good-clay",
     color: "#b07c60",
@@ -558,6 +639,7 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "White sand",
+    warEconomyType: "luxury",
     tags: ["mineral"],
     icon: "good-sand",
     color: "#e6d69c",
@@ -569,10 +651,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Leather",
+    warEconomyType: "strategic",
     tags: ["clothing", "military"],
     icon: "good-leather",
     color: "#8b5a2b",
-    value: 4,
+    value: 6,
     chance: 0,
     recipes: [{ Cattle: 1 }, { Game: 1 }, { Horses: 1 }, { Camels: 1 }],
     unit: "roll",
@@ -580,10 +663,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Cloth",
+    warEconomyType: "strategic",
     tags: ["clothing"],
     icon: "good-cloth",
     color: "#e8e69c",
-    value: 4,
+    value: 5,
     chance: 0,
     recipes: [{ Sheep: 1 }, { Hemp: 1 }, { Silk: 0.5 }],
     unit: "bolt",
@@ -591,10 +675,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Garments",
+    warEconomyType: "essential",
     tags: ["clothing"],
     icon: "good-garments",
     color: "#bd21ec",
-    value: 9,
+    value: 12,
     chance: 0,
     recipes: [
       { Cloth: 1, Dyes: 0.5 },
@@ -605,10 +690,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Ceramics",
+    warEconomyType: "luxury",
     tags: ["storage", "construction"],
     icon: "good-ceramics",
     color: "#c1440e",
-    value: 6,
+    value: 4,
     chance: 0,
     recipes: [{ Clay: 1 }],
     unit: "wain",
@@ -616,10 +702,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Glass",
+    warEconomyType: "luxury",
     tags: ["storage", "construction"],
     icon: "good-glass",
     color: "#a0c8e8",
-    value: 7,
+    value: 6,
     chance: 0,
     recipes: [{ "White sand": 1 }],
     unit: "wain",
@@ -628,10 +715,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Ropes",
+    warEconomyType: "strategic",
     tags: ["naval", "construction"],
     icon: "good-ropes",
     color: "#ba9773",
-    value: 4,
+    value: 3,
     chance: 0,
     recipes: [{ Hemp: 1 }],
     unit: "coil",
@@ -639,10 +727,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Paper",
+    warEconomyType: "luxury",
     tags: ["ritual", "educational"],
     icon: "good-paper",
     color: "#f5f5dc",
-    value: 4,
+    value: 5,
     chance: 0,
     recipes: [{ Hemp: 1 }],
     unit: "ream",
@@ -650,10 +739,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Ink",
+    warEconomyType: "luxury",
     tags: ["ritual", "educational"],
     icon: "good-ink",
     color: "#000000",
-    value: 5,
+    value: 7,
     chance: 0,
     recipes: [{ Oil: 1 }, { Dyes: 0.5 }],
     unit: "bottle",
@@ -661,10 +751,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Books",
+    warEconomyType: "luxury",
     tags: ["ritual", "educational"],
     icon: "good-books",
     color: "#deb887",
-    value: 12,
+    value: 18,
     chance: 0,
     recipes: [
       { Paper: 1, Ink: 0.5 },
@@ -679,30 +770,58 @@ const GOODS_DATA: GoodData[] = [
     tags: ["naval"],
     icon: "good-sails",
     color: "#ffffff",
-    value: 7,
+    value: 8,
     chance: 0,
     recipes: [{ Cloth: 1 }],
     unit: "set",
     demandCoverage: { military: 1 }
   },
   {
-    name: "Ships",
+    name: "Sloop",
+    warEconomyType: "military",
+    seaOnly: true,
     tags: ["naval"],
     icon: "good-ships",
     color: "#654321",
-    value: 20,
+    value: shipGoodValue("sloop"),
     chance: 0,
-    recipes: [{ Wood: 2, Sails: 2, Ropes: 2, Tar: 1 }],
     unit: "ship",
     demandCoverage: { military: 0.5 },
     multipliers: { cultureType: { Naval: 2 } }
   },
   {
+    name: "Caravel",
+    warEconomyType: "military",
+    seaOnly: true,
+    tags: ["naval"],
+    icon: "good-ships",
+    color: "#654321",
+    value: shipGoodValue("caravel"),
+    chance: 0,
+    unit: "ship",
+    demandCoverage: { military: 1.25 },
+    multipliers: { cultureType: { Naval: 2 } }
+  },
+  {
+    name: "Galleon",
+    warEconomyType: "military",
+    seaOnly: true,
+    tags: ["naval"],
+    icon: "good-ships",
+    color: "#654321",
+    value: shipGoodValue("galleon"),
+    chance: 0,
+    unit: "ship",
+    demandCoverage: { military: 3 },
+    multipliers: { cultureType: { Naval: 2 } }
+  },
+  {
     name: "Boots",
+    warEconomyType: "essential",
     tags: ["clothing", "military"],
     icon: "good-boots",
     color: "#654321",
-    value: 6,
+    value: 7,
     chance: 0,
     recipes: [{ Leather: 1 }, { Furs: 0.5 }],
     unit: "pair",
@@ -710,10 +829,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Harnesses",
+    warEconomyType: "military",
     tags: ["military"],
     icon: "good-harnesses",
     color: "#a0522d",
-    value: 8,
+    value: 10,
     chance: 0,
     recipes: [
       { Leather: 0.5, Iron: 0.25 },
@@ -729,7 +849,7 @@ const GOODS_DATA: GoodData[] = [
     tags: ["naval", "storage"],
     icon: "good-barrels",
     color: "#b46e3b",
-    value: 3,
+    value: 2,
     chance: 0,
     recipes: [{ Wood: 1 }],
     unit: "barrel",
@@ -737,10 +857,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Bronze",
+    warEconomyType: "strategic",
     tags: ["military"],
     icon: "good-bronze",
     color: "#e46f21",
-    value: 9,
+    value: 8,
     chance: 0,
     recipes: [
       { Copper: 0.5, Coal: 1 },
@@ -751,10 +872,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Tools",
+    warEconomyType: "strategic",
     tags: ["construction", "military"],
     icon: "good-tools",
     color: "#808080",
-    value: 17,
+    value: 14,
     chance: 0,
     recipes: [
       { Iron: 0.5, Coal: 1 },
@@ -765,10 +887,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Arms",
+    warEconomyType: "military",
     tags: ["military"],
     icon: "good-arms",
     color: "#333333",
-    value: 22,
+    value: 24,
     chance: 0,
     recipes: [
       { Iron: 0.5, Coal: 1, Leather: 0.5 },
@@ -779,10 +902,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Gunpowder",
+    warEconomyType: "military",
     tags: ["military"],
     icon: "good-gunpowder",
     color: "#b0c4de",
-    value: 10,
+    value: 12,
     chance: 0,
     recipes: [{ Saltpeter: 0.5, Coal: 0.5 }],
     unit: "barrel",
@@ -790,10 +914,11 @@ const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Artillery",
+    warEconomyType: "military",
     tags: ["military"],
     icon: "good-artillery",
     color: "#cd7f32",
-    value: 21,
+    value: 70,
     chance: 0,
     recipes: [
       { Iron: 2, Coal: 1 },
@@ -807,7 +932,7 @@ const GOODS_DATA: GoodData[] = [
     tags: ["currency"],
     icon: "good-coins",
     color: "#ffd700",
-    value: 25,
+    value: 45,
     chance: 0,
     recipes: [
       { Gold: 0.5, Coal: 1 },
@@ -821,7 +946,7 @@ const GOODS_DATA: GoodData[] = [
     tags: ["luxury"],
     icon: "good-jewelry",
     color: "#34861b",
-    value: 34,
+    value: 55,
     chance: 0,
     recipes: [
       { Gemstones: 1, Gold: 0.5 },
@@ -839,7 +964,7 @@ const GOODS_DATA: GoodData[] = [
     tags: ["food"],
     icon: "good-salted-fish",
     color: "#c2b280",
-    value: 4,
+    value: 5,
     chance: 0,
     recipes: [
       { Fish: 1, Salt: 1 },
@@ -860,7 +985,7 @@ const GOODS_DATA: GoodData[] = [
     tags: ["food", "preservative"],
     icon: "good-vinegar",
     color: "#9b111e",
-    value: 2,
+    value: 4,
     chance: 0,
     recipes: [{ Wine: 1 }, { Honey: 1 }],
     unit: "barrel",
@@ -871,7 +996,7 @@ const GOODS_DATA: GoodData[] = [
     tags: ["food"],
     icon: "good-cheese",
     color: "#f5e1a4",
-    value: 4,
+    value: 5,
     chance: 0,
     recipes: [
       { Cattle: 0.5, Salt: 0.25 },
@@ -887,7 +1012,7 @@ const GOODS_DATA: GoodData[] = [
     tags: ["food"],
     icon: "good-beer",
     color: "#fbb117",
-    value: 7,
+    value: 3,
     chance: 0,
     recipes: [
       { Grain: 1, Barrels: 1 },
@@ -901,7 +1026,7 @@ const GOODS_DATA: GoodData[] = [
     tags: ["food", "luxury"],
     icon: "good-liquor",
     color: "#8a0303",
-    value: 9,
+    value: 12,
     chance: 0,
     recipes: [
       { Grain: 2, Wood: 1, Barrels: 0.5 },
@@ -919,7 +1044,7 @@ const GOODS_DATA: GoodData[] = [
     tags: ["luxury", "ritual"],
     icon: "good-candles",
     color: "#fffacd",
-    value: 8,
+    value: 10,
     chance: 0,
     recipes: [{ Honey: 2 }, { Oil: 1 }],
     unit: "block",
@@ -930,7 +1055,7 @@ const GOODS_DATA: GoodData[] = [
     tags: ["luxury", "ritual"],
     icon: "good-soap",
     color: "#e0e4cc",
-    value: 5,
+    value: 6,
     chance: 0,
     recipes: [{ Olives: 1 }, { Cattle: 1 }],
     unit: "barrel",
@@ -941,7 +1066,7 @@ const GOODS_DATA: GoodData[] = [
     tags: ["luxury", "ritual"],
     icon: "good-perfume",
     color: "#ff69b4",
-    value: 18,
+    value: 28,
     chance: 0,
     recipes: [
       { Olives: 1, Incense: 0.25, Glass: 0.5 },
@@ -952,6 +1077,117 @@ const GOODS_DATA: GoodData[] = [
     demandCoverage: { luxury: 2 }
   }
 ];
+
+function tradeProfile(
+  weight: TradeScale,
+  bulk: TradeScale,
+  rarity: TradeScale,
+  distancePremium: TradeTrend,
+  timeValueTrend: TradeTrend,
+  durability: TradeScale,
+  lossRisk: TradeScale
+): GoodTradeProfile {
+  return { weight, bulk, rarity, distancePremium, timeValueTrend, durability, lossRisk };
+}
+
+const DEFAULT_TRADE_PROFILE = tradeProfile(3, 3, 2, 0, 0, 3, 2);
+
+const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
+  Wood: tradeProfile(4, 5, 1, -1, 0, 4, 2),
+  Stone: tradeProfile(5, 5, 1, -2, 0, 5, 1),
+  Marble: tradeProfile(5, 5, 4, 1, 0, 4, 3),
+  Iron: tradeProfile(5, 4, 3, 1, 0, 5, 2),
+  Copper: tradeProfile(5, 4, 3, 1, 0, 5, 2),
+  Tin: tradeProfile(4, 3, 4, 2, 0, 5, 2),
+  Silver: tradeProfile(2, 1, 4, 2, 0, 5, 2),
+  Gold: tradeProfile(2, 1, 5, 3, 0, 5, 2),
+  Grain: tradeProfile(4, 4, 1, -1, -1, 2, 3),
+  Cattle: tradeProfile(5, 5, 2, 0, -2, 1, 5),
+  Fish: tradeProfile(3, 3, 1, -1, -2, 1, 5),
+  Game: tradeProfile(3, 3, 2, 0, -2, 1, 5),
+  Wine: tradeProfile(3, 3, 3, 2, 2, 4, 2),
+  Olives: tradeProfile(3, 3, 2, 1, -1, 3, 2),
+  Honey: tradeProfile(3, 3, 2, 1, 0, 4, 1),
+  Salt: tradeProfile(3, 2, 2, 1, 0, 5, 1),
+  Dates: tradeProfile(2, 3, 2, 1, -1, 3, 2),
+  Horses: tradeProfile(5, 5, 3, 1, -2, 2, 5),
+  Elephants: tradeProfile(5, 5, 5, 2, -2, 1, 5),
+  Camels: tradeProfile(5, 5, 3, 1, -2, 2, 5),
+  Hemp: tradeProfile(3, 4, 2, 0, 0, 3, 2),
+  Pearls: tradeProfile(1, 1, 5, 3, 0, 5, 2),
+  Gemstones: tradeProfile(1, 1, 5, 3, 0, 5, 2),
+  Dyes: tradeProfile(2, 2, 4, 3, 0, 3, 2),
+  Incense: tradeProfile(1, 2, 4, 3, 0, 4, 2),
+  Silk: tradeProfile(1, 2, 5, 3, 0, 3, 2),
+  Spices: tradeProfile(1, 2, 5, 3, 0, 4, 2),
+  Amber: tradeProfile(1, 1, 4, 2, 0, 5, 1),
+  Furs: tradeProfile(2, 4, 3, 2, 0, 3, 2),
+  Sheep: tradeProfile(5, 5, 2, 0, -2, 1, 5),
+  Slaves: tradeProfile(5, 5, 3, 1, -2, 1, 5),
+  Tar: tradeProfile(4, 3, 2, 0, 0, 4, 2),
+  Saltpeter: tradeProfile(3, 3, 4, 2, 0, 4, 2),
+  Coal: tradeProfile(5, 4, 2, 0, 0, 5, 2),
+  Oil: tradeProfile(3, 3, 2, 1, 0, 4, 2),
+  Mahogany: tradeProfile(4, 5, 5, 3, 0, 4, 2),
+  Whales: tradeProfile(4, 4, 2, 0, -2, 1, 5),
+  Sugarcane: tradeProfile(3, 4, 3, 2, -1, 2, 3),
+  Tea: tradeProfile(1, 2, 4, 3, 0, 3, 2),
+  Tobacco: tradeProfile(1, 2, 4, 3, 1, 3, 2),
+  Clay: tradeProfile(5, 5, 1, -2, 0, 4, 2),
+  "White sand": tradeProfile(5, 5, 1, -2, 0, 5, 1),
+  Leather: tradeProfile(3, 3, 2, 0, 0, 4, 2),
+  Cloth: tradeProfile(2, 3, 2, 1, 0, 3, 2),
+  Garments: tradeProfile(2, 3, 3, 2, 0, 3, 2),
+  Ceramics: tradeProfile(4, 4, 3, 1, 0, 2, 4),
+  Glass: tradeProfile(3, 4, 4, 2, 0, 1, 5),
+  Ropes: tradeProfile(3, 4, 2, 0, 0, 4, 2),
+  Paper: tradeProfile(1, 2, 3, 2, 0, 2, 3),
+  Ink: tradeProfile(1, 1, 3, 2, 0, 3, 2),
+  Books: tradeProfile(2, 2, 4, 3, 0, 3, 3),
+  Sails: tradeProfile(3, 4, 3, 1, 0, 3, 2),
+  Sloop: tradeProfile(5, 5, 5, 0, 0, 4, 3),
+  Caravel: tradeProfile(5, 5, 5, 0, 0, 4, 3),
+  Galleon: tradeProfile(5, 5, 5, 0, 0, 4, 3),
+  Boots: tradeProfile(2, 3, 2, 1, 0, 4, 2),
+  Harnesses: tradeProfile(3, 3, 3, 1, 0, 4, 2),
+  Barrels: tradeProfile(4, 5, 1, -1, 0, 4, 2),
+  Bronze: tradeProfile(5, 4, 3, 1, 0, 5, 2),
+  Tools: tradeProfile(4, 3, 3, 2, 0, 5, 2),
+  Arms: tradeProfile(4, 3, 4, 2, 0, 5, 3),
+  Gunpowder: tradeProfile(3, 3, 4, 2, 0, 2, 5),
+  Artillery: tradeProfile(5, 5, 4, 1, 0, 5, 3),
+  Coins: tradeProfile(2, 1, 5, 3, 0, 5, 3),
+  Jewelry: tradeProfile(1, 1, 5, 3, 0, 4, 3),
+  "Preserved food": tradeProfile(4, 4, 2, 1, 0, 4, 2),
+  Vinegar: tradeProfile(3, 3, 2, 1, 1, 4, 2),
+  Cheese: tradeProfile(3, 3, 3, 1, 1, 3, 2),
+  Beer: tradeProfile(4, 4, 2, 1, -1, 2, 3),
+  Liquor: tradeProfile(2, 2, 4, 2, 1, 4, 2),
+  Candles: tradeProfile(2, 3, 3, 1, 0, 3, 2),
+  Soap: tradeProfile(3, 3, 3, 1, 0, 4, 2),
+  Perfume: tradeProfile(1, 1, 5, 3, 0, 3, 3)
+};
+
+export function getDefaultGoodTradeProfile(good: Pick<Good, "name" | "tags" | "unit" | "value">): GoodTradeProfile {
+  const profile = GOOD_TRADE_PROFILES[good.name];
+  if (profile) return { ...profile };
+
+  const isLuxury = good.tags.includes("luxury") || good.value >= 8;
+  const isFood = good.tags.includes("food");
+  const isMineral = good.tags.includes("mineral") || good.tags.includes("ore");
+  const isLiveCargo = good.unit === "head" || good.unit === "slave";
+
+  return {
+    ...DEFAULT_TRADE_PROFILE,
+    weight: isMineral ? 5 : isLiveCargo ? 5 : isLuxury ? 2 : DEFAULT_TRADE_PROFILE.weight,
+    bulk: isLiveCargo ? 5 : isLuxury ? 2 : DEFAULT_TRADE_PROFILE.bulk,
+    rarity: isLuxury ? 4 : DEFAULT_TRADE_PROFILE.rarity,
+    distancePremium: isLuxury ? 2 : DEFAULT_TRADE_PROFILE.distancePremium,
+    timeValueTrend: isFood || isLiveCargo ? -1 : DEFAULT_TRADE_PROFILE.timeValueTrend,
+    durability: isFood || isLiveCargo ? 2 : DEFAULT_TRADE_PROFILE.durability,
+    lossRisk: isLiveCargo ? 5 : isFood ? 3 : DEFAULT_TRADE_PROFILE.lossRisk
+  };
+}
 
 export class GoodsModule {
   private get worldContext() {
@@ -978,7 +1214,7 @@ export class GoodsModule {
 
     const methods = `{${Object.keys(this.getMethods()).join(", ")}}`;
     const shuffledCells = shuffle(Array.from(this.cells.i));
-    const goods = [...this.worldContext.pack.goods];
+    const goods = this.worldContext.pack.goods.filter(isGoodEnabled);
 
     for (const cellId of shuffledCells) {
       if (!(cellId % 10)) shuffle(goods);
@@ -1016,6 +1252,11 @@ export class GoodsModule {
 
     for (const cellId of this.cells.i) {
       if (this.cells.good[cellId] === goodId) this.cells.good[cellId] = 0;
+    }
+
+    if (!isGoodEnabled(good)) {
+      TIME && console.timeEnd("regenerateGoodPlacement");
+      return;
     }
 
     if (!good.distribution || !good.chance) {
@@ -1076,6 +1317,7 @@ export class GoodsModule {
   getBiomesProduction(): Record<number, { goodId: number; production: number }[]> {
     return (this.worldContext.pack.goods || []).reduce(
       (acc, good) => {
+        if (!isGoodEnabled(good)) return acc;
         if (!good.biomeOutput) return acc;
         for (const [biomeIdStr, production] of Object.entries(good.biomeOutput)) {
           const biomeId = +biomeIdStr;
@@ -1117,7 +1359,12 @@ export class GoodsModule {
       });
     }
 
-    return { i: index + 1, ...good, ...(recipes && { recipes }) };
+    return {
+      i: index + 1,
+      ...good,
+      trade: good.trade ?? getDefaultGoodTradeProfile(good),
+      ...(recipes && { recipes })
+    };
   });
 }
 

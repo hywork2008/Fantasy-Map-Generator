@@ -1,5 +1,4 @@
-import type React from "react";
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { worldContext } from "../../context/worldContext";
 import { confirmationDialog, downloadFile, getFileName, highlightElement } from "../../controllers/editors";
 import { toggleRoutes } from "../../controllers/layers";
@@ -12,6 +11,9 @@ import { useOptionsState } from "../../store/optionsState";
 import { useRoutesOverviewState } from "../../store/routesOverviewState";
 import { rn } from "../../utils";
 import { layerIsOn } from "../../utils/nodeUtils";
+import { IconButton } from "../components/IconButton";
+import { SortableHeader } from "../components/tables/SortableHeader";
+import { VirtualTableBody } from "../components/VirtualTableBody";
 import { Dialog } from "./Dialog";
 import { closeDialog, openConfirm } from "./dialogService";
 
@@ -172,81 +174,114 @@ export const RoutesOverviewDialog: React.FC = () => {
 
   const allLocked = worldContext.pack?.routes?.length > 0 && worldContext.pack.routes.every(r => r.lock);
 
+  const parentRef = React.useRef<HTMLDivElement>(null);
+
   return (
     <Dialog
       isOpen={isOpen}
       title="Routes Overview"
       onClose={() => closeDialog("routesOverview")}
-      className="fmg-dialog--overflow-hidden"
+      className="fmg-dialog--table"
     >
       <div id="routesOverviewContainer">
-        <div id="routesHeader" className="header" style={{ gridTemplateColumns: "17em 8em 8em" }}>
-          <div
-            data-tip="Click to sort by route name"
-            className={`sortable alphabetically ${sortBy === "name" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
-            onClick={() => toggleSortBy("name")}
-          >
-            Route&nbsp;
-          </div>
-          <div
-            data-tip="Click to sort by route group"
-            className={`sortable alphabetically ${sortBy === "group" ? (sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down") : ""}`}
-            onClick={() => toggleSortBy("group")}
-          >
-            Group&nbsp;
-          </div>
-          <div
-            data-tip="Click to sort by route length"
-            className={`sortable ${sortBy === "length" ? (sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down") : "icon-sort-number-down"}`}
-            onClick={() => toggleSortBy("length")}
-          >
-            Length&nbsp;
-          </div>
-        </div>
-        <div id="routesBody" className="table">
-          {filteredRoutes.map(route => {
-            if (!route.points || route.points.length < 2) return null;
-            const lengthStr = `${rn((route.length || 0) * worldContext.distanceScale)} ${distanceUnit}`;
-            return (
-              <div
-                key={route.i}
-                className="states"
-                data-id={route.i}
-                onMouseEnter={() => routeHighlightOn(route.i)}
-                onMouseLeave={() => routeHighlightOff(route.i)}
-              >
-                <span data-tip="Locate the route" className="icon-target" onClick={() => handleZoomToRoute(route.i)} />
-                <div data-tip="Route name" style={{ width: "15em", marginLeft: "0.4em" }}>
-                  {route.name}
-                </div>
-                <div data-tip="Route group" style={{ width: "8em" }}>
-                  {route.group}
-                </div>
-                <div data-tip="Route length" style={{ width: "6em" }}>
-                  {lengthStr}
-                </div>
-                <span data-tip="Edit route" className="icon-pencil" onClick={() => handleOpenEditor(route.i)} />
-                <span
-                  className={`locks pointer ${route.lock ? "icon-lock" : "icon-lock-open inactive"}`}
-                  data-tip="Toggle lock status"
-                  onClick={() => handleToggleLock(route.i)}
+        <div ref={parentRef} id="routesBody" className="table">
+          <table className="fmg-table">
+            <thead>
+              <tr id="routesHeader">
+                <SortableHeader
+                  field="name"
+                  label="Route"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={toggleSortBy}
+                  tip="Click to sort by route name"
                 />
-                <span data-tip="Remove route" className="icon-trash-empty" onClick={() => handleRemoveRoute(route.i)} />
-              </div>
-            );
-          })}
+                <SortableHeader
+                  field="group"
+                  label="Group"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={toggleSortBy}
+                  tip="Click to sort by route group"
+                />
+                <SortableHeader
+                  field="length"
+                  label="Length"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={toggleSortBy}
+                  numeric
+                  tip="Click to sort by route length"
+                />
+                <th></th>
+              </tr>
+            </thead>
+            <VirtualTableBody
+              items={filteredRoutes}
+              scrollElementRef={parentRef}
+              renderRow={route => {
+                if (!route.points || route.points.length < 2) return null;
+                const lengthStr = `${rn((route.length || 0) * worldContext.distanceScale)} ${distanceUnit}`;
+                return (
+                  <tr
+                    key={route.i}
+                    className="states"
+                    data-id={route.i}
+                    onMouseEnter={() => routeHighlightOn(route.i)}
+                    onMouseLeave={() => routeHighlightOff(route.i)}
+                  >
+                    <td>
+                      <div className="d-flex">
+                        <IconButton
+                          data-tip="Locate the route"
+                          className="icon-target pointer"
+                          onClick={() => handleZoomToRoute(route.i)}
+                        />
+                        <div data-tip="Route name">{route.name}</div>
+                      </div>
+                    </td>
+                    <td>
+                      <div data-tip="Route group">{route.group}</div>
+                    </td>
+                    <td>
+                      <div data-tip="Route length">{lengthStr}</div>
+                    </td>
+                    <td>
+                      <div className="d-flex">
+                        <IconButton
+                          data-tip="Edit route"
+                          className="icon-pencil pointer"
+                          onClick={() => handleOpenEditor(route.i)}
+                        />
+                        <IconButton
+                          className={`locks pointer ${route.lock ? "icon-lock" : "icon-lock-open inactive"}`}
+                          data-tip="Toggle lock status"
+                          onClick={() => handleToggleLock(route.i)}
+                        />
+                        <IconButton
+                          data-tip="Remove route"
+                          className="icon-trash-empty pointer"
+                          onClick={() => handleRemoveRoute(route.i)}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }}
+            />
+          </table>
         </div>
         <div id="routesTotal" className="totalLine">
-          <div data-tip="Routes number" style={{ marginLeft: 4 }}>
-            Routes:&nbsp;
+          <div data-tip="Routes number">
+            Routes:
             <span id="routesFooterNumber">{`${filteredRoutes.length} of ${worldContext.pack?.routes?.length || 0}`}</span>
           </div>
-          <div data-tip="Average length" style={{ marginLeft: 12 }}>
-            Average length:&nbsp;
+          <div data-tip="Average length">
+            Average length:
             <span id="routesFooterLength">{`${averageLength * worldContext.distanceScale} ${distanceUnit}`}</span>
           </div>
         </div>
-        <div id="routesFooter" className="fmg-dialog-footer">
+        <div id="routesFooter" className="footer">
           <button
             type="button"
             id="routesOverviewRefresh"
@@ -282,7 +317,7 @@ export const RoutesOverviewDialog: React.FC = () => {
             className="icon-trash"
             onClick={handleRemoveAll}
           />
-          <label htmlFor="routesSearch" data-tip="Filter by name or group" style={{ marginLeft: "0.2em" }}>
+          <label htmlFor="routesSearch" data-tip="Filter by name or group">
             Search: <input id="routesSearch" type="search" value={search} onChange={e => setSearch(e.target.value)} />
           </label>
         </div>

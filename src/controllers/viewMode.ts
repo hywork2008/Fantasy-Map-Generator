@@ -1,12 +1,17 @@
+import { appServices } from "../context/appServices";
+import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
+import { DeckGlRenderer } from "../renderers/webgl/deckRenderer";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { use3DOptionsStore } from "../store/options3dStore";
+import { useViewModeState } from "../store/viewModeState";
 import { closeDialog, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import { fitContent } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { getElementById } from "../utils/nodeUtils";
+import { editBurg } from "./burg-editor";
 
 function getRequiredElementById<T extends Element>(id: string): T {
   const element = getElementById<T>(id);
@@ -14,42 +19,57 @@ function getRequiredElementById<T extends Element>(id: string): T {
   return element;
 }
 
+document.addEventListener("fmg:3d-burg-select", event => {
+  if (!(event instanceof CustomEvent)) return;
+  const detail: unknown = event.detail;
+  if (!detail || typeof detail !== "object" || !("burgId" in detail)) return;
+  const burgId = detail.burgId;
+  const canvas = getElementById<HTMLCanvasElement>("canvas3d");
+  if (typeof burgId !== "number" || !Number.isInteger(burgId) || burgId <= 0 || canvas?.dataset.type !== "viewMesh")
+    return;
+  editBurg(burgId);
+});
+
+document.addEventListener("fmg:viewmesh-satellite-terrain-mode-changed", event => {
+  if (!(event instanceof CustomEvent) || typeof event.detail !== "boolean") return;
+  const canvas = getElementById<HTMLCanvasElement>("canvas3d");
+  if (canvas?.dataset.type !== "viewMesh") return;
+
+  if (event.detail) DeckGlRenderer.suspend(viewContext);
+  else DeckGlRenderer.resume(worldContext, viewContext, appServices);
+});
+
 // ─── View mode / 3D ───────────────────────────────────────────────────────────
 
 export function changeViewMode(event: MouseEvent): void {
   const button = event.target as HTMLElement;
   if (button.tagName !== "BUTTON") return;
-  const pressed = button.classList.contains("pressed");
+  const pressed = useViewModeState.getState().activeViewMode === button.id;
   enterStandardView();
 
-  const viewStandardEl = getElementById<HTMLElement>("viewStandard");
   if (!pressed && button.id !== "viewStandard") {
-    viewStandardEl?.classList.remove("pressed");
-    button.classList.add("pressed");
+    useViewModeState.getState().setActiveViewMode(button.id);
     enter3dView(button.id);
   }
 }
 
 export function enterStandardView(): void {
-  const viewModeEl = getElementById<HTMLElement>("viewMode");
-  const heightmap3DViewEl = getElementById<HTMLElement>("heightmap3DView");
-  const viewStandardEl = getElementById<HTMLElement>("viewStandard");
-
-  viewModeEl?.querySelectorAll(".pressed").forEach(button => {
-    button.classList.remove("pressed");
-  });
-  heightmap3DViewEl?.classList.remove("pressed");
-  viewStandardEl?.classList.add("pressed");
+  useViewModeState.getState().setActiveViewMode("viewStandard");
 
   const canvas3d = getElementById<HTMLCanvasElement>("canvas3d");
   if (!canvas3d) return;
   ThreeDRenderer.stop();
+  DeckGlRenderer.resume(worldContext, viewContext, appServices);
   canvas3d.remove();
 
   const mapEl = getElementById<SVGSVGElement>("map");
   if (mapEl) {
     mapEl.style.visibility = "visible";
     mapEl.style.pointerEvents = "auto";
+  }
+  if (viewContext.webglCanvas) {
+    viewContext.webglCanvas.style.visibility = "";
+    viewContext.webglCanvas.style.pointerEvents = "";
   }
 
   if (isDialogOpen("options3d")) closeDialog("options3d");
@@ -74,7 +94,15 @@ async function enter3dView(type: string): Promise<void> {
     canvas.style.pointerEvents = "auto";
   }
 
+  const isSatelliteTerrain =
+    type === "viewMesh" &&
+    ThreeDRenderer.options.satellite &&
+    !ThreeDRenderer.options.wireframe &&
+    !ThreeDRenderer.options.sceneOnly;
+  if (isSatelliteTerrain) DeckGlRenderer.suspend(viewContext);
+
   const started = await ThreeDRenderer.create(canvas, type);
+  if (!started && isSatelliteTerrain) DeckGlRenderer.resume(worldContext, viewContext, appServices);
   if (!started) return;
 
   canvas.style.display = "block";
@@ -102,6 +130,12 @@ async function enter3dView(type: string): Promise<void> {
     if (mapEl) {
       mapEl.style.visibility = "hidden";
       mapEl.style.pointerEvents = "none";
+    }
+    if (viewContext.webglCanvas) {
+      // Keep the deck instance alive while 3D owns a second WebGL context. This avoids a costly
+      // rebuild when returning to Standard view and prevents its canvas showing behind canvas3d.
+      viewContext.webglCanvas.style.visibility = "hidden";
+      viewContext.webglCanvas.style.pointerEvents = "none";
     }
 
     if (typeof EditorBus.unselect === "function") EditorBus.unselect();

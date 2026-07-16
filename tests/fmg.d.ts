@@ -23,6 +23,7 @@ interface FMGTestCells {
   h: number[];
   harbor: number[];
   c: number[][];
+  p: Array<[number, number]>;
   [key: string]: unknown;
 }
 
@@ -65,12 +66,18 @@ declare global {
         readonly svg: FMGTestSvgSelection;
         readonly svgWidth: number;
         readonly svgHeight: number;
+        readonly scale: number;
+        readonly viewX: number;
+        readonly viewY: number;
         [key: string]: unknown;
       };
       readonly actions: {
         generate(options?: { seed?: string; graph?: unknown }): Promise<void>;
         zoomTo(x: number, y: number, scale: number, duration?: number): void;
         resetZoom(duration?: number): void;
+        setRenderMode(mode: "svg" | "webglHybrid"): void;
+        toggleLayer(id: string, event?: MouseEvent): void;
+        handleLayersPresetChange(preset: string): void;
         getWorldState(): unknown;
         layerIsOn(id: string): boolean;
         toggleLabels(event?: MouseEvent): void;

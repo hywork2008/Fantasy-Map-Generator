@@ -8,6 +8,7 @@ import {
   selectStyleElement
 } from "../../../controllers/style";
 import { useStyleState } from "../../../store/styleState";
+
 import { EnvironmentStylePanel } from "./style/EnvironmentStylePanel";
 import { OverlaysStylePanel } from "./style/OverlaysStylePanel";
 import { PoliticalStylePanel } from "./style/PoliticalStylePanel";
@@ -36,11 +37,11 @@ export function StyleTab() {
   const CUSTOM_PRESET_PREFIX = "fmgStyle_";
 
   return (
-    <div id="styleContent" className="tabcontent" style={{ display: "block" }}>
+    <div id="styleContent" className="tabcontent d-block">
       {/* ─── Preset selector ─── */}
       <p
         data-tip="Select a style preset. State labels may required regeneration if font is changed"
-        style={{ display: "inline-block" }}
+        className="d-inline-block"
       >
         Style preset:
       </p>
@@ -49,7 +50,6 @@ export function StyleTab() {
         id="stylePreset"
         value={activePreset}
         onChange={e => requestStylePresetChange(e.target.value)}
-        style={{ width: "45%", textTransform: "capitalize" }}
       >
         {systemPresets.map(name => (
           <option key={name} value={name}>
@@ -65,8 +65,7 @@ export function StyleTab() {
       <button
         id="addStyleButton"
         data-tip="Click to save current style as a new preset"
-        className="icon-plus sideButton"
-        style={{ display: "inline-block" }}
+        className="icon-plus sideButton d-inline-block"
         onClick={() => addStylePreset()}
         type="button"
       />
@@ -78,7 +77,6 @@ export function StyleTab() {
         onClick={() => requestRemoveStylePreset()}
         type="button"
       />
-
       {/* ─── Sub-tab bar ─── */}
       <div className="tab">
         {(["environment", "terrain", "political", "settlements", "overlays"] as StyleSubTab[]).map(tab => (
@@ -87,20 +85,17 @@ export function StyleTab() {
             type="button"
             className={`options${activeSubTab === tab ? " active" : ""}`}
             onClick={() => handleSubTabChange(tab)}
-            style={{ textTransform: "capitalize" }}
           >
             {tab}
           </button>
         ))}
       </div>
-
       {/* ─── Active panel ─── */}
       {activeSubTab === "environment" && <EnvironmentStylePanel />}
       {activeSubTab === "terrain" && <TerrainStylePanel />}
       {activeSubTab === "political" && <PoliticalStylePanel />}
       {activeSubTab === "settlements" && <SettlementsStylePanel />}
       {activeSubTab === "overlays" && <OverlaysStylePanel />}
-
       {/* ─── Global map filters ─── */}
       <div
         id="mapFilters"

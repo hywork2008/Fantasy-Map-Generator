@@ -35,7 +35,7 @@ export const SliderInput = ({
   };
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "0.4em" }} className={className}>
+    <div className={`d-flex ${className}`}>
       {children}
       <input
         id={id}
@@ -46,7 +46,6 @@ export const SliderInput = ({
         value={value}
         data-stored={dataStored}
         onChange={handleChange}
-        style={{ flex: 1 }}
       />
       <input
         type="number"
@@ -56,7 +55,6 @@ export const SliderInput = ({
         value={value}
         data-stored={dataStored}
         onChange={handleChange}
-        style={{ width: "4em" }}
       />
     </div>
   );

@@ -1,8 +1,9 @@
-import { curveCatmullRom, easeLinear, line } from "d3";
+import { curveCatmullRom, easeLinear, line, select } from "d3";
 import type { Point } from "../../hostCore";
 import { minmax } from "../../hostUtils";
-import { getTradeAnimLayer, getViewContext } from "../economyContext";
-import { TradeAnimation, type TradeBatch } from "../generators/trade-animation";
+import { getApi, getTradeAnimLayer, getViewContext, getWorldContext } from "../economyContext";
+import type { Caravan } from "../generators/marketTypes";
+import { TradeAnimation } from "../generators/trade-animation";
 
 const lineGen = line<Point>().curve(curveCatmullRom.alpha(0.1));
 
@@ -12,11 +13,18 @@ const MARKER_SYMBOLS = {
 } as const;
 
 let symbolsReady: Promise<void> | null = null;
+let highlightedPoints: Point[] | null = null;
+
+export function getHighlightedPoints(): Point[] | null {
+  return highlightedPoints;
+}
 
 function getOrCreateDefs(): Element {
-  const existing = getViewContext().svg.select<Element>("#trade-markers").node();
+  const layer = getTradeAnimLayer();
+  if (!layer) return document.createElementNS("http://www.w3.org/2000/svg", "g"); // fallback
+  const existing = layer.select<Element>("#trade-markers").node();
   if (existing) return existing;
-  return getViewContext().svg.append<SVGGElement>("g").attr("id", "trade-markers").node()!;
+  return layer.append<SVGGElement>("g").attr("id", "trade-markers").node()!;
 }
 
 function ensureSymbols(): Promise<void> {
@@ -40,124 +48,161 @@ function ensureSymbols(): Promise<void> {
   return symbolsReady;
 }
 
-export async function draw(
-  batch: TradeBatch,
-  segments: { type: "land" | "water"; points: Point[] }[],
-  onComplete?: () => void,
-  isCancelled?: () => boolean
-): Promise<void> {
-  await ensureSymbols();
-  animateSegment(0);
+export function getCaravanPosition(caravan: Caravan): { x: number; y: number; angle: number; type: "land" | "water" } {
+  const segments = caravan.routeSegments;
+  if (!segments || segments.length === 0) return { x: 0, y: 0, angle: 0, type: "land" };
 
-  function animateSegment(idx: number) {
-    if (isCancelled?.()) return;
-    if (!segments || idx >= segments.length) {
-      onComplete?.();
-      return;
+  const targetDistance = caravan.currentDistance / getWorldContext().distanceScale;
+  let currentDist = 0;
+
+  for (const seg of segments) {
+    const points = seg.points;
+    for (let i = 0; i < points.length - 1; i++) {
+      const [x1, y1] = points[i];
+      const [x2, y2] = points[i + 1];
+      const dist = Math.hypot(x2 - x1, y2 - y1);
+
+      if (currentDist + dist >= targetDistance) {
+        const frac = dist > 0 ? (targetDistance - currentDist) / dist : 0;
+        const clampedFrac = Math.max(0, Math.min(1, frac));
+        const x = x1 + (x2 - x1) * clampedFrac;
+        const y = y1 + (y2 - y1) * clampedFrac;
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        return { x, y, angle, type: seg.type };
+      }
+      currentDist += dist;
     }
+  }
 
-    const segment = segments[idx];
-    const anim = TradeAnimation.getOptions();
-    const size = anim.markerSize;
-    const imgSize = segment.type === "land" ? size / 1.6 : size;
-    const duration = anim.duration;
-    const segDuration = segment.type === "land" ? duration * anim.landDurationModifier : duration;
+  const lastSeg = segments[segments.length - 1];
+  const lastPoint = lastSeg.points[lastSeg.points.length - 1];
+  return { x: lastPoint[0], y: lastPoint[1], angle: 0, type: lastSeg.type };
+}
 
-    const group = getTradeAnimLayer()!.append("g");
+export async function draw(): Promise<void> {
+  if (getViewContext().renderMode === "webglHybrid") {
+    getApi().requestWebglRender();
+    return;
+  }
+
+  const layer = getTradeAnimLayer();
+  if (!layer) return;
+
+  const world = getWorldContext();
+  const caravans = (world.pack.caravans || []).filter(c => c.state === "transit");
+
+  if (caravans.length === 0) {
+    layer.selectAll("g.caravan").remove();
+    return;
+  }
+
+  await ensureSymbols();
+
+  const animOptions = TradeAnimation.getOptions();
+  const size = animOptions.markerSize;
+
+  const groups = layer.selectAll<SVGGElement, Caravan>("g.caravan").data(caravans, c => c.i);
+
+  groups.exit().transition().duration(500).style("opacity", 0).remove();
+
+  const enter = groups.enter().append("g").attr("class", "caravan");
+
+  enter.append("use").attr("pointer-events", "none");
+
+  enter
+    .append("circle")
+    .attr("r", minmax(size, 2, 6))
+    .attr("fill", "none")
+    .attr("stroke", "none")
+    .attr("pointer-events", "all")
+    .style("cursor", "pointer")
+    .on("pointerdown", (e: PointerEvent) => e.stopPropagation())
+    .on("pointerup", (e: PointerEvent) => e.stopPropagation())
+    .on("click", (e: MouseEvent, d) => {
+      e.stopPropagation();
+      document.dispatchEvent(new CustomEvent("trade:showDetails", { detail: { caravan: d } }));
+    });
+
+  const update = enter.merge(groups);
+
+  update.each(function (d) {
+    const group = select(this);
+    const { x, y, angle, type } = getCaravanPosition(d);
+
+    const imgSize = type === "land" ? size / 1.6 : size;
     group
-      .append("use")
-      .attr("href", `#trade-marker-${segment.type}`)
+      .select("use")
+      .attr("href", `#trade-marker-${type}`)
       .attr("width", imgSize)
       .attr("height", imgSize)
       .attr("x", -imgSize / 2)
-      .attr("y", -imgSize / 2)
-      .attr("pointer-events", "none");
+      .attr("y", -imgSize / 2);
 
-    // Invisible target for click
-    group
-      .append("circle")
-      .attr("r", minmax(size, 2, 6))
-      .attr("fill", "none")
-      .attr("stroke", "none")
-      .attr("pointer-events", "all")
-      .style("cursor", "pointer")
-      .on("click", () => document.dispatchEvent(new CustomEvent("trade:showDetails", { detail: { batch } })));
+    group.select("circle").attr("r", minmax(size, 2, 6));
 
-    // Animate along the path; samples computed lazily and cached at ~1px spacing
-    const tempPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    tempPath.setAttribute("d", lineGen(segment.points) ?? "");
-    const length = tempPath.getTotalLength();
-    const numSamples = Math.max(2, Math.ceil(length) + 1);
-    const lastIdx = numSamples - 1;
-    const points: (Point | undefined)[] = new Array(numSamples);
-    const getSample = (i: number): Point => {
-      const cached = points[i];
-      if (cached) return cached;
-      const p = tempPath.getPointAtLength((i / lastIdx) * length);
-      const pt: Point = [p.x, p.y];
-      points[i] = pt;
-      return pt;
-    };
-    const [sx, sy] = getSample(0);
+    const transform = `translate(${x}, ${y}) rotate(${(angle * 180) / Math.PI})`;
 
-    group
-      .attr("transform", `translate(${sx}, ${sy})`)
-      .transition()
-      .duration(length * segDuration)
-      .ease(easeLinear)
-      .attrTween("transform", () => {
-        return t => {
-          const pos = t * lastIdx;
-          const idx = Math.min(lastIdx - 1, Math.floor(pos));
-          const frac = pos - idx;
-          const [x0, y0] = getSample(idx);
-          const [x1, y1] = getSample(idx + 1);
-          const x = x0 + (x1 - x0) * frac;
-          const y = y0 + (y1 - y0) * frac;
-          const angle0 = Math.atan2(y1 - y0, x1 - x0);
-          let angle = angle0;
-          if (idx + 2 <= lastIdx) {
-            const [x2, y2] = getSample(idx + 2);
-            const angle1 = Math.atan2(y2 - y1, x2 - x1);
-            let delta = angle1 - angle0;
-            if (delta > Math.PI) delta -= 2 * Math.PI;
-            else if (delta < -Math.PI) delta += 2 * Math.PI;
-            angle = angle0 + delta * frac;
-          }
-          return `translate(${x}, ${y}) rotate(${(angle * 180) / Math.PI})`;
-        };
-      })
-      .on("end", () => {
-        group.remove();
-        setTimeout(() => animateSegment(idx + 1), TradeAnimation.getOptions().segmentChangePause);
-      });
-  }
+    if (this.getAttribute("data-initialized")) {
+      // Smooth interpolation to new position
+      group.transition().duration(800).ease(easeLinear).attr("transform", transform);
+    } else {
+      group.attr("transform", transform);
+      this.setAttribute("data-initialized", "true");
+    }
+  });
 }
 
 export function clear(): void {
-  getTradeAnimLayer()?.selectAll("g").interrupt().remove();
-  symbolsReady = null;
-}
-
-export function getPath(points: Point[]): string {
-  return lineGen(points) ?? "";
+  if (getViewContext().renderMode === "webglHybrid") {
+    getApi().requestWebglRender();
+    return;
+  }
+  getTradeAnimLayer()?.selectAll("g.caravan").interrupt().remove();
 }
 
 export function highlight(points: Point[]): void {
+  highlightedPoints = points;
+  if (getViewContext().renderMode === "webglHybrid") {
+    getApi().requestWebglRender();
+    return;
+  }
   const anim = getTradeAnimLayer();
   if (!anim) return;
   anim.selectAll("path.highlight").remove();
+  anim.style("display", null);
   anim
     .append("path")
     .attr("class", "highlight")
-    .attr("d", lineGen(points))
+    .attr("d", lineGen(points) || "")
     .attr("fill", "none")
-    .attr("stroke", "#cc1111")
-    .attr("stroke-width", 0.5)
+    .attr("stroke", "red")
+    .attr("stroke-width", 2)
     .attr("stroke-opacity", 0.7)
+    .attr("stroke-dasharray", "none")
     .attr("stroke-linecap", "round");
 }
 
 export function clearHighlight(): void {
+  highlightedPoints = null;
+  if (getViewContext().renderMode === "webglHybrid") {
+    getApi().requestWebglRender();
+    return;
+  }
   getTradeAnimLayer()?.selectAll("path.highlight").remove();
+}
+
+export function getCaravansAtPoint(mapPoint: Point, padding: number): Caravan[] {
+  const world = getWorldContext();
+  if (!world.pack.caravans?.length) return [];
+  const animOptions = TradeAnimation.getOptions();
+  const displayLimit = Math.min(world.pack.caravans.length, animOptions.concurrent);
+  const activeCaravans = world.pack.caravans.slice(0, displayLimit);
+
+  const [x, y] = mapPoint;
+  const threshold = padding + animOptions.markerSize;
+
+  return activeCaravans.filter(c => {
+    const pos = getCaravanPosition(c);
+    return Math.hypot(pos.x - x, pos.y - y) <= threshold;
+  });
 }

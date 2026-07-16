@@ -26,7 +26,7 @@ const PLATE_FILL = "#f5f5f5";
 const MIN_GOODS_SCALE = 1.5;
 const MAX_GOODS_SCALE = 8;
 
-export function drawGoods(displayedGoods: Set<number>) {
+export function drawGoods(displayedGoods: ReadonlySet<number>) {
   TIME && console.time("drawGoods");
   ensureSubgroups();
 
@@ -59,7 +59,7 @@ function ensureSubgroups() {
  * Returns Map<cellId, bonusGoodProduction> for use in icon min-scale computation.
  */
 function drawGoodsCellsCanvas(
-  displayedGoods: Set<number>,
+  displayedGoods: ReadonlySet<number>,
   biomeProduction: Record<number, { goodId: number; production: number }[]>
 ): Map<number, number> {
   const { graphWidth, graphHeight } = getWorldContext();
@@ -122,7 +122,7 @@ function drawGoodsCellsCanvas(
 }
 
 /** Returns Map<burgId, totalDisplayedProduction> for burg plate min-scale computation. */
-function computeBurgWeights(displayedGoods: Set<number>): Map<number, number> {
+function computeBurgWeights(displayedGoods: ReadonlySet<number>): Map<number, number> {
   const result = new Map<number, number>();
   for (const burg of getWorldContext().pack.burgs) {
     if (!burg.i || burg.removed || !burg.production) continue;
@@ -145,7 +145,7 @@ function weightsToMinScales(weights: Map<number, number>): Map<number, number> {
   return result;
 }
 
-function buildGoodsIconsContent(displayedGoods: Set<number>, cellMinScales: Map<number, number>): string {
+function buildGoodsIconsContent(displayedGoods: ReadonlySet<number>, cellMinScales: Map<number, number>): string {
   if (!displayedGoods.size || !getWorldContext().pack.cells.good) return "";
 
   const drawCircle = +(getGoodsLayer()?.select("#goodsIcons").attr("data-circle") ?? 0);
@@ -166,7 +166,7 @@ function buildGoodsIconsContent(displayedGoods: Set<number>, cellMinScales: Map<
   return html;
 }
 
-function buildGoodsBurgsContent(displayedGoods: Set<number>, burgMinScales: Map<number, number>): string {
+function buildGoodsBurgsContent(displayedGoods: ReadonlySet<number>, burgMinScales: Map<number, number>): string {
   if (!displayedGoods.size) return "";
 
   let html = "";

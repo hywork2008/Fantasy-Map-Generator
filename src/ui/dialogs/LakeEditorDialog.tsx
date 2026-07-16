@@ -3,6 +3,7 @@ import { lakeEditorActions } from "../../controllers/lakes-editor";
 import { useDialogState } from "../../store/dialogState";
 import { useLakeEditorState } from "../../store/lakeEditorState";
 import { getAreaUnit } from "../../utils/domUtils";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -17,21 +18,19 @@ export const LakeEditorDialog: React.FC = () => {
 
   return (
     <Dialog isOpen={isOpen} title="Edit Lake" onClose={() => closeDialog("lakeEditor")}>
-      <div id="lakeBody" style={{ paddingBottom: "0.3em" }}>
+      <div id="lakeBody">
         <div>
-          <div className="label" style={{ width: "4.8em" }}>
-            Name:
-          </div>
-          <span
+          <div className="label">Name:</div>
+          <IconButton
             data-tip="Generate culture-specific name for the lake"
             className="icon-book pointer"
             onClick={() => lakeEditorActions.generateNameCulture()}
-          ></span>
-          <span
+          ></IconButton>
+          <IconButton
             data-tip="Generate random name for the lake"
             className="icon-globe pointer"
             onClick={() => lakeEditorActions.generateNameRandom()}
-          ></span>
+          ></IconButton>
           <input
             data-tip="Type to rename the lake"
             autoCorrect="off"
@@ -45,19 +44,17 @@ export const LakeEditorDialog: React.FC = () => {
         </div>
 
         <div data-tip="Type to change lake type (group)">
-          <div className="label" style={{ width: "4.8em" }}>
-            Type:
-          </div>
-          <span
+          <div className="label">Type:</div>
+          <IconButton
             data-tip="Remove the group"
             className="icon-trash-empty pointer"
             onClick={() => lakeEditorActions.removeLakeGroup()}
-          ></span>
-          <span
+          ></IconButton>
+          <IconButton
             data-tip="Create a new type (group) for the lake"
             className="icon-plus pointer"
             onClick={() => setIsNewGroupInputOpen(!isNewGroupInputOpen)}
-          ></span>
+          ></IconButton>
 
           {isNewGroupInputOpen ? (
             <input
@@ -88,11 +85,11 @@ export const LakeEditorDialog: React.FC = () => {
             </select>
           )}
 
-          <span
+          <IconButton
             data-tip="Edit lake group style in Style Editor"
             className="icon-brush pointer"
             onClick={() => lakeEditorActions.editGroupStyle()}
-          ></span>
+          ></IconButton>
         </div>
 
         <div data-tip="Lake area in selected units">
@@ -140,7 +137,6 @@ export const LakeEditorDialog: React.FC = () => {
           <input disabled value={lakeData.outlet ?? "no"} />
         </div>
       </div>
-
       <div id="lakeFooter">
         <button
           type="button"

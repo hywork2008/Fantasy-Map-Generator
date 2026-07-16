@@ -1,29 +1,12 @@
 import type React from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { zonesEditorActions } from "../../controllers/zones-editor";
 import { setZonesEditorState, useZonesEditorState, type ZoneRowData } from "../../store/zonesEditorState";
 import { FillBox } from "../components/FillBox";
+import { IconButton } from "../components/IconButton";
 import { SliderInput } from "../components/SliderInput";
-
-const SortableHeader: React.FC<{
-  label: string;
-  field: string;
-  sortBy: string;
-  sortDirection: number;
-  width?: string;
-  hide?: boolean;
-  onSort: (field: string) => void;
-}> = ({ label, field, sortBy, sortDirection, width, hide, onSort }) => {
-  let icon = "";
-  if (sortBy === field) {
-    icon = sortDirection === 1 ? " icon-sort-down" : " icon-sort-up";
-  }
-  return (
-    <div className={`sortable ${hide ? "hide" : ""} ${icon}`} style={{ width }} onClick={() => onSort(field)}>
-      {label}
-    </div>
-  );
-};
+import { SortableHeader } from "../components/tables/SortableHeader";
+import { VirtualTableBody } from "../components/VirtualTableBody";
 
 export const ZonesEditorContent: React.FC = () => {
   const state = useZonesEditorState();
@@ -62,119 +45,157 @@ export const ZonesEditorContent: React.FC = () => {
 
   const si = (n: number) => (n > 1000000 ? `${(n / 1000000).toFixed(2)}M` : n > 1000 ? `${(n / 1000).toFixed(2)}k` : n);
 
+  const parentRef = useRef<HTMLDivElement>(null);
+  const sortOrder = sortDirection === 1 ? "asc" : "desc";
+
   return (
     <div id="zonesEditor" className="stable">
-      <div className="header" style={{ gridTemplateColumns: "11em 8em 6em 7em 6em 6em" }}>
-        <SortableHeader label="Zone" field="name" sortBy={sortBy} sortDirection={sortDirection} onSort={handleSort} />
-        <SortableHeader label="Type" field="type" sortBy={sortBy} sortDirection={sortDirection} onSort={handleSort} />
-        <SortableHeader
-          label="Cells"
-          field="cells"
-          sortBy={sortBy}
-          sortDirection={sortDirection}
-          hide
-          onSort={handleSort}
-        />
-        <SortableHeader
-          label="Area"
-          field="area"
-          sortBy={sortBy}
-          sortDirection={sortDirection}
-          hide
-          onSort={handleSort}
-        />
-        <SortableHeader
-          label="Population"
-          field="population"
-          sortBy={sortBy}
-          sortDirection={sortDirection}
-          hide
-          onSort={handleSort}
-        />
+      <div ref={parentRef} className="table" data-type={state.isPercentageMode ? "percentage" : "absolute"}>
+        <table className="fmg-table">
+          <thead>
+            <tr>
+              <SortableHeader
+                label="Zone"
+                field="name"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+                style={{ width: "11em" }}
+              />
+              <SortableHeader
+                label="Type"
+                field="type"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+                style={{ width: "8em" }}
+              />
+              <SortableHeader
+                label="Cells"
+                field="cells"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                numeric
+                className="hide"
+                onSort={handleSort}
+                style={{ width: "6em" }}
+              />
+              <SortableHeader
+                label="Area"
+                field="area"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                numeric
+                className="hide"
+                onSort={handleSort}
+                style={{ width: "7em" }}
+              />
+              <SortableHeader
+                label="Population"
+                field="population"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                numeric
+                className="hide"
+                onSort={handleSort}
+                style={{ width: "6em" }}
+              />
+              <th></th>
+            </tr>
+          </thead>
+          <VirtualTableBody
+            items={sortedZones}
+            scrollElementRef={parentRef}
+            renderRow={z => (
+              <tr
+                key={z.i}
+                className={`states ${z.focused ? "focused" : ""}`}
+                data-id={z.i}
+                style={{ opacity: z.hidden ? 0.5 : 1 }}
+                onMouseEnter={() => zonesEditorActions.highlightOn(z.i)}
+                onMouseLeave={() => zonesEditorActions.highlightOff(z.i)}
+                onClick={_e => {
+                  if (state.customizationMode) {
+                    zonesEditorActions.selectZone(z.i);
+                  }
+                }}
+              >
+                <td className="d-flex">
+                  {/* @ts-ignore */}
+                  <FillBox fill={z.color} onClick={() => zonesEditorActions.changeColor(z.i)} />
+                  <input
+                    className="zoneName"
+                    value={z.name}
+                    onChange={e => zonesEditorActions.changeName(z.i, e.target.value)}
+                    autoCorrect="off"
+                    spellCheck="false"
+                  />
+                </td>
+                <td>
+                  <input
+                    className="zoneType"
+                    value={z.type}
+                    onChange={e => zonesEditorActions.changeType(z.i, e.target.value)}
+                  />
+                </td>
+                <td className="hide">
+                  <span className="icon-check-empty"></span>
+                  <div className="stateCells" style={{ display: "inline-block" }}>
+                    {state.isPercentageMode ? pct(z.cells, state.totalCells) : z.cells}
+                  </div>
+                </td>
+                <td className="hide">
+                  <span className="icon-map-o"></span>
+                  <div className="biomeArea" style={{ display: "inline-block" }}>
+                    {state.isPercentageMode ? pct(z.area, state.totalArea) : `${si(z.area)} sq`}
+                  </div>
+                </td>
+                <td className="hide pointer" onClick={() => zonesEditorActions.changePopulation(z.i)}>
+                  <span className="icon-male"></span>
+                  <div className="zonePopulation" style={{ display: "inline-block" }}>
+                    {state.isPercentageMode ? pct(z.population, state.totalPopulation) : si(z.population)}
+                  </div>
+                </td>
+                <td className="hide">
+                  <span className="icon-resize-vertical"></span>
+                  <IconButton
+                    className={`zoneFog icon-pin ${z.focused ? "" : "inactive"} ${z.cells ? "" : "placeholder"}`}
+                    onClick={() => zonesEditorActions.toggleFog(z.i)}
+                  ></IconButton>
+                  <IconButton
+                    className={`zoneHide icon-eye ${z.cells ? "" : " placeholder"}`}
+                    onClick={() => zonesEditorActions.toggleVisibility(z.i)}
+                  ></IconButton>
+                  <IconButton
+                    className="zoneRemove icon-trash-empty"
+                    onClick={() => zonesEditorActions.removeZone(z.i)}
+                  ></IconButton>
+                </td>
+              </tr>
+            )}
+          />
+        </table>
       </div>
-
-      <div className="table" data-type={state.isPercentageMode ? "percentage" : "absolute"}>
-        {sortedZones.map(z => (
-          <div
-            key={z.i}
-            className={`states ${z.focused ? "focused" : ""}`}
-            data-id={z.i}
-            style={{ opacity: z.hidden ? 0.5 : 1 }}
-            onMouseEnter={() => zonesEditorActions.highlightOn(z.i)}
-            onMouseLeave={() => zonesEditorActions.highlightOff(z.i)}
-            onClick={_e => {
-              if (state.customizationMode) {
-                zonesEditorActions.selectZone(z.i);
-              }
-            }}
-          >
-            {/* @ts-ignore */}
-            <FillBox fill={z.color} onClick={() => zonesEditorActions.changeColor(z.i)} />
-            <input
-              className="zoneName"
-              style={{ width: "11em" }}
-              value={z.name}
-              onChange={e => zonesEditorActions.changeName(z.i, e.target.value)}
-              autoCorrect="off"
-              spellCheck="false"
-            />
-            <input
-              className="zoneType"
-              value={z.type}
-              onChange={e => zonesEditorActions.changeType(z.i, e.target.value)}
-            />
-            <span className="icon-check-empty hide"></span>
-            <div className="stateCells hide">{state.isPercentageMode ? pct(z.cells, state.totalCells) : z.cells}</div>
-            <span className="icon-map-o hide" style={{ paddingRight: 4 }}></span>
-            <div className="biomeArea hide">
-              {state.isPercentageMode ? pct(z.area, state.totalArea) : `${si(z.area)} sq`}
-            </div>
-            <span className="icon-male hide"></span>
-            <div className="zonePopulation hide pointer" onClick={() => zonesEditorActions.changePopulation(z.i)}>
-              {state.isPercentageMode ? pct(z.population, state.totalPopulation) : si(z.population)}
-            </div>
-            <span className="icon-resize-vertical hide"></span>
-            <span
-              className={`zoneFog icon-pin ${z.focused ? "" : "inactive"} hide ${z.cells ? "" : "placeholder"}`}
-              onClick={() => zonesEditorActions.toggleFog(z.i)}
-            ></span>
-            <span
-              className={`zoneHide icon-eye hide ${z.cells ? "" : " placeholder"}`}
-              onClick={() => zonesEditorActions.toggleVisibility(z.i)}
-            ></span>
-            <span
-              className="zoneRemove icon-trash-empty hide"
-              onClick={() => zonesEditorActions.removeZone(z.i)}
-            ></span>
-          </div>
-        ))}
-      </div>
-
       {state.customizationMode === 0 && (
         <div className="totalLine">
-          <div style={{ marginLeft: 5 }}>
+          <div>
             Zones: <span>{state.totalZones}</span>
           </div>
-          <div style={{ marginLeft: 12 }}>
+          <div>
             Cells: <span>{state.totalCells}</span>
           </div>
-          <div style={{ marginLeft: 12 }}>
+          <div>
             Land Area: <span>{si(state.totalArea)}</span>
           </div>
-          <div style={{ marginLeft: 12 }}>
+          <div>
             Population: <span>{si(state.totalPopulation)}</span>
           </div>
         </div>
       )}
-
-      <div className="footer fmg-dialog-footer">
+      <div className="footer footer">
         {state.customizationMode === 0 ? (
           <>
-            <select
-              value={state.filterBy}
-              onChange={e => setZonesEditorState({ filterBy: e.target.value })}
-              style={{ width: "auto" }}
-            >
+            <select value={state.filterBy} onChange={e => setZonesEditorState({ filterBy: e.target.value })}>
               <option value="all">All</option>
               {state.types.map(t => (
                 <option key={t} value={t}>
@@ -228,9 +249,9 @@ export const ZonesEditorContent: React.FC = () => {
             ></button>
           </>
         ) : (
-          <div style={{ display: "inline-flex", alignItems: "center" }}>
-            <div style={{ marginRight: 8, marginTop: -4 }}>
-              <span style={{ fontSize: "11px", marginRight: "4px" }}>Brush size:</span>
+          <div className="d-inline-flex">
+            <div>
+              <span>Brush size:</span>
               <SliderInput
                 min={1}
                 max={100}
@@ -250,7 +271,7 @@ export const ZonesEditorContent: React.FC = () => {
               type="button"
               onClick={() => zonesEditorActions.cancelManualAssignment()}
             ></button>
-            <div style={{ display: "inline-block", marginLeft: 8 }}>
+            <div className="d-inline-block">
               <label>
                 <input
                   type="checkbox"

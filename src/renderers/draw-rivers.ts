@@ -1,8 +1,9 @@
 import type { AppServices } from "../context/appServices";
-import type { EnvironmentLayers } from "../context/viewContext";
+import type { EnvironmentLayers, FocusFields } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Rivers } from "../generators/river-generator";
 import { TIME } from "../utils/debug";
+import { isCellInScope } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
 
 export const RiversRenderer: IRenderer = {
@@ -10,17 +11,20 @@ export const RiversRenderer: IRenderer = {
 
   render(
     worldContext: Readonly<WorldContext>,
-    viewContext: Readonly<EnvironmentLayers>,
+    viewContext: Readonly<EnvironmentLayers & FocusFields>,
     _appServices: AppServices
   ): void {
     TIME && console.time("drawRivers");
     const { pack } = worldContext;
-    const { rivers } = viewContext;
+    const { rivers, focusScope } = viewContext;
 
     rivers.selectAll("*").remove();
 
     const riverPaths = pack.rivers
-      .filter(river => river.cells && river.cells.length >= 2)
+      .filter(
+        river =>
+          river.cells && river.cells.length >= 2 && (!focusScope || river.cells.some(c => isCellInScope(focusScope, c)))
+      )
       .map(river => {
         const { cells: riverCells, points, i, widthFactor, sourceWidth } = river;
 

@@ -16,7 +16,6 @@ export const LoadErrorDialog: React.FC = () => {
       isOpen={isOpen}
       title="Loading error"
       onClose={close}
-      style={{ maxWidth: "40em" }}
       buttons={[
         {
           label: "Clear cache",
@@ -50,9 +49,7 @@ export const LoadErrorDialog: React.FC = () => {
         <p>
           Map version: {mapVersion}. Generator version: {VERSION}.
         </p>
-        <p id="errorBox" style={{ fontFamily: "monospace", fontSize: "0.85em", wordBreak: "break-all" }}>
-          {errorText}
-        </p>
+        <p id="errorBox">{errorText}</p>
       </div>
     </Dialog>
   );

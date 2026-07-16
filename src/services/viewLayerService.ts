@@ -81,6 +81,9 @@ class ViewLayerServiceImpl {
   get temperature() {
     return viewContext.temperature;
   }
+  get danger() {
+    return viewContext.danger;
+  }
 
   // ── Political ─────────────────────────────────────────────────────────────
   get relig() {
@@ -228,6 +231,8 @@ class ViewLayerServiceImpl {
       toggleBorders: viewContext.borders,
       toggleRoutes: viewContext.routes,
       toggleTemperature: viewContext.temperature,
+      toggleDanger: viewContext.danger,
+      toggleCombatDeaths: viewContext.combatDeaths,
       togglePrecipitation: viewContext.prec,
       togglePopulation: viewContext.population,
       toggleIce: viewContext.ice,
@@ -236,8 +241,10 @@ class ViewLayerServiceImpl {
       toggleLabels: viewContext.labels,
       toggleBurgIcons: viewContext.icons,
       toggleMarkers: viewContext.markers,
+      toggleMilitary: viewContext.armies,
       toggleRulers: viewContext.ruler,
-      toggleScaleBar: viewContext.scaleBar
+      toggleScaleBar: viewContext.scaleBar,
+      toggleEnclosure: viewContext.enclosure
     };
     return layerMap[toggleId]?.node() ?? null;
   }

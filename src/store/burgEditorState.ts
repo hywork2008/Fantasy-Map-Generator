@@ -15,10 +15,17 @@ export interface BurgData {
   type: string;
   culture: number;
   population: number; // calculated display population
+  children: number;
+  maleAdults: number;
+  femaleAdults: number;
+  elders: number;
   temperature: string;
   temperatureLikeIn: string;
   elevation: string;
   previewUrl: string | null;
+  production: string;
+  wealth: string;
+  treasury: string;
 
   // Features
   capital: boolean;

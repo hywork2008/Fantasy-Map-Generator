@@ -1,5 +1,6 @@
-import { getWorldState, resetZoom, zoomTo } from "./actions";
+import { getWorldState, resetZoom, setRenderMode, zoomTo } from "./actions";
 import { appServices } from "./context/appServices";
+import { simulationContext } from "./context/simulationContext";
 import type { SvgGroup } from "./context/viewContext";
 import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
@@ -15,6 +16,7 @@ import {
   registerToolAction,
   removePreset,
   savePreset,
+  scheduleWebglUpdate,
   toggleBurgIcons,
   toggleLabels,
   toggleLayerById,
@@ -24,11 +26,24 @@ import {
   unregisterToolAction
 } from "./controllers/layers";
 import { changeViewMode } from "./controllers/viewMode";
+import { injectInfrastructure, injectVisibleUI } from "./dom/initDOM";
 import { initExtensions } from "./extensions/index";
 import { initModules } from "./generators/index";
+import { advanceTime, registerTimeTickHook } from "./generators/timeEngine";
 import { buildGeoJsonZones, saveGeoJsonZones } from "./io/export";
 import { generate, initMain, regenerateMap } from "./main";
 import { initRenderers } from "./renderers/index";
+import {
+  registerExtensionWebglLayers,
+  unregisterExtensionWebglLayers
+} from "./renderers/webgl/extensionWebglLayerRegistry";
+import { burgEconomyExtensions } from "./services/burgEconomyExtensions";
+import { getBurgSiteDescriptor } from "./services/burgSiteDescriptor";
+import {
+  registerExtensionMapPickHandler,
+  unregisterExtensionMapPickHandler
+} from "./services/extensionMapPickHandlers";
+import { getEffectiveSkill, registerSkillModifier } from "./services/skillModifierService";
 import { tooltipExtensions } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
 import { useExtensionState } from "./store/extensionState";
@@ -39,6 +54,12 @@ import { closeDialog, isDialogOpen, openDialog, openRichDialog } from "./ui/dial
 import { removeCircle } from "./utils/domUtils";
 import { initUtils } from "./utils/index";
 import { layerIsOn } from "./utils/nodeUtils";
+
+export interface FMGInitOptions {
+  container?: HTMLElement;
+  drawMap?: boolean;
+  drawUI?: boolean;
+}
 
 function buildExtensionAPI(): ExtensionAPI {
   const extState = useExtensionState.getState;
@@ -89,11 +110,19 @@ function buildExtensionAPI(): ExtensionAPI {
     worldContext,
     viewContext,
     appServices,
+    simulationContext,
 
     registerExtension: (config, defaultEnabled) => extState().registerExtension(config, defaultEnabled),
     registerAction: action => extState().registerAction(action),
     registerDialog: dialog => extState().registerDialog(dialog),
+    registerEditorTab: tab => extState().registerEditorTab(tab),
     registerStyleConfig: config => extState().registerStyleConfig(config),
+    registerBurgOverviewColumn: column => extState().registerBurgOverviewColumn(column),
+    unregisterBurgOverviewColumn: id => extState().unregisterBurgOverviewColumn(id),
+    registerStateOverviewColumn: column => extState().registerStateOverviewColumn(column),
+    unregisterStateOverviewColumn: id => extState().unregisterStateOverviewColumn(id),
+    registerCellInfoRow: row => extState().registerCellInfoRow(row),
+    unregisterCellInfoRow: id => extState().unregisterCellInfoRow(id),
     unregisterExtension: id => extState().unregisterExtension(id),
     toggleExtension: (id, forceState) => extState().toggleExtension(id, forceState),
     isExtensionEnabled: id => extState().enabledExtensions[id] ?? false,
@@ -129,6 +158,11 @@ function buildExtensionAPI(): ExtensionAPI {
     registerMapReinitHook: fn => {
       _mapReinitHooks.push(fn);
     },
+    registerWebglLayers: registerExtensionWebglLayers,
+    unregisterWebglLayers: unregisterExtensionWebglLayers,
+    requestWebglRender: scheduleWebglUpdate,
+    registerMapPickHandler: registerExtensionMapPickHandler,
+    unregisterMapPickHandler: unregisterExtensionMapPickHandler,
 
     openRichDialog,
     openDialog: (id, config) => openDialog(id, config),
@@ -138,43 +172,91 @@ function buildExtensionAPI(): ExtensionAPI {
     registerToolAction,
     unregisterToolAction,
 
+    registerTimeTickHook,
+
+    registerSkillModifier,
+    getEffectiveSkill,
+
     zoomTo,
     restoreDefaultEvents,
     moveCircle,
     removeCircle,
 
-    tooltipExtensions
+    tooltipExtensions,
+    burgEconomyExtensions
   };
 }
 
-async function initApp(): Promise<void> {
-  console.log("initApp starting...");
-  console.log("Initializing React UI...");
-  const { initReactUI } = await import("./ui/index");
-  initReactUI();
-  await new Promise(resolve => setTimeout(resolve, 0));
+export async function initApp(options: FMGInitOptions = {}): Promise<void> {
+  console.log("initApp starting with options:", options);
+
+  const drawMap = options.drawMap ?? true;
+  const drawUI = options.drawUI ?? true;
+
+  let container = options.container;
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "fmg-container";
+    container.style.width = "100%";
+    container.style.height = "100%";
+    document.body.appendChild(container);
+  }
+
+  const mapSvg = document.getElementById("map");
+  if (drawMap) {
+    if (mapSvg && mapSvg.parentElement !== container) {
+      container.appendChild(mapSvg);
+    }
+  } else {
+    if (mapSvg) mapSvg.remove();
+  }
+  // Save options to skip or allow rendering logic
+  viewContext.renderMap = drawMap;
+
+  const defElementsSvg = document.getElementById("defElements");
+  if (defElementsSvg && defElementsSvg.parentElement !== container) {
+    container.appendChild(defElementsSvg);
+  }
+
+  injectInfrastructure(container);
+
+  if (drawUI) {
+    injectVisibleUI(container);
+    console.log("Initializing React UI...");
+    const { initReactUI } = await import("./ui/index");
+    initReactUI(container);
+    await new Promise(resolve => setTimeout(resolve, 0));
+  } else {
+    // If we don't draw UI, we must remove existing placeholders if they were in HTML
+    document.getElementById("loading")?.remove();
+  }
 
   console.log("Initializing utils...");
   initUtils();
   console.log("Initializing modules...");
   initModules();
-  console.log("Initializing renderers...");
-  initRenderers();
+  if (drawMap) {
+    console.log("Initializing renderers...");
+    initRenderers();
+  }
   console.log("Initializing controllers...");
   initControllers(worldContext, viewContext, appServices);
   console.log("Initializing main...");
-  initMain();
+  // We need to pass drawMap to main so it knows not to call drawLayers
+  initMain(drawMap);
 
   // Assemble the public API surface before loading extensions so that
   // dynamically loaded extension modules can call window.fmg.extensionAPI.
   window.fmg = Object.freeze({
     world: worldContext,
     view: viewContext,
+    simulation: simulationContext,
     actions: Object.freeze({
       generate,
       regenerateMap,
       zoomTo,
       resetZoom,
+      setRenderMode,
       toggleLayer: toggleLayerById,
       handleLayersPresetChange,
       savePreset,
@@ -189,7 +271,9 @@ async function initApp(): Promise<void> {
       toggleBurgIcons,
       saveGeoJsonZones,
       getGeoJsonZones: buildGeoJsonZones,
-      editBurg
+      editBurg,
+      advanceTime,
+      getBurgSiteDescriptor
     }),
     extensionAPI: buildExtensionAPI()
   });
@@ -199,5 +283,3 @@ async function initApp(): Promise<void> {
 
   console.log("initApp completed!");
 }
-
-initApp();

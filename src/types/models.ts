@@ -56,6 +56,14 @@ export interface BurgGroup {
   religions?: number[];
 }
 
+export interface BurgDemographics {
+  capacity: number;
+  children: number;
+  maleAdults: number;
+  femaleAdults: number;
+  elders: number;
+}
+
 export interface Burg {
   cell: number;
   x: number;
@@ -84,6 +92,16 @@ export interface Burg {
   product?: number;
   treasury?: number;
   market?: number;
+  demographics?: BurgDemographics;
+  /**
+   * Every state that has ever owned this burg, oldest first, ending with the current owner
+   * (`state`) — appended to on every capture (see localDefense.ts's `captureBurg`). Lets
+   * reconquest logic answer "was this ever legitimately ours?" instead of only seeing whoever
+   * holds it now: regimentMovement.ts's garrison logic uses it to route patrols into a lost
+   * enclave (a burg previously owned by their own state) so they retake it in passing, and it's
+   * available for any future UI/AI decision that needs to judge a reclaim's legitimacy.
+   */
+  stateHistory?: number[];
 }
 
 export interface Culture {
@@ -168,6 +186,42 @@ export interface Marker {
   hidden?: boolean;
 }
 
+/**
+ * Standalone frontier fort/marcher-castle marker guarding a hostile land border at a
+ * chokepoint (river crossing, mountain pass, or road). Independent of any burg — distinct
+ * from the "fort" burg group (see burgs-generator.ts getDefaultGroups()) and from a burg's
+ * own `citadel` flag.
+ */
+export interface FrontierFort {
+  i: number;
+  /** Owning state — the side this fort defends. */
+  state: number;
+  /** The chokepoint cell the fort sits on. Never a burg cell — a town's own citadel already covers that. */
+  cell: number;
+  x: number;
+  y: number;
+  /** Why this cell was chosen; drives icon/legend flavor. */
+  siteType: "river" | "mountain" | "road";
+  /** The hostile state from FrontierSegment.neighborState. */
+  neighborState: number;
+  /** Snapshot of FrontierSegment.threatWeight at generation time. */
+  threatWeight: number;
+  name: string;
+  icon: string;
+  pin: string;
+  size?: number;
+  hidden?: boolean;
+}
+
+export interface Monster {
+  i: number;
+  cell: number;
+  name: string;
+  rarity: number;
+  power: number;
+  type: string;
+}
+
 export interface Province {
   i: number;
   removed?: boolean;
@@ -238,6 +292,17 @@ export interface Campaign {
   defender: number;
 }
 
+export interface ChronicleEvent {
+  id: string;
+  yearsAgo: number;
+  from: number;
+  to: number;
+  fromBurg?: number;
+  toBurg?: number;
+  action: string;
+  rawText: string;
+}
+
 export interface State {
   i: number;
   name: string;
@@ -258,7 +323,7 @@ export interface State {
   rural?: number;
   urban?: number;
   campaigns?: Campaign[];
-  diplomacy?: string[];
+  diplomacy?: (string | string[] | ChronicleEvent[] | [string, ChronicleEvent])[];
   formName?: string;
   fullName?: string;
   form?: string;
@@ -269,6 +334,38 @@ export interface State {
   salesTax?: number;
   pollTax?: number;
   treasury?: number;
+  /** Fraction of population-equivalent grain paid to the suzerain each generation (Vassal states only). */
+  tributeRate?: number;
+  /** Computed grain-equivalent tribute amount paid to the suzerain (Vassal states only). */
+  tributePaid?: number;
+
+  // ── Manpower / agriculture simulation (docs/plan/military/manpower-ecosystem.md) ──
+  /**
+   * True after initial under-arms headcount has been deducted from civilian maleAdults
+   * so troops are not double-counted in the population pyramid.
+   */
+  manpowerReconciled?: boolean;
+  /** 0..~1.5 food disruption from fighting in planting/harvest seasons. */
+  foodStress?: number;
+  /** In-year spring war exposure (day-weighted, seasonality-scaled). */
+  plantingExposure?: number;
+  /** In-year autumn war exposure. */
+  harvestExposure?: number;
+  /** Carry-over fraction of last year's foodStress into the next year. */
+  agricultureCarryOver?: number;
+  /** Calendar year the exposure buffers belong to. */
+  agricultureYear?: number;
+  /**
+   * 0..1 wartime supply strain (Economy warIntensity / food logistics).
+   * Core derives draft/recovery penalties from this + foodStress when set.
+   */
+  supplyStrain?: number;
+  /**
+   * Raw-score-unit aggregate stock of food-tagged goods reachable by this state (Economy
+   * extension, burg-weighted apportionment across market territories; refreshed every
+   * production cycle by stateEconomySummary.ts's refreshStateEconomySummaries()).
+   */
+  foodStock?: number;
 }
 
 export interface Zone {
@@ -289,6 +386,8 @@ export interface MilitaryUnit {
   power: number;
   type: string;
   separate: number;
+  /** Whether the unit can be recruited. Omitted/undefined counts as enabled — only `false` disables it. */
+  enabled?: boolean;
   biomes?: number[];
   states?: number[];
   cultures?: number[];
@@ -313,6 +412,55 @@ export interface MilitaryRegiment {
   children?: MilitaryRegiment[];
   state: number;
   angle?: number;
+  /** State id of the vassal territory this regiment is garrisoned in, if not stationed at home. */
+  garrisonHost?: number;
+  /**
+   * Primary recruitment province for manpower fill/draft (docs/plan/military/manpower-ecosystem.md §4.2).
+   * Set at Military.generate from the spawn anchor cell; 0 = no province / statewide pool.
+   */
+  homeProvince?: number;
+  /**
+   * Combat effectiveness 0..1 (1 = fully trained). Fresh recruits dilute quality
+   * (manpower-ecosystem Phase 5). Omitted/undefined treated as 1 for legacy data.
+   */
+  quality?: number;
+  /** True for the state's dedicated capital guard regiment (never merged with field armies). */
+  isCapitalGuard?: boolean;
+  /** pack.characters id of the officer commanding this regiment, if one has been assigned. */
+  commanderId?: number;
+  /**
+   * Movement (docs/plan/military-movement.md Phase 2), all set together by
+   * regimentMovement.ts and cleared together once the destination is reached or abandoned.
+   * `undefined` destinationCell/path means the regiment is holding its current position.
+   */
+  /** Cell this regiment is currently marching toward. */
+  destinationCell?: number;
+  /** Ordered land/sea-route (or off-road BFS) cell sequence from march start to `destinationCell`, inclusive. */
+  path?: number[];
+  /** Index into `path` of the last fully-reached node; `path[pathIndex]` === `cell`. */
+  pathIndex?: number;
+  /** Map-unit distance advanced past `path[pathIndex]` toward `path[pathIndex + 1]`, used to interpolate `x`/`y` between ticks. */
+  edgeProgress?: number;
+  /** True when `path` came from the off-road cells.c fallback (no charted road/trail) rather than a route graph — see regimentMovement.ts's OFF_ROAD_SPEED_MULTIPLIER. */
+  offRoad?: boolean;
+  /**
+   * `i` of the field army this regiment was split off from as a detachment (docs/plan/military-movement.md
+   * Phase 4, dynamic hierarchy mode only). Undefined for ordinary regiments. Only meaningful until the next
+   * full `Military.generate()` rebuild — like `i` itself, it is not a stable cross-rebuild identity.
+   */
+  parentId?: number;
+  /** Current tactical status for rendering action icons (e.g. 🎯 for battled, 🎪 for waiting) */
+  actionStatus?: "battled" | "waiting";
+  /**
+   * `targetBurg` of the owning state's StrategicGoal (simulationContext.ts) this regiment is
+   * currently counted toward, if any — set by strategic-planner.ts's advanceTension() when it
+   * tallies a regiment within reinforcement range of a siege target. Lets evaluatePlans() clear
+   * march orders only for regiments tied to a cancelled goal instead of the whole army (see
+   * docs/plan/military-time-advance-review-findings.md §1.7). A regiment left without a goal
+   * this way isn't immediately re-tasked — it falls back to its own local reaction-layer
+   * decision (regimentMovement.ts's applyReactionMarchOrder) until the ruler issues a new one.
+   */
+  goalTargetBurg?: number;
 }
 
 export interface Platoon {
@@ -326,6 +474,10 @@ export interface Platoon {
   s: number;
   type: string;
   children?: Platoon[];
+  /** Province id this platoon was recruited in (0 = no province). */
+  province: number;
+  /** Ocean/sea feature id for naval units. */
+  waterBody?: number;
 }
 
 export interface NameBase {

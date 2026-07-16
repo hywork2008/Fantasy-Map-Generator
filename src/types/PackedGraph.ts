@@ -3,8 +3,10 @@ import type { Quadtree } from "d3";
 import type {
   Burg,
   Culture,
+  FrontierFort,
   IceElement,
   Marker,
+  Monster,
   PackedGraphFeature,
   Province,
   Religion,
@@ -37,12 +39,20 @@ export interface PackedGraphCells {
   culture: TypedArray; // cell culture id
   biome: TypedArray; // cell biome id
   harbor: TypedArray; // cell harbour presence
+  /** Water cell enclosure score, 0 (open ocean) - 100 (fully landlocked); 0 for land cells. Debug-only. */
+  enclosure: TypedArray;
   burg: TypedArray; // cell burg id
   religion: TypedArray; // cell religion id
   state: TypedArray; // cell state id
   area: TypedArray; // cell area
   province: TypedArray; // cell province id
   routes: Record<number, Record<number, number>>;
+  danger: TypedArray; // cell threat/danger level
+  capacity: TypedArray; // cell population carrying capacity
+  children: TypedArray; // cell children pop
+  maleAdults: TypedArray; // cell male adults pop
+  femaleAdults: TypedArray; // cell female adults pop
+  elders: TypedArray; // cell elders pop
 }
 
 export interface PackedGraphVertices {
@@ -66,6 +76,8 @@ export interface PackedGraph {
   religions: Religion[];
   zones: Zone[];
   markers: Marker[];
+  frontierForts: FrontierFort[];
   ice: IceElement[];
   provinces: Province[];
+  monsters: Monster[];
 }

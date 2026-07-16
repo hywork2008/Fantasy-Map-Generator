@@ -3,6 +3,7 @@ import { Burgs } from "../generators/burgs-generator";
 import { Cultures } from "../generators/cultures-generator";
 import { COA } from "../generators/emblem/generator";
 import { Features } from "../generators/features";
+import { FrontierForts } from "../generators/frontierFortsGenerator";
 import { HeightmapGenerator } from "../generators/heightmap-generator";
 import { Ice } from "../generators/ice";
 import { Lakes } from "../generators/lakes";
@@ -23,6 +24,7 @@ export const GenerationPipeline = {
   Cultures,
   COA,
   Features,
+  FrontierForts,
   HeightmapGenerator,
   Ice,
   Lakes,

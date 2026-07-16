@@ -1,8 +1,9 @@
 import * as d3 from "d3";
-import { tip } from "../../services/tooltipService";
-import { type CellInfoData, useCellInfoState } from "../../store/cellInfoState";
-import { rn } from "../../utils/numberUtils";
+import { tip } from "../hostServices";
+import { useCellInfoState } from "../hostUi";
+import { rn } from "../hostUtils";
 import { getWorldContext } from "./economyContext";
+import { getBurgMarketLedger, getDominantMerchant, getMerchantName } from "./generators/burgMarketLedgers";
 import { Goods } from "./generators/goods-generator";
 import { Markets } from "./generators/markets-generator";
 import { Production } from "./generators/production-generator";
@@ -71,22 +72,22 @@ export function showEconomyTooltip(
 
 export function updateEconomyCellInfo(_point: [number, number], i: number, _g: number): void {
   const cells = getWorldContext().pack.cells;
-  const updateData: Partial<CellInfoData> = {};
+  const extra: Record<string, string> = {};
 
-  updateData.good = cells.good[i] ? `${Goods.get(cells.good[i])?.name ?? "unknown"} (${cells.good[i]})` : "no";
+  extra.good = cells.good[i] ? `${Goods.get(cells.good[i])?.name ?? "unknown"} (${cells.good[i]})` : "no";
 
   const marketId = cells.market?.[i];
   if (marketId) {
     const market = Markets.get(marketId);
     const centerBurg = market && getWorldContext().pack.burgs[market.centerBurgId];
-    updateData.market = centerBurg ? `${centerBurg.name} market (${marketId})` : `market ${marketId}`;
+    extra.market = centerBurg ? `${centerBurg.name} market (${marketId})` : `market ${marketId}`;
   } else {
-    updateData.market = "no";
+    extra.market = "no";
   }
 
   const cellProduced = getCellProduction(i, Goods.getBiomesProduction());
   const cellEntries = Object.entries(cellProduced).filter(([, amt]) => amt > 0);
-  updateData.cellProduction = cellEntries.length
+  extra.cellProduction = cellEntries.length
     ? cellEntries.map(([id, amt]) => `${Goods.get(+id)?.name ?? id}: ${rn(amt, 2)}`).join(", ")
     : "none";
 
@@ -95,12 +96,17 @@ export function updateEconomyCellInfo(_point: [number, number], i: number, _g: n
     const burg = getWorldContext().pack.burgs[burgId];
     const burgProduced = Production.getBurgProduction(burg);
     const burgEntries = Object.entries(burgProduced).filter(([, amt]) => amt > 0);
-    updateData.burgProduction = burgEntries.length
+    extra.burgProduction = burgEntries.length
       ? burgEntries.map(([id, amt]) => `${Goods.get(+id)?.name ?? id}: ${rn(amt, 2)}`).join(", ")
       : "none";
+    const dominant = getDominantMerchant(getBurgMarketLedger(burgId));
+    extra.marketHolder = dominant
+      ? `${getMerchantName(dominant.characterId)} (${dominant.share.toFixed(1)}%)`
+      : "unassigned";
   } else {
-    updateData.burgProduction = "n/a";
+    extra.burgProduction = "n/a";
+    extra.marketHolder = "n/a";
   }
 
-  useCellInfoState.getState().updateInfo(updateData);
+  useCellInfoState.getState().updateInfo({ extra });
 }

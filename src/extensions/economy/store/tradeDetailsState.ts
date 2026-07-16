@@ -10,6 +10,7 @@ export interface TradeSummary {
 }
 
 export interface TradeDealRow {
+  dealId: number;
   goodId: number;
   goodName: string;
   goodColor: string;

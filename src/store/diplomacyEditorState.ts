@@ -1,12 +1,16 @@
 import { create } from "zustand";
 
+export type ConflictStatus = "autonomous" | "player" | "suspended" | "none";
+
 export interface DiplomacyRowData {
   i: number;
   name: string;
   fullName: string;
   color: string;
   relation: string;
+  conflictStatus: ConflictStatus;
   inText: string;
+  totalForces: number;
 }
 
 export interface DiplomacyRelationDialogData {

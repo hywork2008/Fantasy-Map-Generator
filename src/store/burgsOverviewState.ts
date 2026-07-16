@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { dialogStore } from "./dialogState";
 
 export interface BurgsOverviewState {
   sortBy: string;
@@ -6,6 +7,8 @@ export interface BurgsOverviewState {
   searchText: string;
   filterStateId: number;
   filterCultureId: number;
+  filterProvinceId: number;
+  filterGroup: string;
   addMode: boolean;
   refreshCounter: number;
   initialStateId: number | null;
@@ -14,6 +17,8 @@ export interface BurgsOverviewState {
   setSearchText: (text: string) => void;
   setFilterStateId: (id: number) => void;
   setFilterCultureId: (id: number) => void;
+  setFilterProvinceId: (id: number) => void;
+  setFilterGroup: (group: string) => void;
   setAddMode: (active: boolean) => void;
   open: (stateId?: number | null, cultureId?: number | null) => void;
   refresh: () => void;
@@ -25,6 +30,8 @@ export const useBurgsOverviewState = create<BurgsOverviewState>(set => ({
   searchText: "",
   filterStateId: -1,
   filterCultureId: -1,
+  filterProvinceId: -1,
+  filterGroup: "",
   addMode: false,
   refreshCounter: 0,
   initialStateId: null,
@@ -37,6 +44,8 @@ export const useBurgsOverviewState = create<BurgsOverviewState>(set => ({
   setSearchText: text => set({ searchText: text }),
   setFilterStateId: id => set({ filterStateId: id }),
   setFilterCultureId: id => set({ filterCultureId: id }),
+  setFilterProvinceId: id => set({ filterProvinceId: id }),
+  setFilterGroup: group => set({ filterGroup: group }),
   setAddMode: active => set({ addMode: active }),
   open: (stateId = null, cultureId = null) =>
     set({
@@ -44,7 +53,15 @@ export const useBurgsOverviewState = create<BurgsOverviewState>(set => ({
       initialCultureId: cultureId,
       filterStateId: stateId ?? -1,
       filterCultureId: cultureId ?? -1,
+      filterProvinceId: -1,
+      filterGroup: "",
       refreshCounter: 0
     }),
   refresh: () => set(state => ({ refreshCounter: state.refreshCounter + 1 }))
 }));
+
+document.addEventListener("fmg:refresh-editors", () => {
+  if (dialogStore.getState().openDialogs.has("burgsOverview")) {
+    useBurgsOverviewState.getState().refresh();
+  }
+});

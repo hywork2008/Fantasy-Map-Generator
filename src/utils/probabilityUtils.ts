@@ -2,6 +2,19 @@ import { randomNormal } from "d3";
 
 import { minmax, rn } from "./numberUtils";
 
+export interface RNGService {
+  rand(min?: number, max?: number): number;
+  P(probability: number): boolean;
+  each(n: number): (i: number) => boolean;
+  gauss(expected?: number, deviation?: number, min?: number, max?: number, round?: number): number;
+  Pint(float: number): number;
+  ra<T>(array: T[]): T;
+  rw(object: { [key: string]: number }): string;
+  biased(min: number, max: number, ex: number): number;
+  getNumberInRange(r: string): number;
+  generateSeed(): string;
+}
+
 /**
  * Creates a random number between min and max (inclusive). If only one argument is provided, it will be considered as max and min will be 0. If no arguments are provided, it returns a random float between 0 and 1.
  * @param {number} min - minimum value
@@ -132,6 +145,64 @@ export const getNumberInRange = (r: string): number => {
  */
 export const generateSeed = (): string => {
   return String(Math.floor(Math.random() * 1e9));
+};
+
+/**
+ * Builds an RNGService backed by `source` instead of the (globally reassignable) `Math.random`.
+ * Used for subsystems — e.g. the live tick-driven military simulation — that must stay
+ * deterministic for a given seed regardless of unrelated Math.random() calls made elsewhere
+ * during the session (UI id generation, autosave, etc.).
+ */
+export const createRNGService = (source: () => number): RNGService => {
+  const rand: RNGService["rand"] = (min, max) => {
+    if (min === undefined && max === undefined) return source();
+    if (max === undefined) {
+      max = min;
+      min = 0;
+    }
+    return Math.floor(source() * (max! - min! + 1)) + min!;
+  };
+
+  const P: RNGService["P"] = probability => {
+    if (probability >= 1) return true;
+    if (probability <= 0) return false;
+    return source() < probability;
+  };
+
+  const each: RNGService["each"] = n => i => i % n === 0;
+
+  const gauss: RNGService["gauss"] = (expected = 100, deviation = 30, min = 0, max = 300, round = 0) =>
+    rn(minmax(randomNormal.source(source)(expected, deviation)(), min, max), round);
+
+  const Pint: RNGService["Pint"] = float => ~~float + +P(float % 1);
+
+  const ra: RNGService["ra"] = array => array[Math.floor(source() * array.length)];
+
+  const rw: RNGService["rw"] = object => {
+    const array: string[] = [];
+    for (const key in object) {
+      for (let i = 0; i < object[key]; i++) array.push(key);
+    }
+    return array[Math.floor(source() * array.length)];
+  };
+
+  const biased: RNGService["biased"] = (min, max, ex) => Math.round(min + (max - min) * source() ** ex);
+
+  const getNumberInRange: RNGService["getNumberInRange"] = r => {
+    if (typeof r !== "string") return 0;
+    if (!Number.isNaN(+r)) return ~~r + +P(+r - ~~r);
+    const sign = r[0] === "-" ? -1 : 1;
+    if (Number.isNaN(+r[0])) r = r.slice(1);
+    const range = r.includes("-") ? r.split("-") : null;
+    if (!range) return 0;
+    const count = rand(parseFloat(range[0]) * sign, +parseFloat(range[1]));
+    if (Number.isNaN(count) || count < 0) return 0;
+    return count;
+  };
+
+  const generateSeed: RNGService["generateSeed"] = () => String(Math.floor(source() * 1e9));
+
+  return { rand, P, each, gauss, Pint, ra, rw, biased, getNumberInRange, generateSeed };
 };
 
 declare global {

@@ -1,6 +1,7 @@
 import { worldContext } from "../context/worldContext";
 import { Names } from "../generators/names-generator";
 import { appendOceanPathsToSaveSVG } from "../renderers/ocean-layers";
+import { withSvgSnapshot } from "../services/svgSnapshot";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers } from "../store/editorState";
@@ -16,7 +17,11 @@ import { ldb } from "./ldb";
 
 // ─── Map serialization ────────────────────────────────────────────────────────
 
-export function prepareMapData(): string {
+export async function prepareMapData(): Promise<string> {
+  return withSvgSnapshot(prepareMapDataFromSvg);
+}
+
+function prepareMapDataFromSvg(): string {
   const date = new Date();
   const dateString = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
   const license = "File can be loaded in azgaar.github.io/Fantasy-Map-Generator";
@@ -130,6 +135,7 @@ export function prepareMapData(): string {
   const provinces = JSON.stringify(worldContext.pack.provinces);
   const rivers = JSON.stringify(worldContext.pack.rivers);
   const markers = JSON.stringify(worldContext.pack.markers);
+  const frontierForts = JSON.stringify(worldContext.pack.frontierForts ?? []);
   const cellRoutes = JSON.stringify(worldContext.pack.cells.routes);
   const routes = JSON.stringify(worldContext.pack.routes);
   const zones = JSON.stringify(worldContext.pack.zones);
@@ -137,6 +143,15 @@ export function prepareMapData(): string {
   const goods = JSON.stringify(worldContext.pack.goods ?? []);
   const markets = JSON.stringify(worldContext.pack.markets ?? []);
   const deals = JSON.stringify(worldContext.pack.deals ?? []);
+  const characters = JSON.stringify(worldContext.pack.characters ?? []);
+  // Extension-owned strategic economy state is kept in one trailing slot so older
+  // map files remain readable without changing the host's established indices.
+  const strategicEconomy = JSON.stringify({
+    strategicProcurementOrders: worldContext.pack.strategicProcurementOrders ?? [],
+    strategicGoodsPolicies: worldContext.pack.strategicGoodsPolicies ?? [],
+    nextStrategicProcurementOrderId: worldContext.pack.nextStrategicProcurementOrderId ?? 0,
+    strategicLaborMarkets: worldContext.pack.strategicLaborMarkets ?? []
+  });
 
   // store name array only if not the same as default
   const defaultNB = Names.getNameBases();
@@ -149,6 +164,11 @@ export function prepareMapData(): string {
 
   // round population to save space
   const pop = Array.from(worldContext.pack.cells.pop).map(p => rn(p, 4));
+  const capacity = Array.from(worldContext.pack.cells.capacity ?? []).map(p => rn(p, 4));
+  const demoChildren = Array.from(worldContext.pack.cells.children ?? []).map(p => rn(p, 4));
+  const demoMaleAdults = Array.from(worldContext.pack.cells.maleAdults ?? []).map(p => rn(p, 4));
+  const demoFemaleAdults = Array.from(worldContext.pack.cells.femaleAdults ?? []).map(p => rn(p, 4));
+  const demoElders = Array.from(worldContext.pack.cells.elders ?? []).map(p => rn(p, 4));
 
   const mapData = [
     params,
@@ -195,7 +215,15 @@ export function prepareMapData(): string {
     goods, // [41] goods
     markets, // [42] markets
     deals, // [43] deals
-    worldContext.pack.cells.market ?? new Uint16Array(0) // [44] cells.market
+    worldContext.pack.cells.market ?? new Uint16Array(0), // [44] cells.market
+    characters, // [45] characters
+    capacity, // [46] cells.capacity
+    demoChildren, // [47] cells.children
+    demoMaleAdults, // [48] cells.maleAdults
+    demoFemaleAdults, // [49] cells.femaleAdults
+    demoElders, // [50] cells.elders
+    frontierForts, // [51] pack.frontierForts
+    strategicEconomy // [52] economy strategic procurement and labor cohorts
   ].join("\r\n");
 
   return mapData;
@@ -233,7 +261,7 @@ export async function saveMap(method: string): Promise<void> {
   closeDialogs("#alert");
 
   try {
-    const mapData = prepareMapData();
+    const mapData = await prepareMapData();
     const filename = `${getFileName()}.map`;
 
     if (method === "storage") await saveToStorage(mapData, true);
@@ -272,7 +300,7 @@ export async function initiateAutosave(): Promise<void> {
 
     try {
       tip("Autosave: saving map...", false, "warning" as never, 3000);
-      const mapData = prepareMapData();
+      const mapData = await prepareMapData();
       await saveToStorage(mapData);
       tip("Autosave: map is saved", false, "success", 2000);
       lastSavedAt = Date.now();

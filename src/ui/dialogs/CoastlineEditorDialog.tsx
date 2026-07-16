@@ -1,6 +1,7 @@
 import type React from "react";
 import { coastlineEditorActions } from "../../controllers/coastline-editor";
 import { useCoastlineEditorState } from "../../store/coastlineEditorState";
+import { IconButton } from "../components/IconButton";
 
 export const CoastlineEditorContent: React.FC = () => {
   const { isGroupSectionVisible, isNewGroupInputVisible, group, groupOptions, newGroupName, areaUI } =
@@ -27,7 +28,7 @@ export const CoastlineEditorContent: React.FC = () => {
         <select
           id="coastlineGroup"
           data-tip="Select a group for this coastline"
-          style={{ width: "9em", display: isNewGroupInputVisible ? "none" : "inline-block" }}
+          style={{ display: isNewGroupInputVisible ? "none" : "inline-block" }}
           value={group}
           onChange={e => coastlineEditorActions.changeGroup(e.target.value)}
         >
@@ -41,7 +42,7 @@ export const CoastlineEditorContent: React.FC = () => {
           id="coastlineGroupName"
           placeholder="new group name"
           data-tip="Provide a name for the new group"
-          style={{ display: isNewGroupInputVisible ? "inline-block" : "none", width: "9em" }}
+          style={{ display: isNewGroupInputVisible ? "inline-block" : "none" }}
           value={newGroupName}
           onChange={e => coastlineEditorActions.setNewGroupName(e.target.value)}
           onBlur={coastlineEditorActions.createNewGroup}
@@ -49,20 +50,19 @@ export const CoastlineEditorContent: React.FC = () => {
             if (e.key === "Enter") coastlineEditorActions.createNewGroup();
           }}
         />
-        <span
+        <IconButton
           id="coastlineGroupAdd"
           data-tip="Create a new group for this coastline"
           className="icon-plus pointer"
           onClick={coastlineEditorActions.toggleNewGroupInput}
-        ></span>
-        <span
+        ></IconButton>
+        <IconButton
           id="coastlineGroupRemove"
           data-tip="Remove the group"
           className="icon-trash-empty pointer"
           onClick={coastlineEditorActions.removeGroup}
-        ></span>
+        ></IconButton>
       </div>
-
       <button
         id="coastlineEditStyle"
         data-tip="Edit coastline group style in Style Editor"

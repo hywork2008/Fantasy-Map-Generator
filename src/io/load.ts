@@ -6,12 +6,14 @@ import { Biomes } from "../generators/biomes";
 import { Burgs } from "../generators/burgs-generator";
 import { Features } from "../generators/features";
 import { Routes } from "../generators/routes-generator";
+import { initSimulationClock } from "../generators/timeEngine";
 import { GridRenderer } from "../renderers";
+import { DeckGlRenderer } from "../renderers/webgl/deckRenderer";
 import { declareFont, fonts } from "../services/fonts";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers } from "../store/editorState";
-import { useLayerState } from "../store/layerState";
+import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
 import { loadErrorDialogStore } from "../store/loadErrorDialogState";
 import { loadMapDialogStore } from "../store/loadMapDialogState";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
@@ -19,6 +21,7 @@ import type { NameBase, River } from "../types/models";
 import { closeDialogs, openConfirm } from "../ui/dialogs/dialogService";
 import { calculateVoronoi, findCell, last, link, minmax, parseError, rn } from "../utils";
 import { heightmapColorSchemes } from "../utils/colorUtils";
+import { normalizeConflictAutonomy } from "../utils/conflictAutonomy";
 import { ERROR, INFO, WARN } from "../utils/debug";
 
 import { layerIsOn } from "../utils/nodeUtils";
@@ -297,6 +300,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
 
       useOptionsState.getState().setOptions(updates);
       if (settings[19]) worldContext.options = JSON.parse(settings[19]);
+      worldContext.options.conflictAutonomy = normalizeConflictAutonomy(worldContext.options.conflictAutonomy);
       if (settings[16]) worldContext.options.temperatureEquator = +settings[16];
       if (settings[17])
         worldContext.options.temperatureNorthPole = worldContext.options.temperatureSouthPole = +settings[17];
@@ -319,8 +323,11 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       if (worldContext.options.stateLabelsMode) zustandUpdates.stateLabelsMode = worldContext.options.stateLabelsMode;
       if (worldContext.options.year != null) zustandUpdates.year = worldContext.options.year;
       if (worldContext.options.era != null) zustandUpdates.era = worldContext.options.era;
+      zustandUpdates.gunpowderEraEnabled = worldContext.options.gunpowderEraEnabled !== false;
+      zustandUpdates.conflictAutonomy = normalizeConflictAutonomy(worldContext.options.conflictAutonomy);
       useOptionsState.getState().setOptions(zustandUpdates);
     }
+
     useOptionsState
       .getState()
       .setOption(
@@ -359,9 +366,15 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         worldContext.biomesData.cost.push(50);
       }
     }
+    DeckGlRenderer.finalize(viewContext);
     view.svg.remove();
     document.body.insertAdjacentHTML("afterbegin", data[5]);
     document.dispatchEvent(new CustomEvent("fmg:reinitialize-map-layers"));
+
+    // Loading a map is a fresh clock session for it — resync simulationContext
+    // (year/era + reset tickCount) from the just-loaded worldContext.options. Runs
+    // after reinit so the fmg:simulation-updated listener draws into the fresh #calendar.
+    initSimulationClock();
 
     if (!view.texture.size()) {
       viewContext.texture = view.viewbox
@@ -400,6 +413,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     worldContext.pack.provinces = data[30] ? JSON.parse(data[30]) : [0];
     worldContext.pack.rivers = data[32] ? JSON.parse(data[32]) : [];
     worldContext.pack.markers = data[35] ? JSON.parse(data[35]) : [];
+    worldContext.pack.frontierForts = data[51] ? JSON.parse(data[51]) : [];
     worldContext.pack.routes = data[37] ? JSON.parse(data[37]) : [];
     worldContext.pack.zones = data[38] ? JSON.parse(data[38]) : [];
     worldContext.pack.cells.biome = Uint8Array.from(data[16].split(","), Number);
@@ -430,6 +444,48 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     worldContext.pack.cells.market = data[44]
       ? Uint16Array.from(data[44].split(","), Number)
       : new Uint16Array(worldContext.pack.cells.i.length);
+    worldContext.pack.characters = data[45] ? JSON.parse(data[45]) : [];
+    restoreStrategicEconomyState(data[52]);
+
+    {
+      // Demography arrays (capacity, age-structure breakdown) were added after this save format was
+      // established, so older saves lack data[46-50]. Backfill using the same formulas as rankCells()
+      // in main.ts so simulateDemographics() always has valid data to read.
+      const cellCount = worldContext.pack.cells.i.length;
+      const { s, area, pop } = worldContext.pack.cells;
+
+      if (data[46]) {
+        worldContext.pack.cells.capacity = Float32Array.from(data[46].split(","), Number);
+      } else {
+        const areaValues = Array.from(area);
+        const meanArea = areaValues.length ? areaValues.reduce((sum, a) => sum + a, 0) / areaValues.length : 1;
+        const capacity = new Float32Array(cellCount);
+        for (let i = 0; i < cellCount; i++) capacity[i] = s[i] > 0 ? (s[i] * area[i]) / meanArea : 0;
+        worldContext.pack.cells.capacity = capacity;
+      }
+
+      if (data[47] && data[48] && data[49] && data[50]) {
+        worldContext.pack.cells.children = Float32Array.from(data[47].split(","), Number);
+        worldContext.pack.cells.maleAdults = Float32Array.from(data[48].split(","), Number);
+        worldContext.pack.cells.femaleAdults = Float32Array.from(data[49].split(","), Number);
+        worldContext.pack.cells.elders = Float32Array.from(data[50].split(","), Number);
+      } else {
+        const children = new Float32Array(cellCount);
+        const maleAdults = new Float32Array(cellCount);
+        const femaleAdults = new Float32Array(cellCount);
+        const elders = new Float32Array(cellCount);
+        for (let i = 0; i < cellCount; i++) {
+          children[i] = pop[i] * 0.4;
+          maleAdults[i] = pop[i] * 0.2205;
+          femaleAdults[i] = pop[i] * 0.2295;
+          elders[i] = pop[i] * 0.15;
+        }
+        worldContext.pack.cells.children = children;
+        worldContext.pack.cells.maleAdults = maleAdults;
+        worldContext.pack.cells.femaleAdults = femaleAdults;
+        worldContext.pack.cells.elders = elders;
+      }
+    }
 
     if (data[31]) {
       const namesDL = data[31].split("/");
@@ -454,9 +510,20 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
         selector: string
       ) => (selection.node() as Element | null)?.querySelector(selector);
 
+      const layerState = useLayerState.getState();
+      const extensionLayerIds = new Set(
+        layerState.layers
+          .filter(layer => !DEFAULT_LAYERS.some(defaultLayer => defaultLayer.id === layer.id))
+          .map(layer => layer.id)
+      );
       const nextActiveLayers: Record<string, boolean> = {};
-      useLayerState.getState().layers.forEach(l => {
-        nextActiveLayers[l.id] = false;
+      layerState.layers.forEach(layer => {
+        // A .map file serializes host SVG visibility, but extension-owned layers are not part of
+        // ViewContext and may be recreated after the SVG is replaced. Keep their current toggle
+        // state instead of inferring "off" from the loaded host SVG.
+        nextActiveLayers[layer.id] = extensionLayerIds.has(layer.id)
+          ? (layerState.activeLayers[layer.id] ?? false)
+          : false;
       });
       const turnOn = (el: string) => {
         nextActiveLayers[el] = true;
@@ -843,6 +910,9 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
     document.dispatchEvent(new CustomEvent("fmg:fit-map-to-screen"));
     document.dispatchEvent(new CustomEvent("fmg:fit-map-view"));
+    if (viewContext.renderMode === "webglHybrid") {
+      document.dispatchEvent(new CustomEvent("fmg:render-mode-changed"));
+    }
 
     WARN &&
       console.warn(
@@ -863,4 +933,51 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       onNewMap: () => document.dispatchEvent(new CustomEvent("fmg:regenerate-map", { detail: "loading error" }))
     });
   }
+}
+
+function restoreStrategicEconomyState(serialized: string | undefined): void {
+  worldContext.pack.strategicProcurementOrders = [];
+  worldContext.pack.strategicGoodsPolicies = [];
+  worldContext.pack.nextStrategicProcurementOrderId = 0;
+  worldContext.pack.strategicLaborMarkets = [];
+  if (!serialized) return;
+
+  try {
+    const parsed: unknown = JSON.parse(serialized);
+    if (!isRecord(parsed)) return;
+
+    if (Array.isArray(parsed.strategicProcurementOrders)) {
+      worldContext.pack.strategicProcurementOrders =
+        parsed.strategicProcurementOrders as typeof worldContext.pack.strategicProcurementOrders;
+    }
+    if (Array.isArray(parsed.strategicGoodsPolicies)) {
+      worldContext.pack.strategicGoodsPolicies =
+        parsed.strategicGoodsPolicies as typeof worldContext.pack.strategicGoodsPolicies;
+    }
+    if (
+      typeof parsed.nextStrategicProcurementOrderId === "number" &&
+      Number.isSafeInteger(parsed.nextStrategicProcurementOrderId)
+    ) {
+      worldContext.pack.nextStrategicProcurementOrderId = Math.max(0, parsed.nextStrategicProcurementOrderId);
+    }
+    if (Array.isArray(parsed.strategicLaborMarkets)) {
+      worldContext.pack.strategicLaborMarkets =
+        parsed.strategicLaborMarkets as typeof worldContext.pack.strategicLaborMarkets;
+    }
+    // Caravans are not part of the host .map format. Treat strategic cargo that
+    // was in transit at save time as lost, rather than retaining an order whose
+    // active allocation can never arrive after a reload.
+    for (const order of worldContext.pack.strategicProcurementOrders) {
+      if (order.status !== "inTransit") continue;
+      order.status = "blocked";
+      order.blockedReason = "noRoute";
+      order.caravanId = undefined;
+    }
+  } catch {
+    // A malformed optional extension slot must not block loading the host map.
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }

@@ -9,7 +9,7 @@ export const RouteCreatorDialog: React.FC = () => {
   return (
     <Dialog isOpen={isOpen} title="Route Creator" onClose={() => closeDialog("routeCreator")}>
       <div>Click on map to add/remove route points</div>
-      <div id="routeCreatorBody" className="table" style={{ margin: "0.3em 0" }}></div>
+      <div id="routeCreatorBody" className="table -route-creator-dialog__margin-0-3em-0"></div>
       <div id="routeCreatorFooter">
         <button
           type="button"
@@ -18,7 +18,7 @@ export const RouteCreatorDialog: React.FC = () => {
           className="icon-check"
         ></button>
         <button type="button" id="routeCreatorCancel" data-tip="Cancel the creation" className="icon-cancel"></button>
-        <div style={{ display: "inline-block" }}>
+        <div className="d-inline-block">
           Group:
           <select id="routeCreatorGroupSelect"></select>
           <span id="routeCreatorGroupEdit" data-tip="Edit route groups" className="icon-pencil pointer"></span>

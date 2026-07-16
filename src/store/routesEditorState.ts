@@ -11,6 +11,7 @@ export interface RoutesEditorState {
   routeLength: string;
   isWaterRoute: boolean;
   isLocked: boolean;
+  isSplitMode: boolean;
   allGroups: string[];
 
   // Creator State
@@ -28,6 +29,7 @@ export const useRoutesEditorState = create<RoutesEditorState>(() => ({
   routeLength: "",
   isWaterRoute: false,
   isLocked: false,
+  isSplitMode: false,
   allGroups: [],
 
   creatorGroup: "",

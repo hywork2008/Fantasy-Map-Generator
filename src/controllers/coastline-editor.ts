@@ -27,13 +27,19 @@ import { viewLayerService as view } from "../services/viewLayerService";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { rn, si, unique } from "../utils";
+import { debounce } from "../utils/commonUtils";
 import { getArea, getAreaUnit } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
 import { getElementById, getElementBySelector, layerIsOn } from "../utils/nodeUtils";
 import { interactionManager } from "./interactionManager";
-import { toggleCells } from "./layers";
+import { drawLayers, toggleCells } from "./layers";
 import { editStyle } from "./style";
+
+// Recoloring land fills (states/provinces/biomes/...) after a coastline shape change is
+// expensive, so during a drag it's throttled via debounce rather than run on every tick; the
+// un-debounced call in handleVertexDragEnd guarantees the final position is always accurate.
+const DRAG_LAND_FILL_REDRAW_MS = 50;
 
 let worldContext: WorldContext;
 let appServices: AppServices;
@@ -257,15 +263,40 @@ function handleVertexDrag(
     .select("#vertices")
     .selectAll("polygon")
     .attr("points", (d: unknown) => getPackPolygon(d as number, worldContext.pack).join(" "));
+
+  redrawLandFillsDebounced();
 }
 
-function handleVertexDragEnd(): void {
+function redrawLandFills(): void {
   if (layerIsOn("toggleStates")) StatesRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleBiomes")) BiomesRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleReligions")) ReligionsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleCultures")) CulturesRenderer.render(worldContext, viewContext, appServices);
+
+  // In webgl hybrid mode the land fill is a deck.gl polygon masked by a separate deck.gl land-mask
+  // layer, not the SVG #landmass/#land mask touched above; its data must be rebuilt for the moved
+  // coastline vertex to show live instead of only appearing after the editor closes.
+  if (viewContext.renderMode === "webglHybrid") {
+    const featureId = elSelected ? +elSelected.attr("data-f") : Number.NaN;
+
+    drawLayers();
+
+    // drawLayers() -> drawHybridSvgOverlays() re-runs FeaturesRenderer, which rebuilds every
+    // <use> under #coastline from scratch and detaches the element elSelected was pointing at;
+    // re-acquire it by feature id so the still-active drag keeps working.
+    if (!Number.isNaN(featureId)) {
+      const node = view.coastline.select<SVGElement>(`use[data-f="${featureId}"]`).node();
+      if (node) setElSelected(select(node as Element));
+    }
+  }
+}
+
+const redrawLandFillsDebounced = debounce(redrawLandFills, DRAG_LAND_FILL_REDRAW_MS);
+
+function handleVertexDragEnd(): void {
+  redrawLandFills();
 }
 
 function closeCoastlineEditor(): void {
@@ -618,6 +649,18 @@ function drawShapePreview(canvas: HTMLCanvasElement): void {
 
 class CoastlineEditorModule {
   editCoastline(event?: MouseEvent): void {
+    const node = (event?.target ?? getElementBySelector<SVGElement>(".coastline path")) as SVGElement | null;
+    this.openCoastlineEditor(node, event);
+  }
+
+  /** Opens the Coastline Editor for a feature id, without depending on a clicked SVG element (WebGL pick). */
+  editCoastlineById(featureId: number): void {
+    const node = view.coastline.select<SVGElement>(`use[data-f="${featureId}"]`).node();
+    if (!node) return;
+    this.openCoastlineEditor(node);
+  }
+
+  private openCoastlineEditor(node: SVGElement | null, event?: MouseEvent): void {
     if (view.customization) return;
     closeDialogs(".stable");
     if (layerIsOn("toggleCells")) toggleCells();
@@ -625,11 +668,10 @@ class CoastlineEditorModule {
     openDialog("coastlineEditor", {
       title: "Edit Coastline",
       resizable: false,
-      position: { my: "center top+20", at: "top", of: event, collision: "fit" },
+      position: { my: "center top+20", at: "top", of: event ?? "#map", collision: "fit" },
       onClose: closeCoastlineEditor
     });
 
-    const node = (event?.target ?? getElementBySelector<SVGElement>(".coastline path")) as SVGElement | null;
     view.debug.append("g").attr("id", "vertices");
     setElSelected(node ? select(node as Element) : null);
     if (node) {
@@ -660,6 +702,7 @@ class CoastlineEditorModule {
 
 export const coastlineEditor = new CoastlineEditorModule();
 export const editCoastline = (event?: MouseEvent) => coastlineEditor.editCoastline(event);
+export const editCoastlineById = (featureId: number) => coastlineEditor.editCoastlineById(featureId);
 
 export function initCoastlineEditor(wc: WorldContext, _vc: Readonly<ViewContext>, as: AppServices) {
   worldContext = wc;

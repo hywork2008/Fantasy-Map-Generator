@@ -69,23 +69,10 @@ export const UpstreamAboutContent: React.FC = () => {
         .
       </p>
 
-      <div
-        style={{
-          backgroundColor: "#e85b46",
-          padding: "0.4em",
-          width: "max-content",
-          margin: "0.6em auto 0 auto",
-          border: "1px solid #943838"
-        }}
-      >
-        <a
-          href="https://www.patreon.com/azgaar"
-          target="_blank"
-          rel="noreferrer"
-          style={{ color: "white", textDecoration: "none", fontFamily: "sans-serif" }}
-        >
+      <div>
+        <a href="https://www.patreon.com/azgaar" target="_blank" rel="noreferrer">
           <div>
-            <div style={{ width: "0.8em", display: "inline-block", padding: "0 0.2em", fill: "white" }}>
+            <div>
               <svg viewBox="0 0 569 546" aria-hidden="true">
                 <circle cx="362.589996" cy="204.589996" data-fill="1" id="Oval" r="204.589996" />
                 <rect data-fill="2" height="545.799988" id="Rectangle" width="100" x="0" y="0" />
@@ -98,32 +85,14 @@ export const UpstreamAboutContent: React.FC = () => {
 
       <p>
         Special thanks to{" "}
-        <button
-          type="button"
-          data-tip="Click to see list of supporters"
-          onClick={showSupporters}
-          style={{
-            cursor: "pointer",
-            background: "none",
-            border: "none",
-            padding: 0,
-            color: "inherit",
-            textDecoration: "underline"
-          }}
-        >
+        <button type="button" data-tip="Click to see list of supporters" onClick={showSupporters}>
           all supporters
         </button>{" "}
         on Patreon!
       </p>
 
-      <div style={{ display: "flex", justifyContent: "center", padding: "0.8em 0.4em 0.4em", fontFamily: "cursive" }}>
-        <a
-          href="https://u24.gov.ua/"
-          style={{ width: "80%" }}
-          data-tip="Support Ukraine"
-          target="_blank"
-          rel="noreferrer"
-        >
+      <div className="d-flex">
+        <a href="https://u24.gov.ua/" data-tip="Support Ukraine" target="_blank" rel="noreferrer">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 1000 350"
@@ -142,7 +111,7 @@ export const UpstreamAboutContent: React.FC = () => {
         </a>
       </div>
 
-      <div style={{ textAlign: "left" }}>
+      <div>
         <p>Check out our other projects:</p>
         <div>
           •{" "}
@@ -160,7 +129,7 @@ export const UpstreamAboutContent: React.FC = () => {
         </div>
       </div>
 
-      <div style={{ textAlign: "left", marginTop: "0.5em" }}>
+      <div>
         Chinese localization:{" "}
         <a href="https://www.8desk.top" target="_blank" rel="noreferrer">
           8desk.top

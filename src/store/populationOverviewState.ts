@@ -1,0 +1,44 @@
+import { create } from "zustand";
+import type { DeathWindow } from "../generators/populationLossTracker";
+
+export type PopulationOverviewTab = "living" | "deaths";
+
+export interface PopulationOverviewState {
+  activeTab: PopulationOverviewTab;
+  deathWindow: DeathWindow;
+  sortBy: string;
+  sortOrder: "asc" | "desc";
+  refreshCounter: number;
+  setActiveTab: (tab: PopulationOverviewTab) => void;
+  setDeathWindow: (window: DeathWindow) => void;
+  toggleSortBy: (sortBy: string) => void;
+  refresh: () => void;
+}
+
+export const usePopulationOverviewState = create<PopulationOverviewState>(set => ({
+  activeTab: "living",
+  deathWindow: "week",
+  sortBy: "total",
+  sortOrder: "desc",
+  refreshCounter: 0,
+  setActiveTab: activeTab =>
+    set({
+      activeTab,
+      // Sensible default sort when switching tabs
+      sortBy: "total",
+      sortOrder: "desc"
+    }),
+  setDeathWindow: deathWindow => {
+    set({ deathWindow });
+    // Combat Deaths layer shares this window — notify so it can redraw.
+    document.dispatchEvent(new CustomEvent("fmg:death-window-changed", { detail: { deathWindow } }));
+  },
+  toggleSortBy: sortBy =>
+    set(state => {
+      if (state.sortBy === sortBy) {
+        return { sortOrder: state.sortOrder === "asc" ? "desc" : "asc" };
+      }
+      return { sortBy, sortOrder: "desc" };
+    }),
+  refresh: () => set(state => ({ refreshCounter: state.refreshCounter + 1 }))
+}));

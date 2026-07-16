@@ -48,15 +48,14 @@ export const TextureUrlDialog: React.FC = () => {
       ]}
     >
       <div>
-        <p style={{ margin: "0 0 0.4em" }}>Provide a texture image URL:</p>
+        <p>Provide a texture image URL:</p>
         <input
           type="url"
-          style={{ width: "100%" }}
           placeholder="http://www.example.com/image.jpg"
           value={url}
           onChange={e => onUrlChange(e.target.value)}
         />
-        <canvas ref={canvasRef} width={256} height={144} style={{ marginTop: "0.5em" }} />
+        <canvas ref={canvasRef} width={256} height={144} />
       </div>
     </Dialog>
   );

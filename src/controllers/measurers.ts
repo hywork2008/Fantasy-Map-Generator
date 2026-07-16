@@ -1,9 +1,8 @@
 import * as d3 from "d3";
 import polylabel from "polylabel";
 import { worldContext } from "../context/worldContext";
-
+import { Routes } from "../generators/routes-generator";
 import { type DragEv, type MeasurerSel, MeasurersRenderer } from "../renderers/measurers-renderer";
-import { GenerationPipeline } from "../services/generationPipeline";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers, setRulers } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
@@ -423,7 +422,7 @@ class RouteOpisometer extends Measurer {
       const mousePoint: [number, number] = [dragEvent.x | 0, dragEvent.y | 0];
 
       const c = findCell(mousePoint[0], mousePoint[1]);
-      if (!GenerationPipeline.Routes.isConnected(c) && !dragEvent.sourceEvent.shiftKey) return;
+      if (!Routes.isConnected(c) && !dragEvent.sourceEvent.shiftKey) return;
 
       context.trackCell(c, right);
     });

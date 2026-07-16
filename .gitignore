@@ -13,3 +13,6 @@
 .github/agents/bmad-*
 .github/prompts/bmad-*
 .DS_Store
+.playwright-cli/
+temp/
+docs/temp/

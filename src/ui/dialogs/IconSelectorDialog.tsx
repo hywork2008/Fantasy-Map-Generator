@@ -10,9 +10,9 @@ export const IconSelectorDialog: React.FC = () => {
     <Dialog isOpen={isOpen} title="Select icon" onClose={() => closeDialog("iconSelector")}>
       <div>
         <b>Unicode emojis</b>
-        <div style={{ fontStyle: "italic" }}>
+        <div>
           <span>Select from the list or paste a Unicode character here: </span>
-          <input id="iconInput" style={{ width: "2.5em" }} />
+          <input id="iconInput" />
           <span>
             . See{" "}
             <a href="https://emojidb.org" target="_blank" rel="noreferrer">
@@ -21,23 +21,19 @@ export const IconSelectorDialog: React.FC = () => {
             to search for emojis
           </span>
         </div>
-        <table
-          id="iconTable"
-          className="table pointer"
-          style={{ fontSize: "2em", textAlign: "center", width: "100%" }}
-        ></table>
+        <table id="iconTable" className="table pointer"></table>
       </div>
 
-      <div style={{ marginTop: "0.5em" }}>
+      <div>
         <b>External images</b>
-        <div style={{ fontStyle: "italic" }}>
+        <div>
           <span>Paste link to the image here: </span>
-          <input id="imageInput" style={{ width: "20em" }} />
+          <input id="imageInput" />
           <button id="addImage" type="button">
             Add
           </button>
         </div>
-        <div id="addedIcons" className="pointer" style={{ display: "flex", flexWrap: "wrap", maxWidth: "420px" }}></div>
+        <div id="addedIcons" className="pointer d-flex"></div>
       </div>
     </Dialog>
   );

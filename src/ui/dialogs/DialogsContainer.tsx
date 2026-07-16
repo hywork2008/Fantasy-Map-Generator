@@ -14,6 +14,7 @@ import { BurgsOverviewDialog } from "./BurgsOverviewDialog";
 import { BurgsRenamingDialog } from "./BurgsRenamingDialog";
 import { CellInfoDialog } from "./CellInfoDialog";
 import { ChartsOverviewDialog } from "./ChartsOverviewDialog";
+import { ColorPickerDialog } from "./ColorPickerDialog";
 import { CommonEditorDialog } from "./CommonEditorDialog";
 import { CulturesEditorDialog } from "./CulturesEditorDialog";
 import { DiplomacyHistoryDialog } from "./DiplomacyHistoryDialog";
@@ -45,8 +46,10 @@ import { MilitaryOverviewDialog } from "./MilitaryOverviewDialog";
 import { MinimapDialog } from "./MinimapDialog";
 import { Options3dDialog } from "./Options3dDialog";
 import { PopulationChangeDialog } from "./PopulationChangeDialog";
+import { PopulationOverviewDialog } from "./PopulationOverviewDialog";
 import { Preview3dDialog } from "./Preview3dDialog";
 import { PromptDialog } from "./PromptDialog";
+import { ProvinceEditorDialog } from "./ProvinceEditorDialog";
 import { ProvinceMergeDialog } from "./ProvinceMergeDialog";
 import { ProvinceNameEditorDialog } from "./ProvinceNameEditorDialog";
 import { ProvincesChartDialog } from "./ProvincesChartDialog";
@@ -67,6 +70,7 @@ import { RouteJoinDialog } from "./RouteJoinDialog";
 import { RoutesEditorDialog } from "./RoutesEditorDialog";
 import { RoutesOverviewDialog } from "./RoutesOverviewDialog";
 import { SaveMapDialog } from "./SaveMapDialog";
+import { StateEditorDialog } from "./StateEditorDialog";
 import { StateMergeDialog } from "./StateMergeDialog";
 import { StateNameEditorDialog } from "./StateNameEditorDialog";
 import { StatesChartDialog } from "./StatesChartDialog";
@@ -97,83 +101,87 @@ export const DialogsContainer: React.FC = () => {
   const openDialogs = useDialogState(state => state.openDialogs);
 
   return (
-    <div id="dialogs-root" style={{ pointerEvents: "none" }}>
+    <div id="dialogs-root">
       {mounted && (
         <>
+          <AiGeneratorDialog />
           <AlertDialog config={alertConfig} />
-          <PromptDialog />
-          <SaveMapDialog />
-          <ExportMapDialog />
-          <LoadMapDialog />
-          <ExportToPngTilesDialog />
-          <IconSelectorDialog />
-          <FontDialog />
-          <LabelEditorDialog />
-          <RiverEditorDialog />
-          <RiverCreatorDialog />
-          <LakeEditorDialog />
-          <ElevationProfileDialog />
-          <RouteEditorDialog />
-          <RouteCreatorDialog />
-          <RouteGroupsEditorDialog />
-          <IceEditorDialog />
-          <StateMergeDialog />
-          <CulturesEditorDialog />
-          <ReligionsEditorDialog />
-          <RoutesEditorDialog />
-          <ReliefEditorDialog />
-          <BurgEditorDialog />
-          <MarkerEditorDialog />
-          <RegimentEditorDialog />
-          <RegimentSelectorScreenDialog />
-          <StateNameEditorDialog />
-          <DiplomacyMatrixDialog />
-          <ProvinceNameEditorDialog />
-          <ProvinceMergeDialog />
-          <SubmapToolDialog />
-          <TransformToolDialog />
-          <WorldConfiguratorDialog />
           <BattleScreenDialog />
           <BrushesPanelDialog />
-          <TemplateEditorDialog />
-          <ImageConverterDialog />
-          <ProvincesEditorDialog />
-          <DiplomacyRelationDialog />
-          <UnitsEditorDialog />
-          <AiGeneratorDialog />
-          <BurgsOverviewDialog />
+          <BurgEditorDialog />
           <BurgGroupsEditorDialog />
-          <RoutesOverviewDialog />
-          <RiversOverviewDialog />
-          <MilitaryOverviewDialog />
-          <HierarchyTreeDialog />
-          <RegimentsOverviewDialog />
-          <MilitaryOptionsDialog />
-          <MarkersOverviewDialog />
           <BurgsBubbleChartDialog />
-          <HeightmapSchemeDialog />
-          <MarkerConfigDialog />
-          <RegenerateConfirmDialog />
-          <PopulationChangeDialog />
-          <ProvincesChartDialog />
-          <StatesChartDialog />
-          <TemperatureGraphDialog />
-          <StyleSaverDialog />
-          <TextureUrlDialog />
-          <HeightmapEditModeDialog />
-          <ImageConverterCloseDialog />
-          <GenerationErrorDialog />
-          <LoadErrorDialog />
-          <RouteJoinDialog />
-          <DiplomacyHistoryDialog />
+          <BurgsOverviewDialog />
           <BurgsRenamingDialog />
-          <LoadMapFromUrlDialog />
-          <RegenerateFeatureDialog />
           <CellInfoDialog />
-          <MinimapDialog />
           <ChartsOverviewDialog />
+          <ColorPickerDialog />
+          <CulturesEditorDialog />
+          <DiplomacyHistoryDialog />
+          <DiplomacyMatrixDialog />
+          <DiplomacyRelationDialog />
+          <ElevationProfileDialog />
+          <ExportMapDialog />
+          <ExportToPngTilesDialog />
+          <FontDialog />
+          <GenerationErrorDialog />
+          <HeightmapEditModeDialog />
+          <HeightmapSchemeDialog />
+          <HierarchyTreeDialog />
+          <IceEditorDialog />
+          <IconSelectorDialog />
+          <ImageConverterCloseDialog />
+          <ImageConverterDialog />
+          <LabelEditorDialog />
+          <LakeEditorDialog />
+          <LoadErrorDialog />
+          <LoadMapDialog />
+          <LoadMapFromUrlDialog />
+          <MarkerConfigDialog />
+          <MarkerEditorDialog />
+          <MarkersOverviewDialog />
+          <MilitaryOptionsDialog />
+          <MilitaryOverviewDialog />
+          <MinimapDialog />
           <Options3dDialog />
+          <PopulationChangeDialog />
+          <PopulationOverviewDialog />
           <Preview3dDialog />
+          <PromptDialog />
+          <ProvinceEditorDialog />
+          <ProvinceMergeDialog />
+          <ProvinceNameEditorDialog />
+          <ProvincesChartDialog />
+          <ProvincesEditorDialog />
+          <RegenerateConfirmDialog />
+          <RegenerateFeatureDialog />
+          <RegimentEditorDialog />
+          <RegimentSelectorScreenDialog />
+          <RegimentsOverviewDialog />
+          <ReliefEditorDialog />
+          <ReligionsEditorDialog />
+          <RiverCreatorDialog />
+          <RiverEditorDialog />
+          <RiversOverviewDialog />
+          <RouteCreatorDialog />
+          <RouteEditorDialog />
+          <RouteGroupsEditorDialog />
+          <RouteJoinDialog />
+          <RoutesEditorDialog />
+          <RoutesOverviewDialog />
+          <SaveMapDialog />
+          <StateEditorDialog />
+          <StateMergeDialog />
+          <StateNameEditorDialog />
+          <StatesChartDialog />
+          <StyleSaverDialog />
+          <SubmapToolDialog />
+          <TemperatureGraphDialog />
+          <TemplateEditorDialog />
+          <TextureUrlDialog />
+          <TransformToolDialog />
+          <UnitsEditorDialog />
+          <WorldConfiguratorDialog />
           {extensionDialogs.map((dialog: ExtensionDialog) => (
             <dialog.component key={dialog.id} />
           ))}

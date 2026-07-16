@@ -1,10 +1,11 @@
 import { color } from "d3";
 import type { AppServices } from "../context/appServices";
-import type { PoliticalLayers, RootLayers } from "../context/viewContext";
+import type { FocusFields, PoliticalLayers, RootLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import { getGappedFillPaths, getIsolines } from "../utils";
 import { TIME } from "../utils/debug";
+import { getScopedGraph, scopedGetType } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
 
 export const StatesRenderer = {
@@ -12,12 +13,13 @@ export const StatesRenderer = {
 
   render(
     worldContext: Readonly<WorldContext>,
-    viewContext: Readonly<RootLayers & PoliticalLayers>,
+    viewContext: Readonly<RootLayers & PoliticalLayers & FocusFields>,
     _appServices: AppServices
   ): void {
     TIME && console.time("drawStates");
     const { pack } = worldContext;
     const { cells, states } = pack;
+    const { focusScope } = viewContext;
 
     const maxLength = states.length - 1;
     const bodyPaths = new Array(maxLength);
@@ -26,8 +28,8 @@ export const StatesRenderer = {
 
     const renderHalo = useOptionsState.getState().shapeRendering === "geometricPrecision";
     const isolines: Record<string, { fill?: string; waterGap?: string; halo?: string }> = getIsolines(
-      pack,
-      cellId => cells.state[cellId],
+      getScopedGraph(pack, focusScope),
+      scopedGetType(focusScope, cellId => cells.state[cellId]),
       { fill: true, waterGap: true, halo: renderHalo }
     );
 
@@ -94,7 +96,10 @@ export const StatesRenderer = {
   },
 
   highlightState(viewContext: Readonly<RootLayers & PoliticalLayers>, stateId: number): void {
-    const d = viewContext.regions.select(`#state${stateId}`).attr("d");
+    if (!stateId) return;
+    const statePath = viewContext.regions.select(`#state${stateId}`).node() as SVGElement | null;
+    if (!statePath) return;
+    const d = statePath.getAttribute("d");
     if (!d) return;
 
     const path = viewContext.debug

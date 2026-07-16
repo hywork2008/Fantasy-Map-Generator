@@ -6,7 +6,7 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-
+import { runTimeSimulation } from "../generators/timeEngine";
 import { rankCells } from "../main";
 import {
   BordersRenderer,
@@ -41,19 +41,19 @@ import { useMarkersOverviewState } from "../store/markersOverviewState";
 import { useMilitaryOverviewState } from "../store/militaryOverviewState";
 import { useOptionsState } from "../store/optionsState";
 import { useRiversOverviewState } from "../store/riversOverviewState";
+import { useUiPreferencesState } from "../store/uiPreferencesState";
 import type { MarkerConfig } from "../types/MarkerConfig";
 import type { Burg, Marker, Province, Religion, River, Route, State } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
 import * as Dialogservice from "../ui/dialogs/dialogService";
-import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
+import { closeDialog, closeDialogs, openDialog, openPrompt } from "../ui/dialogs/dialogService";
 import type { RegenerateConfirmConfig } from "../ui/dialogs/RegenerateConfirmDialog";
-import { findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn, showPrompt } from "../utils";
+import { findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
-import { editBiomes } from "./biomes-editor";
 import { overviewBurgs } from "./burgs-overview";
 import { openChartsOverview } from "./charts-overview";
-import { editDiplomacy } from "./diplomacy-editor";
+import { editDiplomacy, openRelationsHistory } from "./diplomacy-editor";
 import { editCoastlineSettings, editCultures, editReligions, refreshAllEditors } from "./editors";
 import { editEmblem } from "./emblems-editor";
 import { editHeightmap } from "./heightmapEditor";
@@ -83,7 +83,9 @@ import { openMinimapDialog } from "./minimap";
 import { NamesbaseEditor } from "./namesbase-editor";
 import { editNotes } from "./notes-editor";
 import { cellsDensityMap } from "./options";
+import { overviewPopulation } from "./population-overview";
 import { editProvinces } from "./provinces-editor";
+import { overviewRegiments } from "./regiments-overview";
 import * as RiversOverview from "./rivers-overview";
 import { createRoute } from "./routes-editor";
 import { overviewRoutes } from "./routes-overview";
@@ -101,11 +103,13 @@ let appServices: AppServices;
 // layer that changed when openFunc() ran (diff of activeLayers before vs after).
 // When any dialog closes (including via closeAllDialogs), only those diff layers
 // are restored — unrelated manual layer changes during the dialog session are
-// left untouched.
+// left untouched. Simultaneously closed dialogs are unwound last-opened first,
+// so an editor opened on top of another cannot overwrite the earlier editor's
+// original layer state.
 const dialogLayerChanges = new Map<string, Map<string, boolean>>();
 
 dialogStore.subscribe((state, prevState) => {
-  for (const dialogId of prevState.openDialogs) {
+  for (const dialogId of Array.from(prevState.openDialogs).reverse()) {
     if (!state.openDialogs.has(dialogId)) {
       const changes = dialogLayerChanges.get(dialogId);
       if (changes) {
@@ -125,7 +129,8 @@ dialogStore.subscribe((state, prevState) => {
 // ─── Tools panel event dispatcher ────────────────────────────────────────────
 
 document.addEventListener("react-tool-action", e => {
-  const button = (e as CustomEvent).detail?.action;
+  const detail = (e as CustomEvent).detail;
+  const button = detail?.action;
   if (!button) return;
 
   const toggleEditor = (dialogId: string, _layerId: string | null, openFunc: () => void) => {
@@ -169,10 +174,11 @@ document.addEventListener("react-tool-action", e => {
 
   if (view.customization) return tip("Please exit the customization mode first", false, "error");
 
-  if (button === "editBiomesButton") toggleEditor("biomesEditor", "toggleBiomes", editBiomes);
+  if (button === "editBiomesButton") toggleEditor("biomesEditor", "toggleBiomes", EditorBus.editBiomes);
   else if (button === "editStatesButton") toggleEditor("statesEditor", "toggleStates", EditorBus.editStates);
   else if (button === "editProvincesButton") toggleEditor("provincesEditor", "toggleProvinces", editProvinces!);
   else if (button === "editDiplomacyButton") toggleEditor("diplomacyEditor", "toggleStates", editDiplomacy!);
+  else if (button === "openDiplomacyHistory") toggleEditor("diplomacyHistory", null, openRelationsHistory);
   else if (button === "editCoastlineSettings") toggleEditor("coastlineSettingsDialog", null, editCoastlineSettings);
   else if (button === "editCulturesButton") toggleEditor("culturesEditor", "toggleCultures", editCultures);
   else if (button === "editReligions") toggleEditor("religionsEditor", "toggleReligions", editReligions);
@@ -187,15 +193,17 @@ document.addEventListener("react-tool-action", e => {
   else if (button === "overviewRiversButton")
     toggleEditor("riversOverview", "toggleRivers", RiversOverview.overviewRivers);
   else if (button === "overviewMilitaryButton") toggleEditor("militaryOverview", "toggleMilitary", overviewMilitary);
+  else if (button === "overviewPopulationButton") toggleEditor("populationOverview", null, overviewPopulation);
+  else if (button === "overviewRegimentsButton") toggleEditor("regimentsOverview", "toggleMilitary", overviewRegiments);
   else if (button === "overviewMarkersButton")
     toggleEditor("markersOverview", "toggleMarkers", MarkersOverview.overviewMarkers);
   else if (button === "overviewCellsButton") viewCellDetails();
   else if (button === "openMinimapButton") openMinimap?.();
-  else getToolActionHandler(button)?.();
+  else getToolActionHandler(button)?.(detail);
 
   if (button.startsWith("regenerate")) {
-    const dontAsk = sessionStorage.getItem("regenerateFeatureDontAsk");
-    if (dontAsk) return processFeatureRegeneration(null, button);
+    const { dontAskRegenerateFeature, setDontAskRegenerateFeature } = useUiPreferencesState.getState();
+    if (dontAskRegenerateFeature) return processFeatureRegeneration(null, button);
 
     const featureName = button
       .replace(/^regenerate/, "")
@@ -206,7 +214,7 @@ document.addEventListener("react-tool-action", e => {
     const regenerateConfig: RegenerateConfirmConfig = {
       featureName,
       onProceed: dontAskAgain => {
-        if (dontAskAgain) sessionStorage.setItem("regenerateFeatureDontAsk", "true");
+        if (dontAskAgain) setDontAskRegenerateFeature(true);
         processFeatureRegeneration(null, button);
       }
     };
@@ -223,6 +231,12 @@ document.addEventListener("react-tool-action", e => {
   else if (button === "openSubmapTool") openSubmapTool?.();
   else if (button === "openTransformTool") openTransformTool?.();
   else if (button === "openWorldConfigurator") editWorld();
+  else if (button === "advanceTimeButton") {
+    const years = detail.years !== undefined ? Number(detail.years) : 0;
+    const months = detail.months !== undefined ? Number(detail.months) : 0;
+    const days = detail.days !== undefined ? Number(detail.days) : 0;
+    runTimeSimulation(years, months, days);
+  }
 });
 
 // ─── Regeneration dispatcher ──────────────────────────────────────────────────
@@ -315,6 +329,7 @@ export async function recalculatePopulation(): Promise<void> {
     : togglePopulation();
 
   regenerateMilitary();
+  refreshAllEditors();
 }
 
 function regenerateStates(): void {
@@ -776,9 +791,14 @@ export function regenerateMarkers(): void {
 
 function regenerateZones(event: MouseEvent | null): void {
   if (event && isCtrlClick(event)) {
-    showPrompt("Please provide zones number multiplier", { default: 1, step: 0.01, min: 0, max: 100 }, v =>
-      addNumberOfZones(+v)
-    );
+    openPrompt({
+      message: "Please provide zones number multiplier",
+      default: 1,
+      step: 0.01,
+      min: 0,
+      max: 100,
+      onConfirm: v => addNumberOfZones(+v)
+    });
   } else {
     addNumberOfZones(gauss(1, 0.5, 0.6, 5, 2));
   }
@@ -1107,7 +1127,7 @@ function addMarkerOnClick(event: MouseEvent): void {
     ? packMarkers.find((marker: Marker) => marker.i === +elSelected!.attr("id").slice(6))
     : null;
 
-  const selectedType = (getElementById("addedMarkerType") as HTMLInputElement).value;
+  const selectedType = useMarkersOverviewState.getState().addedMarkerType;
   const selectedConfig = GenerationPipeline.Markers.getConfig().find(({ type }: MarkerConfig) => type === selectedType);
   const baseMarker = selectedMarker || selectedConfig || { icon: "❓" };
   const marker = GenerationPipeline.Markers.add({ ...baseMarker, x, y, cell } as Marker);

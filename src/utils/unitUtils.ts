@@ -1,6 +1,59 @@
 import { rn } from "./numberUtils";
 
 type TemperatureScale = "°C" | "°F" | "K" | "°R" | "°De" | "°N" | "°Ré" | "°Rø";
+
+export type UnitSystemId = "metric" | "imperial";
+
+export interface UnitSystemPreset {
+  id: UnitSystemId;
+  label: string;
+  temperatureScale: TemperatureScale;
+  distanceUnit: string;
+  heightUnit: string;
+  weightUnit: string;
+}
+
+/**
+ * Bundled unit choices for the "Unit system" selector. Kept as an ordered
+ * list (rather than per-category defaults scattered across the app) so a
+ * future i18n layer can translate `label` and pick a default preset per locale.
+ */
+export const unitSystemPresets: readonly UnitSystemPreset[] = [
+  {
+    id: "metric",
+    label: "Metric (°C, km, kg)",
+    temperatureScale: "°C",
+    distanceUnit: "km",
+    heightUnit: "m",
+    weightUnit: "kg"
+  },
+  {
+    id: "imperial",
+    label: "Imperial (°F, mi, lb)",
+    temperatureScale: "°F",
+    distanceUnit: "mi",
+    heightUnit: "ft",
+    weightUnit: "lb"
+  }
+];
+
+export interface UnitSystemSelection {
+  temperatureScale: string;
+  distanceUnit: string;
+  heightUnit: string;
+  weightUnit: string;
+}
+
+export function detectUnitSystem(selection: UnitSystemSelection): UnitSystemId | "custom" {
+  const preset = unitSystemPresets.find(
+    p =>
+      p.temperatureScale === selection.temperatureScale &&
+      p.distanceUnit === selection.distanceUnit &&
+      p.heightUnit === selection.heightUnit &&
+      p.weightUnit === selection.weightUnit
+  );
+  return preset ? preset.id : "custom";
+}
 /**
  * Convert temperature from Celsius to other scales
  * @param {number} temperatureInCelsius - Temperature in Celsius
@@ -48,14 +101,7 @@ export const getIntegerFromSI = (value: string): number => {
   return parseInt(value, 10);
 };
 
-declare global {
-  interface Window {
-    convertTemperature: typeof convertTemperature;
-    si: typeof si;
-    getInteger: typeof getIntegerFromSI;
-  }
-}
-
+/** Display-only currency formatting (embeds a decorative icon) — never use for CSV/data exports; write the raw numeric value instead. */
 export function formatPrice(value: number): string {
   return `🟡 ${rn(value, 2)}`;
 }

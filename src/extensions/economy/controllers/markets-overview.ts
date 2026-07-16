@@ -16,12 +16,15 @@ import {
 } from "../../hostUtils";
 
 import { getApi, getMarketsLayer, getViewContext, getWorldContext } from "../economyContext";
-import type { Deal, Market } from "../generators/markets-generator";
+import { syncBurgMarketLedgers } from "../generators/burgMarketLedgers";
+import { getMarketManagerName } from "../generators/marketManagers";
 import { Markets } from "../generators/markets-generator";
+import type { Deal, Market } from "../generators/marketTypes";
 import { Production } from "../generators/production-generator";
 import { drawMarketsLayer, highlightMarketOff, highlightMarketOn } from "../renderers/draw-markets";
 import { getMarketsOverviewState, type MarketRowData, setMarketsOverviewState } from "../store/marketsOverviewState";
 import { open as openMarketsGoodCompare } from "./marketsGoodCompare";
+import { open as openMarketTradeOpportunities } from "./marketTradeOpportunities";
 
 let isInitialized = false;
 // Working copy of getWorldContext().pack.cells.market mutated during manual assignment; applied on commit.
@@ -70,25 +73,29 @@ function marketsOverviewAddLines(): void {
   let totalSales = 0;
   let totalBuys = 0;
   let totalValue = 0;
+  let totalPopulation = 0;
 
   const rowData: MarketRowData[] = [];
 
   for (const market of markets) {
     const centerName = Markets.getName(market);
-    const ownerName = getOwnerStateName(market);
+    const managerName = getMarketManagerName(market);
     const cells = getMarketCells(market.i);
     const burgs = getMarketBurgs(market.i);
+    const population = getMarketPopulation(market.i);
     const stock = rn(getMarketTotalStock(market), 2);
     const { sales, buys, value } = getMarketFinancials(market);
 
     totalSales += sales;
     totalBuys += buys;
     totalValue += value;
+    totalPopulation += population;
 
     rowData.push({
       i: market.i,
       centerName,
-      ownerName,
+      managerName,
+      managerId: market.managerCharacterId,
       cells,
       burgs,
       stock,
@@ -96,14 +103,15 @@ function marketsOverviewAddLines(): void {
       buys,
       value,
       color: market.color,
-      isNoMarket: false
+      isNoMarket: false,
+      population
     });
   }
 
   rowData.push({
     i: 0,
     centerName: "No market",
-    ownerName: "—",
+    managerName: "—",
     cells: getMarketCells(0),
     burgs: getMarketBurgs(0),
     stock: 0,
@@ -111,7 +119,8 @@ function marketsOverviewAddLines(): void {
     buys: 0,
     value: 0,
     color: "none",
-    isNoMarket: true
+    isNoMarket: true,
+    population: getMarketPopulation(0)
   });
 
   const count = markets.length;
@@ -127,6 +136,7 @@ function marketsOverviewAddLines(): void {
     avgSales: count ? rn(totalSales / count, 2) : 0,
     avgBuys: count ? rn(totalBuys / count, 2) : 0,
     avgValue: count ? rn(totalValue / count, 2) : 0,
+    totalPopulation,
     selectedMarketId: nextSelectedMarketId
   });
 
@@ -282,6 +292,7 @@ function exitMarketsManualAssignment(apply: boolean): void {
       const burgId = getWorldContext().pack.cells.burg[cellId];
       if (burgId) (getWorldContext().pack.burgs as Burg[])[burgId].market = marketId;
     }
+    Markets.invalidateRuralProductionCache();
   }
 
   marketsWorking = null;
@@ -294,6 +305,7 @@ function exitMarketsManualAssignment(apply: boolean): void {
   removeCircle();
 
   if (apply) {
+    syncBurgMarketLedgers();
     drawMarketsLayer();
     marketsOverviewAddLines();
   }
@@ -395,6 +407,15 @@ function getMarketBurgs(marketId: number): number {
     .length;
 }
 
+function getMarketPopulation(marketId: number): number {
+  const marketArr = getWorldContext().pack.cells.market;
+  if (!marketArr) return 0;
+  const context = getWorldContext();
+  const burgs = (context.pack.burgs as Burg[]).filter(b => b.i && !b.removed && marketArr[b.cell] === marketId);
+  const sum = burgs.reduce((acc, b) => acc + (b.population ?? 0), 0);
+  return rn(sum * context.populationRate * context.urbanization);
+}
+
 function getMarketFinancials(market: Market): {
   sales: number;
   buys: number;
@@ -437,13 +458,6 @@ function togglePercentageMode(): void {
 
 // updateFooter removed
 
-function getOwnerStateName(market: Market): string {
-  const center = getWorldContext().pack.burgs[market.centerBurgId];
-  if (!center) return "Unknown";
-  if (!center.state) return "Independent";
-  return getWorldContext().pack.states[center.state]?.name || `State ${center.state}`;
-}
-
 function regenerateMarkets(regenerateTrade = true): void {
   Markets.generate(true);
   if (regenerateTrade) Production.produce();
@@ -458,13 +472,14 @@ function regenerateProduction(): void {
 }
 
 function downloadMarketsCsv(): void {
-  let csv = "Market,Owner,Cells,Burgs,Total Stock,Sales,Buys,Value\n";
+  let csv = "Market,Manager,Cells,Burgs,Population,Total Stock,Sales,Buys,Value\n";
   for (const market of getWorldContext().pack.markets) {
     const { sales, buys, value } = getMarketFinancials(market);
     const cells = getMarketCells(market.i);
     const burgs = getMarketBurgs(market.i);
+    const population = getMarketPopulation(market.i);
     const stock = rn(getMarketTotalStock(market), 2);
-    csv += `${[Markets.getName(market), getOwnerStateName(market), cells, burgs, stock, sales, buys, value].join(",")}\n`;
+    csv += `${[Markets.getName(market), getMarketManagerName(market), cells, burgs, population, stock, sales, buys, value].join(",")}\n`;
   }
   downloadFile(csv, `${getFileName("Markets_Overview")}.csv`);
 }
@@ -511,10 +526,13 @@ export const marketsOverviewActions = {
   openMarketCompare() {
     openMarketsGoodCompare();
   },
+  openTradeOpportunities() {
+    openMarketTradeOpportunities();
+  },
   setSorting(sortBy: string) {
     const { sortBy: currentSortBy, sortDirection } = getMarketsOverviewState();
     const nextDirection =
-      currentSortBy === sortBy ? sortDirection * -1 : sortBy === "market" || sortBy === "owner" ? 1 : -1;
+      currentSortBy === sortBy ? sortDirection * -1 : sortBy === "market" || sortBy === "manager" ? 1 : -1;
     setMarketsOverviewState({ sortBy, sortDirection: nextDirection });
   }
 };

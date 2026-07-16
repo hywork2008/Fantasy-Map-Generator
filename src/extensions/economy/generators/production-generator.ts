@@ -1,14 +1,26 @@
 import type { Burg } from "../../hostTypes";
-import { DEBUG, ERROR, minmax, rn, TIME } from "../../hostUtils";
+import { DEBUG, ERROR, rn, TIME } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
+import { syncBurgMarketLedgers } from "./burgMarketLedgers";
+import { Caravans } from "./caravans";
 import type { DemandCategory, Good } from "./goods-generator";
-import { DEMAND_PRIORITY, Goods, getDemandTargets } from "./goods-generator";
-import type { Deal, Market } from "./markets-generator";
+import { DEMAND_PRIORITY, Goods, getDemandTargets, isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
+import type { Deal, Market } from "./marketTypes";
 import { getModifiers, MAX_BONUS_PRODUCTION } from "./production-utils";
+import {
+  getStrategicLaborProductivity,
+  getStrategicOccupation,
+  type LaborMarket,
+  reconcileStrategicLaborMarkets
+} from "./strategicLaborMarkets";
+import {
+  getStrategicDemandMultiplier,
+  getStrategicProductionDemandByGood,
+  type StrategicProductionDemand
+} from "./strategicProductionDemand";
 
 const BONUS_URBAN_PRODUCTION = 1;
-const MIN_BONUS_PRODUCTION = 1;
 
 export class ProductionModule {
   private get worldContext() {
@@ -24,10 +36,29 @@ export class ProductionModule {
   produce() {
     TIME && console.time("generateProduction");
 
+    // Cleared here (start of cycle) rather than after Taxes.collectTaxes() so the previous
+    // cycle's deals stay visible to transaction-history UI (markets-overview.ts,
+    // market-deals-overview.ts, production-overview.ts) for the whole ~30-day interval between
+    // cycles, instead of for ~0ms (docs/temp/profits.md decision #1).
+    this.worldContext.pack.deals = [];
+
     Markets.collectRuralProduction();
     Markets.initializeMarketPrices();
 
-    const index = this.buildProductionIndex(this.worldContext.pack.goods || []);
+    const index = this.buildProductionIndex((this.worldContext.pack.goods || []).filter(isGoodEnabled));
+    const strategicLaborMarkets = reconcileStrategicLaborMarkets(
+      {
+        markets: this.worldContext.pack.markets,
+        burgs: this.worldContext.pack.burgs,
+        goods: index.goods,
+        orders: this.worldContext.pack.strategicProcurementOrders ?? []
+      },
+      this.worldContext.pack.strategicLaborMarkets ?? []
+    );
+    this.worldContext.pack.strategicLaborMarkets = strategicLaborMarkets;
+    const strategicLaborMarketById = new Map(
+      strategicLaborMarkets.map(laborMarket => [laborMarket.marketId, laborMarket])
+    );
     const sortedBurgs = this.worldContext.pack.burgs
       .filter(burg => burg.i && !burg.removed)
       .sort((a, b) => a.population! - b.population!);
@@ -37,7 +68,7 @@ export class ProductionModule {
       const market = Markets.get(burg.market);
       if (!market) continue;
 
-      const state = this.createBurgProductionState(burg, market, index);
+      const state = this.createBurgProductionState(burg, market, index, strategicLaborMarketById.get(market.i));
       this.runWorkerLoop(index, state);
 
       const phaseRevenue = this.sellInventoryToMarket(state);
@@ -48,7 +79,9 @@ export class ProductionModule {
     }
 
     Markets.runGlobalTrade();
+    Caravans.spawnFromDeals(this.worldContext.pack.deals);
     this.fillBurgsDemand(sortedBurgs, index);
+    syncBurgMarketLedgers();
 
     TIME && console.timeEnd("generateProduction");
   }
@@ -84,7 +117,12 @@ export class ProductionModule {
     };
   }
 
-  private createBurgProductionState(burg: Burg, market: Market, index: ProductionIndex): BurgProductionState {
+  private createBurgProductionState(
+    burg: Burg,
+    market: Market,
+    index: ProductionIndex,
+    strategicLaborMarket: LaborMarket | undefined
+  ): BurgProductionState {
     const population = rn(burg.population || 0, 2);
     const inventory: number[] = [];
     const demandTargets = getDemandTargets(population);
@@ -92,9 +130,14 @@ export class ProductionModule {
     const records: ProductionRecord[] = [];
 
     const good = Goods.get(this.worldContext.pack.cells.good[burg.cell]);
-    if (good) {
+    if (good && isGoodEnabled(good)) {
       const modifier = getModifiers(good, burg.cell);
-      const bonus = minmax(population * BONUS_URBAN_PRODUCTION, MIN_BONUS_PRODUCTION, MAX_BONUS_PRODUCTION);
+      // No lower clamp (matches the rural counterpart, getCellProduction in production-utils.ts):
+      // burg.population is the raw pre-scaling population score (~0.05-20, the same unit
+      // burgs-generator.ts's group thresholds use — e.g. fort: max 1, village: 0.1-2), so a MIN
+      // floor here would give every hamlet/village/fort the same flat bonus regardless of how far
+      // below that floor its actual size is. See docs/analytics/urban-resource-bonus-rebalance.md.
+      const bonus = Math.min(population * BONUS_URBAN_PRODUCTION, MAX_BONUS_PRODUCTION);
       const localBonus = bonus * modifier;
       if (localBonus > 0) {
         inventory[good.i] = (inventory[good.i] || 0) + localBonus;
@@ -111,7 +154,12 @@ export class ProductionModule {
       demandCoverage,
       records,
       ingredientCosts: 0,
-      activeGoalGoodId: null
+      activeGoalGoodId: null,
+      strategicLaborMarket,
+      strategicDemandByGood: getStrategicProductionDemandByGood(
+        this.worldContext.pack.strategicProcurementOrders ?? [],
+        market.i
+      )
     };
   }
 
@@ -149,7 +197,7 @@ export class ProductionModule {
     const { good, ingredients, maxYield } = decision.action;
     const actualYield = Math.min(workerFraction, maxYield);
     const cultureModifier = getModifiers(good, state.burg.cell);
-    const produced = rn(actualYield * cultureModifier, 2);
+    const produced = rn(actualYield * cultureModifier * decision.laborProductivity, 2);
     if (!produced) return;
 
     // Plan all ingredient sourcing first; bail out before mutating state if any market buy fails.
@@ -206,7 +254,8 @@ export class ProductionModule {
       const units = state.inventory[goodId];
       if (units <= 0) continue;
 
-      const good = Goods.get(goodId)!;
+      const good = Goods.get(goodId);
+      if (!good || !isGoodEnabled(good)) continue;
       const deal = Markets.sell({ burg: state.burg, good, units, taxRate });
       if (!deal) continue;
 
@@ -364,7 +413,7 @@ export class ProductionModule {
         const marketGood = market.goods[candidate.goodId];
         const stock = marketGood?.stock || 0;
         if (stock <= 0.01) continue;
-        const price = Markets.customerBuyPrice(marketGood.price);
+        const price = Markets.customerBuyPrice(marketGood.price, market.centerBurgId, candidate.goodId);
         const costPerCoverage = price / candidate.coverageWeight;
         sortedCandidates.push({ candidate, costPerCoverage });
       }
@@ -634,7 +683,15 @@ export class ProductionModule {
     let chosenGoal: GoalActionPlan | null = null;
     let activeGoal: GoalActionPlan | null = null;
     for (const good of index.productiveGoods) {
-      const demandEffect = this.getDemandEffect(good, demandFocus, index.demandCoverageByGood);
+      const populationDemandEffect = this.getDemandEffect(good, demandFocus, index.demandCoverageByGood);
+      const strategicDemandMultiplier = getStrategicDemandMultiplier(
+        state.strategicDemandByGood.get(good.i),
+        demandFocus !== null
+      );
+      const demandEffect: DemandEffect = {
+        multiplier: populationDemandEffect.multiplier * strategicDemandMultiplier,
+        category: populationDemandEffect.category
+      };
       const goalPlan = this.planGoodAction(index, state, good, fraction, fraction, workersLeft, demandEffect);
       if (!goalPlan || goalPlan.projectedGain <= 0) continue;
       candidates.push(goalPlan.candidate);
@@ -645,7 +702,13 @@ export class ProductionModule {
     if (activeGoalGoodId !== null && chosenGoal && !activeGoal) {
       const activeGood = Goods.get(activeGoalGoodId);
       if (activeGood) {
-        const activeDemand = this.getDemandEffect(activeGood, demandFocus, index.demandCoverageByGood);
+        const populationDemandEffect = this.getDemandEffect(activeGood, demandFocus, index.demandCoverageByGood);
+        const activeDemand: DemandEffect = {
+          multiplier:
+            populationDemandEffect.multiplier *
+            getStrategicDemandMultiplier(state.strategicDemandByGood.get(activeGood.i), demandFocus !== null),
+          category: populationDemandEffect.category
+        };
         activeGoal = this.planGoodAction(index, state, activeGood, fraction, fraction, workersLeft, activeDemand);
       }
     }
@@ -653,7 +716,13 @@ export class ProductionModule {
     if (activeGoal && chosenGoal && activeGoal.normalizedGain >= chosenGoal.normalizedGain) chosenGoal = activeGoal;
     if (!chosenGoal) return null;
 
-    return { action: chosenGoal.action, candidates, goalGoodId: chosenGoal.goalGoodId };
+    const goalGood = Goods.get(chosenGoal.goalGoodId);
+    const appliesStrategicLabor = goalGood && state.strategicDemandByGood.has(goalGood.i);
+    const laborProductivity = appliesStrategicLabor
+      ? getStrategicLaborProductivity(state.strategicLaborMarket, getStrategicOccupation(goalGood))
+      : 1;
+
+    return { action: chosenGoal.action, candidates, goalGoodId: chosenGoal.goalGoodId, laborProductivity };
   }
 
   private buildRecipesArray(goods: Good[]): Recipe[] {
@@ -665,7 +734,15 @@ export class ProductionModule {
           goodId: +goodId,
           amount
         }));
-        if (!entries.length) continue;
+        if (
+          !entries.length ||
+          entries.some(entry => {
+            const ingredient = Goods.get(entry.goodId);
+            return !ingredient || !isGoodEnabled(ingredient);
+          })
+        ) {
+          continue;
+        }
         recipes.push({ good, ingredients: entries });
       }
     }
@@ -714,6 +791,8 @@ type BurgProductionState = {
   records: ProductionRecord[];
   ingredientCosts: number;
   activeGoalGoodId: number | null;
+  strategicDemandByGood: ReadonlyMap<number, StrategicProductionDemand>;
+  strategicLaborMarket: LaborMarket | undefined;
 };
 
 type DemandEffect = { multiplier: number; category: DemandCategory | null };
@@ -726,6 +805,7 @@ type ProductionDecision = {
   action: PlannedAction;
   candidates: ProductionCandidate[];
   goalGoodId: number | null;
+  laborProductivity: number;
 };
 
 export type ProductionCandidate = {

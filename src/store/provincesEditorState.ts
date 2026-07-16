@@ -33,6 +33,7 @@ export interface ProvinceRowData {
   rural: number;
   urban: number;
   burgs: number[];
+  burgsData: { id: number; name: string }[];
   burgCount: number;
   isSeparable: boolean;
   isFocused: boolean;

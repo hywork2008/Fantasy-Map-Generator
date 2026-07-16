@@ -4,32 +4,89 @@ This document defines the strict constraints, architectural boundaries, and codi
 
 ---
 
+## 0. Project Orientation for AI Agents
+
+This repository is a fork of [Azgaar's Fantasy Map Generator](https://github.com/Azgaar/Fantasy-Map-Generator). The project is migrating the original JavaScript codebase to TypeScript / React / Zustand while adding project-specific simulation and extension systems.
+
+### Upstream Relationship
+
+- The upstream code is tracked on the `upstream/master` branch.
+- A local upstream clone exists at `/Users/h-yamaguchi/Projects/fmg-upstream`.
+- `docs/upstream/` contains upstream-derived reference documentation. For this fork's current behavior, prefer `src/` and the non-upstream `docs/` files over `docs/upstream/`.
+
+### Current Source Map
+
+| Path | Role |
+| :--- | :--- |
+| `src/app.ts` | `initApp()`, React UI bootstrap, `window.fmg` and `ExtensionAPI` assembly |
+| `src/main.ts` | Map generation pipeline, load-time behavior, zoom/focus, host event registration |
+| `src/initViewLayers.ts` | Single owner for creating and re-acquiring host SVG `<g>` layers |
+| `src/context/*.ts` | `WorldContext` / `ViewContext` / `AppServices` / `SimulationContext` |
+| `src/generators/` | Terrain, states, military, time, and other data generation/update logic |
+| `src/renderers/` | SVG rendering from `Readonly<WorldContext>` |
+| `src/renderers/webgl/` | deck.gl-based WebGL hybrid rendering (`webglHybrid` render mode, now the default); see §1.1 |
+| `src/controllers/` | UI/editing operations, layer control, redraw requests |
+| `src/ui/` | React app, tabs, dialogs, shared components |
+| `src/store/` | Zustand stores |
+| `src/extensions/` | Built-in extensions and dynamic ZIP extension infrastructure |
+
+### Built-in Extensions
+
+Built-in extensions are initialized from `src/extensions/index.ts` in this order:
+
+| ID | Scope | Default |
+| :--- | :--- | :--- |
+| `economy` | Goods, markets, production, trade, taxes, treasury | Disabled |
+| `characters` | Base character roster, skills, personality, family | Disabled |
+| `nobility` | Rulers, officers, province lords, diplomacy modifiers, strategic AI, espionage, mobilization, march capture | Disabled; requires `characters` |
+| `shipbuilding` | Shipyard candidates, logging, build queues, completed hulls, foreign interference logs | Disabled; `economy` is optional |
+
+Extensions must communicate with the host through `ExtensionAPI`. Dynamic ZIP extensions are imported from blob URLs and must never import host modules directly.
+
+### Documentation Map
+
+| Path | Use |
+| :--- | :--- |
+| `docs/this-project.md` | Fork-specific project entry point |
+| `docs/map-initialization-process.md` | Initialization, generation order, SVG layer order |
+| `docs/webgl-renderer-migration-candidates.md` | WebGL hybrid renderer (deck.gl) architecture, per-layer implementation status, caching/invalidation rules, phase history |
+| `docs/webgl-economy-layer-migration.md` | Economy extension's WebGL layer migration notes |
+| `docs/extension-system-guide.md` | Extension system technical guide |
+| `docs/extension-agent-spec.md` | Extension implementation rules for AI agents |
+| `docs/simulation/advance-time.md` | Advance Time and tick hook contract |
+| `docs/simulation/` | Simulation specs such as economy, population, and time |
+| `docs/analytics/` | Implementation investigations |
+| `docs/plan/` | Design plans and discussion logs; some entries describe already-implemented work |
+| `docs/debug/` / `docs/reviews/` | Bug investigation and review history |
+| `docs/ui/` | UI migration and UI/function mapping notes |
+| `docs/upstream/` | Upstream reference material only |
+
+Treat `docs/plan/`, `docs/debug/`, and `docs/reviews/` as time-stamped investigation history unless the implementation in `src/` confirms the behavior. Always reconcile them with source code before treating them as current specification.
+
+---
+
 ## 1. Core Architecture (4-Layer Rule)
 
 The codebase strictly adheres to a unidirectional 4-layer data flow architecture. Every module must be categorized under one of the following layers, passing state downward via read-only references:
 
 ```
-State (WorldContext / ViewContext / AppServices)
+State (WorldContext / ViewContext / AppServices / SimulationContext)
   ↓ Passed down as Readonly references
 Generator (src/modules/)   → Generates and mutates world data
-Renderer (src/renderers/)  → Pure SVG visualization (No mutations allowed)
+Renderer (src/renderers/)  → Pure visualization, SVG or WebGL (No mutations allowed)
 Editor (src/controllers/)  → Handles UI/User operations, mutates State, triggers redraws
 ```
 
-- **State Layer**: Houses `WorldContext`, `ViewContext`, and `AppServices` schemas.
+- **State Layer**: Houses `WorldContext`, `ViewContext`, `AppServices`, and `SimulationContext` schemas.
 - **Generator Layer (`src/modules/`)**: Implements procedural world simulation and mutates raw data.
-- **Renderer Layer (`src/renderers/`)**: Evaluates `Readonly<WorldContext>` to draw SVG infrastructure.
+- **Renderer Layer (`src/renderers/`)**: Evaluates `Readonly<WorldContext>` / `Readonly<ViewContext>` to draw the map. Two implementations run side by side — legacy SVG renderers (`src/renderers/*.ts`) and the deck.gl-based WebGL hybrid renderer (`src/renderers/webgl/`) — selected at runtime by `viewContext.renderMode` (see §1.1).
 - **Editor Layer (`src/controllers/`)**: Captures UI events, mutates State, and requests redraw operations.
 
 | Layer | Direct DOM / SVG Modification | Writing to `pack` / `grid` | Permitted Actions |
 | :--- | :--- | :--- | :--- |
 | **Generator** | ❌ Forbidden | ✅ Allowed | Procedural state generation and structural mutation. |
-| **Renderer** | ✅ Allowed (SVG only) | ❌ Forbidden | Map state visualization (`Readonly<WorldContext> -> SVG`). Must remain pure. |
+| **Renderer** | ✅ Allowed (SVG, or the WebGL hybrid `<canvas>` depending on `renderMode`) | ❌ Forbidden | Map state visualization (`Readonly<WorldContext> -> SVG` or `-> deck.gl layers`). Must remain pure. |
 | **Editor** | ✅ Allowed (Strictly via events, no direct SVG drawing) | ✅ Allowed | User input handling, controlling state mutations, and triggering re-renders. |
-
-### Renderer Encapsulation Rule
-
-Direct DOM / SVG manipulation using `d3.select("...").append(...)` or similar methods is **strictly prohibited outside of the `src/renderers/` directory**, with one explicit exception: `src/initViewLayers.ts`. Non-Renderer layers (such as `src/controllers/` or `src/editors/`) must delegate all drawing operations to the appropriate Renderer (e.g., `BiomesRenderer.render()`).
 
 ### SVG Layer Initialization (`src/initViewLayers.ts`)
 
@@ -43,13 +100,32 @@ Direct DOM / SVG manipulation using `d3.select("...").append(...)` or similar me
 
 No other file may create or manage host SVG layers. Extension-owned layers are managed exclusively through `api.addLayers()` / `api.removeLayers()` in the extension system.
 
+### 1.1 Render Modes: SVG vs WebGL Hybrid (`viewContext.renderMode`)
+
+The map has two selectable 2D renderers, tracked by `viewContext.renderMode: "svg" | "webglHybrid"` (`src/context/viewContext.ts`):
+
+| Mode | When active | Map body | SVG layers |
+| :--- | :--- | :--- | :--- |
+| `webglHybrid` | Default when `isWebgl2Available()` is true | deck.gl canvas (`#webglMapCanvas`; `src/renderers/webgl/deckRenderer.ts` + `buildDeckLayers.ts`) draws most layers directly from `pack`/`grid` | Layers in `hybridLayerPolicy.ts`'s `WEBGL_MANAGED_SVG_LAYER_IDS` are hidden (`body.fmg-webgl-hybrid .fmg-webgl-managed-svg-layer { display: none }`); layers in `HYBRID_SVG_OVERLAY_LAYER_IDS` (texture, relief, scaleBar, legend, coordinates, compass, calendar, etc.) stay as real SVG overlays on top of the canvas |
+| `svg` | Default when WebGL2 is unavailable, or the user explicitly switches back | Pure SVG rendering — no deck.gl instance; the original/compatibility path | All layers render as SVG, unchanged |
+
+Key rules:
+
+- The user's explicit choice is sticky and wins over the default: `setRenderMode()` (`src/actions.ts`) writes `viewContext.renderMode` and persists it to `localStorage["fmg-render-mode"]`. A stored `"svg"` or `"webglHybrid"` (when WebGL2 is available) preference is always honored; only a missing/invalid stored value falls back to `isWebgl2Available() ? "webglHybrid" : "svg"`.
+- The WebGL renderer is a first-class member of the Renderer layer and must obey the same purity rule as SVG renderers — read `Readonly<WorldContext>` / `Readonly<ViewContext>`, never write `pack` or `grid`.
+- Style values (color, opacity, stroke width, font size, dash pattern, etc.) are read from live SVG attributes / `worldContext.style` via `src/renderers/webgl/webglStyleExtractors.ts` — the SVG DOM stays the style source of truth even while hidden by the hybrid layer policy. Any new style-changing handler in `src/controllers/style.ts` that touches a WebGL-mapped attribute must call `scheduleWebglUpdate()` (`src/controllers/layers.ts`), or the change will silently fail to reach the canvas.
+- Editing/picking in `webglHybrid` mode goes through `WebglPickDetail` (`src/types/webglPicking.ts`), bridged by `src/services/mapInteraction.ts` into the same editor controllers the SVG path uses. Do not add new DOM-event-only editing paths without a WebGL pick equivalent.
+- Full architecture, per-layer implementation status, caching/invalidation rules, and phase history live in `docs/webgl-renderer-migration-candidates.md` — consult it before touching either renderer.
+
+**E2E test hazard**: only specs that call `setRenderMode(page, mode)` (`tests/e2e/helpers/fmg-helpers.ts`) pin their render mode explicitly. Any other spec runs under whatever `renderMode` defaults to in the test browser — currently `webglHybrid` whenever it reports WebGL2 support. A spec that asserts on or clicks SVG elements listed in `WEBGL_MANAGED_SVG_LAYER_IDS` will silently break under that default unless it pins `renderMode: "svg"` or is rewritten against the WebGL pick helpers.
+
 ## 2. Global State Elimination & Context Isolation
 
 The legacy practice of attaching objects and functions directly to the global `window` scope is prohibited.
 
 - **Zero Individual Global Pollution**: Do NOT assign any variable, function, or module to `window.*` individually. All internal module dependencies must be resolved via standard ES `import`/`export` syntax. The `window.*` registration blocks historically present at the end of controller files (e.g. `window.editStates = editStates;`) are dead code and must be deleted on sight.
 - **One Allowed Exception — `window.fmg`**: The single permitted global exposure is the typed `window.fmg` namespace, assembled in `app.ts` after all modules have been initialized (see Section 6). No other `window.*` assignment is ever acceptable.
-- **Context Injection (DI)**: State must be explicitly managed through the three major contexts or injected via function arguments:
+- **Context Injection (DI)**: State must be explicitly managed through the four major contexts or injected via function arguments:
   - `WorldContext` (`src/context/worldContext.ts`): Pure world data store — `pack`, `grid`, `seed`, `mapId`, `mapHistory`, `notes`, `options`, `biomesData`, `nameBases`, `style`, `graphWidth`, `graphHeight`, `mapCoordinates`, `urbanization`, `urbanDensity`, `populationRate`, `distanceScale`. No SVG or UI logic. `graphWidth`/`graphHeight` are equivalent to `options.mapWidth/Height` — they define the logical coordinate space of the generated world and do not change on browser resize, so they belong here.
   - `ViewContext` (`src/context/viewContext.ts`): Pure view infrastructure store. Implemented as a composition of six domain-grouped interfaces plus view state:
     - `RootLayers` — `svg`, `defs`, `viewbox`, `scaleBar`, `legend`, `ruler`, `debug`, `fogging`
@@ -58,12 +134,13 @@ The legacy practice of attaching objects and functions directly to the global `w
     - `InfrastructureLayers` — `routes`, `roads`, `trails`, `searoutes`
     - `SettlementLayers` — `icons`, `labels`, `burgLabels`, `burgIcons`, `anchors`, `armies`, `markers`, `emblems`, `population`
     - `OverlayLayers` — `cells`, `gridOverlay`, `coordinates`, `compass`
-    - `ViewState` — `zoom`, `viewX`, `viewY`, `scale`, `customization`, `svgWidth`, `svgHeight`, `lineGen`
+    - `ViewState` — `zoom`, `viewX`, `viewY`, `scale`, `customization`, `svgWidth`, `svgHeight`, `lineGen`, `renderMode`, `webglCanvas`, `webglDeck`
 
     Extension-owned SVG layers (e.g. `goods`, `marketsLayer`, `tradeAnimation`) are **not** part of `ViewContext`. They are created dynamically by the extension system via `addLayers()` and tracked inside `buildExtensionAPI()` in `app.ts`. Access them via `api.getSvgLayer(id)`, not via `viewContext`.
 
     `svgWidth`/`svgHeight` are `Math.min(graphWidth, window.innerWidth/Height)` — they depend on the browser window and change on resize, so they belong here, not in `WorldContext`. D3 rendering utilities (`lineGen`) are likewise view concerns. SVG layer selections are populated by `src/initViewLayers.ts` (`createViewLayers()` on startup, `reinitializeMapLayers()` on map load) via `Object.assign()` before any renderer runs. Renderers should declare only the group interface(s) they need rather than the full `ViewContext` type. When a renderer needs fields from multiple groups, declare them with an intersection type (e.g., `Readonly<RootLayers & PoliticalLayers>`). **String-based layer lookups via `viewContext.svg.select("#layerName")` are forbidden** when a typed `ViewContext` field exists for that layer — always use the field directly (e.g., `viewContext.statesBody` instead of `viewContext.svg.select("#statesBody")`).
   - `AppServices` (`src/context/appServices.ts`): Shared utility services — `rng` (pseudo-random number generator), `storage` (IndexedDB wrapper), `COArenderer` (coat-of-arms SVG renderer, nullable).
+  - `SimulationContext` (`src/context/simulationContext.ts`): Live, tick-driven simulation state — `currentYear`, `currentMonth`, `currentDay`, `era`, `tickCount`, plus Nobility-owned live state such as `intelligence` and `strategicGoals`. Distinct from `WorldContext` because these values are not static generation output; they mutate repeatedly during a session as `src/generators/timeEngine.ts`'s `advanceTime()` runs. Initialized from `worldContext.options.year`/`month`/`day`/`era` once per generation (`initSimulationClock()`, called from `main.ts` after core generation completes) and mirrored back into `worldContext.options.year`/`month`/`day` on every `advanceTime()` call so legacy readers (`military-generator.ts`, `states-generator.ts`, `markers-generator.ts`, `battle-screen.ts`) keep working unchanged. Extensions read/react to it via `registerTimeTickHook()` on `ExtensionAPI`, not by importing this module directly.
 - **Object In-place Mutation Constraint**: Never replace `grid` or `pack` object references directly (e.g., `grid = newObject`). Use `Object.assign()` to perform in-place mutations so that shared references across module boundaries remain synchronized.
 
 ---
@@ -95,6 +172,7 @@ E2E tests (Playwright) must never rely on arbitrary `window.*` globals. The only
 - **`window.fmg.world.*`** — Read world state (e.g., `window.fmg.world.mapId` for generation-complete polling, `window.fmg.world.pack` for data assertions).
 - **`window.fmg.view.*`** — Access SVG layer references and view geometry (e.g., `window.fmg.view.graphWidth`).
 - **`window.fmg.actions.*`** — Invoke intentional public operations (e.g., `window.fmg.actions.zoomTo(x, y, scale)`).
+- **`window.fmg.simulation.*`** — Read the live simulation clock (e.g., `window.fmg.simulation.currentYear` after calling `window.fmg.actions.advanceTime(n)`).
 
 All `page.evaluate()` calls that touch `window.fmg` must be encapsulated in helper functions under `tests/e2e/helpers/` rather than inlined into test bodies. This insulates individual tests from structural changes to `window.fmg`.
 
@@ -137,6 +215,8 @@ export interface FMGNamespace {
   readonly world: WorldContext;
   readonly view: ViewContext;
   readonly actions: FMGActionsAPI;
+  /** Live simulation clock (currentYear, era, tickCount). */
+  readonly simulation: SimulationContext;
   /** Dependency-injection API for dynamically loaded extensions. */
   readonly extensionAPI: ExtensionAPI;
 }
@@ -164,6 +244,7 @@ declare global {
 window.fmg = Object.freeze({
   world: worldContext,
   view: viewContext,
+  simulation: simulationContext,
   actions: Object.freeze({
     generate,
     regenerateMap,
@@ -390,4 +471,8 @@ The loader (`dynamicLoader.ts`) validates the manifest, stores the record in Ind
 ## 8. Development Pipeline and Git Discipline
 
 - **Pre-commit Quality Gate**: Prior to crafting any commit, you must execute the compilation validation (`npm run build` or `npx tsc --noEmit`) and structural verification linting scripts to ensure zero errors are introduced.
+- **No Circular Dependencies**: Run `npm run madge` (`madge --circular --extensions ts,tsx src/app.ts`) and confirm it reports no circular dependency before committing. If a cycle is introduced, resolve it by extracting shared types/utilities into a dependency-free module rather than suppressing the check.
+- **End-of-Task Error Checks**: At the end of every editing task (not only right before a commit), confirm both of the following are clean:
+  - **No VS Code Problems**: The VS Code PROBLEMS tab shows no errors for the files you touched. Note that `tsconfig.json` excludes `src/**/*.test.ts` and `src/test-setup.ts`, so `npx tsc --noEmit` silently skips type errors in test files — the PROBLEMS tab (or a temporary tsconfig with those excludes removed) is the only way to catch them.
+  - **No Lint Errors**: `npm run lint` (`biome check --write` + `lint:legacy`) reports zero errors/warnings. Do not leave a `biome-ignore` suppression comment for a rule that is already disabled for that file's path (check `biome.json` overrides first) — it will itself be flagged as an ineffective suppression.
 - **Commit Format**: All Git commit messages must be explicitly written in English following structural conventions (e.g., `refactor: migrate module-name to TypeScript`). Do not commit automatically if an error occurs during building.

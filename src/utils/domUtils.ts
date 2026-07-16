@@ -11,23 +11,23 @@ export function getVisibleDialogElement(id: string): HTMLElement | null {
   return el;
 }
 export function lock(id: string): void {
-  const input = document.querySelector<HTMLInputElement>(`[data-stored="${id}"]`);
-  if (input) store(id, input.value);
-  const el = document.getElementById(`lock_${id}`);
-  if (!el) return;
-  el.dataset.locked = "1";
-  el.className = "icon-lock";
+  const options = useOptionsState.getState() as unknown as Record<string, unknown>;
+  const value = options[id];
+  if (id in options && typeof value !== "function") {
+    store(id, String(value));
+  } else {
+    const input = document.querySelector<HTMLInputElement | HTMLSelectElement>(`[data-stored="${id}"]`);
+    if (input) store(id, input.value);
+  }
+
+  document.dispatchEvent(new CustomEvent("fmg:lock-changed", { detail: { id, locked: true } }));
 }
 export function unlock(id: string): void {
   localStorage.removeItem(id);
-  const el = document.getElementById(`lock_${id}`);
-  if (!el) return;
-  el.dataset.locked = "0";
-  el.className = "icon-lock-open";
+  document.dispatchEvent(new CustomEvent("fmg:lock-changed", { detail: { id, locked: false } }));
 }
 export function locked(id: string): boolean {
-  const lockEl = document.getElementById(`lock_${id}`) as HTMLElement;
-  return lockEl ? lockEl.dataset.locked === "1" : false;
+  return localStorage.getItem(id) !== null;
 }
 export function stored(key: string): string | null {
   return localStorage.getItem(key) || null;
@@ -55,7 +55,7 @@ export function sortLines(headerElement: HTMLElement): void {
   if (!headerElement.className.includes("icon-sort") && type === "name") order = "-up";
 
   const headers = headerElement.parentNode as Element;
-  headers.querySelectorAll<HTMLElement>("div.sortable").forEach(e => {
+  headers.querySelectorAll<HTMLElement>(".sortable").forEach(e => {
     e.classList.forEach(c => {
       if (c.includes("icon-sort")) e.classList.remove(c);
     });
@@ -64,7 +64,7 @@ export function sortLines(headerElement: HTMLElement): void {
   applySorting(headers as HTMLElement);
 }
 export function applySorting(headers: HTMLElement): void {
-  const header = headers.querySelector<HTMLElement>("div[class*='icon-sort']");
+  const header = headers.querySelector<HTMLElement>("[class*='icon-sort']");
   if (!header) return;
   const sortby = header.dataset.sortby!;
   const name = header.classList.contains("alphabetically");

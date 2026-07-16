@@ -1,6 +1,5 @@
 import React from "react";
-
-import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
+import { closeDialog, Dialog, useDialogState, VirtualTableBody } from "../../../hostUi";
 import { applySorting, formatPrice } from "../../../hostUtils";
 
 import {
@@ -17,62 +16,82 @@ export const MarketDealsDialog: React.FC = () => {
   const netFlow = useMarketDealsState(state => state.netFlow);
   const activeFilter = useMarketDealsState(state => state.activeFilter);
   const onRowClick = useMarketDealsState(state => state.onRowClick);
-  const headerRef = React.useRef<HTMLDivElement | null>(null);
+  const headerRef = React.useRef<HTMLTableSectionElement | null>(null);
 
   React.useEffect(() => {
     if (isOpen && headerRef.current) applySorting(headerRef.current);
   }, [isOpen]);
 
   return (
-    <Dialog isOpen={isOpen} title="Market Deals" onClose={() => closeDialog("marketDeals")}>
+    <Dialog
+      isOpen={isOpen}
+      title="Market Deals"
+      onClose={() => closeDialog("marketDeals")}
+      className="fmg-dialog--table"
+    >
       <div id="marketDealsContainer">
-        <div
-          id="marketDealsHeader"
-          ref={headerRef}
-          className="header"
-          style={{ gridTemplateColumns: "2em 6.8em 4em 10em 4em 4em" }}
-        >
-          <div />
-          <div
-            data-tip="Click to sort by good"
-            className="sortable alphabetically"
-            data-sortby="good"
-            style={{ marginLeft: 0 }}
-          >
-            Good&nbsp;
-          </div>
-          <div data-tip="Click to sort by deal type" className="sortable alphabetically" data-sortby="direction">
-            Type&nbsp;
-          </div>
-          <div data-tip="Click to sort by counterparty" className="sortable alphabetically" data-sortby="counterparty">
-            Counterparty&nbsp;
-          </div>
-          <div data-tip="Click to sort by units" className="sortable" data-sortby="units">
-            Units&nbsp;
-          </div>
-          <div data-tip="Click to sort by income" className="sortable" data-sortby="income">
-            Income&nbsp;
-          </div>
-        </div>
-
-        <div id="marketDealsBody" className="table" style={{ maxHeight: "30em" }}>
-          {rows.length === 0 ? (
-            <span>No market deals recorded</span>
-          ) : (
-            rows.map(row => <DealRow key={row.id} row={row} onRowClick={onRowClick} />)
-          )}
+        <div id="marketDealsBody" className="table">
+          <table className="fmg-table">
+            <colgroup>
+              <col />
+              <col />
+              <col />
+              <col />
+              <col />
+              <col />
+            </colgroup>
+            <thead id="marketDealsHeader" ref={headerRef}>
+              <tr className="header">
+                <th />
+                <th data-tip="Click to sort by good" className="sortable alphabetically" data-sortby="good">
+                  Good
+                </th>
+                <th data-tip="Click to sort by deal type" className="sortable alphabetically" data-sortby="direction">
+                  Type
+                </th>
+                <th
+                  data-tip="Click to sort by counterparty"
+                  className="sortable alphabetically"
+                  data-sortby="counterparty"
+                >
+                  Counterparty
+                </th>
+                <th data-tip="Click to sort by units" className="sortable" data-sortby="units">
+                  Units
+                </th>
+                <th data-tip="Click to sort by income" className="sortable" data-sortby="income">
+                  Income
+                </th>
+              </tr>
+            </thead>
+            {rows.length === 0 ? (
+              <tbody>
+                <tr>
+                  <td colSpan={6}>
+                    <span>No market deals recorded</span>
+                  </td>
+                </tr>
+              </tbody>
+            ) : (
+              <VirtualTableBody
+                items={rows}
+                scrollElementRef={headerRef}
+                renderRow={row => <DealRow key={row.id} row={row} onRowClick={onRowClick} />}
+              />
+            )}
+          </table>
         </div>
 
         <div id="marketDealsFooter" className="totalLine">
-          <div style={{ marginLeft: 5 }} data-tip="Deals count">
+          <div data-tip="Deals count">
             Deals: <span id="marketDealsFooterDeals">{dealsCount}</span>
           </div>
-          <div style={{ marginLeft: 12 }} data-tip="Net flow for this market">
+          <div data-tip="Net flow for this market">
             Net Flow: <span id="marketDealsFooterNet">{formatPrice(netFlow)}</span>
           </div>
         </div>
 
-        <div id="marketDealsBottom">
+        <div id="marketDealsBottom" className="footer">
           <button
             type="button"
             id="marketDealsRefresh"
@@ -90,7 +109,6 @@ export const MarketDealsDialog: React.FC = () => {
           <select
             id="marketDealsFilter"
             data-tip="Filter deals by scope"
-            style={{ marginLeft: 8 }}
             value={activeFilter}
             onChange={e => setActiveMarketDealsFilter(e.target.value as "all" | "local" | "global")}
           >
@@ -105,7 +123,7 @@ export const MarketDealsDialog: React.FC = () => {
 };
 
 const DealRow: React.FC<{ row: MarketDealRow; onRowClick: (row: MarketDealRow) => void }> = ({ row, onRowClick }) => (
-  <div
+  <tr
     className="states marketDeal"
     data-id={row.id}
     data-good={row.goodName}
@@ -114,32 +132,30 @@ const DealRow: React.FC<{ row: MarketDealRow; onRowClick: (row: MarketDealRow) =
     data-counterparty={`${row.counterpartyType}_${row.partyName}`}
     data-income={row.income}
   >
-    <svg aria-label={row.goodName} data-tip="Good icon" width="1.3em" height="1.3em" className="goodIcon">
-      <circle cx="50%" cy="50%" r="42%" fill={row.goodColor} stroke={row.goodStroke} />
-      <use href={`#${row.goodIcon}`} x="10%" y="10%" width="80%" height="80%" />
-    </svg>
-    <div data-tip="Good name" className="goodName">
+    <td>
+      <svg aria-label={row.goodName} data-tip="Good icon" width="1.3em" height="1.3em" className="goodIcon">
+        <circle cx="50%" cy="50%" r="42%" fill={row.goodColor} stroke={row.goodStroke} />
+        <use href={`#${row.goodIcon}`} x="10%" y="10%" width="80%" height="80%" />
+      </svg>
+    </td>
+    <td data-tip="Good name" className="goodName">
       {row.goodName}
-    </div>
-    <div>
+    </td>
+    <td>
       <span className="marketBadge" style={{ background: row.backColor, color: row.incomeColor }}>
         {row.direction.toUpperCase()}
       </span>
-    </div>
-    <div className="marketDealParty pointer" data-tip="Click to zoom" onClick={() => onRowClick(row)}>
-      <div
+    </td>
+    <td className="marketDealParty pointer" data-tip="Click to zoom" onClick={() => onRowClick(row)}>
+      <span
         className={row.counterpartyType === "burg" ? "icon-dot-circled" : "icon-store"}
-        style={{
-          display: "inline-block",
-          width: "0.8em",
-          ...(row.counterpartyType === "market" ? { fontSize: "0.85em" } : {})
-        }}
+        style={{ display: "inline-block", ...(row.counterpartyType === "market" ? { fontSize: "0.85em" } : {}) }}
       />
-      <div style={{ display: "inline-block", width: "6.8em" }}>{row.partyName}</div>
-    </div>
-    <div className="marketDealUnits">{row.units}</div>
-    <div className="marketDealIncome" style={{ color: row.incomeColor }}>
+      {row.partyName}
+    </td>
+    <td className="marketDealUnits">{row.units}</td>
+    <td className="marketDealIncome" style={{ color: row.incomeColor }}>
       {formatPrice(row.income)}
-    </div>
-  </div>
+    </td>
+  </tr>
 );

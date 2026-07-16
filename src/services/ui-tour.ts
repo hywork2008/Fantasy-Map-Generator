@@ -1,8 +1,9 @@
 import { driver } from "driver.js";
 import { closeDialogs } from "../ui/dialogs/dialogService";
 import "driver.js/dist/driver.css";
-import { showExportPane } from "../controllers/options";
 import { editWorld } from "../controllers/world-configurator";
+import { viewStateStore } from "../store";
+import { EditorBus } from "../utils/editorBus";
 
 const byId = (id: string) => document.getElementById(id);
 
@@ -81,7 +82,7 @@ class UITourModule {
           }
         },
         {
-          element: "#optionsTrigger",
+          element: "#optionsHide",
           onHighlightStarted: () => {
             document.body.classList.remove("tour-free-roam");
             this.closeOptionsPanel();
@@ -324,7 +325,7 @@ class UITourModule {
           element: "#exportMapData",
           disableActiveInteraction: false,
           onHighlightStarted: () => {
-            showExportPane();
+            EditorBus.showExportPane();
           },
           popover: {
             title: "Export Options",
@@ -381,15 +382,13 @@ class UITourModule {
   }
 
   private openOptionsPanel(): void {
-    const options = byId("options");
-    if (options && options.style.display === "none") {
-      byId("optionsTrigger")?.click();
+    if (!viewStateStore.getState().isMenuOpen) {
+      byId("optionsHide")?.click();
     }
   }
 
   private closeOptionsPanel(): void {
-    const options = byId("options");
-    if (options && options.style.display !== "none") {
+    if (viewStateStore.getState().isMenuOpen) {
       byId("optionsHide")?.click();
     }
   }

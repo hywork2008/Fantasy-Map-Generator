@@ -12,6 +12,7 @@ import type { MilitaryRegiment, MilitaryUnit } from "../types/models";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { capitalize, findCell, getLatitude, getLongitude, last } from "../utils";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
+import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../utils/gunpowderEra";
 import { layerIsOn } from "../utils/nodeUtils";
 import { interactionManager } from "./interactionManager";
 import { toggleMilitary } from "./layers";
@@ -80,7 +81,9 @@ export function clearAddRegimentClickHandler(): void {
 }
 
 export function downloadRegimentsData(): void {
-  const units = worldContext.options.military!.map((u: MilitaryUnit) => u.name);
+  const units = worldContext.options
+    .military!.filter(unit => isGunpowderEraEnabled(worldContext.options) || !isGunpowderEraMilitaryUnit(unit))
+    .map((unit: MilitaryUnit) => unit.name);
   let data =
     "State,Id,Icon,Name," +
     units.map((u: string) => capitalize(u)).join(",") +

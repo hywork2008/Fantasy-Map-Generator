@@ -1,6 +1,7 @@
 import type React from "react";
 import { closeLabelEditor, labelsEditorActions } from "../../controllers/labels-editor";
 import { useLabelsEditorState } from "../../store/labelsEditorState";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 
 export const LabelEditorDialog: React.FC = () => {
@@ -33,7 +34,7 @@ export const LabelEditorDialog: React.FC = () => {
             onClick={() => labelsEditorActions.toggleSection("group")}
           ></button>
           {activeSection === "group" && (
-            <div id="labelGroupSection" style={{ display: "inline-block" }}>
+            <div id="labelGroupSection" className="d-inline-block">
               <button
                 type="button"
                 id="labelGroupHide"
@@ -46,7 +47,6 @@ export const LabelEditorDialog: React.FC = () => {
                 <select
                   id="labelGroupSelect"
                   data-tip="Select a group for this label"
-                  style={{ width: "10em" }}
                   value={group}
                   onChange={e => labelsEditorActions.changeGroup(e.target.value)}
                 >
@@ -61,30 +61,28 @@ export const LabelEditorDialog: React.FC = () => {
                   id="labelGroupInput"
                   placeholder="new group name"
                   data-tip="Provide a name for the new group"
-                  style={{ width: "10em" }}
                   value={newGroupName}
                   onChange={e => labelsEditorActions.changeNewGroupName(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && labelsEditorActions.createNewGroup()}
                 />
               )}
 
-              <span
+              <IconButton
                 id="labelGroupNew"
                 data-tip="Create a new group for this label"
                 className={`icon-plus pointer ${isNewGroup ? "pressed" : ""}`}
                 onClick={labelsEditorActions.toggleNewGroupInput}
-              ></span>
-              <span
+              ></IconButton>
+              <IconButton
                 id="labelGroupRemove"
                 data-tip="Remove the Group with all labels"
                 className="icon-trash-empty pointer"
                 onClick={labelsEditorActions.removeLabelsGroup}
-              ></span>
+              ></IconButton>
             </div>
           )}
         </>
       )}
-
       <button
         type="button"
         id="labelTextShow"
@@ -103,7 +101,7 @@ export const LabelEditorDialog: React.FC = () => {
         onClick={() => labelsEditorActions.toggleSection("text")}
       ></button>
       {activeSection === "text" && (
-        <div id="labelTextSection" style={{ display: "inline-block" }}>
+        <div id="labelTextSection" className="d-inline-block">
           <button
             type="button"
             id="labelTextHide"
@@ -114,22 +112,20 @@ export const LabelEditorDialog: React.FC = () => {
           <input
             id="labelText"
             data-tip='Type to change the label. Enter "|" to move to a new line'
-            style={{ width: "12em" }}
             value={text}
             onChange={e => labelsEditorActions.changeText(e.target.value)}
           />
           <span data-tip="Speak the name. You can change voice and language in options" className="speaker">
             🔊
           </span>
-          <span
+          <IconButton
             id="labelTextRandom"
             data-tip="Generate random name"
             className="icon-shuffle pointer"
             onClick={labelsEditorActions.generateRandomName}
-          ></span>
+          ></IconButton>
         </div>
       )}
-
       <button
         type="button"
         id="labelEditStyle"
@@ -138,7 +134,6 @@ export const LabelEditorDialog: React.FC = () => {
         style={{ display: activeSection ? "none" : "inline-block" }}
         onClick={labelsEditorActions.editGroupStyle}
       ></button>
-
       <button
         type="button"
         id="labelSizeShow"
@@ -148,7 +143,7 @@ export const LabelEditorDialog: React.FC = () => {
         onClick={() => labelsEditorActions.toggleSection("size")}
       ></button>
       {activeSection === "size" && (
-        <div id="labelSizeSection" style={{ display: "inline-block" }}>
+        <div id="labelSizeSection" className="d-inline-block">
           <button
             type="button"
             id="labelSizeHide"
@@ -164,13 +159,11 @@ export const LabelEditorDialog: React.FC = () => {
             min="30"
             max="300"
             step="1"
-            style={{ width: "4.5em" }}
             value={size}
             onChange={e => labelsEditorActions.changeRelativeSize(Number(e.target.value))}
           />
         </div>
       )}
-
       <button
         type="button"
         id="labelOffsetShow"
@@ -180,7 +173,7 @@ export const LabelEditorDialog: React.FC = () => {
         onClick={() => labelsEditorActions.toggleSection("offset")}
       ></button>
       {activeSection === "offset" && (
-        <div id="labelOffsetSection" style={{ display: "inline-block" }}>
+        <div id="labelOffsetSection" className="d-inline-block">
           <button
             type="button"
             id="labelOffsetHide"
@@ -195,7 +188,6 @@ export const LabelEditorDialog: React.FC = () => {
             type="range"
             min="20"
             max="80"
-            style={{ width: "8em" }}
             value={startOffset}
             onChange={e => labelsEditorActions.changeStartOffset(Number(e.target.value))}
           />
@@ -205,14 +197,12 @@ export const LabelEditorDialog: React.FC = () => {
             min="20"
             max="80"
             step="1"
-            style={{ width: "3.5em" }}
             data-tip="Set starting offset numerically"
             value={startOffset}
             onChange={e => labelsEditorActions.changeStartOffset(Number(e.target.value))}
           />
         </div>
       )}
-
       <button
         type="button"
         id="labelLetterSpacingShow"
@@ -222,7 +212,7 @@ export const LabelEditorDialog: React.FC = () => {
         onClick={() => labelsEditorActions.toggleSection("letterSpacing")}
       ></button>
       {activeSection === "letterSpacing" && (
-        <div id="labelLetterSpacingSection" style={{ display: "inline-block" }}>
+        <div id="labelLetterSpacingSection" className="d-inline-block">
           <button
             type="button"
             id="labelLetterSpacingHide"
@@ -239,11 +229,10 @@ export const LabelEditorDialog: React.FC = () => {
             value={letterSpacing}
             onChange={e => labelsEditorActions.changeLetterSpacingSize(Number(e.target.value))}
             data-tip="Set the letter spacing size for this label"
-            style={{ display: "inline-block" }}
+            className="d-inline-block"
           />
         </div>
       )}
-
       <button
         type="button"
         id="labelAlign"

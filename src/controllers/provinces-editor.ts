@@ -38,17 +38,21 @@ import {
   openConfirm,
   openDialog
 } from "../ui/dialogs/dialogService";
-import type { PopulationChangeConfig } from "../ui/dialogs/PopulationChangeDialog";
 import { findAll, findCell, getRandomColor, isLand, P, parseTransform, rand, rn, unique } from "../utils";
 import { fitContent, getArea, getAreaUnit } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
+import { confirmMergeDialog } from "../utils/mergeHelpers";
+import { generateShortCultureName, regenerateFullName } from "../utils/nameEditorHelpers";
+import { generateRandomName } from "../utils/nameGenerator";
 import { getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
+import { openPopulationChangeDialog } from "../utils/populationHelpers";
 import { overviewBurgs } from "./burgs-overview";
 import { editEmblem } from "./emblems-editor";
 import { interactionManager } from "./interactionManager";
 import { toggleBorders, toggleCultures, toggleProvinces, toggleStates, turnButtonOff } from "./layers";
+import { openProvinceEditor } from "./province-editor";
 import { editStyle } from "./style";
 
 export function editProvinces(): void {
@@ -79,7 +83,70 @@ export function editProvinces(): void {
   });
 }
 
-function refreshProvincesEditor(): void {
+export function refreshProvincesEditor(): void {
+  const { filterState } = getProvincesEditorState();
+  const { rows, stateOptions, totalProvinces, totalBurgs, totalArea, totalPopulation } =
+    computeProvinceRows(filterState);
+
+  setProvincesEditorState({
+    stateOptions,
+    provinces: rows,
+    totalProvinces,
+    totalBurgs,
+    totalArea,
+    totalPopulation
+  });
+}
+
+/** Shared sort comparator for province rows, used by both the standalone dialog and embedded tabs. */
+export function sortProvinceRows(rows: ProvinceRowData[], sortBy: string, sortDirection: number): ProvinceRowData[] {
+  return [...rows].sort((a, b) => {
+    let valA: string | number;
+    let valB: string | number;
+
+    if (sortBy === "name") {
+      valA = a.name;
+      valB = b.name;
+    } else if (sortBy === "form") {
+      valA = a.formName;
+      valB = b.formName;
+    } else if (sortBy === "capital") {
+      valA = a.capitalName;
+      valB = b.capitalName;
+    } else if (sortBy === "state") {
+      valA = a.stateName;
+      valB = b.stateName;
+    } else if (sortBy === "burgs") {
+      valA = a.burgCount;
+      valB = b.burgCount;
+    } else if (sortBy === "area") {
+      valA = a.area;
+      valB = b.area;
+    } else {
+      valA = a.population;
+      valB = b.population;
+    }
+
+    if (valA < valB) return -1 * sortDirection;
+    if (valA > valB) return 1 * sortDirection;
+    return 0;
+  });
+}
+
+/**
+ * Pure(-ish) row computation shared by the standalone Provinces Editor and the embedded
+ * Provinces tab of the State Editor — pass `filterState` explicitly rather than reading it
+ * from the shared provincesEditorState store, so an embedded caller never disturbs the
+ * standalone dialog's filter if both happen to be open at once.
+ */
+export function computeProvinceRows(filterState: number): {
+  rows: ProvinceRowData[];
+  stateOptions: StateOption[];
+  totalProvinces: number;
+  totalBurgs: number;
+  totalArea: number;
+  totalPopulation: number;
+} {
   collectStatistics();
 
   const stateOptions: StateOption[] = [];
@@ -91,7 +158,6 @@ function refreshProvincesEditor(): void {
     stateOptions.push({ i: s.i, name: s.name });
   });
 
-  const { filterState } = getProvincesEditorState();
   let filtered = (worldContext.pack.provinces as Province[]).filter(p => p.i && !p.removed);
   if (filterState !== -1) filtered = filtered.filter(p => p.state === filterState);
 
@@ -99,7 +165,7 @@ function refreshProvincesEditor(): void {
   let totalPopulation = 0;
   let totalBurgs = 0;
 
-  const provinceData: ProvinceRowData[] = filtered.map(p => {
+  const rows: ProvinceRowData[] = filtered.map(p => {
     const area = getArea(p.area ?? 0);
     totalArea += area;
     const rural = (p.rural ?? 0) * worldContext.populationRate;
@@ -131,6 +197,10 @@ function refreshProvincesEditor(): void {
       rural,
       urban,
       burgs: p.burgs || [],
+      burgsData: (p.burgs || []).map(bId => ({
+        id: bId,
+        name: (worldContext.pack.burgs as Burg[])[bId]?.name || "Unknown"
+      })),
       burgCount,
       isSeparable,
       isFocused,
@@ -138,42 +208,11 @@ function refreshProvincesEditor(): void {
     };
   });
 
-  setProvincesEditorState({
-    stateOptions,
-    provinces: provinceData,
-    totalProvinces: filtered.length,
-    totalBurgs,
-    totalArea,
-    totalPopulation
-  });
+  return { rows, stateOptions, totalProvinces: filtered.length, totalBurgs, totalArea, totalPopulation };
 }
 
 function collectStatistics(): void {
-  const { cells } = worldContext.pack;
-  const provinces = worldContext.pack.provinces as Province[];
-  const burgs = worldContext.pack.burgs as Burg[];
-
-  provinces.forEach(p => {
-    if (!p.i || p.removed) return;
-    p.area = p.rural = p.urban = 0;
-    p.burgs = [];
-    if ((p.burg && !burgs[p.burg]) || burgs[p.burg]?.removed) p.burg = 0;
-  });
-
-  for (const i of cells.i) {
-    const p = cells.province[i];
-    if (!p) continue;
-    provinces[p].area! += cells.area[i];
-    provinces[p].rural! += cells.pop[i];
-    if (!cells.burg[i]) continue;
-    provinces[p].urban! += burgs[cells.burg[i]].population ?? 0;
-    provinces[p].burgs!.push(cells.burg[i]);
-  }
-
-  provinces.forEach(p => {
-    if (!p.i || p.removed) return;
-    if (!p.burg && p.burgs?.length) p.burg = p.burgs[0];
-  });
+  GenerationPipeline.Provinces.collectStatistics(getWorldState());
 }
 
 function provinceHighlightOn(province: number): void {
@@ -349,51 +388,20 @@ function changePopulation(province: number): void {
   const urban = rn((p.urban ?? 0) * worldContext.populationRate * worldContext.urbanization);
   const total = rural + urban;
   const l = (n: number) => Number(n).toLocaleString();
+  const burgs = (p.burgs || []).map(b => (worldContext.pack.burgs as Burg[])[b]).filter(b => b && !b.removed);
 
-  const config: PopulationChangeConfig = {
+  openPopulationChangeDialog({
     title: "Change province population",
     description: `Total: ${l(total)}`,
-    initialRural: rural,
-    initialUrban: urban,
-    urbanDisabled: !p.burgs?.length,
-    onApply: (newRural, newUrban) => {
-      const ruralChange = newRural / rural;
-      if (Number.isFinite(ruralChange) && ruralChange !== 1) {
-        cells.forEach(i => {
-          worldContext.pack.cells.pop[i] *= ruralChange;
-        });
-      }
-      if (!Number.isFinite(ruralChange) && newRural > 0) {
-        const pop = rn(newRural / worldContext.populationRate / cells.length);
-        cells.forEach(i => {
-          worldContext.pack.cells.pop[i] = pop;
-        });
-      }
-
-      const urbanChange = newUrban / urban;
-      if (Number.isFinite(urbanChange) && urbanChange !== 1) {
-        p.burgs?.forEach((b: number) => {
-          (worldContext.pack.burgs as Burg[])[b].population = rn(
-            ((worldContext.pack.burgs as Burg[])[b].population ?? 0) * urbanChange,
-            4
-          );
-        });
-      }
-      if (!Number.isFinite(urbanChange) && newUrban > 0) {
-        const population = rn(
-          newUrban / worldContext.populationRate / worldContext.urbanization / (p.burgs?.length ?? 1),
-          4
-        );
-        p.burgs?.forEach((b: number) => {
-          (worldContext.pack.burgs as Burg[])[b].population = population;
-        });
-      }
-
+    oldRural: rural,
+    oldUrban: urban,
+    cells,
+    burgs,
+    onSuccess: () => {
       if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
       refreshProvincesEditor();
     }
-  };
-  openDialog("populationChangeDialog", config);
+  });
 }
 
 function toggleFog(p: number): void {
@@ -955,6 +963,7 @@ export const provincesEditorActions = {
   toggleFog,
   removeProvince,
   updateLockStatus,
+  openProvinceEditor,
   editStyle: () => editStyle("provs"),
   showChart,
   toggleLabels,
@@ -979,18 +988,14 @@ export const provincesEditorActions = {
     if (!ne) return;
     const province = (worldContext.pack.provinces as Province[])[ne.provinceId];
     const culture = worldContext.pack.cells.culture[province.center];
-    const name = GenerationPipeline.Names.getState(
-      GenerationPipeline.Names.getCultureShort(worldContext, viewContext, appServices, culture),
-      culture
-    );
+    const name = generateShortCultureName(culture);
     setProvincesEditorState({ nameEditor: { ...ne, shortName: name } });
   },
 
   nameEditorGenerateShortRandom(): void {
     const ne = getProvincesEditorState().nameEditor;
     if (!ne) return;
-    const base = rand(worldContext.nameBases.length - 1);
-    const name = GenerationPipeline.Names.getState(GenerationPipeline.Names.getBase(base), 0, base);
+    const name = GenerationPipeline.Names.getState(generateRandomName(), 0, rand(worldContext.nameBases.length - 1));
     setProvincesEditorState({ nameEditor: { ...ne, shortName: name } });
   },
 
@@ -998,10 +1003,7 @@ export const provincesEditorActions = {
     const ne = getProvincesEditorState().nameEditor;
     if (!ne) return;
     const { shortName, formName } = ne;
-    let fullName: string;
-    if (!formName) fullName = shortName;
-    else if (!shortName) fullName = `The ${formName}`;
-    else fullName = `${shortName} ${formName}`;
+    const fullName = regenerateFullName(shortName, formName, false);
     setProvincesEditorState({ nameEditor: { ...ne, fullName } });
   },
 
@@ -1027,27 +1029,13 @@ export const provincesEditorActions = {
   },
 
   confirmMerge(rulingProvinceId: number | null, provincesToMerge: number[]): void {
-    if (!rulingProvinceId) {
-      tip("Please select a province to merge into", false, "error");
-      return;
-    }
-    const mergeList = provincesToMerge.filter(id => id !== rulingProvinceId);
-    if (!mergeList.length) {
-      tip("Please select several provinces to merge", false, "error");
-      return;
-    }
-    const rulingProvince = (worldContext.pack.provinces as Province[])[rulingProvinceId];
-    const emblem = (i: number) =>
-      `<svg class="coaIcon" viewBox="0 0 200 200"><use href="#provinceCOA${i}"></use></svg>`;
-    confirmationDialog({
-      title: "Merge provinces",
-      message: `
-        <p>The following provinces will be <strong>removed</strong>: ${mergeList.map(id => `${emblem(id)}${(worldContext.pack.provinces as Province[])[id].name}`).join(", ")}.</p>
-        <p>Removed provinces data (burgs and cells) will be assigned to ${emblem(rulingProvince.i)}${rulingProvince.name}.</p>
-        <p>Are you sure you want to merge provinces? This action cannot be reverted.</p>`,
-      confirm: "Merge",
-      onConfirm: () => {
-        mergeProvinces(mergeList, rulingProvinceId);
+    confirmMergeDialog({
+      entityType: "province",
+      rulingId: rulingProvinceId,
+      selectedIds: provincesToMerge,
+      getEntityName: (id: number) => (worldContext.pack.provinces as Province[])[id].name,
+      onConfirm: (mergeList: number[], rulingId: number) => {
+        mergeProvinces(mergeList, rulingId);
         setProvincesEditorState({ mergeDialog: null });
       }
     });

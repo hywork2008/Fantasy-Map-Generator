@@ -14,11 +14,13 @@ Extensions may be loaded via blob URL at runtime. When that happens, any direct 
 | :--- | :--- |
 | `import { worldContext } from "../../context/worldContext"` | `api.worldContext` |
 | `import { viewContext } from "../../context/viewContext"` | `api.viewContext` |
+| `import { appServices } from "../../context/appServices"` | `api.appServices` |
+| `import { simulationContext } from "../../context/simulationContext"` | `api.simulationContext` |
 | `import { toggleLayerById } from "../../controllers/layers"` | `api.toggleLayerById(id)` |
 | `import { zoomTo } from "../../actions"` | `api.zoomTo(x, y, scale)` |
 | `import { useExtensionState } from "../../store/extensionState"` | `api.isExtensionEnabled(id)` |
 
-The `ExtensionAPI` object passed to `init(api)` is the **only** dependency injection surface. Every host capability the extension needs must be accessed through it.
+The `ExtensionAPI` object passed to `init(api)` is the **only** dependency injection surface. Every host capability the extension needs must be accessed through it. Existing built-in extensions may still contain legacy direct host imports; do not copy those into new extension work.
 
 ---
 
@@ -41,6 +43,8 @@ export function getApi(): ExtensionAPI {
 }
 export function getWorldContext() { return getApi().worldContext; }
 export function getViewContext()  { return getApi().viewContext; }
+export function getAppServices()  { return getApi().appServices; }
+export function getSimulationContext() { return getApi().simulationContext; }
 ```
 
 - Call `initContext(api)` as the **first line** of `init(api)`.
@@ -65,13 +69,15 @@ export function init(api: ExtensionAPI): void {
   initContext(api);
 
   // 1. Register extension metadata
-  api.registerExtension({ id: EXTENSION_ID, name: "...", description: "..." }, false);
+  api.registerExtension({ id: EXTENSION_ID, name: "...", description: "...", dependencies: [] }, false);
 
   // 2. Register dialogs
   api.registerDialog({ id: "...", extensionId: EXTENSION_ID, component: MyDialog });
 
-  // 3. Register toolbar actions
+  // 3. Register toolbar actions / optional editor tabs / style configs
   api.registerAction({ id: "...", extensionId: EXTENSION_ID, tab: "tools", section: "edit", label: "...", onClick: () => {} });
+  // api.registerEditorTab(...)
+  // api.registerStyleConfig(...)
 
   // 4. Subscribe to enable/disable toggle
   _unsubscribe = api.subscribeExtensionState((state, prev) => {
@@ -79,10 +85,12 @@ export function init(api: ExtensionAPI): void {
     const wasEnabled = prev.enabledExtensions[EXTENSION_ID];
     if (isEnabled && !wasEnabled) {
       api.addLayers(myLayers);
+      // register live overview columns / cell-info rows here if needed
       // register toggles, bind renderers, start hooks
     } else if (!isEnabled && wasEnabled) {
       myLayers.forEach(l => { if (api.layerIsOn(l.id)) api.toggleLayerById(l.id); });
       api.removeLayers(myLayers.map(l => l.id));
+      // unregister live overview columns / cell-info rows here if needed
     }
   });
 
@@ -98,6 +106,13 @@ export function init(api: ExtensionAPI): void {
     if (api.isExtensionEnabled(EXTENSION_ID)) { /* re-generate */ }
   };
   document.addEventListener("fmg:generate-post-core", _generateHandler);
+
+  // 9. Optional: listen to Advance Time
+  api.registerTimeTickHook((deltaYears, deltaMonths, deltaDays) => {
+    if (!api.isExtensionEnabled(EXTENSION_ID)) return;
+    const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
+    // run tick simulation
+  });
 }
 
 export function cleanup(api: ExtensionAPI): void {
@@ -175,6 +190,24 @@ api.registerDrawLayerHook(() => {
 });
 ```
 
+## 6.5 SVG Layer Placement and Map Reloads
+
+Extension-owned SVG groups must be declared through `LayerConfig.svgLayers`:
+
+```typescript
+const myLayers: LayerConfig[] = [
+  {
+    id: "toggleMyLayer",
+    name: "My Layer",
+    shortcut: null,
+    tooltip: "My Layer",
+    svgLayers: [{ id: "myLayer", insertBefore: "icons", display: "none" }]
+  }
+];
+```
+
+Use `api.getSvgLayer("myLayer")` in renderers/controllers instead of selecting from `api.viewContext.viewbox` by string. If the layer needs click handlers, attach them after `api.addLayers()` and reattach them in `api.registerMapReinitHook()` because saved-map loading replaces/reselects the SVG DOM.
+
 ---
 
 ## 7. Class-Based Modules: Getter Pattern
@@ -222,6 +255,7 @@ The bundled JS must be a self-contained single file — **no lazy chunks**. The 
 Before committing, verify none of the following are present in extension code:
 
 - [ ] Direct import of `worldContext`, `viewContext`, `appServices` from host modules
+- [ ] Direct import of `simulationContext` from host modules
 - [ ] Direct import of controller functions (`toggleLayerById`, `turnButtonOn`, `drawLayers`, etc.)
 - [ ] Direct import of action functions (`zoomTo`, `generate`) from host modules
 - [ ] Any `window.*` assignment other than through `window.fmg`
@@ -256,5 +290,5 @@ The canonical example is `src/extensions/economy/`. Key files:
 | [economy/index.tsx](../src/extensions/economy/index.tsx) | Entry point: `init` / `cleanup`, all registrations |
 | [economy/economyContext.ts](../src/extensions/economy/economyContext.ts) | Context holder: `getWorldContext`, `getViewContext`, `getApi` |
 | [economy/types.ts](../src/extensions/economy/types.ts) | Module augmentation for `PackedGraph` |
-| [economy/modules/goods-generator.ts](../src/extensions/economy/modules/goods-generator.ts) | Generator class using private getter pattern |
+| [economy/generators/goods-generator.ts](../src/extensions/economy/generators/goods-generator.ts) | Generator class using private getter pattern |
 | [economy/renderers/draw-goods.ts](../src/extensions/economy/renderers/draw-goods.ts) | Pure SVG renderer using `getViewContext()` |

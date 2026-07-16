@@ -55,9 +55,8 @@ export const PromptDialog: React.FC = () => {
         { label: "Cancel", onClick: handleClose },
         { label: "OK", onClick: handleConfirm }
       ]}
-      style={{ minWidth: 300, zIndex: 1000 }}
     >
-      <div style={{ marginBottom: 12 }}>{config.message}</div>
+      <div>{config.message}</div>
       <input
         ref={inputRef}
         type={isNumber ? "number" : "text"}
@@ -67,15 +66,6 @@ export const PromptDialog: React.FC = () => {
         step={config.step}
         min={config.min}
         max={config.max}
-        style={{
-          width: "100%",
-          padding: "6px",
-          boxSizing: "border-box",
-          background: "#444",
-          color: "#fff",
-          border: "1px solid #555",
-          borderRadius: "3px"
-        }}
       />
     </Dialog>
   );

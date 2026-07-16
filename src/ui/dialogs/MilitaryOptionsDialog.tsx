@@ -9,8 +9,11 @@ import { Military } from "../../generators/military-generator";
 import { tip } from "../../services/tooltipService";
 import { useDialogState } from "../../store/dialogState";
 import { useMilitaryOverviewState } from "../../store/militaryOverviewState";
+import { useOptionsState } from "../../store/optionsState";
 import type { MilitaryUnit } from "../../types/models";
 import { sanitizeId } from "../../utils";
+import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../../utils/gunpowderEra";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 import type { SelectionItem } from "./SelectionDialog";
@@ -44,12 +47,15 @@ type SelectionDialogState = {
 
 export const MilitaryOptionsDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("militaryOptions"));
+  const militaryHierarchy = useOptionsState(state => state.militaryHierarchy);
   const [units, setUnits] = useState<MilitaryUnitConfig[]>([]);
+  const [gunpowderEraEnabled, setGunpowderEraEnabled] = useState(true);
   const [selectionDialog, setSelectionDialog] = useState<SelectionDialogState>(null);
 
   useEffect(() => {
     if (isOpen) {
       setUnits([...(worldContext.options?.military || [])]);
+      setGunpowderEraEnabled(isGunpowderEraEnabled(worldContext.options));
     }
   }, [isOpen]);
 
@@ -92,9 +98,17 @@ export const MilitaryOptionsDialog: React.FC = () => {
       return;
     }
 
-    worldContext.options.military = units;
-    localStorage.setItem("military", JSON.stringify(units));
+    const updatedUnits = units.map(unit =>
+      !gunpowderEraEnabled && isGunpowderEraMilitaryUnit(unit) ? { ...unit, enabled: false } : unit
+    );
+    worldContext.options.military = updatedUnits;
+    worldContext.options.gunpowderEraEnabled = gunpowderEraEnabled;
+    useOptionsState.getState().setOption("gunpowderEraEnabled", gunpowderEraEnabled);
+    localStorage.setItem("military", JSON.stringify(updatedUnits));
+    localStorage.setItem("gunpowderEraEnabled", String(gunpowderEraEnabled));
     Military.generate(worldContext, viewContext, appServices, getWorldState());
+    document.dispatchEvent(new CustomEvent("fmg:refresh-military"));
+    document.dispatchEvent(new CustomEvent("fmg:gunpowder-era-changed"));
     useMilitaryOverviewState.getState().refresh();
     closeDialog("militaryOptions");
   };
@@ -104,26 +118,51 @@ export const MilitaryOptionsDialog: React.FC = () => {
       <Dialog isOpen={isOpen} title="Military Options" onClose={() => closeDialog("militaryOptions")}>
         <div id="militaryOptionsContainer">
           <div>
+            <div style={{ marginBottom: "10px" }}>
+              <label
+                htmlFor="militaryHierarchyMode"
+                data-tip="Simple keeps the classic fixed field-army cap. Dynamic lets a field army split off ~150-troop detachments to react to a second simultaneous threat, merging them back once it's gone (docs/plan/military-movement.md Phase 4)."
+              >
+                Army organization:{" "}
+              </label>
+              <select
+                id="militaryHierarchyMode"
+                value={militaryHierarchy}
+                onChange={e =>
+                  useOptionsState.getState().setOption("militaryHierarchy", e.target.value as "simple" | "dynamic")
+                }
+              >
+                <option value="simple">Simple (fixed field armies)</option>
+                <option value="dynamic">Dynamic (split/merge detachments)</option>
+              </select>
+            </div>
+            <div style={{ marginBottom: "10px" }}>
+              <label
+                htmlFor="gunpowderEraEnabled"
+                data-tip="Enables artillery recruitment and the Gunpowder and Artillery goods. Turning it off removes them from production and trade."
+              >
+                <input
+                  id="gunpowderEraEnabled"
+                  type="checkbox"
+                  checked={gunpowderEraEnabled}
+                  onChange={event => setGunpowderEraEnabled(event.target.checked)}
+                />{" "}
+                Enable gunpowder era
+              </label>
+            </div>
             <div className="table">
               <table id="militaryOptionsTable">
                 <thead>
                   <tr>
+                    <th data-tip="Enable or disable this unit for recruitment">Enabled</th>
                     <th data-tip="Unit icon">Icon</th>
                     <th data-tip="Unit name. If name is changed for existing unit, old unit will be replaced">
                       Unit name
                     </th>
-                    <th style={{ width: "5em" }} data-tip="Select allowed biomes">
-                      Biomes
-                    </th>
-                    <th style={{ width: "5em" }} data-tip="Select allowed states">
-                      States
-                    </th>
-                    <th style={{ width: "5em" }} data-tip="Select allowed cultures">
-                      Cultures
-                    </th>
-                    <th style={{ width: "5em" }} data-tip="Select allowed religions">
-                      Religions
-                    </th>
+                    <th data-tip="Select allowed biomes">Biomes</th>
+                    <th data-tip="Select allowed states">States</th>
+                    <th data-tip="Select allowed cultures">Cultures</th>
+                    <th data-tip="Select allowed religions">Religions</th>
                     <th data-tip="Conscription percentage for rural population">Rural</th>
                     <th data-tip="Conscription percentage for urban population">Urban</th>
                     <th data-tip="Average number of people in crew (used for total personnel calculation)">Crew</th>
@@ -137,6 +176,7 @@ export const MilitaryOptionsDialog: React.FC = () => {
                 </thead>
                 <tbody>
                   {units.map((unit, index) => {
+                    if (!gunpowderEraEnabled && isGunpowderEraMilitaryUnit(unit)) return null;
                     const {
                       name,
                       icon,
@@ -151,10 +191,53 @@ export const MilitaryOptionsDialog: React.FC = () => {
                       cultures,
                       religions
                     } = unit;
+                    const enabled = unit.enabled !== false;
 
                     return (
                       // biome-ignore lint/suspicious/noArrayIndexKey: military units order is static during rendering unless deleted
-                      <tr key={index}>
+                      <tr key={index} style={{ opacity: enabled ? 1 : 0.5 }}>
+                        <td>
+                          <label
+                            style={{ position: "relative", display: "inline-block", width: "32px", height: "18px" }}
+                            title={enabled ? "Disable unit" : "Enable unit"}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={enabled}
+                              onChange={e => updateUnit(index, "enabled", e.target.checked)}
+                              style={{
+                                position: "absolute",
+                                inset: 0,
+                                opacity: 0,
+                                margin: 0,
+                                cursor: "pointer"
+                              }}
+                            />
+                            <span
+                              style={{
+                                position: "absolute",
+                                inset: 0,
+                                background: enabled ? "#4a9e4a" : "#aaa",
+                                borderRadius: "9px",
+                                transition: "background 0.15s",
+                                pointerEvents: "none"
+                              }}
+                            />
+                            <span
+                              style={{
+                                position: "absolute",
+                                top: "2px",
+                                left: enabled ? "16px" : "2px",
+                                width: "14px",
+                                height: "14px",
+                                borderRadius: "50%",
+                                background: "#fff",
+                                transition: "left 0.15s",
+                                pointerEvents: "none"
+                              }}
+                            />
+                          </label>
+                        </td>
                         <td>
                           <button
                             type="button"
@@ -164,11 +247,7 @@ export const MilitaryOptionsDialog: React.FC = () => {
                             }}
                           >
                             {icon?.startsWith("http") || icon?.startsWith("data:image") ? (
-                              <img
-                                src={icon}
-                                style={{ width: "1.2em", height: "1.2em", pointerEvents: "none" }}
-                                alt=""
-                              />
+                              <img src={icon} alt="" />
                             ) : (
                               icon || ""
                             )}
@@ -324,7 +403,7 @@ export const MilitaryOptionsDialog: React.FC = () => {
                           <label htmlFor={`${name}Separate`} className="checkbox-label" />
                         </td>
                         <td>
-                          <span
+                          <IconButton
                             className="icon-trash-empty pointer"
                             data-tip="Remove unit type"
                             onClick={() => removeUnit(index)}
@@ -336,17 +415,17 @@ export const MilitaryOptionsDialog: React.FC = () => {
                 </tbody>
               </table>
             </div>
-            <div style={{ marginTop: "1em" }}>
-              <button type="button" onClick={applyMilitaryOptions} style={{ width: "6em", marginRight: "0.5em" }}>
+            <div>
+              <button type="button" onClick={applyMilitaryOptions}>
                 Apply
               </button>
-              <button type="button" onClick={addUnit} style={{ width: "6em", marginRight: "0.5em" }}>
+              <button type="button" onClick={addUnit}>
                 Add
               </button>
-              <button type="button" onClick={restoreDefaults} style={{ width: "8em", marginRight: "0.5em" }}>
+              <button type="button" onClick={restoreDefaults}>
                 Restore defaults
               </button>
-              <button type="button" onClick={() => closeDialog("militaryOptions")} style={{ width: "6em" }}>
+              <button type="button" onClick={() => closeDialog("militaryOptions")}>
                 Cancel
               </button>
             </div>

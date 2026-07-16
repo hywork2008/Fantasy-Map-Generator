@@ -1,5 +1,10 @@
-Viewed src/controllers/states-editor.ts:1-800
-Viewed src/controllers/provinces-editor.ts:650-750
+> **追記**: 以下は当時のファイル配置を前提にした相談記録。円パッキング/ツリーマップは既に
+> `states-editor.ts`/`provinces-editor.ts`（jQuery時代のコントローラ）から React ダイアログへ移行済みで、
+> `src/ui/dialogs/StatesChartDialog.tsx`（`d3.pack`）・`src/ui/dialogs/BurgsBubbleChartDialog.tsx`（`d3.pack`）・
+> `src/ui/dialogs/ProvincesChartDialog.tsx`（`d3.treemap`）にある。ただしこれらは React コンポーネント化された
+> だけで、内部の描画は生の D3（`d3.pack`/`d3.treemap`）を`useEffect`で直接DOM操作するスタイルのまま——
+> 本ドキュメントが検討していた「Nivo/Visx等の専用チャートライブラリへの置き換え」自体はまだ未着手で、
+> 相談内容そのものは依然として有効。以下は当時の文面のまま残す。
 
 プロジェクトの `AGENTS.md` のガイドラインを拝見すると、**「新しいUIパネル等はReactとZustandを用いたネイティブなReactコンポーネントとして実装する（jQueryからの脱却）」** という方針があるようです。
 

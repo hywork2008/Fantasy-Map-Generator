@@ -6,7 +6,7 @@ export const ProductionChainsDialog: React.FC = () => {
 
   return (
     <Dialog isOpen={isOpen} title="Production Chains" onClose={() => closeDialog("productionChains")}>
-      <div id="productionChainsContent" style={{ overflow: "auto" }} />
+      <div id="productionChainsContent" />
     </Dialog>
   );
 };

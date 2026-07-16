@@ -22,7 +22,7 @@ import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { openElevationProfile } from "./elevation-profile";
 import { interactionManager } from "./interactionManager";
-import { toggleCells, toggleRoutes } from "./layers";
+import { drawLayers, toggleCells, toggleRoutes } from "./layers";
 import { editNotes } from "./notes-editor";
 import { editRouteGroups } from "./route-group-editor";
 import { editStyle } from "./style";
@@ -34,7 +34,6 @@ let routeCreatorCellsForced = false;
 let _rcRoute: Route | null = null;
 let _rcInitCell = 0;
 let _rcPointIndex = 0;
-let _isSplitMode = false;
 let _createRoutePoints: { x: number; y: number; cellId: number }[] = [];
 
 export function initRoutesEditor(wc: WorldContext) {
@@ -186,6 +185,11 @@ function redrawRoute(route: Route): void {
   elSelected!.attr("d", GenerationPipeline.Routes.getPath(route));
   updateRouteLength(route);
   if (dialogStore.getState().openDialogs.has("elevationProfile")) routesEditorActions.showRouteElevationProfile();
+
+  // In webgl hybrid mode the visible route is a deck.gl PathLayer, not the SVG path
+  // updated above (that path is kept hidden, in sync only for WebGL pick resolution).
+  // Its data must be rebuilt for edits to appear live instead of only on dialog close.
+  if (viewContext.renderMode === "webglHybrid") drawLayers();
 }
 
 function addControlPoint(this: SVGPathElement, event: MouseEvent): void {
@@ -226,7 +230,7 @@ function handleControlPointClick(this: SVGCircleElement, _event: MouseEvent): vo
 
   const index = route.points.indexOf(pt);
 
-  if (_isSplitMode) {
+  if (getRoutesEditorState().isSplitMode) {
     splitRoute();
   } else {
     removeControlPoint(controlPoint);
@@ -262,7 +266,7 @@ function handleControlPointClick(this: SVGCircleElement, _event: MouseEvent): vo
       .attr("d", GenerationPipeline.Routes.getPath(newRoute))
       .attr("id", `route${newRoute.i}`);
 
-    _isSplitMode = false;
+    setRoutesEditorState({ isSplitMode: false });
   }
 
   function removeControlPoint(cp: d3.Selection<SVGCircleElement, unknown, null, undefined>): void {
@@ -419,7 +423,7 @@ export const routesEditorActions = {
   },
 
   toggleSplitMode(): void {
-    _isSplitMode = !_isSplitMode;
+    setRoutesEditorState({ isSplitMode: !getRoutesEditorState().isSplitMode });
   },
 
   openJoinRoutesDialog(): void {

@@ -2,6 +2,7 @@ import type React from "react";
 import { useEffect } from "react";
 import { dialogStore } from "../../store/dialogState";
 import { heightmapEditModeStore, useHeightmapEditModeState } from "../../store/heightmapDialogState";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 
 export const HeightmapEditModeDialog: React.FC = () => {
@@ -40,7 +41,6 @@ export const HeightmapEditModeDialog: React.FC = () => {
         { label: "Risk", onClick: () => handle(onRisk) },
         { label: "Cancel", onClick: () => handle(onCancel) }
       ]}
-      style={{ maxWidth: "28em" }}
     >
       <div>
         Heightmap is a core element on which all other data (rivers, burgs, states etc) is based. So the best edit
@@ -58,15 +58,15 @@ export const HeightmapEditModeDialog: React.FC = () => {
         </p>
         <p>
           Please{" "}
-          <span
+          <IconButton
             className="pseudoLink"
             onClick={() => (window as unknown as Record<string, (arg: string) => void>).saveMap?.("machine")}
           >
             save the map
-          </span>{" "}
+          </IconButton>{" "}
           before editing the heightmap!
         </p>
-        <p style={{ marginBottom: 0 }}>
+        <p>
           Check out{" "}
           <a
             href="https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Heightmap-viewContext.customization"

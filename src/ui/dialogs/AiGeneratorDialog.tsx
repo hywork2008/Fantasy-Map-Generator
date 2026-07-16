@@ -94,7 +94,7 @@ export const AiGeneratorDialog: React.FC = () => {
     >
       <div id="aiGeneratorContainer">
         <div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.3em", width: "100%" }}>
+          <div className="d-flex">
             <textarea
               id="aiGeneratorResult"
               placeholder="Generated text will appear here"
@@ -112,7 +112,7 @@ export const AiGeneratorDialog: React.FC = () => {
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
             />
-            <div style={{ display: "flex", alignItems: "center", gap: "1em" }}>
+            <div className="d-flex">
               <label htmlFor="aiGeneratorModel">
                 Model:
                 <select id="aiGeneratorModel" value={model} onChange={handleModelChange}>

@@ -16,11 +16,24 @@ import { findGridCell, parseTransform } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { layerIsOn } from "../utils/nodeUtils";
 import { interactionManager } from "./interactionManager";
-import { toggleIce } from "./layers";
+import { drawLayers, toggleIce } from "./layers";
 import { editStyle } from "./style";
 
 let worldContext: WorldContext;
 let appServices: AppServices;
+
+let _webglDragOffsetX = 0;
+let _webglDragOffsetY = 0;
+
+/** Resolves and opens the Ice Editor for a glacier/iceberg id, without a clicked SVG element (WebGL pick). */
+export function editIceById(id: number, isGlacier: boolean): void {
+  const selector = isGlacier
+    ? `polygon[data-id="${id}"][type="glacier"]`
+    : `polygon[data-id="${id}"]:not([type="glacier"])`;
+  const element = view.ice.select<SVGElement>(selector).node();
+  if (!element) return;
+  editIce(element);
+}
 
 export function editIce(element: SVGElement): void {
   if (view.customization) return;
@@ -66,6 +79,35 @@ export function editIce(element: SVGElement): void {
     size,
     isAdding: false
   });
+}
+
+/** Whether this glacier or iceberg is the one currently open in the Ice Editor. */
+export function isDragTarget(iceId: number, isGlacier: boolean): boolean {
+  const { isOpen, selectedId } = getIceEditorState();
+  const ice = worldContext.pack.ice.find(item => item.i === iceId);
+  return isOpen && selectedId === iceId && ice?.type === (isGlacier ? "glacier" : "iceberg");
+}
+
+/** Cheap check used before the WebGL renderer performs an additional pick for a drag gesture. */
+export function hasDragTarget(): boolean {
+  const { isOpen, selectedId } = getIceEditorState();
+  return isOpen && selectedId !== null;
+}
+
+/** Captures the initial pointer-to-ice offset for a WebGL drag, matching the SVG d3-drag behavior. */
+export function beginWebglIceDrag(iceId: number, coordinate: [number, number]): void {
+  const ice = worldContext.pack.ice.find(item => item.i === iceId);
+  if (!ice) return;
+  _webglDragOffsetX = (ice.offset?.[0] ?? 0) - coordinate[0];
+  _webglDragOffsetY = (ice.offset?.[1] ?? 0) - coordinate[1];
+}
+
+/** Moves an ice feature from a WebGL pointer coordinate and refreshes its deck.gl polygon. */
+export function updateWebglIceDrag(iceId: number, coordinate: [number, number]): void {
+  const ice = worldContext.pack.ice.find(item => item.i === iceId);
+  if (!ice) return;
+  ice.offset = [_webglDragOffsetX + coordinate[0], _webglDragOffsetY + coordinate[1]];
+  drawLayers();
 }
 
 function randomizeShape(): void {

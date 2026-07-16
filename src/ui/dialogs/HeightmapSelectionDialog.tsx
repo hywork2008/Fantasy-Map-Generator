@@ -15,6 +15,7 @@ import { heightmapTemplates, precreatedHeightmaps } from "../../data";
 import { useOptionsState } from "../../store/optionsState";
 import { generateSeed } from "../../utils";
 import { heightmapColorSchemes } from "../../utils/colorUtils";
+import { IconButton } from "../components/IconButton";
 import { closeDialog } from "./dialogService";
 
 interface HeightmapItem {
@@ -23,6 +24,7 @@ interface HeightmapItem {
   dataUrl: string;
   seed: string;
   isTemplate: boolean;
+  averageLandPercentage?: number;
 }
 
 const localStyle = `
@@ -71,6 +73,7 @@ const localStyle = `
   }
   .heightmap-selection article > div { display: flex; justify-content: space-between; padding: 2px 1px; }
   .heightmap-selection article > img { width: 100%; border-radius: 8px; object-fit: fill; }
+  .heightmap-selection_landmass { display: block; padding: 0 1px; color: #555; font-size: 0.8em; }
   .heightmap-selection article .regeneratePreview {
     outline: 1px solid #bbb; padding: 1px 3px; border-radius: 4px;
     transition: all 0.1s ease-in-out;
@@ -111,7 +114,14 @@ export const HeightmapSelectionContent: React.FC<{ onClose?: () => void }> = ({ 
     const templateItems: HeightmapItem[] = Object.keys(heightmapTemplates).map(id => {
       const seed = generateSeed();
       const dataUrl = buildTemplatePreview(id, seed, colorScheme, renderOcean);
-      return { id, name: heightmapTemplates[id].name, dataUrl, seed, isTemplate: true };
+      return {
+        id,
+        name: heightmapTemplates[id].name,
+        dataUrl,
+        seed,
+        isTemplate: true,
+        averageLandPercentage: heightmapTemplates[id].averageLandPercentage
+      };
     });
 
     const precreatedItems: HeightmapItem[] = Object.keys(precreatedHeightmaps).map(id => ({
@@ -201,24 +211,32 @@ export const HeightmapSelectionContent: React.FC<{ onClose?: () => void }> = ({ 
             <h1>Heightmap templates</h1>
           </header>
           <div className="heightmap-selection_container">
-            {templateItems.map(item => (
-              <article
-                key={item.id}
-                data-id={item.id}
-                className={item.id === selectedId ? "selected" : ""}
-                onClick={() => setSelectedId(item.id)}
-              >
-                <img src={item.dataUrl || undefined} alt={item.name} style={{ aspectRatio }} />
-                <div>
-                  {item.name}
-                  <span
-                    data-tip="Regenerate preview"
-                    className="icon-cw regeneratePreview"
-                    onClick={e => handleRegenerate(item.id, e)}
-                  />
-                </div>
-              </article>
-            ))}
+            {templateItems.map(item => {
+              const { averageLandPercentage } = item;
+              return (
+                <article
+                  key={item.id}
+                  data-id={item.id}
+                  className={item.id === selectedId ? "selected" : ""}
+                  onClick={() => setSelectedId(item.id)}
+                >
+                  <img src={item.dataUrl || undefined} alt={item.name} style={{ aspectRatio }} />
+                  <div>
+                    {item.name}
+                    <IconButton
+                      data-tip="Regenerate preview"
+                      className="icon-cw regeneratePreview"
+                      onClick={e => handleRegenerate(item.id, e)}
+                    />
+                  </div>
+                  {averageLandPercentage !== undefined && (
+                    <small className="heightmap-selection_landmass">
+                      Average: {averageLandPercentage}% land · {100 - averageLandPercentage}% ocean
+                    </small>
+                  )}
+                </article>
+              );
+            })}
           </div>
         </section>
 
@@ -251,7 +269,6 @@ export const HeightmapSelectionContent: React.FC<{ onClose?: () => void }> = ({ 
                 type="button"
                 data-tip="Rerender all preview images"
                 className="checkbox-label"
-                style={{ cursor: "pointer", background: "none", border: "none", padding: 0 }}
                 onClick={() => handleRedrawAll(colorScheme, renderOcean)}
               >
                 <i className="icon-cw" /> Redraw preview
@@ -294,7 +311,7 @@ export const HeightmapSelectionContent: React.FC<{ onClose?: () => void }> = ({ 
           </div>
         </section>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5em", paddingTop: "0.5em" }}>
+        <div className="d-flex">
           <button type="button" onClick={onClose || (() => closeDialog("heightmapSelection"))}>
             Cancel
           </button>

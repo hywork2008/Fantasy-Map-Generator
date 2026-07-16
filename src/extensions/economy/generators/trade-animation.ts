@@ -1,28 +1,14 @@
 import FlatQueue from "flatqueue";
 import type { Point } from "../../hostCore";
-import type { Burg } from "../../hostTypes";
-import { ra } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
-import type { Deal } from "./markets-generator";
-import { Markets } from "./markets-generator";
+import { CaravanMovement } from "./caravanMovement";
+import { PORT_TRANSFER_PENALTY_DAYS } from "./tradeRouteDuration";
 
-type DrawFn = (
-  batch: TradeBatch,
-  segments: { type: "land" | "water"; points: Point[] }[],
-  onComplete?: () => void,
-  isCancelled?: () => boolean
-) => Promise<void>;
+type DrawFn = () => Promise<void>;
 type ClearFn = () => void;
-
-export type TradeBatch = {
-  id: string;
-  deals: Deal[];
-  startBurgId: number;
-  endBurgId: number;
-  type: "local" | "global";
-};
-
-type TradePath = { points: Point[]; segments: { type: "land" | "water"; points: Point[] }[] };
+type RouteSegmentType = "land" | "water";
+type RoutePath = { points: Point[]; segments: { type: RouteSegmentType; points: Point[] }[] };
+type RouteGeometry = { points: number[][] };
 
 export type TradeAnimationOptions = {
   displayType: string;
@@ -43,10 +29,6 @@ const DEFAULT_OPTIONS: TradeAnimationOptions = {
 };
 
 export class TradeAnimationModule {
-  private activeCount = 0;
-  private generation = 0;
-  private cachedBatches: TradeBatch[] | null = null;
-  private pathCache = new Map<string, TradePath | null>();
   private options: TradeAnimationOptions = { ...DEFAULT_OPTIONS };
   private drawFn: DrawFn | null = null;
   private clearFn: ClearFn | null = null;
@@ -71,18 +53,10 @@ export class TradeAnimationModule {
 
   start(): void {
     if (!this.isLayerOnFn?.()) return;
-    this.stop();
-    const batches = this.getDealBatches(getWorldContext().pack.deals || []);
-    if (!batches.length) return;
-    this.cachedBatches = batches;
-    this.topUp();
+    this.drawFn?.();
   }
 
   stop(): void {
-    this.generation++;
-    this.activeCount = 0;
-    this.cachedBatches = null;
-    this.pathCache.clear();
     this.clearFn?.();
   }
 
@@ -98,105 +72,40 @@ export class TradeAnimationModule {
 
   configure(opts: Partial<TradeAnimationOptions>): void {
     this.options = { ...this.options, ...opts };
+    this.sync();
   }
 
   getOptions(): Readonly<TradeAnimationOptions> {
     return this.options;
   }
 
-  private topUp(): void {
-    if (!this.isLayerOnFn?.() || !this.cachedBatches) return;
-    const target = this.options.concurrent;
-    while (this.activeCount < target) {
-      if (!this.spawnOne(this.cachedBatches)) break;
-    }
-  }
-
-  private spawnOne(batches: TradeBatch[]): boolean {
-    const type = this.options.displayType || "both";
-
-    while (true) {
-      const enabledBatches = type === "both" ? batches : batches.filter(batch => batch.type === type);
-      if (!enabledBatches.length) return false;
-
-      const batch = ra(enabledBatches);
-      if (!batch) return false;
-
-      const path = this.getPath(batch);
-      if (!path) {
-        const idx = batches.indexOf(batch);
-        if (idx !== -1) batches.splice(idx, 1);
-        continue;
-      }
-
-      const gen = this.generation;
-      this.activeCount++;
-      this.drawFn?.(
-        batch,
-        path.segments,
-        () => {
-          if (gen !== this.generation) return;
-          this.activeCount--;
-          this.topUp();
-        },
-        () => gen !== this.generation
-      );
-      return true;
-    }
-  }
-
-  trigger(batches: TradeBatch[]): void {
-    if (!batches.length) return;
-    if (!this.isLayerOnFn?.()) {
-      this.clearFn?.();
-      return;
-    }
-
-    for (const batch of batches) {
-      const path = this.getPath(batch);
-      if (!path) continue;
-      this.drawFn?.(batch, path.segments);
-    }
-  }
-
-  getPath(batch: TradeBatch): TradePath | null {
-    const cacheKey = `${batch.startBurgId}-${batch.endBurgId}`;
-    const cached = this.pathCache.get(cacheKey);
-    if (cached !== undefined) return cached;
-
-    const startBurg = getWorldContext().pack.burgs[batch.startBurgId];
-    const endBurg = getWorldContext().pack.burgs[batch.endBurgId];
-    const path = !startBurg || !endBurg ? null : this.findRoutePath(startBurg.cell, endBurg.cell);
-    this.pathCache.set(cacheKey, path);
-    return path;
-  }
-
-  getPathCost(fromCell: number, toCell: number): number {
-    const neighbors = getWorldContext().pack.cells.routes[fromCell];
-    if (!neighbors || !(toCell in neighbors)) return this.LAND_COST;
-    const routeId = neighbors[toCell];
-    const route = getWorldContext().pack.routes.find(r => r.i === routeId);
-    return route?.group === "searoutes" ? this.WATER_COST : this.LAND_COST;
-  }
-
-  private WATER_COST = 1;
-  private LAND_COST = 5;
-  private SWITCH_COST = 20;
-
-  findRoutePath(startCell: number, endCell: number) {
+  findRoutePath(startCell: number, endCell: number): RoutePath | null {
     if (startCell === endCell) return null;
 
-    const cellRoutes = getWorldContext().pack.cells.routes;
+    // A sea-only connection is intentionally chosen even when a mixed route is shorter. Ports
+    // should use their established sea lane instead of needlessly unloading cargo inland.
+    return (
+      this.findRoutePathWithAllowedEdges(startCell, endCell, true) ??
+      this.findRoutePathWithAllowedEdges(startCell, endCell, false)
+    );
+  }
+
+  private findRoutePathWithAllowedEdges(startCell: number, endCell: number, waterOnly: boolean): RoutePath | null {
+    const world = getWorldContext();
+    const { cells, routes } = world.pack;
+    const cellRoutes = cells.routes;
     const startNeighbors = cellRoutes[startCell];
     if (!startNeighbors) return null;
 
     const isWaterRoute = new Map<number, boolean>();
-    for (const route of getWorldContext().pack.routes) {
+    const routeById = new Map<number, RouteGeometry>();
+    for (const route of routes) {
       isWaterRoute.set(route.i, route.group === "searoutes");
+      routeById.set(route.i, route);
     }
 
     // State encoding: stateId = cell * 2 + (isWater ? 1 : 0)
-    const maxState = getWorldContext().pack.cells.h.length * 2;
+    const maxState = cells.h.length * 2;
     const distArr = new Float64Array(maxState).fill(Infinity);
     const prevCellArr = new Int32Array(maxState).fill(-1);
     const prevStateArr = new Int32Array(maxState).fill(-1); // -1 = came directly from startCell
@@ -208,8 +117,11 @@ export class TradeAnimationModule {
     const queue = new FlatQueue<number>();
     for (const nextStr of Object.keys(startNeighbors)) {
       const next = Number(nextStr);
-      const water = isWaterRoute.get(startNeighbors[next]) ?? false;
-      const cost = water ? this.WATER_COST : this.LAND_COST;
+      const routeId = startNeighbors[next];
+      const water = isWaterRoute.get(routeId) ?? false;
+      if (waterOnly && !water) continue;
+
+      const cost = this.getEdgeTravelDays(startCell, next, routeId, water, undefined, routeById);
       const state = next * 2 + (water ? 1 : 0);
       if (cost < distArr[state]) {
         distArr[state] = cost;
@@ -233,10 +145,11 @@ export class TradeAnimationModule {
 
       for (const nextStr of Object.keys(neighbors)) {
         const next = Number(nextStr);
-        const water = isWaterRoute.get(neighbors[next]) ?? false;
-        const isSwitch = water !== wasWater;
+        const routeId = neighbors[next];
+        const water = isWaterRoute.get(routeId) ?? false;
+        if (waterOnly && !water) continue;
 
-        const edgeCost = isSwitch ? this.SWITCH_COST : water ? this.WATER_COST : this.LAND_COST;
+        const edgeCost = this.getEdgeTravelDays(cell, next, routeId, water, wasWater, routeById);
         const newCost = cost + edgeCost;
         const nextState = next * 2 + (water ? 1 : 0);
 
@@ -252,11 +165,35 @@ export class TradeAnimationModule {
     return null;
   }
 
-  private buildPathResult(
-    terminalState: number,
-    prevCellArr: Int32Array,
-    prevStateArr: Int32Array
-  ): { points: Point[]; segments: { type: "land" | "water"; points: Point[] }[] } {
+  /**
+   * Dijkstra costs are journey days, matching the duration model used for deal eligibility.
+   * Route geometry is used where available so winding roads and sea lanes retain their real
+   * relative cost; a straight cell-to-cell edge is a safe fallback for incomplete route data.
+   */
+  private getEdgeTravelDays(
+    fromCell: number,
+    toCell: number,
+    routeId: number | undefined,
+    water: boolean,
+    previousWasWater: boolean | undefined,
+    routeById: Map<number, RouteGeometry>
+  ): number {
+    const world = getWorldContext();
+    const movement = CaravanMovement.getOptions();
+    const speed = water ? movement.seaKmPerDay : movement.landKmPerDay;
+    if (speed <= 0) return Infinity;
+
+    const points = this.extractEdgePoints(fromCell, toCell, routeId, routeById);
+    let distanceMapUnits = 0;
+    for (let index = 0; index < points.length - 1; index++) {
+      distanceMapUnits += Math.hypot(points[index + 1][0] - points[index][0], points[index + 1][1] - points[index][1]);
+    }
+
+    const transferDays = previousWasWater !== undefined && previousWasWater !== water ? PORT_TRANSFER_PENALTY_DAYS : 0;
+    return (distanceMapUnits * world.distanceScale) / speed + transferDays;
+  }
+
+  private buildPathResult(terminalState: number, prevCellArr: Int32Array, prevStateArr: Int32Array): RoutePath {
     const cells: number[] = [terminalState >> 1]; // endCell
     const waterEdges: boolean[] = [];
     let state = terminalState;
@@ -270,20 +207,15 @@ export class TradeAnimationModule {
     cells.reverse();
     waterEdges.reverse();
 
-    type Segment = "land" | "water";
-
     if (cells.length < 2) return { points: [], segments: [] };
 
     // Build a fast routeId→route lookup to avoid repeated linear scans.
-    const routeById = new Map<number, { points: number[][] }>();
+    const routeById = new Map<number, RouteGeometry>();
     for (const route of getWorldContext().pack.routes) routeById.set(route.i, route);
 
-    // Process the path edge-by-edge, extracting actual stored route geometry so the
-    // animation follows the same adjusted/meandered points that the renderer draws.
-    const segments: { type: Segment; points: Point[] }[] = [];
-    let currentType: Segment = waterEdges[0] ? "water" : "land";
+    const segments: { type: RouteSegmentType; points: Point[] }[] = [];
+    let currentType: RouteSegmentType = waterEdges[0] ? "water" : "land";
 
-    // First edge: take the full geometry (both endpoint cell runs).
     const firstEdge = this.extractEdgePoints(
       cells[0],
       cells[1],
@@ -295,11 +227,10 @@ export class TradeAnimationModule {
     for (let i = 1; i < cells.length - 1; i++) {
       const fromCell = cells[i];
       const toCell = cells[i + 1];
-      const type: Segment = waterEdges[i] ? "water" : "land";
+      const type: RouteSegmentType = waterEdges[i] ? "water" : "land";
 
       if (type !== currentType) {
         segments.push({ type: currentType, points: currentPoints });
-        // New segment shares the boundary point with the previous one.
         currentPoints = [currentPoints[currentPoints.length - 1]];
         currentType = type;
       }
@@ -310,30 +241,20 @@ export class TradeAnimationModule {
         getWorldContext().pack.cells.routes[fromCell]?.[toCell],
         routeById
       );
-      // The previous edge already emitted fromCell's entire run of points, so skip every leading
-      // point that still belongs to fromCell and append only the new toCell geometry. Skipping just
-      // one point would re-traverse fromCell's run (very visible on meandering water routes, where
-      // the marker appears to spin 180° back and forth across every shared cell).
+
       let k = 0;
       while (k < edgePoints.length && edgePoints[k][2] === fromCell) k++;
-      if (k === 0)
-        k = 1; // boundary point wasn't tagged fromCell — skip just it to avoid a duplicate
-      else if (k >= edgePoints.length) k = edgePoints.length - 1; // keep at least the final point
+      if (k === 0) k = 1;
+      else if (k >= edgePoints.length) k = edgePoints.length - 1;
       for (; k < edgePoints.length; k++) currentPoints.push([edgePoints[k][0], edgePoints[k][1]]);
     }
     segments.push({ type: currentType, points: currentPoints });
 
-    // Snap the path's terminal points to the burg positions. Sea routes that run up a river anchor a
-    // port cell on the river course (the cell centre) rather than the burg marker, so a water segment
-    // (or a land segment ending at a river port) would otherwise start/end a few pixels off the burg
-    // it serves. getCellPoint returns the burg coordinate for burg cells, matching where the marker
-    // is drawn.
     const firstSeg = segments[0].points;
     const lastSeg = segments[segments.length - 1].points;
     firstSeg[0] = this.getCellPoint(cells[0]);
     lastSeg[lastSeg.length - 1] = this.getCellPoint(cells[cells.length - 1]);
 
-    // Flatten segments into a single points array (shared boundary points appear once).
     const points: Point[] = [];
     for (let si = 0; si < segments.length; si++) {
       for (let pk = 0; pk < segments[si].points.length; pk++) {
@@ -345,15 +266,11 @@ export class TradeAnimationModule {
     return { points, segments };
   }
 
-  // Extract the actual rendered points for one route edge (fromCell → toCell), each tagged with the
-  // cell it belongs to ([x, y, cellId]). Looks up the stored route geometry so the animation follows
-  // the same path the renderer draws. The cell tag lets the caller drop a cell's run once it has
-  // already been emitted by the adjacent edge.
   private extractEdgePoints(
     fromCell: number,
     toCell: number,
     routeId: number | undefined,
-    routeById: Map<number, { points: number[][] }>
+    routeById: Map<number, RouteGeometry>
   ): [number, number, number][] {
     const fallback = (): [number, number, number][] => [
       [...this.getCellPoint(fromCell), fromCell] as [number, number, number],
@@ -372,7 +289,6 @@ export class TradeAnimationModule {
       const cellB = pts[i + 1][2];
 
       if (cellA === fromCell && cellB === toCell) {
-        // Forward direction: include all points belonging to fromCell, then all belonging to toCell.
         let start = i;
         while (start > 0 && pts[start - 1][2] === fromCell) start--;
         let end = i + 1;
@@ -381,7 +297,6 @@ export class TradeAnimationModule {
       }
 
       if (cellA === toCell && cellB === fromCell) {
-        // Reverse direction: same slice, reversed.
         let start = i;
         while (start > 0 && pts[start - 1][2] === toCell) start--;
         let end = i + 1;
@@ -400,31 +315,6 @@ export class TradeAnimationModule {
     const burgId = getWorldContext().pack.cells.burg[cellId];
     const burg = burgId ? getWorldContext().pack.burgs[burgId] : null;
     return burg ? [burg.x, burg.y] : getWorldContext().pack.cells.p[cellId];
-  }
-
-  getDealBatches(deals: Deal[]): TradeBatch[] {
-    const batches = new Map<string, TradeBatch>();
-
-    for (const deal of deals) {
-      const start = this.resolveParty(deal.seller, deal.sellerType);
-      const end = this.resolveParty(deal.buyer, deal.buyerType);
-      if (!start || !end || start.cell === end.cell) continue;
-      if (!start.i || !end.i) continue;
-
-      const type = deal.sellerType === "market" && deal.buyerType === "market" ? "global" : "local";
-      const key = `${start.i}-${end.i}-${type}`;
-      const batch = batches.get(key);
-      if (batch) batch.deals.push(deal);
-      else batches.set(key, { id: key, deals: [deal], startBurgId: start.i, endBurgId: end.i, type });
-    }
-
-    return Array.from(batches.values());
-  }
-
-  private resolveParty(id: number, type: "burg" | "market"): Burg | null {
-    const burgId = type === "burg" ? id : Markets.get(id)?.centerBurgId;
-    if (!burgId) return null;
-    return getWorldContext().pack.burgs[burgId] || null;
   }
 
   getDefaultOptions() {

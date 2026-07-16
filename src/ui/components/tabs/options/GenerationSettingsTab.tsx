@@ -1,8 +1,10 @@
 import type React from "react";
+import { heightmapLandmassThresholds } from "../../../../data";
 import { useOptionsState } from "../../../../store/optionsState";
 import { lock } from "../../../../utils/domUtils";
+import { IconButton } from "../../IconButton";
+import { LockIconButton } from "../../LockIconButton";
 import { SliderInput } from "../../SliderInput";
-
 export const GenerationSettingsTab: React.FC = () => {
   const options = useOptionsState();
   const updateOption = options.setOption;
@@ -33,7 +35,7 @@ export const GenerationSettingsTab: React.FC = () => {
         <tbody>
           <tr data-tip="Set original map size on generation. It cannot be changed later. Always keep canvas size equal to your screen size or less.">
             <td>
-              <i data-tip="Restore default canvas size" className="icon-ccw" onClick={handleRestoreDefaultSize}></i>
+              <IconButton data-tip="Restore default canvas size" icon="icon-ccw" onClick={handleRestoreDefaultSize} />
             </td>
             <td>Canvas size</td>
             <td>
@@ -102,7 +104,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Set number of points to be used for graph generation. Highly affects performance. 10K is the only recommended value">
             <td>
-              <i data-locked="0" id="lock_points" className="icon-lock-open"></i>
+              <LockIconButton id="points" />
             </td>
             <td>Points number</td>
             <td>
@@ -123,7 +125,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Define map name (will be used to name downloaded files)">
             <td>
-              <i data-locked="0" id="lock_mapName" className="icon-lock-open"></i>
+              <LockIconButton id="mapName" />
             </td>
             <td>Map name</td>
             <td>
@@ -147,7 +149,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Define current year and era name">
             <td>
-              <i data-locked="0" id="lock_year" className="icon-lock-open"></i>
+              <LockIconButton id="year" />
             </td>
             <td>Year and era</td>
             <td>
@@ -155,7 +157,6 @@ export const GenerationSettingsTab: React.FC = () => {
                 type="number"
                 step="1"
                 className="paired"
-                style={{ width: "24%", float: "left", fontSize: "smaller" }}
                 value={options.year}
                 onChange={e => {
                   updateOptionAndLock("year", Number(e.target.value));
@@ -168,7 +169,6 @@ export const GenerationSettingsTab: React.FC = () => {
                 autoCorrect="off"
                 spellCheck="false"
                 type="text"
-                style={{ width: "75%", float: "right" }}
                 className="long"
                 value={options.era}
                 onChange={e => {
@@ -188,7 +188,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Select heightmap template to be used for map generation">
             <td>
-              <i data-locked="0" id="lock_template" className="icon-lock-open"></i>
+              <LockIconButton id="template" />
             </td>
             <td>Heightmap</td>
             <td
@@ -196,20 +196,37 @@ export const GenerationSettingsTab: React.FC = () => {
               className="pointer"
               onClick={() => document.dispatchEvent(new CustomEvent("react-open-template-selection"))}
             >
-              <span style={{ display: "inline-block", minWidth: "8em", cursor: "pointer" }}>
-                {options.template || "highIsland"}
-              </span>
+              <span className="d-inline-block">{options.template || "highIsland"}</span>
               <input id="templateInput" type="hidden" value={options.template} readOnly />
             </td>
             <td></td>
           </tr>
 
+          <tr data-tip="When Heightmap is unlocked, limit random selection to templates with the selected average land or ocean coverage">
+            <td></td>
+            <td>Random heightmap pool</td>
+            <td colSpan={2}>
+              <select
+                value={options.templateRandomization}
+                onChange={e =>
+                  updateOption("templateRandomization", e.target.value as typeof options.templateRandomization)
+                }
+              >
+                <option value="all">All templates</option>
+                <option value="landRich">Land-rich ({heightmapLandmassThresholds.landRichMinimum}%+ land)</option>
+                <option value="oceanRich">
+                  Ocean-rich ({100 - heightmapLandmassThresholds.oceanRichMaximum}%+ ocean)
+                </option>
+              </select>
+            </td>
+          </tr>
+
           <tr data-tip="Define how many Cultures should be generated">
             <td>
-              <i data-locked="0" id="lock_cultures" className="icon-lock-open"></i>
+              <LockIconButton id="cultures" />
             </td>
             <td>Cultures number</td>
-            <td>
+            <td colSpan={2}>
               <input
                 type="range"
                 min="1"
@@ -217,8 +234,6 @@ export const GenerationSettingsTab: React.FC = () => {
                 value={options.cultures}
                 onChange={e => updateOptionAndLock("cultures", Number(e.target.value))}
               />
-            </td>
-            <td>
               <input
                 type="number"
                 min="1"
@@ -231,7 +246,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Select a set of cultures to be used for names and cultures generation">
             <td>
-              <i data-locked="0" id="lock_culturesSet" className="icon-lock-open"></i>
+              <LockIconButton id="culturesSet" />
             </td>
             <td>Cultures set</td>
             <td>
@@ -274,7 +289,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Define how many states and capitals should be generated">
             <td>
-              <i data-locked="0" id="lock_statesNumber" className="icon-lock-open"></i>
+              <LockIconButton id="statesNumber" />
             </td>
             <td>States number</td>
             <td colSpan={2}>
@@ -287,9 +302,24 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
+          <tr data-tip="Define how many times wars are generated to build relations history.">
+            <td>
+              <LockIconButton id="diplomacyHistoryAttempts" />
+            </td>
+            <td>History attempts</td>
+            <td colSpan={2}>
+              <SliderInput
+                min="0"
+                max="10"
+                value={options.diplomacyHistoryAttempts}
+                onChange={v => updateOptionAndLock("diplomacyHistoryAttempts", Number(v))}
+              />
+            </td>
+          </tr>
+
           <tr data-tip="Set what share of eligible burgs in each state will become province centers. Higher values create more provinces">
             <td>
-              <i data-locked="0" id="lock_provincesRatio" className="icon-lock-open"></i>
+              <LockIconButton id="provincesRatio" />
             </td>
             <td>Provinces ratio</td>
             <td colSpan={2}>
@@ -304,7 +334,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Define how much states and cultures can vary in size. Defines expansionism value">
             <td>
-              <i data-locked="0" id="lock_sizeVariety" className="icon-lock-open"></i>
+              <LockIconButton id="sizeVariety" />
             </td>
             <td>Size variety</td>
             <td colSpan={2}>
@@ -320,7 +350,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Set state and cultures growth rate. Defines how many lands will stay neutral">
             <td>
-              <i data-locked="0" id="lock_growthRate" className="icon-lock-open"></i>
+              <LockIconButton id="growthRate" />
             </td>
             <td>Growth rate</td>
             <td colSpan={2}>
@@ -334,9 +364,25 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
+          <tr data-tip="Determines how full the world is relative to its carrying capacity at the start. 100% means fully saturated, lower values allow for future demographic growth.">
+            <td>
+              <LockIconButton id="initialPopulationSaturation" />
+            </td>
+            <td>Initial population %</td>
+            <td colSpan={2}>
+              <SliderInput
+                min="10"
+                max="100"
+                step="5"
+                value={options.initialPopulationSaturation}
+                onChange={v => updateOptionAndLock("initialPopulationSaturation", Number(v))}
+              />
+            </td>
+          </tr>
+
           <tr data-tip="Define a number of non-capital settlements to be placed (if enough suitable land exists)">
             <td>
-              <i data-locked="0" id="lock_manors" className="icon-lock-open"></i>
+              <LockIconButton id="manors" />
             </td>
             <td>Burgs number</td>
             <td>
@@ -357,7 +403,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Define how many organized religions and cults should be generated. Cultures will have their own folk religions in any case">
             <td>
-              <i data-locked="0" id="lock_religionsNumber" className="icon-lock-open"></i>
+              <LockIconButton id="religionsNumber" />
             </td>
             <td>Religions number</td>
             <td colSpan={2}>
@@ -373,7 +419,7 @@ export const GenerationSettingsTab: React.FC = () => {
 
           <tr data-tip="Select state labels mode: display short or full names">
             <td>
-              <i data-locked="0" id="lock_stateLabelsMode" className="icon-lock-open"></i>
+              <LockIconButton id="stateLabelsMode" />
             </td>
             <td>State labels</td>
             <td>

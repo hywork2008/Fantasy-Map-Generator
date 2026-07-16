@@ -5,14 +5,8 @@ import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 import type { EditorConfig } from "./editorRegistry";
 
-function layerIsOn(el: string): boolean {
-  const e = document.getElementById(el);
-  if (!e) return false;
-  return e.classList.contains("pressed");
-}
-
 export const CommonEditorDialog: React.FC<{ id: string; config: EditorConfig }> = ({ id, config }) => {
-  const { title, component: Component, moduleFlag, layerId, onClose, tableLayout, dialogHeight } = config;
+  const { title, component: Component, moduleFlag, onClose, tableLayout, dialogHeight, dialogClassName } = config;
 
   // Cleanup when dialog is closed (either via X button or programmatic toggle)
   useEffect(() => {
@@ -26,9 +20,9 @@ export const CommonEditorDialog: React.FC<{ id: string; config: EditorConfig }> 
   }, [onClose, moduleFlag]);
 
   const handleClose = () => {
-    if (layerId && layerIsOn(layerId)) {
-      document.getElementById(layerId)?.click();
-    }
+    // tools.ts restores the exact before-open layer snapshot for editor dialogs.
+    // Toggling the configured layer here would race that restoration and can leave
+    // a layer that the editor changed indirectly (such as toggleStates) enabled.
     closeDialog(id);
   };
 
@@ -37,7 +31,7 @@ export const CommonEditorDialog: React.FC<{ id: string; config: EditorConfig }> 
       isOpen={true}
       title={title}
       onClose={handleClose}
-      className={tableLayout ? "fmg-dialog--overflow-hidden" : undefined}
+      className={[tableLayout ? "fmg-dialog--table" : "", dialogClassName].filter(Boolean).join(" ")}
       style={dialogHeight ? { height: dialogHeight } : undefined}
     >
       <Component />

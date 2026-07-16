@@ -8,6 +8,7 @@ import { useOptionsState } from "../../store/optionsState";
 import { useWorldConfiguratorFormStore } from "../../store/worldConfiguratorFormStore";
 import { convertTemperature, debounce, parseTransform, rn, round } from "../../utils";
 import { lock } from "../../utils/domUtils";
+import { LockIconButton } from "../components/LockIconButton";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -202,14 +203,10 @@ export const WorldConfiguratorDialog: React.FC = () => {
     <Dialog isOpen={isOpen} title="WorldConfigurator" onClose={() => closeDialog("worldConfigurator")}>
       <div id="worldConfiguratorContainer">
         <div>
-          <div style={{ display: "flex" }}>
-            <fieldset
-              id="worldControls"
-              onInput={handleControlsChange}
-              style={{ border: "none", padding: 0, margin: 0 }}
-            >
+          <div className="d-flex">
+            <fieldset id="worldControls" onInput={handleControlsChange}>
               <div>
-                <i data-locked={0} id="lock_temperatureEquator" className="icon-lock-open" />
+                <LockIconButton id="temperatureEquator" />
                 <label data-tip="Set temperature at equator">
                   <i>Equator:</i>
                   <input
@@ -218,7 +215,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     type="number"
                     min={-50}
                     max={50}
-                    value={worldContext.options.temperatureEquator}
+                    value={useWorldConfiguratorFormStore(s => s.temperatureEquator)}
                     onChange={handleControlsChange}
                   />
                   <span>
@@ -230,14 +227,14 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     type="range"
                     min={-50}
                     max={50}
-                    value={worldContext.options.temperatureEquator}
+                    value={useWorldConfiguratorFormStore(s => s.temperatureEquator)}
                     onChange={handleControlsChange}
                   />
                 </label>
               </div>
               <div>
                 <label data-tip="Set the North Pole average yearly temperature">
-                  <i data-locked={0} id="lock_temperatureNorthPole" className="icon-lock-open" />
+                  <LockIconButton id="temperatureNorthPole" />
                   <i>North Pole:</i>
                   <input
                     id="temperatureNorthPoleInput"
@@ -245,7 +242,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     type="number"
                     min={-50}
                     max={50}
-                    value={worldContext.options.temperatureNorthPole}
+                    value={useWorldConfiguratorFormStore(s => s.temperatureNorthPole)}
                     onChange={handleControlsChange}
                   />
                   <span>
@@ -257,14 +254,14 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     type="range"
                     min={-50}
                     max={50}
-                    value={worldContext.options.temperatureNorthPole}
+                    value={useWorldConfiguratorFormStore(s => s.temperatureNorthPole)}
                     onChange={handleControlsChange}
                   />
                 </label>
               </div>
               <div>
                 <label data-tip="Set the South Pole average yearly temperature">
-                  <i data-locked={0} id="lock_temperatureSouthPole" className="icon-lock-open" />
+                  <LockIconButton id="temperatureSouthPole" />
                   <i>South Pole:</i>
                   <input
                     id="temperatureSouthPoleInput"
@@ -272,7 +269,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     type="number"
                     min={-50}
                     max={50}
-                    value={worldContext.options.temperatureSouthPole}
+                    value={useWorldConfiguratorFormStore(s => s.temperatureSouthPole)}
                     onChange={handleControlsChange}
                   />
                   <span>
@@ -284,13 +281,13 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     type="range"
                     min={-50}
                     max={50}
-                    value={worldContext.options.temperatureSouthPole}
+                    value={useWorldConfiguratorFormStore(s => s.temperatureSouthPole)}
                     onChange={handleControlsChange}
                   />
                 </label>
               </div>
               <div>
-                <i data-locked={0} id="lock_mapSize" className="icon-lock-open" />
+                <LockIconButton id="mapSize" />
                 <label data-tip="Set map size relative to the world size">
                   <i>Map size:</i>
                   <input
@@ -317,7 +314,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                 </label>
               </div>
               <div>
-                <i data-locked={0} id="lock_latitude" className="icon-lock-open" />
+                <LockIconButton id="latitude" />
                 <label data-tip="Set a North-South map shift, set to 50 to make map center lie on Equator">
                   <i>Latitudes:</i>
                   <input
@@ -339,7 +336,6 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     min={0}
                     max={100}
                     step="0.1"
-                    style={{ width: "10.3em" }}
                     value={useOptionsState(s => s.latitude)}
                     onChange={handleControlsChange}
                   />
@@ -347,7 +343,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                 </label>
               </div>
               <div>
-                <i data-locked={0} id="lock_longitude" className="icon-lock-open" />
+                <LockIconButton id="longitude" />
                 <label data-tip="Set a West-East map shift, set to 50 to make map center lie on Prime meridian">
                   <i>Longitudes:</i>
                   <input
@@ -369,7 +365,6 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     min={0}
                     max={100}
                     step="0.1"
-                    style={{ width: "10.3em" }}
                     value={useOptionsState(s => s.longitude)}
                     onChange={handleControlsChange}
                   />
@@ -378,7 +373,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
               </div>
               <div>
                 <label data-tip="Set precipitation - water amount clouds can bring. Defines rivers and biomes generation. Keep around 100% for default generation">
-                  <i data-locked={0} id="lock_prec" className="icon-lock-open" />
+                  <LockIconButton id="prec" />
                   <i>Precipitation:</i>
                   <input
                     id="precInput"
@@ -429,7 +424,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                 <i>Coords:</i> <span id="mapCoordinates">{globeStats.mapCoordinates}</span>
               </div>
             </fieldset>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+            <div className="d-flex">
               <svg ref={globeRef} id="globe" width="22em" viewBox="-20 -25 240 240" aria-hidden="true">
                 <defs>
                   <linearGradient id="temperatureGradient" x1={0} x2={0} y1={0} y2={1}>
@@ -456,7 +451,6 @@ export const WorldConfiguratorDialog: React.FC = () => {
                   data-tip="Click to change wind direction"
                   strokeLinejoin="round"
                   onClick={handleWindChange}
-                  style={{ cursor: "pointer" }}
                 >
                   <circle cx={210} cy={6} r={12} />
                   <path data-tier={0} d="M210,11 v-10 l-3,3 m6,0 l-3,-3" transform="rotate(225 210 6)" />
@@ -519,7 +513,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
               </button>
             </div>
           </div>
-          <div style={{ marginTop: "0.3em" }}>
+          <div>
             <i>Presets:</i>
             <button
               type="button"
@@ -555,10 +549,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
             </button>
           </div>
         </div>
-        <div
-          className="fmg-dialog-buttonpane"
-          style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
-        >
+        <div className="fmg-dialog-buttonpane d-flex">
           <div className="dontAsk" data-tip="Automatically update world on input changes and button clicks">
             <input
               id="wcAutoChange"

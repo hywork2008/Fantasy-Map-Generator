@@ -8,6 +8,7 @@ import { Rivers } from "../generators/river-generator";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
 import { getCellPopulation, getFriendlyHeight } from "../services/cellInfoService";
 import { fonts, loadFontsAsDataURI } from "../services/fonts";
+import { withSvgSnapshot } from "../services/svgSnapshot";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { connectVertices, createObjectURL, getBase64, getCoordinates, revokeObjectURL, rn, unique } from "../utils";
@@ -59,32 +60,14 @@ export async function exportToSvg(): Promise<void> {
 export async function exportToPng(options: ImageExportOptions = {}): Promise<void> {
   TIME && console.time("exportToPng");
   try {
-    const url = await getMapURL("png");
     const link = document.createElement("a");
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d")!;
     const resolution = getResolutionValue(options.resolution);
-    canvas.width = view.svgWidth * resolution;
-    canvas.height = view.svgHeight * resolution;
-
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob(blob => {
-          if (!blob) return reject(new Error("Cannot render PNG image"));
-          resolve(blob);
-        }, "image/png");
-      };
-      img.onerror = () => reject(new Error("Cannot load map image for PNG export"));
-      img.src = url;
-    });
+    const blob = await getVisibleMapRaster("image/png", resolution);
 
     link.download = `${getFileName()}.png`;
     link.href = createObjectURL(blob);
     link.click();
     window.setTimeout(() => {
-      canvas.remove();
       revokeObjectURL(link.href);
     }, 1000);
 
@@ -105,30 +88,9 @@ export async function exportToPng(options: ImageExportOptions = {}): Promise<voi
 export async function exportToJpeg(options: ImageExportOptions = {}): Promise<void> {
   TIME && console.time("exportToJpeg");
   try {
-    const url = await getMapURL("png");
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d")!;
     const resolution = getResolutionValue(options.resolution);
-    canvas.width = view.svgWidth * resolution;
-    canvas.height = view.svgHeight * resolution;
-
     const quality = Math.min(rn(1 - resolution / 20, 2), 0.92);
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob(
-          blob => {
-            if (!blob) return reject(new Error("Cannot render JPEG image"));
-            resolve(blob);
-          },
-          "image/jpeg",
-          quality
-        );
-      };
-      img.onerror = () => reject(new Error("Cannot load map image for JPEG export"));
-      img.src = url;
-    });
+    const blob = await getVisibleMapRaster("image/jpeg", resolution, quality);
 
     const link = document.createElement("a");
     link.download = `${getFileName()}.jpeg`;
@@ -261,6 +223,15 @@ interface GetMapURLOptions {
 }
 
 export async function getMapURL(type: string, options: GetMapURLOptions = {}): Promise<string> {
+  // A vector/full-map request cannot reuse the on-screen deck canvas: it is viewport-sized,
+  // whereas SVG, tiles and 3D mesh textures need the complete logical map coordinate space.
+  if (viewContext.renderMode === "webglHybrid" && (type === "svg" || options.fullMap)) {
+    return withSvgSnapshot(() => getMapURLFromSvg(type, options));
+  }
+  return getMapURLFromSvg(type, options);
+}
+
+async function getMapURLFromSvg(type: string, options: GetMapURLOptions = {}): Promise<string> {
   const {
     debug = false,
     noLabels = false,
@@ -527,6 +498,45 @@ export async function getMapURL(type: string, options: GetMapURLOptions = {}): P
   const url = createObjectURL(svgBlob);
   revokeObjectURL(url, 5000);
   return url;
+}
+
+async function getVisibleMapRaster(
+  mimeType: "image/png" | "image/jpeg",
+  resolution: number,
+  quality?: number
+): Promise<Blob> {
+  const canvas = document.createElement("canvas");
+  canvas.width = view.svgWidth * resolution;
+  canvas.height = view.svgHeight * resolution;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Cannot create export canvas context");
+
+  try {
+    const webglCanvas = viewContext.webglCanvas;
+    if (viewContext.renderMode === "webglHybrid" && webglCanvas) {
+      context.drawImage(webglCanvas, 0, 0, canvas.width, canvas.height);
+      // getMapURLFromSvg deliberately preserves the hybrid policy classes. Its cloned SVG
+      // therefore contains only SVG overlay layers and can be painted over the deck canvas.
+      await drawImageUrl(context, await getMapURLFromSvg("png"), canvas.width, canvas.height);
+    } else {
+      await drawImageUrl(context, await getMapURL("png"), canvas.width, canvas.height);
+    }
+    return await canvasToBlob(canvas, mimeType, quality);
+  } finally {
+    canvas.remove();
+  }
+}
+
+async function drawImageUrl(
+  context: CanvasRenderingContext2D,
+  url: string,
+  width: number,
+  height: number
+): Promise<void> {
+  const image = new Image();
+  image.src = url;
+  await loadImage(image);
+  context.drawImage(image, 0, 0, width, height);
 }
 
 // ─── SVG cleanup helpers ──────────────────────────────────────────────────────

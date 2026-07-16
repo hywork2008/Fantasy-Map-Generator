@@ -4,6 +4,17 @@ import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
 import { getElementById } from "./utils/nodeUtils";
 
+function createOrAcquireWebglCanvas(mapSvgEl: SVGSVGElement): HTMLCanvasElement {
+  const existing = document.getElementById("webglMapCanvas");
+  if (existing instanceof HTMLCanvasElement) return existing;
+
+  const canvas = document.createElement("canvas");
+  canvas.id = "webglMapCanvas";
+  canvas.setAttribute("aria-hidden", "true");
+  mapSvgEl.parentElement?.insertBefore(canvas, mapSvgEl);
+  return canvas;
+}
+
 /**
  * Creates all host SVG <g> layers in DOM render order and populates viewContext.
  * Called once during the synchronous SVG setup phase in app startup (before any renderer runs).
@@ -12,19 +23,35 @@ export function createViewLayers(): void {
   const mapSvgEl = getElementById<SVGSVGElement>("map");
   if (!mapSvgEl) throw new Error("Map SVG root #map is not found");
 
+  const webglCanvas = createOrAcquireWebglCanvas(mapSvgEl);
   const svg = d3.select<SVGSVGElement, unknown>(mapSvgEl) as Selection<SVGSVGElement, unknown, null, undefined>;
   const defs = svg.select("#deftemp") as Selection<SVGDefsElement, unknown, null, undefined>;
   const viewbox = svg.select("#viewbox") as Selection<SVGGElement, unknown, null, undefined>;
   const scaleBar = svg.select("#scaleBar") as Selection<SVGGElement, unknown, null, undefined>;
   const legend = svg.append("g").attr("id", "legend") as Selection<SVGGElement, unknown, null, undefined>;
+  const calendar = svg.append("g").attr("id", "calendar") as Selection<SVGGElement, unknown, null, undefined>;
   const ocean = viewbox.append("g").attr("id", "ocean") as Selection<SVGGElement, unknown, null, undefined>;
   const oceanLayers = ocean.append("g").attr("id", "oceanLayers") as Selection<SVGGElement, unknown, null, undefined>;
   const oceanPattern = ocean.append("g").attr("id", "oceanPattern") as Selection<SVGGElement, unknown, null, undefined>;
+  // Above the sea, below the landmass/coastline that gets drawn over it.
+  const enclosure = viewbox.append("g").attr("id", "enclosure").style("display", "none") as Selection<
+    SVGGElement,
+    unknown,
+    null,
+    undefined
+  >;
   const landmass = viewbox.append("g").attr("id", "landmass") as Selection<SVGGElement, unknown, null, undefined>;
   const texture = viewbox.append("g").attr("id", "texture") as Selection<SVGGElement, unknown, null, undefined>;
   const terrs = viewbox.append("g").attr("id", "terrs") as Selection<SVGGElement, unknown, null, undefined>;
   const lakes = viewbox.append("g").attr("id", "lakes") as Selection<SVGGElement, unknown, null, undefined>;
   const biomes = viewbox.append("g").attr("id", "biomes") as Selection<SVGGElement, unknown, null, undefined>;
+  const danger = viewbox.append("g").attr("id", "danger").style("display", "none") as Selection<
+    SVGGElement,
+    unknown,
+    null,
+    undefined
+  >;
+  const population = viewbox.append("g").attr("id", "population") as Selection<SVGGElement, unknown, null, undefined>;
   const cells = viewbox.append("g").attr("id", "cells") as Selection<SVGGElement, unknown, null, undefined>;
   const gridOverlay = viewbox.append("g").attr("id", "gridOverlay") as Selection<SVGGElement, unknown, null, undefined>;
   const coordinates = viewbox.append("g").attr("id", "coordinates") as Selection<SVGGElement, unknown, null, undefined>;
@@ -61,6 +88,7 @@ export function createViewLayers(): void {
   const trails = routes.append("g").attr("id", "trails") as Selection<SVGGElement, unknown, null, undefined>;
   const searoutes = routes.append("g").attr("id", "searoutes") as Selection<SVGGElement, unknown, null, undefined>;
   const temperature = viewbox.append("g").attr("id", "temperature") as Selection<SVGGElement, unknown, null, undefined>;
+
   const coastline = viewbox.append("g").attr("id", "coastline") as Selection<SVGGElement, unknown, null, undefined>;
   const ice = viewbox.append("g").attr("id", "ice") as Selection<SVGGElement, unknown, null, undefined>;
   const prec = viewbox.append("g").attr("id", "prec").style("display", "none") as Selection<
@@ -69,7 +97,7 @@ export function createViewLayers(): void {
     null,
     undefined
   >;
-  const population = viewbox.append("g").attr("id", "population") as Selection<SVGGElement, unknown, null, undefined>;
+
   const emblems = viewbox.append("g").attr("id", "emblems").style("display", "none") as Selection<
     SVGGElement,
     unknown,
@@ -80,8 +108,21 @@ export function createViewLayers(): void {
   const labels = viewbox.append("g").attr("id", "labels") as Selection<SVGGElement, unknown, null, undefined>;
   const burgIcons = icons.append("g").attr("id", "burgIcons") as Selection<SVGGElement, unknown, null, undefined>;
   const anchors = icons.append("g").attr("id", "anchors") as Selection<SVGGElement, unknown, null, undefined>;
+  // Combat death heatmap paints just under armies so regiments stay readable on top.
+  const combatDeaths = viewbox.append("g").attr("id", "combatDeaths").style("display", "none") as Selection<
+    SVGGElement,
+    unknown,
+    null,
+    undefined
+  >;
   const armies = viewbox.append("g").attr("id", "armies") as Selection<SVGGElement, unknown, null, undefined>;
   const markers = viewbox.append("g").attr("id", "markers") as Selection<SVGGElement, unknown, null, undefined>;
+  const frontierForts = viewbox.append("g").attr("id", "frontierForts") as Selection<
+    SVGGElement,
+    unknown,
+    null,
+    undefined
+  >;
   const fogging = viewbox
     .append("g")
     .attr("id", "fogging-cont")
@@ -135,10 +176,12 @@ export function createViewLayers(): void {
 
   Object.assign(viewContext, {
     svg,
+    webglCanvas,
     defs,
     viewbox,
     scaleBar,
     legend,
+    calendar,
     ocean,
     oceanLayers,
     oceanPattern,
@@ -168,6 +211,8 @@ export function createViewLayers(): void {
     trails,
     searoutes,
     temperature,
+    danger,
+    combatDeaths,
     coastline,
     ice,
     prec,
@@ -180,9 +225,11 @@ export function createViewLayers(): void {
     anchors,
     armies,
     markers,
+    frontierForts,
     fogging,
     ruler,
     debug,
+    enclosure,
     viewX: 0,
     viewY: 0
   });
@@ -216,7 +263,11 @@ export function populateSizeRects(): void {
  * then updates viewContext in-place so all existing references stay valid.
  */
 export function reinitializeMapLayers(): void {
-  const svg = d3.select<SVGSVGElement, unknown>("#map") as unknown as Selection<
+  const mapSvgEl = getElementById<SVGSVGElement>("map");
+  if (!mapSvgEl) throw new Error("Map SVG root #map is not found");
+
+  const webglCanvas = createOrAcquireWebglCanvas(mapSvgEl);
+  const svg = d3.select<SVGSVGElement, unknown>(mapSvgEl) as unknown as Selection<
     SVGSVGElement,
     unknown,
     null,
@@ -226,11 +277,35 @@ export function reinitializeMapLayers(): void {
   const viewbox = svg.select("#viewbox") as Selection<SVGGElement, unknown, null, undefined>;
   const scaleBar = svg.select("#scaleBar") as Selection<SVGGElement, unknown, null, undefined>;
   const legend = svg.select("#legend") as Selection<SVGGElement, unknown, null, undefined>;
+  // Maps saved before this overlay existed won't have #calendar — append it so old saves gain it too.
+  let calendar = svg.select("#calendar") as Selection<SVGGElement, unknown, null, undefined>;
+  if (!calendar.size())
+    calendar = svg.append("g").attr("id", "calendar") as Selection<SVGGElement, unknown, null, undefined>;
   const ocean = viewbox.select("#ocean") as Selection<SVGGElement, unknown, null, undefined>;
   const oceanLayers = ocean.select("#oceanLayers") as Selection<SVGGElement, unknown, null, undefined>;
   const oceanPattern = ocean.select("#oceanPattern") as Selection<SVGGElement, unknown, null, undefined>;
   const lakes = viewbox.select("#lakes") as Selection<SVGGElement, unknown, null, undefined>;
   const landmass = viewbox.select("#landmass") as Selection<SVGGElement, unknown, null, undefined>;
+  // Above the sea, below the landmass/coastline. Pin it there even for sessions where it was
+  // previously created elsewhere in the stack (e.g. maps saved before this ordering was fixed).
+  let enclosure = viewbox.select("#enclosure") as Selection<SVGGElement, unknown, null, undefined>;
+  const landmassNode = landmass.node();
+  if (!enclosure.size()) {
+    const node = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    node.id = "enclosure";
+    node.style.display = "none";
+    if (landmassNode?.parentNode) {
+      landmassNode.parentNode.insertBefore(node, landmassNode);
+    } else {
+      viewbox.node()?.appendChild(node);
+    }
+    enclosure = d3.select(node) as Selection<SVGGElement, unknown, null, undefined>;
+  } else {
+    const enclosureNode = enclosure.node();
+    if (enclosureNode && landmassNode?.parentNode && enclosureNode.nextSibling !== landmassNode) {
+      landmassNode.parentNode.insertBefore(enclosureNode, landmassNode);
+    }
+  }
   const texture = viewbox.select("#texture") as Selection<SVGGElement, unknown, null, undefined>;
   const terrs = viewbox.select("#terrs") as Selection<SVGGElement, unknown, null, undefined>;
   const biomes = viewbox.select("#biomes") as Selection<SVGGElement, unknown, null, undefined>;
@@ -256,6 +331,7 @@ export function reinitializeMapLayers(): void {
   const trails = routes.select("#trails") as Selection<SVGGElement, unknown, null, undefined>;
   const searoutes = routes.select("#searoutes") as Selection<SVGGElement, unknown, null, undefined>;
   const temperature = viewbox.select("#temperature") as Selection<SVGGElement, unknown, null, undefined>;
+  const danger = viewbox.select("#danger") as Selection<SVGGElement, unknown, null, undefined>;
   const coastline = viewbox.select("#coastline") as Selection<SVGGElement, unknown, null, undefined>;
   const prec = viewbox.select("#prec") as Selection<SVGGElement, unknown, null, undefined>;
   const population = viewbox.select("#population") as Selection<SVGGElement, unknown, null, undefined>;
@@ -265,7 +341,32 @@ export function reinitializeMapLayers(): void {
   const burgIcons = icons.select("#burgIcons") as Selection<SVGGElement, unknown, null, undefined>;
   const anchors = icons.select("#anchors") as Selection<SVGGElement, unknown, null, undefined>;
   const armies = viewbox.select("#armies") as Selection<SVGGElement, unknown, null, undefined>;
+  // Maps saved before this layer existed won't have #combatDeaths — insert just under #armies.
+  let combatDeaths = viewbox.select("#combatDeaths") as Selection<SVGGElement, unknown, null, undefined>;
+  if (!combatDeaths.size()) {
+    const node = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    node.id = "combatDeaths";
+    node.style.display = "none";
+    const armiesNode = armies.node();
+    if (armiesNode?.parentNode) {
+      armiesNode.parentNode.insertBefore(node, armiesNode);
+    } else {
+      viewbox.node()?.appendChild(node);
+    }
+    combatDeaths = d3.select(node) as Selection<SVGGElement, unknown, null, undefined>;
+  } else {
+    // Older sessions may have created #combatDeaths earlier in the stack — pin under armies.
+    const combatNode = combatDeaths.node();
+    const armiesNode = armies.node();
+    if (combatNode && armiesNode?.parentNode && combatNode.nextSibling !== armiesNode) {
+      armiesNode.parentNode.insertBefore(combatNode, armiesNode);
+    }
+  }
   const markers = viewbox.select("#markers") as Selection<SVGGElement, unknown, null, undefined>;
+  // Maps saved before this layer existed won't have #frontierForts — append it so old saves gain it too.
+  let frontierForts = viewbox.select("#frontierForts") as Selection<SVGGElement, unknown, null, undefined>;
+  if (!frontierForts.size())
+    frontierForts = viewbox.append("g").attr("id", "frontierForts") as Selection<SVGGElement, unknown, null, undefined>;
 
   // Pre-1.125.x saves used #markets; rename in-place so subsequent saves use the new id.
   // The economy extension's reinit hook will re-acquire #marketsLayer after this rename.
@@ -280,10 +381,12 @@ export function reinitializeMapLayers(): void {
 
   Object.assign(viewContext, {
     svg,
+    webglCanvas,
     defs,
     viewbox,
     scaleBar,
     legend,
+    calendar,
     ocean,
     oceanLayers,
     oceanPattern,
@@ -313,6 +416,8 @@ export function reinitializeMapLayers(): void {
     trails,
     searoutes,
     temperature,
+    danger,
+    combatDeaths,
     coastline,
     ice,
     prec,
@@ -325,9 +430,11 @@ export function reinitializeMapLayers(): void {
     anchors,
     armies,
     markers,
+    frontierForts,
     fogging,
     ruler,
-    debug
+    debug,
+    enclosure
   });
 
   document.dispatchEvent(new CustomEvent("fmg:map-layers-reinitialized"));

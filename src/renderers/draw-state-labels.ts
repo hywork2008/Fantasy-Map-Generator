@@ -1,6 +1,6 @@
 import { curveNatural, line, max, select } from "d3";
 import type { AppServices } from "../context/appServices";
-import type { RootLayers, SettlementLayers } from "../context/viewContext";
+import type { FocusFields, RootLayers, SettlementLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { TypedArray } from "../types/PackedGraph";
 import { drawPath, drawPoint, findClosestCell, minmax, rn, round, splitInTwo } from "../utils";
@@ -26,7 +26,7 @@ export const StateLabelsRenderer = {
   id: "state-labels",
   render(
     worldContext: Readonly<WorldContext>,
-    viewContext: Readonly<SettlementLayers>,
+    viewContext: Readonly<SettlementLayers & FocusFields>,
     appServices: AppServices
   ): void {
     drawStateLabels(worldContext, viewContext, appServices);
@@ -44,13 +44,13 @@ export const StateLabelsRenderer = {
 // list - an optional array of stateIds to regenerate
 export const drawStateLabels = (
   worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<SettlementLayers>,
+  viewContext: Readonly<SettlementLayers & FocusFields>,
   _appServices: AppServices,
   list?: number[]
 ): void => {
   TIME && console.time("drawStateLabels");
   const { pack, options, graphWidth, graphHeight } = worldContext;
-  const { labels } = viewContext;
+  const { labels, focusScope } = viewContext;
 
   // temporary make the labels visible
   const layerDisplay = labels.style("display");
@@ -81,6 +81,7 @@ export const drawStateLabels = (
     for (const state of states) {
       if (!state.i || state.removed || state.lock) continue;
       if (list && !list.includes(state.i)) continue;
+      if (focusScope && state.i !== focusScope.stateId) continue;
 
       const offset = getOffsetWidth(state.cells!);
       const maxLakeSize = state.cells! / 20;

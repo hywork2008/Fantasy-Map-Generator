@@ -32,6 +32,8 @@ export type PromptConfig = {
 export type BaseDialogConfig = {
   close?: () => void;
   onClose?: () => void;
+  /** Runs after the dialog's primary close callback, even if that callback is replaced later. */
+  onAfterClose?: () => void;
   [key: string]: unknown;
 };
 
@@ -57,7 +59,14 @@ export const dialogStore = createStore<DialogState>(set => ({
       const newSet = new Set(state.openDialogs);
       newSet.add(id);
       const newConfigs = { ...state.dialogConfigs };
-      if (config) newConfigs[id] = config;
+      if (config) {
+        // Dialog content can update its own onClose callback after an opener has supplied
+        // a lifecycle hook. Preserve that hook while letting the latest primary callback win.
+        newConfigs[id] = {
+          ...config,
+          onAfterClose: config.onAfterClose ?? state.dialogConfigs[id]?.onAfterClose
+        };
+      }
       return {
         openDialogs: newSet,
         dialogConfigs: newConfigs
@@ -65,6 +74,7 @@ export const dialogStore = createStore<DialogState>(set => ({
     }),
   closeDialog: id => {
     let callback: (() => void) | undefined;
+    let afterClose: (() => void) | undefined;
     set(state => {
       const newSet = new Set(state.openDialogs);
       if (newSet.has(id)) {
@@ -73,6 +83,7 @@ export const dialogStore = createStore<DialogState>(set => ({
         if (config) {
           if (typeof config.onClose === "function") callback = config.onClose;
           else if (typeof config.close === "function") callback = config.close;
+          if (typeof config.onAfterClose === "function") afterClose = config.onAfterClose;
         }
       }
       const newConfigs = { ...state.dialogConfigs };
@@ -80,6 +91,7 @@ export const dialogStore = createStore<DialogState>(set => ({
       return { openDialogs: newSet, dialogConfigs: newConfigs };
     });
     callback?.();
+    afterClose?.();
   },
   closeAllDialogs: except => {
     const callbacks: Array<() => void> = [];
@@ -95,6 +107,7 @@ export const dialogStore = createStore<DialogState>(set => ({
           if (config) {
             if (typeof config.onClose === "function") callbacks.push(config.onClose);
             else if (typeof config.close === "function") callbacks.push(config.close);
+            if (typeof config.onAfterClose === "function") callbacks.push(config.onAfterClose);
           }
           delete newConfigs[id];
         }

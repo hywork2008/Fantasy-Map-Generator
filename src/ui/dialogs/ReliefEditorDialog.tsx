@@ -133,7 +133,7 @@ export const ReliefEditorDialog: React.FC = () => {
           onClick={reliefEditorActions.enterBulkRemoveMode}
         />
 
-        <div style={{ marginLeft: "4.6em" }}>Set:</div>
+        <div>Set:</div>
         <select
           value={iconSet}
           onChange={e => reliefEditorActions.changeIconSet(e.currentTarget.value as ReliefIconSet)}

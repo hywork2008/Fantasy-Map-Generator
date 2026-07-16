@@ -1,13 +1,15 @@
 import type React from "react";
 import { useEffect, useState } from "react";
+import { setRenderMode } from "../../../actions";
 import { handleLayersPresetChange, removePreset, savePreset, toggleLayerById } from "../../../controllers/layers";
 import { changeViewMode } from "../../../controllers/viewMode";
-import { viewLayerService as view } from "../../../services/viewLayerService";
 import { DEFAULT_LAYERS, type LayerConfig, useLayerState } from "../../../store/layerState";
+import { useViewModeState } from "../../../store/viewModeState";
 
 export const LayersTab: React.FC = () => {
   const { layers, setLayers, activeLayers, presets, presetLabels, activePreset, presetDisabled, reorderLayers } =
     useLayerState();
+  const { activeViewMode } = useViewModeState();
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Initialize defaults if not set
@@ -46,11 +48,50 @@ export const LayersTab: React.FC = () => {
     changeViewMode(e.nativeEvent);
   };
 
+  const [isWebglRendering, setIsWebglRendering] = useState(
+    () => localStorage.getItem("fmg-render-mode") === "webglHybrid"
+  );
+
+  useEffect(() => {
+    const syncRenderMode = (event: Event) => {
+      const mode = (event as CustomEvent<"svg" | "webglHybrid">).detail;
+      if (mode === "svg" || mode === "webglHybrid") setIsWebglRendering(mode === "webglHybrid");
+    };
+    document.addEventListener("fmg:render-mode-changed", syncRenderMode);
+    return () => document.removeEventListener("fmg:render-mode-changed", syncRenderMode);
+  }, []);
+
   const isCustom = activePreset === "custom";
 
   return (
-    <div id="layersContent" className="tabcontent" style={{ display: "block" }}>
-      <p data-tip="Select a map layers preset" style={{ display: "inline-block", marginRight: "8px" }}>
+    <div id="layersContent" className="tabcontent d-block">
+      <div className="renderer-mode-control" data-tip="Use WebGL Hybrid rendering instead of classic SVG rendering">
+        <span id="webglRenderingLabel" className="renderer-mode-label">
+          WebGL rendering
+        </span>
+        <label className="renderer-mode-switch" title={isWebglRendering ? "Use SVG rendering" : "Use WebGL rendering"}>
+          <input
+            id="webglRenderingToggle"
+            type="checkbox"
+            role="switch"
+            aria-labelledby="webglRenderingLabel"
+            aria-checked={isWebglRendering}
+            checked={isWebglRendering}
+            onChange={event => {
+              const enabled = event.target.checked;
+              setIsWebglRendering(enabled);
+              setRenderMode(enabled ? "webglHybrid" : "svg");
+            }}
+          />
+          <span className="renderer-mode-switch-track" aria-hidden="true" />
+          <span className="renderer-mode-switch-thumb" aria-hidden="true" />
+        </label>
+        <output className="renderer-mode-status" aria-live="polite">
+          {isWebglRendering ? "On" : "Off"}
+        </output>
+      </div>
+
+      <p data-tip="Select a map layers preset" className="d-inline-block">
         Layers preset:
       </p>
       <select
@@ -59,7 +100,6 @@ export const LayersTab: React.FC = () => {
         value={activePreset}
         disabled={presetDisabled}
         onChange={handlePresetChange}
-        style={{ width: "45%" }}
       >
         {Object.keys(presets).map(preset => (
           <option key={preset} value={preset} hidden={preset === "custom"}>
@@ -92,16 +132,17 @@ export const LayersTab: React.FC = () => {
       ></button>
 
       <p>Displayed layers and layers order:</p>
-      <ul
+      <div
         data-tip="Click to toggle a layer, drag to raise or lower a layer. Ctrl + click to edit layer style"
         id="mapLayers"
       >
         {layers.map((layer, index) => {
           const isOn = activeLayers[layer.id];
           return (
-            <li
+            <button
               key={layer.id}
               id={layer.id}
+              type="button"
               data-tip={layer.tooltip}
               data-shortcut={layer.shortcut}
               className={`${isOn ? "" : "buttonoff"} ${layer.isSolid ? "solid" : ""}`}
@@ -112,10 +153,10 @@ export const LayersTab: React.FC = () => {
               onClick={e => handleToggle(e, layer)}
             >
               {layer.name}
-            </li>
+            </button>
           );
         })}
-      </ul>
+      </div>
       <div className="tip">Click to toggle, drag to raise or lower the layer</div>
       <div className="tip">Ctrl + click to edit layer style</div>
 
@@ -124,7 +165,7 @@ export const LayersTab: React.FC = () => {
         <button
           data-tip="Standard view mode that allows to edit the map"
           id="viewStandard"
-          className={view.customization !== 1 ? "pressed" : ""}
+          className={activeViewMode === "viewStandard" ? "pressed" : ""}
           onClick={handleViewMode}
           type="button"
         >
@@ -133,6 +174,7 @@ export const LayersTab: React.FC = () => {
         <button
           data-tip="Map presentation in 3D scene. Works best for heightmap. Cannot be used for editing"
           id="viewMesh"
+          className={activeViewMode === "viewMesh" ? "pressed" : ""}
           onClick={handleViewMode}
           type="button"
         >
@@ -141,6 +183,7 @@ export const LayersTab: React.FC = () => {
         <button
           data-tip="Project map on globe. Cannot be used for editing"
           id="viewGlobe"
+          className={activeViewMode === "viewGlobe" ? "pressed" : ""}
           onClick={handleViewMode}
           type="button"
         >

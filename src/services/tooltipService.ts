@@ -7,19 +7,17 @@ import type { EmblemEl } from "../types/models";
 import { getVisibleDialogElement, isDialogVisible } from "../utils/domUtils";
 import { getComposedPath, layerIsOn } from "../utils/nodeUtils";
 import { convertTemperature, si } from "../utils/unitUtils";
-import { getFriendlyHeight, getFriendlyPrecipitation, getPopulationTip } from "./cellInfoService";
+import {
+  getCellPoliticalSummary,
+  getCombatDeathsTip,
+  getFriendlyHeight,
+  getFriendlyPrecipitation,
+  getPopulationTip
+} from "./cellInfoService";
 
-export const tooltipExtensions: {
-  showMapTooltip?: (
-    point: [number, number],
-    e: MouseEvent,
-    i: number,
-    g: number,
-    group: string,
-    subgroup: string
-  ) => boolean;
-  updateCellInfo?: (point: [number, number], i: number, g: number) => void;
-} = {};
+import { tooltipExtensions } from "./tooltipExtensions";
+
+export { tooltipExtensions };
 export function tip(
   message: string,
   main = false,
@@ -90,13 +88,10 @@ export function showNotes(e: MouseEvent): void {
     currentNoteId = id;
 
     setHoverNotesState({ isVisible: true, name: note.name, legend: note.legend });
-  } else if (
-    !worldContext.options.pinNotes &&
-    !isDialogVisible("markerEditor") &&
-    !(e as KeyboardEvent & MouseEvent).shiftKey
-  ) {
+  } else if (currentNoteId === null && !worldContext.options.pinNotes && !isDialogVisible("markerEditor")) {
+    // Only clear notes if none are currently pinned/shown; once a note is visible, keep it
+    // until another note replaces it so iframes (e.g. encounter, dungeon) don't reload on mouse-out
     setHoverNotesState({ isVisible: false, name: "", legend: "" });
-    currentNoteId = null;
   }
 }
 export function showMapTooltip(point: [number, number], e: MouseEvent, i: number, g: number): void {
@@ -168,7 +163,23 @@ export function showMapTooltip(point: [number, number], e: MouseEvent, i: number
     if (burgId) {
       const burg = worldContext.pack.burgs[burgId];
       const population = si((burg.population ?? 0) * worldContext.populationRate * worldContext.urbanization);
-      tip(`${burg.name} ${burg.group}. Population: ${population}. Click to edit`);
+      let garrisonNote = "";
+      if (burg.group === "fort" && burg.state) {
+        // Phase 5: show land troops stationed on / near this fort cell
+        const state = worldContext.pack.states[burg.state];
+        const garrison =
+          state?.military?.filter(r => !r.n && r.cell === burg.cell).reduce((sum, r) => sum + (r.a || 0), 0) ?? 0;
+        if (garrison > 0) {
+          garrisonNote = ` Garrison on site: ${si(Math.round(garrison))}.`;
+        } else {
+          const nearby =
+            state?.military
+              ?.filter(r => !r.n && Math.hypot(r.x - burg.x, r.y - burg.y) < 15)
+              .reduce((sum, r) => sum + (r.a || 0), 0) ?? 0;
+          if (nearby > 0) garrisonNote = ` Nearby troops: ${si(Math.round(nearby))}.`;
+        }
+      }
+      tip(`${burg.name} ${burg.group}. Population: ${population}.${garrisonNote} Click to edit`);
       const burgsOverviewEl = getVisibleDialogElement("burgsOverview");
       if (burgsOverviewEl) highlightEditorLine(burgsOverviewEl, burgId, 5000);
       return;
@@ -246,12 +257,18 @@ export function showMapTooltip(point: [number, number], e: MouseEvent, i: number
     return;
   }
 
+  if (group === "combatDeaths") {
+    tip(getCombatDeathsTip(i));
+    return;
+  }
+
   if (group === "ice") {
     tip("Click to edit the Ice");
     return;
   }
 
   if (layerIsOn("togglePrecipitation") && land) tip(`Annual Precipitation: ${getFriendlyPrecipitation(i)}`);
+  else if (layerIsOn("toggleCombatDeaths")) tip(getCombatDeathsTip(i));
   else if (layerIsOn("togglePopulation")) tip(getPopulationTip(i));
   else if (layerIsOn("toggleTemperature")) tip(`Temperature: ${convertTemperature(worldContext.grid.cells.temp[g])}`);
   else if (layerIsOn("toggleBiomes") && worldContext.pack.cells.biome[i]) {
@@ -268,10 +285,8 @@ export function showMapTooltip(point: [number, number], e: MouseEvent, i: number
     if (religionsEditorEl) highlightEditorLine(religionsEditorEl, religion);
   } else if (worldContext.pack.cells.state[i] && (layerIsOn("toggleProvinces") || layerIsOn("toggleStates"))) {
     const state = worldContext.pack.cells.state[i];
-    const stateName = worldContext.pack.states[state].fullName;
     const province = worldContext.pack.cells.province[i];
-    const prov = province ? `${worldContext.pack.provinces[province].fullName}, ` : "";
-    tip(prov + stateName);
+    tip(getCellPoliticalSummary(i));
     const statesEditorEl = getVisibleDialogElement("statesEditor");
     if (statesEditorEl) highlightEditorLine(statesEditorEl, state);
     const diplomacyEditorEl = getVisibleDialogElement("diplomacyEditor");

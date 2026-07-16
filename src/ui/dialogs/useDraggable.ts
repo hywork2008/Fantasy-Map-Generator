@@ -42,6 +42,12 @@ interface ResizeState {
   startHeight?: number;
 }
 
+const VIEWPORT_PADDING = 16;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), Math.max(min, max));
+}
+
 type ResizeAction =
   | { type: "RESIZE_START"; payload: { initialWidth: number; initialHeight: number } }
   | { type: "RESIZE_MOVE"; payload: { newWidth: number; newHeight: number } }
@@ -101,17 +107,12 @@ export function useDraggable(options?: { handleSelector?: string }) {
     resizeStateRef.current = resizeState;
   }, [resizeState]);
 
-  // Apply CSS transforms based on React state
+  // The CSS transform preserves the initial centered position; only its offset
+  // variables are owned by the drag state.
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const transform =
-      dragState.offsetX !== 0 || dragState.offsetY !== 0
-        ? `translate(${dragState.offsetX}px, ${dragState.offsetY}px)`
-        : "none";
-
-    container.style.transform = transform;
     container.style.setProperty("--dialog-offset-x", `${dragState.offsetX}px`);
     container.style.setProperty("--dialog-offset-y", `${dragState.offsetY}px`);
   }, [dragState.offsetX, dragState.offsetY]);
@@ -130,7 +131,7 @@ export function useDraggable(options?: { handleSelector?: string }) {
     if (!container) return;
 
     // Bring to front (check visible dialogs to avoid overflow)
-    const allDialogs = document.querySelectorAll(".fmg-dialog, #optionsContainer") as NodeListOf<HTMLElement>;
+    const allDialogs = document.querySelectorAll(".fmg-dialog, #optionsContainer, #options") as NodeListOf<HTMLElement>;
     let maxZ = 100;
     allDialogs.forEach(d => {
       // Ignore closed dialogs so z-index resets when all are closed
@@ -171,7 +172,7 @@ export function useDraggable(options?: { handleSelector?: string }) {
       bringToFront();
 
       document.body.style.userSelect = "none";
-      container.classList.add("fmg-dialog--dragging");
+      container.classList.add("dragging");
     },
     [bringToFront]
   );
@@ -179,12 +180,28 @@ export function useDraggable(options?: { handleSelector?: string }) {
   const onMouseMove = useCallback((e: MouseEvent) => {
     if (!dragStateRef.current.isDragging) return;
 
+    const container = containerRef.current;
+    if (!container) return;
+
     const dx = e.clientX - dragStartRef.current.x;
     const dy = e.clientY - dragStartRef.current.y;
 
     // Calculate absolute offset: start offset + relative movement
-    const offsetX = (dragStateRef.current.startOffsetX ?? 0) + dx;
-    const offsetY = (dragStateRef.current.startOffsetY ?? 0) + dy;
+    const desiredOffsetX = (dragStateRef.current.startOffsetX ?? 0) + dx;
+    const desiredOffsetY = (dragStateRef.current.startOffsetY ?? 0) + dy;
+    const rect = container.getBoundingClientRect();
+    const baseLeft = rect.left - dragStateRef.current.offsetX;
+    const baseTop = rect.top - dragStateRef.current.offsetY;
+    const offsetX = clamp(
+      desiredOffsetX,
+      VIEWPORT_PADDING - baseLeft,
+      window.innerWidth - VIEWPORT_PADDING - (baseLeft + rect.width)
+    );
+    const offsetY = clamp(
+      desiredOffsetY,
+      VIEWPORT_PADDING - baseTop,
+      window.innerHeight - VIEWPORT_PADDING - (baseTop + rect.height)
+    );
 
     dispatchDrag({ type: "DRAG_MOVE", payload: { offsetX, offsetY } });
   }, []);
@@ -196,7 +213,7 @@ export function useDraggable(options?: { handleSelector?: string }) {
 
     dispatchDrag({ type: "DRAG_END" });
     document.body.style.userSelect = "";
-    container.classList.remove("fmg-dialog--dragging");
+    container.classList.remove("dragging");
   }, []);
 
   useEffect(() => {
@@ -217,7 +234,7 @@ export function useDraggable(options?: { handleSelector?: string }) {
       handle.removeEventListener("mousedown", onMouseDown);
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
-      container.classList.remove("fmg-dialog--dragging");
+      container.classList.remove("dragging");
     };
   }, [options?.handleSelector, onMouseDown, onMouseMove, onMouseUp]);
 
@@ -251,14 +268,12 @@ export function useDraggable(options?: { handleSelector?: string }) {
     const dy = e.clientY - resizeStartRef.current.y;
 
     // Calculate absolute size: start size + relative movement
-    const newWidth = Math.max(280, (resizeStateRef.current.startWidth ?? 0) + dx);
-    const newHeight = Math.max(200, (resizeStateRef.current.startHeight ?? 0) + dy);
+    const maxWidth = Math.max(280, window.innerWidth - container.getBoundingClientRect().left - VIEWPORT_PADDING);
+    const maxHeight = Math.max(200, window.innerHeight - container.getBoundingClientRect().top - VIEWPORT_PADDING);
+    const newWidth = clamp((resizeStateRef.current.startWidth ?? 0) + dx, 280, maxWidth);
+    const newHeight = clamp((resizeStateRef.current.startHeight ?? 0) + dy, 200, maxHeight);
 
     dispatchResize({ type: "RESIZE_MOVE", payload: { newWidth, newHeight } });
-
-    // Release CSS max constraints so the user can freely resize
-    container.style.maxWidth = "none";
-    container.style.maxHeight = "none";
   }, []);
 
   const onResizeMouseUp = useCallback(() => {

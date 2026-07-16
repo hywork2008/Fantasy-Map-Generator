@@ -3,6 +3,7 @@ import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { getGappedFillPaths, getIsolines } from "../utils";
 import { TIME } from "../utils/debug";
+import { getScopedGraph, scopedGetType } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
 
 export const BiomesRenderer: IRenderer = {
@@ -12,11 +13,12 @@ export const BiomesRenderer: IRenderer = {
     TIME && console.time("drawBiomes");
 
     const { pack, biomesData } = worldContext;
+    const { focusScope } = viewContext;
     const cells = pack.cells;
     const bodyPaths = new Array(biomesData.i.length - 1);
     const isolines: Record<string, { fill?: string; waterGap?: string }> = getIsolines(
-      pack,
-      cellId => cells.biome[cellId],
+      getScopedGraph(pack, focusScope),
+      scopedGetType(focusScope, cellId => cells.biome[cellId]),
       { fill: true, waterGap: true }
     );
     Object.entries(isolines).forEach(([index, { fill, waterGap }]) => {

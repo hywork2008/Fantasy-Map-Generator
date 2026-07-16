@@ -1,6 +1,6 @@
 import type React from "react";
-import { Dialog } from "../../../hostUi";
-
+import { useRef } from "react";
+import { Dialog, VirtualTableBody } from "../../../hostUi";
 import { setGoodsProducersDialogState, useGoodsProducersDialogState } from "../../store/goodsProducersDialogState";
 
 export const GoodsProducersDialog: React.FC = () => {
@@ -11,33 +11,48 @@ export const GoodsProducersDialog: React.FC = () => {
 
   const close = () => setGoodsProducersDialogState({ isOpen: false });
 
+  const parentRef = useRef<HTMLDivElement>(null);
+
   return (
-    <Dialog isOpen={isOpen} title={`${goodName} — Producers`} onClose={close}>
+    <Dialog isOpen={isOpen} title={`${goodName} — Producers`} onClose={close} className="fmg-dialog--table">
       <div id="goodsProducersContainer">
         {producers.length === 0 ? (
-          <i style={{ color: "#888" }}>No burgs produced {goodName}.</i>
+          <i>No burgs produced {goodName}.</i>
         ) : (
-          <>
-            <div className="header" style={{ gridTemplateColumns: "1.6em 7em 4em" }}>
-              <div />
-              <div>Burg</div>
-              <div>Units</div>
-            </div>
-            <div className="table" style={{ maxHeight: "30em" }}>
-              {producers.map(p => (
-                <div
-                  key={p.id}
-                  data-tip="Click to zoom to burg"
-                  className="states pointer"
-                  onClick={() => onZoom(p.x, p.y)}
-                >
-                  <div className="icon-dot-circled" style={{ width: "1em" }} />
-                  <div style={{ width: "7em" }}>{p.name}</div>
-                  <div style={{ width: "4em" }}>{p.units}</div>
-                </div>
-              ))}
-            </div>
-          </>
+          <div ref={parentRef} className="table">
+            <table className="fmg-table">
+              <colgroup>
+                <col />
+                <col />
+                <col />
+              </colgroup>
+              <thead>
+                <tr className="header">
+                  <th />
+                  <th>Burg</th>
+                  <th>Units</th>
+                </tr>
+              </thead>
+              <VirtualTableBody
+                items={producers}
+                scrollElementRef={parentRef}
+                renderRow={p => (
+                  <tr
+                    key={p.id}
+                    data-tip="Click to zoom to burg"
+                    className="states pointer"
+                    onClick={() => onZoom(p.x, p.y)}
+                  >
+                    <td>
+                      <span className="icon-dot-circled" />
+                    </td>
+                    <td>{p.name}</td>
+                    <td>{p.units}</td>
+                  </tr>
+                )}
+              />
+            </table>
+          </div>
         )}
       </div>
     </Dialog>

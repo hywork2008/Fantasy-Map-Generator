@@ -1,0 +1,201 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { worldContext } from "../../hostCore";
+import type { ExtensionAPI, MilitaryRegiment, PackedGraph } from "../../hostTypes";
+import { clearNobilityContext, initNobilityContext } from "../nobilityContext";
+import "../types";
+import { assignOfficers, getRegimentCommander } from "./officerAssignment";
+
+function makeRegiment(overrides: Partial<MilitaryRegiment>): MilitaryRegiment {
+  return {
+    i: 0,
+    t: 0,
+    name: "Regiment",
+    a: 100,
+    s: 0,
+    cell: 0,
+    x: 0,
+    y: 0,
+    bx: 0,
+    by: 0,
+    u: { infantry: 100 },
+    n: 0,
+    type: "melee",
+    state: 1,
+    ...overrides
+  };
+}
+
+describe("assignOfficers", () => {
+  beforeEach(() => {
+    initNobilityContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.seed = "123456";
+    worldContext.options = { year: 1000 } as never;
+    worldContext.nameBases = [{ i: 0, name: "Test", min: 3, max: 10, d: "", m: 0, b: "Anna,Bob,Carla,David,Erin" }];
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    clearNobilityContext();
+  });
+
+  it("gives the capital guard to the state's living Marshal instead of a new character", () => {
+    const marshal = {
+      i: 5,
+      dead: false,
+      titles: [{ title: "Marshal", landed: false, entityType: "state", entityId: 1 }]
+    };
+    const guard = makeRegiment({ i: 0, isCapitalGuard: true, state: 1 });
+
+    worldContext.pack = {
+      characters: [marshal],
+      states: [
+        { i: 0, name: "Neutrals" },
+        { i: 1, name: "Kingdom", culture: 0, capital: 0, military: [guard] }
+      ]
+    } as unknown as PackedGraph;
+
+    assignOfficers();
+
+    expect(guard.commanderId).toBe(5);
+    // No extra character was created for the capital guard.
+    expect(worldContext.pack.characters).toHaveLength(1);
+  });
+
+  it("leaves the capital guard without a commander when the state has no living Marshal", () => {
+    const guard = makeRegiment({ i: 0, isCapitalGuard: true, state: 1 });
+
+    worldContext.pack = {
+      characters: [],
+      states: [
+        { i: 0, name: "Neutrals" },
+        { i: 1, name: "Kingdom", culture: 0, capital: 0, military: [guard] }
+      ]
+    } as unknown as PackedGraph;
+
+    assignOfficers();
+
+    expect(guard.commanderId).toBeUndefined();
+  });
+
+  it("creates a new Commander for a land regiment when the assignment roll succeeds", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0); // P(0.35) -> 0 < 0.35 -> always assign
+
+    const fieldArmy = makeRegiment({ i: 1, state: 1, n: 0 });
+
+    worldContext.pack = {
+      characters: [],
+      cultures: [{ i: 0, name: "Test culture", base: 0, shield: "" }],
+      states: [
+        { i: 0, name: "Neutrals" },
+        { i: 1, name: "Kingdom", culture: 0, capital: 0, military: [fieldArmy] }
+      ]
+    } as unknown as PackedGraph;
+
+    assignOfficers();
+
+    expect(fieldArmy.commanderId).toBeDefined();
+    const officer = worldContext.pack.characters.find(c => c.i === fieldArmy.commanderId)!;
+    expect(officer).toBeDefined();
+    expect(officer.titles[0].title).toBe("Commander");
+    expect(officer.skills.martial).toBeGreaterThanOrEqual(40); // primarySkill "martial" floor
+  });
+
+  it("creates a new Admiral for a naval regiment (n > 0) when the assignment roll succeeds", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+
+    const fleet = makeRegiment({ i: 1, state: 1, n: 5 });
+
+    worldContext.pack = {
+      characters: [],
+      cultures: [{ i: 0, name: "Test culture", base: 0, shield: "" }],
+      states: [
+        { i: 0, name: "Neutrals" },
+        { i: 1, name: "Kingdom", culture: 0, capital: 0, military: [fleet] }
+      ]
+    } as unknown as PackedGraph;
+
+    assignOfficers();
+
+    const officer = worldContext.pack.characters.find(c => c.i === fleet.commanderId)!;
+    expect(officer.titles[0].title).toBe("Admiral");
+  });
+
+  it("does not assign an officer when the roll fails", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99); // P(0.35) -> false
+
+    const fieldArmy = makeRegiment({ i: 1, state: 1 });
+
+    worldContext.pack = {
+      characters: [],
+      cultures: [{ i: 0, name: "Test culture", base: 0, shield: "" }],
+      states: [
+        { i: 0, name: "Neutrals" },
+        { i: 1, name: "Kingdom", culture: 0, capital: 0, military: [fieldArmy] }
+      ]
+    } as unknown as PackedGraph;
+
+    assignOfficers();
+
+    expect(fieldArmy.commanderId).toBeUndefined();
+    expect(worldContext.pack.characters).toHaveLength(0);
+  });
+
+  it("leaves a regiment's living, titled commander untouched on a repeated call", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+
+    const fieldArmy = makeRegiment({ i: 1, state: 1 });
+    worldContext.pack = {
+      characters: [],
+      cultures: [{ i: 0, name: "Test culture", base: 0, shield: "" }],
+      states: [
+        { i: 0, name: "Neutrals" },
+        { i: 1, name: "Kingdom", culture: 0, capital: 0, military: [fieldArmy] }
+      ]
+    } as unknown as PackedGraph;
+
+    assignOfficers();
+    const firstCommanderId = fieldArmy.commanderId;
+    assignOfficers();
+
+    expect(fieldArmy.commanderId).toBe(firstCommanderId);
+    expect(worldContext.pack.characters).toHaveLength(1);
+  });
+
+  it("backfills a vacancy left by a dead commander", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+
+    const fieldArmy = makeRegiment({ i: 1, state: 1, commanderId: 9 });
+    const deadOfficer = {
+      i: 9,
+      dead: true,
+      titles: [{ title: "Commander", landed: false, entityType: "state", entityId: 1 }]
+    };
+
+    worldContext.pack = {
+      characters: [deadOfficer],
+      cultures: [{ i: 0, name: "Test culture", base: 0, shield: "" }],
+      states: [
+        { i: 0, name: "Neutrals" },
+        { i: 1, name: "Kingdom", culture: 0, capital: 0, military: [fieldArmy] }
+      ]
+    } as unknown as PackedGraph;
+
+    assignOfficers();
+
+    expect(fieldArmy.commanderId).not.toBe(9);
+    expect(worldContext.pack.characters).toHaveLength(2);
+  });
+
+  it("does not crash for states with no military and getRegimentCommander returns undefined for an unassigned regiment", () => {
+    worldContext.pack = {
+      characters: [],
+      states: [
+        { i: 0, name: "Neutrals" },
+        { i: 1, name: "Kingdom", culture: 0, capital: 0 }
+      ]
+    } as unknown as PackedGraph;
+
+    expect(() => assignOfficers()).not.toThrow();
+    expect(getRegimentCommander([], makeRegiment({}))).toBeUndefined();
+  });
+});

@@ -1,18 +1,19 @@
 import { color, curveBasisClosed, interpolateSpectral, leastIndex, line, max, min, range, scaleSequential } from "d3";
 import type { AppServices } from "../context/appServices";
-import type { EnvironmentLayers, ViewState } from "../context/viewContext";
+import type { EnvironmentLayers, FocusFields, ViewState } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { TemperatureRenderer } from "../data/constants";
 import { useOptionsState } from "../store/optionsState";
 import { connectVertices, convertTemperature, round } from "../utils";
 import { TIME } from "../utils/debug";
+import { isGridCellInScope } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
 
 export const TemperatureLayerRenderer: IRenderer = {
   id: "temperature",
   render(
     worldContext: Readonly<WorldContext>,
-    viewContext: Readonly<EnvironmentLayers & ViewState>,
+    viewContext: Readonly<EnvironmentLayers & ViewState & FocusFields>,
     appServices: AppServices
   ): void {
     drawTemperature(worldContext, viewContext, appServices);
@@ -24,12 +25,12 @@ export const TemperatureLayerRenderer: IRenderer = {
 
 export const drawTemperature = (
   worldContext: Readonly<WorldContext>,
-  viewContext: Readonly<EnvironmentLayers & ViewState>,
+  viewContext: Readonly<EnvironmentLayers & ViewState & FocusFields>,
   _appServices: AppServices
 ): void => {
   TIME && console.time("drawTemperature");
   const { grid, graphWidth, graphHeight } = worldContext;
-  const { temperature } = viewContext;
+  const { temperature, focusScope } = viewContext;
 
   temperature.selectAll("*").remove();
   const lineGen = line<[number, number]>().curve(curveBasisClosed);
@@ -58,7 +59,7 @@ export const drawTemperature = (
 
   for (const cellId of cells.i) {
     const t = cells.temp[cellId];
-    if (checkedCells[cellId] || !isolines.includes(t)) continue;
+    if (checkedCells[cellId] || !isolines.includes(t) || !isGridCellInScope(focusScope, cellId)) continue;
 
     const startingVertex = findStart(cellId, t);
     if (!startingVertex) continue;

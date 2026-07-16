@@ -4,6 +4,7 @@ import {
   regenerateFeatureDialogStore,
   useRegenerateFeatureDialogState
 } from "../../store/regenerateFeatureDialogState";
+import { useUiPreferencesState } from "../../store/uiPreferencesState";
 import { Dialog } from "./Dialog";
 
 export const RegenerateFeatureDialog: React.FC = () => {
@@ -17,7 +18,7 @@ export const RegenerateFeatureDialog: React.FC = () => {
   };
 
   const proceed = () => {
-    if (dontAsk) sessionStorage.setItem("regenerateFeatureDontAsk", "true");
+    if (dontAsk) useUiPreferencesState.getState().setDontAskRegenerateFeature(true);
     regenerateFeatureDialogStore.getState().onConfirm();
     close();
   };
@@ -38,9 +39,9 @@ export const RegenerateFeatureDialog: React.FC = () => {
         <br />
         Are you sure you want to proceed?
       </p>
-      <div style={{ marginTop: "1em" }}>
+      <div>
         <input id="dontAskAgain" type="checkbox" checked={dontAsk} onChange={e => setDontAsk(e.target.checked)} />
-        <label htmlFor="dontAskAgain" style={{ marginLeft: "0.4em" }}>
+        <label htmlFor="dontAskAgain">
           <i>do not ask again</i>
         </label>
       </div>

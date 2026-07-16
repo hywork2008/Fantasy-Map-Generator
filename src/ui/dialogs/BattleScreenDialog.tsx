@@ -46,7 +46,7 @@ const SHARED_FIELD: PhaseOption[] = [
 const SHARED_NAVAL: PhaseOption[] = [
   { phase: "shelling", tip: "Shelling phase. Naval artillery bombardment of enemy fleet" },
   { phase: "boarding", tip: "Boarding phase. Melee units go aboard" },
-  { phase: "chase", tip: "Сhase phase. Naval units pursue and rarely shell enemy fleet" },
+  { phase: "chase", tip: "Chase phase. Naval units pursue and rarely shell enemy fleet" },
   { phase: "withdrawal", tip: "Withdrawal phase. Naval units try to escape enemy fleet" }
 ];
 
@@ -133,16 +133,15 @@ const PhasePicker: React.FC<PhasePickerProps> = ({ side, battleType, currentPhas
   };
 
   return (
-    <div style={{ display: "inline-block" }}>
+    <div className="d-inline-block">
       <button
         type="button"
         className={`icon-button-${currentPhase || "skirmish"}`}
-        style={{ width: "3.2em" }}
         data-tip={options.find(o => o.phase === currentPhase)?.tip ?? ""}
         onClick={handleToggle}
       />
       {open && (
-        <div className="battlePhases" style={{ display: "block" }}>
+        <div className="battlePhases d-block">
           {options.map(opt => (
             <button
               key={opt.phase}
@@ -170,14 +169,13 @@ interface SideHeaderProps {
 }
 
 const SideHeader: React.FC<SideHeaderProps> = ({ label, side, morale, power, phase, die, battleType }) => (
-  <div style={{ fontSize: "1.2em", fontWeight: "bold", width: "unset" }}>
+  <div>
     <span>{label}</span>
-    <div style={{ float: "right", fontSize: "0.7em" }}>
+    <div>
       <meter data-tip={`${label} morale: ${morale}`} min={0} max={100} low={33} high={66} optimum={80} value={morale} />
       <div
         data-tip={`${label} strength during this phase. Strength defines dealt damage`}
-        style={{ display: "inline-block", textAlign: "center" }}
-        className="icon-button-power"
+        className="d-inline-block icon-button-power"
       >
         {power}
       </div>
@@ -185,7 +183,6 @@ const SideHeader: React.FC<SideHeaderProps> = ({ label, side, morale, power, pha
       <button
         type="button"
         data-tip={`Random factor for ${label.toLowerCase()}. Click to re-roll`}
-        style={{ padding: "0.1em 0.2em", width: "3.2em" }}
         className="icon-button-die"
         onClick={() => battleAction_rollDie(side)}
       >
@@ -223,7 +220,7 @@ const RegimentTable: React.FC<RegimentTableProps> = ({ regiments, militaryUnitNa
         const iconHtml = isExternal
           ? `<image href="${r.icon}" x="0.1em" y="0.1em" width="1.2em" height="1.2em"></image>`
           : `<text x="50%" y="1em" style="text-anchor: middle">${r.icon}</text>`;
-        const svgIcon = `<svg width="1.4em" height="1.4em" style="margin-bottom: -.6em; stroke: #333">
+        const svgIcon = `<svg width="1.4em" height="1.4em" style="stroke: #333">
           <rect x="0" y="0" width="100%" height="100%" fill="${r.stateColor}"></rect>${iconHtml}</svg>`;
 
         const totalCasualties = sum(Object.values(r.casualties));
@@ -238,37 +235,31 @@ const RegimentTable: React.FC<RegimentTableProps> = ({ regiments, militaryUnitNa
                 {r.regimentName.slice(0, 24)}
               </td>
               {militaryUnitNames.map(u => (
-                <td key={u.name} data-tip="Initial forces" style={{ width: "2.5em", textAlign: "center" }}>
+                <td key={u.name} data-tip="Initial forces">
                   {r.initialUnits[u.name] || 0}
                 </td>
               ))}
-              <td data-tip="Initial forces" style={{ width: "2.5em", textAlign: "center" }}>
-                {r.initialTotal}
-              </td>
+              <td data-tip="Initial forces">{r.initialTotal}</td>
             </tr>
             <tr className="battleCasualties">
               <td />
               <td data-tip={r.stateFullName}>{r.stateFullName.slice(0, 26)}</td>
               {militaryUnitNames.map(u => (
-                <td key={u.name} data-tip="Casualties" style={{ width: "2.5em", textAlign: "center", color: "red" }}>
+                <td key={u.name} data-tip="Casualties">
                   {r.casualties[u.name] || 0}
                 </td>
               ))}
-              <td data-tip="Casualties" style={{ width: "2.5em", textAlign: "center", color: "red" }}>
-                {totalCasualties}
-              </td>
+              <td data-tip="Casualties">{totalCasualties}</td>
             </tr>
             <tr className="battleSurvivors">
               <td />
               <td data-tip="Supply line length, affects morale">Distance to base: {r.distanceLabel}</td>
               {militaryUnitNames.map(u => (
-                <td key={u.name} data-tip="Survivors" style={{ width: "2.5em", textAlign: "center", color: "green" }}>
+                <td key={u.name} data-tip="Survivors">
                   {r.survivors[u.name] || 0}
                 </td>
               ))}
-              <td data-tip="Survivors" style={{ width: "2.5em", textAlign: "center", color: "green" }}>
-                {totalSurvivors}
-              </td>
+              <td data-tip="Survivors">{totalSurvivors}</td>
             </tr>
           </React.Fragment>
         );
@@ -341,65 +332,73 @@ export const RegimentSelectorScreenDialog: React.FC = () => {
         }
       ]}
     >
-      <div
-        id="regimentSelectorHeader"
-        className="header"
-        style={{ gridTemplateColumns: "9em 13em 4em 6em" }}
-        ref={el => {
-          if (el) applySorting(el);
-        }}
-      >
-        <div data-tip="Click to sort by state name" className="sortable alphabetically" data-sortby="state">
-          State&nbsp;
-        </div>
-        <div data-tip="Click to sort by regiment name" className="sortable alphabetically" data-sortby="regiment">
-          Regiment&nbsp;
-        </div>
-        <div data-tip="Click to sort by total military forces" className="sortable" data-sortby="total">
-          Total&nbsp;
-        </div>
-        <div
-          data-tip="Click to sort by distance to the battlefield"
-          className="sortable icon-sort-number-up"
-          data-sortby="distance"
-        >
-          Distance&nbsp;
-        </div>
-      </div>
       <div id="regimentSelectorBody" className="table">
-        {regiments.map(({ state: s, regiment: r }) => {
-          const key = `${s.i}-${r.i}`;
-          const isAdded = addedKeys.has(key);
-          const isSelected = selected.has(key);
-          return (
-            <div
-              key={key}
-              className={isAdded ? "inactive" : isSelected ? "selected" : ""}
-              data-s={s.i}
-              data-i={r.i}
-              data-state={s.name}
-              data-regiment={r.name}
-              data-total={r.a}
-              data-tip="Click to select regiment"
-              onClick={() => toggleSelect(key, isAdded)}
-              style={{ cursor: isAdded ? "default" : "pointer" }}
-            >
-              <svg
-                width=".9em"
-                height=".9em"
-                style={{ marginBottom: "-1px", stroke: "#333" }}
-                aria-label={s.name ?? ""}
+        <table className="states-table">
+          <colgroup>
+            <col />
+            <col />
+            <col />
+            <col />
+          </colgroup>
+          <thead
+            id="regimentSelectorHeader"
+            ref={el => {
+              if (el) applySorting(el);
+            }}
+          >
+            <tr className="header">
+              <th data-tip="Click to sort by state name" className="sortable alphabetically" data-sortby="state">
+                State
+              </th>
+              <th data-tip="Click to sort by regiment name" className="sortable alphabetically" data-sortby="regiment">
+                Regiment
+              </th>
+              <th data-tip="Click to sort by total military forces" className="sortable" data-sortby="total">
+                Total
+              </th>
+              <th
+                data-tip="Click to sort by distance to the battlefield"
+                className="sortable icon-sort-number-up"
+                data-sortby="distance"
               >
-                <rect x="0" y="0" width="100%" height="100%" fill={s.color ?? "#999"} />
-              </svg>
-              <div style={{ width: "6em" }}>{(s.name ?? "").slice(0, 11)}</div>
-              <div style={{ width: "1.2em" }}>{r.icon}</div>
-              <div style={{ width: "13em" }}>{r.name.slice(0, 24)}</div>
-              <div style={{ width: "4em" }}>{r.a}</div>
-              <div style={{ width: "4em" }}>{isAdded ? `0 ${distanceUnit}` : `? ${distanceUnit}`}</div>
-            </div>
-          );
-        })}
+                Distance
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {regiments.map(({ state: s, regiment: r }) => {
+              const key = `${s.i}-${r.i}`;
+              const isAdded = addedKeys.has(key);
+              const isSelected = selected.has(key);
+              return (
+                <tr
+                  key={key}
+                  className={isAdded ? "inactive" : isSelected ? "selected" : ""}
+                  data-s={s.i}
+                  data-i={r.i}
+                  data-state={s.name}
+                  data-regiment={r.name}
+                  data-total={r.a}
+                  data-tip="Click to select regiment"
+                  onClick={() => toggleSelect(key, isAdded)}
+                  style={{ cursor: isAdded ? "default" : "pointer" }}
+                >
+                  <td>
+                    <svg width=".9em" height=".9em" aria-label={s.name ?? ""}>
+                      <rect x="0" y="0" width="100%" height="100%" fill={s.color ?? "#999"} />
+                    </svg>
+                    {(s.name ?? "").slice(0, 11)}
+                  </td>
+                  <td>
+                    {r.icon} {r.name.slice(0, 24)}
+                  </td>
+                  <td>{r.a}</td>
+                  <td>{isAdded ? `0 ${distanceUnit}` : `? ${distanceUnit}`}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </Dialog>
   );
@@ -464,13 +463,11 @@ export const BattleScreenDialog: React.FC = () => {
                 />
                 <input
                   data-tip="Type place name"
-                  style={{ width: "30%" }}
                   value={place}
                   onChange={e => battleAction_changePlace(e.target.value)}
                 />
                 <input
                   data-tip="Type full battle name"
-                  style={{ width: "46%" }}
                   value={name}
                   onChange={e => battleAction_changeName(e.target.value)}
                 />

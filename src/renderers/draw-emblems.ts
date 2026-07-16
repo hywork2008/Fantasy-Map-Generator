@@ -1,9 +1,10 @@
 import { forceCollide, forceSimulation, timeout } from "d3";
 import type { AppServices } from "../context/appServices";
-import type { RootLayers, SettlementLayers } from "../context/viewContext";
+import type { FocusFields, RootLayers, SettlementLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { minmax, rn } from "../utils";
 import { TIME } from "../utils/debug";
+import { isCellInScope } from "./core/focusScope";
 
 interface EmblemNode {
   type: "burg" | "province" | "state";
@@ -23,17 +24,23 @@ export const EmblemsRenderer = {
 
   render(
     worldContext: Readonly<WorldContext>,
-    viewContext: Readonly<SettlementLayers>,
+    viewContext: Readonly<SettlementLayers & FocusFields>,
     _appServices: AppServices
   ): void {
     TIME && console.time("EmblemsRenderer");
     const { pack, graphHeight, graphWidth } = worldContext;
-    const { emblems } = viewContext;
+    const { emblems, focusScope } = viewContext;
     const { states, provinces, burgs } = pack;
 
-    const validStates = states.filter(s => s.i && !s.removed && s.coa && s.coa.size !== 0);
-    const validProvinces = (provinces as Province[]).filter(p => p.i && !p.removed && p.coa && p.coa.size !== 0);
-    const validBurgs = burgs.filter(b => b.i && !b.removed && b.coa && b.coa.size !== 0);
+    const validStates = states.filter(
+      s => s.i && !s.removed && s.coa && s.coa.size !== 0 && (!focusScope || s.i === focusScope.stateId)
+    );
+    const validProvinces = (provinces as Province[]).filter(
+      p => p.i && !p.removed && p.coa && p.coa.size !== 0 && isCellInScope(focusScope, p.center)
+    );
+    const validBurgs = burgs.filter(
+      b => b.i && !b.removed && b.coa && b.coa.size !== 0 && isCellInScope(focusScope, b.cell)
+    );
 
     const getStateEmblemsSize = (): number => {
       const startSize = minmax((graphHeight + graphWidth) / 40, 10, 100);

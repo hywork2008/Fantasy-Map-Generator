@@ -35,7 +35,7 @@ export const ExitCustomization: React.FC = () => {
   }, []);
 
   return (
-    <div id="exitCustomization" ref={elRef} style={{ display: "none", pointerEvents: "auto" }}>
+    <div id="exitCustomization" ref={elRef} className="d-none">
       <div data-tip="Drag to move the pane">
         <button
           type="button"

@@ -139,11 +139,7 @@ export const StatesChartDialog: React.FC = () => {
       buttons={[{ label: "Close", onClick: handleClose }]}
     >
       <div>
-        <select
-          value={chartType}
-          onChange={e => setChartType(e.target.value as ChartType)}
-          style={{ display: "block", marginLeft: 13, fontSize: 11 }}
-        >
+        <select value={chartType} onChange={e => setChartType(e.target.value as ChartType)} className="d-block">
           <option value="area">Area</option>
           <option value="population">Total population</option>
           <option value="rural">Rural population</option>

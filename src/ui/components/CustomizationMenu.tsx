@@ -2,12 +2,14 @@ import type React from "react";
 import { HeightmapEditorActions } from "../../controllers/heightmapEditor";
 import { setHeightmapEditorState, useHeightmapEditorState } from "../../store/heightmapEditorState";
 import { useOptionsState } from "../../store/optionsState";
+import { useViewModeState } from "../../store/viewModeState";
 import { useViewState } from "../../store/viewState";
 import { SliderInput } from "./SliderInput";
 export const CustomizationMenu: React.FC = () => {
   const { isCustomizationMode, activeMenu } = useViewState();
   const options = useOptionsState();
   const editor = useHeightmapEditorState();
+  const { activeViewMode } = useViewModeState();
   const isVisible = isCustomizationMode && activeMenu === "toolsTab";
 
   return (
@@ -26,7 +28,7 @@ export const CustomizationMenu: React.FC = () => {
           type="button"
           data-tip="Open template editor"
           id="applyTemplate"
-          style={{ display: "none" }}
+          className="d-none"
           onClick={() => HeightmapEditorActions.openTemplateEditor()}
         >
           Template Editor
@@ -35,7 +37,7 @@ export const CustomizationMenu: React.FC = () => {
           type="button"
           data-tip="Open Image Converter"
           id="convertImage"
-          style={{ display: "none" }}
+          className="d-none"
           onClick={() => HeightmapEditorActions.openImageConverter()}
         >
           Image Converter
@@ -52,6 +54,7 @@ export const CustomizationMenu: React.FC = () => {
           type="button"
           data-tip="Preview heightmap in 3D scene"
           id="heightmap3DView"
+          className={activeViewMode === "heightmap3DView" ? "pressed" : ""}
           onClick={e => HeightmapEditorActions.changeViewMode(e)}
         >
           3D scene
@@ -123,7 +126,7 @@ export const CustomizationMenu: React.FC = () => {
       <div>
         <span>Land cells: </span>
         <span id="landmassCounter">0</span>
-        <span style={{ marginLeft: "0.9em" }}>Mean height: </span>
+        <span>Mean height: </span>
         <span id="landmassAverage">0</span>
       </div>
 

@@ -2,6 +2,7 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { COArenderer } from "../../../../renderers/emblem-renderer";
 import { useOptionsState } from "../../../../store/optionsState";
+import { LockIconButton } from "../../LockIconButton";
 import { SliderInput } from "../../SliderInput";
 
 export const UiSettingsTab: React.FC = () => {
@@ -119,8 +120,6 @@ export const UiSettingsTab: React.FC = () => {
                 value={options.autosaveInterval}
                 onChange={e => updateOption("autosaveInterval", Number(e.target.value))}
               />
-            </td>
-            <td>
               <input
                 id="autosaveIntervalOutput"
                 type="number"
@@ -131,6 +130,7 @@ export const UiSettingsTab: React.FC = () => {
                 onChange={e => updateOption("autosaveInterval", Number(e.target.value))}
               />
             </td>
+            <td></td>
           </tr>
 
           <tr data-tip="Set what Generator should do on load">
@@ -193,7 +193,7 @@ export const UiSettingsTab: React.FC = () => {
 
           <tr data-tip="Select emblem shape. Can be changed individually in Emblem editor">
             <td>
-              <i data-locked="0" id="lock_emblemShape" className="icon-lock-open"></i>
+              <LockIconButton id="emblemShape" />
             </td>
             <td>Emblem shape</td>
             <td>
@@ -327,6 +327,47 @@ export const UiSettingsTab: React.FC = () => {
                 }}
               ></i>
             </td>
+          </tr>
+
+          <tr data-tip="Select the population layer visualization style">
+            <td></td>
+            <td>Population rendering</td>
+            <td>
+              <select
+                id="populationRenderingMode"
+                value={options.populationRenderingMode}
+                onChange={e => {
+                  const mode = e.target.value as "original" | "contour" | "choropleth";
+                  options.setOption("populationRenderingMode", mode);
+                  document.dispatchEvent(new CustomEvent("react-change-population-rendering-mode"));
+                }}
+              >
+                <option value="original">3D Bars</option>
+                <option value="contour">Smooth Contours</option>
+                <option value="choropleth">Cell Heatmap</option>
+              </select>
+            </td>
+            <td></td>
+          </tr>
+
+          <tr data-tip="Select how recent combat deaths are drawn (window matches Population Overview Deaths)">
+            <td></td>
+            <td>Combat deaths rendering</td>
+            <td>
+              <select
+                id="combatDeathsRenderingMode"
+                value={options.combatDeathsRenderingMode}
+                onChange={e => {
+                  const mode = e.target.value as "contour" | "choropleth";
+                  options.setOption("combatDeathsRenderingMode", mode);
+                  document.dispatchEvent(new CustomEvent("react-change-combat-deaths-rendering-mode"));
+                }}
+              >
+                <option value="contour">Smooth Contours</option>
+                <option value="choropleth">Cell Heatmap</option>
+              </select>
+            </td>
+            <td></td>
           </tr>
 
           <tr data-tip="Select rendering model. Try to set to 'optimized' if you face performance issues">

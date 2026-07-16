@@ -1,27 +1,32 @@
+import type React from "react";
+import { useMemo } from "react";
+import { showDataTip } from "../services/tooltipService";
 import { useViewState } from "../store";
+import { debounce } from "../utils";
 import { ExitCustomization } from "./components/ExitCustomization";
+import { FocusBanner } from "./components/FocusBanner";
 import { NotesBox } from "./components/NotesBox";
 import { OptionsContainer } from "./components/OptionsContainer";
 import { ToastContainer } from "./components/Toast";
+import { DebugSnapshotDialog } from "./dialogs/DebugSnapshotDialog";
 import { DialogsContainer } from "./dialogs/DialogsContainer";
 
 export const App = () => {
   const openDialogs = useViewState(state => state.openDialogs);
 
+  const handleMouseMove = useMemo(
+    () =>
+      debounce((e: React.MouseEvent) => {
+        showDataTip(e.nativeEvent as MouseEvent);
+      }, 50),
+    []
+  );
+
   return (
-    <div
-      id="react-ui-container"
-      style={{
-        pointerEvents: "none",
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: "100%",
-        zIndex: 1000
-      }}
-    >
+    <div id="react-ui-container" onMouseMove={handleMouseMove}>
       <ToastContainer />
+
+      {import.meta.env.DEV && <DebugSnapshotDialog />}
 
       <DialogsContainer />
       {/* The Options Menu */}
@@ -30,24 +35,14 @@ export const App = () => {
       {/* Heightmap exit button - absolutely positioned, managed via custom events */}
       <ExitCustomization />
 
+      {/* Focus view banner - shown when rendering is narrowed to one state/province */}
+      <FocusBanner />
+
       {/* Floating UI */}
       <NotesBox />
 
       {/* Development Overlay */}
-      {import.meta.env.DEV && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: 10,
-            right: 10,
-            padding: "5px 10px",
-            borderRadius: "4px",
-            fontSize: "10px"
-          }}
-        >
-          {openDialogs.length > 0 && ` | Open Dialogs: ${openDialogs.join(", ")}`}
-        </div>
-      )}
+      {import.meta.env.DEV && <div>{openDialogs.length > 0 && ` | Open Dialogs: ${openDialogs.join(", ")}`}</div>}
     </div>
   );
 };

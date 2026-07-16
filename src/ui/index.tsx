@@ -2,13 +2,16 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 
-export function initReactUI() {
-  const container = document.getElementById("react-ui-root");
-  if (!container) {
+export function initReactUI(container?: HTMLElement) {
+  const rootElement = container
+    ? container.querySelector("#react-ui-root") || container.ownerDocument.getElementById("react-ui-root")
+    : document.getElementById("react-ui-root");
+
+  if (!rootElement) {
     console.error("React UI Root container (#react-ui-root) not found in DOM");
     return;
   }
-  const root = createRoot(container);
+  const root = createRoot(rootElement);
   flushSync(() => {
     root.render(<App />);
   });

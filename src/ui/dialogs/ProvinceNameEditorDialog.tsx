@@ -1,6 +1,7 @@
 import type React from "react";
 import { provincesEditorActions } from "../../controllers/provinces-editor";
 import { useProvincesEditorState } from "../../store/provincesEditorState";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 
 export const ProvinceNameEditorDialog: React.FC = () => {
@@ -29,19 +30,18 @@ export const ProvinceNameEditorDialog: React.FC = () => {
             data-tip="Type to change the short name"
             autoCorrect="off"
             spellCheck={false}
-            style={{ width: "11em" }}
             value={shortName}
             onChange={e => provincesEditorActions.nameEditorUpdate({ shortName: e.target.value })}
           />
           <span data-tip="Speak the name. You can change voice and language in options" className="speaker">
             🔊
           </span>
-          <span
+          <IconButton
             data-tip="Generate culture-specific name for the province"
             className="icon-book pointer"
             onClick={provincesEditorActions.nameEditorGenerateShortCulture}
           />
-          <span
+          <IconButton
             data-tip="Generate random name"
             className="icon-globe pointer"
             onClick={provincesEditorActions.nameEditorGenerateShortRandom}
@@ -56,13 +56,12 @@ export const ProvinceNameEditorDialog: React.FC = () => {
             <input
               placeholder="type form name"
               data-tip="Enter custom form name"
-              style={{ width: "11em" }}
               value={customFormInput}
               onChange={e => provincesEditorActions.nameEditorUpdate({ customFormInput: e.target.value })}
             />
           ) : (
             <select
-              style={{ display: "inline-block", width: "11em", height: "1.645em" }}
+              className="d-inline-block"
               value={formName}
               onChange={e => provincesEditorActions.nameEditorUpdate({ formName: e.target.value })}
             >
@@ -105,7 +104,7 @@ export const ProvinceNameEditorDialog: React.FC = () => {
               <option value="Tribe">Tribe</option>
             </select>
           )}
-          <span
+          <IconButton
             data-tip="Click to add custom province form name to the list"
             className="icon-plus pointer"
             onClick={() => {
@@ -127,25 +126,21 @@ export const ProvinceNameEditorDialog: React.FC = () => {
             data-tip="Type to change the full name"
             autoCorrect="off"
             spellCheck={false}
-            style={{ width: "11em" }}
             value={fullName}
             onChange={e => provincesEditorActions.nameEditorUpdate({ fullName: e.target.value })}
           />
           <span data-tip="Speak the name. You can change voice and language in options" className="speaker">
             🔊
           </span>
-          <span
+          <IconButton
             data-tip="Click to re-generate full name"
             className="icon-arrows-cw pointer"
             onClick={provincesEditorActions.nameEditorRegenerateFullName}
           />
         </div>
 
-        <div
-          data-tip="Dominant culture in the province. This defines culture-based naming. Can be changed via the Cultures Editor"
-          style={{ marginTop: "0.2em" }}
-        >
-          Dominant culture:&nbsp;<span>{cultureName}</span>
+        <div data-tip="Dominant culture in the province. This defines culture-based naming. Can be changed via the Cultures Editor">
+          Dominant culture:<span>{cultureName}</span>
         </div>
       </div>
     </Dialog>

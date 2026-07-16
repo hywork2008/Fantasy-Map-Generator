@@ -1,6 +1,5 @@
 import React from "react";
-
-import { closeDialog, Dialog, FillBox, useDialogState } from "../../../hostUi";
+import { closeDialog, Dialog, FillBox, useDialogState, VirtualTableBody } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 
 import {
@@ -51,23 +50,25 @@ export const MarketsGoodCompareDialog: React.FC = () => {
     return avgPrice ? `${((value / avgPrice) * 100).toFixed(2)}%` : "0%";
   };
 
+  const parentRef = React.useRef<HTMLDivElement>(null);
+
   return (
     <Dialog
       isOpen={isOpen}
       title="Compare Good Stock"
+      className="fmg-dialog--table"
       onClose={() => {
         closeDialog("marketsGoodCompare");
         close();
       }}
     >
       <div id="marketsGoodCompareContainer">
-        <div style={{ display: "flex", alignItems: "center", gap: ".5em", padding: ".2em 0 .4em", fontSize: ".9em" }}>
+        <div className="d-flex header">
           <label htmlFor="marketsGoodCompareSelect" data-tip="Select good to compare stock across markets">
             Good:
           </label>
           <select
             id="marketsGoodCompareSelect"
-            style={{ flex: 1, minWidth: "8em" }}
             value={selectedGoodId ?? ""}
             onChange={e => setSelectedGoodId(parseInt(e.target.value, 10))}
           >
@@ -79,69 +80,89 @@ export const MarketsGoodCompareDialog: React.FC = () => {
           </select>
         </div>
 
-        <div id="marketsGoodCompareHeader" className="header" style={{ gridTemplateColumns: "1.6em 9em 6em 7em" }}>
-          <div />
-          <div
-            data-tip="Market center burg name. Click to sort"
-            className={`sortable alphabetically ${getSortIcon("market", true)}`}
-            style={{ marginLeft: 0 }}
-            onClick={() => setSorting("market")}
-          >
-            Market&nbsp;
-          </div>
-          <div
-            data-tip="Good stock in this market. Click to sort"
-            className={`sortable ${getSortIcon("stock")}`}
-            onClick={() => setSorting("stock")}
-          >
-            Stock&nbsp;
-          </div>
-          <div
-            data-tip="Price for this good. Click to sort"
-            className={`sortable ${getSortIcon("price")}`}
-            onClick={() => setSorting("price")}
-          >
-            Price&nbsp;
-          </div>
-        </div>
-
         <div
+          ref={parentRef}
           id="marketsGoodCompareBody"
           className="table"
           data-type={isPercentageMode ? "percentage" : "absolute"}
-          style={{ maxHeight: "40em" }}
         >
-          {sortedRows.length === 0 ? (
-            <span>No market carries the selected good</span>
-          ) : (
-            sortedRows.map(row => (
-              <div
-                key={row.marketId}
-                className="states pointer"
-                data-market={row.marketName}
-                data-stock={row.stock}
-                data-price={row.price}
-                onClick={() => openMarketOverview(row.marketId)}
-              >
-                <FillBox fill={row.marketColor} data-tip="Market color" />
-                <div style={{ width: "9em" }}>{row.marketName}</div>
-                <div style={{ width: "6em" }}>{displayValue(row.stock, totalStock)}</div>
-                <div style={{ width: "7em" }}>{displayPrice(row.price)}</div>
-              </div>
-            ))
-          )}
+          <table className="fmg-table">
+            <colgroup>
+              <col />
+              <col />
+              <col />
+              <col />
+            </colgroup>
+            <thead>
+              <tr className="header">
+                <th />
+                <th
+                  data-tip="Market center burg name. Click to sort"
+                  className={`sortable alphabetically ${getSortIcon("market", true)}`}
+                  onClick={() => setSorting("market")}
+                >
+                  Market
+                </th>
+                <th
+                  data-tip="Good stock in this market. Click to sort"
+                  className={`sortable ${getSortIcon("stock")}`}
+                  onClick={() => setSorting("stock")}
+                >
+                  Stock
+                </th>
+                <th
+                  data-tip="Price for this good. Click to sort"
+                  className={`sortable ${getSortIcon("price")}`}
+                  onClick={() => setSorting("price")}
+                >
+                  Price
+                </th>
+              </tr>
+            </thead>
+            {sortedRows.length === 0 ? (
+              <tbody>
+                <tr>
+                  <td colSpan={4}>
+                    <span>No market carries the selected good</span>
+                  </td>
+                </tr>
+              </tbody>
+            ) : (
+              <VirtualTableBody
+                items={sortedRows}
+                scrollElementRef={parentRef}
+                renderRow={row => (
+                  <tr
+                    key={row.marketId}
+                    className="states pointer"
+                    data-market={row.marketName}
+                    data-stock={row.stock}
+                    data-price={row.price}
+                    onClick={() => openMarketOverview(row.marketId)}
+                  >
+                    <td>
+                      <FillBox fill={row.marketColor} data-tip="Market color" />
+                    </td>
+                    <td>{row.marketName}</td>
+                    <td>{displayValue(row.stock, totalStock)}</td>
+                    <td>{displayPrice(row.price)}</td>
+                  </tr>
+                )}
+              />
+            )}
+          </table>
         </div>
 
         <div id="marketsGoodCompareFooter" className="totalLine">
-          <div data-tip="Total stock of this good across all markets" style={{ marginLeft: 5 }}>
-            Total Stock:&nbsp;<span id="marketsGoodCompareFooterStock">{totalStock}</span>
+          <div data-tip="Total stock of this good across all markets">
+            Total Stock:<span id="marketsGoodCompareFooterStock">{totalStock}</span>
           </div>
-          <div data-tip="Average price of this good across markets" style={{ marginLeft: 12 }}>
-            Avg Price:&nbsp;<span id="marketsGoodCompareFooterPrice">{formatPrice(avgPrice)}</span>
+          <div data-tip="Average price of this good across markets">
+            Avg Price:<span id="marketsGoodCompareFooterPrice">{formatPrice(avgPrice)}</span>
           </div>
         </div>
 
-        <div id="marketsGoodCompareBottom">
+        <div id="marketsGoodCompareBottom" className="footer">
           <button
             type="button"
             id="marketsGoodCompareRefresh"

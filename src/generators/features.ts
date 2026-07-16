@@ -1,5 +1,5 @@
 import Alea from "alea";
-import { polygonArea } from "d3";
+import { median, polygonArea } from "d3";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -32,6 +32,15 @@ class FeatureModule {
   private UNMARKED = 0;
   private WATER_COAST = -1;
   private DEEP_WATER = -2;
+  /** BFS hop radius used by calculateEnclosure() to score how landlocked a water cell is. */
+  private ENCLOSURE_BFS_RADIUS = 6;
+  /**
+   * Water cells larger than the map's typical (median) cell area by this factor are skipped
+   * by calculateEnclosure() and left at 0. reGraph() (main.ts) drops most sample points beyond
+   * the immediate coastline, so open-ocean cells far from any shore balloon in size — a few BFS
+   * hops through cells that large can span enough real distance to spuriously reach land.
+   */
+  private ENCLOSURE_AREA_LIMIT_RATIO = 3;
 
   /**
    * calculate distance to coast for every cell
@@ -298,8 +307,58 @@ class FeatureModule {
     pack.cells.f = featureIds;
     pack.cells.haven = haven;
     pack.cells.harbor = harbor;
+    pack.cells.enclosure = this.calculateEnclosure(packCellsNumber);
     pack.features = [0 as unknown as PackedGraphFeature, ...features];
     TIME && console.timeEnd("markupPack");
+  }
+
+  /**
+   * Score how enclosed/landlocked each water cell is (0 = open ocean, 100 = fully enclosed).
+   * For every water cell, flood-fills outward through water-only neighbors up to a fixed hop
+   * radius and tracks the fraction of neighbor lookups that were blocked by land. A narrow
+   * strait or bay quickly runs out of open water to expand into, so most lookups near its
+   * shoreline hit land and the ratio climbs; open ocean keeps discovering new water cells, so
+   * the ratio stays low. Land cells and oversized deep-ocean cells (see ENCLOSURE_AREA_LIMIT_RATIO)
+   * are always 0. O(waterCells * radius * avgDegree).
+   */
+  private calculateEnclosure(packCellsNumber: number): Uint8Array {
+    const { pack } = this.worldContext;
+    const { c: neighbors, area } = pack.cells;
+    const enclosure = new Uint8Array(packCellsNumber);
+    const visitedStamp = new Int32Array(packCellsNumber).fill(-1);
+    const maxCellArea = (median(area) || 1) * this.ENCLOSURE_AREA_LIMIT_RATIO;
+
+    for (let cellId = 0; cellId < packCellsNumber; cellId++) {
+      if (!isWater(cellId, pack)) continue;
+      if (area[cellId] > maxCellArea) continue;
+
+      let frontier = [cellId];
+      visitedStamp[cellId] = cellId;
+      let blocked = 0;
+      let total = 0;
+
+      for (let depth = 0; depth < this.ENCLOSURE_BFS_RADIUS && frontier.length; depth++) {
+        const nextFrontier: number[] = [];
+
+        for (const currentId of frontier) {
+          for (const neighborId of neighbors[currentId]) {
+            total++;
+            if (isLand(neighborId, pack)) {
+              blocked++;
+            } else if (visitedStamp[neighborId] !== cellId) {
+              visitedStamp[neighborId] = cellId;
+              nextFrontier.push(neighborId);
+            }
+          }
+        }
+
+        frontier = nextFrontier;
+      }
+
+      enclosure[cellId] = total > 0 ? Math.round((blocked / total) * 100) : 0;
+    }
+
+    return enclosure;
   }
 
   /**

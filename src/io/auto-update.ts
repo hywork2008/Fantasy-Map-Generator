@@ -169,7 +169,7 @@ export function resolveVersionConflicts(mapVersion: string): void {
     // v1.0 had Sympathy status then replaced with Friendly
     for (const s of worldContext.pack.states) {
       if (!s.diplomacy) continue;
-      s.diplomacy = s.diplomacy.map((r: string) => (r === "Sympathy" ? "Friendly" : r));
+      s.diplomacy = s.diplomacy.map(r => (typeof r === "string" && r === "Sympathy" ? "Friendly" : r));
     }
 
     // labels should be toggled via style attribute, so remove display attribute

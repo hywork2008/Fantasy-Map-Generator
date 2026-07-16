@@ -4,6 +4,9 @@ import {
   findFirstRealStateId,
   countStatesWithNeighbor,
   getMilitaryRegenerationResult,
+  isLayerOn,
+  setLayerPreset,
+  setRenderMode,
 } from "./helpers/fmg-helpers";
 
 test.describe("States", () => {
@@ -79,5 +82,34 @@ test.describe("States", () => {
     const militaryResult = await getMilitaryRegenerationResult(page);
     expect(militaryResult.statesCount).toBeGreaterThan(0);
     expect(militaryResult.statesWithMilitary).toBeGreaterThanOrEqual(0);
+  });
+
+  test("restores the Pure landmass layer state when States and Provinces close together", async ({ page }) => {
+    await setRenderMode(page, "svg");
+    await setLayerPreset(page, "landmass");
+
+    await page.click("#optionsTrigger");
+    await expect(page.locator("#options")).toBeVisible();
+    await page.click("#toolsTab");
+    await expect(page.locator("#toolsContent")).toBeVisible();
+
+    await page.getByRole("button", { name: "States", exact: true }).click();
+    await expect(page.locator("#statesEditor")).toBeVisible();
+    expect(await isLayerOn(page, "toggleStates")).toBe(true);
+
+    await page.getByRole("button", { name: "Provinces", exact: true }).click();
+    await expect(page.locator("#provincesEditor")).toBeVisible();
+    await expect(page.locator("#statesEditor")).toBeVisible();
+    expect(await isLayerOn(page, "toggleProvinces")).toBe(true);
+    expect(await isLayerOn(page, "toggleStates")).toBe(false);
+
+    await page
+      .locator(".fmg-dialog:has(#provincesEditor)")
+      .getByRole("button", { name: "Close all dialogs" })
+      .click();
+    await expect(page.locator("#statesEditor")).toBeHidden();
+    await expect(page.locator("#provincesEditor")).toBeHidden();
+    expect(await isLayerOn(page, "toggleProvinces")).toBe(false);
+    expect(await isLayerOn(page, "toggleStates")).toBe(false);
   });
 });

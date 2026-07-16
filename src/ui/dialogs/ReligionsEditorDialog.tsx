@@ -1,10 +1,12 @@
-import type React from "react";
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { religionsEditorActions } from "../../controllers/religions-editor";
 import { useReligionsEditorState } from "../../store/religionsEditorState";
 import { rn, si } from "../../utils";
 import { getAreaUnit } from "../../utils/domUtils";
 import { FillBox } from "../components/FillBox";
+import { IconButton } from "../components/IconButton";
+import { SortableHeader } from "../components/tables/SortableHeader";
+import { VirtualTableBody } from "../components/VirtualTableBody";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -62,293 +64,332 @@ export const ReligionsEditorDialog: React.FC = () => {
     });
   }, [religions, sortBy, sortDirection]);
 
+  const parentRef = React.useRef<HTMLDivElement>(null);
+
   if (!isOpen) return null;
 
   const unit = getAreaUnit();
   const isBrushMode = customization === 7;
+  const sortOrder = sortDirection === 1 ? "asc" : "desc";
 
   return (
     <Dialog
       isOpen={isOpen}
       title="Religions Editor"
       onClose={() => closeDialog("religionsEditor")}
-      className="fmg-dialog--overflow-hidden"
+      className="fmg-dialog--table"
     >
       <div id="religionsEditor">
         <div
-          id="religionsHeader"
-          className="header"
-          style={{ gridTemplateColumns: "13em 6em 7em 18em 6em 7em 6em 7em" }}
+          ref={parentRef}
+          id="religionsBody"
+          className="table"
+          data-type={isPercentageMode ? "percentage" : "absolute"}
         >
-          <div
-            data-tip="Click to sort by religion name"
-            className={`sortable alphabetically ${sortBy === "name" ? "sort-active" : ""}`}
-            onClick={() => religionsEditorActions.changeSort("name")}
-          >
-            Religion&nbsp;
-          </div>
-          <div
-            data-tip="Click to sort by religion type"
-            className={`sortable alphabetically ${sortBy === "type" ? "sort-active" : ""}`}
-            onClick={() => religionsEditorActions.changeSort("type")}
-          >
-            Type&nbsp;
-          </div>
-          <div
-            data-tip="Click to sort by religion form"
-            className={`sortable alphabetically ${sortBy === "form" ? "sort-active" : ""}`}
-            onClick={() => religionsEditorActions.changeSort("form")}
-          >
-            Form&nbsp;
-          </div>
-          <div
-            data-tip="Click to sort by supreme deity"
-            className={`sortable alphabetically ${isBrushMode ? "hidden" : "hide"} ${sortBy === "deity" ? "sort-active" : ""}`}
-            onClick={() => religionsEditorActions.changeSort("deity")}
-          >
-            Supreme Deity&nbsp;
-          </div>
-          <div
-            data-tip="Click to sort by religion area"
-            className={`sortable ${isBrushMode ? "hidden" : "hide"} ${sortBy === "area" ? "sort-active" : ""}`}
-            onClick={() => religionsEditorActions.changeSort("area")}
-          >
-            Area&nbsp;
-          </div>
-          <div
-            data-tip="Click to sort by number of believers (religion area population)"
-            className={`sortable ${isBrushMode ? "hidden" : "hide"} ${sortBy === "population" ? "sort-active" : ""}`}
-            onClick={() => religionsEditorActions.changeSort("population")}
-          >
-            Believers&nbsp;
-          </div>
-          <div
-            data-tip="Click to sort by potential extent type"
-            className={`sortable alphabetically ${isBrushMode ? "hidden" : "hide"} ${sortBy === "expansion" ? "sort-active" : ""}`}
-            onClick={() => religionsEditorActions.changeSort("expansion")}
-          >
-            Potential&nbsp;
-          </div>
-          <div
-            data-tip="Click to sort by expansionism"
-            className={`sortable ${isBrushMode ? "hidden" : "hide"} ${sortBy === "expansionism" ? "sort-active" : ""}`}
-            onClick={() => religionsEditorActions.changeSort("expansionism")}
-          >
-            Expansion&nbsp;
-          </div>
-        </div>
-
-        <div id="religionsBody" className="table" data-type={isPercentageMode ? "percentage" : "absolute"}>
-          {sortedReligions.map(r => {
-            const populationTip = `Believers: ${si(r.population)}; Rural areas: ${si(r.rural)}; Urban areas: ${si(r.urban)}. Click to change`;
-            const areaText = isPercentageMode
-              ? `${totalArea > 0 ? rn((r.area / totalArea) * 100) : 0}%`
-              : `${si(r.area)} ${unit}`;
-            const popText = isPercentageMode
-              ? `${totalPopulation > 0 ? rn((r.population / totalPopulation) * 100) : 0}%`
-              : si(r.population);
-            const isFolk = r.type === "Folk";
-
-            return (
-              <div
-                key={r.i}
-                id={`religion${r.i}`}
-                className="states"
-                data-id={r.i}
-                onClick={() => religionsEditorActions.selectReligionOnLineClick(r.i)}
-                onMouseEnter={() => religionsEditorActions.religionHighlightOn(r.i)}
-                onMouseLeave={() => religionsEditorActions.religionHighlightOff(r.i)}
-                style={{ pointerEvents: isBrushMode ? "none" : "all" }}
-              >
-                {r.i ? (
-                  <FillBox fill={r.color} onClick={() => religionsEditorActions.changeFill(r.i)} />
-                ) : (
-                  <svg width="9" height="9" className="placeholder" aria-label="placeholder" role="img">
-                    <title>placeholder</title>
-                  </svg>
-                )}
-
-                <input
-                  data-tip="Religion name. Click and type to change"
-                  className={r.i ? "religionName" : "religionName italic"}
-                  style={{ width: "11em" }}
-                  value={r.name}
-                  autoCorrect="off"
-                  spellCheck={false}
-                  onChange={e => religionsEditorActions.changeName(r.i, e.target.value)}
+          <table className="fmg-table">
+            <thead>
+              <tr id="religionsHeader">
+                <SortableHeader
+                  field="name"
+                  label="Religion"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={religionsEditorActions.changeSort}
+                  tip="Click to sort by religion name"
                 />
-
-                <select
-                  data-tip="Religion type"
-                  className={r.i ? "religionType" : "religionType placeholder"}
-                  style={{ width: "5em" }}
-                  value={r.type}
-                  onChange={e => religionsEditorActions.changeType(r.i, e.target.value)}
-                >
-                  <option value="Folk">Folk</option>
-                  <option value="Organized">Organized</option>
-                  <option value="Cult">Cult</option>
-                  <option value="Heresy">Heresy</option>
-                </select>
-
-                <input
-                  data-tip="Religion form"
-                  className={r.i ? "religionForm" : "religionForm placeholder"}
-                  style={{ width: "6em" }}
-                  value={r.form}
-                  autoCorrect="off"
-                  spellCheck={false}
-                  onChange={e => religionsEditorActions.changeForm(r.i, e.target.value)}
+                <SortableHeader
+                  field="type"
+                  label="Type"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={religionsEditorActions.changeSort}
+                  tip="Click to sort by religion type"
                 />
-
-                <span
-                  data-tip="Click to re-generate supreme deity"
-                  className={`icon-arrows-cw pointer ${isBrushMode ? "hidden" : "hide"} ${r.i ? "" : "placeholder"}`}
-                  onClick={() => r.i && religionsEditorActions.regenerateDeity(r.i)}
+                <SortableHeader
+                  field="form"
+                  label="Form"
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onSort={religionsEditorActions.changeSort}
+                  tip="Click to sort by religion form"
                 />
-
-                <input
-                  data-tip="Religion supreme deity"
-                  className={`religionDeity ${isBrushMode ? "hidden" : "hide"} ${r.i ? "" : "placeholder"}`}
-                  style={{ width: "17em" }}
-                  value={r.deity}
-                  autoCorrect="off"
-                  spellCheck={false}
-                  onChange={e => religionsEditorActions.changeDeity(r.i, e.target.value)}
-                />
-
-                <span
-                  data-tip="Religion area"
-                  style={{ paddingRight: "4px" }}
-                  className={`icon-map-o ${isBrushMode ? "hidden" : "hide"}`}
-                />
-                <div
-                  data-tip="Religion area"
-                  className={`religionArea ${isBrushMode ? "hidden" : "hide"}`}
-                  style={{ width: "6em" }}
-                >
-                  {areaText}
-                </div>
-
-                <span data-tip={populationTip} className={`icon-male ${isBrushMode ? "hidden" : "hide"}`} />
-                <div
-                  data-tip={populationTip}
-                  className={`religionPopulation pointer ${isBrushMode ? "hidden" : "hide"}`}
-                  style={{ width: "5em" }}
-                  onClick={() => religionsEditorActions.changePopulation(r.i)}
-                >
-                  {popText}
-                </div>
-
-                {r.i ? (
-                  isFolk ? (
-                    <>
-                      <span
-                        data-tip="Folk religions do not expand"
-                        className={`icon-resize-full-alt ${isBrushMode ? "hidden" : "hide"}`}
-                        style={{ paddingRight: "2px" }}
-                      />
-                      <span
-                        data-tip="Folk religions do not expand"
-                        className={`religionExtent ${isBrushMode ? "hidden" : "hide"}`}
-                        style={{ width: "5em" }}
-                      >
-                        culture
-                      </span>
-                      <span
-                        data-tip="Folk religions do not expand"
-                        className={`icon-resize-full ${isBrushMode ? "hidden" : "hide"}`}
-                      />
-                      <input
-                        data-tip="Folk religions do not expand"
-                        className={`religionExpantion ${isBrushMode ? "hidden" : "hide"}`}
-                        disabled
-                        type="number"
-                        value="0"
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <span
-                        data-tip="Potential religion extent"
-                        className={`icon-resize-full-alt ${isBrushMode ? "hidden" : "hide"}`}
-                        style={{ paddingRight: "2px" }}
-                      />
-                      <select
-                        data-tip="Potential religion extent"
-                        className={`religionExtent ${isBrushMode ? "hidden" : "hide"}`}
-                        style={{ width: "5em" }}
-                        value={r.expansion}
-                        onChange={e => religionsEditorActions.changeExtent(r.i, e.target.value)}
-                      >
-                        <option value="global">global</option>
-                        <option value="state">state</option>
-                        <option value="culture">culture</option>
-                      </select>
-                      <span
-                        data-tip="Religion expansionism. Defines competitive size"
-                        className={`icon-resize-full ${isBrushMode ? "hidden" : "hide"}`}
-                      />
-                      <input
-                        data-tip="Religion expansionism. Defines competitive size. Click to change, then click Recalculate to apply change"
-                        className={`religionExpantion ${isBrushMode ? "hidden" : "hide"}`}
-                        type="number"
-                        min="0"
-                        max="99"
-                        step=".1"
-                        value={r.expansionism}
-                        onChange={e => religionsEditorActions.changeExpansionism(r.i, e.target.valueAsNumber)}
-                      />
-                    </>
-                  )
-                ) : null}
-
-                {r.i ? (
+                {!isBrushMode && (
                   <>
-                    <span
-                      data-tip="Locate the religion"
-                      className={`icon-target pointer ${isBrushMode ? "hidden" : "hide"}`}
-                      onClick={() => religionsEditorActions.highlightReligion(r.i)}
+                    <SortableHeader
+                      field="deity"
+                      label="Supreme Deity"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={religionsEditorActions.changeSort}
+                      tip="Click to sort by supreme deity"
                     />
-                    <span
-                      data-tip="Lock this religion"
-                      className={`icon-lock${r.lock ? "" : "-open"} pointer ${isBrushMode ? "hidden" : "hide"}`}
-                      onClick={() => religionsEditorActions.updateLockStatus(r.i)}
+                    <SortableHeader
+                      field="area"
+                      label="Area"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={religionsEditorActions.changeSort}
+                      numeric
+                      tip="Click to sort by religion area"
                     />
-                    <span
-                      data-tip="Remove religion"
-                      className={`icon-trash-empty pointer ${isBrushMode ? "hidden" : "hide"}`}
-                      onClick={() => religionsEditorActions.triggerRemove(r.i)}
+                    <SortableHeader
+                      field="population"
+                      label="Believers"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={religionsEditorActions.changeSort}
+                      numeric
+                      tip="Click to sort by number of believers (religion area population)"
                     />
+                    <SortableHeader
+                      field="expansion"
+                      label="Potential"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={religionsEditorActions.changeSort}
+                      tip="Click to sort by potential extent type"
+                    />
+                    <SortableHeader
+                      field="expansionism"
+                      label="Expansion"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={religionsEditorActions.changeSort}
+                      numeric
+                      tip="Click to sort by expansionism"
+                    />
+                    <th></th>
                   </>
-                ) : null}
-              </div>
-            );
-          })}
+                )}
+              </tr>
+            </thead>
+            <VirtualTableBody
+              items={sortedReligions}
+              scrollElementRef={parentRef}
+              renderRow={r => {
+                const populationTip = `Believers: ${si(r.population)}; Rural areas: ${si(r.rural)}; Urban areas: ${si(r.urban)}. Click to change`;
+                const areaText = isPercentageMode
+                  ? `${totalArea > 0 ? rn((r.area / totalArea) * 100) : 0}%`
+                  : `${si(r.area)} ${unit}`;
+                const popText = isPercentageMode
+                  ? `${totalPopulation > 0 ? rn((r.population / totalPopulation) * 100) : 0}%`
+                  : si(r.population);
+                const isFolk = r.type === "Folk";
+
+                return (
+                  <tr
+                    key={r.i}
+                    id={`religion${r.i}`}
+                    className="states"
+                    data-id={r.i}
+                    onClick={() => religionsEditorActions.selectReligionOnLineClick(r.i)}
+                    onMouseEnter={() => religionsEditorActions.religionHighlightOn(r.i)}
+                    onMouseLeave={() => religionsEditorActions.religionHighlightOff(r.i)}
+                    style={{ pointerEvents: isBrushMode ? "none" : "all" }}
+                  >
+                    <td className="d-flex">
+                      {r.i ? (
+                        <FillBox fill={r.color} onClick={() => religionsEditorActions.changeFill(r.i)} />
+                      ) : (
+                        <svg width="9" height="9" className="placeholder" aria-label="placeholder" role="img">
+                          <title>placeholder</title>
+                        </svg>
+                      )}
+
+                      <input
+                        data-tip="Religion name. Click and type to change"
+                        className={`${r.i ? "religionName" : "religionName italic"}`}
+                        value={r.name}
+                        autoCorrect="off"
+                        spellCheck={false}
+                        onChange={e => religionsEditorActions.changeName(r.i, e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <select
+                        data-tip="Religion type"
+                        className={`${r.i ? "religionType" : "religionType placeholder"}`}
+                        value={r.type}
+                        onChange={e => religionsEditorActions.changeType(r.i, e.target.value)}
+                      >
+                        <option value="Folk">Folk</option>
+                        <option value="Organized">Organized</option>
+                        <option value="Cult">Cult</option>
+                        <option value="Heresy">Heresy</option>
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                        data-tip="Religion form"
+                        className={`${r.i ? "religionForm" : "religionForm placeholder"}`}
+                        value={r.form}
+                        autoCorrect="off"
+                        spellCheck={false}
+                        onChange={e => religionsEditorActions.changeForm(r.i, e.target.value)}
+                      />
+                    </td>
+                    {!isBrushMode && (
+                      <>
+                        <td>
+                          <div className="d-flex">
+                            <IconButton
+                              data-tip="Click to re-generate supreme deity"
+                              className={`icon-arrows-cw pointer ${r.i ? "" : "placeholder"}`}
+                              onClick={() => r.i && religionsEditorActions.regenerateDeity(r.i)}
+                            />
+                            <input
+                              data-tip="Religion supreme deity"
+                              className={`religionDeity ${r.i ? "" : "placeholder"}`}
+                              value={r.deity}
+                              autoCorrect="off"
+                              spellCheck={false}
+                              onChange={e => religionsEditorActions.changeDeity(r.i, e.target.value)}
+                            />
+                          </div>
+                        </td>
+                        <td>
+                          <div className="d-flex">
+                            <span data-tip="Religion area" className="icon-map-o" />
+                            <div data-tip="Religion area" className="religionArea">
+                              {areaText}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="pointer" onClick={() => religionsEditorActions.changePopulation(r.i)}>
+                          <div className="d-flex">
+                            <span data-tip={populationTip} className="icon-male" />
+                            <div data-tip={populationTip} className="religionPopulation">
+                              {popText}
+                            </div>
+                          </div>
+                        </td>
+                        {r.i ? (
+                          isFolk ? (
+                            <>
+                              <td>
+                                <div className="d-flex">
+                                  <span
+                                    data-tip="Folk religions do not expand"
+                                    className="icon-resize-full-alt -religions-editor-dialog__padding-right-2px"
+                                  />
+                                  <span data-tip="Folk religions do not expand" className="religionExtent">
+                                    culture
+                                  </span>
+                                </div>
+                              </td>
+                              <td>
+                                <div className="d-flex">
+                                  <span data-tip="Folk religions do not expand" className="icon-resize-full" />
+                                  <input
+                                    data-tip="Folk religions do not expand"
+                                    className="religionExpantion"
+                                    disabled
+                                    type="number"
+                                    value="0"
+                                  />
+                                </div>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td>
+                                <div className="d-flex">
+                                  <span
+                                    data-tip="Potential religion extent"
+                                    className="icon-resize-full-alt -religions-editor-dialog__padding-right-2px"
+                                  />
+                                  <select
+                                    data-tip="Potential religion extent"
+                                    className="religionExtent"
+                                    value={r.expansion}
+                                    onChange={e => religionsEditorActions.changeExtent(r.i, e.target.value)}
+                                  >
+                                    <option value="global">global</option>
+                                    <option value="state">state</option>
+                                    <option value="culture">culture</option>
+                                  </select>
+                                </div>
+                              </td>
+                              <td>
+                                <div className="d-flex">
+                                  <span
+                                    data-tip="Religion expansionism. Defines competitive size"
+                                    className="icon-resize-full"
+                                  />
+                                  <input
+                                    data-tip="Religion expansionism. Defines competitive size. Click to change, then click Recalculate to apply change"
+                                    className="religionExpantion"
+                                    type="number"
+                                    min="0"
+                                    max="99"
+                                    step=".1"
+                                    value={r.expansionism}
+                                    onChange={e =>
+                                      religionsEditorActions.changeExpansionism(r.i, e.target.valueAsNumber)
+                                    }
+                                  />
+                                </div>
+                              </td>
+                            </>
+                          )
+                        ) : (
+                          <>
+                            <td></td>
+                            <td></td>
+                          </>
+                        )}
+                        <td>
+                          {r.i ? (
+                            <div className="d-flex">
+                              <IconButton
+                                data-tip="Locate the religion"
+                                className="icon-target pointer"
+                                onClick={() => religionsEditorActions.highlightReligion(r.i)}
+                              />
+                              <IconButton
+                                data-tip="Lock this religion"
+                                className={`icon-lock${r.lock ? "" : "-open"} pointer`}
+                                onClick={() => religionsEditorActions.updateLockStatus(r.i)}
+                              />
+                              <IconButton
+                                data-tip="Remove religion"
+                                className="icon-trash-empty pointer"
+                                onClick={() => religionsEditorActions.triggerRemove(r.i)}
+                              />
+                            </div>
+                          ) : null}
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              }}
+            />
+          </table>
         </div>
 
         <div id="religionsTotal" className="totalLine" style={{ display: isBrushMode ? "none" : "block" }}>
-          <div data-tip="Total number of organized religions" style={{ marginLeft: 12 }}>
-            Organized:&nbsp;<span id="religionsOrganized">{totalOrganized}</span>
+          <div data-tip="Total number of organized religions">
+            Organized:<span id="religionsOrganized">{totalOrganized}</span>
           </div>
-          <div data-tip="Total number of heresies" style={{ marginLeft: 12 }}>
-            Heresies:&nbsp;<span id="religionsHeresies">{totalHeresies}</span>
+          <div data-tip="Total number of heresies">
+            Heresies:<span id="religionsHeresies">{totalHeresies}</span>
           </div>
-          <div data-tip="Total number of cults" style={{ marginLeft: 12 }}>
-            Cults:&nbsp;<span id="religionsCults">{totalCults}</span>
+          <div data-tip="Total number of cults">
+            Cults:<span id="religionsCults">{totalCults}</span>
           </div>
-          <div data-tip="Total number of folk religions" style={{ marginLeft: 12 }}>
-            Folk:&nbsp;<span id="religionsFolk">{totalFolk}</span>
+          <div data-tip="Total number of folk religions">
+            Folk:<span id="religionsFolk">{totalFolk}</span>
           </div>
-          <div data-tip="Total land area" style={{ marginLeft: 12 }}>
-            Land Area:&nbsp;<span id="religionsFooterArea">{si(totalArea) + unit}</span>
+          <div data-tip="Total land area">
+            Land Area:<span id="religionsFooterArea">{si(totalArea) + unit}</span>
           </div>
-          <div data-tip="Total number of believers (population)" style={{ marginLeft: 12 }}>
-            Believers:&nbsp;<span id="religionsFooterPopulation">{si(totalPopulation)}</span>
+          <div data-tip="Total number of believers (population)">
+            Believers:<span id="religionsFooterPopulation">{si(totalPopulation)}</span>
           </div>
         </div>
 
-        <div id="religionsFooter" className="fmg-dialog-footer">
+        <div id="religionsFooter" className="footer">
           {isBrushMode ? null : (
             <>
               <button
@@ -408,7 +449,7 @@ export const ReligionsEditorDialog: React.FC = () => {
           <div id="religionsManuallyButtons" style={{ display: isBrushMode ? "inline-block" : "none" }}>
             <div
               data-tip="Change brush size. Shortcuts: + or ] to increase; - or [ to decrease"
-              style={{ marginBlock: "0.3em", display: "inline-block" }}
+              className="d-inline-block"
             >
               Brush size:
               <input
@@ -434,10 +475,7 @@ export const ReligionsEditorDialog: React.FC = () => {
               className="icon-cancel"
               onClick={religionsEditorActions.exitReligionsManualAssignment}
             />
-            <div
-              data-tip="When enabled, only cells without religion can be painted"
-              style={{ display: "inline-block" }}
-            >
+            <div data-tip="When enabled, only cells without religion can be painted" className="d-inline-block">
               <input
                 id="religionsManuallyProtect"
                 className="checkbox"

@@ -1,15 +1,17 @@
 import type React from "react";
 import { useState } from "react";
+import { DangerSettingsTab } from "./options/DangerSettingsTab";
 import { GenerationSettingsTab } from "./options/GenerationSettingsTab";
+import { SimulationSettingsTab } from "./options/SimulationSettingsTab";
 import { UiSettingsTab } from "./options/UiSettingsTab";
 
-type OptionsSubTab = "generation" | "ui";
+type OptionsSubTab = "generation" | "ui" | "simulation" | "danger";
 
 export const OptionsTab: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<OptionsSubTab>("generation");
 
   return (
-    <div id="optionsTabContent" className="tabcontent" style={{ display: "block" }}>
+    <div id="optionsTabContent" className="tabcontent d-block">
       <div className="tab">
         <button
           className={`options${activeSubTab === "generation" ? " active" : ""}`}
@@ -25,10 +27,26 @@ export const OptionsTab: React.FC = () => {
         >
           UI
         </button>
+        <button
+          className={`options${activeSubTab === "simulation" ? " active" : ""}`}
+          onClick={() => setActiveSubTab("simulation")}
+          type="button"
+        >
+          Simulation
+        </button>
+        <button
+          className={`options${activeSubTab === "danger" ? " active" : ""}`}
+          onClick={() => setActiveSubTab("danger")}
+          type="button"
+        >
+          Danger
+        </button>
       </div>
 
       {activeSubTab === "generation" && <GenerationSettingsTab />}
       {activeSubTab === "ui" && <UiSettingsTab />}
+      {activeSubTab === "simulation" && <SimulationSettingsTab />}
+      {activeSubTab === "danger" && <DangerSettingsTab />}
     </div>
   );
 };

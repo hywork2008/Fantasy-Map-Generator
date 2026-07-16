@@ -224,4 +224,4 @@ export const TemperatureRenderer = {
 // ---------------------------------------------------------------------------
 
 /** Default dialog theme color (HSL hex). Applied when no user preference is stored. */
-export const THEME_COLOR = "#997787";
+export const THEME_COLOR = "rgb(109, 149, 201)";

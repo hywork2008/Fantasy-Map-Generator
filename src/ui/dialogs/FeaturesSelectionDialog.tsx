@@ -53,13 +53,13 @@ export const FeaturesSelectionDialog: React.FC<FeaturesSelectionDialogProps> = (
         { label: "Cancel", onClick: onClose }
       ]}
     >
-      <table>
+      <table className="fmg-table fmg-property-table">
         <thead>
-          <tr style={{ fontWeight: "bold" }}>
-            <td style={{ width: "6em" }}>Features</td>
-            <td style={{ width: "3em" }}>True</td>
-            <td style={{ width: "3em" }}>False</td>
-            <td style={{ width: "3em" }}>Any</td>
+          <tr>
+            <td>Features</td>
+            <td>True</td>
+            <td>False</td>
+            <td>Any</td>
           </tr>
         </thead>
         <tbody>
@@ -67,13 +67,12 @@ export const FeaturesSelectionDialog: React.FC<FeaturesSelectionDialogProps> = (
             <tr key={f.name} title={`Select limitation for burg feature: ${f.name}`}>
               <td>
                 <span className={f.icon} />
-                <span style={{ marginLeft: "0.2em" }}>{f.name}</span>
+                <span>{f.name}</span>
               </td>
               <td>
                 <input
                   type="radio"
                   name={f.name}
-                  style={{ margin: 0 }}
                   checked={values[f.name] === true}
                   onChange={() => set(f.name, true)}
                 />
@@ -82,7 +81,6 @@ export const FeaturesSelectionDialog: React.FC<FeaturesSelectionDialogProps> = (
                 <input
                   type="radio"
                   name={f.name}
-                  style={{ margin: 0 }}
                   checked={values[f.name] === false}
                   onChange={() => set(f.name, false)}
                 />
@@ -91,7 +89,6 @@ export const FeaturesSelectionDialog: React.FC<FeaturesSelectionDialogProps> = (
                 <input
                   type="radio"
                   name={f.name}
-                  style={{ margin: 0 }}
                   checked={values[f.name] === undefined}
                   onChange={() => set(f.name, undefined)}
                 />

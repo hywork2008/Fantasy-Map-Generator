@@ -4,6 +4,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 
+import { lockRegimentForBattle, unlockRegimentForBattle } from "../generators/battleLock";
 import { drawRegiment, moveRegiment } from "../renderers/index";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
@@ -15,8 +16,9 @@ import type { WorldNote } from "../types/WorldState";
 import { closeDialog, closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, last, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
+import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../utils/gunpowderEra";
 import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
-import type { BattleRegiment } from "./battle-screen";
+import { Battle, type BattleRegiment } from "./battle-screen";
 import { interactionManager } from "./interactionManager";
 import { toggleMilitary } from "./layers";
 import { editNotes } from "./notes-editor";
@@ -38,24 +40,36 @@ let _regDragState: {
   baseLine: d3.Selection<SVGLineElement, unknown, null, undefined>;
   rotationControl: d3.Selection<SVGCircleElement, unknown, null, undefined>;
 } | null = null;
-let _baseDragReg: MilitaryRegiment | null = null;
+
+type RegimentBounds = { x: number; y: number; width: number; height: number };
 
 function getRegEl(): SVGGElement {
   return elSelected!.node() as SVGGElement;
 }
 
-function getRegiment(): MilitaryRegiment | undefined {
-  const el = getRegEl();
-  return (worldContext.pack.states[+el.dataset.state!]?.military as MilitaryRegiment[] | undefined)?.find(
-    r => r.i === +el.dataset.id!
-  );
+function getOptionalRegEl(): SVGGElement | null {
+  return (elSelected?.node() as SVGGElement | null) ?? null;
 }
 
-function syncRegimentState(regiment: MilitaryRegiment): void {
-  const unitOptions = worldContext.options.military ?? [];
+function findRegiment(stateId: number, regimentId: number): MilitaryRegiment | undefined {
+  return (worldContext.pack.states[stateId]?.military as MilitaryRegiment[] | undefined)?.find(r => r.i === regimentId);
+}
+
+// Reads the regiment currently open in the editor from regimentEditorState, not from DOM
+// dataset attributes — the store is the source of truth once syncRegimentState() has run.
+function getRegiment(): MilitaryRegiment | undefined {
+  const { stateId, regimentId } = getRegimentEditorState();
+  if (stateId === null || regimentId === null) return undefined;
+  return findRegiment(stateId, regimentId);
+}
+
+function syncRegimentState(regiment: MilitaryRegiment, stateId: number): void {
+  const unitOptions = (worldContext.options.military ?? []).filter(
+    unit => isGunpowderEraEnabled(worldContext.options) || !isGunpowderEraMilitaryUnit(unit)
+  );
   setRegimentEditorState({
     regimentId: regiment.i,
-    stateId: +getRegEl().dataset.state!,
+    stateId,
     name: regiment.name,
     isNaval: !!regiment.n,
     icon: regiment.icon ?? "",
@@ -67,38 +81,44 @@ function syncRegimentState(regiment: MilitaryRegiment): void {
   });
 }
 
-function drawBase(): void {
+function drawMarchRoute(): void {
   const reg = getRegiment()!;
-  const clr = worldContext.pack.states[+getRegEl().dataset.state!].color ?? "";
-  const base = view.viewbox
-    .insert("g", "g#armies")
-    .attr("id", "regimentBase")
-    .attr("stroke-width", 0.3)
-    .attr("stroke", "#000")
-    .attr("cursor", "move");
-  base
-    .on("mouseenter", () => tip("Regiment base. Drag to re-base the regiment", true))
-    .on("mouseleave", () => tip("", true));
+  const clr = worldContext.pack.states[getRegimentEditorState().stateId!].color ?? "#ff0000";
 
-  base
-    .append("line")
-    .attr("x1", reg.bx)
-    .attr("y1", reg.by)
-    .attr("x2", reg.x)
-    .attr("y2", reg.y)
-    .attr("class", "regimentDragLine");
-  base
-    .append("circle")
-    .attr("cx", reg.bx)
-    .attr("cy", reg.by)
-    .attr("r", 2)
-    .attr("fill", clr)
-    .call(drag<SVGCircleElement, unknown>().on("start", dragBaseStart).on("drag", dragBaseDrag).on("end", dragBaseEnd));
+  const routeGroup = view.viewbox
+    .insert("g", "g#armies")
+    .attr("id", "regimentMarchRoute")
+    .attr("pointer-events", "none");
+
+  if (!reg.path || reg.path.length === 0) return;
+
+  const pathIndex = reg.pathIndex || 0;
+  // Start from the current exact position
+  let d = `M ${reg.x},${reg.y}`;
+
+  // Connect through the remaining cells in the path
+  for (let i = pathIndex; i < reg.path.length; i++) {
+    const cellId = reg.path[i];
+    const p = worldContext.pack.cells.p[cellId];
+    if (p) {
+      d += ` L ${p[0]},${p[1]}`;
+    }
+  }
+
+  routeGroup
+    .append("path")
+    .attr("d", d)
+    .attr("fill", "none")
+    .attr("stroke", clr)
+    .attr("stroke-width", 2)
+    .attr("stroke-dasharray", "4,4")
+    .attr("opacity", 0.8)
+    .style("animation", "dash 1s linear infinite");
 }
 
 function drawRotationControl(): void {
   const reg = getRegiment()!;
-  const bbox = getRegEl().getBBox();
+  const bbox = getRegimentBounds(reg);
 
   view.debug
     .append("circle")
@@ -118,11 +138,32 @@ function drawRotationControl(): void {
     .call(drag<SVGCircleElement, unknown>().on("drag", rotateRegimentDrag));
 }
 
+function getRegimentBounds(regiment: MilitaryRegiment): RegimentBounds {
+  try {
+    const bbox = getOptionalRegEl()?.getBBox();
+    if (bbox && Number.isFinite(bbox.width) && Number.isFinite(bbox.height) && (bbox.width > 0 || bbox.height > 0)) {
+      return bbox;
+    }
+  } catch {
+    // WebGL hybrid hides the SVG armies layer; hidden SVG nodes may not expose a useful bbox.
+  }
+
+  const size = Math.max(+view.armies.attr("box-size") || 6, 1);
+  const width = regiment.n ? size * 4 : size * 6;
+  const height = size * 2;
+  return {
+    x: regiment.x - width / 2,
+    y: regiment.y - size,
+    width,
+    height
+  };
+}
+
 function rotateRegimentDrag(this: SVGCircleElement, event: d3.D3DragEvent<SVGCircleElement, unknown, unknown>): void {
   const reg = getRegiment()!;
   const { x, y } = event;
   const angle = rn(Math.atan2(y - reg.y, x - reg.x) * (180 / Math.PI), 2);
-  getRegEl().setAttribute("transform", `rotate(${angle})`);
+  getOptionalRegEl()?.setAttribute("transform", `rotate(${angle})`);
   this.setAttribute("transform", `rotate(${angle})`);
   reg.angle = rn(angle, 2);
 }
@@ -181,26 +222,9 @@ function dragRegimentDrag(this: SVGGElement, event: d3.D3DragEvent<SVGGElement, 
   }
 }
 
-function dragBaseStart(): void {
-  _baseDragReg = getRegiment() ?? null;
-}
-
-function dragBaseDrag(this: SVGCircleElement, event: d3.D3DragEvent<SVGCircleElement, unknown, unknown>): void {
-  this.setAttribute("cx", String(event.x));
-  this.setAttribute("cy", String(event.y));
-  view.viewbox.select("g#regimentBase > line").attr("x1", event.x).attr("y1", event.y);
-}
-
-function dragBaseEnd(this: SVGCircleElement, event: d3.D3DragEvent<SVGCircleElement, unknown, unknown>): void {
-  if (_baseDragReg) {
-    _baseDragReg.bx = event.x;
-    _baseDragReg.by = event.y;
-  }
-}
-
 function closeEditor(): void {
   view.debug.selectAll("*").remove();
-  view.viewbox.selectAll("g#regimentBase").remove();
+  view.viewbox.selectAll("g#regimentMarchRoute").remove();
   view.armies.selectAll(":scope > g").classed("draggable", false);
   view.armies.selectAll<SVGGElement, unknown>("g>g").call(drag<SVGGElement, unknown>().on("drag", null));
   setRegimentEditorState({ isOpen: false, mode: "normal" });
@@ -210,6 +234,18 @@ function closeEditor(): void {
 }
 
 export function editRegiment(selectorOrEl?: string | Element): void {
+  const rawEl =
+    typeof selectorOrEl === "string" ? getElementBySelector<SVGGElement>(selectorOrEl) : (selectorOrEl ?? null);
+  if (!(rawEl instanceof SVGGElement)) return;
+  openRegimentEditor(+rawEl.dataset.state!, +rawEl.dataset.id!, rawEl);
+}
+
+export function editRegimentById(stateId: number, regimentId: number): void {
+  const rawEl = getElementBySelector<SVGGElement>(`#regiment${stateId}-${regimentId}`);
+  openRegimentEditor(stateId, regimentId, rawEl);
+}
+
+function openRegimentEditor(stateId: number, regimentId: number, rawEl: SVGGElement | null): void {
   if (view.customization) return;
   closeDialogs(".stable");
   if (!layerIsOn("toggleMilitary")) toggleMilitary();
@@ -219,15 +255,13 @@ export function editRegiment(selectorOrEl?: string | Element): void {
     .selectAll<SVGGElement, unknown>(":scope > g > g")
     .call(drag<SVGGElement, unknown>().on("start", dragRegimentStart).on("drag", dragRegimentDrag));
 
-  const rawEl = typeof selectorOrEl === "string" ? getElementBySelector(selectorOrEl) : (selectorOrEl ?? null);
-  setElSelected(select(rawEl as Element));
-
-  if (!worldContext.pack.states[+getRegEl().dataset.state!]) return;
-  const reg = getRegiment();
+  setElSelected(rawEl ? select(rawEl) : null);
+  if (!worldContext.pack.states[stateId]) return;
+  const reg = findRegiment(stateId, regimentId);
   if (!reg) return;
 
-  syncRegimentState(reg);
-  drawBase();
+  syncRegimentState(reg, stateId);
+  drawMarchRoute();
   drawRotationControl();
 
   setRegimentEditorState({ isOpen: true, mode: "normal" });
@@ -246,16 +280,16 @@ export const regimentEditorActions = {
   changeName(name: string): void {
     const reg = getRegiment();
     if (!reg) return;
-    getRegEl().dataset.name = reg.name = name;
+    reg.name = name;
     setRegimentEditorState({ name });
   },
 
   restoreName(): void {
     const reg = getRegiment();
     if (!reg) return;
-    const regs = worldContext.pack.states[+getRegEl().dataset.state!].military ?? [];
+    const regs = worldContext.pack.states[getRegimentEditorState().stateId!].military ?? [];
     const name = GenerationPipeline.Military.getName(reg, regs);
-    getRegEl().dataset.name = reg.name = name;
+    reg.name = name;
     setRegimentEditorState({ name });
   },
 
@@ -314,7 +348,7 @@ export const regimentEditorActions = {
     const reg = getRegiment();
     if (!reg) return;
     const u1 = reg.u;
-    const state = +getRegEl().dataset.state!;
+    const state = getRegimentEditorState().stateId!;
     const military = worldContext.pack.states[state].military ?? [];
     const i = last(military).i + 1;
     const u2 = Object.assign({}, u1);
@@ -427,7 +461,7 @@ export const regimentEditorActions = {
   regenerateLegend(): void {
     const index = worldContext.notes.findIndex((n: WorldNote) => n.id === getRegEl().id);
     if (index !== -1) worldContext.notes.splice(index, 1);
-    const s = worldContext.pack.states[+getRegEl().dataset.state!];
+    const s = worldContext.pack.states[getRegimentEditorState().stateId!];
     GenerationPipeline.Military.generateNote(getRegiment()!, s);
   },
 
@@ -442,7 +476,7 @@ export const regimentEditorActions = {
       title: "Remove regiment",
       confirm: "Remove",
       onConfirm: () => {
-        const military = worldContext.pack.states[+getRegEl().dataset.state!].military ?? [];
+        const military = worldContext.pack.states[getRegimentEditorState().stateId!].military ?? [];
         const reg = getRegiment();
         if (!reg) return;
         const regIndex = military.indexOf(reg);
@@ -464,7 +498,7 @@ function addRegimentOnClick(this: SVGElement, event: MouseEvent): void {
   const pt = pointer(event, this) as [number, number];
   const cell = findCell(pt[0], pt[1]);
   const [x, y] = worldContext.pack.cells.p[cell];
-  const state = +getRegEl().dataset.state!;
+  const state = getRegimentEditorState().stateId!;
   const military = worldContext.pack.states[state].military ?? [];
   const i = military.length ? last(military).i + 1 : 0;
   const n = +(worldContext.pack.cells.h[cell] < 20);
@@ -481,7 +515,7 @@ function attackRegimentOnClick(this: SVGElement, event: MouseEvent): void {
   const target = event.target as SVGElement;
   const regSelected = target.parentElement!;
   const army = regSelected.parentElement!;
-  const oldState = +getRegEl().dataset.state!;
+  const oldState = getRegimentEditorState().stateId!;
   const newState = +regSelected.dataset.state!;
 
   if (army.parentElement!.id !== "armies") {
@@ -513,11 +547,19 @@ function attackRegimentOnClick(this: SVGElement, event: MouseEvent): void {
 
   moveRegiment(worldContext, viewContext, appServices, attacker, defender.x, defender.y - 8);
 
-  const attack = transition()
-    .delay(300)
-    .duration(700)
-    .ease(easeSinInOut)
-    .on("end", () => new Battle(attacker, defender));
+  // Advance Time is async (requestAnimationFrame-driven) and can run during this ~1s charge
+  // animation. Lock both regiments so background simulation (Military.updateDynamic, detachment
+  // merges) doesn't splice either of them out of state.military before Battle is instantiated —
+  // see battleLock.ts.
+  lockRegimentForBattle(attacker);
+  lockRegimentForBattle(defender);
+  const releaseBattleLock = () => {
+    unlockRegimentForBattle(attacker);
+    unlockRegimentForBattle(defender);
+  };
+
+  const attack = transition().delay(300).duration(700).ease(easeSinInOut);
+
   view.svg
     .append("text")
     .attr("text-rendering", "optimizeSpeed")
@@ -531,6 +573,14 @@ function attackRegimentOnClick(this: SVGElement, event: MouseEvent): void {
     .transition(attack)
     .attr("font-size", 1000)
     .attr("opacity", 0.2)
+    .on("interrupt", releaseBattleLock)
+    .on("end", () => {
+      try {
+        new Battle(attacker, defender);
+      } finally {
+        releaseBattleLock();
+      }
+    })
     .remove();
 
   clearMainTip();
@@ -541,7 +591,7 @@ function attachRegimentOnClick(this: SVGElement, event: MouseEvent): void {
   const target = event.target as SVGElement;
   const regSelected = target.parentElement!;
   const army = regSelected.parentElement!;
-  const oldState = +getRegEl().dataset.state!;
+  const oldState = getRegimentEditorState().stateId!;
   const newState = +regSelected.dataset.state!;
 
   if (army.parentElement!.id !== "armies") {

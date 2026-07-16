@@ -3,6 +3,7 @@ import { useRef } from "react";
 import { HeightmapEditorActions } from "../../controllers/heightmapEditor";
 import { useDialogState } from "../../store/dialogState";
 import { setHeightmapEditorState, useHeightmapEditorState } from "../../store/heightmapEditorState";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -48,7 +49,7 @@ export const ImageConverterDialog: React.FC = () => {
               ref={imageInputRef}
               type="file"
               id="imageConverterFileInput"
-              style={{ display: "none" }}
+              className="d-none"
               accept="image/*"
               onChange={e => HeightmapEditorActions.imageConverterUploadImage?.(e.target as HTMLInputElement)}
             />
@@ -95,7 +96,7 @@ export const ImageConverterDialog: React.FC = () => {
               onClick={HeightmapEditorActions.imageConverterCancel}
             />
           </div>
-          <div data-tip="Set opacity of the loaded image" style={{ paddingTop: "0.4em" }}>
+          <div data-tip="Set opacity of the loaded image">
             <i>Overlay opacity:</i>
             <br />
             <input
@@ -106,7 +107,6 @@ export const ImageConverterDialog: React.FC = () => {
               step=".01"
               value={imageConverterOverlay}
               onChange={e => HeightmapEditorActions.imageConverterSetOverlayOpacity?.(+e.target.value)}
-              style={{ width: "12.6em" }}
             />
             <input
               id="convertOverlayNumber"
@@ -116,7 +116,6 @@ export const ImageConverterDialog: React.FC = () => {
               step=".01"
               value={imageConverterOverlay}
               onChange={e => HeightmapEditorActions.imageConverterSetOverlayOpacity?.(+e.target.value)}
-              style={{ width: "4.2em" }}
             />
           </div>
 
@@ -139,7 +138,7 @@ export const ImageConverterDialog: React.FC = () => {
             <br />
             <div id="imageConverterPalette">
               {palette.map(h => (
-                <div
+                <IconButton
                   key={h}
                   data-color={h}
                   className={`color-div ${imageConverterHoveredHeight === h ? "hoveredColor" : ""}`}
@@ -162,7 +161,7 @@ export const ImageConverterDialog: React.FC = () => {
               {Object.entries(imageConverterAssigned)
                 .sort(([, hA], [, hB]) => hA - hB)
                 .map(([color, height]) => (
-                  <div
+                  <IconButton
                     key={color}
                     data-color={color}
                     data-height={height}
@@ -182,7 +181,7 @@ export const ImageConverterDialog: React.FC = () => {
             <i>Unassigned colors ({imageConverterUnassigned.length}):</i>
             <div id="colorsUnassignedContainer" className="colorsContainer">
               {imageConverterUnassigned.map(color => (
-                <div
+                <IconButton
                   key={color}
                   data-color={color}
                   className={`color-div ${imageConverterSelectedColor === color ? "selectedColor" : ""}`}
@@ -196,7 +195,6 @@ export const ImageConverterDialog: React.FC = () => {
             type="button"
             id="convertComplete"
             data-tip="Complete the conversion. All unassigned colors will be considered as ocean"
-            style={{ margin: "0.4em 0" }}
             className="glow"
             onClick={HeightmapEditorActions.imageConverterApply}
           >

@@ -54,48 +54,53 @@
 
 ## 1. Layers Tab（`src/ui/components/tabs/LayersTab.tsx`）
 
+> **注意（旧版からの訂正）**: `LayersTab.tsx`/`StyleTab.tsx`のハンドラは`window.*`グローバルを一切呼んでいない
+> （プロジェクト全体でこの種の`window.*`個別登録は`AGENTS.md`が禁止しているレガシーパターンで、実際に検索しても
+> 0件）。すべて`src/controllers/layers.ts`等から直接importしたES関数を呼ぶ。
+
 ### レイヤープリセット管理
 
 | UI要素 | 種類 | イベント | 呼ばれる関数 | 結果 |
 |--------|------|---------|------------|------|
-| `id="layersPreset"` | `<select>` | onChange | `window.handleLayersPresetChange(value)` | レイヤープリセット変更 |
-| `id="savePresetButton"` | button | click | `window.savePreset()` | 現在のレイヤー設定をプリセットとして保存 |
-| `id="removePresetButton"` | button | click | `window.removePreset()` | 現在のプリセットを削除 |
+| `id="layersPreset"` | `<select>` | onChange | `handleLayersPresetChange(value)`（`controllers/layers.ts`からimport） | レイヤープリセット変更 |
+| `id="savePresetButton"` | button | click | `savePreset()`（同上） | 現在のレイヤー設定をプリセットとして保存 |
+| `id="removePresetButton"` | button | click | `removePreset()`（同上） | 現在のプリセットを削除 |
 
 ### レイヤートグル・並び替え
 
 | UI要素 | 種類 | イベント | 呼ばれる関数 | 結果 |
 |--------|------|---------|------------|------|
-| `#mapLayers` li要素 | list item | click | `window.<layerId>()` | 該当レイヤーの ON/OFF |
-| 各 li 要素 | list item | drag/drop | `useLayerState.reorderLayers(from, to)` | レイヤーの上下順序変更 |
-| 各 li 要素 | list item | Ctrl+click | `window.<layerId>(event)` | 該当レイヤーのスタイル編集 |
+| `#mapLayers` li要素 | list item | click | `toggleLayerById(layer.id, event)`（`controllers/layers.ts`。内部で`TOGGLE_REGISTRY[id]`にディスパッチ） | 該当レイヤーの ON/OFF（イベントのctrlKey等は個々のトグル関数側で判定） |
+| 各 li 要素 | list item | drag/drop | `useLayerState().reorderLayers(from, to)` | レイヤーの上下順序変更 |
 
 ### ビューモード切り替え
 
 | UI要素 | 種類 | イベント | 呼ばれる関数 | 結果 |
 |--------|------|---------|------------|------|
-| `id="viewStandard"` | button | click | `window.changeViewMode(event)` | 通常ビューに変更 |
-| `id="viewMesh"` | button | click | `window.changeViewMode(event)` | 3D Mesh ビューに変更 |
-| `id="viewGlobe"` | button | click | `window.changeViewMode(event)` | グローブビューに変更 |
+| `id="viewStandard"` | button | click | `changeViewMode(event)`（`controllers/viewMode.ts`からimport） | 通常ビューに変更 |
+| `id="viewMesh"` | button | click | `changeViewMode(event)` | 3D Mesh ビューに変更 |
+| `id="viewGlobe"` | button | click | `changeViewMode(event)` | グローブビューに変更 |
 
 ---
 
 ## 2. Style Tab（`src/ui/components/tabs/StyleTab.tsx`）
 
+すべて `src/controllers/style.ts` から直接importするES関数（`window.*`ではない）。
+
 ### スタイルプリセット
 
 | UI要素 | 種類 | イベント | 呼ばれる関数 | 結果 |
 |--------|------|---------|------------|------|
-| `id="stylePreset"` | `<select>` | onChange | `window.requestStylePresetChange(value)` | スタイルプリセット変更 |
-| `id="addStyleButton"` | button | click | `window.addStylePreset()` | 新規スタイルプリセット保存 |
-| `id="removeStyleButton"` | button | click | `window.requestRemoveStylePreset()` | スタイルプリセット削除 |
+| `id="stylePreset"` | `<select>` | onChange | `requestStylePresetChange(value)` | スタイルプリセット変更 |
+| `id="addStyleButton"` | button | click | `addStylePreset()` | 新規スタイルプリセット保存 |
+| `id="removeStyleButton"` | button | click | `requestRemoveStylePreset()` | スタイルプリセット削除 |
 
 ### 要素別スタイル編集
 
 | UI要素 | 種類 | イベント | 呼ばれる関数 | 結果 |
 |--------|------|---------|------------|------|
-| `id="styleElementSelect"` | `<select>` | onChange | `window.applySliderChange(id, value)` | 編集対象要素変更・対応スライダー表示 |
-| スタイルスライダー群 | input range | onChange | `window.applySliderChange(id, v)` | 該当要素のスタイル値を即座に変更 |
+| `id="styleElementSelect"`（各スタイルサブタブパネル: `PoliticalStylePanel.tsx`等に個別実装） | `<select>` | onChange | `useStyleState.getState().setActiveElement(value)` → `selectStyleElement()`（引数なし、Zustandの`activeElement`を読む） | 編集対象要素変更・対応スライダー表示 |
+| スタイルスライダー群（`StyleElementControls.tsx`） | input range | onChange | `applySliderChange(id, v)` | 該当要素のスタイル値を即座に変更 |
 
 ---
 
@@ -229,7 +234,7 @@
 | Cells | `overviewCellsButton` | `viewCellDetails()` | Cell Info |
 | Charts | `overviewChartsButton` | `overviewCharts()` | Charts Overview |
 | Minimap | `openMinimapButton` | `openMinimap()` | Minimap |
-| World | `openWorldConfigurator` | `window.editWorld()` | World Configurator |
+| World | `openWorldConfigurator` | `editWorld()`（`controllers/world-configurator.ts`からimport） | World Configurator |
 
 ### Create セクション
 
@@ -325,7 +330,7 @@ openPrompt(config);
 |-------------|--------------|---------|
 | `minimap` | MinimapDialog | Tools: "Minimap" → `openMinimap()` |
 | `cellInfo` | CellInfoDialog | Map 上セル hover/click |
-| `worldConfigurator` | WorldConfiguratorDialog | Tools: "World" → `window.editWorld()` |
+| `worldConfigurator` | WorldConfiguratorDialog | Tools: "World" → `editWorld()`（`controllers/world-configurator.ts`からimport） |
 | `submapTool` | SubmapToolDialog | Tools: "Submap" → `openSubmapTool()` |
 | `transformTool` | TransformToolDialog | Tools: "Transform" → `openTransformTool()` |
 | `elevationProfile` | ElevationProfileDialog | Map 上 Elevation profile 表示 |

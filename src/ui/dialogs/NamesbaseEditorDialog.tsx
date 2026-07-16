@@ -13,33 +13,13 @@ const NamesbaseAnalysisDialog: React.FC<{ data: NamesbaseAnalysisData; onClose: 
   const getLengthQuality = () => {
     if (data.length < 30)
       return (
-        <span
-          style={{ color: "red" }}
-          data-tip="Namesbase contains < 30 names - not enough to generate reasonable data"
-        >
-          [not enough]
-        </span>
+        <span data-tip="Namesbase contains < 30 names - not enough to generate reasonable data">[not enough]</span>
       );
     if (data.length < 100)
-      return (
-        <span
-          style={{ color: "darkred" }}
-          data-tip="Namesbase contains < 100 names - not enough to generate good names"
-        >
-          [low]
-        </span>
-      );
-    if (data.length <= 400)
-      return (
-        <span style={{ color: "green" }} data-tip="Namesbase contains a reasonable number of samples">
-          [good]
-        </span>
-      );
+      return <span data-tip="Namesbase contains < 100 names - not enough to generate good names">[low]</span>;
+    if (data.length <= 400) return <span data-tip="Namesbase contains a reasonable number of samples">[good]</span>;
     return (
-      <span
-        style={{ color: "darkred" }}
-        data-tip="Namesbase contains > 400 names. That is too much, try to reduce it to ~300 names"
-      >
+      <span data-tip="Namesbase contains > 400 names. That is too much, try to reduce it to ~300 names">
         [overmuch]
       </span>
     );
@@ -47,30 +27,15 @@ const NamesbaseAnalysisDialog: React.FC<{ data: NamesbaseAnalysisData; onClose: 
 
   const getVarietyLevel = () => {
     if (data.variety < 15)
-      return (
-        <span
-          style={{ color: "red" }}
-          data-tip="Namesbase average variety < 15 - generated names will be too repetitive"
-        >
-          [low]
-        </span>
-      );
+      return <span data-tip="Namesbase average variety < 15 - generated names will be too repetitive">[low]</span>;
     if (data.variety < 30)
-      return (
-        <span style={{ color: "orange" }} data-tip="Namesbase average variety < 30 - names can be too repetitive">
-          [mean]
-        </span>
-      );
-    return (
-      <span style={{ color: "green" }} data-tip="Namesbase variety is good">
-        [good]
-      </span>
-    );
+      return <span data-tip="Namesbase average variety < 30 - names can be too repetitive">[mean]</span>;
+    return <span data-tip="Namesbase variety is good">[good]</span>;
   };
 
   return (
     <Dialog isOpen={true} onClose={onClose} title="Data Analysis">
-      <div style={{ lineHeight: "1.6em", maxWidth: "20em" }}>
+      <div>
         <div data-tip="Number of names provided">
           Namesbase length: {data.length} {getLengthQuality()}
         </div>
@@ -104,7 +69,7 @@ const NamesbaseUploadErrorDialog: React.FC<{ errors: ParseError[]; totalCount: n
   return (
     <Dialog isOpen={true} onClose={onClose} title="Parsing error">
       <div>
-        <p style={{ margin: "0.75em" }}>
+        <p>
           <strong>
             File parsing error. Only {totalCount - errors.length} out of {totalCount} namebases added.
           </strong>
@@ -114,7 +79,7 @@ const NamesbaseUploadErrorDialog: React.FC<{ errors: ParseError[]; totalCount: n
           the parameters. Another prohibited character is <code>/</code>. The most common issue is names and other
           parameters being on two separate lines.
         </p>
-        <ul style={{ margin: "0.5em" }}>
+        <ul>
           <li>
             <code>name</code>: name of the base.
           </li>
@@ -137,24 +102,13 @@ const NamesbaseUploadErrorDialog: React.FC<{ errors: ParseError[]; totalCount: n
           </li>
         </ul>
         <div>
-          <ul style={{ margin: 0, paddingLeft: "1.5em" }}>
+          <ul>
             {errors.map(err => (
-              <li key={err.id} style={{ padding: "0.6em 0", borderTop: "1px solid #ddd" }}>
+              <li key={err.id}>
                 <div>
-                  Line {err.id}: <span style={{ color: "#8b0000" }}>{err.error}.</span> Data:
+                  Line {err.id}: <span>{err.error}.</span> Data:
                 </div>
-                <div
-                  style={{
-                    marginTop: "0.35em",
-                    fontFamily: "var(--font-monospace,monospace)",
-                    fontSize: "0.95em",
-                    lineHeight: 1.4,
-                    wordBreak: "break-word",
-                    color: "#333"
-                  }}
-                >
-                  {err.line || "<empty line>"}
-                </div>
+                <div>{err.line || "<empty line>"}</div>
               </li>
             ))}
           </ul>
@@ -314,7 +268,6 @@ export const NamesbaseEditorContent: React.FC = () => {
         <select
           id="namesbaseSelect"
           data-tip="Select base to edit"
-          style={{ width: "12em" }}
           value={activeBaseIndex}
           onChange={e => setActiveBaseIndex(+e.target.value)}
         >
@@ -324,9 +277,9 @@ export const NamesbaseEditorContent: React.FC = () => {
             </option>
           ))}
         </select>
-        <span style={{ marginLeft: 2 }}>Names data: </span>
+        <span>Names data: </span>
       </div>
-      <div id="namesbaseBody" style={{ marginBlock: 2, width: "auto" }}>
+      <div id="namesbaseBody">
         <textarea
           id="namesbaseTextarea"
           rows={13}
@@ -334,7 +287,6 @@ export const NamesbaseEditorContent: React.FC = () => {
           placeholder="Provide a names data: a comma separated list of source names"
           autoCorrect="off"
           spellCheck="false"
-          style={{ resize: "none" }}
           value={namesData}
           onChange={e => handleNamesDataChange(e.target.value)}
         />
@@ -346,7 +298,6 @@ export const NamesbaseEditorContent: React.FC = () => {
             placeholder="Base name"
             autoCorrect="off"
             spellCheck="false"
-            style={{ width: "12em" }}
             value={baseName}
             onChange={e => handleBaseNameChange(e.target.value)}
           />
@@ -374,7 +325,6 @@ export const NamesbaseEditorContent: React.FC = () => {
             data-tip="Populate with letters that can be used twice in a row (geminates)"
             autoCorrect="off"
             spellCheck="false"
-            style={{ width: "10em" }}
             value={doubleStr}
             onChange={e => handleDoubleChange(e.target.value)}
           />
@@ -386,13 +336,13 @@ export const NamesbaseEditorContent: React.FC = () => {
             id="namesbaseExamples"
             data-tip="Examples. Click to re-generate"
             onClick={generateExamples}
-            style={{ all: "unset", width: "100%", display: "block", textAlign: "left", cursor: "pointer" }}
+            className="d-block"
           >
             {examples}
           </button>
         </fieldset>
       </div>
-      <div id="namesbaseFooter" className="fmg-dialog-footer">
+      <div id="namesbaseFooter" className="footer">
         <button
           type="button"
           id="namesbaseUpdateExamples"
@@ -459,7 +409,7 @@ export const NamesbaseEditorContent: React.FC = () => {
           onClick={() => speak(examples)}
         />
       </div>
-      <input type="file" style={{ display: "none" }} ref={uploaderRef} onChange={handleUpload} accept=".txt" />
+      <input type="file" className="d-none" ref={uploaderRef} onChange={handleUpload} accept=".txt" />
 
       {analysisData && <NamesbaseAnalysisDialog data={analysisData} onClose={() => setAnalysisData(null)} />}
       {uploadErrors && (

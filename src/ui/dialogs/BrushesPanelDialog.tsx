@@ -33,7 +33,7 @@ export const BrushesPanelDialog: React.FC = () => {
     <Dialog isOpen={isOpen} title="Brushes Panel" onClose={() => closeDialog("brushesPanel")}>
       <div id="brushesPanelContainer">
         <div>
-          <div id="brushesButtons" style={{ display: "inline-block" }}>
+          <div id="brushesButtons" className="d-inline-block">
             <button
               type="button"
               className={brushMode === "brushRaise" ? "pressed" : ""}
@@ -144,7 +144,7 @@ export const BrushesPanelDialog: React.FC = () => {
                 value={brushRadius}
                 onChange={v => setHeightmapEditorState({ brushRadius: Number(v) })}
               >
-                <div style={{ width: "3.5em" }}>Radius:</div>
+                <div>Radius:</div>
               </SliderInput>
             </div>
             <div data-tip="Change brush power">
@@ -154,7 +154,7 @@ export const BrushesPanelDialog: React.FC = () => {
                 value={brushPower}
                 onChange={v => setHeightmapEditorState({ brushPower: Number(v) })}
               >
-                <div style={{ width: "3.5em" }}>Power:</div>
+                <div>Power:</div>
               </SliderInput>
             </div>
           </div>
@@ -166,11 +166,11 @@ export const BrushesPanelDialog: React.FC = () => {
                 value={linePower}
                 onChange={v => setHeightmapEditorState({ linePower: Number(v) })}
               >
-                <div style={{ width: "3.5em" }}>Power:</div>
+                <div>Power:</div>
               </SliderInput>
             </div>
           </div>
-          <div data-tip="Restrict brush to specific cell types" style={{ marginBottom: "0.6em" }}>
+          <div data-tip="Restrict brush to specific cell types">
             <label htmlFor="cellTypeFilter">
               <i>Cells to change:</i>
             </label>

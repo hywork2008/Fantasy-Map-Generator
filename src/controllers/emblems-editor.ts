@@ -14,6 +14,7 @@ import {
 } from "../store/emblemEditorState";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, EmblemEl, Province, State } from "../types/models";
+import { openDialog } from "../ui/dialogs/dialogService";
 import { createObjectURL, openURL, revokeObjectURL, rn } from "../utils";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 
@@ -63,6 +64,7 @@ export function editEmblem(type?: string, id?: string, elInput?: Element | Burg 
   updateElementSelectors(type!, id!, el);
 
   setEmblemEditorState({ isOpen: true, uploadMode: false, downloadMode: false });
+  openDialog("emblemEditor");
 }
 
 export function closeEmblemEditor(): void {

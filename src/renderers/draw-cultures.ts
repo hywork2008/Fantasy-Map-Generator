@@ -3,6 +3,7 @@ import type { ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { getGappedFillPaths, getIsolines } from "../utils";
 import { TIME } from "../utils/debug";
+import { getScopedGraph, scopedGetType } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
 
 export const CulturesRenderer: IRenderer = {
@@ -12,11 +13,12 @@ export const CulturesRenderer: IRenderer = {
     TIME && console.time("CulturesRenderer");
     const { pack } = worldContext;
     const { cells, cultures } = pack;
+    const { focusScope } = viewContext;
 
     const bodyPaths = new Array(cultures.length - 1);
     const isolines: Record<string, { fill?: string; waterGap?: string }> = getIsolines(
-      pack,
-      cellId => cells.culture[cellId],
+      getScopedGraph(pack, focusScope),
+      scopedGetType(focusScope, cellId => cells.culture[cellId]),
       { fill: true, waterGap: true }
     );
     Object.entries(isolines).forEach(([index, { fill, waterGap }]) => {

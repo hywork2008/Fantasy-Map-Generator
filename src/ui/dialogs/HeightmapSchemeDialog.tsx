@@ -85,8 +85,8 @@ export const HeightmapSchemeDialog: React.FC = () => {
     >
       <div>
         <i>Define heightmap gradient colors from high to low altitude</i>
-        <img ref={previewRef} alt="heightmap preview" style={{ marginTop: "0.5em", width: "100%", display: "block" }} />
-        <div style={{ marginBlock: "0.5em", display: "flex", flexWrap: "wrap", alignItems: "center", gap: "2px" }}>
+        <img ref={previewRef} alt="heightmap preview" className="d-block" />
+        <div className="d-flex">
           {stops.map((stop, idx) => (
             <React.Fragment key={stop}>
               <input
@@ -94,7 +94,6 @@ export const HeightmapSchemeDialog: React.FC = () => {
                 className="stop"
                 value={stop}
                 data-tip="Click to set the color"
-                style={{ width: "2.5em", border: "none" }}
                 onChange={e => handleColorChange(idx, e.target.value)}
               />
               {idx > 0 && idx < stops.length - 1 && (
@@ -102,7 +101,6 @@ export const HeightmapSchemeDialog: React.FC = () => {
                   type="button"
                   className="remove"
                   data-tip="Remove color stop"
-                  style={{ marginTop: "0.3em", height: "max-content" }}
                   onClick={() => handleRemoveStop(idx)}
                 >
                   x
@@ -113,7 +111,6 @@ export const HeightmapSchemeDialog: React.FC = () => {
                   type="button"
                   className="add"
                   data-tip="Add color stop in between"
-                  style={{ marginTop: "0.3em", height: "max-content" }}
                   onClick={() => handleAddStop(idx)}
                 >
                   +
@@ -122,7 +119,7 @@ export const HeightmapSchemeDialog: React.FC = () => {
             </React.Fragment>
           ))}
         </div>
-        <div style={{ height: "1.9em", border: "1px solid #767676", background: gradient }} />
+        <div style={{ background: gradient }} />
       </div>
     </Dialog>
   );

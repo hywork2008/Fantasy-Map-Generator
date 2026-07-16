@@ -2,6 +2,7 @@ import type React from "react";
 import { riverEditorActions } from "../../controllers/rivers-editor";
 import { useDialogState } from "../../store/dialogState";
 import { useRiverEditorState } from "../../store/riverEditorState";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -12,23 +13,21 @@ export const RiverEditorDialog: React.FC = () => {
 
   return (
     <Dialog isOpen={isOpen} title="River Editor" onClose={() => closeDialog("riverEditor")}>
-      <div id="riverBody" style={{ paddingBottom: "0.3em" }}>
+      <div id="riverBody">
         <div>
-          <div className="label" style={{ width: "4.8em" }}>
-            Name:
-          </div>
-          <span
+          <div className="label">Name:</div>
+          <IconButton
             id="riverNameCulture"
             data-tip="Generate culture-specific name for the river"
             className="icon-book pointer"
             onClick={riverEditorActions.generateNameCulture}
-          ></span>
-          <span
+          ></IconButton>
+          <IconButton
             id="riverNameRandom"
             data-tip="Generate random name for the river"
             className="icon-globe pointer"
             onClick={riverEditorActions.generateNameRandom}
-          ></span>
+          ></IconButton>
           <input
             id="riverName"
             data-tip="Type to rename the river"
@@ -110,7 +109,6 @@ export const RiverEditorDialog: React.FC = () => {
           />
         </div>
       </div>
-
       <div id="riverFooter">
         <button
           id="riverCreateSelectingCells"

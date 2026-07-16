@@ -1,3 +1,4 @@
+import * as d3 from "d3";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { initHierarchyTree, updateTree } from "../../controllers/hierarchy-tree";
@@ -43,18 +44,9 @@ const OriginSelector: React.FC<OriginSelectorProps> = ({ selectedNode, elements,
   const selectableElements = elements.filter(el => !el.removed && el.i !== selectedNode.i);
 
   return (
-    <div
-      className="hierarchyTree_originSelector"
-      style={{
-        display: isOpen ? "block" : "none",
-        marginTop: "1em",
-        padding: "1em",
-        border: "1px solid #ccc",
-        background: "#f9f9f9"
-      }}
-    >
+    <div className="hierarchyTree_originSelector" style={{ display: isOpen ? "block" : "none" }}>
       <h4>Select origins</h4>
-      <form style={{ maxHeight: "35vh", overflowY: "auto" }}>
+      <form>
         {selectableElements.map(({ i, name, code, color }) => {
           const isPrimary = primary === i;
           const isChecked = isPrimary || secondary.includes(i);
@@ -88,7 +80,7 @@ const OriginSelector: React.FC<OriginSelectorProps> = ({ selectedNode, elements,
           );
         })}
       </form>
-      <div style={{ marginTop: "1em" }}>
+      <div>
         <button
           type="button"
           onClick={() => {
@@ -97,7 +89,7 @@ const OriginSelector: React.FC<OriginSelectorProps> = ({ selectedNode, elements,
         >
           Select
         </button>
-        <button type="button" onClick={onCancel} style={{ marginLeft: "0.5em" }}>
+        <button type="button" onClick={onCancel}>
           Cancel
         </button>
       </div>
@@ -135,13 +127,12 @@ export const HierarchyTreeDialog: React.FC = () => {
       isOpen={isOpen}
       title={`${props.type.charAt(0).toUpperCase() + props.type.slice(1)} tree`}
       onClose={() => closeDialog("hierarchyTree")}
-      style={{ width: 700 }}
     >
       <style>{localStyle}</style>
-      <div className="hierarchyTree_container" style={{ minHeight: "400px" }}>
+      <div className="hierarchyTree_container">
         <svg ref={svgRef}>
           <title>{props.type} tree</title>
-          <g id="hierarchyTree_viewbox" style={{ textAnchor: "middle", dominantBaseline: "central" }}>
+          <g id="hierarchyTree_viewbox">
             <g transform="translate(10, -45)">
               <g id="hierarchyTree_links" fill="none" stroke="#aaa">
                 <g id="hierarchyTree_linksPrimary"></g>
@@ -155,7 +146,7 @@ export const HierarchyTreeDialog: React.FC = () => {
 
         <div id="hierarchyTree_details" className="chartInfo">
           {!selectedNode ? (
-            <div id="hierarchyTree_infoLine" style={{ display: "block" }}>
+            <div id="hierarchyTree_infoLine" className="d-block">
               {infoLine}
             </div>
           ) : (
@@ -177,7 +168,6 @@ export const HierarchyTreeDialog: React.FC = () => {
                     updateElementCode(selectedNode.i, e.target.value);
                     // Force text update in D3 node immediately
                     if (svgRef.current) {
-                      const d3 = window.d3;
                       d3.select(svgRef.current).select(`g[data-id="${selectedNode.i}"] text`).text(e.target.value);
                     }
                   }}
@@ -225,11 +215,7 @@ export const HierarchyTreeDialog: React.FC = () => {
                 onClick={() => {
                   setSelectedElementId(null);
                   if (svgRef.current) {
-                    window.d3
-                      .select(svgRef.current)
-                      .select("g#hierarchyTree_nodes")
-                      .selectAll("g")
-                      .style("outline", "none");
+                    d3.select(svgRef.current).select("g#hierarchyTree_nodes").selectAll("g").style("outline", "none");
                   }
                 }}
               >

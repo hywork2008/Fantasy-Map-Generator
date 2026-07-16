@@ -40,13 +40,13 @@ export const SubmapToolDialog: React.FC = () => {
         { label: "Cancel", onClick: () => closeDialog("submapTool") }
       ]}
     >
-      <p style={{ fontWeight: "bold" }}>
+      <p>
         This operation is destructive and irreversible. It will create a completely new map based on the current one.
         Don't forget to save the .map file to your machine first!
       </p>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.5em" }}>
-        <div data-tip="Set points (cells) number of the submap" style={{ display: "flex", gap: "1em" }}>
+      <div className="d-flex">
+        <div data-tip="Set points (cells) number of the submap" className="d-flex">
           <div>Points number</div>
           <div>
             <input
@@ -57,7 +57,7 @@ export const SubmapToolDialog: React.FC = () => {
               value={pointsValue}
               onChange={e => setPointsValue(Number(e.target.value))}
             />
-            <output id="submapPointsFormatted" style={{ color: cellsColor, marginLeft: "0.5em" }}>
+            <output id="submapPointsFormatted" style={{ color: cellsColor }}>
               {cells / 1000}K
             </output>
           </div>

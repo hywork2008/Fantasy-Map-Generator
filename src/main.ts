@@ -1,8 +1,7 @@
-import { clearLegend, closeDialogs, unfog } from "./controllers/editors";
 import { heightmapTemplates } from "./data";
 import { createViewLayers, populateSizeRects, reinitializeMapLayers } from "./initViewLayers";
 import { generationErrorDialogStore } from "./store/generationErrorDialogState";
-import { openAlert } from "./ui/dialogs/dialogService";
+import { closeDialogs, openAlert } from "./ui/dialogs/dialogService";
 import { DEBUG, ERROR, INFO, TIME, WARN } from "./utils/debug";
 
 // Azgaar (azgaar.fmg@yandex.com). Minsk, 2017-2023. MIT License
@@ -13,21 +12,20 @@ import { DEBUG, ERROR, INFO, TIME, WARN } from "./utils/debug";
 import Alea from "alea";
 import * as d3 from "d3";
 import { getWorldState, resetZoom, zoomTo } from "./actions";
-import { appServices } from "./context/appServices";
+import { appServices, initRng } from "./context/appServices";
 import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
-import { restoreDefaultEvents } from "./controllers/editors";
-import { applyLayersPreset, drawLayers } from "./controllers/layers";
+import { applyLayersPreset, drawLayers, scheduleWebglUpdate } from "./controllers/layers";
 import { createDefaultRuler } from "./controllers/measurers";
 import { updateMinimap } from "./controllers/minimap";
 import { applyGraphSize, applyStoredOptions, fitMapToScreen, randomizeOptions } from "./controllers/options";
 import { applyStyleOnLoad } from "./controllers/style";
-import { editUnits } from "./controllers/units-editor";
-import { editWorld } from "./controllers/world-configurator";
 import { Biomes } from "./generators/biomes";
 import { Burgs } from "./generators/burgs-generator";
 import { Cultures } from "./generators/cultures-generator";
+import { applyHistoricalWarScars } from "./generators/demography-simulator";
 import { Features } from "./generators/features";
+import { FrontierForts } from "./generators/frontierFortsGenerator";
 import { HeightmapGenerator } from "./generators/heightmap-generator";
 import { Ice } from "./generators/ice";
 import { Lakes } from "./generators/lakes";
@@ -39,16 +37,21 @@ import { Religions } from "./generators/religions-generator";
 import { Rivers } from "./generators/river-generator";
 import { Routes } from "./generators/routes-generator";
 import { States } from "./generators/states-generator";
+import { Threats } from "./generators/threats-generator";
+import { initSimulationClock } from "./generators/timeEngine";
+import { establishVassalage } from "./generators/vassalage";
 import { Zones } from "./generators/zones-generator";
 import { ldb } from "./io/ldb";
 import { loadMapFromURL, showUploadErrorMessage, uploadMap } from "./io/load";
 import { initiateAutosave } from "./io/save";
 import { renderGroupCOAs } from "./renderers/draw-emblems";
-import { CoordinatesRenderer, drawScaleBar, fitScaleBar } from "./renderers/index";
+import { CoordinatesRenderer, drawCalendar, drawScaleBar, fitScaleBar } from "./renderers/index";
 import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
-import { clearMainTip, showDataTip, tip } from "./services/tooltipService";
+import { DeckGlRenderer } from "./renderers/webgl/deckRenderer";
+import { clearMainTip, tip } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
+import { useDebugSnapshotState } from "./store/debugSnapshotState";
 import { dialogStore } from "./store/dialogState";
 import { type OptionsState, useOptionsState } from "./store/optionsState";
 import type { Grid } from "./types/Grid";
@@ -71,7 +74,11 @@ import {
   safeParseJSON,
   shouldRegenerateGrid
 } from "./utils";
+import { captureSnapshotData } from "./utils/aiDebugExporter";
+import { normalizeConflictAutonomy } from "./utils/conflictAutonomy";
 import { locked } from "./utils/domUtils";
+import { EditorBus } from "./utils/editorBus";
+import { dampenBurgLabelSize, dampenStateLabelSize } from "./utils/labelZoomScale";
 import { getElementById, layerIsOn } from "./utils/nodeUtils";
 import { cleanupData } from "./versioning";
 
@@ -103,15 +110,6 @@ if (PRODUCTION && "serviceWorker" in navigator) {
 
 // ─── SVG layers (appended in default render order) ───────────────────────────
 
-createViewLayers();
-
-viewContext.scaleBar.node()?.addEventListener("mousemove", () => tip("Click to open Units Editor"));
-viewContext.scaleBar.node()?.addEventListener("click", () => editUnits());
-viewContext.legend
-  .node()
-  ?.addEventListener("mousemove", () => tip("Drag to change the position. Click to hide the legend"));
-viewContext.legend.node()?.addEventListener("click", () => clearLegend());
-
 // ─── SVG layer reinitialization (called after a new map SVG is loaded) ────────
 
 // ─── Fit loaded map to screen (called after reinitializeMapLayers + fitMapToScreen) ─
@@ -140,6 +138,7 @@ export function fitMapView(): void {
 
   // Sync D3 zoom internal state so subsequent wheel/drag events compute correctly.
   viewContext.svg.call(zoom.transform, transform);
+  DeckGlRenderer.syncViewState(viewContext);
 }
 
 // ─── Main data variables ──────────────────────────────────────────────────────
@@ -219,6 +218,7 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
     pendingPositionChange = false;
 
     viewContext.viewbox.attr("transform", `translate(${viewX} ${viewY}) scale(${scale})`);
+    DeckGlRenderer.syncViewState(viewContext);
 
     if (didPositionChange) {
       if (layerIsOn("toggleCoordinates")) CoordinatesRenderer.render(worldContext, viewContext, appServices);
@@ -292,11 +292,23 @@ Object.assign(viewContext, {
   svgHeight
 });
 
-populateSizeRects();
-
 // ─── App initialization ───────────────────────────────────────────────────────
 
-export async function initMain(): Promise<void> {
+export async function initMain(drawMap: boolean = true): Promise<void> {
+  registerMapFileInput();
+
+  if (drawMap) {
+    createViewLayers();
+    populateSizeRects();
+
+    viewContext.scaleBar.node()?.addEventListener("mousemove", () => tip("Click to open Units Editor"));
+    viewContext.scaleBar.node()?.addEventListener("click", () => EditorBus.editUnits());
+    viewContext.legend
+      .node()
+      ?.addEventListener("mousemove", () => tip("Drag to change the position. Click to hide the legend"));
+    viewContext.legend.node()?.addEventListener("click", () => EditorBus.clearLegend());
+  }
+
   if (!location.hostname) {
     openAlert(
       `Fantasy Map Generator cannot run serverless. Follow the <a href="https://github.com/Azgaar/Fantasy-Map-Generator/wiki/Run-FMG-locally" target="_blank">instructions</a> on how you can easily run a local web-server`,
@@ -304,9 +316,9 @@ export async function initMain(): Promise<void> {
     );
   } else {
     hideLoading();
-    await checkLoadParameters();
+    await checkLoadParameters(drawMap);
   }
-  restoreDefaultEvents?.();
+  EditorBus.restoreDefaultEvents?.();
   initiateAutosave();
   initTourPromptButton();
   document.addEventListener("fmg:regenerate-map", (e: Event) => {
@@ -323,15 +335,42 @@ export async function initMain(): Promise<void> {
   document.addEventListener("fmg:focus-on", focusOn);
   document.addEventListener("fmg:re-graph", () => {
     reGraph();
-    OceanLayers();
+    if (viewContext.renderMap) OceanLayers();
   });
   document.addEventListener("fmg:reinitialize-map-layers", reinitializeMapLayers);
+  document.addEventListener("fmg:simulation-updated", () => drawCalendar(worldContext, viewContext));
+  document.addEventListener("fmg:render-mode-changed", () => {
+    if (viewContext.renderMap) drawLayers();
+  });
   document.addEventListener("fmg:show-statistics", showStatistics);
-  document.addEventListener("fmg:generate-map-on-load", () => generateMapOnLoad());
+  document.addEventListener("fmg:generate-map-on-load", () => generateMapOnLoad(drawMap));
 
   window.addEventListener("resize", () => {
+    if (!viewContext.renderMap) return;
     fitMapToScreen();
     fitMapView();
+  });
+}
+
+function registerMapFileInput(): void {
+  const input = document.querySelector<HTMLInputElement>("#fileInputs #mapToLoad");
+  if (!input) return;
+
+  input.addEventListener("change", event => {
+    const target = event.currentTarget;
+    if (!(target instanceof HTMLInputElement)) return;
+    const file = target.files?.[0];
+    target.value = "";
+    if (!file) return;
+
+    if (!file.name.endsWith(".map") && !file.name.endsWith(".gz")) {
+      openAlert("Please upload a map file (<i>.map</i> or <i>.gz</i> formats) you have previously downloaded", {
+        title: "Invalid file format"
+      });
+      return;
+    }
+
+    uploadMap(file);
   });
 }
 
@@ -354,7 +393,7 @@ export function showLoading() {
   applyTransition("tooltip", 200, 0);
 }
 
-async function checkLoadParameters() {
+async function checkLoadParameters(drawMap: boolean) {
   const url = new URL(window.location.href);
   const params = url.searchParams;
 
@@ -373,7 +412,7 @@ async function checkLoadParameters() {
 
   if (params.get("seed")) {
     WARN && console.warn("Generate map for seed");
-    await generateMapOnLoad();
+    await generateMapOnLoad(drawMap);
     return;
   }
 
@@ -391,17 +430,18 @@ async function checkLoadParameters() {
   }
 
   WARN && console.warn("Generate random map");
-  generateMapOnLoad();
+  generateMapOnLoad(drawMap);
 }
 
-export async function generateMapOnLoad() {
+export async function generateMapOnLoad(drawMap: boolean = true) {
   await applyStyleOnLoad();
   await generate();
-  applyLayersPreset();
-  drawLayers();
-  fitMapToScreen();
-  focusOn();
-  toggleAssistant?.();
+  if (drawMap) {
+    applyLayersPreset();
+    drawLayers();
+    fitMapToScreen();
+    focusOn();
+  }
 }
 
 export function focusOn() {
@@ -450,34 +490,10 @@ export function focusOn() {
   }
 }
 
-let isAssistantLoaded = false;
-
 function setElementDisplayById(id: string, display: string): void {
   const element = getElementById<HTMLElement>(id);
   if (!element) return;
   element.style.display = display;
-}
-
-function toggleAssistant() {
-  const showAssistant = useOptionsState.getState().azgaarAssistant === "show";
-  if (showAssistant) {
-    if (isAssistantLoaded) {
-      setElementDisplayById("chat-widget-container", "block");
-    } else {
-      import(/* @vite-ignore */ `${import.meta.env.BASE_URL}libs/openwidget.min.js`).then(() => {
-        isAssistantLoaded = true;
-        setTimeout(() => {
-          const bubble = getElementById<HTMLElement>("chat-widget-minimized");
-          if (bubble) {
-            bubble.dataset.tip = "Click to open the Assistant";
-            bubble.addEventListener("mouseover", showDataTip as EventListener);
-          }
-        }, 5000);
-      });
-    }
-  } else if (isAssistantLoaded) {
-    setElementDisplayById("chat-widget-container", "none");
-  }
 }
 
 function initTourPromptButton() {
@@ -567,9 +583,6 @@ function findBurgForMFCG(params: URLSearchParams) {
 
 export { zoomTo } from "./actions";
 
-// At max zoom (scale=20), reduce screen size of labels/icons/emblems to 50% of unscaled size.
-// Derived from: (base / scale^e) * scale = base * scale^(1-e), want scale^(1-e)=10 at scale=20 → e=log(2)/log(20)
-const ZOOM_SIZE_EXP = Math.log(2) / Math.log(20);
 // Hide state-level labels and emblems when zoomed in past this scale (city-level view)
 const STATE_HIDE_SCALE = 7;
 
@@ -597,6 +610,35 @@ export function invokeActiveZooming() {
 
   const isBurgGroupHidden = (groupId: string) => scale < getScaleThreshold(groupId);
 
+  const cullViewportElements = <GElement extends d3.BaseType, Datum, PElement extends d3.BaseType, PDatum>(
+    selection: d3.Selection<GElement, Datum, PElement, PDatum>,
+    margin: number,
+    selector: string
+  ) => {
+    if (scale > 3) {
+      const vLeft = -viewX / scale - margin;
+      const vTop = -viewY / scale - margin;
+      const vRight = (viewContext.svgWidth - viewX) / scale + margin;
+      const vBottom = (viewContext.svgHeight - viewY) / scale + margin;
+
+      selection.selectAll<SVGElement, unknown>(selector).each(function () {
+        if (!this.hasAttribute("x") || !this.hasAttribute("y")) return;
+        const x = +this.getAttribute("x")!;
+        const y = +this.getAttribute("y")!;
+        if (x > vLeft && x < vRight && y > vTop && y < vBottom) this.classList.remove("hidden");
+        else this.classList.add("hidden");
+      });
+    } else {
+      const hiddenSelector = selector
+        .split(",")
+        .map(s => `${s.trim()}.hidden`)
+        .join(", ");
+      selection.selectAll<SVGElement, unknown>(hiddenSelector).each(function () {
+        this.classList.remove("hidden");
+      });
+    }
+  };
+
   if (layerIsOn("toggleLabels")) {
     viewContext.labels.selectAll<SVGGElement, unknown>("g").each(function () {
       if (this.id === "burgLabels") return;
@@ -612,7 +654,7 @@ export function invokeActiveZooming() {
           const baseSize = +(this.getAttribute("data-size") || this.getAttribute("font-size") || 0);
           if (baseSize > 0) {
             if (!this.hasAttribute("data-size")) this.setAttribute("data-size", String(baseSize));
-            this.setAttribute("font-size", String(rn(Math.max(baseSize / scale ** ZOOM_SIZE_EXP, 0.1), 2)));
+            this.setAttribute("font-size", String(dampenBurgLabelSize(baseSize, scale)));
           }
         }
         return;
@@ -625,13 +667,15 @@ export function invokeActiveZooming() {
       }
 
       const desired = +(this.getAttribute("data-size") || 0);
-      const relative = Math.max(rn((desired + desired / scale) / 2, 2), 1);
+      const relative = dampenStateLabelSize(desired, scale);
       if (useOptionsState.getState().rescaleLabels) this.setAttribute("font-size", String(relative));
 
       const hidden = useOptionsState.getState().hideLabels && (relative * scale < 6 || relative * scale > 60);
       if (hidden) this.classList.add("hidden");
       else this.classList.remove("hidden");
     });
+
+    cullViewportElements(viewContext.labels, 100, "text");
   }
 
   if (layerIsOn("toggleBurgIcons")) {
@@ -645,10 +689,12 @@ export function invokeActiveZooming() {
         const baseSize = +(this.getAttribute("data-size") || this.getAttribute("font-size") || 0);
         if (baseSize > 0) {
           if (!this.hasAttribute("data-size")) this.setAttribute("data-size", String(baseSize));
-          this.setAttribute("font-size", String(rn(Math.max(baseSize / scale ** ZOOM_SIZE_EXP, 0.1), 2)));
+          this.setAttribute("font-size", String(dampenBurgLabelSize(baseSize, scale)));
         }
       }
     });
+
+    cullViewportElements(viewContext.icons, 20, "use, circle");
   }
 
   if (layerIsOn("toggleEmblems")) {
@@ -657,7 +703,7 @@ export function invokeActiveZooming() {
       if (this.id === "burgEmblems") {
         const baseSize = +(this.getAttribute("data-zoom-size") || this.getAttribute("font-size") || 0);
         if (baseSize > 0) {
-          this.setAttribute("font-size", String(rn(Math.max(baseSize / scale ** ZOOM_SIZE_EXP, 0.1), 2)));
+          this.setAttribute("font-size", String(dampenBurgLabelSize(baseSize, scale)));
         }
         return;
       }
@@ -675,7 +721,7 @@ export function invokeActiveZooming() {
       // Reduce font-size at high zoom so state/province COAs don't grow too large
       const baseSize = +(this.getAttribute("data-zoom-size") || this.getAttribute("font-size") || 0);
       if (baseSize > 0) {
-        this.setAttribute("font-size", String(rn(Math.max(baseSize / scale ** ZOOM_SIZE_EXP, 0.1), 2)));
+        this.setAttribute("font-size", String(dampenBurgLabelSize(baseSize, scale)));
       }
       const scaledSize = +(this.getAttribute("font-size") ?? 0) * scale;
       const isStateEmblem = this.id === "stateEmblems";
@@ -698,18 +744,7 @@ export function invokeActiveZooming() {
 
     // Viewport culling: hide individual <use> elements whose positions fall outside the visible area.
     // x/y attributes are top-left corners in map coordinates; margin accounts for emblem half-size.
-    const EMBLEM_VIEWPORT_MARGIN = 100;
-    const vLeft = -viewX / scale - EMBLEM_VIEWPORT_MARGIN;
-    const vTop = -viewY / scale - EMBLEM_VIEWPORT_MARGIN;
-    const vRight = (viewContext.svgWidth - viewX) / scale + EMBLEM_VIEWPORT_MARGIN;
-    const vBottom = (viewContext.svgHeight - viewY) / scale + EMBLEM_VIEWPORT_MARGIN;
-
-    viewContext.emblems.selectAll<SVGUseElement, unknown>("use").each(function () {
-      const x = +this.getAttribute("x")!;
-      const y = +this.getAttribute("y")!;
-      if (x > vLeft && x < vRight && y > vTop && y < vBottom) this.classList.remove("hidden");
-      else this.classList.add("hidden");
-    });
+    cullViewportElements(viewContext.emblems, 100, "use");
   }
 
   if (layerIsOn("toggleGoods")) {
@@ -760,6 +795,11 @@ export function invokeActiveZooming() {
     const size = rn((10 / scale ** 0.3) * 2, 2);
     viewContext.ruler.selectAll("text").attr("font-size", size);
   }
+
+  // WebGL labels read their base size directly from data-size (not the SVG font-size attribute
+  // updated above) and dampen it themselves using the current scale, so a rebuild here just
+  // reflects the settled zoom level. No-op when the render mode isn't webglHybrid.
+  scheduleWebglUpdate();
 }
 
 // ─── Drag-to-upload ───────────────────────────────────────────────────────────
@@ -821,6 +861,8 @@ void (function addDragToUpload() {
 
 export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
   try {
+    useDebugSnapshotState.getState().clearAll();
+
     const timeStart = performance.now();
     const { seed: precreatedSeed, graph: precreatedGraph } = opts || {};
 
@@ -830,6 +872,8 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
 
     applyGraphSize();
     randomizeOptions();
+    worldContext.options.gunpowderEraEnabled = useOptionsState.getState().gunpowderEraEnabled;
+    worldContext.options.conflictAutonomy = normalizeConflictAutonomy(useOptionsState.getState().conflictAutonomy);
 
     if (
       shouldRegenerateGrid(worldContext.grid, +(precreatedSeed ?? 0), worldContext.graphWidth, worldContext.graphHeight)
@@ -857,7 +901,7 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     addLakesInDeepDepressions();
     openNearSeaLakes();
 
-    OceanLayers();
+    if (viewContext.renderMap) OceanLayers();
     defineMapSize();
     calculateMapCoordinates();
     calculateTemperatures();
@@ -874,6 +918,7 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
 
     Ice.generate(worldContext, viewContext, appServices, state);
 
+    Threats.generate(worldContext, viewContext, appServices, state);
     rankCells();
     Cultures.generate(worldContext, viewContext, appServices, state);
     Cultures.expand(state);
@@ -894,12 +939,32 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     Lakes.defineNames(state);
 
     Military.generate(worldContext, viewContext, appServices, state);
+    establishVassalage(worldContext.pack, worldContext.populationRate);
+    FrontierForts.generate(worldContext, viewContext, appServices, state);
     Markers.generate(worldContext, viewContext, appServices, state);
     Zones.generate(worldContext, viewContext, appServices, state);
 
+    initSimulationClock();
     document.dispatchEvent(new CustomEvent("fmg:generate-post-core"));
 
+    if (import.meta.env.DEV) {
+      useDebugSnapshotState.getState().addSnapshot({
+        tickCount: 0,
+        year: worldContext.options.year ?? 0,
+        label: "Initial Generation",
+        isLocked: true,
+        data: captureSnapshotData()
+      });
+    }
+
+    // Apply demographic scars from past wars generated by states history
+    applyHistoricalWarScars();
+
+    // Calculate and append flavor text for monster casualties in notes
+    Threats.appendCasualtyNotes(worldContext);
+
     drawScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, scale);
+    drawCalendar(worldContext, viewContext);
     Names.getMapName(false);
 
     WARN && console.warn(`TOTAL: ${rn((performance.now() - timeStart) / 1000, 2)}s`);
@@ -937,6 +1002,7 @@ function setSeed(precreatedSeed?: string) {
   const seedInput = getElementById<HTMLInputElement>("optionsSeed");
   if (seedInput) seedInput.value = worldContext.seed;
   Math.random = Alea(worldContext.seed);
+  initRng(worldContext.seed);
 }
 
 // ─── Lake helpers ──────────────────────────────────────────────────────────
@@ -1395,6 +1461,13 @@ export function rankCells() {
   const { cells: packCells, features } = worldContext.pack;
   packCells.s = new Int16Array(packCells.i.length);
   packCells.pop = new Float32Array(packCells.i.length);
+  packCells.capacity = new Float32Array(packCells.i.length);
+  packCells.children = new Float32Array(packCells.i.length);
+  packCells.maleAdults = new Float32Array(packCells.i.length);
+  packCells.femaleAdults = new Float32Array(packCells.i.length);
+  packCells.elders = new Float32Array(packCells.i.length);
+
+  const initialPopulationSaturation = useOptionsState.getState().initialPopulationSaturation / 100;
 
   const meanFlux = d3.median(packCells.fl.filter((f: number) => f)) ?? 0;
   const maxFlux = (d3.max(packCells.fl) ?? 0) + (d3.max(packCells.conf) ?? 0);
@@ -1432,7 +1505,20 @@ export function rankCells() {
     }
 
     packCells.s[i] = score / 5;
-    packCells.pop[i] = packCells.s[i] > 0 ? (packCells.s[i] * packCells.area[i]) / meanArea : 0;
+
+    const danger = packCells.danger ? packCells.danger[i] : 0;
+    if (danger > 0) {
+      const multiplier = Math.max(0, 1 - danger / 200);
+      packCells.s[i] = Math.round(packCells.s[i] * multiplier);
+    }
+
+    packCells.capacity[i] = packCells.s[i] > 0 ? (packCells.s[i] * packCells.area[i]) / meanArea : 0;
+    packCells.pop[i] = packCells.capacity[i] * initialPopulationSaturation;
+
+    packCells.children[i] = packCells.pop[i] * 0.4;
+    packCells.maleAdults[i] = packCells.pop[i] * 0.2205;
+    packCells.femaleAdults[i] = packCells.pop[i] * 0.2295;
+    packCells.elders[i] = packCells.pop[i] * 0.15;
   }
 
   TIME && console.timeEnd("rankCells");
@@ -1489,7 +1575,7 @@ export const regenerateMap = debounce(async (opts?: { seed?: string } | string) 
   await generate(typeof opts === "string" ? { seed: opts } : opts);
   drawLayers();
   if (ThreeDRenderer.options.isOn) ThreeDRenderer.redraw();
-  if (dialogStore.getState().openDialogs.has("worldConfigurator")) editWorld();
+  if (dialogStore.getState().openDialogs.has("worldConfigurator")) EditorBus.editWorld();
 
   fitMapToScreen();
   shouldShowLoading && hideLoading();
@@ -1509,5 +1595,5 @@ export function undraw() {
   const coasEl = getElementById<HTMLElement>("coas");
   if (coasEl) coasEl.innerHTML = "";
   worldContext.notes = [];
-  unfog();
+  EditorBus.unfog();
 }

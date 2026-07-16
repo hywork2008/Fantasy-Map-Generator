@@ -1,11 +1,13 @@
 import { drag, pointer } from "d3";
-import { zoomTo } from "../actions";
+import { zoomIntoBurg as zoomIntoBurgAction } from "../actions";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 
 import { drawBurgIcon, drawBurgLabel, removeBurgCOA } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { burgEconomyExtensions } from "../services/burgEconomyExtensions";
+import { getBurgSiteDescriptor } from "../services/burgSiteDescriptor";
 import { getHeight } from "../services/cellInfoService";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
@@ -13,10 +15,11 @@ import { viewLayerService as view } from "../services/viewLayerService";
 import { getBurgEditorState } from "../store/burgEditorState";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import type { Burg, Culture, CultureType } from "../types/models";
-import { closeDialog, closeDialogs, openAlert, openDialog } from "../ui/dialogs/dialogService";
-import { convertTemperature, findCell, openURL, parseTransform, rand, rn, showPrompt } from "../utils";
+import { closeDialog, closeDialogs, openAlert, openDialog, openPrompt } from "../ui/dialogs/dialogService";
+import { convertTemperature, findCell, openURL, parseTransform, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
+import { generateRandomName } from "../utils/nameGenerator";
 import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
 import { editBurgGroups } from "./burg-group-editor";
 import { editEmblem } from "./emblems-editor";
@@ -103,6 +106,8 @@ const burgEditorInternal = {
     const coaID = `burgCOA${burgId}`;
     COArenderer.trigger(coaID, b.coa!);
 
+    const economySummary = burgEconomyExtensions.getBurgEconomySummary?.(burgId);
+
     getBurgEditorState().setBurgData({
       id: burgId,
       emblemId: coaID,
@@ -112,10 +117,25 @@ const burgEditorInternal = {
       type: b.type || "Generic",
       culture: b.culture ?? 0,
       population: rn((b.population ?? 0) * worldContext.populationRate * worldContext.urbanization),
+      children: b.demographics?.children
+        ? rn(b.demographics.children * worldContext.populationRate * worldContext.urbanization)
+        : 0,
+      maleAdults: b.demographics?.maleAdults
+        ? rn(b.demographics.maleAdults * worldContext.populationRate * worldContext.urbanization)
+        : 0,
+      femaleAdults: b.demographics?.femaleAdults
+        ? rn(b.demographics.femaleAdults * worldContext.populationRate * worldContext.urbanization)
+        : 0,
+      elders: b.demographics?.elders
+        ? rn(b.demographics.elders * worldContext.populationRate * worldContext.urbanization)
+        : 0,
       temperature: tempStr,
       temperatureLikeIn: tempLikeIn,
       elevation: elevationStr,
       previewUrl: null,
+      production: economySummary?.production ?? "—",
+      wealth: economySummary?.wealth ?? "—",
+      treasury: economySummary?.treasury ?? "—",
       capital: !!b.capital,
       port: !!b.port,
       citadel: !!b.citadel,
@@ -208,8 +228,7 @@ export const burgEditorActions = {
   },
 
   generateNameRandom(): void {
-    const base = rand(worldContext.nameBases.length - 1);
-    const newName = GenerationPipeline.Names.getBase(base);
+    const newName = generateRandomName();
     burgEditorActions.changeName(newName);
   },
 
@@ -219,7 +238,8 @@ export const burgEditorActions = {
     GenerationPipeline.Burgs.changeGroup(burg, newGroup);
     drawBurgIcon(worldContext, viewContext, appServices, burg);
     drawBurgLabel(worldContext, viewContext, appServices, burg);
-    getBurgEditorState().updateBurgData({ group: newGroup });
+    // changeGroup reapplies group-based demographics (e.g. fort: no children, 8:2 sex ratio)
+    burgEditorInternal.updateBurgValues();
   },
 
   editBurgGroups(): void {
@@ -250,10 +270,24 @@ export const burgEditorActions = {
     const burg = worldContext.pack.burgs[burgId];
 
     const parsedPop = rn(+newPopulation / worldContext.populationRate / worldContext.urbanization, 4);
-    worldContext.pack.burgs[burgId].population = parsedPop;
+    burg.population = parsedPop;
+    // Rebuild age/sex buckets with the same group profile at the new total.
+    GenerationPipeline.Burgs.applyDemographics(burg);
 
     getBurgEditorState().updateBurgData({
-      population: rn((burg.population ?? 0) * worldContext.populationRate * worldContext.urbanization)
+      population: rn((burg.population ?? 0) * worldContext.populationRate * worldContext.urbanization),
+      children: burg.demographics?.children
+        ? rn(burg.demographics.children * worldContext.populationRate * worldContext.urbanization)
+        : 0,
+      maleAdults: burg.demographics?.maleAdults
+        ? rn(burg.demographics.maleAdults * worldContext.populationRate * worldContext.urbanization)
+        : 0,
+      femaleAdults: burg.demographics?.femaleAdults
+        ? rn(burg.demographics.femaleAdults * worldContext.populationRate * worldContext.urbanization)
+        : 0,
+      elders: burg.demographics?.elders
+        ? rn(burg.demographics.elders * worldContext.populationRate * worldContext.urbanization)
+        : 0
     });
     burgEditorInternal.updateBurgPreview(burg);
   },
@@ -331,20 +365,34 @@ export const burgEditorActions = {
     if (link) openURL(link);
   },
 
+  copyCityGeneratorInput(): void {
+    const burgId = burgEditorInternal.getBurgId();
+    const descriptor = getBurgSiteDescriptor(burgId);
+    if (!descriptor) {
+      tip("Cannot build the site descriptor for this burg", false, "error");
+      return;
+    }
+    navigator.clipboard
+      .writeText(JSON.stringify(descriptor, null, 2))
+      .then(() => tip("City Generator site input is copied to clipboard as JSON", false, "success", 4000))
+      .catch(() => tip("Failed to copy the site input to clipboard", false, "error"));
+  },
+
   setCustomPreview(): void {
     const burgId = burgEditorInternal.getBurgId();
     const burg = worldContext.pack.burgs[burgId];
 
-    showPrompt(
-      "Provide custom URL to the burg map. It can be a link to a generator or just an image. Leave empty to use the default map preview",
-      { default: GenerationPipeline.Burgs.getPreview(burg).link ?? "", required: false },
-      link => {
+    openPrompt({
+      message:
+        "Provide custom URL to the burg map. It can be a link to a generator or just an image. Leave empty to use the default map preview",
+      default: GenerationPipeline.Burgs.getPreview(burg).link ?? "",
+      onConfirm: link => {
         const url = String(link);
         if (url) burg.link = url;
         else delete burg.link;
         burgEditorInternal.updateBurgPreview(burg);
       }
-    );
+    });
   },
 
   openEmblemEdit(): void {
@@ -355,8 +403,7 @@ export const burgEditorActions = {
 
   zoomIntoBurg(): void {
     const burgId = burgEditorInternal.getBurgId();
-    const burg = worldContext.pack.burgs[burgId];
-    zoomTo(burg.x, burg.y, 8, 2000);
+    zoomIntoBurgAction(burgId);
   },
 
   toggleRelocateBurg(): void {

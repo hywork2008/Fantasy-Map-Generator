@@ -5,7 +5,8 @@ import { worldContext } from "../context/worldContext";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { setHeightmapEditorState, useHeightmapEditorState } from "../store/heightmapEditorState";
-import { getGridPolygon, showPrompt } from "../utils";
+import { openPrompt } from "../ui/dialogs/dialogService";
+import { getGridPolygon } from "../utils";
 import { getColorScheme } from "../utils/colorUtils";
 import { getElementById } from "../utils/nodeUtils";
 
@@ -212,15 +213,18 @@ export function autoAssign(type: string): void {
 
 export function setColorsNumber(): void {
   const current = useHeightmapEditorState.getState().imageConverterColorsMax;
-  showPrompt(
-    `Please set maximum number of colors. <br>An actual number is usually lower and depends on color scheme`,
-    { default: current, step: 1, min: 3, max: 255 },
-    value => {
+  openPrompt({
+    message: "Please set maximum number of colors. An actual number is usually lower and depends on color scheme",
+    default: current,
+    step: 1,
+    min: 3,
+    max: 255,
+    onConfirm: value => {
       const number = +value;
       setHeightmapEditorState({ imageConverterColorsMax: number });
       heightsFromImage(number);
     }
-  );
+  });
 }
 
 export function applyConversion(): void {

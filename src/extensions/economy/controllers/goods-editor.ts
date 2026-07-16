@@ -1,21 +1,18 @@
 import { pointer } from "d3";
 import { clearMainTip, tip } from "../../hostServices";
-import {
-  applySorting,
-  confirmationDialog,
-  downloadFile,
-  findCell,
-  getFileName,
-  layerIsOn,
-  rn,
-  unique
-} from "../../hostUtils";
+import { confirmationDialog, downloadFile, findCell, getFileName, layerIsOn, rn, unique } from "../../hostUtils";
 import { getApi, getViewContext, getWorldContext } from "../economyContext";
-import { Goods } from "../generators/goods-generator";
+import { Goods, getDefaultGoodTradeProfile, isGoodEnabled } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
 import { isDealRecord, isMfgRecord, Production } from "../generators/production-generator";
 import { getCellProduction } from "../generators/production-utils";
 import { drawGoods } from "../renderers/draw-goods";
+import {
+  getDisplayedGoodIds,
+  initializeDisplayedGoodIds,
+  setAllGoodsDisplayed,
+  setGoodDisplayed
+} from "../store/goodsDisplaySelection";
 import { getGoodsEditorTableState, setGoodsEditorTableState } from "../store/goodsEditorTableState";
 import { setGoodsProducersDialogState } from "../store/goodsProducersDialogState";
 import { setGoodsStockDialogState } from "../store/goodsStockDialogState";
@@ -26,13 +23,12 @@ const viewbox = () => getViewContext().viewbox;
 const worldContext = () => getWorldContext();
 
 const visibleTags = new Set<string>();
-const displayedGoods = new Set<number>();
-let displayedGoodsInitialized = false;
 let cellsWasForced = false;
 
 function refreshEditor(): void {
   goodsEditorAddLines();
-  drawGoods(displayedGoods);
+  drawGoods(getDisplayedGoodIds());
+  getApi().requestWebglRender();
 }
 
 function regenerateEconomyForGood(goodId: number): void {
@@ -42,21 +38,12 @@ function regenerateEconomyForGood(goodId: number): void {
   refreshEditor();
 }
 
-function ensureDisplayedGoodsInitialized(): void {
-  if (displayedGoodsInitialized) return;
-  displayedGoodsInitialized = true;
-  if (!worldContext().pack.goods?.length) return;
-
-  const wood = worldContext().pack.goods.find(g => g.name === "Wood");
-  displayedGoods.add(wood ? wood.i : worldContext().pack.goods[0].i);
-}
-
 export function open(): void {
   if (getViewContext().customization) return;
 
-  ensureDisplayedGoodsInitialized();
+  initializeDisplayedGoodIds();
   if (!layerIsOn("toggleGoods")) getApi().toggleLayerById("toggleGoods");
-  else drawGoods(displayedGoods);
+  else drawGoods(getDisplayedGoodIds());
 
   goodsEditorAddLines();
 }
@@ -66,7 +53,8 @@ export function goodsEditorAddLines(): void {
   const production = getProduction();
   const stockData = getAllStockData();
 
-  const goods = (worldContext().pack.goods ?? []).map(good => {
+  const enabledGoods = (worldContext().pack.goods ?? []).filter(isGoodEnabled);
+  const goods = enabledGoods.map(good => {
     const types = [good.recipes && "MFG", good.distribution && "RAW"].filter(Boolean) as string[];
     const goodProduction = production[good.i] ?? { burg: 0, cell: 0 };
     const produced = rn(goodProduction.burg + goodProduction.cell);
@@ -90,7 +78,7 @@ export function goodsEditorAddLines(): void {
       stock,
       stockTip,
       basePrice: good.value,
-      isDisplayed: displayedGoods.has(good.i),
+      isDisplayed: getDisplayedGoodIds().has(good.i),
       isTagVisible
     };
   });
@@ -102,21 +90,51 @@ export function goodsEditorAddLines(): void {
   );
   const totalStock = rn(Object.values(stockData).reduce((sum, d) => sum + d.total, 0));
 
+  const { sortBy, sortOrder } = getGoodsEditorTableState();
+  const sortedGoods = goods.sort((a, b) => {
+    let cmp = 0;
+    if (sortBy === "name") cmp = a.name.localeCompare(b.name);
+    else if (sortBy === "type") cmp = a.types.join(",").localeCompare(b.types.join(","));
+    else if (sortBy === "produced") cmp = a.produced - b.produced;
+    else if (sortBy === "stock") cmp = a.stock - b.stock;
+    else if (sortBy === "baseprice") cmp = a.basePrice - b.basePrice;
+
+    return sortOrder === "asc" ? cmp : -cmp;
+  });
+
   setGoodsEditorTableState({
-    goods,
+    goods: sortedGoods,
     totalProduced,
     totalStock,
-    displayedCount: displayedGoods.size,
+    displayedCount: goods.filter(good => getDisplayedGoodIds().has(good.i)).length,
     isPercentageMode: false,
     hasTagFilter: visibleTags.size > 0,
     isAssignMode,
     selectedAssignGoodId
   });
+}
 
-  setTimeout(() => {
-    const header = document.getElementById("goodsHeader");
-    if (header) applySorting(header);
-  }, 0);
+export function toggleSortBy(column: string): void {
+  const { sortBy, sortOrder } = getGoodsEditorTableState();
+  if (sortBy === column) {
+    setGoodsEditorTableState({ sortOrder: sortOrder === "asc" ? "desc" : "asc" });
+  } else {
+    setGoodsEditorTableState({ sortBy: column, sortOrder: "desc" }); // usually desc first for numbers, but we can just use "asc" for names if we want, desc is a good default for numbers
+  }
+
+  // Re-sort current goods and update state without regenerating everything
+  const state = getGoodsEditorTableState();
+  const sortedGoods = [...state.goods].sort((a, b) => {
+    let cmp = 0;
+    if (state.sortBy === "name") cmp = a.name.localeCompare(b.name);
+    else if (state.sortBy === "type") cmp = a.types.join(",").localeCompare(b.types.join(","));
+    else if (state.sortBy === "produced") cmp = a.produced - b.produced;
+    else if (state.sortBy === "stock") cmp = a.stock - b.stock;
+    else if (state.sortBy === "baseprice") cmp = a.basePrice - b.basePrice;
+
+    return state.sortOrder === "asc" ? cmp : -cmp;
+  });
+  setGoodsEditorTableState({ goods: sortedGoods });
 }
 
 export function openProducersDialog(goodId: number): void {
@@ -149,7 +167,9 @@ type StockSource = { name: string; type: "market" | "burg"; x: number; y: number
 function getAllStockData(): Record<number, { total: number; sources: StockSource[] }> {
   const dealById = new Map((worldContext().pack.deals || []).map(d => [d.i, d]));
   const result: Record<number, { total: number; sources: StockSource[] }> = {};
-  for (const good of worldContext().pack.goods || []) result[good.i] = { total: 0, sources: [] };
+  for (const good of (worldContext().pack.goods || []).filter(isGoodEnabled)) {
+    result[good.i] = { total: 0, sources: [] };
+  }
 
   for (const market of worldContext().pack.markets || []) {
     const centerBurg = worldContext().pack.burgs[market.centerBurgId];
@@ -205,7 +225,9 @@ function getAllStockData(): Record<number, { total: number; sources: StockSource
     }
   }
 
-  for (const good of worldContext().pack.goods || []) result[good.i].total = rn(result[good.i].total, 2);
+  for (const good of (worldContext().pack.goods || []).filter(isGoodEnabled)) {
+    result[good.i].total = rn(result[good.i].total, 2);
+  }
 
   return result;
 }
@@ -252,7 +274,7 @@ function getProduction(): Record<number, { burg: number; cell: number }> {
 }
 
 export function openTagsVisibilityDialog(): void {
-  const tags = unique((worldContext().pack.goods || []).flatMap(good => good.tags));
+  const tags = unique((worldContext().pack.goods || []).filter(isGoodEnabled).flatMap(good => good.tags));
 
   setGoodsTagsDialogState({
     isOpen: true,
@@ -319,10 +341,11 @@ export function enterResourceAssignMode(): void {
       const resource = Goods.get(selectedGoodId);
       if (!resource) return;
       worldContext().pack.cells.good[cellId] = selectedGoodId;
-      displayedGoods.add(selectedGoodId);
+      setGoodDisplayed(selectedGoodId, true);
     }
 
-    drawGoods(displayedGoods);
+    drawGoods(getDisplayedGoodIds());
+    getApi().requestWebglRender();
   });
 }
 
@@ -355,7 +378,8 @@ export function downloadGoodsData(): void {
   const production = getProduction();
   const stockData = getAllStockData();
 
-  let data = "Id,Good,Color,Type,Tags,Value,Demand Coverage,Chance,Model,Cells,Produced,Stock\n";
+  let data =
+    "Id,Good,Color,Type,Tags,Value,Demand Coverage,Chance,Model,Trade Weight,Trade Bulk,Rarity,Distance Premium,Time Value Trend,Durability,Loss Risk,Cells,Produced,Stock\n";
 
   for (const good of worldContext().pack.goods || []) {
     const types = [good.recipes && "MFG", good.distribution && "RAW"].filter(Boolean).join(";");
@@ -368,31 +392,31 @@ export function downloadGoodsData(): void {
     const produced = rn(goodProduction.burg + goodProduction.cell);
     const stock = stockData[good.i]?.total ?? 0;
 
-    data += `${good.i},${good.name},${good.color},${types},${tags},${good.value},${demandCoverage},${good.chance ?? ""},${good.distribution ?? ""},${cells},${produced},${stock}\n`;
+    const trade = good.trade ?? getDefaultGoodTradeProfile(good);
+
+    data += `${good.i},${good.name},${good.color},${types},${tags},${good.value},${demandCoverage},${good.chance ?? ""},${good.distribution ?? ""},${trade.weight},${trade.bulk},${trade.rarity},${trade.distancePremium},${trade.timeValueTrend},${trade.durability},${trade.lossRisk},${cells},${produced},${stock}\n`;
   }
 
   downloadFile(data, `${getFileName("Goods")}.csv`);
 }
 
 export function toggleDisplayedGood(goodId: number, show: boolean): void {
-  if (show) displayedGoods.add(goodId);
-  else displayedGoods.delete(goodId);
+  setGoodDisplayed(goodId, show);
+  const displayedGoods = getDisplayedGoodIds();
 
   setGoodsEditorTableState({
     displayedCount: displayedGoods.size,
     goods: getGoodsEditorTableState().goods.map(g => (g.i === goodId ? { ...g, isDisplayed: show } : g))
   });
   drawGoods(displayedGoods);
+  getApi().requestWebglRender();
 }
 
 export function toggleAllDisplayed(show: boolean): void {
-  if (show) {
-    for (const good of worldContext().pack.goods || []) displayedGoods.add(good.i);
-  } else {
-    displayedGoods.clear();
-  }
+  setAllGoodsDisplayed(show);
   goodsEditorAddLines();
-  drawGoods(displayedGoods);
+  drawGoods(getDisplayedGoodIds());
+  getApi().requestWebglRender();
 }
 
 export function requestGoodsRegeneration(): void {
@@ -463,7 +487,7 @@ export function addGood(): void {
     const nextId = goods.reduce((maxId, existingGood) => Math.max(maxId, existingGood.i), 0) + 1;
     const normalizedDistribution = draft.distribution.trim();
 
-    worldContext().pack.goods.push({
+    const good = {
       i: nextId,
       name: draft.name,
       tags: draft.tagsText
@@ -476,10 +500,12 @@ export function addGood(): void {
       color: draft.color,
       chance: normalizedDistribution ? Math.max(0, Math.min(100, draft.chance)) : undefined,
       distribution: normalizedDistribution || undefined
-    });
+    };
+
+    worldContext().pack.goods.push({ ...good, trade: getDefaultGoodTradeProfile(good) });
 
     Goods.sync();
-    displayedGoods.add(nextId);
+    setGoodDisplayed(nextId, true);
     regenerateEconomyForGood(nextId);
   });
 }
@@ -500,9 +526,10 @@ export function removeGood(goodId: number): void {
       }
       worldContext().pack.goods = worldContext().pack.goods.filter(g => g.i !== good.i);
       Goods.sync();
-      displayedGoods.delete(good.i);
+      setGoodDisplayed(good.i, false);
       goodsEditorAddLines();
-      drawGoods(displayedGoods);
+      drawGoods(getDisplayedGoodIds());
+      getApi().requestWebglRender();
     }
   });
 }

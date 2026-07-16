@@ -1,6 +1,10 @@
 import type React from "react";
+import { useEffect, useState } from "react";
+import { useDebugSnapshotState } from "../../../store/debugSnapshotState";
 import { useDialogState } from "../../../store/dialogState";
 import { useExtensionState } from "../../../store/extensionState";
+import { useHeightmapEditModeState } from "../../../store/heightmapDialogState";
+import { useTimeSimulationState } from "../../../store/timeSimulationState";
 
 interface StaticEditButton {
   key: string;
@@ -48,6 +52,13 @@ const STATIC_EDIT_BUTTONS: StaticEditButton[] = [
     dialogId: "diplomacyEditor"
   },
   {
+    key: "diplomacyHistory",
+    label: "Relations history",
+    tooltip: "Click to open Relations history",
+    eventName: "openDiplomacyHistory",
+    dialogId: "diplomacyHistory"
+  },
+  {
     key: "emblems",
     label: "Emblems",
     tooltip: "Click to open Emblem Editor",
@@ -90,6 +101,13 @@ const STATIC_EDIT_BUTTONS: StaticEditButton[] = [
     dialogId: "notesEditor"
   },
   {
+    key: "population",
+    label: "Population",
+    tooltip: "Open Population Overview — living counts and death tallies by state (for rulers and design review)",
+    eventName: "overviewPopulationButton",
+    dialogId: "populationOverview"
+  },
+  {
     key: "provinces",
     label: "Provinces",
     tooltip: "Click to open Provinces Editor",
@@ -109,6 +127,13 @@ const STATIC_EDIT_BUTTONS: StaticEditButton[] = [
     tooltip: "Click to open Rivers Overview",
     eventName: "overviewRiversButton",
     dialogId: "riversOverview"
+  },
+  {
+    key: "regiments",
+    label: "Regiments",
+    tooltip: "Click to open Regiments Overview",
+    eventName: "overviewRegimentsButton",
+    dialogId: "regimentsOverview"
   },
   {
     key: "routes",
@@ -144,9 +169,35 @@ const STATIC_EDIT_BUTTONS: StaticEditButton[] = [
 export const ToolsTab: React.FC = () => {
   const { actions: allActions, enabledExtensions } = useExtensionState();
   const openDialogs = useDialogState(state => state.openDialogs);
+  const { isRunning, progress, totalDays, stopSimulation } = useTimeSimulationState();
+  const isHeightmapModeOpen = useHeightmapEditModeState(state => state.isOpen);
   const actions = allActions.filter(a => a.tab === "tools" && enabledExtensions[a.extensionId]);
   const editActions = actions.filter(a => a.section === "edit");
   const regenerateActions = actions.filter(a => a.section === "regenerate");
+
+  const [simulationClock, setSimulationClock] = useState(() => ({
+    currentYear: window.fmg.simulation.currentYear,
+    currentMonth: window.fmg.simulation.currentMonth,
+    currentDay: window.fmg.simulation.currentDay,
+    era: window.fmg.simulation.era
+  }));
+  const [advanceYears, setAdvanceYears] = useState(1);
+  const [advanceMonths, setAdvanceMonths] = useState(1);
+  const [advanceDays, setAdvanceDays] = useState(1);
+
+  useEffect(() => {
+    const onSimulationUpdated = (e: Event) => {
+      const detail = (e as CustomEvent).detail as {
+        currentYear: number;
+        currentMonth: number;
+        currentDay: number;
+        era: string;
+      };
+      setSimulationClock(detail);
+    };
+    document.addEventListener("fmg:simulation-updated", onSimulationUpdated);
+    return () => document.removeEventListener("fmg:simulation-updated", onSimulationUpdated);
+  }, []);
 
   const triggerEvent = (eventName: string) => {
     document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: eventName } }));
@@ -166,13 +217,13 @@ export const ToolsTab: React.FC = () => {
       domId: undefined as string | undefined,
       label: a.label,
       tooltip: a.tooltip ?? "",
-      dialogId: undefined as string | undefined,
+      dialogId: a.dialogId,
       onClick: a.onClick
     }))
   ].sort((a, b) => a.label.localeCompare(b.label));
 
   return (
-    <div id="toolsContent" className="tabcontent" style={{ display: "block" }}>
+    <div id="toolsContent" className="tabcontent d-block">
       <div className="separator">Edit</div>
       <div className="grid">
         {allEditButtons.map(btn => (
@@ -181,7 +232,15 @@ export const ToolsTab: React.FC = () => {
             id={btn.domId}
             data-tip={btn.tooltip}
             type="button"
-            className={btn.dialogId && openDialogs.has(btn.dialogId) ? "pressed" : undefined}
+            className={
+              btn.key === "editHeightmapButton"
+                ? openDialogs.has("brushesPanel") || isHeightmapModeOpen
+                  ? "pressed"
+                  : undefined
+                : btn.dialogId && openDialogs.has(btn.dialogId)
+                  ? "pressed"
+                  : undefined
+            }
             onClick={btn.onClick}
           >
             {btn.label}
@@ -387,6 +446,117 @@ export const ToolsTab: React.FC = () => {
         >
           World
         </button>
+        {import.meta.env.DEV && (
+          <button
+            data-tip="Open the AI Debug Snapshot manager to export generation history"
+            type="button"
+            onClick={() => useDebugSnapshotState.getState().setIsOpen(true)}
+            style={{ marginTop: "4px" }}
+          >
+            Snapshots
+          </button>
+        )}
+      </div>
+      <div className="separator">Simulation</div>
+      <div className="grid">
+        <span data-tip="Current in-world year, month, day, and era">
+          {simulationClock.currentYear} / {simulationClock.currentMonth} / {simulationClock.currentDay}{" "}
+          {simulationClock.era}
+        </span>
+        <div>Advance Time</div>
+        <div style={{ display: "flex", gap: "5px", flexDirection: "column" }}>
+          {isRunning ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", padding: "5px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Simulating...</span>
+                <span>{Math.floor((progress / totalDays) * 100)}%</span>
+              </div>
+              <progress value={progress} max={totalDays} style={{ width: "100%" }} />
+              <button
+                type="button"
+                onClick={stopSimulation}
+                style={{ marginTop: "5px", background: "indianred", color: "white", flex: 1 }}
+              >
+                Stop
+              </button>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: "flex", gap: "5px" }}>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={advanceYears}
+                  onChange={e => setAdvanceYears(Number(e.target.value))}
+                  data-tip="Years to advance"
+                />
+                <button
+                  data-tip="Click to advance the world's simulation clock by a number of years"
+                  type="button"
+                  style={{ flex: 1 }}
+                  onClick={() => {
+                    document.dispatchEvent(
+                      new CustomEvent("react-tool-action", {
+                        detail: { action: "advanceTimeButton", years: advanceYears, months: 0, days: 0 }
+                      })
+                    );
+                  }}
+                >
+                  Advance Year
+                </button>
+              </div>
+              <div style={{ display: "flex", gap: "5px" }}>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={advanceMonths}
+                  onChange={e => setAdvanceMonths(Number(e.target.value))}
+                  data-tip="Months to advance"
+                />
+                <button
+                  data-tip="Click to advance the world's simulation clock by a number of months"
+                  type="button"
+                  style={{ flex: 1 }}
+                  onClick={() => {
+                    document.dispatchEvent(
+                      new CustomEvent("react-tool-action", {
+                        detail: { action: "advanceTimeButton", years: 0, months: advanceMonths, days: 0 }
+                      })
+                    );
+                  }}
+                >
+                  Advance Month
+                </button>
+              </div>
+              <div style={{ display: "flex", gap: "5px" }}>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={advanceDays}
+                  onChange={e => setAdvanceDays(Number(e.target.value))}
+                  data-tip="Days to advance"
+                />
+                <button
+                  data-tip="Click to advance the world's simulation clock by a number of days"
+                  type="button"
+                  style={{ flex: 1 }}
+                  onClick={() => {
+                    document.dispatchEvent(
+                      new CustomEvent("react-tool-action", {
+                        detail: { action: "advanceTimeButton", years: 0, months: 0, days: advanceDays }
+                      })
+                    );
+                  }}
+                >
+                  Advance Day
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
       <div className="separator">Create</div>
       <div className="grid">

@@ -3,6 +3,7 @@ import { useRef } from "react";
 import { HeightmapEditorActions } from "../../controllers/heightmapEditor";
 import { useDialogState } from "../../store/dialogState";
 import { setHeightmapEditorState, type TemplateStep, useHeightmapEditorState } from "../../store/heightmapEditorState";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -89,15 +90,19 @@ export const TemplateEditorDialog: React.FC = () => {
   const renderStep = (step: TemplateStep, index: number) => {
     const common = (
       <>
-        <div
+        <IconButton
           className={step.skip ? "icon-check-empty" : "icon-check"}
           data-tip="Click to skip the step"
           onClick={() => handleToggleSkip(step.id)}
         />
-        <div style={{ width: "4em" }}>{step.type}</div>
-        <i className="icon-trash-empty pointer" data-tip="Remove the step" onClick={() => handleRemoveStep(step.id)} />
-        <i className="icon-up-dir pointer" data-tip="Move up" onClick={() => handleMoveUp(index)} />
-        <i className="icon-down-dir pointer" data-tip="Move down" onClick={() => handleMoveDown(index)} />
+        <div>{step.type}</div>
+        <IconButton
+          className="icon-trash-empty pointer"
+          data-tip="Remove the step"
+          onClick={() => handleRemoveStep(step.id)}
+        />
+        <IconButton className="icon-up-dir pointer" data-tip="Move up" onClick={() => handleMoveUp(index)} />
+        <IconButton className="icon-down-dir pointer" data-tip="Move down" onClick={() => handleMoveDown(index)} />
       </>
     );
 
@@ -183,7 +188,6 @@ export const TemplateEditorDialog: React.FC = () => {
             <select
               className="templateDist"
               data-tip="Mirror heightmap along axis"
-              style={{ width: "7.8em" }}
               value={step.dist || "x"}
               onChange={e => handleUpdateStep(step.id, "dist", e.target.value)}
             >
@@ -288,7 +292,6 @@ export const TemplateEditorDialog: React.FC = () => {
             <i>Select template: </i>
             <select
               id="templateSelect"
-              style={{ width: "16em" }}
               data-tip="Select base template"
               value={templateSelected}
               onChange={handleSelectTemplate}
@@ -382,7 +385,7 @@ export const TemplateEditorDialog: React.FC = () => {
               ~
             </button>
           </div>
-          <div id="templateBody" className="table" style={{ padding: "2px 0", width: "100%" }}>
+          <div id="templateBody" className="table">
             {templateSteps.map((step, index) => renderStep(step, index))}
           </div>
           <div id="templateFooter">
@@ -427,7 +430,7 @@ export const TemplateEditorDialog: React.FC = () => {
               ref={templateInputRef}
               type="file"
               id="templateToLoad"
-              style={{ display: "none" }}
+              className="d-none"
               onChange={e => HeightmapEditorActions.uploadTemplate(e.target as HTMLInputElement)}
             />
             <button
@@ -458,7 +461,6 @@ export const TemplateEditorDialog: React.FC = () => {
                 min={1}
                 max={999999999}
                 step={1}
-                style={{ width: "8em" }}
               />
               <i
                 data-locked={templateSeedLocked ? 1 : 0}

@@ -1,5 +1,5 @@
 import { pointer } from "d3";
-import { zoomTo } from "../actions";
+
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
@@ -11,6 +11,8 @@ import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { useBurgsOverviewState } from "../store/burgsOverviewState";
 import { burgsRenamingDialogStore } from "../store/burgsRenamingDialogState";
+import { useExtensionState } from "../store/extensionState";
+import type { Burg } from "../types/models";
 import type { BurgsBubbleChartConfig } from "../ui/dialogs/BurgsBubbleChartDialog";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { convertTemperature, findCell, getLatitude, getLongitude, rn } from "../utils";
@@ -21,6 +23,135 @@ import { getTemperatureLikeness } from "./burg-editor";
 import { interactionManager } from "./interactionManager";
 import { toggleBurgIcons, toggleLabels } from "./layers";
 
+export interface BurgFilterOptions {
+  searchText?: string;
+  filterStateId?: number; // -1 = all
+  filterCultureId?: number; // -1 = all
+  filterProvinceId?: number; // -1 = all
+  filterGroup?: string; // "" = all
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}
+
+export interface BurgRowData {
+  b: Burg;
+  population: number;
+  province: string;
+  stateName: string;
+  cultureName: string;
+  features: string;
+}
+
+/**
+ * Pure filter/sort logic shared by the standalone Burgs Overview dialog and the embedded
+ * Burgs tab of the State/Province Editor — filters are passed as explicit arguments rather
+ * than read from the shared burgsOverviewState store, so an embedded caller (fixed to one
+ * state/province) never disturbs the standalone dialog's own filters if both are open at once.
+ */
+export function filterAndSortBurgs(
+  burgs: Burg[],
+  options: BurgFilterOptions = {}
+): {
+  rows: BurgRowData[];
+  totalPopulation: number;
+  /** Sum of each registered burgOverviewColumn's value across the returned rows, keyed by column id. */
+  columnTotals: Record<string, number>;
+  validCount: number;
+} {
+  const {
+    searchText = "",
+    filterStateId = -1,
+    filterCultureId = -1,
+    filterProvinceId = -1,
+    filterGroup = "",
+    sortBy = "name",
+    sortOrder = "asc"
+  } = options;
+
+  const validBurgs = burgs.filter(b => b.i && !b.removed);
+  let filtered = validBurgs;
+
+  if (searchText) {
+    const lower = searchText.toLowerCase();
+    filtered = filtered.filter(b => {
+      const state = (worldContext.pack.states[b.state!]?.name ?? "").toLowerCase();
+      const prov = worldContext.pack.cells.province![b.cell];
+      const province = prov ? (worldContext.pack.provinces![prov]?.name ?? "").toLowerCase() : "";
+      const culture = (worldContext.pack.cultures[b.culture!]?.name ?? "").toLowerCase();
+      return (
+        (b.name ?? "").toLowerCase().includes(lower) ||
+        state.includes(lower) ||
+        province.includes(lower) ||
+        culture.includes(lower) ||
+        (b.group ?? "").toLowerCase().includes(lower)
+      );
+    });
+  }
+  if (filterStateId !== -1) filtered = filtered.filter(b => b.state === filterStateId);
+  if (filterCultureId !== -1) filtered = filtered.filter(b => b.culture === filterCultureId);
+  if (filterProvinceId !== -1) {
+    filtered = filtered.filter(b => {
+      const prov = worldContext.pack.cells.province![b.cell];
+      return prov === filterProvinceId;
+    });
+  }
+  if (filterGroup !== "") filtered = filtered.filter(b => b.group === filterGroup);
+
+  const rows: BurgRowData[] = filtered.map(b => {
+    const population = (b.population ?? 0) * worldContext.populationRate * worldContext.urbanization;
+    const prov = worldContext.pack.cells.province![b.cell];
+    const province = prov ? (worldContext.pack.provinces![prov]?.name ?? "") : "";
+    const stateName = worldContext.pack.states[b.state!]?.name ?? "";
+    const cultureName = worldContext.pack.cultures[b.culture!]?.name ?? "";
+    const features = b.capital && b.port ? "a-capital-port" : b.capital ? "c-capital" : b.port ? "p-port" : "z-burg";
+    return { b, population, province, stateName, cultureName, features };
+  });
+
+  const overviewColumns = useExtensionState.getState().burgOverviewColumns;
+
+  const sorted = [...rows].sort((a, b) => {
+    let valA: string | number = 0;
+    let valB: string | number = 0;
+    if (sortBy === "name") {
+      valA = a.b.name ?? "";
+      valB = b.b.name ?? "";
+    } else if (sortBy === "province") {
+      valA = a.province;
+      valB = b.province;
+    } else if (sortBy === "state") {
+      valA = a.stateName;
+      valB = b.stateName;
+    } else if (sortBy === "culture") {
+      valA = a.cultureName;
+      valB = b.cultureName;
+    } else if (sortBy === "group") {
+      valA = a.b.group ?? "";
+      valB = b.b.group ?? "";
+    } else if (sortBy === "population") {
+      valA = a.population;
+      valB = b.population;
+    } else if (sortBy === "features") {
+      valA = a.features;
+      valB = b.features;
+    } else {
+      const column = overviewColumns.find(c => c.id === sortBy);
+      if (column) {
+        valA = column.getValue(a.b);
+        valB = column.getValue(b.b);
+      }
+    }
+    const cmp = typeof valA === "string" ? valA.localeCompare(valB as string) : valA - (valB as number);
+    return sortOrder === "asc" ? cmp : -cmp;
+  });
+
+  const totalPopulation = sorted.reduce((acc, { population }) => acc + population, 0);
+  const columnTotals: Record<string, number> = {};
+  for (const column of overviewColumns) {
+    columnTotals[column.id] = sorted.reduce((acc, { b }) => acc + column.getValue(b), 0);
+  }
+  return { rows: sorted, totalPopulation, columnTotals, validCount: validBurgs.length };
+}
+
 export function overviewBurgs(settings: { stateId?: number | null; cultureId?: number | null } = {}): void {
   if (view.customization) return;
   closeDialogs("#burgsOverview, .stable");
@@ -30,14 +161,6 @@ export function overviewBurgs(settings: { stateId?: number | null; cultureId?: n
   useBurgsOverviewState.getState().open(settings.stateId ?? null, settings.cultureId ?? null);
   useBurgsOverviewState.getState().refresh();
   openDialog("burgsOverview");
-}
-
-export function zoomIntoBurg(burgId: number): void {
-  const label = view.burgLabels.select(`[data-id='${burgId}']`).node() as SVGTextElement | null;
-  if (!label) return;
-  const x = +label.getAttribute("x")!;
-  const y = +label.getAttribute("y")!;
-  zoomTo(x, y, 8, 2000);
 }
 
 export function startAddBurgMode(onDone: () => void): void {
@@ -86,42 +209,87 @@ export function regenerateBurgNames(refresh: () => void): void {
   refresh();
 }
 
-export function downloadBurgsData(): void {
+/**
+ * Downloads the Burgs Overview data as a delimited text file. Defaults to TAB rather than comma
+ * because the Emblem column embeds a JSON blob that may itself contain commas.
+ */
+export function downloadBurgsData(delimiter: string = "\t"): void {
   const heightUnitVal = localStorage.getItem("heightUnit") ?? "m";
+  const overviewColumns = useExtensionState.getState().burgOverviewColumns;
 
-  let data = `Id,Burg,Province,Province Full Name,State,State Full Name,Culture,Religion,Group,Population,X,Y,Latitude,Longitude,Elevation (${heightUnitVal}),Temperature,Temperature likeness,Capital,Port,Citadel,Walls,Plaza,Temple,Shanty Town,Emblem,Preview link\n`;
+  // Fields (names, JSON blobs, etc.) may incidentally contain the chosen delimiter; neutralize it.
+  const sanitize = (value: string): string => value.split(delimiter).join(" ");
+
+  const headers = [
+    "Id",
+    "Burg",
+    "Province",
+    "Province Full Name",
+    "State",
+    "State Full Name",
+    "Culture",
+    "Religion",
+    "Group",
+    "Population",
+    ...overviewColumns.map(column => column.label),
+    "X",
+    "Y",
+    "Latitude",
+    "Longitude",
+    `Elevation (${heightUnitVal})`,
+    "Temperature",
+    "Temperature likeness",
+    "Capital",
+    "Port",
+    "Citadel",
+    "Walls",
+    "Plaza",
+    "Temple",
+    "Shanty Town",
+    "Emblem",
+    "Preview link"
+  ];
+  let data = `${headers.join(delimiter)}\n`;
+
   const valid = worldContext.pack.burgs.filter(b => b.i && !b.removed);
 
   valid.forEach(b => {
-    data += `${b.i},`;
-    data += `${b.name},`;
     const province = worldContext.pack.cells.province![b.cell];
-    data += province ? `${worldContext.pack.provinces![province].name},` : ",";
-    data += province ? `${worldContext.pack.provinces![province].fullName},` : ",";
-    data += `${worldContext.pack.states[b.state!].name},`;
-    data += `${worldContext.pack.states[b.state!].fullName},`;
-    data += `${worldContext.pack.cultures[b.culture!].name},`;
-    data += `${worldContext.pack.religions![worldContext.pack.cells.religion![b.cell]].name},`;
-    data += `${b.group!},`;
-    data += `${rn(b.population! * worldContext.populationRate * worldContext.urbanization)},`;
-    data += `${b.x},`;
-    data += `${b.y},`;
-    data += `${getLatitude(b.y, worldContext.mapCoordinates, worldContext.graphHeight, 2)},`;
-    data += `${getLongitude(b.x, worldContext.mapCoordinates, worldContext.graphWidth, 2)},`;
-    data += `${parseInt(getHeight(worldContext.pack.cells.h[b.cell]), 10)},`;
     const temperature = worldContext.grid.cells.temp![worldContext.pack.cells.g![b.cell]];
-    data += `${convertTemperature(temperature)},`;
-    data += `${getTemperatureLikeness(temperature)},`;
-    data += b.capital ? "capital," : ",";
-    data += b.port ? "port," : ",";
-    data += b.citadel ? "citadel," : ",";
-    data += b.walls ? "walls," : ",";
-    data += b.plaza ? "plaza," : ",";
-    data += b.temple ? "temple," : ",";
-    data += b.shanty ? "shanty town," : ",";
-    data += b.coa ? `${JSON.stringify(b.coa).replace(/"/g, "").replace(/,/g, ";")},` : ",";
-    data += GenerationPipeline.Burgs.getPreview(b).link;
-    data += "\n";
+
+    const row = [
+      `${b.i}`,
+      `${b.name}`,
+      province ? `${worldContext.pack.provinces![province].name}` : "",
+      province ? `${worldContext.pack.provinces![province].fullName}` : "",
+      `${worldContext.pack.states[b.state!].name}`,
+      `${worldContext.pack.states[b.state!].fullName}`,
+      `${worldContext.pack.cultures[b.culture!].name}`,
+      `${worldContext.pack.religions![worldContext.pack.cells.religion![b.cell]].name}`,
+      `${b.group!}`,
+      `${rn(b.population! * worldContext.populationRate * worldContext.urbanization)}`,
+      // Extension columns' `format()` is for on-screen display only (may embed decorative
+      // icons); CSV must use the raw numeric value instead.
+      ...overviewColumns.map(column => `${rn(column.getValue(b), 2)}`),
+      `${b.x}`,
+      `${b.y}`,
+      `${getLatitude(b.y, worldContext.mapCoordinates, worldContext.graphHeight, 2)}`,
+      `${getLongitude(b.x, worldContext.mapCoordinates, worldContext.graphWidth, 2)}`,
+      `${parseInt(getHeight(worldContext.pack.cells.h[b.cell]), 10)}`,
+      `${convertTemperature(temperature)}`,
+      `${getTemperatureLikeness(temperature)}`,
+      b.capital ? "capital" : "",
+      b.port ? "port" : "",
+      b.citadel ? "citadel" : "",
+      b.walls ? "walls" : "",
+      b.plaza ? "plaza" : "",
+      b.temple ? "temple" : "",
+      b.shanty ? "shanty town" : "",
+      b.coa ? JSON.stringify(b.coa).replace(/"/g, "") : "",
+      `${GenerationPipeline.Burgs.getPreview(b).link}`
+    ];
+
+    data += `${row.map(sanitize).join(delimiter)}\n`;
   });
 
   const name = `${getFileName("GenerationPipeline.Burgs")}.csv`;
@@ -165,7 +333,7 @@ export function importBurgNames(dataLoaded: string, refresh: () => void): void {
     const v = data[i];
     if (!v || !validBurgs[i] || v === validBurgs[i].name) continue;
     change.push({ id: validBurgs[i].i!, name: v });
-    message += `<tr><td style="width:20%">${validBurgs[i].i}</td><td style="width:40%">${validBurgs[i].name}</td><td style="width:40%">${v}</td></tr>`;
+    message += `<tr><td>${validBurgs[i].i}</td><td>${validBurgs[i].name}</td><td>${v}</td></tr>`;
   }
   message += `</tr></table>`;
 

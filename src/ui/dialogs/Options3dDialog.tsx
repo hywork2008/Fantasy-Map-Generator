@@ -11,6 +11,17 @@ export const Options3dDialog: React.FC = () => {
   const options = use3DOptionsStore();
   const [isGlobe, setIsGlobe] = useState(false);
   const [timeOfDay, setTimeOfDay] = useState("custom");
+  const [isErosionBuilding, setIsErosionBuilding] = useState(() => ThreeDRenderer.isErosionBuildPending());
+
+  useEffect(() => {
+    const syncErosionBuildState = (event: Event): void => {
+      if (event instanceof CustomEvent && typeof event.detail === "boolean") setIsErosionBuilding(event.detail);
+      else setIsErosionBuilding(ThreeDRenderer.isErosionBuildPending());
+    };
+    document.addEventListener("fmg:3d-erosion-build-state", syncErosionBuildState);
+    syncErosionBuildState(new Event("fmg:3d-erosion-build-state"));
+    return () => document.removeEventListener("fmg:3d-erosion-build-state", syncErosionBuildState);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -66,7 +77,6 @@ export const Options3dDialog: React.FC = () => {
                 min={0}
                 max={10}
                 step=".1"
-                style={{ width: "4em" }}
                 value={options.rotateMesh}
                 onChange={e =>
                   handleChange("rotateMesh", +e.target.value, () => ThreeDRenderer.setRotation(+e.target.value))
@@ -86,7 +96,6 @@ export const Options3dDialog: React.FC = () => {
                 type="number"
                 min={0}
                 max={1000}
-                style={{ width: "4em" }}
                 value={options.scale}
                 onChange={e => handleChange("scale", +e.target.value, () => ThreeDRenderer.setScale(+e.target.value))}
               />
@@ -106,7 +115,6 @@ export const Options3dDialog: React.FC = () => {
                 type="number"
                 min={0}
                 max={500}
-                style={{ width: "4em" }}
                 value={options.lightness}
                 onChange={e =>
                   handleChange("lightness", +e.target.value, () => ThreeDRenderer.setLightness(+e.target.value / 100))
@@ -116,7 +124,6 @@ export const Options3dDialog: React.FC = () => {
             <div data-tip="Set mesh texture resolution">
               <div>Texture resolution:</div>
               <select
-                style={{ width: "10em" }}
                 value={options.resolutionScale}
                 onChange={e =>
                   handleChange("resolutionScale", +e.target.value, () =>
@@ -131,11 +138,10 @@ export const Options3dDialog: React.FC = () => {
                 <option value={8192}>8192x8192px</option>
               </select>
             </div>
-            <div data-tip="Quick preset lighting for different times of day" style={{ marginTop: "0.4em" }}>
+            <div data-tip="Quick preset lighting for different times of day">
               <label htmlFor="timeOfDay">Time of day:</label>
               <select
                 id="timeOfDay"
-                style={{ width: "10em", marginBottom: "0.3em" }}
                 value={timeOfDay}
                 onChange={e => {
                   const presetName = e.target.value;
@@ -153,15 +159,14 @@ export const Options3dDialog: React.FC = () => {
                 <option value="night">Night</option>
               </select>
             </div>
-            <div data-tip="Set sun position (x, y) and color" style={{ marginTop: "0.4em" }}>
+            <div data-tip="Set sun position (x, y) and color">
               <span>Sun position and color:</span>
-              <div style={{ display: "flex", gap: "0.2em" }}>
+              <div className="d-flex">
                 <input
                   type="number"
                   min={-2500}
                   max={2500}
                   step={100}
-                  style={{ width: "4.7em" }}
                   value={options.sunX}
                   onChange={e =>
                     handleChange("sunX", +e.target.value, () =>
@@ -174,7 +179,6 @@ export const Options3dDialog: React.FC = () => {
                   min={0}
                   max={5000}
                   step={100}
-                  style={{ width: "4.7em" }}
                   value={options.sunY}
                   onChange={e =>
                     handleChange("sunY", +e.target.value, () =>
@@ -184,7 +188,6 @@ export const Options3dDialog: React.FC = () => {
                 />
                 <input
                   type="color"
-                  style={{ padding: 0, height: "1.5em", border: "none" }}
                   value={options.sunColor}
                   onChange={e =>
                     handleChange("sunColor", e.target.value, () => ThreeDRenderer.setSunColor(e.target.value))
@@ -192,7 +195,7 @@ export const Options3dDialog: React.FC = () => {
                 />
               </div>
             </div>
-            <div data-tip="Toggle 3d labels" style={{ margin: "0.6em 0 0.3em -0.2em" }}>
+            <div data-tip="Toggle 3d labels">
               <input
                 id="options3dMeshLabels3d"
                 className="checkbox"
@@ -204,7 +207,75 @@ export const Options3dDialog: React.FC = () => {
                 <i>Show 3D labels</i>
               </label>
             </div>
-            <div data-tip="Toggle sky mode" style={{ margin: "0.6em 0 0.3em -0.2em" }}>
+            <div data-tip="Hide terrain; population lights are shaped by one camera-aligned beam from the far side">
+              <input
+                id="options3dNightscape"
+                className="checkbox"
+                type="checkbox"
+                checked={options.sceneOnly}
+                onChange={() => handleChange("sceneOnly", !options.sceneOnly, () => ThreeDRenderer.toggleNightscape())}
+              />
+              <label htmlFor="options3dNightscape" className="checkbox-label">
+                <i>Nightscape: city lights and beam</i>
+              </label>
+            </div>
+            {options.sceneOnly && (
+              <>
+                <div data-tip="Turn the shared camera-aligned Nightscape beam on or off; city population lights remain visible">
+                  <input
+                    id="options3dNightscapeBeam"
+                    className="checkbox"
+                    type="checkbox"
+                    checked={options.nightscapeBeamEnabled}
+                    onChange={() =>
+                      handleChange("nightscapeBeamEnabled", !options.nightscapeBeamEnabled, () =>
+                        ThreeDRenderer.setNightscapeBeamEnabled(!options.nightscapeBeamEnabled)
+                      )
+                    }
+                  />
+                  <label htmlFor="options3dNightscapeBeam" className="checkbox-label">
+                    <i>Enable Nightscape beam</i>
+                  </label>
+                </div>
+                <div
+                  data-tip="Reverse the shared beam between far-to-near and near-to-far camera directions"
+                  style={{ opacity: options.nightscapeBeamEnabled ? 1 : 0.5 }}
+                >
+                  <input
+                    id="options3dNightscapeBeamFlip"
+                    className="checkbox"
+                    type="checkbox"
+                    disabled={!options.nightscapeBeamEnabled}
+                    checked={options.nightscapeBeamReversed}
+                    onChange={() =>
+                      handleChange("nightscapeBeamReversed", !options.nightscapeBeamReversed, () =>
+                        ThreeDRenderer.setNightscapeBeamReversed(!options.nightscapeBeamReversed)
+                      )
+                    }
+                  />
+                  <label htmlFor="options3dNightscapeBeamFlip" className="checkbox-label">
+                    <i>Flip beam: near to far</i>
+                  </label>
+                </div>
+                <div data-tip="Render floating routes as thin additive light trails with a soft halo">
+                  <input
+                    id="options3dNightscapeRoutes"
+                    className="checkbox"
+                    type="checkbox"
+                    checked={options.nightscapeRouteGlowEnabled}
+                    onChange={() =>
+                      handleChange("nightscapeRouteGlowEnabled", !options.nightscapeRouteGlowEnabled, () =>
+                        ThreeDRenderer.setNightscapeRouteGlowEnabled(!options.nightscapeRouteGlowEnabled)
+                      )
+                    }
+                  />
+                  <label htmlFor="options3dNightscapeRoutes" className="checkbox-label">
+                    <i>Show glowing routes</i>
+                  </label>
+                </div>
+              </>
+            )}
+            <div data-tip="Toggle sky mode">
               <input
                 id="options3dMeshSkyMode"
                 className="checkbox"
@@ -218,7 +289,7 @@ export const Options3dDialog: React.FC = () => {
             </div>
             <div
               data-tip="Increases the polygon count to smooth the sharp points. Please note that it can take some time to calculate"
-              style={{ margin: "0.6em 0 0.3em -0.2em", opacity: options.erosion ? 0.5 : 1 }}
+              style={{ opacity: options.erosion ? 0.5 : 1 }}
             >
               <input
                 id="options3dSubdivide"
@@ -232,14 +303,11 @@ export const Options3dDialog: React.FC = () => {
               />
               <label htmlFor="options3dSubdivide" className="checkbox-label">
                 <i>
-                  Smooth geometry <small style={{ color: "darkred" }}>[slow]</small>
+                  Smooth geometry <small>[slow]</small>
                 </i>
               </label>
             </div>
-            <div
-              data-tip="Texture the terrain as a satellite image. Replaces the standard map texture"
-              style={{ margin: "0.6em 0 0.3em -0.2em" }}
-            >
+            <div data-tip="Texture the terrain as a satellite image. Replaces the standard map texture">
               <input
                 id="options3dSatellite"
                 className="checkbox"
@@ -251,27 +319,30 @@ export const Options3dDialog: React.FC = () => {
                 <i>Satellite texture</i>
               </label>
             </div>
-            <div
-              data-tip="Bake procedural erosion detail into the 3D terrain. Visual only, the map data is not changed"
-              style={{ margin: "0.6em 0 0.3em -0.2em" }}
-            >
+            <div data-tip="Bake procedural erosion detail into the 3D terrain. Visual only, the map data is not changed">
               <input
                 id="options3dErosion"
                 className="checkbox"
                 type="checkbox"
+                disabled={isErosionBuilding}
                 checked={options.erosion}
                 onChange={() => handleChange("erosion", !options.erosion, () => ThreeDRenderer.toggleErosion())}
               />
               <label htmlFor="options3dErosion" className="checkbox-label">
                 <i>Erode terrain</i>
               </label>
+              {isErosionBuilding && (
+                <span id="options3dErosionStatus" role="status" aria-live="polite">
+                  Applying erosion…
+                </span>
+              )}
             </div>
 
             <div style={{ display: options.erosion ? "block" : "none" }}>
               <div data-tip="Set eroded mesh detail level (vertices on the long side)">
                 <div>Mesh detail:</div>
                 <select
-                  style={{ width: "10em" }}
+                  disabled={isErosionBuilding}
                   value={options.erosionDetail}
                   onChange={e =>
                     handleChange("erosionDetail", +e.target.value, () =>
@@ -290,6 +361,7 @@ export const Options3dDialog: React.FC = () => {
                 <div>Gully strength:</div>
                 <input
                   type="range"
+                  disabled={isErosionBuilding}
                   min={0}
                   max={100}
                   value={options.erosionStrength}
@@ -301,9 +373,9 @@ export const Options3dDialog: React.FC = () => {
                 />
                 <input
                   type="number"
+                  disabled={isErosionBuilding}
                   min={0}
                   max={100}
-                  style={{ width: "4em" }}
                   value={options.erosionStrength}
                   onChange={e =>
                     handleChange("erosionStrength", +e.target.value, () =>
@@ -317,6 +389,7 @@ export const Options3dDialog: React.FC = () => {
                 <div>River valleys:</div>
                 <input
                   type="range"
+                  disabled={isErosionBuilding}
                   min={0}
                   max={100}
                   value={options.erosionRiverDepth}
@@ -328,9 +401,9 @@ export const Options3dDialog: React.FC = () => {
                 />
                 <input
                   type="number"
+                  disabled={isErosionBuilding}
                   min={0}
                   max={100}
-                  style={{ width: "4em" }}
                   value={options.erosionRiverDepth}
                   onChange={e =>
                     handleChange("erosionRiverDepth", +e.target.value, () =>
@@ -343,7 +416,7 @@ export const Options3dDialog: React.FC = () => {
               <div data-tip="Set the number of erosion detail layers. More octaves add finer gullies">
                 <div>Detail octaves:</div>
                 <select
-                  style={{ width: "6em" }}
+                  disabled={isErosionBuilding}
                   value={options.erosionOctaves}
                   onChange={e =>
                     handleChange("erosionOctaves", +e.target.value, () =>
@@ -358,7 +431,7 @@ export const Options3dDialog: React.FC = () => {
                 </select>
               </div>
             </div>
-            <div data-tip="Toggle wireframe mode" style={{ margin: "0.6em 0 0.3em -0.2em" }}>
+            <div data-tip="Toggle wireframe mode">
               <input
                 id="options3dMeshWireframeMode"
                 className="checkbox"
@@ -373,7 +446,6 @@ export const Options3dDialog: React.FC = () => {
               <span>Sky:</span>
               <input
                 type="color"
-                style={{ width: "4.4em", height: "1em", border: 0, padding: 0, margin: "0 0.2em" }}
                 value={options.skyColor}
                 onChange={e =>
                   handleChange("skyColor", e.target.value, () =>
@@ -384,7 +456,6 @@ export const Options3dDialog: React.FC = () => {
               <span>Water:</span>
               <input
                 type="color"
-                style={{ width: "4.4em", height: "1em", border: 0, padding: 0, margin: "0 0.2em" }}
                 value={options.waterColor}
                 onChange={e =>
                   handleChange("waterColor", e.target.value, () =>
@@ -412,7 +483,6 @@ export const Options3dDialog: React.FC = () => {
                 min={0}
                 max={10}
                 step=".1"
-                style={{ width: "4em" }}
                 value={options.rotateGlobe}
                 onChange={e =>
                   handleChange("rotateGlobe", +e.target.value, () => ThreeDRenderer.setRotation(+e.target.value))
@@ -422,7 +492,6 @@ export const Options3dDialog: React.FC = () => {
             <div data-tip="Set globe texture resolution">
               <div>Texture resolution:</div>
               <select
-                style={{ width: "5em" }}
                 value={options.resolution}
                 onChange={e =>
                   handleChange("resolution", +e.target.value, () => ThreeDRenderer.setResolution(+e.target.value))
@@ -435,14 +504,11 @@ export const Options3dDialog: React.FC = () => {
                 <option value={8}>8x</option>
               </select>
             </div>
-            <div
-              data-tip="Equirectangular projection is used: distortion is maximum on poles. Use map with aspect ratio 2:1 for best result"
-              style={{ fontStyle: "italic", margin: "0.2em 0" }}
-            >
+            <div data-tip="Equirectangular projection is used: distortion is maximum on poles. Use map with aspect ratio 2:1 for best result">
               Equirectangular projection is used
             </div>
           </div>
-          <div id="options3dFooter" style={{ marginTop: "0.2em" }}>
+          <div id="options3dFooter">
             <button
               type="button"
               data-tip="Update the scene"

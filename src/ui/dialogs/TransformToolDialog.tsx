@@ -104,21 +104,12 @@ export const TransformToolDialog: React.FC = () => {
         { label: "Cancel", onClick: () => closeDialog("transformTool") }
       ]}
     >
-      <div style={{ paddingTop: "0.5em", width: "40em", fontWeight: "bold" }}>
+      <div>
         This operation is destructive and irreversible. It will create a completely new map based on the current one.
         Don't forget to save the .map file to your machine first!
       </div>
 
-      <div
-        style={{
-          padding: "0.5em 0",
-          width: "100%",
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gridTemplateRows: "repeat(5, 1fr)",
-          alignItems: "center"
-        }}
-      >
+      <div style={{ display: "grid" }}>
         <div>Points number</div>
         <div>
           <input
@@ -160,7 +151,7 @@ export const TransformToolDialog: React.FC = () => {
         </div>
 
         <div>Mirror</div>
-        <div style={{ display: "flex", gap: "0.5em" }}>
+        <div className="d-flex">
           <input
             type="checkbox"
             className="checkbox"
@@ -188,7 +179,6 @@ export const TransformToolDialog: React.FC = () => {
         style={{
           position: "relative",
           overflow: "hidden",
-          outline: "1px solid #666",
           width: `${previewDims.previewWidth}px`,
           height: `${previewDims.previewHeight}px`
         }}
@@ -201,7 +191,6 @@ export const TransformToolDialog: React.FC = () => {
           ref={canvasRef}
           style={{
             position: "absolute",
-            transformOrigin: "center",
             width: `${previewDims.previewWidth}px`,
             height: `${previewDims.previewHeight}px`,
             transform: canvasTransform

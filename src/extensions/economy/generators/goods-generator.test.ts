@@ -15,6 +15,7 @@ describe("GoodsModule", () => {
   beforeEach(async () => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
     worldContext.grid = { cells: { temp: [20, 20, 20, 20] } } as unknown as Grid;
+    worldContext.options = { gunpowderEraEnabled: true } as typeof worldContext.options;
     worldContext.biomesData = {
       habitability: Array(20).fill(50),
       i: [],
@@ -81,6 +82,30 @@ describe("GoodsModule", () => {
     expect(worldContext.pack.goods[0].name).not.toBe("Custom A");
   });
 
+  it("restores default goods with trade cargo profiles", () => {
+    goodsModule.restoreDefaults();
+
+    expect(worldContext.pack.goods.every(good => good.trade)).toBe(true);
+    expect(worldContext.pack.goods.find(good => good.name === "Gold")?.trade?.distancePremium).toBe(3);
+    expect(worldContext.pack.goods.find(good => good.name === "Fish")?.trade?.timeValueTrend).toBe(-2);
+  });
+
+  it("replaces the generic Ships Good with sea-only ship-class Goods", () => {
+    goodsModule.restoreDefaults();
+
+    expect(worldContext.pack.goods.find(good => good.name === "Ships")).toBeUndefined();
+    expect(
+      ["Sloop", "Caravel", "Galleon"].map(name => {
+        const good = worldContext.pack.goods.find(candidate => candidate.name === name);
+        return { name, value: good?.value, seaOnly: good?.seaOnly, recipes: good?.recipes, trade: good?.trade };
+      })
+    ).toEqual([
+      { name: "Sloop", value: 80, seaOnly: true, recipes: undefined, trade: expect.any(Object) },
+      { name: "Caravel", value: 200, seaOnly: true, recipes: undefined, trade: expect.any(Object) },
+      { name: "Galleon", value: 480, seaOnly: true, recipes: undefined, trade: expect.any(Object) }
+    ]);
+  });
+
   it("restores the original defaults even after the current catalogue was edited", () => {
     goodsModule.generate();
     worldContext.pack.goods[0].name = "Edited Wood";
@@ -115,5 +140,15 @@ describe("GoodsModule", () => {
     const goodIds = Array.from(worldContext.pack.cells.good);
     expect(goodIds.some(id => id === 1)).toBe(false);
     expect(goodIds.filter(id => id === 2)).toHaveLength(2);
+  });
+
+  it("does not place Gunpowder or Artillery when the gunpowder era is disabled", () => {
+    worldContext.pack.goods[0].name = "Gunpowder";
+    worldContext.pack.goods[1].name = "Artillery";
+    worldContext.options.gunpowderEraEnabled = false;
+
+    goodsModule.generate({ randomSeed: 123 });
+
+    expect(Array.from(worldContext.pack.cells.good)).toEqual([0, 0, 0, 0]);
   });
 });

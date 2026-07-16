@@ -1,7 +1,17 @@
-import type { ExtensionStyleConfig, ExtensionStyleProps } from "../../store/extensionState";
+import { type ExtensionStyleConfig, type ExtensionStyleProps, useStyleState } from "../hostUi";
 import { getApi } from "./economyContext";
 
 export function EconomyStyleBody({ visibility }: ExtensionStyleProps) {
+  const showCircle = useStyleState(state => state.values.styleGoodsCircle === "1");
+
+  const handleChange = (checked: boolean) => {
+    useStyleState.getState().updateValue("styleGoodsCircle", checked ? "1" : "");
+    const goodsGroup = getApi().getSvgLayer("goods");
+    if (goodsGroup) {
+      goodsGroup.selectAll("circle").attr("display", checked ? "block" : "none");
+    }
+  };
+
   return (
     <tbody id="styleGoods" style={{ display: visibility.styleGoods ? "block" : "none" }}>
       <tr data-tip="Show or hide circle around good icons">
@@ -10,13 +20,8 @@ export function EconomyStyleBody({ visibility }: ExtensionStyleProps) {
             id="styleGoodsCircle"
             className="checkbox"
             type="checkbox"
-            onChange={e => {
-              const checked = e.target.checked;
-              const goodsGroup = getApi().getSvgLayer("goods");
-              if (goodsGroup) {
-                goodsGroup.selectAll("circle").attr("display", checked ? "block" : "none");
-              }
-            }}
+            checked={showCircle}
+            onChange={e => handleChange(e.target.checked)}
           />
           <label htmlFor="styleGoodsCircle" className="checkbox-label">
             Show circle
@@ -44,10 +49,9 @@ export const economyStyleConfig: ExtensionStyleConfig = {
     }
     if (["goodsCells", "goodsIcons", "goodsBurgs"].includes(elementId)) {
       visibility.styleGoods = true;
-      const showCircle = document.getElementById("styleGoodsCircle") as HTMLInputElement;
       const firstCircle = el.select("circle");
-      if (showCircle && firstCircle.size()) {
-        showCircle.checked = firstCircle.attr("display") !== "none";
+      if (firstCircle.size()) {
+        sliderValues.styleGoodsCircle = firstCircle.attr("display") !== "none" ? "1" : "";
       }
 
       visibility.styleFill = true;
@@ -55,24 +59,11 @@ export const economyStyleConfig: ExtensionStyleConfig = {
       visibility.styleStrokeWidth = true;
       visibility.styleStrokeDash = true;
 
-      const fill = el.attr("fill") ?? "#ffffff";
-      const stroke = el.attr("stroke") ?? "#3e3e4b";
-      const fillInput = document.getElementById("styleFillInput") as HTMLInputElement;
-      const fillOutput = document.getElementById("styleFillOutput") as HTMLInputElement;
-      const strokeInput = document.getElementById("styleStrokeInput") as HTMLInputElement;
-      const strokeOutput = document.getElementById("styleStrokeOutput") as HTMLInputElement;
-
-      if (fillInput) fillInput.value = fill;
-      if (fillOutput) fillOutput.value = fill;
-      if (strokeInput) strokeInput.value = stroke;
-      if (strokeOutput) strokeOutput.value = stroke;
-
+      sliderValues.styleFillInput = el.attr("fill") ?? "#ffffff";
+      sliderValues.styleStrokeInput = el.attr("stroke") ?? "#3e3e4b";
       sliderValues.styleStrokeWidthInput = String(el.attr("stroke-width") ?? 0.24);
-
-      const dashInput = document.getElementById("styleStrokeDasharrayInput") as HTMLInputElement;
-      const linecapInput = document.getElementById("styleStrokeLinecapInput") as HTMLInputElement;
-      if (dashInput) dashInput.value = el.attr("stroke-dasharray") ?? "";
-      if (linecapInput) linecapInput.value = el.attr("stroke-linecap") ?? "inherit";
+      sliderValues.styleStrokeDasharrayInput = el.attr("stroke-dasharray") ?? "";
+      sliderValues.styleStrokeLinecapInput = el.attr("stroke-linecap") ?? "inherit";
     }
   }
 };

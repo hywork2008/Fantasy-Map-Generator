@@ -1,7 +1,10 @@
+export { CombatDeathsRenderer } from "./combatDeathsRenderer";
+export { DangerRenderer } from "./danger-renderer";
 export { BiomesRenderer } from "./draw-biomes";
 export { BordersRenderer } from "./draw-borders";
 export { BurgIconsRenderer, drawBurgIcon, removeBurgIcon } from "./draw-burg-icons";
 export { BurgLabelsRenderer, drawBurgLabel, removeBurgLabel } from "./draw-burg-labels";
+export { drawCalendar } from "./draw-calendar";
 export { CellsRenderer } from "./draw-cells";
 export { CoordinatesRenderer } from "./draw-coordinates";
 export { CulturesRenderer } from "./draw-cultures";
@@ -26,6 +29,8 @@ export { StatesRenderer } from "./draw-states";
 export { drawTemperature, TemperatureLayerRenderer } from "./draw-temperature";
 export { TextureRenderer } from "./draw-texture";
 export { ZonesRenderer } from "./draw-zones";
+export { drawFrontierFort, FrontierFortsRenderer } from "./drawFrontierForts";
+export { EnclosureRenderer } from "./enclosureRenderer";
 
 export function initRenderers(): void {
   // No-op (all renderers are explicitly imported/exported)

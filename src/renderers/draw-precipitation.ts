@@ -1,10 +1,11 @@
 import { easeSinIn, transition } from "d3";
 import type { AppServices } from "../context/appServices";
-import type { EnvironmentLayers, ViewContext } from "../context/viewContext";
+import type { EnvironmentLayers, FocusFields, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import { rn } from "../utils";
 import { TIME } from "../utils/debug";
+import { isGridCellInScope } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
 
 export const PrecipitationRenderer: IRenderer = {
@@ -12,12 +13,12 @@ export const PrecipitationRenderer: IRenderer = {
 
   render(
     worldContext: Readonly<WorldContext>,
-    viewContext: Readonly<EnvironmentLayers>,
+    viewContext: Readonly<EnvironmentLayers & FocusFields>,
     _appServices: AppServices
   ): void {
     TIME && console.time("PrecipitationRenderer");
     const { grid } = worldContext;
-    const { prec } = viewContext;
+    const { prec, focusScope } = viewContext;
 
     prec.selectAll("circle").remove();
     const { cells, points } = grid;
@@ -27,7 +28,9 @@ export const PrecipitationRenderer: IRenderer = {
 
     const { points: pointsOpt } = useOptionsState.getState();
     const cellsNumberModifier = ((pointsOpt === 4 ? 10000 : pointsOpt * 2500) / 10000) ** 0.25;
-    const data = Array.from(cells.i).filter(i => (cells.h[i] as number) >= 20 && cells.prec[i]);
+    const data = Array.from(cells.i).filter(
+      i => (cells.h[i] as number) >= 20 && cells.prec[i] && isGridCellInScope(focusScope, i)
+    );
     const getRadius = (p: number) => rn(Math.sqrt(p / 4) / cellsNumberModifier, 2);
 
     prec

@@ -10,67 +10,33 @@ import { StatesRenderer } from "../renderers";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
-import { type DiplomacyRowData, getDiplomacyEditorState, setDiplomacyEditorState } from "../store/diplomacyEditorState";
+import {
+  type ConflictStatus,
+  type DiplomacyRowData,
+  getDiplomacyEditorState,
+  setDiplomacyEditorState
+} from "../store/diplomacyEditorState";
 import { diplomacyHistoryDialogStore } from "../store/diplomacyHistoryDialogState";
 import { closeDialogs, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective } from "../utils";
+import { type RelationKey, relations } from "../utils/diplomacyRelations";
 import { EditorBus } from "../utils/editorBus";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
+import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../utils/gunpowderEra";
 import { layerIsOn } from "../utils/nodeUtils";
 import { interactionManager } from "./interactionManager";
-import { toggleBiomes, toggleBorders, toggleCultures, toggleProvinces, toggleReligions, toggleStates } from "./layers";
+import {
+  scheduleWebglUpdate,
+  toggleBiomes,
+  toggleBorders,
+  toggleCultures,
+  toggleProvinces,
+  toggleReligions,
+  toggleStates
+} from "./layers";
 import { editStyle } from "./style";
 
-export type RelationKey =
-  | "Ally"
-  | "Friendly"
-  | "Neutral"
-  | "Suspicion"
-  | "Enemy"
-  | "Unknown"
-  | "Rival"
-  | "Vassal"
-  | "Suzerain";
-
-export const relations: Record<RelationKey, { inText: string; color: string; tip: string }> = {
-  Ally: {
-    inText: "is an ally of",
-    color: "#00b300",
-    tip: "Allies formed a defensive pact and protect each other in case of third party aggression"
-  },
-  Friendly: {
-    inText: "is friendly to",
-    color: "#d4f8aa",
-    tip: "State is friendly to anouther state when they share some common interests"
-  },
-  Neutral: {
-    inText: "is neutral to",
-    color: "#edeee8",
-    tip: "Neutral means states relations are neither positive nor negative"
-  },
-  Suspicion: {
-    inText: "is suspicious of",
-    color: "#eeafaa",
-    tip: "Suspicion means state has a cautious distrust of another state"
-  },
-  Enemy: { inText: "is at war with", color: "#e64b40", tip: "Enemies are states at war with each other" },
-  Unknown: {
-    inText: "does not know about",
-    color: "#a9a9a9",
-    tip: "Relations are unknown if states do not have enough information about each other"
-  },
-  Rival: {
-    inText: "is a rival of",
-    color: "#ad5a1f",
-    tip: "Rivalry is a state of competing for dominance in the region"
-  },
-  Vassal: { inText: "is a vassal of", color: "#87CEFA", tip: "Vassal is a state having obligation to its suzerain" },
-  Suzerain: {
-    inText: "is suzerain to",
-    color: "#00008B",
-    tip: "Suzerain is a state having some control over its vassals"
-  }
-};
+export { type RelationKey, relations };
 
 export function editDiplomacy(): void {
   if (view.customization) return;
@@ -93,6 +59,8 @@ export function editDiplomacy(): void {
 
   if (isDialogOpen("diplomacyEditor")) return;
 
+  document.addEventListener("fmg:webgl-map-pick", selectStateOnWebglMapPick);
+
   openDialog("diplomacyEditor");
 
   function refreshDiplomacyEditor(): void {
@@ -100,12 +68,28 @@ export function editDiplomacy(): void {
     showStateRelations();
   }
 
+  function getTotalForces(state: (typeof worldContext.pack.states)[number]): number {
+    const options = (worldContext.options?.military || []).filter(
+      unit => isGunpowderEraEnabled(worldContext.options) || !isGunpowderEraMilitaryUnit(unit)
+    );
+    const getForces = (u: { name: string; crew: number }) =>
+      state.military?.reduce((acc, r) => acc + (r.u[u.name] || 0), 0) || 0;
+    return options.reduce((acc, u) => acc + getForces(u) * u.crew, 0);
+  }
+
   function diplomacyEditorAddLines(): void {
     const states = worldContext.pack.states;
-    const { selectedStateId } = getDiplomacyEditorState() ?? { selectedStateId: 0 };
-    const selectedId = selectedStateId || states.find(s => s.i && !s.removed)!.i;
+    let selectedId = getDiplomacyEditorState()?.selectedStateId || 0;
+    if (!selectedId || !states[selectedId] || states[selectedId].removed) {
+      selectedId = states.find(s => s.i && !s.removed)!.i;
+    }
 
     const rowData: DiplomacyRowData[] = [];
+    const getConflictStatus = (subjectId: number, objectId: number, relation: string): ConflictStatus => {
+      if (relation !== "Enemy") return "none";
+      if (worldContext.options.conflictAutonomy !== "playerDirected") return "autonomous";
+      return worldContext.pack.states[subjectId].conflictAuthorizations?.[objectId] ? "player" : "suspended";
+    };
 
     // Self Row
     rowData.push({
@@ -114,7 +98,9 @@ export function editDiplomacy(): void {
       fullName: states[selectedId].fullName || "",
       color: "none",
       relation: "Self",
-      inText: "Self"
+      conflictStatus: "none",
+      inText: "Self",
+      totalForces: getTotalForces(states[selectedId])
     });
 
     for (const state of states) {
@@ -129,7 +115,9 @@ export function editDiplomacy(): void {
         fullName: state.fullName || "",
         color,
         relation,
-        inText
+        conflictStatus: getConflictStatus(selectedId, state.i, relation),
+        inText,
+        totalForces: getTotalForces(state)
       });
     }
 
@@ -149,9 +137,16 @@ export function editDiplomacy(): void {
   }
 
   function showStateRelations(): void {
-    const sel = getDiplomacyEditorState()?.selectedStateId || worldContext.pack.states.find(s => s.i && !s.removed)?.i;
+    const states = worldContext.pack.states;
+    let sel = getDiplomacyEditorState()?.selectedStateId || 0;
+    if (!sel || !states[sel] || states[sel].removed) {
+      sel = states.find(s => s.i && !s.removed)?.i || 0;
+    }
     if (!sel) return;
     if (!layerIsOn("toggleStates")) toggleStates();
+
+    viewContext.diplomacySelectedStateId = sel;
+    scheduleWebglUpdate();
 
     view.statesBody.selectAll("path").each(function () {
       const el = this as SVGPathElement;
@@ -172,6 +167,17 @@ export function editDiplomacy(): void {
     const i = findCell(point[0], point[1]);
     const state = worldContext.pack.cells.state![i];
     if (!state) return;
+
+    setDiplomacyEditorState({ selectedStateId: state });
+    refreshDiplomacyEditor();
+  }
+
+  function selectStateOnWebglMapPick(event: CustomEvent<import("../types/webglPicking").WebglPickDetail | null>): void {
+    if (viewContext.renderMode !== "webglHybrid") return;
+    const cellId = event.detail?.cellId;
+    if (cellId === null || cellId === undefined) return;
+    const state = worldContext.pack.cells.state?.[cellId];
+    if (!state || worldContext.pack.states[state]?.removed) return;
 
     setDiplomacyEditorState({ selectedStateId: state });
     refreshDiplomacyEditor();
@@ -240,6 +246,20 @@ export function editDiplomacy(): void {
     else if (newRelation === "Rival") chronicle.push(rival());
     else chronicle.push(change());
 
+    if (newRelation === "Enemy") {
+      document.dispatchEvent(
+        new CustomEvent("fmg:player-conflict-requested", {
+          detail: { attackerStateId: subjectId, defenderStateId: objectId }
+        })
+      );
+    } else if (oldRelation === "Enemy") {
+      document.dispatchEvent(
+        new CustomEvent("fmg:player-conflict-ended", {
+          detail: { attackerStateId: subjectId, defenderStateId: objectId }
+        })
+      );
+    }
+
     refreshDiplomacyEditor();
   }
 
@@ -255,6 +275,13 @@ export function editDiplomacy(): void {
 
     (states[selectedId].diplomacy as string[]).forEach((rel, index) => {
       if (rel !== "x") {
+        if (rel === "Enemy") {
+          document.dispatchEvent(
+            new CustomEvent("fmg:player-conflict-ended", {
+              detail: { attackerStateId: selectedId, defenderStateId: index }
+            })
+          );
+        }
         states[selectedId].diplomacy![index] = "Neutral";
         states[index].diplomacy![selectedId] = "Neutral";
       }
@@ -264,29 +291,7 @@ export function editDiplomacy(): void {
   }
 
   function showRelationsHistory(): void {
-    const chronicle = worldContext.pack.states[0].diplomacy as unknown as string[][];
-    if (!chronicle.length) {
-      (worldContext.pack.states[0].diplomacy as unknown as string[][]) = [[]];
-    }
-
-    diplomacyHistoryDialogStore.getState().open({
-      chronicle: worldContext.pack.states[0].diplomacy as unknown as string[][],
-      onSave: (data: string) => {
-        const name = `${getFileName("Relations history")}.txt`;
-        downloadFile(data, name);
-      },
-      onClear: () => {
-        worldContext.pack.states[0].diplomacy = [];
-      },
-      onChange: (groupIdx: number, entryIdx: number, value: string) => {
-        const group = (worldContext.pack.states[0].diplomacy as unknown as string[][])[groupIdx];
-        if (value === "") {
-          group.splice(entryIdx, 1);
-        } else {
-          group[entryIdx] = value;
-        }
-      }
-    });
+    openRelationsHistory();
   }
 
   function openMatrix(): void {
@@ -317,6 +322,9 @@ export function editDiplomacy(): void {
   }
 
   function closeDiplomacyEditorImpl(): void {
+    document.removeEventListener("fmg:webgl-map-pick", selectStateOnWebglMapPick);
+    viewContext.diplomacySelectedStateId = null;
+    scheduleWebglUpdate();
     EditorBus.restoreDefaultEvents();
     clearMainTip();
     if (layerIsOn("toggleStates")) StatesRenderer.render(worldContext, viewContext, appServices);
@@ -340,7 +348,10 @@ export const diplomacyEditorActions = {
   stateHighlightOn: (stateId: number) => {
     if (!layerIsOn("toggleStates")) return;
     if (view.customization || !stateId) return;
-    const d = view.regions.select(`#state${stateId}`).attr("d");
+    // WebGL hybrid hides the SVG state paths, so this SVG-only outline is not always available.
+    const statePath = view.regions.select<SVGPathElement>(`#state${stateId}`).node();
+    const d = statePath?.getAttribute("d");
+    if (!d) return;
 
     const path = view.debug
       .append("path")
@@ -378,14 +389,43 @@ export const diplomacyEditorActions = {
   closeDiplomacyEditor: () => {}
 };
 
-declare global {
-  interface Window {
-    editDiplomacy: () => void;
-  }
-}
-
 export function initDiplomacyEditor(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}
+
+const refreshRelationsHistoryIfOpen = () => {
+  if (diplomacyHistoryDialogStore.getState().isOpen) {
+    openRelationsHistory();
+  }
+};
 
 document.addEventListener("fmg:refresh-editors", () => {
   if (isDialogOpen("diplomacyEditor")) diplomacyEditorActions.refreshDiplomacyEditor();
+  refreshRelationsHistoryIfOpen();
 });
+document.addEventListener("fmg:generate-post-core", refreshRelationsHistoryIfOpen);
+document.addEventListener("fmg:map-layers-reinitialized", refreshRelationsHistoryIfOpen);
+
+export function openRelationsHistory(): void {
+  const chronicle = worldContext.pack.states[0].diplomacy as unknown as string[][];
+  if (!chronicle.length) {
+    (worldContext.pack.states[0].diplomacy as unknown as string[][]) = [[]];
+  }
+
+  diplomacyHistoryDialogStore.getState().open({
+    chronicle: worldContext.pack.states[0].diplomacy as unknown as string[][],
+    onSave: (data: string) => {
+      const name = `${getFileName("Relations history")}.txt`;
+      downloadFile(data, name);
+    },
+    onClear: () => {
+      worldContext.pack.states[0].diplomacy = [];
+    },
+    onChange: (groupIdx: number, entryIdx: number, value: string) => {
+      const group = (worldContext.pack.states[0].diplomacy as unknown as string[][])[groupIdx];
+      if (value === "") {
+        group.splice(entryIdx, 1);
+      } else {
+        group[entryIdx] = value;
+      }
+    }
+  });
+}

@@ -1,6 +1,7 @@
 import type React from "react";
 import { routesEditorActions } from "../../controllers/routes-editor";
 import { useRoutesEditorState } from "../../store/routesEditorState";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 
 export const RoutesEditorDialog: React.FC = () => {
@@ -12,6 +13,7 @@ export const RoutesEditorDialog: React.FC = () => {
     routeLength,
     isWaterRoute,
     isLocked,
+    isSplitMode,
     allGroups,
     creatorGroup,
     creatorPoints
@@ -28,7 +30,6 @@ export const RoutesEditorDialog: React.FC = () => {
               type="text"
               value={routeName}
               onChange={e => routesEditorActions.changeName(e.target.value)}
-              style={{ width: "12em" }}
             />
             <button
               type="button"
@@ -41,12 +42,7 @@ export const RoutesEditorDialog: React.FC = () => {
 
           <div className="editor-row">
             <label htmlFor="routeGroup">Group:</label>
-            <select
-              id="routeGroup"
-              value={routeGroup}
-              onChange={e => routesEditorActions.changeGroup(e.target.value)}
-              style={{ width: "12em" }}
-            >
+            <select id="routeGroup" value={routeGroup} onChange={e => routesEditorActions.changeGroup(e.target.value)}>
               {allGroups.map(group => (
                 <option key={group} value={group}>
                   {group}
@@ -74,7 +70,7 @@ export const RoutesEditorDialog: React.FC = () => {
             <span id="routeLength">{routeLength}</span>
           </div>
 
-          <div className="editor-row" style={{ marginTop: "1em", gap: "0.5em", display: "flex" }}>
+          <div className="editor-row d-flex">
             <button
               type="button"
               id="routeCreateSelectingCells"
@@ -87,12 +83,9 @@ export const RoutesEditorDialog: React.FC = () => {
             <button
               type="button"
               id="routeSplit"
-              className="icon-scissors"
+              className={`icon-scissors${isSplitMode ? " pressed" : ""}`}
               data-tip="Click to activate split mode. Then click on a route control point to split the route in two parts"
-              onClick={e => {
-                e.currentTarget.classList.toggle("pressed");
-                routesEditorActions.toggleSplitMode();
-              }}
+              onClick={routesEditorActions.toggleSplitMode}
             >
               Split
             </button>
@@ -158,7 +151,6 @@ export const RoutesEditorDialog: React.FC = () => {
               id="routeCreatorGroupSelect"
               value={creatorGroup}
               onChange={e => routesEditorActions.changeCreatorGroup(e.target.value)}
-              style={{ width: "12em" }}
             >
               {allGroups.map(group => (
                 <option key={group} value={group}>
@@ -175,15 +167,11 @@ export const RoutesEditorDialog: React.FC = () => {
             />
           </div>
 
-          <div id="routeCreatorBody" style={{ maxHeight: "400px", overflowY: "auto", margin: "1em 0" }}>
+          <div id="routeCreatorBody">
             {creatorPoints.map(pt => {
               const ptStr = `${pt.x}-${pt.y}-${pt.cellId}`;
               return (
-                <div
-                  key={ptStr}
-                  className="editorLine"
-                  style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: "1em" }}
-                >
+                <div key={ptStr} className="d-grid">
                   <span>
                     <b>Cell</b>: {pt.cellId}
                   </span>
@@ -193,7 +181,7 @@ export const RoutesEditorDialog: React.FC = () => {
                   <span>
                     <b>Y</b>: {pt.y}
                   </span>
-                  <span
+                  <IconButton
                     data-tip="Remove the point"
                     className="icon-trash-empty pointer"
                     onClick={() => routesEditorActions.removeCreatorPoint(ptStr)}
@@ -203,7 +191,7 @@ export const RoutesEditorDialog: React.FC = () => {
             })}
           </div>
 
-          <div className="editor-row" style={{ display: "flex", justifyContent: "flex-end", gap: "1em" }}>
+          <div className="editor-row d-flex">
             <button type="button" id="routeCreatorCancel" onClick={routesEditorActions.closeRouteCreator}>
               Cancel
             </button>

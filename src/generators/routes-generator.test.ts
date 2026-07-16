@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../context/worldContext";
+import type { Grid } from "../types/Grid";
 import type { PackedGraph } from "../types/PackedGraph";
-import type { Grid } from "../utils/graphUtils";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
 import { Routes } from "./routes-generator";
 
@@ -335,7 +335,8 @@ describe("RoutesModule.addMeandering", () => {
     const cell3Anchor = result.find(
       (p: number[], idx: number, arr: number[][]) => p[2] === 3 && (idx === 0 || arr[idx - 1][2] !== 3)
     );
-    expect([cell3Anchor[0], cell3Anchor[1]]).toEqual([40, 0]);
+    expect(cell3Anchor).toBeDefined();
+    expect([cell3Anchor![0], cell3Anchor![1]]).toEqual([40, 0]);
 
     const last = result[result.length - 1];
     expect(last[2]).toBe(4);

@@ -25,7 +25,13 @@ export interface LayerConfig {
   isSolid?: boolean;
   /** SVG <g> elements the extension system should create/re-acquire for this toggle. */
   svgLayers?: SvgLayerSpec[];
-  /** Plain-text sort key; defaults to id with "toggle" prefix stripped. */
+  /**
+   * Plain-text key for alphabetical panel order.
+   * Defaults to `id` with the `toggle` prefix stripped (e.g. toggleMilitary → "Military").
+   * Use only when that default would sort under the wrong letter relative to the button label —
+   * e.g. toggleBurgIcons → "BurgIcons" but the label is "Icons"; toggleCompass → "Compass" but
+   * the label is "Wind Rose". Not for controlling SVG/WebGL paint order (that is DOM / deck order).
+   */
   sortKey?: string;
 }
 
@@ -39,6 +45,13 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     ),
     shortcut: "B",
     tooltip: "Biomes: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "toggleCombatDeaths",
+    name: <>Combat Deaths</>,
+    shortcut: null,
+    tooltip:
+      "Recent combat deaths by battlefield (uses Population Overview death window): click to toggle, drag to raise or lower the layer"
   },
   {
     id: "toggleBorders",
@@ -79,6 +92,19 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     ),
     shortcut: "C",
     tooltip: "Cultures: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "toggleDanger",
+    name: <>Danger</>,
+    shortcut: null,
+    tooltip: "Danger: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "toggleEnclosure",
+    name: <>Enclosure</>,
+    shortcut: null,
+    tooltip:
+      "Enclosure: heatmap of how enclosed/landlocked each water cell is (pack.cells.enclosure), red = open sea, green = enclosed inland sea. Click to toggle."
   },
   {
     id: "toggleEmblems",
@@ -149,6 +175,12 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     ),
     shortcut: "K",
     tooltip: "Markers: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
+  },
+  {
+    id: "toggleFrontierForts",
+    name: <>Frontier Forts</>,
+    shortcut: null,
+    tooltip: "Frontier forts: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
   },
   {
     id: "toggleMilitary",

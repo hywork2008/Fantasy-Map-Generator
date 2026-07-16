@@ -5,16 +5,18 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { heightmapTemplates } from "../data";
+import { getHeightmapTemplateWeights } from "../data";
 import { THEME_COLOR } from "../data/constants";
-
+import { Cultures } from "../generators/cultures-generator";
+import { COA } from "../generators/emblem/generator";
+import { Names } from "../generators/names-generator";
+import { syncSimulationClockFromOptions } from "../generators/timeEngine";
 import { Cloud } from "../io/cloud";
 import { loadMapFromURL } from "../io/load";
 import { StatesRenderer } from "../renderers";
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
-import { fitScaleBar } from "../renderers/index";
-import { GenerationPipeline } from "../services/generationPipeline";
+import { drawCalendar, fitScaleBar } from "../renderers/index";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { viewStateStore } from "../store";
@@ -25,7 +27,7 @@ import type { Burg, Culture, Province, State } from "../types/models";
 import { closeAllDialogs, closeDialogs, openAlert, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { gauss, last, minmax, P, rand, rn, rw } from "../utils";
 import { applyOption, lock, locked, stored, unlock } from "../utils/domUtils";
-import { getElementById, getElementBySelector, getElementsBySelector } from "../utils/nodeUtils";
+import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
 import { cleanupData } from "../versioning";
 import { exportToJson as exportToJsonModule } from "./export-json";
 import { editWorld } from "./world-configurator";
@@ -99,6 +101,8 @@ export function applyGraphSize(): void {
   worldContext.graphHeight = options.mapHeight;
   const { graphWidth, graphHeight } = worldContext;
 
+  if (!viewContext?.renderMap || !viewContext.viewbox) return;
+
   view.landmass.select("rect").attr("x", 0).attr("y", 0).attr("width", graphWidth).attr("height", graphHeight);
   view.oceanPattern.select("rect").attr("x", 0).attr("y", 0).attr("width", graphWidth).attr("height", graphHeight);
   view.oceanLayers.select("rect").attr("x", 0).attr("y", 0).attr("width", graphWidth).attr("height", graphHeight);
@@ -113,6 +117,7 @@ export function applyGraphSize(): void {
 }
 
 export function fitMapToScreen(): void {
+  if (!viewContext?.renderMap || !viewContext.viewbox) return;
   const svgWidth = window.innerWidth;
   const svgHeight = window.innerHeight;
   Object.assign(viewContext, { svgWidth, svgHeight });
@@ -132,6 +137,7 @@ export function fitMapToScreen(): void {
     .scaleExtent([zoomMin, zoomMax]);
 
   fitScaleBar(worldContext, viewContext, appServices, view.scaleBar, svgWidth, svgHeight);
+  drawCalendar(worldContext, viewContext);
   document.dispatchEvent(new CustomEvent("fmg:fit-legend-box"));
 }
 
@@ -183,10 +189,10 @@ function generateMapWithSeed(): void {
 export function showSeedHistoryDialog(): void {
   const lines = worldContext.mapHistory.map((h, i) => {
     const created = new Date(h.created).toLocaleTimeString();
-    const button = `<i data-tip="Click to generate a map with this seed" onclick="restoreSeed(${i})" class="icon-history optionsSeedRestore"></i>`;
+    const button = `<button type="button" aria-label="Restore seed" data-tip="Click to generate a map with this seed" onclick="restoreSeed(${i})" class="icon-btn icon-history optionsSeedRestore"></button>`;
     return `<li>Seed: ${h.seed} ${button}. Size: ${h.width}x${h.height}. Template: ${h.template}. Created: ${created}</li>`;
   });
-  openAlert(`<ol style="margin: 0; padding-left: 1.5em">${lines.join("")}</ol>`, { title: "Seed history" });
+  openAlert(`<ol>${lines.join("")}</ol>`, { title: "Seed history" });
 }
 
 export function restoreSeed(id: number): void {
@@ -249,7 +255,7 @@ function changeEmblemShape(emblemShape: string): void {
     (worldContext.pack.cultures as Culture[])
       .filter(c => !c.removed)
       .forEach(c => {
-        c.shield = GenerationPipeline.Cultures.getRandomShield();
+        c.shield = Cultures.getRandomShield();
       });
 
   const rerenderCOA = (id: string, coa: RendererEmblem) => {
@@ -261,7 +267,7 @@ function changeEmblemShape(emblemShape: string): void {
 
   (worldContext.pack.states as State[]).forEach(state => {
     if (!state.i || state.removed || !state.coa || state.coa.custom) return;
-    const newShield = specificShape || GenerationPipeline.COA.getShield(state.culture);
+    const newShield = specificShape || COA.getShield(state.culture);
     if (newShield === state.coa.shield) return;
     state.coa.shield = newShield;
     rerenderCOA(`stateCOA${state.i}`, state.coa);
@@ -270,7 +276,7 @@ function changeEmblemShape(emblemShape: string): void {
   (worldContext.pack.provinces as Province[]).forEach(province => {
     if (!province.i || province.removed || !province.coa || province.coa.custom) return;
     const culture = worldContext.pack.cells.culture[province.center];
-    const newShield = specificShape || GenerationPipeline.COA.getShield(culture, province.state);
+    const newShield = specificShape || COA.getShield(culture, province.state);
     if (newShield === province.coa.shield) return;
     province.coa.shield = newShield;
     rerenderCOA(`provinceCOA${province.i}`, province.coa);
@@ -278,7 +284,7 @@ function changeEmblemShape(emblemShape: string): void {
 
   worldContext.pack.burgs.forEach((burg: Burg) => {
     if (!burg.i || burg.removed || !burg.coa || burg.coa.custom) return;
-    const newShield = specificShape || GenerationPipeline.COA.getShield(burg.culture ?? 0, burg.state);
+    const newShield = specificShape || COA.getShield(burg.culture ?? 0, burg.state);
     if (newShield === burg.coa.shield) return;
     burg.coa.shield = newShield;
     rerenderCOA(`burgCOA${burg.i}`, burg.coa);
@@ -374,7 +380,7 @@ function loadGoogleTranslate(): void {
     getElementById<HTMLElement>("loadGoogleTranslateButton")?.remove();
 
     getElementById<HTMLElement>("mapLayers")
-      ?.querySelectorAll("li")
+      ?.querySelectorAll("button")
       .forEach(el => {
         el.querySelectorAll("u").forEach(u => {
           u.replaceWith(u.textContent ?? "");
@@ -467,8 +473,6 @@ export function applyStoredOptions(): void {
 
     const value = stored(key)!;
 
-    lock(key);
-
     if (key === "points") changeCellsDensity(+value);
     if (key === "distanceScale") worldContext.distanceScale = +value;
 
@@ -492,10 +496,13 @@ export function applyStoredOptions(): void {
       "uiSize",
       "tooltipSize",
       "themeColor",
-      "transparency"
+      "transparency",
+      "threatCalculation",
+      "gunpowderEraEnabled"
     ];
     if (validKeys.includes(key)) {
-      (loadedOptions as Record<string, string | number>)[key] = Number.isNaN(+value) ? value : +value;
+      (loadedOptions as Record<string, string | number | boolean>)[key] =
+        key === "gunpowderEraEnabled" ? value === "true" : Number.isNaN(+value) ? value : +value;
     }
   }
   optionsStore.setOptions(loadedOptions);
@@ -521,6 +528,9 @@ export function applyStoredOptions(): void {
   if (stored("temperatureNorthPole")) worldContext.options.temperatureNorthPole = +stored("temperatureNorthPole")!;
   if (stored("temperatureSouthPole")) worldContext.options.temperatureSouthPole = +stored("temperatureSouthPole")!;
   if (stored("military")) worldContext.options.military = JSON.parse(stored("military")!);
+  if (stored("gunpowderEraEnabled")) {
+    worldContext.options.gunpowderEraEnabled = stored("gunpowderEraEnabled") === "true";
+  }
 
   if (stored("tooltipSize")) changeTooltipSize(stored("tooltipSize")!);
   if (stored("regions")) changeStatesNumber(stored("regions")!);
@@ -577,25 +587,18 @@ export function randomizeOptions(): void {
     worldContext.options.temperatureSouthPole = gauss(-15, 7, -40, 10, 0);
   if (randomize || !locked("prec")) useOptionsState.getState().setOption("prec", Math.round(gauss(100, 40, 5, 500)));
 
-  const US = navigator.language === "en-US";
   if (randomize || !locked("distanceScale")) {
     const dsv = gauss(3, 1, 1, 5);
     useOptionsState.getState().setOption("distanceScale", dsv);
     worldContext.distanceScale = dsv;
   }
-  if (!stored("distanceUnit")) useOptionsState.getState().setOption("distanceUnit", US ? "mi" : "km");
-  if (!stored("heightUnit")) useOptionsState.getState().setOption("heightUnit", US ? "ft" : "m");
-  if (!stored("temperatureScale")) useOptionsState.getState().setOption("temperatureScale", US ? "°F" : "°C");
 
   generateEra();
 }
 
 function randomizeHeightmapTemplate(): void {
-  const templates: Record<string, number> = {};
-  for (const key in heightmapTemplates) {
-    templates[key] = (heightmapTemplates[key].probability as number) || 0;
-  }
-  const template = rw(templates);
+  const { templateRandomization } = useOptionsState.getState();
+  const template = rw(getHeightmapTemplateWeights(templateRandomization));
   useOptionsState.getState().setOption("template", template);
 }
 
@@ -618,8 +621,8 @@ function randomizeCultureSet(): void {
 // ─── Rendering ────────────────────────────────────────────────────────────────
 
 function setRendering(value: string): void {
-  // viewContext is not injected yet when called at module level before initOptions()
-  if (!viewContext) return;
+  // viewbox might be undefined if we're in headless mode or before SVG is initialized
+  if (!viewContext?.renderMap || !viewContext.viewbox) return;
   const { viewbox, coastline, statesHalo } = viewContext;
   viewbox.attr("shape-rendering", value);
 
@@ -641,11 +644,14 @@ function generateEra(): void {
   if (!stored("year")) store.setOptions({ year: rand(100, 2000) });
   if (!stored("era"))
     store.setOptions({
-      era: `${GenerationPipeline.Names.getBaseShort(P(0.7) ? 1 : rand(worldContext.nameBases.length))} Era`
+      era: `${Names.getBaseShort(P(0.7) ? 1 : rand(worldContext.nameBases.length))} Era`
     });
 
-  worldContext.options.year = store.year;
-  worldContext.options.era = store.era;
+  // Re-read after the conditional setOptions() calls above — `store` is a snapshot
+  // taken before them, so store.year/era would still be the pre-randomization values.
+  const { year, era } = useOptionsState.getState();
+  worldContext.options.year = year;
+  worldContext.options.era = era;
   worldContext.options.eraShort = worldContext.options.era
     .split(" ")
     .map((w: string) => w[0].toUpperCase())
@@ -654,7 +660,7 @@ function generateEra(): void {
 
 function regenerateEra(): void {
   unlock("era");
-  const era = `${GenerationPipeline.Names.getBaseShort(P(0.7) ? 1 : rand(worldContext.nameBases.length))} Era`;
+  const era = `${Names.getBaseShort(P(0.7) ? 1 : rand(worldContext.nameBases.length))} Era`;
   useOptionsState.getState().setOptions({ era });
   worldContext.options.era = era;
   worldContext.options.eraShort = worldContext.options.era
@@ -818,11 +824,12 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
   document.addEventListener("react-test-speaker", testSpeaker);
 
   document.addEventListener("react-regenerate-map-name", () => {
-    GenerationPipeline.Names.getMapName(true);
+    Names.getMapName(true);
   });
 
   document.addEventListener("react-change-year", (e: Event) => {
     worldContext.options.year = (e as CustomEvent).detail.year;
+    syncSimulationClockFromOptions();
   });
 
   document.addEventListener("react-change-era", (e: Event) => {
@@ -832,6 +839,7 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
       .split(" ")
       .map((w: string) => w[0]?.toUpperCase() ?? "")
       .join("");
+    syncSimulationClockFromOptions();
   });
 
   document.addEventListener("react-change-state-labels-mode", (e: Event) => {
@@ -882,6 +890,30 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
     setRendering(value);
   });
 
+  document.addEventListener("react-change-population-rendering-mode", () => {
+    if (layerIsOn("togglePopulation")) {
+      import("../renderers").then(({ PopulationRenderer }) => {
+        PopulationRenderer.render(worldContext, viewContext, appServices);
+      });
+    }
+  });
+
+  document.addEventListener("react-change-danger-rendering-mode", () => {
+    if (layerIsOn("toggleDanger")) {
+      import("../renderers").then(({ DangerRenderer }) => {
+        DangerRenderer.render(worldContext, viewContext, appServices);
+      });
+    }
+  });
+
+  document.addEventListener("react-change-combat-deaths-rendering-mode", () => {
+    if (layerIsOn("toggleCombatDeaths")) {
+      import("../renderers").then(({ CombatDeathsRenderer }) => {
+        CombatDeathsRenderer.render(worldContext, viewContext, appServices);
+      });
+    }
+  });
+
   document.addEventListener("react-load-google-translate", loadGoogleTranslate);
   document.addEventListener("react-reset-language", resetLanguage);
   document.addEventListener("react-open-world-configurator", editWorld);
@@ -905,3 +937,5 @@ export {
   testSpeaker,
   toggleTranslateExtent
 };
+
+document.addEventListener("fmg:show-export-pane", () => showExportPane());

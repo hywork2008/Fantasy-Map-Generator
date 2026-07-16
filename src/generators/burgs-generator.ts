@@ -1,4 +1,5 @@
-import { quadtree } from "d3-quadtree";
+import { max as d3max, mean } from "d3";
+import { type Quadtree, quadtree } from "d3-quadtree";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -7,18 +8,35 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { removeBurgIcon, removeBurgLabel } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { countBurgRoadLegs } from "../services/burgSiteDescriptor";
 import { tip } from "../services/tooltipService";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, Route } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { each, findCell, gauss, minmax, normalize, P, rn } from "../utils";
 import { ERROR, TIME, WARN } from "../utils/debug";
+import { buildBurgDemographics } from "./burgDemographics";
 import { COA, type Emblem } from "./emblem/generator";
 import { NON_NAVIGABLE_LAKE_GROUPS } from "./features";
+import {
+  analyzeFrontiers,
+  type FrontierSegment,
+  getChronicleContestedBurgs,
+  normalizeHabitability
+} from "./frontierAnalysis";
 import { Names } from "./names-generator";
 import { Rivers } from "./river-generator";
 import { Routes } from "./routes-generator";
 import type { Point } from "./voronoi";
+
+const MAX_STRATEGIC_CITADEL_BONUS = 0.5;
+
+interface StrategicContext {
+  frontiers: Map<number, FrontierSegment[]>;
+  contestedBurgs: Set<number>;
+  meanS: number;
+  maxS: number;
+}
 
 type PortCandidate = {
   burg: Burg;
@@ -257,42 +275,27 @@ class BurgModule {
     };
 
     const generateTowns = () => {
-      const randomize = (score: number) => score * gauss(1, 3, 0, 20, 3);
-      const score = new Int16Array(cells.s.map(randomize));
-      const sorted = populatedCells.sort((a, b) => score[b] - score[a]);
-
       const burgsNumber = getTownsNumber();
-      let spacing = (worldContext.graphWidth + worldContext.graphHeight) / 150 / (burgsNumber ** 0.7 / 66); // min distance between town
+      const placedCells = this.placeTowns(populatedCells, burgsNumber, burgsQuadtree);
 
-      for (let added = 0; added < burgsNumber && spacing > 1; ) {
-        for (let i = 0; added < burgsNumber && i < sorted.length; i++) {
-          if (cells.burg[sorted[i]]) continue;
-          const cell = sorted[i];
-          const [x, y] = cells.p[cell];
-
-          const minSpacing = spacing * gauss(1, 0.3, 0.2, 2, 2); // randomize to make placement not uniform
-          if (burgsQuadtree.find(x, y, minSpacing) !== undefined) continue; // to close to existing burg
-
-          const burgId = burgs.length;
-          const culture = cells.culture[cell];
-          const name = Names.getCulture(culture);
-          const feature = cells.f[cell];
-          burgs.push({
-            cell,
-            x,
-            y,
-            i: burgId,
-            state: 0,
-            culture,
-            name,
-            feature,
-            capital: 0
-          });
-          added++;
-          cells.burg[cell] = burgId;
-        }
-
-        spacing *= 0.5;
+      for (const cell of placedCells) {
+        const [x, y] = cells.p[cell];
+        const burgId = burgs.length;
+        const culture = cells.culture[cell];
+        const name = Names.getCulture(culture);
+        const feature = cells.f[cell];
+        burgs.push({
+          cell,
+          x,
+          y,
+          i: burgId,
+          state: 0,
+          culture,
+          name,
+          feature,
+          capital: 0
+        });
+        cells.burg[cell] = burgId;
       }
     };
 
@@ -322,6 +325,84 @@ class BurgModule {
 
       return Math.min(manors, populatedCells.length);
     }
+  }
+
+  /**
+   * Quadtree-spaced candidate selection shared by whole-map generation (generateTowns) and
+   * scoped regeneration (regenerateInScope). Returns up to `count` cell ids from
+   * `candidateCells`, spaced apart via the same shrinking-radius algorithm, without mutating
+   * pack — callers are responsible for turning the returned cells into burgs.
+   */
+  private placeTowns(
+    candidateCells: Iterable<number>,
+    count: number,
+    burgsQuadtree: Quadtree<[number, number]>
+  ): number[] {
+    const { cells } = this.worldContext.pack;
+    const sorted = Array.from(candidateCells);
+    const placed: number[] = [];
+    if (!count || !sorted.length) return placed;
+
+    const randomize = (score: number) => score * gauss(1, 3, 0, 20, 3);
+    const score = new Int16Array(cells.s.map(randomize));
+    sorted.sort((a, b) => score[b] - score[a]);
+
+    let spacing = (this.worldContext.graphWidth + this.worldContext.graphHeight) / 150 / (count ** 0.7 / 66);
+
+    for (let added = 0; added < count && spacing > 1; ) {
+      for (let i = 0; added < count && i < sorted.length; i++) {
+        const cell = sorted[i];
+        if (cells.burg[cell]) continue;
+        const [x, y] = cells.p[cell];
+
+        const minSpacing = spacing * gauss(1, 0.3, 0.2, 2, 2); // randomize to make placement not uniform
+        if (burgsQuadtree.find(x, y, minSpacing) !== undefined) continue; // too close to existing burg
+
+        placed.push(cell);
+        burgsQuadtree.add([x, y]);
+        added++;
+      }
+
+      spacing *= 0.5;
+    }
+
+    return placed;
+  }
+
+  /**
+   * Regenerates non-locked, non-capital burgs within `cellIds` (e.g. one state or province):
+   * removes them, places the same number of new burgs among the scope's free populated cells,
+   * and rescales the new burgs' population so the scope's total urban population is preserved.
+   * Capitals are left untouched — relocating them has much larger ripple effects (diplomacy,
+   * state label anchor) than a plain town.
+   */
+  regenerateInScope(cellIds: Iterable<number>): { addedBurgIds: number[]; removedBurgIds: number[] } {
+    const { pack } = this.worldContext;
+    const { cells } = pack;
+    const scope = new Set(cellIds);
+
+    const targetBurgs = pack.burgs.filter(b => b.i && !b.removed && !b.lock && !b.capital && scope.has(b.cell));
+    if (!targetBurgs.length) return { addedBurgIds: [], removedBurgIds: [] };
+
+    const oldUrbanTotal = targetBurgs.reduce((sum, b) => sum + (b.population ?? 0), 0);
+    const removedBurgIds = targetBurgs.map(b => b.i as number);
+    for (const burgId of removedBurgIds) this.remove(burgId);
+
+    const candidateCells = Array.from(scope).filter(i => cells.s[i] > 0 && cells.culture[i] && !cells.burg[i]);
+    const burgsQuadtree = quadtree<[number, number]>(
+      pack.burgs.filter(b => b.i && !b.removed).map(b => [b.x, b.y] as [number, number])
+    );
+    const placedCells = this.placeTowns(candidateCells, removedBurgIds.length, burgsQuadtree);
+
+    const addedBurgIds = placedCells.map(cell => this.add(cells.p[cell]).burgId);
+
+    const rawSum = addedBurgIds.reduce((sum, id) => sum + (pack.burgs[id].population ?? 0), 0);
+    if (rawSum > 0) {
+      const scale = oldUrbanTotal / rawSum;
+      for (const id of addedBurgIds) pack.burgs[id].population = rn((pack.burgs[id].population ?? 0) * scale, 3);
+    }
+
+    return { addedBurgIds, removedBurgIds };
   }
 
   getType(cellId: number, port?: number) {
@@ -356,7 +437,23 @@ class BurgModule {
     if (connectivityRate) population *= connectivityRate;
     population *= gauss(1, 1, 0.25, 4, 5); // randomize
     population += (((burg.i as number) % 100) - (cellId % 100)) / 1000; // unround
-    burg.population = rn(Math.max(population, 0.01), 3);
+    const capacity = rn(Math.max(population, 0.01), 3);
+
+    const initialPopulationSaturation = useOptionsState.getState().initialPopulationSaturation / 100;
+    burg.population = rn(capacity * initialPopulationSaturation, 3);
+    // Group is usually assigned later in defineGroup(); apply default shares first, then
+    // applyDemographics() after the group is known so fort/monastery/etc. get the right mix.
+    this.applyDemographics(burg, capacity);
+  }
+
+  /**
+   * Rebuild age/sex buckets from total population using the burg group's demographic profile.
+   * Preserves capacity when already present; pass `capacity` on first population definition.
+   */
+  applyDemographics(burg: Burg, capacity?: number): void {
+    const population = burg.population ?? 0;
+    const resolvedCapacity = capacity ?? burg.demographics?.capacity ?? population;
+    burg.demographics = buildBurgDemographics(population, resolvedCapacity, burg.group);
   }
 
   private defineEmblem(burg: Burg) {
@@ -376,10 +473,51 @@ class BurgModule {
     burg.coa.shield = COA.getShield(burg.culture!, burg.state!);
   }
 
-  private defineFeatures(burg: Burg) {
+  /**
+   * Precomputes the data needed to score how strategically important a burg's
+   * location is: hostile-border proximity (from Relations History) and
+   * agricultural potential ("breadbasket") derived from cell habitability
+   * (`cells.s`), which is available long before the optional Economy
+   * extension ever runs — see AGENTS.md §7 on not depending on extensions.
+   */
+  private computeStrategicContext(pack: WorldContext["pack"], currentYear: number): StrategicContext {
+    const { cells } = pack;
+    const frontiers = analyzeFrontiers(pack, currentYear);
+    const contestedBurgs = getChronicleContestedBurgs(pack);
+
+    const populatedScores = Array.from(cells.i)
+      .filter(i => cells.pop[i] > 0)
+      .map(i => cells.s[i]);
+    const meanS = mean(populatedScores) ?? 0;
+    const maxS = d3max(populatedScores) ?? 0;
+
+    return { frontiers, contestedBurgs, meanS, maxS };
+  }
+
+  /** Combined [0, 1] bonus applied on top of the population-based citadel roll. */
+  private getStrategicCitadelBonus(burg: Burg, context: StrategicContext): number {
+    const { frontiers, contestedBurgs, meanS, maxS } = context;
+
+    let frontierBonus = 0;
+    if (contestedBurgs.has(burg.i ?? -1)) {
+      frontierBonus = 1;
+    } else {
+      const segments = frontiers.get(burg.state ?? 0);
+      const segment = segments?.find(s => s.cells.includes(burg.cell));
+      if (segment) frontierBonus = minmax(segment.threatWeight, 0, 1);
+    }
+
+    const breadbasketBonus = normalizeHabitability(this.worldContext.pack.cells.s[burg.cell], meanS, maxS);
+
+    return minmax(frontierBonus + breadbasketBonus, 0, 1);
+  }
+
+  private defineFeatures(burg: Burg, strategicContext: StrategicContext) {
     const { pack } = this.worldContext;
     const pop = burg.population as number;
-    burg.citadel = Number(burg.capital || (pop > 50 && P(0.75)) || (pop > 15 && P(0.5)) || P(0.1));
+    const baseCitadel = Boolean(burg.capital || (pop > 50 && P(0.75)) || (pop > 15 && P(0.5)) || P(0.1));
+    const strategicBonus = this.getStrategicCitadelBonus(burg, strategicContext) * MAX_STRATEGIC_CITADEL_BONUS;
+    burg.citadel = Number(baseCitadel || (strategicBonus > 0 && P(strategicBonus)));
     burg.plaza = Number(
       Routes.isCrossroad(burg.cell) || (Routes.hasRoad(burg.cell) && P(0.7)) || pop > 20 || (pop > 10 && P(0.8))
     );
@@ -520,14 +658,16 @@ class BurgModule {
     this.worldContext = worldContext;
     this.viewContext = viewContext;
     this.appServices = appServices;
-    const { pack } = state;
+    const { pack, options } = state;
     TIME && console.time("specifyBurgs");
+
+    const strategicContext = this.computeStrategicContext(pack, options.year ?? 0);
 
     pack.burgs.forEach(burg => {
       if (!burg.i || burg.removed || burg.lock) return;
       this.definePopulation(burg);
       this.defineEmblem(burg);
-      this.defineFeatures(burg);
+      this.defineFeatures(burg, strategicContext);
     });
 
     const populations = pack.burgs
@@ -538,6 +678,8 @@ class BurgModule {
     pack.burgs.forEach(burg => {
       if (!burg.i || burg.removed) return;
       this.defineGroup(burg, populations);
+      // Re-apply after group so fort / monastery / etc. get specialised age/sex shares.
+      if (!burg.lock) this.applyDemographics(burg);
     });
 
     TIME && console.timeEnd("specifyBurgs");
@@ -579,6 +721,9 @@ class BurgModule {
     const temple = +(burg.temple as number);
     const shantytown = +(burg.shanty as number);
 
+    // pass the real number of land-route legs as the gate count; -1 lets watabou decide
+    const gates = countBurgRoadLegs(burg) || -1;
+
     const style = "natural";
 
     const url = new URL("https://watabou.github.io/city-generator/");
@@ -597,7 +742,7 @@ class BurgModule {
       temple: temple.toString(),
       walls: walls.toString(),
       shantytown: shantytown.toString(),
-      gates: (-1).toString(),
+      gates: gates.toString(),
       style
     }).toString();
     if (sea) url.searchParams.append("sea", sea.toString());
@@ -711,7 +856,7 @@ class BurgModule {
   }
 
   add([x, y]: [number, number]): { burgId: number; newRoute?: Route } {
-    const { pack } = this.worldContext;
+    const { pack, options } = this.worldContext;
     const { cells } = pack;
 
     const burgId = pack.burgs.length;
@@ -736,13 +881,14 @@ class BurgModule {
     this.definePopulation(burg);
     this.defineEmblem(burg);
     COArenderer.add("burg", burgId, burg.coa as Emblem, x, y);
-    this.defineFeatures(burg);
+    this.defineFeatures(burg, this.computeStrategicContext(pack, options.year ?? 0));
 
     const populations = pack.burgs
       .filter(b => b.i && !b.removed)
       .map(b => b.population as number)
       .sort((a: number, b: number) => a - b); // ascending
     this.defineGroup(burg, populations);
+    this.applyDemographics(burg);
 
     pack.burgs.push(burg);
     cells.burg[cellId as number] = burgId;
@@ -756,6 +902,9 @@ class BurgModule {
     const { pack } = this.worldContext;
     if (group) {
       burg.group = group;
+      // Explicit group assignment (e.g. burg editor): rebuild age/sex from the new profile.
+      // Auto reassignment paths omit `group` so simulated demographics stay intact.
+      this.applyDemographics(burg);
     } else {
       const validBurgs = pack.burgs.filter(b => b.i && !b.removed);
       const populations = validBurgs.map(b => b.population as number).sort((a, b) => a - b);

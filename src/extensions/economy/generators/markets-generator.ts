@@ -1,12 +1,37 @@
 import Alea from "alea";
 import { quadtree } from "d3-quadtree";
 import FlatQueue from "flatqueue";
-import type { Burg } from "../../hostTypes";
+import { foodStressPriceMultiplier, foodStressProductionMultiplier } from "../../hostCore";
+import type { Burg, ShipGoodName, ShipGoodStock } from "../../hostTypes";
+import {
+  SHIPBUILDING_MATERIAL_IDS,
+  type ShipbuildingMaterialRequestResult,
+  type ShipbuildingMaterialShortage,
+  type ShipbuildingMaterials
+} from "../../hostTypes";
 import { getColors, getRandomColor, minmax, rn, TIME } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
+import { getBurgMarketLedger, syncBurgMarketLedgers } from "./burgMarketLedgers";
+import { CaravanMovement } from "./caravanMovement";
+import { getDepletedCells } from "./forestDepletion";
 import type { DemandCategory, Good } from "./goods-generator";
-import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, Goods } from "./goods-generator";
-import { getCellProduction } from "./production-utils";
+import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, GOODS_DATA, Goods, isGoodEnabled } from "./goods-generator";
+import { syncMarketManagers } from "./marketManagers";
+import type { Deal, Market, TradeRouteSegment } from "./marketTypes";
+import { isMarketTradePermitted } from "./merchantOrganizations";
+import { getRuralProductionContributions, getSeasonalFoodProductionMultiplier } from "./production-utils";
+import { TradeAnimation } from "./trade-animation";
+import {
+  estimateSpeculativeTrade,
+  getCaravanMaintenanceCost,
+  getLocalTradePriceMultiplier,
+  getNetTradeProfit,
+  getTradeAccountingPeriodDays,
+  getTransportCost,
+  isGoodTradePermitted,
+  MIN_TRADE_PROFIT
+} from "./tradeOpportunityEstimator";
+import { calculateRouteDurationDays, getRouteDistanceMapUnits } from "./tradeRouteDuration";
 
 const PRICE_FLOOR_FACTOR = 0.25;
 const PRICE_CEILING_FACTOR = 3.0;
@@ -14,25 +39,33 @@ const LAPLACE_PRICE_SMOOTHING = 5;
 const MARKET_PRESSURE_FACTOR = 0.01;
 const MARKET_MARGIN = 0.1;
 
-export type Market = {
-  i: number;
-  centerBurgId: number;
-  color: string;
-  name?: string;
-  goods: Record<number, { stock: number; price: number }>;
+interface MarketTradeRoute {
+  distance: number;
+  distanceKm: number;
+  durationDays: number;
+  segments: TradeRouteSegment[];
+}
+
+type MarketTradeRoutes = Record<number, Record<number, MarketTradeRoute>>;
+
+type MarketGoodTotals = Map<number, number>;
+type FoodTotalsByState = Map<number, Map<number, number[]>>;
+type WoodContribution = { marketId: number; goodId: number; amount: number };
+type RuralProductionIndex = {
+  populationSnapshotPeriod: string;
+  standard: Map<number, MarketGoodTotals>;
+  food: Map<number, FoodTotalsByState>;
+  wood: Map<number, MarketGoodTotals>;
+  woodByCell: Map<number, WoodContribution[]>;
 };
 
-export type Deal = {
-  i: number;
-  seller: number;
-  sellerType: "burg" | "market";
-  buyer: number;
-  buyerType: "burg" | "market";
-  good: number;
-  units: number;
-  price: number;
-  tax: number;
-};
+function getMarketDistanceMapUnits(source: Pick<Burg, "x" | "y">, target: Pick<Burg, "x" | "y">): number {
+  const dx = Math.abs(source.x - target.x);
+  const dy = Math.abs(source.y - target.y);
+  return dx > dy ? dx + 0.414 * dy : dy + 0.414 * dx;
+}
+
+export type { Deal, Market } from "./marketTypes";
 
 export class MarketsModule {
   private get worldContext() {
@@ -46,15 +79,53 @@ export class MarketsModule {
   }
 
   private marketById: Market[] = [];
+  private tradeRouteCache: { key: string; routes: MarketTradeRoutes } | null = null;
+  private ruralProductionIndex: RuralProductionIndex | null = null;
+
+  /** Returns the current market stock for the three ship-class Goods. */
+  getShipGoodStock(marketId: number): ShipGoodStock | undefined {
+    const market = this.worldContext.pack.markets.find(candidate => candidate.i === marketId);
+    if (!market) return undefined;
+
+    const stock = {} as Record<ShipGoodName, number>;
+    for (const name of ["Sloop", "Caravel", "Galleon"] as const) {
+      const good = this.worldContext.pack.goods.find(candidate => candidate.name === name);
+      if (!good || !isGoodEnabled(good)) return undefined;
+      stock[name] = market.goods[good.i]?.stock ?? 0;
+    }
+    return stock;
+  }
+
+  /** Adds a finished generic hull to the local market's ship-class Good stock. */
+  addSurplusShipStock(marketId: number, shipClassId: string): "fulfilled" | "noMarket" | "missingGood" {
+    const market = this.worldContext.pack.markets.find(candidate => candidate.i === marketId);
+    if (!market) return "noMarket";
+
+    const goodName = { sloop: "Sloop", caravel: "Caravel", galleon: "Galleon" }[shipClassId];
+    if (!goodName) return "missingGood";
+    const good = this.worldContext.pack.goods.find(candidate => candidate.name === goodName);
+    const marketGood = good ? market.goods[good.i] : undefined;
+    if (!good || !marketGood || !isGoodEnabled(good)) return "missingGood";
+
+    marketGood.stock = rn(marketGood.stock + 1, 2);
+    return "fulfilled";
+  }
 
   generate(regenerate: boolean = false): Market[] {
     TIME && console.time("generateMarkets");
+    this.invalidateTradeRouteCache();
+    this.invalidateRuralProductionCache();
     if (!regenerate) Math.random = Alea(this.worldContext.seed);
     const markets = this.createMarkets();
     this.expandMarkets(markets);
 
     this.worldContext.pack.markets = markets;
     this.worldContext.pack.deals = [];
+    // Market ids are regenerated together with territories, so a cohort tied to a
+    // previous market map must not be reused for a different settlement network.
+    this.worldContext.pack.strategicLaborMarkets = [];
+    syncMarketManagers(markets);
+    syncBurgMarketLedgers(markets);
 
     TIME && console.timeEnd("generateMarkets");
     return markets;
@@ -110,7 +181,9 @@ export class MarketsModule {
 
   expandTerritories(markets: Market[] = this.worldContext.pack.markets): Uint16Array {
     this.indexMarkets(markets);
-    return this.expandMarkets(markets);
+    const territories = this.expandMarkets(markets);
+    this.invalidateRuralProductionCache();
+    return territories;
   }
 
   private indexMarkets(markets: Market[] = this.worldContext.pack.markets): void {
@@ -120,6 +193,10 @@ export class MarketsModule {
 
   public sync(): void {
     this.indexMarkets();
+    // A loaded map replaces route and market objects in place. Drop any routes
+    // retained from the previous map before its first trade settlement.
+    this.invalidateTradeRouteCache();
+    this.invalidateRuralProductionCache();
   }
 
   private expandMarkets(markets: Market[]): Uint16Array {
@@ -188,20 +265,47 @@ export class MarketsModule {
   }
 
   collectRuralProduction(): void {
-    const biomeProduction = Goods.getBiomesProduction();
+    const populationSnapshotPeriod = this.getRuralPopulationSnapshotPeriod();
+    const index =
+      this.ruralProductionIndex?.populationSnapshotPeriod === populationSnapshotPeriod
+        ? this.ruralProductionIndex
+        : this.buildRuralProductionIndex(populationSnapshotPeriod);
+    const monthIndex = Math.max(0, Math.min(11, (this.worldContext.options.month ?? 1) - 1));
+    const woodAdjustments = new Map<number, MarketGoodTotals>();
 
-    for (const cellId of this.worldContext.pack.cells.i) {
-      const market = this.marketById[this.worldContext.pack.cells.market[cellId]];
-      if (!market) continue;
-
-      const produced = getCellProduction(cellId, biomeProduction);
-      for (const [goodId, amount] of Object.entries(produced)) {
-        const good = Goods.get(+goodId);
-        if (!good) continue;
-        const marketGood = this.getMarketGood(market, good);
-        marketGood.stock = rn(marketGood.stock + amount, 2);
+    for (const [cellId, depletion] of getDepletedCells()) {
+      for (const contribution of index.woodByCell.get(cellId) ?? []) {
+        this.addMarketGoodTotal(
+          woodAdjustments,
+          contribution.marketId,
+          contribution.goodId,
+          -contribution.amount * depletion
+        );
       }
     }
+
+    this.applyRuralTotals(index.standard);
+
+    for (const [marketId, totalsByState] of index.food) {
+      for (const [stateId, totals] of totalsByState) {
+        const multiplier = foodStressProductionMultiplier(stateId);
+        for (const [goodId, monthlyTotals] of totals) {
+          this.addRuralOutput(marketId, goodId, monthlyTotals[monthIndex] * multiplier);
+        }
+      }
+    }
+
+    for (const [marketId, totals] of index.wood) {
+      const adjustments = woodAdjustments.get(marketId);
+      for (const [goodId, amount] of totals) {
+        this.addRuralOutput(marketId, goodId, amount + (adjustments?.get(goodId) ?? 0));
+      }
+    }
+  }
+
+  /** Rebuild rural market totals after an editor changes market territories or source data. */
+  invalidateRuralProductionCache(): void {
+    this.ruralProductionIndex = null;
   }
 
   private getMarketGood(market: Market, good: Good) {
@@ -213,20 +317,112 @@ export class MarketsModule {
     return initial;
   }
 
+  // getRuralProductionContributions() bakes in getModifiers(), which can key off
+  // state/religion/culture/zone (not just cultureType/biome). Those only change via
+  // conquest, conversion, migration, or zone edits, none of which call
+  // invalidateRuralProductionCache() today, so such a multiplier would stay stale
+  // until the next quarterly rebuild. Harmless while every good's multipliers key
+  // only on cultureType/biome (static per cell) — revisit if that changes.
+  private buildRuralProductionIndex(populationSnapshotPeriod: string): RuralProductionIndex {
+    const index: RuralProductionIndex = {
+      populationSnapshotPeriod,
+      standard: new Map(),
+      food: new Map(),
+      wood: new Map(),
+      woodByCell: new Map()
+    };
+    const { cells, markets } = this.worldContext.pack;
+    const marketIds = new Set(markets.map(market => market.i));
+    const biomeProduction = Goods.getBiomesProduction();
+
+    for (const cellId of cells.i) {
+      const marketId = cells.market[cellId];
+      if (!marketId || !marketIds.has(marketId)) continue;
+
+      for (const contribution of getRuralProductionContributions(cellId, biomeProduction)) {
+        const good = Goods.get(contribution.goodId);
+        if (!good || !isGoodEnabled(good) || contribution.amount <= 0) continue;
+
+        if (good.name === "Wood") {
+          this.addMarketGoodTotal(index.wood, marketId, good.i, contribution.amount);
+          const entries = index.woodByCell.get(cellId) ?? [];
+          entries.push({ marketId, goodId: good.i, amount: contribution.amount });
+          index.woodByCell.set(cellId, entries);
+          continue;
+        }
+
+        if (good.tags.includes("food")) {
+          const stateId = cells.state?.[cellId] ?? 0;
+          const totalsByState = index.food.get(marketId) ?? new Map<number, Map<number, number[]>>();
+          const totals = totalsByState.get(stateId) ?? new Map<number, number[]>();
+          const monthlyTotals = totals.get(good.i) ?? Array.from({ length: 12 }, () => 0);
+          for (let month = 1; month <= 12; month++) {
+            monthlyTotals[month - 1] += contribution.amount * getSeasonalFoodProductionMultiplier(good, cellId, month);
+          }
+          totals.set(good.i, monthlyTotals);
+          totalsByState.set(stateId, totals);
+          index.food.set(marketId, totalsByState);
+          continue;
+        }
+
+        this.addMarketGoodTotal(index.standard, marketId, good.i, contribution.amount);
+      }
+    }
+
+    this.ruralProductionIndex = index;
+    return index;
+  }
+
+  /**
+   * Rural population changes continuously under the demographics simulation, so a
+   * topology cache cannot be permanent. Refreshing at the quarterly food-ledger
+   * cadence bounds that drift while reducing the normal 12 monthly cell scans to
+   * four snapshots per simulated year.
+   */
+  private getRuralPopulationSnapshotPeriod(): string {
+    const month = this.worldContext.options.month ?? 1;
+    const year = this.worldContext.options.year ?? 0;
+    return `${year}:${Math.floor((month - 1) / 3)}`;
+  }
+
+  private applyRuralTotals(totalsByMarket: Map<number, MarketGoodTotals>): void {
+    for (const [marketId, totals] of totalsByMarket) {
+      for (const [goodId, amount] of totals) this.addRuralOutput(marketId, goodId, amount);
+    }
+  }
+
+  private addRuralOutput(marketId: number, goodId: number, amount: number): void {
+    if (amount <= 0) return;
+    const market = this.marketById[marketId];
+    const good = Goods.get(goodId);
+    if (!market || !good || !isGoodEnabled(good)) return;
+    const marketGood = this.getMarketGood(market, good);
+    marketGood.stock = rn(marketGood.stock + amount, 2);
+  }
+
+  private addMarketGoodTotal(
+    totalsByMarket: Map<number, MarketGoodTotals>,
+    marketId: number,
+    goodId: number,
+    amount: number
+  ): void {
+    const totals = totalsByMarket.get(marketId) ?? new Map<number, number>();
+    totals.set(goodId, (totals.get(goodId) ?? 0) + amount);
+    totalsByMarket.set(marketId, totals);
+  }
+
   initializeMarketPrices(): void {
-    const consumerDemandFactors = this.collectConsumerDemand(this.worldContext.pack.goods || []);
-    const industrialDemandFactors = this.collectIndustrialDemand(
-      this.worldContext.pack.goods || [],
-      consumerDemandFactors
-    );
-    const avgIngredientsCostByGood = this.calculateAverageBaseCostByGood(this.worldContext.pack.goods || []);
+    const goods = (this.worldContext.pack.goods || []).filter(isGoodEnabled);
+    const consumerDemandFactors = this.collectConsumerDemand(goods);
+    const industrialDemandFactors = this.collectIndustrialDemand(goods, consumerDemandFactors);
+    const avgIngredientsCostByGood = this.calculateAverageBaseCostByGood(goods);
     const populationByMarket = this.calculatePopulationByMarket();
 
     for (const market of this.worldContext.pack.markets) {
       const population = populationByMarket[market.i] || 0;
 
       // First pass: raw goods - price from demand/supply ratio
-      for (const good of this.worldContext.pack.goods || []) {
+      for (const good of goods) {
         if (!good.distribution) continue;
         const marketGood = this.getMarketGood(market, good);
         const consumerDemand = consumerDemandFactors[good.i] || 0;
@@ -237,7 +433,7 @@ export class MarketsModule {
       }
 
       // Second pass: manufactured goods - average local ingredient cost + base value-added
-      for (const good of this.worldContext.pack.goods || []) {
+      for (const good of goods) {
         if (!good.recipes?.length) continue;
         const marketGood = this.getMarketGood(market, good);
         let totalMarketCost = 0;
@@ -245,7 +441,7 @@ export class MarketsModule {
           for (const [ingIdStr, amount] of Object.entries(recipe)) {
             const ingId = +ingIdStr;
             const ing = Goods.get(ingId);
-            if (!ing) continue;
+            if (!ing || !isGoodEnabled(ing)) continue;
             totalMarketCost += amount * this.getMarketGood(market, ing).price;
           }
         }
@@ -258,11 +454,31 @@ export class MarketsModule {
         );
       }
     }
+    this.applyLocalTradePriceBias(populationByMarket);
   }
 
   public get(marketId: number | undefined): Market | undefined {
     if (!marketId) return undefined;
     return this.marketById[marketId];
+  }
+
+  private applyLocalTradePriceBias(populationByMarket: number[]): void {
+    for (const market of this.worldContext.pack.markets) {
+      const population = populationByMarket[market.i] || 0;
+      for (const good of (this.worldContext.pack.goods || []).filter(isGoodEnabled)) {
+        const marketGood = this.getMarketGood(market, good);
+        const multiplier = getLocalTradePriceMultiplier({
+          good,
+          marketId: market.i,
+          stock: marketGood.stock,
+          population
+        });
+        marketGood.price = rn(
+          minmax(good.value * PRICE_FLOOR_FACTOR, marketGood.price * multiplier, good.value * PRICE_CEILING_FACTOR),
+          2
+        );
+      }
+    }
   }
 
   // Display name: the custom name if set, otherwise derived from the center burg.
@@ -283,11 +499,15 @@ export class MarketsModule {
     const market: Market = { i: marketId, centerBurgId: burgId, color: getRandomColor(), goods: {} };
     this.worldContext.pack.markets.push(market);
     this.worldContext.pack.deals = [];
+    this.invalidateTradeRouteCache();
+    this.invalidateRuralProductionCache();
 
     this.indexMarkets();
     this.worldContext.pack.cells.market[burg.cell] = marketId;
     burg.market = marketId;
     burg.plaza = 1;
+    syncMarketManagers([market]);
+    syncBurgMarketLedgers();
 
     return market;
   }
@@ -302,6 +522,8 @@ export class MarketsModule {
 
     this.worldContext.pack.markets.splice(marketIndex, 1);
     this.worldContext.pack.deals = [];
+    this.invalidateTradeRouteCache();
+    this.invalidateRuralProductionCache();
 
     if (this.worldContext.pack.markets.length) {
       this.expandTerritories();
@@ -314,17 +536,19 @@ export class MarketsModule {
       }
     }
 
+    syncBurgMarketLedgers();
+
     return true;
   }
 
   quoteMarket(market: Market, goodId: number): { stock: number; buyPrice: number; sellPrice: number } {
     const good = Goods.get(goodId);
-    if (!good) return { stock: 0, buyPrice: 0, sellPrice: 0 };
+    if (!good || !isGoodEnabled(good)) return { stock: 0, buyPrice: 0, sellPrice: 0 };
     const row = this.getMarketGood(market, good);
     return {
       stock: row.stock,
-      buyPrice: this.customerBuyPrice(row.price),
-      sellPrice: this.customerSellPrice(row.price)
+      buyPrice: this.customerBuyPrice(row.price, market.centerBurgId, goodId),
+      sellPrice: this.customerSellPrice(row.price, market.centerBurgId, goodId)
     };
   }
 
@@ -339,11 +563,12 @@ export class MarketsModule {
     units: number;
     budget?: number;
   }): Deal | null {
+    if (!isGoodEnabled(good)) return null;
     const market = this.get(burg.market);
     if (!market) return null;
 
     const marketGood = this.getMarketGood(market, good);
-    const unitPrice = this.customerBuyPrice(marketGood.price);
+    const unitPrice = this.customerBuyPrice(marketGood.price, burg.i, good.i);
 
     const actualUnits = rn(Math.min(units, marketGood.stock, budget / unitPrice), 2);
     if (actualUnits < 0.01) return null;
@@ -367,11 +592,12 @@ export class MarketsModule {
   }
 
   sell({ burg, good, units, taxRate }: { burg: Burg; good: Good; units: number; taxRate: number }): Deal | null {
+    if (!isGoodEnabled(good)) return null;
     const market = this.get(burg.market);
     if (!market || units <= 0) return null;
 
     const marketGood = this.getMarketGood(market, good);
-    const price = this.customerSellPrice(marketGood.price);
+    const price = this.customerSellPrice(marketGood.price, burg.i, good.i);
     const tax = rn(units * price * taxRate, 2);
     marketGood.stock = rn(marketGood.stock + units, 2);
 
@@ -392,38 +618,61 @@ export class MarketsModule {
     return deal;
   }
 
+  /**
+   * Atomically consumes construction materials from one market for Shipbuilding.
+   * Unlike buy(), Phase 8 intentionally does not create a Deal or charge an owner;
+   * it only models the physical inventory draw and resulting market price pressure.
+   */
+  tryConsumeShipbuildingMaterials(
+    marketId: number,
+    materials: ShipbuildingMaterials
+  ): ShipbuildingMaterialRequestResult {
+    // `marketById` is populated during generation; saved maps can reach this path
+    // before an explicit `Markets.sync()`, so retain a canonical pack fallback.
+    const market = this.get(marketId) ?? this.worldContext.pack.markets.find(candidate => candidate.i === marketId);
+    if (!market) return { status: "noMarket" };
+
+    const required: Array<{ good: Good; amount: number; stock: { stock: number; price: number } }> = [];
+    const missing: ShipbuildingMaterialShortage = {};
+
+    for (const material of SHIPBUILDING_MATERIAL_IDS) {
+      const amount = materials[material];
+      const good = this.worldContext.pack.goods.find(candidate => candidate.name === material);
+      if (!good || !isGoodEnabled(good)) return { status: "missingGood" };
+
+      // Do not call getMarketGood() while validating: creating an empty stock row
+      // would itself violate the all-or-nothing contract on a failed request.
+      const stock = market.goods[good.i];
+      if (!stock || stock.stock + 0.000001 < amount) {
+        missing[material] = rn(Math.max(0, amount - (stock?.stock ?? 0)), 2);
+        continue;
+      }
+      required.push({ good, amount, stock });
+    }
+
+    // Validate every material before touching a single stock row.
+    if (Object.keys(missing).length) return { status: "insufficientMaterials", missing };
+
+    for (const { good, amount, stock } of required) {
+      stock.stock = rn(Math.max(0, stock.stock - amount), 2);
+      stock.price = rn(this.applyMarketPressure(good.value, stock.price, amount), 2);
+    }
+
+    return { status: "fulfilled" };
+  }
+
   runGlobalTrade(): void {
-    const consumerDemandFactors = this.collectConsumerDemand(this.worldContext.pack.goods || []);
-    const industrialDemandFactors = this.collectIndustrialDemand(
-      this.worldContext.pack.goods || [],
-      consumerDemandFactors
-    );
+    const goods = (this.worldContext.pack.goods || []).filter(isGoodEnabled);
+    const consumerDemandFactors = this.collectConsumerDemand(goods);
+    const industrialDemandFactors = this.collectIndustrialDemand(goods, consumerDemandFactors);
     const populationByMarket = this.calculatePopulationByMarket();
 
     const mapDiagonal = Math.hypot(this.worldContext.graphWidth, this.worldContext.graphHeight) || 1;
     const TRADE_RESERVE_FACTOR = 0.2;
     const MIN_UNIT = 0.1;
-    const MIN_PROFIT = 1;
-    const DISTANCE_COST_FACTOR = 0.5;
+    const travelRoutes = this.getCachedMarketTradeRoutes();
 
-    const travelCost: Record<number, Record<number, number>> = {};
-    for (const m1 of this.worldContext.pack.markets) {
-      travelCost[m1.i] = {};
-      const burg1 = this.worldContext.pack.burgs[m1.centerBurgId];
-      if (!burg1) continue;
-
-      for (const m2 of this.worldContext.pack.markets) {
-        const burg2 = this.worldContext.pack.burgs[m2.centerBurgId];
-        if (!burg2) continue;
-
-        const dx = Math.abs(burg1.x - burg2.x);
-        const dy = Math.abs(burg1.y - burg2.y);
-        const distance = dx > dy ? dx + 0.414 * dy : dy + 0.414 * dx;
-        travelCost[m1.i][m2.i] = (distance / mapDiagonal) * DISTANCE_COST_FACTOR;
-      }
-    }
-
-    for (const good of this.worldContext.pack.goods || []) {
+    for (const good of goods) {
       if (!good.distribution && !good.recipes?.length) continue;
 
       const safetyReserves: number[] = [];
@@ -444,8 +693,6 @@ export class MarketsModule {
         }
       }
 
-      if (!exporters.length || !importers.length) continue;
-
       const opportunities: {
         exporter: Market;
         importer: Market;
@@ -456,42 +703,76 @@ export class MarketsModule {
         units: number;
         unitProfit: number;
         totalProfit: number;
+        distance: number;
+        distanceKm: number;
+        durationDays: number;
+        maintenanceCost: number;
+        routeSegments: TradeRouteSegment[];
+        targetSalePrice?: number;
       }[] = [];
 
-      for (const exporter of exporters) {
-        const distances = travelCost[exporter.market.i];
-        if (!distances) continue;
+      const importerStockAdjustments = new Map<number, number>();
 
-        const exporterGood = this.getMarketGood(exporter.market, good);
-        const available = Math.max(0, exporterGood.stock - exporter.reserve);
-        if (available < MIN_UNIT) continue;
+      if (exporters.length && importers.length) {
+        for (const exporter of exporters) {
+          const routes = travelRoutes[exporter.market.i];
+          if (!routes) continue;
 
-        const exporterCenter = this.worldContext.pack.burgs[exporter.market.centerBurgId];
-        const exporterTaxPerUnit = this.getSalesTax(exporterCenter) * exporterGood.price;
+          const exporterGood = this.getMarketGood(exporter.market, good);
+          const available = Math.max(0, exporterGood.stock - exporter.reserve);
+          if (available < MIN_UNIT) continue;
 
-        for (const importer of importers) {
-          const importerGood = this.getMarketGood(importer.market, good);
-          const needed = Math.max(0, importer.reserve - importerGood.stock);
-          const units = Math.min(available, needed);
-          if (units < MIN_UNIT) continue;
+          const exporterCenter = this.worldContext.pack.burgs[exporter.market.centerBurgId];
+          const exporterTaxPerUnit = this.getSalesTax(exporterCenter) * exporterGood.price;
 
-          const transportCost = distances[importer.market.i] * good.value;
-          const unitProfit = importerGood.price - (exporterGood.price + transportCost + exporterTaxPerUnit);
-          const totalProfit = unitProfit * units;
-          if (totalProfit < MIN_PROFIT) continue;
+          for (const importer of importers) {
+            const importerGood = this.getMarketGood(importer.market, good);
+            const needed = Math.max(0, importer.reserve - importerGood.stock);
+            const units = Math.min(available, needed);
+            if (units < MIN_UNIT) continue;
 
-          opportunities.push({
-            exporter: exporter.market,
-            importer: importer.market,
-            reserveExporter: exporter.reserve,
-            reserveImporter: importer.reserve,
-            transportCost,
-            exporterTaxPerUnit,
-            units,
-            unitProfit,
-            totalProfit
-          });
+            const route = routes[importer.market.i];
+            if (
+              !route ||
+              !isGoodTradePermitted(good, route.durationDays, route.segments) ||
+              !isMarketTradePermitted(exporter.market, importer.market, route.durationDays)
+            ) {
+              continue;
+            }
+
+            const transportCost = getTransportCost(route.distance, mapDiagonal) * good.value;
+            const unitProfit = importerGood.price - (exporterGood.price + transportCost + exporterTaxPerUnit);
+            const totalProfit = getNetTradeProfit(unitProfit, units, route.durationDays);
+            if (totalProfit < MIN_TRADE_PROFIT) continue;
+
+            opportunities.push({
+              exporter: exporter.market,
+              importer: importer.market,
+              reserveExporter: exporter.reserve,
+              reserveImporter: importer.reserve,
+              transportCost,
+              exporterTaxPerUnit,
+              units,
+              unitProfit,
+              totalProfit,
+              distance: route.distance,
+              distanceKm: route.distanceKm,
+              durationDays: route.durationDays,
+              maintenanceCost: getCaravanMaintenanceCost(route.durationDays),
+              routeSegments: route.segments
+            });
+          }
         }
+      }
+
+      if (!opportunities.length) {
+        this.addSpeculativeGlobalTradeOpportunities({
+          good,
+          populationByMarket,
+          travelRoutes,
+          mapDiagonal,
+          opportunities
+        });
       }
 
       opportunities.sort((a, b) => b.totalProfit - a.totalProfit || b.units - a.units);
@@ -500,13 +781,15 @@ export class MarketsModule {
         const importerGood = this.getMarketGood(opportunity.importer, good);
 
         const available = Math.max(0, exporterGood.stock - opportunity.reserveExporter);
-        const needed = Math.max(0, opportunity.reserveImporter - importerGood.stock);
+        const importerAdj = importerStockAdjustments.get(opportunity.importer.i) || 0;
+        const needed = Math.max(0, opportunity.reserveImporter - (importerGood.stock + importerAdj));
         const units = Math.min(available, needed);
         if (units < MIN_UNIT) continue;
 
         const landedCost = exporterGood.price + opportunity.transportCost + opportunity.exporterTaxPerUnit;
-        const totalProfit = (importerGood.price - landedCost) * units;
-        if (totalProfit < MIN_PROFIT) continue;
+        const targetSalePrice = opportunity.targetSalePrice ?? importerGood.price;
+        const totalProfit = getNetTradeProfit(targetSalePrice - landedCost, units, opportunity.durationDays);
+        if (totalProfit < MIN_TRADE_PROFIT) continue;
 
         const deal: Deal = {
           i: this.worldContext.pack.deals.length,
@@ -517,24 +800,281 @@ export class MarketsModule {
           good: good.i,
           units,
           price: landedCost,
-          tax: opportunity.exporterTaxPerUnit * units
+          tax: opportunity.exporterTaxPerUnit * units,
+          distance: rn(opportunity.distanceKm, 2),
+          durationDays: opportunity.durationDays,
+          maintenanceCost: rn(opportunity.maintenanceCost, 2),
+          accountingPeriodDays: getTradeAccountingPeriodDays(opportunity.durationDays)
         };
         this.worldContext.pack.deals.push(deal);
 
         exporterGood.price = rn(this.applyMarketPressure(good.value, exporterGood.price, units), 2);
         importerGood.price = rn(this.applyMarketPressure(good.value, importerGood.price, -units), 2);
         exporterGood.stock = rn(exporterGood.stock - units, 2);
-        importerGood.stock = rn(importerGood.stock + units, 2);
+        importerStockAdjustments.set(opportunity.importer.i, importerAdj + units);
+        // Note: importerGood.stock is NO LONGER instantly increased. Caravans physically transport it.
       }
     }
   }
 
-  customerBuyPrice(midPrice: number): number {
-    return rn(midPrice * (1 + MARKET_MARGIN), 2);
+  private addSpeculativeGlobalTradeOpportunities({
+    good,
+    populationByMarket,
+    travelRoutes,
+    mapDiagonal,
+    opportunities
+  }: {
+    good: Good;
+    populationByMarket: number[];
+    travelRoutes: Record<number, Record<number, MarketTradeRoute>>;
+    mapDiagonal: number;
+    opportunities: {
+      exporter: Market;
+      importer: Market;
+      reserveExporter: number;
+      reserveImporter: number;
+      transportCost: number;
+      exporterTaxPerUnit: number;
+      units: number;
+      unitProfit: number;
+      totalProfit: number;
+      distance: number;
+      distanceKm: number;
+      durationDays: number;
+      maintenanceCost: number;
+      routeSegments: TradeRouteSegment[];
+      targetSalePrice?: number;
+    }[];
+  }): void {
+    for (const exporter of this.worldContext.pack.markets) {
+      const routes = travelRoutes[exporter.i];
+      if (!routes) continue;
+
+      const exporterGood = this.getMarketGood(exporter, good);
+      if (exporterGood.stock < 0.1) continue;
+
+      const exporterCenter = this.worldContext.pack.burgs[exporter.centerBurgId];
+      const exporterTaxPerUnit = this.getSalesTax(exporterCenter) * exporterGood.price;
+
+      for (const importer of this.worldContext.pack.markets) {
+        if (importer.i === exporter.i) continue;
+        const route = routes[importer.i];
+        if (
+          !route ||
+          !isGoodTradePermitted(good, route.durationDays, route.segments) ||
+          !isMarketTradePermitted(exporter, importer, route.durationDays)
+        ) {
+          continue;
+        }
+
+        const importerGood = this.getMarketGood(importer, good);
+        const estimate = estimateSpeculativeTrade({
+          good,
+          sourceMarketId: exporter.i,
+          targetMarketId: importer.i,
+          sourceGood: exporterGood,
+          targetGood: importerGood,
+          sourcePopulation: populationByMarket[exporter.i] || 0,
+          targetPopulation: populationByMarket[importer.i] || 0,
+          distance: route.distance,
+          mapDiagonal,
+          routeSegments: route.segments,
+          distanceScale: this.worldContext.distanceScale
+        });
+        if (!estimate) continue;
+
+        const landedCost = exporterGood.price + estimate.transportCost + exporterTaxPerUnit;
+        const unitProfit = estimate.sellPrice - landedCost;
+        const totalProfit = estimate.totalProfit;
+
+        opportunities.push({
+          exporter,
+          importer,
+          reserveExporter: Math.max(0, exporterGood.stock - estimate.maxUnits),
+          reserveImporter: importerGood.stock + estimate.maxUnits,
+          transportCost: estimate.transportCost,
+          exporterTaxPerUnit,
+          units: estimate.maxUnits,
+          unitProfit,
+          totalProfit,
+          distance: route.distance,
+          distanceKm: route.distanceKm,
+          durationDays: route.durationDays,
+          maintenanceCost: estimate.maintenanceCost,
+          routeSegments: route.segments,
+          targetSalePrice: estimate.sellPrice
+        });
+      }
+    }
   }
 
-  customerSellPrice(midPrice: number): number {
-    return rn(midPrice * (1 - MARKET_MARGIN), 2);
+  private getMarketTradeRoute(source: Burg, target: Burg): MarketTradeRoute | null {
+    if (source.i === target.i) return null;
+
+    const routePath = this.worldContext.pack.cells?.routes
+      ? TradeAnimation.findRoutePath(source.cell, target.cell)
+      : null;
+    const segments: TradeRouteSegment[] = routePath?.segments?.length
+      ? routePath.segments.map(segment => ({
+          type: segment.type,
+          points: segment.points.map(([x, y]) => [x, y])
+        }))
+      : [
+          {
+            type: "land",
+            points: [
+              [source.x, source.y],
+              [target.x, target.y]
+            ]
+          }
+        ];
+    const routeDistance = getRouteDistanceMapUnits(segments);
+    if (routeDistance <= 0) return null;
+
+    // Keep the existing distance-based transport-price model intact. Step 1 only changes
+    // eligibility and fixed maintenance to route travel days; sea-priority and route-cost
+    // pricing remain deferred to the next routing phase.
+    const distance = getMarketDistanceMapUnits(source, target);
+    const distanceKm = distance * this.worldContext.distanceScale;
+    if (distance <= 0 || distanceKm <= 0) return null;
+
+    return {
+      distance,
+      distanceKm,
+      durationDays: calculateRouteDurationDays(segments, this.worldContext.distanceScale),
+      segments
+    };
+  }
+
+  /**
+   * Market-to-market paths depend on the market centres, route geometry/link graph,
+   * distance scale, and caravan speeds — not on monthly stock or prices. Building
+   * them involves one route search per ordered market pair, so retain that immutable
+   * topology result across production cycles. The key deliberately includes the
+   * mutable route graph contents because route editing mutates pack in place.
+   */
+  private getCachedMarketTradeRoutes(): MarketTradeRoutes {
+    const key = this.getTradeRouteCacheKey();
+    if (this.tradeRouteCache?.key === key) return this.tradeRouteCache.routes;
+
+    const routes: MarketTradeRoutes = {};
+    for (const sourceMarket of this.worldContext.pack.markets) {
+      routes[sourceMarket.i] = {};
+      const sourceBurg = this.worldContext.pack.burgs[sourceMarket.centerBurgId];
+      if (!sourceBurg) continue;
+
+      for (const targetMarket of this.worldContext.pack.markets) {
+        const targetBurg = this.worldContext.pack.burgs[targetMarket.centerBurgId];
+        if (!targetBurg) continue;
+        const route = this.getMarketTradeRoute(sourceBurg, targetBurg);
+        if (route) routes[sourceMarket.i][targetMarket.i] = route;
+      }
+    }
+
+    this.tradeRouteCache = { key, routes };
+    return routes;
+  }
+
+  private getTradeRouteCacheKey(): string {
+    const { pack, distanceScale } = this.worldContext;
+    const movement = CaravanMovement.getOptions();
+    const marketCentres = pack.markets
+      .map(market => {
+        const burg = pack.burgs[market.centerBurgId];
+        return `${market.i}:${market.centerBurgId}:${burg?.cell}:${burg?.x}:${burg?.y}`;
+      })
+      .join("|");
+    const routeGeometry = (pack.routes ?? [])
+      .map(route => `${route.i}:${route.group}:${route.points.map(point => point.join(",")).join("/")}`)
+      .join("|");
+    const routeLinks = Object.entries(pack.cells?.routes ?? {})
+      .map(
+        ([fromCellId, links]) =>
+          `${fromCellId}:${Object.entries(links)
+            .map(([to, route]) => `${to},${route}`)
+            .join("/")}`
+      )
+      .join("|");
+
+    return [distanceScale, movement.landKmPerDay, movement.seaKmPerDay, marketCentres, routeGeometry, routeLinks].join(
+      ";"
+    );
+  }
+
+  private invalidateTradeRouteCache(): void {
+    this.tradeRouteCache = null;
+  }
+
+  getWarPriceModifier(burgId: number | undefined, goodId: number | undefined): number {
+    if (!burgId || !goodId) {
+      return 1;
+    }
+    const ledger = getBurgMarketLedger(burgId);
+    if (!ledger) {
+      return 1;
+    }
+
+    const good = Goods.get(goodId);
+    if (!good) {
+      return 1;
+    }
+
+    const burg = this.worldContext.pack.burgs[burgId];
+    const stateId = burg?.state ?? 0;
+    const isFoodRelated = good.tags?.includes("food") || good.warEconomyType === "essential";
+    const foodStressMod = isFoodRelated ? foodStressPriceMultiplier(stateId) : 1;
+
+    const intensity = ledger.warIntensity || 0;
+    if (intensity === 0) {
+      return foodStressMod;
+    }
+
+    const durationTicks = ledger.warDurationTicks || 0;
+    const durationFactor = Math.min(1.0, durationTicks / 10);
+
+    let warType = good.warEconomyType;
+    if (!warType) {
+      const defaultGood = GOODS_DATA.find((g: { name: string; warEconomyType?: string }) => g.name === good.name);
+      warType = defaultGood?.warEconomyType;
+    }
+
+    if (!warType) {
+      return foodStressMod;
+    }
+
+    let baseMultiplier = 0;
+    switch (warType) {
+      case "military":
+        baseMultiplier = 1.5;
+        break;
+      case "essential":
+        baseMultiplier = 1.2;
+        break;
+      case "strategic":
+        baseMultiplier = 0.8;
+        break;
+      case "luxury": {
+        const dropFactor = 0.3;
+        const luxuryMod = Math.max(0.1, 1 - dropFactor * intensity);
+        return luxuryMod; // food stress does not apply to luxuries
+      }
+      default:
+        return foodStressMod;
+    }
+
+    const warMod = 1 + baseMultiplier * intensity * (1 + durationFactor);
+    // essential (and food-tagged goods using essential) get agricultural shock on top of war heat
+    return warType === "essential" || good.tags?.includes("food") ? warMod * foodStressMod : warMod;
+  }
+
+  customerBuyPrice(midPrice: number, burgId?: number, goodId?: number): number {
+    const warMod = this.getWarPriceModifier(burgId, goodId);
+    return rn(midPrice * warMod * (1 + MARKET_MARGIN), 2);
+  }
+
+  customerSellPrice(midPrice: number, burgId?: number, goodId?: number): number {
+    const warMod = this.getWarPriceModifier(burgId, goodId);
+    return rn(midPrice * warMod * (1 - MARKET_MARGIN), 2);
   }
 
   private applyMarketPressure(basePrice: number, currentPrice: number | undefined, units: number): number {
@@ -571,6 +1111,8 @@ export class MarketsModule {
       for (const recipe of good.recipes) {
         for (const [ingredientIdStr, amount] of Object.entries(recipe)) {
           const ingredientId = +ingredientIdStr;
+          const ingredient = Goods.get(ingredientId);
+          if (!ingredient || !isGoodEnabled(ingredient)) continue;
           demandFactor[ingredientId] = (demandFactor[ingredientId] || 0) + amount * outputDemand;
         }
       }
@@ -586,7 +1128,7 @@ export class MarketsModule {
       for (const recipe of good.recipes) {
         for (const [ingIdStr, amount] of Object.entries(recipe)) {
           const ing = Goods.get(+ingIdStr);
-          if (ing) totalBaseCost += amount * ing.value;
+          if (ing && isGoodEnabled(ing)) totalBaseCost += amount * ing.value;
         }
       }
       avgBaseCostByGood[good.i] = totalBaseCost / good.recipes.length;

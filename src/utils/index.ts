@@ -14,12 +14,10 @@ import {
   getLatitude,
   getLongitude,
   getSegmentId,
-  initializePrompt,
   isCtrlClick,
   link,
   openURL,
   parseError,
-  showPrompt,
   throttle,
   wiki
 } from "./commonUtils";
@@ -62,12 +60,7 @@ JSON.isValid = isValidJSON;
 JSON.safeParse = safeParseJSON;
 
 export function initUtils(): void {
-  // Initialize prompt when DOM is ready
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initializePrompt);
-  } else {
-    initializePrompt();
-  }
+  // No-op (retained for initialization-order documentation; nothing left to initialize here)
 }
 
 declare global {
@@ -145,7 +138,6 @@ export {
   getSegmentId,
   getTypedArray,
   getVertexPath,
-  initializePrompt,
   isCtrlClick,
   isLand,
   isValidJSON,
@@ -175,7 +167,6 @@ export {
   safeParseJSON,
   sanitizeId,
   shouldRegenerateGrid,
-  showPrompt,
   si,
   splitInTwo,
   TYPED_ARRAY_MAX_VALUES,

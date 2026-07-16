@@ -1,10 +1,12 @@
 import { type IDBPDatabase, openDB } from "idb";
+import type { ExtensionDependency } from "../store/extensionState";
 
 export interface ExtensionManifest {
   id: string;
   name: string;
   version: string;
   description: string;
+  dependencies?: ExtensionDependency[];
 }
 
 export interface InstalledExtensionRecord {

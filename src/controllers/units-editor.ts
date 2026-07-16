@@ -16,6 +16,7 @@ import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogServi
 import { findCell } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getElementById, layerIsOn } from "../utils/nodeUtils";
+import { type UnitSystemId, unitSystemPresets } from "../utils/unitUtils";
 import { toggleRulers } from "./layers";
 import { calculateFriendlyGridSize } from "./style";
 
@@ -59,6 +60,26 @@ export const unitsEditorActions = {
     // React UI handles custom name prompts and state sync
   },
 
+  changeWeightUnit(_value: string): void {
+    // React UI handles custom name prompts and state sync
+  },
+
+  applyUnitSystemPreset(id: UnitSystemId): void {
+    const preset = unitSystemPresets.find(p => p.id === id);
+    if (!preset) return;
+
+    useOptionsState.getState().setOptions({
+      temperatureScale: preset.temperatureScale,
+      distanceUnit: preset.distanceUnit,
+      heightUnit: preset.heightUnit,
+      weightUnit: preset.weightUnit
+    });
+
+    renderScaleBar();
+    calculateFriendlyGridSize();
+    if (layerIsOn("toggleTemperature")) drawTemperature(worldContext, viewContext, appServices);
+  },
+
   changeHeightExponent(): void {
     document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true } }));
     if (layerIsOn("toggleTemperature")) drawTemperature(worldContext, viewContext, appServices);
@@ -82,15 +103,15 @@ export const unitsEditorActions = {
 
   restoreDefaultUnits(): void {
     const options = useOptionsState.getState();
+    const metric = unitSystemPresets.find(p => p.id === "metric")!;
     worldContext.distanceScale = 3;
-    const US = navigator.language === "en-US";
-    const UK = navigator.language === "en-GB";
 
     options.setOptions({
       distanceScale: 3,
-      distanceUnit: US || UK ? "mi" : "km",
-      heightUnit: US || UK ? "ft" : "m",
-      temperatureScale: US ? "°F" : "°C",
+      distanceUnit: metric.distanceUnit,
+      heightUnit: metric.heightUnit,
+      temperatureScale: metric.temperatureScale,
+      weightUnit: metric.weightUnit,
       areaUnit: "square",
       heightExponent: 1.8,
       populationRate: 1000,
@@ -105,6 +126,7 @@ export const unitsEditorActions = {
     localStorage.removeItem("distanceUnit");
     localStorage.removeItem("heightUnit");
     localStorage.removeItem("temperatureScale");
+    localStorage.removeItem("weightUnit");
     localStorage.removeItem("areaUnit");
     localStorage.removeItem("heightExponent");
     localStorage.removeItem("populationRate");

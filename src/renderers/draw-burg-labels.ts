@@ -3,6 +3,7 @@ import type { SettlementLayers, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { Burg, BurgGroup } from "../types/models";
 import { TIME } from "../utils/debug";
+import { isCellInScope } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
 
 export const BurgLabelsRenderer: IRenderer = {
@@ -11,11 +12,11 @@ export const BurgLabelsRenderer: IRenderer = {
   render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
     TIME && console.time("BurgLabelsRenderer");
     const { pack, options, style } = worldContext;
-    const { burgLabels } = viewContext;
+    const { burgLabels, focusScope } = viewContext;
     createLabelGroups(options, style, burgLabels);
 
     for (const { name } of options.burgs.groups as BurgGroup[]) {
-      const burgsInGroup = pack.burgs.filter(b => b.group === name && !b.removed);
+      const burgsInGroup = pack.burgs.filter(b => b.group === name && !b.removed && isCellInScope(focusScope, b.cell));
       if (!burgsInGroup.length) continue;
 
       const labelGroup = burgLabels.select<SVGGElement>(`#${name}`);

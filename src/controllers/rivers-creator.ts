@@ -145,6 +145,14 @@ export function closeRiverCreator(): void {
   modules.createRiver = false;
 }
 
+export function getCellFlux(cell: number): number {
+  return worldContext.pack.cells.fl[cell] ?? 0;
+}
+
+export function setCellFlux(cell: number, value: number): void {
+  worldContext.pack.cells.fl[cell] = value;
+}
+
 export function initRiversCreator(wc: WorldContext) {
   worldContext = wc;
 }

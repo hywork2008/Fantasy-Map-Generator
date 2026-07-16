@@ -12,6 +12,7 @@ import type { State } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import {
   each,
+  findCell,
   gauss,
   getAdjective,
   getMixedColor,
@@ -19,7 +20,6 @@ import {
   getRandomColor,
   minmax,
   P,
-  ra,
   rand,
   rn,
   rw,
@@ -198,6 +198,7 @@ class StatesModule {
       .filter(b => b.i && !b.removed)
       .forEach(b => {
         b.state = cells.state[b.cell]; // assign state to burgs
+        b.stateHistory = [b.state]; // baseline ownership record — see Burg.stateHistory
       });
     TIME && console.timeEnd("expandStates");
   }
@@ -378,7 +379,7 @@ class StatesModule {
     const neibs = { Ally: 1, Friendly: 2, Neutral: 1, Suspicion: 10, Rival: 9 }; // relations to neighbors
     const neibsOfNeibs = { Ally: 10, Friendly: 8, Neutral: 5, Suspicion: 1 }; // relations to neighbors of neighbors
     const far = { Friendly: 1, Neutral: 12, Suspicion: 2, Unknown: 6 }; // relations to other
-    const navals = { Neutral: 1, Suspicion: 2, Rival: 1, Unknown: 1 }; // relations of naval powers
+    const navals = { Neutral: 1, Suspicion: 2, Unknown: 1 }; // relations of naval powers
 
     valid.forEach(s => {
       s.diplomacy = new Array(states.length).fill("x"); // clear all relationships
@@ -395,12 +396,19 @@ class StatesModule {
 
         for (let i = 1; i < states.length; i++) {
           if (i === f || i === suzerain) continue;
-          states[f].diplomacy![i] = states[suzerain].diplomacy![i];
-          if (states[suzerain].diplomacy![i] === "Suzerain") states[f].diplomacy![i] = "Ally";
+          let inherited = states[suzerain].diplomacy![i];
+          if (inherited === "Suzerain") inherited = "Ally";
+          else if ((inherited === "Rival" || inherited === "Enemy") && !states[f].neighbors!.includes(i))
+            inherited = "Suspicion";
+          states[f].diplomacy![i] = inherited;
+
           for (let e = 1; e < states.length; e++) {
             if (e === f || e === suzerain) continue;
             if (states[e].diplomacy![suzerain] === "Suzerain" || states[e].diplomacy![suzerain] === "Vassal") continue;
-            states[e].diplomacy![f] = states[e].diplomacy![suzerain];
+            let relEToF = states[e].diplomacy![suzerain];
+            if ((relEToF === "Rival" || relEToF === "Enemy") && !states[e].neighbors!.includes(f))
+              relEToF = "Suspicion";
+            states[e].diplomacy![f] = relEToF;
           }
         }
         continue;
@@ -411,7 +419,10 @@ class StatesModule {
 
         if (states[t].diplomacy!.includes("Vassal")) {
           const suzerain = states[t].diplomacy!.indexOf("Vassal");
-          states[f].diplomacy![t] = states[f].diplomacy![suzerain];
+          let inherited = states[f].diplomacy![suzerain];
+          if ((inherited === "Rival" || inherited === "Enemy") && !states[f].neighbors!.includes(t))
+            inherited = "Suspicion";
+          states[f].diplomacy![t] = inherited;
           continue;
         }
 
@@ -420,7 +431,8 @@ class StatesModule {
           states[t].type === "Naval" &&
           cells.f[states[f].center] !== cells.f[states[t].center];
         const neib = naval ? false : states[f].neighbors!.includes(t);
-        const neibOfNeib = naval || neib ? false : states[f].neighbors!.some(n => states[n].neighbors!.includes(t));
+        const neibOfNeib =
+          naval || neib ? false : states[f].neighbors!.some(n => n !== 0 && states[n].neighbors!.includes(t));
 
         let status = naval ? rw(navals) : neib ? rw(neibs) : neibOfNeib ? rw(neibsOfNeibs) : rw(far);
 
@@ -433,116 +445,379 @@ class StatesModule {
     }
 
     // declare wars
-    for (let attacker = 1; attacker < states.length; attacker++) {
-      const ad = states[attacker].diplomacy as string[]; // attacker relations;
-      if (states[attacker].removed) continue;
-      if (!ad.includes("Rival")) continue; // no rivals to attack
-      if (ad.includes("Vassal")) continue; // not independent
-      if (ad.includes("Enemy")) continue; // already at war
+    let eventIdCounter = 0;
+    const warCounts = new Map<string, number>();
 
-      // random independent rival
-      const defender = ra(
-        ad.map((r, d) => (r === "Rival" && !states[d].diplomacy!.includes("Vassal") ? d : 0)).filter(d => d)
-      );
-      let ap = stateAreas[attacker] * states[attacker].expansionism;
-      let dp = stateAreas[defender] * states[defender].expansionism;
-      if (ap < dp * gauss(1.6, 0.8, 0, 10, 2)) continue; // defender is too strong
-
-      const an = states[attacker].name;
-      const dn = states[defender].name; // names
-      const attackers = [attacker];
-      const defenders = [defender]; // attackers and defenders array
-      const dd = states[defender].diplomacy as string[]; // defender relations;
-
-      // start an ongoing war
-      const name = `${an}-${trimVowels(dn)}ian War`;
-      const start = options.year! - gauss(2, 3, 0, 10);
-      const war = [name, `${an} declared a war on its rival ${dn}`];
-      const campaign = { name, start, attacker, defender };
-      states[attacker].campaigns!.push(campaign);
-      states[defender].campaigns!.push(campaign);
-
-      // attacker vassals join the war
-      ad.forEach((r, d) => {
-        if (r === "Suzerain") {
-          attackers.push(d);
-          war.push(`${an}'s vassal ${states[d].name} joined the war on attackers side`);
+    const romanize = (num: number) => {
+      const lookup: { [key: string]: number } = {
+        M: 1000,
+        CM: 900,
+        D: 500,
+        CD: 400,
+        C: 100,
+        XC: 90,
+        L: 50,
+        XL: 40,
+        X: 10,
+        IX: 9,
+        V: 5,
+        IV: 4,
+        I: 1
+      };
+      let roman = "";
+      for (const i in lookup) {
+        while (num >= lookup[i]) {
+          roman += i;
+          num -= lookup[i];
         }
-      });
+      }
+      return roman;
+    };
 
-      // defender vassals join the war
-      dd.forEach((r, d) => {
-        if (r === "Suzerain") {
-          defenders.push(d);
-          war.push(`${dn}'s vassal ${states[d].name} joined the war on defenders side`);
+    const getEventEndpoints = (from: number, to: number) => {
+      const fromBurgs = pack.burgs.filter(b => b.state === from && !b.removed);
+      const toBurgs = pack.burgs.filter(b => b.state === to && !b.removed);
+      let fromBurg: number | undefined;
+      let toBurg: number | undefined;
+      if (fromBurgs.length && toBurgs.length) {
+        let minDist = Infinity;
+        for (const fb of fromBurgs) {
+          for (const tb of toBurgs) {
+            const dx = fb.x - tb.x;
+            const dy = fb.y - tb.y;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < minDist) {
+              minDist = distSq;
+              fromBurg = fb.i;
+              toBurg = tb.i;
+            }
+          }
         }
-      });
+      } else {
+        if (fromBurgs.length) fromBurg = fromBurgs[0].i;
+        if (toBurgs.length) toBurg = toBurgs[0].i;
+      }
+      return { fromBurg, toBurg };
+    };
 
-      ap = sum(attackers.map(a => stateAreas[a] * states[a].expansionism)); // attackers joined power
-      dp = sum(defenders.map(d => stateAreas[d] * states[d].expansionism)); // defender joined power
+    const isPathBlocked = (from: number, to: number) => {
+      const { fromBurg, toBurg } = getEventEndpoints(from, to);
+      const p1 = fromBurg ? pack.burgs[fromBurg] : pack.cells.p[states[from].center];
+      const p2 = toBurg ? pack.burgs[toBurg] : pack.cells.p[states[to].center];
+      if (!p1 || !p2) return false;
+      const x1 = "x" in p1 ? p1.x : p1[0];
+      const y1 = "y" in p1 ? p1.y : p1[1];
+      const x2 = "x" in p2 ? p2.x : p2[0];
+      const y2 = "y" in p2 ? p2.y : p2[1];
 
-      // defender allies join
-      dd.forEach((r, d) => {
-        if (r !== "Ally" || states[d].diplomacy!.includes("Vassal")) return;
-        if (states[d].diplomacy![attacker] !== "Rival" && ap / dp > 2 * gauss(1.6, 0.8, 0, 10, 2)) {
-          const reason = states[d].diplomacy!.includes("Enemy") ? "Being already at war," : `Frightened by ${an},`;
-          war.push(`${reason} ${states[d].name} severed the defense pact with ${dn}`);
-          dd[d] = states[d].diplomacy![defender] = "Suspicion";
-          return;
+      const dist = Math.hypot(x2 - x1, y2 - y1);
+      const steps = Math.max(20, Math.ceil(dist / 2));
+      for (let i = 1; i < steps; i++) {
+        const x = x1 + (x2 - x1) * (i / steps);
+        const y = y1 + (y2 - y1) * (i / steps);
+        const cellId = findCell(x, y);
+        if (cellId !== undefined) {
+          const stateId = pack.cells.state[cellId];
+          if (stateId !== 0 && stateId !== from && stateId !== to) {
+            return true;
+          }
         }
-        defenders.push(d);
-        dp += stateAreas[d] * states[d].expansionism;
-        war.push(`${dn}'s ally ${states[d].name} joined the war on defenders side`);
+      }
+      return false;
+    };
 
-        // ally vassals join
-        states[d]
-          .diplomacy!.map((r, d) => (r === "Suzerain" ? d : 0))
-          .filter(d => d)
-          .forEach(v => {
-            defenders.push(v);
-            dp += stateAreas[v] * states[v].expansionism;
-            war.push(`${states[d].name}'s vassal ${states[v].name} joined the war on defenders side`);
-          });
-      });
+    const diplomacyHistoryAttempts = useOptionsState.getState().diplomacyHistoryAttempts ?? 1;
+    for (let attempt = 0; attempt < diplomacyHistoryAttempts; attempt++) {
+      for (let attacker = 1; attacker < states.length; attacker++) {
+        const ad = states[attacker].diplomacy as string[]; // attacker relations;
+        if (states[attacker].removed) continue;
+        if (!ad.includes("Rival") && !ad.includes("Suspicion") && !ad.includes("Enemy")) continue; // no enemies to attack
+        if (ad.includes("Vassal")) continue; // not independent
+        if (P(0.1)) continue; // randomize war frequency
 
-      // attacker allies join if the defender is their rival or joined power > defenders power and defender is not an ally
-      ad.forEach((r, d) => {
-        if (r !== "Ally" || states[d].diplomacy!.includes("Vassal") || defenders.includes(d)) return;
-        const name = states[d].name;
-        if (states[d].diplomacy![defender] !== "Rival" && (P(0.2) || ap <= dp * 1.2)) {
-          war.push(`${an}'s ally ${name} avoided entering the war`);
-          return;
-        }
-        const allies = states[d].diplomacy!.map((r, d) => (r === "Ally" ? d : 0)).filter(d => d);
-        if (allies.some(ally => defenders.includes(ally))) {
-          war.push(`${an}'s ally ${name} did not join the war as its allies are in war on both sides`);
-          return;
-        }
+        const validDefenders = ad
+          .map((r, d) =>
+            (r === "Rival" || r === "Suspicion" || r === "Enemy") &&
+            !states[d].diplomacy!.includes("Vassal") &&
+            states[attacker].neighbors!.includes(d)
+              ? d
+              : 0
+          )
+          .filter(d => d);
+        if (!validDefenders.length) continue;
 
-        attackers.push(d);
-        ap += stateAreas[d] * states[d].expansionism;
-        war.push(`${an}'s ally ${name} joined the war on attackers side`);
-
-        // ally vassals join
-        states[d]
-          .diplomacy!.map((r, d) => (r === "Suzerain" ? d : 0))
-          .filter(d => d)
-          .forEach(v => {
-            attackers.push(v);
-            ap += stateAreas[v] * states[v].expansionism;
-            war.push(`${states[d].name}'s vassal ${states[v].name} joined the war on attackers side`);
-          });
-      });
-
-      // change relations to Enemy for all participants
-      attackers.forEach(a => {
-        defenders.forEach((d: number) => {
-          states[a].diplomacy![d] = states[d].diplomacy![a] = "Enemy";
+        let defender = 0;
+        const shuffledDefenders = [...validDefenders].sort((a, b) => {
+          const keyA = [attacker, a].sort((x, y) => x - y).join("-");
+          const keyB = [attacker, b].sort((x, y) => x - y).join("-");
+          const countA = warCounts.get(keyA) || 0;
+          const countB = warCounts.get(keyB) || 0;
+          // Prefer enemies we have fought before (blood feud)
+          return countB - countA + (Math.random() - 0.5) * 1.5;
         });
-      });
-      // TODO: record war in chronicle to keep state interface clean
-      (chronicle as (string | string[])[]).push(war); // mixed chronicle entry: see TODO above
+
+        let ap = stateAreas[attacker] * states[attacker].expansionism;
+        let dp = 0;
+        for (const d of shuffledDefenders) {
+          if (!isPathBlocked(attacker, d)) {
+            dp = stateAreas[d] * states[d].expansionism;
+            // The power check works correctly now that Enemies are not filtered out
+            if (ap >= dp * gauss(1.6, 0.8, 0, 10, 2)) {
+              defender = d;
+              break;
+            }
+          }
+        }
+        if (!defender) continue; // all paths blocked or defenders too strong
+
+        const an = states[attacker].name;
+        const dn = states[defender].name; // names
+        const attackers = [attacker];
+        const defenders = [defender]; // attackers and defenders array
+        const dd = states[defender].diplomacy as string[]; // defender relations;
+
+        const pairKey = [attacker, defender].sort((a, b) => a - b).join("-");
+        const count = (warCounts.get(pairKey) || 0) + 1;
+        warCounts.set(pairKey, count);
+
+        // start an ongoing war
+        const baseName = `The ${an}-${trimVowels(dn)}ian War`;
+        const name = count === 1 ? baseName : `${baseName} ${romanize(count)}`;
+        console.log(`WAR START: ${name} (count: ${count}, attempt: ${attempt})`);
+        // Base yearsAgo on the attempt to ensure chronological order (War I is older than War II).
+        // Segment the 100-year history by the number of attempts.
+        const segment = 100 / diplomacyHistoryAttempts;
+        const minYears = Math.max(1, 100 - (attempt + 1) * segment);
+        const maxYears = 100 - attempt * segment;
+
+        // Randomize within the segment. Math.pow(Math.random(), 1.5) skews the result towards minYears (more recent).
+        // This makes it feel like wars typically happened 1-2 generations ago, spreading nicely up to recent times.
+        const yearsAgo = Math.max(
+          1,
+          Math.min(100, Math.floor(minYears + Math.random() ** 1.5 * (maxYears - minYears)))
+        );
+
+        const createEvent = (from: number, to: number, action: string, rawText: string) => {
+          const { fromBurg, toBurg } = getEventEndpoints(from, to);
+          return {
+            id: `war-${attacker}-${defender}-${eventIdCounter++}`,
+            yearsAgo: yearsAgo,
+            from,
+            to,
+            fromBurg,
+            toBurg,
+            action,
+            rawText
+          };
+        };
+
+        // biome-ignore lint/suspicious/noExplicitAny: mixed array
+        const war: any[] = [name];
+        war.push(
+          createEvent(attacker, defender, "declared a war on its rival", `${an} declared a war on its rival ${dn}`)
+        );
+
+        const start = options.year! - yearsAgo;
+        const campaign = { name, start, attacker, defender };
+        states[attacker].campaigns!.push(campaign);
+        states[defender].campaigns!.push(campaign);
+
+        // attacker vassals join the war
+        ad.forEach((r, d) => {
+          if (r === "Suzerain" && states[d].neighbors!.includes(defender) && !isPathBlocked(d, defender)) {
+            attackers.push(d);
+            war.push(
+              createEvent(
+                d,
+                defender,
+                "joined the war on attackers side",
+                `${an}'s vassal ${states[d].name} joined the war on attackers side`
+              )
+            );
+          }
+        });
+
+        // defender vassals join the war
+        dd.forEach((r, d) => {
+          if (r === "Suzerain" && states[d].neighbors!.includes(attacker) && !isPathBlocked(d, attacker)) {
+            defenders.push(d);
+            war.push(
+              createEvent(
+                d,
+                attacker,
+                "joined the war on defenders side",
+                `${dn}'s vassal ${states[d].name} joined the war on defenders side`
+              )
+            );
+          }
+        });
+
+        ap = sum(attackers.map(a => stateAreas[a] * states[a].expansionism)); // attackers joined power
+        dp = sum(defenders.map(d => stateAreas[d] * states[d].expansionism)); // defender joined power
+
+        // defender allies join
+        dd.forEach((r, d) => {
+          if (
+            r !== "Ally" ||
+            states[d].diplomacy!.includes("Vassal") ||
+            !states[d].neighbors!.includes(attacker) ||
+            isPathBlocked(d, attacker)
+          )
+            return;
+          if (states[d].diplomacy![attacker] !== "Rival") {
+            if (ap / dp > gauss(1.5, 0.5, 0, 10, 2)) {
+              const reason = states[d].diplomacy!.includes("Enemy") ? "Being already at war," : `Frightened by ${an},`;
+              war.push(
+                createEvent(
+                  d,
+                  defender,
+                  "severed the defense pact",
+                  `${reason} ${states[d].name} severed the defense pact with ${dn}`
+                )
+              );
+              dd[d] = states[d].diplomacy![defender] = "Suspicion";
+              return;
+            }
+            if (P(0.4)) {
+              war.push(
+                createEvent(
+                  d,
+                  attacker,
+                  "avoided entering the war",
+                  `${dn}'s ally ${states[d].name} avoided entering the war`
+                )
+              );
+              return;
+            }
+          }
+          defenders.push(d);
+          dp += stateAreas[d] * states[d].expansionism;
+          war.push(
+            createEvent(
+              d,
+              attacker,
+              "joined the war on defenders side",
+              `${dn}'s ally ${states[d].name} joined the war on defenders side`
+            )
+          );
+
+          // ally vassals join
+          states[d]
+            .diplomacy!.map((r, v) =>
+              r === "Suzerain" && states[v].neighbors!.includes(attacker) && !isPathBlocked(v, attacker) ? v : 0
+            )
+            .filter(v => v)
+            .forEach(v => {
+              defenders.push(v);
+              dp += stateAreas[v] * states[v].expansionism;
+              war.push(
+                createEvent(
+                  v,
+                  attacker,
+                  "joined the war on defenders side",
+                  `${states[d].name}'s vassal ${states[v].name} joined the war on defenders side`
+                )
+              );
+            });
+        });
+
+        // attacker allies join if the defender is their rival or joined power > defenders power and defender is not an ally
+        ad.forEach((r, d) => {
+          if (
+            r !== "Ally" ||
+            states[d].diplomacy!.includes("Vassal") ||
+            defenders.includes(d) ||
+            !states[d].neighbors!.includes(defender) ||
+            isPathBlocked(d, defender)
+          )
+            return;
+          const nameStateD = states[d].name;
+          if (states[d].diplomacy![defender] !== "Rival" && (P(0.7) || ap <= dp * 1.5)) {
+            war.push(
+              createEvent(
+                d,
+                attacker,
+                "avoided entering the war",
+                `${an}'s ally ${nameStateD} avoided entering the war`
+              )
+            );
+            return;
+          }
+          const allies = states[d].diplomacy!.map((r, d) => (r === "Ally" ? d : 0)).filter(d => d);
+          if (allies.some(ally => defenders.includes(ally))) {
+            war.push(
+              createEvent(
+                d,
+                attacker,
+                "did not join the war (allies on both sides)",
+                `${an}'s ally ${nameStateD} did not join the war as its allies are in war on both sides`
+              )
+            );
+            return;
+          }
+
+          attackers.push(d);
+          ap += stateAreas[d] * states[d].expansionism;
+          war.push(
+            createEvent(
+              d,
+              defender,
+              "joined the war on attackers side",
+              `${an}'s ally ${nameStateD} joined the war on attackers side`
+            )
+          );
+
+          // ally vassals join
+          states[d]
+            .diplomacy!.map((r, v) =>
+              r === "Suzerain" && states[v].neighbors!.includes(defender) && !isPathBlocked(v, defender) ? v : 0
+            )
+            .filter(v => v)
+            .forEach(v => {
+              attackers.push(v);
+              ap += stateAreas[v] * states[v].expansionism;
+              war.push(
+                createEvent(
+                  v,
+                  defender,
+                  "joined the war on attackers side",
+                  `${states[d].name}'s vassal ${states[v].name} joined the war on attackers side`
+                )
+              );
+            });
+        });
+
+        // change relations to Enemy for all participants
+        attackers.forEach(a => {
+          defenders.forEach((d: number) => {
+            states[a].diplomacy![d] = states[d].diplomacy![a] = "Enemy";
+          });
+        });
+        // TODO: record war in chronicle to keep state interface clean
+        // biome-ignore lint/suspicious/noExplicitAny: mixed chronicle array
+        (chronicle as any[]).push(war); // mixed chronicle entry: see TODO above
+      }
     }
+
+    // Sort chronicle chronologically so the newest events appear at the top
+    // biome-ignore lint/suspicious/noExplicitAny: mixed chronicle array
+    (chronicle as any[]).sort((a, b) => {
+      // biome-ignore lint/suspicious/noExplicitAny: mixed chronicle array
+      const eventA = a.find((e: any) => typeof e === "object");
+      // biome-ignore lint/suspicious/noExplicitAny: mixed chronicle array
+      const eventB = b.find((e: any) => typeof e === "object");
+      if (eventA && eventB) return eventA.yearsAgo - eventB.yearsAgo; // newer events (smaller yearsAgo) come first
+      return 0;
+    });
+
+    console.log("=== WAR COUNTS SUMMARY ===");
+    for (const [key, count] of warCounts.entries()) {
+      if (count > 1) {
+        console.log(`Blood feud ${key}: ${count} wars`);
+      }
+    }
+    console.log("==========================");
+
     TIME && console.timeEnd("generateDiplomacy");
   }
 
@@ -715,33 +990,6 @@ class StatesModule {
     if (!state.name && state.formName) return `The ${state.formName}`;
     const adjName = adjForms.includes(state.formName) && !/-| /.test(state.name);
     return adjName ? `${getAdjective(state.name)} ${state.formName}` : `${state.formName} of ${state.name}`;
-  }
-
-  collectTaxes(): void {
-    const { pack } = this.worldContext;
-    const { states, burgs, markets = [], deals = [] } = pack;
-
-    for (const deal of deals) {
-      if (!deal.tax) continue;
-
-      let sellerStateId: number | undefined;
-      if (deal.sellerType === "burg") {
-        sellerStateId = (burgs[deal.seller] as { state?: number } | undefined)?.state;
-      } else if (deal.sellerType === "market") {
-        const market = markets.find(m => m?.i === deal.seller);
-        if (market) sellerStateId = (burgs[market.centerBurgId] as { state?: number } | undefined)?.state;
-      }
-
-      if (!sellerStateId) continue;
-      const state = states[sellerStateId];
-      if (!state?.i) continue;
-      state.treasury = rn((state.treasury ?? 0) + deal.tax, 2);
-    }
-
-    for (const state of states) {
-      if (!state?.i || !state.pollTax) continue;
-      state.treasury = rn((state.treasury ?? 0) + state.pollTax * ((state.rural ?? 0) + (state.urban ?? 0)), 2);
-    }
   }
 
   getSalesTax(burg: { state?: number }): number {

@@ -6,6 +6,9 @@ import { useCulturesEditorState } from "../../store/culturesEditorState";
 import { capitalize, rn, si } from "../../utils";
 import { getAreaUnit } from "../../utils/domUtils";
 import { FillBox } from "../components/FillBox";
+import { IconButton } from "../components/IconButton";
+import { SortableHeader } from "../components/tables/SortableHeader";
+import { VirtualTableBody } from "../components/VirtualTableBody";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -34,6 +37,7 @@ export const CulturesEditorDialog: React.FC = () => {
   } = useCulturesEditorState();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const parentRef = useRef<HTMLDivElement>(null);
 
   const sortedCultures = useMemo(() => {
     return [...cultures].sort((a, b) => {
@@ -75,26 +79,36 @@ export const CulturesEditorDialog: React.FC = () => {
   const isBrushMode = customization === 4;
   const isAddMode = customization === 9;
 
+  const sortOrder = sortDirection === 1 ? "asc" : "desc";
+
   const SortHeader = ({
     label,
     col,
     tip,
     hide = false,
-    hidden = false
+    hidden = false,
+    numeric = false,
+    width
   }: {
     label: string;
     col: string;
     tip: string;
     hide?: boolean;
     hidden?: boolean;
+    numeric?: boolean;
+    width?: string;
   }) => (
-    <div
-      data-tip={tip}
-      className={`sortable ${hide ? "hide" : ""} ${hidden ? "hidden" : ""} ${sortBy === col ? "sort-active" : ""}`}
-      onClick={() => culturesEditorActions.changeSort(col)}
-    >
-      {label}&nbsp;
-    </div>
+    <SortableHeader
+      field={col}
+      label={label}
+      sortBy={sortBy}
+      sortOrder={sortOrder}
+      onSort={culturesEditorActions.changeSort}
+      numeric={numeric}
+      tip={tip}
+      className={`${hide ? "hide" : ""} ${hidden ? "hidden" : ""}`}
+      style={{ width }}
+    />
   );
 
   return (
@@ -102,210 +116,251 @@ export const CulturesEditorDialog: React.FC = () => {
       isOpen={isOpen}
       title="Cultures Editor"
       onClose={() => closeDialog("culturesEditor")}
-      className="fmg-dialog--overflow-hidden"
+      className="fmg-dialog--table"
     >
       <div id="culturesEditor">
-        <div id="culturesHeader" className="header" style={{ gridTemplateColumns: "10em 7em 9em 4em 8em 5em 7em 8em" }}>
-          <SortHeader label="Culture" col="name" tip="Click to sort by culture name" />
-          <SortHeader label="Type" col="type" tip="Click to sort by type" />
-          <SortHeader label="Namesbase" col="base" tip="Click to sort by culture namesbase" />
-          <SortHeader label="Cells" col="cells" tip="Click to sort by culture cells count" hide />
-          <SortHeader label="Expansion" col="expansionism" tip="Click to sort by expansionism" hide />
-          <SortHeader label="Area" col="area" tip="Click to sort by culture area" hide />
-          <SortHeader label="Population" col="population" tip="Click to sort by culture population" hide />
-          <SortHeader
-            label="Emblems"
-            col="emblems"
-            tip="Click to sort by culture emblems shape"
-            hide
-            hidden={!selectShape}
-          />
-        </div>
-
-        <div id="culturesBody" className="table" data-type={isPercentageMode ? "percentage" : "absolute"}>
-          {sortedCultures.map(c => {
-            const isNeutral = c.i === 0;
-            const areaText = isPercentageMode
-              ? `${totalArea > 0 ? rn((c.area / totalArea) * 100) : 0}%`
-              : `${si(c.area)} ${unit}`;
-            const cellsText = isPercentageMode
-              ? `${totalCells > 0 ? rn((c.cells / totalCells) * 100) : 0}%`
-              : String(c.cells);
-            const popText = isPercentageMode
-              ? `${totalPopulation > 0 ? rn((c.population / totalPopulation) * 100) : 0}%`
-              : si(c.population);
-            const populationTip = `Total population: ${si(c.population)}. Rural: ${si(c.rural)}. Urban: ${si(c.urban)}. Click to edit`;
-            const isSelected = isBrushMode && selectedCultureId === c.i;
-
-            return (
-              <div
-                key={c.i}
-                className={`states${isSelected ? " selected" : ""}`}
-                data-id={c.i}
-                onClick={() => culturesEditorActions.selectCultureOnLineClick(c.i)}
-                onMouseEnter={() => culturesEditorActions.cultureHighlightOn(c.i)}
-                onMouseLeave={() => culturesEditorActions.cultureHighlightOff(c.i)}
-                style={{ pointerEvents: isBrushMode ? "none" : "all" }}
-              >
-                {isNeutral ? (
-                  <svg width="11" height="11" className="placeholder" aria-hidden="true" />
-                ) : (
-                  <FillBox fill={c.color} onClick={() => culturesEditorActions.changeFill(c.i)} />
-                )}
-
-                <input
-                  data-tip={
-                    isNeutral
-                      ? "Neutral culture name. Click and type to change"
-                      : "Culture name. Click and type to change"
-                  }
-                  className={`cultureName${isNeutral ? " italic" : ""}`}
-                  style={{ width: "7em" }}
-                  value={c.name}
-                  autoCorrect="off"
-                  spellCheck={false}
-                  onChange={e => culturesEditorActions.changeName(c.i, e.target.value)}
+        <div
+          ref={parentRef}
+          id="culturesBody"
+          className="table"
+          data-type={isPercentageMode ? "percentage" : "absolute"}
+        >
+          <table className="fmg-table">
+            <thead>
+              <tr id="culturesHeader">
+                <SortHeader label="Culture" col="name" tip="Click to sort by culture name" width="10em" />
+                <SortHeader label="Type" col="type" tip="Click to sort by type" width="7em" />
+                <SortHeader label="Namesbase" col="base" tip="Click to sort by culture namesbase" width="9em" />
+                <SortHeader
+                  label="Cells"
+                  col="cells"
+                  tip="Click to sort by culture cells count"
+                  hide
+                  numeric
+                  width="4em"
                 />
-
-                {isNeutral ? (
-                  <span className="icon-cw placeholder" />
-                ) : (
-                  <span
-                    data-tip="Regenerate culture name"
-                    className="icon-cw hiddenIcon"
-                    style={{ visibility: "hidden" }}
-                    onClick={() => culturesEditorActions.regenerateName(c.i)}
-                  />
-                )}
-
-                <select
-                  data-tip={isNeutral ? undefined : "Culture type. Defines growth model. Click to change"}
-                  className={`cultureType${isNeutral ? " placeholder" : ""}`}
-                  value={c.type}
-                  disabled={isNeutral}
-                  onChange={e => culturesEditorActions.changeType(c.i, e.target.value)}
-                >
-                  {cultureTypes.map(t => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-
-                <span
-                  data-tip="Click to re-generate names for burgs with this culture assigned"
-                  className={`icon-arrows-cw hide${isNeutral ? "" : ""}`}
-                  onClick={() => !isNeutral && culturesEditorActions.regenerateBurgs(c.i)}
+                <SortHeader
+                  label="Expansion"
+                  col="expansionism"
+                  tip="Click to sort by expansionism"
+                  hide
+                  numeric
+                  width="8em"
                 />
-
-                <select
-                  data-tip="Culture namesbase. Click to change"
-                  className="cultureBase"
-                  value={c.base}
-                  onChange={e => culturesEditorActions.changeBase(c.i, +e.target.value)}
-                >
-                  {nameBases.map(n => (
-                    <option key={n.i} value={n.i}>
-                      {n.name}
-                    </option>
-                  ))}
-                  {!nameBases[c.base] && <option value={c.base}>removed</option>}
-                </select>
-
-                <span data-tip="Cells count" className="icon-check-empty hide" />
-                <div data-tip="Cells count" className="cultureCells hide" style={{ width: "4em" }}>
-                  {cellsText}
-                </div>
-
-                <span
-                  data-tip="Culture expansionism. Defines competitive size"
-                  className={`icon-resize-full hide${isNeutral ? " placeholder" : ""}`}
+                <SortHeader label="Area" col="area" tip="Click to sort by culture area" hide numeric width="6em" />
+                <SortHeader
+                  label="Population"
+                  col="population"
+                  tip="Click to sort by culture population"
+                  hide
+                  numeric
+                  width="4em"
                 />
-                <input
-                  data-tip="Culture expansionism. Defines competitive size. Click to change, then click Recalculate to apply"
-                  className={`cultureExpan hide${isNeutral ? " placeholder" : ""}`}
-                  type="number"
-                  min="0"
-                  max="99"
-                  step=".1"
-                  value={isNeutral ? "" : c.expansionism}
-                  disabled={isNeutral}
-                  onChange={e => culturesEditorActions.changeExpansionism(c.i, e.target.valueAsNumber)}
+                <SortHeader
+                  label="Emblems"
+                  col="emblems"
+                  tip="Click to sort by culture emblems shape"
+                  hide
+                  hidden={!selectShape}
                 />
+                <th></th>
+              </tr>
+            </thead>
+            <VirtualTableBody
+              items={sortedCultures}
+              scrollElementRef={parentRef}
+              renderRow={c => {
+                const isNeutral = c.i === 0;
+                const areaText = isPercentageMode
+                  ? `${totalArea > 0 ? rn((c.area / totalArea) * 100) : 0}%`
+                  : `${si(c.area)} ${unit}`;
+                const cellsText = isPercentageMode
+                  ? `${totalCells > 0 ? rn((c.cells / totalCells) * 100) : 0}%`
+                  : String(c.cells);
+                const popText = isPercentageMode
+                  ? `${totalPopulation > 0 ? rn((c.population / totalPopulation) * 100) : 0}%`
+                  : si(c.population);
+                const populationTip = `Total population: ${si(c.population)}. Rural: ${si(c.rural)}. Urban: ${si(c.urban)}. Click to edit`;
+                const isSelected = isBrushMode && selectedCultureId === c.i;
 
-                <span data-tip="Culture area" style={{ paddingRight: "4px" }} className="icon-map-o hide" />
-                <div data-tip="Culture area" className="cultureArea hide" style={{ width: "6em" }}>
-                  {areaText}
-                </div>
-
-                <span data-tip={populationTip} className="icon-male hide" />
-                <div
-                  data-tip={populationTip}
-                  className="culturePopulation hide pointer"
-                  style={{ width: "4em" }}
-                  onClick={() => culturesEditorActions.changePopulation(c.i)}
-                >
-                  {popText}
-                </div>
-
-                {selectShape && (
-                  <select
-                    data-tip="Emblem shape associated with culture. Click to change"
-                    className="cultureEmblems hide"
-                    value={c.shield}
-                    onChange={e => culturesEditorActions.changeEmblemsShape(c.i, e.target.value)}
+                return (
+                  <tr
+                    key={c.i}
+                    className={`states${isSelected ? " selected" : ""}`}
+                    data-id={c.i}
+                    onClick={() => culturesEditorActions.selectCultureOnLineClick(c.i)}
+                    onMouseEnter={() => culturesEditorActions.cultureHighlightOn(c.i)}
+                    onMouseLeave={() => culturesEditorActions.cultureHighlightOff(c.i)}
+                    style={{ pointerEvents: isBrushMode ? "none" : "all" }}
                   >
-                    {shapeOptions.map(shape => (
-                      <option key={shape} value={shape}>
-                        {capitalize(shape)}
-                      </option>
-                    ))}
-                  </select>
-                )}
+                    <td className="d-flex">
+                      {isNeutral ? (
+                        <svg width="11" height="11" className="placeholder" aria-hidden="true" />
+                      ) : (
+                        <FillBox fill={c.color} onClick={() => culturesEditorActions.changeFill(c.i)} />
+                      )}
 
-                {!isNeutral && (
-                  <>
-                    <span
-                      data-tip="Locate the culture"
-                      className="icon-target hide"
-                      onClick={() => culturesEditorActions.highlightCulture(c.i)}
-                    />
-                    <span
-                      data-tip="Lock culture"
-                      className={`icon-lock${c.lock ? "" : "-open"} hide`}
-                      onClick={() => culturesEditorActions.updateLockStatus(c.i)}
-                    />
-                    <span
-                      data-tip="Remove culture"
-                      className="icon-trash-empty hide"
-                      onClick={() => culturesEditorActions.triggerRemove(c.i)}
-                    />
-                  </>
-                )}
-              </div>
-            );
-          })}
+                      <input
+                        data-tip={
+                          isNeutral
+                            ? "Neutral culture name. Click and type to change"
+                            : "Culture name. Click and type to change"
+                        }
+                        className={`cultureName${isNeutral ? " italic" : ""}`}
+                        value={c.name}
+                        autoCorrect="off"
+                        spellCheck={false}
+                        onChange={e => culturesEditorActions.changeName(c.i, e.target.value)}
+                      />
+
+                      {isNeutral ? (
+                        <span className="icon-cw placeholder" />
+                      ) : (
+                        <IconButton
+                          data-tip="Regenerate culture name"
+                          className="icon-cw hiddenIcon"
+                          onClick={() => culturesEditorActions.regenerateName(c.i)}
+                        />
+                      )}
+                    </td>
+                    <td>
+                      <select
+                        data-tip={isNeutral ? undefined : "Culture type. Defines growth model. Click to change"}
+                        className={`cultureType${isNeutral ? " placeholder" : ""}`}
+                        value={c.type}
+                        disabled={isNeutral}
+                        onChange={e => culturesEditorActions.changeType(c.i, e.target.value)}
+                      >
+                        {cultureTypes.map(t => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <div className="d-flex">
+                        <IconButton
+                          data-tip="Click to re-generate names for burgs with this culture assigned"
+                          className={`icon-arrows-cw hide${isNeutral ? "" : ""}`}
+                          onClick={() => !isNeutral && culturesEditorActions.regenerateBurgs(c.i)}
+                        />
+
+                        <select
+                          data-tip="Culture namesbase. Click to change"
+                          className="cultureBase"
+                          value={c.base}
+                          onChange={e => culturesEditorActions.changeBase(c.i, +e.target.value)}
+                        >
+                          {nameBases.map(n => (
+                            <option key={n.i} value={n.i}>
+                              {n.name}
+                            </option>
+                          ))}
+                          {!nameBases[c.base] && <option value={c.base}>removed</option>}
+                        </select>
+                      </div>
+                    </td>
+                    <td className="hide">
+                      <span data-tip="Cells count" className="icon-check-empty" />
+                      <div data-tip="Cells count" className="cultureCells" style={{ display: "inline-block" }}>
+                        {cellsText}
+                      </div>
+                    </td>
+                    <td className="hide">
+                      <div className="d-flex">
+                        <span
+                          data-tip="Culture expansionism. Defines competitive size"
+                          className={`icon-resize-full${isNeutral ? " placeholder" : ""}`}
+                        />
+                        <input
+                          data-tip="Culture expansionism. Defines competitive size. Click to change, then click Recalculate to apply"
+                          className={`cultureExpan${isNeutral ? " placeholder" : ""}`}
+                          type="number"
+                          min="0"
+                          max="99"
+                          step=".1"
+                          value={isNeutral ? "" : c.expansionism}
+                          disabled={isNeutral}
+                          onChange={e => culturesEditorActions.changeExpansionism(c.i, e.target.valueAsNumber)}
+                        />
+                      </div>
+                    </td>
+                    <td className="hide">
+                      <span data-tip="Culture area" />
+                      <div data-tip="Culture area" className="cultureArea" style={{ display: "inline-block" }}>
+                        {areaText}
+                      </div>
+                    </td>
+                    <td className="hide pointer" onClick={() => culturesEditorActions.changePopulation(c.i)}>
+                      <span data-tip={populationTip} className="icon-male" />
+                      <div data-tip={populationTip} className="culturePopulation" style={{ display: "inline-block" }}>
+                        {popText}
+                      </div>
+                    </td>
+                    {selectShape ? (
+                      <td className="hide">
+                        <select
+                          data-tip="Emblem shape associated with culture. Click to change"
+                          className="cultureEmblems"
+                          value={c.shield}
+                          onChange={e => culturesEditorActions.changeEmblemsShape(c.i, e.target.value)}
+                        >
+                          {shapeOptions.map(shape => (
+                            <option key={shape} value={shape}>
+                              {capitalize(shape)}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    ) : null}
+                    <td className="hide">
+                      {!isNeutral && (
+                        <>
+                          <IconButton
+                            data-tip="Locate the culture"
+                            className="icon-target"
+                            onClick={() => culturesEditorActions.highlightCulture(c.i)}
+                          />
+                          <IconButton
+                            data-tip="Lock culture"
+                            className={`icon-lock${c.lock ? "" : "-open"}`}
+                            onClick={() => culturesEditorActions.updateLockStatus(c.i)}
+                          />
+                          <IconButton
+                            data-tip="Remove culture"
+                            className="icon-trash-empty"
+                            onClick={() => culturesEditorActions.triggerRemove(c.i)}
+                          />
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                );
+              }}
+            />
+          </table>
         </div>
 
         <div id="culturesTotal" className="totalLine" style={{ display: isBrushMode ? "none" : undefined }}>
-          <div data-tip="Cultures number" style={{ marginLeft: 12 }}>
-            Cultures:&nbsp;<span>{cultures.filter(c => c.i).length}</span>
+          <div data-tip="Cultures number">
+            Cultures:<span>{cultures.filter(c => c.i).length}</span>
           </div>
-          <div data-tip="Total land cells number" style={{ marginLeft: 12 }}>
-            Cells:&nbsp;<span>{totalCells}</span>
+          <div data-tip="Total land cells number">
+            Cells:<span>{totalCells}</span>
           </div>
-          <div data-tip="Total land area" style={{ marginLeft: 12 }}>
-            Land Area:&nbsp;
+          <div data-tip="Total land area">
+            Land Area:
             <span>
               {si(totalArea)} {unit}
             </span>
           </div>
-          <div data-tip="Total population" style={{ marginLeft: 12 }}>
-            Population:&nbsp;<span>{si(totalPopulation)}</span>
+          <div data-tip="Total population">
+            Population:<span>{si(totalPopulation)}</span>
           </div>
         </div>
 
-        <div id="culturesFooter" className="fmg-dialog-footer">
+        <div id="culturesFooter" className="footer">
           {isBrushMode ? null : (
             <>
               <button
@@ -352,7 +407,7 @@ export const CulturesEditorDialog: React.FC = () => {
           <div id="culturesManuallyButtons" style={{ display: isBrushMode ? "inline-block" : "none" }}>
             <div
               data-tip="Change brush size. Shortcuts: + / ] to increase; - / [ to decrease"
-              style={{ marginBlock: "0.3em", display: "inline-block" }}
+              className="d-inline-block"
             >
               Brush size:
               <input
@@ -414,7 +469,7 @@ export const CulturesEditorDialog: React.FC = () => {
                 ref={fileInputRef}
                 id="culturesCSVToLoad"
                 type="file"
-                style={{ display: "none" }}
+                className="d-none"
                 accept=".csv"
                 onChange={e => {
                   const file = e.target.files?.[0];
@@ -432,7 +487,7 @@ export const CulturesEditorDialog: React.FC = () => {
               />
               <span
                 data-tip="Allow culture centers, expansion and type changes to take an immediate effect"
-                style={{ display: "inline-flex" }}
+                className="d-inline-flex"
               >
                 <input
                   id="culturesAutoChange"

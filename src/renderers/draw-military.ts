@@ -1,6 +1,6 @@
 import { color, easeSinInOut, transition } from "d3";
 import type { AppServices } from "../context/appServices";
-import type { SettlementLayers } from "../context/viewContext";
+import type { FocusFields, SettlementLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { Military } from "../generators/military-generator";
 import type { MilitaryRegiment } from "../types/models";
@@ -13,16 +13,16 @@ export const MilitaryRenderer = {
 
   render(
     worldContext: Readonly<WorldContext>,
-    viewContext: Readonly<SettlementLayers>,
+    viewContext: Readonly<SettlementLayers & FocusFields>,
     appServices: AppServices
   ): void {
     TIME && console.time("MilitaryRenderer");
     const { pack } = worldContext;
-    const { armies } = viewContext;
+    const { armies, focusScope } = viewContext;
 
     armies.selectAll("g").remove();
     pack.states
-      .filter(s => s.i && !s.removed)
+      .filter(s => s.i && !s.removed && (!focusScope || s.i === focusScope.stateId))
       .forEach(s => {
         drawRegiments(worldContext, viewContext, appServices, s.military || [], s.i);
       });
@@ -111,6 +111,18 @@ export const drawRegiments = (
     .attr("height", h)
     .attr("width", h)
     .attr("href", d => (d.icon!.startsWith("http") || d.icon!.startsWith("data:image") ? d.icon! : ""));
+  g.append("rect")
+    .attr("fill", "currentColor")
+    .attr("x", d => x(d) + w(d))
+    .attr("y", d => y(d))
+    .attr("width", h)
+    .attr("height", h);
+  g.append("text")
+    .attr("class", "regimentActionIcon")
+    .attr("text-rendering", "optimizeSpeed")
+    .attr("x", d => x(d) + w(d) + size)
+    .attr("y", d => d.y)
+    .text(d => (d.actionStatus === "battled" ? "🎯" : "🎪"));
 };
 
 export const drawRegiment = (
@@ -169,6 +181,18 @@ export const drawRegiment = (
     .attr("height", h)
     .attr("width", h)
     .attr("href", reg.icon!.startsWith("http") || reg.icon!.startsWith("data:image") ? reg.icon! : "");
+  g.append("rect")
+    .attr("fill", "currentColor")
+    .attr("x", x1 + w)
+    .attr("y", y1)
+    .attr("width", h)
+    .attr("height", h);
+  g.append("text")
+    .attr("class", "regimentActionIcon")
+    .attr("text-rendering", "optimizeSpeed")
+    .attr("x", x1 + w + size)
+    .attr("y", reg.y)
+    .text(reg.actionStatus === "battled" ? "🎯" : "🎪");
 };
 
 // move one regiment to another
@@ -212,4 +236,12 @@ export const moveRegiment = (
     .attr("y", y1(y))
     .attr("height", "6")
     .attr("width", "6");
+  el.selectAll("rect:nth-of-type(3)")
+    .transition(move)
+    .attr("x", x1(x) + w)
+    .attr("y", y1(y));
+  el.select(".regimentActionIcon")
+    .transition(move)
+    .attr("x", x1(x) + w + size)
+    .attr("y", y);
 };

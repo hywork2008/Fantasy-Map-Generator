@@ -46,18 +46,18 @@ export const StateMergeDialog: React.FC = () => {
         { label: "Cancel", onClick: handleClose }
       ]}
     >
-      <div style={{ width: "36em" }}>
-        <p style={{ margin: "0 0 1em 0" }}>
+      <div>
+        <p>
           Check the <b>checkbox</b> next to each state you want to merge. Use the <b>radio button</b> to pick the{" "}
           <em>ruling state</em> that will absorb all others (its name, color, and capital will be kept). Hover over a
           row to highlight the state on the map.
         </p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.3em" }}>
+        <div className="d-grid">
           {mergeDialog.map(s => (
             <div
               key={s.i}
               data-tip={s.fullName}
-              style={{ display: "flex", alignItems: "center", gap: "0.3em", cursor: "default" }}
+              className="d-flex"
               onMouseEnter={() => statesEditorActions.highlightStateOnMap(s.i)}
               onMouseLeave={statesEditorActions.clearStateHighlight}
             >
@@ -75,11 +75,7 @@ export const StateMergeDialog: React.FC = () => {
                 checked={statesToMerge.has(s.i)}
                 onChange={e => handleToggleMerge(s.i, e.target.checked)}
               />
-              <label
-                htmlFor={`selectState${s.i}`}
-                className="checkbox-label"
-                style={{ display: "flex", alignItems: "center", gap: "0.3em", cursor: "pointer" }}
-              >
+              <label htmlFor={`selectState${s.i}`} className="checkbox-label d-flex">
                 {/* @ts-ignore */}
                 <FillBox fill={s.color} disabled />
                 <svg className="coaIcon" viewBox="0 0 200 200" aria-hidden="true">
