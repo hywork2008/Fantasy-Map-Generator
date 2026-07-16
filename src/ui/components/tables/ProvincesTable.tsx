@@ -51,7 +51,7 @@ export const ProvincesTable: React.FC<ProvincesTableProps> = ({
   return (
     <>
       <div
-        className="table -states-editor-dialog__max-height-400px--overflow-y-auto"
+        className="table"
         data-type={isPercentageMode ? "percentage" : "absolute"}
         ref={parentRef}
         style={{ overflow: "auto" }}

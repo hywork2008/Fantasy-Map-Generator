@@ -155,11 +155,7 @@ export const StatesEditorPersonalityTab: React.FC = () => {
   const colSpan = 13; // Name + 12 Personality
 
   return (
-    <div
-      className="table -states-editor-dialog__max-height-400px--overflow-y-auto"
-      ref={parentRef}
-      style={{ overflow: "auto" }}
-    >
+    <div className="table" ref={parentRef} style={{ overflow: "auto" }}>
       <table className="fmg-table" style={{ minWidth: "800px" }}>
         <thead style={{ zIndex: 3 }}>
           <tr>

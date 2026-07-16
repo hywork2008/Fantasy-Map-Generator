@@ -50,10 +50,12 @@
   */
   &.fmg-dialog--table,
   &.overflow-hidden {
-    /* Default height for table-layout dialogs: 75% of viewport, capped by the
-       base max-height: 90vh. Overridable per-dialog with an inline style prop.
-       The flex children need a bounded height for the inner scroll to engage. */
-    height: 75vh;
+    /* Table-layout dialogs shrink-to-fit their content and cap at 75% of the
+       viewport (capped further by the base max-height: 90vh). Dialogs with
+       little content (e.g. Biomes Editor) don't carry empty space; dialogs
+       whose content exceeds the cap get bounded and the .table region below
+       scrolls. Overridable per-dialog with an inline style prop. */
+    max-height: 75vh;
 
     /* Disable content-area scroll; let child manage its own regions. */
     >.fmg-dialog-content {
@@ -175,6 +177,15 @@
   overflow: auto;
 }
 
+/* TinyMCE (iframe mode) replaces #notesLegend with a sibling .tox-tinymce wrapper.
+   Its own height: "90%" config resolves against this indefinite-height flex chain,
+   so it must be forced to fill the flex slot instead. */
+.notes-editor__content .tox-tinymce {
+  flex: 1;
+  min-height: 16rem;
+  height: auto !important;
+}
+
 .fmg-dialog-table__body {
   display: flex;
   flex: 1;
@@ -214,6 +225,45 @@
 .fmg-dialog--notes > .fmg-dialog-content {
   display: flex;
   flex-direction: column;
+}
+
+/* Edit Emblem: the button row must stay visible instead of scrolling away
+   with the form fields when the dialog is resized shorter. #emblemEditor is
+   the direct child of .fmg-dialog-content, so the flex-column chain has to
+   start there, not at #emblemEditorContainer two levels down. */
+.fmg-dialog--emblem > .fmg-dialog-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.fmg-dialog--emblem #emblemEditor {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.fmg-dialog--emblem #emblemEditorContainer {
+  flex: 1;
+  min-height: 0;
+}
+
+.fmg-dialog--emblem .emblem-editor__content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.fmg-dialog--emblem #emblemBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.fmg-dialog--emblem #emblemsFooter {
+  flex-shrink: 0;
 }
 
 .fmg-dialog-buttonpane {

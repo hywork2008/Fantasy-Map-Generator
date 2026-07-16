@@ -26,7 +26,7 @@ export const EmblemEditorContent: React.FC = () => {
   return (
     <div id="emblemEditor">
       <div id="emblemEditorContainer" className="d-flex">
-        <div>
+        <div className="emblem-editor__content">
           <svg viewBox="0 0 200 200" aria-hidden="true">
             {targetId && <use id="emblemImage" href={`#${targetId}`} />}
           </svg>

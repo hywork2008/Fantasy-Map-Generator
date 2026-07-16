@@ -117,12 +117,7 @@ export const StatesEditorContent: React.FC = () => {
 
       {activeTab === "overview" ? (
         <>
-          <div
-            ref={parentRef}
-            id="statesBodySection"
-            className="table -states-editor-dialog__max-height-400px--overflow-y-auto"
-            data-type="absolute"
-          >
+          <div ref={parentRef} id="statesBodySection" className="table" data-type="absolute">
             <table className="fmg-table">
               <thead>
                 <tr id="statesHeader">

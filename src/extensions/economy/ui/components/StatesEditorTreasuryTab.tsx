@@ -53,7 +53,7 @@ export const StatesEditorTreasuryTab: React.FC = () => {
   }
 
   return (
-    <div className="table -states-editor-dialog__max-height-400px--overflow-y-auto" style={{ overflow: "auto" }}>
+    <div className="table" style={{ overflow: "auto" }}>
       <table className="fmg-table">
         <thead>
           <tr>

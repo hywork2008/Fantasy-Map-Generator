@@ -58,7 +58,8 @@ export const EDITOR_REGISTRY: Record<string, EditorConfig> = {
     title: "Edit Emblem",
     component: EmblemEditorContent,
     moduleFlag: "editEmblems",
-    onClose: () => closeEmblemEditor()
+    onClose: () => closeEmblemEditor(),
+    dialogClassName: "fmg-dialog--emblem"
   },
   statesEditor: {
     title: "States Editor",
