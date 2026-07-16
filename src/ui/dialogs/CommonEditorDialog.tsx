@@ -7,7 +7,16 @@ import { closeDialog } from "./dialogService";
 import type { EditorConfig } from "./editorRegistry";
 
 export const CommonEditorDialog: React.FC<{ id: string; config: EditorConfig }> = ({ id, config }) => {
-  const { title, component: Component, moduleFlag, layerId, onClose, tableLayout, dialogHeight } = config;
+  const {
+    title,
+    component: Component,
+    moduleFlag,
+    layerId,
+    onClose,
+    tableLayout,
+    dialogHeight,
+    dialogClassName
+  } = config;
 
   // Cleanup when dialog is closed (either via X button or programmatic toggle)
   useEffect(() => {
@@ -32,7 +41,7 @@ export const CommonEditorDialog: React.FC<{ id: string; config: EditorConfig }> 
       isOpen={true}
       title={title}
       onClose={handleClose}
-      className={tableLayout ? "overflow-hidden" : undefined}
+      className={[tableLayout ? "fmg-dialog--table" : "", dialogClassName].filter(Boolean).join(" ")}
       style={dialogHeight ? { height: dialogHeight } : undefined}
     >
       <Component />

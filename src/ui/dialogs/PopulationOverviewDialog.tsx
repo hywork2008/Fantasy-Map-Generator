@@ -9,6 +9,7 @@ import { rn, si } from "../../utils";
 import { SortableHeader } from "../components/tables/SortableHeader";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
+import { TableDialogLayout } from "./TableDialogLayout";
 
 const WINDOW_OPTIONS: { id: DeathWindow; label: string }[] = [
   { id: "day", label: "1 day" },
@@ -144,248 +145,257 @@ export const PopulationOverviewDialog: React.FC = () => {
   const worldMobilizationPct = livingTotals.total > 0 ? (livingTotals.underArms / livingTotals.total) * 100 : 0;
 
   return (
-    <Dialog isOpen={isOpen} title="Population Overview" onClose={() => closeDialog("populationOverview")}>
-      <div style={{ minWidth: "36em", maxWidth: "56em" }}>
-        <p style={{ fontSize: "0.85em", opacity: 0.85, marginTop: 0 }}>
-          Vital statistics a ruler might consult when setting policy — and a designer can use to judge which losses
-          wars, famine, and demography actually inflict. Under arms are living men already drawn from the civilian male
-          pool when the manpower ledger is on. Combat deaths also feed the <strong>Combat Deaths</strong> map layer
-          (battlefield heatmap); its time window matches the Deaths tab selector below.
-        </p>
-
-        <div style={{ display: "flex", gap: "0.5em", marginBottom: "0.75em" }}>
-          <button
-            type="button"
-            className={activeTab === "living" ? "buttonpressed" : undefined}
-            onClick={() => setActiveTab("living")}
-          >
-            Living
-          </button>
-          <button
-            type="button"
-            className={activeTab === "deaths" ? "buttonpressed" : undefined}
-            onClick={() => setActiveTab("deaths")}
-          >
-            Deaths
-          </button>
-        </div>
-
+    <Dialog
+      isOpen={isOpen}
+      title="Population Overview"
+      onClose={() => closeDialog("populationOverview")}
+      className="fmg-dialog--table population-overview-dialog"
+    >
+      <TableDialogLayout
+        header={
+          <>
+            <p className="population-overview-dialog__description">
+              Vital statistics a ruler might consult when setting policy — and a designer can use to judge which losses
+              wars, famine, and demography actually inflict. Under arms are living men already drawn from the civilian
+              male pool when the manpower ledger is on. Combat deaths also feed the <strong>Combat Deaths</strong> map
+              layer (battlefield heatmap); its time window matches the Deaths tab selector below.
+            </p>
+            <div className="population-overview-dialog__tabs">
+              <button
+                type="button"
+                className={activeTab === "living" ? "buttonpressed" : undefined}
+                onClick={() => setActiveTab("living")}
+              >
+                Living
+              </button>
+              <button
+                type="button"
+                className={activeTab === "deaths" ? "buttonpressed" : undefined}
+                onClick={() => setActiveTab("deaths")}
+              >
+                Deaths
+              </button>
+            </div>
+          </>
+        }
+        controls={
+          activeTab === "deaths" ? (
+            <div className="population-overview-dialog__period-controls">
+              <span>Period:</span>
+              {WINDOW_OPTIONS.map(opt => (
+                <label key={opt.id}>
+                  <input
+                    type="radio"
+                    name="popDeathWindow"
+                    checked={deathWindow === opt.id}
+                    onChange={() => setDeathWindow(opt.id)}
+                  />
+                  {opt.label}
+                </label>
+              ))}
+              <span className="population-overview-dialog__period-note">
+                (last {deathWindowDays(deathWindow)} day{deathWindowDays(deathWindow) === 1 ? "" : "s"} of simulation
+                time)
+              </span>
+            </div>
+          ) : undefined
+        }
+        summary={
+          activeTab === "living" ? (
+            <div className="population-overview-dialog__summary">
+              <strong>Total</strong>
+              <span>Rural: {fmt(livingTotals.rural)}</span>
+              <span>Urban: {fmt(livingTotals.urban)}</span>
+              <span>Under arms: {fmt(livingTotals.underArms)}</span>
+              <span>Population: {fmt(livingTotals.total)}</span>
+              <span>Mobilization: {fmtPct(worldMobilizationPct)}</span>
+              <span>Adult male: {fmtPct(worldAdultMalePct)}</span>
+            </div>
+          ) : (
+            <div className="population-overview-dialog__summary">
+              <strong>Total</strong>
+              <span>Combat: {fmt(deathTotals.combat)}</span>
+              <span>Famine: {fmt(deathTotals.famine)}</span>
+              <span>Natural: {fmt(deathTotals.natural)}</span>
+              <span>Other: {fmt(deathTotals.other)}</span>
+              <span>Deaths: {fmt(deathTotals.total)}</span>
+            </div>
+          )
+        }
+      >
         {activeTab === "living" && (
           <>
-            <div style={{ maxHeight: "26em", overflow: "auto" }}>
-              <table className="overviewDataTable" style={{ width: "100%", fontSize: "0.85em" }}>
-                <thead>
-                  <tr>
-                    <SortableHeader
-                      label="State"
-                      field="name"
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={toggleSortBy}
-                    />
-                    <SortableHeader
-                      label="Rural"
-                      field="rural"
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={toggleSortBy}
-                      numeric
-                      tip="Rural civilian population (display people)"
-                    />
-                    <SortableHeader
-                      label="Urban"
-                      field="urban"
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={toggleSortBy}
-                      numeric
-                      tip="Urban civilian population (display people)"
-                    />
-                    <SortableHeader
-                      label="Under arms"
-                      field="underArms"
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={toggleSortBy}
-                      numeric
-                      tip="Land regiment headcount currently under arms"
-                    />
-                    <SortableHeader
-                      label="Total"
-                      field="total"
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={toggleSortBy}
-                      numeric
-                      tip="Rural + urban civilians + under arms"
-                    />
-                    <SortableHeader
-                      label="Children"
-                      field="children"
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={toggleSortBy}
-                      numeric
-                    />
-                    <SortableHeader
-                      label="♂ Adults"
-                      field="civilianMale"
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={toggleSortBy}
-                      numeric
-                      tip="Civilian adult males (not currently under arms)"
-                    />
-                    <SortableHeader
-                      label="♀ Adults"
-                      field="civilianFemale"
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={toggleSortBy}
-                      numeric
-                    />
-                    <SortableHeader
-                      label="Elders"
-                      field="elders"
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={toggleSortBy}
-                      numeric
-                    />
-                    <SortableHeader
-                      label="Mobil.%"
-                      field="mobilizationPct"
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={toggleSortBy}
-                      numeric
-                      tip="Under arms / total living × 100"
-                    />
-                    <SortableHeader
-                      label="♂% adults"
-                      field="adultMalePct"
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={toggleSortBy}
-                      numeric
-                      tip="Adult male share including under arms (low ≈ widow skew)"
-                    />
-                    <SortableHeader
-                      label="Food"
-                      field="foodStress"
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={toggleSortBy}
-                      numeric
-                      tip="Agricultural food stress 0–1.5 from spring/autumn war disruption"
-                    />
-                    <SortableHeader
-                      label="Supply"
-                      field="supplyStrain"
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={toggleSortBy}
-                      numeric
-                      tip="0–1 wartime supply strain (Economy warIntensity when enabled)"
-                    />
-                    <SortableHeader
-                      label="Draft%"
-                      field="draftEfficiency"
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={toggleSortBy}
-                      numeric
-                      tip="How well the state can equip/feed new levies (food + supply)"
-                    />
-                    <SortableHeader
-                      label="Qual"
-                      field="meanQuality"
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={toggleSortBy}
-                      numeric
-                      tip="Mean land regiment quality (1=veteran, green recruits lower this)"
-                    />
-                  </tr>
-                </thead>
-                <tbody>
-                  {livingRows.map(r => (
-                    <tr key={r.id}>
-                      <td>
-                        <span
-                          style={{
-                            display: "inline-block",
-                            width: "0.75em",
-                            height: "0.75em",
-                            background: r.color,
-                            marginRight: "0.4em",
-                            verticalAlign: "middle"
-                          }}
-                        />
-                        {r.name}
-                      </td>
-                      <td className="total">{fmt(r.rural)}</td>
-                      <td className="total">{fmt(r.urban)}</td>
-                      <td className="total">{fmt(r.underArms)}</td>
-                      <td className="total">
-                        <strong>{fmt(r.total)}</strong>
-                      </td>
-                      <td className="total">{fmt(r.children)}</td>
-                      <td className="total">{fmt(r.civilianMale)}</td>
-                      <td className="total">{fmt(r.civilianFemale)}</td>
-                      <td className="total">{fmt(r.elders)}</td>
-                      <td className="total">{fmtPct(r.mobilizationPct)}</td>
-                      <td className="total">{fmtPct(r.adultMalePct)}</td>
-                      <td className="total">{rn(r.foodStress, 2)}</td>
-                      <td className="total">{rn(r.supplyStrain, 2)}</td>
-                      <td className="total">{fmtPct(r.draftEfficiency * 100)}</td>
-                      <td className="total">{rn(r.meanQuality, 2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr>
+            <table className="fmg-table overviewDataTable population-overview-dialog__table">
+              <thead>
+                <tr>
+                  <SortableHeader
+                    label="State"
+                    field="name"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                  />
+                  <SortableHeader
+                    label="Rural"
+                    field="rural"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                    numeric
+                    tip="Rural civilian population (display people)"
+                  />
+                  <SortableHeader
+                    label="Urban"
+                    field="urban"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                    numeric
+                    tip="Urban civilian population (display people)"
+                  />
+                  <SortableHeader
+                    label="Under arms"
+                    field="underArms"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                    numeric
+                    tip="Land regiment headcount currently under arms"
+                  />
+                  <SortableHeader
+                    label="Total"
+                    field="total"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                    numeric
+                    tip="Rural + urban civilians + under arms"
+                  />
+                  <SortableHeader
+                    label="Children"
+                    field="children"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                    numeric
+                  />
+                  <SortableHeader
+                    label="♂ Adults"
+                    field="civilianMale"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                    numeric
+                    tip="Civilian adult males (not currently under arms)"
+                  />
+                  <SortableHeader
+                    label="♀ Adults"
+                    field="civilianFemale"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                    numeric
+                  />
+                  <SortableHeader
+                    label="Elders"
+                    field="elders"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                    numeric
+                  />
+                  <SortableHeader
+                    label="Mobil.%"
+                    field="mobilizationPct"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                    numeric
+                    tip="Under arms / total living × 100"
+                  />
+                  <SortableHeader
+                    label="♂% adults"
+                    field="adultMalePct"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                    numeric
+                    tip="Adult male share including under arms (low ≈ widow skew)"
+                  />
+                  <SortableHeader
+                    label="Food"
+                    field="foodStress"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                    numeric
+                    tip="Agricultural food stress 0–1.5 from spring/autumn war disruption"
+                  />
+                  <SortableHeader
+                    label="Supply"
+                    field="supplyStrain"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                    numeric
+                    tip="0–1 wartime supply strain (Economy warIntensity when enabled)"
+                  />
+                  <SortableHeader
+                    label="Draft%"
+                    field="draftEfficiency"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                    numeric
+                    tip="How well the state can equip/feed new levies (food + supply)"
+                  />
+                  <SortableHeader
+                    label="Qual"
+                    field="meanQuality"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                    numeric
+                    tip="Mean land regiment quality (1=veteran, green recruits lower this)"
+                  />
+                </tr>
+              </thead>
+              <tbody>
+                {livingRows.map(r => (
+                  <tr key={r.id}>
                     <td>
-                      <strong>Total</strong>
+                      <span
+                        style={{
+                          display: "inline-block",
+                          width: "0.75em",
+                          height: "0.75em",
+                          background: r.color,
+                          marginRight: "0.4em",
+                          verticalAlign: "middle"
+                        }}
+                      />
+                      {r.name}
                     </td>
+                    <td className="total">{fmt(r.rural)}</td>
+                    <td className="total">{fmt(r.urban)}</td>
+                    <td className="total">{fmt(r.underArms)}</td>
                     <td className="total">
-                      <strong>{fmt(livingTotals.rural)}</strong>
+                      <strong>{fmt(r.total)}</strong>
                     </td>
-                    <td className="total">
-                      <strong>{fmt(livingTotals.urban)}</strong>
-                    </td>
-                    <td className="total">
-                      <strong>{fmt(livingTotals.underArms)}</strong>
-                    </td>
-                    <td className="total">
-                      <strong>{fmt(livingTotals.total)}</strong>
-                    </td>
-                    <td className="total">
-                      <strong>{fmt(livingTotals.children)}</strong>
-                    </td>
-                    <td className="total">
-                      <strong>{fmt(livingTotals.civilianMale)}</strong>
-                    </td>
-                    <td className="total">
-                      <strong>{fmt(livingTotals.civilianFemale)}</strong>
-                    </td>
-                    <td className="total">
-                      <strong>{fmt(livingTotals.elders)}</strong>
-                    </td>
-                    <td className="total">
-                      <strong>{fmtPct(worldMobilizationPct)}</strong>
-                    </td>
-                    <td className="total">
-                      <strong>{fmtPct(worldAdultMalePct)}</strong>
-                    </td>
-                    <td className="total">—</td>
-                    <td className="total">—</td>
-                    <td className="total">—</td>
-                    <td className="total">—</td>
+                    <td className="total">{fmt(r.children)}</td>
+                    <td className="total">{fmt(r.civilianMale)}</td>
+                    <td className="total">{fmt(r.civilianFemale)}</td>
+                    <td className="total">{fmt(r.elders)}</td>
+                    <td className="total">{fmtPct(r.mobilizationPct)}</td>
+                    <td className="total">{fmtPct(r.adultMalePct)}</td>
+                    <td className="total">{rn(r.foodStress, 2)}</td>
+                    <td className="total">{rn(r.supplyStrain, 2)}</td>
+                    <td className="total">{fmtPct(r.draftEfficiency * 100)}</td>
+                    <td className="total">{rn(r.meanQuality, 2)}</td>
                   </tr>
-                </tfoot>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
             {livingRows.length === 0 && (
               <p style={{ fontSize: "0.85em", opacity: 0.75, marginTop: "0.75em" }}>
                 No states to show. Generate a map first.
@@ -396,130 +406,85 @@ export const PopulationOverviewDialog: React.FC = () => {
 
         {activeTab === "deaths" && (
           <>
-            <div
-              style={{ display: "flex", alignItems: "center", gap: "0.75em", marginBottom: "0.5em", flexWrap: "wrap" }}
-            >
-              <span style={{ fontSize: "0.9em" }}>Period:</span>
-              {WINDOW_OPTIONS.map(opt => (
-                <label key={opt.id} style={{ display: "inline-flex", alignItems: "center", gap: "0.25em" }}>
-                  <input
-                    type="radio"
-                    name="popDeathWindow"
-                    checked={deathWindow === opt.id}
-                    onChange={() => setDeathWindow(opt.id)}
+            <table className="fmg-table overviewDataTable population-overview-dialog__table">
+              <thead>
+                <tr>
+                  <SortableHeader
+                    label="State"
+                    field="name"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
                   />
-                  {opt.label}
-                </label>
-              ))}
-              <span style={{ fontSize: "0.8em", opacity: 0.7 }}>
-                (last {deathWindowDays(deathWindow)} day{deathWindowDays(deathWindow) === 1 ? "" : "s"} of simulation
-                time)
-              </span>
-            </div>
-
-            <div style={{ maxHeight: "24em", overflow: "auto" }}>
-              <table className="overviewDataTable" style={{ width: "100%", fontSize: "0.9em" }}>
-                <thead>
-                  <tr>
-                    <SortableHeader
-                      label="State"
-                      field="name"
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={toggleSortBy}
-                    />
-                    <SortableHeader
-                      label="Combat"
-                      field="combat"
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={toggleSortBy}
-                      numeric
-                    />
-                    <SortableHeader
-                      label="Famine"
-                      field="famine"
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={toggleSortBy}
-                      numeric
-                    />
-                    <SortableHeader
-                      label="Natural"
-                      field="natural"
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={toggleSortBy}
-                      numeric
-                    />
-                    <SortableHeader
-                      label="Other"
-                      field="other"
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={toggleSortBy}
-                      numeric
-                    />
-                    <SortableHeader
-                      label="Total"
-                      field="total"
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={toggleSortBy}
-                      numeric
-                    />
-                  </tr>
-                </thead>
-                <tbody>
-                  {deathRows.map(r => (
-                    <tr key={r.id}>
-                      <td>
-                        <span
-                          style={{
-                            display: "inline-block",
-                            width: "0.75em",
-                            height: "0.75em",
-                            background: r.color,
-                            marginRight: "0.4em",
-                            verticalAlign: "middle"
-                          }}
-                        />
-                        {r.name}
-                      </td>
-                      <td className="total">{fmt(r.combat)}</td>
-                      <td className="total">{fmt(r.famine)}</td>
-                      <td className="total">{fmt(r.natural)}</td>
-                      <td className="total">{fmt(r.other)}</td>
-                      <td className="total">
-                        <strong>{fmt(r.total)}</strong>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr>
+                  <SortableHeader
+                    label="Combat"
+                    field="combat"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                    numeric
+                  />
+                  <SortableHeader
+                    label="Famine"
+                    field="famine"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                    numeric
+                  />
+                  <SortableHeader
+                    label="Natural"
+                    field="natural"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                    numeric
+                  />
+                  <SortableHeader
+                    label="Other"
+                    field="other"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                    numeric
+                  />
+                  <SortableHeader
+                    label="Total"
+                    field="total"
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={toggleSortBy}
+                    numeric
+                  />
+                </tr>
+              </thead>
+              <tbody>
+                {deathRows.map(r => (
+                  <tr key={r.id}>
                     <td>
-                      <strong>Total</strong>
+                      <span
+                        style={{
+                          display: "inline-block",
+                          width: "0.75em",
+                          height: "0.75em",
+                          background: r.color,
+                          marginRight: "0.4em",
+                          verticalAlign: "middle"
+                        }}
+                      />
+                      {r.name}
                     </td>
+                    <td className="total">{fmt(r.combat)}</td>
+                    <td className="total">{fmt(r.famine)}</td>
+                    <td className="total">{fmt(r.natural)}</td>
+                    <td className="total">{fmt(r.other)}</td>
                     <td className="total">
-                      <strong>{fmt(deathTotals.combat)}</strong>
-                    </td>
-                    <td className="total">
-                      <strong>{fmt(deathTotals.famine)}</strong>
-                    </td>
-                    <td className="total">
-                      <strong>{fmt(deathTotals.natural)}</strong>
-                    </td>
-                    <td className="total">
-                      <strong>{fmt(deathTotals.other)}</strong>
-                    </td>
-                    <td className="total">
-                      <strong>{fmt(deathTotals.total)}</strong>
+                      <strong>{fmt(r.total)}</strong>
                     </td>
                   </tr>
-                </tfoot>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
 
             {deathRows.every(r => r.total === 0) && (
               <p style={{ fontSize: "0.85em", opacity: 0.75, marginTop: "0.75em" }}>
@@ -529,7 +494,7 @@ export const PopulationOverviewDialog: React.FC = () => {
             )}
           </>
         )}
-      </div>
+      </TableDialogLayout>
     </Dialog>
   );
 };

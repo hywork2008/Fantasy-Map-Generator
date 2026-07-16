@@ -28,6 +28,8 @@ export interface EditorConfig {
   tableLayout?: boolean;
   /** Override the default CSS height (75vh) with a specific value, e.g. "400px". */
   dialogHeight?: string;
+  /** Dialog-specific structural modifier for non-table editors. */
+  dialogClassName?: string;
 }
 
 export const EDITOR_REGISTRY: Record<string, EditorConfig> = {
@@ -89,7 +91,8 @@ export const EDITOR_REGISTRY: Record<string, EditorConfig> = {
   notesEditor: {
     title: "Notes Editor",
     component: NotesEditorContent,
-    onClose: () => closeNotesEditor()
+    onClose: () => closeNotesEditor(),
+    dialogClassName: "fmg-dialog--notes"
   },
   heightmapSelection: {
     title: "Select Heightmap template",

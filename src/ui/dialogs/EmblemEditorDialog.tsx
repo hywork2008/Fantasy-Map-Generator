@@ -172,7 +172,7 @@ export const EmblemEditorContent: React.FC = () => {
             </div>
           </div>
 
-          <div id="emblemsFooter" className="d-flex">
+          <div id="emblemsFooter" className="footer d-flex">
             <button
               type="button"
               id="emblemsRegenerate"

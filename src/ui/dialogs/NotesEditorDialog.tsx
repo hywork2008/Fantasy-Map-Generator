@@ -29,8 +29,8 @@ export const NotesEditorContent: React.FC = () => {
 
   return (
     <div id="notesEditorContainer">
-      <div>
-        <div>
+      <div className="notes-editor__content">
+        <div className="notes-editor__fields">
           <strong>Element: </strong>
           <select
             id="notesSelect"
@@ -61,7 +61,7 @@ export const NotesEditorContent: React.FC = () => {
         {/* Note: This div is mutated by TinyMCE. React must not update its children! */}
         <div id="notesLegend" ref={legendRef} contentEditable="true" onBlur={notesEditorActions.updateLegend} />
 
-        <div>
+        <div className="footer notes-editor__footer">
           <button
             type="button"
             id="notesFocus"

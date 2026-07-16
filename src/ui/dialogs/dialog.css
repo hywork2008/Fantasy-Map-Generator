@@ -16,6 +16,7 @@
   display: flex;
   flex-direction: column;
   /* Keeps the content area scrollable instead of overflowing the viewport */
+  max-width: calc(100vw - 2rem);
   max-height: 90vh;
   z-index: 100;
 
@@ -33,7 +34,7 @@
     }
   }
 
-  /* ── Table-layout dialogs (overflow-hidden modifier) ─────────────
+  /* ── Table-layout dialogs ─────────────────────────────────────────
      For dialogs with a fixed-header / scrollable-body / fixed-footer structure
      (Markers Overview, Burgs Overview, States Editor, Religions Editor, etc.).
   
@@ -47,6 +48,7 @@
          </div>
        </Dialog>
   */
+  &.fmg-dialog--table,
   &.overflow-hidden {
     /* Default height for table-layout dialogs: 75% of viewport, capped by the
        base max-height: 90vh. Overridable per-dialog with an inline style prop.
@@ -78,8 +80,7 @@
       flex: 1;
       min-height: 0;
       max-height: none !important;
-      overflow-y: auto;
-      overflow-x: hidden;
+      overflow: auto;
     }
 
     /* Summary / totals row — always visible, never scrolls. */
@@ -93,6 +94,94 @@
       flex-shrink: 0;
     }
   }
+}
+
+/*
+ * Canonical data-dialog regions. TableDialogLayout owns this structure, while
+ * the legacy .table / .totalLine / .footer classes above remain supported as
+ * adapters until each existing dialog is migrated.
+ */
+.fmg-table-dialog {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.fmg-table-dialog__header,
+.fmg-table-dialog__controls,
+.fmg-table-dialog__summary,
+.fmg-table-dialog__footer {
+  flex-shrink: 0;
+}
+
+.population-overview-dialog {
+  width: min(56em, calc(100vw - 2rem));
+}
+
+.population-overview-dialog__description,
+.population-overview-dialog__tabs,
+.population-overview-dialog__period-controls,
+.population-overview-dialog__summary {
+  margin: 0;
+  padding: 0.5em;
+}
+
+.population-overview-dialog__description {
+  font-size: 0.85em;
+  opacity: 0.85;
+}
+
+.population-overview-dialog__tabs,
+.population-overview-dialog__period-controls,
+.population-overview-dialog__summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5em;
+}
+
+.population-overview-dialog__period-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+}
+
+.population-overview-dialog__period-note {
+  font-size: 0.8em;
+  opacity: 0.7;
+}
+
+.population-overview-dialog__table {
+  font-size: 0.85em;
+}
+
+#notesEditorContainer,
+.notes-editor__content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.notes-editor__fields,
+.notes-editor__footer {
+  flex-shrink: 0;
+}
+
+#notesLegend {
+  flex: 1;
+  min-height: 16rem;
+  overflow: auto;
+}
+
+.fmg-table-dialog__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
 }
 
 .titlebar {
@@ -120,6 +209,11 @@
   flex: 1;
   min-height: 0;
   background-color: white;
+}
+
+.fmg-dialog--notes > .fmg-dialog-content {
+  display: flex;
+  flex-direction: column;
 }
 
 .fmg-dialog-buttonpane {
@@ -160,6 +254,8 @@
 /* ── Native Table Styles ───────────────────────────────────────────────────── */
 /* width + border-collapse keep the sticky header aligned with the scrolling body */
 .fmg-table {
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
 
   thead {
@@ -179,6 +275,11 @@
     margin: 0;
     line-height: 0.9;
     vertical-align: middle;
+  }
+
+  th,
+  td {
+    white-space: nowrap;
   }
 }
 
