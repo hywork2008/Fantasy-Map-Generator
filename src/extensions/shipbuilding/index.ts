@@ -1,4 +1,3 @@
-import type { LayerConfig } from "../../store/layerState";
 import type {
   ExtensionAPI,
   ShipbuildingMaterialRequest,
@@ -7,6 +6,7 @@ import type {
   ShipbuildingStrategicProcurementDemand,
   ShipbuildingSurplusShipRequest
 } from "../hostTypes";
+import type { LayerConfig } from "../hostUi";
 import {
   closeShipyardsOverview,
   openShipyardsOverview,

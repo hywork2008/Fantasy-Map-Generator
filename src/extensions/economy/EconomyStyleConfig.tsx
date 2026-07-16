@@ -1,5 +1,4 @@
-import type { ExtensionStyleConfig, ExtensionStyleProps } from "../../store/extensionState";
-import { useStyleState } from "../../store/styleState";
+import { type ExtensionStyleConfig, type ExtensionStyleProps, useStyleState } from "../hostUi";
 import { getApi } from "./economyContext";
 
 export function EconomyStyleBody({ visibility }: ExtensionStyleProps) {

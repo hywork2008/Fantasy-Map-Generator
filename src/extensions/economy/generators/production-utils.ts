@@ -1,5 +1,5 @@
 import { sum } from "d3";
-import { foodStressProductionMultiplier } from "../../../generators/agriculturalStress";
+import { foodStressProductionMultiplier } from "../../hostCore";
 import { DEFAULT_CULTURE_TYPE, type Zone } from "../../hostTypes";
 import { getLatitude, getSeason, getSeasonalityStrength, rn, type Season } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";

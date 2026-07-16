@@ -1,7 +1,11 @@
 import Alea from "alea";
 import { color, shuffler } from "d3";
-import { SHIP_CLASS_DEFINITIONS, SHIP_VALUE_PER_BUILD_POINT } from "../../../types/shipClasses";
-import type { CultureType, PackedGraph } from "../../hostTypes";
+import {
+  type CultureType,
+  type PackedGraph,
+  SHIP_CLASS_DEFINITIONS,
+  SHIP_VALUE_PER_BUILD_POINT
+} from "../../hostTypes";
 import { TIME } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 

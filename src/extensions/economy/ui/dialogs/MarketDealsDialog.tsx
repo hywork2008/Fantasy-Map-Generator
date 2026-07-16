@@ -1,6 +1,5 @@
 import React from "react";
-import { VirtualTableBody } from "../../../../ui/components/VirtualTableBody";
-import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
+import { closeDialog, Dialog, useDialogState, VirtualTableBody } from "../../../hostUi";
 import { applySorting, formatPrice } from "../../../hostUtils";
 
 import {

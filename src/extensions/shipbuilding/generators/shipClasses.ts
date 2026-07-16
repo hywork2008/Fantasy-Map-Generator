@@ -1,5 +1,9 @@
-import { SHIP_CLASS_DEFINITIONS, type ShipClassDefinition } from "../../../types/shipClasses";
-import { SHIPBUILDING_MATERIAL_IDS, type ShipbuildingMaterials } from "../../hostTypes";
+import {
+  SHIP_CLASS_DEFINITIONS,
+  SHIPBUILDING_MATERIAL_IDS,
+  type ShipbuildingMaterials,
+  type ShipClassDefinition
+} from "../../hostTypes";
 
 /**
  * Age-of-Sail ship class tech tree. Deliberately cannon-free: this world's baseline

@@ -1,8 +1,15 @@
 import React from "react";
-import { IconButton } from "../../../../ui/components/IconButton";
-import { VirtualTableBody } from "../../../../ui/components/VirtualTableBody";
 import { useCharactersUiState } from "../../../characters/ui/charactersUiState";
-import { closeDialog, Dialog, FillBox, openConfirm, openDialog, useDialogState } from "../../../hostUi";
+import {
+  closeDialog,
+  Dialog,
+  FillBox,
+  IconButton,
+  openConfirm,
+  openDialog,
+  useDialogState,
+  VirtualTableBody
+} from "../../../hostUi";
 import { formatPrice, si } from "../../../hostUtils";
 
 import {

@@ -1,8 +1,6 @@
 import React from "react";
-import { SortableHeader } from "../../../../ui/components/tables/SortableHeader";
-import { VirtualTableBody } from "../../../../ui/components/VirtualTableBody";
 import { useOptionsState } from "../../../hostCore";
-import { closeDialog, Dialog, SliderInput, useDialogState } from "../../../hostUi";
+import { closeDialog, Dialog, SliderInput, SortableHeader, useDialogState, VirtualTableBody } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 import { getWorldContext } from "../../economyContext";
 import { CaravanMovement, type CaravanMovementSettings } from "../../generators/caravanMovement";

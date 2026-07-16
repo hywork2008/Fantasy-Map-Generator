@@ -1,5 +1,12 @@
+export { useCellInfoState } from "../store/cellInfoState";
 export { useDialogState } from "../store/dialogState";
+export type { ExtensionStyleConfig, ExtensionStyleProps } from "../store/extensionState";
+export type { LayerConfig } from "../store/layerState";
+export { regenerateFeatureDialogStore } from "../store/regenerateFeatureDialogState";
+export { useStyleState } from "../store/styleState";
+export { useUiPreferencesState } from "../store/uiPreferencesState";
 export { FillBox } from "../ui/components/FillBox";
+export { IconButton } from "../ui/components/IconButton";
 export { SliderInput } from "../ui/components/SliderInput";
 export { SortableHeader } from "../ui/components/tables/SortableHeader";
 export { VirtualTableBody } from "../ui/components/VirtualTableBody";

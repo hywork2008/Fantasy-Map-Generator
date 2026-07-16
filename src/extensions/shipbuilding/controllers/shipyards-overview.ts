@@ -1,9 +1,9 @@
-import { closeDialog, openDialog } from "../../../ui/dialogs/dialogService";
 import {
   SHIPBUILDING_MATERIAL_IDS,
   type ShipbuildingProcurementStatus,
   type ShipbuildingProcurementStatusRequest
 } from "../../hostTypes";
+import { closeDialog, openDialog } from "../../hostUi";
 import type { PortCapacity } from "../generators/portCapacity";
 import { getShipClass, getShipSizeTier, type ShipSizeTier } from "../generators/shipClasses";
 import type { ShipyardCandidate } from "../generators/shipyardCandidates";

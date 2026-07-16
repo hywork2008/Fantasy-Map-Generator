@@ -1,8 +1,5 @@
 import React from "react";
-import { IconButton } from "../../../../ui/components/IconButton";
-import { SortableHeader } from "../../../../ui/components/tables/SortableHeader";
-import { VirtualTableBody } from "../../../../ui/components/VirtualTableBody";
-import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
+import { closeDialog, Dialog, IconButton, SortableHeader, useDialogState, VirtualTableBody } from "../../../hostUi";
 import { rn } from "../../../hostUtils";
 
 import {

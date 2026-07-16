@@ -1,7 +1,7 @@
 import * as d3 from "d3";
-import { tip } from "../../services/tooltipService";
-import { useCellInfoState } from "../../store/cellInfoState";
-import { rn } from "../../utils/numberUtils";
+import { tip } from "../hostServices";
+import { useCellInfoState } from "../hostUi";
+import { rn } from "../hostUtils";
 import { getWorldContext } from "./economyContext";
 import { getBurgMarketLedger, getDominantMerchant, getMerchantName } from "./generators/burgMarketLedgers";
 import { Goods } from "./generators/goods-generator";

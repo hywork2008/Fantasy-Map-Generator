@@ -1,7 +1,6 @@
 import type React from "react";
 import { useRef } from "react";
-import { VirtualTableBody } from "../../../../ui/components/VirtualTableBody";
-import { Dialog } from "../../../hostUi";
+import { Dialog, VirtualTableBody } from "../../../hostUi";
 import { setGoodsStockDialogState, useGoodsStockDialogState } from "../../store/goodsStockDialogState";
 
 export const GoodsStockDialog: React.FC = () => {

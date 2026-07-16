@@ -1,7 +1,4 @@
 import "./types"; // activate module augmentation for PackedGraph
-import type { LayerConfig } from "../../store/layerState";
-import { regenerateFeatureDialogStore } from "../../store/regenerateFeatureDialogState";
-import { useUiPreferencesState } from "../../store/uiPreferencesState";
 import type { ExtensionAPI } from "../../types/extension-api";
 import type { Point } from "../hostCore";
 import {
@@ -12,6 +9,7 @@ import {
   isShipbuildingStrategicProcurementDemand,
   isShipbuildingSurplusShipRequest
 } from "../hostTypes";
+import { type LayerConfig, regenerateFeatureDialogStore, useUiPreferencesState } from "../hostUi";
 import { formatPrice } from "../hostUtils";
 import { getBurgEconomySummary, getBurgProductPerThousandResidents } from "./burgEconomySummary";
 import { economyStyleConfig } from "./EconomyStyleConfig";

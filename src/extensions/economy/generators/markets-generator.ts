@@ -1,7 +1,7 @@
 import Alea from "alea";
 import { quadtree } from "d3-quadtree";
 import FlatQueue from "flatqueue";
-import { foodStressPriceMultiplier, foodStressProductionMultiplier } from "../../../generators/agriculturalStress";
+import { foodStressPriceMultiplier, foodStressProductionMultiplier } from "../../hostCore";
 import type { Burg, ShipGoodName, ShipGoodStock } from "../../hostTypes";
 import {
   SHIPBUILDING_MATERIAL_IDS,

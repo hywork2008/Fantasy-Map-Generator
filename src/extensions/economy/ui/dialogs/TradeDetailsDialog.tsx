@@ -1,7 +1,5 @@
 import React from "react";
-import { IconButton } from "../../../../ui/components/IconButton";
-import { VirtualTableBody } from "../../../../ui/components/VirtualTableBody";
-import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
+import { closeDialog, Dialog, IconButton, useDialogState, VirtualTableBody } from "../../../hostUi";
 import { formatPrice, rn } from "../../../hostUtils";
 
 import { closeTradeDetails } from "../../controllers/trade-details";
