@@ -103,11 +103,13 @@ let appServices: AppServices;
 // layer that changed when openFunc() ran (diff of activeLayers before vs after).
 // When any dialog closes (including via closeAllDialogs), only those diff layers
 // are restored — unrelated manual layer changes during the dialog session are
-// left untouched.
+// left untouched. Simultaneously closed dialogs are unwound last-opened first,
+// so an editor opened on top of another cannot overwrite the earlier editor's
+// original layer state.
 const dialogLayerChanges = new Map<string, Map<string, boolean>>();
 
 dialogStore.subscribe((state, prevState) => {
-  for (const dialogId of prevState.openDialogs) {
+  for (const dialogId of Array.from(prevState.openDialogs).reverse()) {
     if (!state.openDialogs.has(dialogId)) {
       const changes = dialogLayerChanges.get(dialogId);
       if (changes) {

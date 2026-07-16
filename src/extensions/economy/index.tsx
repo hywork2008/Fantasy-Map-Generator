@@ -431,9 +431,16 @@ export function init(api: ExtensionAPI): void {
   const toggleEditorDialog = (dialogId: string, layerId: string | null) => {
     if (api.isDialogOpen(dialogId)) {
       api.closeDialog(dialogId);
-      if (layerId && api.layerIsOn(layerId)) api.toggleLayerById(layerId);
     } else {
-      api.openDialog(dialogId);
+      const wasLayerOn = layerId ? api.layerIsOn(layerId) : false;
+      api.openDialog(dialogId, {
+        // Goods and Markets initialize themselves after their React dialog mounts and can
+        // replace onClose. onAfterClose survives that update, so both the toolbar toggle
+        // and the titlebar ✕/✕✕ restore only the layer this dialog turned on.
+        onAfterClose: () => {
+          if (layerId && !wasLayerOn && api.layerIsOn(layerId)) api.toggleLayerById(layerId);
+        }
+      });
     }
   };
 

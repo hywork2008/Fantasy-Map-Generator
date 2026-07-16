@@ -20,6 +20,8 @@ export interface RichDialogOptions {
 export type OpenDialogConfig = {
   title?: string;
   onClose?: () => void;
+  /** Runs after the dialog's primary close callback. */
+  onAfterClose?: () => void;
   [key: string]: unknown;
 };
 

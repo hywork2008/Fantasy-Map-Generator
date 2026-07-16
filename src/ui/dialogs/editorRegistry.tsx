@@ -20,7 +20,6 @@ export interface EditorConfig {
   title: string;
   // biome-ignore lint/suspicious/noExplicitAny: Required for polymorphic component mapping
   component: React.ComponentType<any>;
-  layerId?: string | null;
   moduleFlag?: string;
   onClose?: () => void;
   /** Apply overflow-hidden layout (fixed header/footer, scrollable body).
@@ -36,7 +35,6 @@ export const EDITOR_REGISTRY: Record<string, EditorConfig> = {
   biomesEditor: {
     title: "Biomes Editor",
     component: BiomesEditorContent,
-    layerId: "toggleBiomes",
     moduleFlag: "editBiomes",
     onClose: () => biomesExitCustomization("close"),
     tableLayout: true
@@ -44,32 +42,27 @@ export const EDITOR_REGISTRY: Record<string, EditorConfig> = {
   diplomacyEditor: {
     title: "Diplomacy Editor",
     component: DiplomacyEditorContent,
-    layerId: "toggleStates",
     moduleFlag: "editDiplomacy",
     onClose: () => diplomacyEditorActions.closeDiplomacyEditor(),
     tableLayout: true
   },
   coastlineSettingsDialog: {
     title: "Coastline Settings Editor",
-    component: CoastlineSettingsEditorContent,
-    layerId: "toggleCoastline"
+    component: CoastlineSettingsEditorContent
   },
   coastlineEditor: {
     title: "Coastline Editor",
-    component: CoastlineEditorContent,
-    layerId: "toggleCoastline"
+    component: CoastlineEditorContent
   },
   emblemEditor: {
     title: "Edit Emblem",
     component: EmblemEditorContent,
-    layerId: "toggleEmblems",
     moduleFlag: "editEmblems",
     onClose: () => closeEmblemEditor()
   },
   statesEditor: {
     title: "States Editor",
     component: StatesEditorContent,
-    layerId: "toggleStates",
     moduleFlag: "editStates",
     onClose: () => statesEditorActions.closeStatesEditor(),
     tableLayout: true
@@ -77,7 +70,6 @@ export const EDITOR_REGISTRY: Record<string, EditorConfig> = {
   zonesEditor: {
     title: "Zones Editor",
     component: ZonesEditorContent,
-    layerId: "toggleZones",
     moduleFlag: "editZones",
     onClose: () => zonesEditorActions.closeZonesEditor(),
     tableLayout: true

@@ -1,22 +1,12 @@
 import type React from "react";
 import { useEffect } from "react";
 import { modules } from "../../store/editorState";
-import { layerIsOn } from "../../utils/nodeUtils";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 import type { EditorConfig } from "./editorRegistry";
 
 export const CommonEditorDialog: React.FC<{ id: string; config: EditorConfig }> = ({ id, config }) => {
-  const {
-    title,
-    component: Component,
-    moduleFlag,
-    layerId,
-    onClose,
-    tableLayout,
-    dialogHeight,
-    dialogClassName
-  } = config;
+  const { title, component: Component, moduleFlag, onClose, tableLayout, dialogHeight, dialogClassName } = config;
 
   // Cleanup when dialog is closed (either via X button or programmatic toggle)
   useEffect(() => {
@@ -30,9 +20,9 @@ export const CommonEditorDialog: React.FC<{ id: string; config: EditorConfig }> 
   }, [onClose, moduleFlag]);
 
   const handleClose = () => {
-    if (layerId && layerIsOn(layerId)) {
-      document.getElementById(layerId)?.click();
-    }
+    // tools.ts restores the exact before-open layer snapshot for editor dialogs.
+    // Toggling the configured layer here would race that restoration and can leave
+    // a layer that the editor changed indirectly (such as toggleStates) enabled.
     closeDialog(id);
   };
 

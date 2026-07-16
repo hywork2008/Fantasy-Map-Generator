@@ -165,6 +165,11 @@ export async function ensureLayerOff(page: Page, layerId: string): Promise<void>
   }, layerId);
 }
 
+/** Read a layer toggle state through the public test API. */
+export async function isLayerOn(page: Page, layerId: string): Promise<boolean> {
+  return page.evaluate(id => window.fmg.actions.layerIsOn(id), layerId);
+}
+
 export async function getWebglDeckLayerIds(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const deck = window.fmg.view.webglDeck as unknown as { props?: { layers?: Array<{ id?: string }> } } | null;
