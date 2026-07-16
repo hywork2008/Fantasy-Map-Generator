@@ -1,11 +1,13 @@
-import { appServices } from "../../../context/appServices";
-import { simulationContext } from "../../../context/simulationContext";
-import { applyDemographicCasualties } from "../../../generators/demography-simulator";
-import { regimentQualityMultiplier } from "../../../generators/manpower";
-import { buildSeaRouteGraph, type SeaRouteGraph } from "../../../generators/seaRouteGraph";
-import type { Burg, ChronicleEvent, MilitaryRegiment, MilitaryUnit, State } from "../../../types/models";
-import type { PackedGraph } from "../../../types/PackedGraph";
 import type { Character } from "../../characters/characterTypes";
+import {
+  applyDemographicCasualties,
+  appServices,
+  buildSeaRouteGraph,
+  regimentQualityMultiplier,
+  type SeaRouteGraph,
+  simulationContext
+} from "../../hostCore";
+import type { Burg, ChronicleEvent, MilitaryRegiment, MilitaryUnit, PackedGraph, State } from "../../hostTypes";
 import { mayAdvanceConflict } from "../conflictDirector";
 import { getWorldContext } from "../nobilityContext";
 import {

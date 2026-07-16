@@ -1,4 +1,4 @@
-import { analyzeFrontiers, getProvinceThreats } from "../../../generators/frontierAnalysis";
+import { analyzeFrontiers, getProvinceThreats } from "../../hostCore";
 import { getWorldContext } from "../nobilityContext";
 import { Characters } from "./characterLifecycle";
 

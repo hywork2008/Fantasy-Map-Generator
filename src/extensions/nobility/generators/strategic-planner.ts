@@ -1,8 +1,14 @@
-import { appServices } from "../../../context/appServices";
-import { type StrategicGoal, simulationContext } from "../../../context/simulationContext";
-import { analyzeFrontiers, analyzeSeaFrontiers, mergeFrontiers } from "../../../generators/frontierAnalysis";
-import { buildSeaRouteGraph, findSeaRouteDistance } from "../../../generators/seaRouteGraph";
-import { useOptionsState } from "../../../store/optionsState";
+import {
+  analyzeFrontiers,
+  analyzeSeaFrontiers,
+  appServices,
+  buildSeaRouteGraph,
+  findSeaRouteDistance,
+  mergeFrontiers,
+  type StrategicGoal,
+  simulationContext,
+  useOptionsState
+} from "../../hostCore";
 import { mayAdvanceAutonomousConflict, mayAdvanceConflict } from "../conflictDirector";
 import { getWorldContext } from "../nobilityContext";
 import { BattleResolutionGenerator } from "./battle-resolution";

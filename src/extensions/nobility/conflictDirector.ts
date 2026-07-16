@@ -1,7 +1,6 @@
-import { type StrategicGoal, simulationContext } from "../../context/simulationContext";
-import type { ChronicleEvent } from "../../types/models";
-import type { ConflictAutonomy } from "../../types/WorldState";
-import { normalizeConflictAutonomy } from "../../utils/conflictAutonomy";
+import { type StrategicGoal, simulationContext } from "../hostCore";
+import type { ChronicleEvent, ConflictAutonomy } from "../hostTypes";
+import { normalizeConflictAutonomy } from "../hostUtils";
 import { getWorldContext, hasNobilityContext } from "./nobilityContext";
 import type { ConflictAuthorization } from "./types";
 

@@ -16,6 +16,7 @@ export {
   unique
 } from "../utils";
 export { getColors, getRandomColor } from "../utils/colorUtils";
+export { normalizeConflictAutonomy } from "../utils/conflictAutonomy";
 export { DEBUG, ERROR, TIME } from "../utils/debug";
 export { applySorting, removeCircle } from "../utils/domUtils";
 export { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";

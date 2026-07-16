@@ -1,6 +1,6 @@
-import { buildSeaRouteGraph } from "../../../generators/seaRouteGraph";
-import type { Burg, ChronicleEvent, MilitaryRegiment, State } from "../../../types/models";
-import { minmax, rn } from "../../../utils";
+import { buildSeaRouteGraph } from "../../hostCore";
+import type { Burg, ChronicleEvent, MilitaryRegiment, State } from "../../hostTypes";
+import { minmax, rn } from "../../hostUtils";
 import { mayAdvanceConflict } from "../conflictDirector";
 import { getWorldContext } from "../nobilityContext";
 import {

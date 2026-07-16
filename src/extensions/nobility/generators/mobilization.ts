@@ -1,12 +1,11 @@
-import { simulationContext } from "../../../context/simulationContext";
 import {
   ANNUAL_DRAFT_SHARE,
   isManpowerSimEnabled,
   PEACE_TARGET_MOBILIZATION,
+  simulationContext,
   WAR_TARGET_MOBILIZATION
-} from "../../../generators/manpower";
-import type { State } from "../../../types/models";
-import type { PackedGraph } from "../../../types/PackedGraph";
+} from "../../hostCore";
+import type { PackedGraph, State } from "../../hostTypes";
 
 /** Baseline peacetime conscription target — population share kept under arms. */
 const BASE_MILITARY_RATIO = PEACE_TARGET_MOBILIZATION;

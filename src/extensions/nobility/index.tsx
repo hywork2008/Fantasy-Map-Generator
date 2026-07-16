@@ -1,15 +1,11 @@
 import "./types"; // activate module augmentation for PackedGraph/State
 
-import { Military } from "../../generators/military-generator";
-import { advanceAllRegimentMovement } from "../../generators/regimentMovement";
-import { BordersRenderer } from "../../renderers/draw-borders";
-import { MilitaryRenderer } from "../../renderers/draw-military";
-import { StatesRenderer } from "../../renderers/draw-states";
-import { tip } from "../../services/tooltipService";
 import type { ExtensionAPI } from "../../types/extension-api";
 import { advanceCharacterAging } from "../characters/advanceAge";
 import { refreshCharactersOverviewIfOpen } from "../characters/controllers/characters-overview";
 import { CHARACTERS_EXTENSION_ID } from "../characters/index";
+import { advanceAllRegimentMovement, BordersRenderer, Military, MilitaryRenderer, StatesRenderer } from "../hostCore";
+import { tip } from "../hostServices";
 import {
   applyConflictAutonomy,
   endPlayerConflict,

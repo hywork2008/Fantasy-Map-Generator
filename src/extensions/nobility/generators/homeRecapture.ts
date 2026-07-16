@@ -1,7 +1,6 @@
-import { isOccupiedHomeBurg } from "../../../generators/regimentMovement";
-import type { Burg, ChronicleEvent, MilitaryRegiment, State } from "../../../types/models";
-import type { PackedGraph } from "../../../types/PackedGraph";
 import type { Character } from "../../characters/characterTypes";
+import { isOccupiedHomeBurg } from "../../hostCore";
+import type { Burg, ChronicleEvent, MilitaryRegiment, PackedGraph, State } from "../../hostTypes";
 import { mayAdvanceConflict } from "../conflictDirector";
 import { getWorldContext } from "../nobilityContext";
 import { calculateEffectiveSiegePower, captureBurg, commanderPowerMultiplier } from "./localDefense";

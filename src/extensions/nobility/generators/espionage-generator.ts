@@ -1,5 +1,4 @@
-import { appServices } from "../../../context/appServices";
-import { type IntelligenceReport, simulationContext } from "../../../context/simulationContext";
+import { appServices, type IntelligenceReport, simulationContext } from "../../hostCore";
 import { getWorldContext } from "../nobilityContext";
 
 // Cumulative intrigue bonus one state's ships gather on another by spying while

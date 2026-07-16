@@ -1,8 +1,6 @@
-import { regimentQualityMultiplier } from "../../../generators/manpower";
-import { findSeaRouteDistance, type SeaRouteGraph } from "../../../generators/seaRouteGraph";
-import type { Burg, MilitaryRegiment, MilitaryUnit } from "../../../types/models";
-import type { PackedGraph } from "../../../types/PackedGraph";
 import type { Character } from "../../characters/characterTypes";
+import { findSeaRouteDistance, regimentQualityMultiplier, type SeaRouteGraph } from "../../hostCore";
+import type { Burg, MilitaryRegiment, MilitaryUnit, PackedGraph } from "../../hostTypes";
 import { getRegimentCommander } from "./officerAssignment";
 
 /**
