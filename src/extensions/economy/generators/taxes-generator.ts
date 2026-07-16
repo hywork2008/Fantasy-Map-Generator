@@ -3,6 +3,7 @@ import { gauss, rn, TIME } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 import { Markets } from "./markets-generator";
 import type { Deal } from "./marketTypes";
+import { getStateMilitaryUpkeep } from "./militaryLogistics";
 
 type TaxBases = { salesTax: number; pollTax: number };
 
@@ -18,12 +19,11 @@ const DEFAULT_TAX: TaxBases = DEFAULT_TAX_BY_FORM.Monarchy;
 // Gold from Shipbuilding's trade-voyage ships (fmg:shipbuilding-voyage-income), buffered
 // here until the next collectTaxes() fold-in — mirrors how `deals` represents "income
 // since the last cycle" rather than a running total, so it composes cleanly with a
-// method that recomputes treasury from scratch every call. See docs/plan/ships.md
-// ("航海訓練・偽装通商・諜報（暫定案）").
+// treasury that now carries forward between cycles instead of resetting. See
+// docs/plan/ships.md ("航海訓練・偽装通商・諜報（暫定案）").
 const _voyageIncomeByState = new Map<number, number>();
-// State treasuries are recomputed per Economy production cycle. Procurement spends
-// recorded between those recalculations must therefore be carried into the next
-// calculation rather than disappearing when collectTaxes() resets the balances.
+// Procurement spends between collectTaxes() calls must be buffered here and folded into
+// the next carry-forward update, since they happen outside collectTaxes() itself.
 const _strategicProcurementExpenseByState = new Map<number, number>();
 
 export function registerVoyageIncome(stateId: number, amount: number): void {
@@ -60,14 +60,15 @@ export class TaxesModule {
     }
   }
 
-  /** Recomputes every non-neutral state's treasury from this generation cycle's deals plus poll tax. */
+  /**
+   * Folds this generation cycle's deals plus poll tax into every non-neutral state's treasury,
+   * which is now a carry-forward stock rather than a from-scratch recalculation (docs/temp/profits.md
+   * decision #1). pack.deals is cleared at the start of each Production.produce() cycle
+   * (production-generator.ts), so the deals loop below only ever sees the current cycle's deals.
+   */
   collectTaxes(): void {
     TIME && console.time("collectTaxes");
     const { states, burgs, deals } = this.worldContext.pack;
-
-    for (const state of states) {
-      if (state.i) state.treasury = 0;
-    }
 
     for (const deal of deals) {
       if (!deal.tax) continue;
@@ -83,8 +84,12 @@ export class TaxesModule {
       const population = (state.rural || 0) + (state.urban || 0);
       const voyageIncome = _voyageIncomeByState.get(state.i) ?? 0;
       const procurementExpense = _strategicProcurementExpenseByState.get(state.i) ?? 0;
+      const militaryUpkeep = getStateMilitaryUpkeep(state);
       state.treasury = rn(
-        Math.max(0, (state.treasury || 0) + (state.pollTax || 0) * population + voyageIncome - procurementExpense),
+        Math.max(
+          0,
+          (state.treasury || 0) + (state.pollTax || 0) * population + voyageIncome - procurementExpense - militaryUpkeep
+        ),
         2
       );
     }

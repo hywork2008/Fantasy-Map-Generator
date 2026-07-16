@@ -36,6 +36,12 @@ export class ProductionModule {
   produce() {
     TIME && console.time("generateProduction");
 
+    // Cleared here (start of cycle) rather than after Taxes.collectTaxes() so the previous
+    // cycle's deals stay visible to transaction-history UI (markets-overview.ts,
+    // market-deals-overview.ts, production-overview.ts) for the whole ~30-day interval between
+    // cycles, instead of for ~0ms (docs/temp/profits.md decision #1).
+    this.worldContext.pack.deals = [];
+
     Markets.collectRuralProduction();
     Markets.initializeMarketPrices();
 

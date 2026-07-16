@@ -360,6 +360,12 @@ export interface State {
    * Core derives draft/recovery penalties from this + foodStress when set.
    */
   supplyStrain?: number;
+  /**
+   * Raw-score-unit aggregate stock of food-tagged goods reachable by this state (Economy
+   * extension, burg-weighted apportionment across market territories; refreshed every
+   * production cycle by stateEconomySummary.ts's refreshStateEconomySummaries()).
+   */
+  foodStock?: number;
 }
 
 export interface Zone {

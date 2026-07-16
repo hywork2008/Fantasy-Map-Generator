@@ -31,6 +31,7 @@ import { Markets } from "./generators/markets-generator";
 import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
 import { Production } from "./generators/production-generator";
 import { seedShipbuildingInitialStock } from "./generators/shipbuildingInitialStock";
+import { refreshStateEconomySummaries } from "./generators/stateEconomySummary";
 import { StrategicProcurement } from "./generators/strategicProcurement";
 import {
   clearStrategicProcurementExpenses,
@@ -603,6 +604,7 @@ export function init(api: ExtensionAPI): void {
 
       Production.produce();
       Taxes.collectTaxes();
+      refreshStateEconomySummaries();
       if (api.layerIsOn("toggleGoods")) drawGoods(getDisplayedGoodIds());
     });
   };
@@ -677,8 +679,8 @@ export function init(api: ExtensionAPI): void {
 
   // Listen for Shipbuilding's trade-voyage income (optional dependency — harmless no-op
   // if Shipbuilding is never enabled). Buffered in taxes-generator.ts and folded into
-  // treasury on the next collectTaxes() call rather than written directly, since
-  // collectTaxes() recomputes treasury from scratch every time it runs.
+  // treasury on the next collectTaxes() call rather than written directly, since it must
+  // compose with the other income/expense terms collectTaxes() applies each cycle.
   _voyageIncomeHandler = e => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
     const { stateId, amount } = (e as CustomEvent).detail as { stateId: number; amount: number };

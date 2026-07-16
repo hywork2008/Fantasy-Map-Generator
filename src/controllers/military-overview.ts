@@ -44,7 +44,11 @@ export function militaryStateHighlightOn(stateId: number): void {
   view.armies.select(`#army${stateId}`).transition().duration(2000).style("fill", "#ff0000");
 
   if (!layerIsOn("toggleStates")) return;
-  const d = view.regions.select(`#state${stateId}`).attr("d");
+  const statePath = view.regions.select<SVGPathElement>(`#state${stateId}`).node();
+  if (!statePath) return;
+
+  const d = statePath.getAttribute("d");
+  if (!d) return;
 
   const path = view.debug
     .append("path")

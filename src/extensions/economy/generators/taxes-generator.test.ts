@@ -157,7 +157,7 @@ describe("TaxesModule", () => {
       expect(neutral.treasury).toBe(0);
     });
 
-    it("resets treasury to 0 before recomputing, rather than accumulating across calls", () => {
+    it("carries forward the existing balance instead of resetting to 0", () => {
       const state1: State = { i: 1, salesTax: 0, pollTax: 0, rural: 0, urban: 0, treasury: 500 } as unknown as State;
       worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
       worldContext.pack.burgs = [];
@@ -165,7 +165,7 @@ describe("TaxesModule", () => {
 
       taxesModule.collectTaxes();
 
-      expect(state1.treasury).toBe(0);
+      expect(state1.treasury).toBe(500);
     });
 
     it("folds in Shipbuilding's buffered voyage income (docs/plan/ships.md 航海訓練・偽装通商・諜報)", () => {
@@ -181,7 +181,7 @@ describe("TaxesModule", () => {
       expect(state1.treasury).toBe(50);
     });
 
-    it("consumes the voyage income buffer — a second collectTaxes() call without new income adds nothing more", () => {
+    it("consumes the voyage income buffer — a second collectTaxes() call without new income adds nothing more (but keeps the carried-forward balance)", () => {
       const state1: State = { i: 1, salesTax: 0, pollTax: 0, rural: 0, urban: 0 } as unknown as State;
       worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
       worldContext.pack.burgs = [];
@@ -191,7 +191,7 @@ describe("TaxesModule", () => {
       taxesModule.collectTaxes();
       taxesModule.collectTaxes();
 
-      expect(state1.treasury).toBe(0);
+      expect(state1.treasury).toBe(40);
     });
 
     it("subtracts state-funded strategic procurement from the next fiscal recalculation exactly once", () => {
@@ -205,7 +205,7 @@ describe("TaxesModule", () => {
       expect(state1.treasury).toBe(70);
 
       taxesModule.collectTaxes();
-      expect(state1.treasury).toBe(100);
+      expect(state1.treasury).toBe(170);
     });
   });
 });
