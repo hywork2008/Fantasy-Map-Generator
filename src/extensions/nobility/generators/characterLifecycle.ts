@@ -71,6 +71,7 @@ function generate(options: { randomSeed?: number } = {}): void {
     const ruler = createPerson(nextId++, state.culture, {
       homeStateId: state.i,
       formName: state.formName,
+      marriageExpectation: "dynastic",
       isReligiousRole: isReligiousForm(state)
     });
     ruler.location = state.capital;
@@ -88,6 +89,7 @@ function generate(options: { randomSeed?: number } = {}): void {
       const officer = createPerson(nextId++, state.culture, {
         homeStateId: state.i,
         formName: state.formName,
+        marriageExpectation: "elite",
         primarySkill: office.primarySkill,
         isReligiousRole: isReligiousForm(state, office.primarySkill)
       });
@@ -197,6 +199,7 @@ function createOfficer(
   const officer = createPerson(nextId, state.culture, {
     homeStateId: state.i,
     formName: state.formName,
+    marriageExpectation: "elite",
     primarySkill: "martial",
     isReligiousRole: isReligiousForm(state, "martial"),
     ageOverride: rand(MIN_OFFICER_AGE, MAX_OFFICER_AGE)
@@ -227,6 +230,7 @@ function createProvinceLord(
   const lord = createPerson(nextId, state.culture, {
     homeStateId: state.i,
     formName: state.formName,
+    marriageExpectation: "dynastic",
     primarySkill: "martial",
     isReligiousRole: isReligiousForm(state, "martial"),
     ageOverride: rand(MIN_RULER_AGE, MAX_RULER_AGE)
@@ -454,6 +458,7 @@ function processSuccessions(): void {
       const heir = createPerson(nextId++, state.culture, {
         homeStateId: state.i,
         formName: state.formName,
+        marriageExpectation: "dynastic",
         isReligiousRole: isReligiousForm(state),
         ageOverride: heirAge
       });
@@ -565,6 +570,7 @@ function processSuccessions(): void {
       const officer = createPerson(nextId++, state.culture, {
         homeStateId: state.i,
         formName: state.formName,
+        marriageExpectation: "elite",
         primarySkill: office.primarySkill,
         isReligiousRole: isReligiousForm(state, office.primarySkill)
       });

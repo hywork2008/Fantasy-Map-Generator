@@ -68,6 +68,8 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
             <SortHeader field="appearance" label="App" numeric width="4em" />
             <SortHeader field="prestige" label="Pre" numeric width="4em" />
             <SortHeader field="gender" label="Gender" width="6em" />
+            <SortHeader field="maritalStatus" label="Family" width="7em" />
+            <SortHeader field="children" label="Children" numeric width="5em" />
             <SortHeader field="title" label="Title / Role" width="10em" />
             <SortHeader field="state" label="State" width="10em" />
           </tr>
@@ -75,13 +77,13 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={7}>No characters found</td>
+              <td colSpan={9}>No characters found</td>
             </tr>
           ) : (
             <>
               {paddingTop > 0 && (
                 <tr>
-                  <td colSpan={7} style={{ height: `${paddingTop}px` }} />
+                  <td colSpan={9} style={{ height: `${paddingTop}px` }} />
                 </tr>
               )}
               {virtualItems.map(virtualRow => {
@@ -116,6 +118,8 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
                     <td style={{ textAlign: "right" }}>{c.appearance}</td>
                     <td style={{ textAlign: "right" }}>{c.prestige}</td>
                     <td>{c.gender}</td>
+                    <td>{(c.family?.spouses ?? 0) > 0 ? "Married" : "Unmarried"}</td>
+                    <td style={{ textAlign: "right" }}>{c.family?.children ?? 0}</td>
                     <td>{title}</td>
                     <td>{stateName}</td>
                   </tr>
@@ -123,7 +127,7 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
               })}
               {paddingBottom > 0 && (
                 <tr>
-                  <td colSpan={7} style={{ height: `${paddingBottom}px` }} />
+                  <td colSpan={9} style={{ height: `${paddingBottom}px` }} />
                 </tr>
               )}
             </>

@@ -265,8 +265,8 @@ export const CharacterDetailsDialog: React.FC = () => {
               <tr>
                 <th style={{ padding: "4px 0" }}>Family</th>
                 <td>
-                  {character.family.spouses} Spouses, {character.family.children} Children,{" "}
-                  {character.family.grandchildren} Grandchildren
+                  {character.family.spouses > 0 ? "Married" : "Unmarried"}; {character.family.spouses} Spouses,{" "}
+                  {character.family.children} Children, {character.family.grandchildren} Grandchildren
                   {character.family.greatGrandchildren > 0 &&
                     `, ${character.family.greatGrandchildren} Great-grandchildren`}
                 </td>

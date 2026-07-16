@@ -15,6 +15,21 @@ import type {
 const DEFAULT_MIN_AGE = 28;
 const DEFAULT_MAX_AGE = 65;
 
+/** How strongly a character's role encourages forming a household. */
+export type MarriageExpectation = "ordinary" | "elite" | "dynastic";
+
+const PERMANENT_UNMARRIED_RATE: Record<MarriageExpectation, number> = {
+  // A 20% baseline models the substantial definitive celibacy of the north-west European pattern.
+  ordinary: 0.2,
+  // Court officers and professional elites had better access to household formation.
+  elite: 0.1,
+  // Rulers and landed lords have a strong succession incentive to marry and produce heirs.
+  dynastic: 0.03
+};
+
+const RELIGIOUS_UNMARRIED_RATE = 0.2;
+const RELIGIOUS_FORMS = new Set(["Theocracy", "Holy State", "Bishopric"]);
+
 export interface CreatePersonOptions {
   /** Biases one skill's roll upward (40-100 instead of 1-100) — e.g. a state's Marshal biases "martial". */
   primarySkill?: keyof CharacterSkills;
@@ -22,6 +37,8 @@ export interface CreatePersonOptions {
   isReligiousRole?: boolean;
   /** State.formName, used only to bias family structure (harem/celibacy patterns) — see generateFamily(). */
   formName?: string;
+  /** Controls the chance of remaining unmarried; landed rulers use "dynastic". */
+  marriageExpectation?: MarriageExpectation;
   /** Denormalized pointer stored on Character.state, e.g. for UI grouping/filtering. */
   homeStateId: number;
   ageOverride?: number;
@@ -43,8 +60,41 @@ function buildAbilityProfile(
   return { presetId, values: preset ? preset.generate() : {} };
 }
 
-export function generateFamily(age: number, gender: Gender, formName?: string): CharacterFamily {
+/**
+ * Returns the chance that a person of this age has not married. It combines permanent
+ * unmarriedness with late first marriage, rather than treating every adult as married from 16.
+ */
+export function getUnmarriedChance(
+  age: number,
+  marriageExpectation: MarriageExpectation,
+  isReligiousRole: boolean,
+  formName?: string
+): number {
+  if (age < 16) return 1;
+
+  const isReligious = isReligiousRole || (formName !== undefined && RELIGIOUS_FORMS.has(formName));
+  const permanentRate = isReligious ? RELIGIOUS_UNMARRIED_RATE : PERMANENT_UNMARRIED_RATE[marriageExpectation];
+
+  // Medieval north-west European first marriages were commonly in the mid-to-late twenties.
+  // Keep younger adults visibly unmarried while converging on their role's permanent rate at 28.
+  if (age < 21) return Math.max(permanentRate, 0.8);
+  if (age < 25) return Math.max(permanentRate, 0.45);
+  if (age < 28) return Math.max(permanentRate, 0.28);
+  return permanentRate;
+}
+
+export function generateFamily(
+  age: number,
+  gender: Gender,
+  formName?: string,
+  marriageExpectation: MarriageExpectation = "ordinary",
+  isReligiousRole = false
+): CharacterFamily {
   if (age < 16) {
+    return { spouses: 0, children: 0, grandchildren: 0, greatGrandchildren: 0, spouseIds: [], childIds: [] };
+  }
+
+  if (P(getUnmarriedChance(age, marriageExpectation, isReligiousRole, formName))) {
     return { spouses: 0, children: 0, grandchildren: 0, greatGrandchildren: 0, spouseIds: [], childIds: [] };
   }
 
@@ -54,13 +104,13 @@ export function generateFamily(age: number, gender: Gender, formName?: string): 
       spouseBase += rand(2, 6); // Harem
     } else if (["Emirate", "Caliphate", "Satrapy", "Beylik", "Sultanate"].includes(formName) && gender === "male") {
       spouseBase += rand(0, 3); // Polygamy
-    } else if (["Theocracy", "Holy State", "Bishopric"].includes(formName)) {
-      spouseBase = P(0.8) ? 1 : 0; // Celibacy chance
     }
   }
 
   const spouses = spouseBase;
-  const yearsMarried = Math.max(0, age - 16);
+  // A first-marriage age of 24 for women and 27 for men follows the c.1300 English estimate.
+  const firstMarriageAge = gender === "female" ? rand(21, 26) : rand(24, 29);
+  const yearsMarried = Math.max(0, age - firstMarriageAge);
 
   // For monogamy, child-bearing years are capped at ~30 years (e.g., age 16 to 46) due to menopause.
   // For polygamy/harem, the ruler can continually take younger spouses, so fertile years scale with age.
@@ -86,7 +136,14 @@ export function generateFamily(age: number, gender: Gender, formName?: string): 
 
 /** Generic person factory — no title/office/state-political knowledge, reusable by any future NPC extension. */
 export function createPerson(i: number, cultureId: number, options: CreatePersonOptions): Character {
-  const { primarySkill, formName, ageOverride, genderOverride, homeStateId } = options;
+  const {
+    primarySkill,
+    formName,
+    ageOverride,
+    genderOverride,
+    homeStateId,
+    marriageExpectation = "ordinary"
+  } = options;
   const isReligiousRole = options.isReligiousRole ?? false;
   const presetId = options.presetId ?? "ck3e";
 
@@ -187,7 +244,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     marriages: [],
     skills,
     personality,
-    family: generateFamily(age, gender, formName),
+    family: generateFamily(age, gender, formName, marriageExpectation, isReligiousRole),
     pastTitles: [],
     state: homeStateId
   };

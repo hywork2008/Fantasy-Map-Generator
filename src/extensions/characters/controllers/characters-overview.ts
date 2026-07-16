@@ -82,6 +82,12 @@ export function filterAndSortCharacters(
       case "state":
         result = a.stateName.localeCompare(b.stateName);
         break;
+      case "maritalStatus":
+        result = Number((a.c.family?.spouses ?? 0) > 0) - Number((b.c.family?.spouses ?? 0) > 0);
+        break;
+      case "children":
+        result = (a.c.family?.children ?? 0) - (b.c.family?.children ?? 0);
+        break;
       // Skills
       case "diplomacy":
       case "martial":
