@@ -30,6 +30,7 @@ export { drawTemperature, TemperatureLayerRenderer } from "./draw-temperature";
 export { TextureRenderer } from "./draw-texture";
 export { ZonesRenderer } from "./draw-zones";
 export { drawFrontierFort, FrontierFortsRenderer } from "./drawFrontierForts";
+export { EnclosureRenderer } from "./enclosureRenderer";
 
 export function initRenderers(): void {
   // No-op (all renderers are explicitly imported/exported)

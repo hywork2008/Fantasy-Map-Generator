@@ -243,7 +243,8 @@ class ViewLayerServiceImpl {
       toggleMarkers: viewContext.markers,
       toggleMilitary: viewContext.armies,
       toggleRulers: viewContext.ruler,
-      toggleScaleBar: viewContext.scaleBar
+      toggleScaleBar: viewContext.scaleBar,
+      toggleEnclosure: viewContext.enclosure
     };
     return layerMap[toggleId]?.node() ?? null;
   }

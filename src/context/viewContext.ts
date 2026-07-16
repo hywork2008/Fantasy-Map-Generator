@@ -103,6 +103,8 @@ export interface OverlayLayers {
   gridOverlay: SvgGroup;
   coordinates: SvgGroup;
   compass: SvgGroup;
+  /** Heatmap of pack.cells.enclosure (inland-sea/enclosure score); SVG overlay, not WebGL-managed. */
+  enclosure: SvgGroup;
 }
 
 /**

@@ -100,6 +100,13 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     tooltip: "Danger: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
   },
   {
+    id: "toggleEnclosure",
+    name: <>Enclosure</>,
+    shortcut: null,
+    tooltip:
+      "Enclosure: heatmap of how enclosed/landlocked each water cell is (pack.cells.enclosure), red = open sea, green = enclosed inland sea. Click to toggle."
+  },
+  {
     id: "toggleEmblems",
     name: <>Emblems</>,
     shortcut: "Y",

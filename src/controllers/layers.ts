@@ -17,6 +17,7 @@ import {
   CulturesRenderer,
   DangerRenderer,
   EmblemsRenderer,
+  EnclosureRenderer,
   FeaturesRenderer,
   FrontierFortsRenderer,
   GridRenderer,
@@ -424,6 +425,7 @@ export function drawLayers(): void {
   if (layerIsOn("togglePrecipitation")) PrecipitationRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleDanger")) DangerRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleCombatDeaths")) CombatDeathsRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleEnclosure")) EnclosureRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleLabels")) drawLabels();
   if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
@@ -626,6 +628,19 @@ export function toggleCombatDeaths(event?: MouseEvent): void {
     setLayerVisibility("toggleCombatDeaths", false);
     turnButtonOff("toggleCombatDeaths");
     CombatDeathsRenderer.clear?.(viewContext);
+  }
+}
+
+/** Inland-sea/enclosure heatmap (pack.cells.enclosure) — always an SVG overlay, no WebGL layer. */
+export function toggleEnclosure(_event?: MouseEvent): void {
+  if (!layerIsOn("toggleEnclosure")) {
+    turnButtonOn("toggleEnclosure");
+    setLayerVisibility("toggleEnclosure", true);
+    EnclosureRenderer.render(worldContext, viewContext, appServices);
+  } else {
+    setLayerVisibility("toggleEnclosure", false);
+    turnButtonOff("toggleEnclosure");
+    EnclosureRenderer.clear?.(viewContext);
   }
 }
 
@@ -1100,6 +1115,7 @@ const TOGGLE_REGISTRY: Record<string, (event?: MouseEvent) => void> = {
   toggleTemperature,
   toggleDanger,
   toggleCombatDeaths,
+  toggleEnclosure,
   toggleBiomes,
   togglePrecipitation,
   togglePopulation,

@@ -48,6 +48,7 @@ export const HYBRID_SVG_OVERLAY_LAYER_IDS = [
   "ruler",
   "legend",
   "debug",
+  "enclosure",
   "fogging"
 ] as const;
 

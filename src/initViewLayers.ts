@@ -130,6 +130,12 @@ export function createViewLayers(): void {
     undefined
   >;
   const debug = viewbox.append("g").attr("id", "debug") as Selection<SVGGElement, unknown, null, undefined>;
+  const enclosure = viewbox.append("g").attr("id", "enclosure").style("display", "none") as Selection<
+    SVGGElement,
+    unknown,
+    null,
+    undefined
+  >;
 
   lakes.append("g").attr("id", "freshwater");
   lakes.append("g").attr("id", "salt");
@@ -222,6 +228,7 @@ export function createViewLayers(): void {
     fogging,
     ruler,
     debug,
+    enclosure,
     viewX: 0,
     viewY: 0
   });
@@ -349,6 +356,16 @@ export function reinitializeMapLayers(): void {
   const ruler = viewbox.select("#ruler") as Selection<SVGGElement, unknown, null, undefined>;
   const fogging = viewbox.select("#fogging") as Selection<SVGGElement, unknown, null, undefined>;
   const debug = viewbox.select("#debug") as Selection<SVGGElement, unknown, null, undefined>;
+  // Maps saved before this layer existed won't have #enclosure — append it so old saves gain it too.
+  let enclosure = viewbox.select("#enclosure") as Selection<SVGGElement, unknown, null, undefined>;
+  if (!enclosure.size()) {
+    enclosure = viewbox.append("g").attr("id", "enclosure").style("display", "none") as Selection<
+      SVGGElement,
+      unknown,
+      null,
+      undefined
+    >;
+  }
   const burgLabels = labels.select("#burgLabels") as Selection<SVGGElement, unknown, null, undefined>;
 
   Object.assign(viewContext, {
@@ -405,7 +422,8 @@ export function reinitializeMapLayers(): void {
     frontierForts,
     fogging,
     ruler,
-    debug
+    debug,
+    enclosure
   });
 
   document.dispatchEvent(new CustomEvent("fmg:map-layers-reinitialized"));

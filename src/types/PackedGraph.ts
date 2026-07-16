@@ -39,6 +39,8 @@ export interface PackedGraphCells {
   culture: TypedArray; // cell culture id
   biome: TypedArray; // cell biome id
   harbor: TypedArray; // cell harbour presence
+  /** Water cell enclosure score, 0 (open ocean) - 100 (fully landlocked); 0 for land cells. Debug-only. */
+  enclosure: TypedArray;
   burg: TypedArray; // cell burg id
   religion: TypedArray; // cell religion id
   state: TypedArray; // cell state id
