@@ -19,12 +19,7 @@ import { clearEconomyContext, getWorldContext, initEconomyContext } from "./econ
 import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burgMarketLedgers";
 import { Caravans } from "./generators/caravans";
 import { FoodProduction } from "./generators/foodProduction";
-import {
-  clearForestDepletion,
-  consumeDirtyFlag,
-  registerLogHarvest,
-  tickForestRegrowth
-} from "./generators/forestDepletion";
+import { clearForestDepletion, registerLogHarvest, tickForestRegrowth } from "./generators/forestDepletion";
 import { Goods, isGoodEnabled } from "./generators/goods-generator";
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
 import { Markets } from "./generators/markets-generator";
@@ -583,31 +578,32 @@ export function init(api: ExtensionAPI): void {
   };
   document.addEventListener("fmg:gunpowder-era-changed", _gunpowderEraChangedHandler);
 
-  // Listen for Shipbuilding's logging ticks (optional dependency — harmless no-op if
-  // Shipbuilding is never enabled) and reduce local Wood output over time.
-  //
-  // Shipbuilding dispatches one event per candidate burg from inside its own
-  // registerTimeTickHook callback, synchronously, during the same advanceTime() call.
-  // Rather than also registering an Economy tick hook (whose relative order vs.
-  // Shipbuilding's would depend on extension init order in extensions/index.ts —
-  // a fragile thing to rely on), schedule the produce() refresh on a microtask. That
-  // runs after the whole synchronous advanceTime() call (all tick hooks) completes,
-  // regardless of hook registration order, and coalesces multiple log-harvested
-  // events from the same tick into a single Production.produce() call.
-  let refreshScheduled = false;
-  let forceRefresh = false;
+  // Production-affecting changes are accumulated between monthly settlements. In
+  // particular, Shipbuilding can emit a logging event every simulated day; making
+  // each event run the full production/trade cycle turned Advance Year into up to
+  // 365 complete economy recalculations. The flag is intentionally independent of
+  // the settlement scheduler: a future tick hook may mark production dirty without
+  // needing to know when the current cycle closes.
+  let productionDirty = false;
+  let productionSettlementDue = false;
+  let productionSettlementScheduled = false;
 
-  const scheduleProductionRefresh = (force = false) => {
-    if (force) forceRefresh = true;
-    if (refreshScheduled) return;
-    refreshScheduled = true;
+  const markProductionDirty = () => {
+    productionDirty = true;
+  };
+
+  const scheduleProductionSettlement = () => {
+    if (productionSettlementScheduled) return;
+    productionSettlementScheduled = true;
     queueMicrotask(() => {
-      refreshScheduled = false;
+      productionSettlementScheduled = false;
       if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
 
-      const forestDirty = consumeDirtyFlag();
-      if (!forestDirty && !forceRefresh) return;
-      forceRefresh = false;
+      // A periodic settlement must run even when no external producer marked the
+      // economy dirty: it is what accrues ordinary rural/urban output and demand.
+      if (!productionSettlementDue && !productionDirty) return;
+      productionSettlementDue = false;
+      productionDirty = false;
 
       Production.produce();
       Taxes.collectTaxes();
@@ -620,7 +616,7 @@ export function init(api: ExtensionAPI): void {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
     const { cellId, amount } = (e as CustomEvent).detail as { cellId: number; amount: number };
     registerLogHarvest(cellId, amount);
-    scheduleProductionRefresh(true);
+    markProductionDirty();
   };
   document.addEventListener("fmg:shipbuilding-log-harvested", _logHarvestedHandler);
 
@@ -693,7 +689,11 @@ export function init(api: ExtensionAPI): void {
     const { stateId, amount } = (e as CustomEvent).detail as { stateId: number; amount: number };
     if (!stateId || !(amount > 0)) return;
     registerVoyageIncome(stateId, amount);
-    scheduleProductionRefresh(true);
+    // Voyage income changes tax accounting, not production, so do not force an
+    // expensive production/trade settlement just to expose it to the treasury.
+    queueMicrotask(() => {
+      if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) Taxes.collectTaxes();
+    });
   };
   document.addEventListener("fmg:shipbuilding-voyage-income", _voyageIncomeHandler);
 
@@ -807,9 +807,14 @@ export function init(api: ExtensionAPI): void {
     const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
     const forestChanged = tickForestRegrowth(effectiveDeltaYears);
 
-    if (forestChanged || daysSinceLastProduction >= 30) {
-      if (daysSinceLastProduction >= 30) daysSinceLastProduction %= 30;
-      scheduleProductionRefresh(true);
+    if (forestChanged) markProductionDirty();
+
+    if (daysSinceLastProduction >= 30) {
+      daysSinceLastProduction %= 30;
+      productionSettlementDue = true;
+      // Queue after all synchronous tick hooks have run, so logging events from
+      // Shipbuilding are included irrespective of extension initialization order.
+      scheduleProductionSettlement();
     }
   }, ECONOMY_EXTENSION_ID);
 

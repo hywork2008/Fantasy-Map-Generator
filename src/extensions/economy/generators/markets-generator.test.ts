@@ -145,6 +145,40 @@ describe("MarketsModule", () => {
       expect(market1.goods[0].stock).toBeLessThan(100);
     });
 
+    it("caches market routes until a market centre changes", () => {
+      const market1: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#ff0000",
+        goods: { 0: { stock: 100, price: 5 } }
+      };
+      const market2: Market = {
+        i: 2,
+        centerBurgId: 2,
+        color: "#00ff00",
+        goods: { 0: { stock: 0, price: 20 } }
+      };
+      const burg1: Burg = { i: 1, x: 100, y: 100, population: 100, market: 1 } as unknown as Burg;
+      const burg2: Burg = { i: 2, x: 200, y: 100, population: 100, market: 2 } as unknown as Burg;
+      worldContext.pack.markets = [market1, market2];
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg1, burg2];
+
+      const getMarketTradeRoute = vi.spyOn(
+        marketsModule as unknown as { getMarketTradeRoute(source: Burg, target: Burg): unknown },
+        "getMarketTradeRoute"
+      );
+
+      marketsModule.runGlobalTrade();
+      expect(getMarketTradeRoute).toHaveBeenCalledTimes(4); // every ordered pair, including self-pairs
+
+      marketsModule.runGlobalTrade();
+      expect(getMarketTradeRoute).toHaveBeenCalledTimes(4);
+
+      burg2.x = 250;
+      marketsModule.runGlobalTrade();
+      expect(getMarketTradeRoute).toHaveBeenCalledTimes(8);
+    });
+
     it("runGlobalTrade() should add exporter sales tax to landed cost and record it on the deal", () => {
       const market1: Market = {
         i: 1,

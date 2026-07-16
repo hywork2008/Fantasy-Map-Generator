@@ -12,6 +12,7 @@ import {
 import { getColors, getRandomColor, minmax, rn, TIME } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 import { getBurgMarketLedger, syncBurgMarketLedgers } from "./burgMarketLedgers";
+import { CaravanMovement } from "./caravanMovement";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, GOODS_DATA, Goods, isGoodEnabled } from "./goods-generator";
 import { syncMarketManagers } from "./marketManagers";
@@ -44,6 +45,8 @@ interface MarketTradeRoute {
   segments: TradeRouteSegment[];
 }
 
+type MarketTradeRoutes = Record<number, Record<number, MarketTradeRoute>>;
+
 function getMarketDistanceMapUnits(source: Pick<Burg, "x" | "y">, target: Pick<Burg, "x" | "y">): number {
   const dx = Math.abs(source.x - target.x);
   const dy = Math.abs(source.y - target.y);
@@ -64,6 +67,7 @@ export class MarketsModule {
   }
 
   private marketById: Market[] = [];
+  private tradeRouteCache: { key: string; routes: MarketTradeRoutes } | null = null;
 
   /** Returns the current market stock for the three ship-class Goods. */
   getShipGoodStock(marketId: number): ShipGoodStock | undefined {
@@ -96,6 +100,7 @@ export class MarketsModule {
 
   generate(regenerate: boolean = false): Market[] {
     TIME && console.time("generateMarkets");
+    this.invalidateTradeRouteCache();
     if (!regenerate) Math.random = Alea(this.worldContext.seed);
     const markets = this.createMarkets();
     this.expandMarkets(markets);
@@ -172,6 +177,9 @@ export class MarketsModule {
 
   public sync(): void {
     this.indexMarkets();
+    // A loaded map replaces route and market objects in place. Drop any routes
+    // retained from the previous map before its first trade settlement.
+    this.invalidateTradeRouteCache();
   }
 
   private expandMarkets(markets: Market[]): Uint16Array {
@@ -353,6 +361,7 @@ export class MarketsModule {
     const market: Market = { i: marketId, centerBurgId: burgId, color: getRandomColor(), goods: {} };
     this.worldContext.pack.markets.push(market);
     this.worldContext.pack.deals = [];
+    this.invalidateTradeRouteCache();
 
     this.indexMarkets();
     this.worldContext.pack.cells.market[burg.cell] = marketId;
@@ -374,6 +383,7 @@ export class MarketsModule {
 
     this.worldContext.pack.markets.splice(marketIndex, 1);
     this.worldContext.pack.deals = [];
+    this.invalidateTradeRouteCache();
 
     if (this.worldContext.pack.markets.length) {
       this.expandTerritories();
@@ -520,19 +530,7 @@ export class MarketsModule {
     const mapDiagonal = Math.hypot(this.worldContext.graphWidth, this.worldContext.graphHeight) || 1;
     const TRADE_RESERVE_FACTOR = 0.2;
     const MIN_UNIT = 0.1;
-    const travelRoutes: Record<number, Record<number, MarketTradeRoute>> = {};
-    for (const m1 of this.worldContext.pack.markets) {
-      travelRoutes[m1.i] = {};
-      const burg1 = this.worldContext.pack.burgs[m1.centerBurgId];
-      if (!burg1) continue;
-
-      for (const m2 of this.worldContext.pack.markets) {
-        const burg2 = this.worldContext.pack.burgs[m2.centerBurgId];
-        if (!burg2) continue;
-        const route = this.getMarketTradeRoute(burg1, burg2);
-        if (route) travelRoutes[m1.i][m2.i] = route;
-      }
-    }
+    const travelRoutes = this.getCachedMarketTradeRoutes();
 
     for (const good of goods) {
       if (!good.distribution && !good.recipes?.length) continue;
@@ -806,6 +804,65 @@ export class MarketsModule {
       durationDays: calculateRouteDurationDays(segments, this.worldContext.distanceScale),
       segments
     };
+  }
+
+  /**
+   * Market-to-market paths depend on the market centres, route geometry/link graph,
+   * distance scale, and caravan speeds — not on monthly stock or prices. Building
+   * them involves one route search per ordered market pair, so retain that immutable
+   * topology result across production cycles. The key deliberately includes the
+   * mutable route graph contents because route editing mutates pack in place.
+   */
+  private getCachedMarketTradeRoutes(): MarketTradeRoutes {
+    const key = this.getTradeRouteCacheKey();
+    if (this.tradeRouteCache?.key === key) return this.tradeRouteCache.routes;
+
+    const routes: MarketTradeRoutes = {};
+    for (const sourceMarket of this.worldContext.pack.markets) {
+      routes[sourceMarket.i] = {};
+      const sourceBurg = this.worldContext.pack.burgs[sourceMarket.centerBurgId];
+      if (!sourceBurg) continue;
+
+      for (const targetMarket of this.worldContext.pack.markets) {
+        const targetBurg = this.worldContext.pack.burgs[targetMarket.centerBurgId];
+        if (!targetBurg) continue;
+        const route = this.getMarketTradeRoute(sourceBurg, targetBurg);
+        if (route) routes[sourceMarket.i][targetMarket.i] = route;
+      }
+    }
+
+    this.tradeRouteCache = { key, routes };
+    return routes;
+  }
+
+  private getTradeRouteCacheKey(): string {
+    const { pack, distanceScale } = this.worldContext;
+    const movement = CaravanMovement.getOptions();
+    const marketCentres = pack.markets
+      .map(market => {
+        const burg = pack.burgs[market.centerBurgId];
+        return `${market.i}:${market.centerBurgId}:${burg?.cell}:${burg?.x}:${burg?.y}`;
+      })
+      .join("|");
+    const routeGeometry = (pack.routes ?? [])
+      .map(route => `${route.i}:${route.group}:${route.points.map(point => point.join(",")).join("/")}`)
+      .join("|");
+    const routeLinks = Object.entries(pack.cells?.routes ?? {})
+      .map(
+        ([fromCellId, links]) =>
+          `${fromCellId}:${Object.entries(links)
+            .map(([to, route]) => `${to},${route}`)
+            .join("/")}`
+      )
+      .join("|");
+
+    return [distanceScale, movement.landKmPerDay, movement.seaKmPerDay, marketCentres, routeGeometry, routeLinks].join(
+      ";"
+    );
+  }
+
+  private invalidateTradeRouteCache(): void {
+    this.tradeRouteCache = null;
   }
 
   getWarPriceModifier(burgId: number | undefined, goodId: number | undefined): number {
