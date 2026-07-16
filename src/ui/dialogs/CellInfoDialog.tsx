@@ -12,72 +12,100 @@ export const CellInfoDialog: React.FC = () => {
 
   return (
     <Dialog isOpen={isOpen} title="CellInfo" onClose={() => closeDialog("cellInfo")}>
-      <div id="cellInfo">
-        <div>
-          <p>
-            <b>Cell:</b> <span>{info.cell}</span> <b>X:</b> <span>{info.x}</span> <b>Y:</b> <span>{info.y}</span>
-          </p>
-          <p>
-            <b>Latitude:</b> <span>{info.lat}</span>
-          </p>
-          <p>
-            <b>Longitude:</b> <span>{info.lon}</span>
-          </p>
-          <p>
-            <b>Geozone:</b> <span>{info.geozone}</span>
-          </p>
-          <p>
-            <b>Area:</b> <span>{info.area}</span>
-          </p>
-          <p>
-            <b>Type:</b> <span>{info.feature}</span>
-          </p>
-          <p>
-            <b>Precipitation:</b> <span>{info.prec}</span>
-          </p>
-          <p>
-            <b>River:</b> <span>{info.river}</span>
-          </p>
-          <p>
-            <b>Population:</b> <span>{info.population}</span>
-          </p>
-          <p>
-            <b>Elevation:</b> <span>{info.elevation}</span>
-          </p>
-          <p>
-            <b>Depth:</b> <span>{info.depth}</span>
-          </p>
-          <p>
-            <b>Temperature:</b> <span>{info.temp}</span>
-          </p>
-          <p>
-            <b>Biome:</b> <span>{info.biome}</span>
-          </p>
-          <p>
-            <b>State:</b> <span>{info.state}</span>
-          </p>
-          <p>
-            <b>Province:</b> <span>{info.province}</span>
-          </p>
-          <p>
-            <b>Culture:</b> <span>{info.culture}</span>
-          </p>
-          <p>
-            <b>Religion:</b> <span>{info.religion}</span>
-          </p>
-          <p>
-            <b>Burg:</b> <span>{info.burg}</span>
-          </p>
-          <p>
-            <b>Danger:</b> <span>{info.danger}</span>
-          </p>
+      <table id="cellInfo" className="fmg-table">
+        <tbody>
+          <tr>
+            <th scope="row">Cell</th>
+            <td>{info.cell}</td>
+          </tr>
+          <tr>
+            <th scope="row">X</th>
+            <td>{info.x}</td>
+          </tr>
+          <tr>
+            <th scope="row">Y</th>
+            <td>{info.y}</td>
+          </tr>
+          <tr>
+            <th scope="row">Latitude</th>
+            <td>{info.lat}</td>
+          </tr>
+          <tr>
+            <th scope="row">Longitude</th>
+            <td>{info.lon}</td>
+          </tr>
+          <tr>
+            <th scope="row">Geozone</th>
+            <td>{info.geozone}</td>
+          </tr>
+          <tr>
+            <th scope="row">Area</th>
+            <td>{info.area}</td>
+          </tr>
+          <tr>
+            <th scope="row">Type</th>
+            <td>{info.feature}</td>
+          </tr>
+          <tr>
+            <th scope="row">Precipitation</th>
+            <td>{info.prec}</td>
+          </tr>
+          <tr>
+            <th scope="row">River</th>
+            <td>{info.river}</td>
+          </tr>
+          <tr>
+            <th scope="row">Population</th>
+            <td>{info.population}</td>
+          </tr>
+          <tr>
+            <th scope="row">Elevation</th>
+            <td>{info.elevation}</td>
+          </tr>
+          <tr>
+            <th scope="row">Depth</th>
+            <td>{info.depth}</td>
+          </tr>
+          <tr>
+            <th scope="row">Temperature</th>
+            <td>{info.temp}</td>
+          </tr>
+          <tr>
+            <th scope="row">Biome</th>
+            <td>{info.biome}</td>
+          </tr>
+          <tr>
+            <th scope="row">State</th>
+            <td>{info.state}</td>
+          </tr>
+          <tr>
+            <th scope="row">Province</th>
+            <td>{info.province}</td>
+          </tr>
+          <tr>
+            <th scope="row">Culture</th>
+            <td>{info.culture}</td>
+          </tr>
+          <tr>
+            <th scope="row">Religion</th>
+            <td>{info.religion}</td>
+          </tr>
+          <tr>
+            <th scope="row">Burg</th>
+            <td>{info.burg}</td>
+          </tr>
+          <tr>
+            <th scope="row">Danger</th>
+            <td>{info.danger}</td>
+          </tr>
           {cellInfoRows.map(row => (
-            <p key={row.id}>
-              <b>{row.label}:</b> <span>{info.extra[row.id] ?? "n/a"}</span>
-            </p>
+            <tr key={row.id}>
+              <th scope="row">{row.label}</th>
+              <td>{info.extra[row.id] ?? "n/a"}</td>
+            </tr>
           ))}
-        </div>
-      </div>
+        </tbody>
+      </table>
     </Dialog>
   );
 };
