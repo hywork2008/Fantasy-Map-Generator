@@ -184,6 +184,12 @@ test.describe("map layers", () => {
   });
 
   test("labels group can be hidden with display:none", async () => {
+    // #styleElementSelect only mounts once the options panel is open, on the Style tab,
+    // under its "settlements" sub-tab (styleElementGroups.ts — "labels" lives there).
+    await sharedPage.click("#optionsHide");
+    await sharedPage.click("#styleTab");
+    await sharedPage.getByRole("button", { name: "settlements", exact: true }).click();
+
     // Trigger style element/group selectors so the app registers the labels group
     await sharedPage.evaluate(() => {
       const styleElementSelect = document.getElementById(

@@ -128,6 +128,15 @@ export async function setRenderMode(page: Page, mode: "svg" | "webglHybrid"): Pr
   await page.evaluate(renderMode => window.fmg.actions.setRenderMode(renderMode), mode);
 }
 
+/**
+ * The #options panel div is always present in the DOM (OptionsContainer.tsx); only its
+ * content is conditionally rendered based on Zustand's isMenuOpen. The #optionsHide toggle
+ * button's glyph ("►" closed / "◄" open) is the only DOM-observable signal of that state.
+ */
+export async function isOptionsMenuOpen(page: Page): Promise<boolean> {
+  return (await page.locator("#optionsHide").textContent())?.trim() === "◄";
+}
+
 export async function setLayerPreset(page: Page, preset: string): Promise<void> {
   await page.evaluate(layerPreset => window.fmg.actions.handleLayersPresetChange(layerPreset), preset);
 }
@@ -755,9 +764,6 @@ export async function getFirstStateScreenPoint(page: Page): Promise<StateHoverPo
     // pick (deck.gl pickObject) can prioritize an overlapping route/burg icon a few pixels wide over
     // the land polygon underneath — so prefer the land cell of this state closest to its center that
     // has no river/route on it and is not within burg-icon range of any burg.
-    const state = pack.states.find(item => item.i && !item.removed);
-    if (!state) return null;
-
     const routeCells = new Set<number>();
     for (const route of pack.routes) for (const cell of route.cells ?? []) routeCells.add(cell);
 
@@ -766,33 +772,91 @@ export async function getFirstStateScreenPoint(page: Page): Promise<StateHoverPo
     const nearBurg = (x: number, y: number): boolean =>
       burgs.some(burg => (burg.x - x) ** 2 + (burg.y - y) ** 2 < BURG_CLEARANCE ** 2);
 
-    const [centerX, centerY] = pack.cells.p[state.center];
-    let bestCell = state.center;
-    let bestDist = Number.POSITIVE_INFINITY;
-    for (const cell of pack.cells.i) {
-      if (pack.cells.state[cell] !== state.i || pack.cells.h[cell] < 20) continue;
-      if (pack.cells.r[cell] || routeCells.has(cell)) continue;
-      const [x, y] = pack.cells.p[cell];
-      if (nearBurg(x, y)) continue;
-      const dist = (x - centerX) ** 2 + (y - centerY) ** 2;
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestCell = cell;
-      }
+    // #labels stays a real, interactive SVG overlay above the WebGL canvas in hybrid mode
+    // (hybridLayerPolicy.ts's HYBRID_SVG_OVERLAY_LAYER_IDS, so the Label Editor can still edit
+    // curved state-name textPaths). A raw page.mouse.click() landing on that text — or on any
+    // floating .fmg-dialog panel a caller opened first (e.g. the Diplomacy Editor) — never
+    // reaches deck.gl's picking layer beneath it, so a candidate point must dodge both.
+    function toWorldRect(
+      rect: DOMRect,
+      svg: SVGSVGElement,
+      inverseCtm: DOMMatrix,
+      padding: number
+    ): { minX: number; maxX: number; minY: number; maxY: number } {
+      const corners = [
+        [rect.left - padding, rect.top - padding],
+        [rect.right + padding, rect.bottom + padding]
+      ].map(([clientX, clientY]) => {
+        const point = svg.createSVGPoint();
+        point.x = clientX;
+        point.y = clientY;
+        return point.matrixTransform(inverseCtm);
+      });
+      const xs = corners.map(point => point.x);
+      const ys = corners.map(point => point.y);
+      return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
     }
 
-    const path = statesBody.querySelector<SVGPathElement>(`#state${state.i}`);
-    const ctm = path?.getScreenCTM();
-    if (!path || !ctm) return null;
+    function findClickableCell(
+      state: TestState,
+      path: SVGPathElement,
+      svg: SVGSVGElement
+    ): { x: number; y: number } | null {
+      const ctm = path.getScreenCTM();
+      if (!ctm) return null;
+      const inverseCtm = ctm.inverse();
 
-    const svg = path.ownerSVGElement;
-    const localPoint = svg?.createSVGPoint();
-    if (!localPoint) return null;
-    localPoint.x = pack.cells.p[bestCell][0];
-    localPoint.y = pack.cells.p[bestCell][1];
-    const clientPoint = localPoint.matrixTransform(ctm);
+      const obstructedRects: Array<{ minX: number; maxX: number; minY: number; maxY: number }> = [];
+      const labelEl = document.getElementById(`stateLabel${state.i}`);
+      if (labelEl) {
+        const rect = labelEl.getBoundingClientRect();
+        if (rect.width || rect.height) obstructedRects.push(toWorldRect(rect, svg, inverseCtm, 8));
+      }
+      for (const dialog of document.querySelectorAll<HTMLElement>(".fmg-dialog")) {
+        if (dialog.style.display === "none") continue;
+        const rect = dialog.getBoundingClientRect();
+        if (rect.width || rect.height) obstructedRects.push(toWorldRect(rect, svg, inverseCtm, 0));
+      }
+      const isObstructed = (x: number, y: number): boolean =>
+        obstructedRects.some(rect => x >= rect.minX && x <= rect.maxX && y >= rect.minY && y <= rect.maxY);
 
-    return { x: clientPoint.x, y: clientPoint.y, stateName: state.fullName ?? state.name ?? "" };
+      const [centerX, centerY] = pack.cells.p[state.center];
+      let bestCell = -1;
+      let bestDist = Number.POSITIVE_INFINITY;
+      for (const cell of pack.cells.i) {
+        if (pack.cells.state[cell] !== state.i || pack.cells.h[cell] < 20) continue;
+        if (pack.cells.r[cell] || routeCells.has(cell)) continue;
+        const [x, y] = pack.cells.p[cell];
+        if (nearBurg(x, y) || isObstructed(x, y)) continue;
+        const dist = (x - centerX) ** 2 + (y - centerY) ** 2;
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestCell = cell;
+        }
+      }
+      if (bestCell === -1) return null;
+
+      const localPoint = svg.createSVGPoint();
+      localPoint.x = pack.cells.p[bestCell][0];
+      localPoint.y = pack.cells.p[bestCell][1];
+      const clientPoint = localPoint.matrixTransform(ctm);
+      return { x: clientPoint.x, y: clientPoint.y };
+    }
+
+    // A small/burg-dense state can have every land cell excluded (river, route, burg icon, or
+    // its own label) — try every state in turn rather than falling back to a known-bad point.
+    for (const state of pack.states) {
+      if (!state.i || state.removed) continue;
+      const path = statesBody.querySelector<SVGPathElement>(`#state${state.i}`);
+      const svg = path?.ownerSVGElement;
+      if (!path || !svg) continue;
+
+      const point = findClickableCell(state, path, svg);
+      if (!point) continue;
+      return { x: point.x, y: point.y, stateName: state.fullName ?? state.name ?? "" };
+    }
+
+    return null;
   });
 }
 
@@ -1730,8 +1794,10 @@ export async function isAnyDialogOpen(page: Page): Promise<boolean> {
  */
 export async function findFirstRealStateId(page: Page): Promise<number | null> {
   return page.evaluate(() => {
+    // Rows are virtualized <tr data-id> elements inside #statesBodySection's <table>
+    // (VirtualTableBody.tsx), not direct-child divs.
     const rows = Array.from(
-      document.querySelectorAll("#statesBodySection > div[data-id]")
+      document.querySelectorAll("#statesBodySection tr[data-id]")
     ) as HTMLElement[];
     const row = rows.find((r) => parseInt(r.dataset.id!, 10) > 0);
     return row ? parseInt(row.dataset.id!, 10) : null;

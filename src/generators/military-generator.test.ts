@@ -31,13 +31,19 @@ function generate(pack: PackedGraph) {
 
 function makeBaseCells(overrides: { province2Pop?: number; interiorBordersHostile?: boolean } = {}) {
   const { province2Pop = 10000 } = overrides;
+  const pop = [0, 0, province2Pop, 10000, 0];
   return {
     i: [0, 1, 2, 3, 4],
     h: [0, 50, 50, 50, 50],
     c: [[], [], [], [4], [3]],
     state: [0, 1, 1, 1, 2],
     province: [0, 1, 2, 3, 0],
-    pop: [0, 0, province2Pop, 10000, 0],
+    pop,
+    // Matches main.ts's real-generation seeding (pop * 0.2205/0.2295) so the manpower
+    // reconciliation step (src/generators/manpower.ts, on by default) has civilian males
+    // to draw from instead of scaling every regiment's troops down to zero.
+    maleAdults: pop.map(v => v * 0.2205),
+    femaleAdults: pop.map(v => v * 0.2295),
     biome: [0, 5, 5, 5, 5],
     culture: [0, 1, 1, 1, 1],
     religion: [0, 1, 1, 1, 1],
@@ -153,6 +159,7 @@ describe("MilitaryModule.generate — consolidated regiment structure", () => {
     // State 1 has 3 separate frontier provinces (3, 4, 5), each bordering a *different*
     // hostile state (2, 3, 4) and 1 interior province (2). Since MAX_FIELD_ARMIES = 9,
     // all 4 provinces should get their own distinct army.
+    const pop = [0, 0, 5000, 5000, 5000, 5000, 0, 0, 0];
     const pack = {
       cells: {
         i: [0, 1, 2, 3, 4, 5, 6, 7, 8],
@@ -160,7 +167,10 @@ describe("MilitaryModule.generate — consolidated regiment structure", () => {
         c: [[], [], [], [6], [7], [8], [3], [4], [5]],
         state: [0, 1, 1, 1, 1, 1, 2, 3, 4],
         province: [0, 1, 2, 3, 4, 5, 0, 0, 0],
-        pop: [0, 0, 5000, 5000, 5000, 5000, 0, 0, 0],
+        pop,
+        // See makeBaseCells() above for why manpower reconciliation needs this.
+        maleAdults: pop.map(v => v * 0.2205),
+        femaleAdults: pop.map(v => v * 0.2295),
         biome: [0, 5, 5, 5, 5, 5, 5, 5, 5],
         culture: [0, 1, 1, 1, 1, 1, 1, 1, 1],
         religion: [0, 1, 1, 1, 1, 1, 1, 1, 1],

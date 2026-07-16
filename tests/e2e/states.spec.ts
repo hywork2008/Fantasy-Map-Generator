@@ -26,7 +26,7 @@ test.describe("States", () => {
   test("removing a state via UI should allow military regeneration without errors", async ({
     page,
   }) => {
-    await page.click("#optionsTrigger");
+    await page.click("#optionsHide");
     await page.waitForSelector("#options", { state: "visible" });
 
     await page.click("#toolsTab");
@@ -41,7 +41,7 @@ test.describe("States", () => {
     // Dispatch a click on the trash icon (hidden by CSS) to trigger state removal.
     // force:true bypasses the visibility check so we can click the hidden element.
     await page
-      .locator(`#statesBodySection > div[data-id="${stateId}"] .icon-trash-empty`)
+      .locator(`#statesBodySection tr[data-id="${stateId}"] .icon-trash-empty`)
       .click({ force: true });
 
     const removeButton = page.locator(".fmg-dialog-button", { hasText: "Remove" });
@@ -51,7 +51,7 @@ test.describe("States", () => {
     // Wait for the state row to disappear from the editor
     await page.waitForFunction(
       (id: number | null) =>
-        !document.querySelector(`#statesBodySection > div[data-id="${id}"]`),
+        !document.querySelector(`#statesBodySection tr[data-id="${id}"]`),
       stateId,
       { timeout: 5000 }
     );
@@ -88,27 +88,30 @@ test.describe("States", () => {
     await setRenderMode(page, "svg");
     await setLayerPreset(page, "landmass");
 
-    await page.click("#optionsTrigger");
+    await page.click("#optionsHide");
     await expect(page.locator("#options")).toBeVisible();
     await page.click("#toolsTab");
     await expect(page.locator("#toolsContent")).toBeVisible();
 
-    await page.getByRole("button", { name: "States", exact: true }).click();
+    // The Tools tab also has "States"/"Provinces" regenerate buttons (#regenerateFeature)
+    // with the same accessible name as these edit buttons, so target the edit buttons by
+    // their unique tooltip instead of the ambiguous accessible name.
+    await page.locator('button[data-tip="Click to open States Editor"]').click();
     await expect(page.locator("#statesEditor")).toBeVisible();
     expect(await isLayerOn(page, "toggleStates")).toBe(true);
 
-    await page.getByRole("button", { name: "Provinces", exact: true }).click();
-    await expect(page.locator("#provincesEditor")).toBeVisible();
+    await page.locator('button[data-tip="Click to open Provinces Editor"]').click();
+    await expect(page.locator("#provincesEditorContainer")).toBeVisible();
     await expect(page.locator("#statesEditor")).toBeVisible();
     expect(await isLayerOn(page, "toggleProvinces")).toBe(true);
     expect(await isLayerOn(page, "toggleStates")).toBe(false);
 
     await page
-      .locator(".fmg-dialog:has(#provincesEditor)")
+      .locator(".fmg-dialog:has(#provincesEditorContainer)")
       .getByRole("button", { name: "Close all dialogs" })
       .click();
     await expect(page.locator("#statesEditor")).toBeHidden();
-    await expect(page.locator("#provincesEditor")).toBeHidden();
+    await expect(page.locator("#provincesEditorContainer")).toBeHidden();
     expect(await isLayerOn(page, "toggleProvinces")).toBe(false);
     expect(await isLayerOn(page, "toggleStates")).toBe(false);
   });

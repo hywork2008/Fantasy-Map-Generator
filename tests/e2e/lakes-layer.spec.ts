@@ -20,7 +20,7 @@ test.describe("Lakes layer", () => {
   }) => {
     const lakes = page.locator("#lakes");
 
-    await page.click("#optionsTrigger");
+    await page.click("#optionsHide");
     await page.waitForSelector("#options", { state: "visible" });
 
     await expect(lakes).toBeVisible();
@@ -45,9 +45,13 @@ test.describe("Lakes layer", () => {
   });
 
   test("Lakes panel entry is positioned just after Heightmap", async ({ page }) => {
+    // #mapLayers only mounts once the options panel is open (LayersTab is unmounted while closed).
+    await page.click("#optionsHide");
+
     const [lakesIndex, heightmapIndex] = await page.evaluate(() => {
+      // Layer toggles are direct-child <button> elements of #mapLayers (LayersTab.tsx), not <li>.
       const items = Array.from(
-        document.querySelectorAll("#mapLayers > li")
+        document.querySelectorAll("#mapLayers > button")
       ) as HTMLElement[];
       return [
         items.findIndex((li) => li.id === "toggleLakes"),

@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import {
   waitForMapLoad,
   getTourPopoverTitle,
+  isOptionsMenuOpen,
   tourNextStep,
   tourPrevStep,
   tourAdvanceSteps,
@@ -59,7 +60,7 @@ test.describe("UI Tour", () => {
   test("tour trigger button is present and labelled in the About tab", async ({
     page,
   }) => {
-    await page.locator("#optionsTrigger").click();
+    await page.locator("#optionsHide").click();
     await page.locator("#aboutTab").click();
     const btn = page.locator("#startTourButton");
     await expect(btn).toBeVisible();
@@ -71,8 +72,8 @@ test.describe("UI Tour", () => {
   test("starting the tour closes options panel and shows first step", async ({
     page,
   }) => {
-    await page.locator("#optionsTrigger").click();
-    await expect(page.locator("#options")).toBeVisible();
+    await page.locator("#optionsHide").click();
+    await expect.poll(() => isOptionsMenuOpen(page)).toBe(true);
 
     // UITour.start() is a setup action permitted by AGENTS.md §5
     await page.evaluate(() => window.fmg.actions.UITour.start());
@@ -80,7 +81,7 @@ test.describe("UI Tour", () => {
 
     await expect(page.locator("body")).toHaveClass(/driver-active/);
     expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[0]);
-    await expect(page.locator("#options")).toBeHidden();
+    await expect.poll(() => isOptionsMenuOpen(page)).toBe(false);
   });
 
   // ── Tooltip step free-roam ─────────────────────────────────────────────────
@@ -113,11 +114,11 @@ test.describe("UI Tour", () => {
     await tourNextStep(page, STEP_TITLES[2]); // Tooltip
     await tourNextStep(page, STEP_TITLES[3]); // Open the Options Menu
 
-    await expect(page.locator("#options")).toBeHidden();
+    await expect.poll(() => isOptionsMenuOpen(page)).toBe(false);
 
     await tourNextStep(page, STEP_TITLES[4]); // → Layers Tab
 
-    await expect(page.locator("#options")).toBeVisible();
+    await expect.poll(() => isOptionsMenuOpen(page)).toBe(true);
   });
 
   // ── Tab switching ──────────────────────────────────────────────────────────
@@ -347,10 +348,10 @@ test.describe("UI Tour", () => {
 
     await tourAdvanceSteps(page, 4);
     expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[4]);
-    await expect(page.locator("#options")).toBeVisible();
+    await expect.poll(() => isOptionsMenuOpen(page)).toBe(true);
 
     await tourPrevStep(page, STEP_TITLES[3]);
-    await expect(page.locator("#options")).toBeHidden();
+    await expect.poll(() => isOptionsMenuOpen(page)).toBe(false);
   });
 
   test("back from World Configurator to Configure World closes the dialog", async ({
@@ -449,13 +450,13 @@ test.describe("UI Tour", () => {
     await page.waitForSelector(".driver-popover", { state: "visible" });
 
     await tourAdvanceSteps(page, 4);
-    await expect(page.locator("#options")).toBeVisible();
+    await expect.poll(() => isOptionsMenuOpen(page)).toBe(true);
 
     await page.locator(".driver-popover-close-btn").click();
     await page.waitForSelector(".driver-popover", { state: "hidden" });
 
     await expect(page.locator("body")).not.toHaveClass(/driver-active/);
-    await expect(page.locator("#options")).toBeHidden();
+    await expect.poll(() => isOptionsMenuOpen(page)).toBe(false);
   });
 
   test("completing the tour on the final step removes driver-active and closes the options panel", async ({
@@ -466,13 +467,13 @@ test.describe("UI Tour", () => {
 
     await tourAdvanceSteps(page, 21);
     expect(await getTourPopoverTitle(page)).toBe(STEP_TITLES[21]);
-    await expect(page.locator("#options")).toBeVisible();
+    await expect.poll(() => isOptionsMenuOpen(page)).toBe(true);
 
     await page.locator(".driver-popover-next-btn").click();
     await page.waitForSelector(".driver-popover", { state: "hidden" });
 
     await expect(page.locator("body")).not.toHaveClass(/driver-active/);
-    await expect(page.locator("#options")).toBeHidden();
+    await expect.poll(() => isOptionsMenuOpen(page)).toBe(false);
   });
 
   test("dismissing the tour while World Configurator is open closes the dialog and options panel", async ({
@@ -488,7 +489,7 @@ test.describe("UI Tour", () => {
     await page.waitForSelector(".driver-popover", { state: "hidden" });
 
     await expect(page.locator("#worldConfiguratorContainer")).toBeHidden();
-    await expect(page.locator("#options")).toBeHidden();
+    await expect.poll(() => isOptionsMenuOpen(page)).toBe(false);
   });
 
   test("dismissing the tour while heightmap panel is visible hides it and closes the options panel", async ({
@@ -504,7 +505,7 @@ test.describe("UI Tour", () => {
     await page.waitForSelector(".driver-popover", { state: "hidden" });
 
     await expect(page.locator("#customizationMenu")).toBeHidden();
-    await expect(page.locator("#options")).toBeHidden();
+    await expect.poll(() => isOptionsMenuOpen(page)).toBe(false);
   });
 
   // ── Regression: toolsContent must not leak when closing early (bug #1421) ──
@@ -521,7 +522,7 @@ test.describe("UI Tour", () => {
     await page.locator(".driver-popover-close-btn").click();
     await page.waitForSelector(".driver-popover", { state: "hidden" });
 
-    await page.locator("#optionsTrigger").click();
+    await page.locator("#optionsHide").click();
     await expect(page.locator("#options")).toBeVisible();
 
     await expect(page.locator("#layersContent")).toBeVisible();
@@ -540,7 +541,7 @@ test.describe("UI Tour", () => {
     await page.locator(".driver-popover-close-btn").click();
     await page.waitForSelector(".driver-popover", { state: "hidden" });
 
-    await page.locator("#optionsTrigger").click();
+    await page.locator("#optionsHide").click();
     await expect(page.locator("#options")).toBeVisible();
 
     await expect(page.locator("#styleContent")).toBeVisible();
@@ -559,7 +560,7 @@ test.describe("UI Tour", () => {
     await page.locator(".driver-popover-close-btn").click();
     await page.waitForSelector(".driver-popover", { state: "hidden" });
 
-    await page.locator("#optionsTrigger").click();
+    await page.locator("#optionsHide").click();
     await expect(page.locator("#options")).toBeVisible();
 
     await expect(page.locator("#optionsTabContent")).toBeVisible();

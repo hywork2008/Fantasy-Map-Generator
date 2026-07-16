@@ -1036,8 +1036,8 @@ describe("deck.gl data adapters", () => {
     expect(layers.map(layer => layer.id)).toEqual([
       "fmg-webgl-background",
       "fmg-webgl-land",
-      "fmg-webgl-emblems",
-      "fmg-webgl-coastline"
+      "fmg-webgl-coastline",
+      "fmg-webgl-emblems"
     ]);
     expect(layers.find(layer => layer.id === "fmg-webgl-emblems")?.props.data).toHaveLength(1);
   });
@@ -1053,8 +1053,8 @@ describe("deck.gl data adapters", () => {
     expect(layers.map(layer => layer.id)).toEqual([
       "fmg-webgl-background",
       "fmg-webgl-land",
-      "fmg-webgl-burg-icons",
-      "fmg-webgl-coastline"
+      "fmg-webgl-coastline",
+      "fmg-webgl-burg-icons"
     ]);
     expect(layers.find(layer => layer.id === "fmg-webgl-burg-icons")?.props.data).toHaveLength(2);
   });
@@ -1076,10 +1076,10 @@ describe("deck.gl data adapters", () => {
     expect(layers.map(layer => layer.id)).toEqual([
       "fmg-webgl-background",
       "fmg-webgl-land",
+      "fmg-webgl-coastline",
       "fmg-webgl-markers",
       "fmg-webgl-marker-icons",
-      "fmg-webgl-marker-images",
-      "fmg-webgl-coastline"
+      "fmg-webgl-marker-images"
     ]);
     expect(layers.find(layer => layer.id === "fmg-webgl-markers")?.props.data).toHaveLength(1);
     expect(layers.find(layer => layer.id === "fmg-webgl-marker-icons")?.props.data).toHaveLength(1);

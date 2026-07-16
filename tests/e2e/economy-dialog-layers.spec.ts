@@ -13,7 +13,7 @@ test.describe("Economy dialog layers", () => {
     await waitForMapLoad(page);
     await setRenderMode(page, "svg");
 
-    await page.click("#optionsTrigger");
+    await page.click("#optionsHide");
     await expect(page.locator("#options")).toBeVisible();
     await page.click("#extensionsTab");
 
@@ -27,19 +27,31 @@ test.describe("Economy dialog layers", () => {
   });
 
   for (const editor of [
-    { button: "Goods", dialogId: "goodsEditor", layerId: "toggleGoods" },
-    { button: "Markets", dialogId: "marketsOverview", layerId: "toggleMarketsLayer" }
+    {
+      button: "Goods",
+      tip: "Click to open Goods Editor (Shortcut: Shift + G)",
+      containerId: "goodsEditorContainer",
+      layerId: "toggleGoods"
+    },
+    {
+      button: "Markets",
+      tip: "Click to open Markets Overview",
+      containerId: "marketsOverviewContainer",
+      layerId: "toggleMarketsLayer"
+    }
   ]) {
     test(`restores ${editor.layerId} after ${editor.button} is closed with Close all dialogs`, async ({ page }) => {
-      await page.getByRole("button", { name: editor.button, exact: true }).click();
-      await expect(page.locator(`#${editor.dialogId}`)).toBeVisible();
+      // The Tools tab also has "Goods"/"Markets" regenerate buttons (#regenerateFeature)
+      // with the same accessible name as these edit buttons, so target by tooltip instead.
+      await page.locator(`button[data-tip="${editor.tip}"]`).click();
+      await expect(page.locator(`#${editor.containerId}`)).toBeVisible();
       await expect.poll(() => isLayerOn(page, editor.layerId)).toBe(true);
 
       await page
-        .locator(`.fmg-dialog:has(#${editor.dialogId})`)
+        .locator(`.fmg-dialog:has(#${editor.containerId})`)
         .getByRole("button", { name: "Close all dialogs" })
         .click();
-      await expect(page.locator(`#${editor.dialogId}`)).toBeHidden();
+      await expect(page.locator(`#${editor.containerId}`)).toBeHidden();
       await expect.poll(() => isLayerOn(page, editor.layerId)).toBe(false);
     });
   }

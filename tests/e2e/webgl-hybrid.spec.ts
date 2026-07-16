@@ -181,6 +181,11 @@ async function getFirstWebglLayerDatumClickPoint(
 
       const topElement = document.elementFromPoint(x, y);
       if (topElement?.closest("#options, .fmg-dialog, #tourPromptButton, #mapOverlay")) continue;
+      // Labels (state/burg names) stay a real, interactive SVG overlay above the canvas in
+      // hybrid mode (hybridLayerPolicy.ts's "fmg-webgl-svg-overlay-layer" class) — a burg
+      // icon's own name label commonly sits right on top of it, so a raw click there never
+      // reaches deck.gl's picking layer beneath.
+      if (topElement?.closest(".fmg-webgl-svg-overlay-layer")) continue;
       return { kind, id, x, y };
     }
 
@@ -335,6 +340,9 @@ test.describe("webgl hybrid renderer", () => {
     await setRenderMode(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
 
+    // Export/Save/Load (Sticked.tsx) only mount once the options panel is open.
+    await page.locator("#optionsHide").click();
+
     const downloadPromise = page.waitForEvent("download");
     await page.getByRole("button", { name: "Export", exact: true }).click();
     await page.locator("#exportMapData").getByRole("button", { name: ".png", exact: true }).click();
@@ -358,6 +366,9 @@ test.describe("webgl hybrid renderer", () => {
     await waitForMapLoad(page);
     await setRenderMode(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
+
+    // Export/Save/Load (Sticked.tsx) only mount once the options panel is open.
+    await page.locator("#optionsHide").click();
 
     const downloadPromise = page.waitForEvent("download");
     await page.getByRole("button", { name: "Save", exact: true }).click();
@@ -519,7 +530,9 @@ test.describe("webgl hybrid renderer", () => {
     const bounds = await canvas.boundingBox();
     expect(bounds).not.toBeNull();
     if (!bounds) return;
-    await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height * 0.35);
+    // The fixture burg sits at the map's centre (forceThreeDBurgFixture), which the current
+    // camera/mesh framing projects to roughly this height fraction of the canvas.
+    await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height * 0.2);
 
     await expect(page.locator("#burgBody")).toBeVisible();
     await expect(page.locator("#burgName")).toHaveValue(burg.burgName);
@@ -646,6 +659,17 @@ test.describe("webgl hybrid renderer", () => {
   test("applies the hybrid SVG layer policy to managed map layers and overlays", async ({ page }) => {
     await page.goto("/?seed=webgl-layer-policy&width=1000&height=700");
     await waitForMapLoad(page);
+
+    // "tradeAnimation" (Economy extension) is part of WEBGL_MANAGED_SVG_LAYER_IDS, but its
+    // <g> only exists once the Economy extension is enabled (addLayers() on enable).
+    // Economy declares a required dependency on "characters" (economy/index.tsx), so that
+    // must be enabled first or the Economy checkbox stays disabled.
+    await page.locator("#optionsHide").click();
+    await page.locator("#extensionsTab").click();
+    await page.getByRole("checkbox", { name: "Toggle Characters extension" }).check();
+    await page.getByRole("checkbox", { name: "Toggle Economy, Goods & Trade extension" }).check();
+    await page.locator("#optionsHide").click();
+
     await setRenderMode(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
 
@@ -717,13 +741,18 @@ test.describe("webgl hybrid renderer", () => {
 
     await setRenderMode(page, "svg");
     await expect.poll(() => getWebglDeckLayerIds(page), { timeout: 5000 }).toEqual([]);
+    // Switching modes routes through DeckGlRenderer.clear() (controllers/layers.ts's
+    // drawLayers()), which empties the deck's layers and toggles the hybrid CSS classes off
+    // but keeps the deck instance itself alive for a fast re-toggle back to webglHybrid —
+    // only DeckGlRenderer.finalize() (page teardown / map load) nulls out webglDeck.
     await expect.poll(() => getWebglRendererDomState(page)).toMatchObject({
       bodyHasHybridClass: false,
       canvasDisplay: "none",
-      deckExists: false,
-      landmassHasManagedClass: true,
+      deckExists: true,
+      deckLayersSuspended: true,
+      landmassHasManagedClass: false,
       landmassDisplay: "inline",
-      scaleBarHasOverlayClass: true
+      scaleBarHasOverlayClass: false
     });
     await expect(page.locator("#landmass")).toBeVisible();
     await expect(page.locator("#scaleBar")).toBeVisible();
@@ -831,7 +860,14 @@ test.describe("webgl hybrid renderer", () => {
       const layer = page.locator(`#${id}`);
       await expect(layer).toBeAttached();
       await expect(layer).not.toHaveAttribute("data-phase7-preload");
-      await expect(layer).not.toHaveClass(/fmg-webgl-managed-svg-layer/);
+      // tradeAnimation is deliberately part of WEBGL_MANAGED_SVG_LAYER_IDS (hybridLayerPolicy.ts)
+      // so deck.gl can render its caravan/path layers — unlike the other Economy SVG layers,
+      // it IS host-managed like any other hybrid-hidden layer.
+      if (id === "tradeAnimation") {
+        await expect(layer).toHaveClass(/fmg-webgl-managed-svg-layer/);
+      } else {
+        await expect(layer).not.toHaveClass(/fmg-webgl-managed-svg-layer/);
+      }
     }
     await expect
       .poll(() => getWebglDeckLayerIds(page), { timeout: 5000 })
