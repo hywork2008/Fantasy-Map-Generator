@@ -171,7 +171,7 @@ export const BurgsOverviewDialog: React.FC = () => {
       isOpen={isOpen}
       title="Burgs Overview"
       onClose={() => closeDialog("burgsOverview")}
-      className="overflow-hidden"
+      className="fmg-dialog--table"
     >
       <div id="burgsOverviewContainer">
         <BurgsTable

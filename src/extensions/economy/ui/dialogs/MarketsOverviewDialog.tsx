@@ -141,7 +141,7 @@ export const MarketsOverviewDialog: React.FC = () => {
       isOpen={isOpen}
       title="Markets Overview"
       onClose={() => closeDialog("marketsOverview")}
-      className="overflow-hidden"
+      className="fmg-dialog--table"
     >
       <div id="marketsOverviewContainer">
         <div

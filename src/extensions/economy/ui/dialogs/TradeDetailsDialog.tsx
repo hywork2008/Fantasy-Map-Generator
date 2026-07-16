@@ -48,7 +48,7 @@ export const TradeDetailsDialog: React.FC = () => {
     <Dialog
       isOpen={isOpen}
       title="Trade Details"
-      className="overflow-hidden"
+      className="fmg-dialog--table"
       onClose={() => {
         closeDialog("tradeDetails");
         closeTradeDetails();

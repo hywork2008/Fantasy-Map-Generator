@@ -18,6 +18,7 @@ import { getAreaUnit } from "../../utils/domUtils";
 import { BurgsTable } from "../components/tables/BurgsTable";
 import { Dialog } from "./Dialog";
 import { closeDialog, openConfirm } from "./dialogService";
+import { TableDialogLayout } from "./TableDialogLayout";
 
 const TABS: { id: ProvinceEditorTab; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -109,25 +110,50 @@ export const ProvinceEditorDialog: React.FC = () => {
       isOpen={isOpen}
       title={`Edit Province: ${provinceRow.name}`}
       onClose={() => closeDialog("provinceEditor")}
-      className="overflow-hidden"
+      className="fmg-dialog--table"
     >
-      <div id="provinceEditorContainer">
-        <div className="tab-row d-flex">
-          {TABS.map(tab => (
-            <button
-              key={tab.id}
-              type="button"
-              className={activeTab === tab.id ? "pressed" : ""}
-              onClick={() => setProvinceEditorState({ activeTab: tab.id })}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
+      <TableDialogLayout
+        className="province-editor-dialog"
+        header={
+          <div className="tab-row d-flex">
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                className={activeTab === tab.id ? "pressed" : ""}
+                onClick={() => setProvinceEditorState({ activeTab: tab.id })}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        }
+        footer={
+          activeTab === "overview" ? (
+            <>
+              <button
+                type="button"
+                className="icon-target"
+                data-tip="Narrow the map view to only this province"
+                onClick={() => enterFocus("province", provinceId)}
+              >
+                Focus this province
+              </button>
+              <button
+                type="button"
+                className="icon-shuffle"
+                data-tip="Regenerate non-capital burgs and redistribute rural population, preserving totals"
+                onClick={handleRegenerate}
+              >
+                Regenerate burgs &amp; population
+              </button>
+            </>
+          ) : undefined
+        }
+      >
         {activeTab === "overview" && (
           <div id="provinceEditorOverview">
-            <table>
+            <table className="fmg-table fmg-property-table">
               <tbody>
                 <tr>
                   <th scope="row">Form</th>
@@ -157,22 +183,6 @@ export const ProvinceEditorDialog: React.FC = () => {
                 </tr>
               </tbody>
             </table>
-            <button
-              type="button"
-              className="icon-target"
-              data-tip="Narrow the map view to only this province"
-              onClick={() => enterFocus("province", provinceId)}
-            >
-              Focus this province
-            </button>
-            <button
-              type="button"
-              className="icon-shuffle"
-              data-tip="Regenerate non-capital burgs and redistribute rural population, preserving totals"
-              onClick={handleRegenerate}
-            >
-              Regenerate burgs &amp; population
-            </button>
           </div>
         )}
 
@@ -186,7 +196,7 @@ export const ProvinceEditorDialog: React.FC = () => {
             onToggleLock={handleToggleLock}
           />
         )}
-      </div>
+      </TableDialogLayout>
     </Dialog>
   );
 };

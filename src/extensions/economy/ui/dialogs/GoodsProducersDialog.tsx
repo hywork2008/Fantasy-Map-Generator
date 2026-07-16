@@ -15,7 +15,7 @@ export const GoodsProducersDialog: React.FC = () => {
   const parentRef = useRef<HTMLDivElement>(null);
 
   return (
-    <Dialog isOpen={isOpen} title={`${goodName} — Producers`} onClose={close} className="overflow-hidden">
+    <Dialog isOpen={isOpen} title={`${goodName} — Producers`} onClose={close} className="fmg-dialog--table">
       <div id="goodsProducersContainer">
         {producers.length === 0 ? (
           <i>No burgs produced {goodName}.</i>

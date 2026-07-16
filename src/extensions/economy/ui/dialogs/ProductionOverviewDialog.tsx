@@ -40,7 +40,7 @@ export const ProductionOverviewDialog: React.FC = () => {
       isOpen={isOpen}
       title="Production Overview"
       onClose={() => closeDialog("productionOverview")}
-      className="overflow-hidden"
+      className="fmg-dialog--table"
     >
       <div id="productionOverviewContainer">
         <div id="productionOverviewName" className="header">

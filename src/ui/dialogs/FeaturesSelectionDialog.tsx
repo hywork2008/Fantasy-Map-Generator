@@ -53,7 +53,7 @@ export const FeaturesSelectionDialog: React.FC<FeaturesSelectionDialogProps> = (
         { label: "Cancel", onClick: onClose }
       ]}
     >
-      <table>
+      <table className="fmg-table fmg-property-table">
         <thead>
           <tr>
             <td>Features</td>

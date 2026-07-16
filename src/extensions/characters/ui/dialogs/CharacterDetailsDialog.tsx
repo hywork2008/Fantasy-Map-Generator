@@ -205,7 +205,7 @@ export const CharacterDetailsDialog: React.FC = () => {
     >
       <div id="characterDetailsContainer" style={{ padding: "10px" }}>
         <h3>Personal Information</h3>
-        <table style={{ width: "100%", textAlign: "left", borderCollapse: "collapse", marginBottom: "10px" }}>
+        <table className="fmg-table fmg-property-table character-details__table">
           <tbody>
             <tr>
               <th style={{ width: "120px", padding: "4px 0" }}>Name</th>

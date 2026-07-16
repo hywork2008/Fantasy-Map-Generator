@@ -101,7 +101,7 @@ export const MarkersOverviewDialog: React.FC = () => {
       isOpen={isOpen}
       title="Markers Overview"
       onClose={() => closeDialog("markersOverview")}
-      className="overflow-hidden"
+      className="fmg-dialog--table"
     >
       <div id="markersOverviewContainer">
         <div ref={parentRef} id="markersBody" className="table">

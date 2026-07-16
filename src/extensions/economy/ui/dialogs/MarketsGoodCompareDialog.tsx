@@ -57,7 +57,7 @@ export const MarketsGoodCompareDialog: React.FC = () => {
     <Dialog
       isOpen={isOpen}
       title="Compare Good Stock"
-      className="overflow-hidden"
+      className="fmg-dialog--table"
       onClose={() => {
         closeDialog("marketsGoodCompare");
         close();

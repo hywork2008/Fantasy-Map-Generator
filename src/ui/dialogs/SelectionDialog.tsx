@@ -64,7 +64,7 @@ export const SelectionDialog: React.FC<SelectionDialogProps> = ({
     >
       <div>
         <b>Limit {byLabel}:</b>
-        <table>
+        <table className="fmg-table fmg-property-table">
           <tbody>
             {filtered.map(item => (
               <tr key={item.i} title={item.name}>

@@ -150,7 +150,7 @@ export const MarketOverviewDialog: React.FC = () => {
       isOpen={isOpen}
       title="Market Overview"
       onClose={() => closeDialog("marketOverview")}
-      className="overflow-hidden"
+      className="fmg-dialog--table"
     >
       <div id="marketOverviewContainer">
         <div id="marketOverviewNameLine" className="d-flex header">

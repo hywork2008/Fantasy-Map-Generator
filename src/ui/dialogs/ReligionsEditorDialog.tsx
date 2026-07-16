@@ -77,7 +77,7 @@ export const ReligionsEditorDialog: React.FC = () => {
       isOpen={isOpen}
       title="Religions Editor"
       onClose={() => closeDialog("religionsEditor")}
-      className="overflow-hidden"
+      className="fmg-dialog--table"
     >
       <div id="religionsEditor">
         <div

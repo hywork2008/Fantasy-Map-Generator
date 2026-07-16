@@ -18,7 +18,7 @@ export const TradeAnimationDialog: React.FC = () => {
       isOpen={isOpen}
       title="Trade Animation"
       onClose={() => closeDialog("tradeAnimationEditor")}
-      className="overflow-hidden"
+      className="fmg-dialog--table"
     >
       <div id="tradeAnimationContainer">
         {/* Tab bar sits outside .table so it's excluded from virtual scroll */}

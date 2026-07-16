@@ -181,7 +181,7 @@ export const RoutesOverviewDialog: React.FC = () => {
       isOpen={isOpen}
       title="Routes Overview"
       onClose={() => closeDialog("routesOverview")}
-      className="overflow-hidden"
+      className="fmg-dialog--table"
     >
       <div id="routesOverviewContainer">
         <div ref={parentRef} id="routesBody" className="table">

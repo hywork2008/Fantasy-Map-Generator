@@ -50,7 +50,7 @@ export const MarketTradeOpportunitiesDialog: React.FC = () => {
     <Dialog
       isOpen={isOpen}
       title="Trade Opportunities"
-      className="overflow-hidden"
+      className="fmg-dialog--table"
       onClose={() => {
         closeDialog("marketTradeOpportunities");
         close();

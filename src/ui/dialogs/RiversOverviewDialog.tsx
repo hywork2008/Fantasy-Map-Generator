@@ -168,7 +168,7 @@ export const RiversOverviewDialog: React.FC = () => {
       isOpen={isOpen}
       title="Rivers Overview"
       onClose={() => closeDialog("riversOverview")}
-      className="overflow-hidden"
+      className="fmg-dialog--table"
     >
       <div id="riversOverviewContainer">
         <div ref={parentRef} id="riversBody" className="table">

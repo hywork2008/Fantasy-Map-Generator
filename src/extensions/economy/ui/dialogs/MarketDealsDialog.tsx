@@ -24,7 +24,12 @@ export const MarketDealsDialog: React.FC = () => {
   }, [isOpen]);
 
   return (
-    <Dialog isOpen={isOpen} title="Market Deals" onClose={() => closeDialog("marketDeals")} className="overflow-hidden">
+    <Dialog
+      isOpen={isOpen}
+      title="Market Deals"
+      onClose={() => closeDialog("marketDeals")}
+      className="fmg-dialog--table"
+    >
       <div id="marketDealsContainer">
         <div id="marketDealsBody" className="table">
           <table className="fmg-table">

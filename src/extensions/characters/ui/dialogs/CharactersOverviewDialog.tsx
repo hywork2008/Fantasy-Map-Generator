@@ -134,7 +134,7 @@ export const CharactersOverviewDialog: React.FC = () => {
       isOpen={isOpen}
       title="Characters Overview"
       onClose={() => closeDialog("charactersOverview")}
-      className="overflow-hidden"
+      className="fmg-dialog--table"
     >
       <div id="charactersOverviewContainer">
         <div className="tab" style={{ display: "flex", flexShrink: 0 }}>

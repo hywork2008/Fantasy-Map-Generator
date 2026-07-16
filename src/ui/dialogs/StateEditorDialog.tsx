@@ -16,6 +16,7 @@ import { BurgsTable } from "../components/tables/BurgsTable";
 import { ProvincesTable } from "../components/tables/ProvincesTable";
 import { Dialog } from "./Dialog";
 import { closeDialog, openConfirm } from "./dialogService";
+import { TableDialogLayout } from "./TableDialogLayout";
 
 const TABS: { id: StateEditorTab; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -129,25 +130,50 @@ export const StateEditorDialog: React.FC = () => {
       isOpen={isOpen}
       title={`Edit State: ${stateRow.name}`}
       onClose={() => closeDialog("stateEditor")}
-      className="overflow-hidden"
+      className="fmg-dialog--table"
     >
-      <div id="stateEditorContainer">
-        <div className="tab-row d-flex">
-          {TABS.map(tab => (
-            <button
-              key={tab.id}
-              type="button"
-              className={activeTab === tab.id ? "pressed" : ""}
-              onClick={() => setStateEditorState({ activeTab: tab.id })}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
+      <TableDialogLayout
+        className="state-editor-dialog"
+        header={
+          <div className="tab-row d-flex">
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                className={activeTab === tab.id ? "pressed" : ""}
+                onClick={() => setStateEditorState({ activeTab: tab.id })}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        }
+        footer={
+          activeTab === "overview" ? (
+            <>
+              <button
+                type="button"
+                className="icon-target"
+                data-tip="Narrow the map view to only this state"
+                onClick={() => enterFocus("state", stateId)}
+              >
+                Focus this state
+              </button>
+              <button
+                type="button"
+                className="icon-shuffle"
+                data-tip="Regenerate non-capital burgs and redistribute rural population, preserving totals"
+                onClick={handleRegenerate}
+              >
+                Regenerate burgs &amp; population
+              </button>
+            </>
+          ) : undefined
+        }
+      >
         {activeTab === "overview" && (
           <div id="stateEditorOverview">
-            <table>
+            <table className="fmg-table fmg-property-table">
               <tbody>
                 <tr>
                   <th scope="row">Form</th>
@@ -185,22 +211,6 @@ export const StateEditorDialog: React.FC = () => {
                 </tr>
               </tbody>
             </table>
-            <button
-              type="button"
-              className="icon-target"
-              data-tip="Narrow the map view to only this state"
-              onClick={() => enterFocus("state", stateId)}
-            >
-              Focus this state
-            </button>
-            <button
-              type="button"
-              className="icon-shuffle"
-              data-tip="Regenerate non-capital burgs and redistribute rural population, preserving totals"
-              onClick={handleRegenerate}
-            >
-              Regenerate burgs &amp; population
-            </button>
           </div>
         )}
 
@@ -228,7 +238,7 @@ export const StateEditorDialog: React.FC = () => {
             onToggleLock={handleToggleLock}
           />
         )}
-      </div>
+      </TableDialogLayout>
     </Dialog>
   );
 };

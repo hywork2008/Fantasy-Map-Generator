@@ -15,7 +15,7 @@ export const GoodsStockDialog: React.FC = () => {
   const parentRef = useRef<HTMLDivElement>(null);
 
   return (
-    <Dialog isOpen={isOpen} title={`${goodName} — Stock`} onClose={close} className="overflow-hidden">
+    <Dialog isOpen={isOpen} title={`${goodName} — Stock`} onClose={close} className="fmg-dialog--table">
       <div id="goodsStockContainer">
         {sources.length === 0 ? (
           <i>No stock of {goodName} found in any market or burg inventory.</i>

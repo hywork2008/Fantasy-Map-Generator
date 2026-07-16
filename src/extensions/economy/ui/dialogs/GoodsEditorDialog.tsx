@@ -70,7 +70,7 @@ export const GoodsEditorDialog: React.FC = () => {
   const parentRef = React.useRef<HTMLDivElement>(null);
 
   return (
-    <Dialog isOpen={isOpen} title="Goods Editor" onClose={handleClose} className="overflow-hidden">
+    <Dialog isOpen={isOpen} title="Goods Editor" onClose={handleClose} className="fmg-dialog--table">
       <div id="goodsEditorContainer">
         <div ref={parentRef} id="goodsBody" className="table" data-type={isPercentageMode ? "percentage" : "absolute"}>
           <table className="fmg-table">

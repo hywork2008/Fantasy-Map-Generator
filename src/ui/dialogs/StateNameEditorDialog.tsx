@@ -39,7 +39,7 @@ export const StateNameEditorDialog: React.FC = () => {
       ]}
     >
       <div id="stateNameEditorContainer">
-        <table>
+        <table className="fmg-table fmg-property-table">
           <tbody>
             <tr>
               <th scope="row">

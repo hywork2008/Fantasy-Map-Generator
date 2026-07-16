@@ -34,7 +34,7 @@ export const ProvincesEditorDialog: React.FC = () => {
       isOpen={isOpen}
       title="Provinces Editor"
       onClose={() => closeDialog("provincesEditor")}
-      className="overflow-hidden"
+      className="fmg-dialog--table"
     >
       <div id="provincesEditorContainer">
         <ProvincesTable

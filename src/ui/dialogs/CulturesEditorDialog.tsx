@@ -116,7 +116,7 @@ export const CulturesEditorDialog: React.FC = () => {
       isOpen={isOpen}
       title="Cultures Editor"
       onClose={() => closeDialog("culturesEditor")}
-      className="overflow-hidden"
+      className="fmg-dialog--table"
     >
       <div id="culturesEditor">
         <div

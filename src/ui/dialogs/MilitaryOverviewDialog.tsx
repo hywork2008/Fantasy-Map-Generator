@@ -171,7 +171,7 @@ export const MilitaryOverviewDialog: React.FC = () => {
       isOpen={isOpen}
       title="Military Overview"
       onClose={() => closeDialog("militaryOverview")}
-      className="overflow-hidden"
+      className="fmg-dialog--table"
     >
       <div id="militaryOverviewContainer">
         <div ref={parentRef} id="militaryBody" className="table" data-type={percentageMode ? "percentage" : "absolute"}>

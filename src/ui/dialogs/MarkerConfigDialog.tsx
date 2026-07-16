@@ -95,7 +95,7 @@ export const MarkerConfigDialog: React.FC = () => {
         { label: "Close", onClick: handleClose }
       ]}
     >
-      <table className="table">
+      <table className="fmg-table">
         <thead>
           <tr>
             <td data-tip="Marker type name">Type</td>

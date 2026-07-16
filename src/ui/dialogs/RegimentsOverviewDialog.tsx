@@ -171,7 +171,7 @@ export const RegimentsOverviewDialog: React.FC = () => {
     <Dialog
       isOpen={isOpen}
       title="Regiments Overview"
-      className="overflow-hidden"
+      className="fmg-dialog--table"
       onClose={() => closeDialog("regimentsOverview")}
     >
       <div id="regimentsOverviewContainer">

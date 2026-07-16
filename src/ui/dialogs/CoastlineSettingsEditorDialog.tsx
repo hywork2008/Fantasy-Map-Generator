@@ -54,7 +54,7 @@ export const CoastlineSettingsEditorContent: React.FC = () => {
         </div>
       </div>
       <div style={{ opacity: enabled ? 1 : 0.4, pointerEvents: enabled ? "auto" : "none" }}>
-        <table>
+        <table className="fmg-table fmg-property-table">
           <tbody>
             {SLIDER_DEFS.map(({ id, label, tip, min, max, step, key }) => {
               const value = settings[key];

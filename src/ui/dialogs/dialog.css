@@ -283,6 +283,15 @@
   }
 }
 
+.fmg-property-table {
+  width: 100%;
+}
+
+.character-details__table {
+  margin-bottom: 10px;
+  text-align: left;
+}
+
 #burgsOverviewContainer {
   table {
 
