@@ -1,5 +1,6 @@
 export const WEBGL_MANAGED_SVG_LAYER_IDS = [
   "oceanLayers",
+  "enclosure",
   "landmass",
   "terrs",
   "lakes",
@@ -48,7 +49,6 @@ export const HYBRID_SVG_OVERLAY_LAYER_IDS = [
   "ruler",
   "legend",
   "debug",
-  "enclosure",
   "fogging"
 ] as const;
 

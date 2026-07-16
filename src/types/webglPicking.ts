@@ -13,6 +13,7 @@ export type WebglPickKind =
   | "precipitation"
   | "danger"
   | "combatDeaths"
+  | "enclosure"
   | "lake"
   | "coastline"
   | "ice"

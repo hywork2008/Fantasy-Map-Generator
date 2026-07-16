@@ -38,6 +38,7 @@ import {
   buildDangerPolygons,
   buildDivisionBoundaryPaths,
   buildEmblemIcons,
+  buildEnclosurePolygons,
   buildFrontierFortSymbols,
   buildGridPaths,
   buildHeightPolygons,
@@ -299,7 +300,8 @@ export const WEBGL_LAYER_TOGGLES = new Set([
   "toggleMarkers",
   "toggleMilitary",
   "toggleFrontierForts",
-  "toggleLabels"
+  "toggleLabels",
+  "toggleEnclosure"
 ]);
 
 const EMBLEM_ICON_URL = `data:image/svg+xml,${encodeURIComponent(
@@ -424,6 +426,21 @@ export function buildDeckLayers(
             getPolygon: datum => datum.polygon,
             getFillColor: datum => datum.fillColor,
             operation: "mask",
+            pickable: false
+          })
+        ]
+      : []),
+    // Above the sea, below the landmass/coastline drawn just below — matches the SVG stacking.
+    ...(activeLayers.toggleEnclosure
+      ? [
+          new SolidPolygonLayer<DeckCellPolygon>({
+            id: "fmg-webgl-enclosure",
+            data: getCachedDeckData("enclosure", signatures.byLayer.enclosure, () =>
+              buildEnclosurePolygons(worldContext, viewContext.focusScope)
+            ),
+            coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+            getPolygon: datum => datum.polygon,
+            getFillColor: datum => datum.fillColor,
             pickable: false
           })
         ]
@@ -1312,6 +1329,7 @@ function buildLayerSignatures(
     }
     return parts;
   });
+  setIfActive("enclosure", "toggleEnclosure", () => `${geometry()}|${numberListSignature(pack.cells?.enclosure)}`);
   setIfActive(
     "lakes",
     "toggleLakes",

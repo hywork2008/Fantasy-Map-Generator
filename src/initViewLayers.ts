@@ -33,6 +33,13 @@ export function createViewLayers(): void {
   const ocean = viewbox.append("g").attr("id", "ocean") as Selection<SVGGElement, unknown, null, undefined>;
   const oceanLayers = ocean.append("g").attr("id", "oceanLayers") as Selection<SVGGElement, unknown, null, undefined>;
   const oceanPattern = ocean.append("g").attr("id", "oceanPattern") as Selection<SVGGElement, unknown, null, undefined>;
+  // Above the sea, below the landmass/coastline that gets drawn over it.
+  const enclosure = viewbox.append("g").attr("id", "enclosure").style("display", "none") as Selection<
+    SVGGElement,
+    unknown,
+    null,
+    undefined
+  >;
   const landmass = viewbox.append("g").attr("id", "landmass") as Selection<SVGGElement, unknown, null, undefined>;
   const texture = viewbox.append("g").attr("id", "texture") as Selection<SVGGElement, unknown, null, undefined>;
   const terrs = viewbox.append("g").attr("id", "terrs") as Selection<SVGGElement, unknown, null, undefined>;
@@ -130,12 +137,6 @@ export function createViewLayers(): void {
     undefined
   >;
   const debug = viewbox.append("g").attr("id", "debug") as Selection<SVGGElement, unknown, null, undefined>;
-  const enclosure = viewbox.append("g").attr("id", "enclosure").style("display", "none") as Selection<
-    SVGGElement,
-    unknown,
-    null,
-    undefined
-  >;
 
   lakes.append("g").attr("id", "freshwater");
   lakes.append("g").attr("id", "salt");
@@ -285,6 +286,26 @@ export function reinitializeMapLayers(): void {
   const oceanPattern = ocean.select("#oceanPattern") as Selection<SVGGElement, unknown, null, undefined>;
   const lakes = viewbox.select("#lakes") as Selection<SVGGElement, unknown, null, undefined>;
   const landmass = viewbox.select("#landmass") as Selection<SVGGElement, unknown, null, undefined>;
+  // Above the sea, below the landmass/coastline. Pin it there even for sessions where it was
+  // previously created elsewhere in the stack (e.g. maps saved before this ordering was fixed).
+  let enclosure = viewbox.select("#enclosure") as Selection<SVGGElement, unknown, null, undefined>;
+  const landmassNode = landmass.node();
+  if (!enclosure.size()) {
+    const node = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    node.id = "enclosure";
+    node.style.display = "none";
+    if (landmassNode?.parentNode) {
+      landmassNode.parentNode.insertBefore(node, landmassNode);
+    } else {
+      viewbox.node()?.appendChild(node);
+    }
+    enclosure = d3.select(node) as Selection<SVGGElement, unknown, null, undefined>;
+  } else {
+    const enclosureNode = enclosure.node();
+    if (enclosureNode && landmassNode?.parentNode && enclosureNode.nextSibling !== landmassNode) {
+      landmassNode.parentNode.insertBefore(enclosureNode, landmassNode);
+    }
+  }
   const texture = viewbox.select("#texture") as Selection<SVGGElement, unknown, null, undefined>;
   const terrs = viewbox.select("#terrs") as Selection<SVGGElement, unknown, null, undefined>;
   const biomes = viewbox.select("#biomes") as Selection<SVGGElement, unknown, null, undefined>;
@@ -356,16 +377,6 @@ export function reinitializeMapLayers(): void {
   const ruler = viewbox.select("#ruler") as Selection<SVGGElement, unknown, null, undefined>;
   const fogging = viewbox.select("#fogging") as Selection<SVGGElement, unknown, null, undefined>;
   const debug = viewbox.select("#debug") as Selection<SVGGElement, unknown, null, undefined>;
-  // Maps saved before this layer existed won't have #enclosure — append it so old saves gain it too.
-  let enclosure = viewbox.select("#enclosure") as Selection<SVGGElement, unknown, null, undefined>;
-  if (!enclosure.size()) {
-    enclosure = viewbox.append("g").attr("id", "enclosure").style("display", "none") as Selection<
-      SVGGElement,
-      unknown,
-      null,
-      undefined
-    >;
-  }
   const burgLabels = labels.select("#burgLabels") as Selection<SVGGElement, unknown, null, undefined>;
 
   Object.assign(viewContext, {

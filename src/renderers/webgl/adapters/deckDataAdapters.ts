@@ -3,6 +3,7 @@ import {
   forceCollide,
   forceSimulation,
   interpolateMagma,
+  interpolateRdYlGn,
   interpolateSpectral,
   interpolateYlOrRd,
   color as parseColor
@@ -27,7 +28,7 @@ import type {
 } from "../../../types/models";
 import type { PackedGraphCells, PackedGraphVertices } from "../../../types/PackedGraph";
 import type { WebglPickKind } from "../../../types/webglPicking";
-import { clipPoly } from "../../../utils";
+import { clipPoly, isWater } from "../../../utils";
 import { getColor, getColorScheme } from "../../../utils/colorUtils";
 import { type RelationKey, relations } from "../../../utils/diplomacyRelations";
 import { fractalizeCoastline, sampleCatmullRomPolyline, sampleCoastlineShape } from "../../coastline-fractal";
@@ -687,6 +688,32 @@ export function buildCombatDeathsPolygons(
     },
     cellId => (byCell.get(cellId) ?? 0) > 0
   ).filter(polygon => (polygon.fillColor[3] ?? 255) > 0);
+}
+
+/**
+ * Inland-sea/enclosure heatmap (pack.cells.enclosure). Every water cell gets a polygon —
+ * unlike danger/combatDeaths, a score of 0 is a real "open ocean" reading, not "nothing here",
+ * so it is not filtered out. Matches EnclosureRenderer's SVG choropleth (same color scale).
+ */
+export function buildEnclosurePolygons(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  maxOpacity = 0.75
+): DeckCellPolygon[] {
+  const { pack } = worldContext;
+  const { cells } = pack;
+  if (!cells?.i || !cells.enclosure) return [];
+
+  return buildCellPolygons(
+    worldContext,
+    focusScope,
+    "enclosure",
+    cellId => {
+      const hexColor = interpolateRdYlGn((cells.enclosure[cellId] as number) / 100);
+      return colorToRgba(hexColor, "#999999", maxOpacity);
+    },
+    cellId => isWater(cellId, pack)
+  );
 }
 
 export function buildPopulationPolygons(

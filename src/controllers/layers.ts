@@ -631,8 +631,10 @@ export function toggleCombatDeaths(event?: MouseEvent): void {
   }
 }
 
-/** Inland-sea/enclosure heatmap (pack.cells.enclosure) — always an SVG overlay, no WebGL layer. */
-export function toggleEnclosure(_event?: MouseEvent): void {
+/** Inland-sea/enclosure heatmap (pack.cells.enclosure) — WebGL-managed in hybrid; SVG otherwise. */
+export function toggleEnclosure(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleEnclosure", "enclosure", event)) return;
+
   if (!layerIsOn("toggleEnclosure")) {
     turnButtonOn("toggleEnclosure");
     setLayerVisibility("toggleEnclosure", true);
