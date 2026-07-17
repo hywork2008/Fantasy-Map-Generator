@@ -958,6 +958,10 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     bindSimulationBurgState(worldContext, simulationContext);
     bindSimulationStateState(worldContext, simulationContext);
     bindSimulationMilitaryState(worldContext, simulationContext);
+    // reGraph() rebinds pack/cells-level extension fields before pack.burgs/pack.states
+    // exist; rebind here too so entity-level accessors (production, rulerId, ...) attach
+    // to the burg/state objects Burgs.generate()/States.generate() just created.
+    bindExtensionStateSlices(worldContext, simulationContext);
     document.dispatchEvent(new CustomEvent("fmg:generate-post-core"));
 
     if (import.meta.env.DEV) {

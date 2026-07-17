@@ -89,7 +89,8 @@ function getLegacyTarget(
 }
 
 function getEntities(world: WorldContext, target: ExtensionEntitySliceDefinition["legacyTarget"]): unknown[] {
-  return target === "burgs" ? world.pack.burgs : world.pack.states;
+  const entities = target === "burgs" ? world.pack.burgs : world.pack.states;
+  return entities ?? [];
 }
 
 function getEntityId(entity: Record<string, unknown>, index: number): number | null {
