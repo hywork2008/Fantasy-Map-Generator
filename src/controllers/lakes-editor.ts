@@ -1,4 +1,4 @@
-import { type D3DragEvent, drag, mean, min, polygonArea, polygonLength, type Selection, select } from "d3";
+import { type D3DragEvent, drag, mean, min, polygonLength, type Selection, select } from "d3";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -15,7 +15,7 @@ import {
   StatesRenderer
 } from "../renderers";
 import { getFeaturePath } from "../renderers/index";
-import { patchFeature } from "../runtime/worldRuntime";
+import { moveFeatureVertex, patchFeature } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -155,15 +155,11 @@ function handleVertexDrag(this: SVGCircleElement, event: D3DragEvent<SVGCircleEl
   this.setAttribute("cy", String(y));
 
   const vertexId = select(this).datum() as number;
-  worldContext.pack.vertices.p[vertexId] = [x, y];
-
   const feature = getLake();
+  if (!moveFeatureVertex({ featureId: feature.i, vertexId, x, y })) return;
   view.defs
     .select(`#featurePaths > path#feature_${feature.i}`)
     .attr("d", getFeaturePath(worldContext, viewContext, appServices, feature));
-
-  const points = feature.vertices!.map((vertex: number) => worldContext.pack.vertices.p[vertex]);
-  feature.area = Math.abs(polygonArea(points));
 
   // Update Zustand state
   getLakeEditorState().updateLakeData({ area: getArea(feature.area!) });

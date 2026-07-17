@@ -333,6 +333,16 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
         }
       }
     });
+    const replaceCommit = await runtime.dispatch({
+      type: "route.replacePoints",
+      payload: {
+        routeId: 2,
+        points: [
+          [0, 0, 0],
+          [2, 2, 2]
+        ]
+      }
+    });
     const removeCommit = await runtime.dispatch({ type: "route.remove", payload: { routeId: 1 } });
 
     expect(world.pack.routes).toEqual([
@@ -341,14 +351,15 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
         group: "trails",
         feature: 0,
         points: [
-          [1, 1, 1],
+          [0, 0, 0],
           [2, 2, 2]
         ]
       }
     ]);
-    expect(world.pack.cells.routes).toEqual({ 0: {}, 1: { 2: 2 }, 2: { 1: 2 } });
+    expect(world.pack.cells.routes).toEqual({ 0: { 2: 2 }, 1: {}, 2: { 0: 2 } });
     expect(patchCommit?.changes.changes).toEqual([{ topic: "map.networks", kind: "replace" }]);
     expect(createCommit?.changes.changes).toEqual([{ topic: "map.networks", kind: "replace" }]);
+    expect(replaceCommit?.changes.changes).toEqual([{ topic: "map.networks", kind: "replace" }]);
     expect(removeCommit?.changes.changes).toEqual([{ topic: "map.networks", kind: "replace" }]);
   });
 
@@ -378,6 +389,47 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     expect(commit?.changes.changes).toEqual([{ topic: "map.networks", kind: "replace" }]);
   });
 
+  it("replaces river geometry and synchronizes river cell ownership", async () => {
+    const world = {
+      pack: {
+        rivers: [
+          {
+            i: 1,
+            cells: [0, 1],
+            points: [
+              [0, 0],
+              [1, 1]
+            ]
+          }
+        ],
+        cells: { i: new Uint16Array([0, 1, 2]), r: new Uint16Array([1, 1, 0]) }
+      }
+    } as unknown as WorldContext;
+    const runtime = createWorldRuntime(world, {} as SimulationContext);
+
+    const commit = await runtime.dispatch({
+      type: "river.replaceGeometry",
+      payload: {
+        riverId: 1,
+        points: [
+          [1, 1],
+          [2, 2]
+        ],
+        cellIds: [1, 2]
+      }
+    });
+
+    expect(world.pack.rivers[0]).toMatchObject({
+      cells: [1, 2],
+      points: [
+        [1, 1],
+        [2, 2]
+      ]
+    });
+    expect(world.pack.cells.r).toEqual(new Uint16Array([0, 1, 1]));
+    expect(commit?.changes.changes).toEqual([{ topic: "map.networks", kind: "replace" }]);
+  });
+
   it("patches persisted lake or coastline feature metadata", async () => {
     const world = { pack: { features: [{}, { i: 1, name: "Old", group: "freshwater" }] } } as unknown as WorldContext;
     const runtime = createWorldRuntime(world, {} as SimulationContext);
@@ -388,6 +440,31 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     });
 
     expect(world.pack.features[1]).toMatchObject({ name: "Moon Lake", group: "sacred" });
+    expect(commit?.changes.changes).toEqual([{ topic: "map.topology", kind: "replace" }]);
+  });
+
+  it("moves a feature vertex and updates the canonical feature area", async () => {
+    const world = {
+      pack: {
+        features: [{}, { i: 1, vertices: [0, 1, 2], area: 0 }],
+        vertices: {
+          p: [
+            [0, 0],
+            [2, 0],
+            [0, 2]
+          ]
+        }
+      }
+    } as unknown as WorldContext;
+    const runtime = createWorldRuntime(world, {} as SimulationContext);
+
+    const commit = await runtime.dispatch({
+      type: "feature.vertexMove",
+      payload: { featureId: 1, vertexId: 2, x: 0, y: 3 }
+    });
+
+    expect(world.pack.vertices.p[2]).toEqual([0, 3]);
+    expect(world.pack.features[1].area).toBe(3);
     expect(commit?.changes.changes).toEqual([{ topic: "map.topology", kind: "replace" }]);
   });
 

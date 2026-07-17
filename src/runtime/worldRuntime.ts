@@ -229,6 +229,16 @@ export interface RemoveRouteCommand {
   readonly payload: RemoveRouteRequest;
 }
 
+export interface ReplaceRoutePointsRequest {
+  readonly routeId: number;
+  readonly points: readonly (readonly [number, number, number])[];
+}
+
+export interface ReplaceRoutePointsCommand {
+  readonly type: "route.replacePoints";
+  readonly payload: ReplaceRoutePointsRequest;
+}
+
 export interface RiverPatchRequest {
   readonly riverId: number;
   readonly name?: string;
@@ -243,6 +253,17 @@ export interface PatchRiverCommand {
   readonly payload: RiverPatchRequest;
 }
 
+export interface ReplaceRiverGeometryRequest {
+  readonly riverId: number;
+  readonly points: readonly (readonly [number, number])[];
+  readonly cellIds: readonly number[];
+}
+
+export interface ReplaceRiverGeometryCommand {
+  readonly type: "river.replaceGeometry";
+  readonly payload: ReplaceRiverGeometryRequest;
+}
+
 export interface FeaturePatchRequest {
   readonly featureId: number;
   readonly name?: string;
@@ -252,6 +273,18 @@ export interface FeaturePatchRequest {
 export interface PatchFeatureCommand {
   readonly type: "feature.patch";
   readonly payload: FeaturePatchRequest;
+}
+
+export interface MoveFeatureVertexRequest {
+  readonly featureId: number;
+  readonly vertexId: number;
+  readonly x: number;
+  readonly y: number;
+}
+
+export interface MoveFeatureVertexCommand {
+  readonly type: "feature.vertexMove";
+  readonly payload: MoveFeatureVertexRequest;
 }
 
 export interface PresentationPatchCommand {
@@ -270,8 +303,11 @@ export type WorldCommand<T> =
   | PatchRouteCommand
   | CreateRouteCommand
   | RemoveRouteCommand
+  | ReplaceRoutePointsCommand
   | PatchRiverCommand
+  | ReplaceRiverGeometryCommand
   | PatchFeatureCommand
+  | MoveFeatureVertexCommand
   | PresentationPatchCommand;
 
 export interface WorldRuntime {
@@ -442,12 +478,24 @@ class LegacyWorldRuntime implements WorldRuntime {
       return this.removeRoute(command.payload) as LegacyMutationOutcome<T>;
     }
 
+    if (command.type === "route.replacePoints") {
+      return this.replaceRoutePoints(command.payload) as LegacyMutationOutcome<T>;
+    }
+
     if (command.type === "river.patch") {
       return this.patchRiver(command.payload) as LegacyMutationOutcome<T>;
     }
 
+    if (command.type === "river.replaceGeometry") {
+      return this.replaceRiverGeometry(command.payload) as LegacyMutationOutcome<T>;
+    }
+
     if (command.type === "feature.patch") {
       return this.patchFeature(command.payload) as LegacyMutationOutcome<T>;
+    }
+
+    if (command.type === "feature.vertexMove") {
+      return this.moveFeatureVertex(command.payload) as LegacyMutationOutcome<T>;
     }
 
     const { stateId, regimentId, x, y } = command.payload;
@@ -768,6 +816,23 @@ class LegacyWorldRuntime implements WorldRuntime {
     return { result: undefined, topics: ["map.networks"] };
   }
 
+  private replaceRoutePoints(request: ReplaceRoutePointsRequest): LegacyMutationOutcome<void> {
+    const route = this.findRoute(request.routeId);
+    const updated = { ...route, points: request.points.map(point => [...point] as [number, number, number]) };
+    this.assertRoutePoints(updated);
+    const unchanged =
+      route.points.length === updated.points.length &&
+      route.points.every((point, index) =>
+        point.every((coordinate, coordinateIndex) => coordinate === updated.points[index][coordinateIndex])
+      );
+    if (unchanged) return { result: undefined, topics: [] };
+
+    this.disconnectRoute(route.i);
+    route.points = updated.points;
+    this.connectRoute(route);
+    return { result: undefined, topics: ["map.networks"] };
+  }
+
   private findRoute(routeId: number): Route {
     if (!Number.isInteger(routeId)) throw new Error(`route command received invalid route ${routeId}`);
     const route = this.world.pack.routes.find(candidate => candidate.i === routeId);
@@ -859,6 +924,41 @@ class LegacyWorldRuntime implements WorldRuntime {
     return river;
   }
 
+  private replaceRiverGeometry(request: ReplaceRiverGeometryRequest): LegacyMutationOutcome<void> {
+    const river = this.findRiver(request.riverId);
+    if (request.points.length < 2 || request.points.length !== request.cellIds.length) {
+      throw new Error("river.replaceGeometry requires matching point and cell lists with at least two entries");
+    }
+    const cellCount = this.world.pack.cells.i.length;
+    for (const [index, point] of request.points.entries()) {
+      if (!Number.isFinite(point[0]) || !Number.isFinite(point[1])) {
+        throw new Error("river.replaceGeometry requires finite point coordinates");
+      }
+      const cellId = request.cellIds[index];
+      if (!Number.isInteger(cellId) || cellId < 0 || cellId >= cellCount) {
+        throw new Error(`river.replaceGeometry received invalid cell ${cellId}`);
+      }
+    }
+    const points = request.points.map(point => [...point] as [number, number]);
+    const cellIds = [...request.cellIds];
+    const unchanged =
+      river.points?.length === points.length &&
+      river.points.every((point, index) => point[0] === points[index][0] && point[1] === points[index][1]) &&
+      river.cells.length === cellIds.length &&
+      river.cells.every((cellId, index) => cellId === cellIds[index]);
+    if (unchanged) return { result: undefined, topics: [] };
+
+    const previousCells = new Set(river.cells);
+    const nextCells = new Set(cellIds);
+    for (const cellId of previousCells) {
+      if (!nextCells.has(cellId) && this.world.pack.cells.r[cellId] === river.i) this.world.pack.cells.r[cellId] = 0;
+    }
+    for (const cellId of nextCells) this.world.pack.cells.r[cellId] = river.i;
+    river.points = points;
+    river.cells = cellIds;
+    return { result: undefined, topics: ["map.networks"] };
+  }
+
   private patchFeature(request: FeaturePatchRequest): LegacyMutationOutcome<void> {
     if (!Number.isInteger(request.featureId)) {
       throw new Error(`feature command received invalid feature ${request.featureId}`);
@@ -876,6 +976,36 @@ class LegacyWorldRuntime implements WorldRuntime {
       changed = true;
     }
     return { result: undefined, topics: changed ? ["map.topology"] : [] };
+  }
+
+  private moveFeatureVertex(request: MoveFeatureVertexRequest): LegacyMutationOutcome<void> {
+    const { featureId, vertexId, x, y } = request;
+    if (!Number.isInteger(vertexId) || !Number.isFinite(x) || !Number.isFinite(y)) {
+      throw new Error("feature.vertexMove requires a vertex id and finite coordinates");
+    }
+    const feature = this.world.pack.features[featureId];
+    if (!feature?.vertices?.includes(vertexId)) {
+      throw new Error(`feature.vertexMove could not find vertex ${vertexId} on feature ${featureId}`);
+    }
+    if (!this.world.pack.vertices.p[vertexId]) {
+      throw new Error(`feature.vertexMove could not find vertex ${vertexId}`);
+    }
+    const current = this.world.pack.vertices.p[vertexId];
+    if (current[0] === x && current[1] === y) return { result: undefined, topics: [] };
+
+    this.world.pack.vertices.p[vertexId] = [x, y];
+    feature.area = Math.abs(this.polygonArea(feature.vertices.map(id => this.world.pack.vertices.p[id])));
+    return { result: undefined, topics: ["map.topology"] };
+  }
+
+  private polygonArea(points: readonly (readonly [number, number])[]): number {
+    let area = 0;
+    for (let index = 0; index < points.length; index++) {
+      const [x1, y1] = points[index];
+      const [x2, y2] = points[(index + 1) % points.length];
+      area += x1 * y2 - x2 * y1;
+    }
+    return area / 2;
   }
 }
 
@@ -944,14 +1074,29 @@ export function removeRouteCommand(request: RemoveRouteRequest): WorldCommit<voi
   return (worldRuntime as LegacyWorldRuntime).execute({ type: "route.remove", payload: request });
 }
 
+/** Phase 5 command for route control-point edits. */
+export function replaceRoutePoints(request: ReplaceRoutePointsRequest): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "route.replacePoints", payload: request });
+}
+
 /** Phase 5 command for river metadata and width changes. */
 export function patchRiver(request: RiverPatchRequest): WorldCommit<void> | null {
   return (worldRuntime as LegacyWorldRuntime).execute({ type: "river.patch", payload: request });
 }
 
+/** Phase 5 command for river control-point geometry edits. */
+export function replaceRiverGeometry(request: ReplaceRiverGeometryRequest): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "river.replaceGeometry", payload: request });
+}
+
 /** Phase 5 command for persisted lake / coastline feature metadata. */
 export function patchFeature(request: FeaturePatchRequest): WorldCommit<void> | null {
   return (worldRuntime as LegacyWorldRuntime).execute({ type: "feature.patch", payload: request });
+}
+
+/** Phase 5 command for lake / coastline vertex geometry edits. */
+export function moveFeatureVertex(request: MoveFeatureVertexRequest): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "feature.vertexMove", payload: request });
 }
 
 /** Phase 3 command for persisted style and layer-visibility changes. */

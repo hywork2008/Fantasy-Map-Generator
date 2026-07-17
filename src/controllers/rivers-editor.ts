@@ -2,7 +2,7 @@ import { curveCatmullRom, type D3DragEvent, drag, pointer, select } from "d3";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { removeRivers } from "../renderers/draw-rivers";
-import { patchRiver } from "../runtime/worldRuntime";
+import { patchRiver, replaceRiverGeometry } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -10,7 +10,6 @@ import { dialogStore } from "../store/dialogState";
 import { elSelected, setElSelected } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import type { River } from "../types/models";
-import type { TypedArray } from "../types/PackedGraph";
 import { closeDialog, closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, getSegmentId, rand, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
@@ -24,11 +23,6 @@ import { editStyle } from "./style";
 
 let worldContext: WorldContext;
 let cellsWasForced = false;
-
-let _rInitCell = 0;
-let _rMovedToCell: number | null = null;
-let _rRiver: River | null = null;
-let _rFlCells: TypedArray | null = null;
 
 function getRiver(): River | null {
   if (!elSelected) return null;
@@ -93,12 +87,7 @@ function drawControlPoints(pts: [number, number][]): void {
     .attr("cx", d => d[0])
     .attr("cy", d => d[1])
     .attr("r", 0.6)
-    .call(
-      drag<SVGCircleElement, [number, number]>()
-        .on("start", dragControlPointStart)
-        .on("drag", dragControlPointDrag)
-        .on("end", dragControlPointEnd)
-    )
+    .call(drag<SVGCircleElement, [number, number]>().on("drag", dragControlPointDrag))
     .on("click", removeControlPoint);
 }
 
@@ -112,47 +101,25 @@ function drawRiverCells(cellList: number[]): void {
     .attr("points", (d: number) => getPackPolygon(d, worldContext.pack).join(" "));
 }
 
-function dragControlPointStart(
-  this: SVGCircleElement,
-  event: D3DragEvent<SVGCircleElement, [number, number], unknown>
-): void {
-  _rRiver = getRiver();
-  _rFlCells = worldContext.pack.cells.fl;
-  _rInitCell = findCell(event.x, event.y);
-  _rMovedToCell = null;
-}
-
 function dragControlPointDrag(
   this: SVGCircleElement,
   event: D3DragEvent<SVGCircleElement, [number, number], unknown>
 ): void {
   const { x, y } = event;
-  const currentCell = findCell(x, y);
-  _rMovedToCell = _rInitCell !== currentCell ? currentCell : null;
   this.setAttribute("cx", String(x));
   this.setAttribute("cy", String(y));
   select(this).datum([rn(x, 1), rn(y, 1)] as [number, number]);
   redrawRiver();
-  drawRiverCells(_rRiver!.cells);
-}
-
-function dragControlPointEnd(this: SVGCircleElement): void {
-  const { r } = worldContext.pack.cells;
-  if (_rMovedToCell !== null && !r[_rMovedToCell]) {
-    r[_rInitCell] = 0;
-    r[_rMovedToCell] = _rRiver!.i;
-    const sourceFlux = _rFlCells![_rInitCell];
-    _rFlCells![_rInitCell] = _rFlCells![_rMovedToCell];
-    _rFlCells![_rMovedToCell] = sourceFlux;
-    redrawRiver();
-  }
+  const river = getRiver();
+  if (river) drawRiverCells(river.cells);
 }
 
 function redrawRiver(): void {
   const river = getRiver();
   if (!river) return;
-  river.points = view.debug.selectAll("#controlPoints > *").data() as [number, number][];
-  river.cells = river.points.map(([x, y]) => findCell(x, y));
+  const points = view.debug.selectAll("#controlPoints > *").data() as [number, number][];
+  const cellIds = points.map(([x, y]) => findCell(x, y));
+  replaceRiverGeometry({ riverId: river.i, points, cellIds });
 
   view.lineGen.curve(curveCatmullRom.alpha(0.1));
   const meanderedPoints = GenerationPipeline.Rivers.addMeandering(river.cells, river.points);
@@ -171,11 +138,13 @@ function addControlPoint(this: SVGPathElement, event: MouseEvent): void {
 
   const river = getRiver();
   if (!river) return;
-  if (!river.points) river.points = view.debug.selectAll("#controlPoints > *").data() as [number, number][];
+  const points = river.points ?? (view.debug.selectAll("#controlPoints > *").data() as [number, number][]);
 
-  const index = getSegmentId(river.points, point, 2);
-  river.points.splice(index, 0, point);
-  drawControlPoints(river.points);
+  const index = getSegmentId(points, point, 2);
+  const updatedPoints = [...points.slice(0, index), point, ...points.slice(index)];
+  const cellIds = updatedPoints.map(([x, y]) => findCell(x, y));
+  if (!replaceRiverGeometry({ riverId: river.i, points: updatedPoints, cellIds })) return;
+  drawControlPoints(river.points as [number, number][]);
   redrawRiver();
 }
 

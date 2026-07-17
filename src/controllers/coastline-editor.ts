@@ -1,5 +1,5 @@
 import Alea from "alea";
-import { drag, polygonArea, select } from "d3";
+import { drag, select } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
@@ -22,7 +22,7 @@ import {
   PROFILE_SIZE
 } from "../renderers/coastline-fractal";
 import { getFeaturePath } from "../renderers/index";
-import { patchFeature } from "../runtime/worldRuntime";
+import { moveFeatureVertex, patchFeature } from "../runtime/worldRuntime";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { elSelected, modules, setElSelected } from "../store/editorState";
@@ -241,23 +241,20 @@ function handleVertexDrag(
   this: SVGCircleElement,
   dragEvent: import("d3").D3DragEvent<SVGCircleElement, unknown, unknown>
 ): void {
-  const { vertices, features } = worldContext.pack;
+  const { features } = worldContext.pack;
   const x = rn(dragEvent.x, 2);
   const y = rn(dragEvent.y, 2);
   this.setAttribute("cx", String(x));
   this.setAttribute("cy", String(y));
 
   const vertexId = select(this).datum() as number;
-  vertices.p[vertexId] = [x, y];
-
   const featureId = +elSelected!.attr("data-f");
   const feature = features[featureId];
+  if (!moveFeatureVertex({ featureId, vertexId, x, y })) return;
   view.defs
     .select(`#featurePaths > path#feature_${featureId}`)
     .attr("d", getFeaturePath(worldContext, viewContext, appServices, feature));
 
-  const points = (feature.vertices as number[]).map((v: number) => vertices.p[v]);
-  feature.area = Math.abs(polygonArea(points as [number, number][]));
   updateCoastlineFeatureData();
 
   view.debug
