@@ -1,6 +1,7 @@
 import { color, interpolateString, pointer } from "d3";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
+import { simulationContext } from "../context/simulationContext";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
@@ -85,10 +86,16 @@ export function editDiplomacy(): void {
     }
 
     const rowData: DiplomacyRowData[] = [];
+    const hasPlayerConflictAuthorization = (subjectId: number, objectId: number): boolean => {
+      const values = simulationContext.extensions.nobility?.conflictAuthorizationsByState;
+      if (typeof values !== "object" || values === null || Array.isArray(values)) return false;
+      const subject = (values as Record<number, unknown>)[subjectId];
+      return typeof subject === "object" && subject !== null && objectId in subject;
+    };
     const getConflictStatus = (subjectId: number, objectId: number, relation: string): ConflictStatus => {
       if (relation !== "Enemy") return "none";
       if (worldContext.options.conflictAutonomy !== "playerDirected") return "autonomous";
-      return worldContext.pack.states[subjectId].conflictAuthorizations?.[objectId] ? "player" : "suspended";
+      return hasPlayerConflictAuthorization(subjectId, objectId) ? "player" : "suspended";
     };
 
     // Self Row

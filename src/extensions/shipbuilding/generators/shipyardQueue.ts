@@ -160,6 +160,11 @@ function mergeAnnualMaterials(a: ShipbuildingMaterials, b: ShipbuildingMaterials
   return merged;
 }
 
+function getRulerId(state: State | undefined): number | undefined {
+  const rulerId = (state as unknown as Record<string, unknown> | undefined)?.rulerId;
+  return typeof rulerId === "number" ? rulerId : undefined;
+}
+
 /**
  * A state's naval architecture research pace is boosted by its ruler's Engineering
  * skill (Nobility extension, if enabled) — read via the generic skill-modifier
@@ -171,7 +176,7 @@ function getEngineeringMultiplier(
   states: readonly State[],
   getEffectiveSkill: GetEffectiveSkillFn
 ): number {
-  const rulerId = states[stateId]?.rulerId;
+  const rulerId = getRulerId(states[stateId]);
   if (!rulerId) return 1;
   return 1 + getEffectiveSkill(rulerId, "engineering") / 100;
 }

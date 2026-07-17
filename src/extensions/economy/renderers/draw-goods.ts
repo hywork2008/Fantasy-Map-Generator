@@ -1,6 +1,6 @@
 import { createLayerCanvas } from "../../hostCore";
 import { getPackPolygon, normalize, rn, TIME } from "../../hostUtils";
-import { getGoodsLayer, getWorldContext } from "../economyContext";
+import { getBurgProductionRecords, getGoodsLayer, getWorldContext } from "../economyContext";
 import type { Good } from "../generators/goods-generator";
 import { Goods } from "../generators/goods-generator";
 import { Production } from "../generators/production-generator";
@@ -125,7 +125,7 @@ function drawGoodsCellsCanvas(
 function computeBurgWeights(displayedGoods: ReadonlySet<number>): Map<number, number> {
   const result = new Map<number, number>();
   for (const burg of getWorldContext().pack.burgs) {
-    if (!burg.i || burg.removed || !burg.production) continue;
+    if (!burg.i || burg.removed || !getBurgProductionRecords(burg).length) continue;
     const produced = Production.getBurgProduction(burg);
     let total = 0;
     for (const goodId of displayedGoods) total += produced[goodId] || 0;
@@ -171,7 +171,7 @@ function buildGoodsBurgsContent(displayedGoods: ReadonlySet<number>, burgMinScal
 
   let html = "";
   for (const burg of getWorldContext().pack.burgs) {
-    if (!burg.i || burg.removed || !burg.production) continue;
+    if (!burg.i || burg.removed || !getBurgProductionRecords(burg).length) continue;
 
     const produced = Production.getBurgProduction(burg);
     const entries: { good: Good; value: number; width: number }[] = [];

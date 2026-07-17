@@ -26,9 +26,3 @@ declare module "../../types/PackedGraph" {
     market: Uint16Array; // cell market id
   }
 }
-
-declare module "../../types/models" {
-  interface Burg {
-    production?: import("./generators/production-generator").ProductionRecord[];
-  }
-}

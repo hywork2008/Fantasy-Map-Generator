@@ -1,7 +1,7 @@
 import { pointer } from "d3";
 import { clearMainTip, tip } from "../../hostServices";
 import { confirmationDialog, downloadFile, findCell, getFileName, layerIsOn, rn, unique } from "../../hostUtils";
-import { getApi, getViewContext, getWorldContext } from "../economyContext";
+import { getApi, getBurgProductionRecords, getViewContext, getWorldContext } from "../economyContext";
 import { Goods, getDefaultGoodTradeProfile, isGoodEnabled } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
 import { isDealRecord, isMfgRecord, Production } from "../generators/production-generator";
@@ -193,10 +193,10 @@ function getAllStockData(): Record<number, { total: number; sources: StockSource
   }
 
   for (const burg of worldContext().pack.burgs) {
-    if (!burg?.i || burg.removed || !burg.production) continue;
+    if (!burg?.i || burg.removed) continue;
 
     const netInventory: Record<number, number> = {};
-    for (const record of burg.production) {
+    for (const record of getBurgProductionRecords(burg)) {
       if (isMfgRecord(record)) {
         netInventory[record.goodId] = (netInventory[record.goodId] || 0) + record.units;
         for (const item of record.recipe) {
@@ -269,7 +269,7 @@ function getProduction(): Record<number, { burg: number; cell: number }> {
   }
 
   for (const burg of worldContext().pack.burgs) {
-    if (!burg || burg.removed || !burg.production) continue;
+    if (!burg || burg.removed || !getBurgProductionRecords(burg).length) continue;
     const produced = Production.getBurgProduction(burg);
     for (const goodId in produced) {
       addProduction(Number(goodId), produced[goodId] || 0, "burg");

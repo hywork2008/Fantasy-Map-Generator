@@ -1,6 +1,6 @@
 import type { Burg } from "../../hostTypes";
 import { DEBUG, ERROR, rn, TIME } from "../../hostUtils";
-import { getWorldContext } from "../economyContext";
+import { getBurgProductionRecords, getWorldContext, setBurgProductionRecords } from "../economyContext";
 import { syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { Caravans } from "./caravans";
 import type { DemandCategory, Good } from "./goods-generator";
@@ -75,7 +75,7 @@ export class ProductionModule {
       burg.treasury = rn((burg.treasury || 0) + phaseRevenue, 2);
       burg.product = rn(Math.max(0, phaseRevenue - state.ingredientCosts), 2);
 
-      burg.production = state.records;
+      setBurgProductionRecords(burg, state.records);
     }
 
     Markets.runGlobalTrade();
@@ -94,7 +94,7 @@ export class ProductionModule {
         demandCoverageByGood: index.demandCoverageByGood,
         demandGoodsByCategory: index.demandGoodsByCategory,
         demandTargets: getDemandTargets(burg.population || 0),
-        records: burg.production || []
+        records: getBurgProductionRecords(burg)
       });
     }
   }
@@ -752,7 +752,7 @@ export class ProductionModule {
   // Urban production for a single burg
   getBurgProduction(burg: Burg): Record<number, number> {
     const produced: Record<number, number> = {};
-    for (const record of burg.production || []) {
+    for (const record of getBurgProductionRecords(burg)) {
       if (isDealRecord(record)) continue;
       produced[record.goodId] = rn((produced[record.goodId] || 0) + record.units, 2);
     }

@@ -2,7 +2,7 @@ import { tip } from "../../hostServices";
 import { openDialog } from "../../hostUi";
 import { formatPrice, rn } from "../../hostUtils";
 import { getBurgProductPerThousandResidents } from "../burgEconomySummary";
-import { getWorldContext } from "../economyContext";
+import { getBurgProductionRecords, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import { isDealRecord, isMfgRecord } from "../generators/production-generator";
 import { type ProductionOverviewRow, setProductionOverviewState } from "../store/productionOverviewState";
@@ -31,7 +31,7 @@ export function refreshProductionOverview(): void {
   const rows: ProductionOverviewRow[] = [];
   let taxPaid = 0;
 
-  for (const record of burg.production || []) {
+  for (const record of getBurgProductionRecords(burg)) {
     if (isMfgRecord(record)) {
       const good = Goods.get(record.goodId);
       if (!good) continue;

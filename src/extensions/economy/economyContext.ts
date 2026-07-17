@@ -7,6 +7,8 @@
  */
 
 import type { ExtensionAPI } from "../../types/extension-api";
+import type { Burg } from "../../types/models";
+import type { ProductionRecord } from "./generators/production-generator";
 
 let _api: ExtensionAPI | null = null;
 
@@ -25,6 +27,36 @@ export function getApi(): ExtensionAPI {
 
 export function getWorldContext() {
   return getApi().worldContext;
+}
+
+function getProductionTable(): Record<number, ProductionRecord[]> | null {
+  const simulation = _api?.simulationContext;
+  if (!simulation?.extensions) return null;
+  const economy = simulation.extensions.economy ?? {};
+  simulation.extensions.economy = economy;
+  const existing = economy.productionByBurg;
+  if (typeof existing === "object" && existing !== null && !Array.isArray(existing)) {
+    return existing as Record<number, ProductionRecord[]>;
+  }
+  const productionByBurg: Record<number, ProductionRecord[]> = {};
+  economy.productionByBurg = productionByBurg;
+  return productionByBurg;
+}
+
+/** Economy-owned production records keyed by stable burg id. */
+export function getBurgProductionRecords(burg: Burg): ProductionRecord[] {
+  const table = getProductionTable();
+  if (burg.i && table) return table[burg.i] ?? [];
+  return ((burg as unknown as Record<string, unknown>).production ?? []) as ProductionRecord[];
+}
+
+export function setBurgProductionRecords(burg: Burg, records: ProductionRecord[]): void {
+  const table = getProductionTable();
+  if (burg.i && table) {
+    table[burg.i] = records;
+    return;
+  }
+  (burg as unknown as Record<string, unknown>).production = records;
 }
 
 export function getViewContext() {
