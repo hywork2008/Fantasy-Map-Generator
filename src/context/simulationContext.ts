@@ -1,3 +1,4 @@
+import type { BurgDemographics } from "../types/models";
 import type { Season } from "../utils/seasonUtils";
 
 /**
@@ -16,6 +17,17 @@ export interface SimulationCellColumns {
   elders: Float32Array;
   danger: Uint8Array;
 }
+
+/** Values that evolve for a settlement after its map definition is generated. */
+export interface BurgSimulationState {
+  population?: number;
+  product?: number;
+  treasury?: number;
+  demographics?: BurgDemographics;
+}
+
+/** Live burg values keyed by stable `burg.i`; never keyed by array position. */
+export type BurgSimulationStates = Record<number, BurgSimulationState>;
 
 /**
  * Host-owned containers for built-in and dynamic extension runtime state.
@@ -66,6 +78,8 @@ export interface SimulationContext {
   worldSeason: Season;
   /** Dynamic cell columns. `SimulationData.cells` owns these values. */
   cells: SimulationCellColumns;
+  /** Dynamic settlement values, keyed by stable burg id. */
+  burgs: BurgSimulationStates;
   /** Namespaced runtime state owned by extensions, never by `pack`. */
   extensions: ExtensionStateSlices;
   /** Espionage reports: intelligence[observerStateId][targetStateId] */
@@ -95,6 +109,7 @@ export const simulationContext: SimulationContext = {
     elders: new Float32Array(),
     danger: new Uint8Array()
   },
+  burgs: {},
   extensions: {},
   intelligence: {},
   strategicGoals: {}

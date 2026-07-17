@@ -9,6 +9,7 @@ import {
   type PresentationPatch,
   presentationData
 } from "./presentationData";
+import { bindSimulationBurgState } from "./simulationBurgState";
 import { bindSimulationCellColumns } from "./simulationCellColumns";
 import {
   createWorldDocument,
@@ -1315,6 +1316,7 @@ class LegacyWorldRuntime implements WorldRuntime {
     // Archive map payloads intentionally omit the legacy pack.cells mirrors.
     // Recreate their accessors only after the simulation-owned arrays are live.
     bindSimulationCellColumns(this.world, this.simulation);
+    bindSimulationBurgState(this.world, this.simulation);
     bindExtensionStateSlices(this.world, this.simulation);
     replaceRecordInPlace(this.presentation.styles, document.presentation.styles);
     replaceRecordInPlace(this.presentation.activeLayers, document.presentation.activeLayers);

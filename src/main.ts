@@ -51,6 +51,7 @@ import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
 import { DeckGlRenderer } from "./renderers/webgl/deckRenderer";
 import { bindExtensionStateSlices, resetExtensionStateSlices } from "./runtime/extensionStateSlices";
+import { bindSimulationBurgState, resetSimulationBurgState } from "./runtime/simulationBurgState";
 import { bindSimulationCellColumns } from "./runtime/simulationCellColumns";
 import { clearMainTip, tip } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
@@ -900,6 +901,7 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     });
     Object.assign(worldContext.pack, {} as typeof worldContext.pack);
     resetExtensionStateSlices(simulationContext);
+    resetSimulationBurgState(simulationContext);
 
     Features.markupGrid();
     addLakesInDeepDepressions();
@@ -949,6 +951,7 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     Zones.generate(worldContext, viewContext, appServices, state);
 
     initSimulationClock();
+    bindSimulationBurgState(worldContext, simulationContext);
     document.dispatchEvent(new CustomEvent("fmg:generate-post-core"));
 
     if (import.meta.env.DEV) {

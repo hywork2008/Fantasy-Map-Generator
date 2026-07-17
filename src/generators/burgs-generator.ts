@@ -2,12 +2,14 @@ import { max as d3max, mean } from "d3";
 import { type Quadtree, quadtree } from "d3-quadtree";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
+import { simulationContext } from "../context/simulationContext";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { removeBurgIcon, removeBurgLabel } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { bindSimulationBurg } from "../runtime/simulationBurgState";
 import { countBurgRoadLegs } from "../services/burgSiteDescriptor";
 import { tip } from "../services/tooltipService";
 import { useOptionsState } from "../store/optionsState";
@@ -891,6 +893,9 @@ class BurgModule {
     this.applyDemographics(burg);
 
     pack.burgs.push(burg);
+    // Interactive and simulation-created burgs arrive after the generation
+    // pipeline has bound existing burgs, so project this one immediately.
+    if (this.worldContext === worldContext) bindSimulationBurg(burg, burgId, simulationContext);
     cells.burg[cellId as number] = burgId;
 
     const newRoute = Routes.connect(cellId as number);

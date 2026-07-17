@@ -3,6 +3,7 @@ import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import { removeExtensionStateSliceMirrors } from "./extensionStateSlices";
 import type { PresentationData } from "./presentationData";
+import { removeSimulationBurgStateMirrors } from "./simulationBurgState";
 import { removeSimulationCellColumnMirrors } from "./simulationCellColumns";
 
 export const WORLD_ARCHIVE_FORMAT = "fantasy-map-generator";
@@ -507,6 +508,7 @@ export function createWorldDocument(
   // `pack.cells` exposes dynamic columns only as a source-compatible adapter.
   // A snapshot stores their single canonical copy under simulation.cells.
   removeSimulationCellColumnMirrors(document.world, document.simulation);
+  removeSimulationBurgStateMirrors(document.world, document.simulation);
   removeExtensionStateSliceMirrors(document.world, document.simulation);
   return document;
 }

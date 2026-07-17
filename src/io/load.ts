@@ -1,5 +1,6 @@
 import type * as d3 from "d3";
 import { appServices } from "../context/appServices";
+import { simulationContext } from "../context/simulationContext";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { Biomes } from "../generators/biomes";
@@ -10,6 +11,7 @@ import { initSimulationClock } from "../generators/timeEngine";
 import { GridRenderer } from "../renderers";
 import { DeckGlRenderer } from "../renderers/webgl/deckRenderer";
 import { importLegacyPresentationFromSvg } from "../runtime/legacyPresentationImport";
+import { bindSimulationBurgState, resetSimulationBurgState } from "../runtime/simulationBurgState";
 import {
   ChunkedWorldCodecAdapter,
   decodeAndValidateWorldArchive,
@@ -398,6 +400,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     // (year/era + reset tickCount) from the just-loaded worldContext.options. Runs
     // after reinit so the fmg:simulation-updated listener draws into the fresh #calendar.
     initSimulationClock();
+    resetSimulationBurgState(simulationContext);
 
     if (!view.texture.size()) {
       viewContext.texture = view.viewbox
@@ -432,6 +435,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     worldContext.pack.cultures = JSON.parse(data[13]);
     worldContext.pack.states = JSON.parse(data[14]);
     worldContext.pack.burgs = JSON.parse(data[15]);
+    bindSimulationBurgState(worldContext, simulationContext);
     worldContext.pack.religions = data[29] ? JSON.parse(data[29]) : [{ i: 0, name: "No religion" }];
     worldContext.pack.provinces = data[30] ? JSON.parse(data[30]) : [0];
     worldContext.pack.rivers = data[32] ? JSON.parse(data[32]) : [];
