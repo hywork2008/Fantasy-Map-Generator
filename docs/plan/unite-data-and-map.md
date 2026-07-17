@@ -895,8 +895,9 @@ raw `pack` / `grid` write は allowlist + lint rule で段階的に禁止する�
 - [ ] extension module augmentation を削除し、extension caller を namespaced slice interface へ移す（Characters extension の own caller は移行済み。Nobility / Economy / Shipbuilding は `pack` compatibility projection を使用中）。
 - [x] `npm run perf:webgl-layers`（2026-07-17）で main-thread blocking を確認: 100k cells の initial projection は 1069.6 ms、preset switch は 396.5 ms。zoom-only cache hit は 5.5 ms であり、Worker 対象は cache hit ではなく cold/partial projection に限定する。
 - [x] CPU-only `LandTopologyProjectionAdapter` の in-process adapter を追加。deck.gl layer construction、DOM、GPU resource は main thread に残す。
-- [ ] 同じ adapter interface を満たす Worker adapter を追加し、stale-result rejection と rAF coalescing を検証する。
-- in-process と Worker の二 adapter が揃った時点でのみ Worker seam を正式化する。
+- [x] 同じ async job interface を満たす in-process fallback と `WorkerLandTopologyProjectionAdapter` を追加。flat topology の Typed Array buffer だけを worker から transfer し、superseded revision の result を reject する。
+- [ ] RenderCoordinator から worker job を rAF 単位で coalesce し、latest revision の result だけを WebGL cache へ publish する。同期 compatibility path と同じ pick/layer semantics を characterization test で確認後に有効化する。
+- in-process と Worker の二 adapter が揃ったため、上記の coordinator integration 完了時に Worker seam を正式化する。
 
 ---
 
