@@ -91,6 +91,8 @@ export interface LegacyMutationCommand<T> {
 export interface ExtensionCommandDefinition {
   readonly extensionId: string;
   readonly name: string;
+  /** Additional known topics written by this command during the compatibility period. */
+  readonly topics?: readonly DataTopic[];
   readonly execute: (payload: unknown) => {
     readonly changed: boolean;
     readonly result?: unknown;
@@ -108,6 +110,20 @@ export interface ExtensionCommand {
   readonly payload: ExtensionCommandRequest;
 }
 
+/** Delta-based compatibility command for the current synchronous simulation engine. */
+export interface AdvanceSimulationRequest {
+  readonly deltaYears: number;
+  readonly deltaMonths: number;
+  readonly deltaDays: number;
+}
+
+export interface AdvanceSimulationCommand {
+  readonly type: "simulation.advance";
+  readonly payload: AdvanceSimulationRequest;
+}
+
+export type SimulationAdvanceHandler = (request: AdvanceSimulationRequest) => LegacyMutationOutcome<void>;
+
 export interface MoveMarkerRequest {
   readonly markerId: number;
   readonly x: number;
@@ -119,6 +135,39 @@ export interface MoveMarkerRequest {
 export interface MoveMarkerCommand {
   readonly type: "marker.move";
   readonly payload: MoveMarkerRequest;
+}
+
+export interface PatchMarkerRequest {
+  readonly markerId: number;
+  readonly pinned?: boolean;
+  readonly lock?: boolean;
+}
+
+export interface PatchMarkerCommand {
+  readonly type: "marker.patch";
+  readonly payload: PatchMarkerRequest;
+}
+
+export interface InvertMarkerFlagsRequest {
+  readonly field: "pinned" | "lock";
+}
+
+export interface InvertMarkerFlagsCommand {
+  readonly type: "marker.invertFlags";
+  readonly payload: InvertMarkerFlagsRequest;
+}
+
+export interface RemoveMarkerRequest {
+  readonly markerId: number;
+}
+
+export interface RemoveMarkerCommand {
+  readonly type: "marker.remove";
+  readonly payload: RemoveMarkerRequest;
+}
+
+export interface RemoveUnlockedMarkersCommand {
+  readonly type: "marker.removeUnlocked";
 }
 
 export interface MoveBurgRequest {
@@ -317,10 +366,18 @@ export interface PresentationPatchCommand {
   readonly payload: PresentationPatch;
 }
 
-export type PositionCommand = MoveMarkerCommand | MoveBurgCommand | MoveRegimentCommand;
+export type PositionCommand =
+  | MoveMarkerCommand
+  | PatchMarkerCommand
+  | InvertMarkerFlagsCommand
+  | RemoveMarkerCommand
+  | RemoveUnlockedMarkersCommand
+  | MoveBurgCommand
+  | MoveRegimentCommand;
 export type WorldCommand<T> =
   | LegacyMutationCommand<T>
   | ExtensionCommand
+  | AdvanceSimulationCommand
   | PositionCommand
   | AssignCellsCommand
   | RemoveStateCommand
@@ -342,6 +399,8 @@ export interface WorldRuntime {
   subscribe(listener: (commit: WorldCommit<unknown>) => void): () => void;
   /** Register one synchronous, validated command owned by an extension. */
   registerExtensionCommand(command: ExtensionCommandDefinition): () => void;
+  /** Register the compatibility simulation implementation behind `simulation.advance`. */
+  registerSimulationAdvanceHandler(handler: SimulationAdvanceHandler): () => void;
 }
 
 class LegacyWorldRuntime implements WorldRuntime {
@@ -349,6 +408,7 @@ class LegacyWorldRuntime implements WorldRuntime {
   private readonly topicRevisions: Record<string, number> = {};
   private readonly listeners = new Set<(commit: WorldCommit<unknown>) => void>();
   private readonly extensionCommands = new Map<string, ExtensionCommandDefinition>();
+  private simulationAdvanceHandler: SimulationAdvanceHandler | null = null;
   private committing = false;
 
   constructor(
@@ -391,6 +451,16 @@ class LegacyWorldRuntime implements WorldRuntime {
     this.extensionCommands.set(key, command);
     return () => {
       if (this.extensionCommands.get(key) === command) this.extensionCommands.delete(key);
+    };
+  }
+
+  registerSimulationAdvanceHandler(handler: SimulationAdvanceHandler): () => void {
+    if (this.simulationAdvanceHandler) {
+      throw new Error("The simulation.advance handler is already registered");
+    }
+    this.simulationAdvanceHandler = handler;
+    return () => {
+      if (this.simulationAdvanceHandler === handler) this.simulationAdvanceHandler = null;
     };
   }
 
@@ -443,6 +513,10 @@ class LegacyWorldRuntime implements WorldRuntime {
       return this.executeExtensionCommand(command.payload) as LegacyMutationOutcome<T>;
     }
 
+    if (command.type === "simulation.advance") {
+      return this.advanceSimulation(command.payload) as LegacyMutationOutcome<T>;
+    }
+
     if (command.type === "presentation.patch") {
       const stylesChanged = Object.entries(command.payload.styles ?? {}).some(([selector, attributes]) =>
         Object.entries(attributes).some(
@@ -474,6 +548,22 @@ class LegacyWorldRuntime implements WorldRuntime {
       marker.y = y;
       if (cellId !== undefined) marker.cell = cellId;
       return { result: undefined as T, topics: ["map.annotations"] };
+    }
+
+    if (command.type === "marker.patch") {
+      return this.patchMarker(command.payload) as LegacyMutationOutcome<T>;
+    }
+
+    if (command.type === "marker.invertFlags") {
+      return this.invertMarkerFlags(command.payload) as LegacyMutationOutcome<T>;
+    }
+
+    if (command.type === "marker.remove") {
+      return this.removeMarker(command.payload) as LegacyMutationOutcome<T>;
+    }
+
+    if (command.type === "marker.removeUnlocked") {
+      return this.removeUnlockedMarkers() as LegacyMutationOutcome<T>;
     }
 
     if (command.type === "burg.move") {
@@ -553,6 +643,62 @@ class LegacyWorldRuntime implements WorldRuntime {
     regiment.x = x;
     regiment.y = y;
     return { result: undefined as T, topics: ["simulation.military"] };
+  }
+
+  private patchMarker(request: PatchMarkerRequest): LegacyMutationOutcome<void> {
+    const marker = this.world.pack.markers.find(candidate => candidate.i === request.markerId);
+    if (!marker) throw new Error(`marker.patch could not find marker ${request.markerId}`);
+
+    let changed = false;
+    if (request.pinned !== undefined && Boolean(marker.pinned) !== request.pinned) {
+      if (request.pinned) marker.pinned = true;
+      else delete marker.pinned;
+      changed = true;
+    }
+    if (request.lock !== undefined && Boolean(marker.lock) !== request.lock) {
+      if (request.lock) marker.lock = true;
+      else delete marker.lock;
+      changed = true;
+    }
+    return { result: undefined, topics: changed ? ["map.annotations"] : [] };
+  }
+
+  private invertMarkerFlags(request: InvertMarkerFlagsRequest): LegacyMutationOutcome<void> {
+    if (request.field !== "pinned" && request.field !== "lock") {
+      throw new Error(`marker.invertFlags received invalid field ${request.field}`);
+    }
+    if (!this.world.pack.markers.length) return { result: undefined, topics: [] };
+
+    for (const marker of this.world.pack.markers) {
+      if (marker[request.field]) delete marker[request.field];
+      else marker[request.field] = true;
+    }
+    return { result: undefined, topics: ["map.annotations"] };
+  }
+
+  private removeMarker(request: RemoveMarkerRequest): LegacyMutationOutcome<{ removedMarkerIds: readonly number[] }> {
+    const markerIndex = this.world.pack.markers.findIndex(marker => marker.i === request.markerId);
+    if (markerIndex === -1) return { result: { removedMarkerIds: [] }, topics: [] };
+
+    this.world.pack.markers.splice(markerIndex, 1);
+    this.removeMarkerNotes([request.markerId]);
+    return { result: { removedMarkerIds: [request.markerId] }, topics: ["map.annotations"] };
+  }
+
+  private removeUnlockedMarkers(): LegacyMutationOutcome<{ removedMarkerIds: readonly number[] }> {
+    const removedMarkerIds = this.world.pack.markers.filter(marker => !marker.lock).map(marker => marker.i);
+    if (!removedMarkerIds.length) return { result: { removedMarkerIds }, topics: [] };
+
+    const retainedMarkers = this.world.pack.markers.filter(marker => marker.lock);
+    this.world.pack.markers.splice(0, this.world.pack.markers.length, ...retainedMarkers);
+    this.removeMarkerNotes(removedMarkerIds);
+    return { result: { removedMarkerIds }, topics: ["map.annotations"] };
+  }
+
+  private removeMarkerNotes(markerIds: readonly number[]): void {
+    const noteIds = new Set(markerIds.map(markerId => `marker${markerId}`));
+    const retainedNotes = this.world.notes.filter(note => !noteIds.has(note.id));
+    this.world.notes.splice(0, this.world.notes.length, ...retainedNotes);
   }
 
   private assignCells(request: AssignCellsRequest): LegacyMutationOutcome<{ changedCellIds: readonly number[] }> {
@@ -1063,8 +1209,22 @@ class LegacyWorldRuntime implements WorldRuntime {
     const outcome = command.execute(request.payload);
     return {
       result: outcome.result,
-      topics: outcome.changed ? [`extension.${request.extensionId}`] : []
+      topics: outcome.changed ? (command.topics ?? [`extension.${request.extensionId}`]) : []
     };
+  }
+
+  private advanceSimulation(request: AdvanceSimulationRequest): LegacyMutationOutcome<void> {
+    if (
+      !Number.isFinite(request.deltaYears) ||
+      !Number.isFinite(request.deltaMonths) ||
+      !Number.isFinite(request.deltaDays)
+    ) {
+      throw new Error("simulation.advance requires finite deltas");
+    }
+    if (!this.simulationAdvanceHandler) {
+      throw new Error("simulation.advance has no registered handler");
+    }
+    return this.simulationAdvanceHandler(request);
   }
 
   private extensionCommandKey(extensionId: string, name: string): string {
@@ -1096,9 +1256,38 @@ export function dispatchExtensionCommand(request: ExtensionCommandRequest): Worl
   return (worldRuntime as LegacyWorldRuntime).execute({ type: "extension.command", payload: request });
 }
 
+/** Registers the current synchronous simulation implementation with the runtime. */
+export function registerSimulationAdvanceHandler(handler: SimulationAdvanceHandler): () => void {
+  return worldRuntime.registerSimulationAdvanceHandler(handler);
+}
+
+/** Dispatches one compatibility simulation step through the named command seam. */
+export function advanceSimulation(request: AdvanceSimulationRequest): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "simulation.advance", payload: request });
+}
+
 /** Phase 2 compatibility commands for bounded, ID-addressed position edits. */
 export function moveMarker(request: MoveMarkerRequest): WorldCommit<void> | null {
   return (worldRuntime as LegacyWorldRuntime).execute({ type: "marker.move", payload: request });
+}
+
+/** Phase 5 commands for marker overview edits and note cascades. */
+export function patchMarker(request: PatchMarkerRequest): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "marker.patch", payload: request });
+}
+
+export function invertMarkerFlags(request: InvertMarkerFlagsRequest): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "marker.invertFlags", payload: request });
+}
+
+export function removeMarker(
+  request: RemoveMarkerRequest
+): WorldCommit<{ removedMarkerIds: readonly number[] }> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "marker.remove", payload: request });
+}
+
+export function removeUnlockedMarkers(): WorldCommit<{ removedMarkerIds: readonly number[] }> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "marker.removeUnlocked" });
 }
 
 export function moveBurg(request: MoveBurgRequest): WorldCommit<void> | null {

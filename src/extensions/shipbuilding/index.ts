@@ -40,6 +40,13 @@ let _candidates: ShipyardCandidate[] = [];
 let _portCapacity: Map<number, PortCapacity> = new Map();
 let _unsubscribe: (() => void) | null = null;
 let _generatePostCoreHandler: (() => void) | null = null;
+let _unregisterResetCommand: (() => void) | null = null;
+
+function resetShipbuildingState(): void {
+  _candidates = [];
+  _portCapacity = new Map();
+  clearShipyardQueues();
+}
 
 function requestShipbuildingMaterials(
   request: Omit<ShipbuildingMaterialRequest, "result">
@@ -73,6 +80,16 @@ function recomputeAndMaybeDraw(api: ExtensionAPI): void {
 
 export function init(api: ExtensionAPI): void {
   initShipbuildingContext(api);
+
+  _unregisterResetCommand = api.registerExtensionCommand({
+    extensionId: SHIPBUILDING_EXTENSION_ID,
+    name: "reset",
+    execute: value => {
+      if (value !== undefined) throw new Error("shipbuilding.reset does not accept a payload");
+      resetShipbuildingState();
+      return { changed: true };
+    }
+  });
 
   api.registerExtension(
     {
@@ -137,32 +154,36 @@ export function init(api: ExtensionAPI): void {
 
   api.registerLayerElement("toggleShipyards", () => document.getElementById("shipyards"));
 
-  api.registerTimeTickHook((deltaYears, deltaMonths, deltaDays) => {
-    if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
-    // The UI's daily Advance Time loop calls this with deltaYears=0, deltaDays=1 per tick —
-    // fold all three granularities into a years-equivalent so logging/build progress doesn't
-    // silently stall (matches Economy's registerTimeTickHook and Nobility's tick hook).
-    const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
-    runLoggingTick(_candidates, effectiveDeltaYears);
-    const { burgs, states } = getWorldContext().pack;
-    runShipyardTick(
-      _candidates,
-      burgs,
-      states,
-      effectiveDeltaYears,
-      api.getEffectiveSkill,
-      requestShipbuildingMaterials,
-      notifyStrategicProcurementDemand,
-      requestShipGoodStock,
-      notifySurplusShipCompleted,
-      _portCapacity
-    );
-    runVoyageTick(burgs, states, effectiveDeltaYears);
-    checkForeignInterference(_candidates, burgs, effectiveDeltaYears);
-    // Refresh marker tooltips (build progress) and the overview dialog, if visible.
-    if (api.layerIsOn("toggleShipyards")) drawShipyards(_candidates);
-    refreshShipyardsOverviewIfOpen(_candidates, _portCapacity);
-  }, SHIPBUILDING_EXTENSION_ID);
+  api.registerTimeTickHook(
+    (deltaYears, deltaMonths, deltaDays) => {
+      if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
+      // The UI's daily Advance Time loop calls this with deltaYears=0, deltaDays=1 per tick —
+      // fold all three granularities into a years-equivalent so logging/build progress doesn't
+      // silently stall (matches Economy's registerTimeTickHook and Nobility's tick hook).
+      const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
+      runLoggingTick(_candidates, effectiveDeltaYears);
+      const { burgs, states } = getWorldContext().pack;
+      runShipyardTick(
+        _candidates,
+        burgs,
+        states,
+        effectiveDeltaYears,
+        api.getEffectiveSkill,
+        requestShipbuildingMaterials,
+        notifyStrategicProcurementDemand,
+        requestShipGoodStock,
+        notifySurplusShipCompleted,
+        _portCapacity
+      );
+      runVoyageTick(burgs, states, effectiveDeltaYears);
+      checkForeignInterference(_candidates, burgs, effectiveDeltaYears);
+      // Refresh marker tooltips (build progress) and the overview dialog, if visible.
+      if (api.layerIsOn("toggleShipyards")) drawShipyards(_candidates);
+      refreshShipyardsOverviewIfOpen(_candidates, _portCapacity);
+    },
+    SHIPBUILDING_EXTENSION_ID,
+    ["extension.shipbuilding", "extension.economy", "extension.nobility"]
+  );
 
   _unsubscribe = api.subscribeExtensionState((state, prevState) => {
     const isEnabled = state.enabledExtensions[SHIPBUILDING_EXTENSION_ID];
@@ -174,9 +195,7 @@ export function init(api: ExtensionAPI): void {
     } else if (!isEnabled && wasEnabled) {
       if (api.layerIsOn("toggleShipyards")) api.toggleLayerById("toggleShipyards");
       api.removeLayers(shipbuildingLayers.map(l => l.id));
-      _candidates = [];
-      _portCapacity = new Map();
-      clearShipyardQueues();
+      api.dispatchExtensionCommand({ extensionId: SHIPBUILDING_EXTENSION_ID, name: "reset", payload: undefined });
       closeShipyardsOverview();
     }
   });
@@ -189,7 +208,7 @@ export function init(api: ExtensionAPI): void {
     if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
     // A brand-new map reuses burg/state ids from 0, so queue/tech/completed-hull
     // state tied to the previous map's ids must not carry over.
-    clearShipyardQueues();
+    api.dispatchExtensionCommand({ extensionId: SHIPBUILDING_EXTENSION_ID, name: "reset", payload: undefined });
     recomputeAndMaybeDraw(api);
     refreshShipyardsOverviewIfOpen(_candidates, _portCapacity);
 
@@ -221,10 +240,11 @@ export function cleanup(api: ExtensionAPI): void {
   }
 
   api.removeLayers(shipbuildingLayers.map(l => l.id));
-  _candidates = [];
-  _portCapacity = new Map();
-  clearShipyardQueues();
+  api.dispatchExtensionCommand({ extensionId: SHIPBUILDING_EXTENSION_ID, name: "reset", payload: undefined });
   closeShipyardsOverview();
+
+  _unregisterResetCommand?.();
+  _unregisterResetCommand = null;
 
   api.unregisterExtension(SHIPBUILDING_EXTENSION_ID);
   clearShipbuildingContext();

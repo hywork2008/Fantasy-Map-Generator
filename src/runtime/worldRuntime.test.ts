@@ -121,6 +121,7 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     const unregister = runtime.registerExtensionCommand({
       extensionId: "economy",
       name: "goods.assignCell",
+      topics: ["extension.economy", "map.settlements"],
       execute: payload => {
         if (!payload || typeof payload !== "object" || !Number.isInteger((payload as { cellId?: unknown }).cellId)) {
           throw new Error("cellId is required");
@@ -144,7 +145,12 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     expect(assignedCellId).toBe(4);
     expect(commit).toMatchObject({
       result: { cellId: 4 },
-      changes: { changes: [{ topic: "extension.economy", kind: "replace" }] }
+      changes: {
+        changes: [
+          { topic: "extension.economy", kind: "replace" },
+          { topic: "map.settlements", kind: "replace" }
+        ]
+      }
     });
     expect(noOp).toBeNull();
     unregister();
@@ -154,6 +160,23 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
         payload: { extensionId: "economy", name: "goods.assignCell", payload: { cellId: 5 } }
       })
     ).rejects.toThrow("is not registered");
+  });
+
+  it("runs the registered simulation implementation through simulation.advance", async () => {
+    const runtime = createRuntime();
+    const handler = vi.fn(() => ({ result: undefined, topics: ["simulation.clock", "simulation.cells"] as const }));
+    runtime.registerSimulationAdvanceHandler(handler);
+
+    const commit = await runtime.dispatch({
+      type: "simulation.advance",
+      payload: { deltaYears: 1, deltaMonths: 2, deltaDays: 3 }
+    });
+
+    expect(handler).toHaveBeenCalledWith({ deltaYears: 1, deltaMonths: 2, deltaDays: 3 });
+    expect(commit?.changes.changes).toEqual([
+      { topic: "simulation.clock", kind: "replace" },
+      { topic: "simulation.cells", kind: "replace" }
+    ]);
   });
 
   it("updates bounded position commands by stable ID and emits their owned topics", async () => {
@@ -181,6 +204,22 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     expect(markerCommit?.changes.changes).toEqual([{ topic: "map.annotations", kind: "replace" }]);
     expect(burgCommit?.changes.changes).toEqual([{ topic: "map.settlements", kind: "replace" }]);
     expect(regimentCommit?.changes.changes).toEqual([{ topic: "simulation.military", kind: "replace" }]);
+  });
+
+  it("patches and removes markers with their notes through annotation commands", async () => {
+    const world = createPositionWorld();
+    world.notes = [{ id: "marker1", name: "Old marker" }];
+    const runtime = createWorldRuntime(world, {} as SimulationContext);
+
+    const pinnedCommit = await runtime.dispatch({ type: "marker.patch", payload: { markerId: 1, pinned: true } });
+    const lockCommit = await runtime.dispatch({ type: "marker.invertFlags", payload: { field: "lock" } });
+    const removeCommit = await runtime.dispatch({ type: "marker.remove", payload: { markerId: 1 } });
+
+    expect(pinnedCommit?.changes.changes).toEqual([{ topic: "map.annotations", kind: "replace" }]);
+    expect(lockCommit?.changes.changes).toEqual([{ topic: "map.annotations", kind: "replace" }]);
+    expect(removeCommit?.result).toEqual({ removedMarkerIds: [1] });
+    expect(world.pack.markers).toEqual([]);
+    expect(world.notes).toEqual([]);
   });
 
   it("assigns cell ownership atomically and preserves burg state / culture invariants", async () => {

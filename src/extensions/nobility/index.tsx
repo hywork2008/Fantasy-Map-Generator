@@ -35,9 +35,46 @@ let _voyageIntelHandler: ((e: Event) => void) | null = null;
 let _conflictAutonomyChangedHandler: ((e: Event) => void) | null = null;
 let _playerConflictRequestedHandler: ((e: Event) => void) | null = null;
 let _playerConflictEndedHandler: ((e: Event) => void) | null = null;
+let _unregisterRegenerateCommand: (() => void) | null = null;
+
+type NobilityRegenerationMode = "bootstrap" | "full";
+
+function isNobilityRegenerationRequest(value: unknown): value is { readonly mode: NobilityRegenerationMode } {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    ((value as { mode?: unknown }).mode === "bootstrap" || (value as { mode?: unknown }).mode === "full")
+  );
+}
+
+function regenerateNobilityData(mode: NobilityRegenerationMode): void {
+  Characters.generate();
+  applyAffinitiesToDiplomacy();
+  applyPersonalityToCapitalGuard();
+  if (mode === "full") {
+    assignOfficers();
+    assignProvinceLords();
+  }
+  Espionage.generate();
+  if (mayAdvanceAutonomousConflict()) StrategicPlanner.generate();
+}
 
 export function init(api: ExtensionAPI): void {
   initNobilityContext(api);
+
+  _unregisterRegenerateCommand = api.registerExtensionCommand({
+    extensionId: NOBILITY_EXTENSION_ID,
+    name: "regenerate",
+    topics: ["extension.characters", "extension.nobility", "map.politics", "simulation.military"],
+    execute: value => {
+      if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) {
+        throw new Error("Nobility must be enabled to regenerate government data");
+      }
+      if (!isNobilityRegenerationRequest(value)) throw new Error("nobility.regenerate requires a regeneration mode");
+      regenerateNobilityData(value.mode);
+      return { changed: true };
+    }
+  });
 
   api.registerExtension(
     {
@@ -67,13 +104,11 @@ export function init(api: ExtensionAPI): void {
     label: "Characters",
     tooltip: "Click to regenerate rulers and government offices",
     onClick: () => {
-      Characters.generate();
-      applyAffinitiesToDiplomacy();
-      applyPersonalityToCapitalGuard();
-      assignOfficers();
-      assignProvinceLords();
-      Espionage.generate();
-      if (mayAdvanceAutonomousConflict()) StrategicPlanner.generate();
+      api.dispatchExtensionCommand({
+        extensionId: NOBILITY_EXTENSION_ID,
+        name: "regenerate",
+        payload: { mode: "full" }
+      });
     }
   });
 
@@ -84,14 +119,14 @@ export function init(api: ExtensionAPI): void {
 
     if (isEnabled && !wasEnabled) {
       if (!worldContext.pack.characters || worldContext.pack.characters.length === 0) {
-        Characters.generate();
-        applyAffinitiesToDiplomacy();
-        applyPersonalityToCapitalGuard();
-        Espionage.generate();
-        if (mayAdvanceAutonomousConflict()) StrategicPlanner.generate();
+        api.dispatchExtensionCommand({
+          extensionId: NOBILITY_EXTENSION_ID,
+          name: "regenerate",
+          payload: { mode: "bootstrap" }
+        });
       }
     } else if (!isEnabled && wasEnabled) {
-      Characters.clear();
+      api.dispatchExtensionCommand({ extensionId: CHARACTERS_EXTENSION_ID, name: "clear", payload: undefined });
     }
   });
 
@@ -100,13 +135,11 @@ export function init(api: ExtensionAPI): void {
       // A new map reuses state ids from 0 — any voyage-intel bonus accrued against the
       // previous map's states must not carry over.
       clearVoyageIntel();
-      Characters.generate();
-      applyAffinitiesToDiplomacy();
-      applyPersonalityToCapitalGuard();
-      assignOfficers();
-      assignProvinceLords();
-      Espionage.generate();
-      if (mayAdvanceAutonomousConflict()) StrategicPlanner.generate();
+      api.dispatchExtensionCommand({
+        extensionId: NOBILITY_EXTENSION_ID,
+        name: "regenerate",
+        payload: { mode: "full" }
+      });
     }
   };
   document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
@@ -265,6 +298,8 @@ export function cleanup(api: ExtensionAPI): void {
     _playerConflictEndedHandler = null;
   }
   clearVoyageIntel();
+  _unregisterRegenerateCommand?.();
+  _unregisterRegenerateCommand = null;
 
   api.unregisterExtension(NOBILITY_EXTENSION_ID);
   clearNobilityContext();

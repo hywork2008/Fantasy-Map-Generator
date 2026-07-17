@@ -1,6 +1,6 @@
 import { simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
-import { type DataTopic, legacyMutation } from "../runtime/worldRuntime";
+import { advanceSimulation, type DataTopic, registerSimulationAdvanceHandler } from "../runtime/worldRuntime";
 import { telemetry } from "../services/simulationTelemetry";
 import { useDebugSnapshotState } from "../store/debugSnapshotState";
 import { useOptionsState } from "../store/optionsState";
@@ -24,6 +24,10 @@ export type TimeTickHook = (deltaYears: number, deltaMonths: number, deltaDays: 
 const timeTickSystems = createSimulationSystemRegistry();
 let nextLegacyHookId = 0;
 const legacyHookIds: string[] = [];
+
+registerSimulationAdvanceHandler(({ deltaYears, deltaMonths, deltaDays }) =>
+  advanceTimeMutation(deltaYears, deltaMonths, deltaDays)
+);
 
 /**
  * Compatibility registration for the old hook API. The hook becomes a
@@ -116,7 +120,7 @@ export function initSimulationClock(): void {
  * states-generator.ts, markers-generator.ts, battle-screen.ts) keep working unchanged.
  */
 export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0): void {
-  const commit = legacyMutation(() => advanceTimeMutation(deltaYears, deltaMonths, deltaDays));
+  const commit = advanceSimulation({ deltaYears, deltaMonths, deltaDays });
   if (!commit) return;
 
   // These observers run after the mutation has one revision and renderer

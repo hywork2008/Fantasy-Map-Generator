@@ -222,6 +222,7 @@ let _unregisterMarketColorCommand: (() => void) | null = null;
 let _unregisterProductionSettlementCommand: (() => void) | null = null;
 let _unregisterRegenerateCommand: (() => void) | null = null;
 let _unregisterGunpowderRefreshCommand: (() => void) | null = null;
+let _unregisterClearCommand: (() => void) | null = null;
 
 interface AssignGoodToCellRequest {
   readonly cellId: number;
@@ -558,6 +559,30 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       return { changed: true };
     }
   });
+  _unregisterClearCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "clear",
+    execute: value => {
+      if (value !== undefined) throw new Error("economy.clear does not accept a payload");
+
+      const world = getWorldContext();
+      clearBurgMarketLedgers();
+      clearMarketManagers();
+      world.pack.goods = [];
+      world.pack.markets = [];
+      world.pack.deals = [];
+      world.pack.burgMarketLedgers = [];
+      clearMerchantOrganizations();
+      if (world.pack.cells?.i) {
+        world.pack.cells.good = new Uint16Array(world.pack.cells.i.length);
+        world.pack.cells.market = new Uint16Array(world.pack.cells.i.length);
+      }
+      clearForestDepletion();
+      clearStrategicProcurementExpenses();
+      StrategicProcurement.clear();
+      return { changed: true };
+    }
+  });
 }
 
 function refreshEconomyForGunpowderEraData(): void {
@@ -860,25 +885,12 @@ export function init(api: ExtensionAPI): void {
       api.closeDialog("productionOverview");
       api.closeDialog("tradeAnimationEditor");
 
-      // Clear economy data from worldContext when disabled
-      clearBurgMarketLedgers();
-      clearMarketManagers();
-      worldContext.pack.goods = [];
-      worldContext.pack.markets = [];
-      worldContext.pack.deals = [];
-      worldContext.pack.burgMarketLedgers = [];
-      clearMerchantOrganizations();
+      // Clear economy data through the extension-owned command after disabling.
+      api.dispatchExtensionCommand({ extensionId: ECONOMY_EXTENSION_ID, name: "clear", payload: undefined });
       api.tooltipExtensions.showMapTooltip = undefined;
       api.tooltipExtensions.updateCellInfo = undefined;
       api.burgEconomyExtensions.getBurgEconomySummary = undefined;
       unregisterOverviewColumns(api);
-      if (worldContext.pack.cells?.i) {
-        worldContext.pack.cells.good = new Uint16Array(worldContext.pack.cells.i.length);
-        worldContext.pack.cells.market = new Uint16Array(worldContext.pack.cells.i.length);
-      }
-      clearForestDepletion();
-      clearStrategicProcurementExpenses();
-      StrategicProcurement.clear();
     }
   });
 
@@ -1083,90 +1095,94 @@ export function init(api: ExtensionAPI): void {
   let daysSinceLastProduction = 0;
   let daysSinceLastQuarterlyUpdate = 0;
   let currentQuarterIndex = 0;
-  api.registerTimeTickHook((deltaYears, deltaMonths, deltaDays) => {
-    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+  api.registerTimeTickHook(
+    (deltaYears, deltaMonths, deltaDays) => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
 
-    const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
+      const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
 
-    const caravanTick = Caravans.tick(effectiveDays);
-    StrategicProcurement.reconcileCaravans(caravanTick.arrived, caravanTick.lost);
-    if (api.layerIsOn("toggleTrade")) {
-      TradeAnimation.start();
-    }
-
-    daysSinceLastQuarterlyUpdate += effectiveDays;
-    if (daysSinceLastQuarterlyUpdate >= 90) {
-      const quartersPassed = Math.floor(daysSinceLastQuarterlyUpdate / 90);
-      daysSinceLastQuarterlyUpdate %= 90;
-      for (let i = 0; i < quartersPassed; i++) {
-        currentQuarterIndex = (currentQuarterIndex + 1) % 4;
-        FoodProduction.generateQuarterlyLedger(currentQuarterIndex);
+      const caravanTick = Caravans.tick(effectiveDays);
+      StrategicProcurement.reconcileCaravans(caravanTick.arrived, caravanTick.lost);
+      if (api.layerIsOn("toggleTrade")) {
+        TradeAnimation.start();
       }
-    }
 
-    // Check which states are at war
-    const states = getWorldContext().pack.states;
-    const statesAtWar = new Set<number>();
-    if (states) {
-      for (const state of states) {
-        if (!state.removed && state.diplomacy && (state.diplomacy as unknown[]).includes("Enemy")) {
-          statesAtWar.add(state.i);
+      daysSinceLastQuarterlyUpdate += effectiveDays;
+      if (daysSinceLastQuarterlyUpdate >= 90) {
+        const quartersPassed = Math.floor(daysSinceLastQuarterlyUpdate / 90);
+        daysSinceLastQuarterlyUpdate %= 90;
+        for (let i = 0; i < quartersPassed; i++) {
+          currentQuarterIndex = (currentQuarterIndex + 1) % 4;
+          FoodProduction.generateQuarterlyLedger(currentQuarterIndex);
         }
       }
-    }
 
-    // Update war duration and intensity for burgs; roll up supplyStrain onto states for manpower draft
-    const ledgers = getWorldContext().pack.burgMarketLedgers;
-    const burgs = getWorldContext().pack.burgs;
-    const supplyByState = new Map<number, { sum: number; n: number }>();
-    if (ledgers && burgs) {
-      for (const ledger of ledgers) {
-        const burg = burgs[ledger.burgId];
-        if (!burg || burg.removed) continue;
-
-        if (burg.state && statesAtWar.has(burg.state)) {
-          ledger.warIntensity = Math.min(2.5, (ledger.warIntensity || 0) + 0.1);
-          ledger.warDurationTicks = (ledger.warDurationTicks || 0) + effectiveDays;
-        } else if (ledger.warIntensity && ledger.warIntensity > 0) {
-          ledger.warIntensity = Math.max(0, ledger.warIntensity - 0.1);
-          if (ledger.warIntensity <= 0.001) {
-            ledger.warIntensity = 0;
-            ledger.warDurationTicks = 0;
+      // Check which states are at war
+      const states = getWorldContext().pack.states;
+      const statesAtWar = new Set<number>();
+      if (states) {
+        for (const state of states) {
+          if (!state.removed && state.diplomacy && (state.diplomacy as unknown[]).includes("Enemy")) {
+            statesAtWar.add(state.i);
           }
         }
+      }
 
-        if (burg.state && ledger.warIntensity) {
-          const entry = supplyByState.get(burg.state) ?? { sum: 0, n: 0 };
-          entry.sum += ledger.warIntensity;
-          entry.n += 1;
-          supplyByState.set(burg.state, entry);
+      // Update war duration and intensity for burgs; roll up supplyStrain onto states for manpower draft
+      const ledgers = getWorldContext().pack.burgMarketLedgers;
+      const burgs = getWorldContext().pack.burgs;
+      const supplyByState = new Map<number, { sum: number; n: number }>();
+      if (ledgers && burgs) {
+        for (const ledger of ledgers) {
+          const burg = burgs[ledger.burgId];
+          if (!burg || burg.removed) continue;
+
+          if (burg.state && statesAtWar.has(burg.state)) {
+            ledger.warIntensity = Math.min(2.5, (ledger.warIntensity || 0) + 0.1);
+            ledger.warDurationTicks = (ledger.warDurationTicks || 0) + effectiveDays;
+          } else if (ledger.warIntensity && ledger.warIntensity > 0) {
+            ledger.warIntensity = Math.max(0, ledger.warIntensity - 0.1);
+            if (ledger.warIntensity <= 0.001) {
+              ledger.warIntensity = 0;
+              ledger.warDurationTicks = 0;
+            }
+          }
+
+          if (burg.state && ledger.warIntensity) {
+            const entry = supplyByState.get(burg.state) ?? { sum: 0, n: 0 };
+            entry.sum += ledger.warIntensity;
+            entry.n += 1;
+            supplyByState.set(burg.state, entry);
+          }
         }
       }
-    }
-    // Manpower Phase 5: 0..1 supply strain from average burg warIntensity (cap 2.5 → 1.0)
-    if (states) {
-      for (const state of states) {
-        if (!state?.i || state.removed) continue;
-        const entry = supplyByState.get(state.i);
-        state.supplyStrain = entry && entry.n > 0 ? Math.min(1, entry.sum / entry.n / 2.5) : 0;
+      // Manpower Phase 5: 0..1 supply strain from average burg warIntensity (cap 2.5 → 1.0)
+      if (states) {
+        for (const state of states) {
+          if (!state?.i || state.removed) continue;
+          const entry = supplyByState.get(state.i);
+          state.supplyStrain = entry && entry.n > 0 ? Math.min(1, entry.sum / entry.n / 2.5) : 0;
+        }
       }
-    }
 
-    daysSinceLastProduction += effectiveDays;
+      daysSinceLastProduction += effectiveDays;
 
-    const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
-    const forestChanged = tickForestRegrowth(effectiveDeltaYears);
+      const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
+      const forestChanged = tickForestRegrowth(effectiveDeltaYears);
 
-    if (forestChanged) markProductionDirty();
+      if (forestChanged) markProductionDirty();
 
-    if (daysSinceLastProduction >= 30) {
-      daysSinceLastProduction %= 30;
-      productionSettlementDue = true;
-      // Queue after all synchronous tick hooks have run, so logging events from
-      // Shipbuilding are included irrespective of extension initialization order.
-      scheduleProductionSettlement();
-    }
-  }, ECONOMY_EXTENSION_ID);
+      if (daysSinceLastProduction >= 30) {
+        daysSinceLastProduction %= 30;
+        productionSettlementDue = true;
+        // Queue after all synchronous tick hooks have run, so logging events from
+        // Shipbuilding are included irrespective of extension initialization order.
+        scheduleProductionSettlement();
+      }
+    },
+    ECONOMY_EXTENSION_ID,
+    ["extension.economy", "simulation.states"]
+  );
 
   // Bind trade animation renderer (must happen before any toggle)
   TradeAnimation.bind({
@@ -1291,6 +1307,8 @@ export function cleanup(api: ExtensionAPI): void {
   _unregisterRegenerateCommand = null;
   _unregisterGunpowderRefreshCommand?.();
   _unregisterGunpowderRefreshCommand = null;
+  _unregisterClearCommand?.();
+  _unregisterClearCommand = null;
   if (_unsubscribe) {
     _unsubscribe();
     _unsubscribe = null;
