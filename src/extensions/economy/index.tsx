@@ -221,6 +221,7 @@ let _unregisterMarketRemoveCommand: (() => void) | null = null;
 let _unregisterMarketColorCommand: (() => void) | null = null;
 let _unregisterProductionSettlementCommand: (() => void) | null = null;
 let _unregisterRegenerateCommand: (() => void) | null = null;
+let _unregisterGunpowderRefreshCommand: (() => void) | null = null;
 
 interface AssignGoodToCellRequest {
   readonly cellId: number;
@@ -544,9 +545,22 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       return { changed: true, result: { target: value.target } };
     }
   });
+  _unregisterGunpowderRefreshCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "refreshGunpowderEra",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to refresh gunpowder-era data");
+      }
+      if (value !== undefined) throw new Error("economy.refreshGunpowderEra does not accept a payload");
+
+      refreshEconomyForGunpowderEraData();
+      return { changed: true };
+    }
+  });
 }
 
-function refreshEconomyForGunpowderEra(api: ExtensionAPI): void {
+function refreshEconomyForGunpowderEraData(): void {
   const worldContext = getWorldContext();
   Goods.generate();
   Markets.generate(true);
@@ -569,6 +583,15 @@ function refreshEconomyForGunpowderEra(api: ExtensionAPI): void {
       })
       .filter((caravan): caravan is Exclude<typeof caravan, null> => caravan !== null);
   }
+}
+
+function refreshEconomyForGunpowderEra(api: ExtensionAPI): void {
+  const commit = api.dispatchExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "refreshGunpowderEra",
+    payload: undefined
+  });
+  if (!commit) return;
   if (api.layerIsOn("toggleGoods")) drawGoods(getDisplayedGoodIds());
   api.requestWebglRender();
 }
@@ -1266,6 +1289,8 @@ export function cleanup(api: ExtensionAPI): void {
   _unregisterProductionSettlementCommand = null;
   _unregisterRegenerateCommand?.();
   _unregisterRegenerateCommand = null;
+  _unregisterGunpowderRefreshCommand?.();
+  _unregisterGunpowderRefreshCommand = null;
   if (_unsubscribe) {
     _unsubscribe();
     _unsubscribe = null;
