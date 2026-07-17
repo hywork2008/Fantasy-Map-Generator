@@ -1,6 +1,6 @@
 # 地図データ・シミュレーション・描画の統合設計
 
-- **Status**: In progress（Phase 1、Phase 2 の position command／SVG・WebGL・viewMesh compatibility listener、Phase 3 の `PresentationData` command・legacy SVG import・WebGL style reader 移行を実装済み。generate / load と他の writer は未移行）
+- **Status**: In progress（Phase 1、Phase 2 の position command／SVG・WebGL・viewMesh compatibility listener、Phase 3 の `PresentationData` command・legacy SVG import・WebGL style reader 移行、Phase 4 の `SimulationSystem` registry と legacy tick-hook compatibility を実装済み。generate / load と他の writer、simulation archive / slice は未移行）
 - **Date**: 2026-07-17
 
 **Related**:
@@ -850,6 +850,8 @@ Renderer 固有の element や cache を editor が知る必要はない。
 - RNG stream と state を simulation archive 対象にする。
 - population loss、forest depletion、shipbuilding queue、intelligence、strategic goals 等を versioned simulation / extension slice へ移す。
 - DOM 無しの interface test を追加。
+
+初回実装では legacy hook を `politics` phase の compatibility system として登録順に実行し、既存の public bulk call と UI 日次 call の hook 回数・tickCount・RNG 消費を変更しない。新規 system は `registerSimulationSystem()` で reads / writes、phase、cadence、dependency を明示する。system registry は DOM を参照せず、dependency cycle、存在しない dependency、tick 中の登録・解除を拒否する。canonical daily stepping、RNG archive、versioned slice への data 移動は、この互換性を characterization test で固定した後の後続作業とする。
 
 ### Phase 5 — Command migration
 

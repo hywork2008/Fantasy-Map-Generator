@@ -18,6 +18,7 @@ import type { AppServices } from "../context/appServices";
 import type { SimulationContext } from "../context/simulationContext";
 import type { SvgGroup, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import type { SimulationSystem } from "../generators/simulationSystem";
 import type { BurgEconomySummary } from "../services/burgEconomyExtensions";
 import type { SkillModifierFn } from "../services/skillModifierService";
 import type {
@@ -287,8 +288,10 @@ export interface ExtensionAPI {
 
   // ── Simulation clock ─────────────────────────────────────────────────────
   /**
-   * Register a hook called on every advanceTime() call (i.e. every time the
-   * simulation year/month/day changes). Hooks are permanent for the session.
+   * Register a compatibility hook called on every advanceTime() call (i.e.
+   * every time the simulation year/month/day changes). Compatibility hooks
+   * remain registered for the session; new work should use
+   * registerSimulationSystem.
    * `label` (e.g. the extension id) identifies this hook's cost in the tick profiler's
    * output (src/generators/tickProfiler.ts) — pass one so per-extension tick cost is
    * distinguishable when diagnosing slow Advance Time batches.
@@ -297,6 +300,11 @@ export interface ExtensionAPI {
     hook: (deltaYears: number, deltaMonths: number, deltaDays: number) => void,
     label?: string
   ): void;
+  /**
+   * Register a synchronous system with explicit phase, cadence, dependencies,
+   * and WorldRuntime topics. The system must not touch DOM or renderer APIs.
+   */
+  registerSimulationSystem(system: SimulationSystem): () => void;
 
   // ── Skill modifier chain ─────────────────────────────────────────────────
   /**

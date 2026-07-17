@@ -13,6 +13,7 @@ import { tickManpower } from "./manpower";
 import { Military } from "./military-generator";
 import { advancePopulationLossClock, resetPopulationLossTracker } from "./populationLossTracker";
 import { advanceAllRegimentMovement } from "./regimentMovement";
+import { createSimulationSystemRegistry, type SimulationStepContext, type SimulationSystem } from "./simulationSystem";
 import { logTickProfile, measureTickStep, resetTickProfile } from "./tickProfiler";
 
 /** Day is the base simulation unit. Month/Year UI buttons expand to ~this many days. */
@@ -20,24 +21,36 @@ const DAYS_PER_YEAR = 365.2425;
 const DAYS_PER_MONTH = DAYS_PER_YEAR / 12; // ≈ 30.436875
 
 export type TimeTickHook = (deltaYears: number, deltaMonths: number, deltaDays: number) => void;
-
-interface RegisteredTickHook {
-  fn: TimeTickHook;
-  /** Identifies this hook in the tickProfiler output (see tickProfiler.ts) — pass the extension id. */
-  label: string;
-}
-
-const _tickHooks: RegisteredTickHook[] = [];
+const timeTickSystems = createSimulationSystemRegistry();
+let nextLegacyHookId = 0;
+const legacyHookIds: string[] = [];
 
 /**
- * Register a hook called on every advanceTime() call. Extensions use this via
- * ExtensionAPI.registerTimeTickHook() to run their own per-tick simulation logic
- * (e.g. ship production, forest regrowth). Hooks are permanent for the session —
- * gate extension-specific behavior with api.isExtensionEnabled() inside the hook.
- * `label` (e.g. the extension id) identifies this hook's cost in tickProfiler.ts's output.
+ * Compatibility registration for the old hook API. The hook becomes a
+ * phase-aware system while retaining registration order and "once per
+ * advanceTime call" semantics. Like the previous API, compatibility hooks
+ * remain registered for the session. New systems should declare their reads
+ * and writes with registerSimulationSystem().
  */
 export function registerTimeTickHook(fn: TimeTickHook, label = "unlabeled"): void {
-  _tickHooks.push({ fn, label });
+  const previousId = legacyHookIds.at(-1);
+  const id = `legacy-hook:${nextLegacyHookId++}`;
+  timeTickSystems.register({
+    id,
+    phase: "politics",
+    reads: [],
+    writes: ["extension.legacy"],
+    after: previousId ? [previousId] : undefined,
+    cadence: { every: 1 },
+    profileLabel: `hook:${label}`,
+    run: context => fn(context.delta.years, context.delta.months, context.delta.days)
+  });
+  legacyHookIds.push(id);
+}
+
+/** Registers a synchronous, DOM-free simulation system for legacy ticks. */
+export function registerSimulationSystem(system: SimulationSystem): () => void {
+  return timeTickSystems.register(system);
 }
 
 /**
@@ -253,10 +266,14 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
     );
   }
 
-  for (const hook of _tickHooks) {
-    measureTickStep(`hook:${hook.label}`, () => hook.fn(deltaYears, deltaMonths, deltaDays));
-  }
-  if (_tickHooks.length) topics.push("extension.legacy");
+  const systemContext: SimulationStepContext = {
+    tick: simulationContext.tickCount,
+    delta: { years: deltaYears, months: deltaMonths, days: deltaDays }
+  };
+  const executedSystems = timeTickSystems.run(systemContext, system =>
+    measureTickStep(system.profileLabel ?? `system:${system.id}`, () => system.run(systemContext))
+  );
+  topics.push(...executedSystems.flatMap(system => system.writes));
 
   // Fallback: if Nobility extension is disabled, run the core military movement here.
   // (If Nobility is enabled, it handles this internally with additional siege/capture logic).

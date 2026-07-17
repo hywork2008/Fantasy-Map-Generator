@@ -22,6 +22,7 @@ export type DataTopic =
   | "map.networks"
   | "map.annotations"
   | "simulation.clock"
+  | "simulation.rng"
   | "simulation.cells"
   | "simulation.states"
   | "simulation.burgs"

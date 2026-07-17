@@ -29,7 +29,7 @@ import { changeViewMode } from "./controllers/viewMode";
 import { injectInfrastructure, injectVisibleUI } from "./dom/initDOM";
 import { initExtensions } from "./extensions/index";
 import { initModules } from "./generators/index";
-import { advanceTime, registerTimeTickHook } from "./generators/timeEngine";
+import { advanceTime, registerSimulationSystem, registerTimeTickHook } from "./generators/timeEngine";
 import { buildGeoJsonZones, saveGeoJsonZones } from "./io/export";
 import { generate, initMain, regenerateMap } from "./main";
 import { initRenderers } from "./renderers/index";
@@ -174,6 +174,7 @@ function buildExtensionAPI(): ExtensionAPI {
     unregisterToolAction,
 
     registerTimeTickHook,
+    registerSimulationSystem,
 
     registerSkillModifier,
     getEffectiveSkill,
