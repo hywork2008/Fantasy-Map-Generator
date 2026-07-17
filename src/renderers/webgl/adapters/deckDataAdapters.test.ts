@@ -3,8 +3,15 @@ import type { ViewContext } from "../../../context/viewContext";
 import type { WorldContext } from "../../../context/worldContext";
 import { Rivers } from "../../../generators/river-generator";
 import { useLayerState } from "../../../store/layerState";
-import { buildDeckLayers, clearDeckLayerDataCache, getDeckLayerDataCacheSize } from "../buildDeckLayers";
+import {
+  buildDeckLayers,
+  clearDeckLayerDataCache,
+  getDeckLayerDataCacheSize,
+  getLandTopologySignature,
+  primeLandTopologyCache
+} from "../buildDeckLayers";
 import { buildFlatLandTopology, materializeLandPolygon } from "../flatLandTopology";
+import { InProcessLandTopologyProjectionJobAdapter } from "../landTopologyProjectionWorkerAdapter";
 import * as deckDataAdapters from "./deckDataAdapters";
 import {
   buildBiomesPolygons,
@@ -1308,6 +1315,48 @@ describe("deck.gl data adapters", () => {
     expect(layers.find(layer => layer.id === "fmg-webgl-provinces")?.props.data).toHaveLength(2);
     expect(layers.find(layer => layer.id === "fmg-webgl-biomes")?.props.data).toHaveLength(2);
     geometrySpy.mockRestore();
+  });
+
+  it("preserves layer order and pick identities when worker-compatible topology primes the cache", async () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.cells.h[1] = 30;
+    const viewContext = { focusScope: null } as ViewContext;
+    const revisionProjection = { revision: 8, topicRevisions: { "map.topology": 3, "map.physical": 5 } };
+    useLayerState.getState().setAllActiveLayers({ toggleBiomes: true });
+
+    const synchronousLayers = buildDeckLayers(worldContext, viewContext, appServices, { revisionProjection }).filter(
+      Boolean
+    );
+    const synchronousLand = synchronousLayers.find(layer => layer.id === "fmg-webgl-land")?.props.data as Array<{
+      id: string;
+      kind: string;
+      cellId: number;
+    }>;
+    const synchronousBiomes = synchronousLayers.find(layer => layer.id === "fmg-webgl-biomes")?.props.data;
+
+    clearDeckLayerDataCache();
+    const signature = getLandTopologySignature(worldContext, viewContext, revisionProjection);
+    const workerCompatible = new InProcessLandTopologyProjectionJobAdapter();
+    const result = await workerCompatible.project({
+      revision: revisionProjection.revision,
+      geometry: deckDataAdapters.buildLandCellGeometry(worldContext, viewContext.focusScope)
+    });
+    primeLandTopologyCache(signature, result.topology);
+    const workerPrimedLayers = buildDeckLayers(worldContext, viewContext, appServices, { revisionProjection }).filter(
+      Boolean
+    );
+    const workerPrimedLand = workerPrimedLayers.find(layer => layer.id === "fmg-webgl-land")?.props.data as Array<{
+      id: string;
+      kind: string;
+      cellId: number;
+    }>;
+    const workerPrimedBiomes = workerPrimedLayers.find(layer => layer.id === "fmg-webgl-biomes")?.props.data;
+
+    expect(workerPrimedLayers.map(layer => layer.id)).toEqual(synchronousLayers.map(layer => layer.id));
+    expect(workerPrimedLand.map(({ id, kind, cellId }) => ({ id, kind, cellId }))).toEqual(
+      synchronousLand.map(({ id, kind, cellId }) => ({ id, kind, cellId }))
+    );
+    expect(workerPrimedBiomes).toEqual(synchronousBiomes);
   });
 
   it("keeps deck.gl layer ids and cached data references stable when an unrelated layer is toggled", () => {

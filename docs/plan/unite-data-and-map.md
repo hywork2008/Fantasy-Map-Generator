@@ -897,7 +897,7 @@ raw `pack` / `grid` write は allowlist + lint rule で段階的に禁止する�
 - [x] CPU-only `LandTopologyProjectionAdapter` の in-process adapter を追加。deck.gl layer construction、DOM、GPU resource は main thread に残す。
 - [x] 同じ async job interface を満たす in-process fallback と `WorkerLandTopologyProjectionAdapter` を追加。flat topology の Typed Array buffer だけを worker から transfer し、superseded revision の result を reject する。
 - [x] RenderCoordinator から topology/physical commit を rAF 単位で coalesce し、latest projection の result だけを WebGL topology cache へ publish。pending 中は同期 fallback を避け、failure 時だけ fallback を再有効化する。
-- [ ] 同期 compatibility path と同じ pick/layer semantics を characterization test で確認し、Worker seam を正式化する。
+- [x] 同期 compatibility path と worker-compatible topology cache の layer order、semantic pick identity、biome projection を characterization test で固定。Worker seam を正式化する。
 
 ---
 
