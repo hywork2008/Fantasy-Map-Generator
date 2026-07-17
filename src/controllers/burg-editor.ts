@@ -3,9 +3,9 @@ import { zoomIntoBurg as zoomIntoBurgAction } from "../actions";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-
 import { drawBurgIcon, drawBurgLabel, removeBurgCOA } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { moveBurg } from "../runtime/worldRuntime";
 import { burgEconomyExtensions } from "../services/burgEconomyExtensions";
 import { getBurgSiteDescriptor } from "../services/burgSiteDescriptor";
 import { getHeight } from "../services/cellInfoService";
@@ -177,29 +177,9 @@ const burgEditorInternal = {
       return;
     }
 
-    // change UI
     const x = rn(pt[0], 2);
     const y = rn(pt[1], 2);
-
-    view.burgIcons.select(`#burg${burgId}`).attr("x", x).attr("y", y);
-    view.burgLabels.select(`#burgLabel${burgId}`).attr("transform", null).attr("x", x).attr("y", y);
-
-    const anchor = view.anchors.select(`use[data-id='${burgId}']`);
-    if (anchor.size()) {
-      const size = anchor.attr("width");
-      const xa = rn(x - +size * 0.47, 2);
-      const ya = rn(y - +size * 0.47, 2);
-      anchor.attr("transform", null).attr("x", xa).attr("y", ya);
-    }
-
-    // change data
-    cells.burg[burg.cell] = 0;
-    cells.burg[cellId] = burgId;
-    burg.cell = cellId;
-    burg.state = newState;
-    burg.x = x;
-    burg.y = y;
-    if (burg.capital) worldContext.pack.states[newState].center = burg.cell;
+    moveBurg({ burgId, cellId, stateId: newState, x, y });
 
     if (event.shiftKey === false) burgEditorActions.toggleRelocateBurg();
   },

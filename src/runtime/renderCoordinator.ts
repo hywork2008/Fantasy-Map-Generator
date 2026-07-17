@@ -1,11 +1,12 @@
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { scheduleWebglUpdate } from "../controllers/layers";
+import { schedule3dSceneUpdate, schedule3dTerrainUpdate, scheduleWebglUpdate } from "../controllers/layers";
 import {
   BordersRenderer,
   BurgIconsRenderer,
   BurgLabelsRenderer,
+  MarkersRenderer,
   MilitaryRenderer,
   StateLabelsRenderer
 } from "../renderers";
@@ -16,8 +17,13 @@ export interface RenderEffects {
   renderStateLabels(): void;
   renderBurgIcons(): void;
   renderBurgLabels(): void;
+  renderMarkers(): void;
   renderMilitary(): void;
   scheduleWebglUpdate(): void;
+  schedule3dTerrainUpdate(): void;
+  schedule3dSceneUpdate(): void;
+  refreshEditors(): void;
+  refreshMilitary(): void;
 }
 
 const visualTopic = (topic: DataTopic): boolean =>
@@ -44,10 +50,24 @@ function applyCommit(commit: WorldCommit<unknown>, effects: RenderEffects): void
   if (topics.has("map.settlements")) {
     effects.renderBurgIcons();
     effects.renderBurgLabels();
+    effects.schedule3dSceneUpdate();
   }
 
-  if (topics.has("simulation.military")) effects.renderMilitary();
-  if ([...topics].some(visualTopic)) effects.scheduleWebglUpdate();
+  if (topics.has("map.annotations")) effects.renderMarkers();
+
+  if (topics.has("simulation.military")) {
+    effects.renderMilitary();
+    effects.refreshMilitary();
+  }
+
+  if ([...topics].some(visualTopic)) {
+    effects.scheduleWebglUpdate();
+    effects.schedule3dTerrainUpdate();
+  }
+
+  if (topics.has("map.politics") || topics.has("map.settlements") || topics.has("map.annotations")) {
+    effects.refreshEditors();
+  }
 }
 
 let stopCoordinator: (() => void) | null = null;
@@ -72,10 +92,18 @@ export function initRenderCoordinator(): void {
       if (!viewContext.renderMap) return;
       BurgLabelsRenderer.render(worldContext, viewContext, appServices);
     },
+    renderMarkers: () => {
+      if (!viewContext.renderMap) return;
+      MarkersRenderer.render(worldContext, viewContext, appServices);
+    },
     renderMilitary: () => {
       if (!viewContext.renderMap) return;
       MilitaryRenderer.render(worldContext, viewContext, appServices);
     },
-    scheduleWebglUpdate
+    scheduleWebglUpdate,
+    schedule3dTerrainUpdate,
+    schedule3dSceneUpdate,
+    refreshEditors: () => document.dispatchEvent(new CustomEvent("fmg:refresh-editors")),
+    refreshMilitary: () => document.dispatchEvent(new CustomEvent("fmg:refresh-military"))
   });
 }

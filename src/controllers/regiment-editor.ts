@@ -3,9 +3,9 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-
 import { lockRegimentForBattle, unlockRegimentForBattle } from "../generators/battleLock";
 import { drawRegiment, moveRegiment } from "../renderers/index";
+import { moveRegiment as moveRegimentCommand } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -39,6 +39,8 @@ let _regDragState: {
   image: SVGImageElement;
   baseLine: d3.Selection<SVGLineElement, unknown, null, undefined>;
   rotationControl: d3.Selection<SVGCircleElement, unknown, null, undefined>;
+  pendingX: number;
+  pendingY: number;
 } | null = null;
 
 type RegimentBounds = { x: number; y: number; width: number; height: number };
@@ -190,16 +192,18 @@ function dragRegimentStart(this: SVGGElement): void {
     icon: this.querySelector(".regimentIcon") as SVGElement,
     image: this.querySelector(".regimentImage") as SVGImageElement,
     baseLine: view.viewbox.select("g#regimentBase > line"),
-    rotationControl: view.debug.select("#rotationControl")
+    rotationControl: view.debug.select("#rotationControl"),
+    pendingX: reg.x,
+    pendingY: reg.y
   };
 }
 
 function dragRegimentDrag(this: SVGGElement, event: d3.D3DragEvent<SVGGElement, unknown, unknown>): void {
   if (!_regDragState) return;
-  const { reg, w, h, size, self, baseRect, text, iconRect, icon, image, baseLine, rotationControl } = _regDragState;
+  const { w, h, size, self, baseRect, text, iconRect, icon, image, baseLine, rotationControl } = _regDragState;
   const { x, y } = event;
-  reg.x = x;
-  reg.y = y;
+  _regDragState.pendingX = x;
+  _regDragState.pendingY = y;
   const x1 = rn(x - w / 2, 2);
   const y1 = rn(y - size, 2);
   this.setAttribute("transform-origin", `${x}px ${y}px`);
@@ -222,11 +226,20 @@ function dragRegimentDrag(this: SVGGElement, event: d3.D3DragEvent<SVGGElement, 
   }
 }
 
+function dragRegimentEnd(): void {
+  if (!_regDragState) return;
+  const { reg, pendingX, pendingY } = _regDragState;
+  moveRegimentCommand({ stateId: reg.state, regimentId: reg.i, x: pendingX, y: pendingY });
+  _regDragState = null;
+}
+
 function closeEditor(): void {
   view.debug.selectAll("*").remove();
   view.viewbox.selectAll("g#regimentMarchRoute").remove();
   view.armies.selectAll(":scope > g").classed("draggable", false);
-  view.armies.selectAll<SVGGElement, unknown>("g>g").call(drag<SVGGElement, unknown>().on("drag", null));
+  view.armies
+    .selectAll<SVGGElement, unknown>("g>g")
+    .call(drag<SVGGElement, unknown>().on("drag", null).on("end", null));
   setRegimentEditorState({ isOpen: false, mode: "normal" });
   EditorBus.restoreDefaultEvents();
   setElSelected(null);
@@ -253,7 +266,12 @@ function openRegimentEditor(stateId: number, regimentId: number, rawEl: SVGGElem
   view.armies.selectAll(":scope > g").classed("draggable", true);
   view.armies
     .selectAll<SVGGElement, unknown>(":scope > g > g")
-    .call(drag<SVGGElement, unknown>().on("start", dragRegimentStart).on("drag", dragRegimentDrag));
+    .call(
+      drag<SVGGElement, unknown>()
+        .on("start", dragRegimentStart)
+        .on("drag", dragRegimentDrag)
+        .on("end", dragRegimentEnd)
+    );
 
   setElSelected(rawEl ? select(rawEl) : null);
   if (!worldContext.pack.states[stateId]) return;

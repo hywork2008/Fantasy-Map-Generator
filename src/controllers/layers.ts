@@ -1295,6 +1295,11 @@ function schedule3dUpdate(rebuildSceneObjects = false) {
   });
 }
 
+/** Queues a terrain-texture refresh without rebuilding viewMesh scene objects. */
+export function schedule3dTerrainUpdate(): void {
+  schedule3dUpdate();
+}
+
 /** Queues a full viewMesh scene-object rebuild — used when routes' live SVG style changes. */
 export function schedule3dSceneUpdate(): void {
   schedule3dUpdate(true);

@@ -54,7 +54,7 @@ export interface WorldCommit<T> {
   readonly changes: WorldChangeSet;
 }
 
-interface LegacyMutationOutcome<T> {
+export interface LegacyMutationOutcome<T> {
   readonly result: T;
   /** Empty means the operation was a no-op and must not create a commit. */
   readonly topics: readonly DataTopic[];
@@ -72,7 +72,46 @@ export interface LegacyMutationCommand<T> {
   readonly execute: () => LegacyMutationOutcome<T>;
 }
 
-export type WorldCommand<T> = LegacyMutationCommand<T>;
+export interface MoveMarkerRequest {
+  readonly markerId: number;
+  readonly x: number;
+  readonly y: number;
+  /** Omit during an in-progress drag; commit the cell on drag end. */
+  readonly cellId?: number;
+}
+
+export interface MoveMarkerCommand {
+  readonly type: "marker.move";
+  readonly payload: MoveMarkerRequest;
+}
+
+export interface MoveBurgRequest {
+  readonly burgId: number;
+  readonly cellId: number;
+  readonly stateId: number;
+  readonly x: number;
+  readonly y: number;
+}
+
+export interface MoveBurgCommand {
+  readonly type: "burg.move";
+  readonly payload: MoveBurgRequest;
+}
+
+export interface MoveRegimentRequest {
+  readonly stateId: number;
+  readonly regimentId: number;
+  readonly x: number;
+  readonly y: number;
+}
+
+export interface MoveRegimentCommand {
+  readonly type: "regiment.move";
+  readonly payload: MoveRegimentRequest;
+}
+
+export type PositionCommand = MoveMarkerCommand | MoveBurgCommand | MoveRegimentCommand;
+export type WorldCommand<T> = LegacyMutationCommand<T> | PositionCommand;
 
 export interface WorldRuntime {
   read(): WorldReadView;
@@ -121,7 +160,7 @@ class LegacyWorldRuntime implements WorldRuntime {
 
     this.committing = true;
     try {
-      const outcome = command.execute();
+      const outcome = this.getOutcome(command);
       const topics = [...new Set(outcome.topics)];
       if (!topics.length) return null;
 
@@ -154,6 +193,52 @@ class LegacyWorldRuntime implements WorldRuntime {
       this.committing = false;
     }
   }
+
+  private getOutcome<T>(command: WorldCommand<T>): LegacyMutationOutcome<T> {
+    if (command.type === "legacy.mutation") return command.execute();
+
+    if (command.type === "marker.move") {
+      const { markerId, x, y, cellId } = command.payload;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error("marker.move requires finite coordinates");
+      const marker = this.world.pack.markers.find(item => item.i === markerId);
+      if (!marker) throw new Error(`marker.move could not find marker ${markerId}`);
+
+      marker.x = x;
+      marker.y = y;
+      if (cellId !== undefined) marker.cell = cellId;
+      return { result: undefined as T, topics: ["map.annotations"] };
+    }
+
+    if (command.type === "burg.move") {
+      const { burgId, cellId, stateId, x, y } = command.payload;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error("burg.move requires finite coordinates");
+      const burg = this.world.pack.burgs[burgId];
+      const cells = this.world.pack.cells;
+      if (!burg?.i) throw new Error(`burg.move could not find burg ${burgId}`);
+      if (!Number.isInteger(cellId) || cellId < 0 || cellId >= cells.burg.length) {
+        throw new Error(`burg.move received invalid cell ${cellId}`);
+      }
+      if (!this.world.pack.states[stateId]) throw new Error(`burg.move could not find state ${stateId}`);
+
+      cells.burg[burg.cell] = 0;
+      cells.burg[cellId] = burgId;
+      burg.cell = cellId;
+      burg.state = stateId;
+      burg.x = x;
+      burg.y = y;
+      if (burg.capital) this.world.pack.states[stateId].center = cellId;
+      return { result: undefined as T, topics: ["map.settlements"] };
+    }
+
+    const { stateId, regimentId, x, y } = command.payload;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error("regiment.move requires finite coordinates");
+    const regiment = this.world.pack.states[stateId]?.military?.find(item => item.i === regimentId);
+    if (!regiment) throw new Error(`regiment.move could not find regiment ${stateId}/${regimentId}`);
+
+    regiment.x = x;
+    regiment.y = y;
+    return { result: undefined as T, topics: ["simulation.military"] };
+  }
 }
 
 export function createWorldRuntime(world: WorldContext, simulation: SimulationContext): WorldRuntime {
@@ -169,4 +254,17 @@ export const worldRuntime = createWorldRuntime(worldContext, simulationContext);
  */
 export function legacyMutation<T>(execute: () => LegacyMutationOutcome<T>): WorldCommit<T> | null {
   return (worldRuntime as LegacyWorldRuntime).execute({ type: "legacy.mutation", execute });
+}
+
+/** Phase 2 compatibility commands for bounded, ID-addressed position edits. */
+export function moveMarker(request: MoveMarkerRequest): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "marker.move", payload: request });
+}
+
+export function moveBurg(request: MoveBurgRequest): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "burg.move", payload: request });
+}
+
+export function moveRegiment(request: MoveRegimentRequest): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "regiment.move", payload: request });
 }
