@@ -25,14 +25,14 @@ import { getFeaturePath } from "../renderers/index";
 import { moveFeatureVertex, patchFeature } from "../runtime/worldRuntime";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
-import { elSelected, modules, setElSelected } from "../store/editorState";
+import { modules, setElSelected } from "../store/editorState";
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { rn, si, unique } from "../utils";
 import { debounce } from "../utils/commonUtils";
 import { getArea, getAreaUnit } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
-import { getElementById, getElementBySelector, layerIsOn } from "../utils/nodeUtils";
+import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
 import { interactionManager } from "./interactionManager";
 import { drawLayers, toggleCells } from "./layers";
 import { editStyle } from "./style";
@@ -177,24 +177,40 @@ export const COAST_PRESETS: Record<string, Omit<CoastlineSettings, "enabled">> =
 };
 
 const PREVIEW_SEED = "preview_coastline";
+const DEFAULT_COASTLINE_GROUPS = ["sea_island", "lake_island"];
+let selectedCoastlineFeatureId: number | null = null;
+
+function getCoastlineFeature() {
+  if (selectedCoastlineFeatureId === null) throw new Error("Coastline editor has no selected feature");
+  const feature = worldContext.pack.features.find(
+    candidate => candidate.i === selectedCoastlineFeatureId && candidate.type !== "lake" && candidate.type !== "ocean"
+  );
+  if (!feature) throw new Error(`Coastline editor could not find feature ${selectedCoastlineFeatureId}`);
+  return feature;
+}
+
+function getCoastlineGroup(feature = getCoastlineFeature()): string {
+  return feature.group || "sea_island";
+}
+
+function getCoastlineGroups(): string[] {
+  const groups = new Set(DEFAULT_COASTLINE_GROUPS);
+  for (const feature of worldContext.pack.features) {
+    if (feature && feature.type !== "lake" && feature.type !== "ocean" && feature.group) groups.add(feature.group);
+  }
+  return [...groups];
+}
 
 function updateCoastlineFeatureData(): void {
-  if (!elSelected) return;
-
-  const group = (elSelected.node()!.parentNode as SVGGElement).id;
-  const groupOptions: { value: string; label: string }[] = [];
-  view.coastline.selectAll("g").each(function () {
-    const g = this as SVGGElement;
-    groupOptions.push({ value: g.id, label: g.id });
-  });
-
-  const featureId = +elSelected.attr("data-f");
-  const { area } = worldContext.pack.features[featureId];
+  if (selectedCoastlineFeatureId === null) return;
+  const feature = getCoastlineFeature();
+  const groupOptions = getCoastlineGroups().map(group => ({ value: group, label: group }));
+  const { area } = feature;
   const areaUI = `${si(getArea(area))} ${getAreaUnit()}`;
 
   import("../store/coastlineEditorState").then(({ getCoastlineEditorState }) => {
     getCoastlineEditorState().setFeatureData({
-      group,
+      group: getCoastlineGroup(feature),
       groupOptions,
       areaUI
     });
@@ -202,8 +218,7 @@ function updateCoastlineFeatureData(): void {
 }
 
 function drawCoastlineVertices(): void {
-  const featureId = +elSelected!.attr("data-f");
-  const { vertices } = worldContext.pack.features[featureId];
+  const { vertices } = getCoastlineFeature();
 
   const cellsNumber = worldContext.pack.cells.i.length;
   const neibCells = unique(
@@ -248,7 +263,8 @@ function handleVertexDrag(
   this.setAttribute("cy", String(y));
 
   const vertexId = select(this).datum() as number;
-  const featureId = +elSelected!.attr("data-f");
+  const featureId = selectedCoastlineFeatureId;
+  if (featureId === null) return;
   const feature = features[featureId];
   if (!moveFeatureVertex({ featureId, vertexId, x, y })) return;
   view.defs
@@ -277,17 +293,7 @@ function redrawLandFills(): void {
   // layer, not the SVG #landmass/#land mask touched above; its data must be rebuilt for the moved
   // coastline vertex to show live instead of only appearing after the editor closes.
   if (viewContext.renderMode === "webglHybrid") {
-    const featureId = elSelected ? +elSelected.attr("data-f") : Number.NaN;
-
     drawLayers();
-
-    // drawLayers() -> drawHybridSvgOverlays() re-runs FeaturesRenderer, which rebuilds every
-    // <use> under #coastline from scratch and detaches the element elSelected was pointing at;
-    // re-acquire it by feature id so the still-active drag keeps working.
-    if (!Number.isNaN(featureId)) {
-      const node = view.coastline.select<SVGElement>(`use[data-f="${featureId}"]`).node();
-      if (node) setElSelected(select(node as Element));
-    }
   }
 }
 
@@ -299,6 +305,7 @@ function handleVertexDragEnd(): void {
 
 function closeCoastlineEditor(): void {
   view.debug.select("#vertices").remove();
+  selectedCoastlineFeatureId = null;
   EditorBus.unselect();
   modules.editCoastline = false;
 }
@@ -321,10 +328,10 @@ export const coastlineEditorActions = {
   },
 
   changeGroup: (newGroup: string) => {
-    const featureId = +elSelected!.attr("data-f");
-    if (!patchFeature({ featureId, group: newGroup })) return;
-    view.coastline.select<SVGGElement>(`#${newGroup}`).node()!.appendChild(elSelected!.node()!);
+    if (!newGroup || selectedCoastlineFeatureId === null) return;
+    if (!patchFeature({ featureId: selectedCoastlineFeatureId, group: newGroup })) return;
     updateCoastlineFeatureData();
+    refreshCoastlinePresentation();
   },
 
   toggleNewGroupInput: () => {
@@ -353,7 +360,7 @@ export const coastlineEditorActions = {
         .replace(/ /g, "_")
         .replace(/[^\w\s]/gi, "");
 
-      if (getElementById(group)) {
+      if (getCoastlineGroups().includes(group)) {
         tip("Element with this id already exists. Please provide a unique name", false, "error");
         return;
       }
@@ -362,45 +369,30 @@ export const coastlineEditorActions = {
         return;
       }
 
-      const oldGroup = elSelected!.node()!.parentNode as SVGGElement;
-      const basic = ["sea_island", "lake_island"].includes(oldGroup.id);
-      if (!basic && oldGroup.childElementCount === 1) {
-        oldGroup.id = group;
-        getCoastlineEditorState().setFeatureData({ isNewGroupInputVisible: false, newGroupName: "" });
-        updateCoastlineFeatureData();
-        return;
-      }
-
-      const newGroup = (elSelected!.node()!.parentNode as Element).cloneNode(false) as SVGGElement;
-      view.coastline.node()!.appendChild(newGroup);
-      newGroup.id = group;
-      newGroup.appendChild(elSelected!.node()!);
+      coastlineEditorActions.changeGroup(group);
       getCoastlineEditorState().setFeatureData({ isNewGroupInputVisible: false, newGroupName: "" });
-      updateCoastlineFeatureData();
     });
   },
 
   removeGroup: () => {
-    const group = (elSelected!.node()!.parentNode as SVGGElement).id;
-    if (["sea_island", "lake_island"].includes(group)) {
+    const group = getCoastlineGroup();
+    if (DEFAULT_COASTLINE_GROUPS.includes(group)) {
       tip("This is one of the default groups, it cannot be removed", false, "error");
       return;
     }
 
-    const count = (elSelected!.node()!.parentNode as Element).childElementCount;
+    const featuresInGroup = worldContext.pack.features.filter(
+      feature => feature && feature.type !== "lake" && feature.type !== "ocean" && feature.group === group
+    );
     openConfirm(
-      `Are you sure you want to remove the group? All coastline elements of the group (${count}) will be moved under <i>sea_island</i> group`,
+      `Are you sure you want to remove the group? All coastline elements of the group (${featuresInGroup.length}) will be moved under <i>sea_island</i> group`,
       {
         title: "Remove coastline group",
         confirm: "Remove",
         onConfirm: () => {
-          const sea = view.coastline.select<SVGGElement>("#sea_island").node()!;
-          const groupEl = view.coastline.select<SVGGElement>(`#${group}`).node()!;
-          while (groupEl.childNodes.length) {
-            sea.appendChild(groupEl.childNodes[0]);
-          }
-          groupEl.remove();
+          for (const feature of featuresInGroup) patchFeature({ featureId: feature.i, group: "sea_island" });
           updateCoastlineFeatureData();
+          refreshCoastlinePresentation();
           import("../store/coastlineEditorState").then(({ getCoastlineEditorState }) => {
             getCoastlineEditorState().setFeatureData({ group: "sea_island" });
           });
@@ -410,10 +402,14 @@ export const coastlineEditorActions = {
   },
 
   editStyle: () => {
-    const g = (elSelected!.node()!.parentNode as SVGGElement).id;
-    editStyle("coastline", g);
+    editStyle("coastline", getCoastlineGroup());
   }
 };
+
+function refreshCoastlinePresentation(): void {
+  if (viewContext.renderMode === "webglHybrid") drawLayers();
+  else FeaturesRenderer.render(worldContext, viewContext, appServices);
+}
 
 export const coastlineSettingsActions = {
   toggleEnabled: (enabled: boolean) => {
@@ -650,18 +646,25 @@ function drawShapePreview(canvas: HTMLCanvasElement): void {
 class CoastlineEditorModule {
   editCoastline(event?: MouseEvent): void {
     const node = (event?.target ?? getElementBySelector<SVGElement>(".coastline path")) as SVGElement | null;
-    this.openCoastlineEditor(node, event);
+    const featureId = Number(node?.getAttribute("data-f"));
+    if (!Number.isInteger(featureId)) return;
+    this.openCoastlineEditor(featureId, node, event);
   }
 
   /** Opens the Coastline Editor for a feature id, without depending on a clicked SVG element (WebGL pick). */
   editCoastlineById(featureId: number): void {
-    const node = view.coastline.select<SVGElement>(`use[data-f="${featureId}"]`).node();
-    if (!node) return;
-    this.openCoastlineEditor(node);
+    this.openCoastlineEditor(featureId);
   }
 
-  private openCoastlineEditor(node: SVGElement | null, event?: MouseEvent): void {
+  private openCoastlineEditor(featureId: number, node?: SVGElement | null, event?: MouseEvent): void {
     if (view.customization) return;
+    if (
+      !worldContext.pack.features.some(
+        feature => feature.i === featureId && feature.type !== "lake" && feature.type !== "ocean"
+      )
+    ) {
+      return;
+    }
     closeDialogs(".stable");
     if (layerIsOn("toggleCells")) toggleCells();
 
@@ -673,10 +676,9 @@ class CoastlineEditorModule {
     });
 
     view.debug.append("g").attr("id", "vertices");
+    selectedCoastlineFeatureId = featureId;
     setElSelected(node ? select(node as Element) : null);
-    if (node) {
-      drawCoastlineVertices();
-    }
+    drawCoastlineVertices();
     interactionManager.setMouseMoveHandler(null);
 
     if (modules.editCoastline) return;

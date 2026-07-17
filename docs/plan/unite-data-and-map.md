@@ -884,7 +884,7 @@ raw `pack` / `grid` write は allowlist + lint rule で段階的に禁止する�
 - [x] topology shared cache を CSR + flat coordinates にする。`landTopologyCache` は cell ID、polygon offset、`Float32Array` XY のみを保持し、各 layer の semantic object projection は cache miss 時に個別生成する。
 - [x] high-cost layer から deck.gl binary attributes を導入。降水量 `ScatterplotLayer` は picking 用 datum 配列を保ったまま position / radius / color を `Float32Array` / `Uint8Array` で deck.gl へ渡す。
 - population、position 等で効果がある場合だけ partial GPU update を追加。
-- hidden SVG editor index を削除。Ice / River は WebGL pick の domain ID と `#debug` の control overlay だけで編集できるようにし、hybrid mode で hidden `#ice` / `#rivers` を同期しない。Lake / coastline の group-editing は依然 SVG parent-child 操作を使うため、feature-group projection への置換後に削除する。
+- [x] hidden SVG editor index を削除。Lake / coastline / ice / river は WebGL pick の domain ID と `#debug` の control overlay だけで編集でき、marker / regiment も既存の ID-based editor path を使う。SVG は canonical `feature.group` から表示用 `<g>` を投影する adapter であり、hybrid mode は hidden editor mirror を同期しない。
 
 ### Phase 8 — Physical model split / Worker
 

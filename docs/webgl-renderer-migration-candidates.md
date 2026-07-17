@@ -313,7 +313,7 @@ cache hit のみのケース（zoom/pan 相当）は cell 数に対してほぼ�
 
 最初の binary attribute 対象は高密度な precipitation `ScatterplotLayer` とした。通常の datum 配列は残し、deck.gl の picking が `cellId` を失わないようにしつつ、`getPosition`、`getRadius`、`getFillColor` を `Float32Array` / `Float32Array` / `Uint8Array` として渡す。partial GPU update は実測で更新範囲が GPU buffer 再生成より有利と確認できるまで追加しない。
 
-Ice / River editor は WebGL pick の domain ID を直接解決する。Ice は既存の WebGL drag bridge、River は `riverId` と `#debug` の control point overlay を使い、`drawHybridSvgOverlays()` は hidden `#ice` / `#rivers` を再描画しない。Lake / coastline の group-editing は SVG の parent-child 関係をまだ編集 state として使うため、この段階では対象外とする。
+Lake / coastline / ice / river editor は WebGL pick の domain ID を直接解決する。Ice は既存の WebGL drag bridge、River / Lake / coastline は ID と `#debug` の control point / vertex overlay を使い、`drawHybridSvgOverlays()` は hidden `#ice` / `#rivers` を再描画しない。Lake / coastline group は `feature.group` を `patchFeature()` で更新し、`FeaturesRenderer` が canonical group から表示用 `<g>` を投影するため、hidden SVG の parent-child 関係を editor state として読まない。
 
 polygon layer の binary geometry 化（`Float32Array` の positions/colors を直接渡し、`getPolygon`/`getFillColor` の per-datum projection も避ける方式）は、picking datum と polygon-hole/winding の互換性を別途確認してから段階的に行う。Phase 7 ではまず precipitation の binary attributes を導入した。
 
