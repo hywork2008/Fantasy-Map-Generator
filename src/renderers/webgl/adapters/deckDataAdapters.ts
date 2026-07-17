@@ -36,6 +36,7 @@ import { isCellInScope, isGridCellInScope } from "../../core/focusScope";
 import { getCachedBurgIconRaster } from "../burgIconRasterCache";
 import { getCachedEmblemIconUrl } from "../emblemIconCache";
 import { hasExternalIconFailed } from "../externalIconFailureCache";
+import { isFlatLandTopology, type LandGeometryProjection, materializeLandPolygon } from "../flatLandTopology";
 
 export type DeckPosition = [number, number];
 export type DeckPathDashArray = readonly [number, number];
@@ -58,6 +59,18 @@ export interface DeckPrecipitationSymbol {
   radius: number;
   fillColor: Color;
 }
+
+/**
+ * An array keeps deck.gl's normal datum lookup for picking, while `attributes` bypasses
+ * per-datum accessors when uploading dense precipitation data to the GPU.
+ */
+export type DeckBinaryPrecipitationData = DeckPrecipitationSymbol[] & {
+  attributes: {
+    getPosition: { value: Float32Array; size: 2 };
+    getRadius: { value: Float32Array; size: 1 };
+    getFillColor: { value: Uint8Array; size: 4 };
+  };
+};
 
 export interface DeckHeightStyle {
   scheme: string | null;
@@ -390,7 +403,7 @@ export function buildLandPolygonsBase(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
   fill = "#eef6fb",
-  landCells?: ReadonlyArray<DeckLandCellGeometry>
+  landCells?: LandGeometryProjection
 ): DeckCellPolygon[] {
   return buildLandPolygons(worldContext, focusScope, "land", () => colorToRgba(fill, "#eef6fb"), landCells);
 }
@@ -399,7 +412,7 @@ export function buildHeightPolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
   style: DeckHeightStyle = { scheme: "bright", opacity: 1, includeOcean: false },
-  landCells?: ReadonlyArray<DeckLandCellGeometry>
+  landCells?: LandGeometryProjection
 ): DeckCellPolygon[] {
   const { cells, vertices } = worldContext.grid;
   if (!cells?.i || !cells.v || !vertices?.p) return [];
@@ -411,15 +424,7 @@ export function buildHeightPolygons(
   // height 20 color to cover the landmass down to the detailed coastline and lake shores.
   if (!style.includeOcean && landCells) {
     const baseColor = colorToRgba(getColor(20, scheme), "#999999", style.opacity);
-    for (const { cellId, polygon } of landCells) {
-      polygons.push({
-        id: `height-base-cell-${cellId}`,
-        kind: "height",
-        cellId,
-        polygon,
-        fillColor: baseColor
-      });
-    }
+    appendLandPolygons(polygons, landCells, "height", () => baseColor, "height-base");
   }
 
   for (const gridCellId of cells.i) {
@@ -443,7 +448,7 @@ export function buildHeightPolygons(
 export function buildBiomesPolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  landCells?: ReadonlyArray<DeckLandCellGeometry>,
+  landCells?: LandGeometryProjection,
   opacity = 0.5
 ): DeckCellPolygon[] {
   const { pack, biomesData } = worldContext;
@@ -459,7 +464,7 @@ export function buildBiomesPolygons(
 export function buildCulturePolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  landCells?: ReadonlyArray<DeckLandCellGeometry>,
+  landCells?: LandGeometryProjection,
   opacity = 0.6
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
@@ -475,7 +480,7 @@ export function buildCulturePolygons(
 export function buildReligionPolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  landCells?: ReadonlyArray<DeckLandCellGeometry>,
+  landCells?: LandGeometryProjection,
   opacity = 0.7
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
@@ -491,7 +496,7 @@ export function buildReligionPolygons(
 export function buildStatePolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  landCells?: ReadonlyArray<DeckLandCellGeometry>,
+  landCells?: LandGeometryProjection,
   opacity = 0.3,
   diplomacySelectedStateId: number | null = null
 ): DeckCellPolygon[] {
@@ -517,7 +522,7 @@ export function buildStatePolygons(
 export function buildProvincePolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  landCells?: ReadonlyArray<DeckLandCellGeometry>,
+  landCells?: LandGeometryProjection,
   opacity = 0.7
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
@@ -533,7 +538,7 @@ export function buildProvincePolygons(
 export function buildZonePolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  landCells?: ReadonlyArray<DeckLandCellGeometry>,
+  landCells?: LandGeometryProjection,
   opacity = 0.7
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
@@ -605,6 +610,30 @@ export function buildPrecipitationSymbols(
   }
 
   return symbols;
+}
+
+export function buildBinaryPrecipitationData(symbols: DeckPrecipitationSymbol[]): DeckBinaryPrecipitationData {
+  const positions = new Float32Array(symbols.length * 2);
+  const radii = new Float32Array(symbols.length);
+  const colors = new Uint8Array(symbols.length * 4);
+
+  for (let index = 0; index < symbols.length; index++) {
+    const symbol = symbols[index];
+    positions[index * 2] = symbol.position[0];
+    positions[index * 2 + 1] = symbol.position[1];
+    radii[index] = symbol.radius;
+    colors.set(symbol.fillColor, index * 4);
+  }
+
+  Object.defineProperty(symbols, "attributes", {
+    value: {
+      getPosition: { value: positions, size: 2 as const },
+      getRadius: { value: radii, size: 1 as const },
+      getFillColor: { value: colors, size: 4 as const }
+    },
+    enumerable: false
+  });
+  return symbols as DeckBinaryPrecipitationData;
 }
 
 export function buildDangerPolygons(
@@ -719,7 +748,7 @@ export function buildEnclosurePolygons(
 export function buildPopulationPolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  landCells?: ReadonlyArray<DeckLandCellGeometry>,
+  landCells?: LandGeometryProjection,
   maxOpacity = 0.72
 ): DeckCellPolygon[] {
   const { pack, populationRate, urbanization } = worldContext;
@@ -1883,16 +1912,12 @@ function buildLandPolygons(
   focusScope: FocusScope | null,
   kind: WebglPickKind,
   getFillColor: (cellId: number) => Color,
-  landCells?: ReadonlyArray<DeckLandCellGeometry>
+  landCells?: LandGeometryProjection
 ): DeckCellPolygon[] {
   if (landCells) {
-    return landCells.map(({ cellId, polygon }) => ({
-      id: `${kind}-cell-${cellId}`,
-      kind,
-      cellId,
-      polygon,
-      fillColor: getFillColor(cellId)
-    }));
+    const polygons: DeckCellPolygon[] = [];
+    appendLandPolygons(polygons, landCells, kind, getFillColor);
+    return polygons;
   }
 
   return buildCellPolygons(
@@ -1902,6 +1927,38 @@ function buildLandPolygons(
     getFillColor,
     cellId => worldContext.pack.cells.h[cellId] >= 20
   );
+}
+
+function appendLandPolygons(
+  target: DeckCellPolygon[],
+  landCells: LandGeometryProjection,
+  kind: WebglPickKind,
+  getFillColor: (cellId: number) => Color,
+  idPrefix: string = kind
+): void {
+  if (isFlatLandTopology(landCells)) {
+    for (let index = 0; index < landCells.cellIds.length; index++) {
+      const cellId = landCells.cellIds[index];
+      target.push({
+        id: `${idPrefix}-cell-${cellId}`,
+        kind,
+        cellId,
+        polygon: materializeLandPolygon(landCells, index),
+        fillColor: getFillColor(cellId)
+      });
+    }
+    return;
+  }
+
+  for (const { cellId, polygon } of landCells) {
+    target.push({
+      id: `${idPrefix}-cell-${cellId}`,
+      kind,
+      cellId,
+      polygon,
+      fillColor: getFillColor(cellId)
+    });
+  }
 }
 
 function buildGridCellPolygons(

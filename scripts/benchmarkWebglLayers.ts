@@ -67,6 +67,12 @@ function makeColorPalette(count: number): Array<{ i: number; color: string }> {
 
 function buildSyntheticWorldContext(cellCount: number): WorldContext {
   const mesh = buildGridMesh(cellCount);
+  const cellsP = mesh.cellsV.map(vertexIds => {
+    const points = vertexIds.map(vertexId => mesh.vertices.p[vertexId]);
+    const x = points.reduce((sum, point) => sum + point[0], 0) / points.length;
+    const y = points.reduce((sum, point) => sum + point[1], 0) / points.length;
+    return [x, y] as [number, number];
+  });
 
   const cellsI = new Uint32Array(cellCount);
   const cellsH = new Uint8Array(cellCount);
@@ -78,6 +84,7 @@ function buildSyntheticWorldContext(cellCount: number): WorldContext {
   const cellsProvince = new Uint16Array(cellCount);
   const cellsDanger = new Uint8Array(cellCount);
   const cellsPop = new Uint8Array(cellCount);
+  const cellsArea = new Float32Array(cellCount).fill(100);
 
   const numStates = 24;
   const numProvinces = 48;
@@ -103,6 +110,7 @@ function buildSyntheticWorldContext(cellCount: number): WorldContext {
   const prec = new Uint8Array(cellCount).map((_, i) => i % 300);
 
   const grid = {
+    points: cellsP,
     cells: { i: cellsI, v: mesh.cellsV, c: mesh.cellsC, h: cellsH, temp, prec },
     vertices: mesh.vertices
   };
@@ -120,6 +128,7 @@ function buildSyntheticWorldContext(cellCount: number): WorldContext {
         i: cellsI,
         v: mesh.cellsV,
         c: mesh.cellsC,
+        p: cellsP,
         h: cellsH,
         g: cellsG,
         biome: cellsBiome,
@@ -129,6 +138,7 @@ function buildSyntheticWorldContext(cellCount: number): WorldContext {
         province: cellsProvince,
         danger: cellsDanger,
         pop: cellsPop,
+        area: cellsArea,
         routes: {}
       },
       vertices: mesh.vertices,

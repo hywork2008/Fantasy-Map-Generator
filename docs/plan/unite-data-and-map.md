@@ -880,9 +880,9 @@ raw `pack` / `grid` write は allowlist + lint rule で段階的に禁止する�
 
 ### Phase 7 — Revision-driven projection
 
-- 移行済み layer の `buildLayerSignatures()` hash を topic revision に置換。→ WebGL hybrid の `DeckGlRenderer` は `WorldRuntime.read()` の revision projection を渡し、topology / physical / politics / settlements / networks / annotations / simulation / presentation 各 topic に属する cache key を O(1) で作る。runtime 外の preview / test adapter は content hash fallback を維持する。
-- topology shared cache を CSR + flat coordinates にする。
-- high-cost layer から deck.gl binary attributes を導入。
+- [x] 移行済み layer の `buildLayerSignatures()` hash を topic revision に置換。→ WebGL hybrid の `DeckGlRenderer` は `WorldRuntime.read()` の revision projection を渡し、topology / physical / politics / settlements / networks / annotations / simulation / presentation 各 topic に属する cache key を O(1) で作る。runtime 外の preview / test adapter は content hash fallback を維持する。
+- [x] topology shared cache を CSR + flat coordinates にする。`landTopologyCache` は cell ID、polygon offset、`Float32Array` XY のみを保持し、各 layer の semantic object projection は cache miss 時に個別生成する。
+- [x] high-cost layer から deck.gl binary attributes を導入。降水量 `ScatterplotLayer` は picking 用 datum 配列を保ったまま position / radius / color を `Float32Array` / `Uint8Array` で deck.gl へ渡す。
 - population、position 等で効果がある場合だけ partial GPU update を追加。
 - hidden SVG editor index を削除。
 

@@ -254,7 +254,7 @@ Phase 7 では `DeckGlRenderer` が `WorldRuntime.read()` の topic revision pro
 | :-- | :-- |
 | `background` | `mapId`, `graphWidth`/`graphHeight`, ocean fill color |
 | `land` | `mapId`, focus scope, `pack.vertices.p`/`pack.cells.v` 内容, `pack.cells.h` 内容, land fill color |
-| `land-geometry`（shared land cell 座標、後述） | `mapId`, focus scope, `pack.vertices.p`/`pack.cells.v`/`pack.cells.h` 内容のみ。fill color には依存しない |
+| `land-topology`（shared land CSR、後述） | `mapId`, focus scope, `pack.vertices.p`/`pack.cells.v`/`pack.cells.h` 内容のみ。fill color には依存しない |
 | `height` | `mapId`, focus scope, `grid.vertices.p`/`grid.cells.v` 内容, `grid.cells.h` 内容, height scheme/opacity/includeOcean |
 | `biomes` | land geometry（上記`land`と同条件）+ `pack.cells.biome` 内容 + `biomesData.color` 内容 |
 | `religions` / `religions-boundaries` | land geometry + `pack.cells.religion` 内容 + `pack.religions[].color` 内容 |
@@ -280,7 +280,7 @@ Phase 7 では `DeckGlRenderer` が `WorldRuntime.read()` の topic revision pro
 | `borders` | land geometry + states/provinces 内容 + `pack.cells.c` 内容 |
 | `routes` | `mapId`, focus scope, `pack.routes[]` 内容 |
 
-`ice` / `emblems` / `burgIcons` / `markers` / `military` / `labels` は `mapId` や geometry シグネチャを含まず、対象配列の内容ハッシュのみで invalidate される（content-addressed）。マップ生成をまたいでも配列内容が偶然一致すればキャッシュが理論上共有されうるが、実用上は問題にならない（`deckDataAdapters.test.ts` の in-place mutation テストで挙動を確認済み）。`deckLayerDataCache` はキー集合が固定（~20個 + `land-geometry`）で `clearDeckLayerDataCache()` は本番コードパスからは呼ばれない（テストの `beforeEach` のみ）— 古いエントリが無限に蓄積されるのではなく、シグネチャ不一致のたびに同じキーが上書きされるだけなので実害はない。
+`ice` / `emblems` / `burgIcons` / `markers` / `military` / `labels` は `mapId` や geometry シグネチャを含まず、対象配列の内容ハッシュのみで invalidate される（content-addressed）。マップ生成をまたいでも配列内容が偶然一致すればキャッシュが理論上共有されうるが、実用上は問題にならない（`deckDataAdapters.test.ts` の in-place mutation テストで挙動を確認済み）。`deckLayerDataCache` はキー集合が固定（~20個）で、別管理の `landTopologyCache` も単一 entry だけを保持する。`clearDeckLayerDataCache()` は本番コードパスからは呼ばれない（テストの `beforeEach` のみ）— 古いエントリが無限に蓄積されるのではなく、シグネチャ不一致のたびに同じキーが上書きされるだけなので実害はない。
 
 #### rebuild トリガーの実態
 
@@ -299,17 +299,21 @@ Phase 7 では `DeckGlRenderer` が `WorldRuntime.read()` の topic revision pro
 
 | cells | initial draw (ms) | preset switch (ms) | zoom-only / full cache hit (ms) |
 | --: | --: | --: | --: |
-| 10,000 | 95.3 | 22.8 | 0.5 |
-| 50,000 | 516.9 | 98.4 | 1.7 |
-| 100,000 | 915.8 | 407.6 | 3.2 |
+| 10,000 | 126.0 | 25.7 | 0.5 |
+| 50,000 | 570.3 | 157.3 | 1.6 |
+| 100,000 | 1324.9 | 344.1 | 3.1 |
 
 cache hit のみのケース（zoom/pan 相当）は cell 数に対してほぼ一定かつ低コストで、実装が意図通り機能していることを裏付ける。preset 切替は初回描画よりかなり速いが、切替後に新たに active になったレイヤーの再構築コストがそのまま残るため cell 数に応じて増える。
 
 #### shared land-cell geometry cache
 
-`biomes`/`cultures`/`religions`/`states`/`provinces`/`zones`/`danger`/`population`/`land` の9レイヤーは全て `h >= 20` の land cell に対する同一の頂点→ポリゴン変換を独立に行っていた。`deckDataAdapters.ts` に `buildLandCellGeometry()` を追加し、`buildDeckLayers()` 側で `land-geometry` cache key（`landGeometry` シグネチャのみに依存し、fill color には依存しない）を介して1回だけ計算した結果を上記9レイヤーすべてで再利用するようにした（`buildLandPolygons()` の新しい任意引数 `landCells` 経由）。降水量は SVG と同様に grid cell 中心の半径可変円なので、この共有ポリゴンキャッシュには含めない。既存の直接呼び出し・単体テストとの互換性のため、`landCells` 未指定時は従来通り内部で再計算するフォールバックを残した。
+`biomes`/`cultures`/`religions`/`states`/`provinces`/`zones`/`danger`/`population`/`land` の9レイヤーは全て `h >= 20` の land cell に対する同一の頂点→ポリゴン変換を独立に行っていた。Phase 7 ではこの shared cache を `landTopologyCache` へ置き換え、cell ID、CSR の `polygonOffsets`、flat `Float32Array` XY 座標だけを topology revision ごとに一つ保持する。各 layer はそこから自身の semantic datum と fill color を投影するため、canonical `pack` を複製・変更しない。降水量は SVG と同様に grid cell 中心の半径可変円なので、この共有ポリゴンキャッシュには含めない。既存の直接呼び出し・単体テストとの互換性のため、land projection 未指定時は従来通り内部で再計算するフォールバックを残した。
 
-typed array / binary attribute 化（`Float32Array` の positions/colors を deck.gl に直接渡し、`getPolygon`/`getFillColor` アクセサでの per-datum オブジェクト生成を避ける方式）は、adapter の出力形状そのものを作り替える必要がある大きな構造変更のため、Phase 2 が texture/terrain の deck.gl 化を Phase 6 以降に持ち越したのと同じ理由で今回は着手せず、Phase 6 以降の課題として残す。
+#### Phase 7: binary attributes
+
+最初の binary attribute 対象は高密度な precipitation `ScatterplotLayer` とした。通常の datum 配列は残し、deck.gl の picking が `cellId` を失わないようにしつつ、`getPosition`、`getRadius`、`getFillColor` を `Float32Array` / `Float32Array` / `Uint8Array` として渡す。partial GPU update は実測で更新範囲が GPU buffer 再生成より有利と確認できるまで追加しない。
+
+polygon layer の binary geometry 化（`Float32Array` の positions/colors を直接渡し、`getPolygon`/`getFillColor` の per-datum projection も避ける方式）は、picking datum と polygon-hole/winding の互換性を別途確認してから段階的に行う。Phase 7 ではまず precipitation の binary attributes を導入した。
 
 ## Phase 6: COA / アイコン / テキスト
 

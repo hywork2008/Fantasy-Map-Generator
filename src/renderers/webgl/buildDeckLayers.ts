@@ -28,6 +28,7 @@ import type { ExtensionWebglIconDatum, ExtensionWebglPathDatum } from "../../typ
 import { EMBLEM_ICON_RASTER_SIZE } from "../emblem-renderer";
 import {
   buildBackgroundPolygons,
+  buildBinaryPrecipitationData,
   buildBiomesPolygons,
   buildBorderPaths,
   buildBurgIconSymbols,
@@ -91,6 +92,7 @@ import { getEmblemIconCacheVersion } from "./emblemIconCache";
 import { getCachedEmojiIconUrl, getEmojiIconCacheVersion, pickEmojiIconResolution } from "./emojiIconCache";
 import { getExtensionWebglLayers } from "./extensionWebglLayerRegistry";
 import { getExternalIconFailureCacheVersion, markExternalIconFailed } from "./externalIconFailureCache";
+import { buildFlatLandTopology, type FlatLandTopology, type LandGeometryProjection } from "./flatLandTopology";
 import {
   getBurgIconStyle,
   getCellLayerOpacities,
@@ -113,7 +115,7 @@ import { getWebglTopicRevisionSignature, type WebglRevisionProjection } from "./
 type PolygonBuilder = (
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
-  landCells?: ReadonlyArray<DeckLandCellGeometry>
+  landCells?: LandGeometryProjection
 ) => DeckCellPolygon[];
 type PathBuilder = (
   worldContext: Readonly<WorldContext>,
@@ -147,6 +149,7 @@ interface CachedDeckDataEntry<T extends CachedDeckData> {
 }
 
 const deckLayerDataCache = new Map<string, CachedDeckDataEntry<CachedDeckData>>();
+const landTopologyCache: { signature: string; topology: FlatLandTopology | null } = { signature: "", topology: null };
 
 /** Module-level cache for the ocean-depth offscreen canvas (not in deckLayerDataCache because HTMLCanvasElement is not CachedDeckData). */
 const oceanDepthCanvasCache: { signature: string; canvas: HTMLCanvasElement | null } = { signature: "", canvas: null };
@@ -324,6 +327,8 @@ const EMPTY_ICON_URL =
 
 export function clearDeckLayerDataCache(): void {
   deckLayerDataCache.clear();
+  landTopologyCache.signature = "";
+  landTopologyCache.topology = null;
 }
 
 export function getDeckLayerDataCacheSize(): number {
@@ -390,12 +395,11 @@ export function buildDeckLayers(
     },
     options.revisionProjection
   );
-  // Shared land-cell vertex geometry: the "land" layer always needs it, and every simultaneously
-  // active land-based overlay (biomes/cultures/religions/states/provinces/zones/danger/population)
-  // reuses this same array instead of repeating the per-cell vertex lookup. Precipitation is made
-  // of grid-cell circles, matching the SVG renderer, so it intentionally does not use this cache.
-  const landCells = getCachedDeckData("land-geometry", signatures.landGeometrySignature, () =>
-    buildLandCellGeometry(worldContext, viewContext.focusScope)
+  // Shared land topology is renderer-derived CSR data: all land overlays share a single flat
+  // coordinate buffer, then materialize only their own semantic/color projection. Precipitation
+  // intentionally uses grid-cell circles instead of this mesh, matching the SVG renderer.
+  const landCells = getCachedLandTopology(signatures.landGeometrySignature, () =>
+    buildFlatLandTopology(buildLandCellGeometry(worldContext, viewContext.focusScope))
   );
   const landMaskPolygons = getCachedDeckData("land-mask", signatures.landMask, () =>
     buildLandMaskPolygons(worldContext, viewContext.focusScope, appServices)
@@ -565,11 +569,13 @@ export function buildDeckLayers(
       new ScatterplotLayer<DeckPrecipitationSymbol>({
         id: "fmg-webgl-precipitation",
         data: getCachedDeckData("scatter:precipitation", signatures.byLayer.precipitation, () =>
-          buildPrecipitationSymbols(
-            worldContext,
-            viewContext.focusScope,
-            precipitationPaint.color,
-            precipitationPointsOption
+          buildBinaryPrecipitationData(
+            buildPrecipitationSymbols(
+              worldContext,
+              viewContext.focusScope,
+              precipitationPaint.color,
+              precipitationPointsOption
+            )
           )
         ),
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
@@ -1173,6 +1179,14 @@ function getCachedDeckData<T extends CachedDeckData>(key: string, signature: str
   const data = build();
   deckLayerDataCache.set(key, { signature, data });
   return data;
+}
+
+function getCachedLandTopology(signature: string, build: () => FlatLandTopology): FlatLandTopology {
+  if (landTopologyCache.signature !== signature || !landTopologyCache.topology) {
+    landTopologyCache.signature = signature;
+    landTopologyCache.topology = build();
+  }
+  return landTopologyCache.topology;
 }
 
 /**

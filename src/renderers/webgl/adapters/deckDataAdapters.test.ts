@@ -4,6 +4,7 @@ import type { WorldContext } from "../../../context/worldContext";
 import { Rivers } from "../../../generators/river-generator";
 import { useLayerState } from "../../../store/layerState";
 import { buildDeckLayers, clearDeckLayerDataCache, getDeckLayerDataCacheSize } from "../buildDeckLayers";
+import { buildFlatLandTopology, materializeLandPolygon } from "../flatLandTopology";
 import * as deckDataAdapters from "./deckDataAdapters";
 import {
   buildBiomesPolygons,
@@ -898,7 +899,13 @@ describe("deck.gl data adapters", () => {
     const layers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
     const precipitation = layers.find(layer => layer.id === "fmg-webgl-precipitation");
     const data = precipitation?.props.data as
-      | Array<{ position: [number, number]; radius: number; fillColor: number[] }>
+      | (Array<{ position: [number, number]; radius: number; fillColor: number[] }> & {
+          attributes: {
+            getPosition: { value: Float32Array; size: number };
+            getRadius: { value: Float32Array; size: number };
+            getFillColor: { value: Uint8Array; size: number };
+          };
+        })
       | undefined;
 
     expect(precipitation).toBeDefined();
@@ -906,6 +913,39 @@ describe("deck.gl data adapters", () => {
     expect(data).toEqual([
       expect.objectContaining({ position: [5, 5], radius: 1 }),
       expect.objectContaining({ position: [8, 5], radius: 5 })
+    ]);
+    expect(data?.attributes.getPosition).toEqual({ value: new Float32Array([5, 5, 8, 5]), size: 2 });
+    expect(data?.attributes.getRadius).toEqual({ value: new Float32Array([1, 5]), size: 1 });
+    expect(data?.attributes.getFillColor.value).toHaveLength(8);
+  });
+
+  it("stores shared land topology as CSR offsets and materializes its polygons on demand", () => {
+    const topology = buildFlatLandTopology([
+      {
+        cellId: 7,
+        polygon: [
+          [0, 0],
+          [4, 0],
+          [0, 4]
+        ]
+      },
+      {
+        cellId: 9,
+        polygon: [
+          [4, 0],
+          [4, 4],
+          [0, 4]
+        ]
+      }
+    ]);
+
+    expect(topology.cellIds).toEqual(new Uint32Array([7, 9]));
+    expect(topology.polygonOffsets).toEqual(new Uint32Array([0, 6, 12]));
+    expect(topology.coordinates).toEqual(new Float32Array([0, 0, 4, 0, 0, 4, 4, 0, 4, 4, 0, 4]));
+    expect(materializeLandPolygon(topology, 1)).toEqual([
+      [4, 0],
+      [4, 4],
+      [0, 4]
     ]);
   });
 
