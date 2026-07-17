@@ -220,6 +220,7 @@ let _unregisterMarketAddCommand: (() => void) | null = null;
 let _unregisterMarketRemoveCommand: (() => void) | null = null;
 let _unregisterMarketColorCommand: (() => void) | null = null;
 let _unregisterProductionSettlementCommand: (() => void) | null = null;
+let _unregisterRegenerateCommand: (() => void) | null = null;
 
 interface AssignGoodToCellRequest {
   readonly cellId: number;
@@ -249,6 +250,8 @@ interface MarketCellAssignment {
 interface AssignMarketCellsRequest {
   readonly assignments: readonly MarketCellAssignment[];
 }
+
+type EconomyRegenerationTarget = "economy" | "goods" | "markets" | "production";
 
 function isAssignGoodToCellRequest(value: unknown): value is AssignGoodToCellRequest {
   if (!value || typeof value !== "object") return false;
@@ -307,6 +310,12 @@ function isBurgIdRequest(value: unknown): value is { readonly burgId: number } {
 
 function isMarketIdRequest(value: unknown): value is { readonly marketId: number } {
   return !!value && typeof value === "object" && Number.isInteger((value as { marketId?: unknown }).marketId);
+}
+
+function isEconomyRegenerationRequest(value: unknown): value is { readonly target: EconomyRegenerationTarget } {
+  if (!value || typeof value !== "object") return false;
+  const target = (value as { target?: unknown }).target;
+  return target === "economy" || target === "goods" || target === "markets" || target === "production";
 }
 
 function applyGoodSettings(good: Good, request: GoodSettingsRequest): boolean {
@@ -517,6 +526,24 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       return { changed: true };
     }
   });
+  _unregisterRegenerateCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "regenerate",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) throw new Error("Economy must be enabled to regenerate data");
+      if (!isEconomyRegenerationRequest(value)) throw new Error("economy.regenerate received an invalid target");
+
+      if (value.target === "economy" || value.target === "goods") Goods.generate();
+      if (value.target === "economy" || value.target === "markets") Markets.generate(true);
+      if (value.target === "economy") Taxes.defineTaxRates();
+      if (value.target === "economy" || value.target === "production") {
+        FoodProduction.generateQuarterlyLedger(0);
+        Production.produce();
+        Taxes.collectTaxes();
+      }
+      return { changed: true, result: { target: value.target } };
+    }
+  });
 }
 
 function refreshEconomyForGunpowderEra(api: ExtensionAPI): void {
@@ -549,6 +576,8 @@ function refreshEconomyForGunpowderEra(api: ExtensionAPI): void {
 export function init(api: ExtensionAPI): void {
   initEconomyContext(api);
   registerEconomyCommands(api);
+  const regenerate = (target: EconomyRegenerationTarget) =>
+    api.dispatchExtensionCommand({ extensionId: ECONOMY_EXTENSION_ID, name: "regenerate", payload: { target } });
 
   // Register the extension (default enabled: false)
   api.registerExtension(
@@ -637,14 +666,7 @@ export function init(api: ExtensionAPI): void {
     label: "Economy",
     tooltip: "Rebuild market territories, production, trade deals, and taxes from the current goods and markets",
     onClick: () => {
-      withRegenerateConfirmation("Economy", "regenerateEconomy", () => {
-        Goods.generate();
-        Markets.generate(true);
-        Taxes.defineTaxRates();
-        FoodProduction.generateQuarterlyLedger(0);
-        Production.produce();
-        Taxes.collectTaxes();
-      });
+      withRegenerateConfirmation("Economy", "regenerateEconomy", () => regenerate("economy"));
     }
   });
 
@@ -656,7 +678,7 @@ export function init(api: ExtensionAPI): void {
     label: "Goods",
     tooltip: "Click to regenerate bonus goods placement",
     onClick: () => {
-      withRegenerateConfirmation("Goods", "regenerateGoods", () => Goods.generate());
+      withRegenerateConfirmation("Goods", "regenerateGoods", () => regenerate("goods"));
     }
   });
 
@@ -668,7 +690,7 @@ export function init(api: ExtensionAPI): void {
     label: "Markets",
     tooltip: "Click to regenerate markets and their territories",
     onClick: () => {
-      withRegenerateConfirmation("Markets", "regenerateMarkets", () => Markets.generate(true));
+      withRegenerateConfirmation("Markets", "regenerateMarkets", () => regenerate("markets"));
     }
   });
 
@@ -680,11 +702,7 @@ export function init(api: ExtensionAPI): void {
     label: "Production",
     tooltip: "Click to regenerate production and trade deals",
     onClick: () => {
-      withRegenerateConfirmation("Production", "regenerateProduction", () => {
-        FoodProduction.generateQuarterlyLedger(0);
-        Production.produce();
-        Taxes.collectTaxes();
-      });
+      withRegenerateConfirmation("Production", "regenerateProduction", () => regenerate("production"));
     }
   });
 
@@ -1246,6 +1264,8 @@ export function cleanup(api: ExtensionAPI): void {
   _unregisterMarketColorCommand = null;
   _unregisterProductionSettlementCommand?.();
   _unregisterProductionSettlementCommand = null;
+  _unregisterRegenerateCommand?.();
+  _unregisterRegenerateCommand = null;
   if (_unsubscribe) {
     _unsubscribe();
     _unsubscribe = null;
