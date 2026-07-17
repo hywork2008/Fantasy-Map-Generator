@@ -439,13 +439,8 @@ export function drawLayers(): void {
 function drawHybridSvgOverlays(): void {
   FeaturesRenderer.render(worldContext, viewContext, appServices);
   if (!layerIsOn("toggleLakes")) setLayerVisibility("toggleLakes", false);
-  // Ice and Rivers are kept in sync as hidden SVG layers so WebGL pick
-  // candidates can resolve to a real element via their editors.
-  IceRenderer.render(worldContext, viewContext, appServices);
-  if (!layerIsOn("toggleIce")) setLayerVisibility("toggleIce", false);
-
-  RiversRenderer.render(worldContext, viewContext, appServices);
-  if (!layerIsOn("toggleRivers")) setLayerVisibility("toggleRivers", false);
+  // Ice and river editing resolve domain IDs from WebGL picks. Their editor-only control overlays
+  // live under #debug, so hybrid mode no longer keeps hidden #ice or #rivers SVG mirrors alive.
 
   // State labels stay as a real SVG overlay in hybrid mode. The nested #burgLabels group is still
   // hidden by the hybrid policy and continues to be rendered by deck.gl.

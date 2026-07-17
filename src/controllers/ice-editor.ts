@@ -25,14 +25,20 @@ let appServices: AppServices;
 let _webglDragOffsetX = 0;
 let _webglDragOffsetY = 0;
 
-/** Resolves and opens the Ice Editor for a glacier/iceberg id, without a clicked SVG element (WebGL pick). */
+/** Opens the Ice Editor from a WebGL pick without requiring a hidden SVG mirror element. */
 export function editIceById(id: number, isGlacier: boolean): void {
-  const selector = isGlacier
-    ? `polygon[data-id="${id}"][type="glacier"]`
-    : `polygon[data-id="${id}"]:not([type="glacier"])`;
-  const element = view.ice.select<SVGElement>(selector).node();
-  if (!element) return;
-  editIce(element);
+  if (view.customization) return;
+  const iceElement = worldContext.pack.ice.find(element => element.i === id);
+  if (!iceElement || iceElement.type !== (isGlacier ? "glacier" : "iceberg")) return;
+
+  if (!layerIsOn("toggleIce")) toggleIce();
+  setIceEditorState({
+    isOpen: true,
+    type: isGlacier ? "Glacier" : "Iceberg",
+    selectedId: id,
+    size: isGlacier ? 1 : ((iceElement as IceIceberg).size ?? 1),
+    isAdding: false
+  });
 }
 
 export function editIce(element: SVGElement): void {
@@ -115,6 +121,7 @@ function randomizeShape(): void {
   if (selectedId === null) return;
   GenerationPipeline.Ice.randomizeIcebergShape(selectedId);
   redrawIceberg(worldContext, viewContext, appServices, selectedId);
+  refreshWebglIceLayer();
 }
 
 function changeSize(newSize: number): void {
@@ -123,6 +130,7 @@ function changeSize(newSize: number): void {
   setIceEditorState({ size: newSize });
   GenerationPipeline.Ice.changeIcebergSize(selectedId, newSize);
   redrawIceberg(worldContext, viewContext, appServices, selectedId);
+  refreshWebglIceLayer();
 }
 
 function addIcebergOnClick(this: SVGElement, event: MouseEvent): void {
@@ -132,6 +140,7 @@ function addIcebergOnClick(this: SVGElement, event: MouseEvent): void {
 
   const id = GenerationPipeline.Ice.addIceberg(i, size);
   redrawIceberg(worldContext, viewContext, appServices, id);
+  refreshWebglIceLayer();
 
   if (event.shiftKey === false) toggleAdd();
 }
@@ -163,9 +172,14 @@ function removeIce(): void {
       const removedType = GenerationPipeline.Ice.removeIce(selectedId);
       if (removedType === "glacier") redrawGlacier(worldContext, viewContext, appServices, selectedId);
       else if (removedType === "iceberg") redrawIceberg(worldContext, viewContext, appServices, selectedId);
+      refreshWebglIceLayer();
       closeIceEditor();
     }
   });
+}
+
+function refreshWebglIceLayer(): void {
+  if (viewContext.renderMode === "webglHybrid") drawLayers();
 }
 
 export function closeIceEditor(): void {

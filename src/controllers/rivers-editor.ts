@@ -7,7 +7,7 @@ import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { dialogStore } from "../store/dialogState";
-import { elSelected, setElSelected } from "../store/editorState";
+import { type elSelected, setElSelected } from "../store/editorState";
 import { useOptionsState } from "../store/optionsState";
 import type { River } from "../types/models";
 import { closeDialog, closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
@@ -23,13 +23,12 @@ import { editStyle } from "./style";
 
 let worldContext: WorldContext;
 let cellsWasForced = false;
+let selectedRiverId: number | null = null;
+let selectedRiverPath: SVGPathElement | null = null;
 
 function getRiver(): River | null {
-  if (!elSelected) return null;
-  const idStr = elSelected.attr("id");
-  if (!idStr?.startsWith("river")) return null;
-  const riverId = +idStr.slice(5);
-  return worldContext.pack.rivers.find(r => r.i === riverId) || null;
+  if (selectedRiverId === null) return null;
+  return worldContext.pack.rivers.find(r => r.i === selectedRiverId) || null;
 }
 
 function updateRiverData(): void {
@@ -47,7 +46,8 @@ function updateRiverData(): void {
   const { distanceUnit } = useOptionsState.getState();
   const unit = distanceUnit || "km";
 
-  r.length = rn((elSelected!.node() as SVGPathElement).getTotalLength() / 2, 2);
+  const points = GenerationPipeline.Rivers.addMeandering(r.cells, r.points ?? null);
+  r.length = rn(GenerationPipeline.Rivers.getApproximateLength(points.map(([x, y]) => [x, y])) / 2, 2);
   const lengthUI = `${rn(r.length * worldContext.distanceScale)} ${unit}`;
 
   const { cells: riverCells, discharge, widthFactor, sourceWidth } = r;
@@ -124,7 +124,7 @@ function redrawRiver(): void {
   view.lineGen.curve(curveCatmullRom.alpha(0.1));
   const meanderedPoints = GenerationPipeline.Rivers.addMeandering(river.cells, river.points);
   const path = GenerationPipeline.Rivers.getRiverPath(meanderedPoints, river.widthFactor, river.sourceWidth);
-  elSelected!.attr("d", path);
+  selectedRiverPath?.setAttribute("d", path);
 
   updateRiverData();
   if (dialogStore.getState().openDialogs.has("elevationProfile")) {
@@ -160,7 +160,9 @@ function closeRiverEditor(): void {
   view.debug.select("#controlPoints").remove();
   view.debug.select("#controlCells").remove();
 
-  elSelected?.on("click", null);
+  if (selectedRiverPath) select(selectedRiverPath).on("click", null);
+  selectedRiverPath = null;
+  selectedRiverId = null;
   EditorBus.unselect();
   clearMainTip();
 
@@ -233,10 +235,9 @@ export const riverEditorActions = {
   },
 
   editRiverLegend: (): void => {
-    const rid = elSelected!.attr("id");
     const r = getRiver();
     if (!r) return;
-    editNotes(rid, `${r.name} ${r.type}`);
+    editNotes(`river${r.i}`, `${r.name} ${r.type}`);
   },
 
   removeRiver: (): void => {
@@ -254,14 +255,22 @@ export const riverEditorActions = {
 
 export function editRiver(id: string): void {
   if (view.customization) return;
-  if (elSelected && id === elSelected.attr("id")) return;
+  const riverId = Number(id.replace(/^river/, ""));
+  if (!Number.isInteger(riverId) || !worldContext.pack.rivers.some(river => river.i === riverId)) return;
+  if (selectedRiverId === riverId) return;
   closeDialogs(".stable");
   if (!layerIsOn("toggleRivers")) toggleRivers();
 
   cellsWasForced = !layerIsOn("toggleCells");
   if (cellsWasForced) toggleCells();
 
-  setElSelected(select<SVGPathElement, unknown>(`#${id}`).on("click", addControlPoint) as typeof elSelected);
+  selectedRiverId = riverId;
+  selectedRiverPath = view.rivers.select<SVGPathElement>(`#${id}`).node() ?? null;
+  if (selectedRiverPath) {
+    setElSelected(select(selectedRiverPath).on("click", addControlPoint) as typeof elSelected);
+  } else {
+    setElSelected(null);
+  }
 
   tip(
     "Drag control points to change the river course. Click on point to remove it. Click on river to add additional control point. For major changes please create a new river instead",
