@@ -6,6 +6,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { CulturesRenderer, PopulationRenderer } from "../renderers";
 import { COArenderer, type Emblem as RendererEmblem } from "../renderers/emblem-renderer";
+import { assignCells } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -410,14 +411,12 @@ export const culturesEditorActions = {
 
   applyCultureManualAssignment(): void {
     const changed = view.cults.select("#temp").selectAll<SVGPolygonElement, unknown>("polygon");
-    changed.each(function (this: SVGPolygonElement) {
-      const i = +this.dataset.cell!;
-      const c = +this.dataset.culture!;
-      worldContext.pack.cells.culture[i] = c;
-      if (worldContext.pack.cells.burg[i]) worldContext.pack.burgs[worldContext.pack.cells.burg[i]].culture = c;
-    });
+    const assignments = changed
+      .nodes()
+      .map(cell => ({ cellId: +cell.dataset.cell!, entityId: +cell.dataset.culture! }));
+    const commit = assignments.length ? assignCells({ field: "culture", assignments }) : null;
 
-    if (changed.size()) {
+    if (commit) {
       CulturesRenderer.render(worldContext, viewContext, appServices);
       culturesEditorActions.refresh();
     }

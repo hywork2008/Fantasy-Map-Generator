@@ -7,7 +7,6 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-
 import {
   BordersRenderer,
   drawBurgIcon,
@@ -20,6 +19,7 @@ import {
 } from "../renderers";
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { assignCells } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { modules } from "../store/editorState";
@@ -625,14 +625,20 @@ function moveBrush(this: SVGElement, event: MouseEvent): void {
 }
 
 function applyProvincesManualAssignment(): void {
+  const assignments: { cellId: number; entityId: number }[] = [];
   viewContext.provs
     .select("#temp")
     .selectAll("polygon")
     .each(function () {
       const el = this as SVGPolygonElement;
-      const i = +el.dataset.cell!;
-      worldContext.pack.cells.province[i] = +el.dataset.province!;
+      assignments.push({ cellId: +el.dataset.cell!, entityId: +el.dataset.province! });
     });
+
+  const commit = assignments.length ? assignCells({ field: "province", assignments }) : null;
+  if (!commit) {
+    exitProvincesManualAssignment();
+    return;
+  }
 
   GenerationPipeline.Provinces.getPoles(getWorldState());
   if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);

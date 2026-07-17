@@ -1,6 +1,6 @@
 # 地図データ・シミュレーション・描画の統合設計
 
-- **Status**: In progress（Phase 1、Phase 2 の position command／SVG・WebGL・viewMesh compatibility listener、Phase 3 の `PresentationData` command・legacy SVG import・WebGL style reader 移行、Phase 4 の `SimulationSystem` registry と legacy tick-hook compatibility を実装済み。generate / load と他の writer、simulation archive / slice は未移行）
+- **Status**: In progress（Phase 1、Phase 2 の position command／SVG・WebGL・viewMesh compatibility listener、Phase 3 の `PresentationData` command・legacy SVG import・WebGL style reader 移行、Phase 4 の `SimulationSystem` registry と legacy tick-hook compatibility、Phase 5 の `cells.assign`（state / province / culture / religion）と `state.remove` の data cascade を実装済み。state merge、route / river / lake / coastline、extension writer、generate / load、simulation archive / slice は未移行）
 - **Date**: 2026-07-17
 
 **Related**:

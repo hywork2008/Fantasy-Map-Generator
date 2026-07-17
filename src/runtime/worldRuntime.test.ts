@@ -19,6 +19,34 @@ function createPositionWorld(): WorldContext {
   } as unknown as WorldContext;
 }
 
+function createPoliticsWorld(): WorldContext {
+  return {
+    notes: [
+      { id: "regiment1-3", name: "First" },
+      { id: "keep", name: "Keep" }
+    ],
+    pack: {
+      markers: [],
+      burgs: [{}, { i: 1, cell: 0, state: 1, culture: 1, capital: 1 }, { i: 2, cell: 2, state: 2, culture: 2 }],
+      states: [
+        { i: 0 },
+        { i: 1, provinces: [1], military: [{ i: 3 }], neighbors: [2] },
+        { i: 2, provinces: [], neighbors: [1] }
+      ],
+      provinces: [{}, { i: 1, state: 1 }],
+      cultures: [{}, { i: 1 }, { i: 2 }],
+      religions: [{}, { i: 1 }, { i: 2 }],
+      cells: {
+        burg: new Uint16Array([1, 0, 2]),
+        state: new Uint16Array([1, 1, 2]),
+        province: new Uint16Array([1, 1, 0]),
+        culture: new Uint16Array([1, 1, 2]),
+        religion: new Uint16Array([1, 1, 2])
+      }
+    }
+  } as unknown as WorldContext;
+}
+
 describe("WorldRuntime Phase 1 compatibility shell", () => {
   it("does not publish a commit or increment revisions for a no-op mutation", async () => {
     const runtime = createRuntime();
@@ -112,6 +140,86 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     expect(markerCommit?.changes.changes).toEqual([{ topic: "map.annotations", kind: "replace" }]);
     expect(burgCommit?.changes.changes).toEqual([{ topic: "map.settlements", kind: "replace" }]);
     expect(regimentCommit?.changes.changes).toEqual([{ topic: "simulation.military", kind: "replace" }]);
+  });
+
+  it("assigns cell ownership atomically and preserves burg state / culture invariants", async () => {
+    const world = createPoliticsWorld();
+    const runtime = createWorldRuntime(world, {} as SimulationContext);
+
+    const stateCommit = await runtime.dispatch({
+      type: "cells.assign",
+      payload: {
+        field: "state",
+        assignments: [
+          { cellId: 0, entityId: 2 },
+          { cellId: 0, entityId: 2 }
+        ]
+      }
+    });
+    const cultureCommit = await runtime.dispatch({
+      type: "cells.assign",
+      payload: { field: "culture", assignments: [{ cellId: 0, entityId: 2 }] }
+    });
+
+    expect(world.pack.cells.state[0]).toBe(2);
+    expect(world.pack.burgs[1]).toMatchObject({ state: 2, culture: 2 });
+    expect(stateCommit?.result).toEqual({ changedCellIds: [0] });
+    expect(stateCommit?.changes.changes).toEqual([
+      { topic: "map.politics", kind: "replace" },
+      { topic: "map.settlements", kind: "replace" }
+    ]);
+    expect(cultureCommit?.changes.changes).toEqual([
+      { topic: "map.politics", kind: "replace" },
+      { topic: "map.settlements", kind: "replace" }
+    ]);
+  });
+
+  it("rejects an invalid cell assignment before changing data or revisions", async () => {
+    const world = createPoliticsWorld();
+    const runtime = createWorldRuntime(world, {} as SimulationContext);
+
+    await expect(
+      runtime.dispatch({
+        type: "cells.assign",
+        payload: {
+          field: "province",
+          assignments: [
+            { cellId: 0, entityId: 1 },
+            { cellId: 1, entityId: 99 }
+          ]
+        }
+      })
+    ).rejects.toThrow("could not find active province 99");
+
+    expect(world.pack.cells.province).toEqual(new Uint16Array([1, 1, 0]));
+    expect(runtime.read().revision).toBe(0);
+  });
+
+  it("removes a state with its data cascade in one commit", async () => {
+    const world = createPoliticsWorld();
+    const runtime = createWorldRuntime(world, {} as SimulationContext);
+
+    const commit = await runtime.dispatch({ type: "state.remove", payload: { stateId: 1 } });
+
+    expect(commit?.result).toEqual({
+      stateId: 1,
+      removedProvinceIds: [1],
+      removedRegimentIds: [3],
+      formerCapitalBurgIds: [1]
+    });
+    expect(world.pack.states[1]).toMatchObject({ i: 1, removed: true });
+    expect(world.pack.states[2].neighbors).toEqual([]);
+    expect(world.pack.cells.state).toEqual(new Uint16Array([0, 0, 2]));
+    expect(world.pack.cells.province).toEqual(new Uint16Array([0, 0, 0]));
+    expect(world.pack.provinces[1]).toMatchObject({ i: 1, removed: true });
+    expect(world.pack.burgs[1]).toMatchObject({ state: 0, capital: 0 });
+    expect(world.notes.map(note => note.id)).toEqual(["keep"]);
+    expect(commit?.changes.changes).toEqual([
+      { topic: "map.politics", kind: "replace" },
+      { topic: "map.settlements", kind: "replace" },
+      { topic: "simulation.military", kind: "replace" },
+      { topic: "map.annotations", kind: "replace" }
+    ]);
   });
 
   it("commits persisted style and layer visibility together without exposing DOM state", async () => {

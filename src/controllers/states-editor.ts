@@ -21,6 +21,7 @@ import {
 } from "../renderers";
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { assignCells, removeState as removeStateCommand } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -562,37 +563,28 @@ function stateRemovePrompt(state: number): void {
 }
 
 function stateRemove(stateId: number): void {
+  const commit = removeStateCommand({ stateId });
+  if (!commit) return;
+
   StatesRenderer.removeStateDOM(viewContext, stateId);
   StateLabelsRenderer.removeStateLabel(viewContext, stateId);
 
   EditorBus.unfog(`focusState${stateId}`);
 
-  (worldContext.pack.burgs as Burg[]).forEach(burg => {
-    if (burg.state === stateId) {
-      burg.state = 0;
-      if (burg.capital) {
-        burg.capital = 0;
-        GenerationPipeline.Burgs.changeGroup(burg);
-      }
-    }
+  // `changeGroup` is a legacy derived demographic update. The state / burg
+  // ownership cascade itself has already committed atomically in WorldRuntime.
+  commit.result.formerCapitalBurgIds.forEach(burgId => {
+    const burg = (worldContext.pack.burgs as Burg[])[burgId];
+    if (burg) GenerationPipeline.Burgs.changeGroup(burg);
   });
   if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleLabels")) BurgLabelsRenderer.render(worldContext, viewContext, appServices);
-
-  Array.from(worldContext.pack.cells.state).forEach((s: number, i: number) => {
-    if (s === stateId) worldContext.pack.cells.state[i] = 0;
-  });
 
   const coaId = `stateCOA${stateId}`;
   d3.select(`#${coaId}`).remove();
   EmblemsRenderer.removeStateEmblems(viewContext, stateId);
 
-  ((worldContext.pack.states[stateId] as State).provinces ?? []).forEach((p: number) => {
-    (worldContext.pack.provinces as Province[])[p] = { i: p, removed: true } as Province;
-    Array.from(worldContext.pack.cells.province).forEach((pr: number, i: number) => {
-      if (pr === p) worldContext.pack.cells.province[i] = 0;
-    });
-
+  commit.result.removedProvinceIds.forEach(p => {
     const provCoaId = `provinceCOA${p}`;
     d3.select(`#${provCoaId}`).remove();
     EmblemsRenderer.removeProvinceEmblems(viewContext, p);
@@ -601,19 +593,7 @@ function stateRemove(stateId: number): void {
     g.select(`#province-gap${p}`).remove();
   });
 
-  ((worldContext.pack.states[stateId] as State).military ?? []).forEach((m: { i: number }) => {
-    const id = `regiment${stateId}-${m.i}`;
-    const index = (worldContext.notes as WorldNote[]).findIndex(n => n.id === id);
-    if (index !== -1) worldContext.notes.splice(index, 1);
-  });
   MilitaryRenderer.removeStateArmy(viewContext, stateId);
-
-  (worldContext.pack.states as State[]).forEach(state => {
-    if (!state.i || state.removed || !state.neighbors) return;
-    state.neighbors = state.neighbors.filter(n => n !== stateId);
-  });
-
-  (worldContext.pack.states as State[])[stateId] = { i: stateId, removed: true } as State;
 
   StatesRenderer.clearHighlight(viewContext);
 
@@ -738,6 +718,7 @@ function applyStatesManualAssignent(): void {
   const { cells } = worldContext.pack;
   const affectedStates: number[] = [];
   const affectedProvinces: number[] = [];
+  const assignments: { cellId: number; entityId: number }[] = [];
 
   view.statesBody
     .select("#temp")
@@ -747,11 +728,12 @@ function applyStatesManualAssignent(): void {
       const c = +this.dataset.state!;
       affectedStates.push(cells.state[i], c);
       affectedProvinces.push(cells.province[i]);
-      cells.state[i] = c;
-      if (cells.burg[i]) (worldContext.pack.burgs as Burg[])[cells.burg[i]].state = c;
+      assignments.push({ cellId: i, entityId: c });
     });
 
-  if (affectedStates.length) {
+  const commit = assignments.length ? assignCells({ field: "state", assignments }) : null;
+
+  if (commit) {
     refreshStatesEditor();
     GenerationPipeline.States.getPoles(getWorldState());
     layerIsOn("toggleStates") ? StatesRenderer.render(worldContext, viewContext, appServices) : toggleStates();

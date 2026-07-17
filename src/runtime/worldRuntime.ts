@@ -1,5 +1,6 @@
 import { type SimulationContext, simulationContext } from "../context/simulationContext";
 import { type WorldContext, worldContext } from "../context/worldContext";
+import type { Province, State } from "../types/models";
 import {
   applyPresentationPatch,
   createPresentationData,
@@ -120,13 +121,56 @@ export interface MoveRegimentCommand {
   readonly payload: MoveRegimentRequest;
 }
 
+/** Cell ownership columns that are edited as a single atomic command. */
+export type CellAssignmentField = "state" | "province" | "culture" | "religion";
+
+export interface CellAssignment {
+  readonly cellId: number;
+  readonly entityId: number;
+}
+
+export interface AssignCellsRequest {
+  readonly field: CellAssignmentField;
+  /**
+   * A brush may visit one cell more than once. The final entry for a cell wins,
+   * so callers can pass their collected edits without a separate de-dup pass.
+   */
+  readonly assignments: readonly CellAssignment[];
+}
+
+export interface AssignCellsCommand {
+  readonly type: "cells.assign";
+  readonly payload: AssignCellsRequest;
+}
+
+export interface RemoveStateRequest {
+  readonly stateId: number;
+}
+
+export interface RemoveStateResult {
+  readonly stateId: number;
+  readonly removedProvinceIds: readonly number[];
+  readonly removedRegimentIds: readonly number[];
+  readonly formerCapitalBurgIds: readonly number[];
+}
+
+export interface RemoveStateCommand {
+  readonly type: "state.remove";
+  readonly payload: RemoveStateRequest;
+}
+
 export interface PresentationPatchCommand {
   readonly type: "presentation.patch";
   readonly payload: PresentationPatch;
 }
 
 export type PositionCommand = MoveMarkerCommand | MoveBurgCommand | MoveRegimentCommand;
-export type WorldCommand<T> = LegacyMutationCommand<T> | PositionCommand | PresentationPatchCommand;
+export type WorldCommand<T> =
+  | LegacyMutationCommand<T>
+  | PositionCommand
+  | AssignCellsCommand
+  | RemoveStateCommand
+  | PresentationPatchCommand;
 
 export interface WorldRuntime {
   read(): WorldReadView;
@@ -268,6 +312,14 @@ class LegacyWorldRuntime implements WorldRuntime {
       return { result: undefined as T, topics: ["map.settlements"] };
     }
 
+    if (command.type === "cells.assign") {
+      return this.assignCells(command.payload) as LegacyMutationOutcome<T>;
+    }
+
+    if (command.type === "state.remove") {
+      return this.removeState(command.payload) as LegacyMutationOutcome<T>;
+    }
+
     const { stateId, regimentId, x, y } = command.payload;
     if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error("regiment.move requires finite coordinates");
     const regiment = this.world.pack.states[stateId]?.military?.find(item => item.i === regimentId);
@@ -276,6 +328,134 @@ class LegacyWorldRuntime implements WorldRuntime {
     regiment.x = x;
     regiment.y = y;
     return { result: undefined as T, topics: ["simulation.military"] };
+  }
+
+  private assignCells(request: AssignCellsRequest): LegacyMutationOutcome<{ changedCellIds: readonly number[] }> {
+    const cells = this.world.pack.cells;
+    const column = cells[request.field];
+    if (!column || typeof column.length !== "number") {
+      throw new Error(`cells.assign could not find the ${request.field} column`);
+    }
+
+    const finalAssignments = new Map<number, number>();
+    for (const { cellId, entityId } of request.assignments) {
+      if (!Number.isInteger(cellId) || cellId < 0 || cellId >= column.length) {
+        throw new Error(`cells.assign received invalid cell ${cellId}`);
+      }
+      this.assertAssignmentTarget(request.field, entityId);
+      if (request.field === "province" && entityId !== 0) {
+        const province = this.world.pack.provinces[entityId];
+        if (cells.state[cellId] !== province.state) {
+          throw new Error(`cells.assign cannot assign cell ${cellId} to a province from another state`);
+        }
+      }
+      finalAssignments.set(cellId, entityId);
+    }
+
+    const changedCellIds: number[] = [];
+    let burgChanged = false;
+    for (const [cellId, entityId] of finalAssignments) {
+      if (column[cellId] === entityId) continue;
+      column[cellId] = entityId;
+      changedCellIds.push(cellId);
+
+      // A burg inherits its cell's state and culture in the legacy data model.
+      // Keeping that invariant in the command avoids a post-commit controller write.
+      const burgId = cells.burg[cellId];
+      if (!burgId) continue;
+      const burg = this.world.pack.burgs[burgId];
+      if (!burg) continue;
+      if (request.field === "state" && burg.state !== entityId) {
+        burg.state = entityId;
+        burgChanged = true;
+      }
+      if (request.field === "culture" && burg.culture !== entityId) {
+        burg.culture = entityId;
+        burgChanged = true;
+      }
+    }
+
+    return {
+      result: { changedCellIds },
+      topics: changedCellIds.length ? ["map.politics", ...(burgChanged ? (["map.settlements"] as const) : [])] : []
+    };
+  }
+
+  private assertAssignmentTarget(field: CellAssignmentField, entityId: number): void {
+    if (!Number.isInteger(entityId) || entityId < 0) {
+      throw new Error(`cells.assign received invalid ${field} id ${entityId}`);
+    }
+    if (entityId === 0) return;
+
+    const entities =
+      field === "state"
+        ? this.world.pack.states
+        : field === "province"
+          ? this.world.pack.provinces
+          : field === "culture"
+            ? this.world.pack.cultures
+            : this.world.pack.religions;
+    const entity = entities[entityId];
+    if (!entity || entity.removed) {
+      throw new Error(`cells.assign could not find active ${field} ${entityId}`);
+    }
+  }
+
+  private removeState(request: RemoveStateRequest): LegacyMutationOutcome<RemoveStateResult> {
+    const { stateId } = request;
+    const states = this.world.pack.states;
+    const state = states[stateId];
+    if (!Number.isInteger(stateId) || stateId <= 0 || !state || state.removed) {
+      throw new Error(`state.remove could not find active state ${stateId}`);
+    }
+
+    // Do not trust the denormalized `state.provinces` list as the source of
+    // truth. Legacy maps can contain a valid province whose owner list was not
+    // refreshed; its foreign key still has to be cascaded on removal.
+    const removedProvinceIds = this.world.pack.provinces.flatMap((province, provinceId) =>
+      province?.i && !province.removed && province.state === stateId ? [provinceId] : []
+    );
+    const removedProvinceSet = new Set(removedProvinceIds);
+    const formerCapitalBurgIds: number[] = [];
+    const removedRegimentIds = (state.military ?? []).flatMap(regiment =>
+      regiment.i === undefined ? [] : [regiment.i]
+    );
+
+    for (const burg of this.world.pack.burgs) {
+      if (burg.state !== stateId) continue;
+      burg.state = 0;
+      if (burg.capital) {
+        burg.capital = 0;
+        if (burg.i !== undefined) formerCapitalBurgIds.push(burg.i);
+      }
+    }
+
+    this.world.pack.cells.state.forEach((assignedState, cellId) => {
+      if (assignedState === stateId) this.world.pack.cells.state[cellId] = 0;
+    });
+    this.world.pack.cells.province.forEach((provinceId, cellId) => {
+      if (removedProvinceSet.has(provinceId)) this.world.pack.cells.province[cellId] = 0;
+    });
+
+    for (const provinceId of removedProvinceIds) {
+      if (this.world.pack.provinces[provinceId]) {
+        this.world.pack.provinces[provinceId] = { i: provinceId, removed: true } as Province;
+      }
+    }
+
+    const regimentIds = new Set(removedRegimentIds.map(regimentId => `regiment${stateId}-${regimentId}`));
+    const retainedNotes = this.world.notes.filter(note => !regimentIds.has(note.id));
+    this.world.notes.splice(0, this.world.notes.length, ...retainedNotes);
+    for (const candidate of states) {
+      if (!candidate.i || candidate.removed || !candidate.neighbors) continue;
+      candidate.neighbors = candidate.neighbors.filter(neighborId => neighborId !== stateId);
+    }
+    states[stateId] = { i: stateId, removed: true } as State;
+
+    return {
+      result: { stateId, removedProvinceIds, removedRegimentIds, formerCapitalBurgIds },
+      topics: ["map.politics", "map.settlements", "simulation.military", "map.annotations"]
+    };
   }
 }
 
@@ -309,6 +489,16 @@ export function moveBurg(request: MoveBurgRequest): WorldCommit<void> | null {
 
 export function moveRegiment(request: MoveRegimentRequest): WorldCommit<void> | null {
   return (worldRuntime as LegacyWorldRuntime).execute({ type: "regiment.move", payload: request });
+}
+
+/** Phase 5 command for atomic state / province / culture / religion cell ownership edits. */
+export function assignCells(request: AssignCellsRequest): WorldCommit<{ changedCellIds: readonly number[] }> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "cells.assign", payload: request });
+}
+
+/** Phase 5 command for the data cascade of a state deletion. */
+export function removeState(request: RemoveStateRequest): WorldCommit<RemoveStateResult> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "state.remove", payload: request });
 }
 
 /** Phase 3 command for persisted style and layer-visibility changes. */
