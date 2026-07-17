@@ -20,7 +20,11 @@ import { logTickProfile, measureTickStep, resetTickProfile } from "./tickProfile
 const DAYS_PER_YEAR = 365.2425;
 const DAYS_PER_MONTH = DAYS_PER_YEAR / 12; // ≈ 30.436875
 
-export type TimeTickHook = (deltaYears: number, deltaMonths: number, deltaDays: number) => void;
+export type TimeTickHook = (
+  deltaYears: number,
+  deltaMonths: number,
+  deltaDays: number
+) => readonly DataTopic[] | undefined;
 const timeTickSystems = createSimulationSystemRegistry();
 let nextLegacyHookId = 0;
 const legacyHookIds: string[] = [];
@@ -164,7 +168,7 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
     return { result: undefined, topics: [] };
   }
 
-  const topics: DataTopic[] = ["simulation.clock", "simulation.military"];
+  const topics: DataTopic[] = ["simulation.clock"];
 
   // Reset all regiments' action status to waiting before resolving events for the new tick
   for (const state of worldContext.pack.states) {
@@ -277,7 +281,7 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
   const executedSystems = timeTickSystems.run(systemContext, system =>
     measureTickStep(system.profileLabel ?? `system:${system.id}`, () => system.run(systemContext))
   );
-  topics.push(...executedSystems.flatMap(system => system.writes));
+  topics.push(...executedSystems.flatMap(entry => entry.topics));
 
   // Fallback: if Nobility extension is disabled, run the core military movement here.
   // (If Nobility is enabled, it handles this internally with additional siege/capture logic).
@@ -287,7 +291,8 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
       if (sim.simMilitaryRecovery) {
         Military.updateDynamic(worldContext, effectiveDeltaYears);
       }
-      advanceAllRegimentMovement(worldContext.pack, worldContext, effectiveDeltaYears);
+      const regimentsMoved = advanceAllRegimentMovement(worldContext.pack, worldContext, effectiveDeltaYears);
+      if (regimentsMoved) topics.push("simulation.military");
     });
   }
 

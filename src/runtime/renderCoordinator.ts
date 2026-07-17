@@ -23,6 +23,7 @@ import {
   WorkerLandTopologyProjectionAdapter
 } from "../renderers/webgl/landTopologyProjectionWorkerAdapter";
 import { useLayerState } from "../store/layerState";
+import { layerIsOn } from "../utils/nodeUtils";
 import { presentationData } from "./presentationData";
 import { type DataTopic, type WorldCommit, type WorldRuntime, worldRuntime } from "./worldRuntime";
 
@@ -155,7 +156,7 @@ export function initRenderCoordinator(): void {
       MarkersRenderer.render(worldContext, viewContext, appServices);
     },
     renderMilitary: () => {
-      if (!viewContext.renderMap) return;
+      if (!viewContext.renderMap || !layerIsOn("toggleMilitary")) return;
       MilitaryRenderer.render(worldContext, viewContext, appServices);
     },
     scheduleWebglUpdate,

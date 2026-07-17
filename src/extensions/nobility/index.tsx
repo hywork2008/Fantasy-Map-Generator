@@ -211,7 +211,7 @@ export function init(api: ExtensionAPI): void {
 
   api.registerTimeTickHook(
     (deltaYears, deltaMonths, deltaDays) => {
-      if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return;
+      if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return [];
 
       const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
 
@@ -261,11 +261,20 @@ export function init(api: ExtensionAPI): void {
         if (api.layerIsOn("toggleBorders")) BordersRenderer.render(api.worldContext, api.viewContext, api.appServices);
       }
 
-      if ((bordersChanged || marchCaptureOccurred || regimentsMoved) && api.layerIsOn("toggleMilitary")) {
+      const settlementsChanged = bordersChanged || marchCaptureOccurred;
+      const militaryChanged = settlementsChanged || regimentsMoved;
+      if (militaryChanged && api.layerIsOn("toggleMilitary")) {
         MilitaryRenderer.render(api.worldContext, api.viewContext, api.appServices);
       }
 
       refreshCharactersOverviewIfOpen(api.isDialogOpen("charactersOverview"));
+
+      return [
+        "extension.characters",
+        "extension.nobility",
+        ...(settlementsChanged ? (["map.politics", "map.settlements"] as const) : []),
+        ...(militaryChanged ? (["simulation.military"] as const) : [])
+      ];
     },
     NOBILITY_EXTENSION_ID,
     ["extension.characters", "extension.nobility", "map.politics", "map.settlements", "simulation.military"]

@@ -303,9 +303,13 @@ export interface ExtensionAPI {
    * distinguishable when diagnosing slow Advance Time batches.
    * `writes` lists additional core or extension topics the compatibility hook
    * can change, so the host can invalidate dependent projections correctly.
+   * `writes` is also the fallback topic set used when `hook` returns nothing
+   * (`void`). A hook that knows precisely what changed on a given tick should
+   * instead return that (possibly empty) topic array, so the host doesn't
+   * invalidate renderers/caches for topics that didn't actually change.
    */
   registerTimeTickHook(
-    hook: (deltaYears: number, deltaMonths: number, deltaDays: number) => void,
+    hook: (deltaYears: number, deltaMonths: number, deltaDays: number) => readonly DataTopic[] | undefined,
     label?: string,
     writes?: readonly DataTopic[]
   ): void;

@@ -34,8 +34,12 @@ export interface SimulationStepContext {
 }
 
 /**
- * A synchronous simulation unit. Its declared writes are used for the
- * compatibility WorldChangeSet until TransactionWriter is introduced.
+ * A synchronous simulation unit. `writes` is the upper-bound declaration used
+ * for dependency ordering and as the compatibility WorldChangeSet fallback
+ * when `run()` returns void. A system that returns an explicit (possibly
+ * empty) topic array instead reports exactly what changed this tick, so the
+ * host doesn't invalidate renderers/caches for topics it declared but didn't
+ * actually touch on a given run.
  */
 export interface SimulationSystem {
   readonly id: string;
@@ -47,12 +51,20 @@ export interface SimulationSystem {
   readonly cadence: SimulationCadence;
   /** Optional compatibility label for the existing tick profiler. */
   readonly profileLabel?: string;
-  run(context: SimulationStepContext): void;
+  run(context: SimulationStepContext): readonly DataTopic[] | undefined;
+}
+
+export interface SimulationSystemRunResult {
+  readonly system: SimulationSystem;
+  readonly topics: readonly DataTopic[];
 }
 
 export interface SimulationSystemRegistry {
   register(system: SimulationSystem): () => void;
-  run(context: SimulationStepContext, execute?: (system: SimulationSystem) => void): readonly SimulationSystem[];
+  run(
+    context: SimulationStepContext,
+    execute?: (system: SimulationSystem) => readonly DataTopic[] | undefined
+  ): readonly SimulationSystemRunResult[];
   list(): readonly SimulationSystem[];
 }
 
@@ -83,16 +95,19 @@ class OrderedSimulationSystemRegistry implements SimulationSystemRegistry {
     };
   }
 
-  run(context: SimulationStepContext, execute: (system: SimulationSystem) => void = system => system.run(context)) {
+  run(
+    context: SimulationStepContext,
+    execute: (system: SimulationSystem) => readonly DataTopic[] | undefined = system => system.run(context)
+  ): readonly SimulationSystemRunResult[] {
     if (this.running) throw new Error("Simulation systems cannot re-enter a tick");
 
     this.running = true;
     try {
-      const executed: SimulationSystem[] = [];
+      const executed: SimulationSystemRunResult[] = [];
       for (const system of this.resolveOrder()) {
         if (!runsOnTick(system.cadence, context.tick)) continue;
-        execute(system);
-        executed.push(system);
+        const topics = execute(system);
+        executed.push({ system, topics: topics ?? system.writes });
       }
       return executed;
     } finally {
