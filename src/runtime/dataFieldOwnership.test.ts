@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DATA_FIELD_OWNERSHIP, findFieldOwnership } from "./dataFieldOwnership";
-import { EXTENSION_SLICE_DEFINITIONS } from "./extensionStateSlices";
+import { EXTENSION_ENTITY_SLICE_DEFINITIONS, EXTENSION_SLICE_DEFINITIONS } from "./extensionStateSlices";
 import { SIMULATION_BURG_FIELDS } from "./simulationBurgState";
 import { SIMULATION_CELL_COLUMN_DEFINITIONS } from "./simulationCellColumns";
 import { SIMULATION_STATE_FIELDS } from "./simulationStateState";
@@ -47,6 +47,13 @@ describe("Phase 8 data field ownership inventory", () => {
   it("covers every extension compatibility field in its namespaced owner", () => {
     for (const definition of EXTENSION_SLICE_DEFINITIONS) {
       const path = `simulation.extensions.${definition.extensionId}.${definition.legacyField}`;
+      expect(findFieldOwnership(path)?.owner).toBe(`extension:${definition.extensionId}`);
+    }
+  });
+
+  it("covers every extension entity compatibility field in its namespaced owner", () => {
+    for (const definition of EXTENSION_ENTITY_SLICE_DEFINITIONS) {
+      const path = `simulation.extensions.${definition.extensionId}.${definition.sliceField}`;
       expect(findFieldOwnership(path)?.owner).toBe(`extension:${definition.extensionId}`);
     }
   });

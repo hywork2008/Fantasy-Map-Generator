@@ -8,6 +8,14 @@ type ExtensionSliceDefinition = {
   readonly defaultValue: () => unknown;
 };
 
+type ExtensionEntitySliceDefinition = {
+  readonly extensionId: string;
+  readonly legacyTarget: "burgs" | "states";
+  readonly legacyField: string;
+  readonly sliceField: string;
+  readonly defaultValue: () => unknown;
+};
+
 /**
  * Machine-readable ownership inventory for extension fields that historically
  * augmented `PackedGraph`. Extension code receives its historical property
@@ -35,6 +43,31 @@ export const EXTENSION_SLICE_DEFINITIONS: readonly ExtensionSliceDefinition[] = 
   { extensionId: "economy", legacyTarget: "cells", legacyField: "market", defaultValue: () => new Uint16Array() }
 ];
 
+/** Extension fields historically augmented onto individual core entities. */
+export const EXTENSION_ENTITY_SLICE_DEFINITIONS: readonly ExtensionEntitySliceDefinition[] = [
+  {
+    extensionId: "economy",
+    legacyTarget: "burgs",
+    legacyField: "production",
+    sliceField: "productionByBurg",
+    defaultValue: () => []
+  },
+  {
+    extensionId: "nobility",
+    legacyTarget: "states",
+    legacyField: "rulerId",
+    sliceField: "rulerIdByState",
+    defaultValue: () => undefined
+  },
+  {
+    extensionId: "nobility",
+    legacyTarget: "states",
+    legacyField: "conflictAuthorizations",
+    sliceField: "conflictAuthorizationsByState",
+    defaultValue: () => ({})
+  }
+];
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -53,6 +86,24 @@ function getLegacyTarget(
 ): Record<string, unknown> | null {
   const legacyTarget = target === "pack" ? world.pack : world.pack.cells;
   return legacyTarget ? (legacyTarget as unknown as Record<string, unknown>) : null;
+}
+
+function getEntities(world: WorldContext, target: ExtensionEntitySliceDefinition["legacyTarget"]): unknown[] {
+  return target === "burgs" ? world.pack.burgs : world.pack.states;
+}
+
+function getEntityId(entity: Record<string, unknown>, index: number): number | null {
+  const value = entity.i;
+  if (typeof value === "number" && Number.isInteger(value) && value > 0) return value;
+  return index > 0 ? index : null;
+}
+
+function getEntityValues(slice: Record<string, unknown>, field: string): Record<number, unknown> {
+  const existing = slice[field];
+  if (isRecord(existing)) return existing as Record<number, unknown>;
+  const values: Record<number, unknown> = {};
+  slice[field] = values;
+  return values;
 }
 
 /**
@@ -81,6 +132,31 @@ export function bindExtensionStateSlices(world: WorldContext, simulation: Simula
       }
     });
   }
+
+  for (const definition of EXTENSION_ENTITY_SLICE_DEFINITIONS) {
+    const slice = getSlice(simulation.extensions, definition.extensionId);
+    const values = getEntityValues(slice, definition.sliceField);
+
+    getEntities(world, definition.legacyTarget).forEach((entity, index) => {
+      if (!isRecord(entity)) return;
+      const entityId = getEntityId(entity, index);
+      if (entityId === null) return;
+      const descriptor = Object.getOwnPropertyDescriptor(entity, definition.legacyField);
+      const legacyValue = descriptor && "value" in descriptor ? descriptor.value : undefined;
+      if (legacyValue !== undefined || !Object.hasOwn(values, entityId)) {
+        values[entityId] = legacyValue ?? definition.defaultValue();
+      }
+
+      Object.defineProperty(entity, definition.legacyField, {
+        configurable: true,
+        enumerable: true,
+        get: () => values[entityId],
+        set: value => {
+          values[entityId] = value;
+        }
+      });
+    });
+  }
 }
 
 /** Starts a fresh map without retaining prior-world extension state. */
@@ -97,5 +173,18 @@ export function removeExtensionStateSliceMirrors(world: WorldContext, simulation
     if (!slice || !(definition.legacyField in slice)) continue;
     const target = getLegacyTarget(world, definition.legacyTarget);
     if (target) delete target[definition.legacyField];
+  }
+
+  for (const definition of EXTENSION_ENTITY_SLICE_DEFINITIONS) {
+    const slice = simulation.extensions[definition.extensionId];
+    if (!slice) continue;
+    const values = slice[definition.sliceField];
+    if (!isRecord(values)) continue;
+
+    getEntities(world, definition.legacyTarget).forEach((entity, index) => {
+      if (!isRecord(entity)) return;
+      const entityId = getEntityId(entity, index);
+      if (entityId !== null && Object.hasOwn(values, entityId)) delete entity[definition.legacyField];
+    });
   }
 }
