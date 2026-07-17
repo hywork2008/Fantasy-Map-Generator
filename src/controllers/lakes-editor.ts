@@ -15,6 +15,7 @@ import {
   StatesRenderer
 } from "../renderers";
 import { getFeaturePath } from "../renderers/index";
+import { patchFeature } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -219,30 +220,26 @@ function closeLakesEditor(): void {
 export const lakeEditorActions = {
   changeName(newName: string): void {
     const lake = getLake();
-    lake.name = newName;
-    getLakeEditorState().updateLakeData({ name: newName });
+    if (patchFeature({ featureId: lake.i, name: newName })) getLakeEditorState().updateLakeData({ name: newName });
   },
 
   generateNameCulture(): void {
     const lake = getLake();
     const newName = GenerationPipeline.Lakes.getName(lake);
-    lake.name = newName;
-    getLakeEditorState().updateLakeData({ name: newName });
+    if (patchFeature({ featureId: lake.i, name: newName })) getLakeEditorState().updateLakeData({ name: newName });
   },
 
   generateNameRandom(): void {
     const lake = getLake();
     const newName = generateRandomName();
-    lake.name = newName;
-    getLakeEditorState().updateLakeData({ name: newName });
+    if (patchFeature({ featureId: lake.i, name: newName })) getLakeEditorState().updateLakeData({ name: newName });
   },
 
   changeLakeGroup(newGroup: string): void {
     const lake = getLake();
     const groupEl = view.lakes.select<SVGGElement>(`#${newGroup}`).node();
-    if (groupEl && elSelected) {
+    if (groupEl && elSelected && patchFeature({ featureId: lake.i, group: newGroup })) {
       groupEl.appendChild(elSelected.node()!);
-      lake.group = newGroup;
       getLakeEditorState().updateLakeData({ group: newGroup });
     }
   },

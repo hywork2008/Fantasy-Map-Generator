@@ -22,6 +22,7 @@ import {
   PROFILE_SIZE
 } from "../renderers/coastline-fractal";
 import { getFeaturePath } from "../renderers/index";
+import { patchFeature } from "../runtime/worldRuntime";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { elSelected, modules, setElSelected } from "../store/editorState";
@@ -323,6 +324,8 @@ export const coastlineEditorActions = {
   },
 
   changeGroup: (newGroup: string) => {
+    const featureId = +elSelected!.attr("data-f");
+    if (!patchFeature({ featureId, group: newGroup })) return;
     view.coastline.select<SVGGElement>(`#${newGroup}`).node()!.appendChild(elSelected!.node()!);
     updateCoastlineFeatureData();
   },

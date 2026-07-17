@@ -2,6 +2,7 @@ import { curveCatmullRom, type D3DragEvent, drag, pointer, select } from "d3";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { removeRivers } from "../renderers/draw-rivers";
+import { patchRiver } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -202,51 +203,45 @@ export const riverEditorActions = {
   changeName: (name: string): void => {
     const r = getRiver();
     if (!r) return;
-    r.name = name;
-    updateRiverData();
+    if (patchRiver({ riverId: r.i, name })) updateRiverData();
   },
 
   changeType: (type: string): void => {
     const r = getRiver();
     if (!r) return;
-    r.type = type;
-    updateRiverData();
+    if (patchRiver({ riverId: r.i, type })) updateRiverData();
   },
 
   generateNameCulture: (): void => {
     const r = getRiver();
     if (!r) return;
-    r.name = GenerationPipeline.Rivers.getName(r.mouth);
-    updateRiverData();
+    const name = GenerationPipeline.Rivers.getName(r.mouth);
+    if (patchRiver({ riverId: r.i, name })) updateRiverData();
   },
 
   generateNameRandom: (): void => {
     const r = getRiver();
     if (!r) return;
-    r.name = GenerationPipeline.Names.getBase(rand(worldContext.nameBases.length - 1));
-    updateRiverData();
+    const name = GenerationPipeline.Names.getBase(rand(worldContext.nameBases.length - 1));
+    if (patchRiver({ riverId: r.i, name })) updateRiverData();
   },
 
   changeParent: (parentIdStr: string): void => {
     const r = getRiver();
     if (!r) return;
-    r.parent = +parentIdStr;
-    r.basin = worldContext.pack.rivers.find((river: River) => river.i === r.parent)?.basin ?? r.i;
-    updateRiverData();
+    if (patchRiver({ riverId: r.i, parentId: +parentIdStr })) updateRiverData();
   },
 
   changeSourceWidth: (width: number): void => {
     const r = getRiver();
     if (!r) return;
-    r.sourceWidth = width;
-    redrawRiver();
+    if (patchRiver({ riverId: r.i, sourceWidth: width })) redrawRiver();
   },
 
   changeWidthFactor: (factor: number): void => {
     const r = getRiver();
     if (!r) return;
-    r.widthFactor = factor;
-    redrawRiver();
+    if (patchRiver({ riverId: r.i, widthFactor: factor })) redrawRiver();
   },
 
   createRiver: (): void => {

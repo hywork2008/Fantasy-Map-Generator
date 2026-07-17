@@ -1,6 +1,6 @@
 import { type SimulationContext, simulationContext } from "../context/simulationContext";
 import { type WorldContext, worldContext } from "../context/worldContext";
-import type { Province, State } from "../types/models";
+import type { Province, River, Route, State } from "../types/models";
 import {
   applyPresentationPatch,
   createPresentationData,
@@ -159,6 +159,101 @@ export interface RemoveStateCommand {
   readonly payload: RemoveStateRequest;
 }
 
+export interface RegimentMerge {
+  readonly fromStateId: number;
+  readonly fromRegimentId: number;
+  readonly toRegimentId: number;
+}
+
+export interface MergeStatesRequest {
+  readonly rulingStateId: number;
+  readonly absorbedStateIds: readonly number[];
+}
+
+export interface MergeStatesResult {
+  readonly rulingStateId: number;
+  readonly absorbedStateIds: readonly number[];
+  readonly regimentMerges: readonly RegimentMerge[];
+  readonly formerCapitalBurgIds: readonly number[];
+}
+
+export interface MergeStatesCommand {
+  readonly type: "state.merge";
+  readonly payload: MergeStatesRequest;
+}
+
+export type RemovableEntityKind = "province" | "culture" | "religion";
+
+export interface RemoveEntityRequest {
+  readonly kind: RemovableEntityKind;
+  readonly entityId: number;
+}
+
+export interface RemoveEntityResult {
+  readonly kind: RemovableEntityKind;
+  readonly entityId: number;
+}
+
+export interface RemoveEntityCommand {
+  readonly type: "entity.remove";
+  readonly payload: RemoveEntityRequest;
+}
+
+export interface RoutePatchRequest {
+  readonly routeId: number;
+  readonly name?: string;
+  readonly group?: string;
+  readonly lock?: boolean;
+}
+
+export interface PatchRouteCommand {
+  readonly type: "route.patch";
+  readonly payload: RoutePatchRequest;
+}
+
+export interface CreateRouteRequest {
+  readonly route: Route;
+}
+
+export interface CreateRouteCommand {
+  readonly type: "route.create";
+  readonly payload: CreateRouteRequest;
+}
+
+export interface RemoveRouteRequest {
+  readonly routeId: number;
+}
+
+export interface RemoveRouteCommand {
+  readonly type: "route.remove";
+  readonly payload: RemoveRouteRequest;
+}
+
+export interface RiverPatchRequest {
+  readonly riverId: number;
+  readonly name?: string;
+  readonly type?: string;
+  readonly parentId?: number;
+  readonly sourceWidth?: number;
+  readonly widthFactor?: number;
+}
+
+export interface PatchRiverCommand {
+  readonly type: "river.patch";
+  readonly payload: RiverPatchRequest;
+}
+
+export interface FeaturePatchRequest {
+  readonly featureId: number;
+  readonly name?: string;
+  readonly group?: string;
+}
+
+export interface PatchFeatureCommand {
+  readonly type: "feature.patch";
+  readonly payload: FeaturePatchRequest;
+}
+
 export interface PresentationPatchCommand {
   readonly type: "presentation.patch";
   readonly payload: PresentationPatch;
@@ -170,6 +265,13 @@ export type WorldCommand<T> =
   | PositionCommand
   | AssignCellsCommand
   | RemoveStateCommand
+  | MergeStatesCommand
+  | RemoveEntityCommand
+  | PatchRouteCommand
+  | CreateRouteCommand
+  | RemoveRouteCommand
+  | PatchRiverCommand
+  | PatchFeatureCommand
   | PresentationPatchCommand;
 
 export interface WorldRuntime {
@@ -320,6 +422,34 @@ class LegacyWorldRuntime implements WorldRuntime {
       return this.removeState(command.payload) as LegacyMutationOutcome<T>;
     }
 
+    if (command.type === "state.merge") {
+      return this.mergeStates(command.payload) as LegacyMutationOutcome<T>;
+    }
+
+    if (command.type === "entity.remove") {
+      return this.removeEntity(command.payload) as LegacyMutationOutcome<T>;
+    }
+
+    if (command.type === "route.patch") {
+      return this.patchRoute(command.payload) as LegacyMutationOutcome<T>;
+    }
+
+    if (command.type === "route.create") {
+      return this.createRoute(command.payload) as LegacyMutationOutcome<T>;
+    }
+
+    if (command.type === "route.remove") {
+      return this.removeRoute(command.payload) as LegacyMutationOutcome<T>;
+    }
+
+    if (command.type === "river.patch") {
+      return this.patchRiver(command.payload) as LegacyMutationOutcome<T>;
+    }
+
+    if (command.type === "feature.patch") {
+      return this.patchFeature(command.payload) as LegacyMutationOutcome<T>;
+    }
+
     const { stateId, regimentId, x, y } = command.payload;
     if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error("regiment.move requires finite coordinates");
     const regiment = this.world.pack.states[stateId]?.military?.find(item => item.i === regimentId);
@@ -457,6 +587,296 @@ class LegacyWorldRuntime implements WorldRuntime {
       topics: ["map.politics", "map.settlements", "simulation.military", "map.annotations"]
     };
   }
+
+  private mergeStates(request: MergeStatesRequest): LegacyMutationOutcome<MergeStatesResult> {
+    const { rulingStateId } = request;
+    const rulingState = this.world.pack.states[rulingStateId];
+    if (!Number.isInteger(rulingStateId) || rulingStateId <= 0 || !rulingState || rulingState.removed) {
+      throw new Error(`state.merge could not find active ruling state ${rulingStateId}`);
+    }
+
+    const absorbedStateIds = [...new Set(request.absorbedStateIds)];
+    if (!absorbedStateIds.length) {
+      return {
+        result: { rulingStateId, absorbedStateIds, regimentMerges: [], formerCapitalBurgIds: [] },
+        topics: []
+      };
+    }
+    for (const stateId of absorbedStateIds) {
+      const state = this.world.pack.states[stateId];
+      if (!Number.isInteger(stateId) || stateId <= 0 || stateId === rulingStateId || !state || state.removed) {
+        throw new Error(`state.merge could not find active absorbed state ${stateId}`);
+      }
+    }
+
+    const absorbedSet = new Set(absorbedStateIds);
+    const regimentMerges: RegimentMerge[] = [];
+    const formerCapitalBurgIds: number[] = [];
+    const mergedNeighborIds = new Set<number>();
+    rulingState.military ??= [];
+
+    for (const stateId of absorbedStateIds) {
+      const state = this.world.pack.states[stateId];
+      for (const neighborId of state.neighbors ?? []) mergedNeighborIds.add(neighborId);
+      for (const regiment of state.military ?? []) {
+        if (regiment.i === undefined) continue;
+        const toRegimentId = rulingState.military.length;
+        rulingState.military.push({ ...regiment, i: toRegimentId });
+        regimentMerges.push({ fromStateId: stateId, fromRegimentId: regiment.i, toRegimentId });
+      }
+      state.removed = true;
+    }
+    for (const neighborId of rulingState.neighbors ?? []) mergedNeighborIds.add(neighborId);
+
+    const newRegimentIds = new Map(
+      regimentMerges.map(regiment => [
+        `regiment${regiment.fromStateId}-${regiment.fromRegimentId}`,
+        `regiment${rulingStateId}-${regiment.toRegimentId}`
+      ])
+    );
+    for (const note of this.world.notes) {
+      const newId = newRegimentIds.get(note.id);
+      if (newId) note.id = newId;
+    }
+
+    for (const burg of this.world.pack.burgs) {
+      if (burg.state === undefined || !absorbedSet.has(burg.state)) continue;
+      if (burg.capital) {
+        burg.capital = 0;
+        if (burg.i !== undefined) formerCapitalBurgIds.push(burg.i);
+      }
+      burg.state = rulingStateId;
+    }
+    for (const province of this.world.pack.provinces) {
+      if (province?.i && !province.removed && absorbedSet.has(province.state)) province.state = rulingStateId;
+    }
+    this.world.pack.cells.state.forEach((stateId, cellId) => {
+      if (absorbedSet.has(stateId)) this.world.pack.cells.state[cellId] = rulingStateId;
+    });
+
+    rulingState.provinces = this.world.pack.provinces.flatMap((province, provinceId) =>
+      province?.i && !province.removed && province.state === rulingStateId ? [provinceId] : []
+    );
+    rulingState.neighbors = [...mergedNeighborIds].filter(neighborId => {
+      const neighbor = this.world.pack.states[neighborId];
+      return neighborId !== rulingStateId && !absorbedSet.has(neighborId) && !!neighbor?.i && !neighbor.removed;
+    });
+    for (const state of this.world.pack.states) {
+      if (!state?.i || state.removed || state.i === rulingStateId || !state.neighbors) continue;
+      state.neighbors = [
+        ...new Set(state.neighbors.map(neighborId => (absorbedSet.has(neighborId) ? rulingStateId : neighborId)))
+      ].filter(neighborId => neighborId !== state.i);
+    }
+
+    return {
+      result: { rulingStateId, absorbedStateIds, regimentMerges, formerCapitalBurgIds },
+      topics: ["map.politics", "map.settlements", "simulation.military", "map.annotations"]
+    };
+  }
+
+  private removeEntity(request: RemoveEntityRequest): LegacyMutationOutcome<RemoveEntityResult> {
+    const { kind, entityId } = request;
+    if (!Number.isInteger(entityId) || entityId <= 0) {
+      throw new Error(`entity.remove received invalid ${kind} id ${entityId}`);
+    }
+
+    if (kind === "province") {
+      const province = this.world.pack.provinces[entityId];
+      if (!province || province.removed) throw new Error(`entity.remove could not find active province ${entityId}`);
+
+      this.world.pack.cells.province.forEach((provinceId, cellId) => {
+        if (provinceId === entityId) this.world.pack.cells.province[cellId] = 0;
+      });
+      const owner = this.world.pack.states[province.state];
+      if (owner?.provinces) owner.provinces = owner.provinces.filter(provinceId => provinceId !== entityId);
+      this.world.pack.provinces[entityId] = { i: entityId, removed: true } as Province;
+      return { result: { kind, entityId }, topics: ["map.politics"] };
+    }
+
+    if (kind === "culture") {
+      const culture = this.world.pack.cultures[entityId];
+      if (!culture || culture.removed) throw new Error(`entity.remove could not find active culture ${entityId}`);
+
+      this.world.pack.cells.culture.forEach((cultureId, cellId) => {
+        if (cultureId === entityId) this.world.pack.cells.culture[cellId] = 0;
+      });
+      for (const burg of this.world.pack.burgs) {
+        if (burg.culture === entityId) burg.culture = 0;
+      }
+      for (const state of this.world.pack.states) {
+        if (state.culture === entityId) state.culture = 0;
+      }
+      culture.removed = true;
+      for (const candidate of this.world.pack.cultures) {
+        if (!candidate?.i || candidate.removed) continue;
+        candidate.origins = (candidate.origins ?? []).filter(origin => origin !== null && origin !== entityId);
+        if (!candidate.origins.length) candidate.origins = [0];
+      }
+      return { result: { kind, entityId }, topics: ["map.politics", "map.settlements"] };
+    }
+
+    const religion = this.world.pack.religions[entityId];
+    if (!religion || religion.removed) throw new Error(`entity.remove could not find active religion ${entityId}`);
+
+    this.world.pack.cells.religion.forEach((religionId, cellId) => {
+      if (religionId === entityId) this.world.pack.cells.religion[cellId] = 0;
+    });
+    religion.removed = true;
+    for (const candidate of this.world.pack.religions) {
+      if (!candidate?.i || candidate.removed) continue;
+      candidate.origins = (candidate.origins ?? []).filter(origin => origin !== entityId);
+      if (!candidate.origins.length) candidate.origins = [0];
+    }
+    return { result: { kind, entityId }, topics: ["map.politics"] };
+  }
+
+  private patchRoute(request: RoutePatchRequest): LegacyMutationOutcome<void> {
+    const route = this.findRoute(request.routeId);
+    let changed = false;
+    if (request.name !== undefined && route.name !== request.name) {
+      route.name = request.name;
+      changed = true;
+    }
+    if (request.group !== undefined && route.group !== request.group) {
+      route.group = request.group;
+      changed = true;
+    }
+    if (request.lock !== undefined && route.lock !== request.lock) {
+      route.lock = request.lock;
+      changed = true;
+    }
+    return { result: undefined, topics: changed ? ["map.networks"] : [] };
+  }
+
+  private createRoute(request: CreateRouteRequest): LegacyMutationOutcome<void> {
+    const { route } = request;
+    if (!Number.isInteger(route.i) || route.i < 0 || this.world.pack.routes.some(existing => existing.i === route.i)) {
+      throw new Error(`route.create received duplicate or invalid route ${route.i}`);
+    }
+    this.assertRoutePoints(route);
+    const created = { ...route, points: route.points.map(point => [...point] as [number, number, number]) };
+    this.world.pack.routes.push(created);
+    this.connectRoute(created);
+    return { result: undefined, topics: ["map.networks"] };
+  }
+
+  private removeRoute(request: RemoveRouteRequest): LegacyMutationOutcome<void> {
+    const route = this.findRoute(request.routeId);
+    this.disconnectRoute(route.i);
+    const index = this.world.pack.routes.indexOf(route);
+    this.world.pack.routes.splice(index, 1);
+    return { result: undefined, topics: ["map.networks"] };
+  }
+
+  private findRoute(routeId: number): Route {
+    if (!Number.isInteger(routeId)) throw new Error(`route command received invalid route ${routeId}`);
+    const route = this.world.pack.routes.find(candidate => candidate.i === routeId);
+    if (!route) throw new Error(`route command could not find route ${routeId}`);
+    return route;
+  }
+
+  private assertRoutePoints(route: Route): void {
+    if (route.points.length < 2) throw new Error(`route command requires at least two points for route ${route.i}`);
+    const cellCount = this.world.pack.cells.i.length;
+    for (const point of route.points) {
+      const cellId = point[2];
+      if (!Number.isInteger(cellId) || cellId < 0 || cellId >= cellCount) {
+        throw new Error(`route command received invalid cell ${cellId}`);
+      }
+    }
+  }
+
+  private connectRoute(route: Route): void {
+    const routeMap = this.world.pack.cells.routes;
+    for (let index = 0; index < route.points.length - 1; index++) {
+      const from = route.points[index][2];
+      const to = route.points[index + 1][2];
+      if (from === to) continue;
+      routeMap[from] ??= {};
+      routeMap[to] ??= {};
+      routeMap[from][to] = route.i;
+      routeMap[to][from] = route.i;
+    }
+  }
+
+  private disconnectRoute(routeId: number): void {
+    const routeMap = this.world.pack.cells.routes;
+    for (const [fromId, connections] of Object.entries(routeMap)) {
+      const from = Number(fromId);
+      for (const [to, connectedRouteId] of Object.entries(connections)) {
+        if (connectedRouteId !== routeId) continue;
+        delete connections[Number(to)];
+        if (routeMap[Number(to)]) delete routeMap[Number(to)][from];
+      }
+    }
+  }
+
+  private patchRiver(request: RiverPatchRequest): LegacyMutationOutcome<void> {
+    const river = this.findRiver(request.riverId);
+    let changed = false;
+    if (request.name !== undefined && river.name !== request.name) {
+      river.name = request.name;
+      changed = true;
+    }
+    if (request.type !== undefined && river.type !== request.type) {
+      river.type = request.type;
+      changed = true;
+    }
+    if (request.parentId !== undefined) {
+      const parent = this.findRiver(request.parentId);
+      const basin = parent.basin ?? parent.i;
+      if (river.parent !== request.parentId || river.basin !== basin) {
+        river.parent = request.parentId;
+        river.basin = basin;
+        changed = true;
+      }
+    }
+    if (request.sourceWidth !== undefined) {
+      if (!Number.isFinite(request.sourceWidth) || request.sourceWidth < 0) {
+        throw new Error("river.patch requires a non-negative finite source width");
+      }
+      if (river.sourceWidth !== request.sourceWidth) {
+        river.sourceWidth = request.sourceWidth;
+        changed = true;
+      }
+    }
+    if (request.widthFactor !== undefined) {
+      if (!Number.isFinite(request.widthFactor) || request.widthFactor < 0) {
+        throw new Error("river.patch requires a non-negative finite width factor");
+      }
+      if (river.widthFactor !== request.widthFactor) {
+        river.widthFactor = request.widthFactor;
+        changed = true;
+      }
+    }
+    return { result: undefined, topics: changed ? ["map.networks"] : [] };
+  }
+
+  private findRiver(riverId: number): River {
+    if (!Number.isInteger(riverId)) throw new Error(`river command received invalid river ${riverId}`);
+    const river = this.world.pack.rivers.find(candidate => candidate.i === riverId);
+    if (!river) throw new Error(`river command could not find river ${riverId}`);
+    return river;
+  }
+
+  private patchFeature(request: FeaturePatchRequest): LegacyMutationOutcome<void> {
+    if (!Number.isInteger(request.featureId)) {
+      throw new Error(`feature command received invalid feature ${request.featureId}`);
+    }
+    const feature = this.world.pack.features[request.featureId];
+    if (!feature) throw new Error(`feature command could not find feature ${request.featureId}`);
+
+    let changed = false;
+    if (request.name !== undefined && feature.name !== request.name) {
+      feature.name = request.name;
+      changed = true;
+    }
+    if (request.group !== undefined && feature.group !== request.group) {
+      feature.group = request.group;
+      changed = true;
+    }
+    return { result: undefined, topics: changed ? ["map.topology"] : [] };
+  }
 }
 
 export function createWorldRuntime(
@@ -499,6 +919,39 @@ export function assignCells(request: AssignCellsRequest): WorldCommit<{ changedC
 /** Phase 5 command for the data cascade of a state deletion. */
 export function removeState(request: RemoveStateRequest): WorldCommit<RemoveStateResult> | null {
   return (worldRuntime as LegacyWorldRuntime).execute({ type: "state.remove", payload: request });
+}
+
+/** Phase 5 command for the data cascade of merging states. */
+export function mergeStates(request: MergeStatesRequest): WorldCommit<MergeStatesResult> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "state.merge", payload: request });
+}
+
+/** Phase 5 command for province / culture / religion deletion cascades. */
+export function removeEntity(request: RemoveEntityRequest): WorldCommit<RemoveEntityResult> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "entity.remove", payload: request });
+}
+
+/** Phase 5 commands for route metadata and topology changes. */
+export function patchRoute(request: RoutePatchRequest): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "route.patch", payload: request });
+}
+
+export function createRouteCommand(request: CreateRouteRequest): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "route.create", payload: request });
+}
+
+export function removeRouteCommand(request: RemoveRouteRequest): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "route.remove", payload: request });
+}
+
+/** Phase 5 command for river metadata and width changes. */
+export function patchRiver(request: RiverPatchRequest): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "river.patch", payload: request });
+}
+
+/** Phase 5 command for persisted lake / coastline feature metadata. */
+export function patchFeature(request: FeaturePatchRequest): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "feature.patch", payload: request });
 }
 
 /** Phase 3 command for persisted style and layer-visibility changes. */

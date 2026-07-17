@@ -1,6 +1,6 @@
 # 地図データ・シミュレーション・描画の統合設計
 
-- **Status**: In progress（Phase 1、Phase 2 の position command／SVG・WebGL・viewMesh compatibility listener、Phase 3 の `PresentationData` command・legacy SVG import・WebGL style reader 移行、Phase 4 の `SimulationSystem` registry と legacy tick-hook compatibility、Phase 5 の `cells.assign`（state / province / culture / religion）と `state.remove` の data cascade を実装済み。state merge、route / river / lake / coastline、extension writer、generate / load、simulation archive / slice は未移行）
+- **Status**: In progress（Phase 1、Phase 2 の position command／SVG・WebGL・viewMesh compatibility listener、Phase 3 の `PresentationData` command・legacy SVG import・WebGL style reader 移行、Phase 4 の `SimulationSystem` registry と legacy tick-hook compatibility、Phase 5 の `cells.assign`（state / province / culture / religion）、state remove / merge cascade、province / culture / religion deletion cascade、route create / remove / metadata、river metadata、lake / coastline feature metadata を実装済み。route / river / lake / coastline の頂点編集・分割・結合、extension writer、generate / load、simulation archive / slice は未移行）
 - **Date**: 2026-07-17
 
 **Related**:
@@ -864,6 +864,8 @@ Renderer 固有の element や cache を editor が知る必要はない。
 5. extension editor と simulation writer
 
 raw `pack` / `grid` write は allowlist + lint rule で段階的に禁止する。
+
+実装済みの command は `cells.assign`、`state.remove`、`state.merge`、`entity.remove`、`route.create` / `route.remove` / `route.patch`、`river.patch`、`feature.patch` である。route / river の control-point drag、route split / join、lake / coastline の vertex drag は、描画中の temporary geometry と commit 時の canonical geometry を分離する command が必要なため、次の移行単位として残す。
 
 ### Phase 6 — 新 archive
 

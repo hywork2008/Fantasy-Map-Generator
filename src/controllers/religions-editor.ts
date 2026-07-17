@@ -4,6 +4,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { PopulationRenderer, ReligionsRenderer } from "../renderers";
+import { assignCells, removeEntity } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -413,22 +414,12 @@ function religionHighlightOff(event: HighlightEvent): void {
 }
 
 function removeReligion(religionId: number): void {
+  const commit = removeEntity({ kind: "religion", entityId: religionId });
+  if (!commit) return;
+
   view.relig.select(`#religion${religionId}`).remove();
   view.relig.select(`#religion-gap${religionId}`).remove();
   view.debug.select(`#religionsCenter${religionId}`).remove();
-
-  Array.from(worldContext.pack.cells.religion).forEach((r: number, i: number) => {
-    if (r === religionId) worldContext.pack.cells.religion[i] = 0;
-  });
-  worldContext.pack.religions[religionId].removed = true;
-
-  (worldContext.pack.religions as Religion[])
-    .filter(r => r.i && !r.removed)
-    .forEach(r => {
-      r.origins = (r.origins ?? []).filter(origin => origin !== religionId);
-      if (!r.origins.length) r.origins = [0];
-    });
-
   religionsEditorActions.refresh();
 }
 
@@ -514,17 +505,26 @@ function exitReligionsManualAssignment(): void {
   clearMainTip();
   view.debug.select("#religionCenters").style("display", null);
 
-  const cells = worldContext.pack.cells;
-  cells.religion.forEach((r, i) => {
+  const assignments: { cellId: number; entityId: number }[] = [];
+  worldContext.pack.cells.religion.forEach((r, cellId) => {
     if (!worldContext.pack.religions[r] || worldContext.pack.religions[r].removed) {
-      cells.religion[i] = 0;
+      assignments.push({ cellId, entityId: 0 });
     }
   });
+  if (assignments.length) assignCells({ field: "religion", assignments });
 }
 
 function applyReligionsManualAssignent(): void {
-  ReligionsRenderer.render(worldContext, viewContext, appServices);
-  religionsEditorActions.refresh();
+  const assignments = view.relig
+    .select("#temp")
+    .selectAll<SVGPolygonElement, unknown>("polygon")
+    .nodes()
+    .map(cell => ({ cellId: +cell.dataset.cell!, entityId: +cell.dataset.religion! }));
+  const commit = assignments.length ? assignCells({ field: "religion", assignments }) : null;
+  if (commit) {
+    ReligionsRenderer.render(worldContext, viewContext, appServices);
+    religionsEditorActions.refresh();
+  }
   exitReligionsManualAssignment();
 }
 
@@ -589,9 +589,10 @@ function dragReligionBrush(this: SVGElement, event: d3.D3DragEvent<SVGElement, u
     found.forEach((i: number) => {
       if (worldContext.pack.cells.h[i] < 20) return;
       if (protectExisting && worldContext.pack.cells.religion[i]) return;
-      worldContext.pack.cells.religion[i] = selectedReligion;
       temp
         .append("polygon")
+        .attr("data-cell", i)
+        .attr("data-religion", selectedReligion)
         .attr(
           "points",
           getPackPolygon(i, worldContext.pack)

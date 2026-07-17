@@ -4,6 +4,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 
 import { removeRoute } from "../renderers/draw-routes";
+import { createRouteCommand, patchRoute, removeRouteCommand } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -391,20 +392,18 @@ export const routesEditorActions = {
   },
 
   changeName(name: string): void {
-    getRoute().name = name;
-    setRoutesEditorState({ routeName: name });
+    if (patchRoute({ routeId: getRoute().i, name })) setRoutesEditorState({ routeName: name });
   },
 
   generateName(): void {
     const route = getRoute();
     const name = GenerationPipeline.Routes.generateName(route);
-    route.name = name;
-    setRoutesEditorState({ routeName: name });
+    if (patchRoute({ routeId: route.i, name })) setRoutesEditorState({ routeName: name });
   },
 
   changeGroup(group: string): void {
+    if (!patchRoute({ routeId: getRoute().i, group })) return;
     view.routes.select<SVGGElement>(`#${group}`).node()!.appendChild(elSelected!.node()!);
-    getRoute().group = group;
     setRoutesEditorState({ routeGroup: group });
   },
 
@@ -507,8 +506,8 @@ export const routesEditorActions = {
 
   toggleLockButton(): void {
     const route = getRoute();
-    route.lock = !route.lock;
-    setRoutesEditorState({ isLocked: !!route.lock });
+    const lock = !route.lock;
+    if (patchRoute({ routeId: route.i, lock })) setRoutesEditorState({ isLocked: lock });
   },
 
   removeRoute(): void {
@@ -518,7 +517,7 @@ export const routesEditorActions = {
       confirm: "Remove",
       onConfirm: () => {
         const route = getRoute();
-        GenerationPipeline.Routes.remove(route);
+        if (!removeRouteCommand({ routeId: route.i })) return;
         removeRoute(viewContext, route.i);
         routesEditorActions.closeRouteEditor();
       }
@@ -548,24 +547,7 @@ export const routesEditorActions = {
     const group = getRoutesEditorState().creatorGroup;
     const feature = worldContext.pack.cells.f[pts[0][2]];
     const route: Route = { points: pts, group, feature, i: routeId };
-    worldContext.pack.routes.push(route);
-
-    const links = worldContext.pack.cells.routes;
-    for (let i = 0; i < pts.length; i++) {
-      const pt = pts[i];
-      const nextPoint = pts[i + 1];
-
-      if (nextPoint) {
-        const cellId = pt[2];
-        const nextId = nextPoint[2];
-
-        if (!links[cellId]) links[cellId] = {};
-        links[cellId][nextId] = routeId;
-
-        if (!links[nextId]) links[nextId] = {};
-        links[nextId][cellId] = routeId;
-      }
-    }
+    if (!createRouteCommand({ route })) return;
 
     view.routes.select("#routeTemp").attr("id", `route${routeId}`);
 

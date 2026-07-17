@@ -30,8 +30,8 @@ function createPoliticsWorld(): WorldContext {
       burgs: [{}, { i: 1, cell: 0, state: 1, culture: 1, capital: 1 }, { i: 2, cell: 2, state: 2, culture: 2 }],
       states: [
         { i: 0 },
-        { i: 1, provinces: [1], military: [{ i: 3 }], neighbors: [2] },
-        { i: 2, provinces: [], neighbors: [1] }
+        { i: 1, culture: 1, provinces: [1], military: [{ i: 3 }], neighbors: [2] },
+        { i: 2, provinces: [], military: [{ i: 4, x: 8, y: 9 }], neighbors: [1] }
       ],
       provinces: [{}, { i: 1, state: 1 }],
       cultures: [{}, { i: 1 }, { i: 2 }],
@@ -220,6 +220,175 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
       { topic: "simulation.military", kind: "replace" },
       { topic: "map.annotations", kind: "replace" }
     ]);
+  });
+
+  it("merges state data, remaps regiments and keeps province ownership coherent", async () => {
+    const world = createPoliticsWorld();
+    const runtime = createWorldRuntime(world, {} as SimulationContext);
+
+    const commit = await runtime.dispatch({
+      type: "state.merge",
+      payload: { rulingStateId: 2, absorbedStateIds: [1] }
+    });
+
+    expect(commit?.result).toEqual({
+      rulingStateId: 2,
+      absorbedStateIds: [1],
+      regimentMerges: [{ fromStateId: 1, fromRegimentId: 3, toRegimentId: 1 }],
+      formerCapitalBurgIds: [1]
+    });
+    expect(world.pack.states[1]).toMatchObject({ i: 1, removed: true });
+    expect(world.pack.states[2].military).toEqual([{ i: 4, x: 8, y: 9 }, { i: 1 }]);
+    expect(world.pack.states[2].provinces).toEqual([1]);
+    expect(world.pack.states[2].neighbors).toEqual([]);
+    expect(world.pack.cells.state).toEqual(new Uint16Array([2, 2, 2]));
+    expect(world.pack.provinces[1].state).toBe(2);
+    expect(world.pack.burgs[1]).toMatchObject({ state: 2, capital: 0 });
+    expect(world.notes.map(note => note.id)).toEqual(["regiment2-1", "keep"]);
+    expect(commit?.changes.changes).toEqual([
+      { topic: "map.politics", kind: "replace" },
+      { topic: "map.settlements", kind: "replace" },
+      { topic: "simulation.military", kind: "replace" },
+      { topic: "map.annotations", kind: "replace" }
+    ]);
+  });
+
+  it("removes province, culture and religion ownership through typed cascades", async () => {
+    const provinceWorld = createPoliticsWorld();
+    const provinceRuntime = createWorldRuntime(provinceWorld, {} as SimulationContext);
+    const provinceCommit = await provinceRuntime.dispatch({
+      type: "entity.remove",
+      payload: { kind: "province", entityId: 1 }
+    });
+
+    expect(provinceWorld.pack.cells.province).toEqual(new Uint16Array([0, 0, 0]));
+    expect(provinceWorld.pack.provinces[1]).toMatchObject({ i: 1, removed: true });
+    expect(provinceWorld.pack.states[1].provinces).toEqual([]);
+    expect(provinceCommit?.changes.changes).toEqual([{ topic: "map.politics", kind: "replace" }]);
+
+    const cultureWorld = createPoliticsWorld();
+    const cultureRuntime = createWorldRuntime(cultureWorld, {} as SimulationContext);
+    const cultureCommit = await cultureRuntime.dispatch({
+      type: "entity.remove",
+      payload: { kind: "culture", entityId: 1 }
+    });
+
+    expect(cultureWorld.pack.cells.culture).toEqual(new Uint16Array([0, 0, 2]));
+    expect(cultureWorld.pack.burgs[1].culture).toBe(0);
+    expect(cultureWorld.pack.states[1].culture).toBe(0);
+    expect(cultureWorld.pack.cultures[1]).toMatchObject({ i: 1, removed: true });
+    expect(cultureCommit?.changes.changes).toEqual([
+      { topic: "map.politics", kind: "replace" },
+      { topic: "map.settlements", kind: "replace" }
+    ]);
+
+    const religionWorld = createPoliticsWorld();
+    const religionRuntime = createWorldRuntime(religionWorld, {} as SimulationContext);
+    const religionCommit = await religionRuntime.dispatch({
+      type: "entity.remove",
+      payload: { kind: "religion", entityId: 1 }
+    });
+
+    expect(religionWorld.pack.cells.religion).toEqual(new Uint16Array([0, 0, 2]));
+    expect(religionWorld.pack.religions[1]).toMatchObject({ i: 1, removed: true });
+    expect(religionCommit?.changes.changes).toEqual([{ topic: "map.politics", kind: "replace" }]);
+  });
+
+  it("creates, patches and removes routes with their cell adjacency", async () => {
+    const world = {
+      pack: {
+        routes: [
+          {
+            i: 1,
+            group: "roads",
+            points: [
+              [0, 0, 0],
+              [1, 1, 1]
+            ]
+          }
+        ],
+        cells: {
+          i: new Uint16Array([0, 1, 2]),
+          routes: { 0: { 1: 1 }, 1: { 0: 1 } }
+        }
+      }
+    } as unknown as WorldContext;
+    const runtime = createWorldRuntime(world, {} as SimulationContext);
+
+    const patchCommit = await runtime.dispatch({
+      type: "route.patch",
+      payload: { routeId: 1, name: "Royal Road", lock: true }
+    });
+    const createCommit = await runtime.dispatch({
+      type: "route.create",
+      payload: {
+        route: {
+          i: 2,
+          group: "trails",
+          feature: 0,
+          points: [
+            [1, 1, 1],
+            [2, 2, 2]
+          ]
+        }
+      }
+    });
+    const removeCommit = await runtime.dispatch({ type: "route.remove", payload: { routeId: 1 } });
+
+    expect(world.pack.routes).toEqual([
+      {
+        i: 2,
+        group: "trails",
+        feature: 0,
+        points: [
+          [1, 1, 1],
+          [2, 2, 2]
+        ]
+      }
+    ]);
+    expect(world.pack.cells.routes).toEqual({ 0: {}, 1: { 2: 2 }, 2: { 1: 2 } });
+    expect(patchCommit?.changes.changes).toEqual([{ topic: "map.networks", kind: "replace" }]);
+    expect(createCommit?.changes.changes).toEqual([{ topic: "map.networks", kind: "replace" }]);
+    expect(removeCommit?.changes.changes).toEqual([{ topic: "map.networks", kind: "replace" }]);
+  });
+
+  it("patches river metadata and derives its basin from the selected parent", async () => {
+    const world = {
+      pack: {
+        rivers: [
+          { i: 1, name: "Parent", type: "River", basin: 1, sourceWidth: 0.5, widthFactor: 1 },
+          { i: 2, name: "Child", type: "River", parent: 2, basin: 2, sourceWidth: 0.5, widthFactor: 1 }
+        ]
+      }
+    } as unknown as WorldContext;
+    const runtime = createWorldRuntime(world, {} as SimulationContext);
+
+    const commit = await runtime.dispatch({
+      type: "river.patch",
+      payload: { riverId: 2, name: "New Child", parentId: 1, sourceWidth: 2, widthFactor: 1.5 }
+    });
+
+    expect(world.pack.rivers[1]).toMatchObject({
+      name: "New Child",
+      parent: 1,
+      basin: 1,
+      sourceWidth: 2,
+      widthFactor: 1.5
+    });
+    expect(commit?.changes.changes).toEqual([{ topic: "map.networks", kind: "replace" }]);
+  });
+
+  it("patches persisted lake or coastline feature metadata", async () => {
+    const world = { pack: { features: [{}, { i: 1, name: "Old", group: "freshwater" }] } } as unknown as WorldContext;
+    const runtime = createWorldRuntime(world, {} as SimulationContext);
+
+    const commit = await runtime.dispatch({
+      type: "feature.patch",
+      payload: { featureId: 1, name: "Moon Lake", group: "sacred" }
+    });
+
+    expect(world.pack.features[1]).toMatchObject({ name: "Moon Lake", group: "sacred" });
+    expect(commit?.changes.changes).toEqual([{ topic: "map.topology", kind: "replace" }]);
   });
 
   it("commits persisted style and layer visibility together without exposing DOM state", async () => {

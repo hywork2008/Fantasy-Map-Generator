@@ -6,7 +6,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { CulturesRenderer, PopulationRenderer } from "../renderers";
 import { COArenderer, type Emblem as RendererEmblem } from "../renderers/emblem-renderer";
-import { assignCells } from "../runtime/worldRuntime";
+import { assignCells, removeEntity } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -598,30 +598,11 @@ function cultureHighlightOff(event: HighlightEvent): void {
 }
 
 function removeCulture(cultureId: number): void {
+  const commit = removeEntity({ kind: "culture", entityId: cultureId });
+  if (!commit) return;
+
   view.cults.select(`#culture${cultureId}`).remove();
   view.debug.select(`#cultureCenter${cultureId}`).remove();
-
-  const { burgs, states, cells, cultures } = worldContext.pack;
-
-  (burgs as Burg[])
-    .filter((b: Burg) => b.culture === cultureId)
-    .forEach((b: Burg) => {
-      b.culture = 0;
-    });
-  (states as State[]).forEach((s: State) => {
-    if (s.culture === cultureId) s.culture = 0;
-  });
-  Array.from(cells.culture).forEach((c: number, i: number) => {
-    if (c === cultureId) cells.culture[i] = 0;
-  });
-  (cultures as Culture[])[cultureId].removed = true;
-
-  (cultures as Culture[])
-    .filter((c: Culture) => c.i && !c.removed)
-    .forEach((c: Culture) => {
-      c.origins = (c.origins ?? []).filter((origin): origin is number => origin !== null && origin !== cultureId);
-      if (!c.origins.length) c.origins = [0];
-    });
   culturesEditorActions.refresh();
 }
 

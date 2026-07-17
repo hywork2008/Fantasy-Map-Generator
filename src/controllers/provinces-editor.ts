@@ -19,7 +19,7 @@ import {
 } from "../renderers";
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
-import { assignCells } from "../runtime/worldRuntime";
+import { assignCells, removeEntity } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { modules } from "../store/editorState";
@@ -418,19 +418,13 @@ function removeProvince(p: number): void {
     title: "Remove province",
     confirm: "Remove",
     onConfirm: () => {
-      worldContext.pack.cells.province.forEach((province: number, i: number) => {
-        if (province === p) worldContext.pack.cells.province[i] = 0;
-      });
-      const s = (worldContext.pack.provinces as Province[])[p].state;
-      const state = (worldContext.pack.states as State[])[s];
-      if (state.provinces?.includes(p)) state.provinces.splice(state.provinces.indexOf(p), 1);
+      const commit = removeEntity({ kind: "province", entityId: p });
+      if (!commit) return;
 
       EditorBus.unfog(`focusProvince${p}`);
 
       d3.select(`#provinceCOA${p}`).remove();
       EmblemsRenderer.removeProvinceEmblems(viewContext, p);
-
-      (worldContext.pack.provinces as Province[])[p] = { i: p, removed: true } as Province;
 
       ProvincesRenderer.removeProvinceDOM(viewContext, p);
       if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);

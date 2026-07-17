@@ -21,13 +21,16 @@ import {
 } from "../renderers";
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
-import { assignCells, removeState as removeStateCommand } from "../runtime/worldRuntime";
+import {
+  assignCells,
+  mergeStates as mergeStatesCommand,
+  removeState as removeStateCommand
+} from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { getStatesEditorState, type StateRowData, setStatesEditorState } from "../store/statesEditorState";
-import type { Burg, Culture, MilitaryRegiment, Province, State } from "../types/models";
-import type { WorldNote } from "../types/WorldState";
+import type { Burg, Culture, Province, State } from "../types/models";
 import { isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import { findAll, findCell, getMixedColor, getRandomColor, isLand, P, ra, rand, rn } from "../utils";
 import { getArea, getAreaUnit } from "../utils/domUtils";
@@ -1039,60 +1042,35 @@ function openStateMergeDialog(): void {
 }
 
 function mergeStates(statesToMerge: number[], rulingStateId: number): void {
-  const rulingState = worldContext.pack.states[rulingStateId] as State;
+  const commit = mergeStatesCommand({ rulingStateId, absorbedStateIds: statesToMerge });
+  if (!commit) return;
+
   const rulingStateArmy = view.armies.select<SVGGElement>(`#army${rulingStateId}`).node()!;
 
-  statesToMerge.forEach((stateId: number) => {
-    const state = worldContext.pack.states[stateId] as State;
-    state.removed = true;
-
+  commit.result.absorbedStateIds.forEach(stateId => {
     StatesRenderer.removeStateDOM?.(viewContext, stateId);
     StateLabelsRenderer.removeStateLabel?.(viewContext, stateId);
 
     d3.select(`#stateCOA${stateId}`).remove();
     EmblemsRenderer.removeStateEmblems(viewContext, stateId);
-
-    (state.military ?? []).forEach((regiment: MilitaryRegiment) => {
-      const oldId = `regiment${stateId}-${regiment.i}`;
-      const newIndex = (rulingState.military ?? []).length;
-      rulingState.military ??= [];
-      rulingState.military.push({ ...regiment, i: newIndex });
-      const newId = `regiment${rulingStateId}-${newIndex}`;
-
-      const note = (worldContext.notes as WorldNote[]).find(n => n.id === oldId);
-      if (note) note.id = newId;
-
-      const element = view.armies.select<SVGGElement>(`#${oldId}`).node();
-      if (element) {
-        element.id = newId;
-        element.dataset.state = String(rulingStateId);
-        element.dataset.id = String(newIndex);
-        rulingStateArmy.appendChild(element);
-      }
-    });
-
     MilitaryRenderer.removeStateArmy(viewContext, stateId);
   });
 
-  (worldContext.pack.burgs as Burg[]).forEach(burg => {
-    if (statesToMerge.includes(burg.state ?? -1)) {
-      if (burg.capital) {
-        burg.capital = 0;
-        GenerationPipeline.Burgs.changeGroup(burg);
-      }
-      burg.state = rulingStateId;
+  commit.result.regimentMerges.forEach(({ fromStateId, fromRegimentId, toRegimentId }) => {
+    const element = view.armies.select<SVGGElement>(`#regiment${fromStateId}-${fromRegimentId}`).node();
+    if (element) {
+      element.id = `regiment${rulingStateId}-${toRegimentId}`;
+      element.dataset.state = String(rulingStateId);
+      element.dataset.id = String(toRegimentId);
+      rulingStateArmy.appendChild(element);
     }
+  });
+  commit.result.formerCapitalBurgIds.forEach(burgId => {
+    const burg = (worldContext.pack.burgs as Burg[])[burgId];
+    if (burg) GenerationPipeline.Burgs.changeGroup(burg);
   });
   if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleLabels")) BurgLabelsRenderer.render(worldContext, viewContext, appServices);
-
-  (worldContext.pack.provinces as Province[]).forEach(province => {
-    if (province.i && !province.removed && statesToMerge.includes(province.state)) province.state = rulingStateId;
-  });
-
-  Array.from(worldContext.pack.cells.state).forEach((s: number, i: number) => {
-    if (statesToMerge.includes(s)) worldContext.pack.cells.state[i] = rulingStateId;
-  });
 
   EditorBus.unfog();
   StatesRenderer.clearHighlight(viewContext);
