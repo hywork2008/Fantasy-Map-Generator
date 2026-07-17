@@ -176,63 +176,67 @@ export function init(api: ExtensionAPI): void {
   };
   document.addEventListener("fmg:player-conflict-ended", _playerConflictEndedHandler);
 
-  api.registerTimeTickHook((deltaYears, deltaMonths, deltaDays) => {
-    if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return;
+  api.registerTimeTickHook(
+    (deltaYears, deltaMonths, deltaDays) => {
+      if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return;
 
-    const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
+      const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
 
-    advanceCharacterAging(effectiveDeltaYears);
-    Characters.processResignationsAndSuccessions(effectiveDeltaYears);
-    assignOfficers();
-    assignProvinceLords();
+      advanceCharacterAging(effectiveDeltaYears);
+      Characters.processResignationsAndSuccessions(effectiveDeltaYears);
+      assignOfficers();
+      assignProvinceLords();
 
-    const canAdvanceConflict = mayAdvanceAnyConflict();
-    if (api.simulationContext.currentDay === 1) {
-      if (canAdvanceConflict) StrategicPlanner.evaluatePlans();
-      Mobilization.conscript(api.worldContext.pack);
-    }
+      const canAdvanceConflict = mayAdvanceAnyConflict();
+      if (api.simulationContext.currentDay === 1) {
+        if (canAdvanceConflict) StrategicPlanner.evaluatePlans();
+        Mobilization.conscript(api.worldContext.pack);
+      }
 
-    Espionage.generate();
-    if (canAdvanceConflict) StrategicPlanner.generate();
-    const siegeOccurred = canAdvanceConflict ? StrategicPlanner.advanceTension() : false;
-    const skirmishOccurred = canAdvanceConflict
-      ? LocalSkirmish.resolve(effectiveDeltaYears, deltaMonths, deltaDays)
-      : false;
-    const bordersChanged = siegeOccurred || skirmishOccurred;
+      Espionage.generate();
+      if (canAdvanceConflict) StrategicPlanner.generate();
+      const siegeOccurred = canAdvanceConflict ? StrategicPlanner.advanceTension() : false;
+      const skirmishOccurred = canAdvanceConflict
+        ? LocalSkirmish.resolve(effectiveDeltaYears, deltaMonths, deltaDays)
+        : false;
+      const bordersChanged = siegeOccurred || skirmishOccurred;
 
-    if (bordersChanged) {
-      if (api.layerIsOn("toggleStates")) StatesRenderer.render(api.worldContext, api.viewContext, api.appServices);
-      if (api.layerIsOn("toggleBorders")) BordersRenderer.render(api.worldContext, api.viewContext, api.appServices);
-    }
+      if (bordersChanged) {
+        if (api.layerIsOn("toggleStates")) StatesRenderer.render(api.worldContext, api.viewContext, api.appServices);
+        if (api.layerIsOn("toggleBorders")) BordersRenderer.render(api.worldContext, api.viewContext, api.appServices);
+      }
 
-    Military.updateDynamic(api.worldContext, effectiveDeltaYears);
+      Military.updateDynamic(api.worldContext, effectiveDeltaYears);
 
-    // Regiment marching (docs/plan/military-movement.md Phase 2) runs every tick regardless of
-    // bordersChanged — armies keep advancing toward their destination continuously rather than
-    // teleporting instantly when borders change.
-    let marchCaptureOccurred = false;
-    const regimentsMoved = advanceAllRegimentMovement(
-      api.worldContext.pack,
-      api.worldContext,
-      effectiveDeltaYears,
-      (r, cell) => {
-        if (!canAdvanceConflict) return;
-        if (tryRecaptureHomeBurg(r, cell) || tryCaptureOnPassing(r, cell)) marchCaptureOccurred = true;
-      },
-      canAdvanceConflict ? StrategicPlanner.getActiveSiegeTargets() : undefined
-    );
+      // Regiment marching (docs/plan/military-movement.md Phase 2) runs every tick regardless of
+      // bordersChanged — armies keep advancing toward their destination continuously rather than
+      // teleporting instantly when borders change.
+      let marchCaptureOccurred = false;
+      const regimentsMoved = advanceAllRegimentMovement(
+        api.worldContext.pack,
+        api.worldContext,
+        effectiveDeltaYears,
+        (r, cell) => {
+          if (!canAdvanceConflict) return;
+          if (tryRecaptureHomeBurg(r, cell) || tryCaptureOnPassing(r, cell)) marchCaptureOccurred = true;
+        },
+        canAdvanceConflict ? StrategicPlanner.getActiveSiegeTargets() : undefined
+      );
 
-    if (marchCaptureOccurred) {
-      if (api.layerIsOn("toggleStates")) StatesRenderer.render(api.worldContext, api.viewContext, api.appServices);
-      if (api.layerIsOn("toggleBorders")) BordersRenderer.render(api.worldContext, api.viewContext, api.appServices);
-    }
+      if (marchCaptureOccurred) {
+        if (api.layerIsOn("toggleStates")) StatesRenderer.render(api.worldContext, api.viewContext, api.appServices);
+        if (api.layerIsOn("toggleBorders")) BordersRenderer.render(api.worldContext, api.viewContext, api.appServices);
+      }
 
-    if ((bordersChanged || marchCaptureOccurred || regimentsMoved) && api.layerIsOn("toggleMilitary")) {
-      MilitaryRenderer.render(api.worldContext, api.viewContext, api.appServices);
-    }
+      if ((bordersChanged || marchCaptureOccurred || regimentsMoved) && api.layerIsOn("toggleMilitary")) {
+        MilitaryRenderer.render(api.worldContext, api.viewContext, api.appServices);
+      }
 
-    refreshCharactersOverviewIfOpen(api.isDialogOpen("charactersOverview"));
-  }, NOBILITY_EXTENSION_ID);
+      refreshCharactersOverviewIfOpen(api.isDialogOpen("charactersOverview"));
+    },
+    NOBILITY_EXTENSION_ID,
+    ["extension.characters", "extension.nobility", "map.politics", "map.settlements", "simulation.military"]
+  );
 }
 
 export function cleanup(api: ExtensionAPI): void {

@@ -32,14 +32,14 @@ const legacyHookIds: string[] = [];
  * remain registered for the session. New systems should declare their reads
  * and writes with registerSimulationSystem().
  */
-export function registerTimeTickHook(fn: TimeTickHook, label = "unlabeled"): void {
+export function registerTimeTickHook(fn: TimeTickHook, label = "unlabeled", writes?: readonly DataTopic[]): void {
   const previousId = legacyHookIds.at(-1);
   const id = `legacy-hook:${nextLegacyHookId++}`;
   timeTickSystems.register({
     id,
     phase: "politics",
     reads: [],
-    writes: [label === "unlabeled" ? "extension.legacy" : `extension.${label}`],
+    writes: writes?.length ? [...new Set(writes)] : [label === "unlabeled" ? "extension.legacy" : `extension.${label}`],
     after: previousId ? [previousId] : undefined,
     cadence: { every: 1 },
     profileLabel: `hook:${label}`,

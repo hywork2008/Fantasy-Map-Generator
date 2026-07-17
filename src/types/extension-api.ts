@@ -19,7 +19,12 @@ import type { SimulationContext } from "../context/simulationContext";
 import type { SvgGroup, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { SimulationSystem } from "../generators/simulationSystem";
-import type { ExtensionCommandDefinition, ExtensionCommandRequest, WorldCommit } from "../runtime/worldRuntime";
+import type {
+  DataTopic,
+  ExtensionCommandDefinition,
+  ExtensionCommandRequest,
+  WorldCommit
+} from "../runtime/worldRuntime";
 import type { BurgEconomySummary } from "../services/burgEconomyExtensions";
 import type { SkillModifierFn } from "../services/skillModifierService";
 import type {
@@ -296,10 +301,13 @@ export interface ExtensionAPI {
    * `label` (e.g. the extension id) identifies this hook's cost in the tick profiler's
    * output (src/generators/tickProfiler.ts) — pass one so per-extension tick cost is
    * distinguishable when diagnosing slow Advance Time batches.
+   * `writes` lists additional core or extension topics the compatibility hook
+   * can change, so the host can invalidate dependent projections correctly.
    */
   registerTimeTickHook(
     hook: (deltaYears: number, deltaMonths: number, deltaDays: number) => void,
-    label?: string
+    label?: string,
+    writes?: readonly DataTopic[]
   ): void;
   /**
    * Register a synchronous system with explicit phase, cadence, dependencies,
