@@ -18,7 +18,7 @@ import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burg
 import { Caravans } from "./generators/caravans";
 import { FoodProduction } from "./generators/foodProduction";
 import { clearForestDepletion, registerLogHarvest, tickForestRegrowth } from "./generators/forestDepletion";
-import { Goods, isGoodEnabled } from "./generators/goods-generator";
+import { type Good, Goods, getDefaultGoodTradeProfile, isGoodEnabled } from "./generators/goods-generator";
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
 import { Markets } from "./generators/markets-generator";
 import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
@@ -211,6 +211,179 @@ let _shipbuildingSurplusShipRequestHandler: ((e: Event) => void) | null = null;
 let _voyageIncomeHandler: ((e: Event) => void) | null = null;
 let _mapPickCandidatesHandler: ((e: Event) => void) | null = null;
 let _gunpowderEraChangedHandler: (() => void) | null = null;
+let _unregisterGoodsAssignCellCommand: (() => void) | null = null;
+let _unregisterGoodsUpdateCommand: (() => void) | null = null;
+let _unregisterGoodsAddCommand: (() => void) | null = null;
+let _unregisterGoodsRemoveCommand: (() => void) | null = null;
+
+interface AssignGoodToCellRequest {
+  readonly cellId: number;
+  readonly goodId: number;
+}
+
+interface GoodSettings {
+  readonly name: string;
+  readonly tags: readonly string[];
+  readonly value: number;
+  readonly unit: string;
+  readonly icon: string;
+  readonly color: string;
+  readonly chance?: number;
+  readonly distribution?: string;
+}
+
+interface GoodSettingsRequest extends GoodSettings {
+  readonly goodId: number;
+}
+
+function isAssignGoodToCellRequest(value: unknown): value is AssignGoodToCellRequest {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Record<string, unknown>;
+  return Number.isInteger(candidate.cellId) && Number.isInteger(candidate.goodId);
+}
+
+function isGoodSettings(value: unknown): value is GoodSettings {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.name === "string" &&
+    Array.isArray(candidate.tags) &&
+    candidate.tags.every(tag => typeof tag === "string") &&
+    typeof candidate.value === "number" &&
+    typeof candidate.unit === "string" &&
+    typeof candidate.icon === "string" &&
+    typeof candidate.color === "string" &&
+    (candidate.chance === undefined || typeof candidate.chance === "number") &&
+    (candidate.distribution === undefined || typeof candidate.distribution === "string")
+  );
+}
+
+function isGoodSettingsRequest(value: unknown): value is GoodSettingsRequest {
+  return isGoodSettings(value) && Number.isInteger((value as { goodId?: unknown }).goodId);
+}
+
+function isGoodIdRequest(value: unknown): value is { readonly goodId: number } {
+  return !!value && typeof value === "object" && Number.isInteger((value as { goodId?: unknown }).goodId);
+}
+
+function applyGoodSettings(good: Good, request: GoodSettingsRequest): boolean {
+  const changed =
+    good.name !== request.name ||
+    good.value !== request.value ||
+    good.unit !== request.unit ||
+    good.icon !== request.icon ||
+    good.color !== request.color ||
+    good.chance !== request.chance ||
+    good.distribution !== request.distribution ||
+    good.tags.length !== request.tags.length ||
+    good.tags.some((tag, index) => tag !== request.tags[index]);
+  if (!changed) return false;
+
+  good.name = request.name;
+  good.tags = [...request.tags];
+  good.value = request.value;
+  good.unit = request.unit;
+  good.icon = request.icon;
+  good.color = request.color;
+  good.chance = request.chance;
+  good.distribution = request.distribution;
+  return true;
+}
+
+function registerEconomyCommands(api: ExtensionAPI): void {
+  _unregisterGoodsAssignCellCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "goods.assignCell",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to assign a good to a cell");
+      }
+      if (!isAssignGoodToCellRequest(value)) {
+        throw new Error("economy.goods.assignCell requires integer cellId and goodId values");
+      }
+
+      const cells = getWorldContext().pack.cells;
+      if (!cells.good || value.cellId < 0 || value.cellId >= cells.good.length) {
+        throw new Error(`economy.goods.assignCell received invalid cell ${value.cellId}`);
+      }
+
+      const currentGoodId = cells.good[value.cellId];
+      const nextGoodId = currentGoodId ? 0 : value.goodId;
+      if (nextGoodId && !Goods.get(nextGoodId)) {
+        throw new Error(`economy.goods.assignCell could not find good ${nextGoodId}`);
+      }
+      if (currentGoodId === nextGoodId) return { changed: false };
+
+      cells.good[value.cellId] = nextGoodId;
+      return { changed: true, result: { cellId: value.cellId, goodId: nextGoodId } };
+    }
+  });
+  _unregisterGoodsUpdateCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "goods.update",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) throw new Error("Economy must be enabled to update a good");
+      if (!isGoodSettingsRequest(value)) throw new Error("economy.goods.update received invalid settings");
+
+      const good = Goods.get(value.goodId);
+      if (!good) throw new Error(`economy.goods.update could not find good ${value.goodId}`);
+      const changed = applyGoodSettings(good, value);
+      if (changed) Goods.sync();
+      return { changed, result: { goodId: good.i } };
+    }
+  });
+  _unregisterGoodsAddCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "goods.add",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) throw new Error("Economy must be enabled to add a good");
+      if (!isGoodSettings(value)) throw new Error("economy.goods.add received invalid settings");
+
+      const goods = getWorldContext().pack.goods;
+      if (!goods) throw new Error("economy.goods.add requires an initialized goods collection");
+      const nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+      const good: Good = {
+        i: nextId,
+        name: value.name,
+        tags: [...value.tags],
+        value: value.value,
+        unit: value.unit,
+        icon: value.icon,
+        color: value.color,
+        chance: value.chance,
+        distribution: value.distribution,
+        trade: getDefaultGoodTradeProfile({
+          name: value.name,
+          tags: [...value.tags],
+          value: value.value,
+          unit: value.unit
+        })
+      };
+      goods.push(good);
+      Goods.sync();
+      return { changed: true, result: { goodId: nextId } };
+    }
+  });
+  _unregisterGoodsRemoveCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "goods.remove",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) throw new Error("Economy must be enabled to remove a good");
+      if (!isGoodIdRequest(value)) throw new Error("economy.goods.remove requires an integer goodId");
+
+      const world = getWorldContext();
+      const goods = world.pack.goods;
+      const index = goods.findIndex(good => good.i === value.goodId);
+      if (index === -1) throw new Error(`economy.goods.remove could not find good ${value.goodId}`);
+      for (const cellId of world.pack.cells.i) {
+        if (world.pack.cells.good[cellId] === value.goodId) world.pack.cells.good[cellId] = 0;
+      }
+      goods.splice(index, 1);
+      Goods.sync();
+      return { changed: true, result: { goodId: value.goodId } };
+    }
+  });
+}
 
 function refreshEconomyForGunpowderEra(api: ExtensionAPI): void {
   const worldContext = getWorldContext();
@@ -241,6 +414,7 @@ function refreshEconomyForGunpowderEra(api: ExtensionAPI): void {
 
 export function init(api: ExtensionAPI): void {
   initEconomyContext(api);
+  registerEconomyCommands(api);
 
   // Register the extension (default enabled: false)
   api.registerExtension(
@@ -917,6 +1091,14 @@ export function init(api: ExtensionAPI): void {
 }
 
 export function cleanup(api: ExtensionAPI): void {
+  _unregisterGoodsAssignCellCommand?.();
+  _unregisterGoodsAssignCellCommand = null;
+  _unregisterGoodsUpdateCommand?.();
+  _unregisterGoodsUpdateCommand = null;
+  _unregisterGoodsAddCommand?.();
+  _unregisterGoodsAddCommand = null;
+  _unregisterGoodsRemoveCommand?.();
+  _unregisterGoodsRemoveCommand = null;
   if (_unsubscribe) {
     _unsubscribe();
     _unsubscribe = null;

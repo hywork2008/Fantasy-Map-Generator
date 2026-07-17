@@ -19,6 +19,7 @@ import type { SimulationContext } from "../context/simulationContext";
 import type { SvgGroup, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { SimulationSystem } from "../generators/simulationSystem";
+import type { ExtensionCommandDefinition, ExtensionCommandRequest, WorldCommit } from "../runtime/worldRuntime";
 import type { BurgEconomySummary } from "../services/burgEconomyExtensions";
 import type { SkillModifierFn } from "../services/skillModifierService";
 import type {
@@ -305,6 +306,14 @@ export interface ExtensionAPI {
    * and WorldRuntime topics. The system must not touch DOM or renderer APIs.
    */
   registerSimulationSystem(system: SimulationSystem): () => void;
+
+  /**
+   * Register a validated extension-owned writer. Its changes are committed as
+   * `extension.<extensionId>`; call the returned function during cleanup.
+   */
+  registerExtensionCommand(command: ExtensionCommandDefinition): () => void;
+  /** Execute a command previously registered by an extension. */
+  dispatchExtensionCommand(request: ExtensionCommandRequest): WorldCommit<unknown> | null;
 
   // ── Skill modifier chain ─────────────────────────────────────────────────
   /**

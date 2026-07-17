@@ -83,6 +83,31 @@ export interface LegacyMutationCommand<T> {
   readonly execute: () => LegacyMutationOutcome<T>;
 }
 
+/**
+ * A narrowly registered extension-owned writer. The host owns commit creation
+ * and topic invalidation; the extension must validate its unknown payload
+ * before changing only data it owns.
+ */
+export interface ExtensionCommandDefinition {
+  readonly extensionId: string;
+  readonly name: string;
+  readonly execute: (payload: unknown) => {
+    readonly changed: boolean;
+    readonly result?: unknown;
+  };
+}
+
+export interface ExtensionCommandRequest {
+  readonly extensionId: string;
+  readonly name: string;
+  readonly payload: unknown;
+}
+
+export interface ExtensionCommand {
+  readonly type: "extension.command";
+  readonly payload: ExtensionCommandRequest;
+}
+
 export interface MoveMarkerRequest {
   readonly markerId: number;
   readonly x: number;
@@ -295,6 +320,7 @@ export interface PresentationPatchCommand {
 export type PositionCommand = MoveMarkerCommand | MoveBurgCommand | MoveRegimentCommand;
 export type WorldCommand<T> =
   | LegacyMutationCommand<T>
+  | ExtensionCommand
   | PositionCommand
   | AssignCellsCommand
   | RemoveStateCommand
@@ -314,12 +340,15 @@ export interface WorldRuntime {
   read(): WorldReadView;
   dispatch<T>(command: WorldCommand<T>): Promise<WorldCommit<T> | null>;
   subscribe(listener: (commit: WorldCommit<unknown>) => void): () => void;
+  /** Register one synchronous, validated command owned by an extension. */
+  registerExtensionCommand(command: ExtensionCommandDefinition): () => void;
 }
 
 class LegacyWorldRuntime implements WorldRuntime {
   private revision = 0;
   private readonly topicRevisions: Record<string, number> = {};
   private readonly listeners = new Set<(commit: WorldCommit<unknown>) => void>();
+  private readonly extensionCommands = new Map<string, ExtensionCommandDefinition>();
   private committing = false;
 
   constructor(
@@ -349,6 +378,20 @@ class LegacyWorldRuntime implements WorldRuntime {
   subscribe(listener: (commit: WorldCommit<unknown>) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  registerExtensionCommand(command: ExtensionCommandDefinition): () => void {
+    if (!command.extensionId.trim() || !command.name.trim()) {
+      throw new Error("Extension commands require a non-empty extension id and name");
+    }
+    const key = this.extensionCommandKey(command.extensionId, command.name);
+    if (this.extensionCommands.has(key)) {
+      throw new Error(`Extension command ${key} is already registered`);
+    }
+    this.extensionCommands.set(key, command);
+    return () => {
+      if (this.extensionCommands.get(key) === command) this.extensionCommands.delete(key);
+    };
   }
 
   /** @internal Synchronous bridge required by legacy callers such as advanceTime(). */
@@ -395,6 +438,10 @@ class LegacyWorldRuntime implements WorldRuntime {
 
   private getOutcome<T>(command: WorldCommand<T>): LegacyMutationOutcome<T> {
     if (command.type === "legacy.mutation") return command.execute();
+
+    if (command.type === "extension.command") {
+      return this.executeExtensionCommand(command.payload) as LegacyMutationOutcome<T>;
+    }
 
     if (command.type === "presentation.patch") {
       const stylesChanged = Object.entries(command.payload.styles ?? {}).some(([selector, attributes]) =>
@@ -1007,6 +1054,22 @@ class LegacyWorldRuntime implements WorldRuntime {
     }
     return area / 2;
   }
+
+  private executeExtensionCommand(request: ExtensionCommandRequest): LegacyMutationOutcome<unknown> {
+    const command = this.extensionCommands.get(this.extensionCommandKey(request.extensionId, request.name));
+    if (!command) {
+      throw new Error(`Extension command ${request.extensionId}.${request.name} is not registered`);
+    }
+    const outcome = command.execute(request.payload);
+    return {
+      result: outcome.result,
+      topics: outcome.changed ? [`extension.${request.extensionId}`] : []
+    };
+  }
+
+  private extensionCommandKey(extensionId: string, name: string): string {
+    return `${extensionId}:${name}`;
+  }
 }
 
 export function createWorldRuntime(
@@ -1026,6 +1089,11 @@ export const worldRuntime = createWorldRuntime(worldContext, simulationContext, 
  */
 export function legacyMutation<T>(execute: () => LegacyMutationOutcome<T>): WorldCommit<T> | null {
   return (worldRuntime as LegacyWorldRuntime).execute({ type: "legacy.mutation", execute });
+}
+
+/** Dispatches a registered extension command through the host's commit seam. */
+export function dispatchExtensionCommand(request: ExtensionCommandRequest): WorldCommit<unknown> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "extension.command", payload: request });
 }
 
 /** Phase 2 compatibility commands for bounded, ID-addressed position edits. */

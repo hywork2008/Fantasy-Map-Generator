@@ -39,7 +39,7 @@ export function registerTimeTickHook(fn: TimeTickHook, label = "unlabeled"): voi
     id,
     phase: "politics",
     reads: [],
-    writes: ["extension.legacy"],
+    writes: [label === "unlabeled" ? "extension.legacy" : `extension.${label}`],
     after: previousId ? [previousId] : undefined,
     cadence: { every: 1 },
     profileLabel: `hook:${label}`,

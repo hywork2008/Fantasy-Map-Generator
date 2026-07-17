@@ -38,6 +38,12 @@ function regenerateEconomyForGood(goodId: number): void {
   refreshEditor();
 }
 
+function getCommandResultGoodId(result: unknown): number | null {
+  if (!result || typeof result !== "object") return null;
+  const goodId = (result as { goodId?: unknown }).goodId;
+  return typeof goodId === "number" && Number.isInteger(goodId) ? goodId : null;
+}
+
 export function open(): void {
   if (getViewContext().customization) return;
 
@@ -335,17 +341,16 @@ export function enterResourceAssignMode(): void {
     const selectedGoodId = getGoodsEditorTableState().selectedAssignGoodId;
     if (!selectedGoodId) return;
 
-    if (worldContext().pack.cells.good[cellId]) {
-      worldContext().pack.cells.good[cellId] = 0;
-    } else {
-      const resource = Goods.get(selectedGoodId);
-      if (!resource) return;
-      worldContext().pack.cells.good[cellId] = selectedGoodId;
-      setGoodDisplayed(selectedGoodId, true);
-    }
+    const hadGood = Boolean(worldContext().pack.cells.good[cellId]);
+    const commit = getApi().dispatchExtensionCommand({
+      extensionId: "economy",
+      name: "goods.assignCell",
+      payload: { cellId, goodId: selectedGoodId }
+    });
+    if (!commit) return;
+    if (!hadGood) setGoodDisplayed(selectedGoodId, true);
 
     drawGoods(getDisplayedGoodIds());
-    getApi().requestWebglRender();
   });
 }
 
@@ -452,19 +457,25 @@ export function editGoodDistribution(goodId: number): void {
   DistributionEditor.open(
     draft => {
       const normalizedDistribution = draft.distribution.trim();
-      good.name = draft.name;
-      good.color = draft.color;
-      good.icon = draft.icon;
-      good.value = Math.max(0, draft.value);
-      good.unit = draft.unit;
-      good.tags = draft.tagsText
-        .split(",")
-        .map(tag => tag.trim())
-        .filter(Boolean);
-      good.distribution = normalizedDistribution || undefined;
-      good.chance = good.distribution ? Math.max(0, Math.min(100, draft.chance)) : undefined;
-
-      Goods.sync();
+      const commit = getApi().dispatchExtensionCommand({
+        extensionId: "economy",
+        name: "goods.update",
+        payload: {
+          goodId: good.i,
+          name: draft.name,
+          color: draft.color,
+          icon: draft.icon,
+          value: Math.max(0, draft.value),
+          unit: draft.unit,
+          tags: draft.tagsText
+            .split(",")
+            .map(tag => tag.trim())
+            .filter(Boolean),
+          distribution: normalizedDistribution || undefined,
+          chance: normalizedDistribution ? Math.max(0, Math.min(100, draft.chance)) : undefined
+        }
+      });
+      if (!commit) return;
       regenerateEconomyForGood(good.i);
     },
     {
@@ -483,30 +494,28 @@ export function editGoodDistribution(goodId: number): void {
 
 export function addGood(): void {
   DistributionEditor.open(draft => {
-    const goods = worldContext().pack.goods || [];
-    const nextId = goods.reduce((maxId, existingGood) => Math.max(maxId, existingGood.i), 0) + 1;
     const normalizedDistribution = draft.distribution.trim();
-
-    const good = {
-      i: nextId,
-      name: draft.name,
-      tags: draft.tagsText
-        .split(",")
-        .map(tag => tag.trim())
-        .filter(Boolean),
-      value: Math.max(0, draft.value),
-      unit: draft.unit.trim() || "unit",
-      icon: draft.icon.trim() || "good-wood",
-      color: draft.color,
-      chance: normalizedDistribution ? Math.max(0, Math.min(100, draft.chance)) : undefined,
-      distribution: normalizedDistribution || undefined
-    };
-
-    worldContext().pack.goods.push({ ...good, trade: getDefaultGoodTradeProfile(good) });
-
-    Goods.sync();
-    setGoodDisplayed(nextId, true);
-    regenerateEconomyForGood(nextId);
+    const commit = getApi().dispatchExtensionCommand({
+      extensionId: "economy",
+      name: "goods.add",
+      payload: {
+        name: draft.name,
+        tags: draft.tagsText
+          .split(",")
+          .map(tag => tag.trim())
+          .filter(Boolean),
+        value: Math.max(0, draft.value),
+        unit: draft.unit.trim() || "unit",
+        icon: draft.icon.trim() || "good-wood",
+        color: draft.color,
+        chance: normalizedDistribution ? Math.max(0, Math.min(100, draft.chance)) : undefined,
+        distribution: normalizedDistribution || undefined
+      }
+    });
+    const goodId = getCommandResultGoodId(commit?.result);
+    if (goodId === null) return;
+    setGoodDisplayed(goodId, true);
+    regenerateEconomyForGood(goodId);
   });
 }
 
@@ -519,17 +528,15 @@ export function removeGood(goodId: number): void {
     message: "Are you sure you want to remove the resource? <br>This action cannot be reverted",
     confirm: "Remove",
     onConfirm: () => {
-      for (const i of worldContext().pack.cells.i) {
-        if (worldContext().pack.cells.good[i] === good.i) {
-          worldContext().pack.cells.good[i] = 0;
-        }
-      }
-      worldContext().pack.goods = worldContext().pack.goods.filter(g => g.i !== good.i);
-      Goods.sync();
+      const commit = getApi().dispatchExtensionCommand({
+        extensionId: "economy",
+        name: "goods.remove",
+        payload: { goodId: good.i }
+      });
+      if (!commit) return;
       setGoodDisplayed(good.i, false);
       goodsEditorAddLines();
       drawGoods(getDisplayedGoodIds());
-      getApi().requestWebglRender();
     }
   });
 }

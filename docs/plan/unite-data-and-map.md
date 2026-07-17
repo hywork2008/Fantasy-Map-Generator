@@ -1,6 +1,6 @@
 # 地図データ・シミュレーション・描画の統合設計
 
-- **Status**: In progress（Phase 1、Phase 2 の position command／SVG・WebGL・viewMesh compatibility listener、Phase 3 の `PresentationData` command・legacy SVG import・WebGL style reader 移行、Phase 4 の `SimulationSystem` registry と legacy tick-hook compatibility、Phase 5 の `cells.assign`（state / province / culture / religion）、state remove / merge cascade、province / culture / religion deletion cascade、route create / remove / metadata / point edit、river metadata / geometry、lake / coastline feature metadata / vertex edit を実装済み。extension writer、generate / load、simulation archive / slice は未移行）
+- **Status**: In progress（Phase 1、Phase 2 の position command／SVG・WebGL・viewMesh compatibility listener、Phase 3 の `PresentationData` command・legacy SVG import・WebGL style reader 移行、Phase 4 の `SimulationSystem` registry と legacy tick-hook compatibility、Phase 5 の `cells.assign`（state / province / culture / religion）、state remove / merge cascade、province / culture / religion deletion cascade、route create / remove / metadata / point edit、river metadata / geometry、lake / coastline feature metadata / vertex edit、extension command registration と Economy Goods editor の writer 移行を実装済み。その他 extension writer、generate / load、simulation archive / slice は未移行）
 - **Date**: 2026-07-17
 
 **Related**:
@@ -339,7 +339,7 @@ interface WorldCommandCatalog {
   "simulation.stepDay": { payload: undefined; result: SimulationStepResult };
   "presentation.patch": { payload: PresentationPatch; result: void };
   "extension.command": {
-    payload: { extensionId: string; name: string; value: unknown };
+    payload: { extensionId: string; name: string; payload: unknown };
     result: unknown;
   };
 }
@@ -865,7 +865,7 @@ Renderer 固有の element や cache を editor が知る必要はない。
 
 raw `pack` / `grid` write は allowlist + lint rule で段階的に禁止する。
 
-実装済みの command は `cells.assign`、`state.remove`、`state.merge`、`entity.remove`、`route.create` / `route.remove` / `route.patch` / `route.replacePoints`、`river.patch` / `river.replaceGeometry`、`feature.patch` / `feature.vertexMove` である。extension editor と simulation writer は、それぞれの slice owner を `extension.<id>` topic として command registration へ移す次の移行単位として残す。
+実装済みの command は `cells.assign`、`state.remove`、`state.merge`、`entity.remove`、`route.create` / `route.remove` / `route.patch` / `route.replacePoints`、`river.patch` / `river.replaceGeometry`、`feature.patch` / `feature.vertexMove`、extension 登録 command (`extension.command`) である。`ExtensionAPI.registerExtensionCommand()` は payload を extension 側で検証して一つの `extension.<id>` commit を発行し、`dispatchExtensionCommand()` で実行する。Economy の Goods editor はセル配置・作成・設定変更・削除をこの経路へ移行済みである。互換 `registerTimeTickHook()` も label を `extension.<id>` write topic として publish する。その他 extension editor と、tick 内の direct mutation 自体を slice command に置き換える作業は後続の移行単位として残す。
 
 ### Phase 6 — 新 archive
 

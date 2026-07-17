@@ -115,6 +115,47 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     error.mockRestore();
   });
 
+  it("commits registered extension writers under their extension topic", async () => {
+    const runtime = createRuntime();
+    let assignedCellId = 0;
+    const unregister = runtime.registerExtensionCommand({
+      extensionId: "economy",
+      name: "goods.assignCell",
+      execute: payload => {
+        if (!payload || typeof payload !== "object" || !Number.isInteger((payload as { cellId?: unknown }).cellId)) {
+          throw new Error("cellId is required");
+        }
+        const cellId = (payload as { cellId: number }).cellId;
+        if (assignedCellId === cellId) return { changed: false };
+        assignedCellId = cellId;
+        return { changed: true, result: { cellId } };
+      }
+    });
+
+    const commit = await runtime.dispatch({
+      type: "extension.command",
+      payload: { extensionId: "economy", name: "goods.assignCell", payload: { cellId: 4 } }
+    });
+    const noOp = await runtime.dispatch({
+      type: "extension.command",
+      payload: { extensionId: "economy", name: "goods.assignCell", payload: { cellId: 4 } }
+    });
+
+    expect(assignedCellId).toBe(4);
+    expect(commit).toMatchObject({
+      result: { cellId: 4 },
+      changes: { changes: [{ topic: "extension.economy", kind: "replace" }] }
+    });
+    expect(noOp).toBeNull();
+    unregister();
+    await expect(
+      runtime.dispatch({
+        type: "extension.command",
+        payload: { extensionId: "economy", name: "goods.assignCell", payload: { cellId: 5 } }
+      })
+    ).rejects.toThrow("is not registered");
+  });
+
   it("updates bounded position commands by stable ID and emits their owned topics", async () => {
     const world = createPositionWorld();
     const runtime = createWorldRuntime(world, {} as SimulationContext);

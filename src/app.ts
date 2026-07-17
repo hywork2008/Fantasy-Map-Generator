@@ -38,6 +38,7 @@ import {
   unregisterExtensionWebglLayers
 } from "./renderers/webgl/extensionWebglLayerRegistry";
 import { initRenderCoordinator } from "./runtime/renderCoordinator";
+import { dispatchExtensionCommand, worldRuntime } from "./runtime/worldRuntime";
 import { burgEconomyExtensions } from "./services/burgEconomyExtensions";
 import { getBurgSiteDescriptor } from "./services/burgSiteDescriptor";
 import {
@@ -175,6 +176,8 @@ function buildExtensionAPI(): ExtensionAPI {
 
     registerTimeTickHook,
     registerSimulationSystem,
+    registerExtensionCommand: command => worldRuntime.registerExtensionCommand(command),
+    dispatchExtensionCommand,
 
     registerSkillModifier,
     getEffectiveSkill,
