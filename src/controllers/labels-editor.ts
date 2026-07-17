@@ -1,5 +1,6 @@
 import { curveNatural, type D3DragEvent, drag, pointer, select } from "d3";
 import { worldContext } from "../context/worldContext";
+import { patchPresentation } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -13,6 +14,19 @@ import { interactionManager } from "./interactionManager";
 import { toggleLabels } from "./layers";
 import { editNotes } from "./notes-editor";
 import { editStyle } from "./style";
+
+// Manual state-label edits (drag position, start offset, size, letter-spacing) must be
+// persisted here, not just written to live DOM attributes. drawStateLabels() recreates
+// the <text>/<textPath> elements from scratch on every redraw (including a render-mode
+// toggle), so a DOM-only edit is silently lost the next time that happens.
+function isStateLabel(id: string): boolean {
+  return id.startsWith("stateLabel");
+}
+
+function patchStateLabelLayout(id: string, attributes: Record<string, string | number | null>): void {
+  if (!isStateLabel(id)) return;
+  patchPresentation({ labels: { [id]: attributes } });
+}
 
 export function editLabel(tspan?: Element): void {
   if (view.customization) return;
@@ -35,6 +49,10 @@ export function editLabel(tspan?: Element): void {
           const transform = `translate(${_ldx + event.x},${_ldy + event.y})`;
           elSelected!.attr("transform", transform);
           view.debug.select("#controlPoints").attr("transform", transform);
+        })
+        .on("end", () => {
+          const [dx, dy] = parseTransform(elSelected!.attr("transform"));
+          patchStateLabelLayout(elSelected!.attr("id"), { dx: +dx, dy: +dy });
         })
     )
     .classed("draggable", true);
@@ -115,7 +133,7 @@ function addControlPoint(pt: SVGPoint): void {
     .attr("cy", pt.y)
     .attr("r", 2.5)
     .attr("stroke-width", 0.8)
-    .call(drag<SVGCircleElement, unknown>().on("drag", dragControlPoint))
+    .call(drag<SVGCircleElement, unknown>().on("drag", dragControlPoint).on("end", persistLabelPath))
     .on("click", clickControlPoint);
 }
 
@@ -134,9 +152,19 @@ function redrawLabelPath(): void {
   view.debug.select("#controlPoints > path").attr("d", d);
 }
 
+// persist the bent curve shape (start/interim/end control points), same rationale as
+// patchStateLabelLayout above: drawStateLabels() rebuilds the path from state.pole/raycast
+// geometry on every redraw, so a control-point edit is otherwise lost on the next one.
+function persistLabelPath(): void {
+  const id = elSelected!.attr("id");
+  const path = view.svg.select<SVGPathElement>(`#textPath_${id}`).node();
+  patchStateLabelLayout(id, { pathD: path?.getAttribute("d") ?? null });
+}
+
 function clickControlPoint(this: SVGCircleElement): void {
   this.remove();
   redrawLabelPath();
+  persistLabelPath();
 }
 
 function addInterimControlPoint(this: SVGPathElement, event: MouseEvent): void {
@@ -169,10 +197,11 @@ function addInterimControlPoint(this: SVGPathElement, event: MouseEvent): void {
     .attr("cy", pt[1])
     .attr("r", 2.5)
     .attr("stroke-width", 0.8)
-    .call(drag<SVGCircleElement, unknown>().on("drag", dragControlPoint))
+    .call(drag<SVGCircleElement, unknown>().on("drag", dragControlPoint).on("end", persistLabelPath))
     .on("click", clickControlPoint);
 
   redrawLabelPath();
+  persistLabelPath();
 }
 
 function toggleSection(section: LabelEditorSection): void {
@@ -303,12 +332,14 @@ function changeStartOffset(value: number): void {
   const val = Math.min(80, Math.max(20, value));
   setLabelsEditorState({ startOffset: val });
   elSelected!.select("textPath").attr("startOffset", `${val}%`);
+  patchStateLabelLayout(elSelected!.attr("id"), { startOffset: val });
   tip(`Label offset: ${val}%`);
 }
 
 function changeRelativeSize(value: number): void {
   setLabelsEditorState({ size: value });
   elSelected!.select("textPath").attr("font-size", `${value}%`);
+  patchStateLabelLayout(elSelected!.attr("id"), { size: value });
   tip(`Label relative size: ${value}%`);
   changeText(getLabelsEditorState().text);
 }
@@ -316,6 +347,7 @@ function changeRelativeSize(value: number): void {
 function changeLetterSpacingSize(value: number): void {
   setLabelsEditorState({ letterSpacing: value });
   elSelected!.select("textPath").attr("letter-spacing", `${value}px`);
+  patchStateLabelLayout(elSelected!.attr("id"), { letterSpacing: value });
   tip(`Label letter-spacing size: ${value}px`);
   changeText(getLabelsEditorState().text);
 }

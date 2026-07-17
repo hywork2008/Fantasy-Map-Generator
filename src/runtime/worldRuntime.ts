@@ -590,13 +590,17 @@ class LegacyWorldRuntime implements WorldRuntime {
       const layersChanged = Object.entries(command.payload.activeLayers ?? {}).some(
         ([id, visible]) => this.presentation.activeLayers[id] !== visible
       );
+      const labelsChanged = Object.entries(command.payload.labels ?? {}).some(([id, attributes]) =>
+        Object.entries(attributes).some(([attribute, value]) => this.presentation.labels[id]?.[attribute] !== value)
+      );
       const changed = applyPresentationPatch(this.presentation, command.payload);
       return {
         result: undefined as T,
         topics: changed
           ? [
               ...(stylesChanged ? (["presentation.styles"] as const) : []),
-              ...(layersChanged ? (["presentation.layers"] as const) : [])
+              ...(layersChanged ? (["presentation.layers"] as const) : []),
+              ...(labelsChanged ? (["presentation.labels"] as const) : [])
             ]
           : []
       };

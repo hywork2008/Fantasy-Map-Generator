@@ -5,21 +5,26 @@
  */
 export type PresentationStyleValue = string | number | null;
 export type PresentationStyleRecord = Readonly<Record<string, PresentationStyleValue>>;
+/** Per-instance label override: manual position (dx/dy), start offset, size, letter-spacing. */
+export type LabelLayout = Readonly<Record<string, PresentationStyleValue>>;
 
 export interface PresentationData {
   /** CSS/SVG selector -> serializable attributes and inline style values. */
   styles: Record<string, Record<string, PresentationStyleValue>>;
   /** Layer-toggle id -> visibility. UI stores mirror this data, they do not own it. */
   activeLayers: Record<string, boolean>;
+  /** Label element id (e.g. "stateLabel12") -> manual layout override, survives redraw/re-generation. */
+  labels: Record<string, Record<string, PresentationStyleValue>>;
 }
 
 export interface PresentationPatch {
   readonly styles?: Readonly<Record<string, PresentationStyleRecord>>;
   readonly activeLayers?: Readonly<Record<string, boolean>>;
+  readonly labels?: Readonly<Record<string, LabelLayout>>;
 }
 
 export function createPresentationData(): PresentationData {
-  return { styles: {}, activeLayers: {} };
+  return { styles: {}, activeLayers: {}, labels: {} };
 }
 
 /** The presentation backing store for the in-memory world runtime. */
@@ -38,6 +43,10 @@ export function getPresentationStyleRecord(
   selector: string
 ): PresentationStyleRecord | undefined {
   return presentation.styles[selector];
+}
+
+export function getPresentationLabel(presentation: Readonly<PresentationData>, id: string): LabelLayout | undefined {
+  return presentation.labels[id];
 }
 
 export function applyPresentationPatch(presentation: PresentationData, patch: PresentationPatch): boolean {
@@ -60,6 +69,19 @@ export function applyPresentationPatch(presentation: PresentationData, patch: Pr
     if (presentation.activeLayers[id] === visible) continue;
     presentation.activeLayers[id] = visible;
     changed = true;
+  }
+
+  for (const [id, attributes] of Object.entries(patch.labels ?? {})) {
+    let target = presentation.labels[id];
+    if (!target) {
+      target = {};
+      presentation.labels[id] = target;
+    }
+    for (const [attribute, value] of Object.entries(attributes)) {
+      if (target[attribute] === value) continue;
+      target[attribute] = value;
+      changed = true;
+    }
   }
 
   return changed;

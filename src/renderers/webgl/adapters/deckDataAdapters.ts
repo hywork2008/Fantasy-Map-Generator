@@ -6,7 +6,8 @@ import {
   interpolateRdYlGn,
   interpolateSpectral,
   interpolateYlOrRd,
-  color as parseColor
+  color as parseColor,
+  polygonHull
 } from "d3";
 import _simplify from "simplify-js";
 import type { AppServices } from "../../../context/appServices";
@@ -1758,10 +1759,25 @@ export function buildLandMaskPolygons(
     id: `land-mask-${island.feature.i}`,
     polygon: [
       island.points,
-      ...lakes.filter(lake => isPointInsidePolygon(lake.points[0], island.points)).map(lake => lake.points)
+      ...lakes.filter(lake => isFullyInsidePolygon(lake.points, island.points)).map(lake => lake.points)
     ],
-    fillColor: [255, 255, 255, 255]
+    fillColor: [255, 255, 255, 255] as Color
   }));
+}
+
+/**
+ * A hole ring that only partially overlaps the outer ring (e.g. a lake dragged far enough that
+ * part of its shoreline now sits outside its island) is invalid input for deck.gl's `MaskExtension`
+ * hole-punching. `MaskExtension` renders every land-mask polygon into one shared stencil texture,
+ * so a single malformed hole/outer pairing can corrupt the mask for the *entire* map (every other
+ * island goes fully unmasked, not just the one containing the bad lake) rather than failing locally
+ * the way a lone SVG `<path>` or an ordinary (non-mask) deck.gl polygon would. Requiring every point
+ * of the hole to be inside the outer ring — not just its first point — rejects that pairing outright;
+ * the land there briefly renders solid instead of the lake being cut out, which is the safe direction
+ * to fail in.
+ */
+function isFullyInsidePolygon(points: readonly DeckPosition[], polygon: DeckPosition[]): boolean {
+  return points.length > 0 && points.every(point => isPointInsidePolygon(point, polygon));
 }
 
 function isPointInsidePolygon(point: DeckPosition | undefined, polygon: DeckPosition[]): boolean {
@@ -2182,7 +2198,7 @@ function getFeaturePolygon(
     points.map(([x, y]) => ({ x, y })),
     0.3
   ).map(({ x, y }) => [x, y] as [number, number]);
-  const clipped = clipPoly(simplified, worldContext.graphWidth, worldContext.graphHeight, 1);
+  const clipped = toSimplePolygon(clipPoly(simplified, worldContext.graphWidth, worldContext.graphHeight, 1));
   const fractalShape = fractalizeCoastline(
     worldContext,
     {} as Readonly<ViewContext>,
@@ -2192,6 +2208,53 @@ function getFeaturePolygon(
     feature.type
   );
   return sampleCoastlineShape(fractalShape, 0.5).map(([x, y]) => [x, y] as DeckPosition);
+}
+
+/**
+ * A manually dragged feature vertex (lake/island editor) can pull a ring edge across other
+ * edges of the same ring. SVG's native path fill tolerates a self-intersecting "d" gracefully,
+ * but deck.gl's GPU polygon triangulation does not: on a self-intersecting ring it can emit
+ * huge, wrong triangles that blanket most of the map in the feature's fill color instead of
+ * just the feature's own area. Falling back to the convex hull guarantees a valid simple
+ * polygon whenever the dragged ring crosses itself, at the cost of losing concavity only for
+ * that (rare, already-degenerate) edit.
+ */
+function toSimplePolygon(points: [number, number][]): [number, number][] {
+  if (points.length < 4 || !hasSelfIntersection(points)) return points;
+  const hull = polygonHull(points);
+  return hull ?? points;
+}
+
+function hasSelfIntersection(ring: readonly [number, number][]): boolean {
+  const n = ring.length;
+  for (let i = 0; i < n; i++) {
+    const a1 = ring[i];
+    const a2 = ring[(i + 1) % n];
+    // start at i+2 to skip the adjacent edge; stop before wrapping back onto edge i itself
+    for (let j = i + 2; j < n && !(i === 0 && j === n - 1); j++) {
+      const b1 = ring[j];
+      const b2 = ring[(j + 1) % n];
+      if (segmentsProperlyIntersect(a1, a2, b1, b2)) return true;
+    }
+  }
+  return false;
+}
+
+function segmentsProperlyIntersect(
+  a1: readonly [number, number],
+  a2: readonly [number, number],
+  b1: readonly [number, number],
+  b2: readonly [number, number]
+): boolean {
+  const d1 = cross(b1, b2, a1);
+  const d2 = cross(b1, b2, a2);
+  const d3 = cross(a1, a2, b1);
+  const d4 = cross(a1, a2, b2);
+  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+}
+
+function cross(origin: readonly [number, number], a: readonly [number, number], b: readonly [number, number]): number {
+  return (a[0] - origin[0]) * (b[1] - origin[1]) - (a[1] - origin[1]) * (b[0] - origin[0]);
 }
 
 function closePath(points: DeckPosition[]): DeckPosition[] {
