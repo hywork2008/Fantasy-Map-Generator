@@ -72,6 +72,16 @@ describe("extension state slice compatibility adapter", () => {
     const world = createWorld();
     const simulation = createSimulation();
     bindExtensionStateSlices(world, simulation);
+    simulation.extensions.shipbuilding = {
+      runtimeState: {
+        queues: { 1: { shipClassId: "sloop", owner: "market", progress: 4, pendingWorkPoints: 2 } },
+        surplusQueues: {},
+        stateTechPoints: { 1: 3 },
+        completedHulls: {},
+        hulls: {},
+        nextHullId: 1
+      }
+    };
 
     const document = createWorldDocument(world, simulation, createPresentationData(), []);
 
@@ -81,6 +91,9 @@ describe("extension state slice compatibility adapter", () => {
     expect(Object.hasOwn(document.world.pack.burgs[1], "production")).toBe(false);
     expect(Object.hasOwn(document.world.pack.states[1], "rulerId")).toBe(false);
     expect(document.simulation.extensions.characters?.characters).toEqual([{ i: 1, name: "Ari" }]);
+    expect(document.simulation.extensions.shipbuilding?.runtimeState).toMatchObject({
+      stateTechPoints: { 1: 3 }
+    });
 
     bindExtensionStateSlices(document.world, document.simulation);
     expect(document.world.pack.characters).toBe(document.simulation.extensions.characters?.characters);
