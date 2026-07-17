@@ -215,6 +215,10 @@ let _unregisterGoodsAssignCellCommand: (() => void) | null = null;
 let _unregisterGoodsUpdateCommand: (() => void) | null = null;
 let _unregisterGoodsAddCommand: (() => void) | null = null;
 let _unregisterGoodsRemoveCommand: (() => void) | null = null;
+let _unregisterMarketAssignCellsCommand: (() => void) | null = null;
+let _unregisterMarketAddCommand: (() => void) | null = null;
+let _unregisterMarketRemoveCommand: (() => void) | null = null;
+let _unregisterMarketColorCommand: (() => void) | null = null;
 
 interface AssignGoodToCellRequest {
   readonly cellId: number;
@@ -234,6 +238,15 @@ interface GoodSettings {
 
 interface GoodSettingsRequest extends GoodSettings {
   readonly goodId: number;
+}
+
+interface MarketCellAssignment {
+  readonly cellId: number;
+  readonly marketId: number;
+}
+
+interface AssignMarketCellsRequest {
+  readonly assignments: readonly MarketCellAssignment[];
 }
 
 function isAssignGoodToCellRequest(value: unknown): value is AssignGoodToCellRequest {
@@ -264,6 +277,35 @@ function isGoodSettingsRequest(value: unknown): value is GoodSettingsRequest {
 
 function isGoodIdRequest(value: unknown): value is { readonly goodId: number } {
   return !!value && typeof value === "object" && Number.isInteger((value as { goodId?: unknown }).goodId);
+}
+
+function isAssignMarketCellsRequest(value: unknown): value is AssignMarketCellsRequest {
+  if (!value || typeof value !== "object") return false;
+  const assignments = (value as { assignments?: unknown }).assignments;
+  return (
+    Array.isArray(assignments) &&
+    assignments.every(
+      assignment =>
+        !!assignment &&
+        typeof assignment === "object" &&
+        Number.isInteger((assignment as { cellId?: unknown }).cellId) &&
+        Number.isInteger((assignment as { marketId?: unknown }).marketId)
+    )
+  );
+}
+
+function isMarketColorRequest(value: unknown): value is { readonly marketId: number; readonly color: string } {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as { marketId?: unknown; color?: unknown };
+  return Number.isInteger(candidate.marketId) && typeof candidate.color === "string";
+}
+
+function isBurgIdRequest(value: unknown): value is { readonly burgId: number } {
+  return !!value && typeof value === "object" && Number.isInteger((value as { burgId?: unknown }).burgId);
+}
+
+function isMarketIdRequest(value: unknown): value is { readonly marketId: number } {
+  return !!value && typeof value === "object" && Number.isInteger((value as { marketId?: unknown }).marketId);
 }
 
 function applyGoodSettings(good: Good, request: GoodSettingsRequest): boolean {
@@ -381,6 +423,82 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       goods.splice(index, 1);
       Goods.sync();
       return { changed: true, result: { goodId: value.goodId } };
+    }
+  });
+  _unregisterMarketAssignCellsCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "markets.assignCells",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to assign market territory");
+      }
+      if (!isAssignMarketCellsRequest(value)) {
+        throw new Error("economy.markets.assignCells requires integer cell and market ids");
+      }
+
+      const world = getWorldContext();
+      const cells = world.pack.cells;
+      const markets = new Set(world.pack.markets.map(market => market.i));
+      const finalAssignments = new Map<number, number>();
+      for (const { cellId, marketId } of value.assignments) {
+        if (cellId < 0 || cellId >= cells.market.length) {
+          throw new Error(`economy.markets.assignCells received invalid cell ${cellId}`);
+        }
+        if (marketId < 0 || (marketId !== 0 && !markets.has(marketId))) {
+          throw new Error(`economy.markets.assignCells could not find market ${marketId}`);
+        }
+        finalAssignments.set(cellId, marketId);
+      }
+
+      const changedCellIds: number[] = [];
+      for (const [cellId, marketId] of finalAssignments) {
+        if (cells.market[cellId] === marketId) continue;
+        cells.market[cellId] = marketId;
+        const burgId = cells.burg[cellId];
+        if (burgId && world.pack.burgs[burgId]) world.pack.burgs[burgId].market = marketId;
+        changedCellIds.push(cellId);
+      }
+      if (!changedCellIds.length) return { changed: false };
+
+      Markets.invalidateRuralProductionCache();
+      syncBurgMarketLedgers();
+      return { changed: true, result: { changedCellIds } };
+    }
+  });
+  _unregisterMarketAddCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "markets.add",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) throw new Error("Economy must be enabled to add a market");
+      if (!isBurgIdRequest(value)) throw new Error("economy.markets.add requires an integer burgId");
+
+      const market = Markets.addMarket(value.burgId);
+      return market ? { changed: true, result: { marketId: market.i } } : { changed: false };
+    }
+  });
+  _unregisterMarketRemoveCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "markets.remove",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) throw new Error("Economy must be enabled to remove a market");
+      if (!isMarketIdRequest(value)) throw new Error("economy.markets.remove requires an integer marketId");
+
+      const removed = Markets.removeMarket(value.marketId);
+      return removed ? { changed: true, result: { marketId: value.marketId } } : { changed: false };
+    }
+  });
+  _unregisterMarketColorCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "markets.setColor",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) throw new Error("Economy must be enabled to update a market");
+      if (!isMarketColorRequest(value)) throw new Error("economy.markets.setColor requires a market id and color");
+
+      const market = Markets.get(value.marketId);
+      if (!market) throw new Error(`economy.markets.setColor could not find market ${value.marketId}`);
+      if (market.color === value.color) return { changed: false };
+      market.color = value.color;
+      return { changed: true, result: { marketId: market.i, color: market.color } };
     }
   });
 }
@@ -1099,6 +1217,14 @@ export function cleanup(api: ExtensionAPI): void {
   _unregisterGoodsAddCommand = null;
   _unregisterGoodsRemoveCommand?.();
   _unregisterGoodsRemoveCommand = null;
+  _unregisterMarketAssignCellsCommand?.();
+  _unregisterMarketAssignCellsCommand = null;
+  _unregisterMarketAddCommand?.();
+  _unregisterMarketAddCommand = null;
+  _unregisterMarketRemoveCommand?.();
+  _unregisterMarketRemoveCommand = null;
+  _unregisterMarketColorCommand?.();
+  _unregisterMarketColorCommand = null;
   if (_unsubscribe) {
     _unsubscribe();
     _unsubscribe = null;

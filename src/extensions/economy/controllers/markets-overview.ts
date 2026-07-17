@@ -16,7 +16,6 @@ import {
 } from "../../hostUtils";
 
 import { getApi, getMarketsLayer, getViewContext, getWorldContext } from "../economyContext";
-import { syncBurgMarketLedgers } from "../generators/burgMarketLedgers";
 import { getMarketManagerName } from "../generators/marketManagers";
 import { Markets } from "../generators/markets-generator";
 import type { Deal, Market } from "../generators/marketTypes";
@@ -286,13 +285,15 @@ function exitMarketsManualAssignment(apply: boolean): void {
   getViewContext().customization = 0;
 
   if (apply && marketsWorking) {
-    for (let cellId = 0; cellId < marketsWorking.length; cellId++) {
-      const marketId = marketsWorking[cellId];
-      getWorldContext().pack.cells.market[cellId] = marketId;
-      const burgId = getWorldContext().pack.cells.burg[cellId];
-      if (burgId) (getWorldContext().pack.burgs as Burg[])[burgId].market = marketId;
-    }
-    Markets.invalidateRuralProductionCache();
+    const currentMarkets = getWorldContext().pack.cells.market;
+    const assignments = Array.from(marketsWorking, (marketId, cellId) => ({ cellId, marketId })).filter(
+      ({ cellId, marketId }) => currentMarkets[cellId] !== marketId
+    );
+    getApi().dispatchExtensionCommand({
+      extensionId: "economy",
+      name: "markets.assignCells",
+      payload: { assignments }
+    });
   }
 
   marketsWorking = null;
@@ -305,7 +306,6 @@ function exitMarketsManualAssignment(apply: boolean): void {
   removeCircle();
 
   if (apply) {
-    syncBurgMarketLedgers();
     drawMarketsLayer();
     marketsOverviewAddLines();
   }
@@ -343,8 +343,12 @@ function addMarketOnClick(this: SVGGElement, event: MouseEvent): void {
     return;
   }
 
-  const newMarket = Markets.addMarket(burgId);
-  if (!newMarket) return;
+  const commit = getApi().dispatchExtensionCommand({
+    extensionId: "economy",
+    name: "markets.add",
+    payload: { burgId }
+  });
+  if (!commit) return;
 
   if (!event.shiftKey) exitAddMarketMode();
 
@@ -353,9 +357,12 @@ function addMarketOnClick(this: SVGGElement, event: MouseEvent): void {
 }
 
 export function updateMarketColor(marketId: number, newFill: string): void {
-  const market = Markets.get(marketId);
-  if (!market) return;
-  market.color = newFill;
+  const commit = getApi().dispatchExtensionCommand({
+    extensionId: "economy",
+    name: "markets.setColor",
+    payload: { marketId, color: newFill }
+  });
+  if (!commit) return;
   applyMarketColor(marketId, newFill);
   setMarketsOverviewState({
     markets: getMarketsOverviewState().markets.map(row => (row.i === marketId ? { ...row, color: newFill } : row))
@@ -363,7 +370,12 @@ export function updateMarketColor(marketId: number, newFill: string): void {
 }
 
 export function removeMarket(marketId: number): void {
-  Markets.removeMarket(marketId);
+  const commit = getApi().dispatchExtensionCommand({
+    extensionId: "economy",
+    name: "markets.remove",
+    payload: { marketId }
+  });
+  if (!commit) return;
   if (layerIsOn("toggleMarketsLayer")) drawMarketsLayer();
   marketsOverviewAddLines();
 }
