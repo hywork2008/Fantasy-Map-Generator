@@ -244,7 +244,9 @@ texture / vignette / scaleBar / legend / compass / ocean pattern / grid overlay 
 
 以前は `buildLayerSignatures()` が ~24 個の `byLayer` シグネチャを active/inactive を問わず毎回計算しており、非表示レイヤー分まで `O(cells)` のハッシュ計算が無駄になっていた（例: `toggleGrid` だけを切り替えても states/provinces/cultures/religions 等すべてのシグネチャが再計算されていた）。また `getLakePaint()` / `getCoastlinePaint()` / `getIcePaint()` / `getEmblemStyle()` / `getBurgIconStyle()` / `getMarkerStyle()` / `getLabelStyle()` は `buildDeckLayers()` 本体とシグネチャ計算の両方から呼ばれ、二重に実行されていた。
 
-修正後は `useLayerState` の `activeLayers` を渡して各 `byLayer` エントリを該当トグルが有効な場合のみ計算し、上記 style/paint オブジェクトは呼び出し側で一度だけ計算した値を再利用する。`geometry` / `landGeometry` / `gridGeometry` / `states` / `provinces` / `cultures` / `religions` 等、複数キーが共有する base シグネチャは `memo()` ヘルパーで遅延評価・使い回しにした。`getCachedDeckData()` 自体のキャッシュキー集合や invalidation の仕組み（signature 文字列一致判定）は変更していない — 純粋にシグネチャ*計算*の無駄を削減する変更。
+修正後は `useLayerState` の `activeLayers` を渡して各 `byLayer` エントリを該当トグルが有効な場合のみ計算し、上記 style/paint オブジェクトは呼び出し側で一度だけ計算した値を再利用する。`geometry` / `landGeometry` / `gridGeometry` / `states` / `provinces` / `cultures` / `religions` 等、複数キーが共有する base シグネチャは `memo()` ヘルパーで遅延評価・使い回しにした。
+
+Phase 7 では `DeckGlRenderer` が `WorldRuntime.read()` の topic revision projection を `buildDeckLayers()` へ渡すようにした。`map.topology`、`map.physical`、`map.politics`、`map.settlements`、`map.networks`、`map.annotations`、`simulation.*`、`presentation.styles` の owner topic がある WebGL cache key は、これを O(1) の invalidation signature として使う。これにより `WorldRuntime` command で変更した active layer は、描画のたびに cell column を hash しない。runtime 外の preview / test adapter は projection を渡さず、未移行 writer を取りこぼさない content-hash fallback を使う。icon raster / external-image failure のような renderer-local state は引き続き専用 version を key に含める。
 
 #### `deckLayerDataCache` invalidation 条件
 

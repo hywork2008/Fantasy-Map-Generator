@@ -108,6 +108,7 @@ import {
   getRiverPaint,
   type LayerPaint
 } from "./webglStyleExtractors";
+import { getWebglTopicRevisionSignature, type WebglRevisionProjection } from "./webglTopicRevisions";
 
 type PolygonBuilder = (
   worldContext: Readonly<WorldContext>,
@@ -329,11 +330,19 @@ export function getDeckLayerDataCacheSize(): number {
   return deckLayerDataCache.size;
 }
 
+export interface BuildDeckLayersOptions {
+  readonly includeLabels?: boolean;
+  readonly includeBurgIcons?: boolean;
+  readonly includeRoutes?: boolean;
+  /** O(1) cache invalidation for data written through WorldRuntime. */
+  readonly revisionProjection?: WebglRevisionProjection;
+}
+
 export function buildDeckLayers(
   worldContext: Readonly<WorldContext>,
   viewContext: Readonly<ViewContext>,
   appServices: AppServices,
-  options: { includeLabels?: boolean; includeBurgIcons?: boolean; includeRoutes?: boolean } = {}
+  options: BuildDeckLayersOptions = {}
 ): LayersList {
   const { activeLayers } = presentationData;
   const oceanFill = String(
@@ -358,21 +367,29 @@ export function buildDeckLayers(
   const precipitationPointsOption = useOptionsState.getState().points;
   const riverPaint = getRiverPaint(viewContext);
   const cellLayerOpacities = getCellLayerOpacities(viewContext);
-  const signatures = buildLayerSignatures(worldContext, viewContext, oceanFill, landFill, activeLayers, {
-    lakePaint,
-    coastlinePaint,
-    icePaint,
-    emblemStyle,
-    burgIconStyle,
-    markerStyle,
-    labelStyle,
-    pathDashStyles,
-    pathPaintStyles,
-    precipitationPaint,
-    precipitationPointsOption,
-    riverPaint,
-    cellLayerOpacities
-  });
+  const signatures = buildLayerSignatures(
+    worldContext,
+    viewContext,
+    oceanFill,
+    landFill,
+    activeLayers,
+    {
+      lakePaint,
+      coastlinePaint,
+      icePaint,
+      emblemStyle,
+      burgIconStyle,
+      markerStyle,
+      labelStyle,
+      pathDashStyles,
+      pathPaintStyles,
+      precipitationPaint,
+      precipitationPointsOption,
+      riverPaint,
+      cellLayerOpacities
+    },
+    options.revisionProjection
+  );
   // Shared land-cell vertex geometry: the "land" layer always needs it, and every simultaneously
   // active land-based overlay (biomes/cultures/religions/states/provinces/zones/danger/population)
   // reuses this same array instead of repeating the per-cell vertex lookup. Precipitation is made
@@ -400,7 +417,7 @@ export function buildDeckLayers(
     // HTMLCanvasElement is not a CachedDeckData array type) and is only re-generated — and
     // re-uploaded to the GPU as a WebGL texture — when the ocean path data actually changes.
     ...(() => {
-      const oceanPathSignature = `ocean-depth|${worldContext.mapId}|paths:${getOceanPathsCacheSize()}|${worldContext.graphWidth}x${worldContext.graphHeight}`;
+      const oceanPathSignature = signatures.oceanDepth;
       if (oceanDepthCanvasCache.signature !== oceanPathSignature) {
         oceanDepthCanvasCache.canvas = renderOceanDepthToOffscreenCanvas(
           worldContext.graphWidth,
@@ -1222,111 +1239,180 @@ function buildLayerSignatures(
   oceanFill: string,
   landFill: string,
   activeLayers: Record<string, boolean>,
-  styles: SignatureStyles
+  styles: SignatureStyles,
+  revisionProjection: WebglRevisionProjection | undefined
 ): {
   background: string;
   land: string;
   landGeometrySignature: string;
   landMask: string;
+  oceanDepth: string;
   byLayer: Record<string, string>;
 } {
   const { pack, grid, biomesData, mapId, graphWidth, graphHeight } = worldContext;
   const scope = getFocusScopeSignature(viewContext);
 
-  const geometry = memo(
-    () => `${mapId}|${scope}|${pointListSignature(pack.vertices?.p)}|${nestedNumberListSignature(pack.cells?.v)}`
+  const stableKey = `${mapId}|${scope}|selected:${viewContext.diplomacySelectedStateId ?? "none"}`;
+  const revisionSignature = (
+    topics: Parameters<typeof getWebglTopicRevisionSignature>[2],
+    legacyFallback: () => string,
+    volatileKey = ""
+  ) => getWebglTopicRevisionSignature(revisionProjection, `${stableKey}|${volatileKey}`, topics, legacyFallback);
+  const geometry = memo(() =>
+    revisionSignature(
+      ["map.topology"],
+      () => `${pointListSignature(pack.vertices?.p)}|${nestedNumberListSignature(pack.cells?.v)}`
+    )
   );
-  const cellHeights = memo(() => numberListSignature(pack.cells?.h));
-  const landGeometry = memo(() => `${geometry()}|h:${cellHeights()}`);
-  const gridGeometry = memo(
-    () => `${mapId}|${scope}|${pointListSignature(grid.vertices?.p)}|${nestedNumberListSignature(grid.cells?.v)}`
+  const cellHeights = memo(() => revisionSignature(["map.physical"], () => numberListSignature(pack.cells?.h)));
+  const landGeometry = memo(() =>
+    revisionSignature(["map.topology", "map.physical"], () => `${geometry()}|h:${cellHeights()}`)
   );
-  const gridHeights = memo(() => numberListSignature(grid.cells?.h));
-  const states = memo(
-    () =>
-      `${numberListSignature(pack.cells?.state)}|${colorListSignature(pack.states)}|${diplomacyStateSignature(
-        pack.states,
-        viewContext.diplomacySelectedStateId
-      )}`
+  const gridGeometry = memo(() =>
+    revisionSignature(
+      ["map.topology"],
+      () => `${pointListSignature(grid.vertices?.p)}|${nestedNumberListSignature(grid.cells?.v)}`
+    )
   );
-  const provinces = memo(() => `${numberListSignature(pack.cells?.province)}|${colorListSignature(pack.provinces)}`);
-  const cultures = memo(() => `${numberListSignature(pack.cells?.culture)}|${colorListSignature(pack.cultures)}`);
-  const religions = memo(() => `${numberListSignature(pack.cells?.religion)}|${colorListSignature(pack.religions)}`);
+  const gridHeights = memo(() => revisionSignature(["map.physical"], () => numberListSignature(grid.cells?.h)));
+  const states = memo(() =>
+    revisionSignature(
+      ["map.politics"],
+      () =>
+        `${numberListSignature(pack.cells?.state)}|${colorListSignature(pack.states)}|${diplomacyStateSignature(
+          pack.states,
+          viewContext.diplomacySelectedStateId
+        )}`
+    )
+  );
+  const provinces = memo(() =>
+    revisionSignature(
+      ["map.politics"],
+      () => `${numberListSignature(pack.cells?.province)}|${colorListSignature(pack.provinces)}`
+    )
+  );
+  const cultures = memo(() =>
+    revisionSignature(
+      ["map.politics"],
+      () => `${numberListSignature(pack.cells?.culture)}|${colorListSignature(pack.cultures)}`
+    )
+  );
+  const religions = memo(() =>
+    revisionSignature(
+      ["map.politics"],
+      () => `${numberListSignature(pack.cells?.religion)}|${colorListSignature(pack.religions)}`
+    )
+  );
 
   const byLayer: Record<string, string> = {};
-  const setIfActive = (key: string, toggle: string, compute: () => string) => {
-    if (activeLayers[toggle]) byLayer[key] = compute();
+  const setIfActive = (
+    key: string,
+    toggle: string,
+    topics: Parameters<typeof getWebglTopicRevisionSignature>[2] | null,
+    compute: () => string,
+    volatileKey = ""
+  ) => {
+    if (!activeLayers[toggle]) return;
+    byLayer[key] = topics ? revisionSignature(topics, compute, `${key}|${volatileKey}`) : compute();
   };
 
   setIfActive(
     "height",
     "toggleHeight",
+    ["map.topology", "map.physical", "presentation.styles"],
     () => `${gridGeometry()}|${gridHeights()}|${landGeometry()}|${heightStyleSignature(getHeightStyle(viewContext))}`
   );
   setIfActive(
     "biomes",
     "toggleBiomes",
+    ["map.topology", "map.physical", "presentation.styles"],
     () =>
       `${landGeometry()}|${numberListSignature(pack.cells?.biome)}|${stringListSignature(biomesData.color)}|op:${styles.cellLayerOpacities.biomes}`
   );
   setIfActive(
     "religions",
     "toggleReligions",
+    ["map.topology", "map.politics", "presentation.styles"],
     () => `${landGeometry()}|${religions()}|op:${styles.cellLayerOpacities.religions}`
   );
-  setIfActive("religions-boundaries", "toggleReligions", () => `${landGeometry()}|${religions()}`);
+  setIfActive(
+    "religions-boundaries",
+    "toggleReligions",
+    ["map.topology", "map.politics"],
+    () => `${landGeometry()}|${religions()}`
+  );
   setIfActive(
     "cultures",
     "toggleCultures",
+    ["map.topology", "map.politics", "presentation.styles"],
     () => `${landGeometry()}|${cultures()}|op:${styles.cellLayerOpacities.cultures}`
   );
-  setIfActive("cultures-boundaries", "toggleCultures", () => `${landGeometry()}|${cultures()}`);
-  setIfActive("states", "toggleStates", () => `${landGeometry()}|${states()}|op:${styles.cellLayerOpacities.states}`);
+  setIfActive(
+    "cultures-boundaries",
+    "toggleCultures",
+    ["map.topology", "map.politics"],
+    () => `${landGeometry()}|${cultures()}`
+  );
+  setIfActive(
+    "states",
+    "toggleStates",
+    ["map.topology", "map.politics", "presentation.styles"],
+    () => `${landGeometry()}|${states()}|op:${styles.cellLayerOpacities.states}`
+  );
   setIfActive(
     "states-boundaries",
     "toggleStates",
+    ["map.topology", "map.politics", "presentation.styles"],
     () =>
       `${landGeometry()}|${states()}|${pathDashStyleSignature(styles.pathDashStyles, ["stateBorders"])}|${pathPaintStyleSignature(styles.pathPaintStyles, ["stateBorders"])}`
   );
   setIfActive(
     "provinces",
     "toggleProvinces",
+    ["map.topology", "map.politics", "presentation.styles"],
     () => `${landGeometry()}|${provinces()}|op:${styles.cellLayerOpacities.provinces}`
   );
   setIfActive(
     "provinces-boundaries",
     "toggleProvinces",
+    ["map.topology", "map.politics", "presentation.styles"],
     () =>
       `${landGeometry()}|${provinces()}|${pathDashStyleSignature(styles.pathDashStyles, ["provinceBorders"])}|${pathPaintStyleSignature(styles.pathPaintStyles, ["provinceBorders"])}`
   );
   setIfActive(
     "zones",
     "toggleZones",
+    ["map.topology", "map.annotations", "presentation.styles"],
     () => `${landGeometry()}|${zonesSignature(pack.zones)}|op:${styles.cellLayerOpacities.zones}`
   );
   setIfActive(
     "temperature",
     "toggleTemperature",
+    ["map.topology", "map.physical", "presentation.styles"],
     () =>
       `${geometry()}|${numberListSignature(pack.cells?.g)}|${numberListSignature(grid.cells?.temp)}|op:${styles.cellLayerOpacities.temperature}`
   );
   setIfActive(
     "population",
     "togglePopulation",
+    ["map.topology", "simulation.cells", "presentation.styles"],
     () => `${landGeometry()}|${numberListSignature(pack.cells?.pop)}|op:${styles.cellLayerOpacities.population}`
   );
   setIfActive(
     "precipitation",
     "togglePrecipitation",
+    ["map.topology", "map.physical", "presentation.styles"],
     () =>
-      `${gridGeometry()}|centers:${pointListSignature(grid.points)}|${gridHeights()}|${numberListSignature(grid.cells?.prec)}|${colorSignature(styles.precipitationPaint.color)}|points:${styles.precipitationPointsOption}`
+      `${gridGeometry()}|centers:${pointListSignature(grid.points)}|${gridHeights()}|${numberListSignature(grid.cells?.prec)}|${colorSignature(styles.precipitationPaint.color)}|points:${styles.precipitationPointsOption}`,
+    `points:${styles.precipitationPointsOption}`
   );
   setIfActive(
     "danger",
     "toggleDanger",
+    ["map.topology", "simulation.cells", "presentation.styles"],
     () => `${landGeometry()}|${numberListSignature(pack.cells?.danger)}|op:${styles.cellLayerOpacities.danger}`
   );
-  setIfActive("combatDeaths", "toggleCombatDeaths", () => {
+  setIfActive("combatDeaths", "toggleCombatDeaths", null, () => {
     const deathWindow = usePopulationOverviewState.getState().deathWindow;
     const byCell = getCombatDeathsByCell(deathWindow);
     let parts = `${landGeometry()}|win:${deathWindow}|day:${getPopulationLossSimDay()}|n:${byCell.size}`;
@@ -1335,90 +1421,139 @@ function buildLayerSignatures(
     }
     return parts;
   });
-  setIfActive("enclosure", "toggleEnclosure", () => `${geometry()}|${numberListSignature(pack.cells?.enclosure)}`);
+  setIfActive(
+    "enclosure",
+    "toggleEnclosure",
+    ["map.topology", "map.physical"],
+    () => `${geometry()}|${numberListSignature(pack.cells?.enclosure)}`
+  );
   setIfActive(
     "lakes",
     "toggleLakes",
+    ["map.topology", "map.physical", "presentation.styles"],
     () => `${geometry()}|${featuresSignature(pack.features, "lake")}|${paintSignature(styles.lakePaint)}`
   );
   setIfActive(
     "lakes-outlines",
     "toggleLakes",
+    ["map.topology", "map.physical", "presentation.styles"],
     () => `${geometry()}|${featuresSignature(pack.features, "lake")}|${paintSignature(styles.lakePaint)}`
   );
   setIfActive(
     "ice",
     "toggleIce",
+    ["map.physical", "presentation.styles"],
     () => `${scope}|${iceSignature(pack.ice)}|${paintSignature({ ice: styles.icePaint })}`
   );
   setIfActive(
     "emblems",
     "toggleEmblems",
+    ["map.politics", "map.settlements", "presentation.styles"],
     () =>
-      `${scope}|${emblemsSignature(pack.states, pack.provinces, pack.burgs)}|${emblemStyleSignature(styles.emblemStyle)}|icons:${getEmblemIconCacheVersion()}`
+      `${scope}|${emblemsSignature(pack.states, pack.provinces, pack.burgs)}|${emblemStyleSignature(styles.emblemStyle)}|icons:${getEmblemIconCacheVersion()}`,
+    `icons:${getEmblemIconCacheVersion()}`
   );
   setIfActive(
     "burgIcons",
     "toggleBurgIcons",
+    ["map.settlements", "presentation.styles"],
     () =>
-      `${scope}|${burgIconsSignature(pack.burgs)}|${burgIconStyleSignature(styles.burgIconStyle)}|icons:${getBurgIconRasterCacheVersion()}`
+      `${scope}|${burgIconsSignature(pack.burgs)}|${burgIconStyleSignature(styles.burgIconStyle)}|icons:${getBurgIconRasterCacheVersion()}`,
+    `icons:${getBurgIconRasterCacheVersion()}`
   );
   setIfActive(
     "markers",
     "toggleMarkers",
+    ["map.annotations", "presentation.styles"],
     () =>
-      `${scope}|${markersSignature(pack.markers)}|${markerStyleSignature(styles.markerStyle)}|failed:${getExternalIconFailureCacheVersion()}|emoji:${getEmojiIconCacheVersion()}`
+      `${scope}|${markersSignature(pack.markers)}|${markerStyleSignature(styles.markerStyle)}|failed:${getExternalIconFailureCacheVersion()}|emoji:${getEmojiIconCacheVersion()}`,
+    `failed:${getExternalIconFailureCacheVersion()}|emoji:${getEmojiIconCacheVersion()}`
   );
   setIfActive(
     "military",
     "toggleMilitary",
+    ["simulation.military", "presentation.styles"],
     () =>
-      `${scope}|${militarySignature(pack.states)}|size:${getMilitaryBoxSize(viewContext)}|emoji:${getEmojiIconCacheVersion()}`
+      `${scope}|${militarySignature(pack.states)}|size:${getMilitaryBoxSize(viewContext)}|emoji:${getEmojiIconCacheVersion()}`,
+    `size:${getMilitaryBoxSize(viewContext)}|emoji:${getEmojiIconCacheVersion()}`
   );
   setIfActive(
     "frontierForts",
     "toggleFrontierForts",
-    () => `${scope}|${frontierFortsSignature(pack.frontierForts, pack.states)}|emoji:${getEmojiIconCacheVersion()}`
+    ["map.politics", "map.settlements", "presentation.styles"],
+    () => `${scope}|${frontierFortsSignature(pack.frontierForts, pack.states)}|emoji:${getEmojiIconCacheVersion()}`,
+    `emoji:${getEmojiIconCacheVersion()}`
   );
   setIfActive(
     "labels",
     "toggleLabels",
+    ["map.topology", "map.politics", "map.settlements", "presentation.styles"],
     // states() (cell membership + color) is included because state label rotation is approximated
     // from each state's cell geometry (computeStateOrientationAngles in deckDataAdapters.ts) — a
     // border edit that doesn't move `state.pole`/`center` would otherwise leave a stale angle.
     () => `${scope}|${labelsSignature(pack.states, pack.burgs)}|${states()}|${labelStyleSignature(styles.labelStyle)}`
   );
-  setIfActive("cells", "toggleCells", () => geometry());
-  setIfActive("grid", "toggleGrid", () => `${geometry()}|${nestedNumberListSignature(pack.cells?.c)}`);
+  setIfActive("cells", "toggleCells", ["map.topology"], () => geometry());
+  setIfActive(
+    "grid",
+    "toggleGrid",
+    ["map.topology"],
+    () => `${geometry()}|${nestedNumberListSignature(pack.cells?.c)}`
+  );
   setIfActive(
     "rivers",
     "toggleRivers",
+    ["map.networks", "presentation.styles"],
     () => `${mapId}|${scope}|${riversSignature(pack.rivers)}|${colorSignature(styles.riverPaint.color)}`
   );
   setIfActive(
     "borders",
     "toggleBorders",
+    ["map.topology", "map.politics", "presentation.styles"],
     () =>
       `${landGeometry()}|${states()}|${provinces()}|${nestedNumberListSignature(pack.cells?.c)}|${pathDashStyleSignature(styles.pathDashStyles, ["stateBorders", "provinceBorders"])}|${pathPaintStyleSignature(styles.pathPaintStyles, ["stateBorders", "provinceBorders"])}`
   );
   setIfActive(
     "routes",
     "toggleRoutes",
+    ["map.networks", "presentation.styles"],
     () =>
       `${mapId}|${scope}|${routesSignature(pack.routes)}|${pathDashStyleSignature(styles.pathDashStyles, ["roads", "trails", "searoutes"])}|${pathPaintStyleSignature(styles.pathPaintStyles, ["roads", "trails", "searoutes"])}`
   );
 
   // The coastline layer always renders (not toggle-gated), so its signature is always needed.
-  byLayer.coastline = `${geometry()}|${featuresSignature(pack.features, "island")}|${paintSignature(styles.coastlinePaint)}`;
+  byLayer.coastline = revisionSignature(
+    ["map.topology", "map.physical", "presentation.styles"],
+    () => `${geometry()}|${featuresSignature(pack.features, "island")}|${paintSignature(styles.coastlinePaint)}`,
+    "coastline"
+  );
 
   return {
-    background: `${mapId}|${graphWidth}x${graphHeight}|${oceanFill}`,
-    land: `${landGeometry()}|${landFill}`,
+    background: revisionSignature(
+      ["map.identity", "presentation.styles"],
+      () => `${mapId}|${graphWidth}x${graphHeight}|${oceanFill}`,
+      `background:${oceanFill}`
+    ),
+    land: revisionSignature(
+      ["map.topology", "map.physical", "presentation.styles"],
+      () => `${landGeometry()}|${landFill}`,
+      `land:${landFill}`
+    ),
     landGeometrySignature: landGeometry(),
     // geometry() is included so coastline/lake vertex edits (which move pack.vertices.p without
     // changing feature.vertices membership, so featuresSignature alone is unaffected) invalidate
     // the cached land mask polygon, matching the `land`/`byLayer.coastline` signatures above.
-    landMask: `${geometry()}|${scope}|${featuresSignature(pack.features, "island")}|lakes:${featuresSignature(pack.features, "lake")}`,
+    landMask: revisionSignature(
+      ["map.topology", "map.physical"],
+      () =>
+        `${geometry()}|${scope}|${featuresSignature(pack.features, "island")}|lakes:${featuresSignature(pack.features, "lake")}`,
+      "land-mask"
+    ),
+    oceanDepth: revisionSignature(
+      ["map.identity", "map.topology", "map.physical"],
+      () => `ocean-depth|${mapId}|paths:${getOceanPathsCacheSize()}|${graphWidth}x${graphHeight}`,
+      `ocean-depth|paths:${getOceanPathsCacheSize()}|${graphWidth}x${graphHeight}`
+    ),
     byLayer
   };
 }

@@ -66,7 +66,7 @@ function styleValue(
   // absent during the first WebGL frame (before SVG compatibility groups have
   // been created), so an empty selection must use the caller's fallback.
   if (!selection || selection.empty?.()) return undefined;
-  return selection.attr(attribute) || selection.style(attribute) || undefined;
+  return selection.attr(attribute) || selection.style?.(attribute) || undefined;
 }
 
 /** Reads the SVG precipitation circle fill so hybrid mode honors style presets and edits. */

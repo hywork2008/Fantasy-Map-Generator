@@ -1,6 +1,6 @@
 # 地図データ・シミュレーション・描画の統合設計
 
-- **Status**: In progress（Phase 1、Phase 2 の position command／SVG・WebGL・viewMesh compatibility listener、Phase 3 の `PresentationData` command・legacy SVG import・WebGL style reader 移行、Phase 4 の `SimulationSystem` registry と legacy tick-hook compatibility、Phase 5 の command migration 対象、Phase 6 の `.fmg` chunked archive・staged decode/migrate/validate・`world.replace`・autosave を実装済み。legacy `.map` の positional apply は compatibility adapter として維持し、extension state slice の登録／昇格は後続 Phase で移行）
+- **Status**: In progress（Phase 1、Phase 2 の position command／SVG・WebGL・viewMesh compatibility listener、Phase 3 の `PresentationData` command・legacy SVG import・WebGL style reader 移行、Phase 4 の `SimulationSystem` registry と legacy tick-hook compatibility、Phase 5 の command migration 対象、Phase 6 の `.fmg` chunked archive・staged decode/migrate/validate・`world.replace`・autosave を実装済み。Phase 7 は WebGL cache の topic-revision projection を開始済み。legacy `.map` の positional apply は compatibility adapter として維持し、extension state slice の登録／昇格は後続 Phase で移行）
 - **Date**: 2026-07-17
 
 **Related**:
@@ -880,7 +880,7 @@ raw `pack` / `grid` write は allowlist + lint rule で段階的に禁止する�
 
 ### Phase 7 — Revision-driven projection
 
-- 移行済み layer の `buildLayerSignatures()` hash を topic revision に置換。
+- 移行済み layer の `buildLayerSignatures()` hash を topic revision に置換。→ WebGL hybrid の `DeckGlRenderer` は `WorldRuntime.read()` の revision projection を渡し、topology / physical / politics / settlements / networks / annotations / simulation / presentation 各 topic に属する cache key を O(1) で作る。runtime 外の preview / test adapter は content hash fallback を維持する。
 - topology shared cache を CSR + flat coordinates にする。
 - high-cost layer から deck.gl binary attributes を導入。
 - population、position 等で効果がある場合だけ partial GPU update を追加。

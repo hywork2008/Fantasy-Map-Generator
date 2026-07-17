@@ -1302,4 +1302,31 @@ describe("deck.gl data adapters", () => {
     expect(secondBiomeData).not.toBe(firstBiomeData);
     expect(secondBiomeData?.[0].fillColor).toEqual([51, 102, 153, 128]);
   });
+
+  it("uses the map.politics topic revision instead of rehashing state cells", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.cells.h[1] = 30;
+    worldContext.pack.states = [
+      { i: 0, name: "Neutral", expansionism: 0, capital: 0, type: "", center: 0, culture: 0, coa: null },
+      { i: 1, name: "North", expansionism: 0, capital: 0, type: "", center: 0, culture: 0, coa: null, color: "#ff0000" }
+    ] as WorldContext["pack"]["states"];
+    const viewContext = { focusScope: null } as ViewContext;
+    useLayerState.getState().setAllActiveLayers({ toggleStates: true });
+    const firstProjection = { revision: 1, topicRevisions: { "map.topology": 1, "map.politics": 1 } };
+
+    const first = buildDeckLayers(worldContext, viewContext, appServices, { revisionProjection: firstProjection });
+    const firstData = first.find(layer => layer.id === "fmg-webgl-states")?.props.data;
+    worldContext.pack.cells.state[0] = 1;
+    const unchangedRevision = buildDeckLayers(worldContext, viewContext, appServices, {
+      revisionProjection: firstProjection
+    });
+    const unchangedData = unchangedRevision.find(layer => layer.id === "fmg-webgl-states")?.props.data;
+    const changedRevision = buildDeckLayers(worldContext, viewContext, appServices, {
+      revisionProjection: { revision: 2, topicRevisions: { "map.topology": 1, "map.politics": 2 } }
+    });
+    const changedData = changedRevision.find(layer => layer.id === "fmg-webgl-states")?.props.data;
+
+    expect(unchangedData).toBe(firstData);
+    expect(changedData).not.toBe(firstData);
+  });
 });

@@ -442,8 +442,13 @@ export const useLayerState = create<LayerState>((set, get) => ({
   setActivePreset: activePreset => set({ activePreset }),
 
   setAllActiveLayers: activeLayers => {
+    // `PresentationData.activeLayers` is the canonical projection source. A
+    // full replacement must explicitly turn off keys absent from the incoming
+    // record; patching only its `true` entries leaves stale WebGL layers alive.
+    const previousActiveLayers = get().activeLayers;
+    const clearedPreviousLayers = Object.fromEntries(Object.keys(previousActiveLayers).map(id => [id, false]));
     set({ activeLayers });
-    mirrorActiveLayers(activeLayers);
+    mirrorActiveLayers({ ...clearedPreviousLayers, ...activeLayers });
   },
 
   hydrateActiveLayers: activeLayers => set({ activeLayers })

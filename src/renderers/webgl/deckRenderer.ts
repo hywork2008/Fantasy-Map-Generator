@@ -2,6 +2,7 @@ import { Deck, OrthographicView, type OrthographicViewState, type PickingInfo } 
 import type { AppServices } from "../../context/appServices";
 import { type ViewContext, viewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
+import { worldRuntime } from "../../runtime/worldRuntime";
 import type {
   WebglDragDetail,
   WebglDragKind,
@@ -632,11 +633,16 @@ export const DeckGlRenderer = {
 
     if (!this.ensureInitialized(viewContext)) return false;
     if (deckLayersSuspended) return true;
+    const runtimeView = worldRuntime.read();
     viewContext.webglDeck?.setProps({
       width: viewContext.svgWidth,
       height: viewContext.svgHeight,
       viewState: getOrthographicViewState(viewContext),
-      layers: buildDeckLayers(worldContext, viewContext, appServices)
+      layers: buildDeckLayers(worldContext, viewContext, appServices, {
+        // Preview/test adapters may render another WorldContext. They keep the
+        // content-hash fallback because the host runtime owns no revisions for it.
+        revisionProjection: runtimeView.world === worldContext ? runtimeView : undefined
+      })
     });
     return true;
   },
