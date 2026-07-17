@@ -151,6 +151,12 @@ interface CachedDeckDataEntry<T extends CachedDeckData> {
 
 const deckLayerDataCache = new Map<string, CachedDeckDataEntry<CachedDeckData>>();
 const landTopologyCache: { signature: string; topology: FlatLandTopology | null } = { signature: "", topology: null };
+const pendingLandTopologySignatures = new Set<string>();
+const emptyLandTopology: FlatLandTopology = {
+  cellIds: new Uint32Array(),
+  polygonOffsets: new Uint32Array([0]),
+  coordinates: new Float32Array()
+};
 
 /** Module-level cache for the ocean-depth offscreen canvas (not in deckLayerDataCache because HTMLCanvasElement is not CachedDeckData). */
 const oceanDepthCanvasCache: { signature: string; canvas: HTMLCanvasElement | null } = { signature: "", canvas: null };
@@ -330,6 +336,24 @@ export function clearDeckLayerDataCache(): void {
   deckLayerDataCache.clear();
   landTopologyCache.signature = "";
   landTopologyCache.topology = null;
+  pendingLandTopologySignatures.clear();
+}
+
+/** Lets an asynchronous projection adapter prevent the synchronous fallback from blocking a frame. */
+export function markLandTopologyProjectionPending(signature: string): void {
+  pendingLandTopologySignatures.add(signature);
+}
+
+/** Publishes a revision-fixed topology returned by an asynchronous projection adapter. */
+export function primeLandTopologyCache(signature: string, topology: FlatLandTopology): void {
+  landTopologyCache.signature = signature;
+  landTopologyCache.topology = topology;
+  pendingLandTopologySignatures.delete(signature);
+}
+
+/** Restores the synchronous fallback after a worker projection failure. */
+export function clearPendingLandTopologyProjection(signature: string): void {
+  pendingLandTopologySignatures.delete(signature);
 }
 
 export function getDeckLayerDataCacheSize(): number {
@@ -1184,6 +1208,7 @@ function getCachedDeckData<T extends CachedDeckData>(key: string, signature: str
 
 function getCachedLandTopology(signature: string, build: () => FlatLandTopology): FlatLandTopology {
   if (landTopologyCache.signature !== signature || !landTopologyCache.topology) {
+    if (pendingLandTopologySignatures.has(signature)) return emptyLandTopology;
     landTopologyCache.signature = signature;
     landTopologyCache.topology = build();
   }
@@ -1279,10 +1304,7 @@ function buildLayerSignatures(
       () => `${pointListSignature(pack.vertices?.p)}|${nestedNumberListSignature(pack.cells?.v)}`
     )
   );
-  const cellHeights = memo(() => revisionSignature(["map.physical"], () => numberListSignature(pack.cells?.h)));
-  const landGeometry = memo(() =>
-    revisionSignature(["map.topology", "map.physical"], () => `${geometry()}|h:${cellHeights()}`)
-  );
+  const landGeometry = memo(() => getLandTopologySignature(worldContext, viewContext, revisionProjection));
   const gridGeometry = memo(() =>
     revisionSignature(
       ["map.topology"],
@@ -1571,6 +1593,25 @@ function buildLayerSignatures(
     ),
     byLayer
   };
+}
+
+/** Cache key shared by synchronous and asynchronously prepared land topology projections. */
+export function getLandTopologySignature(
+  worldContext: Readonly<WorldContext>,
+  viewContext: Readonly<ViewContext>,
+  revisionProjection: WebglRevisionProjection | undefined
+): string {
+  const { pack, mapId } = worldContext;
+  const stableKey = `${mapId}|${getFocusScopeSignature(viewContext)}|selected:${viewContext.diplomacySelectedStateId ?? "none"}`;
+  return getWebglTopicRevisionSignature(
+    revisionProjection,
+    stableKey,
+    ["map.topology", "map.physical"],
+    () =>
+      `${pointListSignature(pack.vertices?.p)}|${nestedNumberListSignature(pack.cells?.v)}|h:${numberListSignature(
+        pack.cells?.h
+      )}`
+  );
 }
 
 function getMarkerPinUrl(pin: string, fill: string, stroke: string): string {

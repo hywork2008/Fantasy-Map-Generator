@@ -16,6 +16,7 @@ function createEffects(): RenderEffects {
     renderMarkers: vi.fn(),
     renderMilitary: vi.fn(),
     scheduleWebglUpdate: vi.fn(),
+    scheduleLandTopologyProjection: vi.fn(),
     schedule3dTerrainUpdate: vi.fn(),
     schedule3dSceneUpdate: vi.fn(),
     refreshEditors: vi.fn(),
@@ -63,6 +64,7 @@ describe("RenderCoordinator", () => {
     expect(effects.renderMarkers).not.toHaveBeenCalled();
     expect(effects.renderMilitary).not.toHaveBeenCalled();
     expect(effects.scheduleWebglUpdate).not.toHaveBeenCalled();
+    expect(effects.scheduleLandTopologyProjection).not.toHaveBeenCalled();
     expect(effects.schedule3dTerrainUpdate).not.toHaveBeenCalled();
     expect(effects.schedule3dSceneUpdate).not.toHaveBeenCalled();
   });
@@ -130,5 +132,19 @@ describe("RenderCoordinator", () => {
     expect(effects.scheduleWebglUpdate).toHaveBeenCalledOnce();
     expect(effects.schedule3dTerrainUpdate).toHaveBeenCalledOnce();
     expect(effects.renderBorders).not.toHaveBeenCalled();
+  });
+
+  it("coalesces topology and physical updates through the asynchronous land-topology projection path", async () => {
+    const runtime = createWorldRuntime({} as WorldContext, {} as SimulationContext);
+    const effects = createEffects();
+    createRenderCoordinator(runtime, effects);
+
+    await runtime.dispatch({
+      type: "legacy.mutation",
+      execute: () => ({ result: undefined, topics: ["map.topology", "map.physical"] })
+    });
+
+    expect(effects.scheduleLandTopologyProjection).toHaveBeenCalledOnce();
+    expect(effects.scheduleWebglUpdate).toHaveBeenCalledOnce();
   });
 });

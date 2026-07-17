@@ -10,6 +10,18 @@ import {
   MilitaryRenderer,
   StateLabelsRenderer
 } from "../renderers";
+import { buildLandCellGeometry } from "../renderers/webgl/adapters/deckDataAdapters";
+import {
+  clearPendingLandTopologyProjection,
+  getLandTopologySignature,
+  markLandTopologyProjectionPending,
+  primeLandTopologyCache
+} from "../renderers/webgl/buildDeckLayers";
+import { LandTopologyProjectionScheduler } from "../renderers/webgl/landTopologyProjectionScheduler";
+import {
+  InProcessLandTopologyProjectionJobAdapter,
+  WorkerLandTopologyProjectionAdapter
+} from "../renderers/webgl/landTopologyProjectionWorkerAdapter";
 import { useLayerState } from "../store/layerState";
 import { presentationData } from "./presentationData";
 import { type DataTopic, type WorldCommit, type WorldRuntime, worldRuntime } from "./worldRuntime";
@@ -24,6 +36,7 @@ export interface RenderEffects {
   renderMarkers(): void;
   renderMilitary(): void;
   scheduleWebglUpdate(): void;
+  scheduleLandTopologyProjection(): void;
   schedule3dTerrainUpdate(): void;
   schedule3dSceneUpdate(): void;
   refreshEditors(): void;
@@ -49,6 +62,7 @@ export function createRenderCoordinator(runtime: WorldRuntime, effects: RenderEf
 function applyCommit(commit: WorldCommit<unknown>, effects: RenderEffects): void {
   if (commit.changes.fullReplace) {
     effects.syncPresentation();
+    effects.scheduleLandTopologyProjection();
     effects.renderFullWorld();
     effects.refreshEditors();
     return;
@@ -75,6 +89,7 @@ function applyCommit(commit: WorldCommit<unknown>, effects: RenderEffects): void
   }
 
   if ([...topics].some(visualTopic)) {
+    if (topics.has("map.topology") || topics.has("map.physical")) effects.scheduleLandTopologyProjection();
     effects.scheduleWebglUpdate();
     effects.schedule3dTerrainUpdate();
   }
@@ -85,10 +100,35 @@ function applyCommit(commit: WorldCommit<unknown>, effects: RenderEffects): void
 }
 
 let stopCoordinator: (() => void) | null = null;
+let landTopologyScheduler: LandTopologyProjectionScheduler | null = null;
 
 /** Install the production renderer adapter once application view infrastructure is ready. */
 export function initRenderCoordinator(): void {
   stopCoordinator?.();
+  landTopologyScheduler?.dispose();
+  landTopologyScheduler = new LandTopologyProjectionScheduler({
+    adapter:
+      typeof Worker === "undefined"
+        ? new InProcessLandTopologyProjectionJobAdapter()
+        : new WorkerLandTopologyProjectionAdapter(),
+    source: {
+      getSignature: () => getLandTopologySignature(worldContext, viewContext, worldRuntime.read()),
+      buildRequest: () => {
+        const snapshot = worldRuntime.read();
+        return {
+          revision: snapshot.revision,
+          geometry: buildLandCellGeometry(worldContext, viewContext.focusScope)
+        };
+      }
+    },
+    cache: {
+      markPending: markLandTopologyProjectionPending,
+      publish: (signature, result) => primeLandTopologyCache(signature, result.topology),
+      clearPending: clearPendingLandTopologyProjection
+    },
+    onReady: scheduleWebglUpdate,
+    onFailure: () => scheduleWebglUpdate()
+  });
   stopCoordinator = createRenderCoordinator(worldRuntime, {
     syncPresentation: () => useLayerState.getState().hydrateActiveLayers(presentationData.activeLayers),
     renderFullWorld: () => {
@@ -119,6 +159,7 @@ export function initRenderCoordinator(): void {
       MilitaryRenderer.render(worldContext, viewContext, appServices);
     },
     scheduleWebglUpdate,
+    scheduleLandTopologyProjection: () => landTopologyScheduler?.schedule(),
     schedule3dTerrainUpdate,
     schedule3dSceneUpdate,
     refreshEditors: () => document.dispatchEvent(new CustomEvent("fmg:refresh-editors")),

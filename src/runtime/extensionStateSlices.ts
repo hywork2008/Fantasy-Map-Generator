@@ -50,8 +50,9 @@ function getSlice(slices: ExtensionStateSlices, extensionId: string): Record<str
 function getLegacyTarget(
   world: WorldContext,
   target: ExtensionSliceDefinition["legacyTarget"]
-): Record<string, unknown> {
-  return (target === "pack" ? world.pack : world.pack.cells) as unknown as Record<string, unknown>;
+): Record<string, unknown> | null {
+  const legacyTarget = target === "pack" ? world.pack : world.pack.cells;
+  return legacyTarget ? (legacyTarget as unknown as Record<string, unknown>) : null;
 }
 
 /**
@@ -64,6 +65,7 @@ export function bindExtensionStateSlices(world: WorldContext, simulation: Simula
 
   for (const definition of EXTENSION_SLICE_DEFINITIONS) {
     const target = getLegacyTarget(world, definition.legacyTarget);
+    if (!target) continue;
     const descriptor = Object.getOwnPropertyDescriptor(target, definition.legacyField);
     const legacyValue = descriptor && "value" in descriptor ? descriptor.value : undefined;
     const slice = getSlice(simulation.extensions, definition.extensionId);
@@ -93,6 +95,7 @@ export function removeExtensionStateSliceMirrors(world: WorldContext, simulation
   for (const definition of EXTENSION_SLICE_DEFINITIONS) {
     const slice = simulation.extensions[definition.extensionId];
     if (!slice || !(definition.legacyField in slice)) continue;
-    delete getLegacyTarget(world, definition.legacyTarget)[definition.legacyField];
+    const target = getLegacyTarget(world, definition.legacyTarget);
+    if (target) delete target[definition.legacyField];
   }
 }

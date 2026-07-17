@@ -68,6 +68,7 @@ export function bindSimulationCellColumns(world: WorldContext, simulation: Simul
   const cells = world.pack.cells;
   // Narrow fixtures and pre-generation contexts do not have a pack topology
   // yet. There is no dynamic column to own until `cells.i` exists.
+  if (!cells) return;
   const indices = cells.i as unknown;
   if (!ArrayBuffer.isView(indices) || indices instanceof DataView) return;
   const length = (indices as unknown as { readonly length: number }).length;
@@ -102,7 +103,9 @@ export function bindSimulationCellColumns(world: WorldContext, simulation: Simul
 
 /** Removes compatibility mirror values from an archive map payload. */
 export function removeSimulationCellColumnMirrors(world: WorldContext, simulation: SimulationContext): void {
-  const indices = world.pack.cells.i as unknown;
+  const cells = world.pack.cells;
+  if (!cells) return;
+  const indices = cells.i as unknown;
   if (!ArrayBuffer.isView(indices) || indices instanceof DataView || !simulation.cells) return;
   const length = (indices as unknown as { readonly length: number }).length;
   const simulationColumns = simulation.cells as Record<keyof SimulationCellColumns, DynamicColumn>;
@@ -113,6 +116,6 @@ export function removeSimulationCellColumnMirrors(world: WorldContext, simulatio
   ) {
     return;
   }
-  const cells = world.pack.cells as unknown as Record<string, unknown>;
-  for (const definition of SIMULATION_CELL_COLUMN_DEFINITIONS) delete cells[definition.legacyField];
+  const legacyCells = cells as unknown as Record<string, unknown>;
+  for (const definition of SIMULATION_CELL_COLUMN_DEFINITIONS) delete legacyCells[definition.legacyField];
 }
