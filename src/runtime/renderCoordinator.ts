@@ -1,7 +1,7 @@
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { schedule3dSceneUpdate, schedule3dTerrainUpdate, scheduleWebglUpdate } from "../controllers/layers";
+import { drawLayers, schedule3dSceneUpdate, schedule3dTerrainUpdate, scheduleWebglUpdate } from "../controllers/layers";
 import {
   BordersRenderer,
   BurgIconsRenderer,
@@ -10,9 +10,13 @@ import {
   MilitaryRenderer,
   StateLabelsRenderer
 } from "../renderers";
+import { useLayerState } from "../store/layerState";
+import { presentationData } from "./presentationData";
 import { type DataTopic, type WorldCommit, type WorldRuntime, worldRuntime } from "./worldRuntime";
 
 export interface RenderEffects {
+  syncPresentation(): void;
+  renderFullWorld(): void;
   renderBorders(): void;
   renderStateLabels(): void;
   renderBurgIcons(): void;
@@ -43,6 +47,13 @@ export function createRenderCoordinator(runtime: WorldRuntime, effects: RenderEf
 }
 
 function applyCommit(commit: WorldCommit<unknown>, effects: RenderEffects): void {
+  if (commit.changes.fullReplace) {
+    effects.syncPresentation();
+    effects.renderFullWorld();
+    effects.refreshEditors();
+    return;
+  }
+
   const topics = new Set(commit.changes.changes.map(change => change.topic));
 
   if (topics.has("map.politics")) {
@@ -79,6 +90,10 @@ let stopCoordinator: (() => void) | null = null;
 export function initRenderCoordinator(): void {
   stopCoordinator?.();
   stopCoordinator = createRenderCoordinator(worldRuntime, {
+    syncPresentation: () => useLayerState.getState().hydrateActiveLayers(presentationData.activeLayers),
+    renderFullWorld: () => {
+      if (viewContext.renderMap) drawLayers();
+    },
     renderBorders: () => {
       if (!viewContext.renderMap) return;
       BordersRenderer.render(worldContext, viewContext, appServices);

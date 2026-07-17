@@ -363,6 +363,8 @@ interface LayerState {
   removePresetLabel: (id: string) => void;
   setActivePreset: (preset: string) => void;
   setAllActiveLayers: (activeLayers: Record<string, boolean>) => void;
+  /** Runtime projection only: never mirror canonical PresentationData back into itself. */
+  hydrateActiveLayers: (activeLayers: Record<string, boolean>) => void;
 }
 
 const toSortKey = (l: LayerConfig) => l.sortKey ?? l.id.replace(/^toggle/, "");
@@ -442,5 +444,7 @@ export const useLayerState = create<LayerState>((set, get) => ({
   setAllActiveLayers: activeLayers => {
     set({ activeLayers });
     mirrorActiveLayers(activeLayers);
-  }
+  },
+
+  hydrateActiveLayers: activeLayers => set({ activeLayers })
 }));

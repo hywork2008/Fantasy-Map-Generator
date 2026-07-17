@@ -12,7 +12,7 @@ export interface CloudService {
   providers: {
     dropbox: {
       api: unknown;
-      save: (fileName: string, contents: string) => Promise<boolean>;
+      save: (fileName: string, contents: Blob) => Promise<boolean>;
       load: (path: string) => Promise<Blob>;
       list: () => Promise<Array<{ name: string; updated: string; size: number; path: string }> | null>;
       auth: () => Promise<void>;
@@ -60,7 +60,7 @@ const DBP = {
     this.api = new DropboxClient({ auth });
   },
 
-  async save(fileName: string, contents: string): Promise<boolean> {
+  async save(fileName: string, contents: Blob): Promise<boolean> {
     await this.call("filesUpload", { path: `/${fileName}`, contents });
     DEBUG.cloud && console.info("Dropbox upload done:", fileName);
     return true;

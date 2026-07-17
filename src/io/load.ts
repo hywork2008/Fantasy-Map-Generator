@@ -10,6 +10,12 @@ import { initSimulationClock } from "../generators/timeEngine";
 import { GridRenderer } from "../renderers";
 import { DeckGlRenderer } from "../renderers/webgl/deckRenderer";
 import { importLegacyPresentationFromSvg } from "../runtime/legacyPresentationImport";
+import {
+  ChunkedWorldCodecAdapter,
+  decodeAndValidateWorldArchive,
+  LegacyMapCodecAdapter
+} from "../runtime/worldArchive";
+import { worldRuntime } from "../runtime/worldRuntime";
 import { declareFont, fonts } from "../services/fonts";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -151,10 +157,15 @@ export function uploadMap(file: Blob, callback?: () => void): void {
 
   const fileReader = new FileReader();
   fileReader.onloadend = async (fileLoadedEvent: ProgressEvent<FileReader>) => {
+    const result = fileLoadedEvent.target!.result as ArrayBuffer;
+    const header = new Uint8Array(result, 0, Math.min(4, result.byteLength));
+    if (new ChunkedWorldCodecAdapter().canDecode(header)) {
+      await loadChunkedWorldArchive(file, header, callback);
+      return;
+    }
+
     if (callback) callback();
     document.getElementById("coas")!.innerHTML = "";
-
-    const result = fileLoadedEvent.target!.result as ArrayBuffer;
     const { mapData, mapVersion } = await parseLoadedResult(result);
 
     const isInvalid = !mapData || !isValidVersion(mapVersion ?? "") || mapData.length < 10 || !mapData[5];
@@ -176,17 +187,39 @@ export function uploadMap(file: Blob, callback?: () => void): void {
   fileReader.readAsArrayBuffer(file);
 }
 
-async function uncompress(compressedData: ArrayBuffer): Promise<Uint8Array | null> {
+async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?: () => void): Promise<void> {
   try {
-    const uncompressedStream = new Blob([compressedData]).stream().pipeThrough(new DecompressionStream("gzip"));
-    let uncompressedData: number[] = [];
-    for await (const chunk of uncompressedStream) {
-      uncompressedData = uncompressedData.concat(Array.from(chunk));
-    }
-    return new Uint8Array(uncompressedData);
+    // Decode, migrate and validate are complete before the first live mutation.
+    // A malformed archive therefore leaves the active world and SVG untouched.
+    const validated = await decodeAndValidateWorldArchive({ blob: file, header });
+    const commit = await worldRuntime.dispatch({ type: "world.replace", payload: validated });
+    if (!commit) throw new Error("World archive did not produce a replacement commit");
+
+    useOptionsState.getState().setOptions({
+      seed: worldContext.seed,
+      year: validated.document.simulation.currentYear,
+      era: validated.document.simulation.era,
+      mapWidth: worldContext.graphWidth,
+      mapHeight: worldContext.graphHeight
+    });
+    callback?.();
+    document.getElementById("coas")?.replaceChildren();
+
+    // The full-replace commit has already reached RenderCoordinator. A renderer
+    // failure is isolated from the accepted world by WorldRuntime listeners.
+    document.dispatchEvent(new CustomEvent("fmg:render-mode-changed"));
+    document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
+    tip("Map is successfully loaded", true, "success", 7000);
   } catch (error) {
     ERROR && console.error(error);
-    return null;
+    clearMainTip();
+    loadErrorDialogStore.getState().open({
+      errorText: parseError(error as Error),
+      mapVersion: "fmg",
+      onClearCache: () => cleanupData(),
+      onSelectFile: () => document.getElementById("mapToLoad")?.click(),
+      onNewMap: () => document.dispatchEvent(new CustomEvent("fmg:regenerate-map", { detail: "loading error" }))
+    });
   }
 }
 
@@ -194,24 +227,13 @@ export async function parseLoadedResult(
   result: ArrayBuffer | Uint8Array
 ): Promise<{ mapData: string[] | null; mapVersion: string | null }> {
   try {
-    const resultAsString = new TextDecoder().decode(result);
-
-    const isDelimited = resultAsString.substring(0, 10).includes("|");
-    let content = isDelimited ? resultAsString : decodeURIComponent(atob(resultAsString));
-
-    const svgMatch = content.match(/<svg[^>]*id="map"[\s\S]*?<\/svg>/);
-    const svgContent = svgMatch?.[0];
-    if (svgContent?.includes("\r\n")) {
-      const correctedSvgContent = svgContent.replace(/\r\n/g, "\n");
-      content = content.replace(svgContent, correctedSvgContent);
-    }
-
-    const mapData = content.split("\r\n");
+    const bytes = result instanceof Uint8Array ? Uint8Array.from(result) : new Uint8Array(result);
+    const blob = new Blob([bytes.buffer as ArrayBuffer]);
+    const staged = await new LegacyMapCodecAdapter().decode({ blob, header: new Uint8Array(0) });
+    const mapData = [...staged.mapData];
     const mapVersion = parseMapVersion(mapData[0].split("|")[0] || mapData[0] || "");
     return { mapData, mapVersion };
   } catch (error) {
-    const uncompressedData = await uncompress(result as ArrayBuffer);
-    if (uncompressedData) return parseLoadedResult(uncompressedData);
     ERROR && console.error(error);
     return { mapData: null, mapVersion: null };
   }

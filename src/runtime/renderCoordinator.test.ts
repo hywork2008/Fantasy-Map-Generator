@@ -7,6 +7,8 @@ import { createWorldRuntime } from "./worldRuntime";
 
 function createEffects(): RenderEffects {
   return {
+    syncPresentation: vi.fn(),
+    renderFullWorld: vi.fn(),
     renderBorders: vi.fn(),
     renderStateLabels: vi.fn(),
     renderBurgIcons: vi.fn(),
@@ -63,6 +65,33 @@ describe("RenderCoordinator", () => {
     expect(effects.scheduleWebglUpdate).not.toHaveBeenCalled();
     expect(effects.schedule3dTerrainUpdate).not.toHaveBeenCalled();
     expect(effects.schedule3dSceneUpdate).not.toHaveBeenCalled();
+  });
+
+  it("uses one full projection for an accepted archive replacement", async () => {
+    const world = { pack: {}, grid: {}, mapId: 1, seed: "before" } as unknown as WorldContext;
+    const runtime = createWorldRuntime(world, {} as SimulationContext);
+    const effects = createEffects();
+    createRenderCoordinator(runtime, effects);
+
+    const { createWorldDocument } = await import("./worldArchive");
+    await runtime.dispatch({
+      type: "world.replace",
+      payload: {
+        stage: "validated",
+        document: createWorldDocument(
+          { pack: {}, grid: {}, mapId: 2, seed: "after" } as unknown as WorldContext,
+          {} as SimulationContext,
+          createPresentationData(),
+          []
+        )
+      }
+    });
+
+    expect(effects.renderFullWorld).toHaveBeenCalledOnce();
+    expect(effects.syncPresentation).toHaveBeenCalledOnce();
+    expect(effects.renderBorders).not.toHaveBeenCalled();
+    expect(effects.scheduleWebglUpdate).not.toHaveBeenCalled();
+    expect(effects.refreshEditors).toHaveBeenCalledOnce();
   });
 
   it("rebuilds viewMesh scene objects after a burg position command", async () => {

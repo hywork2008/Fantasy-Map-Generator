@@ -18,7 +18,7 @@ export function injectInfrastructure(container: HTMLElement): void {
   fileInputs.id = "fileInputs";
   fileInputs.style.display = "none";
   fileInputs.innerHTML = `
-    <input type="file" accept=".map,.gz" id="mapToLoad" />
+    <input type="file" accept=".fmg,.map,.gz" id="mapToLoad" />
     <input type="file" accept=".txt,.csv" id="burgsListToLoad" />
     <input type="file" accept=".txt" id="legendsToLoad" />
     <input type="file" accept="image/*" id="imageToLoad" />

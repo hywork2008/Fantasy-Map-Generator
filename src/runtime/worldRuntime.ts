@@ -8,6 +8,12 @@ import {
   type PresentationPatch,
   presentationData
 } from "./presentationData";
+import {
+  createWorldDocument,
+  type OpaqueExtensionChunk,
+  type ValidatedWorld,
+  type WorldDocument
+} from "./worldArchive";
 
 /**
  * Coarse ownership topics used while the legacy pack/grid representation remains
@@ -366,6 +372,12 @@ export interface PresentationPatchCommand {
   readonly payload: PresentationPatch;
 }
 
+/** A fully decoded, migrated and validated archive can replace the live world in one commit. */
+export interface ReplaceWorldCommand {
+  readonly type: "world.replace";
+  readonly payload: ValidatedWorld;
+}
+
 export type PositionCommand =
   | MoveMarkerCommand
   | PatchMarkerCommand
@@ -391,7 +403,8 @@ export type WorldCommand<T> =
   | ReplaceRiverGeometryCommand
   | PatchFeatureCommand
   | MoveFeatureVertexCommand
-  | PresentationPatchCommand;
+  | PresentationPatchCommand
+  | ReplaceWorldCommand;
 
 export interface WorldRuntime {
   read(): WorldReadView;
@@ -401,6 +414,8 @@ export interface WorldRuntime {
   registerExtensionCommand(command: ExtensionCommandDefinition): () => void;
   /** Register the compatibility simulation implementation behind `simulation.advance`. */
   registerSimulationAdvanceHandler(handler: SimulationAdvanceHandler): () => void;
+  /** Places a read barrier on the runtime queue without publishing a commit. */
+  captureArchiveDocument(): Promise<WorldDocument>;
 }
 
 class LegacyWorldRuntime implements WorldRuntime {
@@ -409,6 +424,7 @@ class LegacyWorldRuntime implements WorldRuntime {
   private readonly listeners = new Set<(commit: WorldCommit<unknown>) => void>();
   private readonly extensionCommands = new Map<string, ExtensionCommandDefinition>();
   private simulationAdvanceHandler: SimulationAdvanceHandler | null = null;
+  private opaqueExtensionChunks: readonly OpaqueExtensionChunk[] = [];
   private committing = false;
 
   constructor(
@@ -464,6 +480,18 @@ class LegacyWorldRuntime implements WorldRuntime {
     };
   }
 
+  captureArchiveDocument(): Promise<WorldDocument> {
+    try {
+      // dispatch is synchronous during the compatibility period, therefore this
+      // snapshot is a queue barrier and cannot observe a partial commit.
+      return Promise.resolve(
+        createWorldDocument(this.world, this.simulation, this.presentation, this.opaqueExtensionChunks)
+      );
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }
+
   /** @internal Synchronous bridge required by legacy callers such as advanceTime(). */
   execute<T>(command: WorldCommand<T>): WorldCommit<T> | null {
     if (this.committing) {
@@ -487,7 +515,7 @@ class LegacyWorldRuntime implements WorldRuntime {
 
       const commit: WorldCommit<T> = {
         result: outcome.result,
-        changes: { fromRevision, toRevision, fullReplace: false, changes }
+        changes: { fromRevision, toRevision, fullReplace: outcome.fullReplace ?? false, changes }
       };
 
       // A listener is isolated from its peers; it must not make a successful
@@ -506,8 +534,39 @@ class LegacyWorldRuntime implements WorldRuntime {
     }
   }
 
-  private getOutcome<T>(command: WorldCommand<T>): LegacyMutationOutcome<T> {
+  private getOutcome<T>(command: WorldCommand<T>): LegacyMutationOutcome<T> & { readonly fullReplace?: boolean } {
     if (command.type === "legacy.mutation") return command.execute();
+
+    if (command.type === "world.replace") {
+      // Clone before the first live mutation. A malformed staged document then
+      // leaves the current world untouched, and callers cannot mutate the
+      // accepted archive by retaining their decoded object.
+      const replacement = structuredClone(command.payload.document);
+      this.replaceDocument(replacement);
+      return {
+        result: undefined as T,
+        fullReplace: true,
+        topics: [
+          "map.identity",
+          "map.topology",
+          "map.physical",
+          "map.politics",
+          "map.settlements",
+          "map.networks",
+          "map.annotations",
+          "simulation.clock",
+          "simulation.rng",
+          "simulation.cells",
+          "simulation.states",
+          "simulation.burgs",
+          "simulation.military",
+          "presentation.styles",
+          "presentation.layers",
+          "presentation.labels",
+          "presentation.overlays"
+        ]
+      };
+    }
 
     if (command.type === "extension.command") {
       return this.executeExtensionCommand(command.payload) as LegacyMutationOutcome<T>;
@@ -1230,6 +1289,36 @@ class LegacyWorldRuntime implements WorldRuntime {
   private extensionCommandKey(extensionId: string, name: string): string {
     return `${extensionId}:${name}`;
   }
+
+  private replaceDocument(document: WorldDocument): void {
+    const currentPack = this.world.pack as unknown as Record<string, unknown>;
+    const currentGrid = this.world.grid as unknown as Record<string, unknown>;
+    const nextWorld = document.world as unknown as Record<string, unknown>;
+    const nextPack = nextWorld.pack as Record<string, unknown>;
+    const nextGrid = nextWorld.grid as Record<string, unknown>;
+    if (!nextPack || !nextGrid) throw new Error("world.replace requires pack and grid data");
+
+    for (const key of Object.keys(this.world)) {
+      if (key !== "pack" && key !== "grid") delete (this.world as unknown as Record<string, unknown>)[key];
+    }
+    Object.assign(this.world, nextWorld);
+    this.world.pack = currentPack as unknown as typeof this.world.pack;
+    this.world.grid = currentGrid as unknown as typeof this.world.grid;
+    replaceRecordInPlace(currentPack, nextPack);
+    replaceRecordInPlace(currentGrid, nextGrid);
+    replaceRecordInPlace(
+      this.simulation as unknown as Record<string, unknown>,
+      document.simulation as unknown as Record<string, unknown>
+    );
+    replaceRecordInPlace(this.presentation.styles, document.presentation.styles);
+    replaceRecordInPlace(this.presentation.activeLayers, document.presentation.activeLayers);
+    this.opaqueExtensionChunks = document.opaqueExtensionChunks;
+  }
+}
+
+function replaceRecordInPlace(target: Record<string, unknown>, source: Record<string, unknown>): void {
+  for (const key of Object.keys(target)) delete target[key];
+  Object.assign(target, source);
 }
 
 export function createWorldRuntime(

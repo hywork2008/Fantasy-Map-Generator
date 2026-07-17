@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import { createPresentationData } from "./presentationData";
+import { createWorldDocument, type ValidatedWorld } from "./worldArchive";
 import { createWorldRuntime } from "./worldRuntime";
 
 function createRuntime() {
@@ -10,6 +11,7 @@ function createRuntime() {
 
 function createPositionWorld(): WorldContext {
   return {
+    grid: {},
     pack: {
       markers: [{ i: 1, x: 4, y: 8, cell: 0 }],
       burgs: [{}, { i: 1, cell: 0, state: 1, x: 4, y: 8, capital: true }],
@@ -177,6 +179,39 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
       { topic: "simulation.clock", kind: "replace" },
       { topic: "simulation.cells", kind: "replace" }
     ]);
+  });
+
+  it("atomically replaces world, simulation and presentation data through a full-replace commit", async () => {
+    const world = createPositionWorld();
+    const simulation = { currentYear: 10, currentMonth: 1, currentDay: 1, tickCount: 1 } as SimulationContext;
+    const presentation = createPresentationData();
+    const runtime = createWorldRuntime(world, simulation, presentation);
+    const packReference = world.pack;
+    const gridReference = world.grid;
+    const document = createWorldDocument(
+      {
+        ...createPositionWorld(),
+        mapId: 200,
+        seed: "replaced"
+      },
+      { currentYear: 99, currentMonth: 4, currentDay: 5, tickCount: 9 } as SimulationContext,
+      { styles: { "#statesBody": { fill: "red" } }, activeLayers: { toggleStates: true } },
+      []
+    );
+
+    const commit = await runtime.dispatch({
+      type: "world.replace",
+      payload: { stage: "validated", document } satisfies ValidatedWorld
+    });
+
+    expect(commit?.changes.fullReplace).toBe(true);
+    expect(world.pack).toBe(packReference);
+    expect(world.grid).toBe(gridReference);
+    expect(world.mapId).toBe(200);
+    expect(world.seed).toBe("replaced");
+    expect(simulation.currentYear).toBe(99);
+    expect(presentation.styles).toEqual({ "#statesBody": { fill: "red" } });
+    expect(presentation.activeLayers).toEqual({ toggleStates: true });
   });
 
   it("updates bounded position commands by stable ID and emits their owned topics", async () => {

@@ -1,7 +1,8 @@
 import { worldContext } from "../context/worldContext";
 import { Names } from "../generators/names-generator";
 import { appendOceanPathsToSaveSVG } from "../renderers/ocean-layers";
-import { withSvgSnapshot } from "../services/svgSnapshot";
+import { ChunkedWorldCodecAdapter } from "../runtime/worldArchive";
+import { worldRuntime } from "../runtime/worldRuntime";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers } from "../store/editorState";
@@ -18,7 +19,16 @@ import { ldb } from "./ldb";
 // ─── Map serialization ────────────────────────────────────────────────────────
 
 export async function prepareMapData(): Promise<string> {
-  return withSvgSnapshot(prepareMapDataFromSvg);
+  // Legacy `.map` export remains available for compatibility. Full-fidelity
+  // saves use prepareWorldArchive below and never switch the render mode.
+  return prepareMapDataFromSvg();
+}
+
+const worldArchiveCodec = new ChunkedWorldCodecAdapter(VERSION);
+
+/** Captures the DOM-free canonical snapshot used by `.fmg` saves and autosaves. */
+export async function prepareWorldArchive(): Promise<Blob> {
+  return worldArchiveCodec.encode(await worldRuntime.captureArchiveDocument());
 }
 
 function prepareMapDataFromSvg(): string {
@@ -231,15 +241,13 @@ function prepareMapDataFromSvg(): string {
 
 // ─── Save targets ─────────────────────────────────────────────────────────────
 
-export async function saveToStorage(mapData: string, showTip = false): Promise<void> {
-  const blob = new Blob([mapData], { type: "text/plain" });
-  await ldb.set("lastMap", blob);
+export async function saveToStorage(archive: Blob, showTip = false): Promise<void> {
+  await ldb.set("lastMap", archive);
   if (showTip) tip("Map is saved to the browser storage", false, "success");
 }
 
-export function saveToMachine(mapData: string, filename: string): void {
-  const blob = new Blob([mapData], { type: "text/plain" });
-  const URL = createObjectURL(blob);
+export function saveToMachine(archive: Blob, filename: string): void {
+  const URL = createObjectURL(archive);
   const a = document.createElement("a");
   a.download = filename;
   a.href = URL;
@@ -248,8 +256,8 @@ export function saveToMachine(mapData: string, filename: string): void {
   revokeObjectURL(URL, 5000);
 }
 
-async function saveToDropbox(mapData: string, filename: string): Promise<void> {
-  await Cloud.providers.dropbox.save(filename, mapData);
+async function saveToDropbox(archive: Blob, filename: string): Promise<void> {
+  await Cloud.providers.dropbox.save(filename, archive);
   tip("Map is saved to your Dropbox", true, "success", 8000);
 }
 
@@ -261,12 +269,12 @@ export async function saveMap(method: string): Promise<void> {
   closeDialogs("#alert");
 
   try {
-    const mapData = await prepareMapData();
-    const filename = `${getFileName()}.map`;
+    const archive = await prepareWorldArchive();
+    const filename = `${getFileName()}.fmg`;
 
-    if (method === "storage") await saveToStorage(mapData, true);
-    if (method === "machine") saveToMachine(mapData, filename);
-    if (method === "dropbox") await saveToDropbox(mapData, filename);
+    if (method === "storage") await saveToStorage(archive, true);
+    if (method === "machine") saveToMachine(archive, filename);
+    if (method === "dropbox") await saveToDropbox(archive, filename);
   } catch (error) {
     ERROR && console.error(error);
     openConfirm(
@@ -300,8 +308,8 @@ export async function initiateAutosave(): Promise<void> {
 
     try {
       tip("Autosave: saving map...", false, "warning" as never, 3000);
-      const mapData = await prepareMapData();
-      await saveToStorage(mapData);
+      const archive = await prepareWorldArchive();
+      await saveToStorage(archive);
       tip("Autosave: map is saved", false, "success", 2000);
       lastSavedAt = Date.now();
     } catch (error) {
