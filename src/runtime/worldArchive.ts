@@ -258,7 +258,8 @@ async function encodeValue(value: unknown, context: EncodingContext, seen: WeakS
   if (seen.has(value)) throw new Error("Archive cannot serialize cyclic values");
   seen.add(value);
   if (Array.isArray(value)) {
-    const encoded = await Promise.all(value.map(item => encodeValue(item, context, seen)));
+    const encoded: JsonValue[] = [];
+    for (const item of value) encoded.push(await encodeValue(item, context, seen));
     seen.delete(value);
     return encoded;
   }

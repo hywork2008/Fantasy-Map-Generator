@@ -43,7 +43,7 @@ export const LoadMapDialog: React.FC = () => {
         ref={fileInputRef}
         id="mapToLoad"
         type="file"
-        accept=".map,.gz"
+        accept=".fmg,.map,.gz"
         className="d-none"
         onChange={handleFileChange}
       />
