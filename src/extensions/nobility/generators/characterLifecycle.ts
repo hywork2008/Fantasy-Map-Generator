@@ -5,7 +5,7 @@ import { calculateCharacterTraits } from "../../characters/utils/personalityUtil
 import type { Province, State } from "../../hostTypes";
 import { P, rand, TIME } from "../../hostUtils";
 import { CENTRAL_OFFICES, resolveProvinceLordTitle, resolveRulerTitle } from "../data/titleTable";
-import { getWorldContext } from "../nobilityContext";
+import { getRulerId, getWorldContext, setRulerId } from "../nobilityContext";
 
 export type {
   Character,
@@ -28,7 +28,7 @@ function getNextCharacterId(characters: Character[]): number {
 
 function clearStateRulerIds(): void {
   const { pack } = getWorldContext();
-  for (const state of pack.states ?? []) delete state.rulerId;
+  for (const state of pack.states ?? []) setRulerId(state, undefined);
 }
 
 function preserveNonPoliticalCharacters(characters: Character[] = []): Character[] {
@@ -83,7 +83,7 @@ function generate(options: { randomSeed?: number } = {}): void {
       startYear: currentYear - rand(0, Math.max(0, ruler.age - 20))
     });
     characters.push(ruler);
-    state.rulerId = ruler.i;
+    setRulerId(state, ruler.i);
 
     for (const office of CENTRAL_OFFICES) {
       const officer = createPerson(nextId++, state.culture, {
@@ -116,8 +116,9 @@ function calculateAffinities(characters: Character[]): void {
   const states = pack.states.filter(s => s.i && !s.removed);
 
   for (const state of states) {
-    if (state.rulerId === undefined) continue;
-    const ruler = characters.find(c => c.i === state.rulerId);
+    const rulerId = getRulerId(state);
+    if (rulerId === undefined) continue;
+    const ruler = characters.find(c => c.i === rulerId);
     if (!ruler) continue;
 
     const diplomacy = state.diplomacy || [];
@@ -161,8 +162,9 @@ function calculateAffinities(characters: Character[]): void {
         if (affinity >= -10 && P(0.05) && ruler.marriages.length < 2) {
           // Check if the other ruler also hasn't reached the limit
           let otherRuler: Character | undefined;
-          if (other.rulerId !== undefined) {
-            otherRuler = characters.find(c => c.i === other.rulerId);
+          const otherRulerId = getRulerId(other);
+          if (otherRulerId !== undefined) {
+            otherRuler = characters.find(c => c.i === otherRulerId);
           }
 
           if (!otherRuler || otherRuler.marriages.length < 2) {
@@ -281,12 +283,12 @@ function processResignationsAndSuccessions(deltaYears: number): void {
             character.titles.splice(i, 1);
             continue;
           }
-          const isRuler = state.rulerId === character.i;
+          const isRuler = getRulerId(state) === character.i;
 
           // Rulers do not easily resign, only appointed officers.
           if (!isRuler) {
             if (title.title === "Regent") {
-              const ruler = pack.characters.find(c => c.i === state.rulerId);
+              const ruler = pack.characters.find(c => c.i === getRulerId(state));
               if (ruler && ruler.age >= 16) {
                 // Ruler has come of age, Regent must step down
                 title.endYear = getWorldContext().options.year;
@@ -431,7 +433,7 @@ function processSuccessions(): void {
     );
 
     let rulerVacant = false;
-    let currentRuler = pack.characters.find(c => c.i === state.rulerId);
+    let currentRuler = pack.characters.find(c => c.i === getRulerId(state));
     if (!currentRuler || currentRuler.dead || !currentRuler.titles.some(t => t.landed)) {
       rulerVacant = true;
     }
@@ -489,7 +491,7 @@ function processSuccessions(): void {
         startYear: getWorldContext().options.year
       });
       pack.characters.push(heir);
-      state.rulerId = heir.i;
+      setRulerId(state, heir.i);
       currentRuler = heir;
       // The heir is now part of the living state characters if we do further processing
       livingStateChars.push(heir);
@@ -519,7 +521,7 @@ function processSuccessions(): void {
         let bestScore = -1;
 
         for (const vet of livingStateChars) {
-          if (vet.i === state.rulerId) continue; // Rulers don't step down to officer
+          if (vet.i === getRulerId(state)) continue; // Rulers don't step down to officer
           const currentTitle = vet.titles.find(t => !t.landed && t.entityId === state.i);
           if (!currentTitle) continue;
 

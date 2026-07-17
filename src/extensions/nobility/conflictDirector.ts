@@ -1,7 +1,12 @@
 import { type StrategicGoal, simulationContext } from "../hostCore";
 import type { ChronicleEvent, ConflictAutonomy } from "../hostTypes";
 import { normalizeConflictAutonomy } from "../hostUtils";
-import { getWorldContext, hasNobilityContext } from "./nobilityContext";
+import {
+  getConflictAuthorizations,
+  getWorldContext,
+  hasNobilityContext,
+  setConflictAuthorizations
+} from "./nobilityContext";
 import type { ConflictAuthorization } from "./types";
 
 export interface PlayerConflictIntent {
@@ -35,11 +40,12 @@ export function mayAdvanceConflict(attackerStateId: number, defenderStateId: num
 /** Avoids running the political-AI branch in player-directed mode until the player starts a conflict. */
 export function mayAdvanceAnyConflict(): boolean {
   if (mayAdvanceAutonomousConflict()) return true;
-  return getWorldContext().pack.states.some(state => Object.keys(state.conflictAuthorizations ?? {}).length > 0);
+  return getWorldContext().pack.states.some(state => Object.keys(getConflictAuthorizations(state)).length > 0);
 }
 
 export function isPlayerConflictAuthorized(attackerStateId: number, defenderStateId: number): boolean {
-  return getWorldContext().pack.states[attackerStateId]?.conflictAuthorizations?.[defenderStateId]?.origin === "player";
+  const attacker = getWorldContext().pack.states[attackerStateId];
+  return attacker ? getConflictAuthorizations(attacker)[defenderStateId]?.origin === "player" : false;
 }
 
 /**
@@ -67,8 +73,8 @@ export function startPlayerConflict({
       day: simulationContext.currentDay
     }
   };
-  attacker.conflictAuthorizations = { ...attacker.conflictAuthorizations, [defenderStateId]: authorization };
-  defender.conflictAuthorizations = { ...defender.conflictAuthorizations, [attackerStateId]: authorization };
+  setConflictAuthorizations(attacker, { ...getConflictAuthorizations(attacker), [defenderStateId]: authorization });
+  setConflictAuthorizations(defender, { ...getConflictAuthorizations(defender), [attackerStateId]: authorization });
   if (attacker.diplomacy) attacker.diplomacy[defenderStateId] = "Enemy";
   if (defender.diplomacy) defender.diplomacy[attackerStateId] = "Enemy";
   return { started: true };
@@ -79,8 +85,16 @@ export function endPlayerConflict({ attackerStateId, defenderStateId }: PlayerCo
   const { pack } = getWorldContext();
   const attacker = pack.states[attackerStateId];
   const defender = pack.states[defenderStateId];
-  if (attacker?.conflictAuthorizations) delete attacker.conflictAuthorizations[defenderStateId];
-  if (defender?.conflictAuthorizations) delete defender.conflictAuthorizations[attackerStateId];
+  if (attacker) {
+    const authorizations = { ...getConflictAuthorizations(attacker) };
+    delete authorizations[defenderStateId];
+    setConflictAuthorizations(attacker, authorizations);
+  }
+  if (defender) {
+    const authorizations = { ...getConflictAuthorizations(defender) };
+    delete authorizations[attackerStateId];
+    setConflictAuthorizations(defender, authorizations);
+  }
 
   discardStrategicGoals(
     (stateId, goal) =>

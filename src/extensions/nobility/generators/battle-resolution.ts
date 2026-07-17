@@ -1,7 +1,7 @@
 import type { Character } from "../../characters/characterTypes";
 import { applyDemographicCasualties, appServices, buildSeaRouteGraph, type StrategicGoal } from "../../hostCore";
 import type { ChronicleEvent } from "../../hostTypes";
-import { getWorldContext } from "../nobilityContext";
+import { getRulerId, getWorldContext } from "../nobilityContext";
 import {
   calculateEffectiveSiegePower,
   captureBurg,
@@ -33,9 +33,10 @@ export const BattleResolutionGenerator = {
 
     // 1. Detection Phase (Spymaster vs Spymaster)
     const attackerSpymaster =
-      findOfficeHolder(characters, attackerId, "Spymaster") ?? characters.find(c => c.i === attackerState.rulerId);
+      findOfficeHolder(characters, attackerId, "Spymaster") ?? characters.find(c => c.i === getRulerId(attackerState));
     const defenderSpymaster =
-      findOfficeHolder(characters, goal.targetState, "Spymaster") ?? characters.find(c => c.i === targetState.rulerId);
+      findOfficeHolder(characters, goal.targetState, "Spymaster") ??
+      characters.find(c => c.i === getRulerId(targetState));
 
     const attackerGuile = attackerSpymaster?.skills.intrigue ?? 50;
     const defenderGuile = defenderSpymaster?.skills.intrigue ?? 50;

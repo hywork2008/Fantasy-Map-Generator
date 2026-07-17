@@ -1,5 +1,5 @@
 import { appServices, type IntelligenceReport, simulationContext } from "../../hostCore";
-import { getWorldContext } from "../nobilityContext";
+import { getRulerId, getWorldContext } from "../nobilityContext";
 
 // Cumulative intrigue bonus one state's ships gather on another by spying while
 // disguised as merchants on trade voyages (Shipbuilding extension,
@@ -38,7 +38,7 @@ export class EspionageGenerator {
       if (!simulationContext.intelligence[observer.i]) {
         simulationContext.intelligence[observer.i] = {};
       }
-      const observerRuler = characters.find(c => c.i === observer.rulerId);
+      const observerRuler = characters.find(c => c.i === getRulerId(observer));
       const observerSpymaster = characters.find(
         c =>
           c.state === observer.i &&
@@ -66,7 +66,7 @@ export class EspionageGenerator {
           }
         }
 
-        const targetRuler = characters.find(c => c.i === target.rulerId);
+        const targetRuler = characters.find(c => c.i === getRulerId(target));
         const targetSpymaster = characters.find(
           c =>
             c.state === target.i &&
