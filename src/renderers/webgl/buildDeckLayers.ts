@@ -92,7 +92,8 @@ import { getEmblemIconCacheVersion } from "./emblemIconCache";
 import { getCachedEmojiIconUrl, getEmojiIconCacheVersion, pickEmojiIconResolution } from "./emojiIconCache";
 import { getExtensionWebglLayers } from "./extensionWebglLayerRegistry";
 import { getExternalIconFailureCacheVersion, markExternalIconFailed } from "./externalIconFailureCache";
-import { buildFlatLandTopology, type FlatLandTopology, type LandGeometryProjection } from "./flatLandTopology";
+import type { FlatLandTopology, LandGeometryProjection } from "./flatLandTopology";
+import { inProcessLandTopologyProjectionAdapter } from "./landTopologyProjectionAdapter";
 import {
   getBurgIconStyle,
   getCellLayerOpacities,
@@ -399,7 +400,7 @@ export function buildDeckLayers(
   // coordinate buffer, then materialize only their own semantic/color projection. Precipitation
   // intentionally uses grid-cell circles instead of this mesh, matching the SVG renderer.
   const landCells = getCachedLandTopology(signatures.landGeometrySignature, () =>
-    buildFlatLandTopology(buildLandCellGeometry(worldContext, viewContext.focusScope))
+    inProcessLandTopologyProjectionAdapter.project(buildLandCellGeometry(worldContext, viewContext.focusScope))
   );
   const landMaskPolygons = getCachedDeckData("land-mask", signatures.landMask, () =>
     buildLandMaskPolygons(worldContext, viewContext.focusScope, appServices)

@@ -2,7 +2,7 @@ import "./types"; // activate module augmentation for PackedGraph.characters
 
 import type { ExtensionAPI } from "../../types/extension-api";
 import { clearCharacters } from "./advanceAge";
-import { clearCharactersContext, getWorldContext, initCharactersContext } from "./charactersContext";
+import { clearCharactersContext, getCharacters, initCharactersContext } from "./charactersContext";
 import type { CharacterSkills } from "./characterTypes";
 import { CharacterDetailsDialog } from "./ui/dialogs/CharacterDetailsDialog";
 import { CharactersOverviewDialog } from "./ui/dialogs/CharactersOverviewDialog";
@@ -21,7 +21,7 @@ export function init(api: ExtensionAPI): void {
     name: "clear",
     execute: value => {
       if (value !== undefined) throw new Error("characters.clear does not accept a payload");
-      const characters = getWorldContext().pack.characters;
+      const characters = getCharacters();
       if (!characters?.length) return { changed: false };
       clearCharacters();
       return { changed: true };
@@ -43,7 +43,7 @@ export function init(api: ExtensionAPI): void {
   // state's ruler's Engineering skill via api.getEffectiveSkill() without importing
   // Nobility or Characters directly.
   _unregisterSkillModifier = api.registerSkillModifier(CHARACTERS_EXTENSION_ID, (characterId, skill, currentValue) => {
-    const character = getWorldContext().pack.characters?.find(c => c.i === characterId);
+    const character = getCharacters().find(c => c.i === characterId);
     if (!character) return currentValue;
     const value = character.skills[skill as keyof CharacterSkills];
     return value ?? currentValue;

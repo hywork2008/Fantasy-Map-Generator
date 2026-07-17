@@ -1,7 +1,7 @@
 import type React from "react";
 import { useMemo } from "react";
 import { closeDialog, Dialog, openDialog, useDialogState } from "../../../hostUi";
-import { getWorldContext } from "../../charactersContext";
+import { getCharacters, getWorldContext } from "../../charactersContext";
 import { filterAndSortCharacters } from "../../controllers/characters-overview";
 import { useCharactersUiState } from "../charactersUiState";
 import { CharactersStatsTable } from "../components/tables/CharactersStatsTable";
@@ -25,7 +25,7 @@ export const CharactersOverviewDialog: React.FC = () => {
   } = useCharactersUiState();
 
   const worldContext = getWorldContext();
-  const characters = (worldContext.pack.characters ?? []).filter(c => !c.dead);
+  const characters = getCharacters().filter(c => !c.dead);
   const states = worldContext.pack.states ?? [];
 
   const sortedStates = useMemo(() => {

@@ -17,6 +17,15 @@ export interface SimulationCellColumns {
   danger: Uint8Array;
 }
 
+/**
+ * Host-owned containers for built-in and dynamic extension runtime state.
+ *
+ * An extension slice is opaque to the host until its registered validator has
+ * narrowed it. Legacy pack-field access is projected from these slices only
+ * during the Phase 8 compatibility period.
+ */
+export type ExtensionStateSlices = Record<string, Record<string, unknown>>;
+
 export interface IntelligenceReport {
   estimatedMilitaryPower: number;
   estimatedWealth: number;
@@ -57,6 +66,8 @@ export interface SimulationContext {
   worldSeason: Season;
   /** Dynamic cell columns. `SimulationData.cells` owns these values. */
   cells: SimulationCellColumns;
+  /** Namespaced runtime state owned by extensions, never by `pack`. */
+  extensions: ExtensionStateSlices;
   /** Espionage reports: intelligence[observerStateId][targetStateId] */
   intelligence: Record<number, Record<number, IntelligenceReport>>;
   /** Strategic goals: strategicGoals[stateId] */
@@ -84,6 +95,7 @@ export const simulationContext: SimulationContext = {
     elders: new Float32Array(),
     danger: new Uint8Array()
   },
+  extensions: {},
   intelligence: {},
   strategicGoals: {}
 };

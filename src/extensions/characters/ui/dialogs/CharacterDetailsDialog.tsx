@@ -1,7 +1,7 @@
 import type React from "react";
 import { useState } from "react";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
-import { getApi, getWorldContext } from "../../charactersContext";
+import { getApi, getCharacters, getWorldContext } from "../../charactersContext";
 import type { CharacterRole, TitleHolding } from "../../characterTypes";
 import { useCharactersUiState } from "../charactersUiState";
 import { RadarChart } from "../components/charts/RadarChart";
@@ -13,7 +13,7 @@ export const CharacterDetailsDialog: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"skills" | "personality">("skills");
 
   const worldContext = getWorldContext();
-  const characters = worldContext.pack.characters ?? [];
+  const characters = getCharacters();
   const states = worldContext.pack.states;
   const provinces = worldContext.pack.provinces;
   const cultures = worldContext.pack.cultures;

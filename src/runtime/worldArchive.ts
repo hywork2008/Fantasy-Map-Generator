@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import { removeExtensionStateSliceMirrors } from "./extensionStateSlices";
 import type { PresentationData } from "./presentationData";
 import { removeSimulationCellColumnMirrors } from "./simulationCellColumns";
 
@@ -506,5 +507,6 @@ export function createWorldDocument(
   // `pack.cells` exposes dynamic columns only as a source-compatible adapter.
   // A snapshot stores their single canonical copy under simulation.cells.
   removeSimulationCellColumnMirrors(document.world, document.simulation);
+  removeExtensionStateSliceMirrors(document.world, document.simulation);
   return document;
 }

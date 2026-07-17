@@ -10,8 +10,7 @@ interface CharactersUiState {
   searchText: string;
   filterStateId: number | null;
   activeTab: CharactersTab;
-  /** Bumped whenever character data mutates in place (e.g. Advance Time aging) so
-   * components reading worldContext.pack.characters directly know to re-render. */
+  /** Bumped whenever character data mutates in place (e.g. Advance Time aging). */
   refreshToken: number;
   setSelectedCharacterId: (id: number | null) => void;
   toggleSortBy: (field: string) => void;

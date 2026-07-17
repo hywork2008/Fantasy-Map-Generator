@@ -50,6 +50,7 @@ import { CoordinatesRenderer, drawCalendar, drawScaleBar, fitScaleBar } from "./
 import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
 import { DeckGlRenderer } from "./renderers/webgl/deckRenderer";
+import { bindExtensionStateSlices, resetExtensionStateSlices } from "./runtime/extensionStateSlices";
 import { bindSimulationCellColumns } from "./runtime/simulationCellColumns";
 import { clearMainTip, tip } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
@@ -898,6 +899,7 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
       delete (worldContext.pack as unknown as Record<string, unknown>)[k];
     });
     Object.assign(worldContext.pack, {} as typeof worldContext.pack);
+    resetExtensionStateSlices(simulationContext);
 
     Features.markupGrid();
     addLakesInDeepDepressions();
@@ -1436,6 +1438,7 @@ export function reGraph() {
   // `pack.cells` is replaced by the legacy graph builder. Reattach the
   // compatibility adapter so dynamic columns remain simulation-owned.
   bindSimulationCellColumns(worldContext, simulationContext);
+  bindExtensionStateSlices(worldContext, simulationContext);
   worldContext.pack.cells.p = newCells.p;
   worldContext.pack.cells.g = createTypedArray({
     maxValue: worldContext.grid.points.length,
