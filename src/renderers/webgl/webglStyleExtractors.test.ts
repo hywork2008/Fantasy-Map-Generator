@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ViewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
+import { presentationData } from "../../runtime/presentationData";
 import {
   getBurgIconStyle,
   getCoastlinePaint,
@@ -68,6 +69,47 @@ function createWorldContext(): WorldContext {
 }
 
 describe("webgl style extractors", () => {
+  it("prefers PresentationData over hidden or stale SVG attributes", () => {
+    const savedStyles = presentationData.styles;
+    presentationData.styles = {
+      "#rivers": { fill: "#abcdef", opacity: 0.25 },
+      "#stateBorders": { stroke: "#123456", opacity: 0.5, "stroke-dasharray": "6 2" }
+    };
+
+    const viewContext = {
+      rivers: new MockSelection({ fill: "#000000", opacity: "1" }),
+      stateBorders: new MockSelection({ stroke: "#ffffff", opacity: "1", "stroke-dasharray": "1 1" }),
+      provinceBorders: new MockSelection(),
+      roads: new MockSelection(),
+      trails: new MockSelection(),
+      searoutes: new MockSelection()
+    } as unknown as ViewContext;
+
+    expect(getRiverPaint(viewContext).color).toEqual([171, 205, 239, 64]);
+    expect(getPathDashStyles(viewContext).stateBorders).toEqual([6, 2]);
+    expect(getPathPaintStyles(viewContext).stateBorders).toEqual([18, 52, 86, 128]);
+
+    presentationData.styles = savedStyles;
+  });
+
+  it("uses the fallback for a missing burg group during the first WebGL frame", () => {
+    const worldContext = createWorldContext();
+    const viewContext = {
+      burgIcons: new MockSelection({}, {}, {}, true),
+      anchors: new MockSelection({}, {}, {}, true),
+      labels: new MockSelection({}, {}, {}, true),
+      burgLabels: new MockSelection({}, {}, {}, true),
+      scale: 1
+    } as unknown as ViewContext;
+
+    expect(getBurgIconStyle(worldContext, viewContext).burgIcons.city).toEqual({
+      fill: "#3e3e4b",
+      opacity: 1,
+      size: 5,
+      icon: "#icon-circle"
+    });
+  });
+
   it("parses numeric SVG attribute values defensively", () => {
     expect(parseOptionalNumber("1.25px")).toBe(1.25);
     expect(parseOptionalNumber("none")).toBeNull();
@@ -176,8 +218,14 @@ describe("webgl style extractors", () => {
     expect(getMarkerStyle(viewContext)).toEqual({ pinnedOnly: true, rescale: false, scale: 3 });
   });
 
-  it("merges burg icon and label styles from SVG selections and stored world style", () => {
+  it("reads burg icon and label styles from PresentationData", () => {
     const worldContext = createWorldContext();
+    const savedStyles = presentationData.styles;
+    presentationData.styles = {
+      "#burgIcons > g#city": { fill: "#123456", opacity: 0.5, "font-size": 1.5 },
+      "#anchors > g#city": { fill: "#abcdef", opacity: 0.75, "font-size": 1.5 },
+      "#burgLabels > g#town": { fill: "#654321", opacity: "0.6", "font-size": "5", "data-dy": "-0.8" }
+    };
     const viewContext = {
       labels: new MockSelection({}, {}, { "#states": new MockSelection({ fill: "#111111", "data-size": "30" }) }),
       burgLabels: new MockSelection(),
@@ -198,6 +246,7 @@ describe("webgl style extractors", () => {
       haloColor: "white"
     });
     expect(labelStyle.burgLabels.town).toMatchObject({ fill: "#654321", opacity: 0.6, size: 5, dy: -0.8 });
+    presentationData.styles = savedStyles;
   });
 
   it("reads font-family and the halo color out of a text-shadow style string", () => {

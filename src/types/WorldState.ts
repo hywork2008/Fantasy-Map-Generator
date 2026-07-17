@@ -11,13 +11,6 @@ export interface WorldNote {
 /** Controls whether Advance Time may autonomously initiate or advance interstate conflict. */
 export type ConflictAutonomy = "autonomous" | "playerDirected";
 
-export interface MapStyle {
-  burgLabels: Record<string, Record<string, string>>;
-  burgIcons: Record<string, Record<string, string>>;
-  anchors: Record<string, Record<string, string>>;
-  [key: string]: unknown;
-}
-
 export interface BiomesData {
   i: number[];
   name: string[];
@@ -73,5 +66,4 @@ export interface WorldState {
   nameBases: NameBase[];
   biomesData: BiomesData;
   notes: WorldNote[];
-  style: MapStyle;
 }

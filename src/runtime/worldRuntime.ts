@@ -1,5 +1,12 @@
 import { type SimulationContext, simulationContext } from "../context/simulationContext";
 import { type WorldContext, worldContext } from "../context/worldContext";
+import {
+  applyPresentationPatch,
+  createPresentationData,
+  type PresentationData,
+  type PresentationPatch,
+  presentationData
+} from "./presentationData";
 
 /**
  * Coarse ownership topics used while the legacy pack/grid representation remains
@@ -47,6 +54,8 @@ export interface WorldReadView {
   readonly world: Readonly<WorldContext>;
   /** Transitional trusted-core projection; see `world`. */
   readonly simulation: Readonly<SimulationContext>;
+  /** Persisted rendering rules; DOM and deck.gl objects are intentionally absent. */
+  readonly presentation: Readonly<PresentationData>;
 }
 
 export interface WorldCommit<T> {
@@ -110,8 +119,13 @@ export interface MoveRegimentCommand {
   readonly payload: MoveRegimentRequest;
 }
 
+export interface PresentationPatchCommand {
+  readonly type: "presentation.patch";
+  readonly payload: PresentationPatch;
+}
+
 export type PositionCommand = MoveMarkerCommand | MoveBurgCommand | MoveRegimentCommand;
-export type WorldCommand<T> = LegacyMutationCommand<T> | PositionCommand;
+export type WorldCommand<T> = LegacyMutationCommand<T> | PositionCommand | PresentationPatchCommand;
 
 export interface WorldRuntime {
   read(): WorldReadView;
@@ -127,7 +141,8 @@ class LegacyWorldRuntime implements WorldRuntime {
 
   constructor(
     private readonly world: WorldContext,
-    private readonly simulation: SimulationContext
+    private readonly simulation: SimulationContext,
+    private readonly presentation: PresentationData
   ) {}
 
   read(): WorldReadView {
@@ -135,7 +150,8 @@ class LegacyWorldRuntime implements WorldRuntime {
       revision: this.revision,
       topicRevisions: { ...this.topicRevisions },
       world: this.world,
-      simulation: this.simulation
+      simulation: this.simulation,
+      presentation: this.presentation
     };
   }
 
@@ -197,6 +213,27 @@ class LegacyWorldRuntime implements WorldRuntime {
   private getOutcome<T>(command: WorldCommand<T>): LegacyMutationOutcome<T> {
     if (command.type === "legacy.mutation") return command.execute();
 
+    if (command.type === "presentation.patch") {
+      const stylesChanged = Object.entries(command.payload.styles ?? {}).some(([selector, attributes]) =>
+        Object.entries(attributes).some(
+          ([attribute, value]) => this.presentation.styles[selector]?.[attribute] !== value
+        )
+      );
+      const layersChanged = Object.entries(command.payload.activeLayers ?? {}).some(
+        ([id, visible]) => this.presentation.activeLayers[id] !== visible
+      );
+      const changed = applyPresentationPatch(this.presentation, command.payload);
+      return {
+        result: undefined as T,
+        topics: changed
+          ? [
+              ...(stylesChanged ? (["presentation.styles"] as const) : []),
+              ...(layersChanged ? (["presentation.layers"] as const) : [])
+            ]
+          : []
+      };
+    }
+
     if (command.type === "marker.move") {
       const { markerId, x, y, cellId } = command.payload;
       if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error("marker.move requires finite coordinates");
@@ -241,12 +278,16 @@ class LegacyWorldRuntime implements WorldRuntime {
   }
 }
 
-export function createWorldRuntime(world: WorldContext, simulation: SimulationContext): WorldRuntime {
-  return new LegacyWorldRuntime(world, simulation);
+export function createWorldRuntime(
+  world: WorldContext,
+  simulation: SimulationContext,
+  presentation: PresentationData = createPresentationData()
+): WorldRuntime {
+  return new LegacyWorldRuntime(world, simulation, presentation);
 }
 
 /** The one runtime instance for the current in-memory world. */
-export const worldRuntime = createWorldRuntime(worldContext, simulationContext);
+export const worldRuntime = createWorldRuntime(worldContext, simulationContext, presentationData);
 
 /**
  * Transitional private mutation bridge. Existing synchronous writers use this
@@ -267,4 +308,9 @@ export function moveBurg(request: MoveBurgRequest): WorldCommit<void> | null {
 
 export function moveRegiment(request: MoveRegimentRequest): WorldCommit<void> | null {
   return (worldRuntime as LegacyWorldRuntime).execute({ type: "regiment.move", payload: request });
+}
+
+/** Phase 3 command for persisted style and layer-visibility changes. */
+export function patchPresentation(patch: PresentationPatch): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "presentation.patch", payload: patch });
 }

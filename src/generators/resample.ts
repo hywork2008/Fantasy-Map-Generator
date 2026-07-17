@@ -289,7 +289,7 @@ class Resampler {
   }
 
   private restoreStates(parentMap: ParentMapDefinition, projection: (x: number, y: number) => [number, number]) {
-    const { pack, grid, seed, nameBases, biomesData, notes, style } = worldContext;
+    const { pack, grid, seed, nameBases, biomesData, notes } = worldContext;
     const validStates = new Set(pack.cells.state);
     pack.states = parentMap.pack.states.map(state => {
       if (!state.i || state.removed) return state;
@@ -304,8 +304,7 @@ class Resampler {
       options: worldContext.options,
       nameBases,
       biomesData,
-      notes,
-      style
+      notes
     };
     States.getPoles(worldState);
     const regimentCellsMap: Record<number, number> = {};
@@ -398,7 +397,7 @@ class Resampler {
   }
 
   private restoreProvinces(parentMap: ParentMapDefinition) {
-    const { pack, grid, seed, nameBases, biomesData, notes, style } = worldContext;
+    const { pack, grid, seed, nameBases, biomesData, notes } = worldContext;
     const validProvinces = new Set(pack.cells.province);
     pack.provinces = parentMap.pack.provinces.map(province => {
       if (!province.i || province.removed) return province;
@@ -407,7 +406,7 @@ class Resampler {
       return province;
     });
 
-    Provinces.getPoles({ pack, grid, seed, options: worldContext.options, nameBases, biomesData, notes, style });
+    Provinces.getPoles({ pack, grid, seed, options: worldContext.options, nameBases, biomesData, notes });
 
     pack.provinces.forEach(province => {
       if (!province.i || province.removed) return;
@@ -469,7 +468,7 @@ class Resampler {
 
   process(resampleConfig: ResamplerProcessOptions): void {
     const { projection, inverse, scale } = resampleConfig;
-    const { pack, grid, notes, seed, graphWidth, graphHeight, nameBases, biomesData, style } = worldContext;
+    const { pack, grid, notes, seed, graphWidth, graphHeight, nameBases, biomesData } = worldContext;
     const parentMap = {
       grid: structuredClone(grid),
       pack: structuredClone(pack),
@@ -506,8 +505,7 @@ class Resampler {
       options: worldContext.options,
       nameBases,
       biomesData,
-      notes: worldContext.notes,
-      style
+      notes: worldContext.notes
     });
     createDefaultRuler();
 

@@ -1,6 +1,7 @@
 import type { Color } from "@deck.gl/core";
 import type { ViewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
+import { getPresentationStyle, getPresentationStyleRecord, presentationData } from "../../runtime/presentationData";
 import { useOptionsState } from "../../store/optionsState";
 import { dampenBurgLabelSize, dampenStateLabelSize } from "../../utils/labelZoomScale";
 import {
@@ -45,43 +46,66 @@ export interface RiverPaint {
   color: Color;
 }
 
+/**
+ * Phase 3 source lookup. The SVG selection is only a legacy-map fallback
+ * until every saved map has been imported into PresentationData.
+ */
+function presentationValue(selector: string, attribute: string): string | undefined {
+  const value = getPresentationStyle(presentationData, selector, attribute);
+  return value === undefined || value === null ? undefined : String(value);
+}
+
+function styleValue(
+  selection: (Pick<LayerStyleSelection, "attr" | "style"> & Partial<Pick<LayerStyleSelection, "empty">>) | undefined,
+  selector: string,
+  attribute: string
+): string | undefined {
+  const value = presentationValue(selector, attribute);
+  if (value !== undefined) return value;
+  // D3's attr/style getters dereference the selected node. A group can be
+  // absent during the first WebGL frame (before SVG compatibility groups have
+  // been created), so an empty selection must use the caller's fallback.
+  if (!selection || selection.empty?.()) return undefined;
+  return selection.attr(attribute) || selection.style(attribute) || undefined;
+}
+
 /** Reads the SVG precipitation circle fill so hybrid mode honors style presets and edits. */
 export function getPrecipitationPaint(viewContext: Readonly<ViewContext>): { color: Color } {
   const precipitation = viewContext.prec;
-  const opacity = parseOptionalNumber(precipitation?.attr("opacity") ?? precipitation?.style("opacity")) ?? 1;
+  const opacity = parseOptionalNumber(styleValue(precipitation, "#prec", "opacity")) ?? 1;
   return {
-    color: colorToRgba(precipitation?.attr("fill") ?? precipitation?.style("fill"), "#0080ff", opacity)
+    color: colorToRgba(styleValue(precipitation, "#prec", "fill"), "#0080ff", opacity)
   };
 }
 
 /** Reads the SVG stroke-dasharray values used by WebGL-backed border and route layers. */
 export function getPathDashStyles(viewContext: Readonly<ViewContext>): PathDashStyles {
   return {
-    stateBorders: getDashArray(viewContext.stateBorders),
-    provinceBorders: getDashArray(viewContext.provinceBorders),
-    roads: getDashArray(viewContext.roads),
-    trails: getDashArray(viewContext.trails),
-    searoutes: getDashArray(viewContext.searoutes)
+    stateBorders: getDashArray(viewContext.stateBorders, "#stateBorders"),
+    provinceBorders: getDashArray(viewContext.provinceBorders, "#provinceBorders"),
+    roads: getDashArray(viewContext.roads, "#roads"),
+    trails: getDashArray(viewContext.trails, "#trails"),
+    searoutes: getDashArray(viewContext.searoutes, "#searoutes")
   };
 }
 
 /** Reads SVG stroke colors and opacity for borders and route groups. */
 export function getPathPaintStyles(viewContext: Readonly<ViewContext>): PathPaintStyles {
   return {
-    stateBorders: getStrokePaint(viewContext.stateBorders, "#56566d", 0.8),
-    provinceBorders: getStrokePaint(viewContext.provinceBorders, "#56566d", 0.8),
-    roads: getStrokePaint(viewContext.roads, "#d06324", 0.9),
-    trails: getStrokePaint(viewContext.trails, "#d06324", 0.9),
-    searoutes: getStrokePaint(viewContext.searoutes, "#ffffff", 0.9)
+    stateBorders: getStrokePaint(viewContext.stateBorders, "#stateBorders", "#56566d", 0.8),
+    provinceBorders: getStrokePaint(viewContext.provinceBorders, "#provinceBorders", "#56566d", 0.8),
+    roads: getStrokePaint(viewContext.roads, "#roads", "#d06324", 0.9),
+    trails: getStrokePaint(viewContext.trails, "#trails", "#d06324", 0.9),
+    searoutes: getStrokePaint(viewContext.searoutes, "#searoutes", "#ffffff", 0.9)
   };
 }
 
 /** Reads the SVG river fill and opacity, which are applied to every generated river path. */
 export function getRiverPaint(viewContext: Readonly<ViewContext>): RiverPaint {
   const rivers = viewContext.rivers;
-  const opacity = parseOptionalNumber(rivers?.attr("opacity") ?? rivers?.style("opacity")) ?? 1;
+  const opacity = parseOptionalNumber(styleValue(rivers, "#rivers", "opacity")) ?? 1;
   return {
-    color: colorToRgba(rivers?.attr("fill") ?? rivers?.style("fill"), "#5d97bb", opacity)
+    color: colorToRgba(styleValue(rivers, "#rivers", "fill"), "#5d97bb", opacity)
   };
 }
 
@@ -89,9 +113,11 @@ export function getRiverPaint(viewContext: Readonly<ViewContext>): RiverPaint {
  * deck.gl supports a dash and a gap. SVG permits longer repeating sequences, so use its first
  * pair; the map's border and route style controls use one or two values in all built-in presets.
  */
-export function getDashArray(selection: LayerStyleSelection | undefined): DeckPathDashArray {
-  if (!selection || selection.empty()) return [0, 0];
-  const value = selection.attr("stroke-dasharray") || selection.style("stroke-dasharray");
+export function getDashArray(selection: LayerStyleSelection | undefined, selector?: string): DeckPathDashArray {
+  if ((!selection || selection.empty()) && !selector) return [0, 0];
+  const value = selector
+    ? styleValue(selection, selector, "stroke-dasharray")
+    : selection?.attr("stroke-dasharray") || selection?.style("stroke-dasharray");
   if (!value || value === "none") return [0, 0];
 
   const values = value
@@ -104,10 +130,15 @@ export function getDashArray(selection: LayerStyleSelection | undefined): DeckPa
   return [values[0], values[1]];
 }
 
-function getStrokePaint(selection: LayerStyleSelection | undefined, fallback: string, opacityFallback: number): Color {
+function getStrokePaint(
+  selection: LayerStyleSelection | undefined,
+  selector: string,
+  fallback: string,
+  opacityFallback: number
+): Color {
   if (!selection || selection.empty()) return colorToRgba(fallback, fallback, opacityFallback);
-  const opacity = parseOptionalNumber(selection.attr("opacity") ?? selection.style("opacity")) ?? opacityFallback;
-  return colorToRgba(selection.attr("stroke") ?? selection.style("stroke"), fallback, opacity);
+  const opacity = parseOptionalNumber(styleValue(selection, selector, "opacity")) ?? opacityFallback;
+  return colorToRgba(styleValue(selection, selector, "stroke"), fallback, opacity);
 }
 
 export function getLakePaint(viewContext: Readonly<ViewContext>): Record<string, LayerPaint> {
@@ -136,12 +167,11 @@ export function getIcePaint(viewContext: Readonly<ViewContext>): LayerPaint {
   };
   if (!viewContext.ice) return fallback;
 
-  const opacity = parseOptionalNumber(viewContext.ice.attr("opacity") ?? viewContext.ice.style("opacity")) ?? 0.9;
+  const opacity = parseOptionalNumber(styleValue(viewContext.ice, "#ice", "opacity")) ?? 0.9;
   return {
-    fill: colorToRgba(viewContext.ice.attr("fill") ?? viewContext.ice.style("fill"), "#f1f8fe", opacity),
-    stroke: colorToRgba(viewContext.ice.attr("stroke") ?? viewContext.ice.style("stroke"), "#e8f0f6", opacity),
-    strokeWidth:
-      parseOptionalNumber(viewContext.ice.attr("stroke-width") ?? viewContext.ice.style("stroke-width")) ?? 0.5
+    fill: colorToRgba(styleValue(viewContext.ice, "#ice", "fill"), "#f1f8fe", opacity),
+    stroke: colorToRgba(styleValue(viewContext.ice, "#ice", "stroke"), "#e8f0f6", opacity),
+    strokeWidth: parseOptionalNumber(styleValue(viewContext.ice, "#ice", "stroke-width")) ?? 0.5
   };
 }
 
@@ -149,9 +179,9 @@ export function getHeightStyle(viewContext: Readonly<ViewContext>): DeckHeightSt
   const land = viewContext.terrs?.select<SVGGElement>("#landHeights");
   const ocean = viewContext.terrs?.select<SVGGElement>("#oceanHeights");
   return {
-    scheme: land?.attr("scheme") ?? "bright",
-    opacity: parseOptionalNumber(land?.attr("opacity") ?? land?.style("opacity")) ?? 1,
-    includeOcean: Boolean(Number(ocean?.attr("data-render") ?? 0))
+    scheme: styleValue(land, "#terrs > #landHeights", "scheme") ?? "bright",
+    opacity: parseOptionalNumber(styleValue(land, "#terrs > #landHeights", "opacity")) ?? 1,
+    includeOcean: Boolean(Number(styleValue(ocean, "#terrs > #oceanHeights", "data-render") ?? 0))
   };
 }
 
@@ -161,11 +191,20 @@ export function getEmblemStyle(viewContext: Readonly<ViewContext>): {
 } {
   const emblems = viewContext.emblems;
   return {
-    opacity: parseOptionalNumber(emblems?.attr("opacity") ?? emblems?.style("opacity")) ?? 0.9,
+    opacity: parseOptionalNumber(styleValue(emblems, "#emblems", "opacity")) ?? 0.9,
     sizes: {
-      state: parseOptionalNumber(emblems?.select<SVGGElement>("#stateEmblems").attr("data-size")) ?? 1,
-      province: parseOptionalNumber(emblems?.select<SVGGElement>("#provinceEmblems").attr("data-size")) ?? 1,
-      burg: parseOptionalNumber(emblems?.select<SVGGElement>("#burgEmblems").attr("data-size")) ?? 1
+      state:
+        parseOptionalNumber(
+          styleValue(emblems?.select<SVGGElement>("#stateEmblems"), "#emblems > #stateEmblems", "data-size")
+        ) ?? 1,
+      province:
+        parseOptionalNumber(
+          styleValue(emblems?.select<SVGGElement>("#provinceEmblems"), "#emblems > #provinceEmblems", "data-size")
+        ) ?? 1,
+      burg:
+        parseOptionalNumber(
+          styleValue(emblems?.select<SVGGElement>("#burgEmblems"), "#emblems > #burgEmblems", "data-size")
+        ) ?? 1
     }
   };
 }
@@ -186,22 +225,22 @@ export function getBurgIconStyle(
   for (const group of groups) {
     visibleGroups.add(group.name);
     const burgSelection = viewContext.burgIcons?.select<SVGGElement>(`#${group.name}`);
-    const burgStored = getStyleRecord(worldContext.style.burgIcons, group.name);
+    const burgSelector = `#burgIcons > g#${group.name}`;
     burgIcons[group.name] = {
-      ...readBurgIconGroupStyle(burgSelection, burgStored, {
+      ...readBurgIconGroupStyle(burgSelection, burgSelector, {
         fill: "#3e3e4b",
         opacity: 1,
         size: getDefaultBurgIconSize(group.name),
         icon: "#icon-circle"
       }),
-      icon: getStyleString(burgSelection, burgStored, "data-icon") ?? "#icon-circle"
+      icon: getStyleString(burgSelection, burgSelector, "data-icon") ?? "#icon-circle"
     };
     // Anchors always render via the hardcoded "#icon-anchor" symbol regardless of any stored
     // data-icon (draw-burg-icons.ts's port rendering does not read a per-group icon override).
     anchors[group.name] = {
       ...readBurgIconGroupStyle(
         viewContext.anchors?.select<SVGGElement>(`#${group.name}`),
-        getStyleRecord(worldContext.style.anchors, group.name),
+        `#anchors > g#${group.name}`,
         { fill: "#ffffff", opacity: 1, size: getDefaultAnchorSize(group.name), icon: "#icon-anchor" }
       ),
       icon: "#icon-anchor"
@@ -229,7 +268,7 @@ export function getLabelStyle(
   const scale = Math.max(viewContext.scale || 1, 0.0001);
 
   const stateGroup = viewContext.labels?.select<SVGGElement>("#states");
-  const state = readLabelStyle(stateGroup, null, {
+  const state = readLabelStyle(stateGroup, "#labels > #states", {
     fill: "#3e3e4b",
     opacity: 1,
     size: 22,
@@ -247,7 +286,7 @@ export function getLabelStyle(
     visibleBurgGroups.add(group.name);
     const style = readLabelStyle(
       viewContext.burgLabels?.select<SVGGElement>(`#${group.name}`),
-      getStyleRecord(worldContext.style.burgLabels, group.name),
+      `#burgLabels > g#${group.name}`,
       {
         fill: "#3e3e4b",
         opacity: 1,
@@ -278,14 +317,14 @@ export function getLabelStyle(
 export function getMarkerStyle(viewContext: Readonly<ViewContext>): DeckMarkerStyle {
   const markers = viewContext.markers;
   return {
-    pinnedOnly: Boolean(Number(markers?.attr("pinned") ?? 0)),
-    rescale: (parseOptionalNumber(markers?.attr("rescale")) ?? 1) !== 0,
+    pinnedOnly: Boolean(Number(styleValue(markers, "#markers", "pinned") ?? 0)),
+    rescale: (parseOptionalNumber(styleValue(markers, "#markers", "rescale")) ?? 1) !== 0,
     scale: viewContext.scale || 1
   };
 }
 
 export function getMilitaryBoxSize(viewContext: Readonly<ViewContext>): number {
-  return parseOptionalNumber(viewContext.armies?.attr("box-size")) ?? 6;
+  return parseOptionalNumber(styleValue(viewContext.armies, "#armies", "box-size")) ?? 6;
 }
 
 /**
@@ -311,17 +350,18 @@ export function getCellLayerOpacities(viewContext: Readonly<ViewContext>): {
 } {
   const readOp = (
     el: { attr(n: string): string | null; style(n: string): string } | null | undefined,
-    fallback: number
-  ): number => parseOptionalNumber(el?.attr("opacity") ?? el?.style("opacity")) ?? fallback;
+    fallback: number,
+    selector: string
+  ): number => parseOptionalNumber(styleValue(el ?? undefined, selector, "opacity")) ?? fallback;
 
   return {
-    biomes: readOp(viewContext.biomes, 0.5),
-    religions: readOp(viewContext.relig, 0.7),
-    cultures: readOp(viewContext.cults, 0.6),
-    states: readOp(viewContext.statesBody, 0.3),
+    biomes: readOp(viewContext.biomes, 0.5, "#biomes"),
+    religions: readOp(viewContext.relig, 0.7, "#relig"),
+    cultures: readOp(viewContext.cults, 0.6, "#cults"),
+    states: readOp(viewContext.statesBody, 0.3, "#statesBody"),
     // provinces share the regions/provs SVG group; use provs opacity.
-    provinces: readOp(viewContext.provs, 0.7),
-    zones: readOp(viewContext.zones, 0.7),
+    provinces: readOp(viewContext.provs, 0.7, "#provs"),
+    zones: readOp(viewContext.zones, 0.7, "#zones"),
     // These layers have no parent element with a single opacity — use clean.json defaults.
     temperature: 0.72,
     danger: 0.75,
@@ -337,19 +377,19 @@ export function parseOptionalNumber(value: string | null | undefined): number | 
 
 function readLabelStyle(
   selection: LayerStyleSelection | undefined,
-  stored: Record<string, unknown> | null,
+  selector: string,
   fallback: DeckLabelStyle
 ): DeckLabelStyle {
-  const fill = getStyleString(selection, stored, "fill") ?? fallback.fill;
-  const opacity = parseOptionalNumber(getStyleString(selection, stored, "opacity")) ?? fallback.opacity;
+  const fill = getStyleString(selection, selector, "fill") ?? fallback.fill;
+  const opacity = parseOptionalNumber(getStyleString(selection, selector, "opacity")) ?? fallback.opacity;
   const size =
-    parseOptionalNumber(getStyleString(selection, stored, "data-size")) ??
-    parseOptionalNumber(getStyleString(selection, stored, "font-size")) ??
+    parseOptionalNumber(getStyleString(selection, selector, "data-size")) ??
+    parseOptionalNumber(getStyleString(selection, selector, "font-size")) ??
     fallback.size;
-  const dx = parseOptionalNumber(getStyleString(selection, stored, "data-dx")) ?? fallback.dx;
-  const dy = parseOptionalNumber(getStyleString(selection, stored, "data-dy")) ?? fallback.dy;
-  const fontFamily = getStyleString(selection, stored, "font-family") ?? fallback.fontFamily;
-  const haloColor = getHaloColor(selection, stored) ?? fallback.haloColor;
+  const dx = parseOptionalNumber(getStyleString(selection, selector, "data-dx")) ?? fallback.dx;
+  const dy = parseOptionalNumber(getStyleString(selection, selector, "data-dy")) ?? fallback.dy;
+  const fontFamily = getStyleString(selection, selector, "font-family") ?? fallback.fontFamily;
+  const haloColor = getHaloColor(selection, selector) ?? fallback.haloColor;
   return { fill, opacity, size, dx, dy, fontFamily, haloColor };
 }
 
@@ -357,11 +397,8 @@ function readLabelStyle(
 // group's `style` attribute) rather than an SVG stroke, so there's no single presentation
 // attribute to read directly — the color is the first token of the text-shadow value across every
 // built-in style preset (public/styles/*.json), even though offsets/blur vary.
-function getHaloColor(
-  selection: LayerStyleSelection | undefined,
-  stored: Record<string, unknown> | null
-): string | null {
-  const styleAttr = getStyleString(selection, stored, "style");
+function getHaloColor(selection: LayerStyleSelection | undefined, selector: string): string | null {
+  const styleAttr = getStyleString(selection, selector, "style");
   const shadowMatch = styleAttr?.match(/text-shadow\s*:\s*([^;]+)/);
   if (!shadowMatch) return null;
   const colorMatch = shadowMatch[1].trim().match(/^([a-zA-Z]+|#[0-9a-fA-F]{3,8})/);
@@ -370,46 +407,32 @@ function getHaloColor(
 
 function readBurgIconGroupStyle(
   selection: LayerStyleSelection | undefined,
-  stored: Record<string, unknown> | null,
+  selector: string,
   fallback: DeckBurgIconStyle
 ): DeckBurgIconStyle {
   const hasSelection = selection && !selection.empty();
-  const fill = getStyleString(selection, stored, "fill") ?? fallback.fill;
-  const opacity = parseOptionalNumber(getStyleString(selection, stored, "opacity")) ?? fallback.opacity;
+  const fill = getStyleString(selection, selector, "fill") ?? fallback.fill;
+  const opacity = parseOptionalNumber(getStyleString(selection, selector, "opacity")) ?? fallback.opacity;
   const size =
-    parseOptionalNumber(getStyleString(selection, stored, "data-size")) ??
-    parseOptionalNumber(getStyleString(selection, stored, "font-size")) ??
+    parseOptionalNumber(getStyleString(selection, selector, "data-size")) ??
+    parseOptionalNumber(getStyleString(selection, selector, "font-size")) ??
     fallback.size;
 
-  if (!hasSelection && !stored) return fallback;
+  if (!hasSelection && !getPresentationStyleRecord(presentationData, selector)) return fallback;
   // `icon` is resolved by the caller (getBurgIconStyle) and spread over this result — this
   // function only ever contributes fill/opacity/size.
   return { fill, opacity, size, icon: fallback.icon };
 }
 
-function getStyleString(
-  selection: LayerStyleSelection | undefined,
-  stored: Record<string, unknown> | null,
-  key: string
-): string | null {
-  if (selection && !selection.empty()) {
-    const attr = selection.attr(key);
-    if (attr) return attr;
-    const style = selection.style(key);
-    if (style) return style;
-  }
-  const storedValue = stored?.[key];
+function getStyleString(selection: LayerStyleSelection | undefined, selector: string, key: string): string | null {
+  const value = styleValue(selection, selector, key);
+  if (value) return value;
+  const storedValue = getPresentationStyleRecord(presentationData, selector)?.[key];
   if (typeof storedValue === "string" && storedValue) return storedValue;
   // Style presets are parsed from JSON before SVG group nodes exist. Numeric attributes such as
   // `font-size` retain their JSON number type until SVG mode has rendered the groups once.
   if (typeof storedValue === "number" && Number.isFinite(storedValue)) return String(storedValue);
   return null;
-}
-
-function getStyleRecord(source: object | null | undefined, key: string): Record<string, unknown> | null {
-  if (!source) return null;
-  const value = (source as Record<string, unknown>)[key];
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
 
 function getDefaultBurgLabelSize(group: string): number {
@@ -452,12 +475,12 @@ function getLayerPaint(
     };
   }
   const group = viewContext[root].select<SVGGElement>(`#${id}`);
-  const opacity = parseOptionalNumber(group.attr("opacity") ?? group.style("opacity")) ?? opacityFallback;
-  const fill = colorToRgba(group.attr("fill") ?? group.style("fill"), fillFallback, opacity);
-  const stroke = colorToRgba(group.attr("stroke") ?? group.style("stroke"), strokeFallback, opacity);
+  const opacity = parseOptionalNumber(styleValue(group, `#${id}`, "opacity")) ?? opacityFallback;
+  const fill = colorToRgba(styleValue(group, `#${id}`, "fill"), fillFallback, opacity);
+  const stroke = colorToRgba(styleValue(group, `#${id}`, "stroke"), strokeFallback, opacity);
   return {
     fill,
     stroke,
-    strokeWidth: parseOptionalNumber(group.attr("stroke-width") ?? group.style("stroke-width")) ?? strokeWidthFallback
+    strokeWidth: parseOptionalNumber(styleValue(group, `#${id}`, "stroke-width")) ?? strokeWidthFallback
   };
 }

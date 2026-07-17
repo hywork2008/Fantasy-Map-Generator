@@ -9,6 +9,7 @@ import { Routes } from "../generators/routes-generator";
 import { initSimulationClock } from "../generators/timeEngine";
 import { GridRenderer } from "../renderers";
 import { DeckGlRenderer } from "../renderers/webgl/deckRenderer";
+import { importLegacyPresentationFromSvg } from "../runtime/legacyPresentationImport";
 import { declareFont, fonts } from "../services/fonts";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -560,6 +561,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       if (isVisibleNode(document.getElementById("vignette") as HTMLElement)) turnOn("toggleVignette");
 
       useLayerState.getState().setAllActiveLayers(nextActiveLayers);
+      importLegacyPresentationFromSvg();
       document.dispatchEvent(new CustomEvent("fmg:get-current-preset"));
     }
     view.scaleBar

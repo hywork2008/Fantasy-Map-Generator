@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import { createPresentationData } from "./presentationData";
 import { createRenderCoordinator, type RenderEffects } from "./renderCoordinator";
 import { createWorldRuntime } from "./worldRuntime";
 
@@ -85,5 +86,20 @@ describe("RenderCoordinator", () => {
     expect(effects.renderBurgIcons).toHaveBeenCalledOnce();
     expect(effects.renderBurgLabels).toHaveBeenCalledOnce();
     expect(effects.schedule3dSceneUpdate).toHaveBeenCalledOnce();
+  });
+
+  it("invalidates non-DOM renderers for a presentation commit", async () => {
+    const runtime = createWorldRuntime({} as WorldContext, {} as SimulationContext, createPresentationData());
+    const effects = createEffects();
+    createRenderCoordinator(runtime, effects);
+
+    await runtime.dispatch({
+      type: "presentation.patch",
+      payload: { styles: { "#rivers": { fill: "#123456" } } }
+    });
+
+    expect(effects.scheduleWebglUpdate).toHaveBeenCalledOnce();
+    expect(effects.schedule3dTerrainUpdate).toHaveBeenCalledOnce();
+    expect(effects.renderBorders).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,7 @@
 import type { AppServices } from "../context/appServices";
 import type { SettlementLayers, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { getPresentationStyleRecord, presentationData } from "../runtime/presentationData";
 import type { Burg, BurgGroup } from "../types/models";
 import { TIME } from "../utils/debug";
 import { isCellInScope } from "./core/focusScope";
@@ -11,9 +12,9 @@ export const BurgLabelsRenderer: IRenderer = {
 
   render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
     TIME && console.time("BurgLabelsRenderer");
-    const { pack, options, style } = worldContext;
+    const { pack, options } = worldContext;
     const { burgLabels, focusScope } = viewContext;
-    createLabelGroups(options, style, burgLabels);
+    createLabelGroups(options, burgLabels);
 
     for (const { name } of options.burgs.groups as BurgGroup[]) {
       const burgsInGroup = pack.burgs.filter(b => b.group === name && !b.removed && isCellInScope(focusScope, b.cell));
@@ -93,27 +94,18 @@ export const removeBurgLabel = (
   if (existingLabel) existingLabel.remove();
 };
 
-function createLabelGroups(
-  _options: WorldContext["options"],
-  style: WorldContext["style"],
-  _burgLabels: SettlementLayers["burgLabels"]
-): void {
+function createLabelGroups(_options: WorldContext["options"], _burgLabels: SettlementLayers["burgLabels"]): void {
   const existingIds = new Set<string>();
   document.querySelectorAll("g#burgLabels > g").forEach(group => {
     existingIds.add(group.id);
-    style.burgLabels[group.id] = Array.from(group.attributes).reduce((acc: { [key: string]: string }, attribute) => {
-      if (attribute.name === "class") return acc;
-      acc[attribute.name] = attribute.value;
-      return acc;
-    }, {});
   });
 
-  const defaultStyle = style.burgLabels.town || Object.values(style.burgLabels)[0] || {};
+  const defaultStyle = getPresentationStyleRecord(presentationData, "#burgLabels > g#town") || {};
   const sortedGroups = [...(_options.burgs.groups as BurgGroup[])].sort((a, b) => a.order - b.order);
   for (const { name } of sortedGroups) {
     if (existingIds.has(name)) continue;
     const group = _burgLabels.append("g");
-    const styles = style.burgLabels[name] || defaultStyle;
+    const styles = getPresentationStyleRecord(presentationData, `#burgLabels > g#${name}`) || defaultStyle;
     Object.entries(styles).forEach(([key, value]) => {
       group.attr(key, value);
     });

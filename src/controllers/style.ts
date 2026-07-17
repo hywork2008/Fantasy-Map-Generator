@@ -17,6 +17,8 @@ import {
 } from "../renderers";
 import { drawRegiments, drawScaleBar, fitScaleBar } from "../renderers/index";
 import { OceanLayers } from "../renderers/ocean-layers";
+import type { PresentationStyleValue } from "../runtime/presentationData";
+import { patchPresentation } from "../runtime/worldRuntime";
 import { onFontAdded } from "../services/fonts";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -522,11 +524,29 @@ function getEl(): AnySelection {
   return selection;
 }
 
+function currentPresentationSelector(): string {
+  const { activeElement, activeGroup } = useStyleState.getState();
+  if (activeGroup && activeGroup !== activeElement) {
+    if (["burgIcons", "burgLabels", "anchors"].includes(activeElement)) return `#${activeElement} > g#${activeGroup}`;
+    return `#${activeGroup}`;
+  }
+  return `#${activeElement}`;
+}
+
+function patchCurrentPresentation(attributes: Record<string, PresentationStyleValue>): void {
+  patchPresentation({ styles: { [currentPresentationSelector()]: attributes } });
+}
+
+function patchPresentationStyle(selector: string, attributes: Record<string, PresentationStyleValue>): void {
+  patchPresentation({ styles: { [selector]: attributes } });
+}
+
 // ─── Texture helpers ──────────────────────────────────────────────────────────
 
 function changeTexture(href: string): void {
   view.texture.attr("data-href", href);
   view.texture.select("image").attr("href", href);
+  patchPresentationStyle("#texture", { "data-href": href });
 }
 
 export function updateTextureSelectValue(href: string): void {
@@ -557,6 +577,7 @@ function shiftCompass(sizeOverride?: string): void {
   const y = values.styleCompassShiftY ?? "80";
   const size = sizeOverride ?? values.styleCompassSizeInput ?? "0.3";
   view.compass.select("use").attr("transform", `translate(${x} ${y}) scale(${size})`);
+  patchPresentationStyle("#compass > use", { transform: `translate(${x} ${y}) scale(${size})` });
 }
 
 // ─── Font helpers ─────────────────────────────────────────────────────────────
@@ -564,6 +585,7 @@ function shiftCompass(sizeOverride?: string): void {
 export function changeFont(): void {
   const family = String(useStyleState.getState().values.styleSelectFont ?? "");
   getEl().attr("font-family", family);
+  patchCurrentPresentation({ "font-family": family });
   const { activeElement } = useStyleState.getState();
   if (activeElement === "legend") EditorBus.redrawLegend();
 }
@@ -580,6 +602,7 @@ function changeFontSize(el: AnySelection, size: number): void {
 
   const scaleSize = getSizeOnScale(styleElement);
   el.attr("data-size", size).attr("font-size", scaleSize);
+  patchCurrentPresentation({ "data-size": size, "font-size": scaleSize });
 
   if (styleElement === "legend") EditorBus.redrawLegend();
   scheduleWebglUpdate();
@@ -703,7 +726,48 @@ export function applySliderChange(id: string, value: string): void {
       break;
     case "styleScaleBarBackgroundOpacity":
       view.scaleBar.select<SVGRectElement>("#scaleBarBack").attr("opacity", value);
+      patchPresentationStyle("#scaleBarBack", { opacity: value });
       break;
+  }
+
+  const currentAttributeByControl: Record<string, string> = {
+    styleOpacityInput: "opacity",
+    styleStrokeWidthInput: "stroke-width",
+    styleLetterSpacingInput: "letter-spacing"
+  };
+  const currentAttribute = currentAttributeByControl[id];
+  if (currentAttribute) patchCurrentPresentation({ [currentAttribute]: value });
+
+  const stylePatchByControl: Record<string, readonly [string, string]> = {
+    styleHeightmapTerracing: [currentPresentationSelector(), "terracing"],
+    styleHeightmapSkip: [currentPresentationSelector(), "skip"],
+    styleHeightmapSimplification: [currentPresentationSelector(), "relax"],
+    styleOceanPatternOpacity: ["#oceanicPattern", "opacity"],
+    styleVignetteBlur: ["#vignette-rect", "filter"],
+    styleBurgIconsIconSize: [currentPresentationSelector(), "font-size"],
+    styleBurgIconsFillOpacity: [currentPresentationSelector(), "fill-opacity"],
+    styleFontSize: [currentPresentationSelector(), "font-size"],
+    styleFillOpacityInput: [currentPresentationSelector(), "fill-opacity"],
+    styleReliefSize: ["#terrain", "size"],
+    styleReliefDensity: ["#terrain", "density"],
+    styleLegendColItems: ["#legendBox", "data-columns"],
+    styleLegendOpacity: ["#legendBox", "fill-opacity"],
+    styleTemperatureFillOpacityInput: ["#temperature", "fill-opacity"],
+    styleTemperatureFontSizeInput: ["#temperature", "font-size"],
+    styleStatesBodyOpacity: ["#statesBody", "opacity"],
+    styleStatesHaloWidth: ["#statesHalo", "stroke-width"],
+    styleStatesHaloOpacity: ["#statesHalo", "opacity"],
+    styleStatesHaloBlur: ["#statesHalo", "filter"],
+    styleArmiesFillOpacity: ["#armies", "fill-opacity"],
+    styleArmiesSize: ["#armies", "box-size"],
+    emblemsStateSizeInput: ["#emblems > #stateEmblems", "data-size"],
+    emblemsProvinceSizeInput: ["#emblems > #provinceEmblems", "data-size"],
+    emblemsBurgSizeInput: ["#emblems > #burgEmblems", "data-size"]
+  };
+  const stylePatch = stylePatchByControl[id];
+  if (stylePatch) {
+    const styleValue = id === "styleVignetteBlur" ? (Number(value) > 0 ? `blur(${value}px)` : null) : value;
+    patchPresentationStyle(stylePatch[0], { [stylePatch[1]]: styleValue });
   }
 
   // getEl() above may target any style element (lakes, coastline, ice, burg icons, emblems, armies, ...),
@@ -722,12 +786,14 @@ function scheduleRoutes3dUpdate(): void {
 export function applyFillColor(value: string): void {
   useStyleState.getState().updateValue("styleFillInput", value);
   getEl().attr("fill", value);
+  patchCurrentPresentation({ fill: value });
   scheduleWebglUpdate();
 }
 
 export function applyStrokeColor(value: string): void {
   useStyleState.getState().updateValue("styleStrokeInput", value);
   getEl().attr("stroke", value);
+  patchCurrentPresentation({ stroke: value });
   if (useStyleState.getState().activeElement === "gridOverlay" && layerIsOn("toggleGrid"))
     GridRenderer.render(worldContext, viewContext, appServices);
   scheduleWebglUpdate();
@@ -737,6 +803,7 @@ export function applyStrokeColor(value: string): void {
 export function applyStrokeDasharray(value: string): void {
   useStyleState.getState().updateValue("styleStrokeDasharrayInput", value);
   getEl().attr("stroke-dasharray", value);
+  patchCurrentPresentation({ "stroke-dasharray": value });
   if (useStyleState.getState().activeElement === "gridOverlay" && layerIsOn("toggleGrid"))
     GridRenderer.render(worldContext, viewContext, appServices);
   scheduleWebglUpdate();
@@ -746,6 +813,7 @@ export function applyStrokeDasharray(value: string): void {
 export function applyStrokeLinecap(value: string): void {
   useStyleState.getState().updateValue("styleStrokeLinecapInput", value);
   getEl().attr("stroke-linecap", value);
+  patchCurrentPresentation({ "stroke-linecap": value });
   if (useStyleState.getState().activeElement === "gridOverlay" && layerIsOn("toggleGrid"))
     GridRenderer.render(worldContext, viewContext, appServices);
   scheduleWebglUpdate();
@@ -756,14 +824,17 @@ export function applyLabelsHideGroup(checked: boolean): void {
   useStyleState.getState().updateValue("styleLabelsHideGroup", checked ? "1" : "0");
   if (checked) getEl().style("display", "none");
   else getEl().style("display", null);
+  patchCurrentPresentation({ display: checked ? "none" : null });
 }
 
 export function applyStyleFilter(value: string): void {
   useStyleState.getState().updateValue("styleFilterInput", value);
   if (useStyleState.getState().activeGroup === "ocean") {
     view.oceanLayers.attr("filter", value);
+    patchPresentationStyle("#oceanLayers", { filter: value || null });
   } else {
     getEl().attr("filter", value);
+    patchCurrentPresentation({ filter: value || null });
   }
 }
 
@@ -776,6 +847,7 @@ export function applyTextureShiftX(value: string): void {
   useStyleState.getState().updateValue("styleTextureShiftX", value);
   const numVal = +value;
   view.texture.attr("data-x", value);
+  patchPresentationStyle("#texture", { "data-x": value });
   view.texture
     .select("image")
     .attr("x", value)
@@ -786,6 +858,7 @@ export function applyTextureShiftY(value: string): void {
   useStyleState.getState().updateValue("styleTextureShiftY", value);
   const numVal = +value;
   view.texture.attr("data-y", value);
+  patchPresentationStyle("#texture", { "data-y": value });
   view.texture
     .select("image")
     .attr("y", value)
@@ -795,11 +868,13 @@ export function applyTextureShiftY(value: string): void {
 export function applyClipping(value: string): void {
   useStyleState.getState().updateValue("styleClippingInput", value);
   getEl().attr("mask", value);
+  patchCurrentPresentation({ mask: value || null });
 }
 
 export function applyGridType(value: string): void {
   useStyleState.getState().updateValue("styleGridType", value);
   getEl().attr("type", value);
+  patchCurrentPresentation({ type: value });
   if (layerIsOn("toggleGrid")) GridRenderer.render(worldContext, viewContext, appServices);
   calculateFriendlyGridSize();
 }
@@ -807,6 +882,7 @@ export function applyGridType(value: string): void {
 export function applyGridScale(value: string): void {
   useStyleState.getState().updateValue("styleGridScale", value);
   getEl().attr("scale", value);
+  patchCurrentPresentation({ scale: value });
   if (layerIsOn("toggleGrid")) GridRenderer.render(worldContext, viewContext, appServices);
   calculateFriendlyGridSize();
 }
@@ -814,18 +890,21 @@ export function applyGridScale(value: string): void {
 export function applyGridShiftX(value: string): void {
   useStyleState.getState().updateValue("styleGridShiftX", value);
   getEl().attr("dx", value);
+  patchCurrentPresentation({ dx: value });
   if (layerIsOn("toggleGrid")) GridRenderer.render(worldContext, viewContext, appServices);
 }
 
 export function applyGridShiftY(value: string): void {
   useStyleState.getState().updateValue("styleGridShiftY", value);
   getEl().attr("dy", value);
+  patchCurrentPresentation({ dy: value });
   if (layerIsOn("toggleGrid")) GridRenderer.render(worldContext, viewContext, appServices);
 }
 
 export function applyRescaleMarkers(checked: boolean): void {
   useStyleState.getState().updateValue("styleRescaleMarkers", checked ? "1" : "0");
   view.markers.attr("rescale", +checked);
+  patchPresentationStyle("#markers", { rescale: checked ? 1 : 0 });
   document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
   scheduleWebglUpdate();
 }
@@ -833,6 +912,7 @@ export function applyRescaleMarkers(checked: boolean): void {
 export function applyCoastlineAuto(checked: boolean): void {
   useStyleState.getState().updateValue("styleCoastlineAuto", checked ? "1" : "0");
   view.coastline.select("#sea_island").attr("auto-filter", +checked);
+  patchPresentationStyle("#sea_island", { "auto-filter": checked ? 1 : 0 });
   // Filter section visibility is controlled via the store; toggle it here:
   useStyleState.getState().setVisibility({
     ...useStyleState.getState().visibility,
@@ -844,23 +924,27 @@ export function applyCoastlineAuto(checked: boolean): void {
 export function applyOceanFill(value: string): void {
   useStyleState.getState().updateValue("styleOceanFill", value);
   view.oceanLayers.select("rect").attr("fill", value);
+  patchPresentationStyle("#oceanBase", { fill: value });
 }
 
 export function applyOceanPattern(href: string): void {
   useStyleState.getState().updateValue("styleOceanPattern", href);
   getRequiredElementById<SVGImageElement>("oceanicPattern").setAttribute("href", href);
+  patchPresentationStyle("#oceanicPattern", { href });
 }
 
 export function applyOutlineLayers(value: string): void {
   useStyleState.getState().updateValue("outlineLayers", value);
   view.oceanLayers.selectAll("path").remove();
   view.oceanLayers.attr("layers", value);
+  patchPresentationStyle("#oceanLayers", { layers: value });
   OceanLayers();
 }
 
 export function applyHeightmapScheme(value: string): void {
   useStyleState.getState().updateValue("styleHeightmapScheme", value);
   getEl().attr("scheme", value);
+  patchCurrentPresentation({ scheme: value });
   HeightmapRenderer.render(worldContext, viewContext, appServices);
   scheduleWebglUpdate();
 }
@@ -880,6 +964,7 @@ export function openHeightmapSchemeDialog(): void {
       }
       addCustomColorScheme(stopsStr);
       getEl().attr("scheme", stopsStr);
+      patchCurrentPresentation({ scheme: stopsStr });
       HeightmapRenderer.render(worldContext, viewContext, appServices);
       scheduleWebglUpdate();
     }
@@ -890,6 +975,7 @@ export function openHeightmapSchemeDialog(): void {
 export function applyHeightmapRenderOcean(checked: boolean): void {
   useStyleState.getState().updateValue("styleHeightmapRenderOcean", checked ? "1" : "0");
   getEl().attr("data-render", +checked);
+  patchCurrentPresentation({ "data-render": checked ? 1 : 0 });
   HeightmapRenderer.render(worldContext, viewContext, appServices);
   scheduleWebglUpdate();
 }
@@ -897,6 +983,7 @@ export function applyHeightmapRenderOcean(checked: boolean): void {
 export function applyHeightmapCurve(value: string): void {
   useStyleState.getState().updateValue("styleHeightmapCurve", value);
   getEl().attr("curve", value);
+  patchCurrentPresentation({ curve: value });
   HeightmapRenderer.render(worldContext, viewContext, appServices);
   scheduleWebglUpdate();
 }
@@ -904,6 +991,7 @@ export function applyHeightmapCurve(value: string): void {
 export function applyReliefSet(value: string): void {
   useStyleState.getState().updateValue("styleReliefSet", value);
   view.terrain.attr("set", value);
+  patchPresentationStyle("#terrain", { set: value });
   ReliefIconsRenderer.render(worldContext, viewContext, appServices);
   if (!layerIsOn("toggleRelief")) toggleRelief();
 }
@@ -911,27 +999,32 @@ export function applyReliefSet(value: string): void {
 export function applyTemperatureFill(value: string): void {
   useStyleState.getState().updateValue("styleTemperatureFillInput", value);
   view.temperature.attr("fill", value);
+  patchPresentationStyle("#temperature", { fill: value });
 }
 
 export function applyPopulationRuralStroke(value: string): void {
   useStyleState.getState().updateValue("stylePopulationRuralStrokeInput", value);
   view.population.select("#rural").attr("stroke", value);
+  patchPresentationStyle("#rural", { stroke: value });
 }
 
 export function applyPopulationUrbanStroke(value: string): void {
   useStyleState.getState().updateValue("stylePopulationUrbanStrokeInput", value);
   view.population.select("#urban").attr("stroke", value);
+  patchPresentationStyle("#urban", { stroke: value });
 }
 
 export function applyBurgIconsIcon(value: string): void {
   useStyleState.getState().updateValue("styleBurgIconsIcon", value);
   getEl().attr("data-icon", value).selectAll<SVGUseElement, unknown>("use").attr("href", value);
+  patchCurrentPresentation({ "data-icon": value });
   scheduleWebglUpdate();
 }
 
 export function applyBurgIconsLinejoin(value: string): void {
   useStyleState.getState().updateValue("styleBurgIconsStrokeLinejoin", value);
   getEl().attr("stroke-linejoin", value);
+  patchCurrentPresentation({ "stroke-linejoin": value });
   scheduleWebglUpdate();
 }
 
@@ -948,11 +1041,13 @@ export function applyCompassShiftY(value: string): void {
 export function applyLegendBack(value: string): void {
   useStyleState.getState().updateValue("styleLegendBack", value);
   view.legend.select("#legendBox").attr("fill", value);
+  patchPresentationStyle("#legendBox", { fill: value });
 }
 
 export function applyShadow(value: string): void {
   useStyleState.getState().updateValue("styleShadowInput", value);
   getEl().style("text-shadow", value);
+  patchCurrentPresentation({ style: `text-shadow: ${value}` });
 }
 
 export function applyFontSize(value: string): void {
@@ -972,22 +1067,26 @@ export function applyFontSizeMinus(): void {
 export function applyFontShiftX(value: string): void {
   useStyleState.getState().updateValue("styleFontShiftX", value);
   getEl().attr("data-dx", value).selectAll<SVGTextElement, unknown>("text").attr("dx", `${value}em`);
+  patchCurrentPresentation({ "data-dx": value });
   scheduleWebglUpdate();
 }
 
 export function applyFontShiftY(value: string): void {
   useStyleState.getState().updateValue("styleFontShiftY", value);
   getEl().attr("data-dy", value).selectAll<SVGTextElement, unknown>("text").attr("dy", `${value}em`);
+  patchCurrentPresentation({ "data-dy": value });
   scheduleWebglUpdate();
 }
 
 export function applyStatesBodyFilter(value: string): void {
   useStyleState.getState().updateValue("styleStatesBodyFilter", value);
   view.statesBody.attr("filter", value);
+  patchPresentationStyle("#statesBody", { filter: value || null });
 }
 
 export function applyVignettePreset(presetName: string): void {
   const attributes = JSON.parse(VIGNETTE_PRESETS[presetName]) as Record<string, Record<string, string | null>>;
+  patchPresentation({ styles: attributes });
   for (const selector in attributes) {
     const el = getElementBySelector<Element>(selector);
     if (!el) continue;
@@ -1024,31 +1123,37 @@ export function applyVignettePreset(presetName: string): void {
 export function applyVignetteX(value: string): void {
   useStyleState.getState().updateValue("styleVignetteX", value);
   getRequiredElementById<SVGRectElement>("vignette-rect").setAttribute("x", `${value}%`);
+  patchPresentationStyle("#vignette-rect", { x: `${value}%` });
 }
 
 export function applyVignetteY(value: string): void {
   useStyleState.getState().updateValue("styleVignetteY", value);
   getRequiredElementById<SVGRectElement>("vignette-rect").setAttribute("y", `${value}%`);
+  patchPresentationStyle("#vignette-rect", { y: `${value}%` });
 }
 
 export function applyVignetteWidth(value: string): void {
   useStyleState.getState().updateValue("styleVignetteWidth", value);
   getRequiredElementById<SVGRectElement>("vignette-rect").setAttribute("width", `${value}%`);
+  patchPresentationStyle("#vignette-rect", { width: `${value}%` });
 }
 
 export function applyVignetteHeight(value: string): void {
   useStyleState.getState().updateValue("styleVignetteHeight", value);
   getRequiredElementById<SVGRectElement>("vignette-rect").setAttribute("height", `${value}%`);
+  patchPresentationStyle("#vignette-rect", { height: `${value}%` });
 }
 
 export function applyVignetteRx(value: string): void {
   useStyleState.getState().updateValue("styleVignetteRx", value);
   getRequiredElementById<SVGRectElement>("vignette-rect").setAttribute("rx", `${value}%`);
+  patchPresentationStyle("#vignette-rect", { rx: `${value}%` });
 }
 
 export function applyVignetteRy(value: string): void {
   useStyleState.getState().updateValue("styleVignetteRy", value);
   getRequiredElementById<SVGRectElement>("vignette-rect").setAttribute("ry", `${value}%`);
+  patchPresentationStyle("#vignette-rect", { ry: `${value}%` });
 }
 
 export function applyScaleBarInput(id: string, value: string): void {
@@ -1069,6 +1174,24 @@ export function applyScaleBarInput(id: string, value: string): void {
   else if (id === "styleScaleBarBackgroundPaddingRight") scaleBarBack.attr("data-right", value);
   else if (id === "styleScaleBarBackgroundPaddingBottom") scaleBarBack.attr("data-bottom", value);
   else if (id === "styleScaleBarBackgroundPaddingLeft") scaleBarBack.attr("data-left", value);
+
+  const scaleBarPresentationAttributes: Record<string, readonly [string, string]> = {
+    styleScaleBarSize: ["#scaleBar", "data-bar-size"],
+    styleScaleBarFontSize: ["#scaleBar", "font-size"],
+    styleScaleBarPositionX: ["#scaleBar", "data-x"],
+    styleScaleBarPositionY: ["#scaleBar", "data-y"],
+    styleScaleBarLabel: ["#scaleBar", "data-label"],
+    styleScaleBarBackgroundFill: ["#scaleBarBack", "fill"],
+    styleScaleBarBackgroundStroke: ["#scaleBarBack", "stroke"],
+    styleScaleBarBackgroundStrokeWidth: ["#scaleBarBack", "stroke-width"],
+    styleScaleBarBackgroundFilter: ["#scaleBarBack", "filter"],
+    styleScaleBarBackgroundPaddingTop: ["#scaleBarBack", "data-top"],
+    styleScaleBarBackgroundPaddingRight: ["#scaleBarBack", "data-right"],
+    styleScaleBarBackgroundPaddingBottom: ["#scaleBarBack", "data-bottom"],
+    styleScaleBarBackgroundPaddingLeft: ["#scaleBarBack", "data-left"]
+  };
+  const presentationAttribute = scaleBarPresentationAttributes[id];
+  if (presentationAttribute) patchPresentationStyle(presentationAttribute[0], { [presentationAttribute[1]]: value });
 
   if (
     [
@@ -1156,20 +1279,10 @@ async function fetchSystemPreset(preset: string): Promise<StyleJSON> {
 }
 
 function applyStyle(styleJSON: StyleJSON): void {
+  // The preset is the canonical input. SVG receives it only as the legacy
+  // renderer's projection, so WebGL and SVG begin from identical style data.
+  patchPresentation({ styles: styleJSON });
   for (const selector in styleJSON) {
-    if (selector.startsWith("#burgLabels")) {
-      const group = selector.split("#").pop()!;
-      worldContext.style.burgLabels[group] = styleJSON[selector] as Record<string, string>;
-    }
-    if (selector.startsWith("#burgIcons")) {
-      const group = selector.split("#").pop()!;
-      worldContext.style.burgIcons[group] = styleJSON[selector] as Record<string, string>;
-    }
-    if (selector.startsWith("#anchors")) {
-      const group = selector.split("#").pop()!;
-      worldContext.style.anchors[group] = styleJSON[selector] as Record<string, string>;
-    }
-
     const el = getElementBySelector<Element>(selector);
     if (!el) continue;
 

@@ -28,7 +28,10 @@ export interface RenderEffects {
 
 const visualTopic = (topic: DataTopic): boolean =>
   topic !== "simulation.clock" &&
-  (topic.startsWith("map.") || topic.startsWith("simulation.") || topic.startsWith("extension."));
+  (topic.startsWith("map.") ||
+    topic.startsWith("simulation.") ||
+    topic.startsWith("presentation.") ||
+    topic.startsWith("extension."));
 
 /**
  * Maps semantic change topics to renderer work. This is deliberately coarse in

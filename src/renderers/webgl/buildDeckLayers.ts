@@ -21,7 +21,7 @@ import type { ViewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
 import { getCombatDeathsByCell, getPopulationLossSimDay } from "../../generators/populationLossTracker";
 import { getOceanPathsCacheSize, renderOceanDepthToOffscreenCanvas } from "../../renderers/ocean-layers";
-import { useLayerState } from "../../store/layerState";
+import { getPresentationStyle, presentationData } from "../../runtime/presentationData";
 import { useOptionsState } from "../../store/optionsState";
 import { usePopulationOverviewState } from "../../store/populationOverviewState";
 import type { ExtensionWebglIconDatum, ExtensionWebglPathDatum } from "../../types/extension-api";
@@ -335,9 +335,15 @@ export function buildDeckLayers(
   appServices: AppServices,
   options: { includeLabels?: boolean; includeBurgIcons?: boolean; includeRoutes?: boolean } = {}
 ): LayersList {
-  const { activeLayers } = useLayerState.getState();
-  const oceanFill = viewContext.oceanLayers?.select<SVGRectElement>("#oceanBase").attr("fill") || "#466eab";
-  const landFill = viewContext.landmass?.attr("fill") || "#eef6fb";
+  const { activeLayers } = presentationData;
+  const oceanFill = String(
+    getPresentationStyle(presentationData, "#oceanBase", "fill") ??
+      viewContext.oceanLayers?.select<SVGRectElement>("#oceanBase").attr("fill") ??
+      "#466eab"
+  );
+  const landFill = String(
+    getPresentationStyle(presentationData, "#landmass", "fill") ?? viewContext.landmass?.attr("fill") ?? "#eef6fb"
+  );
   const oceanColor = colorToRgba(oceanFill, "#466eab");
   const lakePaint = getLakePaint(viewContext);
   const coastlinePaint = getCoastlinePaint(viewContext);

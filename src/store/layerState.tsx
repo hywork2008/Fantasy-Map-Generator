@@ -1,5 +1,6 @@
 import type React from "react";
 import { create } from "zustand";
+import { patchPresentation } from "../runtime/worldRuntime";
 
 /**
  * Describes an SVG <g> element that an extension wants to create and manage.
@@ -370,6 +371,14 @@ const sortLayers = (layers: LayerConfig[]) => {
   return [...layers].sort((a, b) => toSortKey(a).localeCompare(toSortKey(b)));
 };
 
+/**
+ * Zustand owns transient panel state, while the saved visibility values live in
+ * PresentationData. Keep the legacy store in lockstep during the migration.
+ */
+function mirrorActiveLayers(activeLayers: Record<string, boolean>): void {
+  patchPresentation({ activeLayers });
+}
+
 export const useLayerState = create<LayerState>((set, get) => ({
   layers: [],
   activeLayers: {},
@@ -414,6 +423,7 @@ export const useLayerState = create<LayerState>((set, get) => ({
     const currentState = activeLayers[id] ?? false;
     const nextState = forceState !== undefined ? forceState : !currentState;
     set({ activeLayers: { ...activeLayers, [id]: nextState } });
+    mirrorActiveLayers({ [id]: nextState });
   },
 
   setPresets: presets => set({ presets }),
@@ -429,5 +439,8 @@ export const useLayerState = create<LayerState>((set, get) => ({
 
   setActivePreset: activePreset => set({ activePreset }),
 
-  setAllActiveLayers: activeLayers => set({ activeLayers })
+  setAllActiveLayers: activeLayers => {
+    set({ activeLayers });
+    mirrorActiveLayers(activeLayers);
+  }
 }));

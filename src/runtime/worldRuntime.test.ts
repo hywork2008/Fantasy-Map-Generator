@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import { createPresentationData } from "./presentationData";
 import { createWorldRuntime } from "./worldRuntime";
 
 function createRuntime() {
@@ -111,5 +112,33 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     expect(markerCommit?.changes.changes).toEqual([{ topic: "map.annotations", kind: "replace" }]);
     expect(burgCommit?.changes.changes).toEqual([{ topic: "map.settlements", kind: "replace" }]);
     expect(regimentCommit?.changes.changes).toEqual([{ topic: "simulation.military", kind: "replace" }]);
+  });
+
+  it("commits persisted style and layer visibility together without exposing DOM state", async () => {
+    const presentation = createPresentationData();
+    const runtime = createWorldRuntime({} as WorldContext, {} as SimulationContext, presentation);
+
+    const commit = await runtime.dispatch({
+      type: "presentation.patch",
+      payload: {
+        styles: { "#rivers": { fill: "#123456", opacity: 0.5 } },
+        activeLayers: { toggleRivers: true }
+      }
+    });
+
+    expect(commit?.changes.changes).toEqual([
+      { topic: "presentation.styles", kind: "replace" },
+      { topic: "presentation.layers", kind: "replace" }
+    ]);
+    expect(runtime.read().presentation).toEqual({
+      styles: { "#rivers": { fill: "#123456", opacity: 0.5 } },
+      activeLayers: { toggleRivers: true }
+    });
+
+    const noOp = await runtime.dispatch({
+      type: "presentation.patch",
+      payload: { styles: { "#rivers": { fill: "#123456" } }, activeLayers: { toggleRivers: true } }
+    });
+    expect(noOp).toBeNull();
   });
 });

@@ -1,6 +1,7 @@
 import type { AppServices } from "../context/appServices";
 import type { SettlementLayers, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { getPresentationStyleRecord, presentationData } from "../runtime/presentationData";
 import type { Burg, BurgGroup } from "../types/models";
 import { TIME } from "../utils/debug";
 import { isCellInScope } from "./core/focusScope";
@@ -11,9 +12,9 @@ export const BurgIconsRenderer: IRenderer = {
 
   render(worldContext: Readonly<WorldContext>, viewContext: Readonly<ViewContext>, _appServices: AppServices): void {
     TIME && console.time("drawBurgIcons");
-    const { pack, options, style } = worldContext;
+    const { pack, options } = worldContext;
     const { burgIcons, anchors, focusScope } = viewContext;
-    createIconGroups(options, style, burgIcons, anchors);
+    createIconGroups(options, burgIcons, anchors);
 
     for (const { name } of options.burgs.groups as BurgGroup[]) {
       const burgsInGroup = pack.burgs.filter(b => b.group === name && !b.removed && isCellInScope(focusScope, b.cell));
@@ -110,37 +111,29 @@ export const removeBurgIcon = (
 
 function createIconGroups(
   _options: WorldContext["options"],
-  style: WorldContext["style"],
   _burgIcons: SettlementLayers["burgIcons"],
   _anchors: SettlementLayers["anchors"]
 ): void {
   const existingIconIds = new Set<string>();
   document.querySelectorAll("g#burgIcons > g").forEach(group => {
     existingIconIds.add(group.id);
-    style.burgIcons[group.id] = Array.from(group.attributes).reduce((acc: { [key: string]: string }, attribute) => {
-      if (attribute.name === "class") return acc;
-      acc[attribute.name] = attribute.value;
-      return acc;
-    }, {});
   });
 
   const existingAnchorIds = new Set<string>();
   document.querySelectorAll("g#anchors > g").forEach(group => {
     existingAnchorIds.add(group.id);
-    style.anchors[group.id] = Array.from(group.attributes).reduce((acc: { [key: string]: string }, attribute) => {
-      if (attribute.name === "class") return acc;
-      acc[attribute.name] = attribute.value;
-      return acc;
-    }, {});
   });
 
-  const defaultIconStyle = style.burgIcons.town || Object.values(style.burgIcons)[0] || {};
-  const defaultAnchorStyle = style.anchors.town || Object.values(style.anchors)[0] || {};
+  const defaultIconStyle =
+    getPresentationStyleRecord(presentationData, "#burgIcons > g#town") ||
+    Object.values(presentationData.styles).find(style => "data-icon" in style) ||
+    {};
+  const defaultAnchorStyle = getPresentationStyleRecord(presentationData, "#anchors > g#town") || {};
   const sortedGroups = [...(_options.burgs.groups as BurgGroup[])].sort((a, b) => a.order - b.order);
   for (const { name } of sortedGroups) {
     if (!existingIconIds.has(name)) {
       const burgGroup = _burgIcons.append("g");
-      const iconStyles = style.burgIcons[name] || defaultIconStyle;
+      const iconStyles = getPresentationStyleRecord(presentationData, `#burgIcons > g#${name}`) || defaultIconStyle;
       Object.entries(iconStyles).forEach(([key, value]) => {
         burgGroup.attr(key, value);
       });
@@ -150,7 +143,7 @@ function createIconGroups(
 
     if (!existingAnchorIds.has(name)) {
       const anchorGroup = _anchors.append("g");
-      const anchorStyles = style.anchors[name] || defaultAnchorStyle;
+      const anchorStyles = getPresentationStyleRecord(presentationData, `#anchors > g#${name}`) || defaultAnchorStyle;
       Object.entries(anchorStyles).forEach(([key, value]) => {
         anchorGroup.attr(key, value);
       });
