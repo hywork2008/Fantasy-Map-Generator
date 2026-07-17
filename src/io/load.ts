@@ -12,6 +12,8 @@ import { GridRenderer } from "../renderers";
 import { DeckGlRenderer } from "../renderers/webgl/deckRenderer";
 import { importLegacyPresentationFromSvg } from "../runtime/legacyPresentationImport";
 import { bindSimulationBurgState, resetSimulationBurgState } from "../runtime/simulationBurgState";
+import { bindSimulationMilitaryState, resetSimulationMilitaryState } from "../runtime/simulationMilitaryState";
+import { bindSimulationStateState, resetSimulationStateState } from "../runtime/simulationStateState";
 import {
   ChunkedWorldCodecAdapter,
   decodeAndValidateWorldArchive,
@@ -401,6 +403,8 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     // after reinit so the fmg:simulation-updated listener draws into the fresh #calendar.
     initSimulationClock();
     resetSimulationBurgState(simulationContext);
+    resetSimulationStateState(simulationContext);
+    resetSimulationMilitaryState(simulationContext);
 
     if (!view.texture.size()) {
       viewContext.texture = view.viewbox
@@ -434,6 +438,8 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     worldContext.pack.features = JSON.parse(data[12]);
     worldContext.pack.cultures = JSON.parse(data[13]);
     worldContext.pack.states = JSON.parse(data[14]);
+    bindSimulationStateState(worldContext, simulationContext);
+    bindSimulationMilitaryState(worldContext, simulationContext);
     worldContext.pack.burgs = JSON.parse(data[15]);
     bindSimulationBurgState(worldContext, simulationContext);
     worldContext.pack.religions = data[29] ? JSON.parse(data[29]) : [{ i: 0, name: "No religion" }];

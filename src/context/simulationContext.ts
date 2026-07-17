@@ -1,4 +1,4 @@
-import type { BurgDemographics } from "../types/models";
+import type { BurgDemographics, MilitaryRegiment } from "../types/models";
 import type { Season } from "../utils/seasonUtils";
 
 /**
@@ -28,6 +28,30 @@ export interface BurgSimulationState {
 
 /** Live burg values keyed by stable `burg.i`; never keyed by array position. */
 export type BurgSimulationStates = Record<number, BurgSimulationState>;
+
+/** Values that change as a political state advances through simulation time. */
+export interface StateSimulationState {
+  alert?: number;
+  salesTax?: number;
+  pollTax?: number;
+  treasury?: number;
+  tributeRate?: number;
+  tributePaid?: number;
+  manpowerReconciled?: boolean;
+  foodStress?: number;
+  plantingExposure?: number;
+  harvestExposure?: number;
+  agricultureCarryOver?: number;
+  agricultureYear?: number;
+  supplyStrain?: number;
+  foodStock?: number;
+}
+
+/** Live state values keyed by stable `state.i`; never keyed by array position. */
+export type StateSimulationStates = Record<number, StateSimulationState>;
+
+/** Live regiments keyed by owner state id; regiment id is unique within its roster. */
+export type SimulationMilitaryRosters = Record<number, MilitaryRegiment[]>;
 
 /**
  * Host-owned containers for built-in and dynamic extension runtime state.
@@ -80,6 +104,10 @@ export interface SimulationContext {
   cells: SimulationCellColumns;
   /** Dynamic settlement values, keyed by stable burg id. */
   burgs: BurgSimulationStates;
+  /** Dynamic political-state values, keyed by stable state id. */
+  states: StateSimulationStates;
+  /** Dynamic regiment rosters, keyed by their stable owner state id. */
+  military: SimulationMilitaryRosters;
   /** Namespaced runtime state owned by extensions, never by `pack`. */
   extensions: ExtensionStateSlices;
   /** Espionage reports: intelligence[observerStateId][targetStateId] */
@@ -110,6 +138,8 @@ export const simulationContext: SimulationContext = {
     danger: new Uint8Array()
   },
   burgs: {},
+  states: {},
+  military: {},
   extensions: {},
   intelligence: {},
   strategicGoals: {}

@@ -3,6 +3,7 @@ import { DATA_FIELD_OWNERSHIP, findFieldOwnership } from "./dataFieldOwnership";
 import { EXTENSION_SLICE_DEFINITIONS } from "./extensionStateSlices";
 import { SIMULATION_BURG_FIELDS } from "./simulationBurgState";
 import { SIMULATION_CELL_COLUMN_DEFINITIONS } from "./simulationCellColumns";
+import { SIMULATION_STATE_FIELDS } from "./simulationStateState";
 
 describe("Phase 8 data field ownership inventory", () => {
   it("assigns every recorded legacy path to exactly one owner and topic", () => {
@@ -30,6 +31,15 @@ describe("Phase 8 data field ownership inventory", () => {
       expect(findFieldOwnership(`pack.burgs.${field}`)).toMatchObject({
         owner: "simulation",
         topic: "simulation.burgs"
+      });
+    }
+  });
+
+  it("covers every simulation state compatibility field individually", () => {
+    for (const field of SIMULATION_STATE_FIELDS) {
+      expect(findFieldOwnership(`pack.states.${field}`)).toMatchObject({
+        owner: "simulation",
+        topic: "simulation.states"
       });
     }
   });

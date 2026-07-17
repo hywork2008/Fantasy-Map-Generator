@@ -893,7 +893,9 @@ raw `pack` / `grid` write は allowlist + lint rule で段階的に禁止する�
 - [x] Built-in Characters / Economy の historical `pack` augmentation fields を `SimulationContext.extensions.<id>` の namespaced slice へ実体移動。既存 caller は temporary legacy projection を経由し、archive には slice の一コピーだけを保存する。
 - [x] `src/runtime/dataFieldOwnership.ts` に legacy backing store の owner / `DataTopic` / stable ID / foreign key / delete policy inventory を追加。compatibility cell column と extension field は test で inventory coverage を強制する。
 - [x] burg の live values（population、product、treasury、demographics）を stable `burg.i` keyed の `SimulationContext.burgs` へ移動。`pack.burgs` は temporary compatibility projection とし、新 `.fmg` snapshot は mirror を保存しない。
-- [ ] remaining `pack` simulation fields（regiments、state live values、extension-owned state）を inventory に従って namespaced slice へ移動。
+- [x] state の live values（alert、税、国庫、tribute、manpower / agriculture / supply buffers）を stable `state.i` keyed の `SimulationContext.states` へ移動。state definition は `pack.states` に残し、新 `.fmg` snapshot は mirror を保存しない。
+- [x] regiment roster を owner `state.i` keyed の `SimulationContext.military` へ移動。`state.military` は legacy generator / editor / renderer 用の compatibility projection とし、新 `.fmg` snapshot は mirror を保存しない。
+- [ ] remaining `pack` simulation fields（extension-owned state）を inventory に従って namespaced slice へ移動。
 - [ ] extension module augmentation を削除し、extension caller を namespaced slice interface へ移す（Characters extension の own caller は移行済み。Nobility / Economy / Shipbuilding は `pack` compatibility projection を使用中）。
 - [x] `npm run perf:webgl-layers`（2026-07-17）で main-thread blocking を確認: 100k cells の initial projection は 1069.6 ms、preset switch は 396.5 ms。zoom-only cache hit は 5.5 ms であり、Worker 対象は cache hit ではなく cold/partial projection に限定する。
 - [x] CPU-only `LandTopologyProjectionAdapter` の in-process adapter を追加。deck.gl layer construction、DOM、GPU resource は main thread に残す。

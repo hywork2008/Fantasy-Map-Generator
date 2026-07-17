@@ -53,6 +53,8 @@ import { DeckGlRenderer } from "./renderers/webgl/deckRenderer";
 import { bindExtensionStateSlices, resetExtensionStateSlices } from "./runtime/extensionStateSlices";
 import { bindSimulationBurgState, resetSimulationBurgState } from "./runtime/simulationBurgState";
 import { bindSimulationCellColumns } from "./runtime/simulationCellColumns";
+import { bindSimulationMilitaryState, resetSimulationMilitaryState } from "./runtime/simulationMilitaryState";
+import { bindSimulationStateState, resetSimulationStateState } from "./runtime/simulationStateState";
 import { clearMainTip, tip } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
 import { useDebugSnapshotState } from "./store/debugSnapshotState";
@@ -902,6 +904,8 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     Object.assign(worldContext.pack, {} as typeof worldContext.pack);
     resetExtensionStateSlices(simulationContext);
     resetSimulationBurgState(simulationContext);
+    resetSimulationStateState(simulationContext);
+    resetSimulationMilitaryState(simulationContext);
 
     Features.markupGrid();
     addLakesInDeepDepressions();
@@ -952,6 +956,8 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
 
     initSimulationClock();
     bindSimulationBurgState(worldContext, simulationContext);
+    bindSimulationStateState(worldContext, simulationContext);
+    bindSimulationMilitaryState(worldContext, simulationContext);
     document.dispatchEvent(new CustomEvent("fmg:generate-post-core"));
 
     if (import.meta.env.DEV) {

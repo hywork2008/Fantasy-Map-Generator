@@ -11,6 +11,8 @@ import {
 } from "./presentationData";
 import { bindSimulationBurgState } from "./simulationBurgState";
 import { bindSimulationCellColumns } from "./simulationCellColumns";
+import { bindSimulationMilitaryState } from "./simulationMilitaryState";
+import { bindSimulationStateState } from "./simulationStateState";
 import {
   createWorldDocument,
   type OpaqueExtensionChunk,
@@ -1317,6 +1319,8 @@ class LegacyWorldRuntime implements WorldRuntime {
     // Recreate their accessors only after the simulation-owned arrays are live.
     bindSimulationCellColumns(this.world, this.simulation);
     bindSimulationBurgState(this.world, this.simulation);
+    bindSimulationStateState(this.world, this.simulation);
+    bindSimulationMilitaryState(this.world, this.simulation);
     bindExtensionStateSlices(this.world, this.simulation);
     replaceRecordInPlace(this.presentation.styles, document.presentation.styles);
     replaceRecordInPlace(this.presentation.activeLayers, document.presentation.activeLayers);

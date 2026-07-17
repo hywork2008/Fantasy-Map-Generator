@@ -5,6 +5,8 @@ import { removeExtensionStateSliceMirrors } from "./extensionStateSlices";
 import type { PresentationData } from "./presentationData";
 import { removeSimulationBurgStateMirrors } from "./simulationBurgState";
 import { removeSimulationCellColumnMirrors } from "./simulationCellColumns";
+import { removeSimulationMilitaryStateMirrors } from "./simulationMilitaryState";
+import { removeSimulationStateStateMirrors } from "./simulationStateState";
 
 export const WORLD_ARCHIVE_FORMAT = "fantasy-map-generator";
 export const WORLD_ARCHIVE_SCHEMA_VERSION = 1;
@@ -509,6 +511,8 @@ export function createWorldDocument(
   // A snapshot stores their single canonical copy under simulation.cells.
   removeSimulationCellColumnMirrors(document.world, document.simulation);
   removeSimulationBurgStateMirrors(document.world, document.simulation);
+  removeSimulationStateStateMirrors(document.world, document.simulation);
+  removeSimulationMilitaryStateMirrors(document.world, document.simulation);
   removeExtensionStateSliceMirrors(document.world, document.simulation);
   return document;
 }
