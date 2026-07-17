@@ -219,6 +219,7 @@ let _unregisterMarketAssignCellsCommand: (() => void) | null = null;
 let _unregisterMarketAddCommand: (() => void) | null = null;
 let _unregisterMarketRemoveCommand: (() => void) | null = null;
 let _unregisterMarketColorCommand: (() => void) | null = null;
+let _unregisterProductionSettlementCommand: (() => void) | null = null;
 
 interface AssignGoodToCellRequest {
   readonly cellId: number;
@@ -499,6 +500,21 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (market.color === value.color) return { changed: false };
       market.color = value.color;
       return { changed: true, result: { marketId: market.i, color: market.color } };
+    }
+  });
+  _unregisterProductionSettlementCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "production.settle",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to settle production");
+      }
+      if (value !== undefined) throw new Error("economy.production.settle does not accept a payload");
+
+      Production.produce();
+      Taxes.collectTaxes();
+      refreshStateEconomySummaries();
+      return { changed: true };
     }
   });
 }
@@ -895,9 +911,12 @@ export function init(api: ExtensionAPI): void {
       productionSettlementDue = false;
       productionDirty = false;
 
-      Production.produce();
-      Taxes.collectTaxes();
-      refreshStateEconomySummaries();
+      const commit = api.dispatchExtensionCommand({
+        extensionId: ECONOMY_EXTENSION_ID,
+        name: "production.settle",
+        payload: undefined
+      });
+      if (!commit) return;
       if (api.layerIsOn("toggleGoods")) drawGoods(getDisplayedGoodIds());
     });
   };
@@ -1225,6 +1244,8 @@ export function cleanup(api: ExtensionAPI): void {
   _unregisterMarketRemoveCommand = null;
   _unregisterMarketColorCommand?.();
   _unregisterMarketColorCommand = null;
+  _unregisterProductionSettlementCommand?.();
+  _unregisterProductionSettlementCommand = null;
   if (_unsubscribe) {
     _unsubscribe();
     _unsubscribe = null;
