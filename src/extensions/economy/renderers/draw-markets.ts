@@ -1,18 +1,27 @@
 import { color, curveBasisClosed, line, select } from "d3";
 import { getIsolines, rn, TIME } from "../../hostUtils";
-import { getMarketsFillLayer, getMarketsLayer, getViewContext, getWorldContext } from "../economyContext";
+import {
+  getMarketCellColumn,
+  getMarkets,
+  getMarketsFillLayer,
+  getMarketsLayer,
+  getViewContext,
+  getWorldContext
+} from "../economyContext";
 
 export function drawMarketsLayer() {
   TIME && console.time("drawMarketsLayer");
-  if (!getWorldContext().pack.cells.market || !getWorldContext().pack.markets?.length) return;
+  const markets = getMarkets();
+  const marketCellColumn = getMarketCellColumn();
+  if (!marketCellColumn.length || !markets.length) return;
   const linegen = line().curve(curveBasisClosed);
-  const getType = (cellId: number) => getWorldContext().pack.cells.market[cellId];
+  const getType = (cellId: number) => marketCellColumn[cellId];
   const isolines = getIsolines(getWorldContext().pack, getType, { polygons: true });
 
   let fillHtml = "";
   let markersHtml = "";
 
-  for (const market of getWorldContext().pack.markets) {
+  for (const market of markets) {
     const fillColor = market.color || "#dababf";
     const strokeColor = color(fillColor)?.darker().hex() || "#000";
     const polygons = isolines[market.i]?.polygons;

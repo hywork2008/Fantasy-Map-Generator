@@ -26,6 +26,43 @@ export async function prepareMapData(): Promise<string> {
 
 const worldArchiveCodec = new ChunkedWorldCodecAdapter(VERSION);
 
+/**
+ * Economy's `goods`/`markets`/`deals`/... no longer augment PackedGraph's type (see
+ * src/extensions/economy/types.ts) — they live in simulation.extensions.economy and are
+ * only mirrored onto `pack` at runtime via extensionStateSlices.ts's compatibility
+ * projection. The legacy `.map` positional slot format (deferred to a later phase, see
+ * docs/plan/unite-data-and-map.md §11 Phase 6) still reads/writes them straight off `pack`,
+ * so read them structurally here instead of importing Economy.
+ */
+function getLegacyEconomyPackFields(pack: unknown): {
+  goods: unknown[];
+  markets: unknown[];
+  deals: unknown[];
+  strategicProcurementOrders: unknown[];
+  strategicGoodsPolicies: unknown[];
+  nextStrategicProcurementOrderId: number;
+  strategicLaborMarkets: unknown[];
+  cellsGood: Uint16Array;
+  cellsMarket: Uint16Array;
+} {
+  const record = pack as Record<string, unknown>;
+  const cells = record.cells as Record<string, unknown> | undefined;
+  const array = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+  const uint16 = (value: unknown): Uint16Array => (value instanceof Uint16Array ? value : new Uint16Array(0));
+  return {
+    goods: array(record.goods),
+    markets: array(record.markets),
+    deals: array(record.deals),
+    strategicProcurementOrders: array(record.strategicProcurementOrders),
+    strategicGoodsPolicies: array(record.strategicGoodsPolicies),
+    nextStrategicProcurementOrderId:
+      typeof record.nextStrategicProcurementOrderId === "number" ? record.nextStrategicProcurementOrderId : 0,
+    strategicLaborMarkets: array(record.strategicLaborMarkets),
+    cellsGood: uint16(cells?.good),
+    cellsMarket: uint16(cells?.market)
+  };
+}
+
 /** Captures the DOM-free canonical snapshot used by `.fmg` saves and autosaves. */
 export async function prepareWorldArchive(): Promise<Blob> {
   return worldArchiveCodec.encode(await worldRuntime.captureArchiveDocument());
@@ -150,17 +187,18 @@ function prepareMapDataFromSvg(): string {
   const routes = JSON.stringify(worldContext.pack.routes);
   const zones = JSON.stringify(worldContext.pack.zones);
   const ice = JSON.stringify(worldContext.pack.ice);
-  const goods = JSON.stringify(worldContext.pack.goods ?? []);
-  const markets = JSON.stringify(worldContext.pack.markets ?? []);
-  const deals = JSON.stringify(worldContext.pack.deals ?? []);
+  const legacyEconomy = getLegacyEconomyPackFields(worldContext.pack);
+  const goods = JSON.stringify(legacyEconomy.goods);
+  const markets = JSON.stringify(legacyEconomy.markets);
+  const deals = JSON.stringify(legacyEconomy.deals);
   const characters = JSON.stringify(worldContext.pack.characters ?? []);
   // Extension-owned strategic economy state is kept in one trailing slot so older
   // map files remain readable without changing the host's established indices.
   const strategicEconomy = JSON.stringify({
-    strategicProcurementOrders: worldContext.pack.strategicProcurementOrders ?? [],
-    strategicGoodsPolicies: worldContext.pack.strategicGoodsPolicies ?? [],
-    nextStrategicProcurementOrderId: worldContext.pack.nextStrategicProcurementOrderId ?? 0,
-    strategicLaborMarkets: worldContext.pack.strategicLaborMarkets ?? []
+    strategicProcurementOrders: legacyEconomy.strategicProcurementOrders,
+    strategicGoodsPolicies: legacyEconomy.strategicGoodsPolicies,
+    nextStrategicProcurementOrderId: legacyEconomy.nextStrategicProcurementOrderId,
+    strategicLaborMarkets: legacyEconomy.strategicLaborMarkets
   });
 
   // store name array only if not the same as default
@@ -221,11 +259,11 @@ function prepareMapDataFromSvg(): string {
     routes,
     zones,
     ice,
-    worldContext.pack.cells.good ?? new Uint16Array(0), // [40] cells.good
+    legacyEconomy.cellsGood, // [40] cells.good
     goods, // [41] goods
     markets, // [42] markets
     deals, // [43] deals
-    worldContext.pack.cells.market ?? new Uint16Array(0), // [44] cells.market
+    legacyEconomy.cellsMarket, // [44] cells.market
     characters, // [45] characters
     capacity, // [46] cells.capacity
     demoChildren, // [47] cells.children

@@ -1,7 +1,7 @@
 import type { Burg, ShipbuildingMaterialId, ShipbuildingStrategicProcurementDemand, State } from "../../hostTypes";
 import { SHIPBUILDING_MATERIAL_IDS } from "../../hostTypes";
 import { minmax, rn } from "../../hostUtils";
-import { getWorldContext } from "../economyContext";
+import { getGoods, getMarkets, getWorldContext } from "../economyContext";
 import type { Market } from "./marketTypes";
 
 /**
@@ -88,10 +88,10 @@ function buildStateAccessInputs(states: readonly State[], burgs: readonly Burg[]
 }
 
 function getMaterialSuitabilityBiomes(material: ShipbuildingMaterialId): Set<number> {
-  const { pack } = getWorldContext();
+  const goods = getGoods();
   const biomes = new Set<number>();
   for (const rawGoodName of MATERIAL_RAW_GOOD_NAMES[material]) {
-    const rawGood = pack.goods.find(candidate => candidate.name === rawGoodName);
+    const rawGood = goods.find(candidate => candidate.name === rawGoodName);
     for (const biomeId of Object.keys(rawGood?.biomeOutput ?? {})) biomes.add(Number(biomeId));
   }
   return biomes;
@@ -161,9 +161,11 @@ export function seedShipbuildingInitialStock(demands: readonly ShipbuildingStrat
   if (!demands.length) return;
   const { pack } = getWorldContext();
   const access = buildStateAccessInputs(pack.states, pack.burgs);
+  const markets = getMarkets();
+  const goods = getGoods();
 
   for (const demand of demands) {
-    const market = pack.markets.find(candidate => candidate.i === demand.destinationMarketId);
+    const market = markets.find(candidate => candidate.i === demand.destinationMarketId);
     const state = pack.states[demand.stateId];
     if (!market || !state || state.removed) continue;
 
@@ -172,7 +174,7 @@ export function seedShipbuildingInitialStock(demands: readonly ShipbuildingStrat
     for (const material of SHIPBUILDING_MATERIAL_IDS) {
       const annualDemand = demand.annualMaterials[material];
       if (!(annualDemand > 0)) continue;
-      const good = pack.goods.find(candidate => candidate.name === material);
+      const good = goods.find(candidate => candidate.name === material);
       if (!good) continue;
 
       const { days, accessScore } = getInitialStockResult(material, market, demand.stateId, access);

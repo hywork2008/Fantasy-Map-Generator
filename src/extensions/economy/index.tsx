@@ -1,4 +1,3 @@
-import "./types"; // activate module augmentation for PackedGraph
 import type { ExtensionAPI } from "../../types/extension-api";
 import type { Point } from "../hostCore";
 import {
@@ -13,7 +12,24 @@ import { type LayerConfig, regenerateFeatureDialogStore, useUiPreferencesState }
 import { formatPrice } from "../hostUtils";
 import { getBurgEconomySummary, getBurgProductPerThousandResidents } from "./burgEconomySummary";
 import { economyStyleConfig } from "./EconomyStyleConfig";
-import { clearEconomyContext, getWorldContext, initEconomyContext } from "./economyContext";
+import {
+  clearEconomyContext,
+  getBurgMarketLedgers,
+  getCaravans,
+  getGoodCellColumn,
+  getGoods,
+  getMarketCellColumn,
+  getMarkets,
+  getWorldContext,
+  initEconomyContext,
+  setBurgMarketLedgers,
+  setCaravans,
+  setDeals,
+  setGoodCellColumn,
+  setGoods,
+  setMarketCellColumn,
+  setMarkets
+} from "./economyContext";
 import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burgMarketLedgers";
 import { Caravans } from "./generators/caravans";
 import { FoodProduction } from "./generators/foodProduction";
@@ -356,19 +372,19 @@ function registerEconomyCommands(api: ExtensionAPI): void {
         throw new Error("economy.goods.assignCell requires integer cellId and goodId values");
       }
 
-      const cells = getWorldContext().pack.cells;
-      if (!cells.good || value.cellId < 0 || value.cellId >= cells.good.length) {
+      const goodCellColumn = getGoodCellColumn();
+      if (!goodCellColumn.length || value.cellId < 0 || value.cellId >= goodCellColumn.length) {
         throw new Error(`economy.goods.assignCell received invalid cell ${value.cellId}`);
       }
 
-      const currentGoodId = cells.good[value.cellId];
+      const currentGoodId = goodCellColumn[value.cellId];
       const nextGoodId = currentGoodId ? 0 : value.goodId;
       if (nextGoodId && !Goods.get(nextGoodId)) {
         throw new Error(`economy.goods.assignCell could not find good ${nextGoodId}`);
       }
       if (currentGoodId === nextGoodId) return { changed: false };
 
-      cells.good[value.cellId] = nextGoodId;
+      goodCellColumn[value.cellId] = nextGoodId;
       return { changed: true, result: { cellId: value.cellId, goodId: nextGoodId } };
     }
   });
@@ -393,8 +409,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) throw new Error("Economy must be enabled to add a good");
       if (!isGoodSettings(value)) throw new Error("economy.goods.add received invalid settings");
 
-      const goods = getWorldContext().pack.goods;
-      if (!goods) throw new Error("economy.goods.add requires an initialized goods collection");
+      const goods = getGoods();
       const nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
       const good: Good = {
         i: nextId,
@@ -426,11 +441,12 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (!isGoodIdRequest(value)) throw new Error("economy.goods.remove requires an integer goodId");
 
       const world = getWorldContext();
-      const goods = world.pack.goods;
+      const goods = getGoods();
       const index = goods.findIndex(good => good.i === value.goodId);
       if (index === -1) throw new Error(`economy.goods.remove could not find good ${value.goodId}`);
+      const goodCellColumn = getGoodCellColumn();
       for (const cellId of world.pack.cells.i) {
-        if (world.pack.cells.good[cellId] === value.goodId) world.pack.cells.good[cellId] = 0;
+        if (goodCellColumn[cellId] === value.goodId) goodCellColumn[cellId] = 0;
       }
       goods.splice(index, 1);
       Goods.sync();
@@ -450,10 +466,11 @@ function registerEconomyCommands(api: ExtensionAPI): void {
 
       const world = getWorldContext();
       const cells = world.pack.cells;
-      const markets = new Set(world.pack.markets.map(market => market.i));
+      const marketCellColumn = getMarketCellColumn();
+      const markets = new Set(getMarkets().map(market => market.i));
       const finalAssignments = new Map<number, number>();
       for (const { cellId, marketId } of value.assignments) {
-        if (cellId < 0 || cellId >= cells.market.length) {
+        if (cellId < 0 || cellId >= marketCellColumn.length) {
           throw new Error(`economy.markets.assignCells received invalid cell ${cellId}`);
         }
         if (marketId < 0 || (marketId !== 0 && !markets.has(marketId))) {
@@ -464,8 +481,8 @@ function registerEconomyCommands(api: ExtensionAPI): void {
 
       const changedCellIds: number[] = [];
       for (const [cellId, marketId] of finalAssignments) {
-        if (cells.market[cellId] === marketId) continue;
-        cells.market[cellId] = marketId;
+        if (marketCellColumn[cellId] === marketId) continue;
+        marketCellColumn[cellId] = marketId;
         const burgId = cells.burg[cellId];
         if (burgId && world.pack.burgs[burgId]) world.pack.burgs[burgId].market = marketId;
         changedCellIds.push(cellId);
@@ -568,14 +585,14 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       const world = getWorldContext();
       clearBurgMarketLedgers();
       clearMarketManagers();
-      world.pack.goods = [];
-      world.pack.markets = [];
-      world.pack.deals = [];
-      world.pack.burgMarketLedgers = [];
+      setGoods([]);
+      setMarkets([]);
+      setDeals([]);
+      setBurgMarketLedgers([]);
       clearMerchantOrganizations();
       if (world.pack.cells?.i) {
-        world.pack.cells.good = new Uint16Array(world.pack.cells.i.length);
-        world.pack.cells.market = new Uint16Array(world.pack.cells.i.length);
+        setGoodCellColumn(new Uint16Array(world.pack.cells.i.length));
+        setMarketCellColumn(new Uint16Array(world.pack.cells.i.length));
       }
       clearForestDepletion();
       clearStrategicProcurementExpenses();
@@ -586,27 +603,29 @@ function registerEconomyCommands(api: ExtensionAPI): void {
 }
 
 function refreshEconomyForGunpowderEraData(): void {
-  const worldContext = getWorldContext();
   Goods.generate();
   Markets.generate(true);
   Production.produce();
-  if (worldContext.pack.caravans) {
-    worldContext.pack.caravans = worldContext.pack.caravans
-      .map(caravan => {
-        const payload = caravan.payload.filter(item => {
-          const good = Goods.get(item.goodId);
-          return good !== undefined && isGoodEnabled(good);
-        });
-        if (payload.length === caravan.payload.length) return caravan;
-        if (!payload.length) return null;
-        return {
-          ...caravan,
-          payload,
-          units: payload.reduce((sum, item) => sum + item.units, 0),
-          value: payload.reduce((sum, item) => sum + item.value, 0)
-        };
-      })
-      .filter((caravan): caravan is Exclude<typeof caravan, null> => caravan !== null);
+  const caravans = getCaravans();
+  if (caravans.length) {
+    setCaravans(
+      caravans
+        .map(caravan => {
+          const payload = caravan.payload.filter(item => {
+            const good = Goods.get(item.goodId);
+            return good !== undefined && isGoodEnabled(good);
+          });
+          if (payload.length === caravan.payload.length) return caravan;
+          if (!payload.length) return null;
+          return {
+            ...caravan,
+            payload,
+            units: payload.reduce((sum, item) => sum + item.units, 0),
+            value: payload.reduce((sum, item) => sum + item.value, 0)
+          };
+        })
+        .filter((caravan): caravan is Exclude<typeof caravan, null> => caravan !== null)
+    );
   }
 }
 
@@ -840,13 +859,13 @@ export function init(api: ExtensionAPI): void {
       api.burgEconomyExtensions.getBurgEconomySummary = getBurgEconomySummary;
       registerOverviewColumns(api);
       // Generate economy if it's completely missing
-      if (!worldContext.pack.goods || worldContext.pack.goods.length === 0) {
+      if (!getGoods().length) {
         if (
           worldContext.pack.cells?.i &&
-          (!worldContext.pack.cells.good || worldContext.pack.cells.good.length !== worldContext.pack.cells.i.length)
+          (!getGoodCellColumn().length || getGoodCellColumn().length !== worldContext.pack.cells.i.length)
         ) {
-          worldContext.pack.cells.good = new Uint16Array(worldContext.pack.cells.i.length);
-          worldContext.pack.cells.market = new Uint16Array(worldContext.pack.cells.i.length);
+          setGoodCellColumn(new Uint16Array(worldContext.pack.cells.i.length));
+          setMarketCellColumn(new Uint16Array(worldContext.pack.cells.i.length));
         }
         Goods.generate();
         Markets.generate();
@@ -854,7 +873,7 @@ export function init(api: ExtensionAPI): void {
         FoodProduction.generateQuarterlyLedger(0);
         Production.produce();
         Taxes.collectTaxes();
-      } else if (worldContext.pack.markets?.length) {
+      } else if (getMarkets().length) {
         syncMarketManagers();
         syncBurgMarketLedgers();
       }
@@ -907,7 +926,7 @@ export function init(api: ExtensionAPI): void {
     api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
     api.burgEconomyExtensions.getBurgEconomySummary = getBurgEconomySummary;
     registerOverviewColumns(api);
-    if (getWorldContext().pack.markets?.length) {
+    if (getMarkets().length) {
       syncMarketManagers();
       syncBurgMarketLedgers();
     }
@@ -1129,10 +1148,10 @@ export function init(api: ExtensionAPI): void {
       }
 
       // Update war duration and intensity for burgs; roll up supplyStrain onto states for manpower draft
-      const ledgers = getWorldContext().pack.burgMarketLedgers;
+      const ledgers = getBurgMarketLedgers();
       const burgs = getWorldContext().pack.burgs;
       const supplyByState = new Map<number, { sum: number; n: number }>();
-      if (ledgers && burgs) {
+      if (ledgers.length && burgs) {
         for (const ledger of ledgers) {
           const burg = burgs[ledger.burgId];
           if (!burg || burg.removed) continue;
@@ -1222,7 +1241,7 @@ export function init(api: ExtensionAPI): void {
     // Both calls are idempotent/cheap, so re-running them on every load is safe.
     Taxes.defineTaxRates();
     Taxes.collectTaxes();
-    if (getWorldContext().pack.markets?.length) syncBurgMarketLedgers();
+    if (getMarkets().length) syncBurgMarketLedgers();
   });
 
   // Register layer toggle handlers

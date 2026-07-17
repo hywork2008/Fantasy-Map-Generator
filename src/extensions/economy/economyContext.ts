@@ -8,7 +8,14 @@
 
 import type { ExtensionAPI } from "../../types/extension-api";
 import type { Burg } from "../../types/models";
+import type { BurgMarketLedger } from "./generators/burgMarketLedgers";
+import type { Good } from "./generators/goods-generator";
+import type { Caravan, Deal, Market } from "./generators/marketTypes";
+import type { MerchantOrganization } from "./generators/merchantOrganizations";
 import type { ProductionRecord } from "./generators/production-generator";
+import type { LaborMarket } from "./generators/strategicLaborMarkets";
+import type { ProcurementOrder } from "./generators/strategicProcurement";
+import type { StrategicGoodsPolicy } from "./generators/strategicProcurementPolicy";
 
 let _api: ExtensionAPI | null = null;
 
@@ -57,6 +64,180 @@ export function setBurgProductionRecords(burg: Burg, records: ProductionRecord[]
     return;
   }
   (burg as unknown as Record<string, unknown>).production = records;
+}
+
+type EconomySlice = Record<string, unknown>;
+
+/**
+ * The economy extension's namespaced simulation slice, created on first access.
+ * Returns null when `simulationContext` isn't provided (e.g. minimal `ExtensionAPI` test
+ * doubles) — callers fall back to `pack`/`pack.cells` directly, mirroring
+ * `getProductionTable()`'s fallback above.
+ */
+function getEconomySlice(): EconomySlice | null {
+  const simulation = _api?.simulationContext;
+  if (!simulation) return null;
+  if (!simulation.extensions) simulation.extensions = {};
+  const existing = simulation.extensions.economy;
+  if (existing && typeof existing === "object" && !Array.isArray(existing)) return existing as EconomySlice;
+  const slice: EconomySlice = {};
+  simulation.extensions.economy = slice;
+  return slice;
+}
+
+function getLegacyPackFields(): Record<string, unknown> {
+  return getWorldContext().pack as unknown as Record<string, unknown>;
+}
+
+function getLegacyCellFields(): Record<string, unknown> {
+  return getWorldContext().pack.cells as unknown as Record<string, unknown>;
+}
+
+function getSliceArray<T>(field: string): T[] {
+  const slice = getEconomySlice();
+  const value = slice ? slice[field] : getLegacyPackFields()[field];
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function setSliceArray<T>(field: string, value: readonly T[]): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice[field] = value;
+    return;
+  }
+  getLegacyPackFields()[field] = value;
+}
+
+function getSliceNumber(field: string): number {
+  const slice = getEconomySlice();
+  const value = slice ? slice[field] : getLegacyPackFields()[field];
+  return typeof value === "number" ? value : 0;
+}
+
+function setSliceNumber(field: string, value: number): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice[field] = value;
+    return;
+  }
+  getLegacyPackFields()[field] = value;
+}
+
+function getSliceCellColumn(field: string): Uint16Array {
+  const slice = getEconomySlice();
+  const value = slice ? slice[field] : getLegacyCellFields()[field];
+  return value instanceof Uint16Array ? value : new Uint16Array();
+}
+
+function setSliceCellColumn(field: string, value: Uint16Array): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice[field] = value;
+    return;
+  }
+  getLegacyCellFields()[field] = value;
+}
+
+/** Good catalog owned by the economy extension. */
+export function getGoods(): Good[] {
+  return getSliceArray<Good>("goods");
+}
+export function setGoods(goods: readonly Good[]): void {
+  setSliceArray("goods", goods);
+}
+
+/** Markets owned by the economy extension. */
+export function getMarkets(): Market[] {
+  return getSliceArray<Market>("markets");
+}
+export function setMarkets(markets: readonly Market[]): void {
+  setSliceArray("markets", markets);
+}
+
+/** Active trade deals owned by the economy extension. */
+export function getDeals(): Deal[] {
+  return getSliceArray<Deal>("deals");
+}
+export function setDeals(deals: readonly Deal[]): void {
+  setSliceArray("deals", deals);
+}
+
+/** In-transit caravans owned by the economy extension. */
+export function getCaravans(): Caravan[] {
+  return getSliceArray<Caravan>("caravans");
+}
+export function setCaravans(caravans: readonly Caravan[]): void {
+  setSliceArray("caravans", caravans);
+}
+
+export function getNextCaravanId(): number {
+  return getSliceNumber("nextCaravanId");
+}
+export function setNextCaravanId(id: number): void {
+  setSliceNumber("nextCaravanId", id);
+}
+
+/** Per-burg market ledgers owned by the economy extension. */
+export function getBurgMarketLedgers(): BurgMarketLedger[] {
+  return getSliceArray<BurgMarketLedger>("burgMarketLedgers");
+}
+export function setBurgMarketLedgers(ledgers: readonly BurgMarketLedger[]): void {
+  setSliceArray("burgMarketLedgers", ledgers);
+}
+
+/** Merchant organizations owned by the economy extension. */
+export function getMerchantOrganizations(): MerchantOrganization[] {
+  return getSliceArray<MerchantOrganization>("merchantOrganizations");
+}
+export function setMerchantOrganizations(organizations: readonly MerchantOrganization[]): void {
+  setSliceArray("merchantOrganizations", organizations);
+}
+
+/** State-funded strategic procurement orders owned by the economy extension. */
+export function getStrategicProcurementOrders(): ProcurementOrder[] {
+  return getSliceArray<ProcurementOrder>("strategicProcurementOrders");
+}
+export function setStrategicProcurementOrders(orders: readonly ProcurementOrder[]): void {
+  setSliceArray("strategicProcurementOrders", orders);
+}
+
+/** Per-state strategic goods policies owned by the economy extension. */
+export function getStrategicGoodsPolicies(): StrategicGoodsPolicy[] {
+  return getSliceArray<StrategicGoodsPolicy>("strategicGoodsPolicies");
+}
+export function setStrategicGoodsPolicies(policies: readonly StrategicGoodsPolicy[]): void {
+  setSliceArray("strategicGoodsPolicies", policies);
+}
+
+export function getNextStrategicProcurementOrderId(): number {
+  return getSliceNumber("nextStrategicProcurementOrderId");
+}
+export function setNextStrategicProcurementOrderId(id: number): void {
+  setSliceNumber("nextStrategicProcurementOrderId", id);
+}
+
+/** Strategic labor markets owned by the economy extension. */
+export function getStrategicLaborMarkets(): LaborMarket[] {
+  return getSliceArray<LaborMarket>("strategicLaborMarkets");
+}
+export function setStrategicLaborMarkets(markets: readonly LaborMarket[]): void {
+  setSliceArray("strategicLaborMarkets", markets);
+}
+
+/** Per-cell dominant good id, owned by the economy extension. */
+export function getGoodCellColumn(): Uint16Array {
+  return getSliceCellColumn("good");
+}
+export function setGoodCellColumn(column: Uint16Array): void {
+  setSliceCellColumn("good", column);
+}
+
+/** Per-cell market id, owned by the economy extension. */
+export function getMarketCellColumn(): Uint16Array {
+  return getSliceCellColumn("market");
+}
+export function setMarketCellColumn(column: Uint16Array): void {
+  setSliceCellColumn("market", column);
 }
 
 export function getViewContext() {

@@ -1,6 +1,18 @@
 import type { Burg } from "../../hostTypes";
 import { DEBUG, ERROR, rn, TIME } from "../../hostUtils";
-import { getBurgProductionRecords, getWorldContext, setBurgProductionRecords } from "../economyContext";
+import {
+  getBurgProductionRecords,
+  getDeals,
+  getGoodCellColumn,
+  getGoods,
+  getMarkets,
+  getStrategicLaborMarkets,
+  getStrategicProcurementOrders,
+  getWorldContext,
+  setBurgProductionRecords,
+  setDeals,
+  setStrategicLaborMarkets
+} from "../economyContext";
 import { syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { Caravans } from "./caravans";
 import type { DemandCategory, Good } from "./goods-generator";
@@ -40,22 +52,22 @@ export class ProductionModule {
     // cycle's deals stay visible to transaction-history UI (markets-overview.ts,
     // market-deals-overview.ts, production-overview.ts) for the whole ~30-day interval between
     // cycles, instead of for ~0ms (docs/temp/profits.md decision #1).
-    this.worldContext.pack.deals = [];
+    setDeals([]);
 
     Markets.collectRuralProduction();
     Markets.initializeMarketPrices();
 
-    const index = this.buildProductionIndex((this.worldContext.pack.goods || []).filter(isGoodEnabled));
+    const index = this.buildProductionIndex(getGoods().filter(isGoodEnabled));
     const strategicLaborMarkets = reconcileStrategicLaborMarkets(
       {
-        markets: this.worldContext.pack.markets,
+        markets: getMarkets(),
         burgs: this.worldContext.pack.burgs,
         goods: index.goods,
-        orders: this.worldContext.pack.strategicProcurementOrders ?? []
+        orders: getStrategicProcurementOrders()
       },
-      this.worldContext.pack.strategicLaborMarkets ?? []
+      getStrategicLaborMarkets()
     );
-    this.worldContext.pack.strategicLaborMarkets = strategicLaborMarkets;
+    setStrategicLaborMarkets(strategicLaborMarkets);
     const strategicLaborMarketById = new Map(
       strategicLaborMarkets.map(laborMarket => [laborMarket.marketId, laborMarket])
     );
@@ -79,7 +91,7 @@ export class ProductionModule {
     }
 
     Markets.runGlobalTrade();
-    Caravans.spawnFromDeals(this.worldContext.pack.deals);
+    Caravans.spawnFromDeals(getDeals());
     this.fillBurgsDemand(sortedBurgs, index);
     syncBurgMarketLedgers();
 
@@ -129,7 +141,7 @@ export class ProductionModule {
     const demandCoverage = this.calculateDemandCoverage(inventory, index.demandCoverageByGood);
     const records: ProductionRecord[] = [];
 
-    const good = Goods.get(this.worldContext.pack.cells.good[burg.cell]);
+    const good = Goods.get(getGoodCellColumn()[burg.cell]);
     if (good && isGoodEnabled(good)) {
       const modifier = getModifiers(good, burg.cell);
       // No lower clamp (matches the rural counterpart, getCellProduction in production-utils.ts):
@@ -156,10 +168,7 @@ export class ProductionModule {
       ingredientCosts: 0,
       activeGoalGoodId: null,
       strategicLaborMarket,
-      strategicDemandByGood: getStrategicProductionDemandByGood(
-        this.worldContext.pack.strategicProcurementOrders ?? [],
-        market.i
-      )
+      strategicDemandByGood: getStrategicProductionDemandByGood(getStrategicProcurementOrders(), market.i)
     };
   }
 

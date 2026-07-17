@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, MilitaryRegiment, PackedGraph, State } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext } from "../economyContext";
-import "../types";
 import { getStateArmyFoodConsumptionPerDay, getStateMilitaryUpkeep } from "./militaryLogistics";
 
 function regiment(u: Record<string, number>): MilitaryRegiment {

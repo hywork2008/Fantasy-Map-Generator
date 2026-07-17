@@ -6,6 +6,15 @@ import type { CharacterRole, TitleHolding } from "../../characterTypes";
 import { useCharactersUiState } from "../charactersUiState";
 import { RadarChart } from "../components/charts/RadarChart";
 
+// Economy's `markets` no longer augments PackedGraph's type (see
+// src/extensions/economy/types.ts); read it structurally instead of importing Economy.
+type EconomyMarketSnapshot = Readonly<{ i: number; centerBurgId: number; name?: string }>;
+
+function getEconomyMarkets(pack: unknown): readonly EconomyMarketSnapshot[] {
+  const markets = (pack as Record<string, unknown>).markets;
+  return Array.isArray(markets) ? (markets as EconomyMarketSnapshot[]) : [];
+}
+
 export const CharacterDetailsDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("characterDetails"));
   const selectedCharacterId = useCharactersUiState(state => state.selectedCharacterId);
@@ -18,7 +27,7 @@ export const CharacterDetailsDialog: React.FC = () => {
   const provinces = worldContext.pack.provinces;
   const cultures = worldContext.pack.cultures;
   const burgs = worldContext.pack.burgs;
-  const markets = worldContext.pack.markets ?? [];
+  const markets = getEconomyMarkets(worldContext.pack);
 
   const character = characters.find(c => c.i === selectedCharacterId);
 

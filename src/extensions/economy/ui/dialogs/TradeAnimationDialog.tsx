@@ -2,7 +2,7 @@ import React from "react";
 import { useOptionsState } from "../../../hostCore";
 import { closeDialog, Dialog, SliderInput, SortableHeader, useDialogState, VirtualTableBody } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
-import { getWorldContext } from "../../economyContext";
+import { getCaravans, getMarkets, getWorldContext } from "../../economyContext";
 import { CaravanMovement, type CaravanMovementSettings } from "../../generators/caravanMovement";
 import { Goods } from "../../generators/goods-generator";
 import type { Caravan } from "../../generators/marketTypes";
@@ -79,8 +79,7 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
 
   React.useEffect(() => {
     const update = () => {
-      const world = getWorldContext();
-      setCaravans(world?.pack?.caravans?.filter(c => c.state === "transit") ?? []);
+      setCaravans(getCaravans().filter(c => c.state === "transit"));
     };
     update();
     const intervalId = setInterval(update, 500);
@@ -98,7 +97,7 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
 
   const world = getWorldContext();
   const burgs = world?.pack?.burgs ?? [];
-  const markets = world?.pack?.markets ?? [];
+  const markets = getMarkets();
 
   const rows = React.useMemo(() => {
     return caravans.map(c => {

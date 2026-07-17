@@ -15,7 +15,15 @@ import {
   rn
 } from "../../hostUtils";
 
-import { getApi, getMarketsLayer, getViewContext, getWorldContext } from "../economyContext";
+import {
+  getApi,
+  getDeals,
+  getMarketCellColumn,
+  getMarkets,
+  getMarketsLayer,
+  getViewContext,
+  getWorldContext
+} from "../economyContext";
 import { getMarketManagerName } from "../generators/marketManagers";
 import { Markets } from "../generators/markets-generator";
 import type { Deal, Market } from "../generators/marketTypes";
@@ -26,7 +34,7 @@ import { open as openMarketsGoodCompare } from "./marketsGoodCompare";
 import { open as openMarketTradeOpportunities } from "./marketTradeOpportunities";
 
 let isInitialized = false;
-// Working copy of getWorldContext().pack.cells.market mutated during manual assignment; applied on commit.
+// Working copy of the market cell column mutated during manual assignment; applied on commit.
 let marketsWorking: Uint16Array | null = null;
 let marketsManualHistory: Uint16Array[] = [];
 
@@ -55,9 +63,9 @@ export function open(): void {
 }
 
 function marketsOverviewAddLines(): void {
-  const markets = getWorldContext().pack.markets;
+  const markets = getMarkets();
 
-  if (!markets?.length) {
+  if (!markets.length) {
     setMarketsOverviewState({
       markets: [],
       totalMarkets: 0,
@@ -149,7 +157,7 @@ function enterMarketsManualAssignment(): void {
 
   document.getElementById("marketsTemp")?.remove();
   getMarketsLayer()?.append("g").attr("id", "marketsTemp").style("fill-opacity", "0.7");
-  marketsWorking = Uint16Array.from(getWorldContext().pack.cells.market);
+  marketsWorking = Uint16Array.from(getMarketCellColumn());
   renderMarketsTemp();
 
   const firstMarketId = getMarketsOverviewState().markets.find(row => !row.isNoMarket)?.i ?? 0;
@@ -177,7 +185,7 @@ function selectMarketOnMapClick(this: SVGGElement, event: MouseEvent): void {
   const cellId = findCell(x, y);
   if (cellId === undefined) return;
 
-  const marketId = (marketsWorking ?? getWorldContext().pack.cells.market)[cellId];
+  const marketId = (marketsWorking ?? getMarketCellColumn())[cellId];
 
   setMarketsOverviewState({ selectedMarketId: marketId });
 }
@@ -229,10 +237,8 @@ function renderMarketsTemp(): void {
 
   const working = marketsWorking;
   const isolines = getIsolines(getWorldContext().pack, cellId => working[cellId] || null, { fill: true });
-  temp.innerHTML = getWorldContext()
-    .pack.markets.map(
-      market => `<path data-market="${market.i}" fill="${market.color}" d="${isolines[market.i]?.fill || ""}"/>`
-    )
+  temp.innerHTML = getMarkets()
+    .map(market => `<path data-market="${market.i}" fill="${market.color}" d="${isolines[market.i]?.fill || ""}"/>`)
     .join("");
 }
 
@@ -285,7 +291,7 @@ function exitMarketsManualAssignment(apply: boolean): void {
   getViewContext().customization = 0;
 
   if (apply && marketsWorking) {
-    const currentMarkets = getWorldContext().pack.cells.market;
+    const currentMarkets = getMarketCellColumn();
     const assignments = Array.from(marketsWorking, (marketId, cellId) => ({ cellId, marketId })).filter(
       ({ cellId, marketId }) => currentMarkets[cellId] !== marketId
     );
@@ -338,7 +344,7 @@ function addMarketOnClick(this: SVGGElement, event: MouseEvent): void {
     return;
   }
 
-  if (getWorldContext().pack.markets.some(m => m.centerBurgId === burgId)) {
+  if (getMarkets().some(m => m.centerBurgId === burgId)) {
     tip("This burg is already a market center", false, "error");
     return;
   }
@@ -403,8 +409,7 @@ function getMarketTotalStock(market: Market): number {
 }
 
 function getMarketCells(marketId: number): number {
-  const marketArr = getWorldContext().pack.cells.market;
-  if (!marketArr) return 0;
+  const marketArr = getMarketCellColumn();
   let count = 0;
   for (let i = 0; i < marketArr.length; i++) {
     if (marketArr[i] === marketId) count++;
@@ -413,15 +418,13 @@ function getMarketCells(marketId: number): number {
 }
 
 function getMarketBurgs(marketId: number): number {
-  const marketArr = getWorldContext().pack.cells.market;
-  if (!marketArr) return 0;
+  const marketArr = getMarketCellColumn();
   return (getWorldContext().pack.burgs as Burg[]).filter(b => b.i && !b.removed && marketArr[b.cell] === marketId)
     .length;
 }
 
 function getMarketPopulation(marketId: number): number {
-  const marketArr = getWorldContext().pack.cells.market;
-  if (!marketArr) return 0;
+  const marketArr = getMarketCellColumn();
   const context = getWorldContext();
   const burgs = (context.pack.burgs as Burg[]).filter(b => b.i && !b.removed && marketArr[b.cell] === marketId);
   const sum = burgs.reduce((acc, b) => acc + (b.population ?? 0), 0);
@@ -434,7 +437,7 @@ function getMarketFinancials(market: Market): {
   value: number;
 } {
   const marketId = market.i;
-  const deals: Deal[] = (getWorldContext().pack.deals || []).filter(
+  const deals: Deal[] = getDeals().filter(
     (deal: Deal) =>
       (deal.sellerType === "market" && deal.seller === marketId) ||
       (deal.buyerType === "market" && deal.buyer === marketId)
@@ -485,7 +488,7 @@ function regenerateProduction(): void {
 
 function downloadMarketsCsv(): void {
   let csv = "Market,Manager,Cells,Burgs,Population,Total Stock,Sales,Buys,Value\n";
-  for (const market of getWorldContext().pack.markets) {
+  for (const market of getMarkets()) {
     const { sales, buys, value } = getMarketFinancials(market);
     const cells = getMarketCells(market.i);
     const burgs = getMarketBurgs(market.i);

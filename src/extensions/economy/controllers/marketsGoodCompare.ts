@@ -1,6 +1,6 @@
 import { openDialog } from "../../hostUi";
 import { downloadFile, getFileName, rn } from "../../hostUtils";
-import { getApi, getWorldContext } from "../economyContext";
+import { getApi, getGoods, getMarkets } from "../economyContext";
 import { Goods, isGoodEnabled } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
 import {
@@ -11,7 +11,7 @@ import {
 } from "../store/marketsGoodCompareState";
 
 export function open(): void {
-  const goods = (getWorldContext().pack.goods || []).filter(isGoodEnabled);
+  const goods = getGoods().filter(isGoodEnabled);
   const options: MarketsGoodCompareOption[] = goods.map(good => ({ goodId: good.i, goodName: good.name }));
   const selectedGoodId = getMarketsGoodCompareState().selectedGoodId ?? options[0]?.goodId ?? null;
 
@@ -42,7 +42,7 @@ export function refresh(): void {
   let totalPrice = 0;
   let pricedMarkets = 0;
 
-  for (const market of getWorldContext().pack.markets || []) {
+  for (const market of getMarkets()) {
     const goodData = market.goods[selectedGoodId];
     if (!goodData) continue;
 

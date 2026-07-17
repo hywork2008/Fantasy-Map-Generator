@@ -2,7 +2,7 @@ import { sum } from "d3";
 import { foodStressProductionMultiplier } from "../../hostCore";
 import { DEFAULT_CULTURE_TYPE, type Zone } from "../../hostTypes";
 import { getLatitude, getSeason, getSeasonalityStrength, rn, type Season } from "../../hostUtils";
-import { getWorldContext } from "../economyContext";
+import { getGoodCellColumn, getWorldContext } from "../economyContext";
 import { getDepletionFactor } from "./forestDepletion";
 import { type Good, Goods, isGoodEnabled } from "./goods-generator";
 
@@ -138,7 +138,7 @@ export function getRuralProductionContributions(
     }
   }
 
-  const bonusGoodId = cells.good[cellId];
+  const bonusGoodId = getGoodCellColumn()[cellId];
   if (bonusGoodId) {
     const good = Goods.get(bonusGoodId);
     if (good && isGoodEnabled(good)) {

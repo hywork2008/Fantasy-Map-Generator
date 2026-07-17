@@ -7,7 +7,7 @@ import type {
   ExtensionWebglPolygonDatum,
   ExtensionWebglScatterDatum
 } from "../../../types/extension-api";
-import { getWorldContext } from "../economyContext";
+import { getCaravans, getGoodCellColumn, getMarketCellColumn, getMarkets, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import { getCellProduction } from "../generators/production-utils";
 import { TradeAnimation } from "../generators/trade-animation";
@@ -118,9 +118,10 @@ function buildGoodsCellPolygons(displayedGoods: ReadonlySet<number>): ExtensionW
 
 function buildGoodsSourceSymbols(displayedGoods: ReadonlySet<number>): ExtensionWebglScatterDatum[] {
   const worldContext = getWorldContext();
+  const goodCellColumn = getGoodCellColumn();
   const symbols: ExtensionWebglScatterDatum[] = [];
   for (const cellId of worldContext.pack.cells.i) {
-    const goodId = worldContext.pack.cells.good[cellId];
+    const goodId = goodCellColumn[cellId];
     if (!goodId || !displayedGoods.has(goodId)) continue;
     const good = Goods.get(goodId);
     const position = worldContext.pack.cells.p[cellId];
@@ -143,13 +144,15 @@ function buildGoodsSourceSymbols(displayedGoods: ReadonlySet<number>): Extension
 
 function buildMarketAreaPolygons(): ExtensionWebglPolygonDatum[] {
   const worldContext = getWorldContext();
-  if (!worldContext.pack.cells.market || !worldContext.pack.markets?.length) return [];
+  const marketCellColumn = getMarketCellColumn();
+  const markets = getMarkets();
+  if (!marketCellColumn.length || !markets.length) return [];
 
   const polygons: ExtensionWebglPolygonDatum[] = [];
   for (const cellId of worldContext.pack.cells.i) {
-    const marketId = worldContext.pack.cells.market[cellId];
+    const marketId = marketCellColumn[cellId];
     if (!marketId) continue;
-    const market = worldContext.pack.markets[marketId];
+    const market = markets[marketId];
     const polygon = getCellPolygon(cellId);
     if (!market || !polygon) continue;
     polygons.push({
@@ -167,7 +170,7 @@ function buildMarketAreaPolygons(): ExtensionWebglPolygonDatum[] {
 function buildMarketCenterSymbols(): ExtensionWebglScatterDatum[] {
   const worldContext = getWorldContext();
   const symbols: ExtensionWebglScatterDatum[] = [];
-  for (const market of worldContext.pack.markets ?? []) {
+  for (const market of getMarkets()) {
     const burg = worldContext.pack.burgs[market.centerBurgId];
     if (!burg || burg.removed) continue;
     const fillColor = colorToRgba(market.color || "#dababf");
@@ -227,8 +230,7 @@ function getContrastingColor([red, green, blue]: ExtensionWebglColor): Extension
 }
 
 function buildTradeCaravanIcons(): ExtensionWebglIconDatum[] {
-  const worldContext = getWorldContext();
-  const caravans = (worldContext.pack.caravans || []).filter(c => c.state === "transit");
+  const caravans = getCaravans().filter(c => c.state === "transit");
   if (!caravans.length) return [];
 
   const animOptions = TradeAnimation.getOptions();

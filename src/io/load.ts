@@ -468,13 +468,13 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     // data[28] had deprecated cells.crossroad
     worldContext.pack.cells.routes = data[36] ? JSON.parse(data[36]) : {};
     worldContext.pack.ice = data[39] ? JSON.parse(data[39]) : [];
-    worldContext.pack.cells.good = data[40]
+    (worldContext.pack.cells as unknown as Record<string, unknown>).good = data[40]
       ? Uint16Array.from(data[40].split(","), Number)
       : new Uint16Array(worldContext.pack.cells.i.length);
-    worldContext.pack.goods = data[41] ? JSON.parse(data[41]) : [];
-    worldContext.pack.markets = data[42] ? JSON.parse(data[42]) : [];
-    worldContext.pack.deals = data[43] ? JSON.parse(data[43]) : [];
-    worldContext.pack.cells.market = data[44]
+    getMutableLegacyPack().goods = data[41] ? JSON.parse(data[41]) : [];
+    getMutableLegacyPack().markets = data[42] ? JSON.parse(data[42]) : [];
+    getMutableLegacyPack().deals = data[43] ? JSON.parse(data[43]) : [];
+    (worldContext.pack.cells as unknown as Record<string, unknown>).market = data[44]
       ? Uint16Array.from(data[44].split(","), Number)
       : new Uint16Array(worldContext.pack.cells.i.length);
     worldContext.pack.characters = data[45] ? JSON.parse(data[45]) : [];
@@ -969,11 +969,30 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
   }
 }
 
+// Economy's `strategicProcurementOrders`/`strategicGoodsPolicies`/... no longer augment
+// PackedGraph's type (see src/extensions/economy/types.ts) — they live in
+// simulation.extensions.economy and are only mirrored onto `pack` at runtime via
+// extensionStateSlices.ts's compatibility projection. The legacy `.map` positional slot
+// format (deferred to a later phase, see docs/plan/unite-data-and-map.md §11 Phase 6)
+// still writes them straight onto `pack`, so read/write them structurally here instead of
+// importing Economy.
+interface LegacyStrategicProcurementOrder {
+  status: string;
+  blockedReason?: string;
+  caravanId?: number;
+  [key: string]: unknown;
+}
+
+function getMutableLegacyPack(): Record<string, unknown> {
+  return worldContext.pack as unknown as Record<string, unknown>;
+}
+
 function restoreStrategicEconomyState(serialized: string | undefined): void {
-  worldContext.pack.strategicProcurementOrders = [];
-  worldContext.pack.strategicGoodsPolicies = [];
-  worldContext.pack.nextStrategicProcurementOrderId = 0;
-  worldContext.pack.strategicLaborMarkets = [];
+  const pack = getMutableLegacyPack();
+  pack.strategicProcurementOrders = [];
+  pack.strategicGoodsPolicies = [];
+  pack.nextStrategicProcurementOrderId = 0;
+  pack.strategicLaborMarkets = [];
   if (!serialized) return;
 
   try {
@@ -981,27 +1000,24 @@ function restoreStrategicEconomyState(serialized: string | undefined): void {
     if (!isRecord(parsed)) return;
 
     if (Array.isArray(parsed.strategicProcurementOrders)) {
-      worldContext.pack.strategicProcurementOrders =
-        parsed.strategicProcurementOrders as typeof worldContext.pack.strategicProcurementOrders;
+      pack.strategicProcurementOrders = parsed.strategicProcurementOrders;
     }
     if (Array.isArray(parsed.strategicGoodsPolicies)) {
-      worldContext.pack.strategicGoodsPolicies =
-        parsed.strategicGoodsPolicies as typeof worldContext.pack.strategicGoodsPolicies;
+      pack.strategicGoodsPolicies = parsed.strategicGoodsPolicies;
     }
     if (
       typeof parsed.nextStrategicProcurementOrderId === "number" &&
       Number.isSafeInteger(parsed.nextStrategicProcurementOrderId)
     ) {
-      worldContext.pack.nextStrategicProcurementOrderId = Math.max(0, parsed.nextStrategicProcurementOrderId);
+      pack.nextStrategicProcurementOrderId = Math.max(0, parsed.nextStrategicProcurementOrderId);
     }
     if (Array.isArray(parsed.strategicLaborMarkets)) {
-      worldContext.pack.strategicLaborMarkets =
-        parsed.strategicLaborMarkets as typeof worldContext.pack.strategicLaborMarkets;
+      pack.strategicLaborMarkets = parsed.strategicLaborMarkets;
     }
     // Caravans are not part of the host .map format. Treat strategic cargo that
     // was in transit at save time as lost, rather than retaining an order whose
     // active allocation can never arrive after a reload.
-    for (const order of worldContext.pack.strategicProcurementOrders) {
+    for (const order of pack.strategicProcurementOrders as LegacyStrategicProcurementOrder[]) {
       if (order.status !== "inTransit") continue;
       order.status = "blocked";
       order.blockedReason = "noRoute";

@@ -1040,8 +1040,11 @@ export function resolveVersionConflicts(mapVersion: string): void {
   }
 
   if (isOlderThan("1.125.0")) {
-    // Signal the economy extension to regenerate if data is missing
-    if (!worldContext.pack.goods?.length) {
+    // Signal the economy extension to regenerate if data is missing. Economy's `goods` no
+    // longer augments PackedGraph's type (see src/extensions/economy/types.ts) — it is only
+    // mirrored onto `pack` at runtime via extensionStateSlices.ts's compatibility projection.
+    const goods = (worldContext.pack as unknown as Record<string, unknown>).goods;
+    if (!Array.isArray(goods) || !goods.length) {
       emitEconomyAutoUpdate("v1.125.0");
     }
   }

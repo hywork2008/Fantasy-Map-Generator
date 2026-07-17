@@ -20,7 +20,6 @@ vi.mock("./markets-generator", () => ({
 }));
 
 import { clearEconomyContext, initEconomyContext } from "../economyContext";
-import "../types";
 import * as drawTrade from "../renderers/draw-trade-animation";
 import { TradeAnimationModule } from "./trade-animation";
 

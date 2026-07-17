@@ -1,5 +1,13 @@
 import { rn } from "../../hostUtils";
-import { getWorldContext } from "../economyContext";
+import {
+  getCaravans,
+  getGoods,
+  getMarkets,
+  getNextCaravanId,
+  getWorldContext,
+  setCaravans,
+  setNextCaravanId
+} from "../economyContext";
 import { getBurgMarketLedger } from "./burgMarketLedgers";
 import {
   CaravanMovement,
@@ -103,13 +111,12 @@ function advanceCaravan(
 
 export class CaravansModule {
   private ensureNextCaravanId(): number {
-    const world = getWorldContext();
-    if (!world.pack.caravans) world.pack.caravans = [];
-    if (world.pack.nextCaravanId === undefined) {
-      world.pack.nextCaravanId =
-        world.pack.caravans.length > 0 ? Math.max(...world.pack.caravans.map(c => c.i)) + 1 : 0;
-    }
-    return world.pack.nextCaravanId;
+    const nextId = getNextCaravanId();
+    if (nextId) return nextId;
+    const caravans = getCaravans();
+    const computed = caravans.length > 0 ? Math.max(...caravans.map(c => c.i)) + 1 : 0;
+    setNextCaravanId(computed);
+    return computed;
   }
 
   /**
@@ -150,25 +157,25 @@ export class CaravansModule {
       state: "transit"
     };
 
-    world.pack.caravans.push(caravan);
-    world.pack.nextCaravanId = caravan.i + 1;
+    getCaravans().push(caravan);
+    setNextCaravanId(caravan.i + 1);
     deal.spawned = true;
     return caravan;
   }
 
   spawnFromDeals(deals: Deal[]) {
     const world = getWorldContext();
-    // tick() below filters arrived/lost caravans out of world.pack.caravans, so deriving
+    // tick() below filters arrived/lost caravans out of the caravans slice, so deriving
     // nextId from Math.max over that live array would eventually reuse a completed caravan's
     // id. The SVG renderer's d3 join is keyed on caravan.i, and a reused id makes it treat an
     // unrelated new caravan as a continuation of the old one, animating a huge jump between
-    // their positions. A counter stored on the pack (independent of the filtered array) keeps
-    // ids unique for the pack's lifetime.
+    // their positions. A counter stored independently of the filtered array keeps ids unique
+    // for the map's lifetime.
     let nextId = this.ensureNextCaravanId();
 
-    const markets = world.pack.markets;
+    const markets = getMarkets();
     const burgs = world.pack.burgs;
-    if (!markets || !burgs) return;
+    if (!burgs) return;
 
     type RouteKey = `${number}-${string}-${number}-${string}`;
     const bundles = new Map<
@@ -238,7 +245,7 @@ export class CaravansModule {
       const durationDays = calculateRouteDurationDays(routeSegments, world.distanceScale);
       const maintenanceCost = getCaravanMaintenanceCost(durationDays);
       const transportedDeals = bundle.deals.filter(deal =>
-        isDealWorthTransporting(deal, world.pack.goods, durationDays, maintenanceCost, routeSegments)
+        isDealWorthTransporting(deal, getGoods(), durationDays, maintenanceCost, routeSegments)
       );
       if (!transportedDeals.length) continue;
 
@@ -273,29 +280,31 @@ export class CaravansModule {
         state: "transit"
       };
 
-      world.pack.caravans.push(caravan);
+      getCaravans().push(caravan);
     }
 
-    world.pack.nextCaravanId = nextId;
+    setNextCaravanId(nextId);
   }
 
   tick(deltaDays: number): CaravanTickResult {
     const world = getWorldContext();
-    if (!world.pack.caravans) return { arrived: [], lost: [] };
+    const caravans = getCaravans();
+    if (!caravans.length) return { arrived: [], lost: [] };
 
     const movement = CaravanMovement.getOptions();
     const month = world.options.month ?? 1;
+    const markets = getMarkets();
     const arrived: Caravan[] = [];
     const lost: Caravan[] = [];
 
-    for (const caravan of world.pack.caravans) {
+    for (const caravan of caravans) {
       if (caravan.state !== "transit") continue;
 
       advanceCaravan(caravan, deltaDays, world.distanceScale, month, movement);
 
       // Calculate Bandit Risk based on route path or simple market states
       // For now, default is 0. If there's a war in the region, risk increases.
-      const buyerMarket = world.pack.markets.find(market => market.i === caravan.buyer);
+      const buyerMarket = markets.find(market => market.i === caravan.buyer);
       let banditRiskPerDay = 0;
       if (buyerMarket) {
         const ledger = getBurgMarketLedger(buyerMarket.centerBurgId);
@@ -319,7 +328,7 @@ export class CaravansModule {
 
         // Add goods to target market
         if (caravan.buyerType === "market") {
-          const buyerMarket = world.pack.markets.find(market => market.i === caravan.buyer);
+          const buyerMarket = markets.find(market => market.i === caravan.buyer);
           if (buyerMarket) {
             for (const item of caravan.payload) {
               const good = buyerMarket.goods[item.goodId];
@@ -334,7 +343,7 @@ export class CaravansModule {
     }
 
     // Clean up arrived/lost caravans
-    world.pack.caravans = world.pack.caravans.filter(c => c.state === "transit");
+    setCaravans(caravans.filter(c => c.state === "transit"));
     return { arrived, lost };
   }
 }

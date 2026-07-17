@@ -1,6 +1,6 @@
 import type { Burg } from "../../hostTypes";
 import { gauss, rn, TIME } from "../../hostUtils";
-import { getWorldContext } from "../economyContext";
+import { getDeals, getWorldContext } from "../economyContext";
 import { Markets } from "./markets-generator";
 import type { Deal } from "./marketTypes";
 import { getStateMilitaryUpkeep } from "./militaryLogistics";
@@ -63,12 +63,13 @@ export class TaxesModule {
   /**
    * Folds this generation cycle's deals plus poll tax into every non-neutral state's treasury,
    * which is now a carry-forward stock rather than a from-scratch recalculation (docs/temp/profits.md
-   * decision #1). pack.deals is cleared at the start of each Production.produce() cycle
+   * decision #1). The economy deals slice is cleared at the start of each Production.produce() cycle
    * (production-generator.ts), so the deals loop below only ever sees the current cycle's deals.
    */
   collectTaxes(): void {
     TIME && console.time("collectTaxes");
-    const { states, burgs, deals } = this.worldContext.pack;
+    const { states, burgs } = this.worldContext.pack;
+    const deals = getDeals();
 
     for (const deal of deals) {
       if (!deal.tax) continue;

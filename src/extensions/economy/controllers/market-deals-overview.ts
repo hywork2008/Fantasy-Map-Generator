@@ -3,7 +3,7 @@ import type { Burg } from "../../hostTypes";
 import { openDialog } from "../../hostUi";
 import { downloadFile, getFileName, rn } from "../../hostUtils";
 
-import { getApi, getWorldContext } from "../economyContext";
+import { getApi, getDeals, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
 import type { Deal } from "../generators/marketTypes";
@@ -55,7 +55,7 @@ export function refreshMarketDeals(): void {
     netFlow: rn(netFlow, 2),
     activeFilter,
     onRowClick: (row: MarketDealRow) => {
-      const deal = getWorldContext().pack.deals.find(d => d.i === row.id);
+      const deal = getDeals().find(d => d.i === row.id);
       if (!deal) return;
       const party = getParty(deal);
       if (party) getApi().zoomTo(party.x, party.y, 8, 2000);
@@ -70,7 +70,7 @@ export function setActiveMarketDealsFilter(filter: MarketDealsFilter): void {
 }
 
 function getMarketDeals(marketId: number): Deal[] {
-  return getWorldContext().pack.deals.filter(
+  return getDeals().filter(
     deal =>
       (deal.sellerType === "market" && deal.seller === marketId) ||
       (deal.buyerType === "market" && deal.buyer === marketId)

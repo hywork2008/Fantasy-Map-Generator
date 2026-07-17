@@ -3,7 +3,7 @@ import type { Burg } from "../../hostTypes";
 import { openDialog } from "../../hostUi";
 import { downloadFile, getFileName, rn } from "../../hostUtils";
 
-import { getAppServices, getWorldContext } from "../economyContext";
+import { getAppServices, getMarketCellColumn, getWorldContext } from "../economyContext";
 import {
   getBurgMarketLedger,
   getDominantMerchant,
@@ -106,10 +106,7 @@ export function refreshMarketOverview(): void {
     owner: state ? { coaId, name: state.fullName || state.name } : null,
     rows,
     burgMerchantRows,
-    cellsCount: getWorldContext().pack.cells.market.reduce(
-      (count, marketCellId) => count + (marketCellId === market.i ? 1 : 0),
-      0
-    ),
+    cellsCount: getMarketCellColumn().reduce((count, marketCellId) => count + (marketCellId === market.i ? 1 : 0), 0),
     burgsCount: burgs.length,
     totalStock: rn(totalUnits, 2)
   });

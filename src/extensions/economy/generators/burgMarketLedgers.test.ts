@@ -3,8 +3,13 @@ import { clearCharactersContext, initCharactersContext } from "../../characters/
 import "../../characters/types";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext } from "../economyContext";
-import "../types";
+import {
+  clearEconomyContext,
+  getBurgMarketLedgers,
+  getMarkets,
+  getMerchantOrganizations,
+  initEconomyContext
+} from "../economyContext";
 import {
   BURG_MARKET_MERCHANT_ROLE_KIND,
   clearBurgMarketLedgers,
@@ -63,10 +68,7 @@ describe("burg market ledgers", () => {
     expect(southLedger).toBeDefined();
     expect(northLedger!.merchants.length).toBeGreaterThan(1);
     expect(southLedger!.merchants.length).toBe(1);
-    const marketPool = new Set([
-      worldContext.pack.markets[0].managerCharacterId!,
-      ...worldContext.pack.markets[0].rivalCharacterIds!
-    ]);
+    const marketPool = new Set([getMarkets()[0].managerCharacterId!, ...getMarkets()[0].rivalCharacterIds!]);
     expect(
       [...northLedger!.merchants, ...southLedger!.merchants].every(merchant => marketPool.has(merchant.characterId))
     ).toBe(true);
@@ -81,14 +83,14 @@ describe("burg market ledgers", () => {
     expect(northShare).toBeCloseTo(100, 1);
     expect(southShare).toBeCloseTo(100, 1);
     expect(getDominantMerchant(northLedger)!.share).toBeGreaterThan(0);
-    expect(worldContext.pack.merchantOrganizations).toHaveLength(1);
+    expect(getMerchantOrganizations()).toHaveLength(1);
     expect(northLedger!.merchants.every(merchant => merchant.organizationId !== undefined)).toBe(true);
-    expect(worldContext.pack.merchantOrganizations.every(organization => organization.tradeRangeKm <= 400)).toBe(true);
+    expect(getMerchantOrganizations().every(organization => organization.tradeRangeKm <= 400)).toBe(true);
   });
 
   it("assigns burg merchant roles and preserves the market manager as a center burg merchant", () => {
     syncMarketManagers();
-    const managerId = worldContext.pack.markets[0].managerCharacterId;
+    const managerId = getMarkets()[0].managerCharacterId;
 
     syncBurgMarketLedgers();
 
@@ -123,7 +125,7 @@ describe("burg market ledgers", () => {
     syncMarketManagers();
     syncBurgMarketLedgers();
 
-    const organization = worldContext.pack.merchantOrganizations.find(o => o.scale === "major")!;
+    const organization = getMerchantOrganizations().find(o => o.scale === "major")!;
     expect(organization).toBeDefined();
     expect(organization.chairpersonCharacterId).toBeDefined();
     expect(organization.secretaryCharacterId).toBeUndefined();
@@ -146,7 +148,7 @@ describe("burg market ledgers", () => {
 
     clearBurgMarketLedgers();
 
-    expect(worldContext.pack.burgMarketLedgers).toEqual([]);
+    expect(getBurgMarketLedgers()).toEqual([]);
     expect(
       worldContext.pack.characters.some(character =>
         character.roles?.some(role => role.kind === BURG_MARKET_MERCHANT_ROLE_KIND)

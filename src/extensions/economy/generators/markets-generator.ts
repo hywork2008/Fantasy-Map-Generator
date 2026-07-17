@@ -10,7 +10,18 @@ import {
   type ShipbuildingMaterials
 } from "../../hostTypes";
 import { getColors, getRandomColor, minmax, rn, TIME } from "../../hostUtils";
-import { getWorldContext } from "../economyContext";
+import {
+  getDeals,
+  getGoodCellColumn,
+  getGoods,
+  getMarketCellColumn,
+  getMarkets,
+  getWorldContext,
+  setDeals,
+  setMarketCellColumn,
+  setMarkets,
+  setStrategicLaborMarkets
+} from "../economyContext";
 import { getBurgMarketLedger, syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { CaravanMovement } from "./caravanMovement";
 import { getDepletedCells } from "./forestDepletion";
@@ -84,12 +95,12 @@ export class MarketsModule {
 
   /** Returns the current market stock for the three ship-class Goods. */
   getShipGoodStock(marketId: number): ShipGoodStock | undefined {
-    const market = this.worldContext.pack.markets.find(candidate => candidate.i === marketId);
+    const market = getMarkets().find(candidate => candidate.i === marketId);
     if (!market) return undefined;
 
     const stock = {} as Record<ShipGoodName, number>;
     for (const name of ["Sloop", "Caravel", "Galleon"] as const) {
-      const good = this.worldContext.pack.goods.find(candidate => candidate.name === name);
+      const good = getGoods().find(candidate => candidate.name === name);
       if (!good || !isGoodEnabled(good)) return undefined;
       stock[name] = market.goods[good.i]?.stock ?? 0;
     }
@@ -98,12 +109,12 @@ export class MarketsModule {
 
   /** Adds a finished generic hull to the local market's ship-class Good stock. */
   addSurplusShipStock(marketId: number, shipClassId: string): "fulfilled" | "noMarket" | "missingGood" {
-    const market = this.worldContext.pack.markets.find(candidate => candidate.i === marketId);
+    const market = getMarkets().find(candidate => candidate.i === marketId);
     if (!market) return "noMarket";
 
     const goodName = { sloop: "Sloop", caravel: "Caravel", galleon: "Galleon" }[shipClassId];
     if (!goodName) return "missingGood";
-    const good = this.worldContext.pack.goods.find(candidate => candidate.name === goodName);
+    const good = getGoods().find(candidate => candidate.name === goodName);
     const marketGood = good ? market.goods[good.i] : undefined;
     if (!good || !marketGood || !isGoodEnabled(good)) return "missingGood";
 
@@ -119,11 +130,11 @@ export class MarketsModule {
     const markets = this.createMarkets();
     this.expandMarkets(markets);
 
-    this.worldContext.pack.markets = markets;
-    this.worldContext.pack.deals = [];
+    setMarkets(markets);
+    setDeals([]);
     // Market ids are regenerated together with territories, so a cohort tied to a
     // previous market map must not be reused for a different settlement network.
-    this.worldContext.pack.strategicLaborMarkets = [];
+    setStrategicLaborMarkets([]);
     syncMarketManagers(markets);
     syncBurgMarketLedgers(markets);
 
@@ -179,14 +190,14 @@ export class MarketsModule {
     return markets;
   }
 
-  expandTerritories(markets: Market[] = this.worldContext.pack.markets): Uint16Array {
+  expandTerritories(markets: Market[] = getMarkets()): Uint16Array {
     this.indexMarkets(markets);
     const territories = this.expandMarkets(markets);
     this.invalidateRuralProductionCache();
     return territories;
   }
 
-  private indexMarkets(markets: Market[] = this.worldContext.pack.markets): void {
+  private indexMarkets(markets: Market[] = getMarkets()): void {
     this.marketById = [];
     for (const market of markets) if (market) this.marketById[market.i] = market;
   }
@@ -201,6 +212,7 @@ export class MarketsModule {
 
   private expandMarkets(markets: Market[]): Uint16Array {
     const cells = this.worldContext.pack.cells;
+    const goodCellColumn = getGoodCellColumn();
     const cellMarket = new Uint16Array(cells.i.length);
     const costs: number[] = [];
     type QueueEntry = { cellId: number; marketId: number; burg: Burg; priority: number };
@@ -245,7 +257,7 @@ export class MarketsModule {
           costs[neighborId] = totalCost;
           queue.push({ cellId: neighborId, marketId, burg, priority: totalCost }, totalCost);
 
-          const hasGood = Boolean(cells.good[neighborId]);
+          const hasGood = Boolean(goodCellColumn[neighborId]);
           if (isWater && !hasGood) continue; // exclude water cells without goods
 
           cellMarket[neighborId] = marketId;
@@ -253,7 +265,7 @@ export class MarketsModule {
       }
     }
 
-    this.worldContext.pack.cells.market = cellMarket;
+    setMarketCellColumn(cellMarket);
 
     for (const burg of this.worldContext.pack.burgs) {
       if (!burg.i || burg.removed) continue;
@@ -331,12 +343,14 @@ export class MarketsModule {
       wood: new Map(),
       woodByCell: new Map()
     };
-    const { cells, markets } = this.worldContext.pack;
+    const { cells } = this.worldContext.pack;
+    const markets = getMarkets();
+    const marketCellColumn = getMarketCellColumn();
     const marketIds = new Set(markets.map(market => market.i));
     const biomeProduction = Goods.getBiomesProduction();
 
     for (const cellId of cells.i) {
-      const marketId = cells.market[cellId];
+      const marketId = marketCellColumn[cellId];
       if (!marketId || !marketIds.has(marketId)) continue;
 
       for (const contribution of getRuralProductionContributions(cellId, biomeProduction)) {
@@ -412,13 +426,13 @@ export class MarketsModule {
   }
 
   initializeMarketPrices(): void {
-    const goods = (this.worldContext.pack.goods || []).filter(isGoodEnabled);
+    const goods = getGoods().filter(isGoodEnabled);
     const consumerDemandFactors = this.collectConsumerDemand(goods);
     const industrialDemandFactors = this.collectIndustrialDemand(goods, consumerDemandFactors);
     const avgIngredientsCostByGood = this.calculateAverageBaseCostByGood(goods);
     const populationByMarket = this.calculatePopulationByMarket();
 
-    for (const market of this.worldContext.pack.markets) {
+    for (const market of getMarkets()) {
       const population = populationByMarket[market.i] || 0;
 
       // First pass: raw goods - price from demand/supply ratio
@@ -463,9 +477,9 @@ export class MarketsModule {
   }
 
   private applyLocalTradePriceBias(populationByMarket: number[]): void {
-    for (const market of this.worldContext.pack.markets) {
+    for (const market of getMarkets()) {
       const population = populationByMarket[market.i] || 0;
-      for (const good of (this.worldContext.pack.goods || []).filter(isGoodEnabled)) {
+      for (const good of getGoods().filter(isGoodEnabled)) {
         const marketGood = this.getMarketGood(market, good);
         const multiplier = getLocalTradePriceMultiplier({
           good,
@@ -490,20 +504,21 @@ export class MarketsModule {
     const burg = (this.worldContext.pack.burgs as Burg[])[burgId];
     if (!burg || burg.removed) return null;
 
-    if (this.worldContext.pack.markets.some(m => m.centerBurgId === burgId)) {
+    const markets = getMarkets();
+    if (markets.some(m => m.centerBurgId === burgId)) {
       return null;
     }
 
-    const maxId = this.worldContext.pack.markets.reduce((max, m) => Math.max(max, m.i), 0);
+    const maxId = markets.reduce((max, m) => Math.max(max, m.i), 0);
     const marketId = maxId + 1;
     const market: Market = { i: marketId, centerBurgId: burgId, color: getRandomColor(), goods: {} };
-    this.worldContext.pack.markets.push(market);
-    this.worldContext.pack.deals = [];
+    markets.push(market);
+    setDeals([]);
     this.invalidateTradeRouteCache();
     this.invalidateRuralProductionCache();
 
     this.indexMarkets();
-    this.worldContext.pack.cells.market[burg.cell] = marketId;
+    getMarketCellColumn()[burg.cell] = marketId;
     burg.market = marketId;
     burg.plaza = 1;
     syncMarketManagers([market]);
@@ -513,22 +528,23 @@ export class MarketsModule {
   }
 
   removeMarket(marketId: number): boolean {
-    const marketIndex = this.worldContext.pack.markets.findIndex(m => m.i === marketId);
+    const markets = getMarkets();
+    const marketIndex = markets.findIndex(m => m.i === marketId);
     if (marketIndex === -1) return false;
 
-    const market = this.worldContext.pack.markets[marketIndex];
+    const market = markets[marketIndex];
     const centerBurg = (this.worldContext.pack.burgs as Burg[])[market.centerBurgId];
     if (centerBurg) centerBurg.plaza = 0;
 
-    this.worldContext.pack.markets.splice(marketIndex, 1);
-    this.worldContext.pack.deals = [];
+    markets.splice(marketIndex, 1);
+    setDeals([]);
     this.invalidateTradeRouteCache();
     this.invalidateRuralProductionCache();
 
-    if (this.worldContext.pack.markets.length) {
+    if (markets.length) {
       this.expandTerritories();
     } else {
-      if (this.worldContext.pack.cells.market) this.worldContext.pack.cells.market.fill(0);
+      getMarketCellColumn().fill(0);
       for (const burg of this.worldContext.pack.burgs as Burg[]) {
         if (!burg.i || burg.removed) continue;
         burg.market = 0;
@@ -573,8 +589,9 @@ export class MarketsModule {
     const actualUnits = rn(Math.min(units, marketGood.stock, budget / unitPrice), 2);
     if (actualUnits < 0.01) return null;
 
+    const deals = getDeals();
     const deal: Deal = {
-      i: this.worldContext.pack.deals.length,
+      i: deals.length,
       seller: market.i,
       sellerType: "market",
       buyer: burg.i!,
@@ -584,7 +601,7 @@ export class MarketsModule {
       price: unitPrice,
       tax: 0
     };
-    this.worldContext.pack.deals.push(deal);
+    deals.push(deal);
 
     marketGood.stock = rn(Math.max(0, marketGood.stock - actualUnits), 2);
     marketGood.price = rn(this.applyMarketPressure(good.value, marketGood.price, actualUnits), 2);
@@ -601,8 +618,9 @@ export class MarketsModule {
     const tax = rn(units * price * taxRate, 2);
     marketGood.stock = rn(marketGood.stock + units, 2);
 
+    const deals = getDeals();
     const deal: Deal = {
-      i: this.worldContext.pack.deals.length,
+      i: deals.length,
       seller: burg.i!,
       sellerType: "burg",
       buyer: market.i,
@@ -612,7 +630,7 @@ export class MarketsModule {
       price,
       tax
     };
-    this.worldContext.pack.deals.push(deal);
+    deals.push(deal);
 
     marketGood.price = rn(this.applyMarketPressure(good.value, marketGood.price, -units), 2);
     return deal;
@@ -629,7 +647,7 @@ export class MarketsModule {
   ): ShipbuildingMaterialRequestResult {
     // `marketById` is populated during generation; saved maps can reach this path
     // before an explicit `Markets.sync()`, so retain a canonical pack fallback.
-    const market = this.get(marketId) ?? this.worldContext.pack.markets.find(candidate => candidate.i === marketId);
+    const market = this.get(marketId) ?? getMarkets().find(candidate => candidate.i === marketId);
     if (!market) return { status: "noMarket" };
 
     const required: Array<{ good: Good; amount: number; stock: { stock: number; price: number } }> = [];
@@ -637,7 +655,7 @@ export class MarketsModule {
 
     for (const material of SHIPBUILDING_MATERIAL_IDS) {
       const amount = materials[material];
-      const good = this.worldContext.pack.goods.find(candidate => candidate.name === material);
+      const good = getGoods().find(candidate => candidate.name === material);
       if (!good || !isGoodEnabled(good)) return { status: "missingGood" };
 
       // Do not call getMarketGood() while validating: creating an empty stock row
@@ -662,7 +680,7 @@ export class MarketsModule {
   }
 
   runGlobalTrade(): void {
-    const goods = (this.worldContext.pack.goods || []).filter(isGoodEnabled);
+    const goods = getGoods().filter(isGoodEnabled);
     const consumerDemandFactors = this.collectConsumerDemand(goods);
     const industrialDemandFactors = this.collectIndustrialDemand(goods, consumerDemandFactors);
     const populationByMarket = this.calculatePopulationByMarket();
@@ -679,7 +697,7 @@ export class MarketsModule {
       const exporters: { market: Market; reserve: number }[] = [];
       const importers: { market: Market; reserve: number }[] = [];
 
-      for (const market of this.worldContext.pack.markets) {
+      for (const market of getMarkets()) {
         const population = populationByMarket[market.i] || 0;
         const demand = population * ((consumerDemandFactors[good.i] || 0) + (industrialDemandFactors[good.i] || 0));
         const reserve = demand * (1 + TRADE_RESERVE_FACTOR);
@@ -791,8 +809,9 @@ export class MarketsModule {
         const totalProfit = getNetTradeProfit(targetSalePrice - landedCost, units, opportunity.durationDays);
         if (totalProfit < MIN_TRADE_PROFIT) continue;
 
+        const deals = getDeals();
         const deal: Deal = {
-          i: this.worldContext.pack.deals.length,
+          i: deals.length,
           seller: opportunity.exporter.i,
           sellerType: "market",
           buyer: opportunity.importer.i,
@@ -806,7 +825,7 @@ export class MarketsModule {
           maintenanceCost: rn(opportunity.maintenanceCost, 2),
           accountingPeriodDays: getTradeAccountingPeriodDays(opportunity.durationDays)
         };
-        this.worldContext.pack.deals.push(deal);
+        deals.push(deal);
 
         exporterGood.price = rn(this.applyMarketPressure(good.value, exporterGood.price, units), 2);
         importerGood.price = rn(this.applyMarketPressure(good.value, importerGood.price, -units), 2);
@@ -846,7 +865,8 @@ export class MarketsModule {
       targetSalePrice?: number;
     }[];
   }): void {
-    for (const exporter of this.worldContext.pack.markets) {
+    const markets = getMarkets();
+    for (const exporter of markets) {
       const routes = travelRoutes[exporter.i];
       if (!routes) continue;
 
@@ -856,7 +876,7 @@ export class MarketsModule {
       const exporterCenter = this.worldContext.pack.burgs[exporter.centerBurgId];
       const exporterTaxPerUnit = this.getSalesTax(exporterCenter) * exporterGood.price;
 
-      for (const importer of this.worldContext.pack.markets) {
+      for (const importer of markets) {
         if (importer.i === exporter.i) continue;
         const route = routes[importer.i];
         if (
@@ -958,12 +978,13 @@ export class MarketsModule {
     if (this.tradeRouteCache?.key === key) return this.tradeRouteCache.routes;
 
     const routes: MarketTradeRoutes = {};
-    for (const sourceMarket of this.worldContext.pack.markets) {
+    const markets = getMarkets();
+    for (const sourceMarket of markets) {
       routes[sourceMarket.i] = {};
       const sourceBurg = this.worldContext.pack.burgs[sourceMarket.centerBurgId];
       if (!sourceBurg) continue;
 
-      for (const targetMarket of this.worldContext.pack.markets) {
+      for (const targetMarket of markets) {
         const targetBurg = this.worldContext.pack.burgs[targetMarket.centerBurgId];
         if (!targetBurg) continue;
         const route = this.getMarketTradeRoute(sourceBurg, targetBurg);
@@ -978,7 +999,7 @@ export class MarketsModule {
   private getTradeRouteCacheKey(): string {
     const { pack, distanceScale } = this.worldContext;
     const movement = CaravanMovement.getOptions();
-    const marketCentres = pack.markets
+    const marketCentres = getMarkets()
       .map(market => {
         const burg = pack.burgs[market.centerBurgId];
         return `${market.i}:${market.centerBurgId}:${burg?.cell}:${burg?.x}:${burg?.y}`;

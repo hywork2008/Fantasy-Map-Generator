@@ -1,8 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext } from "../economyContext";
-import "../types";
+import { clearEconomyContext, getGoods, getMarkets, initEconomyContext, setMarkets } from "../economyContext";
 import { Goods } from "./goods-generator";
 import { MarketsModule } from "./markets-generator";
 import type { Market } from "./marketTypes";
@@ -66,7 +65,7 @@ describe("seasonal grain price cycle (integration)", () => {
     Goods.sync();
 
     const market1: Market = { i: 1, centerBurgId: 1, color: "#ff0000", goods: {} };
-    worldContext.pack.markets = [market1];
+    setMarkets([market1]);
     // biome-ignore lint/complexity/useLiteralKeys: private access for testing
     marketsModule["marketById"] = [undefined as unknown as Market, market1];
   });
@@ -76,7 +75,7 @@ describe("seasonal grain price cycle (integration)", () => {
   });
 
   it("cycles grain stock/price seasonally: cheapest right after harvest, priciest right before it", () => {
-    const goodId = worldContext.pack.goods[0].i;
+    const goodId = getGoods()[0].i;
     const monthlyDemandUnits = 100 * 0.2; // burg population(100) * DEMAND_TARGET_FACTORS.food(0.2)
     const priceByMonth: number[] = [];
 
@@ -88,11 +87,11 @@ describe("seasonal grain price cycle (integration)", () => {
       // here): burgs draw stock down toward their demand target every tick, so stock doesn't
       // just accumulate forever and the seasonal production curve actually shows up as a
       // stock/price cycle rather than a one-directional drift.
-      const marketGood = worldContext.pack.markets[0].goods[goodId];
+      const marketGood = getMarkets()[0].goods[goodId];
       marketGood.stock = Math.max(0, marketGood.stock - monthlyDemandUnits);
 
       marketsModule.initializeMarketPrices();
-      priceByMonth.push(worldContext.pack.markets[0].goods[goodId].price);
+      priceByMonth.push(getMarkets()[0].goods[goodId].price);
     }
 
     // Settle into the second simulated year (index 12-23) so the stock/price series has

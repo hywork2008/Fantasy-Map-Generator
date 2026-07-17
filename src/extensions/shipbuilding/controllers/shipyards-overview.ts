@@ -18,6 +18,26 @@ import {
 
 const SIZE_ORDER: ShipSizeTier[] = ["small", "medium", "large"];
 
+// Economy's `goods`/`markets` no longer augment PackedGraph's type (see
+// src/extensions/economy/types.ts); read them structurally like
+// strategicMaterialObservations.ts already does, without importing Economy.
+type EconomyGoodSnapshot = Readonly<{ i: number; name: string }>;
+type EconomyMarketSnapshot = Readonly<{
+  i: number;
+  goods: Readonly<Record<number, Readonly<{ stock: number; price: number }> | undefined>>;
+}>;
+
+function getEconomyGoodsAndMarkets(pack: unknown): {
+  goods: readonly EconomyGoodSnapshot[];
+  markets: readonly EconomyMarketSnapshot[];
+} {
+  const record = pack as Record<string, unknown>;
+  return {
+    goods: Array.isArray(record.goods) ? (record.goods as EconomyGoodSnapshot[]) : [],
+    markets: Array.isArray(record.markets) ? (record.markets as EconomyMarketSnapshot[]) : []
+  };
+}
+
 function buildPortOccupancyLabel(
   burgId: number,
   portCapacity: ReadonlyMap<number, PortCapacity>
@@ -78,8 +98,9 @@ function getStrategicMaterialSummary(
   const shipClass = getShipClass(shipClassId);
   if (!shipClass) return "Unavailable";
 
-  const market = marketId === undefined ? undefined : pack.markets.find(candidate => candidate.i === marketId);
-  return getShipyardMaterialObservations(shipClass, pack.goods, market?.goods, procurementStatuses)
+  const { goods, markets } = getEconomyGoodsAndMarkets(pack);
+  const market = marketId === undefined ? undefined : markets.find(candidate => candidate.i === marketId);
+  return getShipyardMaterialObservations(shipClass, goods, market?.goods, procurementStatuses)
     .map(observation => {
       const stock = observation.stock === null ? "—" : observation.stock.toFixed(2);
       const source = observation.sourceStateId

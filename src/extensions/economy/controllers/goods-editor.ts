@@ -1,7 +1,16 @@
 import { pointer } from "d3";
 import { clearMainTip, tip } from "../../hostServices";
 import { confirmationDialog, downloadFile, findCell, getFileName, layerIsOn, rn, unique } from "../../hostUtils";
-import { getApi, getBurgProductionRecords, getViewContext, getWorldContext } from "../economyContext";
+import {
+  getApi,
+  getBurgProductionRecords,
+  getDeals,
+  getGoodCellColumn,
+  getGoods,
+  getMarkets,
+  getViewContext,
+  getWorldContext
+} from "../economyContext";
 import { Goods, getDefaultGoodTradeProfile, isGoodEnabled } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
 import { isDealRecord, isMfgRecord, Production } from "../generators/production-generator";
@@ -59,7 +68,7 @@ export function goodsEditorAddLines(): void {
   const production = getProduction();
   const stockData = getAllStockData();
 
-  const enabledGoods = (worldContext().pack.goods ?? []).filter(isGoodEnabled);
+  const enabledGoods = getGoods().filter(isGoodEnabled);
   const goods = enabledGoods.map(good => {
     const types = [good.recipes && "MFG", good.distribution && "RAW"].filter(Boolean) as string[];
     const goodProduction = production[good.i] ?? { burg: 0, cell: 0 };
@@ -171,13 +180,13 @@ export function openProducersDialog(goodId: number): void {
 type StockSource = { name: string; type: "market" | "burg"; x: number; y: number; id: number; stock: number };
 
 function getAllStockData(): Record<number, { total: number; sources: StockSource[] }> {
-  const dealById = new Map((worldContext().pack.deals || []).map(d => [d.i, d]));
+  const dealById = new Map(getDeals().map(d => [d.i, d]));
   const result: Record<number, { total: number; sources: StockSource[] }> = {};
-  for (const good of (worldContext().pack.goods || []).filter(isGoodEnabled)) {
+  for (const good of getGoods().filter(isGoodEnabled)) {
     result[good.i] = { total: 0, sources: [] };
   }
 
-  for (const market of worldContext().pack.markets || []) {
+  for (const market of getMarkets()) {
     const centerBurg = worldContext().pack.burgs[market.centerBurgId];
     if (!centerBurg) continue;
     const x = centerBurg.x ?? 0;
@@ -231,7 +240,7 @@ function getAllStockData(): Record<number, { total: number; sources: StockSource
     }
   }
 
-  for (const good of (worldContext().pack.goods || []).filter(isGoodEnabled)) {
+  for (const good of getGoods().filter(isGoodEnabled)) {
     result[good.i].total = rn(result[good.i].total, 2);
   }
 
@@ -280,7 +289,11 @@ function getProduction(): Record<number, { burg: number; cell: number }> {
 }
 
 export function openTagsVisibilityDialog(): void {
-  const tags = unique((worldContext().pack.goods || []).filter(isGoodEnabled).flatMap(good => good.tags));
+  const tags = unique(
+    getGoods()
+      .filter(isGoodEnabled)
+      .flatMap(good => good.tags)
+  );
 
   setGoodsTagsDialogState({
     isOpen: true,
@@ -341,7 +354,7 @@ export function enterResourceAssignMode(): void {
     const selectedGoodId = getGoodsEditorTableState().selectedAssignGoodId;
     if (!selectedGoodId) return;
 
-    const hadGood = Boolean(worldContext().pack.cells.good[cellId]);
+    const hadGood = Boolean(getGoodCellColumn()[cellId]);
     const commit = getApi().dispatchExtensionCommand({
       extensionId: "economy",
       name: "goods.assignCell",
@@ -376,7 +389,7 @@ function exitResourceAssignMode(close?: string): void {
 
 export function downloadGoodsData(): void {
   const cellsByGood: Record<number, number> = {};
-  for (const goodId of worldContext().pack.cells.good) {
+  for (const goodId of getGoodCellColumn()) {
     if (goodId) cellsByGood[goodId] = (cellsByGood[goodId] || 0) + 1;
   }
 
@@ -386,7 +399,7 @@ export function downloadGoodsData(): void {
   let data =
     "Id,Good,Color,Type,Tags,Value,Demand Coverage,Chance,Model,Trade Weight,Trade Bulk,Rarity,Distance Premium,Time Value Trend,Durability,Loss Risk,Cells,Produced,Stock\n";
 
-  for (const good of worldContext().pack.goods || []) {
+  for (const good of getGoods()) {
     const types = [good.recipes && "MFG", good.distribution && "RAW"].filter(Boolean).join(";");
     const tags = good.tags.join(";");
     const demandCoverage = Object.entries(good.demandCoverage || {})

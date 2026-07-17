@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph, State } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext } from "../economyContext";
+import { clearEconomyContext, getCaravans, getMarkets, initEconomyContext } from "../economyContext";
 import { Caravans } from "./caravans";
 import type { Good } from "./goods-generator";
 import type { Market } from "./marketTypes";
@@ -94,9 +94,9 @@ describe("StrategicProcurementModule", () => {
     // The state pays the landed price: supplier price plus the route's transport cost.
     expect(worldContext.pack.states[1].treasury).toBeCloseTo(95.86, 2);
     expect(worldContext.pack.burgs[2].treasury).toBe(4);
-    expect(worldContext.pack.markets[1].goods[1].stock).toBe(0.6);
-    expect(worldContext.pack.markets[0].goods[1].stock).toBe(0);
-    expect(worldContext.pack.caravans).toHaveLength(1);
+    expect(getMarkets()[1].goods[1].stock).toBe(0.6);
+    expect(getMarkets()[0].goods[1].stock).toBe(0);
+    expect(getCaravans()).toHaveLength(1);
     expect(procurement.getShipbuildingProcurementStatus(1, 1).find(status => status.material === "Wood")).toMatchObject(
       {
         inTransit: 0.4,
@@ -107,7 +107,7 @@ describe("StrategicProcurementModule", () => {
     const caravanTick = Caravans.tick(1);
     procurement.reconcileCaravans(caravanTick.arrived, caravanTick.lost);
 
-    expect(worldContext.pack.markets[0].goods[1].stock).toBe(0.4);
+    expect(getMarkets()[0].goods[1].stock).toBe(0.4);
     expect(order).toMatchObject({ fulfilledUnits: 0.4, status: "fulfilled" });
     expect(procurement.getShipbuildingProcurementStatus(1, 1).find(status => status.material === "Wood")).toMatchObject(
       {
@@ -124,7 +124,7 @@ describe("StrategicProcurementModule", () => {
     procurement.handleShipbuildingDemand(demand);
 
     expect(procurement.getOrders()).toHaveLength(1);
-    expect(worldContext.pack.caravans).toHaveLength(1);
+    expect(getCaravans()).toHaveLength(1);
     expect(procurement.getOrders()[0].priorityCycles).toBe(2);
   });
 
@@ -134,8 +134,8 @@ describe("StrategicProcurementModule", () => {
     procurement.handleShipbuildingDemand(demand);
 
     expect(procurement.getOrders()).toMatchObject([{ status: "blocked", blockedReason: "foreignPolicy" }]);
-    expect(worldContext.pack.markets[1].goods[1].stock).toBe(1);
-    expect(worldContext.pack.caravans).toHaveLength(0);
+    expect(getMarkets()[1].goods[1].stock).toBe(1);
+    expect(getCaravans()).toHaveLength(0);
   });
 
   it("records insufficient treasury without creating cargo or inventory", () => {
@@ -145,8 +145,8 @@ describe("StrategicProcurementModule", () => {
 
     expect(procurement.getOrders()).toMatchObject([{ status: "blocked", blockedReason: "insufficientTreasury" }]);
     expect(worldContext.pack.states[1].treasury).toBe(3);
-    expect(worldContext.pack.markets[1].goods[1].stock).toBe(1);
-    expect(worldContext.pack.markets[0].goods[1].stock).toBe(0);
-    expect(worldContext.pack.caravans).toHaveLength(0);
+    expect(getMarkets()[1].goods[1].stock).toBe(1);
+    expect(getMarkets()[0].goods[1].stock).toBe(0);
+    expect(getCaravans()).toHaveLength(0);
   });
 });
