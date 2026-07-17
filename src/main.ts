@@ -13,6 +13,7 @@ import Alea from "alea";
 import * as d3 from "d3";
 import { getWorldState, resetZoom, zoomTo } from "./actions";
 import { appServices, initRng } from "./context/appServices";
+import { simulationContext } from "./context/simulationContext";
 import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
 import { applyLayersPreset, drawLayers, scheduleWebglUpdate } from "./controllers/layers";
@@ -49,6 +50,7 @@ import { CoordinatesRenderer, drawCalendar, drawScaleBar, fitScaleBar } from "./
 import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
 import { DeckGlRenderer } from "./renderers/webgl/deckRenderer";
+import { bindSimulationCellColumns } from "./runtime/simulationCellColumns";
 import { clearMainTip, tip } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
 import { useDebugSnapshotState } from "./store/debugSnapshotState";
@@ -1431,6 +1433,9 @@ export function reGraph() {
   const { cells: packCells, vertices } = calculateVoronoi(newCells.p, worldContext.grid.boundary);
   worldContext.pack.vertices = vertices as typeof worldContext.pack.vertices;
   worldContext.pack.cells = packCells as typeof worldContext.pack.cells;
+  // `pack.cells` is replaced by the legacy graph builder. Reattach the
+  // compatibility adapter so dynamic columns remain simulation-owned.
+  bindSimulationCellColumns(worldContext, simulationContext);
   worldContext.pack.cells.p = newCells.p;
   worldContext.pack.cells.g = createTypedArray({
     maxValue: worldContext.grid.points.length,

@@ -2,6 +2,7 @@ import JSZip from "jszip";
 import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import type { PresentationData } from "./presentationData";
+import { removeSimulationCellColumnMirrors } from "./simulationCellColumns";
 
 export const WORLD_ARCHIVE_FORMAT = "fantasy-map-generator";
 export const WORLD_ARCHIVE_SCHEMA_VERSION = 1;
@@ -492,7 +493,7 @@ export function createWorldDocument(
   opaqueExtensionChunks: readonly OpaqueExtensionChunk[]
 ): WorldDocument {
   const now = new Date().toISOString();
-  return structuredClone({
+  const document = structuredClone({
     format: WORLD_ARCHIVE_FORMAT,
     schemaVersion: WORLD_ARCHIVE_SCHEMA_VERSION,
     createdAt: now,
@@ -501,5 +502,9 @@ export function createWorldDocument(
     simulation,
     presentation,
     opaqueExtensionChunks
-  });
+  }) as WorldDocument;
+  // `pack.cells` exposes dynamic columns only as a source-compatible adapter.
+  // A snapshot stores their single canonical copy under simulation.cells.
+  removeSimulationCellColumnMirrors(document.world, document.simulation);
+  return document;
 }

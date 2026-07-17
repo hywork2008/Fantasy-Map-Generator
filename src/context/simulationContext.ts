@@ -1,5 +1,22 @@
 import type { Season } from "../utils/seasonUtils";
 
+/**
+ * Cell-indexed values whose current value is advanced or depleted by simulation.
+ *
+ * `pack.cells` still exposes these columns through a compatibility adapter while
+ * legacy generators are migrated. The arrays themselves are owned here, so
+ * map snapshots no longer need to persist a second copy of dynamic cell data.
+ */
+export interface SimulationCellColumns {
+  population: Float32Array;
+  carryingCapacity: Float32Array;
+  children: Float32Array;
+  maleAdults: Float32Array;
+  femaleAdults: Float32Array;
+  elders: Float32Array;
+  danger: Uint8Array;
+}
+
 export interface IntelligenceReport {
   estimatedMilitaryPower: number;
   estimatedWealth: number;
@@ -38,6 +55,8 @@ export interface SimulationContext {
    * src/utils/seasonUtils.ts's getSeason(latitude, month) itself rather than read this field.
    */
   worldSeason: Season;
+  /** Dynamic cell columns. `SimulationData.cells` owns these values. */
+  cells: SimulationCellColumns;
   /** Espionage reports: intelligence[observerStateId][targetStateId] */
   intelligence: Record<number, Record<number, IntelligenceReport>>;
   /** Strategic goals: strategicGoals[stateId] */
@@ -56,6 +75,15 @@ export const simulationContext: SimulationContext = {
   era: "",
   tickCount: 0,
   worldSeason: "spring",
+  cells: {
+    population: new Float32Array(),
+    carryingCapacity: new Float32Array(),
+    children: new Float32Array(),
+    maleAdults: new Float32Array(),
+    femaleAdults: new Float32Array(),
+    elders: new Float32Array(),
+    danger: new Uint8Array()
+  },
   intelligence: {},
   strategicGoals: {}
 };

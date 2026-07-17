@@ -8,6 +8,7 @@ import {
   type PresentationPatch,
   presentationData
 } from "./presentationData";
+import { bindSimulationCellColumns } from "./simulationCellColumns";
 import {
   createWorldDocument,
   type OpaqueExtensionChunk,
@@ -1310,6 +1311,9 @@ class LegacyWorldRuntime implements WorldRuntime {
       this.simulation as unknown as Record<string, unknown>,
       document.simulation as unknown as Record<string, unknown>
     );
+    // Archive map payloads intentionally omit the legacy pack.cells mirrors.
+    // Recreate their accessors only after the simulation-owned arrays are live.
+    bindSimulationCellColumns(this.world, this.simulation);
     replaceRecordInPlace(this.presentation.styles, document.presentation.styles);
     replaceRecordInPlace(this.presentation.activeLayers, document.presentation.activeLayers);
     this.opaqueExtensionChunks = document.opaqueExtensionChunks;

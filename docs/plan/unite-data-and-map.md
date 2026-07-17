@@ -889,6 +889,8 @@ raw `pack` / `grid` write は allowlist + lint rule で段階的に禁止する�
 ### Phase 8 — Physical model split / Worker
 
 - `pack` 内で混在する map definition と simulation field を所有 domain ごとに分離。
+- [x] 最初の cell-column slice として population、capacity、age cohorts、danger を `SimulationContext.cells` の実体へ移動。`pack.cells` は legacy generator/editor 用の read/write compatibility adapter とし、新 `.fmg` snapshot は map payload に mirror を保存しない。schema 1 の既存 archive は load 時に `pack.cells` からこの slice を materialize する。
+- [ ] remaining `pack` simulation fields（burg live values、regiments、extension-owned state）を field ownership inventory に追加してから移動。
 - extension module augmentation を namespaced slice へ移す。
 - profile で main-thread blocking が確認された場合に Worker adapter を追加。
 - in-process と Worker の二 adapter が揃った時点でのみ Worker seam を正式化する。
