@@ -1,6 +1,6 @@
 # 地図データ・シミュレーション・描画の統合設計
 
-- **Status**: Proposed（設計のみ。未実装）
+- **Status**: In progress（Phase 1 の `WorldRuntime` shell、`advanceTime()` compatibility commit、`RenderCoordinator` subscriber を実装済み。generate / load と他の writer は未移行）
 - **Date**: 2026-07-17
 
 **Related**:

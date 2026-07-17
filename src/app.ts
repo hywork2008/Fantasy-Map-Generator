@@ -37,6 +37,7 @@ import {
   registerExtensionWebglLayers,
   unregisterExtensionWebglLayers
 } from "./renderers/webgl/extensionWebglLayerRegistry";
+import { initRenderCoordinator } from "./runtime/renderCoordinator";
 import { burgEconomyExtensions } from "./services/burgEconomyExtensions";
 import { getBurgSiteDescriptor } from "./services/burgSiteDescriptor";
 import {
@@ -244,6 +245,9 @@ export async function initApp(options: FMGInitOptions = {}): Promise<void> {
   console.log("Initializing main...");
   // We need to pass drawMap to main so it knows not to call drawLayers
   initMain(drawMap);
+  // Renderer work observes WorldRuntime commits instead of being called from
+  // simulation writers. It needs the view layers initialized by initMain().
+  initRenderCoordinator();
 
   // Assemble the public API surface before loading extensions so that
   // dynamically loaded extension modules can call window.fmg.extensionAPI.

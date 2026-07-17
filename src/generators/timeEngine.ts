@@ -1,20 +1,11 @@
-import { appServices } from "../context/appServices";
 import { simulationContext } from "../context/simulationContext";
-import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import {
-  BordersRenderer,
-  BurgIconsRenderer,
-  BurgLabelsRenderer,
-  MilitaryRenderer,
-  StateLabelsRenderer
-} from "../renderers";
+import { type DataTopic, legacyMutation } from "../runtime/worldRuntime";
 import { telemetry } from "../services/simulationTelemetry";
 import { useDebugSnapshotState } from "../store/debugSnapshotState";
 import { useOptionsState } from "../store/optionsState";
 import { useTimeSimulationState } from "../store/timeSimulationState";
 import { captureSnapshotData } from "../utils/aiDebugExporter";
-import { layerIsOn } from "../utils/nodeUtils";
 import { getDaysInMonth, getSeason, isLeapYear } from "../utils/seasonUtils";
 import { tickAgriculturalCalendar } from "./agriculturalStress";
 import { simulateDemographics } from "./demography-simulator";
@@ -112,7 +103,51 @@ export function initSimulationClock(): void {
  * states-generator.ts, markers-generator.ts, battle-screen.ts) keep working unchanged.
  */
 export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0): void {
-  if (deltaYears <= 0 && deltaMonths <= 0 && deltaDays <= 0) return;
+  const commit = legacyMutation(() => advanceTimeMutation(deltaYears, deltaMonths, deltaDays));
+  if (!commit) return;
+
+  // These observers run after the mutation has one revision and renderer
+  // subscribers have seen its complete change set.
+  document.dispatchEvent(
+    new CustomEvent("fmg:time-advanced", {
+      detail: { deltaYears, deltaMonths, deltaDays, currentYear: simulationContext.currentYear }
+    })
+  );
+  dispatchSimulationUpdated();
+
+  telemetry()?.onTickEnd?.(
+    {
+      tick: simulationContext.tickCount,
+      cal: {
+        y: simulationContext.currentYear,
+        m: simulationContext.currentMonth,
+        d: simulationContext.currentDay,
+        era: simulationContext.era
+      }
+    },
+    { deltaYears, deltaMonths, deltaDays }
+  );
+
+  if (import.meta.env.DEV) {
+    useDebugSnapshotState.getState().addSnapshot({
+      tickCount: simulationContext.tickCount,
+      year: simulationContext.currentYear,
+      label: `Advance Time +${deltaYears}`,
+      data: captureSnapshotData()
+    });
+  }
+}
+
+/**
+ * Legacy synchronous simulation implementation. WorldRuntime owns the commit
+ * around this function; it must not await or perform renderer work directly.
+ */
+function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays: number) {
+  if (deltaYears <= 0 && deltaMonths <= 0 && deltaDays <= 0) {
+    return { result: undefined, topics: [] };
+  }
+
+  const topics: DataTopic[] = ["simulation.clock", "simulation.military"];
 
   // Reset all regiments' action status to waiting before resolving events for the new tick
   for (const state of worldContext.pack.states) {
@@ -189,6 +224,7 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
 
   // 1) Agricultural calendar (spring/autumn war exposure → foodStress on year roll)
   if (sim.simAgriculture && worldContext.pack?.states) {
+    topics.push("simulation.cells", "simulation.states");
     measureTickStep("core:agriculturalStress", () =>
       tickAgriculturalCalendar(
         worldContext.pack,
@@ -202,21 +238,16 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
   // 2) Demographics (aging/births + optional famine from foodStress)
   let result = { bordersChanged: false, newBurgsAdded: false };
   if (sim.simDemographics) {
+    topics.push("simulation.cells", "simulation.states", "simulation.burgs");
     result = measureTickStep("core:demographics", () => simulateDemographics(effectiveDeltaYears));
   }
 
-  if (result.bordersChanged) {
-    BordersRenderer.render(worldContext, viewContext, appServices);
-    StateLabelsRenderer.render(worldContext, viewContext, appServices);
-  }
-
-  if (result.newBurgsAdded) {
-    BurgIconsRenderer.render(worldContext, viewContext, appServices);
-    BurgLabelsRenderer.render(worldContext, viewContext, appServices);
-  }
+  if (result.bordersChanged) topics.push("map.politics");
+  if (result.newBurgsAdded) topics.push("map.settlements");
 
   // 3) Manpower ledger: draft capacity + fill/demobilize from civilian males
   if (sim.simManpower && worldContext.pack?.states) {
+    topics.push("simulation.states", "simulation.military");
     measureTickStep("core:manpower", () =>
       tickManpower(worldContext.pack, effectiveDeltaYears, worldContext.populationRate)
     );
@@ -225,6 +256,7 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
   for (const hook of _tickHooks) {
     measureTickStep(`hook:${hook.label}`, () => hook.fn(deltaYears, deltaMonths, deltaDays));
   }
+  if (_tickHooks.length) topics.push("extension.legacy");
 
   // Fallback: if Nobility extension is disabled, run the core military movement here.
   // (If Nobility is enabled, it handles this internally with additional siege/capture logic).
@@ -234,41 +266,11 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
       if (sim.simMilitaryRecovery) {
         Military.updateDynamic(worldContext, effectiveDeltaYears);
       }
-      const regimentsMoved = advanceAllRegimentMovement(worldContext.pack, worldContext, effectiveDeltaYears);
-      if (regimentsMoved && layerIsOn("toggleMilitary")) {
-        MilitaryRenderer.render(worldContext, viewContext, appServices);
-      }
+      advanceAllRegimentMovement(worldContext.pack, worldContext, effectiveDeltaYears);
     });
   }
 
-  document.dispatchEvent(
-    new CustomEvent("fmg:time-advanced", {
-      detail: { deltaYears, deltaMonths, deltaDays, currentYear: simulationContext.currentYear }
-    })
-  );
-  dispatchSimulationUpdated();
-
-  telemetry()?.onTickEnd?.(
-    {
-      tick: simulationContext.tickCount,
-      cal: {
-        y: simulationContext.currentYear,
-        m: simulationContext.currentMonth,
-        d: simulationContext.currentDay,
-        era: simulationContext.era
-      }
-    },
-    { deltaYears, deltaMonths, deltaDays }
-  );
-
-  if (import.meta.env.DEV) {
-    useDebugSnapshotState.getState().addSnapshot({
-      tickCount: simulationContext.tickCount,
-      year: simulationContext.currentYear,
-      label: `Advance Time +${deltaYears}`,
-      data: captureSnapshotData()
-    });
-  }
+  return { result: undefined, topics };
 }
 
 export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: number, targetDeltaDays: number): void {
