@@ -271,6 +271,24 @@ export interface RemoveZoneCommand {
   readonly payload: RemoveZoneRequest;
 }
 
+export interface PatchStateRequest {
+  readonly stateId: number;
+  readonly name?: string;
+  readonly fullName?: string;
+  readonly form?: string;
+  readonly formName?: string;
+  readonly color?: string;
+  readonly culture?: number;
+  readonly type?: string;
+  readonly expansionism?: number;
+  readonly lock?: boolean;
+}
+
+export interface PatchStateCommand {
+  readonly type: "state.patch";
+  readonly payload: PatchStateRequest;
+}
+
 export interface MoveRegimentRequest {
   readonly stateId: number;
   readonly regimentId: number;
@@ -472,6 +490,7 @@ export type PositionCommand =
   | CreateZoneCommand
   | PatchZoneCommand
   | RemoveZoneCommand
+  | PatchStateCommand
   | MoveRegimentCommand;
 export type WorldCommand<T> =
   | LegacyMutationCommand<T>
@@ -760,6 +779,10 @@ class LegacyWorldRuntime implements WorldRuntime {
       return this.removeZone(command.payload) as LegacyMutationOutcome<T>;
     }
 
+    if (command.type === "state.patch") {
+      return this.patchState(command.payload) as LegacyMutationOutcome<T>;
+    }
+
     if (command.type === "cells.assign") {
       return this.assignCells(command.payload) as LegacyMutationOutcome<T>;
     }
@@ -990,6 +1013,57 @@ class LegacyWorldRuntime implements WorldRuntime {
     if (zoneIndex === -1) throw new Error(`zone.remove could not find zone ${request.zoneId}`);
     this.world.pack.zones.splice(zoneIndex, 1);
     return { result: undefined, topics: ["map.annotations"] };
+  }
+
+  private patchState(request: PatchStateRequest): LegacyMutationOutcome<void> {
+    const state = this.world.pack.states[request.stateId];
+    if (!state?.i || state.removed) throw new Error(`state.patch could not find active state ${request.stateId}`);
+
+    let changed = false;
+    const patchString = (
+      field: "name" | "fullName" | "form" | "formName" | "color" | "type",
+      value: string | undefined
+    ) => {
+      if (value === undefined) return;
+      if (typeof value !== "string") throw new Error(`state.patch requires a string ${field}`);
+      if (state[field] !== value) {
+        state[field] = value;
+        changed = true;
+      }
+    };
+    patchString("name", request.name);
+    patchString("fullName", request.fullName);
+    patchString("form", request.form);
+    patchString("formName", request.formName);
+    patchString("color", request.color);
+    patchString("type", request.type);
+
+    if (request.culture !== undefined) {
+      if (!Number.isInteger(request.culture) || request.culture < 0 || !this.world.pack.cultures[request.culture]) {
+        throw new Error(`state.patch could not find culture ${request.culture}`);
+      }
+      if (state.culture !== request.culture) {
+        state.culture = request.culture;
+        changed = true;
+      }
+    }
+    if (request.expansionism !== undefined) {
+      if (!Number.isFinite(request.expansionism) || request.expansionism < 0) {
+        throw new Error("state.patch requires a non-negative finite expansionism");
+      }
+      if (state.expansionism !== request.expansionism) {
+        state.expansionism = request.expansionism;
+        changed = true;
+      }
+    }
+    if (request.lock !== undefined) {
+      if (typeof request.lock !== "boolean") throw new Error("state.patch requires a boolean lock");
+      if (Boolean(state.lock) !== request.lock) {
+        state.lock = request.lock;
+        changed = true;
+      }
+    }
+    return { result: undefined, topics: changed ? ["map.politics"] : [] };
   }
 
   private invertMarkerFlags(request: InvertMarkerFlagsRequest): LegacyMutationOutcome<void> {
@@ -1708,6 +1782,10 @@ export function patchZone(request: PatchZoneRequest): WorldCommit<void> | null {
 
 export function removeZone(request: RemoveZoneRequest): WorldCommit<void> | null {
   return (worldRuntime as LegacyWorldRuntime).execute({ type: "zone.remove", payload: request });
+}
+
+export function patchState(request: PatchStateRequest): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "state.patch", payload: request });
 }
 
 export function moveRegiment(request: MoveRegimentRequest): WorldCommit<void> | null {

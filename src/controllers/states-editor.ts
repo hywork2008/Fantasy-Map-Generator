@@ -24,6 +24,8 @@ import { COArenderer } from "../renderers/emblem-renderer";
 import {
   assignCells,
   mergeStates as mergeStatesCommand,
+  patchBurg,
+  patchState,
   removeState as removeStateCommand
 } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
@@ -369,7 +371,7 @@ export const statesEditorActions = {
   changeColor(stateId: number): void {
     const currentFill = worldContext.pack.states[stateId].color;
     const callback = (newFill: string) => {
-      worldContext.pack.states[stateId].color = newFill;
+      patchState({ stateId, color: newFill });
       const halo = d3.color(newFill)?.darker()?.formatHex() ?? "#666666";
       StatesRenderer.updateStateColor(viewContext, stateId, newFill, halo);
 
@@ -394,7 +396,7 @@ export const statesEditorActions = {
   changeCapitalName(stateId: number, val: string): void {
     const capital = (worldContext.pack.states[stateId] as State).capital;
     if (!capital) return;
-    (worldContext.pack.burgs as Burg[])[capital].name = val;
+    patchBurg({ burgId: capital, name: val });
     const labelEl = getElementBySelector<Element>(`#burgLabel${capital}`);
     if (labelEl) labelEl.textContent = val;
     refreshStatesEditor();
@@ -405,7 +407,7 @@ export const statesEditorActions = {
   },
 
   changeCulture(stateId: number, val: number): void {
-    (worldContext.pack.states[stateId] as State).culture = val;
+    patchState({ stateId, culture: val });
     refreshStatesEditor();
   },
 
@@ -418,18 +420,18 @@ export const statesEditorActions = {
   },
 
   changeType(stateId: number, val: string): void {
-    worldContext.pack.states[stateId].type = val;
+    patchState({ stateId, type: val });
     recalculateStates();
   },
 
   changeExpansionism(stateId: number, val: number): void {
-    worldContext.pack.states[stateId].expansionism = val;
+    patchState({ stateId, expansionism: val });
     recalculateStates();
   },
 
   toggleLock(stateId: number): void {
     const s = worldContext.pack.states[stateId] as State;
-    s.lock = !s.lock;
+    patchState({ stateId, lock: !s.lock });
     refreshStatesEditor();
   },
 
@@ -477,14 +479,14 @@ export const statesEditorActions = {
     const fullNameChanged = ne.fullName !== (s.fullName ?? "");
     const changed = nameChanged || formChanged || fullNameChanged;
 
-    if (formChanged && ne.formName) {
-      const form = FORM_CATEGORIES[ne.formName];
-      if (form) s.form = form;
-    }
-
-    s.name = ne.shortName;
-    s.formName = ne.formName;
-    s.fullName = ne.fullName;
+    const form = formChanged && ne.formName ? FORM_CATEGORIES[ne.formName] : undefined;
+    patchState({
+      stateId: ne.stateId,
+      name: ne.shortName,
+      formName: ne.formName,
+      fullName: ne.fullName,
+      ...(form ? { form } : {})
+    });
 
     if (changed && ne.updateLabel) drawStateLabels(worldContext, viewContext, appServices, [s.i]);
     setStatesEditorState({ nameEditor: null });

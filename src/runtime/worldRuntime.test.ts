@@ -358,6 +358,40 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     expect(removeCommit?.changes.changes).toEqual([{ topic: "map.annotations", kind: "replace" }]);
   });
 
+  it("patches state editor fields through the politics topic", async () => {
+    const world = createPoliticsWorld();
+    const runtime = createWorldRuntime(world, {} as SimulationContext);
+
+    const commit = await runtime.dispatch({
+      type: "state.patch",
+      payload: {
+        stateId: 1,
+        name: "Northreach",
+        fullName: "Kingdom of Northreach",
+        form: "Monarchy",
+        formName: "Kingdom",
+        color: "#336699",
+        culture: 2,
+        type: "Naval",
+        expansionism: 3,
+        lock: true
+      }
+    });
+
+    expect(world.pack.states[1]).toMatchObject({
+      name: "Northreach",
+      fullName: "Kingdom of Northreach",
+      form: "Monarchy",
+      formName: "Kingdom",
+      color: "#336699",
+      culture: 2,
+      type: "Naval",
+      expansionism: 3,
+      lock: true
+    });
+    expect(commit?.changes.changes).toEqual([{ topic: "map.politics", kind: "replace" }]);
+  });
+
   it("assigns cell ownership atomically and preserves burg state / culture invariants", async () => {
     const world = createPoliticsWorld();
     const runtime = createWorldRuntime(world, {} as SimulationContext);
