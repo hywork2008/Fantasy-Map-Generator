@@ -15,7 +15,8 @@ const ALLOWED_COMPATIBILITY_WRITERS = new Map<string, string>([
 ]);
 
 const controllersDirectory = path.join(import.meta.dirname, "../src/controllers");
-const directWriter = /\bworldContext\.(?:pack|grid)(?:\.[A-Za-z_$][\w$]*|\[[^\]]+\])+\s*(?:=(?!=|>)|\+=|-=|\+\+|--)/;
+const directWriter =
+  /\b(?:delete\s+)?worldContext\.(?:pack|grid)(?:\.[A-Za-z_$][\w$]*|\[[^\]]+\])+(?:\s*(?:=(?!=|>)|\+=|-=|\+\+|--)|\.(?:push|pop|shift|unshift|splice|sort|reverse|fill|copyWithin|set)\s*\()/;
 
 function getSourceFiles(directory: string): string[] {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {

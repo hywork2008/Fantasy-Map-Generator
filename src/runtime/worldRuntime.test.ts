@@ -12,12 +12,13 @@ function createRuntime() {
 function createPositionWorld(): WorldContext {
   return {
     grid: {},
+    notes: [],
     pack: {
       markers: [{ i: 1, x: 4, y: 8, cell: 0 }],
       burgs: [{}, { i: 1, cell: 0, state: 1, x: 4, y: 8, capital: true }],
       states: [{ i: 0 }, { i: 1, center: 0, military: [{ i: 7, x: 4, y: 8 }] }],
       cultures: [{ i: 0 }, { i: 1 }],
-      cells: { burg: new Uint16Array([1, 0]) }
+      cells: { i: new Uint16Array([0, 1]), burg: new Uint16Array([1, 0]) }
     }
   } as unknown as WorldContext;
 }
@@ -363,6 +364,39 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     expect(lockCommit?.changes.changes).toEqual([{ topic: "map.annotations", kind: "replace" }]);
     expect(removeCommit?.result).toEqual({ removedMarkerIds: [1] });
     expect(world.pack.markers).toEqual([]);
+    expect(world.notes).toEqual([]);
+  });
+
+  it("creates a marker and its note through one annotation commit", async () => {
+    const world = createPositionWorld();
+    const runtime = createWorldRuntime(world, {} as SimulationContext);
+
+    const commit = await runtime.dispatch({
+      type: "marker.create",
+      payload: {
+        marker: { i: 2, cell: 1, x: 10, y: 20, icon: "⚔️", type: "battlefields" },
+        note: { id: "marker2", name: "Battle", legend: "A battle was fought" }
+      }
+    });
+
+    expect(commit?.result).toMatchObject({ i: 2, cell: 1, icon: "⚔️" });
+    expect(commit?.changes.changes).toEqual([{ topic: "map.annotations", kind: "replace" }]);
+    expect(world.pack.markers.at(-1)).toMatchObject({ i: 2, cell: 1, type: "battlefields" });
+    expect(world.notes).toContainEqual({ id: "marker2", name: "Battle", legend: "A battle was fought" });
+  });
+
+  it("rejects a duplicate marker without changing its annotation data", async () => {
+    const world = createPositionWorld();
+    const runtime = createWorldRuntime(world, {} as SimulationContext);
+
+    await expect(
+      runtime.dispatch({
+        type: "marker.create",
+        payload: { marker: { i: 1, cell: 1, icon: "⚔️", type: "battlefields" } }
+      })
+    ).rejects.toThrow("duplicate marker 1");
+
+    expect(world.pack.markers).toHaveLength(1);
     expect(world.notes).toEqual([]);
   });
 

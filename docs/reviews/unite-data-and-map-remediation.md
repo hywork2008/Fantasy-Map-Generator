@@ -224,3 +224,10 @@
 - risk の COA 削除、ice layer と keep 時の landmass/lake 表示は commit 後の view 操作へ移した。Renderer / DOM 副作用が world mutation transaction 内に混在しない。
 - heightmap の 4 compatibility module は、編集中の可逆 grid preview を保持するため allowlist に残す。P1-3 は `In progress` を維持する。
 - 検証: `npm run lint:world-writers` — 4 compatibility modules。`npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts src/renderers/webgl/webglTopicRevisions.test.ts` — 36 passed。`npm run build` — 成功。
+
+### 2026-07-20 — P1-3 battle annotation command migration
+
+- Battle Screen の戦場 marker と対応 note の直接追加を `marker.create` command に移行した。入力を検証してから marker / note を一つの `map.annotations` commit で追加するため、SVG marker と WebGL annotation projection は RenderCoordinator 経由で更新される。
+- writer inventory は direct assignment だけでなく、`push` / `splice` / `set` などの direct mutator 呼び出しも検出するようにした。これにより今回のような direct collection mutation は allowlist または command migration なしに追加できない。
+- heightmap edit session の 4 compatibility module は、確定前の可逆 grid preview を維持するため allowlist に残す。P1-3 は `In progress` を維持する。
+- 検証: `npm test -- --run src/runtime/worldRuntime.test.ts` — 29 passed。`npm run lint` — 成功。`npm run build` — 成功。

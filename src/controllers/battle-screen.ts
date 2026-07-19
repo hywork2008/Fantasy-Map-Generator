@@ -6,7 +6,8 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { applyDemographicCasualties } from "../generators/demography-simulator";
-import { appendMarkerToLayer, CombatDeathsRenderer, moveRegiment } from "../renderers/index";
+import { CombatDeathsRenderer, moveRegiment } from "../renderers/index";
+import { createMarker } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -762,12 +763,6 @@ export class Battle {
     }
 
     const markerI = last(worldContext.pack.markers)?.i + 1 || 0;
-    {
-      const marker = { i: markerI, x: this.x, y: this.y, cell: this.cell, icon: "⚔️", type: "battlefields", dy: 52 };
-      worldContext.pack.markers.push(marker);
-      appendMarkerToLayer(view.markers.node()!, worldContext, viewContext, appServices, marker);
-    }
-
     const getSide = (regs: BattleRegiment[], n: number) =>
       regs.length > 1
         ? `${n ? "regiments" : "forces"} of ${list([...new Set(regs.map(r => worldContext.pack.states[r.state].name))])}`
@@ -781,7 +776,10 @@ export class Battle {
       1
     )} and ${getSide(this.defenders.regiments, 0)}. ${result}.
       \r\nAttackers losses: ${getLosses(this.attackers.casualties)}%, defenders losses: ${getLosses(this.defenders.casualties)}%`;
-    worldContext.notes.push({ id: `marker${markerI}`, name: this.name, legend });
+    createMarker({
+      marker: { i: markerI, x: this.x, y: this.y, cell: this.cell, icon: "⚔️", type: "battlefields", dy: 52 },
+      note: { id: `marker${markerI}`, name: this.name, legend }
+    });
 
     tip(`${this.name} is over. ${result}`, true, "success", 4000);
 

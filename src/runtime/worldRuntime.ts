@@ -3,6 +3,7 @@ import { type WorldContext, worldContext } from "../context/worldContext";
 import {
   CULTURE_TYPES,
   type CultureType,
+  type Marker,
   type Province,
   type Religion,
   type River,
@@ -10,6 +11,7 @@ import {
   type State,
   type Zone
 } from "../types/models";
+import type { WorldNote } from "../types/WorldState";
 import { bindExtensionStateSlices } from "./extensionStateSlices";
 import {
   applyPresentationPatch,
@@ -158,6 +160,17 @@ export interface MoveMarkerRequest {
 export interface MoveMarkerCommand {
   readonly type: "marker.move";
   readonly payload: MoveMarkerRequest;
+}
+
+export interface CreateMarkerRequest {
+  readonly marker: Marker;
+  /** Optional annotation created atomically with the marker. */
+  readonly note?: WorldNote;
+}
+
+export interface CreateMarkerCommand {
+  readonly type: "marker.create";
+  readonly payload: CreateMarkerRequest;
 }
 
 export interface PatchMarkerRequest {
@@ -543,6 +556,7 @@ export interface ReplaceWorldCommand {
 
 export type PositionCommand =
   | MoveMarkerCommand
+  | CreateMarkerCommand
   | PatchMarkerCommand
   | InvertMarkerFlagsCommand
   | RemoveMarkerCommand
@@ -787,6 +801,10 @@ class LegacyWorldRuntime implements WorldRuntime {
       return { result: undefined as T, topics: ["map.annotations"] };
     }
 
+    if (command.type === "marker.create") {
+      return this.createMarker(command.payload) as LegacyMutationOutcome<T>;
+    }
+
     if (command.type === "marker.patch") {
       return this.patchMarker(command.payload) as LegacyMutationOutcome<T>;
     }
@@ -945,6 +963,41 @@ class LegacyWorldRuntime implements WorldRuntime {
       changed = true;
     }
     return { result: undefined, topics: changed ? ["map.annotations"] : [] };
+  }
+
+  private createMarker(request: CreateMarkerRequest): LegacyMutationOutcome<Marker> {
+    const { marker, note } = request;
+    const cellCount = this.world.pack.cells.i.length;
+    if (!Number.isInteger(marker.i) || marker.i < 0)
+      throw new Error("marker.create requires a non-negative integer ID");
+    if (this.world.pack.markers.some(candidate => candidate.i === marker.i)) {
+      throw new Error(`marker.create received duplicate marker ${marker.i}`);
+    }
+    if (!Number.isInteger(marker.cell) || marker.cell < 0 || marker.cell >= cellCount) {
+      throw new Error(`marker.create received invalid cell ${marker.cell}`);
+    }
+    if (typeof marker.type !== "string" || typeof marker.icon !== "string") {
+      throw new Error("marker.create requires string type and icon values");
+    }
+    if (
+      (marker.x !== undefined && !Number.isFinite(marker.x)) ||
+      (marker.y !== undefined && !Number.isFinite(marker.y))
+    ) {
+      throw new Error("marker.create requires finite coordinates when provided");
+    }
+    if (note) {
+      if (!note.id || !note.name || typeof note.legend !== "string") {
+        throw new Error("marker.create received an invalid note");
+      }
+      if (this.world.notes.some(candidate => candidate.id === note.id)) {
+        throw new Error(`marker.create received duplicate note ${note.id}`);
+      }
+    }
+
+    const createdMarker = { ...marker };
+    this.world.pack.markers.push(createdMarker);
+    if (note) this.world.notes.push({ ...note });
+    return { result: createdMarker, topics: ["map.annotations"] };
   }
 
   private patchBurg(request: PatchBurgRequest): LegacyMutationOutcome<void> {
@@ -1982,6 +2035,10 @@ export function advanceSimulation(request: AdvanceSimulationRequest): WorldCommi
 /** Phase 2 compatibility commands for bounded, ID-addressed position edits. */
 export function moveMarker(request: MoveMarkerRequest): WorldCommit<void> | null {
   return (worldRuntime as LegacyWorldRuntime).execute({ type: "marker.move", payload: request });
+}
+
+export function createMarker(request: CreateMarkerRequest): WorldCommit<Marker> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "marker.create", payload: request });
 }
 
 /** Phase 5 commands for marker overview edits and note cascades. */
