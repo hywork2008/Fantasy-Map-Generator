@@ -29,6 +29,7 @@ import {
 } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { appendMarkerToLayer } from "../renderers/index";
+import { legacyMutation } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -297,7 +298,10 @@ function regenerateRoutes(): void {
   const locked = worldContext.pack.routes
     .filter((route: Route) => route.lock)
     .map((route: Route, index: number) => ({ ...route, i: index }));
-  GenerationPipeline.Routes.generate(worldContext, viewContext, appServices, getWorldState(), locked);
+  legacyMutation(() => {
+    GenerationPipeline.Routes.generate(worldContext, viewContext, appServices, getWorldState(), locked);
+    return { result: undefined, topics: ["map.networks"] };
+  });
 
   view.routes.selectAll("path").remove();
   if (layerIsOn("toggleRoutes")) RoutesRenderer.render(worldContext, viewContext, appServices);
@@ -305,23 +309,30 @@ function regenerateRoutes(): void {
 
 function regenerateRivers(): void {
   const state = getWorldState();
-  GenerationPipeline.Rivers.generate(worldContext, viewContext, appServices, state);
-  GenerationPipeline.Rivers.specify(worldContext, viewContext, appServices, state);
-  GenerationPipeline.Features.defineGroups();
-  GenerationPipeline.Lakes.defineNames(state);
+  legacyMutation(() => {
+    GenerationPipeline.Rivers.generate(worldContext, viewContext, appServices, state);
+    GenerationPipeline.Rivers.specify(worldContext, viewContext, appServices, state);
+    GenerationPipeline.Features.defineGroups();
+    GenerationPipeline.Lakes.defineNames(state);
+    return { result: undefined, topics: ["map.physical", "map.networks"] };
+  });
   if (layerIsOn("toggleRivers")) RiversRenderer.render(worldContext, viewContext, appServices);
 }
 
 export async function recalculatePopulation(): Promise<void> {
-  rankCells();
+  legacyMutation(() => {
+    rankCells();
 
-  worldContext.pack.burgs.forEach((b: Burg) => {
-    if (!b.i || b.removed || b.lock) return;
-    const i = b.cell;
-    b.population = rn(Math.max(worldContext.pack.cells.s[i] / 8 + b.i! / 1000 + (i % 100) / 1000, 0.1), 3);
-    if (b.capital) b.population = b.population! * 1.3;
-    if (b.port) b.population = b.population! * 1.3;
-    b.population = rn(b.population * gauss(2, 3, 0.6, 20, 3), 3);
+    worldContext.pack.burgs.forEach((b: Burg) => {
+      if (!b.i || b.removed || b.lock) return;
+      const i = b.cell;
+      b.population = rn(Math.max(worldContext.pack.cells.s[i] / 8 + b.i! / 1000 + (i % 100) / 1000, 0.1), 3);
+      if (b.capital) b.population = b.population! * 1.3;
+      if (b.port) b.population = b.population! * 1.3;
+      b.population = rn(b.population * gauss(2, 3, 0.6, 20, 3), 3);
+    });
+
+    return { result: undefined, topics: ["map.settlements", "simulation.burgs"] };
   });
 
   layerIsOn("togglePopulation")
@@ -333,30 +344,38 @@ export async function recalculatePopulation(): Promise<void> {
 }
 
 function regenerateStates(): void {
-  const newStates = recreateStates();
-  if (!newStates) return;
+  const commit = legacyMutation(() => {
+    const newStates = recreateStates();
+    if (!newStates) return { result: false, topics: [] };
 
-  worldContext.pack.states = newStates;
-  const state = getWorldState();
-  GenerationPipeline.States.expandStates(worldContext, viewContext, appServices);
-  GenerationPipeline.States.normalize();
-  GenerationPipeline.States.getPoles(state);
-  GenerationPipeline.States.findNeighbors();
-  GenerationPipeline.States.collectStatistics(state);
-  GenerationPipeline.States.assignColors(worldContext, viewContext, appServices);
-  GenerationPipeline.States.generateCampaigns();
-  GenerationPipeline.States.generateDiplomacy();
-  GenerationPipeline.States.defineStateForms(state);
+    worldContext.pack.states = newStates;
+    const state = getWorldState();
+    GenerationPipeline.States.expandStates(worldContext, viewContext, appServices);
+    GenerationPipeline.States.normalize();
+    GenerationPipeline.States.getPoles(state);
+    GenerationPipeline.States.findNeighbors();
+    GenerationPipeline.States.collectStatistics(state);
+    GenerationPipeline.States.assignColors(worldContext, viewContext, appServices);
+    GenerationPipeline.States.generateCampaigns();
+    GenerationPipeline.States.generateDiplomacy();
+    GenerationPipeline.States.defineStateForms(state);
 
-  GenerationPipeline.Provinces.generate(worldContext, viewContext, appServices, state, true);
-  GenerationPipeline.Provinces.getPoles(state);
+    GenerationPipeline.Provinces.generate(worldContext, viewContext, appServices, state, true);
+    GenerationPipeline.Provinces.getPoles(state);
+    GenerationPipeline.Military.generate(worldContext, viewContext, appServices, state);
+
+    return {
+      result: true,
+      topics: ["map.politics", "map.settlements", "simulation.states", "simulation.burgs"]
+    };
+  });
+  if (!commit) return;
 
   layerIsOn("toggleStates") ? StatesRenderer.render(worldContext, viewContext, appServices) : toggleStates();
   layerIsOn("toggleBorders") ? BordersRenderer.render(worldContext, viewContext, appServices) : toggleBorders();
   if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
 
   drawStateLabels(worldContext, viewContext, appServices);
-  GenerationPipeline.Military.generate(worldContext, viewContext, appServices, state);
   if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleLabels")) BurgLabelsRenderer.render(worldContext, viewContext, appServices);
@@ -536,8 +555,11 @@ function recreateStates(): State[] | null {
 function regenerateProvinces(): void {
   EditorBus.unfog("");
   const state = getWorldState();
-  GenerationPipeline.Provinces.generate(worldContext, viewContext, appServices, state, true, true);
-  GenerationPipeline.Provinces.getPoles(state);
+  legacyMutation(() => {
+    GenerationPipeline.Provinces.generate(worldContext, viewContext, appServices, state, true, true);
+    GenerationPipeline.Provinces.getPoles(state);
+    return { result: undefined, topics: ["map.politics", "map.settlements"] };
+  });
 
   if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
   layerIsOn("toggleProvinces") ? ProvincesRenderer.render(worldContext, viewContext, appServices) : toggleProvinces();
@@ -551,116 +573,122 @@ function regenerateProvinces(): void {
 }
 
 async function regenerateBurgs(): Promise<void> {
-  const { cells, burgs: packBurgs, states, provinces } = worldContext.pack;
+  legacyMutation(() => {
+    const { cells, burgs: packBurgs, states, provinces } = worldContext.pack;
 
-  rankCells();
+    rankCells();
 
-  worldContext.notes = worldContext.notes.filter((note: WorldNote) => {
-    if (note.id.startsWith("burg")) {
-      const burgId = +note.id.slice(4);
-      return packBurgs[burgId]?.lock;
+    worldContext.notes = worldContext.notes.filter((note: WorldNote) => {
+      if (note.id.startsWith("burg")) {
+        const burgId = +note.id.slice(4);
+        return packBurgs[burgId]?.lock;
+      }
+      return true;
+    });
+
+    const newBurgs: Burg[] = [0 as unknown as Burg];
+    const burgsTree = quadtree<[number, number]>()
+      .x(d => d[0])
+      .y(d => d[1]);
+
+    cells.burg = new Uint16Array(cells.i.length);
+    states
+      .filter((s: State) => s.i)
+      .forEach((s: State) => {
+        s.capital = 0;
+      });
+    provinces
+      .filter((p: Province) => p.i)
+      .forEach((p: Province) => {
+        p.burg = 0;
+      });
+
+    const lockedburgs = packBurgs.filter((burg: Burg) => burg.i && !burg.removed && burg.lock);
+    for (let j = 0; j < lockedburgs.length; j++) {
+      const lockedBurg = lockedburgs[j];
+      const newId = newBurgs.length;
+
+      const noteIndex = worldContext.notes.findIndex((note: WorldNote) => note.id === `burg${lockedBurg.i}`);
+      if (noteIndex !== -1) worldContext.notes[noteIndex].id = `burg${newId}`;
+
+      lockedBurg.i = newId;
+      newBurgs.push(lockedBurg);
+      burgsTree.add([lockedBurg.x, lockedBurg.y]);
+      cells.burg[lockedBurg.cell] = newId;
+
+      if (lockedBurg.capital) {
+        const stateId = lockedBurg.state!;
+        states[stateId].capital = newId;
+        states[stateId].center = lockedBurg.cell;
+      }
     }
-    return true;
+
+    const score = new Int16Array(cells.s.map((s: number) => s * Math.random()));
+    const sorted = cells.i
+      .filter((i: number) => score[i] > 0 && cells.culture[i])
+      .sort((a: number, b: number) => score[b] - score[a]);
+    const existingStatesCount = states.filter((s: State) => s.i && !s.removed).length;
+    const manorsInputEl = getElementById("manorsInput") as HTMLInputElement;
+    const burgsCount =
+      (manorsInputEl.value === "1000"
+        ? rn(sorted.length / 5 / (worldContext.grid.points.length / 10000) ** 0.8)
+        : +manorsInputEl.value) + existingStatesCount;
+    const burgSpacing = (worldContext.graphWidth + worldContext.graphHeight) / 150 / (burgsCount ** 0.7 / 66);
+
+    for (let i = 0; i < sorted.length && newBurgs.length < burgsCount; i++) {
+      const id = newBurgs.length;
+      const cell = sorted[i];
+      const [x, y] = cells.p[cell] as [number, number];
+
+      const s = burgSpacing * gauss(1, 0.3, 0.2, 2, 2);
+      if (burgsTree.find(x, y, s) !== undefined) continue;
+
+      const stateId = cells.state[cell];
+      const isCapital = stateId && !states[stateId].capital;
+      if (isCapital) {
+        states[stateId].capital = id;
+        states[stateId].center = cell;
+      }
+
+      const culture = cells.culture[cell];
+      const name = GenerationPipeline.Names.getCulture(culture);
+      newBurgs.push({
+        cell,
+        x,
+        y,
+        state: stateId,
+        i: id,
+        culture,
+        name,
+        capital: isCapital ? 1 : 0,
+        feature: cells.f[cell]
+      });
+      burgsTree.add([x, y]);
+      cells.burg[cell] = id;
+    }
+
+    worldContext.pack.burgs = newBurgs;
+    GenerationPipeline.Burgs.shift();
+
+    states
+      .filter((s: State) => s.i && !s.removed && !s.capital)
+      .forEach((s: State) => {
+        const [x, y] = cells.p[s.center!] as [number, number];
+        const { burgId } = GenerationPipeline.Burgs.add([x, y]);
+        s.capital = burgId;
+        s.center = worldContext.pack.burgs[burgId].cell;
+        const burg = worldContext.pack.burgs[burgId];
+        burg.state = s.i;
+        burg.capital = 1;
+        GenerationPipeline.Burgs.changeGroup(burg);
+      });
+
+    GenerationPipeline.Burgs.specify(worldContext, viewContext, appServices, getWorldState());
+    return {
+      result: undefined,
+      topics: ["map.politics", "map.settlements", "map.networks", "simulation.states", "simulation.burgs"]
+    };
   });
-
-  const newBurgs: Burg[] = [0 as unknown as Burg];
-  const burgsTree = quadtree<[number, number]>()
-    .x(d => d[0])
-    .y(d => d[1]);
-
-  cells.burg = new Uint16Array(cells.i.length);
-  states
-    .filter((s: State) => s.i)
-    .forEach((s: State) => {
-      s.capital = 0;
-    });
-  provinces
-    .filter((p: Province) => p.i)
-    .forEach((p: Province) => {
-      p.burg = 0;
-    });
-
-  const lockedburgs = packBurgs.filter((burg: Burg) => burg.i && !burg.removed && burg.lock);
-  for (let j = 0; j < lockedburgs.length; j++) {
-    const lockedBurg = lockedburgs[j];
-    const newId = newBurgs.length;
-
-    const noteIndex = worldContext.notes.findIndex((note: WorldNote) => note.id === `burg${lockedBurg.i}`);
-    if (noteIndex !== -1) worldContext.notes[noteIndex].id = `burg${newId}`;
-
-    lockedBurg.i = newId;
-    newBurgs.push(lockedBurg);
-    burgsTree.add([lockedBurg.x, lockedBurg.y]);
-    cells.burg[lockedBurg.cell] = newId;
-
-    if (lockedBurg.capital) {
-      const stateId = lockedBurg.state!;
-      states[stateId].capital = newId;
-      states[stateId].center = lockedBurg.cell;
-    }
-  }
-
-  const score = new Int16Array(cells.s.map((s: number) => s * Math.random()));
-  const sorted = cells.i
-    .filter((i: number) => score[i] > 0 && cells.culture[i])
-    .sort((a: number, b: number) => score[b] - score[a]);
-  const existingStatesCount = states.filter((s: State) => s.i && !s.removed).length;
-  const manorsInputEl = getElementById("manorsInput") as HTMLInputElement;
-  const burgsCount =
-    (manorsInputEl.value === "1000"
-      ? rn(sorted.length / 5 / (worldContext.grid.points.length / 10000) ** 0.8)
-      : +manorsInputEl.value) + existingStatesCount;
-  const burgSpacing = (worldContext.graphWidth + worldContext.graphHeight) / 150 / (burgsCount ** 0.7 / 66);
-
-  for (let i = 0; i < sorted.length && newBurgs.length < burgsCount; i++) {
-    const id = newBurgs.length;
-    const cell = sorted[i];
-    const [x, y] = cells.p[cell] as [number, number];
-
-    const s = burgSpacing * gauss(1, 0.3, 0.2, 2, 2);
-    if (burgsTree.find(x, y, s) !== undefined) continue;
-
-    const stateId = cells.state[cell];
-    const isCapital = stateId && !states[stateId].capital;
-    if (isCapital) {
-      states[stateId].capital = id;
-      states[stateId].center = cell;
-    }
-
-    const culture = cells.culture[cell];
-    const name = GenerationPipeline.Names.getCulture(culture);
-    newBurgs.push({
-      cell,
-      x,
-      y,
-      state: stateId,
-      i: id,
-      culture,
-      name,
-      capital: isCapital ? 1 : 0,
-      feature: cells.f[cell]
-    });
-    burgsTree.add([x, y]);
-    cells.burg[cell] = id;
-  }
-
-  worldContext.pack.burgs = newBurgs;
-  GenerationPipeline.Burgs.shift();
-
-  states
-    .filter((s: State) => s.i && !s.removed && !s.capital)
-    .forEach((s: State) => {
-      const [x, y] = cells.p[s.center!] as [number, number];
-      const { burgId } = GenerationPipeline.Burgs.add([x, y]);
-      s.capital = burgId;
-      s.center = worldContext.pack.burgs[burgId].cell;
-      const burg = worldContext.pack.burgs[burgId];
-      burg.state = s.i;
-      burg.capital = 1;
-      GenerationPipeline.Burgs.changeGroup(burg);
-    });
-
-  GenerationPipeline.Burgs.specify(worldContext, viewContext, appServices, getWorldState());
   regenerateRoutes();
   BurgIconsRenderer.render(worldContext, viewContext, appServices);
   BurgLabelsRenderer.render(worldContext, viewContext, appServices);
@@ -691,73 +719,84 @@ export function regenerateEmblems(): void {
   });
   view.emblems.selectAll("use").remove();
 
-  worldContext.pack.states.forEach((state: State) => {
-    if (!state.i || state.removed) return;
-    const cultureType = worldContext.pack.cultures[state.culture!].type;
-    state.coa = GenerationPipeline.COA.generate(null, 0, null, cultureType ?? "Generic");
-    state.coa.shield = GenerationPipeline.COA.getShield(state.culture!);
-  });
+  legacyMutation(() => {
+    worldContext.pack.states.forEach((state: State) => {
+      if (!state.i || state.removed) return;
+      const cultureType = worldContext.pack.cultures[state.culture!].type;
+      state.coa = GenerationPipeline.COA.generate(null, 0, null, cultureType ?? "Generic");
+      state.coa.shield = GenerationPipeline.COA.getShield(state.culture!);
+    });
 
-  worldContext.pack.burgs.forEach((burg: Burg) => {
-    if (!burg.i || burg.removed) return;
-    const state = worldContext.pack.states[burg.state!];
-    let kinship = state ? 0.25 : 0;
-    if (burg.capital) kinship += 0.1;
-    else if (burg.port) kinship -= 0.1;
-    if (state && burg.culture !== state.culture) kinship -= 0.25;
-    burg.coa = GenerationPipeline.COA.generate(state ? state.coa : null, kinship, null, burg.type);
-    burg.coa.shield = GenerationPipeline.COA.getShield(burg.culture!, state ? burg.state! : 0);
-  });
+    worldContext.pack.burgs.forEach((burg: Burg) => {
+      if (!burg.i || burg.removed) return;
+      const state = worldContext.pack.states[burg.state!];
+      let kinship = state ? 0.25 : 0;
+      if (burg.capital) kinship += 0.1;
+      else if (burg.port) kinship -= 0.1;
+      if (state && burg.culture !== state.culture) kinship -= 0.25;
+      burg.coa = GenerationPipeline.COA.generate(state ? state.coa : null, kinship, null, burg.type);
+      burg.coa.shield = GenerationPipeline.COA.getShield(burg.culture!, state ? burg.state! : 0);
+    });
 
-  worldContext.pack.provinces.forEach((province: Province) => {
-    if (!province.i || province.removed) return;
-    const parent = province.burg ? worldContext.pack.burgs[province.burg] : worldContext.pack.states[province.state!];
-    let dominion = false;
+    worldContext.pack.provinces.forEach((province: Province) => {
+      if (!province.i || province.removed) return;
+      const parent = province.burg ? worldContext.pack.burgs[province.burg] : worldContext.pack.states[province.state!];
+      let dominion = false;
 
-    if (!province.burg) {
-      dominion = P(0.2);
-      if (province.formName === "Colony") dominion = P(0.95);
-      else if (province.formName === "Island") dominion = P(0.6);
-      else if (province.formName === "Islands") dominion = P(0.5);
-      else if (province.formName === "Territory") dominion = P(0.4);
-      else if (province.formName === "Land") dominion = P(0.3);
-    }
+      if (!province.burg) {
+        dominion = P(0.2);
+        if (province.formName === "Colony") dominion = P(0.95);
+        else if (province.formName === "Island") dominion = P(0.6);
+        else if (province.formName === "Islands") dominion = P(0.5);
+        else if (province.formName === "Territory") dominion = P(0.4);
+        else if (province.formName === "Land") dominion = P(0.3);
+      }
 
-    const nameByBurg = province.burg && province.name.slice(0, 3) === (parent as Burg | State).name?.slice(0, 3);
-    const kinship = dominion ? 0 : nameByBurg ? 0.8 : 0.4;
-    const culture = worldContext.pack.cells.culture[province.center!];
-    const type = GenerationPipeline.Burgs.getType(province.center!, (parent as Burg).port);
-    province.coa = GenerationPipeline.COA.generate((parent as State).coa, kinship, dominion ? 1 : 0, type);
-    province.coa.shield = GenerationPipeline.COA.getShield(culture, province.state!);
+      const nameByBurg = province.burg && province.name.slice(0, 3) === (parent as Burg | State).name?.slice(0, 3);
+      const kinship = dominion ? 0 : nameByBurg ? 0.8 : 0.4;
+      const culture = worldContext.pack.cells.culture[province.center!];
+      const type = GenerationPipeline.Burgs.getType(province.center!, (parent as Burg).port);
+      province.coa = GenerationPipeline.COA.generate((parent as State).coa, kinship, dominion ? 1 : 0, type);
+      province.coa.shield = GenerationPipeline.COA.getShield(culture, province.state!);
+    });
+
+    return { result: undefined, topics: ["map.politics", "map.settlements"] };
   });
 
   layerIsOn("toggleEmblems") ? EmblemsRenderer.render(worldContext, viewContext, appServices) : toggleEmblems();
 }
 
 function regenerateReligions(): void {
-  GenerationPipeline.Religions.generate(worldContext, viewContext, appServices, getWorldState());
+  legacyMutation(() => {
+    GenerationPipeline.Religions.generate(worldContext, viewContext, appServices, getWorldState());
+    return { result: undefined, topics: ["map.politics"] };
+  });
   layerIsOn("toggleReligions") ? ReligionsRenderer.render(worldContext, viewContext, appServices) : toggleReligions();
   refreshAllEditors();
 }
 
 function regenerateCultures(): void {
   const state = getWorldState();
-  GenerationPipeline.Cultures.generate(worldContext, viewContext, appServices, state);
-  GenerationPipeline.Cultures.expand(state);
+  legacyMutation(() => {
+    GenerationPipeline.Cultures.generate(worldContext, viewContext, appServices, state);
+    GenerationPipeline.Cultures.expand(state);
 
-  worldContext.pack.states = worldContext.pack.states.map((st: State) => {
-    if (!st.i || st.removed) return st;
-    return { ...st, culture: worldContext.pack.cells.culture[st.center!] };
-  });
+    worldContext.pack.states = worldContext.pack.states.map((st: State) => {
+      if (!st.i || st.removed) return st;
+      return { ...st, culture: worldContext.pack.cells.culture[st.center!] };
+    });
 
-  worldContext.pack.burgs = worldContext.pack.burgs.map((burg: Burg) => {
-    if (!burg.i || burg.removed) return burg;
-    return { ...burg, culture: worldContext.pack.cells.culture[burg.cell] };
-  });
+    worldContext.pack.burgs = worldContext.pack.burgs.map((burg: Burg) => {
+      if (!burg.i || burg.removed) return burg;
+      return { ...burg, culture: worldContext.pack.cells.culture[burg.cell] };
+    });
 
-  worldContext.pack.religions = worldContext.pack.religions.map((religion: Religion) => {
-    if (!religion.i || religion.removed) return religion;
-    return { ...religion, culture: worldContext.pack.cells.culture[religion.center!] };
+    worldContext.pack.religions = worldContext.pack.religions.map((religion: Religion) => {
+      if (!religion.i || religion.removed) return religion;
+      return { ...religion, culture: worldContext.pack.cells.culture[religion.center!] };
+    });
+
+    return { result: undefined, topics: ["map.politics", "map.settlements"] };
   });
 
   layerIsOn("toggleCultures") ? CulturesRenderer.render(worldContext, viewContext, appServices) : toggleCultures();
@@ -766,7 +805,10 @@ function regenerateCultures(): void {
 }
 
 function regenerateMilitary(): void {
-  GenerationPipeline.Military.generate(worldContext, viewContext, appServices, getWorldState());
+  legacyMutation(() => {
+    GenerationPipeline.Military.generate(worldContext, viewContext, appServices, getWorldState());
+    return { result: undefined, topics: ["map.politics", "simulation.states", "simulation.burgs"] };
+  });
   if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
   else toggleMilitary();
 
@@ -778,12 +820,18 @@ function regenerateMilitary(): void {
 
 function regenerateIce(): void {
   if (!layerIsOn("toggleIce")) toggleIce();
-  GenerationPipeline.Ice.generate(worldContext, viewContext, appServices, getWorldState());
+  legacyMutation(() => {
+    GenerationPipeline.Ice.generate(worldContext, viewContext, appServices, getWorldState());
+    return { result: undefined, topics: ["map.physical"] };
+  });
   IceRenderer.render(worldContext, viewContext, appServices);
 }
 
 export function regenerateMarkers(): void {
-  GenerationPipeline.Markers.regenerate();
+  legacyMutation(() => {
+    GenerationPipeline.Markers.regenerate();
+    return { result: undefined, topics: ["map.annotations"] };
+  });
   turnButtonOn("toggleMarkers");
   MarkersRenderer.render(worldContext, viewContext, appServices);
   if (dialogStore.getState().openDialogs.has("markersOverview")) useMarkersOverviewState.getState().refresh();
@@ -804,7 +852,10 @@ function regenerateZones(event: MouseEvent | null): void {
   }
 
   function addNumberOfZones(number: number) {
-    GenerationPipeline.Zones.generate(worldContext, viewContext, appServices, getWorldState(), number);
+    legacyMutation(() => {
+      GenerationPipeline.Zones.generate(worldContext, viewContext, appServices, getWorldState(), number);
+      return { result: undefined, topics: ["map.annotations"] };
+    });
     document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
     if (layerIsOn("toggleZones")) ZonesRenderer.render(worldContext, viewContext, appServices);
   }

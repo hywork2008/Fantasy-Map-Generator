@@ -185,3 +185,10 @@
 - Province editor の全削除、merge、lock 操作を通知付き transaction に収めた。merge は province cell ownership、burg の province 参照、state の province list、統計・pole 再計算を同じ `map.politics` / `map.settlements` commit で処理する。
 - `provinces-editor.ts` を direct writer allowlist から除去した。残る compatibility module は 8 件。
 - 検証: `npm run lint:world-writers` — 8 compatibility modules。`npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts` — 34 passed。`npm run build` — 成功。
+
+### 2026-07-20 — P1-3 tools regeneration transaction containment
+
+- Tools の route、river、population、state、province、burg、religion、culture、military、ice、marker、zone と emblem の再生成処理を、描画 renderer の実行前に一つ以上の `legacyMutation` commit に収めた。state ID の既存 SVG 要素移し替えは互換 transaction 内に残すが、full renderer 実行は commit 完了後に行う。
+- 各 commit は影響する `map.*` と `simulation.*` topic を publish するため、Tools タブ経由の大規模再生成でも SVG と WebGL の projection / revision が同期する。state と burg の再生成では、関連する province、military、route の更新も同じ通知範囲に含める。
+- `tools.ts` は複合 generation transaction を抱えるため明示 compatibility allowlist に残す。残作業は heightmap / biome 等の残存 compatibility module を、より狭い typed command または同等の transaction に分解すること。P1-3 は `In progress` を維持する。
+- 検証: `npm run lint:world-writers` — 8 compatibility modules。`npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts src/renderers/webgl/webglTopicRevisions.test.ts` — 36 passed。`npm run build` — 成功。
