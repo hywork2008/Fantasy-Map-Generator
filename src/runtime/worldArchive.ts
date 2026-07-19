@@ -152,6 +152,35 @@ function isTypedArray(value: unknown): value is TypedArray {
   );
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function assertRecordArray(value: unknown, name: string): asserts value is Record<string, unknown>[] {
+  if (!Array.isArray(value) || value.some(item => !isRecord(item))) {
+    throw new Error(`Archive ${name} must be an array of records`);
+  }
+}
+
+function assertOpaqueReferences(value: readonly OpaqueExtensionChunk[]): void {
+  for (const chunk of value) {
+    if (!chunk.extensionId.trim() || !Number.isInteger(chunk.schemaVersion) || !chunk.mediaType) {
+      throw new Error("Archive extension chunk has invalid metadata");
+    }
+    if (chunk.coreReferences === "unknown") continue;
+    for (const reference of chunk.coreReferences) {
+      if (
+        !reference.kind ||
+        !Number.isInteger(reference.id) ||
+        reference.id < 0 ||
+        (reference.onDelete !== "restrict" && reference.onDelete !== "orphan")
+      ) {
+        throw new Error("Archive extension chunk has an invalid core reference");
+      }
+    }
+  }
+}
+
 function typedArrayType(value: TypedArray): TypedArrayType {
   const type = value.constructor.name as TypedArrayType;
   if (!TYPED_ARRAY_TYPES.has(type)) throw new Error(`Unsupported typed array ${value.constructor.name}`);
@@ -328,6 +357,24 @@ export function assertValidWorldDocument(value: unknown): asserts value is World
   ) {
     throw new Error("Archive world state is incomplete");
   }
+
+  // These values are consumed by the post-replacement simulation adapters.
+  // Validate them here, before any context object is changed in-place.
+  if (
+    !isFiniteNumber(simulation.currentYear) ||
+    !isFiniteNumber(simulation.currentMonth) ||
+    !isFiniteNumber(simulation.currentDay) ||
+    !isFiniteNumber(simulation.tickCount)
+  ) {
+    throw new Error("Archive simulation clock is incomplete");
+  }
+  const cells = pack.cells as Record<string, unknown>;
+  if (cells.i !== undefined && !isTypedArray(cells.i)) {
+    throw new Error("Archive pack.cells.i must be a typed array");
+  }
+  assertRecordArray(pack.burgs, "pack.burgs");
+  assertRecordArray(pack.states, "pack.states");
+  assertOpaqueReferences(value.opaqueExtensionChunks);
 }
 
 /** ZIP codec. Typed arrays are stored as binary chunks, never decimal JSON strings. */

@@ -9,7 +9,7 @@ function sampleWorld(): WorldContext {
     mapId: 42,
     seed: "archive-seed",
     pack: {
-      cells: { state: new Uint16Array([1, 2]), pop: new Float32Array([1.5, 2.25]) },
+      cells: { i: new Uint16Array([0, 1]), state: new Uint16Array([1, 2]), pop: new Float32Array([1.5, 2.25]) },
       burgs: [],
       states: []
     },
@@ -64,6 +64,15 @@ describe("ChunkedWorldCodecAdapter", () => {
     ]);
 
     await expect(new ChunkedWorldCodecAdapter().encode(document)).rejects.toThrow("checksum mismatch");
+  });
+
+  it("rejects malformed entity tables before encoding an archive", async () => {
+    const document = createWorldDocument(sampleWorld(), sampleSimulation(), createPresentationData(), []);
+    (document.world.pack as unknown as Record<string, unknown>).states = [{ i: 0 }, null];
+
+    await expect(new ChunkedWorldCodecAdapter().encode(document)).rejects.toThrow(
+      "pack.states must be an array of records"
+    );
   });
 
   it("stages a legacy positional map without changing live state", async () => {

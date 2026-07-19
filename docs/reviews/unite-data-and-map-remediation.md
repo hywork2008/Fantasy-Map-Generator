@@ -67,3 +67,10 @@
 - `biomesApplyChange()` の `pack.cells.biome` 直接書込みを compatibility commit (`map.physical`) で囲んだ。これにより biome editor の SVG-only redraw 後に WebGL cache が旧 topic revision のまま残る経路を解消した。
 - 残作業: direct writer の allowlist / lint、heightmap・zones・burg editor を含む残存 writer の command migration。このため P1-3 は `In progress` を維持する。
 - 検証: `npm run build` — 成功。`npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts src/renderers/webgl/webglTopicRevisions.test.ts` — 29 passed。
+
+### 2026-07-20 — P0-2 validation expansion
+
+- replacement preflight に simulation clock の有限数検証、`pack.burgs` / `pack.states` の record-table 検証、`pack.cells.i` の typed-array 検証、opaque extension chunk の metadata / core-reference 検証を追加した。
+- malformed state table が archive encode 時点で拒否されることを回帰テスト化し、`world.replace` の binder 前 rejection を維持した。
+- 残作業: map topology の全 column length、stable foreign key、extension slice schema を検証する機械可読 schema。P0-2 は `In progress` を維持する。
+- 検証: `npm test -- --run src/runtime/worldArchive.test.ts src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts` — 31 passed。`npm run build` — 成功。

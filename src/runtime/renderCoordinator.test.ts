@@ -123,7 +123,7 @@ describe("RenderCoordinator", () => {
         stage: "validated",
         document: createWorldDocument(
           { pack: { cells: {}, burgs: [], states: [] }, grid: {}, mapId: 2, seed: "after" } as unknown as WorldContext,
-          {} as SimulationContext,
+          { currentYear: 1, currentMonth: 1, currentDay: 1, tickCount: 0 } as SimulationContext,
           createPresentationData(),
           []
         )
