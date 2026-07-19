@@ -1,6 +1,14 @@
 import { type SimulationContext, simulationContext } from "../context/simulationContext";
 import { type WorldContext, worldContext } from "../context/worldContext";
-import { CULTURE_TYPES, type CultureType, type Province, type River, type Route, type State } from "../types/models";
+import {
+  CULTURE_TYPES,
+  type CultureType,
+  type Province,
+  type River,
+  type Route,
+  type State,
+  type Zone
+} from "../types/models";
 import { bindExtensionStateSlices } from "./extensionStateSlices";
 import {
   applyPresentationPatch,
@@ -229,6 +237,40 @@ export interface RemoveBurgCommand {
   readonly payload: RemoveBurgRequest;
 }
 
+export interface CreateZoneRequest {
+  readonly name: string;
+  readonly type: string;
+  readonly color: string;
+}
+
+export interface CreateZoneCommand {
+  readonly type: "zone.create";
+  readonly payload: CreateZoneRequest;
+}
+
+export interface PatchZoneRequest {
+  readonly zoneId: number;
+  readonly name?: string;
+  readonly type?: string;
+  readonly color?: string;
+  readonly hidden?: boolean;
+  readonly cells?: readonly number[];
+}
+
+export interface PatchZoneCommand {
+  readonly type: "zone.patch";
+  readonly payload: PatchZoneRequest;
+}
+
+export interface RemoveZoneRequest {
+  readonly zoneId: number;
+}
+
+export interface RemoveZoneCommand {
+  readonly type: "zone.remove";
+  readonly payload: RemoveZoneRequest;
+}
+
 export interface MoveRegimentRequest {
   readonly stateId: number;
   readonly regimentId: number;
@@ -427,6 +469,9 @@ export type PositionCommand =
   | MoveBurgCommand
   | PatchBurgCommand
   | RemoveBurgCommand
+  | CreateZoneCommand
+  | PatchZoneCommand
+  | RemoveZoneCommand
   | MoveRegimentCommand;
 export type WorldCommand<T> =
   | LegacyMutationCommand<T>
@@ -703,6 +748,18 @@ class LegacyWorldRuntime implements WorldRuntime {
       return this.removeBurg(command.payload) as LegacyMutationOutcome<T>;
     }
 
+    if (command.type === "zone.create") {
+      return this.createZone(command.payload) as LegacyMutationOutcome<T>;
+    }
+
+    if (command.type === "zone.patch") {
+      return this.patchZone(command.payload) as LegacyMutationOutcome<T>;
+    }
+
+    if (command.type === "zone.remove") {
+      return this.removeZone(command.payload) as LegacyMutationOutcome<T>;
+    }
+
     if (command.type === "cells.assign") {
       return this.assignCells(command.payload) as LegacyMutationOutcome<T>;
     }
@@ -867,6 +924,72 @@ class LegacyWorldRuntime implements WorldRuntime {
       result: { burgId: request.burgId, removedCoa },
       topics: ["map.settlements", "map.annotations", "simulation.burgs"]
     };
+  }
+
+  private createZone(request: CreateZoneRequest): LegacyMutationOutcome<Zone> {
+    if (typeof request.name !== "string" || typeof request.type !== "string" || typeof request.color !== "string") {
+      throw new Error("zone.create requires string name, type and color");
+    }
+    const zones = this.world.pack.zones;
+    const zoneId = zones.length ? Math.max(...zones.map(zone => zone.i)) + 1 : 0;
+    const zone: Zone = { i: zoneId, name: request.name, type: request.type, color: request.color, cells: [] };
+    zones.push(zone);
+    return { result: zone, topics: ["map.annotations"] };
+  }
+
+  private patchZone(request: PatchZoneRequest): LegacyMutationOutcome<void> {
+    const zone = this.world.pack.zones.find(candidate => candidate.i === request.zoneId);
+    if (!zone) throw new Error(`zone.patch could not find zone ${request.zoneId}`);
+
+    let changed = false;
+    if (request.name !== undefined) {
+      if (typeof request.name !== "string") throw new Error("zone.patch requires a string name");
+      if (zone.name !== request.name) {
+        zone.name = request.name;
+        changed = true;
+      }
+    }
+    if (request.type !== undefined) {
+      if (typeof request.type !== "string") throw new Error("zone.patch requires a string type");
+      if (zone.type !== request.type) {
+        zone.type = request.type;
+        changed = true;
+      }
+    }
+    if (request.color !== undefined) {
+      if (typeof request.color !== "string") throw new Error("zone.patch requires a string color");
+      if (zone.color !== request.color) {
+        zone.color = request.color;
+        changed = true;
+      }
+    }
+    if (request.hidden !== undefined) {
+      if (typeof request.hidden !== "boolean") throw new Error("zone.patch requires a boolean hidden flag");
+      if (Boolean(zone.hidden) !== request.hidden) {
+        if (request.hidden) zone.hidden = true;
+        else delete zone.hidden;
+        changed = true;
+      }
+    }
+    if (request.cells !== undefined) {
+      const cellCount = this.world.pack.cells.i.length;
+      const cells = [...new Set(request.cells)];
+      if (cells.some(cellId => !Number.isInteger(cellId) || cellId < 0 || cellId >= cellCount)) {
+        throw new Error("zone.patch received invalid cell ids");
+      }
+      if (zone.cells.length !== cells.length || zone.cells.some((cellId, index) => cellId !== cells[index])) {
+        zone.cells = cells;
+        changed = true;
+      }
+    }
+    return { result: undefined, topics: changed ? ["map.annotations"] : [] };
+  }
+
+  private removeZone(request: RemoveZoneRequest): LegacyMutationOutcome<void> {
+    const zoneIndex = this.world.pack.zones.findIndex(candidate => candidate.i === request.zoneId);
+    if (zoneIndex === -1) throw new Error(`zone.remove could not find zone ${request.zoneId}`);
+    this.world.pack.zones.splice(zoneIndex, 1);
+    return { result: undefined, topics: ["map.annotations"] };
   }
 
   private invertMarkerFlags(request: InvertMarkerFlagsRequest): LegacyMutationOutcome<void> {
@@ -1573,6 +1696,18 @@ export function patchBurg(request: PatchBurgRequest): WorldCommit<void> | null {
 /** Removes a non-capital burg and its associated note through the settlement command seam. */
 export function removeBurg(request: RemoveBurgRequest): WorldCommit<RemoveBurgResult> | null {
   return (worldRuntime as LegacyWorldRuntime).execute({ type: "burg.remove", payload: request });
+}
+
+export function createZone(request: CreateZoneRequest): WorldCommit<Zone> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "zone.create", payload: request });
+}
+
+export function patchZone(request: PatchZoneRequest): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "zone.patch", payload: request });
+}
+
+export function removeZone(request: RemoveZoneRequest): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "zone.remove", payload: request });
 }
 
 export function moveRegiment(request: MoveRegimentRequest): WorldCommit<void> | null {

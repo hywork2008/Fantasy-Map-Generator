@@ -333,6 +333,31 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     ]);
   });
 
+  it("creates, patches and removes zones through the annotation topic", async () => {
+    const world = createPositionWorld();
+    world.pack.cells.i = new Uint16Array([0, 1]);
+    world.pack.zones = [];
+    const runtime = createWorldRuntime(world, {} as SimulationContext);
+
+    const createCommit = await runtime.dispatch({
+      type: "zone.create",
+      payload: { name: "North", type: "Climate", color: "#123456" }
+    });
+    expect(createCommit?.result).toMatchObject({ i: 0, name: "North", cells: [] });
+    const patchCommit = await runtime.dispatch({
+      type: "zone.patch",
+      payload: { zoneId: 0, name: "Northern", hidden: true, cells: [1, 0, 1] }
+    });
+    expect(world.pack.zones).toEqual([
+      { i: 0, name: "Northern", type: "Climate", color: "#123456", hidden: true, cells: [1, 0] }
+    ]);
+    const removeCommit = await runtime.dispatch({ type: "zone.remove", payload: { zoneId: 0 } });
+
+    expect(patchCommit?.changes.changes).toEqual([{ topic: "map.annotations", kind: "replace" }]);
+    expect(world.pack.zones).toEqual([]);
+    expect(removeCommit?.changes.changes).toEqual([{ topic: "map.annotations", kind: "replace" }]);
+  });
+
   it("assigns cell ownership atomically and preserves burg state / culture invariants", async () => {
     const world = createPoliticsWorld();
     const runtime = createWorldRuntime(world, {} as SimulationContext);

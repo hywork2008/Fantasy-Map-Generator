@@ -20,6 +20,7 @@ import {
 import { FeaturesRenderer, removeBurgCOA } from "../renderers";
 import { OceanLayers } from "../renderers/ocean-layers";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
+import { legacyMutation } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -330,9 +331,16 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     const heightmapEditMode = getElementById("heightmapEditMode");
     const mode = heightmapEditMode ? heightmapEditMode.textContent : null;
-    if (mode === "erase") await regenerateErasedData();
-    else if (mode === "keep") restoreKeptData();
-    else if (mode === "risk") await restoreRiskedData();
+    if (mode === "erase") {
+      await regenerateErasedData();
+      publishHeightmapReplacement();
+    } else if (mode === "keep") {
+      restoreKeptData();
+      legacyMutation(() => ({ result: undefined, topics: ["map.physical"] }));
+    } else if (mode === "risk") {
+      await restoreRiskedData();
+      publishHeightmapReplacement();
+    }
 
     FeaturesRenderer.render(worldContext, viewContext, appServices);
     view.viewbox.selectAll("#heights").remove();
@@ -349,6 +357,30 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     if (!layerIsOn("toggleRivers")) view.rivers.selectAll("*").remove();
 
     getCurrentPreset();
+  }
+
+  /**
+   * Erase/risk heightmap exits rebuild pack topology and every dependent
+   * generated table. The editor's preview writes directly while customization
+   * is active, so publish the complete owned topic set once the world is again
+   * coherent rather than invalidating WebGL on every brush stroke.
+   */
+  function publishHeightmapReplacement(): void {
+    legacyMutation(() => ({
+      result: undefined,
+      topics: [
+        "map.topology",
+        "map.physical",
+        "map.politics",
+        "map.settlements",
+        "map.networks",
+        "map.annotations",
+        "simulation.cells",
+        "simulation.states",
+        "simulation.burgs",
+        "simulation.military"
+      ]
+    }));
   }
 
   async function regenerateErasedData(): Promise<void> {

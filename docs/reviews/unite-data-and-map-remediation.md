@@ -117,3 +117,10 @@
 - burg editor は新 command を使用する。Burgs overview、State editor、Province editor の削除・lock 操作も、command または compatibility mutation を通すようにしたため、これらの表 UI からの変更で WebGL/SVG invalidation が欠落しない。
 - 残作業: heightmap、zones、generation-triggered edits を含む残存 direct writer inventory / allowlist。P1-3 は `In progress` を維持する。
 - 検証: `npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts` — 28 passed。`npm run build` — 成功。
+
+### 2026-07-20 — P1-3 zones and heightmap invalidation
+
+- zone の作成・属性更新・visibility・cell assignment・削除を `zone.create` / `zone.patch` / `zone.remove` command に移行した。zone polygon は WebGL で `map.annotations` revision に依存するため、従来の SVG 即時描画だけでは残っていた canvas 側の更新漏れを解消する。
+- heightmap editor は、編集中には無駄な invalidation を発行せず、確定時にだけ topic を publish するようにした。`keep` は `map.physical` のみ、`erase` / `risk` の再生成は topology、physical、politics、settlements、networks、annotations と simulation slices を一括 publish する。
+- 残作業: editor 全体の direct writer inventory と allowlist の機械化、generation-triggered edits の残存経路。P1-3 は `In progress` を維持する。
+- 検証: `npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts src/renderers/webgl/webglTopicRevisions.test.ts` — 31 passed。`npm run build` — 成功。
