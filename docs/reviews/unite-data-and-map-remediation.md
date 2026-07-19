@@ -96,3 +96,24 @@
 - topology 外 cell を持つ river record を archive encode 前に拒否する回帰テストを追加した。
 - 残作業: extension slice schema と opaque chunk の core deletion policy。core map / simulation replacement の構造・column・主要 foreign key validation は実装済みとして、P0-2 を次回 extension archive seam と合わせて完了判定する。
 - 検証: `npm test -- --run src/runtime/worldArchive.test.ts src/runtime/worldRuntime.test.ts` — 27 passed。`npm run build` — 成功。
+
+### 2026-07-20 — P1-3 burg editor command migration
+
+- burg editor の名称・種別・文化の直接 `pack.burgs` 書込みを `burg.patch` command に置換した。command は culture ID と許可済み culture type を検証し、実変更時だけ `map.settlements` を publish する。
+- これにより SVG の label 更新と WebGL の settlement projection invalidation が同一の revision / render-coordination 経路を通る。編集 UI の即時表示更新は維持する。
+- 残作業: burg の group / population / flag edits と、heightmap・zones 等の残存 direct writer の command 化または明示 allowlist。P1-3 は `In progress` を維持する。
+- 検証: `npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts` — 27 passed。`npm run build` — 成功。
+
+### 2026-07-20 — P1-3 burg editor residual writer containment
+
+- `burg.patch` を lock、custom preview link、citadel / walls / plaza / temple / shanty の施設フラグまで拡張した。施設名・値は command 側で検証する。
+- group、population と demographics、port、capital 移管の複合変更は、暫定 compatibility mutation を通して `map.settlements`（必要時は `map.politics` / `simulation.burgs`）を必ず publish するようにした。capital 移管時の個別 SVG renderer 直接呼出しは除去した。
+- これで burg editor にある状態変更は、burg 削除を除き、すべて revision / RenderCoordinator の経路を通る。残作業は burg 削除および他 editor の direct writer inventory / allowlist。
+- 検証: `npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts` — 27 passed。`npm run build` — 成功。
+
+### 2026-07-20 — P1-3 burg removal and overview actions
+
+- `burg.remove` command を追加し、non-capital burg の cell ownership、removed flag、関連 note、COA を一つの検証済み commit で更新するようにした。削除は `map.settlements` / `map.annotations` / `simulation.burgs` を publish する。
+- burg editor は新 command を使用する。Burgs overview、State editor、Province editor の削除・lock 操作も、command または compatibility mutation を通すようにしたため、これらの表 UI からの変更で WebGL/SVG invalidation が欠落しない。
+- 残作業: heightmap、zones、generation-triggered edits を含む残存 direct writer inventory / allowlist。P1-3 は `In progress` を維持する。
+- 検証: `npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts` — 28 passed。`npm run build` — 成功。

@@ -1,6 +1,6 @@
 import { type SimulationContext, simulationContext } from "../context/simulationContext";
 import { type WorldContext, worldContext } from "../context/worldContext";
-import type { Province, River, Route, State } from "../types/models";
+import { CULTURE_TYPES, type CultureType, type Province, type River, type Route, type State } from "../types/models";
 import { bindExtensionStateSlices } from "./extensionStateSlices";
 import {
   applyPresentationPatch,
@@ -193,6 +193,40 @@ export interface MoveBurgRequest {
 export interface MoveBurgCommand {
   readonly type: "burg.move";
   readonly payload: MoveBurgRequest;
+}
+
+export const BURG_FACILITIES = ["citadel", "walls", "plaza", "temple", "shanty"] as const;
+export type BurgFacility = (typeof BURG_FACILITIES)[number];
+
+/** Fields edited in place by the burg editor without changing its location. */
+export interface PatchBurgRequest {
+  readonly burgId: number;
+  readonly name?: string;
+  readonly type?: string;
+  readonly culture?: number;
+  readonly lock?: boolean;
+  /** `null` removes a custom preview link. */
+  readonly link?: string | null;
+  readonly facilities?: Partial<Record<BurgFacility, boolean>>;
+}
+
+export interface PatchBurgCommand {
+  readonly type: "burg.patch";
+  readonly payload: PatchBurgRequest;
+}
+
+export interface RemoveBurgRequest {
+  readonly burgId: number;
+}
+
+export interface RemoveBurgResult {
+  readonly burgId: number;
+  readonly removedCoa: boolean;
+}
+
+export interface RemoveBurgCommand {
+  readonly type: "burg.remove";
+  readonly payload: RemoveBurgRequest;
 }
 
 export interface MoveRegimentRequest {
@@ -391,6 +425,8 @@ export type PositionCommand =
   | RemoveMarkerCommand
   | RemoveUnlockedMarkersCommand
   | MoveBurgCommand
+  | PatchBurgCommand
+  | RemoveBurgCommand
   | MoveRegimentCommand;
 export type WorldCommand<T> =
   | LegacyMutationCommand<T>
@@ -659,6 +695,14 @@ class LegacyWorldRuntime implements WorldRuntime {
       return { result: undefined as T, topics: ["map.settlements", "map.politics"] };
     }
 
+    if (command.type === "burg.patch") {
+      return this.patchBurg(command.payload) as LegacyMutationOutcome<T>;
+    }
+
+    if (command.type === "burg.remove") {
+      return this.removeBurg(command.payload) as LegacyMutationOutcome<T>;
+    }
+
     if (command.type === "cells.assign") {
       return this.assignCells(command.payload) as LegacyMutationOutcome<T>;
     }
@@ -733,6 +777,96 @@ class LegacyWorldRuntime implements WorldRuntime {
       changed = true;
     }
     return { result: undefined, topics: changed ? ["map.annotations"] : [] };
+  }
+
+  private patchBurg(request: PatchBurgRequest): LegacyMutationOutcome<void> {
+    const burg = this.world.pack.burgs[request.burgId];
+    if (!burg?.i) throw new Error(`burg.patch could not find burg ${request.burgId}`);
+
+    let changed = false;
+    if (request.name !== undefined) {
+      if (typeof request.name !== "string") throw new Error("burg.patch requires a string name");
+      if (burg.name !== request.name) {
+        burg.name = request.name;
+        changed = true;
+      }
+    }
+    if (request.type !== undefined) {
+      if (typeof request.type !== "string") throw new Error("burg.patch requires a string type");
+      if (!CULTURE_TYPES.includes(request.type as CultureType)) {
+        throw new Error(`burg.patch received invalid type ${request.type}`);
+      }
+      if (burg.type !== request.type) {
+        burg.type = request.type as CultureType;
+        changed = true;
+      }
+    }
+    if (request.culture !== undefined) {
+      if (!Number.isInteger(request.culture) || request.culture < 0) {
+        throw new Error("burg.patch requires a non-negative integer culture");
+      }
+      const cultures = this.world.pack.cultures;
+      if (cultures && !cultures[request.culture]) {
+        throw new Error(`burg.patch could not find culture ${request.culture}`);
+      }
+      if (burg.culture !== request.culture) {
+        burg.culture = request.culture;
+        changed = true;
+      }
+    }
+    if (request.lock !== undefined) {
+      if (typeof request.lock !== "boolean") throw new Error("burg.patch requires a boolean lock");
+      if (Boolean(burg.lock) !== request.lock) {
+        burg.lock = request.lock;
+        changed = true;
+      }
+    }
+    if (request.link !== undefined) {
+      if (request.link !== null && typeof request.link !== "string") {
+        throw new Error("burg.patch requires a string or null link");
+      }
+      if (request.link === null) {
+        if (burg.link !== undefined) {
+          delete burg.link;
+          changed = true;
+        }
+      } else if (burg.link !== request.link) {
+        burg.link = request.link;
+        changed = true;
+      }
+    }
+    if (request.facilities !== undefined) {
+      for (const [key, enabled] of Object.entries(request.facilities)) {
+        if (!BURG_FACILITIES.includes(key as BurgFacility) || typeof enabled !== "boolean") {
+          throw new Error(`burg.patch received invalid facility ${key}`);
+        }
+        const facility = key as BurgFacility;
+        const value = enabled ? 1 : 0;
+        if (burg[facility] !== value) {
+          burg[facility] = value;
+          changed = true;
+        }
+      }
+    }
+    return { result: undefined, topics: changed ? ["map.settlements"] : [] };
+  }
+
+  private removeBurg(request: RemoveBurgRequest): LegacyMutationOutcome<RemoveBurgResult> {
+    const burg = this.world.pack.burgs[request.burgId];
+    if (!burg?.i || burg.removed) throw new Error(`burg.remove could not find active burg ${request.burgId}`);
+    if (burg.capital) throw new Error("burg.remove cannot remove a capital burg");
+
+    this.world.pack.cells.burg[burg.cell] = 0;
+    burg.removed = true;
+    const noteIndex = this.world.notes.findIndex(note => note.id === `burg${request.burgId}`);
+    if (noteIndex !== -1) this.world.notes.splice(noteIndex, 1);
+    const removedCoa = Boolean(burg.coa);
+    if (removedCoa) delete burg.coa;
+
+    return {
+      result: { burgId: request.burgId, removedCoa },
+      topics: ["map.settlements", "map.annotations", "simulation.burgs"]
+    };
   }
 
   private invertMarkerFlags(request: InvertMarkerFlagsRequest): LegacyMutationOutcome<void> {
@@ -1429,6 +1563,16 @@ export function removeUnlockedMarkers(): WorldCommit<{ removedMarkerIds: readonl
 
 export function moveBurg(request: MoveBurgRequest): WorldCommit<void> | null {
   return (worldRuntime as LegacyWorldRuntime).execute({ type: "burg.move", payload: request });
+}
+
+/** Commits non-positional burg editor fields through the settlement topic. */
+export function patchBurg(request: PatchBurgRequest): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "burg.patch", payload: request });
+}
+
+/** Removes a non-capital burg and its associated note through the settlement command seam. */
+export function removeBurg(request: RemoveBurgRequest): WorldCommit<RemoveBurgResult> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "burg.remove", payload: request });
 }
 
 export function moveRegiment(request: MoveRegimentRequest): WorldCommit<void> | null {

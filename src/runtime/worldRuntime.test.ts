@@ -16,6 +16,7 @@ function createPositionWorld(): WorldContext {
       markers: [{ i: 1, x: 4, y: 8, cell: 0 }],
       burgs: [{}, { i: 1, cell: 0, state: 1, x: 4, y: 8, capital: true }],
       states: [{ i: 0 }, { i: 1, center: 0, military: [{ i: 7, x: 4, y: 8 }] }],
+      cultures: [{ i: 0 }, { i: 1 }],
       cells: { burg: new Uint16Array([1, 0]) }
     }
   } as unknown as WorldContext;
@@ -252,13 +253,37 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
       type: "burg.move",
       payload: { burgId: 1, cellId: 1, stateId: 1, x: 30, y: 40 }
     });
+    const burgPatchCommit = await runtime.dispatch({
+      type: "burg.patch",
+      payload: {
+        burgId: 1,
+        name: "New Name",
+        type: "Naval",
+        culture: 1,
+        lock: true,
+        link: "https://example.test",
+        facilities: { citadel: true, walls: false }
+      }
+    });
     const regimentCommit = await runtime.dispatch({
       type: "regiment.move",
       payload: { stateId: 1, regimentId: 7, x: 50, y: 60 }
     });
 
     expect(world.pack.markers[0]).toMatchObject({ x: 10, y: 20, cell: 1 });
-    expect(world.pack.burgs[1]).toMatchObject({ cell: 1, state: 1, x: 30, y: 40 });
+    expect(world.pack.burgs[1]).toMatchObject({
+      cell: 1,
+      state: 1,
+      x: 30,
+      y: 40,
+      name: "New Name",
+      type: "Naval",
+      culture: 1,
+      lock: true,
+      link: "https://example.test",
+      citadel: 1,
+      walls: 0
+    });
     expect(world.pack.cells.burg).toEqual(new Uint16Array([0, 1]));
     expect(world.pack.states[1].center).toBe(1);
     expect(world.pack.states[1].military?.[0]).toMatchObject({ x: 50, y: 60 });
@@ -267,6 +292,7 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
       { topic: "map.settlements", kind: "replace" },
       { topic: "map.politics", kind: "replace" }
     ]);
+    expect(burgPatchCommit?.changes.changes).toEqual([{ topic: "map.settlements", kind: "replace" }]);
     expect(regimentCommit?.changes.changes).toEqual([{ topic: "simulation.military", kind: "replace" }]);
   });
 
@@ -284,6 +310,27 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     expect(removeCommit?.result).toEqual({ removedMarkerIds: [1] });
     expect(world.pack.markers).toEqual([]);
     expect(world.notes).toEqual([]);
+  });
+
+  it("removes a non-capital burg, its cell ownership and its note through one command", async () => {
+    const world = createPositionWorld();
+    world.pack.burgs[1].capital = 0;
+    world.pack.burgs[1].coa = {} as never;
+    world.notes = [{ id: "burg1", name: "Old burg" }];
+    const runtime = createWorldRuntime(world, {} as SimulationContext);
+
+    const commit = await runtime.dispatch({ type: "burg.remove", payload: { burgId: 1 } });
+
+    expect(world.pack.cells.burg).toEqual(new Uint16Array([0, 0]));
+    expect(world.pack.burgs[1]).toMatchObject({ removed: true });
+    expect(world.pack.burgs[1].coa).toBeUndefined();
+    expect(world.notes).toEqual([]);
+    expect(commit?.result).toEqual({ burgId: 1, removedCoa: true });
+    expect(commit?.changes.changes).toEqual([
+      { topic: "map.settlements", kind: "replace" },
+      { topic: "map.annotations", kind: "replace" },
+      { topic: "simulation.burgs", kind: "replace" }
+    ]);
   });
 
   it("assigns cell ownership atomically and preserves burg state / culture invariants", async () => {
