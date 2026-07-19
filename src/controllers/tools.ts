@@ -348,7 +348,8 @@ function regenerateStates(): void {
     const newStates = recreateStates();
     if (!newStates) return { result: false, topics: [] };
 
-    worldContext.pack.states = newStates;
+    const pack = worldContext.pack;
+    pack.states = newStates;
     const state = getWorldState();
     GenerationPipeline.States.expandStates(worldContext, viewContext, appServices);
     GenerationPipeline.States.normalize();
@@ -391,6 +392,7 @@ function regenerateStates(): void {
 }
 
 function recreateStates(): State[] | null {
+  const pack = worldContext.pack;
   const localSeed = generateSeed();
   (Math as Record<"random", () => number>).random = Alea(localSeed);
 
@@ -442,7 +444,7 @@ function recreateStates(): State[] | null {
     for (const provinceId of state.provinces ?? []) {
       getElementById(`provinceCOA${provinceId}`)?.remove();
       getElementBySelector<SVGUseElement>(`#provinceEmblems > use[data-i="${provinceId}"]`)?.remove();
-      worldContext.pack.provinces[provinceId].removed = true;
+      pack.provinces[provinceId].removed = true;
     }
   }
 
@@ -487,18 +489,18 @@ function recreateStates(): State[] | null {
     );
 
     (state.provinces ?? []).forEach((provinceId: number) => {
-      if (!worldContext.pack.provinces[provinceId]) return;
-      worldContext.pack.provinces[provinceId].state = newId;
+      if (!pack.provinces[provinceId]) return;
+      pack.provinces[provinceId].state = newId;
     });
 
     state.i = newId;
     newStates.push(state);
   });
 
-  for (const i of worldContext.pack.cells.i) {
-    const stateId = worldContext.pack.cells.state[i];
+  for (const i of pack.cells.i) {
+    const stateId = pack.cells.state[i];
     const lockedStateIndex = lockedStatesIds.indexOf(stateId) + 1;
-    worldContext.pack.cells.state[i] = lockedStateIndex;
+    pack.cells.state[i] = lockedStateIndex;
   }
 
   for (let i = newStates.length; i < count; i++) {
@@ -574,7 +576,8 @@ function regenerateProvinces(): void {
 
 async function regenerateBurgs(): Promise<void> {
   legacyMutation(() => {
-    const { cells, burgs: packBurgs, states, provinces } = worldContext.pack;
+    const pack = worldContext.pack;
+    const { cells, burgs: packBurgs, states, provinces } = pack;
 
     rankCells();
 
@@ -667,7 +670,7 @@ async function regenerateBurgs(): Promise<void> {
       cells.burg[cell] = id;
     }
 
-    worldContext.pack.burgs = newBurgs;
+    pack.burgs = newBurgs;
     GenerationPipeline.Burgs.shift();
 
     states
@@ -778,22 +781,23 @@ function regenerateReligions(): void {
 function regenerateCultures(): void {
   const state = getWorldState();
   legacyMutation(() => {
+    const pack = worldContext.pack;
     GenerationPipeline.Cultures.generate(worldContext, viewContext, appServices, state);
     GenerationPipeline.Cultures.expand(state);
 
-    worldContext.pack.states = worldContext.pack.states.map((st: State) => {
+    pack.states = pack.states.map((st: State) => {
       if (!st.i || st.removed) return st;
-      return { ...st, culture: worldContext.pack.cells.culture[st.center!] };
+      return { ...st, culture: pack.cells.culture[st.center!] };
     });
 
-    worldContext.pack.burgs = worldContext.pack.burgs.map((burg: Burg) => {
+    pack.burgs = pack.burgs.map((burg: Burg) => {
       if (!burg.i || burg.removed) return burg;
-      return { ...burg, culture: worldContext.pack.cells.culture[burg.cell] };
+      return { ...burg, culture: pack.cells.culture[burg.cell] };
     });
 
-    worldContext.pack.religions = worldContext.pack.religions.map((religion: Religion) => {
+    pack.religions = pack.religions.map((religion: Religion) => {
       if (!religion.i || religion.removed) return religion;
-      return { ...religion, culture: worldContext.pack.cells.culture[religion.center!] };
+      return { ...religion, culture: pack.cells.culture[religion.center!] };
     });
 
     return { result: undefined, topics: ["map.politics", "map.settlements"] };

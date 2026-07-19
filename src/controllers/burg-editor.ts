@@ -325,8 +325,9 @@ export const burgEditorActions = {
       const oldCapitalId = worldContext.pack.states[stateId].capital;
       const oldCapital = worldContext.pack.burgs[oldCapitalId];
       legacyMutation(() => {
-        worldContext.pack.states[stateId].capital = burgId;
-        worldContext.pack.states[stateId].center = burg.cell;
+        const state = worldContext.pack.states[stateId];
+        state.capital = burgId;
+        state.center = burg.cell;
         burg.capital = 1;
         GenerationPipeline.Burgs.changeGroup(burg);
         if (oldCapital) {

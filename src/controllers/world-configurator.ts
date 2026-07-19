@@ -33,10 +33,11 @@ export function updateWorld(): void {
   document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true, prec: true } }));
   legacyMutation(() => {
     const state = getWorldState();
-    const heights = new Uint8Array(worldContext.pack.cells.h);
+    const pack = worldContext.pack;
+    const heights = new Uint8Array(pack.cells.h);
     Rivers.generate(worldContext, viewContext, appServices, state);
     Rivers.specify(worldContext, viewContext, appServices, state);
-    worldContext.pack.cells.h = new Float32Array(heights);
+    pack.cells.h = new Float32Array(heights);
     Biomes.define(state);
     Features.defineGroups();
     Lakes.defineNames(state);

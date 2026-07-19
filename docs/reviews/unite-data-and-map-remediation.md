@@ -199,3 +199,21 @@
 - default 復元は biome definition と dependent population を再計算するため、settlement / burg simulation topic も publish する。SVG renderer と editor-store の局所更新は commit 後に維持する。
 - `biomes-editor.ts` を direct pack/grid writer allowlist から除去した。残る compatibility module は 7 件で、heightmap の編集プレビューと大規模再構築を次の分割対象とする。P1-3 は `In progress` を維持する。
 - 検証: `npm run lint:world-writers` — 7 compatibility modules。`npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts src/renderers/webgl/webglTopicRevisions.test.ts` — 36 passed。`npm run build` — 成功。
+
+### 2026-07-20 — P1-3 burg editor inventory completion
+
+- Burg editor に残っていた state capital / center の直接参照を local record 経由に整理した。変更自体は既存の `legacyMutation` に含まれ、`map.settlements` / `map.politics` / `simulation.burgs` を publish する transaction である。
+- これにより `burg-editor.ts` を direct pack/grid writer allowlist から除去した。heightmap edit session は可逆 preview grid を保持し、finalize 時の一括 publish が正しい seam であることを確認したため、6 件の compatibility module に残す。
+- 検証: `npm run lint:world-writers` — 6 compatibility modules。`npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts` — 34 passed。`npm run build` — 成功。
+
+### 2026-07-20 — P1-3 tools inventory completion
+
+- Tools の state / burg / culture regeneration が使用する pack record を transaction 内で局所化した。前回導入した `legacyMutation` が既にすべての generator write を覆い、renderer は commit 後に実行する構造であることを確認した。
+- `tools.ts` を direct pack/grid writer allowlist から除去した。残る 5 件は heightmap の可逆 preview grid と finalize/rebuild transaction、World Configurator の world-wide transaction である。
+- 検証: `npm run lint:world-writers` — 5 compatibility modules。`npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts src/renderers/webgl/webglTopicRevisions.test.ts` — 36 passed。`npm run build` — 成功。
+
+### 2026-07-20 — P1-3 world configurator inventory completion
+
+- World Configurator の river / biome / feature 再計算は既存の world-wide `legacyMutation` に保持し、pack height の一時退避・復元を transaction 内の局所 record 経由に整理した。
+- `world-configurator.ts` を direct pack/grid writer allowlist から除去した。残る 4 件はすべて heightmap edit session の可逆 preview grid を扱う module であり、finalize 時の publish/rebuild contract を共有する。
+- 検証: `npm run lint:world-writers` — 4 compatibility modules。`npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts` — 34 passed。`npm run build` — 成功。
