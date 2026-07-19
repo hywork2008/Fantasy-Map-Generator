@@ -4,6 +4,7 @@ import {
   CULTURE_TYPES,
   type CultureType,
   type Province,
+  type Religion,
   type River,
   type Route,
   type State,
@@ -291,6 +292,25 @@ export interface PatchStateCommand {
   readonly payload: PatchStateRequest;
 }
 
+export interface PatchReligionRequest {
+  readonly religionId: number;
+  readonly name?: string;
+  readonly code?: string;
+  readonly type?: Religion["type"];
+  readonly form?: string;
+  readonly deity?: string | null;
+  readonly color?: string;
+  readonly expansion?: string;
+  readonly expansionism?: number;
+  readonly lock?: boolean;
+  readonly center?: number;
+}
+
+export interface PatchReligionCommand {
+  readonly type: "religion.patch";
+  readonly payload: PatchReligionRequest;
+}
+
 export interface MoveRegimentRequest {
   readonly stateId: number;
   readonly regimentId: number;
@@ -446,6 +466,28 @@ export interface ReplaceRiverGeometryCommand {
   readonly payload: ReplaceRiverGeometryRequest;
 }
 
+export interface RemoveRiverRequest {
+  readonly riverId: number;
+}
+
+export interface RemoveRiverResult {
+  /** The selected river and every tributary removed with it. */
+  readonly riverIds: readonly number[];
+}
+
+export interface RemoveRiverCommand {
+  readonly type: "river.remove";
+  readonly payload: RemoveRiverRequest;
+}
+
+export interface ClearRiversResult {
+  readonly riverIds: readonly number[];
+}
+
+export interface ClearRiversCommand {
+  readonly type: "river.clear";
+}
+
 export interface FeaturePatchRequest {
   readonly featureId: number;
   readonly name?: string;
@@ -493,6 +535,7 @@ export type PositionCommand =
   | PatchZoneCommand
   | RemoveZoneCommand
   | PatchStateCommand
+  | PatchReligionCommand
   | MoveRegimentCommand;
 export type WorldCommand<T> =
   | LegacyMutationCommand<T>
@@ -509,6 +552,8 @@ export type WorldCommand<T> =
   | ReplaceRoutePointsCommand
   | PatchRiverCommand
   | ReplaceRiverGeometryCommand
+  | RemoveRiverCommand
+  | ClearRiversCommand
   | PatchFeatureCommand
   | MoveFeatureVertexCommand
   | PresentationPatchCommand
@@ -785,6 +830,10 @@ class LegacyWorldRuntime implements WorldRuntime {
       return this.patchState(command.payload) as LegacyMutationOutcome<T>;
     }
 
+    if (command.type === "religion.patch") {
+      return this.patchReligion(command.payload) as LegacyMutationOutcome<T>;
+    }
+
     if (command.type === "cells.assign") {
       return this.assignCells(command.payload) as LegacyMutationOutcome<T>;
     }
@@ -823,6 +872,14 @@ class LegacyWorldRuntime implements WorldRuntime {
 
     if (command.type === "river.replaceGeometry") {
       return this.replaceRiverGeometry(command.payload) as LegacyMutationOutcome<T>;
+    }
+
+    if (command.type === "river.remove") {
+      return this.removeRiver(command.payload) as LegacyMutationOutcome<T>;
+    }
+
+    if (command.type === "river.clear") {
+      return this.clearRivers() as LegacyMutationOutcome<T>;
     }
 
     if (command.type === "feature.patch") {
@@ -1064,6 +1121,74 @@ class LegacyWorldRuntime implements WorldRuntime {
       if (typeof request.lock !== "boolean") throw new Error("state.patch requires a boolean lock");
       if (Boolean(state.lock) !== request.lock) {
         state.lock = request.lock;
+        changed = true;
+      }
+    }
+    return { result: undefined, topics: changed ? ["map.politics"] : [] };
+  }
+
+  private patchReligion(request: PatchReligionRequest): LegacyMutationOutcome<void> {
+    const religion = this.world.pack.religions[request.religionId];
+    if (!religion?.i || religion.removed) {
+      throw new Error(`religion.patch could not find active religion ${request.religionId}`);
+    }
+
+    let changed = false;
+    const patchString = (field: "name" | "code" | "form" | "color" | "expansion", value: string | undefined) => {
+      if (value === undefined) return;
+      if (typeof value !== "string") throw new Error(`religion.patch requires a string ${field}`);
+      if (religion[field] !== value) {
+        religion[field] = value;
+        changed = true;
+      }
+    };
+    patchString("name", request.name);
+    patchString("code", request.code);
+    patchString("form", request.form);
+    patchString("color", request.color);
+    patchString("expansion", request.expansion);
+
+    if (request.type !== undefined) {
+      if (!["Folk", "Organized", "Cult", "Heresy"].includes(request.type)) {
+        throw new Error(`religion.patch received invalid type ${request.type}`);
+      }
+      if (religion.type !== request.type) {
+        religion.type = request.type;
+        changed = true;
+      }
+    }
+    if (request.deity !== undefined) {
+      if (request.deity !== null && typeof request.deity !== "string") {
+        throw new Error("religion.patch requires a string or null deity");
+      }
+      if (religion.deity !== request.deity) {
+        religion.deity = request.deity;
+        changed = true;
+      }
+    }
+    if (request.expansionism !== undefined) {
+      if (!Number.isFinite(request.expansionism) || request.expansionism < 0) {
+        throw new Error("religion.patch requires a non-negative finite expansionism");
+      }
+      if (religion.expansionism !== request.expansionism) {
+        religion.expansionism = request.expansionism;
+        changed = true;
+      }
+    }
+    if (request.lock !== undefined) {
+      if (typeof request.lock !== "boolean") throw new Error("religion.patch requires a boolean lock");
+      if (Boolean(religion.lock) !== request.lock) {
+        religion.lock = request.lock;
+        changed = true;
+      }
+    }
+    if (request.center !== undefined) {
+      const cellCount = this.world.pack.cells.i.length;
+      if (!Number.isInteger(request.center) || request.center < 0 || request.center >= cellCount) {
+        throw new Error(`religion.patch received invalid center ${request.center}`);
+      }
+      if (religion.center !== request.center) {
+        religion.center = request.center;
         changed = true;
       }
     }
@@ -1571,6 +1696,37 @@ class LegacyWorldRuntime implements WorldRuntime {
     return { result: undefined, topics: ["map.networks"] };
   }
 
+  private removeRiver(request: RemoveRiverRequest): LegacyMutationOutcome<RemoveRiverResult> {
+    const selected = this.findRiver(request.riverId);
+    const riverIds = this.world.pack.rivers
+      .filter(river => river.i === selected.i || river.parent === selected.i || river.basin === selected.i)
+      .map(river => river.i);
+    this.assertOpaqueDeletesAllowed(riverIds.map(id => ({ kind: "river" as const, id })));
+    this.resetRiverCells(new Set(riverIds));
+    this.world.pack.rivers = this.world.pack.rivers.filter(river => !riverIds.includes(river.i));
+    return { result: { riverIds }, topics: ["map.networks"] };
+  }
+
+  private clearRivers(): LegacyMutationOutcome<ClearRiversResult> {
+    const riverIds = this.world.pack.rivers.map(river => river.i);
+    if (!riverIds.length) return { result: { riverIds }, topics: [] };
+    this.assertOpaqueDeletesAllowed(riverIds.map(id => ({ kind: "river" as const, id })));
+    this.resetRiverCells(new Set(riverIds));
+    this.world.pack.rivers = [];
+    return { result: { riverIds }, topics: ["map.networks"] };
+  }
+
+  private resetRiverCells(riverIds: ReadonlySet<number>): void {
+    const { cells } = this.world.pack;
+    const precipitation = this.world.grid.cells.prec;
+    cells.r.forEach((riverId, cellId) => {
+      if (!riverIds.has(riverId)) return;
+      cells.r[cellId] = 0;
+      cells.fl[cellId] = precipitation[cells.g[cellId]];
+      cells.conf[cellId] = 0;
+    });
+  }
+
   private patchFeature(request: FeaturePatchRequest): LegacyMutationOutcome<void> {
     if (!Number.isInteger(request.featureId)) {
       throw new Error(`feature command received invalid feature ${request.featureId}`);
@@ -1808,6 +1964,11 @@ export function patchState(request: PatchStateRequest): WorldCommit<void> | null
   return (worldRuntime as LegacyWorldRuntime).execute({ type: "state.patch", payload: request });
 }
 
+/** Commits religion metadata through the political map topic. */
+export function patchReligion(request: PatchReligionRequest): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "religion.patch", payload: request });
+}
+
 export function moveRegiment(request: MoveRegimentRequest): WorldCommit<void> | null {
   return (worldRuntime as LegacyWorldRuntime).execute({ type: "regiment.move", payload: request });
 }
@@ -1858,6 +2019,16 @@ export function patchRiver(request: RiverPatchRequest): WorldCommit<void> | null
 /** Phase 5 command for river control-point geometry edits. */
 export function replaceRiverGeometry(request: ReplaceRiverGeometryRequest): WorldCommit<void> | null {
   return (worldRuntime as LegacyWorldRuntime).execute({ type: "river.replaceGeometry", payload: request });
+}
+
+/** Removes a river and its tributaries through the network command seam. */
+export function removeRiver(request: RemoveRiverRequest): WorldCommit<RemoveRiverResult> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "river.remove", payload: request });
+}
+
+/** Removes every river while resetting its owned cell columns in the same commit. */
+export function clearRivers(): WorldCommit<ClearRiversResult> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "river.clear" });
 }
 
 /** Phase 5 command for persisted lake / coastline feature metadata. */

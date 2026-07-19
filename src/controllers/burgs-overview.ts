@@ -5,6 +5,7 @@ import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 
 import { drawBurgIcon, drawBurgLabel, drawRoute } from "../renderers";
+import { patchBurg } from "../runtime/worldRuntime";
 import { getHeight } from "../services/cellInfoService";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
@@ -345,7 +346,7 @@ export function importBurgNames(dataLoaded: string, refresh: () => void): void {
     confirm: "Rename",
     onConfirm: () => {
       for (const { id, name } of change) {
-        worldContext.pack.burgs[id].name = name;
+        if (!patchBurg({ burgId: id, name })) continue;
         view.burgLabels.select(`[data-id='${id}']`).text(name);
       }
       refresh();

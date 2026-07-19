@@ -145,3 +145,11 @@
 - Route Groups editor は `GenerationPipeline.Routes.remove()` を直接呼ばず、対象 route ID を snapshot して既存の `route.remove` command を一件ずつ dispatch するようにした。これにより group 削除も `map.networks` revision と RenderCoordinator を経由し、WebGL の network projection が stale にならない。
 - 残作業: editor/generator 全体の writer inventory と allowlist の機械化、および river overview を含む残存 direct writer の command 化。P1-3 は `In progress` を維持する。
 - 検証: `npm run build` — 成功。
+
+### 2026-07-20 — P1-3 river and writer-inventory remediation
+
+- `river.remove` と `river.clear` command を追加し、river editor と Rivers Overview の削除処理を runtime seam に移行した。tributary の収集、river-owned cell column（`r` / `fl` / `conf`）の復元、`map.networks` publish を一つの transaction に集約している。
+- religion metadata の変更と Burgs Overview の一括改名を `religion.patch` / `burg.patch` command に移行した。これらの操作でも SVG と WebGL が同じ revision 経路で更新される。
+- `scripts/lint-world-writers.ts` を追加し、controller 内の direct `worldContext.pack` / `grid` writer を明示 allowlist と照合するようにした。新規 writer は command 化またはレビュー済みの compatibility entry がない限り lint に失敗する。
+- 残作業: allowlist に残る heightmap / tools / river creation 等の大規模 transaction の command 化。P1-3 は `In progress` を維持する。
+- 検証: `npm run lint:world-writers` — 12 compatibility modules。`npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts` — 33 passed。`npm run build` — 成功。

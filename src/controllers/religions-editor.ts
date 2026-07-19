@@ -4,7 +4,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { PopulationRenderer, ReligionsRenderer } from "../renderers";
-import { assignCells, removeEntity } from "../runtime/worldRuntime";
+import { assignCells, patchReligion, removeEntity } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -290,7 +290,7 @@ export const religionsEditorActions = {
   changeFill(i: number): void {
     const r = worldContext.pack.religions[i];
     EditorBus.openPicker(r.color || "", (newFill: string) => {
-      r.color = newFill;
+      if (!patchReligion({ religionId: i, color: newFill })) return;
       view.relig.select(`#religion${i}`).attr("fill", newFill);
       view.debug.select(`#religionsCenter${i}`).attr("fill", newFill);
       religionsEditorActions.refresh();
@@ -298,37 +298,35 @@ export const religionsEditorActions = {
   },
 
   changeName(i: number, name: string): void {
-    const rel = worldContext.pack.religions[i];
-    rel.name = name;
-    rel.code = abbreviate(
+    const code = abbreviate(
       name,
       (worldContext.pack.religions as Religion[]).map(c => c.code).filter((c): c is string => c !== undefined)
     );
+    if (!patchReligion({ religionId: i, name, code })) return;
     religionsEditorActions.refresh();
   },
 
   changeType(i: number, type: string): void {
     const validTypes = ["Folk", "Organized", "Cult", "Heresy"];
     if (validTypes.includes(type)) {
-      (worldContext.pack.religions[i] as Religion).type = type as Religion["type"];
+      if (!patchReligion({ religionId: i, type: type as Religion["type"] })) return;
       religionsEditorActions.refresh();
     }
   },
 
   changeForm(i: number, form: string): void {
-    worldContext.pack.religions[i].form = form;
+    if (!patchReligion({ religionId: i, form })) return;
     religionsEditorActions.refresh();
   },
 
   regenerateDeity(i: number): void {
-    const rel = worldContext.pack.religions[i] as Religion;
-    const deity = GenerationPipeline.Religions.getDeityName(rel.culture);
-    rel.deity = deity;
+    const deity = GenerationPipeline.Religions.getDeityName(worldContext.pack.religions[i].culture);
+    if (!patchReligion({ religionId: i, deity })) return;
     religionsEditorActions.refresh();
   },
 
   changeDeity(i: number, deity: string): void {
-    worldContext.pack.religions[i].deity = deity;
+    if (!patchReligion({ religionId: i, deity })) return;
     religionsEditorActions.refresh();
   },
 
@@ -360,12 +358,12 @@ export const religionsEditorActions = {
   },
 
   changeExtent(i: number, extent: string): void {
-    worldContext.pack.religions[i].expansion = extent;
+    if (!patchReligion({ religionId: i, expansion: extent })) return;
     recalculateReligions();
   },
 
   changeExpansionism(i: number, expansionism: number): void {
-    worldContext.pack.religions[i].expansionism = expansionism;
+    if (!patchReligion({ religionId: i, expansionism })) return;
     recalculateReligions();
   },
 
@@ -386,7 +384,7 @@ export const religionsEditorActions = {
 
   updateLockStatus(i: number): void {
     const rel = worldContext.pack.religions[i];
-    rel.lock = !rel.lock;
+    if (!patchReligion({ religionId: i, lock: !rel.lock })) return;
     religionsEditorActions.refresh();
   }
 };

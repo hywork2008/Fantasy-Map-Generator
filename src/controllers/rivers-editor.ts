@@ -2,7 +2,7 @@ import { curveCatmullRom, type D3DragEvent, drag, pointer, select } from "d3";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { removeRivers } from "../renderers/draw-rivers";
-import { patchRiver, replaceRiverGeometry } from "../runtime/worldRuntime";
+import { patchRiver, removeRiver, replaceRiverGeometry } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -246,7 +246,8 @@ export const riverEditorActions = {
       confirm: "Remove",
       onConfirm: () => {
         const r = getRiver();
-        if (r) removeRivers(viewContext, GenerationPipeline.Rivers.remove(r.i));
+        const commit = r ? removeRiver({ riverId: r.i }) : null;
+        if (commit) removeRivers(viewContext, [...commit.result.riverIds]);
         closeDialog("riverEditor");
       }
     });

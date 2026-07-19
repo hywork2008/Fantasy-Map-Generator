@@ -446,6 +446,52 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     expect(commit?.changes.changes).toEqual([{ topic: "map.politics", kind: "replace" }]);
   });
 
+  it("patches religion editor metadata through the politics topic", async () => {
+    const world = createPoliticsWorld();
+    world.pack.religions[1] = {
+      i: 1,
+      name: "Old Faith",
+      type: "Folk",
+      form: "Animism",
+      culture: 1,
+      center: 0,
+      deity: null,
+      expansion: "culture",
+      expansionism: 1,
+      color: "#000000"
+    };
+    const runtime = createWorldRuntime(world, {} as SimulationContext);
+
+    const commit = await runtime.dispatch({
+      type: "religion.patch",
+      payload: {
+        religionId: 1,
+        name: "New Faith",
+        code: "NF",
+        type: "Organized",
+        form: "Monotheism",
+        deity: "The One",
+        color: "#123456",
+        expansion: "state",
+        expansionism: 3,
+        lock: true
+      }
+    });
+
+    expect(world.pack.religions[1]).toMatchObject({
+      name: "New Faith",
+      code: "NF",
+      type: "Organized",
+      form: "Monotheism",
+      deity: "The One",
+      color: "#123456",
+      expansion: "state",
+      expansionism: 3,
+      lock: true
+    });
+    expect(commit?.changes.changes).toEqual([{ topic: "map.politics", kind: "replace" }]);
+  });
+
   it("assigns cell ownership atomically and preserves burg state / culture invariants", async () => {
     const world = createPoliticsWorld();
     const runtime = createWorldRuntime(world, {} as SimulationContext);
@@ -732,6 +778,42 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     });
     expect(world.pack.cells.r).toEqual(new Uint16Array([0, 1, 1]));
     expect(commit?.changes.changes).toEqual([{ topic: "map.networks", kind: "replace" }]);
+  });
+
+  it("removes river tributaries and resets their owned cell columns through one network commit", async () => {
+    const world = {
+      grid: { cells: { prec: new Uint8Array([4, 5, 6, 7]) } },
+      pack: {
+        rivers: [
+          { i: 1, parent: 1, basin: 1 },
+          { i: 2, parent: 1, basin: 1 },
+          { i: 3, parent: 3, basin: 3 }
+        ],
+        cells: {
+          r: new Uint16Array([1, 2, 3, 0]),
+          fl: new Uint16Array([40, 50, 60, 70]),
+          conf: new Uint8Array([1, 1, 1, 0]),
+          g: new Uint16Array([0, 1, 2, 3])
+        }
+      }
+    } as unknown as WorldContext;
+    const runtime = createWorldRuntime(world, {} as SimulationContext);
+
+    const removeCommit = await runtime.dispatch({ type: "river.remove", payload: { riverId: 1 } });
+
+    expect(removeCommit?.result).toEqual({ riverIds: [1, 2] });
+    expect(world.pack.rivers.map(river => river.i)).toEqual([3]);
+    expect(Array.from(world.pack.cells.r)).toEqual([0, 0, 3, 0]);
+    expect(Array.from(world.pack.cells.fl)).toEqual([4, 5, 60, 70]);
+    expect(Array.from(world.pack.cells.conf)).toEqual([0, 0, 1, 0]);
+    expect(removeCommit?.changes.changes).toEqual([{ topic: "map.networks", kind: "replace" }]);
+
+    const clearCommit = await runtime.dispatch({ type: "river.clear" });
+    expect(clearCommit?.result).toEqual({ riverIds: [3] });
+    expect(world.pack.rivers).toEqual([]);
+    expect(Array.from(world.pack.cells.r)).toEqual([0, 0, 0, 0]);
+    expect(Array.from(world.pack.cells.fl)).toEqual([4, 5, 6, 70]);
+    expect(Array.from(world.pack.cells.conf)).toEqual([0, 0, 0, 0]);
   });
 
   it("patches persisted lake or coastline feature metadata", async () => {

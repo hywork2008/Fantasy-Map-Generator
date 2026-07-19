@@ -1,12 +1,14 @@
 import { mean } from "d3";
 import React, { useMemo } from "react";
+import { viewContext } from "../../context/viewContext";
 import { worldContext } from "../../context/worldContext";
 import { getFileName, highlightElement } from "../../controllers/editors";
 import { toggleRivers } from "../../controllers/layers";
 import { createRiver } from "../../controllers/rivers-creator";
 import { editRiver } from "../../controllers/rivers-editor";
 import { toggleAddRiver } from "../../controllers/tools";
-import { Rivers } from "../../generators/river-generator";
+import { removeRivers } from "../../renderers/draw-rivers";
+import { clearRivers, removeRiver } from "../../runtime/worldRuntime";
 import { viewLayerService as view } from "../../services/viewLayerService";
 import { useDialogState } from "../../store/dialogState";
 import { useOptionsState } from "../../store/optionsState";
@@ -37,7 +39,8 @@ function triggerRiverRemove(id: number, refresh: () => void): void {
     title: "Remove river",
     confirm: "Remove",
     onConfirm: () => {
-      Rivers.remove(id);
+      const commit = removeRiver({ riverId: id });
+      if (commit) removeRivers(viewContext, [...commit.result.riverIds]);
       refresh();
     }
   });
@@ -48,9 +51,8 @@ function triggerAllRiversRemove(refresh: () => void): void {
     title: "Remove all rivers",
     confirm: "Remove",
     onConfirm: () => {
-      worldContext.pack.rivers = [];
-      worldContext.pack.cells.r = new Uint16Array(worldContext.pack.cells.i.length);
-      view.rivers.selectAll("*").remove();
+      const commit = clearRivers();
+      if (commit) removeRivers(viewContext, [...commit.result.riverIds]);
       refresh();
     }
   });
