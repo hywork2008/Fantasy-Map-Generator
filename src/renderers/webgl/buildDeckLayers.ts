@@ -423,17 +423,19 @@ export function buildDeckLayers(
   // Shared land topology is renderer-derived CSR data: all land overlays share a single flat
   // coordinate buffer, then materialize only their own semantic/color projection. Precipitation
   // intentionally uses grid-cell circles instead of this mesh, matching the SVG renderer.
+  // Checked before the call below: while pending, getCachedLandTopology() returns the last
+  // resolved topology (stale-while-revalidate) rather than blocking the frame or going blank —
+  // that data is intentionally NOT the same as this signature's eventual resolved result, so it
+  // must never be cached under the same signature every land-derived layer will use once the
+  // projection actually resolves. Revision-based signatures don't change between "still pending"
+  // and "resolved" for the same commit, so without this tag the stale-topology render would
+  // poison getCachedDeckData()'s cache for that signature permanently: every later render, even
+  // long after the real topology arrives, would keep hitting the stale cached entry.
+  const isLandTopologyPending = pendingLandTopologySignatures.has(signatures.landGeometrySignature);
   const landCells = getCachedLandTopology(signatures.landGeometrySignature, () =>
     inProcessLandTopologyProjectionAdapter.project(buildLandCellGeometry(worldContext, viewContext.focusScope))
   );
-  // While the async land-topology projection for the current world revision is still in flight,
-  // getCachedLandTopology() deliberately returns an empty placeholder rather than blocking the
-  // frame. That placeholder must never be cached under the same signature every land-derived
-  // layer will use once the projection resolves — revision-based signatures don't change between
-  // "still pending" and "resolved" for the same commit, so without this tag the first (empty)
-  // render would poison getCachedDeckData()'s cache for that signature permanently: every later
-  // render, even long after the real topology arrives, would keep hitting the stale empty entry.
-  const landTopologySuffix = landCells === emptyLandTopology ? "|topo:pending" : "";
+  const landTopologySuffix = isLandTopologyPending ? "|topo:pending" : "";
   const landMaskPolygons = getCachedDeckData("land-mask", signatures.landMask, () =>
     buildLandMaskPolygons(worldContext, viewContext.focusScope, appServices)
   );
@@ -1217,7 +1219,11 @@ function getCachedDeckData<T extends CachedDeckData>(key: string, signature: str
 
 function getCachedLandTopology(signature: string, build: () => FlatLandTopology): FlatLandTopology {
   if (landTopologyCache.signature !== signature || !landTopologyCache.topology) {
-    if (pendingLandTopologySignatures.has(signature)) return emptyLandTopology;
+    // A fresh projection for this signature is still in flight (e.g. every frame of a vertex
+    // drag). Keep showing the last resolved topology instead of an empty placeholder so
+    // land-derived layers don't flash to bare ocean/lake color on every intermediate frame —
+    // only the very first render before anything has ever resolved has nothing to fall back to.
+    if (pendingLandTopologySignatures.has(signature)) return landTopologyCache.topology ?? emptyLandTopology;
     landTopologyCache.signature = signature;
     landTopologyCache.topology = build();
   }
