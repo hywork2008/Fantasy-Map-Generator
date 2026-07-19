@@ -167,3 +167,9 @@
 - World Configurator の river / biome / feature 再計算を一つの `legacyMutation` に収め、完了時に `map.physical` と `map.networks` を publish するようにした。大規模再生成の compatibility implementation は残すが、Renderer に通知されない direct write は残さない。
 - この file は大規模 transaction のため allowlist に残し、inventory の理由を command 化済みの小規模 writer と区別した。
 - 検証: `npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts` — 34 passed。`npm run build` — 成功。
+
+### 2026-07-20 — P1-3 diplomacy transaction containment
+
+- Diplomacy editor の relation change、relation regenerate/reset、relations history の初期化・編集・clear を `legacyMutation` に収め、すべて `map.politics` を publish するようにした。敵対終了 event は commit 後に dispatch するため、listener が変更前の world を観測しない。
+- `diplomacy-editor.ts` を direct writer allowlist から除去した。残る compatibility module は 10 件。
+- 検証: `npm run lint:world-writers` — 10 compatibility modules。`npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts` — 34 passed。`npm run build` — 成功。

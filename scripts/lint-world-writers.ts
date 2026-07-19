@@ -10,7 +10,6 @@ import path from "path";
 const ALLOWED_COMPATIBILITY_WRITERS = new Map<string, string>([
   ["src/controllers/biomes-editor.ts", "compatibility mutation published as map.physical"],
   ["src/controllers/burg-editor.ts", "compatibility mutations published by the burg editor"],
-  ["src/controllers/diplomacy-editor.ts", "diplomacy bulk-edit transaction"],
   ["src/controllers/heightmapBrushes.ts", "in-progress heightmap preview"],
   ["src/controllers/heightmapEditor.ts", "heightmap rebuild transaction publishes on finalize"],
   ["src/controllers/heightmapImage.ts", "in-progress heightmap image import"],

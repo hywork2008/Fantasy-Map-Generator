@@ -8,6 +8,7 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 
 import { StatesRenderer } from "../renderers";
+import { legacyMutation } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -209,10 +210,6 @@ export function editDiplomacy(): void {
     const subjectName = states[subjectId].name;
     const objectName = states[objectId].name;
 
-    states[subjectId].diplomacy![objectId] = newRelation;
-    states[objectId].diplomacy![subjectId] =
-      newRelation === "Vassal" ? "Suzerain" : newRelation === "Suzerain" ? "Vassal" : newRelation;
-
     const change = (): [string, string] => [
       `Relations change`,
       `${subjectName}-${getAdjective(objectName)} relations changed to ${newRelation.toLowerCase()}`
@@ -244,14 +241,21 @@ export function editDiplomacy(): void {
       return [`War termination`, treaty, changed[1]];
     };
 
-    if (oldRelation === "Enemy") chronicle.push(peace());
-    else if (newRelation === "Enemy") chronicle.push(war());
-    else if (newRelation === "Vassal") chronicle.push(vassal());
-    else if (newRelation === "Suzerain") chronicle.push(suzerain());
-    else if (newRelation === "Ally") chronicle.push(ally());
-    else if (newRelation === "Unknown") chronicle.push(unknown());
-    else if (newRelation === "Rival") chronicle.push(rival());
-    else chronicle.push(change());
+    legacyMutation(() => {
+      states[subjectId].diplomacy![objectId] = newRelation;
+      states[objectId].diplomacy![subjectId] =
+        newRelation === "Vassal" ? "Suzerain" : newRelation === "Suzerain" ? "Vassal" : newRelation;
+
+      if (oldRelation === "Enemy") chronicle.push(peace());
+      else if (newRelation === "Enemy") chronicle.push(war());
+      else if (newRelation === "Vassal") chronicle.push(vassal());
+      else if (newRelation === "Suzerain") chronicle.push(suzerain());
+      else if (newRelation === "Ally") chronicle.push(ally());
+      else if (newRelation === "Unknown") chronicle.push(unknown());
+      else if (newRelation === "Rival") chronicle.push(rival());
+      else chronicle.push(change());
+      return { result: undefined, topics: ["map.politics"] };
+    });
 
     if (newRelation === "Enemy") {
       document.dispatchEvent(
@@ -271,7 +275,10 @@ export function editDiplomacy(): void {
   }
 
   function regenerateRelations(): void {
-    GenerationPipeline.States.generateDiplomacy();
+    legacyMutation(() => {
+      GenerationPipeline.States.generateDiplomacy();
+      return { result: undefined, topics: ["map.politics"] };
+    });
     refreshDiplomacyEditor();
   }
 
@@ -280,19 +287,23 @@ export function editDiplomacy(): void {
     if (!selectedId) return;
     const states = worldContext.pack.states;
 
-    (states[selectedId].diplomacy as string[]).forEach((rel, index) => {
-      if (rel !== "x") {
-        if (rel === "Enemy") {
-          document.dispatchEvent(
-            new CustomEvent("fmg:player-conflict-ended", {
-              detail: { attackerStateId: selectedId, defenderStateId: index }
-            })
-          );
-        }
+    const endedConflicts: number[] = [];
+    legacyMutation(() => {
+      (states[selectedId].diplomacy as string[]).forEach((rel, index) => {
+        if (rel === "x") return;
+        if (rel === "Enemy") endedConflicts.push(index);
         states[selectedId].diplomacy![index] = "Neutral";
         states[index].diplomacy![selectedId] = "Neutral";
-      }
+      });
+      return { result: undefined, topics: ["map.politics"] };
     });
+    for (const stateId of endedConflicts) {
+      document.dispatchEvent(
+        new CustomEvent("fmg:player-conflict-ended", {
+          detail: { attackerStateId: selectedId, defenderStateId: stateId }
+        })
+      );
+    }
 
     refreshDiplomacyEditor();
   }
@@ -412,27 +423,35 @@ document.addEventListener("fmg:generate-post-core", refreshRelationsHistoryIfOpe
 document.addEventListener("fmg:map-layers-reinitialized", refreshRelationsHistoryIfOpen);
 
 export function openRelationsHistory(): void {
-  const chronicle = worldContext.pack.states[0].diplomacy as unknown as string[][];
+  const neutralState = worldContext.pack.states[0];
+  const chronicle = neutralState.diplomacy as unknown as string[][];
   if (!chronicle.length) {
-    (worldContext.pack.states[0].diplomacy as unknown as string[][]) = [[]];
+    legacyMutation(() => {
+      (neutralState.diplomacy as unknown as string[][]) = [[]];
+      return { result: undefined, topics: ["map.politics"] };
+    });
   }
 
   diplomacyHistoryDialogStore.getState().open({
-    chronicle: worldContext.pack.states[0].diplomacy as unknown as string[][],
+    chronicle: neutralState.diplomacy as unknown as string[][],
     onSave: (data: string) => {
       const name = `${getFileName("Relations history")}.txt`;
       downloadFile(data, name);
     },
     onClear: () => {
-      worldContext.pack.states[0].diplomacy = [];
+      legacyMutation(() => {
+        neutralState.diplomacy = [];
+        return { result: undefined, topics: ["map.politics"] };
+      });
     },
     onChange: (groupIdx: number, entryIdx: number, value: string) => {
-      const group = (worldContext.pack.states[0].diplomacy as unknown as string[][])[groupIdx];
-      if (value === "") {
-        group.splice(entryIdx, 1);
-      } else {
-        group[entryIdx] = value;
-      }
+      legacyMutation(() => {
+        const group = (neutralState.diplomacy as unknown as string[][])[groupIdx];
+        if (!group) return { result: undefined, topics: [] };
+        if (value === "") group.splice(entryIdx, 1);
+        else group[entryIdx] = value;
+        return { result: undefined, topics: ["map.politics"] };
+      });
     }
   });
 }
