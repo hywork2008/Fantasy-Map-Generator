@@ -74,7 +74,17 @@ export class LandTopologyProjectionScheduler {
     if (!signature || this.disposed) return;
     this.queuedSignature = null;
 
-    const request = this.options.source.buildRequest();
+    // buildRequest() walks the current pack/vertices synchronously; a malformed intermediate
+    // edit state throwing here must still release the pending marker, or getCachedLandTopology()
+    // would defer to this signature's (never-arriving) async result forever.
+    let request: LandTopologyProjectionRequest;
+    try {
+      request = this.options.source.buildRequest();
+    } catch (error) {
+      this.options.cache.clearPending(signature);
+      this.options.onFailure(error);
+      return;
+    }
     void this.options.adapter
       .project(request)
       .then(result => {

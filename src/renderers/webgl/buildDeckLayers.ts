@@ -426,6 +426,14 @@ export function buildDeckLayers(
   const landCells = getCachedLandTopology(signatures.landGeometrySignature, () =>
     inProcessLandTopologyProjectionAdapter.project(buildLandCellGeometry(worldContext, viewContext.focusScope))
   );
+  // While the async land-topology projection for the current world revision is still in flight,
+  // getCachedLandTopology() deliberately returns an empty placeholder rather than blocking the
+  // frame. That placeholder must never be cached under the same signature every land-derived
+  // layer will use once the projection resolves — revision-based signatures don't change between
+  // "still pending" and "resolved" for the same commit, so without this tag the first (empty)
+  // render would poison getCachedDeckData()'s cache for that signature permanently: every later
+  // render, even long after the real topology arrives, would keep hitting the stale empty entry.
+  const landTopologySuffix = landCells === emptyLandTopology ? "|topo:pending" : "";
   const landMaskPolygons = getCachedDeckData("land-mask", signatures.landMask, () =>
     buildLandMaskPolygons(worldContext, viewContext.focusScope, appServices)
   );
@@ -501,7 +509,7 @@ export function buildDeckLayers(
       ? [
           createLandMaskedPolygonLayer({
             id: "fmg-webgl-land",
-            data: getCachedDeckData("land", signatures.land, () =>
+            data: getCachedDeckData("land", `${signatures.land}${landTopologySuffix}`, () =>
               buildLandPolygonsBase(worldContext, viewContext.focusScope, landFill, landCells)
             ),
             coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
@@ -513,7 +521,7 @@ export function buildDeckLayers(
       : [
           new SolidPolygonLayer<DeckCellPolygon>({
             id: "fmg-webgl-land",
-            data: getCachedDeckData("land", signatures.land, () =>
+            data: getCachedDeckData("land", `${signatures.land}${landTopologySuffix}`, () =>
               buildLandPolygonsBase(worldContext, viewContext.focusScope, landFill, landCells)
             ),
             coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
@@ -527,11 +535,12 @@ export function buildDeckLayers(
   for (const layer of WEBGL_POLYGON_LAYERS) {
     if (!activeLayers[layer.toggle]) continue;
     const shouldMask = layer.id === "height" ? !getHeightStyle(viewContext).includeOcean : layer.maskLand;
+    const layerSignature = `${signatures.byLayer[layer.id]}${landTopologySuffix}`;
     layers.push(
       shouldMask && hasLandMask
         ? createLandMaskedPolygonLayer({
             id: `fmg-webgl-${layer.id}`,
-            data: getCachedDeckData(`polygon:${layer.id}`, signatures.byLayer[layer.id], () =>
+            data: getCachedDeckData(`polygon:${layer.id}`, layerSignature, () =>
               layer.build(worldContext, viewContext, landCells)
             ),
             coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
@@ -541,7 +550,7 @@ export function buildDeckLayers(
           })
         : new SolidPolygonLayer<DeckCellPolygon>({
             id: `fmg-webgl-${layer.id}`,
-            data: getCachedDeckData(`polygon:${layer.id}`, signatures.byLayer[layer.id], () =>
+            data: getCachedDeckData(`polygon:${layer.id}`, layerSignature, () =>
               layer.build(worldContext, viewContext, landCells)
             ),
             coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
