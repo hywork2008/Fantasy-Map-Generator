@@ -196,6 +196,44 @@ function assertEntityReferences(column: unknown, entityCount: number, columnName
   }
 }
 
+function assertOptionalReference(
+  record: Record<string, unknown>,
+  field: string,
+  entityCount: number,
+  recordName: string
+): void {
+  const reference = record[field];
+  if (reference === undefined || reference === null) return;
+  if (typeof reference !== "number" || !Number.isInteger(reference) || reference < 0 || reference >= entityCount) {
+    throw new Error(`Archive ${recordName}.${field} references missing entity ${String(reference)}`);
+  }
+}
+
+function assertEntityTableReferences(pack: Record<string, unknown>, cellCount: number): void {
+  const burgs = pack.burgs as Record<string, unknown>[];
+  const states = pack.states as Record<string, unknown>[];
+  const cultures = Array.isArray(pack.cultures) ? pack.cultures.length : 0;
+  const provinces = Array.isArray(pack.provinces) ? pack.provinces.length : 0;
+
+  for (const [index, state] of states.entries()) {
+    assertOptionalReference(state, "center", cellCount, `pack.states[${index}]`);
+    assertOptionalReference(state, "capital", burgs.length, `pack.states[${index}]`);
+    if (cultures) assertOptionalReference(state, "culture", cultures, `pack.states[${index}]`);
+  }
+  for (const [index, burg] of burgs.entries()) {
+    assertOptionalReference(burg, "cell", cellCount, `pack.burgs[${index}]`);
+    assertOptionalReference(burg, "state", states.length, `pack.burgs[${index}]`);
+    if (cultures) assertOptionalReference(burg, "culture", cultures, `pack.burgs[${index}]`);
+    if (provinces) assertOptionalReference(burg, "province", provinces, `pack.burgs[${index}]`);
+  }
+  if (!Array.isArray(pack.provinces)) return;
+  for (const [index, province] of pack.provinces.entries()) {
+    if (!isRecord(province)) continue;
+    assertOptionalReference(province, "state", states.length, `pack.provinces[${index}]`);
+    assertOptionalReference(province, "burg", burgs.length, `pack.provinces[${index}]`);
+  }
+}
+
 function typedArrayType(value: TypedArray): TypedArrayType {
   const type = value.constructor.name as TypedArrayType;
   if (!TYPED_ARRAY_TYPES.has(type)) throw new Error(`Unsupported typed array ${value.constructor.name}`);
@@ -399,6 +437,7 @@ export function assertValidWorldDocument(value: unknown): asserts value is World
       assertEntityReferences(cells.religion, pack.religions.length, "pack.cells.religion");
     if (Array.isArray(pack.provinces))
       assertEntityReferences(cells.province, pack.provinces.length, "pack.cells.province");
+    assertEntityTableReferences(pack, cellCount);
   }
   assertOpaqueReferences(value.opaqueExtensionChunks);
 }

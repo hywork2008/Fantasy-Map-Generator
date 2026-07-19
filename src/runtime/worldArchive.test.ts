@@ -88,6 +88,15 @@ describe("ChunkedWorldCodecAdapter", () => {
     );
   });
 
+  it("rejects entity records that point outside the topology", async () => {
+    const document = createWorldDocument(sampleWorld(), sampleSimulation(), createPresentationData(), []);
+    (document.world.pack as unknown as Record<string, unknown>).burgs = [{ i: 1, cell: 9, state: 1 }];
+
+    await expect(new ChunkedWorldCodecAdapter().encode(document)).rejects.toThrow(
+      "pack.burgs[0].cell references missing entity 9"
+    );
+  });
+
   it("stages a legacy positional map without changing live state", async () => {
     const legacy = '1.0.0|license\r\nsettings\r\n<svg id="map">\r\n</svg>';
     const staged = await new LegacyMapCodecAdapter().decode({

@@ -82,3 +82,10 @@
 - 不正な column length と欠損 state reference を archive encode 前に拒否する回帰テストを追加した。
 - 残作業: entity record 内の foreign key、extension slice schema、unknown opaque chunk の core deletion policy。P0-2 は `In progress` を維持する。
 - 検証: `npm test -- --run src/runtime/worldArchive.test.ts src/runtime/worldRuntime.test.ts` — 25 passed。`npm run build` — 成功。
+
+### 2026-07-20 — P0-2 entity-record reference validation
+
+- state の `center` / `capital` / `culture`、burg の `cell` / `state` / `culture` / `province`、province の `state` / `burg` を topology と entity table に照合するようにした。
+- 範囲外 cell を参照する burg record が archive encode 前に拒否される回帰テストを追加した。
+- 残作業: routes / rivers / features の参照、extension slice schema、opaque chunk の core deletion policy。P0-2 は `In progress` を維持する。
+- 検証: `npm test -- --run src/runtime/worldArchive.test.ts src/runtime/worldRuntime.test.ts` — 26 passed。`npm run build` — 成功。
