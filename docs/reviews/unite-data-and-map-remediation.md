@@ -173,3 +173,9 @@
 - Diplomacy editor の relation change、relation regenerate/reset、relations history の初期化・編集・clear を `legacyMutation` に収め、すべて `map.politics` を publish するようにした。敵対終了 event は commit 後に dispatch するため、listener が変更前の world を観測しない。
 - `diplomacy-editor.ts` を direct writer allowlist から除去した。残る compatibility module は 10 件。
 - 検証: `npm run lint:world-writers` — 10 compatibility modules。`npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts` — 34 passed。`npm run build` — 成功。
+
+### 2026-07-20 — P1-3 religion editor transaction containment
+
+- Religion editor の center drag は既存の `religion.patch` command を使うようにし、拡張・中心位置の変更に伴う再計算は `map.politics` compatibility commit に収めた。
+- `religions-editor.ts` を direct writer allowlist から除去した。残る compatibility module は 9 件。
+- 検証: `npm run lint:world-writers` — 9 compatibility modules。`npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts` — 34 passed。`npm run build` — 成功。

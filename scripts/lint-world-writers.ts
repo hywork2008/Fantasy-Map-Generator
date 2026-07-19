@@ -15,7 +15,6 @@ const ALLOWED_COMPATIBILITY_WRITERS = new Map<string, string>([
   ["src/controllers/heightmapImage.ts", "in-progress heightmap image import"],
   ["src/controllers/heightmapTemplate.ts", "in-progress heightmap template application"],
   ["src/controllers/provinces-editor.ts", "province regeneration compatibility flow"],
-  ["src/controllers/religions-editor.ts", "religion editor fields awaiting command migration"],
   ["src/controllers/tools.ts", "multi-entity tool transactions awaiting command migration"],
   ["src/controllers/world-configurator.ts", "world-wide regeneration committed as one compatibility mutation"]
 ]);

@@ -4,7 +4,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { PopulationRenderer, ReligionsRenderer } from "../renderers";
-import { assignCells, patchReligion, removeEntity } from "../runtime/worldRuntime";
+import { assignCells, legacyMutation, patchReligion, removeEntity } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -66,7 +66,10 @@ function recalculateReligions(mustUpdate = false): void {
   const { autoChange } = getReligionsEditorState();
   if (!autoChange && !mustUpdate) return;
 
-  GenerationPipeline.Religions.recalculate();
+  legacyMutation(() => {
+    GenerationPipeline.Religions.recalculate();
+    return { result: undefined, topics: ["map.politics"] };
+  });
   ReligionsRenderer.render(worldContext, viewContext, appServices);
   religionsEditorActions.refresh();
 }
@@ -488,7 +491,7 @@ function religionCenterDragInner(
   const cell = findCell(x, y);
   if (worldContext.pack.cells.h[cell] < 20) return;
 
-  worldContext.pack.religions[_rcdId].center = cell;
+  if (!patchReligion({ religionId: _rcdId, center: cell })) return;
   recalculateReligions();
 }
 
