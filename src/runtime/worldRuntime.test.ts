@@ -816,6 +816,44 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     expect(Array.from(world.pack.cells.conf)).toEqual([0, 0, 0, 0]);
   });
 
+  it("creates a river and updates creator flux through the network topic", async () => {
+    const world = {
+      pack: {
+        rivers: [],
+        cells: {
+          i: new Uint16Array([0, 1, 2]),
+          r: new Uint16Array([0, 9, 0]),
+          fl: new Uint16Array([3, 4, 5])
+        }
+      }
+    } as unknown as WorldContext;
+    const runtime = createWorldRuntime(world, {} as SimulationContext);
+    const river = {
+      i: 1,
+      source: 0,
+      mouth: 2,
+      discharge: 5,
+      length: 2,
+      width: 1,
+      widthFactor: 1,
+      sourceWidth: 0.5,
+      parent: 1,
+      basin: 1,
+      name: "New River",
+      type: "River",
+      cells: [0, 1, 2]
+    };
+
+    const createCommit = await runtime.dispatch({ type: "river.create", payload: { river } });
+    const fluxCommit = await runtime.dispatch({ type: "river.setFlux", payload: { cellId: 2, value: 8 } });
+
+    expect(world.pack.rivers).toEqual([river]);
+    expect(Array.from(world.pack.cells.r)).toEqual([1, 9, 1]);
+    expect(world.pack.cells.fl[2]).toBe(8);
+    expect(createCommit?.changes.changes).toEqual([{ topic: "map.networks", kind: "replace" }]);
+    expect(fluxCommit?.changes.changes).toEqual([{ topic: "map.networks", kind: "replace" }]);
+  });
+
   it("patches persisted lake or coastline feature metadata", async () => {
     const world = { pack: { features: [{}, { i: 1, name: "Old", group: "freshwater" }] } } as unknown as WorldContext;
     const runtime = createWorldRuntime(world, {} as SimulationContext);

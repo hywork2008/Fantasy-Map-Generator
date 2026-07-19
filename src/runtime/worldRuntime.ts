@@ -466,6 +466,25 @@ export interface ReplaceRiverGeometryCommand {
   readonly payload: ReplaceRiverGeometryRequest;
 }
 
+export interface CreateRiverRequest {
+  readonly river: River;
+}
+
+export interface CreateRiverCommand {
+  readonly type: "river.create";
+  readonly payload: CreateRiverRequest;
+}
+
+export interface SetRiverFluxRequest {
+  readonly cellId: number;
+  readonly value: number;
+}
+
+export interface SetRiverFluxCommand {
+  readonly type: "river.setFlux";
+  readonly payload: SetRiverFluxRequest;
+}
+
 export interface RemoveRiverRequest {
   readonly riverId: number;
 }
@@ -552,6 +571,8 @@ export type WorldCommand<T> =
   | ReplaceRoutePointsCommand
   | PatchRiverCommand
   | ReplaceRiverGeometryCommand
+  | CreateRiverCommand
+  | SetRiverFluxCommand
   | RemoveRiverCommand
   | ClearRiversCommand
   | PatchFeatureCommand
@@ -872,6 +893,14 @@ class LegacyWorldRuntime implements WorldRuntime {
 
     if (command.type === "river.replaceGeometry") {
       return this.replaceRiverGeometry(command.payload) as LegacyMutationOutcome<T>;
+    }
+
+    if (command.type === "river.create") {
+      return this.createRiver(command.payload) as LegacyMutationOutcome<T>;
+    }
+
+    if (command.type === "river.setFlux") {
+      return this.setRiverFlux(command.payload) as LegacyMutationOutcome<T>;
     }
 
     if (command.type === "river.remove") {
@@ -1696,6 +1725,46 @@ class LegacyWorldRuntime implements WorldRuntime {
     return { result: undefined, topics: ["map.networks"] };
   }
 
+  private createRiver(request: CreateRiverRequest): LegacyMutationOutcome<void> {
+    const { river } = request;
+    if (!Number.isInteger(river.i) || river.i <= 0 || this.world.pack.rivers.some(existing => existing.i === river.i)) {
+      throw new Error(`river.create received duplicate or invalid river ${river.i}`);
+    }
+    if (river.cells.length < 2 || new Set(river.cells).size !== river.cells.length) {
+      throw new Error("river.create requires at least two unique cells");
+    }
+    const cellCount = this.world.pack.cells.i.length;
+    for (const cellId of river.cells) {
+      if (!Number.isInteger(cellId) || cellId < 0 || cellId >= cellCount) {
+        throw new Error(`river.create received invalid cell ${cellId}`);
+      }
+    }
+    if (!river.cells.includes(river.source) || !river.cells.includes(river.mouth)) {
+      throw new Error("river.create source and mouth must be part of the river cells");
+    }
+    if (river.parent !== river.i && !this.world.pack.rivers.some(existing => existing.i === river.parent)) {
+      throw new Error(`river.create could not find parent river ${river.parent}`);
+    }
+
+    const created = structuredClone(river);
+    this.world.pack.rivers.push(created);
+    for (const cellId of created.cells) {
+      if (!this.world.pack.cells.r[cellId]) this.world.pack.cells.r[cellId] = created.i;
+    }
+    return { result: undefined, topics: ["map.networks"] };
+  }
+
+  private setRiverFlux(request: SetRiverFluxRequest): LegacyMutationOutcome<void> {
+    const { cellId, value } = request;
+    const cellCount = this.world.pack.cells.i.length;
+    if (!Number.isInteger(cellId) || cellId < 0 || cellId >= cellCount || !Number.isFinite(value) || value < 0) {
+      throw new Error("river.setFlux requires a valid cell and non-negative finite value");
+    }
+    if (this.world.pack.cells.fl[cellId] === value) return { result: undefined, topics: [] };
+    this.world.pack.cells.fl[cellId] = value;
+    return { result: undefined, topics: ["map.networks"] };
+  }
+
   private removeRiver(request: RemoveRiverRequest): LegacyMutationOutcome<RemoveRiverResult> {
     const selected = this.findRiver(request.riverId);
     const riverIds = this.world.pack.rivers
@@ -2019,6 +2088,16 @@ export function patchRiver(request: RiverPatchRequest): WorldCommit<void> | null
 /** Phase 5 command for river control-point geometry edits. */
 export function replaceRiverGeometry(request: ReplaceRiverGeometryRequest): WorldCommit<void> | null {
   return (worldRuntime as LegacyWorldRuntime).execute({ type: "river.replaceGeometry", payload: request });
+}
+
+/** Creates a fully specified river and claims only currently unowned river cells. */
+export function createRiverCommand(request: CreateRiverRequest): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "river.create", payload: request });
+}
+
+/** Updates a river-creator flux value through the network topic. */
+export function setRiverFlux(request: SetRiverFluxRequest): WorldCommit<void> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "river.setFlux", payload: request });
 }
 
 /** Removes a river and its tributaries through the network command seam. */

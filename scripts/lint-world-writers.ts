@@ -17,9 +17,8 @@ const ALLOWED_COMPATIBILITY_WRITERS = new Map<string, string>([
   ["src/controllers/heightmapTemplate.ts", "in-progress heightmap template application"],
   ["src/controllers/provinces-editor.ts", "province regeneration compatibility flow"],
   ["src/controllers/religions-editor.ts", "religion editor fields awaiting command migration"],
-  ["src/controllers/rivers-creator.ts", "river creator preview and finalization"],
   ["src/controllers/tools.ts", "multi-entity tool transactions awaiting command migration"],
-  ["src/controllers/world-configurator.ts", "world-wide configuration regeneration"]
+  ["src/controllers/world-configurator.ts", "world-wide regeneration committed as one compatibility mutation"]
 ]);
 
 const controllersDirectory = path.join(import.meta.dirname, "../src/controllers");

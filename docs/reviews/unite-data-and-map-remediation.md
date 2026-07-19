@@ -153,3 +153,17 @@
 - `scripts/lint-world-writers.ts` を追加し、controller 内の direct `worldContext.pack` / `grid` writer を明示 allowlist と照合するようにした。新規 writer は command 化またはレビュー済みの compatibility entry がない限り lint に失敗する。
 - 残作業: allowlist に残る heightmap / tools / river creation 等の大規模 transaction の command 化。P1-3 は `In progress` を維持する。
 - 検証: `npm run lint:world-writers` — 12 compatibility modules。`npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts` — 33 passed。`npm run build` — 成功。
+
+### 2026-07-20 — P1-3 river creation command migration
+
+- `river.create` command を追加し、river creator の確定時の river table 挿入と未所有 cell の `r` assignment を `map.networks` commit に統一した。入力 river の ID、source/mouth、parent、cell sequence を command が検証する。
+- River Creator の flux 入力も `river.setFlux` command 経由に移した。これにより確定前の幅計算に影響する変更も revision を発行する。
+- `rivers-creator.ts` を direct writer allowlist から除去した。残る compatibility module は 11 件。
+- 残作業: heightmap / tools / diplomacy 等の大規模 transaction を command 化する。P1-3 は `In progress` を維持する。
+- 検証: `npm run lint:world-writers` — 11 compatibility modules。`npm test -- --run src/runtime/worldRuntime.test.ts` — 27 passed。`npm run build` — 成功。
+
+### 2026-07-20 — P1-3 world configurator containment
+
+- World Configurator の river / biome / feature 再計算を一つの `legacyMutation` に収め、完了時に `map.physical` と `map.networks` を publish するようにした。大規模再生成の compatibility implementation は残すが、Renderer に通知されない direct write は残さない。
+- この file は大規模 transaction のため allowlist に残し、inventory の理由を command 化済みの小規模 writer と区別した。
+- 検証: `npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts` — 34 passed。`npm run build` — 成功。
