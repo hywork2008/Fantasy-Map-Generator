@@ -371,6 +371,11 @@ interface LayerState {
   setAllActiveLayers: (activeLayers: Record<string, boolean>) => void;
   /** Runtime projection only: never mirror canonical PresentationData back into itself. */
   hydrateActiveLayers: (activeLayers: Record<string, boolean>) => void;
+  /**
+   * Runtime projection only: apply a saved paint order without writing it back.
+   * Unknown ids (e.g. newly registered extension layers) keep their relative panel position at the end.
+   */
+  hydrateLayerOrder: (layerOrder: readonly string[]) => void;
 }
 
 const toSortKey = (l: LayerConfig) => l.sortKey ?? l.id.replace(/^toggle/, "");
@@ -419,6 +424,8 @@ export const useLayerState = create<LayerState>((set, get) => ({
     const [removed] = layers.splice(startIndex, 1);
     layers.splice(endIndex, 0, removed);
     set({ layers });
+    // Canonical paint order lives in PresentationData; the panel is a projection.
+    patchPresentation({ layerOrder: layers.map(layer => layer.id) });
 
     // Defer to the next tick to ensure state is updated before calling legacy d3 drawing
     setTimeout(() => {
@@ -457,5 +464,27 @@ export const useLayerState = create<LayerState>((set, get) => ({
     mirrorActiveLayers({ ...clearedPreviousLayers, ...activeLayers });
   },
 
-  hydrateActiveLayers: activeLayers => set({ activeLayers })
+  hydrateActiveLayers: activeLayers => set({ activeLayers }),
+
+  hydrateLayerOrder: layerOrder => {
+    if (!layerOrder.length) return;
+    const current = get().layers;
+    if (!current.length) return;
+
+    const byId = new Map(current.map(layer => [layer.id, layer]));
+    const ordered: typeof current = [];
+    for (const id of layerOrder) {
+      const layer = byId.get(id);
+      if (!layer) continue;
+      ordered.push(layer);
+      byId.delete(id);
+    }
+    for (const layer of current) {
+      if (byId.has(layer.id)) ordered.push(layer);
+    }
+    set({ layers: ordered });
+    setTimeout(() => {
+      document.dispatchEvent(new CustomEvent("fmg:sync-layers-order", { detail: ordered }));
+    }, 0);
+  }
 }));

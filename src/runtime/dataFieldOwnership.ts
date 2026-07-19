@@ -163,6 +163,14 @@ export const DATA_FIELD_OWNERSHIP: readonly DataFieldOwnership[] = [
     deletePolicy: "cascade"
   },
   {
+    path: "presentation.layerOrder",
+    owner: "presentation",
+    topic: "presentation.layers",
+    stableId: "layer.id",
+    foreignKeys: [],
+    deletePolicy: "cascade"
+  },
+  {
     path: "presentation.labels",
     owner: "presentation",
     topic: "presentation.labels",

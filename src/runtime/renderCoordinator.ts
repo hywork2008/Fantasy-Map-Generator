@@ -171,6 +171,7 @@ export function initRenderCoordinator(): void {
     syncPresentation: () => {
       projectPresentationToSvg(viewContext.svg.node(), presentationData);
       useLayerState.getState().hydrateActiveLayers(presentationData.activeLayers);
+      useLayerState.getState().hydrateLayerOrder(presentationData.layerOrder);
     },
     renderFullWorld: () => {
       if (viewContext.renderMap) drawLayers();

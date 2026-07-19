@@ -15,7 +15,7 @@
 | P1-2 | High | Verified | Simulation hook が Renderer を直接呼び、RenderCoordinator が SVG work を commit ごとに即時実行する | tick 中の direct render を除去し、必要な renderer work を rAF 単位で coalesce |
 | P1-3 | High | Verified | 未移行の direct `pack` / `grid` writer が revision を発行しない | writer inventory / allowlist を導入し、優先 editor を command 経由へ移行 |
 | P2-1 | Medium | Verified | `WorldRuntime.read()` と ExtensionAPI が mutable backing store を公開する | dynamic extension 向け read facade を導入し、raw mutable buffer を到達不能にする |
-| P2-2 | Medium | Pending | `PresentationData` に layer order / overlays がなく、WebGL style の SVG fallback が残る | 保存対象を model 化し、live SVG style read を compatibility path へ限定または除去 |
+| P2-2 | Medium | Verified | `PresentationData` に layer order / overlays がなく、WebGL style の SVG fallback が残る | 保存対象を model 化し、live SVG style read を compatibility path へ限定または除去 |
 | P2-3 | Medium | Pending | Simulation の RNG 分離・daily runner・headless interface が未完 | simulation slice に RNG state を保存し、renderer/UI 非依存の day step を test surface にする |
 | P2-4 | Medium | Pending | extension slice registration / opaque chunk promotion / core-reference delete policy が未完 | scoped extension seam と archive validation/migration lifecycle を実装 |
 | P3-1 | Medium | Pending | E2E の render mode 固定が不十分 | 全 map-related E2E が helper で renderer mode を明示する |
@@ -253,3 +253,11 @@
 - ZIP dynamic loader は `DynamicExtensionAPI` を渡す。`world.read()` と compatibility 名の `worldContext` / `simulationContext` は同じ immutable snapshot を返し、書き込みは既存の registered extension command seam のみを通る。組み込み extension は legacy writer 移行中の trusted adapter を継続する。
 - 同一 JavaScript realm の dynamic extension を hostile code から隔離するものではない。隔離が必要な場合は計画どおり Worker realm へ structured-cloneable command / snapshot のみを渡す。
 - 検証: `npm test -- --run src/runtime/worldRuntime.test.ts src/extensions/dynamicExtensionApi.test.ts` — 31 passed。`npx biome check`（変更ファイル）— 成功。`npm run build` — 成功。
+
+### 2026-07-20 — P2-2 PresentationData layerOrder / overlays and WebGL style source
+
+- `PresentationData` に `layerOrder`（toggle id の paint 順序）と `overlays`（scaleBar / compass / legend 等の chrome layout）を追加した。`presentation.patch` は両者を topic 付きで commit し、archive validation は旧 `.fmg` で欠落していても空値へ正規化する。
+- known overlay selector（`#scaleBar`、`#compass > use` 等）への style patch は semantic `overlays` と双方向に mirror し、`projectPresentationToSvg` と legacy `.map` import も overlays を扱う。
+- Layers panel の reorder は `layerOrder` を publish し、full replace 後の `syncPresentation` は `hydrateLayerOrder` で panel / SVG 順を復元する。
+- `webglStyleExtractors` と `buildDeckLayers` の ocean/land fill は live SVG attribute を読まず、`PresentationData` と hardcoded default のみを使う。DOM からの style 取り込みは `importLegacyPresentationFromSvg` に限定する。
+- 検証: `npm test -- --run src/runtime/worldRuntime.test.ts src/renderers/webgl/webglStyleExtractors.test.ts src/renderers/presentationProjection.test.ts src/runtime/worldArchive.test.ts src/runtime/renderCoordinator.test.ts` — 59 passed。`npx biome check`（変更ファイル）— 成功。`npm run build` — 成功。

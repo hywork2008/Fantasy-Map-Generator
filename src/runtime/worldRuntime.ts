@@ -17,6 +17,8 @@ import { bindExtensionStateSlices } from "./extensionStateSlices";
 import {
   applyPresentationPatch,
   createPresentationData,
+  OVERLAY_SELECTOR_BY_ID,
+  OVERLAY_STYLE_SELECTORS,
   type PresentationData,
   type PresentationPatch,
   presentationData
@@ -817,17 +819,40 @@ class LegacyWorldRuntime implements WorldRuntime {
     }
 
     if (command.type === "presentation.patch") {
-      const stylesChanged = Object.entries(command.payload.styles ?? {}).some(([selector, attributes]) =>
-        Object.entries(attributes).some(
-          ([attribute, value]) => this.presentation.styles[selector]?.[attribute] !== value
-        )
-      );
-      const layersChanged = Object.entries(command.payload.activeLayers ?? {}).some(
-        ([id, visible]) => this.presentation.activeLayers[id] !== visible
-      );
+      const stylesChanged =
+        Object.entries(command.payload.styles ?? {}).some(([selector, attributes]) =>
+          Object.entries(attributes).some(
+            ([attribute, value]) => this.presentation.styles[selector]?.[attribute] !== value
+          )
+        ) ||
+        Object.entries(command.payload.overlays ?? {}).some(([id, attributes]) => {
+          const selector = OVERLAY_SELECTOR_BY_ID[id];
+          if (!selector) return false;
+          return Object.entries(attributes).some(
+            ([attribute, value]) => this.presentation.styles[selector]?.[attribute] !== value
+          );
+        });
+      const layersChanged =
+        Object.entries(command.payload.activeLayers ?? {}).some(
+          ([id, visible]) => this.presentation.activeLayers[id] !== visible
+        ) ||
+        (command.payload.layerOrder !== undefined &&
+          (this.presentation.layerOrder.length !== command.payload.layerOrder.length ||
+            this.presentation.layerOrder.some((id, index) => id !== command.payload.layerOrder?.[index])));
       const labelsChanged = Object.entries(command.payload.labels ?? {}).some(([id, attributes]) =>
         Object.entries(attributes).some(([attribute, value]) => this.presentation.labels[id]?.[attribute] !== value)
       );
+      const overlaysChanged =
+        Object.entries(command.payload.overlays ?? {}).some(([id, attributes]) =>
+          Object.entries(attributes).some(([attribute, value]) => this.presentation.overlays[id]?.[attribute] !== value)
+        ) ||
+        Object.entries(command.payload.styles ?? {}).some(([selector, attributes]) => {
+          const overlayId = OVERLAY_STYLE_SELECTORS[selector];
+          if (!overlayId) return false;
+          return Object.entries(attributes).some(
+            ([attribute, value]) => this.presentation.overlays[overlayId]?.[attribute] !== value
+          );
+        });
       const changed = applyPresentationPatch(this.presentation, command.payload);
       return {
         result: undefined as T,
@@ -835,7 +860,8 @@ class LegacyWorldRuntime implements WorldRuntime {
           ? [
               ...(stylesChanged ? (["presentation.styles"] as const) : []),
               ...(layersChanged ? (["presentation.layers"] as const) : []),
-              ...(labelsChanged ? (["presentation.labels"] as const) : [])
+              ...(labelsChanged ? (["presentation.labels"] as const) : []),
+              ...(overlaysChanged ? (["presentation.overlays"] as const) : [])
             ]
           : []
       };
@@ -2041,6 +2067,12 @@ class LegacyWorldRuntime implements WorldRuntime {
     replaceRecordInPlace(this.presentation.styles, document.presentation.styles);
     replaceRecordInPlace(this.presentation.activeLayers, document.presentation.activeLayers);
     replaceRecordInPlace(this.presentation.labels, document.presentation.labels);
+    replaceRecordInPlace(this.presentation.overlays, document.presentation.overlays ?? {});
+    this.presentation.layerOrder.splice(
+      0,
+      this.presentation.layerOrder.length,
+      ...(document.presentation.layerOrder ?? [])
+    );
     this.opaqueExtensionChunks = document.opaqueExtensionChunks;
   }
 }

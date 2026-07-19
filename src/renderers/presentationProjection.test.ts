@@ -26,4 +26,27 @@ describe("projectPresentationToSvg", () => {
       ])
     );
   });
+
+  it("projects semantic overlay layouts onto the matching SVG selectors", () => {
+    const attributes = new Map<string, string>();
+    const element = {
+      setAttribute: (name: string, value: string) => attributes.set(name, value),
+      removeAttribute: (name: string) => attributes.delete(name)
+    } as unknown as Element;
+    const root = {
+      querySelectorAll: (selector: string) =>
+        (selector === "#scaleBar" ? [element] : []) as unknown as NodeListOf<Element>
+    } as unknown as ParentNode;
+    const presentation = createPresentationData();
+    presentation.overlays.scaleBar = { "data-x": 12, "data-y": 34 };
+
+    projectPresentationToSvg(root, presentation);
+
+    expect(attributes).toEqual(
+      new Map([
+        ["data-x", "12"],
+        ["data-y", "34"]
+      ])
+    );
+  });
 });

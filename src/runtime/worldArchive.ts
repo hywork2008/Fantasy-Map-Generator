@@ -505,6 +505,22 @@ export function assertValidWorldDocument(value: unknown): asserts value is World
     throw new Error(`Archive world state is incomplete: ${missing.join(", ")}`);
   }
 
+  // layerOrder / overlays were added after the first .fmg readers. Absent fields
+  // normalize to empty containers so older archives still replace cleanly.
+  if (presentation.layerOrder === undefined) {
+    presentation.layerOrder = [];
+  } else if (
+    !Array.isArray(presentation.layerOrder) ||
+    !presentation.layerOrder.every(entry => typeof entry === "string")
+  ) {
+    throw new Error("Archive presentation.layerOrder must be a string array");
+  }
+  if (presentation.overlays === undefined) {
+    presentation.overlays = {};
+  } else if (!isRecord(presentation.overlays)) {
+    throw new Error("Archive presentation.overlays must be a record");
+  }
+
   // These values are consumed by the post-replacement simulation adapters.
   // Validate them here, before any context object is changed in-place.
   if (

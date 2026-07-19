@@ -380,14 +380,8 @@ export function buildDeckLayers(
   options: BuildDeckLayersOptions = {}
 ): LayersList {
   const { activeLayers } = presentationData;
-  const oceanFill = String(
-    getPresentationStyle(presentationData, "#oceanBase", "fill") ??
-      viewContext.oceanLayers?.select<SVGRectElement>("#oceanBase").attr("fill") ??
-      "#466eab"
-  );
-  const landFill = String(
-    getPresentationStyle(presentationData, "#landmass", "fill") ?? viewContext.landmass?.attr("fill") ?? "#eef6fb"
-  );
+  const oceanFill = String(getPresentationStyle(presentationData, "#oceanBase", "fill") ?? "#466eab");
+  const landFill = String(getPresentationStyle(presentationData, "#landmass", "fill") ?? "#eef6fb");
   const oceanColor = colorToRgba(oceanFill, "#466eab");
   const lakePaint = getLakePaint(viewContext);
   const coastlinePaint = getCoastlinePaint(viewContext);

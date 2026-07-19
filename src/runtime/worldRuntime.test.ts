@@ -219,9 +219,11 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
       },
       { currentYear: 99, currentMonth: 4, currentDay: 5, tickCount: 9 } as SimulationContext,
       {
-        styles: { "#statesBody": { fill: "red" } },
+        styles: { "#statesBody": { fill: "red" }, "#scaleBar": { "data-x": 10 } },
         activeLayers: { toggleStates: true },
-        labels: { stateLabel1: { dx: 12, dy: -4 } }
+        layerOrder: ["toggleRivers", "toggleStates"],
+        labels: { stateLabel1: { dx: 12, dy: -4 } },
+        overlays: { scaleBar: { "data-x": 10 } }
       },
       []
     );
@@ -237,9 +239,11 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     expect(world.mapId).toBe(200);
     expect(world.seed).toBe("replaced");
     expect(simulation.currentYear).toBe(99);
-    expect(presentation.styles).toEqual({ "#statesBody": { fill: "red" } });
+    expect(presentation.styles).toEqual({ "#statesBody": { fill: "red" }, "#scaleBar": { "data-x": 10 } });
     expect(presentation.activeLayers).toEqual({ toggleStates: true });
+    expect(presentation.layerOrder).toEqual(["toggleRivers", "toggleStates"]);
     expect(presentation.labels).toEqual({ stateLabel1: { dx: 12, dy: -4 } });
+    expect(presentation.overlays).toEqual({ scaleBar: { "data-x": 10 } });
   });
 
   it("rejects an invalid replacement before mutating the live world", async () => {
@@ -965,7 +969,9 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     expect(runtime.readTrusted().presentation).toEqual({
       styles: { "#rivers": { fill: "#123456", opacity: 0.5 } },
       activeLayers: { toggleRivers: true },
-      labels: {}
+      layerOrder: [],
+      labels: {},
+      overlays: {}
     });
 
     const noOp = await runtime.dispatch({
@@ -973,5 +979,31 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
       payload: { styles: { "#rivers": { fill: "#123456" } }, activeLayers: { toggleRivers: true } }
     });
     expect(noOp).toBeNull();
+  });
+
+  it("commits layer order and overlay layout as first-class presentation slices", async () => {
+    const presentation = createPresentationData();
+    const runtime = createWorldRuntime({} as WorldContext, {} as SimulationContext, presentation);
+
+    const commit = await runtime.dispatch({
+      type: "presentation.patch",
+      payload: {
+        layerOrder: ["toggleBiomes", "toggleStates"],
+        styles: { "#scaleBar": { "data-x": 42, "data-y": 8 } },
+        overlays: { compassRose: { transform: "translate(10 20) scale(0.5)" } }
+      }
+    });
+
+    expect(commit?.changes.changes).toEqual([
+      { topic: "presentation.styles", kind: "replace" },
+      { topic: "presentation.layers", kind: "replace" },
+      { topic: "presentation.overlays", kind: "replace" }
+    ]);
+    expect(presentation.layerOrder).toEqual(["toggleBiomes", "toggleStates"]);
+    // Style patches for known chrome selectors mirror into overlays.
+    expect(presentation.overlays.scaleBar).toEqual({ "data-x": 42, "data-y": 8 });
+    // Overlay patches also mirror into styles for SVG projection.
+    expect(presentation.styles["#compass > use"]).toEqual({ transform: "translate(10 20) scale(0.5)" });
+    expect(presentation.overlays.compassRose).toEqual({ transform: "translate(10 20) scale(0.5)" });
   });
 });
