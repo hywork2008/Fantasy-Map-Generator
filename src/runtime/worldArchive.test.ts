@@ -106,6 +106,22 @@ describe("ChunkedWorldCodecAdapter", () => {
     );
   });
 
+  it("rejects malformed host-known extension slices before encoding", async () => {
+    const document = createWorldDocument(sampleWorld(), sampleSimulation(), createPresentationData(), []);
+    document.simulation.extensions = {
+      economy: { good: new Uint16Array([1]) }
+    };
+
+    await expect(new ChunkedWorldCodecAdapter().encode(document)).rejects.toThrow(
+      "simulation.extensions.economy.good has length 1; expected 2"
+    );
+
+    document.simulation.extensions = { nobility: { rulerIdByState: { 9: 1 } } };
+    await expect(new ChunkedWorldCodecAdapter().encode(document)).rejects.toThrow(
+      "simulation.extensions.nobility.rulerIdByState references missing entity 9"
+    );
+  });
+
   it("stages a legacy positional map without changing live state", async () => {
     const legacy = '1.0.0|license\r\nsettings\r\n<svg id="map">\r\n</svg>';
     const staged = await new LegacyMapCodecAdapter().decode({

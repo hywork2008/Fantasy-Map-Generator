@@ -72,6 +72,118 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function assertRecord(value: unknown, name: string): asserts value is Record<string, unknown> {
+  if (!isRecord(value)) throw new Error(`Archive ${name} must be a record`);
+}
+
+function assertArray(value: unknown, name: string): void {
+  if (!Array.isArray(value)) throw new Error(`Archive ${name} must be an array`);
+}
+
+function assertNonNegativeInteger(value: unknown, name: string): void {
+  if (!Number.isInteger(value) || (value as number) < 0) {
+    throw new Error(`Archive ${name} must be a non-negative integer`);
+  }
+}
+
+function assertEntityKeyedRecord(value: unknown, entities: readonly unknown[], name: string): void {
+  assertRecord(value, name);
+  for (const [rawId] of Object.entries(value)) {
+    const id = Number(rawId);
+    if (!Number.isInteger(id) || id < 0 || String(id) !== rawId || !entities[id]) {
+      throw new Error(`Archive ${name} references missing entity ${rawId}`);
+    }
+  }
+}
+
+function assertOptionalArrayField(slice: Record<string, unknown>, field: string, extensionId: string): void {
+  if (slice[field] !== undefined) assertArray(slice[field], `simulation.extensions.${extensionId}.${field}`);
+}
+
+/**
+ * Validates the host-known extension slice fields before archive replacement.
+ * Unknown extension ids remain opaque records until the registration seam can
+ * supply their own validator; they are still required to have a safe container.
+ */
+export function assertValidExtensionStateSlices(world: WorldContext, simulation: SimulationContext): void {
+  if (simulation.extensions === undefined) return;
+  assertRecord(simulation.extensions, "simulation.extensions");
+  for (const [extensionId, slice] of Object.entries(simulation.extensions)) {
+    assertRecord(slice, `simulation.extensions.${extensionId}`);
+  }
+
+  const characters = simulation.extensions.characters;
+  if (characters) assertOptionalArrayField(characters, "characters", "characters");
+
+  const economy = simulation.extensions.economy;
+  if (economy) {
+    for (const field of [
+      "goods",
+      "markets",
+      "deals",
+      "caravans",
+      "burgMarketLedgers",
+      "merchantOrganizations",
+      "strategicProcurementOrders",
+      "strategicGoodsPolicies",
+      "strategicLaborMarkets"
+    ]) {
+      assertOptionalArrayField(economy, field, "economy");
+    }
+    for (const field of ["nextCaravanId", "nextStrategicProcurementOrderId"]) {
+      if (economy[field] !== undefined)
+        assertNonNegativeInteger(economy[field], `simulation.extensions.economy.${field}`);
+    }
+    const cellCount = world.pack.cells.i?.length;
+    for (const field of ["good", "market"]) {
+      const column = economy[field];
+      if (column === undefined) continue;
+      if (!(column instanceof Uint16Array)) {
+        throw new Error(`Archive simulation.extensions.economy.${field} must be a Uint16Array`);
+      }
+      if (cellCount !== undefined && column.length !== cellCount) {
+        throw new Error(
+          `Archive simulation.extensions.economy.${field} has length ${column.length}; expected ${cellCount}`
+        );
+      }
+    }
+    if (economy.productionByBurg !== undefined) {
+      assertEntityKeyedRecord(
+        economy.productionByBurg,
+        world.pack.burgs,
+        "simulation.extensions.economy.productionByBurg"
+      );
+      for (const [burgId, production] of Object.entries(economy.productionByBurg as Record<string, unknown>)) {
+        assertArray(production, `simulation.extensions.economy.productionByBurg.${burgId}`);
+      }
+    }
+  }
+
+  const nobility = simulation.extensions.nobility;
+  if (nobility) {
+    for (const field of ["rulerIdByState", "conflictAuthorizationsByState"]) {
+      const values = nobility[field];
+      if (values === undefined) continue;
+      assertEntityKeyedRecord(values, world.pack.states, `simulation.extensions.nobility.${field}`);
+      if (field === "rulerIdByState") {
+        for (const [stateId, rulerId] of Object.entries(values as Record<string, unknown>)) {
+          assertNonNegativeInteger(rulerId, `simulation.extensions.nobility.rulerIdByState.${stateId}`);
+        }
+      }
+    }
+  }
+
+  const shipbuilding = simulation.extensions.shipbuilding;
+  if (shipbuilding?.runtimeState !== undefined) {
+    assertRecord(shipbuilding.runtimeState, "simulation.extensions.shipbuilding.runtimeState");
+    const runtimeState = shipbuilding.runtimeState;
+    for (const field of ["queues", "surplusQueues", "stateTechPoints", "completedHulls", "hulls"]) {
+      assertRecord(runtimeState[field], `simulation.extensions.shipbuilding.runtimeState.${field}`);
+    }
+    assertNonNegativeInteger(runtimeState.nextHullId, "simulation.extensions.shipbuilding.runtimeState.nextHullId");
+  }
+}
+
 function getSlice(slices: ExtensionStateSlices, extensionId: string): Record<string, unknown> {
   const existing = slices[extensionId];
   if (existing) return existing;

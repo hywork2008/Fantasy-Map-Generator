@@ -22,7 +22,9 @@ import { bindSimulationCellColumns } from "./simulationCellColumns";
 import { bindSimulationMilitaryState } from "./simulationMilitaryState";
 import { bindSimulationStateState } from "./simulationStateState";
 import {
+  assertOpaqueCoreDeletesAllowed,
   assertValidWorldDocument,
+  type CoreEntityKind,
   createWorldDocument,
   type OpaqueExtensionChunk,
   type ValidatedWorld,
@@ -935,6 +937,7 @@ class LegacyWorldRuntime implements WorldRuntime {
     const burg = this.world.pack.burgs[request.burgId];
     if (!burg?.i || burg.removed) throw new Error(`burg.remove could not find active burg ${request.burgId}`);
     if (burg.capital) throw new Error("burg.remove cannot remove a capital burg");
+    this.assertOpaqueDeletesAllowed([{ kind: "burg", id: request.burgId }]);
 
     this.world.pack.cells.burg[burg.cell] = 0;
     burg.removed = true;
@@ -1011,6 +1014,7 @@ class LegacyWorldRuntime implements WorldRuntime {
   private removeZone(request: RemoveZoneRequest): LegacyMutationOutcome<void> {
     const zoneIndex = this.world.pack.zones.findIndex(candidate => candidate.i === request.zoneId);
     if (zoneIndex === -1) throw new Error(`zone.remove could not find zone ${request.zoneId}`);
+    this.assertOpaqueDeletesAllowed([{ kind: "zone", id: request.zoneId }]);
     this.world.pack.zones.splice(zoneIndex, 1);
     return { result: undefined, topics: ["map.annotations"] };
   }
@@ -1083,6 +1087,8 @@ class LegacyWorldRuntime implements WorldRuntime {
     const markerIndex = this.world.pack.markers.findIndex(marker => marker.i === request.markerId);
     if (markerIndex === -1) return { result: { removedMarkerIds: [] }, topics: [] };
 
+    this.assertOpaqueDeletesAllowed([{ kind: "marker", id: request.markerId }]);
+
     this.world.pack.markers.splice(markerIndex, 1);
     this.removeMarkerNotes([request.markerId]);
     return { result: { removedMarkerIds: [request.markerId] }, topics: ["map.annotations"] };
@@ -1091,6 +1097,7 @@ class LegacyWorldRuntime implements WorldRuntime {
   private removeUnlockedMarkers(): LegacyMutationOutcome<{ removedMarkerIds: readonly number[] }> {
     const removedMarkerIds = this.world.pack.markers.filter(marker => !marker.lock).map(marker => marker.i);
     if (!removedMarkerIds.length) return { result: { removedMarkerIds }, topics: [] };
+    this.assertOpaqueDeletesAllowed(removedMarkerIds.map(id => ({ kind: "marker" as const, id })));
 
     const retainedMarkers = this.world.pack.markers.filter(marker => marker.lock);
     this.world.pack.markers.splice(0, this.world.pack.markers.length, ...retainedMarkers);
@@ -1194,6 +1201,10 @@ class LegacyWorldRuntime implements WorldRuntime {
     const removedRegimentIds = (state.military ?? []).flatMap(regiment =>
       regiment.i === undefined ? [] : [regiment.i]
     );
+    this.assertOpaqueDeletesAllowed([
+      { kind: "state", id: stateId },
+      ...removedProvinceIds.map(id => ({ kind: "province" as const, id }))
+    ]);
 
     for (const burg of this.world.pack.burgs) {
       if (burg.state !== stateId) continue;
@@ -1252,6 +1263,7 @@ class LegacyWorldRuntime implements WorldRuntime {
         throw new Error(`state.merge could not find active absorbed state ${stateId}`);
       }
     }
+    this.assertOpaqueDeletesAllowed(absorbedStateIds.map(id => ({ kind: "state" as const, id })));
 
     const absorbedSet = new Set(absorbedStateIds);
     const regimentMerges: RegimentMerge[] = [];
@@ -1327,6 +1339,7 @@ class LegacyWorldRuntime implements WorldRuntime {
     if (kind === "province") {
       const province = this.world.pack.provinces[entityId];
       if (!province || province.removed) throw new Error(`entity.remove could not find active province ${entityId}`);
+      this.assertOpaqueDeletesAllowed([{ kind, id: entityId }]);
 
       this.world.pack.cells.province.forEach((provinceId, cellId) => {
         if (provinceId === entityId) this.world.pack.cells.province[cellId] = 0;
@@ -1340,6 +1353,7 @@ class LegacyWorldRuntime implements WorldRuntime {
     if (kind === "culture") {
       const culture = this.world.pack.cultures[entityId];
       if (!culture || culture.removed) throw new Error(`entity.remove could not find active culture ${entityId}`);
+      this.assertOpaqueDeletesAllowed([{ kind, id: entityId }]);
 
       this.world.pack.cells.culture.forEach((cultureId, cellId) => {
         if (cultureId === entityId) this.world.pack.cells.culture[cellId] = 0;
@@ -1361,6 +1375,7 @@ class LegacyWorldRuntime implements WorldRuntime {
 
     const religion = this.world.pack.religions[entityId];
     if (!religion || religion.removed) throw new Error(`entity.remove could not find active religion ${entityId}`);
+    this.assertOpaqueDeletesAllowed([{ kind, id: entityId }]);
 
     this.world.pack.cells.religion.forEach((religionId, cellId) => {
       if (religionId === entityId) this.world.pack.cells.religion[cellId] = 0;
@@ -1406,6 +1421,7 @@ class LegacyWorldRuntime implements WorldRuntime {
 
   private removeRoute(request: RemoveRouteRequest): LegacyMutationOutcome<void> {
     const route = this.findRoute(request.routeId);
+    this.assertOpaqueDeletesAllowed([{ kind: "route", id: route.i }]);
     this.disconnectRoute(route.i);
     const index = this.world.pack.routes.indexOf(route);
     this.world.pack.routes.splice(index, 1);
@@ -1632,6 +1648,10 @@ class LegacyWorldRuntime implements WorldRuntime {
 
   private extensionCommandKey(extensionId: string, name: string): string {
     return `${extensionId}:${name}`;
+  }
+
+  private assertOpaqueDeletesAllowed(deleted: readonly { readonly kind: CoreEntityKind; readonly id: number }[]): void {
+    assertOpaqueCoreDeletesAllowed(this.opaqueExtensionChunks, deleted);
   }
 
   private replaceDocument(document: WorldDocument): void {

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import { createPresentationData } from "./presentationData";
-import { createWorldDocument, type ValidatedWorld } from "./worldArchive";
+import { assertValidWorldDocument, createWorldDocument, type ValidatedWorld } from "./worldArchive";
 import { createWorldRuntime } from "./worldRuntime";
 
 function createRuntime() {
@@ -24,6 +24,7 @@ function createPositionWorld(): WorldContext {
 
 function createPoliticsWorld(): WorldContext {
   return {
+    grid: {},
     notes: [
       { id: "regiment1-3", name: "First" },
       { id: "keep", name: "Keep" }
@@ -239,6 +240,59 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     expect(world.mapId).not.toBe(200);
     expect(world.seed).not.toBe("invalid");
     expect(simulation.currentYear).toBe(10);
+  });
+
+  it("preserves opaque extension references when a core deletion is attempted", async () => {
+    const world = createPoliticsWorld();
+    const simulation = { currentYear: 10, currentMonth: 1, currentDay: 1, tickCount: 1 } as SimulationContext;
+    const runtime = createWorldRuntime(world, simulation);
+    const opaque = {
+      extensionId: "uninstalled-extension",
+      schemaVersion: 1,
+      mediaType: "application/octet-stream",
+      bytes: new Uint8Array(),
+      checksum: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      coreReferences: [{ kind: "state" as const, id: 1, onDelete: "restrict" as const }]
+    };
+    const document = createWorldDocument(
+      { ...createPoliticsWorld(), mapId: 201, seed: "opaque-references" },
+      { currentYear: 10, currentMonth: 1, currentDay: 1, tickCount: 1 } as SimulationContext,
+      createPresentationData(),
+      [opaque]
+    );
+
+    expect(document.world.mapId).toBe(201);
+    expect(document.world.seed).toBe("opaque-references");
+    expect(document.world.pack).toBeDefined();
+    assertValidWorldDocument(document);
+    await runtime.dispatch({ type: "world.replace", payload: { stage: "validated", document } });
+    await expect(runtime.dispatch({ type: "state.remove", payload: { stateId: 1 } })).rejects.toThrow(
+      "uninstalled-extension restricts that reference"
+    );
+    expect(world.pack.states[1]?.removed).not.toBe(true);
+    expect(Array.from(world.pack.cells.state)).toEqual([1, 1, 2]);
+
+    const unknownDocument = createWorldDocument(
+      { ...createPoliticsWorld(), mapId: 202, seed: "opaque-unknown-references" },
+      { currentYear: 10, currentMonth: 1, currentDay: 1, tickCount: 1 } as SimulationContext,
+      createPresentationData(),
+      [{ ...opaque, coreReferences: "unknown" as const }]
+    );
+    await runtime.dispatch({ type: "world.replace", payload: { stage: "validated", document: unknownDocument } });
+    await expect(
+      runtime.dispatch({ type: "entity.remove", payload: { kind: "culture", entityId: 1 } })
+    ).rejects.toThrow("has unknown references");
+    expect(world.pack.cultures[1]?.removed).not.toBe(true);
+
+    const orphanDocument = createWorldDocument(
+      { ...createPoliticsWorld(), mapId: 203, seed: "opaque-orphan-reference" },
+      { currentYear: 10, currentMonth: 1, currentDay: 1, tickCount: 1 } as SimulationContext,
+      createPresentationData(),
+      [{ ...opaque, coreReferences: [{ kind: "culture" as const, id: 1, onDelete: "orphan" as const }] }]
+    );
+    await runtime.dispatch({ type: "world.replace", payload: { stage: "validated", document: orphanDocument } });
+    await runtime.dispatch({ type: "entity.remove", payload: { kind: "culture", entityId: 1 } });
+    expect(world.pack.cultures[1]?.removed).toBe(true);
   });
 
   it("updates bounded position commands by stable ID and emits their owned topics", async () => {

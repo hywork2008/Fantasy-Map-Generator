@@ -9,7 +9,7 @@
 | ID | 優先度 | 状態 | 問題 | 完了条件 |
 | :-- | :-- | :-- | :-- | :-- |
 | P0-1 | Critical | Verified | WebGL cache key が全体 revision を含み、無関係な commit でも全 layer projection を失効させる | layer key が依存 `DataTopic` と view 固有値だけで決まり、無関係な topic の commit で cache key が変化しない |
-| P0-2 | Critical | In progress | `.fmg` の `world.replace` は浅い validation 後に live state を変更し、後段 failure で partial state を残す | replacement 前に必要な構造を検証し、apply 中の failure でも live world / simulation / presentation が不変 |
+| P0-2 | Critical | Verified | `.fmg` の `world.replace` は浅い validation 後に live state を変更し、後段 failure で partial state を残す | replacement 前に必要な構造を検証し、apply 中の failure でも live world / simulation / presentation が不変 |
 | P0-3 | Critical | Verified | `.fmg` load が `PresentationData.labels` を復元せず、presentation を SVG に一貫して投影しない | styles / layers / labels が archive round-trip 後に復元され、SVG / WebGL が同じ presentation source を読む |
 | P1-1 | High | Verified | `burg.move` が政治データも変更するのに `map.settlements` しか publish しない | 実際に変更する topic をすべて publish し、state label / cache の更新を回帰テストで保証 |
 | P1-2 | High | Verified | Simulation hook が Renderer を直接呼び、RenderCoordinator が SVG work を commit ごとに即時実行する | tick 中の direct render を除去し、必要な renderer work を rAF 単位で coalesce |
@@ -131,3 +131,17 @@
 - SVG の局所的な色・label 更新は維持しつつ、同一操作が WebGL の state fill / border / label projection を確実に無効化する。
 - 残作業: religion、river overview、tools 等の残存 direct writer inventory と allowlist の機械化。P1-3 は `In progress` を維持する。
 - 検証: `npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts` — 30 passed。`npm run build` — 成功。
+
+### 2026-07-20 — P0-2 extension preflight and opaque reference policy
+
+- archive preflight は built-in extension slice の field-level structure（economy の cell column / burg table、Nobility の state table、Shipbuilding runtime state を含む）を replacement 前に検証する。未知 extension slice も安全な record container でなければ拒否する。
+- opaque extension chunk の core-reference kind を明示的な allowlist に限定した。`restrict` reference は対象の core entity の削除を拒否し、reference manifest が `unknown` の opaque chunk は delete / merge を全て拒否する。`orphan` は既存の stable-ID tombstone と互換であるため保持できる。
+- state 削除・state merge・burg / province / culture / religion / route / marker / zone 削除を同じ runtime guard に通した。拒否は変更前に発生するため live world は不変である。
+- P0-2 の replacement 事前検証および rollback 要件を満たしたため `Verified` に更新した。動的 extension の slice registration / migration / promotion lifecycle は P2-4 で継続する。
+- 検証: `npm test -- --run src/runtime/worldArchive.test.ts src/runtime/worldRuntime.test.ts src/runtime/extensionStateSlices.test.ts` — 35 passed。`npm run build` — 成功。
+
+### 2026-07-20 — P1-3 route group deletion migration
+
+- Route Groups editor は `GenerationPipeline.Routes.remove()` を直接呼ばず、対象 route ID を snapshot して既存の `route.remove` command を一件ずつ dispatch するようにした。これにより group 削除も `map.networks` revision と RenderCoordinator を経由し、WebGL の network projection が stale にならない。
+- 残作業: editor/generator 全体の writer inventory と allowlist の機械化、および river overview を含む残存 direct writer の command 化。P1-3 は `In progress` を維持する。
+- 検証: `npm run build` — 成功。

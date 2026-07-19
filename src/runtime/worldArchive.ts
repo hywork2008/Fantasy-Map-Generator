@@ -1,7 +1,7 @@
 import JSZip from "jszip";
 import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
-import { removeExtensionStateSliceMirrors } from "./extensionStateSlices";
+import { assertValidExtensionStateSlices, removeExtensionStateSliceMirrors } from "./extensionStateSlices";
 import type { PresentationData } from "./presentationData";
 import { removeSimulationBurgStateMirrors } from "./simulationBurgState";
 import { removeSimulationCellColumnMirrors } from "./simulationCellColumns";
@@ -11,8 +11,23 @@ import { removeSimulationStateStateMirrors } from "./simulationStateState";
 export const WORLD_ARCHIVE_FORMAT = "fantasy-map-generator";
 export const WORLD_ARCHIVE_SCHEMA_VERSION = 1;
 
+export const CORE_ENTITY_KINDS = [
+  "marker",
+  "burg",
+  "state",
+  "province",
+  "culture",
+  "religion",
+  "route",
+  "river",
+  "feature",
+  "zone"
+] as const;
+
+export type CoreEntityKind = (typeof CORE_ENTITY_KINDS)[number];
+
 export interface CoreReference {
-  readonly kind: string;
+  readonly kind: CoreEntityKind;
   readonly id: number;
   readonly onDelete: "restrict" | "orphan";
 }
@@ -170,12 +185,39 @@ function assertOpaqueReferences(value: readonly OpaqueExtensionChunk[]): void {
     if (chunk.coreReferences === "unknown") continue;
     for (const reference of chunk.coreReferences) {
       if (
-        !reference.kind ||
+        !CORE_ENTITY_KINDS.includes(reference.kind) ||
         !Number.isInteger(reference.id) ||
         reference.id < 0 ||
         (reference.onDelete !== "restrict" && reference.onDelete !== "orphan")
       ) {
         throw new Error("Archive extension chunk has an invalid core reference");
+      }
+    }
+  }
+}
+
+/**
+ * Rejects a core deletion when a retained opaque extension payload cannot be
+ * updated safely. `unknown` manifests block all deletes and merges; `orphan`
+ * references are safe because the core table retains a stable-id tombstone.
+ */
+export function assertOpaqueCoreDeletesAllowed(
+  chunks: readonly OpaqueExtensionChunk[],
+  deleted: readonly Pick<CoreReference, "kind" | "id">[]
+): void {
+  if (!deleted.length) return;
+  for (const chunk of chunks) {
+    if (chunk.coreReferences === "unknown") {
+      throw new Error(`Cannot delete core entities while opaque extension ${chunk.extensionId} has unknown references`);
+    }
+    for (const target of deleted) {
+      const restricted = chunk.coreReferences.find(
+        reference => reference.kind === target.kind && reference.id === target.id && reference.onDelete === "restrict"
+      );
+      if (restricted) {
+        throw new Error(
+          `Cannot delete ${target.kind} ${target.id}; opaque extension ${chunk.extensionId} restricts that reference`
+        );
       }
     }
   }
@@ -447,7 +489,20 @@ export function assertValidWorldDocument(value: unknown): asserts value is World
     !isRecord(presentation.activeLayers) ||
     !isRecord(presentation.labels)
   ) {
-    throw new Error("Archive world state is incomplete");
+    const missing = [
+      typeof world.mapId !== "number" ? "world.mapId" : null,
+      typeof world.seed !== "string" ? "world.seed" : null,
+      !isRecord(pack) ? "world.pack" : null,
+      !isRecord(world.grid) ? "world.grid" : null,
+      !isRecord(pack?.cells) ? "pack.cells" : null,
+      !Array.isArray(pack?.burgs) ? "pack.burgs" : null,
+      !Array.isArray(pack?.states) ? "pack.states" : null,
+      !isRecord(simulation) ? "simulation" : null,
+      !isRecord(presentation.styles) ? "presentation.styles" : null,
+      !isRecord(presentation.activeLayers) ? "presentation.activeLayers" : null,
+      !isRecord(presentation.labels) ? "presentation.labels" : null
+    ].filter((field): field is string => field !== null);
+    throw new Error(`Archive world state is incomplete: ${missing.join(", ")}`);
   }
 
   // These values are consumed by the post-replacement simulation adapters.
@@ -479,6 +534,7 @@ export function assertValidWorldDocument(value: unknown): asserts value is World
     assertEntityTableReferences(pack, cellCount);
     assertNetworkReferences(pack, cellCount);
   }
+  assertValidExtensionStateSlices(world as WorldContext, simulation as unknown as SimulationContext);
   assertOpaqueReferences(value.opaqueExtensionChunks);
 }
 
