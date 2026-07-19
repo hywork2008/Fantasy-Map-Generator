@@ -292,7 +292,12 @@ function decodeValue(
   return decoded;
 }
 
-function validateWorldDocument(value: unknown): asserts value is WorldDocument {
+/**
+ * Validates the minimum runtime shape before a document is allowed to replace
+ * the live compatibility backing stores. This deliberately checks the fields
+ * required by the post-replace adapters as well as the archive envelope.
+ */
+export function assertValidWorldDocument(value: unknown): asserts value is WorldDocument {
   if (
     !isRecord(value) ||
     value.format !== WORLD_ARCHIVE_FORMAT ||
@@ -305,11 +310,21 @@ function validateWorldDocument(value: unknown): asserts value is WorldDocument {
   }
   if (!Array.isArray(value.opaqueExtensionChunks)) throw new Error("Archive document has invalid extension chunks");
   const world = value.world as Partial<WorldContext>;
+  const simulation = value.simulation as Record<string, unknown>;
+  const presentation = value.presentation as Record<string, unknown>;
+  const pack = world.pack as Record<string, unknown> | undefined;
   if (
     typeof world.mapId !== "number" ||
     typeof world.seed !== "string" ||
-    !isRecord(world.pack) ||
-    !isRecord(world.grid)
+    !isRecord(pack) ||
+    !isRecord(world.grid) ||
+    !isRecord(pack.cells) ||
+    !Array.isArray(pack.burgs) ||
+    !Array.isArray(pack.states) ||
+    !isRecord(simulation) ||
+    !isRecord(presentation.styles) ||
+    !isRecord(presentation.activeLayers) ||
+    !isRecord(presentation.labels)
   ) {
     throw new Error("Archive world state is incomplete");
   }
@@ -326,7 +341,7 @@ export class ChunkedWorldCodecAdapter implements WorldArchiveCodec {
   }
 
   async encode(document: WorldDocument): Promise<Blob> {
-    validateWorldDocument(document);
+    assertValidWorldDocument(document);
     const context: EncodingContext = { typedArrays: [], bytes: new Map(), nextTypedArray: 0 };
     const seen = new WeakSet<object>();
     const [world, simulation, presentation] = await Promise.all([
@@ -429,7 +444,7 @@ export class ChunkedWorldCodecAdapter implements WorldArchiveCodec {
       presentation: decodeValue(JSON.parse(await presentationFile.async("text")), descriptors, bytes),
       opaqueExtensionChunks
     };
-    validateWorldDocument(document);
+    assertValidWorldDocument(document);
     return { stage: "decoded", document };
   }
 }
@@ -481,7 +496,7 @@ export const worldMigrationPipeline: WorldMigrationPipeline = {
     return { stage: "migrated", document: staged.document };
   },
   async validate(migrated) {
-    validateWorldDocument(migrated.document);
+    assertValidWorldDocument(migrated.document);
     return { stage: "validated", document: migrated.document };
   }
 };

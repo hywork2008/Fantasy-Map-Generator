@@ -8,7 +8,11 @@ function sampleWorld(): WorldContext {
   return {
     mapId: 42,
     seed: "archive-seed",
-    pack: { cells: { state: new Uint16Array([1, 2]), pop: new Float32Array([1.5, 2.25]) } },
+    pack: {
+      cells: { state: new Uint16Array([1, 2]), pop: new Float32Array([1.5, 2.25]) },
+      burgs: [],
+      states: []
+    },
     grid: { cells: { h: new Uint8Array([20, 30]) } }
   } as unknown as WorldContext;
 }

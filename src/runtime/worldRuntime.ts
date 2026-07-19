@@ -14,6 +14,7 @@ import { bindSimulationCellColumns } from "./simulationCellColumns";
 import { bindSimulationMilitaryState } from "./simulationMilitaryState";
 import { bindSimulationStateState } from "./simulationStateState";
 import {
+  assertValidWorldDocument,
   createWorldDocument,
   type OpaqueExtensionChunk,
   type ValidatedWorld,
@@ -652,7 +653,10 @@ class LegacyWorldRuntime implements WorldRuntime {
       burg.x = x;
       burg.y = y;
       if (burg.capital) this.world.pack.states[stateId].center = cellId;
-      return { result: undefined as T, topics: ["map.settlements"] };
+      // Moving a burg also changes the cell→burg political column and, for a
+      // capital, the state's label center. Both topics must invalidate their
+      // dependent renderer projections.
+      return { result: undefined as T, topics: ["map.settlements", "map.politics"] };
     }
 
     if (command.type === "cells.assign") {
@@ -1300,6 +1304,33 @@ class LegacyWorldRuntime implements WorldRuntime {
   }
 
   private replaceDocument(document: WorldDocument): void {
+    // Validate before the first live write. The staged archive can come from
+    // an older decoder or a caller that has cast an untrusted value.
+    assertValidWorldDocument(document);
+    const previous = {
+      world: structuredClone(this.world),
+      simulation: structuredClone(this.simulation),
+      presentation: structuredClone(this.presentation),
+      opaqueExtensionChunks: this.opaqueExtensionChunks
+    };
+
+    try {
+      this.applyDocument(document);
+    } catch (error) {
+      // Re-establish the current world in-place so all existing context
+      // references stay valid even if a compatibility adapter throws.
+      this.applyDocument({
+        ...previous,
+        format: "fantasy-map-generator",
+        schemaVersion: 1,
+        createdAt: "",
+        updatedAt: ""
+      });
+      throw error;
+    }
+  }
+
+  private applyDocument(document: WorldDocument): void {
     const currentPack = this.world.pack as unknown as Record<string, unknown>;
     const currentGrid = this.world.grid as unknown as Record<string, unknown>;
     const nextWorld = document.world as unknown as Record<string, unknown>;
@@ -1328,6 +1359,7 @@ class LegacyWorldRuntime implements WorldRuntime {
     bindExtensionStateSlices(this.world, this.simulation);
     replaceRecordInPlace(this.presentation.styles, document.presentation.styles);
     replaceRecordInPlace(this.presentation.activeLayers, document.presentation.activeLayers);
+    replaceRecordInPlace(this.presentation.labels, document.presentation.labels);
     this.opaqueExtensionChunks = document.opaqueExtensionChunks;
   }
 }

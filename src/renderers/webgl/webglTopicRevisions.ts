@@ -19,5 +19,9 @@ export function getWebglTopicRevisionSignature(
 ): string {
   if (!projection) return legacyFallback();
   const revisions = topics.map(topic => `${topic}:${projection.topicRevisions[topic] ?? 0}`).join("|");
-  return `${stableKey}|world:${projection.revision}|${revisions}`;
+  // Do not include the global revision here. It advances for every commit,
+  // including commits to unrelated topics, and would turn topic-scoped cache
+  // invalidation back into a full projection rebuild. A full replacement
+  // increments every topic revision, so the declared dependencies are enough.
+  return `${stableKey}|${revisions}`;
 }

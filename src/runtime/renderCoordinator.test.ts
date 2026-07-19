@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import { createPresentationData } from "./presentationData";
@@ -25,6 +25,15 @@ function createEffects(): RenderEffects {
 }
 
 describe("RenderCoordinator", () => {
+  beforeEach(() => {
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
   it("maps a commit to only its dependent legacy renderer work", async () => {
     const runtime = createWorldRuntime({} as WorldContext, {} as SimulationContext);
     const effects = createEffects();
@@ -69,6 +78,38 @@ describe("RenderCoordinator", () => {
     expect(effects.schedule3dSceneUpdate).not.toHaveBeenCalled();
   });
 
+  it("coalesces multiple commits into one browser frame", async () => {
+    let scheduled: FrameRequestCallback | undefined;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      scheduled = callback;
+      return 1;
+    });
+
+    try {
+      const runtime = createWorldRuntime({} as WorldContext, {} as SimulationContext);
+      const effects = createEffects();
+      createRenderCoordinator(runtime, effects);
+
+      await runtime.dispatch({
+        type: "legacy.mutation",
+        execute: () => ({ result: undefined, topics: ["map.politics"] })
+      });
+      await runtime.dispatch({
+        type: "legacy.mutation",
+        execute: () => ({ result: undefined, topics: ["map.settlements"] })
+      });
+
+      expect(effects.renderBorders).not.toHaveBeenCalled();
+      expect(effects.renderBurgIcons).not.toHaveBeenCalled();
+      scheduled?.(0);
+      expect(effects.renderBorders).toHaveBeenCalledOnce();
+      expect(effects.renderBurgIcons).toHaveBeenCalledOnce();
+    } finally {
+      // Restored by afterEach; keeping the scope explicit documents that this
+      // test owns the deferred scheduler.
+    }
+  });
+
   it("uses one full projection for an accepted archive replacement", async () => {
     const world = { pack: {}, grid: {}, mapId: 1, seed: "before" } as unknown as WorldContext;
     const runtime = createWorldRuntime(world, {} as SimulationContext);
@@ -81,7 +122,7 @@ describe("RenderCoordinator", () => {
       payload: {
         stage: "validated",
         document: createWorldDocument(
-          { pack: {}, grid: {}, mapId: 2, seed: "after" } as unknown as WorldContext,
+          { pack: { cells: {}, burgs: [], states: [] }, grid: {}, mapId: 2, seed: "after" } as unknown as WorldContext,
           {} as SimulationContext,
           createPresentationData(),
           []
@@ -116,6 +157,8 @@ describe("RenderCoordinator", () => {
     expect(world.pack.burgs[1]).toMatchObject({ cell: 1, x: 30, y: 40 });
     expect(effects.renderBurgIcons).toHaveBeenCalledOnce();
     expect(effects.renderBurgLabels).toHaveBeenCalledOnce();
+    expect(effects.renderBorders).toHaveBeenCalledOnce();
+    expect(effects.renderStateLabels).toHaveBeenCalledOnce();
     expect(effects.schedule3dSceneUpdate).toHaveBeenCalledOnce();
   });
 

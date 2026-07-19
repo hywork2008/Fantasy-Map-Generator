@@ -4,7 +4,7 @@ import type { ExtensionAPI } from "../../types/extension-api";
 import { advanceCharacterAging } from "../characters/advanceAge";
 import { refreshCharactersOverviewIfOpen } from "../characters/controllers/characters-overview";
 import { CHARACTERS_EXTENSION_ID } from "../characters/index";
-import { advanceAllRegimentMovement, BordersRenderer, Military, MilitaryRenderer, StatesRenderer } from "../hostCore";
+import { advanceAllRegimentMovement, Military } from "../hostCore";
 import { tip } from "../hostServices";
 import {
   applyConflictAutonomy,
@@ -234,11 +234,6 @@ export function init(api: ExtensionAPI): void {
         : false;
       const bordersChanged = siegeOccurred || skirmishOccurred;
 
-      if (bordersChanged) {
-        if (api.layerIsOn("toggleStates")) StatesRenderer.render(api.worldContext, api.viewContext, api.appServices);
-        if (api.layerIsOn("toggleBorders")) BordersRenderer.render(api.worldContext, api.viewContext, api.appServices);
-      }
-
       Military.updateDynamic(api.worldContext, effectiveDeltaYears);
 
       // Regiment marching (docs/plan/military-movement.md Phase 2) runs every tick regardless of
@@ -256,16 +251,8 @@ export function init(api: ExtensionAPI): void {
         canAdvanceConflict ? StrategicPlanner.getActiveSiegeTargets() : undefined
       );
 
-      if (marchCaptureOccurred) {
-        if (api.layerIsOn("toggleStates")) StatesRenderer.render(api.worldContext, api.viewContext, api.appServices);
-        if (api.layerIsOn("toggleBorders")) BordersRenderer.render(api.worldContext, api.viewContext, api.appServices);
-      }
-
       const settlementsChanged = bordersChanged || marchCaptureOccurred;
       const militaryChanged = settlementsChanged || regimentsMoved;
-      if (militaryChanged && api.layerIsOn("toggleMilitary")) {
-        MilitaryRenderer.render(api.worldContext, api.viewContext, api.appServices);
-      }
 
       refreshCharactersOverviewIfOpen(api.isDialogOpen("charactersOverview"));
 

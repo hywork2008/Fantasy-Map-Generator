@@ -5,6 +5,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { BiomesRenderer, ReliefIconsRenderer } from "../renderers";
+import { legacyMutation } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -329,14 +330,16 @@ export function biomesApplyChange(): void {
   const changed = (view.biomes as Selection<SVGGElement, unknown, null, undefined>)
     .select("#temp")
     .selectAll("polygon");
-  changed.each(function () {
-    const el = this as SVGPolygonElement;
-    const i = +el.dataset.cell!;
-    const b = +el.dataset.biome!;
-    worldContext.pack.cells.biome[i] = b;
-  });
-
   if (changed.size()) {
+    legacyMutation(() => {
+      changed.each(function () {
+        const el = this as SVGPolygonElement;
+        const i = +el.dataset.cell!;
+        const b = +el.dataset.biome!;
+        worldContext.pack.cells.biome[i] = b;
+      });
+      return { result: undefined, topics: ["map.physical"] };
+    });
     BiomesRenderer.render(worldContext, viewContext, appServices);
     biomesRefresh();
   }

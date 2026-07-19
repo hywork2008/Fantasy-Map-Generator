@@ -195,7 +195,11 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
         seed: "replaced"
       },
       { currentYear: 99, currentMonth: 4, currentDay: 5, tickCount: 9 } as SimulationContext,
-      { styles: { "#statesBody": { fill: "red" } }, activeLayers: { toggleStates: true } },
+      {
+        styles: { "#statesBody": { fill: "red" } },
+        activeLayers: { toggleStates: true },
+        labels: { stateLabel1: { dx: 12, dy: -4 } }
+      },
       []
     );
 
@@ -212,6 +216,28 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     expect(simulation.currentYear).toBe(99);
     expect(presentation.styles).toEqual({ "#statesBody": { fill: "red" } });
     expect(presentation.activeLayers).toEqual({ toggleStates: true });
+    expect(presentation.labels).toEqual({ stateLabel1: { dx: 12, dy: -4 } });
+  });
+
+  it("rejects an invalid replacement before mutating the live world", async () => {
+    const world = createPositionWorld();
+    const simulation = { currentYear: 10, currentMonth: 1, currentDay: 1, tickCount: 1 } as SimulationContext;
+    const presentation = createPresentationData();
+    const runtime = createWorldRuntime(world, simulation, presentation);
+    const document = createWorldDocument(
+      { ...createPositionWorld(), mapId: 200, seed: "invalid" },
+      { currentYear: 99, currentMonth: 4, currentDay: 5, tickCount: 9 } as SimulationContext,
+      createPresentationData(),
+      []
+    );
+    (document.world.pack as unknown as Record<string, unknown>).burgs = null;
+
+    await expect(
+      runtime.dispatch({ type: "world.replace", payload: { stage: "validated", document } })
+    ).rejects.toThrow("Archive world state is incomplete");
+    expect(world.mapId).not.toBe(200);
+    expect(world.seed).not.toBe("invalid");
+    expect(simulation.currentYear).toBe(10);
   });
 
   it("updates bounded position commands by stable ID and emits their owned topics", async () => {
@@ -237,7 +263,10 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     expect(world.pack.states[1].center).toBe(1);
     expect(world.pack.states[1].military?.[0]).toMatchObject({ x: 50, y: 60 });
     expect(markerCommit?.changes.changes).toEqual([{ topic: "map.annotations", kind: "replace" }]);
-    expect(burgCommit?.changes.changes).toEqual([{ topic: "map.settlements", kind: "replace" }]);
+    expect(burgCommit?.changes.changes).toEqual([
+      { topic: "map.settlements", kind: "replace" },
+      { topic: "map.politics", kind: "replace" }
+    ]);
     expect(regimentCommit?.changes.changes).toEqual([{ topic: "simulation.military", kind: "replace" }]);
   });
 
@@ -601,7 +630,8 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     ]);
     expect(runtime.read().presentation).toEqual({
       styles: { "#rivers": { fill: "#123456", opacity: 0.5 } },
-      activeLayers: { toggleRivers: true }
+      activeLayers: { toggleRivers: true },
+      labels: {}
     });
 
     const noOp = await runtime.dispatch({

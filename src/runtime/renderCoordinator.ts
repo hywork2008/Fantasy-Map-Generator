@@ -10,6 +10,7 @@ import {
   MilitaryRenderer,
   StateLabelsRenderer
 } from "../renderers";
+import { projectPresentationToSvg } from "../renderers/presentationProjection";
 import { buildLandCellGeometry } from "../renderers/webgl/adapters/deckDataAdapters";
 import {
   clearPendingLandTopologyProjection,
@@ -57,7 +58,43 @@ const visualTopic = (topic: DataTopic): boolean =>
  * can replace these calls with per-layer revision comparisons.
  */
 export function createRenderCoordinator(runtime: WorldRuntime, effects: RenderEffects): () => void {
-  return runtime.subscribe(commit => applyCommit(commit, effects));
+  let pendingTopics = new Set<DataTopic>();
+  let pendingFullReplace = false;
+  let frameQueued = false;
+
+  const flush = () => {
+    frameQueued = false;
+    const commit: WorldCommit<unknown> = {
+      result: undefined,
+      changes: {
+        fromRevision: 0,
+        toRevision: 0,
+        fullReplace: pendingFullReplace,
+        changes: [...pendingTopics].map(topic => ({ topic, kind: "replace" as const }))
+      }
+    };
+    pendingTopics = new Set();
+    pendingFullReplace = false;
+    applyCommit(commit, effects);
+  };
+
+  const queueFrame = () => {
+    if (frameQueued) return;
+    frameQueued = true;
+    // Unit tests and headless consumers have no browser frame scheduler. They
+    // still observe the same coalescing seam synchronously.
+    if (typeof requestAnimationFrame === "undefined") {
+      flush();
+      return;
+    }
+    requestAnimationFrame(flush);
+  };
+
+  return runtime.subscribe(commit => {
+    pendingFullReplace ||= commit.changes.fullReplace;
+    for (const change of commit.changes.changes) pendingTopics.add(change.topic);
+    queueFrame();
+  });
 }
 
 function applyCommit(commit: WorldCommit<unknown>, effects: RenderEffects): void {
@@ -131,7 +168,10 @@ export function initRenderCoordinator(): void {
     onFailure: () => scheduleWebglUpdate()
   });
   stopCoordinator = createRenderCoordinator(worldRuntime, {
-    syncPresentation: () => useLayerState.getState().hydrateActiveLayers(presentationData.activeLayers),
+    syncPresentation: () => {
+      projectPresentationToSvg(viewContext.svg.node(), presentationData);
+      useLayerState.getState().hydrateActiveLayers(presentationData.activeLayers);
+    },
     renderFullWorld: () => {
       if (viewContext.renderMap) drawLayers();
     },
