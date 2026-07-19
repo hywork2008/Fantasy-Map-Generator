@@ -89,3 +89,10 @@
 - 範囲外 cell を参照する burg record が archive encode 前に拒否される回帰テストを追加した。
 - 残作業: routes / rivers / features の参照、extension slice schema、opaque chunk の core deletion policy。P0-2 は `In progress` を維持する。
 - 検証: `npm test -- --run src/runtime/worldArchive.test.ts src/runtime/worldRuntime.test.ts` — 26 passed。`npm run build` — 成功。
+
+### 2026-07-20 — P0-2 network and feature reference validation
+
+- river の source / mouth / cell sequence、route の feature / cell sequence、feature の firstCell / outCell / vertices を topology と照合するようにした。
+- topology 外 cell を持つ river record を archive encode 前に拒否する回帰テストを追加した。
+- 残作業: extension slice schema と opaque chunk の core deletion policy。core map / simulation replacement の構造・column・主要 foreign key validation は実装済みとして、P0-2 を次回 extension archive seam と合わせて完了判定する。
+- 検証: `npm test -- --run src/runtime/worldArchive.test.ts src/runtime/worldRuntime.test.ts` — 27 passed。`npm run build` — 成功。

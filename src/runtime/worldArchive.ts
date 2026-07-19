@@ -234,6 +234,45 @@ function assertEntityTableReferences(pack: Record<string, unknown>, cellCount: n
   }
 }
 
+function assertReferenceArray(value: unknown, entityCount: number, fieldName: string): void {
+  if (value === undefined || value === null) return;
+  if (!Array.isArray(value)) throw new Error(`Archive ${fieldName} must be an array`);
+  for (const reference of value) {
+    if (typeof reference !== "number" || !Number.isInteger(reference) || reference < 0 || reference >= entityCount) {
+      throw new Error(`Archive ${fieldName} references missing entity ${String(reference)}`);
+    }
+  }
+}
+
+function assertNetworkReferences(pack: Record<string, unknown>, cellCount: number): void {
+  const features = Array.isArray(pack.features) ? pack.features : [];
+  const vertexCount = isRecord(pack.vertices) && isTypedArray(pack.vertices.i) ? pack.vertices.i.length : 0;
+
+  if (Array.isArray(pack.features)) {
+    assertRecordArray(pack.features, "pack.features");
+    for (const [index, feature] of features.entries()) {
+      assertOptionalReference(feature, "firstCell", cellCount, `pack.features[${index}]`);
+      assertOptionalReference(feature, "outCell", cellCount, `pack.features[${index}]`);
+      if (vertexCount) assertReferenceArray(feature.vertices, vertexCount, `pack.features[${index}].vertices`);
+    }
+  }
+  if (Array.isArray(pack.rivers)) {
+    assertRecordArray(pack.rivers, "pack.rivers");
+    for (const [index, river] of pack.rivers.entries()) {
+      assertOptionalReference(river, "source", cellCount, `pack.rivers[${index}]`);
+      assertOptionalReference(river, "mouth", cellCount, `pack.rivers[${index}]`);
+      assertReferenceArray(river.cells, cellCount, `pack.rivers[${index}].cells`);
+    }
+  }
+  if (Array.isArray(pack.routes)) {
+    assertRecordArray(pack.routes, "pack.routes");
+    for (const [index, route] of pack.routes.entries()) {
+      if (features.length) assertOptionalReference(route, "feature", features.length, `pack.routes[${index}]`);
+      assertReferenceArray(route.cells, cellCount, `pack.routes[${index}].cells`);
+    }
+  }
+}
+
 function typedArrayType(value: TypedArray): TypedArrayType {
   const type = value.constructor.name as TypedArrayType;
   if (!TYPED_ARRAY_TYPES.has(type)) throw new Error(`Unsupported typed array ${value.constructor.name}`);
@@ -438,6 +477,7 @@ export function assertValidWorldDocument(value: unknown): asserts value is World
     if (Array.isArray(pack.provinces))
       assertEntityReferences(cells.province, pack.provinces.length, "pack.cells.province");
     assertEntityTableReferences(pack, cellCount);
+    assertNetworkReferences(pack, cellCount);
   }
   assertOpaqueReferences(value.opaqueExtensionChunks);
 }

@@ -97,6 +97,15 @@ describe("ChunkedWorldCodecAdapter", () => {
     );
   });
 
+  it("rejects network records with invalid cell references", async () => {
+    const document = createWorldDocument(sampleWorld(), sampleSimulation(), createPresentationData(), []);
+    (document.world.pack as unknown as Record<string, unknown>).rivers = [{ i: 1, source: 0, mouth: 1, cells: [0, 8] }];
+
+    await expect(new ChunkedWorldCodecAdapter().encode(document)).rejects.toThrow(
+      "pack.rivers[0].cells references missing entity 8"
+    );
+  });
+
   it("stages a legacy positional map without changing live state", async () => {
     const legacy = '1.0.0|license\r\nsettings\r\n<svg id="map">\r\n</svg>';
     const staged = await new LegacyMapCodecAdapter().decode({
