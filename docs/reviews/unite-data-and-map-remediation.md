@@ -217,3 +217,10 @@
 - World Configurator の river / biome / feature 再計算は既存の world-wide `legacyMutation` に保持し、pack height の一時退避・復元を transaction 内の局所 record 経由に整理した。
 - `world-configurator.ts` を direct pack/grid writer allowlist から除去した。残る 4 件はすべて heightmap edit session の可逆 preview grid を扱う module であり、finalize 時の publish/rebuild contract を共有する。
 - 検証: `npm run lint:world-writers` — 4 compatibility modules。`npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts` — 34 passed。`npm run build` — 成功。
+
+### 2026-07-20 — P1-3 heightmap finalize transaction correction
+
+- erase / risk の heightmap 再構築は、更新後に空の commit を発行するのではなく、再構築そのものを `legacyMutation` 内で実行するようにした。listener は常に coherent な world を観測してから complete topic set を受け取る。
+- risk の COA 削除、ice layer と keep 時の landmass/lake 表示は commit 後の view 操作へ移した。Renderer / DOM 副作用が world mutation transaction 内に混在しない。
+- heightmap の 4 compatibility module は、編集中の可逆 grid preview を保持するため allowlist に残す。P1-3 は `In progress` を維持する。
+- 検証: `npm run lint:world-writers` — 4 compatibility modules。`npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts src/renderers/webgl/webglTopicRevisions.test.ts` — 36 passed。`npm run build` — 成功。

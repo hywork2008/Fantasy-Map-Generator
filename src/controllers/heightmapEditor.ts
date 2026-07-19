@@ -301,7 +301,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     return `${rn(height * unitRatio)} ${unit}`;
   }
 
-  async function finalizeHeightmap(): Promise<void> {
+  function finalizeHeightmap(): void {
     if (view.viewbox.select("#heights").selectAll("*").size() < 200) {
       tip("Insufficient land area. There should be at least 200 land cells!", false, "error");
       return;
@@ -331,17 +331,24 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     const heightmapEditMode = getElementById("heightmapEditMode");
     const mode = heightmapEditMode ? heightmapEditMode.textContent : null;
+    let removedBurgCoaIds: number[] = [];
     if (mode === "erase") {
-      await regenerateErasedData();
-      publishHeightmapReplacement();
+      commitHeightmapReplacement(() => regenerateErasedData());
     } else if (mode === "keep") {
-      restoreKeptData();
-      legacyMutation(() => ({ result: undefined, topics: ["map.physical"] }));
+      legacyMutation(() => {
+        restoreKeptData();
+        return { result: undefined, topics: ["map.physical"] };
+      });
     } else if (mode === "risk") {
-      await restoreRiskedData();
-      publishHeightmapReplacement();
+      const commit = commitHeightmapReplacement(() => restoreRiskedData());
+      removedBurgCoaIds = commit?.result ?? [];
     }
 
+    if (mode === "keep") view.viewbox.selectAll("#landmass, #lakes").style("display", null);
+    if (mode === "risk") view.ice.selectAll("*").remove();
+    removedBurgCoaIds.forEach(burgId => {
+      removeBurgCOA(viewContext, burgId);
+    });
     FeaturesRenderer.render(worldContext, viewContext, appServices);
     view.viewbox.selectAll("#heights").remove();
 
@@ -365,9 +372,9 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
    * is active, so publish the complete owned topic set once the world is again
    * coherent rather than invalidating WebGL on every brush stroke.
    */
-  function publishHeightmapReplacement(): void {
-    legacyMutation(() => ({
-      result: undefined,
+  function commitHeightmapReplacement<T>(execute: () => T) {
+    return legacyMutation(() => ({
+      result: execute(),
       topics: [
         "map.topology",
         "map.physical",
@@ -383,7 +390,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }));
   }
 
-  async function regenerateErasedData(): Promise<void> {
+  function regenerateErasedData(): void {
     INFO && console.group("Edit Heightmap");
     TIME && console.time("regenerateErasedData");
     worldContext.pack.cultures = [];
@@ -445,16 +452,16 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   }
 
   function restoreKeptData(): void {
-    view.viewbox.selectAll("#landmass, #lakes").style("display", null);
     for (const i of worldContext.pack.cells.i) {
       worldContext.pack.cells.h[i] = worldContext.grid.cells.h[worldContext.pack.cells.g[i]];
     }
   }
 
-  async function restoreRiskedData(): Promise<void> {
+  function restoreRiskedData(): number[] {
     INFO && console.group("Edit Heightmap");
     TIME && console.time("restoreRiskedData");
     const erosionAllowed = useHeightmapEditorState.getState().allowErosion;
+    const removedBurgCoaIds: number[] = [];
 
     const l = worldContext.grid.cells.i.length;
     const biome = new Uint8Array(l);
@@ -587,7 +594,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       if (!b.capital && worldContext.pack.cells.h[b.cell] < 20) {
         const hasCOA = !!b.coa;
         GenerationPipeline.Burgs.remove(b.i);
-        if (hasCOA) removeBurgCOA(viewContext, b.i!);
+        if (hasCOA) removedBurgCoaIds.push(b.i!);
       }
       if (b.capital) worldContext.pack.states[b.state!].center = b.cell;
     }
@@ -638,10 +645,10 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }
 
     GenerationPipeline.Ice.generate(worldContext, viewContext, appServices, worldState);
-    view.ice.selectAll("*").remove();
 
     TIME && console.timeEnd("restoreRiskedData");
     INFO && console.groupEnd();
+    return removedBurgCoaIds;
   }
 
   function updateHeightmap(): void {
