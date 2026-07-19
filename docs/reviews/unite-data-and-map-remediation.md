@@ -74,3 +74,11 @@
 - malformed state table が archive encode 時点で拒否されることを回帰テスト化し、`world.replace` の binder 前 rejection を維持した。
 - 残作業: map topology の全 column length、stable foreign key、extension slice schema を検証する機械可読 schema。P0-2 は `In progress` を維持する。
 - 検証: `npm test -- --run src/runtime/worldArchive.test.ts src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts` — 31 passed。`npm run build` — 成功。
+
+### 2026-07-20 — P0-2 topology and foreign-key validation
+
+- `pack.cells.i` を基準に、archive 内の Typed Array cell column が topology と同じ長さであることを検証するようにした。
+- cell の state / burg / culture / religion / province 参照が対応する entity table 範囲内であることを検証するようにした。
+- 不正な column length と欠損 state reference を archive encode 前に拒否する回帰テストを追加した。
+- 残作業: entity record 内の foreign key、extension slice schema、unknown opaque chunk の core deletion policy。P0-2 は `In progress` を維持する。
+- 検証: `npm test -- --run src/runtime/worldArchive.test.ts src/runtime/worldRuntime.test.ts` — 25 passed。`npm run build` — 成功。

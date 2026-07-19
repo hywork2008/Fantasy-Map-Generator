@@ -11,7 +11,7 @@ function sampleWorld(): WorldContext {
     pack: {
       cells: { i: new Uint16Array([0, 1]), state: new Uint16Array([1, 2]), pop: new Float32Array([1.5, 2.25]) },
       burgs: [],
-      states: []
+      states: [{ i: 0 }, { i: 1 }, { i: 2 }]
     },
     grid: { cells: { h: new Uint8Array([20, 30]) } }
   } as unknown as WorldContext;
@@ -72,6 +72,19 @@ describe("ChunkedWorldCodecAdapter", () => {
 
     await expect(new ChunkedWorldCodecAdapter().encode(document)).rejects.toThrow(
       "pack.states must be an array of records"
+    );
+  });
+
+  it("rejects dense columns and foreign keys that do not match the topology", async () => {
+    const document = createWorldDocument(sampleWorld(), sampleSimulation(), createPresentationData(), []);
+    (document.world.pack.cells as unknown as Record<string, unknown>).biome = new Uint8Array([1]);
+
+    await expect(new ChunkedWorldCodecAdapter().encode(document)).rejects.toThrow("pack.cells.biome has length 1");
+
+    (document.world.pack.cells as unknown as Record<string, unknown>).biome = new Uint8Array([1, 1]);
+    (document.world.pack.cells as unknown as Record<string, unknown>).state = new Uint16Array([1, 9]);
+    await expect(new ChunkedWorldCodecAdapter().encode(document)).rejects.toThrow(
+      "pack.cells.state references missing entity 9"
     );
   });
 

@@ -181,6 +181,21 @@ function assertOpaqueReferences(value: readonly OpaqueExtensionChunk[]): void {
   }
 }
 
+function assertDenseColumnLengths(columns: Record<string, unknown>, count: number, name: string): void {
+  for (const [field, column] of Object.entries(columns)) {
+    if (!isTypedArray(column) || column.length === count) continue;
+    throw new Error(`Archive ${name}.${field} has length ${column.length}; expected ${count}`);
+  }
+}
+
+function assertEntityReferences(column: unknown, entityCount: number, columnName: string): void {
+  if (!isTypedArray(column)) return;
+  for (const entityId of column) {
+    if (entityId < entityCount) continue;
+    throw new Error(`Archive ${columnName} references missing entity ${entityId}`);
+  }
+}
+
 function typedArrayType(value: TypedArray): TypedArrayType {
   const type = value.constructor.name as TypedArrayType;
   if (!TYPED_ARRAY_TYPES.has(type)) throw new Error(`Unsupported typed array ${value.constructor.name}`);
@@ -374,6 +389,17 @@ export function assertValidWorldDocument(value: unknown): asserts value is World
   }
   assertRecordArray(pack.burgs, "pack.burgs");
   assertRecordArray(pack.states, "pack.states");
+  if (isTypedArray(cells.i)) {
+    const cellCount = cells.i.length;
+    assertDenseColumnLengths(cells, cellCount, "pack.cells");
+    assertEntityReferences(cells.state, pack.states.length, "pack.cells.state");
+    assertEntityReferences(cells.burg, pack.burgs.length, "pack.cells.burg");
+    if (Array.isArray(pack.cultures)) assertEntityReferences(cells.culture, pack.cultures.length, "pack.cells.culture");
+    if (Array.isArray(pack.religions))
+      assertEntityReferences(cells.religion, pack.religions.length, "pack.cells.religion");
+    if (Array.isArray(pack.provinces))
+      assertEntityReferences(cells.province, pack.provinces.length, "pack.cells.province");
+  }
   assertOpaqueReferences(value.opaqueExtensionChunks);
 }
 
