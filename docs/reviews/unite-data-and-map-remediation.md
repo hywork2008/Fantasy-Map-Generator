@@ -192,3 +192,10 @@
 - 各 commit は影響する `map.*` と `simulation.*` topic を publish するため、Tools タブ経由の大規模再生成でも SVG と WebGL の projection / revision が同期する。state と burg の再生成では、関連する province、military、route の更新も同じ通知範囲に含める。
 - `tools.ts` は複合 generation transaction を抱えるため明示 compatibility allowlist に残す。残作業は heightmap / biome 等の残存 compatibility module を、より狭い typed command または同等の transaction に分解すること。P1-3 は `In progress` を維持する。
 - 検証: `npm run lint:world-writers` — 8 compatibility modules。`npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts src/renderers/webgl/webglTopicRevisions.test.ts` — 36 passed。`npm run build` — 成功。
+
+### 2026-07-20 — P1-3 biome editor transaction migration
+
+- biome の色、名称、habitability、custom biome の追加・削除、default 復元を `legacyMutation` に移した。Biome cell assignment と同様に `map.physical` revision を publish するため、metadata と map projection の更新経路が統一される。
+- default 復元は biome definition と dependent population を再計算するため、settlement / burg simulation topic も publish する。SVG renderer と editor-store の局所更新は commit 後に維持する。
+- `biomes-editor.ts` を direct pack/grid writer allowlist から除去した。残る compatibility module は 7 件で、heightmap の編集プレビューと大規模再構築を次の分割対象とする。P1-3 は `In progress` を維持する。
+- 検証: `npm run lint:world-writers` — 7 compatibility modules。`npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts src/renderers/webgl/webglTopicRevisions.test.ts` — 36 passed。`npm run build` — 成功。
