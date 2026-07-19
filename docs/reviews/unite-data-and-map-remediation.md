@@ -13,7 +13,7 @@
 | P0-3 | Critical | Verified | `.fmg` load が `PresentationData.labels` を復元せず、presentation を SVG に一貫して投影しない | styles / layers / labels が archive round-trip 後に復元され、SVG / WebGL が同じ presentation source を読む |
 | P1-1 | High | Verified | `burg.move` が政治データも変更するのに `map.settlements` しか publish しない | 実際に変更する topic をすべて publish し、state label / cache の更新を回帰テストで保証 |
 | P1-2 | High | Verified | Simulation hook が Renderer を直接呼び、RenderCoordinator が SVG work を commit ごとに即時実行する | tick 中の direct render を除去し、必要な renderer work を rAF 単位で coalesce |
-| P1-3 | High | In progress | 未移行の direct `pack` / `grid` writer が revision を発行しない | writer inventory / allowlist を導入し、優先 editor を command 経由へ移行 |
+| P1-3 | High | Verified | 未移行の direct `pack` / `grid` writer が revision を発行しない | writer inventory / allowlist を導入し、優先 editor を command 経由へ移行 |
 | P2-1 | Medium | Pending | `WorldRuntime.read()` と ExtensionAPI が mutable backing store を公開する | dynamic extension 向け read facade を導入し、raw mutable buffer を到達不能にする |
 | P2-2 | Medium | Pending | `PresentationData` に layer order / overlays がなく、WebGL style の SVG fallback が残る | 保存対象を model 化し、live SVG style read を compatibility path へ限定または除去 |
 | P2-3 | Medium | Pending | Simulation の RNG 分離・daily runner・headless interface が未完 | simulation slice に RNG state を保存し、renderer/UI 非依存の day step を test surface にする |
@@ -238,3 +238,10 @@
 - finalize の `legacyMutation` 内でだけ draft を live grid に反映し、keep は `map.physical`、erase/risk は再構築に必要な完全な topic set を publish する。モード選択をキャンセルした場合は draft を破棄する。
 - `heightmapBrushes.ts`、`heightmapImage.ts`、`heightmapTemplate.ts` を writer allowlist から除去した。残る compatibility writer は finalize/rebuild を一つの transaction で担う `heightmapEditor.ts` だけである。P1-3 はこの world-wide rebuild の command 化を残して `In progress` を維持する。
 - 検証: `npm test -- --run src/runtime/heightmapEditSession.test.ts src/runtime/worldRuntime.test.ts` — 31 passed。`npm run lint` — 成功（1 compatibility module）。`npm run build` — 成功。
+
+### 2026-07-20 — P1-3 heightmap finalize command
+
+- `heightmap.finalize` command と handler registration seam を追加し、erase / keep / risk の finalize が named runtime command として一つの revisioned commit を発行するようにした。handler 未登録時は command を拒否する。
+- heightmap rebuild の互換 implementation は allowlist に残るが、Controller が `legacyMutation()` を直接組み立てる経路は除去した。ocean layer の DOM 更新も commit 後へ移し、world mutation と混在しないようにした。
+- writer inventory / allowlist、優先 editor の command migration、残る heightmap finalize の commit seam が揃ったため、P1-3 を `Verified` に更新した。
+- 検証: `npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/heightmapEditSession.test.ts` — 32 passed。`npm run lint` — 成功（1 compatibility module）。`npm run build` — 成功。

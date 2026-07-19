@@ -149,6 +149,20 @@ export interface AdvanceSimulationCommand {
 
 export type SimulationAdvanceHandler = (request: AdvanceSimulationRequest) => LegacyMutationOutcome<void>;
 
+export type HeightmapFinalizeMode = "erase" | "keep" | "risk";
+
+export interface FinalizeHeightmapRequest {
+  readonly mode: HeightmapFinalizeMode;
+}
+
+export interface FinalizeHeightmapCommand {
+  readonly type: "heightmap.finalize";
+  readonly payload: FinalizeHeightmapRequest;
+}
+
+/** Transitional generator adapter for the synchronous heightmap rebuild. */
+export type HeightmapFinalizeHandler = (request: FinalizeHeightmapRequest) => LegacyMutationOutcome<readonly number[]>;
+
 export interface MoveMarkerRequest {
   readonly markerId: number;
   readonly x: number;
@@ -574,6 +588,7 @@ export type WorldCommand<T> =
   | LegacyMutationCommand<T>
   | ExtensionCommand
   | AdvanceSimulationCommand
+  | FinalizeHeightmapCommand
   | PositionCommand
   | AssignCellsCommand
   | RemoveStateCommand
@@ -602,6 +617,8 @@ export interface WorldRuntime {
   registerExtensionCommand(command: ExtensionCommandDefinition): () => void;
   /** Register the compatibility simulation implementation behind `simulation.advance`. */
   registerSimulationAdvanceHandler(handler: SimulationAdvanceHandler): () => void;
+  /** Register the synchronous generator adapter behind `heightmap.finalize`. */
+  registerHeightmapFinalizeHandler(handler: HeightmapFinalizeHandler): () => void;
   /** Places a read barrier on the runtime queue without publishing a commit. */
   captureArchiveDocument(): Promise<WorldDocument>;
 }
@@ -612,6 +629,7 @@ class LegacyWorldRuntime implements WorldRuntime {
   private readonly listeners = new Set<(commit: WorldCommit<unknown>) => void>();
   private readonly extensionCommands = new Map<string, ExtensionCommandDefinition>();
   private simulationAdvanceHandler: SimulationAdvanceHandler | null = null;
+  private heightmapFinalizeHandler: HeightmapFinalizeHandler | null = null;
   private opaqueExtensionChunks: readonly OpaqueExtensionChunk[] = [];
   private committing = false;
 
@@ -665,6 +683,16 @@ class LegacyWorldRuntime implements WorldRuntime {
     this.simulationAdvanceHandler = handler;
     return () => {
       if (this.simulationAdvanceHandler === handler) this.simulationAdvanceHandler = null;
+    };
+  }
+
+  registerHeightmapFinalizeHandler(handler: HeightmapFinalizeHandler): () => void {
+    if (this.heightmapFinalizeHandler) {
+      throw new Error("The heightmap.finalize handler is already registered");
+    }
+    this.heightmapFinalizeHandler = handler;
+    return () => {
+      if (this.heightmapFinalizeHandler === handler) this.heightmapFinalizeHandler = null;
     };
   }
 
@@ -762,6 +790,11 @@ class LegacyWorldRuntime implements WorldRuntime {
 
     if (command.type === "simulation.advance") {
       return this.advanceSimulation(command.payload) as LegacyMutationOutcome<T>;
+    }
+
+    if (command.type === "heightmap.finalize") {
+      if (!this.heightmapFinalizeHandler) throw new Error("heightmap.finalize has no registered handler");
+      return this.heightmapFinalizeHandler(command.payload) as LegacyMutationOutcome<T>;
     }
 
     if (command.type === "presentation.patch") {
@@ -2030,6 +2063,14 @@ export function registerSimulationAdvanceHandler(handler: SimulationAdvanceHandl
 /** Dispatches one compatibility simulation step through the named command seam. */
 export function advanceSimulation(request: AdvanceSimulationRequest): WorldCommit<void> | null {
   return (worldRuntime as LegacyWorldRuntime).execute({ type: "simulation.advance", payload: request });
+}
+
+export function registerHeightmapFinalizeHandler(handler: HeightmapFinalizeHandler): () => void {
+  return worldRuntime.registerHeightmapFinalizeHandler(handler);
+}
+
+export function finalizeHeightmap(request: FinalizeHeightmapRequest): WorldCommit<readonly number[]> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "heightmap.finalize", payload: request });
 }
 
 /** Phase 2 compatibility commands for bounded, ID-addressed position edits. */

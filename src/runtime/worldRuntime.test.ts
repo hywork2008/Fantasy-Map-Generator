@@ -184,6 +184,26 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     ]);
   });
 
+  it("runs the registered heightmap finalizer through one revisioned command", async () => {
+    const runtime = createRuntime();
+    const handler = vi.fn(() => ({ result: [7], topics: ["map.physical", "map.topology"] as const }));
+    const unregister = runtime.registerHeightmapFinalizeHandler(handler);
+
+    const commit = await runtime.dispatch({ type: "heightmap.finalize", payload: { mode: "risk" } });
+
+    expect(handler).toHaveBeenCalledWith({ mode: "risk" });
+    expect(commit?.result).toEqual([7]);
+    expect(commit?.changes.changes).toEqual([
+      { topic: "map.physical", kind: "replace" },
+      { topic: "map.topology", kind: "replace" }
+    ]);
+
+    unregister();
+    await expect(runtime.dispatch({ type: "heightmap.finalize", payload: { mode: "keep" } })).rejects.toThrow(
+      "has no registered handler"
+    );
+  });
+
   it("atomically replaces world, simulation and presentation data through a full-replace commit", async () => {
     const world = createPositionWorld();
     const simulation = { currentYear: 10, currentMonth: 1, currentDay: 1, tickCount: 1 } as SimulationContext;

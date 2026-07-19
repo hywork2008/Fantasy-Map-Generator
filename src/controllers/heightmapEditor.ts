@@ -27,7 +27,10 @@ import {
   getHeightmapEditingHeights,
   replaceHeightmapEditingHeights
 } from "../runtime/heightmapEditSession";
-import { legacyMutation } from "../runtime/worldRuntime";
+import {
+  finalizeHeightmap as finalizeHeightmapCommand,
+  registerHeightmapFinalizeHandler
+} from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -171,6 +174,50 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     mockHeightmapSelection
   });
 
+  const unregisterHeightmapFinalizeHandler = registerHeightmapFinalizeHandler(({ mode }) => {
+    applyHeightmapEditSession(worldContext.grid);
+    if (mode === "keep") {
+      restoreKeptData();
+      return { result: [], topics: ["map.physical"] };
+    }
+
+    if (mode === "erase") {
+      regenerateErasedData();
+      return {
+        result: [],
+        topics: [
+          "map.topology",
+          "map.physical",
+          "map.politics",
+          "map.settlements",
+          "map.networks",
+          "map.annotations",
+          "simulation.cells",
+          "simulation.states",
+          "simulation.burgs",
+          "simulation.military"
+        ]
+      };
+    }
+
+    const result = restoreRiskedData();
+    return {
+      result,
+      topics: [
+        "map.topology",
+        "map.physical",
+        "map.politics",
+        "map.settlements",
+        "map.networks",
+        "map.annotations",
+        "simulation.cells",
+        "simulation.states",
+        "simulation.burgs",
+        "simulation.military"
+      ]
+    };
+  });
+
   function showModeDialog() {
     heightmapEditModeStore.getState().open({
       onErase: () => enterHeightmapEditMode("erase"),
@@ -179,6 +226,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       onCancel: () => {
         modules.editHeightmap = false;
         discardHeightmapEditSession();
+        unregisterHeightmapFinalizeHandler();
       }
     });
   }
@@ -342,22 +390,18 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     if (getElementById("canvas3d")) enterStandardView();
 
     const heightmapEditMode = getElementById("heightmapEditMode");
-    const mode = heightmapEditMode ? heightmapEditMode.textContent : null;
-    let removedBurgCoaIds: number[] = [];
-    if (mode === "erase") {
-      commitHeightmapReplacement(() => regenerateErasedData());
-    } else if (mode === "keep") {
-      legacyMutation(() => {
-        applyHeightmapEditSession(worldContext.grid);
-        restoreKeptData();
-        return { result: undefined, topics: ["map.physical"] };
-      });
-    } else if (mode === "risk") {
-      const commit = commitHeightmapReplacement(() => restoreRiskedData());
-      removedBurgCoaIds = commit?.result ?? [];
+    const mode = heightmapEditMode?.textContent;
+    if (mode !== "erase" && mode !== "keep" && mode !== "risk") {
+      unregisterHeightmapFinalizeHandler();
+      discardHeightmapEditSession();
+      throw new Error("Heightmap finalize requires a valid edit mode");
     }
+    const commit = finalizeHeightmapCommand({ mode });
+    unregisterHeightmapFinalizeHandler();
+    const removedBurgCoaIds = commit?.result ?? [];
 
     if (mode === "keep") view.viewbox.selectAll("#landmass, #lakes").style("display", null);
+    if (mode === "erase" || mode === "risk") OceanLayers();
     if (mode === "risk") view.ice.selectAll("*").remove();
     removedBurgCoaIds.forEach(burgId => {
       removeBurgCOA(viewContext, burgId);
@@ -379,33 +423,6 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     getCurrentPreset();
   }
 
-  /**
-   * Erase/risk heightmap exits rebuild pack topology and every dependent
-   * generated table. The editor's preview writes directly while customization
-   * is active, so publish the complete owned topic set once the world is again
-   * coherent rather than invalidating WebGL on every brush stroke.
-   */
-  function commitHeightmapReplacement<T>(execute: () => T) {
-    return legacyMutation(() => ({
-      result: (() => {
-        applyHeightmapEditSession(worldContext.grid);
-        return execute();
-      })(),
-      topics: [
-        "map.topology",
-        "map.physical",
-        "map.politics",
-        "map.settlements",
-        "map.networks",
-        "map.annotations",
-        "simulation.cells",
-        "simulation.states",
-        "simulation.burgs",
-        "simulation.military"
-      ]
-    }));
-  }
-
   function regenerateErasedData(): void {
     INFO && console.group("Edit Heightmap");
     TIME && console.time("regenerateErasedData");
@@ -421,7 +438,6 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       addLakesInDeepDepressions();
       openNearSeaLakes();
     }
-    OceanLayers();
     calculateTemperatures();
     generatePrecipitation();
     reGraph();
@@ -532,7 +548,6 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     GenerationPipeline.Features.markupGrid();
     if (erosionAllowed) addLakesInDeepDepressions();
-    OceanLayers();
     calculateTemperatures();
     generatePrecipitation();
     reGraph();
