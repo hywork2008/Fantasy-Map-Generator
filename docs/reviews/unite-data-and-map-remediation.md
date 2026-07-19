@@ -231,3 +231,10 @@
 - writer inventory は direct assignment だけでなく、`push` / `splice` / `set` などの direct mutator 呼び出しも検出するようにした。これにより今回のような direct collection mutation は allowlist または command migration なしに追加できない。
 - heightmap edit session の 4 compatibility module は、確定前の可逆 grid preview を維持するため allowlist に残す。P1-3 は `In progress` を維持する。
 - 検証: `npm test -- --run src/runtime/worldRuntime.test.ts` — 29 passed。`npm run lint` — 成功。`npm run build` — 成功。
+
+### 2026-07-20 — P1-3 staged heightmap preview
+
+- `HeightmapEditSession` を追加し、brush、template、image conversion、undo/redo と preview drawing が live `grid.cells.h` ではなく draft heightmap を読むようにした。編集中の操作は canonical world と revision を変更しない。
+- finalize の `legacyMutation` 内でだけ draft を live grid に反映し、keep は `map.physical`、erase/risk は再構築に必要な完全な topic set を publish する。モード選択をキャンセルした場合は draft を破棄する。
+- `heightmapBrushes.ts`、`heightmapImage.ts`、`heightmapTemplate.ts` を writer allowlist から除去した。残る compatibility writer は finalize/rebuild を一つの transaction で担う `heightmapEditor.ts` だけである。P1-3 はこの world-wide rebuild の command 化を残して `In progress` を維持する。
+- 検証: `npm test -- --run src/runtime/heightmapEditSession.test.ts src/runtime/worldRuntime.test.ts` — 31 passed。`npm run lint` — 成功（1 compatibility module）。`npm run build` — 成功。

@@ -8,10 +8,7 @@ import path from "path";
  * being migrated.
  */
 const ALLOWED_COMPATIBILITY_WRITERS = new Map<string, string>([
-  ["src/controllers/heightmapBrushes.ts", "in-progress heightmap preview"],
-  ["src/controllers/heightmapEditor.ts", "heightmap rebuild transaction publishes on finalize"],
-  ["src/controllers/heightmapImage.ts", "in-progress heightmap image import"],
-  ["src/controllers/heightmapTemplate.ts", "in-progress heightmap template application"]
+  ["src/controllers/heightmapEditor.ts", "heightmap finalize and rebuild transaction"]
 ]);
 
 const controllersDirectory = path.join(import.meta.dirname, "../src/controllers");

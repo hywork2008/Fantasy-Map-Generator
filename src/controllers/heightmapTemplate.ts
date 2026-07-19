@@ -1,5 +1,6 @@
 import Alea from "alea";
 import { worldContext } from "../context/worldContext";
+import { getHeightmapEditingGrid, replaceHeightmapEditingHeights } from "../runtime/heightmapEditSession";
 
 import { setHeightmapEditorState, type TemplateStep, useHeightmapEditorState } from "../store/heightmapEditorState";
 import { createTypedArray, generateSeed } from "../utils";
@@ -27,8 +28,10 @@ export function executeTemplate(callbacks: HeightmapTemplateCallbacks): void {
     setHeightmapEditorState({ templateSeed: Number(seed) });
   }
 
-  worldContext.grid.cells.h = createTypedArray({ maxValue: 100, length: worldContext.grid.points.length });
-  GenerationPipeline.HeightmapGenerator.setGraph(worldContext.grid);
+  replaceHeightmapEditingHeights(
+    createTypedArray({ maxValue: 100, length: worldContext.grid.points.length }) as Uint8Array
+  );
+  GenerationPipeline.HeightmapGenerator.setGraph(getHeightmapEditingGrid(worldContext.grid));
   callbacks.restartHistory();
 
   for (const step of steps) {
@@ -52,11 +55,11 @@ export function executeTemplate(callbacks: HeightmapTemplateCallbacks): void {
     else if (type === "Multiply") GenerationPipeline.HeightmapGenerator.modify(dist, 0, +count!);
     else if (type === "Smooth") GenerationPipeline.HeightmapGenerator.smooth(+count!);
 
-    worldContext.grid.cells.h = GenerationPipeline.HeightmapGenerator.getHeights()!;
+    replaceHeightmapEditingHeights(GenerationPipeline.HeightmapGenerator.getHeights()!);
     callbacks.updateHistory("noStat");
   }
 
-  worldContext.grid.cells.h = GenerationPipeline.HeightmapGenerator.getHeights()!;
+  replaceHeightmapEditingHeights(GenerationPipeline.HeightmapGenerator.getHeights()!);
   callbacks.updateStatistics();
   callbacks.mockHeightmap();
   callbacks.drawHeightmapPreview();
