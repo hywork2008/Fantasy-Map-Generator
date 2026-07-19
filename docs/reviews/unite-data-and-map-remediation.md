@@ -179,3 +179,9 @@
 - Religion editor の center drag は既存の `religion.patch` command を使うようにし、拡張・中心位置の変更に伴う再計算は `map.politics` compatibility commit に収めた。
 - `religions-editor.ts` を direct writer allowlist から除去した。残る compatibility module は 9 件。
 - 検証: `npm run lint:world-writers` — 9 compatibility modules。`npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts` — 34 passed。`npm run build` — 成功。
+
+### 2026-07-20 — P1-3 province editor transaction containment
+
+- Province editor の全削除、merge、lock 操作を通知付き transaction に収めた。merge は province cell ownership、burg の province 参照、state の province list、統計・pole 再計算を同じ `map.politics` / `map.settlements` commit で処理する。
+- `provinces-editor.ts` を direct writer allowlist から除去した。残る compatibility module は 8 件。
+- 検証: `npm run lint:world-writers` — 8 compatibility modules。`npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/renderCoordinator.test.ts` — 34 passed。`npm run build` — 成功。
