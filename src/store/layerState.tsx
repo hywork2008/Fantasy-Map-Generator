@@ -278,6 +278,12 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     isSolid: true
   },
   {
+    id: "toggleSeaCurrents",
+    name: <>Sea Currents</>,
+    shortcut: null,
+    tooltip: "Sea currents: flowing highlight along sea routes showing travel direction (WebGL only). Click to toggle."
+  },
+  {
     id: "toggleStates",
     name: (
       <>

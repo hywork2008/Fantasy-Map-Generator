@@ -746,6 +746,94 @@ export function buildEnclosurePolygons(
   );
 }
 
+export interface DeckSeaCurrentPolygon {
+  id: string;
+  kind: "seaCurrent";
+  cellId: number;
+  polygon: DeckPosition[];
+  /** Normalized position (0 = route origin, 1 = route destination) along the sea route's cell sequence. */
+  phase: number;
+}
+
+/**
+ * Ocean cells traversed by "searoutes" routes, tagged with their normalized position along the
+ * route (origin -> destination). Geometry/phase only — deliberately excludes color, which
+ * `getSeaCurrentColor` computes fresh every animation frame in buildDeckLayers, so this cacheable
+ * data never needs busting just because time moved on.
+ *
+ * "searoutes" routes are not exclusively open ocean: generateSeaRoutes paths purely on cell
+ * height/temperature (routes-generator.ts), with no ocean/lake distinction, so two ports on the
+ * same (especially closed/outlet-less) lake can be connected by a route that never touches open
+ * water. Real lakes have no current worth animating, so lake cells are skipped here — phase is
+ * still computed against the route's full cell sequence (not the filtered one) so a lake crossing
+ * just reads as a gap in the flow rather than compressing the animation's pacing.
+ */
+export function buildSeaCurrentCellPolygons(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null
+): DeckSeaCurrentPolygon[] {
+  const { cells, vertices, features } = worldContext.pack;
+  const polygons: DeckSeaCurrentPolygon[] = [];
+
+  for (const route of worldContext.pack.routes ?? []) {
+    if (route.group !== "searoutes") continue;
+
+    // route.points is already ordered origin -> destination (Dijkstra path order); collapse
+    // consecutive duplicates to get the cell sequence the route actually crosses.
+    const cellSequence: number[] = [];
+    for (const point of route.points) {
+      const cellId = point[2];
+      if (cellSequence[cellSequence.length - 1] !== cellId) cellSequence.push(cellId);
+    }
+    if (cellSequence.length < 2) continue;
+
+    const lastIndex = cellSequence.length - 1;
+    cellSequence.forEach((cellId, index) => {
+      if (!isCellInScope(focusScope, cellId)) return;
+      if (features[cells.f[cellId]]?.type !== "ocean") return;
+      const polygon = getCellPolygon(cells, vertices, cellId);
+      if (!polygon) return;
+      polygons.push({
+        id: `sea-current-${route.i}-${index}`,
+        kind: "seaCurrent",
+        cellId,
+        polygon,
+        phase: index / lastIndex
+      });
+    });
+  }
+
+  return polygons;
+}
+
+function triangleWave(x: number): number {
+  const t = x - Math.floor(x);
+  return 1 - Math.abs(2 * t - 1);
+}
+
+const SEA_CURRENT_BASE_COLOR: Color = [40, 90, 150, 140];
+const SEA_CURRENT_HIGHLIGHT_COLOR: Color = [190, 230, 255, 235];
+const SEA_CURRENT_BANDS_PER_ROUTE = 2.5;
+const SEA_CURRENT_CYCLES_PER_SECOND = 0.35;
+
+/**
+ * Brightness pulses travel from phase 0 (origin) toward phase 1 (destination) as `timeSeconds`
+ * increases, reading as a current flowing in the route's direction of travel without any arrow,
+ * symbol, or text. Called fresh per rendered frame (see seaCurrentsAnimation.ts) — never cached.
+ */
+export function getSeaCurrentColor(phase: number, timeSeconds: number): Color {
+  const brightness = triangleWave(phase * SEA_CURRENT_BANDS_PER_ROUTE - timeSeconds * SEA_CURRENT_CYCLES_PER_SECOND);
+  const mix = brightness * brightness;
+  const [baseR, baseG, baseB, baseA = 255] = SEA_CURRENT_BASE_COLOR;
+  const [highR, highG, highB, highA = 255] = SEA_CURRENT_HIGHLIGHT_COLOR;
+  return [
+    Math.round(baseR + (highR - baseR) * mix),
+    Math.round(baseG + (highG - baseG) * mix),
+    Math.round(baseB + (highB - baseB) * mix),
+    Math.round(baseA + (highA - baseA) * mix)
+  ];
+}
+
 export function buildPopulationPolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,

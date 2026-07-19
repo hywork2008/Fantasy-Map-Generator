@@ -926,6 +926,16 @@ export function toggleRoutes(event?: MouseEvent): void {
   }
 }
 
+/**
+ * WebGL-only flowing-current effect over sea route cells (see docs/plan/searoute-current-direction-visualization.md).
+ * Has no SVG counterpart, so outside webglHybrid mode this only flips the stored toggle state.
+ */
+export function toggleSeaCurrents(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleSeaCurrents", "seaCurrents", event)) return;
+  if (layerIsOn("toggleSeaCurrents")) turnButtonOff("toggleSeaCurrents");
+  else turnButtonOn("toggleSeaCurrents");
+}
+
 export function toggleMilitary(event?: MouseEvent): void {
   if (toggleWebglManagedLayer("toggleMilitary", "armies", event)) return;
   if (!layerIsOn("toggleMilitary")) {
@@ -1131,6 +1141,7 @@ const TOGGLE_REGISTRY: Record<string, (event?: MouseEvent) => void> = {
   toggleTexture,
   toggleRivers,
   toggleRoutes,
+  toggleSeaCurrents,
   toggleMilitary,
   toggleMarkers,
   toggleFrontierForts,

@@ -25,6 +25,7 @@ import {
   unregisterPreset,
   unregisterToolAction
 } from "./controllers/layers";
+import "./controllers/seaCurrentsAnimation";
 import { changeViewMode } from "./controllers/viewMode";
 import { injectInfrastructure, injectVisibleUI } from "./dom/initDOM";
 import { initExtensions } from "./extensions/index";

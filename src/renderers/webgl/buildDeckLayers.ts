@@ -59,6 +59,7 @@ import {
   buildReligionPolygons,
   buildRiverPolygons,
   buildRoutePaths,
+  buildSeaCurrentCellPolygons,
   buildStatePolygons,
   buildTemperaturePolygons,
   buildZonePolygons,
@@ -85,7 +86,9 @@ import {
   type DeckPath,
   type DeckPosition,
   type DeckPrecipitationSymbol,
-  type DeckRiverPolygon
+  type DeckRiverPolygon,
+  type DeckSeaCurrentPolygon,
+  getSeaCurrentColor
 } from "./adapters/deckDataAdapters";
 import { BURG_ICON_RASTER_SIZE, getBurgIconRasterCacheVersion } from "./burgIconRasterCache";
 import { getEmblemIconCacheVersion } from "./emblemIconCache";
@@ -142,7 +145,8 @@ type CachedDeckData =
   | DeckMilitaryRegimentSymbol[]
   | DeckPath[]
   | DeckPrecipitationSymbol[]
-  | DeckRiverPolygon[];
+  | DeckRiverPolygon[]
+  | DeckSeaCurrentPolygon[];
 
 interface CachedDeckDataEntry<T extends CachedDeckData> {
   signature: string;
@@ -312,7 +316,8 @@ export const WEBGL_LAYER_TOGGLES = new Set([
   "toggleMilitary",
   "toggleFrontierForts",
   "toggleLabels",
-  "toggleEnclosure"
+  "toggleEnclosure",
+  "toggleSeaCurrents"
 ]);
 
 const EMBLEM_ICON_URL = `data:image/svg+xml,${encodeURIComponent(
@@ -684,6 +689,32 @@ export function buildDeckLayers(
         lineWidthMaxPixels: 2,
         stroked: true,
         pickable: true
+      })
+    );
+  }
+
+  if (activeLayers.toggleSeaCurrents) {
+    // Wall-clock read directly here (not cached/signature-derived): this is the only per-frame
+    // state in the whole layer, so the animation loop (seaCurrentsAnimation.ts) can re-invoke
+    // buildDeckLayers every frame while the toggle is on and get a fresh accessor each time,
+    // without ever busting the geometry cache above. No loop runs, and this block is entirely
+    // skipped, whenever the toggle is off.
+    const seaCurrentTimeSeconds = performance.now() / 1000;
+    layers.push(
+      new SolidPolygonLayer<DeckSeaCurrentPolygon>({
+        id: "fmg-webgl-sea-currents",
+        data: getCachedDeckData("polygon:seaCurrents", signatures.byLayer.seaCurrents, () =>
+          buildSeaCurrentCellPolygons(worldContext, viewContext.focusScope)
+        ),
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getPolygon: datum => datum.polygon,
+        getFillColor: datum => getSeaCurrentColor(datum.phase, seaCurrentTimeSeconds),
+        // getFillColor's output depends on seaCurrentTimeSeconds, not on `data` (which is cached
+        // and intentionally unchanged frame to frame) — deck.gl only recomputes an accessor's GPU
+        // attribute when `data` changes unless told otherwise, so without this the color attribute
+        // would silently freeze on first paint even though a fresh closure is passed every frame.
+        updateTriggers: { getFillColor: seaCurrentTimeSeconds },
+        pickable: false
       })
     );
   }
@@ -1571,6 +1602,14 @@ function buildLayerSignatures(
     ["map.networks", "presentation.styles"],
     () =>
       `${mapId}|${scope}|${routesSignature(pack.routes)}|${pathDashStyleSignature(styles.pathDashStyles, ["roads", "trails", "searoutes"])}|${pathPaintStyleSignature(styles.pathPaintStyles, ["roads", "trails", "searoutes"])}`
+  );
+  // Geometry/phase only, matching buildSeaCurrentCellPolygons — color is time-driven and
+  // recomputed every animation frame in the layer push below, never part of this signature.
+  setIfActive(
+    "seaCurrents",
+    "toggleSeaCurrents",
+    ["map.topology", "map.networks"],
+    () => `${mapId}|${scope}|${geometry()}|${routesSignature(pack.routes)}`
   );
 
   // The coastline layer always renders (not toggle-gated), so its signature is always needed.
