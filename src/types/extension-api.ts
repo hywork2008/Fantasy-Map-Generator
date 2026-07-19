@@ -19,6 +19,7 @@ import type { SimulationContext } from "../context/simulationContext";
 import type { SvgGroup, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { SimulationSystem } from "../generators/simulationSystem";
+import type { ExtensionReadRecord, ExtensionWorldReadView } from "../runtime/extensionReadModel";
 import type {
   DataTopic,
   ExtensionCommandDefinition,
@@ -355,4 +356,19 @@ export interface ExtensionAPI {
    * display. Assign getBurgEconomySummary in init(), clear it in cleanup().
    */
   burgEconomyExtensions: BurgEconomyExtensionHooks;
+}
+
+/** Refreshable immutable world snapshot access granted to dynamic ZIP extensions. */
+export interface ExtensionWorldReader {
+  read(): ExtensionWorldReadView;
+}
+
+/**
+ * Dynamic-extension contract. Compatibility context names resolve to immutable
+ * facades; canonical data can only change through registered commands.
+ */
+export interface DynamicExtensionAPI extends Omit<ExtensionAPI, "worldContext" | "simulationContext"> {
+  readonly world: ExtensionWorldReader;
+  readonly worldContext: ExtensionReadRecord;
+  readonly simulationContext: ExtensionReadRecord;
 }

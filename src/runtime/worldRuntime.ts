@@ -12,6 +12,7 @@ import {
   type Zone
 } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
+import { createExtensionWorldReadView, type ExtensionWorldReadView } from "./extensionReadModel";
 import { bindExtensionStateSlices } from "./extensionStateSlices";
 import {
   applyPresentationPatch,
@@ -610,7 +611,10 @@ export type WorldCommand<T> =
   | ReplaceWorldCommand;
 
 export interface WorldRuntime {
-  read(): WorldReadView;
+  /** Immutable read model for dynamic extensions and other untrusted callers. */
+  read(): ExtensionWorldReadView;
+  /** @internal Trusted host projection; nested legacy data is still mutable. */
+  readTrusted(): WorldReadView;
   dispatch<T>(command: WorldCommand<T>): Promise<WorldCommit<T> | null>;
   subscribe(listener: (commit: WorldCommit<unknown>) => void): () => void;
   /** Register one synchronous, validated command owned by an extension. */
@@ -632,6 +636,7 @@ class LegacyWorldRuntime implements WorldRuntime {
   private heightmapFinalizeHandler: HeightmapFinalizeHandler | null = null;
   private opaqueExtensionChunks: readonly OpaqueExtensionChunk[] = [];
   private committing = false;
+  private extensionReadView: ExtensionWorldReadView | null = null;
 
   constructor(
     private readonly world: WorldContext,
@@ -639,7 +644,20 @@ class LegacyWorldRuntime implements WorldRuntime {
     private readonly presentation: PresentationData
   ) {}
 
-  read(): WorldReadView {
+  read(): ExtensionWorldReadView {
+    if (!this.extensionReadView) {
+      this.extensionReadView = createExtensionWorldReadView(
+        this.revision,
+        this.topicRevisions,
+        this.world,
+        this.simulation,
+        this.presentation
+      );
+    }
+    return this.extensionReadView;
+  }
+
+  readTrusted(): WorldReadView {
     return {
       revision: this.revision,
       topicRevisions: { ...this.topicRevisions },
@@ -728,6 +746,7 @@ class LegacyWorldRuntime implements WorldRuntime {
         this.topicRevisions[topic] = (this.topicRevisions[topic] ?? 0) + 1;
       }
       this.revision = toRevision;
+      this.extensionReadView = null;
 
       const commit: WorldCommit<T> = {
         result: outcome.result,

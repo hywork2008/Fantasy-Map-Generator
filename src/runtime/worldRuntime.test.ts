@@ -962,7 +962,7 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
       { topic: "presentation.styles", kind: "replace" },
       { topic: "presentation.layers", kind: "replace" }
     ]);
-    expect(runtime.read().presentation).toEqual({
+    expect(runtime.readTrusted().presentation).toEqual({
       styles: { "#rivers": { fill: "#123456", opacity: 0.5 } },
       activeLayers: { toggleRivers: true },
       labels: {}

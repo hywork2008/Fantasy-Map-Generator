@@ -150,9 +150,9 @@ export function initRenderCoordinator(): void {
         ? new InProcessLandTopologyProjectionJobAdapter()
         : new WorkerLandTopologyProjectionAdapter(),
     source: {
-      getSignature: () => getLandTopologySignature(worldContext, viewContext, worldRuntime.read()),
+      getSignature: () => getLandTopologySignature(worldContext, viewContext, worldRuntime.readTrusted()),
       buildRequest: () => {
-        const snapshot = worldRuntime.read();
+        const snapshot = worldRuntime.readTrusted();
         return {
           revision: snapshot.revision,
           geometry: buildLandCellGeometry(worldContext, viewContext.focusScope)

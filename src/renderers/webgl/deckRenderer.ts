@@ -633,7 +633,7 @@ export const DeckGlRenderer = {
 
     if (!this.ensureInitialized(viewContext)) return false;
     if (deckLayersSuspended) return true;
-    const runtimeView = worldRuntime.read();
+    const runtimeView = worldRuntime.readTrusted();
     viewContext.webglDeck?.setProps({
       width: viewContext.svgWidth,
       height: viewContext.svgHeight,

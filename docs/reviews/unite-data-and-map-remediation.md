@@ -14,7 +14,7 @@
 | P1-1 | High | Verified | `burg.move` が政治データも変更するのに `map.settlements` しか publish しない | 実際に変更する topic をすべて publish し、state label / cache の更新を回帰テストで保証 |
 | P1-2 | High | Verified | Simulation hook が Renderer を直接呼び、RenderCoordinator が SVG work を commit ごとに即時実行する | tick 中の direct render を除去し、必要な renderer work を rAF 単位で coalesce |
 | P1-3 | High | Verified | 未移行の direct `pack` / `grid` writer が revision を発行しない | writer inventory / allowlist を導入し、優先 editor を command 経由へ移行 |
-| P2-1 | Medium | Pending | `WorldRuntime.read()` と ExtensionAPI が mutable backing store を公開する | dynamic extension 向け read facade を導入し、raw mutable buffer を到達不能にする |
+| P2-1 | Medium | Verified | `WorldRuntime.read()` と ExtensionAPI が mutable backing store を公開する | dynamic extension 向け read facade を導入し、raw mutable buffer を到達不能にする |
 | P2-2 | Medium | Pending | `PresentationData` に layer order / overlays がなく、WebGL style の SVG fallback が残る | 保存対象を model 化し、live SVG style read を compatibility path へ限定または除去 |
 | P2-3 | Medium | Pending | Simulation の RNG 分離・daily runner・headless interface が未完 | simulation slice に RNG state を保存し、renderer/UI 非依存の day step を test surface にする |
 | P2-4 | Medium | Pending | extension slice registration / opaque chunk promotion / core-reference delete policy が未完 | scoped extension seam と archive validation/migration lifecycle を実装 |
@@ -245,3 +245,11 @@
 - heightmap rebuild の互換 implementation は allowlist に残るが、Controller が `legacyMutation()` を直接組み立てる経路は除去した。ocean layer の DOM 更新も commit 後へ移し、world mutation と混在しないようにした。
 - writer inventory / allowlist、優先 editor の command migration、残る heightmap finalize の commit seam が揃ったため、P1-3 を `Verified` に更新した。
 - 検証: `npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/heightmapEditSession.test.ts` — 32 passed。`npm run lint` — 成功（1 compatibility module）。`npm run build` — 成功。
+
+### 2026-07-20 — P2-1 dynamic extension read facade
+
+- `WorldRuntime.read()` は dynamic extension 用の immutable read model を返すようにし、trusted renderer / host adapter 専用の mutable compatibility projection は `readTrusted()` に分離した。
+- read model は plain record、entity list、dense numeric column を `get` / iterator / `copyRange()` だけを持つ frozen facade に変換する。raw `Array`、`Map`、`Set`、Typed Array、`ArrayBuffer` は返さず、commit ごとに snapshot cache を無効化する。
+- ZIP dynamic loader は `DynamicExtensionAPI` を渡す。`world.read()` と compatibility 名の `worldContext` / `simulationContext` は同じ immutable snapshot を返し、書き込みは既存の registered extension command seam のみを通る。組み込み extension は legacy writer 移行中の trusted adapter を継続する。
+- 同一 JavaScript realm の dynamic extension を hostile code から隔離するものではない。隔離が必要な場合は計画どおり Worker realm へ structured-cloneable command / snapshot のみを渡す。
+- 検証: `npm test -- --run src/runtime/worldRuntime.test.ts src/extensions/dynamicExtensionApi.test.ts` — 31 passed。`npx biome check`（変更ファイル）— 成功。`npm run build` — 成功。
