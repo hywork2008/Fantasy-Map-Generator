@@ -3,6 +3,7 @@
 - **対象計画**: `docs/plan/unite-data-and-map.md`
 - **開始日**: 2026-07-20
 - **運用**: 優先度の高い項目から修正し、各項目を `In progress` → `Verified` または `Blocked` に更新する。`Verified` は回帰テストと関連する build が成功して初めて付与する。
+- **クローズ（2026-07-20）**: remediation 表 P0–P3 は全件 Verified。計画 Phase の必須境界は下表「計画クローズ判定マップ」で **完了** / **Done with residual**。以降の residual は post-unite backlog（運用 / cleanup / 計測駆動）であり、新規必須 P-ID は切らない。
 
 ## 優先度と状態
 
@@ -31,65 +32,89 @@
 | P3-2 | Medium | Verified | memory / GPU / partial-update benchmark が未整備 | 10k/50k/100k で required metrics を継続測定する。基準を満たせない層だけ partial GPU update を検討（計画 Phase 7 / §13） |
 | P3-3 | Low | Verified | 計画 §12.4 architecture check が機械化されていない | Generator→Renderer import 禁止、schema field↔DataTopic coverage、public read model の mutable 到達不能を lint/test で継続強制する |
 
-### 計画全体の残作業マップ（2026-07-20 総点検）
+### 計画クローズ判定マップ（2026-07-20）
 
-`docs/plan/unite-data-and-map.md` Phase 0–8 と remediation 表を突き合わせた。  
-**remediation の Verified は「監査項目の完了条件」であり、計画 Phase 全体の完了宣言ではない。**  
-完了条件が狭く Verified になった項目の後ろに、計画 target の後続が残っているケース（P2-3 型）を特に探す。
+`docs/plan/unite-data-and-map.md` Phase 0–8 / §4–§9 / §12–§13 と remediation 表の最終突き合わせ。
 
-| 計画 | 状況 | remediation / メモ |
+**判定の使い分け**
+
+| ラベル | 意味 |
+| :-- | :-- |
+| **完了** | 計画 Phase / 節の必須境界を満たす。新規実装は不要。 |
+| **Done with residual** | 必須境界は満たすが、意図的な互換層や post-unite 任意作業が残る。Unite 完了宣言から外さない。 |
+| **Won't do (measured)** | 計測の結果、今は実装しない（再検討条件のみ残す）。 |
+
+**remediation 表（P0–P3）は監査欠陥の是正として全件 Verified。** 下表は計画 target のクローズ判定であり、新しい P-ID を切るための未完リストではない。
+
+| 計画 | 判定 | 根拠（remediation） | residual / 次の扱い |
+| :-- | :-- | :-- | :-- |
+| **Phase 0** 仕様固定・E2E mode | **完了** | **P3-1**、**P2-8** | 運用: 新規 map E2E は helper で `renderMode` を明示 |
+| **Phase 1** WorldRuntime shell | **完了** | **P2-9**、**P2-1** | residual: host 用 `readTrusted()`（dynamic は immutable facade）。Worker realm 完全隔離は post-unite |
+| **Phase 2** 描画を commit へ | **完了** | **P1-2**、**P2-12** | residual: editor / layer toggle の extension `draw*`（ユーザー操作の即時表示）。tick 内 direct render は禁止済み |
+| **Phase 3** PresentationData | **Done with residual** | **P2-2**、**P0-3** | residual: icon raster 等の限定 live SVG 互換。**新規 style 源は PresentationData 必須**。全 live SVG 除去は post-unite optional |
+| **Phase 4** Simulation system | **完了** | **P2-3/5/6/7/8/11** | 互換 bulk 単一 commit は廃止。daily 列に統一済み（下記履歴） |
+| **Phase 5** Command migration | **Done with residual** | **P1-3**、**P2-12** | residual: heightmap 1 module allowlist、generator 内部 write（計画 Phase 5 境界どおり許容）。触る editor から command 化 |
+| **Phase 6** `.fmg` archive | **完了** | **P2-4**、**P2-9**、**P2-13**、**P0-2** | residual: legacy `.map` 互換 read/export（計画どおり維持） |
+| **Phase 7** revision projection | **完了** + **Won't do (measured)** | checklist + **P3-2** | residual: partial GPU は 100k single-topic/initial≈0.32 で **今は実装しない**。再検討: 比≥0.55 または soft budget 超過が続くとき |
+| **Phase 8** physical split / Worker | **Done with residual** | checklist ほぼ [x]、**P2-8** inventory | residual: pack / entity の temporary compatibility projection（mirror）。**完全削除は post-unite 大型リファクタ**（caller が slice 直読みに移った後）。topology Worker seam は正式化済み |
+| **§4.2** clock mirror 廃止 | **完了** | **P2-10** | 運用: live は `simulationContext`、options は生成パラメータのみ |
+| **§5** TransactionWriter / stepDay | **Done with residual** | **P2-11** | residual: 完全 staged write（現状は in-place + `markChanged`）。system 単位の移行は post-unite Medium 以下 |
+| **§9** ExtensionAPI target | **Done with residual** | **P2-4** | 済み: `registerStateSlice` / migration / opaque / `registerExtensionCommand`。residual: dynamic ZIP の hostile Worker 隔離などは post-unite |
+| **§12.4** arch checks | **完了** | **P3-3**、**P1-3/P2-12** | 運用: `lint:architecture`、ownership / read-model tests、writer inventory |
+| **§13** perf criteria | **完了** | **P3-2** | 運用: `npm run perf:webgl-layers` → `docs/analytics/webgl-layer-benchmark-latest.json` |
+
+#### Unite クローズ宣言
+
+- **監査是正（P0–P3）**: 全件 Verified。必須の新規 remediation ID は切らない。
+- **計画 Phase 0–8 の必須境界**: 上表すべて **完了** または **Done with residual**。  
+  residual は互換維持または post-unite 任意であり、Unite 未完了理由にはしない。
+- **この文書の以降の役割**: 履歴・運用チェックリスト・post-unite backlog の参照。新規欠陥は通常の issue / PR で扱う。
+
+#### 残作業の帯分け（post-unite）
+
+| 帯 | いつ | 内容 |
 | :-- | :-- | :-- |
-| **Phase 0** 仕様固定・E2E mode | ほぼ完了 | **P3-1 Verified**（全 map-related E2E が helper で mode 明示）。module-local inventory は **P2-8** |
-| **Phase 1** WorldRuntime shell | 完了（P2-9） | generate は `world.generate`、legacy load は decode→stage→`world.replace`。trusted `readTrusted()` は host 用に残置（P2-1 で dynamic は分離済み） |
-| **Phase 2** 描画を commit へ | ほぼ完了 | core + extension tick の direct renderer は除去済み（**P2-12**）。3D は RenderCoordinator listener 済み。editor 操作時の extension `draw*` は layer toggle / draw hook 側 |
-| **Phase 3** PresentationData | ほぼ完了（P2-2） | icon raster 等の限定的 live SVG は互換。新規 style 源は PresentationData 必須 |
-| **Phase 4** Simulation system | 日次統一完了（P2-5） | P2-3/5/6/7/8/11 Verified。互換 bulk 単一 commit は廃止 |
-| **Phase 5** Command migration | 境界達成（P1-3） | heightmap 1 module allowlist 残。generator 内部 write は Phase 境界どおり許容、**P2-12** で inventory 可視化済み |
-| **Phase 6** `.fmg` archive | ほぼ完了 | save/autosave は DOM-free。opaque 昇格 lifecycle は **P2-4**。generate / legacy load staging は **P2-9**。export offscreen SVG は **P2-13** |
-| **Phase 7** revision projection | 完了（P3-2） | topic revision cache 済み。partial GPU は 100k single-topic/initial≈0.32 で **不要** 判定 |
-| **Phase 8** physical split / Worker | checklist ほぼ [x] | temporary compatibility projection（pack mirror）は残置。完全削除は物理 split の最終段で別途 |
-| **§4.2** clock mirror 廃止 | 完了（P2-10） | options は生成パラメータのみ。live は simulationContext |
-| **§5** TransactionWriter / stepDay | 基盤完了（P2-11） | transitional は in-place mutation + markChanged。完全 staged write は後続 |
-| **§9** ExtensionAPI target | 部分 | **P2-4**。`registerExtensionCommand` は既存 |
-| **§12.4** arch checks | 完了（P3-3） | Generator→Renderer lint、field↔topic coverage、read-model immutability を機械化。writer lint は P1-3/P2-12 |
-| **§13** perf criteria | 完了（P3-2） | `npm run perf:webgl-layers` が 10k/50k/100k の required metrics を出力し JSON を残す |
+| **A. 運用（常時）** | 変更のたび / リリース前 | E2E の `setRenderMode` / `waitForMapLoad(..., mode)`；`npm run lint:architecture` + writer lint；field 追加時の `dataFieldOwnership`；`npm run perf:webgl-layers` の結果更新 |
+| **B. post-unite cleanup（任意）** | 触るモジュールがあるとき、または純化を優先するとき | pack / burg / state / military の temporary compatibility projection 削除ロードマップ；`TransactionWriter` 完全 staged write；heightmap allowlist 解消；残 live SVG style / icon 互換の縮小；薄い未 command editor の command 化 |
+| **C. 計測駆動（条件付き）** | 数字が悪化したときだけ | partial GPU（single-topic/initial ≥ 0.55 が継続、または soft budget 超過）；cold projection の Worker 拡大；dynamic extension の Worker realm 隔離 |
 
-#### Phase 4 詳細（P2-3 型の分解元）
+**やらない方がよいこと:** residual を理由に P4-x を大量追加する、pack mirror の一発削除、計測なしの partial GPU / 全面 Worker。
+
+#### 履歴: Phase 4 分解（P2-3 型）— すべて Verified 済み
 
 | 計画項目 | remediation |
 | :-- | :-- |
-| UI 日次 / public bulk の semantics を別々に固定 | P2-3 で完了（characterization） |
-| RNG stream を simulation archive 対象にする | P2-3 で完了（単一 stream） |
-| DOM 無し interface test | P2-3 で完了（`simulationRunner`） |
-| bulk / 日次差を migration したうえで daily に統一 | **P2-5 Verified** |
+| UI 日次 / public bulk の semantics を別々に固定 | P2-3（characterization） |
+| RNG stream を simulation archive 対象にする | P2-3（単一 stream → 後に P2-6） |
+| DOM 無し interface test | P2-3（`simulationRunner`） |
+| bulk / 日次差を migration したうえで daily に統一 | **P2-5** |
 | system ID 由来の独立 deterministic stream | **P2-6** |
-| `registerTimeTickHook` → phase 付き system への本移行 | **P2-7** |
-| population loss / forest depletion 等を versioned slice へ | **P2-8**（intelligence / strategicGoals / shipbuilding queue は slice 済み） |
+| `registerTimeTickHook` → phase 付き system | **P2-7** |
+| population loss / forest depletion 等を versioned slice へ | **P2-8** |
 | `simulation.stepDay` + TransactionWriter | **P2-11** |
 
-**互換期間は P2-5 Verified で終了した。** `window.fmg.actions.advanceTime` / UI / headless runner はすべて `simulation.stepDay` 列。`advanceLegacyBulk` は daily alias（deprecated）。
+**互換期間は P2-5 で終了。** `window.fmg.actions.advanceTime` / UI / headless はすべて `simulation.stepDay` 列。`advanceLegacyBulk` は daily alias（deprecated）。
 
-#### 総点検で「隠れていない」と確認したもの
+#### 履歴: 総点検で「隠れていない」と確認したもの（2026-07-20）
 
-- **P0–P1 / P2-1–P2-3 の Verified 完了条件そのもの** — 実装と履歴が一致。
-- **Phase 6 save path の `withSvgSnapshot` 削除** — `.fmg` save/autosave は `captureArchiveDocument` のみ。export も **P2-13** で offscreen adapter 化済み。
-- **Phase 7 topic-revision cache / Worker topology** — 計画 checklist 済み。
-- **Phase 8 cell/burg/state/military/extension slice 移動** — 計画 checklist 済み。残るは temporary projection の最終削除であり、今は inventory（`dataFieldOwnership`）で追跡。
-- **partial GPU update** — 計画どおり「必要なら」であり、先に **P3-2** の計測が前提。単独の未完 ID は切らない。
+- P0–P1 / P2-1–P2-3 の Verified 完了条件 — 実装と一致。
+- Phase 6 save の `withSvgSnapshot` 削除 — save/autosave は `captureArchiveDocument`；export は **P2-13**。
+- Phase 7 topic-revision cache / Worker topology — 計画 checklist 済み。
+- Phase 8 cell/burg/state/military/extension slice 移動 — checklist 済み；残るは compatibility projection の最終削除（帯 B）。
+- partial GPU — 計画どおり「必要なら」；**P3-2** 計測後 **Won't do (measured)**。
 
-#### 依存の目安
+#### 履歴: 是正時の依存の目安（当時）
 
 ```text
-P2-8 (slice 漏れ) ──┐
-P2-7 (system 本移行) ─┼─→ P2-5 (daily 統一 / 互換期間出口) ─→ P2-10 (clock mirror 廃止)
-P2-11 (stepDay/writer) ─┘         │
-P2-6 (per-system RNG) ─ 独立可（P2-5 前後で characterization 再取得）
-P2-4 (extension slice reg) ─ 独立（archive §9）
-P2-9 (generate staging) ─ 独立（Phase 1/6 残）
+P2-8 / P2-7 / P2-11 ─→ P2-5 ─→ P2-10
+P2-6 ─ 独立
+P2-4 / P2-9 ─ 独立
 P2-12 / P3-3 ─ 横断 enforcement
 P3-1 / P3-2 ─ テスト・計測
-P2-13 ─ Low、export のみ
+P2-13 ─ export
 ```
+
+全 ID Verified 後は依存 DAG に従う未完ブロックはない。
 
 ## 更新履歴
 
@@ -480,3 +505,9 @@ P2-13 ─ Low、export のみ
 - 出力: console tables + `docs/analytics/webgl-layer-benchmark-latest.json`。`docs/webgl-renderer-migration-candidates.md` の計測節を更新。
 - 2026-07-20 実行（100k）: initial 1210 ms、single-topic 393 ms（比 0.32）、full replace 1269 ms、zoom-only 0.1 ms → **partial GPU 不要**。soft budget 超過なし。
 - 検証: `npm run perf:webgl-layers` — 成功（JSON 更新）。`npx tsc --noEmit` — 成功。
+
+### 2026-07-20 — 計画クローズ判定マップへ書き換え
+
+- 「計画全体の残作業マップ」を **Unite クローズ判定** に差し替えた。各 Phase / 節を **完了** / **Done with residual** / **Won't do (measured)** に分類。
+- residual を **A 運用 / B post-unite cleanup / C 計測駆動** に帯分け。新規必須 P-ID は切らない方針を明記。
+- Phase 4 分解表・依存 DAG・「隠れていない確認」は **履歴** へ移動（すべて Verified 済みの文脈）。
