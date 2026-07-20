@@ -360,6 +360,10 @@ function exitDayBatchAfterFailure(): void {
   if (isOutermost && dayBatchCommittedDays > 0) publishDayBatchRollbackCorrection();
 }
 
+function collectExtensionTopics(): DataTopic[] {
+  return Object.keys(simulationContext.extensions ?? {}).map(id => `extension.${id}` as DataTopic);
+}
+
 /**
  * Broad-invalidation commit published only after a batch rollback discards
  * already-committed days (see exitDayBatchAfterFailure). This is a correction
@@ -368,11 +372,26 @@ function exitDayBatchAfterFailure(): void {
  * each already-committed day touched) keeps this safe and simple.
  */
 function publishDayBatchRollbackCorrection(): void {
-  const extensionTopics = Object.keys(simulationContext.extensions ?? {}).map(id => `extension.${id}` as DataTopic);
   legacyMutation(() => ({
     result: undefined,
-    topics: [...FULL_REPLACE_TOPICS, ...extensionTopics]
+    topics: [...FULL_REPLACE_TOPICS, ...collectExtensionTopics()]
   }));
+}
+
+/**
+ * Forces one more coalesced extension draw-layer pass after a bulk
+ * runTimeSimulation run ends (stop, completion, or failure). Extension draw
+ * hooks that suppress decorative work while useTimeSimulationState.isRunning
+ * is true (e.g. economy's Trade animation restart — see economy/index.tsx)
+ * need this to actually resume once the run is over. Published through the
+ * normal commit/topic path rather than calling a renderer directly, so
+ * Generator/Renderer separation stays intact — RenderCoordinator decides what
+ * to redraw, as usual.
+ */
+function publishBulkRunFinishedRedraw(): void {
+  const extensionTopics = collectExtensionTopics();
+  if (!extensionTopics.length) return;
+  legacyMutation(() => ({ result: undefined, topics: extensionTopics }));
 }
 
 registerDayBatchController({
@@ -623,6 +642,8 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
       exitDayBatch();
       logTickProfile();
       currentState.clearSimulation();
+      // isRunning is now false; let suppressed decorative draw hooks catch up.
+      publishBulkRunFinishedRedraw();
       return;
     }
 
@@ -649,6 +670,11 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
       }
     } catch (error) {
       exitDayBatchAfterFailure();
+      logTickProfile();
+      // Otherwise isRunning (and suppressed decorative draw hooks) stay stuck
+      // forever after a system throws — nothing else clears it on this path.
+      useTimeSimulationState.getState().clearSimulation();
+      publishBulkRunFinishedRedraw();
       throw error;
     }
 

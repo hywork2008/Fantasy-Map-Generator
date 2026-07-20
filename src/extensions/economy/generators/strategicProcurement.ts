@@ -7,6 +7,7 @@ import { rn } from "../../hostUtils";
 import {
   getDeals,
   getGoods,
+  getMarketById,
   getMarkets,
   getNextStrategicProcurementOrderId,
   getStrategicGoodsPolicies,
@@ -83,7 +84,6 @@ export class StrategicProcurementModule {
   getShipbuildingProcurementStatus(stateId: number, destinationMarketId: number): ShipbuildingProcurementStatus[] {
     const { pack } = this.worldContext;
     const goods = getGoods();
-    const markets = getMarkets();
     return SHIPBUILDING_MATERIAL_IDS.map(material => {
       const good = goods.find(candidate => candidate.name === material);
       const matchingOrders = good
@@ -98,10 +98,7 @@ export class StrategicProcurementModule {
         .toSorted((a, b) => b.id - a.id)[0];
       const sourceStateId =
         inTransitOrders.length > 0 && inTransitOrders[0].sourceMarketId !== undefined
-          ? getMarketStateId(
-              markets.find(market => market.i === inTransitOrders[0].sourceMarketId) ?? { centerBurgId: -1 },
-              pack.burgs
-            )
+          ? getMarketStateId(getMarketById(inTransitOrders[0].sourceMarketId) ?? { centerBurgId: -1 }, pack.burgs)
           : null;
 
       return {
@@ -126,7 +123,7 @@ export class StrategicProcurementModule {
     const { pack } = this.worldContext;
     const goods = getGoods();
     const state = pack.states[demand.stateId];
-    const destination = getMarkets().find(market => market.i === demand.destinationMarketId);
+    const destination = getMarketById(demand.destinationMarketId);
     if (!state || state.removed || !destination) return;
 
     const materialGoodIds = Object.entries(demand.annualMaterials)
@@ -237,7 +234,7 @@ export class StrategicProcurementModule {
         break;
       }
 
-      const source = getMarkets().find(market => market.i === candidate.sourceMarketId);
+      const source = getMarketById(candidate.sourceMarketId);
       const sourceGood = source?.goods[good.i];
       if (!source || !sourceGood || sourceGood.stock + EPSILON < units) {
         order.status = "blocked";

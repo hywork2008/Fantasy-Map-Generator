@@ -6,6 +6,7 @@ import { getCaravans, getMarkets, getWorldContext } from "../../economyContext";
 import { CaravanMovement, type CaravanMovementSettings } from "../../generators/caravanMovement";
 import { Goods } from "../../generators/goods-generator";
 import type { Caravan } from "../../generators/marketTypes";
+import { TradeAnimation } from "../../generators/trade-animation";
 
 export const TradeAnimationDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("tradeAnimationEditor"));
@@ -361,6 +362,9 @@ const MovementSettingsSection: React.FC = () => {
   const update = (partial: Partial<CaravanMovementSettings>) => {
     setMovement(current => ({ ...current, ...partial }));
     CaravanMovement.configure(partial);
+    // Land/sea speed feeds route pathfinding's edge costs, so a changed ratio can change
+    // which path is shortest — cached results from before this change are no longer valid.
+    TradeAnimation.clearRouteCache();
   };
 
   return (

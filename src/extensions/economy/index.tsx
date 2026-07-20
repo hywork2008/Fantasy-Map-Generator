@@ -8,7 +8,12 @@ import {
   isShipbuildingStrategicProcurementDemand,
   isShipbuildingSurplusShipRequest
 } from "../hostTypes";
-import { type LayerConfig, regenerateFeatureDialogStore, useUiPreferencesState } from "../hostUi";
+import {
+  type LayerConfig,
+  regenerateFeatureDialogStore,
+  useTimeSimulationState,
+  useUiPreferencesState
+} from "../hostUi";
 import { formatPrice } from "../hostUtils";
 import { getBurgEconomySummary, getBurgProductPerThousandResidents } from "./burgEconomySummary";
 import { economyStyleConfig } from "./EconomyStyleConfig";
@@ -941,6 +946,7 @@ export function init(api: ExtensionAPI): void {
       clearVoyageIncome();
       clearStrategicProcurementExpenses();
       StrategicProcurement.clear();
+      TradeAnimation.clearRouteCache();
       Goods.generate();
       Markets.generate();
       Taxes.defineTaxRates();
@@ -1298,17 +1304,26 @@ export function init(api: ExtensionAPI): void {
 
   // Redraw economy layers whenever the host calls drawLayers()
   api.registerDrawLayerHook(() => {
+    // Trade animation restarts (route pathfinding + SVG/animation setup) on every
+    // draw-layer pass, but during a bulk Advance Month/Year run that pass fires
+    // once per rAF chunk (many simulated days), and the result is invisible
+    // until the run ends anyway. Skip it mid-run; runTimeSimulation forces one
+    // more draw-layer pass after the run stops/finishes so it resumes then
+    // (see publishBulkRunFinishedRedraw in timeEngine.ts). Explicit user
+    // toggles (registerLayerToggle above) always animate immediately.
+    const isBulkTimeAdvanceRunning = useTimeSimulationState.getState().isRunning;
+
     if (api.viewContext.renderMode === "webglHybrid") {
       api.getSvgLayer("goods")?.style("display", "none");
       api.getSvgLayer("marketsLayerFill")?.style("display", "none");
       api.getSvgLayer("marketsLayer")?.style("display", "none");
       api.requestWebglRender();
-      if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
+      if (api.layerIsOn("toggleTrade") && !isBulkTimeAdvanceRunning) TradeAnimation.start();
       return;
     }
     if (api.layerIsOn("toggleGoods")) drawGoods(getDisplayedGoodIds());
     if (api.layerIsOn("toggleMarketsLayer")) drawMarketsLayer();
-    if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
+    if (api.layerIsOn("toggleTrade") && !isBulkTimeAdvanceRunning) TradeAnimation.start();
   });
 }
 

@@ -171,6 +171,26 @@ export function setMarkets(markets: readonly Market[]): void {
   setSliceArray("markets", markets);
 }
 
+let _marketByIdCache: { source: readonly Market[]; byId: Map<number, Market> } | null = null;
+
+/**
+ * `getMarkets().find(market => market.i === id)` shows up on hot per-day paths (Shipbuilding's
+ * daily procurement demand, strategic procurement route-building) where it re-scans the whole
+ * market array on every call. The backing array reference only changes at
+ * generation/regeneration/disable (see setMarkets/getSliceArray), so a Map keyed by id, rebuilt
+ * only when that reference changes, is safe to reuse across calls within a session — market
+ * objects mutate in place, so lookups stay live.
+ */
+export function getMarketById(id: number): Market | undefined {
+  const markets = getMarkets();
+  if (!_marketByIdCache || _marketByIdCache.source !== markets) {
+    const byId = new Map<number, Market>();
+    for (const market of markets) byId.set(market.i, market);
+    _marketByIdCache = { source: markets, byId };
+  }
+  return _marketByIdCache.byId.get(id);
+}
+
 /** Active trade deals owned by the economy extension. */
 export function getDeals(): Deal[] {
   return getSliceArray<Deal>("deals");

@@ -152,4 +152,27 @@ describe("findRoutePath", () => {
       [200, 0]
     ]);
   });
+
+  it("caches results for a (startCell, endCell) pair instead of recomputing every call", () => {
+    worldContext.pack = makePack({ 0: { 1: 0 }, 1: { 0: 0 } }, [{ i: 0, group: "roads" }]) as unknown as PackedGraph;
+    const first = ta.findRoutePath(0, 1);
+    expect(first).not.toBeNull();
+
+    // Mutate the route network so a fresh computation would now return null.
+    worldContext.pack = makePack() as unknown as PackedGraph;
+    const second = ta.findRoutePath(0, 1);
+
+    // Cached: still the original (now-stale) result, not recomputed against the new pack.
+    expect(second).toEqual(first);
+  });
+
+  it("clearRouteCache() forces the next call to recompute against the current pack", () => {
+    worldContext.pack = makePack({ 0: { 1: 0 }, 1: { 0: 0 } }, [{ i: 0, group: "roads" }]) as unknown as PackedGraph;
+    expect(ta.findRoutePath(0, 1)).not.toBeNull();
+
+    worldContext.pack = makePack() as unknown as PackedGraph;
+    ta.clearRouteCache();
+
+    expect(ta.findRoutePath(0, 1)).toBeNull();
+  });
 });

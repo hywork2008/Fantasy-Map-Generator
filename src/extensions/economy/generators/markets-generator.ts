@@ -97,7 +97,7 @@ export class MarketsModule {
 
   /** Returns the current market stock for the three ship-class Goods. */
   getShipGoodStock(marketId: number): ShipGoodStock | undefined {
-    const market = getMarkets().find(candidate => candidate.i === marketId);
+    const market = this.get(marketId);
     if (!market) return undefined;
 
     const stock = {} as Record<ShipGoodName, number>;
@@ -111,7 +111,7 @@ export class MarketsModule {
 
   /** Adds a finished generic hull to the local market's ship-class Good stock. */
   addSurplusShipStock(marketId: number, shipClassId: string): "fulfilled" | "noMarket" | "missingGood" {
-    const market = getMarkets().find(candidate => candidate.i === marketId);
+    const market = this.get(marketId);
     if (!market) return "noMarket";
 
     const goodName = { sloop: "Sloop", caravel: "Caravel", galleon: "Galleon" }[shipClassId];
