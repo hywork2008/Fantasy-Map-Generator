@@ -1,5 +1,10 @@
 import { simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
+import {
+  type SimulationRngState,
+  simulationRngStatesEqual,
+  syncSimulationRngToContext
+} from "../runtime/simulationRng";
 import { advanceSimulation, type DataTopic, registerSimulationAdvanceHandler } from "../runtime/worldRuntime";
 import { telemetry } from "../services/simulationTelemetry";
 import { useDebugSnapshotState } from "../store/debugSnapshotState";
@@ -169,6 +174,13 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
   }
 
   const topics: DataTopic[] = ["simulation.clock"];
+  const rngBefore: SimulationRngState | undefined = simulationContext.rng
+    ? {
+        algorithm: simulationContext.rng.algorithm,
+        seed: simulationContext.rng.seed,
+        state: [...simulationContext.rng.state] as [number, number, number, number]
+      }
+    : undefined;
 
   // Reset all regiments' action status to waiting before resolving events for the new tick
   for (const state of worldContext.pack.states) {
@@ -296,6 +308,12 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
     });
   }
 
+  // Persist the live simulation PRNG so archive capture / world.replace can resume it.
+  syncSimulationRngToContext(simulationContext);
+  if (!simulationRngStatesEqual(rngBefore, simulationContext.rng)) {
+    topics.push("simulation.rng");
+  }
+
   return { result: undefined, topics };
 }
 
@@ -303,23 +321,28 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
   const store = useTimeSimulationState.getState();
   if (store.isRunning) return;
 
-  let y = simulationContext.currentYear;
-  let m = simulationContext.currentMonth;
-  let totalDays = 0;
-
-  for (let i = 0; i < targetDeltaYears; i++) {
-    totalDays += isLeapYear(y) ? 366 : 365;
-    y++;
-  }
-  for (let i = 0; i < targetDeltaMonths; i++) {
-    totalDays += getDaysInMonth(y, m);
-    m++;
-    if (m > 12) {
-      m = 1;
-      y++;
-    }
-  }
-  totalDays += targetDeltaDays;
+  // Shared day-count rules with the headless SimulationRunner (durationToCalendarDays).
+  const totalDays =
+    // Inline the calendar expansion so UI keeps working even if the runner module is tree-shaken
+    // in a future split. Semantics must stay aligned with runtime/simulationRunner.ts.
+    (() => {
+      let y = simulationContext.currentYear;
+      let m = simulationContext.currentMonth;
+      let days = 0;
+      for (let i = 0; i < targetDeltaYears; i++) {
+        days += isLeapYear(y) ? 366 : 365;
+        y++;
+      }
+      for (let i = 0; i < targetDeltaMonths; i++) {
+        days += getDaysInMonth(y, m);
+        m++;
+        if (m > 12) {
+          m = 1;
+          y++;
+        }
+      }
+      return days + targetDeltaDays;
+    })();
 
   if (totalDays <= 0) return;
 
@@ -338,7 +361,8 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
       return;
     }
 
-    // Advance 1 day per tick
+    // Legacy daily path: one day per frame so the UI can paint progress / accept cancel.
+    // Headless callers should use runtime/simulationRunner.runLegacyDaily instead.
     advanceTime(0, 0, 1);
     currentProgress++;
     useTimeSimulationState.getState().setSimulationProgress(currentProgress, totalDays);

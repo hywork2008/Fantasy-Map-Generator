@@ -6,6 +6,7 @@ import type { PresentationData } from "./presentationData";
 import { removeSimulationBurgStateMirrors } from "./simulationBurgState";
 import { removeSimulationCellColumnMirrors } from "./simulationCellColumns";
 import { removeSimulationMilitaryStateMirrors } from "./simulationMilitaryState";
+import { assertValidSimulationRngState, createSimulationRngState } from "./simulationRng";
 import { removeSimulationStateStateMirrors } from "./simulationStateState";
 
 export const WORLD_ARCHIVE_FORMAT = "fantasy-map-generator";
@@ -530,6 +531,14 @@ export function assertValidWorldDocument(value: unknown): asserts value is World
     !isFiniteNumber(simulation.tickCount)
   ) {
     throw new Error("Archive simulation clock is incomplete");
+  }
+  // RNG was added after the first .fmg readers. Missing state is materialised from
+  // the map seed so older archives still replace cleanly.
+  if (simulation.rng === undefined) {
+    const seed = typeof world.seed === "string" && world.seed.length > 0 ? world.seed : "0";
+    simulation.rng = createSimulationRngState(seed);
+  } else {
+    assertValidSimulationRngState(simulation.rng);
   }
   const cells = pack.cells as Record<string, unknown>;
   if (cells.i !== undefined && !isTypedArray(cells.i)) {

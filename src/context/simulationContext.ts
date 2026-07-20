@@ -1,3 +1,4 @@
+import type { SimulationRngState } from "../runtime/simulationRngTypes";
 import type { BurgDemographics, MilitaryRegiment } from "../types/models";
 import type { Season } from "../utils/seasonUtils";
 
@@ -100,6 +101,12 @@ export interface SimulationContext {
    * src/utils/seasonUtils.ts's getSeason(latitude, month) itself rather than read this field.
    */
   worldSeason: Season;
+  /**
+   * Persistable simulation PRNG stream. Independent of map-generation `Math.random`
+   * and of incidental UI randomness. Written on each simulation commit and restored
+   * from `.fmg` archives so mid-session save/load keeps the same stream position.
+   */
+  rng: SimulationRngState;
   /** Dynamic cell columns. `SimulationData.cells` owns these values. */
   cells: SimulationCellColumns;
   /** Dynamic settlement values, keyed by stable burg id. */
@@ -128,6 +135,8 @@ export const simulationContext: SimulationContext = {
   era: "",
   tickCount: 0,
   worldSeason: "spring",
+  // Placeholder until initRng()/bindSimulationRng() installs a seeded stream.
+  rng: { algorithm: "alea-0.9", seed: "", state: [0, 0, 0, 1] },
   cells: {
     population: new Float32Array(),
     carryingCapacity: new Float32Array(),

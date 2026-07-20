@@ -113,6 +113,25 @@ Nobility拡張のtickフック内の乱数（小競り合いの損耗率、諜�
 （`docs/plan/military-time-advance-review-findings.md` §2.1）。tick フック内で新たに乱数が必要になった場合は
 `Math.random()` ではなく `appServices.rng.rand()`/`.P()` 等を使うこと。
 
+ストリーム位置そのものは `SimulationContext.rng`（algorithm / seed / Alea engine state）として simulation slice に
+保存され、`.fmg` archive の round-trip と `world.replace` で復元される（`src/runtime/simulationRng.ts`）。
+`simulation.advance` の commit ごとに live PRNG が slice へ同期され、変化時は `simulation.rng` topic が publish される。
+旧 archive で `rng` が欠落している場合は map seed から初期位置を materialize する。
+
+### 7.1 Headless day step（テスト / batch 用）
+
+UI の `runTimeSimulation`（rAF + Zustand 進捗）とは別に、`src/runtime/simulationRunner.ts` が renderer 非依存の
+test surface を提供する。
+
+| API | 意味 |
+| :--- | :--- |
+| `stepDay()` | 1 暦日を 1 commit で進める |
+| `runLegacyDaily(n)` | UI 日次経路と同じく `advance(0,0,1)` を n 回 |
+| `advanceLegacyBulk({ years, months, days })` | public `advanceTime` と同じ 1 回 bulk commit |
+| `notify: false` | DOM イベント無しで `simulation.advance` のみ実行 |
+
+互換期間中は daily と bulk の `tickCount` / hook 回数 / RNG 消費が異なり得るため、両経路を characterization test で固定する。
+
 ## 8. 生存中データの UI 更新パターン（in-place mutation + refresh）
 
 `pack.characters` や造船キューなどは tick のたびに**参照はそのまま**でオブジェクトの中身だけが変異する

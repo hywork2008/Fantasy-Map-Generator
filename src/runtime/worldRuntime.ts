@@ -1,3 +1,4 @@
+import { restoreRngFromSimulation } from "../context/appServices";
 import { type SimulationContext, simulationContext } from "../context/simulationContext";
 import { type WorldContext, worldContext } from "../context/worldContext";
 import {
@@ -26,6 +27,7 @@ import {
 import { bindSimulationBurgState } from "./simulationBurgState";
 import { bindSimulationCellColumns } from "./simulationCellColumns";
 import { bindSimulationMilitaryState } from "./simulationMilitaryState";
+import { syncSimulationRngToContext } from "./simulationRng";
 import { bindSimulationStateState } from "./simulationStateState";
 import {
   assertOpaqueCoreDeletesAllowed,
@@ -718,8 +720,10 @@ class LegacyWorldRuntime implements WorldRuntime {
 
   captureArchiveDocument(): Promise<WorldDocument> {
     try {
-      // dispatch is synchronous during the compatibility period, therefore this
-      // snapshot is a queue barrier and cannot observe a partial commit.
+      // Flush the live simulation PRNG before cloning so mid-session saves resume
+      // the same stream after load. dispatch is synchronous during the
+      // compatibility period, therefore this snapshot is a queue barrier.
+      syncSimulationRngToContext(this.simulation);
       return Promise.resolve(
         createWorldDocument(this.world, this.simulation, this.presentation, this.opaqueExtensionChunks)
       );
@@ -2064,6 +2068,9 @@ class LegacyWorldRuntime implements WorldRuntime {
     bindSimulationStateState(this.world, this.simulation);
     bindSimulationMilitaryState(this.world, this.simulation);
     bindExtensionStateSlices(this.world, this.simulation);
+    // Older archives omit simulation.rng; materialise from the map seed then install.
+    const seed = typeof this.world.seed === "string" && this.world.seed.length > 0 ? this.world.seed : "0";
+    restoreRngFromSimulation(seed, this.simulation);
     replaceRecordInPlace(this.presentation.styles, document.presentation.styles);
     replaceRecordInPlace(this.presentation.activeLayers, document.presentation.activeLayers);
     replaceRecordInPlace(this.presentation.labels, document.presentation.labels);
