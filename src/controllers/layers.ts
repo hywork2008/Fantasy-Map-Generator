@@ -389,13 +389,11 @@ export function getCurrentPreset(): void {
 
 // ─── Layer orchestration ──────────────────────────────────────────────────────
 
-export function drawLayers(): void {
-  if (viewContext.renderMode === "webglHybrid" && DeckGlRenderer.render(worldContext, viewContext, appServices)) {
-    drawHybridSvgOverlays();
-    return;
-  }
-
-  DeckGlRenderer.clear(viewContext);
+/**
+ * Paint the full SVG map into the currently bound `viewContext` layers.
+ * Does not touch deck.gl — used by the SVG render path and offscreen export (P2-13).
+ */
+export function paintSvgMapLayers(): void {
   FeaturesRenderer.render(worldContext, viewContext, appServices);
   // FeaturesRenderer always renders lake paths (needed for masks), so explicitly
   // sync the #lakes display state with the toggle after rendering.
@@ -434,6 +432,16 @@ export function drawLayers(): void {
   for (const hook of _drawLayerHooks) hook();
   if (layerIsOn("toggleRulers")) rulers.draw();
   syncWebglManagedSvgLayerVisibility();
+}
+
+export function drawLayers(): void {
+  if (viewContext.renderMode === "webglHybrid" && DeckGlRenderer.render(worldContext, viewContext, appServices)) {
+    drawHybridSvgOverlays();
+    return;
+  }
+
+  DeckGlRenderer.clear(viewContext);
+  paintSvgMapLayers();
 }
 
 function drawHybridSvgOverlays(): void {

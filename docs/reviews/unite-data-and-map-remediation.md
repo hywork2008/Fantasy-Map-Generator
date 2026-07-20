@@ -26,7 +26,7 @@
 | P2-10 | Low | Verified | `options.year/month/day` と `SimulationContext` 時計の dual mirror が残る | 唯一の正を simulation clock とし、legacy readers を移行したうえで options mirror を廃止する（計画 §4.2） |
 | P2-11 | Medium | Verified | target `simulation.stepDay` + `TransactionWriter` が未実装 | system は宣言 topic だけを writer 経由で書き、in-place pack/simulation 直書きを止める。一日一 command / 失敗日 rollback の契約を test で固定する（計画 §5.1 / §6） |
 | P2-12 | Medium | Verified | writer lint が controllers のみ・generator/extension の seam 漏れ | `lint-world-writers` を generators / extensions に拡張するか同等 inventory を持つ。extension tick 内の direct `draw*` は draw-layer hook / RenderCoordinator 経路へ寄せる |
-| P2-13 | Low | Pending | SVG export が `withSvgSnapshot()` に依存 | export も offscreen SVG adapter が canonical / PresentationData から生成し、renderMode 切替や live DOM snapshot に依存しない（save path は既に DOM-free） |
+| P2-13 | Low | Verified | SVG export が `withSvgSnapshot()` に依存 | export も offscreen SVG adapter が canonical / PresentationData から生成し、renderMode 切替や live DOM snapshot に依存しない（save path は既に DOM-free） |
 | P3-1 | Medium | Pending | E2E の render mode 固定が不十分 | 全 map-related E2E が helper で renderer mode を明示する（現状 helper 使用は一部 spec に限定） |
 | P3-2 | Medium | Pending | memory / GPU / partial-update benchmark が未整備 | 10k/50k/100k で required metrics を継続測定する。基準を満たせない層だけ partial GPU update を検討（計画 Phase 7 / §13） |
 | P3-3 | Low | Pending | 計画 §12.4 architecture check が機械化されていない | Generator→Renderer import 禁止、schema field↔DataTopic coverage、public read model の mutable 到達不能を lint/test で継続強制する |
@@ -45,7 +45,7 @@
 | **Phase 3** PresentationData | ほぼ完了（P2-2） | icon raster 等の限定的 live SVG は互換。新規 style 源は PresentationData 必須 |
 | **Phase 4** Simulation system | 日次統一完了（P2-5） | P2-3/5/6/7/8/11 Verified。互換 bulk 単一 commit は廃止 |
 | **Phase 5** Command migration | 境界達成（P1-3） | heightmap 1 module allowlist 残。generator 内部 write は Phase 境界どおり許容、**P2-12** で inventory 可視化済み |
-| **Phase 6** `.fmg` archive | ほぼ完了 | save/autosave は DOM-free。opaque 昇格 lifecycle は **P2-4**。generate / legacy load staging は **P2-9**。export snapshot は **P2-13** |
+| **Phase 6** `.fmg` archive | ほぼ完了 | save/autosave は DOM-free。opaque 昇格 lifecycle は **P2-4**。generate / legacy load staging は **P2-9**。export offscreen SVG は **P2-13** |
 | **Phase 7** revision projection | ほぼ完了 | partial GPU は benchmark 駆動 → **P3-2** の後 |
 | **Phase 8** physical split / Worker | checklist ほぼ [x] | temporary compatibility projection（pack mirror）は残置。完全削除は物理 split の最終段で別途 |
 | **§4.2** clock mirror 廃止 | 完了（P2-10） | options は生成パラメータのみ。live は simulationContext |
@@ -72,7 +72,7 @@
 #### 総点検で「隠れていない」と確認したもの
 
 - **P0–P1 / P2-1–P2-3 の Verified 完了条件そのもの** — 実装と履歴が一致。
-- **Phase 6 save path の `withSvgSnapshot` 削除** — `.fmg` save/autosave は `captureArchiveDocument` のみ。残るのは export 用（**P2-13**）。
+- **Phase 6 save path の `withSvgSnapshot` 削除** — `.fmg` save/autosave は `captureArchiveDocument` のみ。export も **P2-13** で offscreen adapter 化済み。
 - **Phase 7 topic-revision cache / Worker topology** — 計画 checklist 済み。
 - **Phase 8 cell/burg/state/military/extension slice 移動** — 計画 checklist 済み。残るは temporary projection の最終削除であり、今は inventory（`dataFieldOwnership`）で追跡。
 - **partial GPU update** — 計画どおり「必要なら」であり、先に **P3-2** の計測が前提。単独の未完 ID は切らない。
@@ -439,3 +439,12 @@ P2-13 ─ Low、export のみ
 - layer toggle / editor 経路の `draw*` と `registerDrawLayerHook` は維持（ユーザー操作の即時表示）。
 - 付随: `worldArchive.ts` の未使用 `_assertRecordArray` を削除（`tsc --noEmit` の dead-code エラー）。
 - 検証: `npm run lint:world-writers` — passed。`npm test -- --run src/runtime/renderCoordinator.test.ts src/generators/timeEngine.systems.test.ts src/runtime/simulationRunner.test.ts` — 22 passed。`npx tsc --noEmit` — 成功。`npm run build` — 成功。
+
+### 2026-07-20 — P2-13 offscreen SVG export (no withSvgSnapshot mode switch)
+
+- `withSvgSnapshot()` の `setRenderMode("svg")` 往復を廃止。hybrid 時の full-map / vector export は `withOffscreenSvgExport()` が live `#map` を一時 detach し、clone に `paintSvgMapLayers()` + `projectPresentationToSvg(PresentationData)` してから serialize する。
+- `bindViewLayersFromSvg()` を export rebind 用に公開（`updateWebglCanvas: false` / `dispatchReinit: false`）。live deck canvas と hybrid body class を破壊しない。
+- `paintSvgMapLayers()` を `drawLayers()` の SVG 本体から抽出。export は `DeckGlRenderer.clear` を呼ばない。
+- Extension `getSvgLayer` は現在の `viewContext.viewbox` を優先し、offscreen rebind 中も extension draw hook が export 木へ描く。
+- viewport PNG/JPEG の hybrid 合成（deck canvas + overlay clone）は従来どおり。save/autosave は引き続き DOM-free。
+- 検証: `npm test -- --run src/services/svgSnapshot.test.ts` — passed。`npx tsc --noEmit` — 成功。`npm run build` — 成功。

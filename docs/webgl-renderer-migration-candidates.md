@@ -421,7 +421,7 @@ polygon layer の binary geometry 化（`Float32Array` の positions/colors を�
 - extension-owned SVG layer の所有権は現状のままとする。`src/app.ts` 内の private registry が `fmg:map-layers-reinitialized` 後に `SvgLayerSpec` を re-acquire し、extension は `ExtensionAPI.getSvgLayer()` / `registerMapReinitHook()` だけを利用する。`ViewContext` に extension field や文字列 lookup を追加しない。
 - Economy を最初の consumer として、`ExtensionAPI.registerWebglLayers()` / `ExtensionWebglLayerSpec` を追加した。extension は `worldContext` から純粋な polygon / scatter data descriptor を返し、host の `extensionWebglLayerRegistry` と `buildDeckLayers()` が deck layer に変換する。`@deck.gl/*` class や host renderer module の import を extension entry point に漏らさない。
 - Economy の可否と段階的な候補は [webgl-economy-layer-migration.md](webgl-economy-layer-migration.md) に分離した。Phase 7 では SVG overlay のまま維持する。
-- export の方針を実装した。可視 viewport の PNG/JPEG は deck canvas を先に raster canvas へ描画し、hybrid policy を維持した SVG clone（overlay のみ）を重ねる。SVG、full-map PNG tiles、3D mesh texture、`.map` save は viewport-sized deck canvas を拡大しない。`withSvgSnapshot()` が一時的に canonical SVG renderer を再描画してから snapshot を取り、完了後に `webglHybrid` を復元する。
+- export の方針を実装した。可視 viewport の PNG/JPEG は deck canvas を先に raster canvas へ描画し、hybrid policy を維持した SVG clone（overlay のみ）を重ねる。SVG、full-map PNG tiles、3D mesh texture は viewport-sized deck canvas を拡大しない。full-map / vector export は `withOffscreenSvgExport()` が canonical state + PresentationData から offscreen SVG を生成し、`setRenderMode` 往復や live hybrid flash に依存しない（P2-13）。`.fmg` save は DOM-free の `captureArchiveDocument`。
 - 3D view は deck instance を finalize しない。`#canvas3d` を表示している間だけ `webglMapCanvas` を hidden にして二重表示を防ぎ、Standard view への復帰時に同じ canvas / deck instance を再表示する。viewMesh の地形テクスチャは `webglMapTexture.ts` が同じ `buildDeckLayers()` を全地図範囲でオフスクリーン描画し、Texture SVG overlay も land mask・opacity・`slice` 配置を保って合成して生成する。そのため WebGL 管理レイヤーと Texture レイヤーの ON/OFF が地形へ反映される。空の deck 初期化フレームは採用せず、直前の Three.js テクスチャを保持したまま再試行する。SVG export や viewport canvas のコピーには依存しない。burg/anchor は地形へ焼き込まず、Three.js の共有低ポリゴン `InstancedMesh` として地表法線から浮かせて描画する。3D Options の `Nightscape: city lights and beam` は地形を明示的に隠し、この低ポリゴン景観だけを暗い背景に残す。burg の人口を対数正規化し、最大5つの emissive / halo バッチで小都市は暗く、最大都市は星のように表示する。さらに影マップなしの単一 SpotLight をカメラ奥側から手前へ追従させ、都市の光が当たる面だけを追加で照らす。Nightscape の近くにあるチェックボックスでこのビームを ON/OFF でき、もう一方で照射方向を手前→奥へ反転できる。
 - E2E は hybrid mode の PNG download が非空であることと export 後に deck instance が維持されること、3D scene 中の `#map` / `#webglMapCanvas` 非表示、Standard view 復帰後の deck canvas 復元を検証する。
 
@@ -452,7 +452,7 @@ polygon layer の binary geometry 化（`Float32Array` の positions/colors を�
 - [x] SVG版との差分が許容範囲として明文化されている。 (※ SVG版との差分は、「実用上同等」の範囲内として許容され、特に Phase 3・Phase 6 で明文化されたテキストや地形の近似的表現で妥結しています)
 - [x] 低性能環境やWebGL unavailable時に自動で `svg` にfallbackできる。 (※ `isWebgl2Available` で起動時判定を行い、実行時エラーも `Deck` の `onError` で捉えて `setRenderMode("svg")` にフォールバックします)
 - [x] renderer mode preference の保存・復元がユーザーにとって自然に動く。 (※ `localStorage` の `fmg-render-mode` 保存値と、WebGL利用可否の AND で適切に復元します)
-- [x] export系機能がWebGL表示時にも期待通りの画像を出力する。 (※ `withSvgSnapshot()` 等により、WebGL描画中のSVGエクスポートや高解像度出力がすでに対応済みです)
+- [x] export系機能がWebGL表示時にも期待通りの画像を出力する。 (※ `withOffscreenSvgExport()` により、renderMode 切替なしで full-map SVG / tiles / mesh texture を生成。viewport PNG/JPEG は deck + overlay 合成)
 
 ## 作業時の確認コマンド
 

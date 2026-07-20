@@ -157,7 +157,13 @@ function buildExtensionAPI(): ExtensionAPI {
     registerLayerToggle,
     registerLayerElement,
     registerDrawLayerHook,
-    getSvgLayer: id => _svgLayerMap.get(id) ?? null,
+    getSvgLayer: id => {
+      // Prefer the currently bound viewbox so offscreen export rebinding (P2-13)
+      // and map reinit both resolve extension layers without a stale cache hit.
+      const fromViewbox = viewContext.viewbox?.select<SVGGElement>(`#${id}`);
+      if (fromViewbox && !fromViewbox.empty()) return fromViewbox;
+      return _svgLayerMap.get(id) ?? null;
+    },
     registerMapReinitHook: fn => {
       _mapReinitHooks.push(fn);
     },

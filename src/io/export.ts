@@ -8,7 +8,7 @@ import { Rivers } from "../generators/river-generator";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
 import { getCellPopulation, getFriendlyHeight } from "../services/cellInfoService";
 import { fonts, loadFontsAsDataURI } from "../services/fonts";
-import { withSvgSnapshot } from "../services/svgSnapshot";
+import { withOffscreenSvgExport } from "../services/svgSnapshot";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { connectVertices, createObjectURL, getBase64, getCoordinates, revokeObjectURL, rn, unique } from "../utils";
@@ -225,8 +225,10 @@ interface GetMapURLOptions {
 export async function getMapURL(type: string, options: GetMapURLOptions = {}): Promise<string> {
   // A vector/full-map request cannot reuse the on-screen deck canvas: it is viewport-sized,
   // whereas SVG, tiles and 3D mesh textures need the complete logical map coordinate space.
+  // Hybrid mode paints a detached offscreen SVG from canonical state + PresentationData
+  // (P2-13) — never setRenderMode / live hybrid flash.
   if (viewContext.renderMode === "webglHybrid" && (type === "svg" || options.fullMap)) {
-    return withSvgSnapshot(() => getMapURLFromSvg(type, options));
+    return withOffscreenSvgExport(() => getMapURLFromSvg(type, options));
   }
   return getMapURLFromSvg(type, options);
 }
