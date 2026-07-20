@@ -18,7 +18,7 @@
 | P2-2 | Medium | Verified | `PresentationData` に layer order / overlays がなく、WebGL style の SVG fallback が残る | 保存対象を model 化し、live SVG style read を compatibility path へ限定または除去 |
 | P2-3 | Medium | Verified | Simulation の RNG 分離・daily runner・headless interface が未完 | simulation slice に RNG state を保存し、renderer/UI 非依存の day step を test surface にする |
 | P2-4 | Medium | Verified | extension slice registration / opaque chunk promotion / core-reference delete policy が未完 | scoped extension seam と archive validation/migration lifecycle を実装（計画 §9 `registerStateSlice` / migration / `collectCoreReferences`） |
-| P2-5 | Medium | Pending | UI 日次経路と public bulk 経路が別 semantics のまま（互換期間中） | 各 system の bulk/日次差を versioned migration で解消し、UI と `window.fmg.actions.advanceTime` が同じ daily command 列（`SimulationRunner` / `simulation.stepDay`）から同一 state・tickCount・RNG・event を作る |
+| P2-5 | Medium | Verified | UI 日次経路と public bulk 経路が別 semantics のまま（互換期間中） | 各 system の bulk/日次差を versioned migration で解消し、UI と `window.fmg.actions.advanceTime` が同じ daily command 列（`SimulationRunner` / `simulation.stepDay`）から同一 state・tickCount・RNG・event を作る |
 | P2-6 | Medium | Verified | simulation RNG が単一共有 stream のまま（per-system 派生が未実装） | system ID と tick/date から独立 stream を得られ、一 extension の追加乱数消費が他 system の結果を変えない。algorithm version と各 stream state が archive round-trip する |
 | P2-7 | Medium | Verified | 既存 tick が `registerTimeTickHook` 互換 system に依存したまま | built-in / 主要 extension が `registerSimulationSystem`（phase / cadence / reads / writes / dependency）へ移行し、legacy hook API は新規利用を禁止または薄くする |
 | P2-8 | Medium | Verified | module-local な tick 状態が archive / `SimulationData` に入っていない | `populationLossTracker`・Economy `forestDepletion` 等の module-private Map を versioned simulation / extension slice へ移し、save/load と headless で同一結果になる |
@@ -43,7 +43,7 @@
 | **Phase 1** WorldRuntime shell | ほぼ完了 | generate 原子性は **P2-9**。trusted `readTrusted()` は host 用に残置（P2-1 で dynamic は分離済み） |
 | **Phase 2** 描画を commit へ | ほぼ完了 | core hook の direct renderer は除去済み。extension `draw*` は **P2-12**。3D は RenderCoordinator listener 済み |
 | **Phase 3** PresentationData | ほぼ完了（P2-2） | icon raster 等の限定的 live SVG は互換。新規 style 源は PresentationData 必須 |
-| **Phase 4** Simulation system | **互換期間中** | P2-3 完了 + **P2-5/6/7/8/11**。日次統一まで互換期間継続 |
+| **Phase 4** Simulation system | 日次統一完了（P2-5） | P2-3/5/6/7/8/11 Verified。互換 bulk 単一 commit は廃止 |
 | **Phase 5** Command migration | 境界達成（P1-3） | heightmap 1 module allowlist 残。generator 内部 write は Phase 境界どおり許容だが **P2-12** で可視化 |
 | **Phase 6** `.fmg` archive | ほぼ完了 | save/autosave は DOM-free。opaque 昇格 lifecycle は **P2-4**。generate は **P2-9**。export snapshot は **P2-13** |
 | **Phase 7** revision projection | ほぼ完了 | partial GPU は benchmark 駆動 → **P3-2** の後 |
@@ -61,13 +61,13 @@
 | UI 日次 / public bulk の semantics を別々に固定 | P2-3 で完了（characterization） |
 | RNG stream を simulation archive 対象にする | P2-3 で完了（単一 stream） |
 | DOM 無し interface test | P2-3 で完了（`simulationRunner`） |
-| bulk / 日次差を migration したうえで daily に統一 | **P2-5**（互換期間の出口） |
+| bulk / 日次差を migration したうえで daily に統一 | **P2-5 Verified** |
 | system ID 由来の独立 deterministic stream | **P2-6** |
 | `registerTimeTickHook` → phase 付き system への本移行 | **P2-7** |
 | population loss / forest depletion 等を versioned slice へ | **P2-8**（intelligence / strategicGoals / shipbuilding queue は slice 済み） |
 | `simulation.stepDay` + TransactionWriter | **P2-11** |
 
-**互換期間は P2-5 が Verified になるまで継続する。** それまでは `runLegacyDaily` と `advanceLegacyBulk` の二経路と、その tickCount / hook 回数 / RNG 消費差を維持する。
+**互換期間は P2-5 Verified で終了した。** `window.fmg.actions.advanceTime` / UI / headless runner はすべて `simulation.stepDay` 列。`advanceLegacyBulk` は daily alias（deprecated）。
 
 #### 総点検で「隠れていない」と確認したもの
 
@@ -404,3 +404,12 @@ P2-13 ─ Low、export のみ
 - `timeEngine` は system 実行中だけ `appServices.rng` をその stream に差し替えるため、既存の `appServices.rng` 利用（Nobility 等）も他 system と隔離される。終了時に ending state を `streams[systemId]` へ記録。
 - 共有 root stream（`state`）は system 外呼び出し用に維持。`syncSimulationRngToContext` は root を flush しつつ streams を保持する。
 - 検証: `npm test -- --run src/runtime/simulationRng.test.ts src/generators/simulationSystem.test.ts src/runtime/simulationRunner.test.ts` — 22 passed（isolation + archive streams round-trip 含む）。`npx tsc --noEmit` — 成功。`npm run build` — 成功。
+
+### 2026-07-20 — P2-5 daily unification (compat period exit)
+
+- **Semantic migration**: multi-day / month / year advances no longer use one `simulation.advance` commit. They expand via `durationToCalendarDays` and run one `simulation.stepDay` per calendar day (same as Tools UI).
+- `advanceTime` (public `window.fmg.actions.advanceTime`) and `runTimeSimulation` (UI rAF loop) share that day sequence. Per-day observers: `fmg:time-advanced` / `fmg:simulation-updated` / telemetry with `{0,0,1}`.
+- `SimulationRunner.advance` / `runDaily` are the headless multi-day entry points. `advanceLegacyBulk` is a deprecated daily alias (no longer a single bulk commit).
+- `calendarDuration.ts` holds shared expansion rules to avoid timeEngine ↔ runner cycles.
+- Characterization tests now require equal tickCount for UI daily, headless advance, public advanceTime, and the legacy bulk alias.
+- 検証: `npm test -- --run src/runtime/simulationRunner.test.ts` — 9 passed。`npx tsc --noEmit` — 成功。`npm run build` — 成功。

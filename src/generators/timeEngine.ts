@@ -1,25 +1,27 @@
 import { appServices, restoreRngFromSimulation } from "../context/appServices";
 import { type SimulationContext, simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
+import { durationToCalendarDays } from "../runtime/calendarDuration";
 import {
   runWithSystemRng,
   type SimulationRngState,
   simulationRngStatesEqual,
   syncSimulationRngToContext
 } from "../runtime/simulationRng";
+import { registerDayStepObserver } from "../runtime/simulationRunner";
 import {
-  advanceSimulation,
   type DataTopic,
   registerSimulationAdvanceHandler,
   registerSimulationStepDayHandler,
-  type SimulationStepResult
+  type SimulationStepResult,
+  stepDaySimulation
 } from "../runtime/worldRuntime";
 import { telemetry } from "../services/simulationTelemetry";
 import { useDebugSnapshotState } from "../store/debugSnapshotState";
 import { useOptionsState } from "../store/optionsState";
 import { useTimeSimulationState } from "../store/timeSimulationState";
 import { captureSnapshotData } from "../utils/aiDebugExporter";
-import { getDaysInMonth, getSeason, isLeapYear } from "../utils/seasonUtils";
+import { getDaysInMonth, getSeason } from "../utils/seasonUtils";
 import { tickAgriculturalCalendar } from "./agriculturalStress";
 import { simulateDemographics } from "./demography-simulator";
 import { tickManpower } from "./manpower";
@@ -156,17 +158,10 @@ export function initSimulationClock(): void {
 }
 
 /**
- * Advances the world's simulation clock by deltaYears, runs every registered tick
- * hook, then dispatches fmg:time-advanced. Mirrors the new year into
- * worldContext.options.year so existing readers (military-generator.ts,
- * states-generator.ts, markers-generator.ts, battle-screen.ts) keep working unchanged.
+ * Post-commit observers for one finished calendar day (or a reported delta).
+ * Shared by `advanceTime`, UI day loops, and the headless runner's notify path.
  */
-export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0): void {
-  const commit = advanceSimulation({ deltaYears, deltaMonths, deltaDays });
-  if (!commit) return;
-
-  // These observers run after the mutation has one revision and renderer
-  // subscribers have seen its complete change set.
+export function notifyAfterDayStep(deltaYears: number, deltaMonths: number, deltaDays: number): void {
   document.dispatchEvent(
     new CustomEvent("fmg:time-advanced", {
       detail: { deltaYears, deltaMonths, deltaDays, currentYear: simulationContext.currentYear }
@@ -188,12 +183,56 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
   );
 
   if (import.meta.env.DEV) {
-    useDebugSnapshotState.getState().addSnapshot({
-      tickCount: simulationContext.tickCount,
+    try {
+      useDebugSnapshotState.getState().addSnapshot({
+        tickCount: simulationContext.tickCount,
+        year: simulationContext.currentYear,
+        label: `Advance Time +${deltaYears}y ${deltaMonths}m ${deltaDays}d`,
+        data: captureSnapshotData()
+      });
+    } catch {
+      // Headless / incomplete pack fixtures skip debug capture.
+    }
+  }
+}
+
+// Headless runner notify path uses the same observers without importing advanceTime.
+registerDayStepObserver(notifyAfterDayStep);
+
+/**
+ * Advances simulation time. Public entry for `window.fmg.actions.advanceTime`.
+ *
+ * P2-5: multi-day / month / year spans expand to a calendar-day sequence of
+ * `simulation.stepDay` commits (same semantics as Tools → Advance Time).
+ * One calendar day → one tickCount increment, one system pass, one event set.
+ * Mirrors the year/month/day into worldContext.options for legacy readers.
+ */
+export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0): void {
+  if (deltaYears <= 0 && deltaMonths <= 0 && deltaDays <= 0) return;
+
+  // Pure single-day fast path (UI rAF loop and day button).
+  if (deltaYears === 0 && deltaMonths === 0 && deltaDays === 1) {
+    const commit = stepDaySimulation();
+    if (!commit) return;
+    notifyAfterDayStep(0, 0, 1);
+    return;
+  }
+
+  const totalDays = durationToCalendarDays(
+    {
       year: simulationContext.currentYear,
-      label: `Advance Time +${deltaYears}`,
-      data: captureSnapshotData()
-    });
+      month: simulationContext.currentMonth,
+      day: simulationContext.currentDay
+    },
+    { years: deltaYears, months: deltaMonths, days: deltaDays }
+  );
+  if (totalDays <= 0) return;
+
+  for (let i = 0; i < totalDays; i++) {
+    const commit = stepDaySimulation();
+    if (!commit) return;
+    // Always report a one-day delta so listeners match the UI daily path.
+    notifyAfterDayStep(0, 0, 1);
   }
 }
 
@@ -468,28 +507,15 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
   const store = useTimeSimulationState.getState();
   if (store.isRunning) return;
 
-  // Shared day-count rules with the headless SimulationRunner (durationToCalendarDays).
-  const totalDays =
-    // Inline the calendar expansion so UI keeps working even if the runner module is tree-shaken
-    // in a future split. Semantics must stay aligned with runtime/simulationRunner.ts.
-    (() => {
-      let y = simulationContext.currentYear;
-      let m = simulationContext.currentMonth;
-      let days = 0;
-      for (let i = 0; i < targetDeltaYears; i++) {
-        days += isLeapYear(y) ? 366 : 365;
-        y++;
-      }
-      for (let i = 0; i < targetDeltaMonths; i++) {
-        days += getDaysInMonth(y, m);
-        m++;
-        if (m > 12) {
-          m = 1;
-          y++;
-        }
-      }
-      return days + targetDeltaDays;
-    })();
+  // Same calendar expansion as public advanceTime / headless SimulationRunner.advance.
+  const totalDays = durationToCalendarDays(
+    {
+      year: simulationContext.currentYear,
+      month: simulationContext.currentMonth,
+      day: simulationContext.currentDay
+    },
+    { years: targetDeltaYears, months: targetDeltaMonths, days: targetDeltaDays }
+  );
 
   if (totalDays <= 0) return;
 
@@ -508,8 +534,8 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
       return;
     }
 
-    // Legacy daily path: one day per frame so the UI can paint progress / accept cancel.
-    // Headless callers should use runtime/simulationRunner.runLegacyDaily instead.
+    // One simulation.stepDay per frame so the UI can paint progress / accept cancel.
+    // Same command body as window.fmg.actions.advanceTime for multi-day spans (P2-5).
     advanceTime(0, 0, 1);
     currentProgress++;
     useTimeSimulationState.getState().setSimulationProgress(currentProgress, totalDays);

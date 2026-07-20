@@ -2,10 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { appServices, initRng } from "../context/appServices";
 import { simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
-import { registerSimulationSystem } from "../generators/timeEngine";
+import { advanceTime, registerSimulationSystem } from "../generators/timeEngine";
 import { useOptionsState } from "../store/optionsState";
 import { exportLiveSimulationRng, installSimulationRng } from "./simulationRng";
-import { advanceLegacyBulk, durationToCalendarDays, runLegacyDaily, stepDay } from "./simulationRunner";
+import {
+  advance,
+  advanceLegacyBulk,
+  durationToCalendarDays,
+  runDaily,
+  runLegacyDaily,
+  stepDay
+} from "./simulationRunner";
 import type { DataTopic } from "./worldRuntime";
 import { worldRuntime } from "./worldRuntime";
 
@@ -62,8 +69,6 @@ describe("SimulationRunner (headless)", () => {
 
   afterEach(() => {
     while (unsubscribers.length) unsubscribers.pop()?.();
-    // Drop any commit listeners tests attached to the singleton runtime.
-    // WorldRuntime has no full reset API; listeners are unsubscribed via returned handles.
   });
 
   it("durationToCalendarDays matches leap-year and month length rules", () => {
@@ -89,34 +94,56 @@ describe("SimulationRunner (headless)", () => {
     expect(commits[0]).toContain("simulation.clock");
   });
 
-  it("runLegacyDaily issues one commit per day and can stop early", () => {
+  it("runDaily issues one commit per day and can stop early", () => {
     const progress: number[] = [];
-    const result = runLegacyDaily(5, {
+    const result = runDaily(5, {
       notify: false,
       onDayComplete: ({ day }) => progress.push(day),
       shouldStop: () => progress.length >= 2
     });
 
-    // shouldStop is checked before each day; after day 2 completes progress is 2, stop before day 3.
     expect(result).toEqual({ daysRequested: 5, daysCompleted: 2, stopped: true });
     expect(progress).toEqual([1, 2]);
     expect(simulationContext.tickCount).toBe(2);
     expect(simulationContext.currentDay).toBe(3);
   });
 
-  it("daily and bulk paths differ in tickCount for the same calendar span", () => {
-    // Characterization: UI daily loop vs public bulk action are intentionally different
-    // during the compatibility period (unite-data-and-map §6.2).
+  it("P2-5: public advanceTime and headless advance share daily tickCount semantics", () => {
     installMinimalWorld();
-    runLegacyDaily(3, { notify: false });
+    runDaily(3, { notify: false });
     const dailyTicks = simulationContext.tickCount;
+    const dailyDay = simulationContext.currentDay;
 
     installMinimalWorld();
+    advance({ days: 3 }, { notify: false });
+    const advanceTicks = simulationContext.tickCount;
+    const advanceDay = simulationContext.currentDay;
+
+    installMinimalWorld();
+    // advanceLegacyBulk is now a daily alias (compat period closed).
     advanceLegacyBulk({ days: 3 }, { notify: false });
-    const bulkTicks = simulationContext.tickCount;
+    const legacyAliasTicks = simulationContext.tickCount;
+
+    installMinimalWorld();
+    // Public action: expand {days:3} to three stepDay commits (no multi-day bulk).
+    advanceTime(0, 0, 3);
+    const publicTicks = simulationContext.tickCount;
+    const publicDay = simulationContext.currentDay;
 
     expect(dailyTicks).toBe(3);
-    expect(bulkTicks).toBe(1);
+    expect(advanceTicks).toBe(3);
+    expect(legacyAliasTicks).toBe(3);
+    expect(publicTicks).toBe(3);
+    expect(dailyDay).toBe(publicDay);
+    expect(advanceDay).toBe(publicDay);
+  });
+
+  it("public multi-month advance expands to month-length day steps", () => {
+    // January has 31 days from 1000-01-01.
+    advanceTime(0, 1, 0);
+    expect(simulationContext.tickCount).toBe(31);
+    expect(simulationContext.currentMonth).toBe(2);
+    expect(simulationContext.currentDay).toBe(1);
   });
 
   it("restores the same RNG sequence after a headless daily run snapshot", () => {
@@ -140,11 +167,9 @@ describe("SimulationRunner (headless)", () => {
     expect(snapshot).not.toBeNull();
     const nextAfterRun = appServices.rng.rand();
 
-    // Replay from the post-run root snapshot without re-running systems.
     appServices.rng = installSimulationRng(snapshot!);
     expect(appServices.rng.rand()).toBe(nextAfterRun);
     expect(draws).toHaveLength(2);
-    // Root stream position is mirrored on the context; per-system streams are separate.
     expect(simulationContext.rng.seed).toBe(snapshot!.seed);
     expect(simulationContext.rng.state).toEqual(snapshot!.state);
     expect(simulationContext.rng.streams["test-rng-consumer"]).toBeDefined();
@@ -152,11 +177,9 @@ describe("SimulationRunner (headless)", () => {
 
   it("does not require a RenderCoordinator subscription to step", () => {
     const listener = vi.fn();
-    // Intentionally do not register render listeners — headless contract.
     unsubscribers.push(worldRuntime.subscribe(listener));
-    runLegacyDaily(1, { notify: false });
+    runDaily(1, { notify: false });
     expect(listener).toHaveBeenCalledTimes(1);
-    // No throw, no rAF, no document requirement beyond the default test env.
   });
 
   it("simulation.stepDay is one command per day with rollback on system failure", () => {
@@ -190,7 +213,6 @@ describe("SimulationRunner (headless)", () => {
     );
 
     expect(() => stepDay({ notify: false })).toThrow("boom in day step");
-    // Failed day: no additional commit; clock and tickCount restored.
     expect(commits).toHaveLength(1);
     expect(simulationContext.currentDay).toBe(dayBefore);
     expect(simulationContext.tickCount).toBe(tickBefore);
