@@ -36,6 +36,7 @@ let _conflictAutonomyChangedHandler: ((e: Event) => void) | null = null;
 let _playerConflictRequestedHandler: ((e: Event) => void) | null = null;
 let _playerConflictEndedHandler: ((e: Event) => void) | null = null;
 let _unregisterRegenerateCommand: (() => void) | null = null;
+let _unregisterTickSystem: (() => void) | null = null;
 
 type NobilityRegenerationMode = "bootstrap" | "full";
 
@@ -209,10 +210,27 @@ export function init(api: ExtensionAPI): void {
   };
   document.addEventListener("fmg:player-conflict-ended", _playerConflictEndedHandler);
 
-  api.registerTimeTickHook(
-    (deltaYears, deltaMonths, deltaDays) => {
+  // Military phase runs after economy systems (logging / voyage intel events) so
+  // same-tick voyage intel feeds Espionage.generate on this step.
+  _unregisterTickSystem = api.registerSimulationSystem({
+    id: "nobility.tick",
+    phase: "military",
+    reads: [
+      "map.politics",
+      "map.settlements",
+      "simulation.military",
+      "simulation.states",
+      "extension.characters",
+      "extension.nobility",
+      "extension.shipbuilding"
+    ],
+    writes: ["extension.characters", "extension.nobility", "map.politics", "map.settlements", "simulation.military"],
+    cadence: { every: 1 },
+    profileLabel: "nobility",
+    run: context => {
       if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return [];
 
+      const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
       const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
 
       advanceCharacterAging(effectiveDeltaYears);
@@ -262,10 +280,8 @@ export function init(api: ExtensionAPI): void {
         ...(settlementsChanged ? (["map.politics", "map.settlements"] as const) : []),
         ...(militaryChanged ? (["simulation.military"] as const) : [])
       ];
-    },
-    NOBILITY_EXTENSION_ID,
-    ["extension.characters", "extension.nobility", "map.politics", "map.settlements", "simulation.military"]
-  );
+    }
+  });
 }
 
 export function cleanup(api: ExtensionAPI): void {
@@ -296,6 +312,8 @@ export function cleanup(api: ExtensionAPI): void {
   clearVoyageIntel();
   _unregisterRegenerateCommand?.();
   _unregisterRegenerateCommand = null;
+  _unregisterTickSystem?.();
+  _unregisterTickSystem = null;
 
   api.unregisterExtension(NOBILITY_EXTENSION_ID);
   clearNobilityContext();

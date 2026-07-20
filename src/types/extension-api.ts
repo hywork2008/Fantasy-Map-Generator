@@ -296,19 +296,13 @@ export interface ExtensionAPI {
 
   // ── Simulation clock ─────────────────────────────────────────────────────
   /**
-   * Register a compatibility hook called on every advanceTime() call (i.e.
-   * every time the simulation year/month/day changes). Compatibility hooks
-   * remain registered for the session; new work should use
-   * registerSimulationSystem.
-   * `label` (e.g. the extension id) identifies this hook's cost in the tick profiler's
-   * output (src/generators/tickProfiler.ts) — pass one so per-extension tick cost is
-   * distinguishable when diagnosing slow Advance Time batches.
-   * `writes` lists additional core or extension topics the compatibility hook
-   * can change, so the host can invalidate dependent projections correctly.
-   * `writes` is also the fallback topic set used when `hook` returns nothing
-   * (`void`). A hook that knows precisely what changed on a given tick should
-   * instead return that (possibly empty) topic array, so the host doesn't
-   * invalidate renderers/caches for topics that didn't actually change.
+   * @deprecated Prefer `registerSimulationSystem()`. Built-in extensions have
+   * migrated; this remains for unmigrated dynamic ZIP packages only.
+   *
+   * Compatibility wrapper: each hook becomes a politics-phase system, stays
+   * registered for the session, and preserves registration order among other
+   * legacy hooks. `label` names the tick profiler entry; `writes` is the
+   * fallback topic set when the hook returns void.
    */
   registerTimeTickHook(
     hook: (deltaYears: number, deltaMonths: number, deltaDays: number) => readonly DataTopic[] | undefined,
@@ -317,7 +311,9 @@ export interface ExtensionAPI {
   ): void;
   /**
    * Register a synchronous system with explicit phase, cadence, dependencies,
-   * and WorldRuntime topics. The system must not touch DOM or renderer APIs.
+   * and WorldRuntime topics. Preferred entry for any new simulation work.
+   * The system must not import host Renderer modules; return only topics that
+   * changed this tick. Call the returned function from `cleanup()`.
    */
   registerSimulationSystem(system: SimulationSystem): () => void;
 

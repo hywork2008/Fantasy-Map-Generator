@@ -1,7 +1,7 @@
 /**
  * Tracks logging pressure reported by the Shipbuilding extension's
  * fmg:shipbuilding-log-harvested event (see economy/index.tsx's listener), and its
- * natural regrowth over time (see economy/index.tsx's registerTimeTickHook).
+ * natural regrowth over time (see economy/index.tsx's economy.tick system).
  * Reduces the affected cell's Wood good output — see getDepletionMultiplier()
  * in production-utils.ts. Economy has no dependency on Shipbuilding: if it's
  * never enabled, this map simply stays empty and regrowth is a no-op.

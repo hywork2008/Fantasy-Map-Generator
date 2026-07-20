@@ -215,7 +215,7 @@ function completeHull(burg: Burg, owner: ShipHullOwner, shipClassId: string, sta
 }
 
 /**
- * Called on every advanceTime() tick (via Shipbuilding's registerTimeTickHook). Advances
+ * Called on every advanceTime() tick (via Shipbuilding's shipbuilding.tick system). Advances
  * each shipyard candidate's build queue and each state's naval tech points. Ship class
  * tiers are gated by the burg's own state's tech points (0 for stateless/free-city burgs);
  * both state- and market-owned queues draw from the same state tech pool — merchant

@@ -41,6 +41,7 @@ let _portCapacity: Map<number, PortCapacity> = new Map();
 let _unsubscribe: (() => void) | null = null;
 let _generatePostCoreHandler: (() => void) | null = null;
 let _unregisterResetCommand: (() => void) | null = null;
+let _unregisterTickSystem: (() => void) | null = null;
 
 function resetShipbuildingState(): void {
   _candidates = [];
@@ -154,12 +155,21 @@ export function init(api: ExtensionAPI): void {
 
   api.registerLayerElement("toggleShipyards", () => document.getElementById("shipyards"));
 
-  api.registerTimeTickHook(
-    (deltaYears, deltaMonths, deltaDays) => {
-      if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
+  // Economy phase: lexical id places this after `economy.tick`. Logging events fire
+  // before Economy's production-settlement microtask (scheduled from economy.tick).
+  _unregisterTickSystem = api.registerSimulationSystem({
+    id: "shipbuilding.tick",
+    phase: "economy",
+    reads: ["map.settlements", "map.politics", "extension.shipbuilding", "extension.economy"],
+    writes: ["extension.shipbuilding", "extension.economy", "extension.nobility"],
+    cadence: { every: 1 },
+    profileLabel: "shipbuilding",
+    run: context => {
+      if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return [];
       // The UI's daily Advance Time loop calls this with deltaYears=0, deltaDays=1 per tick —
       // fold all three granularities into a years-equivalent so logging/build progress doesn't
-      // silently stall (matches Economy's registerTimeTickHook and Nobility's tick hook).
+      // silently stall (matches Economy and Nobility systems).
+      const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
       const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
       runLoggingTick(_candidates, effectiveDeltaYears);
       const { burgs, states } = getWorldContext().pack;
@@ -177,13 +187,13 @@ export function init(api: ExtensionAPI): void {
       );
       runVoyageTick(burgs, states, effectiveDeltaYears);
       checkForeignInterference(_candidates, burgs, effectiveDeltaYears);
-      // Refresh marker tooltips (build progress) and the overview dialog, if visible.
+      // Local SVG refresh for build-progress tooltips while the layer is on.
+      // Full draw-layer / RenderCoordinator wiring for extension ticks is P2-12.
       if (api.layerIsOn("toggleShipyards")) drawShipyards(_candidates);
       refreshShipyardsOverviewIfOpen(_candidates, _portCapacity);
-    },
-    SHIPBUILDING_EXTENSION_ID,
-    ["extension.shipbuilding", "extension.economy", "extension.nobility"]
-  );
+      return ["extension.shipbuilding", "extension.economy", "extension.nobility"];
+    }
+  });
 
   _unsubscribe = api.subscribeExtensionState((state, prevState) => {
     const isEnabled = state.enabledExtensions[SHIPBUILDING_EXTENSION_ID];
@@ -245,6 +255,8 @@ export function cleanup(api: ExtensionAPI): void {
 
   _unregisterResetCommand?.();
   _unregisterResetCommand = null;
+  _unregisterTickSystem?.();
+  _unregisterTickSystem = null;
 
   api.unregisterExtension(SHIPBUILDING_EXTENSION_ID);
   clearShipbuildingContext();

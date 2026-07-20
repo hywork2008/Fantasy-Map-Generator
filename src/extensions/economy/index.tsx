@@ -239,6 +239,7 @@ let _unregisterProductionSettlementCommand: (() => void) | null = null;
 let _unregisterRegenerateCommand: (() => void) | null = null;
 let _unregisterGunpowderRefreshCommand: (() => void) | null = null;
 let _unregisterClearCommand: (() => void) | null = null;
+let _unregisterTickSystem: (() => void) | null = null;
 
 interface AssignGoodToCellRequest {
   readonly cellId: number;
@@ -1114,10 +1115,19 @@ export function init(api: ExtensionAPI): void {
   let daysSinceLastProduction = 0;
   let daysSinceLastQuarterlyUpdate = 0;
   let currentQuarterIndex = 0;
-  api.registerTimeTickHook(
-    (deltaYears, deltaMonths, deltaDays) => {
-      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+  // Phase: economy. Lexical id `economy.tick` runs before `shipbuilding.tick` in the
+  // same phase so forest regrowth is ordered before logging within one tick.
+  _unregisterTickSystem = api.registerSimulationSystem({
+    id: "economy.tick",
+    phase: "economy",
+    reads: ["map.politics", "extension.economy", "simulation.burgs", "simulation.states"],
+    writes: ["extension.economy", "simulation.states"],
+    cadence: { every: 1 },
+    profileLabel: "economy",
+    run: context => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return [];
 
+      const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
       const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
 
       const caravanTick = Caravans.tick(effectiveDays);
@@ -1194,14 +1204,14 @@ export function init(api: ExtensionAPI): void {
       if (daysSinceLastProduction >= 30) {
         daysSinceLastProduction %= 30;
         productionSettlementDue = true;
-        // Queue after all synchronous tick hooks have run, so logging events from
-        // Shipbuilding are included irrespective of extension initialization order.
+        // Queue after all synchronous simulation systems have run, so logging events from
+        // Shipbuilding (same tick, economy phase after this system by lexical id) are included.
         scheduleProductionSettlement();
       }
-    },
-    ECONOMY_EXTENSION_ID,
-    ["extension.economy", "simulation.states"]
-  );
+
+      return ["extension.economy", "simulation.states"];
+    }
+  });
 
   // Bind trade animation renderer (must happen before any toggle)
   TradeAnimation.bind({
@@ -1328,6 +1338,8 @@ export function cleanup(api: ExtensionAPI): void {
   _unregisterGunpowderRefreshCommand = null;
   _unregisterClearCommand?.();
   _unregisterClearCommand = null;
+  _unregisterTickSystem?.();
+  _unregisterTickSystem = null;
   if (_unsubscribe) {
     _unsubscribe();
     _unsubscribe = null;

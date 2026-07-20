@@ -39,13 +39,18 @@ registerSimulationAdvanceHandler(({ deltaYears, deltaMonths, deltaDays }) =>
 );
 
 /**
- * Compatibility registration for the old hook API. The hook becomes a
- * phase-aware system while retaining registration order and "once per
- * advanceTime call" semantics. Like the previous API, compatibility hooks
- * remain registered for the session. New systems should declare their reads
- * and writes with registerSimulationSystem().
+ * @deprecated Prefer `registerSimulationSystem()` with explicit phase, cadence,
+ * reads, writes, and dependencies. Built-in economy / nobility / shipbuilding
+ * systems already use that API. This wrapper remains only for dynamic ZIP
+ * extensions that have not migrated yet; it registers a politics-phase system
+ * and never unregisters (session lifetime), matching the historical hook API.
  */
 export function registerTimeTickHook(fn: TimeTickHook, label = "unlabeled", writes?: readonly DataTopic[]): void {
+  if (import.meta.env.DEV) {
+    console.warn(
+      `[fmg] registerTimeTickHook(${JSON.stringify(label)}) is deprecated; use registerSimulationSystem() with phase/reads/writes`
+    );
+  }
   const previousId = legacyHookIds.at(-1);
   const id = `legacy-hook:${nextLegacyHookId++}`;
   timeTickSystems.register({
@@ -61,9 +66,18 @@ export function registerTimeTickHook(fn: TimeTickHook, label = "unlabeled", writ
   legacyHookIds.push(id);
 }
 
-/** Registers a synchronous, DOM-free simulation system for legacy ticks. */
+/**
+ * Registers a synchronous simulation system for each `advanceTime` / day step.
+ * Prefer this over `registerTimeTickHook`. Systems must not import Renderer APIs;
+ * return the topics that actually changed so RenderCoordinator can invalidate.
+ */
 export function registerSimulationSystem(system: SimulationSystem): () => void {
   return timeTickSystems.register(system);
+}
+
+/** Test/support: ordered system ids currently registered for the host tick. */
+export function listRegisteredSimulationSystemIds(): readonly string[] {
+  return timeTickSystems.list().map(system => system.id);
 }
 
 /**
