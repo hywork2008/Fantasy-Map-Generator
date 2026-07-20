@@ -13,8 +13,16 @@ import {
   type Zone
 } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
+import type { OpaqueExtensionChunk } from "./extensionArchiveTypes";
 import { createExtensionWorldReadView, type ExtensionWorldReadView } from "./extensionReadModel";
-import { bindExtensionStateSlices } from "./extensionStateSlices";
+import {
+  assertRegisteredSliceCoreDeletesAllowed,
+  demoteUnregisteredExtensionSlices,
+  type ExtensionStateSliceSpec,
+  registerStateSliceSpec,
+  tryPromoteOpaqueChunk
+} from "./extensionStateSliceRegistry";
+import { bindExtensionStateSlices, ensureBuiltinStateSlicesRegistered } from "./extensionStateSlices";
 import {
   applyPresentationPatch,
   createPresentationData,
@@ -34,10 +42,11 @@ import {
   assertValidWorldDocument,
   type CoreEntityKind,
   createWorldDocument,
-  type OpaqueExtensionChunk,
   type ValidatedWorld,
   type WorldDocument
 } from "./worldArchive";
+
+export type { ExtensionStateSliceSpec } from "./extensionStateSliceRegistry";
 
 /**
  * Coarse ownership topics used while the legacy pack/grid representation remains
@@ -623,6 +632,12 @@ export interface WorldRuntime {
   subscribe(listener: (commit: WorldCommit<unknown>) => void): () => void;
   /** Register one synchronous, validated command owned by an extension. */
   registerExtensionCommand(command: ExtensionCommandDefinition): () => void;
+  /**
+   * Register schema / validation / migration for an extension-owned simulation
+   * slice. Matching opaque archive chunks are promoted in the same commit when
+   * migrate+validate succeed. Returns an unregister function for cleanup.
+   */
+  registerStateSlice(spec: ExtensionStateSliceSpec): () => void;
   /** Register the compatibility simulation implementation behind `simulation.advance`. */
   registerSimulationAdvanceHandler(handler: SimulationAdvanceHandler): () => void;
   /** Register the synchronous generator adapter behind `heightmap.finalize`. */
@@ -698,6 +713,15 @@ class LegacyWorldRuntime implements WorldRuntime {
     };
   }
 
+  registerStateSlice(spec: ExtensionStateSliceSpec): () => void {
+    ensureBuiltinStateSlicesRegistered();
+    const unregister = registerStateSliceSpec(spec);
+    // Promote any retained opaque payload for this extension now that its
+    // validator is available. Failed promotion leaves opaque bytes untouched.
+    this.promoteOpaqueForExtension(spec.extensionId);
+    return unregister;
+  }
+
   registerSimulationAdvanceHandler(handler: SimulationAdvanceHandler): () => void {
     if (this.simulationAdvanceHandler) {
       throw new Error("The simulation.advance handler is already registered");
@@ -718,18 +742,16 @@ class LegacyWorldRuntime implements WorldRuntime {
     };
   }
 
-  captureArchiveDocument(): Promise<WorldDocument> {
-    try {
-      // Flush the live simulation PRNG before cloning so mid-session saves resume
-      // the same stream after load. dispatch is synchronous during the
-      // compatibility period, therefore this snapshot is a queue barrier.
-      syncSimulationRngToContext(this.simulation);
-      return Promise.resolve(
-        createWorldDocument(this.world, this.simulation, this.presentation, this.opaqueExtensionChunks)
-      );
-    } catch (error) {
-      return Promise.reject(error);
-    }
+  async captureArchiveDocument(): Promise<WorldDocument> {
+    // Flush the live simulation PRNG before cloning so mid-session saves resume
+    // the same stream after load. dispatch is synchronous during the
+    // compatibility period, therefore this snapshot is a queue barrier.
+    syncSimulationRngToContext(this.simulation);
+    ensureBuiltinStateSlicesRegistered();
+    const document = createWorldDocument(this.world, this.simulation, this.presentation, this.opaqueExtensionChunks);
+    // Unregistered extension data must leave the host as opaque chunks, never
+    // as validated simulation.extensions entries the next host cannot own.
+    return demoteUnregisteredExtensionSlices(document);
   }
 
   /** @internal Synchronous bridge required by legacy callers such as advanceTime(). */
@@ -2012,6 +2034,33 @@ class LegacyWorldRuntime implements WorldRuntime {
 
   private assertOpaqueDeletesAllowed(deleted: readonly { readonly kind: CoreEntityKind; readonly id: number }[]): void {
     assertOpaqueCoreDeletesAllowed(this.opaqueExtensionChunks, deleted);
+    assertRegisteredSliceCoreDeletesAllowed(this.simulation, deleted);
+  }
+
+  /**
+   * Installs a matching opaque chunk into simulation.extensions and drops the
+   * opaque entry in one commit. No-op when promotion fails or no chunk exists.
+   */
+  private promoteOpaqueForExtension(extensionId: string): void {
+    const chunk = this.opaqueExtensionChunks.find(entry => entry.extensionId === extensionId);
+    if (!chunk) return;
+    if (this.simulation.extensions?.[extensionId]) return;
+
+    const promoted = tryPromoteOpaqueChunk(chunk, this.world);
+    if (!promoted) return;
+
+    this.execute({
+      type: "legacy.mutation",
+      execute: () => {
+        if (!this.simulation.extensions || typeof this.simulation.extensions !== "object") {
+          this.simulation.extensions = {};
+        }
+        this.simulation.extensions[promoted.extensionId] = promoted.slice;
+        this.opaqueExtensionChunks = this.opaqueExtensionChunks.filter(entry => entry !== chunk);
+        bindExtensionStateSlices(this.world, this.simulation);
+        return { result: undefined, topics: [`extension.${extensionId}`] };
+      }
+    });
   }
 
   private replaceDocument(document: WorldDocument): void {

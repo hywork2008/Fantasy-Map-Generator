@@ -20,6 +20,7 @@ import type { SvgGroup, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { SimulationSystem } from "../generators/simulationSystem";
 import type { ExtensionReadRecord, ExtensionWorldReadView } from "../runtime/extensionReadModel";
+import type { ExtensionStateSliceSpec } from "../runtime/extensionStateSliceRegistry";
 import type {
   DataTopic,
   ExtensionCommandDefinition,
@@ -327,6 +328,15 @@ export interface ExtensionAPI {
   registerExtensionCommand(command: ExtensionCommandDefinition): () => void;
   /** Execute a command previously registered by an extension. */
   dispatchExtensionCommand(request: ExtensionCommandRequest): WorldCommit<unknown> | null;
+  /**
+   * Register schema / validation / migration / core-reference collection for
+   * this extension's simulation slice. Host codec ownership stays in the
+   * archive adapter; the extension only owns the slice shape. Matching opaque
+   * archive chunks are promoted after successful migrate+validate. Call the
+   * returned function only on uninstall — disable must not unregister the slice
+   * if data should remain under host delete policy.
+   */
+  registerStateSlice(spec: ExtensionStateSliceSpec): () => void;
 
   // ── Skill modifier chain ─────────────────────────────────────────────────
   /**

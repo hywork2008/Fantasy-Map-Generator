@@ -1,6 +1,17 @@
 import JSZip from "jszip";
 import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import {
+  CORE_ENTITY_KINDS,
+  type CoreEntityKind,
+  type CoreReference,
+  type OpaqueExtensionChunk
+} from "./extensionArchiveTypes";
+import {
+  assertRegisteredExtensionStateSlices,
+  demoteUnregisteredExtensionSlices,
+  promoteRegisteredOpaqueChunks
+} from "./extensionStateSliceRegistry";
 import { assertValidExtensionStateSlices, removeExtensionStateSliceMirrors } from "./extensionStateSlices";
 import type { PresentationData } from "./presentationData";
 import { removeSimulationBurgStateMirrors } from "./simulationBurgState";
@@ -12,39 +23,8 @@ import { removeSimulationStateStateMirrors } from "./simulationStateState";
 export const WORLD_ARCHIVE_FORMAT = "fantasy-map-generator";
 export const WORLD_ARCHIVE_SCHEMA_VERSION = 1;
 
-export const CORE_ENTITY_KINDS = [
-  "marker",
-  "burg",
-  "state",
-  "province",
-  "culture",
-  "religion",
-  "route",
-  "river",
-  "feature",
-  "zone"
-] as const;
-
-export type CoreEntityKind = (typeof CORE_ENTITY_KINDS)[number];
-
-export interface CoreReference {
-  readonly kind: CoreEntityKind;
-  readonly id: number;
-  readonly onDelete: "restrict" | "orphan";
-}
-
-/**
- * An extension payload the current host cannot interpret. The codec owns its
- * path and checksum, while the runtime retains these bytes unchanged.
- */
-export interface OpaqueExtensionChunk {
-  readonly extensionId: string;
-  readonly schemaVersion: number;
-  readonly mediaType: string;
-  readonly bytes: Uint8Array;
-  readonly checksum: string;
-  readonly coreReferences: readonly CoreReference[] | "unknown";
-}
+export type { CoreEntityKind, CoreReference, OpaqueExtensionChunk };
+export { CORE_ENTITY_KINDS };
 
 /** A DOM-free, full-fidelity snapshot of the current compatibility backing stores. */
 export interface WorldDocument {
@@ -560,6 +540,8 @@ export function assertValidWorldDocument(value: unknown): asserts value is World
     assertNetworkReferences(pack, cellCount);
   }
   assertValidExtensionStateSlices(world as WorldContext, simulation as unknown as SimulationContext);
+  // Registered dynamic / built-in validators run after the host-known field checks.
+  assertRegisteredExtensionStateSlices(world as WorldContext, simulation as unknown as SimulationContext);
   assertOpaqueReferences(value.opaqueExtensionChunks);
 }
 
@@ -723,10 +705,16 @@ function decodeLegacyText(bytes: Uint8Array): string {
   return decoded.substring(0, 10).includes("|") ? decoded : decodeURIComponent(atob(decoded));
 }
 
-/** Current schema has no migrations yet; keeping the pipeline explicit makes additions atomic. */
+/**
+ * Core schema is currently fixed at v1. Extension lifecycle work happens here:
+ * demote slices the host cannot validate, then promote opaque chunks for
+ * registered extensions that successfully migrate + validate.
+ */
 export const worldMigrationPipeline: WorldMigrationPipeline = {
   async migrate(staged) {
-    return { stage: "migrated", document: staged.document };
+    const demoted = await demoteUnregisteredExtensionSlices(staged.document);
+    const promoted = promoteRegisteredOpaqueChunks(demoted);
+    return { stage: "migrated", document: promoted };
   },
   async validate(migrated) {
     assertValidWorldDocument(migrated.document);

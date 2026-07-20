@@ -179,6 +179,7 @@ function buildExtensionAPI(): ExtensionAPI {
     registerSimulationSystem,
     registerExtensionCommand: command => worldRuntime.registerExtensionCommand(command),
     dispatchExtensionCommand,
+    registerStateSlice: spec => worldRuntime.registerStateSlice(spec),
 
     registerSkillModifier,
     getEffectiveSkill,

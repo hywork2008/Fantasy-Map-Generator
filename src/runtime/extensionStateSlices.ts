@@ -1,5 +1,11 @@
 import type { ExtensionStateSlices, SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import type { CoreReference } from "./extensionArchiveTypes";
+import {
+  collectEntityReferences,
+  type ExtensionStateSliceSpec,
+  registerStateSliceSpec
+} from "./extensionStateSliceRegistry";
 
 type ExtensionSliceDefinition = {
   readonly extensionId: string;
@@ -100,12 +106,189 @@ function assertOptionalArrayField(slice: Record<string, unknown>, field: string,
   if (slice[field] !== undefined) assertArray(slice[field], `simulation.extensions.${extensionId}.${field}`);
 }
 
+function validateCharactersSlice(slice: Record<string, unknown>): void {
+  assertOptionalArrayField(slice, "characters", "characters");
+}
+
+function validateEconomySlice(slice: Record<string, unknown>, world: WorldContext): void {
+  for (const field of [
+    "goods",
+    "markets",
+    "deals",
+    "caravans",
+    "burgMarketLedgers",
+    "merchantOrganizations",
+    "strategicProcurementOrders",
+    "strategicGoodsPolicies",
+    "strategicLaborMarkets"
+  ]) {
+    assertOptionalArrayField(slice, field, "economy");
+  }
+  for (const field of ["nextCaravanId", "nextStrategicProcurementOrderId"]) {
+    if (slice[field] !== undefined) assertNonNegativeInteger(slice[field], `simulation.extensions.economy.${field}`);
+  }
+  const cellCount = world.pack.cells.i?.length;
+  for (const field of ["good", "market"]) {
+    const column = slice[field];
+    if (column === undefined) continue;
+    if (!(column instanceof Uint16Array)) {
+      throw new Error(`Archive simulation.extensions.economy.${field} must be a Uint16Array`);
+    }
+    if (cellCount !== undefined && column.length !== cellCount) {
+      throw new Error(
+        `Archive simulation.extensions.economy.${field} has length ${column.length}; expected ${cellCount}`
+      );
+    }
+  }
+  if (slice.productionByBurg !== undefined) {
+    assertEntityKeyedRecord(slice.productionByBurg, world.pack.burgs, "simulation.extensions.economy.productionByBurg");
+    for (const [burgId, production] of Object.entries(slice.productionByBurg as Record<string, unknown>)) {
+      assertArray(production, `simulation.extensions.economy.productionByBurg.${burgId}`);
+    }
+  }
+}
+
+function validateNobilitySlice(slice: Record<string, unknown>, world: WorldContext): void {
+  for (const field of ["rulerIdByState", "conflictAuthorizationsByState"]) {
+    const values = slice[field];
+    if (values === undefined) continue;
+    assertEntityKeyedRecord(values, world.pack.states, `simulation.extensions.nobility.${field}`);
+    if (field === "rulerIdByState") {
+      for (const [stateId, rulerId] of Object.entries(values as Record<string, unknown>)) {
+        assertNonNegativeInteger(rulerId, `simulation.extensions.nobility.rulerIdByState.${stateId}`);
+      }
+    }
+  }
+}
+
+function validateShipbuildingSlice(slice: Record<string, unknown>): void {
+  if (slice.runtimeState === undefined) return;
+  assertRecord(slice.runtimeState, "simulation.extensions.shipbuilding.runtimeState");
+  const runtimeState = slice.runtimeState;
+  for (const field of ["queues", "surplusQueues", "stateTechPoints", "completedHulls", "hulls"]) {
+    assertRecord(runtimeState[field], `simulation.extensions.shipbuilding.runtimeState.${field}`);
+  }
+  assertNonNegativeInteger(runtimeState.nextHullId, "simulation.extensions.shipbuilding.runtimeState.nextHullId");
+}
+
+function collectEconomyCoreReferences(slice: Record<string, unknown>): readonly CoreReference[] {
+  return [
+    ...collectEntityReferences(slice.productionByBurg, "burg"),
+    ...collectEntityReferences(slice.strategicGoodsPolicies, "state", "orphan")
+  ];
+}
+
+function collectNobilityCoreReferences(slice: Record<string, unknown>): readonly CoreReference[] {
+  const refs: CoreReference[] = [];
+  const seen = new Set<number>();
+  const addState = (rawId: string): void => {
+    const id = Number(rawId);
+    if (!Number.isInteger(id) || id <= 0 || seen.has(id)) return;
+    seen.add(id);
+    refs.push({ kind: "state", id, onDelete: "restrict" });
+  };
+
+  const rulers = isRecord(slice.rulerIdByState) ? slice.rulerIdByState : {};
+  for (const [stateId, rulerId] of Object.entries(rulers)) {
+    // Compatibility projection materialises undefined slots for every state.
+    if (typeof rulerId === "number" && Number.isInteger(rulerId) && rulerId >= 0) addState(stateId);
+  }
+
+  const authorizations = isRecord(slice.conflictAuthorizationsByState) ? slice.conflictAuthorizationsByState : {};
+  for (const [stateId, auth] of Object.entries(authorizations)) {
+    if (isRecord(auth) && Object.keys(auth).length > 0) addState(stateId);
+  }
+
+  return refs;
+}
+
+function collectShipbuildingCoreReferences(slice: Record<string, unknown>): readonly CoreReference[] {
+  const runtimeState = isRecord(slice.runtimeState) ? slice.runtimeState : {};
+  return [
+    ...collectEntityReferences(runtimeState.queues, "burg", "orphan"),
+    ...collectEntityReferences(runtimeState.stateTechPoints, "state", "orphan")
+  ];
+}
+
+function identityMigrate(_fromVersion: number, value: unknown): unknown {
+  return value;
+}
+
+const BUILTIN_STATE_SLICE_SPECS: readonly ExtensionStateSliceSpec[] = [
+  {
+    extensionId: "characters",
+    schemaVersion: 1,
+    defaultState: () => ({ characters: [] }),
+    validate: value => {
+      assertRecord(value, "simulation.extensions.characters");
+      validateCharactersSlice(value);
+    },
+    migrate: identityMigrate,
+    collectCoreReferences: () => []
+  },
+  {
+    extensionId: "economy",
+    schemaVersion: 1,
+    defaultState: () => ({}),
+    validate: (value, world) => {
+      assertRecord(value, "simulation.extensions.economy");
+      validateEconomySlice(value, world);
+    },
+    migrate: identityMigrate,
+    collectCoreReferences: slice => collectEconomyCoreReferences(slice)
+  },
+  {
+    extensionId: "nobility",
+    schemaVersion: 1,
+    defaultState: () => ({}),
+    validate: (value, world) => {
+      assertRecord(value, "simulation.extensions.nobility");
+      validateNobilitySlice(value, world);
+    },
+    migrate: identityMigrate,
+    collectCoreReferences: slice => collectNobilityCoreReferences(slice)
+  },
+  {
+    extensionId: "shipbuilding",
+    schemaVersion: 1,
+    defaultState: () => ({}),
+    validate: value => {
+      assertRecord(value, "simulation.extensions.shipbuilding");
+      validateShipbuildingSlice(value);
+    },
+    migrate: identityMigrate,
+    collectCoreReferences: slice => collectShipbuildingCoreReferences(slice)
+  }
+];
+
+let builtinsRegistered = false;
+
+/** Ensures host-known extension slices stay registered across test clears. */
+export function ensureBuiltinStateSlicesRegistered(): void {
+  if (builtinsRegistered) {
+    // Re-register after a full registry clear without flipping the flag early.
+    for (const spec of BUILTIN_STATE_SLICE_SPECS) {
+      try {
+        registerStateSliceSpec(spec);
+      } catch {
+        // Already present.
+      }
+    }
+    return;
+  }
+  for (const spec of BUILTIN_STATE_SLICE_SPECS) registerStateSliceSpec(spec);
+  builtinsRegistered = true;
+}
+
+ensureBuiltinStateSlicesRegistered();
+
 /**
  * Validates the host-known extension slice fields before archive replacement.
- * Unknown extension ids remain opaque records until the registration seam can
- * supply their own validator; they are still required to have a safe container.
+ * Unknown extension ids remain safe record containers until migration demotes
+ * them to opaque chunks or a registered validator claims them.
  */
 export function assertValidExtensionStateSlices(world: WorldContext, simulation: SimulationContext): void {
+  ensureBuiltinStateSlicesRegistered();
   if (simulation.extensions === undefined) return;
   assertRecord(simulation.extensions, "simulation.extensions");
   for (const [extensionId, slice] of Object.entries(simulation.extensions)) {
@@ -113,75 +296,16 @@ export function assertValidExtensionStateSlices(world: WorldContext, simulation:
   }
 
   const characters = simulation.extensions.characters;
-  if (characters) assertOptionalArrayField(characters, "characters", "characters");
+  if (characters) validateCharactersSlice(characters);
 
   const economy = simulation.extensions.economy;
-  if (economy) {
-    for (const field of [
-      "goods",
-      "markets",
-      "deals",
-      "caravans",
-      "burgMarketLedgers",
-      "merchantOrganizations",
-      "strategicProcurementOrders",
-      "strategicGoodsPolicies",
-      "strategicLaborMarkets"
-    ]) {
-      assertOptionalArrayField(economy, field, "economy");
-    }
-    for (const field of ["nextCaravanId", "nextStrategicProcurementOrderId"]) {
-      if (economy[field] !== undefined)
-        assertNonNegativeInteger(economy[field], `simulation.extensions.economy.${field}`);
-    }
-    const cellCount = world.pack.cells.i?.length;
-    for (const field of ["good", "market"]) {
-      const column = economy[field];
-      if (column === undefined) continue;
-      if (!(column instanceof Uint16Array)) {
-        throw new Error(`Archive simulation.extensions.economy.${field} must be a Uint16Array`);
-      }
-      if (cellCount !== undefined && column.length !== cellCount) {
-        throw new Error(
-          `Archive simulation.extensions.economy.${field} has length ${column.length}; expected ${cellCount}`
-        );
-      }
-    }
-    if (economy.productionByBurg !== undefined) {
-      assertEntityKeyedRecord(
-        economy.productionByBurg,
-        world.pack.burgs,
-        "simulation.extensions.economy.productionByBurg"
-      );
-      for (const [burgId, production] of Object.entries(economy.productionByBurg as Record<string, unknown>)) {
-        assertArray(production, `simulation.extensions.economy.productionByBurg.${burgId}`);
-      }
-    }
-  }
+  if (economy) validateEconomySlice(economy, world);
 
   const nobility = simulation.extensions.nobility;
-  if (nobility) {
-    for (const field of ["rulerIdByState", "conflictAuthorizationsByState"]) {
-      const values = nobility[field];
-      if (values === undefined) continue;
-      assertEntityKeyedRecord(values, world.pack.states, `simulation.extensions.nobility.${field}`);
-      if (field === "rulerIdByState") {
-        for (const [stateId, rulerId] of Object.entries(values as Record<string, unknown>)) {
-          assertNonNegativeInteger(rulerId, `simulation.extensions.nobility.rulerIdByState.${stateId}`);
-        }
-      }
-    }
-  }
+  if (nobility) validateNobilitySlice(nobility, world);
 
   const shipbuilding = simulation.extensions.shipbuilding;
-  if (shipbuilding?.runtimeState !== undefined) {
-    assertRecord(shipbuilding.runtimeState, "simulation.extensions.shipbuilding.runtimeState");
-    const runtimeState = shipbuilding.runtimeState;
-    for (const field of ["queues", "surplusQueues", "stateTechPoints", "completedHulls", "hulls"]) {
-      assertRecord(runtimeState[field], `simulation.extensions.shipbuilding.runtimeState.${field}`);
-    }
-    assertNonNegativeInteger(runtimeState.nextHullId, "simulation.extensions.shipbuilding.runtimeState.nextHullId");
-  }
+  if (shipbuilding) validateShipbuildingSlice(shipbuilding);
 }
 
 function getSlice(slices: ExtensionStateSlices, extensionId: string): Record<string, unknown> {

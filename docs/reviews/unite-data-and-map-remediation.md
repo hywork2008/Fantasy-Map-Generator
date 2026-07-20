@@ -17,16 +17,44 @@
 | P2-1 | Medium | Verified | `WorldRuntime.read()` と ExtensionAPI が mutable backing store を公開する | dynamic extension 向け read facade を導入し、raw mutable buffer を到達不能にする |
 | P2-2 | Medium | Verified | `PresentationData` に layer order / overlays がなく、WebGL style の SVG fallback が残る | 保存対象を model 化し、live SVG style read を compatibility path へ限定または除去 |
 | P2-3 | Medium | Verified | Simulation の RNG 分離・daily runner・headless interface が未完 | simulation slice に RNG state を保存し、renderer/UI 非依存の day step を test surface にする |
-| P2-4 | Medium | Pending | extension slice registration / opaque chunk promotion / core-reference delete policy が未完 | scoped extension seam と archive validation/migration lifecycle を実装 |
+| P2-4 | Medium | Verified | extension slice registration / opaque chunk promotion / core-reference delete policy が未完 | scoped extension seam と archive validation/migration lifecycle を実装（計画 §9 `registerStateSlice` / migration / `collectCoreReferences`） |
 | P2-5 | Medium | Pending | UI 日次経路と public bulk 経路が別 semantics のまま（互換期間中） | 各 system の bulk/日次差を versioned migration で解消し、UI と `window.fmg.actions.advanceTime` が同じ daily command 列（`SimulationRunner` / `simulation.stepDay`）から同一 state・tickCount・RNG・event を作る |
 | P2-6 | Medium | Pending | simulation RNG が単一共有 stream のまま（per-system 派生が未実装） | system ID と tick/date から独立 stream を得られ、一 extension の追加乱数消費が他 system の結果を変えない。algorithm version と各 stream state が archive round-trip する |
 | P2-7 | Medium | Pending | 既存 tick が `registerTimeTickHook` 互換 system に依存したまま | built-in / 主要 extension が `registerSimulationSystem`（phase / cadence / reads / writes / dependency）へ移行し、legacy hook API は新規利用を禁止または薄くする |
-| P3-1 | Medium | Pending | E2E の render mode 固定が不十分 | 全 map-related E2E が helper で renderer mode を明示する |
-| P3-2 | Medium | Pending | memory / GPU / partial-update benchmark が未整備 | 10k/50k/100k で required metrics を継続測定する |
+| P2-8 | Medium | Pending | module-local な tick 状態が archive / `SimulationData` に入っていない | `populationLossTracker`・Economy `forestDepletion` 等の module-private Map を versioned simulation / extension slice へ移し、save/load と headless で同一結果になる |
+| P2-9 | Medium | Pending | map generate と legacy `.map` load が `world.generate` / 完全 staging 外のまま | 生成は staging world → validate → `world.replace` / `world.generate`。legacy load も decode 完了前に live context を壊さない。完了まで「全 write が dispatch 経由」を達成済みと扱わない |
+| P2-10 | Low | Pending | `options.year/month/day` と `SimulationContext` 時計の dual mirror が残る | 唯一の正を simulation clock とし、legacy readers を移行したうえで options mirror を廃止する（計画 §4.2） |
+| P2-11 | Medium | Pending | target `simulation.stepDay` + `TransactionWriter` が未実装 | system は宣言 topic だけを writer 経由で書き、in-place pack/simulation 直書きを止める。一日一 command / 失敗日 rollback の契約を test で固定する（計画 §5.1 / §6） |
+| P2-12 | Medium | Pending | writer lint が controllers のみ・generator/extension の seam 漏れ | `lint-world-writers` を generators / extensions に拡張するか同等 inventory を持つ。extension tick 内の direct `draw*` は draw-layer hook / RenderCoordinator 経路へ寄せる |
+| P2-13 | Low | Pending | SVG export が `withSvgSnapshot()` に依存 | export も offscreen SVG adapter が canonical / PresentationData から生成し、renderMode 切替や live DOM snapshot に依存しない（save path は既に DOM-free） |
+| P3-1 | Medium | Pending | E2E の render mode 固定が不十分 | 全 map-related E2E が helper で renderer mode を明示する（現状 helper 使用は一部 spec に限定） |
+| P3-2 | Medium | Pending | memory / GPU / partial-update benchmark が未整備 | 10k/50k/100k で required metrics を継続測定する。基準を満たせない層だけ partial GPU update を検討（計画 Phase 7 / §13） |
+| P3-3 | Low | Pending | 計画 §12.4 architecture check が機械化されていない | Generator→Renderer import 禁止、schema field↔DataTopic coverage、public read model の mutable 到達不能を lint/test で継続強制する |
 
-### Phase 4 残作業との対応（計画 §6.2 / §6.3 / Phase 4）
+### 計画全体の残作業マップ（2026-07-20 総点検）
 
-`docs/plan/unite-data-and-map.md` の **Phase 4 — Simulation system 化** のうち、P2-3 の完了条件に含まれなかった target 作業を上表へ明示した。これらは監査で新規に見つかった Critical 欠陥ではなく、**互換期間を抜けて target architecture に乗るための後続**である。
+`docs/plan/unite-data-and-map.md` Phase 0–8 と remediation 表を突き合わせた。  
+**remediation の Verified は「監査項目の完了条件」であり、計画 Phase 全体の完了宣言ではない。**  
+完了条件が狭く Verified になった項目の後ろに、計画 target の後続が残っているケース（P2-3 型）を特に探す。
+
+| 計画 | 状況 | remediation / メモ |
+| :-- | :-- | :-- |
+| **Phase 0** 仕様固定・E2E mode | 部分 | **P3-1**。module-local inventory は **P2-8** |
+| **Phase 1** WorldRuntime shell | ほぼ完了 | generate 原子性は **P2-9**。trusted `readTrusted()` は host 用に残置（P2-1 で dynamic は分離済み） |
+| **Phase 2** 描画を commit へ | ほぼ完了 | core hook の direct renderer は除去済み。extension `draw*` は **P2-12**。3D は RenderCoordinator listener 済み |
+| **Phase 3** PresentationData | ほぼ完了（P2-2） | icon raster 等の限定的 live SVG は互換。新規 style 源は PresentationData 必須 |
+| **Phase 4** Simulation system | **互換期間中** | P2-3 完了 + **P2-5/6/7/8/11**。日次統一まで互換期間継続 |
+| **Phase 5** Command migration | 境界達成（P1-3） | heightmap 1 module allowlist 残。generator 内部 write は Phase 境界どおり許容だが **P2-12** で可視化 |
+| **Phase 6** `.fmg` archive | ほぼ完了 | save/autosave は DOM-free。opaque 昇格 lifecycle は **P2-4**。generate は **P2-9**。export snapshot は **P2-13** |
+| **Phase 7** revision projection | ほぼ完了 | partial GPU は benchmark 駆動 → **P3-2** の後 |
+| **Phase 8** physical split / Worker | checklist ほぼ [x] | temporary compatibility projection（pack mirror）は残置。完全削除は物理 split の最終段で別途 |
+| **§4.2** clock mirror 廃止 | 未着手 | **P2-10** |
+| **§5** TransactionWriter / stepDay | 未着手 | **P2-11**（P2-5 と密接） |
+| **§9** ExtensionAPI target | 部分 | **P2-4**。`registerExtensionCommand` は既存 |
+| **§12.4** arch checks | 部分 | writer lint / ownership test あり。不足は **P3-3** |
+| **§13** perf criteria | 部分 | **P3-2** |
+
+#### Phase 4 詳細（P2-3 型の分解元）
 
 | 計画項目 | remediation |
 | :-- | :-- |
@@ -35,9 +63,33 @@
 | DOM 無し interface test | P2-3 で完了（`simulationRunner`） |
 | bulk / 日次差を migration したうえで daily に統一 | **P2-5**（互換期間の出口） |
 | system ID 由来の独立 deterministic stream | **P2-6** |
-| `registerTimeTickHook` → phase 付き system への本移行 | **P2-7**（registry は既存。legacy 登録経路の解消が残る） |
+| `registerTimeTickHook` → phase 付き system への本移行 | **P2-7** |
+| population loss / forest depletion 等を versioned slice へ | **P2-8**（intelligence / strategicGoals / shipbuilding queue は slice 済み） |
+| `simulation.stepDay` + TransactionWriter | **P2-11** |
 
-**互換期間は P2-5 が Verified になるまで継続する。** それまでは `runLegacyDaily` と `advanceLegacyBulk` の二経路と、その tickCount / hook 回数 / RNG 消費差を維持する。P2-6 は P2-5 と独立に進められるが、daily 統一後に stream 契約を変えると再 characterization が必要になるため、P2-5 の前後どちらで切るかを着手時に決める。
+**互換期間は P2-5 が Verified になるまで継続する。** それまでは `runLegacyDaily` と `advanceLegacyBulk` の二経路と、その tickCount / hook 回数 / RNG 消費差を維持する。
+
+#### 総点検で「隠れていない」と確認したもの
+
+- **P0–P1 / P2-1–P2-3 の Verified 完了条件そのもの** — 実装と履歴が一致。
+- **Phase 6 save path の `withSvgSnapshot` 削除** — `.fmg` save/autosave は `captureArchiveDocument` のみ。残るのは export 用（**P2-13**）。
+- **Phase 7 topic-revision cache / Worker topology** — 計画 checklist 済み。
+- **Phase 8 cell/burg/state/military/extension slice 移動** — 計画 checklist 済み。残るは temporary projection の最終削除であり、今は inventory（`dataFieldOwnership`）で追跡。
+- **partial GPU update** — 計画どおり「必要なら」であり、先に **P3-2** の計測が前提。単独の未完 ID は切らない。
+
+#### 依存の目安
+
+```text
+P2-8 (slice 漏れ) ──┐
+P2-7 (system 本移行) ─┼─→ P2-5 (daily 統一 / 互換期間出口) ─→ P2-10 (clock mirror 廃止)
+P2-11 (stepDay/writer) ─┘         │
+P2-6 (per-system RNG) ─ 独立可（P2-5 前後で characterization 再取得）
+P2-4 (extension slice reg) ─ 独立（archive §9）
+P2-9 (generate staging) ─ 独立（Phase 1/6 残）
+P2-12 / P3-3 ─ 横断 enforcement
+P3-1 / P3-2 ─ テスト・計測
+P2-13 ─ Low、export のみ
+```
 
 ## 更新履歴
 
@@ -295,3 +347,26 @@
 - **P2-6**: per-system 派生 RNG stream と archive。
 - **P2-7**: `registerTimeTickHook` 互換経路から `registerSimulationSystem` への本移行。
 - 互換期間は P2-5 Verified まで継続する、と表直下の対応節に明記した。
+
+### 2026-07-20 — Full plan residual audit (P2-8 … P2-13, P3-3)
+
+- `unite-data-and-map.md` Phase 0–8・§4–§9・§12–§13 を remediation 表と `src/` 実装に突き合わせ、P2-3 型（Verified の狭い完了条件の後ろに target 後続が残る）の漏れを総点検した。
+- **新規に表へ載せた後続**:
+  - **P2-8** module-local tick 状態（`populationLossTracker`、`forestDepletion` 等）の slice/archive 化
+  - **P2-9** `world.generate` / generate・legacy load の staging 原子性
+  - **P2-10** options 時計 dual mirror の廃止
+  - **P2-11** `simulation.stepDay` + `TransactionWriter`
+  - **P2-12** writer inventory の generator/extension 拡張と tick 内 direct draw
+  - **P2-13** export 経路の `withSvgSnapshot` 除去
+  - **P3-3** §12.4 architecture check の機械化不足
+- **隠れていなかったもの**も対応表に明記（Phase 6 save の DOM-free 化済み、Phase 7/8 checklist 済み、partial GPU は P3-2 駆動など）。
+- 依存の目安と「Verified ≠ Phase 完了」の運用を remediation 本文に固定した。
+
+### 2026-07-20 — P2-4 extension slice registration and opaque promotion
+
+- `ExtensionAPI.registerStateSlice(spec)` / `WorldRuntime.registerStateSlice()` を追加した。spec は `schemaVersion`・`defaultState`・`validate`・`migrate`・必須の `collectCoreReferences` と、任意の encode/decode を持つ（計画 §9）。
+- `src/runtime/extensionStateSliceRegistry.ts` が registry・structured opaque codec（Typed Array 対応）・demote/promote lifecycle を所有する。`extensionArchiveTypes.ts` に core reference / opaque chunk 型を切り出し、codec と registry の循環依存を避けた。
+- Archive migration は未登録 `simulation.extensions` を opaque chunk へ demote し、登録済み extension の opaque chunk を migrate+validate 成功時だけ runtime slice へ promote する。validation 失敗時は world を変更せず opaque を保持する。
+- `captureArchiveDocument()` も demote を行い、未インストール extension のデータを validated runtime slice として保存しない。登録済み live slice と opaque の双方で core delete policy（restrict / orphan / unknown）を適用する。
+- Built-in characters / economy / nobility / shipbuilding は host 側で常時 register し、既存 field-level validation と entity-keyed `collectCoreReferences` を供給する。
+- 検証: `npm test -- --run src/runtime/extensionStateSliceRegistry.test.ts src/runtime/worldArchive.test.ts src/runtime/extensionStateSlices.test.ts src/runtime/worldRuntime.test.ts src/extensions/dynamicExtensionApi.test.ts` — 48 passed。`npx tsc --noEmit` — 成功。`npm run build` — 成功。
