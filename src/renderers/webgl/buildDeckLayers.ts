@@ -365,6 +365,65 @@ export function getDeckLayerDataCacheSize(): number {
   return deckLayerDataCache.size;
 }
 
+/**
+ * Approximate resident bytes of renderer-owned projection caches (layer data + land topology CSR).
+ * Used by `npm run perf:webgl-layers` (§13 / P3-2); not a precise heap profiler.
+ */
+export function estimateDeckLayerProjectionBytes(): {
+  readonly cacheEntries: number;
+  readonly layerDataBytes: number;
+  readonly landTopologyBytes: number;
+  readonly totalBytes: number;
+} {
+  let layerDataBytes = 0;
+  for (const entry of deckLayerDataCache.values()) {
+    layerDataBytes += estimateCachedDeckDataBytes(entry.data);
+  }
+  const topology = landTopologyCache.topology;
+  const landTopologyBytes = topology
+    ? topology.cellIds.byteLength + topology.polygonOffsets.byteLength + topology.coordinates.byteLength
+    : 0;
+  return {
+    cacheEntries: deckLayerDataCache.size,
+    layerDataBytes,
+    landTopologyBytes,
+    totalBytes: layerDataBytes + landTopologyBytes
+  };
+}
+
+function estimateCachedDeckDataBytes(data: CachedDeckData): number {
+  // Per-datum object overhead is environment-dependent; count payload-ish fields only.
+  let bytes = 0;
+  // Binary attribute bags (e.g. precipitation) are non-enumerable on the array.
+  const binaryAttributes = (data as { attributes?: Record<string, { value?: ArrayBufferView }> }).attributes;
+  if (binaryAttributes) {
+    for (const attr of Object.values(binaryAttributes)) {
+      if (attr?.value && ArrayBuffer.isView(attr.value)) bytes += attr.value.byteLength;
+    }
+  }
+  for (const item of data) {
+    bytes += 64; // rough object shell
+    if (!item || typeof item !== "object") continue;
+    const record = item as unknown as Record<string, unknown>;
+    for (const value of Object.values(record)) {
+      if (ArrayBuffer.isView(value)) {
+        bytes += (value as ArrayBufferView).byteLength;
+      } else if (Array.isArray(value)) {
+        // polygon / path positions: number[][] or number[]
+        bytes += value.length * 16;
+        for (const nested of value) {
+          if (Array.isArray(nested)) bytes += nested.length * 8;
+        }
+      } else if (typeof value === "string") {
+        bytes += value.length * 2;
+      } else if (typeof value === "number" || typeof value === "boolean") {
+        bytes += 8;
+      }
+    }
+  }
+  return bytes;
+}
+
 export interface BuildDeckLayersOptions {
   readonly includeLabels?: boolean;
   readonly includeBurgIcons?: boolean;

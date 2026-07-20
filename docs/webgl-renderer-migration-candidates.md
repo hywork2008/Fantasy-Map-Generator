@@ -291,19 +291,32 @@ Phase 7 では `DeckGlRenderer` が `WorldRuntime.read()` の topic revision pro
 | layer toggle | 発生するが、`buildLayerSignatures()` の粒度修正後は該当レイヤーの signature のみ計算・比較され、他の active レイヤーは cache hit で `data` 参照を再利用する（`deckDataAdapters.test.ts` の stability テストで検証） |
 | zoom / pan | 発生しない。`DeckGlRenderer.syncViewState()` は `viewState`/`width`/`height` の `setProps` のみ行い `buildDeckLayers()` を一切呼ばない（`deckRenderer.test.ts` で回帰テスト化） |
 
-#### 10k / 50k / 100k cell 性能計測
+#### 10k / 50k / 100k cell 性能計測（P3-2 / §13）
 
-`npm run perf:webgl-layers`（`scripts/benchmarkWebglLayers.ts`）を追加した。共有頂点を持つ合成 grid mesh 上で、cell 数に依存するレイヤー（height/biomes/states/provinces/temperature/population/precipitation/danger/cells/grid/borders）のみを対象に、cold cache 初回描画・preset 切替・signature 不変の repeat call（zoom/pan が実際には辿らない経路の upper bound）を計測する。burgIcons/markers/military/labels/emblems はセル数ではなくエンティティ数に依存するため合成データでは意図的に空にし、対象外とした。
+`npm run perf:webgl-layers`（`scripts/benchmarkWebglLayers.ts`）が継続計測ハーネス。共有頂点を持つ合成 grid mesh 上で、cell 数に依存するレイヤー（height/biomes/states/provinces/temperature/population/precipitation/danger/cells/grid/borders）を対象に次を測る:
 
-実行結果例（開発機、単発計測。JIT warm-up 用に 2,000 cell の捨てラン後に計測）:
+| 指標 | 意味 |
+| :--- | :--- |
+| initial | cold-cache 初回 projection |
+| single-topic | `map.politics` だけ revision を上げた rebuild |
+| full replace | 全 topic revision を上げた rebuild（archive / generate 相当） |
+| preset switch | レイヤー preset 切替（partial cache hit） |
+| zoom-only | signature 不変の full cache hit（実 zoom は `buildDeckLayers` を呼ばない upper bound） |
+| pack/grid TA / projection cache / land CSR / GPU attrs / concurrent budget | 同時保持量の概算 |
+| snapshot staging | dense cell column の clone コスト（rollback / archive 近似） |
+| cache release | `clearDeckLayerDataCache` 後に解放された projection バイト（mode-switch 近似） |
 
-| cells | initial draw (ms) | preset switch (ms) | zoom-only / full cache hit (ms) |
-| --: | --: | --: | --: |
-| 10,000 | 126.0 | 25.7 | 0.5 |
-| 50,000 | 570.3 | 157.3 | 1.6 |
-| 100,000 | 1324.9 | 344.1 | 3.1 |
+最新 JSON は `docs/analytics/webgl-layer-benchmark-latest.json`。partial GPU は single-topic/initial 比が soft threshold（0.55）を超えたときだけ検討する。
 
-cache hit のみのケース（zoom/pan 相当）は cell 数に対してほぼ一定かつ低コストで、実装が意図通り機能していることを裏付ける。preset 切替は初回描画よりかなり速いが、切替後に新たに active になったレイヤーの再構築コストがそのまま残るため cell 数に応じて増える。
+実行結果例（2026-07-20、開発機。JIT warm-up 用に 2,000 cell の捨てラン後）:
+
+| cells | initial (ms) | single-topic (ms) | full replace (ms) | preset (ms) | zoom-only (ms) |
+| --: | --: | --: | --: | --: | --: |
+| 10,000 | 90.3 | 27.8 | 110.8 | 24.0 | 0.1 |
+| 50,000 | 499.5 | 194.0 | 497.7 | 135.7 | 0.1 |
+| 100,000 | 1210.4 | 392.8 | 1269.3 | 328.7 | 0.1 |
+
+100k で single-topic/initial ≈ 0.32（threshold 0.55 未満）のため **partial GPU update は不要** と判定。zoom-only cache hit は cell 数に対してほぼ一定かつ低コスト。
 
 #### shared land-cell geometry cache
 

@@ -28,7 +28,7 @@
 | P2-12 | Medium | Verified | writer lint が controllers のみ・generator/extension の seam 漏れ | `lint-world-writers` を generators / extensions に拡張するか同等 inventory を持つ。extension tick 内の direct `draw*` は draw-layer hook / RenderCoordinator 経路へ寄せる |
 | P2-13 | Low | Verified | SVG export が `withSvgSnapshot()` に依存 | export も offscreen SVG adapter が canonical / PresentationData から生成し、renderMode 切替や live DOM snapshot に依存しない（save path は既に DOM-free） |
 | P3-1 | Medium | Verified | E2E の render mode 固定が不十分 | 全 map-related E2E が helper で renderer mode を明示する（現状 helper 使用は一部 spec に限定） |
-| P3-2 | Medium | Pending | memory / GPU / partial-update benchmark が未整備 | 10k/50k/100k で required metrics を継続測定する。基準を満たせない層だけ partial GPU update を検討（計画 Phase 7 / §13） |
+| P3-2 | Medium | Verified | memory / GPU / partial-update benchmark が未整備 | 10k/50k/100k で required metrics を継続測定する。基準を満たせない層だけ partial GPU update を検討（計画 Phase 7 / §13） |
 | P3-3 | Low | Verified | 計画 §12.4 architecture check が機械化されていない | Generator→Renderer import 禁止、schema field↔DataTopic coverage、public read model の mutable 到達不能を lint/test で継続強制する |
 
 ### 計画全体の残作業マップ（2026-07-20 総点検）
@@ -46,13 +46,13 @@
 | **Phase 4** Simulation system | 日次統一完了（P2-5） | P2-3/5/6/7/8/11 Verified。互換 bulk 単一 commit は廃止 |
 | **Phase 5** Command migration | 境界達成（P1-3） | heightmap 1 module allowlist 残。generator 内部 write は Phase 境界どおり許容、**P2-12** で inventory 可視化済み |
 | **Phase 6** `.fmg` archive | ほぼ完了 | save/autosave は DOM-free。opaque 昇格 lifecycle は **P2-4**。generate / legacy load staging は **P2-9**。export offscreen SVG は **P2-13** |
-| **Phase 7** revision projection | ほぼ完了 | partial GPU は benchmark 駆動 → **P3-2** の後 |
+| **Phase 7** revision projection | 完了（P3-2） | topic revision cache 済み。partial GPU は 100k single-topic/initial≈0.32 で **不要** 判定 |
 | **Phase 8** physical split / Worker | checklist ほぼ [x] | temporary compatibility projection（pack mirror）は残置。完全削除は物理 split の最終段で別途 |
 | **§4.2** clock mirror 廃止 | 完了（P2-10） | options は生成パラメータのみ。live は simulationContext |
 | **§5** TransactionWriter / stepDay | 基盤完了（P2-11） | transitional は in-place mutation + markChanged。完全 staged write は後続 |
 | **§9** ExtensionAPI target | 部分 | **P2-4**。`registerExtensionCommand` は既存 |
 | **§12.4** arch checks | 完了（P3-3） | Generator→Renderer lint、field↔topic coverage、read-model immutability を機械化。writer lint は P1-3/P2-12 |
-| **§13** perf criteria | 部分 | **P3-2** |
+| **§13** perf criteria | 完了（P3-2） | `npm run perf:webgl-layers` が 10k/50k/100k の required metrics を出力し JSON を残す |
 
 #### Phase 4 詳細（P2-3 型の分解元）
 
@@ -469,3 +469,14 @@ P2-13 ─ Low、export のみ
 - `dataFieldOwnership` coverage test を拡張: core / FULL_REPLACE `DataTopic` 対応、WorldContext / SimulationContext / PresentationData / PackedGraph / PackedGraphCells / Grid の field 対応、brace 展開後の一意性、owner↔topic 整合。`pack.cells.area` を inventory に追加。
 - `extensionReadModel.test.ts` で public read model の DFS 到達検査（Array/Map/Set/TypedArray/ArrayBuffer 禁止、frozen facade、host mutation isolation）。dynamic API テストも mutable context 非露出を強化。
 - 検証: `npm run lint:architecture` — passed。`npm test -- --run src/runtime/dataFieldOwnership.test.ts src/runtime/extensionReadModel.test.ts src/extensions/dynamicExtensionApi.test.ts` — 19 passed。`npx tsc --noEmit` — 成功。
+
+### 2026-07-20 — P3-2 continuous §13 benchmark harness
+
+- `scripts/benchmarkWebglLayers.ts` を §13 required metrics 用に拡張。10k / 50k / 100k で:
+  - **timings**: initial projection、single-topic（`map.politics`）、full replace、preset switch、zoom-only cache hit
+  - **memory**: pack/grid typed-array budget、projection cache / land CSR bytes、estimated GPU binary attrs、snapshot staging clone、heap samples、mode-switch cache release
+  - **decision**: single-topic/initial 比が soft threshold（0.55）を超えたときだけ partial GPU を推奨
+- `estimateDeckLayerProjectionBytes()` を `buildDeckLayers.ts` に追加（cache + land topology の概算バイト）。
+- 出力: console tables + `docs/analytics/webgl-layer-benchmark-latest.json`。`docs/webgl-renderer-migration-candidates.md` の計測節を更新。
+- 2026-07-20 実行（100k）: initial 1210 ms、single-topic 393 ms（比 0.32）、full replace 1269 ms、zoom-only 0.1 ms → **partial GPU 不要**。soft budget 超過なし。
+- 検証: `npm run perf:webgl-layers` — 成功（JSON 更新）。`npx tsc --noEmit` — 成功。
