@@ -15,6 +15,7 @@ function createEffects(): RenderEffects {
     renderBurgLabels: vi.fn(),
     renderMarkers: vi.fn(),
     renderMilitary: vi.fn(),
+    renderExtensionLayers: vi.fn(),
     scheduleWebglUpdate: vi.fn(),
     scheduleLandTopologyProjection: vi.fn(),
     schedule3dTerrainUpdate: vi.fn(),
@@ -189,5 +190,38 @@ describe("RenderCoordinator", () => {
 
     expect(effects.scheduleLandTopologyProjection).toHaveBeenCalledOnce();
     expect(effects.scheduleWebglUpdate).toHaveBeenCalledOnce();
+  });
+
+  it("redraws extension layers from extension.* topics without a full world pass (P2-12)", async () => {
+    const runtime = createWorldRuntime({} as WorldContext, {} as SimulationContext);
+    const effects = createEffects();
+    createRenderCoordinator(runtime, effects);
+
+    await runtime.dispatch({
+      type: "legacy.mutation",
+      execute: () => ({
+        result: undefined,
+        topics: ["extension.shipbuilding", "extension.economy"]
+      })
+    });
+
+    expect(effects.renderExtensionLayers).toHaveBeenCalledOnce();
+    expect(effects.scheduleWebglUpdate).toHaveBeenCalledOnce();
+    expect(effects.renderFullWorld).not.toHaveBeenCalled();
+    expect(effects.renderBorders).not.toHaveBeenCalled();
+  });
+
+  it("does not run extension draw hooks for core-only map topics", async () => {
+    const runtime = createWorldRuntime({} as WorldContext, {} as SimulationContext);
+    const effects = createEffects();
+    createRenderCoordinator(runtime, effects);
+
+    await runtime.dispatch({
+      type: "legacy.mutation",
+      execute: () => ({ result: undefined, topics: ["map.politics"] })
+    });
+
+    expect(effects.renderExtensionLayers).not.toHaveBeenCalled();
+    expect(effects.renderBorders).toHaveBeenCalledOnce();
   });
 });

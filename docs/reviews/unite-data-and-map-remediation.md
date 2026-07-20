@@ -25,7 +25,7 @@
 | P2-9 | Medium | Verified | map generate と legacy `.map` load が `world.generate` / 完全 staging 外のまま | 生成は staging world → validate → `world.replace` / `world.generate`。legacy load も decode 完了前に live context を壊さない。完了まで「全 write が dispatch 経由」を達成済みと扱わない |
 | P2-10 | Low | Verified | `options.year/month/day` と `SimulationContext` 時計の dual mirror が残る | 唯一の正を simulation clock とし、legacy readers を移行したうえで options mirror を廃止する（計画 §4.2） |
 | P2-11 | Medium | Verified | target `simulation.stepDay` + `TransactionWriter` が未実装 | system は宣言 topic だけを writer 経由で書き、in-place pack/simulation 直書きを止める。一日一 command / 失敗日 rollback の契約を test で固定する（計画 §5.1 / §6） |
-| P2-12 | Medium | Pending | writer lint が controllers のみ・generator/extension の seam 漏れ | `lint-world-writers` を generators / extensions に拡張するか同等 inventory を持つ。extension tick 内の direct `draw*` は draw-layer hook / RenderCoordinator 経路へ寄せる |
+| P2-12 | Medium | Verified | writer lint が controllers のみ・generator/extension の seam 漏れ | `lint-world-writers` を generators / extensions に拡張するか同等 inventory を持つ。extension tick 内の direct `draw*` は draw-layer hook / RenderCoordinator 経路へ寄せる |
 | P2-13 | Low | Pending | SVG export が `withSvgSnapshot()` に依存 | export も offscreen SVG adapter が canonical / PresentationData から生成し、renderMode 切替や live DOM snapshot に依存しない（save path は既に DOM-free） |
 | P3-1 | Medium | Pending | E2E の render mode 固定が不十分 | 全 map-related E2E が helper で renderer mode を明示する（現状 helper 使用は一部 spec に限定） |
 | P3-2 | Medium | Pending | memory / GPU / partial-update benchmark が未整備 | 10k/50k/100k で required metrics を継続測定する。基準を満たせない層だけ partial GPU update を検討（計画 Phase 7 / §13） |
@@ -41,10 +41,10 @@
 | :-- | :-- | :-- |
 | **Phase 0** 仕様固定・E2E mode | 部分 | **P3-1**。module-local inventory は **P2-8** |
 | **Phase 1** WorldRuntime shell | 完了（P2-9） | generate は `world.generate`、legacy load は decode→stage→`world.replace`。trusted `readTrusted()` は host 用に残置（P2-1 で dynamic は分離済み） |
-| **Phase 2** 描画を commit へ | ほぼ完了 | core hook の direct renderer は除去済み。extension `draw*` は **P2-12**。3D は RenderCoordinator listener 済み |
+| **Phase 2** 描画を commit へ | ほぼ完了 | core + extension tick の direct renderer は除去済み（**P2-12**）。3D は RenderCoordinator listener 済み。editor 操作時の extension `draw*` は layer toggle / draw hook 側 |
 | **Phase 3** PresentationData | ほぼ完了（P2-2） | icon raster 等の限定的 live SVG は互換。新規 style 源は PresentationData 必須 |
 | **Phase 4** Simulation system | 日次統一完了（P2-5） | P2-3/5/6/7/8/11 Verified。互換 bulk 単一 commit は廃止 |
-| **Phase 5** Command migration | 境界達成（P1-3） | heightmap 1 module allowlist 残。generator 内部 write は Phase 境界どおり許容だが **P2-12** で可視化 |
+| **Phase 5** Command migration | 境界達成（P1-3） | heightmap 1 module allowlist 残。generator 内部 write は Phase 境界どおり許容、**P2-12** で inventory 可視化済み |
 | **Phase 6** `.fmg` archive | ほぼ完了 | save/autosave は DOM-free。opaque 昇格 lifecycle は **P2-4**。generate / legacy load staging は **P2-9**。export snapshot は **P2-13** |
 | **Phase 7** revision projection | ほぼ完了 | partial GPU は benchmark 駆動 → **P3-2** の後 |
 | **Phase 8** physical split / Worker | checklist ほぼ [x] | temporary compatibility projection（pack mirror）は残置。完全削除は物理 split の最終段で別途 |
@@ -429,3 +429,13 @@ P2-13 ─ Low、export のみ
 - Generation-time readers keep `options.year` (states / military / burgs / frontiers / historical war scars). `initSimulationClock` / user Year–Era edits still seed the live clock from options.
 - Regression: multi-day advance leaves options generation year/month/day unchanged while simulation clock advances.
 - 検証: `npm test -- --run src/runtime/simulationRunner.test.ts src/generators/simulationSystem.test.ts src/generators/timeEngine.systems.test.ts src/extensions/characters/advanceAge.test.ts src/extensions/nobility/generators/strategic-planner.test.ts src/extensions/nobility/generators/provinceLordGenerator.test.ts src/extensions/economy/generators/production-utils.test.ts src/extensions/economy/generators/caravans.test.ts` — 44 passed (2 skipped)。`npx tsc --noEmit` — 成功。`npm run build` — 成功。
+
+### 2026-07-20 — P2-12 writer inventory + extension tick draw seam
+
+- `scripts/lint-world-writers.ts` を `src/controllers` / `src/generators` / `src/extensions` に拡張。検出パターンに `this.worldContext` / `getWorldContext()` / `api.worldContext` を含め、test ファイルは除外する。
+  - controllers / extensions: 未登録の direct write は lint 失敗（allowlist: heightmapEditor、charactersContext）。
+  - generators: Phase 5 どおり directory policy で許可しつつ、direct-pattern hit を inventory 出力で可視化する。
+- Shipbuilding / Economy の `registerSimulationSystem` から tick 内 `drawShipyards` / `TradeAnimation.start` を除去。`writer.markChanged(extension.*)` 後に RenderCoordinator が `renderExtensionLayers`（`runDrawLayerHooks`）と WebGL update を rAF coalesce する。
+- layer toggle / editor 経路の `draw*` と `registerDrawLayerHook` は維持（ユーザー操作の即時表示）。
+- 付随: `worldArchive.ts` の未使用 `_assertRecordArray` を削除（`tsc --noEmit` の dead-code エラー）。
+- 検証: `npm run lint:world-writers` — passed。`npm test -- --run src/runtime/renderCoordinator.test.ts src/generators/timeEngine.systems.test.ts src/runtime/simulationRunner.test.ts` — 22 passed。`npx tsc --noEmit` — 成功。`npm run build` — 成功。

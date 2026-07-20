@@ -187,9 +187,8 @@ export function init(api: ExtensionAPI): void {
       );
       runVoyageTick(burgs, states, effectiveDeltaYears);
       checkForeignInterference(_candidates, burgs, effectiveDeltaYears);
-      // Local SVG refresh for build-progress tooltips while the layer is on.
-      // Full draw-layer / RenderCoordinator wiring for extension ticks is P2-12.
-      if (api.layerIsOn("toggleShipyards")) drawShipyards(_candidates);
+      // Layer redraw goes through RenderCoordinator + registerDrawLayerHook after
+      // extension.* topics commit (P2-12). Overview is a dialog refresh, not a map draw.
       refreshShipyardsOverviewIfOpen(_candidates, _portCapacity);
       writer.markChanged("extension.shipbuilding", "extension.economy", "extension.nobility");
     }

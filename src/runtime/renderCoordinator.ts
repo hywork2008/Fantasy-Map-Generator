@@ -1,7 +1,13 @@
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { drawLayers, schedule3dSceneUpdate, schedule3dTerrainUpdate, scheduleWebglUpdate } from "../controllers/layers";
+import {
+  drawLayers,
+  runDrawLayerHooks,
+  schedule3dSceneUpdate,
+  schedule3dTerrainUpdate,
+  scheduleWebglUpdate
+} from "../controllers/layers";
 import {
   BordersRenderer,
   BurgIconsRenderer,
@@ -37,6 +43,8 @@ export interface RenderEffects {
   renderBurgLabels(): void;
   renderMarkers(): void;
   renderMilitary(): void;
+  /** Extension SVG / hybrid overlay hooks (`registerDrawLayerHook`). */
+  renderExtensionLayers(): void;
   scheduleWebglUpdate(): void;
   scheduleLandTopologyProjection(): void;
   schedule3dTerrainUpdate(): void;
@@ -126,6 +134,12 @@ function applyCommit(commit: WorldCommit<unknown>, effects: RenderEffects): void
     effects.refreshMilitary();
   }
 
+  // Extension systems mark extension.* topics from ticks; draw* must not run inside
+  // SimulationSystem.run — hooks coalesce here with other commit work (P2-12).
+  if ([...topics].some(topic => topic.startsWith("extension."))) {
+    effects.renderExtensionLayers();
+  }
+
   if ([...topics].some(visualTopic)) {
     if (topics.has("map.topology") || topics.has("map.physical")) effects.scheduleLandTopologyProjection();
     effects.scheduleWebglUpdate();
@@ -199,6 +213,10 @@ export function initRenderCoordinator(): void {
     renderMilitary: () => {
       if (!viewContext.renderMap || !layerIsOn("toggleMilitary")) return;
       MilitaryRenderer.render(worldContext, viewContext, appServices);
+    },
+    renderExtensionLayers: () => {
+      if (!viewContext.renderMap) return;
+      runDrawLayerHooks();
     },
     scheduleWebglUpdate,
     scheduleLandTopologyProjection: () => landTopologyScheduler?.schedule(),

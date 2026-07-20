@@ -1132,9 +1132,8 @@ export function init(api: ExtensionAPI): void {
 
       const caravanTick = Caravans.tick(effectiveDays);
       StrategicProcurement.reconcileCaravans(caravanTick.arrived, caravanTick.lost);
-      if (api.layerIsOn("toggleTrade")) {
-        TradeAnimation.start();
-      }
+      // Trade animation redraw is owned by registerDrawLayerHook after extension.economy
+      // commits through RenderCoordinator (P2-12) — do not call draw* from the tick.
 
       daysSinceLastQuarterlyUpdate += effectiveDays;
       if (daysSinceLastQuarterlyUpdate >= 90) {

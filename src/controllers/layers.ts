@@ -1341,6 +1341,15 @@ export function registerDrawLayerHook(fn: () => void): void {
   _drawLayerHooks.push(fn);
 }
 
+/**
+ * Run registered extension draw-layer hooks without a full `drawLayers()` pass.
+ * Used by RenderCoordinator when only `extension.*` topics changed so tick systems
+ * can mark topics instead of calling `draw*` directly (P2-12).
+ */
+export function runDrawLayerHooks(): void {
+  for (const hook of _drawLayerHooks) hook();
+}
+
 // ─── Tool action registry (for extension-owned react-tool-action events) ─────
 
 const _toolActionRegistry = new Map<string, (detail?: Record<string, unknown>) => void>();

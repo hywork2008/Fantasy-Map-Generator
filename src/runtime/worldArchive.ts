@@ -152,12 +152,6 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-function _assertRecordArray(value: unknown, name: string): asserts value is Record<string, unknown>[] {
-  if (!Array.isArray(value) || value.some(item => !isRecord(item))) {
-    throw new Error(`Archive ${name} must be an array of records`);
-  }
-}
-
 /**
  * 1-indexed entity tables (`pack.burgs`, historically `pack.features`, etc.).
  * Index 0 may be the sentinel number `0` or null/undefined rather than a record
