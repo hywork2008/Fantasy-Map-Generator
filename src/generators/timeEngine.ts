@@ -37,6 +37,16 @@ import { logTickProfile, measureTickStep, resetTickProfile } from "./tickProfile
 const DAYS_PER_YEAR = 365.2425;
 const DAYS_PER_MONTH = DAYS_PER_YEAR / 12; // ≈ 30.436875
 
+/**
+ * Per-frame budget for `runTimeSimulation`'s rAF loop, in wall-clock ms. Days
+ * are stepped in a tight loop until either this budget or MAX_DAYS_PER_FRAME
+ * is hit, then the frame yields (progress update, cancel check, one redraw).
+ * Leaves headroom under the ~16.6ms frame for the browser's own paint work.
+ */
+const FRAME_BUDGET_MS = 12;
+/** Safety cap on days-per-frame in case a day step is implausibly cheap. */
+const MAX_DAYS_PER_FRAME = 500;
+
 export type TimeTickHook = (
   deltaYears: number,
   deltaMonths: number,
@@ -603,8 +613,8 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
   let currentProgress = 0;
 
   // Batch the rollback snapshot across the whole rAF run instead of once per
-  // frame/day — each frame below still calls advanceTime's single-day fast
-  // path, which reuses this shared snapshot while the batch is active.
+  // frame/day — the chunked stepping below reuses this shared snapshot while
+  // the batch is active.
   enterDayBatch();
 
   const loop = () => {
@@ -616,15 +626,34 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
       return;
     }
 
-    // One simulation.stepDay per frame so the UI can paint progress / accept cancel.
-    // Same command body as window.fmg.actions.advanceTime for multi-day spans (P2-5).
+    // Advance as many days as fit in one frame's time budget instead of one
+    // day per frame. RenderCoordinator already coalesces every commit that
+    // lands in the same animation frame into a single redraw (P1-2); stepping
+    // a whole chunk of days before yielding just gives it more than one
+    // commit per frame to coalesce, so Trade animation / Military icons /
+    // WebGL projection / 3D scene updates redraw once per chunk instead of
+    // once per day. notifyAfterDayStep's delta parameter already documents
+    // tolerance for a multi-day report, and no listener depends on deltaDays
+    // being exactly 1 (they just re-read current state on the event).
+    const frameStart = performance.now();
+    let daysThisFrame = 0;
     try {
-      advanceTime(0, 0, 1);
+      while (
+        currentProgress + daysThisFrame < totalDays &&
+        daysThisFrame < MAX_DAYS_PER_FRAME &&
+        performance.now() - frameStart < FRAME_BUDGET_MS
+      ) {
+        const commit = stepDaySimulation();
+        if (!commit) break; // e.g. blocked by a concurrent world.generate dispatch.
+        daysThisFrame++;
+      }
     } catch (error) {
       exitDayBatchAfterFailure();
       throw error;
     }
-    currentProgress++;
+
+    currentProgress += daysThisFrame;
+    if (daysThisFrame > 0) notifyAfterDayStep(0, 0, daysThisFrame);
     useTimeSimulationState.getState().setSimulationProgress(currentProgress, totalDays);
 
     requestAnimationFrame(loop);
