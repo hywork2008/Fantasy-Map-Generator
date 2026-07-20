@@ -81,7 +81,7 @@ import {
   safeParseJSON,
   shouldRegenerateGrid
 } from "./utils";
-import { captureSnapshotData } from "./utils/aiDebugExporter";
+import { captureSnapshotData, debugSnapshotsEnabled } from "./utils/aiDebugExporter";
 import { normalizeConflictAutonomy } from "./utils/conflictAutonomy";
 import { locked } from "./utils/domUtils";
 import { EditorBus } from "./utils/editorBus";
@@ -992,7 +992,7 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     const commit = await dispatchWorldGenerate(opts ?? {});
     if (!commit) throw new Error("world.generate did not produce a commit");
 
-    if (import.meta.env.DEV) {
+    if (debugSnapshotsEnabled()) {
       useDebugSnapshotState.getState().addSnapshot({
         tickCount: 0,
         year: simulationContext.currentYear,

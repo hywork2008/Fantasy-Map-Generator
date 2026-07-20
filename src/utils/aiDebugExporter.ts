@@ -14,6 +14,20 @@ import type { Snapshot, SnapshotData } from "../store/debugSnapshotState";
 import { layerIsOn } from "./nodeUtils";
 
 /**
+ * Off by default — this is a war/combat-debugging tool, not everyday tooling.
+ * captureSnapshotData() deep-clones every state's diplomacy/campaigns/military
+ * and every burg's demographics via JSON round-trip, and callers append the
+ * result to an unbounded, never-pruned store — once per calendar day during
+ * Advance Time. Left on, this makes every Advance Month/Year call slower than
+ * the last for the rest of the session. Enable with
+ * `VITE_ENABLE_DEBUG_SNAPSHOTS=true` in `.env` only while debugging war/combat
+ * issues that need the time-travel snapshot history.
+ */
+export function debugSnapshotsEnabled(): boolean {
+  return import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEBUG_SNAPSHOTS === "true";
+}
+
+/**
  * Extracts the relevant dynamic state for AI debugging.
  * Doing a deep clone of the arrays to ensure they are snapshots, not references.
  */

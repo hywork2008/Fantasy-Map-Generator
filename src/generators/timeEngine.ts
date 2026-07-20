@@ -22,7 +22,7 @@ import { telemetry } from "../services/simulationTelemetry";
 import { useDebugSnapshotState } from "../store/debugSnapshotState";
 import { useOptionsState } from "../store/optionsState";
 import { useTimeSimulationState } from "../store/timeSimulationState";
-import { captureSnapshotData } from "../utils/aiDebugExporter";
+import { captureSnapshotData, debugSnapshotsEnabled } from "../utils/aiDebugExporter";
 import { getDaysInMonth, getSeason } from "../utils/seasonUtils";
 import { tickAgriculturalCalendar } from "./agriculturalStress";
 import { simulateDemographics } from "./demography-simulator";
@@ -189,7 +189,7 @@ export function notifyAfterDayStep(deltaYears: number, deltaMonths: number, delt
     { deltaYears, deltaMonths, deltaDays }
   );
 
-  if (import.meta.env.DEV) {
+  if (debugSnapshotsEnabled()) {
     try {
       useDebugSnapshotState.getState().addSnapshot({
         tickCount: simulationContext.tickCount,
