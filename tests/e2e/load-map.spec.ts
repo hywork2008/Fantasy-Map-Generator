@@ -12,7 +12,7 @@ import {
 test.describe("Map loading", () => {
   test("should load a saved map file", async ({ page }) => {
     const errors = collectPageErrors(page);
-    await loadMapFile(page, "demo.map");
+    await loadMapFile(page, "demo.map", "svg");
 
     const mapData = await getMapDataSummary(page);
     expect(mapData.hasStates).toBe(true);
@@ -26,7 +26,7 @@ test.describe("Map loading", () => {
 
   test("loaded map should have correct SVG structure", async ({ page }) => {
     const errors = collectPageErrors(page);
-    await loadMapFile(page, "demo.map");
+    await loadMapFile(page, "demo.map", "svg");
 
     const layers = await getSvgLayerPresence(page);
     expect(layers.ocean).toBe(true);
@@ -42,7 +42,7 @@ test.describe("Map loading", () => {
 
   test("loaded map should preserve state data", async ({ page }) => {
     const errors = collectPageErrors(page);
-    await loadMapFile(page, "demo.map");
+    await loadMapFile(page, "demo.map", "svg");
 
     const statesData = await getPackStatesSummary(page);
     expect(statesData.count).toBeGreaterThan(0);
@@ -55,7 +55,7 @@ test.describe("Map loading", () => {
 
   test("loaded map should preserve burg data", async ({ page }) => {
     const errors = collectPageErrors(page);
-    await loadMapFile(page, "demo.map");
+    await loadMapFile(page, "demo.map", "svg");
 
     const burgsData = await getPackBurgsSummary(page);
     expect(burgsData.count).toBeGreaterThan(0);

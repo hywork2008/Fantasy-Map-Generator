@@ -19,7 +19,7 @@ test.describe("Zone Export", () => {
     });
 
     await page.goto("/?seed=test-zones-export&width=1280&height=720");
-    await waitForMapLoad(page);
+    await waitForMapLoad(page, "svg");
   });
 
   test("should export zone with valid GeoJSON root structure", async ({ page }) => {

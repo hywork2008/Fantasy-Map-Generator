@@ -17,7 +17,7 @@ test.describe("Burgs.add", () => {
     });
 
     await page.goto("/?seed=test-burgs&width=1280&height=720");
-    await waitForMapLoad(page);
+    await waitForMapLoad(page, "svg");
   });
 
   test("should create burg with falsy port value when not on coast", async ({

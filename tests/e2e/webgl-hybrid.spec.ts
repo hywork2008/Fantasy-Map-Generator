@@ -215,7 +215,7 @@ async function getIceOffset(page: Page, iceId: number): Promise<[number, number]
 test.describe("webgl hybrid renderer", () => {
   test("switches WebGL rendering on and off with an accessible toggle", async ({ page }) => {
     await page.goto("/?seed=webgl-renderer-toggle&width=1000&height=700");
-    await waitForMapLoad(page);
+    await waitForMapLoad(page, "svg");
 
     if ((await page.locator("#optionsHide").textContent())?.trim() === "►") {
       await page.locator("#optionsHide").click();
@@ -240,9 +240,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("renders non-empty canvas and keeps SVG overlays after zoom and resize", async ({ page }) => {
     await page.goto("/?seed=webgl-hybrid&width=1280&height=720");
-    await waitForMapLoad(page);
-
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     const initialStats = await waitForWebglCanvasPixels(page);
     expect(initialStats.coloredPixels).toBeGreaterThan(500);
     expect(initialStats.nonTransparentPixels).toBeGreaterThan(500);
@@ -306,8 +304,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("keeps the left options UI above the WebGL canvas and SVG map", async ({ page }) => {
     await page.goto("/?seed=webgl-ui-layering&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
 
     await expect(page.locator("#webglMapCanvas")).toBeVisible();
@@ -321,8 +318,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("keeps dialogs and the tour prompt above the WebGL canvas", async ({ page }) => {
     await page.goto("/?seed=webgl-ui-stacking&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
 
     const tourPrompt = page.locator("#tourPromptButton");
@@ -338,8 +334,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("exports a visible WebGL map as a composited PNG", async ({ page }) => {
     await page.goto("/?seed=webgl-raster-export&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
 
     // Export/Save/Load (Sticked.tsx) only mount once the options panel is open.
@@ -365,8 +360,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("saves a WebGL map through a fresh SVG snapshot and restores the deck", async ({ page }) => {
     await page.goto("/?seed=webgl-save-snapshot&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
 
     // Export/Save/Load (Sticked.tsx) only mount once the options panel is open.
@@ -392,8 +386,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("keeps the deck context alive while a 3D view owns its own canvas", async ({ page }) => {
     await page.goto("/?seed=webgl-3d-context&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
     // Prove that the terrain texture itself rendered, rather than merely the low-poly burg icons.
     await ensureLayerOff(page, "toggleBurgIcons");
@@ -426,8 +419,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("keeps viewMesh interactive when erosion is enabled from hybrid WebGL", async ({ page }) => {
     await page.goto("/?seed=webgl-3d-erosion&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
 
     await page.locator("#optionsHide").click();
@@ -447,8 +439,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("suspends Deck layers only while viewMesh uses the satellite terrain texture", async ({ page }) => {
     await page.goto("/?seed=webgl-3d-satellite-suspend&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
 
     await page.locator("#optionsHide").click();
@@ -486,8 +477,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("builds the full viewMesh terrain after zooming the hybrid map", async ({ page }) => {
     await page.goto("/?seed=webgl-3d-full-map-texture&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
     await ensureLayerOff(page, "toggleBurgIcons");
 
@@ -518,8 +508,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("opens Edit Burg when a low-poly viewMesh icon is clicked", async ({ page }) => {
     await page.goto("/?seed=webgl-3d-burg-picking&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
     await ensureLayerOn(page, "toggleBurgIcons");
     const burg = await forceThreeDBurgFixture(page);
@@ -553,8 +542,7 @@ test.describe("webgl hybrid renderer", () => {
     });
 
     await page.goto("/?seed=webgl-3d-many-overlays&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await setLayerPreset(page, "landmass");
     await waitForWebglCanvasPixels(page);
 
@@ -600,8 +588,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("updates the viewMesh terrain texture after changing the layers preset", async ({ page }) => {
     await page.goto("/?seed=webgl-3d-preset-texture&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await setLayerPreset(page, "landmass");
     await waitForWebglCanvasPixels(page);
 
@@ -623,8 +610,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("renders population-scaled city lights in Nightscape mode", async ({ page }) => {
     await page.goto("/?seed=webgl-nightscape-city-lights&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
     await ensureLayerOn(page, "toggleBurgIcons");
     await ensureLayerOn(page, "toggleRoutes");
@@ -663,7 +649,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("applies the hybrid SVG layer policy to managed map layers and overlays", async ({ page }) => {
     await page.goto("/?seed=webgl-layer-policy&width=1000&height=700");
-    await waitForMapLoad(page);
+    await waitForMapLoad(page, "svg");
 
     // "tradeAnimation" (Economy extension) is part of WEBGL_MANAGED_SVG_LAYER_IDS, but its
     // <g> only exists once the Economy extension is enabled (addLayers() on enable).
@@ -702,8 +688,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("keeps texture and relief available as SVG overlays in WebGL hybrid mode", async ({ page }) => {
     await page.goto("/?seed=webgl-residual-overlays&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
 
     await toggleLayer(page, "toggleTexture");
@@ -731,9 +716,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("restores SVG layer visibility and clears deck layers after switching back to svg", async ({ page }) => {
     await page.goto("/?seed=webgl-svg-roundtrip&width=1000&height=700");
-    await waitForMapLoad(page);
-
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
     await expect.poll(() => getWebglRendererDomState(page)).toMatchObject({
       bodyHasHybridClass: true,
@@ -765,8 +748,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("keeps labels hidden after switching from WebGL to SVG", async ({ page }) => {
     await page.goto("/?seed=webgl-svg-label-visibility&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
 
     await page.locator("#optionsHide").click();
@@ -788,13 +770,11 @@ test.describe("webgl hybrid renderer", () => {
 
   test("recreates deck renderer and redraws canvas after loading a map", async ({ page }) => {
     await page.goto("/?seed=webgl-load-before&width=1000&height=700");
-    await waitForMapLoad(page);
-
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
     await markCurrentWebglDeck(page);
 
-    await uploadMapFixture(page, "demo.map");
+    await uploadMapFixture(page, "demo.map", "webglHybrid");
     await expect(page.locator("#webglMapCanvas")).toBeVisible();
     const stats = await waitForWebglCanvasPixels(page);
     expect(stats.coloredPixels).toBeGreaterThan(500);
@@ -810,7 +790,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("reacquires Economy SVG layers without disturbing the hybrid host layer policy after map load", async ({ page }) => {
     await page.goto("/?seed=webgl-extension-map-load&width=1000&height=700");
-    await waitForMapLoad(page);
+    await waitForMapLoad(page, "svg");
 
     await page.locator("#optionsHide").click();
     await page.locator("#extensionsTab").click();
@@ -857,7 +837,7 @@ test.describe("webgl hybrid renderer", () => {
     for (const layer of economyLayerData) {
       expect(layer.dataCount, layer.layerId).toBeGreaterThan(0);
     }
-    await uploadMapFixture(page, "demo.map");
+    await uploadMapFixture(page, "demo.map", "webglHybrid");
 
     const stats = await waitForWebglCanvasPixels(page);
     expect(stats.coloredPixels).toBeGreaterThan(500);
@@ -899,7 +879,7 @@ test.describe("webgl hybrid renderer", () => {
   test("lists Economy goods and markets in the WebGL map pick chooser", async ({ page }) => {
     const errors = collectPageErrors(page);
     await page.goto("/?seed=webgl-economy-pick-chooser&width=1000&height=700");
-    await waitForMapLoad(page);
+    await waitForMapLoad(page, "svg");
 
     await page.locator("#optionsHide").click();
     await page.locator("#extensionsTab").click();
@@ -952,7 +932,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("removes deselected Goods from WebGL rendering", async ({ page }) => {
     await page.goto("/?seed=webgl-economy-goods-selection&width=1000&height=700");
-    await waitForMapLoad(page);
+    await waitForMapLoad(page, "svg");
 
     await page.locator("#optionsHide").click();
     await page.locator("#extensionsTab").click();
@@ -988,8 +968,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("emits stable pick detail without taking over editor clicks", async ({ page }) => {
     await page.goto("/?seed=webgl-pick&width=900&height=600");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
 
     const pickPromise = page.evaluate(
@@ -1027,8 +1006,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("colours WebGL states by relation when the Diplomacy Editor selects a state on the map", async ({ page }) => {
     await page.goto("/?seed=webgl-diplomacy&width=900&height=600");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
 
     if ((await page.locator("#optionsHide").textContent())?.trim() === "►") {
@@ -1083,8 +1061,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("reports pick detail for WebGL migrated edit targets", async ({ page }) => {
     await page.goto("/?seed=webgl-pick-targets&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
 
     for (const toggleId of [
@@ -1180,8 +1157,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("opens existing editors from WebGL pick targets", async ({ page }) => {
     await page.goto("/?seed=webgl-click-edit&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
 
     for (const toggleId of ["toggleBurgIcons", "toggleMarkers", "toggleRivers", "toggleRoutes"]) {
@@ -1201,8 +1177,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("drags the selected WebGL marker without panning the map", async ({ page }) => {
     await page.goto("/?seed=webgl-marker-drag&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
     await ensureLayerOn(page, "toggleMarkers");
     const fixture = await forceWebglMarkerFixture(page);
@@ -1254,8 +1229,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("drags the selected WebGL glacier and iceberg without panning the map", async ({ page }) => {
     await page.goto("/?seed=webgl-ice-drag&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
     await ensureLayerOn(page, "toggleIce");
 
@@ -1308,7 +1282,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("hover tooltip names the same state cell in SVG and WebGL mode", async ({ page }) => {
     await page.goto("/?seed=webgl-tooltip-parity&width=1000&height=700");
-    await waitForMapLoad(page);
+    await waitForMapLoad(page, "svg");
     await ensureLayerOn(page, "toggleStates");
 
     const point = await getFirstStateScreenPoint(page);
@@ -1342,8 +1316,7 @@ test.describe("webgl hybrid renderer", () => {
   test("opens the Lake Editor from a WebGL pick target", async ({ page }) => {
     // This seed is known to generate at least one lake (see "reports pick detail" above).
     await page.goto("/?seed=webgl-pick-targets&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
     await ensureLayerOn(page, "toggleLakes");
 
@@ -1357,8 +1330,7 @@ test.describe("webgl hybrid renderer", () => {
   test("opens the Ice Editor from a WebGL pick target", async ({ page }) => {
     // Ice generation is seed/latitude dependent, so a glacier is forced at the map center.
     await page.goto("/?seed=webgl-ice-click-edit&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
     await ensureLayerOn(page, "toggleIce");
 
@@ -1382,8 +1354,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("shows a chooser when multiple WebGL edit targets overlap", async ({ page }) => {
     await page.goto("/?seed=webgl-overlap-picker&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
     await ensureLayerOn(page, "toggleMilitary");
     await ensureLayerOn(page, "toggleBurgIcons");
@@ -1438,8 +1409,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("omits display-only WebGL layers from the map pick chooser", async ({ page }) => {
     await page.goto("/?seed=webgl-chooser-display-only-layers&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
 
     await page.evaluate(() => {
       const hiddenKinds = [
@@ -1523,8 +1493,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("opens the matching editor from WebGL emblem and burg label picks", async ({ page }) => {
     await page.goto("/?seed=webgl-emblem-and-label-picks&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
 
     await page.evaluate(() => {
       const detail = {
@@ -1570,8 +1539,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("keeps state labels as editable SVG overlays", async ({ page }) => {
     await page.goto("/?seed=webgl-state-label-pick&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await expect(page.locator("#labels")).toBeVisible();
     await expect(page.locator("#labels #states text").first()).toBeVisible();
     await expect(page.locator("#labels #states tspan").first()).toHaveCSS("cursor", "pointer");
@@ -1595,8 +1563,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("renders migrated layers for major presets while keeping SVG overlays", async ({ page }) => {
     await page.goto("/?seed=webgl-presets&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await waitForWebglCanvasPixels(page);
 
     const presets = [
@@ -1675,8 +1642,7 @@ test.describe("webgl hybrid renderer", () => {
     page
   }) => {
     await page.goto("/?seed=webgl-emblem-coa&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await setLayerPreset(page, "emblems");
     await waitForWebglCanvasPixels(page);
 
@@ -1698,7 +1664,7 @@ test.describe("webgl hybrid renderer", () => {
     page
   }) => {
     await page.goto("/?seed=webgl-burg-icon-atlas&width=1000&height=700");
-    await waitForMapLoad(page);
+    await waitForMapLoad(page, "webglHybrid");
     await setLayerPreset(page, "political");
     await applyStylePreset(page, "atlas");
     await waitForWebglCanvasPixels(page);
@@ -1719,7 +1685,7 @@ test.describe("webgl hybrid renderer", () => {
     page
   }) => {
     await page.goto("/?seed=webgl-burg-icon-ancient&width=1000&height=700");
-    await waitForMapLoad(page);
+    await waitForMapLoad(page, "webglHybrid");
     await setLayerPreset(page, "political");
     await applyStylePreset(page, "ancient");
     await waitForWebglCanvasPixels(page);
@@ -1733,8 +1699,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("falls back to no icon after a marker's external image fails to load", async ({ page }) => {
     await page.goto("/?seed=webgl-marker-icon-failure&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await ensureLayerOn(page, "toggleMarkers");
     await waitForWebglCanvasPixels(page);
 
@@ -1749,7 +1714,7 @@ test.describe("webgl hybrid renderer", () => {
       pack.markers.push({ i: id, type: "marker-icon-failure-fixture", icon: url, cell: 0, x: cx, y: cy, size: 30 });
       return id;
     });
-    await page.evaluate(() => window.fmg.actions.setRenderMode("webglHybrid"));
+    await setRenderMode(page, "webglHybrid");
 
     await expect
       .poll(async () => (await getWebglMarkerIconState(page, markerId))?.isExternalIcon, { timeout: 5000 })
@@ -1765,8 +1730,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("uses deck.gl only for burg labels while state labels keep their SVG textPath", async ({ page }) => {
     await page.goto("/?seed=webgl-label-style&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await setLayerPreset(page, "political");
     await waitForWebglCanvasPixels(page);
 
@@ -1790,8 +1754,7 @@ test.describe("webgl hybrid renderer", () => {
 
   test("keeps WebGL style data populated across representative style presets", async ({ page }) => {
     await page.goto("/?seed=webgl-style-fidelity&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await setLayerPreset(page, "political");
     await waitForWebglCanvasPixels(page);
 
@@ -1866,8 +1829,7 @@ test.describe("webgl hybrid renderer on HiDPI", () => {
 
   test("keeps canvas density and representative style units stable on desktop and mobile", async ({ page }) => {
     await page.goto("/?seed=webgl-hidpi-style&width=1000&height=700");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "webglHybrid");
+    await waitForMapLoad(page, "webglHybrid");
     await setLayerPreset(page, "political");
     await ensureLayerOn(page, "toggleBurgIcons");
     await waitForWebglCanvasPixels(page);

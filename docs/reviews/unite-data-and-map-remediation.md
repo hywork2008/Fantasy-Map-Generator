@@ -27,7 +27,7 @@
 | P2-11 | Medium | Verified | target `simulation.stepDay` + `TransactionWriter` が未実装 | system は宣言 topic だけを writer 経由で書き、in-place pack/simulation 直書きを止める。一日一 command / 失敗日 rollback の契約を test で固定する（計画 §5.1 / §6） |
 | P2-12 | Medium | Verified | writer lint が controllers のみ・generator/extension の seam 漏れ | `lint-world-writers` を generators / extensions に拡張するか同等 inventory を持つ。extension tick 内の direct `draw*` は draw-layer hook / RenderCoordinator 経路へ寄せる |
 | P2-13 | Low | Verified | SVG export が `withSvgSnapshot()` に依存 | export も offscreen SVG adapter が canonical / PresentationData から生成し、renderMode 切替や live DOM snapshot に依存しない（save path は既に DOM-free） |
-| P3-1 | Medium | Pending | E2E の render mode 固定が不十分 | 全 map-related E2E が helper で renderer mode を明示する（現状 helper 使用は一部 spec に限定） |
+| P3-1 | Medium | Verified | E2E の render mode 固定が不十分 | 全 map-related E2E が helper で renderer mode を明示する（現状 helper 使用は一部 spec に限定） |
 | P3-2 | Medium | Pending | memory / GPU / partial-update benchmark が未整備 | 10k/50k/100k で required metrics を継続測定する。基準を満たせない層だけ partial GPU update を検討（計画 Phase 7 / §13） |
 | P3-3 | Low | Pending | 計画 §12.4 architecture check が機械化されていない | Generator→Renderer import 禁止、schema field↔DataTopic coverage、public read model の mutable 到達不能を lint/test で継続強制する |
 
@@ -39,7 +39,7 @@
 
 | 計画 | 状況 | remediation / メモ |
 | :-- | :-- | :-- |
-| **Phase 0** 仕様固定・E2E mode | 部分 | **P3-1**。module-local inventory は **P2-8** |
+| **Phase 0** 仕様固定・E2E mode | ほぼ完了 | **P3-1 Verified**（全 map-related E2E が helper で mode 明示）。module-local inventory は **P2-8** |
 | **Phase 1** WorldRuntime shell | 完了（P2-9） | generate は `world.generate`、legacy load は decode→stage→`world.replace`。trusted `readTrusted()` は host 用に残置（P2-1 で dynamic は分離済み） |
 | **Phase 2** 描画を commit へ | ほぼ完了 | core + extension tick の direct renderer は除去済み（**P2-12**）。3D は RenderCoordinator listener 済み。editor 操作時の extension `draw*` は layer toggle / draw hook 側 |
 | **Phase 3** PresentationData | ほぼ完了（P2-2） | icon raster 等の限定的 live SVG は互換。新規 style 源は PresentationData 必須 |
@@ -448,3 +448,14 @@ P2-13 ─ Low、export のみ
 - Extension `getSvgLayer` は現在の `viewContext.viewbox` を優先し、offscreen rebind 中も extension draw hook が export 木へ描く。
 - viewport PNG/JPEG の hybrid 合成（deck canvas + overlay clone）は従来どおり。save/autosave は引き続き DOM-free。
 - 検証: `npm test -- --run src/services/svgSnapshot.test.ts` — passed。`npx tsc --noEmit` — 成功。`npm run build` — 成功。
+
+### 2026-07-20 — P3-1 E2E render mode pinned via helpers
+
+- `waitForMapLoad` / `uploadMapFixture` / `loadMapFile` は必須の `renderMode: "svg" | "webglHybrid"` を取り、load 完了後に `setRenderMode` で pin する。sticky `localStorage` や browser default に依存しない。
+- `setRenderMode` helper は同期の `viewContext.renderMode` 代入を assert する（deck.gl の async fallback とは競合させない）。fixture helpers 内の inline `window.fmg.actions.setRenderMode` を helper 経由に統一。
+- 全 map-related E2E を更新: SVG DOM / snapshot / click-edit 系は `"svg"`、WebGL hybrid 系は `"webglHybrid"`。toggle / extension enable / SVG↔WebGL 比較は意図的に `"svg"` で開始してから切替える。
+- `startup-check` は generation smoke のみ（`waitForMapGeneration`）のため mode pin 対象外。
+- 検証:
+  - bare `waitForMapLoad` / `loadMapFile` / `uploadMapFixture` が 0 件。
+  - `npx playwright test` lakes / burgs / economy-dialog-layers / states / hover tooltip / hybrid policy / toggle / non-empty canvas / SVG roundtrip — passed。
+  - `load-map` は pre-existing flake（`rulers.fromString` / mapId wait）があり、本変更前後で再現。P3-1 範囲外。

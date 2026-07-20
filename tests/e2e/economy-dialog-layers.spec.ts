@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { isLayerOn, setRenderMode, waitForMapLoad } from "./helpers/fmg-helpers";
+import { isLayerOn, waitForMapLoad } from "./helpers/fmg-helpers";
 
 test.describe("Economy dialog layers", () => {
   test.beforeEach(async ({ context, page }) => {
@@ -10,8 +10,7 @@ test.describe("Economy dialog layers", () => {
       sessionStorage.clear();
     });
     await page.goto("/?seed=economy-dialog-layers&width=1280&height=720");
-    await waitForMapLoad(page);
-    await setRenderMode(page, "svg");
+    await waitForMapLoad(page, "svg");
 
     await page.click("#optionsHide");
     await expect(page.locator("#options")).toBeVisible();

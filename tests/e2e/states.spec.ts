@@ -6,7 +6,6 @@ import {
   getMilitaryRegenerationResult,
   isLayerOn,
   setLayerPreset,
-  setRenderMode,
 } from "./helpers/fmg-helpers";
 
 test.describe("States", () => {
@@ -20,7 +19,7 @@ test.describe("States", () => {
     });
 
     await page.goto("/?seed=test-states&width=1280&height=720");
-    await waitForMapLoad(page);
+    await waitForMapLoad(page, "svg");
   });
 
   test("removing a state via UI should allow military regeneration without errors", async ({
@@ -85,7 +84,6 @@ test.describe("States", () => {
   });
 
   test("restores the Pure landmass layer state when States and Provinces close together", async ({ page }) => {
-    await setRenderMode(page, "svg");
     await setLayerPreset(page, "landmass");
 
     await page.click("#optionsHide");

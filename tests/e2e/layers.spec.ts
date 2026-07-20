@@ -21,7 +21,7 @@ test.describe("map layers", () => {
     // Fixed seed makes generation deterministic for snapshot tests.
     // Snapshots are OS-independent (configured in playwright.config.ts).
     await sharedPage.goto("/?seed=test-seed&&width=1280&height=720");
-    await waitForMapLoad(sharedPage);
+    await waitForMapLoad(sharedPage, "svg");
   });
 
   test.afterAll(async () => {

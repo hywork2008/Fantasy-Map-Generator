@@ -43,7 +43,7 @@ test.describe("UI Tour", () => {
       sessionStorage.clear();
     });
     await page.goto("/?seed=test-tour&width=1280&height=720");
-    await waitForMapLoad(page);
+    await waitForMapLoad(page, "svg");
   });
 
   // ── Static registration ────────────────────────────────────────────────────
