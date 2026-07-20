@@ -29,7 +29,7 @@
 | P2-13 | Low | Verified | SVG export が `withSvgSnapshot()` に依存 | export も offscreen SVG adapter が canonical / PresentationData から生成し、renderMode 切替や live DOM snapshot に依存しない（save path は既に DOM-free） |
 | P3-1 | Medium | Verified | E2E の render mode 固定が不十分 | 全 map-related E2E が helper で renderer mode を明示する（現状 helper 使用は一部 spec に限定） |
 | P3-2 | Medium | Pending | memory / GPU / partial-update benchmark が未整備 | 10k/50k/100k で required metrics を継続測定する。基準を満たせない層だけ partial GPU update を検討（計画 Phase 7 / §13） |
-| P3-3 | Low | Pending | 計画 §12.4 architecture check が機械化されていない | Generator→Renderer import 禁止、schema field↔DataTopic coverage、public read model の mutable 到達不能を lint/test で継続強制する |
+| P3-3 | Low | Verified | 計画 §12.4 architecture check が機械化されていない | Generator→Renderer import 禁止、schema field↔DataTopic coverage、public read model の mutable 到達不能を lint/test で継続強制する |
 
 ### 計画全体の残作業マップ（2026-07-20 総点検）
 
@@ -51,7 +51,7 @@
 | **§4.2** clock mirror 廃止 | 完了（P2-10） | options は生成パラメータのみ。live は simulationContext |
 | **§5** TransactionWriter / stepDay | 基盤完了（P2-11） | transitional は in-place mutation + markChanged。完全 staged write は後続 |
 | **§9** ExtensionAPI target | 部分 | **P2-4**。`registerExtensionCommand` は既存 |
-| **§12.4** arch checks | 部分 | writer lint / ownership test あり。不足は **P3-3** |
+| **§12.4** arch checks | 完了（P3-3） | Generator→Renderer lint、field↔topic coverage、read-model immutability を機械化。writer lint は P1-3/P2-12 |
 | **§13** perf criteria | 部分 | **P3-2** |
 
 #### Phase 4 詳細（P2-3 型の分解元）
@@ -459,3 +459,13 @@ P2-13 ─ Low、export のみ
   - bare `waitForMapLoad` / `loadMapFile` / `uploadMapFixture` が 0 件。
   - `npx playwright test` lakes / burgs / economy-dialog-layers / states / hover tooltip / hybrid policy / toggle / non-empty canvas / SVG roundtrip — passed。
   - `load-map` は pre-existing flake（`rulers.fromString` / mapId wait）があり、本変更前後で再現。P3-1 範囲外。
+
+### 2026-07-20 — P3-3 architecture checks mechanized (§12.4)
+
+- `scripts/lint-architecture.ts` を追加し `npm run lint:architecture`（`lint:legacy` / pre-commit 経由）で継続実行する。
+  - Host `src/generators/**` の value import from Renderer を禁止。residual allowlist: `burgs-generator`（icon/label/COA）、`resample`（OceanLayers）。
+  - Extension `**/generators/**` の Renderer import を禁止（UI draw は index/controllers 側）。
+  - `import type` / `export type` は許可。死んだ `generators/index.ts` の `ocean-layers` side-effect import を削除。
+- `dataFieldOwnership` coverage test を拡張: core / FULL_REPLACE `DataTopic` 対応、WorldContext / SimulationContext / PresentationData / PackedGraph / PackedGraphCells / Grid の field 対応、brace 展開後の一意性、owner↔topic 整合。`pack.cells.area` を inventory に追加。
+- `extensionReadModel.test.ts` で public read model の DFS 到達検査（Array/Map/Set/TypedArray/ArrayBuffer 禁止、frozen facade、host mutation isolation）。dynamic API テストも mutable context 非露出を強化。
+- 検証: `npm run lint:architecture` — passed。`npm test -- --run src/runtime/dataFieldOwnership.test.ts src/runtime/extensionReadModel.test.ts src/extensions/dynamicExtensionApi.test.ts` — 19 passed。`npx tsc --noEmit` — 成功。

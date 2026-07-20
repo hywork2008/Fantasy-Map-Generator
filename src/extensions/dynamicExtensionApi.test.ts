@@ -46,6 +46,11 @@ describe("dynamic extension read facade", () => {
     expect("push" in (burgs as object)).toBe(false);
     expect("buffer" in (heights as object)).toBe(false);
     expect(Object.isFrozen(snapshot)).toBe(true);
+    // Public compatibility names must not hand out the trusted mutable contexts.
+    expect(api.worldContext).not.toBe(world as unknown);
+    expect(api.simulationContext).not.toBe(simulation as unknown);
+    expect(Array.isArray(burgs)).toBe(false);
+    expect(ArrayBuffer.isView(heights)).toBe(false);
 
     world.pack.burgs[0].name = "Changed in host";
     expect(burg.get("name")).toBe("Alderwatch");
