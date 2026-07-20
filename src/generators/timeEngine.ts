@@ -1,7 +1,8 @@
-import { restoreRngFromSimulation } from "../context/appServices";
+import { appServices, restoreRngFromSimulation } from "../context/appServices";
 import { type SimulationContext, simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
 import {
+  runWithSystemRng,
   type SimulationRngState,
   simulationRngStatesEqual,
   syncSimulationRngToContext
@@ -221,7 +222,8 @@ function takeDaySnapshot(): DaySnapshot {
       ? {
           algorithm: simulationContext.rng.algorithm,
           seed: simulationContext.rng.seed,
-          state: [...simulationContext.rng.state] as [number, number, number, number]
+          state: [...simulationContext.rng.state] as [number, number, number, number],
+          streams: structuredClone(simulationContext.rng.streams ?? {})
         }
       : null
   };
@@ -303,7 +305,8 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
     ? {
         algorithm: simulationContext.rng.algorithm,
         seed: simulationContext.rng.seed,
-        state: [...simulationContext.rng.state] as [number, number, number, number]
+        state: [...simulationContext.rng.state] as [number, number, number, number],
+        streams: structuredClone(simulationContext.rng.streams ?? {})
       }
     : undefined;
 
@@ -411,12 +414,31 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
     );
   }
 
-  const systemContext: SimulationStepContext = {
+  const systemContextBase = {
     tick: simulationContext.tickCount,
     delta: { years: deltaYears, months: deltaMonths, days: deltaDays }
   };
-  const executedSystems = timeTickSystems.run(systemContext, (system, writer) =>
-    measureTickStep(system.profileLabel ?? `system:${system.id}`, () => system.run(systemContext, writer))
+  const executedSystems = timeTickSystems.run(
+    // Placeholder rng is replaced per system inside runWithSystemRng.
+    { ...systemContextBase, rng: appServices.rng },
+    (system, writer) =>
+      measureTickStep(system.profileLabel ?? `system:${system.id}`, () =>
+        runWithSystemRng(
+          simulationContext,
+          {
+            systemId: system.id,
+            tick: systemContextBase.tick,
+            year: simulationContext.currentYear,
+            month: simulationContext.currentMonth,
+            day: simulationContext.currentDay
+          },
+          appServices,
+          rng => {
+            const systemContext: SimulationStepContext = { ...systemContextBase, rng };
+            system.run(systemContext, writer);
+          }
+        )
+      )
   );
   topics.push(...executedSystems.flatMap(entry => entry.topics));
 

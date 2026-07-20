@@ -4,7 +4,7 @@ import { simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
 import { registerSimulationSystem } from "../generators/timeEngine";
 import { useOptionsState } from "../store/optionsState";
-import { exportLiveSimulationRng, installSimulationRng, simulationRngStatesEqual } from "./simulationRng";
+import { exportLiveSimulationRng, installSimulationRng } from "./simulationRng";
 import { advanceLegacyBulk, durationToCalendarDays, runLegacyDaily, stepDay } from "./simulationRunner";
 import type { DataTopic } from "./worldRuntime";
 import { worldRuntime } from "./worldRuntime";
@@ -140,11 +140,14 @@ describe("SimulationRunner (headless)", () => {
     expect(snapshot).not.toBeNull();
     const nextAfterRun = appServices.rng.rand();
 
-    // Replay from the post-run snapshot without re-running systems.
+    // Replay from the post-run root snapshot without re-running systems.
     appServices.rng = installSimulationRng(snapshot!);
     expect(appServices.rng.rand()).toBe(nextAfterRun);
     expect(draws).toHaveLength(2);
-    expect(simulationRngStatesEqual(simulationContext.rng, snapshot!)).toBe(true);
+    // Root stream position is mirrored on the context; per-system streams are separate.
+    expect(simulationContext.rng.seed).toBe(snapshot!.seed);
+    expect(simulationContext.rng.state).toEqual(snapshot!.state);
+    expect(simulationContext.rng.streams["test-rng-consumer"]).toBeDefined();
   });
 
   it("does not require a RenderCoordinator subscription to step", () => {

@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { TransactionWriter } from "../runtime/transactionWriter";
-import { createSimulationSystemRegistry, type SimulationSystem } from "./simulationSystem";
+import { createRNGService } from "../utils/probabilityUtils";
+import { createSimulationSystemRegistry, type SimulationStepContext, type SimulationSystem } from "./simulationSystem";
+
+const stubRng = createRNGService(() => 0.5);
+const stubContext = (tick: number): SimulationStepContext => ({
+  tick,
+  delta: { years: 0, months: 0, days: 1 },
+  rng: stubRng
+});
 
 function system(
   id: string,
@@ -28,7 +36,7 @@ describe("SimulationSystemRegistry", () => {
     registry.register(system("after-a", "clock", () => calls.push("after-a"), { after: ["a-clock"] }));
     registry.register(system("economy", "economy", () => calls.push("economy")));
 
-    registry.run({ tick: 1, delta: { years: 0, months: 0, days: 1 } });
+    registry.run(stubContext(1));
 
     expect(calls).toEqual(["a-clock", "after-a", "z-clock", "economy"]);
   });
@@ -39,7 +47,7 @@ describe("SimulationSystemRegistry", () => {
     registry.register(system("every-other", "population", () => calls.push(calls.length), { cadence: { every: 2 } }));
 
     for (let tick = 1; tick <= 5; tick++) {
-      registry.run({ tick, delta: { years: 0, months: 0, days: 1 } });
+      registry.run(stubContext(tick));
     }
 
     expect(calls).toHaveLength(3);
@@ -72,7 +80,7 @@ describe("SimulationSystemRegistry", () => {
       })
     );
 
-    registry.run({ tick: 1, delta: { years: 0, months: 0, days: 1 } });
+    registry.run(stubContext(1));
   });
 
   it("does not allow an ordering dependency to be removed first", () => {
@@ -96,7 +104,7 @@ describe("SimulationSystemRegistry", () => {
       )
     );
 
-    const results = registry.run({ tick: 1, delta: { years: 0, months: 0, days: 1 } });
+    const results = registry.run(stubContext(1));
     expect(results).toHaveLength(1);
     expect(results[0]?.topics).toEqual(["simulation.states"]);
 
@@ -110,8 +118,6 @@ describe("SimulationSystemRegistry", () => {
         { writes: ["simulation.states"] }
       )
     );
-    expect(() => registry.run({ tick: 2, delta: { years: 0, months: 0, days: 1 } })).toThrow(
-      "not in the system's declared writes"
-    );
+    expect(() => registry.run(stubContext(2))).toThrow("not in the system's declared writes");
   });
 });

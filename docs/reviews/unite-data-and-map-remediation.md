@@ -19,7 +19,7 @@
 | P2-3 | Medium | Verified | Simulation の RNG 分離・daily runner・headless interface が未完 | simulation slice に RNG state を保存し、renderer/UI 非依存の day step を test surface にする |
 | P2-4 | Medium | Verified | extension slice registration / opaque chunk promotion / core-reference delete policy が未完 | scoped extension seam と archive validation/migration lifecycle を実装（計画 §9 `registerStateSlice` / migration / `collectCoreReferences`） |
 | P2-5 | Medium | Pending | UI 日次経路と public bulk 経路が別 semantics のまま（互換期間中） | 各 system の bulk/日次差を versioned migration で解消し、UI と `window.fmg.actions.advanceTime` が同じ daily command 列（`SimulationRunner` / `simulation.stepDay`）から同一 state・tickCount・RNG・event を作る |
-| P2-6 | Medium | Pending | simulation RNG が単一共有 stream のまま（per-system 派生が未実装） | system ID と tick/date から独立 stream を得られ、一 extension の追加乱数消費が他 system の結果を変えない。algorithm version と各 stream state が archive round-trip する |
+| P2-6 | Medium | Verified | simulation RNG が単一共有 stream のまま（per-system 派生が未実装） | system ID と tick/date から独立 stream を得られ、一 extension の追加乱数消費が他 system の結果を変えない。algorithm version と各 stream state が archive round-trip する |
 | P2-7 | Medium | Verified | 既存 tick が `registerTimeTickHook` 互換 system に依存したまま | built-in / 主要 extension が `registerSimulationSystem`（phase / cadence / reads / writes / dependency）へ移行し、legacy hook API は新規利用を禁止または薄くする |
 | P2-8 | Medium | Verified | module-local な tick 状態が archive / `SimulationData` に入っていない | `populationLossTracker`・Economy `forestDepletion` 等の module-private Map を versioned simulation / extension slice へ移し、save/load と headless で同一結果になる |
 | P2-9 | Medium | Pending | map generate と legacy `.map` load が `world.generate` / 完全 staging 外のまま | 生成は staging world → validate → `world.replace` / `world.generate`。legacy load も decode 完了前に live context を壊さない。完了まで「全 write が dispatch 経由」を達成済みと扱わない |
@@ -396,3 +396,11 @@ P2-13 ─ Low、export のみ
 - `simulation.stepDay` command を追加（payload なし、常に 1 暦日）。handler は mutation 前に simulation + pack を snapshot し、system 例外時は live state を復元して revision を発行しない。
 - `simulationRunner.stepDay` / `runLegacyDaily` は `simulation.stepDay` を使用。`simulation.advance` は互換 bulk 経路として維持（P2-5 で日次統一）。
 - 検証: `npm test -- --run src/runtime/transactionWriter.test.ts src/generators/simulationSystem.test.ts src/generators/timeEngine.systems.test.ts src/runtime/simulationRunner.test.ts src/runtime/worldRuntime.test.ts` — 51 passed。`npx tsc --noEmit` — 成功。`npm run build` — 成功。
+
+### 2026-07-20 — P2-6 per-system derived RNG streams
+
+- `SimulationRngState` に `streams: Record<systemId, engineState>` を追加。旧 archive は `{}` へ正規化する。
+- `createSystemStepRng` / `deriveSystemStreamSeed` / `runWithSystemRng` を追加。各 system 呼び出しは `(masterSeed, systemId, tick, year-month-day)` から独立 Alea stream を派生する。
+- `timeEngine` は system 実行中だけ `appServices.rng` をその stream に差し替えるため、既存の `appServices.rng` 利用（Nobility 等）も他 system と隔離される。終了時に ending state を `streams[systemId]` へ記録。
+- 共有 root stream（`state`）は system 外呼び出し用に維持。`syncSimulationRngToContext` は root を flush しつつ streams を保持する。
+- 検証: `npm test -- --run src/runtime/simulationRng.test.ts src/generators/simulationSystem.test.ts src/runtime/simulationRunner.test.ts` — 22 passed（isolation + archive streams round-trip 含む）。`npx tsc --noEmit` — 成功。`npm run build` — 成功。

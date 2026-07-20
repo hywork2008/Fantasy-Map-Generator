@@ -1,5 +1,6 @@
 import { createTransactionWriter, type TransactionWriter } from "../runtime/transactionWriter";
 import type { DataTopic } from "../runtime/worldRuntime";
+import type { RNGService } from "../utils/probabilityUtils";
 
 /** Fixed execution order for one simulation tick. */
 export const simulationPhases = [
@@ -32,6 +33,13 @@ export interface SimulationTickDelta {
 export interface SimulationStepContext {
   readonly tick: number;
   readonly delta: SimulationTickDelta;
+  /**
+   * Per-system RNG for this step (derived from master seed + system id + tick +
+   * calendar). Prefer `context.rng` or `appServices.rng` during `run()` — the
+   * host installs the same stream on `appServices.rng` for the duration of the
+   * system so existing callers stay isolated from other systems.
+   */
+  readonly rng: RNGService;
 }
 
 /**

@@ -183,7 +183,7 @@ export const simulationContext: SimulationContext = {
   tickCount: 0,
   worldSeason: "spring",
   // Placeholder until initRng()/bindSimulationRng() installs a seeded stream.
-  rng: { algorithm: "alea-0.9", seed: "", state: [0, 0, 0, 1] },
+  rng: { algorithm: "alea-0.9", seed: "", state: [0, 0, 0, 1], streams: {} },
   cells: {
     population: new Float32Array(),
     carryingCapacity: new Float32Array(),
