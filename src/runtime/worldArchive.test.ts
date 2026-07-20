@@ -122,6 +122,60 @@ describe("ChunkedWorldCodecAdapter", () => {
     );
   });
 
+  it("round-trips populationLoss, navalTechBonus, and extension tick maps", async () => {
+    const simulation = sampleSimulation();
+    simulation.populationLoss = {
+      simDay: 12.5,
+      history: [
+        {
+          day: 12,
+          byState: { 1: { combat: 10, famine: 0, natural: 2, other: 0, total: 12 } },
+          combatByCell: { 0: 10 }
+        }
+      ]
+    };
+    simulation.navalTechBonus = { 1: 1.3 };
+    simulation.extensions = {
+      economy: { forestDepletion: { 0: 0.4, 1: 0.1 } },
+      nobility: { voyageIntelBonus: { "1:2": 5 } }
+    };
+
+    const document = createWorldDocument(sampleWorld(), simulation, createPresentationData(), []);
+    const codec = new ChunkedWorldCodecAdapter();
+    const blob = await codec.encode(document);
+    const staged = await codec.decode({
+      header: new Uint8Array(await blob.slice(0, 4).arrayBuffer()),
+      blob
+    });
+
+    expect(staged.document.simulation.populationLoss.simDay).toBe(12.5);
+    expect(staged.document.simulation.populationLoss.history[0]?.byState[1]?.total).toBe(12);
+    expect(staged.document.simulation.populationLoss.history[0]?.combatByCell[0]).toBe(10);
+    expect(staged.document.simulation.navalTechBonus[1]).toBe(1.3);
+    expect(
+      (staged.document.simulation.extensions.economy as { forestDepletion: Record<string, number> }).forestDepletion
+    ).toEqual({ 0: 0.4, 1: 0.1 });
+    expect(
+      (staged.document.simulation.extensions.nobility as { voyageIntelBonus: Record<string, number> }).voyageIntelBonus
+    ).toEqual({ "1:2": 5 });
+  });
+
+  it("normalizes missing populationLoss and navalTechBonus on older archives", async () => {
+    const document = createWorldDocument(sampleWorld(), sampleSimulation(), createPresentationData(), []);
+    delete (document.simulation as { populationLoss?: unknown }).populationLoss;
+    delete (document.simulation as { navalTechBonus?: unknown }).navalTechBonus;
+
+    const codec = new ChunkedWorldCodecAdapter();
+    const blob = await codec.encode(document);
+    const staged = await codec.decode({
+      header: new Uint8Array(await blob.slice(0, 4).arrayBuffer()),
+      blob
+    });
+
+    expect(staged.document.simulation.populationLoss).toEqual({ simDay: 0, history: [] });
+    expect(staged.document.simulation.navalTechBonus).toEqual({});
+  });
+
   it("stages a legacy positional map without changing live state", async () => {
     const legacy = '1.0.0|license\r\nsettings\r\n<svg id="map">\r\n</svg>';
     const staged = await new LegacyMapCodecAdapter().decode({

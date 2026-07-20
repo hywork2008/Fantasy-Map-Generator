@@ -48,6 +48,8 @@ function installMinimalWorld(): void {
   simulationContext.tickCount = 0;
   simulationContext.intelligence = {};
   simulationContext.strategicGoals = {};
+  simulationContext.populationLoss = { simDay: 0, history: [] };
+  simulationContext.navalTechBonus = {};
   initRng("runner-seed");
 }
 

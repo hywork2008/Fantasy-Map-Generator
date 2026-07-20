@@ -436,6 +436,83 @@ function decodeValue(
   return decoded;
 }
 
+function assertFiniteNonNegativeNumberRecord(value: unknown, name: string): asserts value is Record<string, number> {
+  if (!isRecord(value)) throw new Error(`Archive ${name} must be a record`);
+  for (const [rawId, entry] of Object.entries(value)) {
+    const id = Number(rawId);
+    if (!Number.isInteger(id) || id < 0 || String(id) !== rawId) {
+      throw new Error(`Archive ${name} has invalid key ${rawId}`);
+    }
+    if (!isFiniteNumber(entry) || entry < 0) {
+      throw new Error(`Archive ${name}.${rawId} must be a non-negative finite number`);
+    }
+  }
+}
+
+function assertAndNormalizePopulationLoss(simulation: Record<string, unknown>): void {
+  if (simulation.populationLoss === undefined) {
+    simulation.populationLoss = { simDay: 0, history: [] };
+    return;
+  }
+  if (!isRecord(simulation.populationLoss)) {
+    throw new Error("Archive simulation.populationLoss must be a record");
+  }
+  const populationLoss = simulation.populationLoss;
+  if (!isFiniteNumber(populationLoss.simDay) || populationLoss.simDay < 0) {
+    throw new Error("Archive simulation.populationLoss.simDay must be a non-negative finite number");
+  }
+  if (!Array.isArray(populationLoss.history)) {
+    throw new Error("Archive simulation.populationLoss.history must be an array");
+  }
+  for (const [index, bucket] of populationLoss.history.entries()) {
+    if (!isRecord(bucket)) {
+      throw new Error(`Archive simulation.populationLoss.history[${index}] must be a record`);
+    }
+    if (!isFiniteNumber(bucket.day)) {
+      throw new Error(`Archive simulation.populationLoss.history[${index}].day must be a finite number`);
+    }
+    if (!isRecord(bucket.byState)) {
+      throw new Error(`Archive simulation.populationLoss.history[${index}].byState must be a record`);
+    }
+    if (!isRecord(bucket.combatByCell)) {
+      throw new Error(`Archive simulation.populationLoss.history[${index}].combatByCell must be a record`);
+    }
+    for (const [stateId, totals] of Object.entries(bucket.byState)) {
+      if (!Number.isInteger(Number(stateId)) || String(Number(stateId)) !== stateId) {
+        throw new Error(`Archive simulation.populationLoss.history[${index}].byState has invalid key ${stateId}`);
+      }
+      if (!isRecord(totals)) {
+        throw new Error(`Archive simulation.populationLoss.history[${index}].byState.${stateId} must be a record`);
+      }
+      for (const cause of ["combat", "famine", "natural", "other", "total"] as const) {
+        if (!isFiniteNumber(totals[cause]) || (totals[cause] as number) < 0) {
+          throw new Error(
+            `Archive simulation.populationLoss.history[${index}].byState.${stateId}.${cause} must be non-negative`
+          );
+        }
+      }
+    }
+    for (const [cellId, people] of Object.entries(bucket.combatByCell)) {
+      if (!Number.isInteger(Number(cellId)) || String(Number(cellId)) !== cellId) {
+        throw new Error(`Archive simulation.populationLoss.history[${index}].combatByCell has invalid key ${cellId}`);
+      }
+      if (!isFiniteNumber(people) || people < 0) {
+        throw new Error(
+          `Archive simulation.populationLoss.history[${index}].combatByCell.${cellId} must be non-negative`
+        );
+      }
+    }
+  }
+}
+
+function assertAndNormalizeNavalTechBonus(simulation: Record<string, unknown>): void {
+  if (simulation.navalTechBonus === undefined) {
+    simulation.navalTechBonus = {};
+    return;
+  }
+  assertFiniteNonNegativeNumberRecord(simulation.navalTechBonus, "simulation.navalTechBonus");
+}
+
 /**
  * Validates the minimum runtime shape before a document is allowed to replace
  * the live compatibility backing stores. This deliberately checks the fields
@@ -520,6 +597,10 @@ export function assertValidWorldDocument(value: unknown): asserts value is World
   } else {
     assertValidSimulationRngState(simulation.rng);
   }
+  // Module-local tick tallies promoted into SimulationContext (P2-8). Older archives
+  // omit them; empty defaults keep overview/heatmap/naval bonus state consistent.
+  assertAndNormalizePopulationLoss(simulation);
+  assertAndNormalizeNavalTechBonus(simulation);
   const cells = pack.cells as Record<string, unknown>;
   if (cells.i !== undefined && !isTypedArray(cells.i)) {
     throw new Error("Archive pack.cells.i must be a typed array");

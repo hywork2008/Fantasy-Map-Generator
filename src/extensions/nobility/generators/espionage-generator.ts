@@ -7,22 +7,47 @@ import { getRulerId, getWorldContext } from "../nobilityContext";
 // Keyed "observerStateId:targetStateId", capped so a long-running rivalry can't make
 // espionage perfectly omniscient. Never decays on its own — it represents an
 // accumulated network of contacts/informants built up over repeated voyages.
-const _voyageIntelBonus = new Map<string, number>();
+//
+// Canonical storage: simulation.extensions.nobility.voyageIntelBonus so save/load
+// keeps the network built mid-session.
 const MAX_VOYAGE_INTEL_BONUS = 20;
 
 function voyageIntelKey(observerStateId: number, targetStateId: number): string {
   return `${observerStateId}:${targetStateId}`;
 }
 
+function getVoyageIntelTable(): Record<string, number> {
+  if (!simulationContext.extensions || typeof simulationContext.extensions !== "object") {
+    simulationContext.extensions = {};
+  }
+  const existingSlice = simulationContext.extensions.nobility;
+  let slice: Record<string, unknown>;
+  if (existingSlice && typeof existingSlice === "object" && !Array.isArray(existingSlice)) {
+    slice = existingSlice;
+  } else {
+    slice = {};
+    simulationContext.extensions.nobility = slice;
+  }
+  const existing = slice.voyageIntelBonus;
+  if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+    return existing as Record<string, number>;
+  }
+  const table: Record<string, number> = {};
+  slice.voyageIntelBonus = table;
+  return table;
+}
+
 /** Called by nobility/index.tsx's fmg:shipbuilding-voyage-intel listener. Harmless no-op if Shipbuilding is never enabled. */
 export function addVoyageIntel(observerStateId: number, targetStateId: number, amount: number): void {
   const key = voyageIntelKey(observerStateId, targetStateId);
-  const current = _voyageIntelBonus.get(key) ?? 0;
-  _voyageIntelBonus.set(key, Math.min(MAX_VOYAGE_INTEL_BONUS, current + amount));
+  const table = getVoyageIntelTable();
+  const current = table[key] ?? 0;
+  table[key] = Math.min(MAX_VOYAGE_INTEL_BONUS, current + amount);
 }
 
 export function clearVoyageIntel(): void {
-  _voyageIntelBonus.clear();
+  const table = getVoyageIntelTable();
+  for (const key of Object.keys(table)) delete table[key];
 }
 
 export class EspionageGenerator {
@@ -92,7 +117,7 @@ export class EspionageGenerator {
         let estimatedWealth = actualWealth;
         let accuracyLevel: IntelligenceReport["accuracyLevel"] = "unknown";
 
-        const voyageIntelBonus = _voyageIntelBonus.get(voyageIntelKey(observer.i, target.i)) ?? 0;
+        const voyageIntelBonus = getVoyageIntelTable()[voyageIntelKey(observer.i, target.i)] ?? 0;
         const diff = observerIntrigue + voyageIntelBonus - targetIntrigue;
 
         if (diff > 10) {

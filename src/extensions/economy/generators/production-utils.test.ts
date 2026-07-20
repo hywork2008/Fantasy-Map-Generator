@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { WorldContext } from "../../hostCore";
-import { worldContext } from "../../hostCore";
+import { simulationContext, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext } from "../economyContext";
+import { clearEconomyContext, initEconomyContext, setGoodCellColumn, setGoods } from "../economyContext";
 import { clearForestDepletion, registerLogHarvest } from "./forestDepletion";
 import { Goods } from "./goods-generator";
 import { getCellProduction } from "./production-utils";
@@ -11,37 +11,40 @@ describe("getCellProduction depletion integration", () => {
   afterEach(() => {
     clearEconomyContext();
     clearForestDepletion();
+    simulationContext.extensions = {};
   });
 
   beforeEach(() => {
-    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    simulationContext.extensions = {};
+    initEconomyContext({ worldContext, simulationContext } as unknown as ExtensionAPI);
+    const goods = [
+      {
+        i: 0,
+        name: "Wood",
+        value: 1,
+        tags: [],
+        unit: "pile",
+        icon: "icon",
+        color: "#fff",
+        distribution: "1",
+        recipes: [],
+        demandCoverage: {}
+      },
+      {
+        i: 1,
+        name: "Stone",
+        value: 1,
+        tags: [],
+        unit: "pile",
+        icon: "icon",
+        color: "#fff",
+        distribution: "1",
+        recipes: [],
+        demandCoverage: {}
+      }
+    ];
     worldContext.pack = {
-      goods: [
-        {
-          i: 0,
-          name: "Wood",
-          value: 1,
-          tags: [],
-          unit: "pile",
-          icon: "icon",
-          color: "#fff",
-          distribution: "1",
-          recipes: [],
-          demandCoverage: {}
-        },
-        {
-          i: 1,
-          name: "Stone",
-          value: 1,
-          tags: [],
-          unit: "pile",
-          icon: "icon",
-          color: "#fff",
-          distribution: "1",
-          recipes: [],
-          demandCoverage: {}
-        }
-      ],
+      goods,
       cultures: [],
       burgs: [],
       zones: [],
@@ -57,6 +60,9 @@ describe("getCellProduction depletion integration", () => {
         c: [[]]
       }
     } as unknown as PackedGraph;
+    // Economy-owned fields live on the simulation slice when simulationContext is live.
+    setGoods(goods as never);
+    setGoodCellColumn(new Uint16Array([0]));
     Goods.sync();
   });
 

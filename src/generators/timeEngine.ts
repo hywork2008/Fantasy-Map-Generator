@@ -119,6 +119,7 @@ export function initSimulationClock(): void {
   simulationContext.tickCount = 0;
   simulationContext.intelligence = {};
   simulationContext.strategicGoals = {};
+  simulationContext.navalTechBonus = {};
   resetPopulationLossTracker();
 }
 

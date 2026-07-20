@@ -21,7 +21,7 @@
 | P2-5 | Medium | Pending | UI 日次経路と public bulk 経路が別 semantics のまま（互換期間中） | 各 system の bulk/日次差を versioned migration で解消し、UI と `window.fmg.actions.advanceTime` が同じ daily command 列（`SimulationRunner` / `simulation.stepDay`）から同一 state・tickCount・RNG・event を作る |
 | P2-6 | Medium | Pending | simulation RNG が単一共有 stream のまま（per-system 派生が未実装） | system ID と tick/date から独立 stream を得られ、一 extension の追加乱数消費が他 system の結果を変えない。algorithm version と各 stream state が archive round-trip する |
 | P2-7 | Medium | Pending | 既存 tick が `registerTimeTickHook` 互換 system に依存したまま | built-in / 主要 extension が `registerSimulationSystem`（phase / cadence / reads / writes / dependency）へ移行し、legacy hook API は新規利用を禁止または薄くする |
-| P2-8 | Medium | Pending | module-local な tick 状態が archive / `SimulationData` に入っていない | `populationLossTracker`・Economy `forestDepletion` 等の module-private Map を versioned simulation / extension slice へ移し、save/load と headless で同一結果になる |
+| P2-8 | Medium | Verified | module-local な tick 状態が archive / `SimulationData` に入っていない | `populationLossTracker`・Economy `forestDepletion` 等の module-private Map を versioned simulation / extension slice へ移し、save/load と headless で同一結果になる |
 | P2-9 | Medium | Pending | map generate と legacy `.map` load が `world.generate` / 完全 staging 外のまま | 生成は staging world → validate → `world.replace` / `world.generate`。legacy load も decode 完了前に live context を壊さない。完了まで「全 write が dispatch 経由」を達成済みと扱わない |
 | P2-10 | Low | Pending | `options.year/month/day` と `SimulationContext` 時計の dual mirror が残る | 唯一の正を simulation clock とし、legacy readers を移行したうえで options mirror を廃止する（計画 §4.2） |
 | P2-11 | Medium | Pending | target `simulation.stepDay` + `TransactionWriter` が未実装 | system は宣言 topic だけを writer 経由で書き、in-place pack/simulation 直書きを止める。一日一 command / 失敗日 rollback の契約を test で固定する（計画 §5.1 / §6） |
@@ -370,3 +370,11 @@ P2-13 ─ Low、export のみ
 - `captureArchiveDocument()` も demote を行い、未インストール extension のデータを validated runtime slice として保存しない。登録済み live slice と opaque の双方で core delete policy（restrict / orphan / unknown）を適用する。
 - Built-in characters / economy / nobility / shipbuilding は host 側で常時 register し、既存 field-level validation と entity-keyed `collectCoreReferences` を供給する。
 - 検証: `npm test -- --run src/runtime/extensionStateSliceRegistry.test.ts src/runtime/worldArchive.test.ts src/runtime/extensionStateSlices.test.ts src/runtime/worldRuntime.test.ts src/extensions/dynamicExtensionApi.test.ts` — 48 passed。`npx tsc --noEmit` — 成功。`npm run build` — 成功。
+
+### 2026-07-20 — P2-8 module-local tick state → simulation / extension slices
+
+- `populationLossTracker` の module-private `simDay` / day-bucket history を `simulationContext.populationLoss` に移した。Overview / combat-death heatmap は同じ slice を読み、`.fmg` archive と `world.replace` で round-trip する。旧 archive では空 history へ正規化する。
+- Economy `forestDepletion` は `simulation.extensions.economy.forestDepletion`（sparse cellId → factor）へ移した。ExtensionAPI 未初期化時のみ unit test 用 fallback を使う。archive validation は [0, 0.9] と topology cell range を検査する。
+- 同種の tick 蓄積として `navalTechBonus` を `simulationContext.navalTechBonus` へ、Nobility `voyageIntelBonus` を `simulation.extensions.nobility.voyageIntelBonus` へ移した。どちらも save/load 後も軍事 / 諜報結果が変わらない。
+- `dataFieldOwnership` inventory と extension `collectCoreReferences`（voyage intel は state orphan）を更新した。
+- 検証: `npm test -- --run src/generators/populationLossTracker.test.ts src/generators/navalTechBonus.test.ts src/extensions/economy/generators/forestDepletion.test.ts src/extensions/economy/generators/production-utils.test.ts src/runtime/worldArchive.test.ts src/runtime/dataFieldOwnership.test.ts src/runtime/extensionStateSlices.test.ts src/runtime/simulationRng.test.ts src/runtime/simulationRunner.test.ts src/extensions/nobility/generators/espionage-generator.test.ts` — 63 passed。`npx tsc --noEmit` — 成功。`npm run build` — 成功。

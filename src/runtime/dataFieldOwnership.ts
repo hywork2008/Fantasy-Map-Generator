@@ -127,6 +127,8 @@ export const DATA_FIELD_OWNERSHIP: readonly DataFieldOwnership[] = [
   simulation("simulation.rng", "simulation.rng"),
   simulation("simulation.intelligence", "simulation.states", "state.id", ["state.id"]),
   simulation("simulation.strategicGoals", "simulation.military", "state.id", ["burg.id", "state.id"]),
+  simulation("simulation.populationLoss", "simulation.states", "state.id", ["state.id", "cell.id"]),
+  simulation("simulation.navalTechBonus", "simulation.military", "state.id", ["state.id"]),
   extension("simulation.extensions.characters.characters", "characters", "character.id"),
   extension("simulation.extensions.economy.goods", "economy", "good.id"),
   extension("simulation.extensions.economy.markets", "economy", "market.id"),
@@ -142,8 +144,10 @@ export const DATA_FIELD_OWNERSHIP: readonly DataFieldOwnership[] = [
   extension("simulation.extensions.economy.good", "economy", "cell.id"),
   extension("simulation.extensions.economy.market", "economy", "cell.id"),
   extension("simulation.extensions.economy.productionByBurg", "economy", "burg.id"),
+  extension("simulation.extensions.economy.forestDepletion", "economy", "cell.id"),
   extension("simulation.extensions.nobility.rulerIdByState", "nobility", "state.id"),
   extension("simulation.extensions.nobility.conflictAuthorizationsByState", "nobility", "state.id"),
+  extension("simulation.extensions.nobility.voyageIntelBonus", "nobility", "state.id"),
   extension("simulation.extensions.shipbuilding", "shipbuilding"),
 
   {

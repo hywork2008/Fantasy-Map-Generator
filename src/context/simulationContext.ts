@@ -83,6 +83,43 @@ export interface StrategicGoal {
   requiredAttackForce: number;
 }
 
+/** Per-cause death headcounts for one state inside a population-loss day bucket. */
+export interface PopulationLossDeathTotals {
+  combat: number;
+  famine: number;
+  natural: number;
+  other: number;
+  total: number;
+}
+
+/**
+ * Coarse daily death bucket (max ~40 retained). Keys are stable entity ids as
+ * JSON-friendly string or number records; readers coerce with Number().
+ */
+export interface PopulationLossDayBucket {
+  /** Floor of the simulation day index when the bucket was opened. */
+  day: number;
+  /** stateId → cause totals (display people). */
+  byState: Record<number, PopulationLossDeathTotals>;
+  /** cellId → combat death headcount at that battlefield. */
+  combatByCell: Record<number, number>;
+}
+
+/**
+ * Rolling death tallies for the Population Overview dialog and combat-death layer.
+ * Owned by the host simulation slice so save/load and headless runs share one source.
+ */
+export interface PopulationLossState {
+  /** Continuous simulation day index advanced with each tick's elapsed days. */
+  simDay: number;
+  /** Chronological day buckets; pruned to a rolling window. */
+  history: PopulationLossDayBucket[];
+}
+
+export function createEmptyPopulationLossState(): PopulationLossState {
+  return { simDay: 0, history: [] };
+}
+
 export interface SimulationContext {
   /** In-world calendar year, advanced by src/generators/timeEngine.ts's advanceTime(). */
   currentYear: number;
@@ -121,6 +158,16 @@ export interface SimulationContext {
   intelligence: Record<number, Record<number, IntelligenceReport>>;
   /** Strategic goals: strategicGoals[stateId] */
   strategicGoals: Record<number, StrategicGoal[]>;
+  /**
+   * Rolling population-loss tallies (40-day window). Module-local storage was
+   * removed so archive / world.replace round-trips keep overview and heatmap data.
+   */
+  populationLoss: PopulationLossState;
+  /**
+   * Naval strength multipliers keyed by stable state id (default 1 when absent).
+   * Grown by Shipbuilding completion events; host-owned so military regen survives save/load.
+   */
+  navalTechBonus: Record<number, number>;
 }
 
 /**
@@ -151,5 +198,7 @@ export const simulationContext: SimulationContext = {
   military: {},
   extensions: {},
   intelligence: {},
-  strategicGoals: {}
+  strategicGoals: {},
+  populationLoss: createEmptyPopulationLossState(),
+  navalTechBonus: {}
 };

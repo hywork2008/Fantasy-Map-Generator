@@ -49,7 +49,9 @@ function sampleSimulation(seed = "rng-seed"): SimulationContext {
     military: {},
     extensions: {},
     intelligence: {},
-    strategicGoals: {}
+    strategicGoals: {},
+    populationLoss: { simDay: 0, history: [] },
+    navalTechBonus: {}
   };
 }
 
