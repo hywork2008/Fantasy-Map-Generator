@@ -8,9 +8,11 @@ import {
   simulationRngStatesEqual,
   syncSimulationRngToContext
 } from "../runtime/simulationRng";
-import { registerDayStepObserver } from "../runtime/simulationRunner";
+import { registerDayBatchController, registerDayStepObserver } from "../runtime/simulationRunner";
 import {
   type DataTopic,
+  FULL_REPLACE_TOPICS,
+  legacyMutation,
   registerSimulationAdvanceHandler,
   registerSimulationStepDayHandler,
   type SimulationStepResult,
@@ -234,11 +236,22 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
   );
   if (totalDays <= 0) return;
 
-  for (let i = 0; i < totalDays; i++) {
-    const commit = stepDaySimulation();
-    if (!commit) return;
-    // Always report a one-day delta so listeners match the UI daily path.
-    notifyAfterDayStep(0, 0, 1);
+  // Batch the rollback snapshot across the whole run instead of once per day.
+  enterDayBatch();
+  let failed = false;
+  try {
+    for (let i = 0; i < totalDays; i++) {
+      const commit = stepDaySimulation();
+      if (!commit) return;
+      // Always report a one-day delta so listeners match the UI daily path.
+      notifyAfterDayStep(0, 0, 1);
+    }
+  } catch (error) {
+    failed = true;
+    throw error;
+  } finally {
+    if (failed) exitDayBatchAfterFailure();
+    else exitDayBatch();
   }
 }
 
@@ -290,13 +303,85 @@ function restoreDaySnapshot(snapshot: DaySnapshot): void {
 }
 
 /**
+ * Amortizes `takeDaySnapshot()`'s full `structuredClone(pack)` across a run of
+ * consecutive `simulation.stepDay` commits (multi-day/month/year advances,
+ * P2-5). Without this, every single day in e.g. an "Advance Year" run took its
+ * own full-pack clone (~365 clones instead of 1), which is the dominant cost
+ * of the visible slowdown on large maps. `enterDayBatch()`/`exitDayBatch()`
+ * bracket a run; `stepDayMutation()` reuses the shared snapshot while a batch
+ * is active instead of taking a fresh one.
+ *
+ * Trade-off: a mid-run system failure now rolls back to the start of the run
+ * instead of just the failing day. This is acceptable because a throwing
+ * system indicates a bug, not a normal simulation outcome. But some of the
+ * run's earlier days may already have published their own commit (revision
+ * bump) to RenderCoordinator/WebGL cache subscribers before the failure — the
+ * in-place rollback then silently reverts data those subscribers already
+ * observed, with no notification. `exitDayBatchAfterFailure()` covers that by
+ * publishing one corrective commit so subscribers re-sync to the reverted
+ * state instead of continuing to render/cache days that no longer exist.
+ * Days already rendered before a manual stop (not a failure) are unaffected —
+ * stopping does not throw, so this path never runs for it.
+ *
+ * Depth-counted so a batch entered by one caller is not closed early by a
+ * nested caller (e.g. `runDaily` invoked from inside another batch); only the
+ * outermost exit can trigger the correction.
+ */
+let activeDayBatchSnapshot: DaySnapshot | null = null;
+let dayBatchDepth = 0;
+let dayBatchCommittedDays = 0;
+
+function enterDayBatch(): void {
+  dayBatchDepth++;
+  if (dayBatchDepth === 1) {
+    activeDayBatchSnapshot = takeDaySnapshot();
+    dayBatchCommittedDays = 0;
+  }
+}
+
+function exitDayBatch(): void {
+  dayBatchDepth = Math.max(0, dayBatchDepth - 1);
+  if (dayBatchDepth === 0) activeDayBatchSnapshot = null;
+}
+
+function exitDayBatchAfterFailure(): void {
+  const isOutermost = dayBatchDepth === 1;
+  exitDayBatch();
+  if (isOutermost && dayBatchCommittedDays > 0) publishDayBatchRollbackCorrection();
+}
+
+/**
+ * Broad-invalidation commit published only after a batch rollback discards
+ * already-committed days (see exitDayBatchAfterFailure). This is a correction
+ * for a rare failure path, not a per-day operation, so reusing the full
+ * "everything may have changed" topic set (rather than tracking exactly what
+ * each already-committed day touched) keeps this safe and simple.
+ */
+function publishDayBatchRollbackCorrection(): void {
+  const extensionTopics = Object.keys(simulationContext.extensions ?? {}).map(id => `extension.${id}` as DataTopic);
+  legacyMutation(() => ({
+    result: undefined,
+    topics: [...FULL_REPLACE_TOPICS, ...extensionTopics]
+  }));
+}
+
+registerDayBatchController({
+  enter: enterDayBatch,
+  exit: exitDayBatch,
+  exitAfterFailure: exitDayBatchAfterFailure
+});
+
+/**
  * Canonical one-day command body. Snapshots before mutation so a throwing system
- * rolls back the day without publishing a revision (plan §5.2 / §6).
+ * rolls back the day without publishing a revision (plan §5.2 / §6). Reuses the
+ * active batch snapshot (see above) when called as part of a multi-day run.
  */
 function stepDayMutation(): { result: SimulationStepResult; topics: readonly DataTopic[] } {
-  const snapshot = takeDaySnapshot();
+  const inBatch = activeDayBatchSnapshot !== null;
+  const snapshot = activeDayBatchSnapshot ?? takeDaySnapshot();
   try {
     const outcome = advanceTimeMutation(0, 0, 1);
+    if (inBatch) dayBatchCommittedDays++;
     if (!outcome.topics.length) {
       // advanceTimeMutation returns empty topics only for non-positive deltas; stepDay is always 1 day.
       return {
@@ -517,9 +602,15 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
 
   let currentProgress = 0;
 
+  // Batch the rollback snapshot across the whole rAF run instead of once per
+  // frame/day — each frame below still calls advanceTime's single-day fast
+  // path, which reuses this shared snapshot while the batch is active.
+  enterDayBatch();
+
   const loop = () => {
     const currentState = useTimeSimulationState.getState();
     if (currentState.stopRequested || currentProgress >= totalDays) {
+      exitDayBatch();
       logTickProfile();
       currentState.clearSimulation();
       return;
@@ -527,7 +618,12 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
 
     // One simulation.stepDay per frame so the UI can paint progress / accept cancel.
     // Same command body as window.fmg.actions.advanceTime for multi-day spans (P2-5).
-    advanceTime(0, 0, 1);
+    try {
+      advanceTime(0, 0, 1);
+    } catch (error) {
+      exitDayBatchAfterFailure();
+      throw error;
+    }
     currentProgress++;
     useTimeSimulationState.getState().setSimulationProgress(currentProgress, totalDays);
 

@@ -256,4 +256,81 @@ describe("SimulationRunner (headless)", () => {
     expect(worldContext.options.day).toBe(1);
     expect(useOptionsState.getState().year).toBe(1000);
   });
+
+  it("perf: a multi-day run clones the pack once for the whole batch, not once per day", () => {
+    const realStructuredClone = globalThis.structuredClone;
+    const packCloneCalls: unknown[] = [];
+    const cloneSpy = vi.spyOn(globalThis, "structuredClone").mockImplementation((value: unknown) => {
+      if (value === worldContext.pack) packCloneCalls.push(value);
+      return realStructuredClone(value as never);
+    });
+
+    try {
+      const result = runDaily(5, { notify: false });
+      expect(result).toEqual({ daysRequested: 5, daysCompleted: 5, stopped: false });
+      // Before batching this was 5 (one per day); batching amortizes it to 1 for the whole run.
+      expect(packCloneCalls).toHaveLength(1);
+      expect(simulationContext.tickCount).toBe(5);
+    } finally {
+      cloneSpy.mockRestore();
+    }
+  });
+
+  it("perf: advanceTime's multi-day span also amortizes the pack clone to once", () => {
+    const realStructuredClone = globalThis.structuredClone;
+    const packCloneCalls: unknown[] = [];
+    const cloneSpy = vi.spyOn(globalThis, "structuredClone").mockImplementation((value: unknown) => {
+      if (value === worldContext.pack) packCloneCalls.push(value);
+      return realStructuredClone(value as never);
+    });
+
+    try {
+      advanceTime(0, 1, 0); // January: 31 stepDay commits.
+      expect(simulationContext.tickCount).toBe(31);
+      expect(packCloneCalls).toHaveLength(1);
+    } finally {
+      cloneSpy.mockRestore();
+    }
+  });
+
+  it("a mid-batch system failure rolls back the whole batch and republishes a corrective commit", () => {
+    const commits: number[] = [];
+    unsubscribers.push(
+      worldRuntime.subscribe(commit => {
+        commits.push(commit.changes.toRevision);
+      })
+    );
+
+    let calls = 0;
+    unsubscribers.push(
+      registerSimulationSystem({
+        id: "test-batch-boom",
+        phase: "finalize",
+        reads: [],
+        writes: ["simulation.clock"],
+        cadence: { every: 1 },
+        run: () => {
+          calls++;
+          if (calls === 3) throw new Error("boom on day 3");
+        }
+      })
+    );
+
+    const dayBefore = simulationContext.currentDay;
+    const tickBefore = simulationContext.tickCount;
+
+    expect(() => runDaily(5, { notify: false })).toThrow("boom on day 3");
+
+    // Days 1 and 2 already committed before day 3 failed; the batch-wide
+    // rollback restores pre-batch state, so a corrective commit must follow
+    // those 2 day commits so subscribers don't keep caching days 1-2.
+    expect(commits).toHaveLength(3);
+    expect(simulationContext.currentDay).toBe(dayBefore);
+    expect(simulationContext.tickCount).toBe(tickBefore);
+
+    // Batch state is fully released (not stuck) after the failure: a later
+    // single day step (calls === 4, past the boom trigger) works normally.
+    expect(stepDay({ notify: false })).toBe(true);
+    expect(simulationContext.tickCount).toBe(tickBefore + 1);
+  });
 });

@@ -50,6 +50,31 @@ export function registerDayStepObserver(
   dayObserver = observer;
 }
 
+export interface DayBatchController {
+  /** Start (or extend, if already active) amortizing the rollback snapshot across a run. */
+  enter(): void;
+  /** End one level of batching on a clean run; releases the shared snapshot once outermost. */
+  exit(): void;
+  /**
+   * End one level of batching after a day threw. May publish a corrective
+   * commit if earlier days in this run already committed before the failure.
+   */
+  exitAfterFailure(): void;
+}
+
+/**
+ * Optional host-provided batch snapshot controller to avoid a timeEngine ↔
+ * runner cycle. Registered once from timeEngine so `runDaily` can amortize
+ * `simulation.stepDay`'s rollback snapshot across a multi-day run instead of
+ * re-snapshotting the whole `pack` before every single day (see the "why"
+ * note above `stepDayMutation` in timeEngine.ts).
+ */
+let dayBatchController: DayBatchController | null = null;
+
+export function registerDayBatchController(controller: DayBatchController): void {
+  dayBatchController = controller;
+}
+
 /**
  * One canonical calendar day via `simulation.stepDay` (failed-day rollback).
  * With `notify: true` (default) also runs the registered day observer.
@@ -74,19 +99,29 @@ export function runDaily(days: number, options: DailyRunOptions = {}): DailyRunR
   const totalDays = Math.floor(days);
   const notify = options.notify !== false;
   let completed = 0;
+  let failed = false;
 
-  for (let i = 0; i < totalDays; i++) {
-    if (options.shouldStop?.()) {
-      return { daysRequested: totalDays, daysCompleted: completed, stopped: true };
+  dayBatchController?.enter();
+  try {
+    for (let i = 0; i < totalDays; i++) {
+      if (options.shouldStop?.()) {
+        return { daysRequested: totalDays, daysCompleted: completed, stopped: true };
+      }
+      if (!stepDay({ notify })) {
+        return { daysRequested: totalDays, daysCompleted: completed, stopped: true };
+      }
+      completed++;
+      options.onDayComplete?.({ day: completed, totalDays });
     }
-    if (!stepDay({ notify })) {
-      return { daysRequested: totalDays, daysCompleted: completed, stopped: true };
-    }
-    completed++;
-    options.onDayComplete?.({ day: completed, totalDays });
+
+    return { daysRequested: totalDays, daysCompleted: completed, stopped: false };
+  } catch (error) {
+    failed = true;
+    throw error;
+  } finally {
+    if (failed) dayBatchController?.exitAfterFailure();
+    else dayBatchController?.exit();
   }
-
-  return { daysRequested: totalDays, daysCompleted: completed, stopped: false };
 }
 
 /**

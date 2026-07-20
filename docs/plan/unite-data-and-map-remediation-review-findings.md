@@ -32,7 +32,14 @@
 
 ## 2. 未言及の劇的なパフォーマンス懸念
 
-### 2.1 `simulation.stepDay` が毎日フル `structuredClone(pack)` を実行し、P2-5 により年送りで数百倍化
+### 2.1 `simulation.stepDay` が毎日フル `structuredClone(pack)` を実行し、P2-5 により年送りで数百倍化 — **対応済み（2026-07-20）**
+
+> **対応内容**: `src/generators/timeEngine.ts` にバッチ単位のロールバックスナップショット機構を追加した。
+>
+> - `enterDayBatch()` / `exitDayBatch()` / `exitDayBatchAfterFailure()`（深さカウント付き）を追加し、`advanceTime()` の複数日ループ、`runTimeSimulation()` の rAF ループ、`src/runtime/simulationRunner.ts` の `runDaily()` の3経路すべてでバッチ全体を1回の `takeDaySnapshot()` に集約するようにした（`stepDayMutation()` はアクティブなバッチスナップショットがあればそれを再利用し、無ければ従来どおり単日スナップショットを取る）。単発の1日ステップ（UIの「1日進める」ボタン等）は従来どおり毎回スナップショットを取る挙動を維持しており、退行はない。
+> - **副作用として発見した整合性問題も同時に修正**: バッチ内の1日目・2日目が成功して commit 済みの状態で3日目が失敗した場合、素朴な「バッチ開始時点まで一括ロールバック」だと、既に publish 済みだった1・2日目分の変更が RenderCoordinator/WebGL キャッシュへの通知なしに live state 上でだけ消えてしまう（購読側が古い/存在しない日の状態を描画し続ける）。これを防ぐため、バッチ内で1日以上 commit 済みの状態で失敗した場合にのみ、`FULL_REPLACE_TOPICS` ベースの補正コミットを1回追加で publish するようにした（`publishDayBatchRollbackCorrection()`）。単発1日失敗時の「revision を publish しない」という既存契約（`worldRuntime.test.ts`／`simulationRunner.test.ts` の既存テスト）は変更していない。
+> - **検証**: `src/runtime/simulationRunner.test.ts` に3件追加——(a) `runDaily(5)` で `structuredClone(pack)` 呼び出しが5回→1回に減ることを spy で確認、(b) `advanceTime(0,1,0)`（1ヶ月=31日分）でも同様に1回のみであることを確認、(c) バッチ3日目で意図的に例外を投げさせ、1〜2日目分を含めて全て事前状態へロールバックされること、かつ補正コミットを含めて commit 数が期待通り（2件の日次コミット＋補正1件=3件）であることを確認。`npm test -- --run src/generators/ src/runtime/ src/extensions/` — 80 files / 616 tests passed（6 skipped、既存分）。`npx tsc --noEmit` — 成功。`npm run lint` — 成功。`npm run madge` — 既存18件の循環依存のみ（変更前と同数、新規混入なし）。`npm run build` — 成功。
+> - **残る留意点**: バッチ途中で system が例外を投げた場合、ロールバック粒度が「その日だけ」から「バッチ全体」に変わるトレードオフを許容している（system の例外は本来バグであり通常のシミュレーション結果ではないため、と判断）。手動 stop（キャンセル）は例外を投げないため、この経路の影響を受けない。
 
 - **ファイル**: `src/generators/timeEngine.ts:256-270`（`takeDaySnapshot()`）、`src/runtime/simulationRunner.ts:70-90`（`runDaily`）
 - **経緯**: `stepDayMutation()`（`timeEngine.ts:296-325`）はロールバック用に、実行**前に毎回** `structuredClone(worldContext.pack)` と `structuredClone(simulationContext)` のディープクローンを取得する（`takeDaySnapshot`, `:256-270`）。失敗時にのみ `restoreDaySnapshot`（`:272-290`）で使用する。
@@ -83,8 +90,8 @@
 | :-- | :-- | :-- | :-- |
 | 1.1 | `world.replace` ロールバックの非例外安全性 | バグ | 高 |
 | 1.2 | `TransactionWriter` の書き込み非強制 | 設計/バグ潜在 | 中〜高 |
-| 2.1 | `stepDay` 毎日フルクローンによる年送りの性能劣化 | パフォーマンス | 中〜高 |
+| 2.1 | `stepDay` 毎日フルクローンによる年送りの性能劣化 | パフォーマンス | ~~中〜高~~ → **対応済み(2026-07-20)** |
 | 3.1 | P2-9 "完了" 判定と計画書の staging 必須条件の矛盾 | ドキュメント正確性 | 低〜中 |
 | 4.1 | opaque chunk "unknown" によるコア削除永久ブロック | 仕様設計 | 中 |
 
-対応順序・着手要否はユーザーと未合意。次セッションはこの表を起点に優先度を確認してから着手すること。
+対応順序・着手要否はユーザーと未合意（2.1 のみユーザー指示により対応済み）。次セッションはこの表を起点に残項目の優先度を確認してから着手すること。
