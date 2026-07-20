@@ -184,6 +184,21 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     ]);
   });
 
+  it("runs simulation.stepDay through a dedicated one-day handler", async () => {
+    const runtime = createRuntime();
+    const handler = vi.fn(() => ({
+      result: { tickCount: 4, year: 100, month: 2, day: 5 },
+      topics: ["simulation.clock"] as const
+    }));
+    runtime.registerSimulationStepDayHandler(handler);
+
+    const commit = await runtime.dispatch({ type: "simulation.stepDay" });
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(commit?.result).toEqual({ tickCount: 4, year: 100, month: 2, day: 5 });
+    expect(commit?.changes.changes).toEqual([{ topic: "simulation.clock", kind: "replace" }]);
+  });
+
   it("runs the registered heightmap finalizer through one revisioned command", async () => {
     const runtime = createRuntime();
     const handler = vi.fn(() => ({ result: [7], topics: ["map.physical", "map.topology"] as const }));

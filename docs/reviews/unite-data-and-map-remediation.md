@@ -24,7 +24,7 @@
 | P2-8 | Medium | Verified | module-local な tick 状態が archive / `SimulationData` に入っていない | `populationLossTracker`・Economy `forestDepletion` 等の module-private Map を versioned simulation / extension slice へ移し、save/load と headless で同一結果になる |
 | P2-9 | Medium | Pending | map generate と legacy `.map` load が `world.generate` / 完全 staging 外のまま | 生成は staging world → validate → `world.replace` / `world.generate`。legacy load も decode 完了前に live context を壊さない。完了まで「全 write が dispatch 経由」を達成済みと扱わない |
 | P2-10 | Low | Pending | `options.year/month/day` と `SimulationContext` 時計の dual mirror が残る | 唯一の正を simulation clock とし、legacy readers を移行したうえで options mirror を廃止する（計画 §4.2） |
-| P2-11 | Medium | Pending | target `simulation.stepDay` + `TransactionWriter` が未実装 | system は宣言 topic だけを writer 経由で書き、in-place pack/simulation 直書きを止める。一日一 command / 失敗日 rollback の契約を test で固定する（計画 §5.1 / §6） |
+| P2-11 | Medium | Verified | target `simulation.stepDay` + `TransactionWriter` が未実装 | system は宣言 topic だけを writer 経由で書き、in-place pack/simulation 直書きを止める。一日一 command / 失敗日 rollback の契約を test で固定する（計画 §5.1 / §6） |
 | P2-12 | Medium | Pending | writer lint が controllers のみ・generator/extension の seam 漏れ | `lint-world-writers` を generators / extensions に拡張するか同等 inventory を持つ。extension tick 内の direct `draw*` は draw-layer hook / RenderCoordinator 経路へ寄せる |
 | P2-13 | Low | Pending | SVG export が `withSvgSnapshot()` に依存 | export も offscreen SVG adapter が canonical / PresentationData から生成し、renderMode 切替や live DOM snapshot に依存しない（save path は既に DOM-free） |
 | P3-1 | Medium | Pending | E2E の render mode 固定が不十分 | 全 map-related E2E が helper で renderer mode を明示する（現状 helper 使用は一部 spec に限定） |
@@ -49,7 +49,7 @@
 | **Phase 7** revision projection | ほぼ完了 | partial GPU は benchmark 駆動 → **P3-2** の後 |
 | **Phase 8** physical split / Worker | checklist ほぼ [x] | temporary compatibility projection（pack mirror）は残置。完全削除は物理 split の最終段で別途 |
 | **§4.2** clock mirror 廃止 | 未着手 | **P2-10** |
-| **§5** TransactionWriter / stepDay | 未着手 | **P2-11**（P2-5 と密接） |
+| **§5** TransactionWriter / stepDay | 基盤完了（P2-11） | transitional は in-place mutation + markChanged。完全 staged write は後続 |
 | **§9** ExtensionAPI target | 部分 | **P2-4**。`registerExtensionCommand` は既存 |
 | **§12.4** arch checks | 部分 | writer lint / ownership test あり。不足は **P3-3** |
 | **§13** perf criteria | 部分 | **P3-2** |
@@ -388,3 +388,11 @@ P2-13 ─ Low、export のみ
 - 実行順は phase により `economy.tick` → `shipbuilding.tick` → `nobility.tick`。旧 hook 登録順（economy→nobility→shipbuilding）から、voyage intel が同一 tick の Espionage に届くよう military を後ろへ寄せた。
 - 各 extension の `cleanup()` で system unregister する。`registerTimeTickHook` は `@deprecated` の薄い politics-phase 互換 wrapper とし、DEV で警告を出す（dynamic ZIP 用に残置）。
 - 検証: `npm test -- --run src/generators/timeEngine.systems.test.ts src/generators/simulationSystem.test.ts src/runtime/simulationRunner.test.ts src/runtime/renderCoordinator.test.ts` — 関連 green。`npx tsc --noEmit` — 成功。`npm run build` — 成功。
+
+### 2026-07-20 — P2-11 simulation.stepDay + TransactionWriter
+
+- `TransactionWriter`（`src/runtime/transactionWriter.ts`）を追加。system は宣言 `writes` 内の topic だけを `markChanged` でき、未宣言 mark は throw。
+- `SimulationSystem.run(context, writer)` に変更。registry が writer を生成し marked topics だけを commit へ載せる。built-in economy / shipbuilding / nobility と legacy hook wrapper を移行。
+- `simulation.stepDay` command を追加（payload なし、常に 1 暦日）。handler は mutation 前に simulation + pack を snapshot し、system 例外時は live state を復元して revision を発行しない。
+- `simulationRunner.stepDay` / `runLegacyDaily` は `simulation.stepDay` を使用。`simulation.advance` は互換 bulk 経路として維持（P2-5 で日次統一）。
+- 検証: `npm test -- --run src/runtime/transactionWriter.test.ts src/generators/simulationSystem.test.ts src/generators/timeEngine.systems.test.ts src/runtime/simulationRunner.test.ts src/runtime/worldRuntime.test.ts` — 51 passed。`npx tsc --noEmit` — 成功。`npm run build` — 成功。

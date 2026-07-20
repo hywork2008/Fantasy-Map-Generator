@@ -227,8 +227,8 @@ export function init(api: ExtensionAPI): void {
     writes: ["extension.characters", "extension.nobility", "map.politics", "map.settlements", "simulation.military"],
     cadence: { every: 1 },
     profileLabel: "nobility",
-    run: context => {
-      if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return [];
+    run: (context, writer) => {
+      if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return;
 
       const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
       const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
@@ -274,12 +274,9 @@ export function init(api: ExtensionAPI): void {
 
       refreshCharactersOverviewIfOpen(api.isDialogOpen("charactersOverview"));
 
-      return [
-        "extension.characters",
-        "extension.nobility",
-        ...(settlementsChanged ? (["map.politics", "map.settlements"] as const) : []),
-        ...(militaryChanged ? (["simulation.military"] as const) : [])
-      ];
+      writer.markChanged("extension.characters", "extension.nobility");
+      if (settlementsChanged) writer.markChanged("map.politics", "map.settlements");
+      if (militaryChanged) writer.markChanged("simulation.military");
     }
   });
 }

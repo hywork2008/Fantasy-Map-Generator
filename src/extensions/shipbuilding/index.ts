@@ -164,8 +164,8 @@ export function init(api: ExtensionAPI): void {
     writes: ["extension.shipbuilding", "extension.economy", "extension.nobility"],
     cadence: { every: 1 },
     profileLabel: "shipbuilding",
-    run: context => {
-      if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return [];
+    run: (context, writer) => {
+      if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
       // The UI's daily Advance Time loop calls this with deltaYears=0, deltaDays=1 per tick —
       // fold all three granularities into a years-equivalent so logging/build progress doesn't
       // silently stall (matches Economy and Nobility systems).
@@ -191,7 +191,7 @@ export function init(api: ExtensionAPI): void {
       // Full draw-layer / RenderCoordinator wiring for extension ticks is P2-12.
       if (api.layerIsOn("toggleShipyards")) drawShipyards(_candidates);
       refreshShipyardsOverviewIfOpen(_candidates, _portCapacity);
-      return ["extension.shipbuilding", "extension.economy", "extension.nobility"];
+      writer.markChanged("extension.shipbuilding", "extension.economy", "extension.nobility");
     }
   });
 

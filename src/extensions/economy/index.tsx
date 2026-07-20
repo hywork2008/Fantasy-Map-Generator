@@ -1124,8 +1124,8 @@ export function init(api: ExtensionAPI): void {
     writes: ["extension.economy", "simulation.states"],
     cadence: { every: 1 },
     profileLabel: "economy",
-    run: context => {
-      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return [];
+    run: (context, writer) => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
 
       const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
       const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
@@ -1209,7 +1209,7 @@ export function init(api: ExtensionAPI): void {
         scheduleProductionSettlement();
       }
 
-      return ["extension.economy", "simulation.states"];
+      writer.markChanged("extension.economy", "simulation.states");
     }
   });
 

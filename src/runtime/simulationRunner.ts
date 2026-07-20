@@ -1,15 +1,17 @@
 import { simulationContext } from "../context/simulationContext";
 import { advanceTime } from "../generators/timeEngine";
 import { getDaysInMonth, isLeapYear } from "../utils/seasonUtils";
-import { advanceSimulation } from "./worldRuntime";
+import { advanceSimulation, stepDaySimulation } from "./worldRuntime";
 
 /**
  * Headless simulation runner surface.
  *
- * These helpers share the same `simulation.advance` command as the UI and
- * `window.fmg.actions.advanceTime`, but they do not require requestAnimationFrame,
- * React stores, or a RenderCoordinator subscription. Unit tests and batch hosts
- * can step the calendar without mounting the map.
+ * Canonical day steps use `simulation.stepDay` (one command / one commit, with
+ * failed-day rollback). Multi-day bulk still uses `simulation.advance` during
+ * the compatibility period (P2-5 unifies UI + public action onto daily steps).
+ *
+ * Helpers do not require requestAnimationFrame, React stores, or a
+ * RenderCoordinator subscription.
  *
  * Compatibility note (unite-data-and-map §6.2): the UI daily path and the public
  * bulk path still differ in hook count / tickCount / RNG consumption. Keep both
@@ -41,7 +43,7 @@ export interface DailyRunOptions {
   /**
    * When true (default), also run the post-commit observers used by the public
    * `advanceTime` action (DOM events, telemetry). Headless pure tests can set
-   * `notify: false` to only commit through `simulation.advance`.
+   * `notify: false` to only commit through `simulation.stepDay` / `simulation.advance`.
    */
   readonly notify?: boolean;
 }
@@ -77,19 +79,43 @@ export function durationToCalendarDays(clock: SimulationClockReading, duration: 
   return totalDays;
 }
 
-/** One calendar day via the same command the UI loop uses. Returns false on no-op. */
+/**
+ * One canonical calendar day via `simulation.stepDay` (failed-day rollback).
+ * With `notify: true` (default) also runs the public advanceTime observers for
+ * that day so UI-equivalent callers share the same command body.
+ */
 export function stepDay(options?: { readonly notify?: boolean }): boolean {
-  if (options?.notify === false) {
-    return advanceSimulation({ deltaYears: 0, deltaMonths: 0, deltaDays: 1 }) !== null;
+  const commit = stepDaySimulation();
+  if (!commit) return false;
+  if (options?.notify !== false) {
+    // Observers only — the mutation already committed through stepDaySimulation.
+    document.dispatchEvent(
+      new CustomEvent("fmg:time-advanced", {
+        detail: {
+          deltaYears: 0,
+          deltaMonths: 0,
+          deltaDays: 1,
+          currentYear: simulationContext.currentYear
+        }
+      })
+    );
+    document.dispatchEvent(
+      new CustomEvent("fmg:simulation-updated", {
+        detail: {
+          currentYear: simulationContext.currentYear,
+          currentMonth: simulationContext.currentMonth,
+          currentDay: simulationContext.currentDay,
+          era: simulationContext.era
+        }
+      })
+    );
   }
-  const tickBefore = simulationContext.tickCount;
-  advanceTime(0, 0, 1);
-  return simulationContext.tickCount > tickBefore;
+  return true;
 }
 
 /**
- * Legacy daily path: one `advance(0,0,1)` commit per calendar day.
- * This is the semantics of Tools → Advance Time buttons.
+ * Legacy daily path: one `simulation.stepDay` commit per calendar day.
+ * This is the semantics of Tools → Advance Time buttons (day loop).
  */
 export function runLegacyDaily(days: number, options: DailyRunOptions = {}): DailyRunResult {
   if (!Number.isFinite(days) || days <= 0) {
@@ -103,13 +129,8 @@ export function runLegacyDaily(days: number, options: DailyRunOptions = {}): Dai
     if (options.shouldStop?.()) {
       return { daysRequested: totalDays, daysCompleted: completed, stopped: true };
     }
-    if (notify) {
-      advanceTime(0, 0, 1);
-    } else {
-      const commit = advanceSimulation({ deltaYears: 0, deltaMonths: 0, deltaDays: 1 });
-      if (!commit) {
-        return { daysRequested: totalDays, daysCompleted: completed, stopped: true };
-      }
+    if (!stepDay({ notify })) {
+      return { daysRequested: totalDays, daysCompleted: completed, stopped: true };
     }
     completed++;
     options.onDayComplete?.({ day: completed, totalDays });

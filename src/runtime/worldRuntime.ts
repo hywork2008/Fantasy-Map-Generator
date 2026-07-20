@@ -163,6 +163,25 @@ export interface AdvanceSimulationCommand {
 
 export type SimulationAdvanceHandler = (request: AdvanceSimulationRequest) => LegacyMutationOutcome<void>;
 
+/** Result of one successful canonical calendar-day step. */
+export interface SimulationStepResult {
+  readonly tickCount: number;
+  readonly year: number;
+  readonly month: number;
+  readonly day: number;
+}
+
+/**
+ * Target one-day simulation command (unite-data-and-map §6). Payload is empty —
+ * the step always advances exactly one calendar day from the live clock.
+ */
+export interface StepDayCommand {
+  readonly type: "simulation.stepDay";
+  readonly payload?: undefined;
+}
+
+export type SimulationStepDayHandler = () => LegacyMutationOutcome<SimulationStepResult>;
+
 export type HeightmapFinalizeMode = "erase" | "keep" | "risk";
 
 export interface FinalizeHeightmapRequest {
@@ -602,6 +621,7 @@ export type WorldCommand<T> =
   | LegacyMutationCommand<T>
   | ExtensionCommand
   | AdvanceSimulationCommand
+  | StepDayCommand
   | FinalizeHeightmapCommand
   | PositionCommand
   | AssignCellsCommand
@@ -640,6 +660,8 @@ export interface WorldRuntime {
   registerStateSlice(spec: ExtensionStateSliceSpec): () => void;
   /** Register the compatibility simulation implementation behind `simulation.advance`. */
   registerSimulationAdvanceHandler(handler: SimulationAdvanceHandler): () => void;
+  /** Register the one-day simulation implementation behind `simulation.stepDay`. */
+  registerSimulationStepDayHandler(handler: SimulationStepDayHandler): () => void;
   /** Register the synchronous generator adapter behind `heightmap.finalize`. */
   registerHeightmapFinalizeHandler(handler: HeightmapFinalizeHandler): () => void;
   /** Places a read barrier on the runtime queue without publishing a commit. */
@@ -652,6 +674,7 @@ class LegacyWorldRuntime implements WorldRuntime {
   private readonly listeners = new Set<(commit: WorldCommit<unknown>) => void>();
   private readonly extensionCommands = new Map<string, ExtensionCommandDefinition>();
   private simulationAdvanceHandler: SimulationAdvanceHandler | null = null;
+  private simulationStepDayHandler: SimulationStepDayHandler | null = null;
   private heightmapFinalizeHandler: HeightmapFinalizeHandler | null = null;
   private opaqueExtensionChunks: readonly OpaqueExtensionChunk[] = [];
   private committing = false;
@@ -729,6 +752,16 @@ class LegacyWorldRuntime implements WorldRuntime {
     this.simulationAdvanceHandler = handler;
     return () => {
       if (this.simulationAdvanceHandler === handler) this.simulationAdvanceHandler = null;
+    };
+  }
+
+  registerSimulationStepDayHandler(handler: SimulationStepDayHandler): () => void {
+    if (this.simulationStepDayHandler) {
+      throw new Error("The simulation.stepDay handler is already registered");
+    }
+    this.simulationStepDayHandler = handler;
+    return () => {
+      if (this.simulationStepDayHandler === handler) this.simulationStepDayHandler = null;
     };
   }
 
@@ -837,6 +870,10 @@ class LegacyWorldRuntime implements WorldRuntime {
 
     if (command.type === "simulation.advance") {
       return this.advanceSimulation(command.payload) as LegacyMutationOutcome<T>;
+    }
+
+    if (command.type === "simulation.stepDay") {
+      return this.stepDay() as LegacyMutationOutcome<T>;
     }
 
     if (command.type === "heightmap.finalize") {
@@ -2028,6 +2065,13 @@ class LegacyWorldRuntime implements WorldRuntime {
     return this.simulationAdvanceHandler(request);
   }
 
+  private stepDay(): LegacyMutationOutcome<SimulationStepResult> {
+    if (!this.simulationStepDayHandler) {
+      throw new Error("simulation.stepDay has no registered handler");
+    }
+    return this.simulationStepDayHandler();
+  }
+
   private extensionCommandKey(extensionId: string, name: string): string {
     return `${extensionId}:${name}`;
   }
@@ -2165,6 +2209,16 @@ export function dispatchExtensionCommand(request: ExtensionCommandRequest): Worl
 /** Registers the current synchronous simulation implementation with the runtime. */
 export function registerSimulationAdvanceHandler(handler: SimulationAdvanceHandler): () => void {
   return worldRuntime.registerSimulationAdvanceHandler(handler);
+}
+
+/** Registers the one-day step implementation behind `simulation.stepDay`. */
+export function registerSimulationStepDayHandler(handler: SimulationStepDayHandler): () => void {
+  return worldRuntime.registerSimulationStepDayHandler(handler);
+}
+
+/** Dispatches one canonical calendar day through `simulation.stepDay`. */
+export function stepDaySimulation(): WorldCommit<SimulationStepResult> | null {
+  return (worldRuntime as LegacyWorldRuntime).execute({ type: "simulation.stepDay" });
 }
 
 /** Dispatches one compatibility simulation step through the named command seam. */

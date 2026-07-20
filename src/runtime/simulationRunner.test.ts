@@ -128,9 +128,9 @@ describe("SimulationRunner (headless)", () => {
         reads: [],
         writes: ["simulation.rng"],
         cadence: { every: 1 },
-        run: () => {
+        run: (_context, writer) => {
           draws.push(appServices.rng.rand());
-          return ["simulation.rng"];
+          writer.markChanged("simulation.rng");
         }
       })
     );
@@ -154,5 +154,62 @@ describe("SimulationRunner (headless)", () => {
     runLegacyDaily(1, { notify: false });
     expect(listener).toHaveBeenCalledTimes(1);
     // No throw, no rAF, no document requirement beyond the default test env.
+  });
+
+  it("simulation.stepDay is one command per day with rollback on system failure", () => {
+    const commits: number[] = [];
+    unsubscribers.push(
+      worldRuntime.subscribe(commit => {
+        commits.push(commit.changes.toRevision);
+      })
+    );
+
+    expect(stepDay({ notify: false })).toBe(true);
+    expect(commits).toHaveLength(1);
+    expect(simulationContext.tickCount).toBe(1);
+    expect(simulationContext.currentDay).toBe(2);
+
+    const dayBefore = simulationContext.currentDay;
+    const tickBefore = simulationContext.tickCount;
+    const yearBefore = simulationContext.currentYear;
+
+    unsubscribers.push(
+      registerSimulationSystem({
+        id: "test-day-boom",
+        phase: "finalize",
+        reads: [],
+        writes: ["simulation.clock"],
+        cadence: { every: 1 },
+        run: () => {
+          throw new Error("boom in day step");
+        }
+      })
+    );
+
+    expect(() => stepDay({ notify: false })).toThrow("boom in day step");
+    // Failed day: no additional commit; clock and tickCount restored.
+    expect(commits).toHaveLength(1);
+    expect(simulationContext.currentDay).toBe(dayBefore);
+    expect(simulationContext.tickCount).toBe(tickBefore);
+    expect(simulationContext.currentYear).toBe(yearBefore);
+  });
+
+  it("rejects systems that mark topics outside their declared writes", () => {
+    unsubscribers.push(
+      registerSimulationSystem({
+        id: "test-undeclared-write",
+        phase: "finalize",
+        reads: [],
+        writes: ["simulation.clock"],
+        cadence: { every: 1 },
+        run: (_context, writer) => {
+          writer.markChanged("map.politics");
+        }
+      })
+    );
+
+    const tickBefore = simulationContext.tickCount;
+    expect(() => stepDay({ notify: false })).toThrow("not in the system's declared writes");
+    expect(simulationContext.tickCount).toBe(tickBefore);
   });
 });

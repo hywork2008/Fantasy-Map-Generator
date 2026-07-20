@@ -1,13 +1,22 @@
 import { describe, expect, it } from "vitest";
+import type { TransactionWriter } from "../runtime/transactionWriter";
 import { createSimulationSystemRegistry, type SimulationSystem } from "./simulationSystem";
 
 function system(
   id: string,
   phase: SimulationSystem["phase"],
-  run: () => void,
+  run: (writer: TransactionWriter) => void,
   overrides: Partial<Omit<SimulationSystem, "id" | "phase" | "run">> = {}
 ): SimulationSystem {
-  return { id, phase, reads: [], writes: [], cadence: { every: 1 }, run, ...overrides };
+  return {
+    id,
+    phase,
+    reads: [],
+    writes: overrides.writes ?? [],
+    cadence: { every: 1 },
+    run: (_context, writer) => run(writer),
+    ...overrides
+  };
 }
 
 describe("SimulationSystemRegistry", () => {
@@ -72,5 +81,37 @@ describe("SimulationSystemRegistry", () => {
     registry.register(system("second", "finalize", () => {}, { after: ["first"] }));
 
     expect(unregisterFirst).toThrow("cannot be removed");
+  });
+
+  it("collects only writer-marked topics and rejects undeclared marks", () => {
+    const registry = createSimulationSystemRegistry();
+    registry.register(
+      system(
+        "writer-system",
+        "population",
+        writer => {
+          writer.markChanged("simulation.states");
+        },
+        { writes: ["simulation.states", "simulation.cells"] }
+      )
+    );
+
+    const results = registry.run({ tick: 1, delta: { years: 0, months: 0, days: 1 } });
+    expect(results).toHaveLength(1);
+    expect(results[0]?.topics).toEqual(["simulation.states"]);
+
+    registry.register(
+      system(
+        "bad-writer",
+        "population",
+        writer => {
+          writer.markChanged("map.politics");
+        },
+        { writes: ["simulation.states"] }
+      )
+    );
+    expect(() => registry.run({ tick: 2, delta: { years: 0, months: 0, days: 1 } })).toThrow(
+      "not in the system's declared writes"
+    );
   });
 });

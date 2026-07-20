@@ -1,3 +1,4 @@
+import { createTransactionWriter, type TransactionWriter } from "../runtime/transactionWriter";
 import type { DataTopic } from "../runtime/worldRuntime";
 
 /** Fixed execution order for one simulation tick. */
@@ -35,11 +36,10 @@ export interface SimulationStepContext {
 
 /**
  * A synchronous simulation unit. `writes` is the upper-bound declaration used
- * for dependency ordering and as the compatibility WorldChangeSet fallback
- * when `run()` returns void. A system that returns an explicit (possibly
- * empty) topic array instead reports exactly what changed this tick, so the
- * host doesn't invalidate renderers/caches for topics it declared but didn't
- * actually touch on a given run.
+ * for dependency ordering and for the TransactionWriter allowlist. Systems must
+ * call `writer.markChanged` for every topic they actually mutate; undeclared
+ * marks throw. Canonical data should eventually only change through the writer;
+ * the transitional path still mutates live state and reports topics here.
  */
 export interface SimulationSystem {
   readonly id: string;
@@ -51,7 +51,7 @@ export interface SimulationSystem {
   readonly cadence: SimulationCadence;
   /** Optional compatibility label for the existing tick profiler. */
   readonly profileLabel?: string;
-  run(context: SimulationStepContext): readonly DataTopic[] | undefined;
+  run(context: SimulationStepContext, writer: TransactionWriter): void;
 }
 
 export interface SimulationSystemRunResult {
@@ -63,10 +63,12 @@ export interface SimulationSystemRegistry {
   register(system: SimulationSystem): () => void;
   run(
     context: SimulationStepContext,
-    execute?: (system: SimulationSystem) => readonly DataTopic[] | undefined
+    execute?: (system: SimulationSystem, writer: TransactionWriter) => void
   ): readonly SimulationSystemRunResult[];
   list(): readonly SimulationSystem[];
 }
+
+export type { TransactionWriter };
 
 class OrderedSimulationSystemRegistry implements SimulationSystemRegistry {
   private readonly systems = new Map<string, SimulationSystem>();
@@ -97,7 +99,8 @@ class OrderedSimulationSystemRegistry implements SimulationSystemRegistry {
 
   run(
     context: SimulationStepContext,
-    execute: (system: SimulationSystem) => readonly DataTopic[] | undefined = system => system.run(context)
+    execute: (system: SimulationSystem, writer: TransactionWriter) => void = (system, writer) =>
+      system.run(context, writer)
   ): readonly SimulationSystemRunResult[] {
     if (this.running) throw new Error("Simulation systems cannot re-enter a tick");
 
@@ -106,8 +109,9 @@ class OrderedSimulationSystemRegistry implements SimulationSystemRegistry {
       const executed: SimulationSystemRunResult[] = [];
       for (const system of this.resolveOrder()) {
         if (!runsOnTick(system.cadence, context.tick)) continue;
-        const topics = execute(system);
-        executed.push({ system, topics: topics ?? system.writes });
+        const writer = createTransactionWriter(system.writes);
+        execute(system, writer);
+        executed.push({ system, topics: writer.changedTopics });
       }
       return executed;
     } finally {

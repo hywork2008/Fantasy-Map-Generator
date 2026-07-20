@@ -22,7 +22,7 @@ describe("timeEngine simulation system registration (P2-7)", () => {
         reads: [],
         writes: ["simulation.military"],
         cadence: { every: 1 },
-        run: () => []
+        run: () => {}
       })
     );
     unsubscribers.push(
@@ -32,7 +32,7 @@ describe("timeEngine simulation system registration (P2-7)", () => {
         reads: [],
         writes: ["extension.economy"],
         cadence: { every: 1 },
-        run: () => []
+        run: () => {}
       })
     );
 

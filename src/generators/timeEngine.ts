@@ -1,11 +1,18 @@
-import { simulationContext } from "../context/simulationContext";
+import { restoreRngFromSimulation } from "../context/appServices";
+import { type SimulationContext, simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
 import {
   type SimulationRngState,
   simulationRngStatesEqual,
   syncSimulationRngToContext
 } from "../runtime/simulationRng";
-import { advanceSimulation, type DataTopic, registerSimulationAdvanceHandler } from "../runtime/worldRuntime";
+import {
+  advanceSimulation,
+  type DataTopic,
+  registerSimulationAdvanceHandler,
+  registerSimulationStepDayHandler,
+  type SimulationStepResult
+} from "../runtime/worldRuntime";
 import { telemetry } from "../services/simulationTelemetry";
 import { useDebugSnapshotState } from "../store/debugSnapshotState";
 import { useOptionsState } from "../store/optionsState";
@@ -38,6 +45,8 @@ registerSimulationAdvanceHandler(({ deltaYears, deltaMonths, deltaDays }) =>
   advanceTimeMutation(deltaYears, deltaMonths, deltaDays)
 );
 
+registerSimulationStepDayHandler(() => stepDayMutation());
+
 /**
  * @deprecated Prefer `registerSimulationSystem()` with explicit phase, cadence,
  * reads, writes, and dependencies. Built-in economy / nobility / shipbuilding
@@ -53,15 +62,23 @@ export function registerTimeTickHook(fn: TimeTickHook, label = "unlabeled", writ
   }
   const previousId = legacyHookIds.at(-1);
   const id = `legacy-hook:${nextLegacyHookId++}`;
+  const declaredWrites = writes?.length
+    ? [...new Set(writes)]
+    : ([label === "unlabeled" ? "extension.legacy" : `extension.${label}`] as DataTopic[]);
   timeTickSystems.register({
     id,
     phase: "politics",
     reads: [],
-    writes: writes?.length ? [...new Set(writes)] : [label === "unlabeled" ? "extension.legacy" : `extension.${label}`],
+    writes: declaredWrites,
     after: previousId ? [previousId] : undefined,
     cadence: { every: 1 },
     profileLabel: `hook:${label}`,
-    run: context => fn(context.delta.years, context.delta.months, context.delta.days)
+    run: (context, writer) => {
+      const topics = fn(context.delta.years, context.delta.months, context.delta.days);
+      // void/undefined keeps the historical fallback: publish the declared writes.
+      if (topics === undefined) writer.markChanged(...declaredWrites);
+      else if (topics.length) writer.markChanged(...topics);
+    }
   });
   legacyHookIds.push(id);
 }
@@ -69,7 +86,7 @@ export function registerTimeTickHook(fn: TimeTickHook, label = "unlabeled", writ
 /**
  * Registers a synchronous simulation system for each `advanceTime` / day step.
  * Prefer this over `registerTimeTickHook`. Systems must not import Renderer APIs;
- * return the topics that actually changed so RenderCoordinator can invalidate.
+ * mark changed topics on the TransactionWriter so undeclared writes are rejected.
  */
 export function registerSimulationSystem(system: SimulationSystem): () => void {
   return timeTickSystems.register(system);
@@ -180,12 +197,105 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
 }
 
 /**
+ * Snapshot of live simulation + pack taken before a `simulation.stepDay` mutation.
+ * On system failure the day is restored and no revision is published.
+ */
+interface DaySnapshot {
+  readonly simulation: SimulationContext;
+  readonly pack: unknown;
+  readonly options: { readonly year: number; readonly month: number; readonly day: number };
+  readonly rng: SimulationRngState | null;
+}
+
+function takeDaySnapshot(): DaySnapshot {
+  syncSimulationRngToContext(simulationContext);
+  return {
+    simulation: structuredClone(simulationContext),
+    pack: structuredClone(worldContext.pack),
+    options: {
+      year: worldContext.options.year ?? 0,
+      month: worldContext.options.month ?? 1,
+      day: worldContext.options.day ?? 1
+    },
+    rng: simulationContext.rng
+      ? {
+          algorithm: simulationContext.rng.algorithm,
+          seed: simulationContext.rng.seed,
+          state: [...simulationContext.rng.state] as [number, number, number, number]
+        }
+      : null
+  };
+}
+
+function restoreDaySnapshot(snapshot: DaySnapshot): void {
+  // In-place restore so existing context / pack object identities stay shared.
+  const simTarget = simulationContext as unknown as Record<string, unknown>;
+  const simSource = snapshot.simulation as unknown as Record<string, unknown>;
+  for (const key of Object.keys(simTarget)) delete simTarget[key];
+  Object.assign(simTarget, simSource);
+
+  const packTarget = worldContext.pack as unknown as Record<string, unknown>;
+  const packSource = snapshot.pack as Record<string, unknown>;
+  for (const key of Object.keys(packTarget)) delete packTarget[key];
+  Object.assign(packTarget, packSource);
+
+  worldContext.options.year = snapshot.options.year;
+  worldContext.options.month = snapshot.options.month;
+  worldContext.options.day = snapshot.options.day;
+  useOptionsState.getState().setOption("year", snapshot.options.year);
+
+  if (snapshot.rng) {
+    simulationContext.rng = snapshot.rng;
+    const seed =
+      typeof worldContext.seed === "string" && worldContext.seed.length > 0 ? worldContext.seed : snapshot.rng.seed;
+    restoreRngFromSimulation(seed, simulationContext);
+  }
+}
+
+/**
+ * Canonical one-day command body. Snapshots before mutation so a throwing system
+ * rolls back the day without publishing a revision (plan §5.2 / §6).
+ */
+function stepDayMutation(): { result: SimulationStepResult; topics: readonly DataTopic[] } {
+  const snapshot = takeDaySnapshot();
+  try {
+    const outcome = advanceTimeMutation(0, 0, 1);
+    if (!outcome.topics.length) {
+      // advanceTimeMutation returns empty topics only for non-positive deltas; stepDay is always 1 day.
+      return {
+        result: {
+          tickCount: simulationContext.tickCount,
+          year: simulationContext.currentYear,
+          month: simulationContext.currentMonth,
+          day: simulationContext.currentDay
+        },
+        topics: []
+      };
+    }
+    return {
+      result: {
+        tickCount: simulationContext.tickCount,
+        year: simulationContext.currentYear,
+        month: simulationContext.currentMonth,
+        day: simulationContext.currentDay
+      },
+      topics: outcome.topics
+    };
+  } catch (error) {
+    restoreDaySnapshot(snapshot);
+    throw error;
+  }
+}
+
+/**
  * Legacy synchronous simulation implementation. WorldRuntime owns the commit
  * around this function; it must not await or perform renderer work directly.
+ * Multi-day bulk advances share this path; one-day advances use `stepDayMutation`
+ * which wraps it with snapshot rollback.
  */
 function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays: number) {
   if (deltaYears <= 0 && deltaMonths <= 0 && deltaDays <= 0) {
-    return { result: undefined, topics: [] };
+    return { result: undefined, topics: [] as DataTopic[] };
   }
 
   const topics: DataTopic[] = ["simulation.clock"];
@@ -243,7 +353,7 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
   const actualYearsAdvanced = simulationContext.currentYear - oldYear;
 
   // Increase yearsAgo for all events in diplomacy history so their absolute year remains static
-  const chronicle = worldContext.pack.states[0].diplomacy as unknown[];
+  const chronicle = worldContext.pack.states[0]?.diplomacy as unknown[] | undefined;
   if (chronicle && actualYearsAdvanced > 0) {
     for (const group of chronicle) {
       if (Array.isArray(group)) {
@@ -305,8 +415,8 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
     tick: simulationContext.tickCount,
     delta: { years: deltaYears, months: deltaMonths, days: deltaDays }
   };
-  const executedSystems = timeTickSystems.run(systemContext, system =>
-    measureTickStep(system.profileLabel ?? `system:${system.id}`, () => system.run(systemContext))
+  const executedSystems = timeTickSystems.run(systemContext, (system, writer) =>
+    measureTickStep(system.profileLabel ?? `system:${system.id}`, () => system.run(systemContext, writer))
   );
   topics.push(...executedSystems.flatMap(entry => entry.topics));
 
