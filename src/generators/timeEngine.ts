@@ -130,10 +130,13 @@ function dispatchSimulationUpdated(): void {
 }
 
 /**
- * Re-reads currentYear/era from worldContext.options without touching tickCount.
- * Called from src/controllers/options.ts whenever the user edits Year/Era in the
- * Options Generation tab post-generation, so simulationContext (the live clock
- * advanceTime() actually mutates) doesn't drift from the mirror in worldContext.options.
+ * Seeds (or re-seeds) the live simulation clock from generation options without
+ * touching tickCount. Called when the user edits Year/Era in the Options
+ * Generation tab after generation. This is an explicit user edit of the live
+ * clock start, not a continuous dual-write mirror.
+ *
+ * Month/day on options are legacy seed fields only; they are applied when
+ * present so map load can restore a saved calendar position into SimulationContext.
  */
 export function syncSimulationClockFromOptions(): void {
   simulationContext.currentYear = worldContext.options.year ?? 0;
@@ -145,8 +148,10 @@ export function syncSimulationClockFromOptions(): void {
 }
 
 /**
- * Resets the simulation clock from the current map's generated year/era.
- * Called once from main.ts after core map generation completes.
+ * Resets the simulation clock from the current map's generation year/era.
+ * Called once from main.ts after core map generation completes, and from
+ * legacy `.map` load after options are staged. `.fmg` load restores the clock
+ * from the archive simulation slice via `world.replace` instead.
  */
 export function initSimulationClock(): void {
   syncSimulationClockFromOptions();
@@ -205,7 +210,8 @@ registerDayStepObserver(notifyAfterDayStep);
  * P2-5: multi-day / month / year spans expand to a calendar-day sequence of
  * `simulation.stepDay` commits (same semantics as Tools → Advance Time).
  * One calendar day → one tickCount increment, one system pass, one event set.
- * Mirrors the year/month/day into worldContext.options for legacy readers.
+ * Live clock is only `simulationContext` (P2-10); options.year/month/day are
+ * not updated and remain generation-parameter values.
  */
 export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0): void {
   if (deltaYears <= 0 && deltaMonths <= 0 && deltaDays <= 0) return;
@@ -239,11 +245,11 @@ export function advanceTime(deltaYears: number, deltaMonths = 0, deltaDays = 0):
 /**
  * Snapshot of live simulation + pack taken before a `simulation.stepDay` mutation.
  * On system failure the day is restored and no revision is published.
+ * Options year/month/day are not part of the live clock and are not snapshotted.
  */
 interface DaySnapshot {
   readonly simulation: SimulationContext;
   readonly pack: unknown;
-  readonly options: { readonly year: number; readonly month: number; readonly day: number };
   readonly rng: SimulationRngState | null;
 }
 
@@ -252,11 +258,6 @@ function takeDaySnapshot(): DaySnapshot {
   return {
     simulation: structuredClone(simulationContext),
     pack: structuredClone(worldContext.pack),
-    options: {
-      year: worldContext.options.year ?? 0,
-      month: worldContext.options.month ?? 1,
-      day: worldContext.options.day ?? 1
-    },
     rng: simulationContext.rng
       ? {
           algorithm: simulationContext.rng.algorithm,
@@ -279,11 +280,6 @@ function restoreDaySnapshot(snapshot: DaySnapshot): void {
   const packSource = snapshot.pack as Record<string, unknown>;
   for (const key of Object.keys(packTarget)) delete packTarget[key];
   Object.assign(packTarget, packSource);
-
-  worldContext.options.year = snapshot.options.year;
-  worldContext.options.month = snapshot.options.month;
-  worldContext.options.day = snapshot.options.day;
-  useOptionsState.getState().setOption("year", snapshot.options.year);
 
   if (snapshot.rng) {
     simulationContext.rng = snapshot.rng;
@@ -383,14 +379,9 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
     dim = getDaysInMonth(simulationContext.currentYear, simulationContext.currentMonth);
   }
   simulationContext.tickCount += 1;
-  worldContext.options.year = simulationContext.currentYear;
-  // Also save month and day to options so they are persisted across loads
-  worldContext.options.month = simulationContext.currentMonth;
-  worldContext.options.day = simulationContext.currentDay;
+  // Live calendar lives only on simulationContext (P2-10). Do not mirror into
+  // worldContext.options / Options UI — those hold generation starting values.
   updateWorldSeason();
-
-  useOptionsState.getState().setOption("year", simulationContext.currentYear);
-  // Ideally useOptionsState should set month and day too, but keeping minimal changes here
 
   const actualYearsAdvanced = simulationContext.currentYear - oldYear;
 

@@ -1,5 +1,5 @@
 import { P, rand } from "../hostUtils";
-import { getCharacters, getWorldContext, replaceCharacters } from "./charactersContext";
+import { getCharacters, getCurrentYear, replaceCharacters } from "./charactersContext";
 
 /** Physical decline sets in past this age — mirrors the generation-time formula in personFactory.ts's createPerson(). */
 export const DECLINE_AGE_THRESHOLD = 35;
@@ -43,7 +43,7 @@ export function advanceCharacterAging(deltaYears: number): void {
     const survivalProb = (1 - Math.min(0.99, mortalityRisk)) ** deltaYears;
     if (Math.random() > survivalProb) {
       character.dead = true;
-      character.deathYear = getWorldContext().options.year;
+      character.deathYear = getCurrentYear();
 
       let baseReason = "Deceased";
       if (character.titles.length > 0) {
@@ -55,7 +55,7 @@ export function advanceCharacterAging(deltaYears: number): void {
       }
 
       for (const t of character.titles) {
-        t.endYear = getWorldContext().options.year;
+        t.endYear = getCurrentYear();
         t.reason = baseReason;
         character.pastTitles.push(t);
       }

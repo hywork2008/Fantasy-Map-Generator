@@ -22,8 +22,8 @@
 | P2-6 | Medium | Verified | simulation RNG が単一共有 stream のまま（per-system 派生が未実装） | system ID と tick/date から独立 stream を得られ、一 extension の追加乱数消費が他 system の結果を変えない。algorithm version と各 stream state が archive round-trip する |
 | P2-7 | Medium | Verified | 既存 tick が `registerTimeTickHook` 互換 system に依存したまま | built-in / 主要 extension が `registerSimulationSystem`（phase / cadence / reads / writes / dependency）へ移行し、legacy hook API は新規利用を禁止または薄くする |
 | P2-8 | Medium | Verified | module-local な tick 状態が archive / `SimulationData` に入っていない | `populationLossTracker`・Economy `forestDepletion` 等の module-private Map を versioned simulation / extension slice へ移し、save/load と headless で同一結果になる |
-| P2-9 | Medium | Pending | map generate と legacy `.map` load が `world.generate` / 完全 staging 外のまま | 生成は staging world → validate → `world.replace` / `world.generate`。legacy load も decode 完了前に live context を壊さない。完了まで「全 write が dispatch 経由」を達成済みと扱わない |
-| P2-10 | Low | Pending | `options.year/month/day` と `SimulationContext` 時計の dual mirror が残る | 唯一の正を simulation clock とし、legacy readers を移行したうえで options mirror を廃止する（計画 §4.2） |
+| P2-9 | Medium | Verified | map generate と legacy `.map` load が `world.generate` / 完全 staging 外のまま | 生成は staging world → validate → `world.replace` / `world.generate`。legacy load も decode 完了前に live context を壊さない。完了まで「全 write が dispatch 経由」を達成済みと扱わない |
+| P2-10 | Low | Verified | `options.year/month/day` と `SimulationContext` 時計の dual mirror が残る | 唯一の正を simulation clock とし、legacy readers を移行したうえで options mirror を廃止する（計画 §4.2） |
 | P2-11 | Medium | Verified | target `simulation.stepDay` + `TransactionWriter` が未実装 | system は宣言 topic だけを writer 経由で書き、in-place pack/simulation 直書きを止める。一日一 command / 失敗日 rollback の契約を test で固定する（計画 §5.1 / §6） |
 | P2-12 | Medium | Pending | writer lint が controllers のみ・generator/extension の seam 漏れ | `lint-world-writers` を generators / extensions に拡張するか同等 inventory を持つ。extension tick 内の direct `draw*` は draw-layer hook / RenderCoordinator 経路へ寄せる |
 | P2-13 | Low | Pending | SVG export が `withSvgSnapshot()` に依存 | export も offscreen SVG adapter が canonical / PresentationData から生成し、renderMode 切替や live DOM snapshot に依存しない（save path は既に DOM-free） |
@@ -40,15 +40,15 @@
 | 計画 | 状況 | remediation / メモ |
 | :-- | :-- | :-- |
 | **Phase 0** 仕様固定・E2E mode | 部分 | **P3-1**。module-local inventory は **P2-8** |
-| **Phase 1** WorldRuntime shell | ほぼ完了 | generate 原子性は **P2-9**。trusted `readTrusted()` は host 用に残置（P2-1 で dynamic は分離済み） |
+| **Phase 1** WorldRuntime shell | 完了（P2-9） | generate は `world.generate`、legacy load は decode→stage→`world.replace`。trusted `readTrusted()` は host 用に残置（P2-1 で dynamic は分離済み） |
 | **Phase 2** 描画を commit へ | ほぼ完了 | core hook の direct renderer は除去済み。extension `draw*` は **P2-12**。3D は RenderCoordinator listener 済み |
 | **Phase 3** PresentationData | ほぼ完了（P2-2） | icon raster 等の限定的 live SVG は互換。新規 style 源は PresentationData 必須 |
 | **Phase 4** Simulation system | 日次統一完了（P2-5） | P2-3/5/6/7/8/11 Verified。互換 bulk 単一 commit は廃止 |
 | **Phase 5** Command migration | 境界達成（P1-3） | heightmap 1 module allowlist 残。generator 内部 write は Phase 境界どおり許容だが **P2-12** で可視化 |
-| **Phase 6** `.fmg` archive | ほぼ完了 | save/autosave は DOM-free。opaque 昇格 lifecycle は **P2-4**。generate は **P2-9**。export snapshot は **P2-13** |
+| **Phase 6** `.fmg` archive | ほぼ完了 | save/autosave は DOM-free。opaque 昇格 lifecycle は **P2-4**。generate / legacy load staging は **P2-9**。export snapshot は **P2-13** |
 | **Phase 7** revision projection | ほぼ完了 | partial GPU は benchmark 駆動 → **P3-2** の後 |
 | **Phase 8** physical split / Worker | checklist ほぼ [x] | temporary compatibility projection（pack mirror）は残置。完全削除は物理 split の最終段で別途 |
-| **§4.2** clock mirror 廃止 | 未着手 | **P2-10** |
+| **§4.2** clock mirror 廃止 | 完了（P2-10） | options は生成パラメータのみ。live は simulationContext |
 | **§5** TransactionWriter / stepDay | 基盤完了（P2-11） | transitional は in-place mutation + markChanged。完全 staged write は後続 |
 | **§9** ExtensionAPI target | 部分 | **P2-4**。`registerExtensionCommand` は既存 |
 | **§12.4** arch checks | 部分 | writer lint / ownership test あり。不足は **P3-3** |
@@ -413,3 +413,19 @@ P2-13 ─ Low、export のみ
 - `calendarDuration.ts` holds shared expansion rules to avoid timeEngine ↔ runner cycles.
 - Characterization tests now require equal tickCount for UI daily, headless advance, public advanceTime, and the legacy bulk alias.
 - 検証: `npm test -- --run src/runtime/simulationRunner.test.ts` — 9 passed。`npx tsc --noEmit` — 成功。`npm run build` — 成功。
+
+### 2026-07-20 — P2-9 generate staging + legacy load atomicity
+
+- **`world.generate` command**: async dispatch path with registered handler (`registerWorldGenerateHandler` / `dispatchWorldGenerate`). Handler stages into live pack/grid (generators remain singleton-bound); runtime validates the staged document, publishes `fullReplace` topics on success, and restores a pre-generate snapshot with **no revision** on failure or invalid output.
+- **`generate()`** in `main.ts` is a thin wrapper: pipeline body is the handler; scale bar / calendar / stats are view-side work after a successful commit.
+- **Legacy `.map` load**: `LegacyMapCodecAdapter.decode` already stages positional slots without live mutation. `parseLoadedData` now (1) snapshots live world, (2) stages data only (`stageLegacyMapData` — no SVG replace), (3) validates → `world.replace` fullReplace, (4) injects SVG / layers / presentation (`applyLegacyMapView`). Failure before data commit restores the snapshot; view failures after commit do not roll back accepted data.
+- Concurrent dispatch is blocked while `world.generate` is running. Rollback restore skips archive validation so an empty pre-first-generate shell can be restored.
+- 検証: `npm test -- --run src/runtime/worldRuntime.test.ts src/runtime/worldArchive.test.ts src/runtime/renderCoordinator.test.ts` — 53 passed。`npx tsc --noEmit` — 成功。`npm run build` — 成功。
+
+### 2026-07-20 — P2-10 simulation clock sole source of truth
+
+- `advanceTime` / `simulation.stepDay` no longer write `worldContext.options.year|month|day` or `useOptionsState.year`. Day-step rollback snapshots no longer include the options clock.
+- Live readers migrated to `simulationContext` (or extension helpers): regiment movement, battle legends, character aging/lifecycle, province lords, strategic planner, economy season/quarter keys, caravans, production seasonality, Diplomacy History UI, debug snapshot year.
+- Generation-time readers keep `options.year` (states / military / burgs / frontiers / historical war scars). `initSimulationClock` / user Year–Era edits still seed the live clock from options.
+- Regression: multi-day advance leaves options generation year/month/day unchanged while simulation clock advances.
+- 検証: `npm test -- --run src/runtime/simulationRunner.test.ts src/generators/simulationSystem.test.ts src/generators/timeEngine.systems.test.ts src/extensions/characters/advanceAge.test.ts src/extensions/nobility/generators/strategic-planner.test.ts src/extensions/nobility/generators/provinceLordGenerator.test.ts src/extensions/economy/generators/production-utils.test.ts src/extensions/economy/generators/caravans.test.ts` — 44 passed (2 skipped)。`npx tsc --noEmit` — 成功。`npm run build` — 成功。

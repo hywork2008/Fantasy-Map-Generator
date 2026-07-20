@@ -1,6 +1,7 @@
 import { mean, sum } from "d3";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
+import { simulationContext } from "../context/simulationContext";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
@@ -745,7 +746,7 @@ export class Battle {
           .map((t: string) => (r.casualties[t] ? `${Math.abs(r.casualties[t])} ${t}` : null))
           .filter((c: string | null) => c);
         const casualtiesText = casualties.length ? ` Casualties: ${list(casualties as string[])}.` : "";
-        const legend = `\r\n\r\n${battleName} (${worldContext.options.year} ${worldContext.options.eraShort}): ${status}. The regiment ${regStatus}.${casualtiesText}`;
+        const legend = `\r\n\r\n${battleName} (${simulationContext.currentYear} ${worldContext.options.eraShort}): ${status}. The regiment ${regStatus}.${casualtiesText}`;
         note.legend += legend;
       }
 
@@ -771,7 +772,7 @@ export class Battle {
 
     const status = battleStatus[+P(0.7)];
     const result = `The ${this.getTypeName()} ended in ${status}`;
-    const legend = `${this.name} took place in ${worldContext.options.year} ${worldContext.options.eraShort}. It was fought between ${getSide(
+    const legend = `${this.name} took place in ${simulationContext.currentYear} ${worldContext.options.eraShort}. It was fought between ${getSide(
       this.attackers.regiments,
       1
     )} and ${getSide(this.defenders.regiments, 0)}. ${result}.

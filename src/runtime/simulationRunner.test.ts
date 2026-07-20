@@ -237,4 +237,23 @@ describe("SimulationRunner (headless)", () => {
     expect(() => stepDay({ notify: false })).toThrow("not in the system's declared writes");
     expect(simulationContext.tickCount).toBe(tickBefore);
   });
+
+  it("P2-10: advance leaves options generation year/month/day unchanged", () => {
+    worldContext.options.year = 1000;
+    worldContext.options.month = 1;
+    worldContext.options.day = 1;
+    useOptionsState.setState({ year: 1000 });
+
+    advance({ days: 40 }, { notify: false });
+
+    expect(simulationContext.currentYear).toBe(1000);
+    expect(simulationContext.currentMonth).toBe(2);
+    expect(simulationContext.currentDay).toBe(10);
+    expect(simulationContext.tickCount).toBe(40);
+    // Generation options are not a live clock mirror.
+    expect(worldContext.options.year).toBe(1000);
+    expect(worldContext.options.month).toBe(1);
+    expect(worldContext.options.day).toBe(1);
+    expect(useOptionsState.getState().year).toBe(1000);
+  });
 });

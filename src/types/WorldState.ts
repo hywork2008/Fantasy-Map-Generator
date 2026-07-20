@@ -38,13 +38,22 @@ export interface WorldOptions {
   burgs: { groups: BurgGroup[] };
   /** Set by military generator on first use; undefined before first map generation */
   military?: MilitaryUnit[];
-  /** In-world calendar year; set during map generation */
+  /**
+   * Generation starting calendar year (Options → Generation).
+   * Live in-session date is `simulationContext.currentYear` only — not mirrored here.
+   */
   year?: number;
-  /** In-world calendar month; set during map generation */
+  /**
+   * Legacy calendar month seed for map load / initSimulationClock only.
+   * Live month is `simulationContext.currentMonth`.
+   */
   month?: number;
-  /** In-world calendar day; set during map generation */
+  /**
+   * Legacy calendar day seed for map load / initSimulationClock only.
+   * Live day is `simulationContext.currentDay`.
+   */
   day?: number;
-  /** In-world era name; set during map generation */
+  /** In-world era name; set during map generation (also seeded into SimulationContext) */
   era?: string;
   /** Abbreviated era name; derived from era */
   eraShort?: string;

@@ -38,7 +38,8 @@ export class StrategicPlannerGenerator {
     // sea-route-based, see docs/plan/naval-sea-lanes.md) merged into one map so the rest of
     // this method doesn't need to know which kind of border produced a given segment except
     // where target-selection/power math genuinely differs (segment.origin === "sea" below).
-    const year = options.year || simulationContext.currentYear;
+    // Live calendar year only (P2-10); options.year is generation starting year.
+    const year = simulationContext.currentYear;
     const seaRouteGraph = buildSeaRouteGraph(pack);
     const frontiers = mergeFrontiers(analyzeFrontiers(pack, year), analyzeSeaFrontiers(pack, seaRouteGraph, year));
 

@@ -34,6 +34,16 @@ export function getWorldContext() {
   return getApi().worldContext;
 }
 
+/**
+ * Live simulation year. Falls back to generation options only when a minimal
+ * test double omits simulationContext.
+ */
+export function getCurrentYear(): number {
+  const year = _api?.simulationContext?.currentYear;
+  if (typeof year === "number" && Number.isFinite(year)) return year;
+  return Number(getWorldContext().options.year) || 1000;
+}
+
 type NobilitySlice = Record<string, unknown>;
 type StateValueTable<T> = Record<number, T>;
 

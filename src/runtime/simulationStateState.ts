@@ -71,6 +71,7 @@ export function bindSimulationState(state: State, stateId: number, simulation: S
 /** Rebinds legacy state records after generation, map load or world replacement. */
 export function bindSimulationStateState(world: WorldContext, simulation: SimulationContext): void {
   if (!simulation.states) simulation.states = {};
+  if (!Array.isArray(world.pack?.states)) return;
 
   world.pack.states.forEach((state, index) => {
     const stateId = getStateId(state, index);
@@ -87,6 +88,7 @@ export function resetSimulationStateState(simulation: SimulationContext): void {
 /** Removes live-state mirrors from an archive map payload when canonical values exist. */
 export function removeSimulationStateStateMirrors(world: WorldContext, simulation: SimulationContext): void {
   if (!simulation.states) return;
+  if (!Array.isArray(world.pack?.states)) return;
 
   world.pack.states.forEach((state, index) => {
     const stateId = getStateId(state, index);

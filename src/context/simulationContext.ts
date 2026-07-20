@@ -171,9 +171,11 @@ export interface SimulationContext {
 }
 
 /**
- * Live, tick-driven simulation clock — distinct from WorldContext because these
- * values mutate repeatedly during a session rather than being static generation output.
- * Initialized by timeEngine.ts's initSimulationClock() once per map generation.
+ * Live, tick-driven simulation clock — the sole source of truth for in-session
+ * calendar date (P2-10). Distinct from WorldContext.options.year/month/day, which
+ * remain generation-parameter seeds only and are not mirrored on advanceTime.
+ * Initialized by timeEngine.ts's initSimulationClock() once per map generation
+ * (or restored from archive simulation on `.fmg` load).
  */
 export const simulationContext: SimulationContext = {
   currentYear: 0,

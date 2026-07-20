@@ -5,7 +5,7 @@ import { calculateCharacterTraits } from "../../characters/utils/personalityUtil
 import type { Province, State } from "../../hostTypes";
 import { P, rand, TIME } from "../../hostUtils";
 import { CENTRAL_OFFICES, resolveProvinceLordTitle, resolveRulerTitle } from "../data/titleTable";
-import { getRulerId, getWorldContext, setRulerId } from "../nobilityContext";
+import { getCurrentYear, getRulerId, getWorldContext, setRulerId } from "../nobilityContext";
 
 export type {
   Character,
@@ -64,7 +64,7 @@ function generate(options: { randomSeed?: number } = {}): void {
   const characters: Character[] = [...preserveNonPoliticalCharacters(pack.characters)];
   let nextId = getNextCharacterId(characters);
 
-  const currentYear = Number(worldContext.options.year) || 1000;
+  const currentYear = getCurrentYear();
   const states = pack.states.filter(s => s.i && !s.removed);
 
   for (const state of states) {
@@ -212,7 +212,7 @@ function createOfficer(
     landed: false,
     entityType: "state",
     entityId: state.i,
-    startYear: getWorldContext().options.year
+    startYear: getCurrentYear()
   });
   pack.characters.push(officer);
   return officer;
@@ -243,7 +243,7 @@ function createProvinceLord(
     landed: true,
     entityType: "province",
     entityId: province.i,
-    startYear: getWorldContext().options.year
+    startYear: getCurrentYear()
   });
   pack.characters.push(lord);
   return lord;
@@ -277,7 +277,7 @@ function processResignationsAndSuccessions(deltaYears: number): void {
         if (title.entityType === "state") {
           const state = pack.states[title.entityId];
           if (!state || state.removed) {
-            title.endYear = getWorldContext().options.year;
+            title.endYear = getCurrentYear();
             title.reason = "State Destroyed";
             character.pastTitles.push(title);
             character.titles.splice(i, 1);
@@ -291,7 +291,7 @@ function processResignationsAndSuccessions(deltaYears: number): void {
               const ruler = pack.characters.find(c => c.i === getRulerId(state));
               if (ruler && ruler.age >= 16) {
                 // Ruler has come of age, Regent must step down
-                title.endYear = getWorldContext().options.year;
+                title.endYear = getCurrentYear();
                 title.reason = "Ruler came of age";
                 character.pastTitles.push(title);
                 character.titles.splice(i, 1);
@@ -304,7 +304,7 @@ function processResignationsAndSuccessions(deltaYears: number): void {
             // Purged / Deposed by rivals
             if (threat > 5 && character.personality.guile < 40 && character.personality.honor > 60) {
               if (P(0.015 * deltaYears)) {
-                title.endYear = getWorldContext().options.year;
+                title.endYear = getCurrentYear();
                 title.reason = "Deposed by political rivals";
                 character.pastTitles.push(title);
                 character.titles.splice(i, 1);
@@ -322,7 +322,7 @@ function processResignationsAndSuccessions(deltaYears: number): void {
             // Stress calculation: High threat + low specific skill + low boldness
             const stress = threat * 10 + (100 - skillValue) * 0.5 + (100 - character.personality.boldness) * 0.5;
             if (stress > 150 && P(0.1 * deltaYears)) {
-              title.endYear = getWorldContext().options.year;
+              title.endYear = getCurrentYear();
               title.reason = "Resigned (Stress)";
               character.pastTitles.push(title);
               character.titles.splice(i, 1);
@@ -488,7 +488,7 @@ function processSuccessions(): void {
         landed: true,
         entityType: "state",
         entityId: state.i,
-        startYear: getWorldContext().options.year
+        startYear: getCurrentYear()
       });
       pack.characters.push(heir);
       setRulerId(state, heir.i);
@@ -546,13 +546,13 @@ function processSuccessions(): void {
           const oldTitleName = oldTitle.title;
 
           // Move old title to past titles
-          oldTitle.endYear = getWorldContext().options.year;
+          oldTitle.endYear = getCurrentYear();
           oldTitle.reason = "Reassigned";
           bestCandidate.pastTitles.push({ ...oldTitle });
 
           // Reassign to new title
           bestCandidate.titles[currentTitleIndex].title = office.title;
-          bestCandidate.titles[currentTitleIndex].startYear = getWorldContext().options.year;
+          bestCandidate.titles[currentTitleIndex].startYear = getCurrentYear();
 
           vacantOffices.splice(vacantOffices.indexOf(office), 1);
           const oldOfficeDef =
@@ -582,7 +582,7 @@ function processSuccessions(): void {
         landed: false,
         entityType: "state",
         entityId: state.i,
-        startYear: getWorldContext().options.year
+        startYear: getCurrentYear()
       });
       pack.characters.push(officer);
     }

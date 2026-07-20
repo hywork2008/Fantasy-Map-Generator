@@ -4,6 +4,7 @@ import {
   getGoods,
   getMarkets,
   getNextCaravanId,
+  getSimulationMonth,
   getWorldContext,
   setCaravans,
   setNextCaravanId
@@ -292,7 +293,7 @@ export class CaravansModule {
     if (!caravans.length) return { arrived: [], lost: [] };
 
     const movement = CaravanMovement.getOptions();
-    const month = world.options.month ?? 1;
+    const month = getSimulationMonth();
     const markets = getMarkets();
     const arrived: Caravan[] = [];
     const lost: Caravan[] = [];

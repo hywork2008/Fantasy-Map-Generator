@@ -41,6 +41,7 @@ export function bindSimulationMilitaryRoster(state: State, stateId: number, simu
 /** Rebinds all state rosters after generation, map load or world replacement. */
 export function bindSimulationMilitaryState(world: WorldContext, simulation: SimulationContext): void {
   if (!simulation.military) simulation.military = {};
+  if (!Array.isArray(world.pack?.states)) return;
 
   world.pack.states.forEach((state, index) => {
     const stateId = getStateId(state, index);
@@ -57,6 +58,7 @@ export function resetSimulationMilitaryState(simulation: SimulationContext): voi
 /** Removes map mirrors when a canonical simulation roster exists. */
 export function removeSimulationMilitaryStateMirrors(world: WorldContext, simulation: SimulationContext): void {
   if (!simulation.military) return;
+  if (!Array.isArray(world.pack?.states)) return;
 
   world.pack.states.forEach((state, index) => {
     const stateId = getStateId(state, index);

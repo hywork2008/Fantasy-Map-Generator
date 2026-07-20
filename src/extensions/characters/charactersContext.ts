@@ -35,6 +35,16 @@ export function getWorldContext() {
   return getApi().worldContext;
 }
 
+/**
+ * Live simulation year. Falls back to generation options only when a minimal
+ * test double omits simulationContext.
+ */
+export function getCurrentYear(): number {
+  const year = _api?.simulationContext?.currentYear;
+  if (typeof year === "number" && Number.isFinite(year)) return year;
+  return Number(getWorldContext().options.year) || 1000;
+}
+
 /** Characters owns this namespaced simulation slice; pack.characters is compatibility-only. */
 export function getCharacters(): Character[] {
   const simulation = getApi().simulationContext;

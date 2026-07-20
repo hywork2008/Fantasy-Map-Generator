@@ -2,7 +2,7 @@ import { sum } from "d3";
 import { foodStressProductionMultiplier } from "../../hostCore";
 import { DEFAULT_CULTURE_TYPE, type Zone } from "../../hostTypes";
 import { getLatitude, getSeason, getSeasonalityStrength, rn, type Season } from "../../hostUtils";
-import { getGoodCellColumn, getWorldContext } from "../economyContext";
+import { getGoodCellColumn, getSimulationMonth, getWorldContext } from "../economyContext";
 import { getDepletionFactor } from "./forestDepletion";
 import { type Good, Goods, isGoodEnabled } from "./goods-generator";
 
@@ -101,7 +101,7 @@ export function getSeasonalFoodProductionMultiplier(good: Good, cellId: number, 
 
 function getSeasonalProductionMultiplier(good: Good, cellId: number): number {
   const worldContext = getWorldContext();
-  const seasonal = getSeasonalFoodProductionMultiplier(good, cellId, worldContext.options.month ?? 1);
+  const seasonal = getSeasonalFoodProductionMultiplier(good, cellId, getSimulationMonth());
 
   // Spring/autumn war disruption (manpower-ecosystem §18) — 1 when foodStress is 0
   const stateId = worldContext.pack.cells.state[cellId] ?? 0;

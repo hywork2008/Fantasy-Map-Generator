@@ -152,9 +152,26 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-function assertRecordArray(value: unknown, name: string): asserts value is Record<string, unknown>[] {
+function _assertRecordArray(value: unknown, name: string): asserts value is Record<string, unknown>[] {
   if (!Array.isArray(value) || value.some(item => !isRecord(item))) {
     throw new Error(`Archive ${name} must be an array of records`);
+  }
+}
+
+/**
+ * 1-indexed entity tables (`pack.burgs`, historically `pack.features`, etc.).
+ * Index 0 may be the sentinel number `0` or null/undefined rather than a record
+ * (see Burgs.generate: `burgs = [0 as unknown as Burg]`).
+ */
+function assertEntityTableArray(value: unknown, name: string): asserts value is unknown[] {
+  if (!Array.isArray(value)) {
+    throw new Error(`Archive ${name} must be an array`);
+  }
+  for (const [index, item] of value.entries()) {
+    if (index === 0 && (item === 0 || item === null || item === undefined)) continue;
+    if (!isRecord(item)) {
+      throw new Error(`Archive ${name}[${index}] must be a record (index 0 may be a 0/null sentinel)`);
+    }
   }
 }
 
@@ -233,17 +250,19 @@ function assertOptionalReference(
 }
 
 function assertEntityTableReferences(pack: Record<string, unknown>, cellCount: number): void {
-  const burgs = pack.burgs as Record<string, unknown>[];
-  const states = pack.states as Record<string, unknown>[];
+  const burgs = pack.burgs as unknown[];
+  const states = pack.states as unknown[];
   const cultures = Array.isArray(pack.cultures) ? pack.cultures.length : 0;
   const provinces = Array.isArray(pack.provinces) ? pack.provinces.length : 0;
 
   for (const [index, state] of states.entries()) {
+    if (!isRecord(state)) continue;
     assertOptionalReference(state, "center", cellCount, `pack.states[${index}]`);
     assertOptionalReference(state, "capital", burgs.length, `pack.states[${index}]`);
     if (cultures) assertOptionalReference(state, "culture", cultures, `pack.states[${index}]`);
   }
   for (const [index, burg] of burgs.entries()) {
+    if (!isRecord(burg)) continue;
     assertOptionalReference(burg, "cell", cellCount, `pack.burgs[${index}]`);
     assertOptionalReference(burg, "state", states.length, `pack.burgs[${index}]`);
     if (cultures) assertOptionalReference(burg, "culture", cultures, `pack.burgs[${index}]`);
@@ -257,10 +276,21 @@ function assertEntityTableReferences(pack: Record<string, unknown>, cellCount: n
   }
 }
 
-function assertReferenceArray(value: unknown, entityCount: number, fieldName: string): void {
+/**
+ * Validates integer id sequences. Entries equal to `allowSentinel` (default none)
+ * are skipped — river cell paths use `-1` as a discontinuity marker.
+ */
+function assertReferenceArray(
+  value: unknown,
+  entityCount: number,
+  fieldName: string,
+  options?: { readonly allowSentinel?: number }
+): void {
   if (value === undefined || value === null) return;
   if (!Array.isArray(value)) throw new Error(`Archive ${fieldName} must be an array`);
+  const allowSentinel = options?.allowSentinel;
   for (const reference of value) {
+    if (allowSentinel !== undefined && reference === allowSentinel) continue;
     if (typeof reference !== "number" || !Number.isInteger(reference) || reference < 0 || reference >= entityCount) {
       throw new Error(`Archive ${fieldName} references missing entity ${String(reference)}`);
     }
@@ -272,24 +302,29 @@ function assertNetworkReferences(pack: Record<string, unknown>, cellCount: numbe
   const vertexCount = isRecord(pack.vertices) && isTypedArray(pack.vertices.i) ? pack.vertices.i.length : 0;
 
   if (Array.isArray(pack.features)) {
-    assertRecordArray(pack.features, "pack.features");
+    // features[0] is often null/0 sentinel for 1-indexed ocean/land feature ids.
+    assertEntityTableArray(pack.features, "pack.features");
     for (const [index, feature] of features.entries()) {
+      if (!isRecord(feature)) continue;
       assertOptionalReference(feature, "firstCell", cellCount, `pack.features[${index}]`);
       assertOptionalReference(feature, "outCell", cellCount, `pack.features[${index}]`);
       if (vertexCount) assertReferenceArray(feature.vertices, vertexCount, `pack.features[${index}].vertices`);
     }
   }
   if (Array.isArray(pack.rivers)) {
-    assertRecordArray(pack.rivers, "pack.rivers");
+    assertEntityTableArray(pack.rivers, "pack.rivers");
     for (const [index, river] of pack.rivers.entries()) {
+      if (!isRecord(river)) continue;
       assertOptionalReference(river, "source", cellCount, `pack.rivers[${index}]`);
       assertOptionalReference(river, "mouth", cellCount, `pack.rivers[${index}]`);
-      assertReferenceArray(river.cells, cellCount, `pack.rivers[${index}].cells`);
+      // River cell sequences use -1 as a path discontinuity sentinel.
+      assertReferenceArray(river.cells, cellCount, `pack.rivers[${index}].cells`, { allowSentinel: -1 });
     }
   }
   if (Array.isArray(pack.routes)) {
-    assertRecordArray(pack.routes, "pack.routes");
+    assertEntityTableArray(pack.routes, "pack.routes");
     for (const [index, route] of pack.routes.entries()) {
+      if (!isRecord(route)) continue;
       if (features.length) assertOptionalReference(route, "feature", features.length, `pack.routes[${index}]`);
       assertReferenceArray(route.cells, cellCount, `pack.routes[${index}].cells`);
     }
@@ -605,8 +640,9 @@ export function assertValidWorldDocument(value: unknown): asserts value is World
   if (cells.i !== undefined && !isTypedArray(cells.i)) {
     throw new Error("Archive pack.cells.i must be a typed array");
   }
-  assertRecordArray(pack.burgs, "pack.burgs");
-  assertRecordArray(pack.states, "pack.states");
+  // burgs[0] is the numeric sentinel `0` in live/generated maps (1-indexed table).
+  assertEntityTableArray(pack.burgs, "pack.burgs");
+  assertEntityTableArray(pack.states, "pack.states");
   if (isTypedArray(cells.i)) {
     const cellCount = cells.i.length;
     assertDenseColumnLengths(cells, cellCount, "pack.cells");

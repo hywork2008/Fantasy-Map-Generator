@@ -1,5 +1,6 @@
 import { sum } from "d3";
 import { appServices } from "../context/appServices";
+import { simulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, MilitaryRegiment, State } from "../types/models";
@@ -910,8 +911,8 @@ export function advanceAllRegimentMovement(
 ): boolean {
   if (deltaYears <= 0) return false;
 
-  const currentYear = worldContext.options.year ?? 0;
-  const currentMonth = worldContext.options.month ?? 1;
+  const currentYear = simulationContext.currentYear;
+  const currentMonth = simulationContext.currentMonth;
   const seaRouteGraph = buildSeaRouteGraph(pack);
   const landRouteGraph = buildLandRouteGraph(pack, {
     month: currentMonth,

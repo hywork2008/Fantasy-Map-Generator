@@ -70,9 +70,7 @@ describe("ChunkedWorldCodecAdapter", () => {
     const document = createWorldDocument(sampleWorld(), sampleSimulation(), createPresentationData(), []);
     (document.world.pack as unknown as Record<string, unknown>).states = [{ i: 0 }, null];
 
-    await expect(new ChunkedWorldCodecAdapter().encode(document)).rejects.toThrow(
-      "pack.states must be an array of records"
-    );
+    await expect(new ChunkedWorldCodecAdapter().encode(document)).rejects.toThrow("pack.states[1] must be a record");
   });
 
   it("rejects dense columns and foreign keys that do not match the topology", async () => {

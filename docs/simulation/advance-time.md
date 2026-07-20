@@ -36,9 +36,9 @@ tick フック（森林回復・造船・軍事シミュレーション等）が
 
 1. 全国家の連隊の `actionStatus` を `"waiting"` にリセット
 2. `simulationContext.currentYear`/`currentMonth`/`currentDay` を更新（月末繰り上げ・うるう年を考慮した日付演算）
-3. `simulationContext.tickCount` をインクリメント、`worldContext.options.year`/`month`/`day` へミラー
+3. `simulationContext.tickCount` をインクリメント（**options への mirror はしない** — ライブ時計の正は simulationContext のみ）
 4. `simulateDemographics()` を実行（人口動態）
-5. 登録済み `_tickHooks` を全て実行（`fn(deltaYears, deltaMonths, deltaDays)`）
+5. 登録済み simulation systems を実行
 6. `fmg:time-advanced` / `fmg:simulation-updated` を dispatch
 7. 開発ビルドでは `useDebugSnapshotState` にスナップショットを追加（デバッグ用）
 
@@ -49,8 +49,9 @@ tick フック（森林回復・造船・軍事シミュレーション等）が
   `tickCount: number`, `intelligence: Record<number, Record<number, IntelligenceReport>>`（Nobility拡張のespionage-generator.tsが書く諜報推定値）,
   `strategicGoals: Record<number, StrategicGoal[]>`（Nobility拡張のstrategic-planner.tsが書く国家ごとの戦略目標）
 - `WorldContext` の4つ目のカテゴリとして独立している理由（`AGENTS.md` にも明記）:
-  `worldContext.options.year`/`era` はマップ生成パラメータの静的な値だが、`SimulationContext` は
-  セッション中に `advanceTime()` の呼び出しごとに反復して変化する「生きた時計」であり、意味論が異なる。
+  `worldContext.options.year`/`era` はマップ生成パラメータの静的な値であり、`SimulationContext` は
+  セッション中に `advanceTime()` の呼び出しごとに反復して変化する「生きた時計」である。P2-10 以降は
+  両者を advance ごとに mirror せず、ライブ日付の唯一の正は `simulationContext` である。
 - `intelligence`/`strategicGoals` はNobility拡張のドメインデータだが、`advanceTime()`と同じ「tickごとに変化する生きた状態」という性質からここに同居している（AGENTS.mdの定義通り）。
 
 ## 2. Generator層: `src/generators/timeEngine.ts`

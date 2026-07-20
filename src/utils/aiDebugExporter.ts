@@ -47,9 +47,8 @@ export function captureSnapshotData(): SnapshotData {
  * then triggers map redraws to visualize the past state.
  */
 export function restoreSnapshot(snapshotData: SnapshotData): void {
-  // Restore simulation context
+  // Restore simulation context (live clock — do not mirror into options.year)
   Object.assign(simulationContext, snapshotData.simulation);
-  worldContext.options.year = simulationContext.currentYear;
 
   // Restore states (only overwrite the properties we captured, keeping static data intact)
   for (const sData of snapshotData.states) {

@@ -36,7 +36,7 @@
 | `AppServices` | RNG、IndexedDB ラッパー、COA renderer などの共有サービス |
 | `SimulationContext` | `currentYear` / `currentMonth` / `currentDay` / `era` / `tickCount`、Nobility が使う `intelligence` と `strategicGoals` |
 
-`SimulationContext` はセッション中に tick ごとに変化する「生きた状態」です。`worldContext.options.year/month/day/era` とは同期されますが、意味論としては別物です。
+`SimulationContext` はセッション中に tick ごとに変化する「生きた状態」です。ライブ時計の正は `simulationContext` のみです。`worldContext.options.year`/`era` は生成パラメータ（開始年・元号）であり、`advanceTime` では mirror しません。
 
 ## Public API
 

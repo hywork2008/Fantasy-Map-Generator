@@ -282,6 +282,148 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     expect(simulation.currentYear).toBe(10);
   });
 
+  it("world.generate validates staged output and publishes a fullReplace commit", async () => {
+    const world = { ...createPositionWorld(), mapId: 1, seed: "before" };
+    const simulation = { currentYear: 10, currentMonth: 1, currentDay: 1, tickCount: 0 } as SimulationContext;
+    const presentation = createPresentationData();
+    const runtime = createWorldRuntime(world, simulation, presentation);
+    const listener = vi.fn();
+    runtime.subscribe(listener);
+
+    runtime.registerWorldGenerateHandler(async request => {
+      world.mapId = 77;
+      world.seed = request.seed ?? "generated";
+      simulation.currentYear = 20;
+    });
+
+    const commit = await runtime.dispatch({ type: "world.generate", payload: { seed: "after" } });
+
+    expect(commit?.result).toEqual({ mapId: 77 });
+    expect(commit?.changes.fullReplace).toBe(true);
+    expect(commit?.changes.changes.some(change => change.topic === "map.identity")).toBe(true);
+    expect(world.mapId).toBe(77);
+    expect(world.seed).toBe("after");
+    expect(simulation.currentYear).toBe(20);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(runtime.read().revision).toBe(1);
+  });
+
+  it("world.generate restores the pre-generate world when the handler fails", async () => {
+    const world = { ...createPositionWorld(), mapId: 5, seed: "stable" };
+    const simulation = { currentYear: 3, currentMonth: 2, currentDay: 1, tickCount: 4 } as SimulationContext;
+    const presentation = createPresentationData();
+    const runtime = createWorldRuntime(world, simulation, presentation);
+    const listener = vi.fn();
+    runtime.subscribe(listener);
+
+    runtime.registerWorldGenerateHandler(async () => {
+      world.mapId = 999;
+      world.seed = "corrupted";
+      simulation.currentYear = 0;
+      throw new Error("generation aborted");
+    });
+
+    await expect(runtime.dispatch({ type: "world.generate", payload: {} })).rejects.toThrow("generation aborted");
+    expect(world.mapId).toBe(5);
+    expect(world.seed).toBe("stable");
+    expect(simulation.currentYear).toBe(3);
+    expect(listener).not.toHaveBeenCalled();
+    expect(runtime.read().revision).toBe(0);
+  });
+
+  it("world.generate rejects when the staged result fails archive validation", async () => {
+    const world = { ...createPositionWorld(), mapId: 5, seed: "stable" };
+    const simulation = { currentYear: 3, currentMonth: 2, currentDay: 1, tickCount: 4 } as SimulationContext;
+    const presentation = createPresentationData();
+    const runtime = createWorldRuntime(world, simulation, presentation);
+
+    runtime.registerWorldGenerateHandler(async () => {
+      world.mapId = 11;
+      world.seed = "bad";
+      (world.pack as unknown as Record<string, unknown>).burgs = null;
+    });
+
+    await expect(runtime.dispatch({ type: "world.generate", payload: {} })).rejects.toThrow(
+      "Archive world state is incomplete"
+    );
+    expect(world.mapId).toBe(5);
+    expect(world.seed).toBe("stable");
+    expect(Array.isArray(world.pack.burgs)).toBe(true);
+    expect(runtime.read().revision).toBe(0);
+  });
+
+  it("blocks concurrent outer dispatch while world.generate is running", async () => {
+    const world = { ...createPositionWorld(), mapId: 1, seed: "seed" };
+    const simulation = { currentYear: 1, currentMonth: 1, currentDay: 1, tickCount: 0 } as SimulationContext;
+    const runtime = createWorldRuntime(world, simulation, createPresentationData());
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+
+    runtime.registerWorldGenerateHandler(async () => {
+      await gate;
+    });
+
+    const generatePromise = runtime.dispatch({ type: "world.generate", payload: {} });
+    // Async outer dispatch of another command stays rejected (not nested staging).
+    await expect(
+      runtime.dispatch({
+        type: "legacy.mutation",
+        execute: () => ({ result: undefined, topics: ["map.identity"] })
+      })
+    ).rejects.toThrow("while world.generate is running");
+
+    release();
+    await generatePromise;
+  });
+
+  it("allows nested extension/legacy writes during world.generate without intermediate commits", async () => {
+    const world = { ...createPositionWorld(), mapId: 1, seed: "seed" };
+    const simulation = { currentYear: 1, currentMonth: 1, currentDay: 1, tickCount: 0 } as SimulationContext;
+    const runtime = createWorldRuntime(world, simulation, createPresentationData());
+    // execute() is the sync seam used by dispatchExtensionCommand / legacyMutation.
+    const runtimeInternal = runtime as unknown as {
+      execute: <T>(command: {
+        type: "extension.command";
+        payload: { extensionId: string; name: string; payload: undefined };
+      }) => { result: T; changes: { fromRevision: number; toRevision: number; changes: unknown[] } } | null;
+    };
+    const listener = vi.fn();
+    runtime.subscribe(listener);
+
+    runtime.registerExtensionCommand({
+      extensionId: "test-ext",
+      name: "stage-write",
+      execute: () => {
+        world.seed = "from-extension";
+        return { result: "ok", topics: ["extension.test-ext"] };
+      }
+    });
+
+    runtime.registerWorldGenerateHandler(async () => {
+      // Mirrors fmg:generate-post-core → dispatchExtensionCommand during generate.
+      const nested = runtimeInternal.execute({
+        type: "extension.command",
+        payload: { extensionId: "test-ext", name: "stage-write", payload: undefined }
+      });
+      expect(nested).toMatchObject({
+        result: "ok",
+        changes: { fromRevision: 0, toRevision: 0, changes: [] }
+      });
+      // Nested path must not notify listeners mid-stage.
+      expect(listener).not.toHaveBeenCalled();
+      world.mapId = 42;
+    });
+
+    const commit = await runtime.dispatch({ type: "world.generate", payload: {} });
+    expect(commit?.changes.fullReplace).toBe(true);
+    expect(world.seed).toBe("from-extension");
+    expect(world.mapId).toBe(42);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(runtime.read().revision).toBe(1);
+  });
+
   it("preserves opaque extension references when a core deletion is attempted", async () => {
     const world = createPoliticsWorld();
     const simulation = { currentYear: 10, currentMonth: 1, currentDay: 1, tickCount: 1 } as SimulationContext;

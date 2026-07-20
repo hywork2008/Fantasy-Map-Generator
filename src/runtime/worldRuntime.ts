@@ -1,6 +1,7 @@
 import { restoreRngFromSimulation } from "../context/appServices";
 import { type SimulationContext, simulationContext } from "../context/simulationContext";
 import { type WorldContext, worldContext } from "../context/worldContext";
+import type { Grid } from "../types/Grid";
 import {
   CULTURE_TYPES,
   type CultureType,
@@ -601,6 +602,51 @@ export interface ReplaceWorldCommand {
   readonly payload: ValidatedWorld;
 }
 
+/**
+ * Full map generation request. The registered handler builds a complete staged
+ * world (typically by writing into live buffers as a temporary staging area);
+ * the runtime then validates and commits with `fullReplace` semantics.
+ */
+export interface GenerateRequest {
+  readonly seed?: string;
+  readonly graph?: Grid | null;
+}
+
+export interface GenerateWorldCommand {
+  readonly type: "world.generate";
+  readonly payload: GenerateRequest;
+}
+
+export type GenerateWorldResult = { readonly mapId: number };
+
+/**
+ * Async generation pipeline. Mutates staging buffers (the live pack/grid while
+ * generation runs) and must leave a coherent, archive-valid world on success.
+ * Failures must not be partially committed — the runtime restores the pre-generate snapshot.
+ */
+export type WorldGenerateHandler = (request: GenerateRequest) => Promise<void>;
+
+/** Topics published by full world replacement (archive load or successful generate). */
+export const FULL_REPLACE_TOPICS: readonly DataTopic[] = [
+  "map.identity",
+  "map.topology",
+  "map.physical",
+  "map.politics",
+  "map.settlements",
+  "map.networks",
+  "map.annotations",
+  "simulation.clock",
+  "simulation.rng",
+  "simulation.cells",
+  "simulation.states",
+  "simulation.burgs",
+  "simulation.military",
+  "presentation.styles",
+  "presentation.layers",
+  "presentation.labels",
+  "presentation.overlays"
+];
+
 export type PositionCommand =
   | MoveMarkerCommand
   | CreateMarkerCommand
@@ -641,7 +687,8 @@ export type WorldCommand<T> =
   | PatchFeatureCommand
   | MoveFeatureVertexCommand
   | PresentationPatchCommand
-  | ReplaceWorldCommand;
+  | ReplaceWorldCommand
+  | GenerateWorldCommand;
 
 export interface WorldRuntime {
   /** Immutable read model for dynamic extensions and other untrusted callers. */
@@ -664,8 +711,23 @@ export interface WorldRuntime {
   registerSimulationStepDayHandler(handler: SimulationStepDayHandler): () => void;
   /** Register the synchronous generator adapter behind `heightmap.finalize`. */
   registerHeightmapFinalizeHandler(handler: HeightmapFinalizeHandler): () => void;
+  /**
+   * Register the async map-generation pipeline behind `world.generate`.
+   * Only one handler may be registered (host main.ts).
+   */
+  registerWorldGenerateHandler(handler: WorldGenerateHandler): () => void;
   /** Places a read barrier on the runtime queue without publishing a commit. */
   captureArchiveDocument(): Promise<WorldDocument>;
+  /**
+   * Capture the live world as a rollback snapshot without demoting extensions.
+   * Used by staged generate / legacy-load apply so a failed apply can restore.
+   */
+  captureRollbackDocument(): WorldDocument;
+  /**
+   * Restore a previously captured rollback snapshot in place without publishing
+   * a commit. Callers that need a notification must dispatch `world.replace`.
+   */
+  restoreRollbackDocument(document: WorldDocument): void;
 }
 
 class LegacyWorldRuntime implements WorldRuntime {
@@ -676,8 +738,11 @@ class LegacyWorldRuntime implements WorldRuntime {
   private simulationAdvanceHandler: SimulationAdvanceHandler | null = null;
   private simulationStepDayHandler: SimulationStepDayHandler | null = null;
   private heightmapFinalizeHandler: HeightmapFinalizeHandler | null = null;
+  private worldGenerateHandler: WorldGenerateHandler | null = null;
   private opaqueExtensionChunks: readonly OpaqueExtensionChunk[] = [];
   private committing = false;
+  /** True while an async world.generate pipeline is running (blocks concurrent commits). */
+  private generating = false;
   private extensionReadView: ExtensionWorldReadView | null = null;
 
   constructor(
@@ -710,6 +775,12 @@ class LegacyWorldRuntime implements WorldRuntime {
   }
 
   dispatch<T>(command: WorldCommand<T>): Promise<WorldCommit<T> | null> {
+    if (command.type === "world.generate") {
+      return this.executeGenerate(command.payload) as Promise<WorldCommit<T> | null>;
+    }
+    if (this.generating) {
+      return Promise.reject(new Error("WorldRuntime cannot dispatch while world.generate is running"));
+    }
     try {
       return Promise.resolve(this.execute(command));
     } catch (error) {
@@ -775,10 +846,23 @@ class LegacyWorldRuntime implements WorldRuntime {
     };
   }
 
+  registerWorldGenerateHandler(handler: WorldGenerateHandler): () => void {
+    if (this.worldGenerateHandler) {
+      throw new Error("The world.generate handler is already registered");
+    }
+    this.worldGenerateHandler = handler;
+    return () => {
+      if (this.worldGenerateHandler === handler) this.worldGenerateHandler = null;
+    };
+  }
+
   async captureArchiveDocument(): Promise<WorldDocument> {
     // Flush the live simulation PRNG before cloning so mid-session saves resume
     // the same stream after load. dispatch is synchronous during the
     // compatibility period, therefore this snapshot is a queue barrier.
+    if (this.generating) {
+      throw new Error("WorldRuntime cannot capture an archive while world.generate is running");
+    }
     syncSimulationRngToContext(this.simulation);
     ensureBuiltinStateSlicesRegistered();
     const document = createWorldDocument(this.world, this.simulation, this.presentation, this.opaqueExtensionChunks);
@@ -787,10 +871,90 @@ class LegacyWorldRuntime implements WorldRuntime {
     return demoteUnregisteredExtensionSlices(document);
   }
 
-  /** @internal Synchronous bridge required by legacy callers such as advanceTime(). */
+  captureRollbackDocument(): WorldDocument {
+    syncSimulationRngToContext(this.simulation);
+    ensureBuiltinStateSlicesRegistered();
+    return createWorldDocument(this.world, this.simulation, this.presentation, this.opaqueExtensionChunks);
+  }
+
+  restoreRollbackDocument(document: WorldDocument): void {
+    // Do not re-run archive validation: the snapshot was already live (and may
+    // be an empty pre-first-generate shell that is not archive-valid).
+    this.applyDocument(structuredClone(document));
+  }
+
+  /**
+   * Async generate: snapshot → handler stages into live buffers → validate →
+   * fullReplace commit. Live pack/grid act as the staging area (generators are
+   * still singleton-bound); a failed or invalid generate restores the snapshot
+   * and publishes no revision.
+   */
+  private async executeGenerate(payload: GenerateRequest): Promise<WorldCommit<GenerateWorldResult> | null> {
+    if (this.committing || this.generating) {
+      throw new Error("WorldRuntime does not allow concurrent generate/dispatch");
+    }
+    if (!this.worldGenerateHandler) {
+      throw new Error("world.generate has no registered handler");
+    }
+
+    this.generating = true;
+    let previous: WorldDocument | null = null;
+    try {
+      // Snapshot must live inside try so a pre-generate shell failure still
+      // clears `generating` in finally (otherwise later dispatches are stuck).
+      previous = this.captureRollbackDocument();
+      await this.worldGenerateHandler(payload);
+
+      // Handler wrote a complete world into live buffers. Validate before the
+      // result becomes an observable commit; corrupt output restores previous.
+      const staged = this.captureRollbackDocument();
+      assertValidWorldDocument(staged);
+
+      return this.publishCommit({ mapId: this.world.mapId }, FULL_REPLACE_TOPICS, true);
+    } catch (error) {
+      if (previous) {
+        try {
+          this.applyDocument(structuredClone(previous));
+        } catch (restoreError) {
+          console.error("[WorldRuntime] Failed to restore world after generate failure", restoreError);
+        }
+      }
+      throw error;
+    } finally {
+      this.generating = false;
+    }
+  }
+
+  /**
+   * @internal Synchronous bridge required by legacy callers such as advanceTime().
+   *
+   * While `world.generate` is staging (including `fmg:generate-post-core` handlers),
+   * nested `extension.command` / `legacy.mutation` writes are applied in place and
+   * do **not** publish a commit — the outer generate ends with a single fullReplace.
+   * Concurrent outer `dispatch()` of other commands remains rejected.
+   */
   execute<T>(command: WorldCommand<T>): WorldCommit<T> | null {
     if (this.committing) {
       throw new Error("WorldRuntime does not allow synchronous dispatch re-entry");
+    }
+
+    // Nested staging writes during generate (Nobility regenerate, Shipbuilding reset, …).
+    if (this.generating) {
+      if (command.type === "world.replace") {
+        throw new Error("WorldRuntime cannot nest world.replace inside world.generate");
+      }
+      const outcome = this.getOutcome(command);
+      // No publishCommit / no revision bump / no listener notify. Outer fullReplace covers it.
+      if (!outcome.topics.length && outcome.result === undefined) return null;
+      return {
+        result: outcome.result,
+        changes: {
+          fromRevision: this.revision,
+          toRevision: this.revision,
+          fullReplace: false,
+          changes: []
+        }
+      };
     }
 
     this.committing = true;
@@ -799,39 +963,48 @@ class LegacyWorldRuntime implements WorldRuntime {
       const topics = [...new Set(outcome.topics)];
       if (!topics.length) return null;
 
-      const fromRevision = this.revision;
-      const toRevision = fromRevision + 1;
-      const changes = topics.map(topic => ({ topic, kind: "replace" }) as const);
-
-      for (const topic of topics) {
-        this.topicRevisions[topic] = (this.topicRevisions[topic] ?? 0) + 1;
-      }
-      this.revision = toRevision;
-      this.extensionReadView = null;
-
-      const commit: WorldCommit<T> = {
-        result: outcome.result,
-        changes: { fromRevision, toRevision, fullReplace: outcome.fullReplace ?? false, changes }
-      };
-
-      // A listener is isolated from its peers; it must not make a successful
-      // world mutation look as though it failed.
-      for (const listener of this.listeners) {
-        try {
-          listener(commit);
-        } catch (error) {
-          console.error("[WorldRuntime] Commit listener failed", error);
-        }
-      }
-
-      return commit;
+      return this.publishCommit(outcome.result, topics, outcome.fullReplace ?? false);
     } finally {
       this.committing = false;
     }
   }
 
+  private publishCommit<T>(result: T, topics: readonly DataTopic[], fullReplace: boolean): WorldCommit<T> {
+    const uniqueTopics = [...new Set(topics)];
+    const fromRevision = this.revision;
+    const toRevision = fromRevision + 1;
+    const changes = uniqueTopics.map(topic => ({ topic, kind: "replace" }) as const);
+
+    for (const topic of uniqueTopics) {
+      this.topicRevisions[topic] = (this.topicRevisions[topic] ?? 0) + 1;
+    }
+    this.revision = toRevision;
+    this.extensionReadView = null;
+
+    const commit: WorldCommit<T> = {
+      result,
+      changes: { fromRevision, toRevision, fullReplace, changes }
+    };
+
+    // A listener is isolated from its peers; it must not make a successful
+    // world mutation look as though it failed.
+    for (const listener of this.listeners) {
+      try {
+        listener(commit);
+      } catch (error) {
+        console.error("[WorldRuntime] Commit listener failed", error);
+      }
+    }
+
+    return commit;
+  }
+
   private getOutcome<T>(command: WorldCommand<T>): LegacyMutationOutcome<T> & { readonly fullReplace?: boolean } {
     if (command.type === "legacy.mutation") return command.execute();
+
+    if (command.type === "world.generate") {
+      throw new Error("world.generate must be dispatched asynchronously");
+    }
 
     if (command.type === "world.replace") {
       // Clone before the first live mutation. A malformed staged document then
@@ -842,25 +1015,7 @@ class LegacyWorldRuntime implements WorldRuntime {
       return {
         result: undefined as T,
         fullReplace: true,
-        topics: [
-          "map.identity",
-          "map.topology",
-          "map.physical",
-          "map.politics",
-          "map.settlements",
-          "map.networks",
-          "map.annotations",
-          "simulation.clock",
-          "simulation.rng",
-          "simulation.cells",
-          "simulation.states",
-          "simulation.burgs",
-          "simulation.military",
-          "presentation.styles",
-          "presentation.layers",
-          "presentation.labels",
-          "presentation.overlays"
-        ]
+        topics: FULL_REPLACE_TOPICS
       };
     }
 
@@ -2232,6 +2387,16 @@ export function registerHeightmapFinalizeHandler(handler: HeightmapFinalizeHandl
 
 export function finalizeHeightmap(request: FinalizeHeightmapRequest): WorldCommit<readonly number[]> | null {
   return (worldRuntime as LegacyWorldRuntime).execute({ type: "heightmap.finalize", payload: request });
+}
+
+/** Registers the host map-generation pipeline behind `world.generate`. */
+export function registerWorldGenerateHandler(handler: WorldGenerateHandler): () => void {
+  return worldRuntime.registerWorldGenerateHandler(handler);
+}
+
+/** Dispatches full map generation through the staged `world.generate` command. */
+export function dispatchWorldGenerate(request: GenerateRequest = {}): Promise<WorldCommit<GenerateWorldResult> | null> {
+  return worldRuntime.dispatch({ type: "world.generate", payload: request });
 }
 
 /** Phase 2 compatibility commands for bounded, ID-addressed position edits. */

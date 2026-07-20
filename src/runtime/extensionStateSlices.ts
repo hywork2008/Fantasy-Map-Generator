@@ -149,6 +149,10 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
     if (!(column instanceof Uint16Array)) {
       throw new Error(`Archive simulation.extensions.economy.${field} must be a Uint16Array`);
     }
+    // Length 0 is the unallocated default from bindExtensionStateSlices when
+    // economy has not generated cell columns yet (disabled extension / pre-gen).
+    // Only non-empty columns must match pack topology.
+    if (column.length === 0) continue;
     if (cellCount !== undefined && column.length !== cellCount) {
       throw new Error(
         `Archive simulation.extensions.economy.${field} has length ${column.length}; expected ${cellCount}`
@@ -184,6 +188,8 @@ function validateNobilitySlice(slice: Record<string, unknown>, world: WorldConte
     assertEntityKeyedRecord(values, world.pack.states, `simulation.extensions.nobility.${field}`);
     if (field === "rulerIdByState") {
       for (const [stateId, rulerId] of Object.entries(values as Record<string, unknown>)) {
+        // Compatibility projection may materialise undefined slots for every state.
+        if (rulerId === undefined) continue;
         assertNonNegativeInteger(rulerId, `simulation.extensions.nobility.rulerIdByState.${stateId}`);
       }
     }

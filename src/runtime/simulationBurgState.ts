@@ -65,6 +65,7 @@ export function bindSimulationBurg(burg: Burg, burgId: number, simulation: Simul
  */
 export function bindSimulationBurgState(world: WorldContext, simulation: SimulationContext): void {
   if (!simulation.burgs) simulation.burgs = {};
+  if (!Array.isArray(world.pack?.burgs)) return;
 
   world.pack.burgs.forEach((burg, index) => {
     const burgId = getBurgId(burg, index);
@@ -81,6 +82,8 @@ export function resetSimulationBurgState(simulation: SimulationContext): void {
 /** Removes only legacy burg mirrors already present in the simulation snapshot. */
 export function removeSimulationBurgStateMirrors(world: WorldContext, simulation: SimulationContext): void {
   if (!simulation.burgs) return;
+  // Pre-first-generate shell (and incomplete fixtures) may lack pack.burgs.
+  if (!Array.isArray(world.pack?.burgs)) return;
 
   world.pack.burgs.forEach((burg, index) => {
     const burgId = getBurgId(burg, index);

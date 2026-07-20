@@ -16,6 +16,8 @@ import {
   getGoods,
   getMarketCellColumn,
   getMarkets,
+  getSimulationMonth,
+  getSimulationYear,
   getWorldContext,
   setDeals,
   setMarketCellColumn,
@@ -282,7 +284,7 @@ export class MarketsModule {
       this.ruralProductionIndex?.populationSnapshotPeriod === populationSnapshotPeriod
         ? this.ruralProductionIndex
         : this.buildRuralProductionIndex(populationSnapshotPeriod);
-    const monthIndex = Math.max(0, Math.min(11, (this.worldContext.options.month ?? 1) - 1));
+    const monthIndex = Math.max(0, Math.min(11, getSimulationMonth() - 1));
     const woodAdjustments = new Map<number, MarketGoodTotals>();
 
     for (const [cellId, depletion] of getDepletedCells()) {
@@ -394,8 +396,8 @@ export class MarketsModule {
    * four snapshots per simulated year.
    */
   private getRuralPopulationSnapshotPeriod(): string {
-    const month = this.worldContext.options.month ?? 1;
-    const year = this.worldContext.options.year ?? 0;
+    const month = getSimulationMonth();
+    const year = getSimulationYear();
     return `${year}:${Math.floor((month - 1) / 3)}`;
   }
 

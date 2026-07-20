@@ -182,7 +182,7 @@ interface SimulationData {
 
 人口や軍隊を `MapData` と `SimulationData` の両方へ複製しない。ある field の owner は一つだけとし、Renderer は必要に応じて両方を読む。例えば cell の国家所属は `MapData.politics`、人口 cohort は `SimulationData.cells`、軍隊位置は `SimulationData.military` が唯一の正となる。
 
-`worldContext.options.year/month/day` と `SimulationContext` の時計のような mirror は、compatibility 期間後に廃止する。
+`worldContext.options.year/month/day` と `SimulationContext` の時計のような mirror は廃止済み（P2-10）。ライブ時計の正は `simulationContext` のみ。`options.year`/`era` は生成パラメータとして残す。
 
 ### 4.3 `PresentationData`
 

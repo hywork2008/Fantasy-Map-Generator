@@ -36,6 +36,23 @@ export function getWorldContext() {
   return getApi().worldContext;
 }
 
+/**
+ * Live simulation year/month. Falls back to generation options only when a
+ * minimal test double omits simulationContext.
+ */
+export function getSimulationYear(): number {
+  const year = _api?.simulationContext?.currentYear;
+  if (typeof year === "number" && Number.isFinite(year)) return year;
+  return Number(getWorldContext().options.year) || 0;
+}
+
+export function getSimulationMonth(): number {
+  const month = _api?.simulationContext?.currentMonth;
+  if (typeof month === "number" && Number.isFinite(month) && month >= 1 && month <= 12) return month;
+  const fallback = Number(getWorldContext().options.month);
+  return Number.isFinite(fallback) && fallback >= 1 && fallback <= 12 ? fallback : 1;
+}
+
 function getProductionTable(): Record<number, ProductionRecord[]> | null {
   const simulation = _api?.simulationContext;
   if (!simulation?.extensions) return null;
