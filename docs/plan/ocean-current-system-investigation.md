@@ -145,7 +145,42 @@ Delaunay三角形分割から各三角形の最長辺を1本ずつ除去した�
 
 ---
 
-## 5. 関連ドキュメント
+## 6. 解決計画（未実装）: 「近い港が繋がらない」の修正
+
+3節の2つの原因（3.1 feature id グルーピング、3.2 Urquhart graph の疎さ）のうち、実際に修正すべきなのは3.2側のみと判断した。理由と具体的な修正案は以下。
+
+### 6.1 3.1（feature id グルーピング）は原則として修正しない
+
+`markupPack`（`src/generators/features.ts`）の flood-fill は `pack.cells.c`（隣接リスト）上の純粋な連結成分IDを `feature` として割り当てている。`generateSeaRoutes` が使う `findPathSegments({isWater: true, ...})` の水路コスト評価も同じ `pack.cells.c` を辿るA*であるため、**「feature が違う」と「A*で到達不能」は同一の隣接グラフ上で常に等価**（feature が異なれば必ずA*も失敗し、feature が同じなら必ずA*は経路を見つけられる）。つまり feature によるグルーピングを外して候補ペアを広げても、実際に繋がる新しいペアは増えない（陸を跨ぐ航路を防ぐ安全装置として機能しているだけ）。
+
+例外は、`reGraph()`（`src/main.ts:1411-1472`）の間引き＋再三角分割により、本来水面として繋がっているはずの狭い海峡が pack レベルで誤って2つの feature に分断されてしまうケース（間引き後に `Delaunator.from(allPoints)` で再構築される `pack.cells.c` は間引き後の点群の純粋な幾何学的三角分割であり、間引き前の隣接関係を保証しない）。ただしこれを直すなら `routes-generator.ts` ではなく `reGraph()` 自体（間引きロジック）の変更が必要で、マップ生成パイプライン全体に影響する大きな変更になる。発生頻度も低いと見られるため、**今回のスコープには含めず、6.2の修正効果を見てから要否を判断する**。
+
+### 6.2 3.2（Urquhart graph の疎さ）を修正する
+
+**方針**: `calculateUrquhartEdges`（`routes-generator.ts:363-402`）が返すエッジ集合に、「各点から見た最近傍点への辺」を和集合として追加する（幾何学的に relative neighborhood graph に近い考え方）。Delaunay三角形分割は性質上「各点の最近傍点への辺」を必ず含むため、追加のブルートフォース近傍探索は不要——既存の `Delaunator.from(points)` の三角形分割結果を1回余分に走査し、各点ごとに距離が最小のエッジを記録するだけでよい。
+
+**実装案**:
+
+1. `calculateUrquhartEdges` と同じ Delaunay 分割・`removed` マーキングロジックはそのまま流用し、新しいプライベートメソッド（例: `calculateAugmentedEdges(points)`）を追加する。
+   - 既存の三角形走査ループに、各点の現在の最短距離エッジを記録する処理を追加する（三角形分割の全エッジを走査すれば求まる。追加の近傍探索アルゴリズムは不要）。
+   - 戻り値は「Urquhartで生き残ったエッジ」∪「各点の最近傍エッジ」を重複除去したもの。
+2. `generateSeaRoutes`（`routes-generator.ts:559-584`）の `calculateUrquhartEdges(points)` 呼び出しだけを `calculateAugmentedEdges(points)` に差し替える。`generateMainRoads`・`generateTrails` は変更しない（陸路網への副作用を避け、スコープを港の問題に限定する）。
+3. 追加されたエッジもそのまま既存の `findPathSegments({isWater: true, ...})` に渡す。同一feature内のポート同士なので必ず到達可能であり、実際の海路の形は既存のコスト関数（`ROUTE_TYPE_MODIFIERS` の沿岸バイアス等）がそのまま決める。`addConnections`・`mergeRoutes`・`createRoutesData` などの下流ロジックは変更不要。
+
+**リスク**:
+
+- エッジ数が点あたり最大+1本増えるため、`generateSeaRoutes` の生成コスト・航路密度がわずかに増加する。大規模マップでの生成時間は実装後に計測して確認する。
+- 見た目: 密な港クラスターでは航路がやや増えて視覚的に賑やかになる可能性があるが、既存の `mergeRoutes` による統合と `getPoints` の鋭角補正はそのまま効くため、破綻した見た目にはならないはず。
+
+### 6.3 検証計画
+
+- `src/generators/routes-generator.test.ts` には現状 `calculateUrquhartEdges`/`generateSeaRoutes` を直接検証するテストが無いため、「Urquhartでは繋がらないが最近傍である」座標セット（意図的にUrquhartが辺を落とすような細長い三角形配置）を与え、和集合後のエッジに最近傍ペアが含まれることを確認する unit test を新規追加する。
+- 既存のマップ生成関連テストで `pack.routes` の `searoutes` group にリグレッションが無いか確認する。
+- 実際のマップシード（ユーザーが気づいた具体例があれば、そのシードで）で before/after のスクリーンショットを比較する。
+
+---
+
+## 7. 関連ドキュメント
 
 - `docs/plan/searoute-current-direction-visualization.md` — 海流の向きを示す装飾的なWebGLアニメーション(案A)。実装済み（`src/renderers/webgl/adapters/deckDataAdapters.ts` の `buildSeaCurrentCellPolygons`/`getSeaCurrentColor`、`buildDeckLayers.ts` の `toggleSeaCurrents` レイヤー、`src/controllers/seaCurrentsAnimation.ts` の自己判定型アニメーションループ）。湖セルは `pack.features[pack.cells.f[cellId]].type === "ocean"` 判定で除外済み（実際の湖横断ケースで検証済み）。今回の調査で判明した「海洋セルが不揃い」「近い港が繋がらない」という問題は、この可視化機能自体には影響しない（既存の `searoutes` ルートが通るセルをそのまま使っているだけのため）。
 - `docs/plan/naval-sea-lanes.md` — 艦隊の移動・到達判定を既存の `searoutes` 航路グラフに拘束する設計。既存の航路生成ロジック（3.1・3.2）をそのまま前提にしており、本ドキュメントで指摘した「疎さ・グルーピングの荒さ」は、この設計にとっても「艦隊が到達できる範囲が思ったより狭い」という形で影響し得る。
