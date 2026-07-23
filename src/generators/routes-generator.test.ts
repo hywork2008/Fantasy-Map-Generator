@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../context/worldContext";
 import type { Grid } from "../types/Grid";
 import type { PackedGraph } from "../types/PackedGraph";
+import { findPath } from "../utils/pathUtils";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
 import { Routes } from "./routes-generator";
 
@@ -152,7 +153,7 @@ describe("RoutesModule river-aware water cost", () => {
     expect(Routes.getWaterPathCost(5, 2)).toBeLessThan(Infinity);
   });
 
-  it("allows a coastal non-river land cell to exit to any adjacent water cell", () => {
+  it("rejects a coastal non-port cell that has no haven", () => {
     worldContext.pack.cells = {
       h: [25, 5, 5],
       r: [0, 0, 0],
@@ -168,8 +169,8 @@ describe("RoutesModule river-aware water cost", () => {
     worldContext.pack.rivers = [] as unknown as PackedGraph["rivers"];
     Routes.sync();
 
-    expect(Routes.getWaterPathCost(0, 1)).toBeLessThan(Infinity);
-    expect(Routes.getWaterPathCost(0, 2)).toBeLessThan(Infinity);
+    expect(Routes.getWaterPathCost(0, 1)).toBe(Infinity);
+    expect(Routes.getWaterPathCost(0, 2)).toBe(Infinity);
   });
 
   it("forces a coastal port to exit through its haven cell", () => {
@@ -191,6 +192,39 @@ describe("RoutesModule river-aware water cost", () => {
 
     expect(Routes.getWaterPathCost(0, 1)).toBeLessThan(Infinity);
     expect(Routes.getWaterPathCost(0, 2)).toBe(Infinity);
+    expect(Routes.getWaterPathCost(1, 0)).toBeLessThan(Infinity);
+    expect(Routes.getWaterPathCost(2, 0)).toBe(Infinity);
+  });
+
+  it("applies the same haven restriction in legacy sea-route mode", () => {
+    worldContext.pack.cells = {
+      h: [25, 5, 5],
+      r: [0, 0, 0],
+      fl: [0, 0, 0],
+      haven: [1, 0, 0],
+      p: [
+        [0, 0],
+        [10, 0],
+        [0, 10]
+      ],
+      t: [1, -1, -1],
+      g: [0, 0, 0]
+    } as unknown as PackedGraph["cells"];
+
+    const getLegacySeaRouteCost = routeInternals.createCostEvaluator({
+      isWater: true,
+      connections: new Map(),
+      seaRouteGenerationMode: "legacy"
+    });
+
+    expect(getLegacySeaRouteCost(0, 1)).toBeLessThan(Infinity);
+    expect(getLegacySeaRouteCost(0, 2)).toBe(Infinity);
+    expect(getLegacySeaRouteCost(1, 0)).toBeLessThan(Infinity);
+    expect(getLegacySeaRouteCost(2, 0)).toBe(Infinity);
+
+    const portGraph = { cells: { c: [[1, 2], [0], [0]] } };
+    expect(findPath(1, cell => cell === 0, getLegacySeaRouteCost, portGraph)).toEqual([1, 0]);
+    expect(findPath(2, cell => cell === 0, getLegacySeaRouteCost, portGraph)).toBeNull();
   });
 
   it("rejects exit from a river-mouth land cell into a non-mouth water cell", () => {

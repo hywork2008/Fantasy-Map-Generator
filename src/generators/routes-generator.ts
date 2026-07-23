@@ -252,10 +252,12 @@ class RoutesModule {
 
     if (!currentIsWater && nextIsWater && !r[current]) {
       const havenCell = haven?.[current];
-      if (havenCell) {
-        return havenCell === next ? distanceSquared(pack.cells.p[current], pack.cells.p[next]) : Infinity;
-      }
-      return distanceSquared(pack.cells.p[current], pack.cells.p[next]);
+      return havenCell === next ? distanceSquared(pack.cells.p[current], pack.cells.p[next]) : Infinity;
+    }
+
+    if (currentIsWater && !nextIsWater && !r[next]) {
+      const havenCell = haven?.[next];
+      return havenCell === current ? distanceSquared(pack.cells.p[current], pack.cells.p[next]) : Infinity;
     }
 
     return Infinity;
@@ -498,11 +500,24 @@ class RoutesModule {
     }
 
     const getLegacyWaterPathCost = (current: number, next: number) => {
-      if (pack.cells.h[next] >= 20) return Infinity; // ignore land cells
-      if (grid.cells.temp[pack.cells.g[next]] < MIN_PASSABLE_SEA_TEMP) return Infinity; // ignore too cold cells
+      const currentIsWater = pack.cells.h[current] < 20;
+      const nextIsWater = pack.cells.h[next] < 20;
+
+      if (!currentIsWater && !nextIsWater) return Infinity;
+
+      if (!currentIsWater) {
+        // A coastal port has one official sea entrance: its haven cell.
+        if (pack.cells.haven[current] !== next) return Infinity;
+      } else if (!nextIsWater) {
+        // The same restriction applies when arriving at the destination port.
+        if (pack.cells.haven[next] !== current) return Infinity;
+      }
+
+      const waterCell = nextIsWater ? next : current;
+      if (grid.cells.temp[pack.cells.g[waterCell]] < MIN_PASSABLE_SEA_TEMP) return Infinity; // ignore too cold cells
 
       const distanceCost = distanceSquared(pack.cells.p[current], pack.cells.p[next]);
-      const typeModifier = ROUTE_TYPE_MODIFIERS[pack.cells.t[next]] ?? ROUTE_TYPE_MODIFIERS.default;
+      const typeModifier = nextIsWater ? (ROUTE_TYPE_MODIFIERS[pack.cells.t[next]] ?? ROUTE_TYPE_MODIFIERS.default) : 1;
       const connectionModifier = connections.has(`${current}-${next}`) ? 0.5 : 1;
       return distanceCost * typeModifier * connectionModifier;
     };

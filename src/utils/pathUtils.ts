@@ -344,13 +344,16 @@ export const findPath = (
     const current = queue.pop()!;
 
     for (const next of packedGraph.cells.c[current]) {
+      const nextCost = getCost(current, next);
+      if (nextCost === Infinity) continue; // impassable cell
+
+      // An exit still has to be reachable through a passable edge. This is
+      // important for sea routes: a port may only be entered from its haven.
       if (isExit(next)) {
         from[next] = current;
         return restorePath(next, start, from);
       }
 
-      const nextCost = getCost(current, next);
-      if (nextCost === Infinity) continue; // impassable cell
       const totalCost = currentCost + nextCost;
 
       if (totalCost >= cost[next]) continue; // has cheaper path
