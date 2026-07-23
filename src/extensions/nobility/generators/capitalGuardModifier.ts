@@ -1,5 +1,5 @@
 import type { CharacterPersonality } from "../../characters/characterTypes";
-import { getWorldContext } from "../nobilityContext";
+import { getRulerId, getWorldContext } from "../nobilityContext";
 
 /** Below this boldness score, a ruler is considered cowardly. */
 const BOLDNESS_THRESHOLD = 30;
@@ -32,8 +32,9 @@ export function applyPersonalityToCapitalGuard(): void {
   const states = pack.states.filter(s => s.i && !s.removed);
 
   for (const state of states) {
-    if (state.rulerId === undefined) continue;
-    const ruler = pack.characters.find(c => c.i === state.rulerId);
+    const rulerId = getRulerId(state);
+    if (rulerId === undefined) continue;
+    const ruler = pack.characters.find(c => c.i === rulerId);
     if (!ruler?.personality || !isCowardlyAndParanoid(ruler.personality)) continue;
 
     const military = state.military;

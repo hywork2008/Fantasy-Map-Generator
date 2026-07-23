@@ -1,6 +1,12 @@
 import { createLayerCanvas } from "../../hostCore";
 import { getPackPolygon, normalize, rn, TIME } from "../../hostUtils";
-import { getGoodsLayer, getWorldContext } from "../economyContext";
+import {
+  getBurgProductionRecords,
+  getGoodCellColumn,
+  getGoods,
+  getGoodsLayer,
+  getWorldContext
+} from "../economyContext";
 import type { Good } from "../generators/goods-generator";
 import { Goods } from "../generators/goods-generator";
 import { Production } from "../generators/production-generator";
@@ -111,7 +117,7 @@ function drawGoodsCellsCanvas(
     }
 
     // Collect bonus-good production weight for icon visibility
-    const bonusGoodId = getWorldContext().pack.cells.good[cellId];
+    const bonusGoodId = getGoodCellColumn()[cellId];
     if (bonusGoodId && displayedGoods.has(bonusGoodId)) {
       const bonusAmount = produced.get(bonusGoodId) ?? 0;
       if (bonusAmount > 0) cellBonusWeights.set(cellId, bonusAmount);
@@ -125,7 +131,7 @@ function drawGoodsCellsCanvas(
 function computeBurgWeights(displayedGoods: ReadonlySet<number>): Map<number, number> {
   const result = new Map<number, number>();
   for (const burg of getWorldContext().pack.burgs) {
-    if (!burg.i || burg.removed || !burg.production) continue;
+    if (!burg.i || burg.removed || !getBurgProductionRecords(burg).length) continue;
     const produced = Production.getBurgProduction(burg);
     let total = 0;
     for (const goodId of displayedGoods) total += produced[goodId] || 0;
@@ -146,12 +152,13 @@ function weightsToMinScales(weights: Map<number, number>): Map<number, number> {
 }
 
 function buildGoodsIconsContent(displayedGoods: ReadonlySet<number>, cellMinScales: Map<number, number>): string {
-  if (!displayedGoods.size || !getWorldContext().pack.cells.good) return "";
+  const goodCellColumn = getGoodCellColumn();
+  if (!displayedGoods.size || !goodCellColumn.length) return "";
 
   const drawCircle = +(getGoodsLayer()?.select("#goodsIcons").attr("data-circle") ?? 0);
   let html = "";
   for (const cellId of getWorldContext().pack.cells.i) {
-    const goodId = getWorldContext().pack.cells.good[cellId];
+    const goodId = goodCellColumn[cellId];
     if (!goodId || !displayedGoods.has(goodId)) continue;
     const good = Goods.get(goodId);
     if (!good) continue;
@@ -171,12 +178,12 @@ function buildGoodsBurgsContent(displayedGoods: ReadonlySet<number>, burgMinScal
 
   let html = "";
   for (const burg of getWorldContext().pack.burgs) {
-    if (!burg.i || burg.removed || !burg.production) continue;
+    if (!burg.i || burg.removed || !getBurgProductionRecords(burg).length) continue;
 
     const produced = Production.getBurgProduction(burg);
     const entries: { good: Good; value: number; width: number }[] = [];
 
-    for (const good of getWorldContext().pack.goods) {
+    for (const good of getGoods()) {
       if (!displayedGoods.has(good.i)) continue;
       const raw = produced[good.i];
       if (!raw || raw <= 0) continue;

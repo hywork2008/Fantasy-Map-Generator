@@ -18,6 +18,15 @@ import type { AppServices } from "../context/appServices";
 import type { SimulationContext } from "../context/simulationContext";
 import type { SvgGroup, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import type { SimulationSystem } from "../generators/simulationSystem";
+import type { ExtensionReadRecord, ExtensionWorldReadView } from "../runtime/extensionReadModel";
+import type { ExtensionStateSliceSpec } from "../runtime/extensionStateSliceRegistry";
+import type {
+  DataTopic,
+  ExtensionCommandDefinition,
+  ExtensionCommandRequest,
+  WorldCommit
+} from "../runtime/worldRuntime";
 import type { BurgEconomySummary } from "../services/burgEconomyExtensions";
 import type { SkillModifierFn } from "../services/skillModifierService";
 import type {
@@ -287,16 +296,43 @@ export interface ExtensionAPI {
 
   // ── Simulation clock ─────────────────────────────────────────────────────
   /**
-   * Register a hook called on every advanceTime() call (i.e. every time the
-   * simulation year/month/day changes). Hooks are permanent for the session.
-   * `label` (e.g. the extension id) identifies this hook's cost in the tick profiler's
-   * output (src/generators/tickProfiler.ts) — pass one so per-extension tick cost is
-   * distinguishable when diagnosing slow Advance Time batches.
+   * @deprecated Prefer `registerSimulationSystem()`. Built-in extensions have
+   * migrated; this remains for unmigrated dynamic ZIP packages only.
+   *
+   * Compatibility wrapper: each hook becomes a politics-phase system, stays
+   * registered for the session, and preserves registration order among other
+   * legacy hooks. `label` names the tick profiler entry; `writes` is the
+   * fallback topic set when the hook returns void.
    */
   registerTimeTickHook(
-    hook: (deltaYears: number, deltaMonths: number, deltaDays: number) => void,
-    label?: string
+    hook: (deltaYears: number, deltaMonths: number, deltaDays: number) => readonly DataTopic[] | undefined,
+    label?: string,
+    writes?: readonly DataTopic[]
   ): void;
+  /**
+   * Register a synchronous system with explicit phase, cadence, dependencies,
+   * and WorldRuntime topics. Preferred entry for any new simulation work.
+   * The system must not import host Renderer modules; return only topics that
+   * changed this tick. Call the returned function from `cleanup()`.
+   */
+  registerSimulationSystem(system: SimulationSystem): () => void;
+
+  /**
+   * Register a validated extension-owned writer. Its changes are committed as
+   * `extension.<extensionId>`; call the returned function during cleanup.
+   */
+  registerExtensionCommand(command: ExtensionCommandDefinition): () => void;
+  /** Execute a command previously registered by an extension. */
+  dispatchExtensionCommand(request: ExtensionCommandRequest): WorldCommit<unknown> | null;
+  /**
+   * Register schema / validation / migration / core-reference collection for
+   * this extension's simulation slice. Host codec ownership stays in the
+   * archive adapter; the extension only owns the slice shape. Matching opaque
+   * archive chunks are promoted after successful migrate+validate. Call the
+   * returned function only on uninstall — disable must not unregister the slice
+   * if data should remain under host delete policy.
+   */
+  registerStateSlice(spec: ExtensionStateSliceSpec): () => void;
 
   // ── Skill modifier chain ─────────────────────────────────────────────────
   /**
@@ -326,4 +362,19 @@ export interface ExtensionAPI {
    * display. Assign getBurgEconomySummary in init(), clear it in cleanup().
    */
   burgEconomyExtensions: BurgEconomyExtensionHooks;
+}
+
+/** Refreshable immutable world snapshot access granted to dynamic ZIP extensions. */
+export interface ExtensionWorldReader {
+  read(): ExtensionWorldReadView;
+}
+
+/**
+ * Dynamic-extension contract. Compatibility context names resolve to immutable
+ * facades; canonical data can only change through registered commands.
+ */
+export interface DynamicExtensionAPI extends Omit<ExtensionAPI, "worldContext" | "simulationContext"> {
+  readonly world: ExtensionWorldReader;
+  readonly worldContext: ExtensionReadRecord;
+  readonly simulationContext: ExtensionReadRecord;
 }

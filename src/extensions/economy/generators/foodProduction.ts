@@ -1,5 +1,5 @@
 import { minmax, rn } from "../../hostUtils";
-import { getWorldContext } from "../economyContext";
+import { getMarketCellColumn, getMarkets, getWorldContext } from "../economyContext";
 
 export const GROSS_FOOD_NEED = 0.43;
 export const RURAL_MARKETABLE_SHARE = 0.7;
@@ -15,8 +15,10 @@ export class FoodProductionModule {
 
   generateQuarterlyLedger(quarterIndex: number) {
     const pack = this.worldContext.pack;
+    const markets = getMarkets();
+    const marketCellColumn = getMarketCellColumn();
 
-    if (!pack.markets || !pack.cells || !pack.burgs) return;
+    if (!markets.length || !pack.cells || !pack.burgs) return;
 
     const populationRate = this.worldContext.populationRate ?? 1000;
     const urbanization = this.worldContext.urbanization ?? 1;
@@ -24,12 +26,12 @@ export class FoodProductionModule {
     const safeQuarterIndex = Math.max(0, Math.min(3, Math.floor(quarterIndex % 4)));
     const quarterWeight = DEFAULT_QUARTERLY_WEIGHTS[safeQuarterIndex] ?? 0.25;
 
-    for (const market of pack.markets) {
+    for (const market of markets) {
       let ruralPopulation = 0;
       let annualFoodProduced = 0;
 
       for (const cellId of pack.cells.i) {
-        if (pack.cells.market[cellId] !== market.i || pack.cells.h[cellId] < 20) continue;
+        if (marketCellColumn[cellId] !== market.i || pack.cells.h[cellId] < 20) continue;
 
         const rural = pack.cells.pop[cellId] * populationRate;
         const capacity = pack.cells.capacity[cellId] * populationRate;

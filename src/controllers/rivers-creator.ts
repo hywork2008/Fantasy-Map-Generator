@@ -1,5 +1,6 @@
 import { pointer } from "d3";
 import type { WorldContext } from "../context/worldContext";
+import { createRiverCommand, setRiverFlux } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -80,10 +81,6 @@ export function addRiver(): void {
   const riverId = GenerationPipeline.Rivers.getNextId(rivers);
   const parent = cells.r[last(riverCells)] || riverId;
 
-  riverCells.forEach(cell => {
-    if (!cells.r[cell]) cells.r[cell] = riverId;
-  });
-
   const source = riverCells[0];
   const mouth = parent === riverId ? last(riverCells) : riverCells[riverCells.length - 2];
   const sourceWidth = GenerationPipeline.Rivers.getSourceWidth(cells.fl[source]);
@@ -107,21 +104,24 @@ export function addRiver(): void {
   const name = GenerationPipeline.Rivers.getName(mouth);
   const basin = GenerationPipeline.Rivers.getBasin(parent);
 
-  rivers.push({
-    i: riverId,
-    source,
-    mouth,
-    discharge,
-    length,
-    width,
-    widthFactor,
-    sourceWidth,
-    parent,
-    cells: riverCells,
-    basin,
-    name,
-    type: "River"
+  const commit = createRiverCommand({
+    river: {
+      i: riverId,
+      source,
+      mouth,
+      discharge,
+      length,
+      width,
+      widthFactor,
+      sourceWidth,
+      parent,
+      cells: [...riverCells],
+      basin,
+      name,
+      type: "River"
+    }
   });
+  if (!commit) return;
   const id = `river${riverId}`;
 
   view.viewbox
@@ -150,7 +150,7 @@ export function getCellFlux(cell: number): number {
 }
 
 export function setCellFlux(cell: number, value: number): void {
-  worldContext.pack.cells.fl[cell] = value;
+  setRiverFlux({ cellId: cell, value });
 }
 
 export function initRiversCreator(wc: WorldContext) {

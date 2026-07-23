@@ -1,5 +1,5 @@
 import { analyzeFrontiers, getProvinceThreats } from "../../hostCore";
-import { getWorldContext } from "../nobilityContext";
+import { getCurrentYear, getWorldContext } from "../nobilityContext";
 import { Characters } from "./characterLifecycle";
 
 /**
@@ -14,11 +14,11 @@ import { Characters } from "./characterLifecycle";
  * war starts).
  */
 export function assignProvinceLords(): void {
-  const { pack, options } = getWorldContext();
+  const { pack } = getWorldContext();
   const characters = pack.characters;
   if (!characters || !pack.states?.length || !pack.provinces?.length) return;
 
-  const currentYear = Number(options.year) || 1000;
+  const currentYear = getCurrentYear();
   const states = pack.states.filter(s => s.i && !s.removed);
   const frontierMap = analyzeFrontiers(pack, currentYear);
 

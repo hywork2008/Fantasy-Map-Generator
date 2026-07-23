@@ -6,6 +6,7 @@ import {
   getCombatDeathsAtCell,
   getCombatDeathsByCell,
   getDeathsByState,
+  getPopulationLossSimDay,
   recordDeaths,
   resetPopulationLossTracker
 } from "./populationLossTracker";
@@ -133,5 +134,30 @@ describe("populationLossTracker", () => {
     expect(onDeath).toHaveBeenCalledWith(
       expect.objectContaining({ stateId: 1, people: 12, cause: "combat", cellId: 9 })
     );
+  });
+
+  it("persists tallies on simulationContext.populationLoss for archive/headless reuse", () => {
+    recordDeaths(1, 40, "combat", { cellId: 3 });
+    advancePopulationLossClock(2);
+    recordDeaths(2, 10, "famine");
+
+    expect(simulationContext.populationLoss.simDay).toBe(2);
+    expect(simulationContext.populationLoss.history.length).toBeGreaterThanOrEqual(1);
+    expect(getDeathsByState("month").get(1)?.combat).toBe(40);
+    expect(getDeathsByState("month").get(2)?.famine).toBe(10);
+
+    // Simulating a loaded archive: replace the slice and read through the public API.
+    simulationContext.populationLoss = {
+      simDay: 5,
+      history: [
+        {
+          day: 5,
+          byState: { 7: { combat: 0, famine: 0, natural: 99, other: 0, total: 99 } },
+          combatByCell: {}
+        }
+      ]
+    };
+    expect(getPopulationLossSimDay()).toBe(5);
+    expect(getDeathsByState("day").get(7)?.natural).toBe(99);
   });
 });

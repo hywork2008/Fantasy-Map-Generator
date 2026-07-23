@@ -3,6 +3,7 @@ import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { MarkersRenderer } from "../renderers";
+import { invertMarkerFlags, patchMarker, removeMarker, removeUnlockedMarkers } from "../runtime/worldRuntime";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { useMarkersOverviewState } from "../store/markersOverviewState";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
@@ -37,13 +38,13 @@ export function markerTogglePin(i: number): void {
   const marker = worldContext.pack.markers.find(m => m.i === i);
   if (!marker) return;
 
+  const commit = patchMarker({ markerId: i, pinned: !marker.pinned });
+  if (!commit) return;
   const markerGroup = view.markers.node();
   if (marker.pinned) {
-    delete marker.pinned;
     const anyPinned = worldContext.pack.markers.some(m => m.pinned);
     if (!anyPinned && markerGroup) markerGroup.removeAttribute("pinned");
   } else {
-    marker.pinned = true;
     markerGroup?.setAttribute("pinned", "1");
   }
   MarkersRenderer.render(worldContext, viewContext, appServices);
@@ -52,18 +53,13 @@ export function markerTogglePin(i: number): void {
 export function markerToggleLock(i: number): void {
   const marker = worldContext.pack.markers.find(m => m.i === i);
   if (!marker) return;
-  if (marker.lock) delete marker.lock;
-  else marker.lock = true;
+  patchMarker({ markerId: i, lock: !marker.lock });
 }
 
 export function markerInvertPin(): void {
-  let anyPinned = false;
-  worldContext.pack.markers.forEach(marker => {
-    if (!marker.pinned) {
-      marker.pinned = true;
-      anyPinned = true;
-    } else delete marker.pinned;
-  });
+  const commit = invertMarkerFlags({ field: "pinned" });
+  if (!commit) return;
+  const anyPinned = worldContext.pack.markers.some(marker => marker.pinned);
   const markerGroup = view.markers.node();
   if (markerGroup) {
     if (anyPinned) markerGroup.setAttribute("pinned", "1");
@@ -73,23 +69,21 @@ export function markerInvertPin(): void {
 }
 
 export function markerInvertLock(): void {
-  worldContext.pack.markers = worldContext.pack.markers.map(m => ({ ...m, lock: !m.lock }));
+  invertMarkerFlags({ field: "lock" });
 }
 
 export function removeMarkerById(i: number): void {
-  worldContext.notes = worldContext.notes.filter(note => note.id !== `marker${i}`);
-  worldContext.pack.markers = worldContext.pack.markers.filter(m => m.i !== i);
+  const commit = removeMarker({ markerId: i });
+  if (!commit) return;
   view.markers.select(`#marker${i}`).remove();
 }
 
 export function removeAllUnlockedMarkers(): void {
-  worldContext.pack.markers = worldContext.pack.markers.filter(({ i, lock }) => {
-    if (lock) return true;
-    const id = `marker${i}`;
-    view.markers.select(`#${id}`).remove();
-    worldContext.notes = worldContext.notes.filter(note => note.id !== id);
-    return false;
-  });
+  const commit = removeUnlockedMarkers();
+  if (!commit) return;
+  for (const markerId of commit.result.removedMarkerIds) {
+    view.markers.select(`#marker${markerId}`).remove();
+  }
 }
 
 export function exportMarkers(): void {

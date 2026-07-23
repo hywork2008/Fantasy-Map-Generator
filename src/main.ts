@@ -13,6 +13,7 @@ import Alea from "alea";
 import * as d3 from "d3";
 import { getWorldState, resetZoom, zoomTo } from "./actions";
 import { appServices, initRng } from "./context/appServices";
+import { simulationContext } from "./context/simulationContext";
 import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
 import { applyLayersPreset, drawLayers, scheduleWebglUpdate } from "./controllers/layers";
@@ -49,6 +50,12 @@ import { CoordinatesRenderer, drawCalendar, drawScaleBar, fitScaleBar } from "./
 import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
 import { DeckGlRenderer } from "./renderers/webgl/deckRenderer";
+import { bindExtensionStateSlices, resetExtensionStateSlices } from "./runtime/extensionStateSlices";
+import { bindSimulationBurgState, resetSimulationBurgState } from "./runtime/simulationBurgState";
+import { bindSimulationCellColumns } from "./runtime/simulationCellColumns";
+import { bindSimulationMilitaryState, resetSimulationMilitaryState } from "./runtime/simulationMilitaryState";
+import { bindSimulationStateState, resetSimulationStateState } from "./runtime/simulationStateState";
+import { dispatchWorldGenerate, type GenerateRequest, registerWorldGenerateHandler } from "./runtime/worldRuntime";
 import { clearMainTip, tip } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
 import { useDebugSnapshotState } from "./store/debugSnapshotState";
@@ -74,7 +81,7 @@ import {
   safeParseJSON,
   shouldRegenerateGrid
 } from "./utils";
-import { captureSnapshotData } from "./utils/aiDebugExporter";
+import { captureSnapshotData, debugSnapshotsEnabled } from "./utils/aiDebugExporter";
 import { normalizeConflictAutonomy } from "./utils/conflictAutonomy";
 import { locked } from "./utils/domUtils";
 import { EditorBus } from "./utils/editorBus";
@@ -859,119 +866,155 @@ void (function addDragToUpload() {
 
 // ─── Map generation ───────────────────────────────────────────────────────────
 
-export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
-  try {
-    useDebugSnapshotState.getState().clearAll();
+/**
+ * Data-plane generation pipeline used as the `world.generate` handler.
+ * Writes into live pack/grid as a temporary staging area; WorldRuntime
+ * validates and publishes a fullReplace commit only on success.
+ */
+async function runGeneratePipeline(request: GenerateRequest): Promise<void> {
+  useDebugSnapshotState.getState().clearAll();
 
-    const timeStart = performance.now();
-    const { seed: precreatedSeed, graph: precreatedGraph } = opts || {};
+  const { seed: precreatedSeed, graph: precreatedGraph } = request;
 
-    invokeActiveZooming();
-    setSeed(precreatedSeed);
-    INFO && console.group(`Generated Map ${worldContext.seed}`);
+  invokeActiveZooming();
+  setSeed(precreatedSeed);
+  INFO && console.group(`Generated Map ${worldContext.seed}`);
 
-    applyGraphSize();
-    randomizeOptions();
-    worldContext.options.gunpowderEraEnabled = useOptionsState.getState().gunpowderEraEnabled;
-    worldContext.options.conflictAutonomy = normalizeConflictAutonomy(useOptionsState.getState().conflictAutonomy);
+  applyGraphSize();
+  randomizeOptions();
+  worldContext.options.gunpowderEraEnabled = useOptionsState.getState().gunpowderEraEnabled;
+  worldContext.options.conflictAutonomy = normalizeConflictAutonomy(useOptionsState.getState().conflictAutonomy);
 
-    if (
-      shouldRegenerateGrid(worldContext.grid, +(precreatedSeed ?? 0), worldContext.graphWidth, worldContext.graphHeight)
-    ) {
-      Object.keys(worldContext.grid).forEach(k => {
-        delete (worldContext.grid as unknown as Record<string, unknown>)[k];
-      });
-      Object.assign(
-        worldContext.grid,
-        precreatedGraph || generateGrid(worldContext.seed, worldContext.graphWidth, worldContext.graphHeight)
-      );
-    } else delete (worldContext.grid.cells as { h?: unknown }).h;
-    worldContext.grid.cells.h = await HeightmapGenerator.generate(
-      worldContext,
-      viewContext,
-      appServices,
-      worldContext.grid
-    );
-    Object.keys(worldContext.pack).forEach(k => {
-      delete (worldContext.pack as unknown as Record<string, unknown>)[k];
+  if (
+    shouldRegenerateGrid(worldContext.grid, +(precreatedSeed ?? 0), worldContext.graphWidth, worldContext.graphHeight)
+  ) {
+    Object.keys(worldContext.grid).forEach(k => {
+      delete (worldContext.grid as unknown as Record<string, unknown>)[k];
     });
-    Object.assign(worldContext.pack, {} as typeof worldContext.pack);
+    Object.assign(
+      worldContext.grid,
+      precreatedGraph || generateGrid(worldContext.seed, worldContext.graphWidth, worldContext.graphHeight)
+    );
+  } else delete (worldContext.grid.cells as { h?: unknown }).h;
+  worldContext.grid.cells.h = await HeightmapGenerator.generate(
+    worldContext,
+    viewContext,
+    appServices,
+    worldContext.grid
+  );
+  Object.keys(worldContext.pack).forEach(k => {
+    delete (worldContext.pack as unknown as Record<string, unknown>)[k];
+  });
+  Object.assign(worldContext.pack, {} as typeof worldContext.pack);
+  resetExtensionStateSlices(simulationContext);
+  resetSimulationBurgState(simulationContext);
+  resetSimulationStateState(simulationContext);
+  resetSimulationMilitaryState(simulationContext);
 
-    Features.markupGrid();
-    addLakesInDeepDepressions();
-    openNearSeaLakes();
+  Features.markupGrid();
+  addLakesInDeepDepressions();
+  openNearSeaLakes();
 
-    if (viewContext.renderMap) OceanLayers();
-    defineMapSize();
-    calculateMapCoordinates();
-    calculateTemperatures();
-    generatePrecipitation();
+  if (viewContext.renderMap) OceanLayers();
+  defineMapSize();
+  calculateMapCoordinates();
+  calculateTemperatures();
+  generatePrecipitation();
 
-    reGraph();
-    Features.markupPack();
-    createDefaultRuler();
+  reGraph();
+  Features.markupPack();
+  createDefaultRuler();
 
-    const state = getWorldState();
-    Rivers.generate(worldContext, viewContext, appServices, state);
-    Biomes.define(state);
-    Features.defineGroups();
+  const state = getWorldState();
+  Rivers.generate(worldContext, viewContext, appServices, state);
+  Biomes.define(state);
+  Features.defineGroups();
 
-    Ice.generate(worldContext, viewContext, appServices, state);
+  Ice.generate(worldContext, viewContext, appServices, state);
 
-    Threats.generate(worldContext, viewContext, appServices, state);
-    rankCells();
-    Cultures.generate(worldContext, viewContext, appServices, state);
-    Cultures.expand(state);
+  Threats.generate(worldContext, viewContext, appServices, state);
+  rankCells();
+  Cultures.generate(worldContext, viewContext, appServices, state);
+  Cultures.expand(state);
 
-    Burgs.generate(worldContext, viewContext, appServices, state);
-    States.generate(worldContext, viewContext, appServices, state);
-    Routes.generate(worldContext, viewContext, appServices, state);
-    Religions.generate(worldContext, viewContext, appServices, state);
+  Burgs.generate(worldContext, viewContext, appServices, state);
+  States.generate(worldContext, viewContext, appServices, state);
+  Routes.generate(worldContext, viewContext, appServices, state);
+  Religions.generate(worldContext, viewContext, appServices, state);
 
-    Burgs.specify(worldContext, viewContext, appServices, state);
-    States.collectStatistics(state);
-    States.defineStateForms(state);
+  Burgs.specify(worldContext, viewContext, appServices, state);
+  States.collectStatistics(state);
+  States.defineStateForms(state);
 
-    Provinces.generate(worldContext, viewContext, appServices, state);
-    Provinces.getPoles(state);
+  Provinces.generate(worldContext, viewContext, appServices, state);
+  Provinces.getPoles(state);
 
-    Rivers.specify(worldContext, viewContext, appServices, state);
-    Lakes.defineNames(state);
+  Rivers.specify(worldContext, viewContext, appServices, state);
+  Lakes.defineNames(state);
 
-    Military.generate(worldContext, viewContext, appServices, state);
-    establishVassalage(worldContext.pack, worldContext.populationRate);
-    FrontierForts.generate(worldContext, viewContext, appServices, state);
-    Markers.generate(worldContext, viewContext, appServices, state);
-    Zones.generate(worldContext, viewContext, appServices, state);
+  Military.generate(worldContext, viewContext, appServices, state);
+  establishVassalage(worldContext.pack, worldContext.populationRate);
+  FrontierForts.generate(worldContext, viewContext, appServices, state);
+  Markers.generate(worldContext, viewContext, appServices, state);
+  Zones.generate(worldContext, viewContext, appServices, state);
 
-    initSimulationClock();
-    document.dispatchEvent(new CustomEvent("fmg:generate-post-core"));
+  initSimulationClock();
+  bindSimulationBurgState(worldContext, simulationContext);
+  bindSimulationStateState(worldContext, simulationContext);
+  bindSimulationMilitaryState(worldContext, simulationContext);
+  // reGraph() rebinds pack/cells-level extension fields before pack.burgs/pack.states
+  // exist; rebind here too so entity-level accessors (production, rulerId, ...) attach
+  // to the burg/state objects Burgs.generate()/States.generate() just created.
+  bindExtensionStateSlices(worldContext, simulationContext);
+  document.dispatchEvent(new CustomEvent("fmg:generate-post-core"));
 
-    if (import.meta.env.DEV) {
+  // Apply demographic scars from past wars generated by states history
+  applyHistoricalWarScars();
+
+  // Calculate and append flavor text for monster casualties in notes
+  Threats.appendCasualtyNotes(worldContext);
+
+  Names.getMapName(false);
+  // Ensure mapId is set for the generate commit result.
+  if (!worldContext.mapId) worldContext.mapId = Date.now();
+}
+
+// Register once at module load so dispatch is available before initMain completes.
+registerWorldGenerateHandler(runGeneratePipeline);
+
+/**
+ * Public generation entry point. Stages through `world.generate` (validate +
+ * fullReplace commit). View-side chrome is drawn only after a successful commit.
+ */
+export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
+  const timeStart = performance.now();
+  try {
+    const commit = await dispatchWorldGenerate(opts ?? {});
+    if (!commit) throw new Error("world.generate did not produce a commit");
+
+    if (debugSnapshotsEnabled()) {
       useDebugSnapshotState.getState().addSnapshot({
         tickCount: 0,
-        year: worldContext.options.year ?? 0,
+        year: simulationContext.currentYear,
         label: "Initial Generation",
         isLocked: true,
         data: captureSnapshotData()
       });
     }
 
-    // Apply demographic scars from past wars generated by states history
-    applyHistoricalWarScars();
-
-    // Calculate and append flavor text for monster casualties in notes
-    Threats.appendCasualtyNotes(worldContext);
-
     drawScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, scale);
     drawCalendar(worldContext, viewContext);
-    Names.getMapName(false);
 
     WARN && console.warn(`TOTAL: ${rn((performance.now() - timeStart) / 1000, 2)}s`);
     showStatistics();
     INFO && console.groupEnd();
   } catch (error) {
     ERROR && console.error(error);
+    try {
+      INFO && console.groupEnd();
+    } catch {
+      /* group may not be open if failure was early */
+    }
     const parsedError = parseError(error);
     clearMainTip();
 
@@ -1431,6 +1474,10 @@ export function reGraph() {
   const { cells: packCells, vertices } = calculateVoronoi(newCells.p, worldContext.grid.boundary);
   worldContext.pack.vertices = vertices as typeof worldContext.pack.vertices;
   worldContext.pack.cells = packCells as typeof worldContext.pack.cells;
+  // `pack.cells` is replaced by the legacy graph builder. Reattach the
+  // compatibility adapter so dynamic columns remain simulation-owned.
+  bindSimulationCellColumns(worldContext, simulationContext);
+  bindExtensionStateSlices(worldContext, simulationContext);
   worldContext.pack.cells.p = newCells.p;
   worldContext.pack.cells.g = createTypedArray({
     maxValue: worldContext.grid.points.length,

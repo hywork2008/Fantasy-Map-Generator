@@ -1,5 +1,6 @@
 import { sum } from "d3";
 import { appServices } from "../context/appServices";
+import { simulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, MilitaryRegiment, State } from "../types/models";
@@ -892,7 +893,7 @@ export function advanceAlongPath(
 
 /**
  * Advances every state's regiments by `deltaYears` worth of marching (called from a
- * per-tick hook, e.g. Nobility's registerTimeTickHook — unlike Military.generate(), this
+ * per-tick system, e.g. Nobility's nobility.tick — unlike Military.generate(), this
  * should run every tick regardless of bordersChanged, since marching is continuous).
  * Returns true if any regiment's position actually changed, so the caller knows whether to
  * re-render the military layer. `onCellEntered` is threaded straight through to
@@ -910,8 +911,8 @@ export function advanceAllRegimentMovement(
 ): boolean {
   if (deltaYears <= 0) return false;
 
-  const currentYear = worldContext.options.year ?? 0;
-  const currentMonth = worldContext.options.month ?? 1;
+  const currentYear = simulationContext.currentYear;
+  const currentMonth = simulationContext.currentMonth;
   const seaRouteGraph = buildSeaRouteGraph(pack);
   const landRouteGraph = buildLandRouteGraph(pack, {
     month: currentMonth,

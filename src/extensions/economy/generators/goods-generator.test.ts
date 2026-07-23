@@ -1,8 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { BiomesData, ExtensionAPI, Grid, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext } from "../economyContext";
-import "../types";
+import { clearEconomyContext, getGoodCellColumn, getGoods, initEconomyContext, setGoods } from "../economyContext";
 import { GoodsModule } from "./goods-generator";
 
 describe("GoodsModule", () => {
@@ -70,33 +69,33 @@ describe("GoodsModule", () => {
   it("keeps the current catalogue when rerolling placement", () => {
     goodsModule.generate({ randomSeed: 123 });
 
-    expect(worldContext.pack.goods).toHaveLength(2);
-    expect(worldContext.pack.goods[0].name).toBe("Custom A");
-    expect(worldContext.pack.goods[1].name).toBe("Custom B");
+    expect(getGoods()).toHaveLength(2);
+    expect(getGoods()[0].name).toBe("Custom A");
+    expect(getGoods()[1].name).toBe("Custom B");
   });
 
   it("restores the default catalogue when requested explicitly", () => {
     goodsModule.restoreDefaults();
 
-    expect(worldContext.pack.goods.some(good => good.name === "Wood")).toBe(true);
-    expect(worldContext.pack.goods[0].name).not.toBe("Custom A");
+    expect(getGoods().some(good => good.name === "Wood")).toBe(true);
+    expect(getGoods()[0].name).not.toBe("Custom A");
   });
 
   it("restores default goods with trade cargo profiles", () => {
     goodsModule.restoreDefaults();
 
-    expect(worldContext.pack.goods.every(good => good.trade)).toBe(true);
-    expect(worldContext.pack.goods.find(good => good.name === "Gold")?.trade?.distancePremium).toBe(3);
-    expect(worldContext.pack.goods.find(good => good.name === "Fish")?.trade?.timeValueTrend).toBe(-2);
+    expect(getGoods().every(good => good.trade)).toBe(true);
+    expect(getGoods().find(good => good.name === "Gold")?.trade?.distancePremium).toBe(3);
+    expect(getGoods().find(good => good.name === "Fish")?.trade?.timeValueTrend).toBe(-2);
   });
 
   it("replaces the generic Ships Good with sea-only ship-class Goods", () => {
     goodsModule.restoreDefaults();
 
-    expect(worldContext.pack.goods.find(good => good.name === "Ships")).toBeUndefined();
+    expect(getGoods().find(good => good.name === "Ships")).toBeUndefined();
     expect(
       ["Sloop", "Caravel", "Galleon"].map(name => {
-        const good = worldContext.pack.goods.find(candidate => candidate.name === name);
+        const good = getGoods().find(candidate => candidate.name === name);
         return { name, value: good?.value, seaOnly: good?.seaOnly, recipes: good?.recipes, trade: good?.trade };
       })
     ).toEqual([
@@ -108,47 +107,47 @@ describe("GoodsModule", () => {
 
   it("restores the original defaults even after the current catalogue was edited", () => {
     goodsModule.generate();
-    worldContext.pack.goods[0].name = "Edited Wood";
+    getGoods()[0].name = "Edited Wood";
 
     goodsModule.restoreDefaults();
 
-    expect(worldContext.pack.goods[0].name).toBe("Wood");
+    expect(getGoods()[0].name).toBe("Wood");
   });
 
   it("initialises the catalogue from defaults when none exists yet", () => {
-    worldContext.pack.goods = [];
+    setGoods([]);
     goodsModule.generate();
 
-    expect(worldContext.pack.goods.some(good => good.name === "Wood")).toBe(true);
+    expect(getGoods().some(good => good.name === "Wood")).toBe(true);
   });
 
   it("does not corrupt the default template when a restored good is edited", () => {
     goodsModule.restoreDefaults();
-    const wood = worldContext.pack.goods.find(good => good.name === "Wood")!;
+    const wood = getGoods().find(good => good.name === "Wood")!;
     wood.name = "Edited Wood";
 
     goodsModule.restoreDefaults();
 
-    expect(worldContext.pack.goods.find(good => good.name === "Edited Wood")).toBeUndefined();
-    expect(worldContext.pack.goods.some(good => good.name === "Wood")).toBe(true);
+    expect(getGoods().find(good => good.name === "Edited Wood")).toBeUndefined();
+    expect(getGoods().some(good => good.name === "Wood")).toBe(true);
   });
 
   it("clears a single good when it is no longer placeable", () => {
-    worldContext.pack.goods[0].chance = 0;
+    getGoods()[0].chance = 0;
     goodsModule.regeneratePlacement(1);
 
-    const goodIds = Array.from(worldContext.pack.cells.good);
+    const goodIds = Array.from(getGoodCellColumn());
     expect(goodIds.some(id => id === 1)).toBe(false);
     expect(goodIds.filter(id => id === 2)).toHaveLength(2);
   });
 
   it("does not place Gunpowder or Artillery when the gunpowder era is disabled", () => {
-    worldContext.pack.goods[0].name = "Gunpowder";
-    worldContext.pack.goods[1].name = "Artillery";
+    getGoods()[0].name = "Gunpowder";
+    getGoods()[1].name = "Artillery";
     worldContext.options.gunpowderEraEnabled = false;
 
     goodsModule.generate({ randomSeed: 123 });
 
-    expect(Array.from(worldContext.pack.cells.good)).toEqual([0, 0, 0, 0]);
+    expect(Array.from(getGoodCellColumn())).toEqual([0, 0, 0, 0]);
   });
 });

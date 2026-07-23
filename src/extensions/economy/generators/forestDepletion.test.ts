@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { simulationContext } from "../../hostCore";
+import type { ExtensionAPI } from "../../hostTypes";
+import { clearEconomyContext, initEconomyContext } from "../economyContext";
 import {
   clearForestDepletion,
   consumeDirtyFlag,
@@ -10,6 +13,7 @@ import {
 describe("forestDepletion", () => {
   afterEach(() => {
     clearForestDepletion();
+    clearEconomyContext();
   });
 
   it("has no depletion for a cell that was never logged", () => {
@@ -60,5 +64,23 @@ describe("forestDepletion", () => {
 
     expect(getDepletionFactor(1)).toBeCloseTo(0.88, 5);
     expect(getDepletionFactor(2)).toBeCloseTo(0.08, 5);
+  });
+
+  it("writes depletion into the economy extension slice when the API is live", () => {
+    initEconomyContext({ simulationContext } as unknown as ExtensionAPI);
+    simulationContext.extensions = {};
+
+    registerLogHarvest(3, 4); // 0.2
+    expect(getDepletionFactor(3)).toBeCloseTo(0.2, 5);
+    expect(
+      (simulationContext.extensions.economy as { forestDepletion: Record<string, number> }).forestDepletion[3]
+    ).toBeCloseTo(0.2, 5);
+
+    // Simulate archive restore into the slice and confirm the public API reads it.
+    (simulationContext.extensions.economy as { forestDepletion: Record<number, number> }).forestDepletion = {
+      9: 0.5
+    };
+    expect(getDepletionFactor(9)).toBe(0.5);
+    expect(getDepletionFactor(3)).toBe(0);
   });
 });

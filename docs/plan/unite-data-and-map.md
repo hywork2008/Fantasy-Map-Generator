@@ -1,6 +1,6 @@
 # 地図データ・シミュレーション・描画の統合設計
 
-- **Status**: Proposed（設計のみ。未実装）
+- **Status**: In progress（Phase 1、Phase 2 の position command／SVG・WebGL・viewMesh compatibility listener、Phase 3 の `PresentationData` command・legacy SVG import・WebGL style reader 移行、Phase 4 の `SimulationSystem` registry と legacy tick-hook compatibility、Phase 5 の command migration 対象、Phase 6 の `.fmg` chunked archive・staged decode/migrate/validate・`world.replace`・autosave、Phase 7 の WebGL cache topic-revision projection、Phase 8 の physical model split（cell-column slice、Characters/Economy extension augmentation の namespaced slice 化、burg/state/military live values の移動、Economy `PackedGraph` augmentation 削除、Worker seam の characterization test 固定）まで完了済み。legacy `.map` の positional apply は compatibility adapter として維持）
 - **Date**: 2026-07-17
 
 **Related**:
@@ -182,7 +182,7 @@ interface SimulationData {
 
 人口や軍隊を `MapData` と `SimulationData` の両方へ複製しない。ある field の owner は一つだけとし、Renderer は必要に応じて両方を読む。例えば cell の国家所属は `MapData.politics`、人口 cohort は `SimulationData.cells`、軍隊位置は `SimulationData.military` が唯一の正となる。
 
-`worldContext.options.year/month/day` と `SimulationContext` の時計のような mirror は、compatibility 期間後に廃止する。
+`worldContext.options.year/month/day` と `SimulationContext` の時計のような mirror は廃止済み（P2-10）。ライブ時計の正は `simulationContext` のみ。`options.year`/`era` は生成パラメータとして残す。
 
 ### 4.3 `PresentationData`
 
@@ -339,7 +339,7 @@ interface WorldCommandCatalog {
   "simulation.stepDay": { payload: undefined; result: SimulationStepResult };
   "presentation.patch": { payload: PresentationPatch; result: void };
   "extension.command": {
-    payload: { extensionId: string; name: string; value: unknown };
+    payload: { extensionId: string; name: string; payload: unknown };
     result: unknown;
   };
 }
@@ -851,6 +851,8 @@ Renderer 固有の element や cache を editor が知る必要はない。
 - population loss、forest depletion、shipbuilding queue、intelligence、strategic goals 等を versioned simulation / extension slice へ移す。
 - DOM 無しの interface test を追加。
 
+初回実装では legacy hook を `politics` phase の compatibility system として登録順に実行し、既存の public bulk call と UI 日次 call の hook 回数・tickCount・RNG 消費を変更しない。新規 system は `registerSimulationSystem()` で reads / writes、phase、cadence、dependency を明示する。system registry は DOM を参照せず、dependency cycle、存在しない dependency、tick 中の登録・解除を拒否する。canonical daily stepping、RNG archive、versioned slice への data 移動は、この互換性を characterization test で固定した後の後続作業とする。
+
 ### Phase 5 — Command migration
 
 次の順で direct mutation を減らす。
@@ -863,6 +865,10 @@ Renderer 固有の element や cache を editor が知る必要はない。
 
 raw `pack` / `grid` write は allowlist + lint rule で段階的に禁止する。
 
+実装済みの command は `marker.move` / `marker.patch` / `marker.invertFlags` / `marker.remove` / `marker.removeUnlocked`、`cells.assign`、`state.remove`、`state.merge`、`entity.remove`、`route.create` / `route.remove` / `route.patch` / `route.replacePoints`、`river.patch` / `river.replaceGeometry`、`feature.patch` / `feature.vertexMove`、`simulation.advance`、extension 登録 command (`extension.command`) である。`simulation.advance` は旧 time engine を handler として閉じ、`advanceTime()` から `legacyMutation()` を除去する。`ExtensionAPI.registerExtensionCommand()` は payload を extension 側で検証して一つ以上の宣言 topic commit を発行し、`dispatchExtensionCommand()` で実行する。Economy の Goods editor はセル配置・作成・設定変更・削除を、Markets Overview はテリトリー確定・市場追加/削除・色変更をこの経路へ移行済みである。Tools の Economy / Goods / Markets / Production 再生成は `economy.regenerate`、gunpowder era 切替時の再構成は `economy.refreshGunpowderEra`、extension disable の reset は `economy.clear` / `characters.clear` / `shipbuilding.reset` command を経由する。月次の生産・税収精算も `economy.production.settle` command として commit 外の microtask writer から移行済みである。互換 `registerTimeTickHook()` は label を `extension.<id>` topic として publish し、追加の core / extension write topic も宣言できる。Nobility tick は character、政治、settlement、軍事を、Shipbuilding tick は Shipbuilding/Economy/Nobility の topic を明示済みである。
+
+この Phase の完了境界は、上記の Phase 5 対象 editor、extension lifecycle、simulation entry point が command / commit seam を越えてから canonical state を変更することである。generator 内部と legacy map decode は次の Phase の `world.replace` による staged load/generate adapter へ移すまで、明示的な compatibility writer として残す。未対象の legacy editor は writer inventory へ登録して後続の command migration 単位として扱い、個々の generator 内の field write を先にゼロにすることは要求しない。
+
 ### Phase 6 — 新 archive
 
 - `LegacyMapCodecAdapter` と `ChunkedWorldCodecAdapter` を追加。
@@ -874,18 +880,28 @@ raw `pack` / `grid` write は allowlist + lint rule で段階的に禁止する�
 
 ### Phase 7 — Revision-driven projection
 
-- 移行済み layer の `buildLayerSignatures()` hash を topic revision に置換。
-- topology shared cache を CSR + flat coordinates にする。
-- high-cost layer から deck.gl binary attributes を導入。
+- [x] 移行済み layer の `buildLayerSignatures()` hash を topic revision に置換。→ WebGL hybrid の `DeckGlRenderer` は `WorldRuntime.read()` の revision projection を渡し、topology / physical / politics / settlements / networks / annotations / simulation / presentation 各 topic に属する cache key を O(1) で作る。runtime 外の preview / test adapter は content hash fallback を維持する。
+- [x] topology shared cache を CSR + flat coordinates にする。`landTopologyCache` は cell ID、polygon offset、`Float32Array` XY のみを保持し、各 layer の semantic object projection は cache miss 時に個別生成する。
+- [x] high-cost layer から deck.gl binary attributes を導入。降水量 `ScatterplotLayer` は picking 用 datum 配列を保ったまま position / radius / color を `Float32Array` / `Uint8Array` で deck.gl へ渡す。
 - population、position 等で効果がある場合だけ partial GPU update を追加。
-- hidden SVG editor index を削除。
+- [x] hidden SVG editor index を削除。Lake / coastline / ice / river は WebGL pick の domain ID と `#debug` の control overlay だけで編集でき、marker / regiment も既存の ID-based editor path を使う。SVG は canonical `feature.group` から表示用 `<g>` を投影する adapter であり、hybrid mode は hidden editor mirror を同期しない。
 
 ### Phase 8 — Physical model split / Worker
 
 - `pack` 内で混在する map definition と simulation field を所有 domain ごとに分離。
-- extension module augmentation を namespaced slice へ移す。
-- profile で main-thread blocking が確認された場合に Worker adapter を追加。
-- in-process と Worker の二 adapter が揃った時点でのみ Worker seam を正式化する。
+- [x] 最初の cell-column slice として population、capacity、age cohorts、danger を `SimulationContext.cells` の実体へ移動。`pack.cells` は legacy generator/editor 用の read/write compatibility adapter とし、新 `.fmg` snapshot は map payload に mirror を保存しない。schema 1 の既存 archive は load 時に `pack.cells` からこの slice を materialize する。
+- [x] Built-in Characters / Economy の historical `pack` augmentation fields を `SimulationContext.extensions.<id>` の namespaced slice へ実体移動。既存 caller は temporary legacy projection を経由し、archive には slice の一コピーだけを保存する。
+- [x] `src/runtime/dataFieldOwnership.ts` に legacy backing store の owner / `DataTopic` / stable ID / foreign key / delete policy inventory を追加。compatibility cell column と extension field は test で inventory coverage を強制する。
+- [x] burg の live values（population、product、treasury、demographics）を stable `burg.i` keyed の `SimulationContext.burgs` へ移動。`pack.burgs` は temporary compatibility projection とし、新 `.fmg` snapshot は mirror を保存しない。
+- [x] state の live values（alert、税、国庫、tribute、manpower / agriculture / supply buffers）を stable `state.i` keyed の `SimulationContext.states` へ移動。state definition は `pack.states` に残し、新 `.fmg` snapshot は mirror を保存しない。
+- [x] regiment roster を owner `state.i` keyed の `SimulationContext.military` へ移動。`state.military` は legacy generator / editor / renderer 用の compatibility projection とし、新 `.fmg` snapshot は mirror を保存しない。
+- [x] extension-owned `pack` / core-model fields を `SimulationContext.extensions.<id>` の namespaced slice へ移動。Economy の burg production と Nobility の ruler / player conflict authorization は entity-ID keyed compatibility projection とする。
+- [x] extension module augmentation を削除し、extension caller を namespaced slice interface へ移す（Nobility の `State` augmentation と Economy の `Burg` augmentation は削除済み。Characters と Nobility の ruler / player conflict、Economy の burg production own caller、Shipbuilding の queue / hull / tech state は namespaced slice へ移行済み。Economy の `PackedGraph` augmentation（`goods`/`markets`/`deals`/`caravans`/`nextCaravanId`/`burgMarketLedgers`/`merchantOrganizations`/`strategicProcurementOrders`/`strategicGoodsPolicies`/`nextStrategicProcurementOrderId`/`strategicLaborMarkets`/cell 列 `good`・`market`）は `src/extensions/economy/types.ts` の `declare module` ごと削除し、economy 拡張内の全 caller は `economyContext.ts` の namespaced slice accessor（`getGoods`/`setGoods` 等）へ移行済み。legacy `.map` save/load（`io/save.ts`・`io/load.ts`・`io/auto-update.ts`）と Characters/Shipbuilding からの読み取りは、`extensionStateSlices.ts` の compatibility projection を通じて `pack` 経由で読み書きする構造化 cast へ切り替え、augmentation には依存しなくなった）。
+- [x] `npm run perf:webgl-layers`（2026-07-17）で main-thread blocking を確認: 100k cells の initial projection は 1069.6 ms、preset switch は 396.5 ms。zoom-only cache hit は 5.5 ms であり、Worker 対象は cache hit ではなく cold/partial projection に限定する。
+- [x] CPU-only `LandTopologyProjectionAdapter` の in-process adapter を追加。deck.gl layer construction、DOM、GPU resource は main thread に残す。
+- [x] 同じ async job interface を満たす in-process fallback と `WorkerLandTopologyProjectionAdapter` を追加。flat topology の Typed Array buffer だけを worker から transfer し、superseded revision の result を reject する。
+- [x] RenderCoordinator から topology/physical commit を rAF 単位で coalesce し、latest projection の result だけを WebGL topology cache へ publish。pending 中は同期 fallback を避け、failure 時だけ fallback を再有効化する。
+- [x] 同期 compatibility path と worker-compatible topology cache の layer order、semantic pick identity、biome projection を characterization test で固定。Worker seam を正式化する。
 
 ---
 

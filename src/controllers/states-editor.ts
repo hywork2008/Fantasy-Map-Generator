@@ -21,12 +21,18 @@ import {
 } from "../renderers";
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
+import {
+  assignCells,
+  mergeStates as mergeStatesCommand,
+  patchBurg,
+  patchState,
+  removeState as removeStateCommand
+} from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { getStatesEditorState, type StateRowData, setStatesEditorState } from "../store/statesEditorState";
-import type { Burg, Culture, MilitaryRegiment, Province, State } from "../types/models";
-import type { WorldNote } from "../types/WorldState";
+import type { Burg, Culture, Province, State } from "../types/models";
 import { isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import { findAll, findCell, getMixedColor, getRandomColor, isLand, P, ra, rand, rn } from "../utils";
 import { getArea, getAreaUnit } from "../utils/domUtils";
@@ -365,7 +371,7 @@ export const statesEditorActions = {
   changeColor(stateId: number): void {
     const currentFill = worldContext.pack.states[stateId].color;
     const callback = (newFill: string) => {
-      worldContext.pack.states[stateId].color = newFill;
+      patchState({ stateId, color: newFill });
       const halo = d3.color(newFill)?.darker()?.formatHex() ?? "#666666";
       StatesRenderer.updateStateColor(viewContext, stateId, newFill, halo);
 
@@ -390,7 +396,7 @@ export const statesEditorActions = {
   changeCapitalName(stateId: number, val: string): void {
     const capital = (worldContext.pack.states[stateId] as State).capital;
     if (!capital) return;
-    (worldContext.pack.burgs as Burg[])[capital].name = val;
+    patchBurg({ burgId: capital, name: val });
     const labelEl = getElementBySelector<Element>(`#burgLabel${capital}`);
     if (labelEl) labelEl.textContent = val;
     refreshStatesEditor();
@@ -401,7 +407,7 @@ export const statesEditorActions = {
   },
 
   changeCulture(stateId: number, val: number): void {
-    (worldContext.pack.states[stateId] as State).culture = val;
+    patchState({ stateId, culture: val });
     refreshStatesEditor();
   },
 
@@ -414,18 +420,18 @@ export const statesEditorActions = {
   },
 
   changeType(stateId: number, val: string): void {
-    worldContext.pack.states[stateId].type = val;
+    patchState({ stateId, type: val });
     recalculateStates();
   },
 
   changeExpansionism(stateId: number, val: number): void {
-    worldContext.pack.states[stateId].expansionism = val;
+    patchState({ stateId, expansionism: val });
     recalculateStates();
   },
 
   toggleLock(stateId: number): void {
     const s = worldContext.pack.states[stateId] as State;
-    s.lock = !s.lock;
+    patchState({ stateId, lock: !s.lock });
     refreshStatesEditor();
   },
 
@@ -473,14 +479,14 @@ export const statesEditorActions = {
     const fullNameChanged = ne.fullName !== (s.fullName ?? "");
     const changed = nameChanged || formChanged || fullNameChanged;
 
-    if (formChanged && ne.formName) {
-      const form = FORM_CATEGORIES[ne.formName];
-      if (form) s.form = form;
-    }
-
-    s.name = ne.shortName;
-    s.formName = ne.formName;
-    s.fullName = ne.fullName;
+    const form = formChanged && ne.formName ? FORM_CATEGORIES[ne.formName] : undefined;
+    patchState({
+      stateId: ne.stateId,
+      name: ne.shortName,
+      formName: ne.formName,
+      fullName: ne.fullName,
+      ...(form ? { form } : {})
+    });
 
     if (changed && ne.updateLabel) drawStateLabels(worldContext, viewContext, appServices, [s.i]);
     setStatesEditorState({ nameEditor: null });
@@ -562,37 +568,28 @@ function stateRemovePrompt(state: number): void {
 }
 
 function stateRemove(stateId: number): void {
+  const commit = removeStateCommand({ stateId });
+  if (!commit) return;
+
   StatesRenderer.removeStateDOM(viewContext, stateId);
   StateLabelsRenderer.removeStateLabel(viewContext, stateId);
 
   EditorBus.unfog(`focusState${stateId}`);
 
-  (worldContext.pack.burgs as Burg[]).forEach(burg => {
-    if (burg.state === stateId) {
-      burg.state = 0;
-      if (burg.capital) {
-        burg.capital = 0;
-        GenerationPipeline.Burgs.changeGroup(burg);
-      }
-    }
+  // `changeGroup` is a legacy derived demographic update. The state / burg
+  // ownership cascade itself has already committed atomically in WorldRuntime.
+  commit.result.formerCapitalBurgIds.forEach(burgId => {
+    const burg = (worldContext.pack.burgs as Burg[])[burgId];
+    if (burg) GenerationPipeline.Burgs.changeGroup(burg);
   });
   if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleLabels")) BurgLabelsRenderer.render(worldContext, viewContext, appServices);
-
-  Array.from(worldContext.pack.cells.state).forEach((s: number, i: number) => {
-    if (s === stateId) worldContext.pack.cells.state[i] = 0;
-  });
 
   const coaId = `stateCOA${stateId}`;
   d3.select(`#${coaId}`).remove();
   EmblemsRenderer.removeStateEmblems(viewContext, stateId);
 
-  ((worldContext.pack.states[stateId] as State).provinces ?? []).forEach((p: number) => {
-    (worldContext.pack.provinces as Province[])[p] = { i: p, removed: true } as Province;
-    Array.from(worldContext.pack.cells.province).forEach((pr: number, i: number) => {
-      if (pr === p) worldContext.pack.cells.province[i] = 0;
-    });
-
+  commit.result.removedProvinceIds.forEach(p => {
     const provCoaId = `provinceCOA${p}`;
     d3.select(`#${provCoaId}`).remove();
     EmblemsRenderer.removeProvinceEmblems(viewContext, p);
@@ -601,19 +598,7 @@ function stateRemove(stateId: number): void {
     g.select(`#province-gap${p}`).remove();
   });
 
-  ((worldContext.pack.states[stateId] as State).military ?? []).forEach((m: { i: number }) => {
-    const id = `regiment${stateId}-${m.i}`;
-    const index = (worldContext.notes as WorldNote[]).findIndex(n => n.id === id);
-    if (index !== -1) worldContext.notes.splice(index, 1);
-  });
   MilitaryRenderer.removeStateArmy(viewContext, stateId);
-
-  (worldContext.pack.states as State[]).forEach(state => {
-    if (!state.i || state.removed || !state.neighbors) return;
-    state.neighbors = state.neighbors.filter(n => n !== stateId);
-  });
-
-  (worldContext.pack.states as State[])[stateId] = { i: stateId, removed: true } as State;
 
   StatesRenderer.clearHighlight(viewContext);
 
@@ -738,6 +723,7 @@ function applyStatesManualAssignent(): void {
   const { cells } = worldContext.pack;
   const affectedStates: number[] = [];
   const affectedProvinces: number[] = [];
+  const assignments: { cellId: number; entityId: number }[] = [];
 
   view.statesBody
     .select("#temp")
@@ -747,11 +733,12 @@ function applyStatesManualAssignent(): void {
       const c = +this.dataset.state!;
       affectedStates.push(cells.state[i], c);
       affectedProvinces.push(cells.province[i]);
-      cells.state[i] = c;
-      if (cells.burg[i]) (worldContext.pack.burgs as Burg[])[cells.burg[i]].state = c;
+      assignments.push({ cellId: i, entityId: c });
     });
 
-  if (affectedStates.length) {
+  const commit = assignments.length ? assignCells({ field: "state", assignments }) : null;
+
+  if (commit) {
     refreshStatesEditor();
     GenerationPipeline.States.getPoles(getWorldState());
     layerIsOn("toggleStates") ? StatesRenderer.render(worldContext, viewContext, appServices) : toggleStates();
@@ -1057,60 +1044,35 @@ function openStateMergeDialog(): void {
 }
 
 function mergeStates(statesToMerge: number[], rulingStateId: number): void {
-  const rulingState = worldContext.pack.states[rulingStateId] as State;
+  const commit = mergeStatesCommand({ rulingStateId, absorbedStateIds: statesToMerge });
+  if (!commit) return;
+
   const rulingStateArmy = view.armies.select<SVGGElement>(`#army${rulingStateId}`).node()!;
 
-  statesToMerge.forEach((stateId: number) => {
-    const state = worldContext.pack.states[stateId] as State;
-    state.removed = true;
-
+  commit.result.absorbedStateIds.forEach(stateId => {
     StatesRenderer.removeStateDOM?.(viewContext, stateId);
     StateLabelsRenderer.removeStateLabel?.(viewContext, stateId);
 
     d3.select(`#stateCOA${stateId}`).remove();
     EmblemsRenderer.removeStateEmblems(viewContext, stateId);
-
-    (state.military ?? []).forEach((regiment: MilitaryRegiment) => {
-      const oldId = `regiment${stateId}-${regiment.i}`;
-      const newIndex = (rulingState.military ?? []).length;
-      rulingState.military ??= [];
-      rulingState.military.push({ ...regiment, i: newIndex });
-      const newId = `regiment${rulingStateId}-${newIndex}`;
-
-      const note = (worldContext.notes as WorldNote[]).find(n => n.id === oldId);
-      if (note) note.id = newId;
-
-      const element = view.armies.select<SVGGElement>(`#${oldId}`).node();
-      if (element) {
-        element.id = newId;
-        element.dataset.state = String(rulingStateId);
-        element.dataset.id = String(newIndex);
-        rulingStateArmy.appendChild(element);
-      }
-    });
-
     MilitaryRenderer.removeStateArmy(viewContext, stateId);
   });
 
-  (worldContext.pack.burgs as Burg[]).forEach(burg => {
-    if (statesToMerge.includes(burg.state ?? -1)) {
-      if (burg.capital) {
-        burg.capital = 0;
-        GenerationPipeline.Burgs.changeGroup(burg);
-      }
-      burg.state = rulingStateId;
+  commit.result.regimentMerges.forEach(({ fromStateId, fromRegimentId, toRegimentId }) => {
+    const element = view.armies.select<SVGGElement>(`#regiment${fromStateId}-${fromRegimentId}`).node();
+    if (element) {
+      element.id = `regiment${rulingStateId}-${toRegimentId}`;
+      element.dataset.state = String(rulingStateId);
+      element.dataset.id = String(toRegimentId);
+      rulingStateArmy.appendChild(element);
     }
+  });
+  commit.result.formerCapitalBurgIds.forEach(burgId => {
+    const burg = (worldContext.pack.burgs as Burg[])[burgId];
+    if (burg) GenerationPipeline.Burgs.changeGroup(burg);
   });
   if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleLabels")) BurgLabelsRenderer.render(worldContext, viewContext, appServices);
-
-  (worldContext.pack.provinces as Province[]).forEach(province => {
-    if (province.i && !province.removed && statesToMerge.includes(province.state)) province.state = rulingStateId;
-  });
-
-  Array.from(worldContext.pack.cells.state).forEach((s: number, i: number) => {
-    if (statesToMerge.includes(s)) worldContext.pack.cells.state[i] = rulingStateId;
-  });
 
   EditorBus.unfog();
   StatesRenderer.clearHighlight(viewContext);

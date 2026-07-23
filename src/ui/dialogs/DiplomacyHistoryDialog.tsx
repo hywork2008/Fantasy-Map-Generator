@@ -1,7 +1,8 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type React from "react";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { zoomTo } from "../../actions";
+import { simulationContext } from "../../context/simulationContext";
 import { worldContext } from "../../context/worldContext";
 import {
   clearHistoryArrows,
@@ -10,7 +11,6 @@ import {
 } from "../../controllers/diplomacy-history-renderer";
 import { dialogStore } from "../../store/dialogState";
 import { diplomacyHistoryDialogStore, useDiplomacyHistoryDialogState } from "../../store/diplomacyHistoryDialogState";
-import { useOptionsState } from "../../store/optionsState";
 import type { ChronicleEvent } from "../../types/models";
 import { Dialog } from "./Dialog";
 
@@ -27,12 +27,24 @@ type HistoryRow =
 export const DiplomacyHistoryDialog: React.FC = () => {
   const isOpen = useDiplomacyHistoryDialogState(s => s.isOpen);
   const chronicle = useDiplomacyHistoryDialogState(s => s.chronicle);
-  const currentYear = useOptionsState(s => s.year);
-  const currentEra = useOptionsState(s => s.era);
+  // Live calendar year — not Options generation year (P2-10).
+  const [currentYear, setCurrentYear] = useState(() => simulationContext.currentYear);
+  const [currentEra, setCurrentEra] = useState(() => simulationContext.era);
+  useEffect(() => {
+    const onSimulationUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ currentYear?: number; era?: string }>).detail;
+      if (typeof detail?.currentYear === "number") setCurrentYear(detail.currentYear);
+      if (typeof detail?.era === "string") setCurrentEra(detail.era);
+    };
+    document.addEventListener("fmg:simulation-updated", onSimulationUpdated);
+    return () => document.removeEventListener("fmg:simulation-updated", onSimulationUpdated);
+  }, []);
+  // Empty string / missing words must not call toUpperCase on undefined (pre-clock init).
   const currentEraShort =
     currentEra
-      ?.split(" ")
-      .map(w => w[0].toUpperCase())
+      ?.split(/\s+/)
+      .filter(Boolean)
+      .map(w => w[0]?.toUpperCase() ?? "")
       .join("") || "E";
   const containerRef = useRef<HTMLDivElement>(null);
   const parentRef = useRef<HTMLDivElement>(null);

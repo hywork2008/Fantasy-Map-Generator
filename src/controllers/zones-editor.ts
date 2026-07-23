@@ -4,6 +4,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { PopulationRenderer, ZonesRenderer } from "../renderers";
+import { createZone, patchZone, removeZone } from "../runtime/worldRuntime";
 import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { getZonesEditorState, setZonesEditorState } from "../store/zonesEditorState";
@@ -298,7 +299,7 @@ function applyZonesManualAssignent(): void {
     (zone: Zone) => !zone.hidden && (!isFiltered || zone.type === filterBy)
   );
   visibleZones.forEach((zone: Zone) => {
-    zone.cells = zoneCells[zone.i] || [];
+    patchZone({ zoneId: zone.i, cells: zoneCells[zone.i] || [] });
   });
 
   ZonesRenderer.render(worldContext, viewContext, appServices);
@@ -322,7 +323,7 @@ function exitZonesManualAssignment(_close?: string): void {
 
 function changeFill(fill: string, zone: Zone): void {
   const callback = (newFill: string) => {
-    zone.color = newFill;
+    patchZone({ zoneId: zone.i, color: newFill });
     ZonesRenderer.render(worldContext, viewContext, appServices);
     zonesEditorAddLines();
   };
@@ -332,8 +333,7 @@ function changeFill(fill: string, zone: Zone): void {
 
 function toggleVisibility(zone: Zone): void {
   const isHidden = Boolean(zone.hidden);
-  if (isHidden) delete zone.hidden;
-  else zone.hidden = true;
+  patchZone({ zoneId: zone.i, hidden: !isHidden });
 
   ZonesRenderer.render(worldContext, viewContext, appServices);
   zonesEditorAddLines();
@@ -369,11 +369,11 @@ function toggleLegend(): void {
 }
 
 function addZonesLayer(): void {
-  const zoneId = worldContext.pack.zones.length ? Math.max(...worldContext.pack.zones.map((z: Zone) => z.i)) + 1 : 0;
   const name = "Unknown zone";
   const type = "Unknown";
+  const zoneId = worldContext.pack.zones.length ? Math.max(...worldContext.pack.zones.map((z: Zone) => z.i)) + 1 : 0;
   const color = `url(#hatch${zoneId % 42})`;
-  worldContext.pack.zones.push({ i: zoneId, name, type, color, cells: [] });
+  createZone({ name, type, color });
 
   zonesEditorAddLines();
   ZonesRenderer.render(worldContext, viewContext, appServices);
@@ -399,12 +399,12 @@ function downloadZonesData(): void {
 }
 
 function changeDescription(zone: Zone, value: string): void {
-  zone.name = value;
+  patchZone({ zoneId: zone.i, name: value });
   view.zones.select(`#zone${zone.i}`).attr("data-description", value);
 }
 
 function changeType(zone: Zone, value: string): void {
-  zone.type = value;
+  patchZone({ zoneId: zone.i, type: value });
   view.zones.select(`#zone${zone.i}`).attr("data-type", value);
 }
 
@@ -451,7 +451,7 @@ function zoneRemove(zone: Zone): void {
     message: "Are you sure you want to remove the zone? <br>This action cannot be reverted",
     confirm: "Remove",
     onConfirm: () => {
-      worldContext.pack.zones = worldContext.pack.zones.filter((z: Zone) => z.i !== zone.i);
+      removeZone({ zoneId: zone.i });
       view.zones.select(`#zone${zone.i}`).remove();
       EditorBus.unfog(`focusZone${zone.i}`);
       zonesEditorAddLines();

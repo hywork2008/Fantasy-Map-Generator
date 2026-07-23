@@ -1,5 +1,5 @@
 import type { ExtensionMapPickHandler } from "../../../types/extension-api";
-import { getApi, getWorldContext } from "../economyContext";
+import { getApi, getCaravans, getGoodCellColumn, getMarkets, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 
 const GOODS_CELL_ID = /^economy-goods-cell-(\d+)-(\d+)$/;
@@ -12,10 +12,10 @@ export const economyMapPickHandler: ExtensionMapPickHandler = {
     const caravanIdMatch = CARAVAN_ID.exec(detail.id);
     if (caravanIdMatch) {
       const caravanId = Number(caravanIdMatch[1]);
-      const caravan = getWorldContext().pack.caravans?.find(c => c.i === caravanId);
+      const caravan = getCaravans().find(c => c.i === caravanId);
       if (caravan) {
-        const fromMarket = getWorldContext().pack.markets?.[caravan.seller];
-        const toMarket = getWorldContext().pack.markets?.[caravan.buyer];
+        const fromMarket = getMarkets()[caravan.seller];
+        const toMarket = getMarkets()[caravan.buyer];
 
         let fromName = `Market ${caravan.seller}`;
         if (caravan.sellerType === "market" && fromMarket) {
@@ -41,7 +41,7 @@ export const economyMapPickHandler: ExtensionMapPickHandler = {
 
     const goodsSource = GOODS_SOURCE_ID.exec(detail.id);
     if (goodsSource) {
-      const goodId = getWorldContext().pack.cells.good[Number(goodsSource[1])] ?? 0;
+      const goodId = getGoodCellColumn()[Number(goodsSource[1])] ?? 0;
       return `Good: ${getGoodName(goodId)}`;
     }
 
@@ -54,7 +54,7 @@ export const economyMapPickHandler: ExtensionMapPickHandler = {
     const caravanIdMatch = CARAVAN_ID.exec(detail.id);
     if (caravanIdMatch) {
       const caravanId = Number(caravanIdMatch[1]);
-      const caravan = getWorldContext().pack.caravans?.find(c => c.i === caravanId);
+      const caravan = getCaravans().find(c => c.i === caravanId);
       if (caravan) {
         document.dispatchEvent(new CustomEvent("trade:showDetails", { detail: { caravan } }));
       }
@@ -87,7 +87,7 @@ function getMarketId(id: string): number | null {
 }
 
 function getMarketName(marketId: number): string {
-  const market = getWorldContext().pack.markets?.[marketId];
+  const market = getMarkets()[marketId];
   if (!market) return `Market ${marketId}`;
   return market.name ?? getWorldContext().pack.burgs[market.centerBurgId]?.name ?? `Market ${marketId}`;
 }

@@ -1,8 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, MilitaryRegiment, PackedGraph, State } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext } from "../economyContext";
-import "../types";
+import { clearEconomyContext, initEconomyContext, setMarkets } from "../economyContext";
 import type { Good } from "./goods-generator";
 import type { Market } from "./marketTypes";
 import { getStateFoodStockDays, getStateSurplus, refreshStateEconomySummaries } from "./stateEconomySummary";
@@ -34,7 +33,7 @@ describe("stateEconomySummary", () => {
         color: "#fff",
         goods: { 1: { stock: 100, price: 1 }, 2: { stock: 999, price: 1 } }
       } as Market;
-      worldContext.pack.markets = [market];
+      setMarkets([market]);
       worldContext.pack.burgs = [
         { i: 0 } as unknown as Burg,
         { i: 1, market: 1, state: 1, population: 10 } as unknown as Burg
@@ -49,7 +48,7 @@ describe("stateEconomySummary", () => {
 
     it("apportions a market's food stock across states by burg population share", () => {
       const market = { i: 1, centerBurgId: 1, color: "#fff", goods: { 1: { stock: 100, price: 1 } } } as Market;
-      worldContext.pack.markets = [market];
+      setMarkets([market]);
       worldContext.pack.burgs = [
         { i: 0 } as unknown as Burg,
         { i: 1, market: 1, state: 1, population: 30 } as unknown as Burg,
@@ -67,7 +66,7 @@ describe("stateEconomySummary", () => {
 
     it("skips the neutral state (i === 0) and removed states", () => {
       const market = { i: 1, centerBurgId: 1, color: "#fff", goods: { 1: { stock: 50, price: 1 } } } as Market;
-      worldContext.pack.markets = [market];
+      setMarkets([market]);
       worldContext.pack.burgs = [
         { i: 0 } as unknown as Burg,
         { i: 1, market: 1, state: 1, population: 10 } as unknown as Burg
@@ -84,7 +83,7 @@ describe("stateEconomySummary", () => {
 
     it("is a no-op when there are no states or markets", () => {
       worldContext.pack.states = [];
-      worldContext.pack.markets = [];
+      setMarkets([]);
       expect(() => refreshStateEconomySummaries()).not.toThrow();
     });
   });

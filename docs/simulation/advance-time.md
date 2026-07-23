@@ -36,9 +36,9 @@ tick フック（森林回復・造船・軍事シミュレーション等）が
 
 1. 全国家の連隊の `actionStatus` を `"waiting"` にリセット
 2. `simulationContext.currentYear`/`currentMonth`/`currentDay` を更新（月末繰り上げ・うるう年を考慮した日付演算）
-3. `simulationContext.tickCount` をインクリメント、`worldContext.options.year`/`month`/`day` へミラー
+3. `simulationContext.tickCount` をインクリメント（**options への mirror はしない** — ライブ時計の正は simulationContext のみ）
 4. `simulateDemographics()` を実行（人口動態）
-5. 登録済み `_tickHooks` を全て実行（`fn(deltaYears, deltaMonths, deltaDays)`）
+5. 登録済み simulation systems を実行
 6. `fmg:time-advanced` / `fmg:simulation-updated` を dispatch
 7. 開発ビルドでは `useDebugSnapshotState` にスナップショットを追加（デバッグ用）
 
@@ -49,8 +49,9 @@ tick フック（森林回復・造船・軍事シミュレーション等）が
   `tickCount: number`, `intelligence: Record<number, Record<number, IntelligenceReport>>`（Nobility拡張のespionage-generator.tsが書く諜報推定値）,
   `strategicGoals: Record<number, StrategicGoal[]>`（Nobility拡張のstrategic-planner.tsが書く国家ごとの戦略目標）
 - `WorldContext` の4つ目のカテゴリとして独立している理由（`AGENTS.md` にも明記）:
-  `worldContext.options.year`/`era` はマップ生成パラメータの静的な値だが、`SimulationContext` は
-  セッション中に `advanceTime()` の呼び出しごとに反復して変化する「生きた時計」であり、意味論が異なる。
+  `worldContext.options.year`/`era` はマップ生成パラメータの静的な値であり、`SimulationContext` は
+  セッション中に `advanceTime()` の呼び出しごとに反復して変化する「生きた時計」である。P2-10 以降は
+  両者を advance ごとに mirror せず、ライブ日付の唯一の正は `simulationContext` である。
 - `intelligence`/`strategicGoals` はNobility拡張のドメインデータだが、`advanceTime()`と同じ「tickごとに変化する生きた状態」という性質からここに同居している（AGENTS.mdの定義通り）。
 
 ## 2. Generator層: `src/generators/timeEngine.ts`
@@ -97,7 +98,7 @@ tick フック（森林回復・造船・軍事シミュレーション等）が
 
 | 拡張 | フック内容 | ファイル |
 | :--- | :--- | :--- |
-| Shipbuilding | `runLoggingTick`（伐採量計上） → `runShipyardTick`（造船キュー進行・技術ポイント蓄積） → `checkForeignInterference`（外国干渉フレーバーログ） → 表示中なら `drawShipyards()` 再描画 → `refreshShipyardsOverviewIfOpen()`。全て `effectiveDeltaYears` を使用。 | `src/extensions/shipbuilding/index.ts` |
+| Shipbuilding | `runLoggingTick`（伐採量計上） → `runShipyardTick`（造船キュー進行・技術ポイント蓄積） → `checkForeignInterference`（外国干渉フレーバーログ） → `refreshShipyardsOverviewIfOpen()`。マップ再描画は tick 内の `draw*` ではなく `writer.markChanged(extension.*)` → RenderCoordinator → `registerDrawLayerHook`（P2-12）。全て `effectiveDeltaYears` を使用。 | `src/extensions/shipbuilding/index.ts` |
 | Economy | `tickForestRegrowth(effectiveDeltaYears)`（伐採で減少した森林生産性の自然回復） → 変化があれば `scheduleProductionRefresh()` | `src/extensions/economy/index.tsx` |
 | Nobility | `Characters.advanceAge` → `assignOfficers`/`assignProvinceLords` → （月初）`Mobilization.conscript` → `Espionage.generate()` → `Military.updateDynamic()` → `advanceAllRegimentMovement()` → `refreshCharactersOverviewIfOpen()`。`autonomous` では月初の `StrategicPlanner.evaluatePlans()`、戦略目標の生成・緊張進行・包囲、小競り合い、戦略目標への進軍、進軍中の占領・略奪も実行する。`playerDirected` では `State.conflictAuthorizations` に保存されたユーザー認可済みの国家ペアに限って同じ紛争経路を実行する。認可のない国家間では経済・人口・人物・徴募の時間進行だけが進む。 | `src/extensions/nobility/index.tsx` |
 | Military | 直接の tick フックは**持たない**（core generatorのため、代わりにNobility拡張のtick hookから `Military.updateDynamic()`/`advanceAllRegimentMovement()` が呼ばれる）。`fmg:shipbuilding-ship-completed` イベント経由で `navalTechBonus.ts` にボーナスが蓄積されるのみで、実際に艦隊数へ反映するには `Military.generate()` の**手動**再実行（`bordersChanged`時にNobility拡張が呼ぶか、Toolsの regenerate ボタン）が必要。 |
@@ -112,6 +113,25 @@ Nobility拡張のtickフック内の乱数（小競り合いの損耗率、諜�
 ストリームの状態を消費してしまうと、同じシードで再読み込みしても tick フックの乱数列が再現されなくなる
 （`docs/plan/military-time-advance-review-findings.md` §2.1）。tick フック内で新たに乱数が必要になった場合は
 `Math.random()` ではなく `appServices.rng.rand()`/`.P()` 等を使うこと。
+
+ストリーム位置そのものは `SimulationContext.rng`（algorithm / seed / Alea engine state）として simulation slice に
+保存され、`.fmg` archive の round-trip と `world.replace` で復元される（`src/runtime/simulationRng.ts`）。
+`simulation.advance` の commit ごとに live PRNG が slice へ同期され、変化時は `simulation.rng` topic が publish される。
+旧 archive で `rng` が欠落している場合は map seed から初期位置を materialize する。
+
+### 7.1 Headless day step（テスト / batch 用）
+
+UI の `runTimeSimulation`（rAF + Zustand 進捗）とは別に、`src/runtime/simulationRunner.ts` が renderer 非依存の
+test surface を提供する。
+
+| API | 意味 |
+| :--- | :--- |
+| `stepDay()` | 1 暦日を 1 commit で進める |
+| `runLegacyDaily(n)` | UI 日次経路と同じく `advance(0,0,1)` を n 回 |
+| `advanceLegacyBulk({ years, months, days })` | public `advanceTime` と同じ 1 回 bulk commit |
+| `notify: false` | DOM イベント無しで `simulation.advance` のみ実行 |
+
+互換期間中は daily と bulk の `tickCount` / hook 回数 / RNG 消費が異なり得るため、両経路を characterization test で固定する。
 
 ## 8. 生存中データの UI 更新パターン（in-place mutation + refresh）
 

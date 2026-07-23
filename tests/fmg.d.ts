@@ -69,6 +69,7 @@ declare global {
         readonly scale: number;
         readonly viewX: number;
         readonly viewY: number;
+        readonly renderMode: "svg" | "webglHybrid";
         [key: string]: unknown;
       };
       readonly actions: {

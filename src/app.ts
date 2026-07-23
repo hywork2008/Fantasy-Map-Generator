@@ -25,11 +25,12 @@ import {
   unregisterPreset,
   unregisterToolAction
 } from "./controllers/layers";
+import "./controllers/seaCurrentsAnimation";
 import { changeViewMode } from "./controllers/viewMode";
 import { injectInfrastructure, injectVisibleUI } from "./dom/initDOM";
 import { initExtensions } from "./extensions/index";
 import { initModules } from "./generators/index";
-import { advanceTime, registerTimeTickHook } from "./generators/timeEngine";
+import { advanceTime, registerSimulationSystem, registerTimeTickHook } from "./generators/timeEngine";
 import { buildGeoJsonZones, saveGeoJsonZones } from "./io/export";
 import { generate, initMain, regenerateMap } from "./main";
 import { initRenderers } from "./renderers/index";
@@ -37,6 +38,8 @@ import {
   registerExtensionWebglLayers,
   unregisterExtensionWebglLayers
 } from "./renderers/webgl/extensionWebglLayerRegistry";
+import { initRenderCoordinator } from "./runtime/renderCoordinator";
+import { dispatchExtensionCommand, worldRuntime } from "./runtime/worldRuntime";
 import { burgEconomyExtensions } from "./services/burgEconomyExtensions";
 import { getBurgSiteDescriptor } from "./services/burgSiteDescriptor";
 import {
@@ -154,7 +157,13 @@ function buildExtensionAPI(): ExtensionAPI {
     registerLayerToggle,
     registerLayerElement,
     registerDrawLayerHook,
-    getSvgLayer: id => _svgLayerMap.get(id) ?? null,
+    getSvgLayer: id => {
+      // Prefer the currently bound viewbox so offscreen export rebinding (P2-13)
+      // and map reinit both resolve extension layers without a stale cache hit.
+      const fromViewbox = viewContext.viewbox?.select<SVGGElement>(`#${id}`);
+      if (fromViewbox && !fromViewbox.empty()) return fromViewbox;
+      return _svgLayerMap.get(id) ?? null;
+    },
     registerMapReinitHook: fn => {
       _mapReinitHooks.push(fn);
     },
@@ -173,6 +182,10 @@ function buildExtensionAPI(): ExtensionAPI {
     unregisterToolAction,
 
     registerTimeTickHook,
+    registerSimulationSystem,
+    registerExtensionCommand: command => worldRuntime.registerExtensionCommand(command),
+    dispatchExtensionCommand,
+    registerStateSlice: spec => worldRuntime.registerStateSlice(spec),
 
     registerSkillModifier,
     getEffectiveSkill,
@@ -244,6 +257,9 @@ export async function initApp(options: FMGInitOptions = {}): Promise<void> {
   console.log("Initializing main...");
   // We need to pass drawMap to main so it knows not to call drawLayers
   initMain(drawMap);
+  // Renderer work observes WorldRuntime commits instead of being called from
+  // simulation writers. It needs the view layers initialized by initMain().
+  initRenderCoordinator();
 
   // Assemble the public API surface before loading extensions so that
   // dynamically loaded extension modules can call window.fmg.extensionAPI.

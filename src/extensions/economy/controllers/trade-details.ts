@@ -2,7 +2,7 @@ import { type Point, useOptionsState } from "../../hostCore";
 import { openDialog } from "../../hostUi";
 import { minmax, rn } from "../../hostUtils";
 
-import { getApi, getWorldContext } from "../economyContext";
+import { getApi, getMarkets, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import type { Caravan } from "../generators/marketTypes";
 import { clearHighlight, highlight } from "../renderers/draw-trade-animation";
@@ -15,7 +15,8 @@ export function open(caravan: Caravan): void {
 
   activeCaravan = caravan;
 
-  const { markets, burgs } = getWorldContext().pack;
+  const markets = getMarkets();
+  const { burgs } = getWorldContext().pack;
   const sellerMarket = caravan.sellerType === "market" ? markets[caravan.seller] : null;
   const buyerMarket = caravan.buyerType === "market" ? markets[caravan.buyer] : null;
 
@@ -46,7 +47,8 @@ function tradeDetailsAddLines(): void {
   if (!activeCaravan) return;
 
   const caravan = activeCaravan;
-  const { burgs, markets } = getWorldContext().pack;
+  const { burgs } = getWorldContext().pack;
+  const markets = getMarkets();
 
   const sellerMarket = caravan.sellerType === "market" ? markets[caravan.seller] : null;
   const buyerMarket = caravan.buyerType === "market" ? markets[caravan.buyer] : null;

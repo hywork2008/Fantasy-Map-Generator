@@ -2,10 +2,11 @@ import React from "react";
 import { useOptionsState } from "../../../hostCore";
 import { closeDialog, Dialog, SliderInput, SortableHeader, useDialogState, VirtualTableBody } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
-import { getWorldContext } from "../../economyContext";
+import { getCaravans, getMarkets, getWorldContext } from "../../economyContext";
 import { CaravanMovement, type CaravanMovementSettings } from "../../generators/caravanMovement";
 import { Goods } from "../../generators/goods-generator";
 import type { Caravan } from "../../generators/marketTypes";
+import { TradeAnimation } from "../../generators/trade-animation";
 
 export const TradeAnimationDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("tradeAnimationEditor"));
@@ -79,8 +80,7 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
 
   React.useEffect(() => {
     const update = () => {
-      const world = getWorldContext();
-      setCaravans(world?.pack?.caravans?.filter(c => c.state === "transit") ?? []);
+      setCaravans(getCaravans().filter(c => c.state === "transit"));
     };
     update();
     const intervalId = setInterval(update, 500);
@@ -98,7 +98,7 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
 
   const world = getWorldContext();
   const burgs = world?.pack?.burgs ?? [];
-  const markets = world?.pack?.markets ?? [];
+  const markets = getMarkets();
 
   const rows = React.useMemo(() => {
     return caravans.map(c => {
@@ -362,6 +362,9 @@ const MovementSettingsSection: React.FC = () => {
   const update = (partial: Partial<CaravanMovementSettings>) => {
     setMovement(current => ({ ...current, ...partial }));
     CaravanMovement.configure(partial);
+    // Land/sea speed feeds route pathfinding's edge costs, so a changed ratio can change
+    // which path is shortest — cached results from before this change are no longer valid.
+    TradeAnimation.clearRouteCache();
   };
 
   return (

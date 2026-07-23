@@ -1,6 +1,6 @@
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
-import { getWorldContext } from "../economyContext";
+import { getGoods, getMarkets, getWorldContext } from "../economyContext";
 import { getMarketStateShares } from "./marketStateShares";
 import { getStateArmyFoodConsumptionPerDay } from "./militaryLogistics";
 
@@ -18,10 +18,12 @@ import { getStateArmyFoodConsumptionPerDay } from "./militaryLogistics";
 export function refreshStateEconomySummaries(): void {
   const { pack } = getWorldContext();
   const states = pack.states;
-  const markets = pack.markets;
-  if (!states?.length || !markets?.length) return;
+  const markets = getMarkets();
+  if (!states?.length || !markets.length) return;
 
-  const foodGoodIds = (pack.goods || []).filter(good => good.tags.includes("food")).map(good => good.i);
+  const foodGoodIds = getGoods()
+    .filter(good => good.tags.includes("food"))
+    .map(good => good.i);
 
   const foodStockByState = new Map<number, number>();
   for (const market of markets) {

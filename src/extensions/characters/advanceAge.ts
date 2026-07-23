@@ -1,5 +1,5 @@
 import { P, rand } from "../hostUtils";
-import { getWorldContext } from "./charactersContext";
+import { getCharacters, getCurrentYear, replaceCharacters } from "./charactersContext";
 
 /** Physical decline sets in past this age — mirrors the generation-time formula in personFactory.ts's createPerson(). */
 export const DECLINE_AGE_THRESHOLD = 35;
@@ -21,10 +21,10 @@ export function declineAt(age: number, ratePerYear: number): number {
  */
 export function advanceCharacterAging(deltaYears: number): void {
   if (deltaYears <= 0) return;
-  const { pack } = getWorldContext();
-  if (!pack.characters?.length) return;
+  const characters = getCharacters();
+  if (!characters.length) return;
 
-  for (const character of pack.characters) {
+  for (const character of characters) {
     if (character.dead) continue;
 
     const oldAge = character.age;
@@ -43,7 +43,7 @@ export function advanceCharacterAging(deltaYears: number): void {
     const survivalProb = (1 - Math.min(0.99, mortalityRisk)) ** deltaYears;
     if (Math.random() > survivalProb) {
       character.dead = true;
-      character.deathYear = getWorldContext().options.year;
+      character.deathYear = getCurrentYear();
 
       let baseReason = "Deceased";
       if (character.titles.length > 0) {
@@ -55,7 +55,7 @@ export function advanceCharacterAging(deltaYears: number): void {
       }
 
       for (const t of character.titles) {
-        t.endYear = getWorldContext().options.year;
+        t.endYear = getCurrentYear();
         t.reason = baseReason;
         character.pastTitles.push(t);
       }
@@ -98,6 +98,5 @@ export function advanceCharacterAging(deltaYears: number): void {
 }
 
 export function clearCharacters(): void {
-  const { pack } = getWorldContext();
-  pack.characters = [];
+  replaceCharacters([]);
 }

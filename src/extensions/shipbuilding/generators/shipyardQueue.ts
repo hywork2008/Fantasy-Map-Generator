@@ -11,6 +11,7 @@ import {
   type ShipGoodStock,
   type State
 } from "../../hostTypes";
+import { getShipbuildingRuntimeState } from "../shipbuildingContext";
 import type { PortCapacity } from "./portCapacity";
 import {
   getAnnualShipbuildingMaterialDemand,
@@ -40,7 +41,7 @@ export interface ShipyardQueueEntry {
   missingMaterials?: ShipbuildingMaterialShortage;
 }
 
-interface SurplusShipyardQueueEntry extends Omit<ShipyardQueueEntry, "owner"> {
+export interface SurplusShipyardQueueEntry extends Omit<ShipyardQueueEntry, "owner"> {
   owner: "shipyard";
 }
 
@@ -81,14 +82,6 @@ const ignoreStrategicProcurementDemand: NotifyStrategicProcurementDemandFn = () 
 const noShipGoodStock: RequestShipGoodStockFn = () => undefined;
 const doNotAddSurplusShip: NotifySurplusShipCompletedFn = () => false;
 
-const _queues = new Map<number, ShipyardQueueEntry>(); // burgId -> active queue entry
-const _surplusQueues = new Map<number, SurplusShipyardQueueEntry>(); // burgId -> generic market-stock build stream
-const _stateTechPoints = new Map<number, number>(); // stateId -> accumulated tech points
-// "state:<stateId>:<shipClassId>" or "market:<burgId>:<shipClassId>" -> completed hull count
-const _completedHulls = new Map<string, number>();
-const _hulls = new Map<number, ShipHull>(); // hullId -> hull record
-let _nextHullId = 1;
-
 /** True if the state has an active "Enemy" diplomacy relation with anyone — same idiom Economy's own tick hook already uses (`economy/index.tsx`) to decide wartime behavior, replicated here rather than imported since it's a plain read of `pack.states`. */
 export function isStateAtWar(stateId: number, states: readonly State[]): boolean {
   const state = states[stateId];
@@ -96,15 +89,15 @@ export function isStateAtWar(stateId: number, states: readonly State[]): boolean
 }
 
 export function getHulls(): readonly ShipHull[] {
-  return Array.from(_hulls.values());
+  return Object.values(getShipbuildingRuntimeState().hulls);
 }
 
 export function getHullsAtBurg(burgId: number): ShipHull[] {
-  return Array.from(_hulls.values()).filter(h => h.homeBurgId === burgId);
+  return Object.values(getShipbuildingRuntimeState().hulls).filter(h => h.homeBurgId === burgId);
 }
 
 export function setHullStatus(hullId: number, status: ShipHullStatus): void {
-  const hull = _hulls.get(hullId);
+  const hull = getShipbuildingRuntimeState().hulls[hullId];
   if (hull) hull.status = status;
 }
 
@@ -118,7 +111,7 @@ function determineOwner(burg: Burg): ShipHullOwner {
 }
 
 export function getStateTechPoints(stateId: number): number {
-  return _stateTechPoints.get(stateId) ?? 0;
+  return getShipbuildingRuntimeState().stateTechPoints[stateId] ?? 0;
 }
 
 /**
@@ -160,6 +153,11 @@ function mergeAnnualMaterials(a: ShipbuildingMaterials, b: ShipbuildingMaterials
   return merged;
 }
 
+function getRulerId(state: State | undefined): number | undefined {
+  const rulerId = (state as unknown as Record<string, unknown> | undefined)?.rulerId;
+  return typeof rulerId === "number" ? rulerId : undefined;
+}
+
 /**
  * A state's naval architecture research pace is boosted by its ruler's Engineering
  * skill (Nobility extension, if enabled) — read via the generic skill-modifier
@@ -171,7 +169,7 @@ function getEngineeringMultiplier(
   states: readonly State[],
   getEffectiveSkill: GetEffectiveSkillFn
 ): number {
-  const rulerId = states[stateId]?.rulerId;
+  const rulerId = getRulerId(states[stateId]);
   if (!rulerId) return 1;
   return 1 + getEffectiveSkill(rulerId, "engineering") / 100;
 }
@@ -182,31 +180,32 @@ function completedHullKey(owner: ShipHullOwner, ownerId: number, shipClassId: st
 
 /** Completed hulls for a state's navy (owner: "state") or a single port's merchant fleet (owner: "market"). */
 export function getCompletedHulls(owner: ShipHullOwner, ownerId: number, shipClassId: string): number {
-  return _completedHulls.get(completedHullKey(owner, ownerId, shipClassId)) ?? 0;
+  return getShipbuildingRuntimeState().completedHulls[completedHullKey(owner, ownerId, shipClassId)] ?? 0;
 }
 
 export function getQueueEntry(burgId: number): ShipyardQueueEntry | undefined {
-  return _queues.get(burgId);
+  return getShipbuildingRuntimeState().queues[burgId];
 }
 
 function completeHull(burg: Burg, owner: ShipHullOwner, shipClassId: string, states: readonly State[]): void {
   const ownerId = owner === "state" ? burg.state! : burg.i!;
   const key = completedHullKey(owner, ownerId, shipClassId);
-  _completedHulls.set(key, (_completedHulls.get(key) ?? 0) + 1);
+  const runtimeState = getShipbuildingRuntimeState();
+  runtimeState.completedHulls[key] = (runtimeState.completedHulls[key] ?? 0) + 1;
 
   // Wartime navies launch straight into a docked/mobilized state; everything else
   // (peacetime navies and all merchant hulls) heads straight out to sea rather than
   // sitting idle — see docs/plan/ships.md "航海訓練・偽装通商・諜報（暫定案）".
   const staysDocked = owner === "state" && isStateAtWar(ownerId, states);
   const hull: ShipHull = {
-    id: _nextHullId++,
+    id: runtimeState.nextHullId++,
     shipClassId,
     owner,
     ownerId,
     homeBurgId: burg.i!,
     status: staysDocked ? "docked" : "voyage"
   };
-  _hulls.set(hull.id, hull);
+  runtimeState.hulls[hull.id] = hull;
 
   document.dispatchEvent(
     new CustomEvent("fmg:shipbuilding-ship-completed", {
@@ -216,7 +215,7 @@ function completeHull(burg: Burg, owner: ShipHullOwner, shipClassId: string, sta
 }
 
 /**
- * Called on every advanceTime() tick (via Shipbuilding's registerTimeTickHook). Advances
+ * Called on every advanceTime() tick (via Shipbuilding's shipbuilding.tick system). Advances
  * each shipyard candidate's build queue and each state's naval tech points. Ship class
  * tiers are gated by the burg's own state's tech points (0 for stateless/free-city burgs);
  * both state- and market-owned queues draw from the same state tech pool — merchant
@@ -244,7 +243,7 @@ export function runShipyardTick(
   for (const [stateId, shipyardCount] of shipyardCountByState) {
     const engineeringMultiplier = getEngineeringMultiplier(stateId, states, getEffectiveSkill);
     const gained = TECH_POINTS_PER_YEAR_PER_SHIPYARD * shipyardCount * deltaYears * engineeringMultiplier;
-    _stateTechPoints.set(stateId, getStateTechPoints(stateId) + gained);
+    getShipbuildingRuntimeState().stateTechPoints[stateId] = getStateTechPoints(stateId) + gained;
   }
 
   for (const { burgId } of candidates) {
@@ -255,10 +254,11 @@ export function runShipyardTick(
     const techPoints = burg.state ? getStateTechPoints(burg.state) : 0;
     const unlockedClass = getHighestUnlockedShipClass(techPoints);
 
-    let entry = _queues.get(burgId);
+    const runtimeState = getShipbuildingRuntimeState();
+    let entry = runtimeState.queues[burgId];
     if (!entry) {
       entry = { shipClassId: unlockedClass.id, owner, progress: 0, pendingWorkPoints: 0 };
-      _queues.set(burgId, entry);
+      runtimeState.queues[burgId] = entry;
     } else {
       entry.owner = owner;
     }
@@ -373,7 +373,8 @@ function advanceSurplusQueue(
   // A hull already under construction (materials already spent on it) keeps its class
   // until it completes, even if the heuristic below would now pick a different one —
   // re-selecting mid-build would silently discard the sunk progress/materials.
-  const inProgress = _surplusQueues.get(burg.i);
+  const runtimeState = getShipbuildingRuntimeState();
+  const inProgress = runtimeState.surplusQueues[burg.i];
   const hasSunkProgress = Boolean(inProgress) && inProgress!.progress + inProgress!.pendingWorkPoints > EPSILON;
   const shipClass = hasSunkProgress
     ? getShipClass(inProgress!.shipClassId)
@@ -383,7 +384,7 @@ function advanceSurplusQueue(
   let entry = inProgress;
   if (!entry || entry.shipClassId !== shipClass.id) {
     entry = { shipClassId: shipClass.id, owner: "shipyard", progress: 0, pendingWorkPoints: 0 };
-    _surplusQueues.set(burg.i, entry);
+    runtimeState.surplusQueues[burg.i] = entry;
   }
 
   let workPoints = entry.pendingWorkPoints + availableWorkPoints;
@@ -445,10 +446,11 @@ function hasFreePortBerth(burgId: number, shipClass: ShipClass, stock: ShipGoodS
 }
 
 export function clearShipyardQueues(): void {
-  _queues.clear();
-  _surplusQueues.clear();
-  _stateTechPoints.clear();
-  _completedHulls.clear();
-  _hulls.clear();
-  _nextHullId = 1;
+  const runtimeState = getShipbuildingRuntimeState();
+  runtimeState.queues = {};
+  runtimeState.surplusQueues = {};
+  runtimeState.stateTechPoints = {};
+  runtimeState.completedHulls = {};
+  runtimeState.hulls = {};
+  runtimeState.nextHullId = 1;
 }

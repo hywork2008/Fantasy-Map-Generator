@@ -1,4 +1,4 @@
-import { type D3DragEvent, drag, mean, min, polygonArea, polygonLength, type Selection, select } from "d3";
+import { type D3DragEvent, drag, mean, min, polygonLength, select } from "d3";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
@@ -10,15 +10,17 @@ import {
   BiomesRenderer,
   BordersRenderer,
   CulturesRenderer,
+  FeaturesRenderer,
   ProvincesRenderer,
   ReligionsRenderer,
   StatesRenderer
 } from "../renderers";
 import { getFeaturePath } from "../renderers/index";
+import { moveFeatureVertex, patchFeature } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
-import { elSelected, modules, setElSelected } from "../store/editorState";
+import { modules, setElSelected } from "../store/editorState";
 import { getLakeEditorState } from "../store/lakeEditorState";
 import type { PackedGraphFeature } from "../types/models";
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
@@ -38,10 +40,18 @@ import { editStyle } from "./style";
 // during a drag it's throttled via debounce rather than run on every tick; the un-debounced call
 // in handleVertexDragEnd guarantees the final position is always accurate.
 const DRAG_LAND_FILL_REDRAW_MS = 50;
+const DEFAULT_LAKE_GROUPS = ["freshwater", "salt", "sinkhole", "frozen", "lava", "dry"];
+let selectedLakeId: number | null = null;
 
 function getLake(): PackedGraphFeature {
-  const lakeId = +elSelected!.attr("data-f");
-  return worldContext.pack.features.find(feature => feature.i === lakeId)!;
+  if (selectedLakeId === null) throw new Error("Lake editor has no selected feature");
+  const lake = worldContext.pack.features.find(feature => feature.i === selectedLakeId && feature.type === "lake");
+  if (!lake) throw new Error(`Lake editor could not find lake ${selectedLakeId}`);
+  return lake;
+}
+
+function getLakeGroup(lake: PackedGraphFeature = getLake()): string {
+  return lake.group || "freshwater";
 }
 
 function updateLakeValues(): void {
@@ -59,7 +69,7 @@ function updateLakeValues(): void {
   getLakeEditorState().setLakeData({
     id: l.i,
     name: l.name ?? "",
-    group: l.group,
+    group: getLakeGroup(l),
     area: getArea(l.area!),
     shoreLength: length * worldContext.distanceScale,
     elevation: l.height ?? 0,
@@ -73,27 +83,28 @@ function updateLakeValues(): void {
 }
 
 function updateLakeGroups(): void {
-  const groups: string[] = [];
-  (view.lakes as Selection<SVGGElement, unknown, null, undefined>).selectAll("g").each(function () {
-    groups.push((this as SVGGElement).id);
-  });
-  getLakeEditorState().setGroups(groups);
+  const groups = new Set(DEFAULT_LAKE_GROUPS);
+  for (const feature of worldContext.pack.features) {
+    if (feature?.type === "lake" && feature.group) groups.add(feature.group);
+  }
+  getLakeEditorState().setGroups([...groups]);
 }
 
 export function editLake(event?: MouseEvent): void {
   const node = (event?.target ?? getElementBySelector<SVGElement>(".lakes path")) as SVGElement;
-  openLakeEditor(node, event);
+  const featureId = Number(node?.getAttribute("data-f"));
+  if (!Number.isInteger(featureId)) return;
+  openLakeEditor(featureId, node, event);
 }
 
 /** Opens the Lake Editor for a feature id, without depending on a clicked SVG element (WebGL pick). */
 export function editLakeById(featureId: number): void {
-  const node = view.lakes.select<SVGElement>(`use[data-f="${featureId}"]`).node();
-  if (!node) return;
-  openLakeEditor(node);
+  openLakeEditor(featureId);
 }
 
-function openLakeEditor(node: SVGElement, event?: MouseEvent): void {
+function openLakeEditor(featureId: number, node?: SVGElement, event?: MouseEvent): void {
   if (view.customization) return;
+  if (!worldContext.pack.features.some(feature => feature.i === featureId && feature.type === "lake")) return;
   closeDialogs(".stable");
   if (layerIsOn("toggleCells")) toggleCells();
 
@@ -105,7 +116,8 @@ function openLakeEditor(node: SVGElement, event?: MouseEvent): void {
   });
 
   view.debug.append("g").attr("id", "vertices");
-  setElSelected(select(node as Element));
+  selectedLakeId = featureId;
+  setElSelected(node ? select(node as Element) : null);
 
   updateLakeValues();
   updateLakeGroups();
@@ -154,15 +166,11 @@ function handleVertexDrag(this: SVGCircleElement, event: D3DragEvent<SVGCircleEl
   this.setAttribute("cy", String(y));
 
   const vertexId = select(this).datum() as number;
-  worldContext.pack.vertices.p[vertexId] = [x, y];
-
   const feature = getLake();
+  if (!moveFeatureVertex({ featureId: feature.i, vertexId, x, y })) return;
   view.defs
     .select(`#featurePaths > path#feature_${feature.i}`)
     .attr("d", getFeaturePath(worldContext, viewContext, appServices, feature));
-
-  const points = feature.vertices!.map((vertex: number) => worldContext.pack.vertices.p[vertex]);
-  feature.area = Math.abs(polygonArea(points));
 
   // Update Zustand state
   getLakeEditorState().updateLakeData({ area: getArea(feature.area!) });
@@ -187,17 +195,7 @@ function redrawLandFills(): void {
   // touched above; its data must be rebuilt for the moved vertex to show live instead of only
   // appearing after the editor closes.
   if (viewContext.renderMode === "webglHybrid") {
-    const featureId = elSelected ? +elSelected.attr("data-f") : Number.NaN;
-
     drawLayers();
-
-    // drawLayers() -> drawHybridSvgOverlays() re-runs FeaturesRenderer, which rebuilds every
-    // <use> under #lakes from scratch and detaches the element elSelected was pointing at;
-    // re-acquire it by feature id so the still-active drag keeps working.
-    if (!Number.isNaN(featureId)) {
-      const node = view.lakes.select<SVGElement>(`use[data-f="${featureId}"]`).node();
-      if (node) setElSelected(select(node as Element));
-    }
   }
 }
 
@@ -209,6 +207,7 @@ function handleVertexDragEnd(): void {
 
 function closeLakesEditor(): void {
   view.debug.select("#vertices").remove();
+  selectedLakeId = null;
   EditorBus.unselect();
   modules.editLake = false;
   getLakeEditorState().setLakeData(null);
@@ -219,31 +218,27 @@ function closeLakesEditor(): void {
 export const lakeEditorActions = {
   changeName(newName: string): void {
     const lake = getLake();
-    lake.name = newName;
-    getLakeEditorState().updateLakeData({ name: newName });
+    if (patchFeature({ featureId: lake.i, name: newName })) getLakeEditorState().updateLakeData({ name: newName });
   },
 
   generateNameCulture(): void {
     const lake = getLake();
     const newName = GenerationPipeline.Lakes.getName(lake);
-    lake.name = newName;
-    getLakeEditorState().updateLakeData({ name: newName });
+    if (patchFeature({ featureId: lake.i, name: newName })) getLakeEditorState().updateLakeData({ name: newName });
   },
 
   generateNameRandom(): void {
     const lake = getLake();
     const newName = generateRandomName();
-    lake.name = newName;
-    getLakeEditorState().updateLakeData({ name: newName });
+    if (patchFeature({ featureId: lake.i, name: newName })) getLakeEditorState().updateLakeData({ name: newName });
   },
 
   changeLakeGroup(newGroup: string): void {
     const lake = getLake();
-    const groupEl = view.lakes.select<SVGGElement>(`#${newGroup}`).node();
-    if (groupEl && elSelected) {
-      groupEl.appendChild(elSelected.node()!);
-      lake.group = newGroup;
+    if (newGroup && patchFeature({ featureId: lake.i, group: newGroup })) {
       getLakeEditorState().updateLakeData({ group: newGroup });
+      updateLakeGroups();
+      refreshLakePresentation();
     }
   },
 
@@ -257,7 +252,7 @@ export const lakeEditorActions = {
       .replace(/ /g, "_")
       .replace(/[^\w\s]/gi, "");
 
-    if (view.lakes.select(`#${group}`).node()) {
+    if (getLakeEditorState().groups.includes(group)) {
       tip("Element with this id already exists. Please provide a unique name", false, "error");
       return;
     }
@@ -267,67 +262,49 @@ export const lakeEditorActions = {
       return;
     }
 
-    const oldGroup = elSelected!.node()!.parentNode as SVGGElement;
-    const basicGroups = ["freshwater", "salt", "sinkhole", "frozen", "lava", "dry"];
-    const basic = basicGroups.includes(oldGroup.id);
-
-    if (!basic && oldGroup.childElementCount === 1) {
-      oldGroup.id = group;
-      updateLakeGroups();
-      getLakeEditorState().updateLakeData({ group });
-      return;
-    }
-
-    const newGroup = oldGroup.cloneNode(false) as SVGGElement;
-    newGroup.id = group;
-    view.lakes.node()!.appendChild(newGroup);
-    newGroup.appendChild(elSelected!.node()!);
-
-    updateLakeGroups();
-    getLakeEditorState().updateLakeData({ group });
+    lakeEditorActions.changeLakeGroup(group);
+    getLakeEditorState().setIsNewGroupInputOpen(false);
   },
 
   removeLakeGroup(): void {
-    const group = (elSelected!.node()!.parentNode as SVGGElement).id;
-    const basicGroups = ["freshwater", "salt", "sinkhole", "frozen", "lava", "dry"];
-    if (basicGroups.includes(group)) {
+    const group = getLakeGroup();
+    if (DEFAULT_LAKE_GROUPS.includes(group)) {
       tip("This is one of the default groups, it cannot be removed", false, "error");
       return;
     }
 
-    const count = (elSelected!.node()!.parentNode as SVGGElement).childElementCount;
+    const lakesInGroup = worldContext.pack.features.filter(
+      feature => feature?.type === "lake" && feature.group === group
+    );
     openConfirm(
-      `Are you sure you want to remove the group? All lakes of the group (${count}) will be turned into Freshwater`,
+      `Are you sure you want to remove the group? All lakes of the group (${lakesInGroup.length}) will be turned into Freshwater`,
       {
         title: "Remove lake group",
         confirm: "Remove",
         onConfirm: () => {
-          const freshwater = view.lakes.select<SVGGElement>("#freshwater").node();
-          const groupEl = view.lakes.select<SVGGElement>(`#${group}`).node();
-          if (groupEl && freshwater) {
-            while (groupEl.childNodes.length) {
-              freshwater.appendChild(groupEl.childNodes[0]);
-            }
-            groupEl.remove();
-
-            updateLakeGroups();
-            lakeEditorActions.changeLakeGroup("freshwater");
-          }
+          for (const lake of lakesInGroup) patchFeature({ featureId: lake.i, group: "freshwater" });
+          getLakeEditorState().updateLakeData({ group: "freshwater" });
+          updateLakeGroups();
+          refreshLakePresentation();
         }
       }
     );
   },
 
   editGroupStyle(): void {
-    const g = (elSelected!.node()!.parentNode as SVGGElement).id;
-    editStyle("lakes", g);
+    editStyle("lakes", getLakeGroup());
   },
 
   editLakeLegend(): void {
-    const id = elSelected!.attr("id");
     const lake = getLake();
-    editNotes(id, `${lake.name ?? id} ${lake.group} lake`);
+    const id = `lake${lake.i}`;
+    editNotes(id, `${lake.name ?? id} ${getLakeGroup(lake)} lake`);
   }
 };
+
+function refreshLakePresentation(): void {
+  if (viewContext.renderMode === "webglHybrid") drawLayers();
+  else FeaturesRenderer.render(worldContext, viewContext, appServices);
+}
 
 export function initLakesEditor(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}

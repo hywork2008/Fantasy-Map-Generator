@@ -7,7 +7,7 @@ import {
   SHIP_VALUE_PER_BUILD_POINT
 } from "../../hostTypes";
 import { TIME } from "../../hostUtils";
-import { getWorldContext } from "../economyContext";
+import { getGoodCellColumn, getGoods, getWorldContext, setGoodCellColumn, setGoods } from "../economyContext";
 
 export type WarEconomyType = "military" | "essential" | "strategic" | "luxury";
 type TradeScale = 1 | 2 | 3 | 4 | 5;
@@ -1204,17 +1204,18 @@ export class GoodsModule {
     Math.random = Alea(options.randomSeed ?? this.worldContext.seed);
     const shuffle = shuffler(() => Math.random());
 
-    if (!this.worldContext.pack.goods?.length) this.restoreDefaults();
+    if (!getGoods().length) this.restoreDefaults();
 
     this.cells = this.worldContext.pack.cells;
-    this.cells.good = new Uint16Array(this.cells.i.length);
+    const goodColumn = new Uint16Array(this.cells.i.length);
+    setGoodCellColumn(goodColumn);
 
     const resourceMaxCells = Math.ceil((200 * this.cells.i.length) / 5000);
     const resources: Record<number, number> = {};
 
     const methods = `{${Object.keys(this.getMethods()).join(", ")}}`;
     const shuffledCells = shuffle(Array.from(this.cells.i));
-    const goods = this.worldContext.pack.goods.filter(isGoodEnabled);
+    const goods = getGoods().filter(isGoodEnabled);
 
     for (const cellId of shuffledCells) {
       if (!(cellId % 10)) shuffle(goods);
@@ -1229,7 +1230,7 @@ export class GoodsModule {
         const spread = new Function(methods, `return ${good.distribution}`);
         if (!spread(this.getMethods())) continue;
 
-        this.cells.good[cellId] = good.i;
+        goodColumn[cellId] = good.i;
         resources[good.i] = (resources[good.i] || 0) + 1;
         break;
       }
@@ -1246,12 +1247,14 @@ export class GoodsModule {
 
     TIME && console.time("regenerateGoodPlacement");
     this.cells = this.worldContext.pack.cells;
-    if (!this.cells.good || this.cells.good.length !== this.cells.i.length) {
-      this.cells.good = new Uint16Array(this.cells.i.length);
+    let goodColumn = getGoodCellColumn();
+    if (!goodColumn.length || goodColumn.length !== this.cells.i.length) {
+      goodColumn = new Uint16Array(this.cells.i.length);
+      setGoodCellColumn(goodColumn);
     }
 
     for (const cellId of this.cells.i) {
-      if (this.cells.good[cellId] === goodId) this.cells.good[cellId] = 0;
+      if (goodColumn[cellId] === goodId) goodColumn[cellId] = 0;
     }
 
     if (!isGoodEnabled(good)) {
@@ -1274,13 +1277,13 @@ export class GoodsModule {
       if (this.cells.biome[cellId] === 11 && this.worldContext.biomesData.habitability[11] === 0) continue; // skip glaciers
       this.cellId = cellId;
 
-      if (this.cells.good[cellId]) continue;
+      if (goodColumn[cellId]) continue;
       if (resources[good.i] >= resourceMaxCells) continue;
       if (Math.random() * 100 > good.chance) continue;
 
       if (!spread(this.getMethods())) continue;
 
-      this.cells.good[cellId] = good.i;
+      goodColumn[cellId] = good.i;
       resources[good.i] = (resources[good.i] || 0) + 1;
     }
 
@@ -1288,7 +1291,7 @@ export class GoodsModule {
   }
 
   restoreDefaults() {
-    this.worldContext.pack.goods = structuredClone(this.defaultGoods);
+    setGoods(structuredClone(this.defaultGoods));
     this.sync();
   }
 
@@ -1315,7 +1318,7 @@ export class GoodsModule {
   }
 
   getBiomesProduction(): Record<number, { goodId: number; production: number }[]> {
-    return (this.worldContext.pack.goods || []).reduce(
+    return getGoods().reduce(
       (acc, good) => {
         if (!isGoodEnabled(good)) return acc;
         if (!good.biomeOutput) return acc;
@@ -1343,7 +1346,7 @@ export class GoodsModule {
 
   sync() {
     this.goodById = [];
-    for (const good of this.worldContext.pack.goods) this.goodById[good.i] = good;
+    for (const good of getGoods()) this.goodById[good.i] = good;
   }
 
   private readonly defaultGoods = GOODS_DATA.map((good, index): Good => {

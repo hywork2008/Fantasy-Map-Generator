@@ -1,7 +1,7 @@
 import type { Grid } from "../types/Grid";
 import type { NameBase } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
-import type { BiomesData, MapStyle, WorldNote, WorldOptions } from "../types/WorldState";
+import type { BiomesData, WorldNote, WorldOptions } from "../types/WorldState";
 
 export type MapCoordinates = {
   latT?: number;
@@ -24,7 +24,6 @@ export interface WorldContext {
   options: WorldOptions;
   biomesData: BiomesData;
   nameBases: NameBase[];
-  style: MapStyle & { burgLabels: object; burgIcons: object; anchors: object };
   /** Logical map coordinate space width — equivalent to options.mapWidth, constant per map */
   graphWidth: number;
   /** Logical map coordinate space height — equivalent to options.mapHeight, constant per map */
@@ -56,7 +55,6 @@ export const worldContext: WorldContext = {
   options: {} as WorldOptions,
   biomesData: {} as BiomesData,
   nameBases: [],
-  style: { burgLabels: {}, burgIcons: {}, anchors: {} } as WorldContext["style"],
   graphWidth: 0,
   graphHeight: 0,
   mapCoordinates: {},

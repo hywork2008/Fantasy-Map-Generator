@@ -1,7 +1,7 @@
 import { curveCatmullRom, easeLinear, line, select } from "d3";
 import type { Point } from "../../hostCore";
 import { minmax } from "../../hostUtils";
-import { getApi, getTradeAnimLayer, getViewContext, getWorldContext } from "../economyContext";
+import { getApi, getCaravans, getTradeAnimLayer, getViewContext, getWorldContext } from "../economyContext";
 import type { Caravan } from "../generators/marketTypes";
 import { TradeAnimation } from "../generators/trade-animation";
 
@@ -88,8 +88,7 @@ export async function draw(): Promise<void> {
   const layer = getTradeAnimLayer();
   if (!layer) return;
 
-  const world = getWorldContext();
-  const caravans = (world.pack.caravans || []).filter(c => c.state === "transit");
+  const caravans = getCaravans().filter(c => c.state === "transit");
 
   if (caravans.length === 0) {
     layer.selectAll("g.caravan").remove();
@@ -192,11 +191,11 @@ export function clearHighlight(): void {
 }
 
 export function getCaravansAtPoint(mapPoint: Point, padding: number): Caravan[] {
-  const world = getWorldContext();
-  if (!world.pack.caravans?.length) return [];
+  const caravans = getCaravans();
+  if (!caravans.length) return [];
   const animOptions = TradeAnimation.getOptions();
-  const displayLimit = Math.min(world.pack.caravans.length, animOptions.concurrent);
-  const activeCaravans = world.pack.caravans.slice(0, displayLimit);
+  const displayLimit = Math.min(caravans.length, animOptions.concurrent);
+  const activeCaravans = caravans.slice(0, displayLimit);
 
   const [x, y] = mapPoint;
   const threshold = padding + animOptions.markerSize;

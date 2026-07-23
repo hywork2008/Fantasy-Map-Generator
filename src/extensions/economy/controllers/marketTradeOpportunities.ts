@@ -3,7 +3,7 @@ import FlatQueue from "flatqueue";
 import type { Burg, PackedGraph } from "../../hostTypes";
 import { openDialog } from "../../hostUi";
 import { downloadFile, getFileName, rn } from "../../hostUtils";
-import { getWorldContext } from "../economyContext";
+import { getGoods, getMarkets, getWorldContext } from "../economyContext";
 import { Goods, isGoodEnabled } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
 import type { Market } from "../generators/marketTypes";
@@ -47,7 +47,7 @@ interface TradeRouteDistance {
 }
 
 export function open(selectedGoodId?: number): void {
-  const goods = (getWorldContext().pack.goods || []).filter(isGoodEnabled);
+  const goods = getGoods().filter(isGoodEnabled);
   const options: MarketTradeOpportunityOption[] = goods.map(good => ({ goodId: good.i, goodName: good.name }));
   const currentSelectedGoodId = getMarketTradeOpportunitiesState().selectedGoodId;
   const nextSelectedGoodId = selectedGoodId ?? currentSelectedGoodId ?? options[0]?.goodId ?? null;
@@ -84,7 +84,7 @@ export function refresh(): void {
 
   const rows: MarketTradeOpportunityRow[] = [];
   const world = getWorldContext();
-  const markets = world.pack.markets || [];
+  const markets = getMarkets();
   const mapDiagonal = Math.hypot(world.graphWidth, world.graphHeight) || 1;
   const tradeRouteGraph = buildTradeRouteGraph(world.pack);
   const hasTradeRoutes = tradeRouteGraph.adjacency.size > 0;

@@ -20,6 +20,17 @@ import {
 import { FeaturesRenderer, removeBurgCOA } from "../renderers";
 import { OceanLayers } from "../renderers/ocean-layers";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
+import {
+  applyHeightmapEditSession,
+  beginHeightmapEditSession,
+  discardHeightmapEditSession,
+  getHeightmapEditingHeights,
+  replaceHeightmapEditingHeights
+} from "../runtime/heightmapEditSession";
+import {
+  finalizeHeightmap as finalizeHeightmapCommand,
+  registerHeightmapFinalizeHandler
+} from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -102,7 +113,10 @@ export const HeightmapEditorActions = {
 // ─── Main entry point ─────────────────────────────────────────────────────────
 
 export function editHeightmap(options?: { mode?: string; tool?: string }): void {
+  if (modules.editHeightmap) return;
+
   const { mode, tool } = options || {};
+  beginHeightmapEditSession(worldContext.grid);
   restartHistory();
   view.viewbox.selectAll("#heights").remove();
   view.viewbox.insert("g", "#terrs").attr("id", "heights");
@@ -110,7 +124,6 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   if (!mode) showModeDialog();
   else enterHeightmapEditMode(mode);
 
-  if (modules.editHeightmap) return;
   modules.editHeightmap = true;
 
   HeightmapEditorActions.openBrushesPanel = openBrushesPanel;
@@ -161,6 +174,50 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     mockHeightmapSelection
   });
 
+  const unregisterHeightmapFinalizeHandler = registerHeightmapFinalizeHandler(({ mode }) => {
+    applyHeightmapEditSession(worldContext.grid);
+    if (mode === "keep") {
+      restoreKeptData();
+      return { result: [], topics: ["map.physical"] };
+    }
+
+    if (mode === "erase") {
+      regenerateErasedData();
+      return {
+        result: [],
+        topics: [
+          "map.topology",
+          "map.physical",
+          "map.politics",
+          "map.settlements",
+          "map.networks",
+          "map.annotations",
+          "simulation.cells",
+          "simulation.states",
+          "simulation.burgs",
+          "simulation.military"
+        ]
+      };
+    }
+
+    const result = restoreRiskedData();
+    return {
+      result,
+      topics: [
+        "map.topology",
+        "map.physical",
+        "map.politics",
+        "map.settlements",
+        "map.networks",
+        "map.annotations",
+        "simulation.cells",
+        "simulation.states",
+        "simulation.burgs",
+        "simulation.military"
+      ]
+    };
+  });
+
   function showModeDialog() {
     heightmapEditModeStore.getState().open({
       onErase: () => enterHeightmapEditMode("erase"),
@@ -168,6 +225,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       onRisk: () => enterHeightmapEditMode("risk"),
       onCancel: () => {
         modules.editHeightmap = false;
+        discardHeightmapEditSession();
+        unregisterHeightmapFinalizeHandler();
       }
     });
   }
@@ -268,8 +327,10 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     const heightmapInfoCell = getElementById("heightmapInfoCell");
     if (heightmapInfoCell) heightmapInfoCell.textContent = String(cell);
     const heightmapInfoHeight = getElementById("heightmapInfoHeight");
-    if (heightmapInfoHeight)
-      heightmapInfoHeight.textContent = `${worldContext.grid.cells.h[cell]} (${getHeight(worldContext.grid.cells.h[cell])})`;
+    if (heightmapInfoHeight) {
+      const heights = getHeightmapEditingHeights(worldContext.grid);
+      heightmapInfoHeight.textContent = `${heights[cell]} (${getHeight(heights[cell])})`;
+    }
     const tooltip = getElementById("tooltip");
     if (tooltip?.dataset.main) showMainTip();
 
@@ -300,7 +361,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     return `${rn(height * unitRatio)} ${unit}`;
   }
 
-  async function finalizeHeightmap(): Promise<void> {
+  function finalizeHeightmap(): void {
     if (view.viewbox.select("#heights").selectAll("*").size() < 200) {
       tip("Insufficient land area. There should be at least 200 land cells!", false, "error");
       return;
@@ -329,11 +390,22 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     if (getElementById("canvas3d")) enterStandardView();
 
     const heightmapEditMode = getElementById("heightmapEditMode");
-    const mode = heightmapEditMode ? heightmapEditMode.textContent : null;
-    if (mode === "erase") await regenerateErasedData();
-    else if (mode === "keep") restoreKeptData();
-    else if (mode === "risk") await restoreRiskedData();
+    const mode = heightmapEditMode?.textContent;
+    if (mode !== "erase" && mode !== "keep" && mode !== "risk") {
+      unregisterHeightmapFinalizeHandler();
+      discardHeightmapEditSession();
+      throw new Error("Heightmap finalize requires a valid edit mode");
+    }
+    const commit = finalizeHeightmapCommand({ mode });
+    unregisterHeightmapFinalizeHandler();
+    const removedBurgCoaIds = commit?.result ?? [];
 
+    if (mode === "keep") view.viewbox.selectAll("#landmass, #lakes").style("display", null);
+    if (mode === "erase" || mode === "risk") OceanLayers();
+    if (mode === "risk") view.ice.selectAll("*").remove();
+    removedBurgCoaIds.forEach(burgId => {
+      removeBurgCOA(viewContext, burgId);
+    });
     FeaturesRenderer.render(worldContext, viewContext, appServices);
     view.viewbox.selectAll("#heights").remove();
 
@@ -351,7 +423,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     getCurrentPreset();
   }
 
-  async function regenerateErasedData(): Promise<void> {
+  function regenerateErasedData(): void {
     INFO && console.group("Edit Heightmap");
     TIME && console.time("regenerateErasedData");
     worldContext.pack.cultures = [];
@@ -366,7 +438,6 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       addLakesInDeepDepressions();
       openNearSeaLakes();
     }
-    OceanLayers();
     calculateTemperatures();
     generatePrecipitation();
     reGraph();
@@ -413,16 +484,16 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   }
 
   function restoreKeptData(): void {
-    view.viewbox.selectAll("#landmass, #lakes").style("display", null);
     for (const i of worldContext.pack.cells.i) {
       worldContext.pack.cells.h[i] = worldContext.grid.cells.h[worldContext.pack.cells.g[i]];
     }
   }
 
-  async function restoreRiskedData(): Promise<void> {
+  function restoreRiskedData(): number[] {
     INFO && console.group("Edit Heightmap");
     TIME && console.time("restoreRiskedData");
     const erosionAllowed = useHeightmapEditorState.getState().allowErosion;
+    const removedBurgCoaIds: number[] = [];
 
     const l = worldContext.grid.cells.i.length;
     const biome = new Uint8Array(l);
@@ -477,7 +548,6 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     GenerationPipeline.Features.markupGrid();
     if (erosionAllowed) addLakesInDeepDepressions();
-    OceanLayers();
     calculateTemperatures();
     generatePrecipitation();
     reGraph();
@@ -555,7 +625,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       if (!b.capital && worldContext.pack.cells.h[b.cell] < 20) {
         const hasCOA = !!b.coa;
         GenerationPipeline.Burgs.remove(b.i);
-        if (hasCOA) removeBurgCOA(viewContext, b.i!);
+        if (hasCOA) removedBurgCoaIds.push(b.i!);
       }
       if (b.capital) worldContext.pack.states[b.state!].center = b.cell;
     }
@@ -606,17 +676,16 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     }
 
     GenerationPipeline.Ice.generate(worldContext, viewContext, appServices, worldState);
-    view.ice.selectAll("*").remove();
 
     TIME && console.timeEnd("restoreRiskedData");
     INFO && console.groupEnd();
+    return removedBurgCoaIds;
   }
 
   function updateHeightmap(): void {
+    const heights = getHeightmapEditingHeights(worldContext.grid);
     const prev = heightmapHistory?.current as Uint8Array | undefined;
-    const changed = prev
-      ? (worldContext.grid.cells.h as Uint8Array).reduce((s, h, i) => (h !== prev[i] ? s + 1 : s), 0)
-      : 0;
+    const changed = prev ? heights.reduce((s, h, i) => (h !== prev[i] ? s + 1 : s), 0) : 0;
     tip(`Cells changed: ${changed}`);
     if (!changed) return;
 
@@ -624,12 +693,12 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     if (prev && filter === "land") {
       for (const i of worldContext.grid.cells.i) {
-        if (prev[i] < 20 || worldContext.grid.cells.h[i] < 20) worldContext.grid.cells.h[i] = prev[i];
+        if (prev[i] < 20 || heights[i] < 20) heights[i] = prev[i];
       }
     }
     if (prev && filter === "water") {
       for (const i of worldContext.grid.cells.i) {
-        if (prev[i] >= 20 || worldContext.grid.cells.h[i] >= 20) worldContext.grid.cells.h[i] = prev[i];
+        if (prev[i] >= 20 || heights[i] >= 20) heights[i] = prev[i];
       }
     }
 
@@ -643,10 +712,9 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   }
 
   function mockHeightmap(): void {
+    const heights = getHeightmapEditingHeights(worldContext.grid);
     const all = Array.from(worldContext.grid.cells.i) as number[];
-    const data = useHeightmapEditorState.getState().renderOcean
-      ? all
-      : all.filter(i => worldContext.grid.cells.h[i] >= 20);
+    const data = useHeightmapEditorState.getState().renderOcean ? all : all.filter(i => heights[i] >= 20);
     view.viewbox
       .select<SVGGElement>("#heights")
       .selectAll<SVGPolygonElement, number>("polygon")
@@ -654,15 +722,16 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
       .join("polygon")
       .attr("points", d => getGridPolygon(d, worldContext.grid).join(" "))
       .attr("id", d => `cell${d}`)
-      .attr("fill", d => getColor(worldContext.grid.cells.h[d]));
+      .attr("fill", d => getColor(heights[d]));
   }
 
   function mockHeightmapSelection(selection: number[]): void {
     const ocean = useHeightmapEditorState.getState().renderOcean;
+    const editingHeights = getHeightmapEditingHeights(worldContext.grid);
     const heights = view.viewbox.select<SVGGElement>("#heights");
     selection.forEach(i => {
       let cell = heights.select<SVGPolygonElement>(`#cell${i}`);
-      if (!ocean && worldContext.grid.cells.h[i] < 20) {
+      if (!ocean && editingHeights[i] < 20) {
         cell.remove();
         return;
       }
@@ -671,19 +740,20 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
           .append<SVGPolygonElement>("polygon")
           .attr("points", getGridPolygon(i, worldContext.grid).join(" "))
           .attr("id", `cell${i}`);
-      cell.attr("fill", getColor(worldContext.grid.cells.h[i]));
+      cell.attr("fill", getColor(editingHeights[i]));
     });
   }
 
   function updateStatistics(): void {
-    const landCells = (worldContext.grid.cells.h as Uint8Array).reduce((s, h) => (h >= 20 ? s + 1 : s), 0);
+    const heights = getHeightmapEditingHeights(worldContext.grid);
+    const landCells = heights.reduce((s, h) => (h >= 20 ? s + 1 : s), 0);
     getElementById("landmassCounter")!.innerText =
       `${landCells} (${rn((landCells / worldContext.grid.cells.i.length) * 100)}%)`;
-    getElementById("landmassAverage")!.innerText = String(rn(mean(Array.from(worldContext.grid.cells.h)) ?? 0));
+    getElementById("landmassAverage")!.innerText = String(rn(mean(Array.from(heights)) ?? 0));
   }
 
   function updateHistory(noStat?: string): void {
-    heightmapHistory!.push(worldContext.grid.cells.h);
+    heightmapHistory!.push(getHeightmapEditingHeights(worldContext.grid));
     setHeightmapEditorState({
       canUndo: heightmapHistory!.canUndo,
       canRedo: heightmapHistory!.canRedo
@@ -699,7 +769,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     if (!heightmapHistory) return;
     const h = heightmapHistory.undo();
     if (!h) return;
-    worldContext.grid.cells.h = h;
+    replaceHeightmapEditingHeights(h);
     setHeightmapEditorState({
       canUndo: heightmapHistory.canUndo,
       canRedo: heightmapHistory.canRedo
@@ -714,7 +784,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     if (!heightmapHistory) return;
     const h = heightmapHistory.redo();
     if (!h) return;
-    worldContext.grid.cells.h = h;
+    replaceHeightmapEditingHeights(h);
     setHeightmapEditorState({
       canUndo: heightmapHistory.canUndo,
       canRedo: heightmapHistory.canRedo
@@ -811,7 +881,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     const ctx = canvas.getContext("2d")!;
     const imageData = ctx.createImageData(worldContext.grid.cellsX, worldContext.grid.cellsY);
 
-    (worldContext.grid.cells.h as Uint8Array).forEach((height, i) => {
+    getHeightmapEditingHeights(worldContext.grid).forEach((height, i) => {
       const h = height < 20 ? Math.max(height / 1.5, 0) : height;
       const v = (h / 100) * 255;
       const n = i * 4;

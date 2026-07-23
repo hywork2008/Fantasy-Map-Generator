@@ -244,7 +244,9 @@ texture / vignette / scaleBar / legend / compass / ocean pattern / grid overlay 
 
 以前は `buildLayerSignatures()` が ~24 個の `byLayer` シグネチャを active/inactive を問わず毎回計算しており、非表示レイヤー分まで `O(cells)` のハッシュ計算が無駄になっていた（例: `toggleGrid` だけを切り替えても states/provinces/cultures/religions 等すべてのシグネチャが再計算されていた）。また `getLakePaint()` / `getCoastlinePaint()` / `getIcePaint()` / `getEmblemStyle()` / `getBurgIconStyle()` / `getMarkerStyle()` / `getLabelStyle()` は `buildDeckLayers()` 本体とシグネチャ計算の両方から呼ばれ、二重に実行されていた。
 
-修正後は `useLayerState` の `activeLayers` を渡して各 `byLayer` エントリを該当トグルが有効な場合のみ計算し、上記 style/paint オブジェクトは呼び出し側で一度だけ計算した値を再利用する。`geometry` / `landGeometry` / `gridGeometry` / `states` / `provinces` / `cultures` / `religions` 等、複数キーが共有する base シグネチャは `memo()` ヘルパーで遅延評価・使い回しにした。`getCachedDeckData()` 自体のキャッシュキー集合や invalidation の仕組み（signature 文字列一致判定）は変更していない — 純粋にシグネチャ*計算*の無駄を削減する変更。
+修正後は `useLayerState` の `activeLayers` を渡して各 `byLayer` エントリを該当トグルが有効な場合のみ計算し、上記 style/paint オブジェクトは呼び出し側で一度だけ計算した値を再利用する。`geometry` / `landGeometry` / `gridGeometry` / `states` / `provinces` / `cultures` / `religions` 等、複数キーが共有する base シグネチャは `memo()` ヘルパーで遅延評価・使い回しにした。
+
+Phase 7 では `DeckGlRenderer` が `WorldRuntime.read()` の topic revision projection を `buildDeckLayers()` へ渡すようにした。`map.topology`、`map.physical`、`map.politics`、`map.settlements`、`map.networks`、`map.annotations`、`simulation.*`、`presentation.styles` の owner topic がある WebGL cache key は、これを O(1) の invalidation signature として使う。これにより `WorldRuntime` command で変更した active layer は、描画のたびに cell column を hash しない。runtime 外の preview / test adapter は projection を渡さず、未移行 writer を取りこぼさない content-hash fallback を使う。icon raster / external-image failure のような renderer-local state は引き続き専用 version を key に含める。
 
 #### `deckLayerDataCache` invalidation 条件
 
@@ -252,7 +254,7 @@ texture / vignette / scaleBar / legend / compass / ocean pattern / grid overlay 
 | :-- | :-- |
 | `background` | `mapId`, `graphWidth`/`graphHeight`, ocean fill color |
 | `land` | `mapId`, focus scope, `pack.vertices.p`/`pack.cells.v` 内容, `pack.cells.h` 内容, land fill color |
-| `land-geometry`（shared land cell 座標、後述） | `mapId`, focus scope, `pack.vertices.p`/`pack.cells.v`/`pack.cells.h` 内容のみ。fill color には依存しない |
+| `land-topology`（shared land CSR、後述） | `mapId`, focus scope, `pack.vertices.p`/`pack.cells.v`/`pack.cells.h` 内容のみ。fill color には依存しない |
 | `height` | `mapId`, focus scope, `grid.vertices.p`/`grid.cells.v` 内容, `grid.cells.h` 内容, height scheme/opacity/includeOcean |
 | `biomes` | land geometry（上記`land`と同条件）+ `pack.cells.biome` 内容 + `biomesData.color` 内容 |
 | `religions` / `religions-boundaries` | land geometry + `pack.cells.religion` 内容 + `pack.religions[].color` 内容 |
@@ -278,7 +280,7 @@ texture / vignette / scaleBar / legend / compass / ocean pattern / grid overlay 
 | `borders` | land geometry + states/provinces 内容 + `pack.cells.c` 内容 |
 | `routes` | `mapId`, focus scope, `pack.routes[]` 内容 |
 
-`ice` / `emblems` / `burgIcons` / `markers` / `military` / `labels` は `mapId` や geometry シグネチャを含まず、対象配列の内容ハッシュのみで invalidate される（content-addressed）。マップ生成をまたいでも配列内容が偶然一致すればキャッシュが理論上共有されうるが、実用上は問題にならない（`deckDataAdapters.test.ts` の in-place mutation テストで挙動を確認済み）。`deckLayerDataCache` はキー集合が固定（~20個 + `land-geometry`）で `clearDeckLayerDataCache()` は本番コードパスからは呼ばれない（テストの `beforeEach` のみ）— 古いエントリが無限に蓄積されるのではなく、シグネチャ不一致のたびに同じキーが上書きされるだけなので実害はない。
+`ice` / `emblems` / `burgIcons` / `markers` / `military` / `labels` は `mapId` や geometry シグネチャを含まず、対象配列の内容ハッシュのみで invalidate される（content-addressed）。マップ生成をまたいでも配列内容が偶然一致すればキャッシュが理論上共有されうるが、実用上は問題にならない（`deckDataAdapters.test.ts` の in-place mutation テストで挙動を確認済み）。`deckLayerDataCache` はキー集合が固定（~20個）で、別管理の `landTopologyCache` も単一 entry だけを保持する。`clearDeckLayerDataCache()` は本番コードパスからは呼ばれない（テストの `beforeEach` のみ）— 古いエントリが無限に蓄積されるのではなく、シグネチャ不一致のたびに同じキーが上書きされるだけなので実害はない。
 
 #### rebuild トリガーの実態
 
@@ -289,25 +291,44 @@ texture / vignette / scaleBar / legend / compass / ocean pattern / grid overlay 
 | layer toggle | 発生するが、`buildLayerSignatures()` の粒度修正後は該当レイヤーの signature のみ計算・比較され、他の active レイヤーは cache hit で `data` 参照を再利用する（`deckDataAdapters.test.ts` の stability テストで検証） |
 | zoom / pan | 発生しない。`DeckGlRenderer.syncViewState()` は `viewState`/`width`/`height` の `setProps` のみ行い `buildDeckLayers()` を一切呼ばない（`deckRenderer.test.ts` で回帰テスト化） |
 
-#### 10k / 50k / 100k cell 性能計測
+#### 10k / 50k / 100k cell 性能計測（P3-2 / §13）
 
-`npm run perf:webgl-layers`（`scripts/benchmarkWebglLayers.ts`）を追加した。共有頂点を持つ合成 grid mesh 上で、cell 数に依存するレイヤー（height/biomes/states/provinces/temperature/population/precipitation/danger/cells/grid/borders）のみを対象に、cold cache 初回描画・preset 切替・signature 不変の repeat call（zoom/pan が実際には辿らない経路の upper bound）を計測する。burgIcons/markers/military/labels/emblems はセル数ではなくエンティティ数に依存するため合成データでは意図的に空にし、対象外とした。
+`npm run perf:webgl-layers`（`scripts/benchmarkWebglLayers.ts`）が継続計測ハーネス。共有頂点を持つ合成 grid mesh 上で、cell 数に依存するレイヤー（height/biomes/states/provinces/temperature/population/precipitation/danger/cells/grid/borders）を対象に次を測る:
 
-実行結果例（開発機、単発計測。JIT warm-up 用に 2,000 cell の捨てラン後に計測）:
+| 指標 | 意味 |
+| :--- | :--- |
+| initial | cold-cache 初回 projection |
+| single-topic | `map.politics` だけ revision を上げた rebuild |
+| full replace | 全 topic revision を上げた rebuild（archive / generate 相当） |
+| preset switch | レイヤー preset 切替（partial cache hit） |
+| zoom-only | signature 不変の full cache hit（実 zoom は `buildDeckLayers` を呼ばない upper bound） |
+| pack/grid TA / projection cache / land CSR / GPU attrs / concurrent budget | 同時保持量の概算 |
+| snapshot staging | dense cell column の clone コスト（rollback / archive 近似） |
+| cache release | `clearDeckLayerDataCache` 後に解放された projection バイト（mode-switch 近似） |
 
-| cells | initial draw (ms) | preset switch (ms) | zoom-only / full cache hit (ms) |
-| --: | --: | --: | --: |
-| 10,000 | 95.3 | 22.8 | 0.5 |
-| 50,000 | 516.9 | 98.4 | 1.7 |
-| 100,000 | 915.8 | 407.6 | 3.2 |
+最新 JSON は `docs/analytics/webgl-layer-benchmark-latest.json`。partial GPU は single-topic/initial 比が soft threshold（0.55）を超えたときだけ検討する。
 
-cache hit のみのケース（zoom/pan 相当）は cell 数に対してほぼ一定かつ低コストで、実装が意図通り機能していることを裏付ける。preset 切替は初回描画よりかなり速いが、切替後に新たに active になったレイヤーの再構築コストがそのまま残るため cell 数に応じて増える。
+実行結果例（2026-07-20、開発機。JIT warm-up 用に 2,000 cell の捨てラン後）:
+
+| cells | initial (ms) | single-topic (ms) | full replace (ms) | preset (ms) | zoom-only (ms) |
+| --: | --: | --: | --: | --: | --: |
+| 10,000 | 90.3 | 27.8 | 110.8 | 24.0 | 0.1 |
+| 50,000 | 499.5 | 194.0 | 497.7 | 135.7 | 0.1 |
+| 100,000 | 1210.4 | 392.8 | 1269.3 | 328.7 | 0.1 |
+
+100k で single-topic/initial ≈ 0.32（threshold 0.55 未満）のため **partial GPU update は不要** と判定。zoom-only cache hit は cell 数に対してほぼ一定かつ低コスト。
 
 #### shared land-cell geometry cache
 
-`biomes`/`cultures`/`religions`/`states`/`provinces`/`zones`/`danger`/`population`/`land` の9レイヤーは全て `h >= 20` の land cell に対する同一の頂点→ポリゴン変換を独立に行っていた。`deckDataAdapters.ts` に `buildLandCellGeometry()` を追加し、`buildDeckLayers()` 側で `land-geometry` cache key（`landGeometry` シグネチャのみに依存し、fill color には依存しない）を介して1回だけ計算した結果を上記9レイヤーすべてで再利用するようにした（`buildLandPolygons()` の新しい任意引数 `landCells` 経由）。降水量は SVG と同様に grid cell 中心の半径可変円なので、この共有ポリゴンキャッシュには含めない。既存の直接呼び出し・単体テストとの互換性のため、`landCells` 未指定時は従来通り内部で再計算するフォールバックを残した。
+`biomes`/`cultures`/`religions`/`states`/`provinces`/`zones`/`danger`/`population`/`land` の9レイヤーは全て `h >= 20` の land cell に対する同一の頂点→ポリゴン変換を独立に行っていた。Phase 7 ではこの shared cache を `landTopologyCache` へ置き換え、cell ID、CSR の `polygonOffsets`、flat `Float32Array` XY 座標だけを topology revision ごとに一つ保持する。各 layer はそこから自身の semantic datum と fill color を投影するため、canonical `pack` を複製・変更しない。降水量は SVG と同様に grid cell 中心の半径可変円なので、この共有ポリゴンキャッシュには含めない。既存の直接呼び出し・単体テストとの互換性のため、land projection 未指定時は従来通り内部で再計算するフォールバックを残した。
 
-typed array / binary attribute 化（`Float32Array` の positions/colors を deck.gl に直接渡し、`getPolygon`/`getFillColor` アクセサでの per-datum オブジェクト生成を避ける方式）は、adapter の出力形状そのものを作り替える必要がある大きな構造変更のため、Phase 2 が texture/terrain の deck.gl 化を Phase 6 以降に持ち越したのと同じ理由で今回は着手せず、Phase 6 以降の課題として残す。
+#### Phase 7: binary attributes
+
+最初の binary attribute 対象は高密度な precipitation `ScatterplotLayer` とした。通常の datum 配列は残し、deck.gl の picking が `cellId` を失わないようにしつつ、`getPosition`、`getRadius`、`getFillColor` を `Float32Array` / `Float32Array` / `Uint8Array` として渡す。partial GPU update は実測で更新範囲が GPU buffer 再生成より有利と確認できるまで追加しない。
+
+Lake / coastline / ice / river editor は WebGL pick の domain ID を直接解決する。Ice は既存の WebGL drag bridge、River / Lake / coastline は ID と `#debug` の control point / vertex overlay を使い、`drawHybridSvgOverlays()` は hidden `#ice` / `#rivers` を再描画しない。Lake / coastline group は `feature.group` を `patchFeature()` で更新し、`FeaturesRenderer` が canonical group から表示用 `<g>` を投影するため、hidden SVG の parent-child 関係を editor state として読まない。
+
+polygon layer の binary geometry 化（`Float32Array` の positions/colors を直接渡し、`getPolygon`/`getFillColor` の per-datum projection も避ける方式）は、picking datum と polygon-hole/winding の互換性を別途確認してから段階的に行う。Phase 7 ではまず precipitation の binary attributes を導入した。
 
 ## Phase 6: COA / アイコン / テキスト
 
@@ -413,7 +434,7 @@ typed array / binary attribute 化（`Float32Array` の positions/colors を dec
 - extension-owned SVG layer の所有権は現状のままとする。`src/app.ts` 内の private registry が `fmg:map-layers-reinitialized` 後に `SvgLayerSpec` を re-acquire し、extension は `ExtensionAPI.getSvgLayer()` / `registerMapReinitHook()` だけを利用する。`ViewContext` に extension field や文字列 lookup を追加しない。
 - Economy を最初の consumer として、`ExtensionAPI.registerWebglLayers()` / `ExtensionWebglLayerSpec` を追加した。extension は `worldContext` から純粋な polygon / scatter data descriptor を返し、host の `extensionWebglLayerRegistry` と `buildDeckLayers()` が deck layer に変換する。`@deck.gl/*` class や host renderer module の import を extension entry point に漏らさない。
 - Economy の可否と段階的な候補は [webgl-economy-layer-migration.md](webgl-economy-layer-migration.md) に分離した。Phase 7 では SVG overlay のまま維持する。
-- export の方針を実装した。可視 viewport の PNG/JPEG は deck canvas を先に raster canvas へ描画し、hybrid policy を維持した SVG clone（overlay のみ）を重ねる。SVG、full-map PNG tiles、3D mesh texture、`.map` save は viewport-sized deck canvas を拡大しない。`withSvgSnapshot()` が一時的に canonical SVG renderer を再描画してから snapshot を取り、完了後に `webglHybrid` を復元する。
+- export の方針を実装した。可視 viewport の PNG/JPEG は deck canvas を先に raster canvas へ描画し、hybrid policy を維持した SVG clone（overlay のみ）を重ねる。SVG、full-map PNG tiles、3D mesh texture は viewport-sized deck canvas を拡大しない。full-map / vector export は `withOffscreenSvgExport()` が canonical state + PresentationData から offscreen SVG を生成し、`setRenderMode` 往復や live hybrid flash に依存しない（P2-13）。`.fmg` save は DOM-free の `captureArchiveDocument`。
 - 3D view は deck instance を finalize しない。`#canvas3d` を表示している間だけ `webglMapCanvas` を hidden にして二重表示を防ぎ、Standard view への復帰時に同じ canvas / deck instance を再表示する。viewMesh の地形テクスチャは `webglMapTexture.ts` が同じ `buildDeckLayers()` を全地図範囲でオフスクリーン描画し、Texture SVG overlay も land mask・opacity・`slice` 配置を保って合成して生成する。そのため WebGL 管理レイヤーと Texture レイヤーの ON/OFF が地形へ反映される。空の deck 初期化フレームは採用せず、直前の Three.js テクスチャを保持したまま再試行する。SVG export や viewport canvas のコピーには依存しない。burg/anchor は地形へ焼き込まず、Three.js の共有低ポリゴン `InstancedMesh` として地表法線から浮かせて描画する。3D Options の `Nightscape: city lights and beam` は地形を明示的に隠し、この低ポリゴン景観だけを暗い背景に残す。burg の人口を対数正規化し、最大5つの emissive / halo バッチで小都市は暗く、最大都市は星のように表示する。さらに影マップなしの単一 SpotLight をカメラ奥側から手前へ追従させ、都市の光が当たる面だけを追加で照らす。Nightscape の近くにあるチェックボックスでこのビームを ON/OFF でき、もう一方で照射方向を手前→奥へ反転できる。
 - E2E は hybrid mode の PNG download が非空であることと export 後に deck instance が維持されること、3D scene 中の `#map` / `#webglMapCanvas` 非表示、Standard view 復帰後の deck canvas 復元を検証する。
 
@@ -444,7 +465,7 @@ typed array / binary attribute 化（`Float32Array` の positions/colors を dec
 - [x] SVG版との差分が許容範囲として明文化されている。 (※ SVG版との差分は、「実用上同等」の範囲内として許容され、特に Phase 3・Phase 6 で明文化されたテキストや地形の近似的表現で妥結しています)
 - [x] 低性能環境やWebGL unavailable時に自動で `svg` にfallbackできる。 (※ `isWebgl2Available` で起動時判定を行い、実行時エラーも `Deck` の `onError` で捉えて `setRenderMode("svg")` にフォールバックします)
 - [x] renderer mode preference の保存・復元がユーザーにとって自然に動く。 (※ `localStorage` の `fmg-render-mode` 保存値と、WebGL利用可否の AND で適切に復元します)
-- [x] export系機能がWebGL表示時にも期待通りの画像を出力する。 (※ `withSvgSnapshot()` 等により、WebGL描画中のSVGエクスポートや高解像度出力がすでに対応済みです)
+- [x] export系機能がWebGL表示時にも期待通りの画像を出力する。 (※ `withOffscreenSvgExport()` により、renderMode 切替なしで full-map SVG / tiles / mesh texture を生成。viewport PNG/JPEG は deck + overlay 合成)
 
 ## 作業時の確認コマンド
 

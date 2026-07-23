@@ -3,10 +3,12 @@ import { FoodProduction } from "./foodProduction";
 
 // Mock economy context
 vi.mock("../economyContext", () => ({
-  getWorldContext: vi.fn()
+  getWorldContext: vi.fn(),
+  getMarkets: vi.fn(),
+  getMarketCellColumn: vi.fn()
 }));
 
-import { getWorldContext } from "../economyContext";
+import { getMarketCellColumn, getMarkets, getWorldContext } from "../economyContext";
 
 describe("FoodProduction", () => {
   let mockWorldContext: any;
@@ -36,6 +38,8 @@ describe("FoodProduction", () => {
     };
 
     (getWorldContext as any).mockReturnValue(mockWorldContext);
+    (getMarkets as any).mockReturnValue(mockWorldContext.pack.markets);
+    (getMarketCellColumn as any).mockReturnValue(mockWorldContext.pack.cells.market);
   });
 
   it("should calculate quarterly ledger correctly", () => {

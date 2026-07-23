@@ -2,7 +2,7 @@ import * as d3 from "d3";
 import { tip } from "../hostServices";
 import { useCellInfoState } from "../hostUi";
 import { rn } from "../hostUtils";
-import { getWorldContext } from "./economyContext";
+import { getGoodCellColumn, getMarketCellColumn, getWorldContext } from "./economyContext";
 import { getBurgMarketLedger, getDominantMerchant, getMerchantName } from "./generators/burgMarketLedgers";
 import { Goods } from "./generators/goods-generator";
 import { Markets } from "./generators/markets-generator";
@@ -30,7 +30,7 @@ export function showEconomyTooltip(
 
   if (group === "goods") {
     const el = e.target as Element;
-    const bonusGoodId = getWorldContext().pack.cells.good[i];
+    const bonusGoodId = getGoodCellColumn()[i];
     const getName = (id: number) => (Goods.get(id)?.name ?? "unknown").toLowerCase();
     const formatProduct = (produced: Record<number, number>) =>
       Object.entries(produced).reduce<string[]>((acc, [goodId, amount]) => {
@@ -71,12 +71,13 @@ export function showEconomyTooltip(
 }
 
 export function updateEconomyCellInfo(_point: [number, number], i: number, _g: number): void {
-  const cells = getWorldContext().pack.cells;
+  const goodCellColumn = getGoodCellColumn();
+  const marketCellColumn = getMarketCellColumn();
   const extra: Record<string, string> = {};
 
-  extra.good = cells.good[i] ? `${Goods.get(cells.good[i])?.name ?? "unknown"} (${cells.good[i]})` : "no";
+  extra.good = goodCellColumn[i] ? `${Goods.get(goodCellColumn[i])?.name ?? "unknown"} (${goodCellColumn[i]})` : "no";
 
-  const marketId = cells.market?.[i];
+  const marketId = marketCellColumn[i];
   if (marketId) {
     const market = Markets.get(marketId);
     const centerBurg = market && getWorldContext().pack.burgs[market.centerBurgId];
@@ -91,7 +92,7 @@ export function updateEconomyCellInfo(_point: [number, number], i: number, _g: n
     ? cellEntries.map(([id, amt]) => `${Goods.get(+id)?.name ?? id}: ${rn(amt, 2)}`).join(", ")
     : "none";
 
-  const burgId = cells.burg[i];
+  const burgId = getWorldContext().pack.cells.burg[i];
   if (burgId) {
     const burg = getWorldContext().pack.burgs[burgId];
     const burgProduced = Production.getBurgProduction(burg);

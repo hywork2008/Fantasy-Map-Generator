@@ -1,4 +1,3 @@
-import "./types"; // activate module augmentation for PackedGraph
 import type { ExtensionAPI } from "../../types/extension-api";
 import type { Point } from "../hostCore";
 import {
@@ -9,16 +8,38 @@ import {
   isShipbuildingStrategicProcurementDemand,
   isShipbuildingSurplusShipRequest
 } from "../hostTypes";
-import { type LayerConfig, regenerateFeatureDialogStore, useUiPreferencesState } from "../hostUi";
+import {
+  type LayerConfig,
+  regenerateFeatureDialogStore,
+  useTimeSimulationState,
+  useUiPreferencesState
+} from "../hostUi";
 import { formatPrice } from "../hostUtils";
 import { getBurgEconomySummary, getBurgProductPerThousandResidents } from "./burgEconomySummary";
 import { economyStyleConfig } from "./EconomyStyleConfig";
-import { clearEconomyContext, getWorldContext, initEconomyContext } from "./economyContext";
+import {
+  clearEconomyContext,
+  getBurgMarketLedgers,
+  getCaravans,
+  getGoodCellColumn,
+  getGoods,
+  getMarketCellColumn,
+  getMarkets,
+  getWorldContext,
+  initEconomyContext,
+  setBurgMarketLedgers,
+  setCaravans,
+  setDeals,
+  setGoodCellColumn,
+  setGoods,
+  setMarketCellColumn,
+  setMarkets
+} from "./economyContext";
 import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burgMarketLedgers";
 import { Caravans } from "./generators/caravans";
 import { FoodProduction } from "./generators/foodProduction";
 import { clearForestDepletion, registerLogHarvest, tickForestRegrowth } from "./generators/forestDepletion";
-import { Goods, isGoodEnabled } from "./generators/goods-generator";
+import { type Good, Goods, getDefaultGoodTradeProfile, isGoodEnabled } from "./generators/goods-generator";
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
 import { Markets } from "./generators/markets-generator";
 import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
@@ -211,36 +232,425 @@ let _shipbuildingSurplusShipRequestHandler: ((e: Event) => void) | null = null;
 let _voyageIncomeHandler: ((e: Event) => void) | null = null;
 let _mapPickCandidatesHandler: ((e: Event) => void) | null = null;
 let _gunpowderEraChangedHandler: (() => void) | null = null;
+let _unregisterGoodsAssignCellCommand: (() => void) | null = null;
+let _unregisterGoodsUpdateCommand: (() => void) | null = null;
+let _unregisterGoodsAddCommand: (() => void) | null = null;
+let _unregisterGoodsRemoveCommand: (() => void) | null = null;
+let _unregisterMarketAssignCellsCommand: (() => void) | null = null;
+let _unregisterMarketAddCommand: (() => void) | null = null;
+let _unregisterMarketRemoveCommand: (() => void) | null = null;
+let _unregisterMarketColorCommand: (() => void) | null = null;
+let _unregisterProductionSettlementCommand: (() => void) | null = null;
+let _unregisterRegenerateCommand: (() => void) | null = null;
+let _unregisterGunpowderRefreshCommand: (() => void) | null = null;
+let _unregisterClearCommand: (() => void) | null = null;
+let _unregisterTickSystem: (() => void) | null = null;
 
-function refreshEconomyForGunpowderEra(api: ExtensionAPI): void {
-  const worldContext = getWorldContext();
+interface AssignGoodToCellRequest {
+  readonly cellId: number;
+  readonly goodId: number;
+}
+
+interface GoodSettings {
+  readonly name: string;
+  readonly tags: readonly string[];
+  readonly value: number;
+  readonly unit: string;
+  readonly icon: string;
+  readonly color: string;
+  readonly chance?: number;
+  readonly distribution?: string;
+}
+
+interface GoodSettingsRequest extends GoodSettings {
+  readonly goodId: number;
+}
+
+interface MarketCellAssignment {
+  readonly cellId: number;
+  readonly marketId: number;
+}
+
+interface AssignMarketCellsRequest {
+  readonly assignments: readonly MarketCellAssignment[];
+}
+
+type EconomyRegenerationTarget = "economy" | "goods" | "markets" | "production";
+
+function isAssignGoodToCellRequest(value: unknown): value is AssignGoodToCellRequest {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Record<string, unknown>;
+  return Number.isInteger(candidate.cellId) && Number.isInteger(candidate.goodId);
+}
+
+function isGoodSettings(value: unknown): value is GoodSettings {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.name === "string" &&
+    Array.isArray(candidate.tags) &&
+    candidate.tags.every(tag => typeof tag === "string") &&
+    typeof candidate.value === "number" &&
+    typeof candidate.unit === "string" &&
+    typeof candidate.icon === "string" &&
+    typeof candidate.color === "string" &&
+    (candidate.chance === undefined || typeof candidate.chance === "number") &&
+    (candidate.distribution === undefined || typeof candidate.distribution === "string")
+  );
+}
+
+function isGoodSettingsRequest(value: unknown): value is GoodSettingsRequest {
+  return isGoodSettings(value) && Number.isInteger((value as { goodId?: unknown }).goodId);
+}
+
+function isGoodIdRequest(value: unknown): value is { readonly goodId: number } {
+  return !!value && typeof value === "object" && Number.isInteger((value as { goodId?: unknown }).goodId);
+}
+
+function isAssignMarketCellsRequest(value: unknown): value is AssignMarketCellsRequest {
+  if (!value || typeof value !== "object") return false;
+  const assignments = (value as { assignments?: unknown }).assignments;
+  return (
+    Array.isArray(assignments) &&
+    assignments.every(
+      assignment =>
+        !!assignment &&
+        typeof assignment === "object" &&
+        Number.isInteger((assignment as { cellId?: unknown }).cellId) &&
+        Number.isInteger((assignment as { marketId?: unknown }).marketId)
+    )
+  );
+}
+
+function isMarketColorRequest(value: unknown): value is { readonly marketId: number; readonly color: string } {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as { marketId?: unknown; color?: unknown };
+  return Number.isInteger(candidate.marketId) && typeof candidate.color === "string";
+}
+
+function isBurgIdRequest(value: unknown): value is { readonly burgId: number } {
+  return !!value && typeof value === "object" && Number.isInteger((value as { burgId?: unknown }).burgId);
+}
+
+function isMarketIdRequest(value: unknown): value is { readonly marketId: number } {
+  return !!value && typeof value === "object" && Number.isInteger((value as { marketId?: unknown }).marketId);
+}
+
+function isEconomyRegenerationRequest(value: unknown): value is { readonly target: EconomyRegenerationTarget } {
+  if (!value || typeof value !== "object") return false;
+  const target = (value as { target?: unknown }).target;
+  return target === "economy" || target === "goods" || target === "markets" || target === "production";
+}
+
+function applyGoodSettings(good: Good, request: GoodSettingsRequest): boolean {
+  const changed =
+    good.name !== request.name ||
+    good.value !== request.value ||
+    good.unit !== request.unit ||
+    good.icon !== request.icon ||
+    good.color !== request.color ||
+    good.chance !== request.chance ||
+    good.distribution !== request.distribution ||
+    good.tags.length !== request.tags.length ||
+    good.tags.some((tag, index) => tag !== request.tags[index]);
+  if (!changed) return false;
+
+  good.name = request.name;
+  good.tags = [...request.tags];
+  good.value = request.value;
+  good.unit = request.unit;
+  good.icon = request.icon;
+  good.color = request.color;
+  good.chance = request.chance;
+  good.distribution = request.distribution;
+  return true;
+}
+
+function registerEconomyCommands(api: ExtensionAPI): void {
+  _unregisterGoodsAssignCellCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "goods.assignCell",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to assign a good to a cell");
+      }
+      if (!isAssignGoodToCellRequest(value)) {
+        throw new Error("economy.goods.assignCell requires integer cellId and goodId values");
+      }
+
+      const goodCellColumn = getGoodCellColumn();
+      if (!goodCellColumn.length || value.cellId < 0 || value.cellId >= goodCellColumn.length) {
+        throw new Error(`economy.goods.assignCell received invalid cell ${value.cellId}`);
+      }
+
+      const currentGoodId = goodCellColumn[value.cellId];
+      const nextGoodId = currentGoodId ? 0 : value.goodId;
+      if (nextGoodId && !Goods.get(nextGoodId)) {
+        throw new Error(`economy.goods.assignCell could not find good ${nextGoodId}`);
+      }
+      if (currentGoodId === nextGoodId) return { changed: false };
+
+      goodCellColumn[value.cellId] = nextGoodId;
+      return { changed: true, result: { cellId: value.cellId, goodId: nextGoodId } };
+    }
+  });
+  _unregisterGoodsUpdateCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "goods.update",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) throw new Error("Economy must be enabled to update a good");
+      if (!isGoodSettingsRequest(value)) throw new Error("economy.goods.update received invalid settings");
+
+      const good = Goods.get(value.goodId);
+      if (!good) throw new Error(`economy.goods.update could not find good ${value.goodId}`);
+      const changed = applyGoodSettings(good, value);
+      if (changed) Goods.sync();
+      return { changed, result: { goodId: good.i } };
+    }
+  });
+  _unregisterGoodsAddCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "goods.add",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) throw new Error("Economy must be enabled to add a good");
+      if (!isGoodSettings(value)) throw new Error("economy.goods.add received invalid settings");
+
+      const goods = getGoods();
+      const nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+      const good: Good = {
+        i: nextId,
+        name: value.name,
+        tags: [...value.tags],
+        value: value.value,
+        unit: value.unit,
+        icon: value.icon,
+        color: value.color,
+        chance: value.chance,
+        distribution: value.distribution,
+        trade: getDefaultGoodTradeProfile({
+          name: value.name,
+          tags: [...value.tags],
+          value: value.value,
+          unit: value.unit
+        })
+      };
+      goods.push(good);
+      Goods.sync();
+      return { changed: true, result: { goodId: nextId } };
+    }
+  });
+  _unregisterGoodsRemoveCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "goods.remove",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) throw new Error("Economy must be enabled to remove a good");
+      if (!isGoodIdRequest(value)) throw new Error("economy.goods.remove requires an integer goodId");
+
+      const world = getWorldContext();
+      const goods = getGoods();
+      const index = goods.findIndex(good => good.i === value.goodId);
+      if (index === -1) throw new Error(`economy.goods.remove could not find good ${value.goodId}`);
+      const goodCellColumn = getGoodCellColumn();
+      for (const cellId of world.pack.cells.i) {
+        if (goodCellColumn[cellId] === value.goodId) goodCellColumn[cellId] = 0;
+      }
+      goods.splice(index, 1);
+      Goods.sync();
+      return { changed: true, result: { goodId: value.goodId } };
+    }
+  });
+  _unregisterMarketAssignCellsCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "markets.assignCells",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to assign market territory");
+      }
+      if (!isAssignMarketCellsRequest(value)) {
+        throw new Error("economy.markets.assignCells requires integer cell and market ids");
+      }
+
+      const world = getWorldContext();
+      const cells = world.pack.cells;
+      const marketCellColumn = getMarketCellColumn();
+      const markets = new Set(getMarkets().map(market => market.i));
+      const finalAssignments = new Map<number, number>();
+      for (const { cellId, marketId } of value.assignments) {
+        if (cellId < 0 || cellId >= marketCellColumn.length) {
+          throw new Error(`economy.markets.assignCells received invalid cell ${cellId}`);
+        }
+        if (marketId < 0 || (marketId !== 0 && !markets.has(marketId))) {
+          throw new Error(`economy.markets.assignCells could not find market ${marketId}`);
+        }
+        finalAssignments.set(cellId, marketId);
+      }
+
+      const changedCellIds: number[] = [];
+      for (const [cellId, marketId] of finalAssignments) {
+        if (marketCellColumn[cellId] === marketId) continue;
+        marketCellColumn[cellId] = marketId;
+        const burgId = cells.burg[cellId];
+        if (burgId && world.pack.burgs[burgId]) world.pack.burgs[burgId].market = marketId;
+        changedCellIds.push(cellId);
+      }
+      if (!changedCellIds.length) return { changed: false };
+
+      Markets.invalidateRuralProductionCache();
+      syncBurgMarketLedgers();
+      return { changed: true, result: { changedCellIds } };
+    }
+  });
+  _unregisterMarketAddCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "markets.add",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) throw new Error("Economy must be enabled to add a market");
+      if (!isBurgIdRequest(value)) throw new Error("economy.markets.add requires an integer burgId");
+
+      const market = Markets.addMarket(value.burgId);
+      return market ? { changed: true, result: { marketId: market.i } } : { changed: false };
+    }
+  });
+  _unregisterMarketRemoveCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "markets.remove",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) throw new Error("Economy must be enabled to remove a market");
+      if (!isMarketIdRequest(value)) throw new Error("economy.markets.remove requires an integer marketId");
+
+      const removed = Markets.removeMarket(value.marketId);
+      return removed ? { changed: true, result: { marketId: value.marketId } } : { changed: false };
+    }
+  });
+  _unregisterMarketColorCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "markets.setColor",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) throw new Error("Economy must be enabled to update a market");
+      if (!isMarketColorRequest(value)) throw new Error("economy.markets.setColor requires a market id and color");
+
+      const market = Markets.get(value.marketId);
+      if (!market) throw new Error(`economy.markets.setColor could not find market ${value.marketId}`);
+      if (market.color === value.color) return { changed: false };
+      market.color = value.color;
+      return { changed: true, result: { marketId: market.i, color: market.color } };
+    }
+  });
+  _unregisterProductionSettlementCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "production.settle",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to settle production");
+      }
+      if (value !== undefined) throw new Error("economy.production.settle does not accept a payload");
+
+      Production.produce();
+      Taxes.collectTaxes();
+      refreshStateEconomySummaries();
+      return { changed: true };
+    }
+  });
+  _unregisterRegenerateCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "regenerate",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) throw new Error("Economy must be enabled to regenerate data");
+      if (!isEconomyRegenerationRequest(value)) throw new Error("economy.regenerate received an invalid target");
+
+      if (value.target === "economy" || value.target === "goods") Goods.generate();
+      if (value.target === "economy" || value.target === "markets") Markets.generate(true);
+      if (value.target === "economy") Taxes.defineTaxRates();
+      if (value.target === "economy" || value.target === "production") {
+        FoodProduction.generateQuarterlyLedger(0);
+        Production.produce();
+        Taxes.collectTaxes();
+      }
+      return { changed: true, result: { target: value.target } };
+    }
+  });
+  _unregisterGunpowderRefreshCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "refreshGunpowderEra",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to refresh gunpowder-era data");
+      }
+      if (value !== undefined) throw new Error("economy.refreshGunpowderEra does not accept a payload");
+
+      refreshEconomyForGunpowderEraData();
+      return { changed: true };
+    }
+  });
+  _unregisterClearCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "clear",
+    execute: value => {
+      if (value !== undefined) throw new Error("economy.clear does not accept a payload");
+
+      const world = getWorldContext();
+      clearBurgMarketLedgers();
+      clearMarketManagers();
+      setGoods([]);
+      setMarkets([]);
+      setDeals([]);
+      setBurgMarketLedgers([]);
+      clearMerchantOrganizations();
+      if (world.pack.cells?.i) {
+        setGoodCellColumn(new Uint16Array(world.pack.cells.i.length));
+        setMarketCellColumn(new Uint16Array(world.pack.cells.i.length));
+      }
+      clearForestDepletion();
+      clearStrategicProcurementExpenses();
+      StrategicProcurement.clear();
+      return { changed: true };
+    }
+  });
+}
+
+function refreshEconomyForGunpowderEraData(): void {
   Goods.generate();
   Markets.generate(true);
   Production.produce();
-  if (worldContext.pack.caravans) {
-    worldContext.pack.caravans = worldContext.pack.caravans
-      .map(caravan => {
-        const payload = caravan.payload.filter(item => {
-          const good = Goods.get(item.goodId);
-          return good !== undefined && isGoodEnabled(good);
-        });
-        if (payload.length === caravan.payload.length) return caravan;
-        if (!payload.length) return null;
-        return {
-          ...caravan,
-          payload,
-          units: payload.reduce((sum, item) => sum + item.units, 0),
-          value: payload.reduce((sum, item) => sum + item.value, 0)
-        };
-      })
-      .filter((caravan): caravan is Exclude<typeof caravan, null> => caravan !== null);
+  const caravans = getCaravans();
+  if (caravans.length) {
+    setCaravans(
+      caravans
+        .map(caravan => {
+          const payload = caravan.payload.filter(item => {
+            const good = Goods.get(item.goodId);
+            return good !== undefined && isGoodEnabled(good);
+          });
+          if (payload.length === caravan.payload.length) return caravan;
+          if (!payload.length) return null;
+          return {
+            ...caravan,
+            payload,
+            units: payload.reduce((sum, item) => sum + item.units, 0),
+            value: payload.reduce((sum, item) => sum + item.value, 0)
+          };
+        })
+        .filter((caravan): caravan is Exclude<typeof caravan, null> => caravan !== null)
+    );
   }
+}
+
+function refreshEconomyForGunpowderEra(api: ExtensionAPI): void {
+  const commit = api.dispatchExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "refreshGunpowderEra",
+    payload: undefined
+  });
+  if (!commit) return;
   if (api.layerIsOn("toggleGoods")) drawGoods(getDisplayedGoodIds());
   api.requestWebglRender();
 }
 
 export function init(api: ExtensionAPI): void {
   initEconomyContext(api);
+  registerEconomyCommands(api);
+  const regenerate = (target: EconomyRegenerationTarget) =>
+    api.dispatchExtensionCommand({ extensionId: ECONOMY_EXTENSION_ID, name: "regenerate", payload: { target } });
 
   // Register the extension (default enabled: false)
   api.registerExtension(
@@ -329,14 +739,7 @@ export function init(api: ExtensionAPI): void {
     label: "Economy",
     tooltip: "Rebuild market territories, production, trade deals, and taxes from the current goods and markets",
     onClick: () => {
-      withRegenerateConfirmation("Economy", "regenerateEconomy", () => {
-        Goods.generate();
-        Markets.generate(true);
-        Taxes.defineTaxRates();
-        FoodProduction.generateQuarterlyLedger(0);
-        Production.produce();
-        Taxes.collectTaxes();
-      });
+      withRegenerateConfirmation("Economy", "regenerateEconomy", () => regenerate("economy"));
     }
   });
 
@@ -348,7 +751,7 @@ export function init(api: ExtensionAPI): void {
     label: "Goods",
     tooltip: "Click to regenerate bonus goods placement",
     onClick: () => {
-      withRegenerateConfirmation("Goods", "regenerateGoods", () => Goods.generate());
+      withRegenerateConfirmation("Goods", "regenerateGoods", () => regenerate("goods"));
     }
   });
 
@@ -360,7 +763,7 @@ export function init(api: ExtensionAPI): void {
     label: "Markets",
     tooltip: "Click to regenerate markets and their territories",
     onClick: () => {
-      withRegenerateConfirmation("Markets", "regenerateMarkets", () => Markets.generate(true));
+      withRegenerateConfirmation("Markets", "regenerateMarkets", () => regenerate("markets"));
     }
   });
 
@@ -372,11 +775,7 @@ export function init(api: ExtensionAPI): void {
     label: "Production",
     tooltip: "Click to regenerate production and trade deals",
     onClick: () => {
-      withRegenerateConfirmation("Production", "regenerateProduction", () => {
-        FoodProduction.generateQuarterlyLedger(0);
-        Production.produce();
-        Taxes.collectTaxes();
-      });
+      withRegenerateConfirmation("Production", "regenerateProduction", () => regenerate("production"));
     }
   });
 
@@ -466,13 +865,13 @@ export function init(api: ExtensionAPI): void {
       api.burgEconomyExtensions.getBurgEconomySummary = getBurgEconomySummary;
       registerOverviewColumns(api);
       // Generate economy if it's completely missing
-      if (!worldContext.pack.goods || worldContext.pack.goods.length === 0) {
+      if (!getGoods().length) {
         if (
           worldContext.pack.cells?.i &&
-          (!worldContext.pack.cells.good || worldContext.pack.cells.good.length !== worldContext.pack.cells.i.length)
+          (!getGoodCellColumn().length || getGoodCellColumn().length !== worldContext.pack.cells.i.length)
         ) {
-          worldContext.pack.cells.good = new Uint16Array(worldContext.pack.cells.i.length);
-          worldContext.pack.cells.market = new Uint16Array(worldContext.pack.cells.i.length);
+          setGoodCellColumn(new Uint16Array(worldContext.pack.cells.i.length));
+          setMarketCellColumn(new Uint16Array(worldContext.pack.cells.i.length));
         }
         Goods.generate();
         Markets.generate();
@@ -480,7 +879,7 @@ export function init(api: ExtensionAPI): void {
         FoodProduction.generateQuarterlyLedger(0);
         Production.produce();
         Taxes.collectTaxes();
-      } else if (worldContext.pack.markets?.length) {
+      } else if (getMarkets().length) {
         syncMarketManagers();
         syncBurgMarketLedgers();
       }
@@ -511,25 +910,12 @@ export function init(api: ExtensionAPI): void {
       api.closeDialog("productionOverview");
       api.closeDialog("tradeAnimationEditor");
 
-      // Clear economy data from worldContext when disabled
-      clearBurgMarketLedgers();
-      clearMarketManagers();
-      worldContext.pack.goods = [];
-      worldContext.pack.markets = [];
-      worldContext.pack.deals = [];
-      worldContext.pack.burgMarketLedgers = [];
-      clearMerchantOrganizations();
+      // Clear economy data through the extension-owned command after disabling.
+      api.dispatchExtensionCommand({ extensionId: ECONOMY_EXTENSION_ID, name: "clear", payload: undefined });
       api.tooltipExtensions.showMapTooltip = undefined;
       api.tooltipExtensions.updateCellInfo = undefined;
       api.burgEconomyExtensions.getBurgEconomySummary = undefined;
       unregisterOverviewColumns(api);
-      if (worldContext.pack.cells?.i) {
-        worldContext.pack.cells.good = new Uint16Array(worldContext.pack.cells.i.length);
-        worldContext.pack.cells.market = new Uint16Array(worldContext.pack.cells.i.length);
-      }
-      clearForestDepletion();
-      clearStrategicProcurementExpenses();
-      StrategicProcurement.clear();
     }
   });
 
@@ -546,7 +932,7 @@ export function init(api: ExtensionAPI): void {
     api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
     api.burgEconomyExtensions.getBurgEconomySummary = getBurgEconomySummary;
     registerOverviewColumns(api);
-    if (getWorldContext().pack.markets?.length) {
+    if (getMarkets().length) {
       syncMarketManagers();
       syncBurgMarketLedgers();
     }
@@ -560,6 +946,7 @@ export function init(api: ExtensionAPI): void {
       clearVoyageIncome();
       clearStrategicProcurementExpenses();
       StrategicProcurement.clear();
+      TradeAnimation.clearRouteCache();
       Goods.generate();
       Markets.generate();
       Taxes.defineTaxRates();
@@ -603,9 +990,12 @@ export function init(api: ExtensionAPI): void {
       productionSettlementDue = false;
       productionDirty = false;
 
-      Production.produce();
-      Taxes.collectTaxes();
-      refreshStateEconomySummaries();
+      const commit = api.dispatchExtensionCommand({
+        extensionId: ECONOMY_EXTENSION_ID,
+        name: "production.settle",
+        payload: undefined
+      });
+      if (!commit) return;
       if (api.layerIsOn("toggleGoods")) drawGoods(getDisplayedGoodIds());
     });
   };
@@ -731,90 +1121,102 @@ export function init(api: ExtensionAPI): void {
   let daysSinceLastProduction = 0;
   let daysSinceLastQuarterlyUpdate = 0;
   let currentQuarterIndex = 0;
-  api.registerTimeTickHook((deltaYears, deltaMonths, deltaDays) => {
-    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+  // Phase: economy. Lexical id `economy.tick` runs before `shipbuilding.tick` in the
+  // same phase so forest regrowth is ordered before logging within one tick.
+  _unregisterTickSystem = api.registerSimulationSystem({
+    id: "economy.tick",
+    phase: "economy",
+    reads: ["map.politics", "extension.economy", "simulation.burgs", "simulation.states"],
+    writes: ["extension.economy", "simulation.states"],
+    cadence: { every: 1 },
+    profileLabel: "economy",
+    run: (context, writer) => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
 
-    const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
+      const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
+      const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
 
-    const caravanTick = Caravans.tick(effectiveDays);
-    StrategicProcurement.reconcileCaravans(caravanTick.arrived, caravanTick.lost);
-    if (api.layerIsOn("toggleTrade")) {
-      TradeAnimation.start();
-    }
+      const caravanTick = Caravans.tick(effectiveDays);
+      StrategicProcurement.reconcileCaravans(caravanTick.arrived, caravanTick.lost);
+      // Trade animation redraw is owned by registerDrawLayerHook after extension.economy
+      // commits through RenderCoordinator (P2-12) — do not call draw* from the tick.
 
-    daysSinceLastQuarterlyUpdate += effectiveDays;
-    if (daysSinceLastQuarterlyUpdate >= 90) {
-      const quartersPassed = Math.floor(daysSinceLastQuarterlyUpdate / 90);
-      daysSinceLastQuarterlyUpdate %= 90;
-      for (let i = 0; i < quartersPassed; i++) {
-        currentQuarterIndex = (currentQuarterIndex + 1) % 4;
-        FoodProduction.generateQuarterlyLedger(currentQuarterIndex);
-      }
-    }
-
-    // Check which states are at war
-    const states = getWorldContext().pack.states;
-    const statesAtWar = new Set<number>();
-    if (states) {
-      for (const state of states) {
-        if (!state.removed && state.diplomacy && (state.diplomacy as unknown[]).includes("Enemy")) {
-          statesAtWar.add(state.i);
+      daysSinceLastQuarterlyUpdate += effectiveDays;
+      if (daysSinceLastQuarterlyUpdate >= 90) {
+        const quartersPassed = Math.floor(daysSinceLastQuarterlyUpdate / 90);
+        daysSinceLastQuarterlyUpdate %= 90;
+        for (let i = 0; i < quartersPassed; i++) {
+          currentQuarterIndex = (currentQuarterIndex + 1) % 4;
+          FoodProduction.generateQuarterlyLedger(currentQuarterIndex);
         }
       }
-    }
 
-    // Update war duration and intensity for burgs; roll up supplyStrain onto states for manpower draft
-    const ledgers = getWorldContext().pack.burgMarketLedgers;
-    const burgs = getWorldContext().pack.burgs;
-    const supplyByState = new Map<number, { sum: number; n: number }>();
-    if (ledgers && burgs) {
-      for (const ledger of ledgers) {
-        const burg = burgs[ledger.burgId];
-        if (!burg || burg.removed) continue;
-
-        if (burg.state && statesAtWar.has(burg.state)) {
-          ledger.warIntensity = Math.min(2.5, (ledger.warIntensity || 0) + 0.1);
-          ledger.warDurationTicks = (ledger.warDurationTicks || 0) + effectiveDays;
-        } else if (ledger.warIntensity && ledger.warIntensity > 0) {
-          ledger.warIntensity = Math.max(0, ledger.warIntensity - 0.1);
-          if (ledger.warIntensity <= 0.001) {
-            ledger.warIntensity = 0;
-            ledger.warDurationTicks = 0;
+      // Check which states are at war
+      const states = getWorldContext().pack.states;
+      const statesAtWar = new Set<number>();
+      if (states) {
+        for (const state of states) {
+          if (!state.removed && state.diplomacy && (state.diplomacy as unknown[]).includes("Enemy")) {
+            statesAtWar.add(state.i);
           }
         }
+      }
 
-        if (burg.state && ledger.warIntensity) {
-          const entry = supplyByState.get(burg.state) ?? { sum: 0, n: 0 };
-          entry.sum += ledger.warIntensity;
-          entry.n += 1;
-          supplyByState.set(burg.state, entry);
+      // Update war duration and intensity for burgs; roll up supplyStrain onto states for manpower draft
+      const ledgers = getBurgMarketLedgers();
+      const burgs = getWorldContext().pack.burgs;
+      const supplyByState = new Map<number, { sum: number; n: number }>();
+      if (ledgers.length && burgs) {
+        for (const ledger of ledgers) {
+          const burg = burgs[ledger.burgId];
+          if (!burg || burg.removed) continue;
+
+          if (burg.state && statesAtWar.has(burg.state)) {
+            ledger.warIntensity = Math.min(2.5, (ledger.warIntensity || 0) + 0.1);
+            ledger.warDurationTicks = (ledger.warDurationTicks || 0) + effectiveDays;
+          } else if (ledger.warIntensity && ledger.warIntensity > 0) {
+            ledger.warIntensity = Math.max(0, ledger.warIntensity - 0.1);
+            if (ledger.warIntensity <= 0.001) {
+              ledger.warIntensity = 0;
+              ledger.warDurationTicks = 0;
+            }
+          }
+
+          if (burg.state && ledger.warIntensity) {
+            const entry = supplyByState.get(burg.state) ?? { sum: 0, n: 0 };
+            entry.sum += ledger.warIntensity;
+            entry.n += 1;
+            supplyByState.set(burg.state, entry);
+          }
         }
       }
-    }
-    // Manpower Phase 5: 0..1 supply strain from average burg warIntensity (cap 2.5 → 1.0)
-    if (states) {
-      for (const state of states) {
-        if (!state?.i || state.removed) continue;
-        const entry = supplyByState.get(state.i);
-        state.supplyStrain = entry && entry.n > 0 ? Math.min(1, entry.sum / entry.n / 2.5) : 0;
+      // Manpower Phase 5: 0..1 supply strain from average burg warIntensity (cap 2.5 → 1.0)
+      if (states) {
+        for (const state of states) {
+          if (!state?.i || state.removed) continue;
+          const entry = supplyByState.get(state.i);
+          state.supplyStrain = entry && entry.n > 0 ? Math.min(1, entry.sum / entry.n / 2.5) : 0;
+        }
       }
+
+      daysSinceLastProduction += effectiveDays;
+
+      const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
+      const forestChanged = tickForestRegrowth(effectiveDeltaYears);
+
+      if (forestChanged) markProductionDirty();
+
+      if (daysSinceLastProduction >= 30) {
+        daysSinceLastProduction %= 30;
+        productionSettlementDue = true;
+        // Queue after all synchronous simulation systems have run, so logging events from
+        // Shipbuilding (same tick, economy phase after this system by lexical id) are included.
+        scheduleProductionSettlement();
+      }
+
+      writer.markChanged("extension.economy", "simulation.states");
     }
-
-    daysSinceLastProduction += effectiveDays;
-
-    const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
-    const forestChanged = tickForestRegrowth(effectiveDeltaYears);
-
-    if (forestChanged) markProductionDirty();
-
-    if (daysSinceLastProduction >= 30) {
-      daysSinceLastProduction %= 30;
-      productionSettlementDue = true;
-      // Queue after all synchronous tick hooks have run, so logging events from
-      // Shipbuilding are included irrespective of extension initialization order.
-      scheduleProductionSettlement();
-    }
-  }, ECONOMY_EXTENSION_ID);
+  });
 
   // Bind trade animation renderer (must happen before any toggle)
   TradeAnimation.bind({
@@ -854,7 +1256,7 @@ export function init(api: ExtensionAPI): void {
     // Both calls are idempotent/cheap, so re-running them on every load is safe.
     Taxes.defineTaxRates();
     Taxes.collectTaxes();
-    if (getWorldContext().pack.markets?.length) syncBurgMarketLedgers();
+    if (getMarkets().length) syncBurgMarketLedgers();
   });
 
   // Register layer toggle handlers
@@ -902,21 +1304,56 @@ export function init(api: ExtensionAPI): void {
 
   // Redraw economy layers whenever the host calls drawLayers()
   api.registerDrawLayerHook(() => {
+    // Trade animation restarts (route pathfinding + SVG/animation setup) on every
+    // draw-layer pass, but during a bulk Advance Month/Year run that pass fires
+    // once per rAF chunk (many simulated days), and the result is invisible
+    // until the run ends anyway. Skip it mid-run; runTimeSimulation forces one
+    // more draw-layer pass after the run stops/finishes so it resumes then
+    // (see publishBulkRunFinishedRedraw in timeEngine.ts). Explicit user
+    // toggles (registerLayerToggle above) always animate immediately.
+    const isBulkTimeAdvanceRunning = useTimeSimulationState.getState().isRunning;
+
     if (api.viewContext.renderMode === "webglHybrid") {
       api.getSvgLayer("goods")?.style("display", "none");
       api.getSvgLayer("marketsLayerFill")?.style("display", "none");
       api.getSvgLayer("marketsLayer")?.style("display", "none");
       api.requestWebglRender();
-      if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
+      if (api.layerIsOn("toggleTrade") && !isBulkTimeAdvanceRunning) TradeAnimation.start();
       return;
     }
     if (api.layerIsOn("toggleGoods")) drawGoods(getDisplayedGoodIds());
     if (api.layerIsOn("toggleMarketsLayer")) drawMarketsLayer();
-    if (api.layerIsOn("toggleTrade")) TradeAnimation.start();
+    if (api.layerIsOn("toggleTrade") && !isBulkTimeAdvanceRunning) TradeAnimation.start();
   });
 }
 
 export function cleanup(api: ExtensionAPI): void {
+  _unregisterGoodsAssignCellCommand?.();
+  _unregisterGoodsAssignCellCommand = null;
+  _unregisterGoodsUpdateCommand?.();
+  _unregisterGoodsUpdateCommand = null;
+  _unregisterGoodsAddCommand?.();
+  _unregisterGoodsAddCommand = null;
+  _unregisterGoodsRemoveCommand?.();
+  _unregisterGoodsRemoveCommand = null;
+  _unregisterMarketAssignCellsCommand?.();
+  _unregisterMarketAssignCellsCommand = null;
+  _unregisterMarketAddCommand?.();
+  _unregisterMarketAddCommand = null;
+  _unregisterMarketRemoveCommand?.();
+  _unregisterMarketRemoveCommand = null;
+  _unregisterMarketColorCommand?.();
+  _unregisterMarketColorCommand = null;
+  _unregisterProductionSettlementCommand?.();
+  _unregisterProductionSettlementCommand = null;
+  _unregisterRegenerateCommand?.();
+  _unregisterRegenerateCommand = null;
+  _unregisterGunpowderRefreshCommand?.();
+  _unregisterGunpowderRefreshCommand = null;
+  _unregisterClearCommand?.();
+  _unregisterClearCommand = null;
+  _unregisterTickSystem?.();
+  _unregisterTickSystem = null;
   if (_unsubscribe) {
     _unsubscribe();
     _unsubscribe = null;

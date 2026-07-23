@@ -258,15 +258,27 @@ export function populateSizeRects(): void {
     .attr("height", graphHeight);
 }
 
-/**
- * Re-selects all host SVG layers from the DOM after a saved map SVG is loaded,
- * then updates viewContext in-place so all existing references stay valid.
- */
-export function reinitializeMapLayers(): void {
-  const mapSvgEl = getElementById<SVGSVGElement>("map");
-  if (!mapSvgEl) throw new Error("Map SVG root #map is not found");
+export interface BindViewLayersOptions {
+  /**
+   * When true (default), create/acquire `#webglMapCanvas` next to the map root.
+   * Export rebinds an offscreen clone and must leave the live deck canvas alone.
+   */
+  updateWebglCanvas?: boolean;
+  /**
+   * When true (default), dispatch `fmg:map-layers-reinitialized` so extensions
+   * re-acquire layers. Offscreen export rebinds must not fire this.
+   */
+  dispatchReinit?: boolean;
+}
 
-  const webglCanvas = createOrAcquireWebglCanvas(mapSvgEl);
+/**
+ * Re-selects host SVG layers from the given map root and updates `viewContext`
+ * in place. Used after saved-map SVG load and for offscreen export rebinding.
+ */
+export function bindViewLayersFromSvg(mapSvgEl: SVGSVGElement, options: BindViewLayersOptions = {}): void {
+  const updateWebglCanvas = options.updateWebglCanvas !== false;
+  const dispatchReinit = options.dispatchReinit !== false;
+  const webglCanvas = updateWebglCanvas ? createOrAcquireWebglCanvas(mapSvgEl) : viewContext.webglCanvas;
   const svg = d3.select<SVGSVGElement, unknown>(mapSvgEl) as unknown as Selection<
     SVGSVGElement,
     unknown,
@@ -437,5 +449,17 @@ export function reinitializeMapLayers(): void {
     enclosure
   });
 
-  document.dispatchEvent(new CustomEvent("fmg:map-layers-reinitialized"));
+  if (dispatchReinit) {
+    document.dispatchEvent(new CustomEvent("fmg:map-layers-reinitialized"));
+  }
+}
+
+/**
+ * Re-selects all host SVG layers from the live `#map` after a saved map SVG is
+ * loaded, then updates viewContext in-place so all existing references stay valid.
+ */
+export function reinitializeMapLayers(): void {
+  const mapSvgEl = getElementById<SVGSVGElement>("map");
+  if (!mapSvgEl) throw new Error("Map SVG root #map is not found");
+  bindViewLayersFromSvg(mapSvgEl);
 }

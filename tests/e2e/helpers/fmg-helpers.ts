@@ -1,6 +1,9 @@
 import type { Page } from "@playwright/test";
 import path from "path";
 
+/** Explicit renderer mode for map-related E2E. Never rely on browser/default. */
+export type FmgRenderMode = "svg" | "webglHybrid";
+
 export interface CanvasPixelStats {
   nonTransparentPixels: number;
   coloredPixels: number;
@@ -31,10 +34,13 @@ export async function waitForMapGeneration(page: Page, timeout = 60000): Promise
 }
 
 /**
- * Wait for map generation and for the SVG viewbox to have rendered content.
- * Replaces the pattern: waitForMapGeneration() + waitForTimeout(500).
+ * Wait for map generation and for the SVG viewbox to have rendered content,
+ * then pin the renderer mode via {@link setRenderMode}.
+ *
+ * `renderMode` is required so map-related E2E never depends on the browser default
+ * or a sticky `localStorage["fmg-render-mode"]` from a previous session.
  */
-export async function waitForMapLoad(page: Page, timeout = 60000): Promise<void> {
+export async function waitForMapLoad(page: Page, renderMode: FmgRenderMode, timeout = 60000): Promise<void> {
   await waitForMapGeneration(page, timeout);
   await page.waitForFunction(
     () => {
@@ -43,14 +49,15 @@ export async function waitForMapLoad(page: Page, timeout = 60000): Promise<void>
     },
     { timeout: 10000 }
   );
+  await setRenderMode(page, renderMode);
 }
 
 /**
  * Upload a saved .map file from tests/fixtures/ into the current app session.
- * Returns after the loaded map id and SVG viewbox are available.
+ * Pins `renderMode` before and after load so hybrid/SVG tests stay deterministic.
  */
-export async function uploadMapFixture(page: Page, filename: string): Promise<void> {
-  await waitForMapLoad(page);
+export async function uploadMapFixture(page: Page, filename: string, renderMode: FmgRenderMode): Promise<void> {
+  await waitForMapLoad(page, renderMode);
   const previousMapId = await getMapId(page);
   await page.waitForSelector("#fileInputs #mapToLoad", { state: "attached" });
 
@@ -69,20 +76,21 @@ export async function uploadMapFixture(page: Page, filename: string): Promise<vo
     previousMapId,
     { timeout: 60000 }
   );
+  await setRenderMode(page, renderMode);
 }
 
 /**
  * Navigate to "/" and load a saved .map file from tests/fixtures/.
- * Returns after the loaded map id and SVG viewbox are available.
+ * Returns after the loaded map id, SVG viewbox, and pinned renderer mode are available.
  */
-export async function loadMapFile(page: Page, filename: string): Promise<void> {
+export async function loadMapFile(page: Page, filename: string, renderMode: FmgRenderMode): Promise<void> {
   await page.context().clearCookies();
   await page.goto("/");
   await page.evaluate(() => {
     localStorage.clear();
     sessionStorage.clear();
   });
-  await uploadMapFixture(page, filename);
+  await uploadMapFixture(page, filename, renderMode);
 }
 
 // ── Error collection ─────────────────────────────────────────────────────────
@@ -124,8 +132,25 @@ export async function getMapId(page: Page): Promise<number> {
   return page.evaluate(() => window.fmg.world.mapId);
 }
 
-export async function setRenderMode(page: Page, mode: "svg" | "webglHybrid"): Promise<void> {
-  await page.evaluate(renderMode => window.fmg.actions.setRenderMode(renderMode), mode);
+/**
+ * Pin the live renderer mode through the public actions API.
+ * Asserts the synchronous `viewContext.renderMode` assignment only — deck.gl
+ * may still async-init (or fall back to SVG under WebGL context pressure), so
+ * canvas readiness belongs in {@link waitForWebglCanvasPixels} / mode-specific waits.
+ * Prefer this (or {@link waitForMapLoad}) over calling `window.fmg.actions.setRenderMode` inline.
+ */
+export async function setRenderMode(page: Page, mode: FmgRenderMode): Promise<void> {
+  const applied = await page.evaluate(renderMode => {
+    // Skip no-op writes so waitForMapLoad does not re-fire fmg:render-mode-changed → drawLayers
+    // when the page already matches (common when default is already "svg").
+    if (window.fmg.view.renderMode !== renderMode) {
+      window.fmg.actions.setRenderMode(renderMode);
+    }
+    return window.fmg.view.renderMode;
+  }, mode);
+  if (applied !== mode) {
+    throw new Error(`setRenderMode(${mode}) left view.renderMode=${String(applied)}`);
+  }
 }
 
 /**
@@ -911,7 +936,7 @@ export async function forceOverlappingWebglRegiments(page: Page): Promise<Overla
     };
   });
 
-  await page.evaluate(() => window.fmg.actions.setRenderMode("webglHybrid"));
+  await setRenderMode(page, "webglHybrid");
   await page.waitForFunction(
     ({ stateId, regimentIds }) => {
       const deck = window.fmg.view.webglDeck as unknown as {
@@ -974,7 +999,7 @@ export async function forceWebglGlacierFixture(page: Page): Promise<GlacierFixtu
     };
   });
 
-  await page.evaluate(() => window.fmg.actions.setRenderMode("webglHybrid"));
+  await setRenderMode(page, "webglHybrid");
   await page.waitForFunction(
     ({ glacierId }) => {
       const deck = window.fmg.view.webglDeck as unknown as {
@@ -1028,7 +1053,7 @@ export async function forceWebglIcebergFixture(page: Page): Promise<IcebergFixtu
     };
   });
 
-  await page.evaluate(() => window.fmg.actions.setRenderMode("webglHybrid"));
+  await setRenderMode(page, "webglHybrid");
   await page.waitForFunction(
     ({ icebergId }) => {
       const deck = window.fmg.view.webglDeck as unknown as {
@@ -1174,7 +1199,7 @@ export async function forceWebglMarkerFixture(page: Page): Promise<MarkerFixture
     };
   });
 
-  await page.evaluate(() => window.fmg.actions.setRenderMode("webglHybrid"));
+  await setRenderMode(page, "webglHybrid");
   await page.waitForFunction(
     ({ markerId }) => {
       const deck = window.fmg.view.webglDeck as unknown as {

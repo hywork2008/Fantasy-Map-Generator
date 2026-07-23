@@ -1,5 +1,5 @@
 import { P } from "../../hostUtils";
-import { getWorldContext } from "../nobilityContext";
+import { getRulerId, getWorldContext } from "../nobilityContext";
 
 export function applyAffinitiesToDiplomacy() {
   const { pack } = getWorldContext();
@@ -8,8 +8,9 @@ export function applyAffinitiesToDiplomacy() {
   const states = pack.states.filter(s => s.i && !s.removed);
 
   for (const state of states) {
-    if (state.rulerId === undefined) continue;
-    const ruler = pack.characters.find(c => c.i === state.rulerId);
+    const rulerId = getRulerId(state);
+    if (rulerId === undefined) continue;
+    const ruler = pack.characters.find(c => c.i === rulerId);
     if (!ruler?.affinities) continue;
 
     for (const other of states) {

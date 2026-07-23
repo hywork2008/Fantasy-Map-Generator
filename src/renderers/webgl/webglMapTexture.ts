@@ -2,7 +2,7 @@ import { Deck, OrthographicView, type OrthographicViewState } from "@deck.gl/cor
 import type { AppServices } from "../../context/appServices";
 import type { ViewContext } from "../../context/viewContext";
 import type { WorldContext } from "../../context/worldContext";
-import { useLayerState } from "../../store/layerState";
+import { getPresentationStyle, presentationData } from "../../runtime/presentationData";
 import { buildLandMaskPolygons, type DeckPosition } from "./adapters/deckDataAdapters";
 import { buildDeckLayers } from "./buildDeckLayers";
 
@@ -321,10 +321,12 @@ async function compositeSvgTextureOverlay(
   width: number,
   height: number
 ): Promise<void> {
-  if (!useLayerState.getState().activeLayers.toggleTexture) return;
+  if (!presentationData.activeLayers.toggleTexture) return;
 
   const texture = viewContext.texture;
-  const href = texture?.attr("data-href");
+  const href = String(
+    getPresentationStyle(presentationData, "#texture", "data-href") ?? texture?.attr("data-href") ?? ""
+  );
   if (!href) return;
 
   const image = await loadImage(href);
@@ -332,11 +334,13 @@ async function compositeSvgTextureOverlay(
 
   const graphWidth = Math.max(1, worldContext.graphWidth);
   const graphHeight = Math.max(1, worldContext.graphHeight);
-  const opacity = getOpacity(texture?.attr("opacity") ?? texture?.style("opacity"));
+  const opacity = getOpacity(
+    String(getPresentationStyle(presentationData, "#texture", "opacity") ?? texture?.attr("opacity") ?? "")
+  );
   if (opacity <= 0) return;
 
-  const x = Number(texture?.attr("data-x") ?? 0);
-  const y = Number(texture?.attr("data-y") ?? 0);
+  const x = Number(getPresentationStyle(presentationData, "#texture", "data-x") ?? texture?.attr("data-x") ?? 0);
+  const y = Number(getPresentationStyle(presentationData, "#texture", "data-y") ?? texture?.attr("data-y") ?? 0);
   const destinationX = (Number.isFinite(x) ? x : 0) * (width / graphWidth);
   const destinationY = (Number.isFinite(y) ? y : 0) * (height / graphHeight);
   const destinationWidth = Math.max(1, width - destinationX);

@@ -1,5 +1,6 @@
 import type React from "react";
 import { create } from "zustand";
+import { patchPresentation } from "../runtime/worldRuntime";
 
 /**
  * Describes an SVG <g> element that an extension wants to create and manage.
@@ -277,6 +278,12 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     isSolid: true
   },
   {
+    id: "toggleSeaCurrents",
+    name: <>Sea Currents</>,
+    shortcut: null,
+    tooltip: "Sea currents: flowing highlight along sea routes showing travel direction (WebGL only). Click to toggle."
+  },
+  {
     id: "toggleStates",
     name: (
       <>
@@ -362,6 +369,13 @@ interface LayerState {
   removePresetLabel: (id: string) => void;
   setActivePreset: (preset: string) => void;
   setAllActiveLayers: (activeLayers: Record<string, boolean>) => void;
+  /** Runtime projection only: never mirror canonical PresentationData back into itself. */
+  hydrateActiveLayers: (activeLayers: Record<string, boolean>) => void;
+  /**
+   * Runtime projection only: apply a saved paint order without writing it back.
+   * Unknown ids (e.g. newly registered extension layers) keep their relative panel position at the end.
+   */
+  hydrateLayerOrder: (layerOrder: readonly string[]) => void;
 }
 
 const toSortKey = (l: LayerConfig) => l.sortKey ?? l.id.replace(/^toggle/, "");
@@ -369,6 +383,14 @@ const toSortKey = (l: LayerConfig) => l.sortKey ?? l.id.replace(/^toggle/, "");
 const sortLayers = (layers: LayerConfig[]) => {
   return [...layers].sort((a, b) => toSortKey(a).localeCompare(toSortKey(b)));
 };
+
+/**
+ * Zustand owns transient panel state, while the saved visibility values live in
+ * PresentationData. Keep the legacy store in lockstep during the migration.
+ */
+function mirrorActiveLayers(activeLayers: Record<string, boolean>): void {
+  patchPresentation({ activeLayers });
+}
 
 export const useLayerState = create<LayerState>((set, get) => ({
   layers: [],
@@ -402,6 +424,8 @@ export const useLayerState = create<LayerState>((set, get) => ({
     const [removed] = layers.splice(startIndex, 1);
     layers.splice(endIndex, 0, removed);
     set({ layers });
+    // Canonical paint order lives in PresentationData; the panel is a projection.
+    patchPresentation({ layerOrder: layers.map(layer => layer.id) });
 
     // Defer to the next tick to ensure state is updated before calling legacy d3 drawing
     setTimeout(() => {
@@ -414,6 +438,7 @@ export const useLayerState = create<LayerState>((set, get) => ({
     const currentState = activeLayers[id] ?? false;
     const nextState = forceState !== undefined ? forceState : !currentState;
     set({ activeLayers: { ...activeLayers, [id]: nextState } });
+    mirrorActiveLayers({ [id]: nextState });
   },
 
   setPresets: presets => set({ presets }),
@@ -429,5 +454,37 @@ export const useLayerState = create<LayerState>((set, get) => ({
 
   setActivePreset: activePreset => set({ activePreset }),
 
-  setAllActiveLayers: activeLayers => set({ activeLayers })
+  setAllActiveLayers: activeLayers => {
+    // `PresentationData.activeLayers` is the canonical projection source. A
+    // full replacement must explicitly turn off keys absent from the incoming
+    // record; patching only its `true` entries leaves stale WebGL layers alive.
+    const previousActiveLayers = get().activeLayers;
+    const clearedPreviousLayers = Object.fromEntries(Object.keys(previousActiveLayers).map(id => [id, false]));
+    set({ activeLayers });
+    mirrorActiveLayers({ ...clearedPreviousLayers, ...activeLayers });
+  },
+
+  hydrateActiveLayers: activeLayers => set({ activeLayers }),
+
+  hydrateLayerOrder: layerOrder => {
+    if (!layerOrder.length) return;
+    const current = get().layers;
+    if (!current.length) return;
+
+    const byId = new Map(current.map(layer => [layer.id, layer]));
+    const ordered: typeof current = [];
+    for (const id of layerOrder) {
+      const layer = byId.get(id);
+      if (!layer) continue;
+      ordered.push(layer);
+      byId.delete(id);
+    }
+    for (const layer of current) {
+      if (byId.has(layer.id)) ordered.push(layer);
+    }
+    set({ layers: ordered });
+    setTimeout(() => {
+      document.dispatchEvent(new CustomEvent("fmg:sync-layers-order", { detail: ordered }));
+    }, 0);
+  }
 }));

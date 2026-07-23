@@ -14,6 +14,7 @@ import {
 } from "../../controllers/burgs-overview";
 import { uploadFile } from "../../controllers/editors";
 import { Burgs } from "../../generators/burgs-generator";
+import { legacyMutation, patchBurg } from "../../runtime/worldRuntime";
 import { tip } from "../../services/tooltipService";
 import { useBurgsOverviewState } from "../../store/burgsOverviewState";
 import { useDialogState } from "../../store/dialogState";
@@ -131,7 +132,7 @@ export const BurgsOverviewDialog: React.FC = () => {
   function handleToggleLock(burgId: number): void {
     const burg = worldContext.pack.burgs[burgId];
     if (!burg) return;
-    burg.lock = !burg.lock;
+    patchBurg({ burgId, lock: !burg.lock });
     refresh();
   }
 
@@ -144,7 +145,10 @@ export const BurgsOverviewDialog: React.FC = () => {
       title: "Remove burg",
       confirm: "Remove",
       onConfirm: () => {
-        Burgs.remove(burgId);
+        legacyMutation(() => {
+          Burgs.remove(burgId);
+          return { result: undefined, topics: ["map.settlements", "map.annotations", "simulation.burgs"] };
+        });
         refresh();
       }
     });
@@ -158,8 +162,12 @@ export const BurgsOverviewDialog: React.FC = () => {
         title: `Remove ${count} burgs`,
         confirm: "Remove",
         onConfirm: () => {
-          for (const b of (worldContext.pack?.burgs ?? []).filter(b => b.i && !(b.capital || b.lock)))
-            Burgs.remove(b.i!);
+          legacyMutation(() => {
+            for (const b of (worldContext.pack?.burgs ?? []).filter(b => b.i && !(b.capital || b.lock))) {
+              Burgs.remove(b.i!);
+            }
+            return { result: undefined, topics: ["map.settlements", "map.annotations", "simulation.burgs"] };
+          });
           refresh();
         }
       }

@@ -6,7 +6,8 @@ import {
   interpolateRdYlGn,
   interpolateSpectral,
   interpolateYlOrRd,
-  color as parseColor
+  color as parseColor,
+  polygonHull
 } from "d3";
 import _simplify from "simplify-js";
 import type { AppServices } from "../../../context/appServices";
@@ -36,6 +37,7 @@ import { isCellInScope, isGridCellInScope } from "../../core/focusScope";
 import { getCachedBurgIconRaster } from "../burgIconRasterCache";
 import { getCachedEmblemIconUrl } from "../emblemIconCache";
 import { hasExternalIconFailed } from "../externalIconFailureCache";
+import { isFlatLandTopology, type LandGeometryProjection, materializeLandPolygon } from "../flatLandTopology";
 
 export type DeckPosition = [number, number];
 export type DeckPathDashArray = readonly [number, number];
@@ -58,6 +60,18 @@ export interface DeckPrecipitationSymbol {
   radius: number;
   fillColor: Color;
 }
+
+/**
+ * An array keeps deck.gl's normal datum lookup for picking, while `attributes` bypasses
+ * per-datum accessors when uploading dense precipitation data to the GPU.
+ */
+export type DeckBinaryPrecipitationData = DeckPrecipitationSymbol[] & {
+  attributes: {
+    getPosition: { value: Float32Array; size: 2 };
+    getRadius: { value: Float32Array; size: 1 };
+    getFillColor: { value: Uint8Array; size: 4 };
+  };
+};
 
 export interface DeckHeightStyle {
   scheme: string | null;
@@ -390,7 +404,7 @@ export function buildLandPolygonsBase(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
   fill = "#eef6fb",
-  landCells?: ReadonlyArray<DeckLandCellGeometry>
+  landCells?: LandGeometryProjection
 ): DeckCellPolygon[] {
   return buildLandPolygons(worldContext, focusScope, "land", () => colorToRgba(fill, "#eef6fb"), landCells);
 }
@@ -399,7 +413,7 @@ export function buildHeightPolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
   style: DeckHeightStyle = { scheme: "bright", opacity: 1, includeOcean: false },
-  landCells?: ReadonlyArray<DeckLandCellGeometry>
+  landCells?: LandGeometryProjection
 ): DeckCellPolygon[] {
   const { cells, vertices } = worldContext.grid;
   if (!cells?.i || !cells.v || !vertices?.p) return [];
@@ -411,15 +425,7 @@ export function buildHeightPolygons(
   // height 20 color to cover the landmass down to the detailed coastline and lake shores.
   if (!style.includeOcean && landCells) {
     const baseColor = colorToRgba(getColor(20, scheme), "#999999", style.opacity);
-    for (const { cellId, polygon } of landCells) {
-      polygons.push({
-        id: `height-base-cell-${cellId}`,
-        kind: "height",
-        cellId,
-        polygon,
-        fillColor: baseColor
-      });
-    }
+    appendLandPolygons(polygons, landCells, "height", () => baseColor, "height-base");
   }
 
   for (const gridCellId of cells.i) {
@@ -443,7 +449,7 @@ export function buildHeightPolygons(
 export function buildBiomesPolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  landCells?: ReadonlyArray<DeckLandCellGeometry>,
+  landCells?: LandGeometryProjection,
   opacity = 0.5
 ): DeckCellPolygon[] {
   const { pack, biomesData } = worldContext;
@@ -459,7 +465,7 @@ export function buildBiomesPolygons(
 export function buildCulturePolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  landCells?: ReadonlyArray<DeckLandCellGeometry>,
+  landCells?: LandGeometryProjection,
   opacity = 0.6
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
@@ -475,7 +481,7 @@ export function buildCulturePolygons(
 export function buildReligionPolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  landCells?: ReadonlyArray<DeckLandCellGeometry>,
+  landCells?: LandGeometryProjection,
   opacity = 0.7
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
@@ -491,7 +497,7 @@ export function buildReligionPolygons(
 export function buildStatePolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  landCells?: ReadonlyArray<DeckLandCellGeometry>,
+  landCells?: LandGeometryProjection,
   opacity = 0.3,
   diplomacySelectedStateId: number | null = null
 ): DeckCellPolygon[] {
@@ -517,7 +523,7 @@ export function buildStatePolygons(
 export function buildProvincePolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  landCells?: ReadonlyArray<DeckLandCellGeometry>,
+  landCells?: LandGeometryProjection,
   opacity = 0.7
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
@@ -533,7 +539,7 @@ export function buildProvincePolygons(
 export function buildZonePolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  landCells?: ReadonlyArray<DeckLandCellGeometry>,
+  landCells?: LandGeometryProjection,
   opacity = 0.7
 ): DeckCellPolygon[] {
   const { pack } = worldContext;
@@ -605,6 +611,30 @@ export function buildPrecipitationSymbols(
   }
 
   return symbols;
+}
+
+export function buildBinaryPrecipitationData(symbols: DeckPrecipitationSymbol[]): DeckBinaryPrecipitationData {
+  const positions = new Float32Array(symbols.length * 2);
+  const radii = new Float32Array(symbols.length);
+  const colors = new Uint8Array(symbols.length * 4);
+
+  for (let index = 0; index < symbols.length; index++) {
+    const symbol = symbols[index];
+    positions[index * 2] = symbol.position[0];
+    positions[index * 2 + 1] = symbol.position[1];
+    radii[index] = symbol.radius;
+    colors.set(symbol.fillColor, index * 4);
+  }
+
+  Object.defineProperty(symbols, "attributes", {
+    value: {
+      getPosition: { value: positions, size: 2 as const },
+      getRadius: { value: radii, size: 1 as const },
+      getFillColor: { value: colors, size: 4 as const }
+    },
+    enumerable: false
+  });
+  return symbols as DeckBinaryPrecipitationData;
 }
 
 export function buildDangerPolygons(
@@ -716,10 +746,98 @@ export function buildEnclosurePolygons(
   );
 }
 
+export interface DeckSeaCurrentPolygon {
+  id: string;
+  kind: "seaCurrent";
+  cellId: number;
+  polygon: DeckPosition[];
+  /** Normalized position (0 = route origin, 1 = route destination) along the sea route's cell sequence. */
+  phase: number;
+}
+
+/**
+ * Ocean cells traversed by "searoutes" routes, tagged with their normalized position along the
+ * route (origin -> destination). Geometry/phase only — deliberately excludes color, which
+ * `getSeaCurrentColor` computes fresh every animation frame in buildDeckLayers, so this cacheable
+ * data never needs busting just because time moved on.
+ *
+ * "searoutes" routes are not exclusively open ocean: generateSeaRoutes paths purely on cell
+ * height/temperature (routes-generator.ts), with no ocean/lake distinction, so two ports on the
+ * same (especially closed/outlet-less) lake can be connected by a route that never touches open
+ * water. Real lakes have no current worth animating, so lake cells are skipped here — phase is
+ * still computed against the route's full cell sequence (not the filtered one) so a lake crossing
+ * just reads as a gap in the flow rather than compressing the animation's pacing.
+ */
+export function buildSeaCurrentCellPolygons(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null
+): DeckSeaCurrentPolygon[] {
+  const { cells, vertices, features } = worldContext.pack;
+  const polygons: DeckSeaCurrentPolygon[] = [];
+
+  for (const route of worldContext.pack.routes ?? []) {
+    if (route.group !== "searoutes") continue;
+
+    // route.points is already ordered origin -> destination (Dijkstra path order); collapse
+    // consecutive duplicates to get the cell sequence the route actually crosses.
+    const cellSequence: number[] = [];
+    for (const point of route.points) {
+      const cellId = point[2];
+      if (cellSequence[cellSequence.length - 1] !== cellId) cellSequence.push(cellId);
+    }
+    if (cellSequence.length < 2) continue;
+
+    const lastIndex = cellSequence.length - 1;
+    cellSequence.forEach((cellId, index) => {
+      if (!isCellInScope(focusScope, cellId)) return;
+      if (features[cells.f[cellId]]?.type !== "ocean") return;
+      const polygon = getCellPolygon(cells, vertices, cellId);
+      if (!polygon) return;
+      polygons.push({
+        id: `sea-current-${route.i}-${index}`,
+        kind: "seaCurrent",
+        cellId,
+        polygon,
+        phase: index / lastIndex
+      });
+    });
+  }
+
+  return polygons;
+}
+
+function triangleWave(x: number): number {
+  const t = x - Math.floor(x);
+  return 1 - Math.abs(2 * t - 1);
+}
+
+const SEA_CURRENT_BASE_COLOR: Color = [40, 90, 150, 140];
+const SEA_CURRENT_HIGHLIGHT_COLOR: Color = [190, 230, 255, 235];
+const SEA_CURRENT_BANDS_PER_ROUTE = 2.5;
+const SEA_CURRENT_CYCLES_PER_SECOND = 0.35;
+
+/**
+ * Brightness pulses travel from phase 0 (origin) toward phase 1 (destination) as `timeSeconds`
+ * increases, reading as a current flowing in the route's direction of travel without any arrow,
+ * symbol, or text. Called fresh per rendered frame (see seaCurrentsAnimation.ts) — never cached.
+ */
+export function getSeaCurrentColor(phase: number, timeSeconds: number): Color {
+  const brightness = triangleWave(phase * SEA_CURRENT_BANDS_PER_ROUTE - timeSeconds * SEA_CURRENT_CYCLES_PER_SECOND);
+  const mix = brightness * brightness;
+  const [baseR, baseG, baseB, baseA = 255] = SEA_CURRENT_BASE_COLOR;
+  const [highR, highG, highB, highA = 255] = SEA_CURRENT_HIGHLIGHT_COLOR;
+  return [
+    Math.round(baseR + (highR - baseR) * mix),
+    Math.round(baseG + (highG - baseG) * mix),
+    Math.round(baseB + (highB - baseB) * mix),
+    Math.round(baseA + (highA - baseA) * mix)
+  ];
+}
+
 export function buildPopulationPolygons(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
-  landCells?: ReadonlyArray<DeckLandCellGeometry>,
+  landCells?: LandGeometryProjection,
   maxOpacity = 0.72
 ): DeckCellPolygon[] {
   const { pack, populationRate, urbanization } = worldContext;
@@ -1729,10 +1847,25 @@ export function buildLandMaskPolygons(
     id: `land-mask-${island.feature.i}`,
     polygon: [
       island.points,
-      ...lakes.filter(lake => isPointInsidePolygon(lake.points[0], island.points)).map(lake => lake.points)
+      ...lakes.filter(lake => isFullyInsidePolygon(lake.points, island.points)).map(lake => lake.points)
     ],
-    fillColor: [255, 255, 255, 255]
+    fillColor: [255, 255, 255, 255] as Color
   }));
+}
+
+/**
+ * A hole ring that only partially overlaps the outer ring (e.g. a lake dragged far enough that
+ * part of its shoreline now sits outside its island) is invalid input for deck.gl's `MaskExtension`
+ * hole-punching. `MaskExtension` renders every land-mask polygon into one shared stencil texture,
+ * so a single malformed hole/outer pairing can corrupt the mask for the *entire* map (every other
+ * island goes fully unmasked, not just the one containing the bad lake) rather than failing locally
+ * the way a lone SVG `<path>` or an ordinary (non-mask) deck.gl polygon would. Requiring every point
+ * of the hole to be inside the outer ring — not just its first point — rejects that pairing outright;
+ * the land there briefly renders solid instead of the lake being cut out, which is the safe direction
+ * to fail in.
+ */
+function isFullyInsidePolygon(points: readonly DeckPosition[], polygon: DeckPosition[]): boolean {
+  return points.length > 0 && points.every(point => isPointInsidePolygon(point, polygon));
 }
 
 function isPointInsidePolygon(point: DeckPosition | undefined, polygon: DeckPosition[]): boolean {
@@ -1883,16 +2016,12 @@ function buildLandPolygons(
   focusScope: FocusScope | null,
   kind: WebglPickKind,
   getFillColor: (cellId: number) => Color,
-  landCells?: ReadonlyArray<DeckLandCellGeometry>
+  landCells?: LandGeometryProjection
 ): DeckCellPolygon[] {
   if (landCells) {
-    return landCells.map(({ cellId, polygon }) => ({
-      id: `${kind}-cell-${cellId}`,
-      kind,
-      cellId,
-      polygon,
-      fillColor: getFillColor(cellId)
-    }));
+    const polygons: DeckCellPolygon[] = [];
+    appendLandPolygons(polygons, landCells, kind, getFillColor);
+    return polygons;
   }
 
   return buildCellPolygons(
@@ -1902,6 +2031,38 @@ function buildLandPolygons(
     getFillColor,
     cellId => worldContext.pack.cells.h[cellId] >= 20
   );
+}
+
+function appendLandPolygons(
+  target: DeckCellPolygon[],
+  landCells: LandGeometryProjection,
+  kind: WebglPickKind,
+  getFillColor: (cellId: number) => Color,
+  idPrefix: string = kind
+): void {
+  if (isFlatLandTopology(landCells)) {
+    for (let index = 0; index < landCells.cellIds.length; index++) {
+      const cellId = landCells.cellIds[index];
+      target.push({
+        id: `${idPrefix}-cell-${cellId}`,
+        kind,
+        cellId,
+        polygon: materializeLandPolygon(landCells, index),
+        fillColor: getFillColor(cellId)
+      });
+    }
+    return;
+  }
+
+  for (const { cellId, polygon } of landCells) {
+    target.push({
+      id: `${idPrefix}-cell-${cellId}`,
+      kind,
+      cellId,
+      polygon,
+      fillColor: getFillColor(cellId)
+    });
+  }
 }
 
 function buildGridCellPolygons(
@@ -2125,7 +2286,7 @@ function getFeaturePolygon(
     points.map(([x, y]) => ({ x, y })),
     0.3
   ).map(({ x, y }) => [x, y] as [number, number]);
-  const clipped = clipPoly(simplified, worldContext.graphWidth, worldContext.graphHeight, 1);
+  const clipped = toSimplePolygon(clipPoly(simplified, worldContext.graphWidth, worldContext.graphHeight, 1));
   const fractalShape = fractalizeCoastline(
     worldContext,
     {} as Readonly<ViewContext>,
@@ -2135,6 +2296,53 @@ function getFeaturePolygon(
     feature.type
   );
   return sampleCoastlineShape(fractalShape, 0.5).map(([x, y]) => [x, y] as DeckPosition);
+}
+
+/**
+ * A manually dragged feature vertex (lake/island editor) can pull a ring edge across other
+ * edges of the same ring. SVG's native path fill tolerates a self-intersecting "d" gracefully,
+ * but deck.gl's GPU polygon triangulation does not: on a self-intersecting ring it can emit
+ * huge, wrong triangles that blanket most of the map in the feature's fill color instead of
+ * just the feature's own area. Falling back to the convex hull guarantees a valid simple
+ * polygon whenever the dragged ring crosses itself, at the cost of losing concavity only for
+ * that (rare, already-degenerate) edit.
+ */
+function toSimplePolygon(points: [number, number][]): [number, number][] {
+  if (points.length < 4 || !hasSelfIntersection(points)) return points;
+  const hull = polygonHull(points);
+  return hull ?? points;
+}
+
+function hasSelfIntersection(ring: readonly [number, number][]): boolean {
+  const n = ring.length;
+  for (let i = 0; i < n; i++) {
+    const a1 = ring[i];
+    const a2 = ring[(i + 1) % n];
+    // start at i+2 to skip the adjacent edge; stop before wrapping back onto edge i itself
+    for (let j = i + 2; j < n && !(i === 0 && j === n - 1); j++) {
+      const b1 = ring[j];
+      const b2 = ring[(j + 1) % n];
+      if (segmentsProperlyIntersect(a1, a2, b1, b2)) return true;
+    }
+  }
+  return false;
+}
+
+function segmentsProperlyIntersect(
+  a1: readonly [number, number],
+  a2: readonly [number, number],
+  b1: readonly [number, number],
+  b2: readonly [number, number]
+): boolean {
+  const d1 = cross(b1, b2, a1);
+  const d2 = cross(b1, b2, a2);
+  const d3 = cross(a1, a2, b1);
+  const d4 = cross(a1, a2, b2);
+  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+}
+
+function cross(origin: readonly [number, number], a: readonly [number, number], b: readonly [number, number]): number {
+  return (a[0] - origin[0]) * (b[1] - origin[1]) - (a[1] - origin[1]) * (b[0] - origin[0]);
 }
 
 function closePath(points: DeckPosition[]): DeckPosition[] {

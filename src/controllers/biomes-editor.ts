@@ -5,6 +5,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { BiomesRenderer, ReliefIconsRenderer } from "../renderers";
+import { legacyMutation } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -129,7 +130,10 @@ export function biomesHighlightOff(biomeId: number): void {
 
 export function biomesChangeColor(biomeId: number, currentColor: string): void {
   const callback = (newFill: string) => {
-    worldContext.biomesData.color[biomeId] = newFill;
+    legacyMutation(() => {
+      worldContext.biomesData.color[biomeId] = newFill;
+      return { result: undefined, topics: ["map.physical"] };
+    });
     (view.biomes as Selection<SVGGElement, unknown, null, undefined>)
       .select(`#biome${biomeId}`)
       .attr("fill", newFill)
@@ -140,7 +144,10 @@ export function biomesChangeColor(biomeId: number, currentColor: string): void {
 }
 
 export function biomesChangeName(biomeId: number, name: string): void {
-  worldContext.biomesData.name[biomeId] = name;
+  legacyMutation(() => {
+    worldContext.biomesData.name[biomeId] = name;
+    return { result: undefined, topics: ["map.physical"] };
+  });
   useBiomesEditorStore.getState().updateRowName(biomeId, name);
 }
 
@@ -150,7 +157,10 @@ export function biomesChangeHabitability(biomeId: number, value: string): void {
     tip("Please provide a valid number in range 0-9999", false, "error");
     return;
   }
-  worldContext.biomesData.habitability[biomeId] = num;
+  legacyMutation(() => {
+    worldContext.biomesData.habitability[biomeId] = num;
+    return { result: undefined, topics: ["map.physical"] };
+  });
   recalculatePopulation();
   biomesRefresh();
 }
@@ -202,17 +212,20 @@ export function biomesAddCustomBiome(): void {
     tip("Maximum number of biomes reached (255), data cleansing is required", false, "error");
     return;
   }
-  b.i.push(i);
-  b.color.push(getRandomColor());
-  b.habitability.push(50);
-  b.name.push("Custom");
-  b.iconsDensity.push(0);
-  b.icons.push([]);
-  b.cost.push(50);
-  b.rural!.push(0);
-  b.urban!.push(0);
-  b.cells!.push(0);
-  b.area!.push(0);
+  legacyMutation(() => {
+    b.i.push(i);
+    b.color.push(getRandomColor());
+    b.habitability.push(50);
+    b.name.push("Custom");
+    b.iconsDensity.push(0);
+    b.icons.push([]);
+    b.cost.push(50);
+    b.rural!.push(0);
+    b.urban!.push(0);
+    b.cells!.push(0);
+    b.area!.push(0);
+    return { result: undefined, topics: ["map.physical"] };
+  });
 
   useBiomesEditorStore.getState().addRow({
     i,
@@ -228,7 +241,10 @@ export function biomesAddCustomBiome(): void {
 }
 
 export function biomesRemoveCustomBiome(biomeId: number): void {
-  worldContext.biomesData.name[biomeId] = "removed";
+  legacyMutation(() => {
+    worldContext.biomesData.name[biomeId] = "removed";
+    return { result: undefined, topics: ["map.physical"] };
+  });
   useBiomesEditorStore.getState().removeRow(biomeId);
 }
 
@@ -329,14 +345,17 @@ export function biomesApplyChange(): void {
   const changed = (view.biomes as Selection<SVGGElement, unknown, null, undefined>)
     .select("#temp")
     .selectAll("polygon");
-  changed.each(function () {
-    const el = this as SVGPolygonElement;
-    const i = +el.dataset.cell!;
-    const b = +el.dataset.biome!;
-    worldContext.pack.cells.biome[i] = b;
-  });
-
   if (changed.size()) {
+    legacyMutation(() => {
+      changed.each(function () {
+        const el = this as SVGPolygonElement;
+        const i = +el.dataset.cell!;
+        const b = +el.dataset.biome!;
+        const cells = worldContext.pack.cells;
+        cells.biome[i] = b;
+      });
+      return { result: undefined, topics: ["map.physical"] };
+    });
     BiomesRenderer.render(worldContext, viewContext, appServices);
     biomesRefresh();
   }
@@ -357,8 +376,11 @@ export function biomesExitCustomization(close?: string): void {
 }
 
 export function biomesRestoreDefaults(): void {
-  worldContext.biomesData = GenerationPipeline.Biomes.getDefault();
-  GenerationPipeline.Biomes.define(getWorldState());
+  legacyMutation(() => {
+    worldContext.biomesData = GenerationPipeline.Biomes.getDefault();
+    GenerationPipeline.Biomes.define(getWorldState());
+    return { result: undefined, topics: ["map.physical", "map.settlements", "simulation.burgs"] };
+  });
   BiomesRenderer.render(worldContext, viewContext, appServices);
   recalculatePopulation();
   biomesRefresh();

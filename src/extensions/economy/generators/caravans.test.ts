@@ -1,8 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext } from "../economyContext";
-import "../types";
+import { clearEconomyContext, getCaravans, getDeals, initEconomyContext } from "../economyContext";
 import { Caravans } from "./caravans";
 import type { Good } from "./goods-generator";
 import { TradeAnimation } from "./trade-animation";
@@ -60,8 +59,8 @@ describe("caravan viability", () => {
   });
 
   it("does not animate an uneconomic long-distance burg-to-market delivery", () => {
-    Caravans.spawnFromDeals(worldContext.pack.deals);
+    Caravans.spawnFromDeals(getDeals());
 
-    expect(worldContext.pack.caravans).toEqual([]);
+    expect(getCaravans()).toEqual([]);
   });
 });

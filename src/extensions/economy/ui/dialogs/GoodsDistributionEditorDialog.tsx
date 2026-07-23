@@ -28,7 +28,7 @@ import {
   FN_DEFS,
   SHORE_OPTIONS
 } from "../../controllers/goodsDistributionExpression";
-import { getWorldContext } from "../../economyContext";
+import { getGoods, getWorldContext } from "../../economyContext";
 import { useGoodsDistributionEditorState } from "../../store/goodsDistributionEditorState";
 
 function getSelectedValues(event: React.ChangeEvent<HTMLSelectElement>): string[] {
@@ -168,7 +168,7 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
     }));
   }, []);
   const iconOptions = React.useMemo(() => {
-    const goods = getWorldContext().pack.goods || [];
+    const goods = getGoods();
     return Array.from(new Set(goods.map(good => good.icon))).sort();
   }, []);
 

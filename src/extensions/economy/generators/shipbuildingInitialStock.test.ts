@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph, ShipbuildingStrategicProcurementDemand, State } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext } from "../economyContext";
+import { clearEconomyContext, getMarkets, initEconomyContext } from "../economyContext";
 import type { Good } from "./goods-generator";
 import type { Market } from "./marketTypes";
 import { seedShipbuildingInitialStock } from "./shipbuildingInitialStock";
@@ -92,7 +92,7 @@ describe("seedShipbuildingInitialStock", () => {
   it("does nothing for an empty demand list", () => {
     setupWorld();
     seedShipbuildingInitialStock([]);
-    expect(worldContext.pack.markets[0].goods).toEqual({});
+    expect(getMarkets()[0].goods).toEqual({});
   });
 
   it("gives a wealthy, well-ported state a mid-range stock, biased toward the intermediate good (Tar over Wood)", () => {
@@ -100,7 +100,7 @@ describe("seedShipbuildingInitialStock", () => {
 
     seedShipbuildingInitialStock([demandFor(1, 1)]);
 
-    const goods = worldContext.pack.markets[0].goods;
+    const goods = getMarkets()[0].goods;
     expect(goods[WOOD_GOOD_ID]).toEqual({ stock: 0.59, price: 1 });
     expect(goods[TAR_GOOD_ID]).toEqual({ stock: 1.09, price: 2 });
     // Same access score, but Tar (intermediate) reserves more days than Wood (raw material).
@@ -112,7 +112,7 @@ describe("seedShipbuildingInitialStock", () => {
 
     seedShipbuildingInitialStock([demandFor(2, 2)]);
 
-    const goods = worldContext.pack.markets[1].goods;
+    const goods = getMarkets()[1].goods;
     // accessScore is 0 here, so days = MIN_RESERVE_DAYS regardless of raw-vs-intermediate bias.
     expect(goods[WOOD_GOOD_ID]).toEqual({ stock: 0.25, price: 1 });
     expect(goods[TAR_GOOD_ID]).toEqual({ stock: 0.25, price: 2 });
@@ -123,25 +123,25 @@ describe("seedShipbuildingInitialStock", () => {
 
     seedShipbuildingInitialStock([demandFor(3, 3)]);
 
-    const goods = worldContext.pack.markets[2].goods;
+    const goods = getMarkets()[2].goods;
     expect(goods[WOOD_GOOD_ID]).toEqual({ stock: 0.7, price: 1 });
     expect(goods[TAR_GOOD_ID]).toEqual({ stock: 1.38, price: 2 });
   });
 
   it("never lowers stock that Production.produce()'s first cycle already placed above the computed target", () => {
     setupWorld();
-    worldContext.pack.markets[1].goods[WOOD_GOOD_ID] = { stock: 999, price: 50 };
+    getMarkets()[1].goods[WOOD_GOOD_ID] = { stock: 999, price: 50 };
 
     seedShipbuildingInitialStock([demandFor(2, 2)]);
 
-    expect(worldContext.pack.markets[1].goods[WOOD_GOOD_ID]).toEqual({ stock: 999, price: 50 });
+    expect(getMarkets()[1].goods[WOOD_GOOD_ID]).toEqual({ stock: 999, price: 50 });
   });
 
   it("skips a demand whose market or state no longer exists, without throwing", () => {
     setupWorld();
 
     expect(() => seedShipbuildingInitialStock([demandFor(1, 999)])).not.toThrow();
-    expect(worldContext.pack.markets[0].goods).toEqual({});
+    expect(getMarkets()[0].goods).toEqual({});
   });
 
   describe("abundant-stock console.warn", () => {
@@ -187,14 +187,14 @@ describe("seedShipbuildingInitialStock", () => {
 
     it("reports the actual final stock in the warning, even when pre-existing stock already exceeded the computed target", () => {
       setupWorld();
-      worldContext.pack.markets[0].goods[WOOD_GOOD_ID] = { stock: 5, price: 3 };
+      getMarkets()[0].goods[WOOD_GOOD_ID] = { stock: 5, price: 3 };
 
       seedShipbuildingInitialStock([demandFor(1, 1)]);
 
       expect(warnSpy).toHaveBeenCalledTimes(1);
       expect(warnSpy.mock.calls[0][0]).toContain("Wood=5");
       // Pre-existing stock/price above the computed target is left untouched by seeding.
-      expect(worldContext.pack.markets[0].goods[WOOD_GOOD_ID]).toEqual({ stock: 5, price: 3 });
+      expect(getMarkets()[0].goods[WOOD_GOOD_ID]).toEqual({ stock: 5, price: 3 });
     });
   });
 });

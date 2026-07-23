@@ -2,6 +2,7 @@ import { curveNatural, line, max, select } from "d3";
 import type { AppServices } from "../context/appServices";
 import type { FocusFields, RootLayers, SettlementLayers } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { getPresentationLabel, presentationData } from "../runtime/presentationData";
 import type { TypedArray } from "../types/PackedGraph";
 import { drawPath, drawPoint, findClosestCell, minmax, rn, round, splitInTwo } from "../utils";
 import { DEBUG, TIME } from "../utils/debug";
@@ -192,6 +193,43 @@ export const drawStateLabels = (
 
       const correctedRatio = minmax(rn((pathLength / text.length) * 50), 50, 130);
       textElement.setAttribute("font-size", `${correctedRatio}%`);
+    }
+
+    applyLabelOverrides();
+  }
+
+  // reapply manual drag/size/offset edits made via the label editor; drawStateLabels()
+  // recreates the <text>/<textPath> elements from scratch on every redraw (including a
+  // render-mode switch), so without this the edits would be lost immediately after.
+  function applyLabelOverrides(): void {
+    const textGroup = select<SVGGElement, unknown>("g#labels > g#states");
+    const pathGroup = select<SVGGElement, unknown>("defs > g#deftemp > g#textPaths");
+
+    for (const [stateId] of labelPaths) {
+      const override = getPresentationLabel(presentationData, `stateLabel${stateId}`);
+      if (!override) continue;
+
+      const textNode = textGroup.select<SVGTextElement>(`#stateLabel${stateId}`).node();
+      const textPathNode = textNode?.querySelector<SVGTextPathElement>("textPath");
+      if (!textNode || !textPathNode) continue;
+
+      if (override.dx !== undefined || override.dy !== undefined) {
+        const dx = Number(override.dx ?? 0);
+        const dy = Number(override.dy ?? 0);
+        textNode.setAttribute("transform", `translate(${dx},${dy})`);
+      }
+      if (override.startOffset !== undefined) textPathNode.setAttribute("startOffset", `${override.startOffset}%`);
+      if (override.size !== undefined) textPathNode.setAttribute("font-size", `${override.size}%`);
+      if (override.letterSpacing !== undefined)
+        textPathNode.setAttribute("letter-spacing", `${override.letterSpacing}px`);
+
+      // manually bent curve (start/interim/end control points dragged in the label editor):
+      // swap in the persisted "d" on the underlying <path> the <textPath> follows. The browser
+      // re-flows the glyphs along it automatically, same as the live control-point drag does.
+      if (typeof override.pathD === "string") {
+        const curvePath = pathGroup.select<SVGPathElement>(`#textPath_stateLabel${stateId}`).node();
+        curvePath?.setAttribute("d", override.pathD);
+      }
     }
   }
 

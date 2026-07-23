@@ -1,8 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext } from "../economyContext";
-import "../types";
+import { clearEconomyContext, getGoods, getMarkets, initEconomyContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import { getMarketTradeOpportunitiesState } from "../store/marketTradeOpportunitiesState";
 import { downloadCsv, refresh, setSelectedGoodId } from "./marketTradeOpportunities";
@@ -121,14 +120,14 @@ describe("market trade opportunities", () => {
   });
 
   it("skips low-value trade opportunities that exceed their value-density day limit", () => {
-    worldContext.pack.goods[0] = {
-      ...worldContext.pack.goods[0],
+    getGoods()[0] = {
+      ...getGoods()[0],
       name: "Wood",
       value: 1,
       tags: ["construction"]
     };
     Goods.sync();
-    worldContext.pack.markets[2].goods[1].price = 80;
+    getMarkets()[2].goods[1].price = 80;
 
     setSelectedGoodId(1);
     refresh();
@@ -138,9 +137,9 @@ describe("market trade opportunities", () => {
   });
 
   it("fabricates nearby opportunities when current prices have no natural spread", () => {
-    worldContext.pack.markets[0].goods[1] = { stock: 20, price: 10 };
-    worldContext.pack.markets[1].goods[1] = { stock: 5, price: 10 };
-    worldContext.pack.markets[2].goods[1] = { stock: 5, price: 10 };
+    getMarkets()[0].goods[1] = { stock: 20, price: 10 };
+    getMarkets()[1].goods[1] = { stock: 5, price: 10 };
+    getMarkets()[2].goods[1] = { stock: 5, price: 10 };
 
     setSelectedGoodId(1);
     refresh();
@@ -153,9 +152,9 @@ describe("market trade opportunities", () => {
   });
 
   it("fabricates a one-way nearby opportunity even when stock and prices match", () => {
-    worldContext.pack.markets[0].goods[1] = { stock: 10, price: 10 };
-    worldContext.pack.markets[1].goods[1] = { stock: 10, price: 10 };
-    worldContext.pack.markets[2].goods[1] = { stock: 10, price: 10 };
+    getMarkets()[0].goods[1] = { stock: 10, price: 10 };
+    getMarkets()[1].goods[1] = { stock: 10, price: 10 };
+    getMarkets()[2].goods[1] = { stock: 10, price: 10 };
 
     setSelectedGoodId(1);
     refresh();
@@ -173,7 +172,7 @@ describe("market trade opportunities", () => {
   });
 
   it("skips market pairs that are not connected by routes when a trade route graph exists", () => {
-    worldContext.pack.markets[2].goods[1].price = 30;
+    getMarkets()[2].goods[1].price = 30;
     worldContext.pack.routes = [
       {
         i: 1,

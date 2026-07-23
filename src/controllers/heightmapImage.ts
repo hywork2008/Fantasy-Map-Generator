@@ -2,6 +2,7 @@ import * as d3 from "d3";
 import RgbQuant from "rgbquant";
 import { resetZoom } from "../actions";
 import { worldContext } from "../context/worldContext";
+import { getHeightmapEditingHeights, replaceHeightmapEditingHeights } from "../runtime/heightmapEditSession";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { setHeightmapEditorState, useHeightmapEditorState } from "../store/heightmapEditorState";
@@ -30,7 +31,7 @@ export function openImageConverter(callbacks: HeightmapImageCallbacks): void {
 
   setOverlayOpacity(0);
 
-  worldContext.grid.cells.h = new Uint8Array(worldContext.grid.cells.i.length);
+  replaceHeightmapEditingHeights(new Uint8Array(worldContext.grid.cells.i.length));
   view.viewbox.select("#heights").selectAll("*").remove();
   localCallbacks.updateHeightmap();
 }
@@ -240,7 +241,7 @@ export function applyConversion(): void {
     .each(function () {
       const h = +(this as SVGElement).dataset.height! || 0;
       const i = +(this as SVGElement).id.slice(4);
-      worldContext.grid.cells.h[i] = h;
+      getHeightmapEditingHeights(worldContext.grid)[i] = h;
     });
 
   view.viewbox.select("#heights").selectAll("polygon").remove();

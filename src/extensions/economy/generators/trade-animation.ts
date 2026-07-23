@@ -34,6 +34,15 @@ export class TradeAnimationModule {
   private clearFn: ClearFn | null = null;
   private isLayerOnFn: (() => boolean) | null = null;
 
+  // findRoutePath() runs a full Dijkstra search over the cell graph (state arrays sized
+  // 2x cell count) — expensive on real maps, and callers (Shipbuilding's daily procurement
+  // demand, Caravans, market trade-opportunity scans) repeatedly ask for the same
+  // (startCell, endCell) pairs every simulated day. The route network only changes on map
+  // (re)generation or a caravan-speed setting change, so cache results between those points
+  // instead of re-running the search for every call. See clearRouteCache().
+  private routePathCache = new Map<string, RoutePath | null>();
+  private routeLookupCache: { isWaterRoute: Map<number, boolean>; routeById: Map<number, RouteGeometry> } | null = null;
+
   bind(deps: { draw: DrawFn; clear: ClearFn; isLayerOn: () => boolean }): void {
     this.drawFn = deps.draw;
     this.clearFn = deps.clear;
@@ -82,27 +91,48 @@ export class TradeAnimationModule {
   findRoutePath(startCell: number, endCell: number): RoutePath | null {
     if (startCell === endCell) return null;
 
+    const cacheKey = `${startCell}:${endCell}`;
+    const cached = this.routePathCache.get(cacheKey);
+    if (cached !== undefined) return cached;
+
     // A sea-only connection is intentionally chosen even when a mixed route is shorter. Ports
     // should use their established sea lane instead of needlessly unloading cargo inland.
-    return (
+    const result =
       this.findRoutePathWithAllowedEdges(startCell, endCell, true) ??
-      this.findRoutePathWithAllowedEdges(startCell, endCell, false)
-    );
+      this.findRoutePathWithAllowedEdges(startCell, endCell, false);
+    this.routePathCache.set(cacheKey, result);
+    return result;
+  }
+
+  /**
+   * Clears cached pathfinding results. Call whenever the route network or the caravan
+   * land/sea speed ratio changes — either can change which path is shortest.
+   */
+  clearRouteCache(): void {
+    this.routePathCache.clear();
+    this.routeLookupCache = null;
+  }
+
+  private getRouteLookup(): { isWaterRoute: Map<number, boolean>; routeById: Map<number, RouteGeometry> } {
+    if (this.routeLookupCache) return this.routeLookupCache;
+    const isWaterRoute = new Map<number, boolean>();
+    const routeById = new Map<number, RouteGeometry>();
+    for (const route of getWorldContext().pack.routes) {
+      isWaterRoute.set(route.i, route.group === "searoutes");
+      routeById.set(route.i, route);
+    }
+    this.routeLookupCache = { isWaterRoute, routeById };
+    return this.routeLookupCache;
   }
 
   private findRoutePathWithAllowedEdges(startCell: number, endCell: number, waterOnly: boolean): RoutePath | null {
     const world = getWorldContext();
-    const { cells, routes } = world.pack;
+    const { cells } = world.pack;
     const cellRoutes = cells.routes;
     const startNeighbors = cellRoutes[startCell];
     if (!startNeighbors) return null;
 
-    const isWaterRoute = new Map<number, boolean>();
-    const routeById = new Map<number, RouteGeometry>();
-    for (const route of routes) {
-      isWaterRoute.set(route.i, route.group === "searoutes");
-      routeById.set(route.i, route);
-    }
+    const { isWaterRoute, routeById } = this.getRouteLookup();
 
     // State encoding: stateId = cell * 2 + (isWater ? 1 : 0)
     const maxState = cells.h.length * 2;
@@ -209,9 +239,7 @@ export class TradeAnimationModule {
 
     if (cells.length < 2) return { points: [], segments: [] };
 
-    // Build a fast routeId→route lookup to avoid repeated linear scans.
-    const routeById = new Map<number, RouteGeometry>();
-    for (const route of getWorldContext().pack.routes) routeById.set(route.i, route);
+    const { routeById } = this.getRouteLookup();
 
     const segments: { type: RouteSegmentType; points: Point[] }[] = [];
     let currentType: RouteSegmentType = waterEdges[0] ? "water" : "land";

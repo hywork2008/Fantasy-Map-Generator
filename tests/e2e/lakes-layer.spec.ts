@@ -12,7 +12,7 @@ test.describe("Lakes layer", () => {
     });
 
     await page.goto("/?seed=test-seed&width=1280&height=720");
-    await waitForMapLoad(page);
+    await waitForMapLoad(page, "svg");
   });
 
   test("lakes toggle button hides and shows the #lakes SVG group", async ({

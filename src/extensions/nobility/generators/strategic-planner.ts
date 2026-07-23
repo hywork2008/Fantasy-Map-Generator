@@ -10,7 +10,7 @@ import {
   useOptionsState
 } from "../../hostCore";
 import { mayAdvanceAutonomousConflict, mayAdvanceConflict } from "../conflictDirector";
-import { getWorldContext } from "../nobilityContext";
+import { getRulerId, getWorldContext } from "../nobilityContext";
 import { BattleResolutionGenerator } from "./battle-resolution";
 import {
   calculateEffectiveSiegePower,
@@ -38,7 +38,8 @@ export class StrategicPlannerGenerator {
     // sea-route-based, see docs/plan/naval-sea-lanes.md) merged into one map so the rest of
     // this method doesn't need to know which kind of border produced a given segment except
     // where target-selection/power math genuinely differs (segment.origin === "sea" below).
-    const year = options.year || simulationContext.currentYear;
+    // Live calendar year only (P2-10); options.year is generation starting year.
+    const year = simulationContext.currentYear;
     const seaRouteGraph = buildSeaRouteGraph(pack);
     const frontiers = mergeFrontiers(analyzeFrontiers(pack, year), analyzeSeaFrontiers(pack, seaRouteGraph, year));
 
@@ -51,7 +52,7 @@ export class StrategicPlannerGenerator {
       }
 
       // Attacker ruler personality
-      const ruler = characters.find(c => c.i === attacker.rulerId);
+      const ruler = characters.find(c => c.i === getRulerId(attacker));
       const boldness = ruler?.personality.boldness ?? 50;
       const caution = 100 - boldness;
 
@@ -243,7 +244,7 @@ export class StrategicPlannerGenerator {
       if (!state) continue;
 
       // Attacker ruler personality
-      const ruler = characters.find(c => c.i === state.rulerId);
+      const ruler = characters.find(c => c.i === getRulerId(state));
       const boldness = ruler?.personality.boldness ?? 50;
 
       // Filter out goals that are no longer valid (e.g., target already captured)

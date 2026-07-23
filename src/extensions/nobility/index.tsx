@@ -4,7 +4,7 @@ import type { ExtensionAPI } from "../../types/extension-api";
 import { advanceCharacterAging } from "../characters/advanceAge";
 import { refreshCharactersOverviewIfOpen } from "../characters/controllers/characters-overview";
 import { CHARACTERS_EXTENSION_ID } from "../characters/index";
-import { advanceAllRegimentMovement, BordersRenderer, Military, MilitaryRenderer, StatesRenderer } from "../hostCore";
+import { advanceAllRegimentMovement, Military } from "../hostCore";
 import { tip } from "../hostServices";
 import {
   applyConflictAutonomy,
@@ -35,9 +35,47 @@ let _voyageIntelHandler: ((e: Event) => void) | null = null;
 let _conflictAutonomyChangedHandler: ((e: Event) => void) | null = null;
 let _playerConflictRequestedHandler: ((e: Event) => void) | null = null;
 let _playerConflictEndedHandler: ((e: Event) => void) | null = null;
+let _unregisterRegenerateCommand: (() => void) | null = null;
+let _unregisterTickSystem: (() => void) | null = null;
+
+type NobilityRegenerationMode = "bootstrap" | "full";
+
+function isNobilityRegenerationRequest(value: unknown): value is { readonly mode: NobilityRegenerationMode } {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    ((value as { mode?: unknown }).mode === "bootstrap" || (value as { mode?: unknown }).mode === "full")
+  );
+}
+
+function regenerateNobilityData(mode: NobilityRegenerationMode): void {
+  Characters.generate();
+  applyAffinitiesToDiplomacy();
+  applyPersonalityToCapitalGuard();
+  if (mode === "full") {
+    assignOfficers();
+    assignProvinceLords();
+  }
+  Espionage.generate();
+  if (mayAdvanceAutonomousConflict()) StrategicPlanner.generate();
+}
 
 export function init(api: ExtensionAPI): void {
   initNobilityContext(api);
+
+  _unregisterRegenerateCommand = api.registerExtensionCommand({
+    extensionId: NOBILITY_EXTENSION_ID,
+    name: "regenerate",
+    topics: ["extension.characters", "extension.nobility", "map.politics", "simulation.military"],
+    execute: value => {
+      if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) {
+        throw new Error("Nobility must be enabled to regenerate government data");
+      }
+      if (!isNobilityRegenerationRequest(value)) throw new Error("nobility.regenerate requires a regeneration mode");
+      regenerateNobilityData(value.mode);
+      return { changed: true };
+    }
+  });
 
   api.registerExtension(
     {
@@ -67,13 +105,11 @@ export function init(api: ExtensionAPI): void {
     label: "Characters",
     tooltip: "Click to regenerate rulers and government offices",
     onClick: () => {
-      Characters.generate();
-      applyAffinitiesToDiplomacy();
-      applyPersonalityToCapitalGuard();
-      assignOfficers();
-      assignProvinceLords();
-      Espionage.generate();
-      if (mayAdvanceAutonomousConflict()) StrategicPlanner.generate();
+      api.dispatchExtensionCommand({
+        extensionId: NOBILITY_EXTENSION_ID,
+        name: "regenerate",
+        payload: { mode: "full" }
+      });
     }
   });
 
@@ -84,14 +120,14 @@ export function init(api: ExtensionAPI): void {
 
     if (isEnabled && !wasEnabled) {
       if (!worldContext.pack.characters || worldContext.pack.characters.length === 0) {
-        Characters.generate();
-        applyAffinitiesToDiplomacy();
-        applyPersonalityToCapitalGuard();
-        Espionage.generate();
-        if (mayAdvanceAutonomousConflict()) StrategicPlanner.generate();
+        api.dispatchExtensionCommand({
+          extensionId: NOBILITY_EXTENSION_ID,
+          name: "regenerate",
+          payload: { mode: "bootstrap" }
+        });
       }
     } else if (!isEnabled && wasEnabled) {
-      Characters.clear();
+      api.dispatchExtensionCommand({ extensionId: CHARACTERS_EXTENSION_ID, name: "clear", payload: undefined });
     }
   });
 
@@ -100,13 +136,11 @@ export function init(api: ExtensionAPI): void {
       // A new map reuses state ids from 0 — any voyage-intel bonus accrued against the
       // previous map's states must not carry over.
       clearVoyageIntel();
-      Characters.generate();
-      applyAffinitiesToDiplomacy();
-      applyPersonalityToCapitalGuard();
-      assignOfficers();
-      assignProvinceLords();
-      Espionage.generate();
-      if (mayAdvanceAutonomousConflict()) StrategicPlanner.generate();
+      api.dispatchExtensionCommand({
+        extensionId: NOBILITY_EXTENSION_ID,
+        name: "regenerate",
+        payload: { mode: "full" }
+      });
     }
   };
   document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
@@ -176,63 +210,75 @@ export function init(api: ExtensionAPI): void {
   };
   document.addEventListener("fmg:player-conflict-ended", _playerConflictEndedHandler);
 
-  api.registerTimeTickHook((deltaYears, deltaMonths, deltaDays) => {
-    if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return;
+  // Military phase runs after economy systems (logging / voyage intel events) so
+  // same-tick voyage intel feeds Espionage.generate on this step.
+  _unregisterTickSystem = api.registerSimulationSystem({
+    id: "nobility.tick",
+    phase: "military",
+    reads: [
+      "map.politics",
+      "map.settlements",
+      "simulation.military",
+      "simulation.states",
+      "extension.characters",
+      "extension.nobility",
+      "extension.shipbuilding"
+    ],
+    writes: ["extension.characters", "extension.nobility", "map.politics", "map.settlements", "simulation.military"],
+    cadence: { every: 1 },
+    profileLabel: "nobility",
+    run: (context, writer) => {
+      if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return;
 
-    const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
+      const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
+      const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
 
-    advanceCharacterAging(effectiveDeltaYears);
-    Characters.processResignationsAndSuccessions(effectiveDeltaYears);
-    assignOfficers();
-    assignProvinceLords();
+      advanceCharacterAging(effectiveDeltaYears);
+      Characters.processResignationsAndSuccessions(effectiveDeltaYears);
+      assignOfficers();
+      assignProvinceLords();
 
-    const canAdvanceConflict = mayAdvanceAnyConflict();
-    if (api.simulationContext.currentDay === 1) {
-      if (canAdvanceConflict) StrategicPlanner.evaluatePlans();
-      Mobilization.conscript(api.worldContext.pack);
+      const canAdvanceConflict = mayAdvanceAnyConflict();
+      if (api.simulationContext.currentDay === 1) {
+        if (canAdvanceConflict) StrategicPlanner.evaluatePlans();
+        Mobilization.conscript(api.worldContext.pack);
+      }
+
+      Espionage.generate();
+      if (canAdvanceConflict) StrategicPlanner.generate();
+      const siegeOccurred = canAdvanceConflict ? StrategicPlanner.advanceTension() : false;
+      const skirmishOccurred = canAdvanceConflict
+        ? LocalSkirmish.resolve(effectiveDeltaYears, deltaMonths, deltaDays)
+        : false;
+      const bordersChanged = siegeOccurred || skirmishOccurred;
+
+      Military.updateDynamic(api.worldContext, effectiveDeltaYears);
+
+      // Regiment marching (docs/plan/military-movement.md Phase 2) runs every tick regardless of
+      // bordersChanged — armies keep advancing toward their destination continuously rather than
+      // teleporting instantly when borders change.
+      let marchCaptureOccurred = false;
+      const regimentsMoved = advanceAllRegimentMovement(
+        api.worldContext.pack,
+        api.worldContext,
+        effectiveDeltaYears,
+        (r, cell) => {
+          if (!canAdvanceConflict) return;
+          if (tryRecaptureHomeBurg(r, cell) || tryCaptureOnPassing(r, cell)) marchCaptureOccurred = true;
+        },
+        canAdvanceConflict ? StrategicPlanner.getActiveSiegeTargets() : undefined
+      );
+
+      const settlementsChanged = bordersChanged || marchCaptureOccurred;
+      const militaryChanged = settlementsChanged || regimentsMoved;
+
+      refreshCharactersOverviewIfOpen(api.isDialogOpen("charactersOverview"));
+
+      writer.markChanged("extension.characters", "extension.nobility");
+      if (settlementsChanged) writer.markChanged("map.politics", "map.settlements");
+      if (militaryChanged) writer.markChanged("simulation.military");
     }
-
-    Espionage.generate();
-    if (canAdvanceConflict) StrategicPlanner.generate();
-    const siegeOccurred = canAdvanceConflict ? StrategicPlanner.advanceTension() : false;
-    const skirmishOccurred = canAdvanceConflict
-      ? LocalSkirmish.resolve(effectiveDeltaYears, deltaMonths, deltaDays)
-      : false;
-    const bordersChanged = siegeOccurred || skirmishOccurred;
-
-    if (bordersChanged) {
-      if (api.layerIsOn("toggleStates")) StatesRenderer.render(api.worldContext, api.viewContext, api.appServices);
-      if (api.layerIsOn("toggleBorders")) BordersRenderer.render(api.worldContext, api.viewContext, api.appServices);
-    }
-
-    Military.updateDynamic(api.worldContext, effectiveDeltaYears);
-
-    // Regiment marching (docs/plan/military-movement.md Phase 2) runs every tick regardless of
-    // bordersChanged — armies keep advancing toward their destination continuously rather than
-    // teleporting instantly when borders change.
-    let marchCaptureOccurred = false;
-    const regimentsMoved = advanceAllRegimentMovement(
-      api.worldContext.pack,
-      api.worldContext,
-      effectiveDeltaYears,
-      (r, cell) => {
-        if (!canAdvanceConflict) return;
-        if (tryRecaptureHomeBurg(r, cell) || tryCaptureOnPassing(r, cell)) marchCaptureOccurred = true;
-      },
-      canAdvanceConflict ? StrategicPlanner.getActiveSiegeTargets() : undefined
-    );
-
-    if (marchCaptureOccurred) {
-      if (api.layerIsOn("toggleStates")) StatesRenderer.render(api.worldContext, api.viewContext, api.appServices);
-      if (api.layerIsOn("toggleBorders")) BordersRenderer.render(api.worldContext, api.viewContext, api.appServices);
-    }
-
-    if ((bordersChanged || marchCaptureOccurred || regimentsMoved) && api.layerIsOn("toggleMilitary")) {
-      MilitaryRenderer.render(api.worldContext, api.viewContext, api.appServices);
-    }
-
-    refreshCharactersOverviewIfOpen(api.isDialogOpen("charactersOverview"));
-  }, NOBILITY_EXTENSION_ID);
+  });
 }
 
 export function cleanup(api: ExtensionAPI): void {
@@ -261,6 +307,10 @@ export function cleanup(api: ExtensionAPI): void {
     _playerConflictEndedHandler = null;
   }
   clearVoyageIntel();
+  _unregisterRegenerateCommand?.();
+  _unregisterRegenerateCommand = null;
+  _unregisterTickSystem?.();
+  _unregisterTickSystem = null;
 
   api.unregisterExtension(NOBILITY_EXTENSION_ID);
   clearNobilityContext();

@@ -2,7 +2,13 @@ import type { Character, CharacterRole, CharacterSkills } from "../../characters
 import { createPerson } from "../../characters/personFactory";
 import type { Burg } from "../../hostTypes";
 import { rand, rn } from "../../hostUtils";
-import { getWorldContext } from "../economyContext";
+import {
+  getBurgMarketLedgers,
+  getMarkets,
+  getMerchantOrganizations,
+  getWorldContext,
+  setMerchantOrganizations
+} from "../economyContext";
 import { rollBalancedEconomyGender } from "./economyCharacterGender";
 import type { Market } from "./marketTypes";
 
@@ -74,8 +80,8 @@ interface MerchantOrganizationLedger {
 }
 
 export function syncMerchantOrganizations(
-  ledgers: MerchantOrganizationLedger[] = getWorldContext().pack.burgMarketLedgers ?? [],
-  markets: Market[] = getWorldContext().pack.markets ?? []
+  ledgers: MerchantOrganizationLedger[] = getBurgMarketLedgers(),
+  markets: Market[] = getMarkets()
 ): void {
   const { pack } = getWorldContext();
   const profiles: MarketOrganizationProfile[] = [];
@@ -116,12 +122,11 @@ export function syncMerchantOrganizations(
 
   assignParentOrganizations(organizations);
   syncMerchantOrganizationCharacters(organizations);
-  pack.merchantOrganizations = organizations;
+  setMerchantOrganizations(organizations);
 }
 
 export function clearMerchantOrganizations(): void {
-  const { pack } = getWorldContext();
-  pack.merchantOrganizations = [];
+  setMerchantOrganizations([]);
   clearMerchantOrganizationRoles();
 }
 
@@ -130,8 +135,7 @@ export function clearMerchantOrganizations(): void {
  * remaining kilometre ranges describe each organization's home-ground reach only.
  */
 export function isMarketTradePermitted(source: Market, target: Market, durationDays: number): boolean {
-  const world = getWorldContext();
-  const organizations = world.pack.merchantOrganizations ?? [];
+  const organizations = getMerchantOrganizations();
   if (!organizations.length) return true;
 
   return organizations.some(organization => canOrganizationServeTrade(organization, source, target, durationDays));

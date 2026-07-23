@@ -4,7 +4,19 @@ import {
   type ShipbuildingStrategicProcurementDemand
 } from "../../hostTypes";
 import { rn } from "../../hostUtils";
-import { getWorldContext } from "../economyContext";
+import {
+  getDeals,
+  getGoods,
+  getMarketById,
+  getMarkets,
+  getNextStrategicProcurementOrderId,
+  getStrategicGoodsPolicies,
+  getStrategicProcurementOrders,
+  getWorldContext,
+  setNextStrategicProcurementOrderId,
+  setStrategicGoodsPolicies,
+  setStrategicProcurementOrders
+} from "../economyContext";
 import { Caravans } from "./caravans";
 import type { Good } from "./goods-generator";
 import type { Caravan, Deal, Market, TradeRouteSegment } from "./marketTypes";
@@ -66,13 +78,14 @@ export class StrategicProcurementModule {
   }
 
   getOrders(): readonly ProcurementOrder[] {
-    return this.worldContext.pack.strategicProcurementOrders ?? [];
+    return getStrategicProcurementOrders();
   }
 
   getShipbuildingProcurementStatus(stateId: number, destinationMarketId: number): ShipbuildingProcurementStatus[] {
     const { pack } = this.worldContext;
+    const goods = getGoods();
     return SHIPBUILDING_MATERIAL_IDS.map(material => {
-      const good = pack.goods.find(candidate => candidate.name === material);
+      const good = goods.find(candidate => candidate.name === material);
       const matchingOrders = good
         ? this.getOrders().filter(
             order =>
@@ -85,10 +98,7 @@ export class StrategicProcurementModule {
         .toSorted((a, b) => b.id - a.id)[0];
       const sourceStateId =
         inTransitOrders.length > 0 && inTransitOrders[0].sourceMarketId !== undefined
-          ? getMarketStateId(
-              pack.markets.find(market => market.i === inTransitOrders[0].sourceMarketId) ?? { centerBurgId: -1 },
-              pack.burgs
-            )
+          ? getMarketStateId(getMarketById(inTransitOrders[0].sourceMarketId) ?? { centerBurgId: -1 }, pack.burgs)
           : null;
 
       return {
@@ -104,20 +114,21 @@ export class StrategicProcurementModule {
   }
 
   clear(): void {
-    this.worldContext.pack.strategicProcurementOrders = [];
-    this.worldContext.pack.strategicGoodsPolicies = [];
-    this.worldContext.pack.nextStrategicProcurementOrderId = 0;
+    setStrategicProcurementOrders([]);
+    setStrategicGoodsPolicies([]);
+    setNextStrategicProcurementOrderId(0);
   }
 
   handleShipbuildingDemand(demand: ShipbuildingStrategicProcurementDemand): void {
     const { pack } = this.worldContext;
+    const goods = getGoods();
     const state = pack.states[demand.stateId];
-    const destination = pack.markets.find(market => market.i === demand.destinationMarketId);
+    const destination = getMarketById(demand.destinationMarketId);
     if (!state || state.removed || !destination) return;
 
     const materialGoodIds = Object.entries(demand.annualMaterials)
       .map(([name, annualDemand]) => {
-        const good = pack.goods.find(candidate => candidate.name === name);
+        const good = goods.find(candidate => candidate.name === name);
         return good && annualDemand > 0 ? good.i : undefined;
       })
       .filter((goodId): goodId is number => goodId !== undefined);
@@ -125,7 +136,7 @@ export class StrategicProcurementModule {
 
     for (const [name, annualDemand] of Object.entries(demand.annualMaterials)) {
       if (!(annualDemand > 0)) continue;
-      const good = pack.goods.find(candidate => candidate.name === name);
+      const good = goods.find(candidate => candidate.name === name);
       if (!good || !policy.goodIds.includes(good.i)) continue;
       this.refreshOpenOrderPriority(demand.stateId, demand.destinationMarketId, good.i);
       this.procureToReserve({ stateId: demand.stateId, destination, good, annualDemand, policy });
@@ -223,7 +234,7 @@ export class StrategicProcurementModule {
         break;
       }
 
-      const source = this.worldContext.pack.markets.find(market => market.i === candidate.sourceMarketId);
+      const source = getMarketById(candidate.sourceMarketId);
       const sourceGood = source?.goods[good.i];
       if (!source || !sourceGood || sourceGood.stock + EPSILON < units) {
         order.status = "blocked";
@@ -242,7 +253,7 @@ export class StrategicProcurementModule {
       });
       const caravan = Caravans.spawnStrategicProcurement(deal, candidate.route.segments);
       if (!caravan) {
-        this.worldContext.pack.deals.pop();
+        getDeals().pop();
         order.status = "blocked";
         order.blockedReason = "noRoute";
         continue;
@@ -275,7 +286,7 @@ export class StrategicProcurementModule {
     const mapDiagonal = Math.hypot(this.worldContext.graphWidth, this.worldContext.graphHeight) || 1;
     const candidates: CandidateWithRoute[] = [];
 
-    for (const source of pack.markets) {
+    for (const source of getMarkets()) {
       if (source.i === destination.i) continue;
       const sourceGood = source.goods[good.i];
       if (!sourceGood) continue;
@@ -330,8 +341,7 @@ export class StrategicProcurementModule {
   }
 
   private getOrCreatePolicy(stateId: number, goodIds: number[]): StrategicGoodsPolicy {
-    if (!this.worldContext.pack.strategicGoodsPolicies) this.worldContext.pack.strategicGoodsPolicies = [];
-    const policies = this.worldContext.pack.strategicGoodsPolicies;
+    const policies = getStrategicGoodsPolicies();
     const existing = policies.find(policy => policy.stateId === stateId);
     if (existing) {
       existing.goodIds = Array.from(new Set([...existing.goodIds, ...goodIds]));
@@ -344,10 +354,9 @@ export class StrategicProcurementModule {
   }
 
   private createOrder(order: Omit<ProcurementOrder, "id" | "fulfilledUnits" | "status">): ProcurementOrder {
-    if (!this.worldContext.pack.strategicProcurementOrders) this.worldContext.pack.strategicProcurementOrders = [];
-    const orders = this.worldContext.pack.strategicProcurementOrders;
-    const nextId = this.worldContext.pack.nextStrategicProcurementOrderId ?? 0;
-    this.worldContext.pack.nextStrategicProcurementOrderId = nextId + 1;
+    const orders = getStrategicProcurementOrders();
+    const nextId = getNextStrategicProcurementOrderId();
+    setNextStrategicProcurementOrderId(nextId + 1);
     const created: ProcurementOrder = { id: nextId, fulfilledUnits: 0, status: "open", priorityCycles: 1, ...order };
     orders.push(created);
     return created;
@@ -425,8 +434,9 @@ export class StrategicProcurementModule {
   }): Deal {
     const sourceBurg = this.worldContext.pack.burgs[source.centerBurgId];
     const salesTax = sourceBurg?.state ? (this.worldContext.pack.states[sourceBurg.state]?.salesTax ?? 0) : 0;
+    const deals = getDeals();
     const deal: Deal = {
-      i: this.worldContext.pack.deals.length,
+      i: deals.length,
       seller: source.i,
       sellerType: "market",
       buyer: destination.i,
@@ -439,7 +449,7 @@ export class StrategicProcurementModule {
       payerStateId: order.stateId,
       strategicProcurementOrderId: order.id
     };
-    this.worldContext.pack.deals.push(deal);
+    deals.push(deal);
     return deal;
   }
 

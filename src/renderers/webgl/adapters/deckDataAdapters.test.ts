@@ -3,7 +3,15 @@ import type { ViewContext } from "../../../context/viewContext";
 import type { WorldContext } from "../../../context/worldContext";
 import { Rivers } from "../../../generators/river-generator";
 import { useLayerState } from "../../../store/layerState";
-import { buildDeckLayers, clearDeckLayerDataCache, getDeckLayerDataCacheSize } from "../buildDeckLayers";
+import {
+  buildDeckLayers,
+  clearDeckLayerDataCache,
+  getDeckLayerDataCacheSize,
+  getLandTopologySignature,
+  primeLandTopologyCache
+} from "../buildDeckLayers";
+import { buildFlatLandTopology, materializeLandPolygon } from "../flatLandTopology";
+import { InProcessLandTopologyProjectionJobAdapter } from "../landTopologyProjectionWorkerAdapter";
 import * as deckDataAdapters from "./deckDataAdapters";
 import {
   buildBiomesPolygons,
@@ -898,7 +906,13 @@ describe("deck.gl data adapters", () => {
     const layers = buildDeckLayers(worldContext, viewContext, appServices).filter(Boolean);
     const precipitation = layers.find(layer => layer.id === "fmg-webgl-precipitation");
     const data = precipitation?.props.data as
-      | Array<{ position: [number, number]; radius: number; fillColor: number[] }>
+      | (Array<{ position: [number, number]; radius: number; fillColor: number[] }> & {
+          attributes: {
+            getPosition: { value: Float32Array; size: number };
+            getRadius: { value: Float32Array; size: number };
+            getFillColor: { value: Uint8Array; size: number };
+          };
+        })
       | undefined;
 
     expect(precipitation).toBeDefined();
@@ -906,6 +920,39 @@ describe("deck.gl data adapters", () => {
     expect(data).toEqual([
       expect.objectContaining({ position: [5, 5], radius: 1 }),
       expect.objectContaining({ position: [8, 5], radius: 5 })
+    ]);
+    expect(data?.attributes.getPosition).toEqual({ value: new Float32Array([5, 5, 8, 5]), size: 2 });
+    expect(data?.attributes.getRadius).toEqual({ value: new Float32Array([1, 5]), size: 1 });
+    expect(data?.attributes.getFillColor.value).toHaveLength(8);
+  });
+
+  it("stores shared land topology as CSR offsets and materializes its polygons on demand", () => {
+    const topology = buildFlatLandTopology([
+      {
+        cellId: 7,
+        polygon: [
+          [0, 0],
+          [4, 0],
+          [0, 4]
+        ]
+      },
+      {
+        cellId: 9,
+        polygon: [
+          [4, 0],
+          [4, 4],
+          [0, 4]
+        ]
+      }
+    ]);
+
+    expect(topology.cellIds).toEqual(new Uint32Array([7, 9]));
+    expect(topology.polygonOffsets).toEqual(new Uint32Array([0, 6, 12]));
+    expect(topology.coordinates).toEqual(new Float32Array([0, 0, 4, 0, 0, 4, 4, 0, 4, 4, 0, 4]));
+    expect(materializeLandPolygon(topology, 1)).toEqual([
+      [4, 0],
+      [4, 4],
+      [0, 4]
     ]);
   });
 
@@ -1270,6 +1317,48 @@ describe("deck.gl data adapters", () => {
     geometrySpy.mockRestore();
   });
 
+  it("preserves layer order and pick identities when worker-compatible topology primes the cache", async () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.cells.h[1] = 30;
+    const viewContext = { focusScope: null } as ViewContext;
+    const revisionProjection = { revision: 8, topicRevisions: { "map.topology": 3, "map.physical": 5 } };
+    useLayerState.getState().setAllActiveLayers({ toggleBiomes: true });
+
+    const synchronousLayers = buildDeckLayers(worldContext, viewContext, appServices, { revisionProjection }).filter(
+      Boolean
+    );
+    const synchronousLand = synchronousLayers.find(layer => layer.id === "fmg-webgl-land")?.props.data as Array<{
+      id: string;
+      kind: string;
+      cellId: number;
+    }>;
+    const synchronousBiomes = synchronousLayers.find(layer => layer.id === "fmg-webgl-biomes")?.props.data;
+
+    clearDeckLayerDataCache();
+    const signature = getLandTopologySignature(worldContext, viewContext, revisionProjection);
+    const workerCompatible = new InProcessLandTopologyProjectionJobAdapter();
+    const result = await workerCompatible.project({
+      revision: revisionProjection.revision,
+      geometry: deckDataAdapters.buildLandCellGeometry(worldContext, viewContext.focusScope)
+    });
+    primeLandTopologyCache(signature, result.topology);
+    const workerPrimedLayers = buildDeckLayers(worldContext, viewContext, appServices, { revisionProjection }).filter(
+      Boolean
+    );
+    const workerPrimedLand = workerPrimedLayers.find(layer => layer.id === "fmg-webgl-land")?.props.data as Array<{
+      id: string;
+      kind: string;
+      cellId: number;
+    }>;
+    const workerPrimedBiomes = workerPrimedLayers.find(layer => layer.id === "fmg-webgl-biomes")?.props.data;
+
+    expect(workerPrimedLayers.map(layer => layer.id)).toEqual(synchronousLayers.map(layer => layer.id));
+    expect(workerPrimedLand.map(({ id, kind, cellId }) => ({ id, kind, cellId }))).toEqual(
+      synchronousLand.map(({ id, kind, cellId }) => ({ id, kind, cellId }))
+    );
+    expect(workerPrimedBiomes).toEqual(synchronousBiomes);
+  });
+
   it("keeps deck.gl layer ids and cached data references stable when an unrelated layer is toggled", () => {
     const worldContext = createWorldContext();
     const viewContext = { focusScope: null } as ViewContext;
@@ -1301,5 +1390,32 @@ describe("deck.gl data adapters", () => {
 
     expect(secondBiomeData).not.toBe(firstBiomeData);
     expect(secondBiomeData?.[0].fillColor).toEqual([51, 102, 153, 128]);
+  });
+
+  it("uses the map.politics topic revision instead of rehashing state cells", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.cells.h[1] = 30;
+    worldContext.pack.states = [
+      { i: 0, name: "Neutral", expansionism: 0, capital: 0, type: "", center: 0, culture: 0, coa: null },
+      { i: 1, name: "North", expansionism: 0, capital: 0, type: "", center: 0, culture: 0, coa: null, color: "#ff0000" }
+    ] as WorldContext["pack"]["states"];
+    const viewContext = { focusScope: null } as ViewContext;
+    useLayerState.getState().setAllActiveLayers({ toggleStates: true });
+    const firstProjection = { revision: 1, topicRevisions: { "map.topology": 1, "map.politics": 1 } };
+
+    const first = buildDeckLayers(worldContext, viewContext, appServices, { revisionProjection: firstProjection });
+    const firstData = first.find(layer => layer.id === "fmg-webgl-states")?.props.data;
+    worldContext.pack.cells.state[0] = 1;
+    const unchangedRevision = buildDeckLayers(worldContext, viewContext, appServices, {
+      revisionProjection: firstProjection
+    });
+    const unchangedData = unchangedRevision.find(layer => layer.id === "fmg-webgl-states")?.props.data;
+    const changedRevision = buildDeckLayers(worldContext, viewContext, appServices, {
+      revisionProjection: { revision: 2, topicRevisions: { "map.topology": 1, "map.politics": 2 } }
+    });
+    const changedData = changedRevision.find(layer => layer.id === "fmg-webgl-states")?.props.data;
+
+    expect(unchangedData).toBe(firstData);
+    expect(changedData).not.toBe(firstData);
   });
 });

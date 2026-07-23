@@ -3,8 +3,8 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-
 import { getPin } from "../renderers/index";
+import { moveMarker } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -17,7 +17,6 @@ import { closeDialog, closeDialogs } from "../ui/dialogs/dialogService";
 import { findCell, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
-import { drawLayers } from "./layers";
 import { editNotes } from "./notes-editor";
 
 let worldContext: WorldContext;
@@ -106,9 +105,9 @@ function dragMarkerEnd(this: Element, event: D3DragEvent<Element, unknown, unkno
   this.setAttribute("y", String(rn(_mdy + y, 2)));
   const size = marker.size || 30;
   const zoomSize = Math.max(rn(size / 5 + 24 / view.scale, 2), 1);
-  marker.x = rn(x + _mdx + zoomSize / 2, 1);
-  marker.y = rn(y + _mdy + zoomSize, 1);
-  marker.cell = findCell(marker.x, marker.y);
+  const markerX = rn(x + _mdx + zoomSize / 2, 1);
+  const markerY = rn(y + _mdy + zoomSize, 1);
+  moveMarker({ markerId: marker.i!, x: markerX, y: markerY, cellId: findCell(markerX, markerY) });
 }
 
 /** Whether `markerI` is the currently open/selected marker, i.e. eligible for a WebGL pick-driven drag. */
@@ -141,12 +140,7 @@ export function updateWebglMarkerDrag(markerI: number, coordinate: [number, numb
 
   const x = rn(coordinate[0] + _webglDragOffsetX, 2);
   const y = rn(coordinate[1] + _webglDragOffsetY, 2);
-  marker.x = x;
-  marker.y = y;
-  if (commit) marker.cell = findCell(x, y);
-  // WebGL markers are deck.gl data, not SVG attributes, so unlike the SVG drag above there is no
-  // single-node update to make — the marker layer's data must be rebuilt for the move to render.
-  drawLayers();
+  moveMarker({ markerId: markerI, x, y, cellId: commit ? findCell(x, y) : undefined });
 }
 
 function changeMarkerType(newType: string): void {

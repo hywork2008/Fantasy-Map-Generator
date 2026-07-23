@@ -2,7 +2,7 @@ import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 
 import { removeRoute } from "../renderers/draw-routes";
-import { GenerationPipeline } from "../services/generationPipeline";
+import { removeRouteCommand } from "../runtime/worldRuntime";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { modules } from "../store/editorState";
@@ -83,12 +83,13 @@ export function routeGroupsRemoveGroup(group: string): void {
       "Are you sure you want to remove the entire route group? All routes in this group will be removed.<br>This action can't be reverted",
     confirm: "Remove",
     onConfirm: () => {
-      worldContext.pack.routes
-        .filter(r => r.group === group)
-        .forEach(route => {
-          GenerationPipeline.Routes.remove(route);
-          removeRoute(viewContext, route.i);
-        });
+      // Route deletion must cross the WorldRuntime seam so the SVG cleanup
+      // and WebGL/network invalidation observe the same committed mutation.
+      // Snapshot the ids first because each command removes from the array.
+      const routeIds = worldContext.pack.routes.filter(route => route.group === group).map(route => route.i);
+      for (const routeId of routeIds) {
+        if (removeRouteCommand({ routeId })) removeRoute(viewContext, routeId);
+      }
       if (!DEFAULT_ROUTE_GROUPS.includes(group)) view.routes.select(`#${group}`).remove();
       refreshRouteGroups();
     }

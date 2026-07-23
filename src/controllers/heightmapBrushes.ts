@@ -1,5 +1,10 @@
 import * as d3 from "d3";
 import { worldContext } from "../context/worldContext";
+import {
+  getHeightmapEditingGrid,
+  getHeightmapEditingHeights,
+  replaceHeightmapEditingHeights
+} from "../runtime/heightmapEditSession";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -81,12 +86,12 @@ function placeLinearFeature(this: SVGElement, event: MouseEvent): void {
     return;
   }
 
-  const heights = worldContext.grid.cells.h as Uint8Array;
+  const heights = getHeightmapEditingHeights(worldContext.grid);
   const operation =
     power > 0
       ? GenerationPipeline.HeightmapGenerator.addRange.bind(GenerationPipeline.HeightmapGenerator)
       : GenerationPipeline.HeightmapGenerator.addTrough.bind(GenerationPipeline.HeightmapGenerator);
-  GenerationPipeline.HeightmapGenerator.setGraph(worldContext.grid);
+  GenerationPipeline.HeightmapGenerator.setGraph(getHeightmapEditingGrid(worldContext.grid));
   operation("1", String(Math.abs(power)), "", "", fromCell, toCell);
   const changedHeights = GenerationPipeline.HeightmapGenerator.getHeights() as Uint8Array;
 
@@ -106,7 +111,7 @@ function placeLinearFeature(this: SVGElement, event: MouseEvent): void {
 function applyFillBrush(this: SVGElement, event: MouseEvent): void {
   const [x, y] = d3.pointer(event, this);
   const start = findGridCell(x, y, worldContext.grid);
-  const startHeight = worldContext.grid.cells.h[start];
+  const startHeight = getHeightmapEditingHeights(worldContext.grid)[start];
   const isWaterFill = startHeight < 20;
   const MIN_FILL_CELLS = 3;
   const filter = useHeightmapEditorState.getState().cellTypeFilter;
@@ -141,7 +146,8 @@ function collectFillSelection(
   isWaterFill: boolean,
   targetHeight: number
 ): { selection: number[]; reachedBorder: boolean } {
-  const { h: heights, c: neighbors, i: cells } = worldContext.grid.cells;
+  const { c: neighbors, i: cells } = worldContext.grid.cells;
+  const heights = getHeightmapEditingHeights(worldContext.grid);
   const visited = new Uint8Array(cells.length);
   const stack = [start];
   const selection: number[] = [];
@@ -167,7 +173,8 @@ function matchesFillTarget(height: number, isWaterFill: boolean, targetHeight: n
 
 function applyConeToSelection(selection: number[], isWaterFill: boolean, targetHeight: number): number[] {
   const power = useHeightmapEditorState.getState().brushPower * 10;
-  const { h: heights, c: neighbors, i: cells } = worldContext.grid.cells;
+  const { c: neighbors, i: cells } = worldContext.grid.cells;
+  const heights = getHeightmapEditingHeights(worldContext.grid);
   const inSelection = new Uint8Array(cells.length);
   const edgeDistance = new Uint16Array(cells.length);
   const changed: number[] = [];
@@ -225,8 +232,9 @@ function dragBrushDrag(this: SVGElement, event: d3.D3DragEvent<SVGElement, unkno
   if (~~event.sourceEvent.timeStamp % 5 !== 0) return;
   const inRadius = findGridAll(p[0], p[1], r, worldContext.grid);
   let sel = inRadius;
-  if (state.cellTypeFilter === "land") sel = inRadius.filter(i => worldContext.grid.cells.h[i] >= 20);
-  else if (state.cellTypeFilter === "water") sel = inRadius.filter(i => worldContext.grid.cells.h[i] < 20);
+  const heights = getHeightmapEditingHeights(worldContext.grid);
+  if (state.cellTypeFilter === "land") sel = inRadius.filter(i => heights[i] >= 20);
+  else if (state.cellTypeFilter === "water") sel = inRadius.filter(i => heights[i] < 20);
   if (sel?.length) changeHeightForSelection(sel, _hbStart);
 }
 
@@ -237,7 +245,7 @@ function changeHeightForSelection(selection: number[], start: number): void {
   const land = state.cellTypeFilter === "land";
   const ocean = state.cellTypeFilter === "water";
   const lim = (v: number) => minmax(v, land ? 20 : 0, ocean ? 19 : 100);
-  const heights = worldContext.grid.cells.h as Uint8Array;
+  const heights = getHeightmapEditingHeights(worldContext.grid);
   const brush = state.brushMode;
 
   if (brush === "brushRaise")
@@ -287,12 +295,14 @@ export function rescale(v: number): void {
   const land = state.cellTypeFilter === "land";
   const ocean = state.cellTypeFilter === "water";
   const lim = (val: number) => minmax(val, 0, 100);
-  worldContext.grid.cells.h = (worldContext.grid.cells.h as Uint8Array).map(h => {
-    if (land && (h < 20 || h + v < 20)) return h;
-    if (ocean && h >= 20) return h;
-    const newH = lim(h + v);
-    return ocean ? Math.min(newH, 19) : newH;
-  });
+  replaceHeightmapEditingHeights(
+    getHeightmapEditingHeights(worldContext.grid).map(h => {
+      if (land && (h < 20 || h + v < 20)) return h;
+      if (ocean && h >= 20) return h;
+      const newH = lim(h + v);
+      return ocean ? Math.min(newH, 19) : newH;
+    })
+  );
   localCallbacks.updateHeightmap();
   setHeightmapEditorState({ rescaleValue: 0 });
 }
@@ -311,27 +321,27 @@ export function rescaleWithCondition(): void {
     return;
   }
 
-  GenerationPipeline.HeightmapGenerator.setGraph(worldContext.grid);
+  GenerationPipeline.HeightmapGenerator.setGraph(getHeightmapEditingGrid(worldContext.grid));
   if (operator === "multiply") GenerationPipeline.HeightmapGenerator.modify(range_, 0, operand, 0);
   else if (operator === "divide") GenerationPipeline.HeightmapGenerator.modify(range_, 0, 1 / operand, 0);
   else if (operator === "add") GenerationPipeline.HeightmapGenerator.modify(range_, operand, 1, 0);
   else if (operator === "subtract") GenerationPipeline.HeightmapGenerator.modify(range_, -1 * operand, 1, 0);
   else if (operator === "exponent") GenerationPipeline.HeightmapGenerator.modify(range_, 0, 1, operand);
 
-  worldContext.grid.cells.h = GenerationPipeline.HeightmapGenerator.getHeights()!;
+  replaceHeightmapEditingHeights(GenerationPipeline.HeightmapGenerator.getHeights()!);
   localCallbacks.updateHeightmap();
 }
 
 export function smoothAllHeights(): void {
-  GenerationPipeline.HeightmapGenerator.setGraph(worldContext.grid);
+  GenerationPipeline.HeightmapGenerator.setGraph(getHeightmapEditingGrid(worldContext.grid));
   GenerationPipeline.HeightmapGenerator.smooth(4, 1.5);
-  worldContext.grid.cells.h = GenerationPipeline.HeightmapGenerator.getHeights()!;
+  replaceHeightmapEditingHeights(GenerationPipeline.HeightmapGenerator.getHeights()!);
   localCallbacks.updateHeightmap();
 }
 
 export function disruptAllHeights(): void {
-  worldContext.grid.cells.h = (worldContext.grid.cells.h as Uint8Array).map(h =>
-    h < 15 ? h : minmax(h + 2.5 - Math.random() * 4, 0, 100)
+  replaceHeightmapEditingHeights(
+    getHeightmapEditingHeights(worldContext.grid).map(h => (h < 15 ? h : minmax(h + 2.5 - Math.random() * 4, 0, 100)))
   );
   localCallbacks.updateHeightmap();
 }
@@ -346,12 +356,12 @@ export function startFromScratch(): void {
     tip("Not allowed when 'only water cells' filter is set", false, "error");
     return;
   }
-  const someHeights = (worldContext.grid.cells.h as Uint8Array).some(h => h);
+  const someHeights = getHeightmapEditingHeights(worldContext.grid).some(h => h);
   if (!someHeights) {
     tip("Heightmap is already cleared, please do not click twice if not required", false, "error");
     return;
   }
-  worldContext.grid.cells.h = new Uint8Array(worldContext.grid.cells.i.length);
+  replaceHeightmapEditingHeights(new Uint8Array(worldContext.grid.cells.i.length));
   view.viewbox.select("#heights").selectAll("*").remove();
   localCallbacks.updateHeightmap();
 }

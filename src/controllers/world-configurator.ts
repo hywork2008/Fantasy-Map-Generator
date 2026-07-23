@@ -17,6 +17,7 @@ import {
   RiversRenderer
 } from "../renderers";
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
+import { legacyMutation } from "../runtime/worldRuntime";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { layerIsOn } from "../utils/nodeUtils";
@@ -30,14 +31,18 @@ export function editWorld(): void {
 
 export function updateWorld(): void {
   document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true, prec: true } }));
-  const state = getWorldState();
-  const heights = new Uint8Array(worldContext.pack.cells.h);
-  Rivers.generate(worldContext, viewContext, appServices, state);
-  Rivers.specify(worldContext, viewContext, appServices, state);
-  worldContext.pack.cells.h = new Float32Array(heights);
-  Biomes.define(state);
-  Features.defineGroups();
-  Lakes.defineNames(state);
+  legacyMutation(() => {
+    const state = getWorldState();
+    const pack = worldContext.pack;
+    const heights = new Uint8Array(pack.cells.h);
+    Rivers.generate(worldContext, viewContext, appServices, state);
+    Rivers.specify(worldContext, viewContext, appServices, state);
+    pack.cells.h = new Float32Array(heights);
+    Biomes.define(state);
+    Features.defineGroups();
+    Lakes.defineNames(state);
+    return { result: undefined, topics: ["map.physical", "map.networks"] };
+  });
 
   if (layerIsOn("toggleTemperature")) drawTemperature(worldContext, viewContext, appServices);
   if (layerIsOn("togglePrecipitation")) PrecipitationRenderer.render(worldContext, viewContext, appServices);

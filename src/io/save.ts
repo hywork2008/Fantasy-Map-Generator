@@ -1,7 +1,8 @@
 import { worldContext } from "../context/worldContext";
 import { Names } from "../generators/names-generator";
 import { appendOceanPathsToSaveSVG } from "../renderers/ocean-layers";
-import { withSvgSnapshot } from "../services/svgSnapshot";
+import { ChunkedWorldCodecAdapter } from "../runtime/worldArchive";
+import { worldRuntime } from "../runtime/worldRuntime";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers } from "../store/editorState";
@@ -18,7 +19,53 @@ import { ldb } from "./ldb";
 // ─── Map serialization ────────────────────────────────────────────────────────
 
 export async function prepareMapData(): Promise<string> {
-  return withSvgSnapshot(prepareMapDataFromSvg);
+  // Legacy `.map` export remains available for compatibility. Full-fidelity
+  // saves use prepareWorldArchive below and never switch the render mode.
+  return prepareMapDataFromSvg();
+}
+
+const worldArchiveCodec = new ChunkedWorldCodecAdapter(VERSION);
+
+/**
+ * Economy's `goods`/`markets`/`deals`/... no longer augment PackedGraph's type (see
+ * src/extensions/economy/types.ts) — they live in simulation.extensions.economy and are
+ * only mirrored onto `pack` at runtime via extensionStateSlices.ts's compatibility
+ * projection. The legacy `.map` positional slot format (deferred to a later phase, see
+ * docs/plan/unite-data-and-map.md §11 Phase 6) still reads/writes them straight off `pack`,
+ * so read them structurally here instead of importing Economy.
+ */
+function getLegacyEconomyPackFields(pack: unknown): {
+  goods: unknown[];
+  markets: unknown[];
+  deals: unknown[];
+  strategicProcurementOrders: unknown[];
+  strategicGoodsPolicies: unknown[];
+  nextStrategicProcurementOrderId: number;
+  strategicLaborMarkets: unknown[];
+  cellsGood: Uint16Array;
+  cellsMarket: Uint16Array;
+} {
+  const record = pack as Record<string, unknown>;
+  const cells = record.cells as Record<string, unknown> | undefined;
+  const array = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+  const uint16 = (value: unknown): Uint16Array => (value instanceof Uint16Array ? value : new Uint16Array(0));
+  return {
+    goods: array(record.goods),
+    markets: array(record.markets),
+    deals: array(record.deals),
+    strategicProcurementOrders: array(record.strategicProcurementOrders),
+    strategicGoodsPolicies: array(record.strategicGoodsPolicies),
+    nextStrategicProcurementOrderId:
+      typeof record.nextStrategicProcurementOrderId === "number" ? record.nextStrategicProcurementOrderId : 0,
+    strategicLaborMarkets: array(record.strategicLaborMarkets),
+    cellsGood: uint16(cells?.good),
+    cellsMarket: uint16(cells?.market)
+  };
+}
+
+/** Captures the DOM-free canonical snapshot used by `.fmg` saves and autosaves. */
+export async function prepareWorldArchive(): Promise<Blob> {
+  return worldArchiveCodec.encode(await worldRuntime.captureArchiveDocument());
 }
 
 function prepareMapDataFromSvg(): string {
@@ -140,17 +187,18 @@ function prepareMapDataFromSvg(): string {
   const routes = JSON.stringify(worldContext.pack.routes);
   const zones = JSON.stringify(worldContext.pack.zones);
   const ice = JSON.stringify(worldContext.pack.ice);
-  const goods = JSON.stringify(worldContext.pack.goods ?? []);
-  const markets = JSON.stringify(worldContext.pack.markets ?? []);
-  const deals = JSON.stringify(worldContext.pack.deals ?? []);
+  const legacyEconomy = getLegacyEconomyPackFields(worldContext.pack);
+  const goods = JSON.stringify(legacyEconomy.goods);
+  const markets = JSON.stringify(legacyEconomy.markets);
+  const deals = JSON.stringify(legacyEconomy.deals);
   const characters = JSON.stringify(worldContext.pack.characters ?? []);
   // Extension-owned strategic economy state is kept in one trailing slot so older
   // map files remain readable without changing the host's established indices.
   const strategicEconomy = JSON.stringify({
-    strategicProcurementOrders: worldContext.pack.strategicProcurementOrders ?? [],
-    strategicGoodsPolicies: worldContext.pack.strategicGoodsPolicies ?? [],
-    nextStrategicProcurementOrderId: worldContext.pack.nextStrategicProcurementOrderId ?? 0,
-    strategicLaborMarkets: worldContext.pack.strategicLaborMarkets ?? []
+    strategicProcurementOrders: legacyEconomy.strategicProcurementOrders,
+    strategicGoodsPolicies: legacyEconomy.strategicGoodsPolicies,
+    nextStrategicProcurementOrderId: legacyEconomy.nextStrategicProcurementOrderId,
+    strategicLaborMarkets: legacyEconomy.strategicLaborMarkets
   });
 
   // store name array only if not the same as default
@@ -211,11 +259,11 @@ function prepareMapDataFromSvg(): string {
     routes,
     zones,
     ice,
-    worldContext.pack.cells.good ?? new Uint16Array(0), // [40] cells.good
+    legacyEconomy.cellsGood, // [40] cells.good
     goods, // [41] goods
     markets, // [42] markets
     deals, // [43] deals
-    worldContext.pack.cells.market ?? new Uint16Array(0), // [44] cells.market
+    legacyEconomy.cellsMarket, // [44] cells.market
     characters, // [45] characters
     capacity, // [46] cells.capacity
     demoChildren, // [47] cells.children
@@ -231,15 +279,13 @@ function prepareMapDataFromSvg(): string {
 
 // ─── Save targets ─────────────────────────────────────────────────────────────
 
-export async function saveToStorage(mapData: string, showTip = false): Promise<void> {
-  const blob = new Blob([mapData], { type: "text/plain" });
-  await ldb.set("lastMap", blob);
+export async function saveToStorage(archive: Blob, showTip = false): Promise<void> {
+  await ldb.set("lastMap", archive);
   if (showTip) tip("Map is saved to the browser storage", false, "success");
 }
 
-export function saveToMachine(mapData: string, filename: string): void {
-  const blob = new Blob([mapData], { type: "text/plain" });
-  const URL = createObjectURL(blob);
+export function saveToMachine(archive: Blob, filename: string): void {
+  const URL = createObjectURL(archive);
   const a = document.createElement("a");
   a.download = filename;
   a.href = URL;
@@ -248,8 +294,8 @@ export function saveToMachine(mapData: string, filename: string): void {
   revokeObjectURL(URL, 5000);
 }
 
-async function saveToDropbox(mapData: string, filename: string): Promise<void> {
-  await Cloud.providers.dropbox.save(filename, mapData);
+async function saveToDropbox(archive: Blob, filename: string): Promise<void> {
+  await Cloud.providers.dropbox.save(filename, archive);
   tip("Map is saved to your Dropbox", true, "success", 8000);
 }
 
@@ -261,12 +307,12 @@ export async function saveMap(method: string): Promise<void> {
   closeDialogs("#alert");
 
   try {
-    const mapData = await prepareMapData();
-    const filename = `${getFileName()}.map`;
+    const archive = await prepareWorldArchive();
+    const filename = `${getFileName()}.fmg`;
 
-    if (method === "storage") await saveToStorage(mapData, true);
-    if (method === "machine") saveToMachine(mapData, filename);
-    if (method === "dropbox") await saveToDropbox(mapData, filename);
+    if (method === "storage") await saveToStorage(archive, true);
+    if (method === "machine") saveToMachine(archive, filename);
+    if (method === "dropbox") await saveToDropbox(archive, filename);
   } catch (error) {
     ERROR && console.error(error);
     openConfirm(
@@ -300,8 +346,8 @@ export async function initiateAutosave(): Promise<void> {
 
     try {
       tip("Autosave: saving map...", false, "warning" as never, 3000);
-      const mapData = await prepareMapData();
-      await saveToStorage(mapData);
+      const archive = await prepareWorldArchive();
+      await saveToStorage(archive);
       tip("Autosave: map is saved", false, "success", 2000);
       lastSavedAt = Date.now();
     } catch (error) {

@@ -1,7 +1,7 @@
 import type { Character, CharacterRole } from "../../characters/characterTypes";
 import { createPerson } from "../../characters/personFactory";
 import type { Burg } from "../../hostTypes";
-import { getWorldContext } from "../economyContext";
+import { getMarkets, getWorldContext } from "../economyContext";
 import { rollBalancedEconomyGender } from "./economyCharacterGender";
 import type { Market } from "./marketTypes";
 
@@ -116,7 +116,7 @@ function createMarketRival(market: Market): Character {
   return character;
 }
 
-export function syncMarketManagers(markets: Market[] = getWorldContext().pack.markets ?? []): void {
+export function syncMarketManagers(markets: Market[] = getMarkets()): void {
   const { pack } = getWorldContext();
   pack.characters ??= [];
 
@@ -138,7 +138,7 @@ export function syncMarketManagers(markets: Market[] = getWorldContext().pack.ma
  * Maintains the two-person competitor pool shared by every burg in a market.
  * Ledgers only reference these characters; they never create burg-local merchants.
  */
-export function syncMarketRivals(markets: Market[] = getWorldContext().pack.markets ?? []): void {
+export function syncMarketRivals(markets: Market[] = getMarkets()): void {
   const { pack } = getWorldContext();
   pack.characters ??= [];
 
@@ -170,7 +170,7 @@ export function getMarketManagerName(market: Market): string {
 export function clearMarketManagers(): void {
   const { pack } = getWorldContext();
 
-  for (const market of pack.markets ?? []) {
+  for (const market of getMarkets()) {
     if (!market) continue;
     delete market.managerCharacterId;
     delete market.rivalCharacterIds;

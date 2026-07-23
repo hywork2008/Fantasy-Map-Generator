@@ -10,7 +10,7 @@ test.describe.configure({ timeout: 90000 });
 
 test.describe("Click-to-edit after map load", () => {
   test("viewbox click listener survives map reload", async ({ page }) => {
-    await loadMapFile(page, "demo.map");
+    await loadMapFile(page, "demo.map", "svg");
 
     const result = await page.evaluate(() => {
       try {
@@ -30,7 +30,7 @@ test.describe("Click-to-edit after map load", () => {
   test("demo.map: burg label text elements are present after load", async ({
     page,
   }) => {
-    await loadMapFile(page, "demo.map");
+    await loadMapFile(page, "demo.map", "svg");
     await zoomIn(page);
 
     // Enable layers via public actions API (setup per AGENTS.md §5)
@@ -53,7 +53,7 @@ test.describe("Click-to-edit after map load", () => {
   test("demo.map: clicking burg label opens burg editor dialog", async ({
     page,
   }) => {
-    await loadMapFile(page, "demo.map");
+    await loadMapFile(page, "demo.map", "svg");
     await zoomIn(page);
 
     await page.evaluate(() => {
@@ -83,7 +83,7 @@ test.describe("Click-to-edit after map load", () => {
   test("demo.map: clicking burg icon opens burg editor dialog", async ({
     page,
   }) => {
-    await loadMapFile(page, "demo.map");
+    await loadMapFile(page, "demo.map", "svg");
     await zoomIn(page);
 
     await page.evaluate(() => {
@@ -116,7 +116,7 @@ test.describe("Click-to-edit after map load", () => {
   test("demo.map: clicking a river opens river editor dialog", async ({
     page,
   }) => {
-    await loadMapFile(page, "demo.map");
+    await loadMapFile(page, "demo.map", "svg");
 
     const riverCount = await page.locator("#rivers path").count();
     if (riverCount === 0) return;

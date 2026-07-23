@@ -7,6 +7,7 @@ import { regeneratePopulationAndBurgs } from "../../controllers/population-edito
 import { computeProvinceRows, sortProvinceRows } from "../../controllers/provinces-editor";
 import { computeStateRows } from "../../controllers/states-editor";
 import { Burgs } from "../../generators/burgs-generator";
+import { legacyMutation, patchBurg } from "../../runtime/worldRuntime";
 import { tip } from "../../services/tooltipService";
 import { useDialogState } from "../../store/dialogState";
 import { type StateEditorTab, setStateEditorState, useStateEditorState } from "../../store/stateEditorState";
@@ -93,7 +94,10 @@ export const StateEditorDialog: React.FC = () => {
       title: "Remove burg",
       confirm: "Remove",
       onConfirm: () => {
-        Burgs.remove(burgId);
+        legacyMutation(() => {
+          Burgs.remove(burgId);
+          return { result: undefined, topics: ["map.settlements", "map.annotations", "simulation.burgs"] };
+        });
         refresh();
       }
     });
@@ -102,7 +106,7 @@ export const StateEditorDialog: React.FC = () => {
   function handleToggleLock(burgId: number): void {
     const burg = worldContext.pack.burgs[burgId];
     if (!burg) return;
-    burg.lock = !burg.lock;
+    patchBurg({ burgId, lock: !burg.lock });
     refresh();
   }
 

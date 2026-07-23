@@ -1,7 +1,16 @@
 import { pointer } from "d3";
 import { clearMainTip, tip } from "../../hostServices";
 import { confirmationDialog, downloadFile, findCell, getFileName, layerIsOn, rn, unique } from "../../hostUtils";
-import { getApi, getViewContext, getWorldContext } from "../economyContext";
+import {
+  getApi,
+  getBurgProductionRecords,
+  getDeals,
+  getGoodCellColumn,
+  getGoods,
+  getMarkets,
+  getViewContext,
+  getWorldContext
+} from "../economyContext";
 import { Goods, getDefaultGoodTradeProfile, isGoodEnabled } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
 import { isDealRecord, isMfgRecord, Production } from "../generators/production-generator";
@@ -38,6 +47,12 @@ function regenerateEconomyForGood(goodId: number): void {
   refreshEditor();
 }
 
+function getCommandResultGoodId(result: unknown): number | null {
+  if (!result || typeof result !== "object") return null;
+  const goodId = (result as { goodId?: unknown }).goodId;
+  return typeof goodId === "number" && Number.isInteger(goodId) ? goodId : null;
+}
+
 export function open(): void {
   if (getViewContext().customization) return;
 
@@ -53,7 +68,7 @@ export function goodsEditorAddLines(): void {
   const production = getProduction();
   const stockData = getAllStockData();
 
-  const enabledGoods = (worldContext().pack.goods ?? []).filter(isGoodEnabled);
+  const enabledGoods = getGoods().filter(isGoodEnabled);
   const goods = enabledGoods.map(good => {
     const types = [good.recipes && "MFG", good.distribution && "RAW"].filter(Boolean) as string[];
     const goodProduction = production[good.i] ?? { burg: 0, cell: 0 };
@@ -165,13 +180,13 @@ export function openProducersDialog(goodId: number): void {
 type StockSource = { name: string; type: "market" | "burg"; x: number; y: number; id: number; stock: number };
 
 function getAllStockData(): Record<number, { total: number; sources: StockSource[] }> {
-  const dealById = new Map((worldContext().pack.deals || []).map(d => [d.i, d]));
+  const dealById = new Map(getDeals().map(d => [d.i, d]));
   const result: Record<number, { total: number; sources: StockSource[] }> = {};
-  for (const good of (worldContext().pack.goods || []).filter(isGoodEnabled)) {
+  for (const good of getGoods().filter(isGoodEnabled)) {
     result[good.i] = { total: 0, sources: [] };
   }
 
-  for (const market of worldContext().pack.markets || []) {
+  for (const market of getMarkets()) {
     const centerBurg = worldContext().pack.burgs[market.centerBurgId];
     if (!centerBurg) continue;
     const x = centerBurg.x ?? 0;
@@ -187,10 +202,10 @@ function getAllStockData(): Record<number, { total: number; sources: StockSource
   }
 
   for (const burg of worldContext().pack.burgs) {
-    if (!burg?.i || burg.removed || !burg.production) continue;
+    if (!burg?.i || burg.removed) continue;
 
     const netInventory: Record<number, number> = {};
-    for (const record of burg.production) {
+    for (const record of getBurgProductionRecords(burg)) {
       if (isMfgRecord(record)) {
         netInventory[record.goodId] = (netInventory[record.goodId] || 0) + record.units;
         for (const item of record.recipe) {
@@ -225,7 +240,7 @@ function getAllStockData(): Record<number, { total: number; sources: StockSource
     }
   }
 
-  for (const good of (worldContext().pack.goods || []).filter(isGoodEnabled)) {
+  for (const good of getGoods().filter(isGoodEnabled)) {
     result[good.i].total = rn(result[good.i].total, 2);
   }
 
@@ -263,7 +278,7 @@ function getProduction(): Record<number, { burg: number; cell: number }> {
   }
 
   for (const burg of worldContext().pack.burgs) {
-    if (!burg || burg.removed || !burg.production) continue;
+    if (!burg || burg.removed || !getBurgProductionRecords(burg).length) continue;
     const produced = Production.getBurgProduction(burg);
     for (const goodId in produced) {
       addProduction(Number(goodId), produced[goodId] || 0, "burg");
@@ -274,7 +289,11 @@ function getProduction(): Record<number, { burg: number; cell: number }> {
 }
 
 export function openTagsVisibilityDialog(): void {
-  const tags = unique((worldContext().pack.goods || []).filter(isGoodEnabled).flatMap(good => good.tags));
+  const tags = unique(
+    getGoods()
+      .filter(isGoodEnabled)
+      .flatMap(good => good.tags)
+  );
 
   setGoodsTagsDialogState({
     isOpen: true,
@@ -335,17 +354,16 @@ export function enterResourceAssignMode(): void {
     const selectedGoodId = getGoodsEditorTableState().selectedAssignGoodId;
     if (!selectedGoodId) return;
 
-    if (worldContext().pack.cells.good[cellId]) {
-      worldContext().pack.cells.good[cellId] = 0;
-    } else {
-      const resource = Goods.get(selectedGoodId);
-      if (!resource) return;
-      worldContext().pack.cells.good[cellId] = selectedGoodId;
-      setGoodDisplayed(selectedGoodId, true);
-    }
+    const hadGood = Boolean(getGoodCellColumn()[cellId]);
+    const commit = getApi().dispatchExtensionCommand({
+      extensionId: "economy",
+      name: "goods.assignCell",
+      payload: { cellId, goodId: selectedGoodId }
+    });
+    if (!commit) return;
+    if (!hadGood) setGoodDisplayed(selectedGoodId, true);
 
     drawGoods(getDisplayedGoodIds());
-    getApi().requestWebglRender();
   });
 }
 
@@ -371,7 +389,7 @@ function exitResourceAssignMode(close?: string): void {
 
 export function downloadGoodsData(): void {
   const cellsByGood: Record<number, number> = {};
-  for (const goodId of worldContext().pack.cells.good) {
+  for (const goodId of getGoodCellColumn()) {
     if (goodId) cellsByGood[goodId] = (cellsByGood[goodId] || 0) + 1;
   }
 
@@ -381,7 +399,7 @@ export function downloadGoodsData(): void {
   let data =
     "Id,Good,Color,Type,Tags,Value,Demand Coverage,Chance,Model,Trade Weight,Trade Bulk,Rarity,Distance Premium,Time Value Trend,Durability,Loss Risk,Cells,Produced,Stock\n";
 
-  for (const good of worldContext().pack.goods || []) {
+  for (const good of getGoods()) {
     const types = [good.recipes && "MFG", good.distribution && "RAW"].filter(Boolean).join(";");
     const tags = good.tags.join(";");
     const demandCoverage = Object.entries(good.demandCoverage || {})
@@ -452,19 +470,25 @@ export function editGoodDistribution(goodId: number): void {
   DistributionEditor.open(
     draft => {
       const normalizedDistribution = draft.distribution.trim();
-      good.name = draft.name;
-      good.color = draft.color;
-      good.icon = draft.icon;
-      good.value = Math.max(0, draft.value);
-      good.unit = draft.unit;
-      good.tags = draft.tagsText
-        .split(",")
-        .map(tag => tag.trim())
-        .filter(Boolean);
-      good.distribution = normalizedDistribution || undefined;
-      good.chance = good.distribution ? Math.max(0, Math.min(100, draft.chance)) : undefined;
-
-      Goods.sync();
+      const commit = getApi().dispatchExtensionCommand({
+        extensionId: "economy",
+        name: "goods.update",
+        payload: {
+          goodId: good.i,
+          name: draft.name,
+          color: draft.color,
+          icon: draft.icon,
+          value: Math.max(0, draft.value),
+          unit: draft.unit,
+          tags: draft.tagsText
+            .split(",")
+            .map(tag => tag.trim())
+            .filter(Boolean),
+          distribution: normalizedDistribution || undefined,
+          chance: normalizedDistribution ? Math.max(0, Math.min(100, draft.chance)) : undefined
+        }
+      });
+      if (!commit) return;
       regenerateEconomyForGood(good.i);
     },
     {
@@ -483,30 +507,28 @@ export function editGoodDistribution(goodId: number): void {
 
 export function addGood(): void {
   DistributionEditor.open(draft => {
-    const goods = worldContext().pack.goods || [];
-    const nextId = goods.reduce((maxId, existingGood) => Math.max(maxId, existingGood.i), 0) + 1;
     const normalizedDistribution = draft.distribution.trim();
-
-    const good = {
-      i: nextId,
-      name: draft.name,
-      tags: draft.tagsText
-        .split(",")
-        .map(tag => tag.trim())
-        .filter(Boolean),
-      value: Math.max(0, draft.value),
-      unit: draft.unit.trim() || "unit",
-      icon: draft.icon.trim() || "good-wood",
-      color: draft.color,
-      chance: normalizedDistribution ? Math.max(0, Math.min(100, draft.chance)) : undefined,
-      distribution: normalizedDistribution || undefined
-    };
-
-    worldContext().pack.goods.push({ ...good, trade: getDefaultGoodTradeProfile(good) });
-
-    Goods.sync();
-    setGoodDisplayed(nextId, true);
-    regenerateEconomyForGood(nextId);
+    const commit = getApi().dispatchExtensionCommand({
+      extensionId: "economy",
+      name: "goods.add",
+      payload: {
+        name: draft.name,
+        tags: draft.tagsText
+          .split(",")
+          .map(tag => tag.trim())
+          .filter(Boolean),
+        value: Math.max(0, draft.value),
+        unit: draft.unit.trim() || "unit",
+        icon: draft.icon.trim() || "good-wood",
+        color: draft.color,
+        chance: normalizedDistribution ? Math.max(0, Math.min(100, draft.chance)) : undefined,
+        distribution: normalizedDistribution || undefined
+      }
+    });
+    const goodId = getCommandResultGoodId(commit?.result);
+    if (goodId === null) return;
+    setGoodDisplayed(goodId, true);
+    regenerateEconomyForGood(goodId);
   });
 }
 
@@ -519,17 +541,15 @@ export function removeGood(goodId: number): void {
     message: "Are you sure you want to remove the resource? <br>This action cannot be reverted",
     confirm: "Remove",
     onConfirm: () => {
-      for (const i of worldContext().pack.cells.i) {
-        if (worldContext().pack.cells.good[i] === good.i) {
-          worldContext().pack.cells.good[i] = 0;
-        }
-      }
-      worldContext().pack.goods = worldContext().pack.goods.filter(g => g.i !== good.i);
-      Goods.sync();
+      const commit = getApi().dispatchExtensionCommand({
+        extensionId: "economy",
+        name: "goods.remove",
+        payload: { goodId: good.i }
+      });
+      if (!commit) return;
       setGoodDisplayed(good.i, false);
       goodsEditorAddLines();
       drawGoods(getDisplayedGoodIds());
-      getApi().requestWebglRender();
     }
   });
 }

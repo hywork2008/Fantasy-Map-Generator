@@ -1,7 +1,7 @@
 import type { Character, CharacterRole } from "../../characters/characterTypes";
 import type { Burg } from "../../hostTypes";
 import { minmax, rn } from "../../hostUtils";
-import { getWorldContext } from "../economyContext";
+import { getBurgMarketLedgers, getDeals, getMarkets, getWorldContext, setBurgMarketLedgers } from "../economyContext";
 import type { Deal, Market } from "./marketTypes";
 import { clearMerchantOrganizations, syncMerchantOrganizations } from "./merchantOrganizations";
 
@@ -102,7 +102,7 @@ function recalculateShares(ledger: BurgMarketLedger): void {
 }
 
 function assignRevenue(ledger: BurgMarketLedger, burg: Burg, market: Market | undefined): void {
-  const totalRevenue = getBurgGrossRevenue(burg, getWorldContext().pack.deals ?? []);
+  const totalRevenue = getBurgGrossRevenue(burg, getDeals());
   const managerCharacterId = market && market.centerBurgId === burg.i ? market.managerCharacterId : undefined;
   const weighted = ledger.merchants.map(merchant => {
     const character = getCharacter(merchant.characterId);
@@ -151,7 +151,7 @@ function ensureLedgerMerchants(ledger: BurgMarketLedger, burg: Burg, market: Mar
 
 export function getBurgMarketLedger(burgId: number | undefined): BurgMarketLedger | undefined {
   if (!burgId) return undefined;
-  return getWorldContext().pack.burgMarketLedgers?.find(ledger => ledger.burgId === burgId);
+  return getBurgMarketLedgers().find(ledger => ledger.burgId === burgId);
 }
 
 export function getDominantMerchant(ledger: BurgMarketLedger | undefined): BurgMarketMerchantEntry | undefined {
@@ -163,16 +163,15 @@ export function getMerchantName(characterId: number | undefined): string {
   return getCharacter(characterId)?.name ?? "Unassigned";
 }
 
-export function syncBurgMarketLedgers(markets: Market[] = getWorldContext().pack.markets ?? []): void {
+export function syncBurgMarketLedgers(markets: Market[] = getMarkets()): void {
   const { pack } = getWorldContext();
   pack.characters ??= [];
-  pack.burgMarketLedgers ??= [];
 
   const marketsById = new Map<number, Market>();
   for (const market of markets) if (market) marketsById.set(market.i, market);
 
   const ledgersByBurg = new Map<number, BurgMarketLedger>();
-  for (const ledger of pack.burgMarketLedgers) ledgersByBurg.set(ledger.burgId, ledger);
+  for (const ledger of getBurgMarketLedgers()) ledgersByBurg.set(ledger.burgId, ledger);
 
   const nextLedgers: BurgMarketLedger[] = [];
 
@@ -192,7 +191,7 @@ export function syncBurgMarketLedgers(markets: Market[] = getWorldContext().pack
     nextLedgers.push(ledger);
   }
 
-  pack.burgMarketLedgers = nextLedgers;
+  setBurgMarketLedgers(nextLedgers);
   syncMerchantOrganizations(nextLedgers, markets);
   pruneStaleMerchantRoles(nextLedgers);
 }
@@ -219,7 +218,7 @@ function pruneStaleMerchantRoles(ledgers: BurgMarketLedger[]): void {
 
 export function clearBurgMarketLedgers(): void {
   const { pack } = getWorldContext();
-  pack.burgMarketLedgers = [];
+  setBurgMarketLedgers([]);
   clearMerchantOrganizations();
 
   if (!pack.characters?.length) return;
@@ -235,10 +234,7 @@ export function clearBurgMarketLedgers(): void {
 }
 
 export function updateBurgWarState(burgId: number, intensity: number): void {
-  const { pack } = getWorldContext();
-  if (!pack.burgMarketLedgers) return;
-
-  const ledger = pack.burgMarketLedgers.find(l => l.burgId === burgId);
+  const ledger = getBurgMarketLedgers().find(l => l.burgId === burgId);
   if (!ledger) return; // Only track for burgs with ledgers
 
   const currentIntensity = ledger.warIntensity || 0;

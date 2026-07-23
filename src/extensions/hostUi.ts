@@ -4,6 +4,7 @@ export type { ExtensionStyleConfig, ExtensionStyleProps } from "../store/extensi
 export type { LayerConfig } from "../store/layerState";
 export { regenerateFeatureDialogStore } from "../store/regenerateFeatureDialogState";
 export { useStyleState } from "../store/styleState";
+export { useTimeSimulationState } from "../store/timeSimulationState";
 export { useUiPreferencesState } from "../store/uiPreferencesState";
 export { FillBox } from "../ui/components/FillBox";
 export { IconButton } from "../ui/components/IconButton";

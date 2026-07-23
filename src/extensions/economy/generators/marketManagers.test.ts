@@ -3,8 +3,7 @@ import { clearCharactersContext, initCharactersContext } from "../../characters/
 import "../../characters/types";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext } from "../economyContext";
-import "../types";
+import { clearEconomyContext, getMarkets, initEconomyContext } from "../economyContext";
 import {
   clearMarketManagers,
   MARKET_MANAGER_ROLE_KIND,
@@ -49,7 +48,7 @@ describe("market managers", () => {
   it("creates one manager and two rivals per market even within the same state", () => {
     syncMarketManagers();
 
-    const [northMarket, southMarket] = worldContext.pack.markets;
+    const [northMarket, southMarket] = getMarkets();
     expect(northMarket.managerCharacterId).toBeDefined();
     expect(southMarket.managerCharacterId).toBeDefined();
     expect(northMarket.managerCharacterId).not.toBe(southMarket.managerCharacterId);
@@ -70,9 +69,7 @@ describe("market managers", () => {
 
   it("clears economy-only managers but keeps characters that still have titles", () => {
     syncMarketManagers();
-    const retainedManager = worldContext.pack.characters.find(
-      c => c.i === worldContext.pack.markets[0].managerCharacterId
-    )!;
+    const retainedManager = worldContext.pack.characters.find(c => c.i === getMarkets()[0].managerCharacterId)!;
     retainedManager.titles.push({
       title: "Patrician",
       landed: false,
@@ -82,7 +79,7 @@ describe("market managers", () => {
 
     clearMarketManagers();
 
-    expect(worldContext.pack.markets.every(m => m.managerCharacterId === undefined)).toBe(true);
+    expect(getMarkets().every(m => m.managerCharacterId === undefined)).toBe(true);
     expect(worldContext.pack.characters).toHaveLength(1);
     expect(worldContext.pack.characters[0].i).toBe(retainedManager.i);
     expect(worldContext.pack.characters[0].roles).toBeUndefined();

@@ -1,8 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph, State } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext } from "../economyContext";
-import "../types";
+import { clearEconomyContext, initEconomyContext, setDeals, setMarkets } from "../economyContext";
 import { Markets } from "./markets-generator";
 import type { Market } from "./marketTypes";
 import {
@@ -102,9 +101,9 @@ describe("TaxesModule", () => {
       const state1: State = { i: 1, salesTax: 0.2, pollTax: 0, rural: 0, urban: 0 } as unknown as State;
       worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
       worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, { i: 1, state: 1 } as unknown as Burg];
-      worldContext.pack.deals = [
+      setDeals([
         { i: 0, seller: 1, sellerType: "burg", buyer: 1, buyerType: "market", good: 0, units: 5, price: 10, tax: 12 }
-      ] as PackedGraph["deals"];
+      ]);
 
       taxesModule.collectTaxes();
 
@@ -115,10 +114,10 @@ describe("TaxesModule", () => {
       const state1: State = { i: 1, salesTax: 0.2, pollTax: 0, rural: 0, urban: 0 } as unknown as State;
       worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
       worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, { i: 1, state: 1 } as unknown as Burg];
-      worldContext.pack.markets = [{ i: 1, centerBurgId: 1, color: "#fff", goods: {} } as Market];
-      worldContext.pack.deals = [
+      setMarkets([{ i: 1, centerBurgId: 1, color: "#fff", goods: {} } as Market]);
+      setDeals([
         { i: 0, seller: 1, sellerType: "market", buyer: 2, buyerType: "market", good: 0, units: 5, price: 10, tax: 7 }
-      ] as PackedGraph["deals"];
+      ]);
       Markets.sync();
 
       taxesModule.collectTaxes();
@@ -130,7 +129,7 @@ describe("TaxesModule", () => {
       const state1: State = { i: 1, salesTax: 0, pollTax: 0.5, rural: 100, urban: 50 } as unknown as State;
       worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
       worldContext.pack.burgs = [];
-      worldContext.pack.deals = [];
+      setDeals([]);
 
       taxesModule.collectTaxes();
 
@@ -148,9 +147,9 @@ describe("TaxesModule", () => {
       } as unknown as State;
       worldContext.pack.states = [neutral];
       worldContext.pack.burgs = [{ i: 0 } as unknown as Burg];
-      worldContext.pack.deals = [
+      setDeals([
         { i: 0, seller: 0, sellerType: "burg", buyer: 1, buyerType: "market", good: 0, units: 1, price: 1, tax: 999 }
-      ] as PackedGraph["deals"];
+      ]);
 
       taxesModule.collectTaxes();
 
@@ -161,7 +160,7 @@ describe("TaxesModule", () => {
       const state1: State = { i: 1, salesTax: 0, pollTax: 0, rural: 0, urban: 0, treasury: 500 } as unknown as State;
       worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
       worldContext.pack.burgs = [];
-      worldContext.pack.deals = [];
+      setDeals([]);
 
       taxesModule.collectTaxes();
 
@@ -172,7 +171,7 @@ describe("TaxesModule", () => {
       const state1: State = { i: 1, salesTax: 0, pollTax: 0, rural: 0, urban: 0 } as unknown as State;
       worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
       worldContext.pack.burgs = [];
-      worldContext.pack.deals = [];
+      setDeals([]);
       registerVoyageIncome(1, 40);
       registerVoyageIncome(1, 10); // accumulates across multiple voyage-income events in one cycle
 
@@ -185,7 +184,7 @@ describe("TaxesModule", () => {
       const state1: State = { i: 1, salesTax: 0, pollTax: 0, rural: 0, urban: 0 } as unknown as State;
       worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
       worldContext.pack.burgs = [];
-      worldContext.pack.deals = [];
+      setDeals([]);
       registerVoyageIncome(1, 40);
 
       taxesModule.collectTaxes();
@@ -198,7 +197,7 @@ describe("TaxesModule", () => {
       const state1: State = { i: 1, salesTax: 0, pollTax: 1, rural: 100, urban: 0 } as unknown as State;
       worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
       worldContext.pack.burgs = [];
-      worldContext.pack.deals = [];
+      setDeals([]);
       registerStrategicProcurementExpense(1, 30);
 
       taxesModule.collectTaxes();

@@ -1,4 +1,67 @@
+import type { SimulationRngState } from "../runtime/simulationRngTypes";
+import type { BurgDemographics, MilitaryRegiment } from "../types/models";
 import type { Season } from "../utils/seasonUtils";
+
+/**
+ * Cell-indexed values whose current value is advanced or depleted by simulation.
+ *
+ * `pack.cells` still exposes these columns through a compatibility adapter while
+ * legacy generators are migrated. The arrays themselves are owned here, so
+ * map snapshots no longer need to persist a second copy of dynamic cell data.
+ */
+export interface SimulationCellColumns {
+  population: Float32Array;
+  carryingCapacity: Float32Array;
+  children: Float32Array;
+  maleAdults: Float32Array;
+  femaleAdults: Float32Array;
+  elders: Float32Array;
+  danger: Uint8Array;
+}
+
+/** Values that evolve for a settlement after its map definition is generated. */
+export interface BurgSimulationState {
+  population?: number;
+  product?: number;
+  treasury?: number;
+  demographics?: BurgDemographics;
+}
+
+/** Live burg values keyed by stable `burg.i`; never keyed by array position. */
+export type BurgSimulationStates = Record<number, BurgSimulationState>;
+
+/** Values that change as a political state advances through simulation time. */
+export interface StateSimulationState {
+  alert?: number;
+  salesTax?: number;
+  pollTax?: number;
+  treasury?: number;
+  tributeRate?: number;
+  tributePaid?: number;
+  manpowerReconciled?: boolean;
+  foodStress?: number;
+  plantingExposure?: number;
+  harvestExposure?: number;
+  agricultureCarryOver?: number;
+  agricultureYear?: number;
+  supplyStrain?: number;
+  foodStock?: number;
+}
+
+/** Live state values keyed by stable `state.i`; never keyed by array position. */
+export type StateSimulationStates = Record<number, StateSimulationState>;
+
+/** Live regiments keyed by owner state id; regiment id is unique within its roster. */
+export type SimulationMilitaryRosters = Record<number, MilitaryRegiment[]>;
+
+/**
+ * Host-owned containers for built-in and dynamic extension runtime state.
+ *
+ * An extension slice is opaque to the host until its registered validator has
+ * narrowed it. Legacy pack-field access is projected from these slices only
+ * during the Phase 8 compatibility period.
+ */
+export type ExtensionStateSlices = Record<string, Record<string, unknown>>;
 
 export interface IntelligenceReport {
   estimatedMilitaryPower: number;
@@ -20,6 +83,43 @@ export interface StrategicGoal {
   requiredAttackForce: number;
 }
 
+/** Per-cause death headcounts for one state inside a population-loss day bucket. */
+export interface PopulationLossDeathTotals {
+  combat: number;
+  famine: number;
+  natural: number;
+  other: number;
+  total: number;
+}
+
+/**
+ * Coarse daily death bucket (max ~40 retained). Keys are stable entity ids as
+ * JSON-friendly string or number records; readers coerce with Number().
+ */
+export interface PopulationLossDayBucket {
+  /** Floor of the simulation day index when the bucket was opened. */
+  day: number;
+  /** stateId → cause totals (display people). */
+  byState: Record<number, PopulationLossDeathTotals>;
+  /** cellId → combat death headcount at that battlefield. */
+  combatByCell: Record<number, number>;
+}
+
+/**
+ * Rolling death tallies for the Population Overview dialog and combat-death layer.
+ * Owned by the host simulation slice so save/load and headless runs share one source.
+ */
+export interface PopulationLossState {
+  /** Continuous simulation day index advanced with each tick's elapsed days. */
+  simDay: number;
+  /** Chronological day buckets; pruned to a rolling window. */
+  history: PopulationLossDayBucket[];
+}
+
+export function createEmptyPopulationLossState(): PopulationLossState {
+  return { simDay: 0, history: [] };
+}
+
 export interface SimulationContext {
   /** In-world calendar year, advanced by src/generators/timeEngine.ts's advanceTime(). */
   currentYear: number;
@@ -38,16 +138,44 @@ export interface SimulationContext {
    * src/utils/seasonUtils.ts's getSeason(latitude, month) itself rather than read this field.
    */
   worldSeason: Season;
+  /**
+   * Persistable simulation PRNG stream. Independent of map-generation `Math.random`
+   * and of incidental UI randomness. Written on each simulation commit and restored
+   * from `.fmg` archives so mid-session save/load keeps the same stream position.
+   */
+  rng: SimulationRngState;
+  /** Dynamic cell columns. `SimulationData.cells` owns these values. */
+  cells: SimulationCellColumns;
+  /** Dynamic settlement values, keyed by stable burg id. */
+  burgs: BurgSimulationStates;
+  /** Dynamic political-state values, keyed by stable state id. */
+  states: StateSimulationStates;
+  /** Dynamic regiment rosters, keyed by their stable owner state id. */
+  military: SimulationMilitaryRosters;
+  /** Namespaced runtime state owned by extensions, never by `pack`. */
+  extensions: ExtensionStateSlices;
   /** Espionage reports: intelligence[observerStateId][targetStateId] */
   intelligence: Record<number, Record<number, IntelligenceReport>>;
   /** Strategic goals: strategicGoals[stateId] */
   strategicGoals: Record<number, StrategicGoal[]>;
+  /**
+   * Rolling population-loss tallies (40-day window). Module-local storage was
+   * removed so archive / world.replace round-trips keep overview and heatmap data.
+   */
+  populationLoss: PopulationLossState;
+  /**
+   * Naval strength multipliers keyed by stable state id (default 1 when absent).
+   * Grown by Shipbuilding completion events; host-owned so military regen survives save/load.
+   */
+  navalTechBonus: Record<number, number>;
 }
 
 /**
- * Live, tick-driven simulation clock — distinct from WorldContext because these
- * values mutate repeatedly during a session rather than being static generation output.
- * Initialized by timeEngine.ts's initSimulationClock() once per map generation.
+ * Live, tick-driven simulation clock — the sole source of truth for in-session
+ * calendar date (P2-10). Distinct from WorldContext.options.year/month/day, which
+ * remain generation-parameter seeds only and are not mirrored on advanceTime.
+ * Initialized by timeEngine.ts's initSimulationClock() once per map generation
+ * (or restored from archive simulation on `.fmg` load).
  */
 export const simulationContext: SimulationContext = {
   currentYear: 0,
@@ -56,6 +184,23 @@ export const simulationContext: SimulationContext = {
   era: "",
   tickCount: 0,
   worldSeason: "spring",
+  // Placeholder until initRng()/bindSimulationRng() installs a seeded stream.
+  rng: { algorithm: "alea-0.9", seed: "", state: [0, 0, 0, 1], streams: {} },
+  cells: {
+    population: new Float32Array(),
+    carryingCapacity: new Float32Array(),
+    children: new Float32Array(),
+    maleAdults: new Float32Array(),
+    femaleAdults: new Float32Array(),
+    elders: new Float32Array(),
+    danger: new Uint8Array()
+  },
+  burgs: {},
+  states: {},
+  military: {},
+  extensions: {},
   intelligence: {},
-  strategicGoals: {}
+  strategicGoals: {},
+  populationLoss: createEmptyPopulationLossState(),
+  navalTechBonus: {}
 };

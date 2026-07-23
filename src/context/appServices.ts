@@ -1,6 +1,7 @@
-import Alea from "alea";
-
+import { bindSimulationRng, createSimulationRngState, installSimulationRng } from "../runtime/simulationRng";
 import { createRNGService, type RNGService } from "../utils/probabilityUtils";
+import type { SimulationContext } from "./simulationContext";
+import { simulationContext } from "./simulationContext";
 
 export type { RNGService };
 
@@ -36,12 +37,24 @@ export const appServices: AppServices = {
 };
 
 /**
- * (Re)seeds `appServices.rng` with its own Alea stream, independent of the global `Math.random`
- * override. Live tick-driven systems (military simulation, etc.) must read randomness from here
- * rather than `Math.random()` so that unrelated Math.random() consumers elsewhere in the app
- * (UI id generation, autosave, etc.) can't perturb simulation determinism for a given seed.
- * Called once per generation from `setSeed()` in main.ts, alongside the `Math.random` reseed.
+ * (Re)seeds the simulation PRNG with its own Alea stream, independent of the global
+ * `Math.random` override. Live tick-driven systems must read randomness from
+ * `appServices.rng` rather than `Math.random()` so unrelated Math.random() consumers
+ * (UI id generation, autosave, etc.) cannot perturb simulation determinism for a
+ * given seed. The stream position is mirrored into `simulationContext.rng` for
+ * archive round-trips. Called once per generation from `setSeed()` in main.ts.
  */
 export function initRng(seed: string): void {
-  appServices.rng = createRNGService(Alea(seed));
+  const state = createSimulationRngState(seed);
+  simulationContext.rng = state;
+  appServices.rng = installSimulationRng(state);
+}
+
+/**
+ * Restore `appServices.rng` from a simulation slice (e.g. after `.fmg` load).
+ * Missing `simulation.rng` is materialised from `seed`. Defaults to the live
+ * singleton context when omitted.
+ */
+export function restoreRngFromSimulation(seed: string, simulation: SimulationContext = simulationContext): void {
+  appServices.rng = bindSimulationRng(simulation, seed);
 }

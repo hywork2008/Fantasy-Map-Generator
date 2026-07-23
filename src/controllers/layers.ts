@@ -389,13 +389,11 @@ export function getCurrentPreset(): void {
 
 // ─── Layer orchestration ──────────────────────────────────────────────────────
 
-export function drawLayers(): void {
-  if (viewContext.renderMode === "webglHybrid" && DeckGlRenderer.render(worldContext, viewContext, appServices)) {
-    drawHybridSvgOverlays();
-    return;
-  }
-
-  DeckGlRenderer.clear(viewContext);
+/**
+ * Paint the full SVG map into the currently bound `viewContext` layers.
+ * Does not touch deck.gl — used by the SVG render path and offscreen export (P2-13).
+ */
+export function paintSvgMapLayers(): void {
   FeaturesRenderer.render(worldContext, viewContext, appServices);
   // FeaturesRenderer always renders lake paths (needed for masks), so explicitly
   // sync the #lakes display state with the toggle after rendering.
@@ -436,16 +434,21 @@ export function drawLayers(): void {
   syncWebglManagedSvgLayerVisibility();
 }
 
+export function drawLayers(): void {
+  if (viewContext.renderMode === "webglHybrid" && DeckGlRenderer.render(worldContext, viewContext, appServices)) {
+    drawHybridSvgOverlays();
+    return;
+  }
+
+  DeckGlRenderer.clear(viewContext);
+  paintSvgMapLayers();
+}
+
 function drawHybridSvgOverlays(): void {
   FeaturesRenderer.render(worldContext, viewContext, appServices);
   if (!layerIsOn("toggleLakes")) setLayerVisibility("toggleLakes", false);
-  // Ice and Rivers are kept in sync as hidden SVG layers so WebGL pick
-  // candidates can resolve to a real element via their editors.
-  IceRenderer.render(worldContext, viewContext, appServices);
-  if (!layerIsOn("toggleIce")) setLayerVisibility("toggleIce", false);
-
-  RiversRenderer.render(worldContext, viewContext, appServices);
-  if (!layerIsOn("toggleRivers")) setLayerVisibility("toggleRivers", false);
+  // Ice and river editing resolve domain IDs from WebGL picks. Their editor-only control overlays
+  // live under #debug, so hybrid mode no longer keeps hidden #ice or #rivers SVG mirrors alive.
 
   // State labels stay as a real SVG overlay in hybrid mode. The nested #burgLabels group is still
   // hidden by the hybrid policy and continues to be rendered by deck.gl.
@@ -931,6 +934,16 @@ export function toggleRoutes(event?: MouseEvent): void {
   }
 }
 
+/**
+ * WebGL-only flowing-current effect over sea route cells (see docs/plan/searoute-current-direction-visualization.md).
+ * Has no SVG counterpart, so outside webglHybrid mode this only flips the stored toggle state.
+ */
+export function toggleSeaCurrents(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleSeaCurrents", "seaCurrents", event)) return;
+  if (layerIsOn("toggleSeaCurrents")) turnButtonOff("toggleSeaCurrents");
+  else turnButtonOn("toggleSeaCurrents");
+}
+
 export function toggleMilitary(event?: MouseEvent): void {
   if (toggleWebglManagedLayer("toggleMilitary", "armies", event)) return;
   if (!layerIsOn("toggleMilitary")) {
@@ -1136,6 +1149,7 @@ const TOGGLE_REGISTRY: Record<string, (event?: MouseEvent) => void> = {
   toggleTexture,
   toggleRivers,
   toggleRoutes,
+  toggleSeaCurrents,
   toggleMilitary,
   toggleMarkers,
   toggleFrontierForts,
@@ -1295,6 +1309,11 @@ function schedule3dUpdate(rebuildSceneObjects = false) {
   });
 }
 
+/** Queues a terrain-texture refresh without rebuilding viewMesh scene objects. */
+export function schedule3dTerrainUpdate(): void {
+  schedule3dUpdate();
+}
+
 /** Queues a full viewMesh scene-object rebuild — used when routes' live SVG style changes. */
 export function schedule3dSceneUpdate(): void {
   schedule3dUpdate(true);
@@ -1328,6 +1347,15 @@ export function registerLayerElement(id: string, getter: () => HTMLElement | nul
 /** Register a hook called at the end of drawLayers() — used by extensions to redraw their layers */
 export function registerDrawLayerHook(fn: () => void): void {
   _drawLayerHooks.push(fn);
+}
+
+/**
+ * Run registered extension draw-layer hooks without a full `drawLayers()` pass.
+ * Used by RenderCoordinator when only `extension.*` topics changed so tick systems
+ * can mark topics instead of calling `draw*` directly (P2-12).
+ */
+export function runDrawLayerHooks(): void {
+  for (const hook of _drawLayerHooks) hook();
 }
 
 // ─── Tool action registry (for extension-owned react-tool-action events) ─────

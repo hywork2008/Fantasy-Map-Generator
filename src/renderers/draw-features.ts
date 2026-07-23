@@ -1,7 +1,7 @@
 import { select } from "d3";
 import _simplify from "simplify-js";
 import type { AppServices } from "../context/appServices";
-import type { ViewContext } from "../context/viewContext";
+import type { SvgGroup, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { PackedGraphFeature } from "../types/models";
 import { clipPoly, round } from "../utils";
@@ -62,7 +62,7 @@ export const FeaturesRenderer: IRenderer = {
         html.landMask.push(`<use href="#feature_${feature.i}" data-f="${feature.i}" fill="white"></use>`);
         html.waterMask.push(`<use href="#feature_${feature.i}" data-f="${feature.i}" fill="black"></use>`);
 
-        const coastlineGroup = feature.group === "lake_island" ? "lake_island" : "sea_island";
+        const coastlineGroup = feature.group || "sea_island";
         if (!html.coastline[coastlineGroup]) html.coastline[coastlineGroup] = [];
         html.coastline[coastlineGroup].push(`<use href="#feature_${feature.i}" data-f="${feature.i}"></use>`);
       }
@@ -72,15 +72,8 @@ export const FeaturesRenderer: IRenderer = {
     defs.select("#land").html(html.landMask.join(""));
     defs.select("#water").html(html.waterMask.join(""));
 
-    coastline.selectAll<SVGGElement, unknown>("g").each(function () {
-      const paths = html.coastline[this.id] || [];
-      select(this).html(paths.join(""));
-    });
-
-    lakes.selectAll<SVGGElement, unknown>("g").each(function () {
-      const paths = html.lakes[this.id] || [];
-      select(this).html(paths.join(""));
-    });
+    renderFeatureGroups(coastline, html.coastline);
+    renderFeatureGroups(lakes, html.lakes);
 
     TIME && console.timeEnd("FeaturesRenderer");
   },
@@ -98,6 +91,20 @@ export const FeaturesRenderer: IRenderer = {
     });
   }
 };
+
+export function renderFeatureGroups(layer: SvgGroup, pathsByGroup: Record<string, string[]>): void {
+  const existing = new Set<string>();
+  layer.selectAll<SVGGElement, unknown>("g").each(function () {
+    existing.add(this.id);
+  });
+  for (const groupId of Object.keys(pathsByGroup)) {
+    if (!existing.has(groupId)) layer.append("g").attr("id", groupId);
+  }
+
+  layer.selectAll<SVGGElement, unknown>("g").each(function () {
+    select(this).html((pathsByGroup[this.id] || []).join(""));
+  });
+}
 
 function featurePathRenderer(
   worldContext: Readonly<WorldContext>,

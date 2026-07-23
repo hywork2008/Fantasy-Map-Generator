@@ -37,8 +37,8 @@ export function zoomIntoBurg(burgId: number): void {
 }
 
 export function getWorldState() {
-  const { pack, grid, seed, options, nameBases, biomesData, notes, style } = worldContext;
-  return { pack, grid, seed, options, nameBases, biomesData, notes, style };
+  const { pack, grid, seed, options, nameBases, biomesData, notes } = worldContext;
+  return { pack, grid, seed, options, nameBases, biomesData, notes };
 }
 
 export function setRenderMode(mode: RenderMode): void {

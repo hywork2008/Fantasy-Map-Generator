@@ -7,7 +7,6 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-
 import {
   BordersRenderer,
   drawBurgIcon,
@@ -20,6 +19,7 @@ import {
 } from "../renderers";
 import type { Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { assignCells, legacyMutation, removeEntity } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { modules } from "../store/editorState";
@@ -418,19 +418,13 @@ function removeProvince(p: number): void {
     title: "Remove province",
     confirm: "Remove",
     onConfirm: () => {
-      worldContext.pack.cells.province.forEach((province: number, i: number) => {
-        if (province === p) worldContext.pack.cells.province[i] = 0;
-      });
-      const s = (worldContext.pack.provinces as Province[])[p].state;
-      const state = (worldContext.pack.states as State[])[s];
-      if (state.provinces?.includes(p)) state.provinces.splice(state.provinces.indexOf(p), 1);
+      const commit = removeEntity({ kind: "province", entityId: p });
+      if (!commit) return;
 
       EditorBus.unfog(`focusProvince${p}`);
 
       d3.select(`#provinceCOA${p}`).remove();
       EmblemsRenderer.removeProvinceEmblems(viewContext, p);
-
-      (worldContext.pack.provinces as Province[])[p] = { i: p, removed: true } as Province;
 
       ProvincesRenderer.removeProvinceDOM(viewContext, p);
       if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
@@ -625,14 +619,20 @@ function moveBrush(this: SVGElement, event: MouseEvent): void {
 }
 
 function applyProvincesManualAssignment(): void {
+  const assignments: { cellId: number; entityId: number }[] = [];
   viewContext.provs
     .select("#temp")
     .selectAll("polygon")
     .each(function () {
       const el = this as SVGPolygonElement;
-      const i = +el.dataset.cell!;
-      worldContext.pack.cells.province[i] = +el.dataset.province!;
+      assignments.push({ cellId: +el.dataset.cell!, entityId: +el.dataset.province! });
     });
+
+  const commit = assignments.length ? assignCells({ field: "province", assignments }) : null;
+  if (!commit) {
+    exitProvincesManualAssignment();
+    return;
+  }
 
   GenerationPipeline.Provinces.getPoles(getWorldState());
   if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
@@ -794,10 +794,14 @@ function removeAllProvinces(): void {
       });
       EmblemsRenderer.clearProvinceEmblems(viewContext);
 
-      worldContext.pack.provinces = [0 as unknown as Province];
-      worldContext.pack.cells.province = new Uint16Array(worldContext.pack.cells.i.length);
-      (worldContext.pack.states as State[]).forEach(s => {
-        s.provinces = [];
+      legacyMutation(() => {
+        const { pack } = worldContext;
+        pack.provinces = [0 as unknown as Province];
+        pack.cells.province = new Uint16Array(pack.cells.i.length);
+        (pack.states as State[]).forEach(state => {
+          state.provinces = [];
+        });
+        return { result: undefined, topics: ["map.politics"] };
       });
 
       EditorBus.unfog();
@@ -872,38 +876,38 @@ function cleanupMergedProvince(provinceId: number): void {
 }
 
 function mergeProvinces(ids: number[], primary: number): void {
-  const primaryProvince = (worldContext.pack.provinces as Province[])[primary];
-  const provinceIdMap = new Map<number, number>();
+  const removedProvinceIds = ids.filter(id => id !== primary);
+  const commit = legacyMutation(() => {
+    const { pack } = worldContext;
+    const provinces = pack.provinces as Province[];
+    const primaryProvince = provinces[primary];
+    const provinceIdMap = new Map<number, number>();
 
-  ids.forEach(id => {
-    if (id === primary) return;
-    const province = (worldContext.pack.provinces as Province[])[id];
-
-    (province.burgs ?? []).forEach((b: number) => {
-      (worldContext.pack.burgs as Burg[])[b].province = primary;
-      if (!primaryProvince.burgs?.includes(b)) primaryProvince.burgs?.push(b);
-    });
-    if (!primaryProvince.burg && province.burg) {
-      primaryProvince.burg = province.burg;
+    for (const id of removedProvinceIds) {
+      const province = provinces[id];
+      if (!province || province.removed) throw new Error(`Cannot merge missing province ${id}`);
+      for (const burgId of province.burgs ?? []) {
+        (pack.burgs as Burg[])[burgId].province = primary;
+        if (!primaryProvince.burgs?.includes(burgId)) primaryProvince.burgs?.push(burgId);
+      }
+      if (!primaryProvince.burg && province.burg) primaryProvince.burg = province.burg;
+      provinceIdMap.set(id, primary);
+      provinces[id] = { i: id, removed: true } as Province;
     }
 
-    provinceIdMap.set(id, primary);
-    cleanupMergedProvince(id);
-    (worldContext.pack.provinces as Province[])[id] = { i: id, removed: true } as Province;
+    pack.cells.province.forEach((oldProvinceId: number, cellIndex: number) => {
+      const newProvinceId = provinceIdMap.get(oldProvinceId);
+      if (newProvinceId !== undefined) pack.cells.province[cellIndex] = newProvinceId;
+    });
+
+    const state = (pack.states as State[])[primaryProvince.state];
+    state.provinces = (state.provinces ?? []).filter(provinceId => !provinces[provinceId].removed);
+    collectStatistics();
+    GenerationPipeline.Provinces.getPoles(getWorldState());
+    return { result: undefined, topics: ["map.politics", "map.settlements"] };
   });
-
-  worldContext.pack.cells.province.forEach((oldProvinceId: number, cellIndex: number) => {
-    const newProvinceId = provinceIdMap.get(oldProvinceId);
-    if (newProvinceId !== undefined) worldContext.pack.cells.province[cellIndex] = newProvinceId;
-  });
-
-  const state = (worldContext.pack.states as State[])[primaryProvince.state];
-  state.provinces = (state.provinces ?? []).filter(
-    (p: number) => !(worldContext.pack.provinces as Province[])[p].removed
-  );
-
-  collectStatistics();
-  GenerationPipeline.Provinces.getPoles(getWorldState());
+  if (!commit) return;
+  for (const provinceId of removedProvinceIds) cleanupMergedProvince(provinceId);
 
   if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleBorders")) BordersRenderer.render(worldContext, viewContext, appServices);
@@ -916,7 +920,10 @@ function mergeProvinces(ids: number[], primary: number): void {
 
 function updateLockStatus(provinceId: number): void {
   const p = (worldContext.pack.provinces as Province[])[provinceId];
-  p.lock = !p.lock;
+  legacyMutation(() => {
+    p.lock = !p.lock;
+    return { result: undefined, topics: ["map.politics"] };
+  });
   refreshProvincesEditor();
 }
 

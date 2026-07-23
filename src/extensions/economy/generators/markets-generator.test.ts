@@ -2,8 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearCharactersContext, initCharactersContext } from "../../characters/charactersContext";
 import { States, worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext } from "../economyContext";
-import "../types";
+import {
+  clearEconomyContext,
+  getDeals,
+  getGoods,
+  getMarketCellColumn,
+  getMarkets,
+  initEconomyContext,
+  setMarkets
+} from "../economyContext";
 import { MarketsModule } from "./markets-generator";
 import type { Market } from "./marketTypes";
 
@@ -74,10 +81,10 @@ describe("MarketsModule", () => {
       };
       // biome-ignore lint/complexity/useLiteralKeys: private access for testing
       marketsModule["marketById"] = [market1, market1];
-      worldContext.pack.markets = [market1];
+      setMarkets([market1]);
       const burg: Burg = { i: 1, market: 1, treasury: 15 } as unknown as Burg;
       worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg];
-      const deal = marketsModule.buy({ burg, good: worldContext.pack.goods[0], units: 5, budget: 15 });
+      const deal = marketsModule.buy({ burg, good: getGoods()[0], units: 5, budget: 15 });
       expect(deal).not.toBeNull();
       expect(deal!.units).toBe(1.36);
       expect(deal!.price).toBe(11);
@@ -94,10 +101,10 @@ describe("MarketsModule", () => {
       };
       // biome-ignore lint/complexity/useLiteralKeys: private access for testing
       marketsModule["marketById"] = [market1];
-      worldContext.pack.markets = [market1];
+      setMarkets([market1]);
       const burg: Burg = { i: 1, market: 1, treasury: 0.05 } as unknown as Burg;
       worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg];
-      const deal = marketsModule.buy({ burg, good: worldContext.pack.goods[0], units: 5, budget: 0.05 });
+      const deal = marketsModule.buy({ burg, good: getGoods()[0], units: 5, budget: 0.05 });
       expect(deal).toBeNull();
     });
 
@@ -110,14 +117,14 @@ describe("MarketsModule", () => {
       };
       // biome-ignore lint/complexity/useLiteralKeys: private access for testing
       marketsModule["marketById"] = [market, market];
-      worldContext.pack.markets = [market];
+      setMarkets([market]);
       const burg: Burg = { i: 1, market: 1, treasury: 100 } as unknown as Burg;
       worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg];
-      worldContext.pack.goods[0].name = "Gunpowder";
+      getGoods()[0].name = "Gunpowder";
       worldContext.options.gunpowderEraEnabled = false;
 
-      expect(marketsModule.buy({ burg, good: worldContext.pack.goods[0], units: 5 })).toBeNull();
-      expect(worldContext.pack.deals).toEqual([]);
+      expect(marketsModule.buy({ burg, good: getGoods()[0], units: 5 })).toBeNull();
+      expect(getDeals()).toEqual([]);
     });
 
     it("runGlobalTrade() should transfer excess stock to importers", () => {
@@ -135,12 +142,12 @@ describe("MarketsModule", () => {
       };
       const burg1: Burg = { i: 1, x: 100, y: 100, population: 100, market: 1 } as unknown as Burg;
       const burg2: Burg = { i: 2, x: 200, y: 100, population: 100, market: 2 } as unknown as Burg;
-      worldContext.pack.markets = [market1, market2];
+      setMarkets([market1, market2]);
       worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg1, burg2];
       // biome-ignore lint/complexity/useLiteralKeys: private access for testing
       marketsModule["marketById"] = [market1, market2];
       marketsModule.runGlobalTrade();
-      expect(worldContext.pack.deals).toHaveLength(1);
+      expect(getDeals()).toHaveLength(1);
       // Goods remain in transit until the spawned caravan reaches the importer.
       expect(market2.goods[0].stock).toBe(0);
       expect(market1.goods[0].stock).toBeLessThan(100);
@@ -161,7 +168,7 @@ describe("MarketsModule", () => {
       };
       const burg1: Burg = { i: 1, x: 100, y: 100, population: 100, market: 1 } as unknown as Burg;
       const burg2: Burg = { i: 2, x: 200, y: 100, population: 100, market: 2 } as unknown as Burg;
-      worldContext.pack.markets = [market1, market2];
+      setMarkets([market1, market2]);
       worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg1, burg2];
 
       const getMarketTradeRoute = vi.spyOn(
@@ -195,7 +202,7 @@ describe("MarketsModule", () => {
       };
       const burg1: Burg = { i: 1, x: 100, y: 100, population: 100, market: 1, state: 1 } as unknown as Burg;
       const burg2: Burg = { i: 2, x: 200, y: 100, population: 100, market: 2, state: 2 } as unknown as Burg;
-      worldContext.pack.markets = [market1, market2];
+      setMarkets([market1, market2]);
       worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg1, burg2];
       worldContext.pack.states = [
         { i: 0, salesTax: 0 },
@@ -206,9 +213,7 @@ describe("MarketsModule", () => {
       marketsModule["marketById"] = [market1, market2];
       marketsModule.runGlobalTrade();
 
-      const tradeDeal = worldContext.pack.deals.find(
-        d => d.sellerType === "market" && d.seller === 1 && d.buyerType === "market"
-      );
+      const tradeDeal = getDeals().find(d => d.sellerType === "market" && d.seller === 1 && d.buyerType === "market");
       expect(tradeDeal).toBeDefined();
       expect(tradeDeal!.tax).toBeGreaterThan(0);
       expect(tradeDeal!.tax).toBeCloseTo(0.2 * 5 * tradeDeal!.units, 1);
@@ -223,7 +228,7 @@ describe("MarketsModule", () => {
       const market2: Market = { i: 2, centerBurgId: 2, color: "#00ff00", goods: { 0: { stock: 10, price: 10 } } };
       const burg1: Burg = { i: 1, population: 100, market: 1 } as unknown as Burg;
       const burg2: Burg = { i: 2, population: 100, market: 2 } as unknown as Burg;
-      worldContext.pack.markets = [market1, market2];
+      setMarkets([market1, market2]);
       worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg1, burg2];
 
       marketsModule.initializeMarketPrices();
@@ -248,13 +253,13 @@ describe("MarketsModule", () => {
       };
       const burg1: Burg = { i: 1, x: 0, y: 0, population: 100, market: 1 } as unknown as Burg;
       const burg2: Burg = { i: 2, x: 900, y: 0, population: 100, market: 2 } as unknown as Burg;
-      worldContext.pack.markets = [market1, market2];
+      setMarkets([market1, market2]);
       worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg1, burg2];
       // biome-ignore lint/complexity/useLiteralKeys: private access for testing
       marketsModule["marketById"] = [market1, market2];
       marketsModule.runGlobalTrade();
 
-      expect(worldContext.pack.deals).toEqual([]);
+      expect(getDeals()).toEqual([]);
       expect(market2.goods[0].stock).toBe(0);
       expect(market1.goods[0].stock).toBe(100);
     });
@@ -274,16 +279,14 @@ describe("MarketsModule", () => {
       };
       const burg1: Burg = { i: 1, x: 100, y: 100, population: 100, market: 1 } as unknown as Burg;
       const burg2: Burg = { i: 2, x: 200, y: 100, population: 100, market: 2 } as unknown as Burg;
-      worldContext.pack.markets = [market1, market2];
+      setMarkets([market1, market2]);
       worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg1, burg2];
       // biome-ignore lint/complexity/useLiteralKeys: private access for testing
       marketsModule["marketById"] = [market1, market2];
 
       marketsModule.runGlobalTrade();
 
-      expect(worldContext.pack.deals.some(deal => deal.sellerType === "market" && deal.buyerType === "market")).toBe(
-        true
-      );
+      expect(getDeals().some(deal => deal.sellerType === "market" && deal.buyerType === "market")).toBe(true);
       expect(market2.goods[0].stock).toBe(5);
       expect(market1.goods[0].stock).toBeLessThan(100);
     });
@@ -303,16 +306,14 @@ describe("MarketsModule", () => {
       };
       const burg1: Burg = { i: 1, x: 100, y: 100, population: 100, market: 1 } as unknown as Burg;
       const burg2: Burg = { i: 2, x: 200, y: 100, population: 100, market: 2 } as unknown as Burg;
-      worldContext.pack.markets = [market1, market2];
+      setMarkets([market1, market2]);
       worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg1, burg2];
       // biome-ignore lint/complexity/useLiteralKeys: private access for testing
       marketsModule["marketById"] = [market1, market2];
 
       marketsModule.runGlobalTrade();
 
-      const tradeDeals = worldContext.pack.deals.filter(
-        deal => deal.sellerType === "market" && deal.buyerType === "market"
-      );
+      const tradeDeals = getDeals().filter(deal => deal.sellerType === "market" && deal.buyerType === "market");
       expect(tradeDeals).toHaveLength(1);
       const [tradeDeal] = tradeDeals;
       const seller = tradeDeal.seller === market1.i ? market1 : market2;
@@ -323,7 +324,7 @@ describe("MarketsModule", () => {
 
     it("addMarket() should claim only the center burg's cell and preserve existing borders", () => {
       const market1: Market = { i: 1, centerBurgId: 1, color: "#ff0000", goods: {} };
-      worldContext.pack.markets = [market1];
+      setMarkets([market1]);
       // biome-ignore lint/complexity/useLiteralKeys: private access for testing
       marketsModule["marketById"] = [market1];
 
@@ -338,7 +339,7 @@ describe("MarketsModule", () => {
 
       expect(newMarket).not.toBeNull();
       expect(newMarket!.i).toBe(2);
-      expect(Array.from(worldContext.pack.cells.market)).toEqual([1, 1, 1, 2]);
+      expect(Array.from(getMarketCellColumn())).toEqual([1, 1, 1, 2]);
       expect(centerBurg.market).toBe(2);
       expect(centerBurg.plaza).toBe(1);
       expect(marketsModule.get(2)).toBe(newMarket);
@@ -346,23 +347,23 @@ describe("MarketsModule", () => {
 
     it("addMarket() should reject a burg that already centers a market", () => {
       const market1: Market = { i: 1, centerBurgId: 1, color: "#ff0000", goods: {} };
-      worldContext.pack.markets = [market1];
+      setMarkets([market1]);
       // biome-ignore lint/complexity/useLiteralKeys: private access for testing
       marketsModule["marketById"] = [market1];
       worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, { i: 1, cell: 0 } as unknown as Burg];
       worldContext.pack.cells = { i: [0], market: Uint16Array.from([1]) } as unknown as PackedGraph["cells"];
 
       expect(marketsModule.addMarket(1)).toBeNull();
-      expect(worldContext.pack.markets).toHaveLength(1);
+      expect(getMarkets()).toHaveLength(1);
     });
 
     it("collectRuralProduction() should ignore cells with no market (market 0)", async () => {
       const { Goods } = await import("./goods-generator");
       const { getRuralProductionContributions } = await import("./production-utils");
-      const good = worldContext.pack.goods[0];
+      const good = getGoods()[0];
 
       const market1: Market = { i: 1, centerBurgId: 1, color: "#ff0000", goods: {} };
-      worldContext.pack.markets = [market1];
+      setMarkets([market1]);
       const index: Market[] = [];
       index[market1.i] = market1;
       // biome-ignore lint/complexity/useLiteralKeys: private access for testing
@@ -415,7 +416,7 @@ describe("MarketsModule", () => {
       };
       // biome-ignore lint/complexity/useLiteralKeys: private access for testing
       marketsModule["marketById"] = [market1, market1];
-      worldContext.pack.markets = [market1];
+      setMarkets([market1]);
       const burg: Burg = { i: 1, market: 1, state: 1 } as unknown as Burg;
       worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg];
       worldContext.pack.states = [
@@ -423,7 +424,7 @@ describe("MarketsModule", () => {
         { i: 1, salesTax: 0.2 }
       ] as unknown as PackedGraph["states"];
       const taxRate = States.getSalesTax(burg);
-      const deal = marketsModule.sell({ burg, good: worldContext.pack.goods[0], units: 5, taxRate });
+      const deal = marketsModule.sell({ burg, good: getGoods()[0], units: 5, taxRate });
       expect(deal).not.toBeNull();
       expect(deal!.tax).toBeGreaterThan(0);
       expect(deal!.tax).toBeCloseTo(deal!.units * deal!.price * 0.2, 2);
@@ -432,7 +433,7 @@ describe("MarketsModule", () => {
     it("sync() should rebuild the id index so get() resolves markets after a load", () => {
       const market3: Market = { i: 3, centerBurgId: 30, color: "#fff", goods: {} };
       const market7: Market = { i: 7, centerBurgId: 70, color: "#fff", goods: {} };
-      worldContext.pack.markets = [market3, market7];
+      setMarkets([market3, market7]);
       expect(marketsModule.get(3)).toBeUndefined();
 
       marketsModule.sync();
@@ -444,7 +445,7 @@ describe("MarketsModule", () => {
 
     it("sync() should tolerate holes in pack.markets", () => {
       const market2: Market = { i: 2, centerBurgId: 20, color: "#fff", goods: {} };
-      worldContext.pack.markets = [null as unknown as Market, market2];
+      setMarkets([null as unknown as Market, market2]);
       expect(() => marketsModule.sync()).not.toThrow();
       expect(marketsModule.get(2)).toBe(market2);
     });
@@ -482,7 +483,7 @@ describe("MarketsModule shipbuilding material consumption", () => {
         3: { stock: 10, price: 3 }
       }
     };
-    worldContext.pack.markets = [market];
+    setMarkets([market]);
     // biome-ignore lint/complexity/useLiteralKeys: public consumption is tested against a controlled market index
     marketsModule["marketById"] = [market, market];
   });

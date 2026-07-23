@@ -4,6 +4,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 
 import { removeRoute } from "../renderers/draw-routes";
+import { createRouteCommand, patchRoute, removeRouteCommand, replaceRoutePoints } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -15,7 +16,6 @@ import { getRoutesEditorState, setRoutesEditorState } from "../store/routesEdito
 import type { Route } from "../types/models";
 import { closeDialogs } from "../ui/dialogs/dialogService";
 import { findCell, getSegmentId, rn } from "../utils";
-import { ERROR } from "../utils/debug";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
@@ -32,7 +32,6 @@ let routeEditorCellsForced = false;
 let routeCreatorCellsForced = false;
 
 let _rcRoute: Route | null = null;
-let _rcInitCell = 0;
 let _rcPointIndex = 0;
 let _createRoutePoints: { x: number; y: number; cellId: number }[] = [];
 
@@ -138,7 +137,6 @@ function dragControlPointStart(
   event: d3.D3DragEvent<SVGCircleElement, [number, number, number], [number, number, number]>
 ): void {
   _rcRoute = getRoute();
-  _rcInitCell = event.subject[2] as number;
   _rcPointIndex = _rcRoute.points.indexOf(event.subject);
 }
 
@@ -154,31 +152,17 @@ function dragControlPointDrag(
   const y = rn(event.y, 2);
   const cellId = findCell(x, y);
 
-  _rcRoute.points[_rcPointIndex] = [x, y, cellId];
+  const updatedPoints = _rcRoute.points.map((point, index) =>
+    index === _rcPointIndex ? ([x, y, cellId] as [number, number, number]) : ([...point] as [number, number, number])
+  );
+  if (!replaceRoutePoints({ routeId: _rcRoute.i, points: updatedPoints })) return;
   select(this).datum(_rcRoute.points[_rcPointIndex]);
   redrawRoute(_rcRoute);
   drawRouteCells(_rcRoute.points);
 }
 
-function dragControlPointEnd(
-  event: d3.D3DragEvent<SVGCircleElement, [number, number, number], [number, number, number]>
-): void {
-  if (!_rcRoute) return;
-  const movedToCell = findCell(event.x, event.y);
-
-  if (movedToCell !== _rcInitCell) {
-    const prev = _rcRoute.points[_rcPointIndex - 1];
-    if (prev) {
-      removeConnection(_rcInitCell, prev[2]);
-      addConnection(movedToCell, prev[2], _rcRoute.i);
-    }
-
-    const next = _rcRoute.points[_rcPointIndex + 1];
-    if (next) {
-      removeConnection(_rcInitCell, next[2]);
-      addConnection(movedToCell, next[2], _rcRoute.i);
-    }
-  }
+function dragControlPointEnd(): void {
+  _rcRoute = null;
 }
 
 function redrawRoute(route: Route): void {
@@ -201,22 +185,10 @@ function addControlPoint(this: SVGPathElement, event: MouseEvent): void {
   const isNewCell = !route.points.some(p => p[2] === cellId);
 
   const index = getSegmentId(route.points as unknown as [number, number][], point as unknown as [number, number], 2);
-  route.points.splice(index, 0, point);
+  const updatedPoints = [...route.points.slice(0, index), point, ...route.points.slice(index)];
+  if (!replaceRoutePoints({ routeId: route.i, points: updatedPoints })) return;
 
-  if (isNewCell) {
-    const prev = route.points[index - 1];
-    const next = route.points[index + 1];
-
-    if (!prev) ERROR && console.error("Can't add control point to the start of the route");
-    if (!next) ERROR && console.error("Can't add control point to the end of the route");
-    if (!prev || !next) return;
-
-    removeConnection(prev[2], next[2]);
-    addConnection(prev[2], cellId, route.i);
-    addConnection(cellId, next[2], route.i);
-
-    drawRouteCells(route.points);
-  }
+  if (isNewCell) drawRouteCells(route.points);
 
   drawControlPoints(route.points);
   redrawRoute(route);
@@ -240,7 +212,7 @@ function handleControlPointClick(this: SVGCircleElement, _event: MouseEvent): vo
     const oldRoutePoints = route.points.slice(0, index + 1);
     const newRoutePoints = route.points.slice(index);
 
-    route.points = oldRoutePoints;
+    if (!replaceRoutePoints({ routeId: route.i, points: oldRoutePoints })) return;
     drawControlPoints(route.points);
     drawRouteCells(route.points);
     redrawRoute(route);
@@ -252,13 +224,7 @@ function handleControlPointClick(this: SVGCircleElement, _event: MouseEvent): vo
       name: route.name,
       points: newRoutePoints
     };
-    worldContext.pack.routes.push(newRoute);
-
-    for (let i = 0; i < newRoute.points.length; i++) {
-      const cellId = newRoute.points[i][2];
-      const nextPoint = newRoute.points[i + 1];
-      if (nextPoint) addConnection(cellId, nextPoint[2], newRoute.i);
-    }
+    if (!createRouteCommand({ route: newRoute })) return;
 
     view.routes
       .select(`#${newRoute.group}`)
@@ -270,37 +236,12 @@ function handleControlPointClick(this: SVGCircleElement, _event: MouseEvent): vo
   }
 
   function removeControlPoint(cp: d3.Selection<SVGCircleElement, unknown, null, undefined>): void {
-    const isOnlyPointInCell = route.points.filter(p => p[2] === pt[2]).length === 1;
-    if (isOnlyPointInCell) {
-      const prev = route.points[index - 1];
-      const next = route.points[index + 1];
-      if (prev) removeConnection(prev[2], pt[2]);
-      if (next) removeConnection(pt[2], next[2]);
-      if (prev && next) addConnection(prev[2], next[2], route.i);
-    }
-
     cp.remove();
-    route.points = route.points.filter(p => p !== pt);
+    if (!replaceRoutePoints({ routeId: route.i, points: route.points.filter(point => point !== pt) })) return;
 
     drawRouteCells(route.points);
     redrawRoute(route);
   }
-}
-
-function removeConnection(from: number, to: number): void {
-  const routeMap = worldContext.pack.cells.routes;
-  if (routeMap[from]) delete routeMap[from][to];
-  if (routeMap[to]) delete routeMap[to][from];
-}
-
-function addConnection(from: number, to: number, routeId: number): void {
-  const routeMap = worldContext.pack.cells.routes;
-
-  if (!routeMap[from]) routeMap[from] = {};
-  routeMap[from][to] = routeId;
-
-  if (!routeMap[to]) routeMap[to] = {};
-  routeMap[to][from] = routeId;
 }
 
 export function createRoute(defaultGroup?: string): void {
@@ -391,20 +332,18 @@ export const routesEditorActions = {
   },
 
   changeName(name: string): void {
-    getRoute().name = name;
-    setRoutesEditorState({ routeName: name });
+    if (patchRoute({ routeId: getRoute().i, name })) setRoutesEditorState({ routeName: name });
   },
 
   generateName(): void {
     const route = getRoute();
     const name = GenerationPipeline.Routes.generateName(route);
-    route.name = name;
-    setRoutesEditorState({ routeName: name });
+    if (patchRoute({ routeId: route.i, name })) setRoutesEditorState({ routeName: name });
   },
 
   changeGroup(group: string): void {
+    if (!patchRoute({ routeId: getRoute().i, group })) return;
     view.routes.select<SVGGElement>(`#${group}`).node()!.appendChild(elSelected!.node()!);
-    getRoute().group = group;
     setRoutesEditorState({ routeGroup: group });
   },
 
@@ -454,24 +393,21 @@ export const routesEditorActions = {
         options,
         onJoin: (selectedRouteId: number) => {
           const selectedRoute = worldContext.pack.routes.find((r: Route) => r.i === selectedRouteId)!;
+          let joinedPoints: [number, number, number][] | null = null;
 
           if (route.points.at(-1)![2] === selectedRoute.points.at(0)![2]) {
-            route.points = [...route.points, ...selectedRoute.points.slice(1)];
+            joinedPoints = [...route.points, ...selectedRoute.points.slice(1)];
           } else if (route.points.at(0)![2] === selectedRoute.points.at(-1)![2]) {
-            route.points = [...selectedRoute.points, ...route.points.slice(1)];
+            joinedPoints = [...selectedRoute.points, ...route.points.slice(1)];
           } else if (route.points.at(0)![2] === selectedRoute.points.at(0)![2]) {
-            route.points = [...route.points.reverse(), ...selectedRoute.points.slice(1)];
+            joinedPoints = [...[...route.points].reverse(), ...selectedRoute.points.slice(1)];
           } else if (route.points.at(-1)![2] === selectedRoute.points.at(-1)![2]) {
-            route.points = [...route.points, ...selectedRoute.points.reverse().slice(1)];
+            joinedPoints = [...route.points, ...[...selectedRoute.points].reverse().slice(1)];
           }
 
-          for (let i = 0; i < route.points.length; i++) {
-            const pt = route.points[i];
-            const nextPoint = route.points[i + 1];
-            if (nextPoint) addConnection(pt[2], nextPoint[2], route.i);
-          }
+          if (!joinedPoints || !replaceRoutePoints({ routeId: route.i, points: joinedPoints })) return;
 
-          GenerationPipeline.Routes.remove(selectedRoute);
+          if (!removeRouteCommand({ routeId: selectedRoute.i })) return;
           removeRoute(viewContext, selectedRoute.i);
           drawControlPoints(route.points);
           redrawRoute(route);
@@ -507,8 +443,8 @@ export const routesEditorActions = {
 
   toggleLockButton(): void {
     const route = getRoute();
-    route.lock = !route.lock;
-    setRoutesEditorState({ isLocked: !!route.lock });
+    const lock = !route.lock;
+    if (patchRoute({ routeId: route.i, lock })) setRoutesEditorState({ isLocked: lock });
   },
 
   removeRoute(): void {
@@ -518,7 +454,7 @@ export const routesEditorActions = {
       confirm: "Remove",
       onConfirm: () => {
         const route = getRoute();
-        GenerationPipeline.Routes.remove(route);
+        if (!removeRouteCommand({ routeId: route.i })) return;
         removeRoute(viewContext, route.i);
         routesEditorActions.closeRouteEditor();
       }
@@ -548,24 +484,7 @@ export const routesEditorActions = {
     const group = getRoutesEditorState().creatorGroup;
     const feature = worldContext.pack.cells.f[pts[0][2]];
     const route: Route = { points: pts, group, feature, i: routeId };
-    worldContext.pack.routes.push(route);
-
-    const links = worldContext.pack.cells.routes;
-    for (let i = 0; i < pts.length; i++) {
-      const pt = pts[i];
-      const nextPoint = pts[i + 1];
-
-      if (nextPoint) {
-        const cellId = pt[2];
-        const nextId = nextPoint[2];
-
-        if (!links[cellId]) links[cellId] = {};
-        links[cellId][nextId] = routeId;
-
-        if (!links[nextId]) links[nextId] = {};
-        links[nextId][cellId] = routeId;
-      }
-    }
+    if (!createRouteCommand({ route })) return;
 
     view.routes.select("#routeTemp").attr("id", `route${routeId}`);
 

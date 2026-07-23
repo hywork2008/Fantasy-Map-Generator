@@ -12,7 +12,7 @@ test.describe("Tour Prompt Button", () => {
       sessionStorage.clear();
     });
     await page.goto("/?seed=test-tour-prompt&width=1280&height=720");
-    await waitForMapLoad(page);
+    await waitForMapLoad(page, "svg");
   });
 
   test("button is visible on first load when counter starts at 0", async ({ page }) => {
@@ -34,7 +34,7 @@ test.describe("Tour Prompt Button", () => {
       STORAGE_KEY
     );
     await page.reload();
-    await waitForMapLoad(page);
+    await waitForMapLoad(page, "svg");
     await expect(page.locator("#tourPromptButton")).toBeVisible();
 
     await page.evaluate(
@@ -42,7 +42,7 @@ test.describe("Tour Prompt Button", () => {
       STORAGE_KEY
     );
     await page.reload();
-    await waitForMapLoad(page);
+    await waitForMapLoad(page, "svg");
     await expect(page.locator("#tourPromptButton")).toBeVisible();
   });
 
@@ -52,7 +52,7 @@ test.describe("Tour Prompt Button", () => {
       STORAGE_KEY
     );
     await page.reload();
-    await waitForMapLoad(page);
+    await waitForMapLoad(page, "svg");
     await expect(page.locator("#tourPromptButton")).toBeHidden();
   });
 

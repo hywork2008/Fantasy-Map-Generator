@@ -1,11 +1,10 @@
 import { drag, pointer } from "d3";
 import { zoomIntoBurg as zoomIntoBurgAction } from "../actions";
-import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-
-import { drawBurgIcon, drawBurgLabel, removeBurgCOA } from "../renderers";
+import { removeBurgCOA } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
+import { type BurgFacility, legacyMutation, moveBurg, patchBurg, removeBurg } from "../runtime/worldRuntime";
 import { burgEconomyExtensions } from "../services/burgEconomyExtensions";
 import { getBurgSiteDescriptor } from "../services/burgSiteDescriptor";
 import { getHeight } from "../services/cellInfoService";
@@ -14,7 +13,7 @@ import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { getBurgEditorState } from "../store/burgEditorState";
 import { elSelected, modules, setElSelected } from "../store/editorState";
-import type { Burg, Culture, CultureType } from "../types/models";
+import type { Burg, Culture } from "../types/models";
 import { closeDialog, closeDialogs, openAlert, openDialog, openPrompt } from "../ui/dialogs/dialogService";
 import { convertTemperature, findCell, openURL, parseTransform, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
@@ -31,6 +30,12 @@ import { showBurgTemperatureGraph } from "./temperature-graph";
 
 let _currentBurgId = 0;
 let cellsWasForced = false;
+
+const burgFacilities: readonly BurgFacility[] = ["citadel", "walls", "plaza", "temple", "shanty"];
+
+function isBurgFacility(feature: string): feature is BurgFacility {
+  return burgFacilities.includes(feature as BurgFacility);
+}
 
 export function editBurg(id?: number): void {
   if (view.customization) return;
@@ -177,29 +182,9 @@ const burgEditorInternal = {
       return;
     }
 
-    // change UI
     const x = rn(pt[0], 2);
     const y = rn(pt[1], 2);
-
-    view.burgIcons.select(`#burg${burgId}`).attr("x", x).attr("y", y);
-    view.burgLabels.select(`#burgLabel${burgId}`).attr("transform", null).attr("x", x).attr("y", y);
-
-    const anchor = view.anchors.select(`use[data-id='${burgId}']`);
-    if (anchor.size()) {
-      const size = anchor.attr("width");
-      const xa = rn(x - +size * 0.47, 2);
-      const ya = rn(y - +size * 0.47, 2);
-      anchor.attr("transform", null).attr("x", xa).attr("y", ya);
-    }
-
-    // change data
-    cells.burg[burg.cell] = 0;
-    cells.burg[cellId] = burgId;
-    burg.cell = cellId;
-    burg.state = newState;
-    burg.x = x;
-    burg.y = y;
-    if (burg.capital) worldContext.pack.states[newState].center = burg.cell;
+    moveBurg({ burgId, cellId, stateId: newState, x, y });
 
     if (event.shiftKey === false) burgEditorActions.toggleRelocateBurg();
   },
@@ -222,7 +207,7 @@ const burgEditorInternal = {
 export const burgEditorActions = {
   changeName(value: string): void {
     const burgId = burgEditorInternal.getBurgId();
-    worldContext.pack.burgs[burgId].name = value;
+    patchBurg({ burgId, name: value });
     if (elSelected?.node()) elSelected.text(value);
     getBurgEditorState().updateBurgData({ name: value });
   },
@@ -235,9 +220,10 @@ export const burgEditorActions = {
   changeGroup(newGroup: string): void {
     const burgId = burgEditorInternal.getBurgId();
     const burg = worldContext.pack.burgs[burgId];
-    GenerationPipeline.Burgs.changeGroup(burg, newGroup);
-    drawBurgIcon(worldContext, viewContext, appServices, burg);
-    drawBurgLabel(worldContext, viewContext, appServices, burg);
+    legacyMutation(() => {
+      GenerationPipeline.Burgs.changeGroup(burg, newGroup);
+      return { result: undefined, topics: ["map.settlements", "simulation.burgs"] };
+    });
     // changeGroup reapplies group-based demographics (e.g. fort: no children, 8:2 sex ratio)
     burgEditorInternal.updateBurgValues();
   },
@@ -248,13 +234,13 @@ export const burgEditorActions = {
 
   changeType(newType: string): void {
     const burgId = burgEditorInternal.getBurgId();
-    worldContext.pack.burgs[burgId].type = newType as CultureType;
+    patchBurg({ burgId, type: newType });
     getBurgEditorState().updateBurgData({ type: newType });
   },
 
   changeCulture(newCulture: number): void {
     const burgId = burgEditorInternal.getBurgId();
-    worldContext.pack.burgs[burgId].culture = newCulture;
+    patchBurg({ burgId, culture: newCulture });
     getBurgEditorState().updateBurgData({ culture: newCulture });
   },
 
@@ -270,9 +256,12 @@ export const burgEditorActions = {
     const burg = worldContext.pack.burgs[burgId];
 
     const parsedPop = rn(+newPopulation / worldContext.populationRate / worldContext.urbanization, 4);
-    burg.population = parsedPop;
-    // Rebuild age/sex buckets with the same group profile at the new total.
-    GenerationPipeline.Burgs.applyDemographics(burg);
+    legacyMutation(() => {
+      burg.population = parsedPop;
+      // Rebuild age/sex buckets with the same group profile at the new total.
+      GenerationPipeline.Burgs.applyDemographics(burg);
+      return { result: undefined, topics: ["map.settlements", "simulation.burgs"] };
+    });
 
     getBurgEditorState().updateBurgData({
       population: rn((burg.population ?? 0) * worldContext.populationRate * worldContext.urbanization),
@@ -298,14 +287,20 @@ export const burgEditorActions = {
 
     if (feature === "port") {
       if (burg.port) {
-        burg.port = 0;
+        legacyMutation(() => {
+          burg.port = 0;
+          return { result: undefined, topics: ["map.settlements"] };
+        });
         const anchor = getElementBySelector<SVGUseElement>(`#anchors [data-id='${burgId}']`);
         if (anchor) anchor.remove();
       } else {
         const haven = worldContext.pack.cells.haven[burg.cell];
         if (!haven) tip("Port haven is not found, system won't be able to make a searoute", false, "warn");
         const portFeature = haven ? worldContext.pack.cells.f[haven] : -1;
-        burg.port = portFeature;
+        legacyMutation(() => {
+          burg.port = portFeature;
+          return { result: undefined, topics: ["map.settlements"] };
+        });
 
         view.anchors
           .select(`#${burg.group}`)
@@ -328,22 +323,25 @@ export const burgEditorActions = {
       }
 
       const oldCapitalId = worldContext.pack.states[stateId].capital;
-      worldContext.pack.states[stateId].capital = burgId;
-      worldContext.pack.states[stateId].center = burg.cell;
-
-      burg.capital = 1;
-      GenerationPipeline.Burgs.changeGroup(burg);
-      drawBurgIcon(worldContext, viewContext, appServices, burg);
-      drawBurgLabel(worldContext, viewContext, appServices, burg);
-
       const oldCapital = worldContext.pack.burgs[oldCapitalId];
-      oldCapital.capital = 0;
-      GenerationPipeline.Burgs.changeGroup(oldCapital);
-      drawBurgIcon(worldContext, viewContext, appServices, oldCapital);
-      drawBurgLabel(worldContext, viewContext, appServices, oldCapital);
+      legacyMutation(() => {
+        const state = worldContext.pack.states[stateId];
+        state.capital = burgId;
+        state.center = burg.cell;
+        burg.capital = 1;
+        GenerationPipeline.Burgs.changeGroup(burg);
+        if (oldCapital) {
+          oldCapital.capital = 0;
+          GenerationPipeline.Burgs.changeGroup(oldCapital);
+        }
+        return { result: undefined, topics: ["map.settlements", "map.politics", "simulation.burgs"] };
+      });
     } else {
-      const bObj = burg as unknown as Record<string, number | undefined>;
-      bObj[feature] = bObj[feature] ? 0 : 1;
+      if (!isBurgFacility(feature)) {
+        tip(`Unknown burg feature: ${feature}`, false, "error");
+        return;
+      }
+      patchBurg({ burgId, facilities: { [feature]: !burg[feature] } });
     }
 
     getBurgEditorState().updateBurgData({
@@ -388,8 +386,7 @@ export const burgEditorActions = {
       default: GenerationPipeline.Burgs.getPreview(burg).link ?? "",
       onConfirm: link => {
         const url = String(link);
-        if (url) burg.link = url;
-        else delete burg.link;
+        patchBurg({ burgId, link: url || null });
         burgEditorInternal.updateBurgPreview(burg);
       }
     });
@@ -435,8 +432,9 @@ export const burgEditorActions = {
   toggleBurgLockButton(): void {
     const burgId = burgEditorInternal.getBurgId();
     const burg = worldContext.pack.burgs[burgId];
-    burg.lock = !burg.lock;
-    getBurgEditorState().updateBurgData({ lock: !!burg.lock });
+    const lock = !burg.lock;
+    patchBurg({ burgId, lock });
+    getBurgEditorState().updateBurgData({ lock });
   },
 
   removeSelectedBurg(): void {
@@ -451,9 +449,8 @@ export const burgEditorActions = {
         message: "Are you sure you want to remove the burg? <br>This action cannot be reverted",
         confirm: "Remove",
         onConfirm: () => {
-          const hasCOA = !!worldContext.pack.burgs[burgId]?.coa;
-          GenerationPipeline.Burgs.remove(burgId);
-          if (hasCOA) removeBurgCOA(viewContext, burgId);
+          const commit = removeBurg({ burgId });
+          if (commit?.result.removedCoa) removeBurgCOA(viewContext, burgId);
           closeDialog("burgEditor");
         }
       });

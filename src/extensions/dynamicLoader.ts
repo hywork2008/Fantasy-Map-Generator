@@ -13,21 +13,23 @@
  */
 
 import JSZip from "jszip";
+import { worldRuntime } from "../runtime/worldRuntime";
 import { useExtensionState } from "../store/extensionState";
-import type { ExtensionAPI } from "../types/extension-api";
+import type { DynamicExtensionAPI } from "../types/extension-api";
+import { createDynamicExtensionAPI } from "./dynamicExtensionApi";
 import { type ExtensionManifest, extensionDB, type InstalledExtensionRecord } from "./extensionDB";
 
 interface LoadedExtensionModule {
-  init?: (api: ExtensionAPI) => void;
-  cleanup?: (api: ExtensionAPI) => void;
+  init?: (api: DynamicExtensionAPI) => void;
+  cleanup?: (api: DynamicExtensionAPI) => void;
 }
 
 /** Tracks injected <style> tags and loaded module instances by extension id */
 const injectedStyles = new Map<string, HTMLStyleElement>();
 const loadedModules = new Map<string, LoadedExtensionModule>();
 
-function getAPI(): ExtensionAPI {
-  return window.fmg.extensionAPI;
+function getAPI(): DynamicExtensionAPI {
+  return createDynamicExtensionAPI(window.fmg.extensionAPI, worldRuntime);
 }
 
 /** Inject CSS and run the module's init() for a given record */
