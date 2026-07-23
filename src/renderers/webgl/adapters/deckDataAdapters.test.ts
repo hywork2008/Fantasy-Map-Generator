@@ -667,6 +667,7 @@ describe("deck.gl data adapters", () => {
 
   it("builds burg and anchor icon symbols from burg groups", () => {
     const worldContext = createWorldContext();
+    worldContext.pack.cells.haven = new Uint8Array([1, 0]);
     worldContext.pack.burgs = [
       { i: 1, cell: 0, x: 5, y: 5, name: "Portburg", group: "city", port: 1 },
       { i: 2, cell: 1, x: 8, y: 5, name: "Waterburg", group: "town" }
@@ -689,6 +690,7 @@ describe("deck.gl data adapters", () => {
     expect(icons[1]).toMatchObject({ kind: "burgIcon", type: "anchor", burgId: 1, cellId: 0, group: "city" });
     expect(icons[0].color).toEqual([17, 17, 17, 255]);
     expect(icons[1].size).toBe(1.5);
+    expect(icons[1].position).toEqual([6.05, 5]);
   });
 
   it("maps burg and port icons to reusable low-poly mesh descriptors", () => {

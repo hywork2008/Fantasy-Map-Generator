@@ -15,7 +15,7 @@ import { getBurgEditorState } from "../store/burgEditorState";
 import { elSelected, modules, setElSelected } from "../store/editorState";
 import type { Burg, Culture } from "../types/models";
 import { closeDialog, closeDialogs, openAlert, openDialog, openPrompt } from "../ui/dialogs/dialogService";
-import { convertTemperature, findCell, openURL, parseTransform, rn } from "../utils";
+import { convertTemperature, findCell, getPortAnchorPosition, openURL, parseTransform, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
 import { generateRandomName } from "../utils/nameGenerator";
@@ -308,8 +308,8 @@ export const burgEditorActions = {
           .attr("href", "#icon-anchor")
           .attr("id", `anchor${burg.i}`)
           .attr("data-id", burg.i ?? 0)
-          .attr("x", burg.x)
-          .attr("y", burg.y);
+          .attr("x", getPortAnchorPosition(worldContext.pack, burg)[0])
+          .attr("y", getPortAnchorPosition(worldContext.pack, burg)[1]);
       }
     } else if (feature === "capital") {
       if (burg.capital) {

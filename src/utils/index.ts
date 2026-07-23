@@ -50,6 +50,7 @@ import {
   getPolesOfInaccessibility,
   getVertexPath
 } from "./pathUtils";
+import { getPortAnchorPosition, PORT_ANCHOR_WATER_OFFSET } from "./portAccess";
 import { biased, each, gauss, generateSeed, getNumberInRange, P, Pint, ra, rand, rw } from "./probabilityUtils";
 import { capitalize, isValidJSON, parseTransform, round, safeParseJSON, sanitizeId, splitInTwo } from "./stringUtils";
 
@@ -134,6 +135,7 @@ export {
   getNumberInRange,
   getPackPolygon,
   getPolesOfInaccessibility,
+  getPortAnchorPosition,
   getRandomColor,
   getSegmentId,
   getTypedArray,
@@ -154,6 +156,7 @@ export {
   openURL,
   P,
   Pint,
+  PORT_ANCHOR_WATER_OFFSET,
   parseError,
   parseTransform,
   poissonDiscSampler,

@@ -3,6 +3,7 @@ import type { SettlementLayers, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { getPresentationStyleRecord, presentationData } from "../runtime/presentationData";
 import type { Burg, BurgGroup } from "../types/models";
+import { getPortAnchorPosition } from "../utils";
 import { TIME } from "../utils/debug";
 import { isCellInScope } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
@@ -46,8 +47,8 @@ export const BurgIconsRenderer: IRenderer = {
           .attr("id", d => `anchor${d.i}`)
           .attr("data-id", d => d.i!)
           .attr("href", "#icon-anchor")
-          .attr("x", d => d.x)
-          .attr("y", d => d.y);
+          .attr("x", d => getPortAnchorPosition(pack, d)[0])
+          .attr("y", d => getPortAnchorPosition(pack, d)[1]);
       }
     }
 
@@ -91,8 +92,8 @@ export const drawBurgIcon = (
       .attr("href", "#icon-anchor")
       .attr("id", `anchor${burg.i}`)
       .attr("data-id", burg.i!)
-      .attr("x", burg.x)
-      .attr("y", burg.y);
+      .attr("x", getPortAnchorPosition(worldContext.pack, burg)[0])
+      .attr("y", getPortAnchorPosition(worldContext.pack, burg)[1]);
   }
 };
 

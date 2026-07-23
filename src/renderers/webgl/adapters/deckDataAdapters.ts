@@ -29,7 +29,7 @@ import type {
 } from "../../../types/models";
 import type { PackedGraphCells, PackedGraphVertices } from "../../../types/PackedGraph";
 import type { WebglPickKind } from "../../../types/webglPicking";
-import { clipPoly, isWater } from "../../../utils";
+import { clipPoly, getPortAnchorPosition, isWater } from "../../../utils";
 import { getColor, getColorScheme } from "../../../utils/colorUtils";
 import { type RelationKey, relations } from "../../../utils/diplomacyRelations";
 import { fractalizeCoastline, sampleCatmullRomPolyline, sampleCoastlineShape } from "../../coastline-fractal";
@@ -1394,6 +1394,7 @@ export function buildBurgIconSymbols(
     if (!burg.port) continue;
     const anchorStyle = styles.anchors[group] ?? styles.anchors.town ?? DEFAULT_ANCHOR_ICON_STYLE;
     const anchorRaster = getCachedBurgIconRaster(anchorStyle.icon);
+    const anchorPosition = getPortAnchorPosition(worldContext.pack, burg);
     icons.push({
       id: `anchor-${burg.i}`,
       kind: "burgIcon",
@@ -1401,7 +1402,7 @@ export function buildBurgIconSymbols(
       burgId: burg.i,
       cellId: burg.cell,
       group,
-      position: [burg.x, burg.y],
+      position: anchorPosition,
       size: anchorStyle.size,
       color:
         anchorRaster && !anchorRaster.mask
@@ -1451,6 +1452,7 @@ export function buildLowPolyBurgSymbols(
 
     if (!burg.port) continue;
     const anchorStyle = styles.anchors[group] ?? styles.anchors.town ?? DEFAULT_ANCHOR_ICON_STYLE;
+    const anchorPosition = getPortAnchorPosition(worldContext.pack, burg);
     icons.push({
       id: `anchor-${burg.i}`,
       burgId: burg.i,
@@ -1459,7 +1461,7 @@ export function buildLowPolyBurgSymbols(
       group,
       type: "anchor",
       shape: "anchor",
-      position: [burg.x, burg.y],
+      position: anchorPosition,
       size: Math.max(0.45, anchorStyle.size * 0.32),
       color: anchorStyle.fill,
       opacity: anchorStyle.opacity

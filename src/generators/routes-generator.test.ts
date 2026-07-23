@@ -14,6 +14,7 @@ type RoutesGraphInternals = {
     portEdges: [number, number][],
     coastalPortIndices: number[]
   ): [number, number][];
+  getPoints(group: string, cells: number[], points: [number, number][]): [number, number, number][];
   createCostEvaluator(options: {
     isWater: boolean;
     connections: Map<string, boolean>;
@@ -153,6 +154,29 @@ describe("RoutesModule river-aware water cost", () => {
     expect(Routes.getWaterPathCost(5, 2)).toBeLessThan(Infinity);
   });
 
+  it("permits a low-flux river port through its official haven only", () => {
+    worldContext.pack.cells = {
+      h: [25, 5, 5],
+      r: [1, 0, 0],
+      fl: [MIN_NAVIGABLE_FLUX - 1, 0, 0],
+      haven: [1, 0, 0],
+      p: [
+        [0, 0],
+        [10, 0],
+        [0, 10]
+      ],
+      t: [1, -1, -1],
+      g: [0, 0, 0]
+    } as unknown as PackedGraph["cells"];
+    worldContext.pack.rivers = [{ i: 1, cells: [0, 1] }] as unknown as PackedGraph["rivers"];
+    Routes.sync();
+
+    expect(Routes.getWaterPathCost(0, 1)).toBeLessThan(Infinity);
+    expect(Routes.getWaterPathCost(1, 0)).toBeLessThan(Infinity);
+    expect(Routes.getWaterPathCost(0, 2)).toBe(Infinity);
+    expect(Routes.getWaterPathCost(2, 0)).toBe(Infinity);
+  });
+
   it("rejects a coastal non-port cell that has no haven", () => {
     worldContext.pack.cells = {
       h: [25, 5, 5],
@@ -225,6 +249,48 @@ describe("RoutesModule river-aware water cost", () => {
     const portGraph = { cells: { c: [[1, 2], [0], [0]] } };
     expect(findPath(1, cell => cell === 0, getLegacySeaRouteCost, portGraph)).toEqual([1, 0]);
     expect(findPath(2, cell => cell === 0, getLegacySeaRouteCost, portGraph)).toBeNull();
+  });
+
+  it("places generated sea-route endpoints at the water-side port anchor", () => {
+    worldContext.pack = {
+      cells: {
+        burg: [1, 0],
+        haven: [1, 0],
+        v: [
+          [0, 1],
+          [0, 1]
+        ],
+        p: [
+          [5, 5],
+          [8, 5]
+        ]
+      },
+      vertices: {
+        c: [
+          [0, 1, -1],
+          [0, 1, -1]
+        ],
+        p: [
+          [0, 0],
+          [10, 0]
+        ]
+      },
+      burgs: [{}, { i: 1, cell: 0, x: 5, y: 5, port: 1 }]
+    } as unknown as PackedGraph;
+
+    expect(
+      routeInternals.getPoints(
+        "searoutes",
+        [0, 1],
+        [
+          [5, 5],
+          [8, 5]
+        ]
+      )
+    ).toEqual([
+      [6.05, 1.75, 0],
+      [8, 5, 1]
+    ]);
   });
 
   it("rejects exit from a river-mouth land cell into a non-mouth water cell", () => {

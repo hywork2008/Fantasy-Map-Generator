@@ -9,7 +9,17 @@ import { worldContext } from "../context/worldContext";
 
 import type { Burg, Route, SeaRouteGenerationMode } from "../types/models";
 import type { WorldState } from "../types/WorldState";
-import { distanceSquared, findClosestCell, findPath, getAdjective, ra, rn, round, rw } from "../utils";
+import {
+  distanceSquared,
+  findClosestCell,
+  findPath,
+  getAdjective,
+  getPortAnchorPosition,
+  ra,
+  rn,
+  round,
+  rw
+} from "../utils";
 import { TIME } from "../utils/debug";
 import { isLand } from "../utils/graphUtils";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
@@ -231,6 +241,17 @@ class RoutesModule {
 
     const currentIsWater = h[current] < 20;
     const nextIsWater = h[next] < 20;
+
+    // A coastal port's haven is its official sea portal. Check it before
+    // river adjacency so a low-flux river mouth can still reach the sea,
+    // without making the river itself navigable.
+    if (!currentIsWater && nextIsWater && haven?.[current] === next) {
+      return distanceSquared(pack.cells.p[current], pack.cells.p[next]);
+    }
+
+    if (currentIsWater && !nextIsWater && haven?.[next] === current) {
+      return distanceSquared(pack.cells.p[current], pack.cells.p[next]);
+    }
 
     if (this.riverAdjacency.has(`${current}-${next}`)) {
       if (!currentIsWater && !nextIsWater) {
@@ -712,9 +733,11 @@ class RoutesModule {
 
   private getPoints(group: string, cells: number[], points: Point[]): [number, number, number][] {
     const { pack } = this.worldContext;
-    const data: [number, number, number][] = cells.map(
-      cellId => [...points[cellId], cellId] as [number, number, number]
-    );
+    const data: [number, number, number][] = cells.map(cellId => {
+      const burg = pack.burgs[pack.cells.burg[cellId]];
+      const position = group === "searoutes" && burg?.port ? getPortAnchorPosition(pack, burg) : points[cellId];
+      return [...position, cellId] as [number, number, number];
+    });
 
     // resolve sharp angles
     if (group !== "searoutes") {
