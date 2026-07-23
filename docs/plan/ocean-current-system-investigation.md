@@ -145,7 +145,7 @@ Delaunay三角形分割から各三角形の最長辺を1本ずつ除去した�
 
 ---
 
-## 6. 解決計画（未実装）: 「近い港が繋がらない」の修正
+## 6. 解決計画: 「近い港が繋がらない」の修正
 
 3節の2つの原因（3.1 feature id グルーピング、3.2 Urquhart graph の疎さ）のうち、実際に修正すべきなのは3.2側のみと判断した。理由と具体的な修正案は以下。
 
@@ -157,15 +157,14 @@ Delaunay三角形分割から各三角形の最長辺を1本ずつ除去した�
 
 ### 6.2 3.2（Urquhart graph の疎さ）を修正する
 
-**方針**: `calculateUrquhartEdges`（`routes-generator.ts:363-402`）が返すエッジ集合に、「各点から見た最近傍点への辺」を和集合として追加する（幾何学的に relative neighborhood graph に近い考え方）。Delaunay三角形分割は性質上「各点の最近傍点への辺」を必ず含むため、追加のブルートフォース近傍探索は不要——既存の `Delaunator.from(points)` の三角形分割結果を1回余分に走査し、各点ごとに距離が最小のエッジを記録するだけでよい。
+**方針の修正**: 当初の「各点の絶対的な最近傍辺を追加する」案は、Urquhart graph が最近傍辺を既に保持する性質のため、通常はネットワークを変化させない。代わりに、**Urquhart が除去した Delaunay 隣接辺のうち、各港から最も近い1本を復活**させる。これにより、既存の疎な骨格は保ちつつ、近隣港が選ばれなかった箇所だけを補強できる。
 
-**実装案**:
+**実装済み**:
 
-1. `calculateUrquhartEdges` と同じ Delaunay 分割・`removed` マーキングロジックはそのまま流用し、新しいプライベートメソッド（例: `calculateAugmentedEdges(points)`）を追加する。
-   - 既存の三角形走査ループに、各点の現在の最短距離エッジを記録する処理を追加する（三角形分割の全エッジを走査すれば求まる。追加の近傍探索アルゴリズムは不要）。
-   - 戻り値は「Urquhartで生き残ったエッジ」∪「各点の最近傍エッジ」を重複除去したもの。
-2. `generateSeaRoutes`（`routes-generator.ts:559-584`）の `calculateUrquhartEdges(points)` 呼び出しだけを `calculateAugmentedEdges(points)` に差し替える。`generateMainRoads`・`generateTrails` は変更しない（陸路網への副作用を避け、スコープを港の問題に限定する）。
-3. 追加されたエッジもそのまま既存の `findPathSegments({isWater: true, ...})` に渡す。同一feature内のポート同士なので必ず到達可能であり、実際の海路の形は既存のコスト関数（`ROUTE_TYPE_MODIFIERS` の沿岸バイアス等）がそのまま決める。`addConnections`・`mergeRoutes`・`createRoutesData` などの下流ロジックは変更不要。
+1. `routes-generator.ts` に `calculateAugmentedEdges(points)` を追加した。既存の Delaunay 分割と `removed` マーキングを共有し、Urquhart で生き残った辺に各港の最短の除去辺を重複なく加える。
+2. `generateSeaRoutes` のみが `SeaRouteGenerationMode` を受け取る。`augmented` を新規地図生成の既定とし、`legacy` は Urquhart graph と「河川セルを水路として通れない」修正前の水上コストを組み合わせた比較用の旧方式として残す。`generateMainRoads`・`generateTrails` は変更しない。
+3. Tools タブの **Regenerate → Routes** の確認ダイアログでは改善版を先頭・初期選択にし、従来方式は2番目の選択肢として比較できる。比較のたびに選択できるよう、この操作だけは「do not ask again」の対象外にした。追加された辺も既存の `findPathSegments({isWater: true, ...})` に渡すため、水域を跨ぐ経路だけが作られる。
+4. `seaRouteGenerationMode` は地図オプションとして保存する。方式を記録した `.fmg` の読み込み時は、ロック済み航路だけを保持して記録済み方式で再生成する。方式情報が無い旧 `.fmg` は、どちらの方式で保存されたかを安全に判別できないため、保存済み航路をそのまま復元する。
 
 **リスク**:
 
@@ -174,9 +173,15 @@ Delaunay三角形分割から各三角形の最長辺を1本ずつ除去した�
 
 ### 6.3 検証計画
 
-- `src/generators/routes-generator.test.ts` には現状 `calculateUrquhartEdges`/`generateSeaRoutes` を直接検証するテストが無いため、「Urquhartでは繋がらないが最近傍である」座標セット（意図的にUrquhartが辺を落とすような細長い三角形配置）を与え、和集合後のエッジに最近傍ペアが含まれることを確認する unit test を新規追加する。
+- `src/generators/routes-generator.test.ts` に、Urquhart が対角辺を落とす4港の座標セットを与え、`augmented` の辺集合がその除去辺を復活させ、既存辺を保持することを確認する unit test を追加した。
 - 既存のマップ生成関連テストで `pack.routes` の `searoutes` group にリグレッションが無いか確認する。
 - 実際のマップシード（ユーザーが気づいた具体例があれば、そのシードで）で before/after のスクリーンショットを比較する。
+
+### 6.4 Navigable Rivers との統合（実装済み）
+
+v1.124.0 以降、`haven` を持たない `burg.port` は必ずしも不正ではない。`Rivers.isNavigable()` を満たす内陸河川港は、最終的な排水先の水域 feature を `port` として持つ。海路生成では `Routes.getWaterPathCost()` が河川セル間・河口への移動を許可するため、`createCostEvaluator({ isWater: true })` はこの共通コスト関数を使用する。`Routes.generate()` の開始時に `Routes.sync()` を呼び、現マップの河川隣接情報も同期する。
+
+改善版の port graph は、全港（沿岸港・河川港）で作る補強グラフに加えて、`haven` を持つ沿岸港だけで作る Urquhart の**沿岸バックボーン**を和集合にする。これにより河川港の参加を維持しつつ、河川港が近傍候補を占有して沿岸の主要な航路が消えることを防ぐ。
 
 ---
 

@@ -44,7 +44,7 @@ import { useOptionsState } from "../store/optionsState";
 import { useRiversOverviewState } from "../store/riversOverviewState";
 import { useUiPreferencesState } from "../store/uiPreferencesState";
 import type { MarkerConfig } from "../types/MarkerConfig";
-import type { Burg, Marker, Province, Religion, River, Route, State } from "../types/models";
+import type { Burg, Marker, Province, Religion, River, Route, SeaRouteGenerationMode, State } from "../types/models";
 import type { WorldNote } from "../types/WorldState";
 import * as Dialogservice from "../ui/dialogs/dialogService";
 import { closeDialog, closeDialogs, openDialog, openPrompt } from "../ui/dialogs/dialogService";
@@ -204,7 +204,7 @@ document.addEventListener("react-tool-action", e => {
 
   if (button.startsWith("regenerate")) {
     const { dontAskRegenerateFeature, setDontAskRegenerateFeature } = useUiPreferencesState.getState();
-    if (dontAskRegenerateFeature) return processFeatureRegeneration(null, button);
+    if (dontAskRegenerateFeature && button !== "regenerateRoutes") return processFeatureRegeneration(null, button);
 
     const featureName = button
       .replace(/^regenerate/, "")
@@ -214,9 +214,12 @@ document.addEventListener("react-tool-action", e => {
 
     const regenerateConfig: RegenerateConfirmConfig = {
       featureName,
-      onProceed: dontAskAgain => {
+      showDontAskAgain: button !== "regenerateRoutes",
+      seaRouteGenerationMode:
+        button === "regenerateRoutes" ? (worldContext.options.seaRouteGenerationMode ?? "augmented") : undefined,
+      onProceed: (dontAskAgain, seaRouteGenerationMode) => {
         if (dontAskAgain) setDontAskRegenerateFeature(true);
-        processFeatureRegeneration(null, button);
+        processFeatureRegeneration(null, button, seaRouteGenerationMode);
       }
     };
     openDialog("regenerateConfirm", regenerateConfig);
@@ -242,7 +245,11 @@ document.addEventListener("react-tool-action", e => {
 
 // ─── Regeneration dispatcher ──────────────────────────────────────────────────
 
-function processFeatureRegeneration(event: MouseEvent | null, button: string): void {
+function processFeatureRegeneration(
+  event: MouseEvent | null,
+  button: string,
+  seaRouteGenerationMode: SeaRouteGenerationMode = worldContext.options.seaRouteGenerationMode ?? "augmented"
+): void {
   if (button === "regenerateStateLabels") {
     d3.select("#labels").style("display", "block");
     drawStateLabels(worldContext, viewContext, appServices);
@@ -250,7 +257,7 @@ function processFeatureRegeneration(event: MouseEvent | null, button: string): v
     ReliefIconsRenderer.render(worldContext, viewContext, appServices);
     if (!layerIsOn("toggleRelief")) toggleRelief();
   } else if (button === "regenerateRoutes") {
-    regenerateRoutes();
+    regenerateRoutes(seaRouteGenerationMode);
     if (!layerIsOn("toggleRoutes")) toggleRoutes();
   } else if (button === "regenerateRivers") regenerateRivers();
   else if (button === "regeneratePopulation") recalculatePopulation();
@@ -294,12 +301,21 @@ export async function openEmblemEditor(): Promise<void> {
 
 // ─── Regenerate functions ─────────────────────────────────────────────────────
 
-function regenerateRoutes(): void {
+function regenerateRoutes(
+  seaRouteGenerationMode: SeaRouteGenerationMode = worldContext.options.seaRouteGenerationMode ?? "augmented"
+): void {
   const locked = worldContext.pack.routes
     .filter((route: Route) => route.lock)
     .map((route: Route, index: number) => ({ ...route, i: index }));
   legacyMutation(() => {
-    GenerationPipeline.Routes.generate(worldContext, viewContext, appServices, getWorldState(), locked);
+    GenerationPipeline.Routes.generate(
+      worldContext,
+      viewContext,
+      appServices,
+      getWorldState(),
+      locked,
+      seaRouteGenerationMode
+    );
     return { result: undefined, topics: ["map.networks"] };
   });
 

@@ -1,6 +1,6 @@
 import type { PackedGraph } from "../types/PackedGraph";
 import type { Grid } from "./Grid";
-import type { BurgGroup, MilitaryUnit, NameBase } from "./models";
+import type { BurgGroup, MilitaryUnit, NameBase, SeaRouteGenerationMode } from "./models";
 
 export interface WorldNote {
   id: string;
@@ -59,6 +59,11 @@ export interface WorldOptions {
   eraShort?: string;
   /** Whether gunpowder-era military units and goods are available. Undefined preserves legacy maps' enabled behavior. */
   gunpowderEraEnabled?: boolean;
+  /**
+   * Sea-route topology selected for this map. Persisted so loading a saved map
+   * does not replace a user-selected legacy network with the augmented one.
+   */
+  seaRouteGenerationMode?: SeaRouteGenerationMode;
   /**
    * Map-level interstate-conflict policy. Undefined is interpreted as "autonomous" for old maps.
    * This lives with the saved world rather than in UI preferences so reloading a map preserves its simulation rules.

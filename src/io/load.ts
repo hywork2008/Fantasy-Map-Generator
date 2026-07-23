@@ -20,7 +20,7 @@ import {
   decodeAndValidateWorldArchive,
   LegacyMapCodecAdapter
 } from "../runtime/worldArchive";
-import { worldRuntime } from "../runtime/worldRuntime";
+import { legacyMutation, worldRuntime } from "../runtime/worldRuntime";
 import { declareFont, fonts } from "../services/fonts";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
@@ -29,7 +29,7 @@ import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
 import { loadErrorDialogStore } from "../store/loadErrorDialogState";
 import { loadMapDialogStore } from "../store/loadMapDialogState";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
-import type { NameBase, River } from "../types/models";
+import type { NameBase, River, Route, SeaRouteGenerationMode } from "../types/models";
 import { closeDialogs, openConfirm } from "../ui/dialogs/dialogService";
 import { calculateVoronoi, findCell, last, link, minmax, parseError, rn } from "../utils";
 import { heightmapColorSchemes } from "../utils/colorUtils";
@@ -197,8 +197,19 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
     // Decode, migrate and validate are complete before the first live mutation.
     // A malformed archive therefore leaves the active world and SVG untouched.
     const validated = await decodeAndValidateWorldArchive({ blob: file, header });
+    const seaRouteGenerationMode = validated.document.world.options.seaRouteGenerationMode;
     const commit = await worldRuntime.dispatch({ type: "world.replace", payload: validated });
     if (!commit) throw new Error("World archive did not produce a replacement commit");
+
+    // Archives created before the generation-mode field was introduced have no
+    // reliable indication of which algorithm produced their routes. Preserve
+    // those routes verbatim instead of forcibly replacing them with augmented.
+    if (seaRouteGenerationMode) {
+      legacyMutation(() => {
+        regenerateLoadedRoutes(seaRouteGenerationMode);
+        return { result: undefined, topics: ["map.networks"] };
+      });
+    }
 
     useOptionsState.getState().setOptions({
       seed: worldContext.seed,
@@ -226,6 +237,30 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
       onNewMap: () => document.dispatchEvent(new CustomEvent("fmg:regenerate-map", { detail: "loading error" }))
     });
   }
+}
+
+/**
+ * Route generation is intentionally upgraded when an archive is loaded. A
+ * `.fmg` archives that explicitly record a generation mode are rebuilt using
+ * that mode. Locked routes remain user-authored and are retained.
+ *
+ * This runs immediately after `world.replace`: `Routes.sync()` uses the River
+ * singleton's current world context to build river geometry, so it cannot
+ * safely operate on the detached decoded document.
+ */
+function regenerateLoadedRoutes(seaRouteGenerationMode: SeaRouteGenerationMode): void {
+  const lockedRoutes = worldContext.pack.routes
+    .filter((route: Route) => route.lock)
+    .map((route: Route, index: number) => ({ ...route, i: index }));
+  const { pack, grid, seed, options, nameBases, biomesData, notes } = worldContext;
+  Routes.generate(
+    worldContext,
+    viewContext,
+    appServices,
+    { pack, grid, seed, options, nameBases, biomesData, notes },
+    lockedRoutes,
+    seaRouteGenerationMode
+  );
 }
 
 export async function parseLoadedResult(

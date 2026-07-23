@@ -5,7 +5,60 @@ import type { PackedGraph } from "../types/PackedGraph";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
 import { Routes } from "./routes-generator";
 
+type RoutesGraphInternals = {
+  calculateUrquhartEdges(points: [number, number][]): number[][];
+  calculateAugmentedEdges(points: [number, number][]): number[][];
+  addCoastalBackboneEdges(
+    points: [number, number][],
+    portEdges: [number, number][],
+    coastalPortIndices: number[]
+  ): [number, number][];
+  createCostEvaluator(options: {
+    isWater: boolean;
+    connections: Map<string, boolean>;
+    seaRouteGenerationMode?: "legacy" | "augmented";
+  }): (current: number, next: number) => number;
+};
+
+function normalizeEdges(edges: number[][]): Set<string> {
+  return new Set(edges.map(([from, to]) => `${Math.min(from, to)}-${Math.max(from, to)}`));
+}
+
+describe("RoutesModule sea-route graph modes", () => {
+  const graphInternals = Routes as unknown as RoutesGraphInternals;
+
+  it("restores the closest Urquhart-removed Delaunay edge for each affected port", () => {
+    const points: [number, number][] = [
+      [0, 0],
+      [10, 0],
+      [0, 10],
+      [10, 10]
+    ];
+
+    const legacyEdges = normalizeEdges(graphInternals.calculateUrquhartEdges(points));
+    const augmentedEdges = normalizeEdges(graphInternals.calculateAugmentedEdges(points));
+
+    expect(legacyEdges.has("1-2")).toBe(false);
+    expect(augmentedEdges.has("1-2")).toBe(true);
+    expect(augmentedEdges.size).toBeGreaterThan(legacyEdges.size);
+    for (const edge of legacyEdges) expect(augmentedEdges.has(edge)).toBe(true);
+  });
+
+  it("adds a coastal backbone edge without removing river-port connections", () => {
+    const points: [number, number][] = [
+      [0, 0], // coastal port
+      [4, 0], // navigable river port
+      [8, 0] // coastal port
+    ];
+    const combinedEdges = normalizeEdges(graphInternals.addCoastalBackboneEdges(points, [[0, 1]], [0, 2]));
+
+    expect(combinedEdges).toEqual(new Set(["0-1", "0-2"]));
+  });
+});
+
 describe("RoutesModule river-aware water cost", () => {
+  const routeInternals = Routes as unknown as RoutesGraphInternals;
+
   beforeEach(() => {
     worldContext.pack = {
       cells: {
@@ -47,6 +100,25 @@ describe("RoutesModule river-aware water cost", () => {
     setupTwoRiverPack();
     expect(Routes.getWaterPathCost(1, 2)).toBeLessThan(Infinity);
     expect(Routes.getWaterPathCost(2, 1)).toBeLessThan(Infinity);
+  });
+
+  it("uses the river-aware cost evaluator when generating sea routes", () => {
+    setupTwoRiverPack();
+    const getSeaRouteCost = routeInternals.createCostEvaluator({ isWater: true, connections: new Map() });
+
+    expect(getSeaRouteCost(1, 2)).toBeLessThan(Infinity);
+    expect(getSeaRouteCost(2, 3)).toBe(Infinity);
+  });
+
+  it("uses the pre-river-fix water evaluator in legacy mode", () => {
+    setupTwoRiverPack();
+    const getLegacySeaRouteCost = routeInternals.createCostEvaluator({
+      isWater: true,
+      connections: new Map(),
+      seaRouteGenerationMode: "legacy"
+    });
+
+    expect(getLegacySeaRouteCost(1, 2)).toBe(Infinity);
   });
 
   it("rejects a step between voronoi-adjacent cells of different rivers", () => {

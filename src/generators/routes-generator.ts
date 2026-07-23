@@ -7,7 +7,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 
-import type { Burg, Route } from "../types/models";
+import type { Burg, Route, SeaRouteGenerationMode } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { distanceSquared, findClosestCell, findPath, getAdjective, ra, rn, round, rw } from "../utils";
 import { TIME } from "../utils/debug";
@@ -26,6 +26,9 @@ const ROUTE_TYPE_MODIFIERS: Record<string, number> = {
   "-4": 6, // ocean
   default: 8 // far ocean
 };
+
+type RouteGraphEdge = { from: number; to: number; triangleIndex: number };
+type PortEdge = [number, number];
 
 // name generator data
 const models: Record<string, Record<string, number>> = {
@@ -360,17 +363,59 @@ class RoutesModule {
   // Urquhart graph is obtained by removing the longest edge from each triangle in the Delaunay triangulation
   // this gives us an aproximation of a desired road network, i.e. connections between burgs
   // code from https://observablehq.com/@mbostock/urquhart-graph
-  private calculateUrquhartEdges(points: Point[]) {
+  private calculateUrquhartEdges(points: Point[]): PortEdge[] {
     if (points.length < 2) return []; // No connection for less than 2 points
     if (points.length === 2) return [[0, 1]]; // Direct connection for exactly two points
 
+    const { edges, removed } = this.calculateDelaunayEdges(points);
+    return edges.filter(edge => !removed[edge.triangleIndex]).map(({ from, to }) => [from, to]);
+  }
+
+  /**
+   * Retains the sparse Urquhart network and restores each port's closest
+   * Delaunay neighbour that the Urquhart pass removed. This is deliberately
+   * not the absolute nearest neighbour: Urquhart already retains those edges.
+   */
+  private calculateAugmentedEdges(points: Point[]): PortEdge[] {
+    if (points.length < 2) return []; // No connection for less than 2 points
+    if (points.length === 2) return [[0, 1]]; // Direct connection for exactly two points
+
+    const { edges, removed } = this.calculateDelaunayEdges(points);
+    const selectedEdges = new Map<string, PortEdge>();
+    const closestRemovedEdge = Array.from({ length: points.length }, () => ({
+      edge: undefined as RouteGraphEdge | undefined,
+      distance: Infinity
+    }));
+
+    for (const edge of edges) {
+      if (!removed[edge.triangleIndex]) {
+        selectedEdges.set(this.getRouteEdgeKey(edge.from, edge.to), [edge.from, edge.to]);
+        continue;
+      }
+
+      const distance = distanceSquared(points[edge.from], points[edge.to]);
+      for (const portId of [edge.from, edge.to]) {
+        if (distance < closestRemovedEdge[portId].distance) {
+          closestRemovedEdge[portId] = { edge, distance };
+        }
+      }
+    }
+
+    for (const { edge } of closestRemovedEdge) {
+      if (!edge) continue;
+      selectedEdges.set(this.getRouteEdgeKey(edge.from, edge.to), [edge.from, edge.to]);
+    }
+
+    return [...selectedEdges.values()];
+  }
+
+  private calculateDelaunayEdges(points: Point[]) {
     const score = (p0: number, p1: number) => distanceSquared(points[p0], points[p1]);
 
     const { halfedges, triangles } = Delaunator.from(points);
     const n = triangles.length;
 
     const removed = new Uint8Array(n);
-    const edges = [];
 
     for (let e = 0; e < n; e += 3) {
       const p0 = triangles[e],
@@ -390,18 +435,51 @@ class RoutesModule {
       ] = 1;
     }
 
+    const edges: RouteGraphEdge[] = [];
     for (let e = 0; e < n; ++e) {
-      if (e > halfedges[e] && !removed[e]) {
+      if (e > halfedges[e]) {
         const t0 = triangles[e];
         const t1 = triangles[e % 3 === 2 ? e - 2 : e + 1];
-        edges.push([t0, t1]);
+        edges.push({ from: t0, to: t1, triangleIndex: e });
       }
     }
 
-    return edges;
+    return { edges, removed };
   }
 
-  private createCostEvaluator({ isWater, connections }: { isWater: boolean; connections: Map<string, boolean> }) {
+  private getRouteEdgeKey(from: number, to: number): string {
+    return from < to ? `${from}-${to}` : `${to}-${from}`;
+  }
+
+  /**
+   * Preserve a coastal sea-lane backbone even when navigable river ports alter
+   * the all-port Delaunay graph. River ports still contribute to `portEdges`;
+   * this only adds missing edges between ports that have a direct sea haven.
+   */
+  private addCoastalBackboneEdges(points: Point[], portEdges: PortEdge[], coastalPortIndices: number[]): PortEdge[] {
+    if (coastalPortIndices.length < 2) return portEdges;
+
+    const mergedEdges = new Map<string, PortEdge>();
+    for (const edge of portEdges) mergedEdges.set(this.getRouteEdgeKey(...edge), edge);
+
+    const coastalPoints = coastalPortIndices.map(index => points[index]);
+    for (const [fromId, toId] of this.calculateUrquhartEdges(coastalPoints)) {
+      const edge: PortEdge = [coastalPortIndices[fromId], coastalPortIndices[toId]];
+      mergedEdges.set(this.getRouteEdgeKey(...edge), edge);
+    }
+
+    return [...mergedEdges.values()];
+  }
+
+  private createCostEvaluator({
+    isWater,
+    connections,
+    seaRouteGenerationMode
+  }: {
+    isWater: boolean;
+    connections: Map<string, boolean>;
+    seaRouteGenerationMode?: SeaRouteGenerationMode;
+  }) {
     const { pack, biomesData, grid } = this.worldContext;
     function getLandPathCost(current: number, next: number) {
       if (pack.cells.h[next] < 20) return Infinity; // ignore water cells
@@ -419,18 +497,31 @@ class RoutesModule {
       return pathCost;
     }
 
-    function getWaterPathCost(current: number, next: number) {
+    const getLegacyWaterPathCost = (current: number, next: number) => {
       if (pack.cells.h[next] >= 20) return Infinity; // ignore land cells
       if (grid.cells.temp[pack.cells.g[next]] < MIN_PASSABLE_SEA_TEMP) return Infinity; // ignore too cold cells
 
       const distanceCost = distanceSquared(pack.cells.p[current], pack.cells.p[next]);
-      const typeModifier = ROUTE_TYPE_MODIFIERS[pack.cells.t[next]] || ROUTE_TYPE_MODIFIERS.default;
+      const typeModifier = ROUTE_TYPE_MODIFIERS[pack.cells.t[next]] ?? ROUTE_TYPE_MODIFIERS.default;
+      const connectionModifier = connections.has(`${current}-${next}`) ? 0.5 : 1;
+      return distanceCost * typeModifier * connectionModifier;
+    };
+
+    const getAugmentedWaterPathCost = (current: number, next: number) => {
+      const nextIsWater = pack.cells.h[next] < 20;
+      if (nextIsWater && grid.cells.temp[pack.cells.g[next]] < MIN_PASSABLE_SEA_TEMP) return Infinity; // ignore too cold cells
+
+      const distanceCost = this.getWaterPathCost(current, next);
+      if (distanceCost === Infinity) return Infinity;
+
+      const typeModifier = nextIsWater ? (ROUTE_TYPE_MODIFIERS[pack.cells.t[next]] ?? ROUTE_TYPE_MODIFIERS.default) : 1;
       const connectionModifier = connections.has(`${current}-${next}`) ? 0.5 : 1;
 
       const pathCost = distanceCost * typeModifier * connectionModifier;
       return pathCost;
-    }
-    return isWater ? getWaterPathCost : getLandPathCost;
+    };
+    if (!isWater) return getLandPathCost;
+    return seaRouteGenerationMode === "legacy" ? getLegacyWaterPathCost : getAugmentedWaterPathCost;
   }
 
   private getRouteSegments(pathCells: number[], connections: Map<string, boolean>) {
@@ -464,15 +555,17 @@ class RoutesModule {
     isWater,
     connections,
     start,
-    exit
+    exit,
+    seaRouteGenerationMode
   }: {
     isWater: boolean;
     connections: Map<string, boolean>;
     start: number;
     exit: number;
+    seaRouteGenerationMode?: SeaRouteGenerationMode;
   }) {
     const { pack } = this.worldContext;
-    const getCost = this.createCostEvaluator({ isWater, connections });
+    const getCost = this.createCostEvaluator({ isWater, connections, seaRouteGenerationMode });
     const pathCells = findPath(start, current => current === exit, getCost, pack);
     if (!pathCells) return [];
     const segments = this.getRouteSegments(pathCells, connections);
@@ -550,7 +643,7 @@ class RoutesModule {
     return trails;
   }
 
-  private generateSeaRoutes(connections: Map<string, boolean>) {
+  private generateSeaRoutes(connections: Map<string, boolean>, seaRouteGenerationMode: SeaRouteGenerationMode) {
     const { pack } = this.worldContext;
     TIME && console.time("generateSeaRoutes");
     const { portsByFeature } = this.sortBurgsByFeature(pack.burgs);
@@ -558,16 +651,25 @@ class RoutesModule {
 
     for (const [featureId, featurePorts] of Object.entries(portsByFeature)) {
       const points = featurePorts.map(burg => [burg.x, burg.y] as Point);
-      const urquhartEdges = this.calculateUrquhartEdges(points);
+      const allPortEdges =
+        seaRouteGenerationMode === "augmented"
+          ? this.calculateAugmentedEdges(points)
+          : this.calculateUrquhartEdges(points);
+      const coastalPortIndices = featurePorts.flatMap((burg, index) => (pack.cells.haven[burg.cell] ? [index] : []));
+      const portEdges =
+        seaRouteGenerationMode === "augmented"
+          ? this.addCoastalBackboneEdges(points, allPortEdges, coastalPortIndices)
+          : allPortEdges;
 
-      urquhartEdges.forEach(([fromId, toId]) => {
+      portEdges.forEach(([fromId, toId]) => {
         const start = featurePorts[fromId].cell;
         const exit = featurePorts[toId].cell;
         const segments = this.findPathSegments({
           isWater: true,
           connections,
           start,
-          exit
+          exit,
+          seaRouteGenerationMode
         });
         for (const segment of segments) {
           this.addConnections(segment, connections);
@@ -661,10 +763,14 @@ class RoutesModule {
 
     return routesMerged > 1 ? this.mergeRoutes(routes) : routes;
   }
-  private createRoutesData(routes: Route[], connections: Map<string, boolean>) {
+  private createRoutesData(
+    routes: Route[],
+    connections: Map<string, boolean>,
+    seaRouteGenerationMode: SeaRouteGenerationMode
+  ) {
     const mainRoads = this.generateMainRoads(connections);
     const trails = this.generateTrails(connections);
-    const seaRoutes = this.generateSeaRoutes(connections);
+    const seaRoutes = this.generateSeaRoutes(connections, seaRouteGenerationMode);
     const pointsArray = this.preparePointsArray();
 
     for (const { feature, cells, merged } of this.mergeRoutes(mainRoads)) {
@@ -693,12 +799,19 @@ class RoutesModule {
     viewContext: Readonly<ViewContext>,
     appServices: AppServices,
     state: WorldState,
-    lockedRoutes: Route[] = []
+    lockedRoutes: Route[] = [],
+    seaRouteGenerationMode?: SeaRouteGenerationMode
   ) {
     this.worldContext = worldContext;
     this.viewContext = viewContext;
     this.appServices = appServices;
     const { pack } = state;
+    const resolvedSeaRouteGenerationMode =
+      seaRouteGenerationMode ?? worldContext.options.seaRouteGenerationMode ?? "augmented";
+    if (resolvedSeaRouteGenerationMode === "augmented") {
+      this.sync(); // River adjacency must reflect the current map before river-aware sea-route pathfinding.
+    }
+    worldContext.options.seaRouteGenerationMode = resolvedSeaRouteGenerationMode;
     const connections = new Map();
     lockedRoutes.forEach((route: Route) => {
       this.addConnections(
@@ -707,7 +820,7 @@ class RoutesModule {
       );
     });
 
-    pack.routes = this.createRoutesData(lockedRoutes, connections);
+    pack.routes = this.createRoutesData(lockedRoutes, connections, resolvedSeaRouteGenerationMode);
     pack.cells.routes = this.buildLinks(pack.routes);
   }
 

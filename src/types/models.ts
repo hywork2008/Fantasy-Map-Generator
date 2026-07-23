@@ -18,6 +18,9 @@ export interface EmblemEl {
 
 export type FeatureType = "ocean" | "lake" | "island";
 
+/** Determines how additional connections between ports are selected for sea routes. */
+export type SeaRouteGenerationMode = "legacy" | "augmented";
+
 export interface ReligionBase {
   type: "Folk" | "Organized" | "Cult" | "Heresy";
   form: string;

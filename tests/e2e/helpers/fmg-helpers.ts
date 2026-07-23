@@ -132,6 +132,44 @@ export async function getMapId(page: Page): Promise<number> {
   return page.evaluate(() => window.fmg.world.mapId);
 }
 
+/** Read the sea-route topology currently persisted with the loaded map. */
+export async function getSeaRouteGenerationMode(page: Page): Promise<"legacy" | "augmented" | undefined> {
+  return page.evaluate(() => {
+    const options = window.fmg.world.options as { seaRouteGenerationMode?: unknown };
+    const mode = options.seaRouteGenerationMode;
+    return mode === "legacy" || mode === "augmented" ? mode : undefined;
+  });
+}
+
+/** Stable cell-path representation of the generated sea-route network. */
+export async function getSeaRouteNetworkSignature(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    type TestRoute = { group?: unknown; points?: unknown };
+    const routes = (window.fmg.world.pack as { routes?: unknown }).routes;
+    if (!Array.isArray(routes)) return "";
+
+    return (routes as TestRoute[])
+      .filter(route => route.group === "searoutes" && Array.isArray(route.points))
+      .map(route =>
+        (route.points as unknown[])
+          .map(point => (Array.isArray(point) && typeof point[2] === "number" ? String(point[2]) : ""))
+          .join(",")
+      )
+      .sort()
+      .join("|");
+  });
+}
+
+/** Stable SVG-path representation of the currently rendered sea-route network. */
+export async function getRenderedSeaRouteNetworkSignature(page: Page): Promise<string> {
+  return page.evaluate(() =>
+    Array.from(document.querySelectorAll<SVGPathElement>("#searoutes path"))
+      .map(path => path.getAttribute("d") ?? "")
+      .sort()
+      .join("|")
+  );
+}
+
 /**
  * Pin the live renderer mode through the public actions API.
  * Asserts the synchronous `viewContext.renderMode` assignment only — deck.gl
@@ -1084,9 +1122,24 @@ export interface ThreeDBurgFixture {
 /** Moves and enlarges a burg at the map center so viewMesh click tests have a deterministic target. */
 export async function forceThreeDBurgFixture(page: Page): Promise<ThreeDBurgFixture> {
   return page.evaluate(() => {
-    const world = window.fmg.world;
+    type TestBurg = { i?: number; removed?: boolean; x: number; y: number; name?: string; group?: string };
+    type SvgSelection = { select<T extends SVGElement>(selector: string): { attr(name: string, value: number): void } };
+    type TestFmg = {
+      world: {
+        pack: { burgs: TestBurg[] };
+        graphWidth: number;
+        graphHeight: number;
+        options: { burgs?: { groups?: Array<{ name?: string }> } };
+      };
+      view: { burgIcons: SvgSelection };
+    };
+
+    const fmg = window.fmg as unknown as TestFmg;
+    const { world } = fmg;
     const burg = world.pack.burgs.find(item => Boolean(item.i) && !item.removed);
-    if (!burg) throw new Error("A generated map must contain a burg for the 3D click fixture");
+    if (!burg || typeof burg.i !== "number") {
+      throw new Error("A generated map must contain a burg for the 3D click fixture");
+    }
 
     const groupName = world.options.burgs?.groups?.[0]?.name ?? "town";
     burg.x = world.graphWidth / 2;
@@ -1094,7 +1147,7 @@ export async function forceThreeDBurgFixture(page: Page): Promise<ThreeDBurgFixt
     burg.group = groupName;
     // `buildLowPolyBurgSymbols` maps SVG icon size to the low-poly mesh size. A larger fixture
     // makes the centre-targeted Canvas click stable without changing production hit-testing.
-    window.fmg.view.burgIcons.select<SVGGElement>(`#${groupName}`).attr("data-size", 400);
+    fmg.view.burgIcons.select<SVGGElement>(`#${groupName}`).attr("data-size", 400);
 
     // The `data-size` override above is a group-wide style (buildLowPolyBurgSymbols reads it
     // per `burg.group`, not per burg), so every other burg sharing `groupName` would also become
