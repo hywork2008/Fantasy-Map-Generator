@@ -22,7 +22,7 @@ import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
 import { openElevationProfile } from "./elevation-profile";
 import { interactionManager } from "./interactionManager";
-import { drawLayers, toggleCells, toggleRoutes } from "./layers";
+import { scheduleWebglUpdate, toggleCells, toggleRoutes } from "./layers";
 import { editNotes } from "./notes-editor";
 import { editRouteGroups } from "./route-group-editor";
 import { editStyle } from "./style";
@@ -34,6 +34,10 @@ let routeCreatorCellsForced = false;
 let _rcRoute: Route | null = null;
 let _rcPointIndex = 0;
 let _createRoutePoints: { x: number; y: number; cellId: number }[] = [];
+let isRouteControlPointDragging = false;
+
+const ROUTE_DRAG_PREVIEW_ID = "routeDragPreview";
+const ROUTE_DRAG_PREVIEW_PATH_ID = "routeDragPreviewPath";
 
 export function initRoutesEditor(wc: WorldContext) {
   worldContext = wc;
@@ -110,6 +114,9 @@ function drawControlPoints(pts: [number, number, number][]): void {
     .attr("cx", d => d[0])
     .attr("cy", d => d[1])
     .attr("r", 0.6)
+    // Route mutations clone every point tuple. Keep the control-point identity in the DOM so
+    // circles that were not just dragged do not retain an obsolete tuple reference.
+    .attr("data-point-index", (_d, index) => String(index))
     .call(
       drag<SVGCircleElement, [number, number, number]>()
         .on("start", dragControlPointStart)
@@ -134,10 +141,11 @@ function drawRouteCells(pts: [number, number, number][]): void {
 
 function dragControlPointStart(
   this: SVGCircleElement,
-  event: d3.D3DragEvent<SVGCircleElement, [number, number, number], [number, number, number]>
+  _event: d3.D3DragEvent<SVGCircleElement, [number, number, number], [number, number, number]>
 ): void {
   _rcRoute = getRoute();
-  _rcPointIndex = _rcRoute.points.indexOf(event.subject);
+  _rcPointIndex = getControlPointIndex(this);
+  isRouteControlPointDragging = true;
 }
 
 function dragControlPointDrag(
@@ -156,13 +164,17 @@ function dragControlPointDrag(
     index === _rcPointIndex ? ([x, y, cellId] as [number, number, number]) : ([...point] as [number, number, number])
   );
   if (!replaceRoutePoints({ routeId: _rcRoute.i, points: updatedPoints })) return;
-  select(this).datum(_rcRoute.points[_rcPointIndex]);
   redrawRoute(_rcRoute);
   drawRouteCells(_rcRoute.points);
 }
 
 function dragControlPointEnd(): void {
   _rcRoute = null;
+  isRouteControlPointDragging = false;
+  removeRouteDragPreview();
+  // Ensure the final pointer position is rendered even when the last drag event was already
+  // coalesced into a pending animation-frame update.
+  scheduleWebglUpdate();
 }
 
 function redrawRoute(route: Route): void {
@@ -170,10 +182,56 @@ function redrawRoute(route: Route): void {
   updateRouteLength(route);
   if (dialogStore.getState().openDialogs.has("elevationProfile")) routesEditorActions.showRouteElevationProfile();
 
-  // In webgl hybrid mode the visible route is a deck.gl PathLayer, not the SVG path
-  // updated above (that path is kept hidden, in sync only for WebGL pick resolution).
-  // Its data must be rebuilt for edits to appear live instead of only on dialog close.
-  if (viewContext.renderMode === "webglHybrid") drawLayers();
+  if (viewContext.renderMode !== "webglHybrid") return;
+
+  // Keep an SVG copy of just the edited route above the canvas so it follows the pointer on
+  // every d3 drag event. The deck.gl refresh is deliberately coalesced to one per animation
+  // frame; calling drawLayers() here rebuilt all hybrid overlays for every mousemove.
+  if (isRouteControlPointDragging) updateRouteDragPreview();
+  scheduleWebglUpdate();
+}
+
+function updateRouteDragPreview(): void {
+  const sourcePath = elSelected?.node();
+  const sourceGroup = sourcePath?.parentElement;
+  const debug = view.debug.node();
+  if (!sourcePath || !(sourceGroup instanceof SVGGElement) || !debug) return;
+
+  let preview = view.debug.select<SVGGElement>(`#${ROUTE_DRAG_PREVIEW_ID}`);
+  if (!preview.size()) {
+    // Route paints are normally inherited from roads / trails / searoutes. Copy their computed
+    // presentation attributes because the preview must use a distinct id outside #routes.
+    const previewGroup = sourceGroup.cloneNode(false) as SVGGElement;
+    previewGroup.id = ROUTE_DRAG_PREVIEW_ID;
+    previewGroup.setAttribute("pointer-events", "none");
+    copyRouteGroupPaint(sourceGroup, previewGroup);
+    const previewPath = sourcePath.cloneNode(false) as SVGPathElement;
+    previewPath.id = ROUTE_DRAG_PREVIEW_PATH_ID;
+    previewGroup.append(previewPath);
+    debug.append(previewGroup);
+    preview = select(previewGroup);
+  }
+
+  preview.select<SVGPathElement>(`#${ROUTE_DRAG_PREVIEW_PATH_ID}`).attr("d", sourcePath.getAttribute("d") ?? "");
+}
+
+function removeRouteDragPreview(): void {
+  view.debug.select(`#${ROUTE_DRAG_PREVIEW_ID}`).remove();
+}
+
+function copyRouteGroupPaint(source: SVGGElement, target: SVGGElement): void {
+  const paint = getComputedStyle(source);
+  const attributes = [
+    ["fill", "fill"],
+    ["opacity", "opacity"],
+    ["stroke", "stroke"],
+    ["stroke-width", "stroke-width"],
+    ["stroke-dasharray", "stroke-dasharray"],
+    ["stroke-linecap", "stroke-linecap"],
+    ["filter", "filter"],
+    ["mask", "mask"]
+  ] as const;
+  for (const [attribute, property] of attributes) target.setAttribute(attribute, paint.getPropertyValue(property));
 }
 
 function addControlPoint(this: SVGPathElement, event: MouseEvent): void {
@@ -196,11 +254,10 @@ function addControlPoint(this: SVGPathElement, event: MouseEvent): void {
 
 function handleControlPointClick(this: SVGCircleElement, _event: MouseEvent): void {
   const controlPoint = select(this);
-  const pt = controlPoint.datum() as [number, number, number];
   const route = getRoute();
   if (route.points.length < 3) return;
 
-  const index = route.points.indexOf(pt);
+  const index = getControlPointIndex(this);
 
   if (getRoutesEditorState().isSplitMode) {
     splitRoute();
@@ -237,11 +294,23 @@ function handleControlPointClick(this: SVGCircleElement, _event: MouseEvent): vo
 
   function removeControlPoint(cp: d3.Selection<SVGCircleElement, unknown, null, undefined>): void {
     cp.remove();
-    if (!replaceRoutePoints({ routeId: route.i, points: route.points.filter(point => point !== pt) })) return;
+    if (
+      !replaceRoutePoints({
+        routeId: route.i,
+        points: route.points.filter((_point, pointIndex) => pointIndex !== index)
+      })
+    )
+      return;
 
     drawRouteCells(route.points);
     redrawRoute(route);
   }
+}
+
+function getControlPointIndex(element: SVGCircleElement): number {
+  const index = Number(element.dataset.pointIndex);
+  if (!Number.isInteger(index) || index < 0) throw new Error("Route control point is missing its index");
+  return index;
 }
 
 export function createRoute(defaultGroup?: string): void {
@@ -320,6 +389,8 @@ export const routesEditorActions = {
   closeRouteEditor(): void {
     setRoutesEditorState({ isOpen: false });
     modules.editRoute = false;
+    isRouteControlPointDragging = false;
+    removeRouteDragPreview();
     view.debug.select("#controlPoints").remove();
     view.debug.select("#controlCells").remove();
 
