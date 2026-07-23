@@ -21,6 +21,7 @@ import {
   getCanvasLuminanceStats,
   getFirstLandScreenPoint,
   getFirstStateScreenPoint,
+  getMapId,
   getPack,
   getToastText,
   getWebglBurgIconSummary,
@@ -34,6 +35,7 @@ import {
   getWebglLayerStyleSamples,
   getWebglStyleComparisons,
   getWebglLayerPolicyState,
+  getOceanLayerCanvasChecksum,
   getWebglRendererDomState,
   getFirstWebglLayerDatumIdentity,
   pickFirstWebglLayerDatum,
@@ -786,6 +788,31 @@ test.describe("webgl hybrid renderer", () => {
       deckCanvasMatchesDom: true,
       viewCanvasMatchesDom: true
     });
+  });
+
+  test("rebuilds the WebGL ocean depth from an .fmg archive instead of retaining the current map sea", async ({ page }) => {
+    await page.goto("/?seed=webgl-fmg-load-target&width=1000&height=700");
+    await waitForMapLoad(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+    const targetMapId = await getMapId(page);
+    const targetOceanChecksum = await getOceanLayerCanvasChecksum(page);
+    expect(targetOceanChecksum).not.toBe(0);
+
+    await page.locator("#optionsHide").click();
+    await page.locator("#saveButton").click();
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "machine", exact: true }).click();
+    const download = await downloadPromise;
+    const archivePath = await download.path();
+    if (!archivePath) throw new Error("The .fmg archive download did not produce a file path");
+
+    await page.goto("/?seed=webgl-fmg-load-current&width=1000&height=700");
+    await waitForMapLoad(page, "webglHybrid");
+    await waitForWebglCanvasPixels(page);
+    await page.locator("#fileInputs #mapToLoad").setInputFiles(archivePath);
+    await page.waitForFunction(mapId => window.fmg.world.mapId === mapId, targetMapId);
+
+    await expect.poll(() => getOceanLayerCanvasChecksum(page)).toBe(targetOceanChecksum);
   });
 
   test("reacquires Economy SVG layers without disturbing the hybrid host layer policy after map load", async ({ page }) => {

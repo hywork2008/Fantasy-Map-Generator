@@ -106,7 +106,14 @@ class OceanModule {
   draw() {
     const { grid } = this.worldContext;
     const outline = this.oceanLayers.attr("layers");
-    if (!outline || outline === "none") return;
+    if (!outline || outline === "none") {
+      // The WebGL BitmapLayer consumes this module-level cache. Clearing it is
+      // required when a loaded map disables ocean outlines; otherwise a prior
+      // map's depth texture remains eligible for rendering.
+      cachedOceanPaths = [];
+      this.oceanLayers.selectAll("path, canvas").remove();
+      return;
+    }
     TIME && console.time("drawOceanLayers");
     this.oceanLayers.selectAll("path").remove();
     this.cells = grid.cells;

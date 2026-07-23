@@ -9,6 +9,7 @@ import { Features } from "../generators/features";
 import { Routes } from "../generators/routes-generator";
 import { initSimulationClock } from "../generators/timeEngine";
 import { GridRenderer } from "../renderers";
+import { OceanLayers } from "../renderers/ocean-layers";
 import { DeckGlRenderer } from "../renderers/webgl/deckRenderer";
 import { importLegacyPresentationFromSvg } from "../runtime/legacyPresentationImport";
 import { bindSimulationBurgState, resetSimulationBurgState } from "../runtime/simulationBurgState";
@@ -200,6 +201,11 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
     const seaRouteGenerationMode = validated.document.world.options.seaRouteGenerationMode;
     const commit = await worldRuntime.dispatch({ type: "world.replace", payload: validated });
     if (!commit) throw new Error("World archive did not produce a replacement commit");
+
+    // The archive does not contain a live canvas. Rebuild the ocean path cache
+    // from the replacement grid before the immediate WebGL redraw below, so a
+    // previously generated map cannot leave its sea texture over this map.
+    OceanLayers();
 
     // Archives created before the generation-mode field was introduced have no
     // reliable indication of which algorithm produced their routes. Preserve

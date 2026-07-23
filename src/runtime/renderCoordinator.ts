@@ -16,6 +16,7 @@ import {
   MilitaryRenderer,
   StateLabelsRenderer
 } from "../renderers";
+import { OceanLayers } from "../renderers/ocean-layers";
 import { projectPresentationToSvg } from "../renderers/presentationProjection";
 import { buildLandCellGeometry } from "../renderers/webgl/adapters/deckDataAdapters";
 import {
@@ -188,7 +189,16 @@ export function initRenderCoordinator(): void {
       useLayerState.getState().hydrateLayerOrder(presentationData.layerOrder);
     },
     renderFullWorld: () => {
-      if (viewContext.renderMap) drawLayers();
+      if (!viewContext.renderMap) return;
+
+      // A full replacement can load an .fmg archive into an already rendered
+      // session. OceanLayers owns the path cache consumed by the WebGL ocean
+      // depth BitmapLayer, so it has to be rebuilt from the replacement grid
+      // after its presentation styles have been projected. Without this step,
+      // the deck canvas can paint the previously generated map's sea over the
+      // newly loaded land.
+      OceanLayers();
+      drawLayers();
     },
     renderBorders: () => {
       if (!viewContext.renderMap) return;

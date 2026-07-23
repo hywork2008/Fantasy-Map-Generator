@@ -249,6 +249,20 @@ export async function getWebglDeckLayerIds(page: Page): Promise<string[]> {
   });
 }
 
+/** Pixel signature of the ocean-depth source canvas, used to detect stale map-load geometry. */
+export async function getOceanLayerCanvasChecksum(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const canvas = document.querySelector("#oceanLayers canvas");
+    if (!(canvas instanceof HTMLCanvasElement) || canvas.width === 0 || canvas.height === 0) return 0;
+    const context = canvas.getContext("2d");
+    if (!context) return 0;
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let checksum = 0;
+    for (let index = 0; index < pixels.length; index += 97) checksum = (checksum * 31 + pixels[index]) >>> 0;
+    return checksum;
+  });
+}
+
 export interface WebglLayerStyleSample {
   layerId: string;
   dataCount: number;
