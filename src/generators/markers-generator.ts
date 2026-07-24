@@ -954,9 +954,15 @@ class MarkersModule {
     });
   }
 
-  private listBattlefields({ cells }: PackedGraph) {
+  private listBattlefields({ cells, states }: PackedGraph) {
     return cells.i.filter(
-      i => !this.occupied[i] && cells.state[i] && cells.pop[i] > 2 && cells.h[i] < 50 && cells.h[i] > 25
+      i =>
+        !this.occupied[i] &&
+        cells.state[i] &&
+        states[cells.state[i]]?.campaigns?.length &&
+        cells.pop[i] > 2 &&
+        cells.h[i] < 50 &&
+        cells.h[i] > 25
     );
   }
 
@@ -967,6 +973,7 @@ class MarkersModule {
     const state = states[cells.state[cell]];
     if (!state.campaigns) state.campaigns = States.generateCampaign(state);
     const campaign = ra(state.campaigns);
+    if (!campaign) return;
     const date = generateDate(campaign.start, campaign.end);
     const name = `${Names.getCulture(cells.culture[cell])} Battlefield`;
     const legend = `A historical battle of the ${campaign.name}. \r\nDate: ${date} ${options.era}.`;
