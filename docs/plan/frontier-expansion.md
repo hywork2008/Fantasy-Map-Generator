@@ -1,7 +1,7 @@
 # 未領有フロンティアと段階的領土拡張
 
 - **Status**: In progress (Phase 0–2 complete)
-- **Last updated**: 2026-07-24
+- **Last updated**: 2026-07-25
 - **Owner**: Core simulation / map generation
 - **Related**: [population-dynamics.md](../simulation/population-dynamics.md), [advance-time.md](../simulation/advance-time.md), [disaster-mode.md](disaster-mode.md), [unite-data-and-map.md](unite-data-and-map.md), [military-defense.md](military-defense.md)
 
@@ -308,6 +308,12 @@ Frontier の進行だけでは `simulation.cells` を発行する。outpost/sett
 - 首都から離れた初期 Burg は最寄りの既存 State に結び、そのセルだけを定住核として編入する。これにより小領土でも Burg、道路、宗教、軍事の既存初期化経路が State owner を得る。
 - Province 生成の完了時に `state = 0` のセルを必ず `province = 0` に正規化した。State 集計・隣接国・campaign は無主地を外交主体として扱わず、`states[0]` は外交史の保存先だけを維持する。
 - 検証: `npx vitest run src/generators/states-generator.test.ts src/generators/stateProvinceStatistics.test.ts src/generators/settlementPattern.test.ts`、`npx tsc --noEmit`。
+
+### 2026-07-25 — Phase 2 領土連続性の補正
+
+- 非標準プリセットでは、定住核が同一陸地内の既存統治領から分離した場合、山地・河川コストを考慮した最小の行政回廊だけを編入して接続する。海・他国領を横断する回廊は作らない。
+- 人口 0・Burg なしで、単一 State の統治セルに完全に囲まれた 3 セル以下の小さな無主地 pocket は、その State に編入する。開放された無主地や人口を持つセルは維持する。
+- `states-generator.test.ts` に行政回廊と囲まれた無主地の回帰テストを追加した。
 
 | Date | Phase | Status | Note |
 | --- | --- | --- | --- |

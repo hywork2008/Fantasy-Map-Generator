@@ -201,7 +201,11 @@ class StatesModule {
       });
     }
 
-    if (useSettlementNuclei) this.assignUnclaimedBurgsToNearestState();
+    if (useSettlementNuclei) {
+      this.connectUnclaimedBurgsToStates();
+      this.connectDetachedStateNuclei();
+      this.fillEnclosedUnclaimedLand();
+    }
 
     burgs
       .filter(b => b.i && !b.removed)
@@ -212,33 +216,175 @@ class StatesModule {
     TIME && console.timeEnd("expandStates");
   }
 
-  /**
-   * A non-capital burg is still an initial settlement nucleus. Sparse settlement
-   * patterns can place one beyond the bounded capital flood-fill, so attach it
-   * to the geographically closest extant state instead of leaving a generated
-   * burg without an owner. This claims its cell only; surrounding wilderness
-   * remains unclaimed until the Frontier Expansion system incorporates it.
-   */
-  private assignUnclaimedBurgsToNearestState(): void {
-    const { cells, states, burgs } = this.worldContext.pack;
-    const activeStates = states.filter(state => state.i && !state.removed);
-    if (!activeStates.length) return;
+  /** Connects an otherwise unclaimed initial burg to the closest reachable state by land. */
+  private connectUnclaimedBurgsToStates(): void {
+    const { cells, burgs } = this.worldContext.pack;
 
     for (const burg of burgs) {
       if (!burg.i || burg.removed || cells.state[burg.cell]) continue;
+      const route = this.findAdministrativeRoute(
+        burg.cell,
+        cellId => Boolean(cells.state[cellId]),
+        () => true
+      );
+      if (!route) continue;
 
-      let owner = activeStates[0];
-      let nearestDistance = Infinity;
-      const [burgX, burgY] = cells.p[burg.cell];
-      for (const state of activeStates) {
-        const [stateX, stateY] = cells.p[state.center];
-        const distance = (burgX - stateX) ** 2 + (burgY - stateY) ** 2;
-        if (distance < nearestDistance) {
-          owner = state;
-          nearestDistance = distance;
+      const owner = cells.state[route[0]];
+      for (const cellId of route) cells.state[cellId] = owner;
+    }
+  }
+
+  /**
+   * Connects every owned settlement component back to its capital component.
+   * The first state flood evaluates reachability, but intentionally does not
+   * claim wilderness. This pass turns only the least-cost land path required
+   * for administration into territory, keeping the remaining frontier intact.
+   */
+  private connectDetachedStateNuclei(): void {
+    const { cells, states, burgs } = this.worldContext.pack;
+
+    for (const state of states) {
+      if (!state.i || state.removed || state.lock) continue;
+      const capitalCell = burgs[state.capital]?.cell;
+      if (capitalCell === undefined || cells.state[capitalCell] !== state.i) continue;
+
+      const connected = new Uint8Array(cells.i.length);
+      this.markConnectedStateCells(capitalCell, state.i, connected);
+      const stateCells = Array.from(cells.i).filter(cellId => cells.state[cellId] === state.i);
+
+      for (const cellId of stateCells) {
+        if (connected[cellId]) continue;
+        const route = this.findAdministrativeRoute(
+          cellId,
+          candidate => Boolean(connected[candidate]),
+          candidate => !cells.state[candidate] || cells.state[candidate] === state.i
+        );
+        if (!route) continue;
+
+        for (const routeCell of route) cells.state[routeCell] = state.i;
+        this.markConnectedStateCells(cellId, state.i, connected);
+      }
+    }
+  }
+
+  /** Marks the component of `start` that is already governed by `stateId`. */
+  private markConnectedStateCells(start: number, stateId: number, connected: Uint8Array): void {
+    const { cells } = this.worldContext.pack;
+    const queue = [start];
+    connected[start] = 1;
+
+    while (queue.length) {
+      const cellId = queue.pop()!;
+      for (const neighbor of cells.c[cellId]) {
+        if (connected[neighbor] || cells.state[neighbor] !== stateId) continue;
+        connected[neighbor] = 1;
+        queue.push(neighbor);
+      }
+    }
+  }
+
+  /**
+   * Finds a same-landmass, least-cost administrative route. A route may pass
+   * only through cells permitted by `canTraverse`; its first element is the
+   * already-governed destination and its last element is `source`.
+   */
+  private findAdministrativeRoute(
+    source: number,
+    isDestination: (cellId: number) => boolean,
+    canTraverse: (cellId: number) => boolean
+  ): number[] | null {
+    const { cells } = this.worldContext.pack;
+    const landmass = cells.f[source];
+    const cost = new Float64Array(cells.i.length).fill(Infinity);
+    const previous = new Int32Array(cells.i.length).fill(-1);
+    const queue = new FlatQueue<{ cellId: number; cost: number }>();
+    cost[source] = 0;
+    queue.push({ cellId: source, cost: 0 }, 0);
+
+    while (queue.length) {
+      const current = queue.pop()!;
+      if (current.cost !== cost[current.cellId]) continue;
+      if (current.cellId !== source && isDestination(current.cellId)) {
+        return this.traceAdministrativeRoute(source, current.cellId, previous);
+      }
+
+      for (const neighbor of cells.c[current.cellId]) {
+        if (cells.h[neighbor] < HeightThreshold.WATER_MAX_HEIGHT || cells.f[neighbor] !== landmass) continue;
+        if (!canTraverse(neighbor)) continue;
+
+        const totalCost = current.cost + this.getAdministrativeTravelCost(neighbor);
+        if (totalCost >= cost[neighbor]) continue;
+        cost[neighbor] = totalCost;
+        previous[neighbor] = current.cellId;
+        queue.push({ cellId: neighbor, cost: totalCost }, totalCost);
+      }
+    }
+
+    return null;
+  }
+
+  private traceAdministrativeRoute(source: number, destination: number, previous: Int32Array): number[] | null {
+    const route: number[] = [];
+    for (let cellId = destination; cellId !== -1; cellId = previous[cellId]) {
+      route.push(cellId);
+      if (cellId === source) return route;
+    }
+    return null;
+  }
+
+  private getAdministrativeTravelCost(cellId: number): number {
+    const { cells } = this.worldContext.pack;
+    const elevationCost =
+      cells.h[cellId] >= HeightThreshold.MOUNTAIN_MIN ? 90 : cells.h[cellId] >= HeightThreshold.HILL_MIN ? 25 : 0;
+    const riverCost = cells.r[cellId] ? minmax(cells.fl[cellId] / 10, 5, 30) : 0;
+    return 10 + elevationCost + riverCost;
+  }
+
+  /** Fills only small, empty land pockets whose entire boundary has one owner. */
+  private fillEnclosedUnclaimedLand(): void {
+    const { cells } = this.worldContext.pack;
+    const checked = new Uint8Array(cells.i.length);
+    const maximumPocketSize = 3;
+
+    for (const start of cells.i) {
+      if (checked[start] || cells.state[start] || cells.h[start] < HeightThreshold.WATER_MAX_HEIGHT) continue;
+
+      const pocket: number[] = [];
+      const owners = new Set<number>();
+      const queue = [start];
+      checked[start] = 1;
+      let hasOpenBoundary = false;
+
+      while (queue.length) {
+        const cellId = queue.pop()!;
+        if (cells.pop[cellId] > 0 || cells.burg[cellId]) {
+          hasOpenBoundary = true;
+          continue;
+        }
+        pocket.push(cellId);
+
+        for (const neighbor of cells.c[cellId]) {
+          if (cells.h[neighbor] < HeightThreshold.WATER_MAX_HEIGHT) {
+            hasOpenBoundary = true;
+            continue;
+          }
+          const owner = cells.state[neighbor];
+          if (owner) {
+            owners.add(owner);
+            continue;
+          }
+          if (!checked[neighbor]) {
+            checked[neighbor] = 1;
+            queue.push(neighbor);
+          }
         }
       }
-      cells.state[burg.cell] = owner.i;
+
+      if (pocket.length <= maximumPocketSize && !hasOpenBoundary && owners.size === 1) {
+        const owner = Array.from(owners)[0];
+        if (owner === undefined) continue;
+        for (const cellId of pocket) cells.state[cellId] = owner;
+      }
     }
   }
 
