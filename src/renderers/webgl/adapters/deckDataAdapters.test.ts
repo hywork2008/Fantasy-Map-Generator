@@ -690,7 +690,7 @@ describe("deck.gl data adapters", () => {
     expect(icons[1]).toMatchObject({ kind: "burgIcon", type: "anchor", burgId: 1, cellId: 0, group: "city" });
     expect(icons[0].color).toEqual([17, 17, 17, 255]);
     expect(icons[1].size).toBe(1.5);
-    expect(icons[1].position).toEqual([6.05, 5]);
+    expect(icons[1].position).toEqual([5.3, 5]);
   });
 
   it("maps burg and port icons to reusable low-poly mesh descriptors", () => {

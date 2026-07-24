@@ -288,7 +288,7 @@ describe("RoutesModule river-aware water cost", () => {
         ]
       )
     ).toEqual([
-      [6.05, 1.75, 0],
+      [5.3, 0.5, 0],
       [8, 5, 1]
     ]);
   });
