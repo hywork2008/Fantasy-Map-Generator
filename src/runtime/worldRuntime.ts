@@ -44,6 +44,7 @@ import {
   type CoreEntityKind,
   createWorldDocument,
   type ValidatedWorld,
+  WORLD_ARCHIVE_SCHEMA_VERSION,
   type WorldDocument
 } from "./worldArchive";
 
@@ -2281,7 +2282,7 @@ class LegacyWorldRuntime implements WorldRuntime {
       this.applyDocument({
         ...previous,
         format: "fantasy-map-generator",
-        schemaVersion: 1,
+        schemaVersion: WORLD_ARCHIVE_SCHEMA_VERSION,
         createdAt: "",
         updatedAt: ""
       });

@@ -1,8 +1,14 @@
+import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
 import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import { createPresentationData } from "./presentationData";
-import { ChunkedWorldCodecAdapter, createWorldDocument, LegacyMapCodecAdapter } from "./worldArchive";
+import {
+  ChunkedWorldCodecAdapter,
+  createWorldDocument,
+  LegacyMapCodecAdapter,
+  WORLD_ARCHIVE_SCHEMA_VERSION
+} from "./worldArchive";
 
 function sampleWorld(): WorldContext {
   return {
@@ -172,6 +178,44 @@ describe("ChunkedWorldCodecAdapter", () => {
 
     expect(staged.document.simulation.populationLoss).toEqual({ simDay: 0, history: [] });
     expect(staged.document.simulation.navalTechBonus).toEqual({});
+  });
+
+  it("migrates a v1 archive without a settlement pattern to standard", async () => {
+    const world = sampleWorld();
+    world.options = {
+      pinNotes: false,
+      winds: [0, 0, 0, 0, 0, 0],
+      temperatureEquator: 0,
+      temperatureNorthPole: 0,
+      temperatureSouthPole: 0,
+      stateLabelsMode: "auto",
+      showBurgPreview: true,
+      burgs: { groups: [] },
+      initialSettlementPattern: "dense"
+    };
+    const codec = new ChunkedWorldCodecAdapter();
+    const archive = await codec.encode(createWorldDocument(world, sampleSimulation(), createPresentationData(), []));
+    const zip = await JSZip.loadAsync(await archive.arrayBuffer());
+    const manifestFile = zip.file("manifest.json");
+    const worldFile = zip.file("map/world.json");
+    if (!manifestFile || !worldFile) throw new Error("test archive is incomplete");
+
+    const manifest = JSON.parse(await manifestFile.async("text")) as Record<string, unknown>;
+    manifest.schemaVersion = 1;
+    zip.file("manifest.json", JSON.stringify(manifest));
+    const serializedWorld = JSON.parse(await worldFile.async("text")) as { options: Record<string, unknown> };
+    delete serializedWorld.options.initialSettlementPattern;
+    zip.file("map/world.json", JSON.stringify(serializedWorld));
+    const v1Archive = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+
+    const staged = await codec.decode({
+      header: new Uint8Array(await v1Archive.slice(0, 4).arrayBuffer()),
+      blob: v1Archive
+    });
+
+    expect(WORLD_ARCHIVE_SCHEMA_VERSION).toBe(2);
+    expect(staged.document.schemaVersion).toBe(WORLD_ARCHIVE_SCHEMA_VERSION);
+    expect(staged.document.world.options.initialSettlementPattern).toBe("standard");
   });
 
   it("stages a legacy positional map without changing live state", async () => {

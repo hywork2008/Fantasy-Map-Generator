@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { HeightmapTemplateRandomization } from "../data";
-import type { ConflictAutonomy } from "../types/WorldState";
+import type { ConflictAutonomy, InitialSettlementPattern } from "../types/WorldState";
 import { DEFAULT_CONFLICT_AUTONOMY } from "../utils/conflictAutonomy";
 
 export interface OptionsState {
@@ -37,6 +37,8 @@ export interface OptionsState {
   /** Default for newly generated maps; saved maps retain their value in WorldOptions. */
   gunpowderEraEnabled: boolean;
   initialPopulationSaturation: number;
+  /** Initial settlement distribution; Phase 0 keeps "standard" behavior unchanged. */
+  initialSettlementPattern: InitialSettlementPattern;
   demographicBirthRate: number;
   demographicChildMortalityRate: number;
   /**
@@ -165,6 +167,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   militaryHierarchy: "simple",
   gunpowderEraEnabled: false,
   initialPopulationSaturation: 60,
+  initialSettlementPattern: "standard",
   demographicBirthRate: 0.25,
   demographicChildMortalityRate: 0.2,
   simDemographics: true,

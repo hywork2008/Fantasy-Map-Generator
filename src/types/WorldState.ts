@@ -11,6 +11,12 @@ export interface WorldNote {
 /** Controls whether Advance Time may autonomously initiate or advance interstate conflict. */
 export type ConflictAutonomy = "autonomous" | "playerDirected";
 
+/**
+ * Controls how much habitable land is populated at map generation. The Phase 0
+ * default deliberately preserves the pre-frontier world distribution.
+ */
+export type InitialSettlementPattern = "frontier" | "scattered" | "standard" | "dense";
+
 export interface BiomesData {
   i: number[];
   name: string[];
@@ -59,6 +65,11 @@ export interface WorldOptions {
   eraShort?: string;
   /** Whether gunpowder-era military units and goods are available. Undefined preserves legacy maps' enabled behavior. */
   gunpowderEraEnabled?: boolean;
+  /**
+   * Persisted generation distribution policy. Archives created before frontier
+   * expansion normalize this to "standard" during archive migration.
+   */
+  initialSettlementPattern: InitialSettlementPattern;
   /**
    * Sea-route topology selected for this map. Persisted so loading a saved map
    * does not replace a user-selected legacy network with the augmented one.

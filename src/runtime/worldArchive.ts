@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
 import {
   CORE_ENTITY_KINDS,
   type CoreEntityKind,
@@ -21,7 +22,12 @@ import { assertValidSimulationRngState, createSimulationRngState } from "./simul
 import { removeSimulationStateStateMirrors } from "./simulationStateState";
 
 export const WORLD_ARCHIVE_FORMAT = "fantasy-map-generator";
-export const WORLD_ARCHIVE_SCHEMA_VERSION = 1;
+/**
+ * v2 adds the persisted initial settlement pattern. v1 archives are accepted
+ * and normalized to the legacy-equivalent "standard" preset during decoding.
+ */
+export const WORLD_ARCHIVE_SCHEMA_VERSION = 2;
+const SUPPORTED_WORLD_ARCHIVE_SCHEMA_VERSIONS = new Set([1, WORLD_ARCHIVE_SCHEMA_VERSION]);
 
 export type { CoreEntityKind, CoreReference, OpaqueExtensionChunk };
 export { CORE_ENTITY_KINDS };
@@ -376,13 +382,25 @@ function encodeBase64(bytes: Uint8Array): string {
 function parseManifest(value: unknown): ArchiveManifest {
   if (!isRecord(value)) throw new Error("Archive manifest is not an object");
   if (value.format !== WORLD_ARCHIVE_FORMAT) throw new Error("Unsupported archive format");
-  if (value.schemaVersion !== WORLD_ARCHIVE_SCHEMA_VERSION) {
+  if (typeof value.schemaVersion !== "number" || !SUPPORTED_WORLD_ARCHIVE_SCHEMA_VERSIONS.has(value.schemaVersion)) {
     throw new Error(`Unsupported archive schema ${String(value.schemaVersion)}`);
   }
   if (!Array.isArray(value.typedArrays) || !Array.isArray(value.opaqueExtensionChunks) || !isRecord(value.identity)) {
     throw new Error("Archive manifest is incomplete");
   }
   return value as unknown as ArchiveManifest;
+}
+
+/**
+ * Archive v1 predates settlement-pattern persistence. This is intentionally a
+ * decode-time migration so the staged document has the current shape before
+ * validation or any live WorldContext mutation occurs.
+ */
+function migrateWorldOptions(world: unknown): void {
+  if (!isRecord(world) || !isRecord(world.options)) return;
+  // v1 necessarily lacks this field. Normalizing v2 too protects the typed
+  // context from malformed/manual archive edits without changing valid values.
+  world.options.initialSettlementPattern = normalizeInitialSettlementPattern(world.options.initialSettlementPattern);
 }
 
 function parseTypedArrayDescriptor(value: unknown): TypedArrayDescriptor {
@@ -770,6 +788,7 @@ export class ChunkedWorldCodecAdapter implements WorldArchiveCodec {
       presentation: decodeValue(JSON.parse(await presentationFile.async("text")), descriptors, bytes),
       opaqueExtensionChunks
     };
+    migrateWorldOptions((document as { world: unknown }).world);
     assertValidWorldDocument(document);
     return { stage: "decoded", document };
   }

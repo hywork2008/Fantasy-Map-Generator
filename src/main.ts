@@ -29,6 +29,7 @@ import { Features } from "./generators/features";
 import { FrontierForts } from "./generators/frontierFortsGenerator";
 import { HeightmapGenerator } from "./generators/heightmap-generator";
 import { Ice } from "./generators/ice";
+import { createInitialPopulationCohorts } from "./generators/initialPopulationCohorts";
 import { Lakes } from "./generators/lakes";
 import { Markers } from "./generators/markers-generator";
 import { Military } from "./generators/military-generator";
@@ -162,6 +163,8 @@ const options = {
   temperatureSouthPole: -15,
   stateLabelsMode: "auto",
   showBurgPreview: true,
+  // Phase 0 compatibility baseline. Phase 1 makes this drive settlement placement.
+  initialSettlementPattern: "standard" as const,
   burgs: {
     groups: (safeParseJSON(localStorage.getItem("burg-groups") ?? "") as BurgGroup[] | null) || Burgs.getDefaultGroups()
   }
@@ -884,6 +887,7 @@ async function runGeneratePipeline(request: GenerateRequest): Promise<void> {
   randomizeOptions();
   worldContext.options.gunpowderEraEnabled = useOptionsState.getState().gunpowderEraEnabled;
   worldContext.options.conflictAutonomy = normalizeConflictAutonomy(useOptionsState.getState().conflictAutonomy);
+  worldContext.options.initialSettlementPattern = useOptionsState.getState().initialSettlementPattern;
 
   if (
     shouldRegenerateGrid(worldContext.grid, +(precreatedSeed ?? 0), worldContext.graphWidth, worldContext.graphHeight)
@@ -1560,12 +1564,12 @@ export function rankCells() {
     }
 
     packCells.capacity[i] = packCells.s[i] > 0 ? (packCells.s[i] * packCells.area[i]) / meanArea : 0;
-    packCells.pop[i] = packCells.capacity[i] * initialPopulationSaturation;
-
-    packCells.children[i] = packCells.pop[i] * 0.4;
-    packCells.maleAdults[i] = packCells.pop[i] * 0.2205;
-    packCells.femaleAdults[i] = packCells.pop[i] * 0.2295;
-    packCells.elders[i] = packCells.pop[i] * 0.15;
+    const cohorts = createInitialPopulationCohorts(packCells.capacity[i], initialPopulationSaturation);
+    packCells.pop[i] = cohorts.population;
+    packCells.children[i] = cohorts.children;
+    packCells.maleAdults[i] = cohorts.maleAdults;
+    packCells.femaleAdults[i] = cohorts.femaleAdults;
+    packCells.elders[i] = cohorts.elders;
   }
 
   TIME && console.timeEnd("rankCells");

@@ -1,6 +1,6 @@
 # 未領有フロンティアと段階的領土拡張
 
-- **Status**: Planned
+- **Status**: In progress (Phase 0 complete)
 - **Last updated**: 2026-07-24
 - **Owner**: Core simulation / map generation
 - **Related**: [population-dynamics.md](../simulation/population-dynamics.md), [advance-time.md](../simulation/advance-time.md), [disaster-mode.md](disaster-mode.md), [unite-data-and-map.md](unite-data-and-map.md), [military-defense.md](military-defense.md)
@@ -169,10 +169,10 @@ Frontier Expansion Module
 
 ### Phase 0 — 基準固定と移行設計
 
-- [ ] 既存の `initialPopulationSaturation = 60`、State / Province 統計、Economy 生産、軍事徴兵の characterization tests を追加する。
-- [ ] `cells.state = 0` を読む主要 Module を一覧化し、無主地の扱い（除外・通過可・採取可）を決定する。
-- [ ] `.fmg` save migration の version と、旧セーブを `standard` として読む既定値を決める。
-- [ ] 生成時・Advance Time 時の政治変更に使う `DataTopic` を確定する。
+- [x] 既存の `initialPopulationSaturation = 60`、State / Province 統計、Economy 生産、軍事徴兵の characterization tests を追加する。
+- [x] `cells.state = 0` を読む主要 Module を一覧化し、無主地の扱い（除外・通過可・採取可）を決定する。
+- [x] `.fmg` save migration の version と、旧セーブを `standard` として読む既定値を決める。
+- [x] 生成時・Advance Time 時の政治変更に使う `DataTopic` を確定する。
 
 **完了条件**: 既存の標準世界が新しい field を欠いても同じようにロード・生成・Advance Time でき、frontier feature を無効にすると既存テストが通る。
 
@@ -258,6 +258,41 @@ E2E は必ず render mode を固定する。WebGL-managed SVG layer を selector
 | プレイヤー操作 | 自動のみ / 国家ごとの方針 / 個別プロジェクト | Phase 3 は自動 + 方針、Phase 5 で個別プロジェクト |
 
 ## 11. 進捗ログ
+
+### 2026-07-24 — Phase 0 完了
+
+#### 互換性基準と characterization
+
+- `src/generators/initialPopulationCohorts.ts` に、現行 `rankCells()` の `capacity × 60%` と年齢 cohort 比率を純粋 Module として固定した。`standard` はこの Module を使うだけであり、生成結果を変えない。
+- `stateProvinceStatistics.test.ts` は現行の集計を明示する。現時点では `states[0]` が `state = 0` の陸地を集計する一方、`province = 0` は Province 集計から除外される。これは Phase 2 で意図的に切り替える compatibility baseline である。
+- Economy は `taxes-generator.test.ts` の neutral-state 非課税テスト、軍事は `manpower.test.ts` の `cells.state === stateId` に限定した人口・徴兵テストを基準とする。Food/market 生産には現状 `state = 0` の専用ガードがないため、無主地に market を割り当てない Phase 1–2 の前提で既存挙動を維持する。
+
+#### `cells.state = 0` の主要 consumer と初期判断
+
+| Module 群 | 現在の読み方 | Frontier 初期版の扱い |
+| --- | --- | --- |
+| `states-generator`, `provinces-generator` | State 0 は neutral 集計、Province 0 は未所属 | Phase 2 で State 0 を国家集計・外交から除外。Province 0 は維持 |
+| `draw-states`, `draw-borders`, WebGL adapters | 0 を塗りなし / 国境外として描画 | 無主地として描画。Renderer は canonical state を読むだけ |
+| `demography-simulator` | 0 のセルにも隣接移住でき、過密時には state を移す | Phase 3 で outpost/settlement 経路に置換。単発の state 移送は開拓を編入しない |
+| `manpower`, `military-generator` | State id ごとの cells/burgs だけを集計 | 0 は徴兵・国家軍事から除外 |
+| Economy (`taxes`, `markets`, `foodProduction`) | 税は state 0 を除外。market/food は市場割当を読む | 無主地は通常の国家税・市場生産から除外。採取可否は Economy 接続フェーズで決める |
+| `routes-generator`, `regimentMovement` | 0 は通行可能な地形で、国家所有とは別 | 通行可。道路外コストと danger は将来の候補評価で加算 |
+| `frontierAnalysis` / Nobility | State id の相違を国境・占領の入力に使う | 無主地 frontier は国家間国境と分離し、平時開拓は host-owned Module が所有 |
+| Editors / tooltip / cell-info | 0 を「未所属」として表示または編集対象外 | 編集 UX は現状維持。Phase 5 まで個別開拓操作を追加しない |
+
+#### `.fmg` migration
+
+- `WORLD_ARCHIVE_SCHEMA_VERSION = 2` を Frontier migration version とする。
+- schema v1 を decode 時に受理し、`world.options.initialSettlementPattern` が無い場合は必ず `"standard"` を補完する。v2 で保存し直される。
+- legacy positional `.map` も同じ normalizer を通す。feature を未使用の間は `standard` が従来の人口配置を完全に維持する。
+
+#### 政治変更の DataTopic
+
+Frontier の進行だけでは `simulation.cells` を発行する。outpost/settlement の可視化も変わる場合は `map.settlements` を追加する。`incorporated` transaction は一回の commit で次を発行する。
+
+`simulation.cells`, `simulation.states`, `map.politics`, `map.settlements`
+
+道路・港を transaction 内で新設または再計算した時だけ `map.networks` を追加する。新しい `frontier.*` topic は Phase 0 では導入しない。これら既存の coarse topic は SVG と WebGL hybrid の両方に同じ変更通知を渡す。
 
 | Date | Phase | Status | Note |
 | --- | --- | --- | --- |
