@@ -29,7 +29,6 @@ import { Features } from "./generators/features";
 import { FrontierForts } from "./generators/frontierFortsGenerator";
 import { HeightmapGenerator } from "./generators/heightmap-generator";
 import { Ice } from "./generators/ice";
-import { createInitialPopulationCohorts } from "./generators/initialPopulationCohorts";
 import { Lakes } from "./generators/lakes";
 import { Markers } from "./generators/markers-generator";
 import { Military } from "./generators/military-generator";
@@ -38,6 +37,7 @@ import { Provinces } from "./generators/provinces-generator";
 import { Religions } from "./generators/religions-generator";
 import { Rivers } from "./generators/river-generator";
 import { Routes } from "./generators/routes-generator";
+import { applyInitialSettlementPattern } from "./generators/settlementPattern";
 import { States } from "./generators/states-generator";
 import { Threats } from "./generators/threats-generator";
 import { initSimulationClock } from "./generators/timeEngine";
@@ -940,6 +940,11 @@ async function runGeneratePipeline(request: GenerateRequest): Promise<void> {
   rankCells();
   Cultures.generate(worldContext, viewContext, appServices, state);
   Cultures.expand(state);
+  applyInitialSettlementPattern(
+    worldContext.pack.cells,
+    worldContext.options.initialSettlementPattern,
+    useOptionsState.getState().initialPopulationSaturation / 100
+  );
 
   Burgs.generate(worldContext, viewContext, appServices, state);
   States.generate(worldContext, viewContext, appServices, state);
@@ -1518,8 +1523,6 @@ export function rankCells() {
   packCells.femaleAdults = new Float32Array(packCells.i.length);
   packCells.elders = new Float32Array(packCells.i.length);
 
-  const initialPopulationSaturation = useOptionsState.getState().initialPopulationSaturation / 100;
-
   const meanFlux = d3.median(packCells.fl.filter((f: number) => f)) ?? 0;
   const maxFlux = (d3.max(packCells.fl) ?? 0) + (d3.max(packCells.conf) ?? 0);
   const meanArea = d3.mean(packCells.area) ?? 1;
@@ -1564,12 +1567,6 @@ export function rankCells() {
     }
 
     packCells.capacity[i] = packCells.s[i] > 0 ? (packCells.s[i] * packCells.area[i]) / meanArea : 0;
-    const cohorts = createInitialPopulationCohorts(packCells.capacity[i], initialPopulationSaturation);
-    packCells.pop[i] = cohorts.population;
-    packCells.children[i] = cohorts.children;
-    packCells.maleAdults[i] = cohorts.maleAdults;
-    packCells.femaleAdults[i] = cohorts.femaleAdults;
-    packCells.elders[i] = cohorts.elders;
   }
 
   TIME && console.timeEnd("rankCells");

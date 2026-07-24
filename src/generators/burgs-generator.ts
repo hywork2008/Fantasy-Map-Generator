@@ -228,7 +228,12 @@ class BurgModule {
     let burgs: Burg[] = [0 as unknown as Burg]; // burgs[0] is a sentinel 0, array is 1-indexed
     cells.burg = new Uint16Array(cells.i.length);
 
-    const populatedCells = cells.i.filter(i => cells.s[i] > 0 && cells.culture[i]);
+    // Settlement Pattern owns initial population placement. Burg candidates must
+    // therefore be populated cells, not every environmentally suitable cell.
+    const preservesLegacyCandidates = this.worldContext.options.initialSettlementPattern === "standard";
+    const populatedCells = cells.i.filter(
+      i => cells.culture[i] && (cells.pop[i] > 0 || (preservesLegacyCandidates && cells.s[i] > 0))
+    );
     if (!populatedCells.length) {
       ERROR && console.error("There is no populated cells with culture assigned. Cannot generate states");
       pack.burgs = burgs;

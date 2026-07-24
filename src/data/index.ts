@@ -13,4 +13,9 @@ export {
   heightmapLandmassThresholds,
   heightmapTemplates
 } from "./heightmap-templates";
+export {
+  getInitialSettlementPatternPreset,
+  INITIAL_SETTLEMENT_PATTERN_PRESETS,
+  type InitialSettlementPatternPreset
+} from "./initialSettlementPatterns";
 export { type PrecreatedHeightmap, precreatedHeightmaps } from "./precreated-heightmaps";

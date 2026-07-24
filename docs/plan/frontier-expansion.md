@@ -178,11 +178,11 @@ Frontier Expansion Module
 
 ### Phase 1 — 初期定住分布と可視化
 
-- [ ] `initialSettlementPattern` を generation option として保存する。
-- [ ] capacity を保ったまま、人口 cohort と初期 Burg 候補を同じ定住クラスタへ配る `Settlement Pattern Module` を実装する。
-- [ ] `frontier` / `scattered` / `standard` / `dense` を追加し、`standard` は現行分布との互換性を保つ。
-- [ ] 未定住地、前哨地候補、統治領を SVG / WebGL hybrid の両方で可視化する。
-- [ ] 人口 overview に「無主地 capacity」「統治人口」「未定住 capacity」を追加する。
+- [x] `initialSettlementPattern` を generation option として保存する。
+- [x] capacity を保ったまま、人口 cohort と初期 Burg 候補を同じ定住クラスタへ配る `Settlement Pattern Module` を実装する。
+- [x] `frontier` / `scattered` / `standard` / `dense` を追加し、`standard` は現行分布との互換性を保つ。
+- [x] 未定住地、前哨地候補、統治領を SVG / WebGL hybrid の両方で可視化する。
+- [x] 人口 overview に「無主地 capacity」「統治人口」「未定住 capacity」を追加する。
 
 **完了条件**: `frontier` は再現可能な seed で大きな無主地を作り、`standard` は既存の見た目・人口総量を大きく変えない。
 
@@ -293,6 +293,14 @@ Frontier の進行だけでは `simulation.cells` を発行する。outpost/sett
 `simulation.cells`, `simulation.states`, `map.politics`, `map.settlements`
 
 道路・港を transaction 内で新設または再計算した時だけ `map.networks` を追加する。新しい `frontier.*` topic は Phase 0 では導入しない。これら既存の coarse topic は SVG と WebGL hybrid の両方に同じ変更通知を渡す。
+
+### 2026-07-24 — Phase 1 完了
+
+- `Settlement Pattern Module` は文化圏の生成後、Burg の生成前に population/cohort を配置する。Culture は適地に残すため、未定住セルも文化的には空白にならない。`capacity` は決して変更しない。非 standard preset は river、harbor、coast の適性と settlement hub を使って適地を選び、選択済み capacity に人口量を再配分する。
+- `standard` は適地の全セルへ旧来どおり capacity の 60% を配置し、追加の RNG を消費しない。そのため後続の Burg / State の seeded generation を変えない。
+- Generation settings に 4 preset を追加した。プリセット選択時には推奨の population saturation を設定するが、既存の Population % slider は独立して上書きできる。
+- Population layer は `pop = 0` の居住可能セルを薄い footprint として描画する。SVG と WebGL hybrid とも同じ `pack.cells.pop` を読む。前哨地は Phase 3 の simulation-owned stage が導入されるまで存在しないため、候補地表示は未定住 footprint として扱う。統治領は既存の States overlay が canonical `cells.state` から描画する。
+- Population Overview に unclaimed capacity、unsettled capacity、governed population を追加した。Phase 2 で State 0 の領土が初期生成されると、同じ集計がそのまま無主地の値を示す。
 
 | Date | Phase | Status | Note |
 | --- | --- | --- | --- |
