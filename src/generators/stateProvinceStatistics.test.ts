@@ -4,8 +4,8 @@ import type { WorldState } from "../types/WorldState";
 import { Provinces } from "./provinces-generator";
 import { States } from "./states-generator";
 
-describe("political aggregate baseline before frontier expansion", () => {
-  it("characterizes current state and province statistics with state/province zero", () => {
+describe("political aggregates with unclaimed land", () => {
+  it("excludes state zero from national statistics while retaining province zero", () => {
     const state: WorldState = {
       pack: {
         cells: {
@@ -35,9 +35,7 @@ describe("political aggregate baseline before frontier expansion", () => {
     const aster = state.pack.states[1] as State;
     const province = state.pack.provinces[1] as Province;
 
-    // This pins the current compatibility behavior. Phase 2 intentionally
-    // changes national aggregate ownership so neutral cells are excluded.
-    expect(neutral).toMatchObject({ cells: 1, area: 5, rural: 3, urban: 0, burgs: 0 });
+    expect(neutral).toMatchObject({ cells: 0, area: 0, rural: 0, urban: 0, burgs: 0 });
     expect(aster).toMatchObject({ cells: 2, area: 18, rural: 30, urban: 19, burgs: 1 });
     expect(province).toMatchObject({ area: 18, rural: 30, urban: 19, burgs: [1] });
   });

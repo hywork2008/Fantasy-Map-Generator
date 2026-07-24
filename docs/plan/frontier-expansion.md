@@ -1,6 +1,6 @@
 # 未領有フロンティアと段階的領土拡張
 
-- **Status**: In progress (Phase 0 complete)
+- **Status**: In progress (Phase 0–2 complete)
 - **Last updated**: 2026-07-24
 - **Owner**: Core simulation / map generation
 - **Related**: [population-dynamics.md](../simulation/population-dynamics.md), [advance-time.md](../simulation/advance-time.md), [disaster-mode.md](disaster-mode.md), [unite-data-and-map.md](unite-data-and-map.md), [military-defense.md](military-defense.md)
@@ -188,10 +188,10 @@ Frontier Expansion Module
 
 ### Phase 2 — 縮小された初期国家領と州外地
 
-- [ ] `States.expandStates()` に定住核ベースの mode を追加し、無主地へ自動 flood-fill しないようにする。
-- [ ] State の capital、Burg、routes、religion、military 初期化が小領土でも成立するようにする。
-- [ ] Province generator が `state = 0` / `province = 0` の広い陸地を正しく保持するようにする。
-- [ ] State statistics、neighbors、frontier 表示が無主地を国家として数えず、`states[0]` に外交的な主体性を与えないようにする。
+- [x] `States.expandStates()` に定住核ベースの mode を追加し、無主地へ自動 flood-fill しないようにする。
+- [x] State の capital、Burg、routes、religion、military 初期化が小領土でも成立するようにする。
+- [x] Province generator が `state = 0` / `province = 0` の広い陸地を正しく保持するようにする。
+- [x] State statistics、neighbors、frontier 表示が無主地を国家として数えず、`states[0]` に外交的な主体性を与えないようにする。
 
 **完了条件**: 国家領の外に州外の無主地があり、国家は Burg、軍、経済、外交を正常に持つ。
 
@@ -301,6 +301,13 @@ Frontier の進行だけでは `simulation.cells` を発行する。outpost/sett
 - Generation settings に 4 preset を追加した。プリセット選択時には推奨の population saturation を設定するが、既存の Population % slider は独立して上書きできる。
 - Population layer は `pop = 0` の居住可能セルを薄い footprint として描画する。SVG と WebGL hybrid とも同じ `pack.cells.pop` を読む。前哨地は Phase 3 の simulation-owned stage が導入されるまで存在しないため、候補地表示は未定住 footprint として扱う。統治領は既存の States overlay が canonical `cells.state` から描画する。
 - Population Overview に unclaimed capacity、unsettled capacity、governed population を追加した。Phase 2 で State 0 の領土が初期生成されると、同じ集計がそのまま無主地の値を示す。
+
+### 2026-07-24 — Phase 2 完了
+
+- `States.expandStates()` は `standard` の従来どおりの全面 flood-fill を保持し、それ以外の定住分布では人口または Burg のある定住核だけを `cells.state` に編入する。無主地は到達性評価の通過対象であっても自動編入されない。
+- 首都から離れた初期 Burg は最寄りの既存 State に結び、そのセルだけを定住核として編入する。これにより小領土でも Burg、道路、宗教、軍事の既存初期化経路が State owner を得る。
+- Province 生成の完了時に `state = 0` のセルを必ず `province = 0` に正規化した。State 集計・隣接国・campaign は無主地を外交主体として扱わず、`states[0]` は外交史の保存先だけを維持する。
+- 検証: `npx vitest run src/generators/states-generator.test.ts src/generators/stateProvinceStatistics.test.ts src/generators/settlementPattern.test.ts`、`npx tsc --noEmit`。
 
 | Date | Phase | Status | Note |
 | --- | --- | --- | --- |
