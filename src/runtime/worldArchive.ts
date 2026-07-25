@@ -1,5 +1,9 @@
 import JSZip from "jszip";
-import { createEmptyFrontierSimulationState, type SimulationContext } from "../context/simulationContext";
+import {
+  createEmptyFrontierSimulationState,
+  FRONTIER_INVESTMENTS,
+  type SimulationContext
+} from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
 import {
@@ -595,12 +599,49 @@ function assertAndNormalizeFrontier(simulation: Record<string, unknown>, cellCou
     if (frontier.cellStages[cellId] !== project.stage) {
       throw new Error(`Archive simulation.frontier.projects.${rawCellId} does not match cell stage`);
     }
+    if (project.lastStatus !== undefined) {
+      if (
+        !isRecord(project.lastStatus) ||
+        !isFiniteNonNegativeInteger(project.lastStatus.year) ||
+        !["maintained", "paused", "settled", "abandoned"].includes(String(project.lastStatus.outcome)) ||
+        !Array.isArray(project.lastStatus.failureReasons) ||
+        !project.lastStatus.failureReasons.every(reason => typeof reason === "string") ||
+        !isFiniteNumber(project.lastStatus.recoveryCost) ||
+        project.lastStatus.recoveryCost < 0 ||
+        (project.lastStatus.disaster !== undefined &&
+          !["drought", "flood", "epidemic", "bandits"].includes(String(project.lastStatus.disaster)))
+      ) {
+        throw new Error(`Archive simulation.frontier.projects.${rawCellId}.lastStatus is invalid`);
+      }
+    }
   }
   if (frontier.lastEvaluatedYear !== null && !isFiniteNonNegativeInteger(frontier.lastEvaluatedYear)) {
     throw new Error("Archive simulation.frontier.lastEvaluatedYear must be null or a non-negative integer");
   }
   assertFiniteNonNegativeNumberRecord(frontier.budgetByState, "simulation.frontier.budgetByState");
   assertFiniteNonNegativeNumberRecord(frontier.stateCooldownUntilYear, "simulation.frontier.stateCooldownUntilYear");
+  if (frontier.governanceByState === undefined) frontier.governanceByState = {};
+  if (!isRecord(frontier.governanceByState))
+    throw new Error("Archive simulation.frontier.governanceByState must be a record");
+  for (const [stateId, governance] of Object.entries(frontier.governanceByState)) {
+    if (!isPositiveInteger(Number(stateId)) || String(Number(stateId)) !== stateId || !isRecord(governance)) {
+      throw new Error(`Archive simulation.frontier.governanceByState.${stateId} is invalid`);
+    }
+    if (
+      !["balanced", "expansion", "defense", "recovery"].includes(String(governance.policy)) ||
+      (governance.lastEvaluatedYear !== null && !isFiniteNonNegativeInteger(governance.lastEvaluatedYear)) ||
+      !isFiniteNumber(governance.reliefSpent) ||
+      governance.reliefSpent < 0 ||
+      !isRecord(governance.investments)
+    ) {
+      throw new Error(`Archive simulation.frontier.governanceByState.${stateId} is invalid`);
+    }
+    for (const investment of FRONTIER_INVESTMENTS) {
+      if (!isFiniteNonNegativeInteger(governance.investments[investment])) {
+        throw new Error(`Archive simulation.frontier.governanceByState.${stateId}.${investment} is invalid`);
+      }
+    }
+  }
 }
 
 function isUint8Array(value: unknown): value is Uint8Array {

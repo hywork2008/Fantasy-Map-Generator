@@ -1,6 +1,6 @@
 # 未領有フロンティアと段階的領土拡張
 
-- **Status**: In progress (Phase 0–3 complete; Phase 4 onward planned)
+- **Status**: In progress (Phase 0–5 complete; Phase 6 remains optional)
 - **Last updated**: 2026-07-25
 - **Owner**: Core simulation / map generation
 - **Related**: [population-dynamics.md](../simulation/population-dynamics.md), [advance-time.md](../simulation/advance-time.md), [disaster-mode.md](disaster-mode.md), [unite-data-and-map.md](unite-data-and-map.md), [military-defense.md](military-defense.md)
@@ -256,10 +256,10 @@ Frontier Expansion Module
 
 ### Phase 5 — 災害・内政・AI
 
-- [ ] 干魃・洪水・疫病・野盗などの災害が、前哨地の定着率と復興費に影響するようにする。
-- [ ] 穀倉、井戸、道路、砦、衛生などの内政投資が、開拓・維持・災害軽減へ複数の leverage を持つようにする。
-- [ ] Nobility の国家 AI が、戦争目標だけでなく frontier 防衛・開拓予算を判断できるようにする。
-- [ ] UI に候補地、必要資金、失敗理由、次段階条件を説明する。
+- [x] 干魃・洪水・疫病・野盗などの災害が、前哨地の定着率と復興費に影響するようにする。
+- [x] 穀倉、井戸、道路、砦、衛生などの内政投資が、開拓・維持・災害軽減へ複数の leverage を持つようにする。
+- [x] Nobility の国家 AI が、戦争目標だけでなく frontier 防衛・開拓予算を判断できるようにする。
+- [x] UI に候補地、必要資金、失敗理由、次段階条件を説明する。
 
 **完了条件**: Advance Time で蓄積した資産を、戦争・災害救援・新規開拓の間で選んで使うゲームループになる。
 
@@ -403,6 +403,15 @@ Frontier の進行だけでは `simulation.cells` を発行する。outpost/sett
 - `analyzeUnclaimedFrontiers()` は `state = 0` を外交主体にせず、State が実際に所有する境界セルだけから `origin: "unclaimed"` の patrol segment を作る。危険度は patrol / escort の優先度へ反映するが、通常の国家間の敵対関係・戦争目標には入らない。
 - `frontier` / `scattered` の軍事編成と regiment movement はその segment を追加で読む。通常の巡回先は State 自身の境界セルのままとし、State 支援中の outpost / settlement が同じ landmass にあり、既存の補給 trail で State に到達できる場合だけ、補給・救援のためにそのセルへ行軍できる。無主地を通ることは領有変更を起こさない。
 - 検証: `frontierAnalysis.test.ts`（無主地 frontier の外交的分離）、`regimentMovement.test.ts`（前哨地救援と `state = 0` の維持）、既存の軍事・移動回帰。
+
+### 2026-07-26 — Phase 5 災害・内政・AI 完了
+
+- `frontierGovernance.ts` は前哨地の年次支援時に、低適性地の干魃、河川流量による洪水、過密時の疫病、danger による野盗を deterministic simulation RNG で判定する。災害は復興費または支援失敗理由として `FrontierProject.lastStatus` に残る。
+- State ごとの frontier governance は穀倉・井戸・道路・砦・衛生の投資水準と救援支出を保持する。これらは食料維持費、災害復興費、危険許容度、災害発生率を複数の経路で改善する。
+- Nobility が有効な場合、1 月 1 日に State の frontier policy を balanced / expansion / defense / recovery から選び、最も差し迫った投資へ treasury を配分する。戦争 AI の有無で host-owned frontier state の所有権は変わらない。
+- Tools タブに Frontier operations ledger を追加した。前哨地の方針、投資、前年の災害・失敗理由、次段階、候補セル、開始費用と必要留保額を表示する。
+- archive は governance と project status を保存し、旧 archive には空の governance record を補完する。
+- 検証: `frontierGovernance.test.ts`、`frontierExpansion.test.ts`、`frontierIncorporation.test.ts`、`worldArchive.test.ts`、`npx tsc --noEmit`、`npm run lint`。
 
 | Date | Phase | Status | Note |
 | --- | --- | --- | --- |

@@ -7,17 +7,15 @@ import {
 import type { WorldContext } from "../context/worldContext";
 import type { DataTopic } from "../runtime/worldRuntime";
 import type { RNGService } from "../utils/probabilityUtils";
+import { assessFrontierSupport, getFrontierGovernance, statusForProject } from "./frontierGovernance";
 import { incorporateEligibleFrontierSettlements } from "./frontierIncorporation";
 
 const SETUP_COST = 8;
-const ANNUAL_UPKEEP = 1;
 const TREASURY_RESERVE = 12;
 const MIN_COLONISTS = 4;
 const SETTLEMENT_SUPPORT_YEARS = 3;
 const MAX_OUTPOST_DANGER = 120;
-const MAX_SUPPORTED_OUTPOST_DANGER = 150;
 const SETUP_FOOD = 4;
-const ANNUAL_FOOD = 1;
 const MAX_FRONTIER_HOPS = 6;
 
 export interface FrontierExpansionInput {
@@ -34,6 +32,54 @@ export interface FrontierExpansionResult {
   readonly abandoned: readonly number[];
   readonly settled: readonly number[];
   readonly incorporated: readonly number[];
+}
+
+/** Read-only projection for the Tools panel; it never consumes simulation RNG. */
+export interface FrontierCandidateSummary {
+  readonly stateId: number;
+  readonly cellId: number;
+  readonly sourceCellId: number;
+  readonly score: number;
+  readonly setupCost: number;
+  readonly requiredReserve: number;
+}
+
+export function getFrontierCandidateSummaries(
+  world: WorldContext,
+  simulation: SimulationContext
+): readonly FrontierCandidateSummary[] {
+  const { cells, states } = world.pack;
+  if (!isFrontierPattern(world.options?.initialSettlementPattern)) return [];
+  const candidatesByTarget = new Map<string, FrontierCandidateSummary>();
+  for (const state of states ?? []) {
+    if (!state?.i || state.removed || hasActiveProject(simulation.frontier, state.i)) continue;
+    for (let sourceCellId = 0; sourceCellId < cells.i.length; sourceCellId++) {
+      if (
+        cells.state[sourceCellId] !== state.i ||
+        (cells.pop[sourceCellId] ?? 0) < (cells.capacity[sourceCellId] ?? 0) * 0.73
+      )
+        continue;
+      for (const { cellId } of findReachableFrontier(cells, simulation.frontier, sourceCellId, state.i)) {
+        if ((cells.capacity[cellId] ?? 0) < MIN_COLONISTS * 2) continue;
+        const candidate: FrontierCandidateSummary = {
+          stateId: state.i,
+          cellId,
+          sourceCellId,
+          score: scoreCandidate(cells, cellId, 0),
+          setupCost: SETUP_COST,
+          requiredReserve: TREASURY_RESERVE + SETUP_COST
+        };
+        const key = `${candidate.stateId}:${candidate.cellId}`;
+        const existing = candidatesByTarget.get(key);
+        if (!existing || candidate.score > existing.score || candidate.sourceCellId < existing.sourceCellId) {
+          candidatesByTarget.set(key, candidate);
+        }
+      }
+    }
+  }
+  return [...candidatesByTarget.values()]
+    .sort((a, b) => b.score - a.score || a.stateId - b.stateId || a.cellId - b.cellId)
+    .slice(0, 8);
 }
 
 type FrontierCandidate = {
@@ -145,29 +191,27 @@ function advanceProject(
   const { cells } = input.world.pack;
   const state = input.world.pack.states?.[project.stateId];
   const priorBudget = frontier.budgetByState[project.stateId] ?? 0;
-  const localPopulation = cells.pop[project.cellId] ?? 0;
-  const localCapacity = cells.capacity[project.cellId] ?? 0;
-  const danger = cells.danger[project.cellId] ?? 0;
-  const canSupport =
-    !!state &&
-    !state.removed &&
-    priorBudget >= TREASURY_RESERVE + ANNUAL_UPKEEP &&
-    (state.treasury ?? 0) >= ANNUAL_UPKEEP &&
-    hasProvisioningCapacity(cells, project.cellId, localPopulation) &&
-    localCapacity >= localPopulation * 1.2 &&
-    danger <= MAX_SUPPORTED_OUTPOST_DANGER;
+  const assessment = assessFrontierSupport(input.world, input.simulation, project, priorBudget, input.rng);
 
-  if (!canSupport) {
+  if (!assessment.canSupport) {
     project.failedSupportYears++;
+    project.lastStatus = statusForProject(project, assessment, year);
     if (project.failedSupportYears < 3) return "paused";
+    project.lastStatus = { ...project.lastStatus, outcome: "abandoned" };
     abandonProject(project, frontier, cells);
     return "abandoned";
   }
 
-  state.treasury = Math.max(0, (state.treasury ?? 0) - ANNUAL_UPKEEP);
-  consumeFood(state, ANNUAL_FOOD);
+  // The assessment has already accounted for infrastructure discounts and a
+  // disaster's one-off recovery. The state remains the only treasury owner.
+  state!.treasury = Math.max(0, (state!.treasury ?? 0) - assessment.upkeep - assessment.recoveryCost);
+  if (assessment.recoveryCost) {
+    getFrontierGovernance(input.simulation, project.stateId).reliefSpent += assessment.recoveryCost;
+  }
+  consumeFood(state!, assessment.food);
   project.supportYears++;
   project.failedSupportYears = 0;
+  project.lastStatus = statusForProject(project, assessment, year);
   if (project.supportYears < SETTLEMENT_SUPPORT_YEARS) return "maintained";
 
   project.stage = FRONTIER_STAGE.settlement;
@@ -175,6 +219,7 @@ function advanceProject(
   // A settlement remains unclaimed (`state = province = 0`) until Phase 4.
   cells.state[project.cellId] = 0;
   cells.province[project.cellId] = 0;
+  project.lastStatus = { ...project.lastStatus, outcome: "settled" };
   void year; // Kept in the signature so project transitions stay calendar-explicit.
   return "settled";
 }
@@ -301,7 +346,8 @@ function ensureFrontierState(simulation: SimulationContext, cellCount: number): 
     projects: {},
     lastEvaluatedYear: null,
     budgetByState: {},
-    stateCooldownUntilYear: {}
+    stateCooldownUntilYear: {},
+    governanceByState: {}
   };
   return simulation.frontier;
 }
@@ -322,16 +368,6 @@ function isAtWar(state: { diplomacy?: unknown } | undefined): boolean {
 
 function hasSeriousFoodStress(foodStress: number | undefined): boolean {
   return typeof foodStress === "number" && foodStress >= 0.75;
-}
-
-/**
- * `foodStock` is a volatile market snapshot. Sustainable settlement is instead
- * gated by the cell's carrying capacity; a positive stock adds a consumable
- * reserve but a zero quarterly market snapshot cannot permanently freeze all
- * frontier work.
- */
-function hasProvisioningCapacity(cells: WorldContext["pack"]["cells"], cellId: number, population: number): boolean {
-  return (cells.capacity[cellId] ?? 0) >= Math.max(MIN_COLONISTS * 2, population * 1.2);
 }
 
 function consumeFood(state: { foodStock?: number }, amount: number): void {

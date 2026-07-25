@@ -6,7 +6,7 @@ import {
 } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import { createRNGService } from "../utils/probabilityUtils";
-import { advanceFrontierExpansion } from "./frontierExpansion";
+import { advanceFrontierExpansion, getFrontierCandidateSummaries } from "./frontierExpansion";
 
 function createWorld(treasury = 100): WorldContext {
   return {
@@ -193,5 +193,35 @@ describe("Frontier Expansion Phase 3", () => {
     expect(first.established).toEqual([1]);
     expect(second.topics).toEqual([]);
     expect(simulation.frontier.projects[1]?.supportYears).toBe(0);
+  });
+
+  it("lists each state and target cell once when several source cells can fund it", () => {
+    const world = createWorld();
+    world.pack.cells = {
+      ...world.pack.cells,
+      i: new Uint16Array([0, 1, 2]),
+      c: [[2], [2], [0, 1]],
+      state: new Uint16Array([1, 1, 0]),
+      province: new Uint16Array([1, 1, 0]),
+      pop: new Float32Array([100, 100, 0]),
+      capacity: new Float32Array([100, 100, 50]),
+      children: new Float32Array([25, 25, 0]),
+      maleAdults: new Float32Array([25, 25, 0]),
+      femaleAdults: new Float32Array([25, 25, 0]),
+      elders: new Float32Array([25, 25, 0]),
+      danger: new Uint8Array([0, 0, 10]),
+      h: new Uint8Array([30, 30, 30]),
+      s: new Uint8Array([50, 50, 50]),
+      r: new Uint16Array([0, 0, 1]),
+      harbor: new Uint8Array([0, 0, 0]),
+      conf: new Uint8Array([0, 0, 0]),
+      burg: new Uint16Array([0, 0, 0]),
+      routes: { 0: {}, 1: {}, 2: {} }
+    };
+    const simulation = createSimulation(100, 100, 3);
+
+    expect(getFrontierCandidateSummaries(world, simulation)).toEqual([
+      expect.objectContaining({ stateId: 1, cellId: 2, sourceCellId: 0 })
+    ]);
   });
 });

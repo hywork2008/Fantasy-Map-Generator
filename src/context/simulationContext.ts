@@ -64,6 +64,27 @@ export const FRONTIER_STAGE = {
 
 export type FrontierStage = (typeof FRONTIER_STAGE)[keyof typeof FRONTIER_STAGE];
 
+export const FRONTIER_INVESTMENTS = ["granary", "well", "road", "fort", "sanitation"] as const;
+export type FrontierInvestment = (typeof FRONTIER_INVESTMENTS)[number];
+export type FrontierPolicy = "balanced" | "expansion" | "defense" | "recovery";
+export type FrontierDisaster = "drought" | "flood" | "epidemic" | "bandits";
+
+/** State-owned works that improve both a frontier's daily viability and its resilience. */
+export interface FrontierStateGovernance {
+  policy: FrontierPolicy;
+  investments: Record<FrontierInvestment, number>;
+  lastEvaluatedYear: number | null;
+  reliefSpent: number;
+}
+
+export interface FrontierProjectStatus {
+  year: number;
+  outcome: "maintained" | "paused" | "settled" | "abandoned";
+  failureReasons: readonly string[];
+  disaster?: FrontierDisaster;
+  recoveryCost: number;
+}
+
 /** Sparse, project-specific state for an unclaimed outpost or settlement. */
 export interface FrontierProject {
   readonly cellId: number;
@@ -72,6 +93,8 @@ export interface FrontierProject {
   establishedYear: number;
   supportYears: number;
   failedSupportYears: number;
+  /** Persisted explanation for the frontier panel and the next annual evaluation. */
+  lastStatus?: FrontierProjectStatus;
 }
 
 /**
@@ -87,6 +110,8 @@ export interface FrontierSimulationState {
   budgetByState: Record<number, number>;
   /** Earliest year in which a state may begin another project. */
   stateCooldownUntilYear: Record<number, number>;
+  /** State policy, infrastructure and relief spending for Phase 5 frontier governance. */
+  governanceByState: Record<number, FrontierStateGovernance>;
 }
 
 export function createEmptyFrontierSimulationState(cellCount = 0): FrontierSimulationState {
@@ -95,7 +120,8 @@ export function createEmptyFrontierSimulationState(cellCount = 0): FrontierSimul
     projects: {},
     lastEvaluatedYear: null,
     budgetByState: {},
-    stateCooldownUntilYear: {}
+    stateCooldownUntilYear: {},
+    governanceByState: {}
   };
 }
 
