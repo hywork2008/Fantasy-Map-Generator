@@ -268,8 +268,8 @@ class StatesModule {
     });
   }
 
-  findNeighbors() {
-    const { pack } = this.worldContext;
+  findNeighbors(context: WorldContext = this.worldContext) {
+    const { pack } = context;
     const { cells, states } = pack;
 
     const stateNeighbors: Set<number>[] = [];

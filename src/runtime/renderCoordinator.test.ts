@@ -9,6 +9,7 @@ function createEffects(): RenderEffects {
   return {
     syncPresentation: vi.fn(),
     renderFullWorld: vi.fn(),
+    renderStates: vi.fn(),
     renderBorders: vi.fn(),
     renderStateLabels: vi.fn(),
     renderBurgIcons: vi.fn(),
@@ -46,6 +47,7 @@ describe("RenderCoordinator", () => {
     });
 
     expect(effects.renderBorders).toHaveBeenCalledOnce();
+    expect(effects.renderStates).toHaveBeenCalledOnce();
     expect(effects.renderStateLabels).toHaveBeenCalledOnce();
     expect(effects.renderBurgIcons).toHaveBeenCalledOnce();
     expect(effects.renderBurgLabels).toHaveBeenCalledOnce();
@@ -68,6 +70,7 @@ describe("RenderCoordinator", () => {
     });
 
     expect(effects.renderBorders).not.toHaveBeenCalled();
+    expect(effects.renderStates).not.toHaveBeenCalled();
     expect(effects.renderStateLabels).not.toHaveBeenCalled();
     expect(effects.renderBurgIcons).not.toHaveBeenCalled();
     expect(effects.renderBurgLabels).not.toHaveBeenCalled();
@@ -101,9 +104,11 @@ describe("RenderCoordinator", () => {
       });
 
       expect(effects.renderBorders).not.toHaveBeenCalled();
+      expect(effects.renderStates).not.toHaveBeenCalled();
       expect(effects.renderBurgIcons).not.toHaveBeenCalled();
       scheduled?.(0);
       expect(effects.renderBorders).toHaveBeenCalledOnce();
+      expect(effects.renderStates).toHaveBeenCalledOnce();
       expect(effects.renderBurgIcons).toHaveBeenCalledOnce();
     } finally {
       // Restored by afterEach; keeping the scope explicit documents that this
@@ -134,6 +139,7 @@ describe("RenderCoordinator", () => {
     expect(effects.renderFullWorld).toHaveBeenCalledOnce();
     expect(effects.syncPresentation).toHaveBeenCalledOnce();
     expect(effects.renderBorders).not.toHaveBeenCalled();
+    expect(effects.renderStates).not.toHaveBeenCalled();
     expect(effects.scheduleWebglUpdate).not.toHaveBeenCalled();
     expect(effects.refreshEditors).toHaveBeenCalledOnce();
   });
@@ -159,6 +165,7 @@ describe("RenderCoordinator", () => {
     expect(effects.renderBurgIcons).toHaveBeenCalledOnce();
     expect(effects.renderBurgLabels).toHaveBeenCalledOnce();
     expect(effects.renderBorders).toHaveBeenCalledOnce();
+    expect(effects.renderStates).toHaveBeenCalledOnce();
     expect(effects.renderStateLabels).toHaveBeenCalledOnce();
     expect(effects.schedule3dSceneUpdate).toHaveBeenCalledOnce();
   });
@@ -176,6 +183,7 @@ describe("RenderCoordinator", () => {
     expect(effects.scheduleWebglUpdate).toHaveBeenCalledOnce();
     expect(effects.schedule3dTerrainUpdate).toHaveBeenCalledOnce();
     expect(effects.renderBorders).not.toHaveBeenCalled();
+    expect(effects.renderStates).not.toHaveBeenCalled();
   });
 
   it("coalesces topology and physical updates through the asynchronous land-topology projection path", async () => {
@@ -223,5 +231,6 @@ describe("RenderCoordinator", () => {
 
     expect(effects.renderExtensionLayers).not.toHaveBeenCalled();
     expect(effects.renderBorders).toHaveBeenCalledOnce();
+    expect(effects.renderStates).toHaveBeenCalledOnce();
   });
 });

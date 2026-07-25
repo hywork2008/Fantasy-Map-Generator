@@ -24,16 +24,18 @@ function createWorld(treasury = 100): WorldContext {
         femaleAdults: new Float32Array([25, 0]),
         elders: new Float32Array([25, 0]),
         danger: new Uint8Array([0, 10]),
+        area: new Float32Array([1, 1]),
         h: new Uint8Array([30, 30]),
         s: new Uint8Array([50, 50]),
         r: new Uint16Array([0, 1]),
         harbor: new Uint8Array([0, 0]),
         conf: new Uint8Array([0, 0]),
-        burg: new Uint16Array([1, 0]),
-        routes: { 0: {} }
+        burg: new Uint16Array([0, 0]),
+        routes: { 0: { 1: 0 }, 1: { 0: 0 } }
       },
       states: [{ i: 0 }, { i: 1, treasury, foodStress: 0, removed: false }],
-      burgs: []
+      burgs: [],
+      provinces: [0]
     }
   } as unknown as WorldContext;
 }
@@ -72,6 +74,7 @@ describe("Frontier Expansion Phase 3", () => {
     expect(simulation.frontier.cellStages[1]).toBe(FRONTIER_STAGE.outpost);
     expect(world.pack.cells.state[1]).toBe(0);
     expect(world.pack.cells.province[1]).toBe(0);
+
     expect(world.pack.cells.pop[0]).toBeLessThan(100);
     expect(world.pack.cells.pop[1]).toBeGreaterThanOrEqual(4);
 
@@ -86,6 +89,19 @@ describe("Frontier Expansion Phase 3", () => {
     expect(simulation.frontier.projects[1]?.supportYears).toBe(3);
     expect(world.pack.cells.state[1]).toBe(0);
     expect(world.pack.cells.province[1]).toBe(0);
+
+    simulation.currentYear = 104;
+    const incorporated = advance(world, simulation);
+
+    expect(incorporated.incorporated).toEqual([1]);
+    expect(incorporated.topics).toEqual(
+      expect.arrayContaining(["simulation.cells", "simulation.states", "map.politics", "map.settlements"])
+    );
+    expect(simulation.frontier.cellStages[1]).toBe(FRONTIER_STAGE.incorporated);
+    expect(simulation.frontier.projects[1]).toBeUndefined();
+    expect(world.pack.cells.state[1]).toBe(1);
+    expect(world.pack.cells.province[1]).toBeGreaterThan(0);
+    expect(world.pack.states[1]?.cells).toBe(2);
   });
 
   it("pauses an unsupported outpost before abandoning it after three failed annual provisions", () => {

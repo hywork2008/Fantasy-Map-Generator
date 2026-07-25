@@ -14,7 +14,8 @@ import {
   BurgLabelsRenderer,
   MarkersRenderer,
   MilitaryRenderer,
-  StateLabelsRenderer
+  StateLabelsRenderer,
+  StatesRenderer
 } from "../renderers";
 import { OceanLayers } from "../renderers/ocean-layers";
 import { projectPresentationToSvg } from "../renderers/presentationProjection";
@@ -38,6 +39,7 @@ import { type DataTopic, type WorldCommit, type WorldRuntime, worldRuntime } fro
 export interface RenderEffects {
   syncPresentation(): void;
   renderFullWorld(): void;
+  renderStates(): void;
   renderBorders(): void;
   renderStateLabels(): void;
   renderBurgIcons(): void;
@@ -118,6 +120,7 @@ function applyCommit(commit: WorldCommit<unknown>, effects: RenderEffects): void
   const topics = new Set(commit.changes.changes.map(change => change.topic));
 
   if (topics.has("map.politics")) {
+    effects.renderStates();
     effects.renderBorders();
     effects.renderStateLabels();
   }
@@ -203,6 +206,10 @@ export function initRenderCoordinator(): void {
     renderBorders: () => {
       if (!viewContext.renderMap) return;
       BordersRenderer.render(worldContext, viewContext, appServices);
+    },
+    renderStates: () => {
+      if (!viewContext.renderMap) return;
+      StatesRenderer.render(worldContext, viewContext, appServices);
     },
     renderStateLabels: () => {
       if (!viewContext.renderMap) return;

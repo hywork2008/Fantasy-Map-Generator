@@ -247,9 +247,9 @@ Frontier Expansion Module
 
 ### Phase 4 — 統治領編入と再集計
 
-- [ ] 村落と接続した行政圏を一括編入する transaction を実装する。
-- [ ] 編入後に State / Province 統計、隣接国、frontier、renderer topics を一回だけ更新する。
-- [ ] 新領土の税、生産、food stress、徴兵、道路・市場再評価を接続する。
+- [x] 村落と接続した行政圏を一括編入する transaction を実装する。
+- [x] 編入後に State / Province 統計、隣接国、frontier、renderer topics を一回だけ更新する。
+- [x] 新領土の税、生産、food stress、徴兵、道路・市場再評価を接続する。
 - [ ] 無主地に対する frontier 防衛、巡回、前哨地の救援を追加する。
 
 **完了条件**: 編入後の領土は表示、国家統計、Economy、人口、軍事で一貫して同じ owner を読む。
@@ -390,6 +390,13 @@ Frontier の進行だけでは `simulation.cells` を発行する。outpost/sett
 - 人口シミュレーションは State 境界を越えた偶発的移住・State 書換をやめ、無主地への移動を Frontier Project に一本化した。自動 Burg 化は既存統治領または stage 2 settlement に限定した。孤立 Burg も最初の supply trail の接続先として認識する。
 - `standard` map は未領有の居住可能セルを残さない compatibility preset のため、開拓候補がなく Phase 3 は no-op になる。開拓を観察する生成では `frontier` または `scattered` preset を選ぶ。
 - 検証: `frontierExpansion.test.ts`（設立、定着、停止後の放棄、food stress、市場 stock 0 の local-capacity fallback、未領有回廊、年次 guard）、archive / ownership / route / time-engine / Initial Polities 回帰、`npx tsc --noEmit`、`npm run lint`。
+
+### 2026-07-26 — Phase 4 統治領編入と再集計（進行中）
+
+- `frontierIncorporation.ts` を Phase 4 の唯一の ownership transaction とした。定着から追加で一年を経た村落だけが、既存の補給 trail をたどって State に接続できる場合に編入される。隣接しているだけの無主地は編入しない。
+- transaction は補給路上の未領有セルと村落を一括で `state` / `province` へ割り当て、stage を `incorporated` にし、project を完了させる。接続済み Province がなければ State ごとの Frontier Province を作る。
+- commit 前に State / Province 集計と State 隣接関係を再構築し、`simulation.cells`、`simulation.states`、`map.politics`、`map.settlements` を一回だけ発行する。Economy、food stress、manpower は次回の各 simulation tick で同じ `cells.state` と再集計済み State population を読む。補給 trail は Phase 3 で既に `map.networks` として作成済みである。
+- 検証: `frontierIncorporation.test.ts`（補給路のみの一括編入、集計・隣接国更新、経路なしでは未編入）、`frontierExpansion.test.ts`（定着から編入までの年次遷移）、State / Province / time-system 回帰、`npx tsc --noEmit`、Biome check。
 
 | Date | Phase | Status | Note |
 | --- | --- | --- | --- |

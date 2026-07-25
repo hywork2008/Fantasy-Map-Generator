@@ -7,6 +7,7 @@ import {
 import type { WorldContext } from "../context/worldContext";
 import type { DataTopic } from "../runtime/worldRuntime";
 import type { RNGService } from "../utils/probabilityUtils";
+import { incorporateEligibleFrontierSettlements } from "./frontierIncorporation";
 
 const SETUP_COST = 8;
 const ANNUAL_UPKEEP = 1;
@@ -32,6 +33,7 @@ export interface FrontierExpansionResult {
   readonly established: readonly number[];
   readonly abandoned: readonly number[];
   readonly settled: readonly number[];
+  readonly incorporated: readonly number[];
 }
 
 type FrontierCandidate = {
@@ -60,6 +62,7 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
   const established: number[] = [];
   const abandoned: number[] = [];
   const settled: number[] = [];
+  const incorporated: number[] = [];
   let routeChanged = false;
 
   for (const project of Object.values(frontier.projects)) {
@@ -75,6 +78,14 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
     } else if (outcome === "maintained") {
       topics.add("simulation.states");
     }
+  }
+
+  const incorporation = incorporateEligibleFrontierSettlements(input);
+  if (incorporation.incorporations.length) {
+    for (const entry of incorporation.incorporations) incorporated.push(entry.settlementCellId);
+    topics.add("simulation.states");
+    topics.add("map.politics");
+    topics.add("map.settlements");
   }
 
   for (const state of world.pack.states ?? []) {
@@ -120,7 +131,7 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
   topics.add("simulation.states");
   if (routeChanged) topics.add("map.networks");
 
-  return { topics: [...topics], established, abandoned, settled };
+  return { topics: [...topics], established, abandoned, settled, incorporated };
 }
 
 function advanceProject(
@@ -328,5 +339,5 @@ function consumeFood(state: { foodStock?: number }, amount: number): void {
 }
 
 function emptyResult(): FrontierExpansionResult {
-  return { topics: [], established: [], abandoned: [], settled: [] };
+  return { topics: [], established: [], abandoned: [], settled: [], incorporated: [] };
 }

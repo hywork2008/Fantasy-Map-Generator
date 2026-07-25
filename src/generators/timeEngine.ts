@@ -120,7 +120,7 @@ registerSimulationSystem({
   id: "frontier-expansion.tick",
   phase: "politics",
   reads: ["map.politics", "map.networks", "simulation.cells", "simulation.states"],
-  writes: ["simulation.cells", "simulation.states", "map.networks", "map.settlements"],
+  writes: ["simulation.cells", "simulation.states", "map.politics", "map.networks", "map.settlements"],
   cadence: { every: 1 },
   profileLabel: "frontierExpansion",
   run: (context, writer) => {
