@@ -297,8 +297,13 @@ text.drag {
 }
 
 #options {
+  --dialog-offset-x: 0px;
+  --dialog-offset-y: 0px;
   position: absolute;
   z-index: 20;
+  /* useDraggable updates these offsets. Unlike .fmg-dialog, the options
+     panel is anchored at its normal absolute position rather than centered. */
+  transform: translate(var(--dialog-offset-x), var(--dialog-offset-y));
   /* The Options > UI transparency setting writes --bg-light at runtime.
      Keep the menu surface on that variable so the map remains visible behind
      it, as it did before the React migration. */
