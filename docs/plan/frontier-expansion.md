@@ -1,6 +1,6 @@
 # 未領有フロンティアと段階的領土拡張
 
-- **Status**: In progress (Phase 0 complete; Phase 1–2 are prototypes pending redesign)
+- **Status**: In progress (Phase 0–2 complete; Phase 3 onward planned)
 - **Last updated**: 2026-07-25
 - **Owner**: Core simulation / map generation
 - **Related**: [population-dynamics.md](../simulation/population-dynamics.md), [advance-time.md](../simulation/advance-time.md), [disaster-mode.md](disaster-mode.md), [unite-data-and-map.md](unite-data-and-map.md), [military-defense.md](military-defense.md)
@@ -196,12 +196,12 @@ Frontier Expansion Module
 
 ### Phase 2 — 初期国家と統治圏（prototype を置換）
 
-- [ ] `Initial Polities Module` が、初期移動網の首都候補・集落ノードを network cost で国家へ束ねるようにする。
-- [ ] `statesNumber` を直接の State 数ではなく、定住網に対する polity density / 上限として再定義する。
-- [ ] 統治領を、首都または港へ到達できる定住圏と初期移動網の service area から導く。道路のない地形を領土接続だけのために編入しない。
-- [ ] 同一陸地で到達不能な Burg を最寄り State へ割り当てず、海を越える飛地は港・海路・補給の条件を満たすまで作らない。
-- [ ] 現行の後付け行政回廊 (`connectDetachedStateNuclei`) を新しい移動網ベースの統治圏生成へ置き換える。完全包囲された小さな空洞だけを正規化する。
-- [ ] Province generator、State statistics、neighbors、frontier 表示が `state = 0` / `province = 0` を維持し、`states[0]` に外交的な主体性を与えないことを再検証する。
+- [x] `Initial Polities Module` が、初期移動網の首都候補・集落ノードを network cost で国家へ束ねるようにする。
+- [x] `statesNumber` を直接の State 数ではなく、定住網に対する polity density / 上限として再定義する。
+- [x] 統治領を、首都または港へ到達できる定住圏と初期移動網の service area から導く。道路のない地形を領土接続だけのために編入しない。
+- [x] 同一陸地で到達不能な Burg を最寄り State へ割り当てず、海を越える飛地は港・海路・補給の条件を満たすまで作らない。
+- [x] 現行の後付け行政回廊 (`connectDetachedStateNuclei`) を新しい移動網ベースの統治圏生成へ置き換える。完全包囲された小さな空洞だけを正規化する。
+- [x] Province generator、State statistics、neighbors、frontier 表示が `state = 0` / `province = 0` を維持し、`states[0]` に外交的な主体性を与えないことを再検証する。
 
 **完了条件**: 国家領の全連結成分には実在する初期移動経路があり、道路・河川・港湾で説明できない細長い領土を作らない。国家は Burg、軍、経済、外交を正常に持つ。
 
@@ -345,6 +345,13 @@ Frontier の進行だけでは `simulation.cells` を発行する。outpost/sett
 - 初期移動リンクは Burg 化されたノードに限らず、計画済みの村落ノード間にも materialize する。`manors` は引き続き Burg 数だけを制御する。
 - `standard` は legacy population / Burg / State / Routes の順序と RNG 消費を維持する Adapter とする。
 - 検証: `settlementFoundation.test.ts` の温暖な河川域・Cold Desert の孤立 oasis 回帰、`routes-generator.test.ts` の村落間移動リンク、archive round-trip、標準 preset の既存 characterization。
+
+### 2026-07-25 — Phase 2 Initial Polities 完了
+
+- `src/generators/initialPolities.ts` を追加し、非標準プリセットの State 所有セルを、実体化済みの initial movement network と Phase 1 のコンパクトな settlement service area だけから導出するようにした。道路外の地形 adjacency は国家の接続に使わない。
+- `connectDetachedStateNuclei` と後付け行政回廊を削除した。移動網に接続していない集落・Burg は `state = 0` のまま残り、完全に包囲された小さな無主地 pocket だけを正規化する。
+- `statesNumber` は Foundation map では polity density / 上限として解釈し、ネットワークの地域・ノード数が実際の首都数を制限する。`standard` は従来どおり State 数として扱う compatibility Adapter である。
+- 検証: `initialPolities.test.ts`、State / Province statistics、Settlement Foundation、Routes の回帰テスト、`npx tsc --noEmit`、Biome、architecture lint。
 
 | Date | Phase | Status | Note |
 | --- | --- | --- | --- |

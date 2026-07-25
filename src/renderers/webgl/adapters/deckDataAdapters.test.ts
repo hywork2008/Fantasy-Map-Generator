@@ -349,6 +349,17 @@ describe("deck.gl data adapters", () => {
     expect(routes.find(route => route.id === "route-3")?.color).toEqual([255, 255, 255, 77]);
   });
 
+  it("does not draw a political border between a State and unclaimed land", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.cells.h[1] = 30;
+    worldContext.pack.cells.state[0] = 1;
+    worldContext.pack.cells.state[1] = 0;
+    worldContext.pack.cells.province[0] = 1;
+
+    expect(buildBorderPaths(worldContext, null)).toEqual([]);
+    expect(buildDivisionBoundaryPaths(worldContext, null, "state")).toEqual([]);
+  });
+
   it("filters land, route, and height adapters to the active focus scope", () => {
     const worldContext = createWorldContext();
     worldContext.pack.cells.h[1] = 30;

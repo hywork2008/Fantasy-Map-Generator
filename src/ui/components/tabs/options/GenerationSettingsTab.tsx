@@ -291,11 +291,11 @@ export const GenerationSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
-          <tr data-tip="Define how many states and capitals should be generated">
+          <tr data-tip="Define polity density for settlement-network maps and the number of states for standard maps">
             <td>
               <LockIconButton id="statesNumber" />
             </td>
-            <td>States number</td>
+            <td>Polity density</td>
             <td colSpan={2}>
               <SliderInput
                 min="0"

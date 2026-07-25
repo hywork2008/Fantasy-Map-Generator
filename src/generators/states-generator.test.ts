@@ -59,7 +59,7 @@ describe("States.expandStates", () => {
     }
   });
 
-  it("uses a materialized movement route when a settlement nucleus needs administrative connection", () => {
+  it("does not infer an administrative connection from a route without a Settlement Foundation plan", () => {
     const { initialSettlementPattern, growthRate, statesGrowthRate } = useOptionsState.getState();
     useOptionsState.setState({ initialSettlementPattern: "frontier", growthRate: 100, statesGrowthRate: 1 });
 
@@ -101,13 +101,13 @@ describe("States.expandStates", () => {
 
       States.expandStates(worldContext, {} as never, {} as never);
 
-      expect(worldContext.pack.cells.state).toEqual(new Uint16Array([1, 1, 1]));
+      expect(worldContext.pack.cells.state).toEqual(new Uint16Array([1, 0, 0]));
     } finally {
       useOptionsState.setState({ initialSettlementPattern, growthRate, statesGrowthRate });
     }
   });
 
-  it("fills a small empty pocket surrounded by one state", () => {
+  it("leaves non-foundation wilderness unclaimed outside the capital", () => {
     const { initialSettlementPattern, growthRate, statesGrowthRate } = useOptionsState.getState();
     useOptionsState.setState({ initialSettlementPattern: "frontier", growthRate: 100, statesGrowthRate: 1 });
 
@@ -154,7 +154,7 @@ describe("States.expandStates", () => {
 
       States.expandStates(worldContext, {} as never, {} as never);
 
-      expect(worldContext.pack.cells.state).toEqual(new Uint16Array([1, 1, 1, 1]));
+      expect(worldContext.pack.cells.state).toEqual(new Uint16Array([1, 0, 0, 0]));
     } finally {
       useOptionsState.setState({ initialSettlementPattern, growthRate, statesGrowthRate });
     }
