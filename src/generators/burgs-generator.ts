@@ -228,11 +228,15 @@ class BurgModule {
     let burgs: Burg[] = [0 as unknown as Burg]; // burgs[0] is a sentinel 0, array is 1-indexed
     cells.burg = new Uint16Array(cells.i.length);
 
-    // Settlement Pattern owns initial population placement. Burg candidates must
-    // therefore be populated cells, not every environmentally suitable cell.
+    // The Settlement Foundation owns non-standard Burg candidates. Standard
+    // maps remain the legacy adapter, including their all-suitable-cell pool.
     const preservesLegacyCandidates = this.worldContext.options.initialSettlementPattern === "standard";
+    const plannedNodes = preservesLegacyCandidates ? [] : (pack.settlementFoundation?.nodes ?? []);
+    const plannedNodeByCell = new Map(plannedNodes.map(node => [node.cell, node]));
     const populatedCells = cells.i.filter(
-      i => cells.culture[i] && (cells.pop[i] > 0 || (preservesLegacyCandidates && cells.s[i] > 0))
+      i =>
+        cells.culture[i] &&
+        (plannedNodeByCell.has(i) || cells.pop[i] > 0 || (preservesLegacyCandidates && cells.s[i] > 0))
     );
     if (!populatedCells.length) {
       ERROR && console.error("There is no populated cells with culture assigned. Cannot generate states");
@@ -243,6 +247,32 @@ class BurgModule {
     let burgsQuadtree = quadtree();
 
     const generateCapitals = () => {
+      if (plannedNodes.length) {
+        const capitalsNumber = Math.min(getCapitalsNumber(), plannedNodes.length);
+        const plannedCapitals = [...plannedNodes]
+          .sort((a, b) => {
+            if (a.role !== b.role) return a.role === "center" ? -1 : 1;
+            return b.score - a.score;
+          })
+          .slice(0, capitalsNumber);
+        for (const node of plannedCapitals) {
+          const cell = node.cell;
+          const [x, y] = cells.p[cell];
+          burgs.push({ cell, x, y });
+        }
+        burgs.forEach((burg, burgId) => {
+          if (!burgId) return;
+          burg.i = burgId;
+          burg.state = burgId;
+          burg.culture = cells.culture[burg.cell];
+          burg.name = Names.getCultureShort(worldContext, viewContext, appServices, burg.culture);
+          burg.feature = cells.f[burg.cell];
+          burg.capital = 1;
+          cells.burg[burg.cell] = burgId;
+        });
+        return;
+      }
+
       const randomize = (score: number) => score * (0.5 + Math.random() * 0.5);
       const score = new Int16Array(cells.s.map(randomize));
       const sorted = populatedCells.sort((a, b) => score[b] - score[a]);
@@ -283,7 +313,13 @@ class BurgModule {
 
     const generateTowns = () => {
       const burgsNumber = getTownsNumber();
-      const placedCells = this.placeTowns(populatedCells, burgsNumber, burgsQuadtree);
+      const placedCells = plannedNodes.length
+        ? [...plannedNodes]
+            .filter(node => !cells.burg[node.cell])
+            .sort((a, b) => b.score - a.score)
+            .slice(0, burgsNumber)
+            .map(node => node.cell)
+        : this.placeTowns(populatedCells, burgsNumber, burgsQuadtree);
 
       for (const cell of placedCells) {
         const [x, y] = cells.p[cell];

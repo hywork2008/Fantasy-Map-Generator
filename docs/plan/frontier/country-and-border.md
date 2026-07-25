@@ -18,6 +18,7 @@ docs/map-initialization-process.md
 1. 川べりに首都を定め、全国民をそこに配置する。或いは複数の都市を川べりに配置する。
 2. 1の都市から近くの河川域に入植する。
 3. 河川敷から弾き出された場合は、湖(freshwater, frozen)・井戸・森林資源(狩猟と採集)
+4. 1-3で作られた都市の間を行き来するのに便利な中間点に都市を作る
 
 河川の無い温暖な地域と河川はあるが極寒の地域ではどちらが住み良いか。
 
@@ -66,21 +67,7 @@ Cold Desert / 砂漠地帯にわざわざ伸びるか？
 人口30%だと既に河川域全てに拡がりきっており過剰かもしれない。
 河川に入植する集団の数を1-3程度に絞れる設定があった方が良いかもしれない。
 Generation -> States numberを3に絞ると多くの国家が支配している広い地域と同面積が少ない国家に分配されるだけになる。
-
-国家数を2に絞ると高確率で生成エラーが出る。
-
-```log
-main.ts:1021 TypeError: Cannot read properties of undefined (reading 'start')
-    at MarkersModule.addBattlefield (markers-generator.ts:970:40)
-    at markers-generator.ts:475:9
-    at Array.forEach (<anonymous>)
-    at MarkersModule.generateTypes (markers-generator.ts:463:17)
-    at MarkersModule.generate (markers-generator.ts:56:10)
-    at LegacyWorldRuntime.runGeneratePipeline [as worldGenerateHandler] (main.ts:967:11)
-    at async LegacyWorldRuntime.executeGenerate (worldRuntime.ts:907:7)
-    at async generate (main.ts:1001:20)
-    at async main.ts:1623:3
-```
+入植に最適な環境から先に埋めていく？ので、距離を無視して拠点が拡散する。
 
 ---
 

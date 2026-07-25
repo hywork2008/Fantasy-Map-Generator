@@ -679,6 +679,38 @@ class RoutesModule {
     return trails;
   }
 
+  /**
+   * Materializes the Phase 1 settlement-plan links. Unlike the legacy
+   * Delaunay pass this only joins nodes that were selected inside the same
+   * viable settlement region, so it cannot invent a cross-frontier corridor.
+   */
+  private generateFoundationTrails(connections: Map<string, boolean>) {
+    const { pack } = this.worldContext;
+    const plan = pack.settlementFoundation;
+    if (!plan) return [] as Route[];
+
+    const burgCells = new Set(pack.burgs.filter(burg => burg.i && !burg.removed).map(burg => burg.cell));
+    const nodesById = new Map(plan.nodes.map(node => [node.id, node]));
+    const trails: Route[] = [];
+
+    for (const link of plan.links) {
+      const from = nodesById.get(link.fromNodeId);
+      const to = nodesById.get(link.toNodeId);
+      if (!from || !to || !burgCells.has(from.cell) || !burgCells.has(to.cell)) continue;
+      const segments = this.findPathSegments({
+        isWater: false,
+        connections,
+        start: from.cell,
+        exit: to.cell
+      });
+      for (const cells of segments) {
+        this.addConnections(cells, connections);
+        trails.push({ feature: pack.cells.f[from.cell], cells } as Route);
+      }
+    }
+    return trails;
+  }
+
   private generateSeaRoutes(connections: Map<string, boolean>, seaRouteGenerationMode: SeaRouteGenerationMode) {
     const { pack } = this.worldContext;
     TIME && console.time("generateSeaRoutes");
@@ -806,8 +838,9 @@ class RoutesModule {
     connections: Map<string, boolean>,
     seaRouteGenerationMode: SeaRouteGenerationMode
   ) {
-    const mainRoads = this.generateMainRoads(connections);
-    const trails = this.generateTrails(connections);
+    const usesFoundation = Boolean(this.worldContext.pack.settlementFoundation);
+    const mainRoads = usesFoundation ? [] : this.generateMainRoads(connections);
+    const trails = usesFoundation ? this.generateFoundationTrails(connections) : this.generateTrails(connections);
     const seaRoutes = this.generateSeaRoutes(connections, seaRouteGenerationMode);
     const pointsArray = this.preparePointsArray();
 

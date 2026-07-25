@@ -940,15 +940,30 @@ async function runGeneratePipeline(request: GenerateRequest): Promise<void> {
   rankCells();
   Cultures.generate(worldContext, viewContext, appServices, state);
   Cultures.expand(state);
-  applyInitialSettlementPattern(
+  const settlementPattern = applyInitialSettlementPattern(
     worldContext.pack.cells,
     worldContext.options.initialSettlementPattern,
-    useOptionsState.getState().initialPopulationSaturation / 100
+    useOptionsState.getState().initialPopulationSaturation / 100,
+    Math.random,
+    {
+      temperature: worldContext.grid.cells.temp,
+      precipitation: worldContext.grid.cells.prec
+    }
   );
+  if (settlementPattern.plan) worldContext.pack.settlementFoundation = settlementPattern.plan;
+  else delete worldContext.pack.settlementFoundation;
 
   Burgs.generate(worldContext, viewContext, appServices, state);
-  States.generate(worldContext, viewContext, appServices, state);
-  Routes.generate(worldContext, viewContext, appServices, state);
+  // The non-standard Phase 1 path establishes movement corridors from the
+  // settlement plan before the prototype polity generator consumes its burgs.
+  // `standard` retains the legacy order and RNG sequence as its compatibility adapter.
+  if (worldContext.options.initialSettlementPattern !== "standard") {
+    Routes.generate(worldContext, viewContext, appServices, state);
+    States.generate(worldContext, viewContext, appServices, state);
+  } else {
+    States.generate(worldContext, viewContext, appServices, state);
+    Routes.generate(worldContext, viewContext, appServices, state);
+  }
   Religions.generate(worldContext, viewContext, appServices, state);
 
   Burgs.specify(worldContext, viewContext, appServices, state);

@@ -1,6 +1,6 @@
 # 未領有フロンティアと段階的領土拡張
 
-- **Status**: In progress (Phase 0–2 complete)
+- **Status**: In progress (Phase 0 complete; Phase 1–2 are prototypes pending redesign)
 - **Last updated**: 2026-07-25
 - **Owner**: Core simulation / map generation
 - **Related**: [population-dynamics.md](../simulation/population-dynamics.md), [advance-time.md](../simulation/advance-time.md), [disaster-mode.md](disaster-mode.md), [unite-data-and-map.md](unite-data-and-map.md), [military-defense.md](military-defense.md)
@@ -14,6 +14,12 @@
 したがって開拓は、人口増加だけではなく、道路・治安・食料備蓄・災害復興に投資する理由になる。
 
 この計画の最初の版は、国家が未領有地を主張する制度、係争地、植民地独立を扱わない。まずは「無主地」から「実効支配された統治領」へ移る一方向の流れを成立させる。
+
+### 0.1 再設計への移行（2026-07-25）
+
+Phase 1–2 の実装は、無主地、人口 cohort、`state = 0`、州外地を扱う互換性の確認には成功した。一方で、世界全域の定住セル順位付け、Burg の独立配置、State の後付け行政回廊、State 後の Routes 生成が別々に働くため、地形・気候・道路で説明できない細長い領土を作る。
+
+したがって Phase 1–2 は完了ではなく **prototype** として残し、チェックリストを再オープンする。再設計では、定住圏・初期集落・初期移動網を先に作る `Settlement Foundation Module`、その移動網から国家と統治圏を導く `Initial Polities Module`、移動網を延長して開拓する Phase 3 を順に実装する。既存 prototype は characterization と比較用の実装として維持し、受け入れ条件を満たす新実装へ段階的に置き換える。詳細な問題記録は [country-and-border.md](frontier/country-and-border.md) を参照。
 
 ## 1. 目的と非目標
 
@@ -91,9 +97,9 @@ Frontier Expansion Module
   必要な WorldChangeSet を発行する
 ```
 
-`Settlement Pattern Module` は初期配置と Burg 候補の両方を所有し、`Frontier Expansion Module` は候補探索、人口移送、支出、編入、更新通知を所有する。それぞれを一つの小さな Interface の背後に隠す deep module とする。削除すると各 caller が同じ適地評価・state 変更・統計更新・描画通知を再実装するため、十分な leverage と locality がある。
+`Settlement Foundation Module` は、水源・気候・資源から初期定住圏を選び、Burg 候補と初期移動網を同じ計画から作る。`Initial Polities Module` はその移動網から国家核と統治圏を導く。`Frontier Expansion Module` は候補探索、人口移送、支出、経路延長、編入、更新通知を所有する。それぞれを一つの小さな Interface の背後に隠す deep module とする。削除すると各 caller が同じ適地評価・経路探索・state 変更・統計更新・描画通知を再実装するため、十分な leverage と locality がある。
 
-初期分布と Advance Time の実装は同じ「定住候補評価」を共有するが、生成時と時間経過時では RNG・資金・イベント通知が異なる。共通の純粋な適地評価を内部 seam とし、二つの Module の公開 Interface は分ける。
+初期定住と Advance Time の開拓は同じ「定住圏・経路候補評価」を共有するが、生成時と時間経過時では RNG・資金・イベント通知が異なる。共通の純粋な適地・経路評価を内部 seam とし、二つの Module の公開 Interface は分ける。
 
 ### 4.2 フロンティア cell stage
 
@@ -176,24 +182,28 @@ Frontier Expansion Module
 
 **完了条件**: 既存の標準世界が新しい field を欠いても同じようにロード・生成・Advance Time でき、frontier feature を無効にすると既存テストが通る。
 
-### Phase 1 — 初期定住分布と可視化
+### Phase 1 — 定住圏・初期集落・初期移動網（prototype を置換）
 
-- [x] `initialSettlementPattern` を generation option として保存する。
-- [x] capacity を保ったまま、人口 cohort と初期 Burg 候補を同じ定住クラスタへ配る `Settlement Pattern Module` を実装する。
-- [x] `frontier` / `scattered` / `standard` / `dense` を追加し、`standard` は現行分布との互換性を保つ。
-- [x] 未定住地、前哨地候補、統治領を SVG / WebGL hybrid の両方で可視化する。
-- [x] 人口 overview に「無主地 capacity」「統治人口」「未定住 capacity」を追加する。
+- [ ] `initialSettlementPattern` の archive 互換を維持しつつ、開始状況・定住圏数・人口予算を分離する。
+- [ ] 水源、降水量、成長期、温度、地形、森林・沿岸資源、danger を使う `Settlement Foundation Module` を実装する。
+- [ ] 世界全域のセル順位付けではなく、少数の river basin / lake / coast / spring を定住圏として選び、その内部へ人口 cohort と Burg 候補をコンパクトに配置する。
+- [ ] Burg 候補を独立した Quadtree 配置で追加せず、定住圏計画のノードから materialize する。
+- [ ] State 生成より先に、集落ノード間の trail / river route / coastal link を生成する。
+- [ ] 未定住地、定住圏、初期移動網を SVG / WebGL hybrid の両方で可視化し、人口 overview の unclaimed / unsettled 集計を維持する。
+- [ ] `standard` は互換 Adapter として既存の見た目・人口総量を保つ。
 
-**完了条件**: `frontier` は再現可能な seed で大きな無主地を作り、`standard` は既存の見た目・人口総量を大きく変えない。
+**完了条件**: 同 seed で、首都・Burg・人口・初期移動網が同じ定住圏で説明できる。Cold Desert の河川は少数の生活可能ノードを作り得るが、流域全体を自動的に埋めない。
 
-### Phase 2 — 縮小された初期国家領と州外地
+### Phase 2 — 初期国家と統治圏（prototype を置換）
 
-- [x] `States.expandStates()` に定住核ベースの mode を追加し、無主地へ自動 flood-fill しないようにする。
-- [x] State の capital、Burg、routes、religion、military 初期化が小領土でも成立するようにする。
-- [x] Province generator が `state = 0` / `province = 0` の広い陸地を正しく保持するようにする。
-- [x] State statistics、neighbors、frontier 表示が無主地を国家として数えず、`states[0]` に外交的な主体性を与えないようにする。
+- [ ] `Initial Polities Module` が、初期移動網の首都候補・集落ノードを network cost で国家へ束ねるようにする。
+- [ ] `statesNumber` を直接の State 数ではなく、定住網に対する polity density / 上限として再定義する。
+- [ ] 統治領を、首都または港へ到達できる定住圏と初期移動網の service area から導く。道路のない地形を領土接続だけのために編入しない。
+- [ ] 同一陸地で到達不能な Burg を最寄り State へ割り当てず、海を越える飛地は港・海路・補給の条件を満たすまで作らない。
+- [ ] 現行の後付け行政回廊 (`connectDetachedStateNuclei`) を新しい移動網ベースの統治圏生成へ置き換える。完全包囲された小さな空洞だけを正規化する。
+- [ ] Province generator、State statistics、neighbors、frontier 表示が `state = 0` / `province = 0` を維持し、`states[0]` に外交的な主体性を与えないことを再検証する。
 
-**完了条件**: 国家領の外に州外の無主地があり、国家は Burg、軍、経済、外交を正常に持つ。
+**完了条件**: 国家領の全連結成分には実在する初期移動経路があり、道路・河川・港湾で説明できない細長い領土を作らない。国家は Burg、軍、経済、外交を正常に持つ。
 
 ### Phase 3 — 前哨地と計画開拓
 
@@ -294,7 +304,7 @@ Frontier の進行だけでは `simulation.cells` を発行する。outpost/sett
 
 道路・港を transaction 内で新設または再計算した時だけ `map.networks` を追加する。新しい `frontier.*` topic は Phase 0 では導入しない。これら既存の coarse topic は SVG と WebGL hybrid の両方に同じ変更通知を渡す。
 
-### 2026-07-24 — Phase 1 完了
+### 2026-07-24 — Phase 1 prototype 実装
 
 - `Settlement Pattern Module` は文化圏の生成後、Burg の生成前に population/cohort を配置する。Culture は適地に残すため、未定住セルも文化的には空白にならない。`capacity` は決して変更しない。非 standard preset は river、harbor、coast の適性と settlement hub を使って適地を選び、選択済み capacity に人口量を再配分する。
 - `standard` は適地の全セルへ旧来どおり capacity の 60% を配置し、追加の RNG を消費しない。そのため後続の Burg / State の seeded generation を変えない。
@@ -302,18 +312,31 @@ Frontier の進行だけでは `simulation.cells` を発行する。outpost/sett
 - Population layer は `pop = 0` の居住可能セルを薄い footprint として描画する。SVG と WebGL hybrid とも同じ `pack.cells.pop` を読む。前哨地は Phase 3 の simulation-owned stage が導入されるまで存在しないため、候補地表示は未定住 footprint として扱う。統治領は既存の States overlay が canonical `cells.state` から描画する。
 - Population Overview に unclaimed capacity、unsettled capacity、governed population を追加した。Phase 2 で State 0 の領土が初期生成されると、同じ集計がそのまま無主地の値を示す。
 
-### 2026-07-24 — Phase 2 完了
+この実装は archive 互換、無主地の可視化、population/cohort の基準として残す。ただし、世界全域のランキングで定住セルを選ぶため、定住圏と初期移動網を同時に作る再設計の受け入れ条件は満たしていない。
+
+### 2026-07-24 — Phase 2 prototype 実装
 
 - `States.expandStates()` は `standard` の従来どおりの全面 flood-fill を保持し、それ以外の定住分布では人口または Burg のある定住核だけを `cells.state` に編入する。無主地は到達性評価の通過対象であっても自動編入されない。
 - 首都から離れた初期 Burg は最寄りの既存 State に結び、そのセルだけを定住核として編入する。これにより小領土でも Burg、道路、宗教、軍事の既存初期化経路が State owner を得る。
 - Province 生成の完了時に `state = 0` のセルを必ず `province = 0` に正規化した。State 集計・隣接国・campaign は無主地を外交主体として扱わず、`states[0]` は外交史の保存先だけを維持する。
 - 検証: `npx vitest run src/generators/states-generator.test.ts src/generators/stateProvinceStatistics.test.ts src/generators/settlementPattern.test.ts`、`npx tsc --noEmit`。
 
-### 2026-07-25 — Phase 2 領土連続性の補正
+この実装は `state = 0` の国家集計・外交からの除外、`province = 0` の不変条件を維持する。ただし、State 後に Routes を生成し、離れた定住核を後付けで接続するため、道路と国境を同じ定住網から導く再設計の受け入れ条件は満たしていない。
+
+### 2026-07-25 — Phase 2 prototype の領土連続性補正
 
 - 非標準プリセットでは、定住核が同一陸地内の既存統治領から分離した場合、山地・河川コストを考慮した最小の行政回廊だけを編入して接続する。海・他国領を横断する回廊は作らない。
 - 人口 0・Burg なしで、単一 State の統治セルに完全に囲まれた 3 セル以下の小さな無主地 pocket は、その State に編入する。開放された無主地や人口を持つセルは維持する。
 - `states-generator.test.ts` に行政回廊と囲まれた無主地の回帰テストを追加した。
+
+これは prototype の表示破綻を抑えるための補正であり、最終的な国境生成の方式ではない。
+
+### 2026-07-25 — Phase 1–2 再設計を決定
+
+- Phase 1–2 の完了チェックを再オープンし、既存実装を prototype と位置付けた。
+- Phase 1 は `Settlement Foundation Module` により定住圏・集落ノード・初期移動網を State より先に作る。
+- Phase 2 は `Initial Polities Module` により移動網から国家と統治圏を導き、後付け行政回廊を置き換える。
+- Phase 3 は移動網の延長を伴う `Frontier Project` として設計する。詳細な問題とモデルケースは `docs/plan/frontier/country-and-border.md` を参照する。
 
 | Date | Phase | Status | Note |
 | --- | --- | --- | --- |

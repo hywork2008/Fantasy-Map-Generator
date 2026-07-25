@@ -1,11 +1,19 @@
 import { getInitialSettlementPatternPreset } from "../data/initialSettlementPatterns";
+import type { SettlementFoundationPlan } from "../types/settlementFoundation";
 import type { InitialSettlementPattern } from "../types/WorldState";
 import { createInitialPopulationCohorts } from "./initialPopulationCohorts";
+import {
+  createSettlementFoundation,
+  type SettlementClimate,
+  type SettlementFoundationCells
+} from "./settlementFoundation";
 
 export interface SettlementPatternCells {
   readonly i: ArrayLike<number>;
+  readonly c?: readonly (readonly number[])[];
   readonly s: ArrayLike<number>;
   readonly capacity: ArrayLike<number>;
+  readonly h?: ArrayLike<number>;
   readonly pop: MutableNumberColumn;
   readonly children: MutableNumberColumn;
   readonly maleAdults: MutableNumberColumn;
@@ -14,6 +22,10 @@ export interface SettlementPatternCells {
   readonly r?: ArrayLike<number>;
   readonly harbor?: ArrayLike<number>;
   readonly t?: ArrayLike<number>;
+  readonly biome?: ArrayLike<number>;
+  readonly conf?: ArrayLike<number>;
+  readonly danger?: ArrayLike<number>;
+  readonly g?: ArrayLike<number>;
   readonly p?: readonly (readonly [number, number])[];
 }
 
@@ -25,6 +37,8 @@ export interface SettlementPatternResult {
   readonly settledCapacity: number;
   readonly totalCapacity: number;
   readonly totalPopulation: number;
+  /** Present for the Phase 1 foundation path; undefined for legacy standard maps. */
+  readonly plan?: SettlementFoundationPlan;
 }
 
 type Candidate = { id: number; score: number; capacity: number; x: number; y: number };
@@ -39,8 +53,13 @@ export function applyInitialSettlementPattern(
   cells: SettlementPatternCells,
   pattern: InitialSettlementPattern,
   initialPopulationSaturation: number,
-  random: () => number = Math.random
+  random: () => number = Math.random,
+  climate: SettlementClimate = {}
 ): SettlementPatternResult {
+  if (pattern !== "standard" && canBuildFoundation(cells)) {
+    return createSettlementFoundation(cells, climate, pattern, initialPopulationSaturation, random);
+  }
+
   const preset = getInitialSettlementPatternPreset(pattern);
   const saturation = Math.max(0, Math.min(1, initialPopulationSaturation));
   const candidates: Candidate[] = [];
@@ -103,6 +122,12 @@ export function applyInitialSettlementPattern(
     totalCapacity,
     totalPopulation
   };
+}
+
+function canBuildFoundation(
+  cells: SettlementPatternCells
+): cells is SettlementPatternCells & SettlementFoundationCells {
+  return Boolean(cells.c && cells.h && cells.p);
 }
 
 function clearPopulation(cells: SettlementPatternCells): void {

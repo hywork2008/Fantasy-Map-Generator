@@ -29,7 +29,16 @@ function sampleSimulation(): SimulationContext {
 
 describe("ChunkedWorldCodecAdapter", () => {
   it("round-trips typed arrays and unknown extension chunks without SVG", async () => {
-    const document = createWorldDocument(sampleWorld(), sampleSimulation(), createPresentationData(), [
+    const world = sampleWorld();
+    world.pack.settlementFoundation = {
+      regions: [{ id: 0, kind: "river", center: 0, cells: [0, 1] }],
+      nodes: [
+        { id: 0, regionId: 0, cell: 0, role: "center", score: 10 },
+        { id: 1, regionId: 0, cell: 1, role: "village", score: 5 }
+      ],
+      links: [{ fromNodeId: 0, toNodeId: 1, kind: "river" }]
+    };
+    const document = createWorldDocument(world, sampleSimulation(), createPresentationData(), [
       {
         extensionId: "uninstalled-extension",
         schemaVersion: 3,
@@ -46,6 +55,7 @@ describe("ChunkedWorldCodecAdapter", () => {
 
     expect(staged.document.world.pack.cells.state).toEqual(new Uint16Array([1, 2]));
     expect(staged.document.world.pack.cells.pop).toEqual(new Float32Array([1.5, 2.25]));
+    expect(staged.document.world.pack.settlementFoundation).toEqual(world.pack.settlementFoundation);
     expect(staged.document.opaqueExtensionChunks).toHaveLength(1);
     expect(staged.document.opaqueExtensionChunks[0]?.bytes).toEqual(new Uint8Array([1, 2, 3, 255]));
 
