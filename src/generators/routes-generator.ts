@@ -689,14 +689,13 @@ class RoutesModule {
     const plan = pack.settlementFoundation;
     if (!plan) return [] as Route[];
 
-    const burgCells = new Set(pack.burgs.filter(burg => burg.i && !burg.removed).map(burg => burg.cell));
     const nodesById = new Map(plan.nodes.map(node => [node.id, node]));
     const trails: Route[] = [];
 
     for (const link of plan.links) {
       const from = nodesById.get(link.fromNodeId);
       const to = nodesById.get(link.toNodeId);
-      if (!from || !to || !burgCells.has(from.cell) || !burgCells.has(to.cell)) continue;
+      if (!from || !to) continue;
       const segments = this.findPathSegments({
         isWater: false,
         connections,

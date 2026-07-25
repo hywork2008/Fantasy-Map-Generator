@@ -69,4 +69,21 @@ describe("Settlement Foundation Module", () => {
     expect(cells.pop[7]).toBeGreaterThan(0);
     expect(result.totalPopulation).toBeLessThan(result.totalCapacity * 0.3);
   });
+
+  it("keeps a temperate river region local instead of following rain-fed cells across the world", () => {
+    const cells = createCells(101, [50]);
+    const result = createSettlementFoundation(
+      cells,
+      { temperature: new Int8Array(101).fill(14), precipitation: new Uint8Array(101).fill(60) },
+      "frontier",
+      0.3,
+      () => 0
+    );
+
+    expect(result.plan.regions).toHaveLength(1);
+    expect(result.plan.regions[0].center).toBe(50);
+    expect(result.plan.regions[0].cells).toEqual([50, 49, 51, 48, 52, 47, 53]);
+    expect(cells.pop[0]).toBe(0);
+    expect(cells.pop[100]).toBe(0);
+  });
 });

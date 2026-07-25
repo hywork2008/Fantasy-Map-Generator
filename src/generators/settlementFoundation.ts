@@ -81,7 +81,7 @@ export function createSettlementFoundation(
   const regionCount = selectRegionCount(preset.settlementRegionCount, candidates.length, random);
   const centers = selectRegionCenters(candidates, regionCount, random);
   const targetCapacity = totalCapacity * Math.max(saturation, preset.settledFootprint);
-  const regions = buildRegions(cells, candidates, centers, targetCapacity);
+  const regions = buildRegions(cells, candidates, centers, targetCapacity, preset.settlementClustering);
   const selected = regions.flatMap(region => region.cells.map(id => candidateById(candidates, id))).filter(isCandidate);
   const settledCapacity = selected.reduce((sum, candidate) => sum + candidate.capacity, 0);
   const populationScale = settledCapacity ? Math.min(1, (totalCapacity * saturation) / settledCapacity) : 0;
@@ -222,7 +222,8 @@ function buildRegions(
   cells: SettlementFoundationCells,
   candidates: Candidate[],
   centers: Candidate[],
-  targetCapacity: number
+  targetCapacity: number,
+  settlementClustering: number
 ): SettlementRegion[] {
   const candidatesById = new Map(candidates.map(candidate => [candidate.id, candidate]));
   const claimed = new Set<number>();
@@ -230,7 +231,14 @@ function buildRegions(
 
   return centers.map((center, id) => {
     const budget = targetCapacity * (center.score / totalCenterScore);
-    const cellsInRegion = expandCompactRegion(cells, candidatesById, center.id, budget, claimed);
+    const cellsInRegion = expandCompactRegion(
+      cells,
+      candidatesById,
+      center.id,
+      budget,
+      claimed,
+      getMaximumRegionHops(candidates.length, settlementClustering)
+    );
     const kind = center.kind;
     return { id, kind, center: center.id, cells: cellsInRegion };
   });
@@ -241,15 +249,16 @@ function expandCompactRegion(
   candidatesById: ReadonlyMap<number, Candidate>,
   center: number,
   capacityBudget: number,
-  claimed: Set<number>
+  claimed: Set<number>,
+  maximumHops: number
 ): number[] {
   const queued = new Set<number>([center]);
-  const queue = [center];
+  const queue = [{ cell: center, hops: 0 }];
   const selected: number[] = [];
   let capacity = 0;
 
   while (queue.length && capacity < capacityBudget) {
-    const current = queue.shift()!;
+    const { cell: current, hops } = queue.shift()!;
     const candidate = candidatesById.get(current);
     if (candidate && !claimed.has(current)) {
       selected.push(current);
@@ -257,10 +266,11 @@ function expandCompactRegion(
       capacity += candidate.capacity;
     }
 
+    if (hops >= maximumHops) continue;
     for (const neighbor of cells.c[current] ?? []) {
       if (queued.has(neighbor) || claimed.has(neighbor) || !candidatesById.has(neighbor)) continue;
       queued.add(neighbor);
-      queue.push(neighbor);
+      queue.push({ cell: neighbor, hops: hops + 1 });
     }
   }
 
@@ -271,6 +281,18 @@ function expandCompactRegion(
     claimed.add(center);
   }
   return selected;
+}
+
+/**
+ * A region is a local service area, not every rain-fed cell connected to a
+ * river by the packed graph. The hop cap scales with map resolution while the
+ * existing clustering preset controls how quickly it can fan out. This is a
+ * watershed approximation until the terrain pipeline exposes basin ids.
+ */
+function getMaximumRegionHops(candidateCount: number, settlementClustering: number): number {
+  const compactness = clamp(settlementClustering, 0, 1);
+  const scale = 0.08 + (1 - compactness) * 0.2;
+  return Math.max(3, Math.round(Math.sqrt(candidateCount) * scale));
 }
 
 function createNodes(

@@ -184,13 +184,13 @@ Frontier Expansion Module
 
 ### Phase 1 — 定住圏・初期集落・初期移動網（prototype を置換）
 
-- [ ] `initialSettlementPattern` の archive 互換を維持しつつ、開始状況・定住圏数・人口予算を分離する。
-- [ ] 水源、降水量、成長期、温度、地形、森林・沿岸資源、danger を使う `Settlement Foundation Module` を実装する。
-- [ ] 世界全域のセル順位付けではなく、少数の river basin / lake / coast / spring を定住圏として選び、その内部へ人口 cohort と Burg 候補をコンパクトに配置する。
-- [ ] Burg 候補を独立した Quadtree 配置で追加せず、定住圏計画のノードから materialize する。
-- [ ] State 生成より先に、集落ノード間の trail / river route / coastal link を生成する。
-- [ ] 未定住地、定住圏、初期移動網を SVG / WebGL hybrid の両方で可視化し、人口 overview の unclaimed / unsettled 集計を維持する。
-- [ ] `standard` は互換 Adapter として既存の見た目・人口総量を保つ。
+- [x] `initialSettlementPattern` の archive 互換を維持しつつ、開始状況・定住圏数・人口予算を分離する。
+- [x] 水源、降水量、成長期、温度、地形、森林・沿岸資源、danger を使う `Settlement Foundation Module` を実装する。
+- [x] 世界全域のセル順位付けではなく、少数の river basin / lake / coast / spring を定住圏として選び、その内部へ人口 cohort と Burg 候補をコンパクトに配置する。
+- [x] Burg 候補を独立した Quadtree 配置で追加せず、定住圏計画のノードから materialize する。
+- [x] State 生成より先に、集落ノード間の trail / river route / coastal link を生成する。
+- [x] 未定住地、定住圏、初期移動網を SVG / WebGL hybrid の両方で可視化し、人口 overview の unclaimed / unsettled 集計を維持する。
+- [x] `standard` は互換 Adapter として既存の見た目・人口総量を保つ。
 
 **完了条件**: 同 seed で、首都・Burg・人口・初期移動網が同じ定住圏で説明できる。Cold Desert の河川は少数の生活可能ノードを作り得るが、流域全体を自動的に埋めない。
 
@@ -337,6 +337,14 @@ Frontier の進行だけでは `simulation.cells` を発行する。outpost/sett
 - Phase 1 は `Settlement Foundation Module` により定住圏・集落ノード・初期移動網を State より先に作る。
 - Phase 2 は `Initial Polities Module` により移動網から国家と統治圏を導き、後付け行政回廊を置き換える。
 - Phase 3 は移動網の延長を伴う `Frontier Project` として設計する。詳細な問題とモデルケースは `docs/plan/frontier/country-and-border.md` を参照する。
+
+### 2026-07-25 — Phase 1 Settlement Foundation 完了
+
+- 非標準プリセットでは、水源・気候・地形・資源・danger から少数の定住圏を選び、人口 cohort、Burg 候補、初期移動リンクを一つの `SettlementFoundationPlan` として保存するようにした。
+- 定住圏の BFS は、クラスタリング値と地図規模に応じた局所的な hop 範囲で打ち切る。これにより雨水を利用できるセルが連続していても、単一の河川拠点が流域や大陸全体を自動的に埋めない。
+- 初期移動リンクは Burg 化されたノードに限らず、計画済みの村落ノード間にも materialize する。`manors` は引き続き Burg 数だけを制御する。
+- `standard` は legacy population / Burg / State / Routes の順序と RNG 消費を維持する Adapter とする。
+- 検証: `settlementFoundation.test.ts` の温暖な河川域・Cold Desert の孤立 oasis 回帰、`routes-generator.test.ts` の村落間移動リンク、archive round-trip、標準 preset の既存 characterization。
 
 | Date | Phase | Status | Note |
 | --- | --- | --- | --- |

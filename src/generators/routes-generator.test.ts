@@ -22,6 +22,10 @@ type RoutesGraphInternals = {
   }): (current: number, next: number) => number;
 };
 
+type FoundationRouteInternals = {
+  generateFoundationTrails(connections: Map<string, boolean>): { feature: number; cells: number[] }[];
+};
+
 function normalizeEdges(edges: number[][]): Set<string> {
   return new Set(edges.map(([from, to]) => `${Math.min(from, to)}-${Math.max(from, to)}`));
 }
@@ -55,6 +59,43 @@ describe("RoutesModule sea-route graph modes", () => {
     const combinedEdges = normalizeEdges(graphInternals.addCoastalBackboneEdges(points, [[0, 1]], [0, 2]));
 
     expect(combinedEdges).toEqual(new Set(["0-1", "0-2"]));
+  });
+});
+
+describe("RoutesModule settlement foundation trails", () => {
+  const foundationInternals = Routes as unknown as FoundationRouteInternals;
+
+  beforeEach(() => {
+    worldContext.pack = {
+      cells: {
+        c: [[1], [0, 2], [1]],
+        h: [25, 25, 25],
+        biome: [1, 1, 1],
+        p: [
+          [0, 0],
+          [10, 0],
+          [20, 0]
+        ],
+        burg: [0, 0, 0],
+        f: [1, 1, 1]
+      },
+      burgs: [],
+      settlementFoundation: {
+        regions: [{ id: 0, kind: "river", center: 0, cells: [0, 1, 2] }],
+        nodes: [
+          { id: 0, regionId: 0, cell: 0, role: "center", score: 10 },
+          { id: 1, regionId: 0, cell: 2, role: "village", score: 5 }
+        ],
+        links: [{ fromNodeId: 0, toNodeId: 1, kind: "trail" }]
+      }
+    } as unknown as PackedGraph;
+    worldContext.biomesData = { habitability: [0, 100] } as unknown as typeof worldContext.biomesData;
+  });
+
+  it("materializes a planned village-to-village link even before either node becomes a Burg", () => {
+    const trails = foundationInternals.generateFoundationTrails(new Map());
+
+    expect(trails).toEqual([{ feature: 1, cells: [0, 1, 2] }]);
   });
 });
 
