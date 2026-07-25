@@ -12,6 +12,11 @@ import { SliderInput } from "../../SliderInput";
 export const GenerationSettingsTab: React.FC = () => {
   const options = useOptionsState();
   const updateOption = options.setOption;
+  const usesPolityDensity = options.initialSettlementPattern !== "standard";
+  const statesNumberLabel = usesPolityDensity ? "Polity density" : "States number";
+  const statesNumberTooltip = usesPolityDensity
+    ? "Define polity density for settlement-network maps"
+    : "Define the number of states for standard maps";
 
   const updateOptionAndLock = <K extends keyof Omit<typeof options, "setOption" | "setOptions">>(
     key: K,
@@ -291,11 +296,11 @@ export const GenerationSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
-          <tr data-tip="Define polity density for settlement-network maps and the number of states for standard maps">
+          <tr data-tip={statesNumberTooltip}>
             <td>
               <LockIconButton id="statesNumber" />
             </td>
-            <td>Polity density</td>
+            <td>{statesNumberLabel}</td>
             <td colSpan={2}>
               <SliderInput
                 min="0"

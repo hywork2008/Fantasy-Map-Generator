@@ -27,6 +27,7 @@ import type { Burg, Culture, Province, State } from "../types/models";
 import { closeAllDialogs, closeDialogs, openAlert, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { gauss, last, minmax, P, rand, rn, rw } from "../utils";
 import { applyOption, lock, locked, stored, unlock } from "../utils/domUtils";
+import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
 import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
 import { cleanupData } from "../versioning";
 import { exportToJson as exportToJsonModule } from "./export-json";
@@ -504,6 +505,10 @@ export function applyStoredOptions(): void {
       (loadedOptions as Record<string, string | number | boolean>)[key] =
         key === "gunpowderEraEnabled" ? value === "true" : Number.isNaN(+value) ? value : +value;
     }
+  }
+  const initialSettlementPattern = stored("initialSettlementPattern");
+  if (initialSettlementPattern !== null) {
+    loadedOptions.initialSettlementPattern = normalizeInitialSettlementPattern(initialSettlementPattern);
   }
   optionsStore.setOptions(loadedOptions);
 

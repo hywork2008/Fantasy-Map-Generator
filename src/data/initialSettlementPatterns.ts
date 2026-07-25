@@ -20,7 +20,7 @@ export interface InitialSettlementPatternPreset {
 export const INITIAL_SETTLEMENT_PATTERN_PRESETS: readonly InitialSettlementPatternPreset[] = [
   {
     id: "frontier",
-    label: "開拓前線",
+    label: "Frontier",
     initialPopulationSaturation: 30,
     settledFootprint: 0.3,
     settlementClustering: 0.85,
@@ -28,7 +28,7 @@ export const INITIAL_SETTLEMENT_PATTERN_PRESETS: readonly InitialSettlementPatte
   },
   {
     id: "scattered",
-    label: "散在する諸国",
+    label: "Scattered Polities",
     initialPopulationSaturation: 50,
     settledFootprint: 0.55,
     settlementClustering: 0.55,
@@ -36,7 +36,7 @@ export const INITIAL_SETTLEMENT_PATTERN_PRESETS: readonly InitialSettlementPatte
   },
   {
     id: "standard",
-    label: "標準",
+    label: "Standard",
     initialPopulationSaturation: 60,
     settledFootprint: 1,
     settlementClustering: 0.2,
@@ -44,7 +44,7 @@ export const INITIAL_SETTLEMENT_PATTERN_PRESETS: readonly InitialSettlementPatte
   },
   {
     id: "dense",
-    label: "密集文明圏",
+    label: "Dense Civilization",
     initialPopulationSaturation: 85,
     settledFootprint: 0.95,
     settlementClustering: 0.4,
