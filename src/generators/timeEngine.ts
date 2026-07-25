@@ -1,5 +1,9 @@
 import { appServices, restoreRngFromSimulation } from "../context/appServices";
-import { type SimulationContext, simulationContext } from "../context/simulationContext";
+import {
+  createEmptyFrontierSimulationState,
+  type SimulationContext,
+  simulationContext
+} from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
 import { durationToCalendarDays } from "../runtime/calendarDuration";
 import {
@@ -26,10 +30,12 @@ import { captureSnapshotData, debugSnapshotsEnabled } from "../utils/aiDebugExpo
 import { getDaysInMonth, getSeason } from "../utils/seasonUtils";
 import { tickAgriculturalCalendar } from "./agriculturalStress";
 import { simulateDemographics } from "./demography-simulator";
+import { advanceFrontierExpansion } from "./frontierExpansion";
 import { tickManpower } from "./manpower";
 import { Military } from "./military-generator";
 import { advancePopulationLossClock, resetPopulationLossTracker } from "./populationLossTracker";
 import { advanceAllRegimentMovement } from "./regimentMovement";
+import { Routes } from "./routes-generator";
 import { createSimulationSystemRegistry, type SimulationStepContext, type SimulationSystem } from "./simulationSystem";
 import { logTickProfile, measureTickStep, resetTickProfile } from "./tickProfiler";
 
@@ -107,6 +113,27 @@ export function registerSimulationSystem(system: SimulationSystem): () => void {
   return timeTickSystems.register(system);
 }
 
+// Frontier projects are host-owned politics work. The module's annual guard
+// keeps this registered daily system cheap while making Advance Day/Month/Year
+// share identical calendar-boundary semantics.
+registerSimulationSystem({
+  id: "frontier-expansion.tick",
+  phase: "politics",
+  reads: ["map.politics", "map.networks", "simulation.cells", "simulation.states"],
+  writes: ["simulation.cells", "simulation.states", "map.networks", "map.settlements"],
+  cadence: { every: 1 },
+  profileLabel: "frontierExpansion",
+  run: (context, writer) => {
+    const result = advanceFrontierExpansion({
+      world: worldContext,
+      simulation: simulationContext,
+      rng: context.rng,
+      connectRoute: cellId => Routes.connect(cellId) !== undefined
+    });
+    if (result.topics.length) writer.markChanged(...result.topics);
+  }
+});
+
 /** Test/support: ordered system ids currently registered for the host tick. */
 export function listRegisteredSimulationSystemIds(): readonly string[] {
   return timeTickSystems.list().map(system => system.id);
@@ -171,6 +198,7 @@ export function initSimulationClock(): void {
   simulationContext.intelligence = {};
   simulationContext.strategicGoals = {};
   simulationContext.navalTechBonus = {};
+  simulationContext.frontier = createEmptyFrontierSimulationState(worldContext.pack?.cells?.i.length ?? 0);
   resetPopulationLossTracker();
 }
 

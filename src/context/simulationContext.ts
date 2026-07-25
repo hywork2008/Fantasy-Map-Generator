@@ -54,6 +54,51 @@ export type StateSimulationStates = Record<number, StateSimulationState>;
 /** Live regiments keyed by owner state id; regiment id is unique within its roster. */
 export type SimulationMilitaryRosters = Record<number, MilitaryRegiment[]>;
 
+/** A frontier cell remains politically unclaimed until Phase 4 incorporation. */
+export const FRONTIER_STAGE = {
+  wilderness: 0,
+  outpost: 1,
+  settlement: 2,
+  incorporated: 3
+} as const;
+
+export type FrontierStage = (typeof FRONTIER_STAGE)[keyof typeof FRONTIER_STAGE];
+
+/** Sparse, project-specific state for an unclaimed outpost or settlement. */
+export interface FrontierProject {
+  readonly cellId: number;
+  readonly stateId: number;
+  stage: typeof FRONTIER_STAGE.outpost | typeof FRONTIER_STAGE.settlement;
+  establishedYear: number;
+  supportYears: number;
+  failedSupportYears: number;
+}
+
+/**
+ * Host-owned Phase 3 frontier runtime state. Cell stages are dense so renderers
+ * and cell tools can read one canonical column; project metadata stays sparse.
+ */
+export interface FrontierSimulationState {
+  cellStages: Uint8Array;
+  projects: Record<number, FrontierProject>;
+  /** The annual guard prevents daily simulation ticks from re-evaluating projects. */
+  lastEvaluatedYear: number | null;
+  /** Treasury captured at the prior calendar boundary, keyed by state id. */
+  budgetByState: Record<number, number>;
+  /** Earliest year in which a state may begin another project. */
+  stateCooldownUntilYear: Record<number, number>;
+}
+
+export function createEmptyFrontierSimulationState(cellCount = 0): FrontierSimulationState {
+  return {
+    cellStages: new Uint8Array(cellCount),
+    projects: {},
+    lastEvaluatedYear: null,
+    budgetByState: {},
+    stateCooldownUntilYear: {}
+  };
+}
+
 /**
  * Host-owned containers for built-in and dynamic extension runtime state.
  *
@@ -168,6 +213,8 @@ export interface SimulationContext {
    * Grown by Shipbuilding completion events; host-owned so military regen survives save/load.
    */
   navalTechBonus: Record<number, number>;
+  /** Unclaimed outposts and settlements; State incorporation is a later phase. */
+  frontier: FrontierSimulationState;
 }
 
 /**
@@ -202,5 +249,6 @@ export const simulationContext: SimulationContext = {
   intelligence: {},
   strategicGoals: {},
   populationLoss: createEmptyPopulationLossState(),
-  navalTechBonus: {}
+  navalTechBonus: {},
+  frontier: createEmptyFrontierSimulationState()
 };

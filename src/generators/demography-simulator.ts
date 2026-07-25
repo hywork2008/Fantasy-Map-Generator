@@ -1,3 +1,4 @@
+import { FRONTIER_STAGE, simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import { applyFoodStressToDemographics } from "./agriculturalStress";
@@ -16,7 +17,7 @@ export interface DemographicsSimulationResult {
  */
 export function simulateDemographics(deltaYears: number): DemographicsSimulationResult {
   const { pack } = worldContext;
-  let bordersChanged = false;
+  const bordersChanged = false;
   let newBurgsAdded = false;
 
   if (!pack?.cells || !pack.burgs) return { bordersChanged, newBurgsAdded };
@@ -85,7 +86,11 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
 
         let score = pack.cells.s[n];
         if (pack.cells.r[n]) score += 50; // prefer rivers
-        if (pack.cells.state[n] === pack.cells.state[i]) score += 100; // prefer own state
+        // Phase 3 expansion is a project, not an incidental population move.
+        // Demographic migration can stay inside the existing polity only; an
+        // unclaimed neighbor must go through Frontier Expansion's outpost flow.
+        if (pack.cells.state[n] !== stateId) continue;
+        score += 100;
 
         if (score > bestScore) {
           bestScore = score;
@@ -111,17 +116,7 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
         pack.cells.femaleAdults[bestNeighbor] += mFemale;
         pack.cells.elders[bestNeighbor] += mElders;
 
-        const oldNPop = pack.cells.pop[bestNeighbor];
         pack.cells.pop[bestNeighbor] += excessTotal;
-
-        // State Conquest
-        if (pack.cells.state[bestNeighbor] !== pack.cells.state[i]) {
-          if (excessTotal > oldNPop) {
-            pack.cells.state[bestNeighbor] = pack.cells.state[i];
-            pack.cells.culture[bestNeighbor] = pack.cells.culture[i];
-            bordersChanged = true;
-          }
-        }
       } else {
         // No migration possible -> Starvation reduction
         const starvationRate = Math.min(0.99, Math.abs(roomForGrowth) * deltaYears * 0.02);
@@ -143,7 +138,12 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     pack.cells.pop[i] = newPop;
 
     // Pioneer Village Spawning
-    if (newPop > worldContext.populationRate && !pack.cells.burg[i]) {
+    const frontierStage = simulationContext.frontier.cellStages[i] ?? FRONTIER_STAGE.wilderness;
+    if (
+      newPop > worldContext.populationRate &&
+      !pack.cells.burg[i] &&
+      (stateId > 0 || frontierStage === FRONTIER_STAGE.settlement)
+    ) {
       const res = Burgs.add(pack.cells.p[i]);
       if (res?.burgId) {
         const newBurg = pack.burgs[res.burgId];

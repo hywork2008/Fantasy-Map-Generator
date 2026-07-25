@@ -913,7 +913,11 @@ class RoutesModule {
       isWater: false,
       connections: new Map()
     });
-    const isExit = (c: number) => isLand(c, pack) && this.isConnected(c);
+    // A frontier project may be the first branch off an isolated capital or
+    // village. A burg is itself a valid movement-network anchor even before a
+    // second route exists; otherwise Phase 3 could establish an outpost but
+    // fail to materialize its required supply trail.
+    const isExit = (c: number) => isLand(c, pack) && (this.isConnected(c) || !!pack.cells.burg[c]);
     const pathCells = findPath(cellId, isExit, getCost, pack);
     if (!pathCells) return;
 

@@ -136,7 +136,7 @@ describe("ChunkedWorldCodecAdapter", () => {
     );
   });
 
-  it("round-trips populationLoss, navalTechBonus, and extension tick maps", async () => {
+  it("round-trips populationLoss, navalTechBonus, frontier state, and extension tick maps", async () => {
     const simulation = sampleSimulation();
     simulation.populationLoss = {
       simDay: 12.5,
@@ -149,6 +149,15 @@ describe("ChunkedWorldCodecAdapter", () => {
       ]
     };
     simulation.navalTechBonus = { 1: 1.3 };
+    simulation.frontier = {
+      cellStages: new Uint8Array([1, 0]),
+      projects: {
+        0: { cellId: 0, stateId: 1, stage: 1, establishedYear: 100, supportYears: 1, failedSupportYears: 0 }
+      },
+      lastEvaluatedYear: 101,
+      budgetByState: { 1: 80 },
+      stateCooldownUntilYear: { 1: 102 }
+    };
     simulation.extensions = {
       economy: { forestDepletion: { 0: 0.4, 1: 0.1 } },
       nobility: { voyageIntelBonus: { "1:2": 5 } }
@@ -166,6 +175,8 @@ describe("ChunkedWorldCodecAdapter", () => {
     expect(staged.document.simulation.populationLoss.history[0]?.byState[1]?.total).toBe(12);
     expect(staged.document.simulation.populationLoss.history[0]?.combatByCell[0]).toBe(10);
     expect(staged.document.simulation.navalTechBonus[1]).toBe(1.3);
+    expect(staged.document.simulation.frontier.cellStages).toEqual(new Uint8Array([1, 0]));
+    expect(staged.document.simulation.frontier.projects[0]?.stateId).toBe(1);
     expect(
       (staged.document.simulation.extensions.economy as { forestDepletion: Record<string, number> }).forestDepletion
     ).toEqual({ 0: 0.4, 1: 0.1 });
@@ -174,10 +185,11 @@ describe("ChunkedWorldCodecAdapter", () => {
     ).toEqual({ "1:2": 5 });
   });
 
-  it("normalizes missing populationLoss and navalTechBonus on older archives", async () => {
+  it("normalizes missing populationLoss, navalTechBonus, and frontier state on older archives", async () => {
     const document = createWorldDocument(sampleWorld(), sampleSimulation(), createPresentationData(), []);
     delete (document.simulation as { populationLoss?: unknown }).populationLoss;
     delete (document.simulation as { navalTechBonus?: unknown }).navalTechBonus;
+    delete (document.simulation as { frontier?: unknown }).frontier;
 
     const codec = new ChunkedWorldCodecAdapter();
     const blob = await codec.encode(document);
@@ -188,6 +200,7 @@ describe("ChunkedWorldCodecAdapter", () => {
 
     expect(staged.document.simulation.populationLoss).toEqual({ simDay: 0, history: [] });
     expect(staged.document.simulation.navalTechBonus).toEqual({});
+    expect(staged.document.simulation.frontier.cellStages).toEqual(new Uint8Array([0, 0]));
   });
 
   it("migrates a v1 archive without a settlement pattern to standard", async () => {
