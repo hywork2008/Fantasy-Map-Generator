@@ -27,6 +27,7 @@ Phase 1–2 の実装は、無主地、人口 cohort、`state = 0`、州外地�
 
 - 初期世界に、人口 0 かつ `state = 0` の居住可能な陸地を意図的に残す。
 - 初期人口率と人口分布を分離し、開拓前線・散在する諸国・標準・密集文明圏を生成時プリセットとして選べるようにする。
+- 開拓前線では、森林適地の未定住セルを高い森林被覆で始め、定住・道路・伐採に伴って農地・牧草地・管理林へ段階的に転換する。
 - Advance Time に、人口・資金・安全・接続性を消費して無主地を定住・編入するフローを加える。
 - 領土拡張を「一セルの偶発的な人口移動」ではなく、前哨地・村落・統治領の明示的な段階として扱う。
 - 災害、経済、軍事が、新しい辺境を維持するための内政支出へ接続できる土台を作る。
@@ -49,6 +50,8 @@ Phase 1–2 の実装は、無主地、人口 cohort、`state = 0`、州外地�
 | 定住地 (Settlement) | 継続人口を持ち、道路・食料・防衛の対象になる村落または Burg | `pop > 0`、必要時に Burg |
 | 統治領 (Governed territory) | 税・徴兵・災害救援・国境防衛の対象となる実効支配セル | `cells.state = stateId` |
 | 州 (Province) | 複数の統治領と Burg を束ねる既存の行政単位 | `cells.province = provinceId` |
+
+`biome` は潜在自然植生であり、`Grassland` を農地や人為的な開けた土地と同一視しない。気候上の森林適地、自然草原、土地被覆の定義は [バイオーム拡張計画](biomes.md) に従う。本書では、開拓によって変化する `landCover` と `forestCover` を扱う。
 
 ### 2.1 不変条件
 
@@ -87,11 +90,13 @@ MapData / WorldContext
 
 SimulationData / SimulationContext
   population cohorts, carrying capacity
+  landCover / forestCover（開墾・伐採・放棄後の再生によって変化する土地被覆）
   frontier cell stage（dense column）
   project progress, settlement support, state frontier budget / policy cooldown（host-owned frontier slice）
 
 Frontier Expansion Module
   初期定住分布を生成する
+  初期の森林被覆を設定し、開墾・再生を実行する
   年次の開拓候補を評価する
   前哨地・村落・統治領への遷移を実行する
   必要な WorldChangeSet を発行する
@@ -112,7 +117,21 @@ Frontier Expansion Module
 
 `outpost` と `settlement` は初期版では既存 Burg と同一視しない。一定人口・接続性を満たした時にのみ `Burgs.add()` を使って Burg を作る。これにより、現在の「人口が閾値を超えた全セルで Burg を生む」挙動を開拓の到達点へ置き換えられる。
 
-### 4.3 領土編入のトランザクション
+### 4.3 土地被覆と森林被覆の遷移
+
+`landCover` と `forestCover` は `SimulationContext` が所有する可変状態とする。`WorldContext` の `biome` は気候由来の潜在自然植生として維持し、農地化や伐採のために書き換えない。レンダラーは両方を readonly で読み、バイオーム色の上に土地被覆・森林密度を描画する。
+
+| 状態・イベント | 森林適地 | 自然草原・砂漠など森林非適地 |
+| --- | --- | --- |
+| `frontier` の未定住セル | `naturalForest`、高い `forestCover` で開始 | 気候に応じた開放的な自然土地被覆で開始 |
+| 前哨地の設置 | 小規模な伐採地・道・補給地だけを作る | 小規模な道・補給地だけを作る |
+| 村落・統治領への成長 | 食料需要と接続性に応じ、`managedForest`、`cropland`、`pasture` を周辺へ拡大 | `cropland`、`pasture` 等を周辺へ拡大 |
+| 伐採・造船・採掘 | `forestCover` を低下させ、木材供給・道路建設・防衛に影響させる | 該当なし、または低木・草地資源を別途扱う |
+| 放棄・人口減少 | 二次林として徐々に `forestCover` を回復させる | 気候に応じた草地・低木地へ回復させる |
+
+開墾の広さと速度は、人口、食料需要、道路・河川への接続、治安、国家の資金、地形、バイオームの森林再生力で制限する。国家領であることだけを理由に、セル全体を即座に農地へ転換してはならない。
+
+### 4.4 領土編入のトランザクション
 
 一セルごとの `cells.state` 代入を公開操作にしない。編入は次を原子的に実行する Implementation に閉じ込める。
 
@@ -146,6 +165,8 @@ Frontier Expansion Module
 - `settledFootprint`: 初期に人が住む適地の割合
 - `settlementClustering`: 首都、河川、海岸、道路、既存 Burg への集中度
 
+`frontier` では、`settledFootprint` の外側にある森林適地を `naturalForest` と高い `forestCover` で初期化する。これは `Grassland` バイオームを森林へ置換する処理ではなく、気候上の潜在自然植生に対応した未開の土地被覆を設定する処理である。`dense` では人口と道路に近い土地ほど初期農地・牧草地の比率を上げるが、森林適地のすべてを開墾済みにしない。
+
 `manors` は Burg 数であり、人口分布ではない。プリセットが推奨値を設定してよいが、独立した生成オプションとして残す。
 
 ## 6. 年次開拓ループ
@@ -156,8 +177,9 @@ Frontier Expansion Module
 2. **送り出し地**: 人口が capacity の 80〜90% 以上、または政策による計画移住対象の Burg / rural cell。
 3. **候補地**: 無主地で、居住適性、淡水・河川・港、道路または既存定住地からの到達性、danger、気候リスクを評価する。
 4. **支出と移送**: treasury、食料、成人男女を移送する。移送後も送り出し地の人口・兵役制約を満たすことを確認する。
-5. **定着判定**: 前哨地は毎年、食料、治安、災害、接続性を判定する。失敗すれば放棄、成功すれば村落へ進む。
-6. **編入判定**: 村落が人口・期間・行政投資・接続性の条件を満たした時だけ、周囲の行政圏を State に編入する。
+5. **土地利用**: 前哨地・村落の食料、木材、道路、防衛の需要に応じ、周辺の `landCover` と `forestCover` を段階的に更新する。森林非適地を森林へ変えず、未定住の森林適地を即座に農地化しない。
+6. **定着判定**: 前哨地は毎年、食料、治安、災害、接続性を判定する。失敗すれば放棄して二次林化し、成功すれば村落へ進む。
+7. **編入判定**: 村落が人口・期間・行政投資・接続性の条件を満たした時だけ、周囲の行政圏を State に編入する。
 
 同一 State が一年に開始できる事業数は、財政・行政力・前哨地維持費で制限する。これにより、最適行動が「全方向へ毎年一セルずつ塗る」ことになるのを防ぐ。
 
@@ -167,6 +189,7 @@ Frontier Expansion Module
 | --- | --- | --- |
 | 災害 | 前哨地は干魃、洪水、野盗、疫病に脆弱。救援を受けられないと定着失敗 | 災害 Module 実装前は、簡易な danger / food / maintenance だけで判定 |
 | 経済 | 開拓は treasury と food stock を消費し、編入後に初めて通常の税・生産・徴兵に入る | Economy extension 無効時も基本人口・資金判定を維持する |
+| 森林 | 木材採取・開墾・造船は森林被覆を下げ、放棄地と管理された森林は再生する。森林適地かどうかはバイオーム定義から読む | Economy extension の `forestDepletion` と将来的に統合し、二重に森林を消費しない |
 | 食料 | 出発地からの食料供給、現地 capacity、備蓄が定着率を決める | `foodStress` と混ぜず、将来は climate food stress と合成 |
 | 軍事 | 無主地との接点は対国家国境ではなく frontier。砦・巡回・護衛の対象 | `analyzeFrontiers()` と別に `analyzeUnclaimedFrontier()` を導入する |
 | 外交 | 無主地を越えた他国との接触で初めて通常の隣接国になる | 初期版は claim・係争地を作らない |
@@ -178,6 +201,12 @@ Frontier Expansion Module
 - [x] 既存の `initialPopulationSaturation = 60`、State / Province 統計、Economy 生産、軍事徴兵の characterization tests を追加する。
 - [x] `cells.state = 0` を読む主要 Module を一覧化し、無主地の扱い（除外・通過可・採取可）を決定する。
 - [x] `.fmg` save migration の version と、旧セーブを `standard` として読む既定値を決める。
+
+### Phase 0.5 — 土地被覆の基準固定
+
+- [ ] `biome`（潜在自然植生）と `landCover` / `forestCover`（可変の土地利用・樹冠被覆）の責務を型と保存形式に明記する。
+- [ ] `frontier`、`standard`、`dense` の固定seedで初期森林被覆・農地被覆を検証する characterization tests を追加する。
+- [ ] 既存 `forestDepletion` と開墾・再生を統合する所有権を決め、二重に減衰させないことを検証する。
 - [x] 生成時・Advance Time 時の政治変更に使う `DataTopic` を確定する。
 
 **完了条件**: 既存の標準世界が新しい field を欠いても同じようにロード・生成・Advance Time でき、frontier feature を無効にすると既存テストが通る。

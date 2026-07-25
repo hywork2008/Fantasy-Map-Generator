@@ -19,3 +19,10 @@ Layers
     3D Options
   Globe
     3D Options
+
+## 邪魔なダイアログ
+
+Extreme climate warning
+Generate new map
+
+ボタンをクリックしようとする時、ダイアログのサイズ変更の範囲にボタンが覆われ押しにくい。
