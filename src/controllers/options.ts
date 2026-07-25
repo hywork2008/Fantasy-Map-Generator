@@ -553,7 +553,7 @@ export function applyStoredOptions(): void {
     });
   }
 
-  const transparency = stored("transparency") || "5";
+  const transparency = stored("transparency") || "70";
   const themeColor = stored("themeColor") || "";
   changeDialogsTheme(themeColor, transparency);
 
