@@ -216,7 +216,12 @@ class StatesModule {
     TIME && console.timeEnd("expandStates");
   }
 
-  /** Connects an otherwise unclaimed initial burg to the closest reachable state by land. */
+  /**
+   * Connects an otherwise unclaimed initial burg only along an already
+   * materialized movement link. Without one the burg remains unclaimed;
+   * assigning it to the nearest State would recreate a disconnected polity or
+   * a Cold Desert administrative corridor.
+   */
   private connectUnclaimedBurgsToStates(): void {
     const { cells, burgs } = this.worldContext.pack;
 
@@ -225,10 +230,10 @@ class StatesModule {
       const route = this.findAdministrativeRoute(
         burg.cell,
         cellId => Boolean(cells.state[cellId]),
-        () => true
+        () => true,
+        (from, to) => this.hasMovementLink(from, to)
       );
       if (!route) continue;
-
       const owner = cells.state[route[0]];
       for (const cellId of route) cells.state[cellId] = owner;
     }
@@ -257,7 +262,8 @@ class StatesModule {
         const route = this.findAdministrativeRoute(
           cellId,
           candidate => Boolean(connected[candidate]),
-          candidate => !cells.state[candidate] || cells.state[candidate] === state.i
+          candidate => !cells.state[candidate] || cells.state[candidate] === state.i,
+          (from, to) => this.hasMovementLink(from, to)
         );
         if (!route) continue;
 
@@ -291,7 +297,8 @@ class StatesModule {
   private findAdministrativeRoute(
     source: number,
     isDestination: (cellId: number) => boolean,
-    canTraverse: (cellId: number) => boolean
+    canTraverse: (cellId: number) => boolean,
+    canCross: (from: number, to: number) => boolean = () => true
   ): number[] | null {
     const { cells } = this.worldContext.pack;
     const landmass = cells.f[source];
@@ -310,7 +317,7 @@ class StatesModule {
 
       for (const neighbor of cells.c[current.cellId]) {
         if (cells.h[neighbor] < HeightThreshold.WATER_MAX_HEIGHT || cells.f[neighbor] !== landmass) continue;
-        if (!canTraverse(neighbor)) continue;
+        if (!canTraverse(neighbor) || !canCross(current.cellId, neighbor)) continue;
 
         const totalCost = current.cost + this.getAdministrativeTravelCost(neighbor);
         if (totalCost >= cost[neighbor]) continue;
@@ -338,6 +345,11 @@ class StatesModule {
       cells.h[cellId] >= HeightThreshold.MOUNTAIN_MIN ? 90 : cells.h[cellId] >= HeightThreshold.HILL_MIN ? 25 : 0;
     const riverCost = cells.r[cellId] ? minmax(cells.fl[cellId] / 10, 5, 30) : 0;
     return 10 + elevationCost + riverCost;
+  }
+
+  /** A non-standard State can only form a corridor on a route created by the Settlement Foundation. */
+  private hasMovementLink(from: number, to: number): boolean {
+    return Boolean(this.worldContext.pack.cells.routes?.[from]?.[to] !== undefined);
   }
 
   /** Fills only small, empty land pockets whose entire boundary has one owner. */
