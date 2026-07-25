@@ -65,6 +65,13 @@ export const FeaturesRenderer: IRenderer = {
         const coastlineGroup = feature.group || "sea_island";
         if (!html.coastline[coastlineGroup]) html.coastline[coastlineGroup] = [];
         html.coastline[coastlineGroup].push(`<use href="#feature_${feature.i}" data-f="${feature.i}"></use>`);
+        // Coastlines are fill-less and normally only 0.5px wide, making the
+        // actual painted line impractically hard to click in SVG mode. Keep a
+        // transparent, wider sibling in the same ancestry so the default
+        // editor event dispatcher still resolves #coastline and data-f.
+        html.coastline[coastlineGroup].push(
+          `<use href="#feature_${feature.i}" data-f="${feature.i}" class="coastline-hit" fill="none" stroke="transparent" stroke-width="10" pointer-events="stroke"></use>`
+        );
       }
     }
 
