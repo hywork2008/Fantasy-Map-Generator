@@ -61,7 +61,7 @@ import { clearMainTip, tip } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
 import { useDebugSnapshotState } from "./store/debugSnapshotState";
 import { dialogStore } from "./store/dialogState";
-import { type OptionsState, useOptionsState } from "./store/optionsState";
+import { DEFAULT_UI_OPTIONS, type OptionsState, useOptionsState } from "./store/optionsState";
 import type { Grid } from "./types/Grid";
 import type { Burg, BurgGroup } from "./types/models";
 import {
@@ -272,7 +272,10 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
   });
 }
 
-const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([1, 20]).on("zoom", zoomRaf);
+const zoom = d3
+  .zoom<SVGSVGElement, unknown>()
+  .scaleExtent([DEFAULT_UI_OPTIONS.zoomExtentMin, DEFAULT_UI_OPTIONS.zoomExtentMax])
+  .on("zoom", zoomRaf);
 
 viewContext.zoom = zoom;
 viewContext.scale = scale;

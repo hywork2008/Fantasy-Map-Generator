@@ -6,7 +6,6 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { getHeightmapTemplateWeights } from "../data";
-import { THEME_COLOR } from "../data/constants";
 import { Cultures } from "../generators/cultures-generator";
 import { COA } from "../generators/emblem/generator";
 import { Names } from "../generators/names-generator";
@@ -22,7 +21,7 @@ import { viewLayerService as view } from "../services/viewLayerService";
 import { viewStateStore } from "../store";
 import { loadMapDialogStore } from "../store/loadMapDialogState";
 import { loadMapUrlDialogStore } from "../store/loadMapUrlDialogState";
-import { type OptionsState, useOptionsState } from "../store/optionsState";
+import { DEFAULT_UI_OPTIONS, type OptionsState, useOptionsState } from "../store/optionsState";
 import type { Burg, Culture, Province, State } from "../types/models";
 import { closeAllDialogs, closeDialogs, openAlert, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { gauss, last, minmax, P, rand, rn, rw } from "../utils";
@@ -323,7 +322,7 @@ function changeTooltipSize(value: string): void {
 
 function restoreDefaultThemeColor(): void {
   localStorage.removeItem("themeColor");
-  changeDialogsTheme(THEME_COLOR, String(useOptionsState.getState().transparency));
+  changeDialogsTheme(DEFAULT_UI_OPTIONS.themeColor, String(useOptionsState.getState().transparency));
 }
 
 export function changeThemeHue(hue: string): void {
@@ -337,8 +336,9 @@ function changeDialogsTheme(themeColor: string, transparency: string): void {
   const alpha = (100 - +transparency) / 100;
   const alphaReduced = Math.min(alpha + 0.3, 1);
 
-  const { h, s, l } = hsl(themeColor || THEME_COLOR);
-  useOptionsState.getState().setOptions({ themeColor: themeColor || THEME_COLOR });
+  const resolvedThemeColor = themeColor || DEFAULT_UI_OPTIONS.themeColor;
+  const { h, s, l } = hsl(resolvedThemeColor);
+  useOptionsState.getState().setOptions({ themeColor: resolvedThemeColor });
 
   const getRGBA = (hue: number, saturation: number, lightness: number, a: number): string => {
     return hsl(hue, saturation, lightness, a).toString();
@@ -440,8 +440,9 @@ function changeZoomExtent(value: string): void {
 }
 
 function restoreDefaultZoomExtent(): void {
-  useOptionsState.getState().setOptions({ zoomExtentMin: 1, zoomExtentMax: 20 });
-  view.zoom.scaleExtent([1, 20]).scaleTo(view.svg, 1);
+  const { zoomExtentMin, zoomExtentMax } = DEFAULT_UI_OPTIONS;
+  useOptionsState.getState().setOptions({ zoomExtentMin, zoomExtentMax });
+  view.zoom.scaleExtent([zoomExtentMin, zoomExtentMax]).scaleTo(view.svg, zoomExtentMin);
 }
 
 // ─── Apply stored options ─────────────────────────────────────────────────────
@@ -553,8 +554,8 @@ export function applyStoredOptions(): void {
     });
   }
 
-  const transparency = stored("transparency") || "70";
-  const themeColor = stored("themeColor") || "";
+  const transparency = stored("transparency") ?? String(DEFAULT_UI_OPTIONS.transparency);
+  const themeColor = stored("themeColor") ?? DEFAULT_UI_OPTIONS.themeColor;
   changeDialogsTheme(themeColor, transparency);
 
   setRendering(optionsStore.shapeRendering);

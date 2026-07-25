@@ -142,6 +142,39 @@ export interface OptionsState {
   setOptions: (updates: Partial<Omit<OptionsState, "setOption" | "setOptions">>) => void;
 }
 
+/** UI settings used when neither the store nor localStorage provides a user preference. */
+export const DEFAULT_UI_OPTIONS = {
+  uiSize: 1,
+  tooltipSize: 14,
+  themeColor: "rgb(109, 149, 201)",
+  transparency: 70,
+  autosaveInterval: 15,
+  onloadBehavior: "random",
+  azgaarAssistant: "show" as const,
+  speakerVoice: "",
+  emblemShape: "culture",
+  zoomExtentMin: 1,
+  zoomExtentMax: 20
+};
+
+/** Default units, including values reset by the Units Editor. */
+export const DEFAULT_UNIT_OPTIONS = {
+  temperatureScale: "°C",
+  distanceUnit: "km",
+  heightUnit: "m",
+  areaUnit: "square",
+  weightUnit: "kg",
+  heightExponent: 1.8
+};
+
+/** Default world-scale values reset by the Units Editor. */
+export const DEFAULT_WORLD_SCALE_OPTIONS = {
+  populationRate: 1000,
+  distanceScale: 3,
+  urbanization: 1,
+  urbanDensity: 10
+};
+
 export const useOptionsState = create<OptionsState>(set => ({
   mapWidth: 960,
   mapHeight: 540,
@@ -207,30 +240,15 @@ export const useOptionsState = create<OptionsState>(set => ({
   neutralRate: 1,
   statesGrowthRate: 1,
 
-  populationRate: 1000,
-  distanceScale: 3,
-  urbanization: 1,
-  urbanDensity: 10,
+  ...DEFAULT_WORLD_SCALE_OPTIONS,
+  ...DEFAULT_UI_OPTIONS,
+  temperatureScale: localStorage.getItem("temperatureScale") ?? DEFAULT_UNIT_OPTIONS.temperatureScale,
 
-  uiSize: 1,
-  tooltipSize: 14,
-  themeColor: "#997787",
-  transparency: 5,
-  autosaveInterval: 15,
-  onloadBehavior: "random",
-  azgaarAssistant: "show",
-  speakerVoice: "",
-  emblemShape: "culture",
-  temperatureScale: localStorage.getItem("temperatureScale") ?? "°C",
-
-  distanceUnit: localStorage.getItem("distanceUnit") ?? "km",
-  heightUnit: localStorage.getItem("heightUnit") ?? "m",
-  areaUnit: localStorage.getItem("areaUnit") ?? "square",
-  weightUnit: localStorage.getItem("weightUnit") ?? "kg",
-  heightExponent: Number(localStorage.getItem("heightExponent") ?? 1.8),
-
-  zoomExtentMin: 1,
-  zoomExtentMax: 20,
+  distanceUnit: localStorage.getItem("distanceUnit") ?? DEFAULT_UNIT_OPTIONS.distanceUnit,
+  heightUnit: localStorage.getItem("heightUnit") ?? DEFAULT_UNIT_OPTIONS.heightUnit,
+  areaUnit: localStorage.getItem("areaUnit") ?? DEFAULT_UNIT_OPTIONS.areaUnit,
+  weightUnit: localStorage.getItem("weightUnit") ?? DEFAULT_UNIT_OPTIONS.weightUnit,
+  heightExponent: Number(localStorage.getItem("heightExponent") ?? DEFAULT_UNIT_OPTIONS.heightExponent),
 
   shapeRendering: "optimizeSpeed",
   rescaleLabels: true,
