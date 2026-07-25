@@ -133,7 +133,7 @@ export const ExtensionsTab: React.FC = () => {
             const disabled = isEnabled ? !canDisable : !canEnable;
 
             return (
-              <div key={meta.id} style={{ background: isEnabled ? "var(--tab-bg-active, #f5f5f5)" : "transparent" }}>
+              <div key={meta.id} style={{ background: isEnabled ? "var(--bg-light)" : "transparent" }}>
                 <div>
                   {/* Toggle switch */}
                   <label
