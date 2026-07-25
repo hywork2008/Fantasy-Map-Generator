@@ -23,7 +23,6 @@ export function overviewRegiments(stateId = -1): void {
   if (!layerIsOn("toggleMilitary")) toggleMilitary();
 
   useRegimentsOverviewState.getState().setFilterStateId(stateId);
-  useRegimentsOverviewState.getState().refresh();
   openDialog("regimentsOverview");
 }
 
