@@ -12,7 +12,13 @@ import { gauss, minmax, nth, ra, rand, rn, si } from "../utils";
 import { TIME } from "../utils/debug";
 import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../utils/gunpowderEra";
 import { isRegimentLockedForBattle } from "./battleLock";
-import { analyzeFrontiers, analyzeSeaFrontiers, getProvinceThreats, mergeFrontiers } from "./frontierAnalysis";
+import {
+  analyzeFrontiers,
+  analyzeSeaFrontiers,
+  analyzeUnclaimedFrontiers,
+  getProvinceThreats,
+  mergeFrontiers
+} from "./frontierAnalysis";
 import { isManpowerSimEnabled, markStatesNeedManpowerReconcile, reconcileAllStatesManpower } from "./manpower";
 import { getNavalTechBonus } from "./navalTechBonus";
 import { buildSeaRouteGraph } from "./seaRouteGraph";
@@ -113,7 +119,8 @@ class MilitaryModule {
     const seaRouteGraph = buildSeaRouteGraph(pack);
     const frontiers = mergeFrontiers(
       analyzeFrontiers(pack, options.year ?? 0),
-      analyzeSeaFrontiers(pack, seaRouteGraph, options.year ?? 0)
+      analyzeSeaFrontiers(pack, seaRouteGraph, options.year ?? 0),
+      ...(isFrontierExpansionPattern(options.initialSettlementPattern) ? [analyzeUnclaimedFrontiers(pack)] : [])
     );
 
     const expn = sum(valid.map(s => s.expansionism)); // total expansion
@@ -1070,3 +1077,7 @@ class MilitaryModule {
   }
 }
 export const Military = new MilitaryModule();
+
+function isFrontierExpansionPattern(pattern: WorldState["options"]["initialSettlementPattern"]): boolean {
+  return pattern === "frontier" || pattern === "scattered";
+}

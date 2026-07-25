@@ -1,6 +1,6 @@
 import { sum } from "d3";
 import { appServices } from "../context/appServices";
-import { simulationContext } from "../context/simulationContext";
+import { FRONTIER_STAGE, simulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, MilitaryRegiment, State } from "../types/models";
@@ -11,6 +11,7 @@ import { isRegimentLockedForBattle } from "./battleLock";
 import {
   analyzeFrontiers,
   analyzeSeaFrontiers,
+  analyzeUnclaimedFrontiers,
   type FrontierSegment,
   mergeFrontiers,
   pickPrimaryFrontier
@@ -379,6 +380,44 @@ function nearestOwnLandCell(pack: PackedGraph, x: number, y: number, ownLandCell
   return nearest;
 }
 
+function getFrontierReliefCells(stateId: number, landmass: number, pack: PackedGraph): number[] {
+  const { cells } = pack;
+  return Object.values(simulationContext.frontier.projects)
+    .filter(
+      project =>
+        project.stateId === stateId &&
+        (project.stage === FRONTIER_STAGE.outpost || project.stage === FRONTIER_STAGE.settlement) &&
+        cells.f[project.cellId] === landmass &&
+        hasSupplyRouteToState(cells, project.cellId, stateId)
+    )
+    .map(project => project.cellId);
+}
+
+function hasSupplyRouteToState(cells: PackedGraph["cells"], startCellId: number, stateId: number): boolean {
+  const queue = [startCellId];
+  const visited = new Set<number>(queue);
+
+  while (queue.length) {
+    const cellId = queue.shift();
+    if (cellId === undefined) break;
+    if (cells.state[cellId] === stateId) return true;
+
+    for (const rawNeighborId of Object.keys(cells.routes?.[cellId] ?? {})) {
+      const neighborId = Number(rawNeighborId);
+      if (!Number.isInteger(neighborId) || visited.has(neighborId)) continue;
+      if (cells.h[neighborId] < 20 || (cells.state[neighborId] !== 0 && cells.state[neighborId] !== stateId)) continue;
+      visited.add(neighborId);
+      queue.push(neighborId);
+    }
+  }
+
+  return false;
+}
+
+function isFrontierExpansionPattern(pattern: WorldContext["options"]["initialSettlementPattern"]): boolean {
+  return pattern === "frontier" || pattern === "scattered";
+}
+
 /** Ports redistributeGarrisons's old target-selection (pull toward the primary threatened frontier, proportional to its share of total threat, snapped onto owned land) into a march order instead of an instant reposition. */
 function ensureGarrisonMarchOrder(
   r: MilitaryRegiment,
@@ -450,8 +489,14 @@ function ensureGarrisonMarchOrder(
   const nodeCells = defenseNodesByStateAndLandmass.get(r.state)?.get(landmass) ?? [];
   const ownCandidates = nodeCells.concat(target.cells);
 
+  // A frontier project remains politically unclaimed until Phase 4, but its
+  // State funds and supplies it. Patrols may therefore march along the supply
+  // route to hold the outpost or settlement; this is relief, not a territorial
+  // claim, and the target returns to normal State land only after incorporation.
+  const reliefCells = target.origin === "unclaimed" ? getFrontierReliefCells(r.state, landmass, pack) : [];
+
   const reclaimCells = reclaimableEnemyCells(pack, r.state, target.neighborState, landmass, target.cx, target.cy);
-  const candidates = reclaimCells.length ? ownCandidates.concat(reclaimCells) : ownCandidates;
+  const candidates = ownCandidates.concat(reliefCells, reclaimCells);
   if (!candidates.length) {
     retreatOrHold();
     return;
@@ -921,7 +966,10 @@ export function advanceAllRegimentMovement(
   });
   const frontiers = mergeFrontiers(
     analyzeFrontiers(pack, currentYear),
-    analyzeSeaFrontiers(pack, seaRouteGraph, currentYear)
+    analyzeSeaFrontiers(pack, seaRouteGraph, currentYear),
+    ...(isFrontierExpansionPattern(worldContext.options.initialSettlementPattern)
+      ? [analyzeUnclaimedFrontiers(pack)]
+      : [])
   );
   const landCellsByStateAndLandmass = buildLandCellsByStateAndLandmass(pack);
   const routeJunctions = identifyRouteJunctions(landRouteGraph);

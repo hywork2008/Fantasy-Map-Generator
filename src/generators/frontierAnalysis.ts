@@ -34,14 +34,17 @@ export interface FrontierSegment {
   /** The landmass/feature id (`cells.f`) shared by every cell in this segment. */
   landmass: number;
   /**
-   * "land" (analyzeFrontiers, adjacency-based) or "sea" (analyzeSeaFrontiers,
-   * sea-route-based). Optional/absent is treated as "land" — callers that only ever see
-   * analyzeFrontiers() output (and existing tests) don't need to set it. Consumers that
-   * need to tell the two apart (e.g. strategic-planner.ts picking a target-selection
-   * strategy) should check `origin === "sea"` explicitly rather than inferring it.
+   * "land" (analyzeFrontiers, adjacency-based), "sea" (analyzeSeaFrontiers,
+   * sea-route-based), or "unclaimed" (analyzeUnclaimedFrontiers). Optional/absent is
+   * treated as "land" — callers that only ever see analyzeFrontiers() output (and existing
+   * tests) don't need to set it. `neighborState` is 0 only for an unclaimed frontier; it never
+   * represents a diplomatic State.
    */
-  origin?: "land" | "sea";
+  origin?: "land" | "sea" | "unclaimed";
 }
+
+const UNCLAIMED_FRONTIER_BASE_THREAT = 0.15;
+const UNCLAIMED_FRONTIER_DANGER_WEIGHT = 0.35;
 
 /**
  * Resolves a set of border cells to a single anchor point that is guaranteed to sit on
@@ -165,6 +168,63 @@ export function analyzeFrontiers(pack: PackedGraph, currentYear: number): Map<nu
     });
 
     if (segments.length) result.set(s, segments);
+  });
+
+  return result;
+}
+
+/**
+ * Finds each State's land border with politically unclaimed territory. Unlike
+ * `analyzeFrontiers`, this is not a diplomatic border: `neighborState = 0` is
+ * a sentinel only, and the moderate threat weight represents patrol, escort,
+ * and relief demand rather than an enemy army. Segments stay on the owning
+ * State's actual cells so military destinations never claim wilderness.
+ */
+export function analyzeUnclaimedFrontiers(pack: PackedGraph): Map<number, FrontierSegment[]> {
+  const { cells, states } = pack;
+  const borderCellsByStateLandmass = new Map<number, Map<number, number[]>>();
+
+  for (const cellId of cells.i) {
+    if (cells.h[cellId] < 20) continue;
+    const stateId = cells.state[cellId];
+    if (!stateId || states[stateId]?.removed) continue;
+    if (!(cells.c[cellId] ?? []).some(neighborId => cells.h[neighborId] >= 20 && cells.state[neighborId] === 0)) {
+      continue;
+    }
+
+    const landmass = cells.f[cellId];
+    if (!borderCellsByStateLandmass.has(stateId)) borderCellsByStateLandmass.set(stateId, new Map());
+    const byLandmass = borderCellsByStateLandmass.get(stateId)!;
+    const borderCells = byLandmass.get(landmass) ?? [];
+    borderCells.push(cellId);
+    byLandmass.set(landmass, borderCells);
+  }
+
+  const result = new Map<number, FrontierSegment[]>();
+  borderCellsByStateLandmass.forEach((byLandmass, stateId) => {
+    const segments: FrontierSegment[] = [];
+    byLandmass.forEach((rawCells, landmass) => {
+      const cellsOnFrontier = Array.from(new Set(rawCells));
+      const [cx, cy] = getBorderAnchor(cellsOnFrontier, cells.p);
+      const meanDanger =
+        cellsOnFrontier.reduce((total, cellId) => {
+          const frontierDanger = (cells.c[cellId] ?? [])
+            .filter(neighborId => cells.h[neighborId] >= 20 && cells.state[neighborId] === 0)
+            .reduce((highest, neighborId) => Math.max(highest, cells.danger?.[neighborId] ?? 0), 0);
+          return total + frontierDanger;
+        }, 0) / cellsOnFrontier.length;
+      segments.push({
+        neighborState: 0,
+        relation: "Unclaimed",
+        threatWeight: UNCLAIMED_FRONTIER_BASE_THREAT + (meanDanger / 255) * UNCLAIMED_FRONTIER_DANGER_WEIGHT,
+        cells: cellsOnFrontier,
+        cx,
+        cy,
+        landmass,
+        origin: "unclaimed"
+      });
+    });
+    if (segments.length) result.set(stateId, segments);
   });
 
   return result;

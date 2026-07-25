@@ -3,6 +3,7 @@ import type { PackedGraph } from "../types/PackedGraph";
 import {
   analyzeFrontiers,
   analyzeSeaFrontiers,
+  analyzeUnclaimedFrontiers,
   getChronicleContestedBurgs,
   getProvinceThreats,
   mergeFrontiers,
@@ -152,6 +153,44 @@ describe("analyzeFrontiers", () => {
     expect(segments[0].cells.sort()).toEqual([0, 2, 4]);
     expect(segments[0].cx).toBe(0);
     expect(segments[0].cy).toBe(0);
+  });
+});
+
+describe("analyzeUnclaimedFrontiers", () => {
+  it("keeps unclaimed land out of diplomacy while exposing the owning State's patrol frontier", () => {
+    const pack = {
+      cells: {
+        i: [0, 1, 2],
+        h: [50, 50, 50],
+        c: [[1], [0, 2], [1]],
+        state: [1, 0, 2],
+        f: [1, 1, 1],
+        p: [
+          [0, 0],
+          [10, 0],
+          [20, 0]
+        ],
+        danger: [0, 255, 0]
+      },
+      states: [
+        { i: 0, name: "Neutrals" },
+        { i: 1, name: "Alpha" },
+        { i: 2, name: "Beta" }
+      ]
+    } as unknown as PackedGraph;
+
+    const segments = analyzeUnclaimedFrontiers(pack).get(1);
+
+    expect(segments).toEqual([
+      expect.objectContaining({
+        neighborState: 0,
+        relation: "Unclaimed",
+        origin: "unclaimed",
+        cells: [0],
+        threatWeight: 0.5
+      })
+    ]);
+    expect(analyzeFrontiers(pack, 1000).get(1)).toBeUndefined();
   });
 });
 

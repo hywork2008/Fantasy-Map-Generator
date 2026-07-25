@@ -250,7 +250,7 @@ Frontier Expansion Module
 - [x] 村落と接続した行政圏を一括編入する transaction を実装する。
 - [x] 編入後に State / Province 統計、隣接国、frontier、renderer topics を一回だけ更新する。
 - [x] 新領土の税、生産、food stress、徴兵、道路・市場再評価を接続する。
-- [ ] 無主地に対する frontier 防衛、巡回、前哨地の救援を追加する。
+- [x] 無主地に対する frontier 防衛、巡回、前哨地の救援を追加する。
 
 **完了条件**: 編入後の領土は表示、国家統計、Economy、人口、軍事で一貫して同じ owner を読む。
 
@@ -397,6 +397,12 @@ Frontier の進行だけでは `simulation.cells` を発行する。outpost/sett
 - transaction は補給路上の未領有セルと村落を一括で `state` / `province` へ割り当て、stage を `incorporated` にし、project を完了させる。接続済み Province がなければ State ごとの Frontier Province を作る。
 - commit 前に State / Province 集計と State 隣接関係を再構築し、`simulation.cells`、`simulation.states`、`map.politics`、`map.settlements` を一回だけ発行する。Economy、food stress、manpower は次回の各 simulation tick で同じ `cells.state` と再集計済み State population を読む。補給 trail は Phase 3 で既に `map.networks` として作成済みである。
 - 検証: `frontierIncorporation.test.ts`（補給路のみの一括編入、集計・隣接国更新、経路なしでは未編入）、`frontierExpansion.test.ts`（定着から編入までの年次遷移）、State / Province / time-system 回帰、`npx tsc --noEmit`、Biome check。
+
+### 2026-07-26 — Phase 4 無主地 frontier 防衛・巡回・救援 完了
+
+- `analyzeUnclaimedFrontiers()` は `state = 0` を外交主体にせず、State が実際に所有する境界セルだけから `origin: "unclaimed"` の patrol segment を作る。危険度は patrol / escort の優先度へ反映するが、通常の国家間の敵対関係・戦争目標には入らない。
+- `frontier` / `scattered` の軍事編成と regiment movement はその segment を追加で読む。通常の巡回先は State 自身の境界セルのままとし、State 支援中の outpost / settlement が同じ landmass にあり、既存の補給 trail で State に到達できる場合だけ、補給・救援のためにそのセルへ行軍できる。無主地を通ることは領有変更を起こさない。
+- 検証: `frontierAnalysis.test.ts`（無主地 frontier の外交的分離）、`regimentMovement.test.ts`（前哨地救援と `state = 0` の維持）、既存の軍事・移動回帰。
 
 | Date | Phase | Status | Note |
 | --- | --- | --- | --- |
