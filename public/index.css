@@ -299,6 +299,11 @@ text.drag {
 #options {
   position: absolute;
   z-index: 20;
+  /* The Options > UI transparency setting writes --bg-light at runtime.
+     Keep the menu surface on that variable so the map remains visible behind
+     it, as it did before the React migration. */
+  background-color: var(--bg-light);
+  border: 1px solid var(--dark-solid);
 
   i {
     cursor: pointer;
@@ -333,6 +338,8 @@ text.drag {
   display: flex;
   cursor: move;
 
+  border-bottom: 1px solid var(--dark-solid);
+
   button {
     cursor: pointer;
   }
@@ -341,6 +348,10 @@ text.drag {
 button.active {
   background-color: var(--header);
   color: white;
+}
+
+button.options {
+  background-color: var(--bg-main);
 }
 
 input[type="color"] {
@@ -364,9 +375,10 @@ input[type="color"] {
 
 .tabcontent {
   /* display: none; */
-  background-color: white;
+  background-color: var(--bg-light);
 
   button {
+    background-color: var(--bg-lighter);
     overflow: hidden;
 
     &.pressed {

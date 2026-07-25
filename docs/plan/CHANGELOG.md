@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-07-25
+
+docs/plan/frontier/country-and-border.md
+
 2026-07-24
 
 docs/plan/frontier-expansion.md
