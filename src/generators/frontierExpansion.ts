@@ -8,22 +8,23 @@ import type { WorldContext } from "../context/worldContext";
 import type { DataTopic } from "../runtime/worldRuntime";
 import type { RNGService } from "../utils/probabilityUtils";
 
-const SETUP_COST = 25;
-const ANNUAL_UPKEEP = 3;
-const TREASURY_RESERVE = 40;
+const SETUP_COST = 8;
+const ANNUAL_UPKEEP = 1;
+const TREASURY_RESERVE = 12;
 const MIN_COLONISTS = 4;
 const SETTLEMENT_SUPPORT_YEARS = 3;
 const MAX_OUTPOST_DANGER = 120;
 const MAX_SUPPORTED_OUTPOST_DANGER = 150;
-const SETUP_FOOD = 12;
-const ANNUAL_FOOD = 2;
+const SETUP_FOOD = 4;
+const ANNUAL_FOOD = 1;
+const MAX_FRONTIER_HOPS = 6;
 
 export interface FrontierExpansionInput {
   readonly world: WorldContext;
   readonly simulation: SimulationContext;
   readonly rng: RNGService;
   /** Materializes a trail from a new outpost to the existing movement network. */
-  readonly connectRoute?: (cellId: number) => boolean;
+  readonly connectRoute?: (cellId: number, stateId: number) => boolean;
 }
 
 export interface FrontierExpansionResult {
@@ -78,12 +79,7 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
 
   for (const state of world.pack.states ?? []) {
     if (!state?.i || state.removed || frontier.stateCooldownUntilYear[state.i] > year) continue;
-    if (
-      hasActiveProject(frontier, state.i) ||
-      isAtWar(state) ||
-      hasSeriousFoodStress(state.foodStress) ||
-      !hasFoodForExpansion(state.foodStock, SETUP_FOOD)
-    ) {
+    if (hasActiveProject(frontier, state.i) || isAtWar(state) || hasSeriousFoodStress(state.foodStress)) {
       continue;
     }
 
@@ -108,7 +104,7 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
       failedSupportYears: 0
     };
     frontier.stateCooldownUntilYear[state.i] = year + 2;
-    if (input.connectRoute?.(candidate.cellId)) routeChanged = true;
+    if (input.connectRoute?.(candidate.cellId, state.i)) routeChanged = true;
 
     established.push(candidate.cellId);
     topics.add("simulation.states");
@@ -132,7 +128,7 @@ function advanceProject(
   frontier: FrontierSimulationState,
   input: FrontierExpansionInput,
   year: number
-): "none" | "maintained" | "abandoned" | "settled" {
+): "none" | "maintained" | "paused" | "abandoned" | "settled" {
   if (project.stage !== FRONTIER_STAGE.outpost) return "none";
 
   const { cells } = input.world.pack;
@@ -146,11 +142,13 @@ function advanceProject(
     !state.removed &&
     priorBudget >= TREASURY_RESERVE + ANNUAL_UPKEEP &&
     (state.treasury ?? 0) >= ANNUAL_UPKEEP &&
-    hasFoodForExpansion(state.foodStock, ANNUAL_FOOD) &&
+    hasProvisioningCapacity(cells, project.cellId, localPopulation) &&
     localCapacity >= localPopulation * 1.2 &&
     danger <= MAX_SUPPORTED_OUTPOST_DANGER;
 
   if (!canSupport) {
+    project.failedSupportYears++;
+    if (project.failedSupportYears < 3) return "paused";
     abandonProject(project, frontier, cells);
     return "abandoned";
   }
@@ -192,14 +190,15 @@ function selectCandidate(stateId: number, input: FrontierExpansionInput): Fronti
   const frontier = input.simulation.frontier;
 
   for (let sourceCellId = 0; sourceCellId < cells.i.length; sourceCellId++) {
-    if (cells.state[sourceCellId] !== stateId || !isReachableSource(cells, sourceCellId)) continue;
+    if (cells.state[sourceCellId] !== stateId) continue;
     const sourcePopulation = cells.pop[sourceCellId] ?? 0;
     const sourceCapacity = cells.capacity[sourceCellId] ?? 0;
-    if (sourcePopulation < sourceCapacity * 0.85) continue;
+    if (sourcePopulation < sourceCapacity * 0.73) continue;
 
-    for (const cellId of cells.c[sourceCellId] ?? []) {
-      if (!isEligibleTarget(cells, frontier, cellId)) continue;
-      const score = scoreCandidate(cells, cellId, input.rng.rand());
+    for (const { cellId, hops } of findReachableFrontier(cells, frontier, sourceCellId, stateId)) {
+      const colonistCapacity = estimateColonistCapacity(sourcePopulation, sourceCapacity, cells.capacity[cellId] ?? 0);
+      if (colonistCapacity < MIN_COLONISTS) continue;
+      const score = scoreCandidate(cells, cellId, input.rng.rand()) - hops * 9;
       candidates.push({ cellId, sourceCellId, score });
     }
   }
@@ -209,8 +208,33 @@ function selectCandidate(stateId: number, input: FrontierExpansionInput): Fronti
   );
 }
 
-function isReachableSource(cells: WorldContext["pack"]["cells"], cellId: number): boolean {
-  return !!cells.burg[cellId] || Object.keys(cells.routes[cellId] ?? {}).length > 0;
+function findReachableFrontier(
+  cells: WorldContext["pack"]["cells"],
+  frontier: FrontierSimulationState,
+  sourceCellId: number,
+  stateId: number
+): Array<{ cellId: number; hops: number }> {
+  const queue: Array<{ cellId: number; hops: number }> = [{ cellId: sourceCellId, hops: 0 }];
+  const visited = new Set<number>([sourceCellId]);
+  const candidates: Array<{ cellId: number; hops: number }> = [];
+
+  while (queue.length) {
+    const current = queue.shift();
+    if (!current || current.hops >= MAX_FRONTIER_HOPS) continue;
+    for (const cellId of cells.c[current.cellId] ?? []) {
+      if (visited.has(cellId) || !isTraversableFrontierCell(cells, stateId, cellId)) continue;
+      visited.add(cellId);
+      const hops = current.hops + 1;
+      if (isEligibleTarget(cells, frontier, cellId)) candidates.push({ cellId, hops });
+      queue.push({ cellId, hops });
+    }
+  }
+
+  return candidates;
+}
+
+function isTraversableFrontierCell(cells: WorldContext["pack"]["cells"], stateId: number, cellId: number): boolean {
+  return cells.h[cellId] >= 20 && cells.s[cellId] > 0 && (!cells.state[cellId] || cells.state[cellId] === stateId);
 }
 
 function isEligibleTarget(
@@ -222,8 +246,6 @@ function isEligibleTarget(
     cells.state[cellId] === 0 &&
     cells.province[cellId] === 0 &&
     frontier.cellStages[cellId] === FRONTIER_STAGE.wilderness &&
-    cells.h[cellId] >= 20 &&
-    cells.s[cellId] > 0 &&
     cells.capacity[cellId] >= MIN_COLONISTS * 2 &&
     cells.danger[cellId] <= MAX_OUTPOST_DANGER
   );
@@ -241,8 +263,7 @@ function transferColonists(cells: WorldContext["pack"]["cells"], sourceCellId: n
   const sourcePopulation = cells.pop[sourceCellId] ?? 0;
   const sourceCapacity = cells.capacity[sourceCellId] ?? 0;
   const targetCapacity = cells.capacity[targetCellId] ?? 0;
-  const surplus = sourcePopulation - sourceCapacity * 0.8;
-  const colonists = Math.min(12, surplus * 0.5, targetCapacity * 0.25);
+  const colonists = estimateColonistCapacity(sourcePopulation, sourceCapacity, targetCapacity);
   if (colonists < MIN_COLONISTS || sourcePopulation <= 0) return 0;
 
   const ratio = colonists / sourcePopulation;
@@ -254,6 +275,11 @@ function transferColonists(cells: WorldContext["pack"]["cells"], sourceCellId: n
   cells.pop[sourceCellId] -= colonists;
   cells.pop[targetCellId] += colonists;
   return colonists;
+}
+
+function estimateColonistCapacity(sourcePopulation: number, sourceCapacity: number, targetCapacity: number): number {
+  const surplus = sourcePopulation - sourceCapacity * 0.65;
+  return Math.min(12, surplus * 0.5, targetCapacity * 0.25);
 }
 
 function ensureFrontierState(simulation: SimulationContext, cellCount: number): FrontierSimulationState {
@@ -284,12 +310,17 @@ function isAtWar(state: { diplomacy?: unknown } | undefined): boolean {
 }
 
 function hasSeriousFoodStress(foodStress: number | undefined): boolean {
-  return typeof foodStress === "number" && foodStress >= 0.5;
+  return typeof foodStress === "number" && foodStress >= 0.75;
 }
 
-/** Economy-off maps have no stock ledger yet; capacity remains the food fallback. */
-function hasFoodForExpansion(foodStock: number | undefined, required: number): boolean {
-  return foodStock === undefined || foodStock >= required;
+/**
+ * `foodStock` is a volatile market snapshot. Sustainable settlement is instead
+ * gated by the cell's carrying capacity; a positive stock adds a consumable
+ * reserve but a zero quarterly market snapshot cannot permanently freeze all
+ * frontier work.
+ */
+function hasProvisioningCapacity(cells: WorldContext["pack"]["cells"], cellId: number, population: number): boolean {
+  return (cells.capacity[cellId] ?? 0) >= Math.max(MIN_COLONISTS * 2, population * 1.2);
 }
 
 function consumeFood(state: { foodStock?: number }, amount: number): void {

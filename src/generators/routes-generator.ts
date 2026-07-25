@@ -908,16 +908,41 @@ class RoutesModule {
 
   // connect cell with routes system by land
   connect(cellId: number): Route | undefined {
+    return this.connectToNetwork(
+      cellId,
+      () => true,
+      c => isLand(c, this.worldContext.pack) && (this.isConnected(c) || !!this.worldContext.pack.cells.burg[c])
+    );
+  }
+
+  /**
+   * Extends one State's movement network into unclaimed land without using a
+   * foreign State as a shortcut. Frontier Expansion owns the political choice;
+   * this generator only materializes the approved supply trail.
+   */
+  connectFrontier(cellId: number, stateId: number): Route | undefined {
     const { pack } = this.worldContext;
-    const getCost = this.createCostEvaluator({
+    return this.connectToNetwork(
+      cellId,
+      c => !pack.cells.state[c] || pack.cells.state[c] === stateId,
+      c =>
+        isLand(c, pack) &&
+        pack.cells.state[c] === stateId &&
+        (this.isConnected(c) || pack.burgs[pack.cells.burg[c]]?.state === stateId)
+    );
+  }
+
+  private connectToNetwork(
+    cellId: number,
+    canTraverse: (cellId: number) => boolean,
+    isExit: (cellId: number) => boolean
+  ): Route | undefined {
+    const { pack } = this.worldContext;
+    const baseCost = this.createCostEvaluator({
       isWater: false,
       connections: new Map()
     });
-    // A frontier project may be the first branch off an isolated capital or
-    // village. A burg is itself a valid movement-network anchor even before a
-    // second route exists; otherwise Phase 3 could establish an outpost but
-    // fail to materialize its required supply trail.
-    const isExit = (c: number) => isLand(c, pack) && (this.isConnected(c) || !!pack.cells.burg[c]);
+    const getCost = (from: number, to: number) => (canTraverse(to) ? baseCost(from, to) : Infinity);
     const pathCells = findPath(cellId, isExit, getCost, pack);
     if (!pathCells) return;
 

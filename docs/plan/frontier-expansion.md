@@ -385,10 +385,11 @@ Frontier の進行だけでは `simulation.cells` を発行する。outpost/sett
 ### 2026-07-25 — Phase 3 前哨地と計画開拓 完了
 
 - `SimulationContext.frontier` に、セルごとの `wilderness / outpost / settlement / incorporated` stage、疎な project metadata、State ごとの前年 treasury snapshot と project cooldown を追加した。stage 1–2 は `state = 0`・`province = 0` を維持し、Phase 4 の編入 transaction だけが stage 3 を扱う。
-- `frontierExpansion.ts` は politics phase に常駐し、毎年 1 月 1 日だけ実行する。`frontier` と `scattered` の State は、道路または Burg に接続した人口過剰セルから、danger・capacity・水アクセスを評価した無主地へ開拓団を送る。前哨地は treasury と food stock（Economy 無効時は local capacity fallback）を消費し、3 年の支援で村落になる。資金・食料・危険の条件を満たせなければ放棄して人口を除去する。
+- `frontierExpansion.ts` は politics phase に常駐し、毎年 1 月 1 日だけ実行する。`frontier` と `scattered` の State は、人口が capacity の 73% 以上の送り出し地から、他国領を通らない最大 6 hop の無主地回廊を探索する。danger・capacity・水アクセスを評価して開拓団を送り、State 専用の supply trail をその回廊内に延長する。前哨地は treasury と food stock（市場 stock が一時的に 0 の場合は local capacity）を消費し、3 年の支援で村落になる。資金・食料・危険の条件を満たせない年は停止し、3 年連続で失敗した時だけ放棄して人口を除去する。
 - 予算判定は前年の暦境界で保存した treasury を使うため、同一 tick の Economy 税収には依存しない。候補の同点解消は simulation system RNG を使い、frontier state は `.fmg` archive に typed array として round-trip する。旧 archive は空の frontier state に正規化する。
 - 人口シミュレーションは State 境界を越えた偶発的移住・State 書換をやめ、無主地への移動を Frontier Project に一本化した。自動 Burg 化は既存統治領または stage 2 settlement に限定した。孤立 Burg も最初の supply trail の接続先として認識する。
-- 検証: `frontierExpansion.test.ts`（設立、定着、放棄、食料不足、年次 guard）、archive / ownership / route / time-engine / Initial Polities 回帰、`npx tsc --noEmit`、`npm run lint`。
+- `standard` map は未領有の居住可能セルを残さない compatibility preset のため、開拓候補がなく Phase 3 は no-op になる。開拓を観察する生成では `frontier` または `scattered` preset を選ぶ。
+- 検証: `frontierExpansion.test.ts`（設立、定着、停止後の放棄、food stress、市場 stock 0 の local-capacity fallback、未領有回廊、年次 guard）、archive / ownership / route / time-engine / Initial Polities 回帰、`npx tsc --noEmit`、`npm run lint`。
 
 | Date | Phase | Status | Note |
 | --- | --- | --- | --- |

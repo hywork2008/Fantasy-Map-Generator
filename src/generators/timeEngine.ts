@@ -128,7 +128,7 @@ registerSimulationSystem({
       world: worldContext,
       simulation: simulationContext,
       rng: context.rng,
-      connectRoute: cellId => Routes.connect(cellId) !== undefined
+      connectRoute: (cellId, stateId) => Routes.connectFrontier(cellId, stateId) !== undefined
     });
     if (result.topics.length) writer.markChanged(...result.topics);
   }

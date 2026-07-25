@@ -38,13 +38,13 @@ function createWorld(treasury = 100): WorldContext {
   } as unknown as WorldContext;
 }
 
-function createSimulation(year: number, budget = 100): SimulationContext {
+function createSimulation(year: number, budget = 100, cellCount = 2): SimulationContext {
   return {
     currentYear: year,
     currentMonth: 1,
     currentDay: 1,
     frontier: {
-      ...createEmptyFrontierSimulationState(2),
+      ...createEmptyFrontierSimulationState(cellCount),
       budgetByState: { 1: budget }
     }
   } as SimulationContext;
@@ -88,7 +88,7 @@ describe("Frontier Expansion Phase 3", () => {
     expect(world.pack.cells.province[1]).toBe(0);
   });
 
-  it("abandons an unsupported outpost and returns its cell to unclaimed wilderness", () => {
+  it("pauses an unsupported outpost before abandoning it after three failed annual provisions", () => {
     const world = createWorld();
     const simulation = createSimulation(100);
     advance(world, simulation);
@@ -96,6 +96,14 @@ describe("Frontier Expansion Phase 3", () => {
     simulation.currentYear = 101;
     simulation.frontier.budgetByState[1] = 0;
     world.pack.states[1]!.treasury = 0;
+    const paused = advance(world, simulation);
+
+    expect(paused.abandoned).toEqual([]);
+    expect(simulation.frontier.projects[1]?.failedSupportYears).toBe(1);
+
+    simulation.currentYear = 102;
+    advance(world, simulation);
+    simulation.currentYear = 103;
     const result = advance(world, simulation);
 
     expect(result.abandoned).toEqual([1]);
@@ -106,9 +114,9 @@ describe("Frontier Expansion Phase 3", () => {
     expect(world.pack.cells.province[1]).toBe(0);
   });
 
-  it("does not start a project when the confirmed food stock cannot provision it", () => {
+  it("does not start a project during severe food stress", () => {
     const world = createWorld();
-    world.pack.states[1]!.foodStock = 0;
+    world.pack.states[1]!.foodStress = 0.75;
     const simulation = createSimulation(100);
 
     const result = advance(world, simulation);
@@ -116,6 +124,48 @@ describe("Frontier Expansion Phase 3", () => {
     expect(result.established).toEqual([]);
     expect(simulation.frontier.cellStages[1]).toBe(FRONTIER_STAGE.wilderness);
     expect(world.pack.cells.pop[0]).toBe(100);
+  });
+
+  it("uses local carrying capacity when the economy market snapshot reports no food stock", () => {
+    const world = createWorld();
+    world.pack.states[1]!.foodStock = 0;
+    const simulation = createSimulation(100);
+
+    const result = advance(world, simulation);
+
+    expect(result.established).toEqual([1]);
+  });
+
+  it("extends through a short unclaimed corridor instead of requiring the target to touch the State border", () => {
+    const world = createWorld();
+    world.pack.cells = {
+      ...world.pack.cells,
+      i: new Uint16Array([0, 1, 2]),
+      c: [[1], [0, 2], [1]],
+      state: new Uint16Array([1, 0, 0]),
+      province: new Uint16Array([1, 0, 0]),
+      pop: new Float32Array([100, 0, 0]),
+      capacity: new Float32Array([100, 2, 50]),
+      children: new Float32Array([25, 0, 0]),
+      maleAdults: new Float32Array([25, 0, 0]),
+      femaleAdults: new Float32Array([25, 0, 0]),
+      elders: new Float32Array([25, 0, 0]),
+      danger: new Uint8Array([0, 10, 10]),
+      h: new Uint8Array([30, 30, 30]),
+      s: new Uint8Array([50, 50, 50]),
+      r: new Uint16Array([0, 0, 1]),
+      harbor: new Uint8Array([0, 0, 0]),
+      conf: new Uint8Array([0, 0, 0]),
+      burg: new Uint16Array([1, 0, 0]),
+      routes: { 0: {} }
+    };
+    const simulation = createSimulation(100, 100, 3);
+
+    const result = advance(world, simulation);
+
+    expect(result.established).toEqual([2]);
+    expect(simulation.frontier.cellStages[1]).toBe(FRONTIER_STAGE.wilderness);
+    expect(simulation.frontier.cellStages[2]).toBe(FRONTIER_STAGE.outpost);
   });
 
   it("does not re-evaluate a project twice in the same calendar year", () => {
