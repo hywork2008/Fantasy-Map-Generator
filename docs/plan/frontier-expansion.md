@@ -385,7 +385,7 @@ Frontier の進行だけでは `simulation.cells` を発行する。outpost/sett
 ### 2026-07-25 — Phase 3 前哨地と計画開拓 完了
 
 - `SimulationContext.frontier` に、セルごとの `wilderness / outpost / settlement / incorporated` stage、疎な project metadata、State ごとの前年 treasury snapshot と project cooldown を追加した。stage 1–2 は `state = 0`・`province = 0` を維持し、Phase 4 の編入 transaction だけが stage 3 を扱う。
-- `frontierExpansion.ts` は politics phase に常駐し、毎年 1 月 1 日だけ実行する。`frontier` と `scattered` の State は、人口が capacity の 73% 以上の送り出し地から、他国領を通らない最大 6 hop の無主地回廊を探索する。danger・capacity・水アクセスを評価して開拓団を送り、State 専用の supply trail をその回廊内に延長する。前哨地は treasury と food stock（市場 stock が一時的に 0 の場合は local capacity）を消費し、3 年の支援で村落になる。資金・食料・危険の条件を満たせない年は停止し、3 年連続で失敗した時だけ放棄して人口を除去する。
+- `frontierExpansion.ts` は politics phase に常駐し、毎年 1 月 1 日だけ実行する。`frontier` と `scattered` の State は、他国領を通らない最大 6 hop の無主地回廊を探索する。開拓団は単一セルの人口比ではなく、同じ候補地に到達できる複数の自国セルの安全余剰を合算して編成する。各送り出しセルには capacity の 65% を下回らない人口を残し、候補地の初期受入上限（capacity の 25%）の範囲で最低 4 人を移す。これにより低収容力セルだけで構成された小国も、地域全体に十分な余剰があれば永久停止せず開拓できる。danger・capacity・水アクセスを評価して開拓団を送り、State 専用の supply trail をその回廊内に延長する。前哨地は treasury と food stock（市場 stock が一時的に 0 の場合は local capacity）を消費し、3 年の支援で村落になる。資金・食料・危険の条件を満たせない年は停止し、3 年連続で失敗した時だけ放棄して人口を除去する。
 - 予算判定は前年の暦境界で保存した treasury を使うため、同一 tick の Economy 税収には依存しない。候補の同点解消は simulation system RNG を使い、frontier state は `.fmg` archive に typed array として round-trip する。旧 archive は空の frontier state に正規化する。
 - 人口シミュレーションは State 境界を越えた偶発的移住・State 書換をやめ、無主地への移動を Frontier Project に一本化した。自動 Burg 化は既存統治領または stage 2 settlement に限定した。孤立 Burg も最初の supply trail の接続先として認識する。
 - `standard` map は未領有の居住可能セルを残さない compatibility preset のため、開拓候補がなく Phase 3 は no-op になる。開拓を観察する生成では `frontier` または `scattered` preset を選ぶ。
@@ -409,7 +409,7 @@ Frontier の進行だけでは `simulation.cells` を発行する。outpost/sett
 - `frontierGovernance.ts` は前哨地の年次支援時に、低適性地の干魃、河川流量による洪水、過密時の疫病、danger による野盗を deterministic simulation RNG で判定する。災害は復興費または支援失敗理由として `FrontierProject.lastStatus` に残る。
 - State ごとの frontier governance は穀倉・井戸・道路・砦・衛生の投資水準と救援支出を保持する。これらは食料維持費、災害復興費、危険許容度、災害発生率を複数の経路で改善する。
 - Nobility が有効な場合、1 月 1 日に State の frontier policy を balanced / expansion / defense / recovery から選び、最も差し迫った投資へ treasury を配分する。戦争 AI の有無で host-owned frontier state の所有権は変わらない。
-- Tools タブに Frontier operations ledger を追加した。前哨地の方針、投資、前年の災害・失敗理由、次段階、候補セル、開始費用と必要留保額を表示する。
+- Tools タブに Frontier operations ledger を追加した。前哨地の方針、投資、前年の災害・失敗理由、次段階、候補セル、開始費用と必要留保額を表示する。候補一覧は実際に最低 4 人を編成できるものだけを表示し、送り出しセル群と移住人数を併記する。開始できない State には人口余剰・財政・食料・戦争・進行中 project の阻害理由を表示する。
 - archive は governance と project status を保存し、旧 archive には空の governance record を補完する。
 - 検証: `frontierGovernance.test.ts`、`frontierExpansion.test.ts`、`frontierIncorporation.test.ts`、`worldArchive.test.ts`、`npx tsc --noEmit`、`npm run lint`。
 

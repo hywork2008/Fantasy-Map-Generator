@@ -17,6 +17,7 @@ const SETTLEMENT_SUPPORT_YEARS = 3;
 const MAX_OUTPOST_DANGER = 120;
 const SETUP_FOOD = 4;
 const MAX_FRONTIER_HOPS = 6;
+const SOURCE_RETENTION_RATIO = 0.65;
 
 export interface FrontierExpansionInput {
   readonly world: WorldContext;
@@ -38,10 +39,21 @@ export interface FrontierExpansionResult {
 export interface FrontierCandidateSummary {
   readonly stateId: number;
   readonly cellId: number;
+  /** First contributing cell, retained for concise compatibility displays. */
   readonly sourceCellId: number;
+  /** Every state-owned cell that will contribute to this expedition. */
+  readonly sourceCellIds: readonly number[];
+  /** Population points that will be transferred when the outpost is founded. */
+  readonly colonists: number;
   readonly score: number;
   readonly setupCost: number;
   readonly requiredReserve: number;
+}
+
+/** A start condition preventing a State from founding an otherwise visible outpost. */
+export interface FrontierCandidateBlockerSummary {
+  readonly stateId: number;
+  readonly reason: string;
 }
 
 export function getFrontierCandidateSummaries(
@@ -50,42 +62,57 @@ export function getFrontierCandidateSummaries(
 ): readonly FrontierCandidateSummary[] {
   const { cells, states } = world.pack;
   if (!isFrontierPattern(world.options?.initialSettlementPattern)) return [];
-  const candidatesByTarget = new Map<string, FrontierCandidateSummary>();
+  const candidates: FrontierCandidateSummary[] = [];
   for (const state of states ?? []) {
-    if (!state?.i || state.removed || hasActiveProject(simulation.frontier, state.i)) continue;
-    for (let sourceCellId = 0; sourceCellId < cells.i.length; sourceCellId++) {
-      if (
-        cells.state[sourceCellId] !== state.i ||
-        (cells.pop[sourceCellId] ?? 0) < (cells.capacity[sourceCellId] ?? 0) * 0.73
-      )
-        continue;
-      for (const { cellId } of findReachableFrontier(cells, simulation.frontier, sourceCellId, state.i)) {
-        if ((cells.capacity[cellId] ?? 0) < MIN_COLONISTS * 2) continue;
-        const candidate: FrontierCandidateSummary = {
-          stateId: state.i,
-          cellId,
-          sourceCellId,
-          score: scoreCandidate(cells, cellId, 0),
-          setupCost: SETUP_COST,
-          requiredReserve: TREASURY_RESERVE + SETUP_COST
-        };
-        const key = `${candidate.stateId}:${candidate.cellId}`;
-        const existing = candidatesByTarget.get(key);
-        if (!existing || candidate.score > existing.score || candidate.sourceCellId < existing.sourceCellId) {
-          candidatesByTarget.set(key, candidate);
-        }
-      }
+    if (!state?.i || state.removed || getStateStartBlocker(state, simulation, state.i)) continue;
+    candidates.push(...getStateCandidates(state.i, cells, simulation.frontier));
+  }
+  return candidates.sort((a, b) => b.score - a.score || a.stateId - b.stateId || a.cellId - b.cellId).slice(0, 8);
+}
+
+/**
+ * Explains why a State without a listed candidate cannot establish an outpost
+ * this January. The panel consumes this rather than implying that a displayed
+ * terrain score alone is an executable order.
+ */
+export function getFrontierCandidateBlockerSummaries(
+  world: WorldContext,
+  simulation: SimulationContext
+): readonly FrontierCandidateBlockerSummary[] {
+  if (!isFrontierPattern(world.options?.initialSettlementPattern)) return [];
+  const blockers: FrontierCandidateBlockerSummary[] = [];
+  for (const state of world.pack.states ?? []) {
+    if (!state?.i || state.removed) continue;
+    const startBlocker = getStateStartBlocker(state, simulation, state.i);
+    if (startBlocker) {
+      blockers.push({ stateId: state.i, reason: startBlocker });
+      continue;
+    }
+    if (!getStateCandidates(state.i, world.pack.cells, simulation.frontier).length) {
+      const available = getBestReachableColonistPool(state.i, world.pack.cells, simulation.frontier);
+      blockers.push({
+        stateId: state.i,
+        reason:
+          available > 0
+            ? `Population reserve ${available.toFixed(1)} / ${MIN_COLONISTS} colonists`
+            : "No connected viable frontier site"
+      });
     }
   }
-  return [...candidatesByTarget.values()]
-    .sort((a, b) => b.score - a.score || a.stateId - b.stateId || a.cellId - b.cellId)
-    .slice(0, 8);
+  return blockers;
 }
 
 type FrontierCandidate = {
   readonly cellId: number;
-  readonly sourceCellId: number;
+  readonly contributions: readonly FrontierContribution[];
+  readonly colonists: number;
   readonly score: number;
+};
+
+type FrontierContribution = {
+  readonly sourceCellId: number;
+  readonly colonists: number;
+  readonly hops: number;
 };
 
 /**
@@ -146,7 +173,7 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
     const candidate = selectCandidate(state.i, input);
     if (!candidate) continue;
 
-    const colonists = transferColonists(cells, candidate.sourceCellId, candidate.cellId);
+    const colonists = transferColonists(cells, candidate);
     if (colonists < MIN_COLONISTS) continue;
 
     state.treasury = Math.max(0, (state.treasury ?? 0) - SETUP_COST);
@@ -242,26 +269,106 @@ function abandonProject(
 
 function selectCandidate(stateId: number, input: FrontierExpansionInput): FrontierCandidate | null {
   const { cells } = input.world.pack;
-  const candidates: FrontierCandidate[] = [];
-  const frontier = input.simulation.frontier;
+  const candidates = getStateCandidates(stateId, cells, input.simulation.frontier).map(candidate => ({
+    cellId: candidate.cellId,
+    contributions: candidate.contributions,
+    colonists: candidate.colonists,
+    score: candidate.score + input.rng.rand()
+  }));
+
+  return candidates.sort((a, b) => b.score - a.score || a.cellId - b.cellId)[0] ?? null;
+}
+
+type InternalFrontierCandidateSummary = FrontierCandidateSummary & {
+  readonly contributions: readonly FrontierContribution[];
+};
+
+function getStateCandidates(
+  stateId: number,
+  cells: WorldContext["pack"]["cells"],
+  frontier: FrontierSimulationState
+): readonly InternalFrontierCandidateSummary[] {
+  const contributionsByTarget = new Map<number, FrontierContribution[]>();
 
   for (let sourceCellId = 0; sourceCellId < cells.i.length; sourceCellId++) {
     if (cells.state[sourceCellId] !== stateId) continue;
-    const sourcePopulation = cells.pop[sourceCellId] ?? 0;
-    const sourceCapacity = cells.capacity[sourceCellId] ?? 0;
-    if (sourcePopulation < sourceCapacity * 0.73) continue;
+    const available = estimateSourceContribution(cells.pop[sourceCellId] ?? 0, cells.capacity[sourceCellId] ?? 0);
+    if (available <= 0) continue;
 
     for (const { cellId, hops } of findReachableFrontier(cells, frontier, sourceCellId, stateId)) {
-      const colonistCapacity = estimateColonistCapacity(sourcePopulation, sourceCapacity, cells.capacity[cellId] ?? 0);
-      if (colonistCapacity < MIN_COLONISTS) continue;
-      const score = scoreCandidate(cells, cellId, input.rng.rand()) - hops * 9;
-      candidates.push({ cellId, sourceCellId, score });
+      if (!isEligibleTarget(cells, frontier, cellId)) continue;
+      const contributions = contributionsByTarget.get(cellId) ?? [];
+      contributions.push({ sourceCellId, colonists: available, hops });
+      contributionsByTarget.set(cellId, contributions);
     }
   }
 
-  return (
-    candidates.sort((a, b) => b.score - a.score || a.cellId - b.cellId || a.sourceCellId - b.sourceCellId)[0] ?? null
-  );
+  const candidates: InternalFrontierCandidateSummary[] = [];
+  for (const [cellId, rawContributions] of contributionsByTarget) {
+    const targetLimit = (cells.capacity[cellId] ?? 0) * 0.25;
+    let remaining = targetLimit;
+    const contributions: FrontierContribution[] = [];
+    for (const contribution of [...rawContributions].sort(
+      (a, b) => a.hops - b.hops || b.colonists - a.colonists || a.sourceCellId - b.sourceCellId
+    )) {
+      if (remaining <= 0) break;
+      const colonists = Math.min(contribution.colonists, remaining);
+      if (colonists <= 0) continue;
+      contributions.push({ ...contribution, colonists });
+      remaining -= colonists;
+    }
+    const colonists = contributions.reduce((total, contribution) => total + contribution.colonists, 0);
+    if (colonists < MIN_COLONISTS) continue;
+    const sourceCellIds = contributions.map(contribution => contribution.sourceCellId);
+    const sourceCellId = sourceCellIds[0];
+    if (sourceCellId === undefined) continue;
+    candidates.push({
+      stateId,
+      cellId,
+      sourceCellId,
+      sourceCellIds,
+      contributions,
+      colonists,
+      score: scoreCandidate(cells, cellId, 0) - Math.min(...contributions.map(contribution => contribution.hops)) * 9,
+      setupCost: SETUP_COST,
+      requiredReserve: TREASURY_RESERVE + SETUP_COST
+    });
+  }
+  return candidates;
+}
+
+function getBestReachableColonistPool(
+  stateId: number,
+  cells: WorldContext["pack"]["cells"],
+  frontier: FrontierSimulationState
+): number {
+  const pools = new Map<number, number>();
+  for (let sourceCellId = 0; sourceCellId < cells.i.length; sourceCellId++) {
+    if (cells.state[sourceCellId] !== stateId) continue;
+    const available = estimateSourceContribution(cells.pop[sourceCellId] ?? 0, cells.capacity[sourceCellId] ?? 0);
+    if (available <= 0) continue;
+    for (const { cellId } of findReachableFrontier(cells, frontier, sourceCellId, stateId)) {
+      if (!isEligibleTarget(cells, frontier, cellId)) continue;
+      const targetLimit = (cells.capacity[cellId] ?? 0) * 0.25;
+      pools.set(cellId, Math.min(targetLimit, (pools.get(cellId) ?? 0) + available));
+    }
+  }
+  return Math.max(0, ...pools.values());
+}
+
+function getStateStartBlocker(
+  state: { treasury?: number; foodStress?: number; diplomacy?: unknown },
+  simulation: SimulationContext,
+  stateId: number
+): string | null {
+  if (hasActiveProject(simulation.frontier, stateId)) return "An outpost is already under support";
+  if (isAtWar(state)) return "At war";
+  if (hasSeriousFoodStress(state.foodStress)) return "Severe food stress";
+  const priorBudget = simulation.frontier.budgetByState[stateId] ?? 0;
+  if (priorBudget < TREASURY_RESERVE + SETUP_COST)
+    return `Treasury reserve ${priorBudget.toFixed(0)} / ${TREASURY_RESERVE + SETUP_COST}`;
+  if ((state.treasury ?? 0) < SETUP_COST) return `Setup funds ${(state.treasury ?? 0).toFixed(0)} / ${SETUP_COST}`;
+  return null;
 }
 
 function findReachableFrontier(
@@ -315,27 +422,29 @@ function scoreCandidate(cells: WorldContext["pack"]["cells"], cellId: number, ra
   );
 }
 
-function transferColonists(cells: WorldContext["pack"]["cells"], sourceCellId: number, targetCellId: number): number {
-  const sourcePopulation = cells.pop[sourceCellId] ?? 0;
-  const sourceCapacity = cells.capacity[sourceCellId] ?? 0;
-  const targetCapacity = cells.capacity[targetCellId] ?? 0;
-  const colonists = estimateColonistCapacity(sourcePopulation, sourceCapacity, targetCapacity);
-  if (colonists < MIN_COLONISTS || sourcePopulation <= 0) return 0;
-
-  const ratio = colonists / sourcePopulation;
-  for (const column of ["children", "maleAdults", "femaleAdults", "elders"] as const) {
-    const moved = cells[column][sourceCellId] * ratio;
-    cells[column][sourceCellId] -= moved;
-    cells[column][targetCellId] += moved;
+function transferColonists(cells: WorldContext["pack"]["cells"], candidate: FrontierCandidate): number {
+  if (candidate.colonists < MIN_COLONISTS) return 0;
+  let transferred = 0;
+  for (const contribution of candidate.contributions) {
+    const sourcePopulation = cells.pop[contribution.sourceCellId] ?? 0;
+    if (sourcePopulation <= 0) continue;
+    const colonists = Math.min(contribution.colonists, sourcePopulation);
+    const ratio = colonists / sourcePopulation;
+    for (const column of ["children", "maleAdults", "femaleAdults", "elders"] as const) {
+      const moved = cells[column][contribution.sourceCellId] * ratio;
+      cells[column][contribution.sourceCellId] -= moved;
+      cells[column][candidate.cellId] += moved;
+    }
+    cells.pop[contribution.sourceCellId] -= colonists;
+    cells.pop[candidate.cellId] += colonists;
+    transferred += colonists;
   }
-  cells.pop[sourceCellId] -= colonists;
-  cells.pop[targetCellId] += colonists;
-  return colonists;
+  return transferred;
 }
 
-function estimateColonistCapacity(sourcePopulation: number, sourceCapacity: number, targetCapacity: number): number {
-  const surplus = sourcePopulation - sourceCapacity * 0.65;
-  return Math.min(12, surplus * 0.5, targetCapacity * 0.25);
+function estimateSourceContribution(sourcePopulation: number, sourceCapacity: number): number {
+  const surplus = sourcePopulation - sourceCapacity * SOURCE_RETENTION_RATIO;
+  return Math.max(0, Math.min(12, surplus * 0.5));
 }
 
 function ensureFrontierState(simulation: SimulationContext, cellCount: number): FrontierSimulationState {

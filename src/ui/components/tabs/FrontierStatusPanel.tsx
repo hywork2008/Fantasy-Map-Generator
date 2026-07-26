@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { FRONTIER_STAGE } from "../../../context/simulationContext";
-import { getFrontierCandidateSummaries } from "../../../generators/frontierExpansion";
+import {
+  getFrontierCandidateBlockerSummaries,
+  getFrontierCandidateSummaries
+} from "../../../generators/frontierExpansion";
 import { formatDisaster } from "../../../generators/frontierGovernance";
 
 const STAGE_LABELS: Record<number, string> = {
@@ -22,6 +25,7 @@ export function FrontierStatusPanel() {
   }, []);
 
   const candidates = getFrontierCandidateSummaries(world, simulation);
+  const blockers = getFrontierCandidateBlockerSummaries(world, simulation);
   const projects = Object.values(simulation.frontier.projects).sort((a, b) => a.cellId - b.cellId);
   const isFrontierMap =
     world.options.initialSettlementPattern === "frontier" || world.options.initialSettlementPattern === "scattered";
@@ -78,13 +82,27 @@ export function FrontierStatusPanel() {
       )}
       {candidates.length > 0 && (
         <div>
-          <small>Best candidates (read-only):</small>
+          <small>Viable candidates:</small>
           {candidates.slice(0, 3).map(candidate => {
             const state = world.pack.states[candidate.stateId];
             return (
               <small key={`${candidate.stateId}:${candidate.cellId}`} style={{ display: "block" }}>
-                {state?.name ?? `State ${candidate.stateId}`}: cell {candidate.cellId} from {candidate.sourceCellId} —
-                score {candidate.score.toFixed(0)}, setup {candidate.setupCost}, reserve {candidate.requiredReserve}
+                {state?.name ?? `State ${candidate.stateId}`}: cell {candidate.cellId} from{" "}
+                {candidate.sourceCellIds.join(", ")} — {candidate.colonists.toFixed(1)} colonists; score{" "}
+                {candidate.score.toFixed(0)}, setup {candidate.setupCost}, reserve {candidate.requiredReserve}
+              </small>
+            );
+          })}
+        </div>
+      )}
+      {blockers.length > 0 && (
+        <div>
+          <small>Blocked expansion:</small>
+          {blockers.slice(0, 3).map(blocker => {
+            const state = world.pack.states[blocker.stateId];
+            return (
+              <small key={blocker.stateId} style={{ display: "block" }}>
+                {state?.name ?? `State ${blocker.stateId}`}: {blocker.reason}
               </small>
             );
           })}

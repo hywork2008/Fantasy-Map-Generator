@@ -6,7 +6,11 @@ import {
 } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import { createRNGService } from "../utils/probabilityUtils";
-import { advanceFrontierExpansion, getFrontierCandidateSummaries } from "./frontierExpansion";
+import {
+  advanceFrontierExpansion,
+  getFrontierCandidateBlockerSummaries,
+  getFrontierCandidateSummaries
+} from "./frontierExpansion";
 
 function createWorld(treasury = 100): WorldContext {
   return {
@@ -182,6 +186,61 @@ describe("Frontier Expansion Phase 3", () => {
     expect(result.established).toEqual([2]);
     expect(simulation.frontier.cellStages[1]).toBe(FRONTIER_STAGE.wilderness);
     expect(simulation.frontier.cellStages[2]).toBe(FRONTIER_STAGE.outpost);
+  });
+
+  it("pools several small local surpluses into one viable frontier expedition", () => {
+    const world = createWorld();
+    world.pack.cells = {
+      ...world.pack.cells,
+      i: new Uint16Array([0, 1, 2]),
+      c: [[2], [2], [0, 1]],
+      state: new Uint16Array([1, 1, 0]),
+      province: new Uint16Array([1, 1, 0]),
+      pop: new Float32Array([20, 20, 0]),
+      capacity: new Float32Array([20, 20, 50]),
+      children: new Float32Array([5, 5, 0]),
+      maleAdults: new Float32Array([5, 5, 0]),
+      femaleAdults: new Float32Array([5, 5, 0]),
+      elders: new Float32Array([5, 5, 0]),
+      danger: new Uint8Array([0, 0, 10]),
+      h: new Uint8Array([30, 30, 30]),
+      s: new Uint8Array([50, 50, 50]),
+      r: new Uint16Array([0, 0, 1]),
+      harbor: new Uint8Array([0, 0, 0]),
+      conf: new Uint8Array([0, 0, 0]),
+      burg: new Uint16Array([0, 0, 0]),
+      routes: { 0: {}, 1: {}, 2: {} }
+    };
+    const simulation = createSimulation(100, 100, 3);
+
+    const candidates = getFrontierCandidateSummaries(world, simulation);
+    expect(candidates).toEqual([expect.objectContaining({ cellId: 2, sourceCellIds: [0, 1], colonists: 7 })]);
+
+    const result = advance(world, simulation);
+
+    expect(result.established).toEqual([2]);
+    expect(world.pack.cells.pop[0]).toBeCloseTo(16.5);
+    expect(world.pack.cells.pop[1]).toBeCloseTo(16.5);
+    expect(world.pack.cells.pop[2]).toBeCloseTo(7);
+  });
+
+  it("does not advertise a candidate when its connected population reserve cannot form an expedition", () => {
+    const world = createWorld();
+    world.pack.cells = {
+      ...world.pack.cells,
+      pop: new Float32Array([20, 0]),
+      capacity: new Float32Array([20, 50]),
+      children: new Float32Array([5, 0]),
+      maleAdults: new Float32Array([5, 0]),
+      femaleAdults: new Float32Array([5, 0]),
+      elders: new Float32Array([5, 0])
+    };
+    const simulation = createSimulation(100);
+
+    expect(getFrontierCandidateSummaries(world, simulation)).toEqual([]);
+    expect(getFrontierCandidateBlockerSummaries(world, simulation)).toEqual([
+      expect.objectContaining({ stateId: 1, reason: "Population reserve 3.5 / 4 colonists" })
+    ]);
   });
 
   it("does not re-evaluate a project twice in the same calendar year", () => {
