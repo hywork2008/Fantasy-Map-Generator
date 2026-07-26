@@ -5,6 +5,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 
 import { drawTemperature } from "../renderers";
+import { refreshLabeledContourLabels } from "../renderers/draw-heightmap";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
@@ -44,6 +45,12 @@ const renderScaleBar = () => {
   fitScaleBar(worldContext, viewContext, appServices, view.scaleBar, view.svgWidth, view.svgHeight);
 };
 
+const refreshHeightLabels = () => {
+  if (viewContext.renderMode === "svg" && layerIsOn("toggleHeight")) {
+    refreshLabeledContourLabels(viewContext);
+  }
+};
+
 export const unitsEditorActions = {
   changeDistanceUnit(_value: string): void {
     renderScaleBar();
@@ -81,8 +88,9 @@ export const unitsEditorActions = {
   },
 
   changeHeightExponent(): void {
-    document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true } }));
+    document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true, biomes: true } }));
     if (layerIsOn("toggleTemperature")) drawTemperature(worldContext, viewContext, appServices);
+    refreshHeightLabels();
   },
 
   changeTemperatureScale(): void {
@@ -125,8 +133,9 @@ export const unitsEditorActions = {
     localStorage.removeItem("urbanDensity");
 
     calculateFriendlyGridSize();
-    document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true } }));
+    document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true, biomes: true } }));
     renderScaleBar();
+    refreshHeightLabels();
   },
 
   addRuler(): void {

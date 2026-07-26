@@ -48,7 +48,7 @@ import { loadMapFromURL, showUploadErrorMessage, uploadMap } from "./io/load";
 import { initiateAutosave } from "./io/save";
 import { renderGroupCOAs } from "./renderers/draw-emblems";
 import { refreshLabeledContourLabels, refreshVisibleLabeledContourPaths } from "./renderers/draw-heightmap";
-import { CoordinatesRenderer, drawCalendar, drawScaleBar, fitScaleBar } from "./renderers/index";
+import { BiomesRenderer, CoordinatesRenderer, drawCalendar, drawScaleBar, fitScaleBar } from "./renderers/index";
 import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
 import { DeckGlRenderer } from "./renderers/webgl/deckRenderer";
@@ -57,7 +57,12 @@ import { bindSimulationBurgState, resetSimulationBurgState } from "./runtime/sim
 import { bindSimulationCellColumns } from "./runtime/simulationCellColumns";
 import { bindSimulationMilitaryState, resetSimulationMilitaryState } from "./runtime/simulationMilitaryState";
 import { bindSimulationStateState, resetSimulationStateState } from "./runtime/simulationStateState";
-import { dispatchWorldGenerate, type GenerateRequest, registerWorldGenerateHandler } from "./runtime/worldRuntime";
+import {
+  dispatchWorldGenerate,
+  type GenerateRequest,
+  legacyMutation,
+  registerWorldGenerateHandler
+} from "./runtime/worldRuntime";
 import { clearMainTip, tip } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
 import { useDebugSnapshotState } from "./store/debugSnapshotState";
@@ -342,10 +347,22 @@ export async function initMain(drawMap: boolean = true): Promise<void> {
     regenerateMap((e as CustomEvent<{ seed?: string } | undefined>).detail);
   });
   document.addEventListener("fmg:world-recalculate", (e: Event) => {
-    const { coords, temps, prec } = (e as CustomEvent<{ coords?: boolean; temps?: boolean; prec?: boolean }>).detail;
+    const { coords, temps, prec, biomes } = (
+      e as CustomEvent<{ coords?: boolean; temps?: boolean; prec?: boolean; biomes?: boolean }>
+    ).detail;
     if (coords) calculateMapCoordinates();
     if (temps) calculateTemperatures();
     if (prec) generatePrecipitation();
+    if (biomes) {
+      legacyMutation(() => {
+        Biomes.define(getWorldState());
+        return { result: undefined, topics: ["map.physical"] };
+      });
+
+      if (viewContext.renderMap && viewContext.renderMode === "svg" && layerIsOn("toggleBiomes")) {
+        BiomesRenderer.render(worldContext, viewContext, appServices);
+      }
+    }
   });
   document.addEventListener("fmg:invoke-active-zooming", invokeActiveZooming);
   document.addEventListener("fmg:fit-map-view", fitMapView);
