@@ -5,12 +5,13 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 
 import { drawTemperature } from "../renderers";
+import { refreshLabeledContourLabels } from "../renderers/draw-heightmap";
 import { drawScaleBar, fitScaleBar } from "../renderers/index";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { modules, rulers, setRulers } from "../store/editorState";
-import { useOptionsState } from "../store/optionsState";
+import { DEFAULT_UNIT_OPTIONS, DEFAULT_WORLD_SCALE_OPTIONS, useOptionsState } from "../store/optionsState";
 import { getUnitsEditorState, setUnitsEditorState } from "../store/unitsEditorState";
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { findCell } from "../utils";
@@ -42,6 +43,12 @@ export function editUnits(): void {
 const renderScaleBar = () => {
   drawScaleBar(worldContext, viewContext, appServices, view.scaleBar, view.scale);
   fitScaleBar(worldContext, viewContext, appServices, view.scaleBar, view.svgWidth, view.svgHeight);
+};
+
+const refreshHeightLabels = () => {
+  if (viewContext.renderMode === "svg" && layerIsOn("toggleHeight")) {
+    refreshLabeledContourLabels(viewContext);
+  }
 };
 
 export const unitsEditorActions = {
@@ -81,8 +88,9 @@ export const unitsEditorActions = {
   },
 
   changeHeightExponent(): void {
-    document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true } }));
+    document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true, biomes: true } }));
     if (layerIsOn("toggleTemperature")) drawTemperature(worldContext, viewContext, appServices);
+    refreshHeightLabels();
   },
 
   changeTemperatureScale(): void {
@@ -103,25 +111,16 @@ export const unitsEditorActions = {
 
   restoreDefaultUnits(): void {
     const options = useOptionsState.getState();
-    const metric = unitSystemPresets.find(p => p.id === "metric")!;
-    worldContext.distanceScale = 3;
+    worldContext.distanceScale = DEFAULT_WORLD_SCALE_OPTIONS.distanceScale;
 
     options.setOptions({
-      distanceScale: 3,
-      distanceUnit: metric.distanceUnit,
-      heightUnit: metric.heightUnit,
-      temperatureScale: metric.temperatureScale,
-      weightUnit: metric.weightUnit,
-      areaUnit: "square",
-      heightExponent: 1.8,
-      populationRate: 1000,
-      urbanization: 1,
-      urbanDensity: 10
+      ...DEFAULT_WORLD_SCALE_OPTIONS,
+      ...DEFAULT_UNIT_OPTIONS
     });
 
-    worldContext.populationRate = 1000;
-    worldContext.urbanization = 1;
-    worldContext.urbanDensity = 10;
+    worldContext.populationRate = DEFAULT_WORLD_SCALE_OPTIONS.populationRate;
+    worldContext.urbanization = DEFAULT_WORLD_SCALE_OPTIONS.urbanization;
+    worldContext.urbanDensity = DEFAULT_WORLD_SCALE_OPTIONS.urbanDensity;
 
     localStorage.removeItem("distanceUnit");
     localStorage.removeItem("heightUnit");
@@ -134,8 +133,9 @@ export const unitsEditorActions = {
     localStorage.removeItem("urbanDensity");
 
     calculateFriendlyGridSize();
-    document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true } }));
+    document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true, biomes: true } }));
     renderScaleBar();
+    refreshHeightLabels();
   },
 
   addRuler(): void {

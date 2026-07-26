@@ -22,7 +22,7 @@ export const ProvincesRenderer = {
     const bodyPaths = new Array(provinces.length - 1);
     const isolines: Record<string, { fill?: string; waterGap?: string }> = getIsolines(
       getScopedGraph(pack, focusScope),
-      scopedGetType(focusScope, cellId => cells.province[cellId]),
+      scopedGetType(focusScope, cellId => (cells.h[cellId] >= 20 ? cells.province[cellId] : 0)),
       { fill: true, waterGap: true }
     );
     Object.entries(isolines).forEach(([index, { fill, waterGap }]) => {

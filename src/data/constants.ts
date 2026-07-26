@@ -218,10 +218,3 @@ export const TemperatureRenderer = {
   /** Minimum relaxed chain length to render an isotherm path. */
   MIN_CHAIN_LENGTH: 6
 } as const;
-
-// ---------------------------------------------------------------------------
-// UI theme constants
-// ---------------------------------------------------------------------------
-
-/** Default dialog theme color (HSL hex). Applied when no user preference is stored. */
-export const THEME_COLOR = "rgb(109, 149, 201)";

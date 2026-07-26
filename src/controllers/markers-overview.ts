@@ -5,7 +5,6 @@ import { worldContext } from "../context/worldContext";
 import { MarkersRenderer } from "../renderers";
 import { invertMarkerFlags, patchMarker, removeMarker, removeUnlockedMarkers } from "../runtime/worldRuntime";
 import { viewLayerService as view } from "../services/viewLayerService";
-import { useMarkersOverviewState } from "../store/markersOverviewState";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { getLatitude, getLongitude } from "../utils";
 import { EditorBus } from "../utils/editorBus";
@@ -18,7 +17,6 @@ export function overviewMarkers(): void {
   closeDialogs("#markersOverview, .stable");
   if (!layerIsOn("toggleMarkers")) toggleMarkers();
 
-  useMarkersOverviewState.getState().refresh();
   openDialog("markersOverview");
 }
 

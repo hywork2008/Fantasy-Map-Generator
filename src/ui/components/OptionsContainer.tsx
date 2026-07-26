@@ -26,7 +26,12 @@ export const OptionsContainer: React.FC = () => {
   const { isMenuOpen, setMenuOpen, activeMenu, setActiveMenu, isCustomizationMode, setCustomizationMode } =
     useViewState();
   const uiSize = useOptionsState(state => state.uiSize);
-  const { containerRef, resizeHandleRef, bringToFront } = useDraggable({ handleSelector: ".tab" });
+  // Every visible part of the compact tab bar is a button, so permit it to
+  // start a drag while retaining ordinary click behavior when it is not moved.
+  const { containerRef, resizeHandleRef, bringToFront } = useDraggable({
+    handleSelector: ".tab",
+    allowInteractiveHandle: true
+  });
 
   const [showGlow, setShowGlow] = useState(() => !localStorage.getItem("disable_click_arrow_tooltip"));
 

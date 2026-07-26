@@ -1,8 +1,12 @@
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { registerOverviewDialogRefreshers } from "./dialogs/overviewDialogRefresh";
+import { initRangeInputStyles } from "./rangeInputStyles";
 
 export function initReactUI(container?: HTMLElement) {
+  registerOverviewDialogRefreshers();
+
   const rootElement = container
     ? container.querySelector("#react-ui-root") || container.ownerDocument.getElementById("react-ui-root")
     : document.getElementById("react-ui-root");
@@ -15,4 +19,5 @@ export function initReactUI(container?: HTMLElement) {
   flushSync(() => {
     root.render(<App />);
   });
+  initRangeInputStyles();
 }

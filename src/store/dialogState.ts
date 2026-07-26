@@ -3,6 +3,32 @@ import { createStore } from "zustand/vanilla";
 
 export type DialogType = "alert" | "confirm" | "rich";
 
+export type DialogBeforeOpenHandler = () => void;
+
+const beforeOpenHandlers = new Map<string, Set<DialogBeforeOpenHandler>>();
+
+/**
+ * Register synchronous work that must finish before a hidden dialog is made visible.
+ *
+ * Dialog content commonly derives rows from mutable world data, so calling its store's
+ * `refresh()` after opening can briefly render stale values. Handlers run only for a
+ * hidden-to-visible transition; reconfiguring an already open dialog does not refresh it.
+ */
+export function registerDialogBeforeOpen(id: string, handler: DialogBeforeOpenHandler): () => void {
+  const handlers = beforeOpenHandlers.get(id) ?? new Set<DialogBeforeOpenHandler>();
+  handlers.add(handler);
+  beforeOpenHandlers.set(id, handlers);
+
+  return () => {
+    handlers.delete(handler);
+    if (!handlers.size) beforeOpenHandlers.delete(id);
+  };
+}
+
+function runDialogBeforeOpenHandlers(id: string): void {
+  for (const handler of beforeOpenHandlers.get(id) ?? []) handler();
+}
+
 export type DialogConfig = {
   id: string;
   type?: DialogType;
@@ -49,12 +75,14 @@ export interface DialogState {
   setPromptConfig: (config: PromptConfig | null) => void;
 }
 
-export const dialogStore = createStore<DialogState>(set => ({
+export const dialogStore = createStore<DialogState>((set, get) => ({
   openDialogs: new Set(),
   dialogConfigs: {},
   alertConfig: null,
   promptConfig: null,
-  openDialog: (id, config) =>
+  openDialog: (id, config) => {
+    if (!get().openDialogs.has(id)) runDialogBeforeOpenHandlers(id);
+
     set(state => {
       const newSet = new Set(state.openDialogs);
       newSet.add(id);
@@ -71,7 +99,8 @@ export const dialogStore = createStore<DialogState>(set => ({
         openDialogs: newSet,
         dialogConfigs: newConfigs
       };
-    }),
+    });
+  },
   closeDialog: id => {
     let callback: (() => void) | undefined;
     let afterClose: (() => void) | undefined;

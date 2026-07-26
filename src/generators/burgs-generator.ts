@@ -26,6 +26,7 @@ import {
   getChronicleContestedBurgs,
   normalizeHabitability
 } from "./frontierAnalysis";
+import { getInitialPolityCapitalCount, selectInitialPolityCapitalNodes } from "./initialPolities";
 import { Names } from "./names-generator";
 import { Rivers } from "./river-generator";
 import { Routes } from "./routes-generator";
@@ -159,6 +160,42 @@ class BurgModule {
     burg.y = y;
   }
 
+  /**
+   * Builds a port at one already-established burg when its coast or river is
+   * navigable. Unlike `shift`, this preserves every existing port assignment.
+   */
+  developPort(burg: Burg): boolean {
+    if (!burg.i || burg.removed || burg.port) return false;
+    const { cells, features } = this.worldContext.pack;
+    const haven = cells.haven[burg.cell];
+
+    if (haven) {
+      const feature = features[cells.f[haven]];
+      if (!cells.harbor[burg.cell] || !feature || feature.cells <= 1 || NON_NAVIGABLE_LAKE_GROUPS.has(feature.group)) {
+        return false;
+      }
+      if (this.worldContext.grid.cells.temp[cells.g[burg.cell]] <= 0) return false;
+      const portFeatureId =
+        feature.type === "lake" && feature.outlet
+          ? (Rivers.resolveLakeDrainFeature(feature.i) ?? feature.i)
+          : feature.i;
+      this.promoteToPort(
+        { burg, haven, portFeatureId, landFeature: cells.f[burg.cell], preferred: cells.harbor[burg.cell] === 1 },
+        new Map(this.worldContext.pack.rivers.map(river => [river.i, river]))
+      );
+      return true;
+    }
+
+    if (!Rivers.isNavigable(burg.cell)) return false;
+    const portFeatureId = Rivers.resolveDrainFeature(burg.cell);
+    if (!portFeatureId) return false;
+    this.promoteToPort(
+      { burg, haven: null, portFeatureId, landFeature: cells.f[burg.cell], preferred: true },
+      new Map(this.worldContext.pack.rivers.map(river => [river.i, river]))
+    );
+    return true;
+  }
+
   private getCloseToEdgePoint(cell1: number, cell2: number): [number, number] {
     const { cells, vertices } = this.worldContext.pack;
     const [x0, y0] = cells.p[cell1];
@@ -228,7 +265,16 @@ class BurgModule {
     let burgs: Burg[] = [0 as unknown as Burg]; // burgs[0] is a sentinel 0, array is 1-indexed
     cells.burg = new Uint16Array(cells.i.length);
 
-    const populatedCells = cells.i.filter(i => cells.s[i] > 0 && cells.culture[i]);
+    // The Settlement Foundation owns non-standard Burg candidates. Standard
+    // maps remain the legacy adapter, including their all-suitable-cell pool.
+    const preservesLegacyCandidates = this.worldContext.options.initialSettlementPattern === "standard";
+    const plannedNodes = preservesLegacyCandidates ? [] : (pack.settlementFoundation?.nodes ?? []);
+    const plannedNodeByCell = new Map(plannedNodes.map(node => [node.cell, node]));
+    const populatedCells = cells.i.filter(
+      i =>
+        cells.culture[i] &&
+        (plannedNodeByCell.has(i) || cells.pop[i] > 0 || (preservesLegacyCandidates && cells.s[i] > 0))
+    );
     if (!populatedCells.length) {
       ERROR && console.error("There is no populated cells with culture assigned. Cannot generate states");
       pack.burgs = burgs;
@@ -238,6 +284,30 @@ class BurgModule {
     let burgsQuadtree = quadtree();
 
     const generateCapitals = () => {
+      if (plannedNodes.length) {
+        const capitalsNumber = getInitialPolityCapitalCount(
+          pack.settlementFoundation!,
+          useOptionsState.getState().statesNumber
+        );
+        const plannedCapitals = selectInitialPolityCapitalNodes(pack.settlementFoundation!, cells.p, capitalsNumber);
+        for (const node of plannedCapitals) {
+          const cell = node.cell;
+          const [x, y] = cells.p[cell];
+          burgs.push({ cell, x, y });
+        }
+        burgs.forEach((burg, burgId) => {
+          if (!burgId) return;
+          burg.i = burgId;
+          burg.state = burgId;
+          burg.culture = cells.culture[burg.cell];
+          burg.name = Names.getCultureShort(worldContext, viewContext, appServices, burg.culture);
+          burg.feature = cells.f[burg.cell];
+          burg.capital = 1;
+          cells.burg[burg.cell] = burgId;
+        });
+        return;
+      }
+
       const randomize = (score: number) => score * (0.5 + Math.random() * 0.5);
       const score = new Int16Array(cells.s.map(randomize));
       const sorted = populatedCells.sort((a, b) => score[b] - score[a]);
@@ -278,7 +348,13 @@ class BurgModule {
 
     const generateTowns = () => {
       const burgsNumber = getTownsNumber();
-      const placedCells = this.placeTowns(populatedCells, burgsNumber, burgsQuadtree);
+      const placedCells = plannedNodes.length
+        ? [...plannedNodes]
+            .filter(node => !cells.burg[node.cell])
+            .sort((a, b) => b.score - a.score)
+            .slice(0, burgsNumber)
+            .map(node => node.cell)
+        : this.placeTowns(populatedCells, burgsNumber, burgsQuadtree);
 
       for (const cell of placedCells) {
         const [x, y] = cells.p[cell];
@@ -857,7 +933,14 @@ class BurgModule {
     return previewGeneratorsMap[group.preview](burg);
   }
 
-  add([x, y]: [number, number]): { burgId: number; newRoute?: Route } {
+  add(
+    [x, y]: [number, number],
+    addOptions: {
+      routeStateId?: number;
+      allowExternalRouteFallback?: boolean;
+      developPort?: boolean;
+    } = {}
+  ): { burgId: number; newRoute?: Route } {
     const { pack, options } = this.worldContext;
     const { cells } = pack;
 
@@ -898,7 +981,24 @@ class BurgModule {
     if (this.worldContext === worldContext) bindSimulationBurg(burg, burgId, simulationContext);
     cells.burg[cellId as number] = burgId;
 
-    const newRoute = Routes.connect(cellId as number);
+    if (addOptions.developPort) this.developPort(burg);
+
+    // A new Burg joins the existing network immediately. Frontier outposts and
+    // rural settlements do not call this method, so they stay route-free.
+    const seaRoute =
+      addOptions.routeStateId === undefined || !burg.port
+        ? undefined
+        : Routes.connectPort(cellId as number, addOptions.routeStateId);
+    const stateRoute =
+      seaRoute || Routes.hasSeaRoute(cellId as number) || addOptions.routeStateId === undefined
+        ? undefined
+        : Routes.connectFrontier(cellId as number, addOptions.routeStateId);
+    const newRoute =
+      seaRoute ??
+      stateRoute ??
+      (addOptions.routeStateId === undefined || addOptions.allowExternalRouteFallback
+        ? Routes.connect(cellId as number)
+        : undefined);
 
     return { burgId, newRoute };
   }

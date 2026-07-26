@@ -37,6 +37,7 @@ import { Provinces } from "./generators/provinces-generator";
 import { Religions } from "./generators/religions-generator";
 import { Rivers } from "./generators/river-generator";
 import { Routes } from "./generators/routes-generator";
+import { applyInitialSettlementPattern } from "./generators/settlementPattern";
 import { States } from "./generators/states-generator";
 import { Threats } from "./generators/threats-generator";
 import { initSimulationClock } from "./generators/timeEngine";
@@ -46,7 +47,8 @@ import { ldb } from "./io/ldb";
 import { loadMapFromURL, showUploadErrorMessage, uploadMap } from "./io/load";
 import { initiateAutosave } from "./io/save";
 import { renderGroupCOAs } from "./renderers/draw-emblems";
-import { CoordinatesRenderer, drawCalendar, drawScaleBar, fitScaleBar } from "./renderers/index";
+import { refreshLabeledContourLabels, refreshVisibleLabeledContourPaths } from "./renderers/draw-heightmap";
+import { BiomesRenderer, CoordinatesRenderer, drawCalendar, drawScaleBar, fitScaleBar } from "./renderers/index";
 import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
 import { DeckGlRenderer } from "./renderers/webgl/deckRenderer";
@@ -55,12 +57,17 @@ import { bindSimulationBurgState, resetSimulationBurgState } from "./runtime/sim
 import { bindSimulationCellColumns } from "./runtime/simulationCellColumns";
 import { bindSimulationMilitaryState, resetSimulationMilitaryState } from "./runtime/simulationMilitaryState";
 import { bindSimulationStateState, resetSimulationStateState } from "./runtime/simulationStateState";
-import { dispatchWorldGenerate, type GenerateRequest, registerWorldGenerateHandler } from "./runtime/worldRuntime";
+import {
+  dispatchWorldGenerate,
+  type GenerateRequest,
+  legacyMutation,
+  registerWorldGenerateHandler
+} from "./runtime/worldRuntime";
 import { clearMainTip, tip } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
 import { useDebugSnapshotState } from "./store/debugSnapshotState";
 import { dialogStore } from "./store/dialogState";
-import { type OptionsState, useOptionsState } from "./store/optionsState";
+import { DEFAULT_UI_OPTIONS, type OptionsState, useOptionsState } from "./store/optionsState";
 import type { Grid } from "./types/Grid";
 import type { Burg, BurgGroup } from "./types/models";
 import {
@@ -139,6 +146,7 @@ export function fitMapView(): void {
   viewContext.scale = scale;
   viewContext.viewX = viewX;
   viewContext.viewY = viewY;
+  document.dispatchEvent(new CustomEvent("fmg:zoom-level-changed", { detail: { scale } }));
 
   // Set viewbox transform synchronously to avoid a one-frame flash at identity.
   viewContext.viewbox.attr("transform", `translate(${tx} ${ty}) scale(${z})`);
@@ -162,6 +170,8 @@ const options = {
   temperatureSouthPole: -15,
   stateLabelsMode: "auto",
   showBurgPreview: true,
+  // Phase 0 compatibility baseline. Phase 1 makes this drive settlement placement.
+  initialSettlementPattern: "standard" as const,
   burgs: {
     groups: (safeParseJSON(localStorage.getItem("burg-groups") ?? "") as BurgGroup[] | null) || Burgs.getDefaultGroups()
   }
@@ -252,6 +262,7 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
     }
 
     if (didScaleChange) {
+      document.dispatchEvent(new CustomEvent("fmg:zoom-level-changed", { detail: { scale } }));
       drawScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, scale);
       fitScaleBar(
         worldContext,
@@ -269,7 +280,11 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
   });
 }
 
-const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([1, 20]).on("zoom", zoomRaf);
+const zoom = d3
+  .zoom<SVGSVGElement, unknown>()
+  .scaleExtent([DEFAULT_UI_OPTIONS.zoomExtentMin, DEFAULT_UI_OPTIONS.zoomExtentMax])
+  .on("zoom", zoomRaf)
+  .on("end", refreshLabeledContourLabelsAfterZoom);
 
 viewContext.zoom = zoom;
 viewContext.scale = scale;
@@ -278,11 +293,16 @@ viewContext.viewY = viewY;
 
 // ─── Map dimensions and settings ──────────────────────────────────────────────
 
-const { populationRate, distanceScale, urbanization } = useOptionsState.getState();
-
 applyStoredOptions();
 
-const { mapWidth: graphWidth, mapHeight: graphHeight } = useOptionsState.getState();
+const {
+  populationRate,
+  distanceScale,
+  urbanization,
+  urbanDensity,
+  mapWidth: graphWidth,
+  mapHeight: graphHeight
+} = useOptionsState.getState();
 const svgWidth = graphWidth;
 const svgHeight = graphHeight;
 
@@ -290,6 +310,7 @@ Object.assign(worldContext, {
   populationRate,
   distanceScale,
   urbanization,
+  urbanDensity,
   graphWidth,
   graphHeight
 });
@@ -332,10 +353,22 @@ export async function initMain(drawMap: boolean = true): Promise<void> {
     regenerateMap((e as CustomEvent<{ seed?: string } | undefined>).detail);
   });
   document.addEventListener("fmg:world-recalculate", (e: Event) => {
-    const { coords, temps, prec } = (e as CustomEvent<{ coords?: boolean; temps?: boolean; prec?: boolean }>).detail;
+    const { coords, temps, prec, biomes } = (
+      e as CustomEvent<{ coords?: boolean; temps?: boolean; prec?: boolean; biomes?: boolean }>
+    ).detail;
     if (coords) calculateMapCoordinates();
     if (temps) calculateTemperatures();
     if (prec) generatePrecipitation();
+    if (biomes) {
+      legacyMutation(() => {
+        Biomes.define(getWorldState());
+        return { result: undefined, topics: ["map.physical"] };
+      });
+
+      if (viewContext.renderMap && viewContext.renderMode === "svg" && layerIsOn("toggleBiomes")) {
+        BiomesRenderer.render(worldContext, viewContext, appServices);
+      }
+    }
   });
   document.addEventListener("fmg:invoke-active-zooming", invokeActiveZooming);
   document.addEventListener("fmg:fit-map-view", fitMapView);
@@ -809,6 +842,22 @@ export function invokeActiveZooming() {
   scheduleWebglUpdate();
 }
 
+/** Refresh visible labels after zooming ends without rebuilding the fixed-density contour geometry. */
+function refreshLabeledContourLabelsAfterZoom(): void {
+  const { heightmapRenderingMode } = useOptionsState.getState();
+  if (
+    !viewContext.renderMap ||
+    viewContext.renderMode !== "svg" ||
+    heightmapRenderingMode !== "labeledContours" ||
+    !layerIsOn("toggleHeight")
+  ) {
+    return;
+  }
+
+  refreshVisibleLabeledContourPaths(viewContext);
+  refreshLabeledContourLabels(viewContext);
+}
+
 // ─── Drag-to-upload ───────────────────────────────────────────────────────────
 
 function getMapOverlayElement(): HTMLElement | null {
@@ -884,6 +933,7 @@ async function runGeneratePipeline(request: GenerateRequest): Promise<void> {
   randomizeOptions();
   worldContext.options.gunpowderEraEnabled = useOptionsState.getState().gunpowderEraEnabled;
   worldContext.options.conflictAutonomy = normalizeConflictAutonomy(useOptionsState.getState().conflictAutonomy);
+  worldContext.options.initialSettlementPattern = useOptionsState.getState().initialSettlementPattern;
 
   if (
     shouldRegenerateGrid(worldContext.grid, +(precreatedSeed ?? 0), worldContext.graphWidth, worldContext.graphHeight)
@@ -936,10 +986,31 @@ async function runGeneratePipeline(request: GenerateRequest): Promise<void> {
   rankCells();
   Cultures.generate(worldContext, viewContext, appServices, state);
   Cultures.expand(state);
+  const settlementPattern = applyInitialSettlementPattern(
+    worldContext.pack.cells,
+    worldContext.options.initialSettlementPattern,
+    useOptionsState.getState().initialPopulationSaturation / 100,
+    Math.random,
+    {
+      temperature: worldContext.grid.cells.temp,
+      precipitation: worldContext.grid.cells.prec
+    },
+    useOptionsState.getState().statesNumber
+  );
+  if (settlementPattern.plan) worldContext.pack.settlementFoundation = settlementPattern.plan;
+  else delete worldContext.pack.settlementFoundation;
 
   Burgs.generate(worldContext, viewContext, appServices, state);
-  States.generate(worldContext, viewContext, appServices, state);
-  Routes.generate(worldContext, viewContext, appServices, state);
+  // The non-standard Phase 1 path establishes movement corridors from the
+  // settlement plan before the prototype polity generator consumes its burgs.
+  // `standard` retains the legacy order and RNG sequence as its compatibility adapter.
+  if (worldContext.options.initialSettlementPattern !== "standard") {
+    Routes.generate(worldContext, viewContext, appServices, state);
+    States.generate(worldContext, viewContext, appServices, state);
+  } else {
+    States.generate(worldContext, viewContext, appServices, state);
+    Routes.generate(worldContext, viewContext, appServices, state);
+  }
   Religions.generate(worldContext, viewContext, appServices, state);
 
   Burgs.specify(worldContext, viewContext, appServices, state);
@@ -1514,8 +1585,6 @@ export function rankCells() {
   packCells.femaleAdults = new Float32Array(packCells.i.length);
   packCells.elders = new Float32Array(packCells.i.length);
 
-  const initialPopulationSaturation = useOptionsState.getState().initialPopulationSaturation / 100;
-
   const meanFlux = d3.median(packCells.fl.filter((f: number) => f)) ?? 0;
   const maxFlux = (d3.max(packCells.fl) ?? 0) + (d3.max(packCells.conf) ?? 0);
   const meanArea = d3.mean(packCells.area) ?? 1;
@@ -1560,12 +1629,6 @@ export function rankCells() {
     }
 
     packCells.capacity[i] = packCells.s[i] > 0 ? (packCells.s[i] * packCells.area[i]) / meanArea : 0;
-    packCells.pop[i] = packCells.capacity[i] * initialPopulationSaturation;
-
-    packCells.children[i] = packCells.pop[i] * 0.4;
-    packCells.maleAdults[i] = packCells.pop[i] * 0.2205;
-    packCells.femaleAdults[i] = packCells.pop[i] * 0.2295;
-    packCells.elders[i] = packCells.pop[i] * 0.15;
   }
 
   TIME && console.timeEnd("rankCells");

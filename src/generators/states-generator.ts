@@ -27,6 +27,7 @@ import {
 } from "../utils";
 import { TIME } from "../utils/debug";
 import { COA } from "./emblem/generator";
+import { assignInitialPolities } from "./initialPolities";
 import { Names } from "./names-generator";
 
 class StatesModule {
@@ -137,8 +138,34 @@ class StatesModule {
     const { pack } = this.worldContext;
     TIME && console.time("expandStates");
     const { cells, states, cultures, burgs } = pack;
+    // `standard` preserves the historical complete flood-fill. The other
+    // settlement patterns deliberately keep political control limited to
+    // inhabited nuclei; traversal may cross wilderness, but it must not turn
+    // that wilderness into state territory.
+    const useSettlementNuclei = this.worldContext.options.initialSettlementPattern !== "standard";
 
     cells.state = cells.state || new Uint16Array(cells.i.length);
+
+    if (useSettlementNuclei) {
+      const plan = pack.settlementFoundation;
+      if (plan) assignInitialPolities({ plan, cells, burgs, states });
+      else {
+        cells.state.fill(0);
+        for (const state of states) {
+          if (!state.i || state.removed) continue;
+          const capitalCell = burgs[state.capital]?.cell;
+          if (capitalCell !== undefined) cells.state[capitalCell] = state.i;
+        }
+        burgs
+          .filter(b => b.i && !b.removed)
+          .forEach(b => {
+            b.state = cells.state[b.cell];
+            b.stateHistory = [b.state];
+          });
+      }
+      TIME && console.timeEnd("expandStates");
+      return;
+    }
 
     const queue = new FlatQueue<{ e: number; p: number; s: number; b: number }>();
     const cost: number[] = [];
@@ -187,7 +214,9 @@ class StatesModule {
         if (totalCost > growthRate) return;
 
         if (!cost[e] || totalCost < cost[e]) {
-          if (cells.h[e] >= 20) cells.state[e] = s; // assign state to cell
+          if (cells.h[e] >= 20 && (!useSettlementNuclei || cells.pop[e] > 0 || cells.burg[e])) {
+            cells.state[e] = s; // assign only settled land when preserving a frontier
+          }
           cost[e] = totalCost;
           queue.push({ e, p: totalCost, s, b }, totalCost);
         }
@@ -207,6 +236,10 @@ class StatesModule {
     const { pack } = this.worldContext;
     TIME && console.time("normalizeStates");
     const { cells, burgs } = pack;
+
+    // Shape normalization assumes every land cell belongs to a state. In
+    // frontier modes it would silently absorb unclaimed land into a neighbor.
+    if (this.worldContext.options.initialSettlementPattern !== "standard") return;
 
     for (const i of cells.i) {
       if (cells.h[i] < 20 || cells.burg[i]) continue; // do not overwrite burgs
@@ -235,14 +268,14 @@ class StatesModule {
     });
   }
 
-  findNeighbors() {
-    const { pack } = this.worldContext;
+  findNeighbors(context: WorldContext = this.worldContext) {
+    const { pack } = context;
     const { cells, states } = pack;
 
     const stateNeighbors: Set<number>[] = [];
 
     states.forEach(s => {
-      if (s.removed) return;
+      if (!s.i || s.removed) return;
       stateNeighbors[s.i] = new Set();
       // s.neighbors = stateNeighbors[s.i];
     });
@@ -250,9 +283,10 @@ class StatesModule {
     for (const i of cells.i) {
       if (cells.h[i] < 20) continue;
       const s = cells.state[i];
+      if (!s) continue;
 
       cells.c[i]
-        .filter(c => cells.h[c] >= 20 && cells.state[c] !== s)
+        .filter(c => cells.h[c] >= 20 && cells.state[c] && cells.state[c] !== s)
         .forEach(c => {
           stateNeighbors[s].add(cells.state[c]);
         });
@@ -308,6 +342,7 @@ class StatesModule {
     for (const i of cells.i) {
       if (cells.h[i] < 20) continue;
       const s = cells.state[i];
+      if (!s) continue; // state 0 is unclaimed land, not a national aggregate
 
       // collect stats
       states[s].cells! += 1;
@@ -335,7 +370,7 @@ class StatesModule {
       Expedition: 1,
       Crusade: 1
     };
-    const neighbors = state.neighbors?.length ? state.neighbors : [0];
+    const neighbors = state.neighbors?.length ? state.neighbors : [];
     return neighbors
       .map((i: number) => {
         const name =

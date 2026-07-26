@@ -10,7 +10,13 @@ export function getVisibleDialogElement(id: string): HTMLElement | null {
   const el = document.getElementById(id) as HTMLElement | null;
   return el;
 }
-export function lock(id: string): void {
+export function lock(id: string, valueToStore?: string): void {
+  if (valueToStore !== undefined) {
+    store(id, valueToStore);
+    document.dispatchEvent(new CustomEvent("fmg:lock-changed", { detail: { id, locked: true } }));
+    return;
+  }
+
   const options = useOptionsState.getState() as unknown as Record<string, unknown>;
   const value = options[id];
   if (id in options && typeof value !== "function") {

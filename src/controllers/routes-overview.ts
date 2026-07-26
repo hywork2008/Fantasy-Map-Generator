@@ -1,6 +1,5 @@
 import { viewLayerService as view } from "../services/viewLayerService";
 import { modules } from "../store/editorState";
-import { useRoutesOverviewState } from "../store/routesOverviewState";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { fitContent } from "../utils/domUtils";
 import { layerIsOn } from "../utils/nodeUtils";
@@ -11,8 +10,6 @@ export function overviewRoutes(): void {
   closeDialogs("#routesOverview, .stable");
   if (!layerIsOn("toggleRoutes")) toggleRoutes();
 
-  // Force state refresh so dialog content is up to date when opened
-  useRoutesOverviewState.getState().refresh();
   openDialog("routesOverview");
 
   if (modules.overviewRoutes) return;

@@ -3,6 +3,7 @@ import { useEffect, useMemo } from "react";
 import { worldContext } from "../../context/worldContext";
 import { type DeathWindow, deathWindowDays, getDeathsByState } from "../../generators/populationLossTracker";
 import { collectLivingStatsByState } from "../../generators/populationOverviewStats";
+import { collectSettlementOverviewStats } from "../../generators/settlementOverviewStats";
 import { useDialogState } from "../../store/dialogState";
 import { usePopulationOverviewState } from "../../store/populationOverviewState";
 import { rn, si } from "../../utils";
@@ -89,6 +90,14 @@ export const PopulationOverviewDialog: React.FC = () => {
       }
     );
   }, [livingRows]);
+
+  const settlementTotals = useMemo(() => {
+    void refreshCounter;
+    if (!isOpen || activeTab !== "living" || !worldContext.pack?.cells) {
+      return { unclaimedCapacity: 0, unsettledCapacity: 0, governedPopulation: 0 };
+    }
+    return collectSettlementOverviewStats(worldContext.pack, worldContext.populationRate, worldContext.urbanization);
+  }, [activeTab, isOpen, refreshCounter]);
 
   const deathRows = useMemo(() => {
     void refreshCounter;
@@ -208,6 +217,9 @@ export const PopulationOverviewDialog: React.FC = () => {
               <span>Urban: {fmt(livingTotals.urban)}</span>
               <span>Under arms: {fmt(livingTotals.underArms)}</span>
               <span>Population: {fmt(livingTotals.total)}</span>
+              <span>Governed population: {fmt(settlementTotals.governedPopulation)}</span>
+              <span>Unclaimed capacity: {fmt(settlementTotals.unclaimedCapacity)}</span>
+              <span>Unsettled capacity: {fmt(settlementTotals.unsettledCapacity)}</span>
               <span>Mobilization: {fmtPct(worldMobilizationPct)}</span>
               <span>Adult male: {fmtPct(worldAdultMalePct)}</span>
             </div>

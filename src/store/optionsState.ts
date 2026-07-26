@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { HeightmapTemplateRandomization } from "../data";
-import type { ConflictAutonomy } from "../types/WorldState";
+import type { ConflictAutonomy, InitialSettlementPattern } from "../types/WorldState";
 import { DEFAULT_CONFLICT_AUTONOMY } from "../utils/conflictAutonomy";
 
 export interface OptionsState {
@@ -37,6 +37,8 @@ export interface OptionsState {
   /** Default for newly generated maps; saved maps retain their value in WorldOptions. */
   gunpowderEraEnabled: boolean;
   initialPopulationSaturation: number;
+  /** Initial settlement distribution; Phase 0 keeps "standard" behavior unchanged. */
+  initialSettlementPattern: InitialSettlementPattern;
   demographicBirthRate: number;
   demographicChildMortalityRate: number;
   /**
@@ -111,6 +113,8 @@ export interface OptionsState {
   autosaveInterval: number;
   onloadBehavior: string;
   azgaarAssistant: "show" | "hide";
+  /** Shows the current map magnification in the lower-left corner. */
+  showZoomLevel: boolean;
   speakerVoice: string;
   emblemShape: string;
   temperatureScale: string;
@@ -131,6 +135,8 @@ export interface OptionsState {
   rescaleLabels: boolean;
   hideLabels: boolean;
   populationRenderingMode: "original" | "contour" | "choropleth";
+  /** SVG-only heightmap visualization. WebGL Hybrid continues to use its deck.gl terrain renderer. */
+  heightmapRenderingMode: "heatmap" | "contours" | "labeledContours";
   dangerRenderingMode: "contour" | "choropleth";
   /** Contour = density heatmap; choropleth = per-cell battlefield intensity. */
   combatDeathsRenderingMode: "contour" | "choropleth";
@@ -139,6 +145,42 @@ export interface OptionsState {
   setOption: <K extends keyof Omit<OptionsState, "setOption">>(key: K, value: OptionsState[K]) => void;
   setOptions: (updates: Partial<Omit<OptionsState, "setOption" | "setOptions">>) => void;
 }
+
+/** UI settings used when neither the store nor localStorage provides a user preference. */
+export const DEFAULT_UI_OPTIONS = {
+  uiSize: 1,
+  tooltipSize: 14,
+  themeColor: "rgb(109, 149, 201)",
+  transparency: 70,
+  autosaveInterval: 15,
+  onloadBehavior: "random",
+  azgaarAssistant: "show" as const,
+  // Keep the indicator available while developing map interactions without
+  // changing the production UI by default.
+  showZoomLevel: import.meta.env.DEV,
+  speakerVoice: "",
+  emblemShape: "culture",
+  zoomExtentMin: 1,
+  zoomExtentMax: 20
+};
+
+/** Default units, including values reset by the Units Editor. */
+export const DEFAULT_UNIT_OPTIONS = {
+  temperatureScale: "°C",
+  distanceUnit: "km",
+  heightUnit: "m",
+  areaUnit: "square",
+  weightUnit: "kg",
+  heightExponent: 1.8
+};
+
+/** Default world-scale values reset by the Units Editor. */
+export const DEFAULT_WORLD_SCALE_OPTIONS = {
+  populationRate: 1000,
+  distanceScale: 3,
+  urbanization: 1,
+  urbanDensity: 10
+};
 
 export const useOptionsState = create<OptionsState>(set => ({
   mapWidth: 960,
@@ -165,6 +207,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   militaryHierarchy: "simple",
   gunpowderEraEnabled: false,
   initialPopulationSaturation: 60,
+  initialSettlementPattern: "standard",
   demographicBirthRate: 0.25,
   demographicChildMortalityRate: 0.2,
   simDemographics: true,
@@ -204,38 +247,37 @@ export const useOptionsState = create<OptionsState>(set => ({
   neutralRate: 1,
   statesGrowthRate: 1,
 
-  populationRate: 1000,
-  distanceScale: 3,
-  urbanization: 1,
-  urbanDensity: 10,
+  ...DEFAULT_WORLD_SCALE_OPTIONS,
+  ...DEFAULT_UI_OPTIONS,
+  temperatureScale: localStorage.getItem("temperatureScale") ?? DEFAULT_UNIT_OPTIONS.temperatureScale,
 
-  uiSize: 1,
-  tooltipSize: 14,
-  themeColor: "#997787",
-  transparency: 5,
-  autosaveInterval: 15,
-  onloadBehavior: "random",
-  azgaarAssistant: "show",
-  speakerVoice: "",
-  emblemShape: "culture",
-  temperatureScale: localStorage.getItem("temperatureScale") ?? "°C",
-
-  distanceUnit: localStorage.getItem("distanceUnit") ?? "km",
-  heightUnit: localStorage.getItem("heightUnit") ?? "m",
-  areaUnit: localStorage.getItem("areaUnit") ?? "square",
-  weightUnit: localStorage.getItem("weightUnit") ?? "kg",
-  heightExponent: Number(localStorage.getItem("heightExponent") ?? 1.8),
-
-  zoomExtentMin: 1,
-  zoomExtentMax: 20,
+  distanceUnit: localStorage.getItem("distanceUnit") ?? DEFAULT_UNIT_OPTIONS.distanceUnit,
+  heightUnit: localStorage.getItem("heightUnit") ?? DEFAULT_UNIT_OPTIONS.heightUnit,
+  areaUnit: localStorage.getItem("areaUnit") ?? DEFAULT_UNIT_OPTIONS.areaUnit,
+  weightUnit: localStorage.getItem("weightUnit") ?? DEFAULT_UNIT_OPTIONS.weightUnit,
+  heightExponent: Number(localStorage.getItem("heightExponent") ?? DEFAULT_UNIT_OPTIONS.heightExponent),
 
   shapeRendering: "optimizeSpeed",
   rescaleLabels: true,
   hideLabels: false,
   populationRenderingMode: "choropleth",
+  heightmapRenderingMode: "labeledContours",
   dangerRenderingMode: "contour",
   combatDeathsRenderingMode: "contour",
 
-  setOption: (key, value) => set({ [key]: value }),
-  setOptions: updates => set(updates)
+  setOption: (key, value) => {
+    // A lock is represented by a localStorage entry bearing the option key.
+    // Keep that entry current when a user changes an already locked setting;
+    // otherwise the old value would be restored on the next page load.
+    if (localStorage.getItem(key) !== null) localStorage.setItem(key, String(value));
+    set({ [key]: value });
+  },
+  setOptions: updates => {
+    // Preset controls can update several options together. Apply the same
+    // invariant as setOption to each value that already has a lock.
+    for (const [key, value] of Object.entries(updates)) {
+      if (localStorage.getItem(key) !== null) localStorage.setItem(key, String(value));
+    }
+    set(updates);
+  }
 }));

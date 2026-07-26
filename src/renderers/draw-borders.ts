@@ -5,6 +5,11 @@ import { TIME } from "../utils/debug";
 import { isCellInScope } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
 
+/** State 0 is unclaimed land, not a political entity and never has a State border. */
+export function isStateBorder(fromStateId: number, toStateId: number, neighborIsLand: boolean): boolean {
+  return neighborIsLand && toStateId > 0 && fromStateId > toStateId;
+}
+
 export const BordersRenderer: IRenderer = {
   id: "borders",
 
@@ -63,7 +68,9 @@ export const BordersRenderer: IRenderer = {
       // if cell is on state border
       const stateToCell = cells.c[cellId].find(neibId => {
         const neibStateId = cells.state[neibId];
-        return isLand(neibId) && stateId > neibStateId && !checked[`state-${stateId}-${neibStateId}-${cellId}`];
+        return (
+          isStateBorder(stateId, neibStateId, isLand(neibId)) && !checked[`state-${stateId}-${neibStateId}-${cellId}`]
+        );
       });
 
       if (stateToCell !== undefined) {

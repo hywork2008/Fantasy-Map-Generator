@@ -160,7 +160,6 @@ export function overviewBurgs(settings: { stateId?: number | null; cultureId?: n
   if (!layerIsOn("toggleLabels")) toggleLabels();
 
   useBurgsOverviewState.getState().open(settings.stateId ?? null, settings.cultureId ?? null);
-  useBurgsOverviewState.getState().refresh();
   openDialog("burgsOverview");
 }
 

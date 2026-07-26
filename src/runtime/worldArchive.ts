@@ -1,6 +1,11 @@
 import JSZip from "jszip";
-import type { SimulationContext } from "../context/simulationContext";
+import {
+  createEmptyFrontierSimulationState,
+  FRONTIER_INVESTMENTS,
+  type SimulationContext
+} from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
 import {
   CORE_ENTITY_KINDS,
   type CoreEntityKind,
@@ -21,7 +26,12 @@ import { assertValidSimulationRngState, createSimulationRngState } from "./simul
 import { removeSimulationStateStateMirrors } from "./simulationStateState";
 
 export const WORLD_ARCHIVE_FORMAT = "fantasy-map-generator";
-export const WORLD_ARCHIVE_SCHEMA_VERSION = 1;
+/**
+ * v2 adds the persisted initial settlement pattern. v1 archives are accepted
+ * and normalized to the legacy-equivalent "standard" preset during decoding.
+ */
+export const WORLD_ARCHIVE_SCHEMA_VERSION = 2;
+const SUPPORTED_WORLD_ARCHIVE_SCHEMA_VERSIONS = new Set([1, WORLD_ARCHIVE_SCHEMA_VERSION]);
 
 export type { CoreEntityKind, CoreReference, OpaqueExtensionChunk };
 export { CORE_ENTITY_KINDS };
@@ -376,13 +386,25 @@ function encodeBase64(bytes: Uint8Array): string {
 function parseManifest(value: unknown): ArchiveManifest {
   if (!isRecord(value)) throw new Error("Archive manifest is not an object");
   if (value.format !== WORLD_ARCHIVE_FORMAT) throw new Error("Unsupported archive format");
-  if (value.schemaVersion !== WORLD_ARCHIVE_SCHEMA_VERSION) {
+  if (typeof value.schemaVersion !== "number" || !SUPPORTED_WORLD_ARCHIVE_SCHEMA_VERSIONS.has(value.schemaVersion)) {
     throw new Error(`Unsupported archive schema ${String(value.schemaVersion)}`);
   }
   if (!Array.isArray(value.typedArrays) || !Array.isArray(value.opaqueExtensionChunks) || !isRecord(value.identity)) {
     throw new Error("Archive manifest is incomplete");
   }
   return value as unknown as ArchiveManifest;
+}
+
+/**
+ * Archive v1 predates settlement-pattern persistence. This is intentionally a
+ * decode-time migration so the staged document has the current shape before
+ * validation or any live WorldContext mutation occurs.
+ */
+function migrateWorldOptions(world: unknown): void {
+  if (!isRecord(world) || !isRecord(world.options)) return;
+  // v1 necessarily lacks this field. Normalizing v2 too protects the typed
+  // context from malformed/manual archive edits without changing valid values.
+  world.options.initialSettlementPattern = normalizeInitialSettlementPattern(world.options.initialSettlementPattern);
 }
 
 function parseTypedArrayDescriptor(value: unknown): TypedArrayDescriptor {
@@ -542,6 +564,98 @@ function assertAndNormalizeNavalTechBonus(simulation: Record<string, unknown>): 
   assertFiniteNonNegativeNumberRecord(simulation.navalTechBonus, "simulation.navalTechBonus");
 }
 
+function assertAndNormalizeFrontier(simulation: Record<string, unknown>, cellCount: number): void {
+  if (simulation.frontier === undefined) {
+    simulation.frontier = createEmptyFrontierSimulationState(cellCount);
+    return;
+  }
+  if (!isRecord(simulation.frontier)) throw new Error("Archive simulation.frontier must be a record");
+  const frontier = simulation.frontier;
+  if (!isUint8Array(frontier.cellStages) || frontier.cellStages.length !== cellCount) {
+    throw new Error(`Archive simulation.frontier.cellStages must be a Uint8Array of length ${cellCount}`);
+  }
+  for (const stage of frontier.cellStages) {
+    if (!Number.isInteger(stage) || stage < 0 || stage > 3) {
+      throw new Error("Archive simulation.frontier.cellStages contains an invalid stage");
+    }
+  }
+  if (!isRecord(frontier.projects)) throw new Error("Archive simulation.frontier.projects must be a record");
+  for (const [rawCellId, project] of Object.entries(frontier.projects)) {
+    const cellId = Number(rawCellId);
+    if (!Number.isInteger(cellId) || cellId < 0 || cellId >= cellCount || String(cellId) !== rawCellId) {
+      throw new Error(`Archive simulation.frontier.projects has invalid cell key ${rawCellId}`);
+    }
+    if (!isRecord(project)) throw new Error(`Archive simulation.frontier.projects.${rawCellId} must be a record`);
+    if (
+      project.cellId !== cellId ||
+      !isPositiveInteger(project.stateId) ||
+      (project.stage !== 1 && project.stage !== 2) ||
+      !isFiniteNonNegativeInteger(project.establishedYear) ||
+      !isFiniteNonNegativeInteger(project.supportYears) ||
+      !isFiniteNonNegativeInteger(project.failedSupportYears)
+    ) {
+      throw new Error(`Archive simulation.frontier.projects.${rawCellId} is invalid`);
+    }
+    if (frontier.cellStages[cellId] !== project.stage) {
+      throw new Error(`Archive simulation.frontier.projects.${rawCellId} does not match cell stage`);
+    }
+    if (project.lastStatus !== undefined) {
+      if (
+        !isRecord(project.lastStatus) ||
+        !isFiniteNonNegativeInteger(project.lastStatus.year) ||
+        !["maintained", "paused", "settled", "abandoned"].includes(String(project.lastStatus.outcome)) ||
+        !Array.isArray(project.lastStatus.failureReasons) ||
+        !project.lastStatus.failureReasons.every(reason => typeof reason === "string") ||
+        !isFiniteNumber(project.lastStatus.recoveryCost) ||
+        project.lastStatus.recoveryCost < 0 ||
+        (project.lastStatus.disaster !== undefined &&
+          !["drought", "flood", "epidemic", "bandits"].includes(String(project.lastStatus.disaster)))
+      ) {
+        throw new Error(`Archive simulation.frontier.projects.${rawCellId}.lastStatus is invalid`);
+      }
+    }
+  }
+  if (frontier.lastEvaluatedYear !== null && !isFiniteNonNegativeInteger(frontier.lastEvaluatedYear)) {
+    throw new Error("Archive simulation.frontier.lastEvaluatedYear must be null or a non-negative integer");
+  }
+  assertFiniteNonNegativeNumberRecord(frontier.budgetByState, "simulation.frontier.budgetByState");
+  assertFiniteNonNegativeNumberRecord(frontier.stateCooldownUntilYear, "simulation.frontier.stateCooldownUntilYear");
+  if (frontier.governanceByState === undefined) frontier.governanceByState = {};
+  if (!isRecord(frontier.governanceByState))
+    throw new Error("Archive simulation.frontier.governanceByState must be a record");
+  for (const [stateId, governance] of Object.entries(frontier.governanceByState)) {
+    if (!isPositiveInteger(Number(stateId)) || String(Number(stateId)) !== stateId || !isRecord(governance)) {
+      throw new Error(`Archive simulation.frontier.governanceByState.${stateId} is invalid`);
+    }
+    if (
+      !["balanced", "expansion", "defense", "recovery"].includes(String(governance.policy)) ||
+      (governance.lastEvaluatedYear !== null && !isFiniteNonNegativeInteger(governance.lastEvaluatedYear)) ||
+      !isFiniteNumber(governance.reliefSpent) ||
+      governance.reliefSpent < 0 ||
+      !isRecord(governance.investments)
+    ) {
+      throw new Error(`Archive simulation.frontier.governanceByState.${stateId} is invalid`);
+    }
+    for (const investment of FRONTIER_INVESTMENTS) {
+      if (!isFiniteNonNegativeInteger(governance.investments[investment])) {
+        throw new Error(`Archive simulation.frontier.governanceByState.${stateId}.${investment} is invalid`);
+      }
+    }
+  }
+}
+
+function isUint8Array(value: unknown): value is Uint8Array {
+  return isTypedArray(value) && value.constructor.name === "Uint8Array";
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0;
+}
+
+function isFiniteNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && Number.isInteger(value) && value >= 0;
+}
+
 /**
  * Validates the minimum runtime shape before a document is allowed to replace
  * the live compatibility backing stores. This deliberately checks the fields
@@ -639,6 +753,7 @@ export function assertValidWorldDocument(value: unknown): asserts value is World
   assertEntityTableArray(pack.states, "pack.states");
   if (isTypedArray(cells.i)) {
     const cellCount = cells.i.length;
+    assertAndNormalizeFrontier(simulation, cellCount);
     assertDenseColumnLengths(cells, cellCount, "pack.cells");
     assertEntityReferences(cells.state, pack.states.length, "pack.cells.state");
     assertEntityReferences(cells.burg, pack.burgs.length, "pack.cells.burg");
@@ -770,6 +885,7 @@ export class ChunkedWorldCodecAdapter implements WorldArchiveCodec {
       presentation: decodeValue(JSON.parse(await presentationFile.async("text")), descriptors, bytes),
       opaqueExtensionChunks
     };
+    migrateWorldOptions((document as { world: unknown }).world);
     assertValidWorldDocument(document);
     return { stage: "decoded", document };
   }

@@ -1,13 +1,31 @@
-import { worldContext } from "../context/worldContext";
+import type { SimulationContext } from "../context/simulationContext";
+import { simulationContext } from "../context/simulationContext";
+import { type WorldContext, worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import { applyFoodStressToDemographics } from "./agriculturalStress";
 import { Burgs } from "./burgs-generator";
 import { applyWoundedReturn, isManpowerSimEnabled, scaleLandMilitary } from "./manpower";
 import { recordDeaths } from "./populationLossTracker";
 
+/** Population points; convert to people with worldContext.populationRate for display only. */
+const MIN_RURAL_POINTS_FOR_PROMOTION = 2;
+const MIN_SETTLEMENT_POINTS = 0.5;
+const RURAL_TO_SETTLEMENT_SHARE = 0.3;
+const MAX_STATE_URBAN_SHARE = 0.18;
+const SETTLEMENT_SPACING_HOPS = 2;
+
 export interface DemographicsSimulationResult {
   bordersChanged: boolean;
   newBurgsAdded: boolean;
+  routesAdded: boolean;
+  promotedSettlements: readonly PromotedSettlement[];
+}
+
+/** Completed service-centre promotions for host systems and extensions to observe. */
+export interface PromotedSettlement {
+  readonly burgId: number;
+  readonly cellId: number;
+  readonly stateId: number;
 }
 
 /**
@@ -16,11 +34,13 @@ export interface DemographicsSimulationResult {
  */
 export function simulateDemographics(deltaYears: number): DemographicsSimulationResult {
   const { pack } = worldContext;
-  let bordersChanged = false;
+  const bordersChanged = false;
   let newBurgsAdded = false;
+  let routesAdded = false;
+  let promotedSettlements: readonly PromotedSettlement[] = [];
 
-  if (!pack?.cells || !pack.burgs) return { bordersChanged, newBurgsAdded };
-  if (deltaYears <= 0) return { bordersChanged, newBurgsAdded };
+  if (!pack?.cells || !pack.burgs) return { bordersChanged, newBurgsAdded, routesAdded, promotedSettlements };
+  if (deltaYears <= 0) return { bordersChanged, newBurgsAdded, routesAdded, promotedSettlements };
 
   const { demographicBirthRate, demographicChildMortalityRate, simAgriculture } = useOptionsState.getState();
   const baseGrowthRate = demographicBirthRate;
@@ -85,7 +105,11 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
 
         let score = pack.cells.s[n];
         if (pack.cells.r[n]) score += 50; // prefer rivers
-        if (pack.cells.state[n] === pack.cells.state[i]) score += 100; // prefer own state
+        // Phase 3 expansion is a project, not an incidental population move.
+        // Demographic migration can stay inside the existing polity only; an
+        // unclaimed neighbor must go through Frontier Expansion's outpost flow.
+        if (pack.cells.state[n] !== stateId) continue;
+        score += 100;
 
         if (score > bestScore) {
           bestScore = score;
@@ -111,17 +135,7 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
         pack.cells.femaleAdults[bestNeighbor] += mFemale;
         pack.cells.elders[bestNeighbor] += mElders;
 
-        const oldNPop = pack.cells.pop[bestNeighbor];
         pack.cells.pop[bestNeighbor] += excessTotal;
-
-        // State Conquest
-        if (pack.cells.state[bestNeighbor] !== pack.cells.state[i]) {
-          if (excessTotal > oldNPop) {
-            pack.cells.state[bestNeighbor] = pack.cells.state[i];
-            pack.cells.culture[bestNeighbor] = pack.cells.culture[i];
-            bordersChanged = true;
-          }
-        }
       } else {
         // No migration possible -> Starvation reduction
         const starvationRate = Math.min(0.99, Math.abs(roomForGrowth) * deltaYears * 0.02);
@@ -141,33 +155,6 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     pack.cells.femaleAdults[i] = femaleAdults;
     pack.cells.elders[i] = elders;
     pack.cells.pop[i] = newPop;
-
-    // Pioneer Village Spawning
-    if (newPop > worldContext.populationRate && !pack.cells.burg[i]) {
-      const res = Burgs.add(pack.cells.p[i]);
-      if (res?.burgId) {
-        const newBurg = pack.burgs[res.burgId];
-
-        // Transfer 30% of rural population to the new burg
-        const transferRatio = 0.3;
-        newBurg.demographics = {
-          capacity: newPop * transferRatio * 1.5,
-          children: children * transferRatio,
-          maleAdults: maleAdults * transferRatio,
-          femaleAdults: femaleAdults * transferRatio,
-          elders: elders * transferRatio
-        };
-        newBurg.population = newPop * transferRatio;
-
-        pack.cells.children[i] -= children * transferRatio;
-        pack.cells.maleAdults[i] -= maleAdults * transferRatio;
-        pack.cells.femaleAdults[i] -= femaleAdults * transferRatio;
-        pack.cells.elders[i] -= elders * transferRatio;
-        pack.cells.pop[i] -= newPop * transferRatio;
-
-        newBurgsAdded = true;
-      }
-    }
   }
 
   // 2. Process Urban Burgs
@@ -223,6 +210,16 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     applyFoodStressToDemographics(pack, deltaYears);
   }
 
+  // Burgs are service centres, not a direct rendering of every populated cell.
+  // Evaluate promotion once per calendar year after all population changes, so
+  // nearby cells cannot all urbanise during the same daily simulation batch.
+  if (simulationContext.currentMonth === 1 && simulationContext.currentDay === 1) {
+    const promotion = promoteRuralSettlements(worldContext, simulationContext);
+    newBurgsAdded = promotion.newBurgsAdded || newBurgsAdded;
+    routesAdded = promotion.routesAdded || routesAdded;
+    promotedSettlements = promotion.promotedSettlements;
+  }
+
   for (const [stateId, pts] of naturalPts) {
     recordDeaths(stateId, pts * populationRate, "natural");
   }
@@ -230,7 +227,150 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     recordDeaths(stateId, pts * populationRate, "famine");
   }
 
-  return { bordersChanged, newBurgsAdded };
+  return { bordersChanged, newBurgsAdded, routesAdded, promotedSettlements };
+}
+
+export interface SettlementPromotionCandidate {
+  readonly stateId: number;
+  readonly cellId: number;
+  /** Rural population points moved into the new settlement. */
+  readonly settlementPopulation: number;
+  readonly score: number;
+}
+
+/**
+ * Returns at most one service-centre promotion per State. Population stays in
+ * points throughout; multiplying by populationRate here would make a 16k rural
+ * cell require one million people before it could form a town.
+ */
+export function getSettlementPromotionCandidates(
+  world: Readonly<WorldContext>,
+  simulation: Readonly<SimulationContext>
+): readonly SettlementPromotionCandidate[] {
+  const { cells, burgs, states } = world.pack;
+  if (!cells?.i || !burgs || !states) return [];
+
+  const totalsByState = new Map<number, { rural: number; urban: number }>();
+  for (let cellId = 0; cellId < cells.i.length; cellId++) {
+    const stateId = cells.state[cellId];
+    if (!stateId) continue;
+    const totals = totalsByState.get(stateId) ?? { rural: 0, urban: 0 };
+    totals.rural += cells.pop[cellId] ?? 0;
+    totalsByState.set(stateId, totals);
+  }
+  for (const burg of burgs) {
+    if (!burg?.i || burg.removed || !burg.state) continue;
+    const totals = totalsByState.get(burg.state) ?? { rural: 0, urban: 0 };
+    totals.urban += burg.population ?? 0;
+    totalsByState.set(burg.state, totals);
+  }
+
+  const selected: SettlementPromotionCandidate[] = [];
+  for (const state of states) {
+    if (!state?.i || state.removed) continue;
+    const totals = totalsByState.get(state.i);
+    if (!totals) continue;
+    const urbanHeadroom = (totals.rural + totals.urban) * MAX_STATE_URBAN_SHARE - totals.urban;
+    if (urbanHeadroom < MIN_SETTLEMENT_POINTS) continue;
+
+    const candidates: SettlementPromotionCandidate[] = [];
+    for (let cellId = 0; cellId < cells.i.length; cellId++) {
+      if (cells.state[cellId] !== state.i || cells.burg[cellId]) continue;
+      const ruralPopulation = cells.pop[cellId] ?? 0;
+      if (ruralPopulation < MIN_RURAL_POINTS_FOR_PROMOTION) continue;
+      if (!isSettlementSite(cells, cellId) || hasNearbyBurg(cells, cellId, SETTLEMENT_SPACING_HOPS)) continue;
+
+      const settlementPopulation = Math.min(ruralPopulation * RURAL_TO_SETTLEMENT_SHARE, urbanHeadroom);
+      if (settlementPopulation < MIN_SETTLEMENT_POINTS) continue;
+      candidates.push({
+        stateId: state.i,
+        cellId,
+        settlementPopulation,
+        score: getSettlementSiteScore(cells, cellId, ruralPopulation)
+      });
+    }
+    const best = candidates.sort((a, b) => b.score - a.score || b.settlementPopulation - a.settlementPopulation)[0];
+    if (best) selected.push(best);
+  }
+  void simulation; // Promotion eligibility is intentionally based on live world demographics and settlement topology.
+  return selected;
+}
+
+function promoteRuralSettlements(
+  world: WorldContext,
+  simulation: SimulationContext
+): Pick<DemographicsSimulationResult, "newBurgsAdded" | "routesAdded" | "promotedSettlements"> {
+  const { cells, burgs } = world.pack;
+  const candidates = getSettlementPromotionCandidates(world, simulation);
+  let newBurgsAdded = false;
+  let routesAdded = false;
+  const promotedSettlements: PromotedSettlement[] = [];
+
+  for (const candidate of candidates) {
+    // A prior candidate can only add a burg in another State, but re-checking
+    // protects this transaction if a future rule permits multiple promotions.
+    if (cells.burg[candidate.cellId]) continue;
+    const result = Burgs.add(cells.p[candidate.cellId], {
+      routeStateId: candidate.stateId,
+      developPort: true
+    });
+    const burg = burgs[result.burgId];
+    if (!burg) continue;
+
+    const ruralPopulation = cells.pop[candidate.cellId] ?? 0;
+    if (ruralPopulation <= 0) continue;
+    const ratio = candidate.settlementPopulation / ruralPopulation;
+    burg.population = candidate.settlementPopulation;
+    burg.demographics = {
+      capacity: candidate.settlementPopulation * 1.5,
+      children: cells.children[candidate.cellId] * ratio,
+      maleAdults: cells.maleAdults[candidate.cellId] * ratio,
+      femaleAdults: cells.femaleAdults[candidate.cellId] * ratio,
+      elders: cells.elders[candidate.cellId] * ratio
+    };
+    for (const column of ["children", "maleAdults", "femaleAdults", "elders"] as const) {
+      cells[column][candidate.cellId] -= burg.demographics[column];
+    }
+    cells.pop[candidate.cellId] -= candidate.settlementPopulation;
+    Burgs.changeGroup(burg);
+    newBurgsAdded = true;
+    routesAdded = Boolean(result.newRoute) || routesAdded;
+    promotedSettlements.push({ burgId: result.burgId, cellId: candidate.cellId, stateId: candidate.stateId });
+  }
+  return { newBurgsAdded, routesAdded, promotedSettlements };
+}
+
+function isSettlementSite(cells: WorldContext["pack"]["cells"], cellId: number): boolean {
+  const routeLegs = Object.keys(cells.routes?.[cellId] ?? {}).length;
+  return Boolean(cells.r[cellId] || cells.harbor[cellId] || cells.conf[cellId] || routeLegs >= 2);
+}
+
+function getSettlementSiteScore(cells: WorldContext["pack"]["cells"], cellId: number, ruralPopulation: number): number {
+  const routeLegs = Object.keys(cells.routes?.[cellId] ?? {}).length;
+  return (
+    ruralPopulation +
+    (cells.r[cellId] ? 5 : 0) +
+    (cells.harbor[cellId] ? 4 : 0) +
+    (cells.conf[cellId] ? 3 : 0) +
+    routeLegs * 2
+  );
+}
+
+function hasNearbyBurg(cells: WorldContext["pack"]["cells"], origin: number, maxHops: number): boolean {
+  const queue: Array<{ cellId: number; hops: number }> = [{ cellId: origin, hops: 0 }];
+  const visited = new Set<number>([origin]);
+  while (queue.length) {
+    const current = queue.shift();
+    if (!current) break;
+    if (current.hops > 0 && cells.burg[current.cellId]) return true;
+    if (current.hops >= maxHops) continue;
+    for (const neighbor of cells.c[current.cellId] ?? []) {
+      if (visited.has(neighbor) || cells.h[neighbor] < 20) continue;
+      visited.add(neighbor);
+      queue.push({ cellId: neighbor, hops: current.hops + 1 });
+    }
+  }
+  return false;
 }
 
 /**

@@ -20,6 +20,28 @@ type RoutesGraphInternals = {
     connections: Map<string, boolean>;
     seaRouteGenerationMode?: "legacy" | "augmented";
   }): (current: number, next: number) => number;
+  sortBurgsByStateAndFeature(
+    burgs: { i?: number; removed?: boolean; state?: number; feature?: number; capital?: number; port?: number }[]
+  ): {
+    burgsByStateFeature: { feature: number; stateId: number; burgs: { i?: number }[] }[];
+    capitalsByStateFeature: { feature: number; stateId: number; burgs: { i?: number }[] }[];
+    portsByStateFeature: { feature: number; stateId: number; burgs: { i?: number }[] }[];
+  };
+  generateSeaRoutes(
+    connections: Map<string, boolean>,
+    seaRouteGenerationMode: "legacy" | "augmented"
+  ): {
+    feature: number;
+    cells: number[];
+  }[];
+};
+
+type RouteGenerationInternals = {
+  createRoutesData(
+    routes: { i: number; group: string; feature: number; points: [number, number, number][] }[],
+    connections: Map<string, boolean>,
+    seaRouteGenerationMode: "legacy" | "augmented"
+  ): { i: number; group: string; feature: number; points: [number, number, number][] }[];
 };
 
 function normalizeEdges(edges: number[][]): Set<string> {
@@ -55,6 +77,201 @@ describe("RoutesModule sea-route graph modes", () => {
     const combinedEdges = normalizeEdges(graphInternals.addCoastalBackboneEdges(points, [[0, 1]], [0, 2]));
 
     expect(combinedEdges).toEqual(new Set(["0-1", "0-2"]));
+  });
+});
+
+describe("RoutesModule domestic network grouping", () => {
+  const graphInternals = Routes as unknown as RoutesGraphInternals;
+
+  it("keeps same-feature Burgs and ports in separate State networks", () => {
+    const groups = graphInternals.sortBurgsByStateAndFeature([
+      { i: 1, state: 1, feature: 7, capital: 1, port: 3 },
+      { i: 2, state: 2, feature: 7, capital: 1, port: 3 },
+      { i: 3, state: 0, feature: 7, capital: 1, port: 3 }
+    ]);
+
+    expect(groups.burgsByStateFeature.map(group => group.stateId)).toEqual([1, 2]);
+    expect(groups.capitalsByStateFeature.map(group => group.stateId)).toEqual([1, 2]);
+    expect(groups.portsByStateFeature.map(group => group.stateId)).toEqual([1, 2]);
+  });
+});
+
+describe("RoutesModule settlement foundation trails", () => {
+  const routeGenerationInternals = Routes as unknown as RouteGenerationInternals;
+
+  beforeEach(() => {
+    worldContext.pack = {
+      cells: {
+        c: [[1], [0, 2], [1]],
+        h: [25, 25, 25],
+        biome: [1, 1, 1],
+        p: [
+          [0, 0],
+          [10, 0],
+          [20, 0]
+        ],
+        burg: [0, 0, 0],
+        f: [1, 1, 1]
+      },
+      burgs: [],
+      settlementFoundation: {
+        regions: [{ id: 0, kind: "river", center: 0, cells: [0, 1, 2] }],
+        nodes: [
+          { id: 0, regionId: 0, cell: 0, role: "center", score: 10 },
+          { id: 1, regionId: 0, cell: 2, role: "village", score: 5 }
+        ],
+        links: [{ fromNodeId: 0, toNodeId: 1, kind: "trail" }]
+      }
+    } as unknown as PackedGraph;
+    worldContext.biomesData = { habitability: [0, 100] } as unknown as typeof worldContext.biomesData;
+  });
+
+  it("does not materialize planned village links until their sites become Burgs", () => {
+    const routes = routeGenerationInternals.createRoutesData([], new Map(), "augmented");
+
+    expect(routes).toEqual([]);
+  });
+});
+
+describe("RoutesModule settlement connections", () => {
+  beforeEach(() => {
+    worldContext.pack = {
+      cells: {
+        c: [[1], [0]],
+        h: [25, 25],
+        biome: [1, 1],
+        p: [
+          [0, 0],
+          [10, 0]
+        ],
+        burg: [1, 2],
+        f: [1, 1],
+        state: [1, 1],
+        routes: {}
+      },
+      burgs: [{ i: 0 }, { i: 1, cell: 0, x: 0, y: 0, state: 1 }, { i: 2, cell: 1, x: 10, y: 0, state: 1 }],
+      routes: []
+    } as unknown as PackedGraph;
+    worldContext.biomesData = { habitability: [0, 100] } as unknown as typeof worldContext.biomesData;
+  });
+
+  it("connects a newly created burg to another burg instead of treating itself as the route exit", () => {
+    const route = Routes.connectFrontier(1, 1);
+
+    expect(route?.points.map(point => point[2])).toEqual([1, 0]);
+    expect(worldContext.pack.cells.routes[1]).toEqual({ 0: route?.i });
+  });
+});
+
+describe("RoutesModule settlement water connections", () => {
+  beforeEach(() => {
+    worldContext.pack = {
+      cells: {
+        c: [[1], [0, 2], [1]],
+        h: [25, 25, 25],
+        biome: [1, 1, 1],
+        p: [
+          [0, 0],
+          [10, 0],
+          [20, 0]
+        ],
+        burg: [1, 0, 2],
+        f: [1, 1, 1],
+        state: [1, 1, 1],
+        r: [1, 1, 1],
+        fl: [200, 200, 200],
+        haven: [0, 0, 0],
+        routes: {}
+      },
+      burgs: [
+        { i: 0 },
+        { i: 1, cell: 0, x: 0, y: 0, state: 1, port: 1 },
+        { i: 2, cell: 2, x: 20, y: 0, state: 1, port: 1 }
+      ],
+      rivers: [{ i: 1, cells: [0, 1, 2] }],
+      routes: []
+    } as unknown as PackedGraph;
+    worldContext.options = { seaRouteGenerationMode: "augmented" } as typeof worldContext.options;
+    worldContext.biomesData = { habitability: [0, 100] } as unknown as typeof worldContext.biomesData;
+  });
+
+  it("prefers a searoute along a shared navigable river between two State ports", () => {
+    const route = Routes.connectPort(0, 1);
+
+    expect(route).toMatchObject({ group: "searoutes", feature: 1 });
+    expect(route?.points.map(point => point[2])).toEqual([0, 1, 2]);
+    expect(route?.cells).toEqual([0, 1, 2]);
+  });
+
+  it("permits standard-map searoutes between nearby ports of different States", () => {
+    const graphInternals = Routes as unknown as RoutesGraphInternals;
+    worldContext.pack.cells.state = [1, 0, 2];
+    worldContext.pack.burgs = [
+      { i: 0 },
+      { i: 1, cell: 0, x: 0, y: 0, state: 1, port: 1 },
+      { i: 2, cell: 2, x: 20, y: 0, state: 2, port: 1 }
+    ] as typeof worldContext.pack.burgs;
+    worldContext.options = {
+      initialSettlementPattern: "standard",
+      seaRouteGenerationMode: "augmented"
+    } as typeof worldContext.options;
+    Routes.sync();
+
+    expect(graphInternals.generateSeaRoutes(new Map(), "augmented")).toEqual([
+      expect.objectContaining({ feature: 1, cells: [0, 1, 2] })
+    ]);
+
+    worldContext.options.initialSettlementPattern = "frontier";
+    expect(graphInternals.generateSeaRoutes(new Map(), "augmented")).toEqual([]);
+
+    worldContext.options.initialSettlementPattern = "standard";
+    expect(Routes.connectPort(0, 1)?.points.map(point => point[2])).toEqual([0, 1, 2]);
+  });
+
+  it("adds only the new spur when a port joins an existing sea lane", () => {
+    worldContext.pack.cells.c = [[1], [0, 2, 3], [1], [1]];
+    worldContext.pack.cells.h = [25, 25, 25, 25];
+    worldContext.pack.cells.biome = [1, 1, 1, 1];
+    worldContext.pack.cells.p = [
+      [0, 0],
+      [10, 0],
+      [20, 0],
+      [10, 10]
+    ];
+    worldContext.pack.cells.burg = [1, 0, 2, 3];
+    worldContext.pack.cells.f = [1, 1, 1, 1];
+    worldContext.pack.cells.state = [1, 1, 1, 1];
+    worldContext.pack.cells.r = [1, 1, 1, 1];
+    worldContext.pack.cells.fl = [200, 200, 200, 200];
+    worldContext.pack.cells.haven = [0, 0, 0, 0];
+    worldContext.pack.cells.routes = { 0: { 1: 0 }, 1: { 0: 0, 2: 0 }, 2: { 1: 0 } };
+    worldContext.pack.burgs = [
+      { i: 0 },
+      { i: 1, cell: 0, x: 0, y: 0, state: 1, port: 1 },
+      { i: 2, cell: 2, x: 20, y: 0, state: 1, port: 1 },
+      { i: 3, cell: 3, x: 10, y: 10, state: 1, port: 1 }
+    ] as typeof worldContext.pack.burgs;
+    worldContext.pack.rivers = [
+      { i: 1, cells: [0, 1, 2] },
+      { i: 2, cells: [3, 1] }
+    ];
+    worldContext.pack.routes = [
+      {
+        i: 0,
+        group: "searoutes",
+        feature: 1,
+        points: [
+          [0, 0, 0],
+          [10, 0, 1],
+          [20, 0, 2]
+        ]
+      }
+    ];
+
+    const route = Routes.connectPort(3, 1);
+
+    expect(route?.points.map(point => point[2])).toEqual([3, 1]);
+    expect(worldContext.pack.routes).toHaveLength(2);
   });
 });
 
@@ -288,7 +505,7 @@ describe("RoutesModule river-aware water cost", () => {
         ]
       )
     ).toEqual([
-      [6.05, 1.75, 0],
+      [5.3, 0.5, 0],
       [8, 5, 1]
     ]);
   });

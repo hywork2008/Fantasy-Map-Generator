@@ -1310,7 +1310,10 @@ class CulturesModule {
         if (totalCost > maxExpansionCost) return;
 
         if (!cost[neibCellId] || totalCost < cost[neibCellId]) {
-          if (cells.pop[neibCellId] > 0) cells.culture[neibCellId] = cultureId; // assign culture to populated cell
+          // Culture describes the people and landscape of suitable land, not
+          // only its currently settled population. Frontier cells keep their
+          // cultural identity even when the Settlement Pattern leaves pop = 0.
+          if (cells.s[neibCellId] > 0) cells.culture[neibCellId] = cultureId;
           cost[neibCellId] = totalCost;
           queue.push({ cellId: neibCellId, cultureId, priority: totalCost }, totalCost);
         }

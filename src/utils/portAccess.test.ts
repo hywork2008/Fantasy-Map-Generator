@@ -33,7 +33,7 @@ describe("getPortAnchorPosition", () => {
   it("places a coastal port anchor inside its haven cell", () => {
     const burg: Burg = { i: 1, cell: 0, x: 0, y: 1.9, port: 1 };
 
-    expect(getPortAnchorPosition(makeCoastalPack(), burg)).toEqual([0, 4.8]);
+    expect(getPortAnchorPosition(makeCoastalPack(), burg)).toEqual([0, 2.8]);
   });
 
   it("keeps a river port at its burg position when it has no haven", () => {

@@ -1,5 +1,9 @@
 import type React from "react";
-import { heightmapLandmassThresholds } from "../../../../data";
+import {
+  getInitialSettlementPatternPreset,
+  heightmapLandmassThresholds,
+  INITIAL_SETTLEMENT_PATTERN_PRESETS
+} from "../../../../data";
 import { useOptionsState } from "../../../../store/optionsState";
 import { lock } from "../../../../utils/domUtils";
 import { IconButton } from "../../IconButton";
@@ -8,6 +12,11 @@ import { SliderInput } from "../../SliderInput";
 export const GenerationSettingsTab: React.FC = () => {
   const options = useOptionsState();
   const updateOption = options.setOption;
+  const usesPolityDensity = options.initialSettlementPattern !== "standard";
+  const statesNumberLabel = usesPolityDensity ? "Polity density" : "States number";
+  const statesNumberTooltip = usesPolityDensity
+    ? "Define polity density for settlement-network maps"
+    : "Define the number of states for standard maps";
 
   const updateOptionAndLock = <K extends keyof Omit<typeof options, "setOption" | "setOptions">>(
     key: K,
@@ -287,11 +296,11 @@ export const GenerationSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
-          <tr data-tip="Define how many states and capitals should be generated">
+          <tr data-tip={statesNumberTooltip}>
             <td>
               <LockIconButton id="statesNumber" />
             </td>
-            <td>States number</td>
+            <td>{statesNumberLabel}</td>
             <td colSpan={2}>
               <SliderInput
                 min="0"
@@ -377,6 +386,33 @@ export const GenerationSettingsTab: React.FC = () => {
                 value={options.initialPopulationSaturation}
                 onChange={v => updateOptionAndLock("initialPopulationSaturation", Number(v))}
               />
+            </td>
+          </tr>
+
+          <tr data-tip="Choose whether initial people are spread across suitable land or concentrated around favorable settlement hubs. Selecting a preset also applies its recommended initial population percentage.">
+            <td>
+              <LockIconButton id="initialSettlementPattern" />
+            </td>
+            <td>Settlement pattern</td>
+            <td colSpan={2}>
+              <select
+                value={options.initialSettlementPattern}
+                onChange={e => {
+                  const initialSettlementPattern = e.target.value as typeof options.initialSettlementPattern;
+                  const preset = getInitialSettlementPatternPreset(initialSettlementPattern);
+                  options.setOptions({
+                    initialSettlementPattern,
+                    initialPopulationSaturation: preset.initialPopulationSaturation
+                  });
+                  lock("initialSettlementPattern");
+                }}
+              >
+                {INITIAL_SETTLEMENT_PATTERN_PRESETS.map(preset => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.label}
+                  </option>
+                ))}
+              </select>
             </td>
           </tr>
 

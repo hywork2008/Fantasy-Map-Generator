@@ -321,6 +321,13 @@ class ProvinceModule {
       }
     });
 
+    // Province 0 is the only valid administrative value for unclaimed land.
+    // This also removes stale province ids when states are recalculated from a
+    // sparse settlement pattern in an editor session.
+    for (const cellId of cells.i) {
+      if (!cells.state[cellId]) provinceIds[cellId] = 0;
+    }
+
     cells.province = provinceIds;
     pack.provinces = provinces;
 

@@ -12,6 +12,7 @@ export {
   getProvinceThreats,
   mergeFrontiers
 } from "../generators/frontierAnalysis";
+export { advanceFrontierGovernance } from "../generators/frontierGovernance";
 export {
   ANNUAL_DRAFT_SHARE,
   isManpowerSimEnabled,

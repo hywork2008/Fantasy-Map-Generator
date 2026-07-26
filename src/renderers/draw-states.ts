@@ -29,7 +29,7 @@ export const StatesRenderer = {
     const renderHalo = useOptionsState.getState().shapeRendering === "geometricPrecision";
     const isolines: Record<string, { fill?: string; waterGap?: string; halo?: string }> = getIsolines(
       getScopedGraph(pack, focusScope),
-      scopedGetType(focusScope, cellId => cells.state[cellId]),
+      scopedGetType(focusScope, cellId => (cells.h[cellId] >= 20 ? cells.state[cellId] : 0)),
       { fill: true, waterGap: true, halo: renderHalo }
     );
 

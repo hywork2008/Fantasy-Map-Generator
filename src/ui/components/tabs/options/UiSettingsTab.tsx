@@ -165,6 +165,24 @@ export const UiSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
+          <tr data-tip="Show the current map zoom level in the bottom-left corner">
+            <td></td>
+            <td>Zoom level</td>
+            <td>
+              <input
+                id="showZoomLevel"
+                className="checkbox"
+                type="checkbox"
+                checked={options.showZoomLevel}
+                onChange={e => updateOption("showZoomLevel", e.target.checked)}
+              />
+              <label htmlFor="showZoomLevel" className="checkbox-label">
+                Show
+              </label>
+            </td>
+            <td></td>
+          </tr>
+
           <tr data-tip="Select voice for text-to-speech. Click the test button to preview">
             <td>
               <i
@@ -345,6 +363,27 @@ export const UiSettingsTab: React.FC = () => {
                 <option value="original">3D Bars</option>
                 <option value="contour">Smooth Contours</option>
                 <option value="choropleth">Cell Heatmap</option>
+              </select>
+            </td>
+            <td></td>
+          </tr>
+
+          <tr data-tip="Select how Heightmap is drawn in SVG mode. WebGL Hybrid always uses its optimized terrain renderer">
+            <td></td>
+            <td>Heightmap rendering</td>
+            <td>
+              <select
+                id="heightmapRenderingMode"
+                value={options.heightmapRenderingMode}
+                onChange={e => {
+                  const mode = e.target.value as "heatmap" | "contours" | "labeledContours";
+                  options.setOption("heightmapRenderingMode", mode);
+                  document.dispatchEvent(new CustomEvent("react-change-heightmap-rendering-mode"));
+                }}
+              >
+                <option value="heatmap">Heatmap (current)</option>
+                <option value="contours">Contour Lines (SVG only)</option>
+                <option value="labeledContours">Black Contours + Elevation Labels (SVG only)</option>
               </select>
             </td>
             <td></td>

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createEmptyFrontierSimulationState, FRONTIER_STAGE, simulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import type { MilitaryRegiment } from "../types/models";
@@ -179,6 +180,60 @@ describe("advanceAllRegimentMovement — no threat", () => {
     expect(moved).toBe(false);
     expect(garrison.destinationCell).toBeUndefined();
     expect([garrison.x, garrison.y]).toEqual([0, 300]);
+  });
+});
+
+describe("advanceAllRegimentMovement — unclaimed frontier relief", () => {
+  it("sends a patrol to a State-supported outpost without treating wilderness as a diplomatic enemy", () => {
+    const pack = {
+      cells: {
+        i: [0, 1, 2],
+        h: [50, 50, 50],
+        c: [[1, 2], [0], [0]],
+        state: [1, 1, 0],
+        province: [1, 1, 0],
+        f: [10, 10, 10],
+        burg: [0, 0, 0],
+        routes: { 0: { 2: 0 }, 2: { 0: 0 } },
+        p: [
+          [100, 0],
+          [0, 0],
+          [60, 0]
+        ]
+      },
+      burgs: [0],
+      provinces: [],
+      routes: [],
+      states: [
+        { i: 0, name: "Neutrals", diplomacy: [] },
+        { i: 1, name: "Alpha", diplomacy: [], military: [] }
+      ]
+    } as unknown as PackedGraph;
+    const garrison = makeGarrison({ cell: 1, x: 0, y: 0, bx: 0, by: 0 });
+    pack.states[1].military = [garrison];
+    const previousFrontier = simulationContext.frontier;
+    const frontier = createEmptyFrontierSimulationState(3);
+    frontier.cellStages[2] = FRONTIER_STAGE.outpost;
+    frontier.projects[2] = {
+      cellId: 2,
+      stateId: 1,
+      stage: FRONTIER_STAGE.outpost,
+      establishedYear: 1000,
+      supportYears: 0,
+      failedSupportYears: 0
+    };
+    simulationContext.frontier = frontier;
+
+    try {
+      const worldContext = makeWorldContext();
+      worldContext.options.initialSettlementPattern = "frontier";
+
+      expect(advanceAllRegimentMovement(pack, worldContext, 100)).toBe(true);
+      expect(garrison.cell).toBe(2);
+      expect(pack.cells.state[2]).toBe(0);
+    } finally {
+      simulationContext.frontier = previousFrontier;
+    }
   });
 });
 

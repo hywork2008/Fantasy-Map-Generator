@@ -1290,6 +1290,33 @@ export class GoodsModule {
     TIME && console.timeEnd("regenerateGoodPlacement");
   }
 
+  /**
+   * Gives a newly promoted settlement an urban bonus good suited to the cell's
+   * biome. Existing deposits are retained: a mine or other mapped resource is
+   * already a more specific local product than the biome fallback.
+   */
+  assignBiomeProduct(cellId: number): number | null {
+    const cells = this.worldContext.pack.cells;
+    let goodColumn = getGoodCellColumn();
+    if (goodColumn.length !== cells.i.length) {
+      goodColumn = new Uint16Array(cells.i.length);
+      setGoodCellColumn(goodColumn);
+    }
+    if (cellId < 0 || cellId >= cells.i.length || goodColumn[cellId]) return null;
+
+    const biomeId = cells.biome[cellId];
+    const matchingGoods = getGoods().filter(
+      good => isGoodEnabled(good) && good.biomeOutput?.[biomeId] !== undefined && good.biomeOutput[biomeId]! > 0
+    );
+    if (!matchingGoods.length) return null;
+
+    // The map-cell id makes the choice stable across saves and reloads while
+    // sharing compatible biome products between nearby new settlements.
+    const selected = matchingGoods[(cellId + biomeId) % matchingGoods.length];
+    goodColumn[cellId] = selected.i;
+    return selected.i;
+  }
+
   restoreDefaults() {
     setGoods(structuredClone(this.defaultGoods));
     this.sync();

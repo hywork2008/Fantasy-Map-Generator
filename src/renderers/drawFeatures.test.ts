@@ -23,4 +23,20 @@ describe("renderFeatureGroups", () => {
     expect(layer.select("#freshwater use").attr("data-f")).toBe("1");
     expect(layer.select("#volcanic use").attr("data-f")).toBe("2");
   });
+
+  it("preserves a coastline hit target alongside its visible feature use", () => {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    const layer = select(svg).append("g") as SvgGroup;
+
+    renderFeatureGroups(layer, {
+      sea_island: [
+        '<use href="#feature_2" data-f="2"></use>',
+        '<use href="#feature_2" data-f="2" class="coastline-hit" pointer-events="stroke"></use>'
+      ]
+    });
+
+    const hitTarget = layer.select("#sea_island use.coastline-hit");
+    expect(hitTarget.attr("data-f")).toBe("2");
+    expect(hitTarget.attr("pointer-events")).toBe("stroke");
+  });
 });

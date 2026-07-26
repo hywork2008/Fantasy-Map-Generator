@@ -1,5 +1,9 @@
 import { appServices, restoreRngFromSimulation } from "../context/appServices";
-import { type SimulationContext, simulationContext } from "../context/simulationContext";
+import {
+  createEmptyFrontierSimulationState,
+  type SimulationContext,
+  simulationContext
+} from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
 import { durationToCalendarDays } from "../runtime/calendarDuration";
 import {
@@ -25,10 +29,12 @@ import { useTimeSimulationState } from "../store/timeSimulationState";
 import { captureSnapshotData, debugSnapshotsEnabled } from "../utils/aiDebugExporter";
 import { getDaysInMonth, getSeason } from "../utils/seasonUtils";
 import { tickAgriculturalCalendar } from "./agriculturalStress";
-import { simulateDemographics } from "./demography-simulator";
+import { type DemographicsSimulationResult, simulateDemographics } from "./demography-simulator";
+import { advanceFrontierExpansion } from "./frontierExpansion";
 import { tickManpower } from "./manpower";
 import { Military } from "./military-generator";
 import { advancePopulationLossClock, resetPopulationLossTracker } from "./populationLossTracker";
+import { advancePortDevelopment } from "./portDevelopment";
 import { advanceAllRegimentMovement } from "./regimentMovement";
 import { createSimulationSystemRegistry, type SimulationStepContext, type SimulationSystem } from "./simulationSystem";
 import { logTickProfile, measureTickStep, resetTickProfile } from "./tickProfiler";
@@ -107,6 +113,26 @@ export function registerSimulationSystem(system: SimulationSystem): () => void {
   return timeTickSystems.register(system);
 }
 
+// Frontier projects are host-owned politics work. The module's annual guard
+// keeps this registered daily system cheap while making Advance Day/Month/Year
+// share identical calendar-boundary semantics.
+registerSimulationSystem({
+  id: "frontier-expansion.tick",
+  phase: "politics",
+  reads: ["map.politics", "simulation.cells", "simulation.states"],
+  writes: ["simulation.cells", "simulation.states", "map.politics", "map.settlements"],
+  cadence: { every: 1 },
+  profileLabel: "frontierExpansion",
+  run: (context, writer) => {
+    const result = advanceFrontierExpansion({
+      world: worldContext,
+      simulation: simulationContext,
+      rng: context.rng
+    });
+    if (result.topics.length) writer.markChanged(...result.topics);
+  }
+});
+
 /** Test/support: ordered system ids currently registered for the host tick. */
 export function listRegisteredSimulationSystemIds(): readonly string[] {
   return timeTickSystems.list().map(system => system.id);
@@ -171,6 +197,7 @@ export function initSimulationClock(): void {
   simulationContext.intelligence = {};
   simulationContext.strategicGoals = {};
   simulationContext.navalTechBonus = {};
+  simulationContext.frontier = createEmptyFrontierSimulationState(worldContext.pack?.cells?.i.length ?? 0);
   resetPopulationLossTracker();
 }
 
@@ -541,7 +568,12 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
   }
 
   // 2) Demographics (aging/births + optional famine from foodStress)
-  let result = { bordersChanged: false, newBurgsAdded: false };
+  let result: DemographicsSimulationResult = {
+    bordersChanged: false,
+    newBurgsAdded: false,
+    routesAdded: false,
+    promotedSettlements: []
+  };
   if (sim.simDemographics) {
     topics.push("simulation.cells", "simulation.states", "simulation.burgs");
     result = measureTickStep("core:demographics", () => simulateDemographics(effectiveDeltaYears));
@@ -549,6 +581,16 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
 
   if (result.bordersChanged) topics.push("map.politics");
   if (result.newBurgsAdded) topics.push("map.settlements");
+  if (result.routesAdded) topics.push("map.networks");
+  for (const settlement of result.promotedSettlements) {
+    document.dispatchEvent(new CustomEvent("fmg:settlement-promoted", { detail: settlement }));
+  }
+
+  const portDevelopments = advancePortDevelopment(worldContext, simulationContext);
+  if (portDevelopments.length) {
+    topics.push("simulation.states", "map.settlements");
+    if (portDevelopments.some(development => development.routeAdded)) topics.push("map.networks");
+  }
 
   // 3) Manpower ledger: draft capacity + fill/demobilize from civilian males
   if (sim.simManpower && worldContext.pack?.states) {

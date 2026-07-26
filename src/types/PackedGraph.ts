@@ -15,6 +15,7 @@ import type {
   State,
   Zone
 } from "./models";
+import type { SettlementFoundationPlan } from "./settlementFoundation";
 
 export type TypedArray = Uint8Array | Uint16Array | Uint32Array | Int8Array | Int16Array | Float32Array | Float64Array;
 
@@ -80,4 +81,10 @@ export interface PackedGraph {
   ice: IceElement[];
   provinces: Province[];
   monsters: Monster[];
+  /**
+   * Pre-polity human geography. Absent on legacy and `standard` maps, where
+   * the historical all-suitable-cell placement remains the compatibility
+   * adapter.
+   */
+  settlementFoundation?: SettlementFoundationPlan;
 }

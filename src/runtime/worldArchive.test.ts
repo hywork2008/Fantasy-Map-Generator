@@ -1,8 +1,14 @@
+import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
 import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import { createPresentationData } from "./presentationData";
-import { ChunkedWorldCodecAdapter, createWorldDocument, LegacyMapCodecAdapter } from "./worldArchive";
+import {
+  ChunkedWorldCodecAdapter,
+  createWorldDocument,
+  LegacyMapCodecAdapter,
+  WORLD_ARCHIVE_SCHEMA_VERSION
+} from "./worldArchive";
 
 function sampleWorld(): WorldContext {
   return {
@@ -23,7 +29,16 @@ function sampleSimulation(): SimulationContext {
 
 describe("ChunkedWorldCodecAdapter", () => {
   it("round-trips typed arrays and unknown extension chunks without SVG", async () => {
-    const document = createWorldDocument(sampleWorld(), sampleSimulation(), createPresentationData(), [
+    const world = sampleWorld();
+    world.pack.settlementFoundation = {
+      regions: [{ id: 0, kind: "river", center: 0, cells: [0, 1] }],
+      nodes: [
+        { id: 0, regionId: 0, cell: 0, role: "center", score: 10 },
+        { id: 1, regionId: 0, cell: 1, role: "village", score: 5 }
+      ],
+      links: [{ fromNodeId: 0, toNodeId: 1, kind: "river" }]
+    };
+    const document = createWorldDocument(world, sampleSimulation(), createPresentationData(), [
       {
         extensionId: "uninstalled-extension",
         schemaVersion: 3,
@@ -40,6 +55,7 @@ describe("ChunkedWorldCodecAdapter", () => {
 
     expect(staged.document.world.pack.cells.state).toEqual(new Uint16Array([1, 2]));
     expect(staged.document.world.pack.cells.pop).toEqual(new Float32Array([1.5, 2.25]));
+    expect(staged.document.world.pack.settlementFoundation).toEqual(world.pack.settlementFoundation);
     expect(staged.document.opaqueExtensionChunks).toHaveLength(1);
     expect(staged.document.opaqueExtensionChunks[0]?.bytes).toEqual(new Uint8Array([1, 2, 3, 255]));
 
@@ -120,7 +136,7 @@ describe("ChunkedWorldCodecAdapter", () => {
     );
   });
 
-  it("round-trips populationLoss, navalTechBonus, and extension tick maps", async () => {
+  it("round-trips populationLoss, navalTechBonus, frontier state, and extension tick maps", async () => {
     const simulation = sampleSimulation();
     simulation.populationLoss = {
       simDay: 12.5,
@@ -133,6 +149,15 @@ describe("ChunkedWorldCodecAdapter", () => {
       ]
     };
     simulation.navalTechBonus = { 1: 1.3 };
+    simulation.frontier = {
+      cellStages: new Uint8Array([1, 0]),
+      projects: {
+        0: { cellId: 0, stateId: 1, stage: 1, establishedYear: 100, supportYears: 1, failedSupportYears: 0 }
+      },
+      lastEvaluatedYear: 101,
+      budgetByState: { 1: 80 },
+      stateCooldownUntilYear: { 1: 102 }
+    };
     simulation.extensions = {
       economy: { forestDepletion: { 0: 0.4, 1: 0.1 } },
       nobility: { voyageIntelBonus: { "1:2": 5 } }
@@ -150,6 +175,8 @@ describe("ChunkedWorldCodecAdapter", () => {
     expect(staged.document.simulation.populationLoss.history[0]?.byState[1]?.total).toBe(12);
     expect(staged.document.simulation.populationLoss.history[0]?.combatByCell[0]).toBe(10);
     expect(staged.document.simulation.navalTechBonus[1]).toBe(1.3);
+    expect(staged.document.simulation.frontier.cellStages).toEqual(new Uint8Array([1, 0]));
+    expect(staged.document.simulation.frontier.projects[0]?.stateId).toBe(1);
     expect(
       (staged.document.simulation.extensions.economy as { forestDepletion: Record<string, number> }).forestDepletion
     ).toEqual({ 0: 0.4, 1: 0.1 });
@@ -158,10 +185,11 @@ describe("ChunkedWorldCodecAdapter", () => {
     ).toEqual({ "1:2": 5 });
   });
 
-  it("normalizes missing populationLoss and navalTechBonus on older archives", async () => {
+  it("normalizes missing populationLoss, navalTechBonus, and frontier state on older archives", async () => {
     const document = createWorldDocument(sampleWorld(), sampleSimulation(), createPresentationData(), []);
     delete (document.simulation as { populationLoss?: unknown }).populationLoss;
     delete (document.simulation as { navalTechBonus?: unknown }).navalTechBonus;
+    delete (document.simulation as { frontier?: unknown }).frontier;
 
     const codec = new ChunkedWorldCodecAdapter();
     const blob = await codec.encode(document);
@@ -172,6 +200,45 @@ describe("ChunkedWorldCodecAdapter", () => {
 
     expect(staged.document.simulation.populationLoss).toEqual({ simDay: 0, history: [] });
     expect(staged.document.simulation.navalTechBonus).toEqual({});
+    expect(staged.document.simulation.frontier.cellStages).toEqual(new Uint8Array([0, 0]));
+  });
+
+  it("migrates a v1 archive without a settlement pattern to standard", async () => {
+    const world = sampleWorld();
+    world.options = {
+      pinNotes: false,
+      winds: [0, 0, 0, 0, 0, 0],
+      temperatureEquator: 0,
+      temperatureNorthPole: 0,
+      temperatureSouthPole: 0,
+      stateLabelsMode: "auto",
+      showBurgPreview: true,
+      burgs: { groups: [] },
+      initialSettlementPattern: "dense"
+    };
+    const codec = new ChunkedWorldCodecAdapter();
+    const archive = await codec.encode(createWorldDocument(world, sampleSimulation(), createPresentationData(), []));
+    const zip = await JSZip.loadAsync(await archive.arrayBuffer());
+    const manifestFile = zip.file("manifest.json");
+    const worldFile = zip.file("map/world.json");
+    if (!manifestFile || !worldFile) throw new Error("test archive is incomplete");
+
+    const manifest = JSON.parse(await manifestFile.async("text")) as Record<string, unknown>;
+    manifest.schemaVersion = 1;
+    zip.file("manifest.json", JSON.stringify(manifest));
+    const serializedWorld = JSON.parse(await worldFile.async("text")) as { options: Record<string, unknown> };
+    delete serializedWorld.options.initialSettlementPattern;
+    zip.file("map/world.json", JSON.stringify(serializedWorld));
+    const v1Archive = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+
+    const staged = await codec.decode({
+      header: new Uint8Array(await v1Archive.slice(0, 4).arrayBuffer()),
+      blob: v1Archive
+    });
+
+    expect(WORLD_ARCHIVE_SCHEMA_VERSION).toBe(2);
+    expect(staged.document.schemaVersion).toBe(WORLD_ARCHIVE_SCHEMA_VERSION);
+    expect(staged.document.world.options.initialSettlementPattern).toBe("standard");
   });
 
   it("stages a legacy positional map without changing live state", async () => {

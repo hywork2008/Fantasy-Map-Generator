@@ -5,8 +5,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { getHeightmapTemplateWeights } from "../data";
-import { THEME_COLOR } from "../data/constants";
+import { getHeightmapTemplateWeights, getInitialSettlementPatternPreset } from "../data";
 import { Cultures } from "../generators/cultures-generator";
 import { COA } from "../generators/emblem/generator";
 import { Names } from "../generators/names-generator";
@@ -22,11 +21,12 @@ import { viewLayerService as view } from "../services/viewLayerService";
 import { viewStateStore } from "../store";
 import { loadMapDialogStore } from "../store/loadMapDialogState";
 import { loadMapUrlDialogStore } from "../store/loadMapUrlDialogState";
-import { type OptionsState, useOptionsState } from "../store/optionsState";
+import { DEFAULT_UI_OPTIONS, type OptionsState, useOptionsState } from "../store/optionsState";
 import type { Burg, Culture, Province, State } from "../types/models";
 import { closeAllDialogs, closeDialogs, openAlert, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { gauss, last, minmax, P, rand, rn, rw } from "../utils";
 import { applyOption, lock, locked, stored, unlock } from "../utils/domUtils";
+import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
 import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
 import { cleanupData } from "../versioning";
 import { exportToJson as exportToJsonModule } from "./export-json";
@@ -322,7 +322,7 @@ function changeTooltipSize(value: string): void {
 
 function restoreDefaultThemeColor(): void {
   localStorage.removeItem("themeColor");
-  changeDialogsTheme(THEME_COLOR, String(useOptionsState.getState().transparency));
+  changeDialogsTheme(DEFAULT_UI_OPTIONS.themeColor, String(useOptionsState.getState().transparency));
 }
 
 export function changeThemeHue(hue: string): void {
@@ -336,8 +336,9 @@ function changeDialogsTheme(themeColor: string, transparency: string): void {
   const alpha = (100 - +transparency) / 100;
   const alphaReduced = Math.min(alpha + 0.3, 1);
 
-  const { h, s, l } = hsl(themeColor || THEME_COLOR);
-  useOptionsState.getState().setOptions({ themeColor: themeColor || THEME_COLOR });
+  const resolvedThemeColor = themeColor || DEFAULT_UI_OPTIONS.themeColor;
+  const { h, s, l } = hsl(resolvedThemeColor);
+  useOptionsState.getState().setOptions({ themeColor: resolvedThemeColor });
 
   const getRGBA = (hue: number, saturation: number, lightness: number, a: number): string => {
     return hsl(hue, saturation, lightness, a).toString();
@@ -356,6 +357,7 @@ function changeDialogsTheme(themeColor: string, transparency: string): void {
     { name: "--bg-main", h, s, l, alpha },
     { name: "--bg-lighter", h, s, l: l + 0.02, alpha },
     { name: "--bg-light", h, s: s - 0.02, l: l + 0.06, alpha },
+    { name: "--bg-light-solid", h, s: s - 0.02, l: l + 0.06, alpha: 1 },
     { name: "--light-solid", h, s: s + 0.01, l: l + 0.05, alpha: 1 },
     { name: "--dark-solid", h, s, l: l - 0.2, alpha: 1 },
     { name: "--header", h, s, l: l - 0.03, alpha: alphaReduced },
@@ -439,8 +441,9 @@ function changeZoomExtent(value: string): void {
 }
 
 function restoreDefaultZoomExtent(): void {
-  useOptionsState.getState().setOptions({ zoomExtentMin: 1, zoomExtentMax: 20 });
-  view.zoom.scaleExtent([1, 20]).scaleTo(view.svg, 1);
+  const { zoomExtentMin, zoomExtentMax } = DEFAULT_UI_OPTIONS;
+  useOptionsState.getState().setOptions({ zoomExtentMin, zoomExtentMax });
+  view.zoom.scaleExtent([zoomExtentMin, zoomExtentMax]).scaleTo(view.svg, zoomExtentMin);
 }
 
 // ─── Apply stored options ─────────────────────────────────────────────────────
@@ -467,6 +470,50 @@ export function applyStoredOptions(): void {
 
   const loadedOptions: Partial<Omit<OptionsState, "setOption" | "setOptions">> = {};
 
+  // This list includes every OptionsState-backed lock control and the
+  // pre-existing non-lock preferences that this startup path owns. Keep the
+  // lock entries aligned with every LockIconButton: a lock promises that its
+  // latest value survives a browser reload.
+  const persistedOptionKeys = [
+    "seed",
+    "points",
+    "mapName",
+    "year",
+    "era",
+    "cultures",
+    "culturesSet",
+    "statesNumber",
+    "diplomacyHistoryAttempts",
+    "provincesRatio",
+    "sizeVariety",
+    "growthRate",
+    "initialPopulationSaturation",
+    "initialSettlementPattern",
+    "manors",
+    "religionsNumber",
+    "stateLabelsMode",
+    "demographicBirthRate",
+    "demographicChildMortalityRate",
+    "warFrequency",
+    "threatCalculation",
+    "emblemShape",
+    "distanceScale",
+    "mapSize",
+    "latitude",
+    "longitude",
+    "prec",
+    "uiSize",
+    "tooltipSize",
+    "themeColor",
+    "transparency",
+    // This setting is stored by the legacy control without a React lock button.
+    "gunpowderEraEnabled"
+  ] as const satisfies readonly (keyof Omit<OptionsState, "setOption" | "setOptions">)[];
+
+  type PersistedOptionKey = (typeof persistedOptionKeys)[number];
+  const isPersistedOptionKey = (key: string): key is PersistedOptionKey =>
+    (persistedOptionKeys as readonly string[]).includes(key);
+
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i)!;
     if (key === "speakerVoice") continue;
@@ -478,31 +525,19 @@ export function applyStoredOptions(): void {
 
     if (key.slice(0, 5) === "style") applyOption(getElementById<HTMLSelectElement>("stylePreset")!, key, key.slice(5));
 
-    // Map valid keys to the Zustand store
-    const validKeys = [
-      "seed",
-      "points",
-      "mapName",
-      "year",
-      "era",
-      "cultures",
-      "culturesSet",
-      "statesNumber",
-      "provincesRatio",
-      "sizeVariety",
-      "growthRate",
-      "manors",
-      "religionsNumber",
-      "uiSize",
-      "tooltipSize",
-      "themeColor",
-      "transparency",
-      "threatCalculation",
-      "gunpowderEraEnabled"
-    ];
-    if (validKeys.includes(key)) {
-      (loadedOptions as Record<string, string | number | boolean>)[key] =
-        key === "gunpowderEraEnabled" ? value === "true" : Number.isNaN(+value) ? value : +value;
+    if (isPersistedOptionKey(key)) {
+      const parsedValue = key === "gunpowderEraEnabled" ? value === "true" : Number.isNaN(+value) ? value : +value;
+      (loadedOptions as Record<PersistedOptionKey, string | number | boolean>)[key] = parsedValue;
+    }
+  }
+  if (typeof loadedOptions.initialSettlementPattern === "string") {
+    loadedOptions.initialSettlementPattern = normalizeInitialSettlementPattern(loadedOptions.initialSettlementPattern);
+    // Settlement patterns have a recommended population saturation. Restore
+    // that derived value unless the user explicitly locked a custom one.
+    if (!locked("initialPopulationSaturation")) {
+      loadedOptions.initialPopulationSaturation = getInitialSettlementPatternPreset(
+        loadedOptions.initialSettlementPattern
+      ).initialPopulationSaturation;
     }
   }
   optionsStore.setOptions(loadedOptions);
@@ -548,8 +583,8 @@ export function applyStoredOptions(): void {
     });
   }
 
-  const transparency = stored("transparency") || "5";
-  const themeColor = stored("themeColor") || "";
+  const transparency = stored("transparency") ?? String(DEFAULT_UI_OPTIONS.transparency);
+  const themeColor = stored("themeColor") ?? DEFAULT_UI_OPTIONS.themeColor;
   changeDialogsTheme(themeColor, transparency);
 
   setRendering(optionsStore.shapeRendering);
@@ -896,6 +931,14 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
         PopulationRenderer.render(worldContext, viewContext, appServices);
       });
     }
+  });
+
+  document.addEventListener("react-change-heightmap-rendering-mode", () => {
+    // This choice applies only to the legacy SVG renderer. Hybrid mode keeps its deck.gl terrain path.
+    if (viewContext.renderMode !== "svg" || !layerIsOn("toggleHeight")) return;
+    import("../renderers").then(({ HeightmapRenderer }) => {
+      HeightmapRenderer.render(worldContext, viewContext, appServices);
+    });
   });
 
   document.addEventListener("react-change-danger-rendering-mode", () => {

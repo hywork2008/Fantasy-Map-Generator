@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 
 // ────────────────────────────────────────────────────────────────────────────
 // CSS transform + React Hooks implementation
@@ -42,7 +42,9 @@ interface ResizeState {
   startHeight?: number;
 }
 
-const VIEWPORT_PADDING = 16;
+// All draggable UI, including dialogs and the options panel, may be placed
+// flush against the viewport edge.
+const VIEWPORT_PADDING = 0;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), Math.max(min, max));
@@ -73,9 +75,12 @@ function resizeReducer(state: ResizeState, action: ResizeAction): ResizeState {
   }
 }
 
-export function useDraggable(options?: { handleSelector?: string }) {
+export function useDraggable(options?: { handleSelector?: string; allowInteractiveHandle?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const resizeHandleRef = useRef<HTMLDivElement>(null);
+  const [resizeHandle, setResizeHandle] = useState<HTMLDivElement | null>(null);
+  const resizeHandleRef = useCallback((node: HTMLDivElement | null) => {
+    setResizeHandle(node);
+  }, []);
 
   // Drag state management
   const [dragState, dispatchDrag] = useReducer(dragReducer, {
@@ -153,9 +158,20 @@ export function useDraggable(options?: { handleSelector?: string }) {
 
       // Prevent drag if clicking on interactive elements
       const target = e.target as HTMLElement;
-      if (["BUTTON", "INPUT", "SELECT", "TEXTAREA"].includes(target.tagName)) return;
+      if (!options?.allowInteractiveHandle && ["BUTTON", "INPUT", "SELECT", "TEXTAREA"].includes(target.tagName)) {
+        return;
+      }
 
       dragStartRef.current = { x: e.clientX, y: e.clientY };
+      // Mouse movement can arrive before React commits the reducer update.
+      // Keep the event handler's ref current immediately so the first movement
+      // is not lost.
+      dragStateRef.current = {
+        ...dragStateRef.current,
+        isDragging: true,
+        startOffsetX: dragStateRef.current.offsetX,
+        startOffsetY: dragStateRef.current.offsetY
+      };
       dispatchDrag({
         type: "DRAG_START",
         payload: { startX: e.clientX, startY: e.clientY }
@@ -174,7 +190,7 @@ export function useDraggable(options?: { handleSelector?: string }) {
       document.body.style.userSelect = "none";
       container.classList.add("dragging");
     },
-    [bringToFront]
+    [bringToFront, options?.allowInteractiveHandle]
   );
 
   const onMouseMove = useCallback((e: MouseEvent) => {
@@ -211,6 +227,7 @@ export function useDraggable(options?: { handleSelector?: string }) {
     if (!container) return;
     if (!dragStateRef.current.isDragging) return;
 
+    dragStateRef.current = { ...dragStateRef.current, isDragging: false };
     dispatchDrag({ type: "DRAG_END" });
     document.body.style.userSelect = "";
     container.classList.remove("dragging");
@@ -248,6 +265,16 @@ export function useDraggable(options?: { handleSelector?: string }) {
       e.stopPropagation();
 
       resizeStartRef.current = { x: e.clientX, y: e.clientY };
+      // As with dragging, make the active state available synchronously to a
+      // mousemove that follows this native event without waiting for a render.
+      resizeStateRef.current = {
+        ...resizeStateRef.current,
+        isResizing: true,
+        width: container.offsetWidth,
+        height: container.offsetHeight,
+        startWidth: container.offsetWidth,
+        startHeight: container.offsetHeight
+      };
       dispatchResize({
         type: "RESIZE_START",
         payload: { initialWidth: container.offsetWidth, initialHeight: container.offsetHeight }
@@ -279,13 +306,13 @@ export function useDraggable(options?: { handleSelector?: string }) {
   const onResizeMouseUp = useCallback(() => {
     if (!resizeStateRef.current.isResizing) return;
 
+    resizeStateRef.current = { ...resizeStateRef.current, isResizing: false };
     dispatchResize({ type: "RESIZE_END" });
     document.body.style.userSelect = "";
     document.body.style.cursor = "";
   }, []);
 
   useEffect(() => {
-    const resizeHandle = resizeHandleRef.current;
     if (!resizeHandle) return;
 
     resizeHandle.addEventListener("mousedown", onResizeMouseDown);
@@ -297,7 +324,7 @@ export function useDraggable(options?: { handleSelector?: string }) {
       document.removeEventListener("mousemove", onResizeMouseMove);
       document.removeEventListener("mouseup", onResizeMouseUp);
     };
-  }, [onResizeMouseDown, onResizeMouseMove, onResizeMouseUp]);
+  }, [onResizeMouseDown, onResizeMouseMove, onResizeMouseUp, resizeHandle]);
 
   return { containerRef, resizeHandleRef, bringToFront };
 }

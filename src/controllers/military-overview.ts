@@ -25,7 +25,6 @@ export function overviewMilitary(): void {
   if (!layerIsOn("toggleBorders")) toggleBorders();
   if (!layerIsOn("toggleMilitary")) toggleMilitary();
 
-  useMilitaryOverviewState.getState().refresh();
   openDialog("militaryOverview");
 
   if (modules.overviewMilitary) return;

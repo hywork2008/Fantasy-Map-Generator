@@ -4,7 +4,7 @@ import type { ExtensionAPI } from "../../types/extension-api";
 import { advanceCharacterAging } from "../characters/advanceAge";
 import { refreshCharactersOverviewIfOpen } from "../characters/controllers/characters-overview";
 import { CHARACTERS_EXTENSION_ID } from "../characters/index";
-import { advanceAllRegimentMovement, Military } from "../hostCore";
+import { advanceAllRegimentMovement, advanceFrontierGovernance, Military } from "../hostCore";
 import { tip } from "../hostServices";
 import {
   applyConflictAutonomy,
@@ -224,7 +224,14 @@ export function init(api: ExtensionAPI): void {
       "extension.nobility",
       "extension.shipbuilding"
     ],
-    writes: ["extension.characters", "extension.nobility", "map.politics", "map.settlements", "simulation.military"],
+    writes: [
+      "extension.characters",
+      "extension.nobility",
+      "map.politics",
+      "map.settlements",
+      "simulation.military",
+      "simulation.states"
+    ],
     cadence: { every: 1 },
     profileLabel: "nobility",
     run: (context, writer) => {
@@ -240,6 +247,14 @@ export function init(api: ExtensionAPI): void {
 
       const canAdvanceConflict = mayAdvanceAnyConflict();
       if (api.simulationContext.currentDay === 1) {
+        // Frontier governance is a separate choice from war planning: rulers
+        // spend on recovery and border works before choosing fresh campaigns.
+        // It deliberately runs only when Nobility is enabled; the host frontier
+        // loop remains usable without this optional strategic layer.
+        if (api.simulationContext.currentMonth === 1) {
+          advanceFrontierGovernance(api.worldContext, api.simulationContext, context.rng);
+          writer.markChanged("simulation.states");
+        }
         if (canAdvanceConflict) StrategicPlanner.evaluatePlans();
         Mobilization.conscript(api.worldContext.pack);
       }

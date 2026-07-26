@@ -36,6 +36,7 @@ import { calculateVoronoi, findCell, last, link, minmax, parseError, rn } from "
 import { heightmapColorSchemes } from "../utils/colorUtils";
 import { normalizeConflictAutonomy } from "../utils/conflictAutonomy";
 import { ERROR, INFO, WARN } from "../utils/debug";
+import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
 
 import { layerIsOn } from "../utils/nodeUtils";
 import { cleanupData, compareVersions, isValidVersion, parseMapVersion, VERSION } from "../versioning";
@@ -222,7 +223,8 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
       year: validated.document.simulation.currentYear,
       era: validated.document.simulation.era,
       mapWidth: worldContext.graphWidth,
-      mapHeight: worldContext.graphHeight
+      mapHeight: worldContext.graphHeight,
+      initialSettlementPattern: normalizeInitialSettlementPattern(worldContext.options.initialSettlementPattern)
     });
     callback?.();
     document.getElementById("coas")?.replaceChildren();
@@ -436,6 +438,9 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
     useOptionsState.getState().setOptions(updates);
     if (settings[19]) worldContext.options = JSON.parse(settings[19]);
     worldContext.options.conflictAutonomy = normalizeConflictAutonomy(worldContext.options.conflictAutonomy);
+    worldContext.options.initialSettlementPattern = normalizeInitialSettlementPattern(
+      worldContext.options.initialSettlementPattern
+    );
     if (settings[16]) worldContext.options.temperatureEquator = +settings[16];
     if (settings[17])
       worldContext.options.temperatureNorthPole = worldContext.options.temperatureSouthPole = +settings[17];
@@ -460,6 +465,7 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
     if (worldContext.options.era != null) zustandUpdates.era = worldContext.options.era;
     zustandUpdates.gunpowderEraEnabled = worldContext.options.gunpowderEraEnabled !== false;
     zustandUpdates.conflictAutonomy = normalizeConflictAutonomy(worldContext.options.conflictAutonomy);
+    zustandUpdates.initialSettlementPattern = worldContext.options.initialSettlementPattern;
     useOptionsState.getState().setOptions(zustandUpdates);
   }
 

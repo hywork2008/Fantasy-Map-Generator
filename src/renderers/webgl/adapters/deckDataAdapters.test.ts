@@ -349,6 +349,17 @@ describe("deck.gl data adapters", () => {
     expect(routes.find(route => route.id === "route-3")?.color).toEqual([255, 255, 255, 77]);
   });
 
+  it("does not draw a political border between a State and unclaimed land", () => {
+    const worldContext = createWorldContext();
+    worldContext.pack.cells.h[1] = 30;
+    worldContext.pack.cells.state[0] = 1;
+    worldContext.pack.cells.state[1] = 0;
+    worldContext.pack.cells.province[0] = 1;
+
+    expect(buildBorderPaths(worldContext, null)).toEqual([]);
+    expect(buildDivisionBoundaryPaths(worldContext, null, "state")).toEqual([]);
+  });
+
   it("filters land, route, and height adapters to the active focus scope", () => {
     const worldContext = createWorldContext();
     worldContext.pack.cells.h[1] = 30;
@@ -690,7 +701,7 @@ describe("deck.gl data adapters", () => {
     expect(icons[1]).toMatchObject({ kind: "burgIcon", type: "anchor", burgId: 1, cellId: 0, group: "city" });
     expect(icons[0].color).toEqual([17, 17, 17, 255]);
     expect(icons[1].size).toBe(1.5);
-    expect(icons[1].position).toEqual([6.05, 5]);
+    expect(icons[1].position).toEqual([5.3, 5]);
   });
 
   it("maps burg and port icons to reusable low-poly mesh descriptors", () => {

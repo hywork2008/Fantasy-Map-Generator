@@ -42,9 +42,9 @@ export function createViewLayers(): void {
   >;
   const landmass = viewbox.append("g").attr("id", "landmass") as Selection<SVGGElement, unknown, null, undefined>;
   const texture = viewbox.append("g").attr("id", "texture") as Selection<SVGGElement, unknown, null, undefined>;
-  const terrs = viewbox.append("g").attr("id", "terrs") as Selection<SVGGElement, unknown, null, undefined>;
   const lakes = viewbox.append("g").attr("id", "lakes") as Selection<SVGGElement, unknown, null, undefined>;
   const biomes = viewbox.append("g").attr("id", "biomes") as Selection<SVGGElement, unknown, null, undefined>;
+  const terrs = viewbox.append("g").attr("id", "terrs") as Selection<SVGGElement, unknown, null, undefined>;
   const danger = viewbox.append("g").attr("id", "danger").style("display", "none") as Selection<
     SVGGElement,
     unknown,
@@ -321,6 +321,11 @@ export function bindViewLayersFromSvg(mapSvgEl: SVGSVGElement, options: BindView
   const texture = viewbox.select("#texture") as Selection<SVGGElement, unknown, null, undefined>;
   const terrs = viewbox.select("#terrs") as Selection<SVGGElement, unknown, null, undefined>;
   const biomes = viewbox.select("#biomes") as Selection<SVGGElement, unknown, null, undefined>;
+  const terrsNode = terrs.node();
+  const biomesNode = biomes.node();
+  if (terrsNode && biomesNode?.parentNode && biomesNode.nextSibling !== terrsNode) {
+    biomesNode.parentNode.insertBefore(terrsNode, biomesNode.nextSibling);
+  }
   const ice = viewbox.select("#ice") as Selection<SVGGElement, unknown, null, undefined>;
   const cells = viewbox.select("#cells") as Selection<SVGGElement, unknown, null, undefined>;
   const gridOverlay = viewbox.select("#gridOverlay") as Selection<SVGGElement, unknown, null, undefined>;

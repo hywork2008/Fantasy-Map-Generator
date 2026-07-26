@@ -5,6 +5,7 @@ import { useDialogState } from "../../../store/dialogState";
 import { useExtensionState } from "../../../store/extensionState";
 import { useHeightmapEditModeState } from "../../../store/heightmapDialogState";
 import { useTimeSimulationState } from "../../../store/timeSimulationState";
+import { FrontierStatusPanel } from "./FrontierStatusPanel";
 
 interface StaticEditButton {
   key: string;
@@ -557,6 +558,7 @@ export const ToolsTab: React.FC = () => {
             </>
           )}
         </div>
+        <FrontierStatusPanel />
       </div>
       <div className="separator">Create</div>
       <div className="grid">

@@ -885,6 +885,7 @@ export function buildPopulationPolygons(
     focusScope,
     "population",
     cellId => {
+      if (totalPop[cellId] <= 0) return [92, 88, 112, Math.round(maxOpacity * 255 * 0.22)];
       const bucket = getPopBucket(cellId);
       if (bucket < 0) return [0, 0, 0, 0];
       const hexColor = interpolateYlOrRd((bucket + 1) / 10);
@@ -957,9 +958,13 @@ export function buildBorderPaths(
     if (!isCellInScope(focusScope, cellId) || cells.h[cellId] < 20) continue;
     for (const neighborId of cells.c[cellId] ?? []) {
       if (neighborId < cellId || cells.h[neighborId] < 20 || !isCellInScope(focusScope, neighborId)) continue;
-      const isStateBorder = cells.state[cellId] !== cells.state[neighborId];
+      const hasStateOwners = Boolean(cells.state[cellId] && cells.state[neighborId]);
+      const isStateBorder = hasStateOwners && cells.state[cellId] !== cells.state[neighborId];
       const isProvinceBorder =
-        !isStateBorder && cells.province[cellId] && cells.province[cellId] !== cells.province[neighborId];
+        hasStateOwners &&
+        !isStateBorder &&
+        cells.province[cellId] &&
+        cells.province[cellId] !== cells.province[neighborId];
       if (!isStateBorder && !isProvinceBorder) continue;
 
       const edge = getSharedEdge(cells, vertices, cellId, neighborId);
@@ -1008,6 +1013,12 @@ export function buildDivisionBoundaryPaths(
       if (neighborId < cellId || cells.h[neighborId] < 20 || !isCellInScope(focusScope, neighborId)) continue;
       const neighborValue = cells[division][neighborId];
       if (!neighborValue || value === neighborValue) continue;
+      if (division === "state" && (!cells.state[cellId] || !cells.state[neighborId])) continue;
+      if (
+        division === "province" &&
+        (!cells.state[cellId] || !cells.state[neighborId] || cells.state[cellId] !== cells.state[neighborId])
+      )
+        continue;
 
       const edge = getSharedEdge(cells, vertices, cellId, neighborId);
       if (!edge) continue;
