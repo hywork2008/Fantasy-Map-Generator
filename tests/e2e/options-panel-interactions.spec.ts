@@ -110,13 +110,22 @@ test("switches the SVG heightmap between canvas heatmap and contour paths", asyn
 
   const heightmapToggle = page.locator("#toggleHeight");
   if ((await heightmapToggle.getAttribute("class"))?.includes("buttonoff")) await heightmapToggle.click();
-  await expect(page.locator("#landHeights foreignObject.fmc")).toHaveCount(1);
+  await expect(page.locator("#landHeights foreignObject.fmc")).toHaveCount(0);
+  await expect(page.locator("#landHeights path.heightmap-contour-line").first()).toHaveAttribute("fill", "none");
+  await expect.poll(async () => page.locator("#landHeights .heightmap-contour-labels text").count()).toBeGreaterThan(0);
+
+  const layerOrder = await page.locator("#viewbox > *").evaluateAll(layers => layers.map(layer => layer.id));
+  expect(layerOrder.indexOf("terrs")).toBeGreaterThan(layerOrder.indexOf("biomes"));
 
   await page.locator("#optionsTab").click();
   await page.locator("#optionsTabContent").getByRole("button", { name: "UI", exact: true }).click();
 
   const renderingMode = page.locator("#heightmapRenderingMode");
+  await expect(renderingMode).toHaveValue("labeledContours");
+  await renderingMode.selectOption("heatmap");
+
   await expect(renderingMode).toHaveValue("heatmap");
+  await expect(page.locator("#landHeights foreignObject.fmc")).toHaveCount(1);
   await renderingMode.selectOption("contours");
 
   await expect(renderingMode).toHaveValue("contours");

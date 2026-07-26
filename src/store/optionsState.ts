@@ -261,7 +261,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   rescaleLabels: true,
   hideLabels: false,
   populationRenderingMode: "choropleth",
-  heightmapRenderingMode: "heatmap",
+  heightmapRenderingMode: "labeledContours",
   dangerRenderingMode: "contour",
   combatDeathsRenderingMode: "contour",
 
