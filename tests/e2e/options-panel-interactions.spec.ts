@@ -136,5 +136,8 @@ test("switches the SVG heightmap between canvas heatmap and contour paths", asyn
   const overviewContourCount = await page.locator("#landHeights path.heightmap-contour-line").count();
   await zoomToMapCenter(page, 6);
   await expect(page.locator("#landHeights .heightmap-contour-secondSupplementary")).toHaveCount(0);
-  await expect(page.locator("#landHeights path.heightmap-contour-line")).toHaveCount(overviewContourCount);
+  await expect.poll(async () => page.locator("#landHeights path.heightmap-contour-line").count()).toBeGreaterThan(0);
+  await expect.poll(async () => page.locator("#landHeights path.heightmap-contour-line").count()).toBeLessThan(
+    overviewContourCount
+  );
 });

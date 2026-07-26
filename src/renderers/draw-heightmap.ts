@@ -66,9 +66,11 @@ type ContourLabelCandidate = {
 };
 
 type CachedLabeledContour = {
+  id: string;
   elevation: number;
   contourType: ContourType;
   path: string;
+  bounds: { minX: number; minY: number; maxX: number; maxY: number };
   labelCandidates: ContourLabelCandidate[];
 };
 
@@ -113,20 +115,64 @@ export function refreshLabeledContourLabels(viewContext: Readonly<ViewState>): v
   renderVisibleLabels(activeLabeledContours.land, viewContext);
 }
 
-function renderLabeledContourPaths(group: SvgGroup, contours: CachedLabeledContour[]): void {
-  for (const contour of contours) {
-    const contourStyle = getContourStyle(contour.contourType);
-    group
-      .append("path")
-      .attr("class", `heightmap-contour-line heightmap-contour-${contour.contourType}`)
-      .attr("d", contour.path)
-      .attr("fill", "none")
-      .attr("stroke", "#000")
-      .attr("stroke-width", contourStyle.width)
-      .attr("stroke-opacity", contourStyle.opacity)
-      .attr("stroke-dasharray", contourStyle.dasharray)
-      .attr("vector-effect", "non-scaling-stroke");
+/** Swaps SVG paths at the viewport edge while retaining cached contour geometry for later pans. */
+export function refreshVisibleLabeledContourPaths(viewContext: Readonly<ViewState>): void {
+  if (!activeLabeledContours) return;
+  renderLabeledContourPaths(activeLabeledContours.ocean, viewContext);
+  renderLabeledContourPaths(activeLabeledContours.land, viewContext);
+}
+
+function renderLabeledContourPaths(activeGroup: ActiveLabeledContours["land"], viewContext: Readonly<ViewState>): void {
+  if (!activeGroup) return;
+
+  const { group, contours } = activeGroup;
+  let pathsGroup = group.select<SVGGElement>("g.heightmap-contour-paths");
+  if (pathsGroup.empty()) {
+    pathsGroup = group.insert("g", "g.heightmap-contour-labels").attr("class", "heightmap-contour-paths");
   }
+
+  const visibleContours = contours.filter(contour => isContourInViewport(contour, viewContext));
+  const paths = pathsGroup
+    .selectAll<SVGPathElement, CachedLabeledContour>("path.heightmap-contour-line")
+    .data(visibleContours, contour => contour.id);
+  paths.exit().remove();
+
+  const updatedPaths = paths.enter().append("path").merge(paths);
+  updatedPaths
+    .attr("class", contour => `heightmap-contour-line heightmap-contour-${contour.contourType}`)
+    .attr("d", contour => contour.path)
+    .attr("fill", "none")
+    .attr("stroke", "#000")
+    .attr("stroke-width", contour => getContourStyle(contour.contourType).width)
+    .attr("stroke-opacity", contour => getContourStyle(contour.contourType).opacity)
+    .attr("stroke-dasharray", contour => getContourStyle(contour.contourType).dasharray)
+    .attr("vector-effect", "non-scaling-stroke");
+}
+
+function isContourInViewport(contour: CachedLabeledContour, viewContext: Readonly<ViewState>): boolean {
+  const margin = 64 / viewContext.scale;
+  const minX = (-viewContext.viewX - margin) / viewContext.scale;
+  const maxX = (viewContext.svgWidth - viewContext.viewX + margin) / viewContext.scale;
+  const minY = (-viewContext.viewY - margin) / viewContext.scale;
+  const maxY = (viewContext.svgHeight - viewContext.viewY + margin) / viewContext.scale;
+  const { bounds } = contour;
+  return bounds.maxX >= minX && bounds.minX <= maxX && bounds.maxY >= minY && bounds.minY <= maxY;
+}
+
+function getContourBounds(points: Point[]): CachedLabeledContour["bounds"] {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const [x, y] of points) {
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  }
+
+  return { minX, minY, maxX, maxY };
 }
 
 function renderVisibleLabels(activeGroup: ActiveLabeledContours["land"], viewContext: Readonly<ViewState>): void {
@@ -267,11 +313,15 @@ function getContourStyle(contourType: ContourType): { width: number; opacity: nu
   }
 }
 
-function setActiveLabeledContourGroup(group: SvgGroup, contours: CachedLabeledContour[]): void {
+function setActiveLabeledContourGroup(
+  group: SvgGroup,
+  contours: CachedLabeledContour[]
+): NonNullable<ActiveLabeledContours["land"]> {
   if (!activeLabeledContours) activeLabeledContours = { ocean: null, land: null };
   const activeGroup = { group, contours, labelIndex: buildLabelSpatialIndex(contours) };
   if (group.attr("id") === "oceanHeights") activeLabeledContours.ocean = activeGroup;
   else activeLabeledContours.land = activeGroup;
+  return activeGroup;
 }
 
 function buildLabelSpatialIndex(contours: CachedLabeledContour[]): LabelSpatialIndex {
@@ -560,7 +610,10 @@ export const HeightmapRenderer: IRenderer = {
           const curveName = group.attr("curve") ?? "curveBasisClosed";
           for (const elevation of range(minHeight + step, maxHeight, step)) {
             const contourType = getContourType(elevation, minHeight, primaryInterval, firstSupplementaryInterval);
-            for (const { points, closed } of getInterpolatedContourChains(elevation, interpolatedGeometry)) {
+            for (const [chainIndex, { points, closed }] of getInterpolatedContourChains(
+              elevation,
+              interpolatedGeometry
+            ).entries()) {
               const renderedPoints = simplifyInterpolatedContour(points, closed, relaxInterval);
               if (renderedPoints.length < (closed ? 3 : 2)) continue;
 
@@ -571,9 +624,11 @@ export const HeightmapRenderer: IRenderer = {
               if (!path) continue;
 
               contours.push({
+                id: `${elevation}:${chainIndex}`,
                 elevation,
                 contourType,
                 path: round(path),
+                bounds: getContourBounds(renderedPoints),
                 labelCandidates: getLabelCandidates(renderedPoints, elevation, contourType)
               });
             }
@@ -617,8 +672,8 @@ export const HeightmapRenderer: IRenderer = {
         }
 
         if (!withElevationLabels) return;
-        renderLabeledContourPaths(group, contours);
-        setActiveLabeledContourGroup(group, contours);
+        const activeGroup = setActiveLabeledContourGroup(group, contours);
+        renderLabeledContourPaths(activeGroup, viewContext);
       }
 
       function findStart(cellId: number, elevation: number): number | undefined {

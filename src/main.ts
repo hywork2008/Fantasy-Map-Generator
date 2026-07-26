@@ -47,7 +47,7 @@ import { ldb } from "./io/ldb";
 import { loadMapFromURL, showUploadErrorMessage, uploadMap } from "./io/load";
 import { initiateAutosave } from "./io/save";
 import { renderGroupCOAs } from "./renderers/draw-emblems";
-import { refreshLabeledContourLabels } from "./renderers/draw-heightmap";
+import { refreshLabeledContourLabels, refreshVisibleLabeledContourPaths } from "./renderers/draw-heightmap";
 import { CoordinatesRenderer, drawCalendar, drawScaleBar, fitScaleBar } from "./renderers/index";
 import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
@@ -831,6 +831,7 @@ function refreshLabeledContourLabelsAfterZoom(): void {
     return;
   }
 
+  refreshVisibleLabeledContourPaths(viewContext);
   refreshLabeledContourLabels(viewContext);
 }
 
