@@ -114,6 +114,17 @@ export const WorldConfiguratorDialog: React.FC = () => {
   // Initialize on open
   useEffect(() => {
     if (!isOpen) return;
+    useWorldConfiguratorFormStore
+      .getState()
+      .syncFromWorldContext(
+        worldContext.options.temperatureEquator,
+        worldContext.options.temperatureNorthPole,
+        worldContext.options.temperatureSouthPole,
+        useOptionsState.getState().mapSize,
+        useOptionsState.getState().latitude,
+        useOptionsState.getState().longitude,
+        useOptionsState.getState().prec
+      );
     refreshGlobe();
   }, [isOpen, refreshGlobe]);
 
@@ -133,7 +144,6 @@ export const WorldConfiguratorDialog: React.FC = () => {
     const stored = target.dataset.stored;
     if (!stored) return;
 
-    lock(stored);
     const val = Number(target.value);
     const formStore = useWorldConfiguratorFormStore.getState();
 
@@ -160,6 +170,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
       if (stored !== "prec") updateGlobePosition();
     }
 
+    lock(stored, String(val));
     if (autoChange) debouncedUpdateWorld();
   }
 

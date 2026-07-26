@@ -5,7 +5,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { getHeightmapTemplateWeights } from "../data";
+import { getHeightmapTemplateWeights, getInitialSettlementPatternPreset } from "../data";
 import { Cultures } from "../generators/cultures-generator";
 import { COA } from "../generators/emblem/generator";
 import { Names } from "../generators/names-generator";
@@ -470,6 +470,50 @@ export function applyStoredOptions(): void {
 
   const loadedOptions: Partial<Omit<OptionsState, "setOption" | "setOptions">> = {};
 
+  // This list includes every OptionsState-backed lock control and the
+  // pre-existing non-lock preferences that this startup path owns. Keep the
+  // lock entries aligned with every LockIconButton: a lock promises that its
+  // latest value survives a browser reload.
+  const persistedOptionKeys = [
+    "seed",
+    "points",
+    "mapName",
+    "year",
+    "era",
+    "cultures",
+    "culturesSet",
+    "statesNumber",
+    "diplomacyHistoryAttempts",
+    "provincesRatio",
+    "sizeVariety",
+    "growthRate",
+    "initialPopulationSaturation",
+    "initialSettlementPattern",
+    "manors",
+    "religionsNumber",
+    "stateLabelsMode",
+    "demographicBirthRate",
+    "demographicChildMortalityRate",
+    "warFrequency",
+    "threatCalculation",
+    "emblemShape",
+    "distanceScale",
+    "mapSize",
+    "latitude",
+    "longitude",
+    "prec",
+    "uiSize",
+    "tooltipSize",
+    "themeColor",
+    "transparency",
+    // This setting is stored by the legacy control without a React lock button.
+    "gunpowderEraEnabled"
+  ] as const satisfies readonly (keyof Omit<OptionsState, "setOption" | "setOptions">)[];
+
+  type PersistedOptionKey = (typeof persistedOptionKeys)[number];
+  const isPersistedOptionKey = (key: string): key is PersistedOptionKey =>
+    (persistedOptionKeys as readonly string[]).includes(key);
+
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i)!;
     if (key === "speakerVoice") continue;
@@ -481,36 +525,20 @@ export function applyStoredOptions(): void {
 
     if (key.slice(0, 5) === "style") applyOption(getElementById<HTMLSelectElement>("stylePreset")!, key, key.slice(5));
 
-    // Map valid keys to the Zustand store
-    const validKeys = [
-      "seed",
-      "points",
-      "mapName",
-      "year",
-      "era",
-      "cultures",
-      "culturesSet",
-      "statesNumber",
-      "provincesRatio",
-      "sizeVariety",
-      "growthRate",
-      "manors",
-      "religionsNumber",
-      "uiSize",
-      "tooltipSize",
-      "themeColor",
-      "transparency",
-      "threatCalculation",
-      "gunpowderEraEnabled"
-    ];
-    if (validKeys.includes(key)) {
-      (loadedOptions as Record<string, string | number | boolean>)[key] =
-        key === "gunpowderEraEnabled" ? value === "true" : Number.isNaN(+value) ? value : +value;
+    if (isPersistedOptionKey(key)) {
+      const parsedValue = key === "gunpowderEraEnabled" ? value === "true" : Number.isNaN(+value) ? value : +value;
+      (loadedOptions as Record<PersistedOptionKey, string | number | boolean>)[key] = parsedValue;
     }
   }
-  const initialSettlementPattern = stored("initialSettlementPattern");
-  if (initialSettlementPattern !== null) {
-    loadedOptions.initialSettlementPattern = normalizeInitialSettlementPattern(initialSettlementPattern);
+  if (typeof loadedOptions.initialSettlementPattern === "string") {
+    loadedOptions.initialSettlementPattern = normalizeInitialSettlementPattern(loadedOptions.initialSettlementPattern);
+    // Settlement patterns have a recommended population saturation. Restore
+    // that derived value unless the user explicitly locked a custom one.
+    if (!locked("initialPopulationSaturation")) {
+      loadedOptions.initialPopulationSaturation = getInitialSettlementPatternPreset(
+        loadedOptions.initialSettlementPattern
+      ).initialPopulationSaturation;
+    }
   }
   optionsStore.setOptions(loadedOptions);
 

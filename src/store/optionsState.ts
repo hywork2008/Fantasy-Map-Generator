@@ -265,6 +265,19 @@ export const useOptionsState = create<OptionsState>(set => ({
   dangerRenderingMode: "contour",
   combatDeathsRenderingMode: "contour",
 
-  setOption: (key, value) => set({ [key]: value }),
-  setOptions: updates => set(updates)
+  setOption: (key, value) => {
+    // A lock is represented by a localStorage entry bearing the option key.
+    // Keep that entry current when a user changes an already locked setting;
+    // otherwise the old value would be restored on the next page load.
+    if (localStorage.getItem(key) !== null) localStorage.setItem(key, String(value));
+    set({ [key]: value });
+  },
+  setOptions: updates => {
+    // Preset controls can update several options together. Apply the same
+    // invariant as setOption to each value that already has a lock.
+    for (const [key, value] of Object.entries(updates)) {
+      if (localStorage.getItem(key) !== null) localStorage.setItem(key, String(value));
+    }
+    set(updates);
+  }
 }));

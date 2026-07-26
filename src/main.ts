@@ -293,11 +293,16 @@ viewContext.viewY = viewY;
 
 // ─── Map dimensions and settings ──────────────────────────────────────────────
 
-const { populationRate, distanceScale, urbanization } = useOptionsState.getState();
-
 applyStoredOptions();
 
-const { mapWidth: graphWidth, mapHeight: graphHeight } = useOptionsState.getState();
+const {
+  populationRate,
+  distanceScale,
+  urbanization,
+  urbanDensity,
+  mapWidth: graphWidth,
+  mapHeight: graphHeight
+} = useOptionsState.getState();
 const svgWidth = graphWidth;
 const svgHeight = graphHeight;
 
@@ -305,6 +310,7 @@ Object.assign(worldContext, {
   populationRate,
   distanceScale,
   urbanization,
+  urbanDensity,
   graphWidth,
   graphHeight
 });

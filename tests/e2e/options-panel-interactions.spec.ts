@@ -1,6 +1,51 @@
 import { expect, test } from "@playwright/test";
 import { waitForMapLoad, zoomToMapCenter } from "./helpers/fmg-helpers";
 
+test("keeps the latest locked settlement and demographic settings after reload", async ({ page }) => {
+  await page.goto("/?seed=locked-options-reload&width=1000&height=700");
+  await waitForMapLoad(page, "svg");
+
+  await page.locator("#optionsHide").click();
+
+  const generation = page.locator("#optionsTabContent");
+  const populationRow = generation.locator("tr").filter({ hasText: "Initial population %" });
+  const patternRow = generation.locator("tr").filter({ hasText: "Settlement pattern" });
+
+  await patternRow.getByRole("combobox").selectOption("frontier");
+  await expect(populationRow.getByRole("spinbutton")).toHaveValue("30");
+  await populationRow.getByRole("spinbutton").fill("10");
+  await expect(populationRow.getByRole("spinbutton")).toHaveValue("10");
+
+  await generation.getByRole("button", { name: "Simulation", exact: true }).click();
+  const simulation = page.locator("#optionsTabContent");
+  const birthRateRow = simulation.locator("tr").filter({ hasText: "Base Birth Rate" });
+  const childMortalityRow = simulation.locator("tr").filter({ hasText: "Child Mortality %" });
+
+  await birthRateRow.getByRole("spinbutton").fill("0.4");
+  await childMortalityRow.getByRole("spinbutton").fill("37");
+
+  await page.reload();
+  await waitForMapLoad(page, "svg");
+  await page.locator("#optionsHide").click();
+
+  const restoredGeneration = page.locator("#optionsTabContent");
+  await expect(restoredGeneration.locator("tr").filter({ hasText: "Settlement pattern" }).getByRole("combobox")).toHaveValue(
+    "frontier"
+  );
+  await expect(
+    restoredGeneration.locator("tr").filter({ hasText: "Initial population %" }).getByRole("spinbutton")
+  ).toHaveValue("10");
+
+  await restoredGeneration.getByRole("button", { name: "Simulation", exact: true }).click();
+  const restoredSimulation = page.locator("#optionsTabContent");
+  await expect(restoredSimulation.locator("tr").filter({ hasText: "Base Birth Rate" }).getByRole("spinbutton")).toHaveValue(
+    "0.4"
+  );
+  await expect(restoredSimulation.locator("tr").filter({ hasText: "Child Mortality %" }).getByRole("spinbutton")).toHaveValue(
+    "37"
+  );
+});
+
 test("moves and resizes the options panel using its tab bar and lower-right handle", async ({ page }) => {
   await page.goto("/?seed=options-panel-interactions&width=1000&height=700");
   await waitForMapLoad(page, "svg");
