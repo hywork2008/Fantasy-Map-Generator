@@ -44,6 +44,23 @@ input[type="radio"] {
   pointer-events: none;
 }
 
+#zoomLevelIndicator {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 10;
+  padding: 5px 8px 4px;
+  border-left: 3px solid var(--dark-solid);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.18);
+  color: #20252b;
+  font: 600 12px/1 var(--sans-serif);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+  pointer-events: none;
+  user-select: none;
+}
+
 body.fmg-webgl-hybrid #map {
   background-color: transparent !important;
 }

@@ -165,6 +165,24 @@ export const UiSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
+          <tr data-tip="Show the current map zoom level in the bottom-left corner">
+            <td></td>
+            <td>Zoom level</td>
+            <td>
+              <input
+                id="showZoomLevel"
+                className="checkbox"
+                type="checkbox"
+                checked={options.showZoomLevel}
+                onChange={e => updateOption("showZoomLevel", e.target.checked)}
+              />
+              <label htmlFor="showZoomLevel" className="checkbox-label">
+                Show
+              </label>
+            </td>
+            <td></td>
+          </tr>
+
           <tr data-tip="Select voice for text-to-speech. Click the test button to preview">
             <td>
               <i

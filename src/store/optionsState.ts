@@ -113,6 +113,8 @@ export interface OptionsState {
   autosaveInterval: number;
   onloadBehavior: string;
   azgaarAssistant: "show" | "hide";
+  /** Shows the current map magnification in the lower-left corner. */
+  showZoomLevel: boolean;
   speakerVoice: string;
   emblemShape: string;
   temperatureScale: string;
@@ -153,6 +155,9 @@ export const DEFAULT_UI_OPTIONS = {
   autosaveInterval: 15,
   onloadBehavior: "random",
   azgaarAssistant: "show" as const,
+  // Keep the indicator available while developing map interactions without
+  // changing the production UI by default.
+  showZoomLevel: import.meta.env.DEV,
   speakerVoice: "",
   emblemShape: "culture",
   zoomExtentMin: 1,

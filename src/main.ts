@@ -145,6 +145,7 @@ export function fitMapView(): void {
   viewContext.scale = scale;
   viewContext.viewX = viewX;
   viewContext.viewY = viewY;
+  document.dispatchEvent(new CustomEvent("fmg:zoom-level-changed", { detail: { scale } }));
 
   // Set viewbox transform synchronously to avoid a one-frame flash at identity.
   viewContext.viewbox.attr("transform", `translate(${tx} ${ty}) scale(${z})`);
@@ -261,6 +262,7 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
     }
 
     if (didScaleChange) {
+      document.dispatchEvent(new CustomEvent("fmg:zoom-level-changed", { detail: { scale } }));
       drawScaleBar(worldContext, viewContext, appServices, viewContext.scaleBar, scale);
       fitScaleBar(
         worldContext,
