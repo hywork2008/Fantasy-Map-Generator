@@ -357,6 +357,7 @@ function changeDialogsTheme(themeColor: string, transparency: string): void {
     { name: "--bg-main", h, s, l, alpha },
     { name: "--bg-lighter", h, s, l: l + 0.02, alpha },
     { name: "--bg-light", h, s: s - 0.02, l: l + 0.06, alpha },
+    { name: "--bg-light-solid", h, s: s - 0.02, l: l + 0.06, alpha: 1 },
     { name: "--light-solid", h, s: s + 0.01, l: l + 0.05, alpha: 1 },
     { name: "--dark-solid", h, s, l: l - 0.2, alpha: 1 },
     { name: "--header", h, s, l: l - 0.03, alpha: alphaReduced },

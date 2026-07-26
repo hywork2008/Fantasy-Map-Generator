@@ -226,6 +226,10 @@
   flex: 1;
   min-height: 0;
   background-color: var(--bg-light);
+
+  &:hover {
+    background-color: var(--bg-light-solid);
+  }
 }
 
 .fmg-dialog--notes > .fmg-dialog-content {

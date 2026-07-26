@@ -363,6 +363,17 @@ input[type="color"] {
   cursor: pointer;
 }
 
+/* Native form controls otherwise receive an opaque browser-default background.
+   Keep their surface aligned with the surrounding transparent UI panel. */
+#options input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not([type="file"]):not([type="image"]):not([type="radio"]):not([type="range"]):not([type="reset"]):not([type="submit"]),
+#options select,
+#options textarea,
+.fmg-dialog-content input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not([type="file"]):not([type="image"]):not([type="radio"]):not([type="range"]):not([type="reset"]):not([type="submit"]),
+.fmg-dialog-content select,
+.fmg-dialog-content textarea {
+  background-color: transparent;
+}
+
 #sticked {
   display: flex;
 }
@@ -381,6 +392,11 @@ input[type="color"] {
 .tabcontent {
   /* display: none; */
   background-color: var(--bg-light);
+
+  /* Keep map visibility while idle, but make controls legible while they are in use. */
+  &:hover {
+    background-color: var(--bg-light-solid);
+  }
 
   button {
     background-color: var(--bg-lighter);
