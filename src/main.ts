@@ -951,7 +951,8 @@ async function runGeneratePipeline(request: GenerateRequest): Promise<void> {
     {
       temperature: worldContext.grid.cells.temp,
       precipitation: worldContext.grid.cells.prec
-    }
+    },
+    useOptionsState.getState().statesNumber
   );
   if (settlementPattern.plan) worldContext.pack.settlementFoundation = settlementPattern.plan;
   else delete worldContext.pack.settlementFoundation;

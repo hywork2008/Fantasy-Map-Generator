@@ -54,10 +54,18 @@ export function applyInitialSettlementPattern(
   pattern: InitialSettlementPattern,
   initialPopulationSaturation: number,
   random: () => number = Math.random,
-  climate: SettlementClimate = {}
+  climate: SettlementClimate = {},
+  initialPolityCount = 0
 ): SettlementPatternResult {
   if (pattern !== "standard" && canBuildFoundation(cells)) {
-    return createSettlementFoundation(cells, climate, pattern, initialPopulationSaturation, random);
+    return createSettlementFoundation(
+      cells,
+      climate,
+      pattern,
+      initialPopulationSaturation,
+      random,
+      getMinimumFoundationRegionCount(pattern, initialPolityCount)
+    );
   }
 
   const preset = getInitialSettlementPatternPreset(pattern);
@@ -122,6 +130,16 @@ export function applyInitialSettlementPattern(
     totalCapacity,
     totalPopulation
   };
+}
+
+/**
+ * Frontier normally begins with only a handful of settlement regions. A high
+ * polity-density request needs more independent hubs; otherwise additional
+ * States can only become neighbours inside the same compact region.
+ */
+function getMinimumFoundationRegionCount(pattern: InitialSettlementPattern, initialPolityCount: number): number {
+  if (pattern !== "frontier") return 0;
+  return Math.max(0, Math.ceil(initialPolityCount / 5));
 }
 
 function canBuildFoundation(

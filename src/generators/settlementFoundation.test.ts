@@ -86,4 +86,20 @@ describe("Settlement Foundation Module", () => {
     expect(cells.pop[0]).toBe(0);
     expect(cells.pop[100]).toBe(0);
   });
+
+  it("honors the additional regional hubs requested by high polity density", () => {
+    const cells = createCells(101, [5]);
+    const result = createSettlementFoundation(
+      cells,
+      { temperature: new Int8Array(101).fill(14), precipitation: new Uint8Array(101).fill(60) },
+      "frontier",
+      0.3,
+      () => 0,
+      5
+    );
+
+    expect(result.plan.regions).toHaveLength(5);
+    const centers = result.plan.regions.map(region => region.center);
+    expect(Math.max(...centers) - Math.min(...centers)).toBeGreaterThan(80);
+  });
 });

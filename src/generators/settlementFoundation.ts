@@ -67,7 +67,8 @@ export function createSettlementFoundation(
   climate: SettlementClimate,
   pattern: Exclude<InitialSettlementPattern, "standard">,
   initialPopulationSaturation: number,
-  random: () => number = Math.random
+  random: () => number = Math.random,
+  minimumRegionCount = 0
 ): SettlementFoundationResult {
   const preset = getInitialSettlementPatternPreset(pattern);
   const saturation = clamp(initialPopulationSaturation, 0, 1);
@@ -78,7 +79,7 @@ export function createSettlementFoundation(
     return emptyFoundationResult(candidates.length, totalCapacity);
   }
 
-  const regionCount = selectRegionCount(preset.settlementRegionCount, candidates.length, random);
+  const regionCount = selectRegionCount(preset.settlementRegionCount, candidates.length, random, minimumRegionCount);
   const centers = selectRegionCenters(candidates, regionCount, random);
   const targetCapacity = totalCapacity * Math.max(saturation, preset.settledFootprint);
   const regions = buildRegions(cells, candidates, centers, targetCapacity, preset.settlementClustering);
@@ -186,14 +187,20 @@ function getClimateValue(column: ArrayLike<number> | undefined, index: number, f
   return column?.[index] ?? fallback;
 }
 
-function selectRegionCount(range: readonly [number, number], candidateCount: number, random: () => number): number {
+function selectRegionCount(
+  range: readonly [number, number],
+  candidateCount: number,
+  random: () => number,
+  minimumRegionCount: number
+): number {
   const [minimum, maximum] = range;
   if (candidateCount === 0) return 0;
-  return Math.min(candidateCount, minimum + Math.floor(random() * (maximum - minimum + 1)));
+  const selected = minimum + Math.floor(random() * (maximum - minimum + 1));
+  return Math.min(candidateCount, Math.max(selected, Math.max(0, Math.floor(minimumRegionCount))));
 }
 
 function selectRegionCenters(candidates: Candidate[], count: number, random: () => number): Candidate[] {
-  const ranked = [...candidates].sort((a, b) => b.score - a.score);
+  const ranked = [...candidates].sort((a, b) => b.score - a.score || a.id - b.id);
   const centers: Candidate[] = [ranked[0]];
   const diagonal = Math.max(
     1,
@@ -208,9 +215,16 @@ function selectRegionCenters(candidates: Candidate[], count: number, random: () 
       .filter(candidate => !centers.includes(candidate))
       .map(candidate => {
         const nearest = Math.min(...centers.map(center => Math.hypot(candidate.x - center.x, candidate.y - center.y)));
-        return { candidate, score: candidate.score * (0.35 + nearest / diagonal) * (0.98 + random() * 0.04) };
+        const quality = candidate.score / ranked[0].score;
+        // Foundation regions are the starting points for separate polities.
+        // Once the best site is chosen, geographic separation is deliberately
+        // more important than a small local resource-score advantage.
+        const score = (nearest / diagonal) * 0.76 + quality * 0.24;
+        return { candidate, score: score * (0.98 + random() * 0.04) };
       })
-      .sort((a, b) => b.score - a.score)[0]?.candidate;
+      .sort(
+        (a, b) => b.score - a.score || b.candidate.score - a.candidate.score || a.candidate.id - b.candidate.id
+      )[0]?.candidate;
     if (!next) break;
     centers.push(next);
   }

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { assignInitialPolities, getInitialPolityCapitalCount } from "./initialPolities";
+import {
+  assignInitialPolities,
+  getInitialPolityCapitalCount,
+  selectInitialPolityCapitalNodes
+} from "./initialPolities";
 
 describe("Initial Polities Module", () => {
   it("derives territory from a materialized route and compact settlement service area", () => {
@@ -77,6 +81,34 @@ describe("Initial Polities Module", () => {
 
     expect(getInitialPolityCapitalCount(plan, 3)).toBe(1);
     expect(getInitialPolityCapitalCount(plan, 15)).toBe(5);
+  });
+
+  it("spreads planned capitals between regional centers before using nearby villages", () => {
+    const plan = {
+      regions: [
+        { id: 0, kind: "river" as const, center: 0, cells: [0, 1] },
+        { id: 1, kind: "river" as const, center: 2, cells: [2, 3] },
+        { id: 2, kind: "river" as const, center: 4, cells: [4] }
+      ],
+      nodes: [
+        { id: 0, regionId: 0, cell: 0, role: "center" as const, score: 20 },
+        { id: 1, regionId: 0, cell: 1, role: "village" as const, score: 19 },
+        { id: 2, regionId: 1, cell: 2, role: "center" as const, score: 18 },
+        { id: 3, regionId: 1, cell: 3, role: "village" as const, score: 17 },
+        { id: 4, regionId: 2, cell: 4, role: "center" as const, score: 2 }
+      ],
+      links: []
+    };
+    const points: [number, number][] = [
+      [0, 0],
+      [1, 0],
+      [20, 0],
+      [21, 0],
+      [200, 0]
+    ];
+
+    expect(selectInitialPolityCapitalNodes(plan, points, 3).map(node => node.cell)).toEqual([0, 4, 2]);
+    expect(selectInitialPolityCapitalNodes(plan, points, 4).map(node => node.cell)).toEqual([0, 4, 2, 1]);
   });
 });
 

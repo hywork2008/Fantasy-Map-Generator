@@ -26,7 +26,7 @@ import {
   getChronicleContestedBurgs,
   normalizeHabitability
 } from "./frontierAnalysis";
-import { getInitialPolityCapitalCount } from "./initialPolities";
+import { getInitialPolityCapitalCount, selectInitialPolityCapitalNodes } from "./initialPolities";
 import { Names } from "./names-generator";
 import { Rivers } from "./river-generator";
 import { Routes } from "./routes-generator";
@@ -289,12 +289,7 @@ class BurgModule {
           pack.settlementFoundation!,
           useOptionsState.getState().statesNumber
         );
-        const plannedCapitals = [...plannedNodes]
-          .sort((a, b) => {
-            if (a.role !== b.role) return a.role === "center" ? -1 : 1;
-            return b.score - a.score;
-          })
-          .slice(0, capitalsNumber);
+        const plannedCapitals = selectInitialPolityCapitalNodes(pack.settlementFoundation!, cells.p, capitalsNumber);
         for (const node of plannedCapitals) {
           const cell = node.cell;
           const [x, y] = cells.p[cell];

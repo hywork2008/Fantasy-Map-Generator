@@ -1,6 +1,6 @@
 import FlatQueue from "flatqueue";
 import type { Burg, State } from "../types/models";
-import type { SettlementFoundationPlan } from "../types/settlementFoundation";
+import type { SettlementFoundationPlan, SettlementNode } from "../types/settlementFoundation";
 
 type NumberColumn = ArrayLike<number> & { [index: number]: number; fill(value: number): unknown };
 
@@ -67,6 +67,83 @@ export function getInitialPolityCapitalCount(plan: SettlementFoundationPlan, sta
   const networkCapacity = Math.max(plan.regions.length, Math.ceil(plan.nodes.length / 2));
   const density = Math.max(0, Math.min(1, statesNumber / 15));
   return Math.min(plan.nodes.length, Math.max(plan.regions.length, Math.round(networkCapacity * density)));
+}
+
+/**
+ * Selects capital sites from Foundation nodes without turning one settlement
+ * cluster into a row of adjacent States. Every regional center is considered
+ * before village nodes, and each phase uses farthest-point selection.
+ */
+export function selectInitialPolityCapitalNodes(
+  plan: SettlementFoundationPlan,
+  points: readonly (readonly [number, number])[],
+  count: number
+): SettlementNode[] {
+  if (count <= 0 || !plan.nodes.length) return [];
+
+  const targetCount = Math.min(plan.nodes.length, Math.floor(count));
+  const regionalCenters = plan.nodes.filter(node => node.role === "center");
+  const selected = selectFarthestNodes(regionalCenters, points, Math.min(targetCount, regionalCenters.length));
+  if (selected.length === targetCount) return selected;
+
+  const selectedIds = new Set(selected.map(node => node.id));
+  const remaining = plan.nodes.filter(node => !selectedIds.has(node.id));
+  return [...selected, ...selectFarthestNodes(remaining, points, targetCount - selected.length, selected)];
+}
+
+function selectFarthestNodes(
+  candidates: readonly SettlementNode[],
+  points: readonly (readonly [number, number])[],
+  count: number,
+  initialSelection: readonly SettlementNode[] = []
+): SettlementNode[] {
+  if (count <= 0 || !candidates.length) return [];
+
+  const result = [...initialSelection];
+  const newlySelected: SettlementNode[] = [];
+  const available = [...candidates];
+
+  while (newlySelected.length < count && available.length) {
+    const next = result.length
+      ? available.reduce((best, candidate) =>
+          compareCapitalCandidates(candidate, best, result, points) > 0 ? candidate : best
+        )
+      : available.reduce((best, candidate) => (compareNodePriority(candidate, best) > 0 ? candidate : best));
+    result.push(next);
+    newlySelected.push(next);
+    available.splice(available.indexOf(next), 1);
+  }
+
+  return newlySelected;
+}
+
+function compareCapitalCandidates(
+  candidate: SettlementNode,
+  current: SettlementNode,
+  selected: readonly SettlementNode[],
+  points: readonly (readonly [number, number])[]
+): number {
+  const candidateDistance = nearestSquaredDistance(candidate, selected, points);
+  const currentDistance = nearestSquaredDistance(current, selected, points);
+  return candidateDistance - currentDistance || compareNodePriority(candidate, current);
+}
+
+function nearestSquaredDistance(
+  node: SettlementNode,
+  selected: readonly SettlementNode[],
+  points: readonly (readonly [number, number])[]
+): number {
+  const [x, y] = points[node.cell];
+  return Math.min(
+    ...selected.map(other => {
+      const [otherX, otherY] = points[other.cell];
+      return (x - otherX) ** 2 + (y - otherY) ** 2;
+    })
+  );
+}
+
+function compareNodePriority(left: SettlementNode, right: SettlementNode): number {
+  return left.score - right.score || right.id - left.id;
 }
 
 function assignRouteNetwork(
