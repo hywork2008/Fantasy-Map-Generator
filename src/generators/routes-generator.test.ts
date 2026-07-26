@@ -27,6 +27,13 @@ type RoutesGraphInternals = {
     capitalsByStateFeature: { feature: number; stateId: number; burgs: { i?: number }[] }[];
     portsByStateFeature: { feature: number; stateId: number; burgs: { i?: number }[] }[];
   };
+  generateSeaRoutes(
+    connections: Map<string, boolean>,
+    seaRouteGenerationMode: "legacy" | "augmented"
+  ): {
+    feature: number;
+    cells: number[];
+  }[];
 };
 
 type RouteGenerationInternals = {
@@ -194,6 +201,31 @@ describe("RoutesModule settlement water connections", () => {
     expect(route).toMatchObject({ group: "searoutes", feature: 1 });
     expect(route?.points.map(point => point[2])).toEqual([0, 1, 2]);
     expect(route?.cells).toEqual([0, 1, 2]);
+  });
+
+  it("permits standard-map searoutes between nearby ports of different States", () => {
+    const graphInternals = Routes as unknown as RoutesGraphInternals;
+    worldContext.pack.cells.state = [1, 0, 2];
+    worldContext.pack.burgs = [
+      { i: 0 },
+      { i: 1, cell: 0, x: 0, y: 0, state: 1, port: 1 },
+      { i: 2, cell: 2, x: 20, y: 0, state: 2, port: 1 }
+    ] as typeof worldContext.pack.burgs;
+    worldContext.options = {
+      initialSettlementPattern: "standard",
+      seaRouteGenerationMode: "augmented"
+    } as typeof worldContext.options;
+    Routes.sync();
+
+    expect(graphInternals.generateSeaRoutes(new Map(), "augmented")).toEqual([
+      expect.objectContaining({ feature: 1, cells: [0, 1, 2] })
+    ]);
+
+    worldContext.options.initialSettlementPattern = "frontier";
+    expect(graphInternals.generateSeaRoutes(new Map(), "augmented")).toEqual([]);
+
+    worldContext.options.initialSettlementPattern = "standard";
+    expect(Routes.connectPort(0, 1)?.points.map(point => point[2])).toEqual([0, 1, 2]);
   });
 
   it("adds only the new spur when a port joins an existing sea lane", () => {

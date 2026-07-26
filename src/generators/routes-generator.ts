@@ -40,6 +40,7 @@ const ROUTE_TYPE_MODIFIERS: Record<string, number> = {
 type RouteGraphEdge = { from: number; to: number; triangleIndex: number };
 type PortEdge = [number, number];
 type StateFeatureBurgGroup = { feature: number; stateId: number; burgs: Burg[] };
+type FeatureBurgGroup = { feature: number; burgs: Burg[] };
 
 // name generator data
 const models: Record<string, Record<string, number>> = {
@@ -392,6 +393,30 @@ class RoutesModule {
     };
   }
 
+  /**
+   * Sea access is intentionally a separate policy from land connectivity.
+   * Standard maps retain their historical international sea lanes; later
+   * diplomacy, trade treaties, embargoes, and blockades can replace this
+   * predicate without weakening domestic land-network rules.
+   */
+  private allowsInternationalSeaRoutes(): boolean {
+    return this.worldContext.options.initialSettlementPattern === "standard";
+  }
+
+  private sortPortsByFeature(burgs: Burg[]): FeatureBurgGroup[] {
+    const portsByFeature = new Map<number, FeatureBurgGroup>();
+    for (const burg of burgs) {
+      if (!burg.i || burg.removed || !burg.state || !burg.port) continue;
+      const group = portsByFeature.get(burg.port);
+      if (group) {
+        group.burgs.push(burg);
+        continue;
+      }
+      portsByFeature.set(burg.port, { feature: burg.port, burgs: [burg] });
+    }
+    return [...portsByFeature.values()];
+  }
+
   // Urquhart graph is obtained by removing the longest edge from each triangle in the Delaunay triangulation
   // this gives us an aproximation of a desired road network, i.e. connections between burgs
   // code from https://observablehq.com/@mbostock/urquhart-graph
@@ -711,10 +736,14 @@ class RoutesModule {
   private generateSeaRoutes(connections: Map<string, boolean>, seaRouteGenerationMode: SeaRouteGenerationMode) {
     const { pack } = this.worldContext;
     TIME && console.time("generateSeaRoutes");
-    const { portsByStateFeature } = this.sortBurgsByStateAndFeature(pack.burgs);
+    const international = this.allowsInternationalSeaRoutes();
+    const portGroups: Array<FeatureBurgGroup & Partial<Pick<StateFeatureBurgGroup, "stateId">>> = international
+      ? this.sortPortsByFeature(pack.burgs)
+      : this.sortBurgsByStateAndFeature(pack.burgs).portsByStateFeature;
     const seaRoutes: Route[] = [];
 
-    for (const { feature, stateId, burgs: featurePorts } of portsByStateFeature) {
+    for (const portGroup of portGroups) {
+      const { feature, burgs: featurePorts } = portGroup;
       const points = featurePorts.map(burg => [burg.x, burg.y] as Point);
       const allPortEdges =
         seaRouteGenerationMode === "augmented"
@@ -734,7 +763,7 @@ class RoutesModule {
           connections,
           start,
           exit,
-          stateId,
+          stateId: international ? undefined : portGroup.stateId,
           seaRouteGenerationMode
         });
         for (const segment of segments) {
@@ -937,19 +966,25 @@ class RoutesModule {
   }
 
   /**
-   * Joins a port to another port in the same State over its navigable river or
-   * sea feature. This is intentionally separate from `connectFrontier`: a
-   * supply trail must stay on land, while a developed settlement may use water.
+   * Joins a port over its navigable river or sea feature. Standard maps permit
+   * international sea access; Frontier maps retain same-State access. This is
+   * intentionally separate from `connectFrontier`: a supply trail stays on land.
    */
   connectPort(cellId: number, stateId: number): Route | undefined {
     const { pack } = this.worldContext;
     const source = pack.burgs[pack.cells.burg[cellId]];
     if (!source?.port || source.state !== stateId) return;
+    const international = this.allowsInternationalSeaRoutes();
 
     const targetCells = new Set(
       pack.burgs
         .filter(
-          burg => burg?.i && !burg.removed && burg.i !== source.i && burg.state === stateId && burg.port === source.port
+          burg =>
+            burg?.i &&
+            !burg.removed &&
+            burg.i !== source.i &&
+            (international || burg.state === stateId) &&
+            burg.port === source.port
         )
         .map(burg => burg.cell)
     );
@@ -962,7 +997,7 @@ class RoutesModule {
       seaRouteGenerationMode: this.worldContext.options.seaRouteGenerationMode ?? "augmented"
     });
     const getCost = (from: number, to: number) =>
-      pack.cells.state[to] !== 0 && pack.cells.state[to] !== stateId ? Infinity : baseCost(from, to);
+      !international && pack.cells.state[to] !== 0 && pack.cells.state[to] !== stateId ? Infinity : baseCost(from, to);
     const pathCells = findPath(cellId, cell => cell !== cellId && targetCells.has(cell), getCost, pack);
     if (!pathCells) return;
 
