@@ -1,10 +1,18 @@
-import { FRONTIER_STAGE, simulationContext } from "../context/simulationContext";
-import { worldContext } from "../context/worldContext";
+import type { SimulationContext } from "../context/simulationContext";
+import { simulationContext } from "../context/simulationContext";
+import { type WorldContext, worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import { applyFoodStressToDemographics } from "./agriculturalStress";
 import { Burgs } from "./burgs-generator";
 import { applyWoundedReturn, isManpowerSimEnabled, scaleLandMilitary } from "./manpower";
 import { recordDeaths } from "./populationLossTracker";
+
+/** Population points; convert to people with worldContext.populationRate for display only. */
+const MIN_RURAL_POINTS_FOR_PROMOTION = 2;
+const MIN_SETTLEMENT_POINTS = 0.5;
+const RURAL_TO_SETTLEMENT_SHARE = 0.3;
+const MAX_STATE_URBAN_SHARE = 0.18;
+const SETTLEMENT_SPACING_HOPS = 2;
 
 export interface DemographicsSimulationResult {
   bordersChanged: boolean;
@@ -136,38 +144,6 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     pack.cells.femaleAdults[i] = femaleAdults;
     pack.cells.elders[i] = elders;
     pack.cells.pop[i] = newPop;
-
-    // Pioneer Village Spawning
-    const frontierStage = simulationContext.frontier.cellStages[i] ?? FRONTIER_STAGE.wilderness;
-    if (
-      newPop > worldContext.populationRate &&
-      !pack.cells.burg[i] &&
-      (stateId > 0 || frontierStage === FRONTIER_STAGE.settlement)
-    ) {
-      const res = Burgs.add(pack.cells.p[i]);
-      if (res?.burgId) {
-        const newBurg = pack.burgs[res.burgId];
-
-        // Transfer 30% of rural population to the new burg
-        const transferRatio = 0.3;
-        newBurg.demographics = {
-          capacity: newPop * transferRatio * 1.5,
-          children: children * transferRatio,
-          maleAdults: maleAdults * transferRatio,
-          femaleAdults: femaleAdults * transferRatio,
-          elders: elders * transferRatio
-        };
-        newBurg.population = newPop * transferRatio;
-
-        pack.cells.children[i] -= children * transferRatio;
-        pack.cells.maleAdults[i] -= maleAdults * transferRatio;
-        pack.cells.femaleAdults[i] -= femaleAdults * transferRatio;
-        pack.cells.elders[i] -= elders * transferRatio;
-        pack.cells.pop[i] -= newPop * transferRatio;
-
-        newBurgsAdded = true;
-      }
-    }
   }
 
   // 2. Process Urban Burgs
@@ -223,6 +199,13 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     applyFoodStressToDemographics(pack, deltaYears);
   }
 
+  // Burgs are service centres, not a direct rendering of every populated cell.
+  // Evaluate promotion once per calendar year after all population changes, so
+  // nearby cells cannot all urbanise during the same daily simulation batch.
+  if (simulationContext.currentMonth === 1 && simulationContext.currentDay === 1) {
+    newBurgsAdded = promoteRuralSettlements(worldContext, simulationContext) || newBurgsAdded;
+  }
+
   for (const [stateId, pts] of naturalPts) {
     recordDeaths(stateId, pts * populationRate, "natural");
   }
@@ -231,6 +214,139 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
   }
 
   return { bordersChanged, newBurgsAdded };
+}
+
+export interface SettlementPromotionCandidate {
+  readonly stateId: number;
+  readonly cellId: number;
+  /** Rural population points moved into the new settlement. */
+  readonly settlementPopulation: number;
+  readonly score: number;
+}
+
+/**
+ * Returns at most one service-centre promotion per State. Population stays in
+ * points throughout; multiplying by populationRate here would make a 16k rural
+ * cell require one million people before it could form a town.
+ */
+export function getSettlementPromotionCandidates(
+  world: Readonly<WorldContext>,
+  simulation: Readonly<SimulationContext>
+): readonly SettlementPromotionCandidate[] {
+  const { cells, burgs, states } = world.pack;
+  if (!cells?.i || !burgs || !states) return [];
+
+  const totalsByState = new Map<number, { rural: number; urban: number }>();
+  for (let cellId = 0; cellId < cells.i.length; cellId++) {
+    const stateId = cells.state[cellId];
+    if (!stateId) continue;
+    const totals = totalsByState.get(stateId) ?? { rural: 0, urban: 0 };
+    totals.rural += cells.pop[cellId] ?? 0;
+    totalsByState.set(stateId, totals);
+  }
+  for (const burg of burgs) {
+    if (!burg?.i || burg.removed || !burg.state) continue;
+    const totals = totalsByState.get(burg.state) ?? { rural: 0, urban: 0 };
+    totals.urban += burg.population ?? 0;
+    totalsByState.set(burg.state, totals);
+  }
+
+  const selected: SettlementPromotionCandidate[] = [];
+  for (const state of states) {
+    if (!state?.i || state.removed) continue;
+    const totals = totalsByState.get(state.i);
+    if (!totals) continue;
+    const urbanHeadroom = (totals.rural + totals.urban) * MAX_STATE_URBAN_SHARE - totals.urban;
+    if (urbanHeadroom < MIN_SETTLEMENT_POINTS) continue;
+
+    const candidates: SettlementPromotionCandidate[] = [];
+    for (let cellId = 0; cellId < cells.i.length; cellId++) {
+      if (cells.state[cellId] !== state.i || cells.burg[cellId]) continue;
+      const ruralPopulation = cells.pop[cellId] ?? 0;
+      if (ruralPopulation < MIN_RURAL_POINTS_FOR_PROMOTION) continue;
+      if (!isSettlementSite(cells, cellId) || hasNearbyBurg(cells, cellId, SETTLEMENT_SPACING_HOPS)) continue;
+
+      const settlementPopulation = Math.min(ruralPopulation * RURAL_TO_SETTLEMENT_SHARE, urbanHeadroom);
+      if (settlementPopulation < MIN_SETTLEMENT_POINTS) continue;
+      candidates.push({
+        stateId: state.i,
+        cellId,
+        settlementPopulation,
+        score: getSettlementSiteScore(cells, cellId, ruralPopulation)
+      });
+    }
+    const best = candidates.sort((a, b) => b.score - a.score || b.settlementPopulation - a.settlementPopulation)[0];
+    if (best) selected.push(best);
+  }
+  void simulation; // Promotion eligibility is intentionally based on live world demographics and settlement topology.
+  return selected;
+}
+
+function promoteRuralSettlements(world: WorldContext, simulation: SimulationContext): boolean {
+  const { cells, burgs } = world.pack;
+  const candidates = getSettlementPromotionCandidates(world, simulation);
+  let promoted = false;
+
+  for (const candidate of candidates) {
+    // A prior candidate can only add a burg in another State, but re-checking
+    // protects this transaction if a future rule permits multiple promotions.
+    if (cells.burg[candidate.cellId]) continue;
+    const result = Burgs.add(cells.p[candidate.cellId]);
+    const burg = burgs[result.burgId];
+    if (!burg) continue;
+
+    const ruralPopulation = cells.pop[candidate.cellId] ?? 0;
+    if (ruralPopulation <= 0) continue;
+    const ratio = candidate.settlementPopulation / ruralPopulation;
+    burg.population = candidate.settlementPopulation;
+    burg.demographics = {
+      capacity: candidate.settlementPopulation * 1.5,
+      children: cells.children[candidate.cellId] * ratio,
+      maleAdults: cells.maleAdults[candidate.cellId] * ratio,
+      femaleAdults: cells.femaleAdults[candidate.cellId] * ratio,
+      elders: cells.elders[candidate.cellId] * ratio
+    };
+    for (const column of ["children", "maleAdults", "femaleAdults", "elders"] as const) {
+      cells[column][candidate.cellId] -= burg.demographics[column];
+    }
+    cells.pop[candidate.cellId] -= candidate.settlementPopulation;
+    Burgs.changeGroup(burg);
+    promoted = true;
+  }
+  return promoted;
+}
+
+function isSettlementSite(cells: WorldContext["pack"]["cells"], cellId: number): boolean {
+  const routeLegs = Object.keys(cells.routes?.[cellId] ?? {}).length;
+  return Boolean(cells.r[cellId] || cells.harbor[cellId] || cells.conf[cellId] || routeLegs >= 2);
+}
+
+function getSettlementSiteScore(cells: WorldContext["pack"]["cells"], cellId: number, ruralPopulation: number): number {
+  const routeLegs = Object.keys(cells.routes?.[cellId] ?? {}).length;
+  return (
+    ruralPopulation +
+    (cells.r[cellId] ? 5 : 0) +
+    (cells.harbor[cellId] ? 4 : 0) +
+    (cells.conf[cellId] ? 3 : 0) +
+    routeLegs * 2
+  );
+}
+
+function hasNearbyBurg(cells: WorldContext["pack"]["cells"], origin: number, maxHops: number): boolean {
+  const queue: Array<{ cellId: number; hops: number }> = [{ cellId: origin, hops: 0 }];
+  const visited = new Set<number>([origin]);
+  while (queue.length) {
+    const current = queue.shift();
+    if (!current) break;
+    if (current.hops > 0 && cells.burg[current.cellId]) return true;
+    if (current.hops >= maxHops) continue;
+    for (const neighbor of cells.c[current.cellId] ?? []) {
+      if (visited.has(neighbor) || cells.h[neighbor] < 20) continue;
+      visited.add(neighbor);
+      queue.push({ cellId: neighbor, hops: current.hops + 1 });
+    }
+  }
+  return false;
 }
 
 /**

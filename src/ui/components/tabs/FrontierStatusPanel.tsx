@@ -88,8 +88,8 @@ export function FrontierStatusPanel() {
             return (
               <small key={`${candidate.stateId}:${candidate.cellId}`} style={{ display: "block" }}>
                 {state?.name ?? `State ${candidate.stateId}`}: cell {candidate.cellId} from{" "}
-                {candidate.sourceCellIds.join(", ")} — {candidate.colonists.toFixed(1)} colonists; score{" "}
-                {candidate.score.toFixed(0)}, setup {candidate.setupCost}, reserve {candidate.requiredReserve}
+                {candidate.sourceCellIds.join(", ")} — {(candidate.colonists * world.populationRate).toFixed(0)} people;
+                score {candidate.score.toFixed(0)}, setup {candidate.setupCost}, reserve {candidate.requiredReserve}
               </small>
             );
           })}

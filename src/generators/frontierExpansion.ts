@@ -12,7 +12,9 @@ import { incorporateEligibleFrontierSettlements } from "./frontierIncorporation"
 
 const SETUP_COST = 8;
 const TREASURY_RESERVE = 12;
-const MIN_COLONISTS = 4;
+/** Population points, not literal people (0.5 is 500 people at the default scale). */
+const MIN_COLONISTS = 0.5;
+const MIN_OUTPOST_CAPACITY = 2;
 const SETTLEMENT_SUPPORT_YEARS = 3;
 const MAX_OUTPOST_DANGER = 120;
 const SETUP_FOOD = 4;
@@ -94,7 +96,7 @@ export function getFrontierCandidateBlockerSummaries(
         stateId: state.i,
         reason:
           available > 0
-            ? `Population reserve ${available.toFixed(1)} / ${MIN_COLONISTS} colonists`
+            ? `Population reserve ${available.toFixed(2)} / ${MIN_COLONISTS.toFixed(2)} points`
             : "No connected viable frontier site"
       });
     }
@@ -409,7 +411,7 @@ function isEligibleTarget(
     cells.state[cellId] === 0 &&
     cells.province[cellId] === 0 &&
     frontier.cellStages[cellId] === FRONTIER_STAGE.wilderness &&
-    cells.capacity[cellId] >= MIN_COLONISTS * 2 &&
+    cells.capacity[cellId] >= MIN_OUTPOST_CAPACITY &&
     cells.danger[cellId] <= MAX_OUTPOST_DANGER
   );
 }

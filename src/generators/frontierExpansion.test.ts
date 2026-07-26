@@ -228,18 +228,18 @@ describe("Frontier Expansion Phase 3", () => {
     const world = createWorld();
     world.pack.cells = {
       ...world.pack.cells,
-      pop: new Float32Array([20, 0]),
+      pop: new Float32Array([13.5, 0]),
       capacity: new Float32Array([20, 50]),
-      children: new Float32Array([5, 0]),
-      maleAdults: new Float32Array([5, 0]),
-      femaleAdults: new Float32Array([5, 0]),
-      elders: new Float32Array([5, 0])
+      children: new Float32Array([3.375, 0]),
+      maleAdults: new Float32Array([3.375, 0]),
+      femaleAdults: new Float32Array([3.375, 0]),
+      elders: new Float32Array([3.375, 0])
     };
     const simulation = createSimulation(100);
 
     expect(getFrontierCandidateSummaries(world, simulation)).toEqual([]);
     expect(getFrontierCandidateBlockerSummaries(world, simulation)).toEqual([
-      expect.objectContaining({ stateId: 1, reason: "Population reserve 3.5 / 4 colonists" })
+      expect.objectContaining({ stateId: 1, reason: "Population reserve 0.25 / 0.50 points" })
     ]);
   });
 
