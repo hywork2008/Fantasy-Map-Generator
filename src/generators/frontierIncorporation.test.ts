@@ -7,19 +7,19 @@ import {
 import type { WorldContext } from "../context/worldContext";
 import { incorporateEligibleFrontierSettlements } from "./frontierIncorporation";
 
-function createWorld(routeConnected: boolean): WorldContext {
+function createWorld(corridorConnected: boolean): WorldContext {
   return {
     pack: {
       cells: {
         i: new Uint16Array([0, 1, 2, 3]),
-        c: [[1], [0, 2], [1, 3], [2]],
+        c: corridorConnected ? [[1], [0, 2], [1, 3], [2]] : [[1], [0], [3], [2]],
         state: new Uint16Array([1, 0, 0, 2]),
         province: new Uint16Array([1, 0, 0, 2]),
         pop: new Float32Array([20, 0, 6, 20]),
         area: new Float32Array([1, 1, 1, 1]),
         burg: new Uint16Array([0, 0, 0, 0]),
         h: new Uint8Array([30, 30, 30, 30]),
-        routes: routeConnected ? { 0: { 1: 0 }, 1: { 0: 0, 2: 0 }, 2: { 1: 0 } } : { 0: {}, 1: {}, 2: {} }
+        routes: { 0: {}, 1: {}, 2: {}, 3: {} }
       },
       states: [{ i: 0 }, { i: 1, name: "A", provinces: [1] }, { i: 2, name: "B", provinces: [2] }],
       provinces: [0, { i: 1, state: 1 }, { i: 2, state: 2 }],
@@ -43,7 +43,7 @@ function createSimulation(): SimulationContext {
 }
 
 describe("frontier incorporation transaction", () => {
-  it("claims only the supply-connected corridor and refreshes State, Province, and neighbor aggregates", () => {
+  it("claims only the land-connected corridor and refreshes State, Province, and neighbor aggregates", () => {
     const world = createWorld(true);
     const simulation = createSimulation();
 
@@ -62,7 +62,7 @@ describe("frontier incorporation transaction", () => {
     expect(world.pack.provinces[1]?.rural).toBe(26);
   });
 
-  it("leaves an otherwise eligible settlement unclaimed when its supply route is missing", () => {
+  it("leaves an otherwise eligible settlement unclaimed when no land corridor reaches its State", () => {
     const world = createWorld(false);
     const simulation = createSimulation();
 

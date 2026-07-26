@@ -426,6 +426,13 @@ Frontier の進行だけでは `simulation.cells` を発行する。outpost/sett
 - archive は governance と project status を保存し、旧 archive には空の governance record を補完する。
 - 検証: `frontierGovernance.test.ts`、`frontierExpansion.test.ts`、`frontierIncorporation.test.ts`、`worldArchive.test.ts`、`npx tsc --noEmit`、`npm run lint`。
 
+### 2026-07-26 — Burg 中心の差分 Route 接続
+
+- 前哨地・農村・Settlement Foundation の未 Burg ノードは route endpoint にしない。都市化で Burg になった時点で初めて network の候補になる。
+- 全 route の年次再生成は、大陸規模の遠距離 Burg を結ぶ不自然な経路を作り得るため採用しない。Burg 化または港湾化したときだけ、既存 network への接続を差分追加する。
+- 自動生成する roads / trails / searoutes は State ごとに分離する。経路探索も自国または無主地だけを通過可能とし、国境を越える都市間ネットワークは外交・交易などの明示的な将来機能に委ねる。
+- 編入の行政回廊は route ではなく、最大8 hop の同一 State または無主地だけを通る陸上セル連結で判定する。これにより道路を敷設しない開拓村落も、地理的に到達可能なら編入できる。
+
 | Date | Phase | Status | Note |
 | --- | --- | --- | --- |
 | 2026-07-24 | 設計 | Planned | 政治境界を空白化する方針、段階的な導入順、未解決事項を初版として記録 |

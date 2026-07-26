@@ -7,7 +7,7 @@ import { States } from "./states-generator";
 
 const MIN_SETTLEMENT_POPULATION = 4;
 const MIN_SETTLEMENT_SUPPORT_YEARS = 3;
-const MAX_ADMINISTRATIVE_ROUTE_HOPS = 8;
+const MAX_ADMINISTRATIVE_CORRIDOR_HOPS = 8;
 
 export interface FrontierIncorporationInput {
   readonly world: WorldContext;
@@ -28,9 +28,9 @@ export interface FrontierIncorporationResult {
 
 /**
  * Phase 4's ownership transaction. A settled frontier project is promoted only
- * through its already-materialized supply trail; the transaction claims that
- * connected administrative corridor, assigns it to a province, then refreshes
- * every political aggregate before its caller publishes a single commit.
+ * through a short, passable administrative corridor; the transaction claims
+ * that corridor, assigns it to a province, then refreshes every political
+ * aggregate before its caller publishes a single commit.
  */
 export function incorporateEligibleFrontierSettlements(input: FrontierIncorporationInput): FrontierIncorporationResult {
   const { world, simulation } = input;
@@ -87,9 +87,10 @@ function isEligibleSettlement(
 }
 
 /**
- * A supply trail is the only valid administrative connection. This deliberately
- * avoids claiming arbitrary adjacent wilderness merely because it happens to
- * touch a State border.
+ * Administrative incorporation requires a short land corridor, but not a
+ * route. Frontier settlements remain roadless until a burg is established;
+ * using cell adjacency here preserves that rule without stranding a settlement
+ * outside its sponsoring State forever.
  */
 function findAdministrativeCorridor(
   cells: WorldContext["pack"]["cells"],
@@ -103,11 +104,10 @@ function findAdministrativeCorridor(
     const current = queue.shift();
     if (!current) continue;
     if (cells.state[current.cellId] === stateId) return current.path;
-    if (current.path.length > MAX_ADMINISTRATIVE_ROUTE_HOPS) continue;
+    if (current.path.length > MAX_ADMINISTRATIVE_CORRIDOR_HOPS) continue;
 
-    for (const rawNeighborId of Object.keys(cells.routes[current.cellId] ?? {})) {
-      const neighborId = Number(rawNeighborId);
-      if (!Number.isInteger(neighborId) || visited.has(neighborId)) continue;
+    for (const neighborId of cells.c[current.cellId] ?? []) {
+      if (visited.has(neighborId)) continue;
       if (cells.h[neighborId] < 20 || (cells.state[neighborId] !== 0 && cells.state[neighborId] !== stateId)) continue;
       visited.add(neighborId);
       queue.push({ cellId: neighborId, path: [...current.path, neighborId] });

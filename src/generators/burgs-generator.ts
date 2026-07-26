@@ -160,6 +160,42 @@ class BurgModule {
     burg.y = y;
   }
 
+  /**
+   * Builds a port at one already-established burg when its coast or river is
+   * navigable. Unlike `shift`, this preserves every existing port assignment.
+   */
+  developPort(burg: Burg): boolean {
+    if (!burg.i || burg.removed || burg.port) return false;
+    const { cells, features } = this.worldContext.pack;
+    const haven = cells.haven[burg.cell];
+
+    if (haven) {
+      const feature = features[cells.f[haven]];
+      if (!cells.harbor[burg.cell] || !feature || feature.cells <= 1 || NON_NAVIGABLE_LAKE_GROUPS.has(feature.group)) {
+        return false;
+      }
+      if (this.worldContext.grid.cells.temp[cells.g[burg.cell]] <= 0) return false;
+      const portFeatureId =
+        feature.type === "lake" && feature.outlet
+          ? (Rivers.resolveLakeDrainFeature(feature.i) ?? feature.i)
+          : feature.i;
+      this.promoteToPort(
+        { burg, haven, portFeatureId, landFeature: cells.f[burg.cell], preferred: cells.harbor[burg.cell] === 1 },
+        new Map(this.worldContext.pack.rivers.map(river => [river.i, river]))
+      );
+      return true;
+    }
+
+    if (!Rivers.isNavigable(burg.cell)) return false;
+    const portFeatureId = Rivers.resolveDrainFeature(burg.cell);
+    if (!portFeatureId) return false;
+    this.promoteToPort(
+      { burg, haven: null, portFeatureId, landFeature: cells.f[burg.cell], preferred: true },
+      new Map(this.worldContext.pack.rivers.map(river => [river.i, river]))
+    );
+    return true;
+  }
+
   private getCloseToEdgePoint(cell1: number, cell2: number): [number, number] {
     const { cells, vertices } = this.worldContext.pack;
     const [x0, y0] = cells.p[cell1];
@@ -902,7 +938,14 @@ class BurgModule {
     return previewGeneratorsMap[group.preview](burg);
   }
 
-  add([x, y]: [number, number]): { burgId: number; newRoute?: Route } {
+  add(
+    [x, y]: [number, number],
+    addOptions: {
+      routeStateId?: number;
+      allowExternalRouteFallback?: boolean;
+      developPort?: boolean;
+    } = {}
+  ): { burgId: number; newRoute?: Route } {
     const { pack, options } = this.worldContext;
     const { cells } = pack;
 
@@ -943,7 +986,24 @@ class BurgModule {
     if (this.worldContext === worldContext) bindSimulationBurg(burg, burgId, simulationContext);
     cells.burg[cellId as number] = burgId;
 
-    const newRoute = Routes.connect(cellId as number);
+    if (addOptions.developPort) this.developPort(burg);
+
+    // A new Burg joins the existing network immediately. Frontier outposts and
+    // rural settlements do not call this method, so they stay route-free.
+    const seaRoute =
+      addOptions.routeStateId === undefined || !burg.port
+        ? undefined
+        : Routes.connectPort(cellId as number, addOptions.routeStateId);
+    const stateRoute =
+      seaRoute || Routes.hasSeaRoute(cellId as number) || addOptions.routeStateId === undefined
+        ? undefined
+        : Routes.connectFrontier(cellId as number, addOptions.routeStateId);
+    const newRoute =
+      seaRoute ??
+      stateRoute ??
+      (addOptions.routeStateId === undefined || addOptions.allowExternalRouteFallback
+        ? Routes.connect(cellId as number)
+        : undefined);
 
     return { burgId, newRoute };
   }

@@ -15,6 +15,7 @@ function createEffects(): RenderEffects {
     renderBurgIcons: vi.fn(),
     renderBurgLabels: vi.fn(),
     renderMarkers: vi.fn(),
+    renderRoutes: vi.fn(),
     renderMilitary: vi.fn(),
     renderExtensionLayers: vi.fn(),
     scheduleWebglUpdate: vi.fn(),
@@ -75,11 +76,26 @@ describe("RenderCoordinator", () => {
     expect(effects.renderBurgIcons).not.toHaveBeenCalled();
     expect(effects.renderBurgLabels).not.toHaveBeenCalled();
     expect(effects.renderMarkers).not.toHaveBeenCalled();
+    expect(effects.renderRoutes).not.toHaveBeenCalled();
     expect(effects.renderMilitary).not.toHaveBeenCalled();
     expect(effects.scheduleWebglUpdate).not.toHaveBeenCalled();
     expect(effects.scheduleLandTopologyProjection).not.toHaveBeenCalled();
     expect(effects.schedule3dTerrainUpdate).not.toHaveBeenCalled();
     expect(effects.schedule3dSceneUpdate).not.toHaveBeenCalled();
+  });
+
+  it("redraws SVG routes for a network commit so new routes are also editable", async () => {
+    const runtime = createWorldRuntime({} as WorldContext, {} as SimulationContext);
+    const effects = createEffects();
+    createRenderCoordinator(runtime, effects);
+
+    await runtime.dispatch({
+      type: "legacy.mutation",
+      execute: () => ({ result: undefined, topics: ["map.networks"] })
+    });
+
+    expect(effects.renderRoutes).toHaveBeenCalledOnce();
+    expect(effects.scheduleWebglUpdate).toHaveBeenCalledOnce();
   });
 
   it("coalesces multiple commits into one browser frame", async () => {

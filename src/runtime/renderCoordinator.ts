@@ -14,6 +14,7 @@ import {
   BurgLabelsRenderer,
   MarkersRenderer,
   MilitaryRenderer,
+  RoutesRenderer,
   StateLabelsRenderer,
   StatesRenderer
 } from "../renderers";
@@ -45,6 +46,7 @@ export interface RenderEffects {
   renderBurgIcons(): void;
   renderBurgLabels(): void;
   renderMarkers(): void;
+  renderRoutes(): void;
   renderMilitary(): void;
   /** Extension SVG / hybrid overlay hooks (`registerDrawLayerHook`). */
   renderExtensionLayers(): void;
@@ -130,6 +132,8 @@ function applyCommit(commit: WorldCommit<unknown>, effects: RenderEffects): void
     effects.renderBurgLabels();
     effects.schedule3dSceneUpdate();
   }
+
+  if (topics.has("map.networks")) effects.renderRoutes();
 
   if (topics.has("map.annotations")) effects.renderMarkers();
 
@@ -226,6 +230,10 @@ export function initRenderCoordinator(): void {
     renderMarkers: () => {
       if (!viewContext.renderMap) return;
       MarkersRenderer.render(worldContext, viewContext, appServices);
+    },
+    renderRoutes: () => {
+      if (!viewContext.renderMap || !layerIsOn("toggleRoutes")) return;
+      RoutesRenderer.render(worldContext, viewContext, appServices);
     },
     renderMilitary: () => {
       if (!viewContext.renderMap || !layerIsOn("toggleMilitary")) return;

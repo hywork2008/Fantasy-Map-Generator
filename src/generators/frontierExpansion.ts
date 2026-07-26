@@ -36,8 +36,6 @@ export interface FrontierExpansionInput {
   readonly world: WorldContext;
   readonly simulation: SimulationContext;
   readonly rng: RNGService;
-  /** Materializes a trail from a new outpost to the existing movement network. */
-  readonly connectRoute?: (cellId: number, stateId: number) => boolean;
 }
 
 export interface FrontierExpansionResult {
@@ -157,7 +155,6 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
   const abandoned: number[] = [];
   const settled: number[] = [];
   const incorporated: number[] = [];
-  let routeChanged = false;
 
   for (const project of Object.values(frontier.projects)) {
     const outcome = advanceProject(project, frontier, input, year);
@@ -216,7 +213,6 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
       };
       occupiedSectors.add(candidate.sector);
       activeProjects++;
-      if (input.connectRoute?.(candidate.cellId, state.i)) routeChanged = true;
 
       established.push(candidate.cellId);
       topics.add("simulation.states");
@@ -231,7 +227,6 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
     frontier.budgetByState[state.i] = Math.max(0, state.treasury ?? 0);
   }
   topics.add("simulation.states");
-  if (routeChanged) topics.add("map.networks");
 
   return { topics: [...topics], established, abandoned, settled, incorporated };
 }

@@ -17,6 +17,15 @@ const SETTLEMENT_SPACING_HOPS = 2;
 export interface DemographicsSimulationResult {
   bordersChanged: boolean;
   newBurgsAdded: boolean;
+  routesAdded: boolean;
+  promotedSettlements: readonly PromotedSettlement[];
+}
+
+/** Completed service-centre promotions for host systems and extensions to observe. */
+export interface PromotedSettlement {
+  readonly burgId: number;
+  readonly cellId: number;
+  readonly stateId: number;
 }
 
 /**
@@ -27,9 +36,11 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
   const { pack } = worldContext;
   const bordersChanged = false;
   let newBurgsAdded = false;
+  let routesAdded = false;
+  let promotedSettlements: readonly PromotedSettlement[] = [];
 
-  if (!pack?.cells || !pack.burgs) return { bordersChanged, newBurgsAdded };
-  if (deltaYears <= 0) return { bordersChanged, newBurgsAdded };
+  if (!pack?.cells || !pack.burgs) return { bordersChanged, newBurgsAdded, routesAdded, promotedSettlements };
+  if (deltaYears <= 0) return { bordersChanged, newBurgsAdded, routesAdded, promotedSettlements };
 
   const { demographicBirthRate, demographicChildMortalityRate, simAgriculture } = useOptionsState.getState();
   const baseGrowthRate = demographicBirthRate;
@@ -203,7 +214,10 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
   // Evaluate promotion once per calendar year after all population changes, so
   // nearby cells cannot all urbanise during the same daily simulation batch.
   if (simulationContext.currentMonth === 1 && simulationContext.currentDay === 1) {
-    newBurgsAdded = promoteRuralSettlements(worldContext, simulationContext) || newBurgsAdded;
+    const promotion = promoteRuralSettlements(worldContext, simulationContext);
+    newBurgsAdded = promotion.newBurgsAdded || newBurgsAdded;
+    routesAdded = promotion.routesAdded || routesAdded;
+    promotedSettlements = promotion.promotedSettlements;
   }
 
   for (const [stateId, pts] of naturalPts) {
@@ -213,7 +227,7 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     recordDeaths(stateId, pts * populationRate, "famine");
   }
 
-  return { bordersChanged, newBurgsAdded };
+  return { bordersChanged, newBurgsAdded, routesAdded, promotedSettlements };
 }
 
 export interface SettlementPromotionCandidate {
@@ -282,16 +296,24 @@ export function getSettlementPromotionCandidates(
   return selected;
 }
 
-function promoteRuralSettlements(world: WorldContext, simulation: SimulationContext): boolean {
+function promoteRuralSettlements(
+  world: WorldContext,
+  simulation: SimulationContext
+): Pick<DemographicsSimulationResult, "newBurgsAdded" | "routesAdded" | "promotedSettlements"> {
   const { cells, burgs } = world.pack;
   const candidates = getSettlementPromotionCandidates(world, simulation);
-  let promoted = false;
+  let newBurgsAdded = false;
+  let routesAdded = false;
+  const promotedSettlements: PromotedSettlement[] = [];
 
   for (const candidate of candidates) {
     // A prior candidate can only add a burg in another State, but re-checking
     // protects this transaction if a future rule permits multiple promotions.
     if (cells.burg[candidate.cellId]) continue;
-    const result = Burgs.add(cells.p[candidate.cellId]);
+    const result = Burgs.add(cells.p[candidate.cellId], {
+      routeStateId: candidate.stateId,
+      developPort: true
+    });
     const burg = burgs[result.burgId];
     if (!burg) continue;
 
@@ -311,9 +333,11 @@ function promoteRuralSettlements(world: WorldContext, simulation: SimulationCont
     }
     cells.pop[candidate.cellId] -= candidate.settlementPopulation;
     Burgs.changeGroup(burg);
-    promoted = true;
+    newBurgsAdded = true;
+    routesAdded = Boolean(result.newRoute) || routesAdded;
+    promotedSettlements.push({ burgId: result.burgId, cellId: candidate.cellId, stateId: candidate.stateId });
   }
-  return promoted;
+  return { newBurgsAdded, routesAdded, promotedSettlements };
 }
 
 function isSettlementSite(cells: WorldContext["pack"]["cells"], cellId: number): boolean {

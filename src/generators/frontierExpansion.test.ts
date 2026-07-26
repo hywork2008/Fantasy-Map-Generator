@@ -61,20 +61,19 @@ function advance(world: WorldContext, simulation: SimulationContext) {
   return advanceFrontierExpansion({
     world,
     simulation,
-    rng: createRNGService(() => 0.5),
-    connectRoute: () => true
+    rng: createRNGService(() => 0.5)
   });
 }
 
 describe("Frontier Expansion Phase 3", () => {
-  it("establishes a route-connected outpost and settles it after sustained annual support without claiming land", () => {
+  it("establishes an outpost and settles it after sustained annual support without claiming land", () => {
     const world = createWorld();
     const simulation = createSimulation(100);
 
     const established = advance(world, simulation);
     expect(established.established).toEqual([1]);
     expect(established.topics).toEqual(
-      expect.arrayContaining(["simulation.cells", "simulation.states", "map.settlements", "map.networks"])
+      expect.arrayContaining(["simulation.cells", "simulation.states", "map.settlements"])
     );
     expect(simulation.frontier.cellStages[1]).toBe(FRONTIER_STAGE.outpost);
     expect(world.pack.cells.state[1]).toBe(0);

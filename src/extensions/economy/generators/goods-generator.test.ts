@@ -1,7 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { BiomesData, ExtensionAPI, Grid, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, getGoodCellColumn, getGoods, initEconomyContext, setGoods } from "../economyContext";
+import {
+  clearEconomyContext,
+  getGoodCellColumn,
+  getGoods,
+  initEconomyContext,
+  setGoodCellColumn,
+  setGoods
+} from "../economyContext";
 import { GoodsModule } from "./goods-generator";
 
 describe("GoodsModule", () => {
@@ -149,5 +156,21 @@ describe("GoodsModule", () => {
     goodsModule.generate({ randomSeed: 123 });
 
     expect(Array.from(getGoodCellColumn())).toEqual([0, 0, 0, 0]);
+  });
+
+  it("assigns a biome-compatible product to a newly promoted settlement without replacing a deposit", () => {
+    setGoods([
+      { ...getGoods()[0], i: 1, biomeOutput: { 3: 0.1 } },
+      { ...getGoods()[1], i: 2, biomeOutput: { 4: 0.1 } }
+    ]);
+    worldContext.pack.cells.biome[0] = 3;
+    worldContext.pack.cells.biome[1] = 4;
+    setGoodCellColumn(new Uint16Array(4));
+    goodsModule.sync();
+
+    expect(goodsModule.assignBiomeProduct(0)).toBe(1);
+    expect(goodsModule.assignBiomeProduct(1)).toBe(2);
+    expect(Array.from(getGoodCellColumn())).toEqual([1, 2, 0, 0]);
+    expect(goodsModule.assignBiomeProduct(0)).toBeNull();
   });
 });

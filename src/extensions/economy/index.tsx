@@ -232,6 +232,7 @@ let _shipbuildingSurplusShipRequestHandler: ((e: Event) => void) | null = null;
 let _voyageIncomeHandler: ((e: Event) => void) | null = null;
 let _mapPickCandidatesHandler: ((e: Event) => void) | null = null;
 let _gunpowderEraChangedHandler: (() => void) | null = null;
+let _settlementPromotedHandler: ((e: Event) => void) | null = null;
 let _unregisterGoodsAssignCellCommand: (() => void) | null = null;
 let _unregisterGoodsUpdateCommand: (() => void) | null = null;
 let _unregisterGoodsAddCommand: (() => void) | null = null;
@@ -340,6 +341,15 @@ function isEconomyRegenerationRequest(value: unknown): value is { readonly targe
   if (!value || typeof value !== "object") return false;
   const target = (value as { target?: unknown }).target;
   return target === "economy" || target === "goods" || target === "markets" || target === "production";
+}
+
+function isSettlementPromotionEvent(
+  event: Event
+): event is CustomEvent<{ cellId: number; burgId: number; stateId: number }> {
+  const detail = (event as CustomEvent<unknown>).detail;
+  if (!detail || typeof detail !== "object") return false;
+  const value = detail as { cellId?: unknown; burgId?: unknown; stateId?: unknown };
+  return Number.isInteger(value.cellId) && Number.isInteger(value.burgId) && Number.isInteger(value.stateId);
 }
 
 function applyGoodSettings(good: Good, request: GoodSettingsRequest): boolean {
@@ -1000,6 +1010,25 @@ export function init(api: ExtensionAPI): void {
     });
   };
 
+  // Core owns burg creation; the extension only enriches the newly created
+  // settlement after it announces the completed promotion transaction.
+  _settlementPromotedHandler = event => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID) || !isSettlementPromotionEvent(event)) return;
+
+    const { cellId, burgId } = event.detail;
+    const assignedGoodId = Goods.assignBiomeProduct(cellId);
+    const burg = getWorldContext().pack.burgs[burgId];
+    if (burg) burg.market = getMarketCellColumn()[cellId] || 0;
+
+    // A changed bonus product and a new urban worker both affect the next
+    // production cycle. One microtask coalesces every same-tick promotion.
+    if (assignedGoodId !== null) Markets.invalidateRuralProductionCache();
+    syncBurgMarketLedgers();
+    markProductionDirty();
+    scheduleProductionSettlement();
+  };
+  document.addEventListener("fmg:settlement-promoted", _settlementPromotedHandler);
+
   _logHarvestedHandler = e => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
     const { cellId, amount } = (e as CustomEvent).detail as { cellId: number; amount: number };
@@ -1404,6 +1433,10 @@ export function cleanup(api: ExtensionAPI): void {
   if (_gunpowderEraChangedHandler) {
     document.removeEventListener("fmg:gunpowder-era-changed", _gunpowderEraChangedHandler);
     _gunpowderEraChangedHandler = null;
+  }
+  if (_settlementPromotedHandler) {
+    document.removeEventListener("fmg:settlement-promoted", _settlementPromotedHandler);
+    _settlementPromotedHandler = null;
   }
   clearVoyageIncome();
   clearStrategicProcurementExpenses();

@@ -39,6 +39,7 @@ const ROUTE_TYPE_MODIFIERS: Record<string, number> = {
 
 type RouteGraphEdge = { from: number; to: number; triangleIndex: number };
 type PortEdge = [number, number];
+type StateFeatureBurgGroup = { feature: number; stateId: number; burgs: Burg[] };
 
 // name generator data
 const models: Record<string, Record<string, number>> = {
@@ -361,26 +362,34 @@ class RoutesModule {
     return links;
   }
 
-  private sortBurgsByFeature(burgs: Burg[]) {
-    const burgsByFeature: Record<number, Burg[]> = {};
-    const capitalsByFeature: Record<number, Burg[]> = {};
-    const portsByFeature: Record<number, Burg[]> = {};
+  private sortBurgsByStateAndFeature(burgs: Burg[]) {
+    const burgsByStateFeature = new Map<string, StateFeatureBurgGroup>();
+    const capitalsByStateFeature = new Map<string, StateFeatureBurgGroup>();
+    const portsByStateFeature = new Map<string, StateFeatureBurgGroup>();
 
-    const addBurg = (collection: Record<number, Burg[]>, feature: number, burg: Burg) => {
-      if (!collection[feature]) collection[feature] = [];
-      collection[feature].push(burg);
+    const addBurg = (collection: Map<string, StateFeatureBurgGroup>, feature: number, stateId: number, burg: Burg) => {
+      const key = `${stateId}:${feature}`;
+      const group = collection.get(key);
+      if (group) {
+        group.burgs.push(burg);
+        return;
+      }
+      collection.set(key, { feature, stateId, burgs: [burg] });
     };
 
     for (const burg of burgs) {
-      if (burg.i && !burg.removed) {
-        const { feature, capital, port } = burg;
-        addBurg(burgsByFeature, feature as number, burg);
-        if (capital) addBurg(capitalsByFeature, feature as number, burg);
-        if (port) addBurg(portsByFeature, port as number, burg);
-      }
+      if (!burg.i || burg.removed || !burg.state) continue;
+      const { feature, capital, port, state } = burg;
+      addBurg(burgsByStateFeature, feature as number, state, burg);
+      if (capital) addBurg(capitalsByStateFeature, feature as number, state, burg);
+      if (port) addBurg(portsByStateFeature, port as number, state, burg);
     }
 
-    return { burgsByFeature, capitalsByFeature, portsByFeature };
+    return {
+      burgsByStateFeature: [...burgsByStateFeature.values()],
+      capitalsByStateFeature: [...capitalsByStateFeature.values()],
+      portsByStateFeature: [...portsByStateFeature.values()]
+    };
   }
 
   // Urquhart graph is obtained by removing the longest edge from each triangle in the Delaunay triangulation
@@ -587,21 +596,39 @@ class RoutesModule {
     return segments;
   }
 
+  private getGroupConnections(group: Route["group"]): Map<string, boolean> {
+    const connections = new Map<string, boolean>();
+    for (const route of this.worldContext.pack.routes) {
+      if (route.group !== group) continue;
+      this.addConnections(
+        route.points.map(point => point[2]),
+        connections
+      );
+    }
+    return connections;
+  }
+
   private findPathSegments({
     isWater,
     connections,
     start,
     exit,
+    stateId,
     seaRouteGenerationMode
   }: {
     isWater: boolean;
     connections: Map<string, boolean>;
     start: number;
     exit: number;
+    stateId?: number;
     seaRouteGenerationMode?: SeaRouteGenerationMode;
   }) {
     const { pack } = this.worldContext;
-    const getCost = this.createCostEvaluator({ isWater, connections, seaRouteGenerationMode });
+    const baseCost = this.createCostEvaluator({ isWater, connections, seaRouteGenerationMode });
+    const getCost = (from: number, to: number) => {
+      if (stateId && pack.cells.state[to] !== 0 && pack.cells.state[to] !== stateId) return Infinity;
+      return baseCost(from, to);
+    };
     const pathCells = findPath(start, current => current === exit, getCost, pack);
     if (!pathCells) return [];
     const segments = this.getRouteSegments(pathCells, connections);
@@ -611,10 +638,10 @@ class RoutesModule {
   private generateMainRoads(connections: Map<string, boolean>) {
     const { pack } = this.worldContext;
     TIME && console.time("generateMainRoads");
-    const { capitalsByFeature } = this.sortBurgsByFeature(pack.burgs);
+    const { capitalsByStateFeature } = this.sortBurgsByStateAndFeature(pack.burgs);
     const mainRoads: Route[] = [];
 
-    for (const [key, featureCapitals] of Object.entries(capitalsByFeature)) {
+    for (const { feature, stateId, burgs: featureCapitals } of capitalsByStateFeature) {
       const points = featureCapitals.map(burg => [burg.x, burg.y] as Point);
       const urquhartEdges = this.calculateUrquhartEdges(points);
       urquhartEdges.forEach(([fromId, toId]) => {
@@ -625,11 +652,12 @@ class RoutesModule {
           isWater: false,
           connections,
           start,
-          exit
+          exit,
+          stateId
         });
         for (const segment of segments) {
           this.addConnections(segment, connections);
-          mainRoads.push({ feature: Number(key), cells: segment } as Route);
+          mainRoads.push({ feature, cells: segment } as Route);
         }
       });
     }
@@ -642,7 +670,7 @@ class RoutesModule {
     for (let i = 0; i < segment.length; i++) {
       const cellId = segment[i];
       const nextCellId = segment[i + 1];
-      if (nextCellId) {
+      if (nextCellId !== undefined) {
         connections.set(`${cellId}-${nextCellId}`, true);
         connections.set(`${nextCellId}-${cellId}`, true);
       }
@@ -652,10 +680,10 @@ class RoutesModule {
   private generateTrails(connections: Map<string, boolean>) {
     const { pack } = this.worldContext;
     TIME && console.time("generateTrails");
-    const { burgsByFeature } = this.sortBurgsByFeature(pack.burgs);
+    const { burgsByStateFeature } = this.sortBurgsByStateAndFeature(pack.burgs);
     const trails: Route[] = [];
 
-    for (const [key, featureBurgs] of Object.entries(burgsByFeature)) {
+    for (const { feature, stateId, burgs: featureBurgs } of burgsByStateFeature) {
       const points = featureBurgs.map(burg => [burg.x, burg.y] as Point);
       const urquhartEdges = this.calculateUrquhartEdges(points);
       urquhartEdges.forEach(([fromId, toId]) => {
@@ -666,11 +694,12 @@ class RoutesModule {
           isWater: false,
           connections,
           start,
-          exit
+          exit,
+          stateId
         });
         for (const segment of segments) {
           this.addConnections(segment, connections);
-          trails.push({ feature: Number(key), cells: segment } as Route);
+          trails.push({ feature, cells: segment } as Route);
         }
       });
     }
@@ -679,44 +708,13 @@ class RoutesModule {
     return trails;
   }
 
-  /**
-   * Materializes the Phase 1 settlement-plan links. Unlike the legacy
-   * Delaunay pass this only joins nodes that were selected inside the same
-   * viable settlement region, so it cannot invent a cross-frontier corridor.
-   */
-  private generateFoundationTrails(connections: Map<string, boolean>) {
-    const { pack } = this.worldContext;
-    const plan = pack.settlementFoundation;
-    if (!plan) return [] as Route[];
-
-    const nodesById = new Map(plan.nodes.map(node => [node.id, node]));
-    const trails: Route[] = [];
-
-    for (const link of plan.links) {
-      const from = nodesById.get(link.fromNodeId);
-      const to = nodesById.get(link.toNodeId);
-      if (!from || !to) continue;
-      const segments = this.findPathSegments({
-        isWater: false,
-        connections,
-        start: from.cell,
-        exit: to.cell
-      });
-      for (const cells of segments) {
-        this.addConnections(cells, connections);
-        trails.push({ feature: pack.cells.f[from.cell], cells } as Route);
-      }
-    }
-    return trails;
-  }
-
   private generateSeaRoutes(connections: Map<string, boolean>, seaRouteGenerationMode: SeaRouteGenerationMode) {
     const { pack } = this.worldContext;
     TIME && console.time("generateSeaRoutes");
-    const { portsByFeature } = this.sortBurgsByFeature(pack.burgs);
+    const { portsByStateFeature } = this.sortBurgsByStateAndFeature(pack.burgs);
     const seaRoutes: Route[] = [];
 
-    for (const [featureId, featurePorts] of Object.entries(portsByFeature)) {
+    for (const { feature, stateId, burgs: featurePorts } of portsByStateFeature) {
       const points = featurePorts.map(burg => [burg.x, burg.y] as Point);
       const allPortEdges =
         seaRouteGenerationMode === "augmented"
@@ -736,12 +734,13 @@ class RoutesModule {
           connections,
           start,
           exit,
+          stateId,
           seaRouteGenerationMode
         });
         for (const segment of segments) {
           this.addConnections(segment, connections);
           seaRoutes.push({
-            feature: Number(featureId),
+            feature,
             cells: segment
           } as Route);
         }
@@ -837,28 +836,29 @@ class RoutesModule {
     connections: Map<string, boolean>,
     seaRouteGenerationMode: SeaRouteGenerationMode
   ) {
-    const usesFoundation = Boolean(this.worldContext.pack.settlementFoundation);
-    const mainRoads = usesFoundation ? [] : this.generateMainRoads(connections);
-    const trails = usesFoundation ? this.generateFoundationTrails(connections) : this.generateTrails(connections);
+    // Settlement-plan nodes and frontier outposts are population sites, not
+    // route endpoints. Every generated network is based on actual burgs.
+    const mainRoads = this.generateMainRoads(connections);
+    const trails = this.generateTrails(connections);
     const seaRoutes = this.generateSeaRoutes(connections, seaRouteGenerationMode);
     const pointsArray = this.preparePointsArray();
 
     for (const { feature, cells, merged } of this.mergeRoutes(mainRoads)) {
       if (merged) continue;
       const points = this.getPoints("roads", cells!, pointsArray);
-      routes.push({ i: routes.length, group: "roads", feature, points });
+      routes.push({ i: routes.length, group: "roads", feature, points, cells: cells! });
     }
 
     for (const { feature, cells, merged } of this.mergeRoutes(trails)) {
       if (merged) continue;
       const points = this.getPoints("trails", cells!, pointsArray);
-      routes.push({ i: routes.length, group: "trails", feature, points });
+      routes.push({ i: routes.length, group: "trails", feature, points, cells: cells! });
     }
 
     for (const { feature, cells, merged } of this.mergeRoutes(seaRoutes)) {
       if (merged) continue;
       const points = this.getPoints("searoutes", cells!, pointsArray);
-      routes.push({ i: routes.length, group: "searoutes", feature, points });
+      routes.push({ i: routes.length, group: "searoutes", feature, points, cells: cells! });
     }
 
     return routes;
@@ -911,7 +911,10 @@ class RoutesModule {
     return this.connectToNetwork(
       cellId,
       () => true,
-      c => isLand(c, this.worldContext.pack) && (this.isConnected(c) || !!this.worldContext.pack.cells.burg[c])
+      c =>
+        c !== cellId &&
+        isLand(c, this.worldContext.pack) &&
+        (this.isConnected(c) || !!this.worldContext.pack.cells.burg[c])
     );
   }
 
@@ -926,9 +929,56 @@ class RoutesModule {
       cellId,
       c => !pack.cells.state[c] || pack.cells.state[c] === stateId,
       c =>
+        c !== cellId &&
         isLand(c, pack) &&
         pack.cells.state[c] === stateId &&
         (this.isConnected(c) || pack.burgs[pack.cells.burg[c]]?.state === stateId)
+    );
+  }
+
+  /**
+   * Joins a port to another port in the same State over its navigable river or
+   * sea feature. This is intentionally separate from `connectFrontier`: a
+   * supply trail must stay on land, while a developed settlement may use water.
+   */
+  connectPort(cellId: number, stateId: number): Route | undefined {
+    const { pack } = this.worldContext;
+    const source = pack.burgs[pack.cells.burg[cellId]];
+    if (!source?.port || source.state !== stateId) return;
+
+    const targetCells = new Set(
+      pack.burgs
+        .filter(
+          burg => burg?.i && !burg.removed && burg.i !== source.i && burg.state === stateId && burg.port === source.port
+        )
+        .map(burg => burg.cell)
+    );
+    if (!targetCells.size) return;
+
+    this.sync();
+    const baseCost = this.createCostEvaluator({
+      isWater: true,
+      connections: new Map(),
+      seaRouteGenerationMode: this.worldContext.options.seaRouteGenerationMode ?? "augmented"
+    });
+    const getCost = (from: number, to: number) =>
+      pack.cells.state[to] !== 0 && pack.cells.state[to] !== stateId ? Infinity : baseCost(from, to);
+    const pathCells = findPath(cellId, cell => cell !== cellId && targetCells.has(cell), getCost, pack);
+    if (!pathCells) return;
+
+    const newSegments = this.getRouteSegments(pathCells, this.getGroupConnections("searoutes"));
+    // A port founded directly on an existing sea lane is already connected;
+    // do not add a duplicate land trail or a second copy of that lane.
+    const sourceSegment = newSegments.find(segment => segment[0] === cellId);
+    if (!sourceSegment) return;
+
+    return this.appendRoute("searoutes", source.port, sourceSegment);
+  }
+
+  hasSeaRoute(cellId: number): boolean {
+    const { pack } = this.worldContext;
+    return Object.values(pack.cells.routes[cellId] ?? {}).some(routeId =>
+      pack.routes.some(route => route.i === routeId && route.group === "searoutes")
     );
   }
 
@@ -946,11 +996,17 @@ class RoutesModule {
     const pathCells = findPath(cellId, isExit, getCost, pack);
     if (!pathCells) return;
 
+    return this.appendRoute("trails", pack.cells.f[cellId], pathCells);
+  }
+
+  private appendRoute(group: "trails" | "searoutes", feature: number, pathCells: number[]): Route {
+    const { pack } = this.worldContext;
     const pointsArray = this.preparePointsArray();
-    const points = this.getPoints("trails", pathCells, pointsArray);
-    const feature = pack.cells.f[cellId];
+    const points = this.getPoints(group, pathCells, pointsArray);
     const routeId = this.getNextId();
-    const newRoute = { i: routeId, group: "trails", feature, points };
+    // Keep the source cells for focused SVG and WebGL rendering. Generated
+    // routes used to have only points, so a focus scope omitted valid geometry.
+    const newRoute = { i: routeId, group, feature, points, cells: pathCells };
     pack.routes.push(newRoute as Route);
 
     const addConnection = (from: number, to: number, routeId: number) => {
@@ -966,7 +1022,7 @@ class RoutesModule {
     for (let i = 0; i < pathCells.length; i++) {
       const currentCell = pathCells[i];
       const nextCellId = pathCells[i + 1];
-      if (nextCellId) addConnection(currentCell, nextCellId, routeId);
+      if (nextCellId !== undefined) addConnection(currentCell, nextCellId, routeId);
     }
 
     return newRoute as Route;
