@@ -20,6 +20,17 @@ const MAX_OUTPOST_DANGER = 120;
 const SETUP_FOOD = 4;
 const MAX_FRONTIER_HOPS = 6;
 const SOURCE_RETENTION_RATIO = 0.65;
+const MAX_FRONTIER_PROJECT_SLOTS = 3;
+const FRONTIER_SECTOR_NAMES = [
+  "east",
+  "south-east",
+  "south",
+  "south-west",
+  "west",
+  "north-west",
+  "north",
+  "north-east"
+];
 
 export interface FrontierExpansionInput {
   readonly world: WorldContext;
@@ -47,6 +58,8 @@ export interface FrontierCandidateSummary {
   readonly sourceCellIds: readonly number[];
   /** Population points that will be transferred when the outpost is founded. */
   readonly colonists: number;
+  /** Geographic expansion sector relative to the State centre. */
+  readonly sector: string;
   readonly score: number;
   readonly setupCost: number;
   readonly requiredReserve: number;
@@ -66,8 +79,8 @@ export function getFrontierCandidateSummaries(
   if (!isFrontierPattern(world.options?.initialSettlementPattern)) return [];
   const candidates: FrontierCandidateSummary[] = [];
   for (const state of states ?? []) {
-    if (!state?.i || state.removed || getStateStartBlocker(state, simulation, state.i)) continue;
-    candidates.push(...getStateCandidates(state.i, cells, simulation.frontier));
+    if (!state?.i || state.removed || getStateStartBlocker(state, simulation, state.i, cells, state.center)) continue;
+    candidates.push(...getAvailableStateCandidates(state.i, cells, simulation.frontier, state.center));
   }
   return candidates.sort((a, b) => b.score - a.score || a.stateId - b.stateId || a.cellId - b.cellId).slice(0, 8);
 }
@@ -85,12 +98,17 @@ export function getFrontierCandidateBlockerSummaries(
   const blockers: FrontierCandidateBlockerSummary[] = [];
   for (const state of world.pack.states ?? []) {
     if (!state?.i || state.removed) continue;
-    const startBlocker = getStateStartBlocker(state, simulation, state.i);
+    const startBlocker = getStateStartBlocker(state, simulation, state.i, world.pack.cells, state.center);
     if (startBlocker) {
       blockers.push({ stateId: state.i, reason: startBlocker });
       continue;
     }
-    if (!getStateCandidates(state.i, world.pack.cells, simulation.frontier).length) {
+    const allCandidates = getStateCandidates(state.i, world.pack.cells, simulation.frontier, state.center);
+    if (!getAvailableStateCandidates(state.i, world.pack.cells, simulation.frontier, state.center).length) {
+      if (allCandidates.length) {
+        blockers.push({ stateId: state.i, reason: "All viable sites are in active frontier sectors" });
+        continue;
+      }
       const available = getBestReachableColonistPool(state.i, world.pack.cells, simulation.frontier);
       blockers.push({
         stateId: state.i,
@@ -108,6 +126,7 @@ type FrontierCandidate = {
   readonly cellId: number;
   readonly contributions: readonly FrontierContribution[];
   readonly colonists: number;
+  readonly sector: string;
   readonly score: number;
 };
 
@@ -164,37 +183,45 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
   }
 
   for (const state of world.pack.states ?? []) {
-    if (!state?.i || state.removed || frontier.stateCooldownUntilYear[state.i] > year) continue;
-    if (hasActiveProject(frontier, state.i) || isAtWar(state) || hasSeriousFoodStress(state.foodStress)) {
-      continue;
+    if (!state?.i || state.removed || isAtWar(state) || hasSeriousFoodStress(state.foodStress)) continue;
+
+    const slots = getFrontierProjectSlots(state.i, cells);
+    let activeProjects = getActiveProjectCount(frontier, state.i);
+    if (activeProjects >= slots) continue;
+    const occupiedSectors = getActiveProjectSectors(frontier, state.i, cells, state.center);
+
+    while (activeProjects < slots) {
+      const requiredReserve = (activeProjects + 1) * (TREASURY_RESERVE + SETUP_COST);
+      const priorBudget = frontier.budgetByState[state.i] ?? 0;
+      if (priorBudget < requiredReserve || (state.treasury ?? 0) < SETUP_COST) break;
+
+      // Re-evaluate after every transfer: no second project may spend the same
+      // source-cell surplus claimed by the first one in this annual transaction.
+      const candidate = selectCandidate(state.i, input, state.center, occupiedSectors);
+      if (!candidate) break;
+
+      const colonists = transferColonists(cells, candidate);
+      if (colonists < MIN_COLONISTS) break;
+
+      state.treasury = Math.max(0, (state.treasury ?? 0) - SETUP_COST);
+      consumeFood(state, SETUP_FOOD);
+      frontier.cellStages[candidate.cellId] = FRONTIER_STAGE.outpost;
+      frontier.projects[candidate.cellId] = {
+        cellId: candidate.cellId,
+        stateId: state.i,
+        stage: FRONTIER_STAGE.outpost,
+        establishedYear: year,
+        supportYears: 0,
+        failedSupportYears: 0
+      };
+      occupiedSectors.add(candidate.sector);
+      activeProjects++;
+      if (input.connectRoute?.(candidate.cellId, state.i)) routeChanged = true;
+
+      established.push(candidate.cellId);
+      topics.add("simulation.states");
+      topics.add("map.settlements");
     }
-
-    const priorBudget = frontier.budgetByState[state.i] ?? 0;
-    if (priorBudget < TREASURY_RESERVE + SETUP_COST || (state.treasury ?? 0) < SETUP_COST) continue;
-
-    const candidate = selectCandidate(state.i, input);
-    if (!candidate) continue;
-
-    const colonists = transferColonists(cells, candidate);
-    if (colonists < MIN_COLONISTS) continue;
-
-    state.treasury = Math.max(0, (state.treasury ?? 0) - SETUP_COST);
-    consumeFood(state, SETUP_FOOD);
-    frontier.cellStages[candidate.cellId] = FRONTIER_STAGE.outpost;
-    frontier.projects[candidate.cellId] = {
-      cellId: candidate.cellId,
-      stateId: state.i,
-      stage: FRONTIER_STAGE.outpost,
-      establishedYear: year,
-      supportYears: 0,
-      failedSupportYears: 0
-    };
-    frontier.stateCooldownUntilYear[state.i] = year + 2;
-    if (input.connectRoute?.(candidate.cellId, state.i)) routeChanged = true;
-
-    established.push(candidate.cellId);
-    topics.add("simulation.states");
-    topics.add("map.settlements");
   }
 
   // Capture after this year's decisions. Next January evaluates the treasury
@@ -269,14 +296,22 @@ function abandonProject(
   delete frontier.projects[project.cellId];
 }
 
-function selectCandidate(stateId: number, input: FrontierExpansionInput): FrontierCandidate | null {
+function selectCandidate(
+  stateId: number,
+  input: FrontierExpansionInput,
+  stateCenter: number | undefined,
+  occupiedSectors: ReadonlySet<string>
+): FrontierCandidate | null {
   const { cells } = input.world.pack;
-  const candidates = getStateCandidates(stateId, cells, input.simulation.frontier).map(candidate => ({
-    cellId: candidate.cellId,
-    contributions: candidate.contributions,
-    colonists: candidate.colonists,
-    score: candidate.score + input.rng.rand()
-  }));
+  const candidates = getStateCandidates(stateId, cells, input.simulation.frontier, stateCenter)
+    .filter(candidate => !occupiedSectors.has(candidate.sector))
+    .map(candidate => ({
+      cellId: candidate.cellId,
+      contributions: candidate.contributions,
+      colonists: candidate.colonists,
+      sector: candidate.sector,
+      score: candidate.score + input.rng.rand()
+    }));
 
   return candidates.sort((a, b) => b.score - a.score || a.cellId - b.cellId)[0] ?? null;
 }
@@ -288,7 +323,8 @@ type InternalFrontierCandidateSummary = FrontierCandidateSummary & {
 function getStateCandidates(
   stateId: number,
   cells: WorldContext["pack"]["cells"],
-  frontier: FrontierSimulationState
+  frontier: FrontierSimulationState,
+  stateCenter: number | undefined
 ): readonly InternalFrontierCandidateSummary[] {
   const contributionsByTarget = new Map<number, FrontierContribution[]>();
 
@@ -331,12 +367,25 @@ function getStateCandidates(
       sourceCellIds,
       contributions,
       colonists,
+      sector: getFrontierSector(cellId, stateCenter, cells),
       score: scoreCandidate(cells, cellId, 0) - Math.min(...contributions.map(contribution => contribution.hops)) * 9,
       setupCost: SETUP_COST,
       requiredReserve: TREASURY_RESERVE + SETUP_COST
     });
   }
   return candidates;
+}
+
+function getAvailableStateCandidates(
+  stateId: number,
+  cells: WorldContext["pack"]["cells"],
+  frontier: FrontierSimulationState,
+  stateCenter: number | undefined
+): readonly InternalFrontierCandidateSummary[] {
+  const occupiedSectors = getActiveProjectSectors(frontier, stateId, cells, stateCenter);
+  return getStateCandidates(stateId, cells, frontier, stateCenter).filter(
+    candidate => !occupiedSectors.has(candidate.sector)
+  );
 }
 
 function getBestReachableColonistPool(
@@ -361,15 +410,20 @@ function getBestReachableColonistPool(
 function getStateStartBlocker(
   state: { treasury?: number; foodStress?: number; diplomacy?: unknown },
   simulation: SimulationContext,
-  stateId: number
+  stateId: number,
+  cells: WorldContext["pack"]["cells"],
+  stateCenter: number | undefined
 ): string | null {
-  if (hasActiveProject(simulation.frontier, stateId)) return "An outpost is already under support";
+  const activeProjects = getActiveProjectCount(simulation.frontier, stateId);
+  const slots = getFrontierProjectSlots(stateId, cells);
+  if (activeProjects >= slots) return `All ${slots} frontier slots are active`;
   if (isAtWar(state)) return "At war";
   if (hasSeriousFoodStress(state.foodStress)) return "Severe food stress";
   const priorBudget = simulation.frontier.budgetByState[stateId] ?? 0;
-  if (priorBudget < TREASURY_RESERVE + SETUP_COST)
-    return `Treasury reserve ${priorBudget.toFixed(0)} / ${TREASURY_RESERVE + SETUP_COST}`;
+  const requiredReserve = (activeProjects + 1) * (TREASURY_RESERVE + SETUP_COST);
+  if (priorBudget < requiredReserve) return `Treasury reserve ${priorBudget.toFixed(0)} / ${requiredReserve}`;
   if ((state.treasury ?? 0) < SETUP_COST) return `Setup funds ${(state.treasury ?? 0).toFixed(0)} / ${SETUP_COST}`;
+  void stateCenter;
   return null;
 }
 
@@ -467,10 +521,50 @@ function isFrontierPattern(pattern: WorldContext["options"]["initialSettlementPa
   return pattern === "frontier" || pattern === "scattered";
 }
 
-function hasActiveProject(frontier: FrontierSimulationState, stateId: number): boolean {
-  return Object.values(frontier.projects).some(
-    project => project.stateId === stateId && project.stage === FRONTIER_STAGE.outpost
+/**
+ * One slot is available to every State. Population and connected settlement
+ * network unlock up to two additional, independently supplied frontier fronts.
+ */
+export function getFrontierProjectSlots(stateId: number, cells: WorldContext["pack"]["cells"]): number {
+  let ruralPopulation = 0;
+  let connectedCells = 0;
+  for (let cellId = 0; cellId < cells.i.length; cellId++) {
+    if (cells.state[cellId] !== stateId) continue;
+    ruralPopulation += cells.pop[cellId] ?? 0;
+    if (Object.keys(cells.routes?.[cellId] ?? {}).length) connectedCells++;
+  }
+  return Math.min(MAX_FRONTIER_PROJECT_SLOTS, 1 + Math.floor(ruralPopulation / 50) + Math.floor(connectedCells / 12));
+}
+
+function getActiveProjectCount(frontier: FrontierSimulationState, stateId: number): number {
+  return Object.values(frontier.projects).filter(project => project.stateId === stateId).length;
+}
+
+function getActiveProjectSectors(
+  frontier: FrontierSimulationState,
+  stateId: number,
+  cells: WorldContext["pack"]["cells"],
+  stateCenter: number | undefined
+): Set<string> {
+  return new Set(
+    Object.values(frontier.projects)
+      .filter(project => project.stateId === stateId)
+      .map(project => getFrontierSector(project.cellId, stateCenter, cells))
   );
+}
+
+function getFrontierSector(
+  cellId: number,
+  stateCenter: number | undefined,
+  cells: WorldContext["pack"]["cells"]
+): string {
+  const center = stateCenter !== undefined ? cells.p?.[stateCenter] : undefined;
+  const point = cells.p?.[cellId];
+  if (!center || !point) return `local-${cellId}`;
+
+  const angle = Math.atan2(point[1] - center[1], point[0] - center[0]);
+  const sector = Math.floor((((angle + Math.PI) / (Math.PI * 2)) * 8 + 0.5) % 8);
+  return FRONTIER_SECTOR_NAMES[sector] ?? `local-${cellId}`;
 }
 
 function isAtWar(state: { diplomacy?: unknown } | undefined): boolean {

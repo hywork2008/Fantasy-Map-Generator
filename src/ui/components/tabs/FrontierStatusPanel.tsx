@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { FRONTIER_STAGE } from "../../../context/simulationContext";
 import {
   getFrontierCandidateBlockerSummaries,
-  getFrontierCandidateSummaries
+  getFrontierCandidateSummaries,
+  getFrontierProjectSlots
 } from "../../../generators/frontierExpansion";
 import { formatDisaster } from "../../../generators/frontierGovernance";
 
@@ -27,6 +28,10 @@ export function FrontierStatusPanel() {
   const candidates = getFrontierCandidateSummaries(world, simulation);
   const blockers = getFrontierCandidateBlockerSummaries(world, simulation);
   const projects = Object.values(simulation.frontier.projects).sort((a, b) => a.cellId - b.cellId);
+  const activeProjectCountByState = projects.reduce<Record<number, number>>((counts, project) => {
+    counts[project.stateId] = (counts[project.stateId] ?? 0) + 1;
+    return counts;
+  }, {});
   const isFrontierMap =
     world.options.initialSettlementPattern === "frontier" || world.options.initialSettlementPattern === "scattered";
 
@@ -47,6 +52,7 @@ export function FrontierStatusPanel() {
         projects.map(project => {
           const state = world.pack.states[project.stateId];
           const governance = simulation.frontier.governanceByState[project.stateId];
+          const slots = getFrontierProjectSlots(project.stateId, world.pack.cells);
           const status = project.lastStatus;
           const nextStep =
             project.stage === FRONTIER_STAGE.outpost
@@ -55,7 +61,7 @@ export function FrontierStatusPanel() {
           return (
             <div key={project.cellId} style={{ padding: "5px", borderLeft: "3px solid #7c6948" }}>
               <strong>{state?.name ?? `State ${project.stateId}`}</strong> · cell {project.cellId} ·{" "}
-              {STAGE_LABELS[project.stage]}
+              {STAGE_LABELS[project.stage]} · fronts {activeProjectCountByState[project.stateId] ?? 0}/{slots}
               <br />
               <small>
                 Policy: {governance?.policy ?? "balanced"}; works:{" "}
@@ -89,7 +95,8 @@ export function FrontierStatusPanel() {
               <small key={`${candidate.stateId}:${candidate.cellId}`} style={{ display: "block" }}>
                 {state?.name ?? `State ${candidate.stateId}`}: cell {candidate.cellId} from{" "}
                 {candidate.sourceCellIds.join(", ")} — {(candidate.colonists * world.populationRate).toFixed(0)} people;
-                score {candidate.score.toFixed(0)}, setup {candidate.setupCost}, reserve {candidate.requiredReserve}
+                {candidate.sector}; score {candidate.score.toFixed(0)}, setup {candidate.setupCost}, reserve{" "}
+                {candidate.requiredReserve}
               </small>
             );
           })}

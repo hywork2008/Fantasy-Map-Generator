@@ -9,7 +9,8 @@ import { createRNGService } from "../utils/probabilityUtils";
 import {
   advanceFrontierExpansion,
   getFrontierCandidateBlockerSummaries,
-  getFrontierCandidateSummaries
+  getFrontierCandidateSummaries,
+  getFrontierProjectSlots
 } from "./frontierExpansion";
 
 function createWorld(treasury = 100): WorldContext {
@@ -165,7 +166,7 @@ describe("Frontier Expansion Phase 3", () => {
       state: new Uint16Array([1, 0, 0]),
       province: new Uint16Array([1, 0, 0]),
       pop: new Float32Array([100, 0, 0]),
-      capacity: new Float32Array([100, 2, 50]),
+      capacity: new Float32Array([100, 1, 50]),
       children: new Float32Array([25, 0, 0]),
       maleAdults: new Float32Array([25, 0, 0]),
       femaleAdults: new Float32Array([25, 0, 0]),
@@ -222,6 +223,39 @@ describe("Frontier Expansion Phase 3", () => {
     expect(world.pack.cells.pop[0]).toBeCloseTo(16.5);
     expect(world.pack.cells.pop[1]).toBeCloseTo(16.5);
     expect(world.pack.cells.pop[2]).toBeCloseTo(7);
+  });
+
+  it("opens several independently supplied frontier sectors when State capacity permits", () => {
+    const world = createWorld();
+    world.pack.cells = {
+      ...world.pack.cells,
+      i: new Uint16Array([0, 1, 2, 3, 4, 5]),
+      c: [[3], [4], [5], [0], [1], [2]],
+      state: new Uint16Array([1, 1, 1, 0, 0, 0]),
+      province: new Uint16Array([1, 1, 1, 0, 0, 0]),
+      pop: new Float32Array([100, 100, 100, 0, 0, 0]),
+      capacity: new Float32Array([100, 100, 100, 50, 50, 50]),
+      children: new Float32Array([25, 25, 25, 0, 0, 0]),
+      maleAdults: new Float32Array([25, 25, 25, 0, 0, 0]),
+      femaleAdults: new Float32Array([25, 25, 25, 0, 0, 0]),
+      elders: new Float32Array([25, 25, 25, 0, 0, 0]),
+      danger: new Uint8Array([0, 0, 0, 10, 10, 10]),
+      h: new Uint8Array([30, 30, 30, 30, 30, 30]),
+      s: new Uint8Array([50, 50, 50, 50, 50, 50]),
+      r: new Uint16Array([0, 0, 0, 1, 1, 1]),
+      harbor: new Uint8Array([0, 0, 0, 0, 0, 0]),
+      conf: new Uint8Array([0, 0, 0, 0, 0, 0]),
+      burg: new Uint16Array([0, 0, 0, 0, 0, 0]),
+      routes: { 0: {}, 1: {}, 2: {}, 3: {}, 4: {}, 5: {} }
+    };
+    const simulation = createSimulation(100, 100, 6);
+
+    expect(getFrontierProjectSlots(1, world.pack.cells)).toBe(3);
+
+    const result = advance(world, simulation);
+
+    expect(result.established).toEqual([3, 4, 5]);
+    expect(Object.values(simulation.frontier.projects)).toHaveLength(3);
   });
 
   it("does not advertise a candidate when its connected population reserve cannot form an expedition", () => {

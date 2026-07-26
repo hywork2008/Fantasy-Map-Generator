@@ -416,6 +416,13 @@ Frontier の進行だけでは `simulation.cells` を発行する。outpost/sett
 - `cells.pop` と `burg.population` は人口ポイントであり、実人数は `populationRate` を掛けて表示する。人口ポイントを `populationRate` と直接比較していた旧 Pioneer Village 条件は、標準設定で100万人を要求する単位不整合だったため廃止した。
 - 年初には State ごとに最大1件、河川・港・合流点・複数道路のいずれかを持ち、既存 Burg の2セル圏外にある農村セルをサービス中心地へ昇格させる。最低2人口ポイントの農村から最大30%を移し、State 全体の都市人口は18%までに抑える。Burg group の既存規則により、移した人口に応じて village / town 等の表示を使い分ける。
 - frontier outpost は町規模の4人口ポイントではなく、最低0.5人口ポイントから開始できる。outpost / settlement 自体は引き続き Burg と同一視せず、編入後に上記のサービス中心地評価を通る。
+
+### 2026-07-26 — 複数方面の並行開拓
+
+- State は人口と既存の移動網に応じて1〜3件の frontier slot を持つ。人口50ポイントごと、または移動網に接続したセル12個ごとに追加枠を得るが、最大3件である。既存 project は枠を占有するため、大国でも無制限に開拓地を増やさない。
+- 候補地は State centre から見た8つの地理セクターに分類し、同じセクターに稼働中の project があれば別のセクターを優先する。これにより首都圏の河川定住と遠方の国境・沿岸開拓が同時に進み、一方向だけに領土が伸びる偏りを抑える。
+- 年次 transaction は project を一件ずつ確定する。そのたびに送り出しセルの人口を移して次候補を再評価するため、複数方面が同じ余剰人口を二重に予約しない。前年 treasury reserve は全稼働枠と新規枠を合計した必要額を満たす必要がある。
+- Tools の Frontier operations ledger は各 project の `fronts active/slots` と候補の地理セクターを表示する。
 - archive は governance と project status を保存し、旧 archive には空の governance record を補完する。
 - 検証: `frontierGovernance.test.ts`、`frontierExpansion.test.ts`、`frontierIncorporation.test.ts`、`worldArchive.test.ts`、`npx tsc --noEmit`、`npm run lint`。
 
