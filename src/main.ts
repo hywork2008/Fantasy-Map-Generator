@@ -47,11 +47,7 @@ import { ldb } from "./io/ldb";
 import { loadMapFromURL, showUploadErrorMessage, uploadMap } from "./io/load";
 import { initiateAutosave } from "./io/save";
 import { renderGroupCOAs } from "./renderers/draw-emblems";
-import {
-  getLabeledContourDetailLevel,
-  HeightmapRenderer,
-  refreshLabeledContourLabels
-} from "./renderers/draw-heightmap";
+import { refreshLabeledContourLabels } from "./renderers/draw-heightmap";
 import { CoordinatesRenderer, drawCalendar, drawScaleBar, fitScaleBar } from "./renderers/index";
 import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
@@ -206,7 +202,6 @@ let rafId: number | null = null;
 let pendingScaleChange = false;
 let pendingPositionChange = false;
 let activeZoomingTimeout: ReturnType<typeof setTimeout> | undefined;
-let labeledContourDetailLevel: ReturnType<typeof getLabeledContourDetailLevel> | undefined;
 
 function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
   const { k, x, y } = event.transform;
@@ -283,7 +278,8 @@ function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
 const zoom = d3
   .zoom<SVGSVGElement, unknown>()
   .scaleExtent([DEFAULT_UI_OPTIONS.zoomExtentMin, DEFAULT_UI_OPTIONS.zoomExtentMax])
-  .on("zoom", zoomRaf);
+  .on("zoom", zoomRaf)
+  .on("end", refreshLabeledContourLabelsAfterZoom);
 
 viewContext.zoom = zoom;
 viewContext.scale = scale;
@@ -610,8 +606,6 @@ const STATE_HIDE_SCALE = 7;
 export function invokeActiveZooming() {
   const isOptimized = useOptionsState.getState().shapeRendering === "optimizeSpeed";
 
-  redrawLabeledContoursForZoom();
-
   if (
     viewContext.coastline.select("#sea_island").size() &&
     +viewContext.coastline.select("#sea_island").attr("auto-filter")
@@ -825,8 +819,8 @@ export function invokeActiveZooming() {
   scheduleWebglUpdate();
 }
 
-/** Rebuild labeled SVG contours only when a zoom threshold reveals a new detail tier. */
-function redrawLabeledContoursForZoom(): void {
+/** Refresh visible labels after zooming ends without rebuilding the fixed-density contour geometry. */
+function refreshLabeledContourLabelsAfterZoom(): void {
   const { heightmapRenderingMode } = useOptionsState.getState();
   if (
     !viewContext.renderMap ||
@@ -834,18 +828,10 @@ function redrawLabeledContoursForZoom(): void {
     heightmapRenderingMode !== "labeledContours" ||
     !layerIsOn("toggleHeight")
   ) {
-    labeledContourDetailLevel = undefined;
     return;
   }
 
-  const detailLevel = getLabeledContourDetailLevel(scale);
-  if (detailLevel === labeledContourDetailLevel) {
-    refreshLabeledContourLabels(viewContext);
-    return;
-  }
-
-  labeledContourDetailLevel = detailLevel;
-  HeightmapRenderer.render(worldContext, viewContext, appServices);
+  refreshLabeledContourLabels(viewContext);
 }
 
 // ─── Drag-to-upload ───────────────────────────────────────────────────────────

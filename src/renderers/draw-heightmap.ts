@@ -81,19 +81,28 @@ type InterpolatedContourChain = {
   closed: boolean;
 };
 
+type InterpolatedContourGeometry = {
+  trianglesByElevation: Map<number, number[][]>;
+  chainsByElevation: Map<number, InterpolatedContourChain[]>;
+};
+
+type LabelSpatialIndex = {
+  cellSize: number;
+  candidatesByCell: Map<string, ContourLabelCandidate[]>;
+};
+
 type ActiveLabeledContours = {
-  ocean: { group: SvgGroup; contours: CachedLabeledContour[] } | null;
-  land: { group: SvgGroup; contours: CachedLabeledContour[] } | null;
+  ocean: { group: SvgGroup; contours: CachedLabeledContour[]; labelIndex: LabelSpatialIndex } | null;
+  land: { group: SvgGroup; contours: CachedLabeledContour[]; labelIndex: LabelSpatialIndex } | null;
 };
 
 const labeledContourCache = new Map<string, CachedLabeledContourGroup>();
+const interpolatedContourGeometryCache = new Map<string, InterpolatedContourGeometry>();
 let cachedMapId: number | null = null;
 let activeLabeledContours: ActiveLabeledContours | null = null;
 
-/** Detail tiers for labeled contours. Higher map zoom exposes progressively finer supplementary contours. */
-export function getLabeledContourDetailLevel(scale: number): 0 | 1 | 2 {
-  if (scale >= 6) return 2;
-  if (scale >= 2.5) return 1;
+/** Labeled contours keep the overview density at every zoom level. */
+export function getLabeledContourDetailLevel(_scale: number): 0 {
   return 0;
 }
 
@@ -123,13 +132,12 @@ function renderLabeledContourPaths(group: SvgGroup, contours: CachedLabeledConto
 function renderVisibleLabels(activeGroup: ActiveLabeledContours["land"], viewContext: Readonly<ViewState>): void {
   if (!activeGroup) return;
 
-  const { group, contours } = activeGroup;
+  const { group, labelIndex } = activeGroup;
   group.selectAll("g.heightmap-contour-labels").remove();
 
   const scale = viewContext.scale;
   const detailLevel = getLabeledContourDetailLevel(scale);
-  const candidates = contours
-    .flatMap(contour => contour.labelCandidates)
+  const candidates = getViewportLabelCandidates(labelIndex, viewContext)
     .filter(candidate => getLabelMinimumDetail(candidate.contourType) <= detailLevel)
     .filter(candidate => isCandidateInViewport(candidate, viewContext))
     .sort((a, b) => getLabelPriority(a.contourType) - getLabelPriority(b.contourType));
@@ -177,6 +185,31 @@ function isCandidateInViewport(candidate: ContourLabelCandidate, viewContext: Re
     screenY >= margin &&
     screenY <= viewContext.svgHeight - margin
   );
+}
+
+function getViewportLabelCandidates(
+  labelIndex: LabelSpatialIndex,
+  viewContext: Readonly<ViewState>
+): ContourLabelCandidate[] {
+  const margin = 12;
+  const minX = (margin - viewContext.viewX) / viewContext.scale;
+  const maxX = (viewContext.svgWidth - margin - viewContext.viewX) / viewContext.scale;
+  const minY = (margin - viewContext.viewY) / viewContext.scale;
+  const maxY = (viewContext.svgHeight - margin - viewContext.viewY) / viewContext.scale;
+  const minColumn = Math.floor(minX / labelIndex.cellSize);
+  const maxColumn = Math.floor(maxX / labelIndex.cellSize);
+  const minRow = Math.floor(minY / labelIndex.cellSize);
+  const maxRow = Math.floor(maxY / labelIndex.cellSize);
+  const candidates: ContourLabelCandidate[] = [];
+
+  for (let column = minColumn; column <= maxColumn; column++) {
+    for (let row = minRow; row <= maxRow; row++) {
+      const candidatesInCell = labelIndex.candidatesByCell.get(`${column}:${row}`);
+      if (candidatesInCell) candidates.push(...candidatesInCell);
+    }
+  }
+
+  return candidates;
 }
 
 function removeOverlappingLabels(
@@ -236,8 +269,27 @@ function getContourStyle(contourType: ContourType): { width: number; opacity: nu
 
 function setActiveLabeledContourGroup(group: SvgGroup, contours: CachedLabeledContour[]): void {
   if (!activeLabeledContours) activeLabeledContours = { ocean: null, land: null };
-  if (group.attr("id") === "oceanHeights") activeLabeledContours.ocean = { group, contours };
-  else activeLabeledContours.land = { group, contours };
+  const activeGroup = { group, contours, labelIndex: buildLabelSpatialIndex(contours) };
+  if (group.attr("id") === "oceanHeights") activeLabeledContours.ocean = activeGroup;
+  else activeLabeledContours.land = activeGroup;
+}
+
+function buildLabelSpatialIndex(contours: CachedLabeledContour[]): LabelSpatialIndex {
+  const cellSize = 200;
+  const candidatesByCell = new Map<string, ContourLabelCandidate[]>();
+
+  for (const contour of contours) {
+    for (const candidate of contour.labelCandidates) {
+      const column = Math.floor(candidate.x / cellSize);
+      const row = Math.floor(candidate.y / cellSize);
+      const key = `${column}:${row}`;
+      const candidates = candidatesByCell.get(key);
+      if (candidates) candidates.push(candidate);
+      else candidatesByCell.set(key, [candidate]);
+    }
+  }
+
+  return { cellSize, candidatesByCell };
 }
 
 function setCachedLabeledContours(key: string, value: CachedLabeledContourGroup): void {
@@ -246,6 +298,15 @@ function setCachedLabeledContours(key: string, value: CachedLabeledContourGroup)
     const oldestKey = labeledContourCache.keys().next().value;
     if (oldestKey === undefined) return;
     labeledContourCache.delete(oldestKey);
+  }
+}
+
+function setCachedInterpolatedContourGeometry(key: string, value: InterpolatedContourGeometry): void {
+  interpolatedContourGeometryCache.set(key, value);
+  while (interpolatedContourGeometryCache.size > 4) {
+    const oldestKey = interpolatedContourGeometryCache.keys().next().value;
+    if (oldestKey === undefined) return;
+    interpolatedContourGeometryCache.delete(oldestKey);
   }
 }
 
@@ -434,6 +495,10 @@ export const HeightmapRenderer: IRenderer = {
     function renderContours(withElevationLabels: boolean, detailLevel: 0 | 1 | 2): void {
       const { cells, vertices } = grid;
       const n = cells.i.length;
+      const interpolatedGeometryKey = withElevationLabels ? getInterpolatedGeometryCacheKey() : "";
+      const interpolatedGeometry = withElevationLabels
+        ? getOrCreateInterpolatedContourGeometry(interpolatedGeometryKey)
+        : null;
 
       renderElevationRange({
         group: ocean,
@@ -484,17 +549,18 @@ export const HeightmapRenderer: IRenderer = {
               maxHeight,
               primaryInterval,
               relaxInterval,
-              detailLevel
+              detailLevel,
+              interpolatedGeometryKey
             })
           : "";
         const cachedContours = withElevationLabels ? labeledContourCache.get(cacheKey)?.contours : undefined;
         const contours = cachedContours ?? [];
 
-        if (!cachedContours && withElevationLabels) {
+        if (!cachedContours && interpolatedGeometry) {
           const curveName = group.attr("curve") ?? "curveBasisClosed";
           for (const elevation of range(minHeight + step, maxHeight, step)) {
             const contourType = getContourType(elevation, minHeight, primaryInterval, firstSupplementaryInterval);
-            for (const { points, closed } of getInterpolatedContourChains(elevation)) {
+            for (const { points, closed } of getInterpolatedContourChains(elevation, interpolatedGeometry)) {
               const renderedPoints = simplifyInterpolatedContour(points, closed, relaxInterval);
               if (renderedPoints.length < (closed ? 3 : 2)) continue;
 
@@ -583,17 +649,45 @@ export const HeightmapRenderer: IRenderer = {
        * Builds an isocontour over Delaunay triangles whose vertices are the Voronoi cell centers.
        * The half-unit shift puts an integer contour between its discrete height band and the one below it.
        */
-      function getInterpolatedContourChains(elevation: number): InterpolatedContourChain[] {
+      function getOrCreateInterpolatedContourGeometry(cacheKey: string): InterpolatedContourGeometry {
+        const cachedGeometry = interpolatedContourGeometryCache.get(cacheKey);
+        if (cachedGeometry) return cachedGeometry;
+
+        const trianglesByElevation = new Map<number, number[][]>();
+        const isInScope = (cellId: number) => isGridCellInScope(viewContext.focusScope, cellId);
+        for (const triangleCells of vertices.c) {
+          if (triangleCells.length !== 3 || triangleCells.some(cell => cell >= n || !isInScope(cell))) continue;
+
+          const [firstCell, secondCell, thirdCell] = triangleCells;
+          const minimumHeight = Math.min(cells.h[firstCell], cells.h[secondCell], cells.h[thirdCell]);
+          const maximumHeight = Math.max(cells.h[firstCell], cells.h[secondCell], cells.h[thirdCell]);
+          const firstElevation = Math.max(minimumHeight + 1, HeightThreshold.HEIGHT_MIN + 1);
+          const lastElevation = Math.min(maximumHeight, HeightThreshold.HEIGHT_MAX - 1);
+
+          for (let elevation = firstElevation; elevation <= lastElevation; elevation++) {
+            const bucket = trianglesByElevation.get(elevation);
+            if (bucket) bucket.push(triangleCells);
+            else trianglesByElevation.set(elevation, [triangleCells]);
+          }
+        }
+
+        const geometry = { trianglesByElevation, chainsByElevation: new Map<number, InterpolatedContourChain[]>() };
+        setCachedInterpolatedContourGeometry(cacheKey, geometry);
+        return geometry;
+      }
+
+      function getInterpolatedContourChains(
+        elevation: number,
+        geometry: InterpolatedContourGeometry
+      ): InterpolatedContourChain[] {
+        const cachedChains = geometry.chainsByElevation.get(elevation);
+        if (cachedChains) return cachedChains;
+
         const intersections = new Map<string, Point>();
         const adjacentSegments = new Map<string, number[]>();
         const segments: [string, string][] = [];
-        const isInScope = (cellId: number) => isGridCellInScope(viewContext.focusScope, cellId);
 
-        for (const triangleCells of vertices.c) {
-          if (triangleCells.length !== 3 || triangleCells.some(cell => cell >= n || !isInScope(cell))) {
-            continue;
-          }
-
+        for (const triangleCells of geometry.trianglesByElevation.get(elevation) ?? []) {
           const crossings = getTriangleCrossings(triangleCells, elevation);
           if (crossings.length !== 2) continue;
 
@@ -617,6 +711,7 @@ export const HeightmapRenderer: IRenderer = {
           if (chain) chains.push(chain);
         }
 
+        geometry.chainsByElevation.set(elevation, chains);
         return chains;
 
         function getTriangleCrossings(triangleCells: number[], level: number): string[] {
@@ -754,7 +849,8 @@ export const HeightmapRenderer: IRenderer = {
         maxHeight,
         primaryInterval,
         relaxInterval,
-        detailLevel
+        detailLevel,
+        interpolatedGeometryKey
       }: {
         group: SvgGroup;
         minHeight: number;
@@ -762,10 +858,25 @@ export const HeightmapRenderer: IRenderer = {
         primaryInterval: number;
         relaxInterval: number;
         detailLevel: 0 | 1 | 2;
+        interpolatedGeometryKey: string;
       }): string {
+        return [
+          interpolatedGeometryKey,
+          group.attr("id"),
+          minHeight,
+          maxHeight,
+          primaryInterval,
+          relaxInterval,
+          group.attr("curve"),
+          detailLevel
+        ].join("|");
+      }
+
+      function getInterpolatedGeometryCacheKey(): string {
         const mapId = worldContext.mapId;
         if (cachedMapId !== mapId) {
           labeledContourCache.clear();
+          interpolatedContourGeometryCache.clear();
           cachedMapId = mapId;
         }
 
@@ -778,21 +889,7 @@ export const HeightmapRenderer: IRenderer = {
         const focusSignature = viewContext.focusScope
           ? `${viewContext.focusScope.kind}:${viewContext.focusScope.id}:${viewContext.focusScope.gridCellIds.size}`
           : "all";
-        return [
-          mapId,
-          heightHash >>> 0,
-          graphWidth,
-          graphHeight,
-          group.attr("id"),
-          minHeight,
-          maxHeight,
-          primaryInterval,
-          relaxInterval,
-          group.attr("curve"),
-          detailLevel,
-          "interpolated-centers-v1",
-          focusSignature
-        ].join("|");
+        return [mapId, heightHash >>> 0, graphWidth, graphHeight, "interpolated-centers-v2", focusSignature].join("|");
       }
     }
   },
