@@ -2,6 +2,7 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { registerOverviewDialogRefreshers } from "./dialogs/overviewDialogRefresh";
+import { initRangeInputStyles } from "./rangeInputStyles";
 
 export function initReactUI(container?: HTMLElement) {
   registerOverviewDialogRefreshers();
@@ -18,4 +19,5 @@ export function initReactUI(container?: HTMLElement) {
   flushSync(() => {
     root.render(<App />);
   });
+  initRangeInputStyles();
 }
