@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { waitForMapLoad } from "./helpers/fmg-helpers";
+import { waitForMapLoad, zoomToMapCenter } from "./helpers/fmg-helpers";
 
 test("moves and resizes the options panel using its tab bar and lower-right handle", async ({ page }) => {
   await page.goto("/?seed=options-panel-interactions&width=1000&height=700");
@@ -100,4 +100,39 @@ test("moves dialogs flush to the viewport edges", async ({ page }) => {
 
   await expect.poll(async () => (await dialog.boundingBox())?.x ?? Infinity).toBeLessThanOrEqual(1);
   await expect.poll(async () => (await dialog.boundingBox())?.y ?? Infinity).toBeLessThanOrEqual(1);
+});
+
+test("switches the SVG heightmap between canvas heatmap and contour paths", async ({ page }) => {
+  await page.goto("/?seed=heightmap-rendering-mode&width=1000&height=700");
+  await waitForMapLoad(page, "svg");
+  await page.locator("#optionsHide").click();
+  await page.locator("#layersTab").click();
+
+  const heightmapToggle = page.locator("#toggleHeight");
+  if ((await heightmapToggle.getAttribute("class"))?.includes("buttonoff")) await heightmapToggle.click();
+  await expect(page.locator("#landHeights foreignObject.fmc")).toHaveCount(1);
+
+  await page.locator("#optionsTab").click();
+  await page.locator("#optionsTabContent").getByRole("button", { name: "UI", exact: true }).click();
+
+  const renderingMode = page.locator("#heightmapRenderingMode");
+  await expect(renderingMode).toHaveValue("heatmap");
+  await renderingMode.selectOption("contours");
+
+  await expect(renderingMode).toHaveValue("contours");
+  await expect(page.locator("#landHeights foreignObject.fmc")).toHaveCount(0);
+  await expect(page.locator("#landHeights path.heightmap-contour-base")).toHaveCount(1);
+  await expect.poll(async () => page.locator("#landHeights > path").count()).toBeGreaterThan(1);
+
+  await renderingMode.selectOption("labeledContours");
+
+  await expect(renderingMode).toHaveValue("labeledContours");
+  await expect(page.locator("#landHeights path.heightmap-contour-base")).toHaveCount(0);
+  await expect(page.locator("#landHeights path.heightmap-contour-line").first()).toHaveAttribute("fill", "none");
+  await expect(page.locator("#landHeights path.heightmap-contour-line").first()).toHaveAttribute("stroke", "#000");
+  await expect.poll(async () => page.locator("#landHeights .heightmap-contour-labels text").count()).toBeGreaterThan(0);
+  await expect(page.locator("#landHeights .heightmap-contour-labels text").first()).toContainText(/ m$/);
+
+  await zoomToMapCenter(page, 6);
+  await expect.poll(async () => page.locator("#landHeights .heightmap-contour-secondSupplementary").count()).toBeGreaterThan(0);
 });

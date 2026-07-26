@@ -350,6 +350,27 @@ export const UiSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
+          <tr data-tip="Select how Heightmap is drawn in SVG mode. WebGL Hybrid always uses its optimized terrain renderer">
+            <td></td>
+            <td>Heightmap rendering</td>
+            <td>
+              <select
+                id="heightmapRenderingMode"
+                value={options.heightmapRenderingMode}
+                onChange={e => {
+                  const mode = e.target.value as "heatmap" | "contours" | "labeledContours";
+                  options.setOption("heightmapRenderingMode", mode);
+                  document.dispatchEvent(new CustomEvent("react-change-heightmap-rendering-mode"));
+                }}
+              >
+                <option value="heatmap">Heatmap (current)</option>
+                <option value="contours">Contour Lines (SVG only)</option>
+                <option value="labeledContours">Black Contours + Elevation Labels (SVG only)</option>
+              </select>
+            </td>
+            <td></td>
+          </tr>
+
           <tr data-tip="Select how recent combat deaths are drawn (window matches Population Overview Deaths)">
             <td></td>
             <td>Combat deaths rendering</td>

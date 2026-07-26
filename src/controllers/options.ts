@@ -905,6 +905,14 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
     }
   });
 
+  document.addEventListener("react-change-heightmap-rendering-mode", () => {
+    // This choice applies only to the legacy SVG renderer. Hybrid mode keeps its deck.gl terrain path.
+    if (viewContext.renderMode !== "svg" || !layerIsOn("toggleHeight")) return;
+    import("../renderers").then(({ HeightmapRenderer }) => {
+      HeightmapRenderer.render(worldContext, viewContext, appServices);
+    });
+  });
+
   document.addEventListener("react-change-danger-rendering-mode", () => {
     if (layerIsOn("toggleDanger")) {
       import("../renderers").then(({ DangerRenderer }) => {

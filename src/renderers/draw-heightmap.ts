@@ -18,19 +18,22 @@ import {
   curveStep,
   curveStepAfter,
   curveStepBefore,
+  leastIndex,
   line,
   range
 } from "d3";
 import { createLayerCanvas } from "../canvas/map-canvas";
 import type { AppServices } from "../context/appServices";
-import type { EnvironmentLayers } from "../context/viewContext";
+import type { EnvironmentLayers, FocusFields, SvgGroup, ViewState } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { HeightThreshold } from "../data/constants";
-import type { Vertices } from "../generators/voronoi";
+import type { Point, Vertices } from "../generators/voronoi";
+import { useOptionsState } from "../store/optionsState";
 import type { GridCells } from "../types/Grid";
-import { round } from "../utils";
+import { rn, round } from "../utils";
 import { getColor, getColorScheme } from "../utils/colorUtils";
 import { ERROR, TIME } from "../utils/debug";
+import { isGridCellInScope } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
 
 const CURVE_MAP: Record<string, CurveFactory> = {
@@ -53,12 +56,214 @@ const CURVE_MAP: Record<string, CurveFactory> = {
   curveStepBefore
 };
 
+type ContourType = "index" | "primary" | "firstSupplementary" | "secondSupplementary";
+
+type ContourLabelCandidate = {
+  x: number;
+  y: number;
+  elevation: number;
+  contourType: ContourType;
+};
+
+type CachedLabeledContour = {
+  elevation: number;
+  contourType: ContourType;
+  path: string;
+  labelCandidates: ContourLabelCandidate[];
+};
+
+type CachedLabeledContourGroup = {
+  contours: CachedLabeledContour[];
+};
+
+type InterpolatedContourChain = {
+  points: Point[];
+  closed: boolean;
+};
+
+type ActiveLabeledContours = {
+  ocean: { group: SvgGroup; contours: CachedLabeledContour[] } | null;
+  land: { group: SvgGroup; contours: CachedLabeledContour[] } | null;
+};
+
+const labeledContourCache = new Map<string, CachedLabeledContourGroup>();
+let cachedMapId: number | null = null;
+let activeLabeledContours: ActiveLabeledContours | null = null;
+
+/** Detail tiers for labeled contours. Higher map zoom exposes progressively finer supplementary contours. */
+export function getLabeledContourDetailLevel(scale: number): 0 | 1 | 2 {
+  if (scale >= 6) return 2;
+  if (scale >= 2.5) return 1;
+  return 0;
+}
+
+/** Repositions only the visible, non-overlapping elevation labels after pan or zoom. */
+export function refreshLabeledContourLabels(viewContext: Readonly<ViewState>): void {
+  if (!activeLabeledContours) return;
+  renderVisibleLabels(activeLabeledContours.ocean, viewContext);
+  renderVisibleLabels(activeLabeledContours.land, viewContext);
+}
+
+function renderLabeledContourPaths(group: SvgGroup, contours: CachedLabeledContour[]): void {
+  for (const contour of contours) {
+    const contourStyle = getContourStyle(contour.contourType);
+    group
+      .append("path")
+      .attr("class", `heightmap-contour-line heightmap-contour-${contour.contourType}`)
+      .attr("d", contour.path)
+      .attr("fill", "none")
+      .attr("stroke", "#000")
+      .attr("stroke-width", contourStyle.width)
+      .attr("stroke-opacity", contourStyle.opacity)
+      .attr("stroke-dasharray", contourStyle.dasharray)
+      .attr("vector-effect", "non-scaling-stroke");
+  }
+}
+
+function renderVisibleLabels(activeGroup: ActiveLabeledContours["land"], viewContext: Readonly<ViewState>): void {
+  if (!activeGroup) return;
+
+  const { group, contours } = activeGroup;
+  group.selectAll("g.heightmap-contour-labels").remove();
+
+  const scale = viewContext.scale;
+  const detailLevel = getLabeledContourDetailLevel(scale);
+  const candidates = contours
+    .flatMap(contour => contour.labelCandidates)
+    .filter(candidate => getLabelMinimumDetail(candidate.contourType) <= detailLevel)
+    .filter(candidate => isCandidateInViewport(candidate, viewContext))
+    .sort((a, b) => getLabelPriority(a.contourType) - getLabelPriority(b.contourType));
+  const visibleLabels = removeOverlappingLabels(candidates, viewContext);
+  if (!visibleLabels.length) return;
+
+  const labelGroup = group
+    .append("g")
+    .attr("class", "heightmap-contour-labels")
+    .attr("fill", "#000")
+    .attr("font-size", 8 / scale)
+    .attr("text-anchor", "middle")
+    .attr("dominant-baseline", "central");
+
+  labelGroup
+    .selectAll("text")
+    .data(visibleLabels)
+    .enter()
+    .append("text")
+    .attr("x", label => label.x)
+    .attr("y", label => label.y)
+    .text(label => formatElevationInMeters(label.elevation));
+}
+
+function getLabelMinimumDetail(contourType: ContourType): 0 | 1 | 2 {
+  if (contourType === "index" || contourType === "primary") return 0;
+  if (contourType === "firstSupplementary") return 1;
+  return 2;
+}
+
+function getLabelPriority(contourType: ContourType): number {
+  if (contourType === "index") return 0;
+  if (contourType === "primary") return 1;
+  if (contourType === "firstSupplementary") return 2;
+  return 3;
+}
+
+function isCandidateInViewport(candidate: ContourLabelCandidate, viewContext: Readonly<ViewState>): boolean {
+  const screenX = candidate.x * viewContext.scale + viewContext.viewX;
+  const screenY = candidate.y * viewContext.scale + viewContext.viewY;
+  const margin = 12;
+  return (
+    screenX >= margin &&
+    screenX <= viewContext.svgWidth - margin &&
+    screenY >= margin &&
+    screenY <= viewContext.svgHeight - margin
+  );
+}
+
+function removeOverlappingLabels(
+  candidates: ContourLabelCandidate[],
+  viewContext: Readonly<ViewState>
+): ContourLabelCandidate[] {
+  const CELL_SIZE = 16;
+  const occupiedCells = new Set<string>();
+  const labels: ContourLabelCandidate[] = [];
+
+  for (const candidate of candidates) {
+    const text = formatElevationInMeters(candidate.elevation);
+    const x = candidate.x * viewContext.scale + viewContext.viewX;
+    const y = candidate.y * viewContext.scale + viewContext.viewY;
+    const halfWidth = Math.max(10, (text.length * 4.5) / 2);
+    const halfHeight = 6;
+    const minColumn = Math.floor((x - halfWidth) / CELL_SIZE);
+    const maxColumn = Math.floor((x + halfWidth) / CELL_SIZE);
+    const minRow = Math.floor((y - halfHeight) / CELL_SIZE);
+    const maxRow = Math.floor((y + halfHeight) / CELL_SIZE);
+    const cells: string[] = [];
+
+    for (let column = minColumn; column <= maxColumn; column++) {
+      for (let row = minRow; row <= maxRow; row++) {
+        const cell = `${column}:${row}`;
+        if (occupiedCells.has(cell)) {
+          cells.length = 0;
+          break;
+        }
+        cells.push(cell);
+      }
+      if (!cells.length) break;
+    }
+    if (!cells.length) continue;
+
+    cells.forEach(cell => {
+      occupiedCells.add(cell);
+    });
+    labels.push(candidate);
+  }
+
+  return labels;
+}
+
+function getContourStyle(contourType: ContourType): { width: number; opacity: number; dasharray: string | null } {
+  switch (contourType) {
+    case "index":
+      return { width: 1.25, opacity: 1, dasharray: null };
+    case "primary":
+      return { width: 0.8, opacity: 0.95, dasharray: null };
+    case "firstSupplementary":
+      return { width: 0.55, opacity: 0.8, dasharray: "2 1" };
+    case "secondSupplementary":
+      return { width: 0.35, opacity: 0.65, dasharray: "1 1" };
+  }
+}
+
+function setActiveLabeledContourGroup(group: SvgGroup, contours: CachedLabeledContour[]): void {
+  if (!activeLabeledContours) activeLabeledContours = { ocean: null, land: null };
+  if (group.attr("id") === "oceanHeights") activeLabeledContours.ocean = { group, contours };
+  else activeLabeledContours.land = { group, contours };
+}
+
+function setCachedLabeledContours(key: string, value: CachedLabeledContourGroup): void {
+  labeledContourCache.set(key, value);
+  while (labeledContourCache.size > 8) {
+    const oldestKey = labeledContourCache.keys().next().value;
+    if (oldestKey === undefined) return;
+    labeledContourCache.delete(oldestKey);
+  }
+}
+
+function formatElevationInMeters(elevation: number): string {
+  const { heightExponent } = useOptionsState.getState();
+  const meters =
+    elevation >= HeightThreshold.WATER_MAX_HEIGHT
+      ? (elevation - 18) ** heightExponent
+      : ((elevation - HeightThreshold.WATER_MAX_HEIGHT) / elevation) * 50;
+  return `${rn(meters)} m`;
+}
+
 export const HeightmapRenderer: IRenderer = {
   id: "heightmap",
 
   render(
     worldContext: Readonly<WorldContext>,
-    viewContext: Readonly<EnvironmentLayers>,
+    viewContext: Readonly<EnvironmentLayers & FocusFields & ViewState>,
     _appServices: AppServices
   ): void {
     TIME && console.time("HeightmapRenderer");
@@ -70,6 +275,16 @@ export const HeightmapRenderer: IRenderer = {
 
     ocean.selectAll("*").remove();
     land.selectAll("*").remove();
+
+    const heightmapRenderingMode = useOptionsState.getState().heightmapRenderingMode;
+    if (heightmapRenderingMode === "contours" || heightmapRenderingMode === "labeledContours") {
+      activeLabeledContours = heightmapRenderingMode === "labeledContours" ? { ocean: null, land: null } : null;
+      renderContours(heightmapRenderingMode === "labeledContours", getLabeledContourDetailLevel(viewContext.scale));
+      TIME && console.timeEnd("HeightmapRenderer");
+      return;
+    }
+
+    activeLabeledContours = null;
 
     const paths: (string | undefined)[] = new Array(101);
     const { cells, vertices } = grid;
@@ -210,9 +425,380 @@ export const HeightmapRenderer: IRenderer = {
     }
 
     TIME && console.timeEnd("HeightmapRenderer");
+
+    /**
+     * SVG counterpart to the temperature layer's isoline renderer. Unlike the
+     * canvas heatmap path above, each elevation band is a real SVG path, so
+     * contour edges remain sharp at any zoom level.
+     */
+    function renderContours(withElevationLabels: boolean, detailLevel: 0 | 1 | 2): void {
+      const { cells, vertices } = grid;
+      const n = cells.i.length;
+
+      renderElevationRange({
+        group: ocean,
+        minHeight: HeightThreshold.HEIGHT_MIN,
+        maxHeight: HeightThreshold.WATER_MAX_HEIGHT,
+        renderBase: Boolean(+ocean.attr("data-render"))
+      });
+      renderElevationRange({
+        group: land,
+        minHeight: HeightThreshold.WATER_MAX_HEIGHT,
+        maxHeight: HeightThreshold.HEIGHT_MAX,
+        renderBase: true
+      });
+      if (withElevationLabels) refreshLabeledContourLabels(viewContext);
+
+      function renderElevationRange({
+        group,
+        minHeight,
+        maxHeight,
+        renderBase
+      }: {
+        group: typeof ocean;
+        minHeight: number;
+        maxHeight: number;
+        renderBase: boolean;
+      }): void {
+        if (!renderBase) return;
+
+        const scheme = getColorScheme(group.attr("scheme"));
+        const primaryInterval = Math.max(Number(group.attr("skip")) + 1 || 1, 1);
+        const firstSupplementaryInterval = Math.max(1, Math.round(primaryInterval / 2));
+        const step = getContourInterval(primaryInterval, detailLevel);
+        const relaxInterval = Math.max(Number(group.attr("relax")) + 1 || 1, 1);
+
+        if (!withElevationLabels) {
+          group
+            .append("path")
+            .attr("class", "heightmap-contour-base")
+            .attr("d", `M0,0 h${graphWidth} v${graphHeight} h${-graphWidth} Z`)
+            .attr("fill", getColor(minHeight, scheme))
+            .attr("stroke", "none");
+        }
+
+        const cacheKey = withElevationLabels
+          ? getLabeledContourCacheKey({
+              group,
+              minHeight,
+              maxHeight,
+              primaryInterval,
+              relaxInterval,
+              detailLevel
+            })
+          : "";
+        const cachedContours = withElevationLabels ? labeledContourCache.get(cacheKey)?.contours : undefined;
+        const contours = cachedContours ?? [];
+
+        if (!cachedContours && withElevationLabels) {
+          const curveName = group.attr("curve") ?? "curveBasisClosed";
+          for (const elevation of range(minHeight + step, maxHeight, step)) {
+            const contourType = getContourType(elevation, minHeight, primaryInterval, firstSupplementaryInterval);
+            for (const { points, closed } of getInterpolatedContourChains(elevation)) {
+              const renderedPoints = simplifyInterpolatedContour(points, closed, relaxInterval);
+              if (renderedPoints.length < (closed ? 3 : 2)) continue;
+
+              const curve = closed
+                ? (CURVE_MAP[curveName] ?? curveBasisClosed)
+                : (getOpenCurve(curveName) ?? curveBasis);
+              const path = line<Point>().curve(curve)(renderedPoints);
+              if (!path) continue;
+
+              contours.push({
+                elevation,
+                contourType,
+                path: round(path),
+                labelCandidates: getLabelCandidates(renderedPoints, elevation, contourType)
+              });
+            }
+          }
+          setCachedLabeledContours(cacheKey, { contours });
+        }
+
+        if (!withElevationLabels) {
+          for (const elevation of range(minHeight + step, maxHeight, step)) {
+            const checkedCells = new Uint8Array(n);
+            const paths: string[] = [];
+
+            for (const cellId of cells.i) {
+              if (
+                checkedCells[cellId] ||
+                cells.h[cellId] < elevation ||
+                !isGridCellInScope(viewContext.focusScope, cellId)
+              ) {
+                continue;
+              }
+
+              const startingVertex = findStart(cellId, elevation);
+              if (startingVertex === undefined) continue;
+
+              const chain = connectContourVertices(startingVertex, elevation, checkedCells);
+              const points = chain
+                .filter((vertex, index) => index % relaxInterval === 0 || vertices.c[vertex].some(cell => cell >= n))
+                .map(vertex => vertices.p[vertex]);
+              if (points.length < 3) continue;
+
+              const path = line().curve(CURVE_MAP[group.attr("curve") ?? ""] ?? curveBasisClosed)(points);
+              if (path) paths.push(round(path));
+            }
+
+            if (!paths.length) continue;
+            const path = paths.join("");
+            const fill = getColor(elevation, scheme);
+            const stroke = color(fill)?.darker(0.2).toString() ?? fill;
+            group.append("path").attr("d", path).attr("fill", fill).attr("stroke", stroke);
+          }
+        }
+
+        if (!withElevationLabels) return;
+        renderLabeledContourPaths(group, contours);
+        setActiveLabeledContourGroup(group, contours);
+      }
+
+      function findStart(cellId: number, elevation: number): number | undefined {
+        if (cells.b[cellId]) return cells.v[cellId].find(vertex => vertices.c[vertex].some(cell => cell >= n));
+        return cells.v[cellId].find(vertex => vertices.c[vertex].some(cell => cell >= n || cells.h[cell] < elevation));
+      }
+
+      function getContourInterval(primaryInterval: number, zoomDetail: 0 | 1 | 2): number {
+        if (zoomDetail === 2) return 1; // second supplementary contours
+        if (zoomDetail === 1) return Math.max(1, Math.round(primaryInterval / 3));
+        return Math.max(1, Math.round(primaryInterval / 2)); // first supplementary contours
+      }
+
+      function getContourType(
+        elevation: number,
+        minimumElevation: number,
+        primaryInterval: number,
+        firstSupplementaryInterval: number
+      ): "index" | "primary" | "firstSupplementary" | "secondSupplementary" {
+        const offset = elevation - minimumElevation;
+        if (offset % (primaryInterval * 5) === 0) return "index";
+        if (offset % primaryInterval === 0) return "primary";
+        if (offset % firstSupplementaryInterval === 0) return "firstSupplementary";
+        return "secondSupplementary";
+      }
+
+      /**
+       * Builds an isocontour over Delaunay triangles whose vertices are the Voronoi cell centers.
+       * The half-unit shift puts an integer contour between its discrete height band and the one below it.
+       */
+      function getInterpolatedContourChains(elevation: number): InterpolatedContourChain[] {
+        const intersections = new Map<string, Point>();
+        const adjacentSegments = new Map<string, number[]>();
+        const segments: [string, string][] = [];
+        const isInScope = (cellId: number) => isGridCellInScope(viewContext.focusScope, cellId);
+
+        for (const triangleCells of vertices.c) {
+          if (triangleCells.length !== 3 || triangleCells.some(cell => cell >= n || !isInScope(cell))) {
+            continue;
+          }
+
+          const crossings = getTriangleCrossings(triangleCells, elevation);
+          if (crossings.length !== 2) continue;
+
+          const [start, end] = crossings;
+          const segmentId = segments.push([start, end]) - 1;
+          addSegment(start, segmentId);
+          addSegment(end, segmentId);
+        }
+
+        const usedSegments = new Uint8Array(segments.length);
+        const chains: InterpolatedContourChain[] = [];
+        for (const [edge, segmentIds] of adjacentSegments) {
+          if (segmentIds.length === 1) {
+            const chain = traceChain(edge);
+            if (chain) chains.push(chain);
+          }
+        }
+        for (let segmentId = 0; segmentId < segments.length; segmentId++) {
+          if (usedSegments[segmentId]) continue;
+          const chain = traceChain(segments[segmentId][0]);
+          if (chain) chains.push(chain);
+        }
+
+        return chains;
+
+        function getTriangleCrossings(triangleCells: number[], level: number): string[] {
+          const crossings: string[] = [];
+          addCrossing(triangleCells[0], triangleCells[1]);
+          addCrossing(triangleCells[1], triangleCells[2]);
+          addCrossing(triangleCells[2], triangleCells[0]);
+          return crossings;
+
+          function addCrossing(firstCell: number, secondCell: number): void {
+            const firstHeight = cells.h[firstCell];
+            const secondHeight = cells.h[secondCell];
+            const firstIsHigh = firstHeight >= level;
+            if (firstIsHigh === secondHeight >= level) return;
+
+            const edge = getEdgeKey(firstCell, secondCell);
+            if (!intersections.has(edge)) {
+              const [firstX, firstY] = grid.points[firstCell];
+              const [secondX, secondY] = grid.points[secondCell];
+              const ratio = (level - 0.5 - firstHeight) / (secondHeight - firstHeight);
+              intersections.set(edge, [firstX + (secondX - firstX) * ratio, firstY + (secondY - firstY) * ratio]);
+            }
+            crossings.push(edge);
+          }
+        }
+
+        function addSegment(edge: string, segmentId: number): void {
+          const segmentIds = adjacentSegments.get(edge);
+          if (segmentIds) segmentIds.push(segmentId);
+          else adjacentSegments.set(edge, [segmentId]);
+        }
+
+        function traceChain(startEdge: string): InterpolatedContourChain | null {
+          const points: Point[] = [];
+          let currentEdge = startEdge;
+          let closed = false;
+
+          for (let index = 0; index <= segments.length; index++) {
+            const point = intersections.get(currentEdge);
+            if (!point) return null;
+            points.push(point);
+
+            const segmentId = adjacentSegments.get(currentEdge)?.find(id => !usedSegments[id]);
+            if (segmentId === undefined) break;
+            usedSegments[segmentId] = 1;
+
+            const [firstEdge, secondEdge] = segments[segmentId];
+            currentEdge = currentEdge === firstEdge ? secondEdge : firstEdge;
+            if (currentEdge === startEdge) {
+              closed = true;
+              break;
+            }
+          }
+
+          return points.length > 1 ? { points, closed } : null;
+        }
+      }
+
+      function getOpenCurve(curveName: string): CurveFactory | undefined {
+        const openCurveNames: Record<string, keyof typeof CURVE_MAP> = {
+          curveBasisClosed: "curveBasis",
+          curveCardinalClosed: "curveCardinal",
+          curveCatmullRomClosed: "curveCatmullRom"
+        };
+        return CURVE_MAP[openCurveNames[curveName] ?? curveName];
+      }
+
+      function simplifyInterpolatedContour(points: Point[], closed: boolean, interval: number): Point[] {
+        if (interval <= 1) return points;
+
+        const simplified = points.filter((_point, index) => index % interval === 0);
+        const lastPoint = points.at(-1);
+        if (!closed && lastPoint && simplified.at(-1) !== lastPoint) simplified.push(lastPoint);
+        return closed && simplified.length < 3 ? points : simplified;
+      }
+
+      function getEdgeKey(firstCell: number, secondCell: number): string {
+        return firstCell < secondCell ? `${firstCell}:${secondCell}` : `${secondCell}:${firstCell}`;
+      }
+
+      function connectContourVertices(start: number, elevation: number, checkedCells: Uint8Array): number[] {
+        const MAX_ITERATIONS = vertices.c.length;
+        const chain: number[] = [];
+
+        for (let index = 0, current = start; index === 0 || (current !== start && index < MAX_ITERATIONS); index++) {
+          const previous = chain.at(-1);
+          chain.push(current);
+
+          const adjacentCells = vertices.c[current];
+          adjacentCells.forEach(cell => {
+            if (cell < n && cells.h[cell] >= elevation) checkedCells[cell] = 1;
+          });
+
+          const [first, second, third] = adjacentCells.map(cell => cell < n && cells.h[cell] >= elevation);
+          const [firstVertex, secondVertex, thirdVertex] = vertices.v[current];
+          if (firstVertex !== previous && first !== second) current = firstVertex;
+          else if (secondVertex !== previous && second !== third) current = secondVertex;
+          else if (thirdVertex !== previous && first !== third) current = thirdVertex;
+          else break;
+        }
+
+        return chain;
+      }
+
+      function getLabelCandidates(
+        points: [number, number][],
+        elevation: number,
+        contourType: ContourType
+      ): ContourLabelCandidate[] {
+        const candidates: ContourLabelCandidate[] = [];
+        const xCenter = graphWidth / 2;
+        const topCenterIndex = leastIndex(
+          points,
+          (a: [number, number], b: [number, number]) =>
+            a[1] - b[1] + (Math.abs(a[0] - xCenter) - Math.abs(b[0] - xCenter)) / 2
+        );
+        const topCenter = points[topCenterIndex!];
+        candidates.push({ x: topCenter[0], y: topCenter[1], elevation, contourType });
+
+        if (points.length <= 20) return candidates;
+        const bottomCenterIndex = leastIndex(
+          points,
+          (a: [number, number], b: [number, number]) =>
+            b[1] - a[1] + (Math.abs(a[0] - xCenter) - Math.abs(b[0] - xCenter)) / 2
+        );
+        const bottomCenter = points[bottomCenterIndex!];
+        const distanceSquared = (topCenter[1] - bottomCenter[1]) ** 2 + (topCenter[0] - bottomCenter[0]) ** 2;
+        if (distanceSquared > 100) candidates.push({ x: bottomCenter[0], y: bottomCenter[1], elevation, contourType });
+        return candidates;
+      }
+
+      function getLabeledContourCacheKey({
+        group,
+        minHeight,
+        maxHeight,
+        primaryInterval,
+        relaxInterval,
+        detailLevel
+      }: {
+        group: SvgGroup;
+        minHeight: number;
+        maxHeight: number;
+        primaryInterval: number;
+        relaxInterval: number;
+        detailLevel: 0 | 1 | 2;
+      }): string {
+        const mapId = worldContext.mapId;
+        if (cachedMapId !== mapId) {
+          labeledContourCache.clear();
+          cachedMapId = mapId;
+        }
+
+        let heightHash = 2166136261;
+        for (const cellId of cells.i) {
+          heightHash ^= cells.h[cellId];
+          heightHash = Math.imul(heightHash, 16777619);
+        }
+
+        const focusSignature = viewContext.focusScope
+          ? `${viewContext.focusScope.kind}:${viewContext.focusScope.id}:${viewContext.focusScope.gridCellIds.size}`
+          : "all";
+        return [
+          mapId,
+          heightHash >>> 0,
+          graphWidth,
+          graphHeight,
+          group.attr("id"),
+          minHeight,
+          maxHeight,
+          primaryInterval,
+          relaxInterval,
+          group.attr("curve"),
+          detailLevel,
+          "interpolated-centers-v1",
+          focusSignature
+        ].join("|");
+      }
+    }
   },
 
   clear(viewContext: Readonly<EnvironmentLayers>): void {
+    activeLabeledContours = null;
     const { terrs } = viewContext;
     terrs.select<SVGGElement>("#oceanHeights").selectAll("*").remove();
     terrs.select<SVGGElement>("#landHeights").selectAll("*").remove();

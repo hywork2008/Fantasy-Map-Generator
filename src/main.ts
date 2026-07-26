@@ -47,6 +47,11 @@ import { ldb } from "./io/ldb";
 import { loadMapFromURL, showUploadErrorMessage, uploadMap } from "./io/load";
 import { initiateAutosave } from "./io/save";
 import { renderGroupCOAs } from "./renderers/draw-emblems";
+import {
+  getLabeledContourDetailLevel,
+  HeightmapRenderer,
+  refreshLabeledContourLabels
+} from "./renderers/draw-heightmap";
 import { CoordinatesRenderer, drawCalendar, drawScaleBar, fitScaleBar } from "./renderers/index";
 import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
@@ -200,6 +205,7 @@ let rafId: number | null = null;
 let pendingScaleChange = false;
 let pendingPositionChange = false;
 let activeZoomingTimeout: ReturnType<typeof setTimeout> | undefined;
+let labeledContourDetailLevel: ReturnType<typeof getLabeledContourDetailLevel> | undefined;
 
 function zoomRaf(event: { transform: { k: number; x: number; y: number } }) {
   const { k, x, y } = event.transform;
@@ -602,6 +608,8 @@ const STATE_HIDE_SCALE = 7;
 export function invokeActiveZooming() {
   const isOptimized = useOptionsState.getState().shapeRendering === "optimizeSpeed";
 
+  redrawLabeledContoursForZoom();
+
   if (
     viewContext.coastline.select("#sea_island").size() &&
     +viewContext.coastline.select("#sea_island").attr("auto-filter")
@@ -813,6 +821,29 @@ export function invokeActiveZooming() {
   // updated above) and dampen it themselves using the current scale, so a rebuild here just
   // reflects the settled zoom level. No-op when the render mode isn't webglHybrid.
   scheduleWebglUpdate();
+}
+
+/** Rebuild labeled SVG contours only when a zoom threshold reveals a new detail tier. */
+function redrawLabeledContoursForZoom(): void {
+  const { heightmapRenderingMode } = useOptionsState.getState();
+  if (
+    !viewContext.renderMap ||
+    viewContext.renderMode !== "svg" ||
+    heightmapRenderingMode !== "labeledContours" ||
+    !layerIsOn("toggleHeight")
+  ) {
+    labeledContourDetailLevel = undefined;
+    return;
+  }
+
+  const detailLevel = getLabeledContourDetailLevel(scale);
+  if (detailLevel === labeledContourDetailLevel) {
+    refreshLabeledContourLabels(viewContext);
+    return;
+  }
+
+  labeledContourDetailLevel = detailLevel;
+  HeightmapRenderer.render(worldContext, viewContext, appServices);
 }
 
 // ─── Drag-to-upload ───────────────────────────────────────────────────────────

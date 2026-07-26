@@ -133,6 +133,8 @@ export interface OptionsState {
   rescaleLabels: boolean;
   hideLabels: boolean;
   populationRenderingMode: "original" | "contour" | "choropleth";
+  /** SVG-only heightmap visualization. WebGL Hybrid continues to use its deck.gl terrain renderer. */
+  heightmapRenderingMode: "heatmap" | "contours" | "labeledContours";
   dangerRenderingMode: "contour" | "choropleth";
   /** Contour = density heatmap; choropleth = per-cell battlefield intensity. */
   combatDeathsRenderingMode: "contour" | "choropleth";
@@ -254,6 +256,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   rescaleLabels: true,
   hideLabels: false,
   populationRenderingMode: "choropleth",
+  heightmapRenderingMode: "heatmap",
   dangerRenderingMode: "contour",
   combatDeathsRenderingMode: "contour",
 
