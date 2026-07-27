@@ -45,11 +45,21 @@ import { useOptionsState } from "../store/optionsState";
 import { useRiversOverviewState } from "../store/riversOverviewState";
 import { useUiPreferencesState } from "../store/uiPreferencesState";
 import type { MarkerConfig } from "../types/MarkerConfig";
-import type { Burg, Marker, Province, Religion, River, Route, SeaRouteGenerationMode, State } from "../types/models";
+import type {
+  Burg,
+  LandRouteGenerationMode,
+  Marker,
+  Province,
+  Religion,
+  River,
+  Route,
+  SeaRouteGenerationMode,
+  State
+} from "../types/models";
 import type { WorldNote } from "../types/WorldState";
 import * as Dialogservice from "../ui/dialogs/dialogService";
 import { closeDialog, closeDialogs, openDialog, openPrompt } from "../ui/dialogs/dialogService";
-import type { RegenerateConfirmConfig } from "../ui/dialogs/RegenerateConfirmDialog";
+import type { RegenerateConfirmConfig, RouteRegenerationModes } from "../ui/dialogs/RegenerateConfirmDialog";
 import { findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
@@ -218,9 +228,13 @@ document.addEventListener("react-tool-action", e => {
       showDontAskAgain: button !== "regenerateRoutes",
       seaRouteGenerationMode:
         button === "regenerateRoutes" ? (worldContext.options.seaRouteGenerationMode ?? "augmented") : undefined,
-      onProceed: (dontAskAgain, seaRouteGenerationMode) => {
+      landRouteGenerationMode:
+        button === "regenerateRoutes" ? (worldContext.options.landRouteGenerationMode ?? "elevationAware") : undefined,
+      landRouteElevationAversion:
+        button === "regenerateRoutes" ? (worldContext.options.landRouteElevationAversion ?? 1) : undefined,
+      onProceed: (dontAskAgain, routeModes) => {
         if (dontAskAgain) setDontAskRegenerateFeature(true);
-        processFeatureRegeneration(null, button, seaRouteGenerationMode);
+        processFeatureRegeneration(null, button, routeModes);
       }
     };
     openDialog("regenerateConfirm", regenerateConfig);
@@ -249,7 +263,7 @@ document.addEventListener("react-tool-action", e => {
 function processFeatureRegeneration(
   event: MouseEvent | null,
   button: string,
-  seaRouteGenerationMode: SeaRouteGenerationMode = worldContext.options.seaRouteGenerationMode ?? "augmented"
+  routeModes?: RouteRegenerationModes
 ): void {
   if (button === "regenerateStateLabels") {
     d3.select("#labels").style("display", "block");
@@ -258,7 +272,11 @@ function processFeatureRegeneration(
     ReliefIconsRenderer.render(worldContext, viewContext, appServices);
     if (!layerIsOn("toggleRelief")) toggleRelief();
   } else if (button === "regenerateRoutes") {
-    regenerateRoutes(seaRouteGenerationMode);
+    regenerateRoutes(
+      routeModes?.seaRouteGenerationMode ?? worldContext.options.seaRouteGenerationMode ?? "augmented",
+      routeModes?.landRouteGenerationMode ?? worldContext.options.landRouteGenerationMode ?? "elevationAware",
+      routeModes?.landRouteElevationAversion ?? worldContext.options.landRouteElevationAversion ?? 1
+    );
     if (!layerIsOn("toggleRoutes")) toggleRoutes();
   } else if (button === "regenerateRivers") regenerateRivers();
   else if (button === "regeneratePopulation") recalculatePopulation();
@@ -303,8 +321,11 @@ export async function openEmblemEditor(): Promise<void> {
 // ─── Regenerate functions ─────────────────────────────────────────────────────
 
 function regenerateRoutes(
-  seaRouteGenerationMode: SeaRouteGenerationMode = worldContext.options.seaRouteGenerationMode ?? "augmented"
+  seaRouteGenerationMode: SeaRouteGenerationMode = worldContext.options.seaRouteGenerationMode ?? "augmented",
+  landRouteGenerationMode: LandRouteGenerationMode = worldContext.options.landRouteGenerationMode ?? "elevationAware",
+  landRouteElevationAversion: number = worldContext.options.landRouteElevationAversion ?? 1
 ): void {
+  worldContext.options.landRouteElevationAversion = landRouteElevationAversion;
   const locked = worldContext.pack.routes
     .filter((route: Route) => route.lock)
     .map((route: Route, index: number) => ({ ...route, i: index }));
@@ -315,7 +336,8 @@ function regenerateRoutes(
       appServices,
       getWorldState(),
       locked,
-      seaRouteGenerationMode
+      seaRouteGenerationMode,
+      landRouteGenerationMode
     );
     return { result: undefined, topics: ["map.networks"] };
   });

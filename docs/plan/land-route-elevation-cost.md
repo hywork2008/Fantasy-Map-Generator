@@ -10,7 +10,7 @@
 - 探索本体: `findPath`（`src/utils/pathUtils.ts`）、呼び出しは `findPathSegments` / `generateMainRoads` / `generateTrails`
 - 中世ヨーロッパのイメージ（幹線は谷、峠は少数の必要動脈）: 本ドキュメント §1.3
 
-**実装状況**: 未着手。本ドキュメントが調査結果と実装計画のソース・オブ・トゥルース。
+**実装状況**: **Phase 1 実装済み**（elevation/slope コスト、roads/trails 感度）。**再生成モード選択も実装済み**（`landRouteGenerationMode`: `elevationAware` | `legacy`、`seaRouteGenerationMode` と同様に Regenerate Routes ダイアログ・永続化・load 時再構築）。Phase 2（目視チューニング・Options スライダ）は任意・未着手。
 
 ---
 
@@ -224,10 +224,48 @@ Options UI への公開は **必須ではない**（Phase 2 任意）。
 
 **受け入れ条件:**
 
-- [ ] 合成パックで「平坦 1.5〜2 倍長い道」vs「短い高山直登」→ 平坦が選ばれる  
-- [ ] 高地のみの接続で path が得られる  
-- [ ] 海路テスト不変  
-- [ ] コメントと定数が式の意図を説明している  
+- [x] 合成パックで「平坦 1.5〜2 倍長い道」vs「短い高山直登」→ 平坦が選ばれる  
+- [x] 高地のみの接続で path が得られる  
+- [x] 海路テスト不変  
+- [x] コメントと定数が式の意図を説明している  
+
+### Phase 1 実装ログ
+
+- `src/generators/routes-generator.ts`:
+  - 定数: `LAND_ROUTE_ELEVATION_H0=32`, `K=12`, `P=1.75`, `SLOPE_S=4`, `DH_REF=10`, `Q=1.5`, trails 感度 `0.6`
+  - `landRouteElevationModifier` / `landRouteSlopeModifier`（export、テスト用）
+  - `createCostEvaluator({ landMode, landRouteGenerationMode })` — `elevationAware` で elevation × slope、`legacy` で旧 `heightModifier`
+  - `generateMainRoads` → `landMode: "roads"`、`generateTrails` / `connectToNetwork` → `"trails"`
+  - `Routes.generate(..., seaMode?, landMode?)` が `options.landRouteGenerationMode` を永続化（既定 `elevationAware`）
+- `routes-generator.test.ts`: 低地回廊優先、legacy は尾根直進、峠必須接続、trails &lt; roads、persist、海路非影響
+- 高標高の `Infinity` 封鎖はしていない（sole pass は接続）
+
+### 再生成モード選択（sea と同型）
+
+| 項目 | 内容 |
+| :--- | :--- |
+| 型 | `LandRouteGenerationMode = "legacy" \| "elevationAware"`（`src/types/models.ts`） |
+| 永続 | `WorldOptions.landRouteGenerationMode` |
+| UI | Tools → Regenerate routes 確認ダイアログ「Land route pathfinding」／Options → Generation「Land routes」 |
+| 配線 | `tools.ts` → `Routes.generate`；`load.ts` は sea モードあり時に再構築。land 未保存の旧アーカイブは **legacy** にフォールバック |
+| 既定（新規生成） | `elevationAware`（`useOptionsState.landRouteGenerationMode`） |
+
+### 生成オプション: elevation aversion 係数
+
+Maria マップ検証: Doberedexau (h=32≈116m) → Zetaramizte (h=34≈147m) の **Voronoi 最短** は  
+`4802–4803–4804–4805`（h 32–**50**–**53**–34 ≈ 116–**512**–**602**–147m、約 +500m 登り）。
+
+**旧コストの問題**: 絶対標高×勾配の積が大きく、かつ `distanceSquared` の多段和が短い辺を有利にするため、5×近い谷回りが既定 aversion で勝ってしまうことがあった（距離も累積登りも悪化しうる遠回り）。
+
+**再チューニング**: elevationAware は **線形平面距離** + **柔らかい絶対標高** + **登り Δh** + **地形倍率 cap(8)**。既定 aversion=1 では Maria の中丘尾根ショートカットは距離優先で残り、真の高峰 (h≈80) はなお谷回りが勝つ。
+
+| 項目 | 内容 |
+| :--- | :--- |
+| オプション | `landRouteElevationAversion`（0–3、既定 **1**） |
+| UI | Tools → **Regenerate routes** ダイアログ（Options → Generation には置かない） |
+| 意味 | 0 = 標高/勾配ペナルティ無し／1 = 既定／&gt;1 = 谷を強く選ぶ |
+| 適用 | `elevationAware` 時のみ（legacy ではスライダ無効） |
+| 永続 | `WorldOptions`（マップに保存；regenerate で更新） |
 
 ### Phase 2 — 目視チューニングと任意 UI（任意）
 
@@ -314,17 +352,28 @@ Options UI への公開は **必須ではない**（Phase 2 任意）。
 
 ## 8. セッション引き継ぎ
 
-**次の実装着手**: Phase 1（§3）— `getLandPathCost` の elevation/slope 差し替えと unit test。
+**Phase 1 完了。** 次は任意の Phase 2（代表シード目視・定数微調整）または [`route-grade-movement.md`](./route-grade-movement.md) Phase 0。
 
 確認済み:
 
-- 高 elevation を探索負荷として大きくする → **やる**  
-- 峠が唯一の合理ルートなら接続 → **OK**  
+- 高 elevation を探索負荷として大きくする → **実装済**  
+- 峠が唯一の合理ルートなら接続 → **実装済（有限コスト）**  
 - 旅行時 grade / 商人選択 → **別ドキュメント**  
 
-未決（仮置きで実装開始可）:
+チューニング用の現行定数（コードと同期）:
 
-- 最終的な `K` / `S` / `H0` の数値  
-- trails を roads の何倍の感度にするか  
+| 定数 | 値 |
+| :--- | ---: |
+| `LAND_ROUTE_ELEVATION_H0` | 32 |
+| `LAND_ROUTE_ELEVATION_K` | 12 |
+| `LAND_ROUTE_ELEVATION_P` | 1.75 |
+| `LAND_ROUTE_SLOPE_S` | 4 |
+| `LAND_ROUTE_SLOPE_DH_REF` | 10 |
+| `LAND_ROUTE_SLOPE_Q` | 1.5 |
+| `LAND_ROUTE_TRAILS_SENSITIVITY` | 0.6 |
+
+未決（Phase 2）:
+
+- 目視後の `K` / `S` / `H0` 微調整  
 - Options 公開の要否  
 `)

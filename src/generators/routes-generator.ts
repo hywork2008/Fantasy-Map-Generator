@@ -7,7 +7,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 
-import type { Burg, Route, SeaRouteGenerationMode } from "../types/models";
+import type { Burg, LandRouteGenerationMode, Route, SeaRouteGenerationMode } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import {
   distanceSquared,
@@ -36,6 +36,64 @@ const ROUTE_TYPE_MODIFIERS: Record<string, number> = {
   "-4": 6, // ocean
   default: 8 // far ocean
 };
+
+/**
+ * Land-route pathfinding elevation aversion (docs/plan/land-route-elevation-cost.md §2.2).
+ * Finite multipliers only — mountain passes remain passable when no lowland corridor exists.
+ *
+ * Tuned so a short mid-hill ridge (e.g. ~500 m climb over a few cells) is not abandoned for a
+ * 4–5× longer valley circuit at default aversion, while true high peaks (h≈80+) still lose to
+ * moderate detours. Absolute height is a soft bias; climb (Δh) carries more of the penalty.
+ */
+export type LandRouteMode = "roads" | "trails";
+
+/** Height index below which elevationModifier ≈ 1. */
+const LAND_ROUTE_ELEVATION_H0 = 32;
+/** Soft absolute-height scale (kept mild so mid ridges are not 10× paths). */
+const LAND_ROUTE_ELEVATION_K = 3.5;
+const LAND_ROUTE_ELEVATION_P = 1.5;
+/** Climb (Δh) scale — primary “effort” term. */
+const LAND_ROUTE_SLOPE_S = 2.2;
+const LAND_ROUTE_SLOPE_DH_REF = 12;
+const LAND_ROUTE_SLOPE_Q = 1.35;
+/** Cap elev×slope so one steep edge cannot outweigh multi-hop planar distance. */
+const LAND_ROUTE_MAX_TERRAIN_MULT = 8;
+/** Trails tolerate steeper / higher ground better than roads (fraction of roads K/S). */
+const LAND_ROUTE_TRAILS_SENSITIVITY = 0.6;
+
+/**
+ * Clamp generation aversion strength. 0 disables height/slope penalties;
+ * 1 matches the plan defaults; values above 1 amplify them.
+ */
+export function clampLandRouteElevationAversion(raw: number | undefined): number {
+  if (raw === undefined || !Number.isFinite(raw)) return 1;
+  return Math.min(3, Math.max(0, raw));
+}
+
+/** Absolute-height multiplier for land route Dijkstra edges. Exported for unit tests. */
+export function landRouteElevationModifier(h: number, sensitivity = 1, aversion = 1): number {
+  const span = 100 - LAND_ROUTE_ELEVATION_H0;
+  const base = Math.max(0, h - LAND_ROUTE_ELEVATION_H0) / span;
+  return 1 + LAND_ROUTE_ELEVATION_K * sensitivity * aversion * base ** LAND_ROUTE_ELEVATION_P;
+}
+
+/** Climb-only slope multiplier (descents do not get a bonus or extra penalty). */
+export function landRouteSlopeModifier(hFrom: number, hTo: number, sensitivity = 1, aversion = 1): number {
+  const dh = Math.max(0, hTo - hFrom);
+  if (dh === 0) return 1;
+  return 1 + LAND_ROUTE_SLOPE_S * sensitivity * aversion * (dh / LAND_ROUTE_SLOPE_DH_REF) ** LAND_ROUTE_SLOPE_Q;
+}
+
+/** Combined terrain multiplier with a hard cap (exported for tests). */
+export function landRouteTerrainMultiplier(hFrom: number, hTo: number, sensitivity = 1, aversion = 1): number {
+  const elev = landRouteElevationModifier(hTo, sensitivity, aversion);
+  const slope = landRouteSlopeModifier(hFrom, hTo, sensitivity, aversion);
+  return Math.min(LAND_ROUTE_MAX_TERRAIN_MULT, elev * slope);
+}
+
+function landRouteSensitivity(mode: LandRouteMode): number {
+  return mode === "trails" ? LAND_ROUTE_TRAILS_SENSITIVITY : 1;
+}
 
 type RouteGraphEdge = { from: number; to: number; triangleIndex: number };
 type PortEdge = [number, number];
@@ -531,27 +589,52 @@ class RoutesModule {
   private createCostEvaluator({
     isWater,
     connections,
-    seaRouteGenerationMode
+    seaRouteGenerationMode,
+    landMode = "roads",
+    landRouteGenerationMode
   }: {
     isWater: boolean;
     connections: Map<string, boolean>;
     seaRouteGenerationMode?: SeaRouteGenerationMode;
+    /** Only used when isWater is false. Roads avoid high ground more than trails. */
+    landMode?: LandRouteMode;
+    /**
+     * Which land cost formula to use. Defaults to the map's persisted option, then
+     * elevationAware for new generation.
+     */
+    landRouteGenerationMode?: LandRouteGenerationMode;
   }) {
     const { pack, biomesData, grid } = this.worldContext;
+    const sensitivity = landRouteSensitivity(landMode);
+    const resolvedLandGenerationMode: LandRouteGenerationMode =
+      landRouteGenerationMode ?? this.worldContext.options.landRouteGenerationMode ?? "elevationAware";
+    const aversion = clampLandRouteElevationAversion(this.worldContext.options.landRouteElevationAversion);
+
     function getLandPathCost(current: number, next: number) {
       if (pack.cells.h[next] < 20) return Infinity; // ignore water cells
 
       const habitability = biomesData.habitability[pack.cells.biomeCode[next]];
       if (!habitability) return Infinity; // inhabitable cells are not passable (e.g. glacier)
 
-      const distanceCost = distanceSquared(pack.cells.p[current], pack.cells.p[next]);
       const habitabilityModifier = 1 + Math.max(100 - habitability, 0) / 1000; // [1, 1.1];
-      const heightModifier = 1 + Math.max(pack.cells.h[next] - 25, 25) / 25; // [1, 3];
       const connectionModifier = connections.has(`${current}-${next}`) ? 0.5 : 1;
       const burgModifier = pack.cells.burg[next] ? 1 : 3;
+      const [x1, y1] = pack.cells.p[current];
+      const [x2, y2] = pack.cells.p[next];
 
-      const pathCost = distanceCost * habitabilityModifier * heightModifier * connectionModifier * burgModifier;
-      return pathCost;
+      if (resolvedLandGenerationMode === "legacy") {
+        // Pre-elevation-aware formula: distanceSquared + weak absolute-height only.
+        const distanceCost = distanceSquared(pack.cells.p[current], pack.cells.p[next]);
+        const heightModifier = 1 + Math.max(pack.cells.h[next] - 25, 25) / 25;
+        return distanceCost * habitabilityModifier * heightModifier * connectionModifier * burgModifier;
+      }
+
+      // Linear planar length so multi-hop valleys are not artificially cheap vs few edges
+      // (sum of squared lengths under-penalizes many short steps). Terrain mult is capped.
+      // Aversion is set from Tools → Regenerate routes. See land-route-elevation-cost.md.
+      const run = Math.hypot(x2 - x1, y2 - y1);
+      const terrain = landRouteTerrainMultiplier(pack.cells.h[current], pack.cells.h[next], sensitivity, aversion);
+      return run * habitabilityModifier * terrain * connectionModifier * burgModifier;
     }
 
     const getLegacyWaterPathCost = (current: number, next: number) => {
@@ -639,7 +722,9 @@ class RoutesModule {
     start,
     exit,
     stateId,
-    seaRouteGenerationMode
+    seaRouteGenerationMode,
+    landMode,
+    landRouteGenerationMode
   }: {
     isWater: boolean;
     connections: Map<string, boolean>;
@@ -647,9 +732,17 @@ class RoutesModule {
     exit: number;
     stateId?: number;
     seaRouteGenerationMode?: SeaRouteGenerationMode;
+    landMode?: LandRouteMode;
+    landRouteGenerationMode?: LandRouteGenerationMode;
   }) {
     const { pack } = this.worldContext;
-    const baseCost = this.createCostEvaluator({ isWater, connections, seaRouteGenerationMode });
+    const baseCost = this.createCostEvaluator({
+      isWater,
+      connections,
+      seaRouteGenerationMode,
+      landMode,
+      landRouteGenerationMode
+    });
     const getCost = (from: number, to: number) => {
       if (stateId && pack.cells.state[to] !== 0 && pack.cells.state[to] !== stateId) return Infinity;
       return baseCost(from, to);
@@ -678,7 +771,8 @@ class RoutesModule {
           connections,
           start,
           exit,
-          stateId
+          stateId,
+          landMode: "roads"
         });
         for (const segment of segments) {
           this.addConnections(segment, connections);
@@ -720,7 +814,8 @@ class RoutesModule {
           connections,
           start,
           exit,
-          stateId
+          stateId,
+          landMode: "trails"
         });
         for (const segment of segments) {
           this.addConnections(segment, connections);
@@ -899,7 +994,8 @@ class RoutesModule {
     appServices: AppServices,
     state: WorldState,
     lockedRoutes: Route[] = [],
-    seaRouteGenerationMode?: SeaRouteGenerationMode
+    seaRouteGenerationMode?: SeaRouteGenerationMode,
+    landRouteGenerationMode?: LandRouteGenerationMode
   ) {
     this.worldContext = worldContext;
     this.viewContext = viewContext;
@@ -907,10 +1003,17 @@ class RoutesModule {
     const { pack } = state;
     const resolvedSeaRouteGenerationMode =
       seaRouteGenerationMode ?? worldContext.options.seaRouteGenerationMode ?? "augmented";
+    const resolvedLandRouteGenerationMode =
+      landRouteGenerationMode ?? worldContext.options.landRouteGenerationMode ?? "elevationAware";
+    const resolvedLandRouteElevationAversion = clampLandRouteElevationAversion(
+      worldContext.options.landRouteElevationAversion
+    );
     if (resolvedSeaRouteGenerationMode === "augmented") {
       this.sync(); // River adjacency must reflect the current map before river-aware sea-route pathfinding.
     }
     worldContext.options.seaRouteGenerationMode = resolvedSeaRouteGenerationMode;
+    worldContext.options.landRouteGenerationMode = resolvedLandRouteGenerationMode;
+    worldContext.options.landRouteElevationAversion = resolvedLandRouteElevationAversion;
     const connections = new Map();
     lockedRoutes.forEach((route: Route) => {
       this.addConnections(
@@ -1025,7 +1128,8 @@ class RoutesModule {
     const { pack } = this.worldContext;
     const baseCost = this.createCostEvaluator({
       isWater: false,
-      connections: new Map()
+      connections: new Map(),
+      landMode: "trails"
     });
     const getCost = (from: number, to: number) => (canTraverse(to) ? baseCost(from, to) : Infinity);
     const pathCells = findPath(cellId, isExit, getCost, pack);

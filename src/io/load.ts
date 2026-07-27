@@ -31,7 +31,7 @@ import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
 import { loadErrorDialogStore } from "../store/loadErrorDialogState";
 import { loadMapDialogStore } from "../store/loadMapDialogState";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
-import type { NameBase, River, Route, SeaRouteGenerationMode } from "../types/models";
+import type { LandRouteGenerationMode, NameBase, River, Route, SeaRouteGenerationMode } from "../types/models";
 import { closeDialogs, openConfirm } from "../ui/dialogs/dialogService";
 import { calculateVoronoi, findCell, last, link, minmax, parseError, rn } from "../utils";
 import { heightmapColorSchemes } from "../utils/colorUtils";
@@ -201,6 +201,8 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
     // A malformed archive therefore leaves the active world and SVG untouched.
     const validated = await decodeAndValidateWorldArchive({ blob: file, header });
     const seaRouteGenerationMode = validated.document.world.options.seaRouteGenerationMode;
+    const landRouteGenerationMode = validated.document.world.options.landRouteGenerationMode;
+    const landRouteElevationAversion = validated.document.world.options.landRouteElevationAversion;
     const commit = await worldRuntime.dispatch({ type: "world.replace", payload: validated });
     if (!commit) throw new Error("World archive did not produce a replacement commit");
 
@@ -212,9 +214,14 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
     // Archives created before the generation-mode field was introduced have no
     // reliable indication of which algorithm produced their routes. Preserve
     // those routes verbatim instead of forcibly replacing them with augmented.
+    // When sea mode is present we rebuild; land mode falls back to "legacy" if
+    // missing so older archives do not silently switch to elevation-aware land costs.
     if (seaRouteGenerationMode) {
       legacyMutation(() => {
-        regenerateLoadedRoutes(seaRouteGenerationMode);
+        if (landRouteElevationAversion !== undefined) {
+          worldContext.options.landRouteElevationAversion = landRouteElevationAversion;
+        }
+        regenerateLoadedRoutes(seaRouteGenerationMode, landRouteGenerationMode ?? "legacy");
         return { result: undefined, topics: ["map.networks"] };
       });
     }
@@ -257,7 +264,10 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
  * singleton's current world context to build river geometry, so it cannot
  * safely operate on the detached decoded document.
  */
-function regenerateLoadedRoutes(seaRouteGenerationMode: SeaRouteGenerationMode): void {
+function regenerateLoadedRoutes(
+  seaRouteGenerationMode: SeaRouteGenerationMode,
+  landRouteGenerationMode: LandRouteGenerationMode = "legacy"
+): void {
   const lockedRoutes = worldContext.pack.routes
     .filter((route: Route) => route.lock)
     .map((route: Route, index: number) => ({ ...route, i: index }));
@@ -268,7 +278,8 @@ function regenerateLoadedRoutes(seaRouteGenerationMode: SeaRouteGenerationMode):
     appServices,
     { pack, grid, seed, options, nameBases, biomesData, notes },
     lockedRoutes,
-    seaRouteGenerationMode
+    seaRouteGenerationMode,
+    landRouteGenerationMode
   );
 }
 

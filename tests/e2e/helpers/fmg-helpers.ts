@@ -141,6 +141,17 @@ export async function getSeaRouteGenerationMode(page: Page): Promise<"legacy" | 
   });
 }
 
+/** Read the land-route cost model currently persisted with the loaded map. */
+export async function getLandRouteGenerationMode(
+  page: Page
+): Promise<"legacy" | "elevationAware" | undefined> {
+  return page.evaluate(() => {
+    const options = window.fmg.world.options as { landRouteGenerationMode?: unknown };
+    const mode = options.landRouteGenerationMode;
+    return mode === "legacy" || mode === "elevationAware" ? mode : undefined;
+  });
+}
+
 /** Stable cell-path representation of the generated sea-route network. */
 export async function getSeaRouteNetworkSignature(page: Page): Promise<string> {
   return page.evaluate(() => {
