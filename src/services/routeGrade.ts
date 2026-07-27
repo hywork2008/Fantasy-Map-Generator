@@ -364,36 +364,53 @@ export function gradeToSpeedMultiplier(
   return 1 + (m - 1) * strength;
 }
 
+export interface LandTravelLegSpeed {
+  /** Planar distance of this hop (km). */
+  runKm: number;
+  /** Grade-adjusted speed for this hop (km/day). */
+  speedKmPerDay: number;
+  absGrade: number;
+}
+
+export interface LandTravelLegResult {
+  legs: LandTravelLegSpeed[];
+  maxAbsGrade: number;
+  hasHardWindow: boolean;
+  hasExtremeWindow: boolean;
+}
+
 /**
- * Days to traverse a land polyline with grade-adjusted speed.
- * Points are `[x, y]` or `[x, y, cellId]`. Without cell ids, falls back to planar distance only.
- *
- * When `routePreference` is `avoidHardPass`, multiplies the result by pathfinding avoid costs
- * (for Dijkstra). Callers computing real ETA / deal duration should leave preference as
- * `preferSpeed` (default).
+ * Per-hop planar length and grade-adjusted speed for a land polyline.
+ * Points are `[x, y]` or `[x, y, cellId]`. Without cell ids (or strength 0), every hop uses
+ * base land speed. Does not apply pathfinding avoid multipliers.
  */
-export function calculateLandTravelDays(
+export function landTravelLegSpeeds(
   points: ReadonlyArray<readonly number[]>,
   options: LandTravelDayOptions
-): number {
+): LandTravelLegResult {
+  const empty: LandTravelLegResult = {
+    legs: [],
+    maxAbsGrade: 0,
+    hasHardWindow: false,
+    hasExtremeWindow: false
+  };
   const landKmPerDay = options.landKmPerDay;
   const draft = options.draftSpeedMultiplier ?? 1;
-  if (landKmPerDay <= 0 || draft <= 0) return Infinity;
+  if (landKmPerDay <= 0 || draft <= 0 || points.length < 2) return empty;
 
   const baseSpeed = landKmPerDay * draft;
   const strength = clamp01(options.gradeEffectStrength ?? 1);
   const thresholds = resolveThresholds(options.thresholds);
-  const preference = options.routePreference ?? "preferSpeed";
-
-  if (points.length < 2) return 0;
-
   const hasCells = points.every(p => typeof p[2] === "number" && Number.isFinite(p[2]));
+
   if (!hasCells || strength === 0) {
-    let mapUnits = 0;
+    const legs: LandTravelLegSpeed[] = [];
     for (let i = 0; i < points.length - 1; i++) {
-      mapUnits += Math.hypot(points[i + 1][0] - points[i][0], points[i + 1][1] - points[i][1]);
+      const runKm =
+        Math.hypot(points[i + 1][0] - points[i][0], points[i + 1][1] - points[i][1]) * options.distanceScale;
+      legs.push({ runKm, speedKmPerDay: baseSpeed, absGrade: 0 });
     }
-    return (mapUnits * options.distanceScale) / baseSpeed;
+    return { legs, maxAbsGrade: 0, hasHardWindow: false, hasExtremeWindow: false };
   }
 
   const cells: number[] = points.map(p => p[2] as number);
@@ -416,7 +433,7 @@ export function calculateLandTravelDays(
   const hardWindow = markAscentWindows(edges, thresholds.W_hardKm, thresholds.A_hardM);
   const extremeWindow = markAscentWindows(edges, thresholds.W_extremeKm, thresholds.A_extremeM);
 
-  let days = 0;
+  const legs: LandTravelLegSpeed[] = [];
   let maxAbsGrade = 0;
   for (let i = 0; i < edges.length; i++) {
     const e = edges[i];
@@ -426,13 +443,52 @@ export function calculateLandTravelDays(
       const passM = options.sensitivity.passWindowMultiplier;
       m *= 1 + (passM - 1) * strength;
     }
-    // Keep a tiny floor so extreme stacks never divide by zero.
-    const v = baseSpeed * Math.max(m, 1e-6);
-    days += e.runKm / v;
+    legs.push({
+      runKm: e.runKm,
+      speedKmPerDay: baseSpeed * Math.max(m, 1e-6),
+      absGrade: e.absGrade
+    });
+  }
+  return {
+    legs,
+    maxAbsGrade,
+    hasHardWindow: hardWindow.some(Boolean),
+    hasExtremeWindow: extremeWindow.some(Boolean)
+  };
+}
+
+/**
+ * Days to traverse a land polyline with grade-adjusted speed.
+ * Points are `[x, y]` or `[x, y, cellId]`. Without cell ids, falls back to planar distance only.
+ *
+ * When `routePreference` is `avoidHardPass`, multiplies the result by pathfinding avoid costs
+ * (for Dijkstra). Callers computing real ETA / deal duration should leave preference as
+ * `preferSpeed` (default).
+ */
+export function calculateLandTravelDays(
+  points: ReadonlyArray<readonly number[]>,
+  options: LandTravelDayOptions
+): number {
+  const landKmPerDay = options.landKmPerDay;
+  const draft = options.draftSpeedMultiplier ?? 1;
+  if (landKmPerDay <= 0 || draft <= 0) return Infinity;
+
+  const { legs, maxAbsGrade, hasHardWindow, hasExtremeWindow } = landTravelLegSpeeds(points, options);
+  if (legs.length === 0) return 0;
+
+  let days = 0;
+  for (const leg of legs) {
+    days += leg.runKm / leg.speedKmPerDay;
   }
 
+  const preference = options.routePreference ?? "preferSpeed";
   if (preference === "avoidHardPass") {
-    days *= avoidPassCostMultiplier(maxAbsGrade, hardWindow.some(Boolean), extremeWindow.some(Boolean), thresholds);
+    days *= avoidPassCostMultiplier(
+      maxAbsGrade,
+      hasHardWindow,
+      hasExtremeWindow,
+      resolveThresholds(options.thresholds)
+    );
   }
 
   return days;

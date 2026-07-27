@@ -72,5 +72,11 @@ export interface Caravan {
   routeSegments: TradeRouteSegment[];
   totalDistance: number;
   currentDistance: number;
+  /**
+   * Spawn-time baked planar legs for advanceCaravan (Phase 2).
+   * `endKm` is cumulative planar km; `speedKmPerDay` is fixed until arrival.
+   * Missing on legacy caravans → recompute from segments each tick (fallback).
+   */
+  travelLegs?: { endKm: number; speedKmPerDay: number }[];
   state: "transit" | "arrived" | "lost";
 }

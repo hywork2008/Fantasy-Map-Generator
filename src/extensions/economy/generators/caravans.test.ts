@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearEconomyContext, getCaravans, getDeals, initEconomyContext } from "../economyContext";
-import { Caravans } from "./caravans";
+import { CaravanMovement } from "./caravanMovement";
+import { bakeCaravanTravelLegs, Caravans } from "./caravans";
 import type { Good } from "./goods-generator";
 import { TradeAnimation } from "./trade-animation";
 
@@ -62,5 +63,75 @@ describe("caravan viability", () => {
     Caravans.spawnFromDeals(getDeals());
 
     expect(getCaravans()).toEqual([]);
+  });
+});
+
+describe("bakeCaravanTravelLegs", () => {
+  beforeEach(() => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    CaravanMovement.configure({
+      landKmPerDay: 32,
+      seaKmPerDay: 60,
+      seaCurrentStrength: 0,
+      gradeEffectStrength: 1,
+      merchantRoutePreference: "preferSpeed"
+    });
+  });
+
+  afterEach(() => {
+    clearEconomyContext();
+  });
+
+  it("slows land hops on steep grade while keeping planar endKm", () => {
+    const movement = CaravanMovement.getOptions();
+    // 15% grade over 32 km → minMultiplier speed
+    const heights = [20, 20 + 150 * 32];
+    const legs = bakeCaravanTravelLegs(
+      [
+        {
+          type: "land",
+          points: [
+            [0, 0, 0],
+            [32, 0, 1]
+          ]
+        }
+      ],
+      1,
+      "horse",
+      movement,
+      0,
+      heights,
+      1
+    );
+    expect(legs).toHaveLength(1);
+    expect(legs[0].endKm).toBeCloseTo(32, 5);
+    // grade → minMultiplier 0.15, and hard ascent window stacks passWindowMultiplier 0.5
+    // → speed 32 * 0.15 * 0.5 = 2.4
+    expect(legs[0].speedKmPerDay).toBeLessThan(32);
+    expect(legs[0].speedKmPerDay).toBeCloseTo(2.4, 5);
+  });
+
+  it("uses full land speed when gradeEffectStrength is 0", () => {
+    CaravanMovement.configure({ gradeEffectStrength: 0 });
+    const movement = CaravanMovement.getOptions();
+    const heights = [20, 20 + 150 * 32];
+    const legs = bakeCaravanTravelLegs(
+      [
+        {
+          type: "land",
+          points: [
+            [0, 0, 0],
+            [32, 0, 1]
+          ]
+        }
+      ],
+      1,
+      "horse",
+      movement,
+      0,
+      heights,
+      1
+    );
+    expect(legs[0].speedKmPerDay).toBeCloseTo(32, 5);
   });
 });
