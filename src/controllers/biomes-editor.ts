@@ -210,7 +210,10 @@ export function biomesOpenWiki(biomeName: string): void {
     "Xeric shrubland": "Xeric_shrubland",
     "Cloud forest": "Cloud_forest",
     "Heath & moorland": "Heath",
-    "Flooded forest & riparian woodland": "Várzea_forest"
+    "Flooded forest & riparian woodland": "Várzea_forest",
+    "Cold steppe & forest-steppe": "Steppe",
+    "Tropical dry forest & thorn woodland": "Tropical_and_subtropical_dry_broadleaf_forests",
+    "Boreal peatland & muskeg": "Muskeg"
   };
   openURL(pages[biomeName] ? wikiBase + pages[biomeName] : `https://en.wikipedia.org/w/index.php?search=${biomeName}`);
 }

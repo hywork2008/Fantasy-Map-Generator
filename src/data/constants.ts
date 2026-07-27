@@ -208,7 +208,39 @@ export const BiomeConstants = {
   SANDY_BEACH_TARGET_MAX: 0.35,
 
   /** Nearshore: maximum water depth proxy (height below sea) for habitat. */
-  NEARSHORE_MAX_DEPTH_PROXY: 8
+  NEARSHORE_MAX_DEPTH_PROXY: 8,
+
+  // ── Phase 5: cold steppe, tropical dry forest, boreal peatland ────────────
+
+  /** Cold steppe: temperature band (°C). */
+  COLD_STEPPE_MIN_TEMP: -2,
+  COLD_STEPPE_MAX_TEMP: 12,
+
+  /** Cold steppe: moisture band (drier than moist grassland, wetter than desert). */
+  COLD_STEPPE_MIN_MOISTURE: 8,
+  COLD_STEPPE_MAX_MOISTURE: 16,
+
+  /** Cold steppe: maximum height (peaks go montane/alpine). */
+  COLD_STEPPE_MAX_HEIGHT: 55,
+
+  /** Tropical dry forest: minimum temperature (°C). */
+  TROPICAL_DRY_MIN_TEMP: 18,
+
+  /** Tropical dry forest: moisture between savanna-dry and seasonal-forest-wet. */
+  TROPICAL_DRY_MIN_MOISTURE: 12,
+  TROPICAL_DRY_MAX_MOISTURE: 22,
+
+  /** Tropical dry forest: maximum height before montane/cloud rules win. */
+  TROPICAL_DRY_MAX_HEIGHT: 50,
+
+  /** Boreal peatland: maximum temperature (°C). */
+  BOREAL_PEAT_MAX_TEMP: 6,
+
+  /** Boreal peatland: minimum moisture (or wetland-like wetness). */
+  BOREAL_PEAT_MIN_MOISTURE: 20,
+
+  /** Boreal peatland: maximum height (flat poorly drained ground). */
+  BOREAL_PEAT_MAX_HEIGHT: 45
 } as const;
 
 // ---------------------------------------------------------------------------

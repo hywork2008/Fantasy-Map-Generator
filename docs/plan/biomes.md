@@ -377,29 +377,31 @@ BiomeCatalogSnapshot + biomeCode
 
 Phase 1–4 により標準カタログは 23 種となり、中欧大森林・地中海・山地・マングローブ・冠水林・ヒースなど「代用がきつい」枠は埋まった。一方、遊牧・熱帯乾季林・北方泥炭の三種はまだ `Grassland` / `Savanna` / `Tropical seasonal forest` / `Taiga` / `heathMoorland` への寄せが目立つ。
 
-以下は 2026-07 時点のギャップ分析に基づく。**1–3 は実装計画（Phase 5）**、**4–5 は独立バイオームにせず属性／タグで将来対応するオプション**とする。いずれも数値コード範囲比較を増やさず、`BiomeKey` と `BiomeTag` を正本とする既存規約を守る。
+以下は 2026-07 時点のギャップ分析に基づく。**1–3 は Phase 5 で実装済み**、**4–5 は独立バイオームにせず属性／タグで将来対応するオプション**とする。いずれも数値コード範囲比較を増やさず、`BiomeKey` と `BiomeTag` を正本とする既存規約を守る。
 
 ### ギャップ一覧
 
-| 順位 | 方針 | 識別子（仮） | 表示名（仮） | 主な代用の問題 |
+| 順位 | 方針 | 識別子 | 表示名 | 主な代用の問題 |
 | --- | --- | --- | --- | --- |
-| 1 | **実装する** | `coldSteppe` | Cold steppe & forest-steppe | `Grassland` が湿潤温帯草原と寒冷ステップを同一視し、騎馬遊牧・馬産・東欧〜中央アジアの国境味が弱い |
-| 2 | **実装する** | `tropicalDryForest` | Tropical dry forest & thorn woodland | `Savanna` と `Tropical seasonal forest` の中間帯がなく、棘林・乾季落葉・香辛料・南アジア／サヘル縁の舞台が潰れる |
-| 3 | **実装する** | `borealPeatland` | Boreal peatland & muskeg | `Taiga` / `heathMoorland` / `Wetland` では北欧・カナダ型の泥炭苔原・移動地獄・泥炭資源を区別できない |
+| 1 | **実装済み** | `coldSteppe` | Cold steppe & forest-steppe | `Grassland` が湿潤温帯草原と寒冷ステップを同一視し、騎馬遊牧・馬産・東欧〜中央アジアの国境味が弱い |
+| 2 | **実装済み** | `tropicalDryForest` | Tropical dry forest & thorn woodland | `Savanna` と `Tropical seasonal forest` の中間帯がなく、棘林・乾季落葉・香辛料・南アジア／サヘル縁の舞台が潰れる |
+| 3 | **実装済み** | `borealPeatland` | Boreal peatland & muskeg | `Taiga` / `heathMoorland` / `Wetland` では北欧・カナダ型の泥炭苔原・移動地獄・泥炭資源を区別できない |
 | 4 | **未来オプション（属性）** | （キーなし）`landCover: oasis` 等 | Oasis / gallery woodland | 砂漠内の河畔緑地。独立バイオームにすると気候マトリクスが汚れやすい |
 | 5 | **未来オプション（タグ）** | 既存 `floodedForest` の細分 | Temperate vs tropical flooded forest | アマゾン型とプリピャチ型が同一キー。新キーよりタグまたは地域プロファイルで十分な場合がある |
 
 ---
 
-## Phase 5: ステップ・乾季林・北方泥炭の追加（計画）
+## Phase 5: ステップ・乾季林・北方泥炭の追加 — **実装済み (2026-07-27)**
 
 ### 目的
 
-1. **Cold steppe & forest-steppe** により、寒冷〜冷温帯の乾燥草原と森林ステップの縁を、湿潤 `Grassland` から分離する。
-2. **Tropical dry forest & thorn woodland** により、熱帯の明確な乾季をもつ落葉・棘林を、開けたサバナと湿潤季節林から分離する。
-3. **Boreal peatland & muskeg** により、タイガ内の泥炭湿地・蘚類平原を、温帯ヒースと通常の湿地・タイガから分離する。
+1. **Cold steppe & forest-steppe** により、寒冷〜冷温帯の乾燥草原と森林ステップの縁を、湿潤 `Grassland` から分離する。 ✅
+2. **Tropical dry forest & thorn woodland** により、熱帯の明確な乾季をもつ落葉・棘林を、開けたサバナと湿潤季節林から分離する。 ✅
+3. **Boreal peatland & muskeg** により、タイガ内の泥炭湿地・蘚類平原を、温帯ヒースと通常の湿地・タイガから分離する。 ✅
 
 いずれも潜在自然植生（`biome`）であり、開拓による農地化は引き続き `landCover` / `forestCover`（[frontier-expansion.md](frontier-expansion.md)）が所有する。
+
+**実装箇所:** `STANDARD_BIOME_KEYS`（26種）、`BiomeConstants` Phase 5 閾値、`classifySpecialBiome` / `applyRegionalForestMask`、`BIOME_SATELLITE`、Horses/Spices の tag 分布、属性 init（dry forest の中密度 canopy）。
 
 ### 5.1 カタログ定義案
 
@@ -509,21 +511,21 @@ Phase 1–4 により標準カタログは 23 種となり、中欧大森林・�
 
 ### 5.6 実装フェーズ分割（Phase 5 内）
 
-| 小フェーズ | 内容 | 完了条件 |
+| 小フェーズ | 内容 | 状態 |
 | --- | --- | --- |
-| **5a カタログ** | 3 key の定義・タグ・色・cost・habitability、衛星行、属性 init | ビルド通過、Editor に3行、手動塗可能 |
-| **5b 割当** | 閾値・優先順・地域マスク、プロファイル別出現 | 単体テスト + 固定 seed 生成で各 key が連続パッチになる |
-| **5c 連携** | 経済 tag、軍事、Burg、移動の確認と必要なら `biomeOutputByTag` 調整 | Wood が dry forest に出る、Horses が steppe に出る、泥炭が異常に高人口密度にならない |
-| **5d 調整** | プレイテスト閾値、色、アイコン密度 | マトリクス帯との斑点境界が減る |
+| **5a カタログ** | 3 key の定義・タグ・色・cost・habitability、衛星行、属性 init | ✅ |
+| **5b 割当** | 閾値・優先順・地域マスク、プロファイル別出現 | ✅ |
+| **5c 連携** | 経済 tag、軍事（wetland/nomadic/forest tags）、Burg | ✅ |
+| **5d 調整** | プレイテスト閾値、色、アイコン密度 | 閾値は定数化済み。インゲーム調整は継続可 |
 
 ### 5.7 Phase 5 完了条件
 
-- `coldSteppe`、`tropicalDryForest`、`borealPeatland` が `BiomeKey` としてカタログ・保存スナップショット・SVG/WebGL・Editor で利用できる。
-- ゲームロジックはコード範囲ではなく tags / key のみを参照する。
-- `Grassland` は湿潤寄りの温帯草原、`coldSteppe` は寒冷乾燥寄りのステップとして視覚・資源で区別できる。
-- `Savanna`（開けた熱帯草原）と `tropicalDryForest`（樹木の多い乾季林）が気候帯上で分離される。
-- `Taiga` 本体と `borealPeatland` が北方でモザイクになり、後者は移動コストが高く木材生産が弱い。
-- 旧 `.fmg` は引き続き `LegacyBiomeCodec` のみが旧コードを解釈し、新3種の知識をロード境界の外に漏らさない。
+- `coldSteppe`、`tropicalDryForest`、`borealPeatland` が `BiomeKey` としてカタログ・保存スナップショット・SVG/WebGL・Editor で利用できる。 ✅
+- ゲームロジックはコード範囲ではなく tags / key のみを参照する。 ✅
+- `Grassland` は湿潤寄りの温帯草原、`coldSteppe` は寒冷乾燥寄りのステップとして視覚・資源で区別できる。 ✅
+- `Savanna`（開けた熱帯草原）と `tropicalDryForest`（樹木の多い乾季林）が気候帯上で分離される。 ✅
+- `Taiga` 本体と `borealPeatland` が北方でモザイクになり、後者は移動コストが高く木材生産が弱い。 ✅（peatland に `forest` タグなし）
+- 旧 `.fmg` は引き続き `LegacyBiomeCodec` のみが旧コードを解釈し、新3種の知識をロード境界の外に漏らさない。 ✅
 
 ---
 

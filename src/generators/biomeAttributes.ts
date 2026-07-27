@@ -14,6 +14,7 @@ function canopyForKey(biomeKey: string | undefined): CanopyKey {
   if (biomeKey === "taiga" || biomeKey === "temperateConiferousForest" || biomeKey === "montaneForest")
     return "conifer";
   if (biomeKey === "centralEuropeanGreatForest" || biomeKey === "temperateRainforest") return "mixed";
+  if (biomeKey === "tropicalDryForest") return "broadleaf";
   if (
     biomeKey.includes("deciduous") ||
     biomeKey.includes("Forest") ||
@@ -58,6 +59,9 @@ export function initializeBiomeAttributes(pack: PackedGraph, biomesData: BiomesD
       forestCondition[i] = ancient;
     } else if (key === "tropicalRainforest" || key === "cloudForest") {
       forestCover[i] = 0.95;
+      forestCondition[i] = mature;
+    } else if (key === "tropicalDryForest") {
+      forestCover[i] = 0.55;
       forestCondition[i] = mature;
     } else if (key === "mangrove" || key === "floodedForest") {
       forestCover[i] = 0.75;

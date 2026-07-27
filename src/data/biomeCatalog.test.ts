@@ -22,7 +22,7 @@ import {
 describe("biomeCatalog", () => {
   it("defines every STANDARD_BIOME_KEYS entry exactly once", () => {
     expect(STANDARD_BIOME_DEFINITIONS).toHaveLength(STANDARD_BIOME_KEYS.length);
-    expect(STANDARD_BIOME_COUNT).toBe(23);
+    expect(STANDARD_BIOME_COUNT).toBe(26);
     const keys = STANDARD_BIOME_DEFINITIONS.map(d => d.key);
     expect(new Set(keys).size).toBe(keys.length);
     for (const key of STANDARD_BIOME_KEYS) {
@@ -127,5 +127,20 @@ describe("biomeCatalog", () => {
     expect(catalog.codesByKey.wetland).toBe(12);
     expect(catalog.codesByKey.centralEuropeanGreatForest).toBe(13);
     expect(catalog.codesByKey.floodedForest).toBe(22);
+    expect(catalog.codesByKey.coldSteppe).toBe(23);
+    expect(catalog.codesByKey.tropicalDryForest).toBe(24);
+    expect(catalog.codesByKey.borealPeatland).toBe(25);
+  });
+
+  it("tags Phase 5 biomes for economy and movement", () => {
+    const data = createDefaultBiomesData();
+    const steppe = getBiomeCode(data, "coldSteppe")!;
+    const dryForest = getBiomeCode(data, "tropicalDryForest")!;
+    const peat = getBiomeCode(data, "borealPeatland")!;
+    expect(isNomadicBiome(data, steppe)).toBe(true);
+    expect(isForestBiome(data, dryForest)).toBe(true);
+    expect(biomeHasTag(data, peat, "wetland")).toBe(true);
+    expect(biomeHasTag(data, peat, "cold")).toBe(true);
+    expect(isForestBiome(data, peat)).toBe(false);
   });
 });

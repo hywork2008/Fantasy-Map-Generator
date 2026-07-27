@@ -3,8 +3,8 @@ import { worldContext } from "../context/worldContext";
 import type { BiomesData } from "../types/WorldState";
 import { getSatelliteBiomeData } from "./draw-satellite-texture";
 
-/** First custom slot after the standard 23-biome catalog (codes 0..22). */
-const CUSTOM_BIOME_CODE = 23;
+/** First custom slot after the standard 26-biome catalog (codes 0..25). */
+const CUSTOM_BIOME_CODE = 26;
 
 const setBiomeColors = (colors: string[]) => {
   worldContext.biomesData = {

@@ -157,6 +157,42 @@ function isHeathCandidate(c: CellBiomeClimate): boolean {
   );
 }
 
+/** Phase 5: cold continental steppe / forest-steppe margin. */
+export function isColdSteppeCandidate(c: CellBiomeClimate): boolean {
+  return (
+    c.temperature >= BiomeConstants.COLD_STEPPE_MIN_TEMP &&
+    c.temperature <= BiomeConstants.COLD_STEPPE_MAX_TEMP &&
+    c.moisture >= BiomeConstants.COLD_STEPPE_MIN_MOISTURE &&
+    c.moisture <= BiomeConstants.COLD_STEPPE_MAX_MOISTURE &&
+    c.height >= HeightThreshold.WATER_MAX_HEIGHT &&
+    c.height <= BiomeConstants.COLD_STEPPE_MAX_HEIGHT &&
+    !(c.hasRiver && c.flux >= BiomeConstants.FLOODED_FOREST_MIN_FLUX)
+  );
+}
+
+/** Phase 5: tropical dry / thorn woodland between savanna and moist seasonal forest. */
+export function isTropicalDryForestCandidate(c: CellBiomeClimate): boolean {
+  return (
+    c.temperature >= BiomeConstants.TROPICAL_DRY_MIN_TEMP &&
+    c.moisture >= BiomeConstants.TROPICAL_DRY_MIN_MOISTURE &&
+    c.moisture <= BiomeConstants.TROPICAL_DRY_MAX_MOISTURE &&
+    c.height >= HeightThreshold.WATER_MAX_HEIGHT &&
+    c.height <= BiomeConstants.TROPICAL_DRY_MAX_HEIGHT &&
+    !isMangroveCandidate(c) &&
+    !(c.hasRiver && c.flux >= BiomeConstants.FLOODED_FOREST_MIN_FLUX * 1.2)
+  );
+}
+
+/** Phase 5: cold peat / muskeg — not temperate heath, not full taiga. */
+export function isBorealPeatlandCandidate(c: CellBiomeClimate): boolean {
+  if (c.temperature > BiomeConstants.BOREAL_PEAT_MAX_TEMP) return false;
+  if (c.temperature <= -2) return false;
+  if (c.height > BiomeConstants.BOREAL_PEAT_MAX_HEIGHT) return false;
+  if (c.height < HeightThreshold.WATER_MAX_HEIGHT) return false;
+  if (c.moisture >= BiomeConstants.BOREAL_PEAT_MIN_MOISTURE) return true;
+  return isWetlandCell(c.moisture, c.temperature, c.height);
+}
+
 /**
  * Priority classification per plan order. Matrix fallback is applied by the caller
  * when this returns null (meaning "use climate matrix").
@@ -199,16 +235,26 @@ export function classifySpecialBiome(c: CellBiomeClimate, options: AssignmentOpt
     if (boost || c.flux >= BiomeConstants.FLOODED_FOREST_MIN_FLUX * 1.2) return "floodedForest";
   }
 
-  // Classic wetland (still before matrix)
-  if (isWetlandCell(c.moisture, c.temperature, c.height)) {
-    // Peat/heath edge in cool wet flats (medieval Europe / global cool)
+  // Classic wetland / peat / heath (before matrix)
+  if (isWetlandCell(c.moisture, c.temperature, c.height) || isBorealPeatlandCandidate(c)) {
+    // Cold peat first — separate from temperate heath and generic wetland
+    if (
+      isBorealPeatlandCandidate(c) &&
+      options.profile !== "tropicalRiverBasin" &&
+      options.profile !== "mediterranean"
+    ) {
+      const peatBoost = options.profile === "medievalEurope" ? 0.12 : 0;
+      if (smoothRegionMask(c.x, c.y, options.seed + 29) + peatBoost > 0.48) return "borealPeatland";
+      // Very cold + very wet flats almost always muskeg even without strong mask
+      if (c.temperature <= 3 && c.moisture >= BiomeConstants.BOREAL_PEAT_MIN_MOISTURE + 4) return "borealPeatland";
+    }
     if (
       isHeathCandidate(c) &&
       (options.profile === "medievalEurope" || smoothRegionMask(c.x, c.y, options.seed) > 0.62)
     ) {
       return "heathMoorland";
     }
-    return "wetland";
+    if (isWetlandCell(c.moisture, c.temperature, c.height)) return "wetland";
   }
 
   // 6. Dry temperate/subtropical
@@ -229,6 +275,20 @@ export function classifySpecialBiome(c: CellBiomeClimate, options: AssignmentOpt
     return "hotDesert";
   }
 
+  // Phase 5: tropical dry / thorn forest (before matrix savanna–seasonal split)
+  if (isTropicalDryForestCandidate(c) && options.profile !== "medievalEurope") {
+    const dryBoost = options.profile === "tropicalRiverBasin" ? 0.2 : 0;
+    if (smoothRegionMask(c.x, c.y, options.seed + 31) + dryBoost > 0.42) return "tropicalDryForest";
+  }
+
+  // Phase 5: cold steppe (continental dry grassland)
+  if (isColdSteppeCandidate(c) && options.profile !== "tropicalRiverBasin") {
+    let steppeBoost = 0;
+    if (options.profile === "medievalEurope") steppeBoost = 0.15; // eastern continental margin
+    if (options.profile === "mediterranean") steppeBoost = -0.1;
+    if (smoothRegionMask(c.x, c.y, options.seed + 33) + steppeBoost > 0.5) return "coldSteppe";
+  }
+
   // 7. Temperate forest splits
   if (isTemperateConiferCandidate(c)) {
     const coniferBoost = options.profile === "mountainRealm" ? 0.15 : 0;
@@ -244,19 +304,44 @@ export function classifySpecialBiome(c: CellBiomeClimate, options: AssignmentOpt
 }
 
 /**
- * After matrix assignment, reclassify suitable temperate deciduous cells into
- * centralEuropeanGreatForest using a continuous regional mask.
+ * After matrix assignment, reclassify matrix results into regional / Phase-5 types.
  */
 export function applyRegionalForestMask(
   key: StandardBiomeKey,
   c: CellBiomeClimate,
   options: AssignmentOptions
 ): StandardBiomeKey {
-  if (key !== "temperateDeciduousForest" && key !== "temperateRainforest" && key !== "temperateConiferousForest") {
-    // Also allow grassland→heath in medieval Europe cool wet
+  // Grassland / savanna matrix cells → cold steppe or tropical dry forest where climate fits
+  if (key === "grassland" || key === "savanna") {
     if (key === "grassland" && options.profile === "medievalEurope" && isHeathCandidate(c)) {
       if (smoothRegionMask(c.x, c.y, options.seed + 23) > 0.7) return "heathMoorland";
     }
+    if (isColdSteppeCandidate(c) && options.profile !== "tropicalRiverBasin") {
+      const steppeBoost = options.profile === "medievalEurope" ? 0.18 : 0;
+      if (smoothRegionMask(c.x, c.y, options.seed + 33) + steppeBoost > 0.45) return "coldSteppe";
+    }
+    if (key === "savanna" && isTropicalDryForestCandidate(c) && options.profile !== "medievalEurope") {
+      const dryBoost = options.profile === "tropicalRiverBasin" ? 0.22 : 0;
+      if (smoothRegionMask(c.x, c.y, options.seed + 31) + dryBoost > 0.4) return "tropicalDryForest";
+    }
+  }
+
+  // Moist tropical seasonal forest on the dry side → tropical dry forest
+  if (key === "tropicalSeasonalForest" && isTropicalDryForestCandidate(c) && options.profile !== "medievalEurope") {
+    if (c.moisture <= BiomeConstants.TROPICAL_DRY_MAX_MOISTURE - 2) {
+      if (smoothRegionMask(c.x, c.y, options.seed + 31) > 0.38) return "tropicalDryForest";
+    }
+  }
+
+  // Taiga / wetland matrix → boreal peatland on cold wet flats
+  if ((key === "taiga" || key === "wetland" || key === "tundra") && isBorealPeatlandCandidate(c)) {
+    if (options.profile !== "tropicalRiverBasin" && options.profile !== "mediterranean") {
+      const peatBoost = options.profile === "medievalEurope" ? 0.1 : 0;
+      if (smoothRegionMask(c.x, c.y, options.seed + 29) + peatBoost > 0.5) return "borealPeatland";
+    }
+  }
+
+  if (key !== "temperateDeciduousForest" && key !== "temperateRainforest" && key !== "temperateConiferousForest") {
     return key;
   }
 

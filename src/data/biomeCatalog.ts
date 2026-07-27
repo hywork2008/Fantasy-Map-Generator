@@ -122,7 +122,27 @@ export const STANDARD_BIOME_DEFINITIONS: readonly BiomeDefinition[] = [
     140,
     { deciduous: 3, swamp: 4, palm: 1 },
     ["forest", "wetland"]
-  )
+  ),
+  // Phase 5: steppe, tropical dry forest, boreal peatland
+  D("coldSteppe", "Cold steppe & forest-steppe", "#c4c47a", 18, 55, 80, { grass: 8, deadTree: 1 }, [
+    "grassland",
+    "dry",
+    "nomadic"
+  ]),
+  D(
+    "tropicalDryForest",
+    "Tropical dry forest & thorn woodland",
+    "#a3a34a",
+    35,
+    85,
+    110,
+    { acacia: 5, deciduous: 2, deadTree: 2 },
+    ["forest", "dry"]
+  ),
+  D("borealPeatland", "Boreal peatland & muskeg", "#5a6b4a", 3, 1200, 40, { swamp: 4, grass: 3, conifer: 1 }, [
+    "wetland",
+    "cold"
+  ])
 ];
 
 /** Climate matrix rows are moisture bands (dry→wet); columns are temperature bands (hot→cold). */

@@ -49,7 +49,11 @@ export const STANDARD_BIOME_KEYS = [
   "xericShrubland",
   "cloudForest",
   "heathMoorland",
-  "floodedForest"
+  "floodedForest",
+  // Phase 5
+  "coldSteppe",
+  "tropicalDryForest",
+  "borealPeatland"
 ] as const;
 
 export type StandardBiomeKey = (typeof STANDARD_BIOME_KEYS)[number];

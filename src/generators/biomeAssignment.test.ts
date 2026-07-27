@@ -130,4 +130,94 @@ describe("biomeAssignment", () => {
     }
     expect(hit).toBe("mediterraneanWoodlandScrub");
   });
+
+  it("can assign cold steppe on cool dry continental flats", () => {
+    let hit: string | null = null;
+    for (let x = 0; x < 500; x += 20) {
+      for (let y = 0; y < 500; y += 20) {
+        const key = classifySpecialBiome(
+          {
+            ...base,
+            temperature: 6,
+            moisture: 12,
+            height: 35,
+            x,
+            y
+          },
+          { profile: "medievalEurope", seed: 11 }
+        );
+        if (key === "coldSteppe") {
+          hit = key;
+          break;
+        }
+      }
+      if (hit) break;
+    }
+    expect(hit).toBe("coldSteppe");
+  });
+
+  it("can assign tropical dry forest between savanna and seasonal forest moisture", () => {
+    let hit: string | null = null;
+    for (let x = 0; x < 500; x += 20) {
+      for (let y = 0; y < 500; y += 20) {
+        const key = classifySpecialBiome(
+          {
+            ...base,
+            temperature: 24,
+            moisture: 16,
+            height: 30,
+            x,
+            y
+          },
+          { profile: "tropicalRiverBasin", seed: 3 }
+        );
+        if (key === "tropicalDryForest") {
+          hit = key;
+          break;
+        }
+      }
+      if (hit) break;
+    }
+    expect(hit).toBe("tropicalDryForest");
+  });
+
+  it("can assign boreal peatland on cold wet low flats", () => {
+    let hit: string | null = null;
+    for (let x = 0; x < 500; x += 20) {
+      for (let y = 0; y < 500; y += 20) {
+        const key = classifySpecialBiome(
+          {
+            ...base,
+            temperature: 2,
+            moisture: 26,
+            height: 28,
+            x,
+            y
+          },
+          { profile: "global", seed: 5 }
+        );
+        if (key === "borealPeatland") {
+          hit = key;
+          break;
+        }
+      }
+      if (hit) break;
+    }
+    // Very cold + very wet forces peat even without mask
+    if (!hit) {
+      hit = classifySpecialBiome(
+        { ...base, temperature: 1, moisture: 28, height: 26, x: 0, y: 0 },
+        { profile: "global", seed: 1 }
+      );
+    }
+    expect(hit).toBe("borealPeatland");
+  });
+
+  it("does not place tropical dry forest under medievalEurope", () => {
+    const key = classifySpecialBiome(
+      { ...base, temperature: 24, moisture: 16, height: 30, x: 100, y: 100 },
+      { profile: "medievalEurope", seed: 3 }
+    );
+    expect(key).not.toBe("tropicalDryForest");
+  });
 });

@@ -8,7 +8,7 @@ import { type ErosionBakeResult, heightAt } from "./erosion-bake";
 let renderTarget: THREE.WebGLRenderTarget | null = null;
 
 // biome id -> satellite albedo and vegetation density
-/** Default albedo by catalog code for the standard 23 biomes (Phase 1 catalog order). */
+/** Default albedo by catalog code for the standard biomes (catalog definition order). */
 const BIOME_SATELLITE: Array<{ color: [number, number, number]; density: number }> = [
   { color: [0.24, 0.58, 0.71], density: 0 }, // marine
   { color: [0.89, 0.78, 0.57], density: 0.02 }, // hotDesert
@@ -32,7 +32,10 @@ const BIOME_SATELLITE: Array<{ color: [number, number, number]; density: number 
   { color: [0.7, 0.62, 0.4], density: 0.2 }, // xericShrubland
   { color: [0.14, 0.36, 0.24], density: 0.95 }, // cloudForest
   { color: [0.42, 0.48, 0.28], density: 0.35 }, // heathMoorland
-  { color: [0.18, 0.42, 0.28], density: 0.85 } // floodedForest
+  { color: [0.18, 0.42, 0.28], density: 0.85 }, // floodedForest
+  { color: [0.68, 0.68, 0.38], density: 0.25 }, // coldSteppe
+  { color: [0.48, 0.5, 0.22], density: 0.65 }, // tropicalDryForest
+  { color: [0.32, 0.38, 0.26], density: 0.4 } // borealPeatland
 ];
 
 export function getSatelliteBiomeData(biomeId: number, fallbackBiomeId: number) {

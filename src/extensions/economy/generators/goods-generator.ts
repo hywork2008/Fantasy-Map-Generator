@@ -355,11 +355,12 @@ export const GOODS_DATA: GoodData[] = [
     color: "#ba7447",
     value: 10,
     chance: 4,
-    distribution: "biome(3, 4) || (biome(2) && nth(4))",
+    distribution: 'biomeTag("nomadic") || biomeTag("grassland") || (biome(2) && nth(4))',
     unit: "head",
     demandCoverage: { utilities: 0.6, military: 0.4 },
     multipliers: { cultureType: { Nomadic: 2 } },
-    biomeOutput: { 4: 0.05 }
+    biomeOutput: { 4: 0.05 },
+    biomeOutputByTag: { nomadic: 0.06, grassland: 0.05 }
   },
   {
     name: "Elephants",
@@ -472,7 +473,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#e99c75",
     value: 18,
     chance: 2,
-    distribution: "biome(7)",
+    distribution: 'biome(7) || (biomeTag("forest") && biomeTag("dry") && minTemp(18))',
     unit: "chest",
     demandCoverage: { luxury: 1 },
     multipliers: { cultureType: { Generic: 1.2 } }
