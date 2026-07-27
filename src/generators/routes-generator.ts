@@ -452,27 +452,49 @@ class RoutesModule {
   }
 
   /**
-   * Sea access is intentionally a separate policy from land connectivity.
-   * Standard maps retain their historical international sea lanes; later
-   * diplomacy, trade treaties, embargoes, and blockades can replace this
-   * predicate without weakening domestic land-network rules.
+   * Sea access is intentionally separate from land infrastructure. Standard
+   * maps retain their historical international sea lanes; frontier settlement
+   * patterns retain same-State access only.
    */
   private allowsInternationalSeaRoutes(): boolean {
     return this.worldContext.options.initialSettlementPattern === "standard";
   }
 
-  private sortPortsByFeature(burgs: Burg[]): FeatureBurgGroup[] {
+  /**
+   * Standard maps model a small number of pre-existing cross-border paths as
+   * trade / pilgrimage trails. They are not State-built capital roads.
+   */
+  private allowsInternationalTrails(): boolean {
+    return this.worldContext.options.initialSettlementPattern === "standard";
+  }
+
+  /** Groups burgs by land / water feature without imposing a State boundary. */
+  private sortBurgsByFeature(burgs: Burg[]) {
+    const burgsByFeature = new Map<number, FeatureBurgGroup>();
+    const capitalsByFeature = new Map<number, FeatureBurgGroup>();
     const portsByFeature = new Map<number, FeatureBurgGroup>();
-    for (const burg of burgs) {
-      if (!burg.i || burg.removed || !burg.state || !burg.port) continue;
-      const group = portsByFeature.get(burg.port);
+
+    const addBurg = (collection: Map<number, FeatureBurgGroup>, feature: number, burg: Burg) => {
+      const group = collection.get(feature);
       if (group) {
         group.burgs.push(burg);
-        continue;
+        return;
       }
-      portsByFeature.set(burg.port, { feature: burg.port, burgs: [burg] });
+      collection.set(feature, { feature, burgs: [burg] });
+    };
+
+    for (const burg of burgs) {
+      if (!burg.i || burg.removed || !burg.state) continue;
+      addBurg(burgsByFeature, burg.feature as number, burg);
+      if (burg.capital) addBurg(capitalsByFeature, burg.feature as number, burg);
+      if (burg.port) addBurg(portsByFeature, burg.port as number, burg);
     }
-    return [...portsByFeature.values()];
+
+    return {
+      burgsByFeature: [...burgsByFeature.values()],
+      capitalsByFeature: [...capitalsByFeature.values()],
+      portsByFeature: [...portsByFeature.values()]
+    };
   }
 
   // Urquhart graph is obtained by removing the longest edge from each triangle in the Delaunay triangulation
@@ -722,6 +744,7 @@ class RoutesModule {
     start,
     exit,
     stateId,
+    allowedStateIds,
     seaRouteGenerationMode,
     landMode,
     landRouteGenerationMode
@@ -731,6 +754,8 @@ class RoutesModule {
     start: number;
     exit: number;
     stateId?: number;
+    /** Non-zero State ids permitted for a cross-border trail. Unclaimed cells remain traversable. */
+    allowedStateIds?: ReadonlySet<number>;
     seaRouteGenerationMode?: SeaRouteGenerationMode;
     landMode?: LandRouteMode;
     landRouteGenerationMode?: LandRouteGenerationMode;
@@ -745,6 +770,7 @@ class RoutesModule {
     });
     const getCost = (from: number, to: number) => {
       if (stateId && pack.cells.state[to] !== 0 && pack.cells.state[to] !== stateId) return Infinity;
+      if (allowedStateIds && pack.cells.state[to] !== 0 && !allowedStateIds.has(pack.cells.state[to])) return Infinity;
       return baseCost(from, to);
     };
     const pathCells = findPath(start, current => current === exit, getCost, pack);
@@ -756,15 +782,16 @@ class RoutesModule {
   private generateMainRoads(connections: Map<string, boolean>) {
     const { pack } = this.worldContext;
     TIME && console.time("generateMainRoads");
-    const { capitalsByStateFeature } = this.sortBurgsByStateAndFeature(pack.burgs);
+    const { burgsByStateFeature } = this.sortBurgsByStateAndFeature(pack.burgs);
     const mainRoads: Route[] = [];
 
-    for (const { feature, stateId, burgs: featureCapitals } of capitalsByStateFeature) {
-      const points = featureCapitals.map(burg => [burg.x, burg.y] as Point);
+    for (const { feature, stateId, burgs: featureBurgs } of burgsByStateFeature) {
+      const roadHubs = this.getDomesticRoadHubs(featureBurgs);
+      const points = roadHubs.map(burg => [burg.x, burg.y] as Point);
       const urquhartEdges = this.calculateUrquhartEdges(points);
       urquhartEdges.forEach(([fromId, toId]) => {
-        const start = featureCapitals[fromId].cell;
-        const exit = featureCapitals[toId].cell;
+        const start = roadHubs[fromId].cell;
+        const exit = roadHubs[toId].cell;
 
         const segments = this.findPathSegments({
           isWater: false,
@@ -783,6 +810,27 @@ class RoutesModule {
 
     TIME && console.timeEnd("generateMainRoads");
     return mainRoads;
+  }
+
+  /**
+   * State-funded roads join a capital to a deliberately small set of domestic
+   * hubs. Ports rank first, then the most populous burgs; this avoids treating
+   * every settlement trail as a maintained highway.
+   */
+  private getDomesticRoadHubs(burgs: Burg[]): Burg[] {
+    const capital = burgs.find(burg => burg.capital);
+    if (!capital) return burgs;
+
+    const candidates = burgs
+      .filter(burg => burg !== capital)
+      .sort(
+        (a, b) =>
+          Number(Boolean(b.port)) - Number(Boolean(a.port)) ||
+          (b.population ?? 0) - (a.population ?? 0) ||
+          (a.i ?? 0) - (b.i ?? 0)
+      );
+    const hubCount = Math.min(3, Math.max(1, Math.floor(Math.sqrt(candidates.length))));
+    return [capital, ...candidates.slice(0, hubCount)];
   }
 
   private addConnections(segment: number[], connections: Map<string, boolean>) {
@@ -828,12 +876,52 @@ class RoutesModule {
     return trails;
   }
 
+  /**
+   * Adds sparse cross-border trails between geometrically neighbouring burgs.
+   * Unlike main roads, capitals receive no special treatment. The path may use
+   * either endpoint State and unclaimed land, but cannot become a shortcut
+   * across a third State.
+   */
+  private generateInternationalTrails(connections: Map<string, boolean>) {
+    if (!this.allowsInternationalTrails()) return [];
+
+    const { pack } = this.worldContext;
+    TIME && console.time("generateInternationalTrails");
+    const { burgsByFeature } = this.sortBurgsByFeature(pack.burgs);
+    const internationalTrails: Route[] = [];
+
+    for (const { feature, burgs } of burgsByFeature) {
+      const points = burgs.map(burg => [burg.x, burg.y] as Point);
+      for (const [fromId, toId] of this.calculateUrquhartEdges(points)) {
+        const from = burgs[fromId];
+        const to = burgs[toId];
+        if (from.state === to.state || !from.state || !to.state) continue;
+
+        const segments = this.findPathSegments({
+          isWater: false,
+          connections,
+          start: from.cell,
+          exit: to.cell,
+          allowedStateIds: new Set([from.state, to.state]),
+          landMode: "trails"
+        });
+        for (const segment of segments) {
+          this.addConnections(segment, connections);
+          internationalTrails.push({ feature, cells: segment, international: true } as Route);
+        }
+      }
+    }
+
+    TIME && console.timeEnd("generateInternationalTrails");
+    return internationalTrails;
+  }
+
   private generateSeaRoutes(connections: Map<string, boolean>, seaRouteGenerationMode: SeaRouteGenerationMode) {
     const { pack } = this.worldContext;
     TIME && console.time("generateSeaRoutes");
     const international = this.allowsInternationalSeaRoutes();
     const portGroups: Array<FeatureBurgGroup & Partial<Pick<StateFeatureBurgGroup, "stateId">>> = international
-      ? this.sortPortsByFeature(pack.burgs)
+      ? this.sortBurgsByFeature(pack.burgs).portsByFeature
       : this.sortBurgsByStateAndFeature(pack.burgs).portsByStateFeature;
     const seaRoutes: Route[] = [];
 
@@ -964,6 +1052,7 @@ class RoutesModule {
     // route endpoints. Every generated network is based on actual burgs.
     const mainRoads = this.generateMainRoads(connections);
     const trails = this.generateTrails(connections);
+    const internationalTrails = this.generateInternationalTrails(connections);
     const seaRoutes = this.generateSeaRoutes(connections, seaRouteGenerationMode);
     const pointsArray = this.preparePointsArray();
 
@@ -977,6 +1066,12 @@ class RoutesModule {
       if (merged) continue;
       const points = this.getPoints("trails", cells!, pointsArray);
       routes.push({ i: routes.length, group: "trails", feature, points, cells: cells! });
+    }
+
+    for (const { feature, cells, merged } of this.mergeRoutes(internationalTrails)) {
+      if (merged) continue;
+      const points = this.getPoints("trails", cells!, pointsArray);
+      routes.push({ i: routes.length, group: "trails", feature, points, cells: cells!, international: true });
     }
 
     for (const { feature, cells, merged } of this.mergeRoutes(seaRoutes)) {

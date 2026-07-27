@@ -136,6 +136,8 @@ describe("RoutesModule settlement foundation trails", () => {
 });
 
 describe("RoutesModule settlement connections", () => {
+  const routeGenerationInternals = Routes as unknown as RouteGenerationInternals;
+
   beforeEach(() => {
     worldContext.pack = {
       cells: {
@@ -162,6 +164,69 @@ describe("RoutesModule settlement connections", () => {
 
     expect(route?.points.map(point => point[2])).toEqual([1, 0]);
     expect(worldContext.pack.cells.routes[1]).toEqual({ 0: route?.i });
+  });
+
+  it("creates a standard-map cross-State connection as an international trail, not a capital road", () => {
+    worldContext.pack.cells.state = [1, 2];
+    worldContext.pack.burgs = [
+      { i: 0 },
+      { i: 1, cell: 0, x: 0, y: 0, state: 1, feature: 1, capital: 1 },
+      { i: 2, cell: 1, x: 10, y: 0, state: 2, feature: 1, capital: 1 }
+    ] as typeof worldContext.pack.burgs;
+    worldContext.options = { initialSettlementPattern: "standard" } as typeof worldContext.options;
+
+    const routes = routeGenerationInternals.createRoutesData([], new Map(), "augmented");
+
+    expect(routes).toEqual([expect.objectContaining({ group: "trails", cells: [0, 1], international: true })]);
+    expect(routes.some(route => route.group === "roads")).toBe(false);
+  });
+
+  it("connects a State capital to its domestic burg hub by road", () => {
+    worldContext.pack.cells.state = [1, 1];
+    worldContext.pack.burgs = [
+      { i: 0 },
+      { i: 1, cell: 0, x: 0, y: 0, state: 1, feature: 1, capital: 1, population: 10 },
+      { i: 2, cell: 1, x: 10, y: 0, state: 1, feature: 1, population: 5 }
+    ] as typeof worldContext.pack.burgs;
+    worldContext.options = { initialSettlementPattern: "standard" } as typeof worldContext.options;
+
+    expect(routeGenerationInternals.createRoutesData([], new Map(), "augmented")).toEqual([
+      expect.objectContaining({ group: "roads", cells: [0, 1] })
+    ]);
+  });
+
+  it("keeps frontier-map land routes within their respective States", () => {
+    worldContext.pack.cells.state = [1, 2];
+    worldContext.pack.burgs = [
+      { i: 0 },
+      { i: 1, cell: 0, x: 0, y: 0, state: 1, feature: 1, capital: 1 },
+      { i: 2, cell: 1, x: 10, y: 0, state: 2, feature: 1, capital: 1 }
+    ] as typeof worldContext.pack.burgs;
+    worldContext.options = { initialSettlementPattern: "frontier" } as typeof worldContext.options;
+
+    expect(routeGenerationInternals.createRoutesData([], new Map(), "augmented")).toEqual([]);
+  });
+
+  it("does not route an international trail through a third State", () => {
+    worldContext.pack.cells.c = [[1], [0, 2], [1]];
+    worldContext.pack.cells.h = [25, 25, 25];
+    worldContext.pack.cells.biomeCode = [1, 1, 1];
+    worldContext.pack.cells.p = [
+      [0, 0],
+      [10, 0],
+      [20, 0]
+    ];
+    worldContext.pack.cells.burg = [1, 0, 2];
+    worldContext.pack.cells.f = [1, 1, 1];
+    worldContext.pack.cells.state = [1, 3, 2];
+    worldContext.pack.burgs = [
+      { i: 0 },
+      { i: 1, cell: 0, x: 0, y: 0, state: 1, feature: 1, capital: 1 },
+      { i: 2, cell: 2, x: 20, y: 0, state: 2, feature: 1, capital: 1 }
+    ] as typeof worldContext.pack.burgs;
+    worldContext.options = { initialSettlementPattern: "standard" } as typeof worldContext.options;
+
+    expect(routeGenerationInternals.createRoutesData([], new Map(), "augmented")).toEqual([]);
   });
 });
 

@@ -289,6 +289,8 @@ export interface Route {
   feature: number;
   points: [number, number, number][];
   cells?: number[];
+  /** A cross-State trade or pilgrimage trail, rather than State-maintained infrastructure. */
+  international?: boolean;
   merged?: boolean;
   name?: string;
   /** Runtime: computed by editor */

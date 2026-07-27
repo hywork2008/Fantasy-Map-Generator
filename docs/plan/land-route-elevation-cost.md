@@ -32,7 +32,7 @@
 
 ```
 generate()
-  ├─ generateMainRoads(connections)   // 首都間 Urquhart → findPathSegments(isWater: false)
+  ├─ generateMainRoads(connections)   // 国内の首都・港・主要 Burg の Urquhart → findPathSegments(isWater: false)
   ├─ generateTrails(connections)      // burg 間 Urquhart → 同上（既存 connection を再利用しやすい）
   └─ generateSeaRoutes(...)           // isWater: true → 別コスト（本改修の対象外）
 ```
