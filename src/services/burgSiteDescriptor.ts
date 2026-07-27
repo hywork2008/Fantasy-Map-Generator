@@ -225,7 +225,7 @@ export function getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null
     },
     climate: {
       temperatureC: worldContext.grid.cells.temp[pack.cells.g[burg.cell]],
-      biomeId: pack.cells.biome[burg.cell]
+      biomeId: pack.cells.biomeCode[burg.cell]
     },
     terrain,
     rivers,

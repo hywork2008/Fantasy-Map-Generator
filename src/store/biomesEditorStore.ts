@@ -21,11 +21,19 @@ export interface BiomesFooter {
   unit: string;
 }
 
+/** What the brush writes during manual customization. */
+export type BiomesPaintTarget = "biome" | "coastal" | "nearshore";
+
 interface BiomesEditorStore {
   rows: BiomeRow[];
   footer: BiomesFooter;
   displayMode: "absolute" | "percentage";
   selectedBiomeId: number | null;
+  /** Selected coastal habitat code when paintTarget is coastal. */
+  selectedCoastalCode: number;
+  /** Selected nearshore habitat code when paintTarget is nearshore. */
+  selectedNearshoreCode: number;
+  paintTarget: BiomesPaintTarget;
   isCustomizationMode: boolean;
   refreshCount: number;
   brushSize: number;
@@ -36,6 +44,9 @@ interface BiomesEditorStore {
   addRow: (row: BiomeRow) => void;
   removeRow: (biomeId: number) => void;
   setSelectedBiomeId: (id: number | null) => void;
+  setSelectedCoastalCode: (code: number) => void;
+  setSelectedNearshoreCode: (code: number) => void;
+  setPaintTarget: (target: BiomesPaintTarget) => void;
   setCustomizationMode: (active: boolean) => void;
   setBrushSize: (size: number) => void;
 }
@@ -45,6 +56,9 @@ export const useBiomesEditorStore = create<BiomesEditorStore>(set => ({
   footer: { biomes: 0, cells: 0, totalArea: 0, mapArea: 0, totalPopulation: 0, unit: "" },
   displayMode: "absolute",
   selectedBiomeId: null,
+  selectedCoastalCode: 1,
+  selectedNearshoreCode: 1,
+  paintTarget: "biome",
   isCustomizationMode: false,
   refreshCount: 0,
   brushSize: 15,
@@ -74,6 +88,9 @@ export const useBiomesEditorStore = create<BiomesEditorStore>(set => ({
     })),
 
   setSelectedBiomeId: id => set({ selectedBiomeId: id }),
-  setCustomizationMode: active => set({ isCustomizationMode: active }),
+  setSelectedCoastalCode: code => set({ selectedCoastalCode: code }),
+  setSelectedNearshoreCode: code => set({ selectedNearshoreCode: code }),
+  setPaintTarget: target => set({ paintTarget: target }),
+  setCustomizationMode: active => set({ isCustomizationMode: active, paintTarget: active ? "biome" : "biome" }),
   setBrushSize: size => set({ brushSize: size })
 }));

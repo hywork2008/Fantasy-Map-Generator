@@ -6,6 +6,7 @@ export { BurgIconsRenderer, drawBurgIcon, removeBurgIcon } from "./draw-burg-ico
 export { BurgLabelsRenderer, drawBurgLabel, removeBurgLabel } from "./draw-burg-labels";
 export { drawCalendar } from "./draw-calendar";
 export { CellsRenderer } from "./draw-cells";
+export { CoastalHabitatsRenderer } from "./draw-coastal-habitats";
 export { CoordinatesRenderer } from "./draw-coordinates";
 export { CulturesRenderer } from "./draw-cultures";
 export { EmblemsRenderer, removeBurgCOA, renderGroupCOAs } from "./draw-emblems";

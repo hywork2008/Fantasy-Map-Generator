@@ -235,7 +235,7 @@ function prepareMapDataFromSvg(): string {
     cultures,
     states,
     burgs,
-    worldContext.pack.cells.biome,
+    worldContext.pack.cells.biomeCode,
     worldContext.pack.cells.burg,
     worldContext.pack.cells.conf,
     worldContext.pack.cells.culture,
@@ -271,7 +271,9 @@ function prepareMapDataFromSvg(): string {
     demoFemaleAdults, // [49] cells.femaleAdults
     demoElders, // [50] cells.elders
     frontierForts, // [51] pack.frontierForts
-    strategicEconomy // [52] economy strategic procurement and labor cohorts
+    strategicEconomy, // [52] economy strategic procurement and labor cohorts
+    worldContext.pack.cells.coastalHabitat ? Array.from(worldContext.pack.cells.coastalHabitat).join(",") : "", // [53] coastal habitat codes
+    worldContext.pack.cells.nearshoreHabitat ? Array.from(worldContext.pack.cells.nearshoreHabitat).join(",") : "" // [54] nearshore habitat codes
   ].join("\r\n");
 
   return mapData;

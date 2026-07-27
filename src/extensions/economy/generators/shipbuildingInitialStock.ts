@@ -109,7 +109,7 @@ function getBiomeSelfSufficiency(material: ShipbuildingMaterialId, stateId: numb
   for (const cellId of pack.cells.i) {
     if (pack.cells.state[cellId] !== stateId || pack.cells.h[cellId] < 20) continue;
     landCells++;
-    if (biomes.has(pack.cells.biome[cellId])) suitableCells++;
+    if (biomes.has(pack.cells.biomeCode[cellId])) suitableCells++;
   }
 
   return landCells > 0 ? suitableCells / landCells : 0;

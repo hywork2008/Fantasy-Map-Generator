@@ -33,7 +33,7 @@ export type RiversGenerateIn = PipelineStageInput<Pick<PackedGraph, "cells" | "f
 /** writes: rivers, cells.{r, fl} */
 export type RiversGenerateOut = PipelineStageOutput<Pick<PackedGraph, "rivers">>;
 
-/** Stage 02 – Biomes.define: assigns biome ids to cells (writes cells.biome) */
+/** Stage 02 – Biomes.define: assigns biome codes to cells (writes cells.biomeCode) */
 export type BiomesDefineIn = PipelineStageInput<Pick<PackedGraph, "cells">>;
 
 /** Stage 03 – Features.defineGroups: classifies features as ocean/sea/gulf/lake/island/isle */

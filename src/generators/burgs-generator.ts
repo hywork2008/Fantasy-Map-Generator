@@ -7,6 +7,14 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import {
+  isArableBiome,
+  isColdBiome,
+  isDesertBiome,
+  isForestBiome,
+  isNomadicBiome,
+  isSnowBiome
+} from "../data/biomeCatalog";
 import { removeBurgIcon, removeBurgLabel } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { bindSimulationBurg } from "../runtime/simulationBurgState";
@@ -496,11 +504,12 @@ class BurgModule {
 
     if (cells.r[cellId] && cells.fl[cellId] >= 100) return "River";
 
-    const biome = cells.biome[cellId];
+    const biome = cells.biomeCode[cellId];
     const population = cells.pop[cellId];
+    const { biomesData } = this.worldContext;
     if (!cells.burg[cellId] || population <= 5) {
-      if (population < 5 && [1, 2, 3, 4].includes(biome)) return "Nomadic";
-      if (biome > 4 && biome < 10) return "Hunting";
+      if (population < 5 && isNomadicBiome(biomesData, biome)) return "Nomadic";
+      if (isForestBiome(biomesData, biome)) return "Hunting";
     }
 
     return "Generic";
@@ -645,7 +654,7 @@ class BurgModule {
         features: { port: false, plaza: true },
         order: 4,
         max: 0.8,
-        biomes: [1, 2, 3]
+        biomeTags: ["desert", "nomadic", "scrub"]
       },
       {
         name: "trading_post",
@@ -653,7 +662,7 @@ class BurgModule {
         order: 3,
         features: { plaza: true },
         max: 0.8,
-        biomes: [5, 6, 7, 8, 9, 10, 11, 12]
+        biomeTags: ["forest", "wetland", "cold", "mountain"]
       },
       {
         name: "village",
@@ -717,7 +726,14 @@ class BurgModule {
       }
 
       if (group.biomes) {
-        const isFit = group.biomes.includes(pack.cells.biome[burg.cell]);
+        const isFit = group.biomes.includes(pack.cells.biomeCode[burg.cell]);
+        if (!isFit) continue;
+      }
+
+      if (group.biomeTags?.length) {
+        const code = pack.cells.biomeCode[burg.cell];
+        const tags = this.worldContext.biomesData.tags?.[code] ?? [];
+        const isFit = group.biomeTags.some(t => tags.includes(t as (typeof tags)[number]));
         if (!isFit) continue;
       }
 
@@ -787,8 +803,11 @@ class BurgModule {
       return rn(2 - normalize(deg, 0, 180), 2);
     })();
 
-    const arableBiomes = river ? [1, 2, 3, 4, 5, 6, 7, 8] : [5, 6, 7, 8];
-    const farms = +arableBiomes.includes(cells.biome[cell]);
+    const biomeCode = cells.biomeCode[cell];
+    const farms = +(
+      isArableBiome(this.worldContext.biomesData, biomeCode) ||
+      (river && isNomadicBiome(this.worldContext.biomesData, biomeCode))
+    );
 
     const citadel = +(burg.citadel as number);
     const urban_castle = +(citadel && each(2)(i as number));
@@ -848,9 +867,10 @@ class BurgModule {
     const connectivityRate = Routes.getConnectivityRate(cell);
     tags.push(connectivityRate > 1 ? "highway" : connectivityRate === 1 ? "dead end" : "isolated");
 
-    const biome = cells.biome[cell];
-    const arableBiomes = cells.r[cell] ? [1, 2, 3, 4, 5, 6, 7, 8] : [5, 6, 7, 8];
-    if (!arableBiomes.includes(biome)) tags.push("uncultivated");
+    const biome = cells.biomeCode[cell];
+    const { biomesData } = this.worldContext;
+    const arableHere = isArableBiome(biomesData, biome) || (cells.r[cell] && isNomadicBiome(biomesData, biome));
+    if (!arableHere) tags.push("uncultivated");
     else if (each(6)(cell)) tags.push("farmland");
 
     const temp = grid.cells.temp[cells.g[cell]];
@@ -873,8 +893,8 @@ class BurgModule {
     const height = rn(width / 2.05);
 
     const style = (() => {
-      if ([1, 2].includes(biome)) return "sand";
-      if (temp <= 5 || [9, 10, 11].includes(biome)) return "snow";
+      if (isDesertBiome(biomesData, biome)) return "sand";
+      if (temp <= 5 || isColdBiome(biomesData, biome) || isSnowBiome(biomesData, biome)) return "snow";
       return "default";
     })();
 

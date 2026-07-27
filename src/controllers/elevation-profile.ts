@@ -62,7 +62,7 @@ export function openElevationProfile(cells: number[], routeLen: number, isRiver:
       lastBurgCell = cell;
     }
 
-    chartData.biome[i] = worldContext.pack.cells.biome[cell];
+    chartData.biome[i] = worldContext.pack.cells.biomeCode[cell];
     chartData.burg[i] = b;
     chartData.cell[i] = cell;
     const sh = getHeight(h);

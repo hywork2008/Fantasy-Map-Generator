@@ -13,6 +13,7 @@ import _simplify from "simplify-js";
 import type { AppServices } from "../../../context/appServices";
 import type { FocusScope, ViewContext } from "../../../context/viewContext";
 import type { WorldContext } from "../../../context/worldContext";
+import { getCoastalHabitatDefinition, getNearshoreHabitatDefinition } from "../../../data/coastalHabitatCatalog";
 import { HeightThreshold } from "../../../data/constants";
 import { Rivers } from "../../../generators/river-generator";
 import type {
@@ -457,9 +458,44 @@ export function buildBiomesPolygons(
     worldContext,
     focusScope,
     "biome",
-    cellId => colorToRgba(biomesData.color[pack.cells.biome[cellId]], "#999999", opacity),
+    cellId => colorToRgba(biomesData.color[pack.cells.biomeCode[cellId]], "#999999", opacity),
     landCells
   );
+}
+
+/**
+ * Coastal (land) and nearshore (water) habitat fills. Independent of climate biomes.
+ */
+export function buildCoastalHabitatPolygons(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  opacity = 0.65
+): DeckCellPolygon[] {
+  const { pack } = worldContext;
+  const { cells } = pack;
+  if (!cells?.i) return [];
+  const coastal = cells.coastalHabitat;
+  const nearshore = cells.nearshoreHabitat;
+  if (!coastal && !nearshore) return [];
+
+  return buildCellPolygons(
+    worldContext,
+    focusScope,
+    "coastalHabitat",
+    cellId => {
+      const isLand = cells.h[cellId] >= 20;
+      const code = isLand ? (coastal?.[cellId] ?? 0) : (nearshore?.[cellId] ?? 0);
+      if (!code) return [0, 0, 0, 0];
+      const def = isLand ? getCoastalHabitatDefinition(code) : getNearshoreHabitatDefinition(code);
+      if (def.key === "none") return [0, 0, 0, 0];
+      return colorToRgba(def.color, "#999999", opacity);
+    },
+    cellId => {
+      const isLand = cells.h[cellId] >= 20;
+      const code = isLand ? (coastal?.[cellId] ?? 0) : (nearshore?.[cellId] ?? 0);
+      return code > 0;
+    }
+  ).filter(polygon => (polygon.fillColor[3] ?? 0) > 0);
 }
 
 export function buildCulturePolygons(

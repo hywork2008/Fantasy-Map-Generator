@@ -307,6 +307,7 @@ export function getMilitaryBoxSize(_viewContext?: Readonly<ViewContext>): number
  */
 export function getCellLayerOpacities(_viewContext?: Readonly<ViewContext>): {
   biomes: number;
+  coastalHabitats: number;
   religions: number;
   cultures: number;
   states: number;
@@ -321,6 +322,7 @@ export function getCellLayerOpacities(_viewContext?: Readonly<ViewContext>): {
 
   return {
     biomes: readOp("#biomes", 0.5),
+    coastalHabitats: readOp("#coastalHabitats", 0.65),
     religions: readOp("#relig", 0.7),
     cultures: readOp("#cults", 0.6),
     states: readOp("#statesBody", 0.3),

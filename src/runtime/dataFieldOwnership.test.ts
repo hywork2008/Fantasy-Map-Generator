@@ -270,7 +270,7 @@ describe("Phase 8 data field ownership inventory", () => {
       "haven",
       "g",
       "culture",
-      "biome",
+      "biomeCode",
       "harbor",
       "enclosure",
       "burg",

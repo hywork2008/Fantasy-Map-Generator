@@ -120,7 +120,7 @@ function createWorldContext(): WorldContext {
         ],
         h: new Uint8Array([30, 10]),
         g: new Uint8Array([0, 0]),
-        biome: new Uint8Array([1, 0]),
+        biomeCode: new Uint8Array([1, 0]),
         culture: new Uint8Array([0, 0]),
         religion: new Uint8Array([0, 0]),
         state: new Uint8Array([0, 0]),

@@ -50,6 +50,8 @@ export interface EnvironmentLayers {
   terrs: SvgGroup;
   lakes: SvgGroup;
   biomes: SvgGroup;
+  /** Coastal / nearshore habitat overlay (independent of climate biomes). */
+  coastalHabitats: SvgGroup;
   rivers: SvgGroup;
   terrain: SvgGroup;
   coastline: SvgGroup;

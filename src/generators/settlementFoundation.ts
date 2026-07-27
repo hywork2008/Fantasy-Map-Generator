@@ -21,7 +21,7 @@ export interface SettlementFoundationCells {
   readonly r?: ArrayLike<number>;
   readonly harbor?: ArrayLike<number>;
   readonly t?: ArrayLike<number>;
-  readonly biome?: ArrayLike<number>;
+  readonly biomeCode?: ArrayLike<number>;
   readonly conf?: ArrayLike<number>;
   readonly danger?: ArrayLike<number>;
   readonly g?: ArrayLike<number>;
@@ -124,7 +124,7 @@ function collectCandidates(
     const danger = cells.danger?.[id] ?? 0;
     const resourceBonus = kind === "river" ? 1.35 : kind === "lake" ? 1.2 : kind === "coast" ? 1.1 : 0.9;
     const terrainScore = getTerrainScore(cells.h[id] ?? 0);
-    const forestResourceScore = isForestBiome(cells.biome?.[id]) ? 1.12 : 1;
+    const forestResourceScore = isForestBiomeCode(cells.biomeCode?.[id]) ? 1.12 : 1;
     const [x, y] = cells.p[id];
     candidates.push({
       id,
@@ -179,8 +179,12 @@ function getTerrainScore(height: number): number {
   return 1;
 }
 
-function isForestBiome(biome: number | undefined): boolean {
-  return biome !== undefined && biome >= 5 && biome <= 9;
+/** Forest resource bonus uses the catalog forest tag when biomesData is available. */
+function isForestBiomeCode(biomeCode: number | undefined, isForest?: (code: number) => boolean): boolean {
+  if (biomeCode === undefined) return false;
+  if (isForest) return isForest(biomeCode);
+  // Fallback when only a bare code is available (legacy tests): historical forest band
+  return biomeCode >= 5 && biomeCode <= 9;
 }
 
 function getClimateValue(column: ArrayLike<number> | undefined, index: number, fallback: number): number {

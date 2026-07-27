@@ -5,6 +5,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { isForestBiome, isNomadicBiome, isWetlandBiome } from "../data/biomeCatalog";
 import { useOptionsState } from "../store/optionsState";
 import type { MilitaryRegiment, MilitaryUnit, Platoon, State } from "../types/models";
 import type { WorldState } from "../types/WorldState";
@@ -96,6 +97,7 @@ class MilitaryModule {
     this.appServices = appServices;
     const { populationRate, urbanization, notes } = this.worldContext;
     const { pack, options } = state;
+    const biomesData = state.biomesData ?? this.worldContext.biomesData;
     TIME && console.time("generateMilitary");
     const { cells, states } = pack;
     const { p } = cells;
@@ -280,10 +282,10 @@ class MilitaryModule {
       const stateId = cells.state[i];
       if (stateId) {
         stateCellsCount[stateId]++;
-        const b = cells.biome[i];
-        if (b === 3 || b === 4) {
+        const b = cells.biomeCode[i];
+        if (biomesData.keys[b] === "savanna" || biomesData.keys[b] === "grassland") {
           statePlainsCount[stateId]++;
-        } else if (b >= 5 && b <= 9) {
+        } else if (isForestBiome(biomesData, b)) {
           stateForestCount[stateId]++;
         }
         if (cells.h[i] >= 70) {
@@ -342,9 +344,24 @@ class MilitaryModule {
     });
 
     const getType = (cell: number) => {
-      if ([1, 2, 3, 4].includes(cells.biome[cell])) return "nomadic";
-      if ([7, 8, 9, 12].includes(cells.biome[cell])) return "wetland";
-      if (cells.h[cell] >= 70) return "highland";
+      const biome = cells.biomeCode[cell];
+      if (isNomadicBiome(biomesData, biome)) return "nomadic";
+      // Wetlands and dense wet/cold forests share the "wetland" military terrain type
+      if (isWetlandBiome(biomesData, biome)) return "wetland";
+      if (isForestBiome(biomesData, biome)) {
+        const key = biomesData.keys?.[biome];
+        if (
+          key === "tropicalRainforest" ||
+          key === "temperateRainforest" ||
+          key === "taiga" ||
+          key === "cloudForest" ||
+          key === "floodedForest" ||
+          key === "mangrove" ||
+          key === "centralEuropeanGreatForest"
+        )
+          return "wetland";
+      }
+      if (cells.h[cell] >= 70 || biomesData.tags?.[biome]?.includes("mountain")) return "highland";
       return "generic";
     };
 
@@ -360,7 +377,7 @@ class MilitaryModule {
     for (const i of cells.i) {
       if (!cells.pop[i]) continue;
 
-      const biome = cells.biome[i];
+      const biome = cells.biomeCode[i];
       const state = cells.state[i];
       const culture = cells.culture[i];
       const religion = cells.religion[i];
@@ -424,7 +441,7 @@ class MilitaryModule {
     for (const b of pack.burgs) {
       if (!b.i || b.removed || !b.state || !b.population) continue;
 
-      const biome = cells.biome[b.cell];
+      const biome = cells.biomeCode[b.cell];
       const state = b.state;
       const culture = b.culture;
       const religion = cells.religion[b.cell];

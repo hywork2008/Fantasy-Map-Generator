@@ -39,7 +39,7 @@ export const ReliefIconsRenderer: IRenderer = {
       const height = cells.h[i];
       if (height < 20) continue; // no icons on water
       if (cells.r[i]) continue; // no icons on rivers
-      const biome = cells.biome[i];
+      const biome = cells.biomeCode[i];
       if (height < 50 && biomesData.iconsDensity[biome] === 0) continue; // no icons for this biome
 
       const polygon = getPackPolygon(i, pack) as [number, number][];

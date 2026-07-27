@@ -5,6 +5,8 @@ import {
   type SimulationContext
 } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import { ensureBiomeCatalogFields } from "../data/biomeCatalog";
+import type { BiomesData } from "../types/WorldState";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
 import {
   CORE_ENTITY_KINDS,
@@ -405,6 +407,26 @@ function migrateWorldOptions(world: unknown): void {
   // v1 necessarily lacks this field. Normalizing v2 too protects the typed
   // context from malformed/manual archive edits without changing valid values.
   world.options.initialSettlementPattern = normalizeInitialSettlementPattern(world.options.initialSettlementPattern);
+}
+
+/**
+ * Rename pack.cells.biome → biomeCode and ensure biomesData carries catalog keys/tags.
+ * Archives saved before the biome catalog Phase 1 used the bare `biome` column and
+ * parallel-array biomesData without semantic keys.
+ */
+function migrateBiomeCatalog(world: unknown): void {
+  if (!isRecord(world)) return;
+  if (isRecord(world.pack) && isRecord(world.pack.cells)) {
+    const cells = world.pack.cells;
+    if (cells.biomeCode === undefined && cells.biome !== undefined) {
+      cells.biomeCode = cells.biome;
+      delete cells.biome;
+    }
+    // Pre-Phase-2 archives lack habitat columns — leave undefined until generators touch them.
+  }
+  if (isRecord(world.biomesData)) {
+    world.biomesData = ensureBiomeCatalogFields(world.biomesData as unknown as BiomesData);
+  }
 }
 
 function parseTypedArrayDescriptor(value: unknown): TypedArrayDescriptor {
@@ -886,6 +908,7 @@ export class ChunkedWorldCodecAdapter implements WorldArchiveCodec {
       opaqueExtensionChunks
     };
     migrateWorldOptions((document as { world: unknown }).world);
+    migrateBiomeCatalog((document as { world: unknown }).world);
     assertValidWorldDocument(document);
     return { stage: "decoded", document };
   }

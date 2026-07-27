@@ -38,7 +38,30 @@ export interface PackedGraphCells {
   haven: TypedArray; // cell is a haven
   g: TypedArray; // cell ground type
   culture: TypedArray; // cell culture id
-  biome: TypedArray; // cell biome id
+  /**
+   * Cell biome code (catalog-local index). Read meaning via BiomesData.keys /
+   * definitions — never compare codes by numeric range.
+   */
+  biomeCode: TypedArray;
+  /**
+   * Coastal habitat attribute (land coast cells). Catalog-local code; see
+   * `CoastalHabitatKey` / coastalHabitatCatalog. Does not replace biome.
+   */
+  coastalHabitat: TypedArray;
+  /**
+   * Nearshore habitat attribute (shallow water cells). Catalog-local code; see
+   * `NearshoreHabitatKey` / coastalHabitatCatalog.
+   */
+  nearshoreHabitat: TypedArray;
+  /**
+   * Optional attribute layers (Phase 4). Climate biome stays separate.
+   * forestCover 0..1; other columns use catalog-local codes from biomeAttributes types.
+   */
+  forestCover?: Float32Array;
+  forestCondition?: TypedArray;
+  canopy?: TypedArray;
+  landCover?: TypedArray;
+  specialFeature?: TypedArray;
   harbor: TypedArray; // cell harbour presence
   /** Water cell enclosure score, 0 (open ocean) - 100 (fully landlocked); 0 for land cells. Debug-only. */
   enclosure: TypedArray;

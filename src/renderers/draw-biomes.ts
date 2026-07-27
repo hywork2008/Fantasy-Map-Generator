@@ -18,7 +18,7 @@ export const BiomesRenderer: IRenderer = {
     const bodyPaths = new Array(biomesData.i.length - 1);
     const isolines: Record<string, { fill?: string; waterGap?: string }> = getIsolines(
       getScopedGraph(pack, focusScope),
-      scopedGetType(focusScope, cellId => cells.biome[cellId]),
+      scopedGetType(focusScope, cellId => cells.biomeCode[cellId]),
       { fill: true, waterGap: true }
     );
     Object.entries(isolines).forEach(([index, { fill, waterGap }]) => {

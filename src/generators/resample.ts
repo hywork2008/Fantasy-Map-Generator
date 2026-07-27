@@ -125,7 +125,9 @@ class Resampler {
     scale: number
   ) {
     const { pack } = worldContext;
-    pack.cells.biome = new Uint8Array(pack.cells.i.length);
+    pack.cells.biomeCode = new Uint8Array(pack.cells.i.length);
+    pack.cells.coastalHabitat = new Uint8Array(pack.cells.i.length);
+    pack.cells.nearshoreHabitat = new Uint8Array(pack.cells.i.length);
     pack.cells.fl = new Uint16Array(pack.cells.i.length);
     pack.cells.s = new Int16Array(pack.cells.i.length);
     pack.cells.pop = new Float32Array(pack.cells.i.length);
@@ -148,7 +150,7 @@ class Resampler {
       const areaRatio = pack.cells.area[newPackCell] / parentCellArea;
       const scaleRatio = areaRatio / scale;
 
-      pack.cells.biome[newPackCell] = parentMap.pack.cells.biome[parentPackCell];
+      pack.cells.biomeCode[newPackCell] = parentMap.pack.cells.biomeCode[parentPackCell];
       pack.cells.fl[newPackCell] = parentMap.pack.cells.fl[parentPackCell];
       pack.cells.s[newPackCell] = parentMap.pack.cells.s[parentPackCell] * scaleRatio;
       pack.cells.pop[newPackCell] = parentMap.pack.cells.pop[parentPackCell] * scaleRatio;

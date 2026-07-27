@@ -3,7 +3,8 @@ import { appServices } from "../context/appServices";
 import { simulationContext } from "../context/simulationContext";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { Biomes } from "../generators/biomes";
+import { snapshotToBiomesData } from "../data/biomeCatalog";
+import { ensureCoastalHabitatColumns } from "../data/coastalHabitatCatalog";
 import { Burgs } from "../generators/burgs-generator";
 import { Features } from "../generators/features";
 import { Routes } from "../generators/routes-generator";
@@ -37,12 +38,12 @@ import { heightmapColorSchemes } from "../utils/colorUtils";
 import { normalizeConflictAutonomy } from "../utils/conflictAutonomy";
 import { ERROR, INFO, WARN } from "../utils/debug";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
-
 import { layerIsOn } from "../utils/nodeUtils";
 import { cleanupData, compareVersions, isValidVersion, parseMapVersion, VERSION } from "../versioning";
 import { resolveVersionConflicts } from "./auto-update";
 import { Cloud } from "./cloud";
 import { ldb } from "./ldb";
+import { decodeLegacyBiomesV1, parseLegacyBiomesField } from "./legacy/legacyBiomesV1";
 
 // ─── Quick load from browser storage ─────────────────────────────────────────
 
@@ -485,19 +486,14 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
     });
   }
 
-  {
-    const biomesRaw = data[3].split("|");
-    worldContext.biomesData = Biomes.getDefault();
-    worldContext.biomesData.color = biomesRaw[0].split(",");
-    worldContext.biomesData.habitability = biomesRaw[1].split(",").map(h => +h);
-    worldContext.biomesData.name = biomesRaw[2].split(",");
-    for (let i = worldContext.biomesData.i.length; i < worldContext.biomesData.name.length; i++) {
-      worldContext.biomesData.i.push(worldContext.biomesData.i.length);
-      worldContext.biomesData.iconsDensity.push(0);
-      worldContext.biomesData.icons.push([]);
-      worldContext.biomesData.cost.push(50);
-    }
-  }
+  // Biome catalog + cell codes are migrated through LegacyBiomeCodec only.
+  // The remapped biomeCode column is applied after pack.cells topology exists.
+  const legacyBiomesParsed = parseLegacyBiomesField(data[3] ?? "");
+  const legacyBiomes = decodeLegacyBiomesV1({
+    ...legacyBiomesParsed,
+    cellCodesCsv: data[16] ?? ""
+  });
+  worldContext.biomesData = snapshotToBiomesData(legacyBiomes.snapshot);
   // Simulation clock from loaded options — pure data; calendar SVG is drawn after view reinit.
   initSimulationClock();
   resetSimulationBurgState(simulationContext);
@@ -534,7 +530,21 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
   worldContext.pack.frontierForts = data[51] ? JSON.parse(data[51]) : [];
   worldContext.pack.routes = data[37] ? JSON.parse(data[37]) : [];
   worldContext.pack.zones = data[38] ? JSON.parse(data[38]) : [];
-  worldContext.pack.cells.biome = Uint8Array.from(data[16].split(","), Number);
+  worldContext.pack.cells.biomeCode = legacyBiomes.biomeCode;
+  {
+    const n = worldContext.pack.cells.i.length;
+    const habitats = ensureCoastalHabitatColumns(n, {});
+    if (data[53]) {
+      const coastal = Uint8Array.from(data[53].split(","), Number);
+      if (coastal.length === n) habitats.coastalHabitat = coastal;
+    }
+    if (data[54]) {
+      const nearshore = Uint8Array.from(data[54].split(","), Number);
+      if (nearshore.length === n) habitats.nearshoreHabitat = nearshore;
+    }
+    worldContext.pack.cells.coastalHabitat = habitats.coastalHabitat;
+    worldContext.pack.cells.nearshoreHabitat = habitats.nearshoreHabitat;
+  }
   worldContext.pack.cells.burg = Uint16Array.from(data[17].split(","), Number);
   worldContext.pack.cells.conf = Uint8Array.from(data[18].split(","), Number);
   worldContext.pack.cells.culture = Uint16Array.from(data[19].split(","), Number);
@@ -640,7 +650,9 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
           "conf",
           "haven",
           "culture",
-          "biome",
+          "biomeCode",
+          "coastalHabitat",
+          "nearshoreHabitat",
           "harbor",
           "burg",
           "religion",

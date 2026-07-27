@@ -78,7 +78,7 @@ const entitiesMap: Record<
   },
   biomes: {
     label: "Biome",
-    getCellsData: () => worldContext.pack.cells.biome,
+    getCellsData: () => worldContext.pack.cells.biomeCode,
     getName: biomeNameGetter,
     getColors: biomeColorsGetter,
     landOnly: false

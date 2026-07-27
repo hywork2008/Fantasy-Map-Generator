@@ -8,20 +8,34 @@ import { type ErosionBakeResult, heightAt } from "./erosion-bake";
 let renderTarget: THREE.WebGLRenderTarget | null = null;
 
 // biome id -> satellite albedo and vegetation density
+/** Default albedo by catalog code for the standard biomes (catalog definition order). */
 const BIOME_SATELLITE: Array<{ color: [number, number, number]; density: number }> = [
-  { color: [0.24, 0.58, 0.71], density: 0 }, // 0 Marine (only near data edges)
-  { color: [0.89, 0.78, 0.57], density: 0.02 }, // 1 Hot desert
-  { color: [0.75, 0.68, 0.54], density: 0.05 }, // 2 Cold desert
-  { color: [0.62, 0.61, 0.34], density: 0.35 }, // 3 Savanna
-  { color: [0.45, 0.59, 0.25], density: 0.45 }, // 4 Grassland
-  { color: [0.25, 0.48, 0.18], density: 0.85 }, // 5 Tropical seasonal forest
-  { color: [0.17, 0.4, 0.15], density: 0.9 }, // 6 Temperate deciduous forest
-  { color: [0.11, 0.36, 0.13], density: 1 }, // 7 Tropical rainforest
-  { color: [0.13, 0.38, 0.15], density: 1 }, // 8 Temperate rainforest
-  { color: [0.15, 0.3, 0.18], density: 0.85 }, // 9 Taiga
-  { color: [0.6, 0.57, 0.46], density: 0.12 }, // 10 Tundra
-  { color: [0.93, 0.95, 0.97], density: 0 }, // 11 Glacier
-  { color: [0.26, 0.4, 0.23], density: 0.65 } // 12 Wetland
+  { color: [0.24, 0.58, 0.71], density: 0 }, // marine
+  { color: [0.89, 0.78, 0.57], density: 0.02 }, // hotDesert
+  { color: [0.75, 0.68, 0.54], density: 0.05 }, // coldDesert
+  { color: [0.62, 0.61, 0.34], density: 0.35 }, // savanna
+  { color: [0.45, 0.59, 0.25], density: 0.45 }, // grassland
+  { color: [0.25, 0.48, 0.18], density: 0.85 }, // tropicalSeasonalForest
+  { color: [0.17, 0.4, 0.15], density: 0.9 }, // temperateDeciduousForest
+  { color: [0.11, 0.36, 0.13], density: 1 }, // tropicalRainforest
+  { color: [0.13, 0.38, 0.15], density: 1 }, // temperateRainforest
+  { color: [0.15, 0.3, 0.18], density: 0.85 }, // taiga
+  { color: [0.6, 0.57, 0.46], density: 0.12 }, // tundra
+  { color: [0.93, 0.95, 0.97], density: 0 }, // glacier
+  { color: [0.26, 0.4, 0.23], density: 0.65 }, // wetland
+  { color: [0.12, 0.35, 0.16], density: 0.95 }, // centralEuropeanGreatForest
+  { color: [0.5, 0.55, 0.28], density: 0.55 }, // mediterraneanWoodlandScrub
+  { color: [0.18, 0.32, 0.16], density: 0.88 }, // temperateConiferousForest
+  { color: [0.2, 0.34, 0.22], density: 0.8 }, // montaneForest
+  { color: [0.55, 0.52, 0.4], density: 0.15 }, // alpineTundra
+  { color: [0.15, 0.38, 0.28], density: 0.9 }, // mangrove
+  { color: [0.7, 0.62, 0.4], density: 0.2 }, // xericShrubland
+  { color: [0.14, 0.36, 0.24], density: 0.95 }, // cloudForest
+  { color: [0.42, 0.48, 0.28], density: 0.35 }, // heathMoorland
+  { color: [0.18, 0.42, 0.28], density: 0.85 }, // floodedForest
+  { color: [0.68, 0.68, 0.38], density: 0.25 }, // coldSteppe
+  { color: [0.48, 0.5, 0.22], density: 0.65 }, // tropicalDryForest
+  { color: [0.32, 0.38, 0.26], density: 0.4 } // borealPeatland
 ];
 
 export function getSatelliteBiomeData(biomeId: number, fallbackBiomeId: number) {
@@ -88,7 +102,7 @@ function buildBiomeTexture() {
   const biomeOfGrid = new Uint8Array(n);
   const assigned = new Uint8Array(n);
   const gridIds = worldContext.pack.cells.g;
-  const biomes = worldContext.pack.cells.biome;
+  const biomes = worldContext.pack.cells.biomeCode;
   for (let p = 0; p < gridIds.length; p++) {
     const gridId = gridIds[p];
     if (!assigned[gridId]) {

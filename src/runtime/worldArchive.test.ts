@@ -91,11 +91,11 @@ describe("ChunkedWorldCodecAdapter", () => {
 
   it("rejects dense columns and foreign keys that do not match the topology", async () => {
     const document = createWorldDocument(sampleWorld(), sampleSimulation(), createPresentationData(), []);
-    (document.world.pack.cells as unknown as Record<string, unknown>).biome = new Uint8Array([1]);
+    (document.world.pack.cells as unknown as Record<string, unknown>).biomeCode = new Uint8Array([1]);
 
-    await expect(new ChunkedWorldCodecAdapter().encode(document)).rejects.toThrow("pack.cells.biome has length 1");
+    await expect(new ChunkedWorldCodecAdapter().encode(document)).rejects.toThrow("pack.cells.biomeCode has length 1");
 
-    (document.world.pack.cells as unknown as Record<string, unknown>).biome = new Uint8Array([1, 1]);
+    (document.world.pack.cells as unknown as Record<string, unknown>).biomeCode = new Uint8Array([1, 1]);
     (document.world.pack.cells as unknown as Record<string, unknown>).state = new Uint16Array([1, 9]);
     await expect(new ChunkedWorldCodecAdapter().encode(document)).rejects.toThrow(
       "pack.cells.state references missing entity 9"

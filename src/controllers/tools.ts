@@ -6,6 +6,7 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { isNomadicBiome } from "../data/biomeCatalog";
 import { runTimeSimulation } from "../generators/timeEngine";
 import { rankCells } from "../main";
 import {
@@ -545,7 +546,7 @@ function recreateStates(): State[] | null {
             GenerationPipeline.Names as { getCulture(c: number, a: number, b: number, s: string, n: number): string }
           ).getCulture(culture, 3, 6, "", 0);
     const name = GenerationPipeline.Names.getState(basename, culture);
-    const nomadic = [1, 2, 3, 4].includes(worldContext.pack.cells.biome[capital.cell]);
+    const nomadic = isNomadicBiome(worldContext.biomesData, worldContext.pack.cells.biomeCode[capital.cell]);
     const type = nomadic
       ? "Nomadic"
       : worldContext.pack.cultures[culture!].type === "Nomadic"

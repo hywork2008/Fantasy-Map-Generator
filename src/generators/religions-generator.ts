@@ -968,7 +968,7 @@ class ReligionsModule {
       const route = Routes.getRoute(cellId, nextCellId);
       if (isWater(cellId, pack)) return route ? 50 : 500;
 
-      const biomePassageCost = biomesData.cost[cells.biome[nextCellId]];
+      const biomePassageCost = biomesData.cost[cells.biomeCode[nextCellId]];
 
       if (route) {
         if (route.group === "roads") return 1;

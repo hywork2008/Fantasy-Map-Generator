@@ -33,6 +33,7 @@ import {
   buildBorderPaths,
   buildBurgIconSymbols,
   buildCellOutlinePaths,
+  buildCoastalHabitatPolygons,
   buildCoastlinePaths,
   buildCombatDeathsPolygons,
   buildCulturePolygons,
@@ -183,6 +184,12 @@ const WEBGL_POLYGON_LAYERS: Array<{
     build: (world, view, landCells) =>
       buildBiomesPolygons(world, view.focusScope, landCells, getCellLayerOpacities(view).biomes),
     maskLand: true
+  },
+  {
+    toggle: "toggleCoastalHabitats",
+    id: "coastalHabitats",
+    build: (world, view) =>
+      buildCoastalHabitatPolygons(world, view.focusScope, getCellLayerOpacities(view).coastalHabitats)
   },
   {
     toggle: "toggleReligions",
@@ -1463,7 +1470,14 @@ function buildLayerSignatures(
     "toggleBiomes",
     ["map.topology", "map.physical", "presentation.styles"],
     () =>
-      `${landGeometry()}|${numberListSignature(pack.cells?.biome)}|${stringListSignature(biomesData.color)}|op:${styles.cellLayerOpacities.biomes}`
+      `${landGeometry()}|${numberListSignature(pack.cells?.biomeCode)}|${stringListSignature(biomesData.color)}|${stringListSignature(biomesData.keys)}|op:${styles.cellLayerOpacities.biomes}`
+  );
+  setIfActive(
+    "coastalHabitats",
+    "toggleCoastalHabitats",
+    ["map.topology", "map.physical", "presentation.styles"],
+    () =>
+      `${geometry()}|${numberListSignature(pack.cells?.coastalHabitat)}|${numberListSignature(pack.cells?.nearshoreHabitat)}|op:${styles.cellLayerOpacities.coastalHabitats}`
   );
   setIfActive(
     "religions",

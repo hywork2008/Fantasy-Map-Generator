@@ -48,6 +48,14 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     tooltip: "Biomes: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
   },
   {
+    id: "toggleCoastalHabitats",
+    name: <>Coastal Habitats</>,
+    shortcut: null,
+    tooltip:
+      "Coastal and nearshore habitats (beach, rock, reef): click to toggle. Paint from Biomes Editor → habitat brush",
+    sortKey: "Coastal Habitats"
+  },
+  {
     id: "toggleCombatDeaths",
     name: <>Combat Deaths</>,
     shortcut: null,

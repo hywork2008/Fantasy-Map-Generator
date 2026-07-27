@@ -66,7 +66,7 @@ function setupWorld(): void {
       i: [0, 1, 2, 3],
       h: [0, 50, 50, 50], // cell 0 is water; 1-3 are land, one per state
       state: [0, 1, 2, 3],
-      biome: [0, 1, 1, 6] // state1/2 sit on desert (1, not in Wood's biomeOutput); state3 on biome 6 (forest)
+      biomeCode: [0, 1, 1, 6] // state1/2 sit on desert (1, not in Wood's biomeOutput); state3 on biome 6 (forest)
     }
   } as unknown as PackedGraph;
 }

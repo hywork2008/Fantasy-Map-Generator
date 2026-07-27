@@ -1,5 +1,7 @@
 import Alea from "alea";
 import { color, shuffler } from "d3";
+import { resolveBiomeOutputRate } from "../../../data/biomeEconomy";
+import type { BiomeTag } from "../../../types/biome";
 import {
   type CultureType,
   type PackedGraph,
@@ -39,7 +41,13 @@ export interface Good {
   // generation
   chance?: number;
   distribution?: string;
+  /** Explicit production by catalog-local code (legacy / fine-grained). */
   biomeOutput?: Partial<Record<number, number>>;
+  /**
+   * Production by BiomeTag — applies to all biomes carrying that tag, including
+   * Phase-1 additions (great forest, mangrove, cloud forest, …).
+   */
+  biomeOutputByTag?: Partial<Record<BiomeTag, number>>;
   recipes?: Record<number, number>[];
 
   // multipliers; absent or 1 = no effect; 0 = fully suppressed
@@ -113,11 +121,12 @@ export const GOODS_DATA: GoodData[] = [
     color: "#966F33",
     value: 1,
     chance: 4,
-    distribution: "biome(5, 6, 7, 8, 9)",
+    distribution: 'biomeTag("forest") || biome(12)',
     unit: "pile",
     demandCoverage: { construction: 1, utilities: 1 },
     multipliers: { cultureType: { Hunting: 1.5 } },
-    biomeOutput: { 5: 0.1, 6: 0.1, 7: 0.1, 8: 0.1, 9: 0.1, 12: 0.05 }
+    biomeOutput: { 5: 0.1, 6: 0.1, 7: 0.1, 8: 0.1, 9: 0.1, 12: 0.05 },
+    biomeOutputByTag: { forest: 0.1, wetland: 0.05 }
   },
   {
     name: "Stone",
@@ -218,7 +227,8 @@ export const GOODS_DATA: GoodData[] = [
     unit: "wain",
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { River: 1.2, Lake: 1.2, Nomadic: 0.5 } },
-    biomeOutput: { 5: 0.1, 6: 0.1, 7: 0.1, 8: 0.1 }
+    biomeOutput: { 5: 0.1, 6: 0.1, 7: 0.1, 8: 0.1 },
+    biomeOutputByTag: { arable: 0.08, forest: 0.05 }
   },
   {
     name: "Cattle",
@@ -228,11 +238,13 @@ export const GOODS_DATA: GoodData[] = [
     color: "#56b000",
     value: 5,
     chance: 4,
-    distribution: "(biome(3, 4) && !elevation()) || (biome(6) && random(70)) || (biome(5) && nth(5))",
+    distribution:
+      '(biomeTag("grassland") || biomeTag("nomadic")) && !elevation() || (biomeTag("forest") && random(70))',
     unit: "head",
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { Nomadic: 2 } },
-    biomeOutput: { 3: 0.1, 4: 0.1 }
+    biomeOutput: { 3: 0.1, 4: 0.1 },
+    biomeOutputByTag: { grassland: 0.1, nomadic: 0.08 }
   },
   {
     name: "Fish",
@@ -255,11 +267,12 @@ export const GOODS_DATA: GoodData[] = [
     color: "#c38a8a",
     value: 2,
     chance: 3,
-    distribution: "biome(5, 6, 7, 8, 9)",
+    distribution: 'biomeTag("forest")',
     unit: "wain",
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { Naval: 0.6, Nomadic: 1.4, Hunting: 2 } },
-    biomeOutput: { 3: 0.02, 4: 0.02, 5: 0.04, 6: 0.04, 7: 0.04, 8: 0.04, 9: 0.08 }
+    biomeOutput: { 3: 0.02, 4: 0.02, 5: 0.04, 6: 0.04, 7: 0.04, 8: 0.04, 9: 0.08 },
+    biomeOutputByTag: { forest: 0.05 }
   },
   {
     name: "Wine",
@@ -269,11 +282,12 @@ export const GOODS_DATA: GoodData[] = [
     color: "#963e48",
     value: 5,
     chance: 3,
-    distribution: "biome(6) || (biome(4) && random(50) && river())",
+    distribution: 'biome(6) || biomeTag("scrub") || (biome(4) && random(50) && river())',
     unit: "barrel",
     demandCoverage: { food: 0.5, luxury: 0.5 },
     multipliers: { cultureType: { Highland: 1.2, Nomadic: 0.5 } },
-    biomeOutput: { 6: 0.1 }
+    biomeOutput: { 6: 0.1 },
+    biomeOutputByTag: { scrub: 0.12, arable: 0.04 }
   },
   {
     name: "Olives",
@@ -283,11 +297,12 @@ export const GOODS_DATA: GoodData[] = [
     color: "#BDBD7D",
     value: 3,
     chance: 3,
-    distribution: "biome(6) || (biome(4) && random(50) && river())",
+    distribution: 'biomeTag("scrub") || biome(6) || (biome(4) && random(50) && river())',
     unit: "barrel",
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { Generic: 0.8, Nomadic: 0.5 } },
-    biomeOutput: { 6: 0.1 }
+    biomeOutput: { 6: 0.1 },
+    biomeOutputByTag: { scrub: 0.15, arable: 0.05 }
   },
   {
     name: "Honey",
@@ -297,11 +312,12 @@ export const GOODS_DATA: GoodData[] = [
     color: "#DCBC66",
     value: 4,
     chance: 3,
-    distribution: "biome(6, 8, 9)",
+    distribution: 'biomeTag("forest")',
     unit: "barrel",
     demandCoverage: { food: 0.5 },
     multipliers: { cultureType: { Generic: 1.2 } },
-    biomeOutput: { 6: 0.05, 8: 0.03, 9: 0.03 }
+    biomeOutput: { 6: 0.05, 8: 0.03, 9: 0.03 },
+    biomeOutputByTag: { forest: 0.04 }
   },
   {
     name: "Salt",
@@ -339,11 +355,12 @@ export const GOODS_DATA: GoodData[] = [
     color: "#ba7447",
     value: 10,
     chance: 4,
-    distribution: "biome(3, 4) || (biome(2) && nth(4))",
+    distribution: 'biomeTag("nomadic") || biomeTag("grassland") || (biome(2) && nth(4))',
     unit: "head",
     demandCoverage: { utilities: 0.6, military: 0.4 },
     multipliers: { cultureType: { Nomadic: 2 } },
-    biomeOutput: { 4: 0.05 }
+    biomeOutput: { 4: 0.05 },
+    biomeOutputByTag: { nomadic: 0.06, grassland: 0.05 }
   },
   {
     name: "Elephants",
@@ -379,10 +396,11 @@ export const GOODS_DATA: GoodData[] = [
     color: "#069a06",
     value: 1,
     chance: 3,
-    distribution: "biome(6, 7, 8)",
+    distribution: 'biomeTag("forest")',
     unit: "wain",
     multipliers: { cultureType: { River: 1.4, Lake: 1.4 } },
-    biomeOutput: { 6: 0.1, 7: 0.1, 8: 0.1 }
+    biomeOutput: { 6: 0.1, 7: 0.1, 8: 0.1 },
+    biomeOutputByTag: { forest: 0.08 }
   },
   {
     name: "Pearls",
@@ -455,7 +473,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#e99c75",
     value: 18,
     chance: 2,
-    distribution: "biome(7)",
+    distribution: 'biome(7) || (biomeTag("forest") && biomeTag("dry") && minTemp(18))',
     unit: "chest",
     demandCoverage: { luxury: 1 },
     multipliers: { cultureType: { Generic: 1.2 } }
@@ -468,7 +486,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#e68200",
     value: 8,
     chance: 2,
-    distribution: "shore(1) && biome(6, 7, 8, 9)",
+    distribution: 'shore(1) && (biomeTag("forest") || biomeTag("cold"))',
     unit: "stone",
     demandCoverage: { luxury: 0.5 },
     multipliers: { cultureType: { Generic: 1.2 } }
@@ -480,11 +498,12 @@ export const GOODS_DATA: GoodData[] = [
     color: "#8a5e51",
     value: 6,
     chance: 2,
-    distribution: "biome(9) || (biome(10) && nth(2)) || (biome(6, 8) && nth(5)) || (biome(12) && nth(10))",
+    distribution: 'biomeTag("cold") || biomeTag("forest") || biomeTag("wetland")',
     unit: "pelt",
     demandCoverage: { luxury: 0.5, utilities: 0.3 },
     multipliers: { cultureType: { Hunting: 2 } },
-    biomeOutput: { 9: 0.025, 10: 0.025, 6: 0.025, 8: 0.025, 12: 0.025 }
+    biomeOutput: { 9: 0.025, 10: 0.025, 6: 0.025, 8: 0.025, 12: 0.025 },
+    biomeOutputByTag: { cold: 0.03, forest: 0.02, wetland: 0.02 }
   },
   {
     name: "Sheep",
@@ -493,11 +512,12 @@ export const GOODS_DATA: GoodData[] = [
     color: "#53b574",
     value: 1,
     chance: 3,
-    distribution: "(biome(3, 4) && !elevation()) || (biome(6) && random(70)) || (biome(5) && nth(5))",
+    distribution: '(biomeTag("grassland") && !elevation()) || (biomeTag("forest") && random(70)) || biomeTag("scrub")',
     unit: "head",
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { Naval: 1.4, Highland: 1.4 } },
-    biomeOutput: { 4: 0.1 }
+    biomeOutput: { 4: 0.1 },
+    biomeOutputByTag: { grassland: 0.1, scrub: 0.08 }
   },
   {
     name: "Slaves",
@@ -1219,7 +1239,7 @@ export class GoodsModule {
 
     for (const cellId of shuffledCells) {
       if (!(cellId % 10)) shuffle(goods);
-      if (this.cells.biome[cellId] === 11 && this.worldContext.biomesData.habitability[11] === 0) continue; // skip glaciers
+      if (this.cells.biomeCode[cellId] === 11 && this.worldContext.biomesData.habitability[11] === 0) continue; // skip glaciers
       this.cellId = cellId;
 
       for (const good of goods) {
@@ -1274,7 +1294,7 @@ export class GoodsModule {
     const spread = new Function(methods, `return ${good.distribution}`);
 
     for (const cellId of shuffledCells) {
-      if (this.cells.biome[cellId] === 11 && this.worldContext.biomesData.habitability[11] === 0) continue; // skip glaciers
+      if (this.cells.biomeCode[cellId] === 11 && this.worldContext.biomesData.habitability[11] === 0) continue; // skip glaciers
       this.cellId = cellId;
 
       if (goodColumn[cellId]) continue;
@@ -1304,10 +1324,12 @@ export class GoodsModule {
     }
     if (cellId < 0 || cellId >= cells.i.length || goodColumn[cellId]) return null;
 
-    const biomeId = cells.biome[cellId];
-    const matchingGoods = getGoods().filter(
-      good => isGoodEnabled(good) && good.biomeOutput?.[biomeId] !== undefined && good.biomeOutput[biomeId]! > 0
-    );
+    const biomeId = cells.biomeCode[cellId];
+    const biomesData = this.worldContext.biomesData;
+    const matchingGoods = getGoods().filter(good => {
+      if (!isGoodEnabled(good)) return false;
+      return resolveBiomeOutputRate(biomeId, good.biomeOutput, good.biomeOutputByTag, biomesData) > 0;
+    });
     if (!matchingGoods.length) return null;
 
     // The map-cell id makes the choice stable across saves and reloads while
@@ -1327,10 +1349,15 @@ export class GoodsModule {
       random: (number: number) => number >= 100 || (number > 0 && number / 100 > Math.random()),
       nth: (number: number) => !(cellId % number),
       minHabitability: (min: number) =>
-        this.worldContext.biomesData.habitability[this.worldContext.pack.cells.biome[cellId]] >= min,
-      habitability: () => this.worldContext.biomesData.habitability[this.cells.biome[cellId]] > Math.random() * 100,
+        this.worldContext.biomesData.habitability[this.worldContext.pack.cells.biomeCode[cellId]] >= min,
+      habitability: () => this.worldContext.biomesData.habitability[this.cells.biomeCode[cellId]] > Math.random() * 100,
       elevation: () => this.worldContext.pack.cells.h[cellId] / 100 > Math.random(),
-      biome: (...biomes: number[]) => biomes.includes(this.worldContext.pack.cells.biome[cellId]),
+      biome: (...biomes: number[]) => biomes.includes(this.worldContext.pack.cells.biomeCode[cellId]),
+      biomeTag: (...tags: string[]) => {
+        const code = this.worldContext.pack.cells.biomeCode[cellId];
+        const cellTags = this.worldContext.biomesData.tags?.[code] ?? [];
+        return tags.some(t => cellTags.includes(t as BiomeTag));
+      },
       minHeight: (heigh: number) => this.worldContext.pack.cells.h[cellId] >= heigh,
       maxHeight: (heigh: number) => this.worldContext.pack.cells.h[cellId] <= heigh,
       minTemp: (temp: number) => this.worldContext.grid.cells.temp[this.worldContext.pack.cells.g[cellId]] >= temp,
@@ -1345,12 +1372,16 @@ export class GoodsModule {
   }
 
   getBiomesProduction(): Record<number, { goodId: number; production: number }[]> {
+    const biomesData = this.worldContext.biomesData;
+    const codes = biomesData.i?.length
+      ? biomesData.i
+      : Array.from({ length: biomesData.name?.length ?? 0 }, (_, i) => i);
     return getGoods().reduce(
       (acc, good) => {
         if (!isGoodEnabled(good)) return acc;
-        if (!good.biomeOutput) return acc;
-        for (const [biomeIdStr, production] of Object.entries(good.biomeOutput)) {
-          const biomeId = +biomeIdStr;
+        if (!good.biomeOutput && !good.biomeOutputByTag) return acc;
+        for (const biomeId of codes) {
+          const production = resolveBiomeOutputRate(biomeId, good.biomeOutput, good.biomeOutputByTag, biomesData);
           if (production) {
             if (!acc[biomeId]) acc[biomeId] = [];
             acc[biomeId].push({ goodId: good.i, production });

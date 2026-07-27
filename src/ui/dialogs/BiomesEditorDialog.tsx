@@ -18,9 +18,11 @@ import {
   biomesRemoveCustomBiome,
   biomesRestoreDefaults,
   biomesSelectOnLine,
+  biomesSetPaintTarget,
   biomesToggleDisplayMode,
   biomesToggleLegend
 } from "../../controllers/biomes-editor";
+import { COASTAL_HABITAT_DEFINITIONS, NEARSHORE_HABITAT_DEFINITIONS } from "../../data/coastalHabitatCatalog";
 import { useBiomesEditorStore } from "../../store/biomesEditorStore";
 import { rn, si } from "../../utils";
 import { FillBox } from "../components/FillBox";
@@ -31,8 +33,21 @@ import { SortableHeader } from "../components/tables/SortableHeader";
 type SortKey = "name" | "habitability" | "cells" | "area" | "population";
 
 export const BiomesEditorContent: React.FC = () => {
-  const { rows, footer, displayMode, selectedBiomeId, isCustomizationMode, refreshCount, brushSize, setBrushSize } =
-    useBiomesEditorStore();
+  const {
+    rows,
+    footer,
+    displayMode,
+    selectedBiomeId,
+    selectedCoastalCode,
+    selectedNearshoreCode,
+    paintTarget,
+    isCustomizationMode,
+    refreshCount,
+    brushSize,
+    setBrushSize,
+    setSelectedCoastalCode,
+    setSelectedNearshoreCode
+  } = useBiomesEditorStore();
 
   const [sortBy, setSortBy] = useState<SortKey>("cells");
   const [sortDesc, setSortDesc] = useState(true);
@@ -284,6 +299,53 @@ export const BiomesEditorContent: React.FC = () => {
           onClick={biomesEnterCustomization}
         />
         <div id="biomesManuallyButtons" style={{ display: isCustomizationMode ? undefined : "none" }}>
+          <div data-tip="What the brush writes: climate biome or coastal/nearshore habitat attributes">
+            Paint:
+            <select
+              id="biomesPaintTarget"
+              value={paintTarget}
+              onChange={e => biomesSetPaintTarget(e.target.value as "biome" | "coastal" | "nearshore")}
+              style={{ marginLeft: 4 }}
+            >
+              <option value="biome">Biome</option>
+              <option value="coastal">Coastal habitat</option>
+              <option value="nearshore">Nearshore habitat</option>
+            </select>
+          </div>
+          {paintTarget === "coastal" && (
+            <div data-tip="Coastal habitat type for land cells (beach, rock, flat, dune)">
+              Habitat:
+              <select
+                id="biomesCoastalSelect"
+                value={selectedCoastalCode}
+                onChange={e => setSelectedCoastalCode(Number(e.target.value))}
+                style={{ marginLeft: 4 }}
+              >
+                {COASTAL_HABITAT_DEFINITIONS.map((def, code) => (
+                  <option key={def.key} value={code}>
+                    {def.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {paintTarget === "nearshore" && (
+            <div data-tip="Nearshore habitat type for shallow water cells">
+              Habitat:
+              <select
+                id="biomesNearshoreSelect"
+                value={selectedNearshoreCode}
+                onChange={e => setSelectedNearshoreCode(Number(e.target.value))}
+                style={{ marginLeft: 4 }}
+              >
+                {NEARSHORE_HABITAT_DEFINITIONS.map((def, code) => (
+                  <option key={def.key} value={code}>
+                    {def.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div data-tip="Change brush size. Shortcut: + to increase; – to decrease">
             Brush size:
             <SliderInput

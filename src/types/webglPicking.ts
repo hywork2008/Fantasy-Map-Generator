@@ -3,6 +3,7 @@ export type WebglPickKind =
   | "land"
   | "height"
   | "biome"
+  | "coastalHabitat"
   | "culture"
   | "religion"
   | "state"

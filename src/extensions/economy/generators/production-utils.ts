@@ -27,7 +27,7 @@ export function getModifiers(good: Good, cellId: number): number {
   const mult = good.multipliers;
   if (!mult) return 1;
 
-  const biomeId = getWorldContext().pack.cells.biome[cellId];
+  const biomeId = getWorldContext().pack.cells.biomeCode[cellId];
   const cultureId = getWorldContext().pack.cells.culture[cellId];
   const stateId = getWorldContext().pack.cells.state[cellId];
   const religionId = getWorldContext().pack.cells.religion[cellId];
@@ -131,7 +131,7 @@ export function getRuralProductionContributions(
   if (population <= 0) return [];
 
   const contributions: RuralProductionContribution[] = [];
-  for (const { goodId, production } of biomeProduction[cells.biome[cellId]] || []) {
+  for (const { goodId, production } of biomeProduction[cells.biomeCode[cellId]] || []) {
     const good = Goods.get(goodId);
     if (good && isGoodEnabled(good)) {
       contributions.push({ goodId, amount: population * production * getModifiers(good, cellId) });

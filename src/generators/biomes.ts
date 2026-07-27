@@ -1,14 +1,27 @@
-import { mean, range } from "d3";
+import { mean } from "d3";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { BiomeConstants, HeightThreshold, TemperatureThreshold } from "../data/constants";
+import { createDefaultBiomesData, getBiomeCode } from "../data/biomeCatalog";
+import { ensureCoastalHabitatColumns } from "../data/coastalHabitatCatalog";
+import { BiomeConstants, HeightThreshold } from "../data/constants";
+import type { StandardBiomeKey } from "../types/biome";
+import { DEFAULT_BIOME_REGION_PROFILE, normalizeBiomeRegionProfile } from "../types/biomeRegion";
 import type { WorldState } from "../types/WorldState";
 import { rn } from "../utils";
 import { TIME } from "../utils/debug";
+import {
+  type AssignmentOptions,
+  applyRegionalForestMask,
+  type CellBiomeClimate,
+  classifySpecialBiome,
+  climateMatrixBands
+} from "./biomeAssignment";
+import { initializeBiomeAttributes } from "./biomeAttributes";
+import { assignCoastalHabitats } from "./coastalHabitatAssignment";
 
 class BiomesModule {
   worldContext: WorldContext = worldContext;
@@ -17,95 +30,28 @@ class BiomesModule {
   private MIN_LAND_HEIGHT = BiomeConstants.MIN_LAND_HEIGHT;
 
   getDefault() {
-    const name: string[] = [
-      "Marine",
-      "Hot desert",
-      "Cold desert",
-      "Savanna",
-      "Grassland",
-      "Tropical seasonal forest",
-      "Temperate deciduous forest",
-      "Tropical rainforest",
-      "Temperate rainforest",
-      "Taiga",
-      "Tundra",
-      "Glacier",
-      "Wetland"
-    ];
-
-    const color: string[] = [
-      "#466eab",
-      "#fbe79f",
-      "#b5b887",
-      "#d2d082",
-      "#c8d68f",
-      "#b6d95d",
-      "#29bc56",
-      "#7dcb35",
-      "#409c43",
-      "#4b6b32",
-      "#96784b",
-      "#d5e7eb",
-      "#0b9131"
-    ];
-    const habitability: number[] = [0, 4, 10, 22, 30, 50, 100, 80, 90, 12, 4, 0, 12];
-    const iconsDensity: number[] = [0, 3, 2, 120, 120, 120, 120, 150, 150, 100, 5, 0, 250];
-    const icons: Array<{ [key: string]: number }> = [
-      {},
-      { dune: 3, cactus: 6, deadTree: 1 },
-      { dune: 9, deadTree: 1 },
-      { acacia: 1, grass: 9 },
-      { grass: 1 },
-      { acacia: 8, palm: 1 },
-      { deciduous: 1 },
-      { acacia: 5, palm: 3, deciduous: 1, swamp: 1 },
-      { deciduous: 6, swamp: 1 },
-      { conifer: 1 },
-      { grass: 1 },
-      {},
-      { swamp: 1 }
-    ];
-    const cost: number[] = [10, 200, 150, 60, 50, 70, 70, 80, 90, 200, 1000, 5000, 150]; // biome movement cost
-    const biomesMatrix: Uint8Array[] = [
-      // hot ↔ cold [>19°C; <-4°C]; dry ↕ wet
-      new Uint8Array([1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 10]),
-      new Uint8Array([3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 9, 9, 9, 9, 10, 10, 10]),
-      new Uint8Array([5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 9, 9, 9, 9, 9, 10, 10, 10]),
-      new Uint8Array([5, 6, 6, 6, 6, 6, 6, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 10, 10, 10]),
-      new Uint8Array([7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 10, 10])
-    ];
-
-    // parse icons weighted array into a simple array
-    const parsedIcons: string[][] = [];
-    for (let i = 0; i < icons.length; i++) {
-      const parsed: string[] = [];
-      for (const icon in icons[i]) {
-        for (let j = 0; j < icons[i][icon]; j++) {
-          parsed.push(icon);
-        }
-      }
-      parsedIcons[i] = parsed;
-    }
-
-    return {
-      i: range(0, name.length),
-      name,
-      color,
-      biomesMatrix,
-      habitability,
-      iconsDensity,
-      icons: parsedIcons,
-      cost
-    };
+    return createDefaultBiomesData();
   }
 
   define(state: WorldState) {
-    const { pack, grid } = state;
+    const { pack, grid, options, seed } = state;
     TIME && console.time("defineBiomes");
 
-    const { fl: flux, r: riverIds, h: heights, c: neighbors, g: gridReference } = pack.cells;
+    const { fl: flux, r: riverIds, h: heights, c: neighbors, g: gridReference, t: coastDist, p: points } = pack.cells;
     const { temp, prec } = grid.cells;
-    pack.cells.biome = new Uint8Array(pack.cells.i.length); // biomes array
+    const n = pack.cells.i.length;
+    pack.cells.biomeCode = new Uint8Array(n);
+    const habitats = ensureCoastalHabitatColumns(n, pack.cells);
+    pack.cells.coastalHabitat = habitats.coastalHabitat;
+    pack.cells.nearshoreHabitat = habitats.nearshoreHabitat;
+
+    const profile = normalizeBiomeRegionProfile(
+      options?.biomeRegionProfile ?? this.worldContext.options?.biomeRegionProfile
+    );
+    const assignmentOptions: AssignmentOptions = {
+      profile,
+      seed: Number.parseInt(String(seed ?? this.worldContext.seed ?? "0"), 10) || 1
+    };
 
     const calculateMoisture = (cellId: number) => {
       let moisture = prec[gridReference[cellId]];
@@ -118,45 +64,112 @@ class BiomesModule {
       return rn(4 + (mean(moistAround) as number));
     };
 
+    const hasOceanNeighbor = (cellId: number): boolean => {
+      for (const nb of neighbors[cellId] ?? []) {
+        if (heights[nb] >= this.MIN_LAND_HEIGHT) continue;
+        const feature = pack.features[pack.cells.f[nb]];
+        if (feature?.type === "ocean") return true;
+      }
+      return false;
+    };
+
     for (let cellId = 0; cellId < heights.length; cellId++) {
       const height = heights[cellId];
       const moisture = height < this.MIN_LAND_HEIGHT ? 0 : calculateMoisture(cellId);
       const temperature = temp[gridReference[cellId]];
-      pack.cells.biome[cellId] = this.getId(moisture, temperature, height, Boolean(riverIds[cellId]));
+      const [x, y] = points[cellId] ?? [0, 0];
+      const climate: CellBiomeClimate = {
+        moisture,
+        temperature,
+        height,
+        hasRiver: Boolean(riverIds[cellId]),
+        flux: flux[cellId] ?? 0,
+        coastDistance: coastDist?.[cellId] ?? 0,
+        neighborOcean: height >= this.MIN_LAND_HEIGHT ? hasOceanNeighbor(cellId) : false,
+        x,
+        y
+      };
+      pack.cells.biomeCode[cellId] = this.resolveBiomeCode(climate, assignmentOptions);
     }
+
+    // Coastal / nearshore attributes (independent of climate biome)
+    assignCoastalHabitats(pack, grid, {
+      profile: assignmentOptions.profile,
+      seed: assignmentOptions.seed
+    });
+
+    // Forest cover / land-cover attribute layers (not climate biomes)
+    initializeBiomeAttributes(pack, this.worldContext.biomesData);
 
     TIME && console.timeEnd("defineBiomes");
   }
 
-  getId(moisture: number, temperature: number, height: number, hasRiver: boolean) {
+  /**
+   * Resolve a cell to a catalog code using special rules → climate matrix → regional mask.
+   */
+  resolveBiomeCode(climate: CellBiomeClimate, options: AssignmentOptions): number {
     const { biomesData } = this.worldContext;
-    if (height < HeightThreshold.WATER_MAX_HEIGHT) return 0; // all water cells: marine biome
-    if (temperature < TemperatureThreshold.PERMAFROST_TEMP) return 11; // too cold: permafrost biome
-    if (
-      temperature >= TemperatureThreshold.HOT_DESERT_TEMP &&
-      !hasRiver &&
-      moisture < BiomeConstants.HOT_DESERT_MOISTURE
-    )
-      return 1; // too hot and dry: hot desert biome
-    if (this.isWetland(moisture, temperature, height)) return 12; // too wet: wetland biome
+    const codeOf = (key: StandardBiomeKey) => getBiomeCode(biomesData, key) ?? 0;
 
-    // in other cases use biome matrix
-    const moistureBand = Math.min((moisture / 5) | 0, 4); // [0-4]
-    const temperatureBand = Math.min(Math.max(20 - temperature, 0), 25); // [0-25]
-    return biomesData.biomesMatrix[moistureBand][temperatureBand];
+    const special = classifySpecialBiome(climate, options);
+    let key: StandardBiomeKey;
+    if (special) {
+      key = special;
+    } else {
+      // Climate matrix fallback (legacy path)
+      const { moistureBand, temperatureBand } = climateMatrixBands(climate.moisture, climate.temperature);
+      const matrixCode = biomesData.biomesMatrix[moistureBand]?.[temperatureBand];
+      const matrixKey = biomesData.keys?.[matrixCode] as StandardBiomeKey | undefined;
+      key = matrixKey ?? "grassland";
+    }
+
+    key = applyRegionalForestMask(key, climate, options);
+    return codeOf(key);
   }
 
-  private isWetland(moisture: number, temperature: number, height: number) {
-    if (temperature <= TemperatureThreshold.WETLAND_COLD_LIMIT) return false; // too cold
-    if (moisture > BiomeConstants.WETLAND_COAST_MOISTURE && height < BiomeConstants.WETLAND_COAST_HEIGHT) return true; // near coast
-    if (
-      moisture > BiomeConstants.WETLAND_INLAND_MOISTURE &&
-      height > BiomeConstants.WETLAND_INLAND_HEIGHT_MIN &&
-      height < BiomeConstants.WETLAND_INLAND_HEIGHT_MAX
-    )
-      return true; // off coast
-    return false;
+  /**
+   * Compatibility API used by heightmap restore and satellite texture paths.
+   * Uses simplified inputs (no regional mask continuity) — full define() is preferred.
+   */
+  getId(moisture: number, temperature: number, height: number, hasRiver: boolean) {
+    const profile = normalizeBiomeRegionProfile(
+      this.worldContext.options?.biomeRegionProfile ?? DEFAULT_BIOME_REGION_PROFILE
+    );
+    return this.resolveBiomeCode(
+      {
+        moisture,
+        temperature,
+        height,
+        hasRiver,
+        flux: hasRiver ? 50 : 0,
+        coastDistance: height < HeightThreshold.WATER_MAX_HEIGHT ? -1 : 2,
+        neighborOcean: false,
+        x: 0,
+        y: 0
+      },
+      { profile, seed: 1 }
+    );
   }
 }
 
 export const Biomes = new BiomesModule();
+
+export {
+  biomeHasAnyTag,
+  biomeHasTag,
+  createDefaultBiomeCatalog,
+  createDefaultBiomesData,
+  ensureBiomeCatalogFields,
+  getBiomeCode,
+  getBiomeKey,
+  isArableBiome,
+  isColdBiome,
+  isDesertBiome,
+  isForestBiome,
+  isMountainBiome,
+  isNomadicBiome,
+  isSnowBiome,
+  isWetlandBiome,
+  STANDARD_BIOME_COUNT,
+  STANDARD_BIOME_DEFINITIONS
+} from "../data/biomeCatalog";

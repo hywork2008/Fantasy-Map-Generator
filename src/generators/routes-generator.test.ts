@@ -104,7 +104,7 @@ describe("RoutesModule settlement foundation trails", () => {
       cells: {
         c: [[1], [0, 2], [1]],
         h: [25, 25, 25],
-        biome: [1, 1, 1],
+        biomeCode: [1, 1, 1],
         p: [
           [0, 0],
           [10, 0],
@@ -139,7 +139,7 @@ describe("RoutesModule settlement connections", () => {
       cells: {
         c: [[1], [0]],
         h: [25, 25],
-        biome: [1, 1],
+        biomeCode: [1, 1],
         p: [
           [0, 0],
           [10, 0]
@@ -169,7 +169,7 @@ describe("RoutesModule settlement water connections", () => {
       cells: {
         c: [[1], [0, 2], [1]],
         h: [25, 25, 25],
-        biome: [1, 1, 1],
+        biomeCode: [1, 1, 1],
         p: [
           [0, 0],
           [10, 0],
@@ -231,7 +231,7 @@ describe("RoutesModule settlement water connections", () => {
   it("adds only the new spur when a port joins an existing sea lane", () => {
     worldContext.pack.cells.c = [[1], [0, 2, 3], [1], [1]];
     worldContext.pack.cells.h = [25, 25, 25, 25];
-    worldContext.pack.cells.biome = [1, 1, 1, 1];
+    worldContext.pack.cells.biomeCode = [1, 1, 1, 1];
     worldContext.pack.cells.p = [
       [0, 0],
       [10, 0],

@@ -4,12 +4,18 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { BiomesRenderer, ReliefIconsRenderer } from "../renderers";
+import { appendCustomBiome } from "../data/biomeCatalog";
+import {
+  ensureCoastalHabitatColumns,
+  getCoastalHabitatDefinition,
+  getNearshoreHabitatDefinition
+} from "../data/coastalHabitatCatalog";
+import { BiomesRenderer, CoastalHabitatsRenderer, ReliefIconsRenderer } from "../renderers";
 import { legacyMutation } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, showMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
-import type { BiomeRow, BiomesFooter } from "../store/biomesEditorStore";
+import type { BiomeRow, BiomesFooter, BiomesPaintTarget } from "../store/biomesEditorStore";
 import { useBiomesEditorStore } from "../store/biomesEditorStore";
 import { isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import { findAll, findCell, getRandomColor, isLand, openURL, rn, si } from "../utils";
@@ -18,7 +24,15 @@ import { EditorBus } from "../utils/editorBus";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
 import { layerIsOn } from "../utils/nodeUtils";
-import { toggleBiomes, toggleCultures, toggleProvinces, toggleRelief, toggleReligions, toggleStates } from "./layers";
+import {
+  toggleBiomes,
+  toggleCoastalHabitats,
+  toggleCultures,
+  toggleProvinces,
+  toggleRelief,
+  toggleReligions,
+  toggleStates
+} from "./layers";
 import { editStyle } from "./style";
 import { recalculatePopulation } from "./tools";
 
@@ -55,7 +69,7 @@ function collectStatistics(): void {
 
   for (const i of cells.i) {
     if (cells.h[i] < 20) continue;
-    const b = cells.biome[i];
+    const b = cells.biomeCode[i];
     worldContext.biomesData.cells![b] += 1;
     worldContext.biomesData.area![b] += cells.area[i];
     worldContext.biomesData.rural![b] += cells.pop[i];
@@ -89,7 +103,9 @@ function buildRows(): void {
       area,
       population,
       populationTip,
-      canRemove: i > 12 && !b.cells![i]
+      canRemove:
+        !b.cells![i] &&
+        (String(b.keys?.[i] ?? "").startsWith("custom:") || String(b.keys?.[i] ?? "").startsWith("legacyCustom:"))
     });
   }
 
@@ -183,7 +199,21 @@ export function biomesOpenWiki(biomeName: string): void {
     Taiga: "Taiga",
     Tundra: "Tundra",
     Glacier: "Glacier",
-    Wetland: "Wetland"
+    "Glacier & perennial snowfield": "Glacier",
+    Wetland: "Wetland",
+    "Central European great forest": "Białowieża_Forest",
+    "Mediterranean woodland & scrub": "Mediterranean_forests,_woodlands,_and_scrub",
+    "Temperate coniferous forest": "Temperate_coniferous_forest",
+    "Montane forest": "Montane_forest",
+    "Alpine tundra": "Alpine_tundra",
+    Mangrove: "Mangrove",
+    "Xeric shrubland": "Xeric_shrubland",
+    "Cloud forest": "Cloud_forest",
+    "Heath & moorland": "Heath",
+    "Flooded forest & riparian woodland": "Várzea_forest",
+    "Cold steppe & forest-steppe": "Steppe",
+    "Tropical dry forest & thorn woodland": "Tropical_and_subtropical_dry_broadleaf_forests",
+    "Boreal peatland & muskeg": "Muskeg"
   };
   openURL(pages[biomeName] ? wikiBase + pages[biomeName] : `https://en.wikipedia.org/w/index.php?search=${biomeName}`);
 }
@@ -207,23 +237,13 @@ export function biomesToggleDisplayMode(): void {
 
 export function biomesAddCustomBiome(): void {
   const b = worldContext.biomesData;
-  const i = b.i.length;
+  let i = b.i.length;
   if (i > 254) {
     tip("Maximum number of biomes reached (255), data cleansing is required", false, "error");
     return;
   }
   legacyMutation(() => {
-    b.i.push(i);
-    b.color.push(getRandomColor());
-    b.habitability.push(50);
-    b.name.push("Custom");
-    b.iconsDensity.push(0);
-    b.icons.push([]);
-    b.cost.push(50);
-    b.rural!.push(0);
-    b.urban!.push(0);
-    b.cells!.push(0);
-    b.area!.push(0);
+    i = appendCustomBiome(b, { color: getRandomColor() });
     return { result: undefined, topics: ["map.physical"] };
   });
 
@@ -273,9 +293,10 @@ export function biomesEnterCustomization(): void {
 
   const { rows } = useBiomesEditorStore.getState();
   useBiomesEditorStore.getState().setCustomizationMode(true);
+  useBiomesEditorStore.getState().setPaintTarget("biome");
   useBiomesEditorStore.getState().setSelectedBiomeId(rows[0]?.i ?? null);
 
-  tip("Click on biome to select, drag the circle to change biome", true);
+  tip("Click on biome to select, drag the circle to change biome — or switch to habitat brush", true);
   view.viewbox
     .style("cursor", "crosshair")
     .on("click", selectBiomeOnMapClick)
@@ -285,30 +306,94 @@ export function biomesEnterCustomization(): void {
 
 export function biomesSelectOnLine(biomeId: number): void {
   useBiomesEditorStore.getState().setSelectedBiomeId(biomeId);
+  useBiomesEditorStore.getState().setPaintTarget("biome");
+}
+
+export function biomesSetPaintTarget(target: BiomesPaintTarget): void {
+  useBiomesEditorStore.getState().setPaintTarget(target);
+  if (target === "coastal" || target === "nearshore") {
+    if (!layerIsOn("toggleCoastalHabitats")) toggleCoastalHabitats();
+    tip(
+      target === "coastal"
+        ? "Paint coastal habitats on land cells next to water (beach, rock, flat, dune)"
+        : "Paint nearshore habitats on water cells next to land (reef, seagrass)",
+      true
+    );
+  } else {
+    tip("Click on biome to select, drag the circle to change biome", true);
+  }
 }
 
 function selectBiomeOnMapClick(event: MouseEvent): void {
   const [px, py] = pointer(event);
   const i = findCell(px, py);
-  if (worldContext.pack.cells.h[i] < 20) {
-    tip("You cannot reassign water via biomes. Please edit the Heightmap to change water", false, "error");
+  const { paintTarget } = useBiomesEditorStore.getState();
+  const cells = worldContext.pack.cells;
+  const isLandCell = cells.h[i] >= 20;
+
+  if (paintTarget === "biome") {
+    if (!isLandCell) {
+      tip("You cannot reassign water via biomes. Please edit the Heightmap to change water", false, "error");
+      return;
+    }
+    const assigned = (view.biomes as Selection<SVGGElement, unknown, null, undefined>)
+      .select("#temp")
+      .select(`polygon[data-cell='${i}']`);
+    const biome = assigned.size() ? +assigned.attr("data-biome") : cells.biomeCode[i];
+    useBiomesEditorStore.getState().setSelectedBiomeId(biome);
     return;
   }
-  const assigned = (view.biomes as Selection<SVGGElement, unknown, null, undefined>)
-    .select("#temp")
-    .select(`polygon[data-cell='${i}']`);
-  const biome = assigned.size() ? +assigned.attr("data-biome") : worldContext.pack.cells.biome[i];
-  useBiomesEditorStore.getState().setSelectedBiomeId(biome);
+
+  if (paintTarget === "coastal") {
+    if (!isLandCell) {
+      tip("Coastal habitats are painted on land coast cells", false, "error");
+      return;
+    }
+    ensureHabitatColumns();
+    const code = cells.coastalHabitat[i] || 0;
+    if (code) useBiomesEditorStore.getState().setSelectedCoastalCode(code);
+    return;
+  }
+
+  if (isLandCell) {
+    tip("Nearshore habitats are painted on water cells next to land", false, "error");
+    return;
+  }
+  ensureHabitatColumns();
+  const code = cells.nearshoreHabitat[i] || 0;
+  if (code) useBiomesEditorStore.getState().setSelectedNearshoreCode(code);
+}
+
+function ensureHabitatColumns(): void {
+  const cells = worldContext.pack.cells;
+  const { coastalHabitat, nearshoreHabitat } = ensureCoastalHabitatColumns(cells.i.length, cells);
+  cells.coastalHabitat = coastalHabitat;
+  cells.nearshoreHabitat = nearshoreHabitat;
 }
 
 function dragBiomeBrush(this: SVGElement, event: import("d3").D3DragEvent<SVGElement, unknown, unknown>): void {
   if (!event.dx && !event.dy) return;
-  const r = useBiomesEditorStore.getState().brushSize;
+  const store = useBiomesEditorStore.getState();
+  const r = store.brushSize;
   const [px, py] = pointer(event, this);
   EditorBus.moveCircle(px, py, r);
   const found = r > 5 ? findAll(px, py, r) : [findCell(px, py)];
-  const selection = found.filter(i => isLand(i, worldContext.pack));
-  if (selection.length) changeBiomeForSelection(selection);
+  const cells = worldContext.pack.cells;
+
+  if (store.paintTarget === "biome") {
+    const selection = found.filter(i => isLand(i, worldContext.pack));
+    if (selection.length) changeBiomeForSelection(selection);
+    return;
+  }
+
+  if (store.paintTarget === "coastal") {
+    const selection = found.filter(i => cells.h[i] >= 20);
+    if (selection.length) changeHabitatForSelection(selection, "coastal");
+    return;
+  }
+
+  const selection = found.filter(i => cells.h[i] < 20);
+  if (selection.length) changeHabitatForSelection(selection, "nearshore");
 }
 
 function changeBiomeForSelection(selection: number[]): void {
@@ -319,7 +404,7 @@ function changeBiomeForSelection(selection: number[]): void {
 
   selection.forEach(i => {
     const exists = temp.select(`polygon[data-cell='${i}']`);
-    const biomeOld = exists.size() ? +exists.attr("data-biome") : worldContext.pack.cells.biome[i];
+    const biomeOld = exists.size() ? +exists.attr("data-biome") : worldContext.pack.cells.biomeCode[i];
     if (+biomeNew === biomeOld) return;
 
     if (exists.size()) exists.attr("data-biome", biomeNew).attr("fill", color).attr("stroke", color);
@@ -331,6 +416,37 @@ function changeBiomeForSelection(selection: number[]): void {
         .attr("points", getPackPolygon(i, worldContext.pack).join(" "))
         .attr("fill", color)
         .attr("stroke", color);
+  });
+}
+
+function changeHabitatForSelection(selection: number[], kind: "coastal" | "nearshore"): void {
+  ensureHabitatColumns();
+  const temp = (view.biomes as Selection<SVGGElement, unknown, null, undefined>).select("#temp");
+  const store = useBiomesEditorStore.getState();
+  const code = kind === "coastal" ? store.selectedCoastalCode : store.selectedNearshoreCode;
+  const def = kind === "coastal" ? getCoastalHabitatDefinition(code) : getNearshoreHabitatDefinition(code);
+  const color = def.key === "none" ? "#cccccc" : def.color;
+  const attr = kind === "coastal" ? "data-coastal" : "data-nearshore";
+
+  selection.forEach(i => {
+    const exists = temp.select(`polygon[data-cell='${i}'][${attr}]`);
+    const old = exists.size()
+      ? +exists.attr(attr)
+      : kind === "coastal"
+        ? worldContext.pack.cells.coastalHabitat[i]
+        : worldContext.pack.cells.nearshoreHabitat[i];
+    if (code === old) return;
+
+    if (exists.size()) exists.attr(attr, String(code)).attr("fill", color).attr("stroke", color);
+    else
+      temp
+        .append("polygon")
+        .attr("data-cell", i)
+        .attr(attr, String(code))
+        .attr("points", getPackPolygon(i, worldContext.pack).join(" "))
+        .attr("fill", color)
+        .attr("stroke", color)
+        .attr("opacity", 0.7);
   });
 }
 
@@ -347,16 +463,27 @@ export function biomesApplyChange(): void {
     .selectAll("polygon");
   if (changed.size()) {
     legacyMutation(() => {
+      ensureHabitatColumns();
+      const cells = worldContext.pack.cells;
       changed.each(function () {
         const el = this as SVGPolygonElement;
         const i = +el.dataset.cell!;
-        const b = +el.dataset.biome!;
-        const cells = worldContext.pack.cells;
-        cells.biome[i] = b;
+        if (el.dataset.biome !== undefined) {
+          cells.biomeCode[i] = +el.dataset.biome;
+        }
+        if (el.dataset.coastal !== undefined) {
+          cells.coastalHabitat[i] = +el.dataset.coastal;
+        }
+        if (el.dataset.nearshore !== undefined) {
+          cells.nearshoreHabitat[i] = +el.dataset.nearshore;
+        }
       });
       return { result: undefined, topics: ["map.physical"] };
     });
     BiomesRenderer.render(worldContext, viewContext, appServices);
+    if (layerIsOn("toggleCoastalHabitats")) {
+      CoastalHabitatsRenderer.render(worldContext, viewContext, appServices);
+    }
     biomesRefresh();
   }
   biomesExitCustomization();
@@ -368,6 +495,7 @@ export function biomesExitCustomization(close?: string): void {
   EditorBus.removeCircle();
   useBiomesEditorStore.getState().setCustomizationMode(false);
   useBiomesEditorStore.getState().setSelectedBiomeId(null);
+  useBiomesEditorStore.getState().setPaintTarget("biome");
   EditorBus.restoreDefaultEvents();
   clearMainTip();
   if (close === "close") {

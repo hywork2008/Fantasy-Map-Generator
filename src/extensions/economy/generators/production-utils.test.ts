@@ -49,7 +49,7 @@ describe("getCellProduction depletion integration", () => {
       burgs: [],
       zones: [],
       cells: {
-        biome: new Uint8Array([6]),
+        biomeCode: new Uint8Array([6]),
         culture: new Uint16Array([0]),
         state: new Uint16Array([0]),
         religion: new Uint16Array([0]),
@@ -123,7 +123,7 @@ describe("getCellProduction seasonal food output", () => {
       burgs: [],
       zones: [],
       cells: {
-        biome: new Uint8Array([6]),
+        biomeCode: new Uint8Array([6]),
         culture: new Uint16Array([0]),
         state: new Uint16Array([0]),
         religion: new Uint16Array([0]),

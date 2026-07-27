@@ -35,7 +35,7 @@ describe("GoodsModule", () => {
     worldContext.pack = {
       cells: {
         i: [0, 1, 2, 3],
-        biome: Uint8Array.from([0, 0, 0, 0]),
+        biomeCode: Uint8Array.from([0, 0, 0, 0]),
         h: Uint8Array.from([20, 20, 20, 20]),
         t: Uint16Array.from([1, 1, 1, 1]),
         r: Uint16Array.from([0, 0, 0, 0]),
@@ -163,8 +163,8 @@ describe("GoodsModule", () => {
       { ...getGoods()[0], i: 1, biomeOutput: { 3: 0.1 } },
       { ...getGoods()[1], i: 2, biomeOutput: { 4: 0.1 } }
     ]);
-    worldContext.pack.cells.biome[0] = 3;
-    worldContext.pack.cells.biome[1] = 4;
+    worldContext.pack.cells.biomeCode[0] = 3;
+    worldContext.pack.cells.biomeCode[1] = 4;
     setGoodCellColumn(new Uint16Array(4));
     goodsModule.sync();
 

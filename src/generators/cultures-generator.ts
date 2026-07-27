@@ -6,6 +6,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { isForestBiome, isNomadicBiome, isWetlandBiome } from "../data/biomeCatalog";
 import { useOptionsState } from "../store/optionsState";
 import type { Culture } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
@@ -41,7 +42,7 @@ class CulturesModule {
       const d = Math.abs(temp[cells.g[cell]] - goal);
       return d ? d + 1 : 1;
     }; // temperature difference fee
-    const bd = (cell: number, biomes: number[], fee = 4) => (biomes.includes(cells.biome[cell]) ? 1 : fee); // biome difference fee
+    const bd = (cell: number, biomes: number[], fee = 4) => (biomes.includes(cells.biomeCode[cell]) ? 1 : fee); // biome difference fee
     const sf = (cell: number, fee = 4) =>
       cells.haven[cell] && pack.features[cells.f[cells.haven[cell]]].type !== "lake" ? 1 : fee; // not on sea coast fee
 
@@ -1097,7 +1098,11 @@ class CulturesModule {
 
     // set culture type based on culture center position
     const defineCultureType = (i: number) => {
-      if (this.cells!.h[i] < 70 && [1, 2, 4].includes(this.cells!.biome[i])) return "Nomadic"; // high penalty in forest biomes and near coastline
+      const { biomesData } = this.worldContext;
+      const biomeCode = this.cells!.biomeCode[i];
+      // Hot/cold desert + grassland historically defined Nomadic centers
+      if (this.cells!.h[i] < 70 && isNomadicBiome(biomesData, biomeCode) && !isForestBiome(biomesData, biomeCode))
+        return "Nomadic";
       if (this.cells!.h[i] > 50) return "Highland"; // no penalty for hills and mountains, high for other elevations
       const f = pack.features[this.cells!.f[this.cells!.haven[i]]]; // opposite feature
       if (f.type === "lake" && f.cells > 5) return "Lake"; // low water cross penalty and high for growth not along coastline
@@ -1108,7 +1113,15 @@ class CulturesModule {
       )
         return "Naval"; // low water cross penalty and high for non-along-coastline growth
       if (this.cells!.r[i] && this.cells!.fl[i] > 100) return "River"; // no River cross penalty, penalty for non-River growth
-      if (this.cells!.t[i] > 2 && [3, 7, 8, 9, 10, 12].includes(this.cells!.biome[i])) return "Hunting"; // high penalty in non-native biomes
+      // Hunting: savanna, rainforests, taiga, tundra, wetland — non-arable frontier biomes
+      if (
+        this.cells!.t[i] > 2 &&
+        (isForestBiome(biomesData, biomeCode) ||
+          isWetlandBiome(biomesData, biomeCode) ||
+          biomesData.keys[biomeCode] === "savanna" ||
+          biomesData.keys[biomeCode] === "tundra")
+      )
+        return "Hunting";
       return "Generic";
     };
 
@@ -1253,9 +1266,9 @@ class CulturesModule {
     }
 
     const getBiomeCost = (c: number, biome: number, type: string) => {
-      if (cells.biome[cultures[c].center as number] === biome) return 10; // tiny penalty for native biome
+      if (cells.biomeCode[cultures[c].center as number] === biome) return 10; // tiny penalty for native biome
       if (type === "Hunting") return biomesData.cost[biome] * 5; // non-native biome penalty for hunters
-      if (type === "Nomadic" && biome > 4 && biome < 10) return biomesData.cost[biome] * 10; // forest biome penalty for nomads
+      if (type === "Nomadic" && isForestBiome(biomesData, biome)) return biomesData.cost[biome] * 10; // forest tag penalty for nomads
       return biomesData.cost[biome] * 2; // general non-native biome penalty
     };
 
@@ -1290,7 +1303,7 @@ class CulturesModule {
     while (queue.length) {
       const { cellId, priority, cultureId } = queue.pop()!;
       const { type, expansionism } = cultures[cultureId];
-      const sourceBiome = cells.biome[cellId];
+      const sourceBiome = cells.biomeCode[cellId];
 
       cells.c[cellId].forEach(neibCellId => {
         if (hasLocked) {
@@ -1298,7 +1311,7 @@ class CulturesModule {
           if (neibCultureId && cultures[neibCultureId].lock) return; // do not overwrite cell of locked culture
         }
 
-        const targetBiome = cells.biome[neibCellId];
+        const targetBiome = cells.biomeCode[neibCellId];
         const biomeCost = getBiomeCost(cultureId, targetBiome, type as string);
         const biomeChangeCost = sourceBiome === targetBiome ? 0 : 20; // penalty on biome change
         const heightCost = getHeightCost(neibCellId, cells.h[neibCellId], type as string);

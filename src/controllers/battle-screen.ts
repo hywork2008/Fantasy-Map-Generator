@@ -6,6 +6,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { isForestBiome, isWetlandBiome } from "../data/biomeCatalog";
 import { applyDemographicCasualties } from "../generators/demography-simulator";
 import { CombatDeathsRenderer, moveRegiment } from "../renderers/index";
 import { createMarker } from "../runtime/worldRuntime";
@@ -112,7 +113,12 @@ export class Battle {
       if (typesA.every((t: string) => t === "aviation") && typesD.every((t: string) => t === "aviation")) return "air";
       if (attacker.n && !defender.n && typesA.some((t: string) => t !== "naval")) return "landing";
       if (!defender.n && worldContext.pack.burgs[worldContext.pack.cells.burg![this.cell]].walls) return "siege";
-      if (P(0.1) && [5, 6, 7, 8, 9, 12].includes(worldContext.pack.cells.biome![this.cell])) return "ambush";
+      if (
+        P(0.1) &&
+        (isForestBiome(worldContext.biomesData, worldContext.pack.cells.biomeCode![this.cell]) ||
+          isWetlandBiome(worldContext.biomesData, worldContext.pack.cells.biomeCode![this.cell]))
+      )
+        return "ambush";
       return "field";
     };
 

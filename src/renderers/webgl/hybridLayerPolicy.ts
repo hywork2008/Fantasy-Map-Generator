@@ -5,6 +5,7 @@ export const WEBGL_MANAGED_SVG_LAYER_IDS = [
   "terrs",
   "lakes",
   "biomes",
+  "coastalHabitats",
   "population",
   "cells",
   "gridOverlay",

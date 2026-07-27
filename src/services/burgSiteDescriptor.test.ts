@@ -41,7 +41,7 @@ function setupRiverCrossingWorld() {
       haven: new Uint32Array(cellCount),
       harbor: new Uint8Array(cellCount),
       g: new Uint32Array(cellCount),
-      biome: new Uint8Array(cellCount).fill(6),
+      biomeCode: new Uint8Array(cellCount).fill(6),
       burg: Uint16Array.from([1, 0, 0, 0, 0, 0, 0, 0, 2]),
       f: new Uint16Array(cellCount)
     },

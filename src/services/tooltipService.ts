@@ -1,5 +1,6 @@
 import * as d3 from "d3";
 import { worldContext } from "../context/worldContext";
+import { getCoastalHabitatDefinition, getNearshoreHabitatDefinition } from "../data/coastalHabitatCatalog";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { setHoverNotesState } from "../store/hoverNotesState";
 import { useToastStore } from "../store/toastStore";
@@ -271,11 +272,21 @@ export function showMapTooltip(point: [number, number], e: MouseEvent, i: number
   else if (layerIsOn("toggleCombatDeaths")) tip(getCombatDeathsTip(i));
   else if (layerIsOn("togglePopulation")) tip(getPopulationTip(i));
   else if (layerIsOn("toggleTemperature")) tip(`Temperature: ${convertTemperature(worldContext.grid.cells.temp[g])}`);
-  else if (layerIsOn("toggleBiomes") && worldContext.pack.cells.biome[i]) {
-    const biome = worldContext.pack.cells.biome[i];
+  else if (layerIsOn("toggleBiomes") && worldContext.pack.cells.biomeCode[i]) {
+    const biome = worldContext.pack.cells.biomeCode[i];
     tip(`Biome: ${worldContext.biomesData.name[biome]}`);
     const biomesEditorEl = getVisibleDialogElement("biomesEditor");
     if (biomesEditorEl) highlightEditorLine(biomesEditorEl, biome);
+  } else if (layerIsOn("toggleCoastalHabitats")) {
+    const cells = worldContext.pack.cells;
+    const isLand = cells.h[i] >= 20;
+    const code = isLand ? (cells.coastalHabitat?.[i] ?? 0) : (cells.nearshoreHabitat?.[i] ?? 0);
+    if (code) {
+      const def = isLand ? getCoastalHabitatDefinition(code) : getNearshoreHabitatDefinition(code);
+      tip(`${isLand ? "Coastal" : "Nearshore"} habitat: ${def.label} — ${def.contentHint}`);
+    } else {
+      tip("No coastal/nearshore habitat on this cell");
+    }
   } else if (layerIsOn("toggleReligions") && worldContext.pack.cells.religion[i]) {
     const religion = worldContext.pack.cells.religion[i];
     const r = worldContext.pack.religions[religion];
