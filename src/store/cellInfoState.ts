@@ -16,6 +16,8 @@ export interface CellInfoData {
   depth: string;
   temp: string;
   biome: string;
+  coastalHabitat: string;
+  nearshoreHabitat: string;
   state: string;
   province: string;
   culture: string;
@@ -46,6 +48,8 @@ export const useCellInfoState = create<CellInfoState>(set => ({
   depth: "0",
   temp: "0",
   biome: "n/a",
+  coastalHabitat: "none",
+  nearshoreHabitat: "none",
   state: "n/a",
   province: "n/a",
   culture: "n/a",

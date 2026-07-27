@@ -6,6 +6,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { createDefaultBiomesData, getBiomeCode } from "../data/biomeCatalog";
+import { ensureCoastalHabitatColumns } from "../data/coastalHabitatCatalog";
 import { BiomeConstants, HeightThreshold, TemperatureThreshold } from "../data/constants";
 import type { WorldState } from "../types/WorldState";
 import { rn } from "../utils";
@@ -28,6 +29,10 @@ class BiomesModule {
     const { fl: flux, r: riverIds, h: heights, c: neighbors, g: gridReference } = pack.cells;
     const { temp, prec } = grid.cells;
     pack.cells.biomeCode = new Uint8Array(pack.cells.i.length);
+    // Habitat attributes start empty; Phase 3 auto-assigns, Phase 2 paints manually.
+    const habitats = ensureCoastalHabitatColumns(pack.cells.i.length, pack.cells);
+    pack.cells.coastalHabitat = habitats.coastalHabitat;
+    pack.cells.nearshoreHabitat = habitats.nearshoreHabitat;
 
     const calculateMoisture = (cellId: number) => {
       let moisture = prec[gridReference[cellId]];

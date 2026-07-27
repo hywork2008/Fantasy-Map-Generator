@@ -44,6 +44,12 @@ export function createViewLayers(): void {
   const texture = viewbox.append("g").attr("id", "texture") as Selection<SVGGElement, unknown, null, undefined>;
   const lakes = viewbox.append("g").attr("id", "lakes") as Selection<SVGGElement, unknown, null, undefined>;
   const biomes = viewbox.append("g").attr("id", "biomes") as Selection<SVGGElement, unknown, null, undefined>;
+  const coastalHabitats = viewbox.append("g").attr("id", "coastalHabitats").style("display", "none") as Selection<
+    SVGGElement,
+    unknown,
+    null,
+    undefined
+  >;
   const terrs = viewbox.append("g").attr("id", "terrs") as Selection<SVGGElement, unknown, null, undefined>;
   const danger = viewbox.append("g").attr("id", "danger").style("display", "none") as Selection<
     SVGGElement,
@@ -190,6 +196,7 @@ export function createViewLayers(): void {
     terrs,
     lakes,
     biomes,
+    coastalHabitats,
     cells,
     gridOverlay,
     coordinates,
@@ -321,6 +328,20 @@ export function bindViewLayersFromSvg(mapSvgEl: SVGSVGElement, options: BindView
   const texture = viewbox.select("#texture") as Selection<SVGGElement, unknown, null, undefined>;
   const terrs = viewbox.select("#terrs") as Selection<SVGGElement, unknown, null, undefined>;
   const biomes = viewbox.select("#biomes") as Selection<SVGGElement, unknown, null, undefined>;
+  // Maps saved before coastal habitats: create #coastalHabitats after biomes.
+  let coastalHabitats = viewbox.select("#coastalHabitats") as Selection<SVGGElement, unknown, null, undefined>;
+  if (!coastalHabitats.size()) {
+    const node = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    node.id = "coastalHabitats";
+    node.style.display = "none";
+    const biomesNode = biomes.node();
+    if (biomesNode?.parentNode) {
+      biomesNode.parentNode.insertBefore(node, biomesNode.nextSibling);
+    } else {
+      viewbox.node()?.appendChild(node);
+    }
+    coastalHabitats = d3.select(node) as Selection<SVGGElement, unknown, null, undefined>;
+  }
   const terrsNode = terrs.node();
   const biomesNode = biomes.node();
   if (terrsNode && biomesNode?.parentNode && biomesNode.nextSibling !== terrsNode) {
@@ -412,6 +433,7 @@ export function bindViewLayersFromSvg(mapSvgEl: SVGSVGElement, options: BindView
     terrs,
     lakes,
     biomes,
+    coastalHabitats,
     cells,
     gridOverlay,
     coordinates,

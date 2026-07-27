@@ -306,12 +306,16 @@ BiomeCatalogSnapshot + biomeCode
 - 経済 `biomeOutput` や military unit `biomes: number[]` は、歴史的 0–12 コード安定のため当面数値のまま。Phase 4 で `BiomeKey` / タグへ寄せる。
 - 新規10種はカタログ・手動編集・描画色の既定値まで。気候自動割当は Phase 3。
 
-### Phase 2: 描画と手動編集
+### Phase 2: 描画と手動編集 — **実装済み (2026-07-27)**
 
-1. 色、地形アイコン、衛星テクスチャ、WebGL描画を追加する。
-2. Biomes Editorから各新規種をセルへ手動適用できるようにし、沿岸ハビタットは専用の海岸編集操作で設定できるようにする。
-3. 砂浜・磯・干潟・浅海岩礁を SVG と WebGL の双方で描画し、海亀、カニ、貝、海鳥、漁場等のコンテンツが参照できるようにする。
-4. 新規種ごとの居住適性・移動コストを適用し、経路・国家・文化の生成結果を確認する。
+1. 色、地形アイコン、衛星テクスチャ、WebGL描画を追加する。 ✅（標準23種の色/アイコン/衛星アルベド、WebGL キャッシュが `keys` も追随）
+2. Biomes Editorから各新規種をセルへ手動適用できるようにし、沿岸ハビタットは専用の海岸編集操作で設定できるようにする。 ✅（Brush の Paint 切替: biome / coastal / nearshore）
+3. 砂浜・磯・干潟・浅海岩礁を SVG と WebGL の双方で描画し、海亀、カニ、貝、海鳥、漁場等のコンテンツが参照できるようにする。 ✅（`toggleCoastalHabitats`、`coastalHabitat`/`nearshoreHabitat` 列、cell info / tooltip / `allowsFormalHarbor`）
+4. 新規種ごとの居住適性・移動コストを適用し、経路・国家・文化の生成結果を確認する。 ✅（カタログ定義の habitability / movementCost が既存経路で読まれる）
+
+**残メモ (Phase 2 境界):**
+- 沿岸ハビタットの自動割当（海岸線区間・25–35% 砂浜）は Phase 3。
+- 砂浜の小舟漁業モデルは Phase 4。
 
 ### Phase 3: 気候・地形による自動割当
 

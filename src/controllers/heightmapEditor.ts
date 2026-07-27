@@ -569,6 +569,8 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     worldContext.pack.cells.culture = new Uint16Array(n);
     worldContext.pack.cells.religion = new Uint16Array(n);
     worldContext.pack.cells.biomeCode = new Uint8Array(n);
+    worldContext.pack.cells.coastalHabitat = new Uint8Array(n);
+    worldContext.pack.cells.nearshoreHabitat = new Uint8Array(n);
 
     if (!erosionAllowed) {
       worldContext.pack.cells.r = new Uint16Array(n);

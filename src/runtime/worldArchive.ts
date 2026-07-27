@@ -422,6 +422,7 @@ function migrateBiomeCatalog(world: unknown): void {
       cells.biomeCode = cells.biome;
       delete cells.biome;
     }
+    // Pre-Phase-2 archives lack habitat columns — leave undefined until generators touch them.
   }
   if (isRecord(world.biomesData)) {
     world.biomesData = ensureBiomeCatalogFields(world.biomesData as unknown as BiomesData);

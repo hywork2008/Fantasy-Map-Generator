@@ -126,6 +126,8 @@ class Resampler {
   ) {
     const { pack } = worldContext;
     pack.cells.biomeCode = new Uint8Array(pack.cells.i.length);
+    pack.cells.coastalHabitat = new Uint8Array(pack.cells.i.length);
+    pack.cells.nearshoreHabitat = new Uint8Array(pack.cells.i.length);
     pack.cells.fl = new Uint16Array(pack.cells.i.length);
     pack.cells.s = new Int16Array(pack.cells.i.length);
     pack.cells.pop = new Float32Array(pack.cells.i.length);

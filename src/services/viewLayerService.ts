@@ -218,6 +218,7 @@ class ViewLayerServiceImpl {
       toggleLakes: viewContext.lakes,
       toggleHeight: viewContext.terrs,
       toggleBiomes: viewContext.biomes,
+      toggleCoastalHabitats: viewContext.coastalHabitats,
       toggleCells: viewContext.cells,
       toggleGrid: viewContext.gridOverlay,
       toggleCoordinates: viewContext.coordinates,

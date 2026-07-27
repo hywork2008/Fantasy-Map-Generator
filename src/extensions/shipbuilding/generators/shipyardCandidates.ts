@@ -1,4 +1,5 @@
 import { isForestBiome } from "../../../data/biomeCatalog";
+import { allowsFormalHarbor } from "../../../data/coastalHabitatCatalog";
 import { rn } from "../../hostUtils";
 import { getWorldContext } from "../shipbuildingContext";
 
@@ -31,6 +32,9 @@ export function computeShipyardCandidates(): ShipyardCandidate[] {
 
   for (const burg of pack.burgs) {
     if (!burg.i || burg.removed || !burg.port) continue;
+
+    // Sandy beaches cannot host formal shipyards (biomes plan Phase 2).
+    if (!allowsFormalHarbor(pack.cells.coastalHabitat?.[burg.cell])) continue;
 
     const haven = pack.cells.haven[burg.cell];
     if (!haven || pack.features[pack.cells.f[haven]]?.type !== "ocean") continue;

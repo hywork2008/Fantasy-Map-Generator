@@ -4,6 +4,7 @@ import { simulationContext } from "../context/simulationContext";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { snapshotToBiomesData } from "../data/biomeCatalog";
+import { ensureCoastalHabitatColumns } from "../data/coastalHabitatCatalog";
 import { Burgs } from "../generators/burgs-generator";
 import { Features } from "../generators/features";
 import { Routes } from "../generators/routes-generator";
@@ -530,6 +531,20 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
   worldContext.pack.routes = data[37] ? JSON.parse(data[37]) : [];
   worldContext.pack.zones = data[38] ? JSON.parse(data[38]) : [];
   worldContext.pack.cells.biomeCode = legacyBiomes.biomeCode;
+  {
+    const n = worldContext.pack.cells.i.length;
+    const habitats = ensureCoastalHabitatColumns(n, {});
+    if (data[53]) {
+      const coastal = Uint8Array.from(data[53].split(","), Number);
+      if (coastal.length === n) habitats.coastalHabitat = coastal;
+    }
+    if (data[54]) {
+      const nearshore = Uint8Array.from(data[54].split(","), Number);
+      if (nearshore.length === n) habitats.nearshoreHabitat = nearshore;
+    }
+    worldContext.pack.cells.coastalHabitat = habitats.coastalHabitat;
+    worldContext.pack.cells.nearshoreHabitat = habitats.nearshoreHabitat;
+  }
   worldContext.pack.cells.burg = Uint16Array.from(data[17].split(","), Number);
   worldContext.pack.cells.conf = Uint8Array.from(data[18].split(","), Number);
   worldContext.pack.cells.culture = Uint16Array.from(data[19].split(","), Number);
@@ -636,6 +651,8 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
           "haven",
           "culture",
           "biomeCode",
+          "coastalHabitat",
+          "nearshoreHabitat",
           "harbor",
           "burg",
           "religion",

@@ -12,6 +12,7 @@ import {
   BurgIconsRenderer,
   BurgLabelsRenderer,
   CellsRenderer,
+  CoastalHabitatsRenderer,
   CombatDeathsRenderer,
   CoordinatesRenderer,
   CulturesRenderer,
@@ -401,6 +402,7 @@ export function paintSvgMapLayers(): void {
   if (layerIsOn("toggleTexture")) TextureRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleHeight")) HeightmapRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleBiomes")) BiomesRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleCoastalHabitats")) CoastalHabitatsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleCells")) CellsRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleGrid")) GridRenderer.render(worldContext, viewContext, appServices);
   if (layerIsOn("toggleCoordinates")) CoordinatesRenderer.render(worldContext, viewContext, appServices);
@@ -597,6 +599,25 @@ export function toggleBiomes(event?: MouseEvent): void {
     }
     BiomesRenderer.clear?.(viewContext);
     turnButtonOff("toggleBiomes");
+  }
+}
+
+export function toggleCoastalHabitats(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleCoastalHabitats", "coastalHabitats", event)) return;
+
+  if (!layerIsOn("toggleCoastalHabitats")) {
+    turnButtonOn("toggleCoastalHabitats");
+    setLayerVisibility("toggleCoastalHabitats", true);
+    CoastalHabitatsRenderer.render(worldContext, viewContext, appServices);
+    if (event && isCtrlClick(event)) editStyle("coastalHabitats");
+  } else {
+    if (event && isCtrlClick(event)) {
+      editStyle("coastalHabitats");
+      return;
+    }
+    setLayerVisibility("toggleCoastalHabitats", false);
+    turnButtonOff("toggleCoastalHabitats");
+    CoastalHabitatsRenderer.clear?.(viewContext);
   }
 }
 
@@ -1132,6 +1153,7 @@ const TOGGLE_REGISTRY: Record<string, (event?: MouseEvent) => void> = {
   toggleCombatDeaths,
   toggleEnclosure,
   toggleBiomes,
+  toggleCoastalHabitats,
   togglePrecipitation,
   togglePopulation,
   toggleCells,

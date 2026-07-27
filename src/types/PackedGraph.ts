@@ -43,6 +43,16 @@ export interface PackedGraphCells {
    * definitions — never compare codes by numeric range.
    */
   biomeCode: TypedArray;
+  /**
+   * Coastal habitat attribute (land coast cells). Catalog-local code; see
+   * `CoastalHabitatKey` / coastalHabitatCatalog. Does not replace biome.
+   */
+  coastalHabitat: TypedArray;
+  /**
+   * Nearshore habitat attribute (shallow water cells). Catalog-local code; see
+   * `NearshoreHabitatKey` / coastalHabitatCatalog.
+   */
+  nearshoreHabitat: TypedArray;
   harbor: TypedArray; // cell harbour presence
   /** Water cell enclosure score, 0 (open ocean) - 100 (fully landlocked); 0 for land cells. Debug-only. */
   enclosure: TypedArray;
