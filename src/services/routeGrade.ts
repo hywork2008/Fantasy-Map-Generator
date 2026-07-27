@@ -1,11 +1,15 @@
 /**
- * Route grade profiling — pure measurement of planar distance, slope, and pass class
- * along a cell path. Phase 0: no speed / pathfinding / trade wiring.
+ * Route grade profiling — pure measurement of planar distance, slope, pass class,
+ * and (Phase 1+) land travel-time multipliers along a cell path.
+ *
+ * Speed / pathfinding consumers live in the economy extension; this module stays pure
+ * (no worldContext / DOM).
  *
  * @see docs/plan/route-grade-movement.md
  */
 
 import { heightToMeters } from "../utils/height";
+import { lerp } from "../utils/numberUtils";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -85,15 +89,47 @@ export interface RouteGradeOptions {
   thresholds?: Partial<RouteGradeThresholds>;
 }
 
-// Phase 1 — not implemented in Phase 0 (kept as design anchors only):
-// export type MerchantRoutePreference = "preferSpeed" | "avoidHardPass";
-// export interface GradeSensitivity {
-//   freeGrade: number;
-//   criticalGrade: number;
-//   ascentBias: number;
-//   descentFactor: number;
-//   minMultiplier: number;
-// }
+/** Player-facing (and later NPC) preference when multiple land paths exist. */
+export type MerchantRoutePreference =
+  /** Minimize travel days (grade slows horses; may still take a steep shortcut). */
+  | "preferSpeed"
+  /** Extra cost on horseHard / hardPass edges so pathfinding detours when viable. */
+  | "avoidHardPass";
+
+/** Conveyance sensitivity to grade (draft animals, later infantry/mounted). */
+export interface GradeSensitivity {
+  /** Below this effective grade, speed multiplier ≈ 1. */
+  freeGrade: number;
+  /** At/above this effective grade, speed is minMultiplier. */
+  criticalGrade: number;
+  /** Extra weight on uphill grade (e.g. 1.2). */
+  ascentBias: number;
+  /** Coefficient on |grade| for descents (e.g. 0.85). */
+  descentFactor: number;
+  /** Floor speed multiplier at critical grade. */
+  minMultiplier: number;
+  /** Extra multiplier when the edge sits in a hard-pass ascent window (e.g. 0.5). */
+  passWindowMultiplier: number;
+}
+
+export interface LandTravelDayOptions {
+  distanceScale: number;
+  heightExponent: number;
+  heights: ArrayLike<number>;
+  landKmPerDay: number;
+  /** Default 1. */
+  draftSpeedMultiplier?: number;
+  /** 0 = legacy planar-only (m=1 always). 1 = full grade effect. Default 1. */
+  gradeEffectStrength?: number;
+  sensitivity: GradeSensitivity;
+  thresholds?: Partial<RouteGradeThresholds>;
+  /**
+   * Pathfinding preference. When `avoidHardPass`, returned days are scaled by
+   * AVOID_* multipliers so Dijkstra detours around hard/extreme grades.
+   * Duration reporting for deals should leave this as preferSpeed (default).
+   */
+  routePreference?: MerchantRoutePreference;
+}
 
 // ---------------------------------------------------------------------------
 // Defaults
@@ -113,6 +149,30 @@ export const DEFAULT_ROUTE_GRADE_THRESHOLDS: RouteGradeThresholds = {
   A_extremeM: 400,
   winterElevationH: 60 // landRouteGraph.WINTER_ROAD_CLOSURE_ELEVATION
 };
+
+/** Horse / standard wagon — plan §3 defaults. */
+export const DEFAULT_HORSE_GRADE_SENSITIVITY: GradeSensitivity = {
+  freeGrade: 0.03,
+  criticalGrade: 0.18,
+  ascentBias: 1.2,
+  descentFactor: 0.85,
+  minMultiplier: 0.15,
+  passWindowMultiplier: 0.5
+};
+
+/** Ox — slower baseline (via speedMultiplier 0.5) and slightly less grade-tolerant. */
+export const DEFAULT_OX_GRADE_SENSITIVITY: GradeSensitivity = {
+  freeGrade: 0.02,
+  criticalGrade: 0.12,
+  ascentBias: 1.3,
+  descentFactor: 0.9,
+  minMultiplier: 0.12,
+  passWindowMultiplier: 0.45
+};
+
+/** Dijkstra extra cost when preferencing away from hard passes. */
+export const AVOID_HARD_PASS_COST_MULTIPLIER = 3;
+export const AVOID_EXTREME_PASS_COST_MULTIPLIER = 4;
 
 const PASS_CLASS_RANK: Record<PassClass, number> = {
   flat: 0,
@@ -281,9 +341,145 @@ export function tagsForPass(passClass: PassClass, maxEndpointH: number, threshol
   return tags;
 }
 
+/**
+ * Piecewise-linear grade → speed multiplier, blended by `gradeEffectStrength`.
+ * strength 0 → always 1 (legacy planar travel time).
+ */
+export function gradeToSpeedMultiplier(
+  grade: number,
+  sensitivity: GradeSensitivity,
+  gradeEffectStrength: number
+): number {
+  const strength = clamp01(gradeEffectStrength);
+  if (strength === 0) return 1;
+
+  const gEff = grade > 0 ? grade * sensitivity.ascentBias : Math.abs(grade) * sensitivity.descentFactor;
+  let m: number;
+  if (gEff <= sensitivity.freeGrade) m = 1;
+  else if (gEff >= sensitivity.criticalGrade) m = sensitivity.minMultiplier;
+  else {
+    const t = (gEff - sensitivity.freeGrade) / (sensitivity.criticalGrade - sensitivity.freeGrade);
+    m = lerp(1, sensitivity.minMultiplier, t);
+  }
+  return 1 + (m - 1) * strength;
+}
+
+/**
+ * Days to traverse a land polyline with grade-adjusted speed.
+ * Points are `[x, y]` or `[x, y, cellId]`. Without cell ids, falls back to planar distance only.
+ *
+ * When `routePreference` is `avoidHardPass`, multiplies the result by pathfinding avoid costs
+ * (for Dijkstra). Callers computing real ETA / deal duration should leave preference as
+ * `preferSpeed` (default).
+ */
+export function calculateLandTravelDays(
+  points: ReadonlyArray<readonly number[]>,
+  options: LandTravelDayOptions
+): number {
+  const landKmPerDay = options.landKmPerDay;
+  const draft = options.draftSpeedMultiplier ?? 1;
+  if (landKmPerDay <= 0 || draft <= 0) return Infinity;
+
+  const baseSpeed = landKmPerDay * draft;
+  const strength = clamp01(options.gradeEffectStrength ?? 1);
+  const thresholds = resolveThresholds(options.thresholds);
+  const preference = options.routePreference ?? "preferSpeed";
+
+  if (points.length < 2) return 0;
+
+  const hasCells = points.every(p => typeof p[2] === "number" && Number.isFinite(p[2]));
+  if (!hasCells || strength === 0) {
+    let mapUnits = 0;
+    for (let i = 0; i < points.length - 1; i++) {
+      mapUnits += Math.hypot(points[i + 1][0] - points[i][0], points[i + 1][1] - points[i][1]);
+    }
+    return (mapUnits * options.distanceScale) / baseSpeed;
+  }
+
+  const cells: number[] = points.map(p => p[2] as number);
+  const lengths: number[] = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    lengths.push(Math.hypot(points[i + 1][0] - points[i][0], points[i + 1][1] - points[i][1]));
+  }
+
+  const edgeOpts = {
+    distanceScale: options.distanceScale,
+    heightExponent: options.heightExponent,
+    heights: options.heights,
+    thresholds
+  };
+  const edges: EdgeGradeMetrics[] = [];
+  for (let i = 0; i < cells.length - 1; i++) {
+    edges.push(sampleEdgeGrade(cells[i], cells[i + 1], lengths[i], edgeOpts));
+  }
+
+  const hardWindow = markAscentWindows(edges, thresholds.W_hardKm, thresholds.A_hardM);
+  const extremeWindow = markAscentWindows(edges, thresholds.W_extremeKm, thresholds.A_extremeM);
+
+  let days = 0;
+  let maxAbsGrade = 0;
+  for (let i = 0; i < edges.length; i++) {
+    const e = edges[i];
+    if (e.absGrade > maxAbsGrade) maxAbsGrade = e.absGrade;
+    let m = gradeToSpeedMultiplier(e.grade, options.sensitivity, strength);
+    if (hardWindow[i] || extremeWindow[i]) {
+      const passM = options.sensitivity.passWindowMultiplier;
+      m *= 1 + (passM - 1) * strength;
+    }
+    // Keep a tiny floor so extreme stacks never divide by zero.
+    const v = baseSpeed * Math.max(m, 1e-6);
+    days += e.runKm / v;
+  }
+
+  if (preference === "avoidHardPass") {
+    days *= avoidPassCostMultiplier(maxAbsGrade, hardWindow.some(Boolean), extremeWindow.some(Boolean), thresholds);
+  }
+
+  return days;
+}
+
+/** Pathfinding avoid cost from max grade / window flags on a single graph edge. */
+export function avoidPassCostMultiplier(
+  maxAbsGrade: number,
+  hasHardWindow: boolean,
+  hasExtremeWindow: boolean,
+  thresholds: RouteGradeThresholds = DEFAULT_ROUTE_GRADE_THRESHOLDS
+): number {
+  if (maxAbsGrade >= thresholds.G_extreme || hasExtremeWindow) return AVOID_EXTREME_PASS_COST_MULTIPLIER;
+  if (maxAbsGrade >= thresholds.G_hard || hasHardWindow) return AVOID_HARD_PASS_COST_MULTIPLIER;
+  return 1;
+}
+
 // ---------------------------------------------------------------------------
 // Internals
 // ---------------------------------------------------------------------------
+
+function clamp01(v: number): number {
+  if (!Number.isFinite(v)) return 0;
+  return Math.min(1, Math.max(0, v));
+}
+
+/** Mark edges that participate in any sliding ascent window meeting A_* within W_*. */
+function markAscentWindows(edges: readonly EdgeGradeMetrics[], windowKm: number, ascentThresholdM: number): boolean[] {
+  const marked = new Array(edges.length).fill(false) as boolean[];
+  if (windowKm <= 0 || edges.length === 0) return marked;
+
+  for (let start = 0; start < edges.length; start++) {
+    let lengthKm = 0;
+    let ascentM = 0;
+    let end = start;
+    for (; end < edges.length; end++) {
+      lengthKm += edges[end].runKm;
+      if (edges[end].riseM > 0) ascentM += edges[end].riseM;
+      if (lengthKm + 1e-12 >= windowKm) break;
+    }
+    if (lengthKm + 1e-12 < windowKm) continue;
+    if (ascentM + 1e-9 >= ascentThresholdM) {
+      for (let i = start; i <= end; i++) marked[i] = true;
+    }
+  }
+  return marked;
+}
 
 interface PassBuildContext {
   edges: readonly EdgeGradeMetrics[];

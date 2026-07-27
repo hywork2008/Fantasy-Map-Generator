@@ -30,6 +30,14 @@ interface SegmentBoundary {
   toPoint: [number, number];
 }
 
+function toXy(point: readonly number[]): [number, number] {
+  return [point[0], point[1]];
+}
+
+function toTradeRoutePoint(point: readonly number[]): TradeRouteSegment["points"][number] {
+  return typeof point[2] === "number" ? [point[0], point[1], point[2]] : [point[0], point[1]];
+}
+
 export interface CaravanTickResult {
   arrived: Caravan[];
   lost: Caravan[];
@@ -48,8 +56,8 @@ function buildSegmentBoundaries(caravan: Caravan, distanceScale: number): Segmen
     return {
       type: seg.type,
       endKm: cursorKm,
-      fromPoint: seg.points[0],
-      toPoint: seg.points[seg.points.length - 1]
+      fromPoint: toXy(seg.points[0]),
+      toPoint: toXy(seg.points[seg.points.length - 1])
     };
   });
 }
@@ -238,7 +246,8 @@ export class CaravansModule {
 
       const routeSegments: TradeRouteSegment[] = routePath.segments.map(segment => ({
         type: segment.type,
-        points: segment.points.map(([x, y]) => [x, y])
+        // Preserve cell ids for grade-aware duration (Phase 1).
+        points: segment.points.map(toTradeRoutePoint)
       }));
       const distance = getRouteDistanceKm(routeSegments, world.distanceScale);
       if (distance <= 0) continue;

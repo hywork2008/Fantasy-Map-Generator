@@ -1,4 +1,5 @@
 import React from "react";
+import type { MerchantRoutePreference } from "../../../../services/routeGrade";
 import { useOptionsState } from "../../../hostCore";
 import { closeDialog, Dialog, SliderInput, SortableHeader, useDialogState, VirtualTableBody } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
@@ -362,8 +363,8 @@ const MovementSettingsSection: React.FC = () => {
   const update = (partial: Partial<CaravanMovementSettings>) => {
     setMovement(current => ({ ...current, ...partial }));
     CaravanMovement.configure(partial);
-    // Land/sea speed feeds route pathfinding's edge costs, so a changed ratio can change
-    // which path is shortest — cached results from before this change are no longer valid.
+    // Land/sea speed, grade strength, and route preference feed pathfinding edge costs —
+    // cached results from before this change are no longer valid.
     TradeAnimation.clearRouteCache();
   };
 
@@ -408,6 +409,33 @@ const MovementSettingsSection: React.FC = () => {
           value={Math.round(movement.seaCurrentStrength * 100)}
           onChange={value => update({ seaCurrentStrength: Number(value) / 100 })}
         />
+      </div>
+
+      <div style={{ fontWeight: "bold", margin: "0.75rem 0 0.25rem" }}>Elevation &amp; Passes</div>
+
+      <div data-tip="How much slope slows land caravans. 0% = legacy flat-map travel time; 100% = full grade model">
+        <label htmlFor="caravanGradeEffectStrength">Grade effect (%):</label>
+        <SliderInput
+          id="caravanGradeEffectStrength"
+          min="0"
+          max="100"
+          step="5"
+          value={Math.round(movement.gradeEffectStrength * 100)}
+          onChange={value => update({ gradeEffectStrength: Number(value) / 100 })}
+        />
+      </div>
+
+      <div data-tip="preferSpeed takes the fastest grade-aware path; avoidHardPass detours around horse-hard grades when a longer route exists">
+        <label htmlFor="caravanMerchantRoutePreference">Land route preference:</label>
+        <select
+          id="caravanMerchantRoutePreference"
+          value={movement.merchantRoutePreference}
+          onChange={e => update({ merchantRoutePreference: e.target.value as MerchantRoutePreference })}
+          style={{ marginLeft: "0.35em" }}
+        >
+          <option value="preferSpeed">Prefer speed (steep OK if shorter)</option>
+          <option value="avoidHardPass">Avoid hard passes (detour)</option>
+        </select>
       </div>
     </div>
   );

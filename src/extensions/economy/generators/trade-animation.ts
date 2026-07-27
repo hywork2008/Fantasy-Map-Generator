@@ -1,13 +1,17 @@
 import FlatQueue from "flatqueue";
+import { calculateLandTravelDays } from "../../../services/routeGrade";
+import { normalizeHeightExponent } from "../../../utils/height";
 import type { Point } from "../../hostCore";
+import { useOptionsState } from "../../hostCore";
 import { getWorldContext } from "../economyContext";
-import { CaravanMovement } from "./caravanMovement";
+import { CaravanMovement, getDraftAnimalType } from "./caravanMovement";
+import type { TradeRoutePoint } from "./marketTypes";
 import { PORT_TRANSFER_PENALTY_DAYS } from "./tradeRouteDuration";
 
 type DrawFn = () => Promise<void>;
 type ClearFn = () => void;
 type RouteSegmentType = "land" | "water";
-type RoutePath = { points: Point[]; segments: { type: RouteSegmentType; points: Point[] }[] };
+type RoutePath = { points: Point[]; segments: { type: RouteSegmentType; points: TradeRoutePoint[] }[] };
 type RouteGeometry = { points: number[][] };
 
 export type TradeAnimationOptions = {
@@ -38,8 +42,8 @@ export class TradeAnimationModule {
   // 2x cell count) — expensive on real maps, and callers (Shipbuilding's daily procurement
   // demand, Caravans, market trade-opportunity scans) repeatedly ask for the same
   // (startCell, endCell) pairs every simulated day. The route network only changes on map
-  // (re)generation or a caravan-speed setting change, so cache results between those points
-  // instead of re-running the search for every call. See clearRouteCache().
+  // (re)generation or a caravan-speed / grade setting change, so cache results between those
+  // points instead of re-running the search for every call. See clearRouteCache().
   private routePathCache = new Map<string, RoutePath | null>();
   private routeLookupCache: { isWaterRoute: Map<number, boolean>; routeById: Map<number, RouteGeometry> } | null = null;
 
@@ -91,7 +95,15 @@ export class TradeAnimationModule {
   findRoutePath(startCell: number, endCell: number): RoutePath | null {
     if (startCell === endCell) return null;
 
-    const cacheKey = `${startCell}:${endCell}`;
+    const movement = CaravanMovement.getOptions();
+    const cacheKey = [
+      startCell,
+      endCell,
+      movement.landKmPerDay,
+      movement.seaKmPerDay,
+      movement.gradeEffectStrength,
+      movement.merchantRoutePreference
+    ].join(":");
     const cached = this.routePathCache.get(cacheKey);
     if (cached !== undefined) return cached;
 
@@ -106,7 +118,7 @@ export class TradeAnimationModule {
 
   /**
    * Clears cached pathfinding results. Call whenever the route network or the caravan
-   * land/sea speed ratio changes — either can change which path is shortest.
+   * land/sea speed / grade preference changes — either can change which path is shortest.
    */
   clearRouteCache(): void {
     this.routePathCache.clear();
@@ -199,6 +211,7 @@ export class TradeAnimationModule {
    * Dijkstra costs are journey days, matching the duration model used for deal eligibility.
    * Route geometry is used where available so winding roads and sea lanes retain their real
    * relative cost; a straight cell-to-cell edge is a safe fallback for incomplete route data.
+   * Land edges apply grade multipliers (and optional avoidHardPass pathfinding penalty).
    */
   private getEdgeTravelDays(
     fromCell: number,
@@ -210,17 +223,37 @@ export class TradeAnimationModule {
   ): number {
     const world = getWorldContext();
     const movement = CaravanMovement.getOptions();
-    const speed = water ? movement.seaKmPerDay : movement.landKmPerDay;
-    if (speed <= 0) return Infinity;
-
     const points = this.extractEdgePoints(fromCell, toCell, routeId, routeById);
-    let distanceMapUnits = 0;
-    for (let index = 0; index < points.length - 1; index++) {
-      distanceMapUnits += Math.hypot(points[index + 1][0] - points[index][0], points[index + 1][1] - points[index][1]);
+    const transferDays = previousWasWater !== undefined && previousWasWater !== water ? PORT_TRANSFER_PENALTY_DAYS : 0;
+
+    if (water) {
+      const speed = movement.seaKmPerDay;
+      if (speed <= 0) return Infinity;
+      let distanceMapUnits = 0;
+      for (let index = 0; index < points.length - 1; index++) {
+        distanceMapUnits += Math.hypot(
+          points[index + 1][0] - points[index][0],
+          points[index + 1][1] - points[index][1]
+        );
+      }
+      return (distanceMapUnits * world.distanceScale) / speed + transferDays;
     }
 
-    const transferDays = previousWasWater !== undefined && previousWasWater !== water ? PORT_TRANSFER_PENALTY_DAYS : 0;
-    return (distanceMapUnits * world.distanceScale) / speed + transferDays;
+    if (movement.landKmPerDay <= 0) return Infinity;
+    const animal = getDraftAnimalType(undefined);
+    const heightExponent = normalizeHeightExponent(useOptionsState.getState().heightExponent);
+    const days = calculateLandTravelDays(points, {
+      distanceScale: world.distanceScale,
+      heightExponent,
+      heights: world.pack.cells.h,
+      landKmPerDay: movement.landKmPerDay,
+      draftSpeedMultiplier: animal.speedMultiplier,
+      gradeEffectStrength: movement.gradeEffectStrength,
+      sensitivity: animal.gradeSensitivity,
+      routePreference: movement.merchantRoutePreference
+    });
+    if (!Number.isFinite(days)) return Infinity;
+    return days + transferDays;
   }
 
   private buildPathResult(terminalState: number, prevCellArr: Int32Array, prevStateArr: Int32Array): RoutePath {
@@ -241,7 +274,7 @@ export class TradeAnimationModule {
 
     const { routeById } = this.getRouteLookup();
 
-    const segments: { type: RouteSegmentType; points: Point[] }[] = [];
+    const segments: { type: RouteSegmentType; points: TradeRoutePoint[] }[] = [];
     let currentType: RouteSegmentType = waterEdges[0] ? "water" : "land";
 
     const firstEdge = this.extractEdgePoints(
@@ -250,7 +283,7 @@ export class TradeAnimationModule {
       getWorldContext().pack.cells.routes[cells[0]]?.[cells[1]],
       routeById
     );
-    let currentPoints: Point[] = firstEdge.map(p => [p[0], p[1]] as Point);
+    let currentPoints: TradeRoutePoint[] = firstEdge.map(p => [p[0], p[1], p[2]] as TradeRoutePoint);
 
     for (let i = 1; i < cells.length - 1; i++) {
       const fromCell = cells[i];
@@ -274,20 +307,25 @@ export class TradeAnimationModule {
       while (k < edgePoints.length && edgePoints[k][2] === fromCell) k++;
       if (k === 0) k = 1;
       else if (k >= edgePoints.length) k = edgePoints.length - 1;
-      for (; k < edgePoints.length; k++) currentPoints.push([edgePoints[k][0], edgePoints[k][1]]);
+      for (; k < edgePoints.length; k++) {
+        currentPoints.push([edgePoints[k][0], edgePoints[k][1], edgePoints[k][2]]);
+      }
     }
     segments.push({ type: currentType, points: currentPoints });
 
     const firstSeg = segments[0].points;
     const lastSeg = segments[segments.length - 1].points;
-    firstSeg[0] = this.getCellPoint(cells[0]);
-    lastSeg[lastSeg.length - 1] = this.getCellPoint(cells[cells.length - 1]);
+    const startPt = this.getCellPoint(cells[0]);
+    const endPt = this.getCellPoint(cells[cells.length - 1]);
+    firstSeg[0] = [startPt[0], startPt[1], cells[0]];
+    lastSeg[lastSeg.length - 1] = [endPt[0], endPt[1], cells[cells.length - 1]];
 
     const points: Point[] = [];
     for (let si = 0; si < segments.length; si++) {
       for (let pk = 0; pk < segments[si].points.length; pk++) {
         if (pk === 0 && si > 0) continue;
-        points.push(segments[si].points[pk]);
+        const p = segments[si].points[pk];
+        points.push([p[0], p[1]]);
       }
     }
 

@@ -12,7 +12,7 @@
 - 既存の距離・日数・薄利排除: `docs/plan/trade.md`、`docs/plan/drop-poor-trade.md`
 - **陸路の敷設そのもの**（生成時に高標高を嫌う）: [`docs/plan/land-route-elevation-cost.md`](./land-route-elevation-cost.md) — 本ドキュメント（旅行コスト）とは分離。生成側を先に直すと「残る峠」が意味を持ち本計画と相性が良い
 
-**実装状況**: **Phase 0 完了**（`src/utils/height.ts`, `src/services/routeGrade.ts` + tests, Elevation Profile サマリ表示）。Phase 1（速度・経路方針・交易配線）は未着手。本ドキュメントが旅行側仕様のソース・オブ・トゥルース。
+**実装状況**: **Phase 0–1 完了**（計測 + Elevation Profile + 交易所要日数 / pathfinding grade + `MerchantRoutePreference` UI）。Phase 2（キャラバン可変速度前進）は未着手。本ドキュメントが旅行側仕様のソース・オブ・トゥルース。
 
 ---
 
@@ -555,18 +555,21 @@ Phase 0 では永続化しない。
 
 ## 13. セッション引き継ぎ
 
-**Phase 0 完了**（2026-07-27）。
+**Phase 0–1 完了**（2026-07-27）。
 
 成果物:
 
 | パス | 内容 |
 | :--- | :--- |
 | `src/utils/height.ts` | `heightToMeters` / `normalizeHeightExponent` |
-| `src/services/routeGrade.ts` | 勾配・プロファイル・PassClass |
-| `src/services/routeGrade.test.ts` | 平坦 / hardPass / 窓 / extreme / オーバーライド |
+| `src/services/routeGrade.ts` | 勾配・プロファイル・PassClass・`calculateLandTravelDays` |
+| `src/services/routeGrade.test.ts` | 等級 + 速度倍率 + avoidHardPass コスト |
 | Elevation Profile | 陸路で Max grade / Climb (m) / Difficulty サマリ |
+| `caravanMovement` | `gradeEffectStrength`, `merchantRoutePreference`, draft `GradeSensitivity` |
+| `trade-animation` / `tradeRouteDuration` | cell 保持・grade 日数・pathfinding 回避倍率 |
+| Trade Animation Settings | Grade effect % + land route preference |
 
-次に着手する作業: **§6 Phase 1**（交易所要日数・`MerchantRoutePreference`・`GradeSensitivity`）。
+次に着手する作業: **§7 Phase 2**（`advanceCaravan` 可変速度前進。案 A: `currentDistance` は平面 km）。
 
 確認済みユーザー決定:
 
@@ -575,8 +578,8 @@ Phase 0 では永続化しない。
 3. 峠回避 vs 速度優先は **商人プレイで選択**（Phase 1）  
 4. 熊・山賊は **今は気にしない**  
 
-未決（実装前に不要なものは仮置きでよい）:
+仮置き（プレイ感で後から調整可）:
 
-- hardPass 回避倍率の具体値（×2 vs ×3）— Phase 1  
-- ox の感度曲線の最終値 — Phase 1  
-- 軍隊 Phase 3 をいつやるか  
+- hardPass 回避倍率 ×3 / extreme ×4  
+- ox 感度曲線（`DEFAULT_OX_GRADE_SENSITIVITY`）  
+- 軍隊 Phase 3 は未定  

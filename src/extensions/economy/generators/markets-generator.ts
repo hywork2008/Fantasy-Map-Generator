@@ -939,14 +939,17 @@ export class MarketsModule {
     const segments: TradeRouteSegment[] = routePath?.segments?.length
       ? routePath.segments.map(segment => ({
           type: segment.type,
-          points: segment.points.map(([x, y]) => [x, y])
+          // Preserve cell ids for grade-aware duration / pathfinding consistency (Phase 1).
+          points: segment.points.map((p): TradeRouteSegment["points"][number] =>
+            typeof p[2] === "number" ? [p[0], p[1], p[2]] : [p[0], p[1]]
+          )
         }))
       : [
           {
             type: "land",
             points: [
-              [source.x, source.y],
-              [target.x, target.y]
+              [source.x, source.y, source.cell],
+              [target.x, target.y, target.cell]
             ]
           }
         ];
@@ -1019,9 +1022,16 @@ export class MarketsModule {
       )
       .join("|");
 
-    return [distanceScale, movement.landKmPerDay, movement.seaKmPerDay, marketCentres, routeGeometry, routeLinks].join(
-      ";"
-    );
+    return [
+      distanceScale,
+      movement.landKmPerDay,
+      movement.seaKmPerDay,
+      movement.gradeEffectStrength,
+      movement.merchantRoutePreference,
+      marketCentres,
+      routeGeometry,
+      routeLinks
+    ].join(";");
   }
 
   private invalidateTradeRouteCache(): void {

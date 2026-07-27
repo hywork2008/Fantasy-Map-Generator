@@ -40,9 +40,15 @@ export interface Deal {
   strategicProcurementOrderId?: number;
 }
 
+/**
+ * Route polyline vertex. Cell id (pack.cells index) is required for grade-aware land travel;
+ * `[x, y]` alone falls back to planar-only duration (legacy / speculative rows).
+ */
+export type TradeRoutePoint = [number, number] | [number, number, number];
+
 export type TradeRouteSegment = {
   type: "land" | "water";
-  points: [number, number][];
+  points: TradeRoutePoint[];
 };
 
 export interface Caravan {

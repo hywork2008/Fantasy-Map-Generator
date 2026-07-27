@@ -1,8 +1,23 @@
-import { CaravanMovement } from "./caravanMovement";
-import type { TradeRouteSegment } from "./marketTypes";
+import { calculateLandTravelDays } from "../../../services/routeGrade";
+import { normalizeHeightExponent } from "../../../utils/height";
+import { useOptionsState } from "../../hostCore";
+import { getWorldContext } from "../economyContext";
+import { CaravanMovement, getDraftAnimalType } from "./caravanMovement";
+import type { TradeRoutePoint, TradeRouteSegment } from "./marketTypes";
 
 /** Time spent loading or unloading when a route switches between land and sea. */
 export const PORT_TRANSFER_PENALTY_DAYS = 2;
+
+export interface RouteDurationOptions {
+  heights?: ArrayLike<number>;
+  heightExponent?: number;
+  draftAnimalId?: string;
+  /**
+   * When true (default for deal/ETA duration), grade slows travel but pathfinding
+   * avoid multipliers are not applied. Pathfinding uses TradeAnimation's edge costs instead.
+   */
+  forPathfinding?: boolean;
+}
 
 function getSegmentDistanceMapUnits(segment: TradeRouteSegment): number {
   let distance = 0;
@@ -22,16 +37,69 @@ export function getRouteDistanceKm(segments: readonly TradeRouteSegment[], dista
   return getRouteDistanceMapUnits(segments) * distanceScale;
 }
 
-export function calculateRouteDurationDays(segments: readonly TradeRouteSegment[], distanceScale: number): number {
+function resolveHeights(options?: RouteDurationOptions): ArrayLike<number> | null {
+  if (options?.heights) return options.heights;
+  try {
+    return getWorldContext().pack?.cells?.h ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveHeightExponent(options?: RouteDurationOptions): number {
+  if (options?.heightExponent !== undefined) return normalizeHeightExponent(options.heightExponent);
+  return normalizeHeightExponent(useOptionsState.getState().heightExponent);
+}
+
+/** Land segment travel days with grade (when cells + heights available). */
+export function getLandSegmentTravelDays(
+  points: readonly TradeRoutePoint[],
+  distanceScale: number,
+  options?: RouteDurationOptions
+): number {
+  const movement = CaravanMovement.getOptions();
+  const animal = getDraftAnimalType(options?.draftAnimalId);
+  const heights = resolveHeights(options);
+
+  if (!heights || movement.gradeEffectStrength === 0) {
+    if (movement.landKmPerDay <= 0) return Infinity;
+    return (
+      (getSegmentDistanceMapUnits({ type: "land", points: [...points] }) * distanceScale) /
+      (movement.landKmPerDay * animal.speedMultiplier)
+    );
+  }
+
+  return calculateLandTravelDays(points, {
+    distanceScale,
+    heightExponent: resolveHeightExponent(options),
+    heights,
+    landKmPerDay: movement.landKmPerDay,
+    draftSpeedMultiplier: animal.speedMultiplier,
+    gradeEffectStrength: movement.gradeEffectStrength,
+    sensitivity: animal.gradeSensitivity,
+    // Real ETA / deal eligibility never includes avoid multipliers.
+    routePreference: options?.forPathfinding ? movement.merchantRoutePreference : "preferSpeed"
+  });
+}
+
+export function calculateRouteDurationDays(
+  segments: readonly TradeRouteSegment[],
+  distanceScale: number,
+  options?: RouteDurationOptions
+): number {
   const movement = CaravanMovement.getOptions();
   let duration = 0;
 
   for (let index = 0; index < segments.length; index++) {
     const segment = segments[index];
-    const speed = segment.type === "land" ? movement.landKmPerDay : movement.seaKmPerDay;
-    if (speed <= 0) return Infinity;
-
-    duration += (getSegmentDistanceMapUnits(segment) * distanceScale) / speed;
+    if (segment.type === "land") {
+      const days = getLandSegmentTravelDays(segment.points, distanceScale, options);
+      if (!Number.isFinite(days)) return Infinity;
+      duration += days;
+    } else {
+      if (movement.seaKmPerDay <= 0) return Infinity;
+      duration += (getSegmentDistanceMapUnits(segment) * distanceScale) / movement.seaKmPerDay;
+    }
     if (index > 0 && segment.type !== segments[index - 1].type) duration += PORT_TRANSFER_PENALTY_DAYS;
   }
 
@@ -40,6 +108,11 @@ export function calculateRouteDurationDays(segments: readonly TradeRouteSegment[
   return Math.ceil(duration);
 }
 
+/**
+ * Speculative / graph-distance estimate without per-edge grade samples.
+ * Grade is not applied here (no cell polyline); used by opportunity scan over aggregated
+ * land/sea distances. Full routes with cells use calculateRouteDurationDays instead.
+ */
 export function calculateRouteDurationFromDistances(
   landDistanceKm: number,
   seaDistanceKm: number,
