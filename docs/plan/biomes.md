@@ -370,3 +370,191 @@ BiomeCatalogSnapshot + biomeCode
 - `global` プロファイルでは砂質海岸が海岸線長の25〜35%を目安に連続区間として生成され、砂浜セルに正式な港湾、造船所、`Ships`、completed hull は生成されない。個人漁師の小舟は、これらと別の沿岸生活活動として砂浜へ着岸できる。
 - 森林・湿地などのゲームロジックが数値ID範囲ではなく、明示的なタグまたは `key` を用いる。
 - 古代・魔法・暗黒・巨木などは、追加の気候バイオームではなく、後続の属性レイヤーで表現できる設計になっている。
+
+---
+
+## 後続カタログ拡張（Phase 1–4 実装後のギャップ分析）
+
+Phase 1–4 により標準カタログは 23 種となり、中欧大森林・地中海・山地・マングローブ・冠水林・ヒースなど「代用がきつい」枠は埋まった。一方、遊牧・熱帯乾季林・北方泥炭の三種はまだ `Grassland` / `Savanna` / `Tropical seasonal forest` / `Taiga` / `heathMoorland` への寄せが目立つ。
+
+以下は 2026-07 時点のギャップ分析に基づく。**1–3 は実装計画（Phase 5）**、**4–5 は独立バイオームにせず属性／タグで将来対応するオプション**とする。いずれも数値コード範囲比較を増やさず、`BiomeKey` と `BiomeTag` を正本とする既存規約を守る。
+
+### ギャップ一覧
+
+| 順位 | 方針 | 識別子（仮） | 表示名（仮） | 主な代用の問題 |
+| --- | --- | --- | --- | --- |
+| 1 | **実装する** | `coldSteppe` | Cold steppe & forest-steppe | `Grassland` が湿潤温帯草原と寒冷ステップを同一視し、騎馬遊牧・馬産・東欧〜中央アジアの国境味が弱い |
+| 2 | **実装する** | `tropicalDryForest` | Tropical dry forest & thorn woodland | `Savanna` と `Tropical seasonal forest` の中間帯がなく、棘林・乾季落葉・香辛料・南アジア／サヘル縁の舞台が潰れる |
+| 3 | **実装する** | `borealPeatland` | Boreal peatland & muskeg | `Taiga` / `heathMoorland` / `Wetland` では北欧・カナダ型の泥炭苔原・移動地獄・泥炭資源を区別できない |
+| 4 | **未来オプション（属性）** | （キーなし）`landCover: oasis` 等 | Oasis / gallery woodland | 砂漠内の河畔緑地。独立バイオームにすると気候マトリクスが汚れやすい |
+| 5 | **未来オプション（タグ）** | 既存 `floodedForest` の細分 | Temperate vs tropical flooded forest | アマゾン型とプリピャチ型が同一キー。新キーよりタグまたは地域プロファイルで十分な場合がある |
+
+---
+
+## Phase 5: ステップ・乾季林・北方泥炭の追加（計画）
+
+### 目的
+
+1. **Cold steppe & forest-steppe** により、寒冷〜冷温帯の乾燥草原と森林ステップの縁を、湿潤 `Grassland` から分離する。
+2. **Tropical dry forest & thorn woodland** により、熱帯の明確な乾季をもつ落葉・棘林を、開けたサバナと湿潤季節林から分離する。
+3. **Boreal peatland & muskeg** により、タイガ内の泥炭湿地・蘚類平原を、温帯ヒースと通常の湿地・タイガから分離する。
+
+いずれも潜在自然植生（`biome`）であり、開拓による農地化は引き続き `landCover` / `forestCover`（[frontier-expansion.md](frontier-expansion.md)）が所有する。
+
+### 5.1 カタログ定義案
+
+`STANDARD_BIOME_KEYS` / `STANDARD_BIOME_DEFINITIONS` に末尾追加する（既存 0–22 のコード安定を壊さない）。意味はキーのみ。コード値はカタログ順の実装詳細。
+
+| key | label | 想定 tags | habitability（初期案） | movementCost（初期案） | relief 方針 |
+| --- | --- | --- | --- | --- | --- |
+| `coldSteppe` | Cold steppe & forest-steppe | `grassland`, `dry`, `nomadic`, `cold?` | 低〜中 | 中 | 草・疎らな低木。森林ステップ縁ではごく疎な `deciduous` / `conifer` を低密度で可 |
+| `tropicalDryForest` | Tropical dry forest & thorn woodland | `forest`, `dry` | 中 | 中〜高 | `acacia` / `deciduous` / `deadTree` の棘・乾季落葉。サバナより樹木密度が高い |
+| `borealPeatland` | Boreal peatland & muskeg | `wetland`, `cold`, （任意で `forest` は付けない） | 非常に低 | 非常に高 | `swamp` / `grass` / 低密度 `conifer`。タイガ本体より開いている |
+
+**タグ方針の注意**
+
+- `coldSteppe` に `cold` を付けるかはプレイテストで決める。付けると Furs 等の `biomeTag("cold")` に乗る。森林ステップ縁が「寒すぎる」場合は `cold` を外し、気温帯だけで割当する。
+- `tropicalDryForest` は必ず `forest`（木材・狩猟）と `dry`（遊牧・砂漠資源の弱い重なりを避けるため、`nomadic` は付けないか弱い）。
+- `borealPeatland` は `wetland` + `cold`。`forest` を付けると Wood の tag 生産に乗るが、泥炭地の木材量は低いので **付けない**か、`biomeOutputByTag` で wetland のみ低レートにする。
+
+**色の初期案**（衛星・SVG・WebGL は定義色から取得）
+
+| key | color（仮） |
+| --- | --- |
+| `coldSteppe` | `#c4c47a`（乾燥した黄土〜灰緑のステップ） |
+| `tropicalDryForest` | `#a3a34a`（くすんだ黄緑の乾季林） |
+| `borealPeatland` | `#5a6b4a`（暗い苔・泥炭） |
+
+実装時に `draw-satellite-texture` の `BIOME_SATELLITE` 行もカタログ順に追記する。
+
+### 5.2 自動割当（`classifySpecialBiome` / 地域マスク）
+
+既存の優先順（海 → 永続雪氷 → マングローブ → … → マトリクス）に **挿入**する。閾値は `BiomeConstants` に定数化し、プレイテストで調整する。
+
+#### `coldSteppe`
+
+| 条件 | 初期案 |
+| --- | --- |
+| 気温 | おおよそ `-2°C .. 12°C`（ツンドラより暖かく、温帯落葉の芯より乾燥） |
+| 湿潤 | `HOT_DESERT` より上、温帯落葉候補より下（例: moisture 8–16） |
+| 標高 | 低地〜丘陵（例: height &lt; 55）。高峰は `alpineTundra` / `montaneForest` を優先 |
+| 除外 | 河畔の高流量冠水、海岸マングローブ、永続雪氷 |
+| 競合 | 同条件の `Grassland` / `xericShrubland` / マトリクスの grassland 帯 |
+| 地域 | `global` では低周波マスクで連続ベルト。将来 `steppeRealm` プロファイルで出現率を上げる |
+
+**森林ステップ縁:** 湿潤が帯の上端かつ隣接に森林セルがある場合、同一キーのまま `canopy` / `forestCover` をわずかに上げる（新キーは増やさない）。見た目は relief 密度で表現する。
+
+#### `tropicalDryForest`
+
+| 条件 | 初期案 |
+| --- | --- |
+| 気温 | おおよそ `≥ 18°C`（熱帯〜亜熱帯） |
+| 湿潤 | サバナより高く、熱帯季節林・熱帯雨林より低い（例: moisture 12–22） |
+| 標高 | 低地〜丘陵。雲霧林・山地林の標高帯では負け |
+| 除外 | マングローブ条件、冠水林の高流量、サバナの極乾燥 |
+| 競合 | `Savanna`、`Tropical seasonal forest`、マトリクス該当帯 |
+| 地域 | `tropicalRiverBasin` では川から離れた乾季側に寄せる。`global` ではノイズ連続領域 |
+
+判定位置の案: 既存の地中海・乾燥低木（温帯寄り）のあと、**マトリクスフォールバック前**に熱帯の moisture/temp バンドで差し込む。マトリクスが既に `tropicalSeasonalForest` を返しているセルを、乾燥側だけ `tropicalDryForest` に振り分ける二段でもよい。
+
+#### `borealPeatland`
+
+| 条件 | 初期案 |
+| --- | --- |
+| 気温 | おおよそ `≤ 6°C` かつ湿地可能な下限より上（例: `> WETLAND_COLD_LIMIT`） |
+| 湿潤 | 高（例: moisture ≥ 20）または既存 wetland 条件に近い |
+| 標高 | 低〜中（排水不良の平坦地を優先。高峰は alpine / glacier） |
+| 除外 | 温帯ヒースの暖側、熱帯湿地、冠水林の温暖高流量 |
+| 競合 | `Taiga`、`Wetland`、`heathMoorland` |
+| 地域 | `global` の北方マスク、`medievalEurope` の北縁・ポリーシャ寒側。`heathMoorland` はより温帯・ヒース景観に残す |
+
+判定位置の案: 既存 `isWetlandCell` 分岐の内部で、寒冷なら `borealPeatland`、温帯ヒース条件なら `heathMoorland`、それ以外 `wetland`。
+
+### 5.3 地域プロファイル
+
+| プロファイル | 影響 |
+| --- | --- |
+| `global` | 三種とも低〜中頻度の連続マスク。砂浜比率ルールは不変 |
+| `medievalEurope` | 東縁・大陸性乾燥側に `coldSteppe`、北縁泥炭に `borealPeatland`。`tropicalDryForest` はほぼ出さない |
+| `mediterranean` | 三種とも低。ステップは内陸乾燥縁のみ |
+| `tropicalRiverBasin` | `tropicalDryForest` を盆地縁・乾季側で強化。ステップ・泥炭は出さない |
+| `mountainRealm` | 低地ステップのみ可。泥炭は谷底平坦部のみ |
+
+将来オプションとして `steppeRealm` / `borealRealm` を `BIOME_REGION_PROFILES` に足してもよいが、Phase 5 の必須ではない。
+
+### 5.4 シミュレーション・経済・軍事への接続
+
+数値コード表の更新は禁止。**タグと key** で接続する。
+
+| 系統 | 接続方針 |
+| --- | --- |
+| 経済 `biomeOutputByTag` | `coldSteppe` → Horses / Cattle / Sheep を `grassland`+`nomadic` 経由で取得。Grain は arable が弱ければ低レート |
+| | `tropicalDryForest` → Wood / Game を `forest`、Spices 候補を key または `dry`+高温で |
+| | `borealPeatland` → Furs（`cold`）、Salt/泥炭相当がなければ Game 低レート。Wood は出さないか極低 |
+| Burg groups | caravanserai: `nomadic` / `desert` / `scrub` に加え cold steppe は `nomadic` で既に入る想定。trading_post は forest のみなので dry forest は forest タグで入る |
+| 軍事地形 | ステップ → `nomadic`。乾季林 → 必要なら dense forest 扱い（centralEuropean と同様の wetland 軍事タイプにはしない）。泥炭 → `wetland` タグで高コスト |
+| 文化タイプ | Nomadic 中心がステップに出やすいこと、Hunting が乾季林に出やすいことを既存ロジックのタグ判定で確認 |
+| 移動コスト | 泥炭は wetland 並みかそれ以上。ステップは grassland と同程度。乾季林は forest 寄り |
+
+### 5.5 描画・編集・保存
+
+| 層 | 作業 |
+| --- | --- |
+| カタログ | `biomeCatalog.ts` 定義追加。`LegacyBiomeCodec` は旧 0–12 のみ知っていればよい（新種は旧ファイルに存在しない） |
+| 割当 | `biomeAssignment.ts` + `BiomeConstants` 閾値 |
+| 描画 | 色は定義から自動。relief icons の重み、`BIOME_SATELLITE` 行、WebGL は keys 署名済みなら追従を確認 |
+| Editor | カタログ列挙のため手動塗は自動で増える |
+| 属性 | `initializeBiomeAttributes`: dry forest は forestCover 中、peatland は forestCover 低・landCover は natural だが canopy none 寄り |
+| テスト | key 網羅、閾値単体、固定 seed で三者が 0 セルにならないこと、medievalEurope で tropicalDry が暴走しないこと |
+
+### 5.6 実装フェーズ分割（Phase 5 内）
+
+| 小フェーズ | 内容 | 完了条件 |
+| --- | --- | --- |
+| **5a カタログ** | 3 key の定義・タグ・色・cost・habitability、衛星行、属性 init | ビルド通過、Editor に3行、手動塗可能 |
+| **5b 割当** | 閾値・優先順・地域マスク、プロファイル別出現 | 単体テスト + 固定 seed 生成で各 key が連続パッチになる |
+| **5c 連携** | 経済 tag、軍事、Burg、移動の確認と必要なら `biomeOutputByTag` 調整 | Wood が dry forest に出る、Horses が steppe に出る、泥炭が異常に高人口密度にならない |
+| **5d 調整** | プレイテスト閾値、色、アイコン密度 | マトリクス帯との斑点境界が減る |
+
+### 5.7 Phase 5 完了条件
+
+- `coldSteppe`、`tropicalDryForest`、`borealPeatland` が `BiomeKey` としてカタログ・保存スナップショット・SVG/WebGL・Editor で利用できる。
+- ゲームロジックはコード範囲ではなく tags / key のみを参照する。
+- `Grassland` は湿潤寄りの温帯草原、`coldSteppe` は寒冷乾燥寄りのステップとして視覚・資源で区別できる。
+- `Savanna`（開けた熱帯草原）と `tropicalDryForest`（樹木の多い乾季林）が気候帯上で分離される。
+- `Taiga` 本体と `borealPeatland` が北方でモザイクになり、後者は移動コストが高く木材生産が弱い。
+- 旧 `.fmg` は引き続き `LegacyBiomeCodec` のみが旧コードを解釈し、新3種の知識をロード境界の外に漏らさない。
+
+---
+
+## 未来オプション（独立バイオームにしない）
+
+Phase 5 の対象外。需要が固まった段階で、**属性またはタグ拡張**として設計する。気候バイオームの増殖は避ける。
+
+### オプション A: Oasis / gallery woodland（属性）
+
+| 項目 | 内容 |
+| --- | --- |
+| 問題 | 砂漠・ステップ内の河畔・湧水緑地が、セル全体を `Grassland` / 森林に塗り替えると気候帯が壊れる |
+| 方針 | `biome` は `hotDesert` / `coldDesert` / `xericShrubland` / `coldSteppe` のまま。属性で上書きする |
+| 案 | `landCover: oasis` または専用 `riparianGallery: 0..1`。条件例: 砂漠タグセルかつ `hasRiver` または高 flux、狭い帯状マスク |
+| 接続 | 交易路ボーナス、Dates / 水場マーカー、Burg の oasis 集落、軍事上の「唯一の水路」 |
+| 描画 | バイオーム色の上に狭い緑のオーバーレイ（沿岸ハビタット層と同様、気候を置換しない） |
+| 非目標 | `oasis` を `BiomeKey` にしない。マトリクスに砂漠オアシス列を足さない |
+
+### オプション B: Flooded forest の温帯 / 熱帯の区別（タグ）
+
+| 項目 | 内容 |
+| --- | --- |
+| 問題 | `floodedForest` がアマゾン型（高温・多湿・密林）とプリピャチ型（冷涼・泥炭縁・河畔）を同一視する |
+| 方針（推奨） | **キーは増やさない**。割当時に `biomeTags` へ動的付与するか、`canopy` / 地域プロファイル / 気温でコンテンツが分岐する |
+| 案1 | セル属性 `floodedForestRegime: "tropical" \| "temperate"`（climate 派生の読み取り専用） |
+| 案2 | 既存 tags に加え、生成後に気温 ≥ 20 なら production を Spices / 高 Wood、冷涼なら Furs / 低 Wood |
+| 案3（最終手段） | `temperateFloodedForest` を別 key にするのは、案1–2で経済・描画が足りない場合のみ |
+| 接続 | `medievalEurope` の河畔は温帯レジーム、`tropicalRiverBasin` は熱帯レジーム |
+| 非目標 | 気候マトリクスを温帯／熱帯冠水の二次元に膨らませること |
+
+### オプション記載の更新ルール
+
+- オプション A/B を実装着手するときは、本節を「計画」から「Phase N」へ昇格させ、キー増減の有無を完了条件に明記する。
+- 魔法の森・農地・砂浜をバイオームに足す提案は、本書「バイオームではなく属性として扱うもの」および Phase 4 属性レイヤーを優先し、却下または属性側に振る。
