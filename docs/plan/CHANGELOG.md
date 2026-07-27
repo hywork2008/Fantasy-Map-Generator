@@ -3,6 +3,7 @@
 2026-07-27
 
 - docs/plan/land-route-elevation-cost.md
+- docs/plan/mineral-resource-system.md
 - docs/plan/route-grade-movement.md
 
 2026-07-25
