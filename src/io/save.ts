@@ -42,6 +42,9 @@ function getLegacyEconomyPackFields(pack: unknown): {
   strategicGoodsPolicies: unknown[];
   nextStrategicProcurementOrderId: number;
   strategicLaborMarkets: unknown[];
+  mineralGeologicalProvinces: unknown[];
+  mineralDistricts: unknown[];
+  mineralDeposits: unknown[];
   cellsGood: Uint16Array;
   cellsMarket: Uint16Array;
 } {
@@ -58,6 +61,9 @@ function getLegacyEconomyPackFields(pack: unknown): {
     nextStrategicProcurementOrderId:
       typeof record.nextStrategicProcurementOrderId === "number" ? record.nextStrategicProcurementOrderId : 0,
     strategicLaborMarkets: array(record.strategicLaborMarkets),
+    mineralGeologicalProvinces: array(record.mineralGeologicalProvinces),
+    mineralDistricts: array(record.mineralDistricts),
+    mineralDeposits: array(record.mineralDeposits),
     cellsGood: uint16(cells?.good),
     cellsMarket: uint16(cells?.market)
   };
@@ -200,6 +206,13 @@ function prepareMapDataFromSvg(): string {
     nextStrategicProcurementOrderId: legacyEconomy.nextStrategicProcurementOrderId,
     strategicLaborMarkets: legacyEconomy.strategicLaborMarkets
   });
+  // [55] is optional for backwards-compatible legacy maps. Full `.fmg`
+  // archives retain this state in simulation.extensions.economy instead.
+  const mineralResources = JSON.stringify({
+    mineralGeologicalProvinces: legacyEconomy.mineralGeologicalProvinces,
+    mineralDistricts: legacyEconomy.mineralDistricts,
+    mineralDeposits: legacyEconomy.mineralDeposits
+  });
 
   // store name array only if not the same as default
   const defaultNB = Names.getNameBases();
@@ -273,7 +286,8 @@ function prepareMapDataFromSvg(): string {
     frontierForts, // [51] pack.frontierForts
     strategicEconomy, // [52] economy strategic procurement and labor cohorts
     worldContext.pack.cells.coastalHabitat ? Array.from(worldContext.pack.cells.coastalHabitat).join(",") : "", // [53] coastal habitat codes
-    worldContext.pack.cells.nearshoreHabitat ? Array.from(worldContext.pack.cells.nearshoreHabitat).join(",") : "" // [54] nearshore habitat codes
+    worldContext.pack.cells.nearshoreHabitat ? Array.from(worldContext.pack.cells.nearshoreHabitat).join(",") : "", // [54] nearshore habitat codes
+    mineralResources // [55] static Economy mineral-resource groundwork
   ].join("\r\n");
 
   return mapData;

@@ -12,6 +12,7 @@ import type { BurgMarketLedger } from "./generators/burgMarketLedgers";
 import type { Good } from "./generators/goods-generator";
 import type { Caravan, Deal, Market } from "./generators/marketTypes";
 import type { MerchantOrganization } from "./generators/merchantOrganizations";
+import type { MineralDeposit, MineralDistrict, MineralGeologicalProvince } from "./generators/mineralResources";
 import type { ProductionRecord } from "./generators/production-generator";
 import type { LaborMarket } from "./generators/strategicLaborMarkets";
 import type { ProcurementOrder } from "./generators/strategicProcurement";
@@ -259,6 +260,26 @@ export function getStrategicLaborMarkets(): LaborMarket[] {
 }
 export function setStrategicLaborMarkets(markets: readonly LaborMarket[]): void {
   setSliceArray("strategicLaborMarkets", markets);
+}
+
+/** Static geological groundwork for future mine operations. */
+export function getMineralGeologicalProvinces(): MineralGeologicalProvince[] {
+  return getSliceArray<MineralGeologicalProvince>("mineralGeologicalProvinces");
+}
+export function setMineralGeologicalProvinces(provinces: readonly MineralGeologicalProvince[]): void {
+  setSliceArray("mineralGeologicalProvinces", provinces);
+}
+export function getMineralDistricts(): MineralDistrict[] {
+  return getSliceArray<MineralDistrict>("mineralDistricts");
+}
+export function setMineralDistricts(districts: readonly MineralDistrict[]): void {
+  setSliceArray("mineralDistricts", districts);
+}
+export function getMineralDeposits(): MineralDeposit[] {
+  return getSliceArray<MineralDeposit>("mineralDeposits");
+}
+export function setMineralDeposits(deposits: readonly MineralDeposit[]): void {
+  setSliceArray("mineralDeposits", deposits);
 }
 
 /** Per-cell dominant good id, owned by the economy extension. */

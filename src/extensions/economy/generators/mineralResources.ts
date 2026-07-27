@@ -1,0 +1,261 @@
+import {
+  getMineralDeposits,
+  getMineralDistricts,
+  getMineralGeologicalProvinces,
+  getWorldContext,
+  setMineralDeposits,
+  setMineralDistricts,
+  setMineralGeologicalProvinces
+} from "../economyContext";
+
+/** Goods that can later be supplied by a mine operation. Phase 1 stores geology only. */
+export const MINERAL_COMMODITIES = [
+  "iron",
+  "copper",
+  "tin",
+  "lead",
+  "silver",
+  "gold",
+  "coal",
+  "saltpeter",
+  "sulfur"
+] as const;
+
+export type MineralCommodity = (typeof MINERAL_COMMODITIES)[number];
+export type GeologicalProvinceKind = "orogen" | "shield" | "granite" | "carbonate" | "basin" | "placer";
+export type MineralDistrictType =
+  | "bandedIron"
+  | "porphyry"
+  | "skarn"
+  | "polymetallicVein"
+  | "mvt"
+  | "sedex"
+  | "graniteTin"
+  | "lodeGold"
+  | "placer"
+  | "coalSeam"
+  | "evaporite";
+
+export interface MineralGeologicalProvince {
+  i: number;
+  kind: GeologicalProvinceKind;
+  /** Pack cell ids classified into this broad, deterministic pseudo-geology. */
+  cells: number[];
+}
+
+export interface MineralDistrict {
+  i: number;
+  type: MineralDistrictType;
+  provinceId: number;
+  cell: number;
+  depositIds: number[];
+  richness: number;
+}
+
+export interface MineralDeposit {
+  i: number;
+  districtId: number;
+  cell: number;
+  type: MineralDistrictType;
+  primaryCommodity: MineralCommodity;
+  commodities: MineralCommodity[];
+  richness: number;
+  depth: "surface" | "shallow" | "deep";
+  discovered: boolean;
+}
+
+interface DistrictProfile {
+  type: MineralDistrictType;
+  provinces: readonly GeologicalProvinceKind[];
+  primary: MineralCommodity;
+  commodities: readonly MineralCommodity[];
+}
+
+const DISTRICT_PROFILES: readonly DistrictProfile[] = [
+  { type: "porphyry", provinces: ["orogen"], primary: "copper", commodities: ["copper", "gold", "silver"] },
+  { type: "skarn", provinces: ["orogen"], primary: "iron", commodities: ["iron", "copper"] },
+  {
+    type: "polymetallicVein",
+    provinces: ["orogen", "carbonate"],
+    primary: "lead",
+    commodities: ["lead", "silver", "copper"]
+  },
+  { type: "mvt", provinces: ["carbonate"], primary: "lead", commodities: ["lead", "silver"] },
+  { type: "sedex", provinces: ["basin"], primary: "lead", commodities: ["lead", "silver"] },
+  { type: "graniteTin", provinces: ["granite"], primary: "tin", commodities: ["tin", "copper", "silver"] },
+  { type: "bandedIron", provinces: ["shield"], primary: "iron", commodities: ["iron"] },
+  { type: "lodeGold", provinces: ["shield", "orogen"], primary: "gold", commodities: ["gold"] },
+  { type: "placer", provinces: ["placer"], primary: "gold", commodities: ["gold"] },
+  { type: "coalSeam", provinces: ["basin"], primary: "coal", commodities: ["coal"] },
+  { type: "evaporite", provinces: ["basin"], primary: "sulfur", commodities: ["sulfur", "saltpeter"] }
+];
+
+const PROFILE_PRIORITY: readonly MineralDistrictType[] = [
+  "polymetallicVein",
+  "mvt",
+  "graniteTin",
+  "bandedIron",
+  "sedex",
+  "porphyry",
+  "skarn",
+  "lodeGold",
+  "placer",
+  "coalSeam",
+  "evaporite"
+];
+
+const PROVINCE_ORDER: readonly GeologicalProvinceKind[] = [
+  "orogen",
+  "shield",
+  "granite",
+  "carbonate",
+  "basin",
+  "placer"
+];
+
+/**
+ * Phase-1 deterministic pseudo-geology. It deliberately reads no biome data:
+ * terrain height, drainage and map seed are the only inputs until a future
+ * tectonic model replaces this approximation.
+ */
+export class MineralResourcesModule {
+  generate(): void {
+    const world = getWorldContext();
+    const cells = world.pack.cells;
+    const seed = world.seed || "0";
+    const provinceCells = new Map<GeologicalProvinceKind, number[]>(PROVINCE_ORDER.map(kind => [kind, []]));
+
+    for (const cellId of cells.i) {
+      if (cells.h[cellId] < 20) continue;
+      provinceCells.get(this.classifyProvince(seed, cellId))!.push(cellId);
+    }
+
+    const provinces = PROVINCE_ORDER.map((kind, index) => ({ i: index + 1, kind, cells: provinceCells.get(kind)! }));
+    const provinceByKind = new Map(provinces.map(province => [province.kind, province]));
+    const landCells = provinces.flatMap(province => province.cells);
+    const districtCount = Math.min(40, Math.max(4, Math.ceil(landCells.length / 110)));
+    const usedCells = new Set<number>();
+    const districts: MineralDistrict[] = [];
+    const deposits: MineralDeposit[] = [];
+
+    for (let ordinal = 0; ordinal < districtCount; ordinal++) {
+      const profile = this.pickProfile(ordinal, provinceByKind);
+      if (!profile) break;
+      const province = provinceByKind.get(
+        profile.provinces.find(kind => provinceByKind.get(kind)?.cells.length) ?? profile.provinces[0]
+      );
+      if (!province) continue;
+      const cell = this.pickCell(seed, profile.type, ordinal, province.cells, usedCells);
+      if (cell === null) continue;
+      usedCells.add(cell);
+
+      const districtId = districts.length + 1;
+      const depositId = deposits.length + 1;
+      const richness = 1 + Math.floor(this.hash(seed, `${profile.type}:richness`, cell) * 5);
+      const depth = richness >= 5 ? "deep" : richness >= 3 ? "shallow" : "surface";
+      const commodities = this.getCommodities(profile, seed, cell);
+      deposits.push({
+        i: depositId,
+        districtId,
+        cell,
+        type: profile.type,
+        primaryCommodity: profile.primary,
+        commodities,
+        richness,
+        depth,
+        discovered: false
+      });
+      districts.push({
+        i: districtId,
+        type: profile.type,
+        provinceId: province.i,
+        cell,
+        depositIds: [depositId],
+        richness
+      });
+    }
+
+    setMineralGeologicalProvinces(provinces);
+    setMineralDistricts(districts);
+    setMineralDeposits(deposits);
+  }
+
+  clear(): void {
+    setMineralGeologicalProvinces([]);
+    setMineralDistricts([]);
+    setMineralDeposits([]);
+  }
+
+  getDebugSummary(): {
+    provinces: Record<GeologicalProvinceKind, number>;
+    districts: Record<string, number>;
+    commodities: Record<string, number>;
+  } {
+    const provinces = Object.fromEntries(PROVINCE_ORDER.map(kind => [kind, 0])) as Record<
+      GeologicalProvinceKind,
+      number
+    >;
+    for (const province of getMineralGeologicalProvinces()) provinces[province.kind] += province.cells.length;
+    const districts: Record<string, number> = {};
+    const commodities: Record<string, number> = {};
+    for (const district of getMineralDistricts()) districts[district.type] = (districts[district.type] ?? 0) + 1;
+    for (const deposit of getMineralDeposits()) {
+      for (const commodity of deposit.commodities) commodities[commodity] = (commodities[commodity] ?? 0) + 1;
+    }
+    return { provinces, districts, commodities };
+  }
+
+  private classifyProvince(seed: string, cellId: number): GeologicalProvinceKind {
+    const cells = getWorldContext().pack.cells;
+    const height = cells.h[cellId] ?? 0;
+    const regional = this.hash(seed, "province", Math.floor(cellId / 23));
+    if (cells.r[cellId] && height >= 20 && height < 48) return "placer";
+    if (height >= 70) return regional < 0.36 ? "granite" : "orogen";
+    if (height >= 53) return regional < 0.3 ? "granite" : regional < 0.7 ? "orogen" : "shield";
+    if (height >= 38) return regional < 0.42 ? "carbonate" : regional < 0.72 ? "shield" : "basin";
+    return regional < 0.28 ? "carbonate" : "basin";
+  }
+
+  private pickProfile(
+    ordinal: number,
+    provinces: ReadonlyMap<GeologicalProvinceKind, MineralGeologicalProvince>
+  ): DistrictProfile | null {
+    const candidates = DISTRICT_PROFILES.filter(profile =>
+      profile.provinces.some(kind => provinces.get(kind)?.cells.length)
+    );
+    if (!candidates.length) return null;
+    const ordered = [...candidates].sort((a, b) => PROFILE_PRIORITY.indexOf(a.type) - PROFILE_PRIORITY.indexOf(b.type));
+    return ordered[ordinal % ordered.length];
+  }
+
+  private pickCell(
+    seed: string,
+    type: MineralDistrictType,
+    ordinal: number,
+    cells: readonly number[],
+    used: ReadonlySet<number>
+  ): number | null {
+    const candidates = cells.filter(cell => !used.has(cell));
+    if (!candidates.length) return null;
+    return [...candidates].sort((a, b) => {
+      const score = this.hash(seed, `${type}:${ordinal}`, a) - this.hash(seed, `${type}:${ordinal}`, b);
+      return score || a - b;
+    })[0];
+  }
+
+  private getCommodities(profile: DistrictProfile, seed: string, cell: number): MineralCommodity[] {
+    if (profile.type !== "placer") return [...profile.commodities];
+    return this.hash(seed, "placer", cell) < 0.28 ? ["tin"] : ["gold"];
+  }
+
+  private hash(seed: string, scope: string, value: string | number): number {
+    let hash = 2166136261;
+    for (const character of `${seed}:${scope}:${value}`) {
+      hash ^= character.charCodeAt(0);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0) / 4294967296;
+  }
+}
+
+export const MineralResources = new MineralResourcesModule();

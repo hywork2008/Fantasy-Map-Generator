@@ -585,6 +585,7 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
     : new Uint16Array(worldContext.pack.cells.i.length);
   worldContext.pack.characters = data[45] ? JSON.parse(data[45]) : [];
   restoreStrategicEconomyState(data[52]);
+  restoreMineralResourceState(data[55]);
 
   {
     // Demography arrays (capacity, age-structure breakdown) were added after this save format was
@@ -1157,6 +1158,36 @@ function restoreStrategicEconomyState(serialized: string | undefined): void {
     }
   } catch {
     // A malformed optional extension slot must not block loading the host map.
+  }
+}
+
+/** Restores the optional legacy-map mineral groundwork slot added in Phase 1. */
+function restoreMineralResourceState(serialized: string | undefined): void {
+  const pack = getMutableLegacyPack();
+  const empty = {
+    mineralGeologicalProvinces: [],
+    mineralDistricts: [],
+    mineralDeposits: []
+  };
+  if (!serialized) {
+    Object.assign(pack, empty);
+    return;
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(serialized);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      Object.assign(pack, empty);
+      return;
+    }
+    const record = parsed as Record<string, unknown>;
+    pack.mineralGeologicalProvinces = Array.isArray(record.mineralGeologicalProvinces)
+      ? record.mineralGeologicalProvinces
+      : [];
+    pack.mineralDistricts = Array.isArray(record.mineralDistricts) ? record.mineralDistricts : [];
+    pack.mineralDeposits = Array.isArray(record.mineralDeposits) ? record.mineralDeposits : [];
+  } catch {
+    Object.assign(pack, empty);
   }
 }
 

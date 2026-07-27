@@ -2,7 +2,7 @@
 
 ## 状態
 
-提案・未実装。これは史実を厳密に再現する仕様ではない。地図生成時に
+Phase 1 まで実装済み。これは史実を厳密に再現する仕様ではない。地図生成時に
 「将来の発展・通貨・軍需を支えられる資源の下地」を作るため、一次・研究資料を
 参照しつつ、調整可能なゲーム用の初期値を定める文書である。
 
@@ -119,9 +119,11 @@ Silver と Lead は原則同じ鉱区に置く。これにより、貨幣と弾�
 
 ## 5. データモデル
 
-鉱床は Economy 拡張が所有する。世界地図への実体データは `pack` に保存し、
-生成・更新は Economy の Generator、描画は Economy の Renderer、編集は Controller
-に分離する。
+鉱床は Economy 拡張が所有する。正規の保存先は
+`simulation.extensions.economy` であり、既存コードとの互換のため実行中には
+`pack.mineralGeologicalProvinces` / `pack.mineralDistricts` /
+`pack.mineralDeposits` としても参照できる。生成・更新は Economy の Generator、
+描画は Economy の Renderer、編集は Controller に分離する。
 
 ```ts
 export type MineralCommodity =
@@ -336,6 +338,18 @@ Sulfur / fuel が急増し、平時の市場価格と軍需調達が競合する
 ### Phase 1: 静的な鉱床と鉱区
 
 目的: 地図生成時に地質的な資源下地を保存する。
+
+実装済み:
+
+1. `mineralResources.ts` が、バイオームを参照せず、Heightmap・河川・地図 seed から
+   `orogen` / `shield` / `granite` / `carbonate` / `basin` / `placer` の疑似地質州を
+   決定論的に分類する。
+2. 地質州に応じて鉱区と鉱床を生成する。Pb-Ag 系を優先し、Tin は graniteTin または
+   placer にのみ置く。Goods のセル配置・市場生産にはまだ接続しない。
+3. 通常の `.fmg` 保存では Economy 拡張スライスに保存し、旧 `.map` 形式では任意の
+   末尾スロットに保存する。旧ファイルでは空配列として復元する。
+4. Full / Minimal JSON export に `mineralResources`（地質州・鉱区・鉱床）を含める。
+   Tools の **Mineral deposits** はこの静的データだけを再生成する。
 
 1. `src/extensions/economy/` に鉱物資源の context holder、型、Generator を追加する。
 2. `pack.mineralDistricts` と `pack.mineralDeposits` を定義し、保存・ロード互換を追加する。

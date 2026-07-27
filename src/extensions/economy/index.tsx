@@ -43,6 +43,7 @@ import { type Good, Goods, getDefaultGoodTradeProfile, isGoodEnabled } from "./g
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
 import { Markets } from "./generators/markets-generator";
 import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
+import { MineralResources } from "./generators/mineralResources";
 import { Production } from "./generators/production-generator";
 import { seedShipbuildingInitialStock } from "./generators/shipbuildingInitialStock";
 import { refreshStateEconomySummaries } from "./generators/stateEconomySummary";
@@ -276,7 +277,7 @@ interface AssignMarketCellsRequest {
   readonly assignments: readonly MarketCellAssignment[];
 }
 
-type EconomyRegenerationTarget = "economy" | "goods" | "markets" | "production";
+type EconomyRegenerationTarget = "economy" | "goods" | "markets" | "minerals" | "production";
 
 function isAssignGoodToCellRequest(value: unknown): value is AssignGoodToCellRequest {
   if (!value || typeof value !== "object") return false;
@@ -568,6 +569,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) throw new Error("Economy must be enabled to regenerate data");
       if (!isEconomyRegenerationRequest(value)) throw new Error("economy.regenerate received an invalid target");
 
+      if (value.target === "economy" || value.target === "minerals") MineralResources.generate();
       if (value.target === "economy" || value.target === "goods") Goods.generate();
       if (value.target === "economy" || value.target === "markets") Markets.generate(true);
       if (value.target === "economy") Taxes.defineTaxRates();
@@ -601,6 +603,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       const world = getWorldContext();
       clearBurgMarketLedgers();
       clearMarketManagers();
+      MineralResources.clear();
       setGoods([]);
       setMarkets([]);
       setDeals([]);
@@ -750,6 +753,18 @@ export function init(api: ExtensionAPI): void {
     tooltip: "Rebuild market territories, production, trade deals, and taxes from the current goods and markets",
     onClick: () => {
       withRegenerateConfirmation("Economy", "regenerateEconomy", () => regenerate("economy"));
+    }
+  });
+
+  api.registerAction({
+    id: "economy-regenerate-minerals",
+    extensionId: ECONOMY_EXTENSION_ID,
+    tab: "tools",
+    section: "regenerate",
+    label: "Mineral deposits",
+    tooltip: "Regenerate static geological provinces, mineral districts, and deposits without changing goods placement",
+    onClick: () => {
+      withRegenerateConfirmation("Mineral deposits", "regenerateMinerals", () => regenerate("minerals"));
     }
   });
 
@@ -957,6 +972,7 @@ export function init(api: ExtensionAPI): void {
       clearStrategicProcurementExpenses();
       StrategicProcurement.clear();
       TradeAnimation.clearRouteCache();
+      MineralResources.generate();
       Goods.generate();
       Markets.generate();
       Taxes.defineTaxRates();

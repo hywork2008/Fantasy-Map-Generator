@@ -48,6 +48,7 @@ function getFullDataJson(): string {
     pack: packData,
     grid: gridData,
     biomesData: worldContext.biomesData,
+    mineralResources: getMineralResourcesData(),
     notes: worldContext.notes,
     nameBases: worldContext.nameBases
   });
@@ -66,7 +67,8 @@ function getMinimalDataJson(): string {
     rivers: worldContext.pack.rivers,
     markers: worldContext.pack.markers,
     routes: worldContext.pack.routes,
-    zones: worldContext.pack.zones
+    zones: worldContext.pack.zones,
+    mineralResources: getMineralResourcesData()
   };
   return JSON.stringify({
     info,
@@ -77,6 +79,17 @@ function getMinimalDataJson(): string {
     notes: worldContext.notes,
     nameBases: worldContext.nameBases
   });
+}
+
+/** Economy owns mineral data; read the runtime compatibility projection without importing an extension module. */
+function getMineralResourcesData() {
+  const pack = worldContext.pack as unknown as Record<string, unknown>;
+  const array = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+  return {
+    geologicalProvinces: array(pack.mineralGeologicalProvinces),
+    districts: array(pack.mineralDistricts),
+    deposits: array(pack.mineralDeposits)
+  };
 }
 
 function getPackDataJson(): string {

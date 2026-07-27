@@ -14,6 +14,21 @@ function createWorld(): WorldContext {
       characters: [{ i: 1, name: "Ari" }],
       goods: [{ i: 2, name: "Grain" }],
       markets: [{ i: 4, name: "North Market" }],
+      mineralGeologicalProvinces: [{ i: 1, kind: "granite", cells: [0] }],
+      mineralDistricts: [{ i: 1, type: "graniteTin", provinceId: 1, cell: 0, depositIds: [1], richness: 3 }],
+      mineralDeposits: [
+        {
+          i: 1,
+          districtId: 1,
+          cell: 0,
+          type: "graniteTin",
+          primaryCommodity: "tin",
+          commodities: ["tin", "copper"],
+          richness: 3,
+          depth: "shallow",
+          discovered: false
+        }
+      ],
       states: [
         { i: 0, name: "Neutrals" } as State,
         {
@@ -57,6 +72,9 @@ describe("extension state slice compatibility adapter", () => {
     expect(simulation.extensions.economy?.goods).toEqual([{ i: 2, name: "Grain" }]);
     expect(simulation.extensions.economy?.good).toEqual(new Uint16Array([2, 3]));
     expect(simulation.extensions.economy?.productionByBurg).toEqual({ 1: [{ good: "grain" }] });
+    expect(simulation.extensions.economy?.mineralDistricts).toEqual([
+      { i: 1, type: "graniteTin", provinceId: 1, cell: 0, depositIds: [1], richness: 3 }
+    ]);
     expect(simulation.extensions.nobility?.rulerIdByState).toEqual({ 1: 1 });
 
     const characters = [{ i: 2, name: "Bea" }];
@@ -87,6 +105,7 @@ describe("extension state slice compatibility adapter", () => {
 
     expect(Object.hasOwn(document.world.pack, "characters")).toBe(false);
     expect(Object.hasOwn(document.world.pack, "goods")).toBe(false);
+    expect(Object.hasOwn(document.world.pack, "mineralDeposits")).toBe(false);
     expect(Object.hasOwn(document.world.pack.cells, "good")).toBe(false);
     expect(Object.hasOwn(document.world.pack.burgs[1], "production")).toBe(false);
     expect(Object.hasOwn(document.world.pack.states[1], "rulerId")).toBe(false);
@@ -97,6 +116,9 @@ describe("extension state slice compatibility adapter", () => {
 
     bindExtensionStateSlices(document.world, document.simulation);
     expect(document.world.pack.characters).toBe(document.simulation.extensions.characters?.characters);
+    expect((document.world.pack as unknown as Record<string, unknown>).mineralDeposits).toBe(
+      document.simulation.extensions.economy?.mineralDeposits
+    );
     expect((document.world.pack.states[1] as unknown as Record<string, unknown>).rulerId).toBe(1);
   });
 
