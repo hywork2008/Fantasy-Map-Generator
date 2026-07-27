@@ -148,8 +148,10 @@ export function setConditionFunction(groupIndex: number, conditionIndex: number,
     if (!condition) return;
     condition.fnId = fnId;
     condition.biomeIds = [];
+    condition.biomeTagValues = [];
     condition.shoreValues = [];
     condition.typeValues = [];
+    condition.habitatValues = [];
     condition.numberVal = FN_DEFS.find(def => def.id === fnId)?.defaultVal ?? "";
   });
 }
@@ -168,6 +170,13 @@ export function setConditionBiomeIds(groupIndex: number, conditionIndex: number,
   });
 }
 
+export function setConditionBiomeTagValues(groupIndex: number, conditionIndex: number, biomeTagValues: string[]): void {
+  updateGroups(groups => {
+    const condition = groups[groupIndex]?.[conditionIndex];
+    if (condition) condition.biomeTagValues = biomeTagValues;
+  });
+}
+
 export function setConditionShoreValues(groupIndex: number, conditionIndex: number, shoreValues: string[]): void {
   updateGroups(groups => {
     const condition = groups[groupIndex]?.[conditionIndex];
@@ -179,6 +188,13 @@ export function setConditionTypeValues(groupIndex: number, conditionIndex: numbe
   updateGroups(groups => {
     const condition = groups[groupIndex]?.[conditionIndex];
     if (condition) condition.typeValues = typeValues;
+  });
+}
+
+export function setConditionHabitatValues(groupIndex: number, conditionIndex: number, habitatValues: string[]): void {
+  updateGroups(groups => {
+    const condition = groups[groupIndex]?.[conditionIndex];
+    if (condition) condition.habitatValues = habitatValues;
   });
 }
 
@@ -221,8 +237,10 @@ export const DistributionEditor = {
   setConditionFunction,
   setConditionNumberValue,
   setConditionBiomeIds,
+  setConditionBiomeTagValues,
   setConditionShoreValues,
   setConditionTypeValues,
+  setConditionHabitatValues,
   setDraftName,
   setDraftColor,
   setDraftIcon,

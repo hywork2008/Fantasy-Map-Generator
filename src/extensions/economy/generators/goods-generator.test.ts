@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { getCoastalHabitatCode, getNearshoreHabitatCode } from "../../../data/coastalHabitatCatalog";
 import { worldContext } from "../../hostCore";
 import type { BiomesData, ExtensionAPI, Grid, PackedGraph } from "../../hostTypes";
 import {
@@ -94,6 +95,33 @@ describe("GoodsModule", () => {
     expect(getGoods().every(good => good.trade)).toBe(true);
     expect(getGoods().find(good => good.name === "Gold")?.trade?.distancePremium).toBe(3);
     expect(getGoods().find(good => good.name === "Fish")?.trade?.timeValueTrend).toBe(-2);
+  });
+
+  it("adds biome-extension goods while retaining tag-based forest production", () => {
+    goodsModule.restoreDefaults();
+
+    const byName = new Map(getGoods().map(good => [good.name, good]));
+    for (const name of ["Peat", "Resin", "Medicinal herbs", "Shellfish", "Reeds", "Goats"]) {
+      expect(byName.get(name)).toBeDefined();
+      expect(byName.get(name)?.trade).toBeDefined();
+    }
+
+    for (const name of ["Wood", "Game", "Honey", "Hemp", "Furs"]) {
+      expect(byName.get(name)?.biomeOutput).toBeUndefined();
+      expect(byName.get(name)?.biomeOutputByTag).toBeDefined();
+    }
+  });
+
+  it("exposes coastal and nearshore habitat predicates to Goods distributions", () => {
+    worldContext.pack.cells.coastalHabitat = Uint8Array.from([getCoastalHabitatCode("tidalFlat"), 0, 0, 0]);
+    worldContext.pack.cells.nearshoreHabitat = Uint8Array.from([0, 0, getNearshoreHabitatCode("coralReef"), 0]);
+
+    const tidalFlatMethods = goodsModule.getMethods(0);
+    const coralReefMethods = goodsModule.getMethods(2);
+
+    expect(tidalFlatMethods.coastalHabitat("tidalFlat")).toBe(true);
+    expect(tidalFlatMethods.nearshoreHabitat("coralReef")).toBe(false);
+    expect(coralReefMethods.nearshoreHabitat("coralReef")).toBe(true);
   });
 
   it("replaces the generic Ships Good with sea-only ship-class Goods", () => {

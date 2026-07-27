@@ -1,6 +1,7 @@
 import Alea from "alea";
 import { color, shuffler } from "d3";
 import { resolveBiomeOutputRate } from "../../../data/biomeEconomy";
+import { getCoastalHabitatKey, getNearshoreHabitatKey } from "../../../data/coastalHabitatCatalog";
 import type { BiomeTag } from "../../../types/biome";
 import {
   type CultureType,
@@ -121,11 +122,10 @@ export const GOODS_DATA: GoodData[] = [
     color: "#966F33",
     value: 1,
     chance: 4,
-    distribution: 'biomeTag("forest") || biome(12)',
+    distribution: 'biomeTag("forest", "wetland")',
     unit: "pile",
     demandCoverage: { construction: 1, utilities: 1 },
     multipliers: { cultureType: { Hunting: 1.5 } },
-    biomeOutput: { 5: 0.1, 6: 0.1, 7: 0.1, 8: 0.1, 9: 0.1, 12: 0.05 },
     biomeOutputByTag: { forest: 0.1, wetland: 0.05 }
   },
   {
@@ -227,7 +227,6 @@ export const GOODS_DATA: GoodData[] = [
     unit: "wain",
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { River: 1.2, Lake: 1.2, Nomadic: 0.5 } },
-    biomeOutput: { 5: 0.1, 6: 0.1, 7: 0.1, 8: 0.1 },
     biomeOutputByTag: { arable: 0.08, forest: 0.05 }
   },
   {
@@ -243,7 +242,6 @@ export const GOODS_DATA: GoodData[] = [
     unit: "head",
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { Nomadic: 2 } },
-    biomeOutput: { 3: 0.1, 4: 0.1 },
     biomeOutputByTag: { grassland: 0.1, nomadic: 0.08 }
   },
   {
@@ -254,7 +252,8 @@ export const GOODS_DATA: GoodData[] = [
     color: "#7fcdff",
     value: 1,
     chance: 2,
-    distribution: 'shore(-1) && (type("ocean", "freshwater", "salt") || (river() && shore(1, 2)))',
+    distribution:
+      'nearshoreHabitat("rockyReef", "coralReef", "seagrassMeadow") || shore(-1) && type("ocean", "freshwater", "salt")',
     unit: "wain",
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { River: 1.4, Lake: 1.4, Naval: 1.4, Nomadic: 0.2 } }
@@ -271,7 +270,6 @@ export const GOODS_DATA: GoodData[] = [
     unit: "wain",
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { Naval: 0.6, Nomadic: 1.4, Hunting: 2 } },
-    biomeOutput: { 3: 0.02, 4: 0.02, 5: 0.04, 6: 0.04, 7: 0.04, 8: 0.04, 9: 0.08 },
     biomeOutputByTag: { forest: 0.05 }
   },
   {
@@ -286,7 +284,6 @@ export const GOODS_DATA: GoodData[] = [
     unit: "barrel",
     demandCoverage: { food: 0.5, luxury: 0.5 },
     multipliers: { cultureType: { Highland: 1.2, Nomadic: 0.5 } },
-    biomeOutput: { 6: 0.1 },
     biomeOutputByTag: { scrub: 0.12, arable: 0.04 }
   },
   {
@@ -301,7 +298,6 @@ export const GOODS_DATA: GoodData[] = [
     unit: "barrel",
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { Generic: 0.8, Nomadic: 0.5 } },
-    biomeOutput: { 6: 0.1 },
     biomeOutputByTag: { scrub: 0.15, arable: 0.05 }
   },
   {
@@ -316,7 +312,6 @@ export const GOODS_DATA: GoodData[] = [
     unit: "barrel",
     demandCoverage: { food: 0.5 },
     multipliers: { cultureType: { Generic: 1.2 } },
-    biomeOutput: { 6: 0.05, 8: 0.03, 9: 0.03 },
     biomeOutputByTag: { forest: 0.04 }
   },
   {
@@ -327,7 +322,8 @@ export const GOODS_DATA: GoodData[] = [
     color: "#E5E4E5",
     value: 3,
     chance: 3,
-    distribution: 'shore(1) && type("salt", "dry") || (biome(1, 2) && random(70)) || (biome(12) && nth(10))',
+    distribution:
+      'coastalHabitat("tidalFlat") || shore(1) && type("salt", "dry") || biomeTag("desert") && random(70) || biomeTag("wetland") && nth(10)',
     unit: "bag",
     demandCoverage: { utilities: 1 },
     multipliers: { cultureType: { Naval: 1.2 } },
@@ -359,7 +355,6 @@ export const GOODS_DATA: GoodData[] = [
     unit: "head",
     demandCoverage: { utilities: 0.6, military: 0.4 },
     multipliers: { cultureType: { Nomadic: 2 } },
-    biomeOutput: { 4: 0.05 },
     biomeOutputByTag: { nomadic: 0.06, grassland: 0.05 }
   },
   {
@@ -399,7 +394,6 @@ export const GOODS_DATA: GoodData[] = [
     distribution: 'biomeTag("forest")',
     unit: "wain",
     multipliers: { cultureType: { River: 1.4, Lake: 1.4 } },
-    biomeOutput: { 6: 0.1, 7: 0.1, 8: 0.1 },
     biomeOutputByTag: { forest: 0.08 }
   },
   {
@@ -410,7 +404,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#EAE0C8",
     value: 18,
     chance: 2,
-    distribution: "shore(-1) && minTemp(18)",
+    distribution: 'nearshoreHabitat("coralReef") || (shore(-1) && minTemp(18))',
     unit: "pearl",
     demandCoverage: { luxury: 0.6 },
     multipliers: { cultureType: { Naval: 1.4 } }
@@ -448,7 +442,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#ebe5a7",
     value: 12,
     chance: 2,
-    distribution: "biome(1, 7)",
+    distribution: 'biomeTag("desert", "scrub") && minTemp(12) || biomeTag("forest") && minTemp(22)',
     unit: "chest",
     demandCoverage: { luxury: 1 }
   },
@@ -473,7 +467,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#e99c75",
     value: 18,
     chance: 2,
-    distribution: 'biome(7) || (biomeTag("forest") && biomeTag("dry") && minTemp(18))',
+    distribution: 'biomeTag("forest") && minTemp(18)',
     unit: "chest",
     demandCoverage: { luxury: 1 },
     multipliers: { cultureType: { Generic: 1.2 } }
@@ -502,7 +496,6 @@ export const GOODS_DATA: GoodData[] = [
     unit: "pelt",
     demandCoverage: { luxury: 0.5, utilities: 0.3 },
     multipliers: { cultureType: { Hunting: 2 } },
-    biomeOutput: { 9: 0.025, 10: 0.025, 6: 0.025, 8: 0.025, 12: 0.025 },
     biomeOutputByTag: { cold: 0.03, forest: 0.02, wetland: 0.02 }
   },
   {
@@ -516,7 +509,6 @@ export const GOODS_DATA: GoodData[] = [
     unit: "head",
     demandCoverage: { food: 1 },
     multipliers: { cultureType: { Naval: 1.4, Highland: 1.4 } },
-    biomeOutput: { 4: 0.1 },
     biomeOutputByTag: { grassland: 0.1, scrub: 0.08 }
   },
   {
@@ -543,7 +535,7 @@ export const GOODS_DATA: GoodData[] = [
     unit: "barrel",
     demandCoverage: { utilities: 0.4, military: 0.1 },
     multipliers: { cultureType: { Hunting: 1.2 } },
-    recipes: [{ Wood: 1 }]
+    recipes: [{ Wood: 1 }, { Resin: 0.75 }]
   },
   {
     name: "Saltpeter",
@@ -590,7 +582,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#a45a52",
     value: 10,
     chance: 1,
-    distribution: "biome(5, 7) && random(50)",
+    distribution: 'biomeTag("forest") && minTemp(18) && random(50)',
     unit: "pile",
     demandCoverage: { luxury: 1 }
   },
@@ -741,7 +733,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#ba9773",
     value: 3,
     chance: 0,
-    recipes: [{ Hemp: 1 }],
+    recipes: [{ Hemp: 1 }, { Reeds: 1 }],
     unit: "coil",
     demandCoverage: { utilities: 1 }
   },
@@ -753,7 +745,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#f5f5dc",
     value: 5,
     chance: 0,
-    recipes: [{ Hemp: 1 }],
+    recipes: [{ Hemp: 1 }, { Reeds: 1 }],
     unit: "ream",
     demandCoverage: {}
   },
@@ -988,6 +980,7 @@ export const GOODS_DATA: GoodData[] = [
     chance: 0,
     recipes: [
       { Fish: 1, Salt: 1 },
+      { Shellfish: 1, Salt: 1 },
       { Cattle: 1, Salt: 1 },
       { Game: 1, Salt: 1 },
       { Sheep: 1, Salt: 1 },
@@ -1021,8 +1014,10 @@ export const GOODS_DATA: GoodData[] = [
     recipes: [
       { Cattle: 0.5, Salt: 0.25 },
       { Sheep: 0.5, Salt: 0.25 },
+      { Goats: 0.5, Salt: 0.25 },
       { Sheep: 0.5, Vinegar: 0.25 },
-      { Cattle: 0.5, Vinegar: 0.25 }
+      { Cattle: 0.5, Vinegar: 0.25 },
+      { Goats: 0.5, Vinegar: 0.25 }
     ],
     unit: "wain",
     demandCoverage: { food: 1 }
@@ -1095,6 +1090,81 @@ export const GOODS_DATA: GoodData[] = [
     ],
     unit: "bottle",
     demandCoverage: { luxury: 2 }
+  },
+  // Appended to preserve stable IDs for the existing default catalogue.
+  {
+    name: "Peat",
+    tags: ["fuel"],
+    icon: "good-peat",
+    color: "#5c4938",
+    value: 2,
+    chance: 3,
+    distribution: 'biomeTag("wetland") && biomeTag("cold") || biomeTag("wetland") && random(35)',
+    unit: "bale",
+    demandCoverage: { utilities: 0.5 },
+    biomeOutputByTag: { wetland: 0.04 }
+  },
+  {
+    name: "Resin",
+    tags: ["naval", "ritual"],
+    icon: "good-resin",
+    color: "#d8912e",
+    value: 6,
+    chance: 2,
+    distribution:
+      'biomeTag("forest") && biomeTag("cold") || biomeTag("forest") && biomeTag("mountain") || biomeTag("forest") && random(25)',
+    unit: "barrel",
+    demandCoverage: { utilities: 0.3, luxury: 0.2 },
+    biomeOutputByTag: { forest: 0.03 }
+  },
+  {
+    name: "Medicinal herbs",
+    tags: ["luxury", "ritual"],
+    icon: "good-medicinal-herbs",
+    color: "#668f4d",
+    value: 10,
+    chance: 2,
+    distribution:
+      'biomeTag("forest") && biomeTag("mountain") || biomeTag("forest") && biomeTag("wetland") || biomeTag("forest") && random(25)',
+    unit: "bundle",
+    demandCoverage: { luxury: 0.6 },
+    biomeOutputByTag: { forest: 0.025 }
+  },
+  {
+    name: "Shellfish",
+    tags: ["food", "aquatic"],
+    icon: "good-shellfish",
+    color: "#b8c2ad",
+    value: 2,
+    chance: 3,
+    distribution:
+      'coastalHabitat("rockyIntertidal", "tidalFlat") || nearshoreHabitat("rockyReef", "coralReef", "seagrassMeadow")',
+    unit: "basket",
+    demandCoverage: { food: 0.8 }
+  },
+  {
+    name: "Reeds",
+    tags: ["construction", "clothing"],
+    icon: "good-reeds",
+    color: "#9aaf64",
+    value: 1,
+    chance: 3,
+    distribution: 'biomeTag("wetland") || river()',
+    unit: "bundle",
+    demandCoverage: { utilities: 0.4 },
+    biomeOutputByTag: { wetland: 0.06 }
+  },
+  {
+    name: "Goats",
+    tags: ["food", "clothing", "supply"],
+    icon: "good-goats",
+    color: "#a98f75",
+    value: 3,
+    chance: 3,
+    distribution: 'biomeTag("scrub") || biomeTag("mountain") || biomeTag("dry") && random(50)',
+    unit: "head",
+    demandCoverage: { food: 0.8, utilities: 0.2 },
+    biomeOutputByTag: { scrub: 0.1, mountain: 0.08, dry: 0.06 }
   }
 ];
 
@@ -1185,7 +1255,13 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Liquor: tradeProfile(2, 2, 4, 2, 1, 4, 2),
   Candles: tradeProfile(2, 3, 3, 1, 0, 3, 2),
   Soap: tradeProfile(3, 3, 3, 1, 0, 4, 2),
-  Perfume: tradeProfile(1, 1, 5, 3, 0, 3, 3)
+  Perfume: tradeProfile(1, 1, 5, 3, 0, 3, 3),
+  Peat: tradeProfile(4, 4, 2, 0, 0, 4, 2),
+  Resin: tradeProfile(2, 2, 3, 2, 0, 4, 2),
+  "Medicinal herbs": tradeProfile(1, 2, 4, 3, -1, 2, 3),
+  Shellfish: tradeProfile(3, 3, 2, 0, -2, 1, 5),
+  Reeds: tradeProfile(3, 4, 1, -1, 0, 3, 2),
+  Goats: tradeProfile(4, 4, 2, 0, -2, 1, 5)
 };
 
 export function getDefaultGoodTradeProfile(good: Pick<Good, "name" | "tags" | "unit" | "value">): GoodTradeProfile {
@@ -1366,6 +1442,14 @@ export class GoodsModule {
       type: (...types: string[]) => {
         const feature = this.worldContext.pack.features[this.worldContext.pack.cells.f[cellId]];
         return types.includes(feature.group || feature.type);
+      },
+      coastalHabitat: (...habitats: string[]) => {
+        const code = this.worldContext.pack.cells.coastalHabitat?.[cellId] ?? 0;
+        return habitats.includes(getCoastalHabitatKey(code));
+      },
+      nearshoreHabitat: (...habitats: string[]) => {
+        const code = this.worldContext.pack.cells.nearshoreHabitat?.[cellId] ?? 0;
+        return habitats.includes(getNearshoreHabitatKey(code));
       },
       river: () => this.worldContext.pack.cells.r[cellId]
     };

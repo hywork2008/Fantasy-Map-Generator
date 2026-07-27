@@ -9,7 +9,9 @@ import {
   removeCondition,
   removeGroup,
   setConditionBiomeIds,
+  setConditionBiomeTagValues,
   setConditionFunction,
+  setConditionHabitatValues,
   setConditionNegate,
   setConditionNumberValue,
   setConditionShoreValues,
@@ -23,9 +25,11 @@ import {
   setDraftValue
 } from "../../controllers/goods-distribution-editor";
 import {
+  BIOME_TAG_OPTIONS,
   type DistCondition,
   FEATURE_TYPE_OPTIONS,
   FN_DEFS,
+  HABITAT_OPTIONS,
   SHORE_OPTIONS
 } from "../../controllers/goodsDistributionExpression";
 import { getGoods, getWorldContext } from "../../economyContext";
@@ -54,8 +58,10 @@ function serializeCondition(condition: DistCondition): string {
     fnId: condition.fnId,
     negate: condition.negate,
     biomeIds: condition.biomeIds,
+    biomeTagValues: condition.biomeTagValues,
     shoreValues: condition.shoreValues,
     typeValues: condition.typeValues,
+    habitatValues: condition.habitatValues,
     numberVal: condition.numberVal
   });
 }
@@ -109,6 +115,22 @@ const ConditionParams: React.FC<{
     );
   }
 
+  if (def.paramType === "biomeTags") {
+    return (
+      <select
+        multiple
+        value={condition.biomeTagValues}
+        onChange={event => setConditionBiomeTagValues(groupIndex, conditionIndex, getSelectedValues(event))}
+      >
+        {BIOME_TAG_OPTIONS.map(option => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
   if (def.paramType === "shore") {
     return (
       <select
@@ -117,6 +139,23 @@ const ConditionParams: React.FC<{
         onChange={event => setConditionShoreValues(groupIndex, conditionIndex, getSelectedValues(event))}
       >
         {SHORE_OPTIONS.map(option => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  if (def.paramType === "habitats") {
+    const habitatOptions = def.id === "coastalHabitat" ? HABITAT_OPTIONS.slice(0, 4) : HABITAT_OPTIONS.slice(4);
+    return (
+      <select
+        multiple
+        value={condition.habitatValues}
+        onChange={event => setConditionHabitatValues(groupIndex, conditionIndex, getSelectedValues(event))}
+      >
+        {habitatOptions.map(option => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
@@ -356,11 +395,15 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
                   ? ""
                   : def.paramType === "biomes"
                     ? "id, ..."
-                    : def.paramType === "shore"
-                      ? "ring, ..."
-                      : def.paramType === "featureType"
-                        ? '"type", ...'
-                        : "value";
+                    : def.paramType === "biomeTags"
+                      ? '"tag", ...'
+                      : def.paramType === "shore"
+                        ? "ring, ..."
+                        : def.paramType === "featureType"
+                          ? '"type", ...'
+                          : def.paramType === "habitats"
+                            ? '"habitat", ...'
+                            : "value";
               return (
                 <div key={def.id}>
                   <code>{`${def.id}(${paramSig})`}</code>

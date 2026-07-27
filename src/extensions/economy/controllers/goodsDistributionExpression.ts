@@ -2,7 +2,7 @@ import type { WorldContext } from "../../hostCore";
 import { getHeight } from "../../hostServices";
 import { convertTemperature, list, rn } from "../../hostUtils";
 
-export type ParamType = "none" | "number" | "biomes" | "shore" | "featureType";
+export type ParamType = "none" | "number" | "biomes" | "biomeTags" | "shore" | "featureType" | "habitats";
 
 export interface FnDef {
   id: string;
@@ -18,8 +18,10 @@ export interface DistCondition {
   fnId: string;
   negate: boolean;
   biomeIds: number[];
+  biomeTagValues: string[];
   shoreValues: string[];
   typeValues: string[];
+  habitatValues: string[];
   numberVal: string;
 }
 
@@ -31,6 +33,12 @@ export const FN_DEFS: FnDef[] = [
     label: "Biome",
     paramType: "biomes",
     description: "Cells in specific biomes"
+  },
+  {
+    id: "biomeTag",
+    label: "Biome Tag",
+    paramType: "biomeTags",
+    description: "Cells in biomes with any selected semantic tag"
   },
   {
     id: "minHeight",
@@ -80,6 +88,18 @@ export const FN_DEFS: FnDef[] = [
     label: "Waterbody Type",
     paramType: "featureType",
     description: "Cells by waterbody type"
+  },
+  {
+    id: "coastalHabitat",
+    label: "Coastal Habitat",
+    paramType: "habitats",
+    description: "Land cells with any selected coastal habitat"
+  },
+  {
+    id: "nearshoreHabitat",
+    label: "Nearshore Habitat",
+    paramType: "habitats",
+    description: "Shallow-water cells with any selected nearshore habitat"
   },
   {
     id: "river",
@@ -146,8 +166,43 @@ export const FEATURE_TYPE_OPTIONS = [
   { value: "sinkhole", label: "Sinkhole" }
 ];
 
+export const BIOME_TAG_OPTIONS = [
+  "marine",
+  "forest",
+  "wetland",
+  "mountain",
+  "coastal",
+  "dry",
+  "cold",
+  "desert",
+  "grassland",
+  "scrub",
+  "snow",
+  "arable",
+  "nomadic"
+].map(value => ({ value, label: value }));
+
+export const HABITAT_OPTIONS = [
+  { value: "sandyBeach", label: "Sandy beach" },
+  { value: "rockyIntertidal", label: "Rocky intertidal" },
+  { value: "tidalFlat", label: "Tidal flat" },
+  { value: "coastalDune", label: "Coastal dune" },
+  { value: "rockyReef", label: "Rocky reef" },
+  { value: "coralReef", label: "Coral reef" },
+  { value: "seagrassMeadow", label: "Seagrass meadow" }
+];
+
 export function createDefaultCondition(): DistCondition {
-  return { fnId: "biome", negate: false, biomeIds: [], shoreValues: [], typeValues: [], numberVal: "" };
+  return {
+    fnId: "biome",
+    negate: false,
+    biomeIds: [],
+    biomeTagValues: [],
+    shoreValues: [],
+    typeValues: [],
+    habitatValues: [],
+    numberVal: ""
+  };
 }
 
 export function conditionToExpr(condition: DistCondition): string {
@@ -167,6 +222,10 @@ export function conditionToExpr(condition: DistCondition): string {
       if (!condition.biomeIds.length) return "";
       inner = `biome(${condition.biomeIds.join(", ")})`;
       break;
+    case "biomeTags":
+      if (!condition.biomeTagValues.length) return "";
+      inner = `biomeTag(${condition.biomeTagValues.map(value => `"${value}"`).join(", ")})`;
+      break;
     case "shore":
       if (!condition.shoreValues.length) return "";
       inner = `shore(${condition.shoreValues.join(", ")})`;
@@ -174,6 +233,10 @@ export function conditionToExpr(condition: DistCondition): string {
     case "featureType":
       if (!condition.typeValues.length) return "";
       inner = `type(${condition.typeValues.map(value => `"${value}"`).join(", ")})`;
+      break;
+    case "habitats":
+      if (!condition.habitatValues.length) return "";
+      inner = `${condition.fnId}(${condition.habitatValues.map(value => `"${value}"`).join(", ")})`;
       break;
     default:
       return "";
@@ -261,11 +324,17 @@ export function parseConditionStr(value: string): DistCondition | null {
     case "biomes":
       condition.biomeIds = args.map(Number).filter(n => !Number.isNaN(n));
       break;
+    case "biomeTags":
+      condition.biomeTagValues = args.map(arg => arg.replace(/["']/g, ""));
+      break;
     case "shore":
       condition.shoreValues = args;
       break;
     case "featureType":
       condition.typeValues = args.map(arg => arg.replace(/["']/g, ""));
+      break;
+    case "habitats":
+      condition.habitatValues = args.map(arg => arg.replace(/["']/g, ""));
       break;
     case "none":
       break;
@@ -302,6 +371,13 @@ export function interpretDistribution(dist: string, biomesData: WorldContext["bi
       const names = args.split(",").map(arg => biomesData.name[parseInt(arg.trim(), 10)]);
       return names.length === 1 ? names[0] : `${list(names)}`;
     })
+    .replace(/biomeTag\(([^)]+)\)/g, (_, args: string) => {
+      const tags = args
+        .replace(/["']/g, "")
+        .split(",")
+        .map(arg => arg.trim());
+      return `biome tag: ${tags.join("/")}`;
+    })
     .replace(/minHeight\((-?\d+(?:\.\d+)?)\)/g, (_, h: string) => `min height ${getHeight(+h)}`)
     .replace(/maxHeight\((-?\d+(?:\.\d+)?)\)/g, (_, h: string) => `max height ${getHeight(+h)}`)
     .replace(/minTemp\((-?\d+(?:\.\d+)?)\)/g, (_, t: string) => `min temp ${convertTemperature(+t)}`)
@@ -319,6 +395,24 @@ export function interpretDistribution(dist: string, biomesData: WorldContext["bi
         .map(arg => arg.trim());
       return `type: ${types.join("/")}`;
     })
+    .replace(
+      /coastalHabitat\(([^)]+)\)/g,
+      (_, args: string) =>
+        `coastal habitat: ${args
+          .replace(/["']/g, "")
+          .split(",")
+          .map(arg => arg.trim())
+          .join("/")}`
+    )
+    .replace(
+      /nearshoreHabitat\(([^)]+)\)/g,
+      (_, args: string) =>
+        `nearshore habitat: ${args
+          .replace(/["']/g, "")
+          .split(",")
+          .map(arg => arg.trim())
+          .join("/")}`
+    )
     .replace(/river\(\)/g, "river presence")
     .replace(/minHabitability\((\d+)\)/g, (_, n: string) => `habitability ≥ ${n}%`)
     .replace(/habitability\(\)/g, "more habitable areas")
