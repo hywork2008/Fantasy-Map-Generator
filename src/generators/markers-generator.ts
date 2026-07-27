@@ -5,6 +5,14 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import {
+  getBiomeCode,
+  getBiomeKey,
+  isDesertBiome,
+  isForestBiome,
+  isNomadicBiome,
+  isWetlandBiome
+} from "../data/biomeCatalog";
 import { getFriendlyHeight } from "../services/cellInfoService";
 import { useOptionsState } from "../store/optionsState";
 import type { MarkerConfig } from "../types/MarkerConfig";
@@ -1138,11 +1146,14 @@ class MarkersModule {
     notes.push({ id, name, legend });
   }
 
-  // Sacred forests spawn on temperate forests
+  // Sacred forests spawn on temperate deciduous / temperate rain forests
   private listSacredForests({ cells }: PackedGraph) {
-    return cells.i.filter(
-      i => !this.occupied[i] && cells.culture[i] && cells.religion[i] && [6, 8].includes(cells.biome[i])
-    );
+    const { biomesData } = this.worldContext;
+    return cells.i.filter(i => {
+      if (this.occupied[i] || !cells.culture[i] || !cells.religion[i]) return false;
+      const key = getBiomeKey(biomesData, cells.biomeCode[i]);
+      return key === "temperateDeciduousForest" || key === "temperateRainforest";
+    });
   }
 
   private addSacredForest(id: string, cell: number) {
@@ -1158,7 +1169,11 @@ class MarkersModule {
 
   // Sacred pineries spawn on boreal forests
   private listSacredPineries({ cells }: PackedGraph) {
-    return cells.i.filter(i => !this.occupied[i] && cells.culture[i] && cells.religion[i] && cells.biome[i] === 9);
+    const { biomesData } = this.worldContext;
+    const taiga = getBiomeCode(biomesData, "taiga");
+    return cells.i.filter(
+      i => !this.occupied[i] && cells.culture[i] && cells.religion[i] && cells.biomeCode[i] === taiga
+    );
   }
 
   private addSacredPinery(id: string, cell: number) {
@@ -1174,12 +1189,14 @@ class MarkersModule {
 
   // Sacred palm groves spawn on oasises
   private listSacredPalmGroves({ cells }: PackedGraph) {
+    const { biomesData } = this.worldContext;
+    const hotDesert = getBiomeCode(biomesData, "hotDesert");
     return cells.i.filter(
       i =>
         !this.occupied[i] &&
         cells.culture[i] &&
         cells.religion[i] &&
-        cells.biome[i] === 1 &&
+        cells.biomeCode[i] === hotDesert &&
         cells.pop[i] > 1 &&
         Routes.isConnected(i)
     );
@@ -1239,15 +1256,16 @@ class MarkersModule {
     const types = { brigands: 4, bandits: 3, robbers: 1, highwaymen: 1 };
 
     const culture = cells.culture[cell];
-    const biome = cells.biome[cell];
+    const biome = cells.biomeCode[cell];
     const height = cells.h[cell];
 
+    const { biomesData } = this.worldContext;
     const locality = ((height: number, biome: number) => {
       if (height >= 70) return "highlander";
-      if ([1, 2].includes(biome)) return "desert";
-      if ([3, 4].includes(biome)) return "mounted";
-      if ([5, 6, 7, 8, 9].includes(biome)) return "forest";
-      if (biome === 12) return "swamp";
+      if (isDesertBiome(biomesData, biome)) return "desert";
+      if (isNomadicBiome(biomesData, biome) && !isDesertBiome(biomesData, biome)) return "mounted";
+      if (isForestBiome(biomesData, biome)) return "forest";
+      if (isWetlandBiome(biomesData, biome)) return "swamp";
       return "angry";
     })(height, biome);
 
@@ -1538,7 +1556,9 @@ class MarkersModule {
   }
 
   private listMirage({ cells }: PackedGraph) {
-    return cells.i.filter(i => !this.occupied[i] && cells.biome[i] === 1);
+    const { biomesData } = this.worldContext;
+    const hotDesert = getBiomeCode(biomesData, "hotDesert");
+    return cells.i.filter(i => !this.occupied[i] && cells.biomeCode[i] === hotDesert);
   }
 
   private addMirage(id: string, _cell: number) {
@@ -1580,7 +1600,7 @@ class MarkersModule {
 
     let formation = rw(formations);
     const toponym = Names.getCulture(cells.culture[cell]);
-    if (cells.biome[cell] === 11) {
+    if (getBiomeKey(this.worldContext.biomesData, cells.biomeCode[cell]) === "glacier") {
       formation = `Glacial ${formation}`;
     }
     const name = `${toponym} ${formation}`;
@@ -1609,7 +1629,7 @@ class MarkersModule {
 
   private listRifts({ cells }: PackedGraph) {
     const { biomesData } = this.worldContext;
-    return cells.i.filter(i => !this.occupied[i] && cells.pop[i] <= 3 && biomesData.habitability[cells.biome[i]]);
+    return cells.i.filter(i => !this.occupied[i] && cells.pop[i] <= 3 && biomesData.habitability[cells.biomeCode[i]]);
   }
 
   private addRift(id: string, _cell: number) {

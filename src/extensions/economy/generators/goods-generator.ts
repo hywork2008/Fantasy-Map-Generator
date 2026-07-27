@@ -1219,7 +1219,7 @@ export class GoodsModule {
 
     for (const cellId of shuffledCells) {
       if (!(cellId % 10)) shuffle(goods);
-      if (this.cells.biome[cellId] === 11 && this.worldContext.biomesData.habitability[11] === 0) continue; // skip glaciers
+      if (this.cells.biomeCode[cellId] === 11 && this.worldContext.biomesData.habitability[11] === 0) continue; // skip glaciers
       this.cellId = cellId;
 
       for (const good of goods) {
@@ -1274,7 +1274,7 @@ export class GoodsModule {
     const spread = new Function(methods, `return ${good.distribution}`);
 
     for (const cellId of shuffledCells) {
-      if (this.cells.biome[cellId] === 11 && this.worldContext.biomesData.habitability[11] === 0) continue; // skip glaciers
+      if (this.cells.biomeCode[cellId] === 11 && this.worldContext.biomesData.habitability[11] === 0) continue; // skip glaciers
       this.cellId = cellId;
 
       if (goodColumn[cellId]) continue;
@@ -1304,7 +1304,7 @@ export class GoodsModule {
     }
     if (cellId < 0 || cellId >= cells.i.length || goodColumn[cellId]) return null;
 
-    const biomeId = cells.biome[cellId];
+    const biomeId = cells.biomeCode[cellId];
     const matchingGoods = getGoods().filter(
       good => isGoodEnabled(good) && good.biomeOutput?.[biomeId] !== undefined && good.biomeOutput[biomeId]! > 0
     );
@@ -1327,10 +1327,10 @@ export class GoodsModule {
       random: (number: number) => number >= 100 || (number > 0 && number / 100 > Math.random()),
       nth: (number: number) => !(cellId % number),
       minHabitability: (min: number) =>
-        this.worldContext.biomesData.habitability[this.worldContext.pack.cells.biome[cellId]] >= min,
-      habitability: () => this.worldContext.biomesData.habitability[this.cells.biome[cellId]] > Math.random() * 100,
+        this.worldContext.biomesData.habitability[this.worldContext.pack.cells.biomeCode[cellId]] >= min,
+      habitability: () => this.worldContext.biomesData.habitability[this.cells.biomeCode[cellId]] > Math.random() * 100,
       elevation: () => this.worldContext.pack.cells.h[cellId] / 100 > Math.random(),
-      biome: (...biomes: number[]) => biomes.includes(this.worldContext.pack.cells.biome[cellId]),
+      biome: (...biomes: number[]) => biomes.includes(this.worldContext.pack.cells.biomeCode[cellId]),
       minHeight: (heigh: number) => this.worldContext.pack.cells.h[cellId] >= heigh,
       maxHeight: (heigh: number) => this.worldContext.pack.cells.h[cellId] <= heigh,
       minTemp: (temp: number) => this.worldContext.grid.cells.temp[this.worldContext.pack.cells.g[cellId]] >= temp,

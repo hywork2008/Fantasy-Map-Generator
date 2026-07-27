@@ -271,8 +271,8 @@ export function showMapTooltip(point: [number, number], e: MouseEvent, i: number
   else if (layerIsOn("toggleCombatDeaths")) tip(getCombatDeathsTip(i));
   else if (layerIsOn("togglePopulation")) tip(getPopulationTip(i));
   else if (layerIsOn("toggleTemperature")) tip(`Temperature: ${convertTemperature(worldContext.grid.cells.temp[g])}`);
-  else if (layerIsOn("toggleBiomes") && worldContext.pack.cells.biome[i]) {
-    const biome = worldContext.pack.cells.biome[i];
+  else if (layerIsOn("toggleBiomes") && worldContext.pack.cells.biomeCode[i]) {
+    const biome = worldContext.pack.cells.biomeCode[i];
     tip(`Biome: ${worldContext.biomesData.name[biome]}`);
     const biomesEditorEl = getVisibleDialogElement("biomesEditor");
     if (biomesEditorEl) highlightEditorLine(biomesEditorEl, biome);

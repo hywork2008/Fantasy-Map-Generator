@@ -652,7 +652,7 @@ export function saveGeoJsonCells(): void {
   cells.i.forEach((i: number) => {
     const coordinates = getCellCoordinates(cells.v[i]);
     const height = getHeight(i);
-    const biome = cells.biome[i];
+    const biome = cells.biomeCode[i];
     const type = worldContext.pack.features[cells.f[i]].type;
     const population = getPopulation(i);
     const state = cells.state[i];

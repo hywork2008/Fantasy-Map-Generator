@@ -38,7 +38,11 @@ export interface PackedGraphCells {
   haven: TypedArray; // cell is a haven
   g: TypedArray; // cell ground type
   culture: TypedArray; // cell culture id
-  biome: TypedArray; // cell biome id
+  /**
+   * Cell biome code (catalog-local index). Read meaning via BiomesData.keys /
+   * definitions — never compare codes by numeric range.
+   */
+  biomeCode: TypedArray;
   harbor: TypedArray; // cell harbour presence
   /** Water cell enclosure score, 0 (open ocean) - 100 (fully landlocked); 0 for land cells. Debug-only. */
   enclosure: TypedArray;

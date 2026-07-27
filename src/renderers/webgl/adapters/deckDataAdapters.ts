@@ -457,7 +457,7 @@ export function buildBiomesPolygons(
     worldContext,
     focusScope,
     "biome",
-    cellId => colorToRgba(biomesData.color[pack.cells.biome[cellId]], "#999999", opacity),
+    cellId => colorToRgba(biomesData.color[pack.cells.biomeCode[cellId]], "#999999", opacity),
     landCells
   );
 }

@@ -293,14 +293,18 @@ BiomeCatalogSnapshot + biomeCode
 
 ## 実装フェーズ
 
-### Phase 1: カタログ基盤
+### Phase 1: カタログ基盤 — **実装済み (2026-07-27)**
 
-1. 現在の13種（`Glacier` の再定義を含む）と表の10種を `BiomeKey` と `BiomeDefinition` で定義し、並行配列を撤去する。
-2. `BiomeCatalog`、コードコンパイラ、タグ・キーから定義を引くヘルパーを導入する。
-3. 数値コード範囲を使う森林判定・資源判定を検索し、タグまたは `BiomeKey` ベースへ移行する。
-4. `pack.cells.biome` を `pack.cells.biomeCode` へ置換し、セル列を読む全呼び出し元をカタログ経由へ移行する。
-5. `BiomeCatalogSnapshot` を新しいアーカイブ形式へ導入する。
-6. `LegacyBiomeCodec` と旧 `.fmg` fixture を追加し、旧標準13種と旧カスタムバイオームを正規形式へ移行する。
+1. 現在の13種（`Glacier` の再定義を含む）と表の10種を `BiomeKey` と `BiomeDefinition` で定義し、並行配列を撤去する。 ✅
+2. `BiomeCatalog`、コードコンパイラ、タグ・キーから定義を引くヘルパーを導入する。 ✅ (`src/types/biome.ts`, `src/data/biomeCatalog.ts`)
+3. 数値コード範囲を使う森林判定・資源判定を検索し、タグまたは `BiomeKey` ベースへ移行する。 ✅ (states/cultures/burgs/military/markers/battle/shipyard 等)
+4. `pack.cells.biome` を `pack.cells.biomeCode` へ置換し、セル列を読む全呼び出し元をカタログ経由へ移行する。 ✅
+5. `BiomeCatalogSnapshot` を新しいアーカイブ形式へ導入する。 ✅ (`biomesDataToSnapshot` / world archive の `biomesData` に keys/tags/definitions を永続化; decode 時 `migrateBiomeCatalog`)
+6. `LegacyBiomeCodec` と旧 `.fmg` fixture を追加し、旧標準13種と旧カスタムバイオームを正規形式へ移行する。 ✅ (`src/io/legacy/legacyBiomesV1.ts`, load path)
+
+**残メモ (Phase 1 境界):**
+- 経済 `biomeOutput` や military unit `biomes: number[]` は、歴史的 0–12 コード安定のため当面数値のまま。Phase 4 で `BiomeKey` / タグへ寄せる。
+- 新規10種はカタログ・手動編集・描画色の既定値まで。気候自動割当は Phase 3。
 
 ### Phase 2: 描画と手動編集
 

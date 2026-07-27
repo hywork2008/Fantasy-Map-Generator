@@ -328,7 +328,7 @@ function parseTypedId(id: string): [string, number] | null {
 }
 
 function formatBiomeTooltip(cellId: number): string {
-  const biomeId = worldContext.pack.cells.biome[cellId];
+  const biomeId = worldContext.pack.cells.biomeCode[cellId];
   const name = worldContext.biomesData.name[biomeId] ?? `Biome ${biomeId}`;
   return `Biome: ${name}`;
 }

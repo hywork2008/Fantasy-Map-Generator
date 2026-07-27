@@ -541,7 +541,7 @@ class RoutesModule {
     function getLandPathCost(current: number, next: number) {
       if (pack.cells.h[next] < 20) return Infinity; // ignore water cells
 
-      const habitability = biomesData.habitability[pack.cells.biome[next]];
+      const habitability = biomesData.habitability[pack.cells.biomeCode[next]];
       if (!habitability) return Infinity; // inhabitable cells are not passable (e.g. glacier)
 
       const distanceCost = distanceSquared(pack.cells.p[current], pack.cells.p[next]);

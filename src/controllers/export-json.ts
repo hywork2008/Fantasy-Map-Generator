@@ -143,7 +143,7 @@ function getPackCellsData() {
     fl: Array.from(worldContext.pack.cells.fl),
     r: Array.from(worldContext.pack.cells.r),
     conf: Array.from(worldContext.pack.cells.conf),
-    biome: Array.from(worldContext.pack.cells.biome),
+    biome: Array.from(worldContext.pack.cells.biomeCode),
     s: Array.from(worldContext.pack.cells.s),
     pop: Array.from(worldContext.pack.cells.pop),
     culture: Array.from(worldContext.pack.cells.culture),

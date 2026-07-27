@@ -1463,7 +1463,7 @@ function buildLayerSignatures(
     "toggleBiomes",
     ["map.topology", "map.physical", "presentation.styles"],
     () =>
-      `${landGeometry()}|${numberListSignature(pack.cells?.biome)}|${stringListSignature(biomesData.color)}|op:${styles.cellLayerOpacities.biomes}`
+      `${landGeometry()}|${numberListSignature(pack.cells?.biomeCode)}|${stringListSignature(biomesData.color)}|op:${styles.cellLayerOpacities.biomes}`
   );
   setIfActive(
     "religions",

@@ -165,7 +165,7 @@ export const Threats = {
 
           // Estimate what the suitability (s) of this cell would have been without the monster
           // using a simplified version of the rankCells formula:
-          const baseScore = worldContext.biomesData.habitability[cells.biome[cell]] || 0;
+          const baseScore = worldContext.biomesData.habitability[cells.biomeCode[cell]] || 0;
           if (baseScore > 0) {
             const potential_s = Math.max(0, baseScore - (cells.h[cell] - 50) / 5);
 

@@ -6,6 +6,7 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
+import { isForestBiome } from "../data/biomeCatalog";
 import { HeightThreshold } from "../data/constants";
 import { useOptionsState } from "../store/optionsState";
 import type { State } from "../types/models";
@@ -73,7 +74,7 @@ class StatesModule {
     const { biomesData } = this.worldContext;
     if (b === biome) return 10; // tiny penalty for native biome
     if (type === "Hunting") return biomesData.cost[biome] * 2; // non-native biome penalty for hunters
-    if (type === "Nomadic" && biome > 4 && biome < 10) return biomesData.cost[biome] * 3; // forest biome penalty for nomads
+    if (type === "Nomadic" && isForestBiome(biomesData, biome)) return biomesData.cost[biome] * 3; // forest tag penalty for nomads
     return biomesData.cost[biome]; // general non-native biome penalty
   }
 
@@ -186,7 +187,7 @@ class StatesModule {
       const capitalCell = burgs[state.capital].cell;
       cells.state[capitalCell] = state.i;
       const cultureCenter = cultures[state.culture].center!;
-      const b = cells.biome[cultureCenter]; // state native biome
+      const b = cells.biomeCode[cultureCenter]; // state native biome
       queue.push({ e: state.center, p: 0, s: state.i, b }, 0);
       cost[state.center] = 1;
     }
@@ -204,7 +205,7 @@ class StatesModule {
 
         const cultureCost = culture === cells.culture[e] ? -9 : 100;
         const populationCost = cells.h[e] < 20 ? 0 : cells.s[e] ? Math.max(20 - cells.s[e], 0) : 5000;
-        const biomeCost = this.getBiomeCost(b, cells.biome[e], type);
+        const biomeCost = this.getBiomeCost(b, cells.biomeCode[e], type);
         const heightCost = this.getHeightCost(pack.features[cells.f[e]], cells.h[e], type);
         const riverCost = this.getRiverCost(cells.r[e], e, type);
         const typeCost = this.getTypeCost(cells.t[e], type);

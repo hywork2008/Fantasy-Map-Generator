@@ -4,6 +4,7 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { appendCustomBiome } from "../data/biomeCatalog";
 import { BiomesRenderer, ReliefIconsRenderer } from "../renderers";
 import { legacyMutation } from "../runtime/worldRuntime";
 import { GenerationPipeline } from "../services/generationPipeline";
@@ -55,7 +56,7 @@ function collectStatistics(): void {
 
   for (const i of cells.i) {
     if (cells.h[i] < 20) continue;
-    const b = cells.biome[i];
+    const b = cells.biomeCode[i];
     worldContext.biomesData.cells![b] += 1;
     worldContext.biomesData.area![b] += cells.area[i];
     worldContext.biomesData.rural![b] += cells.pop[i];
@@ -89,7 +90,9 @@ function buildRows(): void {
       area,
       population,
       populationTip,
-      canRemove: i > 12 && !b.cells![i]
+      canRemove:
+        !b.cells![i] &&
+        (String(b.keys?.[i] ?? "").startsWith("custom:") || String(b.keys?.[i] ?? "").startsWith("legacyCustom:"))
     });
   }
 
@@ -183,7 +186,18 @@ export function biomesOpenWiki(biomeName: string): void {
     Taiga: "Taiga",
     Tundra: "Tundra",
     Glacier: "Glacier",
-    Wetland: "Wetland"
+    "Glacier & perennial snowfield": "Glacier",
+    Wetland: "Wetland",
+    "Central European great forest": "Białowieża_Forest",
+    "Mediterranean woodland & scrub": "Mediterranean_forests,_woodlands,_and_scrub",
+    "Temperate coniferous forest": "Temperate_coniferous_forest",
+    "Montane forest": "Montane_forest",
+    "Alpine tundra": "Alpine_tundra",
+    Mangrove: "Mangrove",
+    "Xeric shrubland": "Xeric_shrubland",
+    "Cloud forest": "Cloud_forest",
+    "Heath & moorland": "Heath",
+    "Flooded forest & riparian woodland": "Várzea_forest"
   };
   openURL(pages[biomeName] ? wikiBase + pages[biomeName] : `https://en.wikipedia.org/w/index.php?search=${biomeName}`);
 }
@@ -207,23 +221,13 @@ export function biomesToggleDisplayMode(): void {
 
 export function biomesAddCustomBiome(): void {
   const b = worldContext.biomesData;
-  const i = b.i.length;
+  let i = b.i.length;
   if (i > 254) {
     tip("Maximum number of biomes reached (255), data cleansing is required", false, "error");
     return;
   }
   legacyMutation(() => {
-    b.i.push(i);
-    b.color.push(getRandomColor());
-    b.habitability.push(50);
-    b.name.push("Custom");
-    b.iconsDensity.push(0);
-    b.icons.push([]);
-    b.cost.push(50);
-    b.rural!.push(0);
-    b.urban!.push(0);
-    b.cells!.push(0);
-    b.area!.push(0);
+    i = appendCustomBiome(b, { color: getRandomColor() });
     return { result: undefined, topics: ["map.physical"] };
   });
 
@@ -297,7 +301,7 @@ function selectBiomeOnMapClick(event: MouseEvent): void {
   const assigned = (view.biomes as Selection<SVGGElement, unknown, null, undefined>)
     .select("#temp")
     .select(`polygon[data-cell='${i}']`);
-  const biome = assigned.size() ? +assigned.attr("data-biome") : worldContext.pack.cells.biome[i];
+  const biome = assigned.size() ? +assigned.attr("data-biome") : worldContext.pack.cells.biomeCode[i];
   useBiomesEditorStore.getState().setSelectedBiomeId(biome);
 }
 
@@ -319,7 +323,7 @@ function changeBiomeForSelection(selection: number[]): void {
 
   selection.forEach(i => {
     const exists = temp.select(`polygon[data-cell='${i}']`);
-    const biomeOld = exists.size() ? +exists.attr("data-biome") : worldContext.pack.cells.biome[i];
+    const biomeOld = exists.size() ? +exists.attr("data-biome") : worldContext.pack.cells.biomeCode[i];
     if (+biomeNew === biomeOld) return;
 
     if (exists.size()) exists.attr("data-biome", biomeNew).attr("fill", color).attr("stroke", color);
@@ -352,7 +356,7 @@ export function biomesApplyChange(): void {
         const i = +el.dataset.cell!;
         const b = +el.dataset.biome!;
         const cells = worldContext.pack.cells;
-        cells.biome[i] = b;
+        cells.biomeCode[i] = b;
       });
       return { result: undefined, topics: ["map.physical"] };
     });

@@ -511,7 +511,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     for (const i of worldContext.pack.cells.i) {
       const g = worldContext.pack.cells.g[i];
-      biome[g] = worldContext.pack.cells.biome[i];
+      biome[g] = worldContext.pack.cells.biomeCode[i];
       culture[g] = worldContext.pack.cells.culture[i];
       pop[g] = worldContext.pack.cells.pop[i];
       routesMap[g] = worldContext.pack.cells.routes[i];
@@ -568,7 +568,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     worldContext.pack.cells.province = new Uint16Array(n);
     worldContext.pack.cells.culture = new Uint16Array(n);
     worldContext.pack.cells.religion = new Uint16Array(n);
-    worldContext.pack.cells.biome = new Uint8Array(n);
+    worldContext.pack.cells.biomeCode = new Uint8Array(n);
 
     if (!erosionAllowed) {
       worldContext.pack.cells.r = new Uint16Array(n);
@@ -586,7 +586,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
         worldContext.pack.cells.fl[i] = fl[g];
       }
 
-      worldContext.pack.cells.biome[i] =
+      worldContext.pack.cells.biomeCode[i] =
         isLand && biome[g]
           ? biome[g]
           : GenerationPipeline.Biomes.getId(

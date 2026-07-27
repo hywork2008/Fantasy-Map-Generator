@@ -235,7 +235,7 @@ function prepareMapDataFromSvg(): string {
     cultures,
     states,
     burgs,
-    worldContext.pack.cells.biome,
+    worldContext.pack.cells.biomeCode,
     worldContext.pack.cells.burg,
     worldContext.pack.cells.conf,
     worldContext.pack.cells.culture,

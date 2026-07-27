@@ -1603,7 +1603,7 @@ export function rankCells() {
 
   for (const i of packCells.i) {
     if (packCells.h[i] < 20) continue;
-    let score = biomesData.habitability[packCells.biome[i]];
+    let score = biomesData.habitability[packCells.biomeCode[i]];
     if (!score) continue;
 
     if (meanFlux) score += normalize(packCells.fl[i] + packCells.conf[i], meanFlux, maxFlux) * 250;

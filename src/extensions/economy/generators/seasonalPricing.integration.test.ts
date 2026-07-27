@@ -49,7 +49,7 @@ describe("seasonal grain price cycle (integration)", () => {
       markets: [],
       cells: {
         i: [0],
-        biome: new Uint8Array([6]),
+        biomeCode: new Uint8Array([6]),
         culture: new Uint16Array([0]),
         state: new Uint16Array([0]),
         religion: new Uint16Array([0]),

@@ -1,4 +1,5 @@
 import type { PackedGraph } from "../types/PackedGraph";
+import type { BiomeCode, BiomeDefinition, BiomeKey, BiomeTag } from "./biome";
 import type { Grid } from "./Grid";
 import type { BurgGroup, MilitaryUnit, NameBase, SeaRouteGenerationMode } from "./models";
 
@@ -17,7 +18,20 @@ export type ConflictAutonomy = "autonomous" | "playerDirected";
  */
 export type InitialSettlementPattern = "frontier" | "scattered" | "standard" | "dense";
 
+/**
+ * Runtime biome table. Semantic identity is `keys` / `definitionsByKey`;
+ * parallel arrays are derived views for dense indexing (code = array index).
+ * Do not treat bare numeric codes as stable ids outside a catalog snapshot.
+ */
 export interface BiomesData {
+  /** Catalog schema version for snapshots */
+  version?: number;
+  /** BiomeKey per code index — source of semantic identity */
+  keys: BiomeKey[];
+  /** Tags per code index */
+  tags: BiomeTag[][];
+  definitionsByKey?: Readonly<Record<string, BiomeDefinition>>;
+  codesByKey?: Readonly<Record<string, BiomeCode>>;
   i: number[];
   name: string[];
   color: string[];

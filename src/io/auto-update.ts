@@ -156,10 +156,18 @@ export function resolveVersionConflicts(mapVersion: string): void {
       replaceTextPathContent(this, text, shift);
     });
 
-    // v1.0 added new biome - Wetland
-    worldContext.biomesData.name.push("Wetland");
-    worldContext.biomesData.color.push("#0b9131");
-    worldContext.biomesData.habitability.push(12);
+    // v1.0 added new biome - Wetland (skip when catalog already has it)
+    if (!worldContext.biomesData.keys?.includes("wetland") && !worldContext.biomesData.name.includes("Wetland")) {
+      worldContext.biomesData.name.push("Wetland");
+      worldContext.biomesData.color.push("#0b9131");
+      worldContext.biomesData.habitability.push(12);
+      worldContext.biomesData.i?.push(worldContext.biomesData.name.length - 1);
+      worldContext.biomesData.keys?.push("wetland");
+      worldContext.biomesData.tags?.push(["wetland"]);
+      worldContext.biomesData.iconsDensity?.push(250);
+      worldContext.biomesData.icons?.push(["swamp"]);
+      worldContext.biomesData.cost?.push(150);
+    }
   }
 
   if (isOlderThan("1.1.0")) {

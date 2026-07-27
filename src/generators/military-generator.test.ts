@@ -2,12 +2,17 @@ import { describe, expect, it } from "vitest";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
+import { createDefaultBiomesData } from "../data/biomeCatalog";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { Military } from "./military-generator";
 
 function makeState(pack: PackedGraph): WorldState {
-  return { pack, options: { year: 1000 } } as unknown as WorldState;
+  return {
+    pack,
+    options: { year: 1000 },
+    biomesData: createDefaultBiomesData()
+  } as unknown as WorldState;
 }
 
 function generate(pack: PackedGraph) {
@@ -15,6 +20,7 @@ function generate(pack: PackedGraph) {
   worldContext.populationRate = 1;
   worldContext.urbanization = 1;
   worldContext.notes = [];
+  worldContext.biomesData = createDefaultBiomesData();
   worldContext.options = { military: undefined } as unknown as typeof worldContext.options;
   Military.generate(worldContext, viewContext, appServices, makeState(pack));
   return worldContext.pack.states[1];
@@ -44,7 +50,7 @@ function makeBaseCells(overrides: { province2Pop?: number; interiorBordersHostil
     // to draw from instead of scaling every regiment's troops down to zero.
     maleAdults: pop.map(v => v * 0.2205),
     femaleAdults: pop.map(v => v * 0.2295),
-    biome: [0, 5, 5, 5, 5],
+    biomeCode: [0, 5, 5, 5, 5],
     culture: [0, 1, 1, 1, 1],
     religion: [0, 1, 1, 1, 1],
     f: [0, 10, 10, 10, 10],
@@ -171,7 +177,7 @@ describe("MilitaryModule.generate — consolidated regiment structure", () => {
         // See makeBaseCells() above for why manpower reconciliation needs this.
         maleAdults: pop.map(v => v * 0.2205),
         femaleAdults: pop.map(v => v * 0.2295),
-        biome: [0, 5, 5, 5, 5, 5, 5, 5, 5],
+        biomeCode: [0, 5, 5, 5, 5, 5, 5, 5, 5],
         culture: [0, 1, 1, 1, 1, 1, 1, 1, 1],
         religion: [0, 1, 1, 1, 1, 1, 1, 1, 1],
         f: [0, 10, 10, 10, 10, 10, 10, 10, 10],
