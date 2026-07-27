@@ -12,7 +12,7 @@
 - 既存の距離・日数・薄利排除: `docs/plan/trade.md`、`docs/plan/drop-poor-trade.md`
 - **陸路の敷設そのもの**（生成時に高標高を嫌う）: [`docs/plan/land-route-elevation-cost.md`](./land-route-elevation-cost.md) — 本ドキュメント（旅行コスト）とは分離。生成側を先に直すと「残る峠」が意味を持ち本計画と相性が良い
 
-**実装状況**: **Phase 0–3 完了**（計測 + 交易 + キャラバン + 軍隊 grade）。Phase 4（峠表現）は未着手。本ドキュメントが旅行側仕様のソース・オブ・トゥルース。
+**実装状況**: **Phase 0–3 完了**（計測 + 交易 + キャラバン + 軍隊 grade）。Phase 4 表現のうち **自動峠名は時期尚早として保留**（Province 命名・NameBases 拡張が先）。本ドキュメントが旅行側仕様のソース・オブ・トゥルース。
 
 ---
 
@@ -512,12 +512,33 @@ Max grade: 16% · Climb: 420 m · Descent: 380 m · Difficulty: Hard pass (horse
 
 ---
 
-## 9. Phase 4 — 表現
+## 9. Phase 4 — 表現（**時期尚早・後回し**）
 
-- 自動「○○峠」候補（hardPass 最高点付近）  
-- 地図アイコン  
-- 手動 override  
+### 9.1 自動「○○峠」命名 — **今はやらない**
+
+前提が足りない:
+
+| 欠落 | 理由 |
+| :--- | :--- |
+| Province 命名が薄い / 未整備 | 地形名の文化・言語のアンカーが州・文化側にない |
+| NameBases の拡張未着手 | 既存 bases は burg/culture 向け。峠・峠型接尾辞の語彙・規則が無い |
+| 固有地名の配置ポリシー未決定 | 川・州・都市と競合しない「どこにラベルを置くか」が未設計 |
+
+自動峠名は **NameBases 拡張 + 州/文化命名の土台が固まってから** 再検討する。  
+それまでは `PassClass` / Elevation Profile の Difficulty ラベルで足りる。
+
+### 9.2 それでも後で検討してよい表現（命名不要）
+
+優先度は低い。必要になったら切り出す:
+
+- hardPass 区間の地図アイコン / ルート上ハイライト（匿名で可）  
+- 手動 override（プレイヤーがラベルを付ける）— 任意  
 - （将来）danger / 山賊リスクを `avoidHardPass` や別ポリシーに接続  
+
+### 9.3 明示的に今やらないこと
+
+- 生成時の「○○峠」自動命名  
+- NameBases を本計画だけで拡張すること（命名システムの別計画に任せる）  
 
 ---
 
@@ -570,7 +591,14 @@ Phase 0 では永続化しない。
 | `landRouteGraph` | `LandRouteEdgeCostFn` + export 冬しきい値定数 |
 | `regimentMovement` | infantry/mounted プロファイル、path + advance に effort |
 
-次に着手する作業: **§9 Phase 4（峠名 / 地図アイコン）**（任意）。
+**route-grade-movement の機能実装は Phase 0–3 で一区切り。**
+
+次に着手する作業（この計画内）: 特に無し。プレイ感チューニングやバグ修正のみ。
+
+後回し（ユーザー確認 2026-07-27）:
+
+- **自動峠名は時期尚早** — Province 命名・NameBases 拡張が先。§9.1  
+- Phase 4 の匿名アイコンも必須ではない  
 
 確認済みユーザー決定:
 
@@ -578,9 +606,9 @@ Phase 0 では永続化しない。
 2. 勾配 → 速度/日数  
 3. 峠回避 vs 速度優先は **商人プレイで選択**（Phase 1）  
 4. 熊・山賊は **今は気にしない**  
+5. **峠の自動命名は命名基盤整備後**  
 
 仮置き（プレイ感で後から調整可）:
 
 - hardPass 回避倍率 ×3 / extreme ×4  
-- ox 感度曲線（`DEFAULT_OX_GRADE_SENSITIVITY`）  
-- 軍隊 Phase 3 は未定  
+- ox / infantry / mounted 感度曲線  
