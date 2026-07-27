@@ -1,5 +1,8 @@
 # 追加したドキュメント
 
+docs/plan/land-route-elevation-cost.md
+docs/plan/route-grade-movement.md
+
 2026-07-25
 
 docs/plan/biomes.md
