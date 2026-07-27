@@ -29,6 +29,20 @@ function createWorld(): WorldContext {
           discovered: false
         }
       ],
+      mineOperations: [
+        {
+          i: 1,
+          depositId: 1,
+          burgId: 1,
+          marketId: 4,
+          workers: 12,
+          technology: 1,
+          drainage: 0.75,
+          fuelAccess: 0.65,
+          annualOutputTons: { tin: 12 },
+          active: true
+        }
+      ],
       states: [
         { i: 0, name: "Neutrals" } as State,
         {
@@ -75,6 +89,7 @@ describe("extension state slice compatibility adapter", () => {
     expect(simulation.extensions.economy?.mineralDistricts).toEqual([
       { i: 1, type: "graniteTin", provinceId: 1, cell: 0, depositIds: [1], richness: 3 }
     ]);
+    expect(simulation.extensions.economy?.mineOperations).toHaveLength(1);
     expect(simulation.extensions.nobility?.rulerIdByState).toEqual({ 1: 1 });
 
     const characters = [{ i: 2, name: "Bea" }];
@@ -106,6 +121,7 @@ describe("extension state slice compatibility adapter", () => {
     expect(Object.hasOwn(document.world.pack, "characters")).toBe(false);
     expect(Object.hasOwn(document.world.pack, "goods")).toBe(false);
     expect(Object.hasOwn(document.world.pack, "mineralDeposits")).toBe(false);
+    expect(Object.hasOwn(document.world.pack, "mineOperations")).toBe(false);
     expect(Object.hasOwn(document.world.pack.cells, "good")).toBe(false);
     expect(Object.hasOwn(document.world.pack.burgs[1], "production")).toBe(false);
     expect(Object.hasOwn(document.world.pack.states[1], "rulerId")).toBe(false);
@@ -118,6 +134,9 @@ describe("extension state slice compatibility adapter", () => {
     expect(document.world.pack.characters).toBe(document.simulation.extensions.characters?.characters);
     expect((document.world.pack as unknown as Record<string, unknown>).mineralDeposits).toBe(
       document.simulation.extensions.economy?.mineralDeposits
+    );
+    expect((document.world.pack as unknown as Record<string, unknown>).mineOperations).toBe(
+      document.simulation.extensions.economy?.mineOperations
     );
     expect((document.world.pack.states[1] as unknown as Record<string, unknown>).rulerId).toBe(1);
   });

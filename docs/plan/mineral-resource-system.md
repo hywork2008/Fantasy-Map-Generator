@@ -2,7 +2,7 @@
 
 ## 状態
 
-Phase 1 まで実装済み。これは史実を厳密に再現する仕様ではない。地図生成時に
+Phase 2 まで実装済み。これは史実を厳密に再現する仕様ではない。地図生成時に
 「将来の発展・通貨・軍需を支えられる資源の下地」を作るため、一次・研究資料を
 参照しつつ、調整可能なゲーム用の初期値を定める文書である。
 
@@ -348,7 +348,7 @@ Sulfur / fuel が急増し、平時の市場価格と軍需調達が競合する
    placer にのみ置く。Goods のセル配置・市場生産にはまだ接続しない。
 3. 通常の `.fmg` 保存では Economy 拡張スライスに保存し、旧 `.map` 形式では任意の
    末尾スロットに保存する。旧ファイルでは空配列として復元する。
-4. Full / Minimal JSON export に `mineralResources`（地質州・鉱区・鉱床）を含める。
+4. Full / Minimal JSON export に `mineralResources`（地質州・鉱区・鉱床・稼働鉱山）を含める。
    Tools の **Mineral deposits** はこの静的データだけを再生成する。
 
 1. `src/extensions/economy/` に鉱物資源の context holder、型、Generator を追加する。
@@ -368,6 +368,26 @@ Sulfur / fuel が急増し、平時の市場価格と軍需調達が競合する
 ### Phase 2: 稼働鉱山と市場供給
 
 目的: 鉱床の埋蔵量・年産・労働・枯渇を Economy に接続する。
+
+実装済み:
+
+1. 各鉱床に commodity ごとの `reserveTons` / `annualCapacityTons`、深さ、到達性を保存し、
+   市場圏に到達する鉱床から `MineOperation` を生成する。作業者、技術、排水、燃料到達性、
+   河川・経路由来の到達性で年産を制限する。
+2. Economy の約 30 日ごとの生産サイクルで、鉱山は市場の Good 在庫に月次供給し、同時に
+   埋蔵量を減算する。枯渇した鉱床と鉱山は停止する。Pb-Ag 鉱床は両 Good を同時供給する。
+3. Iron / Copper / Tin / Lead / Silver / Gold / Coal / Saltpeter / Sulfur は、従来の Good セル
+   からの人口比例ボーナス生産を行わない。鉱山がない地図では新たな鉱物供給は生じず、
+   既存在庫と交易だけが残る。
+4. `mineOperations` を Economy 拡張スライスおよび旧 `.map` の mineral-resource スロットに
+   保存する。市場在庫へ入るため、既存の価格計算と交易候補はその供給をそのまま利用する。
+
+初期実装の範囲:
+
+- 作業者は Burg 人口から物理的に差し引かない抽象的な採掘労働力である。
+- 燃料到達性は定数から始め、Coal / Wood 在庫との実需競合は後続段階で精密化する。
+- `Mineral deposits` の再生成は鉱床・稼働鉱山・埋蔵量を新規作成するため、編集済みの
+  鉱山状態を維持する操作ではない。
 
 1. `MineOperation` を作り、発見済み・到達可能な鉱床から初期稼働鉱山を選ぶ。
 2. 月次 Economy tick で採掘量を計算し、`reserveTons` から減算して市場に Good を投入する。

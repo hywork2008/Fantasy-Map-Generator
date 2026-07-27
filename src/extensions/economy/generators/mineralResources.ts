@@ -22,6 +22,10 @@ export const MINERAL_COMMODITIES = [
 ] as const;
 
 export type MineralCommodity = (typeof MINERAL_COMMODITIES)[number];
+
+export function isMineSuppliedGoodName(name: string): boolean {
+  return (MINERAL_COMMODITIES as readonly string[]).includes(name.toLowerCase());
+}
 export type GeologicalProvinceKind = "orogen" | "shield" | "granite" | "carbonate" | "basin" | "placer";
 export type MineralDistrictType =
   | "bandedIron"
@@ -35,6 +39,13 @@ export type MineralDistrictType =
   | "placer"
   | "coalSeam"
   | "evaporite";
+
+export interface MineralYield {
+  /** Recoverable refined-metal equivalent; Phase 2 maps one tonne to one Economy Good unit. */
+  commodity: MineralCommodity;
+  reserveTons: number;
+  annualCapacityTons: number;
+}
 
 export interface MineralGeologicalProvince {
   i: number;
@@ -59,9 +70,25 @@ export interface MineralDeposit {
   type: MineralDistrictType;
   primaryCommodity: MineralCommodity;
   commodities: MineralCommodity[];
+  yields: MineralYield[];
   richness: number;
   depth: "surface" | "shallow" | "deep";
+  accessibility: number;
   discovered: boolean;
+  exhausted: boolean;
+}
+
+export interface MineOperation {
+  i: number;
+  depositId: number;
+  burgId: number;
+  marketId: number;
+  workers: number;
+  technology: number;
+  drainage: number;
+  fuelAccess: number;
+  annualOutputTons: Partial<Record<MineralCommodity, number>>;
+  active: boolean;
 }
 
 interface DistrictProfile {
@@ -154,6 +181,9 @@ export class MineralResourcesModule {
       const richness = 1 + Math.floor(this.hash(seed, `${profile.type}:richness`, cell) * 5);
       const depth = richness >= 5 ? "deep" : richness >= 3 ? "shallow" : "surface";
       const commodities = this.getCommodities(profile, seed, cell);
+      const yields = commodities.map(commodity =>
+        this.createYield(commodity, commodity === profile.primary, richness, seed, cell)
+      );
       deposits.push({
         i: depositId,
         districtId,
@@ -161,9 +191,12 @@ export class MineralResourcesModule {
         type: profile.type,
         primaryCommodity: profile.primary,
         commodities,
+        yields,
         richness,
         depth,
-        discovered: false
+        accessibility: this.getAccessibility(cell),
+        discovered: false,
+        exhausted: false
       });
       districts.push({
         i: districtId,
@@ -246,6 +279,40 @@ export class MineralResourcesModule {
   private getCommodities(profile: DistrictProfile, seed: string, cell: number): MineralCommodity[] {
     if (profile.type !== "placer") return [...profile.commodities];
     return this.hash(seed, "placer", cell) < 0.28 ? ["tin"] : ["gold"];
+  }
+
+  private createYield(
+    commodity: MineralCommodity,
+    primary: boolean,
+    richness: number,
+    seed: string,
+    cell: number
+  ): MineralYield {
+    const baseAnnualCapacity: Record<MineralCommodity, number> = {
+      iron: 180,
+      copper: 35,
+      tin: 8,
+      lead: 65,
+      silver: 3,
+      gold: 1,
+      coal: 160,
+      saltpeter: 12,
+      sulfur: 15
+    };
+    const capacity = baseAnnualCapacity[commodity] * richness * (primary ? 1 : 0.25);
+    const mineLifeYears = 60 + Math.floor(this.hash(seed, `${commodity}:life`, cell) * 190);
+    return {
+      commodity,
+      annualCapacityTons: Math.max(0.1, Math.round(capacity * 100) / 100),
+      reserveTons: Math.max(1, Math.round(capacity * mineLifeYears * 100) / 100)
+    };
+  }
+
+  private getAccessibility(cell: number): number {
+    const cells = getWorldContext().pack.cells;
+    const hasRiver = Boolean(cells.r[cell]);
+    const hasRoute = Boolean(cells.routes?.[cell] && Object.keys(cells.routes[cell]).length);
+    return Math.min(1, 0.35 + (hasRiver ? 0.15 : 0) + (hasRoute ? 0.25 : 0));
   }
 
   private hash(seed: string, scope: string, value: string | number): number {

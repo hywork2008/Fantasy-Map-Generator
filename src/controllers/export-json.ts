@@ -88,7 +88,8 @@ function getMineralResourcesData() {
   return {
     geologicalProvinces: array(pack.mineralGeologicalProvinces),
     districts: array(pack.mineralDistricts),
-    deposits: array(pack.mineralDeposits)
+    deposits: array(pack.mineralDeposits),
+    operations: array(pack.mineOperations)
   };
 }
 

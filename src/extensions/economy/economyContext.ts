@@ -12,7 +12,12 @@ import type { BurgMarketLedger } from "./generators/burgMarketLedgers";
 import type { Good } from "./generators/goods-generator";
 import type { Caravan, Deal, Market } from "./generators/marketTypes";
 import type { MerchantOrganization } from "./generators/merchantOrganizations";
-import type { MineralDeposit, MineralDistrict, MineralGeologicalProvince } from "./generators/mineralResources";
+import type {
+  MineOperation,
+  MineralDeposit,
+  MineralDistrict,
+  MineralGeologicalProvince
+} from "./generators/mineralResources";
 import type { ProductionRecord } from "./generators/production-generator";
 import type { LaborMarket } from "./generators/strategicLaborMarkets";
 import type { ProcurementOrder } from "./generators/strategicProcurement";
@@ -280,6 +285,12 @@ export function getMineralDeposits(): MineralDeposit[] {
 }
 export function setMineralDeposits(deposits: readonly MineralDeposit[]): void {
   setSliceArray("mineralDeposits", deposits);
+}
+export function getMineOperations(): MineOperation[] {
+  return getSliceArray<MineOperation>("mineOperations");
+}
+export function setMineOperations(operations: readonly MineOperation[]): void {
+  setSliceArray("mineOperations", operations);
 }
 
 /** Per-cell dominant good id, owned by the economy extension. */

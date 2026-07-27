@@ -124,6 +124,17 @@ export class MarketsModule {
     return "fulfilled";
   }
 
+  /** Adds material extracted by a mine before monthly market-price calculation. */
+  addMineSupply(marketId: number, goodId: number, amount: number): number {
+    const market = this.get(marketId);
+    const good = Goods.get(goodId);
+    if (!market || !good || !isGoodEnabled(good) || amount <= 0) return 0;
+    const supplied = rn(amount, 4);
+    const marketGood = this.getMarketGood(market, good);
+    marketGood.stock = rn(marketGood.stock + supplied, 4);
+    return supplied;
+  }
+
   generate(regenerate: boolean = false): Market[] {
     TIME && console.time("generateMarkets");
     this.invalidateTradeRouteCache();

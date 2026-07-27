@@ -19,6 +19,8 @@ import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, Goods, getDemandTargets, isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
 import type { Deal, Market } from "./marketTypes";
+import { MineOperations } from "./mineOperations";
+import { isMineSuppliedGoodName } from "./mineralResources";
 import { getModifiers, MAX_BONUS_PRODUCTION } from "./production-utils";
 import {
   getStrategicLaborProductivity,
@@ -55,6 +57,7 @@ export class ProductionModule {
     setDeals([]);
 
     Markets.collectRuralProduction();
+    MineOperations.produceMonth();
     Markets.initializeMarketPrices();
 
     const index = this.buildProductionIndex(getGoods().filter(isGoodEnabled));
@@ -142,7 +145,7 @@ export class ProductionModule {
     const records: ProductionRecord[] = [];
 
     const good = Goods.get(getGoodCellColumn()[burg.cell]);
-    if (good && isGoodEnabled(good)) {
+    if (good && isGoodEnabled(good) && !isMineSuppliedGoodName(good.name)) {
       const modifier = getModifiers(good, burg.cell);
       // No lower clamp (matches the rural counterpart, getCellProduction in production-utils.ts):
       // burg.population is the raw pre-scaling population score (~0.05-20, the same unit

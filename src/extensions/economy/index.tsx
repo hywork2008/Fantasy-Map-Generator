@@ -43,6 +43,7 @@ import { type Good, Goods, getDefaultGoodTradeProfile, isGoodEnabled } from "./g
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
 import { Markets } from "./generators/markets-generator";
 import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
+import { MineOperations } from "./generators/mineOperations";
 import { MineralResources } from "./generators/mineralResources";
 import { Production } from "./generators/production-generator";
 import { seedShipbuildingInitialStock } from "./generators/shipbuildingInitialStock";
@@ -341,7 +342,13 @@ function isMarketIdRequest(value: unknown): value is { readonly marketId: number
 function isEconomyRegenerationRequest(value: unknown): value is { readonly target: EconomyRegenerationTarget } {
   if (!value || typeof value !== "object") return false;
   const target = (value as { target?: unknown }).target;
-  return target === "economy" || target === "goods" || target === "markets" || target === "production";
+  return (
+    target === "economy" ||
+    target === "goods" ||
+    target === "markets" ||
+    target === "minerals" ||
+    target === "production"
+  );
 }
 
 function isSettlementPromotionEvent(
@@ -572,6 +579,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (value.target === "economy" || value.target === "minerals") MineralResources.generate();
       if (value.target === "economy" || value.target === "goods") Goods.generate();
       if (value.target === "economy" || value.target === "markets") Markets.generate(true);
+      if (value.target === "economy" || value.target === "minerals") MineOperations.generate();
       if (value.target === "economy") Taxes.defineTaxRates();
       if (value.target === "economy" || value.target === "production") {
         FoodProduction.generateQuarterlyLedger(0);
@@ -603,6 +611,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       const world = getWorldContext();
       clearBurgMarketLedgers();
       clearMarketManagers();
+      MineOperations.clear();
       MineralResources.clear();
       setGoods([]);
       setMarkets([]);
@@ -762,7 +771,8 @@ export function init(api: ExtensionAPI): void {
     tab: "tools",
     section: "regenerate",
     label: "Mineral deposits",
-    tooltip: "Regenerate static geological provinces, mineral districts, and deposits without changing goods placement",
+    tooltip:
+      "Regenerate geological provinces, deposits, and their accessible mine operations without changing goods placement",
     onClick: () => {
       withRegenerateConfirmation("Mineral deposits", "regenerateMinerals", () => regenerate("minerals"));
     }
@@ -975,6 +985,7 @@ export function init(api: ExtensionAPI): void {
       MineralResources.generate();
       Goods.generate();
       Markets.generate();
+      MineOperations.generate();
       Taxes.defineTaxRates();
       FoodProduction.generateQuarterlyLedger(0);
       Production.produce();

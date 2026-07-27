@@ -91,6 +91,25 @@ describe("getCellProduction depletion integration", () => {
     const after = getCellProduction(0, biomeProduction);
     expect(after[0]).toBe(before[0]);
   });
+
+  it("does not turn a mapped mineral Good into population-proportional supply", () => {
+    setGoods([
+      {
+        i: 2,
+        name: "Iron",
+        value: 4,
+        tags: ["ore"],
+        unit: "wagon",
+        icon: "iron",
+        color: "#777",
+        distribution: "true"
+      }
+    ]);
+    setGoodCellColumn(new Uint16Array([2]));
+    Goods.sync();
+
+    expect(getCellProduction(0, {})[2]).toBeUndefined();
+  });
 });
 
 describe("getCellProduction seasonal food output", () => {

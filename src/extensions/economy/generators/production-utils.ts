@@ -5,6 +5,7 @@ import { getLatitude, getSeason, getSeasonalityStrength, rn, type Season } from 
 import { getGoodCellColumn, getSimulationMonth, getWorldContext } from "../economyContext";
 import { getDepletionFactor } from "./forestDepletion";
 import { type Good, Goods, isGoodEnabled } from "./goods-generator";
+import { isMineSuppliedGoodName } from "./mineralResources";
 
 export const BONUS_RURAL_PRODUCTION = 0.25;
 export const MAX_BONUS_PRODUCTION = 5;
@@ -133,7 +134,7 @@ export function getRuralProductionContributions(
   const contributions: RuralProductionContribution[] = [];
   for (const { goodId, production } of biomeProduction[cells.biomeCode[cellId]] || []) {
     const good = Goods.get(goodId);
-    if (good && isGoodEnabled(good)) {
+    if (good && isGoodEnabled(good) && !isMineSuppliedGoodName(good.name)) {
       contributions.push({ goodId, amount: population * production * getModifiers(good, cellId) });
     }
   }
@@ -141,7 +142,7 @@ export function getRuralProductionContributions(
   const bonusGoodId = getGoodCellColumn()[cellId];
   if (bonusGoodId) {
     const good = Goods.get(bonusGoodId);
-    if (good && isGoodEnabled(good)) {
+    if (good && isGoodEnabled(good) && !isMineSuppliedGoodName(good.name)) {
       const bonus = Math.min(population * BONUS_RURAL_PRODUCTION, MAX_BONUS_PRODUCTION);
       contributions.push({ goodId: bonusGoodId, amount: bonus * getModifiers(good, cellId) });
     }
