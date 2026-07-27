@@ -329,13 +329,19 @@ BiomeCatalogSnapshot + biomeCode
 
 **オプション:** Options → Generation → **Biome region**（`global` / `medievalEurope` / `mediterranean` / `tropicalRiverBasin` / `mountainRealm`）。生成時に `worldContext.options.biomeRegionProfile` へ反映。
 
-### Phase 4: 地域プロファイルとシミュレーション連携
+### Phase 4: 地域プロファイルとシミュレーション連携 — **実装済み (2026-07-27)**
 
-1. 地域プロファイル選択を生成UIへ追加する。
-2. `medievalEurope` を実装し、中世ドイツ風の大森林に加え、ビャウォヴィエジャ／ポリーシャ型の森林・泥炭湿地・氾濫原林のモザイクが適切な面積・連続性で現れるよう調整する。
-3. 経済、造船、軍事、資源、遭遇イベントが新規タグを利用するよう拡張する。
-4. 砂浜の小舟による漁業・採集と、港湾・造船所を必要とする `Ships` / completed hull を分離する。
-5. 将来の「古代の森」「魔法の森」等の属性レイヤーを、バイオームを増やさず追加できる形にする。
+1. 地域プロファイル選択を生成UIへ追加する。 ✅（Phase 3: Options → Generation → Biome region）
+2. `medievalEurope` を実装し、中世ドイツ風の大森林に加え、ビャウォヴィエジャ／ポリーシャ型の森林・泥炭湿地・氾濫原林のモザイクが適切な面積・連続性で現れるよう調整する。 ✅（Phase 3 マスク + 閾値）
+3. 経済、造船、軍事、資源、遭遇イベントが新規タグを利用するよう拡張する。 ✅  
+   - `biomeTag()` / `biomeOutputByTag`（Wood, Game, Honey, Olives, …）  
+   - Burg groups: `biomeTags`  
+   - 軍事地形: 新規森林種・山地タグ  
+   - 造船: `allowsFormalHarbor`（砂浜除外）
+4. 砂浜の小舟による漁業・採集と、港湾・造船所を必要とする `Ships` / completed hull を分離する。 ✅（`shoreFishing.ts` — informal small craft only）
+5. 将来の「古代の森」「魔法の森」等の属性レイヤーを、バイオームを増やさず追加できる形にする。 ✅  
+   - `biomeAttributes` 型 + `forestCover` / `forestCondition` / `canopy` / `landCover` / `specialFeature`  
+   - 気候生成時に自然林の既定値のみ投入。`specialFeature` は常に none（魔法は後続コンテンツが設定）
 
 ## テスト計画
 

@@ -53,7 +53,10 @@ export interface BurgGroup {
   percentile?: number;
   min?: number;
   max?: number;
+  /** Explicit biome codes (catalog-local; prefer biomeTags when possible). */
   biomes?: number[];
+  /** Match if the cell biome has any of these tags (e.g. forest, desert, nomadic). */
+  biomeTags?: string[];
   states?: number[];
   cultures?: number[];
   religions?: number[];

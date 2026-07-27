@@ -654,7 +654,7 @@ class BurgModule {
         features: { port: false, plaza: true },
         order: 4,
         max: 0.8,
-        biomes: [1, 2, 3]
+        biomeTags: ["desert", "nomadic", "scrub"]
       },
       {
         name: "trading_post",
@@ -662,7 +662,7 @@ class BurgModule {
         order: 3,
         features: { plaza: true },
         max: 0.8,
-        biomes: [5, 6, 7, 8, 9, 10, 11, 12]
+        biomeTags: ["forest", "wetland", "cold", "mountain"]
       },
       {
         name: "village",
@@ -727,6 +727,13 @@ class BurgModule {
 
       if (group.biomes) {
         const isFit = group.biomes.includes(pack.cells.biomeCode[burg.cell]);
+        if (!isFit) continue;
+      }
+
+      if (group.biomeTags?.length) {
+        const code = pack.cells.biomeCode[burg.cell];
+        const tags = this.worldContext.biomesData.tags?.[code] ?? [];
+        const isFit = group.biomeTags.some(t => tags.includes(t as (typeof tags)[number]));
         if (!isFit) continue;
       }
 

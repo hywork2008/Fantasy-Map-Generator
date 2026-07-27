@@ -53,6 +53,15 @@ export interface PackedGraphCells {
    * `NearshoreHabitatKey` / coastalHabitatCatalog.
    */
   nearshoreHabitat: TypedArray;
+  /**
+   * Optional attribute layers (Phase 4). Climate biome stays separate.
+   * forestCover 0..1; other columns use catalog-local codes from biomeAttributes types.
+   */
+  forestCover?: Float32Array;
+  forestCondition?: TypedArray;
+  canopy?: TypedArray;
+  landCover?: TypedArray;
+  specialFeature?: TypedArray;
   harbor: TypedArray; // cell harbour presence
   /** Water cell enclosure score, 0 (open ocean) - 100 (fully landlocked); 0 for land cells. Debug-only. */
   enclosure: TypedArray;

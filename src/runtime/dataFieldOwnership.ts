@@ -73,7 +73,7 @@ export const DATA_FIELD_OWNERSHIP: readonly DataFieldOwnership[] = [
   map("pack.cells.{i,c,v,p,b,q,g,area}", "map.topology", "cell.id"),
   map("pack.vertices.{i,c,v,x,y,p}", "map.topology", "vertex.id"),
   map(
-    "pack.cells.{h,t,f,fl,s,conf,haven,biomeCode,coastalHabitat,nearshoreHabitat,harbor,enclosure}",
+    "pack.cells.{h,t,f,fl,s,conf,haven,biomeCode,coastalHabitat,nearshoreHabitat,forestCover,forestCondition,canopy,landCover,specialFeature,harbor,enclosure}",
     "map.physical",
     "cell.id"
   ),

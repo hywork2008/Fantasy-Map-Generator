@@ -20,6 +20,7 @@ import {
   classifySpecialBiome,
   climateMatrixBands
 } from "./biomeAssignment";
+import { initializeBiomeAttributes } from "./biomeAttributes";
 import { assignCoastalHabitats } from "./coastalHabitatAssignment";
 
 class BiomesModule {
@@ -96,6 +97,9 @@ class BiomesModule {
       profile: assignmentOptions.profile,
       seed: assignmentOptions.seed
     });
+
+    // Forest cover / land-cover attribute layers (not climate biomes)
+    initializeBiomeAttributes(pack, this.worldContext.biomesData);
 
     TIME && console.timeEnd("defineBiomes");
   }

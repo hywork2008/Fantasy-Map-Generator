@@ -346,15 +346,22 @@ class MilitaryModule {
     const getType = (cell: number) => {
       const biome = cells.biomeCode[cell];
       if (isNomadicBiome(biomesData, biome)) return "nomadic";
-      // Dense wet forests + wetlands historically shared the wetland military terrain type
-      if (
-        isWetlandBiome(biomesData, biome) ||
-        biomesData.keys[biome] === "tropicalRainforest" ||
-        biomesData.keys[biome] === "temperateRainforest" ||
-        biomesData.keys[biome] === "taiga"
-      )
-        return "wetland";
-      if (cells.h[cell] >= 70) return "highland";
+      // Wetlands and dense wet/cold forests share the "wetland" military terrain type
+      if (isWetlandBiome(biomesData, biome)) return "wetland";
+      if (isForestBiome(biomesData, biome)) {
+        const key = biomesData.keys?.[biome];
+        if (
+          key === "tropicalRainforest" ||
+          key === "temperateRainforest" ||
+          key === "taiga" ||
+          key === "cloudForest" ||
+          key === "floodedForest" ||
+          key === "mangrove" ||
+          key === "centralEuropeanGreatForest"
+        )
+          return "wetland";
+      }
+      if (cells.h[cell] >= 70 || biomesData.tags?.[biome]?.includes("mountain")) return "highland";
       return "generic";
     };
 
