@@ -26,24 +26,26 @@ const PLATE_PAD_X = 1;
 const PLATE_PAD_Y = 0.6;
 const PLATE_RX = 1;
 const PLATE_FILL = "#f5f5f5";
+// A mapped resource is geographical information, not necessarily current rural
+// production. Keep it visible even when its economic output is supplied by a mine.
+const RESOURCE_CELL_OPACITY = 0.45;
 
-// Zoom scale range for goods visibility: high-production locations visible from afar,
-// low-production locations only appear when zoomed in.
-const MIN_GOODS_SCALE = 1.5;
-const MAX_GOODS_SCALE = 8;
+// Burg production plates remain density-managed; resource icons themselves are always
+// visible while the Goods layer is enabled, matching the upstream map behavior.
+const MIN_BURG_SCALE = 1.5;
+const MAX_BURG_SCALE = 8;
 
 export function drawGoods(displayedGoods: ReadonlySet<number>) {
   TIME && console.time("drawGoods");
   ensureSubgroups();
 
   const biomeProduction = Goods.getBiomesProduction();
-  const cellBonusWeights = drawGoodsCellsCanvas(displayedGoods, biomeProduction);
-  const cellMinScales = weightsToMinScales(cellBonusWeights);
+  drawGoodsCellsCanvas(displayedGoods, biomeProduction);
 
   const burgWeights = computeBurgWeights(displayedGoods);
   const burgMinScales = weightsToMinScales(burgWeights);
 
-  getGoodsLayer()?.select("#goodsIcons").html(buildGoodsIconsContent(displayedGoods, cellMinScales));
+  getGoodsLayer()?.select("#goodsIcons").html(buildGoodsIconsContent(displayedGoods));
   getGoodsLayer()?.select("#goodsBurgs").html(buildGoodsBurgsContent(displayedGoods, burgMinScales));
 
   getGoodsLayer()?.style("display", null);
@@ -61,24 +63,25 @@ function ensureSubgroups() {
 }
 
 /**
- * Draws cell production heatmap onto canvas and returns bonus-good production per cell.
- * Returns Map<cellId, bonusGoodProduction> for use in icon min-scale computation.
+ * Draws the cell production heatmap and then overlays mapped resource cells. The latter
+ * is deliberately display-only: mine-supplied goods are not rural production, but their
+ * mapped source locations must remain visible on the Goods layer.
  */
 function drawGoodsCellsCanvas(
   displayedGoods: ReadonlySet<number>,
   biomeProduction: Record<number, { goodId: number; production: number }[]>
-): Map<number, number> {
+): void {
   const { graphWidth, graphHeight } = getWorldContext();
   const node = getGoodsLayer()?.select<SVGGElement>("#goodsCells").node();
-  if (!node) return new Map();
+  if (!node) return;
   const ctx = createLayerCanvas(node, graphWidth, graphHeight);
 
-  const cellBonusWeights = new Map<number, number>();
-
-  if (!displayedGoods.size) return cellBonusWeights;
+  if (!displayedGoods.size) return;
 
   // First pass: accumulate total production per cell to find the global max
   const cellTotals = new Map<number, { produced: Map<number, number>; total: number }>();
+  const resourceOnlyCells = new Map<number, number>();
+  const goodCellColumn = getGoodCellColumn();
   let maxTotal = 0;
   for (const cellId of getWorldContext().pack.cells.i) {
     let total = 0;
@@ -90,41 +93,53 @@ function drawGoodsCellsCanvas(
       }
       return map;
     }, new Map<number, number>());
+
+    const resourceGoodId = goodCellColumn[cellId];
+    if (resourceGoodId && displayedGoods.has(resourceGoodId) && !filteredProduced.has(resourceGoodId)) {
+      resourceOnlyCells.set(cellId, resourceGoodId);
+    }
+
     if (!total) continue;
 
     cellTotals.set(cellId, { produced: filteredProduced, total });
     if (total > maxTotal) maxTotal = total;
   }
 
-  if (maxTotal === 0) return cellBonusWeights;
-
   // Second pass: draw polygons onto canvas with opacity normalized against the global max
-  for (const [cellId, { produced, total }] of cellTotals) {
-    const opacity = rn(0.1 + 0.9 * normalize(total, 0, maxTotal), 2);
-    const points = getPackPolygon(cellId, getWorldContext().pack);
-    for (const [goodId, amount] of produced) {
-      if (amount <= 0) continue;
-      const good = Goods.get(goodId);
-      if (!good) continue;
+  if (maxTotal > 0) {
+    for (const [cellId, { produced, total }] of cellTotals) {
+      const opacity = rn(0.1 + 0.9 * normalize(total, 0, maxTotal), 2);
+      const points = getPackPolygon(cellId, getWorldContext().pack);
+      for (const [goodId, amount] of produced) {
+        if (amount <= 0) continue;
+        const good = Goods.get(goodId);
+        if (!good) continue;
 
-      ctx.globalAlpha = opacity;
-      ctx.fillStyle = good.color;
-      ctx.beginPath();
-      ctx.moveTo(points[0][0], points[0][1]);
-      for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1]);
-      ctx.closePath();
-      ctx.fill();
-    }
-
-    // Collect bonus-good production weight for icon visibility
-    const bonusGoodId = getGoodCellColumn()[cellId];
-    if (bonusGoodId && displayedGoods.has(bonusGoodId)) {
-      const bonusAmount = produced.get(bonusGoodId) ?? 0;
-      if (bonusAmount > 0) cellBonusWeights.set(cellId, bonusAmount);
+        ctx.globalAlpha = opacity;
+        ctx.fillStyle = good.color;
+        ctx.beginPath();
+        ctx.moveTo(points[0][0], points[0][1]);
+        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1]);
+        ctx.closePath();
+        ctx.fill();
+      }
     }
   }
 
-  return cellBonusWeights;
+  // Resource-only cells include mine-supplied metals. They do not add production or
+  // market stock; this overlay only restores their geographic map representation.
+  for (const [cellId, goodId] of resourceOnlyCells) {
+    const good = Goods.get(goodId);
+    if (!good) continue;
+    const points = getPackPolygon(cellId, getWorldContext().pack);
+    ctx.globalAlpha = RESOURCE_CELL_OPACITY;
+    ctx.fillStyle = good.color;
+    ctx.beginPath();
+    ctx.moveTo(points[0][0], points[0][1]);
+    for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1]);
+    ctx.closePath();
+    ctx.fill();
+  }
 }
 
 /** Returns Map<burgId, totalDisplayedProduction> for burg plate min-scale computation. */
@@ -140,18 +155,18 @@ function computeBurgWeights(displayedGoods: ReadonlySet<number>): Map<number, nu
   return result;
 }
 
-/** Normalizes production weights to zoom scale thresholds. Higher weight → lower minScale. */
+/** Normalizes burg production weights to zoom scale thresholds. Higher weight → lower minScale. */
 function weightsToMinScales(weights: Map<number, number>): Map<number, number> {
   const maxWeight = Math.max(...weights.values(), 1);
   const result = new Map<number, number>();
   for (const [id, weight] of weights) {
     const normalized = weight / maxWeight;
-    result.set(id, rn(MAX_GOODS_SCALE - normalized * (MAX_GOODS_SCALE - MIN_GOODS_SCALE), 2));
+    result.set(id, rn(MAX_BURG_SCALE - normalized * (MAX_BURG_SCALE - MIN_BURG_SCALE), 2));
   }
   return result;
 }
 
-function buildGoodsIconsContent(displayedGoods: ReadonlySet<number>, cellMinScales: Map<number, number>): string {
+function buildGoodsIconsContent(displayedGoods: ReadonlySet<number>): string {
   const goodCellColumn = getGoodCellColumn();
   if (!displayedGoods.size || !goodCellColumn.length) return "";
 
@@ -164,9 +179,8 @@ function buildGoodsIconsContent(displayedGoods: ReadonlySet<number>, cellMinScal
     if (!good) continue;
 
     const [x, y] = getWorldContext().pack.cells.p[cellId];
-    const minScale = cellMinScales.get(cellId) ?? MAX_GOODS_SCALE;
     const stroke = Goods.getStroke(good.color);
-    html += `<g data-i="${good.i}" data-x="${rn(x, 1)}" data-y="${rn(y, 1)}" data-min-scale="${minScale}">${
+    html += `<g data-i="${good.i}" data-x="${rn(x, 1)}" data-y="${rn(y, 1)}" data-min-scale="0">${
       drawCircle ? `<circle cx="${x}" cy="${y}" r="${HALF}" fill="${good.color}" stroke="${stroke}" />` : ""
     }<use href="#${good.icon}" x="${x - HALF}" y="${y - HALF}" width="${SIZE}" height="${SIZE}"/></g>`;
   }
@@ -208,7 +222,7 @@ function buildGoodsBurgsContent(displayedGoods: ReadonlySet<number>, burgMinScal
     const iconY = plateY + PLATE_PAD_Y;
     const mid = iconY + PLATE_ICON / 2;
 
-    const minScale = burgMinScales.get(burg.i) ?? MAX_GOODS_SCALE;
+    const minScale = burgMinScales.get(burg.i) ?? MAX_BURG_SCALE;
 
     let content = `<rect x="${rn(plateX, 1)}" y="${rn(plateY, 1)}" width="${rn(plateWidth, 1)}" height="${rn(plateHeight, 1)}" rx="${PLATE_RX}" fill="${PLATE_FILL}"/>`;
     let offset = plateX + PLATE_PAD_X;

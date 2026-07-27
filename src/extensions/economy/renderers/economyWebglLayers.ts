@@ -16,6 +16,7 @@ import { getCaravanPosition, getHighlightedPoints } from "./draw-trade-animation
 
 const MIN_GOODS_ALPHA = 26;
 const MAX_GOODS_ALPHA = 230;
+const RESOURCE_CELL_ALPHA = 115;
 
 export function createEconomyWebglLayerSpec(): ExtensionWebglLayerSpec {
   return {
@@ -71,11 +72,12 @@ export function createEconomyWebglLayerSpec(): ExtensionWebglLayerSpec {
   };
 }
 
-function buildGoodsCellPolygons(displayedGoods: ReadonlySet<number>): ExtensionWebglPolygonDatum[] {
+export function buildGoodsCellPolygons(displayedGoods: ReadonlySet<number>): ExtensionWebglPolygonDatum[] {
   if (!displayedGoods.size) return [];
 
   const worldContext = getWorldContext();
   const biomeProduction = Goods.getBiomesProduction();
+  const goodCellColumn = getGoodCellColumn();
   const cells: Array<{ cellId: number; total: number; produced: ReadonlyMap<number, number> }> = [];
   let maxTotal = 0;
 
@@ -94,24 +96,48 @@ function buildGoodsCellPolygons(displayedGoods: ReadonlySet<number>): ExtensionW
     maxTotal = Math.max(maxTotal, total);
   }
 
-  if (!maxTotal) return [];
   const polygons: ExtensionWebglPolygonDatum[] = [];
-  for (const cell of cells) {
-    const polygon = getCellPolygon(cell.cellId);
-    if (!polygon) continue;
-    const alpha = Math.round(MIN_GOODS_ALPHA + (MAX_GOODS_ALPHA - MIN_GOODS_ALPHA) * (cell.total / maxTotal));
-    for (const [goodId] of cell.produced) {
-      const good = Goods.get(goodId);
-      if (!good) continue;
-      polygons.push({
-        id: `economy-goods-cell-${cell.cellId}-${goodId}`,
-        kind: "extension",
-        extensionId: "economy",
-        cellId: cell.cellId,
-        polygon,
-        fillColor: colorToRgba(good.color, alpha)
-      });
+  const productionPolygonIds = new Set<string>();
+  if (maxTotal) {
+    for (const cell of cells) {
+      const polygon = getCellPolygon(cell.cellId);
+      if (!polygon) continue;
+      const alpha = Math.round(MIN_GOODS_ALPHA + (MAX_GOODS_ALPHA - MIN_GOODS_ALPHA) * (cell.total / maxTotal));
+      for (const [goodId] of cell.produced) {
+        const good = Goods.get(goodId);
+        if (!good) continue;
+        const id = `economy-goods-cell-${cell.cellId}-${goodId}`;
+        polygons.push({
+          id,
+          kind: "extension",
+          extensionId: "economy",
+          cellId: cell.cellId,
+          polygon,
+          fillColor: colorToRgba(good.color, alpha)
+        });
+        productionPolygonIds.add(id);
+      }
     }
+  }
+
+  // Mine-supplied goods have no rural-production polygon. Add their mapped source
+  // cells as a visual-only overlay without changing production or market supply.
+  for (const cellId of worldContext.pack.cells.i) {
+    const goodId = goodCellColumn[cellId];
+    if (!goodId || !displayedGoods.has(goodId)) continue;
+    const id = `economy-goods-cell-${cellId}-${goodId}`;
+    if (productionPolygonIds.has(id)) continue;
+    const good = Goods.get(goodId);
+    const polygon = getCellPolygon(cellId);
+    if (!good || !polygon) continue;
+    polygons.push({
+      id,
+      kind: "extension",
+      extensionId: "economy",
+      cellId,
+      polygon,
+      fillColor: colorToRgba(good.color, RESOURCE_CELL_ALPHA)
+    });
   }
   return polygons;
 }
