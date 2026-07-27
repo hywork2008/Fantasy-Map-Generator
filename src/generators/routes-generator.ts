@@ -7,7 +7,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 
-import type { Burg, Route, SeaRouteGenerationMode } from "../types/models";
+import type { Burg, LandRouteGenerationMode, Route, SeaRouteGenerationMode } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import {
   distanceSquared,
@@ -36,6 +36,80 @@ const ROUTE_TYPE_MODIFIERS: Record<string, number> = {
   "-4": 6, // ocean
   default: 8 // far ocean
 };
+
+/**
+ * Land-route pathfinding elevation aversion (docs/plan/land-route-elevation-cost.md §2.2).
+ *
+ * Goals (default aversion = 1):
+ * - Mild hills / short mid-ridge (~h 50, ~500 m) may stay if far shorter than a valley loop.
+ * - High peaks (h ≥ ~52, ≳600 m; e.g. 1227 m cells) lose to longer lowland corridors.
+ * - Sole mountain passes still connect (cost is large but finite).
+ *
+ * Peak term is uncapped so a single 1000 m+ cell can outweigh a long planar detour.
+ */
+export type LandRouteMode = "roads" | "trails";
+
+/** Soft height bias starts above this pack height index (~116 m at exp 1.8). */
+const LAND_ROUTE_ELEVATION_H0 = 32;
+const LAND_ROUTE_HEIGHT_SOFT = 1.2;
+/** Climb (Δh) scale. */
+const LAND_ROUTE_SLOPE_S = 1.4;
+const LAND_ROUTE_SLOPE_DH_REF = 12;
+const LAND_ROUTE_SLOPE_Q = 1.3;
+/**
+ * Hard peak barrier starts strictly above this height. At heightExponent 1.8:
+ * h=55 ≈665 m is still allowed as a short local ridge (Nesia 5100–5101–5102–5272);
+ * h=70 ≈1227 m (cell 5271) is heavily penalized so it is not used as a shortcut.
+ */
+const LAND_ROUTE_PEAK_H0 = 55;
+const LAND_ROUTE_PEAK_K = 20;
+const LAND_ROUTE_PEAK_REF = 10;
+const LAND_ROUTE_PEAK_P = 2.5;
+/** Trails tolerate steeper / higher ground better than roads. */
+const LAND_ROUTE_TRAILS_SENSITIVITY = 0.6;
+
+/**
+ * Clamp generation aversion strength. 0 disables height/slope penalties;
+ * 1 matches the plan defaults; values above 1 amplify them.
+ */
+export function clampLandRouteElevationAversion(raw: number | undefined): number {
+  if (raw === undefined || !Number.isFinite(raw)) return 1;
+  return Math.min(3, Math.max(0, raw));
+}
+
+/** Soft absolute-height factor (exported for unit tests). */
+export function landRouteElevationModifier(h: number, sensitivity = 1, aversion = 1): number {
+  const span = 100 - LAND_ROUTE_ELEVATION_H0;
+  const base = Math.max(0, h - LAND_ROUTE_ELEVATION_H0) / span;
+  return 1 + LAND_ROUTE_HEIGHT_SOFT * sensitivity * aversion * base;
+}
+
+/** Climb-only slope multiplier (descents do not get a bonus or extra penalty). */
+export function landRouteSlopeModifier(hFrom: number, hTo: number, sensitivity = 1, aversion = 1): number {
+  const dh = Math.max(0, hTo - hFrom);
+  if (dh === 0) return 1;
+  return 1 + LAND_ROUTE_SLOPE_S * sensitivity * aversion * (dh / LAND_ROUTE_SLOPE_DH_REF) ** LAND_ROUTE_SLOPE_Q;
+}
+
+/** Uncapped peak multiplier for heights above LAND_ROUTE_PEAK_H0. */
+export function landRoutePeakMultiplier(hTo: number, sensitivity = 1, aversion = 1): number {
+  const peak = Math.max(0, hTo - LAND_ROUTE_PEAK_H0);
+  if (peak === 0) return 1;
+  return 1 + LAND_ROUTE_PEAK_K * sensitivity * aversion * (peak / LAND_ROUTE_PEAK_REF) ** LAND_ROUTE_PEAK_P;
+}
+
+/** Combined terrain multiplier (no low cap — high peaks may be arbitrarily expensive). */
+export function landRouteTerrainMultiplier(hFrom: number, hTo: number, sensitivity = 1, aversion = 1): number {
+  return (
+    landRouteElevationModifier(hTo, sensitivity, aversion) *
+    landRouteSlopeModifier(hFrom, hTo, sensitivity, aversion) *
+    landRoutePeakMultiplier(hTo, sensitivity, aversion)
+  );
+}
+
+function landRouteSensitivity(mode: LandRouteMode): number {
+  return mode === "trails" ? LAND_ROUTE_TRAILS_SENSITIVITY : 1;
+}
 
 type RouteGraphEdge = { from: number; to: number; triangleIndex: number };
 type PortEdge = [number, number];
@@ -394,27 +468,49 @@ class RoutesModule {
   }
 
   /**
-   * Sea access is intentionally a separate policy from land connectivity.
-   * Standard maps retain their historical international sea lanes; later
-   * diplomacy, trade treaties, embargoes, and blockades can replace this
-   * predicate without weakening domestic land-network rules.
+   * Sea access is intentionally separate from land infrastructure. Standard
+   * maps retain their historical international sea lanes; frontier settlement
+   * patterns retain same-State access only.
    */
   private allowsInternationalSeaRoutes(): boolean {
     return this.worldContext.options.initialSettlementPattern === "standard";
   }
 
-  private sortPortsByFeature(burgs: Burg[]): FeatureBurgGroup[] {
+  /**
+   * Standard maps model a small number of pre-existing cross-border paths as
+   * trade / pilgrimage trails. They are not State-built capital roads.
+   */
+  private allowsInternationalTrails(): boolean {
+    return this.worldContext.options.initialSettlementPattern === "standard";
+  }
+
+  /** Groups burgs by land / water feature without imposing a State boundary. */
+  private sortBurgsByFeature(burgs: Burg[]) {
+    const burgsByFeature = new Map<number, FeatureBurgGroup>();
+    const capitalsByFeature = new Map<number, FeatureBurgGroup>();
     const portsByFeature = new Map<number, FeatureBurgGroup>();
-    for (const burg of burgs) {
-      if (!burg.i || burg.removed || !burg.state || !burg.port) continue;
-      const group = portsByFeature.get(burg.port);
+
+    const addBurg = (collection: Map<number, FeatureBurgGroup>, feature: number, burg: Burg) => {
+      const group = collection.get(feature);
       if (group) {
         group.burgs.push(burg);
-        continue;
+        return;
       }
-      portsByFeature.set(burg.port, { feature: burg.port, burgs: [burg] });
+      collection.set(feature, { feature, burgs: [burg] });
+    };
+
+    for (const burg of burgs) {
+      if (!burg.i || burg.removed || !burg.state) continue;
+      addBurg(burgsByFeature, burg.feature as number, burg);
+      if (burg.capital) addBurg(capitalsByFeature, burg.feature as number, burg);
+      if (burg.port) addBurg(portsByFeature, burg.port as number, burg);
     }
-    return [...portsByFeature.values()];
+
+    return {
+      burgsByFeature: [...burgsByFeature.values()],
+      capitalsByFeature: [...capitalsByFeature.values()],
+      portsByFeature: [...portsByFeature.values()]
+    };
   }
 
   // Urquhart graph is obtained by removing the longest edge from each triangle in the Delaunay triangulation
@@ -531,27 +627,68 @@ class RoutesModule {
   private createCostEvaluator({
     isWater,
     connections,
-    seaRouteGenerationMode
+    seaRouteGenerationMode,
+    landMode = "roads",
+    landRouteGenerationMode
   }: {
     isWater: boolean;
     connections: Map<string, boolean>;
     seaRouteGenerationMode?: SeaRouteGenerationMode;
+    /** Only used when isWater is false. Roads avoid high ground more than trails. */
+    landMode?: LandRouteMode;
+    /**
+     * Which land cost formula to use. Defaults to the map's persisted option, then
+     * elevationAware for new generation.
+     */
+    landRouteGenerationMode?: LandRouteGenerationMode;
   }) {
     const { pack, biomesData, grid } = this.worldContext;
+    const sensitivity = landRouteSensitivity(landMode);
+    const resolvedLandGenerationMode: LandRouteGenerationMode =
+      landRouteGenerationMode ?? this.worldContext.options.landRouteGenerationMode ?? "elevationAware";
+    const aversion = clampLandRouteElevationAversion(this.worldContext.options.landRouteElevationAversion);
+    const isNavigableRiverLeg = (current: number, next: number): boolean => {
+      const riverIds = pack.cells.r as Uint16Array | number[] | undefined;
+      const flux = pack.cells.fl as Uint16Array | number[] | undefined;
+      if (!riverIds || !flux) return false;
+      const riverId = riverIds[current];
+      return (
+        riverId !== 0 &&
+        riverId === riverIds[next] &&
+        flux[current] >= MIN_NAVIGABLE_FLUX &&
+        flux[next] >= MIN_NAVIGABLE_FLUX &&
+        this.riverAdjacency.has(`${current}-${next}`)
+      );
+    };
+
     function getLandPathCost(current: number, next: number) {
       if (pack.cells.h[next] < 20) return Infinity; // ignore water cells
+      // A route may reach a river port or cross one river cell, but it must
+      // never use the navigable channel itself as a longitudinal road.
+      if (isNavigableRiverLeg(current, next)) return Infinity;
 
       const habitability = biomesData.habitability[pack.cells.biomeCode[next]];
       if (!habitability) return Infinity; // inhabitable cells are not passable (e.g. glacier)
 
-      const distanceCost = distanceSquared(pack.cells.p[current], pack.cells.p[next]);
       const habitabilityModifier = 1 + Math.max(100 - habitability, 0) / 1000; // [1, 1.1];
-      const heightModifier = 1 + Math.max(pack.cells.h[next] - 25, 25) / 25; // [1, 3];
       const connectionModifier = connections.has(`${current}-${next}`) ? 0.5 : 1;
       const burgModifier = pack.cells.burg[next] ? 1 : 3;
+      const [x1, y1] = pack.cells.p[current];
+      const [x2, y2] = pack.cells.p[next];
 
-      const pathCost = distanceCost * habitabilityModifier * heightModifier * connectionModifier * burgModifier;
-      return pathCost;
+      if (resolvedLandGenerationMode === "legacy") {
+        // Pre-elevation-aware formula: distanceSquared + weak absolute-height only.
+        const distanceCost = distanceSquared(pack.cells.p[current], pack.cells.p[next]);
+        const heightModifier = 1 + Math.max(pack.cells.h[next] - 25, 25) / 25;
+        return distanceCost * habitabilityModifier * heightModifier * connectionModifier * burgModifier;
+      }
+
+      // Linear planar length so multi-hop valleys are not artificially cheap vs few edges
+      // (sum of squared lengths under-penalizes many short steps). Terrain mult is capped.
+      // Aversion is set from Tools → Regenerate routes. See land-route-elevation-cost.md.
+      const run = Math.hypot(x2 - x1, y2 - y1);
+      const terrain = landRouteTerrainMultiplier(pack.cells.h[current], pack.cells.h[next], sensitivity, aversion);
+      return run * habitabilityModifier * terrain * connectionModifier * burgModifier;
     }
 
     const getLegacyWaterPathCost = (current: number, next: number) => {
@@ -639,19 +776,33 @@ class RoutesModule {
     start,
     exit,
     stateId,
-    seaRouteGenerationMode
+    allowedStateIds,
+    seaRouteGenerationMode,
+    landMode,
+    landRouteGenerationMode
   }: {
     isWater: boolean;
     connections: Map<string, boolean>;
     start: number;
     exit: number;
     stateId?: number;
+    /** Non-zero State ids permitted for a cross-border trail. Unclaimed cells remain traversable. */
+    allowedStateIds?: ReadonlySet<number>;
     seaRouteGenerationMode?: SeaRouteGenerationMode;
+    landMode?: LandRouteMode;
+    landRouteGenerationMode?: LandRouteGenerationMode;
   }) {
     const { pack } = this.worldContext;
-    const baseCost = this.createCostEvaluator({ isWater, connections, seaRouteGenerationMode });
+    const baseCost = this.createCostEvaluator({
+      isWater,
+      connections,
+      seaRouteGenerationMode,
+      landMode,
+      landRouteGenerationMode
+    });
     const getCost = (from: number, to: number) => {
       if (stateId && pack.cells.state[to] !== 0 && pack.cells.state[to] !== stateId) return Infinity;
+      if (allowedStateIds && pack.cells.state[to] !== 0 && !allowedStateIds.has(pack.cells.state[to])) return Infinity;
       return baseCost(from, to);
     };
     const pathCells = findPath(start, current => current === exit, getCost, pack);
@@ -663,22 +814,24 @@ class RoutesModule {
   private generateMainRoads(connections: Map<string, boolean>) {
     const { pack } = this.worldContext;
     TIME && console.time("generateMainRoads");
-    const { capitalsByStateFeature } = this.sortBurgsByStateAndFeature(pack.burgs);
+    const { burgsByStateFeature } = this.sortBurgsByStateAndFeature(pack.burgs);
     const mainRoads: Route[] = [];
 
-    for (const { feature, stateId, burgs: featureCapitals } of capitalsByStateFeature) {
-      const points = featureCapitals.map(burg => [burg.x, burg.y] as Point);
+    for (const { feature, stateId, burgs: featureBurgs } of burgsByStateFeature) {
+      const roadHubs = this.getDomesticRoadHubs(featureBurgs);
+      const points = roadHubs.map(burg => [burg.x, burg.y] as Point);
       const urquhartEdges = this.calculateUrquhartEdges(points);
       urquhartEdges.forEach(([fromId, toId]) => {
-        const start = featureCapitals[fromId].cell;
-        const exit = featureCapitals[toId].cell;
+        const start = roadHubs[fromId].cell;
+        const exit = roadHubs[toId].cell;
 
         const segments = this.findPathSegments({
           isWater: false,
           connections,
           start,
           exit,
-          stateId
+          stateId,
+          landMode: "roads"
         });
         for (const segment of segments) {
           this.addConnections(segment, connections);
@@ -689,6 +842,27 @@ class RoutesModule {
 
     TIME && console.timeEnd("generateMainRoads");
     return mainRoads;
+  }
+
+  /**
+   * State-funded roads join a capital to a deliberately small set of domestic
+   * hubs. Ports rank first, then the most populous burgs; this avoids treating
+   * every settlement trail as a maintained highway.
+   */
+  private getDomesticRoadHubs(burgs: Burg[]): Burg[] {
+    const capital = burgs.find(burg => burg.capital);
+    if (!capital) return burgs;
+
+    const candidates = burgs
+      .filter(burg => burg !== capital)
+      .sort(
+        (a, b) =>
+          Number(Boolean(b.port)) - Number(Boolean(a.port)) ||
+          (b.population ?? 0) - (a.population ?? 0) ||
+          (a.i ?? 0) - (b.i ?? 0)
+      );
+    const hubCount = Math.min(3, Math.max(1, Math.floor(Math.sqrt(candidates.length))));
+    return [capital, ...candidates.slice(0, hubCount)];
   }
 
   private addConnections(segment: number[], connections: Map<string, boolean>) {
@@ -720,7 +894,8 @@ class RoutesModule {
           connections,
           start,
           exit,
-          stateId
+          stateId,
+          landMode: "trails"
         });
         for (const segment of segments) {
           this.addConnections(segment, connections);
@@ -733,12 +908,52 @@ class RoutesModule {
     return trails;
   }
 
+  /**
+   * Adds sparse cross-border trails between geometrically neighbouring burgs.
+   * Unlike main roads, capitals receive no special treatment. The path may use
+   * either endpoint State and unclaimed land, but cannot become a shortcut
+   * across a third State.
+   */
+  private generateInternationalTrails(connections: Map<string, boolean>) {
+    if (!this.allowsInternationalTrails()) return [];
+
+    const { pack } = this.worldContext;
+    TIME && console.time("generateInternationalTrails");
+    const { burgsByFeature } = this.sortBurgsByFeature(pack.burgs);
+    const internationalTrails: Route[] = [];
+
+    for (const { feature, burgs } of burgsByFeature) {
+      const points = burgs.map(burg => [burg.x, burg.y] as Point);
+      for (const [fromId, toId] of this.calculateUrquhartEdges(points)) {
+        const from = burgs[fromId];
+        const to = burgs[toId];
+        if (from.state === to.state || !from.state || !to.state) continue;
+
+        const segments = this.findPathSegments({
+          isWater: false,
+          connections,
+          start: from.cell,
+          exit: to.cell,
+          allowedStateIds: new Set([from.state, to.state]),
+          landMode: "trails"
+        });
+        for (const segment of segments) {
+          this.addConnections(segment, connections);
+          internationalTrails.push({ feature, cells: segment, international: true } as Route);
+        }
+      }
+    }
+
+    TIME && console.timeEnd("generateInternationalTrails");
+    return internationalTrails;
+  }
+
   private generateSeaRoutes(connections: Map<string, boolean>, seaRouteGenerationMode: SeaRouteGenerationMode) {
     const { pack } = this.worldContext;
     TIME && console.time("generateSeaRoutes");
     const international = this.allowsInternationalSeaRoutes();
     const portGroups: Array<FeatureBurgGroup & Partial<Pick<StateFeatureBurgGroup, "stateId">>> = international
-      ? this.sortPortsByFeature(pack.burgs)
+      ? this.sortBurgsByFeature(pack.burgs).portsByFeature
       : this.sortBurgsByStateAndFeature(pack.burgs).portsByStateFeature;
     const seaRoutes: Route[] = [];
 
@@ -828,13 +1043,18 @@ class RoutesModule {
           }
 
           if (findClosestCell(newX, newY, undefined, pack) === cellId) {
+            // Local only — do NOT write back into the shared points[] array.
+            // Mutating the shared array made later routes freeze different coords for the
+            // same cell than earlier routes, so stub trails failed to meet the main path
+            // at junctions (e.g. Nesia route 151 end vs 166 at cell 3652, ~5 map units apart).
             data[i] = [newX, newY, cellId];
-            points[cellId] = [data[i][0], data[i][1]]; // change cell coordinate for all routes
           }
         }
       }
     }
 
+    // Keep one control point per cell. Peak-clip avoidance is applied only when
+    // rendering (getPath → densifyLandRoutePoints) so stored geometry stays smooth.
     return data; // [[x, y, cell], [x, y, cell]];
   }
 
@@ -860,16 +1080,25 @@ class RoutesModule {
 
     return routesMerged > 1 ? this.mergeRoutes(routes) : routes;
   }
-  private createRoutesData(
-    routes: Route[],
-    connections: Map<string, boolean>,
-    seaRouteGenerationMode: SeaRouteGenerationMode
-  ) {
+  private createRoutesData(routes: Route[], seaRouteGenerationMode: SeaRouteGenerationMode) {
+    // Land and water are separate networks. A road at a river port must not
+    // cause the river voyage to be treated as already materialized, or vice
+    // versa. Locked routes seed only their own network.
+    const landConnections = new Map<string, boolean>();
+    const waterConnections = new Map<string, boolean>();
+    for (const route of routes) {
+      this.addConnections(
+        route.points.map(point => point[2]),
+        route.group === "searoutes" ? waterConnections : landConnections
+      );
+    }
+
     // Settlement-plan nodes and frontier outposts are population sites, not
     // route endpoints. Every generated network is based on actual burgs.
-    const mainRoads = this.generateMainRoads(connections);
-    const trails = this.generateTrails(connections);
-    const seaRoutes = this.generateSeaRoutes(connections, seaRouteGenerationMode);
+    const mainRoads = this.generateMainRoads(landConnections);
+    const trails = this.generateTrails(landConnections);
+    const internationalTrails = this.generateInternationalTrails(landConnections);
+    const seaRoutes = this.generateSeaRoutes(waterConnections, seaRouteGenerationMode);
     const pointsArray = this.preparePointsArray();
 
     for (const { feature, cells, merged } of this.mergeRoutes(mainRoads)) {
@@ -882,6 +1111,12 @@ class RoutesModule {
       if (merged) continue;
       const points = this.getPoints("trails", cells!, pointsArray);
       routes.push({ i: routes.length, group: "trails", feature, points, cells: cells! });
+    }
+
+    for (const { feature, cells, merged } of this.mergeRoutes(internationalTrails)) {
+      if (merged) continue;
+      const points = this.getPoints("trails", cells!, pointsArray);
+      routes.push({ i: routes.length, group: "trails", feature, points, cells: cells!, international: true });
     }
 
     for (const { feature, cells, merged } of this.mergeRoutes(seaRoutes)) {
@@ -899,7 +1134,8 @@ class RoutesModule {
     appServices: AppServices,
     state: WorldState,
     lockedRoutes: Route[] = [],
-    seaRouteGenerationMode?: SeaRouteGenerationMode
+    seaRouteGenerationMode?: SeaRouteGenerationMode,
+    landRouteGenerationMode?: LandRouteGenerationMode
   ) {
     this.worldContext = worldContext;
     this.viewContext = viewContext;
@@ -907,19 +1143,18 @@ class RoutesModule {
     const { pack } = state;
     const resolvedSeaRouteGenerationMode =
       seaRouteGenerationMode ?? worldContext.options.seaRouteGenerationMode ?? "augmented";
-    if (resolvedSeaRouteGenerationMode === "augmented") {
-      this.sync(); // River adjacency must reflect the current map before river-aware sea-route pathfinding.
-    }
+    const resolvedLandRouteGenerationMode =
+      landRouteGenerationMode ?? worldContext.options.landRouteGenerationMode ?? "elevationAware";
+    const resolvedLandRouteElevationAversion = clampLandRouteElevationAversion(
+      worldContext.options.landRouteElevationAversion
+    );
+    // Both land and water pathfinders need current river adjacency: water uses
+    // it to sail navigable channels, while land uses it to avoid following one.
+    this.sync();
     worldContext.options.seaRouteGenerationMode = resolvedSeaRouteGenerationMode;
-    const connections = new Map();
-    lockedRoutes.forEach((route: Route) => {
-      this.addConnections(
-        route.points.map(p => p[2]),
-        connections
-      );
-    });
-
-    pack.routes = this.createRoutesData(lockedRoutes, connections, resolvedSeaRouteGenerationMode);
+    worldContext.options.landRouteGenerationMode = resolvedLandRouteGenerationMode;
+    worldContext.options.landRouteElevationAversion = resolvedLandRouteElevationAversion;
+    pack.routes = this.createRoutesData(lockedRoutes, resolvedSeaRouteGenerationMode);
     pack.cells.routes = this.buildLinks(pack.routes);
   }
 
@@ -1025,7 +1260,8 @@ class RoutesModule {
     const { pack } = this.worldContext;
     const baseCost = this.createCostEvaluator({
       isWater: false,
-      connections: new Map()
+      connections: new Map(),
+      landMode: "trails"
     });
     const getCost = (from: number, to: number) => (canTraverse(to) ? baseCost(from, to) : Infinity);
     const pathCells = findPath(cellId, isExit, getCost, pack);
@@ -1169,6 +1405,144 @@ class RoutesModule {
     return "Unnamed route";
   }
 
+  /**
+   * Midpoint of the shared Voronoi edge between two adjacent cells (average of the
+   * two vertices that bound the shared face). May sit off the center–center chord;
+   * only insert when that chord would clip a higher third cell (see densifyLandRoutePoints).
+   */
+  private getSharedEdgeMidpoint(cell1: number, cell2: number): Point | null {
+    const { cells, vertices } = this.worldContext.pack;
+    if (!cells.v?.[cell1] || !vertices?.p || !vertices?.c) return null;
+    const common = cells.v[cell1].filter((vertex: number) =>
+      vertices.c[vertex]?.some((cellId: number) => cellId === cell2)
+    );
+    if (common.length < 2) return null;
+    const p0 = vertices.p[common[0]];
+    const p1 = vertices.p[common[1]];
+    if (!p0 || !p1) return null;
+    return [rn((p0[0] + p1[0]) / 2, 2), rn((p0[1] + p1[1]) / 2, 2)];
+  }
+
+  private distPointToSegment(px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len2 = dx * dx + dy * dy;
+    if (len2 === 0) return Math.hypot(px - x1, py - y1);
+    const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / len2));
+    return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+  }
+
+  /**
+   * True when the center–center chord of cellA–cellB passes near a neighbouring cell
+   * that is meaningfully higher (peak clip risk, e.g. 5102→5272 near 5271).
+   */
+  private centerChordClipsHigherNeighbour(cellA: number, cellB: number): boolean {
+    const { cells } = this.worldContext.pack;
+    const pa = cells.p[cellA];
+    const pb = cells.p[cellB];
+    if (!pa || !pb) return false;
+    const hCap = Math.max(cells.h[cellA] ?? 0, cells.h[cellB] ?? 0);
+    const neighbours = new Set<number>([...(cells.c[cellA] ?? []), ...(cells.c[cellB] ?? [])]);
+    neighbours.delete(cellA);
+    neighbours.delete(cellB);
+    // How close a third cell center must be to the chord to count as a clip (map units).
+    const near = Math.max(4, Math.hypot(pb[0] - pa[0], pb[1] - pa[1]) * 0.35);
+    for (const n of neighbours) {
+      const pn = cells.p[n];
+      if (!pn || (cells.h[n] ?? 0) < 20) continue;
+      // Only detour for clearly higher ground (local ridge/peak), not equal foothills.
+      if ((cells.h[n] ?? 0) < hCap + 8) continue;
+      if (this.distPointToSegment(pn[0], pn[1], pa[0], pa[1], pb[0], pb[1]) <= near) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Collapse center/mid/center artifacts from an earlier always-on densify (same cell id
+   * twice in a row): keep the point closer to the cell generator.
+   */
+  private collapseRedundantCellPoints(points: number[][]): number[][] {
+    const { cells } = this.worldContext.pack;
+    const out: number[][] = [];
+    for (const p of points) {
+      const cellId = p[2];
+      if (out.length && out[out.length - 1][2] === cellId && cellId !== undefined) {
+        const center = cells.p?.[cellId];
+        if (center) {
+          const prev = out[out.length - 1];
+          const dPrev = Math.hypot(prev[0] - center[0], prev[1] - center[1]);
+          const dNew = Math.hypot(p[0] - center[0], p[1] - center[1]);
+          if (dNew < dPrev) out[out.length - 1] = p;
+          continue;
+        }
+      }
+      out.push(p);
+    }
+    return out;
+  }
+
+  /** Canonical map position for a pack cell (burg anchor if present, else cell generator). */
+  private cellAnchor(cellId: number): Point | null {
+    const { pack } = this.worldContext;
+    const burgId = pack.cells.burg?.[cellId];
+    if (burgId) {
+      const burg = pack.burgs[burgId];
+      if (burg && Number.isFinite(burg.x) && Number.isFinite(burg.y)) return [burg.x, burg.y];
+    }
+    const p = pack.cells.p?.[cellId];
+    if (p && Number.isFinite(p[0]) && Number.isFinite(p[1])) return [p[0], p[1]];
+    return null;
+  }
+
+  /**
+   * Snap every control point to the cell's canonical anchor so two routes that share a
+   * cell always meet. Per-route sharp-angle offsets previously left stub trails visually
+   * short of the main path (Nesia 151 @ 3652 vs 166 @ 3652 ≈ 5.4 map units apart).
+   */
+  private snapRoutePointsToCellAnchors(points: number[][]): number[][] {
+    return points.map(p => {
+      const cellId = p[2];
+      if (cellId === undefined) return p;
+      const anchor = this.cellAnchor(cellId);
+      return anchor ? [anchor[0], anchor[1], cellId] : p;
+    });
+  }
+
+  /**
+   * For land-route rendering only: between consecutive cells, insert a shared-edge
+   * midpoint **only** when the center–center chord would clip a higher neighbour.
+   * Always-on insertion caused needless zigzags (Ondrepieds route 151 through 4702/4913).
+   */
+  densifyLandRoutePoints(points: number[][]): number[][] {
+    if (points.length < 2) return points;
+    const collapsed = this.collapseRedundantCellPoints(points);
+    const snapped = this.snapRoutePointsToCellAnchors(collapsed);
+    if (snapped.length < 2) return snapped;
+
+    const densified: number[][] = [];
+    for (let i = 0; i < snapped.length; i++) {
+      densified.push(snapped[i]);
+      if (i >= snapped.length - 1) continue;
+      const cellA = snapped[i][2];
+      const cellB = snapped[i + 1][2];
+      if (cellA === undefined || cellB === undefined || cellA === cellB) continue;
+      if (!this.centerChordClipsHigherNeighbour(cellA, cellB)) continue;
+      const mid = this.getSharedEdgeMidpoint(cellA, cellB);
+      if (!mid) continue;
+      densified.push([mid[0], mid[1], cellA]);
+    }
+    return densified;
+  }
+
+  /**
+   * Control points used for SVG/WebGL rendering. Land routes snap each cell to a
+   * shared anchor and optionally densify peak-clipping hops; searoutes pass through.
+   */
+  getRenderPoints(route: { group: string; points: number[][] }): number[][] {
+    if (route.group === "searoutes") return route.points;
+    return this.densifyLandRoutePoints(route.points);
+  }
+
   getPath({ group, points }: { group: string; points: number[][] }): string {
     const lineGen = line();
     const ROUTE_CURVES: Record<string, import("d3").CurveFactory | import("d3").CurveFactoryLineOnly> = {
@@ -1178,7 +1552,8 @@ class RoutesModule {
       default: curveCatmullRom.alpha(0.1)
     };
     lineGen.curve(ROUTE_CURVES[group] || ROUTE_CURVES.default);
-    const path = round(lineGen(points.map(p => [p[0], p[1]])) as string, 1);
+    const renderPoints = this.getRenderPoints({ group, points });
+    const path = round(lineGen(renderPoints.map(p => [p[0], p[1]])) as string, 1);
     return path;
   }
 

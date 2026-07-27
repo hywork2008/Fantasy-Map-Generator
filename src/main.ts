@@ -1009,8 +1009,15 @@ async function runGeneratePipeline(request: GenerateRequest): Promise<void> {
   if (worldContext.options.initialSettlementPattern !== "standard") {
     Routes.generate(worldContext, viewContext, appServices, state);
     States.generate(worldContext, viewContext, appServices, state);
+    // State ownership is now known, so rebalance large-lake representative
+    // ports before creating the final State-aware infrastructure network.
+    Burgs.shift();
+    Routes.generate(worldContext, viewContext, appServices, state);
   } else {
     States.generate(worldContext, viewContext, appServices, state);
+    // State ownership is now known, so large lakes can reserve one suitable
+    // representative port per shore State before sea routes are generated.
+    Burgs.shift();
     Routes.generate(worldContext, viewContext, appServices, state);
   }
   Religions.generate(worldContext, viewContext, appServices, state);

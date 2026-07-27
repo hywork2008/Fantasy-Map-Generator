@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Point } from "../generators/voronoi";
-import { meander } from "./pathUtils";
+import { findPath, meander } from "./pathUtils";
 
 describe("addMeandering", () => {
   // Cells positions arranged along x-axis with enough spacing to trigger interior point insertion
@@ -164,5 +164,56 @@ describe("addMeandering", () => {
       expect(actual[0]).toBe(overrideAnchors[k][0]);
       expect(actual[1]).toBe(overrideAnchors[k][1]);
     }
+  });
+});
+
+describe("findPath", () => {
+  it("returns null when start is already the exit", () => {
+    const graph = { cells: { c: [[1], [0]] } };
+    expect(
+      findPath(
+        0,
+        id => id === 0,
+        () => 1,
+        graph
+      )
+    ).toBeNull();
+  });
+
+  it("does not early-exit via a cheap last hop after an expensive climb", () => {
+    // Topology (Nesia-style):
+    //   0 — 1 — 2 — 3(exit)   moderate ridge through 2 (cheap overall)
+    //         \   /
+    //           4               high peak 4 with cheap last hop 4→3
+    // Old bug: process 4 first (if prefix cheap), see exit 3, return via 4.
+    const graph = {
+      cells: {
+        c: [
+          [1], // 0
+          [0, 2, 4], // 1
+          [1, 3], // 2
+          [2, 4], // 3 exit
+          [1, 3] // 4 peak
+        ]
+      }
+    };
+    const edgeCost = (from: number, to: number): number => {
+      // Climb onto peak is expensive; last hop from peak is cheap; moderate ridge is mid-cost.
+      if ((from === 1 && to === 4) || (from === 4 && to === 1)) return 1000;
+      if ((from === 4 && to === 3) || (from === 3 && to === 4)) return 1;
+      if ((from === 1 && to === 2) || (from === 2 && to === 1)) return 10;
+      if ((from === 2 && to === 3) || (from === 3 && to === 2)) return 10;
+      if ((from === 0 && to === 1) || (from === 1 && to === 0)) return 1;
+      return 10;
+    };
+    // Total via 2: 1+10+10=21. Total via 4: 1+1000+1=1002.
+    expect(findPath(0, id => id === 3, edgeCost, graph)).toEqual([0, 1, 2, 3]);
+  });
+
+  it("still requires a passable edge into the exit (sea haven style)", () => {
+    // 0 can only reach 2 through 1; edge 1→2 is blocked (wrong haven).
+    const graph = { cells: { c: [[1], [0, 2], [1]] } };
+    const getCost = (from: number, to: number) => (from === 1 && to === 2 ? Infinity : 1);
+    expect(findPath(0, id => id === 2, getCost, graph)).toBeNull();
   });
 });

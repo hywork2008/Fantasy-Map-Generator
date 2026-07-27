@@ -430,7 +430,7 @@ Frontier の進行だけでは `simulation.cells` を発行する。outpost/sett
 
 - 前哨地・農村・Settlement Foundation の未 Burg ノードは route endpoint にしない。都市化で Burg になった時点で初めて network の候補になる。
 - 全 route の年次再生成は、大陸規模の遠距離 Burg を結ぶ不自然な経路を作り得るため採用しない。Burg 化または港湾化したときだけ、既存 network への接続を差分追加する。
-- roads / trails は State ごとに分離し、経路探索も自国または無主地だけを通過可能とする。`standard` の searoutes は近世の国際海運を表すため国境を越えて接続する。Frontier の searoutes は引き続き国内限定とし、将来は外交・通商協定・封鎖でこの海路アクセス方針を置き換える。
+- roads / trails は State ごとに分離し、経路探索も自国または無主地だけを通過可能とする。roads は首都と、港を優先した少数の人口上位 Burg を結ぶ国内幹線であり、首都どうしを国境越えに結ばない。`standard` では、Delaunay 上で近接する異国 Burg 間に限り、両端の二国または無主地だけを通る `international: true` の交易・巡礼 trail を追加する。第三国を経由する shortcut は作らない。`standard` の searoutes は近世の国際海運を表すため国境を越えて接続する。Frontier の searoutes は引き続き国内限定とし、将来は外交・通商協定・封鎖でこの海路アクセス方針を置き換える。
 - 編入の行政回廊は route ではなく、最大8 hop の同一 State または無主地だけを通る陸上セル連結で判定する。これにより道路を敷設しない開拓村落も、地理的に到達可能なら編入できる。
 
 | Date | Phase | Status | Note |

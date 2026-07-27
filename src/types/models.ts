@@ -21,6 +21,13 @@ export type FeatureType = "ocean" | "lake" | "island";
 /** Determines how additional connections between ports are selected for sea routes. */
 export type SeaRouteGenerationMode = "legacy" | "augmented";
 
+/**
+ * Land-route Dijkstra cost model for roads/trails generation.
+ * - elevationAware: stronger absolute-height + climb penalties (prefer valleys).
+ * - legacy: previous weak heightModifier only (docs/plan/land-route-elevation-cost.md).
+ */
+export type LandRouteGenerationMode = "legacy" | "elevationAware";
+
 export interface ReligionBase {
   type: "Folk" | "Organized" | "Cult" | "Heresy";
   form: string;
@@ -282,6 +289,8 @@ export interface Route {
   feature: number;
   points: [number, number, number][];
   cells?: number[];
+  /** A cross-State trade or pilgrimage trail, rather than State-maintained infrastructure. */
+  international?: boolean;
   merged?: boolean;
   name?: string;
   /** Runtime: computed by editor */

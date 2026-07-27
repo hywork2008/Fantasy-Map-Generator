@@ -100,6 +100,8 @@ function runStatesGenerate(
   appServices: AppServices
 ): WorldStateAt<"states"> {
   States.generate(worldContext, viewContext, appServices, state);
+  // Lake-port representation depends on the State ownership established above.
+  Burgs.shift();
   return state as unknown as WorldStateAt<"states">;
 }
 

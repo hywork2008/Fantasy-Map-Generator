@@ -199,7 +199,7 @@ function getDefaultPresets(): Record<string, string[]> {
       "toggleVignette"
     ],
     biomes: ["toggleBiomes", "toggleIce", "toggleLakes", "toggleRivers", "toggleScaleBar", "toggleVignette"],
-    heightmap: ["toggleHeight", "toggleLakes", "toggleRivers", "toggleVignette"],
+    heightmap: ["toggleHeight", "toggleRivers"],
     physical: [
       "toggleCoordinates",
       "toggleHeight",

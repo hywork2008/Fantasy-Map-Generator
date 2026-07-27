@@ -1,4 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { worldContext } from "../../hostCore";
+import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
+import { clearEconomyContext, initEconomyContext } from "../economyContext";
+import { CaravanMovement } from "./caravanMovement";
 import {
   getCaravanMaintenanceCost,
   getGoodMaxTradeDurationDays,
@@ -8,6 +12,26 @@ import {
 import { calculateRouteDurationDays } from "./tradeRouteDuration";
 
 describe("trade route duration and viability", () => {
+  beforeEach(() => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.distanceScale = 1;
+    worldContext.pack = {
+      cells: { h: [20, 20, 20, 20] }
+    } as unknown as PackedGraph;
+    // Isolate from user localStorage / grade defaults for legacy duration expectations.
+    CaravanMovement.configure({
+      landKmPerDay: 32,
+      seaKmPerDay: 60,
+      seaCurrentStrength: 0,
+      gradeEffectStrength: 0,
+      merchantRoutePreference: "preferSpeed"
+    });
+  });
+
+  afterEach(() => {
+    clearEconomyContext();
+  });
+
   it("uses land and sea speeds plus a two-day port transfer penalty", () => {
     expect(
       calculateRouteDurationDays(
@@ -30,6 +54,46 @@ describe("trade route duration and viability", () => {
         1
       )
     ).toBe(4);
+  });
+
+  it("increases land duration when grade effect is on and cells climb", () => {
+    worldContext.pack = {
+      cells: { h: [20, 170] }
+    } as unknown as PackedGraph;
+    CaravanMovement.configure({ gradeEffectStrength: 1 });
+
+    const planar = calculateRouteDurationDays(
+      [
+        {
+          type: "land",
+          points: [
+            [0, 0],
+            [32, 0]
+          ]
+        }
+      ],
+      1
+    );
+    // Without cells → planar. With cells + 15% grade over 1 km → ceil(1/(32*0.15)) = 1 still...
+    // Use a longer hard climb so ceil differs: 32 km at minMultiplier 0.15 ⇒ 32/4.8 ≈ 6.67 → 7 days.
+    worldContext.pack = {
+      cells: { h: [20, 20 + 150 * 32] } // rise 150*32 m over 32 km ⇒ grade 0.15
+    } as unknown as PackedGraph;
+    const graded = calculateRouteDurationDays(
+      [
+        {
+          type: "land",
+          points: [
+            [0, 0, 0],
+            [32, 0, 1]
+          ]
+        }
+      ],
+      1,
+      { heightExponent: 1 }
+    );
+    expect(planar).toBe(1);
+    expect(graded).toBeGreaterThan(planar);
   });
 
   it("rejects long-distance low-value cargo while allowing valuable compact cargo", () => {

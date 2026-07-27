@@ -1,3 +1,6 @@
+import { landTravelLegSpeeds } from "../../../services/routeGrade";
+import { normalizeHeightExponent } from "../../../utils/height";
+import { useOptionsState } from "../../hostCore";
 import { rn } from "../../hostUtils";
 import {
   getCaravans,
@@ -23,11 +26,14 @@ import { TradeAnimation } from "./trade-animation";
 import { getCaravanMaintenanceCost, isGoodTradePermitted, MIN_TRADE_PROFIT } from "./tradeOpportunityEstimator";
 import { calculateRouteDurationDays, getRouteDistanceKm } from "./tradeRouteDuration";
 
-interface SegmentBoundary {
-  type: "land" | "water";
-  endKm: number;
-  fromPoint: [number, number];
-  toPoint: [number, number];
+export type CaravanTravelLeg = { endKm: number; speedKmPerDay: number };
+
+function toXy(point: readonly number[]): [number, number] {
+  return [point[0], point[1]];
+}
+
+function toTradeRoutePoint(point: readonly number[]): TradeRouteSegment["points"][number] {
+  return typeof point[2] === "number" ? [point[0], point[1], point[2]] : [point[0], point[1]];
 }
 
 export interface CaravanTickResult {
@@ -35,47 +41,81 @@ export interface CaravanTickResult {
   lost: Caravan[];
 }
 
-function buildSegmentBoundaries(caravan: Caravan, distanceScale: number): SegmentBoundary[] {
-  let cursorKm = 0;
-  return caravan.routeSegments.map(seg => {
-    let lengthRaw = 0;
-    for (let i = 0; i < seg.points.length - 1; i++) {
-      const [x1, y1] = seg.points[i];
-      const [x2, y2] = seg.points[i + 1];
-      lengthRaw += Math.hypot(x2 - x1, y2 - y1);
-    }
-    cursorKm += lengthRaw * distanceScale;
-    return {
-      type: seg.type,
-      endKm: cursorKm,
-      fromPoint: seg.points[0],
-      toPoint: seg.points[seg.points.length - 1]
-    };
-  });
-}
-
-function getSegmentSpeedKmPerDay(
-  segment: SegmentBoundary,
-  caravan: Caravan,
+/**
+ * Bake planar legs + speeds at spawn so tick-time advance does not re-sample grade
+ * (or re-read sea current). `currentDistance` remains cumulative planar km (plan A).
+ */
+export function bakeCaravanTravelLegs(
+  segments: readonly TradeRouteSegment[],
+  distanceScale: number,
+  draftAnimalId: string,
+  movement: CaravanMovementSettings,
   month: number,
-  movement: CaravanMovementSettings
-): number {
-  if (segment.type === "land") {
-    return movement.landKmPerDay * getDraftAnimalType(caravan.draftAnimalId).speedMultiplier;
+  heights: ArrayLike<number> | null,
+  heightExponent: number
+): CaravanTravelLeg[] {
+  const animal = getDraftAnimalType(draftAnimalId);
+  const legs: CaravanTravelLeg[] = [];
+  let cursorKm = 0;
+
+  for (const seg of segments) {
+    if (seg.points.length < 2) continue;
+
+    if (seg.type === "water") {
+      let runKm = 0;
+      for (let i = 0; i < seg.points.length - 1; i++) {
+        const [x1, y1] = seg.points[i];
+        const [x2, y2] = seg.points[i + 1];
+        runKm += Math.hypot(x2 - x1, y2 - y1) * distanceScale;
+      }
+      if (runKm <= 0) continue;
+      const from = toXy(seg.points[0]);
+      const to = toXy(seg.points[seg.points.length - 1]);
+      const currentMultiplier = getSeaConditionMultiplier(from, to, month, movement.seaCurrentStrength);
+      const speed = movement.seaKmPerDay * currentMultiplier;
+      cursorKm += runKm;
+      legs.push({ endKm: cursorKm, speedKmPerDay: Math.max(speed, 1e-6) });
+      continue;
+    }
+
+    // Land: per-hop grade-adjusted speeds when cells + heights are available.
+    if (heights && movement.gradeEffectStrength > 0) {
+      const { legs: landLegs } = landTravelLegSpeeds(seg.points, {
+        distanceScale,
+        heightExponent,
+        heights,
+        landKmPerDay: movement.landKmPerDay,
+        draftSpeedMultiplier: animal.speedMultiplier,
+        gradeEffectStrength: movement.gradeEffectStrength,
+        sensitivity: animal.gradeSensitivity,
+        routePreference: "preferSpeed"
+      });
+      for (const hop of landLegs) {
+        if (hop.runKm <= 0) continue;
+        cursorKm += hop.runKm;
+        legs.push({ endKm: cursorKm, speedKmPerDay: hop.speedKmPerDay });
+      }
+    } else {
+      let runKm = 0;
+      for (let i = 0; i < seg.points.length - 1; i++) {
+        const [x1, y1] = seg.points[i];
+        const [x2, y2] = seg.points[i + 1];
+        runKm += Math.hypot(x2 - x1, y2 - y1) * distanceScale;
+      }
+      if (runKm <= 0) continue;
+      const speed = movement.landKmPerDay * animal.speedMultiplier;
+      cursorKm += runKm;
+      legs.push({ endKm: cursorKm, speedKmPerDay: Math.max(speed, 1e-6) });
+    }
   }
-  const currentMultiplier = getSeaConditionMultiplier(
-    segment.fromPoint,
-    segment.toPoint,
-    month,
-    movement.seaCurrentStrength
-  );
-  return movement.seaKmPerDay * currentMultiplier;
+
+  return legs;
 }
 
 /**
- * Walks currentDistance forward by deltaDays, crossing land/water segment boundaries within a
- * single call (e.g. "Advance Month" spans many segments at once) so each segment consumes the
- * day budget at its own speed instead of one flat rate for the whole route.
+ * Walks currentDistance forward by deltaDays along baked (or fallback) planar legs.
+ * Each leg consumes the day budget at its own speed so grade slows progress without
+ * changing totalDistance (planar km).
  */
 function advanceCaravan(
   caravan: Caravan,
@@ -84,30 +124,58 @@ function advanceCaravan(
   month: number,
   movement: CaravanMovementSettings
 ): void {
-  const boundaries = buildSegmentBoundaries(caravan, distanceScale);
-  if (boundaries.length === 0) return;
+  let legs = caravan.travelLegs;
+  if (!legs?.length) {
+    // Legacy caravans / tests without baked legs: bake once and cache on the instance.
+    const heights = getWorldContext().pack?.cells?.h ?? null;
+    legs = bakeCaravanTravelLegs(
+      caravan.routeSegments,
+      distanceScale,
+      caravan.draftAnimalId,
+      movement,
+      month,
+      heights,
+      normalizeHeightExponent(useOptionsState.getState().heightExponent)
+    );
+    caravan.travelLegs = legs;
+  }
+  if (!legs.length) return;
 
   let remainingDays = deltaDays;
-  let segIndex = boundaries.findIndex(b => caravan.currentDistance < b.endKm);
-  if (segIndex === -1) segIndex = boundaries.length - 1;
+  let legIndex = legs.findIndex(leg => caravan.currentDistance < leg.endKm);
+  if (legIndex === -1) legIndex = legs.length - 1;
 
-  while (remainingDays > 0 && segIndex < boundaries.length) {
-    const segment = boundaries[segIndex];
-    const speed = getSegmentSpeedKmPerDay(segment, caravan, month, movement);
+  while (remainingDays > 0 && legIndex < legs.length) {
+    const leg = legs[legIndex];
+    const speed = leg.speedKmPerDay;
     if (speed <= 0) break;
 
-    const remainingInSegment = Math.max(0, segment.endKm - caravan.currentDistance);
-    const daysToFinishSegment = remainingInSegment / speed;
+    const remainingInLeg = Math.max(0, leg.endKm - caravan.currentDistance);
+    const daysToFinish = remainingInLeg / speed;
 
-    if (daysToFinishSegment <= remainingDays) {
-      caravan.currentDistance = segment.endKm;
-      remainingDays -= daysToFinishSegment;
-      segIndex++;
+    if (daysToFinish <= remainingDays) {
+      caravan.currentDistance = leg.endKm;
+      remainingDays -= daysToFinish;
+      legIndex++;
     } else {
       caravan.currentDistance += speed * remainingDays;
       remainingDays = 0;
     }
   }
+}
+
+function resolveBakeContext(month: number): {
+  movement: CaravanMovementSettings;
+  heights: ArrayLike<number> | null;
+  heightExponent: number;
+  month: number;
+} {
+  return {
+    movement: CaravanMovement.getOptions(),
+    heights: getWorldContext().pack?.cells?.h ?? null,
+    heightExponent: normalizeHeightExponent(useOptionsState.getState().heightExponent),
+    month
+  };
 }
 
 export class CaravansModule {
@@ -134,6 +202,17 @@ export class CaravansModule {
     const totalDistance = getRouteDistanceKm(routeSegments, world.distanceScale);
     if (totalDistance <= 0) return null;
 
+    const bake = resolveBakeContext(getSimulationMonth());
+    const travelLegs = bakeCaravanTravelLegs(
+      routeSegments,
+      world.distanceScale,
+      DEFAULT_DRAFT_ANIMAL_ID,
+      bake.movement,
+      bake.month,
+      bake.heights,
+      bake.heightExponent
+    );
+
     const caravan: Caravan = {
       i: this.ensureNextCaravanId(),
       seller: deal.seller,
@@ -155,6 +234,7 @@ export class CaravansModule {
       routeSegments,
       totalDistance,
       currentDistance: 0,
+      travelLegs,
       state: "transit"
     };
 
@@ -238,7 +318,8 @@ export class CaravansModule {
 
       const routeSegments: TradeRouteSegment[] = routePath.segments.map(segment => ({
         type: segment.type,
-        points: segment.points.map(([x, y]) => [x, y])
+        // Preserve cell ids for grade-aware duration (Phase 1).
+        points: segment.points.map(toTradeRoutePoint)
       }));
       const distance = getRouteDistanceKm(routeSegments, world.distanceScale);
       if (distance <= 0) continue;
@@ -265,6 +346,17 @@ export class CaravansModule {
         };
       });
 
+      const bake = resolveBakeContext(getSimulationMonth());
+      const travelLegs = bakeCaravanTravelLegs(
+        routeSegments,
+        world.distanceScale,
+        DEFAULT_DRAFT_ANIMAL_ID,
+        bake.movement,
+        bake.month,
+        bake.heights,
+        bake.heightExponent
+      );
+
       const caravan: Caravan = {
         i: nextId++,
         seller: bundle.seller,
@@ -278,6 +370,7 @@ export class CaravansModule {
         routeSegments,
         totalDistance: distance,
         currentDistance: 0,
+        travelLegs,
         state: "transit"
       };
 

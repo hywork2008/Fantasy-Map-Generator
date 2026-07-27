@@ -1,3 +1,9 @@
+import {
+  DEFAULT_HORSE_GRADE_SENSITIVITY,
+  DEFAULT_OX_GRADE_SENSITIVITY,
+  type GradeSensitivity,
+  type MerchantRoutePreference
+} from "../../../services/routeGrade";
 import { getCurrentDirection, minmax } from "../../hostUtils";
 
 export interface CaravanMovementSettings {
@@ -10,21 +16,38 @@ export interface CaravanMovementSettings {
    * getSeaConditionMultiplier below). 0 = no correction.
    */
   seaCurrentStrength: number;
+  /**
+   * 0 = ignore grade for land travel time (legacy planar-only).
+   * 1 = full grade effect. Intermediate values blend.
+   * Persisted as `fmg-grade-effect-strength` as well for the plan key.
+   */
+  gradeEffectStrength: number;
+  /**
+   * Pathfinding preference for land routes.
+   * `preferSpeed` minimizes travel days; `avoidHardPass` penalizes hard/extreme grades.
+   */
+  merchantRoutePreference: MerchantRoutePreference;
 }
 
 const DEFAULT_MOVEMENT_SETTINGS: CaravanMovementSettings = {
   landKmPerDay: 32,
   seaKmPerDay: 60,
-  seaCurrentStrength: 0
+  seaCurrentStrength: 0,
+  gradeEffectStrength: 1,
+  merchantRoutePreference: "preferSpeed"
 };
 
 const STORAGE_KEY = "caravan-movement";
+const GRADE_STRENGTH_KEY = "fmg-grade-effect-strength";
+const ROUTE_PREF_KEY = "fmg-merchant-route-preference";
 
 export interface DraftAnimalType {
   id: string;
   name: string;
   /** Multiplier applied to landKmPerDay for a caravan pulled by this animal. */
   speedMultiplier: number;
+  /** How harshly grade slows this animal (Phase 1). */
+  gradeSensitivity: GradeSensitivity;
 }
 
 /**
@@ -35,8 +58,18 @@ export interface DraftAnimalType {
  * only whatever future logic assigns a caravan's draftAnimalId.
  */
 export const DRAFT_ANIMAL_TYPES: Record<string, DraftAnimalType> = {
-  horse: { id: "horse", name: "Horse", speedMultiplier: 1 },
-  ox: { id: "ox", name: "Ox", speedMultiplier: 0.5 }
+  horse: {
+    id: "horse",
+    name: "Horse",
+    speedMultiplier: 1,
+    gradeSensitivity: DEFAULT_HORSE_GRADE_SENSITIVITY
+  },
+  ox: {
+    id: "ox",
+    name: "Ox",
+    speedMultiplier: 0.5,
+    gradeSensitivity: DEFAULT_OX_GRADE_SENSITIVITY
+  }
 };
 
 export const DEFAULT_DRAFT_ANIMAL_ID = "horse";
@@ -45,17 +78,48 @@ export function getDraftAnimalType(id: string | undefined): DraftAnimalType {
   return (id && DRAFT_ANIMAL_TYPES[id]) || DRAFT_ANIMAL_TYPES[DEFAULT_DRAFT_ANIMAL_ID];
 }
 
-export class CaravanMovementModule {
-  private options: CaravanMovementSettings = { ...DEFAULT_MOVEMENT_SETTINGS };
+function parseStoredPreference(raw: unknown): MerchantRoutePreference {
+  return raw === "avoidHardPass" ? "avoidHardPass" : "preferSpeed";
+}
 
-  constructor() {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) this.options = { ...DEFAULT_MOVEMENT_SETTINGS, ...JSON.parse(stored) };
-    } catch (e) {
-      console.warn("Failed to load caravan-movement options from localStorage", e);
+function parseStoredStrength(raw: unknown): number | undefined {
+  const n = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN;
+  if (!Number.isFinite(n)) return undefined;
+  return minmax(n, 0, 1);
+}
+
+function loadSettings(): CaravanMovementSettings {
+  let options: CaravanMovementSettings = { ...DEFAULT_MOVEMENT_SETTINGS };
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored) as Partial<CaravanMovementSettings>;
+      options = {
+        ...DEFAULT_MOVEMENT_SETTINGS,
+        ...parsed,
+        merchantRoutePreference: parseStoredPreference(
+          parsed.merchantRoutePreference ?? localStorage.getItem(ROUTE_PREF_KEY)
+        ),
+        gradeEffectStrength:
+          parseStoredStrength(parsed.gradeEffectStrength) ??
+          parseStoredStrength(localStorage.getItem(GRADE_STRENGTH_KEY)) ??
+          DEFAULT_MOVEMENT_SETTINGS.gradeEffectStrength
+      };
+    } else {
+      // Plan keys may exist even when the bundled caravan-movement blob does not.
+      const strength = parseStoredStrength(localStorage.getItem(GRADE_STRENGTH_KEY));
+      const pref = localStorage.getItem(ROUTE_PREF_KEY);
+      if (strength !== undefined) options.gradeEffectStrength = strength;
+      if (pref) options.merchantRoutePreference = parseStoredPreference(pref);
     }
+  } catch (e) {
+    console.warn("Failed to load caravan-movement options from localStorage", e);
   }
+  return options;
+}
+
+export class CaravanMovementModule {
+  private options: CaravanMovementSettings = loadSettings();
 
   getOptions(): Readonly<CaravanMovementSettings> {
     return this.options;
@@ -66,9 +130,18 @@ export class CaravanMovementModule {
   }
 
   configure(opts: Partial<CaravanMovementSettings>): void {
-    this.options = { ...this.options, ...opts };
+    const next: CaravanMovementSettings = { ...this.options, ...opts };
+    if (opts.gradeEffectStrength !== undefined) {
+      next.gradeEffectStrength = minmax(opts.gradeEffectStrength, 0, 1);
+    }
+    if (opts.merchantRoutePreference !== undefined) {
+      next.merchantRoutePreference = parseStoredPreference(opts.merchantRoutePreference);
+    }
+    this.options = next;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.options));
+      localStorage.setItem(GRADE_STRENGTH_KEY, String(this.options.gradeEffectStrength));
+      localStorage.setItem(ROUTE_PREF_KEY, this.options.merchantRoutePreference);
     } catch (e) {
       console.warn("Failed to persist caravan-movement options to localStorage", e);
     }

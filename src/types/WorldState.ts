@@ -2,7 +2,7 @@ import type { PackedGraph } from "../types/PackedGraph";
 import type { BiomeCode, BiomeDefinition, BiomeKey, BiomeTag } from "./biome";
 import type { BiomeRegionProfile } from "./biomeRegion";
 import type { Grid } from "./Grid";
-import type { BurgGroup, MilitaryUnit, NameBase, SeaRouteGenerationMode } from "./models";
+import type { BurgGroup, LandRouteGenerationMode, MilitaryUnit, NameBase, SeaRouteGenerationMode } from "./models";
 
 export interface WorldNote {
   id: string;
@@ -95,6 +95,18 @@ export interface WorldOptions {
    * does not replace a user-selected legacy network with the augmented one.
    */
   seaRouteGenerationMode?: SeaRouteGenerationMode;
+  /**
+   * Land-route path cost model for roads/trails. Persisted like seaRouteGenerationMode
+   * so regenerate/load can restore the algorithm that produced the network.
+   * Undefined on older saves / missing field: defaults to "elevationAware".
+   */
+  landRouteGenerationMode?: LandRouteGenerationMode;
+  /**
+   * Strength of elevation/slope aversion when landRouteGenerationMode is elevationAware.
+   * 0 = ignore height (short ridge shortcuts allowed); 1 = plan defaults; >1 = stricter valleys.
+   * Undefined → 1 on generate.
+   */
+  landRouteElevationAversion?: number;
   /**
    * Map-level interstate-conflict policy. Undefined is interpreted as "autonomous" for old maps.
    * This lives with the saved world rather than in UI preferences so reloading a map preserves its simulation rules.

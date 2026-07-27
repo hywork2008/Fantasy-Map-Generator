@@ -16,6 +16,7 @@ import type { WorldContext } from "../../../context/worldContext";
 import { getCoastalHabitatDefinition, getNearshoreHabitatDefinition } from "../../../data/coastalHabitatCatalog";
 import { HeightThreshold } from "../../../data/constants";
 import { Rivers } from "../../../generators/river-generator";
+import { Routes } from "../../../generators/routes-generator";
 import type {
   Burg,
   BurgGroup,
@@ -1233,7 +1234,8 @@ export function buildRoutePaths(
 
     // Imported maps can contain incomplete route point arrays. deck.gl cannot render NaN / missing
     // coordinates reliably, so omit the entire route instead of connecting unrelated valid endpoints.
-    let path = getValidDeckPath(route.points);
+    // Land routes use getRenderPoints so multi-route junctions share one cell anchor (SVG parity).
+    let path = getValidDeckPath(Routes.getRenderPoints(route));
     if (!path) return [];
 
     if (path.length >= 3) {

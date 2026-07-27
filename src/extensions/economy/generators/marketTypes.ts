@@ -40,9 +40,15 @@ export interface Deal {
   strategicProcurementOrderId?: number;
 }
 
+/**
+ * Route polyline vertex. Cell id (pack.cells index) is required for grade-aware land travel;
+ * `[x, y]` alone falls back to planar-only duration (legacy / speculative rows).
+ */
+export type TradeRoutePoint = [number, number] | [number, number, number];
+
 export type TradeRouteSegment = {
   type: "land" | "water";
-  points: [number, number][];
+  points: TradeRoutePoint[];
 };
 
 export interface Caravan {
@@ -66,5 +72,11 @@ export interface Caravan {
   routeSegments: TradeRouteSegment[];
   totalDistance: number;
   currentDistance: number;
+  /**
+   * Spawn-time baked planar legs for advanceCaravan (Phase 2).
+   * `endKm` is cumulative planar km; `speedKmPerDay` is fixed until arrival.
+   * Missing on legacy caravans → recompute from segments each tick (fallback).
+   */
+  travelLegs?: { endKm: number; speedKmPerDay: number }[];
   state: "transit" | "arrived" | "lost";
 }

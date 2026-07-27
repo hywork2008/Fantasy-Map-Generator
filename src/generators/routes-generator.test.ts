@@ -4,7 +4,14 @@ import type { Grid } from "../types/Grid";
 import type { PackedGraph } from "../types/PackedGraph";
 import { findPath } from "../utils/pathUtils";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
-import { Routes } from "./routes-generator";
+import {
+  type LandRouteMode,
+  landRouteElevationModifier,
+  landRoutePeakMultiplier,
+  landRouteSlopeModifier,
+  landRouteTerrainMultiplier,
+  Routes
+} from "./routes-generator";
 
 type RoutesGraphInternals = {
   calculateUrquhartEdges(points: [number, number][]): number[][];
@@ -19,6 +26,8 @@ type RoutesGraphInternals = {
     isWater: boolean;
     connections: Map<string, boolean>;
     seaRouteGenerationMode?: "legacy" | "augmented";
+    landMode?: LandRouteMode;
+    landRouteGenerationMode?: "legacy" | "elevationAware";
   }): (current: number, next: number) => number;
   sortBurgsByStateAndFeature(
     burgs: { i?: number; removed?: boolean; state?: number; feature?: number; capital?: number; port?: number }[]
@@ -39,7 +48,6 @@ type RoutesGraphInternals = {
 type RouteGenerationInternals = {
   createRoutesData(
     routes: { i: number; group: string; feature: number; points: [number, number, number][] }[],
-    connections: Map<string, boolean>,
     seaRouteGenerationMode: "legacy" | "augmented"
   ): { i: number; group: string; feature: number; points: [number, number, number][] }[];
 };
@@ -127,13 +135,15 @@ describe("RoutesModule settlement foundation trails", () => {
   });
 
   it("does not materialize planned village links until their sites become Burgs", () => {
-    const routes = routeGenerationInternals.createRoutesData([], new Map(), "augmented");
+    const routes = routeGenerationInternals.createRoutesData([], "augmented");
 
     expect(routes).toEqual([]);
   });
 });
 
 describe("RoutesModule settlement connections", () => {
+  const routeGenerationInternals = Routes as unknown as RouteGenerationInternals;
+
   beforeEach(() => {
     worldContext.pack = {
       cells: {
@@ -161,9 +171,74 @@ describe("RoutesModule settlement connections", () => {
     expect(route?.points.map(point => point[2])).toEqual([1, 0]);
     expect(worldContext.pack.cells.routes[1]).toEqual({ 0: route?.i });
   });
+
+  it("creates a standard-map cross-State connection as an international trail, not a capital road", () => {
+    worldContext.pack.cells.state = [1, 2];
+    worldContext.pack.burgs = [
+      { i: 0 },
+      { i: 1, cell: 0, x: 0, y: 0, state: 1, feature: 1, capital: 1 },
+      { i: 2, cell: 1, x: 10, y: 0, state: 2, feature: 1, capital: 1 }
+    ] as typeof worldContext.pack.burgs;
+    worldContext.options = { initialSettlementPattern: "standard" } as typeof worldContext.options;
+
+    const routes = routeGenerationInternals.createRoutesData([], "augmented");
+
+    expect(routes).toEqual([expect.objectContaining({ group: "trails", cells: [0, 1], international: true })]);
+    expect(routes.some(route => route.group === "roads")).toBe(false);
+  });
+
+  it("connects a State capital to its domestic burg hub by road", () => {
+    worldContext.pack.cells.state = [1, 1];
+    worldContext.pack.burgs = [
+      { i: 0 },
+      { i: 1, cell: 0, x: 0, y: 0, state: 1, feature: 1, capital: 1, population: 10 },
+      { i: 2, cell: 1, x: 10, y: 0, state: 1, feature: 1, population: 5 }
+    ] as typeof worldContext.pack.burgs;
+    worldContext.options = { initialSettlementPattern: "standard" } as typeof worldContext.options;
+
+    expect(routeGenerationInternals.createRoutesData([], "augmented")).toEqual([
+      expect.objectContaining({ group: "roads", cells: [0, 1] })
+    ]);
+  });
+
+  it("keeps frontier-map land routes within their respective States", () => {
+    worldContext.pack.cells.state = [1, 2];
+    worldContext.pack.burgs = [
+      { i: 0 },
+      { i: 1, cell: 0, x: 0, y: 0, state: 1, feature: 1, capital: 1 },
+      { i: 2, cell: 1, x: 10, y: 0, state: 2, feature: 1, capital: 1 }
+    ] as typeof worldContext.pack.burgs;
+    worldContext.options = { initialSettlementPattern: "frontier" } as typeof worldContext.options;
+
+    expect(routeGenerationInternals.createRoutesData([], "augmented")).toEqual([]);
+  });
+
+  it("does not route an international trail through a third State", () => {
+    worldContext.pack.cells.c = [[1], [0, 2], [1]];
+    worldContext.pack.cells.h = [25, 25, 25];
+    worldContext.pack.cells.biomeCode = [1, 1, 1];
+    worldContext.pack.cells.p = [
+      [0, 0],
+      [10, 0],
+      [20, 0]
+    ];
+    worldContext.pack.cells.burg = [1, 0, 2];
+    worldContext.pack.cells.f = [1, 1, 1];
+    worldContext.pack.cells.state = [1, 3, 2];
+    worldContext.pack.burgs = [
+      { i: 0 },
+      { i: 1, cell: 0, x: 0, y: 0, state: 1, feature: 1, capital: 1 },
+      { i: 2, cell: 2, x: 20, y: 0, state: 2, feature: 1, capital: 1 }
+    ] as typeof worldContext.pack.burgs;
+    worldContext.options = { initialSettlementPattern: "standard" } as typeof worldContext.options;
+
+    expect(routeGenerationInternals.createRoutesData([], "augmented")).toEqual([]);
+  });
 });
 
 describe("RoutesModule settlement water connections", () => {
+  const routeGenerationInternals = Routes as unknown as RouteGenerationInternals;
+
   beforeEach(() => {
     worldContext.pack = {
       cells: {
@@ -201,6 +276,33 @@ describe("RoutesModule settlement water connections", () => {
     expect(route).toMatchObject({ group: "searoutes", feature: 1 });
     expect(route?.points.map(point => point[2])).toEqual([0, 1, 2]);
     expect(route?.cells).toEqual([0, 1, 2]);
+  });
+
+  it("generates a river searoute instead of a road between two river ports", () => {
+    Routes.sync();
+
+    const routes = routeGenerationInternals.createRoutesData([], "augmented");
+
+    expect(routes).toEqual([expect.objectContaining({ group: "searoutes", cells: [0, 1, 2] })]);
+    expect(routes.some(route => route.group === "roads" || route.group === "trails")).toBe(false);
+  });
+
+  it("does not let a locked road suppress its river searoute", () => {
+    Routes.sync();
+    const lockedRoad = {
+      i: 0,
+      group: "roads",
+      feature: 1,
+      points: [
+        [0, 0, 0],
+        [10, 0, 1],
+        [20, 0, 2]
+      ] as [number, number, number][]
+    };
+
+    const routes = routeGenerationInternals.createRoutesData([lockedRoad], "augmented");
+
+    expect(routes).toContainEqual(expect.objectContaining({ group: "searoutes", cells: [0, 1, 2] }));
   });
 
   it("permits standard-map searoutes between nearby ports of different States", () => {
@@ -319,6 +421,21 @@ describe("RoutesModule river-aware water cost", () => {
     setupTwoRiverPack();
     expect(Routes.getWaterPathCost(1, 2)).toBeLessThan(Infinity);
     expect(Routes.getWaterPathCost(2, 1)).toBeLessThan(Infinity);
+  });
+
+  it("forbids land routes from following a navigable river channel", () => {
+    setupTwoRiverPack();
+    worldContext.pack.cells.biomeCode = [1, 1, 1, 1, 1, 1] as PackedGraph["cells"]["biomeCode"];
+    worldContext.pack.cells.burg = [0, 0, 0, 0, 0, 0] as PackedGraph["cells"]["burg"];
+    worldContext.pack.cells.r[3] = 0;
+    worldContext.biomesData = { habitability: [0, 100] } as unknown as typeof worldContext.biomesData;
+
+    const getLandRouteCost = routeInternals.createCostEvaluator({ isWater: false, connections: new Map() });
+
+    expect(getLandRouteCost(1, 2)).toBe(Infinity);
+    expect(getLandRouteCost(2, 1)).toBe(Infinity);
+    // A road can still leave a river-port cell for adjacent land.
+    expect(getLandRouteCost(2, 3)).toBeLessThan(Infinity);
   });
 
   it("uses the river-aware cost evaluator when generating sea routes", () => {
@@ -805,5 +922,302 @@ describe("RoutesModule.addMeandering", () => {
       expect(route[i][0]).toBeCloseTo(polygonSlice[i][0], 6);
       expect(route[i][1]).toBeCloseTo(polygonSlice[i][1], 6);
     }
+  });
+});
+
+describe("land route elevation aversion (docs/plan/land-route-elevation-cost.md)", () => {
+  const routeInternals = Routes as unknown as RoutesGraphInternals;
+
+  function setupHabitableBiomes() {
+    worldContext.biomesData = {
+      habitability: Array.from({ length: 32 }, () => 100)
+    } as typeof worldContext.biomesData;
+  }
+
+  /**
+   * Topology:
+   *   0 — 1 — 2     // 1 is a high ridge (direct road)
+   *   |         |
+   *   3 — 4 — 5     // lowland detour (~2× planar length)
+   */
+  function setupLowlandCorridorPack(ridgeHeight: number) {
+    setupHabitableBiomes();
+    worldContext.pack = {
+      cells: {
+        h: [25, ridgeHeight, 25, 25, 25, 25],
+        p: [
+          [0, 0],
+          [10, 0],
+          [20, 0],
+          [0, 10],
+          [10, 10],
+          [20, 10]
+        ],
+        c: [
+          [1, 3],
+          [0, 2],
+          [1, 5],
+          [0, 4],
+          [3, 5],
+          [4, 2]
+        ],
+        biomeCode: [1, 1, 1, 1, 1, 1],
+        burg: [0, 0, 0, 0, 0, 0],
+        state: [1, 1, 1, 1, 1, 1],
+        f: [1, 1, 1, 1, 1, 1]
+      }
+    } as unknown as PackedGraph;
+  }
+
+  /** Only path is 0 — 1 — 2 through a high saddle. */
+  function setupPassOnlyPack() {
+    setupHabitableBiomes();
+    worldContext.pack = {
+      cells: {
+        h: [25, 70, 25],
+        p: [
+          [0, 0],
+          [10, 0],
+          [20, 0]
+        ],
+        c: [[1], [0, 2], [1]],
+        biomeCode: [1, 1, 1],
+        burg: [0, 0, 0],
+        state: [1, 1, 1],
+        f: [1, 1, 1]
+      }
+    } as unknown as PackedGraph;
+  }
+
+  it("landRouteElevationModifier is ~1 on low ground and larger on peaks", () => {
+    expect(landRouteElevationModifier(25)).toBeCloseTo(1, 5);
+    expect(landRouteElevationModifier(32)).toBeCloseTo(1, 5);
+    expect(landRouteElevationModifier(80)).toBeGreaterThan(1.5);
+    expect(landRouteElevationModifier(80, 0.6)).toBeLessThan(landRouteElevationModifier(80, 1));
+    expect(landRouteElevationModifier(80, 1, 0)).toBe(1);
+    expect(landRouteElevationModifier(80, 1, 2)).toBeGreaterThan(landRouteElevationModifier(80, 1, 1));
+  });
+
+  it("landRouteSlopeModifier penalizes climbs only", () => {
+    expect(landRouteSlopeModifier(40, 40)).toBe(1);
+    expect(landRouteSlopeModifier(50, 30)).toBe(1);
+    expect(landRouteSlopeModifier(25, 55)).toBeGreaterThan(1.5);
+    expect(landRouteSlopeModifier(25, 55, 1, 0)).toBe(1);
+  });
+
+  it("peak multiplier is 1 at/under the local-ridge threshold and large on 1000 m-class cells", () => {
+    expect(landRoutePeakMultiplier(43)).toBe(1);
+    // h=55 ≈665 m — acceptable local ridge (Nesia cell 5102).
+    expect(landRoutePeakMultiplier(55)).toBe(1);
+    // h=70 ≈1227 m — hard peak (Nesia cell 5271).
+    expect(landRoutePeakMultiplier(70)).toBeGreaterThan(20);
+    expect(landRouteTerrainMultiplier(43, 70)).toBeGreaterThan(landRouteTerrainMultiplier(43, 55) * 10);
+  });
+
+  it("prefers a longer lowland corridor over a short high ridge for elevationAware roads", () => {
+    setupLowlandCorridorPack(80);
+    worldContext.options = { landRouteElevationAversion: 1 } as typeof worldContext.options;
+    const getCost = routeInternals.createCostEvaluator({
+      isWater: false,
+      connections: new Map(),
+      landMode: "roads",
+      landRouteGenerationMode: "elevationAware"
+    });
+    const path = findPath(0, id => id === 2, getCost, worldContext.pack);
+    expect(path).not.toBeNull();
+    expect(path).toEqual([0, 3, 4, 5, 2]);
+    expect(path).not.toContain(1);
+  });
+
+  it("prices a 665 m local ridge far below a 1227 m peak shortcut (Nesia Shafushahr–Sardan)", () => {
+    // Edge costs for: start→ridge→exit vs start→peak→exit (peak last hop is cheap).
+    setupHabitableBiomes();
+    worldContext.options = { landRouteElevationAversion: 1 } as typeof worldContext.options;
+    worldContext.pack = {
+      cells: {
+        h: [43, 55, 33, 70],
+        p: [
+          [0, 0],
+          [10, 0],
+          [20, 0],
+          [10, 3]
+        ],
+        c: [
+          [1, 3],
+          [0, 2],
+          [1, 3],
+          [0, 1, 2]
+        ],
+        biomeCode: [1, 1, 1, 1],
+        burg: [0, 0, 0, 0],
+        state: [1, 1, 1, 1],
+        f: [1, 1, 1, 1]
+      }
+    } as unknown as PackedGraph;
+    const getCost = routeInternals.createCostEvaluator({
+      isWater: false,
+      connections: new Map(),
+      landMode: "roads",
+      landRouteGenerationMode: "elevationAware"
+    });
+    // 0→1(h55)→2 vs 0→3(h70)→2 — peak must lose even though 3→2 is a short hop.
+    const viaRidge = getCost(0, 1) + getCost(1, 2);
+    const viaPeak = getCost(0, 3) + getCost(3, 2);
+    expect(viaRidge).toBeLessThan(viaPeak / 5);
+    const graph = {
+      cells: {
+        c: [
+          [1, 3],
+          [0, 2],
+          [1, 3],
+          [0, 1, 2]
+        ]
+      }
+    };
+    // Dijkstra must settle the exit by queue order (not first adjacency) so the cheap
+    // 3→2 hop after climbing 70 does not beat the moderate ridge.
+    expect(findPath(0, id => id === 2, getCost, graph)).toEqual([0, 1, 2]);
+  });
+
+  it("avoids a short 1227 m-class cell when a longer lowland corridor exists", () => {
+    // Direct 0-1-2 climbs h=70; lowland 0-3-4-5-2 stays low.
+    setupLowlandCorridorPack(70);
+    worldContext.options = { landRouteElevationAversion: 1 } as typeof worldContext.options;
+    const getCost = routeInternals.createCostEvaluator({
+      isWater: false,
+      connections: new Map(),
+      landMode: "roads",
+      landRouteGenerationMode: "elevationAware"
+    });
+    const path = findPath(0, id => id === 2, getCost, worldContext.pack);
+    expect(path).toEqual([0, 3, 4, 5, 2]);
+    expect(path).not.toContain(1);
+  });
+
+  it("aversion 0 allows the short high ridge (regenerate-dialog coefficient off)", () => {
+    setupLowlandCorridorPack(80);
+    worldContext.options = { landRouteElevationAversion: 0 } as typeof worldContext.options;
+    const getCost = routeInternals.createCostEvaluator({
+      isWater: false,
+      connections: new Map(),
+      landMode: "roads",
+      landRouteGenerationMode: "elevationAware"
+    });
+    const path = findPath(0, id => id === 2, getCost, worldContext.pack);
+    expect(path).toEqual([0, 1, 2]);
+  });
+
+  it("legacy land mode still takes the short high ridge when the valley is longer", () => {
+    setupLowlandCorridorPack(80);
+    const getCost = routeInternals.createCostEvaluator({
+      isWater: false,
+      connections: new Map(),
+      landMode: "roads",
+      landRouteGenerationMode: "legacy"
+    });
+    const path = findPath(0, id => id === 2, getCost, worldContext.pack);
+    expect(path).toEqual([0, 1, 2]);
+  });
+
+  it("still connects when the only corridor is a mountain pass", () => {
+    setupPassOnlyPack();
+    worldContext.options = { landRouteElevationAversion: 1 } as typeof worldContext.options;
+    const getCost = routeInternals.createCostEvaluator({
+      isWater: false,
+      connections: new Map(),
+      landMode: "roads",
+      landRouteGenerationMode: "elevationAware"
+    });
+    const path = findPath(0, id => id === 2, getCost, worldContext.pack);
+    expect(path).toEqual([0, 1, 2]);
+    // Costs stay finite (not Infinity) so the pass is usable.
+    expect(getCost(0, 1)).toBeLessThan(Infinity);
+    expect(getCost(1, 2)).toBeLessThan(Infinity);
+  });
+
+  it("trails pay less for high / steep edges than roads under elevationAware", () => {
+    // Moderate ridge: high enough to differ, low enough that the terrain cap does not erase
+    // the roads/trails sensitivity gap.
+    setupLowlandCorridorPack(55);
+    worldContext.options = { landRouteElevationAversion: 1 } as typeof worldContext.options;
+    const roadCost = routeInternals.createCostEvaluator({
+      isWater: false,
+      connections: new Map(),
+      landMode: "roads",
+      landRouteGenerationMode: "elevationAware"
+    });
+    const trailCost = routeInternals.createCostEvaluator({
+      isWater: false,
+      connections: new Map(),
+      landMode: "trails",
+      landRouteGenerationMode: "elevationAware"
+    });
+    expect(trailCost(0, 1)).toBeLessThan(roadCost(0, 1));
+    expect(trailCost(0, 1)).toBeGreaterThan(0);
+  });
+
+  it("persists landRouteGenerationMode on generate()", () => {
+    setupHabitableBiomes();
+    worldContext.pack = {
+      burgs: [{ i: 0 }, { i: 1, cell: 0, x: 0, y: 0, state: 1, feature: 1, capital: 1 }],
+      cells: {
+        h: [25],
+        p: [[0, 0]],
+        c: [[]],
+        biomeCode: [1],
+        burg: [1],
+        state: [1],
+        f: [1],
+        routes: {}
+      },
+      routes: []
+    } as unknown as PackedGraph;
+    worldContext.options = {} as typeof worldContext.options;
+    Routes.generate(
+      worldContext,
+      {} as never,
+      {} as never,
+      {
+        pack: worldContext.pack,
+        grid: {} as never,
+        seed: "t",
+        options: worldContext.options,
+        nameBases: [],
+        biomesData: worldContext.biomesData,
+        notes: []
+      },
+      [],
+      "legacy",
+      "legacy"
+    );
+    expect(worldContext.options.landRouteGenerationMode).toBe("legacy");
+    expect(worldContext.options.seaRouteGenerationMode).toBe("legacy");
+  });
+
+  it("does not change water cost evaluation", () => {
+    worldContext.pack = {
+      cells: {
+        h: [20, 5, 5],
+        r: [0, 0, 0],
+        fl: [0, 0, 0],
+        p: [
+          [0, 0],
+          [10, 0],
+          [20, 0]
+        ],
+        t: [1, -1, -1],
+        g: [0, 0, 0],
+        haven: [1, 0, 0]
+      }
+    } as unknown as PackedGraph;
+    worldContext.grid = { cells: { temp: [20, 20, 20] } } as unknown as Grid;
+    const getSea = routeInternals.createCostEvaluator({
+      isWater: true,
+      connections: new Map(),
+      seaRouteGenerationMode: "legacy"
+    });
+    // Port 0 may only enter via haven cell 1.
+    expect(getSea(0, 1)).toBeLessThan(Infinity);
+    expect(getSea(0, 2)).toBe(Infinity);
   });
 });

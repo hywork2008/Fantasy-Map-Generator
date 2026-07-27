@@ -10,7 +10,7 @@
 - 探索本体: `findPath`（`src/utils/pathUtils.ts`）、呼び出しは `findPathSegments` / `generateMainRoads` / `generateTrails`
 - 中世ヨーロッパのイメージ（幹線は谷、峠は少数の必要動脈）: 本ドキュメント §1.3
 
-**実装状況**: 未着手。本ドキュメントが調査結果と実装計画のソース・オブ・トゥルース。
+**実装状況**: **Phase 1 実装済み**（elevation/slope コスト、roads/trails 感度）。**再生成モード選択も実装済み**（`landRouteGenerationMode`: `elevationAware` | `legacy`、`seaRouteGenerationMode` と同様に Regenerate Routes ダイアログ・永続化・load 時再構築）。Phase 2（目視チューニング・Options スライダ）は任意・未着手。
 
 ---
 
@@ -23,6 +23,7 @@
 | 対象 | 陸路生成（`roads` / `trails`）。海路は対象外 |
 | 旅行速度・交易日数 | 本改修のスコープ外（`route-grade-movement.md`） |
 | 熊・山賊などの危険 | 生成コストには今は入れない（将来枠） |
+| 航行可能河川 | 同じ河川の連続セルを陸路が縦走することは禁止。港への陸側接続・単一河川セルの横断は許す |
 
 ---
 
@@ -32,7 +33,7 @@
 
 ```
 generate()
-  ├─ generateMainRoads(connections)   // 首都間 Urquhart → findPathSegments(isWater: false)
+  ├─ generateMainRoads(connections)   // 国内の首都・港・主要 Burg の Urquhart → findPathSegments(isWater: false)
   ├─ generateTrails(connections)      // burg 間 Urquhart → 同上（既存 connection を再利用しやすい）
   └─ generateSeaRoutes(...)           // isWater: true → 別コスト（本改修の対象外）
 ```
@@ -43,6 +44,10 @@ generate()
 2. 陸路では自国以外（`state !== 0 && state !== stateId`）を `Infinity`  
 3. `findPath(start, exit, getCost, pack)` でセル隣接グラフ上の Dijkstra  
 4. `getRouteSegments` で既存 connection との接続単位に分割し `connections` に登録  
+
+陸路と水路は別々の connection 集合を持つ。道路が河川港に達していても、その河川を航行する `searoute` を「既存接続」と誤認して省略してはならない。
+
+航行可能河川（同じ `riverId` の連続セルかつ両セルが `MIN_NAVIGABLE_FLUX` 以上）は水運の専用回廊として扱う。`roads` / `trails` はその連続辺を通れないが、河川セルへ一度入って港に達する、または河川セルを一度だけ横断して反対岸へ出ることはできる。これにより河川港の後背地道路と橋相当の接続を保ちながら、川筋の道路化を防ぐ。
 
 編集時の `connectToRoad` / trail 追加なども同じ `createCostEvaluator` を使うため、**陸コスト式を直すと生成と手動接続の両方に効く**。
 
@@ -224,10 +229,54 @@ Options UI への公開は **必須ではない**（Phase 2 任意）。
 
 **受け入れ条件:**
 
-- [ ] 合成パックで「平坦 1.5〜2 倍長い道」vs「短い高山直登」→ 平坦が選ばれる  
-- [ ] 高地のみの接続で path が得られる  
-- [ ] 海路テスト不変  
-- [ ] コメントと定数が式の意図を説明している  
+- [x] 合成パックで「平坦 1.5〜2 倍長い道」vs「短い高山直登」→ 平坦が選ばれる  
+- [x] 高地のみの接続で path が得られる  
+- [x] 海路テスト不変  
+- [x] コメントと定数が式の意図を説明している  
+
+### Phase 1 実装ログ
+
+- `src/generators/routes-generator.ts`:
+  - 定数: `LAND_ROUTE_ELEVATION_H0=32`, `K=12`, `P=1.75`, `SLOPE_S=4`, `DH_REF=10`, `Q=1.5`, trails 感度 `0.6`
+  - `landRouteElevationModifier` / `landRouteSlopeModifier`（export、テスト用）
+  - `createCostEvaluator({ landMode, landRouteGenerationMode })` — `elevationAware` で elevation × slope、`legacy` で旧 `heightModifier`
+  - `generateMainRoads` → `landMode: "roads"`、`generateTrails` / `connectToNetwork` → `"trails"`
+  - `Routes.generate(..., seaMode?, landMode?)` が `options.landRouteGenerationMode` を永続化（既定 `elevationAware`）
+- `routes-generator.test.ts`: 低地回廊優先、legacy は尾根直進、峠必須接続、trails &lt; roads、persist、海路非影響
+- 高標高の `Infinity` 封鎖はしていない（sole pass は接続）
+
+### 再生成モード選択（sea と同型）
+
+| 項目 | 内容 |
+| :--- | :--- |
+| 型 | `LandRouteGenerationMode = "legacy" \| "elevationAware"`（`src/types/models.ts`） |
+| 永続 | `WorldOptions.landRouteGenerationMode` |
+| UI | Tools → Regenerate routes 確認ダイアログ「Land route pathfinding」／Options → Generation「Land routes」 |
+| 配線 | `tools.ts` → `Routes.generate`；`load.ts` は sea モードあり時に再構築。land 未保存は **elevationAware** |
+| 既定（新規生成・未指定） | **`elevationAware`** |
+
+### 生成オプション: elevation aversion 係数
+
+Maria マップ検証: Doberedexau (h=32≈116m) → Zetaramizte (h=34≈147m) の **Voronoi 最短** は  
+`4802–4803–4804–4805`（h 32–**50**–**53**–34 ≈ 116–**512**–**602**–147m、約 +500m 登り）。
+
+**旧コストの問題**: 絶対標高×勾配の積が大きく、かつ `distanceSquared` の多段和が短い辺を有利にするため、5×近い谷回りが既定 aversion で勝ってしまうことがあった（距離も累積登りも悪化しうる遠回り）。
+
+**再チューニング**: elevationAware は **線形平面距離** + **柔らかい絶対標高** + **登り Δh** + **uncapped 高峰ペナルティ**（`h > 55` から。h=55 ≈665 m の局所尾根は許容、h=70 ≈1227 m は強く回避）。
+
+**Nesia (Shafushahr–Sardan)**:
+- **望ましい**: `5100–5101–5102–5272`（5102 = h=55 ≈665 m）。`5100–5431–5432–5272` も同程度に妥当
+- **問題**: 余計な **5271**（h=70 ≈1227 m）を挟むこと（例: `5101–5271–5272`）
+- **根因**: `findPath` が出口隣接で即 return していたため、prefix が少し安い高峰 + 最後の安い下りが中丘尾根より先に確定し得た。加えて cost を Float32・priority を f64 のまま stale 判定すると elevation コストで経路が null になり得た
+- **修正**: 出口はキュー pop 時に確定；cost は Float64Array；高峰ペナルティは `h > 55`（665 m 許容、1227 m 回避）
+
+| 項目 | 内容 |
+| :--- | :--- |
+| オプション | `landRouteElevationAversion`（0–3、既定 **1**） |
+| UI | Tools → **Regenerate routes** ダイアログ（Options → Generation には置かない） |
+| 意味 | 0 = 標高/勾配ペナルティ無し／1 = 既定／&gt;1 = 谷を強く選ぶ |
+| 適用 | `elevationAware` 時のみ（legacy ではスライダ無効） |
+| 永続 | `WorldOptions`（マップに保存；regenerate で更新） |
 
 ### Phase 2 — 目視チューニングと任意 UI（任意）
 
@@ -314,17 +363,28 @@ Options UI への公開は **必須ではない**（Phase 2 任意）。
 
 ## 8. セッション引き継ぎ
 
-**次の実装着手**: Phase 1（§3）— `getLandPathCost` の elevation/slope 差し替えと unit test。
+**Phase 1 完了。** 次は任意の Phase 2（代表シード目視・定数微調整）または [`route-grade-movement.md`](./route-grade-movement.md) Phase 0。
 
 確認済み:
 
-- 高 elevation を探索負荷として大きくする → **やる**  
-- 峠が唯一の合理ルートなら接続 → **OK**  
+- 高 elevation を探索負荷として大きくする → **実装済**  
+- 峠が唯一の合理ルートなら接続 → **実装済（有限コスト）**  
 - 旅行時 grade / 商人選択 → **別ドキュメント**  
 
-未決（仮置きで実装開始可）:
+チューニング用の現行定数（コードと同期）:
 
-- 最終的な `K` / `S` / `H0` の数値  
-- trails を roads の何倍の感度にするか  
+| 定数 | 値 |
+| :--- | ---: |
+| `LAND_ROUTE_ELEVATION_H0` | 32 |
+| `LAND_ROUTE_ELEVATION_K` | 12 |
+| `LAND_ROUTE_ELEVATION_P` | 1.75 |
+| `LAND_ROUTE_SLOPE_S` | 4 |
+| `LAND_ROUTE_SLOPE_DH_REF` | 10 |
+| `LAND_ROUTE_SLOPE_Q` | 1.5 |
+| `LAND_ROUTE_TRAILS_SENSITIVITY` | 0.6 |
+
+未決（Phase 2）:
+
+- 目視後の `K` / `S` / `H0` 微調整  
 - Options 公開の要否  
 `)

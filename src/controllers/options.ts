@@ -489,6 +489,7 @@ export function applyStoredOptions(): void {
     "growthRate",
     "initialPopulationSaturation",
     "initialSettlementPattern",
+    "biomeRegionProfile",
     "manors",
     "religionsNumber",
     "stateLabelsMode",

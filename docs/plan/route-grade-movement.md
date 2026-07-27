@@ -12,7 +12,7 @@
 - 既存の距離・日数・薄利排除: `docs/plan/trade.md`、`docs/plan/drop-poor-trade.md`
 - **陸路の敷設そのもの**（生成時に高標高を嫌う）: [`docs/plan/land-route-elevation-cost.md`](./land-route-elevation-cost.md) — 本ドキュメント（旅行コスト）とは分離。生成側を先に直すと「残る峠」が意味を持ち本計画と相性が良い
 
-**実装状況**: Phase 0 以降は未着手。本ドキュメントが旅行側仕様のソース・オブ・トゥルース。
+**実装状況**: **Phase 0–3 完了**（計測 + 交易 + キャラバン + 軍隊 grade）。Phase 4 表現のうち **自動峠名は時期尚早として保留**（Province 命名・NameBases 拡張が先）。本ドキュメントが旅行側仕様のソース・オブ・トゥルース。
 
 ---
 
@@ -461,12 +461,12 @@ Max grade: 16% · Climb: 420 m · Descent: 380 m · Difficulty: Hard pass (horse
 
 ### 5.8 受け入れ条件（Phase 0 Done）
 
-- [ ] `heightToMeters` が util にあり、burg 記述子と式が一致（テストまたは共有）  
-- [ ] `buildRouteGradeProfile` が純関数で world / DOM に依存しない  
-- [ ] unit test が CI で緑  
-- [ ] ルートの Elevation Profile を開くと max grade と difficulty が見える  
-- [ ] 交易速度・キャラバン位置・所要日数が **現行とビット同等**（ロジック未配線）  
-- [ ] `npm run lint` / `tsc` / 関連 vitest クリーン  
+- [x] `heightToMeters` が util にあり、burg 記述子と式が一致（テストまたは共有）  
+- [x] `buildRouteGradeProfile` が純関数で world / DOM に依存しない  
+- [x] unit test が CI で緑  
+- [x] ルートの Elevation Profile を開くと max grade と difficulty が見える  
+- [x] 交易速度・キャラバン位置・所要日数が **現行とビット同等**（ロジック未配線）  
+- [x] `npm run lint` / `tsc` / 関連 vitest クリーン  
 
 ### 5.9 実装順序（Phase 0 作業チケット）
 
@@ -502,20 +502,43 @@ Max grade: 16% · Climb: 420 m · Descent: 380 m · Difficulty: Hard pass (horse
 
 ---
 
-## 8. Phase 3 — 軍隊（任意）
+## 8. Phase 3 — 軍隊（任意）— **実装済み**
 
-- `landRouteGraph` の重みを effort 化、または行軍時 edge 倍率  
-- infantry / mounted プロファイル  
-- 冬クローズ（既存）と勾配の併用テスト  
+- `landRouteGraph` 隣接は平面距離のまま；Dijkstra に任意 `LandRouteEdgeCostFn`（effort）  
+- `regimentMovement.planLandMarchOrder` / off-road BFS に infantry|mounted `GradeSensitivity`  
+- `advanceAlongPath` が陸路エッジで budget を effort 消費（艦隊 current と同パターン）  
+- 冬クローズ（`buildLandRouteGraph` seasonal）は従来どおりエッジ削除；勾配は残ったエッジにのみ  
+- 全体スイッチ: `fmg-grade-effect-strength` = 0 で軍隊も平面互換  
 
 ---
 
-## 9. Phase 4 — 表現
+## 9. Phase 4 — 表現（**時期尚早・後回し**）
 
-- 自動「○○峠」候補（hardPass 最高点付近）  
-- 地図アイコン  
-- 手動 override  
+### 9.1 自動「○○峠」命名 — **今はやらない**
+
+前提が足りない:
+
+| 欠落 | 理由 |
+| :--- | :--- |
+| Province 命名が薄い / 未整備 | 地形名の文化・言語のアンカーが州・文化側にない |
+| NameBases の拡張未着手 | 既存 bases は burg/culture 向け。峠・峠型接尾辞の語彙・規則が無い |
+| 固有地名の配置ポリシー未決定 | 川・州・都市と競合しない「どこにラベルを置くか」が未設計 |
+
+自動峠名は **NameBases 拡張 + 州/文化命名の土台が固まってから** 再検討する。  
+それまでは `PassClass` / Elevation Profile の Difficulty ラベルで足りる。
+
+### 9.2 それでも後で検討してよい表現（命名不要）
+
+優先度は低い。必要になったら切り出す:
+
+- hardPass 区間の地図アイコン / ルート上ハイライト（匿名で可）  
+- 手動 override（プレイヤーがラベルを付ける）— 任意  
 - （将来）danger / 山賊リスクを `avoidHardPass` や別ポリシーに接続  
+
+### 9.3 明示的に今やらないこと
+
+- 生成時の「○○峠」自動命名  
+- NameBases を本計画だけで拡張すること（命名システムの別計画に任せる）  
 
 ---
 
@@ -555,7 +578,27 @@ Phase 0 では永続化しない。
 
 ## 13. セッション引き継ぎ
 
-次に着手する作業: **§5 Phase 0 実装**（§5.9 の順）。
+**Phase 0–3 完了**（2026-07-27）。
+
+成果物:
+
+| パス | 内容 |
+| :--- | :--- |
+| `src/utils/height.ts` | `heightToMeters` / `normalizeHeightExponent` |
+| `src/services/routeGrade.ts` | 勾配・プロファイル・PassClass・交易/軍隊 speed·effort |
+| Elevation Profile | 陸路で Max grade / Climb (m) / Difficulty サマリ |
+| `caravanMovement` / trade / caravans | Phase 1–2 交易側 |
+| `landRouteGraph` | `LandRouteEdgeCostFn` + export 冬しきい値定数 |
+| `regimentMovement` | infantry/mounted プロファイル、path + advance に effort |
+
+**route-grade-movement の機能実装は Phase 0–3 で一区切り。**
+
+次に着手する作業（この計画内）: 特に無し。プレイ感チューニングやバグ修正のみ。
+
+後回し（ユーザー確認 2026-07-27）:
+
+- **自動峠名は時期尚早** — Province 命名・NameBases 拡張が先。§9.1  
+- Phase 4 の匿名アイコンも必須ではない  
 
 確認済みユーザー決定:
 
@@ -563,10 +606,9 @@ Phase 0 では永続化しない。
 2. 勾配 → 速度/日数  
 3. 峠回避 vs 速度優先は **商人プレイで選択**（Phase 1）  
 4. 熊・山賊は **今は気にしない**  
+5. **峠の自動命名は命名基盤整備後**  
 
-未決（実装前に不要なものは仮置きでよい）:
+仮置き（プレイ感で後から調整可）:
 
-- hardPass 回避倍率の具体値（×2 vs ×3）— Phase 1  
-- ox の感度曲線の最終値 — Phase 1  
-- 軍隊 Phase 3 をいつやるか  
-`)
+- hardPass 回避倍率 ×3 / extreme ×4  
+- ox / infantry / mounted 感度曲線  

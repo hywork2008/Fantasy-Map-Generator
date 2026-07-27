@@ -2,10 +2,18 @@ import { sum } from "d3";
 import { appServices } from "../context/appServices";
 import { FRONTIER_STAGE, simulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import {
+  DEFAULT_INFANTRY_GRADE_SENSITIVITY,
+  DEFAULT_MOUNTED_GRADE_SENSITIVITY,
+  type GradeSensitivity,
+  landEdgeEffortCost,
+  landEdgeSpeedMultiplier
+} from "../services/routeGrade";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, MilitaryRegiment, State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import { findPath, minmax } from "../utils";
+import { normalizeHeightExponent } from "../utils/height";
 import { getCurrentDirection } from "../utils/seasonUtils";
 import { isRegimentLockedForBattle } from "./battleLock";
 import {
@@ -16,7 +24,12 @@ import {
   mergeFrontiers,
   pickPrimaryFrontier
 } from "./frontierAnalysis";
-import { buildLandRouteGraph, findLandRoutePath, type LandRouteGraph } from "./landRouteGraph";
+import {
+  buildLandRouteGraph,
+  findLandRoutePath,
+  type LandRouteEdgeCostFn,
+  type LandRouteGraph
+} from "./landRouteGraph";
 import { buildSeaRouteGraph, findSeaRouteDistance, findSeaRoutePath, type SeaRouteGraph } from "./seaRouteGraph";
 
 /**
@@ -143,6 +156,9 @@ const MERGE_DISTANCE_MAP_UNITS = 30;
 /** Miles-per-km, applied only when the user's chosen distanceUnit isn't "km" (§1.1's conversion note). */
 const KM_TO_MILES = 0.621371;
 
+/** Shared with economy / Trade Animation (`fmg-grade-effect-strength`); 0 = planar-only military marches. */
+const GRADE_EFFECT_STRENGTH_KEY = "fmg-grade-effect-strength";
+
 function kmToDistanceUnit(km: number, distanceUnit: string): number {
   return distanceUnit === "mi" ? km * KM_TO_MILES : km;
 }
@@ -158,6 +174,68 @@ export function dailySpeedMapUnits(r: MilitaryRegiment, worldContext: WorldConte
       : FOOT_SPEED_KM_PER_DAY;
   const speedMapUnits = kmToDistanceUnit(baseKmPerDay, distanceUnit) / distanceScale;
   return r.offRoad ? speedMapUnits * OFF_ROAD_SPEED_MULTIPLIER : speedMapUnits;
+}
+
+/** Infantry vs mounted grade sensitivity (docs/plan/route-grade-movement.md Phase 3). */
+export function regimentGradeSensitivity(r: MilitaryRegiment): GradeSensitivity {
+  return r.type === "mounted" ? DEFAULT_MOUNTED_GRADE_SENSITIVITY : DEFAULT_INFANTRY_GRADE_SENSITIVITY;
+}
+
+/**
+ * Grade effect strength for military marches. Reuses the travel-side localStorage key so
+ * `gradeEffectStrength = 0` restores planar pathfinding + advance (legacy compatibility).
+ */
+export function getMilitaryGradeEffectStrength(): number {
+  try {
+    const raw = localStorage.getItem(GRADE_EFFECT_STRENGTH_KEY);
+    if (raw === null || raw === "") return 1;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return 1;
+    return minmax(n, 0, 1);
+  } catch {
+    return 1;
+  }
+}
+
+function buildRegimentLandEdgeCostFn(
+  pack: PackedGraph,
+  worldContext: WorldContext,
+  r: MilitaryRegiment
+): LandRouteEdgeCostFn | undefined {
+  if (r.n) return undefined; // fleets use sea routes only
+  const strength = getMilitaryGradeEffectStrength();
+  if (strength <= 0) return undefined;
+  if (!pack.cells?.h) return undefined;
+
+  const options = {
+    distanceScale: worldContext.distanceScale || 1,
+    heightExponent: normalizeHeightExponent(useOptionsState.getState().heightExponent),
+    heights: pack.cells.h,
+    gradeEffectStrength: strength,
+    sensitivity: regimentGradeSensitivity(r)
+  };
+  return (from, to, planarDist) => landEdgeEffortCost(from, to, planarDist, options);
+}
+
+function landEdgeCostMultiplier(
+  pack: PackedGraph,
+  worldContext: WorldContext,
+  r: MilitaryRegiment,
+  fromCell: number,
+  toCell: number,
+  planarDist: number
+): number {
+  if (r.n) return 1;
+  const strength = getMilitaryGradeEffectStrength();
+  if (strength <= 0 || !pack.cells?.h || planarDist <= 0) return 1;
+  const m = landEdgeSpeedMultiplier(fromCell, toCell, planarDist, {
+    distanceScale: worldContext.distanceScale || 1,
+    heightExponent: normalizeHeightExponent(useOptionsState.getState().heightExponent),
+    heights: pack.cells.h,
+    gradeEffectStrength: strength,
+    sensitivity: regimentGradeSensitivity(r)
+  });
+  return 1 / m;
 }
 
 /** Every state's own land cells, grouped by landmass, so a garrison destination snaps back onto territory the state actually owns. */
@@ -227,12 +305,18 @@ function buildDefenseNodesByStateAndLandmass(
 }
 
 /** Dense cells.c BFS/Dijkstra fallback for land cells with no charted road/trail (§1.2 option (a)). Avoids open water; otherwise unrestricted (crossing hostile territory is the point — it's an invasion). */
-function findOffRoadLandPath(pack: PackedGraph, start: number, end: number): number[] | null {
+function findOffRoadLandPath(
+  pack: PackedGraph,
+  start: number,
+  end: number,
+  edgeCost?: LandRouteEdgeCostFn
+): number[] | null {
   if (start === end) return [start];
   const { cells } = pack;
   const getCost = (current: number, next: number) => {
     if (cells.h[next] < 20) return Infinity;
-    return Math.hypot(cells.p[next][0] - cells.p[current][0], cells.p[next][1] - cells.p[current][1]);
+    const planar = Math.hypot(cells.p[next][0] - cells.p[current][0], cells.p[next][1] - cells.p[current][1]);
+    return edgeCost ? edgeCost(current, next, planar) : planar;
   };
   return findPath(start, id => id === end, getCost, pack);
 }
@@ -256,7 +340,8 @@ function planLandMarchOrder(
   r: MilitaryRegiment,
   destinationCell: number,
   pack: PackedGraph,
-  landRouteGraph: LandRouteGraph
+  landRouteGraph: LandRouteGraph,
+  worldContext?: WorldContext
 ): void {
   if (destinationCell === r.cell) {
     clearMarchOrder(r);
@@ -264,8 +349,9 @@ function planLandMarchOrder(
   }
   if (r.destinationCell === destinationCell && r.path && r.pathIndex !== undefined) return; // already marching there
 
-  const charted = findLandRoutePath(landRouteGraph, r.cell, destinationCell);
-  const path = charted ?? findOffRoadLandPath(pack, r.cell, destinationCell);
+  const edgeCost = worldContext ? buildRegimentLandEdgeCostFn(pack, worldContext, r) : undefined;
+  const charted = findLandRoutePath(landRouteGraph, r.cell, destinationCell, edgeCost);
+  const path = charted ?? findOffRoadLandPath(pack, r.cell, destinationCell, edgeCost);
   if (!path || path.length < 2) {
     clearMarchOrder(r);
     return;
@@ -425,7 +511,8 @@ function ensureGarrisonMarchOrder(
   pack: PackedGraph,
   landRouteGraph: LandRouteGraph,
   landCellsByStateAndLandmass: Map<number, Map<number, number[]>>,
-  defenseNodesByStateAndLandmass: Map<number, Map<number, number[]>>
+  defenseNodesByStateAndLandmass: Map<number, Map<number, number[]>>,
+  worldContext: WorldContext
 ): void {
   const { cells } = pack;
   const landmass = cells.f[r.cell];
@@ -445,7 +532,7 @@ function ensureGarrisonMarchOrder(
       clearMarchOrder(r);
       return;
     }
-    planLandMarchOrder(r, home, pack, landRouteGraph);
+    planLandMarchOrder(r, home, pack, landRouteGraph, worldContext);
   };
 
   let localSegments = segments.filter(seg => seg.landmass === landmass);
@@ -514,7 +601,7 @@ function ensureGarrisonMarchOrder(
     }
   }
 
-  planLandMarchOrder(r, destinationCell, pack, landRouteGraph);
+  planLandMarchOrder(r, destinationCell, pack, landRouteGraph, worldContext);
 }
 
 /**
@@ -575,7 +662,12 @@ function findNearestOwnBurg(r: MilitaryRegiment, pack: PackedGraph): { cell: num
  * keep the plain frontier-pull behavior from Phase 2. Returns true if a reaction destination was
  * set/held this tick, so the caller skips the normal frontier-pull march order for this regiment.
  */
-function applyReactionMarchOrder(r: MilitaryRegiment, pack: PackedGraph, landRouteGraph: LandRouteGraph): boolean {
+function applyReactionMarchOrder(
+  r: MilitaryRegiment,
+  pack: PackedGraph,
+  landRouteGraph: LandRouteGraph,
+  worldContext: WorldContext
+): boolean {
   if (r.n) return false;
 
   const enemy = findNearestHostileRegiment(r, pack);
@@ -587,14 +679,14 @@ function applyReactionMarchOrder(r: MilitaryRegiment, pack: PackedGraph, landRou
     // — see the constant's doc comment.
     const home = findNearestOwnBurg(r, pack);
     if (home && Math.hypot(enemy.x - home.x, enemy.y - home.y) > MAX_PURSUIT_DEPTH_MAP_UNITS) return false;
-    planLandMarchOrder(r, enemy.cell, pack, landRouteGraph);
+    planLandMarchOrder(r, enemy.cell, pack, landRouteGraph, worldContext);
     return true;
   }
 
   if (enemy.a >= r.a * RETREAT_POWER_RATIO) {
     const refuge = findNearestOwnBurg(r, pack);
     if (refuge !== null) {
-      planLandMarchOrder(r, refuge.cell, pack, landRouteGraph);
+      planLandMarchOrder(r, refuge.cell, pack, landRouteGraph, worldContext);
       return true;
     }
   }
@@ -617,7 +709,8 @@ function applyRecaptureMarchOrder(
   r: MilitaryRegiment,
   segments: FrontierSegment[],
   pack: PackedGraph,
-  landRouteGraph: LandRouteGraph
+  landRouteGraph: LandRouteGraph,
+  worldContext: WorldContext
 ): boolean {
   if (r.n) return false;
 
@@ -647,7 +740,7 @@ function applyRecaptureMarchOrder(
     if (nearestDist >= frontierDist) return false; // more urgently needed at the real front
   }
 
-  planLandMarchOrder(r, nearestBurg.cell, pack, landRouteGraph);
+  planLandMarchOrder(r, nearestBurg.cell, pack, landRouteGraph, worldContext);
   return true;
 }
 
@@ -670,7 +763,8 @@ function applyStrategicMarchOrder(
   segments: FrontierSegment[],
   pack: PackedGraph,
   landRouteGraph: LandRouteGraph,
-  activeSiegeTargetBurgs: number[]
+  activeSiegeTargetBurgs: number[],
+  worldContext: WorldContext
 ): boolean {
   if (r.n || !activeSiegeTargetBurgs.length) return false;
 
@@ -699,7 +793,7 @@ function applyStrategicMarchOrder(
   }
   if (!targetBurgObj) return false;
 
-  planLandMarchOrder(r, targetBurgObj.cell, pack, landRouteGraph);
+  planLandMarchOrder(r, targetBurgObj.cell, pack, landRouteGraph, worldContext);
   return true;
 }
 
@@ -715,7 +809,8 @@ function splitDetachment(
   state: State,
   targetCell: number,
   pack: PackedGraph,
-  landRouteGraph: LandRouteGraph
+  landRouteGraph: LandRouteGraph,
+  worldContext: WorldContext
 ): MilitaryRegiment | null {
   const military = state.military!;
   const detachmentTroops = Math.max(BASE_UNIT_TROOPS, Math.round(r.a * DETACHMENT_SHARE));
@@ -753,7 +848,7 @@ function splitDetachment(
   };
 
   military.push(detachment);
-  planLandMarchOrder(detachment, targetCell, pack, landRouteGraph);
+  planLandMarchOrder(detachment, targetCell, pack, landRouteGraph, worldContext);
   return detachment;
 }
 
@@ -770,7 +865,8 @@ function maybeSplitDetachment(
   r: MilitaryRegiment,
   state: State,
   pack: PackedGraph,
-  landRouteGraph: LandRouteGraph
+  landRouteGraph: LandRouteGraph,
+  worldContext: WorldContext
 ): MilitaryRegiment | null {
   if (r.a - BASE_UNIT_TROOPS < MIN_PARENT_TROOPS_AFTER_SPLIT) return null;
 
@@ -781,7 +877,7 @@ function maybeSplitDetachment(
   const secondary = hostiles.find(h => Math.hypot(h.x - primary.x, h.y - primary.y) > SECOND_THREAT_SEPARATION);
   if (!secondary) return null;
 
-  return splitDetachment(r, state, secondary.cell, pack, landRouteGraph);
+  return splitDetachment(r, state, secondary.cell, pack, landRouteGraph, worldContext);
 }
 
 /** Folds a returning detachment's troops back into its parent field army. */
@@ -877,17 +973,20 @@ function ensureFleetMarchOrder(
  * core Generator module needing to know anything about states/diplomacy/capture business rules.
  *
  * `month`, if given, applies a seasonal ocean-current cost multiplier to fleet-type regiments
- * (`r.n` truthy) per edge crossed this call — see getCurrentCostMultiplier's doc comment. Land
- * regiments and calls with no `month` are unaffected. `r.edgeProgress`/`r.x`/`r.y` always stay in
- * true physical map units regardless of the multiplier — only how much *budget* an edge consumes
- * changes, so other consumers of position/distance are unaffected.
+ * (`r.n` truthy) per edge crossed this call — see getCurrentCostMultiplier's doc comment.
+ *
+ * `worldContext`, if given, applies land grade effort multipliers (Phase 3 route-grade-movement):
+ * steep uphill edges consume more daily march budget, matching pathfinding effort costs.
+ * `r.edgeProgress`/`r.x`/`r.y` always stay in true physical map units regardless of multipliers
+ * — only how much *budget* an edge consumes changes.
  */
 export function advanceAlongPath(
   pack: PackedGraph,
   r: MilitaryRegiment,
   budget: number,
   onCellEntered?: (r: MilitaryRegiment, cell: number) => void,
-  month?: number
+  month?: number,
+  worldContext?: WorldContext
 ): void {
   if (!r.path || r.pathIndex === undefined || budget <= 0) return;
   const { cells } = pack;
@@ -901,7 +1000,12 @@ export function advanceAlongPath(
     const fromPoint = cells.p[fromCell];
     const toPoint = cells.p[toCell];
     const edgeLength = Math.hypot(toPoint[0] - fromPoint[0], toPoint[1] - fromPoint[1]);
-    const costMultiplier = isFleet && month !== undefined ? getCurrentCostMultiplier(fromPoint, toPoint, month) : 1;
+    let costMultiplier = 1;
+    if (isFleet && month !== undefined) {
+      costMultiplier = getCurrentCostMultiplier(fromPoint, toPoint, month);
+    } else if (!isFleet && worldContext) {
+      costMultiplier = landEdgeCostMultiplier(pack, worldContext, r, fromCell, toCell, edgeLength);
+    }
     const remainingOnEdgeCost = (edgeLength - progress) * costMultiplier;
 
     if (remainingOnEdgeCost <= remaining) {
@@ -1019,22 +1123,23 @@ export function advanceAllRegimentMovement(
         // A live detachment: keep reacting to its own local threats independently; once it has
         // none left to react to, head back toward its parent instead of the usual frontier pull
         // (which belongs to the parent's mission, not the detachment's).
-        const reacted = applyReactionMarchOrder(r, pack, landRouteGraph);
+        const reacted = applyReactionMarchOrder(r, pack, landRouteGraph, worldContext);
         if (!reacted) {
           const parent = military.find(p => p.i === r.parentId);
-          if (parent) planLandMarchOrder(r, parent.cell, pack, landRouteGraph);
+          if (parent) planLandMarchOrder(r, parent.cell, pack, landRouteGraph, worldContext);
         }
       } else {
-        const reacted = applyReactionMarchOrder(r, pack, landRouteGraph);
+        const reacted = applyReactionMarchOrder(r, pack, landRouteGraph, worldContext);
         if (!reacted) {
-          const recapturing = applyRecaptureMarchOrder(r, segments, pack, landRouteGraph);
+          const recapturing = applyRecaptureMarchOrder(r, segments, pack, landRouteGraph, worldContext);
           if (!recapturing) {
             const attacking = applyStrategicMarchOrder(
               r,
               segments,
               pack,
               landRouteGraph,
-              activeSiegeTargetsByState?.get(r.state) ?? []
+              activeSiegeTargetsByState?.get(r.state) ?? [],
+              worldContext
             );
             if (!attacking)
               ensureGarrisonMarchOrder(
@@ -1043,7 +1148,8 @@ export function advanceAllRegimentMovement(
                 pack,
                 landRouteGraph,
                 landCellsByStateAndLandmass,
-                defenseNodesByStateAndLandmass
+                defenseNodesByStateAndLandmass,
+                worldContext
               );
           }
         }
@@ -1055,11 +1161,11 @@ export function advanceAllRegimentMovement(
           // whatever threat `r` itself is reacting to would make its own reaction layer want to
           // retreat from that same nearby threat instead of marching off toward its assigned one.
           // Mark it so this pass leaves it alone; from next tick on it's a normal live detachment.
-          const detachment = maybeSplitDetachment(r, state, pack, landRouteGraph);
+          const detachment = maybeSplitDetachment(r, state, pack, landRouteGraph, worldContext);
           if (detachment) {
             freshlySplit.add(detachment);
             const detachmentBudget = dailySpeedMapUnits(detachment, worldContext) * days;
-            advanceAlongPath(pack, detachment, detachmentBudget, onCellEntered, currentMonth);
+            advanceAlongPath(pack, detachment, detachmentBudget, onCellEntered, currentMonth, worldContext);
             anyMoved = true;
           }
         }
@@ -1070,7 +1176,7 @@ export function advanceAllRegimentMovement(
       const budget = dailySpeedMapUnits(r, worldContext) * days;
       const beforeX = r.x;
       const beforeY = r.y;
-      advanceAlongPath(pack, r, budget, onCellEntered, currentMonth);
+      advanceAlongPath(pack, r, budget, onCellEntered, currentMonth, worldContext);
       if (r.x !== beforeX || r.y !== beforeY) anyMoved = true;
     }
   }

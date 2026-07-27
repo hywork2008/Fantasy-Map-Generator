@@ -15,6 +15,7 @@ import {
   isNomadicBiome,
   isSnowBiome
 } from "../data/biomeCatalog";
+import { allowsFormalHarbor } from "../data/coastalHabitatCatalog";
 import { removeBurgIcon, removeBurgLabel } from "../renderers";
 import { COArenderer } from "../renderers/emblem-renderer";
 import { bindSimulationBurg } from "../runtime/simulationBurgState";
@@ -41,6 +42,12 @@ import { Routes } from "./routes-generator";
 import type { Point } from "./voronoi";
 
 const MAX_STRATEGIC_CITADEL_BONUS = 0.5;
+/** A formal lake port requires at least this share of the packed map. */
+const MIN_LAKE_PORT_SHARE = 0.003;
+/** Prevents a tiny map or a malformed feature from promoting puddles. */
+const MIN_LAKE_PORT_CELLS = 4;
+const MIN_LAKE_PORTS = 2;
+const MAX_LAKE_PORTS = 6;
 
 interface StrategicContext {
   frontiers: Map<number, FrontierSegment[]>;
@@ -54,6 +61,7 @@ type PortCandidate = {
   haven: number | null; // adjacent water cell for coastal ports; null for river ports
   portFeatureId: number; // the water/drain feature the port trades on
   landFeature: number; // the landmass the burg sits on
+  waterKind: "sea" | "lake" | "river";
   preferred: boolean; // safe harbour, capital harbour, or river port — promoted unconditionally
 };
 
@@ -73,7 +81,8 @@ class BurgModule {
     const candidatesByWater = this.collectPortCandidates(burgs);
     for (const candidates of candidatesByWater.values()) {
       if (!candidates.length) continue;
-      for (const candidate of this.selectPorts(candidates)) {
+      const lockedLakePorts = candidates[0].waterKind === "lake" ? this.getLockedLakePorts(candidates[0].haven) : [];
+      for (const candidate of this.selectPorts(candidates, lockedLakePorts)) {
         this.promoteToPort(candidate, riversById);
       }
     }
@@ -92,9 +101,9 @@ class BurgModule {
     const temp = this.worldContext.grid.cells.temp;
 
     const byWater = new Map<number, PortCandidate[]>();
-    const addCandidate = (candidate: PortCandidate) => {
-      if (!byWater.has(candidate.portFeatureId)) byWater.set(candidate.portFeatureId, []);
-      byWater.get(candidate.portFeatureId)!.push(candidate);
+    const addCandidate = (selectionFeatureId: number, candidate: PortCandidate) => {
+      if (!byWater.has(selectionFeatureId)) byWater.set(selectionFeatureId, []);
+      byWater.get(selectionFeatureId)!.push(candidate);
     };
 
     for (const burg of burgs) {
@@ -110,28 +119,61 @@ class BurgModule {
         if (!feature || feature.cells <= 1) continue;
         if (NON_NAVIGABLE_LAKE_GROUPS.has(feature.group)) continue;
         if (temp[cells.g[burg.cell]] <= 0) continue; // frozen
+        if (!allowsFormalHarbor(cells.coastalHabitat?.[burg.cell])) continue;
 
-        const portFeatureId =
-          feature.type === "lake" && feature.outlet
-            ? (Rivers.resolveLakeDrainFeature(featureId) ?? featureId)
-            : featureId;
+        const isLake = feature.type === "lake";
+        if (isLake && this.getLakePortCapacity(feature) === 0) continue;
+
+        const portFeatureId = isLake ? this.resolveLakePortFeature(featureId) : featureId;
         const preferred = (harbor && Boolean(burg.capital)) || harbor === 1;
-        addCandidate({ burg, haven, portFeatureId, landFeature, preferred });
+        // A lake must compete only with settlements on that lake. Grouping an
+        // outlet lake under the ocean feature used to make every lake shore a
+        // preferred ocean port.
+        const selectionFeatureId = isLake ? -featureId : featureId;
+        addCandidate(selectionFeatureId, {
+          burg,
+          haven,
+          portFeatureId,
+          landFeature,
+          waterKind: isLake ? "lake" : "sea",
+          preferred
+        });
       } else {
         if (!Rivers.isNavigable(burg.cell)) continue;
         const portFeatureId = Rivers.resolveDrainFeature(burg.cell);
         if (!portFeatureId) continue;
-        addCandidate({ burg, haven: null, portFeatureId, landFeature, preferred: true });
+        addCandidate(portFeatureId, {
+          burg,
+          haven: null,
+          portFeatureId,
+          landFeature,
+          waterKind: "river",
+          preferred: true
+        });
       }
     }
 
     return byWater;
   }
 
-  private selectPorts(candidates: PortCandidate[]): PortCandidate[] {
+  private getLockedLakePorts(haven: number | null): Burg[] {
+    if (haven === null) return [];
+    const { burgs, cells } = this.worldContext.pack;
+    const lakeFeatureId = cells.f[haven];
+    return burgs.filter(
+      burg =>
+        burg.i && burg.lock && burg.port && cells.haven[burg.cell] && cells.f[cells.haven[burg.cell]] === lakeFeatureId
+    );
+  }
+
+  private selectPorts(candidates: PortCandidate[], lockedLakePorts: Burg[] = []): PortCandidate[] {
     const { cells } = this.worldContext.pack;
     const rank = (candidate: PortCandidate) =>
       (candidate.burg.capital ? -1000 : 0) + (candidate.haven !== null ? cells.harbor[candidate.burg.cell] : 0);
+
+    if (candidates[0]?.waterKind === "lake") {
+      return this.selectLakePorts(candidates, lockedLakePorts, rank);
+    }
 
     const promoted = new Set<PortCandidate>();
     for (const c of candidates) if (c.preferred) promoted.add(c);
@@ -159,6 +201,93 @@ class BurgModule {
     return [...promoted];
   }
 
+  /**
+   * Lakes get a small, distributed set of representative ports. The capacity
+   * scales with the lake's share of the map (2–6), then large multi-State
+   * lakes reserve one suitable port for each unrepresented shore State.
+   */
+  private selectLakePorts(
+    candidates: PortCandidate[],
+    lockedPorts: Burg[],
+    rank: (candidate: PortCandidate) => number
+  ): PortCandidate[] {
+    const { cells, features } = this.worldContext.pack;
+    const haven = candidates[0]?.haven;
+    if (haven === null || haven === undefined) return [];
+    const lake = features[cells.f[haven]];
+    if (!lake) return [];
+
+    const capacity = this.getLakePortCapacity(lake);
+    if (capacity === 0 || candidates.length + lockedPorts.length < MIN_LAKE_PORTS) return [];
+    const slots = Math.max(0, capacity - lockedPorts.length);
+    if (slots === 0) return [];
+
+    const selected: PortCandidate[] = [];
+    const occupiedStates = new Set(lockedPorts.map(port => this.getPortState(port)).filter(stateId => stateId !== 0));
+    const candidatesByState = new Map<number, PortCandidate[]>();
+    for (const candidate of candidates) {
+      const stateId = this.getPortState(candidate.burg);
+      if (!stateId || occupiedStates.has(stateId)) continue;
+      if (!candidatesByState.has(stateId)) candidatesByState.set(stateId, []);
+      candidatesByState.get(stateId)!.push(candidate);
+    }
+
+    const stateRepresentatives = [...candidatesByState.values()]
+      .map(group => group.sort((a, b) => rank(a) - rank(b))[0])
+      .sort((a, b) => rank(a) - rank(b));
+    for (const representative of stateRepresentatives) {
+      if (selected.length >= slots) break;
+      const next = this.selectSpacedLakeCandidate([representative], selected, lockedPorts, lake.area, capacity, rank);
+      if (next) selected.push(next);
+    }
+
+    while (selected.length < slots) {
+      const remaining = candidates.filter(candidate => !selected.includes(candidate));
+      const next = this.selectSpacedLakeCandidate(remaining, selected, lockedPorts, lake.area, capacity, rank);
+      if (!next) break;
+      selected.push(next);
+    }
+
+    return selected;
+  }
+
+  private getLakePortCapacity(lake: { cells: number }): number {
+    const { cells } = this.worldContext.pack;
+    const totalCells = cells.i?.length ?? cells.f.length;
+    const lakeShare = lake.cells / Math.max(totalCells, 1);
+    if (lake.cells < MIN_LAKE_PORT_CELLS || lakeShare < MIN_LAKE_PORT_SHARE) return 0;
+    const growthSteps = Math.floor(Math.log2(lakeShare / MIN_LAKE_PORT_SHARE));
+    return Math.min(MAX_LAKE_PORTS, MIN_LAKE_PORTS + Math.max(0, growthSteps));
+  }
+
+  private getPortState(burg: Burg): number {
+    return burg.state || this.worldContext.pack.cells.state?.[burg.cell] || 0;
+  }
+
+  private selectSpacedLakeCandidate(
+    candidates: PortCandidate[],
+    selected: PortCandidate[],
+    lockedPorts: Burg[],
+    lakeArea: number,
+    capacity: number,
+    rank: (candidate: PortCandidate) => number
+  ): PortCandidate | undefined {
+    if (!candidates.length) return;
+    const existingPorts = [...lockedPorts, ...selected.map(candidate => candidate.burg)];
+    if (!existingPorts.length) return [...candidates].sort((a, b) => rank(a) - rank(b))[0];
+
+    const minDistanceSquared = lakeArea > 0 ? lakeArea / capacity ** 2 : 0;
+    const distanceToNearestPort = (candidate: PortCandidate) =>
+      Math.min(...existingPorts.map(port => (candidate.burg.x - port.x) ** 2 + (candidate.burg.y - port.y) ** 2));
+    const spaced = candidates.filter(candidate => distanceToNearestPort(candidate) >= minDistanceSquared);
+    if (spaced.length) return [...spaced].sort((a, b) => rank(a) - rank(b))[0];
+
+    return [...candidates].sort((a, b) => {
+      const distanceDifference = distanceToNearestPort(b) - distanceToNearestPort(a);
+      return distanceDifference || rank(a) - rank(b);
+    })[0];
+  }
+
   private promoteToPort(candidate: PortCandidate, riversById: Map<number, { i: number; cells: number[] }>): void {
     const { burg, haven, portFeatureId } = candidate;
     burg.port = portFeatureId;
@@ -166,6 +295,43 @@ class BurgModule {
       haven !== null ? this.getCloseToEdgePoint(burg.cell, haven) : this.shiftTowardsRiverBank(burg.cell, riversById);
     burg.x = x;
     burg.y = y;
+  }
+
+  /**
+   * Lake ports trade locally by default. They inherit a downstream sea feature
+   * only when every land leg of the outlet chain is navigable, matching the
+   * water route pathfinder's ability to sail that chain.
+   */
+  private resolveLakePortFeature(lakeFeatureId: number): number {
+    const { cells, features, rivers } = this.worldContext.pack;
+    const riverById = new Map(rivers.map(river => [river.i, river]));
+    const visitedLakes = new Set<number>();
+    let lake = features[lakeFeatureId];
+
+    while (lake?.type === "lake" && lake.outlet && !visitedLakes.has(lake.i)) {
+      visitedLakes.add(lake.i);
+      const outlet = riverById.get(lake.outlet);
+      if (!outlet) return lakeFeatureId;
+
+      for (const cellId of outlet.cells) {
+        if (cellId < 0) return lakeFeatureId;
+        const feature = features[cells.f[cellId]];
+        if (feature?.type !== "lake" && feature?.type !== "ocean" && !Rivers.isNavigable(cellId)) {
+          return lakeFeatureId;
+        }
+      }
+
+      const lastCell = outlet.cells[outlet.cells.length - 1];
+      if (lastCell === undefined || lastCell < 0) return lakeFeatureId;
+      const receivingFeature = features[cells.f[lastCell]];
+      if (!receivingFeature) return lakeFeatureId;
+      if (receivingFeature.type === "ocean") return receivingFeature.i;
+      if (receivingFeature.type !== "lake") return lakeFeatureId;
+      if (!receivingFeature.outlet) return receivingFeature.i;
+      lake = receivingFeature;
+    }
+
+    return lakeFeatureId;
   }
 
   /**
@@ -183,12 +349,19 @@ class BurgModule {
         return false;
       }
       if (this.worldContext.grid.cells.temp[cells.g[burg.cell]] <= 0) return false;
-      const portFeatureId =
-        feature.type === "lake" && feature.outlet
-          ? (Rivers.resolveLakeDrainFeature(feature.i) ?? feature.i)
-          : feature.i;
+      if (!allowsFormalHarbor(cells.coastalHabitat?.[burg.cell])) return false;
+      if (feature.type === "lake" && this.getLakePortCapacity(feature) === 0) return false;
+      if (feature.type === "lake" && this.countLakePorts(feature.i) >= this.getLakePortCapacity(feature)) return false;
+      const portFeatureId = feature.type === "lake" ? this.resolveLakePortFeature(feature.i) : feature.i;
       this.promoteToPort(
-        { burg, haven, portFeatureId, landFeature: cells.f[burg.cell], preferred: cells.harbor[burg.cell] === 1 },
+        {
+          burg,
+          haven,
+          portFeatureId,
+          landFeature: cells.f[burg.cell],
+          waterKind: feature.type === "lake" ? "lake" : "sea",
+          preferred: cells.harbor[burg.cell] === 1
+        },
         new Map(this.worldContext.pack.rivers.map(river => [river.i, river]))
       );
       return true;
@@ -198,10 +371,17 @@ class BurgModule {
     const portFeatureId = Rivers.resolveDrainFeature(burg.cell);
     if (!portFeatureId) return false;
     this.promoteToPort(
-      { burg, haven: null, portFeatureId, landFeature: cells.f[burg.cell], preferred: true },
+      { burg, haven: null, portFeatureId, landFeature: cells.f[burg.cell], waterKind: "river", preferred: true },
       new Map(this.worldContext.pack.rivers.map(river => [river.i, river]))
     );
     return true;
+  }
+
+  private countLakePorts(lakeFeatureId: number): number {
+    const { burgs, cells } = this.worldContext.pack;
+    return burgs.filter(
+      burg => burg.i && burg.port && cells.haven[burg.cell] && cells.f[cells.haven[burg.cell]] === lakeFeatureId
+    ).length;
   }
 
   private getCloseToEdgePoint(cell1: number, cell2: number): [number, number] {

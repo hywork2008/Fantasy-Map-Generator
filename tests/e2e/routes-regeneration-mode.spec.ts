@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
+  getLandRouteGenerationMode,
   getMapId,
   getRenderedSeaRouteNetworkSignature,
   getSeaRouteGenerationMode,
@@ -29,9 +30,14 @@ test.describe("Route regeneration mode", () => {
     await expect(modeSelect).toBeVisible();
     await modeSelect.selectOption("legacy");
     await expect(modeSelect).toHaveValue("legacy");
+    const landModeSelect = page.getByLabel("Land route pathfinding");
+    await expect(landModeSelect).toBeVisible();
+    await landModeSelect.selectOption("legacy");
+    await expect(landModeSelect).toHaveValue("legacy");
     await page.getByRole("button", { name: "Proceed", exact: true }).click();
 
     await expect.poll(() => getSeaRouteGenerationMode(page)).toBe("legacy");
+    await expect.poll(() => getLandRouteGenerationMode(page)).toBe("legacy");
   });
 
   test("generates a legacy network instead of retaining the augmented network", async ({ page }) => {
