@@ -41,7 +41,6 @@ type RoutesGraphInternals = {
 type RouteGenerationInternals = {
   createRoutesData(
     routes: { i: number; group: string; feature: number; points: [number, number, number][] }[],
-    connections: Map<string, boolean>,
     seaRouteGenerationMode: "legacy" | "augmented"
   ): { i: number; group: string; feature: number; points: [number, number, number][] }[];
 };
@@ -129,7 +128,7 @@ describe("RoutesModule settlement foundation trails", () => {
   });
 
   it("does not materialize planned village links until their sites become Burgs", () => {
-    const routes = routeGenerationInternals.createRoutesData([], new Map(), "augmented");
+    const routes = routeGenerationInternals.createRoutesData([], "augmented");
 
     expect(routes).toEqual([]);
   });
@@ -175,7 +174,7 @@ describe("RoutesModule settlement connections", () => {
     ] as typeof worldContext.pack.burgs;
     worldContext.options = { initialSettlementPattern: "standard" } as typeof worldContext.options;
 
-    const routes = routeGenerationInternals.createRoutesData([], new Map(), "augmented");
+    const routes = routeGenerationInternals.createRoutesData([], "augmented");
 
     expect(routes).toEqual([expect.objectContaining({ group: "trails", cells: [0, 1], international: true })]);
     expect(routes.some(route => route.group === "roads")).toBe(false);
@@ -190,7 +189,7 @@ describe("RoutesModule settlement connections", () => {
     ] as typeof worldContext.pack.burgs;
     worldContext.options = { initialSettlementPattern: "standard" } as typeof worldContext.options;
 
-    expect(routeGenerationInternals.createRoutesData([], new Map(), "augmented")).toEqual([
+    expect(routeGenerationInternals.createRoutesData([], "augmented")).toEqual([
       expect.objectContaining({ group: "roads", cells: [0, 1] })
     ]);
   });
@@ -204,7 +203,7 @@ describe("RoutesModule settlement connections", () => {
     ] as typeof worldContext.pack.burgs;
     worldContext.options = { initialSettlementPattern: "frontier" } as typeof worldContext.options;
 
-    expect(routeGenerationInternals.createRoutesData([], new Map(), "augmented")).toEqual([]);
+    expect(routeGenerationInternals.createRoutesData([], "augmented")).toEqual([]);
   });
 
   it("does not route an international trail through a third State", () => {
@@ -226,11 +225,13 @@ describe("RoutesModule settlement connections", () => {
     ] as typeof worldContext.pack.burgs;
     worldContext.options = { initialSettlementPattern: "standard" } as typeof worldContext.options;
 
-    expect(routeGenerationInternals.createRoutesData([], new Map(), "augmented")).toEqual([]);
+    expect(routeGenerationInternals.createRoutesData([], "augmented")).toEqual([]);
   });
 });
 
 describe("RoutesModule settlement water connections", () => {
+  const routeGenerationInternals = Routes as unknown as RouteGenerationInternals;
+
   beforeEach(() => {
     worldContext.pack = {
       cells: {
@@ -268,6 +269,33 @@ describe("RoutesModule settlement water connections", () => {
     expect(route).toMatchObject({ group: "searoutes", feature: 1 });
     expect(route?.points.map(point => point[2])).toEqual([0, 1, 2]);
     expect(route?.cells).toEqual([0, 1, 2]);
+  });
+
+  it("generates a river searoute instead of a road between two river ports", () => {
+    Routes.sync();
+
+    const routes = routeGenerationInternals.createRoutesData([], "augmented");
+
+    expect(routes).toEqual([expect.objectContaining({ group: "searoutes", cells: [0, 1, 2] })]);
+    expect(routes.some(route => route.group === "roads" || route.group === "trails")).toBe(false);
+  });
+
+  it("does not let a locked road suppress its river searoute", () => {
+    Routes.sync();
+    const lockedRoad = {
+      i: 0,
+      group: "roads",
+      feature: 1,
+      points: [
+        [0, 0, 0],
+        [10, 0, 1],
+        [20, 0, 2]
+      ] as [number, number, number][]
+    };
+
+    const routes = routeGenerationInternals.createRoutesData([lockedRoad], "augmented");
+
+    expect(routes).toContainEqual(expect.objectContaining({ group: "searoutes", cells: [0, 1, 2] }));
   });
 
   it("permits standard-map searoutes between nearby ports of different States", () => {
@@ -386,6 +414,21 @@ describe("RoutesModule river-aware water cost", () => {
     setupTwoRiverPack();
     expect(Routes.getWaterPathCost(1, 2)).toBeLessThan(Infinity);
     expect(Routes.getWaterPathCost(2, 1)).toBeLessThan(Infinity);
+  });
+
+  it("forbids land routes from following a navigable river channel", () => {
+    setupTwoRiverPack();
+    worldContext.pack.cells.biomeCode = [1, 1, 1, 1, 1, 1] as PackedGraph["cells"]["biomeCode"];
+    worldContext.pack.cells.burg = [0, 0, 0, 0, 0, 0] as PackedGraph["cells"]["burg"];
+    worldContext.pack.cells.r[3] = 0;
+    worldContext.biomesData = { habitability: [0, 100] } as unknown as typeof worldContext.biomesData;
+
+    const getLandRouteCost = routeInternals.createCostEvaluator({ isWater: false, connections: new Map() });
+
+    expect(getLandRouteCost(1, 2)).toBe(Infinity);
+    expect(getLandRouteCost(2, 1)).toBe(Infinity);
+    // A road can still leave a river-port cell for adjacent land.
+    expect(getLandRouteCost(2, 3)).toBeLessThan(Infinity);
   });
 
   it("uses the river-aware cost evaluator when generating sea routes", () => {

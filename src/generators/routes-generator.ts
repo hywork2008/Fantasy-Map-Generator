@@ -631,9 +631,25 @@ class RoutesModule {
     const resolvedLandGenerationMode: LandRouteGenerationMode =
       landRouteGenerationMode ?? this.worldContext.options.landRouteGenerationMode ?? "elevationAware";
     const aversion = clampLandRouteElevationAversion(this.worldContext.options.landRouteElevationAversion);
+    const isNavigableRiverLeg = (current: number, next: number): boolean => {
+      const riverIds = pack.cells.r as Uint16Array | number[] | undefined;
+      const flux = pack.cells.fl as Uint16Array | number[] | undefined;
+      if (!riverIds || !flux) return false;
+      const riverId = riverIds[current];
+      return (
+        riverId !== 0 &&
+        riverId === riverIds[next] &&
+        flux[current] >= MIN_NAVIGABLE_FLUX &&
+        flux[next] >= MIN_NAVIGABLE_FLUX &&
+        this.riverAdjacency.has(`${current}-${next}`)
+      );
+    };
 
     function getLandPathCost(current: number, next: number) {
       if (pack.cells.h[next] < 20) return Infinity; // ignore water cells
+      // A route may reach a river port or cross one river cell, but it must
+      // never use the navigable channel itself as a longitudinal road.
+      if (isNavigableRiverLeg(current, next)) return Infinity;
 
       const habitability = biomesData.habitability[pack.cells.biomeCode[next]];
       if (!habitability) return Infinity; // inhabitable cells are not passable (e.g. glacier)
@@ -1043,17 +1059,25 @@ class RoutesModule {
 
     return routesMerged > 1 ? this.mergeRoutes(routes) : routes;
   }
-  private createRoutesData(
-    routes: Route[],
-    connections: Map<string, boolean>,
-    seaRouteGenerationMode: SeaRouteGenerationMode
-  ) {
+  private createRoutesData(routes: Route[], seaRouteGenerationMode: SeaRouteGenerationMode) {
+    // Land and water are separate networks. A road at a river port must not
+    // cause the river voyage to be treated as already materialized, or vice
+    // versa. Locked routes seed only their own network.
+    const landConnections = new Map<string, boolean>();
+    const waterConnections = new Map<string, boolean>();
+    for (const route of routes) {
+      this.addConnections(
+        route.points.map(point => point[2]),
+        route.group === "searoutes" ? waterConnections : landConnections
+      );
+    }
+
     // Settlement-plan nodes and frontier outposts are population sites, not
     // route endpoints. Every generated network is based on actual burgs.
-    const mainRoads = this.generateMainRoads(connections);
-    const trails = this.generateTrails(connections);
-    const internationalTrails = this.generateInternationalTrails(connections);
-    const seaRoutes = this.generateSeaRoutes(connections, seaRouteGenerationMode);
+    const mainRoads = this.generateMainRoads(landConnections);
+    const trails = this.generateTrails(landConnections);
+    const internationalTrails = this.generateInternationalTrails(landConnections);
+    const seaRoutes = this.generateSeaRoutes(waterConnections, seaRouteGenerationMode);
     const pointsArray = this.preparePointsArray();
 
     for (const { feature, cells, merged } of this.mergeRoutes(mainRoads)) {
@@ -1103,21 +1127,13 @@ class RoutesModule {
     const resolvedLandRouteElevationAversion = clampLandRouteElevationAversion(
       worldContext.options.landRouteElevationAversion
     );
-    if (resolvedSeaRouteGenerationMode === "augmented") {
-      this.sync(); // River adjacency must reflect the current map before river-aware sea-route pathfinding.
-    }
+    // Both land and water pathfinders need current river adjacency: water uses
+    // it to sail navigable channels, while land uses it to avoid following one.
+    this.sync();
     worldContext.options.seaRouteGenerationMode = resolvedSeaRouteGenerationMode;
     worldContext.options.landRouteGenerationMode = resolvedLandRouteGenerationMode;
     worldContext.options.landRouteElevationAversion = resolvedLandRouteElevationAversion;
-    const connections = new Map();
-    lockedRoutes.forEach((route: Route) => {
-      this.addConnections(
-        route.points.map(p => p[2]),
-        connections
-      );
-    });
-
-    pack.routes = this.createRoutesData(lockedRoutes, connections, resolvedSeaRouteGenerationMode);
+    pack.routes = this.createRoutesData(lockedRoutes, resolvedSeaRouteGenerationMode);
     pack.cells.routes = this.buildLinks(pack.routes);
   }
 

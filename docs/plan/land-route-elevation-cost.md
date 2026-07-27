@@ -23,6 +23,7 @@
 | 対象 | 陸路生成（`roads` / `trails`）。海路は対象外 |
 | 旅行速度・交易日数 | 本改修のスコープ外（`route-grade-movement.md`） |
 | 熊・山賊などの危険 | 生成コストには今は入れない（将来枠） |
+| 航行可能河川 | 同じ河川の連続セルを陸路が縦走することは禁止。港への陸側接続・単一河川セルの横断は許す |
 
 ---
 
@@ -43,6 +44,10 @@ generate()
 2. 陸路では自国以外（`state !== 0 && state !== stateId`）を `Infinity`  
 3. `findPath(start, exit, getCost, pack)` でセル隣接グラフ上の Dijkstra  
 4. `getRouteSegments` で既存 connection との接続単位に分割し `connections` に登録  
+
+陸路と水路は別々の connection 集合を持つ。道路が河川港に達していても、その河川を航行する `searoute` を「既存接続」と誤認して省略してはならない。
+
+航行可能河川（同じ `riverId` の連続セルかつ両セルが `MIN_NAVIGABLE_FLUX` 以上）は水運の専用回廊として扱う。`roads` / `trails` はその連続辺を通れないが、河川セルへ一度入って港に達する、または河川セルを一度だけ横断して反対岸へ出ることはできる。これにより河川港の後背地道路と橋相当の接続を保ちながら、川筋の道路化を防ぐ。
 
 編集時の `connectToRoad` / trail 追加なども同じ `createCostEvaluator` を使うため、**陸コスト式を直すと生成と手動接続の両方に効く**。
 
