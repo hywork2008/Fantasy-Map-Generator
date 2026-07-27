@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { worldContext } from "../context/worldContext";
+import { getCoastalHabitatCode } from "../data/coastalHabitatCatalog";
 import type { Grid } from "../types/Grid";
 import type { Burg } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
@@ -76,13 +77,13 @@ describe("BurgsModule.shift — open-lake port promotion", () => {
   });
 
   // -------------------------------------------------------------------------
-  it("gives lake-shore burgs burg.port = oceanFeatureId when the lake drains to the sea", () => {
+  it("gives lake-shore burgs burg.port = oceanFeatureId when a substantial lake drains to the sea", () => {
     // Feature 1 = open lake (outlet → river 10); feature 2 = ocean.
     // River 10: lake cell 4 → ocean cell 5.
     worldContext.pack = {
       burgs: makeBurgs(),
-      cells: { ...BASE_CELLS },
-      features: [null, { i: 1, type: "lake", cells: 3, outlet: 10 }, { i: 2, type: "ocean" }],
+      cells: { ...BASE_CELLS, i: new Uint16Array(4000) },
+      features: [null, { i: 1, type: "lake", cells: 12, outlet: 10 }, { i: 2, type: "ocean" }],
       vertices: BASE_VERTICES,
       rivers: [{ i: 10, cells: [4, 5] }]
     } as unknown as PackedGraph;
@@ -102,7 +103,7 @@ describe("BurgsModule.shift — open-lake port promotion", () => {
       cells: { ...BASE_CELLS },
       features: [
         null,
-        { i: 1, type: "lake", cells: 3 }, // no outlet
+        { i: 1, type: "lake", cells: 12 }, // no outlet
         { i: 2, type: "ocean" }
       ],
       vertices: BASE_VERTICES,
@@ -133,13 +134,28 @@ describe("BurgsModule.shift — open-lake port promotion", () => {
     expect(burgs[2].port).toBeUndefined();
   });
 
+  it("does not turn a small lake shore into formal ports", () => {
+    worldContext.pack = {
+      burgs: makeBurgs(),
+      cells: { ...BASE_CELLS, i: new Uint16Array(4000) },
+      features: [null, { i: 1, type: "lake", cells: 11 }, { i: 2, type: "ocean" }],
+      vertices: BASE_VERTICES,
+      rivers: []
+    } as unknown as PackedGraph;
+
+    Burgs.shift();
+
+    expect(worldContext.pack.burgs[1].port).toBeUndefined();
+    expect(worldContext.pack.burgs[2].port).toBeUndefined();
+  });
+
   // -------------------------------------------------------------------------
   it("keeps burg.port = lakeFeatureId when the outlet river exits the map", () => {
     // River 10's last cell is -1 (off-map), so resolveLakeDrainFeature returns null.
     worldContext.pack = {
       burgs: makeBurgs(),
       cells: { ...BASE_CELLS },
-      features: [null, { i: 1, type: "lake", cells: 3, outlet: 10 }, { i: 2, type: "ocean" }],
+      features: [null, { i: 1, type: "lake", cells: 12, outlet: 10 }, { i: 2, type: "ocean" }],
       vertices: BASE_VERTICES,
       rivers: [{ i: 10, cells: [4, -1] }] // -1 = exits map
     } as unknown as PackedGraph;
@@ -149,6 +165,37 @@ describe("BurgsModule.shift — open-lake port promotion", () => {
     const { burgs } = worldContext.pack;
     expect(burgs[1].port).toBe(1); // stays on lake, not promoted to ocean
     expect(burgs[2].port).toBe(1);
+  });
+
+  it("does not connect a lake port to the sea through an unnavigable outlet", () => {
+    const cells = {
+      ...BASE_CELLS,
+      f: [0, 0, 0, 0, 1, 0, 2],
+      r: [0, 0, 0, 0, 0, 10, 0],
+      fl: [0, 0, 0, 0, 0, 99, 0],
+      p: [
+        [0, 0],
+        [0, 5],
+        [10, 5],
+        [0, 0],
+        [5, 5],
+        [15, 5],
+        [20, 5]
+      ] as [number, number][],
+      v: [[], [0, 1], [2, 3], [], [], [], []]
+    };
+    worldContext.pack = {
+      burgs: makeBurgs(),
+      cells,
+      features: [null, { i: 1, type: "lake", cells: 12, outlet: 10 }, { i: 2, type: "ocean" }],
+      vertices: BASE_VERTICES,
+      rivers: [{ i: 10, cells: [4, 5, 6] }]
+    } as unknown as PackedGraph;
+
+    Burgs.shift();
+
+    expect(worldContext.pack.burgs[1].port).toBe(1);
+    expect(worldContext.pack.burgs[2].port).toBe(1);
   });
 
   // -------------------------------------------------------------------------
@@ -180,7 +227,7 @@ describe("BurgsModule.shift — open-lake port promotion", () => {
       cells,
       features: [
         null,
-        { i: 1, type: "lake", cells: 3, outlet: 10 }, // open lake
+        { i: 1, type: "lake", cells: 12, outlet: 10 }, // open lake
         { i: 2, type: "ocean" },
         { i: 3, type: "lake", cells: 2 } // closed downstream lake
       ],
@@ -206,7 +253,7 @@ describe("BurgsModule.shift — open-lake port promotion", () => {
     worldContext.pack = {
       burgs: makeBurgs(),
       cells,
-      features: [null, { i: 1, type: "lake", cells: 3, outlet: 10 }, { i: 2, type: "ocean" }],
+      features: [null, { i: 1, type: "lake", cells: 12, outlet: 10 }, { i: 2, type: "ocean" }],
       vertices: BASE_VERTICES,
       rivers: [{ i: 10, cells: [4, 5] }]
     } as unknown as PackedGraph;
@@ -227,7 +274,7 @@ describe("BurgsModule.shift — open-lake port promotion", () => {
         { i: 2, cell: 2, x: 10, y: 5, capital: 0 }
       ],
       cells: { ...BASE_CELLS },
-      features: [null, { i: 1, type: "lake", cells: 3, outlet: 10 }, { i: 2, type: "ocean" }],
+      features: [null, { i: 1, type: "lake", cells: 12, outlet: 10 }, { i: 2, type: "ocean" }],
       vertices: BASE_VERTICES,
       rivers: [{ i: 10, cells: [4, 5] }]
     } as unknown as PackedGraph;
@@ -236,7 +283,142 @@ describe("BurgsModule.shift — open-lake port promotion", () => {
 
     const { burgs } = worldContext.pack;
     expect(burgs[1].port).toBe(99); // locked — unchanged
-    expect(burgs[2].port).toBeUndefined(); // alone after locking → no port
+    expect(burgs[2].port).toBe(2); // the fixed lake port fills the second and final lake slot
+  });
+
+  it("limits a navigable lake to two formal ports", () => {
+    worldContext.pack = {
+      burgs: [
+        0 as unknown as Burg,
+        { i: 1, cell: 1, x: 0, y: 5, capital: 0 },
+        { i: 2, cell: 2, x: 10, y: 5, capital: 0 },
+        { i: 3, cell: 3, x: 20, y: 5, capital: 0 }
+      ],
+      cells: {
+        i: new Uint16Array(4000),
+        haven: [0, 4, 4, 4, 0],
+        harbor: [0, 1, 1, 1, 0],
+        f: [0, 0, 0, 0, 1],
+        g: [0, 0, 0, 0, 0],
+        r: [0, 0, 0, 0, 0],
+        fl: [0, 0, 0, 0, 0],
+        p: [
+          [0, 0],
+          [0, 5],
+          [10, 5],
+          [20, 5],
+          [10, 10]
+        ] as [number, number][],
+        v: [[], [0, 1], [2, 3], [4, 5], []]
+      },
+      features: [null, { i: 1, type: "lake", cells: 12 }],
+      vertices: {
+        c: [
+          [1, 4],
+          [1, 4],
+          [2, 4],
+          [2, 4],
+          [3, 4],
+          [3, 4]
+        ],
+        p: [
+          [5, 0],
+          [5, 10],
+          [10, 0],
+          [10, 10],
+          [15, 0],
+          [15, 10]
+        ] as [number, number][]
+      },
+      rivers: []
+    } as unknown as PackedGraph;
+
+    Burgs.shift();
+
+    const ports = worldContext.pack.burgs.filter(burg => burg.i && burg.port);
+    const nonPort = worldContext.pack.burgs.find(burg => burg.i && !burg.port);
+    expect(ports).toHaveLength(2);
+    expect(nonPort).toBeDefined();
+    if (!nonPort) throw new Error("A third lake-shore burg is required for this cap test");
+    expect(Burgs.developPort(nonPort)).toBe(false);
+  });
+
+  it("reserves representative ports for States on a large lake", () => {
+    worldContext.pack = {
+      burgs: [
+        0 as unknown as Burg,
+        { i: 1, cell: 1, x: 0, y: 5, capital: 0, state: 1 },
+        { i: 2, cell: 2, x: 10, y: 5, capital: 0, state: 1 },
+        { i: 3, cell: 3, x: 20, y: 5, capital: 0, state: 2 },
+        { i: 4, cell: 4, x: 30, y: 5, capital: 0, state: 3 }
+      ],
+      cells: {
+        i: new Uint16Array(4000),
+        haven: [0, 5, 5, 5, 5, 0],
+        harbor: [0, 1, 1, 1, 1, 0],
+        f: [0, 0, 0, 0, 0, 1],
+        g: [0, 0, 0, 0, 0, 0],
+        r: [0, 0, 0, 0, 0, 0],
+        fl: [0, 0, 0, 0, 0, 0],
+        p: [
+          [0, 0],
+          [0, 5],
+          [10, 5],
+          [20, 5],
+          [30, 5],
+          [15, 10]
+        ] as [number, number][],
+        v: [[], [0, 1], [2, 3], [4, 5], [6, 7], []]
+      },
+      features: [null, { i: 1, type: "lake", cells: 24, area: 100 }],
+      vertices: {
+        c: [
+          [1, 5],
+          [1, 5],
+          [2, 5],
+          [2, 5],
+          [3, 5],
+          [3, 5],
+          [4, 5],
+          [4, 5]
+        ],
+        p: [
+          [5, 0],
+          [5, 10],
+          [10, 0],
+          [10, 10],
+          [20, 0],
+          [20, 10],
+          [25, 0],
+          [25, 10]
+        ] as [number, number][]
+      },
+      rivers: []
+    } as unknown as PackedGraph;
+
+    Burgs.shift();
+
+    const portStates = worldContext.pack.burgs.filter(burg => burg.i && burg.port).map(burg => burg.state);
+    expect(portStates).toEqual([1, 2, 3]);
+  });
+
+  it("does not promote a formal port on a sandy coast", () => {
+    const cells = {
+      ...BASE_CELLS,
+      coastalHabitat: [0, getCoastalHabitatCode("sandyBeach"), getCoastalHabitatCode("sandyBeach"), 0, 0, 0]
+    };
+    worldContext.pack = {
+      burgs: makeBurgs(),
+      cells,
+      features: [null, { i: 1, type: "lake", cells: 12 }, { i: 2, type: "ocean" }],
+      vertices: BASE_VERTICES,
+      rivers: []
+    } as unknown as PackedGraph;
+
+    Burgs.shift();
+
+    expect(worldContext.pack.burgs[1].port).toBeUndefined();
+    expect(worldContext.pack.burgs[2].port).toBeUndefined();
   });
 
   // -------------------------------------------------------------------------

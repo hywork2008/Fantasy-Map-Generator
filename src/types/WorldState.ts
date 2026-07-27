@@ -98,7 +98,7 @@ export interface WorldOptions {
   /**
    * Land-route path cost model for roads/trails. Persisted like seaRouteGenerationMode
    * so regenerate/load can restore the algorithm that produced the network.
-   * Undefined on older saves: load-time rebuild uses "legacy" (see load.ts).
+   * Undefined on older saves / missing field: defaults to "elevationAware".
    */
   landRouteGenerationMode?: LandRouteGenerationMode;
   /**

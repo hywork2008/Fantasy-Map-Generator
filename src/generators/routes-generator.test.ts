@@ -4,7 +4,14 @@ import type { Grid } from "../types/Grid";
 import type { PackedGraph } from "../types/PackedGraph";
 import { findPath } from "../utils/pathUtils";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
-import { type LandRouteMode, landRouteElevationModifier, landRouteSlopeModifier, Routes } from "./routes-generator";
+import {
+  type LandRouteMode,
+  landRouteElevationModifier,
+  landRoutePeakMultiplier,
+  landRouteSlopeModifier,
+  landRouteTerrainMultiplier,
+  Routes
+} from "./routes-generator";
 
 type RoutesGraphInternals = {
   calculateUrquhartEdges(points: [number, number][]): number[][];
@@ -985,7 +992,7 @@ describe("land route elevation aversion (docs/plan/land-route-elevation-cost.md)
   it("landRouteElevationModifier is ~1 on low ground and larger on peaks", () => {
     expect(landRouteElevationModifier(25)).toBeCloseTo(1, 5);
     expect(landRouteElevationModifier(32)).toBeCloseTo(1, 5);
-    expect(landRouteElevationModifier(80)).toBeGreaterThan(2);
+    expect(landRouteElevationModifier(80)).toBeGreaterThan(1.5);
     expect(landRouteElevationModifier(80, 0.6)).toBeLessThan(landRouteElevationModifier(80, 1));
     expect(landRouteElevationModifier(80, 1, 0)).toBe(1);
     expect(landRouteElevationModifier(80, 1, 2)).toBeGreaterThan(landRouteElevationModifier(80, 1, 1));
@@ -994,8 +1001,17 @@ describe("land route elevation aversion (docs/plan/land-route-elevation-cost.md)
   it("landRouteSlopeModifier penalizes climbs only", () => {
     expect(landRouteSlopeModifier(40, 40)).toBe(1);
     expect(landRouteSlopeModifier(50, 30)).toBe(1);
-    expect(landRouteSlopeModifier(25, 55)).toBeGreaterThan(2);
+    expect(landRouteSlopeModifier(25, 55)).toBeGreaterThan(1.5);
     expect(landRouteSlopeModifier(25, 55, 1, 0)).toBe(1);
+  });
+
+  it("peak multiplier is 1 at/under the local-ridge threshold and large on 1000 m-class cells", () => {
+    expect(landRoutePeakMultiplier(43)).toBe(1);
+    // h=55 ≈665 m — acceptable local ridge (Nesia cell 5102).
+    expect(landRoutePeakMultiplier(55)).toBe(1);
+    // h=70 ≈1227 m — hard peak (Nesia cell 5271).
+    expect(landRoutePeakMultiplier(70)).toBeGreaterThan(20);
+    expect(landRouteTerrainMultiplier(43, 70)).toBeGreaterThan(landRouteTerrainMultiplier(43, 55) * 10);
   });
 
   it("prefers a longer lowland corridor over a short high ridge for elevationAware roads", () => {
@@ -1009,6 +1025,71 @@ describe("land route elevation aversion (docs/plan/land-route-elevation-cost.md)
     });
     const path = findPath(0, id => id === 2, getCost, worldContext.pack);
     expect(path).not.toBeNull();
+    expect(path).toEqual([0, 3, 4, 5, 2]);
+    expect(path).not.toContain(1);
+  });
+
+  it("prices a 665 m local ridge far below a 1227 m peak shortcut (Nesia Shafushahr–Sardan)", () => {
+    // Edge costs for: start→ridge→exit vs start→peak→exit (peak last hop is cheap).
+    setupHabitableBiomes();
+    worldContext.options = { landRouteElevationAversion: 1 } as typeof worldContext.options;
+    worldContext.pack = {
+      cells: {
+        h: [43, 55, 33, 70],
+        p: [
+          [0, 0],
+          [10, 0],
+          [20, 0],
+          [10, 3]
+        ],
+        c: [
+          [1, 3],
+          [0, 2],
+          [1, 3],
+          [0, 1, 2]
+        ],
+        biomeCode: [1, 1, 1, 1],
+        burg: [0, 0, 0, 0],
+        state: [1, 1, 1, 1],
+        f: [1, 1, 1, 1]
+      }
+    } as unknown as PackedGraph;
+    const getCost = routeInternals.createCostEvaluator({
+      isWater: false,
+      connections: new Map(),
+      landMode: "roads",
+      landRouteGenerationMode: "elevationAware"
+    });
+    // 0→1(h55)→2 vs 0→3(h70)→2 — peak must lose even though 3→2 is a short hop.
+    const viaRidge = getCost(0, 1) + getCost(1, 2);
+    const viaPeak = getCost(0, 3) + getCost(3, 2);
+    expect(viaRidge).toBeLessThan(viaPeak / 5);
+    const graph = {
+      cells: {
+        c: [
+          [1, 3],
+          [0, 2],
+          [1, 3],
+          [0, 1, 2]
+        ]
+      }
+    };
+    // Dijkstra must settle the exit by queue order (not first adjacency) so the cheap
+    // 3→2 hop after climbing 70 does not beat the moderate ridge.
+    expect(findPath(0, id => id === 2, getCost, graph)).toEqual([0, 1, 2]);
+  });
+
+  it("avoids a short 1227 m-class cell when a longer lowland corridor exists", () => {
+    // Direct 0-1-2 climbs h=70; lowland 0-3-4-5-2 stays low.
+    setupLowlandCorridorPack(70);
+    worldContext.options = { landRouteElevationAversion: 1 } as typeof worldContext.options;
+    const getCost = routeInternals.createCostEvaluator({
+      isWater: false,
+      connections: new Map(),
+      landMode: "roads",
+      landRouteGenerationMode: "elevationAware"
+    });
+    const path = findPath(0, id => id === 2, getCost, worldContext.pack);
     expect(path).toEqual([0, 3, 4, 5, 2]);
     expect(path).not.toContain(1);
   });

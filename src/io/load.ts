@@ -214,14 +214,14 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
     // Archives created before the generation-mode field was introduced have no
     // reliable indication of which algorithm produced their routes. Preserve
     // those routes verbatim instead of forcibly replacing them with augmented.
-    // When sea mode is present we rebuild; land mode falls back to "legacy" if
-    // missing so older archives do not silently switch to elevation-aware land costs.
+    // When sea mode is present we rebuild; land mode defaults to elevationAware
+    // when the archive has no landRouteGenerationMode field.
     if (seaRouteGenerationMode) {
       legacyMutation(() => {
         if (landRouteElevationAversion !== undefined) {
           worldContext.options.landRouteElevationAversion = landRouteElevationAversion;
         }
-        regenerateLoadedRoutes(seaRouteGenerationMode, landRouteGenerationMode ?? "legacy");
+        regenerateLoadedRoutes(seaRouteGenerationMode, landRouteGenerationMode ?? "elevationAware");
         return { result: undefined, topics: ["map.networks"] };
       });
     }
@@ -266,7 +266,7 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
  */
 function regenerateLoadedRoutes(
   seaRouteGenerationMode: SeaRouteGenerationMode,
-  landRouteGenerationMode: LandRouteGenerationMode = "legacy"
+  landRouteGenerationMode: LandRouteGenerationMode = "elevationAware"
 ): void {
   const lockedRoutes = worldContext.pack.routes
     .filter((route: Route) => route.lock)

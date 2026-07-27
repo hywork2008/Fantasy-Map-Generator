@@ -252,8 +252,8 @@ Options UI への公開は **必須ではない**（Phase 2 任意）。
 | 型 | `LandRouteGenerationMode = "legacy" \| "elevationAware"`（`src/types/models.ts`） |
 | 永続 | `WorldOptions.landRouteGenerationMode` |
 | UI | Tools → Regenerate routes 確認ダイアログ「Land route pathfinding」／Options → Generation「Land routes」 |
-| 配線 | `tools.ts` → `Routes.generate`；`load.ts` は sea モードあり時に再構築。land 未保存の旧アーカイブは **legacy** にフォールバック |
-| 既定（新規生成） | `elevationAware`（`useOptionsState.landRouteGenerationMode`） |
+| 配線 | `tools.ts` → `Routes.generate`；`load.ts` は sea モードあり時に再構築。land 未保存は **elevationAware** |
+| 既定（新規生成・未指定） | **`elevationAware`** |
 
 ### 生成オプション: elevation aversion 係数
 
@@ -262,7 +262,13 @@ Maria マップ検証: Doberedexau (h=32≈116m) → Zetaramizte (h=34≈147m) �
 
 **旧コストの問題**: 絶対標高×勾配の積が大きく、かつ `distanceSquared` の多段和が短い辺を有利にするため、5×近い谷回りが既定 aversion で勝ってしまうことがあった（距離も累積登りも悪化しうる遠回り）。
 
-**再チューニング**: elevationAware は **線形平面距離** + **柔らかい絶対標高** + **登り Δh** + **地形倍率 cap(8)**。既定 aversion=1 では Maria の中丘尾根ショートカットは距離優先で残り、真の高峰 (h≈80) はなお谷回りが勝つ。
+**再チューニング**: elevationAware は **線形平面距離** + **柔らかい絶対標高** + **登り Δh** + **uncapped 高峰ペナルティ**（`h > 55` から。h=55 ≈665 m の局所尾根は許容、h=70 ≈1227 m は強く回避）。
+
+**Nesia (Shafushahr–Sardan)**:
+- **望ましい**: `5100–5101–5102–5272`（5102 = h=55 ≈665 m）。`5100–5431–5432–5272` も同程度に妥当
+- **問題**: 余計な **5271**（h=70 ≈1227 m）を挟むこと（例: `5101–5271–5272`）
+- **根因**: `findPath` が出口隣接で即 return していたため、prefix が少し安い高峰 + 最後の安い下りが中丘尾根より先に確定し得た。加えて cost を Float32・priority を f64 のまま stale 判定すると elevation コストで経路が null になり得た
+- **修正**: 出口はキュー pop 時に確定；cost は Float64Array；高峰ペナルティは `h > 55`（665 m 許容、1227 m 回避）
 
 | 項目 | 内容 |
 | :--- | :--- |

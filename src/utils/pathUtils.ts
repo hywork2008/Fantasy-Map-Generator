@@ -335,27 +335,33 @@ export const findPath = (
 
   const numCells = packedGraph.cells.c.length;
   const from = new Int32Array(numCells);
-  const cost = new Float32Array(numCells).fill(Infinity);
+  // Float64 is required: priorities pushed to FlatQueue are f64, and a stale-entry
+  // check (currentCost > cost[current]) rejects every node if cost is Float32 and
+  // the rounded store is slightly below the f64 priority (routes generation then
+  // finds no land path at all under elevation-aware float costs).
+  const cost = new Float64Array(numCells).fill(Infinity);
   const queue = new FlatQueue<number>();
+  cost[start] = 0;
   queue.push(start, 0);
 
   while (queue.length) {
     const currentCost = queue.peekValue()!;
     const current = queue.pop()!;
+    // Stale queue entry (a cheaper path to `current` was found later).
+    if (currentCost > cost[current]) continue;
+
+    // Settle the exit only when it is dequeued — first proven minimum total cost.
+    // Early-return on the first adjacency to the exit (previous behaviour) can
+    // prefer a cheap last hop after an expensive climb (e.g. Nesia 5271 ≈1227 m)
+    // over a slightly longer moderate ridge (5102 ≈665 m). Sea-route haven rules
+    // still apply: illegal last hops remain Infinity in getCost.
+    if (isExit(current)) return restorePath(current, start, from);
 
     for (const next of packedGraph.cells.c[current]) {
-      const nextCost = getCost(current, next);
-      if (nextCost === Infinity) continue; // impassable cell
+      const edgeCost = getCost(current, next);
+      if (edgeCost === Infinity) continue; // impassable cell
 
-      // An exit still has to be reachable through a passable edge. This is
-      // important for sea routes: a port may only be entered from its haven.
-      if (isExit(next)) {
-        from[next] = current;
-        return restorePath(next, start, from);
-      }
-
-      const totalCost = currentCost + nextCost;
-
+      const totalCost = currentCost + edgeCost;
       if (totalCost >= cost[next]) continue; // has cheaper path
       from[next] = current;
       cost[next] = totalCost;
