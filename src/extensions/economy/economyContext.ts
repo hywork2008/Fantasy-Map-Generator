@@ -12,6 +12,7 @@ import type { BurgMarketLedger } from "./generators/burgMarketLedgers";
 import type { Good } from "./generators/goods-generator";
 import type { Caravan, Deal, Market } from "./generators/marketTypes";
 import type { MerchantOrganization } from "./generators/merchantOrganizations";
+import type { MilitaryResourceLedger } from "./generators/militaryResources";
 import type {
   MineOperation,
   MineralDeposit,
@@ -298,6 +299,13 @@ export function getMintLedgers(): MintLedger[] {
 }
 export function setMintLedgers(ledgers: readonly MintLedger[]): void {
   setSliceArray("mintLedgers", ledgers);
+}
+/** Per-state firepower demand and the market stock consumed to satisfy it. */
+export function getMilitaryResourceLedgers(): MilitaryResourceLedger[] {
+  return getSliceArray<MilitaryResourceLedger>("militaryResourceLedgers");
+}
+export function setMilitaryResourceLedgers(ledgers: readonly MilitaryResourceLedger[]): void {
+  setSliceArray("militaryResourceLedgers", ledgers);
 }
 
 /** Per-cell dominant good id, owned by the economy extension. */

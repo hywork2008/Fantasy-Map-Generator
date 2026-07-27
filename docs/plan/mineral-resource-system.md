@@ -2,7 +2,7 @@
 
 ## 状態
 
-Phase 3 まで実装済み。これは史実を厳密に再現する仕様ではない。地図生成時に
+Phase 4 の基礎まで実装済み。これは史実を厳密に再現する仕様ではない。地図生成時に
 「将来の発展・通貨・軍需を支えられる資源の下地」を作るため、一次・研究資料を
 参照しつつ、調整可能なゲーム用の初期値を定める文書である。
 
@@ -442,11 +442,26 @@ Sulfur / fuel が急増し、平時の市場価格と軍需調達が競合する
 
 目的: 近世化と資源争奪を表現する。
 
-1. Sulfur を追加し、Gunpowder の原料を Saltpeter + Sulfur + fuel に更新する。
-2. 火器・砲兵・弾薬から Iron / Bronze / Lead / Gunpowder の軍需を計算する。
-3. 探鉱、深部開発、揚水技術、道路・港の開通により、未発見鉱床を稼働可能にする。
-4. 鉱区の権利、租税、戦時徴発、外国投資を Nobility / Characters と疎結合なイベントで
-   接続する。
+実装済み:
+
+1. `Sulfur` と `Saltpeter + Sulfur + Coal -> Gunpowder` のレシピは Phase 0 で導入済みである。
+   火薬時代を無効にすると、火薬・砲兵 Good とともに軍需 Ledger も需要をゼロにする。
+2. State ごとの `MilitaryResourceLedger` を Economy 拡張状態に保存する。砲兵、および名称が
+   arquebus / musket / firearm / gunner を含む火器部隊から、年間の Iron / Lead / Gunpowder
+   需要を算出する。月次 cycle では代表市場の各在庫を最大 1/3 まで実際に消費するため、
+   軍拡は Iron だけでなく Lead と Gunpowder を競合させる。
+3. Ledger は火薬の材料換算として Saltpeter / Sulfur / Coal 需要も保持する。ただし原料は
+   火薬 Good のレシピが一度だけ消費する。Ledger が同じ原料在庫を再度減らすことはない。
+4. 初期稼働は river / route を持つ、到達性 0.50 以上の鉱床に限定する。`economy.mines.prospect`
+   Extension command は現時点の river / route 到達性を再評価し、到達性 0.35 以上の未発見鉱床を
+   開山する。深部鉱床は同時に排水 0.70、技術 1.10 へ改善される。道路・港の編集後にこの
+   command を呼ぶことで追加鉱区を稼働化できる。
+5. `militaryResourceLedgers` は Economy slice、旧 `.map` の mineral-resource slot、JSON export に
+   含める。市場在庫を消費するだけなので、既存の価格計算・生産・交易とそのまま連動する。
+
+この段階では、鉱区の法的権利、鉱山専用租税、戦時徴発、外国投資を Nobility / Characters の
+イベントへ接続していない。それらは MineOperation の国家帰属・契約・支払先を別途設計してから
+導入する（市場在庫を直接書き換えるイベントは追加しない）。
 
 検証:
 

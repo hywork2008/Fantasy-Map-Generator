@@ -19,6 +19,7 @@ import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, Goods, getDemandTargets, isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
 import type { Deal, Market } from "./marketTypes";
+import { MilitaryResources } from "./militaryResources";
 import { MineOperations } from "./mineOperations";
 import { isMineSuppliedGoodName } from "./mineralResources";
 import { Minting } from "./minting";
@@ -60,6 +61,7 @@ export class ProductionModule {
     Markets.collectRuralProduction();
     MineOperations.produceMonth();
     Minting.settleMonthly();
+    MilitaryResources.settleMonthly();
     Markets.initializeMarketPrices();
 
     const index = this.buildProductionIndex(getGoods().filter(isGoodEnabled));

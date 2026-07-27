@@ -101,4 +101,31 @@ describe("MineOperationsModule", () => {
     expect(getMineOperations()[0].active).toBe(false);
     expect(getMarkets()[0].goods[1].stock).toBe(stockAfterExhaustion);
   });
+
+  it("keeps low-accessibility deposits hidden initially, then opens them through prospecting", () => {
+    setMineralDeposits([
+      {
+        i: 1,
+        districtId: 1,
+        cell: 0,
+        type: "polymetallicVein",
+        primaryCommodity: "lead",
+        commodities: ["lead"],
+        yields: [{ commodity: "lead", reserveTons: 100, annualCapacityTons: 120 }],
+        richness: 1,
+        depth: "deep",
+        accessibility: 0.35,
+        discovered: false,
+        exhausted: false
+      }
+    ]);
+
+    MineOperations.generate();
+    const result = MineOperations.prospect();
+
+    expect(getMineOperations()).toHaveLength(1);
+    expect(result.discovered).toBe(1);
+    expect(getMineralDeposits()[0].discovered).toBe(true);
+    expect(getMineOperations()[0]).toMatchObject({ technology: 1.1, drainage: 0.7, fuelAccess: 0.7 });
+  });
 });

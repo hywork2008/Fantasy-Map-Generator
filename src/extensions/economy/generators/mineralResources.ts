@@ -312,7 +312,8 @@ export class MineralResourcesModule {
     const cells = getWorldContext().pack.cells;
     const hasRiver = Boolean(cells.r[cell]);
     const hasRoute = Boolean(cells.routes?.[cell] && Object.keys(cells.routes[cell]).length);
-    return Math.min(1, 0.35 + (hasRiver ? 0.15 : 0) + (hasRoute ? 0.25 : 0));
+    const hasHaven = Boolean(cells.haven?.[cell]);
+    return Math.min(1, 0.35 + (hasRiver ? 0.15 : 0) + (hasRoute ? 0.25 : 0) + (hasHaven ? 0.15 : 0));
   }
 
   private hash(seed: string, scope: string, value: string | number): number {

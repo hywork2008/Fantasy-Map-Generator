@@ -150,6 +150,21 @@ export class MarketsModule {
     return consumed;
   }
 
+  /**
+   * State armories may draw from a market, but retain two thirds of each stock
+   * for civilian workshops and trade. The caller records any shortage in its
+   * military-resource ledger.
+   */
+  consumeForMilitary(marketId: number, goodId: number, requestedUnits: number): number {
+    const market = this.get(marketId);
+    const marketGood = market?.goods[goodId];
+    if (!marketGood || requestedUnits <= 0) return 0;
+    const consumed = rn(Math.min(requestedUnits, marketGood.stock / 3), 4);
+    if (consumed <= 0) return 0;
+    marketGood.stock = rn(Math.max(0, marketGood.stock - consumed), 4);
+    return consumed;
+  }
+
   generate(regenerate: boolean = false): Market[] {
     TIME && console.time("generateMarkets");
     this.invalidateTradeRouteCache();

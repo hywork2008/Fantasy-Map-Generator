@@ -90,7 +90,8 @@ function getMineralResourcesData() {
     districts: array(pack.mineralDistricts),
     deposits: array(pack.mineralDeposits),
     operations: array(pack.mineOperations),
-    mintLedgers: array(pack.mintLedgers)
+    mintLedgers: array(pack.mintLedgers),
+    militaryResourceLedgers: array(pack.militaryResourceLedgers)
   };
 }
 

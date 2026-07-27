@@ -1169,7 +1169,8 @@ function restoreMineralResourceState(serialized: string | undefined): void {
     mineralDistricts: [],
     mineralDeposits: [],
     mineOperations: [],
-    mintLedgers: []
+    mintLedgers: [],
+    militaryResourceLedgers: []
   };
   if (!serialized) {
     Object.assign(pack, empty);
@@ -1190,6 +1191,7 @@ function restoreMineralResourceState(serialized: string | undefined): void {
     pack.mineralDeposits = Array.isArray(record.mineralDeposits) ? record.mineralDeposits : [];
     pack.mineOperations = Array.isArray(record.mineOperations) ? record.mineOperations : [];
     pack.mintLedgers = Array.isArray(record.mintLedgers) ? record.mintLedgers : [];
+    pack.militaryResourceLedgers = Array.isArray(record.militaryResourceLedgers) ? record.militaryResourceLedgers : [];
   } catch {
     Object.assign(pack, empty);
   }

@@ -25,6 +25,7 @@ import {
   getGoods,
   getMarketCellColumn,
   getMarkets,
+  getMilitaryResourceLedgers,
   getMintLedgers,
   getWorldContext,
   initEconomyContext,
@@ -44,6 +45,7 @@ import { type Good, Goods, getDefaultGoodTradeProfile, isGoodEnabled } from "./g
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
 import { Markets } from "./generators/markets-generator";
 import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
+import { MilitaryResources } from "./generators/militaryResources";
 import { MineOperations } from "./generators/mineOperations";
 import { MineralResources } from "./generators/mineralResources";
 import { Minting } from "./generators/minting";
@@ -248,6 +250,7 @@ let _unregisterMarketColorCommand: (() => void) | null = null;
 let _unregisterProductionSettlementCommand: (() => void) | null = null;
 let _unregisterRegenerateCommand: (() => void) | null = null;
 let _unregisterGunpowderRefreshCommand: (() => void) | null = null;
+let _unregisterMineProspectingCommand: (() => void) | null = null;
 let _unregisterClearCommand: (() => void) | null = null;
 let _unregisterTickSystem: (() => void) | null = null;
 
@@ -584,6 +587,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (value.target === "economy" || value.target === "markets") Markets.generate(true);
       if (value.target === "economy" || value.target === "minerals") MineOperations.generate();
       if (value.target === "economy" || value.target === "currency") Minting.generate();
+      if (value.target === "economy") MilitaryResources.generate();
       if (value.target === "economy") Taxes.defineTaxRates();
       if (value.target === "economy" || value.target === "production") {
         FoodProduction.generateQuarterlyLedger(0);
@@ -606,6 +610,17 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       return { changed: true };
     }
   });
+  _unregisterMineProspectingCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "mines.prospect",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) throw new Error("Economy must be enabled to prospect mines");
+      if (value !== undefined) throw new Error("economy.mines.prospect does not accept a payload");
+
+      const result = MineOperations.prospect();
+      return { changed: result.discovered > 0 || result.upgraded > 0, result };
+    }
+  });
   _unregisterClearCommand = api.registerExtensionCommand({
     extensionId: ECONOMY_EXTENSION_ID,
     name: "clear",
@@ -618,6 +633,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       MineOperations.clear();
       MineralResources.clear();
       Minting.clear();
+      MilitaryResources.clear();
       setGoods([]);
       setMarkets([]);
       setDeals([]);
@@ -638,6 +654,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
 function refreshEconomyForGunpowderEraData(): void {
   Goods.generate();
   Markets.generate(true);
+  MilitaryResources.generate();
   Production.produce();
   const caravans = getCaravans();
   if (caravans.length) {
@@ -792,6 +809,18 @@ export function init(api: ExtensionAPI): void {
       "Regenerate geological provinces, deposits, and their accessible mine operations without changing goods placement",
     onClick: () => {
       withRegenerateConfirmation("Mineral deposits", "regenerateMinerals", () => regenerate("minerals"));
+    }
+  });
+
+  api.registerAction({
+    id: "economy-prospect-mines",
+    extensionId: ECONOMY_EXTENSION_ID,
+    tab: "tools",
+    section: "regenerate",
+    label: "Prospect mines",
+    tooltip: "Re-evaluate road, river, and port access to discover deposits and improve deep-mine drainage",
+    onClick: () => {
+      api.dispatchExtensionCommand({ extensionId: ECONOMY_EXTENSION_ID, name: "mines.prospect", payload: undefined });
     }
   });
 
@@ -1004,6 +1033,7 @@ export function init(api: ExtensionAPI): void {
       Markets.generate();
       MineOperations.generate();
       Minting.generate();
+      MilitaryResources.generate();
       Taxes.defineTaxRates();
       FoodProduction.generateQuarterlyLedger(0);
       Production.produce();
@@ -1331,6 +1361,7 @@ export function init(api: ExtensionAPI): void {
     Taxes.defineTaxRates();
     Taxes.collectTaxes();
     if (!getMintLedgers().length && getMarkets().length) Minting.generate();
+    if (!getMilitaryResourceLedgers().length && getMarkets().length) MilitaryResources.generate();
     if (getMarkets().length) syncBurgMarketLedgers();
   });
 
@@ -1425,6 +1456,8 @@ export function cleanup(api: ExtensionAPI): void {
   _unregisterRegenerateCommand = null;
   _unregisterGunpowderRefreshCommand?.();
   _unregisterGunpowderRefreshCommand = null;
+  _unregisterMineProspectingCommand?.();
+  _unregisterMineProspectingCommand = null;
   _unregisterClearCommand?.();
   _unregisterClearCommand = null;
   _unregisterTickSystem?.();
