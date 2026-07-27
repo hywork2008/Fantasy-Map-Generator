@@ -43,6 +43,17 @@ function createWorld(): WorldContext {
           active: true
         }
       ],
+      mintLedgers: [
+        {
+          stateId: 1,
+          mintMarketId: 4,
+          currencyDemand: 10,
+          circulation: 60,
+          lastMintedValue: 0,
+          totalMintedValue: 12,
+          lastSeigniorage: 0
+        }
+      ],
       states: [
         { i: 0, name: "Neutrals" } as State,
         {
@@ -90,6 +101,7 @@ describe("extension state slice compatibility adapter", () => {
       { i: 1, type: "graniteTin", provinceId: 1, cell: 0, depositIds: [1], richness: 3 }
     ]);
     expect(simulation.extensions.economy?.mineOperations).toHaveLength(1);
+    expect(simulation.extensions.economy?.mintLedgers).toHaveLength(1);
     expect(simulation.extensions.nobility?.rulerIdByState).toEqual({ 1: 1 });
 
     const characters = [{ i: 2, name: "Bea" }];
@@ -122,6 +134,7 @@ describe("extension state slice compatibility adapter", () => {
     expect(Object.hasOwn(document.world.pack, "goods")).toBe(false);
     expect(Object.hasOwn(document.world.pack, "mineralDeposits")).toBe(false);
     expect(Object.hasOwn(document.world.pack, "mineOperations")).toBe(false);
+    expect(Object.hasOwn(document.world.pack, "mintLedgers")).toBe(false);
     expect(Object.hasOwn(document.world.pack.cells, "good")).toBe(false);
     expect(Object.hasOwn(document.world.pack.burgs[1], "production")).toBe(false);
     expect(Object.hasOwn(document.world.pack.states[1], "rulerId")).toBe(false);
@@ -137,6 +150,9 @@ describe("extension state slice compatibility adapter", () => {
     );
     expect((document.world.pack as unknown as Record<string, unknown>).mineOperations).toBe(
       document.simulation.extensions.economy?.mineOperations
+    );
+    expect((document.world.pack as unknown as Record<string, unknown>).mintLedgers).toBe(
+      document.simulation.extensions.economy?.mintLedgers
     );
     expect((document.world.pack.states[1] as unknown as Record<string, unknown>).rulerId).toBe(1);
   });

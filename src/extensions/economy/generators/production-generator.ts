@@ -21,6 +21,7 @@ import { Markets } from "./markets-generator";
 import type { Deal, Market } from "./marketTypes";
 import { MineOperations } from "./mineOperations";
 import { isMineSuppliedGoodName } from "./mineralResources";
+import { Minting } from "./minting";
 import { getModifiers, MAX_BONUS_PRODUCTION } from "./production-utils";
 import {
   getStrategicLaborProductivity,
@@ -58,6 +59,7 @@ export class ProductionModule {
 
     Markets.collectRuralProduction();
     MineOperations.produceMonth();
+    Minting.settleMonthly();
     Markets.initializeMarketPrices();
 
     const index = this.buildProductionIndex(getGoods().filter(isGoodEnabled));

@@ -25,6 +25,7 @@ import {
   getGoods,
   getMarketCellColumn,
   getMarkets,
+  getMintLedgers,
   getWorldContext,
   initEconomyContext,
   setBurgMarketLedgers,
@@ -45,6 +46,7 @@ import { Markets } from "./generators/markets-generator";
 import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
 import { MineOperations } from "./generators/mineOperations";
 import { MineralResources } from "./generators/mineralResources";
+import { Minting } from "./generators/minting";
 import { Production } from "./generators/production-generator";
 import { seedShipbuildingInitialStock } from "./generators/shipbuildingInitialStock";
 import { refreshStateEconomySummaries } from "./generators/stateEconomySummary";
@@ -278,7 +280,7 @@ interface AssignMarketCellsRequest {
   readonly assignments: readonly MarketCellAssignment[];
 }
 
-type EconomyRegenerationTarget = "economy" | "goods" | "markets" | "minerals" | "production";
+type EconomyRegenerationTarget = "economy" | "currency" | "goods" | "markets" | "minerals" | "production";
 
 function isAssignGoodToCellRequest(value: unknown): value is AssignGoodToCellRequest {
   if (!value || typeof value !== "object") return false;
@@ -344,6 +346,7 @@ function isEconomyRegenerationRequest(value: unknown): value is { readonly targe
   const target = (value as { target?: unknown }).target;
   return (
     target === "economy" ||
+    target === "currency" ||
     target === "goods" ||
     target === "markets" ||
     target === "minerals" ||
@@ -580,6 +583,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (value.target === "economy" || value.target === "goods") Goods.generate();
       if (value.target === "economy" || value.target === "markets") Markets.generate(true);
       if (value.target === "economy" || value.target === "minerals") MineOperations.generate();
+      if (value.target === "economy" || value.target === "currency") Minting.generate();
       if (value.target === "economy") Taxes.defineTaxRates();
       if (value.target === "economy" || value.target === "production") {
         FoodProduction.generateQuarterlyLedger(0);
@@ -613,6 +617,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       clearMarketManagers();
       MineOperations.clear();
       MineralResources.clear();
+      Minting.clear();
       setGoods([]);
       setMarkets([]);
       setDeals([]);
@@ -762,6 +767,18 @@ export function init(api: ExtensionAPI): void {
     tooltip: "Rebuild market territories, production, trade deals, and taxes from the current goods and markets",
     onClick: () => {
       withRegenerateConfirmation("Economy", "regenerateEconomy", () => regenerate("economy"));
+    }
+  });
+
+  api.registerAction({
+    id: "economy-regenerate-currency",
+    extensionId: ECONOMY_EXTENSION_ID,
+    tab: "tools",
+    section: "regenerate",
+    label: "Currency",
+    tooltip: "Rebuild state mint ledgers from current markets without changing mineral reserves",
+    onClick: () => {
+      withRegenerateConfirmation("Currency", "regenerateCurrency", () => regenerate("currency"));
     }
   });
 
@@ -986,6 +1003,7 @@ export function init(api: ExtensionAPI): void {
       Goods.generate();
       Markets.generate();
       MineOperations.generate();
+      Minting.generate();
       Taxes.defineTaxRates();
       FoodProduction.generateQuarterlyLedger(0);
       Production.produce();
@@ -1312,6 +1330,7 @@ export function init(api: ExtensionAPI): void {
     // Both calls are idempotent/cheap, so re-running them on every load is safe.
     Taxes.defineTaxRates();
     Taxes.collectTaxes();
+    if (!getMintLedgers().length && getMarkets().length) Minting.generate();
     if (getMarkets().length) syncBurgMarketLedgers();
   });
 

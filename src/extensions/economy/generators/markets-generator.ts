@@ -135,6 +135,21 @@ export class MarketsModule {
     return supplied;
   }
 
+  /**
+   * Removes no more than one fifth of a metal's local stock for state minting.
+   * The cap leaves a market reserve for private trade and production; the caller
+   * records the resulting currency in its own ledger rather than creating Coins Good stock.
+   */
+  consumeForMint(marketId: number, goodId: number, requestedUnits: number): number {
+    const market = this.get(marketId);
+    const marketGood = market?.goods[goodId];
+    if (!marketGood || requestedUnits <= 0) return 0;
+    const consumed = rn(Math.min(requestedUnits, marketGood.stock * 0.2), 4);
+    if (consumed <= 0) return 0;
+    marketGood.stock = rn(Math.max(0, marketGood.stock - consumed), 4);
+    return consumed;
+  }
+
   generate(regenerate: boolean = false): Market[] {
     TIME && console.time("generateMarkets");
     this.invalidateTradeRouteCache();

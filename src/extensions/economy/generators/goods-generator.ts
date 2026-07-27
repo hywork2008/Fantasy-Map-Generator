@@ -966,17 +966,15 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Coins",
-    tags: ["currency"],
+    // Currency stock is owned by MintLedger. This Good represents exchange and mint services,
+    // not a second physical supply of coins that would duplicate Gold/Silver/Copper value.
+    tags: ["currency", "service"],
     icon: "good-coins",
     color: "#ffd700",
     value: 45,
     chance: 0,
-    recipes: [
-      { Gold: 0.5, Coal: 1 },
-      { Silver: 1, Coal: 1 }
-    ],
-    unit: "bag",
-    demandCoverage: { luxury: 1 }
+    unit: "service",
+    demandCoverage: { utilities: 0.25 }
   },
   {
     name: "Jewelry",

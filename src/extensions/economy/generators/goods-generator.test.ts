@@ -118,6 +118,14 @@ describe("GoodsModule", () => {
     );
   });
 
+  it("treats Coins as a minting service rather than a second metal-consuming commodity", () => {
+    goodsModule.restoreDefaults();
+
+    const coins = getGoods().find(good => good.name === "Coins");
+    expect(coins?.tags).toEqual(expect.arrayContaining(["currency", "service"]));
+    expect(coins?.recipes).toBeUndefined();
+  });
+
   it("adds biome-extension goods while retaining tag-based forest production", () => {
     goodsModule.restoreDefaults();
 

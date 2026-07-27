@@ -49,6 +49,7 @@ export const EXTENSION_SLICE_DEFINITIONS: readonly ExtensionSliceDefinition[] = 
   { extensionId: "economy", legacyTarget: "pack", legacyField: "mineralDistricts", defaultValue: () => [] },
   { extensionId: "economy", legacyTarget: "pack", legacyField: "mineralDeposits", defaultValue: () => [] },
   { extensionId: "economy", legacyTarget: "pack", legacyField: "mineOperations", defaultValue: () => [] },
+  { extensionId: "economy", legacyTarget: "pack", legacyField: "mintLedgers", defaultValue: () => [] },
   { extensionId: "economy", legacyTarget: "cells", legacyField: "good", defaultValue: () => new Uint16Array() },
   { extensionId: "economy", legacyTarget: "cells", legacyField: "market", defaultValue: () => new Uint16Array() }
 ];
@@ -143,7 +144,8 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
     "mineralGeologicalProvinces",
     "mineralDistricts",
     "mineralDeposits",
-    "mineOperations"
+    "mineOperations",
+    "mintLedgers"
   ]) {
     assertOptionalArrayField(slice, field, "economy");
   }

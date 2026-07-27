@@ -18,6 +18,7 @@ import type {
   MineralDistrict,
   MineralGeologicalProvince
 } from "./generators/mineralResources";
+import type { MintLedger } from "./generators/minting";
 import type { ProductionRecord } from "./generators/production-generator";
 import type { LaborMarket } from "./generators/strategicLaborMarkets";
 import type { ProcurementOrder } from "./generators/strategicProcurement";
@@ -291,6 +292,12 @@ export function getMineOperations(): MineOperation[] {
 }
 export function setMineOperations(operations: readonly MineOperation[]): void {
   setSliceArray("mineOperations", operations);
+}
+export function getMintLedgers(): MintLedger[] {
+  return getSliceArray<MintLedger>("mintLedgers");
+}
+export function setMintLedgers(ledgers: readonly MintLedger[]): void {
+  setSliceArray("mintLedgers", ledgers);
 }
 
 /** Per-cell dominant good id, owned by the economy extension. */
