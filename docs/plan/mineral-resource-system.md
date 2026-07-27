@@ -315,13 +315,17 @@ Sulfur / fuel が急増し、平時の市場価格と軍需調達が競合する
 
 目的: 現行の Good セル配置と生産量を可視化し、新モデルの基準を作る。
 
-1. Economy の Goods Overview に、金属 Good のセル数・市場別産出・人口 1,000 人当たり
-   の供給を表示する。
-2. `Lead` Good と `good-lead` SVG symbol を追加する。ただしこの段階では従来どおり
-   Good セル配置でよい。
-3. Gunpowder のレシピに Sulfur を追加するため、Sulfur Good の候補と時代ゲートを定義する。
-4. `mines` Marker の説明文に「物語用 Marker。資源鉱床ではない」ことを明記するか、
-   資源機能との接続まで生成を停止する。
+実装済み:
+
+1. Economy の Goods Editor に、各 Good のセル数と実人口 1,000 人あたりの生産を表示する。
+   生産・在庫の tooltip には市場圏別産出と市場在庫も表示する。いずれも既存 Economy
+   の抽象単位であり、物理的な鉱量・年産トンではない。
+2. `Lead` Good と `good-lead` SVG symbol を追加した。ただし従来どおり Good セル配置であり、
+   鉱床・埋蔵量ではない。
+3. `Sulfur` Good と `good-sulfur` SVG symbol を追加し、Gunpowder を Saltpeter + Sulfur +
+   Coal のレシピに変更した。Sulfur / Gunpowder / Artillery は火薬時代外では無効化する。
+4. `mines` Marker の説明文に、物語用 Marker で Economy の Goods・鉱床・生産と未接続で
+   あることを明記した。
 
 検証:
 

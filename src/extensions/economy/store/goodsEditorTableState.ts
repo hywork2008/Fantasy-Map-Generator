@@ -14,6 +14,8 @@ export interface GoodTableRow {
   producedTip: string;
   stock: number;
   stockTip: string;
+  resourceCells: number;
+  productionPerThousand: number;
   basePrice: number;
   isDisplayed: boolean;
   isTagVisible: boolean;

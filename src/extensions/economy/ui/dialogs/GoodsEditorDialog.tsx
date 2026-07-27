@@ -87,6 +87,8 @@ export const GoodsEditorDialog: React.FC = () => {
                   <col />
                   <col />
                   <col />
+                  <col />
+                  <col />
                 </>
               )}
             </colgroup>
@@ -162,6 +164,24 @@ export const GoodsEditorDialog: React.FC = () => {
                       tip="Total units in stock across all markets and burg inventories. Click to sort"
                     />
                     <SortableHeader
+                      field="resourceCells"
+                      label="Cells"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={toggleSortBy}
+                      numeric
+                      tip="Cells assigned as this good's current resource location. These are not mineral reserves"
+                    />
+                    <SortableHeader
+                      field="productionPerThousand"
+                      label="/1k"
+                      sortBy={sortBy}
+                      sortOrder={sortOrder}
+                      onSort={toggleSortBy}
+                      numeric
+                      tip="Production units per 1,000 actual residents; an initial supply diagnostic, not tonnes"
+                    />
+                    <SortableHeader
                       field="baseprice"
                       label="Price"
                       sortBy={sortBy}
@@ -196,6 +216,8 @@ export const GoodsEditorDialog: React.FC = () => {
                     data-baseprice={good.basePrice}
                     data-produced={good.produced}
                     data-stock={good.stock}
+                    data-resource-cells={good.resourceCells}
+                    data-production-per-thousand={good.productionPerThousand}
                     data-type={good.types.join(",")}
                     data-tags={good.tags.join(",")}
                     onClick={() => handleGoodRowClick(good.i)}
@@ -256,6 +278,18 @@ export const GoodsEditorDialog: React.FC = () => {
                         >
                           <div className="d-inline-block">{displayedStock}</div>
                           <div className="d-inline-block">⛁</div>
+                        </td>
+                        <td
+                          data-tip="Current assigned resource cells. In Phase 0, this is a placement count, not a mineral deposit or reserve count"
+                          className="goodResourceCells"
+                        >
+                          {good.resourceCells}
+                        </td>
+                        <td
+                          data-tip="Current production per 1,000 actual residents. This is a diagnostic based on Economy units, not physical tonnes"
+                          className="goodProductionPerThousand"
+                        >
+                          {good.productionPerThousand}
                         </td>
                         <td
                           data-tip="Base (initial) price. Click to compare prices across markets"

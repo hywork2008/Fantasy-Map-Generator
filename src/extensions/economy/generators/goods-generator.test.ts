@@ -10,7 +10,7 @@ import {
   setGoodCellColumn,
   setGoods
 } from "../economyContext";
-import { GoodsModule } from "./goods-generator";
+import { GoodsModule, isGoodEnabled } from "./goods-generator";
 
 describe("GoodsModule", () => {
   let goodsModule: GoodsModule;
@@ -95,6 +95,27 @@ describe("GoodsModule", () => {
     expect(getGoods().every(good => good.trade)).toBe(true);
     expect(getGoods().find(good => good.name === "Gold")?.trade?.distancePremium).toBe(3);
     expect(getGoods().find(good => good.name === "Fish")?.trade?.timeValueTrend).toBe(-2);
+  });
+
+  it("includes lead and gunpowder-era sulfur in the default mineral supply chain", () => {
+    goodsModule.restoreDefaults();
+
+    const byName = new Map(getGoods().map(good => [good.name, good]));
+    const lead = byName.get("Lead");
+    const sulfur = byName.get("Sulfur");
+    const gunpowder = byName.get("Gunpowder");
+
+    expect(lead?.tags).toContain("ore");
+    expect(lead?.trade).toBeDefined();
+    expect(sulfur?.tags).toEqual(expect.arrayContaining(["mineral", "military"]));
+    expect(sulfur?.trade).toBeDefined();
+    expect(gunpowder?.recipes).toContainEqual(
+      expect.objectContaining({
+        [byName.get("Saltpeter")!.i]: 0.5,
+        [sulfur!.i]: 0.25,
+        [byName.get("Coal")!.i]: 0.5
+      })
+    );
   });
 
   it("adds biome-extension goods while retaining tag-based forest production", () => {
@@ -184,6 +205,7 @@ describe("GoodsModule", () => {
     goodsModule.generate({ randomSeed: 123 });
 
     expect(Array.from(getGoodCellColumn())).toEqual([0, 0, 0, 0]);
+    expect(isGoodEnabled({ name: "Sulfur" })).toBe(false);
   });
 
   it("assigns a biome-compatible product to a newly promoted settlement without replacing a deposit", () => {

@@ -67,6 +67,15 @@ describe("goodsEditorAddLines", () => {
     });
   });
 
+  it("exposes placement and per-capita production diagnostics for goods", () => {
+    goodsEditorAddLines();
+
+    expect(getGoodsEditorTableState().goods[0]).toMatchObject({
+      resourceCells: 0,
+      productionPerThousand: 0
+    });
+  });
+
   it("keeps the map selection empty after the default Wood selection is disabled", () => {
     expect(getDisplayedGoodIds()).toEqual(new Set([1]));
 

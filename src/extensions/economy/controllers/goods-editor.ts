@@ -7,6 +7,7 @@ import {
   getDeals,
   getGoodCellColumn,
   getGoods,
+  getMarketCellColumn,
   getMarkets,
   getViewContext,
   getWorldContext
@@ -33,6 +34,8 @@ const worldContext = () => getWorldContext();
 
 const visibleTags = new Set<string>();
 let cellsWasForced = false;
+
+type GoodProduction = { burg: number; cell: number; market: Record<number, number> };
 
 function refreshEditor(): void {
   goodsEditorAddLines();
@@ -67,15 +70,25 @@ export function goodsEditorAddLines(): void {
   const { isAssignMode, selectedAssignGoodId } = getGoodsEditorTableState();
   const production = getProduction();
   const stockData = getAllStockData();
+  const cellsByGood = getCellsByGood();
+  const totalPopulation = getTotalPopulation();
 
   const enabledGoods = getGoods().filter(isGoodEnabled);
   const goods = enabledGoods.map(good => {
     const types = [good.recipes && "MFG", good.distribution && "RAW"].filter(Boolean) as string[];
-    const goodProduction = production[good.i] ?? { burg: 0, cell: 0 };
+    const goodProduction = production[good.i] ?? { burg: 0, cell: 0, market: {} };
     const produced = rn(goodProduction.burg + goodProduction.cell);
     const stock = rn(stockData[good.i]?.total ?? 0);
-    const producedTip = `Total good production: ${produced}⚒. Cells: ${rn(goodProduction.cell, 2)}⚒. Burgs: ${rn(goodProduction.burg, 2)}⚒`;
-    const stockTip = `Total stock in all markets and burg inventories: ${stock} units`;
+    const marketProduction = rn(Object.values(goodProduction.market).reduce((sum, amount) => sum + amount, 0));
+    const marketsProducing = Object.values(goodProduction.market).filter(amount => amount > 0).length;
+    const marketStock = rn(
+      (stockData[good.i]?.sources ?? [])
+        .filter(source => source.type === "market")
+        .reduce((sum, source) => sum + source.stock, 0)
+    );
+    const marketsStocking = (stockData[good.i]?.sources ?? []).filter(source => source.type === "market").length;
+    const producedTip = `Total good production: ${produced}⚒. Cells: ${rn(goodProduction.cell, 2)}⚒. Burgs: ${rn(goodProduction.burg, 2)}⚒. Market territories: ${marketProduction}⚒ across ${marketsProducing} markets`;
+    const stockTip = `Total stock in all markets and burg inventories: ${stock} units. Markets: ${marketStock} units across ${marketsStocking} markets`;
     const isTagVisible = visibleTags.size === 0 || (good.tags?.some(tag => visibleTags.has(tag)) ?? false);
 
     return {
@@ -92,6 +105,8 @@ export function goodsEditorAddLines(): void {
       producedTip,
       stock,
       stockTip,
+      resourceCells: cellsByGood[good.i] ?? 0,
+      productionPerThousand: rn(totalPopulation > 0 ? (produced / totalPopulation) * 1000 : 0, 2),
       basePrice: good.value,
       isDisplayed: getDisplayedGoodIds().has(good.i),
       isTagVisible
@@ -112,6 +127,8 @@ export function goodsEditorAddLines(): void {
     else if (sortBy === "type") cmp = a.types.join(",").localeCompare(b.types.join(","));
     else if (sortBy === "produced") cmp = a.produced - b.produced;
     else if (sortBy === "stock") cmp = a.stock - b.stock;
+    else if (sortBy === "resourceCells") cmp = a.resourceCells - b.resourceCells;
+    else if (sortBy === "productionPerThousand") cmp = a.productionPerThousand - b.productionPerThousand;
     else if (sortBy === "baseprice") cmp = a.basePrice - b.basePrice;
 
     return sortOrder === "asc" ? cmp : -cmp;
@@ -145,6 +162,8 @@ export function toggleSortBy(column: string): void {
     else if (state.sortBy === "type") cmp = a.types.join(",").localeCompare(b.types.join(","));
     else if (state.sortBy === "produced") cmp = a.produced - b.produced;
     else if (state.sortBy === "stock") cmp = a.stock - b.stock;
+    else if (state.sortBy === "resourceCells") cmp = a.resourceCells - b.resourceCells;
+    else if (state.sortBy === "productionPerThousand") cmp = a.productionPerThousand - b.productionPerThousand;
     else if (state.sortBy === "baseprice") cmp = a.basePrice - b.basePrice;
 
     return state.sortOrder === "asc" ? cmp : -cmp;
@@ -262,18 +281,20 @@ export function openStockDialog(goodId: number): void {
   });
 }
 
-function getProduction(): Record<number, { burg: number; cell: number }> {
-  const production: Record<number, { burg: number; cell: number }> = {};
-  const addProduction = (goodId: number, amount: number, type: "burg" | "cell") => {
-    if (!production[goodId]) production[goodId] = { burg: 0, cell: 0 };
+function getProduction(): Record<number, GoodProduction> {
+  const production: Record<number, GoodProduction> = {};
+  const addProduction = (goodId: number, amount: number, type: "burg" | "cell", marketId?: number) => {
+    if (!production[goodId]) production[goodId] = { burg: 0, cell: 0, market: {} };
     production[goodId][type] += amount;
+    if (marketId) production[goodId].market[marketId] = (production[goodId].market[marketId] ?? 0) + amount;
   };
 
   const productionByBiome = Goods.getBiomesProduction();
+  const marketCells = getMarketCellColumn();
   for (const cellId of worldContext().pack.cells.i) {
     const produced = getCellProduction(cellId, productionByBiome);
     for (const goodId in produced) {
-      addProduction(Number(goodId), produced[goodId] || 0, "cell");
+      addProduction(Number(goodId), produced[goodId] || 0, "cell", marketCells[cellId]);
     }
   }
 
@@ -281,11 +302,30 @@ function getProduction(): Record<number, { burg: number; cell: number }> {
     if (!burg || burg.removed || !getBurgProductionRecords(burg).length) continue;
     const produced = Production.getBurgProduction(burg);
     for (const goodId in produced) {
-      addProduction(Number(goodId), produced[goodId] || 0, "burg");
+      addProduction(Number(goodId), produced[goodId] || 0, "burg", burg.market);
     }
   }
 
   return production;
+}
+
+function getCellsByGood(): Record<number, number> {
+  const cellsByGood: Record<number, number> = {};
+  for (const goodId of getGoodCellColumn()) {
+    if (goodId) cellsByGood[goodId] = (cellsByGood[goodId] ?? 0) + 1;
+  }
+  return cellsByGood;
+}
+
+function getTotalPopulation(): number {
+  const { pack, populationRate, urbanization } = worldContext();
+  const rate = populationRate || 1;
+  const urbanScale = rate * (urbanization || 1);
+  let ruralPoints = 0;
+  for (const cellId of pack.cells.i) ruralPoints += pack.cells.pop[cellId] ?? 0;
+  const rural = ruralPoints * rate;
+  const urban = pack.burgs.reduce((sum, burg) => sum + (burg?.removed ? 0 : (burg?.population ?? 0)), 0) * urbanScale;
+  return rural + urban;
 }
 
 export function openTagsVisibilityDialog(): void {
@@ -388,10 +428,7 @@ function exitResourceAssignMode(close?: string): void {
 }
 
 export function downloadGoodsData(): void {
-  const cellsByGood: Record<number, number> = {};
-  for (const goodId of getGoodCellColumn()) {
-    if (goodId) cellsByGood[goodId] = (cellsByGood[goodId] || 0) + 1;
-  }
+  const cellsByGood = getCellsByGood();
 
   const production = getProduction();
   const stockData = getAllStockData();

@@ -97,7 +97,7 @@ export function getDemandTargets(population: number): number[] {
   return DEMAND_PRIORITY.map(category => population * DEMAND_TARGET_FACTORS[category]);
 }
 
-const GUNPOWDER_ERA_GOODS = new Set(["gunpowder", "artillery"]);
+const GUNPOWDER_ERA_GOODS = new Set(["sulfur", "gunpowder", "artillery"]);
 
 /** Returns whether a good is available under the current world's era settings. */
 export function isGoodEnabled(good: Pick<Good, "name">): boolean {
@@ -189,6 +189,19 @@ export const GOODS_DATA: GoodData[] = [
     chance: 2,
     distribution: "minHeight(60) || (minHeight(30) && elevation())",
     unit: "wagon",
+    multipliers: { cultureType: { Highland: 1.4 } }
+  },
+  {
+    name: "Lead",
+    warEconomyType: "strategic",
+    tags: ["ore", "military", "construction"],
+    icon: "good-lead",
+    color: "#6f7285",
+    value: 3,
+    chance: 2,
+    distribution: "minHeight(50) || (minHeight(30) && elevation() && nth(3))",
+    unit: "wagon",
+    demandCoverage: { construction: 0.3 },
     multipliers: { cultureType: { Highland: 1.4 } }
   },
   {
@@ -536,6 +549,18 @@ export const GOODS_DATA: GoodData[] = [
     demandCoverage: { utilities: 0.4, military: 0.1 },
     multipliers: { cultureType: { Hunting: 1.2 } },
     recipes: [{ Wood: 1 }, { Resin: 0.75 }]
+  },
+  {
+    name: "Sulfur",
+    warEconomyType: "strategic",
+    tags: ["mineral", "military"],
+    icon: "good-sulfur",
+    color: "#e4d64b",
+    value: 5,
+    chance: 1,
+    distribution: "minHeight(65) && random(25)",
+    unit: "barrel",
+    demandCoverage: {}
   },
   {
     name: "Saltpeter",
@@ -920,7 +945,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#b0c4de",
     value: 12,
     chance: 0,
-    recipes: [{ Saltpeter: 0.5, Coal: 0.5 }],
+    recipes: [{ Saltpeter: 0.5, Sulfur: 0.25, Coal: 0.5 }],
     unit: "barrel",
     demandCoverage: { military: 2 }
   },
@@ -1189,6 +1214,7 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Iron: tradeProfile(5, 4, 3, 1, 0, 5, 2),
   Copper: tradeProfile(5, 4, 3, 1, 0, 5, 2),
   Tin: tradeProfile(4, 3, 4, 2, 0, 5, 2),
+  Lead: tradeProfile(5, 4, 3, 1, 0, 5, 2),
   Silver: tradeProfile(2, 1, 4, 2, 0, 5, 2),
   Gold: tradeProfile(2, 1, 5, 3, 0, 5, 2),
   Grain: tradeProfile(4, 4, 1, -1, -1, 2, 3),
@@ -1215,6 +1241,7 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Sheep: tradeProfile(5, 5, 2, 0, -2, 1, 5),
   Slaves: tradeProfile(5, 5, 3, 1, -2, 1, 5),
   Tar: tradeProfile(4, 3, 2, 0, 0, 4, 2),
+  Sulfur: tradeProfile(3, 3, 4, 2, 0, 4, 2),
   Saltpeter: tradeProfile(3, 3, 4, 2, 0, 4, 2),
   Coal: tradeProfile(5, 4, 2, 0, 0, 5, 2),
   Oil: tradeProfile(3, 3, 2, 1, 0, 4, 2),
