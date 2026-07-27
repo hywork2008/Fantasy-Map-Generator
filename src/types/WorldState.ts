@@ -1,5 +1,6 @@
 import type { PackedGraph } from "../types/PackedGraph";
 import type { BiomeCode, BiomeDefinition, BiomeKey, BiomeTag } from "./biome";
+import type { BiomeRegionProfile } from "./biomeRegion";
 import type { Grid } from "./Grid";
 import type { BurgGroup, MilitaryUnit, NameBase, SeaRouteGenerationMode } from "./models";
 
@@ -84,6 +85,11 @@ export interface WorldOptions {
    * expansion normalize this to "standard" during archive migration.
    */
   initialSettlementPattern: InitialSettlementPattern;
+  /**
+   * Biome regional profile: adjusts auto-assignment rates and continuous masks
+   * (great forests, heath mosaics, mediterranean scrub, etc.). Default global.
+   */
+  biomeRegionProfile?: BiomeRegionProfile;
   /**
    * Sea-route topology selected for this map. Persisted so loading a saved map
    * does not replace a user-selected legacy network with the augmented one.

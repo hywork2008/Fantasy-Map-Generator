@@ -172,6 +172,7 @@ const options = {
   showBurgPreview: true,
   // Phase 0 compatibility baseline. Phase 1 makes this drive settlement placement.
   initialSettlementPattern: "standard" as const,
+  biomeRegionProfile: "global" as const,
   burgs: {
     groups: (safeParseJSON(localStorage.getItem("burg-groups") ?? "") as BurgGroup[] | null) || Burgs.getDefaultGroups()
   }
@@ -934,6 +935,7 @@ async function runGeneratePipeline(request: GenerateRequest): Promise<void> {
   worldContext.options.gunpowderEraEnabled = useOptionsState.getState().gunpowderEraEnabled;
   worldContext.options.conflictAutonomy = normalizeConflictAutonomy(useOptionsState.getState().conflictAutonomy);
   worldContext.options.initialSettlementPattern = useOptionsState.getState().initialSettlementPattern;
+  worldContext.options.biomeRegionProfile = useOptionsState.getState().biomeRegionProfile;
 
   if (
     shouldRegenerateGrid(worldContext.grid, +(precreatedSeed ?? 0), worldContext.graphWidth, worldContext.graphHeight)

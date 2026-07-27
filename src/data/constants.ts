@@ -118,7 +118,97 @@ export const BiomeConstants = {
   WETLAND_INLAND_HEIGHT_MIN: 24,
 
   /** Maximum height for an inland wetland cell. */
-  WETLAND_INLAND_HEIGHT_MAX: 60
+  WETLAND_INLAND_HEIGHT_MAX: 60,
+
+  // ── Phase 3 assignment thresholds (playtest-tunable) ──────────────────────
+
+  /** Absolute cold floor for perennial snow/ice regardless of elevation. */
+  GLACIER_ABS_TEMP: -8,
+
+  /** High peaks can hold perennial snow when summer-mean proxy is this cold. */
+  GLACIER_HIGH_PEAK_TEMP: -1,
+
+  /** Minimum height for high-peak perennial ice when temp is low. */
+  GLACIER_HIGH_PEAK_HEIGHT: 78,
+
+  /** Extreme height: perennial ice even with mildly cold summers. */
+  GLACIER_EXTREME_HEIGHT: 88,
+
+  /** Base height of the treeline at 0°C; rises with warmer temperatures. */
+  TREELINE_BASE_HEIGHT: 52,
+
+  /** Degrees °C → height units added to treeline. */
+  TREELINE_TEMP_SCALE: 0.9,
+
+  /** Minimum height for montane forest (below treeline). */
+  MONTANE_MIN_HEIGHT: 48,
+
+  /** Mangrove: minimum temperature (°C). */
+  MANGROVE_MIN_TEMP: 20,
+
+  /** Mangrove: minimum moisture. */
+  MANGROVE_MIN_MOISTURE: 22,
+
+  /** Mangrove: maximum land height. */
+  MANGROVE_MAX_HEIGHT: 26,
+
+  /** Flooded forest: minimum river flux. */
+  FLOODED_FOREST_MIN_FLUX: 40,
+
+  /** Flooded forest: minimum moisture. */
+  FLOODED_FOREST_MIN_MOISTURE: 20,
+
+  /** Flooded forest: minimum temperature. */
+  FLOODED_FOREST_MIN_TEMP: 8,
+
+  /** Cloud forest: minimum height, tropical moisture. */
+  CLOUD_FOREST_MIN_HEIGHT: 50,
+
+  /** Cloud forest: minimum temperature (still warm). */
+  CLOUD_FOREST_MIN_TEMP: 14,
+
+  /** Cloud forest: minimum moisture. */
+  CLOUD_FOREST_MIN_MOISTURE: 28,
+
+  /** Mediterranean: temperature band. */
+  MED_MIN_TEMP: 12,
+  MED_MAX_TEMP: 24,
+
+  /** Mediterranean: moisture band (summer-dry proxy). */
+  MED_MIN_MOISTURE: 8,
+  MED_MAX_MOISTURE: 18,
+
+  /** Temperate coniferous: temperature band. */
+  TEMP_CONIFER_MIN_TEMP: 0,
+  TEMP_CONIFER_MAX_TEMP: 12,
+
+  /** Temperate coniferous: minimum moisture. */
+  TEMP_CONIFER_MIN_MOISTURE: 14,
+
+  /** Xeric shrubland: moisture / temp bands between desert and grassland. */
+  XERIC_MAX_MOISTURE: 14,
+  XERIC_MIN_MOISTURE: 7,
+  XERIC_MIN_TEMP: 8,
+  XERIC_MAX_TEMP: 30,
+
+  /** Heath / moorland: cool open wetland-edge. */
+  HEATH_MAX_TEMP: 12,
+  HEATH_MIN_TEMP: 0,
+  HEATH_MIN_MOISTURE: 16,
+  HEATH_MAX_HEIGHT: 45,
+
+  /** Great forest candidate: temperate moist lowland/hill band. */
+  GREAT_FOREST_MIN_TEMP: 4,
+  GREAT_FOREST_MAX_TEMP: 16,
+  GREAT_FOREST_MIN_MOISTURE: 14,
+  GREAT_FOREST_MAX_HEIGHT: 55,
+
+  /** Target sandy beach share of coastline length for the global profile. */
+  SANDY_BEACH_TARGET_MIN: 0.25,
+  SANDY_BEACH_TARGET_MAX: 0.35,
+
+  /** Nearshore: maximum water depth proxy (height below sea) for habitat. */
+  NEARSHORE_MAX_DEPTH_PROXY: 8
 } as const;
 
 // ---------------------------------------------------------------------------

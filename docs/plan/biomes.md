@@ -317,15 +317,17 @@ BiomeCatalogSnapshot + biomeCode
 - 沿岸ハビタットの自動割当（海岸線区間・25–35% 砂浜）は Phase 3。
 - 砂浜の小舟漁業モデルは Phase 4。
 
-### Phase 3: 気候・地形による自動割当
+### Phase 3: 気候・地形による自動割当 — **実装済み (2026-07-27)**
 
-1. 海岸、河川、標高、傾斜、湿潤度の判定ヘルパーを追加する。
-2. 年間の雪氷収支・夏季融雪・森林限界を計算する補助モデルを追加し、Glacier & perennial snowfield、山地林、高山ツンドラを区別する。
-3. マングローブ、冠水林、雲霧林、乾燥低木地を優先ルールで自動割当する。
-4. 気候バンドから地中海性森林・温帯針葉樹林を割り当てる。
-5. 地域マスクを導入し、`centralEuropeanGreatForest` とヒース／湿原性荒野を連続した地域として生成する。
-6. 海岸勾配・基質・波浪・潮差、水深・海底基質・海水温を使い、沿岸・浅海ハビタットを自動割当する。
-7. 海岸を連続区間として分類し、`global` では砂質海岸を海岸線長の25〜35%に調整する。砂浜セルを正式な港湾・造船候補から除外する。
+1. 海岸、河川、標高、傾斜、湿潤度の判定ヘルパーを追加する。 ✅ (`biomeAssignment.ts`, `BiomeConstants` 拡張)
+2. 年間の雪氷収支・夏季融雪・森林限界を計算する補助モデルを追加し、Glacier & perennial snowfield、山地林、高山ツンドラを区別する。 ✅ (`isPerennialSnowIce`, `treelineHeight`)
+3. マングローブ、冠水林、雲霧林、乾燥低木地を優先ルールで自動割当する。 ✅
+4. 気候バンドから地中海性森林・温帯針葉樹林を割り当てる。 ✅
+5. 地域マスクを導入し、`centralEuropeanGreatForest` とヒース／湿原性荒野を連続した地域として生成する。 ✅ (`smoothRegionMask`, `biomeRegionProfile`)
+6. 海岸勾配・基質・波浪・潮差、水深・海底基質・海水温を使い、沿岸・浅海ハビタットを自動割当する。 ✅ (`coastalHabitatAssignment.ts` — 勾配/流量/水温プロキシ)
+7. 海岸を連続区間として分類し、`global` では砂質海岸を海岸線長の25〜35%に調整する。砂浜セルを正式な港湾・造船候補から除外する。 ✅（区間 BFS + `balanceSandyShare`; shipyard は Phase 2 の `allowsFormalHarbor`）
+
+**オプション:** Options → Generation → **Biome region**（`global` / `medievalEurope` / `mediterranean` / `tropicalRiverBasin` / `mountainRealm`）。生成時に `worldContext.options.biomeRegionProfile` へ反映。
 
 ### Phase 4: 地域プロファイルとシミュレーション連携
 

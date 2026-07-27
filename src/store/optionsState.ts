@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { HeightmapTemplateRandomization } from "../data";
+import type { BiomeRegionProfile } from "../types/biomeRegion";
 import type { ConflictAutonomy, InitialSettlementPattern } from "../types/WorldState";
 import { DEFAULT_CONFLICT_AUTONOMY } from "../utils/conflictAutonomy";
 
@@ -39,6 +40,8 @@ export interface OptionsState {
   initialPopulationSaturation: number;
   /** Initial settlement distribution; Phase 0 keeps "standard" behavior unchanged. */
   initialSettlementPattern: InitialSettlementPattern;
+  /** Biome regional profile for auto-assignment masks (Phase 3). */
+  biomeRegionProfile: BiomeRegionProfile;
   demographicBirthRate: number;
   demographicChildMortalityRate: number;
   /**
@@ -208,6 +211,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   gunpowderEraEnabled: false,
   initialPopulationSaturation: 60,
   initialSettlementPattern: "standard",
+  biomeRegionProfile: "global",
   demographicBirthRate: 0.25,
   demographicChildMortalityRate: 0.2,
   simDemographics: true,

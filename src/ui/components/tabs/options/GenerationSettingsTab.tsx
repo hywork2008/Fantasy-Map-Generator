@@ -416,6 +416,30 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
+          <tr data-tip="Regional climate-vegetation profile: adjusts continuous great forests, heath mosaics, mediterranean scrub, mangroves, and mountain biomes without replacing the base terrain generator. Apply on next map generation.">
+            <td>
+              <LockIconButton id="biomeRegionProfile" />
+            </td>
+            <td>Biome region</td>
+            <td colSpan={2}>
+              <select
+                value={options.biomeRegionProfile}
+                onChange={e => {
+                  options.setOptions({
+                    biomeRegionProfile: e.target.value as typeof options.biomeRegionProfile
+                  });
+                  lock("biomeRegionProfile");
+                }}
+              >
+                <option value="global">Global (default mix)</option>
+                <option value="medievalEurope">Medieval Europe</option>
+                <option value="mediterranean">Mediterranean</option>
+                <option value="tropicalRiverBasin">Tropical river basin</option>
+                <option value="mountainRealm">Mountain realm</option>
+              </select>
+            </td>
+          </tr>
+
           <tr data-tip="Define a number of non-capital settlements to be placed (if enough suitable land exists)">
             <td>
               <LockIconButton id="manors" />
