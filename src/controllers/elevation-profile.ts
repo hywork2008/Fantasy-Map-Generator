@@ -1,9 +1,12 @@
 import { worldContext } from "../context/worldContext";
 import { getHeight } from "../services/cellInfoService";
+import { buildRouteGradeProfile } from "../services/routeGrade";
 import { tip } from "../services/tooltipService";
 import { useElevationProfileState } from "../store/elevationProfileState";
+import { useOptionsState } from "../store/optionsState";
 import type { PackedGraphFeature } from "../types/models";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
+import { normalizeHeightExponent } from "../utils/height";
 
 export function openElevationProfile(cells: number[], routeLen: number, isRiver: boolean): void {
   const firstCell = cells[0];
@@ -84,7 +87,25 @@ export function openElevationProfile(cells: number[], routeLen: number, isRiver:
     chartData.burg[lastBurgIndex] = 0;
   }
 
-  useElevationProfileState.getState().open({ chartData, cells, routeLen, totalAscent, totalDescent });
+  // Land routes only: grade profile uses planar cell spacing + pack heights (meters).
+  let gradeProfile = null;
+  if (!isRiver && cells.length >= 2) {
+    const p = worldContext.pack.cells.p;
+    const segmentLengthsMapUnits: number[] = [];
+    for (let i = 0; i < cells.length - 1; i++) {
+      const [x1, y1] = p[cells[i]];
+      const [x2, y2] = p[cells[i + 1]];
+      segmentLengthsMapUnits.push(Math.hypot(x2 - x1, y2 - y1));
+    }
+    const { heightExponent, distanceScale: optionDistanceScale } = useOptionsState.getState();
+    gradeProfile = buildRouteGradeProfile(cells, segmentLengthsMapUnits, {
+      distanceScale: worldContext.distanceScale || optionDistanceScale || 1,
+      heightExponent: normalizeHeightExponent(heightExponent),
+      heights: worldContext.pack.cells.h
+    });
+  }
+
+  useElevationProfileState.getState().open({ chartData, cells, routeLen, totalAscent, totalDescent, gradeProfile });
   closeDialogs("#elevationProfile, .stable");
   openDialog("elevationProfile");
 }

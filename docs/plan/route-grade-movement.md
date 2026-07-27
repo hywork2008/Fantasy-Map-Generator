@@ -12,7 +12,7 @@
 - 既存の距離・日数・薄利排除: `docs/plan/trade.md`、`docs/plan/drop-poor-trade.md`
 - **陸路の敷設そのもの**（生成時に高標高を嫌う）: [`docs/plan/land-route-elevation-cost.md`](./land-route-elevation-cost.md) — 本ドキュメント（旅行コスト）とは分離。生成側を先に直すと「残る峠」が意味を持ち本計画と相性が良い
 
-**実装状況**: Phase 0 以降は未着手。本ドキュメントが旅行側仕様のソース・オブ・トゥルース。
+**実装状況**: **Phase 0 完了**（`src/utils/height.ts`, `src/services/routeGrade.ts` + tests, Elevation Profile サマリ表示）。Phase 1（速度・経路方針・交易配線）は未着手。本ドキュメントが旅行側仕様のソース・オブ・トゥルース。
 
 ---
 
@@ -461,12 +461,12 @@ Max grade: 16% · Climb: 420 m · Descent: 380 m · Difficulty: Hard pass (horse
 
 ### 5.8 受け入れ条件（Phase 0 Done）
 
-- [ ] `heightToMeters` が util にあり、burg 記述子と式が一致（テストまたは共有）  
-- [ ] `buildRouteGradeProfile` が純関数で world / DOM に依存しない  
-- [ ] unit test が CI で緑  
-- [ ] ルートの Elevation Profile を開くと max grade と difficulty が見える  
-- [ ] 交易速度・キャラバン位置・所要日数が **現行とビット同等**（ロジック未配線）  
-- [ ] `npm run lint` / `tsc` / 関連 vitest クリーン  
+- [x] `heightToMeters` が util にあり、burg 記述子と式が一致（テストまたは共有）  
+- [x] `buildRouteGradeProfile` が純関数で world / DOM に依存しない  
+- [x] unit test が CI で緑  
+- [x] ルートの Elevation Profile を開くと max grade と difficulty が見える  
+- [x] 交易速度・キャラバン位置・所要日数が **現行とビット同等**（ロジック未配線）  
+- [x] `npm run lint` / `tsc` / 関連 vitest クリーン  
 
 ### 5.9 実装順序（Phase 0 作業チケット）
 
@@ -555,7 +555,18 @@ Phase 0 では永続化しない。
 
 ## 13. セッション引き継ぎ
 
-次に着手する作業: **§5 Phase 0 実装**（§5.9 の順）。
+**Phase 0 完了**（2026-07-27）。
+
+成果物:
+
+| パス | 内容 |
+| :--- | :--- |
+| `src/utils/height.ts` | `heightToMeters` / `normalizeHeightExponent` |
+| `src/services/routeGrade.ts` | 勾配・プロファイル・PassClass |
+| `src/services/routeGrade.test.ts` | 平坦 / hardPass / 窓 / extreme / オーバーライド |
+| Elevation Profile | 陸路で Max grade / Climb (m) / Difficulty サマリ |
+
+次に着手する作業: **§6 Phase 1**（交易所要日数・`MerchantRoutePreference`・`GradeSensitivity`）。
 
 確認済みユーザー決定:
 
@@ -569,4 +580,3 @@ Phase 0 では永続化しない。
 - hardPass 回避倍率の具体値（×2 vs ×3）— Phase 1  
 - ox の感度曲線の最終値 — Phase 1  
 - 軍隊 Phase 3 をいつやるか  
-`)

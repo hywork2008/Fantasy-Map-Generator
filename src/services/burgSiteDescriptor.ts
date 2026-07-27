@@ -3,6 +3,7 @@ import { Rivers } from "../generators/river-generator";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, Route } from "../types/models";
 import { findCell, minmax, rn } from "../utils";
+import { heightToMeters as heightToMetersRaw, normalizeHeightExponent } from "../utils/height";
 
 /**
  * Burg site descriptor — the machine-readable "site survey" of a burg's local
@@ -255,12 +256,12 @@ function getCityRadiusMeters(population: number): number {
 }
 
 function getHeightExponent(): number {
-  const raw = useOptionsState.getState().heightExponent;
-  return Number.isFinite(raw) && raw >= 1 && raw <= 5 ? raw : 1.8;
+  return normalizeHeightExponent(useOptionsState.getState().heightExponent);
 }
 
+/** Integer meters for site descriptors (display / export). */
 function heightToMeters(h: number, exponent: number): number {
-  return h < 20 ? 0 : rn((h - 18) ** exponent);
+  return rn(heightToMetersRaw(h, exponent));
 }
 
 /** Compass azimuth of a local-frame vector (+X east, +Y north): 0 = north, clockwise. */

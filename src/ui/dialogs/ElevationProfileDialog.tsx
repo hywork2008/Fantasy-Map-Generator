@@ -4,6 +4,7 @@ import { worldContext } from "../../context/worldContext";
 import { downloadFile, getFileName } from "../../controllers/editors";
 import { ElevationProfileRenderer } from "../../renderers/elevation-profile-renderer";
 import { getHeight } from "../../services/cellInfoService";
+import { passClassLabel } from "../../services/routeGrade";
 import { viewLayerService as view } from "../../services/viewLayerService";
 import { useDialogState } from "../../store/dialogState";
 import { useElevationProfileState } from "../../store/elevationProfileState";
@@ -20,7 +21,7 @@ const BIOMES_HEIGHT = 10;
 
 export const ElevationProfileDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("elevationProfile"));
-  const { chartData, cells, routeLen, totalAscent, totalDescent, reset } = useElevationProfileState();
+  const { chartData, cells, routeLen, totalAscent, totalDescent, gradeProfile, reset } = useElevationProfileState();
   const heightUnit = useOptionsState(s => s.heightUnit);
   const distanceUnit = useOptionsState(s => s.distanceUnit);
 
@@ -143,10 +144,23 @@ export const ElevationProfileDialog: React.FC = () => {
     img.src = svgUrl;
   }
 
+  const gradeSummary =
+    gradeProfile &&
+    `Max grade: ${rn(gradeProfile.maxAbsGrade * 100, 1)}% · Climb: ${rn(gradeProfile.totalAscentM)} m · Descent: ${rn(gradeProfile.totalDescentM)} m · Difficulty: ${passClassLabel(gradeProfile.worstClass)}`;
+
   return (
     <Dialog isOpen={isOpen} title="Elevation Profile" onClose={handleClose}>
       <div id="elevationGraph" ref={graphRef} data-tip="Elevation profile" />
       <div>
+        {gradeSummary ? (
+          <div
+            id="epGradeSummary"
+            data-tip="Planar max grade and climb/descent in meters; difficulty class from route-grade thresholds"
+            style={{ margin: "4px 0 2px", fontSize: "0.9em" }}
+          >
+            {gradeSummary}
+          </div>
+        ) : null}
         <div id="epControls">
           <span data-tip="Set curve profile">
             Curve:{" "}
