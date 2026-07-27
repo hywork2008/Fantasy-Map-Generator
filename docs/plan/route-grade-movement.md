@@ -12,7 +12,7 @@
 - 既存の距離・日数・薄利排除: `docs/plan/trade.md`、`docs/plan/drop-poor-trade.md`
 - **陸路の敷設そのもの**（生成時に高標高を嫌う）: [`docs/plan/land-route-elevation-cost.md`](./land-route-elevation-cost.md) — 本ドキュメント（旅行コスト）とは分離。生成側を先に直すと「残る峠」が意味を持ち本計画と相性が良い
 
-**実装状況**: **Phase 0–2 完了**（計測 + Elevation Profile + 交易所要日数 / pathfinding + キャラバン可変速度前進）。Phase 3（軍隊）・Phase 4（表現）は未着手。本ドキュメントが旅行側仕様のソース・オブ・トゥルース。
+**実装状況**: **Phase 0–3 完了**（計測 + 交易 + キャラバン + 軍隊 grade）。Phase 4（峠表現）は未着手。本ドキュメントが旅行側仕様のソース・オブ・トゥルース。
 
 ---
 
@@ -502,11 +502,13 @@ Max grade: 16% · Climb: 420 m · Descent: 380 m · Difficulty: Hard pass (horse
 
 ---
 
-## 8. Phase 3 — 軍隊（任意）
+## 8. Phase 3 — 軍隊（任意）— **実装済み**
 
-- `landRouteGraph` の重みを effort 化、または行軍時 edge 倍率  
-- infantry / mounted プロファイル  
-- 冬クローズ（既存）と勾配の併用テスト  
+- `landRouteGraph` 隣接は平面距離のまま；Dijkstra に任意 `LandRouteEdgeCostFn`（effort）  
+- `regimentMovement.planLandMarchOrder` / off-road BFS に infantry|mounted `GradeSensitivity`  
+- `advanceAlongPath` が陸路エッジで budget を effort 消費（艦隊 current と同パターン）  
+- 冬クローズ（`buildLandRouteGraph` seasonal）は従来どおりエッジ削除；勾配は残ったエッジにのみ  
+- 全体スイッチ: `fmg-grade-effect-strength` = 0 で軍隊も平面互換  
 
 ---
 
@@ -555,22 +557,20 @@ Phase 0 では永続化しない。
 
 ## 13. セッション引き継ぎ
 
-**Phase 0–2 完了**（2026-07-27）。
+**Phase 0–3 完了**（2026-07-27）。
 
 成果物:
 
 | パス | 内容 |
 | :--- | :--- |
 | `src/utils/height.ts` | `heightToMeters` / `normalizeHeightExponent` |
-| `src/services/routeGrade.ts` | 勾配・プロファイル・PassClass・`landTravelLegSpeeds` / `calculateLandTravelDays` |
-| `src/services/routeGrade.test.ts` | 等級 + 速度倍率 + avoidHardPass コスト |
+| `src/services/routeGrade.ts` | 勾配・プロファイル・PassClass・交易/軍隊 speed·effort |
 | Elevation Profile | 陸路で Max grade / Climb (m) / Difficulty サマリ |
-| `caravanMovement` | `gradeEffectStrength`, `merchantRoutePreference`, draft `GradeSensitivity` |
-| `trade-animation` / `tradeRouteDuration` | cell 保持・grade 日数・pathfinding 回避倍率 |
-| Trade Animation Settings | Grade effect % + land route preference |
-| `caravans.bakeCaravanTravelLegs` | 出発時に平面 leg + 速度を焼き付け；`currentDistance` は平面 km |
+| `caravanMovement` / trade / caravans | Phase 1–2 交易側 |
+| `landRouteGraph` | `LandRouteEdgeCostFn` + export 冬しきい値定数 |
+| `regimentMovement` | infantry/mounted プロファイル、path + advance に effort |
 
-次に着手する作業: **§8 Phase 3（任意・軍隊）** または **§9 Phase 4（峠表現）**。
+次に着手する作業: **§9 Phase 4（峠名 / 地図アイコン）**（任意）。
 
 確認済みユーザー決定:
 

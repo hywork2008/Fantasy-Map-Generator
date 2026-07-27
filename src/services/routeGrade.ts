@@ -170,9 +170,45 @@ export const DEFAULT_OX_GRADE_SENSITIVITY: GradeSensitivity = {
   passWindowMultiplier: 0.45
 };
 
+/**
+ * Foot infantry (Phase 3 military). Slightly more grade-tolerant than horses;
+ * baseline pace is still slower via FOOT_SPEED in regimentMovement.
+ */
+export const DEFAULT_INFANTRY_GRADE_SENSITIVITY: GradeSensitivity = {
+  freeGrade: 0.04,
+  criticalGrade: 0.2,
+  ascentBias: 1.1,
+  descentFactor: 0.8,
+  minMultiplier: 0.2,
+  passWindowMultiplier: 0.55
+};
+
+/**
+ * Mounted / cavalry (Phase 3 military). More sensitive to steep climbs than infantry
+ * (horses struggle on hard passes); still faster on flat via cavalry effective speed.
+ */
+export const DEFAULT_MOUNTED_GRADE_SENSITIVITY: GradeSensitivity = {
+  freeGrade: 0.03,
+  criticalGrade: 0.16,
+  ascentBias: 1.25,
+  descentFactor: 0.85,
+  minMultiplier: 0.18,
+  passWindowMultiplier: 0.5
+};
+
 /** Dijkstra extra cost when preferencing away from hard passes. */
 export const AVOID_HARD_PASS_COST_MULTIPLIER = 3;
 export const AVOID_EXTREME_PASS_COST_MULTIPLIER = 4;
+
+export interface LandEdgeGradeOptions {
+  distanceScale: number;
+  heightExponent: number;
+  heights: ArrayLike<number>;
+  /** 0 = planar-only (legacy). Default 1. */
+  gradeEffectStrength?: number;
+  sensitivity: GradeSensitivity;
+  thresholds?: Partial<RouteGradeThresholds>;
+}
 
 const PASS_CLASS_RANK: Record<PassClass, number> = {
   flat: 0,
@@ -504,6 +540,51 @@ export function avoidPassCostMultiplier(
   if (maxAbsGrade >= thresholds.G_extreme || hasExtremeWindow) return AVOID_EXTREME_PASS_COST_MULTIPLIER;
   if (maxAbsGrade >= thresholds.G_hard || hasHardWindow) return AVOID_HARD_PASS_COST_MULTIPLIER;
   return 1;
+}
+
+/**
+ * Speed multiplier for a single directed cell→cell hop (map-unit planar length).
+ * Used by military pathfinding effort costs and advanceAlongPath budget consumption.
+ * Single-edge hard/extreme ascent windows are applied when the hop itself is long enough.
+ */
+export function landEdgeSpeedMultiplier(
+  fromCell: number,
+  toCell: number,
+  lengthMapUnits: number,
+  options: LandEdgeGradeOptions
+): number {
+  const strength = clamp01(options.gradeEffectStrength ?? 1);
+  if (strength === 0 || lengthMapUnits <= 0) return 1;
+
+  const thresholds = resolveThresholds(options.thresholds);
+  const edge = sampleEdgeGrade(fromCell, toCell, lengthMapUnits, {
+    distanceScale: options.distanceScale,
+    heightExponent: options.heightExponent,
+    heights: options.heights,
+    thresholds
+  });
+
+  let m = gradeToSpeedMultiplier(edge.grade, options.sensitivity, strength);
+  // One-hop stand-in for the multi-edge ascent window: if this hop alone meets W/A, apply pass slowdown.
+  if (edge.runKm + 1e-12 >= thresholds.W_hardKm && edge.riseM + 1e-9 >= thresholds.A_hardM) {
+    m *= 1 + (options.sensitivity.passWindowMultiplier - 1) * strength;
+  } else if (edge.runKm + 1e-12 >= thresholds.W_extremeKm && edge.riseM + 1e-9 >= thresholds.A_extremeM) {
+    m *= 1 + (options.sensitivity.passWindowMultiplier - 1) * strength;
+  }
+  return Math.max(m, 1e-6);
+}
+
+/**
+ * Pathfinding effort cost in planar-equivalent map units: planarDist / speedMultiplier.
+ * Uphill is more expensive than downhill (directed).
+ */
+export function landEdgeEffortCost(
+  fromCell: number,
+  toCell: number,
+  lengthMapUnits: number,
+  options: LandEdgeGradeOptions
+): number {
+  return lengthMapUnits / landEdgeSpeedMultiplier(fromCell, toCell, lengthMapUnits, options);
 }
 
 // ---------------------------------------------------------------------------

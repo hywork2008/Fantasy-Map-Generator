@@ -15,16 +15,27 @@ import { getSeason } from "../utils/seasonUtils";
  * land cell (sparse rural areas have no road/trail at all), so land-specific fallback handling
  * (BFS over cells.c, or an off-road speed penalty — see military-movement.md §1.2's open concern)
  * is expected to diverge from the sea-route module, which has no such gap to fill.
+ *
+ * Phase 3 (docs/plan/route-grade-movement.md): adjacency still stores planar map-unit lengths.
+ * Optional `LandRouteEdgeCostFn` turns those into effort costs for Dijkstra (grade-aware path
+ * selection). Winter still removes edges entirely via seasonal build.
  */
 export interface LandRouteGraph {
-  /** cellId -> neighbor cellId -> distance (map units) along that route edge. */
+  /** cellId -> neighbor cellId -> planar distance (map units) along that route edge. */
   readonly adjacency: Map<number, Map<number, number>>;
 }
 
+/**
+ * Optional Dijkstra edge cost transform. `planarDist` is the stored adjacency length (map units).
+ * Return effort cost in planar-equivalent map units (higher = worse). Defaults to identity
+ * (planar distance) when omitted.
+ */
+export type LandRouteEdgeCostFn = (from: number, to: number, planarDist: number) => number;
+
 /** Latitude beyond which winter closes a road/trail regardless of elevation (subarctic/arctic). */
-const WINTER_ROAD_CLOSURE_LATITUDE = 55;
+export const WINTER_ROAD_CLOSURE_LATITUDE = 55;
 /** Elevation (pack.cells.h) beyond which winter closes a road/trail regardless of latitude (mountain passes). */
-const WINTER_ROAD_CLOSURE_ELEVATION = 60;
+export const WINTER_ROAD_CLOSURE_ELEVATION = 60;
 
 /** The map context needed to decide whether a route segment is snowed in this month — see docs/simulation/seasons.md. */
 export interface SeasonalRouteContext {
@@ -66,6 +77,9 @@ function isWinterBlocked(
  * which already rebuilds this graph fresh every call. `seasonal`, if given, omits segments that
  * are snowed in for the given month (see isWinterBlocked); omitting it preserves the old
  * always-open behavior, e.g. for callers that don't care about seasonal passability.
+ *
+ * Edge weights are always planar map units. Grade effort is applied at search time via
+ * `LandRouteEdgeCostFn` on findLandRoutePath / Distance / Reachable.
  */
 export function buildLandRouteGraph(pack: PackedGraph, seasonal?: SeasonalRouteContext): LandRouteGraph {
   const adjacency = new Map<number, Map<number, number>>();
@@ -100,11 +114,15 @@ export function buildLandRouteGraph(pack: PackedGraph, seasonal?: SeasonalRouteC
  * Dijkstra from `start`, stopping early once `target` is settled (if given). Shared core for
  * findLandRouteDistance (single target), findReachableLandCells (whole graph), and
  * findLandRoutePath (needs the predecessor chain too) — mirrors seaRouteGraph.ts's dijkstraFrom.
+ *
+ * When `edgeCost` is provided, edge traversal cost is effort (grade-aware); stored adjacency
+ * values remain planar and are passed into the cost fn as `planarDist`.
  */
 function dijkstraFrom(
   graph: LandRouteGraph,
   start: number,
-  target?: number
+  target?: number,
+  edgeCost?: LandRouteEdgeCostFn
 ): { dist: Map<number, number>; from: Map<number, number> } {
   const dist = new Map<number, number>();
   const from = new Map<number, number>();
@@ -128,9 +146,11 @@ function dijkstraFrom(
     const neighbors = graph.adjacency.get(current);
     if (!neighbors) continue;
 
-    for (const [next, edgeDist] of neighbors) {
+    for (const [next, planarDist] of neighbors) {
       if (settled.has(next)) continue;
-      const total = currentDist + edgeDist;
+      const step = edgeCost ? edgeCost(current, next, planarDist) : planarDist;
+      if (!Number.isFinite(step) || step < 0) continue;
+      const total = currentDist + step;
       if (total < (dist.get(next) ?? Infinity)) {
         dist.set(next, total);
         from.set(next, current);
@@ -146,28 +166,46 @@ function dijkstraFrom(
  * Shortest land-route distance between two cells. Returns null if no charted road/trail
  * connects them (including when either cell has no charted route at all) — callers that need a
  * distance regardless of road coverage must apply their own fallback (see the module doc comment).
+ *
+ * With `edgeCost`, the returned value is effort-distance (planar-equivalent), not pure planar.
  */
-export function findLandRouteDistance(graph: LandRouteGraph, start: number, end: number): number | null {
+export function findLandRouteDistance(
+  graph: LandRouteGraph,
+  start: number,
+  end: number,
+  edgeCost?: LandRouteEdgeCostFn
+): number | null {
   if (start === end) return 0;
   if (!graph.adjacency.has(end)) return null;
-  return dijkstraFrom(graph, start, end).dist.get(end) ?? null;
+  return dijkstraFrom(graph, start, end, edgeCost).dist.get(end) ?? null;
 }
 
-/** Every cell reachable by charted road/trail from `start`, with its distance. */
-export function findReachableLandCells(graph: LandRouteGraph, start: number): Map<number, number> {
-  return dijkstraFrom(graph, start).dist;
+/** Every cell reachable by charted road/trail from `start`, with its distance (or effort). */
+export function findReachableLandCells(
+  graph: LandRouteGraph,
+  start: number,
+  edgeCost?: LandRouteEdgeCostFn
+): Map<number, number> {
+  return dijkstraFrom(graph, start, undefined, edgeCost).dist;
 }
 
 /**
  * Ordered sequence of cell ids along the shortest land route from `start` to `end` (inclusive of
  * both endpoints), or null if unreachable. Used where a caller needs to walk partway along a
  * charted road/trail instead of just knowing the total distance.
+ *
+ * With `edgeCost` (grade effort), prefers flatter / downhill routes when alternatives exist.
  */
-export function findLandRoutePath(graph: LandRouteGraph, start: number, end: number): number[] | null {
+export function findLandRoutePath(
+  graph: LandRouteGraph,
+  start: number,
+  end: number,
+  edgeCost?: LandRouteEdgeCostFn
+): number[] | null {
   if (start === end) return graph.adjacency.has(start) ? [start] : null;
   if (!graph.adjacency.has(end)) return null;
 
-  const { dist, from } = dijkstraFrom(graph, start, end);
+  const { dist, from } = dijkstraFrom(graph, start, end, edgeCost);
   if (!dist.has(end)) return null;
 
   const path = [end];

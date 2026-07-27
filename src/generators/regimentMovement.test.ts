@@ -1,10 +1,16 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createEmptyFrontierSimulationState, FRONTIER_STAGE, simulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import type { MilitaryRegiment } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
-import { advanceAllRegimentMovement, advanceAlongPath, isOccupiedHomeBurg } from "./regimentMovement";
+import {
+  advanceAllRegimentMovement,
+  advanceAlongPath,
+  getMilitaryGradeEffectStrength,
+  isOccupiedHomeBurg,
+  regimentGradeSensitivity
+} from "./regimentMovement";
 
 function makeWorldContext(): WorldContext {
   return { distanceScale: 1, options: { year: 1000 } } as unknown as WorldContext;
@@ -1160,5 +1166,112 @@ describe("advanceAlongPath seasonal ocean currents", () => {
     advanceAlongPath(makeFleetPack(), noMonth, 50);
 
     expect(noMonth.x).toBe(50);
+  });
+});
+
+describe("regiment grade profiles and advanceAlongPath grade cost", () => {
+  beforeEach(() => {
+    try {
+      localStorage.setItem("fmg-grade-effect-strength", "1");
+    } catch {
+      /* vitest may not have localStorage */
+    }
+  });
+
+  afterEach(() => {
+    try {
+      localStorage.removeItem("fmg-grade-effect-strength");
+    } catch {
+      /* ignore */
+    }
+  });
+
+  it("uses mounted sensitivity for type=mounted and infantry otherwise", () => {
+    const foot = regimentGradeSensitivity(makeGarrison({ type: "melee" }));
+    const horse = regimentGradeSensitivity(makeGarrison({ type: "mounted" }));
+    expect(horse.criticalGrade).toBeLessThan(foot.criticalGrade);
+    expect(foot.minMultiplier).toBeGreaterThan(horse.minMultiplier);
+  });
+
+  it("slows land advance on a steep climb when worldContext is provided", () => {
+    // 10 map-unit edge, +1500 m (exp=1) → hard grade; flat same edge for comparison.
+    const steepPack = {
+      cells: {
+        p: [
+          [0, 0],
+          [10, 0]
+        ],
+        h: [20, 20 + 1500]
+      }
+    } as unknown as PackedGraph;
+    const flatPack = {
+      cells: {
+        p: [
+          [0, 0],
+          [10, 0]
+        ],
+        h: [20, 20]
+      }
+    } as unknown as PackedGraph;
+
+    const world = makeWorldContext();
+    world.distanceScale = 1;
+
+    const steep = makeGarrison({
+      cell: 0,
+      x: 0,
+      y: 0,
+      path: [0, 1],
+      pathIndex: 0,
+      edgeProgress: 0,
+      type: "melee"
+    });
+    const flat = makeGarrison({
+      cell: 0,
+      x: 0,
+      y: 0,
+      path: [0, 1],
+      pathIndex: 0,
+      edgeProgress: 0,
+      type: "melee"
+    });
+
+    const budget = 5; // half the planar edge if costMultiplier=1
+    advanceAlongPath(steepPack, steep, budget, undefined, undefined, world);
+    advanceAlongPath(flatPack, flat, budget, undefined, undefined, world);
+
+    // Flat regiment covers more planar distance for the same budget.
+    expect(flat.x).toBeGreaterThan(steep.x);
+  });
+
+  it("ignores grade when fmg-grade-effect-strength is 0", () => {
+    try {
+      localStorage.setItem("fmg-grade-effect-strength", "0");
+    } catch {
+      /* ignore */
+    }
+    expect(getMilitaryGradeEffectStrength()).toBe(0);
+
+    const pack = {
+      cells: {
+        p: [
+          [0, 0],
+          [10, 0]
+        ],
+        h: [20, 20 + 1500]
+      }
+    } as unknown as PackedGraph;
+    const world = makeWorldContext();
+    const r = makeGarrison({
+      cell: 0,
+      x: 0,
+      y: 0,
+      path: [0, 1],
+      pathIndex: 0,
+      edgeProgress: 0
+    });
+    advanceAlongPath(pack, r, 5, undefined, undefined, world);
+    // Planar-only: budget 5 of 10 units → x=5
+    expect(r.x).toBeCloseTo(5, 5);
   });
 });
