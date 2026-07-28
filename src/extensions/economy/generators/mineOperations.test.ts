@@ -31,8 +31,8 @@ describe("MineOperationsModule", () => {
       }
     } as unknown as PackedGraph;
     setGoods([
-      { i: 1, name: "Lead", tags: ["ore"], value: 3, unit: "wagon", icon: "lead", color: "#777" },
-      { i: 2, name: "Silver", tags: ["ore"], value: 20, unit: "bullion", icon: "silver", color: "#ccc" }
+      { i: 1, name: "Lead Ore", tags: ["ore"], value: 3, unit: "wagon", icon: "lead", color: "#777" },
+      { i: 2, name: "Silver Ore", tags: ["ore"], value: 20, unit: "bullion", icon: "silver", color: "#ccc" }
     ]);
     setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: {} }]);
     setGoodCellColumn(new Uint16Array([0]));

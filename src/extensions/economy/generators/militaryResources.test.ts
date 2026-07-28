@@ -29,8 +29,8 @@ describe("MilitaryResourcesModule", () => {
       ]
     } as unknown as PackedGraph;
     setGoods([
-      { i: 1, name: "Iron", tags: ["metal"], value: 3, unit: "ton", icon: "iron", color: "#777" },
-      { i: 2, name: "Lead", tags: ["metal"], value: 3, unit: "ton", icon: "lead", color: "#777" },
+      { i: 1, name: "Iron Ingot", tags: ["ingot", "metal"], value: 3, unit: "ton", icon: "iron", color: "#777" },
+      { i: 2, name: "Lead Ingot", tags: ["ingot", "metal"], value: 3, unit: "ton", icon: "lead", color: "#777" },
       { i: 3, name: "Gunpowder", tags: ["military"], value: 4, unit: "barrel", icon: "powder", color: "#333" }
     ]);
     setMarkets([

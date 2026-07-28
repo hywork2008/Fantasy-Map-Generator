@@ -41,7 +41,13 @@ import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burg
 import { Caravans } from "./generators/caravans";
 import { FoodProduction } from "./generators/foodProduction";
 import { clearForestDepletion, registerLogHarvest, tickForestRegrowth } from "./generators/forestDepletion";
-import { type Good, Goods, getDefaultGoodTradeProfile, isGoodEnabled } from "./generators/goods-generator";
+import {
+  type Good,
+  Goods,
+  getDefaultGoodTradeProfile,
+  isGoodEnabled,
+  migrateLegacyOreIngotGoods
+} from "./generators/goods-generator";
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
 import { Markets } from "./generators/markets-generator";
 import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
@@ -247,6 +253,7 @@ let _shipbuildingSurplusShipRequestHandler: ((e: Event) => void) | null = null;
 let _voyageIncomeHandler: ((e: Event) => void) | null = null;
 let _mapPickCandidatesHandler: ((e: Event) => void) | null = null;
 let _gunpowderEraChangedHandler: (() => void) | null = null;
+let _worldLoadedHandler: (() => void) | null = null;
 let _settlementPromotedHandler: ((e: Event) => void) | null = null;
 let _unregisterGoodsAssignCellCommand: (() => void) | null = null;
 let _unregisterGoodsUpdateCommand: (() => void) | null = null;
@@ -969,9 +976,15 @@ export function init(api: ExtensionAPI): void {
         FoodProduction.generateQuarterlyLedger(0);
         Production.produce();
         Taxes.collectTaxes();
-      } else if (getMarkets().length) {
-        syncMarketManagers();
-        syncBurgMarketLedgers();
+      } else {
+        if (migrateLegacyOreIngotGoods()) {
+          Goods.sync();
+          Markets.initializeMarketPrices();
+        }
+        if (getMarkets().length) {
+          syncMarketManagers();
+          syncBurgMarketLedgers();
+        }
       }
     } else if (!isEnabled && wasEnabled) {
       // Visually turn off layers before removing them
@@ -1056,6 +1069,17 @@ export function init(api: ExtensionAPI): void {
     refreshEconomyForGunpowderEra(api);
   };
   document.addEventListener("fmg:gunpowder-era-changed", _gunpowderEraChangedHandler);
+
+  // Archives from before the Ore/Ingot split retain their old Good ids. Upgrade the
+  // catalog after a full world replacement so market stock becomes Ore in place and
+  // newly added Ingots begin at zero stock (no duplicated wealth).
+  _worldLoadedHandler = () => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    if (!migrateLegacyOreIngotGoods()) return;
+    Goods.sync();
+    Markets.initializeMarketPrices();
+  };
+  document.addEventListener("fmg:world-loaded", _worldLoadedHandler);
 
   // Production-affecting changes are accumulated between monthly settlements. In
   // particular, Shipbuilding can emit a logging event every simulated day; making
@@ -1376,6 +1400,10 @@ export function init(api: ExtensionAPI): void {
   api.registerMapReinitHook(() => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
     attachSvgClickHandlers();
+    if (migrateLegacyOreIngotGoods()) {
+      Goods.sync();
+      Markets.initializeMarketPrices();
+    }
     if (getWorldContext().options.gunpowderEraEnabled === false) refreshEconomyForGunpowderEra(api);
     // Backfill sales/poll tax rates and recompute treasury for maps saved before this feature existed.
     // Both calls are idempotent/cheap, so re-running them on every load is safe.
@@ -1550,6 +1578,10 @@ export function cleanup(api: ExtensionAPI): void {
   if (_gunpowderEraChangedHandler) {
     document.removeEventListener("fmg:gunpowder-era-changed", _gunpowderEraChangedHandler);
     _gunpowderEraChangedHandler = null;
+  }
+  if (_worldLoadedHandler) {
+    document.removeEventListener("fmg:world-loaded", _worldLoadedHandler);
+    _worldLoadedHandler = null;
   }
   if (_settlementPromotedHandler) {
     document.removeEventListener("fmg:settlement-promoted", _settlementPromotedHandler);

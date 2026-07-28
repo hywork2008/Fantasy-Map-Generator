@@ -155,75 +155,128 @@ export const GOODS_DATA: GoodData[] = [
     multipliers: { cultureType: { Highland: 1.4 } }
   },
   {
-    name: "Iron",
-    warEconomyType: "strategic",
-    tags: ["ore", "military"],
+    name: "Iron Ore",
+    tags: ["ore", "mineral"],
     icon: "good-iron",
     color: "#5D686E",
-    value: 4,
+    value: 2,
     // Cell placement comes from MineralDeposit/MineOperation (mineralResources.ts), rendered
     // on the mineralDeposits layer, not from this legacy chance/distribution scatter — see Fix 3
     // in docs/plan/mineral-resource-circulation-fixes.md.
     chance: 0,
     unit: "wagon",
-    multipliers: { cultureType: { Highland: 1.4 } },
-    biomeOutput: { 12: 0.1 }
+    multipliers: { cultureType: { Highland: 1.4 } }
   },
   {
-    name: "Copper",
-    warEconomyType: "strategic",
-    tags: ["ore"],
+    name: "Copper Ore",
+    tags: ["ore", "mineral"],
     icon: "good-copper",
     color: "#b87333",
-    value: 5,
+    value: 2.5,
     chance: 0,
     unit: "wagon",
     multipliers: { cultureType: { Highland: 1.4 } }
   },
   {
-    name: "Tin",
-    warEconomyType: "strategic",
-    tags: ["ore"],
+    name: "Tin Ore",
+    tags: ["ore", "mineral"],
     icon: "good-tin",
     color: "#454343",
-    value: 6,
-    chance: 0,
-    unit: "wagon",
-    multipliers: { cultureType: { Highland: 1.4 } }
-  },
-  {
-    name: "Lead",
-    warEconomyType: "strategic",
-    tags: ["ore", "military", "construction"],
-    icon: "good-lead",
-    color: "#6f7285",
     value: 3,
     chance: 0,
     unit: "wagon",
-    demandCoverage: { construction: 0.3 },
     multipliers: { cultureType: { Highland: 1.4 } }
   },
   {
-    name: "Silver",
-    warEconomyType: "luxury",
-    tags: ["ore", "luxury"],
+    name: "Lead Ore",
+    tags: ["ore", "mineral"],
+    icon: "good-lead",
+    color: "#6f7285",
+    value: 1.5,
+    chance: 0,
+    unit: "wagon",
+    multipliers: { cultureType: { Highland: 1.4 } }
+  },
+  {
+    name: "Silver Ore",
+    tags: ["ore", "mineral"],
     icon: "good-silver",
     color: "#C0C0C0",
-    value: 20,
+    value: 10,
     chance: 0,
     unit: "bullion",
     multipliers: { cultureType: { Hunting: 0.5, Highland: 1.4, Nomadic: 0.5 } }
   },
   {
-    name: "Gold",
+    name: "Gold Ore",
+    tags: ["ore", "mineral"],
+    icon: "good-gold",
+    color: "#ffd700",
+    value: 20,
+    chance: 0,
+    unit: "bullion",
+    multipliers: { cultureType: { Highland: 1.4, Nomadic: 0.5 } }
+  },
+  {
+    name: "Iron Ingot",
+    warEconomyType: "strategic",
+    tags: ["ingot", "metal", "military"],
+    icon: "good-iron",
+    color: "#5D686E",
+    value: 4,
+    chance: 0,
+    unit: "wagon"
+  },
+  {
+    name: "Copper Ingot",
+    warEconomyType: "strategic",
+    tags: ["ingot", "metal"],
+    icon: "good-copper",
+    color: "#b87333",
+    value: 5,
+    chance: 0,
+    unit: "wagon"
+  },
+  {
+    name: "Tin Ingot",
+    warEconomyType: "strategic",
+    tags: ["ingot", "metal"],
+    icon: "good-tin",
+    color: "#454343",
+    value: 6,
+    chance: 0,
+    unit: "wagon"
+  },
+  {
+    name: "Lead Ingot",
+    warEconomyType: "strategic",
+    tags: ["ingot", "metal", "military", "construction"],
+    icon: "good-lead",
+    color: "#6f7285",
+    value: 3,
+    chance: 0,
+    unit: "wagon",
+    demandCoverage: { construction: 0.3 }
+  },
+  {
+    name: "Silver Ingot",
     warEconomyType: "luxury",
-    tags: ["ore", "luxury"],
+    tags: ["ingot", "metal", "luxury"],
+    icon: "good-silver",
+    color: "#C0C0C0",
+    value: 20,
+    chance: 0,
+    unit: "bullion"
+  },
+  {
+    name: "Gold Ingot",
+    warEconomyType: "luxury",
+    tags: ["ingot", "metal", "luxury"],
     icon: "good-gold",
     color: "#ffd700",
     value: 40,
     chance: 0,
-    unit: "bullion",
-    multipliers: { cultureType: { Highland: 1.4, Nomadic: 0.5 } }
+    unit: "bullion"
   },
   {
     name: "Grain",
@@ -870,9 +923,9 @@ export const GOODS_DATA: GoodData[] = [
     value: 10,
     chance: 0,
     recipes: [
-      { Leather: 0.5, Iron: 0.25 },
+      { Leather: 0.5, "Iron Ingot": 0.25 },
       { Leather: 0.5, Bronze: 0.25 },
-      { Leather: 0.5, Copper: 0.25 }
+      { Leather: 0.5, "Copper Ingot": 0.25 }
     ],
     unit: "set",
     demandCoverage: { military: 1 },
@@ -898,8 +951,8 @@ export const GOODS_DATA: GoodData[] = [
     value: 8,
     chance: 0,
     recipes: [
-      { Copper: 0.5, Coal: 1 },
-      { Tin: 0.5, Coal: 1 }
+      { "Copper Ingot": 0.5, Coal: 1 },
+      { "Tin Ingot": 0.5, Coal: 1 }
     ],
     unit: "wagon",
     multipliers: { cultureType: { Highland: 1.2 } }
@@ -913,7 +966,7 @@ export const GOODS_DATA: GoodData[] = [
     value: 14,
     chance: 0,
     recipes: [
-      { Iron: 0.5, Coal: 1 },
+      { "Iron Ingot": 0.5, Coal: 1 },
       { Bronze: 0.5, Coal: 1 }
     ],
     unit: "set",
@@ -928,7 +981,7 @@ export const GOODS_DATA: GoodData[] = [
     value: 24,
     chance: 0,
     recipes: [
-      { Iron: 0.5, Coal: 1, Leather: 0.5 },
+      { "Iron Ingot": 0.5, Coal: 1, Leather: 0.5 },
       { Bronze: 0.5, Coal: 1, Leather: 0.5 }
     ],
     unit: "set",
@@ -955,7 +1008,7 @@ export const GOODS_DATA: GoodData[] = [
     value: 70,
     chance: 0,
     recipes: [
-      { Iron: 2, Coal: 1 },
+      { "Iron Ingot": 2, Coal: 1 },
       { Bronze: 1, Coal: 1 }
     ],
     unit: "cannon",
@@ -981,12 +1034,12 @@ export const GOODS_DATA: GoodData[] = [
     value: 55,
     chance: 0,
     recipes: [
-      { Gemstones: 1, Gold: 0.5 },
-      { Pearls: 1, Gold: 0.5 },
-      { Amber: 2, Gold: 0.5 },
-      { Gemstones: 1, Silver: 1 },
-      { Pearls: 1, Silver: 1 },
-      { Amber: 2, Silver: 1 }
+      { Gemstones: 1, "Gold Ingot": 0.5 },
+      { Pearls: 1, "Gold Ingot": 0.5 },
+      { Amber: 2, "Gold Ingot": 0.5 },
+      { Gemstones: 1, "Silver Ingot": 1 },
+      { Pearls: 1, "Silver Ingot": 1 },
+      { Amber: 2, "Silver Ingot": 1 }
     ],
     unit: "piece",
     demandCoverage: { luxury: 1 }
@@ -1206,12 +1259,18 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Wood: tradeProfile(4, 5, 1, -1, 0, 4, 2),
   Stone: tradeProfile(5, 5, 1, -2, 0, 5, 1),
   Marble: tradeProfile(5, 5, 4, 1, 0, 4, 3),
-  Iron: tradeProfile(5, 4, 3, 1, 0, 5, 2),
-  Copper: tradeProfile(5, 4, 3, 1, 0, 5, 2),
-  Tin: tradeProfile(4, 3, 4, 2, 0, 5, 2),
-  Lead: tradeProfile(5, 4, 3, 1, 0, 5, 2),
-  Silver: tradeProfile(2, 1, 4, 2, 0, 5, 2),
-  Gold: tradeProfile(2, 1, 5, 3, 0, 5, 2),
+  "Iron Ore": tradeProfile(5, 5, 3, -1, 0, 5, 3),
+  "Copper Ore": tradeProfile(5, 5, 3, -1, 0, 5, 3),
+  "Tin Ore": tradeProfile(5, 5, 4, 0, 0, 5, 3),
+  "Lead Ore": tradeProfile(5, 5, 3, -1, 0, 5, 3),
+  "Silver Ore": tradeProfile(4, 4, 4, 0, 0, 5, 3),
+  "Gold Ore": tradeProfile(4, 4, 5, 0, 0, 5, 3),
+  "Iron Ingot": tradeProfile(4, 3, 3, 1, 0, 5, 2),
+  "Copper Ingot": tradeProfile(4, 3, 3, 1, 0, 5, 2),
+  "Tin Ingot": tradeProfile(3, 2, 4, 2, 0, 5, 2),
+  "Lead Ingot": tradeProfile(4, 3, 3, 1, 0, 5, 2),
+  "Silver Ingot": tradeProfile(2, 1, 4, 2, 0, 5, 2),
+  "Gold Ingot": tradeProfile(2, 1, 5, 3, 0, 5, 2),
   Grain: tradeProfile(4, 4, 1, -1, -1, 2, 3),
   Cattle: tradeProfile(5, 5, 2, 0, -2, 1, 5),
   Fish: tradeProfile(3, 3, 1, -1, -2, 1, 5),
@@ -1536,3 +1595,77 @@ export class GoodsModule {
 }
 
 export const Goods = new GoodsModule();
+
+const LEGACY_METAL_NAMES = ["Iron", "Copper", "Tin", "Lead", "Silver", "Gold"] as const;
+type LegacyMetalName = (typeof LEGACY_METAL_NAMES)[number];
+
+const LEGACY_INGOT_PROPERTIES: Record<LegacyMetalName, Pick<Good, "tags" | "warEconomyType">> = {
+  Iron: { tags: ["ingot", "metal", "military"], warEconomyType: "strategic" },
+  Copper: { tags: ["ingot", "metal"], warEconomyType: "strategic" },
+  Tin: { tags: ["ingot", "metal"], warEconomyType: "strategic" },
+  Lead: { tags: ["ingot", "metal", "military", "construction"], warEconomyType: "strategic" },
+  Silver: { tags: ["ingot", "metal", "luxury"], warEconomyType: "luxury" },
+  Gold: { tags: ["ingot", "metal", "luxury"], warEconomyType: "luxury" }
+};
+
+/**
+ * Upgrades pre-Phase-A catalogues in place. Existing metal stock keeps its Good id but becomes
+ * Ore; the newly appended Ingot starts with no stock. This deliberately avoids creating wealth
+ * during migration and lets the Phase-B smelter become the sole source of Ingots.
+ */
+export function migrateLegacyOreIngotGoods(): boolean {
+  const goods = getGoods();
+  const legacyMetals = goods.filter(good => (LEGACY_METAL_NAMES as readonly string[]).includes(good.name));
+  if (!legacyMetals.length) return false;
+
+  let nextId = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  const ingotIdByLegacyGoodId = new Map<number, number>();
+
+  for (const ore of legacyMetals) {
+    const legacyName = ore.name as LegacyMetalName;
+    const ingotId = nextId++;
+    const ingotProperties = LEGACY_INGOT_PROPERTIES[legacyName];
+    const ingotValue = ore.value;
+
+    ingotIdByLegacyGoodId.set(ore.i, ingotId);
+    ore.name = `${legacyName} Ore`;
+    ore.tags = ["ore", "mineral"];
+    ore.warEconomyType = undefined;
+    ore.value = ingotValue / 2;
+    ore.chance = 0;
+    ore.trade = getDefaultGoodTradeProfile(ore);
+    delete ore.distribution;
+    delete ore.biomeOutput;
+    delete ore.biomeOutputByTag;
+    delete ore.demandCoverage;
+
+    const ingot: Good = {
+      i: ingotId,
+      name: `${legacyName} Ingot`,
+      tags: [...ingotProperties.tags],
+      warEconomyType: ingotProperties.warEconomyType,
+      icon: ore.icon,
+      color: ore.color,
+      value: ingotValue,
+      chance: 0,
+      unit: ore.unit
+    };
+    ingot.trade = getDefaultGoodTradeProfile(ingot);
+    if (legacyName === "Lead") ingot.demandCoverage = { construction: 0.3 };
+    goods.push(ingot);
+  }
+
+  for (const good of goods) {
+    if (!good.recipes) continue;
+    good.recipes = good.recipes.map(recipe => {
+      const migratedRecipe: Record<number, number> = {};
+      for (const [rawGoodId, amount] of Object.entries(recipe)) {
+        const goodId = Number(rawGoodId);
+        migratedRecipe[ingotIdByLegacyGoodId.get(goodId) ?? goodId] = amount;
+      }
+      return migratedRecipe;
+    });
+  }
+
+  return true;
+}

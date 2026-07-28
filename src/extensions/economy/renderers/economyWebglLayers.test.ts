@@ -17,7 +17,7 @@ describe("buildGoodsCellPolygons", () => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
     const iron = {
       i: 2,
-      name: "Iron",
+      name: "Iron Ore",
       value: 4,
       tags: ["ore"],
       unit: "wagon",
@@ -86,7 +86,7 @@ describe("buildMineralDepositSymbols", () => {
       cells: { p: [[5, 5]] }
     } as unknown as PackedGraph;
     setGoods([
-      { i: 1, name: "Lead", tags: ["ore"], value: 3, unit: "wagon", icon: "good-lead", color: "#6f7285" }
+      { i: 1, name: "Lead Ore", tags: ["ore"], value: 3, unit: "wagon", icon: "good-lead", color: "#6f7285" }
     ] as never);
   });
 

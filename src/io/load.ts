@@ -239,6 +239,7 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
 
     // The full-replace commit has already reached RenderCoordinator. A renderer
     // failure is isolated from the accepted world by WorldRuntime listeners.
+    document.dispatchEvent(new CustomEvent("fmg:world-loaded"));
     document.dispatchEvent(new CustomEvent("fmg:render-mode-changed"));
     document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
     tip("Map is successfully loaded", true, "success", 7000);

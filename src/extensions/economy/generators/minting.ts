@@ -16,16 +16,16 @@ export interface MintLedger {
 }
 
 const METAL_COIN_VALUES = [
-  ["silver", 10],
-  ["gold", 100],
-  ["copper", 1]
+  ["silver ingot", 10],
+  ["gold ingot", 100],
+  ["copper ingot", 1]
 ] as const;
 const CIRCULATION_MONTHLY_RETENTION = 0.995;
 const TARGET_MONTHS_OF_CURRENCY = 12;
 const INITIAL_MONTHS_OF_CURRENCY = 6;
 const SEIGNIORAGE_RATE = 0.02;
 
-/** Converts Gold / Silver / Copper market stock into a state currency ledger. */
+/** Converts Gold / Silver / Copper Ingot market stock into a state currency ledger. */
 export class MintingModule {
   generate(): void {
     const priorByState = new Map(getMintLedgers().map(ledger => [ledger.stateId, ledger]));

@@ -6,6 +6,7 @@ import {
   getMineralDepositsLayer,
   getWorldContext
 } from "../economyContext";
+import { getMinedGoodName } from "../generators/mineralResources";
 
 const SIZE = 7;
 const HALF = SIZE / 2;
@@ -40,7 +41,7 @@ function buildMineralDepositsContent(): string {
   let html = "";
   for (const deposit of deposits) {
     if (!deposit.discovered) continue;
-    const good = goodsByName.get(deposit.primaryCommodity);
+    const good = goodsByName.get(getMinedGoodName(deposit.primaryCommodity));
     if (!good) continue;
 
     const point = cells.p[deposit.cell];

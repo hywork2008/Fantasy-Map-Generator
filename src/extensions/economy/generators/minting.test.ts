@@ -20,9 +20,9 @@ describe("MintingModule", () => {
       states: [{ i: 0 } as State, { i: 1, rural: 100, urban: 20, treasury: 0 } as State]
     } as unknown as PackedGraph;
     setGoods([
-      { i: 1, name: "Gold", tags: ["ore"], value: 40, unit: "bullion", icon: "gold", color: "#fc0" },
-      { i: 2, name: "Silver", tags: ["ore"], value: 20, unit: "bullion", icon: "silver", color: "#ccc" },
-      { i: 3, name: "Copper", tags: ["ore"], value: 5, unit: "wagon", icon: "copper", color: "#b73" }
+      { i: 1, name: "Gold Ingot", tags: ["ingot"], value: 40, unit: "bullion", icon: "gold", color: "#fc0" },
+      { i: 2, name: "Silver Ingot", tags: ["ingot"], value: 20, unit: "bullion", icon: "silver", color: "#ccc" },
+      { i: 3, name: "Copper Ingot", tags: ["ingot"], value: 5, unit: "wagon", icon: "copper", color: "#b73" }
     ]);
     setMarkets([
       {

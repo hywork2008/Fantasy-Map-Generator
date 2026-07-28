@@ -8,7 +8,7 @@ import {
   getMineralGeologicalProvinces,
   initEconomyContext
 } from "../economyContext";
-import { MineralResources } from "./mineralResources";
+import { getMinedGoodName, isMineSuppliedGoodName, MineralResources } from "./mineralResources";
 
 describe("MineralResourcesModule", () => {
   beforeEach(() => {
@@ -42,6 +42,15 @@ describe("MineralResourcesModule", () => {
     expect(getMineralGeologicalProvinces()).toEqual(initial.provinces);
     expect(getMineralDistricts()).toEqual(initial.districts);
     expect(getMineralDeposits()).toEqual(initial.deposits);
+  });
+
+  it("maps extracted metals to Ore while excluding both Ore and Ingot from natural production", () => {
+    expect(getMinedGoodName("iron")).toBe("iron ore");
+    expect(getMinedGoodName("coal")).toBe("coal");
+    expect(isMineSuppliedGoodName("Iron Ore")).toBe(true);
+    expect(isMineSuppliedGoodName("Iron Ingot")).toBe(true);
+    expect(isMineSuppliedGoodName("Coal")).toBe(true);
+    expect(isMineSuppliedGoodName("Tools")).toBe(false);
   });
 
   it("keeps tin in granite or placer districts and primarily pairs silver with lead", () => {

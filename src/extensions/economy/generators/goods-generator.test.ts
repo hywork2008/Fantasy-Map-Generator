@@ -10,7 +10,7 @@ import {
   setGoodCellColumn,
   setGoods
 } from "../economyContext";
-import { GoodsModule, isGoodEnabled } from "./goods-generator";
+import { GoodsModule, isGoodEnabled, migrateLegacyOreIngotGoods } from "./goods-generator";
 
 describe("GoodsModule", () => {
   let goodsModule: GoodsModule;
@@ -93,7 +93,8 @@ describe("GoodsModule", () => {
     goodsModule.restoreDefaults();
 
     expect(getGoods().every(good => good.trade)).toBe(true);
-    expect(getGoods().find(good => good.name === "Gold")?.trade?.distancePremium).toBe(3);
+    expect(getGoods().find(good => good.name === "Gold Ore")?.trade?.distancePremium).toBe(0);
+    expect(getGoods().find(good => good.name === "Gold Ingot")?.trade?.distancePremium).toBe(3);
     expect(getGoods().find(good => good.name === "Fish")?.trade?.timeValueTrend).toBe(-2);
   });
 
@@ -101,12 +102,14 @@ describe("GoodsModule", () => {
     goodsModule.restoreDefaults();
 
     const byName = new Map(getGoods().map(good => [good.name, good]));
-    const lead = byName.get("Lead");
+    const leadOre = byName.get("Lead Ore");
+    const leadIngot = byName.get("Lead Ingot");
     const sulfur = byName.get("Sulfur");
     const gunpowder = byName.get("Gunpowder");
 
-    expect(lead?.tags).toContain("ore");
-    expect(lead?.trade).toBeDefined();
+    expect(leadOre?.tags).toEqual(expect.arrayContaining(["ore", "mineral"]));
+    expect(leadOre?.trade?.distancePremium).toBeLessThan(leadIngot!.trade!.distancePremium);
+    expect(leadIngot?.tags).toEqual(expect.arrayContaining(["ingot", "metal"]));
     expect(sulfur?.tags).toEqual(expect.arrayContaining(["mineral", "military"]));
     expect(sulfur?.trade).toBeDefined();
     expect(gunpowder?.recipes).toContainEqual(
@@ -116,6 +119,32 @@ describe("GoodsModule", () => {
         [byName.get("Coal")!.i]: 0.5
       })
     );
+  });
+
+  it("migrates legacy metal stock to Ore and appends zero-stock-ready Ingot definitions", () => {
+    setGoods([
+      { i: 2, name: "Iron", tags: ["ore"], value: 4, unit: "wagon", icon: "good-iron", color: "#5D686E" },
+      {
+        i: 4,
+        name: "Tools",
+        tags: ["construction"],
+        value: 14,
+        unit: "set",
+        icon: "good-tools",
+        color: "#808080",
+        recipes: [{ 2: 0.5 }]
+      }
+    ]);
+
+    expect(migrateLegacyOreIngotGoods()).toBe(true);
+
+    const byName = new Map(getGoods().map(good => [good.name, good]));
+    const ore = byName.get("Iron Ore");
+    const ingot = byName.get("Iron Ingot");
+    expect(ore).toMatchObject({ i: 2, value: 2, tags: ["ore", "mineral"] });
+    expect(ingot).toMatchObject({ value: 4, chance: 0, tags: ["ingot", "metal", "military"] });
+    expect(byName.get("Tools")?.recipes).toEqual([{ [ingot!.i]: 0.5 }]);
+    expect(migrateLegacyOreIngotGoods()).toBe(false);
   });
 
   it("treats Coins as a minting service rather than a second metal-consuming commodity", () => {

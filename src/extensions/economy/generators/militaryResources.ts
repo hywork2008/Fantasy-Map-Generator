@@ -75,7 +75,7 @@ export class MilitaryResourcesModule {
       for (const resource of ["iron", "lead", "gunpowder"] as const) {
         const requested = (ledger.annualDemand[resource] ?? 0) / MONTHS_PER_YEAR;
         if (requested <= 0) continue;
-        const good = goodsByName.get(resource);
+        const good = goodsByName.get(resource === "iron" || resource === "lead" ? `${resource} ingot` : resource);
         const supplied = good ? Markets.consumeForMilitary(ledger.supplyMarketId, good.i, requested) : 0;
         ledger.lastConsumed[resource] = supplied;
         ledger.unmetDemand[resource] = rn(Math.max(0, requested - supplied), 4);

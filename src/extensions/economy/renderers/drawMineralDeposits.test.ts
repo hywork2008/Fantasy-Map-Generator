@@ -29,8 +29,8 @@ describe("drawMineralDeposits", () => {
     } as unknown as PackedGraph;
 
     setGoods([
-      { i: 1, name: "Lead", tags: ["ore"], value: 3, unit: "wagon", icon: "good-lead", color: "#6f7285" },
-      { i: 2, name: "Silver", tags: ["ore"], value: 20, unit: "bullion", icon: "good-silver", color: "#C0C0C0" }
+      { i: 1, name: "Lead Ore", tags: ["ore"], value: 3, unit: "wagon", icon: "good-lead", color: "#6f7285" },
+      { i: 2, name: "Silver Ore", tags: ["ore"], value: 20, unit: "bullion", icon: "good-silver", color: "#C0C0C0" }
     ] as never);
   });
 

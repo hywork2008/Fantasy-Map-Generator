@@ -2,7 +2,8 @@
 
 ## 状態
 
-未着手。設計のみ確定。`docs/plan/mineral-resource-system.md`(鉱物資源システム)の続編であり、
+Phase A 実装済み（Ore/Ingot のカタログ分離・既存セーブ移行）。Phase B〜D は未着手。
+`docs/plan/mineral-resource-system.md`(鉱物資源システム)の続編であり、
 同ドキュメント §12「未決定事項」の「個別 Ore Good を Phase 2 から導入するか、精錬済み金属相当の
 まま進めるか」に対して、本書は **導入する** という決定を行う。
 
@@ -199,13 +200,13 @@ export interface TradeSecurityLedger {
 
 ## 7. 実装フェーズ
 
-- [ ] **Phase A**: Ore/Ingot 分離
-  - [ ] `goods-generator.ts` の6品目をOreとして再定義し、対応するIngotを追加
-  - [ ] Tools/Weapons/Bronze/Armor/Artillery/Jewelry レシピをIngot参照に更新
-  - [ ] `TRADE_PROFILES` にOre/Ingot両方のエントリを追加(Oreは長距離輸送に不利な設定)
-  - [ ] `minting.ts`/`militaryResources.ts` の参照先をIngotに更新
-  - [ ] `mineralResources.ts` の `MINERAL_COMMODITIES` 分割、`isMineSuppliedGoodName` 拡張
-  - [ ] 既存セーブ互換(旧`.fmg`にOre/Ingotが無い場合の補完方針を決める)
+- [x] **Phase A**: Ore/Ingot 分離
+  - [x] `goods-generator.ts` の6品目をOreとして再定義し、対応するIngotを追加
+  - [x] Tools/Weapons/Bronze/Armor/Artillery/Jewelry レシピをIngot参照に更新
+  - [x] `TRADE_PROFILES` にOre/Ingot両方のエントリを追加(Oreは長距離輸送に不利な設定)
+  - [x] `minting.ts`/`militaryResources.ts` の参照先をIngotに更新
+  - [x] `mineralResources.ts` の `MINERAL_COMMODITIES` 分割、`isMineSuppliedGoodName` 拡張
+  - [x] 既存セーブ互換(旧`.fmg`にOre/Ingotが無い場合の補完方針を決める)
 - [ ] **Phase B**: `SmelterOperation` 新設
   - [ ] 型定義・生成モジュール(`smelterOperations.ts`)
   - [ ] 近傍セル探索による立地選定(水利+燃料スコアリング)
@@ -229,5 +230,6 @@ export interface TradeSecurityLedger {
   (Phase C/Dで実データを見ながら調整する前提)
 - `TradeSecurityLedger.investmentLevel` をプレイヤーがどこで設定するか(Toolsタブの新規UIか、
   既存の税率設定に相乗りするか)
-- 既存セーブ(Ore/Ingot分離前に生成された `.fmg`/旧`.map`)のマイグレーション方針: 既存の
-  Iron等の在庫をOreとIngotにどう振り分けるか、あるいは単純にOreとして扱い直すか
+- 既存セーブ(Ore/Ingot分離前に生成された `.fmg`/旧`.map`)は Phase A で移行済み。旧 Iron 等の
+  Good ID と市場在庫・取引中貨物は **Ore としてそのまま維持**し、対応する Ingot Good は在庫ゼロで
+  末尾に追加する。これにより資産を複製せず、Phase B の精錬所だけが Ingot の新規供給源になる。

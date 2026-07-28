@@ -31,7 +31,7 @@ describe("drawGoods", () => {
 
     const iron = {
       i: 2,
-      name: "Iron",
+      name: "Iron Ore",
       value: 4,
       tags: ["ore"],
       unit: "wagon",

@@ -18,6 +18,7 @@ import {
   getWorldContext
 } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
+import { getMinedGoodName } from "../generators/mineralResources";
 import { getCellProduction } from "../generators/production-utils";
 import { TradeAnimation } from "../generators/trade-animation";
 import { getDisplayedGoodIds } from "../store/goodsDisplaySelection";
@@ -250,7 +251,7 @@ export function buildMineralDepositSymbols(): ExtensionWebglScatterDatum[] {
   const symbols: ExtensionWebglScatterDatum[] = [];
   for (const deposit of getMineralDeposits()) {
     if (!deposit.discovered) continue;
-    const good = goodsByName.get(deposit.primaryCommodity);
+    const good = goodsByName.get(getMinedGoodName(deposit.primaryCommodity));
     const position = worldContext.pack.cells.p[deposit.cell];
     if (!good || !position) continue;
 

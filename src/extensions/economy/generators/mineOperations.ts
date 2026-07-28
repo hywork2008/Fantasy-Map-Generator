@@ -10,7 +10,7 @@ import {
 } from "../economyContext";
 import { isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
-import type { MineOperation, MineralCommodity } from "./mineralResources";
+import { getMinedGoodName, type MineOperation, type MineralCommodity } from "./mineralResources";
 
 const INITIAL_OPERATION_ACCESSIBILITY = 0.5;
 const PROSPECTING_ACCESSIBILITY = 0.35;
@@ -113,7 +113,7 @@ export class MineOperationsModule {
       const annualOutput: Partial<Record<MineralCommodity, number>> = {};
 
       for (const yieldInfo of deposit.yields) {
-        const good = goodsByName.get(yieldInfo.commodity);
+        const good = goodsByName.get(getMinedGoodName(yieldInfo.commodity));
         if (!good || !isGoodEnabled(good) || yieldInfo.reserveTons <= 0) continue;
 
         const potentialAnnual = yieldInfo.annualCapacityTons * extractionFactor;

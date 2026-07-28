@@ -8,23 +8,30 @@ import {
   setMineralGeologicalProvinces
 } from "../economyContext";
 
-/** Goods that can later be supplied by a mine operation. Phase 1 stores geology only. */
-export const MINERAL_COMMODITIES = [
-  "iron",
-  "copper",
-  "tin",
-  "lead",
-  "silver",
-  "gold",
-  "coal",
-  "saltpeter",
-  "sulfur"
-] as const;
+/** Metals extracted as ore; a later smelter operation turns them into ingots. */
+export const ORE_COMMODITIES = ["iron", "copper", "tin", "lead", "silver", "gold"] as const;
 
-export type MineralCommodity = (typeof MINERAL_COMMODITIES)[number];
+export type OreCommodity = (typeof ORE_COMMODITIES)[number];
+
+/** Mineral goods that bypass smelting and remain directly mine-supplied. */
+export const FUEL_MINERAL_COMMODITIES = ["coal", "saltpeter", "sulfur"] as const;
+
+export type FuelMineralCommodity = (typeof FUEL_MINERAL_COMMODITIES)[number];
+export type MineralCommodity = OreCommodity | FuelMineralCommodity;
+
+const MINE_SUPPLIED_GOOD_NAMES = new Set<string>([
+  ...ORE_COMMODITIES.map(commodity => `${commodity} ore`),
+  ...ORE_COMMODITIES.map(commodity => `${commodity} ingot`),
+  ...FUEL_MINERAL_COMMODITIES
+]);
 
 export function isMineSuppliedGoodName(name: string): boolean {
-  return (MINERAL_COMMODITIES as readonly string[]).includes(name.toLowerCase());
+  return MINE_SUPPLIED_GOOD_NAMES.has(name.toLowerCase());
+}
+
+/** Resolves a geological commodity to the lower-case Economy Good name produced by a mine. */
+export function getMinedGoodName(commodity: MineralCommodity): string {
+  return (ORE_COMMODITIES as readonly string[]).includes(commodity) ? `${commodity} ore` : commodity;
 }
 export type GeologicalProvinceKind = "orogen" | "shield" | "granite" | "carbonate" | "basin" | "placer";
 export type MineralDistrictType =
@@ -41,7 +48,7 @@ export type MineralDistrictType =
   | "evaporite";
 
 export interface MineralYield {
-  /** Recoverable refined-metal equivalent; Phase 2 maps one tonne to one Economy Good unit. */
+  /** Recoverable ore reserve; MineOperation maps one tonne to one Economy Good unit. */
   commodity: MineralCommodity;
   reserveTons: number;
   annualCapacityTons: number;
