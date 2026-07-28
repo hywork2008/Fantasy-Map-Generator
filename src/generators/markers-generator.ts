@@ -607,7 +607,7 @@ class MarkersModule {
     const burg = pack.burgs[cells.burg[cell]];
     const name = `${burg.name} — ${resource} mining town`;
     const population = rn(burg.population! * populationRate * urbanization);
-    const legend = `${burg.name} is a mining town of ${population} people just nearby the ${resource} mine. This is a narrative marker only; it is not linked to Economy goods, deposits, or production.`;
+    const legend = `${burg.name} is a mining town of ${population} people just nearby the ${resource} mine. This is a narrative marker only; it is not linked to Economy goods, deposits, or production. If the Economy extension is enabled, see its Mineral Deposits map layer for real, production-driving mines.`;
     notes.push({ id, name, legend });
   }
 

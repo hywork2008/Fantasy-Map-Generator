@@ -364,3 +364,7 @@ export function getMarketsFillLayer() {
 export function getTradeAnimLayer() {
   return getApi().getSvgLayer("tradeAnimation");
 }
+
+export function getMineralDepositsLayer() {
+  return getApi().getSvgLayer("mineralDeposits");
+}

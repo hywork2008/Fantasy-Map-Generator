@@ -2,7 +2,8 @@
 
 ## 状態
 
-Fix 2・Fix 1 実装済み。Fix 3 は未着手。`docs/plan/mineral-resource-system.md` の Phase 0〜4
+Fix 2・Fix 1・Fix 3 実装済み(Fix 3 は Playwright E2E テストとブラウザでの目視確認が残課題)。
+`docs/plan/mineral-resource-system.md` の Phase 0〜4
 実装完了後にレビューを行い、検出した3件の設計ギャップを Fix 2 → Fix 1 → Fix 3 の順で修正する。
 本書は進捗確認用であり、各 Fix のチェックリストを実装しながら更新する。
 
@@ -173,17 +174,69 @@ production-utils.ts:137`)が、アイコンの位置自体は本物の `MineralD
 
 **チェックリスト**
 
-- [ ] Economy 拡張に鉱床/鉱山用の SVG (or WebGL) レイヤーを追加する
-- [ ] レイヤーのトグル・凡例(legend)をToolsタブ/レイヤーパネルに追加する
-- [ ] `goods-generator.ts` の鉱物系Good配置と `MineralDeposit` 座標の整合方針を決定し実装する
-- [ ] `mines` Marker の説明文更新 or 統合方針を決定する
+- [x] Economy 拡張に鉱床/鉱山用の SVG (or WebGL) レイヤーを追加する
+      (`toggleMineralDeposits` / SVG層 `mineralDeposits` を `economyLayers` に追加
+      (`index.tsx`)。SVG描画は `renderers/drawMineralDeposits.ts`。デフォルトの
+      `webglHybrid` レンダーモードでも表示されるよう、`renderers/economyWebglLayers.ts` に
+      `buildMineralDepositSymbols()`(散布点シンボル、既存の `economy-goods-sources` と同じ
+      簡略化方針)を追加し、`createEconomyWebglLayerSpec()` の返り値に組み込んだ)
+- [x] レイヤーのトグル・凡例(legend)をToolsタブ/レイヤーパネルに追加する
+      (トグルボタンは `LayerConfig` 登録で自動的にレイヤーパネルに現れる。**正式な凡例UIは
+      実装していない**——Goods/Markets/Trade の既存レイヤーにも凡例が無く、Economy 拡張に
+      前例のパターンが存在しないため、今回は LayerConfig の `tooltip` 文言と各マーカーの
+      ネイティブ `<title>`(商品名・随伴鉱物・深度・richness・稼働状態)で代替した)
+- [x] `goods-generator.ts` の鉱物系Good配置と `MineralDeposit` 座標の整合方針を決定し実装する
+      (「統合」を選択: Iron/Copper/Tin/Lead/Silver/Gold/Coal/Saltpeter/Sulfur の
+      `chance`/`distribution` を削除し `chance: 0` に変更 —— Bronze/Gunpowder/Artillery/Coins
+      など元々レシピ専用で自然配置を持たない Good と同じ既存パターンに合わせた。これにより
+      この9品目は旧来のランダム散布セルに二度と配置されず、`mineralDeposits` レイヤーが
+      唯一の視覚的な位置情報になる)
+- [x] `mines` Marker の説明文更新 or 統合方針を決定する
+      (統合はせず——物語用マーカーとして残す。説明文に「Economy拡張が有効なら Mineral
+      Deposits レイヤーを見るように」という一文を追記した(`markers-generator.ts`))
 - [ ] E2E/描画テストを追加する(該当があれば `webgl-hybrid.spec.ts` 系に準拠)
+      (vitest 単体テストは追加済み: `drawMineralDeposits.test.ts`、
+      `economyWebglLayers.test.ts` の `buildMineralDepositSymbols`。Playwright MCP で
+      dev server 上を手動確認済み(下記)だが、**リポジトリに残る Playwright E2E spec は
+      未追加**——CIで継続的に守られるテストにはなっていない)
 
 **検証**
 
-- 稼働中の鉱山がマップ上で視認できること
-- 鉱物系Goodアイコンの位置と実際の鉱床位置に矛盾がなくなること(統合または位置整合のいずれか)
-- 既存のレイヤー切り替え・プリセット機能に悪影響がないこと
+- [x] 稼働中の鉱山がマップ上で視認できること —— dev server 上で実ブラウザ確認済み。Economy +
+      Characters を有効化し `economy.regenerate({target:"minerals"})` で57鉱床・25稼働鉱山を
+      生成、Layers パネルの "Mineral Deposits" トグルで:
+      - WebGL hybrid モード(デフォルト): 商品色の散布点(`buildMineralDepositSymbols`)が
+        実際に地図上に描画されることを確認
+      - SVG モード(WebGLレンダリングトグルをOff): ズームインして実際の Good アイコン
+        (例: `good-lead` のワゴンアイコン)+ 商品色のリングが正しい鉱床セルに描画され、
+        `<title>` に "Lead deposit (lead, silver) — shallow, richness 3/5, active" のような
+        情報が入っていることを確認
+      - コンソールエラーは0件(既存の無関係な警告のみ)
+- [x] 鉱物系Goodアイコンの位置と実際の鉱床位置に矛盾がなくなること
+      (旧来のランダム配置自体を廃止したため「統合」で解消。もはや競合する2つ目の配置が存在しない)
+- [x] 既存のレイヤー切り替え・プリセット機能に悪影響がないこと
+      (`ECONOMY_PRESETS`("goods"/"trade")には新レイヤーを追加していない——独立したトグルとして
+      追加したのみ。実ブラウザで確認: 新レイヤーをトグルすると Layers preset ドロップダウンが
+      "Custom (not saved)" に変わる、これは他のレイヤーをトグルした場合と同じ既存の標準動作で
+      あり悪影響ではない)
+
+**実装メモ**
+
+- WebGL hybrid モードでは、Goods/Markets の既存パターン(`economy-goods-sources` 等)に倣い、
+  実際のアイコン形状ではなく色付きの散布点(`scatter`)で簡略表示する。フルアイコン形状は
+  SVGモードの `drawMineralDeposits.ts` のみで描画される。
+- 未発見(`discovered: false`)の鉱床は意図的に描画しない——発見条件を可視化すると
+  「Prospect mines」の意味が薄れるため、設計書§12の未決定事項に沿って「発見済みのみ表示」を選んだ。
+- **ブラウザ確認中に見つかった、Fix 3 とは別の既存ギャップ**: 地図生成後に Economy 拡張を
+  有効化しても(Extensions タブでチェックを入れるだけでは)鉱物データは自動生成されない。
+  `index.tsx` の `subscribeExtensionState` 内、有効化時の「経済データが完全に無ければ生成する」
+  分岐(`if (!getGoods().length) { … }`)は `Goods.generate()` / `Markets.generate()` のみを
+  呼び、`MineralResources.generate()` / `MineOperations.generate()` を呼ばない。新規マップ生成
+  (`fmg:generate-post-core`)では全て呼ばれるため問題にならないが、既存マップに後から Economy
+  を有効化した場合は Tools タブの「Mineral deposits」ボタン(または
+  `economy.regenerate({target:"minerals"})` コマンド)を手動で叩くまで鉱床が一切存在しない。
+  今回はこの手動コマンドで迂回して確認した。Fix 3 のスコープ外と判断し今回は修正していないが、
+  次回どこかで直す価値がある。
 
 ---
 

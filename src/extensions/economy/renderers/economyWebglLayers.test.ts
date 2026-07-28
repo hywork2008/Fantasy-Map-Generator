@@ -1,9 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext, setGoodCellColumn, setGoods } from "../economyContext";
+import {
+  clearEconomyContext,
+  initEconomyContext,
+  setGoodCellColumn,
+  setGoods,
+  setMineOperations,
+  setMineralDeposits
+} from "../economyContext";
 import { Goods } from "../generators/goods-generator";
-import { buildGoodsCellPolygons } from "./economyWebglLayers";
+import { buildGoodsCellPolygons, buildMineralDepositSymbols } from "./economyWebglLayers";
 
 describe("buildGoodsCellPolygons", () => {
   beforeEach(() => {
@@ -67,6 +74,65 @@ describe("buildGoodsCellPolygons", () => {
           [10, 0],
           [0, 10]
         ]
+      })
+    ]);
+  });
+});
+
+describe("buildMineralDepositSymbols", () => {
+  beforeEach(() => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.pack = {
+      cells: { p: [[5, 5]] }
+    } as unknown as PackedGraph;
+    setGoods([
+      { i: 1, name: "Lead", tags: ["ore"], value: 3, unit: "wagon", icon: "good-lead", color: "#6f7285" }
+    ] as never);
+  });
+
+  afterEach(() => clearEconomyContext());
+
+  it("omits undiscovered deposits and fades exhausted ones as WebGL scatter alpha", () => {
+    setMineralDeposits([
+      {
+        i: 1,
+        districtId: 1,
+        cell: 0,
+        type: "mvt",
+        primaryCommodity: "lead",
+        commodities: ["lead"],
+        yields: [],
+        richness: 2,
+        depth: "surface",
+        accessibility: 1,
+        discovered: true,
+        exhausted: true
+      },
+      {
+        i: 2,
+        districtId: 2,
+        cell: 0,
+        type: "mvt",
+        primaryCommodity: "lead",
+        commodities: ["lead"],
+        yields: [],
+        richness: 2,
+        depth: "surface",
+        accessibility: 0.1,
+        discovered: false,
+        exhausted: false
+      }
+    ] as never);
+    setMineOperations([]);
+
+    const symbols = buildMineralDepositSymbols();
+
+    expect(symbols).toEqual([
+      expect.objectContaining({
+        id: "economy-mineral-deposit-1",
+        cellId: 0,
+        position: [5, 5],
+        fillColor: [111, 114, 133, 89]
       })
     ]);
   });

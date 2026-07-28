@@ -7,7 +7,16 @@ import type {
   ExtensionWebglPolygonDatum,
   ExtensionWebglScatterDatum
 } from "../../../types/extension-api";
-import { getCaravans, getGoodCellColumn, getMarketCellColumn, getMarkets, getWorldContext } from "../economyContext";
+import {
+  getCaravans,
+  getGoodCellColumn,
+  getGoods,
+  getMarketCellColumn,
+  getMarkets,
+  getMineOperations,
+  getMineralDeposits,
+  getWorldContext
+} from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import { getCellProduction } from "../generators/production-utils";
 import { TradeAnimation } from "../generators/trade-animation";
@@ -17,6 +26,10 @@ import { getCaravanPosition, getHighlightedPoints } from "./draw-trade-animation
 const MIN_GOODS_ALPHA = 26;
 const MAX_GOODS_ALPHA = 230;
 const RESOURCE_CELL_ALPHA = 115;
+const MINERAL_DEPOSIT_ACTIVE_ALPHA = 255;
+const MINERAL_DEPOSIT_INACTIVE_ALPHA = 153;
+const MINERAL_DEPOSIT_EXHAUSTED_ALPHA = 89;
+const MINERAL_DEPOSIT_RADIUS = 4;
 
 export function createEconomyWebglLayerSpec(): ExtensionWebglLayerSpec {
   return {
@@ -50,6 +63,14 @@ export function createEconomyWebglLayerSpec(): ExtensionWebglLayerSpec {
           id: "economy-market-centers",
           toggle: "toggleMarketsLayer",
           data: buildMarketCenterSymbols(),
+          radiusUnits: "common" as const,
+          pickable: true
+        },
+        {
+          type: "scatter" as const,
+          id: "economy-mineral-deposits",
+          toggle: "toggleMineralDeposits",
+          data: buildMineralDepositSymbols(),
           radiusUnits: "common" as const,
           pickable: true
         },
@@ -209,6 +230,46 @@ function buildMarketCenterSymbols(): ExtensionWebglScatterDatum[] {
       fillColor,
       lineColor: getContrastingColor(fillColor),
       radius: 4,
+      lineWidth: 1
+    });
+  }
+  return symbols;
+}
+
+/**
+ * WebGL-hybrid counterpart to drawMineralDeposits.ts's SVG rendering: a plain colored
+ * scatter point per discovered deposit (matching the existing goods-source symbol
+ * approximation) rather than the full Good icon shape, which SVG mode alone renders via
+ * `<use href="#good-x">`. See Fix 3 in docs/plan/mineral-resource-circulation-fixes.md.
+ */
+export function buildMineralDepositSymbols(): ExtensionWebglScatterDatum[] {
+  const worldContext = getWorldContext();
+  const goodsByName = new Map(getGoods().map(good => [good.name.toLowerCase(), good]));
+  const operationByDeposit = new Map(getMineOperations().map(operation => [operation.depositId, operation]));
+
+  const symbols: ExtensionWebglScatterDatum[] = [];
+  for (const deposit of getMineralDeposits()) {
+    if (!deposit.discovered) continue;
+    const good = goodsByName.get(deposit.primaryCommodity);
+    const position = worldContext.pack.cells.p[deposit.cell];
+    if (!good || !position) continue;
+
+    const operation = operationByDeposit.get(deposit.i);
+    const alpha = deposit.exhausted
+      ? MINERAL_DEPOSIT_EXHAUSTED_ALPHA
+      : operation?.active
+        ? MINERAL_DEPOSIT_ACTIVE_ALPHA
+        : MINERAL_DEPOSIT_INACTIVE_ALPHA;
+    const fillColor = colorToRgba(good.color, alpha);
+    symbols.push({
+      id: `economy-mineral-deposit-${deposit.i}`,
+      kind: "extension",
+      extensionId: "economy",
+      cellId: deposit.cell,
+      position,
+      fillColor,
+      lineColor: getContrastingColor(fillColor),
+      radius: MINERAL_DEPOSIT_RADIUS,
       lineWidth: 1
     });
   }

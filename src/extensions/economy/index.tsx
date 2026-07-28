@@ -68,6 +68,7 @@ import {
   getCaravanPosition,
   getCaravansAtPoint
 } from "./renderers/draw-trade-animation";
+import { drawMineralDeposits } from "./renderers/drawMineralDeposits";
 import { economyMapPickHandler } from "./renderers/economyMapPickHandler";
 import { createEconomyWebglLayerSpec } from "./renderers/economyWebglLayers";
 import { getDisplayedGoodIds } from "./store/goodsDisplaySelection";
@@ -158,6 +159,14 @@ export const economyLayers: LayerConfig[] = [
     tooltip:
       "Trade: animated trade deal flows. Click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style",
     svgLayers: [{ id: "tradeAnimation", insertAfter: "marketsLayer" }]
+  },
+  {
+    id: "toggleMineralDeposits",
+    name: "Mineral Deposits",
+    shortcut: null,
+    tooltip:
+      "Mineral Deposits: discovered mines, colored and iconed by their primary commodity (dimmed once exhausted or idle). Click to toggle, drag to raise or lower the layer.",
+    svgLayers: [{ id: "mineralDeposits", insertBefore: "icons", display: "none" }]
   }
 ];
 
@@ -1344,6 +1353,7 @@ export function init(api: ExtensionAPI): void {
   api.registerLayerElement("toggleGoods", () => document.getElementById("goods"));
   api.registerLayerElement("toggleMarketsLayer", () => document.getElementById("marketsLayer"));
   api.registerLayerElement("toggleTrade", () => document.getElementById("tradeAnimation"));
+  api.registerLayerElement("toggleMineralDeposits", () => document.getElementById("mineralDeposits"));
 
   // Attach click handlers to economy SVG groups. Called after SVG elements are created
   // (on first addLayers) and again after every map load (via registerMapReinitHook).
@@ -1419,6 +1429,21 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
+  api.registerLayerToggle("toggleMineralDeposits", (_event?: MouseEvent) => {
+    if (!api.layerIsOn("toggleMineralDeposits")) {
+      api.turnLayerOn("toggleMineralDeposits");
+      if (api.viewContext.renderMode === "webglHybrid") {
+        api.getSvgLayer("mineralDeposits")?.style("display", "none");
+        api.requestWebglRender();
+        return;
+      }
+      drawMineralDeposits();
+    } else {
+      api.getSvgLayer("mineralDeposits")?.html("");
+      api.turnLayerOff("toggleMineralDeposits");
+    }
+  });
+
   // Redraw economy layers whenever the host calls drawLayers()
   api.registerDrawLayerHook(() => {
     // Trade animation restarts (route pathfinding + SVG/animation setup) on every
@@ -1434,12 +1459,14 @@ export function init(api: ExtensionAPI): void {
       api.getSvgLayer("goods")?.style("display", "none");
       api.getSvgLayer("marketsLayerFill")?.style("display", "none");
       api.getSvgLayer("marketsLayer")?.style("display", "none");
+      api.getSvgLayer("mineralDeposits")?.style("display", "none");
       api.requestWebglRender();
       if (api.layerIsOn("toggleTrade") && !isBulkTimeAdvanceRunning) TradeAnimation.start();
       return;
     }
     if (api.layerIsOn("toggleGoods")) drawGoods(getDisplayedGoodIds());
     if (api.layerIsOn("toggleMarketsLayer")) drawMarketsLayer();
+    if (api.layerIsOn("toggleMineralDeposits")) drawMineralDeposits();
     if (api.layerIsOn("toggleTrade") && !isBulkTimeAdvanceRunning) TradeAnimation.start();
   });
 }

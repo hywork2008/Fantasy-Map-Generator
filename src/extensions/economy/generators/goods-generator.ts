@@ -161,8 +161,10 @@ export const GOODS_DATA: GoodData[] = [
     icon: "good-iron",
     color: "#5D686E",
     value: 4,
-    chance: 5,
-    distribution: "minHeight(60) || (biome(12) && nth(7)) || (minHeight(20) && nth(10))",
+    // Cell placement comes from MineralDeposit/MineOperation (mineralResources.ts), rendered
+    // on the mineralDeposits layer, not from this legacy chance/distribution scatter — see Fix 3
+    // in docs/plan/mineral-resource-circulation-fixes.md.
+    chance: 0,
     unit: "wagon",
     multipliers: { cultureType: { Highland: 1.4 } },
     biomeOutput: { 12: 0.1 }
@@ -174,8 +176,7 @@ export const GOODS_DATA: GoodData[] = [
     icon: "good-copper",
     color: "#b87333",
     value: 5,
-    chance: 2,
-    distribution: "minHeight(60) || (minHeight(30) && elevation())",
+    chance: 0,
     unit: "wagon",
     multipliers: { cultureType: { Highland: 1.4 } }
   },
@@ -186,8 +187,7 @@ export const GOODS_DATA: GoodData[] = [
     icon: "good-tin",
     color: "#454343",
     value: 6,
-    chance: 2,
-    distribution: "minHeight(60) || (minHeight(30) && elevation())",
+    chance: 0,
     unit: "wagon",
     multipliers: { cultureType: { Highland: 1.4 } }
   },
@@ -198,8 +198,7 @@ export const GOODS_DATA: GoodData[] = [
     icon: "good-lead",
     color: "#6f7285",
     value: 3,
-    chance: 2,
-    distribution: "minHeight(50) || (minHeight(30) && elevation() && nth(3))",
+    chance: 0,
     unit: "wagon",
     demandCoverage: { construction: 0.3 },
     multipliers: { cultureType: { Highland: 1.4 } }
@@ -211,8 +210,7 @@ export const GOODS_DATA: GoodData[] = [
     icon: "good-silver",
     color: "#C0C0C0",
     value: 20,
-    chance: 2,
-    distribution: "minHeight(60) || (minHeight(30) && elevation())",
+    chance: 0,
     unit: "bullion",
     multipliers: { cultureType: { Hunting: 0.5, Highland: 1.4, Nomadic: 0.5 } }
   },
@@ -223,8 +221,7 @@ export const GOODS_DATA: GoodData[] = [
     icon: "good-gold",
     color: "#ffd700",
     value: 40,
-    chance: 2,
-    distribution: "river() && minHeight(40)",
+    chance: 0,
     unit: "bullion",
     multipliers: { cultureType: { Highland: 1.4, Nomadic: 0.5 } }
   },
@@ -557,8 +554,10 @@ export const GOODS_DATA: GoodData[] = [
     icon: "good-sulfur",
     color: "#e4d64b",
     value: 5,
-    chance: 1,
-    distribution: "minHeight(65) && random(25)",
+    // Cell placement comes from MineralDeposit/MineOperation (mineralResources.ts), rendered
+    // on the mineralDeposits layer, not from this legacy chance/distribution scatter — see Fix 3
+    // in docs/plan/mineral-resource-circulation-fixes.md.
+    chance: 0,
     unit: "barrel",
     demandCoverage: {}
   },
@@ -569,8 +568,7 @@ export const GOODS_DATA: GoodData[] = [
     icon: "good-saltpeter",
     color: "#e6e3e3",
     value: 4,
-    chance: 3,
-    distribution: "biome(1, 2) || (minHeight(50) && random(20))",
+    chance: 0,
     unit: "barrel",
     demandCoverage: {}
   },
@@ -581,8 +579,7 @@ export const GOODS_DATA: GoodData[] = [
     icon: "good-coal",
     color: "#5a6a75",
     value: 2,
-    chance: 3,
-    distribution: "minHeight(40) || (minHeight(20) && elevation(25))",
+    chance: 0,
     unit: "wain",
     demandCoverage: { utilities: 0.5 },
     recipes: [{ Wood: 1.5 }]
