@@ -8,6 +8,7 @@ import {
 } from "../../../extensions/dynamicLoader";
 import { extensionDB } from "../../../extensions/extensionDB";
 import { type ExtensionDependency, useExtensionState } from "../../../store/extensionState";
+import { useGenerationProgressState } from "../../../store/generationProgressState";
 
 interface InstalledMeta {
   id: string;
@@ -23,6 +24,8 @@ export const ExtensionsTab: React.FC = () => {
   const [installing, setInstalling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
+  const generationLockMessage = "Extensions cannot be changed while map generation is in progress.";
 
   // Merge DB records with zustand-registered extensions to build full list
   const refreshInstalledMeta = useCallback(async () => {
@@ -54,11 +57,16 @@ export const ExtensionsTab: React.FC = () => {
   }, [refreshInstalledMeta]);
 
   const handleInstallClick = () => {
+    if (isMapGenerationInProgress) {
+      setError(generationLockMessage);
+      return;
+    }
     setError(null);
     fileInputRef.current?.click();
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isMapGenerationInProgress) return;
     const file = e.target.files?.[0];
     if (!file) return;
     // Reset so the same file can be re-selected
@@ -76,6 +84,10 @@ export const ExtensionsTab: React.FC = () => {
   };
 
   const handleToggle = async (id: string, isCurrentlyEnabled: boolean, isBuiltin: boolean) => {
+    if (isMapGenerationInProgress) {
+      setError(generationLockMessage);
+      return;
+    }
     const nextState = !isCurrentlyEnabled;
     // The store owns the dependency validation (required-on-enable, required-by-others-on-disable);
     // the UI only reacts to whether the toggle was allowed.
@@ -93,6 +105,10 @@ export const ExtensionsTab: React.FC = () => {
   };
 
   const handleUninstall = async (id: string) => {
+    if (isMapGenerationInProgress) {
+      setError(generationLockMessage);
+      return;
+    }
     await uninstallExtension(id);
     await refreshInstalledMeta();
   };
@@ -106,7 +122,8 @@ export const ExtensionsTab: React.FC = () => {
           className="options"
           style={{ opacity: installing ? 0.6 : 1 }}
           onClick={handleInstallClick}
-          disabled={installing}
+          disabled={installing || isMapGenerationInProgress}
+          title={isMapGenerationInProgress ? generationLockMessage : undefined}
         >
           {installing ? "Installing…" : "⊕ Install Extension (.zip)"}
         </button>
@@ -130,23 +147,22 @@ export const ExtensionsTab: React.FC = () => {
                 m.id !== meta.id && enabledExtensions[m.id] && m.dependencies?.some(d => d.id === meta.id && d.required)
             );
             const canDisable = !blockingDependent;
-            const disabled = isEnabled ? !canDisable : !canEnable;
+            const disabled = isMapGenerationInProgress || (isEnabled ? !canDisable : !canEnable);
+            const toggleTitle = isMapGenerationInProgress
+              ? generationLockMessage
+              : isEnabled
+                ? canDisable
+                  ? "Disable extension"
+                  : `Cannot disable: required by ${blockingDependent?.name}`
+                : canEnable
+                  ? "Enable extension"
+                  : "Missing required dependencies";
 
             return (
               <div key={meta.id} style={{ background: isEnabled ? "var(--bg-light)" : "transparent" }}>
                 <div>
                   {/* Toggle switch */}
-                  <label
-                    title={
-                      isEnabled
-                        ? canDisable
-                          ? "Disable extension"
-                          : `Cannot disable: required by ${blockingDependent?.name}`
-                        : canEnable
-                          ? "Enable extension"
-                          : "Missing required dependencies"
-                    }
-                  >
+                  <label title={toggleTitle}>
                     <input
                       type="checkbox"
                       aria-label={`Toggle ${meta.name} extension`}
@@ -212,6 +228,7 @@ export const ExtensionsTab: React.FC = () => {
                       className="options"
                       title="Uninstall this extension"
                       onClick={() => handleUninstall(meta.id)}
+                      disabled={isMapGenerationInProgress}
                     >
                       ✕
                     </button>

@@ -14,4 +14,5 @@ test("shows the generated landscape before map completion", async ({ page }) => 
 
   await page.locator("#viewbox").dispatchEvent("mousemove", { clientX: 8, clientY: 8 });
   await expect.poll(() => pageErrors).toEqual([]);
+
 });

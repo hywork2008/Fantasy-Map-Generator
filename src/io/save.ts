@@ -6,6 +6,7 @@ import { worldRuntime } from "../runtime/worldRuntime";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers } from "../store/editorState";
+import { generationProgressStore } from "../store/generationProgressState";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs, openConfirm } from "../ui/dialogs/dialogService";
 import { createObjectURL, link, parseError, ra, revokeObjectURL, rn } from "../utils";
@@ -370,6 +371,7 @@ export async function initiateAutosave(): Promise<void> {
   async function autosave() {
     const timeoutMinutes = useOptionsState.getState().autosaveInterval;
     if (!timeoutMinutes) return;
+    if (generationProgressStore.getState().isOpen) return;
 
     const diffInMinutes = (Date.now() - lastSavedAt) / MINUTE;
     if (diffInMinutes < timeoutMinutes) return;

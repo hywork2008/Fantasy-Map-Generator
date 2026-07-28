@@ -2,6 +2,7 @@ import type { Selection } from "d3";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Burg, State } from "../types/models";
+import { generationProgressStore } from "./generationProgressState";
 
 export interface ExtensionDependency {
   id: string;
@@ -244,6 +245,11 @@ export const useExtensionState = create<ExtensionState>()(
       },
 
       toggleExtension: (id, forceState) => {
+        if (generationProgressStore.getState().isOpen) {
+          set({ toggleError: "Extensions cannot be changed while map generation is in progress." });
+          return false;
+        }
+
         const state = get();
         const currentState = state.enabledExtensions[id] ?? false;
         const nextState = forceState !== undefined ? forceState : !currentState;
