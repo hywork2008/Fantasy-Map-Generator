@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-07-28
+
+- docs/plan/mineral-resource-circulation-fixes.md
+
 2026-07-27
 
 - docs/plan/land-route-elevation-cost.md
