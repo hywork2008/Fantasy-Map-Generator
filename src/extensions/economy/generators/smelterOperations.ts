@@ -1,4 +1,6 @@
+import { rn } from "../../hostUtils";
 import {
+  getApi,
   getGoods,
   getMineOperations,
   getMineralDeposits,
@@ -21,14 +23,27 @@ export interface SmelterOperation {
   technology: number;
   smeltingYield: number;
   annualCapacityTons: number;
-  /** Reserved for the Phase-C site-security system. */
+  /** Configured share (0..1) of the site's maximum state-funded security. */
   securityInvestment: number;
+  /** Treasury actually paid for this site's security in the latest production month. */
+  lastSecurityUpkeep: number;
+  /** Ingot units stolen before they reached the market in the latest production month. */
+  lastTheftLoss: number;
+  /** Highest per-batch theft probability used in the latest production month. */
+  lastTheftRisk: number;
   active: boolean;
 }
 
 const DEFAULT_SMELTING_YIELD = 0.8;
 const DEFAULT_SECURITY_INVESTMENT = 0;
 const MARKET_SMELTING_STOCK_SHARE = 0.5;
+const BASE_THEFT_RISK = 0.008;
+const SECURITY_UPKEEP_BASE = 0.1;
+const SECURITY_UPKEEP_PER_ANNUAL_TON = 0.01;
+const FRONTIER_WILDERNESS = 0;
+const FRONTIER_OUTPOST = 1;
+const FRONTIER_SETTLEMENT = 2;
+const FRONTIER_INCORPORATED = 3;
 
 /** Creates one independently sited smelter for each active metal mine and settles monthly refining. */
 export class SmelterOperationsModule {
@@ -58,6 +73,9 @@ export class SmelterOperationsModule {
         smeltingYield: previous?.smeltingYield ?? DEFAULT_SMELTING_YIELD,
         annualCapacityTons: this.getAnnualCapacity(deposit.yields),
         securityInvestment: previous?.securityInvestment ?? DEFAULT_SECURITY_INVESTMENT,
+        lastSecurityUpkeep: 0,
+        lastTheftLoss: 0,
+        lastTheftRisk: 0,
         active: true
       });
     }
@@ -76,12 +94,17 @@ export class SmelterOperationsModule {
     const goodsByName = new Map(getGoods().map(good => [good.name.toLowerCase(), good]));
 
     for (const smelter of getSmelterOperations()) {
+      smelter.lastSecurityUpkeep = 0;
+      smelter.lastTheftLoss = 0;
+      smelter.lastTheftRisk = 0;
       const deposit = depositsById.get(smelter.depositId);
       const mine = minesByDeposit.get(smelter.depositId);
       if (!smelter.active || !deposit || deposit.exhausted || !mine?.active) {
         smelter.active = false;
         continue;
       }
+
+      const effectiveSecurity = this.settleSecurityUpkeep(smelter);
 
       const oreYields = deposit.yields.filter(yieldInfo => this.isOreCommodity(yieldInfo.commodity));
       const totalAnnualOreCapacity = this.getAnnualCapacity(oreYields);
@@ -106,9 +129,88 @@ export class SmelterOperationsModule {
           MARKET_SMELTING_STOCK_SHARE
         );
         if (!oreConsumed) continue;
-        Markets.addSmelterSupply(smelter.marketId, ingot.i, oreConsumed * smelter.smeltingYield);
+        const refinedIngots = oreConsumed * smelter.smeltingYield;
+        const theftLoss = this.rollTheft(smelter, deposit.accessibility, refinedIngots, effectiveSecurity);
+        const deliveredIngots = Math.max(0, refinedIngots - theftLoss);
+        if (deliveredIngots > 0) Markets.addSmelterSupply(smelter.marketId, ingot.i, deliveredIngots);
       }
     }
+  }
+
+  /**
+   * Deducts site security from the owning state's treasury. If that treasury cannot
+   * cover the configured level, the site keeps its configured investment but the
+   * current month's theft protection is reduced proportionally.
+   */
+  private settleSecurityUpkeep(smelter: SmelterOperation): number {
+    const securityInvestment = this.clampUnit(smelter.securityInvestment);
+    smelter.securityInvestment = securityInvestment;
+    if (securityInvestment <= 0) return 0;
+
+    const burg = getWorldContext().pack.burgs[smelter.burgId];
+    const state = burg?.state ? getWorldContext().pack.states[burg.state] : undefined;
+    if (!state || state.removed) return 0;
+
+    const requestedUpkeep =
+      (SECURITY_UPKEEP_BASE + smelter.annualCapacityTons * SECURITY_UPKEEP_PER_ANNUAL_TON) * securityInvestment;
+    const treasury = Math.max(0, state.treasury ?? 0);
+    const paidUpkeep = Math.min(treasury, requestedUpkeep);
+    state.treasury = rn(treasury - paidUpkeep, 2);
+    smelter.lastSecurityUpkeep = rn(paidUpkeep, 2);
+    return requestedUpkeep > 0 ? securityInvestment * (paidUpkeep / requestedUpkeep) : 0;
+  }
+
+  /** Rolls theft against refined, not-yet-marketed Ingots. */
+  private rollTheft(
+    smelter: SmelterOperation,
+    accessibility: number,
+    refinedIngots: number,
+    effectiveSecurity: number
+  ): number {
+    if (refinedIngots <= 0) return 0;
+    const risk = this.getTheftRisk(smelter, accessibility, effectiveSecurity);
+    smelter.lastTheftRisk = Math.max(smelter.lastTheftRisk, risk);
+    if (Math.random() >= risk) return 0;
+
+    // A raid takes a material share of the just-refined batch, never the market's stock.
+    const loss = rn(refinedIngots * (0.25 + Math.random() * 0.5), 4);
+    smelter.lastTheftLoss = rn(smelter.lastTheftLoss + loss, 4);
+    return loss;
+  }
+
+  private getTheftRisk(smelter: SmelterOperation, accessibility: number, effectiveSecurity: number): number {
+    const { cells, burgs, states } = getWorldContext().pack;
+    const cell = smelter.cell;
+    const stage = this.getFrontierStage(cell, cells.state?.[cell] ?? 0);
+    const frontierMultiplier =
+      stage >= FRONTIER_INCORPORATED
+        ? 0.05
+        : stage === FRONTIER_SETTLEMENT
+          ? 0.35
+          : stage === FRONTIER_OUTPOST
+            ? 0.75
+            : 1.25;
+    const danger = Math.max(0, Math.min(255, cells.danger?.[cell] ?? 0));
+    const dangerMultiplier = 1 + (3 * danger) / 255;
+    const stateId = burgs[smelter.burgId]?.state ?? 0;
+    const supplyStrain = this.clampUnit(states[stateId]?.supplyStrain ?? 0);
+    const warMultiplier = 1 + supplyStrain;
+    const isolationMultiplier = 1 + (1 - this.clampUnit(accessibility));
+    const securityMultiplier = 1 - this.clampUnit(effectiveSecurity);
+    return this.clampUnit(
+      BASE_THEFT_RISK * frontierMultiplier * dangerMultiplier * warMultiplier * isolationMultiplier * securityMultiplier
+    );
+  }
+
+  /** State-owned ordinary map cells are treated as incorporated even before frontier data exists. */
+  private getFrontierStage(cell: number, stateId: number): number {
+    if (stateId) return FRONTIER_INCORPORATED;
+    const stage = getApi().simulationContext?.frontier?.cellStages?.[cell];
+    return typeof stage === "number" ? stage : FRONTIER_WILDERNESS;
+  }
+
+  private clampUnit(value: number): number {
+    return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
   }
 
   private hasMetalOre(yields: readonly { commodity: string }[]): boolean {

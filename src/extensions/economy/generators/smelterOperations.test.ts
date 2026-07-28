@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { worldContext } from "../../hostCore";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { simulationContext, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
@@ -17,10 +17,19 @@ import { SmelterOperations } from "./smelterOperations";
 
 describe("SmelterOperationsModule", () => {
   beforeEach(() => {
-    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    simulationContext.extensions = {};
+    simulationContext.frontier.cellStages = new Uint8Array([0, 0]);
+    initEconomyContext({ worldContext, simulationContext } as unknown as ExtensionAPI);
     worldContext.biomesData = { tags: [[], ["forest"]] } as typeof worldContext.biomesData;
     worldContext.pack = {
-      burgs: [{ i: 1, cell: 0, x: 0, y: 0, market: 1 }],
+      burgs: [
+        { i: 0, cell: 0, x: 0, y: 0, market: 0 },
+        { i: 1, cell: 0, x: 0, y: 0, market: 1, state: 1 }
+      ],
+      states: [
+        { i: 0, name: "Neutral" },
+        { i: 1, name: "Test State", treasury: 10, supplyStrain: 0 }
+      ],
       cells: {
         i: [0, 1],
         p: [
@@ -29,7 +38,9 @@ describe("SmelterOperationsModule", () => {
         ],
         c: [[1], [0]],
         biomeCode: Uint8Array.from([0, 1]),
-        r: Uint16Array.from([0, 1])
+        r: Uint16Array.from([0, 1]),
+        state: Uint16Array.from([1, 1]),
+        danger: Uint8Array.from([0, 0])
       }
     } as unknown as PackedGraph;
     setGoods([
@@ -72,7 +83,11 @@ describe("SmelterOperationsModule", () => {
     Markets.sync();
   });
 
-  afterEach(() => clearEconomyContext());
+  afterEach(() => {
+    clearEconomyContext();
+    simulationContext.extensions = {};
+    vi.restoreAllMocks();
+  });
 
   it("places a smelter at the neighboring river-and-forest site, then refines bounded Ore stock", () => {
     SmelterOperations.generate();
@@ -119,5 +134,43 @@ describe("SmelterOperationsModule", () => {
     SmelterOperations.generate();
 
     expect(getSmelterOperations()).toEqual([]);
+  });
+
+  it("charges state-funded security and suppresses a guaranteed frontier theft roll", () => {
+    worldContext.pack.cells.state = Uint16Array.from([0, 0]);
+    worldContext.pack.cells.danger = Uint8Array.from([255, 255]);
+    worldContext.pack.states[1].supplyStrain = 1;
+    simulationContext.frontier.cellStages = new Uint8Array([0, 0]);
+    SmelterOperations.generate();
+    getSmelterOperations()[0].securityInvestment = 1;
+    vi.spyOn(Math, "random").mockReturnValue(0);
+
+    SmelterOperations.produceMonth();
+
+    expect(worldContext.pack.states[1].treasury).toBe(8.7);
+    expect(getSmelterOperations()[0]).toMatchObject({
+      lastSecurityUpkeep: 1.3,
+      lastTheftRisk: 0,
+      lastTheftLoss: 0
+    });
+    expect(getMarkets()[0].goods[2].stock).toBe(8);
+  });
+
+  it("steals a bounded share of a newly refined batch in dangerous, unprotected frontier land", () => {
+    worldContext.pack.cells.state = Uint16Array.from([0, 0]);
+    worldContext.pack.cells.danger = Uint8Array.from([255, 255]);
+    worldContext.pack.states[1].supplyStrain = 1;
+    simulationContext.frontier.cellStages = new Uint8Array([0, 0]);
+    SmelterOperations.generate();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+
+    SmelterOperations.produceMonth();
+
+    expect(getSmelterOperations()[0]).toMatchObject({
+      lastSecurityUpkeep: 0,
+      lastTheftRisk: 0.08,
+      lastTheftLoss: 2
+    });
+    expect(getMarkets()[0].goods[2].stock).toBe(6);
   });
 });

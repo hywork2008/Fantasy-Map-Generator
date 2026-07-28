@@ -2,7 +2,7 @@
 
 ## 状態
 
-Phase A〜B 実装済み（Ore/Ingot のカタログ分離・既存セーブ移行・精錬所）。Phase C〜D は未着手。
+Phase A〜C 実装済み（Ore/Ingot のカタログ分離・既存セーブ移行・精錬所・精錬所盗難）。Phase D は未着手。
 `docs/plan/mineral-resource-system.md`(鉱物資源システム)の続編であり、
 同ドキュメント §12「未決定事項」の「個別 Ore Good を Phase 2 から導入するか、精錬済み金属相当の
 まま進めるか」に対して、本書は **導入する** という決定を行う。
@@ -139,6 +139,18 @@ smelterTheftRisk = baseRisk
 
 `securityInvestment` の維持費は、精錬所が帰属する Burg の State の `treasury` から月次で天引きする。
 
+実装係数は次の通り。通常の州有地・平時・高accessibilityでは月次0.04%程度まで低下し、
+辺境・最大danger・戦時・孤立地では最大16%となる。盗難が発生した場合は当月に精錬した
+バッチの25〜75%だけを失い、市場在庫には一切触れない。
+
+- `baseRisk`: `0.008`
+- `frontierMultiplier`: incorporated `0.05`、settlement `0.35`、outpost `0.75`、wilderness `1.25`
+- `dangerMultiplier`: `1 + 3 × danger / 255`
+- `warMultiplier`: `1 + clamp(supplyStrain, 0, 1)`
+- `isolationMultiplier`: `1 + (1 - clamp(accessibility, 0, 1))`
+- 月次警備費: `(0.1 + annualCapacityTons × 0.01) × securityInvestment`。国庫不足時は支払額に比例して
+  その月だけ実効警備水準を下げる。
+
 ### 5.2 被害3: 行商全般の盗難(既存 caravans.ts の拡張、全商品対象)
 
 `caravans.ts:399-416` に**既に存在する**、貨物種別を問わない盗賊ロス機構
@@ -211,10 +223,10 @@ export interface TradeSecurityLedger {
   - [x] 型定義・生成モジュール(`smelterOperations.ts`)
   - [x] 近傍セル探索による立地選定(水利+燃料スコアリング)
   - [x] 月次生産ワイヤリング(§4)
-- [ ] **Phase C**: 被害2(精錬所盗難)
-  - [ ] `SmelterOperation.securityInvestment` フィールドと維持費支払い
-  - [ ] `smelterTheftRisk` 計算・月次ロール
-  - [ ] `frontierMultiplier`/`dangerMultiplier`/`isolationMultiplier` の具体的な係数決定
+- [x] **Phase C**: 被害2(精錬所盗難)
+  - [x] `SmelterOperation.securityInvestment` フィールドと維持費支払い
+  - [x] `smelterTheftRisk` 計算・月次ロール
+  - [x] `frontierMultiplier`/`dangerMultiplier`/`isolationMultiplier` の具体的な係数決定
 - [ ] **Phase D**: 被害3(行商全般)
   - [ ] `TradeSecurityLedger` 新設(State単位)
   - [ ] `caravans.ts` の `banditRiskPerDay` 拡張
@@ -227,8 +239,6 @@ export interface TradeSecurityLedger {
 - 複数鉱山を1つの精錬所に統合するケースをいつ・どう扱うか(現状は1鉱山=1精錬所のMVP)
 - `smeltingYield`(Ore→Ingot歩留まり)の初期値と、技術進歩でどう変化させるか
   - Phase B の初期値は 0.8。技術進歩の変化則は将来決定する。
-- `frontierMultiplier`/`dangerMultiplier`/`isolationMultiplier`/`baseRisk` の具体的な数値
-  (Phase C/Dで実データを見ながら調整する前提)
 - `TradeSecurityLedger.investmentLevel` をプレイヤーがどこで設定するか(Toolsタブの新規UIか、
   既存の税率設定に相乗りするか)
 - 既存セーブ(Ore/Ingot分離前に生成された `.fmg`/旧`.map`)は Phase A で移行済み。旧 Iron 等の
