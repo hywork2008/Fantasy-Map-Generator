@@ -2,8 +2,12 @@ import type React from "react";
 import {
   GENERATION_STAGES,
   generationProgressStore,
+  getGenerationReviewProfile,
   useGenerationProgressState
 } from "../../store/generationProgressState";
+import { useOptionsState } from "../../store/optionsState";
+import type { BiomeRegionProfile } from "../../types/biomeRegion";
+import { lock } from "../../utils/domUtils";
 import { Dialog } from "./Dialog";
 import "./generationProgressDialog.css";
 
@@ -12,9 +16,27 @@ export const GenerationProgressDialog: React.FC = () => {
   const isGenerating = useGenerationProgressState(state => state.isGenerating);
   const currentStage = useGenerationProgressState(state => state.currentStage);
   const autoRun = useGenerationProgressState(state => state.autoRun);
+  const reviewLayers = useGenerationProgressState(state => state.reviewLayers);
+  const biomeRegionProfile = useOptionsState(state => state.biomeRegionProfile);
   const stage = GENERATION_STAGES[currentStage] ?? GENERATION_STAGES[0];
+  const reviewProfile = getGenerationReviewProfile(currentStage);
   const completed = currentStage;
   const progress = ((completed + (isGenerating ? 0 : 1)) / GENERATION_STAGES.length) * 100;
+
+  const handleReviewLayerToggle = (layerId: (typeof reviewProfile.layers)[number]["id"]) => {
+    const store = generationProgressStore.getState();
+    store.toggleReviewLayer(layerId);
+    document.dispatchEvent(new CustomEvent("fmg:render-generation-review"));
+  };
+
+  const handleBiomeRegionChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    useOptionsState.getState().setOption("biomeRegionProfile", event.target.value as BiomeRegionProfile);
+    lock("biomeRegionProfile");
+  };
+
+  const openWorldConfigurator = () => {
+    document.dispatchEvent(new CustomEvent("react-open-world-configurator"));
+  };
 
   return (
     <Dialog isOpen={isOpen} title="Build map" className="generation-progress-dialog">
@@ -57,6 +79,52 @@ export const GenerationProgressDialog: React.FC = () => {
         </ol>
 
         {!isGenerating && !autoRun && (
+          <section className="generation-progress-dialog__review" aria-label="Review layers">
+            <span>Review layers</span>
+            <div className="generation-progress-dialog__review-controls">
+              {reviewProfile.layers.map(layer => {
+                const isActive = reviewLayers.includes(layer.id);
+                return (
+                  <button
+                    key={layer.id}
+                    type="button"
+                    aria-pressed={isActive}
+                    className={isActive ? "generation-progress-dialog__review-layer--active" : undefined}
+                    onClick={() => handleReviewLayerToggle(layer.id)}
+                  >
+                    {layer.label}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {currentStage === 1 && !isGenerating && !autoRun && (
+          <section className="generation-progress-dialog__climate-settings" aria-label="Climate settings">
+            <span>Climate inputs</span>
+            <label htmlFor="generationBiomeRegionProfile">
+              Biome region
+              <select
+                id="generationBiomeRegionProfile"
+                name="biomeRegionProfile"
+                value={biomeRegionProfile}
+                onChange={handleBiomeRegionChange}
+              >
+                <option value="global">Global (default mix)</option>
+                <option value="medievalEurope">Medieval Europe</option>
+                <option value="mediterranean">Mediterranean</option>
+                <option value="tropicalRiverBasin">Tropical river basin</option>
+                <option value="mountainRealm">Mountain realm</option>
+              </select>
+            </label>
+            <button type="button" onClick={openWorldConfigurator}>
+              Open World Configurator
+            </button>
+          </section>
+        )}
+
+        {!isGenerating && !autoRun && (
           <div className="generation-progress-dialog__actions">
             {currentStage === 0 ? (
               <button
@@ -73,6 +141,15 @@ export const GenerationProgressDialog: React.FC = () => {
                 onClick={() => generationProgressStore.getState().previous()}
               >
                 Return to previous stage
+              </button>
+            )}
+            {currentStage === 1 && (
+              <button
+                type="button"
+                className="generation-progress-dialog__secondary"
+                onClick={() => generationProgressStore.getState().retryStage()}
+              >
+                Regenerate climate and waterways
               </button>
             )}
             <button

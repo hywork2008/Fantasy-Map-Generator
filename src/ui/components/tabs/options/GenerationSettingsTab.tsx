@@ -179,9 +179,13 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="biomeRegionProfile" />
             </td>
-            <td>Biome region</td>
+            <td>
+              <label htmlFor="biomeRegionProfile">Biome region</label>
+            </td>
             <td colSpan={2}>
               <select
+                id="biomeRegionProfile"
+                name="biomeRegionProfile"
                 value={options.biomeRegionProfile}
                 onChange={e => {
                   options.setOptions({

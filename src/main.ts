@@ -50,12 +50,21 @@ import { renderGroupCOAs } from "./renderers/draw-emblems";
 import { refreshLabeledContourLabels, refreshVisibleLabeledContourPaths } from "./renderers/draw-heightmap";
 import {
   BiomesRenderer,
+  BordersRenderer,
+  BurgIconsRenderer,
+  BurgLabelsRenderer,
   CoordinatesRenderer,
+  CulturesRenderer,
   drawCalendar,
   drawScaleBar,
   FeaturesRenderer,
   fitScaleBar,
-  HeightmapRenderer
+  HeightmapRenderer,
+  ProvincesRenderer,
+  RiversRenderer,
+  RoutesRenderer,
+  StateLabelsRenderer,
+  StatesRenderer
 } from "./renderers/index";
 import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
@@ -75,7 +84,7 @@ import { clearMainTip, tip } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
 import { useDebugSnapshotState } from "./store/debugSnapshotState";
 import { dialogStore } from "./store/dialogState";
-import { generationProgressStore } from "./store/generationProgressState";
+import { type GenerationReviewLayerId, generationProgressStore } from "./store/generationProgressState";
 import { DEFAULT_UI_OPTIONS, type OptionsState, useOptionsState } from "./store/optionsState";
 import type { Grid } from "./types/Grid";
 import type { Burg, BurgGroup } from "./types/models";
@@ -947,10 +956,13 @@ async function runGeneratePipeline(request: GenerateRequest): Promise<void> {
       if (canReviewStages) generationProgressStore.getState().beginStage(stageIndex);
       await stages[stageIndex]();
       if (!canReviewStages || stageIndex < restartAt) continue;
+      if (!generationProgressStore.getState().autoRun) {
+        renderGenerationReviewPreview(stageIndex, generationProgressStore.getState().reviewLayers);
+      }
       const action = await generationProgressStore.getState().waitForAction(stageIndex);
       if (action === "next") continue;
 
-      restartAt = action === "previous" ? Math.max(0, stageIndex - 1) : 0;
+      restartAt = action === "previous" ? Math.max(0, stageIndex - 1) : action === "retryStage" ? stageIndex : 0;
       activeRequest = action === "retryLandscape" ? { graph: null } : activeRequest;
       shouldRestart = true;
       break;
@@ -1014,7 +1026,6 @@ function getGenerationStages(): Array<() => Promise<void>> {
       reGraph();
       Features.markupPack();
       createDefaultRuler();
-      renderLandscapePreview();
     },
     async () => {
       if (viewContext.renderMap) OceanLayers();
@@ -1088,15 +1099,79 @@ function getGenerationStages(): Array<() => Promise<void>> {
   ];
 }
 
-function renderLandscapePreview(): void {
+const GENERATION_REVIEW_SVG_LAYER_IDS = [
+  "oceanLayers",
+  "landmass",
+  "terrs",
+  "lakes",
+  "biomes",
+  "rivers",
+  "cults",
+  "regions",
+  "provs",
+  "borders",
+  "routes",
+  "icons",
+  "anchors",
+  "labels"
+] as const;
+
+function renderGenerationReviewPreview(stageIndex: number, reviewLayers: readonly GenerationReviewLayerId[]): void {
   if (!viewContext.renderMap) return;
-  // The preview is SVG because deck.gl has no complete world data yet.
-  document.body.classList.add("fmg-generation-landscape-preview");
+  // Stage reviews are SVG because deck.gl has no complete world data yet.
+  document.body.classList.add("fmg-generation-review-preview");
   DeckGlRenderer.clear(viewContext);
+
+  for (const id of GENERATION_REVIEW_SVG_LAYER_IDS) {
+    const layer = document.getElementById(id);
+    if (!(layer instanceof SVGElement)) continue;
+    layer.classList.remove("fmg-layer-hidden");
+    layer.style.removeProperty("display");
+  }
+
+  HeightmapRenderer.clear?.(viewContext);
+  BiomesRenderer.clear?.(viewContext);
+  RiversRenderer.clear?.(viewContext);
+  CulturesRenderer.clear?.(viewContext);
+  StatesRenderer.clear?.(viewContext);
+  BordersRenderer.clear?.(viewContext);
+  ProvincesRenderer.clear?.(viewContext);
+  RoutesRenderer.clear?.(viewContext);
+  BurgIconsRenderer.clear?.(viewContext);
+  BurgLabelsRenderer.clear?.(viewContext);
+  StateLabelsRenderer.clear?.(viewContext);
+  viewContext.defs.select("#textPaths").selectAll("path").remove();
+
   OceanLayers();
   FeaturesRenderer.render(worldContext, viewContext, appServices);
-  HeightmapRenderer.render(worldContext, viewContext, appServices);
+  const selectedLayers = new Set(reviewLayers);
+
+  if (selectedLayers.has("terrain")) HeightmapRenderer.render(worldContext, viewContext, appServices);
+  if (selectedLayers.has("biomes")) BiomesRenderer.render(worldContext, viewContext, appServices);
+  if (selectedLayers.has("rivers")) RiversRenderer.render(worldContext, viewContext, appServices);
+  if (selectedLayers.has("cultures")) CulturesRenderer.render(worldContext, viewContext, appServices);
+  if (selectedLayers.has("states")) StatesRenderer.render(worldContext, viewContext, appServices);
+  if (selectedLayers.has("provinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
+  if (selectedLayers.has("borders")) BordersRenderer.render(worldContext, viewContext, appServices);
+  if (selectedLayers.has("routes")) RoutesRenderer.render(worldContext, viewContext, appServices);
+  if (selectedLayers.has("settlements")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
+  if (selectedLayers.has("settlementLabels")) BurgLabelsRenderer.render(worldContext, viewContext, appServices);
+  if (selectedLayers.has("stateLabels") && stageIndex >= 3) {
+    StateLabelsRenderer.render(worldContext, viewContext, appServices);
+  }
 }
+
+document.addEventListener("fmg:render-generation-review", () => {
+  const { isOpen, isGenerating, currentStage, reviewLayers } = generationProgressStore.getState();
+  if (!isOpen || isGenerating) return;
+  renderGenerationReviewPreview(currentStage, reviewLayers);
+});
+
+document.addEventListener("fmg:world-configurator-updated", () => {
+  const { isOpen, isGenerating, currentStage, autoRun, reviewLayers } = generationProgressStore.getState();
+  if (!isOpen || isGenerating || autoRun || currentStage !== 1) return;
+  renderGenerationReviewPreview(currentStage, reviewLayers);
+});
 
 // Register once at module load so dispatch is available before initMain completes.
 registerWorldGenerateHandler(runGeneratePipeline);
@@ -1127,7 +1202,7 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     WARN && console.warn(`TOTAL: ${rn((performance.now() - timeStart) / 1000, 2)}s`);
     showStatistics();
     INFO && console.groupEnd();
-    document.body.classList.remove("fmg-generation-landscape-preview");
+    document.body.classList.remove("fmg-generation-review-preview");
     generationProgressStore.getState().finish();
   } catch (error) {
     ERROR && console.error(error);
@@ -1138,7 +1213,7 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     }
     const parsedError = parseError(error);
     clearMainTip();
-    document.body.classList.remove("fmg-generation-landscape-preview");
+    document.body.classList.remove("fmg-generation-review-preview");
 
     generationErrorDialogStore.getState().open({
       errorText: parsedError,

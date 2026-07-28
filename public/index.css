@@ -73,8 +73,8 @@ body.fmg-webgl-hybrid .fmg-webgl-managed-svg-layer {
   display: none !important;
 }
 
-/* The staged landscape review happens before deck.gl has complete pack data. */
-body.fmg-generation-landscape-preview #terrs {
+/* Staged generation reviews use SVG because deck.gl has incomplete world data. */
+body.fmg-generation-review-preview .fmg-webgl-managed-svg-layer {
   display: inline !important;
 }
 

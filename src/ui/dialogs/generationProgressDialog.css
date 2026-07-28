@@ -103,6 +103,81 @@
   background: #80551e;
 }
 
+.generation-progress-dialog__review {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--dark-solid) 25%, #b98036);
+  background: color-mix(in srgb, var(--bg-light-solid) 86%, #d9bb82);
+}
+
+.generation-progress-dialog__review > span {
+  color: #765022;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.generation-progress-dialog__review-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.generation-progress-dialog__review-controls button {
+  min-height: 1.9rem;
+  padding: 0.28rem 0.5rem;
+  color: color-mix(in srgb, var(--dark-solid) 72%, transparent);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--dark-solid) 38%, transparent);
+}
+
+.generation-progress-dialog__review-controls button[aria-pressed="true"] {
+  color: #fff;
+  background: #80551e;
+  border-color: #80551e;
+}
+
+.generation-progress-dialog__climate-settings {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: end;
+  padding: 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--dark-solid) 25%, #b98036);
+  background: color-mix(in srgb, var(--bg-light-solid) 86%, #d9bb82);
+}
+
+.generation-progress-dialog__climate-settings > span {
+  grid-column: 1 / -1;
+  color: #765022;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.generation-progress-dialog__climate-settings label {
+  display: grid;
+  gap: 0.25rem;
+  color: color-mix(in srgb, var(--dark-solid) 78%, transparent);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.generation-progress-dialog__climate-settings select,
+.generation-progress-dialog__climate-settings button {
+  min-height: 1.9rem;
+}
+
+.generation-progress-dialog__climate-settings button {
+  padding: 0.28rem 0.5rem;
+  color: color-mix(in srgb, var(--dark-solid) 72%, transparent);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--dark-solid) 38%, transparent);
+}
+
 .generation-progress-dialog__actions {
   display: flex;
   flex-wrap: wrap;

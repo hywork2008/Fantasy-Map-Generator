@@ -31,20 +31,95 @@ export const GENERATION_STAGES = [
 ] as const;
 
 export type GenerationStage = (typeof GENERATION_STAGES)[number];
-export type GenerationProgressAction = "next" | "previous" | "retryLandscape";
+export type GenerationProgressAction = "next" | "previous" | "retryLandscape" | "retryStage";
+export type GenerationReviewLayerId =
+  | "terrain"
+  | "biomes"
+  | "rivers"
+  | "cultures"
+  | "settlements"
+  | "settlementLabels"
+  | "states"
+  | "borders"
+  | "provinces"
+  | "routes"
+  | "stateLabels";
+
+export type GenerationReviewLayer = {
+  id: GenerationReviewLayerId;
+  label: string;
+};
+
+export type GenerationReviewProfile = {
+  layers: readonly GenerationReviewLayer[];
+  defaultLayers: readonly GenerationReviewLayerId[];
+};
+
+export const GENERATION_REVIEW_PROFILES: readonly GenerationReviewProfile[] = [
+  {
+    layers: [{ id: "terrain", label: "Terrain" }],
+    defaultLayers: ["terrain"]
+  },
+  {
+    layers: [
+      { id: "biomes", label: "Biomes" },
+      { id: "rivers", label: "Rivers" }
+    ],
+    defaultLayers: ["biomes"]
+  },
+  {
+    layers: [
+      { id: "cultures", label: "Cultures" },
+      { id: "settlements", label: "Settlements" },
+      { id: "settlementLabels", label: "Settlement labels" }
+    ],
+    defaultLayers: ["cultures", "settlements", "settlementLabels"]
+  },
+  {
+    layers: [
+      { id: "states", label: "States" },
+      { id: "borders", label: "Borders" },
+      { id: "provinces", label: "Provinces" },
+      { id: "routes", label: "Routes" },
+      { id: "settlements", label: "Settlements" },
+      { id: "settlementLabels", label: "Settlement labels" },
+      { id: "stateLabels", label: "State labels" }
+    ],
+    defaultLayers: ["states", "borders", "routes", "settlements", "settlementLabels", "stateLabels"]
+  },
+  {
+    layers: [
+      { id: "states", label: "States" },
+      { id: "borders", label: "Borders" },
+      { id: "provinces", label: "Provinces" },
+      { id: "routes", label: "Routes" },
+      { id: "settlements", label: "Settlements" },
+      { id: "settlementLabels", label: "Settlement labels" },
+      { id: "stateLabels", label: "State labels" }
+    ],
+    defaultLayers: ["states", "borders", "routes", "settlements", "settlementLabels", "stateLabels"]
+  }
+];
+
+export function getGenerationReviewProfile(stage: number): GenerationReviewProfile {
+  return GENERATION_REVIEW_PROFILES[stage] ?? GENERATION_REVIEW_PROFILES[0];
+}
 
 type GenerationProgressState = {
   isOpen: boolean;
   isGenerating: boolean;
   currentStage: number;
   autoRun: boolean;
+  reviewLayers: GenerationReviewLayerId[];
   resolver: ((action: GenerationProgressAction) => void) | null;
   beginStage: (stage: number) => void;
   waitForAction: (stage: number) => Promise<GenerationProgressAction>;
   next: () => void;
   previous: () => void;
   retryLandscape: () => void;
+  retryStage: () => void;
   runAll: () => void;
+  toggleReviewLayer: (layer: GenerationReviewLayerId) => void;
   finish: () => void;
   fail: () => void;
 };
@@ -60,8 +135,15 @@ export const generationProgressStore = createStore<GenerationProgressState>((set
   isGenerating: false,
   currentStage: 0,
   autoRun: false,
+  reviewLayers: [...getGenerationReviewProfile(0).defaultLayers],
   resolver: null,
-  beginStage: stage => set({ isOpen: true, isGenerating: true, currentStage: stage }),
+  beginStage: stage =>
+    set({
+      isOpen: true,
+      isGenerating: true,
+      currentStage: stage,
+      reviewLayers: [...getGenerationReviewProfile(stage).defaultLayers]
+    }),
   waitForAction: stage => {
     const { autoRun } = get();
     set({ isOpen: true, isGenerating: false, currentStage: stage });
@@ -86,13 +168,28 @@ export const generationProgressStore = createStore<GenerationProgressState>((set
     resolveAction(state, "retryLandscape");
     set({ resolver: null, isGenerating: true, autoRun: false });
   },
+  retryStage: () => {
+    const state = get();
+    resolveAction(state, "retryStage");
+    set({ resolver: null, isGenerating: true, autoRun: false });
+  },
   runAll: () => {
     const state = get();
     resolveAction(state, "next");
     set({ resolver: null, isGenerating: true, autoRun: true });
   },
-  finish: () => set({ isOpen: false, isGenerating: false, autoRun: false, resolver: null }),
-  fail: () => set({ isOpen: false, isGenerating: false, autoRun: false, resolver: null })
+  toggleReviewLayer: layer => {
+    const state = get();
+    const availableLayers = getGenerationReviewProfile(state.currentStage).layers;
+    if (!availableLayers.some(item => item.id === layer)) return;
+
+    const reviewLayers = state.reviewLayers.includes(layer)
+      ? state.reviewLayers.filter(item => item !== layer)
+      : [...state.reviewLayers, layer];
+    set({ reviewLayers });
+  },
+  finish: () => set({ isOpen: false, isGenerating: false, autoRun: false, reviewLayers: [], resolver: null }),
+  fail: () => set({ isOpen: false, isGenerating: false, autoRun: false, reviewLayers: [], resolver: null })
 }));
 
 export const useGenerationProgressState = <T>(selector: (state: GenerationProgressState) => T) =>

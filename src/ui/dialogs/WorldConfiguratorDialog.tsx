@@ -2,8 +2,9 @@ import { geoGraticule, geoOrthographic, geoPath, interpolateSpectral, range, sca
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { worldContext } from "../../context/worldContext";
-import { updateWorld } from "../../controllers/world-configurator";
+import { updateClimateDuringStagedGeneration, updateWorld } from "../../controllers/world-configurator";
 import { useDialogState } from "../../store/dialogState";
+import { useGenerationProgressState } from "../../store/generationProgressState";
 import { useOptionsState } from "../../store/optionsState";
 import { useWorldConfiguratorFormStore } from "../../store/worldConfiguratorFormStore";
 import { convertTemperature, debounce, parseTransform, rn, round } from "../../utils";
@@ -12,10 +13,16 @@ import { LockIconButton } from "../components/LockIconButton";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
-const debouncedUpdateWorld = debounce(updateWorld, 300);
+const debouncedWorldUpdates = {
+  full: debounce(updateWorld, 300),
+  climate: debounce(updateClimateDuringStagedGeneration, 300)
+};
 
 export const WorldConfiguratorDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("worldConfigurator"));
+  const isClimateReview = useGenerationProgressState(
+    state => state.isOpen && !state.isGenerating && !state.autoRun && state.currentStage === 1
+  );
   const globeRef = useRef<SVGSVGElement>(null);
   const [autoChange, setAutoChange] = useState(true);
 
@@ -171,7 +178,17 @@ export const WorldConfiguratorDialog: React.FC = () => {
     }
 
     lock(stored, String(val));
-    if (autoChange) debouncedUpdateWorld();
+    if (autoChange) scheduleWorldUpdate();
+  }
+
+  function applyWorldUpdate(): void {
+    if (isClimateReview) updateClimateDuringStagedGeneration();
+    else updateWorld();
+  }
+
+  function scheduleWorldUpdate(): void {
+    if (isClimateReview) debouncedWorldUpdates.climate();
+    else debouncedWorldUpdates.full();
   }
 
   function handleWindChange(event: React.MouseEvent<SVGGElement>): void {
@@ -186,7 +203,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
     const mapTiers = range(worldContext.mapCoordinates.latN!, worldContext.mapCoordinates.latS!, -30).map(
       c => ((90 - c) / 30) | 0
     );
-    if (autoChange && mapTiers.includes(tier)) updateWorld();
+    if (autoChange && mapTiers.includes(tier)) applyWorldUpdate();
   }
 
   function restoreDefaultWinds(): void {
@@ -197,7 +214,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
     const needsUpdate = autoChange && mapTiers.some(t => worldContext.options.winds[t] !== defaultWinds[t]);
     worldContext.options.winds = defaultWinds;
     updateWindDirections();
-    if (needsUpdate) updateWorld();
+    if (needsUpdate) applyWorldUpdate();
   }
 
   function applyWorldPreset(size: number, latShift: number): void {
@@ -207,7 +224,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
     useWorldConfiguratorFormStore.getState().setLatitude(latShift);
     lock("mapSize");
     lock("latitude");
-    if (autoChange) updateWorld();
+    if (autoChange) applyWorldUpdate();
   }
 
   return (
@@ -573,7 +590,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
               <i>auto-apply changes</i>
             </label>
           </div>
-          <button type="button" className="fmg-dialog-button" onClick={updateWorld}>
+          <button type="button" className="fmg-dialog-button" onClick={applyWorldUpdate}>
             Update world
           </button>
         </div>
