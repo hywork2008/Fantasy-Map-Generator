@@ -28,6 +28,17 @@ export interface ViewTransformState {
  */
 export async function waitForMapGeneration(page: Page, timeout = 60000): Promise<void> {
   await page.waitForFunction(
+    () =>
+      (typeof window.fmg !== "undefined" && window.fmg.world.mapId !== undefined) ||
+      Array.from(document.querySelectorAll("button")).some(button => button.textContent === "Generate entire map"),
+    { timeout }
+  );
+
+  if (await page.getByRole("button", { name: "Generate entire map", exact: true }).isVisible()) {
+    await page.getByRole("button", { name: "Generate entire map", exact: true }).click();
+  }
+
+  await page.waitForFunction(
     () => typeof window.fmg !== "undefined" && window.fmg.world.mapId !== undefined,
     { timeout }
   );

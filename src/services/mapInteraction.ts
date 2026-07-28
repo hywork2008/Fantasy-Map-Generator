@@ -1,5 +1,6 @@
 import * as d3 from "d3";
 import { worldContext } from "../context/worldContext";
+import { generationProgressStore } from "../store/generationProgressState";
 import { useToastStore } from "../store/toastStore";
 import type { WebglPickCandidatesDetail, WebglPickDetail } from "../types/webglPicking";
 import { debounce } from "../utils/commonUtils";
@@ -49,6 +50,9 @@ let suppressedChooserClick: { clientX: number; clientY: number; expiresAt: numbe
 
 export const onMouseMove = debounce(handleMouseMove as (event: MouseEvent) => void, 100);
 export function handleMouseMove(this: Element, event: MouseEvent): void {
+  // Staged generation has only a partial pack, so ordinary map tooltips cannot resolve all cell data yet.
+  if (generationProgressStore.getState().isOpen) return;
+
   const point = d3.pointer(event, this) as [number, number];
   const i = findCell(point[0], point[1]);
   if (i === undefined) return;

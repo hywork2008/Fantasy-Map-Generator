@@ -1,7 +1,7 @@
 # 地図初期化プロセス
 
 > `src/app.ts` の `initApp()` を起点とする、現在の地図生成・表示・保存地図ロードの流れ。
-> 最終確認: 2026-07-24（`src/app.ts`, `src/main.ts`, `src/initViewLayers.ts`, `src/runtime/worldRuntime.ts`, `src/runtime/renderCoordinator.ts`, `src/controllers/layers.ts`）
+> 最終確認: 2026-07-28（`src/app.ts`, `src/main.ts`, `src/initViewLayers.ts`, `src/runtime/worldRuntime.ts`, `src/runtime/renderCoordinator.ts`, `src/controllers/layers.ts`）
 
 この文書の「順序」は、特記がない限り同一の同期処理内での呼び出し順である。`initMain()`、スタイル読込、生成、動的拡張の読込には `await` があるため、起動全体は完全な直列処理ではない。
 
@@ -165,6 +165,20 @@ generate(opts?)
 44. Names.getMapName(false)
 45. mapId が未設定なら Date.now() を設定
 ```
+
+### 3.1 生成工程の確認ダイアログ
+
+通常の新規生成は、画面中央の `Build map` ダイアログで以下の 5 工程ごとに停止する。最初の `Landscape outline` では高さマップを SVG にプレビューするため、国家や都市を生成する前に海岸線を確認できる。
+
+1. `Landscape outline` — grid / 高さマップ / 湖 / pack graph / feature
+2. `Climate and waterways` — 気候、降水、河川、バイオーム、氷
+3. `Cultures and settlements` — 脅威、文化、人口基盤、burg
+4. `Realms and routes` — 国家、道路、宗教、州、河川・湖の名称
+5. `Finish the world` — 軍隊、地点、zones、simulation、拡張初期化、名称
+
+各停止点では `Continue` または `Generate entire map` を選べる。`Return to previous stage` は途中の可変 `pack` / `grid` を直接復元せず、現在のシードで必要な前段から再生成して指定工程で止まる。これにより generator の in-place mutation と `WorldRuntime` の final fullReplace commit を両立する。`Generate another landscape` は第 1 工程でのみ表示され、新しいシードと grid からやり直す。
+
+工程中は `WorldRuntime` の staging 状態であり、すべての工程を完了するまで `mapId` と fullReplace commit は公開されない。生成失敗時は従来どおり生成前の rollback snapshot に戻る。
 
 `fmg:generate-post-core` は WorldRuntime の staging 中に発火する。この間に拡張が `extension.command` を実行しても個別 commit は発行されず、外側の生成 commit に含まれる。
 

@@ -73,6 +73,11 @@ body.fmg-webgl-hybrid .fmg-webgl-managed-svg-layer {
   display: none !important;
 }
 
+/* The staged landscape review happens before deck.gl has complete pack data. */
+body.fmg-generation-landscape-preview #terrs {
+  display: inline !important;
+}
+
 /* State labels remain live SVG controls in hybrid mode. Limit the affordance to
    their painted text so the map and the WebGL-rendered burg labels stay neutral. */
 body.fmg-webgl-hybrid #labels > #states text,

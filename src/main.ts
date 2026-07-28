@@ -48,7 +48,15 @@ import { loadMapFromURL, showUploadErrorMessage, uploadMap } from "./io/load";
 import { initiateAutosave } from "./io/save";
 import { renderGroupCOAs } from "./renderers/draw-emblems";
 import { refreshLabeledContourLabels, refreshVisibleLabeledContourPaths } from "./renderers/draw-heightmap";
-import { BiomesRenderer, CoordinatesRenderer, drawCalendar, drawScaleBar, fitScaleBar } from "./renderers/index";
+import {
+  BiomesRenderer,
+  CoordinatesRenderer,
+  drawCalendar,
+  drawScaleBar,
+  FeaturesRenderer,
+  fitScaleBar,
+  HeightmapRenderer
+} from "./renderers/index";
 import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
 import { DeckGlRenderer } from "./renderers/webgl/deckRenderer";
@@ -67,6 +75,7 @@ import { clearMainTip, tip } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
 import { useDebugSnapshotState } from "./store/debugSnapshotState";
 import { dialogStore } from "./store/dialogState";
+import { generationProgressStore } from "./store/generationProgressState";
 import { DEFAULT_UI_OPTIONS, type OptionsState, useOptionsState } from "./store/optionsState";
 import type { Grid } from "./types/Grid";
 import type { Burg, BurgGroup } from "./types/models";
@@ -923,12 +932,41 @@ void (function addDragToUpload() {
  */
 async function runGeneratePipeline(request: GenerateRequest): Promise<void> {
   useDebugSnapshotState.getState().clearAll();
+  const canReviewStages = viewContext.renderMap && document.getElementById("react-ui-container") !== null;
 
+  let activeRequest = request;
+  let restartAt = 0;
+  INFO && console.group("Generated Map");
+
+  while (true) {
+    activeRequest = prepareGenerationStage(activeRequest);
+    const stages = getGenerationStages();
+    let shouldRestart = false;
+
+    for (let stageIndex = 0; stageIndex < stages.length; stageIndex++) {
+      if (canReviewStages) generationProgressStore.getState().beginStage(stageIndex);
+      await stages[stageIndex]();
+      if (!canReviewStages || stageIndex < restartAt) continue;
+      const action = await generationProgressStore.getState().waitForAction(stageIndex);
+      if (action === "next") continue;
+
+      restartAt = action === "previous" ? Math.max(0, stageIndex - 1) : 0;
+      activeRequest = action === "retryLandscape" ? { graph: null } : activeRequest;
+      shouldRestart = true;
+      break;
+    }
+
+    if (!shouldRestart) return;
+    // A generation stage shares mutable legacy buffers with its successors.
+    // Rebuilding from a deterministic seed is the safe rollback boundary.
+    if (canReviewStages) generationProgressStore.getState().beginStage(restartAt);
+  }
+}
+
+function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
   const { seed: precreatedSeed, graph: precreatedGraph } = request;
-
   invokeActiveZooming();
   setSeed(precreatedSeed);
-  INFO && console.group(`Generated Map ${worldContext.seed}`);
 
   applyGraphSize();
   randomizeOptions();
@@ -948,12 +986,7 @@ async function runGeneratePipeline(request: GenerateRequest): Promise<void> {
       precreatedGraph || generateGrid(worldContext.seed, worldContext.graphWidth, worldContext.graphHeight)
     );
   } else delete (worldContext.grid.cells as { h?: unknown }).h;
-  worldContext.grid.cells.h = await HeightmapGenerator.generate(
-    worldContext,
-    viewContext,
-    appServices,
-    worldContext.grid
-  );
+
   Object.keys(worldContext.pack).forEach(k => {
     delete (worldContext.pack as unknown as Record<string, unknown>)[k];
   });
@@ -962,101 +995,107 @@ async function runGeneratePipeline(request: GenerateRequest): Promise<void> {
   resetSimulationBurgState(simulationContext);
   resetSimulationStateState(simulationContext);
   resetSimulationMilitaryState(simulationContext);
+  if (viewContext.renderMap) undraw();
+  return { ...request, seed: worldContext.seed };
+}
 
-  Features.markupGrid();
-  addLakesInDeepDepressions();
-  openNearSeaLakes();
-
-  if (viewContext.renderMap) OceanLayers();
-  defineMapSize();
-  calculateMapCoordinates();
-  calculateTemperatures();
-  generatePrecipitation();
-
-  reGraph();
-  Features.markupPack();
-  createDefaultRuler();
-
-  const state = getWorldState();
-  Rivers.generate(worldContext, viewContext, appServices, state);
-  Biomes.define(state);
-  Features.defineGroups();
-
-  Ice.generate(worldContext, viewContext, appServices, state);
-
-  Threats.generate(worldContext, viewContext, appServices, state);
-  rankCells();
-  Cultures.generate(worldContext, viewContext, appServices, state);
-  Cultures.expand(state);
-  const settlementPattern = applyInitialSettlementPattern(
-    worldContext.pack.cells,
-    worldContext.options.initialSettlementPattern,
-    useOptionsState.getState().initialPopulationSaturation / 100,
-    Math.random,
-    {
-      temperature: worldContext.grid.cells.temp,
-      precipitation: worldContext.grid.cells.prec
+function getGenerationStages(): Array<() => Promise<void>> {
+  return [
+    async () => {
+      worldContext.grid.cells.h = await HeightmapGenerator.generate(
+        worldContext,
+        viewContext,
+        appServices,
+        worldContext.grid
+      );
+      Features.markupGrid();
+      addLakesInDeepDepressions();
+      openNearSeaLakes();
+      reGraph();
+      Features.markupPack();
+      createDefaultRuler();
+      renderLandscapePreview();
     },
-    useOptionsState.getState().statesNumber
-  );
-  if (settlementPattern.plan) worldContext.pack.settlementFoundation = settlementPattern.plan;
-  else delete worldContext.pack.settlementFoundation;
+    async () => {
+      if (viewContext.renderMap) OceanLayers();
+      defineMapSize();
+      calculateMapCoordinates();
+      calculateTemperatures();
+      generatePrecipitation();
+      const state = getWorldState();
+      Rivers.generate(worldContext, viewContext, appServices, state);
+      Biomes.define(state);
+      Features.defineGroups();
+      Ice.generate(worldContext, viewContext, appServices, state);
+    },
+    async () => {
+      const state = getWorldState();
+      Threats.generate(worldContext, viewContext, appServices, state);
+      rankCells();
+      Cultures.generate(worldContext, viewContext, appServices, state);
+      Cultures.expand(state);
+      const settlementPattern = applyInitialSettlementPattern(
+        worldContext.pack.cells,
+        worldContext.options.initialSettlementPattern,
+        useOptionsState.getState().initialPopulationSaturation / 100,
+        Math.random,
+        { temperature: worldContext.grid.cells.temp, precipitation: worldContext.grid.cells.prec },
+        useOptionsState.getState().statesNumber
+      );
+      if (settlementPattern.plan) worldContext.pack.settlementFoundation = settlementPattern.plan;
+      else delete worldContext.pack.settlementFoundation;
+      Burgs.generate(worldContext, viewContext, appServices, state);
+    },
+    async () => {
+      const state = getWorldState();
+      if (worldContext.options.initialSettlementPattern !== "standard") {
+        Routes.generate(worldContext, viewContext, appServices, state);
+        States.generate(worldContext, viewContext, appServices, state);
+        Burgs.shift();
+        Routes.generate(worldContext, viewContext, appServices, state);
+      } else {
+        States.generate(worldContext, viewContext, appServices, state);
+        Burgs.shift();
+        Routes.generate(worldContext, viewContext, appServices, state);
+      }
+      Religions.generate(worldContext, viewContext, appServices, state);
+      Burgs.specify(worldContext, viewContext, appServices, state);
+      States.collectStatistics(state);
+      States.defineStateForms(state);
+      Provinces.generate(worldContext, viewContext, appServices, state);
+      Provinces.getPoles(state);
+      Rivers.specify(worldContext, viewContext, appServices, state);
+      Lakes.defineNames(state);
+    },
+    async () => {
+      const state = getWorldState();
+      Military.generate(worldContext, viewContext, appServices, state);
+      establishVassalage(worldContext.pack, worldContext.populationRate);
+      FrontierForts.generate(worldContext, viewContext, appServices, state);
+      Markers.generate(worldContext, viewContext, appServices, state);
+      Zones.generate(worldContext, viewContext, appServices, state);
+      initSimulationClock();
+      bindSimulationBurgState(worldContext, simulationContext);
+      bindSimulationStateState(worldContext, simulationContext);
+      bindSimulationMilitaryState(worldContext, simulationContext);
+      bindExtensionStateSlices(worldContext, simulationContext);
+      document.dispatchEvent(new CustomEvent("fmg:generate-post-core"));
+      applyHistoricalWarScars();
+      Threats.appendCasualtyNotes(worldContext);
+      Names.getMapName(false);
+      if (!worldContext.mapId) worldContext.mapId = Date.now();
+    }
+  ];
+}
 
-  Burgs.generate(worldContext, viewContext, appServices, state);
-  // The non-standard Phase 1 path establishes movement corridors from the
-  // settlement plan before the prototype polity generator consumes its burgs.
-  // `standard` retains the legacy order and RNG sequence as its compatibility adapter.
-  if (worldContext.options.initialSettlementPattern !== "standard") {
-    Routes.generate(worldContext, viewContext, appServices, state);
-    States.generate(worldContext, viewContext, appServices, state);
-    // State ownership is now known, so rebalance large-lake representative
-    // ports before creating the final State-aware infrastructure network.
-    Burgs.shift();
-    Routes.generate(worldContext, viewContext, appServices, state);
-  } else {
-    States.generate(worldContext, viewContext, appServices, state);
-    // State ownership is now known, so large lakes can reserve one suitable
-    // representative port per shore State before sea routes are generated.
-    Burgs.shift();
-    Routes.generate(worldContext, viewContext, appServices, state);
-  }
-  Religions.generate(worldContext, viewContext, appServices, state);
-
-  Burgs.specify(worldContext, viewContext, appServices, state);
-  States.collectStatistics(state);
-  States.defineStateForms(state);
-
-  Provinces.generate(worldContext, viewContext, appServices, state);
-  Provinces.getPoles(state);
-
-  Rivers.specify(worldContext, viewContext, appServices, state);
-  Lakes.defineNames(state);
-
-  Military.generate(worldContext, viewContext, appServices, state);
-  establishVassalage(worldContext.pack, worldContext.populationRate);
-  FrontierForts.generate(worldContext, viewContext, appServices, state);
-  Markers.generate(worldContext, viewContext, appServices, state);
-  Zones.generate(worldContext, viewContext, appServices, state);
-
-  initSimulationClock();
-  bindSimulationBurgState(worldContext, simulationContext);
-  bindSimulationStateState(worldContext, simulationContext);
-  bindSimulationMilitaryState(worldContext, simulationContext);
-  // reGraph() rebinds pack/cells-level extension fields before pack.burgs/pack.states
-  // exist; rebind here too so entity-level accessors (production, rulerId, ...) attach
-  // to the burg/state objects Burgs.generate()/States.generate() just created.
-  bindExtensionStateSlices(worldContext, simulationContext);
-  document.dispatchEvent(new CustomEvent("fmg:generate-post-core"));
-
-  // Apply demographic scars from past wars generated by states history
-  applyHistoricalWarScars();
-
-  // Calculate and append flavor text for monster casualties in notes
-  Threats.appendCasualtyNotes(worldContext);
-
-  Names.getMapName(false);
-  // Ensure mapId is set for the generate commit result.
-  if (!worldContext.mapId) worldContext.mapId = Date.now();
+function renderLandscapePreview(): void {
+  if (!viewContext.renderMap) return;
+  // The preview is SVG because deck.gl has no complete world data yet.
+  document.body.classList.add("fmg-generation-landscape-preview");
+  DeckGlRenderer.clear(viewContext);
+  OceanLayers();
+  FeaturesRenderer.render(worldContext, viewContext, appServices);
+  HeightmapRenderer.render(worldContext, viewContext, appServices);
 }
 
 // Register once at module load so dispatch is available before initMain completes.
@@ -1088,6 +1127,8 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     WARN && console.warn(`TOTAL: ${rn((performance.now() - timeStart) / 1000, 2)}s`);
     showStatistics();
     INFO && console.groupEnd();
+    document.body.classList.remove("fmg-generation-landscape-preview");
+    generationProgressStore.getState().finish();
   } catch (error) {
     ERROR && console.error(error);
     try {
@@ -1097,12 +1138,14 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     }
     const parsedError = parseError(error);
     clearMainTip();
+    document.body.classList.remove("fmg-generation-landscape-preview");
 
     generationErrorDialogStore.getState().open({
       errorText: parsedError,
       onCleanup: () => cleanupData(),
       onRegenerate: () => regenerateMap("generation error")
     });
+    generationProgressStore.getState().fail();
   }
 }
 

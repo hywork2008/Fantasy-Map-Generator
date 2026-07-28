@@ -26,6 +26,7 @@ import { ExportToPngTilesDialog } from "./ExportToPngTilesDialog";
 import { EDITOR_REGISTRY } from "./editorRegistry";
 import { FontDialog } from "./FontDialog";
 import { GenerationErrorDialog } from "./GenerationErrorDialog";
+import { GenerationProgressDialog } from "./GenerationProgressDialog";
 import { HeightmapEditModeDialog } from "./HeightmapEditModeDialog";
 import { HeightmapSchemeDialog } from "./HeightmapSchemeDialog";
 import { HierarchyTreeDialog } from "./HierarchyTreeDialog";
@@ -125,6 +126,7 @@ export const DialogsContainer: React.FC = () => {
           <ExportToPngTilesDialog />
           <FontDialog />
           <GenerationErrorDialog />
+          <GenerationProgressDialog />
           <HeightmapEditModeDialog />
           <HeightmapSchemeDialog />
           <HierarchyTreeDialog />
