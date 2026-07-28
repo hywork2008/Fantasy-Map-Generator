@@ -9,6 +9,16 @@ function syncRangeProgress(input: HTMLInputElement): void {
   input.style.setProperty("--range-progress", `${Math.min(Math.max(progress, 0), 100)}%`);
 }
 
+/** Synchronize the visual track progress for all range inputs within a mounted UI subtree. */
+export function syncRangeProgressInElement(root: ParentNode): void {
+  if (root instanceof HTMLInputElement && root.type === "range") {
+    syncRangeProgress(root);
+    return;
+  }
+
+  root.querySelectorAll<HTMLInputElement>(RANGE_SELECTOR).forEach(syncRangeProgress);
+}
+
 function syncRangeProgressInNode(node: Node): void {
   if (node instanceof HTMLInputElement && node.type === "range") {
     syncRangeProgress(node);
@@ -16,7 +26,7 @@ function syncRangeProgressInNode(node: Node): void {
   }
 
   if (!(node instanceof Element)) return;
-  node.querySelectorAll<HTMLInputElement>(RANGE_SELECTOR).forEach(syncRangeProgress);
+  syncRangeProgressInElement(node);
 }
 
 /** Apply the custom range-track progress variable to current and later-mounted UI controls. */

@@ -1,6 +1,6 @@
 import { geoGraticule, geoOrthographic, geoPath, interpolateSpectral, range, scaleSequential, select } from "d3";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { worldContext } from "../../context/worldContext";
 import { updateClimateDuringStagedGeneration, updateWorld } from "../../controllers/world-configurator";
 import { useDialogState } from "../../store/dialogState";
@@ -10,6 +10,7 @@ import { useWorldConfiguratorFormStore } from "../../store/worldConfiguratorForm
 import { convertTemperature, debounce, parseTransform, rn, round } from "../../utils";
 import { lock } from "../../utils/domUtils";
 import { LockIconButton } from "../components/LockIconButton";
+import { syncRangeProgressInElement } from "../rangeInputStyles";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
@@ -24,15 +25,33 @@ export const WorldConfiguratorDialog: React.FC = () => {
     state => state.isOpen && !state.isGenerating && !state.autoRun && state.currentStage === 1
   );
   const globeRef = useRef<SVGSVGElement>(null);
+  const controlsRef = useRef<HTMLFieldSetElement>(null);
   const [autoChange, setAutoChange] = useState(true);
 
-  // Read Zustand state for globe stats calculation
+  const temperatureEquator = useWorldConfiguratorFormStore(state => state.temperatureEquator);
+  const temperatureNorthPole = useWorldConfiguratorFormStore(state => state.temperatureNorthPole);
+  const temperatureSouthPole = useWorldConfiguratorFormStore(state => state.temperatureSouthPole);
   const mapSize = useOptionsState(s => s.mapSize);
+  const latitude = useOptionsState(s => s.latitude);
+  const longitude = useOptionsState(s => s.longitude);
+  const prec = useOptionsState(s => s.prec);
+  const rangeControlValues = useMemo(
+    () => [
+      { id: "temperatureEquatorOutput", value: temperatureEquator },
+      { id: "temperatureNorthPoleOutput", value: temperatureNorthPole },
+      { id: "temperatureSouthPoleOutput", value: temperatureSouthPole },
+      { id: "mapSizeOutput", value: mapSize },
+      { id: "latitudeOutput", value: latitude },
+      { id: "longitudeOutput", value: longitude },
+      { id: "precOutput", value: prec }
+    ],
+    [latitude, longitude, mapSize, prec, temperatureEquator, temperatureNorthPole, temperatureSouthPole]
+  );
 
   // Compute temperature conversions for display
-  const tempEqF = convertTemperature(worldContext.options.temperatureEquator, "°F");
-  const tempNpF = convertTemperature(worldContext.options.temperatureNorthPole, "°F");
-  const tempSpF = convertTemperature(worldContext.options.temperatureSouthPole, "°F");
+  const tempEqF = convertTemperature(temperatureEquator, "°F");
+  const tempNpF = convertTemperature(temperatureNorthPole, "°F");
+  const tempSpF = convertTemperature(temperatureSouthPole, "°F");
 
   const getProjectionPath = useCallback(() => {
     const projection = geoOrthographic().translate([100, 100]).scale(100);
@@ -119,7 +138,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
   }, [getProjectionPath, updateGlobePosition, updateGlobeTemperature, updateWindDirections]);
 
   // Initialize on open
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isOpen) return;
     useWorldConfiguratorFormStore
       .getState()
@@ -134,6 +153,18 @@ export const WorldConfiguratorDialog: React.FC = () => {
       );
     refreshGlobe();
   }, [isOpen, refreshGlobe]);
+
+  // React updates range input values programmatically, which does not emit an
+  // input event for the shared track-style synchronizer. Keep its CSS progress
+  // value aligned when the dialog opens or a preset updates the form state.
+  useLayoutEffect(() => {
+    if (!isOpen || !controlsRef.current) return;
+    for (const { id, value } of rangeControlValues) {
+      const input = controlsRef.current.querySelector<HTMLInputElement>(`#${id}`);
+      if (input) input.value = String(value);
+    }
+    syncRangeProgressInElement(controlsRef.current);
+  }, [isOpen, rangeControlValues]);
 
   // Refresh when map regenerates while dialog is open
   useEffect(() => {
@@ -228,11 +259,16 @@ export const WorldConfiguratorDialog: React.FC = () => {
   }
 
   return (
-    <Dialog isOpen={isOpen} title="WorldConfigurator" onClose={() => closeDialog("worldConfigurator")}>
+    <Dialog
+      isOpen={isOpen}
+      title="WorldConfigurator"
+      className="fmg-dialog--world-configurator"
+      onClose={() => closeDialog("worldConfigurator")}
+    >
       <div id="worldConfiguratorContainer">
-        <div>
-          <div className="d-flex">
-            <fieldset id="worldControls" onInput={handleControlsChange}>
+        <div className="world-configurator__content">
+          <div className="world-configurator__main">
+            <fieldset ref={controlsRef} id="worldControls" onInput={handleControlsChange}>
               <div>
                 <LockIconButton id="temperatureEquator" />
                 <label data-tip="Set temperature at equator">
@@ -243,7 +279,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     type="number"
                     min={-50}
                     max={50}
-                    value={useWorldConfiguratorFormStore(s => s.temperatureEquator)}
+                    value={temperatureEquator}
                     onChange={handleControlsChange}
                   />
                   <span>
@@ -255,7 +291,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     type="range"
                     min={-50}
                     max={50}
-                    value={useWorldConfiguratorFormStore(s => s.temperatureEquator)}
+                    value={temperatureEquator}
                     onChange={handleControlsChange}
                   />
                 </label>
@@ -270,7 +306,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     type="number"
                     min={-50}
                     max={50}
-                    value={useWorldConfiguratorFormStore(s => s.temperatureNorthPole)}
+                    value={temperatureNorthPole}
                     onChange={handleControlsChange}
                   />
                   <span>
@@ -282,7 +318,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     type="range"
                     min={-50}
                     max={50}
-                    value={useWorldConfiguratorFormStore(s => s.temperatureNorthPole)}
+                    value={temperatureNorthPole}
                     onChange={handleControlsChange}
                   />
                 </label>
@@ -297,7 +333,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     type="number"
                     min={-50}
                     max={50}
-                    value={useWorldConfiguratorFormStore(s => s.temperatureSouthPole)}
+                    value={temperatureSouthPole}
                     onChange={handleControlsChange}
                   />
                   <span>
@@ -309,7 +345,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     type="range"
                     min={-50}
                     max={50}
-                    value={useWorldConfiguratorFormStore(s => s.temperatureSouthPole)}
+                    value={temperatureSouthPole}
                     onChange={handleControlsChange}
                   />
                 </label>
@@ -325,7 +361,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     min={1}
                     max={100}
                     step="0.1"
-                    value={useOptionsState(s => s.mapSize)}
+                    value={mapSize}
                     onChange={handleControlsChange}
                   />
                   %
@@ -336,7 +372,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     min={1}
                     max={100}
                     step="0.1"
-                    value={useOptionsState(s => s.mapSize)}
+                    value={mapSize}
                     onChange={handleControlsChange}
                   />
                 </label>
@@ -352,7 +388,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     min={0}
                     max={100}
                     step="0.1"
-                    value={useOptionsState(s => s.latitude)}
+                    value={latitude}
                     onChange={handleControlsChange}
                   />
                   <br />
@@ -364,7 +400,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     min={0}
                     max={100}
                     step="0.1"
-                    value={useOptionsState(s => s.latitude)}
+                    value={latitude}
                     onChange={handleControlsChange}
                   />
                   <i>S</i>
@@ -381,7 +417,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     min={0}
                     max={100}
                     step="0.1"
-                    value={useOptionsState(s => s.longitude)}
+                    value={longitude}
                     onChange={handleControlsChange}
                   />
                   <br />
@@ -393,7 +429,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     min={0}
                     max={100}
                     step="0.1"
-                    value={useOptionsState(s => s.longitude)}
+                    value={longitude}
                     onChange={handleControlsChange}
                   />
                   <i>E</i>
@@ -403,13 +439,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                 <label data-tip="Set precipitation - water amount clouds can bring. Defines rivers and biomes generation. Keep around 100% for default generation">
                   <LockIconButton id="prec" />
                   <i>Precipitation:</i>
-                  <input
-                    id="precInput"
-                    data-stored="prec"
-                    type="number"
-                    value={useOptionsState(s => s.prec)}
-                    onChange={handleControlsChange}
-                  />
+                  <input id="precInput" data-stored="prec" type="number" value={prec} onChange={handleControlsChange} />
                   %
                   <input
                     id="precOutput"
@@ -417,7 +447,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                     type="range"
                     min={0}
                     max={500}
-                    value={useOptionsState(s => s.prec)}
+                    value={prec}
                     onChange={handleControlsChange}
                   />
                 </label>
@@ -452,7 +482,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
                 <i>Coords:</i> <span id="mapCoordinates">{globeStats.mapCoordinates}</span>
               </div>
             </fieldset>
-            <div className="d-flex">
+            <div className="world-configurator__globe-column">
               <svg ref={globeRef} id="globe" width="22em" viewBox="-20 -25 240 240" aria-hidden="true">
                 <defs>
                   <linearGradient id="temperatureGradient" x1={0} x2={0} y1={0} y2={1}>
@@ -541,7 +571,7 @@ export const WorldConfiguratorDialog: React.FC = () => {
               </button>
             </div>
           </div>
-          <div>
+          <div className="world-configurator__presets">
             <i>Presets:</i>
             <button
               type="button"

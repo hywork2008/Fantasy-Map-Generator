@@ -396,11 +396,12 @@ input[type="color"] {
   background-color: transparent;
 }
 
-/* Custom range tracks keep the value indicator while the unfilled side remains
-   transparent. Native macOS Chrome controls ignore transparent track colors. */
+/* Custom range tracks preserve the value indicator and show the unfilled range
+   as a translucent neutral gray, so it remains legible over transparent panels. */
 #options input[type="range"],
 .fmg-dialog-content input[type="range"] {
   --range-progress: 0%;
+  --range-track: rgba(102, 102, 102, 0.42);
   appearance: none;
   -webkit-appearance: none;
   box-sizing: border-box;
@@ -409,7 +410,7 @@ input[type="color"] {
   background: linear-gradient(
       to right,
       var(--dark-solid) 0 var(--range-progress),
-      transparent var(--range-progress) 100%
+      var(--range-track) var(--range-progress) 100%
     )
     center / 100% 4px no-repeat;
   cursor: pointer;
@@ -424,7 +425,7 @@ input[type="color"] {
 #options input[type="range"]::-moz-range-track,
 .fmg-dialog-content input[type="range"]::-moz-range-track {
   height: 4px;
-  background: transparent;
+  background: var(--range-track);
 }
 
 #options input[type="range"]::-moz-range-progress,
@@ -1239,16 +1240,67 @@ svg.button {
 }
 
 #worldControls {
+  flex: 0 0 16em;
+  width: 16em;
   display: inline-block;
+  vertical-align: top;
 }
 
 #worldControls>div {
   display: block;
+  margin: 1px 0;
+  padding: 2px 0;
 }
 
-#worldControls i.icon-lock-open,
-#worldControls i.icon-lock {
+#worldControls input[type="number"] {
+  border: 1px solid #e5e5e5;
+  padding: 0;
+  width: 4em;
+}
+
+#worldControls .icon-lock-open,
+#worldControls .icon-lock {
+  color: #626573;
+  font-size: 0.8em;
   cursor: pointer;
+}
+
+.fmg-dialog--world-configurator #worldConfiguratorContainer {
+  min-width: 40em;
+}
+
+.world-configurator__content {
+  padding: 0.25em;
+}
+
+.world-configurator__main {
+  display: flex;
+  align-items: flex-start;
+}
+
+.world-configurator__globe-column {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.world-configurator__presets {
+  margin-top: 0.3em;
+}
+
+@media (max-width: 42em) {
+  .fmg-dialog--world-configurator #worldConfiguratorContainer {
+    min-width: 0;
+  }
+
+  .world-configurator__main {
+    flex-wrap: wrap;
+  }
+
+  .world-configurator__globe-column {
+    width: 100%;
+  }
 }
 
 #globe {
