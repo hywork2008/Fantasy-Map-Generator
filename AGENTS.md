@@ -147,6 +147,11 @@ The legacy practice of attaching objects and functions directly to the global `w
 
 ## 3. TypeScript & Naming Standards
 
+### Language Consistency
+
+- **UI Copy**: Keep all new user-facing UI strings in English until the application has an i18n system. Do not introduce isolated Japanese (or other locale-specific) copy.
+- **Code Comments**: Write all new and modified source-code comments in English. Documentation may use the language appropriate for its intended audience.
+
 - **Strict Type Safety**: The use of the `any` keyword is forbidden. If a type cannot be strictly inferred or resolved immediately, declare it as `unknown` and apply explicit type guards.
 - **Explicit D3 Selection Types**: Avoid vague typings for SVG layers. Explicitly type all D3 selections, for example: `d3.Selection<SVGGElement, unknown, HTMLElement, any>`.
 - **Non-null Assertions**: Use non-null assertions (`!`) only where execution pipelines guarantee that the value is populated beforehand. Document the safety rationale with inline comments.
