@@ -3,6 +3,7 @@
 2026-07-28
 
 - docs/plan/mineral-resource-circulation-fixes.md
+- docs/plan/mineral-smelting-security-system.md
 
 2026-07-27
 
