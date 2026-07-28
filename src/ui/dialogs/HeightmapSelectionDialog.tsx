@@ -12,6 +12,7 @@ import {
 import { editHeightmap } from "../../controllers/heightmapEditor";
 import { regeneratePrompt } from "../../controllers/options";
 import { heightmapTemplates, precreatedHeightmaps } from "../../data";
+import { useGenerationProgressState } from "../../store/generationProgressState";
 import { useOptionsState } from "../../store/optionsState";
 import { generateSeed } from "../../utils";
 import { heightmapColorSchemes } from "../../utils/colorUtils";
@@ -89,6 +90,7 @@ export const HeightmapSelectionContent: React.FC<{ onClose?: () => void }> = ({ 
   const [selectedId, setSelectedId] = useState<string>("");
   const [colorScheme, setColorScheme] = useState<string>(INITIAL_COLOR_SCHEME);
   const [renderOcean, setRenderOcean] = useState<boolean>(false);
+  const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
 
   const aspectRatio = `${worldContext.graphWidth ?? 1}/${worldContext.graphHeight ?? 1}`;
 
@@ -240,6 +242,10 @@ export const HeightmapSelectionContent: React.FC<{ onClose?: () => void }> = ({ 
           </div>
         </section>
 
+        {isMapGenerationInProgress && (
+          <p>Select a template, then choose "Generate another landscape" in Build map to apply it.</p>
+        )}
+
         <section data-tip="Select precreated heightmap – it will be the same for each map">
           <header>
             <h1>Precreated heightmaps</h1>
@@ -301,10 +307,20 @@ export const HeightmapSelectionContent: React.FC<{ onClose?: () => void }> = ({ 
               </div>
             </div>
             <div>
-              <button type="button" data-tip="Open Template Editor" onClick={handleEditTemplates}>
+              <button
+                type="button"
+                data-tip="Open Template Editor"
+                onClick={handleEditTemplates}
+                disabled={isMapGenerationInProgress}
+              >
                 Edit Templates
               </button>
-              <button type="button" data-tip="Open Image Converter" onClick={handleImportHeightmap}>
+              <button
+                type="button"
+                data-tip="Open Image Converter"
+                onClick={handleImportHeightmap}
+                disabled={isMapGenerationInProgress}
+              >
                 Import Heightmap
               </button>
             </div>
@@ -318,7 +334,7 @@ export const HeightmapSelectionContent: React.FC<{ onClose?: () => void }> = ({ 
           <button type="button" onClick={handleSelect} disabled={!selectedId}>
             Select
           </button>
-          <button type="button" onClick={handleNewMap} disabled={!selectedId}>
+          <button type="button" onClick={handleNewMap} disabled={!selectedId || isMapGenerationInProgress}>
             New Map
           </button>
         </div>

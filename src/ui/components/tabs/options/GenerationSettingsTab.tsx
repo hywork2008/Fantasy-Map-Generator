@@ -4,6 +4,7 @@ import {
   heightmapLandmassThresholds,
   INITIAL_SETTLEMENT_PATTERN_PRESETS
 } from "../../../../data";
+import { useGenerationProgressState } from "../../../../store/generationProgressState";
 import { useOptionsState } from "../../../../store/optionsState";
 import { lock } from "../../../../utils/domUtils";
 import { IconButton } from "../../IconButton";
@@ -11,6 +12,7 @@ import { LockIconButton } from "../../LockIconButton";
 import { SliderInput } from "../../SliderInput";
 export const GenerationSettingsTab: React.FC = () => {
   const options = useOptionsState();
+  const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
   const updateOption = options.setOption;
   const usesPolityDensity = options.initialSettlementPattern !== "standard";
   const statesNumberLabel = usesPolityDensity ? "Polity density" : "States number";
@@ -94,7 +96,7 @@ export const GenerationSettingsTab: React.FC = () => {
                 value={options.seed}
                 onChange={e => updateOption("seed", e.target.value)}
                 onKeyDown={e => {
-                  if (e.key === "Enter") {
+                  if (e.key === "Enter" && !isMapGenerationInProgress) {
                     document.dispatchEvent(
                       new CustomEvent("react-generate-map-with-seed", { detail: { seed: options.seed } })
                     );
@@ -132,69 +134,9 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Define map name (will be used to name downloaded files)">
-            <td>
-              <LockIconButton id="mapName" />
-            </td>
-            <td>Map name</td>
-            <td>
-              <input
-                className="long"
-                autoCorrect="off"
-                spellCheck="false"
-                type="text"
-                value={options.mapName}
-                onChange={e => updateOptionAndLock("mapName", e.target.value)}
-              />
-            </td>
-            <td>
-              <i
-                data-tip="Regenerate map name"
-                className="icon-arrows-cw"
-                onClick={() => document.dispatchEvent(new CustomEvent("react-regenerate-map-name"))}
-              ></i>
-            </td>
+          <tr>
+            <th colSpan={4}>1. Landscape outline</th>
           </tr>
-
-          <tr data-tip="Define current year and era name">
-            <td>
-              <LockIconButton id="year" />
-            </td>
-            <td>Year and era</td>
-            <td>
-              <input
-                type="number"
-                step="1"
-                className="paired"
-                value={options.year}
-                onChange={e => {
-                  updateOptionAndLock("year", Number(e.target.value));
-                  document.dispatchEvent(
-                    new CustomEvent("react-change-year", { detail: { year: Number(e.target.value) } })
-                  );
-                }}
-              />
-              <input
-                autoCorrect="off"
-                spellCheck="false"
-                type="text"
-                className="long"
-                value={options.era}
-                onChange={e => {
-                  updateOptionAndLock("era", e.target.value);
-                  document.dispatchEvent(new CustomEvent("react-change-era", { detail: { era: e.target.value } }));
-                }}
-              />
-            </td>
-            <td>
-              <i
-                data-tip="Regenerate era"
-                className="icon-arrows-cw"
-                onClick={() => document.dispatchEvent(new CustomEvent("react-regenerate-era"))}
-              ></i>
-            </td>
-          </tr>
-
           <tr data-tip="Select heightmap template to be used for map generation">
             <td>
               <LockIconButton id="template" />
@@ -228,6 +170,37 @@ export const GenerationSettingsTab: React.FC = () => {
                 </option>
               </select>
             </td>
+          </tr>
+
+          <tr>
+            <th colSpan={4}>2. Climate and waterways</th>
+          </tr>
+          <tr data-tip="Regional climate-vegetation profile: adjusts continuous great forests, heath mosaics, mediterranean scrub, mangroves, and mountain biomes without replacing the base terrain generator. Apply on next map generation.">
+            <td>
+              <LockIconButton id="biomeRegionProfile" />
+            </td>
+            <td>Biome region</td>
+            <td colSpan={2}>
+              <select
+                value={options.biomeRegionProfile}
+                onChange={e => {
+                  options.setOptions({
+                    biomeRegionProfile: e.target.value as typeof options.biomeRegionProfile
+                  });
+                  lock("biomeRegionProfile");
+                }}
+              >
+                <option value="global">Global (default mix)</option>
+                <option value="medievalEurope">Medieval Europe</option>
+                <option value="mediterranean">Mediterranean</option>
+                <option value="tropicalRiverBasin">Tropical river basin</option>
+                <option value="mountainRealm">Mountain realm</option>
+              </select>
+            </td>
+          </tr>
+
+          <tr>
+            <th colSpan={4}>3. Cultures and settlements</th>
           </tr>
 
           <tr data-tip="Define how many Cultures should be generated">
@@ -296,83 +269,6 @@ export const GenerationSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
-          <tr data-tip={statesNumberTooltip}>
-            <td>
-              <LockIconButton id="statesNumber" />
-            </td>
-            <td>{statesNumberLabel}</td>
-            <td colSpan={2}>
-              <SliderInput
-                min="0"
-                max="100"
-                value={options.statesNumber}
-                onChange={v => updateOptionAndLock("statesNumber", Number(v))}
-              />
-            </td>
-          </tr>
-
-          <tr data-tip="Define how many times wars are generated to build relations history.">
-            <td>
-              <LockIconButton id="diplomacyHistoryAttempts" />
-            </td>
-            <td>History attempts</td>
-            <td colSpan={2}>
-              <SliderInput
-                min="0"
-                max="10"
-                value={options.diplomacyHistoryAttempts}
-                onChange={v => updateOptionAndLock("diplomacyHistoryAttempts", Number(v))}
-              />
-            </td>
-          </tr>
-
-          <tr data-tip="Set what share of eligible burgs in each state will become province centers. Higher values create more provinces">
-            <td>
-              <LockIconButton id="provincesRatio" />
-            </td>
-            <td>Provinces ratio</td>
-            <td colSpan={2}>
-              <SliderInput
-                min="0"
-                max="100"
-                value={options.provincesRatio}
-                onChange={v => updateOptionAndLock("provincesRatio", Number(v))}
-              />
-            </td>
-          </tr>
-
-          <tr data-tip="Define how much states and cultures can vary in size. Defines expansionism value">
-            <td>
-              <LockIconButton id="sizeVariety" />
-            </td>
-            <td>Size variety</td>
-            <td colSpan={2}>
-              <SliderInput
-                min="0"
-                max="10"
-                step="0.1"
-                value={options.sizeVariety}
-                onChange={v => updateOptionAndLock("sizeVariety", Number(v))}
-              />
-            </td>
-          </tr>
-
-          <tr data-tip="Set state and cultures growth rate. Defines how many lands will stay neutral">
-            <td>
-              <LockIconButton id="growthRate" />
-            </td>
-            <td>Growth rate</td>
-            <td colSpan={2}>
-              <SliderInput
-                min="0.1"
-                max="2"
-                step="0.1"
-                value={options.growthRate}
-                onChange={v => updateOptionAndLock("growthRate", Number(v))}
-              />
-            </td>
-          </tr>
-
           <tr data-tip="Determines how full the world is relative to its carrying capacity at the start. 100% means fully saturated, lower values allow for future demographic growth.">
             <td>
               <LockIconButton id="initialPopulationSaturation" />
@@ -416,30 +312,6 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Regional climate-vegetation profile: adjusts continuous great forests, heath mosaics, mediterranean scrub, mangroves, and mountain biomes without replacing the base terrain generator. Apply on next map generation.">
-            <td>
-              <LockIconButton id="biomeRegionProfile" />
-            </td>
-            <td>Biome region</td>
-            <td colSpan={2}>
-              <select
-                value={options.biomeRegionProfile}
-                onChange={e => {
-                  options.setOptions({
-                    biomeRegionProfile: e.target.value as typeof options.biomeRegionProfile
-                  });
-                  lock("biomeRegionProfile");
-                }}
-              >
-                <option value="global">Global (default mix)</option>
-                <option value="medievalEurope">Medieval Europe</option>
-                <option value="mediterranean">Mediterranean</option>
-                <option value="tropicalRiverBasin">Tropical river basin</option>
-                <option value="mountainRealm">Mountain realm</option>
-              </select>
-            </td>
-          </tr>
-
           <tr data-tip="Define a number of non-capital settlements to be placed (if enough suitable land exists)">
             <td>
               <LockIconButton id="manors" />
@@ -461,6 +333,86 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
+          <tr>
+            <th colSpan={4}>4. Realms and routes</th>
+          </tr>
+          <tr data-tip={statesNumberTooltip}>
+            <td>
+              <LockIconButton id="statesNumber" />
+            </td>
+            <td>{statesNumberLabel}</td>
+            <td colSpan={2}>
+              <SliderInput
+                min="0"
+                max="100"
+                value={options.statesNumber}
+                onChange={v => updateOptionAndLock("statesNumber", Number(v))}
+              />
+            </td>
+          </tr>
+
+          <tr data-tip="Define how much states and cultures can vary in size. Defines expansionism value">
+            <td>
+              <LockIconButton id="sizeVariety" />
+            </td>
+            <td>Size variety</td>
+            <td colSpan={2}>
+              <SliderInput
+                min="0"
+                max="10"
+                step="0.1"
+                value={options.sizeVariety}
+                onChange={v => updateOptionAndLock("sizeVariety", Number(v))}
+              />
+            </td>
+          </tr>
+
+          <tr data-tip="Set state and cultures growth rate. Defines how many lands will stay neutral">
+            <td>
+              <LockIconButton id="growthRate" />
+            </td>
+            <td>Growth rate</td>
+            <td colSpan={2}>
+              <SliderInput
+                min="0.1"
+                max="2"
+                step="0.1"
+                value={options.growthRate}
+                onChange={v => updateOptionAndLock("growthRate", Number(v))}
+              />
+            </td>
+          </tr>
+
+          <tr data-tip="Set what share of eligible burgs in each state will become province centers. Higher values create more provinces">
+            <td>
+              <LockIconButton id="provincesRatio" />
+            </td>
+            <td>Provinces ratio</td>
+            <td colSpan={2}>
+              <SliderInput
+                min="0"
+                max="100"
+                value={options.provincesRatio}
+                onChange={v => updateOptionAndLock("provincesRatio", Number(v))}
+              />
+            </td>
+          </tr>
+
+          <tr data-tip="Define how many times wars are generated to build relations history.">
+            <td>
+              <LockIconButton id="diplomacyHistoryAttempts" />
+            </td>
+            <td>History attempts</td>
+            <td colSpan={2}>
+              <SliderInput
+                min="0"
+                max="10"
+                value={options.diplomacyHistoryAttempts}
+                onChange={v => updateOptionAndLock("diplomacyHistoryAttempts", Number(v))}
+              />
+            </td>
+          </tr>
+
           <tr data-tip="Define how many organized religions and cults should be generated. Cultures will have their own folk religions in any case">
             <td>
               <LockIconButton id="religionsNumber" />
@@ -474,6 +426,78 @@ export const GenerationSettingsTab: React.FC = () => {
                 value={options.religionsNumber}
                 onChange={v => updateOptionAndLock("religionsNumber", Number(v))}
               />
+            </td>
+          </tr>
+
+          <tr>
+            <th colSpan={4}>5. Finish the world</th>
+          </tr>
+          <tr data-tip="Define map name (will be used to name downloaded files)">
+            <td>
+              <LockIconButton id="mapName" />
+            </td>
+            <td>Map name</td>
+            <td>
+              <input
+                className="long"
+                autoCorrect="off"
+                spellCheck="false"
+                type="text"
+                value={options.mapName}
+                onChange={e => updateOptionAndLock("mapName", e.target.value)}
+              />
+            </td>
+            <td>
+              <i
+                data-tip="Regenerate map name"
+                className="icon-arrows-cw"
+                onClick={() => {
+                  if (!isMapGenerationInProgress) {
+                    document.dispatchEvent(new CustomEvent("react-regenerate-map-name"));
+                  }
+                }}
+              ></i>
+            </td>
+          </tr>
+
+          <tr data-tip="Define current year and era name">
+            <td>
+              <LockIconButton id="year" />
+            </td>
+            <td>Year and era</td>
+            <td>
+              <input
+                type="number"
+                step="1"
+                className="paired"
+                value={options.year}
+                onChange={e => {
+                  updateOptionAndLock("year", Number(e.target.value));
+                  document.dispatchEvent(
+                    new CustomEvent("react-change-year", { detail: { year: Number(e.target.value) } })
+                  );
+                }}
+              />
+              <input
+                autoCorrect="off"
+                spellCheck="false"
+                type="text"
+                className="long"
+                value={options.era}
+                onChange={e => {
+                  updateOptionAndLock("era", e.target.value);
+                  document.dispatchEvent(new CustomEvent("react-change-era", { detail: { era: e.target.value } }));
+                }}
+              />
+            </td>
+            <td>
+              <i
+                data-tip="Regenerate era"
+                className="icon-arrows-cw"
+                onClick={() => {
+                  if (!isMapGenerationInProgress) document.dispatchEvent(new CustomEvent("react-regenerate-era"));
+                }}
+              ></i>
             </td>
           </tr>
 

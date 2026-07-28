@@ -1,6 +1,7 @@
 import type React from "react";
 import { useEffect, useState } from "react";
 import { clearMainTip } from "../../services/tooltipService";
+import { useGenerationProgressState } from "../../store/generationProgressState";
 import { useOptionsState } from "../../store/optionsState";
 import { useViewState } from "../../store/viewState";
 import { useDraggable } from "../dialogs/useDraggable";
@@ -26,6 +27,7 @@ export const OptionsContainer: React.FC = () => {
   const { isMenuOpen, setMenuOpen, activeMenu, setActiveMenu, isCustomizationMode, setCustomizationMode } =
     useViewState();
   const uiSize = useOptionsState(state => state.uiSize);
+  const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
   // Every visible part of the compact tab bar is a button, so permit it to
   // start a drag while retaining ordinary click behavior when it is not moved.
   const { containerRef, resizeHandleRef, bringToFront } = useDraggable({
@@ -53,6 +55,12 @@ export const OptionsContainer: React.FC = () => {
     };
   }, [setCustomizationMode, setActiveMenu]);
 
+  useEffect(() => {
+    if (!isMapGenerationInProgress) return;
+    setMenuOpen(true);
+    setActiveMenu("optionsTab");
+  }, [isMapGenerationInProgress, setActiveMenu, setMenuOpen]);
+
   const handleToggle = () => {
     if (!isMenuOpen && showGlow) {
       setShowGlow(false);
@@ -79,9 +87,12 @@ export const OptionsContainer: React.FC = () => {
             <button
               key={tab.id}
               id={tab.id}
-              data-tip={tab.tip}
+              data-tip={
+                isMapGenerationInProgress && tab.id !== "optionsTab" ? "Unavailable while building a map" : tab.tip
+              }
               className={`options ${activeMenu === tab.id ? "active" : ""}`}
               onClick={() => setActiveMenu(tab.id)}
+              disabled={isMapGenerationInProgress && tab.id !== "optionsTab"}
               type="button"
             >
               {tab.label}

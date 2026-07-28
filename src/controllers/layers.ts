@@ -54,6 +54,7 @@ import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { WEBGL_LAYER_TOGGLES } from "../renderers/webgl/buildDeckLayers";
 import { DeckGlRenderer } from "../renderers/webgl/deckRenderer";
 import { tip } from "../services/tooltipService";
+import { generationProgressStore } from "../store/generationProgressState";
 import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
 import { getElementById, layerIsOn } from "../utils/nodeUtils";
 
@@ -1400,6 +1401,7 @@ export function getToolActionHandler(eventName: string): ((detail?: Record<strin
 }
 
 export function toggleLayerById(id: string, event?: MouseEvent): void {
+  if (generationProgressStore.getState().isOpen) return;
   if (!viewContext.renderMap) return;
   TOGGLE_REGISTRY[id]?.(event);
 }

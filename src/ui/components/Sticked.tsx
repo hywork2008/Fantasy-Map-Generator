@@ -1,8 +1,11 @@
 import type React from "react";
 import { resetZoom } from "../../actions";
 import { regeneratePrompt, showExportPane, showLoadPane, showSavePane } from "../../controllers/options";
+import { useGenerationProgressState } from "../../store/generationProgressState";
 
 export const Sticked: React.FC = () => {
+  const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
+
   return (
     <div id="sticked">
       <button
@@ -11,6 +14,7 @@ export const Sticked: React.FC = () => {
         data-tip="Generate a new map based on options"
         data-shortcut="F2"
         onClick={() => regeneratePrompt()}
+        disabled={isMapGenerationInProgress}
       >
         New Map
       </button>
@@ -19,10 +23,17 @@ export const Sticked: React.FC = () => {
         id="exportButton"
         data-tip="Select format to download image or export map data"
         onClick={() => void showExportPane()}
+        disabled={isMapGenerationInProgress}
       >
         Export
       </button>
-      <button type="button" id="saveButton" data-tip="Save fully-functional map file" onClick={() => showSavePane()}>
+      <button
+        type="button"
+        id="saveButton"
+        data-tip="Save fully-functional map file"
+        onClick={() => showSavePane()}
+        disabled={isMapGenerationInProgress}
+      >
         Save
       </button>
       <button
@@ -30,6 +41,7 @@ export const Sticked: React.FC = () => {
         id="loadButton"
         data-tip="Load fully-functional map (.map or .gz formats)"
         onClick={() => void showLoadPane()}
+        disabled={isMapGenerationInProgress}
       >
         Load
       </button>
@@ -39,6 +51,7 @@ export const Sticked: React.FC = () => {
         data-tip="Reset map zoom"
         data-shortcut="0 (zero)"
         onClick={() => resetZoom(1000)}
+        disabled={isMapGenerationInProgress}
       >
         Reset Zoom
       </button>

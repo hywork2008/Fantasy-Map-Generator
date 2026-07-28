@@ -1,5 +1,6 @@
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useGenerationProgressState } from "../../../store/generationProgressState";
 import { DangerSettingsTab } from "./options/DangerSettingsTab";
 import { GenerationSettingsTab } from "./options/GenerationSettingsTab";
 import { SimulationSettingsTab } from "./options/SimulationSettingsTab";
@@ -9,6 +10,11 @@ type OptionsSubTab = "generation" | "ui" | "simulation" | "danger";
 
 export const OptionsTab: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<OptionsSubTab>("generation");
+  const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
+
+  useEffect(() => {
+    if (isMapGenerationInProgress) setActiveSubTab("generation");
+  }, [isMapGenerationInProgress]);
 
   return (
     <div id="optionsTabContent" className="tabcontent d-block">
@@ -23,6 +29,7 @@ export const OptionsTab: React.FC = () => {
         <button
           className={`options${activeSubTab === "ui" ? " active" : ""}`}
           onClick={() => setActiveSubTab("ui")}
+          disabled={isMapGenerationInProgress}
           type="button"
         >
           UI
@@ -30,6 +37,7 @@ export const OptionsTab: React.FC = () => {
         <button
           className={`options${activeSubTab === "simulation" ? " active" : ""}`}
           onClick={() => setActiveSubTab("simulation")}
+          disabled={isMapGenerationInProgress}
           type="button"
         >
           Simulation
@@ -37,6 +45,7 @@ export const OptionsTab: React.FC = () => {
         <button
           className={`options${activeSubTab === "danger" ? " active" : ""}`}
           onClick={() => setActiveSubTab("danger")}
+          disabled={isMapGenerationInProgress}
           type="button"
         >
           Danger

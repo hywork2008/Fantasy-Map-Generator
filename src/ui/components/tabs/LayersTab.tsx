@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { setRenderMode } from "../../../actions";
 import { handleLayersPresetChange, removePreset, savePreset, toggleLayerById } from "../../../controllers/layers";
 import { changeViewMode } from "../../../controllers/viewMode";
+import { useGenerationProgressState } from "../../../store/generationProgressState";
 import { DEFAULT_LAYERS, type LayerConfig, useLayerState } from "../../../store/layerState";
 import { useViewModeState } from "../../../store/viewModeState";
 
@@ -10,6 +11,7 @@ export const LayersTab: React.FC = () => {
   const { layers, setLayers, activeLayers, presets, presetLabels, activePreset, presetDisabled, reorderLayers } =
     useLayerState();
   const { activeViewMode } = useViewModeState();
+  const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Initialize defaults if not set
@@ -77,6 +79,7 @@ export const LayersTab: React.FC = () => {
             aria-labelledby="webglRenderingLabel"
             aria-checked={isWebglRendering}
             checked={isWebglRendering}
+            disabled={isMapGenerationInProgress}
             onChange={event => {
               const enabled = event.target.checked;
               setIsWebglRendering(enabled);
@@ -98,7 +101,7 @@ export const LayersTab: React.FC = () => {
         data-tip="Select a map layers preset"
         id="layersPreset"
         value={activePreset}
-        disabled={presetDisabled}
+        disabled={presetDisabled || isMapGenerationInProgress}
         onChange={handlePresetChange}
       >
         {Object.keys(presets).map(preset => (
@@ -120,6 +123,7 @@ export const LayersTab: React.FC = () => {
         className="icon-plus sideButton"
         style={{ display: isCustom ? "inline-block" : "none" }}
         onClick={() => savePreset()}
+        disabled={isMapGenerationInProgress}
         type="button"
       ></button>
       <button
@@ -128,6 +132,7 @@ export const LayersTab: React.FC = () => {
         className="icon-minus sideButton"
         style={{ display: isCustom ? "none" : "inline-block" }}
         onClick={() => removePreset()}
+        disabled={isMapGenerationInProgress}
         type="button"
       ></button>
 
@@ -146,6 +151,7 @@ export const LayersTab: React.FC = () => {
               data-tip={layer.tooltip}
               data-shortcut={layer.shortcut}
               className={`${isOn ? "" : "buttonoff"} ${layer.isSolid ? "solid" : ""}`}
+              disabled={isMapGenerationInProgress}
               draggable
               onDragStart={e => handleDragStart(e, index)}
               onDragOver={e => handleDragOver(e, index)}
@@ -167,6 +173,7 @@ export const LayersTab: React.FC = () => {
           id="viewStandard"
           className={activeViewMode === "viewStandard" ? "pressed" : ""}
           onClick={handleViewMode}
+          disabled={isMapGenerationInProgress}
           type="button"
         >
           Standard
@@ -176,6 +183,7 @@ export const LayersTab: React.FC = () => {
           id="viewMesh"
           className={activeViewMode === "viewMesh" ? "pressed" : ""}
           onClick={handleViewMode}
+          disabled={isMapGenerationInProgress}
           type="button"
         >
           3D scene
@@ -185,6 +193,7 @@ export const LayersTab: React.FC = () => {
           id="viewGlobe"
           className={activeViewMode === "viewGlobe" ? "pressed" : ""}
           onClick={handleViewMode}
+          disabled={isMapGenerationInProgress}
           type="button"
         >
           Globe
