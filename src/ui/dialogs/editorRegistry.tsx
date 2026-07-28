@@ -89,6 +89,8 @@ export const EDITOR_REGISTRY: Record<string, EditorConfig> = {
   },
   heightmapSelection: {
     title: "Select Heightmap template",
-    component: HeightmapSelectionContent
+    component: HeightmapSelectionContent,
+    dialogClassName: "heightmap-selection-dialog",
+    dialogHeight: "75vh"
   }
 };

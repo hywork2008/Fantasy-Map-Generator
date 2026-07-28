@@ -39,6 +39,15 @@ test("keeps generation settings available and locks map controls", async ({ page
   await expect(page.getByRole("heading", { name: "Heightmap templates", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Select", exact: true })).toBeEnabled();
   const heightmapDialog = page.locator("#heightmapSelectionDialog");
+  const templateTab = heightmapDialog.getByRole("tab", { name: "Heightmap templates", exact: true });
+  const precreatedTab = heightmapDialog.getByRole("tab", { name: "Precreated heightmaps", exact: true });
+  await expect(templateTab).toHaveAttribute("aria-selected", "true");
+  await expect(precreatedTab).toHaveAttribute("aria-selected", "false");
+  await expect(heightmapDialog.locator(".heightmap-selection_footer")).toBeVisible();
+  await precreatedTab.click();
+  await expect(precreatedTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("heading", { name: "Precreated heightmaps", exact: true })).toBeVisible();
+  await expect(heightmapDialog.locator(".heightmap-selection_footer")).toBeVisible();
   await expect(heightmapDialog.getByRole("button", { name: "New Map", exact: true })).toBeDisabled();
   await expect(heightmapDialog.getByRole("button", { name: "Edit Templates", exact: true })).toBeDisabled();
   await expect(page.locator("#newMapButton")).toBeDisabled();

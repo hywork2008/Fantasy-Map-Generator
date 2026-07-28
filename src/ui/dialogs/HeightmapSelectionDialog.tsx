@@ -29,7 +29,41 @@ interface HeightmapItem {
 }
 
 const localStyle = `
-  .heightmap-selection { display: flex; flex-direction: column; gap: 0.5em; }
+  .heightmap-selection-dialog { width: min(78rem, calc(100vw - 2rem)); }
+  .heightmap-selection-dialog > .fmg-dialog-content {
+    display: flex;
+    overflow: hidden;
+  }
+  .heightmap-selection {
+    display: grid;
+    flex: 1;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    min-height: 0;
+  }
+  .heightmap-selection_tabs {
+    display: flex;
+    gap: 0.25em;
+    padding: 0.55em 0.7em 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--dark-solid) 30%, transparent);
+  }
+  .heightmap-selection_tabs button {
+    border: 0;
+    border-bottom: 2px solid transparent;
+    padding: 0.45em 0.7em;
+    color: color-mix(in srgb, var(--dark-solid) 68%, transparent);
+    background: transparent;
+  }
+  .heightmap-selection_tabs button[aria-selected="true"] {
+    border-bottom-color: #8a5d22;
+    color: var(--dark-solid);
+    font-weight: 700;
+  }
+  .heightmap-selection_catalog {
+    min-height: 0;
+    overflow: auto;
+    padding: 0.7em;
+  }
+  .heightmap-selection_catalog h1 { margin: 0 0 0.45em; font-size: 1.1em; }
   .heightmap-selection_container {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -40,6 +74,19 @@ const localStyle = `
   }
   @media (min-width: 2000px) {
     .heightmap-selection_container { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }
+  }
+  .heightmap-selection_footer {
+    display: grid;
+    gap: 0.55em;
+    padding: 0.65em 0.7em 0.7em;
+    border-top: 1px solid color-mix(in srgb, var(--dark-solid) 30%, transparent);
+    background: var(--bg-lighter);
+  }
+  .heightmap-selection_footer h2 {
+    margin: 0;
+    font-size: 0.8em;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
   .heightmap-selection_options {
     display: grid;
@@ -57,6 +104,8 @@ const localStyle = `
     .heightmap-selection_options > div:first-child { display: block; }
   }
   .heightmap-selection_options > div:last-child { justify-self: end; }
+  .heightmap-selection_actions { display: flex; justify-content: flex-end; gap: 0.4em; }
+  .heightmap-selection_stage-note { margin: 0; font-size: 0.85em; }
   .heightmap-selection article {
     padding: 4px; border-radius: 8px;
     transition: all 0.1s ease-in-out;
@@ -88,6 +137,7 @@ const localStyle = `
 export const HeightmapSelectionContent: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const [items, setItems] = useState<HeightmapItem[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
+  const [activeCatalog, setActiveCatalog] = useState<"templates" | "precreated">("templates");
   const [colorScheme, setColorScheme] = useState<string>(INITIAL_COLOR_SCHEME);
   const [renderOcean, setRenderOcean] = useState<boolean>(false);
   const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
@@ -203,19 +253,82 @@ export const HeightmapSelectionContent: React.FC<{ onClose?: () => void }> = ({ 
 
   const templateItems = items.filter(i => i.isTemplate);
   const precreatedItems = items.filter(i => !i.isTemplate);
+  const isTemplateCatalog = activeCatalog === "templates";
 
   return (
     <div className="heightmap-selection" id="heightmapSelectionDialog">
       <style>{localStyle}</style>
-      <div className="heightmap-selection">
-        <section data-tip="Select heightmap template – template provides unique, but similar-looking maps on generation">
-          <header>
+      <div className="heightmap-selection_tabs" role="tablist" aria-label="Heightmap source">
+        <button
+          id="heightmapTemplatesTab"
+          type="button"
+          role="tab"
+          aria-selected={isTemplateCatalog}
+          aria-controls="heightmapTemplatesPanel"
+          onClick={() => setActiveCatalog("templates")}
+        >
+          Heightmap templates
+        </button>
+        <button
+          id="precreatedHeightmapsTab"
+          type="button"
+          role="tab"
+          aria-selected={!isTemplateCatalog}
+          aria-controls="precreatedHeightmapsPanel"
+          onClick={() => setActiveCatalog("precreated")}
+        >
+          Precreated heightmaps
+        </button>
+      </div>
+
+      <div className="heightmap-selection_catalog">
+        {isTemplateCatalog ? (
+          <section
+            id="heightmapTemplatesPanel"
+            role="tabpanel"
+            aria-labelledby="heightmapTemplatesTab"
+            data-tip="Select heightmap template – template provides unique, but similar-looking maps on generation"
+          >
             <h1>Heightmap templates</h1>
-          </header>
-          <div className="heightmap-selection_container">
-            {templateItems.map(item => {
-              const { averageLandPercentage } = item;
-              return (
+            <div className="heightmap-selection_container">
+              {templateItems.map(item => {
+                const { averageLandPercentage } = item;
+                return (
+                  <article
+                    key={item.id}
+                    data-id={item.id}
+                    className={item.id === selectedId ? "selected" : ""}
+                    onClick={() => setSelectedId(item.id)}
+                  >
+                    <img src={item.dataUrl || undefined} alt={item.name} style={{ aspectRatio }} />
+                    <div>
+                      {item.name}
+                      <IconButton
+                        data-tip="Regenerate preview"
+                        className="icon-cw regeneratePreview"
+                        onClick={e => handleRegenerate(item.id, e)}
+                      />
+                    </div>
+                    {averageLandPercentage !== undefined && (
+                      <small className="heightmap-selection_landmass">
+                        Average: {averageLandPercentage}% land · {100 - averageLandPercentage}% ocean
+                      </small>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        ) : (
+          <section
+            id="precreatedHeightmapsPanel"
+            role="tabpanel"
+            aria-labelledby="precreatedHeightmapsTab"
+            data-tip="Select precreated heightmap – it will be the same for each map"
+          >
+            <h1>Precreated heightmaps</h1>
+            <div className="heightmap-selection_container">
+              {precreatedItems.map(item => (
                 <article
                   key={item.id}
                   data-id={item.id}
@@ -223,52 +336,22 @@ export const HeightmapSelectionContent: React.FC<{ onClose?: () => void }> = ({ 
                   onClick={() => setSelectedId(item.id)}
                 >
                   <img src={item.dataUrl || undefined} alt={item.name} style={{ aspectRatio }} />
-                  <div>
-                    {item.name}
-                    <IconButton
-                      data-tip="Regenerate preview"
-                      className="icon-cw regeneratePreview"
-                      onClick={e => handleRegenerate(item.id, e)}
-                    />
-                  </div>
-                  {averageLandPercentage !== undefined && (
-                    <small className="heightmap-selection_landmass">
-                      Average: {averageLandPercentage}% land · {100 - averageLandPercentage}% ocean
-                    </small>
-                  )}
+                  <div>{item.name}</div>
                 </article>
-              );
-            })}
-          </div>
-        </section>
-
-        {isMapGenerationInProgress && (
-          <p>Select a template, then choose "Generate another landscape" in Build map to apply it.</p>
+              ))}
+            </div>
+          </section>
         )}
+      </div>
 
-        <section data-tip="Select precreated heightmap – it will be the same for each map">
-          <header>
-            <h1>Precreated heightmaps</h1>
-          </header>
-          <div className="heightmap-selection_container">
-            {precreatedItems.map(item => (
-              <article
-                key={item.id}
-                data-id={item.id}
-                className={item.id === selectedId ? "selected" : ""}
-                onClick={() => setSelectedId(item.id)}
-              >
-                <img src={item.dataUrl || undefined} alt={item.name} style={{ aspectRatio }} />
-                <div>{item.name}</div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <header>
-            <h1>Options</h1>
-          </header>
+      <footer className="heightmap-selection_footer">
+        {isMapGenerationInProgress && (
+          <p className="heightmap-selection_stage-note">
+            Select a template, then choose "Generate another landscape" in Build map to apply it.
+          </p>
+        )}
+        <section aria-label="Preview options">
+          <h2>Options</h2>
           <div className="heightmap-selection_options">
             <div>
               <button
@@ -327,7 +410,7 @@ export const HeightmapSelectionContent: React.FC<{ onClose?: () => void }> = ({ 
           </div>
         </section>
 
-        <div className="d-flex">
+        <div className="heightmap-selection_actions">
           <button type="button" onClick={onClose || (() => closeDialog("heightmapSelection"))}>
             Cancel
           </button>
@@ -338,7 +421,7 @@ export const HeightmapSelectionContent: React.FC<{ onClose?: () => void }> = ({ 
             New Map
           </button>
         </div>
-      </div>
+      </footer>
     </div>
   );
 };
