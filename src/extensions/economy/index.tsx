@@ -1225,6 +1225,11 @@ export function init(api: ExtensionAPI): void {
   let daysSinceLastProduction = 0;
   let daysSinceLastQuarterlyUpdate = 0;
   let currentQuarterIndex = 0;
+  // Without this, mine reserves only ever go down (docs/plan/mineral-resource-circulation-fixes.md
+  // Fix 2): roads/ports built during Advance Time never translate into newly accessible deposits
+  // unless a user manually clicks the "Prospect mines" Tools action.
+  let daysSinceLastProspecting = 0;
+  const PROSPECTING_INTERVAL_DAYS = 365;
   // Phase: economy. Lexical id `economy.tick` runs before `shipbuilding.tick` in the
   // same phase so forest regrowth is ordered before logging within one tick.
   _unregisterTickSystem = api.registerSimulationSystem({
@@ -1309,6 +1314,12 @@ export function init(api: ExtensionAPI): void {
       const forestChanged = tickForestRegrowth(effectiveDeltaYears);
 
       if (forestChanged) markProductionDirty();
+
+      daysSinceLastProspecting += effectiveDays;
+      if (daysSinceLastProspecting >= PROSPECTING_INTERVAL_DAYS) {
+        daysSinceLastProspecting %= PROSPECTING_INTERVAL_DAYS;
+        MineOperations.prospect();
+      }
 
       if (daysSinceLastProduction >= 30) {
         daysSinceLastProduction %= 30;

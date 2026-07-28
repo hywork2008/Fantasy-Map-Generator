@@ -2,9 +2,9 @@
 
 ## 状態
 
-未着手。`docs/plan/mineral-resource-system.md` の Phase 0〜4 実装完了後にレビューを行い、
-検出した3件の設計ギャップを Fix 2 → Fix 1 → Fix 3 の順で修正する。本書は進捗確認用であり、
-各 Fix のチェックリストを実装しながら更新する。
+Fix 2 実装済み。Fix 1・Fix 3 は未着手。`docs/plan/mineral-resource-system.md` の Phase 0〜4
+実装完了後にレビューを行い、検出した3件の設計ギャップを Fix 2 → Fix 1 → Fix 3 の順で修正する。
+本書は進捗確認用であり、各 Fix のチェックリストを実装しながら更新する。
 
 対象コミット: `1fb4611e`(Phase 1)〜`6c5a6739`(Phase 4)。
 元レビューの詳細な根拠は本書に転記済みなので、`docs/plan/mineral-resource-system.md` 自体は
@@ -29,7 +29,7 @@
 
 ## Fix 2: 鉱山の自動更新を Advance Time tick に接続する
 
-### 問題
+**問題**
 
 `economy.mines.prospect`(`src/extensions/economy/generators/mineOperations.ts:54`)は道路・港・
 到達性を再評価して新規鉱山を開山し、深部鉱床の排水・技術を引き上げるが、呼び出し箇所は
@@ -45,7 +45,7 @@
 (`circulation` は毎月0.5%減衰、補充は鉱山産の Gold/Silver/Copper 在庫のみ ——
 `src/extensions/economy/generators/minting.ts:63`, `:75`)にも直結し、長期的に貨幣供給が枯渇する。
 
-### 方針
+**方針**
 
 - `economy.tick` システム(`src/extensions/economy/index.tsx` 内 `_unregisterTickSystem`)から、
   低頻度(年1回程度を想定。`tickForestRegrowth` のような毎tick処理ではなく、`effectiveDeltaYears`
@@ -57,7 +57,7 @@
 - 深部鉱床の技術・排水アップグレード(`operation.technology` / `operation.drainage` の引き上げ)も
   同じ自動サイクルに乗せるか検討する。
 
-### チェックリスト
+**チェックリスト**
 
 - [ ] `economy.tick` に低頻度の prospect 呼び出しを追加する
 - [ ] 呼び出し頻度を決定し、定数化する(マジックナンバーを避ける)
@@ -65,7 +65,7 @@
 - [ ] `mineOperations.test.ts` に「Advance Time 経過だけで新規鉱山が開山する」ケースを追加する
 - [ ] `minting.test.ts` または統合テストで、長期経過後も鉱山産金銀銅供給がゼロに収束しないことを確認する
 
-### 検証
+**検証**
 
 - 数百年分の Advance Time をシミュレートしても、稼働中鉱山数が単調減少一辺倒にならないこと
 - 自動 prospect 実行後、既存の手動ボタンを押しても二重開山・状態不整合が起きないこと
@@ -75,7 +75,7 @@
 
 ## Fix 1: 鉱区数の地図面積スケーリングを修正する
 
-### 問題
+**問題**
 
 `src/extensions/economy/generators/mineralResources.ts:163`:
 
@@ -97,7 +97,7 @@ const districtCount = Math.min(40, Math.max(4, Math.ceil(landCells.length / 110)
 また `MineralDistrict` は現状 `depositIds: [depositId]` で常に1鉱区=1鉱床固定になっており
 (`mineralResources.ts:201-208`)、鉱区数の上限がそのまま鉱床総数の上限になっている。
 
-### 方針
+**方針**
 
 - `districtCount` の上限 `40` を撤廃するか、`landCells.length` に対して線形に伸び続ける式に
   変更する(設計書§6.1の面積比例モデルに合わせる)。
@@ -108,14 +108,14 @@ const districtCount = Math.min(40, Math.max(4, Math.ceil(landCells.length / 110)
 - 1鉱区=1鉱床の制約を残すか、`MineralDistrict` が複数 `MineralDeposit` を持てるようにするかは
   本 Fix のスコープ外(設計書§12「未決定事項」)。まずは鉱区総数のスケーリングのみ直す。
 
-### チェックリスト
+**チェックリスト**
 
 - [ ] `districtCount` の算出式を面積比例(上限撤廃 or 大幅引き上げ)に変更する
 - [ ] 大規模マップでの生成時間を計測し、許容範囲か確認する
 - [ ] `mineralResources.test.ts` に「陸セル数が増えるほど鉱区数が増え続ける」回帰テストを追加する
 - [ ] 既存セーブの再生成(Tools > Mineral deposits)で異常な密度にならないか目視確認する
 
-### 検証
+**検証**
 
 - 陸セル数を変えた複数マップで、鉱区総数が概ね線形に増加すること
 - 各商品(Iron/Copper/Lead-Silver等)の鉱区数が、小規模マップ以上の数量を大規模マップで維持すること
@@ -125,7 +125,7 @@ const districtCount = Math.min(40, Math.max(4, Math.ceil(landCells.length / 110)
 
 ## Fix 3: 鉱床の可視化と旧来 Good アイコン配置との整合
 
-### 問題
+**問題**
 
 `MineralDeposit` / `MineOperation` を参照するレンダラー・ダイアログが存在しない
 (`src/extensions/economy/renderers/` / `ui/` を検索してもヒットなし)。
@@ -140,7 +140,7 @@ production-utils.ts:137`)が、アイコンの位置自体は本物の `MineralD
 場所」が一致せず、かつ後者は完全に不可視。Fix 2 で自動 prospect を入れても、プレイヤーがどこに
 道路・港を通せば新規鉱山が開くかを判断する手がかりがない。
 
-### 方針
+**方針**
 
 - `MineralDeposit` / `MineOperation` を描画する SVG または WebGL レイヤーを Economy 拡張が
   `api.addLayers()` で所有する形で追加する(AGENTS.md §7.4 に従う)。未発見鉱床を表示するか
@@ -151,7 +151,7 @@ production-utils.ts:137`)が、アイコンの位置自体は本物の `MineralD
 - `src/generators/markers-generator.ts` の `mines` Marker(物語用、Economy未接続)との関係も
   合わせて整理する。
 
-### チェックリスト
+**チェックリスト**
 
 - [ ] Economy 拡張に鉱床/鉱山用の SVG (or WebGL) レイヤーを追加する
 - [ ] レイヤーのトグル・凡例(legend)をToolsタブ/レイヤーパネルに追加する
@@ -159,7 +159,7 @@ production-utils.ts:137`)が、アイコンの位置自体は本物の `MineralD
 - [ ] `mines` Marker の説明文更新 or 統合方針を決定する
 - [ ] E2E/描画テストを追加する(該当があれば `webgl-hybrid.spec.ts` 系に準拠)
 
-### 検証
+**検証**
 
 - 稼働中の鉱山がマップ上で視認できること
 - 鉱物系Goodアイコンの位置と実際の鉱床位置に矛盾がなくなること(統合または位置整合のいずれか)
