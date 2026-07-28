@@ -64,6 +64,28 @@ test("provides stage-safe review layers through the build map dialog", async ({ 
   await expect(buildMap.getByRole("button", { name: "Biomes", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("#biomes path").first()).toBeAttached();
 
+  const returnToPrevious = buildMap.getByRole("button", { name: "Return to previous stage", exact: true });
+  const continueStage = buildMap.getByRole("button", { name: "Continue", exact: true });
+  const generateEntireMap = buildMap.getByRole("button", { name: "Generate entire map", exact: true });
+  const biomeRegion = buildMap.locator("#generationBiomeRegionProfile");
+  const regenerateClimate = buildMap.getByRole("button", { name: "Regenerate climate and waterways", exact: true });
+  const [previousBounds, continueBounds, allBounds, profileBounds, regenerateBounds] = await Promise.all([
+    returnToPrevious.boundingBox(),
+    continueStage.boundingBox(),
+    generateEntireMap.boundingBox(),
+    biomeRegion.boundingBox(),
+    regenerateClimate.boundingBox()
+  ]);
+  expect(previousBounds).not.toBeNull();
+  expect(continueBounds).not.toBeNull();
+  expect(allBounds).not.toBeNull();
+  expect(profileBounds).not.toBeNull();
+  expect(regenerateBounds).not.toBeNull();
+  expect(previousBounds!.x).toBeLessThan(continueBounds!.x);
+  expect(allBounds!.y).toBeGreaterThan(continueBounds!.y);
+  expect(allBounds!.x + allBounds!.width).toBeGreaterThanOrEqual(continueBounds!.x + continueBounds!.width);
+  expect(regenerateBounds!.x).toBeGreaterThanOrEqual(profileBounds!.x + profileBounds!.width);
+
   const rivers = buildMap.getByRole("button", { name: "Rivers", exact: true });
   await rivers.click();
   await expect(rivers).toHaveAttribute("aria-pressed", "true");
@@ -96,6 +118,9 @@ test("applies climate configuration when the climate stage is regenerated", asyn
   const heightExponent = buildMap.locator("#generationHeightExponent");
   await expect(heightExponent).toHaveAttribute("name", "heightExponent");
   const worldConfigurator = buildMap.getByRole("button", { name: "Open World Configurator", exact: true });
+  await expect(worldConfigurator).toBeEnabled();
+  await expect(worldConfigurator).toHaveClass("generation-progress-dialog__world-configurator");
+  await expect(worldConfigurator).toHaveCSS("opacity", "1");
   const [biomeBounds, exponentBounds, configuratorBounds] = await Promise.all([
     biomeRegion.boundingBox(),
     heightExponent.boundingBox(),

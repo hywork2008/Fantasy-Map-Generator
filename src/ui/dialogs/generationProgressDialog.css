@@ -176,6 +176,22 @@
   width: 100%;
 }
 
+.generation-progress-dialog__profile-control {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.generation-progress-dialog__profile-field {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.generation-progress-dialog__profile-control select {
+  flex: 1;
+  min-width: 0;
+}
+
 .generation-progress-dialog__range-control {
   display: flex;
   gap: 0.4rem;
@@ -195,24 +211,55 @@
 }
 
 .generation-progress-dialog__climate-settings select,
-.generation-progress-dialog__climate-settings button {
+.generation-progress-dialog__world-configurator {
   min-height: 1.9rem;
 }
 
-.generation-progress-dialog__climate-settings button {
+.generation-progress-dialog__world-configurator {
   justify-self: start;
   padding: 0.28rem 0.5rem;
-  color: color-mix(in srgb, var(--dark-solid) 72%, transparent);
-  background: transparent;
-  border: 1px solid color-mix(in srgb, var(--dark-solid) 38%, transparent);
+  color: var(--dark-solid);
+  background: color-mix(in srgb, var(--bg-light-solid) 82%, #d4b473);
+  border: 1px solid color-mix(in srgb, var(--dark-solid) 45%, #9b6b2c);
+  cursor: pointer;
+  opacity: 1;
+}
+
+.generation-progress-dialog__world-configurator:hover {
+  background: color-mix(in srgb, var(--bg-light-solid) 70%, #d4b473);
+}
+
+.generation-progress-dialog__climate-settings .generation-progress-dialog__profile-refresh {
+  width: 1.2em;
+  min-height: 1.2em;
+  padding: 0;
+  border: 0;
 }
 
 .generation-progress-dialog__actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.5rem;
+  display: grid;
+  gap: 0.65rem;
   padding-top: 0.15rem;
+}
+
+.generation-progress-dialog__step-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.generation-progress-dialog__step-action--back {
+  justify-self: start;
+}
+
+.generation-progress-dialog__step-action--regenerate {
+  justify-self: center;
+}
+
+.generation-progress-dialog__step-action--continue,
+.generation-progress-dialog__all-action {
+  justify-self: end;
 }
 
 .generation-progress-dialog__actions button {
@@ -241,5 +288,14 @@
 
   .generation-progress-dialog__stage {
     grid-template-columns: 1.25rem 1fr;
+  }
+
+  .generation-progress-dialog__step-actions {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .generation-progress-dialog__step-action--regenerate {
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
 }

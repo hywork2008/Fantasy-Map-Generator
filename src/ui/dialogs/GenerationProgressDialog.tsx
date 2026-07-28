@@ -8,6 +8,7 @@ import {
 import { useOptionsState } from "../../store/optionsState";
 import type { BiomeRegionProfile } from "../../types/biomeRegion";
 import { lock } from "../../utils/domUtils";
+import { IconButton } from "../components/IconButton";
 import { Dialog } from "./Dialog";
 import "./generationProgressDialog.css";
 
@@ -37,6 +38,10 @@ export const GenerationProgressDialog: React.FC = () => {
 
   const openWorldConfigurator = () => {
     document.dispatchEvent(new CustomEvent("react-open-world-configurator"));
+  };
+
+  const regenerateClimate = () => {
+    generationProgressStore.getState().retryStage();
   };
 
   const handleHeightExponentChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,21 +119,29 @@ export const GenerationProgressDialog: React.FC = () => {
           <section className="generation-progress-dialog__climate-settings" aria-label="Climate settings">
             <span>Climate inputs</span>
             <div className="generation-progress-dialog__climate-inputs">
-              <label htmlFor="generationBiomeRegionProfile">
-                Biome region
-                <select
-                  id="generationBiomeRegionProfile"
-                  name="biomeRegionProfile"
-                  value={biomeRegionProfile}
-                  onChange={handleBiomeRegionChange}
-                >
-                  <option value="global">Global (default mix)</option>
-                  <option value="medievalEurope">Medieval Europe</option>
-                  <option value="mediterranean">Mediterranean</option>
-                  <option value="tropicalRiverBasin">Tropical river basin</option>
-                  <option value="mountainRealm">Mountain realm</option>
-                </select>
-              </label>
+              <div className="generation-progress-dialog__profile-field">
+                <label htmlFor="generationBiomeRegionProfile">Biome region</label>
+                <span className="generation-progress-dialog__profile-control">
+                  <select
+                    id="generationBiomeRegionProfile"
+                    name="biomeRegionProfile"
+                    value={biomeRegionProfile}
+                    onChange={handleBiomeRegionChange}
+                  >
+                    <option value="global">Global (default mix)</option>
+                    <option value="medievalEurope">Medieval Europe</option>
+                    <option value="mediterranean">Mediterranean</option>
+                    <option value="tropicalRiverBasin">Tropical river basin</option>
+                    <option value="mountainRealm">Mountain realm</option>
+                  </select>
+                  <IconButton
+                    className="generation-progress-dialog__profile-refresh"
+                    icon="icon-cw"
+                    tooltip="Regenerate climate and waterways"
+                    onClick={regenerateClimate}
+                  />
+                </span>
+              </div>
               <label
                 htmlFor="generationHeightExponent"
                 data-tip="Higher values make altitude cool faster, changing temperature and biomes."
@@ -149,7 +162,11 @@ export const GenerationProgressDialog: React.FC = () => {
                 </span>
               </label>
             </div>
-            <button type="button" onClick={openWorldConfigurator}>
+            <button
+              type="button"
+              className="generation-progress-dialog__world-configurator"
+              onClick={openWorldConfigurator}
+            >
               Open World Configurator
             </button>
           </section>
@@ -157,46 +174,48 @@ export const GenerationProgressDialog: React.FC = () => {
 
         {!isGenerating && !autoRun && (
           <div className="generation-progress-dialog__actions">
-            {currentStage === 0 ? (
+            <nav className="generation-progress-dialog__step-actions" aria-label="Stage navigation">
+              <div className="generation-progress-dialog__step-action--back">
+                {currentStage > 0 && (
+                  <button
+                    type="button"
+                    className="generation-progress-dialog__secondary"
+                    onClick={() => generationProgressStore.getState().previous()}
+                  >
+                    Return to previous stage
+                  </button>
+                )}
+              </div>
+              <div className="generation-progress-dialog__step-action--regenerate">
+                {currentStage === 0 && (
+                  <button
+                    type="button"
+                    className="generation-progress-dialog__secondary"
+                    onClick={() => generationProgressStore.getState().retryLandscape()}
+                  >
+                    Generate another landscape
+                  </button>
+                )}
+              </div>
+              <div className="generation-progress-dialog__step-action--continue">
+                <button
+                  type="button"
+                  className="generation-progress-dialog__primary"
+                  onClick={() => generationProgressStore.getState().next()}
+                >
+                  {currentStage === GENERATION_STAGES.length - 1 ? "Finish map" : "Continue"}
+                </button>
+              </div>
+            </nav>
+            <div className="generation-progress-dialog__all-action">
               <button
                 type="button"
                 className="generation-progress-dialog__secondary"
-                onClick={() => generationProgressStore.getState().retryLandscape()}
+                onClick={() => generationProgressStore.getState().runAll()}
               >
-                Generate another landscape
+                Generate entire map
               </button>
-            ) : (
-              <button
-                type="button"
-                className="generation-progress-dialog__secondary"
-                onClick={() => generationProgressStore.getState().previous()}
-              >
-                Return to previous stage
-              </button>
-            )}
-            {currentStage === 1 && (
-              <button
-                type="button"
-                className="generation-progress-dialog__secondary"
-                onClick={() => generationProgressStore.getState().retryStage()}
-              >
-                Regenerate climate and waterways
-              </button>
-            )}
-            <button
-              type="button"
-              className="generation-progress-dialog__secondary"
-              onClick={() => generationProgressStore.getState().runAll()}
-            >
-              Generate entire map
-            </button>
-            <button
-              type="button"
-              className="generation-progress-dialog__primary"
-              onClick={() => generationProgressStore.getState().next()}
-            >
-              {currentStage === GENERATION_STAGES.length - 1 ? "Finish map" : "Continue"}
-            </button>
+            </div>
           </div>
         )}
       </section>
