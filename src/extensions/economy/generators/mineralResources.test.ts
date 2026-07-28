@@ -57,4 +57,22 @@ describe("MineralResourcesModule", () => {
       Math.ceil(silverDeposits.length / 2)
     );
   });
+
+  it("keeps scaling district count with land area well past the old 40-district cap", () => {
+    // Regression for docs/plan/mineral-resource-circulation-fixes.md Fix 1: districtCount
+    // used to be Math.min(40, ...), so any map with >4,400 land cells produced exactly 40
+    // districts no matter how much larger it got.
+    const largeCells = Array.from({ length: 20000 }, (_, i) => i);
+    worldContext.pack = {
+      cells: {
+        i: largeCells,
+        h: Uint8Array.from(largeCells, cell => [76, 61, 43, 32, 26][cell % 5]),
+        r: Uint16Array.from(largeCells, cell => (cell % 5 === 4 ? 1 : 0))
+      }
+    } as unknown as PackedGraph;
+
+    MineralResources.generate();
+
+    expect(getMineralDistricts().length).toBeGreaterThan(40);
+  });
 });

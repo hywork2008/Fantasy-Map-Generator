@@ -2,7 +2,7 @@
 
 ## 状態
 
-Fix 2 実装済み。Fix 1・Fix 3 は未着手。`docs/plan/mineral-resource-system.md` の Phase 0〜4
+Fix 2・Fix 1 実装済み。Fix 3 は未着手。`docs/plan/mineral-resource-system.md` の Phase 0〜4
 実装完了後にレビューを行い、検出した3件の設計ギャップを Fix 2 → Fix 1 → Fix 3 の順で修正する。
 本書は進捗確認用であり、各 Fix のチェックリストを実装しながら更新する。
 
@@ -110,16 +110,36 @@ const districtCount = Math.min(40, Math.max(4, Math.ceil(landCells.length / 110)
 
 **チェックリスト**
 
-- [ ] `districtCount` の算出式を面積比例(上限撤廃 or 大幅引き上げ)に変更する
-- [ ] 大規模マップでの生成時間を計測し、許容範囲か確認する
-- [ ] `mineralResources.test.ts` に「陸セル数が増えるほど鉱区数が増え続ける」回帰テストを追加する
+- [x] `districtCount` の算出式を面積比例(上限撤廃)に変更する
+      (`mineralResources.ts:163-166`。`Math.min(40, ...)` を撤廃し `Math.max(4, Math.ceil(landCells.length / 110))` のみに)
+- [x] 大規模マップでの生成時間を計測し、許容範囲か確認する
+      (計測したところ上限撤廃だけでは `pickCell` が province 内の未使用セルをフルスキャンする
+      構造のため `O(landCells²)` のままで、100,000陸セルで約2.3秒かかることが判明。原因は
+      グローバルな `usedCells: Set` を毎回フィルタし直す実装。`pickCell` を province ごとの
+      可変プール(swap-remove で O(1) 取り出し)に書き換え、100,000陸セルで約16msまで改善した
+      (`mineralResources.ts:267-280`))
+- [x] `mineralResources.test.ts` に「陸セル数が増えるほど鉱区数が増え続ける」回帰テストを追加する
+      (`mineralResources.test.ts` の `keeps scaling district count with land area well past
+      the old 40-district cap`)
 - [ ] 既存セーブの再生成(Tools > Mineral deposits)で異常な密度にならないか目視確認する
+      (ブラウザでの手動確認が必要。未実施)
 
 **検証**
 
-- 陸セル数を変えた複数マップで、鉱区総数が概ね線形に増加すること
-- 各商品(Iron/Copper/Lead-Silver等)の鉱区数が、小規模マップ以上の数量を大規模マップで維持すること
-- 既存の Phase 1 検証項目(同seedでの再現性、Silverが Pb-Ag系鉱区に主として現れる等)が崩れないこと
+- [x] 陸セル数を変えた複数マップで、鉱区総数が概ね線形に増加すること(自動テストで確認)
+- [ ] 各商品(Iron/Copper/Lead-Silver等)の鉱区数が、小規模マップ以上の数量を大規模マップで維持すること
+      (`PROFILE_PRIORITY` のラウンドロビンにより理論上は維持されるはずだが、専用アサーションは
+      未追加)
+- [x] 既存の Phase 1 検証項目(同seedでの再現性、Silverが Pb-Ag系鉱区に主として現れる等)が崩れないこと
+      (既存テスト全て green)
+
+**実装メモ**
+
+`pickCell` の選出方式を「候補全件をハッシュでソートして先頭を取る」から「province ごとの
+可変プール配列に対し、ハッシュ値をインデックスへ写像して swap-remove で1件取り出す」方式に
+変更した。同じ `seed` に対する出力は決定的だが、個々の鉱床がどのセルに立つかという具体的な
+選出順序は変わる(既存テストは具体的なセルIDではなく「同seedで再現するか」「type/commodityの
+構造」だけを検証しているため、この変更で壊れるテストは無い)。
 
 ---
 

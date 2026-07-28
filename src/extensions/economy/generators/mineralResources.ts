@@ -160,21 +160,30 @@ export class MineralResourcesModule {
     const provinces = PROVINCE_ORDER.map((kind, index) => ({ i: index + 1, kind, cells: provinceCells.get(kind)! }));
     const provinceByKind = new Map(provinces.map(province => [province.kind, province]));
     const landCells = provinces.flatMap(province => province.cells);
-    const districtCount = Math.min(40, Math.max(4, Math.ceil(landCells.length / 110)));
-    const usedCells = new Set<number>();
+    // Scales with land area (docs/plan/mineral-resource-system.md §6.1); deliberately
+    // uncapped so large maps are not left relatively mineral-poor per capita (see
+    // docs/plan/mineral-resource-circulation-fixes.md Fix 1).
+    const districtCount = Math.max(4, Math.ceil(landCells.length / 110));
+    // Mutable per-province pools that shrink (swap-remove) as cells are consumed, so
+    // pickCell never has to rescan already-used cells. A single shared Set filtered on
+    // every pick made generate() cost O(districtCount * provinceSize) — quadratic in
+    // land cells once districtCount was no longer capped at 40 (Fix 1, see
+    // docs/plan/mineral-resource-circulation-fixes.md).
+    const provincePools = new Map<GeologicalProvinceKind, number[]>(
+      provinces.map(province => [province.kind, [...province.cells]])
+    );
     const districts: MineralDistrict[] = [];
     const deposits: MineralDeposit[] = [];
 
     for (let ordinal = 0; ordinal < districtCount; ordinal++) {
       const profile = this.pickProfile(ordinal, provinceByKind);
       if (!profile) break;
-      const province = provinceByKind.get(
-        profile.provinces.find(kind => provinceByKind.get(kind)?.cells.length) ?? profile.provinces[0]
-      );
-      if (!province) continue;
-      const cell = this.pickCell(seed, profile.type, ordinal, province.cells, usedCells);
+      const provinceKind = profile.provinces.find(kind => provincePools.get(kind)?.length) ?? profile.provinces[0];
+      const province = provinceByKind.get(provinceKind);
+      const pool = provincePools.get(provinceKind);
+      if (!province || !pool) continue;
+      const cell = this.pickCell(seed, profile.type, ordinal, pool);
       if (cell === null) continue;
-      usedCells.add(cell);
 
       const districtId = districts.length + 1;
       const depositId = deposits.length + 1;
@@ -261,19 +270,23 @@ export class MineralResourcesModule {
     return ordered[ordinal % ordered.length];
   }
 
-  private pickCell(
-    seed: string,
-    type: MineralDistrictType,
-    ordinal: number,
-    cells: readonly number[],
-    used: ReadonlySet<number>
-  ): number | null {
-    const candidates = cells.filter(cell => !used.has(cell));
-    if (!candidates.length) return null;
-    return [...candidates].sort((a, b) => {
-      const score = this.hash(seed, `${type}:${ordinal}`, a) - this.hash(seed, `${type}:${ordinal}`, b);
-      return score || a - b;
-    })[0];
+  /**
+   * Deterministically picks one cell out of a province's remaining pool and removes it
+   * (swap with the last element, then pop) so the pool never needs to be rescanned for
+   * already-used cells. O(1) per call instead of O(poolSize) — districtCount is no
+   * longer capped at 40, so this runs many more times per generate() call on large maps
+   * (see Fix 1 in docs/plan/mineral-resource-circulation-fixes.md).
+   */
+  private pickCell(seed: string, type: MineralDistrictType, ordinal: number, pool: number[]): number | null {
+    if (!pool.length) return null;
+    const index = Math.min(
+      pool.length - 1,
+      Math.floor(this.hash(seed, `${type}:${ordinal}`, pool.length) * pool.length)
+    );
+    const cell = pool[index];
+    pool[index] = pool[pool.length - 1];
+    pool.pop();
+    return cell;
   }
 
   private getCommodities(profile: DistrictProfile, seed: string, cell: number): MineralCommodity[] {
