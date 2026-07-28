@@ -25,6 +25,7 @@ import type { Caravan, Deal, TradeRouteSegment } from "./marketTypes";
 import { TradeAnimation } from "./trade-animation";
 import { getCaravanMaintenanceCost, isGoodTradePermitted, MIN_TRADE_PROFIT } from "./tradeOpportunityEstimator";
 import { calculateRouteDurationDays, getRouteDistanceKm } from "./tradeRouteDuration";
+import { TradeSecurity } from "./tradeSecurity";
 
 export type CaravanTravelLeg = { endKm: number; speedKmPerDay: number };
 
@@ -396,23 +397,21 @@ export class CaravansModule {
 
       advanceCaravan(caravan, deltaDays, world.distanceScale, month, movement);
 
-      // Calculate Bandit Risk based on route path or simple market states
-      // For now, default is 0. If there's a war in the region, risk increases.
-      const buyerMarket = markets.find(market => market.i === caravan.buyer);
-      let banditRiskPerDay = 0;
-      if (buyerMarket) {
-        const ledger = getBurgMarketLedger(buyerMarket.centerBurgId);
-        if (ledger?.warIntensity) {
-          banditRiskPerDay = 0.001 * ledger.warIntensity; // 0.1% chance per day per intensity level
-        }
-      }
+      const buyerMarket =
+        caravan.buyerType === "market"
+          ? markets.find(market => market.i === caravan.buyer)
+          : markets.find(market => market.centerBurgId === caravan.buyer);
+      const destinationBurgId = buyerMarket?.centerBurgId ?? (caravan.buyerType === "burg" ? caravan.buyer : 0);
+      const warIntensity = getBurgMarketLedger(destinationBurgId)?.warIntensity ?? 0;
+      const banditRiskPerDay = TradeSecurity.getBanditRiskPerDay(destinationBurgId, warIntensity);
 
       if (banditRiskPerDay > 0) {
         const risk = banditRiskPerDay * deltaDays;
         if (Math.random() < risk) {
           caravan.state = "lost";
           lost.push(caravan);
-          // We could optionally generate a news log or notification here
+          const destinationStateId = world.pack.burgs[destinationBurgId]?.state ?? 0;
+          TradeSecurity.recordCaravanLoss(destinationStateId);
           continue;
         }
       }

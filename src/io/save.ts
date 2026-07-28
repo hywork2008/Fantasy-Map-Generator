@@ -49,6 +49,7 @@ function getLegacyEconomyPackFields(pack: unknown): {
   smelterOperations: unknown[];
   mintLedgers: unknown[];
   militaryResourceLedgers: unknown[];
+  tradeSecurityLedgers: unknown[];
   cellsGood: Uint16Array;
   cellsMarket: Uint16Array;
 } {
@@ -72,6 +73,7 @@ function getLegacyEconomyPackFields(pack: unknown): {
     smelterOperations: array(record.smelterOperations),
     mintLedgers: array(record.mintLedgers),
     militaryResourceLedgers: array(record.militaryResourceLedgers),
+    tradeSecurityLedgers: array(record.tradeSecurityLedgers),
     cellsGood: uint16(cells?.good),
     cellsMarket: uint16(cells?.market)
   };
@@ -223,7 +225,8 @@ function prepareMapDataFromSvg(): string {
     mineOperations: legacyEconomy.mineOperations,
     smelterOperations: legacyEconomy.smelterOperations,
     mintLedgers: legacyEconomy.mintLedgers,
-    militaryResourceLedgers: legacyEconomy.militaryResourceLedgers
+    militaryResourceLedgers: legacyEconomy.militaryResourceLedgers,
+    tradeSecurityLedgers: legacyEconomy.tradeSecurityLedgers
   });
 
   // store name array only if not the same as default

@@ -25,6 +25,7 @@ import type { SmelterOperation } from "./generators/smelterOperations";
 import type { LaborMarket } from "./generators/strategicLaborMarkets";
 import type { ProcurementOrder } from "./generators/strategicProcurement";
 import type { StrategicGoodsPolicy } from "./generators/strategicProcurementPolicy";
+import type { TradeSecurityLedger } from "./generators/tradeSecurity";
 
 let _api: ExtensionAPI | null = null;
 
@@ -313,6 +314,13 @@ export function getMilitaryResourceLedgers(): MilitaryResourceLedger[] {
 }
 export function setMilitaryResourceLedgers(ledgers: readonly MilitaryResourceLedger[]): void {
   setSliceArray("militaryResourceLedgers", ledgers);
+}
+/** Per-state caravan-security budgets owned by the economy extension. */
+export function getTradeSecurityLedgers(): TradeSecurityLedger[] {
+  return getSliceArray<TradeSecurityLedger>("tradeSecurityLedgers");
+}
+export function setTradeSecurityLedgers(ledgers: readonly TradeSecurityLedger[]): void {
+  setSliceArray("tradeSecurityLedgers", ledgers);
 }
 
 /** Per-cell dominant good id, owned by the economy extension. */

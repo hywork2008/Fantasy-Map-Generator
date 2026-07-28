@@ -152,6 +152,7 @@ export const DATA_FIELD_OWNERSHIP: readonly DataFieldOwnership[] = [
   extension("simulation.extensions.economy.mineOperations", "economy", "mine-operation.id"),
   extension("simulation.extensions.economy.mintLedgers", "economy", "state.id"),
   extension("simulation.extensions.economy.militaryResourceLedgers", "economy", "state.id"),
+  extension("simulation.extensions.economy.tradeSecurityLedgers", "economy", "state.id"),
   extension("simulation.extensions.economy.good", "economy", "cell.id"),
   extension("simulation.extensions.economy.market", "economy", "cell.id"),
   extension("simulation.extensions.economy.productionByBurg", "economy", "burg.id"),

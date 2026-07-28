@@ -1,12 +1,14 @@
 import type React from "react";
 import { useMemo, useState } from "react";
 import { formatPrice, rn } from "../../../hostUtils";
-import { getWorldContext } from "../../economyContext";
+import { getTradeSecurityLedgers, getWorldContext } from "../../economyContext";
+import { TradeSecurity } from "../../generators/tradeSecurity";
 
 export const StatesEditorTreasuryTab: React.FC = () => {
   const worldContext = getWorldContext();
   const pack = worldContext.pack;
   const states = pack.states.filter(s => s.i && !s.removed);
+  const tradeSecurityLedgers = getTradeSecurityLedgers();
 
   const [sortBy, setSortBy] = useState("treasury");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -25,6 +27,10 @@ export const StatesEditorTreasuryTab: React.FC = () => {
       return sortOrder === "asc" ? numA - numB : numB - numA;
     });
   }, [states, sortBy, sortOrder]);
+  const tradeSecurityByState = useMemo(
+    () => new Map(tradeSecurityLedgers.map(ledger => [ledger.stateId, ledger])),
+    [tradeSecurityLedgers]
+  );
 
   const handleSort = (field: string) => {
     if (sortBy === field) {
@@ -81,66 +87,94 @@ export const StatesEditorTreasuryTab: React.FC = () => {
             <SortHeader field="pollTax" label="Poll Tax" tip="poll tax rate" />
             <SortHeader field="treasury" label="Treasury" tip="state treasury" />
             <th data-tip="Share of the total treasury held by all states">Share</th>
+            <th data-tip="State-funded road and caravan security investment; paid monthly from the treasury">
+              Trade Security
+            </th>
+            <th data-tip="Security upkeep paid during the current production month">Upkeep</th>
+            <th data-tip="Caravans lost while travelling to this state during the current production month">Lost</th>
           </tr>
         </thead>
         <tbody>
           {sortedStates.length === 0 ? (
             <tr>
-              <td colSpan={6}>No states found</td>
+              <td colSpan={9}>No states found</td>
             </tr>
           ) : (
-            sortedStates.map(s => (
-              <tr key={s.i} className="states">
-                <td>{s.name}</td>
-                <td>{s.formName || s.form || ""}</td>
-                <td>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    data-tip="Sales tax rate, charged on the seller for every local and inter-market trade deal"
-                    style={{ width: "4.5em" }}
-                    value={rn((s.salesTax || 0) * 100, 1)}
-                    onChange={e => {
-                      s.salesTax = rn(Math.max(0, Number(e.target.value)) / 100, 4);
-                      rerender();
-                    }}
-                  />{" "}
-                  %
-                </td>
-                <td>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    data-tip="Poll tax rate, a flat levy per head of population collected once per production cycle"
-                    style={{ width: "4.5em" }}
-                    value={rn((s.pollTax || 0) * 100, 1)}
-                    onChange={e => {
-                      s.pollTax = rn(Math.max(0, Number(e.target.value)) / 100, 4);
-                      rerender();
-                    }}
-                  />{" "}
-                  %
-                </td>
-                <td>
-                  <input
-                    type="number"
-                    step="1"
-                    data-tip="Accumulated treasury. Recomputed from sales and poll tax on the next production regeneration; edit to override"
-                    style={{ width: "6em" }}
-                    value={rn(s.treasury || 0, 2)}
-                    onChange={e => {
-                      s.treasury = rn(Number(e.target.value), 2);
-                      rerender();
-                    }}
-                  />
-                </td>
-                <td>{totalTreasury ? `${rn(((s.treasury || 0) / totalTreasury) * 100, 1)}%` : "0%"}</td>
-              </tr>
-            ))
+            sortedStates.map(s => {
+              const tradeSecurity = tradeSecurityByState.get(s.i);
+              return (
+                <tr key={s.i} className="states">
+                  <td>{s.name}</td>
+                  <td>{s.formName || s.form || ""}</td>
+                  <td>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      data-tip="Sales tax rate, charged on the seller for every local and inter-market trade deal"
+                      style={{ width: "4.5em" }}
+                      value={rn((s.salesTax || 0) * 100, 1)}
+                      onChange={e => {
+                        s.salesTax = rn(Math.max(0, Number(e.target.value)) / 100, 4);
+                        rerender();
+                      }}
+                    />{" "}
+                    %
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      data-tip="Poll tax rate, a flat levy per head of population collected once per production cycle"
+                      style={{ width: "4.5em" }}
+                      value={rn((s.pollTax || 0) * 100, 1)}
+                      onChange={e => {
+                        s.pollTax = rn(Math.max(0, Number(e.target.value)) / 100, 4);
+                        rerender();
+                      }}
+                    />{" "}
+                    %
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      step="1"
+                      data-tip="Accumulated treasury. Recomputed from sales and poll tax on the next production regeneration; edit to override"
+                      style={{ width: "6em" }}
+                      value={rn(s.treasury || 0, 2)}
+                      onChange={e => {
+                        s.treasury = rn(Number(e.target.value), 2);
+                        rerender();
+                      }}
+                    />
+                  </td>
+                  <td>{totalTreasury ? `${rn(((s.treasury || 0) / totalTreasury) * 100, 1)}%` : "0%"}</td>
+                  <td>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      data-tip="Investment reduces caravan bandit risk. Its configured level stays in place when the treasury cannot fully fund it."
+                      style={{ width: "4.5em" }}
+                      value={rn((tradeSecurity?.investmentLevel ?? 0) * 100, 1)}
+                      onChange={e => {
+                        const ledger = TradeSecurity.getLedger(s.i);
+                        if (!ledger) return;
+                        ledger.investmentLevel = Math.max(0, Math.min(1, Number(e.target.value) / 100));
+                        rerender();
+                      }}
+                    />{" "}
+                    %
+                  </td>
+                  <td>{formatPrice(tradeSecurity?.monthlyUpkeepPaid ?? 0)}</td>
+                  <td>{tradeSecurity?.lastCaravansLost ?? 0}</td>
+                </tr>
+              );
+            })
           )}
         </tbody>
       </table>

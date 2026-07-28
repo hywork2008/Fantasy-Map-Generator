@@ -36,6 +36,7 @@ import {
   getStrategicProductionDemandByGood,
   type StrategicProductionDemand
 } from "./strategicProductionDemand";
+import { TradeSecurity } from "./tradeSecurity";
 
 const BONUS_URBAN_PRODUCTION = 1;
 
@@ -64,6 +65,7 @@ export class ProductionModule {
     SmelterOperations.produceMonth();
     Minting.settleMonthly();
     MilitaryResources.settleMonthly();
+    TradeSecurity.settleMonthly();
     Markets.initializeMarketPrices();
 
     const index = this.buildProductionIndex(getGoods().filter(isGoodEnabled));

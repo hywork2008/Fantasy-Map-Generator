@@ -2,7 +2,7 @@
 
 ## 状態
 
-Phase A〜C 実装済み（Ore/Ingot のカタログ分離・既存セーブ移行・精錬所・精錬所盗難）。Phase D は未着手。
+Phase A〜D 実装済み（Ore/Ingot のカタログ分離・既存セーブ移行・精錬所・精錬所盗難・街道警備）。
 `docs/plan/mineral-resource-system.md`(鉱物資源システム)の続編であり、
 同ドキュメント §12「未決定事項」の「個別 Ore Good を Phase 2 から導入するか、精錬済み金属相当の
 まま進めるか」に対して、本書は **導入する** という決定を行う。
@@ -180,6 +180,19 @@ export interface TradeSecurityLedger {
 `Minting`/`MilitaryResources` と同じパターンで、月次に `state.treasury` から維持費を支払う。
 支払えなければ `investmentLevel` の実効値を按分して下げる(既存の資金不足時の挙動と揃える)。
 
+実装係数は、精錬所盗難と比較可能な以下の値に固定する。`frontierMultiplier` と
+`dangerMultiplier` は §5.1 と共通で、通常の州有地・平時なら日次0.005%まで低下する。
+
+- `baseRisk`: 日次 `0.001`
+- `frontierMultiplier`: incorporated `0.05`、settlement `0.35`、outpost `0.75`、wilderness `1.25`
+- `dangerMultiplier`: `1 + 3 × danger / 255`
+- `warMultiplier`: `1 + max(0, warIntensity)`
+- 月次警備費: `(0.2 + 州内の有効Burg数 × 0.05) × investmentLevel`。国庫不足時は
+  支払比率に応じて、その月の実効投資水準を下げる。
+
+投資水準は States Editor の Treasury タブで州ごとに設定する。同タブには当月の維持費と、
+当月にその州へ向かう途中で失われたキャラバン数も表示する。
+
 ### 5.3 前提の確認: settlement pattern との関係
 
 `frontierMultiplier` を両リスク式の主要項に据えることで、`initialSettlementPattern ===
@@ -227,10 +240,10 @@ export interface TradeSecurityLedger {
   - [x] `SmelterOperation.securityInvestment` フィールドと維持費支払い
   - [x] `smelterTheftRisk` 計算・月次ロール
   - [x] `frontierMultiplier`/`dangerMultiplier`/`isolationMultiplier` の具体的な係数決定
-- [ ] **Phase D**: 被害3(行商全般)
-  - [ ] `TradeSecurityLedger` 新設(State単位)
-  - [ ] `caravans.ts` の `banditRiskPerDay` 拡張
-  - [ ] Toolsタブでの投資水準UI(未決定、§8)
+- [x] **Phase D**: 被害3(行商全般)
+  - [x] `TradeSecurityLedger` 新設(State単位)
+  - [x] `caravans.ts` の `banditRiskPerDay` 拡張
+  - [x] States Editor のTreasuryタブでの投資水準UI
 
 ---
 
@@ -239,8 +252,6 @@ export interface TradeSecurityLedger {
 - 複数鉱山を1つの精錬所に統合するケースをいつ・どう扱うか(現状は1鉱山=1精錬所のMVP)
 - `smeltingYield`(Ore→Ingot歩留まり)の初期値と、技術進歩でどう変化させるか
   - Phase B の初期値は 0.8。技術進歩の変化則は将来決定する。
-- `TradeSecurityLedger.investmentLevel` をプレイヤーがどこで設定するか(Toolsタブの新規UIか、
-  既存の税率設定に相乗りするか)
 - 既存セーブ(Ore/Ingot分離前に生成された `.fmg`/旧`.map`)は Phase A で移行済み。旧 Iron 等の
   Good ID と市場在庫・取引中貨物は **Ore としてそのまま維持**し、対応する Ingot Good は在庫ゼロで
   末尾に追加する。これにより資産を複製せず、Phase B の精錬所だけが Ingot の新規供給源になる。

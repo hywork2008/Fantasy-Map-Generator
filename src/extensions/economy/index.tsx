@@ -29,6 +29,7 @@ import {
   getMineOperations,
   getMintLedgers,
   getSmelterOperations,
+  getTradeSecurityLedgers,
   getWorldContext,
   initEconomyContext,
   setBurgMarketLedgers,
@@ -69,6 +70,7 @@ import {
   Taxes
 } from "./generators/taxes-generator";
 import { TradeAnimation } from "./generators/trade-animation";
+import { TradeSecurity } from "./generators/tradeSecurity";
 import { drawGoods } from "./renderers/draw-goods";
 import { drawMarketsLayer } from "./renderers/draw-markets";
 import {
@@ -608,6 +610,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (value.target === "economy" || value.target === "minerals") SmelterOperations.generate();
       if (value.target === "economy" || value.target === "currency") Minting.generate();
       if (value.target === "economy") MilitaryResources.generate();
+      if (value.target === "economy") TradeSecurity.generate();
       if (value.target === "economy") Taxes.defineTaxRates();
       if (value.target === "economy" || value.target === "production") {
         FoodProduction.generateQuarterlyLedger(0);
@@ -656,6 +659,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       MineralResources.clear();
       Minting.clear();
       MilitaryResources.clear();
+      TradeSecurity.clear();
       setGoods([]);
       setMarkets([]);
       setDeals([]);
@@ -983,6 +987,7 @@ export function init(api: ExtensionAPI): void {
         SmelterOperations.generate();
         Minting.generate();
         MilitaryResources.generate();
+        TradeSecurity.generate();
         Taxes.defineTaxRates();
         FoodProduction.generateQuarterlyLedger(0);
         Production.produce();
@@ -994,6 +999,7 @@ export function init(api: ExtensionAPI): void {
         }
         if (getMarkets().length) {
           if (!getSmelterOperations().length) SmelterOperations.generate();
+          if (!getTradeSecurityLedgers().length) TradeSecurity.generate();
           syncMarketManagers();
           syncBurgMarketLedgers();
         }
@@ -1047,6 +1053,7 @@ export function init(api: ExtensionAPI): void {
     api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
     api.burgEconomyExtensions.getBurgEconomySummary = getBurgEconomySummary;
     registerOverviewColumns(api);
+    if (!getTradeSecurityLedgers().length) TradeSecurity.generate();
     if (getMarkets().length) {
       syncMarketManagers();
       syncBurgMarketLedgers();
@@ -1069,6 +1076,7 @@ export function init(api: ExtensionAPI): void {
       SmelterOperations.generate();
       Minting.generate();
       MilitaryResources.generate();
+      TradeSecurity.generate();
       Taxes.defineTaxRates();
       FoodProduction.generateQuarterlyLedger(0);
       Production.produce();
@@ -1093,6 +1101,7 @@ export function init(api: ExtensionAPI): void {
       Markets.initializeMarketPrices();
     }
     if (!getSmelterOperations().length && getMineOperations().length) SmelterOperations.generate();
+    if (!getTradeSecurityLedgers().length) TradeSecurity.generate();
   };
   document.addEventListener("fmg:world-loaded", _worldLoadedHandler);
 
@@ -1428,6 +1437,7 @@ export function init(api: ExtensionAPI): void {
     Taxes.collectTaxes();
     if (!getMintLedgers().length && getMarkets().length) Minting.generate();
     if (!getMilitaryResourceLedgers().length && getMarkets().length) MilitaryResources.generate();
+    if (!getTradeSecurityLedgers().length) TradeSecurity.generate();
     if (getMarkets().length) syncBurgMarketLedgers();
   });
 
