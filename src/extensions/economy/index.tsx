@@ -26,7 +26,9 @@ import {
   getMarketCellColumn,
   getMarkets,
   getMilitaryResourceLedgers,
+  getMineOperations,
   getMintLedgers,
+  getSmelterOperations,
   getWorldContext,
   initEconomyContext,
   setBurgMarketLedgers,
@@ -57,6 +59,7 @@ import { MineralResources } from "./generators/mineralResources";
 import { Minting } from "./generators/minting";
 import { Production } from "./generators/production-generator";
 import { seedShipbuildingInitialStock } from "./generators/shipbuildingInitialStock";
+import { SmelterOperations } from "./generators/smelterOperations";
 import { refreshStateEconomySummaries } from "./generators/stateEconomySummary";
 import { StrategicProcurement } from "./generators/strategicProcurement";
 import {
@@ -602,6 +605,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (value.target === "economy" || value.target === "goods") Goods.generate();
       if (value.target === "economy" || value.target === "markets") Markets.generate(true);
       if (value.target === "economy" || value.target === "minerals") MineOperations.generate();
+      if (value.target === "economy" || value.target === "minerals") SmelterOperations.generate();
       if (value.target === "economy" || value.target === "currency") Minting.generate();
       if (value.target === "economy") MilitaryResources.generate();
       if (value.target === "economy") Taxes.defineTaxRates();
@@ -634,6 +638,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (value !== undefined) throw new Error("economy.mines.prospect does not accept a payload");
 
       const result = MineOperations.prospect();
+      if (result.discovered) SmelterOperations.generate();
       return { changed: result.discovered > 0 || result.upgraded > 0, result };
     }
   });
@@ -647,6 +652,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       clearBurgMarketLedgers();
       clearMarketManagers();
       MineOperations.clear();
+      SmelterOperations.clear();
       MineralResources.clear();
       Minting.clear();
       MilitaryResources.clear();
@@ -970,8 +976,13 @@ export function init(api: ExtensionAPI): void {
           setGoodCellColumn(new Uint16Array(worldContext.pack.cells.i.length));
           setMarketCellColumn(new Uint16Array(worldContext.pack.cells.i.length));
         }
+        MineralResources.generate();
         Goods.generate();
         Markets.generate();
+        MineOperations.generate();
+        SmelterOperations.generate();
+        Minting.generate();
+        MilitaryResources.generate();
         Taxes.defineTaxRates();
         FoodProduction.generateQuarterlyLedger(0);
         Production.produce();
@@ -982,6 +993,7 @@ export function init(api: ExtensionAPI): void {
           Markets.initializeMarketPrices();
         }
         if (getMarkets().length) {
+          if (!getSmelterOperations().length) SmelterOperations.generate();
           syncMarketManagers();
           syncBurgMarketLedgers();
         }
@@ -1054,6 +1066,7 @@ export function init(api: ExtensionAPI): void {
       Goods.generate();
       Markets.generate();
       MineOperations.generate();
+      SmelterOperations.generate();
       Minting.generate();
       MilitaryResources.generate();
       Taxes.defineTaxRates();
@@ -1075,9 +1088,11 @@ export function init(api: ExtensionAPI): void {
   // newly added Ingots begin at zero stock (no duplicated wealth).
   _worldLoadedHandler = () => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
-    if (!migrateLegacyOreIngotGoods()) return;
-    Goods.sync();
-    Markets.initializeMarketPrices();
+    if (migrateLegacyOreIngotGoods()) {
+      Goods.sync();
+      Markets.initializeMarketPrices();
+    }
+    if (!getSmelterOperations().length && getMineOperations().length) SmelterOperations.generate();
   };
   document.addEventListener("fmg:world-loaded", _worldLoadedHandler);
 
@@ -1351,7 +1366,8 @@ export function init(api: ExtensionAPI): void {
       daysSinceLastProspecting += effectiveDays;
       if (daysSinceLastProspecting >= PROSPECTING_INTERVAL_DAYS) {
         daysSinceLastProspecting %= PROSPECTING_INTERVAL_DAYS;
-        MineOperations.prospect();
+        const result = MineOperations.prospect();
+        if (result.discovered) SmelterOperations.generate();
       }
 
       if (daysSinceLastProduction >= 30) {
@@ -1404,6 +1420,7 @@ export function init(api: ExtensionAPI): void {
       Goods.sync();
       Markets.initializeMarketPrices();
     }
+    if (!getSmelterOperations().length && getMineOperations().length) SmelterOperations.generate();
     if (getWorldContext().options.gunpowderEraEnabled === false) refreshEconomyForGunpowderEra(api);
     // Backfill sales/poll tax rates and recompute treasury for maps saved before this feature existed.
     // Both calls are idempotent/cheap, so re-running them on every load is safe.

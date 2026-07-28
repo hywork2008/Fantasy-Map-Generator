@@ -33,6 +33,10 @@ export function isMineSuppliedGoodName(name: string): boolean {
 export function getMinedGoodName(commodity: MineralCommodity): string {
   return (ORE_COMMODITIES as readonly string[]).includes(commodity) ? `${commodity} ore` : commodity;
 }
+
+export function getIngotGoodName(commodity: OreCommodity): string {
+  return `${commodity} ingot`;
+}
 export type GeologicalProvinceKind = "orogen" | "shield" | "granite" | "carbonate" | "basin" | "placer";
 export type MineralDistrictType =
   | "bandedIron"

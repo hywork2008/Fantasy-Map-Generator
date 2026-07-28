@@ -1162,7 +1162,7 @@ function restoreStrategicEconomyState(serialized: string | undefined): void {
   }
 }
 
-/** Restores the optional legacy-map mineral groundwork slot added in Phase 1. */
+/** Restores the optional legacy-map mineral-resource state slot. */
 function restoreMineralResourceState(serialized: string | undefined): void {
   const pack = getMutableLegacyPack();
   const empty = {
@@ -1170,6 +1170,7 @@ function restoreMineralResourceState(serialized: string | undefined): void {
     mineralDistricts: [],
     mineralDeposits: [],
     mineOperations: [],
+    smelterOperations: [],
     mintLedgers: [],
     militaryResourceLedgers: []
   };
@@ -1191,6 +1192,7 @@ function restoreMineralResourceState(serialized: string | undefined): void {
     pack.mineralDistricts = Array.isArray(record.mineralDistricts) ? record.mineralDistricts : [];
     pack.mineralDeposits = Array.isArray(record.mineralDeposits) ? record.mineralDeposits : [];
     pack.mineOperations = Array.isArray(record.mineOperations) ? record.mineOperations : [];
+    pack.smelterOperations = Array.isArray(record.smelterOperations) ? record.smelterOperations : [];
     pack.mintLedgers = Array.isArray(record.mintLedgers) ? record.mintLedgers : [];
     pack.militaryResourceLedgers = Array.isArray(record.militaryResourceLedgers) ? record.militaryResourceLedgers : [];
   } catch {

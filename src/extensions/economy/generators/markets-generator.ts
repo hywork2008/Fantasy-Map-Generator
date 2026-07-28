@@ -135,6 +135,25 @@ export class MarketsModule {
     return supplied;
   }
 
+  /** Adds refined material from a smelter before monthly market-price calculation. */
+  addSmelterSupply(marketId: number, goodId: number, amount: number): number {
+    return this.addMineSupply(marketId, goodId, amount);
+  }
+
+  /**
+   * Smelters consume a bounded share of local Ore stock so markets keep material
+   * available for trade while refining capacity is developing.
+   */
+  consumeForSmelting(marketId: number, goodId: number, requestedUnits: number, stockShare: number): number {
+    const market = this.get(marketId);
+    const marketGood = market?.goods[goodId];
+    if (!marketGood || requestedUnits <= 0 || stockShare <= 0) return 0;
+    const consumed = rn(Math.min(requestedUnits, marketGood.stock * Math.min(1, stockShare)), 4);
+    if (consumed <= 0) return 0;
+    marketGood.stock = rn(Math.max(0, marketGood.stock - consumed), 4);
+    return consumed;
+  }
+
   /**
    * Removes no more than one fifth of a metal's local stock for state minting.
    * The cap leaves a market reserve for private trade and production; the caller

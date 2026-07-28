@@ -46,6 +46,7 @@ function getLegacyEconomyPackFields(pack: unknown): {
   mineralDistricts: unknown[];
   mineralDeposits: unknown[];
   mineOperations: unknown[];
+  smelterOperations: unknown[];
   mintLedgers: unknown[];
   militaryResourceLedgers: unknown[];
   cellsGood: Uint16Array;
@@ -68,6 +69,7 @@ function getLegacyEconomyPackFields(pack: unknown): {
     mineralDistricts: array(record.mineralDistricts),
     mineralDeposits: array(record.mineralDeposits),
     mineOperations: array(record.mineOperations),
+    smelterOperations: array(record.smelterOperations),
     mintLedgers: array(record.mintLedgers),
     militaryResourceLedgers: array(record.militaryResourceLedgers),
     cellsGood: uint16(cells?.good),
@@ -219,6 +221,7 @@ function prepareMapDataFromSvg(): string {
     mineralDistricts: legacyEconomy.mineralDistricts,
     mineralDeposits: legacyEconomy.mineralDeposits,
     mineOperations: legacyEconomy.mineOperations,
+    smelterOperations: legacyEconomy.smelterOperations,
     mintLedgers: legacyEconomy.mintLedgers,
     militaryResourceLedgers: legacyEconomy.militaryResourceLedgers
   });
@@ -296,7 +299,7 @@ function prepareMapDataFromSvg(): string {
     strategicEconomy, // [52] economy strategic procurement and labor cohorts
     worldContext.pack.cells.coastalHabitat ? Array.from(worldContext.pack.cells.coastalHabitat).join(",") : "", // [53] coastal habitat codes
     worldContext.pack.cells.nearshoreHabitat ? Array.from(worldContext.pack.cells.nearshoreHabitat).join(",") : "", // [54] nearshore habitat codes
-    mineralResources // [55] static Economy mineral-resource groundwork
+    mineralResources // [55] Economy mineral-resource state
   ].join("\r\n");
 
   return mapData;

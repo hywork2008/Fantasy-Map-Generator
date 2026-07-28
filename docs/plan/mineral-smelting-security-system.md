@@ -2,7 +2,7 @@
 
 ## 状態
 
-Phase A 実装済み（Ore/Ingot のカタログ分離・既存セーブ移行）。Phase B〜D は未着手。
+Phase A〜B 実装済み（Ore/Ingot のカタログ分離・既存セーブ移行・精錬所）。Phase C〜D は未着手。
 `docs/plan/mineral-resource-system.md`(鉱物資源システム)の続編であり、
 同ドキュメント §12「未決定事項」の「個別 Ore Good を Phase 2 から導入するか、精錬済み金属相当の
 まま進めるか」に対して、本書は **導入する** という決定を行う。
@@ -207,10 +207,10 @@ export interface TradeSecurityLedger {
   - [x] `minting.ts`/`militaryResources.ts` の参照先をIngotに更新
   - [x] `mineralResources.ts` の `MINERAL_COMMODITIES` 分割、`isMineSuppliedGoodName` 拡張
   - [x] 既存セーブ互換(旧`.fmg`にOre/Ingotが無い場合の補完方針を決める)
-- [ ] **Phase B**: `SmelterOperation` 新設
-  - [ ] 型定義・生成モジュール(`smelterOperations.ts`)
-  - [ ] 近傍セル探索による立地選定(水利+燃料スコアリング)
-  - [ ] 月次生産ワイヤリング(§4)
+- [x] **Phase B**: `SmelterOperation` 新設
+  - [x] 型定義・生成モジュール(`smelterOperations.ts`)
+  - [x] 近傍セル探索による立地選定(水利+燃料スコアリング)
+  - [x] 月次生産ワイヤリング(§4)
 - [ ] **Phase C**: 被害2(精錬所盗難)
   - [ ] `SmelterOperation.securityInvestment` フィールドと維持費支払い
   - [ ] `smelterTheftRisk` 計算・月次ロール
@@ -226,6 +226,7 @@ export interface TradeSecurityLedger {
 
 - 複数鉱山を1つの精錬所に統合するケースをいつ・どう扱うか(現状は1鉱山=1精錬所のMVP)
 - `smeltingYield`(Ore→Ingot歩留まり)の初期値と、技術進歩でどう変化させるか
+  - Phase B の初期値は 0.8。技術進歩の変化則は将来決定する。
 - `frontierMultiplier`/`dangerMultiplier`/`isolationMultiplier`/`baseRisk` の具体的な数値
   (Phase C/Dで実データを見ながら調整する前提)
 - `TradeSecurityLedger.investmentLevel` をプレイヤーがどこで設定するか(Toolsタブの新規UIか、

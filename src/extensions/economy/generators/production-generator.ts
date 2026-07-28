@@ -24,6 +24,7 @@ import { MineOperations } from "./mineOperations";
 import { isMineSuppliedGoodName } from "./mineralResources";
 import { Minting } from "./minting";
 import { getModifiers, MAX_BONUS_PRODUCTION } from "./production-utils";
+import { SmelterOperations } from "./smelterOperations";
 import {
   getStrategicLaborProductivity,
   getStrategicOccupation,
@@ -60,6 +61,7 @@ export class ProductionModule {
 
     Markets.collectRuralProduction();
     MineOperations.produceMonth();
+    SmelterOperations.produceMonth();
     Minting.settleMonthly();
     MilitaryResources.settleMonthly();
     Markets.initializeMarketPrices();

@@ -21,6 +21,7 @@ import type {
 } from "./generators/mineralResources";
 import type { MintLedger } from "./generators/minting";
 import type { ProductionRecord } from "./generators/production-generator";
+import type { SmelterOperation } from "./generators/smelterOperations";
 import type { LaborMarket } from "./generators/strategicLaborMarkets";
 import type { ProcurementOrder } from "./generators/strategicProcurement";
 import type { StrategicGoodsPolicy } from "./generators/strategicProcurementPolicy";
@@ -293,6 +294,12 @@ export function getMineOperations(): MineOperation[] {
 }
 export function setMineOperations(operations: readonly MineOperation[]): void {
   setSliceArray("mineOperations", operations);
+}
+export function getSmelterOperations(): SmelterOperation[] {
+  return getSliceArray<SmelterOperation>("smelterOperations");
+}
+export function setSmelterOperations(operations: readonly SmelterOperation[]): void {
+  setSliceArray("smelterOperations", operations);
 }
 export function getMintLedgers(): MintLedger[] {
   return getSliceArray<MintLedger>("mintLedgers");
