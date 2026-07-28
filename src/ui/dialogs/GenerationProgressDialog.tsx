@@ -18,6 +18,7 @@ export const GenerationProgressDialog: React.FC = () => {
   const autoRun = useGenerationProgressState(state => state.autoRun);
   const reviewLayers = useGenerationProgressState(state => state.reviewLayers);
   const biomeRegionProfile = useOptionsState(state => state.biomeRegionProfile);
+  const heightExponent = useOptionsState(state => state.heightExponent);
   const stage = GENERATION_STAGES[currentStage] ?? GENERATION_STAGES[0];
   const reviewProfile = getGenerationReviewProfile(currentStage);
   const completed = currentStage;
@@ -36,6 +37,15 @@ export const GenerationProgressDialog: React.FC = () => {
 
   const openWorldConfigurator = () => {
     document.dispatchEvent(new CustomEvent("react-open-world-configurator"));
+  };
+
+  const handleHeightExponentChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = Number(event.target.value);
+    if (!Number.isFinite(value)) return;
+
+    useOptionsState.getState().setOption("heightExponent", Math.min(2.2, Math.max(1.5, value)));
+    document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true, biomes: true } }));
+    document.dispatchEvent(new CustomEvent("fmg:render-generation-review"));
   };
 
   return (
@@ -103,21 +113,42 @@ export const GenerationProgressDialog: React.FC = () => {
         {currentStage === 1 && !isGenerating && !autoRun && (
           <section className="generation-progress-dialog__climate-settings" aria-label="Climate settings">
             <span>Climate inputs</span>
-            <label htmlFor="generationBiomeRegionProfile">
-              Biome region
-              <select
-                id="generationBiomeRegionProfile"
-                name="biomeRegionProfile"
-                value={biomeRegionProfile}
-                onChange={handleBiomeRegionChange}
+            <div className="generation-progress-dialog__climate-inputs">
+              <label htmlFor="generationBiomeRegionProfile">
+                Biome region
+                <select
+                  id="generationBiomeRegionProfile"
+                  name="biomeRegionProfile"
+                  value={biomeRegionProfile}
+                  onChange={handleBiomeRegionChange}
+                >
+                  <option value="global">Global (default mix)</option>
+                  <option value="medievalEurope">Medieval Europe</option>
+                  <option value="mediterranean">Mediterranean</option>
+                  <option value="tropicalRiverBasin">Tropical river basin</option>
+                  <option value="mountainRealm">Mountain realm</option>
+                </select>
+              </label>
+              <label
+                htmlFor="generationHeightExponent"
+                data-tip="Higher values make altitude cool faster, changing temperature and biomes."
               >
-                <option value="global">Global (default mix)</option>
-                <option value="medievalEurope">Medieval Europe</option>
-                <option value="mediterranean">Mediterranean</option>
-                <option value="tropicalRiverBasin">Tropical river basin</option>
-                <option value="mountainRealm">Mountain realm</option>
-              </select>
-            </label>
+                Altitude exponent
+                <span className="generation-progress-dialog__range-control">
+                  <input
+                    id="generationHeightExponent"
+                    name="heightExponent"
+                    type="range"
+                    min="1.5"
+                    max="2.2"
+                    step="0.01"
+                    value={heightExponent}
+                    onChange={handleHeightExponentChange}
+                  />
+                  <output htmlFor="generationHeightExponent">{heightExponent.toFixed(2)}</output>
+                </span>
+              </label>
+            </div>
             <button type="button" onClick={openWorldConfigurator}>
               Open World Configurator
             </button>

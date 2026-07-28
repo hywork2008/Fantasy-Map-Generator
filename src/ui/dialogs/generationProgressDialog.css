@@ -141,9 +141,8 @@
 
 .generation-progress-dialog__climate-settings {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.5rem;
-  align-items: end;
   padding: 0.7rem;
   border: 1px solid color-mix(in srgb, var(--dark-solid) 25%, #b98036);
   background: color-mix(in srgb, var(--bg-light-solid) 86%, #d9bb82);
@@ -166,12 +165,42 @@
   font-weight: 600;
 }
 
+.generation-progress-dialog__climate-inputs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+.generation-progress-dialog__climate-settings select {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.generation-progress-dialog__range-control {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.generation-progress-dialog__range-control input {
+  flex: 1;
+  min-width: 0;
+}
+
+.generation-progress-dialog__range-control output {
+  min-width: 2.5rem;
+  color: #765022;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 .generation-progress-dialog__climate-settings select,
 .generation-progress-dialog__climate-settings button {
   min-height: 1.9rem;
 }
 
 .generation-progress-dialog__climate-settings button {
+  justify-self: start;
   padding: 0.28rem 0.5rem;
   color: color-mix(in srgb, var(--dark-solid) 72%, transparent);
   background: transparent;

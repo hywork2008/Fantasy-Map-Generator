@@ -93,11 +93,29 @@ test("applies climate configuration when the climate stage is regenerated", asyn
   await biomeRegion.selectOption("mediterranean");
   await expect(page.locator("#biomeRegionProfile")).toHaveValue("mediterranean");
 
+  const heightExponent = buildMap.locator("#generationHeightExponent");
+  await expect(heightExponent).toHaveAttribute("name", "heightExponent");
+  const worldConfigurator = buildMap.getByRole("button", { name: "Open World Configurator", exact: true });
+  const [biomeBounds, exponentBounds, configuratorBounds] = await Promise.all([
+    biomeRegion.boundingBox(),
+    heightExponent.boundingBox(),
+    worldConfigurator.boundingBox()
+  ]);
+  expect(biomeBounds).not.toBeNull();
+  expect(exponentBounds).not.toBeNull();
+  expect(configuratorBounds).not.toBeNull();
+  expect(exponentBounds!.y).toBeGreaterThanOrEqual(biomeBounds!.y + biomeBounds!.height);
+  expect(configuratorBounds!.y).toBeGreaterThanOrEqual(exponentBounds!.y + exponentBounds!.height);
+  await heightExponent.focus();
+  await page.keyboard.press("End");
+  await expect(heightExponent).toHaveValue("2.2");
+  await expect(buildMap.locator("output[for='generationHeightExponent']")).toHaveText("2.20");
+
   await buildMap.getByRole("button", { name: "Regenerate climate and waterways", exact: true }).click();
   await expect(buildMap.getByRole("heading", { name: "Climate and waterways", exact: true })).toBeVisible();
   await expect(buildMap.locator("#generationBiomeRegionProfile")).toHaveValue("mediterranean");
 
-  await buildMap.getByRole("button", { name: "Open World Configurator", exact: true }).click();
+  await worldConfigurator.click();
   const configurator = page.locator("#worldConfiguratorContainer");
   await expect(configurator).toBeVisible();
   await expect(configurator.locator("#temperatureEquatorInput")).toBeEnabled();
