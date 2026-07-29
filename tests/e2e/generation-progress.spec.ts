@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { collectPageErrors, filterCriticalErrors, waitForMapGeneration } from "./helpers/fmg-helpers";
 
 async function getCoastlineSignature(page: import("@playwright/test").Page): Promise<string> {
   return page.locator("#featurePaths path").evaluateAll(paths =>
@@ -78,9 +79,43 @@ test("keeps generation settings available and exposes first-map setup controls",
   await page.locator("#extensionsTab").click();
   await expect(page.locator("#extensionsTabContent")).toBeVisible();
   await expect(page.getByRole("checkbox", { name: "Toggle Characters extension" })).toBeEnabled();
+  await expect(page.getByRole("checkbox", { name: "Toggle Economy, Goods & Trade extension" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Toggle Nobility & Characters extension" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Toggle Shipbuilding extension" })).toBeVisible();
 
   await page.locator("#loadButton").click();
   await expect(page.getByText("Load Map", { exact: true })).toBeVisible();
+});
+
+test("lists every built-in extension after a browser reload", async ({ page }) => {
+  await page.goto("/?seed=extensions-reload&width=1280&height=720");
+  await page.reload();
+
+  await page.locator("#extensionsTab").click();
+  await expect(page.getByRole("checkbox", { name: "Toggle Characters extension" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Toggle Economy, Goods & Trade extension" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Toggle Nobility & Characters extension" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Toggle Shipbuilding extension" })).toBeVisible();
+});
+
+test("lists every built-in extension after enabled extensions persist through a reload", async ({ page }) => {
+  const pageErrors = collectPageErrors(page);
+  await page.goto("/?seed=extensions-enabled-reload&width=1280&height=720");
+  await waitForMapGeneration(page);
+
+  await page.locator("#extensionsTab").click();
+  await page.getByRole("checkbox", { name: "Toggle Characters extension" }).check();
+  await page.getByRole("checkbox", { name: "Toggle Economy, Goods & Trade extension" }).check();
+  await page.getByRole("checkbox", { name: "Toggle Nobility & Characters extension" }).check();
+  await page.getByRole("checkbox", { name: "Toggle Shipbuilding extension" }).check();
+
+  await page.reload();
+  await expect.poll(() => filterCriticalErrors(pageErrors)).toEqual([]);
+  await page.locator("#extensionsTab").click();
+  await expect(page.getByRole("checkbox", { name: "Toggle Characters extension" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Toggle Economy, Goods & Trade extension" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Toggle Nobility & Characters extension" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Toggle Shipbuilding extension" })).toBeVisible();
 });
 
 test("provides stage-safe review layers through the build map dialog", async ({ page }) => {

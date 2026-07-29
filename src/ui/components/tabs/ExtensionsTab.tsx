@@ -24,6 +24,7 @@ export const ExtensionsTab: React.FC = () => {
   const [installing, setInstalling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const refreshRequestRef = useRef(0);
   const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
   const canConfigureInitialMap = useGenerationProgressState(
     state => state.isOpen && !state.isGenerating && state.isInitialGeneration
@@ -32,11 +33,20 @@ export const ExtensionsTab: React.FC = () => {
 
   // Merge DB records with zustand-registered extensions to build full list
   const refreshInstalledMeta = useCallback(async () => {
+    const requestId = ++refreshRequestRef.current;
     const dbRecords = await extensionDB.getAll();
+    // Multiple registrations occur synchronously during startup, while IndexedDB
+    // reads resolve asynchronously. Ignore an earlier read that finishes after a
+    // newer one, otherwise it can replace the list with its partial snapshot.
+    if (requestId !== refreshRequestRef.current) return;
+
     const dbIds = new Set(dbRecords.map(r => r.id));
+    // Read this after the asynchronous boundary so a refresh started before all
+    // built-ins registered still reflects the complete current store.
+    const registeredExtensions = useExtensionState.getState().extensions;
 
     // Built-in extensions are in zustand but not in DB
-    const builtins: InstalledMeta[] = Object.values(extensions)
+    const builtins: InstalledMeta[] = Object.values(registeredExtensions)
       .filter(ext => !dbIds.has(ext.id))
       .map(ext => ({ id: ext.id, name: ext.name, version: "built-in", builtin: true, dependencies: ext.dependencies }));
 
@@ -53,10 +63,13 @@ export const ExtensionsTab: React.FC = () => {
     // Keep the store's dependency graph (used by toggleExtension's validation) in sync,
     // including extensions that are currently disabled and thus absent from `extensions`.
     setExtensionMeta(merged.map(m => ({ id: m.id, name: m.name, dependencies: m.dependencies })));
-  }, [extensions, setExtensionMeta]);
+  }, [setExtensionMeta]);
 
   useEffect(() => {
-    refreshInstalledMeta();
+    void refreshInstalledMeta();
+    return useExtensionState.subscribe((state, previousState) => {
+      if (state.extensions !== previousState.extensions) void refreshInstalledMeta();
+    });
   }, [refreshInstalledMeta]);
 
   const handleInstallClick = () => {

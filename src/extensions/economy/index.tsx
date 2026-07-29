@@ -1051,10 +1051,14 @@ export function init(api: ExtensionAPI): void {
     api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
     api.burgEconomyExtensions.getBurgEconomySummary = getBurgEconomySummary;
     registerOverviewColumns(api);
-    if (!getTradeSecurityLedgers().length) TradeSecurity.generate();
-    if (getMarkets().length) {
-      syncMarketManagers();
-      syncBurgMarketLedgers();
+    // A persisted preference is restored before the first map has generated.
+    // Defer state-dependent data work until fmg:generate-post-core in that case.
+    if (getWorldContext().pack.states?.length) {
+      if (!getTradeSecurityLedgers().length) TradeSecurity.generate();
+      if (getMarkets().length) {
+        syncMarketManagers();
+        syncBurgMarketLedgers();
+      }
     }
   }
 
