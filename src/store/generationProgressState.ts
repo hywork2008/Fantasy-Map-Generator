@@ -31,7 +31,7 @@ export const GENERATION_STAGES = [
 ] as const;
 
 export type GenerationStage = (typeof GENERATION_STAGES)[number];
-export type GenerationProgressAction = "next" | "previous" | "retryLandscape" | "retryStage";
+export type GenerationProgressAction = "next" | "previous" | "retryLandscape" | "retryStage" | "loadMap";
 export type GenerationReviewLayerId =
   | "terrain"
   | "biomes"
@@ -108,17 +108,21 @@ export function getGenerationReviewProfile(stage: number): GenerationReviewProfi
 type GenerationProgressState = {
   isOpen: boolean;
   isGenerating: boolean;
+  /** True only while the first map created in this app session is being built. */
+  isInitialGeneration: boolean;
   currentStage: number;
   autoRun: boolean;
   reviewLayers: GenerationReviewLayerId[];
   resolver: ((action: GenerationProgressAction) => void) | null;
-  beginStage: (stage: number) => void;
+  beginStage: (stage: number, isInitialGeneration: boolean) => void;
   waitForAction: (stage: number) => Promise<GenerationProgressAction>;
   next: () => void;
   previous: () => void;
   retryLandscape: () => void;
   retryStage: () => void;
   runAll: () => void;
+  /** Stop a paused generation so a validated saved map can replace its incomplete world. */
+  loadMap: () => void;
   toggleReviewLayer: (layer: GenerationReviewLayerId) => void;
   finish: () => void;
   fail: () => void;
@@ -133,14 +137,16 @@ function resolveAction(state: GenerationProgressState, action: GenerationProgres
 export const generationProgressStore = createStore<GenerationProgressState>((set, get) => ({
   isOpen: false,
   isGenerating: false,
+  isInitialGeneration: false,
   currentStage: 0,
   autoRun: false,
   reviewLayers: [...getGenerationReviewProfile(0).defaultLayers],
   resolver: null,
-  beginStage: stage =>
+  beginStage: (stage, isInitialGeneration) =>
     set({
       isOpen: true,
       isGenerating: true,
+      isInitialGeneration,
       currentStage: stage,
       reviewLayers: [...getGenerationReviewProfile(stage).defaultLayers]
     }),
@@ -178,6 +184,12 @@ export const generationProgressStore = createStore<GenerationProgressState>((set
     resolveAction(state, "next");
     set({ resolver: null, isGenerating: true, autoRun: true });
   },
+  loadMap: () => {
+    const state = get();
+    if (!state.resolver) return;
+    resolveAction(state, "loadMap");
+    set({ resolver: null, isOpen: false, isGenerating: false, autoRun: false, reviewLayers: [] });
+  },
   toggleReviewLayer: layer => {
     const state = get();
     const availableLayers = getGenerationReviewProfile(state.currentStage).layers;
@@ -188,8 +200,24 @@ export const generationProgressStore = createStore<GenerationProgressState>((set
       : [...state.reviewLayers, layer];
     set({ reviewLayers });
   },
-  finish: () => set({ isOpen: false, isGenerating: false, autoRun: false, reviewLayers: [], resolver: null }),
-  fail: () => set({ isOpen: false, isGenerating: false, autoRun: false, reviewLayers: [], resolver: null })
+  finish: () =>
+    set({
+      isOpen: false,
+      isGenerating: false,
+      isInitialGeneration: false,
+      autoRun: false,
+      reviewLayers: [],
+      resolver: null
+    }),
+  fail: () =>
+    set({
+      isOpen: false,
+      isGenerating: false,
+      isInitialGeneration: false,
+      autoRun: false,
+      reviewLayers: [],
+      resolver: null
+    })
 }));
 
 export const useGenerationProgressState = <T>(selector: (state: GenerationProgressState) => T) =>

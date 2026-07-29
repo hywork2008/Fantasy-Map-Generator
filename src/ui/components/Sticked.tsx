@@ -5,6 +5,9 @@ import { useGenerationProgressState } from "../../store/generationProgressState"
 
 export const Sticked: React.FC = () => {
   const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
+  const canConfigureInitialMap = useGenerationProgressState(
+    state => state.isOpen && !state.isGenerating && state.isInitialGeneration
+  );
 
   return (
     <div id="sticked">
@@ -41,7 +44,7 @@ export const Sticked: React.FC = () => {
         id="loadButton"
         data-tip="Load fully-functional map (.map or .gz formats)"
         onClick={() => void showLoadPane()}
-        disabled={isMapGenerationInProgress}
+        disabled={isMapGenerationInProgress && !canConfigureInitialMap}
       >
         Load
       </button>

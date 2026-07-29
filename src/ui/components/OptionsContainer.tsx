@@ -28,6 +28,9 @@ export const OptionsContainer: React.FC = () => {
     useViewState();
   const uiSize = useOptionsState(state => state.uiSize);
   const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
+  const canConfigureInitialMap = useGenerationProgressState(
+    state => state.isOpen && !state.isGenerating && state.isInitialGeneration
+  );
   // Every visible part of the compact tab bar is a button, so permit it to
   // start a drag while retaining ordinary click behavior when it is not moved.
   const { containerRef, resizeHandleRef, bringToFront } = useDraggable({
@@ -88,11 +91,19 @@ export const OptionsContainer: React.FC = () => {
               key={tab.id}
               id={tab.id}
               data-tip={
-                isMapGenerationInProgress && tab.id !== "optionsTab" ? "Unavailable while building a map" : tab.tip
+                isMapGenerationInProgress &&
+                tab.id !== "optionsTab" &&
+                !(canConfigureInitialMap && tab.id === "extensionsTab")
+                  ? "Unavailable while building a map"
+                  : tab.tip
               }
               className={`options ${activeMenu === tab.id ? "active" : ""}`}
               onClick={() => setActiveMenu(tab.id)}
-              disabled={isMapGenerationInProgress && tab.id !== "optionsTab"}
+              disabled={
+                isMapGenerationInProgress &&
+                tab.id !== "optionsTab" &&
+                !(canConfigureInitialMap && tab.id === "extensionsTab")
+              }
               type="button"
             >
               {tab.label}

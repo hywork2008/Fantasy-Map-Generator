@@ -33,7 +33,7 @@ test("shows the generated landscape before map completion", async ({ page }) => 
   await expect.poll(() => pageErrors).toEqual([]);
 });
 
-test("keeps generation settings available and locks map controls", async ({ page }) => {
+test("keeps generation settings available and exposes first-map setup controls", async ({ page }) => {
   await page.goto("/?seed=generation-settings&width=1280&height=720");
 
   await expect(page.getByRole("heading", { name: "Landscape outline", exact: true })).toBeVisible();
@@ -41,9 +41,11 @@ test("keeps generation settings available and locks map controls", async ({ page
   await expect(page.locator("#layersTab")).toBeDisabled();
   await expect(page.locator("#styleTab")).toBeDisabled();
   await expect(page.locator("#toolsTab")).toBeDisabled();
+  await expect(page.locator("#extensionsTab")).toBeEnabled();
   await expect(page.locator("#optionsTabContent")).toBeVisible();
   await expect(page.getByRole("button", { name: "Generation", exact: true })).toBeEnabled();
-  await expect(page.getByRole("button", { name: "UI", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "UI", exact: true })).toBeEnabled();
+  await expect(page.locator("#loadButton")).toBeEnabled();
   await expect(page.locator("#optionsTabContent th")).toHaveText([
     "1. Landscape outline",
     "2. Climate and waterways",
@@ -68,6 +70,16 @@ test("keeps generation settings available and locks map controls", async ({ page
   await expect(heightmapDialog.getByRole("button", { name: "New Map", exact: true })).toBeDisabled();
   await expect(heightmapDialog.getByRole("button", { name: "Edit Templates", exact: true })).toBeDisabled();
   await expect(page.locator("#newMapButton")).toBeDisabled();
+
+  await page.getByRole("button", { name: "UI", exact: true }).click();
+  await expect(page.locator("#optionsReset")).toBeEnabled();
+
+  await page.locator("#extensionsTab").click();
+  await expect(page.locator("#extensionsTabContent")).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Toggle Characters extension" })).toBeEnabled();
+
+  await page.locator("#loadButton").click();
+  await expect(page.getByText("Load Map", { exact: true })).toBeVisible();
 });
 
 test("provides stage-safe review layers through the build map dialog", async ({ page }) => {

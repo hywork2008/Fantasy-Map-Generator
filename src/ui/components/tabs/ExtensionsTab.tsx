@@ -25,6 +25,9 @@ export const ExtensionsTab: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
+  const canConfigureInitialMap = useGenerationProgressState(
+    state => state.isOpen && !state.isGenerating && state.isInitialGeneration
+  );
   const generationLockMessage = "Extensions cannot be changed while map generation is in progress.";
 
   // Merge DB records with zustand-registered extensions to build full list
@@ -147,9 +150,18 @@ export const ExtensionsTab: React.FC = () => {
                 m.id !== meta.id && enabledExtensions[m.id] && m.dependencies?.some(d => d.id === meta.id && d.required)
             );
             const canDisable = !blockingDependent;
-            const disabled = isMapGenerationInProgress || (isEnabled ? !canDisable : !canEnable);
+            const disabled =
+              (isMapGenerationInProgress && !canConfigureInitialMap) || (isEnabled ? !canDisable : !canEnable);
             const toggleTitle = isMapGenerationInProgress
-              ? generationLockMessage
+              ? canConfigureInitialMap
+                ? isEnabled
+                  ? canDisable
+                    ? "Disable extension"
+                    : `Cannot disable: required by ${blockingDependent?.name}`
+                  : canEnable
+                    ? "Enable extension"
+                    : "Missing required dependencies"
+                : generationLockMessage
               : isEnabled
                 ? canDisable
                   ? "Disable extension"

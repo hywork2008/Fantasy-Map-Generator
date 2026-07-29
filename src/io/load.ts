@@ -27,6 +27,7 @@ import { declareFont, fonts } from "../services/fonts";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers } from "../store/editorState";
+import { generationProgressStore } from "../store/generationProgressState";
 import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
 import { loadErrorDialogStore } from "../store/loadErrorDialogState";
 import { loadMapDialogStore } from "../store/loadMapDialogState";
@@ -92,7 +93,13 @@ export async function createSharableDropboxLink(): Promise<void> {
 // ─── Load prompt (check for unsaved changes) ─────────────────────────────────
 
 export function loadMapPrompt(blob: Blob): void {
-  const workingTime = (Date.now() - last(worldContext.mapHistory).created) / 60000;
+  const latestMap = last(worldContext.mapHistory);
+  if (!latestMap) {
+    loadLastSavedMap();
+    return;
+  }
+
+  const workingTime = (Date.now() - latestMap.created) / 60000;
   if (workingTime < 5) {
     loadLastSavedMap();
     return;
@@ -200,6 +207,7 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
     // Decode, migrate and validate are complete before the first live mutation.
     // A malformed archive therefore leaves the active world and SVG untouched.
     const validated = await decodeAndValidateWorldArchive({ blob: file, header });
+    generationProgressStore.getState().loadMap();
     const seaRouteGenerationMode = validated.document.world.options.seaRouteGenerationMode;
     const landRouteGenerationMode = validated.document.world.options.landRouteGenerationMode;
     const landRouteElevationAversion = validated.document.world.options.landRouteElevationAversion;
@@ -362,6 +370,10 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
 
       const staged = worldRuntime.captureRollbackDocument();
       assertValidWorldDocument(staged);
+      // The decoded legacy map is now fully validated. Stop a paused initial
+      // generation only immediately before its world is replaced, so a load
+      // failure leaves the generated preview available for further review.
+      generationProgressStore.getState().loadMap();
       const commit = await worldRuntime.dispatch({
         type: "world.replace",
         payload: { stage: "validated", document: staged }

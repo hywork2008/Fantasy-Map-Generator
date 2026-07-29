@@ -245,7 +245,9 @@ export const useExtensionState = create<ExtensionState>()(
       },
 
       toggleExtension: (id, forceState) => {
-        if (generationProgressStore.getState().isOpen) {
+        const generation = generationProgressStore.getState();
+        const canConfigureInitialMap = generation.isOpen && !generation.isGenerating && generation.isInitialGeneration;
+        if (generation.isOpen && !canConfigureInitialMap) {
           set({ toggleError: "Extensions cannot be changed while map generation is in progress." });
           return false;
         }

@@ -11,6 +11,9 @@ type OptionsSubTab = "generation" | "ui" | "simulation" | "danger";
 export const OptionsTab: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<OptionsSubTab>("generation");
   const isMapGenerationInProgress = useGenerationProgressState(state => state.isOpen);
+  const canConfigureInitialMap = useGenerationProgressState(
+    state => state.isOpen && !state.isGenerating && state.isInitialGeneration
+  );
 
   useEffect(() => {
     if (isMapGenerationInProgress) setActiveSubTab("generation");
@@ -29,7 +32,7 @@ export const OptionsTab: React.FC = () => {
         <button
           className={`options${activeSubTab === "ui" ? " active" : ""}`}
           onClick={() => setActiveSubTab("ui")}
-          disabled={isMapGenerationInProgress}
+          disabled={isMapGenerationInProgress && !canConfigureInitialMap}
           type="button"
         >
           UI

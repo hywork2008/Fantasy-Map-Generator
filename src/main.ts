@@ -953,6 +953,7 @@ void (function addDragToUpload() {
 async function runGeneratePipeline(request: GenerateRequest): Promise<void> {
   useDebugSnapshotState.getState().clearAll();
   const canReviewStages = viewContext.renderMap && document.getElementById("react-ui-container") !== null;
+  const isInitialGeneration = !worldContext.mapId;
 
   let activeRequest = request;
   let restartAt = 0;
@@ -964,13 +965,14 @@ async function runGeneratePipeline(request: GenerateRequest): Promise<void> {
     let shouldRestart = false;
 
     for (let stageIndex = 0; stageIndex < stages.length; stageIndex++) {
-      if (canReviewStages) generationProgressStore.getState().beginStage(stageIndex);
+      if (canReviewStages) generationProgressStore.getState().beginStage(stageIndex, isInitialGeneration);
       await stages[stageIndex]();
       if (!canReviewStages || stageIndex < restartAt) continue;
       if (!generationProgressStore.getState().autoRun) {
         renderGenerationReviewPreview(stageIndex, generationProgressStore.getState().reviewLayers);
       }
       const action = await generationProgressStore.getState().waitForAction(stageIndex);
+      if (action === "loadMap") throw new MapLoadRequestedError();
       if (action === "next") continue;
 
       restartAt = action === "previous" ? Math.max(0, stageIndex - 1) : action === "retryStage" ? stageIndex : 0;
@@ -982,7 +984,14 @@ async function runGeneratePipeline(request: GenerateRequest): Promise<void> {
     if (!shouldRestart) return;
     // A generation stage shares mutable legacy buffers with its successors.
     // Rebuilding from a deterministic seed is the safe rollback boundary.
-    if (canReviewStages) generationProgressStore.getState().beginStage(restartAt);
+    if (canReviewStages) generationProgressStore.getState().beginStage(restartAt, isInitialGeneration);
+  }
+}
+
+/** A saved map is about to replace the incomplete generation world. */
+class MapLoadRequestedError extends Error {
+  constructor() {
+    super("Map load requested during generation");
   }
 }
 
@@ -1213,6 +1222,10 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     document.body.classList.remove("fmg-generation-review-preview");
     generationProgressStore.getState().finish();
   } catch (error) {
+    if (error instanceof MapLoadRequestedError) {
+      generationProgressStore.getState().fail();
+      return;
+    }
     ERROR && console.error(error);
     try {
       INFO && console.groupEnd();
