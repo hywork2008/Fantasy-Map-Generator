@@ -1,5 +1,22 @@
 import { expect, test } from "@playwright/test";
 
+async function getCoastlineSignature(page: import("@playwright/test").Page): Promise<string> {
+  return page.locator("#featurePaths path").evaluateAll(paths =>
+    paths
+      .map(path => path.getAttribute("d") ?? "")
+      .sort()
+      .join("|")
+  );
+}
+
+async function expectStageReady(
+  dialog: import("@playwright/test").Locator,
+  title: string
+): Promise<void> {
+  await expect(dialog.getByRole("heading", { name: title, exact: true })).toBeVisible();
+  await expect(dialog.getByText("Ready to review", { exact: true })).toBeVisible();
+}
+
 test("shows the generated landscape before map completion", async ({ page }) => {
   const pageErrors: string[] = [];
   page.on("pageerror", error => pageErrors.push(error.message));
@@ -151,4 +168,28 @@ test("applies climate configuration when the climate stage is regenerated", asyn
   await updateWorld.click();
   await expect(page.locator("#biomes path").first()).toBeAttached();
   await expect.poll(() => pageErrors).toEqual([]);
+});
+
+test("preserves a newly generated landscape when climate is regenerated", async ({ page }) => {
+  await page.goto("/?width=1280&height=720");
+
+  const buildMap = page.locator(".generation-progress-dialog");
+  await expectStageReady(buildMap, "Landscape outline");
+
+  await buildMap.getByRole("button", { name: "Continue", exact: true }).click();
+  await expectStageReady(buildMap, "Climate and waterways");
+  await buildMap.locator("#generationBiomeRegionProfile").selectOption("medievalEurope");
+
+  await buildMap.getByRole("button", { name: "Return to previous stage", exact: true }).click();
+  await expectStageReady(buildMap, "Landscape outline");
+  await buildMap.getByRole("button", { name: "Generate another landscape", exact: true }).click();
+  await expectStageReady(buildMap, "Landscape outline");
+  const coastlineBeforeClimate = await getCoastlineSignature(page);
+
+  await buildMap.getByRole("button", { name: "Continue", exact: true }).click();
+  await expectStageReady(buildMap, "Climate and waterways");
+  await buildMap.getByRole("button", { name: "Regenerate climate and waterways", exact: true }).click();
+  await expectStageReady(buildMap, "Climate and waterways");
+
+  expect(await getCoastlineSignature(page)).toBe(coastlineBeforeClimate);
 });

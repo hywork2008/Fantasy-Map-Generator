@@ -107,14 +107,14 @@ const placePoints = (
 /**
  * Checks if the grid needs to be regenerated based on desired parameters
  * @param {Object} grid - The current grid object
- * @param {number} expectedSeed - The expected seed value
+ * @param {string} expectedSeed - The expected seed value
  * @param {number} graphWidth - The width of the graph
  * @param {number} graphHeight - The height of the graph
  * @returns {boolean} - True if the grid should be regenerated, false otherwise
  */
 export const shouldRegenerateGrid = (
   grid: Grid | null | undefined,
-  expectedSeed: number,
+  expectedSeed: string | undefined,
   graphWidth: number,
   graphHeight: number
 ) => {
@@ -579,7 +579,7 @@ export const drawHeights = ({
 
 declare global {
   interface Window {
-    shouldRegenerateGrid: (grid: Grid | null | undefined, expectedSeed: number) => boolean;
+    shouldRegenerateGrid: (grid: Grid | null | undefined, expectedSeed: string | undefined) => boolean;
     generateGrid: () => Grid;
     findGridCell: (x: number, y: number) => number;
     findGridAll: (x: number, y: number, radius: number) => number[];

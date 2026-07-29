@@ -987,9 +987,7 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
   worldContext.options.initialSettlementPattern = useOptionsState.getState().initialSettlementPattern;
   worldContext.options.biomeRegionProfile = useOptionsState.getState().biomeRegionProfile;
 
-  if (
-    shouldRegenerateGrid(worldContext.grid, +(precreatedSeed ?? 0), worldContext.graphWidth, worldContext.graphHeight)
-  ) {
+  if (shouldRegenerateGrid(worldContext.grid, worldContext.seed, worldContext.graphWidth, worldContext.graphHeight)) {
     Object.keys(worldContext.grid).forEach(k => {
       delete (worldContext.grid as unknown as Record<string, unknown>)[k];
     });

@@ -20,7 +20,7 @@ export function openHeightmapSelection(): void {
 export function computeGraph(currentGraph: Grid | null): Grid {
   const needsRegen = shouldRegenerateGrid(
     currentGraph,
-    +worldContext.seed,
+    worldContext.seed,
     worldContext.graphWidth,
     worldContext.graphHeight
   );
