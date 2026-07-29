@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-07-29
+
+- docs/plan/megacity-food-import-economy.md - 食料輸入によるBurg人口上限突破の経済モデル設計
+
 2026-07-28
 
 - docs/plan/mineral-resource-circulation-fixes.md
