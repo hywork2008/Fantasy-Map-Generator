@@ -1,5 +1,16 @@
 import { expect, test } from "@playwright/test";
-import { waitForMapLoad, zoomToMapCenter } from "./helpers/fmg-helpers";
+import { getMapCanvasSize, waitForMapLoad, zoomToMapCenter } from "./helpers/fmg-helpers";
+
+test("recovers from an invalid canvas size saved by an earlier version", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("mapWidth", "0");
+    localStorage.setItem("mapHeight", "0");
+  });
+
+  await page.goto("/?seed=invalid-persisted-canvas-size");
+  await waitForMapLoad(page, "svg");
+  expect(await getMapCanvasSize(page)).toEqual({ width: 1280, height: 720 });
+});
 
 test("keeps the latest locked settlement and demographic settings after reload", async ({ page }) => {
   await page.goto("/?seed=locked-options-reload&width=1000&height=700");

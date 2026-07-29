@@ -6,6 +6,7 @@ import {
 } from "../../../../data";
 import { useGenerationProgressState } from "../../../../store/generationProgressState";
 import { useOptionsState } from "../../../../store/optionsState";
+import { isValidCanvasDimension, MIN_CANVAS_HEIGHT, MIN_CANVAS_WIDTH } from "../../../../utils/canvasSize";
 import { lock } from "../../../../utils/domUtils";
 import { IconButton } from "../../IconButton";
 import { LockIconButton } from "../../LockIconButton";
@@ -32,6 +33,18 @@ export const GenerationSettingsTab: React.FC = () => {
     document.dispatchEvent(new CustomEvent("react-map-size-change"));
   };
 
+  const updateCanvasDimension = (key: "mapWidth" | "mapHeight", value: string) => {
+    const minimum = key === "mapWidth" ? MIN_CANVAS_WIDTH : MIN_CANVAS_HEIGHT;
+    const dimension = Number(value);
+    if (!isValidCanvasDimension(dimension, minimum)) {
+      updateOption(key, options[key]);
+      return;
+    }
+
+    updateOption(key, dimension);
+    handleMapSizeChange();
+  };
+
   const handleRestoreDefaultSize = () => {
     options.setOptions({ mapWidth: window.innerWidth, mapHeight: window.innerHeight });
     setTimeout(handleMapSizeChange, 0);
@@ -53,23 +66,17 @@ export const GenerationSettingsTab: React.FC = () => {
               <input
                 className="paired"
                 type="number"
-                min="240"
+                min={MIN_CANVAS_WIDTH}
                 value={options.mapWidth}
-                onChange={e => {
-                  updateOption("mapWidth", Number(e.target.value));
-                  handleMapSizeChange();
-                }}
+                onChange={e => updateCanvasDimension("mapWidth", e.target.value)}
               />
               <span>x</span>
               <input
                 className="paired"
                 type="number"
-                min="135"
+                min={MIN_CANVAS_HEIGHT}
                 value={options.mapHeight}
-                onChange={e => {
-                  updateOption("mapHeight", Number(e.target.value));
-                  handleMapSizeChange();
-                }}
+                onChange={e => updateCanvasDimension("mapHeight", e.target.value)}
               />
               <span>px</span>
             </td>

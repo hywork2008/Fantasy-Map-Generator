@@ -25,6 +25,7 @@ import { DEFAULT_UI_OPTIONS, type OptionsState, useOptionsState } from "../store
 import type { Burg, Culture, Province, State } from "../types/models";
 import { closeAllDialogs, closeDialogs, openAlert, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { gauss, last, minmax, P, rand, rn, rw } from "../utils";
+import { isValidCanvasDimension, isValidCanvasSize, MIN_CANVAS_HEIGHT, MIN_CANVAS_WIDTH } from "../utils/canvasSize";
 import { applyOption, lock, locked, stored, unlock } from "../utils/domUtils";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
 import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
@@ -72,14 +73,22 @@ export async function showSupporters(): Promise<void> {
 
 // ─── Canvas size ───────────────────────────────────────────────────────────────
 
+function getWindowCanvasSize(): { mapWidth: number; mapHeight: number } {
+  return { mapWidth: window.innerWidth, mapHeight: window.innerHeight };
+}
+
 function mapSizeInputChange(): void {
   const options = useOptionsState.getState();
+  const canvasSize = isValidCanvasSize(options)
+    ? { mapWidth: options.mapWidth, mapHeight: options.mapHeight }
+    : getWindowCanvasSize();
+  if (!isValidCanvasSize(options)) options.setOptions(canvasSize);
   fitMapToScreen();
-  localStorage.setItem("mapWidth", String(options.mapWidth));
-  localStorage.setItem("mapHeight", String(options.mapHeight));
+  localStorage.setItem("mapWidth", String(canvasSize.mapWidth));
+  localStorage.setItem("mapHeight", String(canvasSize.mapHeight));
 
-  const tooWide = options.mapWidth > view.svgWidth;
-  const tooHigh = options.mapHeight > view.svgHeight;
+  const tooWide = canvasSize.mapWidth > view.svgWidth;
+  const tooHigh = canvasSize.mapHeight > view.svgHeight;
 
   if (tooWide || tooHigh) {
     const message = `Canvas size is larger than window size (${view.svgWidth} x ${view.svgHeight}). It can affect performance`;
@@ -97,8 +106,12 @@ function restoreDefaultCanvasSize(): void {
 
 export function applyGraphSize(): void {
   const options = useOptionsState.getState();
-  worldContext.graphWidth = options.mapWidth;
-  worldContext.graphHeight = options.mapHeight;
+  const canvasSize = isValidCanvasSize(options)
+    ? { mapWidth: options.mapWidth, mapHeight: options.mapHeight }
+    : getWindowCanvasSize();
+  if (!isValidCanvasSize(options)) options.setOptions(canvasSize);
+  worldContext.graphWidth = canvasSize.mapWidth;
+  worldContext.graphHeight = canvasSize.mapHeight;
   const { graphWidth, graphHeight } = worldContext;
 
   if (!viewContext?.renderMap || !viewContext.viewbox) return;
@@ -450,17 +463,19 @@ function restoreDefaultZoomExtent(): void {
 
 export function applyStoredOptions(): void {
   const optionsStore = useOptionsState.getState();
+  const storedMapWidth = stored("mapWidth");
+  const storedMapHeight = stored("mapHeight");
+  const storedCanvasSize = {
+    mapWidth: Number(storedMapWidth),
+    mapHeight: Number(storedMapHeight)
+  };
 
-  if (!stored("mapWidth") || !stored("mapHeight")) {
-    optionsStore.setOptions({
-      mapWidth: window.innerWidth,
-      mapHeight: window.innerHeight
-    });
+  if (storedMapWidth === null || storedMapHeight === null || !isValidCanvasSize(storedCanvasSize)) {
+    optionsStore.setOptions(getWindowCanvasSize());
+    localStorage.removeItem("mapWidth");
+    localStorage.removeItem("mapHeight");
   } else {
-    optionsStore.setOptions({
-      mapWidth: +stored("mapWidth")!,
-      mapHeight: +stored("mapHeight")!
-    });
+    optionsStore.setOptions(storedCanvasSize);
   }
 
   const heightmapId = stored("template");
@@ -575,12 +590,14 @@ export function applyStoredOptions(): void {
   else changeUiSize(minmax(rn(optionsStore.mapWidth / 1280, 1), 1, 2.5));
 
   const params = new URL(window.location.href).searchParams;
-  const width = +params.get("width")!;
-  const height = +params.get("height")!;
-  if (width || height) {
+  const width = Number(params.get("width"));
+  const height = Number(params.get("height"));
+  const hasValidWidth = isValidCanvasDimension(width, MIN_CANVAS_WIDTH);
+  const hasValidHeight = isValidCanvasDimension(height, MIN_CANVAS_HEIGHT);
+  if (hasValidWidth || hasValidHeight) {
     optionsStore.setOptions({
-      mapWidth: width || optionsStore.mapWidth,
-      mapHeight: height || optionsStore.mapHeight
+      mapWidth: hasValidWidth ? width : optionsStore.mapWidth,
+      mapHeight: hasValidHeight ? height : optionsStore.mapHeight
     });
   }
 

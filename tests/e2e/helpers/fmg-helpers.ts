@@ -20,6 +20,11 @@ export interface ViewTransformState {
   viewY: number;
 }
 
+export interface MapCanvasSize {
+  width: number;
+  height: number;
+}
+
 // ── Map lifecycle ────────────────────────────────────────────────────────────
 
 /**
@@ -141,6 +146,11 @@ export async function getPack(page: Page) {
 /** Read the current mapId from the world context. */
 export async function getMapId(page: Page): Promise<number> {
   return page.evaluate(() => window.fmg.world.mapId);
+}
+
+/** Read the generated map's logical canvas dimensions. */
+export async function getMapCanvasSize(page: Page): Promise<MapCanvasSize> {
+  return page.evaluate(() => ({ width: window.fmg.world.graphWidth, height: window.fmg.world.graphHeight }));
 }
 
 /** Read the sea-route topology currently persisted with the loaded map. */
