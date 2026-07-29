@@ -24,6 +24,12 @@ export const GenerationProgressDialog: React.FC = () => {
   const reviewProfile = getGenerationReviewProfile(currentStage);
   const completed = currentStage;
   const progress = ((completed + (isGenerating ? 0 : 1)) / GENERATION_STAGES.length) * 100;
+  const stageRegenerationLabel =
+    currentStage === 2
+      ? "Apply culture and settlement changes"
+      : currentStage === 3
+        ? "Apply realm and route changes"
+        : null;
 
   const handleReviewLayerToggle = (layerId: (typeof reviewProfile.layers)[number]["id"]) => {
     const store = generationProgressStore.getState();
@@ -194,6 +200,15 @@ export const GenerationProgressDialog: React.FC = () => {
                     onClick={() => generationProgressStore.getState().retryLandscape()}
                   >
                     Generate another landscape
+                  </button>
+                )}
+                {stageRegenerationLabel && (
+                  <button
+                    type="button"
+                    className="generation-progress-dialog__secondary"
+                    onClick={() => generationProgressStore.getState().retryStage()}
+                  >
+                    {stageRegenerationLabel}
                   </button>
                 )}
               </div>

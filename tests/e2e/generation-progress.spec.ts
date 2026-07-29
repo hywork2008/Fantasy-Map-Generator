@@ -110,12 +110,39 @@ test("provides stage-safe review layers through the build map dialog", async ({ 
   await buildMap.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(buildMap.getByRole("heading", { name: "Cultures and settlements", exact: true })).toBeVisible();
   await expect(buildMap.getByRole("button", { name: "Settlements", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(buildMap.getByRole("button", { name: "Apply culture and settlement changes", exact: true })).toBeEnabled();
 
   await buildMap.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(buildMap.getByRole("heading", { name: "Realms and routes", exact: true })).toBeVisible();
   await expect(buildMap.getByRole("button", { name: "States", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(buildMap.getByRole("button", { name: "Borders", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(buildMap.getByRole("button", { name: "Apply realm and route changes", exact: true })).toBeEnabled();
   await expect(page.locator("#statesBody path").first()).toBeAttached();
+});
+
+test("regenerates culture and realm stages with the current generation settings", async ({ page }) => {
+  await page.goto("/?seed=stage-apply-settings&width=1280&height=720");
+
+  const buildMap = page.locator(".generation-progress-dialog");
+  await buildMap.getByRole("button", { name: "Continue", exact: true }).click();
+  await expectStageReady(buildMap, "Climate and waterways");
+  await buildMap.getByRole("button", { name: "Continue", exact: true }).click();
+  await expectStageReady(buildMap, "Cultures and settlements");
+
+  const culturesNumber = page.locator("tr", { hasText: "Cultures number" }).locator('input[type="number"]');
+  await culturesNumber.fill("1");
+  await expect(culturesNumber).toHaveValue("1");
+  await buildMap.getByRole("button", { name: "Apply culture and settlement changes", exact: true }).click();
+  await expectStageReady(buildMap, "Cultures and settlements");
+
+  await buildMap.getByRole("button", { name: "Continue", exact: true }).click();
+  await expectStageReady(buildMap, "Realms and routes");
+
+  const statesNumber = page.locator("tr", { hasText: "States number" }).locator('input[type="number"]');
+  await statesNumber.fill("2");
+  await expect(statesNumber).toHaveValue("2");
+  await buildMap.getByRole("button", { name: "Apply realm and route changes", exact: true }).click();
+  await expectStageReady(buildMap, "Realms and routes");
 });
 
 test("applies climate configuration when the climate stage is regenerated", async ({ page }) => {
