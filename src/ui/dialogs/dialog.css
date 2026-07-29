@@ -29,6 +29,12 @@
     cursor: move;
   }
 
+  /* After the first minimize, Dialog stores the titlebar's visual top in
+     --dialog-top. This makes later content-height changes position-neutral. */
+  &.titlebar-anchored {
+    transform: translate(-50%, 0) translate(var(--dialog-offset-x), var(--dialog-offset-y));
+  }
+
   &.minimized {
     /* Container is pass-through so clicks reach elements behind the dialog.
        The titlebar re-enables pointer events for itself below. */

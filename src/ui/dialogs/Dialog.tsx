@@ -29,6 +29,7 @@ export const Dialog: React.FC<DialogProps> = ({
 }) => {
   const { containerRef, resizeHandleRef, bringToFront } = useDraggable({ handleSelector: ".titlebar" });
   const [minimized, setMinimized] = useState(false);
+  const [titlebarAnchored, setTitlebarAnchored] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -39,20 +40,31 @@ export const Dialog: React.FC<DialogProps> = ({
 
   const handleMinimize = useCallback(() => {
     const container = containerRef.current;
-    if (container && !minimized) {
-      // Lock the width so the titlebar doesn't reflow to a different size
-      // when the content is removed. Position (CSS vars + inline transform)
-      // is intentionally left untouched — the dialog's top-left corner stays
-      // exactly where it is, keeping the titlebar in place.
-      container.style.width = `${container.getBoundingClientRect().width}px`;
+    if (container && !titlebarAnchored) {
+      const { top } = container.getBoundingClientRect();
+      const offsetY = Number.parseFloat(getComputedStyle(container).getPropertyValue("--dialog-offset-y")) || 0;
+      // The default vertical transform centers the dialog. Convert its current
+      // visual position into a top-anchored one once, so later height changes
+      // (minimize, restore, or content reflow) cannot move the titlebar.
+      container.style.setProperty("--dialog-top", `${top - offsetY}px`);
+      setTitlebarAnchored(true);
     }
-    setMinimized(m => !m);
-  }, [minimized, containerRef]);
+    if (container && !minimized) {
+      // Lock the width so the titlebar doesn't reflow when content is removed.
+      const computedStyle = getComputedStyle(container);
+      const { width } = container.getBoundingClientRect();
+      const horizontalBorders =
+        Number.parseFloat(computedStyle.borderLeftWidth) + Number.parseFloat(computedStyle.borderRightWidth);
+      const cssWidth = computedStyle.boxSizing === "border-box" ? width : width - horizontalBorders;
+      container.style.width = `${cssWidth}px`;
+    }
+    setMinimized(currentMinimized => !currentMinimized);
+  }, [containerRef, minimized, titlebarAnchored]);
 
   const dialogElement = (
     <div
       ref={containerRef}
-      className={`fmg-dialog ${className}${minimized ? " minimized" : ""}`}
+      className={`fmg-dialog ${className}${minimized ? " minimized" : ""}${titlebarAnchored ? " titlebar-anchored" : ""}`}
       style={{ ...style, display: isOpen ? undefined : "none" }}
       onMouseDownCapture={bringToFront}
     >
