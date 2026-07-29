@@ -13,6 +13,7 @@ export {
   mergeFrontiers
 } from "../generators/frontierAnalysis";
 export { advanceFrontierGovernance } from "../generators/frontierGovernance";
+export { buildLandRouteGraph, findLandRouteDistance } from "../generators/landRouteGraph";
 export {
   ANNUAL_DRAFT_SHARE,
   isManpowerSimEnabled,

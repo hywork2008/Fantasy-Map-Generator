@@ -191,6 +191,12 @@ export const BurgEditorDialog: React.FC = () => {
                   <span id="burgTreasury">{burgData.treasury}</span>
                 </td>
               </tr>
+              <tr data-tip="Share of the current burg population that its imported food capacity could support.">
+                <th scope="row">Food imports</th>
+                <td>
+                  <span id="burgFoodImportDependency">{burgData.foodImportDependency}</span>
+                </td>
+              </tr>
               <tr>
                 <th scope="row">Features:</th>
                 <td>

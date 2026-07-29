@@ -22,10 +22,15 @@ export function getBurgEconomySummary(burgId: number): BurgEconomySummary | null
     : "none";
 
   const wealth = getBurgProductPerThousandResidents(burg);
+  const baseCapacity = burg.demographics?.capacity ?? 0;
+  const effectiveCapacity = burg.demographics?.effectiveCapacity ?? baseCapacity;
+  const importedSupport = Math.max(0, effectiveCapacity - baseCapacity);
+  const foodImportDependency = burg.population && burg.population > 0 ? (importedSupport / burg.population) * 100 : 0;
 
   return {
     production,
     wealth: formatPrice(wealth),
-    treasury: formatPrice(burg.treasury || 0)
+    treasury: formatPrice(burg.treasury || 0),
+    foodImportDependency: `${rn(foodImportDependency, 1)}%`
   };
 }

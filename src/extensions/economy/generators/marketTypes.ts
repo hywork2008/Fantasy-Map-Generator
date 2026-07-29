@@ -17,6 +17,10 @@ export interface FoodLedger {
   exportable: number;
   importNeed: number;
   targetStock: number;
+  /** Food that reached this market after route spoilage and security losses. */
+  satisfiedImport: number;
+  /** Additional urban carrying capacity in population points supported by those imports. */
+  importCapacityBonus: number;
 }
 
 export interface Deal {

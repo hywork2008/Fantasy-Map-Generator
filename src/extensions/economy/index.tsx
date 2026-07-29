@@ -42,6 +42,7 @@ import {
 } from "./economyContext";
 import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burgMarketLedgers";
 import { Caravans } from "./generators/caravans";
+import { resetEffectiveCapacities } from "./generators/foodImportNetwork";
 import { FoodProduction } from "./generators/foodProduction";
 import { clearForestDepletion, registerLogHarvest, tickForestRegrowth } from "./generators/forestDepletion";
 import {
@@ -650,6 +651,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (value !== undefined) throw new Error("economy.clear does not accept a payload");
 
       const world = getWorldContext();
+      resetEffectiveCapacities(world.pack.burgs);
       clearBurgMarketLedgers();
       clearMarketManagers();
       MineOperations.clear();
@@ -1000,6 +1002,7 @@ export function init(api: ExtensionAPI): void {
           if (!getTradeSecurityLedgers().length) TradeSecurity.generate();
           syncMarketManagers();
           syncBurgMarketLedgers();
+          FoodProduction.generateQuarterlyLedger(0);
         }
       }
     } else if (!isEnabled && wasEnabled) {
@@ -1058,6 +1061,7 @@ export function init(api: ExtensionAPI): void {
       if (getMarkets().length) {
         syncMarketManagers();
         syncBurgMarketLedgers();
+        FoodProduction.generateQuarterlyLedger(0);
       }
     }
   }
@@ -1630,6 +1634,7 @@ export function cleanup(api: ExtensionAPI): void {
   clearVoyageIncome();
   clearStrategicProcurementExpenses();
   clearForestDepletion();
+  resetEffectiveCapacities(getWorldContext().pack.burgs);
   StrategicProcurement.clear();
   clearBurgMarketLedgers();
   clearMarketManagers();

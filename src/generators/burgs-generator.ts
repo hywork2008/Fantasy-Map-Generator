@@ -720,7 +720,8 @@ class BurgModule {
   applyDemographics(burg: Burg, capacity?: number): void {
     const population = burg.population ?? 0;
     const resolvedCapacity = capacity ?? burg.demographics?.capacity ?? population;
-    burg.demographics = buildBurgDemographics(population, resolvedCapacity, burg.group);
+    const effectiveCapacity = burg.demographics?.effectiveCapacity ?? resolvedCapacity;
+    burg.demographics = buildBurgDemographics(population, resolvedCapacity, burg.group, effectiveCapacity);
   }
 
   private defineEmblem(burg: Burg) {

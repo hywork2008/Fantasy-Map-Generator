@@ -163,6 +163,9 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
 
     const stateId = burg.state ?? 0;
     const { capacity } = burg.demographics;
+    // Economy's food-import network may temporarily raise a burg's carrying capacity.
+    // Older saved maps have no effectiveCapacity, so retain the base-capacity behavior.
+    const effectiveCapacity = burg.demographics.effectiveCapacity ?? capacity;
     let { children, maleAdults, femaleAdults, elders } = burg.demographics;
 
     const childrenToAdults = children * (deltaYears / 15);
@@ -178,7 +181,7 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     elders = Math.max(0, elders + adultsToEldersMale + adultsToEldersFemale - elderDeaths);
 
     const currentTotal = children + maleAdults + femaleAdults + elders;
-    const roomForGrowth = capacity > 0 ? Math.max(-0.5, 1 - currentTotal / capacity) : 0;
+    const roomForGrowth = effectiveCapacity > 0 ? Math.max(-0.5, 1 - currentTotal / effectiveCapacity) : 0;
 
     if (roomForGrowth > 0) {
       // Garrison forts have negligible resident families — suppress natural increase.

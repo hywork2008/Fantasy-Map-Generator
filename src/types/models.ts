@@ -73,6 +73,11 @@ export interface BurgGroup {
 
 export interface BurgDemographics {
   capacity: number;
+  /**
+   * Population capacity after temporary, external support such as food imports.
+   * Falls back to `capacity` for maps saved before this field was introduced.
+   */
+  effectiveCapacity?: number;
   children: number;
   maleAdults: number;
   femaleAdults: number;

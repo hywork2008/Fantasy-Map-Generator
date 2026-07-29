@@ -91,10 +91,16 @@ export function getDemographicShares(group?: string | null): DemographicShares {
 }
 
 /** Build absolute demographic buckets from total population and burg group. */
-export function buildBurgDemographics(population: number, capacity: number, group?: string | null): BurgDemographics {
+export function buildBurgDemographics(
+  population: number,
+  capacity: number,
+  group?: string | null,
+  effectiveCapacity = capacity
+): BurgDemographics {
   const shares = getDemographicShares(group);
   return {
     capacity,
+    effectiveCapacity,
     children: rn(population * shares.children, 4),
     maleAdults: rn(population * shares.maleAdults, 4),
     femaleAdults: rn(population * shares.femaleAdults, 4),

@@ -1,8 +1,9 @@
 import { minmax, rn } from "../../hostUtils";
 import { getMarketCellColumn, getMarkets, getWorldContext } from "../economyContext";
+import { GROSS_FOOD_NEED, RURAL_MARKETABLE_SHARE } from "./foodConstants";
+import { resolveFoodImportNetwork } from "./foodImportNetwork";
 
-export const GROSS_FOOD_NEED = 0.43;
-export const RURAL_MARKETABLE_SHARE = 0.7;
+export { GROSS_FOOD_NEED, RURAL_MARKETABLE_SHARE } from "./foodConstants";
 
 // デフォルトの四半期ごとの生産の重み（春夏秋冬など）。合計1.0
 // ここで重みを変更することで、収穫期の過剰や農閑期の逼迫を演出できる
@@ -68,9 +69,13 @@ export class FoodProductionModule {
         urbanNeed,
         exportable,
         importNeed,
-        targetStock
+        targetStock,
+        satisfiedImport: 0,
+        importCapacityBonus: 0
       };
     }
+
+    resolveFoodImportNetwork(this.worldContext);
   }
 }
 
