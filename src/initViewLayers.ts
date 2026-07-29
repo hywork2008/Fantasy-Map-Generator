@@ -42,7 +42,14 @@ export function createViewLayers(): void {
   >;
   const landmass = viewbox.append("g").attr("id", "landmass") as Selection<SVGGElement, unknown, null, undefined>;
   const texture = viewbox.append("g").attr("id", "texture") as Selection<SVGGElement, unknown, null, undefined>;
-  const lakes = viewbox.append("g").attr("id", "lakes") as Selection<SVGGElement, unknown, null, undefined>;
+  // Lakes stay opt-in: feature paths are still generated for masks, but the visual layer
+  // remains hidden until the user explicitly enables it.
+  const lakes = viewbox.append("g").attr("id", "lakes").style("display", "none") as Selection<
+    SVGGElement,
+    unknown,
+    null,
+    undefined
+  >;
   const biomes = viewbox.append("g").attr("id", "biomes") as Selection<SVGGElement, unknown, null, undefined>;
   const coastalHabitats = viewbox.append("g").attr("id", "coastalHabitats").style("display", "none") as Selection<
     SVGGElement,

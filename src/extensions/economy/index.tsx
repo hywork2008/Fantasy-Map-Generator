@@ -118,7 +118,6 @@ const ECONOMY_PRESETS: Record<string, { label: string; layers: string[] }> = {
       "toggleCells",
       "toggleGoods",
       "toggleMarketsLayer",
-      "toggleLakes",
       "toggleRivers",
       "toggleRoutes",
       "toggleScaleBar",
@@ -131,7 +130,6 @@ const ECONOMY_PRESETS: Record<string, { label: string; layers: string[] }> = {
     layers: [
       "toggleBorders",
       "toggleBurgIcons",
-      "toggleLakes",
       "toggleRivers",
       "toggleRoutes",
       "toggleScaleBar",

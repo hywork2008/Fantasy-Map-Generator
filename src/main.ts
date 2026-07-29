@@ -1101,7 +1101,6 @@ const GENERATION_REVIEW_SVG_LAYER_IDS = [
   "oceanLayers",
   "landmass",
   "terrs",
-  "lakes",
   "biomes",
   "rivers",
   "cults",

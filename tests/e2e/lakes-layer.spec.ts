@@ -15,7 +15,7 @@ test.describe("Lakes layer", () => {
     await waitForMapLoad(page, "svg");
   });
 
-  test("lakes toggle button hides and shows the #lakes SVG group", async ({
+  test("lakes are hidden by default and appear only after the layer is enabled", async ({
     page,
   }) => {
     const lakes = page.locator("#lakes");
@@ -23,25 +23,40 @@ test.describe("Lakes layer", () => {
     await page.click("#optionsHide");
     await page.waitForSelector("#options", { state: "visible" });
 
-    await expect(lakes).toBeVisible();
-
-    await page.locator("#toggleLakes").click();
     await expect(lakes).toBeHidden();
 
     await page.locator("#toggleLakes").click();
     await expect(lakes).toBeVisible();
+
+    await page.locator("#toggleLakes").click();
+    await expect(lakes).toBeHidden();
   });
 
   test("KeyQ toggles the lakes layer", async ({ page }) => {
     const lakes = page.locator("#lakes");
 
-    await expect(lakes).toBeVisible();
-
-    await page.keyboard.press("q");
     await expect(lakes).toBeHidden();
 
     await page.keyboard.press("q");
     await expect(lakes).toBeVisible();
+
+    await page.keyboard.press("q");
+    await expect(lakes).toBeHidden();
+  });
+
+  test("built-in layer presets keep lakes disabled", async ({ page }) => {
+    await page.click("#optionsHide");
+    await page.waitForSelector("#options", { state: "visible" });
+
+    const presets = await page.locator("#layersPreset option:not([value='custom'])").evaluateAll(options =>
+      options.map(option => (option as HTMLOptionElement).value)
+    );
+
+    for (const preset of presets) {
+      await page.locator("#layersPreset").selectOption(preset);
+      await expect(page.locator("#toggleLakes")).toHaveClass(/buttonoff/);
+      await expect(page.locator("#lakes")).toBeHidden();
+    }
   });
 
   test("Lakes panel entry is positioned just after Heightmap", async ({ page }) => {
