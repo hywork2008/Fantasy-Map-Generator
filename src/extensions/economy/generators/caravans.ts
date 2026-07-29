@@ -29,6 +29,54 @@ import { TradeSecurity } from "./tradeSecurity";
 
 export type CaravanTravelLeg = { endKm: number; speedKmPerDay: number };
 
+/** Travel-time summary for an in-transit caravan, rounded up to whole simulation days. */
+export interface CaravanTravelTime {
+  totalDays: number;
+  remainingDays: number;
+}
+
+/**
+ * Returns the journey's total and remaining duration using the speeds baked when the caravan
+ * departed. This keeps the ETA stable when movement preferences change after departure.
+ */
+export function getCaravanTravelTime(caravan: Caravan): CaravanTravelTime | null {
+  const legs = caravan.travelLegs;
+  if (legs?.length) {
+    let previousEndKm = 0;
+    let totalDays = 0;
+    let remainingDays = 0;
+
+    for (const leg of legs) {
+      const legDistanceKm = leg.endKm - previousEndKm;
+      if (
+        !Number.isFinite(legDistanceKm) ||
+        !Number.isFinite(leg.speedKmPerDay) ||
+        legDistanceKm < 0 ||
+        leg.speedKmPerDay <= 0
+      ) {
+        return null;
+      }
+
+      totalDays += legDistanceKm / leg.speedKmPerDay;
+      const remainingDistanceKm = Math.max(0, leg.endKm - Math.max(caravan.currentDistance, previousEndKm));
+      remainingDays += remainingDistanceKm / leg.speedKmPerDay;
+      previousEndKm = leg.endKm;
+    }
+
+    return { totalDays: Math.ceil(totalDays), remainingDays: Math.ceil(remainingDays) };
+  }
+
+  // Saved maps from before travel legs were persisted do not retain per-leg speeds. Their
+  // duration is therefore an approximation based on the current route settings.
+  const totalDays = calculateRouteDurationDays(caravan.routeSegments, getWorldContext().distanceScale, {
+    draftAnimalId: caravan.draftAnimalId
+  });
+  if (!Number.isFinite(totalDays) || caravan.totalDistance <= 0) return null;
+
+  const remainingRatio = Math.max(0, 1 - caravan.currentDistance / caravan.totalDistance);
+  return { totalDays, remainingDays: Math.ceil(totalDays * remainingRatio) };
+}
+
 function toXy(point: readonly number[]): [number, number] {
   return [point[0], point[1]];
 }

@@ -3,8 +3,9 @@ import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearEconomyContext, getCaravans, getDeals, initEconomyContext } from "../economyContext";
 import { CaravanMovement } from "./caravanMovement";
-import { bakeCaravanTravelLegs, Caravans } from "./caravans";
+import { bakeCaravanTravelLegs, Caravans, getCaravanTravelTime } from "./caravans";
 import type { Good } from "./goods-generator";
+import type { Caravan } from "./marketTypes";
 import { TradeAnimation } from "./trade-animation";
 
 describe("caravan viability", () => {
@@ -133,5 +134,19 @@ describe("bakeCaravanTravelLegs", () => {
       1
     );
     expect(legs[0].speedKmPerDay).toBeCloseTo(32, 5);
+  });
+});
+
+describe("getCaravanTravelTime", () => {
+  it("reports remaining and total days from the caravan's baked travel legs", () => {
+    const caravan = {
+      currentDistance: 30,
+      travelLegs: [
+        { endKm: 20, speedKmPerDay: 10 },
+        { endKm: 50, speedKmPerDay: 15 }
+      ]
+    } as Caravan;
+
+    expect(getCaravanTravelTime(caravan)).toEqual({ totalDays: 4, remainingDays: 2 });
   });
 });

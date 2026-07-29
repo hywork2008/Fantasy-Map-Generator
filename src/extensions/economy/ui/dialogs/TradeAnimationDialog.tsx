@@ -5,6 +5,7 @@ import { closeDialog, Dialog, SliderInput, SortableHeader, useDialogState, Virtu
 import { formatPrice } from "../../../hostUtils";
 import { getCaravans, getMarkets, getWorldContext } from "../../economyContext";
 import { CaravanMovement, type CaravanMovementSettings } from "../../generators/caravanMovement";
+import { getCaravanTravelTime } from "../../generators/caravans";
 import { Goods } from "../../generators/goods-generator";
 import type { Caravan } from "../../generators/marketTypes";
 import { TradeAnimation } from "../../generators/trade-animation";
@@ -126,6 +127,7 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
         goodName = `Mixed (${c.payload.length})`;
       }
       const progress = c.totalDistance > 0 ? (c.currentDistance / c.totalDistance) * 100 : 0;
+      const travelTime = getCaravanTravelTime(c);
 
       let landDistance = 0;
       let seaDistance = 0;
@@ -155,6 +157,8 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
         seaDistance: Math.round(seaDistance),
         transferCount,
         progress,
+        remainingDays: travelTime?.remainingDays ?? Number.POSITIVE_INFINITY,
+        totalDays: travelTime?.totalDays ?? Number.POSITIVE_INFINITY,
         units: c.units,
         value: c.value
       };
@@ -231,6 +235,16 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
               <SortableHeader
                 field="progress"
                 label="Progress"
+                tip="Distance travelled as a share of the route. It can differ from the time-based ETA because terrain and travel speeds vary by route segment."
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+                numeric
+              />
+              <SortableHeader
+                field="remainingDays"
+                label="ETA"
+                tip="Estimated days remaining / total journey duration"
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={handleSort}
@@ -257,7 +271,7 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
           {sortedRows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={10}>No active trade caravans</td>
+                <td colSpan={11}>No active trade caravans</td>
               </tr>
             </tbody>
           ) : (
@@ -286,6 +300,9 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
                   <td style={{ textAlign: "right" }}>{`${row.seaDistance} ${distanceUnit}`}</td>
                   <td style={{ textAlign: "right" }}>{row.transferCount}</td>
                   <td style={{ textAlign: "right" }}>{`${row.progress.toFixed(0)}%`}</td>
+                  <td style={{ textAlign: "right" }}>
+                    {Number.isFinite(row.remainingDays) ? `${row.remainingDays} / ${row.totalDays} days` : "—"}
+                  </td>
                   <td style={{ textAlign: "right" }}>{row.units}</td>
                   <td style={{ textAlign: "right" }}>{formatPrice(row.value)}</td>
                 </tr>
