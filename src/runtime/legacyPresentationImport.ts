@@ -54,5 +54,15 @@ export function importLegacyPresentationFromSvg(root: ParentNode = document): vo
     }
   });
 
+  // Ocean paint lives one level deeper than the groups above
+  // (#viewbox > #ocean > #oceanLayers > #oceanBase / #oceanicPattern).
+  // These selectors are part of every built-in style preset, so omitting them
+  // lets the previous map's default presentation overwrite the loaded ocean
+  // on the next render-coordinator projection.
+  for (const selector of ["#oceanBase", "#oceanicPattern"]) {
+    const element = root.querySelector(selector);
+    if (element) styles[selector] = attributesOf(element);
+  }
+
   patchPresentation({ styles, overlays });
 }

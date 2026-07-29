@@ -1363,6 +1363,25 @@ export async function applyStyleOnLoad(): Promise<void> {
   selectStyleElement();
 }
 
+/**
+ * Reflect a map's saved style preset in the Style tab without applying it.
+ *
+ * A loaded map already carries its complete presentation data (an SVG for
+ * legacy `.map` files and PresentationData for `.fmg` archives). Re-applying
+ * a preset here would discard map-specific style edits, so loading only needs
+ * to synchronize the controlled React selector.
+ */
+export function syncLoadedStylePreset(presetName: string): void {
+  if (!presetName) return;
+
+  const state = useStyleState.getState();
+  if (!SYSTEM_PRESETS.includes(presetName)) {
+    const name = presetName.replace(CUSTOM_PRESET_PREFIX, "");
+    if (!state.customPresets.includes(name)) state.setPresets(state.systemPresets, [...state.customPresets, name]);
+  }
+  useStyleState.getState().setActivePreset(presetName);
+}
+
 export function requestStylePresetChange(preset: string): void {
   if (styleChangeConfirmed) return void changeStyle(preset);
 

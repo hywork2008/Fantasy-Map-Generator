@@ -296,7 +296,7 @@
     "opacity": 0.2
   },
   "#terrs > #oceanHeights": {
-    "data-render": 1,
+    "data-render": 0,
     "opacity": 0.4,
     "scheme": "bright",
     "terracing": 0,

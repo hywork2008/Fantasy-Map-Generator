@@ -697,6 +697,8 @@ export interface WorldRuntime {
   /** @internal Trusted host projection; nested legacy data is still mutable. */
   readTrusted(): WorldReadView;
   dispatch<T>(command: WorldCommand<T>): Promise<WorldCommit<T> | null>;
+  /** Resolves once an active staged world generation has fully settled. */
+  waitForIdle(): Promise<void>;
   subscribe(listener: (commit: WorldCommit<unknown>) => void): () => void;
   /** Register one synchronous, validated command owned by an extension. */
   registerExtensionCommand(command: ExtensionCommandDefinition): () => void;
@@ -744,6 +746,7 @@ class LegacyWorldRuntime implements WorldRuntime {
   private committing = false;
   /** True while an async world.generate pipeline is running (blocks concurrent commits). */
   private generating = false;
+  private readonly idleWaiters = new Set<() => void>();
   private extensionReadView: ExtensionWorldReadView | null = null;
 
   constructor(
@@ -787,6 +790,11 @@ class LegacyWorldRuntime implements WorldRuntime {
     } catch (error) {
       return Promise.reject(error);
     }
+  }
+
+  waitForIdle(): Promise<void> {
+    if (!this.generating) return Promise.resolve();
+    return new Promise(resolve => this.idleWaiters.add(resolve));
   }
 
   subscribe(listener: (commit: WorldCommit<unknown>) => void): () => void {
@@ -923,6 +931,8 @@ class LegacyWorldRuntime implements WorldRuntime {
       throw error;
     } finally {
       this.generating = false;
+      for (const resolve of this.idleWaiters) resolve();
+      this.idleWaiters.clear();
     }
   }
 

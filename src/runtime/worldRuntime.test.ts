@@ -378,6 +378,34 @@ describe("WorldRuntime Phase 1 compatibility shell", () => {
     await generatePromise;
   });
 
+  it("waits for an active world generation to settle", async () => {
+    const world = { ...createPositionWorld(), mapId: 1, seed: "seed" };
+    const simulation = { currentYear: 1, currentMonth: 1, currentDay: 1, tickCount: 0 } as SimulationContext;
+    const runtime = createWorldRuntime(world, simulation, createPresentationData());
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+
+    runtime.registerWorldGenerateHandler(async () => {
+      await gate;
+    });
+
+    const generating = runtime.dispatch({ type: "world.generate", payload: {} });
+    let idle = false;
+    const settled = runtime.waitForIdle().then(() => {
+      idle = true;
+    });
+
+    await Promise.resolve();
+    expect(idle).toBe(false);
+
+    release();
+    await generating;
+    await settled;
+    expect(idle).toBe(true);
+  });
+
   it("allows nested extension/legacy writes during world.generate without intermediate commits", async () => {
     const world = { ...createPositionWorld(), mapId: 1, seed: "seed" };
     const simulation = { currentYear: 1, currentMonth: 1, currentDay: 1, tickCount: 0 } as SimulationContext;

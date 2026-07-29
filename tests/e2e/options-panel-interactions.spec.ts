@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { getMapCanvasSize, waitForMapLoad, zoomToMapCenter } from "./helpers/fmg-helpers";
+import { applyStylePreset, getMapCanvasSize, setRenderMode, waitForMapLoad, zoomToMapCenter } from "./helpers/fmg-helpers";
 
 test("recovers from an invalid canvas size saved by an earlier version", async ({ page }) => {
   await page.addInitScript(() => {
@@ -205,4 +205,17 @@ test("switches the SVG heightmap between canvas heatmap and contour paths", asyn
   await expect.poll(async () => page.locator("#landHeights path.heightmap-contour-line").count()).toBeLessThan(
     overviewContourCount
   );
+});
+
+test("keeps ocean height contours disabled when applying supported style presets in SVG mode", async ({ page }) => {
+  await page.goto("/?seed=style-preset-ocean-contours&width=1000&height=700");
+  await waitForMapLoad(page, "svg");
+
+  for (const preset of ["gloom", "light", "watercolor", "clean", "atlas", "cyberpunk"]) {
+    await applyStylePreset(page, preset);
+    await setRenderMode(page, "svg");
+
+    await expect(page.locator("#oceanHeights")).toHaveAttribute("data-render", "0");
+    await expect(page.locator("#oceanHeights > *")).toHaveCount(0);
+  }
 });

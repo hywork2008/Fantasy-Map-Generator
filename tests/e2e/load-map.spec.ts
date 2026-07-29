@@ -7,6 +7,8 @@ import {
   getSvgLayerPresence,
   getPackStatesSummary,
   getPackBurgsSummary,
+  getMapId,
+  loadMapBeforeInitialGenerationCompletes,
 } from "./helpers/fmg-helpers";
 
 test.describe("Map loading", () => {
@@ -40,6 +42,21 @@ test.describe("Map loading", () => {
     expect(filterCriticalErrors(errors)).toEqual([]);
   });
 
+  test("loads the saved style preset without retaining legacy ocean contours", async ({ page }) => {
+    await loadMapFile(page, "demo.map", "svg");
+
+    if ((await page.locator("#optionsHide").textContent())?.trim() === "►") {
+      await page.locator("#optionsHide").click();
+    }
+    await page.locator("#styleTab").click();
+
+    await expect(page.locator("#stylePreset")).toHaveValue("cyberpunk");
+    await expect(page.locator("#oceanBase")).toHaveAttribute("fill", "#05001f");
+    await expect(page.locator("#oceanHeights")).toHaveAttribute("data-render", "0");
+    await expect(page.locator("#oceanHeights > path")).toHaveCount(0);
+    await expect(page.locator("#oceanLayers foreignObject.fmc")).toHaveCount(1);
+  });
+
   test("loaded map should preserve state data", async ({ page }) => {
     const errors = collectPageErrors(page);
     await loadMapFile(page, "demo.map", "svg");
@@ -62,6 +79,20 @@ test.describe("Map loading", () => {
     expect(burgsData.allHaveNames).toBe(true);
     expect(burgsData.allHaveCoords).toBe(true);
     expect(burgsData.allHaveCells).toBe(true);
+
+    expect(filterCriticalErrors(errors)).toEqual([]);
+  });
+
+  test("can generate a new map after loading before the initial map completes", async ({ page }) => {
+    const errors = collectPageErrors(page);
+    await loadMapBeforeInitialGenerationCompletes(page, "demo.map", "svg");
+    const loadedMapId = await getMapId(page);
+
+    await page.getByRole("button", { name: "New Map", exact: true }).click();
+    const generateEntireMap = page.getByRole("button", { name: "Generate entire map", exact: true });
+    await generateEntireMap.waitFor({ state: "visible" });
+    await generateEntireMap.click();
+    await page.waitForFunction(mapId => window.fmg.world.mapId !== mapId, loadedMapId, { timeout: 60000 });
 
     expect(filterCriticalErrors(errors)).toEqual([]);
   });

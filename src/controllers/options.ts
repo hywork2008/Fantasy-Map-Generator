@@ -744,7 +744,16 @@ export function regeneratePrompt(opts?: { seed?: string }): void {
     tip("New map cannot be generated when edit mode is active, please exit the mode and retry", false, "error");
     return;
   }
-  const workingTime = (Date.now() - last(worldContext.mapHistory).created) / 60000;
+  // A map loaded before the initial generation has no generated-map history.
+  // In that case there is no creation timestamp to compare, so proceed with
+  // the requested replacement instead of dereferencing an absent entry.
+  const latestMap = last(worldContext.mapHistory);
+  if (!latestMap) {
+    document.dispatchEvent(new CustomEvent("fmg:regenerate-map", { detail: opts }));
+    return;
+  }
+
+  const workingTime = (Date.now() - latestMap.created) / 60000;
   if (workingTime < 1) {
     document.dispatchEvent(new CustomEvent("fmg:regenerate-map", { detail: opts }));
     return;

@@ -109,6 +109,31 @@ export async function loadMapFile(page: Page, filename: string, renderMode: FmgR
   await uploadMapFixture(page, filename, renderMode);
 }
 
+/**
+ * Load a fixture while the app is paused at its first generation review. This
+ * reproduces the empty map-history state of loading a map before any generated
+ * map has completed.
+ */
+export async function loadMapBeforeInitialGenerationCompletes(
+  page: Page,
+  filename: string,
+  renderMode: FmgRenderMode
+): Promise<void> {
+  await page.context().clearCookies();
+  await page.addInitScript(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Generate entire map", exact: true }).waitFor({ state: "visible" });
+  await page.locator("#fileInputs #mapToLoad").setInputFiles(path.join(__dirname, `../../fixtures/${filename}`));
+  await page.waitForFunction(
+    () => typeof window.fmg !== "undefined" && window.fmg.world.mapId !== 0,
+    { timeout: 60000 }
+  );
+  await setRenderMode(page, renderMode);
+}
+
 // ── Error collection ─────────────────────────────────────────────────────────
 
 /**

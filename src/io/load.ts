@@ -3,6 +3,7 @@ import { appServices } from "../context/appServices";
 import { simulationContext } from "../context/simulationContext";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
+import { syncLoadedStylePreset } from "../controllers/style";
 import { snapshotToBiomesData } from "../data/biomeCatalog";
 import { ensureCoastalHabitatColumns } from "../data/coastalHabitatCatalog";
 import { Burgs } from "../generators/burgs-generator";
@@ -12,6 +13,7 @@ import { initSimulationClock } from "../generators/timeEngine";
 import { GridRenderer } from "../renderers";
 import { OceanLayers } from "../renderers/ocean-layers";
 import { DeckGlRenderer } from "../renderers/webgl/deckRenderer";
+import { resetExtensionStateSlices } from "../runtime/extensionStateSlices";
 import { importLegacyPresentationFromSvg } from "../runtime/legacyPresentationImport";
 import { bindSimulationBurgState, resetSimulationBurgState } from "../runtime/simulationBurgState";
 import { bindSimulationMilitaryState, resetSimulationMilitaryState } from "../runtime/simulationMilitaryState";
@@ -207,7 +209,7 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
     // Decode, migrate and validate are complete before the first live mutation.
     // A malformed archive therefore leaves the active world and SVG untouched.
     const validated = await decodeAndValidateWorldArchive({ blob: file, header });
-    generationProgressStore.getState().loadMap();
+    await waitForGenerationToSettleBeforeMapLoad();
     const seaRouteGenerationMode = validated.document.world.options.seaRouteGenerationMode;
     const landRouteGenerationMode = validated.document.world.options.landRouteGenerationMode;
     const landRouteElevationAversion = validated.document.world.options.landRouteElevationAversion;
@@ -357,6 +359,9 @@ function showUploadMessage(type: string, mapData: string[] | null, mapVersion: s
  */
 export async function parseLoadedData(data: string[], mapVersion: string): Promise<void> {
   try {
+    // Legacy staging mutates the compatibility buffers, so it must never run
+    // alongside the async generation pipeline that owns the same buffers.
+    await waitForGenerationToSettleBeforeMapLoad();
     closeDialogs?.();
     view.setCustomization(0);
     document.dispatchEvent(new CustomEvent("react-exit-heightmap-edit"));
@@ -370,10 +375,6 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
 
       const staged = worldRuntime.captureRollbackDocument();
       assertValidWorldDocument(staged);
-      // The decoded legacy map is now fully validated. Stop a paused initial
-      // generation only immediately before its world is replaced, so a load
-      // failure leaves the generated preview available for further review.
-      generationProgressStore.getState().loadMap();
       const commit = await worldRuntime.dispatch({
         type: "world.replace",
         payload: { stage: "validated", document: staged }
@@ -384,6 +385,10 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       // View-plane only: SVG injection, layer reinit, presentation import.
       // Listener/view failures must not roll back an accepted world replace.
       applyLegacyMapView(data, mapVersion);
+      // Match the archive load lifecycle so extensions can migrate or rebuild
+      // their current runtime state after a legacy map has been committed.
+      document.dispatchEvent(new CustomEvent("fmg:world-loaded"));
+      document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
     } catch (stageError) {
       if (!dataCommitted) {
         try {
@@ -414,6 +419,16 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       onNewMap: () => document.dispatchEvent(new CustomEvent("fmg:regenerate-map", { detail: "loading error" }))
     });
   }
+}
+
+/**
+ * A map load supersedes the initial preview generation. `loadMap()` interrupts
+ * a paused review immediately; an auto-running generation has no resolver, so
+ * wait for its rollback or completion before touching shared world buffers.
+ */
+async function waitForGenerationToSettleBeforeMapLoad(): Promise<void> {
+  generationProgressStore.getState().loadMap();
+  await worldRuntime.waitForIdle();
 }
 
 /**
@@ -518,8 +533,6 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
     cellCodesCsv: data[16] ?? ""
   });
   worldContext.biomesData = snapshotToBiomesData(legacyBiomes.snapshot);
-  // Simulation clock from loaded options — pure data; calendar SVG is drawn after view reinit.
-  initSimulationClock();
   resetSimulationBurgState(simulationContext);
   resetSimulationStateState(simulationContext);
   resetSimulationMilitaryState(simulationContext);
@@ -539,6 +552,11 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
     worldContext.grid.cells.temp = Int8Array.from(data[11].split(","), Number);
   }
   document.dispatchEvent(new CustomEvent("fmg:re-graph"));
+  // `re-graph` rebuilds the packed cells and rebinds extension compatibility
+  // accessors while the prior map's entity tables are still live. A positional
+  // map has no simulation extension slices, so discard those transient
+  // previous-world entries before restoring the legacy extension slots below.
+  resetExtensionStateSlices(simulationContext);
   Features.markupPack();
   worldContext.pack.features = JSON.parse(data[12]);
   worldContext.pack.cultures = JSON.parse(data[13]);
@@ -649,6 +667,12 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
       worldContext.nameBases[i] = { name: e[0], min: +e[1], max: +e[2], d: e[3], m: +e[4], b } as NameBase;
     });
   }
+
+  // Legacy maps do not persist the simulation-owned frontier slice. Initialize
+  // it only after the saved packed-cell topology is in place: doing this while
+  // the previous map is still installed leaves cellStages at the wrong length
+  // and prevents the staged document from passing archive validation.
+  initSimulationClock();
 
   // data integrity checks (DOM-free; marker SVG id fixes run in applyLegacyMapView)
   {
@@ -1057,7 +1081,19 @@ function applyLegacyMapView(data: string[], mapVersion: string): void {
     if (isVisibleNode(document.getElementById("vignette") as HTMLElement)) turnOn("toggleVignette");
 
     useLayerState.getState().setAllActiveLayers(nextActiveLayers);
+    // Legacy maps use `data-render=1` for the old filled ocean heightmap.
+    // In the current contour renderer the same flag generates labelled
+    // bathymetric contours (negative elevation) as well. Keep legacy maps on
+    // the land-only interpretation; users can explicitly enable ocean
+    // contours again from the Heightmap style controls.
+    view.terrs.select<SVGGElement>("#oceanHeights").attr("data-render", 0).selectAll("*").remove();
     importLegacyPresentationFromSvg();
+    syncLoadedStylePreset((data[1] || "").split("|")[22] || "default");
+    // Saved maps serialize ocean outlines as SVG paths because a canvas cannot
+    // be embedded in the file. Rebuild the SVG-mode canvas after the loaded
+    // style attributes have been imported, otherwise the previous/default
+    // ocean canvas remains visible until another redraw happens.
+    OceanLayers();
     document.dispatchEvent(new CustomEvent("fmg:get-current-preset"));
   }
   view.scaleBar

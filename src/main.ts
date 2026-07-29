@@ -494,7 +494,7 @@ async function checkLoadParameters(drawMap: boolean) {
 
 export async function generateMapOnLoad(drawMap: boolean = true) {
   await applyStyleOnLoad();
-  await generate();
+  if (!(await runGeneration())) return;
   if (drawMap) {
     applyLayersPreset();
     drawLayers();
@@ -1193,11 +1193,8 @@ document.addEventListener("fmg:world-configurator-updated", () => {
 // Register once at module load so dispatch is available before initMain completes.
 registerWorldGenerateHandler(runGeneratePipeline);
 
-/**
- * Public generation entry point. Stages through `world.generate` (validate +
- * fullReplace commit). View-side chrome is drawn only after a successful commit.
- */
-export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
+/** Executes generation and reports whether it published a complete world. */
+async function runGeneration(opts?: { seed?: string; graph?: Grid | null }): Promise<boolean> {
   const timeStart = performance.now();
   try {
     const commit = await dispatchWorldGenerate(opts ?? {});
@@ -1221,10 +1218,11 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
     INFO && console.groupEnd();
     document.body.classList.remove("fmg-generation-review-preview");
     generationProgressStore.getState().finish();
+    return true;
   } catch (error) {
     if (error instanceof MapLoadRequestedError) {
       generationProgressStore.getState().fail();
-      return;
+      return false;
     }
     ERROR && console.error(error);
     try {
@@ -1242,7 +1240,13 @@ export async function generate(opts?: { seed?: string; graph?: Grid | null }) {
       onRegenerate: () => regenerateMap("generation error")
     });
     generationProgressStore.getState().fail();
+    return false;
   }
+}
+
+/** Public generation entry point. It intentionally preserves the void public API. */
+export async function generate(opts?: { seed?: string; graph?: Grid | null }): Promise<void> {
+  await runGeneration(opts);
 }
 
 export { getWorldState } from "./actions";
@@ -1830,7 +1834,10 @@ export const regenerateMap = debounce(async (opts?: { seed?: string } | string) 
 
   resetZoom(1000);
   undraw();
-  await generate(typeof opts === "string" ? { seed: opts } : opts);
+  if (!(await runGeneration(typeof opts === "string" ? { seed: opts } : opts))) {
+    shouldShowLoading && hideLoading();
+    return;
+  }
   drawLayers();
   if (ThreeDRenderer.options.isOn) ThreeDRenderer.redraw();
   if (dialogStore.getState().openDialogs.has("worldConfigurator")) EditorBus.editWorld();
