@@ -848,6 +848,7 @@ class BurgModule {
         name: "village",
         active: true,
         order: 2,
+        minZoom: 9.5,
         min: 0.1,
         max: 2,
         preview: "watabou-village"

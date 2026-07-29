@@ -144,4 +144,17 @@ test.describe("States", () => {
     await zoomToMapCenter(page, 1);
     await expect(stateLabels).not.toHaveClass(/hidden/);
   });
+
+  test("shows village icons and labels from their configured minimum zoom", async ({ page }) => {
+    const villageIcons = page.locator("#burgIcons #village");
+    const villageLabels = page.locator("#burgLabels #village");
+
+    await zoomToMapCenter(page, 9.4);
+    await expect(villageIcons).toHaveClass(/hidden/);
+    await expect(villageLabels).toHaveClass(/hidden/);
+
+    await zoomToMapCenter(page, 9.5);
+    await expect(villageIcons).not.toHaveClass(/hidden/);
+    await expect(villageLabels).not.toHaveClass(/hidden/);
+  });
 });

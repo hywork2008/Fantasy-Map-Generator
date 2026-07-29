@@ -668,6 +668,7 @@ export function invokeActiveZooming() {
   const getScaleThreshold = (groupId: string) => {
     const group = (burgGroups as BurgGroup[]).find(g => g.name === groupId);
     if (!group) return 0;
+    if (typeof group.minZoom === "number" && Number.isFinite(group.minZoom)) return group.minZoom;
     // Higher order = more important (capital=9) = visible at lower zoom levels
     // Lower order = less important (hamlet=1) = visible only at high zoom
     const invertedOrder = maxBurgOrder - group.order + 1;

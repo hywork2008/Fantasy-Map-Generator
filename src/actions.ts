@@ -24,9 +24,13 @@ export function zoomIntoBurg(burgId: number): void {
     const burgGroups = worldContext.options.burgs?.groups || [];
     const group = (burgGroups as BurgGroup[]).find((g: BurgGroup) => g.name === burg.group);
     if (group) {
-      const maxBurgOrder = Math.max(...(burgGroups as BurgGroup[]).map((g: BurgGroup) => g.order), 1);
-      const invertedOrder = maxBurgOrder - group.order + 1;
-      requiredScale = invertedOrder === 1 ? 1.5 : invertedOrder * 2 - 1.5;
+      if (typeof group.minZoom === "number" && Number.isFinite(group.minZoom)) {
+        requiredScale = group.minZoom;
+      } else {
+        const maxBurgOrder = Math.max(...(burgGroups as BurgGroup[]).map((g: BurgGroup) => g.order), 1);
+        const invertedOrder = maxBurgOrder - group.order + 1;
+        requiredScale = invertedOrder === 1 ? 1.5 : invertedOrder * 2 - 1.5;
+      }
     }
   }
 

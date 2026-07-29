@@ -47,6 +47,8 @@ export interface BurgGroup {
   name: string;
   active: boolean;
   order: number;
+  /** Optional zoom level at which this group's icons and labels become visible. */
+  minZoom?: number;
   isDefault?: boolean;
   features?: {
     capital?: boolean;
