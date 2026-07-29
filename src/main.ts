@@ -27,6 +27,7 @@ import { Cultures } from "./generators/cultures-generator";
 import { applyHistoricalWarScars } from "./generators/demography-simulator";
 import { Features } from "./generators/features";
 import { FrontierForts } from "./generators/frontierFortsGenerator";
+import { measureGenerationStep } from "./generators/generationProfiler";
 import { HeightmapGenerator } from "./generators/heightmap-generator";
 import { Ice } from "./generators/ice";
 import { Lakes } from "./generators/lakes";
@@ -1108,7 +1109,11 @@ function getGenerationStages(): Array<() => Promise<void>> {
       bindSimulationStateState(worldContext, simulationContext);
       bindSimulationMilitaryState(worldContext, simulationContext);
       bindExtensionStateSlices(worldContext, simulationContext);
-      document.dispatchEvent(new CustomEvent("fmg:generate-post-core"));
+      // Extension hooks run synchronously here. This aggregate includes dynamic
+      // extensions; built-in extensions also emit their own named timers.
+      measureGenerationStep("generateExtensions", () => {
+        document.dispatchEvent(new CustomEvent("fmg:generate-post-core"));
+      });
       applyHistoricalWarScars();
       Threats.appendCasualtyNotes(worldContext);
       Names.getMapName(false);

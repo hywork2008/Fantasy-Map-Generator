@@ -6,6 +6,7 @@ import { refreshCharactersOverviewIfOpen } from "../characters/controllers/chara
 import { CHARACTERS_EXTENSION_ID } from "../characters/index";
 import { advanceAllRegimentMovement, advanceFrontierGovernance, Military } from "../hostCore";
 import { tip } from "../hostServices";
+import { measureGenerationStep } from "../hostUtils";
 import {
   applyConflictAutonomy,
   endPlayerConflict,
@@ -133,13 +134,15 @@ export function init(api: ExtensionAPI): void {
 
   _generatePostCoreHandler = () => {
     if (api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) {
-      // A new map reuses state ids from 0 — any voyage-intel bonus accrued against the
-      // previous map's states must not carry over.
-      clearVoyageIntel();
-      api.dispatchExtensionCommand({
-        extensionId: NOBILITY_EXTENSION_ID,
-        name: "regenerate",
-        payload: { mode: "full" }
+      measureGenerationStep("generateNobility", () => {
+        // A new map reuses state ids from 0 — any voyage-intel bonus accrued against the
+        // previous map's states must not carry over.
+        clearVoyageIntel();
+        api.dispatchExtensionCommand({
+          extensionId: NOBILITY_EXTENSION_ID,
+          name: "regenerate",
+          payload: { mode: "full" }
+        });
       });
     }
   };

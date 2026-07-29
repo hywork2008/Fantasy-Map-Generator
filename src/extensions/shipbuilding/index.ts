@@ -7,6 +7,7 @@ import type {
   ShipbuildingSurplusShipRequest
 } from "../hostTypes";
 import type { LayerConfig } from "../hostUi";
+import { measureGenerationStep } from "../hostUtils";
 import {
   closeShipyardsOverview,
   openShipyardsOverview,
@@ -215,11 +216,13 @@ export function init(api: ExtensionAPI): void {
 
   _generatePostCoreHandler = () => {
     if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
-    // A brand-new map reuses burg/state ids from 0, so queue/tech/completed-hull
-    // state tied to the previous map's ids must not carry over.
-    api.dispatchExtensionCommand({ extensionId: SHIPBUILDING_EXTENSION_ID, name: "reset", payload: undefined });
-    recomputeAndMaybeDraw(api);
-    refreshShipyardsOverviewIfOpen(_candidates, _portCapacity);
+    measureGenerationStep("generateShipbuilding", () => {
+      // A brand-new map reuses burg/state ids from 0, so queue/tech/completed-hull
+      // state tied to the previous map's ids must not carry over.
+      api.dispatchExtensionCommand({ extensionId: SHIPBUILDING_EXTENSION_ID, name: "reset", payload: undefined });
+      recomputeAndMaybeDraw(api);
+      refreshShipyardsOverviewIfOpen(_candidates, _portCapacity);
+    });
 
     // Deferred to a microtask so this always runs after every fmg:generate-post-core listener
     // (including Economy's Goods/Markets/Production generation) has finished, regardless of
@@ -228,11 +231,13 @@ export function init(api: ExtensionAPI): void {
     // pack.markets/pack.goods populated for the initial-stock warm-up request to do anything.
     queueMicrotask(() => {
       if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
-      const demands = getInitialStateOwnedDemand(_candidates, getWorldContext().pack.burgs);
-      if (!demands.length) return;
-      document.dispatchEvent(
-        new CustomEvent("fmg:shipbuilding-initial-stock-request", { detail: { source: "shipbuilding", demands } })
-      );
+      measureGenerationStep("generateShipbuildingInitialStock", () => {
+        const demands = getInitialStateOwnedDemand(_candidates, getWorldContext().pack.burgs);
+        if (!demands.length) return;
+        document.dispatchEvent(
+          new CustomEvent("fmg:shipbuilding-initial-stock-request", { detail: { source: "shipbuilding", demands } })
+        );
+      });
     });
   };
   document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);

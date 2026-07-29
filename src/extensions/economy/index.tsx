@@ -14,7 +14,7 @@ import {
   useTimeSimulationState,
   useUiPreferencesState
 } from "../hostUi";
-import { formatPrice } from "../hostUtils";
+import { formatPrice, measureGenerationStep } from "../hostUtils";
 import { getBurgEconomySummary, getBurgProductPerThousandResidents } from "./burgEconomySummary";
 import { economyStyleConfig } from "./EconomyStyleConfig";
 import {
@@ -1065,24 +1065,26 @@ export function init(api: ExtensionAPI): void {
   // Listen for core map generation to generate economy
   _generatePostCoreHandler = () => {
     if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
-      // A new map reuses state ids from 0 — any voyage income buffered against the
-      // previous map's states must not carry over.
-      clearVoyageIncome();
-      clearStrategicProcurementExpenses();
-      StrategicProcurement.clear();
-      TradeAnimation.clearRouteCache();
-      MineralResources.generate();
-      Goods.generate();
-      Markets.generate();
-      MineOperations.generate();
-      SmelterOperations.generate();
-      Minting.generate();
-      MilitaryResources.generate();
-      TradeSecurity.generate();
-      Taxes.defineTaxRates();
-      FoodProduction.generateQuarterlyLedger(0);
-      Production.produce();
-      Taxes.collectTaxes();
+      measureGenerationStep("generateEconomy", () => {
+        // A new map reuses state ids from 0 — any voyage income buffered against the
+        // previous map's states must not carry over.
+        clearVoyageIncome();
+        clearStrategicProcurementExpenses();
+        StrategicProcurement.clear();
+        TradeAnimation.clearRouteCache();
+        MineralResources.generate();
+        Goods.generate();
+        Markets.generate();
+        MineOperations.generate();
+        SmelterOperations.generate();
+        Minting.generate();
+        MilitaryResources.generate();
+        TradeSecurity.generate();
+        Taxes.defineTaxRates();
+        FoodProduction.generateQuarterlyLedger(0);
+        Production.produce();
+        Taxes.collectTaxes();
+      });
     }
   };
   document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
