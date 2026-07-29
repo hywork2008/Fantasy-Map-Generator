@@ -62,4 +62,19 @@ describe("LegacyBiomeCodec (legacyBiomesV1)", () => {
     const parsed = parseLegacyBiomesField("a,b|1,2|X,Y");
     expect(parsed).toEqual({ colorCsv: "a,b", habitabilityCsv: "1,2", nameCsv: "X,Y" });
   });
+
+  it("keeps the supported fields from the newer upstream JSON biome format", () => {
+    const parsed = parseLegacyBiomesField(
+      JSON.stringify([
+        { i: 0, name: "Marine", color: "#466eab", habitability: 0, icons: [] },
+        { i: 1, name: "Hot desert", color: "#f4dc8b", habitability: 4, icons: ["dune"] }
+      ])
+    );
+
+    expect(parsed).toEqual({
+      colorCsv: "#466eab,#f4dc8b",
+      habitabilityCsv: "0,4",
+      nameCsv: "Marine,Hot desert"
+    });
+  });
 });

@@ -169,10 +169,58 @@ export function decodeLegacyBiomesV1(input: LegacyBiomesV1Input): LegacyBiomesV1
 export function parseLegacyBiomesField(
   biomesField: string
 ): Pick<LegacyBiomesV1Input, "colorCsv" | "habitabilityCsv" | "nameCsv"> {
+  const upstreamBiomes = parseUpstreamBiomeRecords(biomesField);
+  if (upstreamBiomes) return upstreamBiomes;
+
   const parts = biomesField.split("|");
   return {
     colorCsv: parts[0] ?? "",
     habitabilityCsv: parts[1] ?? "",
     nameCsv: parts[2] ?? ""
   };
+}
+
+/**
+ * Upstream v1.139+ saves biome definitions as JSON objects. Only the legacy
+ * visual fields have a counterpart in this project's catalog; the remaining
+ * upstream metadata is deliberately left out during compatibility loading.
+ */
+function parseUpstreamBiomeRecords(
+  biomesField: string
+): Pick<LegacyBiomesV1Input, "colorCsv" | "habitabilityCsv" | "nameCsv"> | null {
+  if (!biomesField.trimStart().startsWith("[")) return null;
+
+  try {
+    const parsed: unknown = JSON.parse(biomesField);
+    if (!Array.isArray(parsed)) return null;
+
+    const colors: string[] = [];
+    const habits: string[] = [];
+    const names: string[] = [];
+
+    parsed.forEach((value, fallbackIndex) => {
+      if (!isRecord(value)) return;
+      const index = isNonNegativeInteger(value.i) ? value.i : fallbackIndex;
+      colors[index] = typeof value.color === "string" ? value.color : "";
+      habits[index] =
+        typeof value.habitability === "number" && Number.isFinite(value.habitability) ? String(value.habitability) : "";
+      names[index] = typeof value.name === "string" ? value.name : "";
+    });
+
+    return {
+      colorCsv: colors.join(","),
+      habitabilityCsv: habits.join(","),
+      nameCsv: names.join(",")
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }

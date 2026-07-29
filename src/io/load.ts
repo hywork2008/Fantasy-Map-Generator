@@ -36,7 +36,7 @@ import { loadErrorDialogStore } from "../store/loadErrorDialogState";
 import { loadMapDialogStore } from "../store/loadMapDialogState";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
 import type { LandRouteGenerationMode, NameBase, River, Route, SeaRouteGenerationMode } from "../types/models";
-import { closeDialogs, openConfirm } from "../ui/dialogs/dialogService";
+import { closeDialogs, openAlert, openConfirm } from "../ui/dialogs/dialogService";
 import { calculateVoronoi, findCell, last, link, minmax, parseError, rn } from "../utils";
 import { heightmapColorSchemes } from "../utils/colorUtils";
 import { normalizeConflictAutonomy } from "../utils/conflictAutonomy";
@@ -48,6 +48,7 @@ import { resolveVersionConflicts } from "./auto-update";
 import { Cloud } from "./cloud";
 import { ldb } from "./ldb";
 import { decodeLegacyBiomesV1, parseLegacyBiomesField } from "./legacy/legacyBiomesV1";
+import { prepareNewerLegacyMapForLoad } from "./newerLegacyMapCompatibility";
 
 // ─── Quick load from browser storage ─────────────────────────────────────────
 
@@ -328,8 +329,10 @@ function showUploadMessage(type: string, mapData: string[] | null, mapVersion: s
     message = `The map version you are trying to load (${mapVersion}) is too old and cannot be updated to the current version.<br>Please keep using an ${archive}`;
     title = "Ancient file";
   } else if (type === "newer") {
-    message = `The map version you are trying to load (${mapVersion}) is newer than the current version.<br>Please load the file in the appropriate version`;
-    title = "Newer file";
+    const compatibility = prepareNewerLegacyMapForLoad(mapData!);
+    INFO && console.info(`Loading newer map ${mapVersion} in shared legacy-format compatibility mode`);
+    void parseLoadedData(compatibility.mapData, mapVersion, compatibility.skippedItems);
+    return;
   } else if (type === "outdated") {
     INFO && console.info(`Loading map. Auto-updating from ${mapVersion} to ${VERSION}`);
     parseLoadedData(mapData!, mapVersion);
@@ -359,7 +362,11 @@ function showUploadMessage(type: string, mapData: string[] | null, mapVersion: s
  * 4. Validate → `world.replace` (fullReplace commit). Failure restores the snapshot.
  * 5. Only then inject the saved SVG and re-bind view layers.
  */
-export async function parseLoadedData(data: string[], mapVersion: string): Promise<void> {
+export async function parseLoadedData(
+  data: string[],
+  mapVersion: string,
+  skippedNewerMapItems: readonly string[] = []
+): Promise<void> {
   try {
     // Legacy staging mutates the compatibility buffers, so it must never run
     // alongside the async generation pipeline that owns the same buffers.
@@ -409,6 +416,7 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
     document.dispatchEvent(new CustomEvent("fmg:show-statistics"));
     INFO && console.groupEnd();
     tip("Map is successfully loaded", true, "success", 7000);
+    showNewerMapCompatibilityMessage(mapVersion, skippedNewerMapItems);
   } catch (error) {
     ERROR && console.error(error);
     clearMainTip();
@@ -421,6 +429,17 @@ export async function parseLoadedData(data: string[], mapVersion: string): Promi
       onNewMap: () => document.dispatchEvent(new CustomEvent("fmg:regenerate-map", { detail: "loading error" }))
     });
   }
+}
+
+function showNewerMapCompatibilityMessage(mapVersion: string, skippedItems: readonly string[]): void {
+  if (!skippedItems.length) return;
+
+  const items = skippedItems.map(item => `<li>${item}</li>`).join("");
+  openAlert(
+    `The map was created in a newer version (${mapVersion}) and was loaded in compatibility mode.<br>` +
+      `The following newer-format content is not supported by this project and was not loaded:<ul>${items}</ul>`,
+    { title: "Newer map loaded with omissions" }
+  );
 }
 
 /**
