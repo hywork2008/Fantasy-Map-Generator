@@ -4,8 +4,10 @@ import {
   findFirstRealStateId,
   countStatesWithNeighbor,
   getMilitaryRegenerationResult,
+  isOptionsMenuOpen,
   isLayerOn,
   setLayerPreset,
+  zoomToMapCenter,
 } from "./helpers/fmg-helpers";
 
 test.describe("States", () => {
@@ -25,7 +27,7 @@ test.describe("States", () => {
   test("removing a state via UI should allow military regeneration without errors", async ({
     page,
   }) => {
-    await page.click("#optionsHide");
+    if (!(await isOptionsMenuOpen(page))) await page.click("#optionsHide");
     await page.waitForSelector("#options", { state: "visible" });
 
     await page.click("#toolsTab");
@@ -86,7 +88,7 @@ test.describe("States", () => {
   test("restores the Pure landmass layer state when States and Provinces close together", async ({ page }) => {
     await setLayerPreset(page, "landmass");
 
-    await page.click("#optionsHide");
+    if (!(await isOptionsMenuOpen(page))) await page.click("#optionsHide");
     await expect(page.locator("#options")).toBeVisible();
     await page.click("#toolsTab");
     await expect(page.locator("#toolsContent")).toBeVisible();
@@ -112,5 +114,18 @@ test.describe("States", () => {
     await expect(page.locator("#provincesEditorContainer")).toBeHidden();
     expect(await isLayerOn(page, "toggleProvinces")).toBe(false);
     expect(await isLayerOn(page, "toggleStates")).toBe(false);
+  });
+
+  test("shows burg icons immediately when enabling them at maximum zoom", async ({ page }) => {
+    await setLayerPreset(page, "landmass");
+    await zoomToMapCenter(page, 20);
+    expect(await isLayerOn(page, "toggleBurgIcons")).toBe(false);
+
+    if (!(await isOptionsMenuOpen(page))) await page.locator("#optionsHide").click();
+    await page.locator("#layersTab").click();
+    await expect(page.locator("#layersContent")).toBeVisible();
+    await page.locator("#toggleBurgIcons").click();
+
+    await expect.poll(() => page.locator("#burgIcons > g:not(.hidden)").count()).toBeGreaterThan(0);
   });
 });

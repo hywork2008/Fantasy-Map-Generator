@@ -1025,6 +1025,9 @@ export function toggleBurgIcons(event?: MouseEvent): void {
   if (!layerIsOn("toggleBurgIcons")) {
     turnButtonOn("toggleBurgIcons");
     BurgIconsRenderer.render(worldContext, viewContext, appServices);
+    // Rendering recreates every burg group with its default hidden state. Reapply the
+    // current zoom's visibility and viewport-culling rules without waiting for a zoom event.
+    document.dispatchEvent(new CustomEvent("fmg:invoke-active-zooming"));
     if (event && isCtrlClick(event)) editStyle("burgIcons");
   } else {
     if (event && isCtrlClick(event)) {
