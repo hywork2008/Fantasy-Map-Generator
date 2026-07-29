@@ -27,7 +27,6 @@ import { Cultures } from "./generators/cultures-generator";
 import { applyHistoricalWarScars } from "./generators/demography-simulator";
 import { Features } from "./generators/features";
 import { FrontierForts } from "./generators/frontierFortsGenerator";
-import { measureGenerationStep } from "./generators/generationProfiler";
 import { HeightmapGenerator } from "./generators/heightmap-generator";
 import { Ice } from "./generators/ice";
 import { Lakes } from "./generators/lakes";
@@ -71,6 +70,7 @@ import { OceanLayers } from "./renderers/ocean-layers";
 import { ThreeDRenderer } from "./renderers/three-d-renderer";
 import { DeckGlRenderer } from "./renderers/webgl/deckRenderer";
 import { bindExtensionStateSlices, resetExtensionStateSlices } from "./runtime/extensionStateSlices";
+import { cancelMapReadyTasks, startMapReadyTasks } from "./runtime/mapReadyTaskCoordinator";
 import { bindSimulationBurgState, resetSimulationBurgState } from "./runtime/simulationBurgState";
 import { bindSimulationCellColumns } from "./runtime/simulationCellColumns";
 import { bindSimulationMilitaryState, resetSimulationMilitaryState } from "./runtime/simulationMilitaryState";
@@ -402,6 +402,9 @@ export async function initMain(drawMap: boolean = true): Promise<void> {
   document.addEventListener("fmg:render-mode-changed", () => {
     if (viewContext.renderMap) drawLayers();
   });
+  document.addEventListener("fmg:map-ready-tasks-completed", () => {
+    if (viewContext.renderMap) drawLayers();
+  });
   document.addEventListener("fmg:show-statistics", showStatistics);
   document.addEventListener("fmg:generate-map-on-load", () => generateMapOnLoad(drawMap));
 
@@ -501,6 +504,7 @@ export async function generateMapOnLoad(drawMap: boolean = true) {
     drawLayers();
     fitMapToScreen();
     focusOn();
+    void startMapReadyTasks();
   }
 }
 
@@ -1109,11 +1113,6 @@ function getGenerationStages(): Array<() => Promise<void>> {
       bindSimulationStateState(worldContext, simulationContext);
       bindSimulationMilitaryState(worldContext, simulationContext);
       bindExtensionStateSlices(worldContext, simulationContext);
-      // Extension hooks run synchronously here. This aggregate includes dynamic
-      // extensions; built-in extensions also emit their own named timers.
-      measureGenerationStep("generateExtensions", () => {
-        document.dispatchEvent(new CustomEvent("fmg:generate-post-core"));
-      });
       applyHistoricalWarScars();
       Threats.appendCasualtyNotes(worldContext);
       Names.getMapName(false);
@@ -1200,6 +1199,7 @@ registerWorldGenerateHandler(runGeneratePipeline);
 
 /** Executes generation and reports whether it published a complete world. */
 async function runGeneration(opts?: { seed?: string; graph?: Grid | null }): Promise<boolean> {
+  cancelMapReadyTasks();
   const timeStart = performance.now();
   try {
     const commit = await dispatchWorldGenerate(opts ?? {});
@@ -1251,7 +1251,7 @@ async function runGeneration(opts?: { seed?: string; graph?: Grid | null }): Pro
 
 /** Public generation entry point. It intentionally preserves the void public API. */
 export async function generate(opts?: { seed?: string; graph?: Grid | null }): Promise<void> {
-  await runGeneration(opts);
+  if (await runGeneration(opts)) void startMapReadyTasks();
 }
 
 export { getWorldState } from "./actions";
@@ -1844,6 +1844,7 @@ export const regenerateMap = debounce(async (opts?: { seed?: string } | string) 
     return;
   }
   drawLayers();
+  void startMapReadyTasks();
   if (ThreeDRenderer.options.isOn) ThreeDRenderer.redraw();
   if (dialogStore.getState().openDialogs.has("worldConfigurator")) EditorBus.editWorld();
 

@@ -1,0 +1,57 @@
+#mapReadyTaskStatus {
+  position: fixed;
+  left: 16px;
+  bottom: 14px;
+  z-index: 15;
+  display: grid;
+  grid-template-columns: 14px auto auto;
+  align-items: center;
+  gap: 7px;
+  min-width: 214px;
+  padding: 8px 10px 7px;
+  color: #f3ead5;
+  background: rgb(31 26 20 / 92%);
+  border: 1px solid rgb(210 165 89 / 72%);
+  border-radius: 2px;
+  box-shadow: 0 3px 12px rgb(0 0 0 / 32%);
+  font: 600 12px/1.2 "Trebuchet MS", sans-serif;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+}
+
+.map-ready-task__mark {
+  width: 9px;
+  height: 9px;
+  border: 2px solid #d2a559;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: map-ready-task-spin 900ms linear infinite;
+}
+
+.map-ready-task__percent {
+  color: #d2a559;
+  font-variant-numeric: tabular-nums;
+}
+
+.map-ready-task__track {
+  grid-column: 1 / -1;
+  height: 2px;
+  overflow: hidden;
+  background: rgb(255 255 255 / 18%);
+}
+
+.map-ready-task__fill {
+  display: block;
+  height: 100%;
+  background: #d2a559;
+  transition: width 140ms linear;
+}
+
+@keyframes map-ready-task-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-ready-task__mark { animation: none; }
+  .map-ready-task__fill { transition: none; }
+}

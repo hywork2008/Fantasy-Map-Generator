@@ -51,9 +51,54 @@ export class ProductionModule {
     return this.worldContext.pack.states?.[stateId]?.salesTax ?? 0;
   }
 
-  produce() {
+  produce(): void {
     TIME && console.time("generateProduction");
+    try {
+      const cycle = this.startProductionCycle();
+      for (const burg of cycle.sortedBurgs) this.produceForBurg(burg, cycle);
+      this.finishProductionCycle(cycle);
+    } finally {
+      TIME && console.timeEnd("generateProduction");
+    }
+  }
 
+  /**
+   * Same deterministic production cycle as produce(), but releases the main thread between
+   * burg batches so a newly generated map remains interactive while economy data is prepared.
+   */
+  async produceIncrementally({
+    isCancelled = () => false,
+    onProgress = () => undefined,
+    frameBudgetMs = 8
+  }: IncrementalProductionOptions = {}): Promise<boolean> {
+    TIME && console.time("generateProduction");
+    try {
+      const cycle = this.startProductionCycle();
+      const total = cycle.sortedBurgs.length;
+      let completed = 0;
+      onProgress(0, total);
+
+      while (completed < total) {
+        if (isCancelled()) return false;
+        const frameStart = performance.now();
+        do {
+          this.produceForBurg(cycle.sortedBurgs[completed], cycle);
+          completed++;
+        } while (completed < total && performance.now() - frameStart < frameBudgetMs);
+
+        onProgress(completed, total);
+        if (completed < total) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+      }
+
+      if (isCancelled()) return false;
+      this.finishProductionCycle(cycle);
+      return true;
+    } finally {
+      TIME && console.timeEnd("generateProduction");
+    }
+  }
+
+  private startProductionCycle(): ProductionCycle {
     // Cleared here (start of cycle) rather than after Taxes.collectTaxes() so the previous
     // cycle's deals stay visible to transaction-history UI (markets-overview.ts,
     // market-deals-overview.ts, production-overview.ts) for the whole ~30-day interval between
@@ -86,27 +131,34 @@ export class ProductionModule {
       .filter(burg => burg.i && !burg.removed)
       .sort((a, b) => a.population! - b.population!);
 
-    for (const burg of sortedBurgs) {
-      if (!burg.i || burg.removed || !burg.market) continue;
-      const market = Markets.get(burg.market);
-      if (!market) continue;
+    return { index, sortedBurgs, strategicLaborMarketById };
+  }
 
-      const state = this.createBurgProductionState(burg, market, index, strategicLaborMarketById.get(market.i));
-      this.runWorkerLoop(index, state);
+  private produceForBurg(burg: Burg, cycle: ProductionCycle): void {
+    if (!burg.i || burg.removed || !burg.market) return;
+    const market = Markets.get(burg.market);
+    if (!market) return;
 
-      const phaseRevenue = this.sellInventoryToMarket(state);
-      burg.treasury = rn((burg.treasury || 0) + phaseRevenue, 2);
-      burg.product = rn(Math.max(0, phaseRevenue - state.ingredientCosts), 2);
+    const state = this.createBurgProductionState(
+      burg,
+      market,
+      cycle.index,
+      cycle.strategicLaborMarketById.get(market.i)
+    );
+    this.runWorkerLoop(cycle.index, state);
 
-      setBurgProductionRecords(burg, state.records);
-    }
+    const phaseRevenue = this.sellInventoryToMarket(state);
+    burg.treasury = rn((burg.treasury || 0) + phaseRevenue, 2);
+    burg.product = rn(Math.max(0, phaseRevenue - state.ingredientCosts), 2);
 
+    setBurgProductionRecords(burg, state.records);
+  }
+
+  private finishProductionCycle(cycle: ProductionCycle): void {
     Markets.runGlobalTrade();
     Caravans.spawnFromDeals(getDeals());
-    this.fillBurgsDemand(sortedBurgs, index);
+    this.fillBurgsDemand(cycle.sortedBurgs, cycle.index);
     syncBurgMarketLedgers();
-
-    TIME && console.timeEnd("generateProduction");
   }
 
   private fillBurgsDemand(sortedBurgs: Burg[], index: ProductionIndex): void {
@@ -799,6 +851,18 @@ type ProductionIndex = {
   recipesByOutput: Recipe[][];
   productiveGoods: Good[];
   minWorkersByGood: number[];
+};
+
+type ProductionCycle = {
+  index: ProductionIndex;
+  sortedBurgs: Burg[];
+  strategicLaborMarketById: ReadonlyMap<number, LaborMarket>;
+};
+
+type IncrementalProductionOptions = {
+  isCancelled?: () => boolean;
+  onProgress?: (completed: number, total: number) => void;
+  frameBudgetMs?: number;
 };
 
 type BurgProductionState = {

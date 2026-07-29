@@ -14,7 +14,7 @@ import {
   useTimeSimulationState,
   useUiPreferencesState
 } from "../hostUi";
-import { formatPrice, measureGenerationStep } from "../hostUtils";
+import { formatPrice, TIME } from "../hostUtils";
 import { getBurgEconomySummary, getBurgProductPerThousandResidents } from "./burgEconomySummary";
 import { economyStyleConfig } from "./EconomyStyleConfig";
 import {
@@ -245,7 +245,7 @@ function unregisterOverviewColumns(api: ExtensionAPI): void {
 }
 
 let _unsubscribe: (() => void) | null = null;
-let _generatePostCoreHandler: (() => void) | null = null;
+let _unregisterMapReadyTask: (() => void) | null = null;
 let _logHarvestedHandler: ((e: Event) => void) | null = null;
 let _materialsRequestedHandler: ((e: Event) => void) | null = null;
 let _strategicProcurementDemandHandler: ((e: Event) => void) | null = null;
@@ -1062,32 +1062,43 @@ export function init(api: ExtensionAPI): void {
     }
   }
 
-  // Listen for core map generation to generate economy
-  _generatePostCoreHandler = () => {
-    if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
-      measureGenerationStep("generateEconomy", () => {
-        // A new map reuses state ids from 0 — any voyage income buffered against the
-        // previous map's states must not carry over.
-        clearVoyageIncome();
-        clearStrategicProcurementExpenses();
-        StrategicProcurement.clear();
-        TradeAnimation.clearRouteCache();
-        MineralResources.generate();
-        Goods.generate();
-        Markets.generate();
-        MineOperations.generate();
-        SmelterOperations.generate();
-        Minting.generate();
-        MilitaryResources.generate();
-        TradeSecurity.generate();
-        Taxes.defineTaxRates();
-        FoodProduction.generateQuarterlyLedger(0);
-        Production.produce();
-        Taxes.collectTaxes();
-      });
+  _unregisterMapReadyTask = api.registerMapReadyTask({
+    id: "economy.initialization",
+    label: "Preparing economy",
+    run: async context => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID) || !context.isCurrent()) return;
+      if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        TIME && console.time("generateEconomy");
+        try {
+          // A new map reuses state ids from 0 — any voyage income buffered against the
+          // previous map's states must not carry over.
+          clearVoyageIncome();
+          clearStrategicProcurementExpenses();
+          StrategicProcurement.clear();
+          TradeAnimation.clearRouteCache();
+          MineralResources.generate();
+          Goods.generate();
+          Markets.generate();
+          MineOperations.generate();
+          SmelterOperations.generate();
+          Minting.generate();
+          MilitaryResources.generate();
+          TradeSecurity.generate();
+          Taxes.defineTaxRates();
+          FoodProduction.generateQuarterlyLedger(0);
+          const completed = await Production.produceIncrementally({
+            isCancelled: () => !context.isCurrent() || !api.isExtensionEnabled(ECONOMY_EXTENSION_ID),
+            onProgress: (done, total) => context.reportProgress(total ? done / total : 1)
+          });
+          if (!completed || !context.isCurrent() || !api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+          Taxes.collectTaxes();
+          api.requestWebglRender();
+        } finally {
+          TIME && console.timeEnd("generateEconomy");
+        }
+      }
     }
-  };
-  document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
+  });
 
   _gunpowderEraChangedHandler = () => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
@@ -1563,10 +1574,8 @@ export function cleanup(api: ExtensionAPI): void {
     _unsubscribe();
     _unsubscribe = null;
   }
-  if (_generatePostCoreHandler) {
-    document.removeEventListener("fmg:generate-post-core", _generatePostCoreHandler);
-    _generatePostCoreHandler = null;
-  }
+  _unregisterMapReadyTask?.();
+  _unregisterMapReadyTask = null;
   if (_logHarvestedHandler) {
     document.removeEventListener("fmg:shipbuilding-log-harvested", _logHarvestedHandler);
     _logHarvestedHandler = null;

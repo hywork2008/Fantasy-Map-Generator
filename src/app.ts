@@ -38,6 +38,7 @@ import {
   registerExtensionWebglLayers,
   unregisterExtensionWebglLayers
 } from "./renderers/webgl/extensionWebglLayerRegistry";
+import { registerMapReadyTask } from "./runtime/mapReadyTaskCoordinator";
 import { initRenderCoordinator } from "./runtime/renderCoordinator";
 import { dispatchExtensionCommand, worldRuntime } from "./runtime/worldRuntime";
 import { burgEconomyExtensions } from "./services/burgEconomyExtensions";
@@ -133,6 +134,7 @@ function buildExtensionAPI(): ExtensionAPI {
       useExtensionState.subscribe((state, prev) =>
         listener({ enabledExtensions: state.enabledExtensions }, { enabledExtensions: prev.enabledExtensions })
       ),
+    registerMapReadyTask,
 
     registerPreset,
     unregisterPreset,

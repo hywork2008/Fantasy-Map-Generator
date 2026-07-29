@@ -7,6 +7,7 @@ import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers } from "../store/editorState";
 import { generationProgressStore } from "../store/generationProgressState";
+import { useMapReadyTaskState } from "../store/mapReadyTaskState";
 import { useOptionsState } from "../store/optionsState";
 import { closeDialogs, openConfirm } from "../ui/dialogs/dialogService";
 import { createObjectURL, link, parseError, ra, revokeObjectURL, rn } from "../utils";
@@ -334,6 +335,8 @@ async function saveToDropbox(archive: Blob, filename: string): Promise<void> {
 // ─── Main save entry point ────────────────────────────────────────────────────
 
 export async function saveMap(method: string): Promise<void> {
+  if (useMapReadyTaskState.getState().isRunning)
+    return tip("Map is still preparing extension data. Please wait before saving.", false, "warning" as never);
   if (view.customization)
     return tip("Map cannot be saved in EDIT mode, please complete the edit and retry", false, "error");
   closeDialogs("#alert");
@@ -372,6 +375,7 @@ export async function initiateAutosave(): Promise<void> {
     const timeoutMinutes = useOptionsState.getState().autosaveInterval;
     if (!timeoutMinutes) return;
     if (generationProgressStore.getState().isOpen) return;
+    if (useMapReadyTaskState.getState().isRunning) return;
 
     const diffInMinutes = (Date.now() - lastSavedAt) / MINUTE;
     if (diffInMinutes < timeoutMinutes) return;

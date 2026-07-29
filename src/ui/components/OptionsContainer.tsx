@@ -2,6 +2,7 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { clearMainTip } from "../../services/tooltipService";
 import { useGenerationProgressState } from "../../store/generationProgressState";
+import { useMapReadyTaskState } from "../../store/mapReadyTaskState";
 import { useOptionsState } from "../../store/optionsState";
 import { useViewState } from "../../store/viewState";
 import { useDraggable } from "../dialogs/useDraggable";
@@ -31,6 +32,7 @@ export const OptionsContainer: React.FC = () => {
   const canConfigureInitialMap = useGenerationProgressState(
     state => state.isOpen && !state.isGenerating && state.isInitialGeneration
   );
+  const isMapReadyTaskRunning = useMapReadyTaskState(state => state.isRunning);
   // Every visible part of the compact tab bar is a button, so permit it to
   // start a drag while retaining ordinary click behavior when it is not moved.
   const { containerRef, resizeHandleRef, bringToFront } = useDraggable({
@@ -95,14 +97,17 @@ export const OptionsContainer: React.FC = () => {
                 tab.id !== "optionsTab" &&
                 !(canConfigureInitialMap && tab.id === "extensionsTab")
                   ? "Unavailable while building a map"
-                  : tab.tip
+                  : isMapReadyTaskRunning && tab.id === "toolsTab"
+                    ? "Unavailable while extension data is being prepared"
+                    : tab.tip
               }
               className={`options ${activeMenu === tab.id ? "active" : ""}`}
               onClick={() => setActiveMenu(tab.id)}
               disabled={
-                isMapGenerationInProgress &&
-                tab.id !== "optionsTab" &&
-                !(canConfigureInitialMap && tab.id === "extensionsTab")
+                (isMapGenerationInProgress &&
+                  tab.id !== "optionsTab" &&
+                  !(canConfigureInitialMap && tab.id === "extensionsTab")) ||
+                (isMapReadyTaskRunning && tab.id === "toolsTab")
               }
               type="button"
             >

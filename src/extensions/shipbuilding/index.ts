@@ -40,7 +40,7 @@ let _candidates: ShipyardCandidate[] = [];
 // Shipyards overview dialog via openShipyardsOverview()/refreshShipyardsOverviewIfOpen().
 let _portCapacity: Map<number, PortCapacity> = new Map();
 let _unsubscribe: (() => void) | null = null;
-let _generatePostCoreHandler: (() => void) | null = null;
+let _unregisterMapReadyTask: (() => void) | null = null;
 let _unregisterResetCommand: (() => void) | null = null;
 let _unregisterTickSystem: (() => void) | null = null;
 
@@ -214,23 +214,22 @@ export function init(api: ExtensionAPI): void {
     api.addLayers(shipbuildingLayers);
   }
 
-  _generatePostCoreHandler = () => {
-    if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
-    measureGenerationStep("generateShipbuilding", () => {
-      // A brand-new map reuses burg/state ids from 0, so queue/tech/completed-hull
-      // state tied to the previous map's ids must not carry over.
-      api.dispatchExtensionCommand({ extensionId: SHIPBUILDING_EXTENSION_ID, name: "reset", payload: undefined });
-      recomputeAndMaybeDraw(api);
-      refreshShipyardsOverviewIfOpen(_candidates, _portCapacity);
-    });
-
-    // Deferred to a microtask so this always runs after every fmg:generate-post-core listener
-    // (including Economy's Goods/Markets/Production generation) has finished, regardless of
-    // extensions/index.ts init order — same idiom Economy's own tick-hook ordering fix uses
-    // (see economy/index.tsx's scheduleProductionRefresh comment). Economy must already have
-    // pack.markets/pack.goods populated for the initial-stock warm-up request to do anything.
-    queueMicrotask(() => {
+  _unregisterMapReadyTask = api.registerMapReadyTask({
+    id: "shipbuilding.initialization",
+    label: "Preparing shipyards",
+    dependsOn: ["economy.initialization"],
+    run: context => {
+      if (!context.isCurrent() || !api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
       if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
+      measureGenerationStep("generateShipbuilding", () => {
+        // A brand-new map reuses burg/state ids from 0, so queue/tech/completed-hull
+        // state tied to the previous map's ids must not carry over.
+        api.dispatchExtensionCommand({ extensionId: SHIPBUILDING_EXTENSION_ID, name: "reset", payload: undefined });
+        recomputeAndMaybeDraw(api);
+        refreshShipyardsOverviewIfOpen(_candidates, _portCapacity);
+      });
+
+      if (!context.isCurrent() || !api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
       measureGenerationStep("generateShipbuildingInitialStock", () => {
         const demands = getInitialStateOwnedDemand(_candidates, getWorldContext().pack.burgs);
         if (!demands.length) return;
@@ -238,9 +237,8 @@ export function init(api: ExtensionAPI): void {
           new CustomEvent("fmg:shipbuilding-initial-stock-request", { detail: { source: "shipbuilding", demands } })
         );
       });
-    });
-  };
-  document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
+    }
+  });
 }
 
 export function cleanup(api: ExtensionAPI): void {
@@ -248,10 +246,8 @@ export function cleanup(api: ExtensionAPI): void {
     _unsubscribe();
     _unsubscribe = null;
   }
-  if (_generatePostCoreHandler) {
-    document.removeEventListener("fmg:generate-post-core", _generatePostCoreHandler);
-    _generatePostCoreHandler = null;
-  }
+  _unregisterMapReadyTask?.();
+  _unregisterMapReadyTask = null;
 
   api.removeLayers(shipbuildingLayers.map(l => l.id));
   api.dispatchExtensionCommand({ extensionId: SHIPBUILDING_EXTENSION_ID, name: "reset", payload: undefined });

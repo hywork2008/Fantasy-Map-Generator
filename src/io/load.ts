@@ -15,6 +15,7 @@ import { OceanLayers } from "../renderers/ocean-layers";
 import { DeckGlRenderer } from "../renderers/webgl/deckRenderer";
 import { resetExtensionStateSlices } from "../runtime/extensionStateSlices";
 import { importLegacyPresentationFromSvg } from "../runtime/legacyPresentationImport";
+import { cancelMapReadyTasks } from "../runtime/mapReadyTaskCoordinator";
 import { bindSimulationBurgState, resetSimulationBurgState } from "../runtime/simulationBurgState";
 import { bindSimulationMilitaryState, resetSimulationMilitaryState } from "../runtime/simulationMilitaryState";
 import { bindSimulationStateState, resetSimulationStateState } from "../runtime/simulationStateState";
@@ -170,6 +171,7 @@ export function showUploadErrorMessage(error: string, maplink: string, random: n
 // ─── Upload & parse ───────────────────────────────────────────────────────────
 
 export function uploadMap(file: Blob, callback?: () => void): void {
+  cancelMapReadyTasks();
   (uploadMap as { timeStart?: number }).timeStart = performance.now();
 
   const fileReader = new FileReader();

@@ -31,7 +31,7 @@ import { StatesEditorPersonalityTab } from "./ui/components/StatesEditorPersonal
 export const NOBILITY_EXTENSION_ID = "nobility";
 
 let _unsubscribe: (() => void) | null = null;
-let _generatePostCoreHandler: (() => void) | null = null;
+let _unregisterMapReadyTask: (() => void) | null = null;
 let _voyageIntelHandler: ((e: Event) => void) | null = null;
 let _conflictAutonomyChangedHandler: ((e: Event) => void) | null = null;
 let _playerConflictRequestedHandler: ((e: Event) => void) | null = null;
@@ -132,21 +132,25 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
-  _generatePostCoreHandler = () => {
-    if (api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) {
-      measureGenerationStep("generateNobility", () => {
-        // A new map reuses state ids from 0 — any voyage-intel bonus accrued against the
-        // previous map's states must not carry over.
-        clearVoyageIntel();
-        api.dispatchExtensionCommand({
-          extensionId: NOBILITY_EXTENSION_ID,
-          name: "regenerate",
-          payload: { mode: "full" }
+  _unregisterMapReadyTask = api.registerMapReadyTask({
+    id: "nobility.initialization",
+    label: "Preparing nobility",
+    run: context => {
+      if (!context.isCurrent() || !api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) return;
+      if (api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) {
+        measureGenerationStep("generateNobility", () => {
+          // A new map reuses state ids from 0 — any voyage-intel bonus accrued against the
+          // previous map's states must not carry over.
+          clearVoyageIntel();
+          api.dispatchExtensionCommand({
+            extensionId: NOBILITY_EXTENSION_ID,
+            name: "regenerate",
+            payload: { mode: "full" }
+          });
         });
-      });
+      }
     }
-  };
-  document.addEventListener("fmg:generate-post-core", _generatePostCoreHandler);
+  });
 
   // Listen for Shipbuilding's trade-voyage espionage (optional dependency — harmless
   // no-op if Shipbuilding is never enabled). State-navy hulls posing as merchants feed
@@ -304,10 +308,8 @@ export function cleanup(api: ExtensionAPI): void {
     _unsubscribe();
     _unsubscribe = null;
   }
-  if (_generatePostCoreHandler) {
-    document.removeEventListener("fmg:generate-post-core", _generatePostCoreHandler);
-    _generatePostCoreHandler = null;
-  }
+  _unregisterMapReadyTask?.();
+  _unregisterMapReadyTask = null;
   if (_voyageIntelHandler) {
     document.removeEventListener("fmg:shipbuilding-voyage-intel", _voyageIntelHandler);
     _voyageIntelHandler = null;

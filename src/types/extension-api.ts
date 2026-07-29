@@ -21,6 +21,7 @@ import type { WorldContext } from "../context/worldContext";
 import type { SimulationSystem } from "../generators/simulationSystem";
 import type { ExtensionReadRecord, ExtensionWorldReadView } from "../runtime/extensionReadModel";
 import type { ExtensionStateSliceSpec } from "../runtime/extensionStateSliceRegistry";
+import type { MapReadyTask } from "../runtime/mapReadyTaskCoordinator";
 import type {
   DataTopic,
   ExtensionCommandDefinition,
@@ -217,6 +218,12 @@ export interface ExtensionAPI {
    * Returns an unsubscribe function — call it in cleanup().
    */
   subscribeExtensionState(listener: (state: ExtensionStateSnapshot, prev: ExtensionStateSnapshot) => void): () => void;
+
+  /**
+   * Register optional initialization that runs only after the newly generated map has painted.
+   * Use this for expensive extension data generation instead of blocking fmg:generate-post-core.
+   */
+  registerMapReadyTask(task: MapReadyTask): () => void;
 
   // ── Layer preset management ──────────────────────────────────────────────
   /** Register a named preset with a human-readable label and a list of layer toggle ids. */
