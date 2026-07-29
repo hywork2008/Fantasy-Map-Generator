@@ -1,12 +1,16 @@
 const RANGE_SELECTOR = 'input[type="range"]';
 
+function getRangeProgress(value: number, min: string | number = 0, max: string | number = 100): string {
+  const numericMin = Number(min);
+  const numericMax = Number(max);
+  const span = numericMax - numericMin;
+  const progress =
+    Number.isFinite(value) && Number.isFinite(span) && span > 0 ? ((value - numericMin) / span) * 100 : 0;
+  return `${Math.min(Math.max(progress, 0), 100)}%`;
+}
+
 function syncRangeProgress(input: HTMLInputElement): void {
-  const min = Number(input.min || "0");
-  const max = Number(input.max || "100");
-  const value = input.valueAsNumber;
-  const span = max - min;
-  const progress = Number.isFinite(value) && Number.isFinite(span) && span > 0 ? ((value - min) / span) * 100 : 0;
-  input.style.setProperty("--range-progress", `${Math.min(Math.max(progress, 0), 100)}%`);
+  input.style.setProperty("--range-progress", getRangeProgress(input.valueAsNumber, input.min, input.max));
 }
 
 /** Synchronize the visual track progress for all range inputs within a mounted UI subtree. */
@@ -40,8 +44,17 @@ export function initRangeInputStyles(): void {
 
   const observer = new MutationObserver(records => {
     for (const record of records) {
-      record.addedNodes.forEach(syncRangeProgressInNode);
+      if (record.type === "attributes") {
+        syncRangeProgressInNode(record.target);
+      } else {
+        record.addedNodes.forEach(syncRangeProgressInNode);
+      }
     }
   });
-  observer.observe(document.body, { childList: true, subtree: true });
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["value", "min", "max"]
+  });
 }

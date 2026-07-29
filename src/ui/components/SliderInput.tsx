@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useLayoutEffect, useState } from "react";
 
 interface SliderInputProps {
   id?: string;
@@ -25,7 +25,9 @@ export const SliderInput = ({
 }: SliderInputProps) => {
   const [value, setValue] = useState(String(valueProp));
 
-  useEffect(() => {
+  // External updates (for example, generation option randomization) should be
+  // reflected before repaint.
+  useLayoutEffect(() => {
     setValue(String(valueProp));
   }, [valueProp]);
 

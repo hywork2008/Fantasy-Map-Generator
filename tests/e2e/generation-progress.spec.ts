@@ -132,6 +132,9 @@ test("regenerates culture and realm stages with the current generation settings"
   const culturesNumber = page.locator("tr", { hasText: "Cultures number" }).locator('input[type="number"]');
   await culturesNumber.fill("1");
   await expect(culturesNumber).toHaveValue("1");
+  const culturesNumberRange = page.locator("tr", { hasText: "Cultures number" }).locator('input[type="range"]');
+  await expect(culturesNumberRange).toHaveValue("1");
+  await expect(culturesNumberRange).toHaveCSS("--range-progress", "0%");
   await buildMap.getByRole("button", { name: "Apply culture and settlement changes", exact: true }).click();
   await expectStageReady(buildMap, "Cultures and settlements");
 
@@ -141,6 +144,9 @@ test("regenerates culture and realm stages with the current generation settings"
   const statesNumber = page.locator("tr", { hasText: "States number" }).locator('input[type="number"]');
   await statesNumber.fill("2");
   await expect(statesNumber).toHaveValue("2");
+  const statesNumberRange = page.locator("tr", { hasText: "States number" }).locator('input[type="range"]');
+  await expect(statesNumberRange).toHaveValue("2");
+  await expect(statesNumberRange).toHaveCSS("--range-progress", "2%");
   await buildMap.getByRole("button", { name: "Apply realm and route changes", exact: true }).click();
   await expectStageReady(buildMap, "Realms and routes");
 });
