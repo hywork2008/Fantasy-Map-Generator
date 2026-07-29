@@ -642,8 +642,15 @@ function findBurgForMFCG(params: URLSearchParams) {
 
 export { zoomTo } from "./actions";
 
-// Hide state-level labels and emblems when zoomed in past this scale (city-level view)
-const STATE_HIDE_SCALE = 7;
+// Keep broad political labels out of the way once more detailed burg labels are visible.
+// Add a burg group here to make its visibility mutually exclusive with a label group.
+const LABEL_GROUP_EXCLUSIONS: Readonly<Record<string, readonly string[]>> = {
+  states: ["city"],
+  countries: ["city"]
+};
+
+// State emblems use an independent density rule from the label exclusion above.
+const STATE_EMBLEM_HIDE_SCALE = 7;
 
 export function invokeActiveZooming() {
   const isOptimized = useOptionsState.getState().shapeRendering === "optimizeSpeed";
@@ -668,6 +675,10 @@ export function invokeActiveZooming() {
   };
 
   const isBurgGroupHidden = (groupId: string) => scale < getScaleThreshold(groupId);
+  const isLabelGroupExcludedByVisibleBurgGroup = (groupId: string) =>
+    (LABEL_GROUP_EXCLUSIONS[groupId] ?? []).some(
+      burgGroupId => burgGroups.some(group => group.name === burgGroupId) && !isBurgGroupHidden(burgGroupId)
+    );
 
   const cullViewportElements = <GElement extends d3.BaseType, Datum, PElement extends d3.BaseType, PDatum>(
     selection: d3.Selection<GElement, Datum, PElement, PDatum>,
@@ -719,8 +730,7 @@ export function invokeActiveZooming() {
         return;
       }
 
-      // Hide state-level label groups at high zoom (city-level view)
-      if ((this.id === "states" || this.id === "countries") && scale >= STATE_HIDE_SCALE) {
+      if (isLabelGroupExcludedByVisibleBurgGroup(this.id)) {
         this.classList.add("hidden");
         return;
       }
@@ -786,7 +796,7 @@ export function invokeActiveZooming() {
       const isStateEmblem = this.id === "stateEmblems";
       const hidden =
         scale < minScale ||
-        (isStateEmblem && scale >= STATE_HIDE_SCALE) ||
+        (isStateEmblem && scale >= STATE_EMBLEM_HIDE_SCALE) ||
         ((getElementById("hideEmblems") as HTMLInputElement)?.checked && (scaledSize < 25 || scaledSize > 300));
       if (hidden) this.classList.add("hidden");
       else this.classList.remove("hidden");

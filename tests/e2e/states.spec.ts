@@ -128,4 +128,20 @@ test.describe("States", () => {
 
     await expect.poll(() => page.locator("#burgIcons > g:not(.hidden)").count()).toBeGreaterThan(0);
   });
+
+  test("hides state labels whenever city labels become visible", async ({ page }) => {
+    const stateLabels = page.locator("#labels #states");
+    const cityLabels = page.locator("#burgLabels #city");
+
+    await zoomToMapCenter(page, 1);
+    await expect(stateLabels).not.toHaveClass(/hidden/);
+    await expect(cityLabels).toHaveClass(/hidden/);
+
+    await zoomToMapCenter(page, 2.5);
+    await expect(cityLabels).not.toHaveClass(/hidden/);
+    await expect(stateLabels).toHaveClass(/hidden/);
+
+    await zoomToMapCenter(page, 1);
+    await expect(stateLabels).not.toHaveClass(/hidden/);
+  });
 });
