@@ -60,7 +60,7 @@ export const GenerationProgressDialog: React.FC = () => {
   };
 
   return (
-    <Dialog isOpen={isOpen} title="Build map" className="generation-progress-dialog">
+    <Dialog isOpen={isOpen} title="Build map" showCloseAllDialogsButton={false} className="generation-progress-dialog">
       <section className="generation-progress-dialog__content" aria-live="polite">
         <div className="generation-progress-dialog__heading">
           <span className="generation-progress-dialog__eyebrow">

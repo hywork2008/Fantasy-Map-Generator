@@ -24,6 +24,7 @@ test("shows the generated landscape before map completion", async ({ page }) => 
   await page.goto("/?seed=landscape-preview&width=1280&height=720");
 
   await expect(page.getByRole("heading", { name: "Landscape outline", exact: true })).toBeVisible();
+  await expect(page.locator(".generation-progress-dialog").getByRole("button", { name: "Close all dialogs" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Generate entire map", exact: true })).toBeVisible();
   await expect(page.locator("#featurePaths path").first()).toBeAttached();
   await expect(page.locator("#landHeights > *").first()).toBeAttached();

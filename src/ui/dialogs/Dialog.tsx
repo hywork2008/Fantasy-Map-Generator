@@ -11,11 +11,22 @@ export interface DialogProps {
   onClose?: () => void;
   children: React.ReactNode;
   buttons?: Array<{ label: string; onClick: () => void }>;
+  /** Whether to show the titlebar control that closes every open dialog. */
+  showCloseAllDialogsButton?: boolean;
   className?: string;
   style?: React.CSSProperties;
 }
 
-export const Dialog: React.FC<DialogProps> = ({ isOpen, title, onClose, children, buttons, className = "", style }) => {
+export const Dialog: React.FC<DialogProps> = ({
+  isOpen,
+  title,
+  onClose,
+  children,
+  buttons,
+  showCloseAllDialogsButton = true,
+  className = "",
+  style
+}) => {
   const { containerRef, resizeHandleRef, bringToFront } = useDraggable({ handleSelector: ".titlebar" });
   const [minimized, setMinimized] = useState(false);
 
@@ -48,15 +59,17 @@ export const Dialog: React.FC<DialogProps> = ({ isOpen, title, onClose, children
       <div className="titlebar">
         <div className="fmg-dialog-title">{title}</div>
         <div className="titlebar-actions">
-          <button
-            type="button"
-            className="titlebar-btn"
-            aria-label="Close all dialogs"
-            title="Close all dialogs"
-            onClick={() => closeAllDialogs()}
-          >
-            ✕✕
-          </button>
+          {showCloseAllDialogsButton && (
+            <button
+              type="button"
+              className="titlebar-btn"
+              aria-label="Close all dialogs"
+              title="Close all dialogs"
+              onClick={() => closeAllDialogs()}
+            >
+              ✕✕
+            </button>
+          )}
           <button
             type="button"
             className="titlebar-btn"
