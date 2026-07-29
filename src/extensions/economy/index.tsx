@@ -42,6 +42,7 @@ import {
 } from "./economyContext";
 import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burgMarketLedgers";
 import { Caravans } from "./generators/caravans";
+import { DevelopmentPotential } from "./generators/developmentPotential";
 import { resetEffectiveCapacities } from "./generators/foodImportNetwork";
 import { FoodProduction } from "./generators/foodProduction";
 import { clearForestDepletion, registerLogHarvest, tickForestRegrowth } from "./generators/forestDepletion";
@@ -602,7 +603,10 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) throw new Error("Economy must be enabled to regenerate data");
       if (!isEconomyRegenerationRequest(value)) throw new Error("economy.regenerate received an invalid target");
 
-      if (value.target === "economy" || value.target === "minerals") MineralResources.generate();
+      if (value.target === "economy" || value.target === "minerals") {
+        MineralResources.generate();
+        DevelopmentPotential.generate();
+      }
       if (value.target === "economy" || value.target === "goods") Goods.generate();
       if (value.target === "economy" || value.target === "markets") Markets.generate(true);
       if (value.target === "economy" || value.target === "minerals") MineOperations.generate();
@@ -652,6 +656,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
 
       const world = getWorldContext();
       resetEffectiveCapacities(world.pack.burgs);
+      DevelopmentPotential.clear();
       clearBurgMarketLedgers();
       clearMarketManagers();
       MineOperations.clear();
@@ -981,6 +986,7 @@ export function init(api: ExtensionAPI): void {
           setMarketCellColumn(new Uint16Array(worldContext.pack.cells.i.length));
         }
         MineralResources.generate();
+        DevelopmentPotential.generate();
         Goods.generate();
         Markets.generate();
         MineOperations.generate();
@@ -1057,6 +1063,7 @@ export function init(api: ExtensionAPI): void {
     // A persisted preference is restored before the first map has generated.
     // Defer state-dependent data work until fmg:generate-post-core in that case.
     if (getWorldContext().pack.states?.length) {
+      DevelopmentPotential.generate();
       if (!getTradeSecurityLedgers().length) TradeSecurity.generate();
       if (getMarkets().length) {
         syncMarketManagers();
@@ -1081,6 +1088,7 @@ export function init(api: ExtensionAPI): void {
           StrategicProcurement.clear();
           TradeAnimation.clearRouteCache();
           MineralResources.generate();
+          DevelopmentPotential.generate();
           Goods.generate();
           Markets.generate();
           MineOperations.generate();
@@ -1115,6 +1123,7 @@ export function init(api: ExtensionAPI): void {
   // newly added Ingots begin at zero stock (no duplicated wealth).
   _worldLoadedHandler = () => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    DevelopmentPotential.generate();
     if (migrateLegacyOreIngotGoods()) {
       Goods.sync();
       Markets.initializeMarketPrices();
@@ -1387,6 +1396,7 @@ export function init(api: ExtensionAPI): void {
       daysSinceLastProduction += effectiveDays;
 
       const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
+      const burgGroupsChanged = DevelopmentPotential.updateAnnualBurgGroups();
       const forestChanged = tickForestRegrowth(effectiveDeltaYears);
 
       if (forestChanged) markProductionDirty();
@@ -1407,6 +1417,7 @@ export function init(api: ExtensionAPI): void {
       }
 
       writer.markChanged("extension.economy", "simulation.states");
+      if (burgGroupsChanged) writer.markChanged("map.settlements");
     }
   });
 

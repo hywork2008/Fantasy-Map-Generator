@@ -5,6 +5,7 @@ export { simulationContext } from "../context/simulationContext";
 export type { WorldContext } from "../context/worldContext";
 export { worldContext } from "../context/worldContext";
 export { foodStressPriceMultiplier, foodStressProductionMultiplier } from "../generators/agriculturalStress";
+export { Burgs } from "../generators/burgs-generator";
 export { applyDemographicCasualties } from "../generators/demography-simulator";
 export {
   analyzeFrontiers,

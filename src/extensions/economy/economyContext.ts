@@ -28,6 +28,9 @@ import type { StrategicGoodsPolicy } from "./generators/strategicProcurementPoli
 import type { TradeSecurityLedger } from "./generators/tradeSecurity";
 
 let _api: ExtensionAPI | null = null;
+let _foodPotentialFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _settlementDevelopmentPotentialFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _settlementDevelopmentLastEvaluatedYearFallback: number | null = null;
 
 export function initEconomyContext(api: ExtensionAPI): void {
   _api = api;
@@ -35,6 +38,9 @@ export function initEconomyContext(api: ExtensionAPI): void {
 
 export function clearEconomyContext(): void {
   _api = null;
+  _foodPotentialFallback = new Float32Array();
+  _settlementDevelopmentPotentialFallback = new Float32Array();
+  _settlementDevelopmentLastEvaluatedYearFallback = null;
 }
 
 export function getApi(): ExtensionAPI {
@@ -163,6 +169,71 @@ function setSliceCellColumn(field: string, value: Uint16Array): void {
     return;
   }
   getLegacyCellFields()[field] = value;
+}
+
+function getSliceFloat32Column(field: string, fallback: Float32Array<ArrayBufferLike>): Float32Array<ArrayBufferLike> {
+  const slice = getEconomySlice();
+  const value = slice?.[field];
+  return value instanceof Float32Array ? value : fallback;
+}
+
+function setSliceFloat32Column(
+  field: string,
+  value: Float32Array<ArrayBufferLike>,
+  setFallback: (value: Float32Array<ArrayBufferLike>) => void
+): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice[field] = value;
+    return;
+  }
+  setFallback(value);
+}
+
+/** Environment-derived annual food output at full agricultural labour coverage, keyed by cell id. */
+export function getFoodPotential(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("foodPotential", _foodPotentialFallback);
+}
+export function setFoodPotential(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("foodPotential", value, next => {
+    _foodPotentialFallback = next;
+  });
+}
+
+/** Geographic and economic suitability for settlement growth, keyed by cell id. */
+export function getSettlementDevelopmentPotential(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("settlementDevelopmentPotential", _settlementDevelopmentPotentialFallback);
+}
+export function setSettlementDevelopmentPotential(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("settlementDevelopmentPotential", value, next => {
+    _settlementDevelopmentPotentialFallback = next;
+  });
+}
+
+export function getSettlementDevelopmentLastEvaluatedYear(): number | null {
+  const slice = getEconomySlice();
+  if (slice) {
+    const value = slice.settlementDevelopmentLastEvaluatedYear;
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return _settlementDevelopmentLastEvaluatedYearFallback;
+}
+export function setSettlementDevelopmentLastEvaluatedYear(year: number): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice.settlementDevelopmentLastEvaluatedYear = year;
+    return;
+  }
+  _settlementDevelopmentLastEvaluatedYearFallback = year;
+}
+
+export function clearSettlementDevelopmentLastEvaluatedYear(): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    delete slice.settlementDevelopmentLastEvaluatedYear;
+    return;
+  }
+  _settlementDevelopmentLastEvaluatedYearFallback = null;
 }
 
 /** Good catalog owned by the economy extension. */

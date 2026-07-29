@@ -1,200 +1,353 @@
-# 大都市経済モデル: 食料輸入によるキャパシティ突破
+# 大都市経済モデル: 独立した食料生産・輸入・都市化
 
-## 1. 課題
+## 0. 決定記録
 
-現在、セルおよびBurg(都市)の人口には生成時に決まる固定の上限(`capacity`)があり、これは周辺のセルの状態と一切連動しない。そのため、地形・気候的に豊かでない土地でも交易・政治・産業の中心地として爆発的に人口を集める「東京(江戸)」「ローマ」「ロンドン」のような大都市が生まれ得ない。
+**2026-07-30 改訂**: 本計画は、`cells.capacity`から食料生産を直接導く案を採用しない。代わりに、地形・気候・水利から決まる独立した`foodPotential`を導入する。また、食料生産に必要な農業人口を残して、余剰の農村人口がBurgへ移住できる仕組みと、都市の食料不足時に農村へ戻る人口流出を実装対象に含める。
 
-現実の歴史では、大都市は自セルの食料生産力ではなく、後背地・遠隔地からの食料調達力によって人口上限を突破してきた。
+**2026-07-30 追記**: `foodPotential`と`settlementDevelopmentPotential`はcoreの`pack.cells`には追加しない。economy拡張が所有する`simulation.extensions.economy`のセルID直結`Float32Array`として、地図の環境データから決定的に再生成する。これは拡張専用の派生キャッシュであり、coreのPackedGraphスキーマを増やさない。
 
-- **江戸**: 関東平野の生産力だけでは支えられない人口(最盛期100万人超)を、東廻り航路・西廻り航路による廻米(かいまい)、および参勤交代に伴う消費集中で維持した。
-- **古代ローマ**: アノナ(Annona)と呼ばれる国家運営の穀物供給制度により、エジプト・北アフリカ・シチリアからの海上輸送でローマ市民に穀物を配給し、100万人規模の都市を維持した。
-- **近世ロンドン**: 沿岸海運によるノーフォーク・イングランド東部からの穀物輸送とニューカッスルからの石炭輸送が都市成長を支えた。
+**実装状況**: Phase 1を開始済み。potential列の生成・再生成と、非ロックBurgの年次group再評価は実装した。食料台帳の置換、移住、昇格候補へのpotential接続は後続Phaseで行う。
 
-本ドキュメントは、この「後背地からの食料調達による人口上限突破」を本フォークの都市成長シミュレーションに組み込む設計を提案する。将来的にはこの「身の丈を超えた人口集中」を技術開発・文化芸術発展の下地として使う拡張ポイントも合わせて設計する。
+この決定により、食料輸入は「未使用の農村人口上限を都市へ振り替える」仕組みではなく、後背地の生産力・農業労働力・在庫・輸送網が実際に都市人口を支える仕組みになる。
 
-## 2. 現状の実装分析
+本書は設計・実装計画である。Phase 1の基盤実装は本改訂と同時に開始し、以降のPhaseはこの契約を満たす順序で進める。
 
-### 2.1 人口上限(capacity)の決定式
+## 1. 目的
 
-セルの人口上限は`src/main.ts`の`rankCells()`で生成時に一度だけ計算される。
+地形・気候的に豊かでない土地でも、後背地・遠隔地からの食料調達、交易網、政治・産業の集積によって大都市が成長・維持・崩壊するシミュレーションを実現する。
+
+- **江戸**: 関東だけでなく海運による廻米で100万人規模を維持した。
+- **古代ローマ**: アノナを通じ、エジプト・北アフリカ・シチリアから穀物を輸入した。
+- **近世ロンドン**: 沿岸海運と広域後背地が都市成長を支えた。
+
+同時に、後背地では食料生産に必要な人口だけが農業に残り、非農業人口は都市へ移住できる。輸送路・生産力・在庫が失われた都市では、飢餓だけでなく農村への人口流出も起こる。
+
+## 2. 現状と問題
+
+### 2.1 `capacity`と現在の食料余剰の関係
+
+セルの人口上限は`src/main.ts`の`rankCells()`で、バイオーム、河川、標高、海岸条件などから生成される。Burgの基礎人口上限は`src/generators/burgs-generator.ts`でセルのsuitability、首都、接続性から生成される。
+
+現在の`FoodProductionModule.generateQuarterlyLedger()`は、セルの`capacity`と人口から食料を導く。
 
 ```ts
-// src/main.ts:1731-1758 (rankCells)
-let score = biomesData.habitability[packCells.biomeCode[i]];   // biome
-if (meanFlux) score += normalize(packCells.fl[i] + packCells.conf[i], meanFlux, maxFlux) * 250; // river flux
-score -= (packCells.h[i] - 50) / 5;                            // elevation penalty
-if (packCells.t[i] === 1) { /* coastal: estuary / lake / harbor bonus */ }
-packCells.s[i] = score / 5;                                    // suitability
-packCells.capacity[i] = packCells.s[i] > 0 ? (packCells.s[i] * packCells.area[i]) / meanArea : 0;
+const saturation = rural / capacity;
+const cultivation = 0.25 + 0.75 * saturation;
+foodProduced = capacity * GROSS_FOOD_NEED * cultivation;
+ruralNeed = rural * GROSS_FOOD_NEED;
 ```
 
-Burgの人口上限は`src/generators/burgs-generator.ts`の`Burgs.definePopulation()`で、同じ`suitability`スコアに首都補正・接続性補正をかけて決まる。
+年単位に簡略化し、農村人口を`R`、セル容量を`C`、食料必要係数を`G`とすると、都市消費を引く前の農村余剰は次になる。
 
-```ts
-// src/generators/burgs-generator.ts:698-713
-let population = pack.cells.s[cellId] / 5;
-if (burg.capital) population *= 1.5;
-const connectivityRate = Routes.getConnectivityRate(cellId); // road/trail/searoute density
-if (connectivityRate) population *= connectivityRate;
-population *= gauss(1, 1, 0.25, 4, 5);
-const capacity = rn(Math.max(population, 0.01), 3);           // burg.demographics.capacity
+```text
+foodProduced - ruralNeed = 0.25 × G × (C - R)
 ```
 
-どちらも**生成時に一度だけ決まる固定スカラー**であり、周辺セルの生産余剰や交易網の状態には一切依存しない。
+そのため余剰は存在するが、`R < C`の未充足容量からしか生まれない。農村人口が`capacity`へ近づくほど余剰は消え、さらに輸出可能なのは残余の`RURAL_MARKETABLE_SHARE`だけである。農業技術、水利、耕地利用、貯蔵が伸びても、生産だけを増やす状態変数は存在しない。
 
-### 2.2 成長シミュレーションのギャップ
+これは「人口と食料生産がほぼ不可分」という問題であり、持続的な食料輸出地域や大都市の後背地を表現するには不十分である。
 
-`src/generators/demography-simulator.ts`の`simulateDemographics()`は、`capacity`をロジスティック成長のK値として使う。
+### 2.2 都市化経路の欠落
 
-```ts
-const roomForGrowth = capacity > 0 ? Math.max(-0.5, 1 - currentTotal / capacity) : 0;
+`simulateDemographics()`は農村セルが過密なとき、同一Stateの隣接セルへの移住を試みる。一方で、農村からBurgへ人口を送る経路はなく、Burgも過密時には飢餓で減少するだけである。
+
+よって現状では、農村の余剰労働力が都市の職人・商人・港湾労働者になる過程も、輸入依存都市が補給停止後に人口流出する過程もない。
+
+### 2.3 既存の暫定実装
+
+現在の作業ツリーには、`burg.demographics.effectiveCapacity`、四半期の`FoodFlowEdge`、輸入容量ボーナスを追加する暫定実装がある。これはルート距離、腐敗、治安、供給残量を結ぶ検証用の足場としては有用である。
+
+ただし暫定実装は既存の`capacity`由来の余剰を前提にするため、本計画の最終モデルでは置き換える。以降のフェーズで`foodPotential`・農業労働力・在庫を導入した後にのみ、`effectiveCapacity`への入力として使用する。
+
+### 2.4 再利用する既存基盤
+
+- `src/generators/landRouteGraph.ts` / `seaRouteGraph.ts`: Dijkstraベースの陸路・海路グラフ。陸路は季節閉鎖を考慮できる。
+- `src/extensions/economy/generators/markets-generator.ts`: Burgをハブとする市場圏。
+- `src/extensions/economy/generators/caravans.ts` / `caravanMovement.ts`: 実キャラバン、陸海移動、季節、役畜。
+- `src/extensions/economy/generators/tradeSecurity.ts`: 治安・戦争による輸送リスク。
+- `src/generators/demography-simulator.ts`: 年齢・性別バケットを持つ人口状態。
+
+## 3. 目標モデル
+
+### 3.1 状態の責務と単位
+
+| 状態 | 所有者 | 単位 | 意味 |
+| --- | --- | --- | --- |
+| `cells.capacity` | core world | 人口ポイント | 土地に居住する農村人口の基礎K値。食料生産量そのものではない。 |
+| `foodPotential[cellId]` | economy simulation | 年間食料単位 | 十分な農業労働力・通常の生産条件で得られる基礎食料生産力。人口からは導かない。 |
+| `foodProductivityModifier[cellId]` | economy simulation | 倍率 | 水利、技術、戦禍、洪水、干ばつ、開墾などの動的補正。 |
+| `farmLaborRequired[cellId]` | economy simulation | 成人労働者ポイント | `foodPotential`を生産するために必要な農業労働力。 |
+| `settlementDevelopmentPotential[cellId]` | economy simulation | 無次元スコア | 港、河川、道路・海路結節、資源、政治中心性から得る都市化の立地優位。 |
+| Market food ledger / stock | economy simulation | 食料単位 | 生産、消費、在庫、輸出余力、輸入、輸送損失を記録する。 |
+| `burg.demographics.effectiveCapacity` | core world | 人口ポイント | 基礎Burg容量と、安定して到着する食料に支えられる追加容量の合計。 |
+
+`foodPotential`と`settlementDevelopmentPotential`はどちらも地図環境から導出するが、economyだけが消費するため`simulation.extensions.economy`に置く。セルIDで直接引くTypedArrayなので、`pack.cells`の列と同じ計算量で全セル走査できる。マップのロード・economy有効化・地図再生成で決定的に再生成し、セーブデータの正規値としては扱わない。市場在庫、輸送中食料、技術・災害補正、四半期集計も同じextension sliceに置く。
+
+### 3.2 `foodPotential`の生成
+
+`foodPotential`は`capacity`のコピーや単純な倍率にしない。両者は地形条件から相関してよいが、別の生成式・正規化・テスト対象を持つ。
+
+初期式は以下の要因を使う。
+
+```text
+foodPotential = usableArea
+              × biomeYield
+              × climateYield
+              × waterAccessModifier
+              × terrainModifier
+              × baseAgriculturalTechnology
 ```
 
-ここで、**農村セルとBurgで挙動が非対称**になっている。
+- `usableArea`: セル面積、水域・極端な高地・不毛地を除いた耕作可能面積。
+- `biomeYield` / `climateYield`: バイオーム、温度、降水から得る基礎収量。
+- `waterAccessModifier`: 河川流量、湖、沿岸低地などによる水利・沖積地の補正。
+- `terrainModifier`: 高度・急峻さ・土壌悪化の減衰。
+- `baseAgriculturalTechnology`: 時代・世界設定による全体係数。後の技術システムの接続点。
 
-- 農村セル: `roomForGrowth < 0`(過密)の場合、同一State内の隣接セルへ余剰人口を移住させる経路(`bestNeighbor`探索)がある。
-- Burg: 過密になっても移住先がなく、`starvationRate`でそのまま餓死するだけ。
+生成後は、既存ワールドが初回のeconomy有効化で直ちに飢饉にならないよう、現行人口を満たす最低値へ正規化する。ロード済みのextension sliceに配列があっても、地図環境が変わった可能性を避けるため、同じ決定的生成器で再構築する。`capacity`だけから直接復元するのは移行用の最後のフォールバックに限定する。
 
-つまり「都市が自セルの上限を超えて成長する」ための経路が構造的に存在しない。これが本ドキュメントで埋めるべきギャップである。
+### 3.3 生産と農業労働力
 
-`docs/simulation/population-dynamics.md`もこのロジスティックK・農村スピルオーバーモデルを前提として書かれており、食料輸入による上限突破には触れていない。
+食料生産は全農村人口ではなく、成人の農業労働力に依存する。
 
-### 2.3 economy拡張の食料台帳(未接続)
-
-`src/extensions/economy/generators/foodProduction.ts`の`FoodProductionModule.generateQuarterlyLedger()`は、Market(交易拠点Burgを中心としたセル・Burgの商圏)ごとに食料の需給を集計している。
-
-```ts
-// src/extensions/economy/generators/foodProduction.ts:36-72
-const rural = pack.cells.pop[cellId] * populationRate;
-const capacity = pack.cells.capacity[cellId] * populationRate;
-const saturation = capacity > 0 ? rural / capacity : 0;
-const cultivation = minmax(0.25 + 0.75 * saturation, 0.25, 1);
-annualFoodProduced += capacity * GROSS_FOOD_NEED * cultivation; // GROSS_FOOD_NEED = 0.43
-...
-const foodBalance = ruralSurplus - urbanNeed;
-const exportable = rn(Math.max(0, foodBalance) * RURAL_MARKETABLE_SHARE, 2); // 0.7
-const importNeed = rn(Math.max(0, -foodBalance), 2);
-market.foodLedger = { foodProduced, ruralNeed, urbanNeed, exportable, importNeed, targetStock };
+```text
+availableFarmLabor = eligibleAdults × agriculturalParticipationRate
+laborCoverage = min(1, availableFarmLabor / farmLaborRequired)
+foodProduced = foodPotential × foodProductivityModifier × laborCoverage
 ```
 
-これは本ドキュメントが必要とする仕組みにほぼそのまま使える土台だが、**`importNeed`と`exportable`はどこからも消費されていない**(リポジトリ全体をgrepしても型定義と自分自身以外に参照がない)。つまり「食料が足りないMarket」も「食料が余っているMarket」も計算だけはされているのに、両者の間で実際に食料を動かす仕組みも、輸入が満たされたときに人口上限へフィードバックする仕組みも存在しない。
+- `eligibleAdults`はセルの男女成人バケットを使い、子ども・高齢者を農業労働力に数えない。
+- `farmLaborRequired`未満では生産が比例して低下する。必要人数を超える農村人口は、食料を追加生産しない非必須労働力となり、都市移住の候補になる。
+- 初期v1では規模の経済・作物別季節性を持ち込まず、四半期重みと一律の`"food"`タグを維持する。作物別の腐敗・収穫暦は後続課題とする。
 
-### 2.4 capacity可変の既存前例
+この分離により、農村人口が`cells.capacity`未満でも十分な農業労働力に達していれば、安定した余剰が生まれる。また、技術・水利・戦争が`foodProductivityModifier`を変えれば、人口を変えずに生産力だけが変化する。
 
-`src/generators/agriculturalStress.ts`の`applyCapacityScar()`は、戦争による農地荒廃で`cells.capacity`と`burg.demographics.capacity`を**年最大8%減少させる**。これは「capacityは生成時固定値ではなく動的に変化しうる」という前例であり、本設計はこれを逆方向(増加方向)に拡張するものと位置づけられる。ただし現状は減少方向のみで、増加させる仕組みはまだない。
+### 3.4 在庫、消費、輸送
 
-### 2.5 再利用可能な物流基盤
+Marketごとに四半期台帳を次の順で解決する。
 
-以下がすでに実装されており、食料輸送網の実装にそのまま使える。
+1. 各セルの`foodProduced`を市場へ集計する。
+2. 農村消費、都市消費、前期在庫、目標在庫を差し引く。
+3. 残量だけを`exportable`とし、在庫不足を`importNeed`とする。
+4. 需要側を既存の`Markets.customerBuyPrice`で優先し、供給側の残量制約下で割り当てる。
+5. `landRouteGraph` / `seaRouteGraph`、`tradeRouteDuration.ts`、`tradeSecurity.ts`で移動日数、腐敗、治安損失を適用する。
+6. 到着量を輸入先の在庫へ加え、未充足消費を記録する。
 
-- `src/generators/landRouteGraph.ts` / `seaRouteGraph.ts`: Dijkstraベースの陸路・海路グラフ(`findLandRouteDistance`, `findReachableLandCells`, `findLandRoutePath`など)。季節closure(冬季閉鎖)も考慮済み。
-- `src/extensions/economy/generators/markets-generator.ts`: MarketはBFS/優先度キューでハブBurgを中心に広がる商圏(セル・Burgの集合)としてすでにモデル化されている。
-- `src/extensions/economy/generators/caravans.ts` / `caravanMovement.ts`: 陸海の実キャラバンが役畜種別・季節・グレードを考慮して物理的に移動するシミュレーションがすでにある。
-- `src/extensions/economy/generators/tradeSecurity.ts`: 海賊・盗賊リスクによる交易減衰。
-- `src/extensions/economy/controllers/marketTradeOpportunities.ts`: Market間の価格差から利益機会を探す既存ロジック(距離・輸送コストの計算式を含む)。
+食料は市場間で保存則を守る。供給側から出た量、輸送中に腐敗・略奪で失われた量、到着した量を別々に記録し、`effectiveCapacity`は到着後の安定供給だけから計算する。
 
-つまり「食料タグ付きGoodの需給台帳」「商圏としてのMarket」「実輸送シミュレーション」「距離・治安による減衰」は個別にはすべて存在しており、欠けているのは**それらを繋いでcapacityにフィードバックするループ**だけである。
+### 3.5 都市容量と崩壊
 
-## 3. 提案設計
+```text
+effectiveCapacity = baseBurgCapacity + stableImportedFood / annualFoodNeedPerPerson
+```
 
-### 3.1 コンセプト: baseCapacity と effectiveCapacity
+`stableImportedFood`は単発の到着量ではなく、直近複数四半期の到着量と在庫充足率から得る移動平均にする。これにより、一度だけの豊作や輸送では人口上限が急上昇せず、補給線の遮断時にも即時ゼロではなく在庫を使い切った後に危機が表面化する。
 
-- `cells.capacity[i]` / `burg.demographics.capacity` は**そのセルの土地生産力のみで決まる上限**として現状のまま維持する(baseCapacityとしての意味を保つ)。`agriculturalStress.ts`による戦禍スカーもこれを対象に据え置く。
-- 新たに`burg.demographics.effectiveCapacity`をWorldContext側(coreのpackスキーマ)に追加する。デフォルト値は`capacity`と同一。economy拡張が有効な場合のみ、食料輸入ネットワークの解決結果でこれを`capacity`以上に引き上げる。
-- `demography-simulator.ts`のロジスティック成長は、Burgに対しては`capacity`ではなく`effectiveCapacity`をK値として読む(農村セルは現状通り`capacity`のまま — スピルオーバー機構は温存)。
+coreの`simulateDemographics()`はBurgのK値として`effectiveCapacity`を読む。economy無効時、または対応する食料データがない旧セーブでは必ず`effectiveCapacity === capacity`へフォールバックする。
 
-この分離により、economy拡張が無効な場合は`effectiveCapacity === capacity`で完全に現状動作へフォールバックする。coreはeconomy拡張の存在を一切知る必要がなく、「core所有のフィールドをeconomy拡張が条件付きで書き込む」という既存の`pack`/`grid`書き込みルール(AGENTS.md §1のGenerator層の権限)の範囲内に収まる。
+## 4. 人口移住モデル
 
-### 3.2 データモデル拡張
+### 4.0 発展可能性とBurg group
+
+移住先を既存のcityだけに限定すると、地図生成時の`Burg.group`が将来の発展を固定してしまう。`Burg.group`は発展可能性の原因ではなく、人口・立地・交易の結果として更新される表示上の発展段階とする。
+
+```text
+地理・資源・交通・政治 → settlementDevelopmentPotential
+市場規模・食料安定性・人口 → 都市吸引力
+都市吸引力 + 移住 → Burgの人口とgroupの昇格・降格
+```
+
+`settlementDevelopmentPotential`は、港、河川・渡河点、道路・海路の接続数、資源、首都・市場中心性を集約する。既存Burgの移住先順位だけでなく、coreの既存`getSettlementPromotionCandidates()`が選ぶ新Burg候補を補強する入力として使う。
+
+- 年1回、ロックされていない既存Burgのgroupを現在人口から再評価する。これによりvillageは人口増でtown/cityへ昇格できる。
+- 人口閾値にはヒステリシスと年単位の評価周期を設け、tickごとのgroup往復を防ぐ。
+- `burg.lock`は明示的な手編集として尊重し、自動昇格・降格を行わない。
+- 人口が十分で、かつ高い発展可能性を持つBurgのないセルは、新Burg昇格の有力候補になる。
+
+### 4.1 農村から都市への移住
+
+移住は自然出生とは別の人口移動であり、同一State・同一Market内から開始する。v1では越境移住や難民は扱わない。
+
+移住元セルは、移住後にも次を満たす場合だけ候補にする。
+
+```text
+remainingFarmLabor >= farmLaborRequired × farmLaborReserveRatio
+remainingPopulation >= minimumRuralCommunityPopulation
+```
+
+移住先Burgは以下をすべて満たす必要がある。
+
+- `population < effectiveCapacity × urbanMigrationTargetRatio`
+- 市場への食料供給が安定している
+- 首都、港、plaza、既存の生産・交易需要など、都市吸引力がある
+
+候補者は年齢・性別バケットを壊さずに移す。家族単位を近似するため、成人だけでなく対応する子ども・高齢者も同じ比率で移動する。`cells.pop`とBurgの`population`、双方のdemographicsバケットを同一操作で更新し、人口を複製・消滅させない。
+
+移住量は、農村の余剰労働力、都市の空室、到着食料の余力の最小値とする。さらに年あたりの最大移住率を設け、単一tickで村が消滅しないようにする。
+
+### 4.2 都市から農村への人口流出
+
+食料到着量や在庫が低下して`population > effectiveCapacity`になった場合、既存の飢餓処理の前に人口流出を試みる。
+
+- 移住先は、同一State・同一Marketを優先する農村セルとする。
+- 空き人口容量があり、かつ`farmLaborRequired`を満たしていないセルを最優先する。
+- 流出者は都市から農村へ年齢・性別バケットごとに移す。
+- 受入先がない、または食料不足がState全域に及ぶ残余だけを既存の飢餓・死亡処理に渡す。
+
+これにより、港湾封鎖や戦争で補給が断たれた大都市は「全員が即座に死亡する」のではなく、まず後背地へ人口を失い、それでも支えられない部分で飢饉になる。
+
+### 4.3 更新順序
+
+四半期更新では以下の順序を固定する。
+
+1. coreの年齢・出生・通常死亡を更新する。
+2. economyがセル別生産、在庫、Market輸出余力を計算する。
+3. Market間の食料輸送と到着量を解決する。
+4. 安定食料量からBurgの`effectiveCapacity`を更新する。
+5. 農村→都市の移住、次に都市→農村の流出を解決する。
+6. 移住後の農業労働力・消費・在庫を再計算し、不可能な移住を確定しない。
+7. 残った過密・欠乏を既存の飢餓ロジックへ渡す。
+
+手順6は必須である。移住で農業労働力を必要水準未満に落としたり、都市の新規消費を二重計上したりしない。実装では上限付きの反復、または保守的な余力予約を使い、無制限の固定点計算は避ける。
+
+## 5. データ契約
 
 ```ts
-// src/extensions/economy/generators/foodProduction.ts の MarketFoodLedger を拡張
-export interface MarketFoodLedger {
+// Economy simulation slice: dynamic and extension-owned
+interface EconomyFoodCellColumns {
+  foodPotential: Float32Array;
+  foodProductivityModifier: Float32Array;
+  farmLaborRequired: Float32Array;
+  settlementDevelopmentPotential: Float32Array;
+}
+
+interface FoodLedger {
   foodProduced: number;
   ruralNeed: number;
   urbanNeed: number;
+  stockStart: number;
+  stockEnd: number;
+  targetStock: number;
   exportable: number;
   importNeed: number;
-  targetStock: number;
-  // 追加:
-  satisfiedImport: number;      // このtickで実際に輸送された食料量(0..importNeed)
-  importCapacityBonus: number;  // satisfiedImportを人口換算した値(GROSS_FOOD_NEEDの逆算)
+  satisfiedImport: number;
+  importCapacityBonus: number;
+  unmetNeed: number;
 }
-```
 
-```ts
-// 新規: src/extensions/economy/generators/foodImportNetwork.ts
-export interface FoodFlowEdge {
+interface FoodFlowEdge {
   fromMarketId: number;
   toMarketId: number;
-  volume: number;        // 輸送された食料量
-  travelDays: number;    // tradeRouteDuration.ts の既存計算を再利用
-  spoilageDecay: number; // 0..1、距離減衰
-  securityRisk: number;  // tradeSecurity.ts の既存計算を再利用
+  loadedVolume: number;
+  arrivedVolume: number;
+  travelDays: number;
+  spoilageLoss: number;
+  securityLoss: number;
 }
 
-export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): FoodFlowEdge[];
+interface PopulationMigration {
+  fromCellId?: number;
+  fromBurgId?: number;
+  toCellId?: number;
+  toBurgId?: number;
+  population: number;
+  reason: "urbanOpportunity" | "foodShortage";
+}
 ```
 
-### 3.3 食料輸入ネットワークの解決アルゴリズム
+`FoodFlowEdge`と`PopulationMigration`は履歴・デバッグ用の四半期スナップショットとして保持する。レンダラーはこれらを読むだけとし、食料・人口状態を書き換えない。
 
-`resolveFoodImportNetwork()`は、既存の`foodLedger`が計算された後(quarterly ledgerの後段)に実行する。
+## 6. 実装フェーズ
 
-1. `importNeed > 0`のMarket(需要側)と`exportable > 0`のMarket(供給側)を洗い出す。
-2. 各需要側Marketについて、`landRouteGraph`/`seaRouteGraph`の距離を使い、一定の実効輸送コスト(後述)内で到達可能な供給側Marketを列挙する。
-3. 割当ポリシー: 価格優先。`Markets.customerBuyPrice`が高い(=切実に必要としている、または裕福な)需要側Marketから優先的に供給側の`exportable`を割り当てる。これは`marketTradeOpportunities.ts`が既に使っている価格差ロジックの再利用であり、新規の優先度ロジックを発明しない。
-4. 各エッジについて、`tradeRouteDuration.ts`から得られる移動日数を使い、指数減衰`spoilageDecay = exp(-travelDays / SPOILAGE_HALF_LIFE)`を適用する。穀物は保存が利くため`SPOILAGE_HALF_LIFE`は長め(例: 90日)に設定し、遠隔地からの大量輸送(江戸の廻米、ローマのアノナ)を再現可能にする。
-5. `tradeSecurity.ts`の既存リスク値でさらに割引く(海賊・盗賊の多い航路は実効輸送量が下がる)。
-6. 需要側Marketごとに`satisfiedImport = Σ(割当volume × spoilageDecay × (1 - securityRisk))`を`min(importNeed, ...)`で確定し、`foodLedger`に書き込む。
-7. `importCapacityBonus = satisfiedImport / GROSS_FOOD_NEED`(`foodProduction.ts`が使っている定数の逆算)で人口換算し、Market内のBurgへ`capacity`比で按分して`effectiveCapacity`に加算する。Marketは基本的にハブBurg1つを中心に広がるため、ボーナスの大部分は自然にハブBurg(=貿易中心都市)に集中する。
+### Phase 0 — 暫定実装の隔離と基準テスト
 
-供給側の`exportable`は複数の需要側Marketで奪い合いになるため、一つの供給地が無限に多数の大都市を養えるわけではない — 割当は`exportable`の残量制約下で行う。
+- 現在の`capacity`由来の食料余剰・輸入容量実装を「暫定」と明示し、新モデルに置換できる境界へ隔離する。
+- 現行ワールドで、人口・市場・既存ルートを固定した再現性テストを作る。
+- economy無効時に`effectiveCapacity`が必ず基礎`capacity`へ戻る回帰テストを追加する。
 
-### 3.4 成長シミュレーションへの接続と崩壊ダイナミクス
+**完了条件**: 旧式と新式の食料計算を同じfixtureで個別に実行でき、意図せず混在しない。
 
-`demography-simulator.ts`のBurg成長ループでK値を`effectiveCapacity`に差し替えるだけで、既存のロジスティック成長・飢餓ロジックがそのまま「輸入依存の大都市」を扱えるようになる。
+### Phase 1 — extension-owned potentialの生成
 
-これにより以下が**追加コードなしで自動的に発生する**望ましい副作用がある。
+- `simulation.extensions.economy`へ`foodPotential`と`settlementDevelopmentPotential`のTypedArrayを追加し、環境要因だけから決定的に生成する。
+- 初期値を現行人口・気候帯別に正規化する。
+- economy有効化、マップロード、再生成時の再計算を実装する。派生キャッシュなので、旧セーブへの列追加やPackedGraphの保存形式変更は行わない。
+- `agriculturalStress`は`capacity`を直接減らすだけでなく、食料生産性を一時的に下げる補正へ移行する設計を確定する。
+- ロックされていないBurgのgroupを年1回再評価する更新点を追加する。
 
-- 戦争・海賊・季節closureで輸送路が寸断されると`satisfiedImport`が急落し、`effectiveCapacity`が翌tickで下がる。人口がすでに`capacity`を大きく超えている場合、`roomForGrowth`が大きく負に振れ、既存の`starvationRate`ロジックが即座に大規模な飢饉として発現する。
-- これは「後背地から切り離された巨大都市の兵糧攻め・海上封鎖による飢餓」という歴史的にも説得力のあるイベントを、新規の専用コードなしで実現する。
+**完了条件**: 同一の地図環境で同じpotential配列が得られ、人口値だけを変えても`foodPotential`は変わらない。人口が変化した非ロックBurgは、次の年次評価でgroupを更新できる。
 
-## 4. 副次効果とバランス設計
+### Phase 2 — 農業労働力・市場在庫・セル生産
 
-### 4.1 兵站・マンパワーへの波及
+- 成人バケットから農業労働力を算出し、`farmLaborRequired`と生産量を求める。
+- `FoodLedger`を在庫開始・終了、未充足需要、輸出可能量を含む契約へ移行する。
+- 四半期をまたぐ在庫を実装し、季節性の既存重みを適用する。
+- 旧来の`capacity × cultivation`生産式を削除する。
 
-`src/generators/manpower.ts`の`statePopulationPeople()`等は`burg.population`を徴兵可能人口の母数として直接参照している。`effectiveCapacity`による人口増はそのままBurgの実`population`増につながるため、**輸入依存の大都市は徴兵可能なマンパワープールも同時に拡大する**。これは意図された挙動として明記する — 史実でも江戸・ローマのような都市は動員力の中心でもあった。ただし輸送網が寸断されれば人口ごと崩壊するため、無条件の軍事的優位にはならない。
+**完了条件**: 同じ`foodPotential`でも農業労働力が不足すれば生産が下がり、必要量を満たせば人口増なしで余剰を維持できる。
 
-### 4.2 過剰供給ループの防止
+### Phase 3 — 食料輸入ネットワークの置換
 
-- 供給側`exportable`は`RURAL_MARKETABLE_SHARE(0.7)`という既存の上限に加え、複数需要側での取り合いによって自然に希釈される。
-- 割当は価格優先(既存の`customerBuyPrice`ロジック再利用)とするため、際限なく遠方から食料を集める都市は輸送コスト・治安リスクの分だけ実質的に高い「価格」を払っている状態になり、経済シミュレーションと整合する。
-- ロジスティック成長モデル自体が急激な人口ジャンプを許さない(births/starvationは`deltaYears`と`roomForGrowth`に比例)ため、`effectiveCapacity`が一気に跳ね上がっても人口は緩やかにしか追随しない。
+- `FoodFlowEdge`をloaded / arrived / lossへ拡張し、供給側在庫からのみ輸送する。
+- 既存の道路・海路、移動日数、季節閉鎖、治安リスク、価格優先を再利用する。
+- 到着食料の移動平均と在庫充足率から`effectiveCapacity`を計算する。
+- 供給不足、海上封鎖、治安悪化、豊作・不作のテストを追加する。
 
-### 4.3 技術・文化発展への拡張フック(将来実装)
+**完了条件**: 供給地の食料が保存則を守り、輸送遮断後は在庫を使い切った都市だけが容量低下する。
 
-ユーザーの意図として、この「身の丈を超えた人口集中」は将来的に技術開発・文化芸術発展の下地として機能させる予定である。現時点では該当する技術/文化ポイントシステムが存在しないため、本ドキュメントでは**接続インターフェースの設計のみ**を提案し、実装は将来のシステムに委ねる。
+### Phase 4 — 農村→都市移住
+
+- 年齢・性別バケットを保った人口移動ユーティリティを作る。
+- 農業労働力の安全余力と最低共同体人口を守る農村移住元選定を実装する。
+- 食料余力・都市容量・都市吸引力から移住先Burgを選ぶ。
+- `settlementDevelopmentPotential`を移住先と新Burg昇格候補の順位付けへ接続する。
+- 移住量の上限、同一State/Market制約、移住履歴を実装する。
+
+**完了条件**: 食料生産を維持したまま農村人口が減り、輸入可能なBurgの人口が出生だけより速く増える。
+
+### Phase 5 — 都市→農村流出と飢饉
+
+- 食料不足都市から、空き容量・農業労働力不足の農村セルへ人口を戻す。
+- 受入先がない残余だけを飢餓死亡へ渡す。
+- 封鎖・戦争・季節閉鎖の長期シナリオをE2Eまたは統合テストにする。
+
+**完了条件**: 補給停止都市は人口流出を経て縮小し、全員の即時死亡や人口複製を起こさない。
+
+### Phase 6 — UI・可視化・バランス
+
+- Burg詳細に、基礎容量、輸入由来容量、在庫日数、輸入依存度、直近の流入・流出を表示する。
+- Market画面に生産、消費、在庫、輸出・輸入、未充足需要を表示する。
+- デバッグレイヤーで`FoodFlowEdge`と`PopulationMigration`を描画する。WebGL hybridでは既存のtrade overlay方針に従う。
+- seed固定の人口曲線を比較し、地域別の都市規模・飢饉頻度・移住速度を調整する。
+
+## 7. 不変条件とテスト観点
+
+- 食料は生産・在庫・輸送損失・消費の間で保存される。負の在庫は作らない。
+- 人口移住は出発元と到着先の人口・年齢・性別バケットを保存する。
+- 農村→都市移住後も農業労働力の安全余力を下回らない。
+- economy無効時は新しい食料・移住tickを実行せず、coreの既存人口挙動に戻る。
+- `foodPotential`は人口変化で変わらず、環境再生成・明示的な技術/災害補正だけで変わる。
+- rendererは`foodPotential`、食料台帳、フロー、移住履歴を変更しない。
+- 保存・読込後、同じ四半期から同じ食料・人口結果を再現できる。
+
+## 8. 将来の拡張
+
+`getUrbanConcentrationBonus(burgId)`は、次の技術・文化システムが利用できる形で提供する。
 
 ```ts
-// 将来の技術/文化システムが参照する想定のフック
 export function getUrbanConcentrationBonus(burgId: number): {
-  importDependencyRatio: number; // satisfiedImportに由来する人口 / population
-  populationBeyondBaseCapacity: number; // population - capacity (負なら0)
+  importDependencyRatio: number;
+  populationBeyondBaseCapacity: number;
+  nonAgriculturalPopulation: number;
 };
 ```
 
-「輸入によって養われている人口の割合が高いほど、非農業労働力(職人・学者・芸術家)の比率が高い」という直感を素直にモデル化できる形にしておく。具体的な技術/文化ポイントの生成式は、当該システムの設計時に別途検討する。
+食料輸入に支えられる人口と農村から移住した非農業人口は、職人、学者、芸術家、行政、軍事動員の母集団になり得る。具体的な技術・文化ポイント式は別計画で設計する。
 
-## 5. 実装フェーズ案
+## 9. 未解決事項
 
-1. **データモデル**: coreの`burg.demographics`に`effectiveCapacity`を追加(デフォルト`= capacity`)。`MarketFoodLedger`に`satisfiedImport`/`importCapacityBonus`を追加。
-2. **食料輸入ネットワーク解決**: `src/extensions/economy/generators/foodImportNetwork.ts`を新規実装。`FoodProductionModule.generateQuarterlyLedger()`の後段で呼び出し、economy拡張有効時のみ動作。既存の`landRouteGraph`/`seaRouteGraph`/`tradeRouteDuration.ts`/`tradeSecurity.ts`/`Markets.customerBuyPrice`を再利用し、新規の距離計算・価格計算は書かない。
-3. **成長シミュレーション接続**: `demography-simulator.ts`のBurg成長ループでK値を`effectiveCapacity`に切り替え。economy拡張無効時は自動的に現状動作に一致するため分岐コード不要。
-4. **可視化・UI**: Burg詳細ダイアログに「輸入依存度」表示を追加。デバッグ用にMarket間食料フロー(`FoodFlowEdge`)を既存の交易route描画レイヤー(WebGLの`tradeAnimation`相当)へ重ねられるようにする。
-5. **将来課題**: `getUrbanConcentrationBonus()`の実消費先として技術/文化発展システムを設計する(本ドキュメントの範囲外)。
-
-## 6. 未解決の論点
-
-- Market間のvolume割当を「価格優先の貪欲法」で行う設計としたが、複数需要側が同時に同じ供給源を奪い合う際の公平性・計算コスト(`markets^2`になりうる)は実装時に`marketTradeOpportunities.ts`の既存の200件上限などの前例を参考にチューニングが必要。
-- `SPOILAGE_HALF_LIFE`などのバランス定数は初期値を仮置きし、実プレイでの都市成長曲線を見ながら調整する前提とする。
-- Good単位(穀物 vs 魚 vs 肉)で腐敗速度を分けるかは v1 ではスコープ外とし、`"food"`タグ全体を単一の腐敗係数で扱う簡略化を採用する。
+- `foodPotential`を地図生成時にどの程度地域差へ正規化するか。
+- 農業労働者を男女成人からどの比率で取るか、季節雇用をv1に含めるか。
+- 市場圏を跨ぐ農村→都市移住と、難民・越境移住をいつ導入するか。
+- 都市吸引力に雇用・賃金・政治的首都補正をどの順序で導入するか。
+- 食料を単一`"food"`タグのままにする期間と、穀物・魚・肉の腐敗差を導入する時期。
