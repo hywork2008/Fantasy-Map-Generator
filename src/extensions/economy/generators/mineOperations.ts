@@ -10,7 +10,7 @@ import {
 } from "../economyContext";
 import { isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
-import { getMinedGoodName, type MineOperation, type MineralCommodity } from "./mineralResources";
+import { getMinedGoodName, type MineOperation, type MineralCommodity, type MineralDeposit } from "./mineralResources";
 
 const INITIAL_OPERATION_ACCESSIBILITY = 0.5;
 const PROSPECTING_ACCESSIBILITY = 0.35;
@@ -36,7 +36,7 @@ export class MineOperationsModule {
       if (!burgId) continue;
 
       deposit.discovered = true;
-      operations.push(this.createOperation(operations.length + 1, deposit.i, burgId, marketId));
+      operations.push(this.createOperation(operations.length + 1, deposit, burgId, marketId));
     }
 
     setMineOperations(operations);
@@ -82,7 +82,7 @@ export class MineOperationsModule {
       if (!burgId) continue;
 
       deposit.discovered = true;
-      operations.push(this.createOperation(operations.length + 1, deposit.i, burgId, marketId, true));
+      operations.push(this.createOperation(operations.length + 1, deposit, burgId, marketId, true));
       discovered += 1;
     }
 
@@ -154,16 +154,14 @@ export class MineOperationsModule {
 
   private createOperation(
     id: number,
-    depositId: number,
+    deposit: MineralDeposit,
     burgId: number,
     marketId: number,
     developed = false
   ): MineOperation {
-    const deposit = getMineralDeposits().find(candidate => candidate.i === depositId);
-    if (!deposit) throw new Error(`Cannot create mine operation for missing deposit ${depositId}`);
     return {
       i: id,
-      depositId,
+      depositId: deposit.i,
       burgId,
       marketId,
       workers: 4 + deposit.richness * 6,

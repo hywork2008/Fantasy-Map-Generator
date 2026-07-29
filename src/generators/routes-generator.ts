@@ -8,6 +8,7 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 
 import type { Burg, LandRouteGenerationMode, Route, SeaRouteGenerationMode } from "../types/models";
+import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import {
   distanceSquared,
@@ -27,6 +28,14 @@ import type { Point } from "./voronoi";
 
 const ROUTES_SHARP_ANGLE = 135;
 const ROUTES_VERY_SHARP_ANGLE = 115;
+
+// Hoisted out of getPath(), which is called once per route on every redraw.
+const ROUTE_CURVES: Record<string, import("d3").CurveFactory | import("d3").CurveFactoryLineOnly> = {
+  roads: curveCatmullRom.alpha(0.1),
+  trails: curveCatmullRom.alpha(0.1),
+  searoutes: curveCatmullRom.alpha(0.5),
+  default: curveCatmullRom.alpha(0.1)
+};
 
 const MIN_PASSABLE_SEA_TEMP = -4;
 const ROUTE_TYPE_MODIFIERS: Record<string, number> = {
@@ -1410,8 +1419,8 @@ class RoutesModule {
    * two vertices that bound the shared face). May sit off the center–center chord;
    * only insert when that chord would clip a higher third cell (see densifyLandRoutePoints).
    */
-  private getSharedEdgeMidpoint(cell1: number, cell2: number): Point | null {
-    const { cells, vertices } = this.worldContext.pack;
+  private getSharedEdgeMidpoint(cell1: number, cell2: number, pack: PackedGraph): Point | null {
+    const { cells, vertices } = pack;
     if (!cells.v?.[cell1] || !vertices?.p || !vertices?.c) return null;
     const common = cells.v[cell1].filter((vertex: number) =>
       vertices.c[vertex]?.some((cellId: number) => cellId === cell2)
@@ -1436,8 +1445,8 @@ class RoutesModule {
    * True when the center–center chord of cellA–cellB passes near a neighbouring cell
    * that is meaningfully higher (peak clip risk, e.g. 5102→5272 near 5271).
    */
-  private centerChordClipsHigherNeighbour(cellA: number, cellB: number): boolean {
-    const { cells } = this.worldContext.pack;
+  private centerChordClipsHigherNeighbour(cellA: number, cellB: number, pack: PackedGraph): boolean {
+    const { cells } = pack;
     const pa = cells.p[cellA];
     const pb = cells.p[cellB];
     if (!pa || !pb) return false;
@@ -1461,8 +1470,8 @@ class RoutesModule {
    * Collapse center/mid/center artifacts from an earlier always-on densify (same cell id
    * twice in a row): keep the point closer to the cell generator.
    */
-  private collapseRedundantCellPoints(points: number[][]): number[][] {
-    const { cells } = this.worldContext.pack;
+  private collapseRedundantCellPoints(points: number[][], pack: PackedGraph): number[][] {
+    const { cells } = pack;
     const out: number[][] = [];
     for (const p of points) {
       const cellId = p[2];
@@ -1482,8 +1491,7 @@ class RoutesModule {
   }
 
   /** Canonical map position for a pack cell (burg anchor if present, else cell generator). */
-  private cellAnchor(cellId: number): Point | null {
-    const { pack } = this.worldContext;
+  private cellAnchor(cellId: number, pack: PackedGraph): Point | null {
     const burgId = pack.cells.burg?.[cellId];
     if (burgId) {
       const burg = pack.burgs[burgId];
@@ -1499,11 +1507,11 @@ class RoutesModule {
    * cell always meet. Per-route sharp-angle offsets previously left stub trails visually
    * short of the main path (Nesia 151 @ 3652 vs 166 @ 3652 ≈ 5.4 map units apart).
    */
-  private snapRoutePointsToCellAnchors(points: number[][]): number[][] {
+  private snapRoutePointsToCellAnchors(points: number[][], pack: PackedGraph): number[][] {
     return points.map(p => {
       const cellId = p[2];
       if (cellId === undefined) return p;
-      const anchor = this.cellAnchor(cellId);
+      const anchor = this.cellAnchor(cellId, pack);
       return anchor ? [anchor[0], anchor[1], cellId] : p;
     });
   }
@@ -1513,10 +1521,11 @@ class RoutesModule {
    * midpoint **only** when the center–center chord would clip a higher neighbour.
    * Always-on insertion caused needless zigzags (Ondrepieds route 151 through 4702/4913).
    */
-  densifyLandRoutePoints(points: number[][]): number[][] {
+  densifyLandRoutePoints(points: number[][], pack: PackedGraph = this.worldContext.pack): number[][] {
     if (points.length < 2) return points;
-    const collapsed = this.collapseRedundantCellPoints(points);
-    const snapped = this.snapRoutePointsToCellAnchors(collapsed);
+    if (!pack?.cells?.p) return points;
+    const collapsed = this.collapseRedundantCellPoints(points, pack);
+    const snapped = this.snapRoutePointsToCellAnchors(collapsed, pack);
     if (snapped.length < 2) return snapped;
 
     const densified: number[][] = [];
@@ -1526,8 +1535,8 @@ class RoutesModule {
       const cellA = snapped[i][2];
       const cellB = snapped[i + 1][2];
       if (cellA === undefined || cellB === undefined || cellA === cellB) continue;
-      if (!this.centerChordClipsHigherNeighbour(cellA, cellB)) continue;
-      const mid = this.getSharedEdgeMidpoint(cellA, cellB);
+      if (!this.centerChordClipsHigherNeighbour(cellA, cellB, pack)) continue;
+      const mid = this.getSharedEdgeMidpoint(cellA, cellB, pack);
       if (!mid) continue;
       densified.push([mid[0], mid[1], cellA]);
     }
@@ -1537,22 +1546,19 @@ class RoutesModule {
   /**
    * Control points used for SVG/WebGL rendering. Land routes snap each cell to a
    * shared anchor and optionally densify peak-clipping hops; searoutes pass through.
+   *
+   * Renderers must pass the `pack` they were handed rather than letting this fall back to
+   * the module singleton's world — the WebGL route adapter is given a `Readonly<WorldContext>`
+   * and has to read cell geometry out of that one.
    */
-  getRenderPoints(route: { group: string; points: number[][] }): number[][] {
+  getRenderPoints(route: { group: string; points: number[][] }, pack?: PackedGraph): number[][] {
     if (route.group === "searoutes") return route.points;
-    return this.densifyLandRoutePoints(route.points);
+    return this.densifyLandRoutePoints(route.points, pack ?? this.worldContext.pack);
   }
 
-  getPath({ group, points }: { group: string; points: number[][] }): string {
-    const lineGen = line();
-    const ROUTE_CURVES: Record<string, import("d3").CurveFactory | import("d3").CurveFactoryLineOnly> = {
-      roads: curveCatmullRom.alpha(0.1),
-      trails: curveCatmullRom.alpha(0.1),
-      searoutes: curveCatmullRom.alpha(0.5),
-      default: curveCatmullRom.alpha(0.1)
-    };
-    lineGen.curve(ROUTE_CURVES[group] || ROUTE_CURVES.default);
-    const renderPoints = this.getRenderPoints({ group, points });
+  getPath({ group, points }: { group: string; points: number[][] }, pack?: PackedGraph): string {
+    const lineGen = line().curve(ROUTE_CURVES[group] ?? ROUTE_CURVES.default);
+    const renderPoints = this.getRenderPoints({ group, points }, pack);
     const path = round(lineGen(renderPoints.map(p => [p[0], p[1]])) as string, 1);
     return path;
   }

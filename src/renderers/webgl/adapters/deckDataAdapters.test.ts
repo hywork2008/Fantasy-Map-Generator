@@ -157,11 +157,14 @@ function createWorldContext(): WorldContext {
           i: 1,
           group: "roads",
           feature: 1,
+          // A land route hops between distinct cells; Routes.getRenderPoints() snaps each
+          // control point onto its cell's anchor (cells.p here, no burgs), so the rendered
+          // path is [cells.p[0], cells.p[1]] rather than the raw stored coordinates.
           points: [
             [0, 0, 0],
-            [10, 10, 0]
+            [10, 10, 1]
           ],
-          cells: [0]
+          cells: [0, 1]
         }
       ]
     }
@@ -266,9 +269,10 @@ describe("deck.gl data adapters", () => {
       id: "route-1",
       kind: "route",
       cellId: 0,
+      // Snapped to the cell anchors so routes sharing a cell meet exactly.
       path: [
-        [0, 0],
-        [10, 10]
+        [5, 5],
+        [8, 5]
       ]
     });
   });
@@ -310,9 +314,9 @@ describe("deck.gl data adapters", () => {
       feature: 1,
       points: [
         [0, 0, 0],
-        [10, 10, 0]
+        [10, 10, 1]
       ],
-      cells: [0]
+      cells: [0, 1]
     });
     worldContext.pack.routes.push({
       i: 3,
@@ -320,9 +324,9 @@ describe("deck.gl data adapters", () => {
       feature: 1,
       points: [
         [0, 0, 0],
-        [10, 10, 0]
+        [10, 10, 1]
       ],
-      cells: [0]
+      cells: [0, 1]
     });
 
     const borders = buildBorderPaths(
@@ -435,39 +439,50 @@ describe("deck.gl data adapters", () => {
     ).toEqual([]);
   });
 
-  it("omits malformed persisted route paths instead of passing invalid coordinates to deck.gl", () => {
+  // Cell-anchor snapping (commit 319febec) repairs a route's control points from cell id
+  // alone (see RoutesModule.snapRoutePointsToCellAnchors), so a malformed *raw* coordinate
+  // is only fatal when its cell id is also missing/invalid — the resolved contract from
+  // docs/plan/route-point-validation-open-question.md ("repair via snapping").
+  it("repairs malformed coordinates via cell-anchor snapping but still omits points with no cell id", () => {
     const worldContext = createWorldContext();
     worldContext.pack.routes = [
       {
         i: 1,
         group: "roads",
         feature: 1,
-        cells: [0],
+        cells: [0, 1],
         points: [
           [0, 0, 0],
-          [10, 10, 0]
+          [10, 10, 1]
         ]
       },
       {
+        // Non-finite raw coordinate, but a valid cell id on both points — snapping
+        // overwrites the raw coordinates with the cell anchors regardless, so this
+        // renders identically to route 1.
         i: 2,
         group: "roads",
         feature: 1,
-        cells: [0],
+        cells: [0, 1],
         points: [
           [0, 0, 0],
-          [Number.NaN, 10, 0]
+          [Number.NaN, 10, 1]
         ] as unknown as [number, number, number][]
       },
       {
+        // Second point has no cell id (index 2 is undefined), so cellAnchor() can't
+        // resolve a replacement and the raw (invalid) point passes through unrepaired.
         i: 3,
         group: "roads",
         feature: 1,
-        cells: [0],
+        cells: [0, 1],
         points: [[0, 0, 0], [10] as unknown as [number, number, number]]
       }
     ];
 
-    expect(buildRoutePaths(worldContext, null).map(route => route.id)).toEqual(["route-1"]);
+    const paths = buildRoutePaths(worldContext, null);
+    expect(paths.map(route => route.id)).toEqual(["route-1", "route-2"]);
+    expect(paths[0].path).toEqual(paths[1].path);
   });
 
   it("builds base land polygons separately from water cells", () => {

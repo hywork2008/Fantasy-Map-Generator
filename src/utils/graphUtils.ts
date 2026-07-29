@@ -230,6 +230,21 @@ export const findGridAll = (x: number, y: number, radius: number, grid: Grid): n
 const quadtreeCache = new WeakMap<object, ReturnType<typeof quadtree<[number, number, number]>>>();
 
 /**
+ * Cell-position quadtree for a packed graph, memoized on the `cells.p` array itself.
+ * `cells.p` is always replaced by a fresh array whenever the graph is rebuilt
+ * (`reGraph()` in main.ts, `Resampler.process()`), never appended to in place, so the
+ * identity of that array is a safe cache key.
+ */
+const getPackQuadtree = (points: [number, number][]) => {
+  let qTree = quadtreeCache.get(points);
+  if (!qTree) {
+    qTree = quadtree(points.map(([px, py], i) => [px, py, i] as [number, number, number]));
+    quadtreeCache.set(points, qTree);
+  }
+  return qTree;
+};
+
+/**
  * Returns the index of the packed cell containing the given x and y coordinates
  * @param {number} x - The x coordinate
  * @param {number} y - The y coordinate
@@ -243,13 +258,7 @@ export const findClosestCell = (
   _pack: { cells: { p: [number, number][] } }
 ): number | undefined => {
   if (!worldContext.pack.cells?.p) throw new Error("Pack cells not found");
-  let qTree = quadtreeCache.get(worldContext.pack.cells.p);
-  if (!qTree) {
-    qTree = quadtree(worldContext.pack.cells.p.map(([px, py], i) => [px, py, i]));
-    if (!qTree) throw new Error("Failed to create quadtree");
-    quadtreeCache.set(worldContext.pack.cells.p, qTree);
-  }
-  const found = qTree.find(x, y, radius);
+  const found = getPackQuadtree(worldContext.pack.cells.p).find(x, y, radius);
   return found ? found[2] : undefined;
 };
 
@@ -287,9 +296,8 @@ export const findAllInQuadtree = <T>(x: number, y: number, radius: number, quadt
   };
 
   type QNode = {
-    data: T & { scanned?: boolean; selected?: boolean };
+    data: T;
     next?: QNode;
-    explored?: boolean;
     length?: number;
     0?: QNode;
     1?: QNode;
@@ -297,13 +305,14 @@ export const findAllInQuadtree = <T>(x: number, y: number, radius: number, quadt
     3?: QNode;
   };
 
+  // The bl.ocks original also tagged visited data with `scanned`/`selected` and nodes with
+  // `explored`. Nothing reads them, and now that the quadtree is memoized and shared they
+  // would accumulate on the cached point tuples, so they are not written.
   const radiusSearchVisit = (t: { radius: number; result: T[]; node: QNode }, d2: number) => {
-    t.node.data.scanned = true;
     if (d2 < t.radius) {
       let current: QNode | undefined = t.node;
       while (current) {
         t.result.push(current.data);
-        current.data.selected = true;
         current = current.next;
       }
     }
@@ -364,7 +373,6 @@ export const findAllInQuadtree = <T>(x: number, y: number, radius: number, quadt
 
     // Bisect the current quadrant.
     if (t.node.length) {
-      t.node.explored = true;
       const xm: number = (t.x1 + t.x2) / 2,
         ym: number = (t.y1 + t.y2) / 2;
 
@@ -405,10 +413,10 @@ export const findAllInQuadtree = <T>(x: number, y: number, radius: number, quadt
  * @returns {number[]} - An array of cell indexes within the radius
  */
 export const findAllCellsInRadius = (x: number, y: number, radius: number, packedGraph: PackedGraph): number[] => {
-  const q = quadtree<[number, number, number]>(
-    packedGraph.cells.p.map(([px, py]: [number, number], i: number) => [px, py, i] as [number, number, number])
-  );
-  const found = findAllInQuadtree(x, y, radius, q);
+  // Reuses the memoized quadtree. This used to rebuild one over every cell on each call,
+  // which the editor brushes do on every mousemove and Resampler.restoreZones() does once
+  // per zone cell.
+  const found = findAllInQuadtree(x, y, radius, getPackQuadtree(packedGraph.cells.p));
   return found.map(r => r[2]);
 };
 

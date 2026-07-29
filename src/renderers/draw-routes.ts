@@ -25,7 +25,7 @@ export const RoutesRenderer: IRenderer = {
       if (!points || points.length < 2) continue;
       if (focusScope && !(cells ?? []).some(c => isCellInScope(focusScope, c))) continue;
       if (!routePaths[group]) routePaths[group] = [];
-      routePaths[group].push(`<path id="route${i}" d="${Routes.getPath(route)}"/>`);
+      routePaths[group].push(`<path id="route${i}" d="${Routes.getPath(route, pack)}"/>`);
     }
 
     routes.attr("fill", "none").selectAll("path").remove();
@@ -42,13 +42,17 @@ export const RoutesRenderer: IRenderer = {
 };
 
 export const drawRoute = (
-  _worldContext: Readonly<WorldContext>,
+  worldContext: Readonly<WorldContext>,
   viewContext: Readonly<InfrastructureLayers>,
   _appServices: AppServices,
   route: Route
 ): void => {
   const { routes } = viewContext;
-  routes.select(`#${route.group}`).append("path").attr("d", Routes.getPath(route)).attr("id", `route${route.i}`);
+  routes
+    .select(`#${route.group}`)
+    .append("path")
+    .attr("d", Routes.getPath(route, worldContext.pack))
+    .attr("id", `route${route.i}`);
 };
 
 export const removeRoute = (viewContext: Readonly<InfrastructureLayers>, routeId: number): void => {

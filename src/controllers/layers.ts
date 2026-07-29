@@ -380,7 +380,10 @@ export function getCurrentPreset(): void {
     .sort();
 
   for (const preset in state.presets) {
-    if (JSON.stringify(state.presets[preset].sort()) === JSON.stringify(layers)) {
+    // Copy before sorting — Array.prototype.sort() is in-place, so this used to reorder the
+    // preset arrays held in the Zustand store (and mirrored to localStorage) as a side effect
+    // of merely reading them.
+    if (JSON.stringify([...state.presets[preset]].sort()) === JSON.stringify(layers)) {
       state.setActivePreset(preset);
       return;
     }

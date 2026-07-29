@@ -24,6 +24,14 @@ describe("seasonal grain price cycle (integration)", () => {
 
     worldContext.mapCoordinates = { latN: 90, latT: 180 };
     worldContext.graphHeight = 100;
+    // Goods.getBiomesProduction() enumerates biome codes from biomesData (it resolves
+    // biomeOutputByTag as well as biomeOutput), so the cell's biome 6 must exist there or
+    // no rural production is attributed at all.
+    worldContext.biomesData = {
+      i: [0, 1, 2, 3, 4, 5, 6],
+      name: ["Marine", "Hot desert", "Cold desert", "Savanna", "Grassland", "Tropical forest", "Temperate forest"],
+      tags: [[], [], [], [], [], ["forest"], ["forest"]]
+    } as unknown as typeof worldContext.biomesData;
     worldContext.pack = {
       goods: [
         {

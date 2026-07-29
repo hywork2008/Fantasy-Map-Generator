@@ -1235,7 +1235,7 @@ export function buildRoutePaths(
     // Imported maps can contain incomplete route point arrays. deck.gl cannot render NaN / missing
     // coordinates reliably, so omit the entire route instead of connecting unrelated valid endpoints.
     // Land routes use getRenderPoints so multi-route junctions share one cell anchor (SVG parity).
-    let path = getValidDeckPath(Routes.getRenderPoints(route));
+    let path = getValidDeckPath(Routes.getRenderPoints(route, worldContext.pack));
     if (!path) return [];
 
     if (path.length >= 3) {

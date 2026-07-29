@@ -82,10 +82,17 @@ export function militaryStateHighlightOff(stateId: number): void {
 export function updateStateWarAlert(stateId: number, alert: number): void {
   const s = worldContext.pack.states[stateId];
   if (!s) return;
-  const dif = s.alert || alert ? alert / s.alert! : 0;
+  if (!Number.isFinite(alert) || alert < 0) return; // an empty input yields Number("") === 0, not NaN
+
+  // `(s.alert || alert)` used to guard this ratio, which is true whenever only the *new*
+  // alert is non-zero — so raising the alert back up after it had been set to 0 divided by
+  // zero and wrote Infinity into every regiment's unit counts. Scaling is only meaningful
+  // against a positive previous alert; otherwise leave the (already zeroed) units alone.
+  const previousAlert = s.alert ?? 0;
+  const dif = previousAlert > 0 ? alert / previousAlert : 1;
   s.alert = alert;
 
-  s.military!.forEach(r => {
+  s.military?.forEach(r => {
     Object.keys(r.u).forEach(u => {
       r.u[u] = rn(r.u[u] * dif);
     });
