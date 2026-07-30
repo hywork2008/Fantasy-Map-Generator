@@ -57,6 +57,15 @@ export interface OptionsState {
   /** Regiment a→t recovery / dead-regiment cleanup (uses manpower pool when simManpower). */
   simMilitaryRecovery: boolean;
   /**
+   * "independent" is the classic behavior: each settlement grows toward its own capacity via
+   * births only, with no deliberate rural→urban labor movement. "megacity" additionally runs
+   * docs/plan/megacity-food-import-economy.md's rural labor release once a year: each rural
+   * cell's labor-safety-margined surplus adults migrate toward nearby cities (Economy must be
+   * enabled — this reads Food Ledger-derived `migratableAdults`). Still under active development;
+   * default "independent" keeps existing saves' growth behavior unchanged.
+   */
+  ruralUrbanMigration: "independent" | "megacity";
+  /**
    * When true (and simManpower on), scarce male pools may draft a limited share of adult
    * females (manpower-ecosystem Phase 5). Default off.
    */
@@ -218,6 +227,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   simManpower: true,
   simAgriculture: true,
   simMilitaryRecovery: true,
+  ruralUrbanMigration: "independent",
   femaleLevyEnabled: false,
   recruitQualityEnabled: true,
   conflictAutonomy: DEFAULT_CONFLICT_AUTONOMY,

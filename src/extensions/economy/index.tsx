@@ -1,5 +1,6 @@
 import type { ExtensionAPI } from "../../types/extension-api";
 import type { Point } from "../hostCore";
+import { useOptionsState } from "../hostCore";
 import {
   isShipbuildingInitialStockRequest,
   isShipbuildingMaterialRequest,
@@ -1339,7 +1340,11 @@ export function init(api: ExtensionAPI): void {
       const agricultureRefreshed = DevelopmentPotential.updateAnnualAgriculture();
       // Only release this year's freshly recomputed migratableAdults surplus — running on a
       // tick where agriculture wasn't refreshed would re-read last year's (already-extracted) figures.
-      if (agricultureRefreshed) releaseRuralLaborSurplus(getWorldContext());
+      // Options -> Simulation "Settlement growth" gate: "independent" keeps the classic
+      // births-only-toward-own-capacity behavior with no deliberate rural→urban movement.
+      if (agricultureRefreshed && useOptionsState.getState().ruralUrbanMigration === "megacity") {
+        releaseRuralLaborSurplus(getWorldContext());
+      }
 
       const caravanTick = Caravans.tick(effectiveDays);
       StrategicProcurement.reconcileCaravans(caravanTick.arrived, caravanTick.lost);

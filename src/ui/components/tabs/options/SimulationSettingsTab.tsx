@@ -146,6 +146,22 @@ export const SimulationSettingsTab: React.FC = () => {
               />
             </td>
           </tr>
+          <tr data-tip="Independent: each settlement grows toward its own capacity via births only, no deliberate labor movement. Megacity: rural cells also release labor-safety-margined surplus adults once a year toward nearby cities (requires Economy enabled).">
+            <td />
+            <td>
+              <label htmlFor="ruralUrbanMigration">Settlement growth</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="ruralUrbanMigration"
+                value={options.ruralUrbanMigration}
+                onChange={e => updateOption("ruralUrbanMigration", e.target.value as "independent" | "megacity")}
+              >
+                <option value="independent">Independent (no migration)</option>
+                <option value="megacity">Megacity (rural→urban migration)</option>
+              </select>
+            </td>
+          </tr>
           <tr data-tip="Regiment reinforcement and cleanup of destroyed units (uses manpower pool when Manpower ledger is on)">
             <td />
             <td>
