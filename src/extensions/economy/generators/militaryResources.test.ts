@@ -31,7 +31,8 @@ describe("MilitaryResourcesModule", () => {
     setGoods([
       { i: 1, name: "Iron Ingot", tags: ["ingot", "metal"], value: 3, unit: "ton", icon: "iron", color: "#777" },
       { i: 2, name: "Lead Ingot", tags: ["ingot", "metal"], value: 3, unit: "ton", icon: "lead", color: "#777" },
-      { i: 3, name: "Gunpowder", tags: ["military"], value: 4, unit: "barrel", icon: "powder", color: "#333" }
+      { i: 3, name: "Gunpowder", tags: ["military"], value: 4, unit: "barrel", icon: "powder", color: "#333" },
+      { i: 4, name: "Bullets", tags: ["military"], value: 6, unit: "pouch", icon: "lead", color: "#5c5c5c" }
     ]);
     setMarkets([
       {
@@ -41,7 +42,8 @@ describe("MilitaryResourcesModule", () => {
         goods: {
           1: { stock: 10, price: 3 },
           2: { stock: 10, price: 3 },
-          3: { stock: 10, price: 4 }
+          3: { stock: 10, price: 4 },
+          4: { stock: 10, price: 6 }
         }
       }
     ]);
@@ -51,21 +53,25 @@ describe("MilitaryResourcesModule", () => {
 
   afterEach(() => clearEconomyContext());
 
-  it("consumes iron, lead and gunpowder while exposing their recipe-level inputs", () => {
+  it("consumes iron, gunpowder and bullets (not raw lead) for firearms, while artillery still draws lead directly", () => {
     MilitaryResources.generate();
     MilitaryResources.settleMonthly();
 
     const ledger = getMilitaryResourceLedgers()[0];
     expect(ledger.annualDemand.iron).toBeGreaterThan(0);
-    expect(ledger.annualDemand.lead).toBeGreaterThan(0);
     expect(ledger.annualDemand.gunpowder).toBeGreaterThan(0);
+    expect(ledger.annualDemand.bullets).toBeGreaterThan(0);
     expect(ledger.annualDemand.saltpeter).toBeGreaterThan(0);
     expect(ledger.annualDemand.sulfur).toBeGreaterThan(0);
     expect(ledger.annualDemand.coal).toBeGreaterThan(0);
+    // 12 artillery pieces only — firearms' lead use now lives in Bullets, not this field.
+    expect(ledger.annualDemand.lead).toBeCloseTo(0.36, 4);
     expect(ledger.lastConsumed.lead).toBeGreaterThan(0);
+    expect(ledger.lastConsumed.bullets).toBeGreaterThan(0);
     expect(getMarkets()[0].goods[1].stock).toBeLessThan(10);
     expect(getMarkets()[0].goods[2].stock).toBeLessThan(10);
     expect(getMarkets()[0].goods[3].stock).toBeLessThan(10);
+    expect(getMarkets()[0].goods[4].stock).toBeLessThan(10);
   });
 
   it("does not create gunpowder-era demand when the era is disabled", () => {
@@ -77,6 +83,7 @@ describe("MilitaryResourcesModule", () => {
     expect(getMarkets()[0].goods[1].stock).toBe(10);
     expect(getMarkets()[0].goods[2].stock).toBe(10);
     expect(getMarkets()[0].goods[3].stock).toBe(10);
+    expect(getMarkets()[0].goods[4].stock).toBe(10);
   });
 
   it("consumes fodder for mounted units even when the gunpowder era is disabled", () => {
@@ -104,5 +111,35 @@ describe("MilitaryResourcesModule", () => {
     expect(ledger.annualDemand.iron).toBeUndefined();
     expect(ledger.lastConsumed.fodder).toBeGreaterThan(0);
     expect(getMarkets()[0].goods[4].stock).toBeLessThan(10);
+  });
+
+  it("consumes arrows for archer units even when the gunpowder era is disabled", () => {
+    worldContext.options.gunpowderEraEnabled = false;
+    worldContext.pack.states[1].military = [
+      { i: 1, u: { archers: 25 } }
+    ] as unknown as (typeof worldContext.pack.states)[1]["military"];
+    setGoods([
+      {
+        i: 5,
+        name: "Arrows",
+        tags: ["military", "hunting"],
+        value: 3,
+        unit: "quiver",
+        icon: "good-arms",
+        color: "#8b5a2b"
+      }
+    ]);
+    setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 5: { stock: 10, price: 3 } } }]);
+    Goods.sync();
+    Markets.sync();
+
+    MilitaryResources.generate();
+    MilitaryResources.settleMonthly();
+
+    const ledger = getMilitaryResourceLedgers()[0];
+    expect(ledger.annualDemand.arrows).toBeGreaterThan(0);
+    expect(ledger.annualDemand.bullets).toBeUndefined();
+    expect(ledger.lastConsumed.arrows).toBeGreaterThan(0);
+    expect(getMarkets()[0].goods[5].stock).toBeLessThan(10);
   });
 });

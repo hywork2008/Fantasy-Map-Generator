@@ -76,13 +76,14 @@ export interface Good {
   color: string;
 }
 
-export const DEMAND_PRIORITY = ["food", "utilities", "construction", "military", "luxury"] as const;
+export const DEMAND_PRIORITY = ["food", "utilities", "construction", "military", "hunting", "luxury"] as const;
 export type DemandCategory = (typeof DEMAND_PRIORITY)[number];
 export const DEMAND_TARGET_FACTORS: Record<DemandCategory, number> = {
   food: 0.2,
   utilities: 0.15,
   construction: 0.1,
   military: 0.08,
+  hunting: 0.05,
   luxury: 0.07
 };
 export const DEMAND_CATEGORY_ICONS: Record<DemandCategory, string> = {
@@ -90,6 +91,7 @@ export const DEMAND_CATEGORY_ICONS: Record<DemandCategory, string> = {
   utilities: "🛠️",
   construction: "🧱",
   military: "🛡️",
+  hunting: "🎯",
   luxury: "💎"
 };
 
@@ -97,7 +99,7 @@ export function getDemandTargets(population: number): number[] {
   return DEMAND_PRIORITY.map(category => population * DEMAND_TARGET_FACTORS[category]);
 }
 
-const GUNPOWDER_ERA_GOODS = new Set(["sulfur", "gunpowder", "artillery"]);
+const GUNPOWDER_ERA_GOODS = new Set(["sulfur", "gunpowder", "artillery", "bullets"]);
 
 /** Returns whether a good is available under the current world's era settings. */
 export function isGoodEnabled(good: Pick<Good, "name">): boolean {
@@ -1050,6 +1052,21 @@ export const GOODS_DATA: GoodData[] = [
     demandCoverage: { military: 1 }
   },
   {
+    name: "Arrows",
+    // Always available (not gated by gunpowderEraEnabled): fletching predates and outlasts
+    // firearms, and hunters keep buying them for game alongside archer regiments (see the
+    // "hunting" DemandCategory above). Consumed by archer units in militaryResources.ts.
+    warEconomyType: "military",
+    tags: ["military", "hunting"],
+    icon: "good-arms",
+    color: "#8b5a2b",
+    value: 3,
+    chance: 0,
+    recipes: [{ Wood: 0.4, "Iron Ingot": 0.1 }],
+    unit: "quiver",
+    demandCoverage: { military: 0.5, hunting: 0.5 }
+  },
+  {
     name: "Gunpowder",
     warEconomyType: "military",
     tags: ["military"],
@@ -1060,6 +1077,21 @@ export const GOODS_DATA: GoodData[] = [
     recipes: [{ Saltpeter: 0.5, Sulfur: 0.25, Coal: 0.5 }],
     unit: "barrel",
     demandCoverage: { military: 2 }
+  },
+  {
+    name: "Bullets",
+    // Gunpowder-era good (see GUNPOWDER_ERA_GOODS below): shot for the same firearm units that
+    // consume Gunpowder as propellant. Also bought by civilian hunters once firearms exist,
+    // same dual-use split as Arrows. Consumed by firearm units in militaryResources.ts.
+    warEconomyType: "military",
+    tags: ["military", "hunting"],
+    icon: "good-lead",
+    color: "#5c5c5c",
+    value: 6,
+    chance: 0,
+    recipes: [{ "Lead Ingot": 1 }],
+    unit: "pouch",
+    demandCoverage: { military: 0.6, hunting: 0.4 }
   },
   {
     name: "Artillery",
@@ -1388,7 +1420,9 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Bronze: tradeProfile(5, 4, 3, 1, 0, 5, 2),
   Tools: tradeProfile(4, 3, 3, 2, 0, 5, 2),
   Arms: tradeProfile(4, 3, 4, 2, 0, 5, 3),
+  Arrows: tradeProfile(2, 2, 2, 1, 0, 3, 3),
   Gunpowder: tradeProfile(3, 3, 4, 2, 0, 2, 5),
+  Bullets: tradeProfile(2, 1, 3, 1, 0, 4, 3),
   Artillery: tradeProfile(5, 5, 4, 1, 0, 5, 3),
   Coins: tradeProfile(2, 1, 5, 3, 0, 5, 3),
   Jewelry: tradeProfile(1, 1, 5, 3, 0, 4, 3),

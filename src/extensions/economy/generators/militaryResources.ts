@@ -9,7 +9,17 @@ import {
 import { Markets } from "./markets-generator";
 import { isMountedUnit } from "./militaryLogistics";
 
-export const MILITARY_RESOURCES = ["iron", "lead", "gunpowder", "saltpeter", "sulfur", "coal", "fodder"] as const;
+export const MILITARY_RESOURCES = [
+  "iron",
+  "lead",
+  "gunpowder",
+  "saltpeter",
+  "sulfur",
+  "coal",
+  "fodder",
+  "arrows",
+  "bullets"
+] as const;
 export type MilitaryResource = (typeof MILITARY_RESOURCES)[number];
 
 type ResourceAmounts = Partial<Record<MilitaryResource, number>>;
@@ -34,11 +44,17 @@ const ARTILLERY_IRON_PER_GUN = 0.04;
 const ARTILLERY_LEAD_PER_GUN = 0.03;
 const ARTILLERY_GUNPOWDER_PER_GUN = 0.02;
 const FIREARM_IRON_PER_HEAD = 0.004;
-const FIREARM_LEAD_PER_HEAD = 0.012;
 const FIREARM_GUNPOWDER_PER_HEAD = 0.012;
 // Mounted units (options.military type "mounted") need fodder for their horses regardless of
 // gunpowder-era status — cavalry predates firearms. Uncalibrated, same as the rest of this file.
 const MOUNTED_FODDER_PER_HEAD = 0.08;
+// Archer units (name matches /archer|bowman|longbow|crossbow/) need arrows regardless of
+// gunpowder-era status — bows predate and outlast firearms. Uncalibrated.
+const ARCHER_ARROWS_PER_HEAD = 0.05;
+// Firearm units need finished Bullets (a crafted Good, see goods-generator.ts), not raw lead
+// directly — ARTILLERY_LEAD_PER_GUN above still draws raw Lead Ingot for artillery's own
+// grapeshot/lining use, which Bullets doesn't cover. Uncalibrated.
+const FIREARM_BULLETS_PER_HEAD = 0.012;
 
 /** Settles state military material demand against its principal market. */
 export class MilitaryResourcesModule {
@@ -76,10 +92,11 @@ export class MilitaryResourcesModule {
       ledger.unmetDemand = {};
       if (!ledger.supplyMarketId) continue;
 
-      // Fodder is settled regardless of era; iron/lead/gunpowder only apply once firearms exist.
+      // Fodder and arrows are settled regardless of era; iron/lead/gunpowder/bullets only apply
+      // once firearms/artillery exist.
       const resources = gunpowderEraEnabled
-        ? (["fodder", "iron", "lead", "gunpowder"] as const)
-        : (["fodder"] as const);
+        ? (["fodder", "arrows", "iron", "lead", "gunpowder", "bullets"] as const)
+        : (["fodder", "arrows"] as const);
 
       for (const resource of resources) {
         const requested = (ledger.annualDemand[resource] ?? 0) / MONTHS_PER_YEAR;
@@ -108,27 +125,34 @@ export class MilitaryResourcesModule {
     let artillery = 0;
     let firearms = 0;
     let mounted = 0;
+    let archers = 0;
     for (const regiment of state.military || []) {
       for (const [unitName, rawCount] of Object.entries(regiment.u || {})) {
         const count = rawCount / populationRate;
         if (this.isArtillery(unitName)) artillery += count;
         else if (this.isFirearm(unitName)) firearms += count;
         if (isMountedUnit(unitName)) mounted += count;
+        if (this.isArcher(unitName)) archers += count;
       }
     }
 
     const demand: ResourceAmounts = {};
     const fodder = rn(mounted * MOUNTED_FODDER_PER_HEAD, 4);
     if (fodder > 0) demand.fodder = fodder;
+    const arrows = rn(archers * ARCHER_ARROWS_PER_HEAD, 4);
+    if (arrows > 0) demand.arrows = arrows;
 
     if (!gunpowderEraEnabled) return demand;
 
     const gunpowder = artillery * ARTILLERY_GUNPOWDER_PER_GUN + firearms * FIREARM_GUNPOWDER_PER_HEAD;
     demand.iron = rn(artillery * ARTILLERY_IRON_PER_GUN + firearms * FIREARM_IRON_PER_HEAD, 4);
-    demand.lead = rn(artillery * ARTILLERY_LEAD_PER_GUN + firearms * FIREARM_LEAD_PER_HEAD, 4);
     demand.gunpowder = rn(gunpowder, 4);
-    // Gunpowder is consumed as a finished Good. These fields expose its recipe-level
-    // strategic inputs without consuming them a second time in the same market cycle.
+    demand.bullets = rn(firearms * FIREARM_BULLETS_PER_HEAD, 4);
+    // Bullets and Gunpowder are consumed as finished Goods. These fields expose their
+    // recipe-level strategic inputs without consuming them a second time in the same market
+    // cycle. Artillery's own lead use (grapeshot/lining) is unrelated to small-arm Bullets, so
+    // it's still drawn directly below.
+    demand.lead = rn(artillery * ARTILLERY_LEAD_PER_GUN, 4);
     demand.saltpeter = rn(gunpowder * 0.5, 4);
     demand.sulfur = rn(gunpowder * 0.25, 4);
     demand.coal = rn(gunpowder * 0.5, 4);
@@ -141,6 +165,10 @@ export class MilitaryResourcesModule {
 
   private isFirearm(unitName: string): boolean {
     return /arquebus|musketeer|musket|firearm|handgun|gunner/.test(unitName.toLowerCase());
+  }
+
+  private isArcher(unitName: string): boolean {
+    return /archer|bowman|longbow|crossbow/.test(unitName.toLowerCase());
   }
 }
 
