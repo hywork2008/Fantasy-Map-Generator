@@ -8,6 +8,15 @@ export interface Market {
   rivalCharacterIds?: number[];
   goods: Record<number, { stock: number; price: number }>;
   foodLedger?: FoodLedger;
+  /** Working capital of the market manager's merchant company; separate from Burg/State treasury. */
+  marketTreasury?: MarketTreasury;
+}
+
+export interface MarketTreasury {
+  /** Liquid purchasing power used to pay rural Grain producers. */
+  balance: number;
+  /** Aggregate unpaid farmgate debt owed to rural Grain producers when balance was insufficient. */
+  ruralGrainPayable: number;
 }
 
 export interface FoodLedger {
@@ -21,6 +30,28 @@ export interface FoodLedger {
   satisfiedImport: number;
   /** Additional urban carrying capacity in population points supported by those imports. */
   importCapacityBonus: number;
+  /** Staple food (Grain) stock 0-3 months old. Newest bucket; production/imports land here. */
+  foodStockAge0: number;
+  /** Staple food stock 3-6 months old. */
+  foodStockAge1: number;
+  /** Staple food stock 6-9 months old. Oldest bucket; consumed/overflowed first. */
+  foodStockAge2: number;
+  /** Weighted-average farmgate unit cost of foodStockAge0. */
+  foodStockAge0UnitCost: number;
+  /** Weighted-average farmgate unit cost of foodStockAge1. */
+  foodStockAge1UnitCost: number;
+  /** Weighted-average farmgate unit cost of foodStockAge2. */
+  foodStockAge2UnitCost: number;
+  /** Cumulative staple food aged/capped out of the ledger with no export sink yet (v1: recorded only, not consumed). */
+  storageOverflow: number;
+  /** Consecutive quarters the rural population's food need went unmet by >=5%. Reset below 5%. */
+  ruralFoodStressQuarters: number;
+  /** Consecutive quarters the urban population's food need went unmet by >=5%. Reset below 5%. */
+  urbanFoodStressQuarters: number;
+  /** Consecutive quarters the rural population's food need went unmet by >=10%. Reset below 10%. */
+  ruralSevereDeficitQuarters: number;
+  /** Consecutive quarters the urban population's food need went unmet by >=10%. Reset below 10%. */
+  urbanSevereDeficitQuarters: number;
 }
 
 export interface Deal {

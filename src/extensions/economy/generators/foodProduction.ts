@@ -4,14 +4,17 @@ import {
   getCultivatedArea,
   getFarmLaborRequired,
   getFoodPotential,
+  getGoods,
   getMarketCellColumn,
   getMarkets,
   getWorldContext
 } from "../economyContext";
-import { GROSS_FOOD_NEED, RURAL_MARKETABLE_SHARE } from "./foodConstants";
+import { GROSS_FOOD_NEED } from "./foodConstants";
 import { resolveFoodImportNetwork } from "./foodImportNetwork";
+import type { Good } from "./goods-generator";
+import type { FoodLedger, Market } from "./marketTypes";
 
-export { GROSS_FOOD_NEED, RURAL_MARKETABLE_SHARE } from "./foodConstants";
+export { GROSS_FOOD_NEED } from "./foodConstants";
 
 /** Uniform fallback for legacy maps or incomplete World Configurator settings. */
 export const DEFAULT_QUARTERLY_WEIGHTS = [0.25, 0.25, 0.25, 0.25] as const;
@@ -37,6 +40,22 @@ const NORTHERN_HARVEST_PROFILE: QuarterlyFoodWeights = [0.2, 0.23, 0.34, 0.23];
 /** Caps this global foundation below the strength of a future market- or crop-level calendar. */
 const MAX_GLOBAL_SEASONAL_BLEND = 0.1;
 const REFERENCE_SEASONAL_AMPLITUDE_C = 20;
+
+/** Fraction of the current Grain retail price paid to rural producers at the farm gate. */
+export const FARMGATE_PRICE_SHARE = 0.8;
+/** Months of annual demand a Market may hold before staple food overflows with no export sink yet (v1). */
+const STORAGE_CAP_MONTHS = 9;
+/** Months of annual demand reserved before a Market may treat staple food as generally exportable. */
+const EXPORT_RESERVE_MONTHS = 3;
+/** Months of annual demand a deficit Market tries to recover toward via imports. */
+const IMPORT_TARGET_MONTHS = 6;
+/** Initial-map/first-enable seed: months of annual demand held in Age0 and in Age1 each. */
+const INITIAL_STOCK_MONTHS_PER_BUCKET = 3;
+/** Deterministic initial merchant capital as a fraction of the market's burgs' combined treasury. */
+const INITIAL_TREASURY_MIN_SHARE = 0.5;
+const INITIAL_TREASURY_SHARE_SPAN = 0.5;
+/** Days of a burg's own staple-food need kept on hand locally, independent of the Market pool. */
+export const BURG_TARGET_RESERVE_DAYS = 10;
 
 function isFiniteNumber(value: number | undefined): value is number {
   return value !== undefined && Number.isFinite(value);
@@ -89,9 +108,156 @@ export function getGlobalQuarterlyFoodWeights({
   ];
 }
 
+/** The single Good (Grain in v1) that Food Ledger production/consumption/pricing owns. */
+export function getStapleFoodGood(): Good | undefined {
+  return getGoods().find(good => good.tags?.includes("stapleFood"));
+}
+
+function emptyFoodLedger(): FoodLedger {
+  return {
+    foodProduced: 0,
+    ruralNeed: 0,
+    urbanNeed: 0,
+    exportable: 0,
+    importNeed: 0,
+    targetStock: 0,
+    satisfiedImport: 0,
+    importCapacityBonus: 0,
+    foodStockAge0: 0,
+    foodStockAge1: 0,
+    foodStockAge2: 0,
+    foodStockAge0UnitCost: 0,
+    foodStockAge1UnitCost: 0,
+    foodStockAge2UnitCost: 0,
+    storageOverflow: 0,
+    ruralFoodStressQuarters: 0,
+    urbanFoodStressQuarters: 0,
+    ruralSevereDeficitQuarters: 0,
+    urbanSevereDeficitQuarters: 0
+  };
+}
+
+/** Actual rural people (population points × populationRate) attributed to a market's cells. */
+export function getMarketRuralPopulation(worldContext: ReturnType<typeof getWorldContext>, marketId: number): number {
+  const pack = worldContext.pack;
+  const marketCellColumn = getMarketCellColumn();
+  const populationRate = worldContext.populationRate ?? 1000;
+  let ruralPopulation = 0;
+  for (const cellId of pack.cells.i) {
+    if (marketCellColumn[cellId] !== marketId || pack.cells.h[cellId] < 20) continue;
+    ruralPopulation += pack.cells.pop[cellId] * populationRate;
+  }
+  return ruralPopulation;
+}
+
 export class FoodProductionModule {
   private get worldContext() {
     return getWorldContext();
+  }
+
+  /**
+   * One-time seed for a market with no Food Ledger yet: initial bucketed stock, initial merchant
+   * capital, and each of its burgs' local food reserve. Called from generation-time hooks (fresh
+   * map, first economy enable, legacy-save migration) — never inferred from field absence inside
+   * the recurring quarterly cycle, which would be a fragile sentinel.
+   */
+  seedFoodLedgerBootstrap(): void {
+    const pack = this.worldContext.pack;
+    const markets = getMarkets();
+    if (!markets.length || !pack.burgs) return;
+
+    const populationRate = this.worldContext.populationRate ?? 1000;
+    const urbanization = this.worldContext.urbanization ?? 1;
+    const stapleFoodGood = getStapleFoodGood();
+    const startingPrice = stapleFoodGood?.value ?? 1;
+    const dailyNeedPerPerson = GROSS_FOOD_NEED / 365.2425;
+
+    for (const market of markets) {
+      if (market.foodLedger) continue;
+
+      const marketBurgs = pack.burgs.filter(b => b.i && !b.removed && b.market === market.i);
+      const ruralPopulation = getMarketRuralPopulation(this.worldContext, market.i);
+      const urbanPopulation = marketBurgs.reduce(
+        (sum, b) => sum + (b.population ?? 0) * populationRate * urbanization,
+        0
+      );
+      const annualDemand = (ruralPopulation + urbanPopulation) * GROSS_FOOD_NEED;
+      const bucketSeed = rn(annualDemand * (INITIAL_STOCK_MONTHS_PER_BUCKET / 12), 2);
+      const farmgateCost = rn(startingPrice * FARMGATE_PRICE_SHARE, 2);
+
+      market.foodLedger = {
+        ...emptyFoodLedger(),
+        foodStockAge0: bucketSeed,
+        foodStockAge1: bucketSeed,
+        foodStockAge0UnitCost: farmgateCost,
+        foodStockAge1UnitCost: farmgateCost
+      };
+
+      const burgTreasurySum = marketBurgs.reduce((sum, b) => sum + Math.max(0, b.treasury ?? 0), 0);
+      const treasuryShare = INITIAL_TREASURY_MIN_SHARE + Math.random() * INITIAL_TREASURY_SHARE_SPAN;
+      market.marketTreasury = {
+        balance: rn(burgTreasurySum * treasuryShare, 2),
+        ruralGrainPayable: 0
+      };
+
+      for (const burg of marketBurgs) {
+        const burgDailyNeed = (burg.population ?? 0) * populationRate * urbanization * dailyNeedPerPerson;
+        burg.foodReserve = rn(burgDailyNeed * BURG_TARGET_RESERVE_DAYS, 2);
+      }
+
+      if (stapleFoodGood) {
+        market.goods[stapleFoodGood.i] = { stock: 0, price: startingPrice };
+      }
+    }
+  }
+
+  /**
+   * Shifts buckets one quarter older (oldest bucket beyond the ledger's 9-month span becomes
+   * unrecoverable `storageOverflow`), then lands this quarter's production in a now-empty Age0.
+   * Must run before the cap check, which also overflows oldest-first.
+   */
+  private advanceQuarterlyStock(ledger: FoodLedger, producedThisQuarter: number, farmgateUnitCost: number): void {
+    ledger.storageOverflow = rn(ledger.storageOverflow + ledger.foodStockAge2, 2);
+
+    ledger.foodStockAge2 = ledger.foodStockAge1;
+    ledger.foodStockAge2UnitCost = ledger.foodStockAge1UnitCost;
+    ledger.foodStockAge1 = ledger.foodStockAge0;
+    ledger.foodStockAge1UnitCost = ledger.foodStockAge0UnitCost;
+
+    ledger.foodStockAge0 = rn(producedThisQuarter, 2);
+    ledger.foodStockAge0UnitCost = producedThisQuarter > 0 ? farmgateUnitCost : 0;
+  }
+
+  /** Caps total stock at 9 months of annual demand, trimming the oldest bucket first into overflow. */
+  private applyStorageCap(ledger: FoodLedger, annualDemand: number): void {
+    const cap = annualDemand * (STORAGE_CAP_MONTHS / 12);
+    let excess = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2 - cap;
+    if (excess <= 0) return;
+
+    const fromAge2 = Math.min(ledger.foodStockAge2, excess);
+    ledger.foodStockAge2 = rn(ledger.foodStockAge2 - fromAge2, 2);
+    excess -= fromAge2;
+
+    const fromAge1 = excess > 0 ? Math.min(ledger.foodStockAge1, excess) : 0;
+    ledger.foodStockAge1 = rn(ledger.foodStockAge1 - fromAge1, 2);
+    excess -= fromAge1;
+
+    const fromAge0 = excess > 0 ? Math.min(ledger.foodStockAge0, excess) : 0;
+    ledger.foodStockAge0 = rn(ledger.foodStockAge0 - fromAge0, 2);
+
+    ledger.storageOverflow = rn(ledger.storageOverflow + fromAge2 + fromAge1 + fromAge0, 2);
+  }
+
+  /** Pays the farmgate cost from the market's treasury; any shortfall accrues as rural debt. */
+  private settleFarmgatePayment(market: Market, producedThisQuarter: number, farmgateUnitCost: number): void {
+    if (producedThisQuarter <= 0) return;
+    const cost = rn(producedThisQuarter * farmgateUnitCost, 2);
+    const treasury = market.marketTreasury ?? { balance: 0, ruralGrainPayable: 0 };
+
+    const paidFromBalance = Math.min(Math.max(0, treasury.balance), cost);
+    treasury.balance = rn(treasury.balance - paidFromBalance, 2);
+    treasury.ruralGrainPayable = rn(treasury.ruralGrainPayable + (cost - paidFromBalance), 2);
+    market.marketTreasury = treasury;
   }
 
   generateQuarterlyLedger(quarterIndex: number) {
@@ -119,6 +285,7 @@ export class FoodProductionModule {
       climate: this.worldContext.options
     });
     const quarterWeight = quarterlyWeights[safeQuarterIndex];
+    const stapleFoodGood = getStapleFoodGood();
 
     for (const market of markets) {
       let ruralPopulation = 0;
@@ -153,30 +320,39 @@ export class FoodProductionModule {
 
       const annualRuralNeed = ruralPopulation * GROSS_FOOD_NEED;
       const annualUrbanNeed = urbanPopulation * GROSS_FOOD_NEED;
-      const annualTargetStock = (ruralPopulation * 0.17 + urbanPopulation * 0.33) * GROSS_FOOD_NEED;
+      const annualDemand = annualRuralNeed + annualUrbanNeed;
 
-      // 生産量は四半期の重みに応じるが、需要は一定とする
       const foodProduced = rn(annualFoodProduced * quarterWeight, 2);
       const ruralNeed = rn(annualRuralNeed * 0.25, 2);
       const urbanNeed = rn(annualUrbanNeed * 0.25, 2);
 
-      const ruralSurplus = foodProduced - ruralNeed;
-      const foodBalance = ruralSurplus - urbanNeed;
+      if (!market.foodLedger) market.foodLedger = emptyFoodLedger();
+      const ledger = market.foodLedger;
 
-      const exportable = rn(Math.max(0, foodBalance) * RURAL_MARKETABLE_SHARE, 2);
-      const importNeed = rn(Math.max(0, -foodBalance), 2);
-      const targetStock = rn(annualTargetStock, 2);
+      const previousPrice = stapleFoodGood ? (market.goods[stapleFoodGood.i]?.price ?? stapleFoodGood.value) : 1;
+      const farmgateUnitCost = rn(previousPrice * FARMGATE_PRICE_SHARE, 2);
 
-      market.foodLedger = {
-        foodProduced,
-        ruralNeed,
-        urbanNeed,
-        exportable,
-        importNeed,
-        targetStock,
-        satisfiedImport: 0,
-        importCapacityBonus: 0
-      };
+      this.advanceQuarterlyStock(ledger, foodProduced, farmgateUnitCost);
+      this.settleFarmgatePayment(market, foodProduced, farmgateUnitCost);
+      this.applyStorageCap(ledger, annualDemand);
+
+      const totalStock = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2;
+      const exportReserve = annualDemand * (EXPORT_RESERVE_MONTHS / 12);
+      const importTarget = annualDemand * (IMPORT_TARGET_MONTHS / 12);
+
+      ledger.foodProduced = foodProduced;
+      ledger.ruralNeed = ruralNeed;
+      ledger.urbanNeed = urbanNeed;
+      ledger.exportable = rn(Math.max(0, totalStock - exportReserve), 2);
+      ledger.importNeed = rn(Math.max(0, importTarget - totalStock), 2);
+      ledger.targetStock = rn(importTarget, 2);
+      // satisfiedImport/importCapacityBonus are reset and recomputed by resolveFoodImportNetwork() below.
+
+      if (stapleFoodGood) {
+        const marketGood = market.goods[stapleFoodGood.i] ?? { stock: 0, price: previousPrice };
+        marketGood.stock = rn(ledger.exportable + ledger.storageOverflow, 2);
+        market.goods[stapleFoodGood.i] = marketGood;
+      }
     }
 
     resolveFoodImportNetwork(this.worldContext);

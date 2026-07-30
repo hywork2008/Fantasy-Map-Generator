@@ -113,7 +113,11 @@ export class ProductionModule {
     TradeSecurity.settleMonthly();
     Markets.initializeMarketPrices();
 
-    const index = this.buildProductionIndex(getGoods().filter(isGoodEnabled));
+    // stapleFood (Grain) production and Burg demand are owned by the Food Ledger's own
+    // quarterly/monthly pipeline (foodProduction.ts / foodLedgerConsumption.ts), not by the
+    // generic worker-production / demand-fulfillment loops built from this index.
+    const nonStapleGoods = getGoods().filter(good => isGoodEnabled(good) && !good.tags.includes("stapleFood"));
+    const index = this.buildProductionIndex(nonStapleGoods);
     const strategicLaborMarkets = reconcileStrategicLaborMarkets(
       {
         markets: getMarkets(),

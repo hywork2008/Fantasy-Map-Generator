@@ -6,6 +6,7 @@ vi.mock("../economyContext", () => ({
   getWorldContext: vi.fn(),
   getMarkets: vi.fn(),
   getMarketCellColumn: vi.fn(),
+  getGoods: vi.fn(() => []),
   getCultivableArea: vi.fn(() => new Float32Array()),
   getCultivatedArea: vi.fn(() => new Float32Array()),
   getFarmLaborRequired: vi.fn(() => new Float32Array()),
@@ -29,12 +30,17 @@ describe("FoodProduction", () => {
     vi.resetAllMocks();
 
     mockWorldContext = {
+      populationRate: 1000,
+      urbanization: 1,
       pack: {
         options: {
           populationRate: 1000,
           urbanization: 1
         },
-        markets: [{ i: 1 }, { i: 2 }],
+        markets: [
+          { i: 1, goods: {} },
+          { i: 2, goods: {} }
+        ],
         cells: {
           i: [1, 2, 3],
           market: [0, 1, 1, 2],
@@ -43,8 +49,8 @@ describe("FoodProduction", () => {
           capacity: [0, 20, 10, 2]
         },
         burgs: [
-          { i: 1, market: 1, population: 5, removed: false },
-          { i: 2, market: 2, population: 15, removed: false }
+          { i: 1, market: 1, population: 5, removed: false, treasury: 0 },
+          { i: 2, market: 2, population: 15, removed: false, treasury: 0 }
         ]
       }
     };
@@ -75,17 +81,27 @@ describe("FoodProduction", () => {
     // Rural Need = 15,000 * 0.43 = 6450 => Quarter Need = 1612.5
     // Urban Population = 5 * 1000 = 5,000
     // Urban Need = 5,000 * 0.43 = 2150 => Quarter Need = 537.5
+    // Annual demand = 8600 => exportReserve (3mo) = 2150, importTarget (6mo) = 4300
 
-    // Rural Surplus = 2015.63 - 1612.5 = 403.13
-    // Food Balance = 403.13 - 537.5 = -134.37
-
-    // Exportable = max(0, -134.37) = 0
-    // Import Need = 134.37
+    // The ledger starts empty, so this quarter's production is the only stock: 2015.63.
+    // exportable = max(0, 2015.63 - 2150) = 0
+    // importNeed = max(0, 4300 - 2015.63) = 2284.37
 
     expect(market1.foodLedger.ruralNeed).toBeCloseTo(1612.5, 1);
     expect(market1.foodLedger.urbanNeed).toBeCloseTo(537.5, 1);
     expect(market1.foodLedger.exportable).toBe(0);
-    expect(market1.foodLedger.importNeed).toBeGreaterThan(0);
+    expect(market1.foodLedger.importNeed).toBeCloseTo(2284.37, 0);
+
+    // The quarter's production lands entirely in the newest bucket; older buckets stay empty.
+    expect(market1.foodLedger.foodStockAge0).toBeCloseTo(2015.63, 0);
+    expect(market1.foodLedger.foodStockAge1).toBe(0);
+    expect(market1.foodLedger.foodStockAge2).toBe(0);
+    expect(market1.foodLedger.storageOverflow).toBe(0);
+
+    // With no starting merchant capital, the farmgate cost accrues entirely as rural debt.
+    expect(market1.marketTreasury).toBeDefined();
+    expect(market1.marketTreasury.balance).toBe(0);
+    expect(market1.marketTreasury.ruralGrainPayable).toBeGreaterThan(0);
   });
 
   it("uses cultivated area and farm labour coverage when agricultural columns are available", () => {
@@ -103,7 +119,7 @@ describe("FoodProduction", () => {
         },
         burgs: []
       },
-      markets: [{ i: 1 }]
+      markets: [{ i: 1, goods: {} }]
     };
     vi.mocked(getWorldContext).mockReturnValue(mockWorldContext);
     vi.mocked(getMarkets).mockReturnValue(mockWorldContext.markets);
@@ -146,5 +162,60 @@ describe("FoodProduction", () => {
 
     expect(weights[0]).toBeGreaterThan(weights[2]);
     expect(weights.reduce((sum, weight) => sum + weight, 0)).toBeCloseTo(1, 12);
+  });
+
+  it("shifts buckets oldest-first and overflows what the 9-month cap can't hold", () => {
+    const market: any = {
+      i: 1,
+      goods: {},
+      foodLedger: {
+        foodProduced: 0,
+        ruralNeed: 0,
+        urbanNeed: 0,
+        exportable: 0,
+        importNeed: 0,
+        targetStock: 0,
+        satisfiedImport: 0,
+        importCapacityBonus: 0,
+        foodStockAge0: 100,
+        foodStockAge1: 200,
+        foodStockAge2: 300,
+        foodStockAge0UnitCost: 1,
+        foodStockAge1UnitCost: 1,
+        foodStockAge2UnitCost: 1,
+        storageOverflow: 0,
+        ruralFoodStressQuarters: 0,
+        urbanFoodStressQuarters: 0,
+        ruralSevereDeficitQuarters: 0,
+        urbanSevereDeficitQuarters: 0
+      },
+      marketTreasury: { balance: 0, ruralGrainPayable: 0 }
+    };
+    mockWorldContext = {
+      populationRate: 1000,
+      urbanization: 1,
+      pack: {
+        // One rural cell (id 1; index 0 is an unused placeholder, matching the array-by-cellId
+        // convention used elsewhere in this file) with no production capacity of its own, but
+        // enough population that annualDemand keeps the 9-month cap well above the 300 units
+        // already in the buckets — this isolates the bucket-shift behavior from the separate
+        // cap-trim behavior.
+        cells: { i: [1], h: [0, 25], pop: [0, 10], capacity: [0, 0] },
+        burgs: []
+      },
+      markets: [market]
+    };
+    vi.mocked(getWorldContext).mockReturnValue(mockWorldContext);
+    vi.mocked(getMarkets).mockReturnValue(mockWorldContext.markets);
+    vi.mocked(getMarketCellColumn).mockReturnValue(new Uint16Array([0, 1]));
+
+    FoodProduction.generateQuarterlyLedger(0);
+
+    // No production this quarter (zero capacity): old Age2 (300) becomes overflow, Age1 (200)
+    // becomes the new Age2, old Age0 (100) becomes the new Age1, and the new Age0 is empty.
+    expect(market.foodLedger.storageOverflow).toBe(300);
+    expect(market.foodLedger.foodStockAge2).toBe(200);
+    expect(market.foodLedger.foodStockAge1).toBe(100);
+    expect(market.foodLedger.foodStockAge0).toBe(0);
   });
 });

@@ -238,6 +238,35 @@ describe("MarketsModule", () => {
       expect(market2.goods[0].price).toBeGreaterThan(0);
     });
 
+    it("initializeMarketPrices() should leave stapleFood-tagged goods' price untouched", () => {
+      const grain = {
+        i: 1,
+        name: "Grain",
+        value: 1,
+        tags: ["food", "stapleFood"],
+        unit: "wain",
+        icon: "icon",
+        color: "#fff",
+        distribution: "1",
+        recipes: []
+      };
+      worldContext.pack = { ...worldContext.pack, goods: [...getGoods(), grain] } as unknown as PackedGraph;
+
+      const market1: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#ff0000",
+        goods: { 0: { stock: 10, price: 10 }, 1: { stock: 500, price: 1.23 } }
+      };
+      const burg1: Burg = { i: 1, population: 100, market: 1 } as unknown as Burg;
+      setMarkets([market1]);
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg1];
+
+      marketsModule.initializeMarketPrices();
+
+      expect(market1.goods[grain.i].price).toBe(1.23);
+    });
+
     it("runGlobalTrade() should skip low-value trades beyond their value-density day limit", () => {
       const market1: Market = {
         i: 1,
@@ -389,6 +418,44 @@ describe("MarketsModule", () => {
       marketsModule.invalidateRuralProductionCache();
       marketsModule.collectRuralProduction();
       expect(getRuralProductionContributions).toHaveBeenCalledTimes(4);
+    });
+
+    it("collectRuralProduction() should skip stapleFood-tagged goods entirely", async () => {
+      const { Goods } = await import("./goods-generator");
+      const { getRuralProductionContributions } = await import("./production-utils");
+
+      const grain = {
+        i: 1,
+        name: "Grain",
+        value: 1,
+        tags: ["food", "stapleFood"],
+        unit: "wain",
+        icon: "icon",
+        color: "#fff",
+        distribution: "1",
+        recipes: []
+      };
+      worldContext.pack = { ...worldContext.pack, goods: [...getGoods(), grain] } as unknown as PackedGraph;
+
+      const market1: Market = { i: 1, centerBurgId: 1, color: "#ff0000", goods: {} };
+      setMarkets([market1]);
+      const index: Market[] = [];
+      index[market1.i] = market1;
+      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
+      marketsModule["marketById"] = index;
+
+      worldContext.pack.cells = {
+        i: [0, 1],
+        market: Uint16Array.from([1, 1])
+      } as unknown as PackedGraph["cells"];
+
+      vi.mocked(Goods.getBiomesProduction).mockReturnValue({} as ReturnType<typeof Goods.getBiomesProduction>);
+      vi.mocked(Goods.get).mockImplementation((id: number) => (id === grain.i ? grain : undefined));
+      vi.mocked(getRuralProductionContributions).mockReturnValue([{ goodId: grain.i, amount: 5 }]);
+
+      marketsModule.collectRuralProduction();
+
+      expect(market1.goods[grain.i]).toBeUndefined();
     });
 
     it("getName() should prefer a custom name, fall back to the center burg, then to a generic label", () => {

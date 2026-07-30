@@ -44,6 +44,7 @@ import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burg
 import { Caravans } from "./generators/caravans";
 import { DevelopmentPotential } from "./generators/developmentPotential";
 import { resetEffectiveCapacities } from "./generators/foodImportNetwork";
+import { settleMonthlyFoodConsumption } from "./generators/foodLedgerConsumption";
 import { FoodProduction } from "./generators/foodProduction";
 import { clearForestDepletion, registerLogHarvest, tickForestRegrowth } from "./generators/forestDepletion";
 import {
@@ -592,6 +593,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (value !== undefined) throw new Error("economy.production.settle does not accept a payload");
 
       Production.produce();
+      settleMonthlyFoodConsumption();
       Taxes.collectTaxes();
       refreshStateEconomySummaries();
       return { changed: true };
@@ -617,7 +619,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (value.target === "economy") TradeSecurity.generate();
       if (value.target === "economy") Taxes.defineTaxRates();
       if (value.target === "economy" || value.target === "production") {
-        FoodProduction.generateQuarterlyLedger(0);
+        FoodProduction.seedFoodLedgerBootstrap();
         Production.produce();
         Taxes.collectTaxes();
       }
@@ -997,7 +999,7 @@ export function init(api: ExtensionAPI): void {
         MilitaryResources.generate();
         TradeSecurity.generate();
         Taxes.defineTaxRates();
-        FoodProduction.generateQuarterlyLedger(0);
+        FoodProduction.seedFoodLedgerBootstrap();
         Production.produce();
         Taxes.collectTaxes();
       } else {
@@ -1010,7 +1012,7 @@ export function init(api: ExtensionAPI): void {
           if (!getTradeSecurityLedgers().length) TradeSecurity.generate();
           syncMarketManagers();
           syncBurgMarketLedgers();
-          FoodProduction.generateQuarterlyLedger(0);
+          FoodProduction.seedFoodLedgerBootstrap();
         }
       }
     } else if (!isEnabled && wasEnabled) {
@@ -1070,7 +1072,7 @@ export function init(api: ExtensionAPI): void {
       if (getMarkets().length) {
         syncMarketManagers();
         syncBurgMarketLedgers();
-        FoodProduction.generateQuarterlyLedger(0);
+        FoodProduction.seedFoodLedgerBootstrap();
       }
     }
   }
@@ -1099,7 +1101,7 @@ export function init(api: ExtensionAPI): void {
           MilitaryResources.generate();
           TradeSecurity.generate();
           Taxes.defineTaxRates();
-          FoodProduction.generateQuarterlyLedger(0);
+          FoodProduction.seedFoodLedgerBootstrap();
           const completed = await Production.produceIncrementally({
             isCancelled: () => !context.isCurrent() || !api.isExtensionEnabled(ECONOMY_EXTENSION_ID),
             onProgress: (done, total) => context.reportProgress(total ? done / total : 1)

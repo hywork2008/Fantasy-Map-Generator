@@ -10,6 +10,8 @@
 
 **実装状況**: Phase 1を開始済み。potential列の生成・再生成と、非ロックBurgの年次group再評価は実装した。食料台帳の置換、移住、昇格候補へのpotential接続は後続Phaseで行う。
 
+**2026-07-30 実装状況（Food Ledger v2 マイルストーン1）**: Phase 2の中核を実装した。`FoodLedger`をAge0/1/2の数量・加重平均原価・`storageOverflow`・不足カウンタを持つ契約へ拡張し、四半期ごとに最古バケットの繰り上げ・破棄と新規生産の追加を行う（`foodProduction.ts`）。月次FIFO消費・Grain価格（0.8〜2.0倍レンジ）・`marketTreasury`（残高・`ruralGrainPayable`）による農村仕入れ決済と都市小売収入の優先返済を実装した（新規`foodLedgerConsumption.ts`）。`stapleFood`タグをGrainへ付与し、月次生産・価格形成・Burg需要充足の一般Goods経路から除外、`market.goods[GrainId].stock`は`exportable + storageOverflow`の同期ビューとした。当初計画にはなかった追加として、各Burgに自都市消費量10日分の手元備蓄`Burg.foodReserve`を新設し、都市の食料消費はまずこれを消費してからMarket在庫を使う。市場間輸送・State備蓄・軍事補給・移住・飢餓死亡切替は本マイルストーンでは未着手（既存のFood Ledger暫定`resolveFoodImportNetwork()`は、新しいバケット合計から再計算した`exportable`/`importNeed`を使うよう更新しただけで、内部ロジックは変更していない）。
+
 この決定により、食料輸入は「未使用の農村人口上限を都市へ振り替える」仕組みではなく、後背地の生産力・農業労働力・在庫・輸送網が実際に都市人口を支える仕組みになる。
 
 本書は設計・実装計画である。Phase 1の基盤実装は本改訂と同時に開始し、以降のPhaseはこの契約を満たす順序で進める。
@@ -663,8 +665,8 @@ interface PopulationMigration {
 
 - [x] `cells.area × distanceScale²` を使って物理面積へ換算し、`cultivableArea`、`cultivatedArea`、面積当たり収量と成人バケットから、`farmLaborRequired`と生産量を求める。
 - [ ] 初期農村人口と`cells.capacity`について、必要農地面積・最大開墾面積・`ruralFoodCapacity`の整合性監査を実装する。`ruralFoodCapacity`列は生成済みだが、監査結果の集計・警告は未実装である。capacityを食料生産の直接入力には戻していない。
-- [ ] `FoodLedger`を在庫開始・終了、未充足需要、輸出可能量を含む契約へ移行する。現在は四半期の生産・需要・輸出入余力を持つが、繰越在庫と未充足需要の正規状態はまだ持たない。
-- [x] v1の在庫所有者をMarket単位の共通在庫`foodStock`と決定する。Burg倉庫・農村自家備蓄・輸送中貨物への分離は後続タスクとする。
+- [x] `FoodLedger`を在庫開始・終了、未充足需要、輸出可能量を含む契約へ移行する。`foodStockAge0/1/2`（数量・加重平均原価）、`storageOverflow`、`ruralFoodStressQuarters`等4種の不足カウンタを実装した（`marketTypes.ts`）。`exportable`/`importNeed`はこのバケット合計から再計算し、既存の`resolveFoodImportNetwork()`へ渡す。
+- [x] v1の在庫所有者をMarket単位の共通在庫`foodStock`と決定する。輸送中貨物・農村自家備蓄は未実装のまま後続タスクとするが、**Burg倉庫（`Burg.foodReserve`）は実装済み**: 各Burgが自都市の消費量の10日分をMarket在庫から毎月補充し、都市の消費はまずこの手元在庫から満たす（`foodLedgerConsumption.ts`）。
 - [x] Market在庫上限を年間需要の9か月分（`annualDemand × 0.75`）と決定する。
 - [x] 地図生成時・economy初回有効化時の初期在庫を年間需要の6か月分（`annualDemand × 0.5`）と決定する。
 - [x] 食料の通常消費・輸出をFIFOとし、9か月の上限超過分だけを輸出候補にする方針を決定する。輸出できない超過分の施し・飼料・肥料化は後続タスクとする。
@@ -672,7 +674,7 @@ interface PopulationMigration {
 - [x] 四半期の生産・輸送・年齢更新と、月次FIFO消費・Grain価格・都市小売・未払金返済を組み合わせた更新順序を決定する。
 - [x] 1月1日の初期在庫6か月分を`Age0`・`Age1`へ各3か月分ずつ配分し、`Age2`を空にすると決定する。
 - [x] 欠乏時の農村・都市負担を、人口に対する不足率が原則同じになる方式と決定する。Market・四半期ごとの決定的な小さな揺らぎ、Character・政治による配給偏りは後続タスクとする。
-- [ ] 四半期をまたぐ在庫を実装する。地図中央緯度とWorld Configuratorの赤道・極地温度による地図共通の軽い季節配分は実装済みだが、在庫繰越は未実装である。
+- [x] 四半期をまたぐ在庫を実装する。四半期境界で`storageOverflow`（旧Age2）→破棄、Age1→Age2、Age0→Age1と繰り上げてから新規生産をAge0へ入れる方式を実装した。9か月上限超過分は最も古いバケットから`storageOverflow`へ移す（`foodProduction.ts`）。
 - [ ] 旧来の`capacity × cultivation`生産式を削除する。農地列を持たない旧セーブの互換経路として当面残す。
 
 **完了条件**: 同じ`foodPotential`でも農業労働力が不足すれば生産が下がり、必要量を満たせば人口増なしで余剰を維持できる。

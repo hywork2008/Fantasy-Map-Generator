@@ -418,6 +418,9 @@ export class MarketsModule {
       for (const contribution of getRuralProductionContributions(cellId, biomeProduction)) {
         const good = Goods.get(contribution.goodId);
         if (!good || !isGoodEnabled(good) || contribution.amount <= 0) continue;
+        // stapleFood (Grain in v1) is produced/consumed by the Food Ledger's own quarterly/monthly
+        // pipeline (foodProduction.ts / foodLedgerConsumption.ts) instead of this generic path.
+        if (good.tags.includes("stapleFood")) continue;
 
         if (good.name === "Wood") {
           this.addMarketGoodTotal(index.wood, marketId, good.i, contribution.amount);
@@ -488,7 +491,10 @@ export class MarketsModule {
   }
 
   initializeMarketPrices(): void {
-    const goods = getGoods().filter(isGoodEnabled);
+    // stapleFood (Grain) pricing is owned by foodLedgerConsumption.ts's monthly settlement.
+    const goods = getGoods()
+      .filter(isGoodEnabled)
+      .filter(good => !good.tags.includes("stapleFood"));
     const consumerDemandFactors = this.collectConsumerDemand(goods);
     const industrialDemandFactors = this.collectIndustrialDemand(goods, consumerDemandFactors);
     const avgIngredientsCostByGood = this.calculateAverageBaseCostByGood(goods);
@@ -542,6 +548,7 @@ export class MarketsModule {
     for (const market of getMarkets()) {
       const population = populationByMarket[market.i] || 0;
       for (const good of getGoods().filter(isGoodEnabled)) {
+        if (good.tags.includes("stapleFood")) continue;
         const marketGood = this.getMarketGood(market, good);
         const multiplier = getLocalTradePriceMultiplier({
           good,

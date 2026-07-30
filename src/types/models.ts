@@ -111,6 +111,8 @@ export interface Burg {
   province?: number;
   product?: number;
   treasury?: number;
+  /** Small local staple-food buffer (Grain-equivalent units), independent of the Market's pooled stock. */
+  foodReserve?: number;
   market?: number;
   demographics?: BurgDemographics;
   /**

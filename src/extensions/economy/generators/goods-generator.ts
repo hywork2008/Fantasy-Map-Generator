@@ -281,7 +281,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Grain",
     warEconomyType: "essential",
-    tags: ["food"],
+    tags: ["food", "stapleFood"],
     icon: "good-grain",
     color: "#F5DEB3",
     value: 1,

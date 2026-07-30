@@ -11,9 +11,15 @@ import { getStateArmyFoodConsumptionPerDay } from "./militaryLogistics";
  */
 
 /**
- * Aggregates the real, already-stocked `market.goods` for every food-tagged good (decision #2:
- * use the actual goods stock, not the abstract quarterly foodLedger) into `state.foodStock`,
- * apportioned across market territories by burg-weighted state share (decision #3).
+ * Aggregates the real, already-stocked `market.goods` for every non-staple food-tagged good
+ * (decision #2: use the actual goods stock, not the abstract quarterly foodLedger) plus each
+ * market's Food Ledger bucketed stock into `state.foodStock`, apportioned across market
+ * territories by burg-weighted state share (decision #3).
+ *
+ * stapleFood (Grain)'s `market.goods[...].stock` is only a synced view of its tradable surplus
+ * (`exportable + storageOverflow`, see foodProduction.ts) — summing it here as well as the
+ * ledger's bucket total would double-count `exportable`, so non-staple food goods and the
+ * Food Ledger are summed from separate, non-overlapping sources instead.
  */
 export function refreshStateEconomySummaries(): void {
   const { pack } = getWorldContext();
@@ -22,7 +28,7 @@ export function refreshStateEconomySummaries(): void {
   if (!states?.length || !markets.length) return;
 
   const foodGoodIds = getGoods()
-    .filter(good => good.tags.includes("food"))
+    .filter(good => good.tags.includes("food") && !good.tags.includes("stapleFood"))
     .map(good => good.i);
 
   const foodStockByState = new Map<number, number>();
@@ -31,6 +37,10 @@ export function refreshStateEconomySummaries(): void {
 
     let marketFoodStock = 0;
     for (const goodId of foodGoodIds) marketFoodStock += market.goods[goodId]?.stock || 0;
+    if (market.foodLedger) {
+      const ledger = market.foodLedger;
+      marketFoodStock += ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2 + ledger.storageOverflow;
+    }
     if (marketFoodStock <= 0) continue;
 
     for (const [stateId, share] of getMarketStateShares(market)) {

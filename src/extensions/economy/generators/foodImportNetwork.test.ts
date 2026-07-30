@@ -55,7 +55,18 @@ describe("resolveFoodImportNetwork", () => {
         importNeed: 0,
         targetStock: 0,
         satisfiedImport: 0,
-        importCapacityBonus: 0
+        importCapacityBonus: 0,
+        foodStockAge0: 0,
+        foodStockAge1: 0,
+        foodStockAge2: 0,
+        foodStockAge0UnitCost: 0,
+        foodStockAge1UnitCost: 0,
+        foodStockAge2UnitCost: 0,
+        storageOverflow: 0,
+        ruralFoodStressQuarters: 0,
+        urbanFoodStressQuarters: 0,
+        ruralSevereDeficitQuarters: 0,
+        urbanSevereDeficitQuarters: 0
       }
     };
     const importer = {
@@ -71,7 +82,18 @@ describe("resolveFoodImportNetwork", () => {
         importNeed: 50,
         targetStock: 0,
         satisfiedImport: 0,
-        importCapacityBonus: 0
+        importCapacityBonus: 0,
+        foodStockAge0: 0,
+        foodStockAge1: 0,
+        foodStockAge2: 0,
+        foodStockAge0UnitCost: 0,
+        foodStockAge1UnitCost: 0,
+        foodStockAge2UnitCost: 0,
+        storageOverflow: 0,
+        ruralFoodStressQuarters: 0,
+        urbanFoodStressQuarters: 0,
+        ruralSevereDeficitQuarters: 0,
+        urbanSevereDeficitQuarters: 0
       }
     };
     vi.mocked(getMarkets).mockReturnValue([supplier, importer]);

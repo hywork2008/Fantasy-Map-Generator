@@ -86,6 +86,102 @@ describe("stateEconomySummary", () => {
       setMarkets([]);
       expect(() => refreshStateEconomySummaries()).not.toThrow();
     });
+
+    it("adds a market's Food Ledger bucketed stock into state.foodStock", () => {
+      const market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#fff",
+        goods: {},
+        foodLedger: {
+          foodProduced: 0,
+          ruralNeed: 0,
+          urbanNeed: 0,
+          exportable: 0,
+          importNeed: 0,
+          targetStock: 0,
+          satisfiedImport: 0,
+          importCapacityBonus: 0,
+          foodStockAge0: 100,
+          foodStockAge1: 50,
+          foodStockAge2: 25,
+          foodStockAge0UnitCost: 1,
+          foodStockAge1UnitCost: 1,
+          foodStockAge2UnitCost: 1,
+          storageOverflow: 5,
+          ruralFoodStressQuarters: 0,
+          urbanFoodStressQuarters: 0,
+          ruralSevereDeficitQuarters: 0,
+          urbanSevereDeficitQuarters: 0
+        }
+      } as Market;
+      setMarkets([market]);
+      worldContext.pack.burgs = [
+        { i: 0 } as unknown as Burg,
+        { i: 1, market: 1, state: 1, population: 10 } as unknown as Burg
+      ];
+      const state1: State = { i: 1 } as unknown as State;
+      worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
+
+      refreshStateEconomySummaries();
+
+      // 100 + 50 + 25 + 5 (storageOverflow), no non-staple food goods stock in this market.
+      expect(state1.foodStock).toBe(180);
+    });
+
+    it("does not double-count a stapleFood-tagged good's synced stock alongside the Food Ledger", () => {
+      const stapleGrain = {
+        i: 3,
+        name: "Grain",
+        tags: ["food", "stapleFood"],
+        value: 1,
+        unit: "ton",
+        icon: "",
+        color: ""
+      } as Good;
+      worldContext.pack = { ...worldContext.pack, goods: [grain, wood, stapleGrain] } as unknown as PackedGraph;
+
+      const market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#fff",
+        // stapleGrain's stock (a synced exportable+overflow view) must not be summed on top of
+        // the Food Ledger's own bucket total, or the same surplus would be counted twice.
+        goods: { 3: { stock: 40, price: 1 } },
+        foodLedger: {
+          foodProduced: 0,
+          ruralNeed: 0,
+          urbanNeed: 0,
+          exportable: 40,
+          importNeed: 0,
+          targetStock: 0,
+          satisfiedImport: 0,
+          importCapacityBonus: 0,
+          foodStockAge0: 100,
+          foodStockAge1: 0,
+          foodStockAge2: 0,
+          foodStockAge0UnitCost: 1,
+          foodStockAge1UnitCost: 0,
+          foodStockAge2UnitCost: 0,
+          storageOverflow: 0,
+          ruralFoodStressQuarters: 0,
+          urbanFoodStressQuarters: 0,
+          ruralSevereDeficitQuarters: 0,
+          urbanSevereDeficitQuarters: 0
+        }
+      } as Market;
+      setMarkets([market]);
+      worldContext.pack.burgs = [
+        { i: 0 } as unknown as Burg,
+        { i: 1, market: 1, state: 1, population: 10 } as unknown as Burg
+      ];
+      const state1: State = { i: 1 } as unknown as State;
+      worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
+
+      refreshStateEconomySummaries();
+
+      expect(state1.foodStock).toBe(100);
+    });
   });
 
   describe("getStateFoodStockDays()", () => {
