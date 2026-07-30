@@ -3,6 +3,7 @@
 2026-07-31
 
 - docs/plan/rural-agtech-investment.md
+- docs/plan/urban-construction-industry.md
 
 2026-07-30
 

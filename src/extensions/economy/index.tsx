@@ -45,6 +45,7 @@ import { AgTechInvestment } from "./generators/agTechInvestment";
 import { reconcileAnnualBasicEmploymentWorkers } from "./generators/basicEmployment";
 import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burgMarketLedgers";
 import { Caravans } from "./generators/caravans";
+import { ConstructionOperations } from "./generators/constructionEmployment";
 import { DevelopmentPotential } from "./generators/developmentPotential";
 import { resetEffectiveCapacities } from "./generators/foodImportNetwork";
 import { settleMonthlyFoodConsumption } from "./generators/foodLedgerConsumption";
@@ -66,6 +67,7 @@ import { MineOperations } from "./generators/mineOperations";
 import { MineralResources } from "./generators/mineralResources";
 import { Minting } from "./generators/minting";
 import { Production } from "./generators/production-generator";
+import { QuarryOperations } from "./generators/quarryOperations";
 import { releaseRuralLaborSurplus } from "./generators/ruralLaborRelease";
 import { seedShipbuildingInitialStock } from "./generators/shipbuildingInitialStock";
 import { SmelterOperations } from "./generators/smelterOperations";
@@ -80,6 +82,7 @@ import {
 import { TradeAnimation } from "./generators/trade-animation";
 import { TradeSecurity } from "./generators/tradeSecurity";
 import { UrbanLaborIntake } from "./generators/urbanLaborIntake";
+import { VolcanicAshOperations } from "./generators/volcanicAshOperations";
 import { drawGoods } from "./renderers/draw-goods";
 import { drawMarketsLayer } from "./renderers/draw-markets";
 import {
@@ -620,6 +623,15 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (value.target === "economy" || value.target === "markets") Markets.generate(true);
       if (value.target === "economy" || value.target === "minerals") MineOperations.generate();
       if (value.target === "economy" || value.target === "minerals") SmelterOperations.generate();
+      // Quarries are a separate site model from ore (docs/plan/urban-construction-industry.md
+      // §3.2, decision D3) but regenerate together with the other physical extraction sites.
+      if (value.target === "economy" || value.target === "minerals") QuarryOperations.generate();
+      // Depends on MineralResources' "volcanic" GeologicalProvinceKind cells, regenerated just
+      // above under the same target gate (docs/plan/urban-construction-industry.md §3.4).
+      if (value.target === "economy" || value.target === "minerals") VolcanicAshOperations.generate();
+      // Construction depends on QuarryOperations' hasQuarryAccess snapshot, so it regenerates
+      // right after (docs/plan/urban-construction-industry.md §3.3).
+      if (value.target === "economy" || value.target === "minerals") ConstructionOperations.generate();
       if (value.target === "economy" || value.target === "currency") Minting.generate();
       if (value.target === "economy") MilitaryResources.generate();
       if (value.target === "economy") TradeSecurity.generate();
@@ -671,6 +683,9 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       clearMarketManagers();
       MineOperations.clear();
       SmelterOperations.clear();
+      QuarryOperations.clear();
+      VolcanicAshOperations.clear();
+      ConstructionOperations.clear();
       MineralResources.clear();
       Minting.clear();
       MilitaryResources.clear();
@@ -1020,6 +1035,9 @@ export function init(api: ExtensionAPI): void {
         Markets.generate();
         MineOperations.generate();
         SmelterOperations.generate();
+        QuarryOperations.generate();
+        VolcanicAshOperations.generate();
+        ConstructionOperations.generate();
         Minting.generate();
         MilitaryResources.generate();
         TradeSecurity.generate();
@@ -1123,6 +1141,9 @@ export function init(api: ExtensionAPI): void {
           Markets.generate();
           MineOperations.generate();
           SmelterOperations.generate();
+          QuarryOperations.generate();
+          VolcanicAshOperations.generate();
+          ConstructionOperations.generate();
           Minting.generate();
           MilitaryResources.generate();
           TradeSecurity.generate();
@@ -1447,7 +1468,12 @@ export function init(api: ExtensionAPI): void {
       // Reuses UrbanLaborIntake's once-per-simulation-year gate (non-null only on the year
       // transition) so administration/mining/smelting employment reconciles annually, not
       // every economy tick.
-      if (urbanMobility) reconcileAnnualBasicEmploymentWorkers();
+      if (urbanMobility) {
+        reconcileAnnualBasicEmploymentWorkers();
+        // Must run after reconciliation, not before: it clamps effectiveCapacity from this
+        // year's buildingStock (docs/plan/urban-construction-industry.md §3.3, decision §7.1-2b).
+        ConstructionOperations.constrainEffectiveCapacity();
+      }
       const burgGroupsChanged = DevelopmentPotential.updateAnnualBurgGroups();
       const forestChanged = tickForestRegrowth(effectiveDeltaYears);
 

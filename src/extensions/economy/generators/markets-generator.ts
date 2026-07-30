@@ -182,6 +182,16 @@ export class MarketsModule {
   }
 
   /**
+   * Masons/carpenters draw a bounded share of local Stone/Wood stock, mirroring
+   * consumeForSmelting (docs/plan/urban-construction-industry.md §3.3). A free, bounded draw
+   * rather than a paid investment: construction consumes raw material as an internal
+   * production input the same way smelting consumes ore, not as capital spending.
+   */
+  consumeForConstruction(marketId: number, goodId: number, requestedUnits: number, stockShare: number): number {
+    return this.consumeForSmelting(marketId, goodId, requestedUnits, stockShare);
+  }
+
+  /**
    * Removes no more than one fifth of a metal's local stock for state minting.
    * The cap leaves a market reserve for private trade and production; the caller
    * records the resulting currency in its own ledger rather than creating Coins Good stock.

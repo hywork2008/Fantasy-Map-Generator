@@ -2,6 +2,7 @@ import type { Burg } from "../../hostTypes";
 import { DEBUG, ERROR, rn, TIME } from "../../hostUtils";
 import {
   getBurgProductionRecords,
+  getConstructionOperations,
   getDeals,
   getGoodCellColumn,
   getGoods,
@@ -15,6 +16,11 @@ import {
 } from "../economyContext";
 import { syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { Caravans } from "./caravans";
+import {
+  type ConstructionOperation,
+  ConstructionOperations,
+  getConstructionProductivityMultiplier
+} from "./constructionEmployment";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, Goods, getDemandTargets, isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
@@ -24,6 +30,7 @@ import { MineOperations } from "./mineOperations";
 import { isMineSuppliedGoodName } from "./mineralResources";
 import { Minting } from "./minting";
 import { getModifiers, MAX_BONUS_PRODUCTION } from "./production-utils";
+import { QuarryOperations } from "./quarryOperations";
 import { SmelterOperations } from "./smelterOperations";
 import {
   getStrategicLaborProductivity,
@@ -37,6 +44,7 @@ import {
   type StrategicProductionDemand
 } from "./strategicProductionDemand";
 import { TradeSecurity } from "./tradeSecurity";
+import { VolcanicAshOperations } from "./volcanicAshOperations";
 
 const BONUS_URBAN_PRODUCTION = 1;
 
@@ -108,6 +116,9 @@ export class ProductionModule {
     Markets.collectRuralProduction();
     MineOperations.produceMonth();
     SmelterOperations.produceMonth();
+    QuarryOperations.produceMonth();
+    VolcanicAshOperations.produceMonth();
+    ConstructionOperations.produceMonth();
     Minting.settleMonthly();
     MilitaryResources.settleMonthly();
     TradeSecurity.settleMonthly();
@@ -134,8 +145,11 @@ export class ProductionModule {
     const sortedBurgs = this.worldContext.pack.burgs
       .filter(burg => burg.i && !burg.removed)
       .sort((a, b) => a.population! - b.population!);
+    const constructionOperationByBurg = new Map(
+      getConstructionOperations().map(operation => [operation.burgId, operation])
+    );
 
-    return { index, sortedBurgs, strategicLaborMarketById };
+    return { index, sortedBurgs, strategicLaborMarketById, constructionOperationByBurg };
   }
 
   private produceForBurg(burg: Burg, cycle: ProductionCycle): void {
@@ -147,7 +161,8 @@ export class ProductionModule {
       burg,
       market,
       cycle.index,
-      cycle.strategicLaborMarketById.get(market.i)
+      cycle.strategicLaborMarketById.get(market.i),
+      cycle.constructionOperationByBurg.get(burg.i)
     );
     this.runWorkerLoop(cycle.index, state);
 
@@ -200,7 +215,8 @@ export class ProductionModule {
     burg: Burg,
     market: Market,
     index: ProductionIndex,
-    strategicLaborMarket: LaborMarket | undefined
+    strategicLaborMarket: LaborMarket | undefined,
+    constructionOperation: ConstructionOperation | undefined
   ): BurgProductionState {
     const population = rn(burg.population || 0, 2);
     const inventory: number[] = [];
@@ -217,7 +233,11 @@ export class ProductionModule {
       // floor here would give every hamlet/village/fort the same flat bonus regardless of how far
       // below that floor its actual size is. See docs/analytics/urban-resource-bonus-rebalance.md.
       const bonus = Math.min(population * BONUS_URBAN_PRODUCTION, MAX_BONUS_PRODUCTION);
-      const localBonus = bonus * modifier;
+      // Dynamic stand-in for the old static `burg.shanty` flag: an underdeveloped Burg's
+      // buildingStock throttles its own local-bonus output (docs/plan/
+      // urban-construction-industry.md §3.3, decision §7.1-2a). 1 (no penalty) for Burgs
+      // without a construction operation yet.
+      const localBonus = bonus * modifier * getConstructionProductivityMultiplier(constructionOperation);
       if (localBonus > 0) {
         inventory[good.i] = (inventory[good.i] || 0) + localBonus;
         records.push({ goodId: good.i, units: rn(localBonus, 2) });
@@ -861,6 +881,7 @@ type ProductionCycle = {
   index: ProductionIndex;
   sortedBurgs: Burg[];
   strategicLaborMarketById: ReadonlyMap<number, LaborMarket>;
+  constructionOperationByBurg: ReadonlyMap<number, ConstructionOperation>;
 };
 
 type IncrementalProductionOptions = {

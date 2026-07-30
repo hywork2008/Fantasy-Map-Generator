@@ -1,19 +1,25 @@
 import { getBurgDemographics } from "../../hostCore";
 import {
   getAdministrationEmployment,
+  getConstructionOperations,
   getMarkets,
   getMineOperations,
   getMineralDeposits,
+  getQuarryOperations,
   getSmelterOperations,
   getStrategicLaborMarkets,
+  getVolcanicAshOperations,
   getWorldContext,
   setAdministrationEmployment,
   setBasicEmploymentSummary
 } from "../economyContext";
 import { type AdministrationEmploymentRecord, getAdministrationRequiredWorkers } from "./administrationEmployment";
+import { getConstructionRequiredWorkers } from "./constructionEmployment";
 import { getMineRequiredWorkers } from "./mineOperations";
+import { getQuarryRequiredWorkers } from "./quarryOperations";
 import { type BasicEmploymentSummaryRecord, buildBasicEmploymentSummary } from "./serviceEmployment";
 import { getSmelterRequiredWorkers } from "./smelterOperations";
+import { getVolcanicAshRequiredWorkers } from "./volcanicAshOperations";
 
 /** Share of an operation's `requiredWorkers` it may gain or lose in a single reconciliation year. */
 const MAX_ANNUAL_WORKER_CHANGE_SHARE = 0.25;
@@ -28,13 +34,14 @@ interface BasicEmploymentSlot {
 
 /**
  * Annual, Burg-anchored reconciliation of basic-industry employment: state administration
- * (docs/plan/urban-employment-demand.md §3.4, Phase 3) and mining/smelting (§3.2, Phase 1).
- * Each slot's `workers` is a subset of its Burg's current adult population (§0 design
- * decision) — it never writes `burg.population`/`demographics`. Within a shared Burg,
- * administration is allocated first (a state's capital needs governing regardless of
- * whether it also sits on a mineral deposit), then mines, then smelters (a smelter with no
- * ore supply has nothing to process). No cross-Burg or cross-industry share cap is applied
- * (§5.1 decision 2).
+ * (docs/plan/urban-employment-demand.md §3.4, Phase 3), mining/smelting (§3.2, Phase 1), and
+ * quarrying/construction (docs/plan/urban-construction-industry.md §3.2-3.3, Phase 1-2). Each
+ * slot's `workers` is a subset of its Burg's current adult population (§0 design decision) — it
+ * never writes `burg.population`/`demographics`. Within a shared Burg, administration is
+ * allocated first (a state's capital needs governing regardless of whether it also sits on a
+ * mineral deposit), then mines, then smelters (a smelter with no ore supply has nothing to
+ * process), then quarries, then Volcanic Ash works, then construction (masons, then
+ * carpenters). No cross-Burg or cross-industry share cap is applied (§5.1 decision 2).
  *
  * Also aggregates each Burg's `basicEmploymentDemand` and derives `serviceEmploymentDemand`
  * (§3.5) from it, into `basicEmploymentSummary` (Phase 4). Market-anchored `"trade"`
@@ -93,6 +100,51 @@ export function reconcileAnnualBasicEmploymentWorkers(): void {
       getWorkers: () => smelter.workers,
       setWorkers: value => {
         smelter.workers = value;
+      }
+    });
+  }
+
+  for (const quarry of getQuarryOperations()) {
+    if (!quarry.active || !quarry.burgId) continue;
+    pushSlot(slotsByBurg, quarry.burgId, {
+      requiredWorkers: getQuarryRequiredWorkers(quarry),
+      getWorkers: () => quarry.quarryWorkers,
+      setWorkers: value => {
+        quarry.quarryWorkers = value;
+      }
+    });
+  }
+
+  for (const ashWorks of getVolcanicAshOperations()) {
+    if (!ashWorks.active || !ashWorks.burgId) continue;
+    pushSlot(slotsByBurg, ashWorks.burgId, {
+      requiredWorkers: getVolcanicAshRequiredWorkers(ashWorks),
+      getWorkers: () => ashWorks.ashWorkers,
+      setWorkers: value => {
+        ashWorks.ashWorkers = value;
+      }
+    });
+  }
+
+  for (const construction of getConstructionOperations()) {
+    if (!construction.active || !construction.burgId) continue;
+    const burg = burgs[construction.burgId];
+    if (!burg || burg.removed) continue;
+    const demographics = getBurgDemographics(burg);
+    const adults = Math.max(0, demographics.maleAdults + demographics.femaleAdults);
+    const required = getConstructionRequiredWorkers(construction, adults);
+    pushSlot(slotsByBurg, construction.burgId, {
+      requiredWorkers: required.mason,
+      getWorkers: () => construction.masonWorkers,
+      setWorkers: value => {
+        construction.masonWorkers = value;
+      }
+    });
+    pushSlot(slotsByBurg, construction.burgId, {
+      requiredWorkers: required.carpenter,
+      getWorkers: () => construction.carpenterWorkers,
+      setWorkers: value => {
+        construction.carpenterWorkers = value;
       }
     });
   }

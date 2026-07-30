@@ -11,6 +11,7 @@ import type { Burg } from "../../types/models";
 import { addFrontierApplicants as addFrontierApplicantsToPool } from "../hostCore";
 import type { AdministrationEmploymentRecord } from "./generators/administrationEmployment";
 import type { BurgMarketLedger } from "./generators/burgMarketLedgers";
+import type { ConstructionOperation } from "./generators/constructionEmployment";
 import type { Good } from "./generators/goods-generator";
 import type { Caravan, Deal, Market } from "./generators/marketTypes";
 import type { MerchantOrganization } from "./generators/merchantOrganizations";
@@ -23,6 +24,7 @@ import type {
 } from "./generators/mineralResources";
 import type { MintLedger } from "./generators/minting";
 import type { ProductionRecord } from "./generators/production-generator";
+import type { QuarryOperation } from "./generators/quarryOperations";
 import type { BasicEmploymentSummaryRecord } from "./generators/serviceEmployment";
 import type { SmelterOperation } from "./generators/smelterOperations";
 import type { LaborMarket } from "./generators/strategicLaborMarkets";
@@ -30,6 +32,7 @@ import type { ProcurementOrder } from "./generators/strategicProcurement";
 import type { StrategicGoodsPolicy } from "./generators/strategicProcurementPolicy";
 import type { TradeSecurityLedger } from "./generators/tradeSecurity";
 import type { BanditCohort, MobileAdultCohort, UrbanLaborIntake } from "./generators/urbanLaborIntake";
+import type { VolcanicAshOperation } from "./generators/volcanicAshOperations";
 
 let _api: ExtensionAPI | null = null;
 let _foodPotentialFallback: Float32Array<ArrayBufferLike> = new Float32Array();
@@ -546,6 +549,30 @@ export function getMineOperations(): MineOperation[] {
 }
 export function setMineOperations(operations: readonly MineOperation[]): void {
   setSliceArray("mineOperations", operations);
+}
+
+/** Burg-anchored quarry sites (docs/plan/urban-construction-industry.md §3.2, Phase 1). */
+export function getQuarryOperations(): QuarryOperation[] {
+  return getSliceArray<QuarryOperation>("quarryOperations");
+}
+export function setQuarryOperations(operations: readonly QuarryOperation[]): void {
+  setSliceArray("quarryOperations", operations);
+}
+
+/** Burg-anchored construction industry (docs/plan/urban-construction-industry.md §3.3, Phase 2). */
+export function getConstructionOperations(): ConstructionOperation[] {
+  return getSliceArray<ConstructionOperation>("constructionOperations");
+}
+export function setConstructionOperations(operations: readonly ConstructionOperation[]): void {
+  setSliceArray("constructionOperations", operations);
+}
+
+/** Burg-anchored Volcanic Ash sites (docs/plan/urban-construction-industry.md §3.4, Phase 3). */
+export function getVolcanicAshOperations(): VolcanicAshOperation[] {
+  return getSliceArray<VolcanicAshOperation>("volcanicAshOperations");
+}
+export function setVolcanicAshOperations(operations: readonly VolcanicAshOperation[]): void {
+  setSliceArray("volcanicAshOperations", operations);
 }
 export function getSmelterOperations(): SmelterOperation[] {
   return getSliceArray<SmelterOperation>("smelterOperations");

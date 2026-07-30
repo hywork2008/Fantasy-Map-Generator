@@ -37,7 +37,7 @@ export function getMinedGoodName(commodity: MineralCommodity): string {
 export function getIngotGoodName(commodity: OreCommodity): string {
   return `${commodity} ingot`;
 }
-export type GeologicalProvinceKind = "orogen" | "shield" | "granite" | "carbonate" | "basin" | "placer";
+export type GeologicalProvinceKind = "orogen" | "shield" | "granite" | "carbonate" | "basin" | "placer" | "volcanic";
 export type MineralDistrictType =
   | "bandedIron"
   | "porphyry"
@@ -154,7 +154,8 @@ const PROVINCE_ORDER: readonly GeologicalProvinceKind[] = [
   "granite",
   "carbonate",
   "basin",
-  "placer"
+  "placer",
+  "volcanic"
 ];
 
 /**
@@ -269,6 +270,11 @@ export class MineralResourcesModule {
     const height = cells.h[cellId] ?? 0;
     const regional = this.hash(seed, "province", Math.floor(cellId / 23));
     if (cells.r[cellId] && height >= 20 && height < 48) return "placer";
+    // Deliberately rare (low probability, very high elevation only) so Volcanic Ash stays a
+    // scarce, advanced-technology resource rather than a common one — docs/plan/
+    // urban-construction-industry.md §3.4. Checked before the height>=70 branch below so it
+    // only skims a small slice of the very highest cells, not the whole granite/orogen band.
+    if (height >= 75 && this.hash(seed, "volcanic", cellId) < 0.06) return "volcanic";
     if (height >= 70) return regional < 0.36 ? "granite" : "orogen";
     if (height >= 53) return regional < 0.3 ? "granite" : regional < 0.7 ? "orogen" : "shield";
     if (height >= 38) return regional < 0.42 ? "carbonate" : regional < 0.72 ? "shield" : "basin";

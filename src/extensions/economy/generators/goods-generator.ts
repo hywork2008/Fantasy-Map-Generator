@@ -730,6 +730,19 @@ export const GOODS_DATA: GoodData[] = [
     multipliers: { cultureType: { River: 1.4, Lake: 1.4 } }
   },
   {
+    name: "Volcanic Ash",
+    warEconomyType: "luxury",
+    tags: ["mineral", "construction"],
+    icon: "good-clay",
+    color: "#5a4d47",
+    value: 3,
+    // Cell placement comes from the "volcanic" GeologicalProvinceKind (mineralResources.ts) via
+    // VolcanicAshOperations, not from this legacy chance/distribution scatter — same pattern as
+    // Iron Ore (see the comment above). docs/plan/urban-construction-industry.md §3.4.
+    chance: 0,
+    unit: "sack"
+  },
+  {
     name: "White sand",
     warEconomyType: "luxury",
     tags: ["mineral"],
@@ -804,6 +817,33 @@ export const GOODS_DATA: GoodData[] = [
     unit: "wain",
     demandCoverage: { luxury: 1 },
     multipliers: { cultureType: { Nomadic: 0.2 } }
+  },
+  {
+    name: "Lime",
+    warEconomyType: "luxury",
+    tags: ["construction"],
+    icon: "good-clay",
+    color: "#e8e2d0",
+    value: 2,
+    chance: 0,
+    // §7.1 decision 6: intermediate good burnt from Stone, feeding Roman Concrete below.
+    recipes: [{ Stone: 1 }],
+    unit: "sack"
+  },
+  {
+    name: "Roman Concrete",
+    warEconomyType: "luxury",
+    tags: ["construction"],
+    icon: "good-stone",
+    color: "#8c8577",
+    value: 6,
+    chance: 0,
+    // docs/plan/urban-construction-industry.md §3.4, §7.1 decision 3: a direct Stone/Wood
+    // substitute for masons (constructionEmployment.ts), not a separate technology-adoption
+    // stock — consumed at a lower per-worker rate than raw Stone.
+    recipes: [{ "Volcanic Ash": 1, Lime: 1 }],
+    unit: "pallet",
+    demandCoverage: { construction: 1 }
   },
   {
     name: "Ropes",
