@@ -1,8 +1,11 @@
-import type { WorldContext } from "../../hostCore";
+import { recordDeaths, type WorldContext } from "../../hostCore";
 import type { Burg } from "../../hostTypes";
 import {
+  addFrontierApplicants,
   getBanditCohorts,
   getFrontierAdultCohorts,
+  getMarketCellColumn,
+  getMarkets,
   getMobileAdultCohorts,
   getSimulationYear,
   getUrbanLaborIntakes,
@@ -11,6 +14,8 @@ import {
   setMobileAdultCohorts,
   setUrbanLaborIntakes
 } from "../economyContext";
+import { GROSS_FOOD_NEED } from "./foodConstants";
+import type { FoodLedger } from "./marketTypes";
 
 /** Fraction of a burg's current population it can absorb as new workers in a neutral year. */
 export const DEFAULT_ANNUAL_URBAN_INTAKE_RATE = 0.02;
@@ -20,6 +25,15 @@ const LOCAL_VARIATION_MIN = 0.85;
 const LOCAL_VARIATION_RANGE = 0.3;
 const MAX_CITY_SEARCHES = 3;
 const MAX_WALK_DISTANCE_FRACTION = 0.22;
+/** Shortfall rate (raided / raidCapacity shortfall) that marks a raiding cohort as weakened. */
+const RAID_WEAKENED_SHORTFALL = 0.05;
+/** Shortfall rate severe enough to count toward the two-quarter shrinkage rule. */
+const RAID_SEVERE_SHORTFALL = 0.1;
+/** Consecutive severe-shortfall quarters before a cohort starts losing people. */
+const RAID_SHRINK_QUARTERS = 2;
+/** Fraction of the cohort (times its shortfall rate) lost per quarter once shrinking starts. */
+const RAID_SHRINK_FACTOR = 0.1;
+const FOOD_STOCK_AGE_KEYS = ["foodStockAge0", "foodStockAge1", "foodStockAge2"] as const;
 
 export interface UrbanLaborRandom {
   rand(): number;
@@ -50,6 +64,8 @@ export interface BanditCohort {
   targetState: number;
   maleAdults: number;
   femaleAdults: number;
+  /** Consecutive quarters this cohort's raid fell 10%+ short of its basic food need. */
+  consecutiveShortfallQuarters?: number;
 }
 
 export interface UrbanMobilityResult {
@@ -57,6 +73,14 @@ export interface UrbanMobilityResult {
   frontierApplicants: MobileAdultCohort[];
   banditAdults: number;
   deaths: number;
+}
+
+/** One quarter's outcome of raidBanditFood() across all bandit cohorts. */
+export interface BanditRaidResult {
+  weakenedCohorts: number;
+  shrunkCohorts: number;
+  totalRaided: number;
+  totalShortfall: number;
 }
 
 /**
@@ -114,10 +138,24 @@ export class UrbanLaborIntakeModule {
   /**
    * First tries up to three nearby burgs. A failed first-year search remains mobile;
    * a repeated failure becomes a frontier applicant, a bandit cohort, or mortality.
+   *
+   * Frontier-bound cohorts are aggregated straight into the host's frontier applicant pool
+   * (docs/plan/megacity-food-import-economy.md §4.1) rather than held as an ever-growing list —
+   * `advanceFrontierExpansion` drains that pool directly. Older saves may still carry leftover
+   * `frontierAdultCohorts` from before this change; those are swept into the pool once here so
+   * that population isn't left permanently stranded.
    */
   resolveMobileAdults(world: Readonly<WorldContext>, rng: UrbanLaborRandom): UrbanMobilityResult {
+    const legacyFrontierApplicants = getFrontierAdultCohorts();
+    if (legacyFrontierApplicants.length) {
+      for (const cohort of legacyFrontierApplicants) {
+        addFrontierApplicants(cohort.originState, cohort.maleAdults, cohort.femaleAdults);
+      }
+      setFrontierAdultCohorts([]);
+    }
+
     const stillSearching: MobileAdultCohort[] = [];
-    const frontierApplicants = getFrontierAdultCohorts();
+    const frontierApplicants: MobileAdultCohort[] = [];
     const bandits = getBanditCohorts();
     let settledAdults = 0;
     let banditAdults = 0;
@@ -137,6 +175,7 @@ export class UrbanLaborIntakeModule {
       const outcome = rng.rand();
       if (outcome < 0.35) {
         frontierApplicants.push(unresolved);
+        addFrontierApplicants(unresolved.originState, unresolved.maleAdults, unresolved.femaleAdults);
       } else if (outcome < 0.6) {
         bandits.push({
           originCell: unresolved.originCell,
@@ -147,11 +186,11 @@ export class UrbanLaborIntakeModule {
         banditAdults += remainingAdults;
       } else {
         deaths += remainingAdults;
+        recordDeaths(unresolved.originState, remainingAdults * (world.populationRate || 1), "other");
       }
     }
 
     setMobileAdultCohorts(stillSearching);
-    setFrontierAdultCohorts(frontierApplicants);
     setBanditCohorts(bandits);
     return { settledAdults, frontierApplicants, banditAdults, deaths };
   }
@@ -163,6 +202,59 @@ export class UrbanLaborIntakeModule {
       adultsByState.set(cohort.targetState, (adultsByState.get(cohort.targetState) ?? 0) + getAdultTotal(cohort));
     }
     return new Map([...adultsByState].map(([stateId, adults]) => [stateId, Math.min(1, adults / 20)]));
+  }
+
+  /**
+   * Quarterly: each bandit cohort raids its origin cell's Market for its basic food need,
+   * taken from a randomly chosen non-empty age bucket rather than the normal oldest-first
+   * FIFO order (docs/plan/megacity-food-import-economy.md §4.1 — raiding deliberately
+   * disrupts, rather than follows, ordinary consumption/export). Bandits never return to
+   * rural or urban population; a cohort that keeps missing its raid target shrinks instead.
+   */
+  raidBanditFood(world: Readonly<WorldContext>, rng: UrbanLaborRandom): BanditRaidResult {
+    const populationRate = world.populationRate || 1;
+    const marketCellColumn = getMarketCellColumn();
+    const marketById = new Map(getMarkets().map(market => [market.i, market]));
+    const survivors: BanditCohort[] = [];
+    let weakenedCohorts = 0;
+    let shrunkCohorts = 0;
+    let totalRaided = 0;
+    let totalShortfall = 0;
+
+    for (const cohort of getBanditCohorts()) {
+      const adults = getAdultTotal(cohort);
+      if (adults <= 0) continue;
+
+      const marketId = marketCellColumn[cohort.originCell];
+      const ledger = marketId ? marketById.get(marketId)?.foodLedger : undefined;
+      const raidCapacity = (adults * GROSS_FOOD_NEED) / 4;
+      const raided = ledger ? raidRandomFoodStockBucket(ledger, raidCapacity, rng) : 0;
+      const shortfallRate = raidCapacity > 0 ? Math.max(0, 1 - raided / raidCapacity) : 0;
+
+      totalRaided += raided;
+      totalShortfall += Math.max(0, raidCapacity - raided);
+      if (shortfallRate >= RAID_WEAKENED_SHORTFALL) weakenedCohorts++;
+
+      const consecutiveShortfallQuarters =
+        shortfallRate >= RAID_SEVERE_SHORTFALL ? (cohort.consecutiveShortfallQuarters ?? 0) + 1 : 0;
+
+      let { maleAdults, femaleAdults } = cohort;
+      if (consecutiveShortfallQuarters >= RAID_SHRINK_QUARTERS) {
+        const survivingRatio = Math.max(0, 1 - shortfallRate * RAID_SHRINK_FACTOR);
+        const lost = (maleAdults + femaleAdults) * (1 - survivingRatio);
+        maleAdults *= survivingRatio;
+        femaleAdults *= survivingRatio;
+        shrunkCohorts++;
+        recordDeaths(cohort.targetState, lost * populationRate, "other");
+      }
+
+      if (maleAdults + femaleAdults > 0.001) {
+        survivors.push({ ...cohort, maleAdults, femaleAdults, consecutiveShortfallQuarters });
+      }
+    }
+
+    setBanditCohorts(survivors);
+    return { weakenedCohorts, shrunkCohorts, totalRaided, totalShortfall };
   }
 
   clear(): void {
@@ -239,6 +331,17 @@ function addAdultsToBurg(burg: Burg, maleAdults: number, femaleAdults: number): 
 
 function distanceTo(origin: readonly [number, number], burg: Pick<Burg, "x" | "y">): number {
   return Math.hypot(burg.x - origin[0], burg.y - origin[1]);
+}
+
+/** Deducts up to `amount` from one randomly chosen non-empty age bucket; returns the amount taken. */
+function raidRandomFoodStockBucket(ledger: FoodLedger, amount: number, rng: UrbanLaborRandom): number {
+  if (amount <= 0) return 0;
+  const nonEmptyKeys = FOOD_STOCK_AGE_KEYS.filter(key => ledger[key] > 0);
+  if (!nonEmptyKeys.length) return 0;
+  const key = nonEmptyKeys[Math.floor(rng.rand() * nonEmptyKeys.length)] ?? nonEmptyKeys[0];
+  const raided = Math.min(amount, ledger[key]);
+  ledger[key] -= raided;
+  return raided;
 }
 
 export const UrbanLaborIntake = new UrbanLaborIntakeModule();

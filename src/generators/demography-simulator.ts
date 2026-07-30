@@ -13,6 +13,13 @@ import {
 import { applyWoundedReturn, isManpowerSimEnabled, scaleLandMilitary } from "./manpower";
 import { recordDeaths } from "./populationLossTracker";
 
+/**
+ * Assumed span (years) of the "children" cohort bin before aging into adulthood. Shared with
+ * economy's sustainableAdultOutflow (docs/plan/megacity-food-import-economy.md §4.1), which
+ * estimates this year's child→adult arrivals from the same cohort-turnover rate.
+ */
+export const CHILD_COHORT_YEARS = 15;
+
 /** Population points; convert to people with worldContext.populationRate for display only. */
 const MIN_RURAL_POINTS_FOR_PROMOTION = 2;
 const MIN_SETTLEMENT_POINTS = 0.5;
@@ -71,13 +78,13 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     let elders = pack.cells.elders[i];
 
     // Aging (rough approximation assuming 15 year cohort bins for children, 35 for adults)
-    const childrenToAdults = children * (deltaYears / 15);
+    const childrenToAdults = children * (deltaYears / CHILD_COHORT_YEARS);
     const adultsToEldersMale = maleAdults * (deltaYears / 35);
     const adultsToEldersFemale = femaleAdults * (deltaYears / 35);
     const elderDeaths = elders * (deltaYears / 10); // Elders die off in ~10 years average
 
     // Apply child mortality linearly across childhood
-    const childDeaths = children * (demographicChildMortalityRate / 15) * deltaYears;
+    const childDeaths = children * (demographicChildMortalityRate / CHILD_COHORT_YEARS) * deltaYears;
     addLoss(naturalPts, stateId, elderDeaths + childDeaths);
 
     children = Math.max(0, children - childrenToAdults - childDeaths);
@@ -166,11 +173,11 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     const effectiveCapacity = burg.demographics.effectiveCapacity ?? capacity;
     let { children, maleAdults, femaleAdults, elders } = burg.demographics;
 
-    const childrenToAdults = children * (deltaYears / 15);
+    const childrenToAdults = children * (deltaYears / CHILD_COHORT_YEARS);
     const adultsToEldersMale = maleAdults * (deltaYears / 35);
     const adultsToEldersFemale = femaleAdults * (deltaYears / 35);
     const elderDeaths = elders * (deltaYears / 10);
-    const childDeaths = children * (demographicChildMortalityRate / 15) * deltaYears;
+    const childDeaths = children * (demographicChildMortalityRate / CHILD_COHORT_YEARS) * deltaYears;
     addLoss(naturalPts, stateId, elderDeaths + childDeaths);
 
     children = Math.max(0, children - childrenToAdults - childDeaths);

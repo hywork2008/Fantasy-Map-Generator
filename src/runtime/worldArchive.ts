@@ -664,6 +664,22 @@ function assertAndNormalizeFrontier(simulation: Record<string, unknown>, cellCou
       }
     }
   }
+  if (frontier.applicantPoolByState === undefined) frontier.applicantPoolByState = {};
+  if (!isRecord(frontier.applicantPoolByState))
+    throw new Error("Archive simulation.frontier.applicantPoolByState must be a record");
+  for (const [stateId, pool] of Object.entries(frontier.applicantPoolByState)) {
+    if (
+      !isPositiveInteger(Number(stateId)) ||
+      String(Number(stateId)) !== stateId ||
+      !isRecord(pool) ||
+      !isFiniteNumber(pool.maleAdults) ||
+      pool.maleAdults < 0 ||
+      !isFiniteNumber(pool.femaleAdults) ||
+      pool.femaleAdults < 0
+    ) {
+      throw new Error(`Archive simulation.frontier.applicantPoolByState.${stateId} is invalid`);
+    }
+  }
 }
 
 function isUint8Array(value: unknown): value is Uint8Array {

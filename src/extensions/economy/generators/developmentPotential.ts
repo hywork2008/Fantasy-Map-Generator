@@ -9,6 +9,7 @@ import {
   getMigratableAdults,
   getMineralDeposits,
   getRuralFoodCapacity,
+  getRuralReleasePressure,
   getSettlementDevelopmentLastEvaluatedYear,
   getSettlementDevelopmentPotential,
   getSimulationYear,
@@ -20,6 +21,7 @@ import {
   setFoodPotential,
   setMigratableAdults,
   setRuralFoodCapacity,
+  setRuralReleasePressure,
   setSettlementDevelopmentLastEvaluatedYear,
   setSettlementDevelopmentPotential,
   setYieldPerArea
@@ -36,6 +38,7 @@ export interface DevelopmentPotentials {
   readonly cultivatedArea: Float32Array;
   readonly farmLaborRequired: Float32Array;
   readonly migratableAdults: Float32Array;
+  readonly ruralReleasePressure: Float32Array;
   readonly settlementDevelopmentPotential: Float32Array;
 }
 
@@ -63,6 +66,7 @@ export class DevelopmentPotentialModule {
       cultivatedArea: getCultivatedArea(),
       farmLaborRequired: getFarmLaborRequired(),
       migratableAdults: getMigratableAdults(),
+      ruralReleasePressure: getRuralReleasePressure(),
       settlementDevelopmentPotential: getSettlementDevelopmentPotential()
     };
   }
@@ -75,6 +79,7 @@ export class DevelopmentPotentialModule {
     setCultivatedArea(new Float32Array());
     setFarmLaborRequired(new Float32Array());
     setMigratableAdults(new Float32Array());
+    setRuralReleasePressure(new Float32Array());
     setSettlementDevelopmentPotential(new Float32Array());
     clearSettlementDevelopmentLastEvaluatedYear();
   }
@@ -111,6 +116,7 @@ export class DevelopmentPotentialModule {
     setCultivatedArea(agriculture.cultivatedArea);
     setFarmLaborRequired(agriculture.farmLaborRequired);
     setMigratableAdults(agriculture.migratableAdults);
+    setRuralReleasePressure(agriculture.ruralReleasePressure);
   }
 }
 

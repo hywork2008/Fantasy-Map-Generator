@@ -156,7 +156,8 @@ describe("ChunkedWorldCodecAdapter", () => {
       },
       lastEvaluatedYear: 101,
       budgetByState: { 1: 80 },
-      stateCooldownUntilYear: { 1: 102 }
+      stateCooldownUntilYear: { 1: 102 },
+      applicantPoolByState: { 1: { maleAdults: 2, femaleAdults: 3 } }
     };
     simulation.extensions = {
       economy: { forestDepletion: { 0: 0.4, 1: 0.1 } },
@@ -177,6 +178,7 @@ describe("ChunkedWorldCodecAdapter", () => {
     expect(staged.document.simulation.navalTechBonus[1]).toBe(1.3);
     expect(staged.document.simulation.frontier.cellStages).toEqual(new Uint8Array([1, 0]));
     expect(staged.document.simulation.frontier.projects[0]?.stateId).toBe(1);
+    expect(staged.document.simulation.frontier.applicantPoolByState[1]).toEqual({ maleAdults: 2, femaleAdults: 3 });
     expect(
       (staged.document.simulation.extensions.economy as { forestDepletion: Record<string, number> }).forestDepletion
     ).toEqual({ 0: 0.4, 1: 0.1 });
@@ -201,6 +203,7 @@ describe("ChunkedWorldCodecAdapter", () => {
     expect(staged.document.simulation.populationLoss).toEqual({ simDay: 0, history: [] });
     expect(staged.document.simulation.navalTechBonus).toEqual({});
     expect(staged.document.simulation.frontier.cellStages).toEqual(new Uint8Array([0, 0]));
+    expect(staged.document.simulation.frontier.applicantPoolByState).toEqual({});
   });
 
   it("migrates a v1 archive without a settlement pattern to standard", async () => {

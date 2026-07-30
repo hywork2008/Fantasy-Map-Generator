@@ -14,6 +14,8 @@
 
 **2026-07-30 実装状況（Food Ledger v2 マイルストーン1）**: Phase 2の中核を実装した。`FoodLedger`をAge0/1/2の数量・加重平均原価・`storageOverflow`・不足カウンタを持つ契約へ拡張し、四半期ごとに最古バケットの繰り上げ・破棄と新規生産の追加を行う（`foodProduction.ts`）。月次FIFO消費・Grain価格（0.8〜2.0倍レンジ）・`marketTreasury`（残高・`ruralGrainPayable`）による農村仕入れ決済と都市小売収入の優先返済を実装した（新規`foodLedgerConsumption.ts`）。`stapleFood`タグをGrainへ付与し、月次生産・価格形成・Burg需要充足の一般Goods経路から除外、`market.goods[GrainId].stock`は`exportable + storageOverflow`の同期ビューとした。当初計画にはなかった追加として、各Burgに自都市消費量10日分の手元備蓄`Burg.foodReserve`を新設し、都市の食料消費はまずこれを消費してからMarket在庫を使う。市場間輸送・State備蓄・軍事補給・移住・飢餓死亡切替は本マイルストーンでは未着手（既存のFood Ledger暫定`resolveFoodImportNetwork()`は、新しいバケット合計から再計算した`exportable`/`importNeed`を使うよう更新しただけで、内部ロジックは変更していない）。
 
+**2026-07-30 不具合修正（人口消失バグ）**: 「Megacityモードで人口が伸びなくなる」という実プレイセーブ（920年分シミュレート、`frontierAdultCohorts`12190件・`banditCohorts`8742件が蓄積）の報告を調査し、`releaseRuralLaborSurplus()`が初めて起動させた既存の`urbanLaborIntake.ts`パイプラインに、農村から追い出された成人が都市定着できない場合の受け皿（`frontierAdultCohorts`／`banditCohorts`）がどちらも一方向にしか書き込まれず、消費者が存在しないバグを発見した。開拓申請35%・野盗25%のどちらも、実際には理由表示のないまま世界人口から永久に消えていた（残り40%の死亡／域外流出も`recordDeaths()`未接続で統計に出ていなかった）。ホスト側の`SimulationContext.frontier.applicantPoolByState`と野盗の食料略奪・自然減耗ライフサイクル（詳細はPhase 4を参照）を実装し、実セーブで検証した結果、蓄積していた`frontierAdultCohorts`は一度で全量がプールへ回収され、都市人口が減少から増加に転じることを確認した。
+
 この決定により、食料輸入は「未使用の農村人口上限を都市へ振り替える」仕組みではなく、後背地の生産力・農業労働力・在庫・輸送網が実際に都市人口を支える仕組みになる。
 
 本書は設計・実装計画である。Phase 1の基盤実装は本改訂と同時に開始し、以降のPhaseはこの契約を満たす順序で進める。
@@ -705,14 +707,18 @@ interface PopulationMigration {
 ### Phase 4 — 農村→都市移住
 
 - [x] 年齢・性別バケットを保った人口移動ユーティリティを作る。`children`/`maleAdults`/`femaleAdults`/`elders`の4バケットを、セル（`pack.cells`の列配列）・Burg（`burg.demographics`）のどちらからでも読み書きできる共通プリミティブ（`getCellDemographics`/`setCellDemographics`/`getBurgDemographics`/`setBurgDemographics`）と、比率で分割・合算する`splitDemographicBuckets`/`addDemographicBuckets`を`demographicTransfer.ts`に実装した。既存の重複実装だった、セル間の過密移住（`simulateDemographics()`）とセル→Burg昇格時の人口按分（`promoteRuralSettlements()`）の2箇所をこのユーティリティへ置換し、動作は変えず共通化した。`urbanLaborIntake.ts`の`addAdultsToBurg()`（成人のみ、出典セルなし）は移住キューの性質上そのまま維持し、置換対象外とした。
-- [x] 農業労働力の安全余力と最低共同体人口を守る農村移住元選定を実装した（`ruralLaborRelease.ts`の`releaseRuralLaborSurplus()`）。`DevelopmentPotential.updateAnnualAgriculture()`が当年の`migratableAdults`を再計算した直後に一度だけ実行し、各セルの既存男女成人比で按分して`maleAdults`/`femaleAdults`から実際に取り出し（`children`/`elders`は残す）、`UrbanLaborIntake.enqueueRuralDisplacement()`へ`MobileAdultCohort`として渡す。人口フロア`MINIMUM_RURAL_COMMUNITY_POPULATION`（暫定値1）を下回る取り出しは行わない。**既知の簡略化**: 労働安全余力は`migratableAdults`（`FARM_LABOR_SAFETY_MARGIN`込み）でその年の状態から再計算される上限を使っており、§4.1後半で決定した`sustainableAdultOutflow`（当年の子→成人到達数が上限）・`ruralReleasePressure`（最低食料計画からの余力）への分離はまだ実装していない。
+- [x] 農業労働力の安全余力と最低共同体人口を守る農村移住元選定を実装した（`ruralLaborRelease.ts`の`releaseRuralLaborSurplus()`）。`DevelopmentPotential.updateAnnualAgriculture()`が当年の`migratableAdults`・`ruralReleasePressure`を再計算した直後に一度だけ実行する。実際に取り出す量は`min(migratableAdults, sustainableAdultOutflow, ruralReleasePressure)`とし、§4.1後半の決定通り3つの上限すべてを満たす場合だけ取り出す。
+  - `migratableAdults`（`agriculturalLandUse.ts`、既存）: 現在の`cultivatedArea`が必要としない労働力の余剰（`FARM_LABOUR_SAFETY_MARGIN`込み）。
+  - `sustainableAdultOutflow`: 当年の子→成人到達数の推定値（`children[cellId] / CHILD_COHORT_YEARS`）。既存成人の在庫を恒久的に取り崩さないための上限。`CHILD_COHORT_YEARS`は`demography-simulator.ts`の年齢推移と共有する定数。
+  - `ruralReleasePressure`（`agriculturalLandUse.ts`、新規）: 最低食料計画（自セルの現在人口の消費のみ。確定輸出契約`committedExport`はまだ追跡していないため0扱い）を満たす`minimumFarmAdults`を超える成人の余力。
+  取り出した成人は男女各50%で分割し（子→成人到達と同じ比率）、一方の性別が不足する場合はもう一方へ振り替える。`children`/`elders`は残し、人口フロア`MINIMUM_RURAL_COMMUNITY_POPULATION`（暫定値1）を下回る取り出しは行わない。`UrbanLaborIntake.enqueueRuralDisplacement()`へ`MobileAdultCohort`として渡す。
 - [x] 通常の農村→都市就職移住を成人単独とし、農業余剰に加えて年次`sustainableAdultOutflow`で平時の農村再生産を守る方針を決定する。世帯単位の避難・開拓・結婚定住は後続イベントとする。
 - [x] 通常の就職移住を同一State内に限定し、Market境界では制限しないと決定する。越境移住・難民は後続システムとする。
 - [x] 年齢区分は既存の子ども・男女成人・高齢者の4区分を維持し、`sustainableAdultOutflow`の原資を当年の子ども→成人到達人数、男女配分を同じ到達比率と決定する。
 - [x] 都市雇用が即時にない成人単独移住者も農村へ戻さず、近隣都市を探す`mobileAdultCohort`として扱うと決定する。
 - [x] 徒歩圏内の最大三都市を、残り雇用枠、`settlementDevelopmentPotential`、距離の順で順位付けして移住先を選ぶと決定する。
 - [x] `settlementDevelopmentPotential`を当面は移住先順位だけに用い、年次`urbanLaborIntake`総量は既存の暫定式を維持すると決定する。実雇用量の`employmentDemand`は後続フェーズとする。
-- [x] 未就職者の開拓申請を既存`FrontierExpansion`へ渡し、食料・耕地・同一State内の到達可能性を満たす場合だけ定着させると決定する。
+- [x] 未就職者の開拓申請を既存`FrontierExpansion`へ渡し、食料・耕地・同一State内の到達可能性を満たす場合だけ定着させる。ホスト側の`SimulationContext.frontier.applicantPoolByState`（拡張非依存、`addFrontierApplicants()`で追加）を新設し、`urbanLaborIntake.ts`の開拓申請成人はこのプールへ集約する。`frontierExpansion.ts`の`getStateCandidates()`/`transferColonists()`は候補地ごとにこのプールを最優先（hops=0）で消費し、不足分だけ既存農村セルの余剰から補う。以前は`frontierAdultCohorts`という経済拡張専用の配列に`push`されるだけで、`FrontierExpansion`側の消費者が存在せず無限に蓄積していた（2026-07-30、実プレイセーブで12190件の蓄積を確認）。旧配列に残る蓄積は`resolveMobileAdults()`が一度だけプールへ掃き込んで回収する。
 - [x] 野盗の農村略奪を出身Marketの共通在庫へ適用し、`Age0`・`Age1`・`Age2`からランダムに奪うと決定する。略奪は四半期に一度、野盗成人数の一四半期分の食料を上限とすると決定する。
 - [x] 略奪不足の野盗集団を、5%で弱体化、10%の二期連続不足から`banditAdults × shortfallRate × 0.10`の死亡・離散で縮小すると決定する。
 - [x] 輸入不足Marketの通常目標在庫を、当期消費後の年間需要6か月分と決定する。
@@ -754,7 +760,7 @@ interface PopulationMigration {
 - [x] 輸入GrainはGrain代金と輸送費の合計を実到着量で割った原価でAge0へ入り、全損額は`foodTransportLoss`として記録すると決定する。
 - [x] 食料余力・都市容量・年次`annualUrbanLaborIntake`の残枠から移住先Burgを選ぶ下位基盤を実装する。受入枠はBurg人口の年率2%を基礎とし、State単位の好況・不況とBurgごとの小変動で年一回決める。
 - [x] 近隣の最大三都市でも受入枠を得られない`mobileAdultCohort`を解決する基盤を実装する。一年後の未就職者は開拓申請35%、野盗25%、死亡・域外流出40%へ配分する。ただし、農村余剰をこのキューへ投入する処理は未実装である。
-- [x] 野盗集団の`banditPressure`を既存`TradeSecurity`へ接続し、隊商損失を増やす。Food Ledger導入後の出身地以外の農村在庫略奪は未実装である。
+- [x] 野盗集団の`banditPressure`を既存`TradeSecurity`へ接続し、隊商損失を増やす。野盗の食料略奪・自然減耗ライフサイクルを実装した（`urbanLaborIntake.ts`の`raidBanditFood()`）。四半期ごと（`FoodProduction.generateQuarterlyLedger()`と同じ周期）に、各野盗集団が出身セルのMarketへ`raidCapacity = banditAdults × GROSS_FOOD_NEED / 4`を上限とする略奪を行い、`foodStockAge0`〜`Age2`からランダムに選んだ非空バケットを取り崩す（通常消費・輸出のFIFO順序を意図的に乱す）。不足率10%以上が二四半期連続した集団は`banditAdults × shortfallRate × 0.10`を死亡として`recordDeaths()`へ計上し、集団から除く。以前は`banditCohorts`が`push`されるだけで、`getBanditPressureByState()`が読むだけの一方通行のため無限に蓄積していた（2026-07-30、実プレイセーブで8742件の蓄積を確認）。
 - [ ] `settlementDevelopmentPotential`を移住先と新Burg昇格候補の順位付けへ接続する。現状は年次Burg group再評価のみで、候補順位には未接続である。
 - [ ] 移住量の上限、同一State/Market制約、移住履歴を実装する。都市受入側の同一State・最大三都市制約はあるが、実際の農村移住と履歴は未実装である。
 

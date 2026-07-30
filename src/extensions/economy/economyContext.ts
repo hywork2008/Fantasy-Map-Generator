@@ -8,6 +8,7 @@
 
 import type { ExtensionAPI } from "../../types/extension-api";
 import type { Burg } from "../../types/models";
+import { addFrontierApplicants as addFrontierApplicantsToPool } from "../hostCore";
 import type { BurgMarketLedger } from "./generators/burgMarketLedgers";
 import type { Good } from "./generators/goods-generator";
 import type { Caravan, Deal, Market } from "./generators/marketTypes";
@@ -36,6 +37,7 @@ let _ruralFoodCapacityFallback: Float32Array<ArrayBufferLike> = new Float32Array
 let _cultivatedAreaFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _farmLaborRequiredFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _migratableAdultsFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _ruralReleasePressureFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _settlementDevelopmentPotentialFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _settlementDevelopmentLastEvaluatedYearFallback: number | null = null;
 
@@ -52,6 +54,7 @@ export function clearEconomyContext(): void {
   _cultivatedAreaFallback = new Float32Array();
   _farmLaborRequiredFallback = new Float32Array();
   _migratableAdultsFallback = new Float32Array();
+  _ruralReleasePressureFallback = new Float32Array();
   _settlementDevelopmentPotentialFallback = new Float32Array();
   _settlementDevelopmentLastEvaluatedYearFallback = null;
 }
@@ -80,6 +83,17 @@ export function getSimulationMonth(): number {
   if (typeof month === "number" && Number.isFinite(month) && month >= 1 && month <= 12) return month;
   const fallback = Number(getWorldContext().options.month);
   return Number.isFinite(fallback) && fallback >= 1 && fallback <= 12 ? fallback : 1;
+}
+
+/**
+ * Hands displaced adults to the host's (extension-agnostic) frontier applicant pool instead of
+ * economy-only bookkeeping, so `advanceFrontierExpansion` can draw on them directly
+ * (docs/plan/megacity-food-import-economy.md §4.1).
+ */
+export function addFrontierApplicants(stateId: number, maleAdults: number, femaleAdults: number): void {
+  const frontier = _api?.simulationContext?.frontier;
+  if (!frontier) return;
+  addFrontierApplicantsToPool(frontier, stateId, maleAdults, femaleAdults);
 }
 
 function getProductionTable(): Record<number, ProductionRecord[]> | null {
@@ -260,6 +274,14 @@ export function getMigratableAdults(): Float32Array<ArrayBufferLike> {
 export function setMigratableAdults(value: Float32Array<ArrayBufferLike>): void {
   setSliceFloat32Column("migratableAdults", value, next => {
     _migratableAdultsFallback = next;
+  });
+}
+export function getRuralReleasePressure(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("ruralReleasePressure", _ruralReleasePressureFallback);
+}
+export function setRuralReleasePressure(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("ruralReleasePressure", value, next => {
+    _ruralReleasePressureFallback = next;
   });
 }
 

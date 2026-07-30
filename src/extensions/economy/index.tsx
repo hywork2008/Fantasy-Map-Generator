@@ -1358,6 +1358,7 @@ export function init(api: ExtensionAPI): void {
         for (let i = 0; i < quartersPassed; i++) {
           currentQuarterIndex = (currentQuarterIndex + 1) % 4;
           FoodProduction.generateQuarterlyLedger(currentQuarterIndex);
+          UrbanLaborIntake.raidBanditFood(getWorldContext(), context.rng);
         }
       }
 

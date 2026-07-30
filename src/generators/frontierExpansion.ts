@@ -1,4 +1,5 @@
 import {
+  createEmptyFrontierSimulationState,
   FRONTIER_STAGE,
   type FrontierProject,
   type FrontierSimulationState,
@@ -132,6 +133,8 @@ type FrontierContribution = {
   readonly sourceCellId: number;
   readonly colonists: number;
   readonly hops: number;
+  /** Sourced from the state's frontier applicant pool rather than a specific live cell. */
+  readonly isPool?: boolean;
 };
 
 /**
@@ -197,7 +200,7 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
       const candidate = selectCandidate(state.i, input, state.center, occupiedSectors);
       if (!candidate) break;
 
-      const colonists = transferColonists(cells, candidate);
+      const colonists = transferColonists(cells, candidate, frontier, state.i);
       if (colonists < MIN_COLONISTS) break;
 
       state.treasury = Math.max(0, (state.treasury ?? 0) - SETUP_COST);
@@ -322,16 +325,24 @@ function getStateCandidates(
   stateCenter: number | undefined
 ): readonly InternalFrontierCandidateSummary[] {
   const contributionsByTarget = new Map<number, FrontierContribution[]>();
+  const poolAvailable = getFrontierApplicantPoolTotal(frontier, stateId);
+  const pooledTargets = new Set<number>();
 
   for (let sourceCellId = 0; sourceCellId < cells.i.length; sourceCellId++) {
     if (cells.state[sourceCellId] !== stateId) continue;
     const available = estimateSourceContribution(cells.pop[sourceCellId] ?? 0, cells.capacity[sourceCellId] ?? 0);
-    if (available <= 0) continue;
+    if (available <= 0 && poolAvailable <= 0) continue;
 
     for (const { cellId, hops } of findReachableFrontier(cells, frontier, sourceCellId, stateId)) {
       if (!isEligibleTarget(cells, frontier, cellId)) continue;
       const contributions = contributionsByTarget.get(cellId) ?? [];
-      contributions.push({ sourceCellId, colonists: available, hops });
+      if (available > 0) contributions.push({ sourceCellId, colonists: available, hops });
+      // The applicant pool is state-wide, not tied to this source cell — add it once per
+      // reachable target, ahead of live cells (hops: 0), so it drains before any village does.
+      if (poolAvailable > 0 && !pooledTargets.has(cellId)) {
+        contributions.push({ sourceCellId: -1, colonists: poolAvailable, hops: 0, isPool: true });
+        pooledTargets.add(cellId);
+      }
       contributionsByTarget.set(cellId, contributions);
     }
   }
@@ -352,9 +363,8 @@ function getStateCandidates(
     }
     const colonists = contributions.reduce((total, contribution) => total + contribution.colonists, 0);
     if (colonists < MIN_COLONISTS) continue;
-    const sourceCellIds = contributions.map(contribution => contribution.sourceCellId);
-    const sourceCellId = sourceCellIds[0];
-    if (sourceCellId === undefined) continue;
+    const sourceCellIds = contributions.filter(contribution => !contribution.isPool).map(c => c.sourceCellId);
+    const sourceCellId = sourceCellIds[0] ?? cellId;
     candidates.push({
       stateId,
       cellId,
@@ -388,18 +398,28 @@ function getBestReachableColonistPool(
   cells: WorldContext["pack"]["cells"],
   frontier: FrontierSimulationState
 ): number {
+  const poolAvailable = getFrontierApplicantPoolTotal(frontier, stateId);
   const pools = new Map<number, number>();
   for (let sourceCellId = 0; sourceCellId < cells.i.length; sourceCellId++) {
     if (cells.state[sourceCellId] !== stateId) continue;
     const available = estimateSourceContribution(cells.pop[sourceCellId] ?? 0, cells.capacity[sourceCellId] ?? 0);
-    if (available <= 0) continue;
+    if (available <= 0 && poolAvailable <= 0) continue;
     for (const { cellId } of findReachableFrontier(cells, frontier, sourceCellId, stateId)) {
       if (!isEligibleTarget(cells, frontier, cellId)) continue;
+      // The pool is state-wide (not per-source-cell); seed each target with it once, then
+      // let every reaching source cell add its own live-cell contribution on top.
       const targetLimit = (cells.capacity[cellId] ?? 0) * 0.25;
-      pools.set(cellId, Math.min(targetLimit, (pools.get(cellId) ?? 0) + available));
+      const base = pools.has(cellId) ? (pools.get(cellId) ?? 0) : poolAvailable;
+      pools.set(cellId, Math.min(targetLimit, base + available));
     }
   }
   return Math.max(0, ...pools.values());
+}
+
+/** Total population points (both sexes) waiting in a state's frontier applicant pool. */
+function getFrontierApplicantPoolTotal(frontier: FrontierSimulationState, stateId: number): number {
+  const pool = frontier.applicantPoolByState[stateId];
+  return pool ? pool.maleAdults + pool.femaleAdults : 0;
 }
 
 function getStateStartBlocker(
@@ -473,10 +493,19 @@ function scoreCandidate(cells: WorldContext["pack"]["cells"], cellId: number, ra
   );
 }
 
-function transferColonists(cells: WorldContext["pack"]["cells"], candidate: FrontierCandidate): number {
+function transferColonists(
+  cells: WorldContext["pack"]["cells"],
+  candidate: FrontierCandidate,
+  frontier: FrontierSimulationState,
+  stateId: number
+): number {
   if (candidate.colonists < MIN_COLONISTS) return 0;
   let transferred = 0;
   for (const contribution of candidate.contributions) {
+    if (contribution.isPool) {
+      transferred += transferFromApplicantPool(cells, candidate.cellId, frontier, stateId, contribution.colonists);
+      continue;
+    }
     const sourcePopulation = cells.pop[contribution.sourceCellId] ?? 0;
     if (sourcePopulation <= 0) continue;
     const colonists = Math.min(contribution.colonists, sourcePopulation);
@@ -493,6 +522,35 @@ function transferColonists(cells: WorldContext["pack"]["cells"], candidate: Fron
   return transferred;
 }
 
+/**
+ * Draws up to `requested` population points from the state's frontier applicant pool
+ * (adults only, no children/elders — they were already adult-only when rural labour
+ * released them) and lands them on the new outpost cell, split by the pool's own sex ratio.
+ */
+function transferFromApplicantPool(
+  cells: WorldContext["pack"]["cells"],
+  targetCellId: number,
+  frontier: FrontierSimulationState,
+  stateId: number,
+  requested: number
+): number {
+  const pool = frontier.applicantPoolByState[stateId];
+  const poolTotal = pool ? pool.maleAdults + pool.femaleAdults : 0;
+  if (!pool || poolTotal <= 0) return 0;
+
+  const colonists = Math.min(requested, poolTotal);
+  if (colonists <= 0) return 0;
+  const male = Math.min(pool.maleAdults, colonists * (pool.maleAdults / poolTotal));
+  const female = colonists - male;
+
+  pool.maleAdults -= male;
+  pool.femaleAdults -= female;
+  cells.maleAdults[targetCellId] += male;
+  cells.femaleAdults[targetCellId] += female;
+  cells.pop[targetCellId] += colonists;
+  return colonists;
+}
+
 function estimateSourceContribution(sourcePopulation: number, sourceCapacity: number): number {
   const surplus = sourcePopulation - sourceCapacity * SOURCE_RETENTION_RATIO;
   return Math.max(0, Math.min(12, surplus * 0.5));
@@ -501,14 +559,7 @@ function estimateSourceContribution(sourcePopulation: number, sourceCapacity: nu
 function ensureFrontierState(simulation: SimulationContext, cellCount: number): FrontierSimulationState {
   const frontier = simulation.frontier;
   if (frontier.cellStages.length === cellCount) return frontier;
-  simulation.frontier = {
-    cellStages: new Uint8Array(cellCount),
-    projects: {},
-    lastEvaluatedYear: null,
-    budgetByState: {},
-    stateCooldownUntilYear: {},
-    governanceByState: {}
-  };
+  simulation.frontier = createEmptyFrontierSimulationState(cellCount);
   return simulation.frontier;
 }
 

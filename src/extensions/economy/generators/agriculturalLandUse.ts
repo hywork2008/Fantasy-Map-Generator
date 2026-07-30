@@ -24,6 +24,13 @@ export interface AgriculturalLandProfile {
   readonly farmLaborRequired: Float32Array;
   /** Adults that can leave after farm labour's safety margin, in rural population points. */
   readonly migratableAdults: Float32Array;
+  /**
+   * Adults beyond what the cell's *minimum* food plan (local consumption only; committed
+   * exports are not yet tracked) needs to keep farming, in rural population points. Looser
+   * than `migratableAdults` when the cell cultivates a reserve beyond bare subsistence.
+   * See docs/plan/megacity-food-import-economy.md §4.1 `ruralReleasePressure`.
+   */
+  readonly ruralReleasePressure: Float32Array;
 }
 
 /**
@@ -41,6 +48,7 @@ export function calculateAgriculturalLandProfile(world: Readonly<WorldContext>):
   const cultivatedArea = new Float32Array(count);
   const farmLaborRequired = new Float32Array(count);
   const migratableAdults = new Float32Array(count);
+  const ruralReleasePressure = new Float32Array(count);
   if (!count) {
     return {
       cultivableArea,
@@ -49,7 +57,8 @@ export function calculateAgriculturalLandProfile(world: Readonly<WorldContext>):
       ruralFoodCapacity,
       cultivatedArea,
       farmLaborRequired,
-      migratableAdults
+      migratableAdults,
+      ruralReleasePressure
     };
   }
 
@@ -86,6 +95,12 @@ export function calculateAgriculturalLandProfile(world: Readonly<WorldContext>):
     farmLaborRequired[cellId] = requiredAdultPoints;
     const ruralAdults = Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
     migratableAdults[cellId] = Math.max(0, ruralAdults - requiredAdultPoints * FARM_LABOUR_SAFETY_MARGIN);
+
+    // minimumFood = localConsumption + committedExport; committedExport isn't tracked yet (0),
+    // so this uses the bare pre-buffer requiredArea rather than the 1.1x-buffered currentArea.
+    const minimumFarmAdults = (requiredArea * LABOUR_DAYS_PER_HECTARE) / WORKABLE_DAYS_PER_ADULT;
+    const minimumFarmAdultPoints = minimumFarmAdults / populationRate;
+    ruralReleasePressure[cellId] = Math.max(0, ruralAdults - minimumFarmAdultPoints * FARM_LABOUR_SAFETY_MARGIN);
   }
 
   return {
@@ -95,7 +110,8 @@ export function calculateAgriculturalLandProfile(world: Readonly<WorldContext>):
     ruralFoodCapacity,
     cultivatedArea,
     farmLaborRequired,
-    migratableAdults
+    migratableAdults,
+    ruralReleasePressure
   };
 }
 

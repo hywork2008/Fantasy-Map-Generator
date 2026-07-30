@@ -112,6 +112,14 @@ export interface FrontierSimulationState {
   stateCooldownUntilYear: Record<number, number>;
   /** State policy, infrastructure and relief spending for Phase 5 frontier governance. */
   governanceByState: Record<number, FrontierStateGovernance>;
+  /**
+   * Population points (male/female adults) displaced by any system (e.g. Economy's rural
+   * labour release) and aggregated by destination state, awaiting a new frontier project.
+   * `advanceFrontierExpansion` drains this before pulling any further colonists directly out
+   * of live cells (docs/plan/megacity-food-import-economy.md §4.1 `frontierApplicantPool`).
+   * Host-owned and extension-agnostic: any system may add to it via addFrontierApplicants().
+   */
+  applicantPoolByState: Record<number, { maleAdults: number; femaleAdults: number }>;
 }
 
 export function createEmptyFrontierSimulationState(cellCount = 0): FrontierSimulationState {
@@ -121,7 +129,23 @@ export function createEmptyFrontierSimulationState(cellCount = 0): FrontierSimul
     lastEvaluatedYear: null,
     budgetByState: {},
     stateCooldownUntilYear: {},
-    governanceByState: {}
+    governanceByState: {},
+    applicantPoolByState: {}
+  };
+}
+
+/** Adds displaced colonists to a state's frontier applicant pool. Host-owned, extension-agnostic. */
+export function addFrontierApplicants(
+  frontier: FrontierSimulationState,
+  stateId: number,
+  maleAdults: number,
+  femaleAdults: number
+): void {
+  if (!stateId || (maleAdults <= 0 && femaleAdults <= 0)) return;
+  const pool = frontier.applicantPoolByState[stateId] ?? { maleAdults: 0, femaleAdults: 0 };
+  frontier.applicantPoolByState[stateId] = {
+    maleAdults: pool.maleAdults + Math.max(0, maleAdults),
+    femaleAdults: pool.femaleAdults + Math.max(0, femaleAdults)
   };
 }
 

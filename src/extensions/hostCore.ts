@@ -1,13 +1,13 @@
 export { createLayerCanvas } from "../canvas/map-canvas";
 export { appServices } from "../context/appServices";
 export type { IntelligenceReport, StrategicGoal } from "../context/simulationContext";
-export { simulationContext } from "../context/simulationContext";
+export { addFrontierApplicants, simulationContext } from "../context/simulationContext";
 export type { WorldContext } from "../context/worldContext";
 export { worldContext } from "../context/worldContext";
 export { foodStressPriceMultiplier, foodStressProductionMultiplier } from "../generators/agriculturalStress";
 export { Burgs } from "../generators/burgs-generator";
 export { getCellDemographics, setCellDemographics } from "../generators/demographicTransfer";
-export { applyDemographicCasualties } from "../generators/demography-simulator";
+export { applyDemographicCasualties, CHILD_COHORT_YEARS } from "../generators/demography-simulator";
 export {
   analyzeFrontiers,
   analyzeSeaFrontiers,
@@ -25,6 +25,7 @@ export {
 } from "../generators/manpower";
 export { Military } from "../generators/military-generator";
 export { Names } from "../generators/names-generator";
+export { getDeathsByState, recordDeaths, resetPopulationLossTracker } from "../generators/populationLossTracker";
 export { advanceAllRegimentMovement, isOccupiedHomeBurg } from "../generators/regimentMovement";
 export { buildSeaRouteGraph, findSeaRouteDistance, type SeaRouteGraph } from "../generators/seaRouteGraph";
 export { States } from "../generators/states-generator";

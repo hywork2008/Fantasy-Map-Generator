@@ -287,6 +287,41 @@ describe("Frontier Expansion Phase 3", () => {
     expect(simulation.frontier.projects[1]?.supportYears).toBe(0);
   });
 
+  it("founds an outpost purely from the state's frontier applicant pool when no live cell has surplus", () => {
+    const world = createWorld();
+    // pop === capacity * SOURCE_RETENTION_RATIO exactly: cell-based surplus is zero.
+    world.pack.cells.pop[0] = 65;
+    const simulation = createSimulation(100);
+    simulation.frontier.applicantPoolByState[1] = { maleAdults: 3, femaleAdults: 3 };
+
+    const result = advance(world, simulation);
+
+    expect(result.established).toEqual([1]);
+    // The source cell is untouched — every colonist came from the pool.
+    expect(world.pack.cells.pop[0]).toBe(65);
+    expect(world.pack.cells.pop[1]).toBeCloseTo(6);
+    expect(world.pack.cells.maleAdults[1]).toBeCloseTo(3);
+    expect(world.pack.cells.femaleAdults[1]).toBeCloseTo(3);
+    expect(world.pack.cells.children[1]).toBe(0);
+    expect(simulation.frontier.applicantPoolByState[1]).toEqual({ maleAdults: 0, femaleAdults: 0 });
+  });
+
+  it("drains the applicant pool before pulling any further colonists out of live cells", () => {
+    const world = createWorld();
+    const simulation = createSimulation(100);
+    simulation.frontier.applicantPoolByState[1] = { maleAdults: 1, femaleAdults: 1 };
+
+    const result = advance(world, simulation);
+
+    expect(result.established).toEqual([1]);
+    // targetLimit is capacity[1] * 0.25 = 12.5: the pool's 2 colonists plus the cell's
+    // (otherwise 12-colonist) surplus would exceed it, so the cell only tops up the
+    // remainder (10.5) instead of contributing its full surplus.
+    expect(world.pack.cells.pop[1]).toBeCloseTo(12.5);
+    expect(world.pack.cells.pop[0]).toBeCloseTo(89.5);
+    expect(simulation.frontier.applicantPoolByState[1]).toEqual({ maleAdults: 0, femaleAdults: 0 });
+  });
+
   it("lists each state and target cell once when several source cells can fund it", () => {
     const world = createWorld();
     world.pack.cells = {
