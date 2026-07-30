@@ -37,7 +37,7 @@ function mobilizationRatio(pack: PackedGraph, state: State): number {
   return Math.min(1, underArms / stock);
 }
 
-function finalizeYear(state: State, pack?: PackedGraph): void {
+function finalizeYear(state: State): void {
   const plantFactor = Math.min(1.2, (state.plantingExposure ?? 0) / PLANT_REF_DAYS);
   const harvestFactor = Math.min(1.2, (state.harvestExposure ?? 0) / HARVEST_REF_DAYS);
   const raw = 0.55 * plantFactor + 0.7 * harvestFactor;
@@ -46,26 +46,6 @@ function finalizeYear(state: State, pack?: PackedGraph): void {
   state.agricultureCarryOver = CARRY_OVER_FRACTION * foodStress;
   state.plantingExposure = 0;
   state.harvestExposure = 0;
-
-  // Phase 5: severe harvest/planting shocks nick long-term capacity (slow recovery via growth)
-  if (pack && foodStress > 0.55) {
-    applyCapacityScar(pack, state.i, foodStress);
-  }
-}
-
-/** Reduce cell/burg capacity slightly after a bad agricultural year. */
-function applyCapacityScar(pack: PackedGraph, stateId: number, foodStress: number): void {
-  const scar = Math.min(0.08, (0.04 * (foodStress - 0.55)) / 0.95); // up to ~8% at max stress
-  if (scar <= 0) return;
-  const keep = 1 - scar;
-  for (let i = 0; i < pack.cells.i.length; i++) {
-    if (pack.cells.state[i] !== stateId) continue;
-    if (pack.cells.capacity?.[i] > 0) pack.cells.capacity[i] *= keep;
-  }
-  for (const burg of pack.burgs ?? []) {
-    if (burg?.state !== stateId || !burg.demographics) continue;
-    burg.demographics.capacity *= keep;
-  }
 }
 
 /**
@@ -81,7 +61,7 @@ export function tickAgriculturalCalendar(pack: PackedGraph, deltaDays: number, y
     if (state.agricultureYear === undefined) state.agricultureYear = year;
     if (year > state.agricultureYear) {
       const yearsJumped = year - state.agricultureYear;
-      for (let y = 0; y < yearsJumped; y++) finalizeYear(state, pack);
+      for (let y = 0; y < yearsJumped; y++) finalizeYear(state);
       state.agricultureYear = year;
     }
 

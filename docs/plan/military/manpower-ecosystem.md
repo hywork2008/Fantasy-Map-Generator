@@ -590,7 +590,7 @@ Economy の `warIntensity`（`docs/plan/economy-war.md`）は **一般的な戦�
 - **新兵質**: `MilitaryRegiment.quality`（生成時 1）。fill で緑兵 0.55 と加重平均。小競り合い・包囲 power に `regimentQualityMultiplier` を適用。Options: `recruitQualityEnabled`
 - **傷病帰還**: combat 死の 10% を民間 male に戻す（`applyWoundedReturn` / `WOUNDED_RETURN_RATE`）
 - **女性徴兵**: Options `femaleLevyEnabled`（既定 OFF）。male 不足時に female の一部を draft
-- **作付け失敗 → capacity**: `foodStress > 0.55` の年確定時に cell/burg capacity を最大 ~8% 削減
+- **作付け失敗 → 生産性**（2026-07-30改訂）: cell/burg capacityの恒久的削減は廃止した。`foodStress`はGROSS_FOOD_NEED生産（一般Goodsの`food`タグ経由）と、Food Ledgerの`stapleFood`（Grain）四半期生産の両方へ`foodStressProductionMultiplier()`（最大65%減、下限0.15倍）として一時的に効く。State/cellのcapacity自体は変わらないため、豊作年には即座に生産性が回復する（[megacity-food-import-economy.md](../megacity-food-import-economy.md) Phase 1）。
 - **砦ツールチップ**: fort グループに on-site / nearby 陸上兵力を表示
 
 ### 非目標（明示的にやらない）

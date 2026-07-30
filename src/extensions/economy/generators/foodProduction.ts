@@ -1,3 +1,4 @@
+import { foodStressProductionMultiplier } from "../../hostCore";
 import { getSeasonalAmplitude, minmax, rn } from "../../hostUtils";
 import {
   getCultivableArea,
@@ -296,6 +297,8 @@ export class FoodProductionModule {
 
         const rural = pack.cells.pop[cellId] * populationRate;
         ruralPopulation += rural;
+        const stateId = pack.cells.state?.[cellId] ?? 0;
+        const productivityModifier = foodStressProductionMultiplier(stateId);
         if (hasAgriculturalLandUse) {
           const availableAdults =
             Math.max(0, pack.cells.maleAdults?.[cellId] ?? 0) + Math.max(0, pack.cells.femaleAdults?.[cellId] ?? 0);
@@ -303,14 +306,14 @@ export class FoodProductionModule {
           const labourCoverage = requiredAdults > 0 ? minmax(availableAdults / requiredAdults, 0, 1) : 0;
           const landCoverage =
             cultivableArea[cellId] > 0 ? minmax(cultivatedArea[cellId] / cultivableArea[cellId], 0, 1) : 0;
-          annualFoodProduced += foodPotential[cellId] * landCoverage * labourCoverage;
+          annualFoodProduced += foodPotential[cellId] * landCoverage * labourCoverage * productivityModifier;
         } else {
           // Compatibility path for tests and maps created before the agricultural
           // columns exist. New economy generation always takes the land-use path.
           const capacity = pack.cells.capacity[cellId] * populationRate;
           const saturation = capacity > 0 ? rural / capacity : 0;
           const cultivation = minmax(0.25 + 0.75 * saturation, 0.25, 1);
-          annualFoodProduced += capacity * GROSS_FOOD_NEED * cultivation;
+          annualFoodProduced += capacity * GROSS_FOOD_NEED * cultivation * productivityModifier;
         }
       }
 

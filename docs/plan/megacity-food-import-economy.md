@@ -658,7 +658,7 @@ interface PopulationMigration {
 - [x] 農業の初期時代を13世紀ごろの北西ヨーロッパ型とし、基準収量450 kg/ha、労働投入30日/ha（2026-07-30再校正、旧45日/ha）、農業可能日140日/成人年、安全余力15%と決定する。
 - [x] v1では季節雇用・出稼ぎ移住を個別には扱わず、15%の農業労働安全余力へ含め、労働市場モデルへ後送すると決定する。
 - [x] economy有効化、マップロード、再生成時の再計算を実装する。派生キャッシュなので、旧セーブへの列追加やPackedGraphの保存形式変更は行わない。
-- [ ] `agriculturalStress`の`capacity`直接削減を廃止し、State `foodStress`から一時的な食料生産性補正を適用する（設計決定済み、未実装）。
+- [x] `agriculturalStress`の`capacity`直接削減を廃止し、State `foodStress`から一時的な食料生産性補正を適用する。`applyCapacityScar()`（`cells.capacity`/`burg.demographics.capacity`の恒久8%削減）を削除し、既存の`foodStressProductionMultiplier(stateId)`を`FoodProductionModule.generateQuarterlyLedger()`の農地利用経路・旧`capacity`互換経路の両方へ適用した（`foodProduction.ts`）。豊作年には即座に生産性が回復し、`cells.capacity`自体は変化しない。
 - [x] ロックされていないBurgのgroupを年1回再評価する更新点を追加する。
 
 **完了条件**: 同一の地図環境で同じpotential配列が得られ、人口値だけを変えても`foodPotential`は変わらない。人口が変化した非ロックBurgは、次の年次評価でgroupを更新できる。

@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { worldContext } from "../../hostCore";
 import { DEFAULT_QUARTERLY_WEIGHTS, FoodProduction, getGlobalQuarterlyFoodWeights } from "./foodProduction";
 
 // Mock economy context
@@ -58,6 +59,12 @@ describe("FoodProduction", () => {
     (getWorldContext as any).mockReturnValue(mockWorldContext);
     (getMarkets as any).mockReturnValue(mockWorldContext.pack.markets);
     (getMarketCellColumn as any).mockReturnValue(mockWorldContext.pack.cells.market);
+  });
+
+  afterEach(() => {
+    // foodStressProductionMultiplier() reads the real worldContext singleton (not the mocked
+    // economyContext above), so state left here by one test must not leak into the next.
+    worldContext.pack = undefined as unknown as typeof worldContext.pack;
   });
 
   it("should calculate quarterly ledger correctly", () => {
@@ -133,6 +140,44 @@ describe("FoodProduction", () => {
 
     // Two available adults cover half of four required agricultural adults.
     expect(mockWorldContext.markets[0].foodLedger.foodProduced).toBeCloseTo(1075, 3);
+  });
+
+  it("scales production down by the cell's state food stress instead of a permanent capacity cut", () => {
+    mockWorldContext = {
+      populationRate: 1000,
+      urbanization: 1,
+      pack: {
+        cells: {
+          i: new Uint16Array([0, 1]),
+          h: new Uint8Array([25, 25]),
+          pop: new Float32Array([10, 0]),
+          capacity: new Float32Array([20, 0]),
+          state: new Uint16Array([1, 1]),
+          maleAdults: new Float32Array([1, 0]),
+          femaleAdults: new Float32Array([1, 0])
+        },
+        burgs: []
+      },
+      markets: [{ i: 1, goods: {} }]
+    };
+    vi.mocked(getWorldContext).mockReturnValue(mockWorldContext);
+    vi.mocked(getMarkets).mockReturnValue(mockWorldContext.markets);
+    vi.mocked(getMarketCellColumn).mockReturnValue(new Uint16Array([1, 1]));
+    vi.mocked(getCultivableArea).mockReturnValue(new Float32Array([10, 0]));
+    vi.mocked(getCultivatedArea).mockReturnValue(new Float32Array([10, 0]));
+    vi.mocked(getFarmLaborRequired).mockReturnValue(new Float32Array([4, 0]));
+    vi.mocked(getFoodPotential).mockReturnValue(new Float32Array([8600, 0]));
+
+    // Cell 0/1 belong to state 1, which had a bad planting/harvest year (foodStress = 0.5).
+    worldContext.pack = { states: [{ i: 0 }, { i: 1, foodStress: 0.5 }] } as unknown as typeof worldContext.pack;
+
+    FoodProduction.generateQuarterlyLedger(0);
+
+    // Same inputs as the unstressed case above (which yields 1075), reduced by
+    // foodStressProductionMultiplier's 1 - 0.65 * 0.5 = 0.675 factor. Unlike the old
+    // capacity-scar mechanism, this leaves cells.capacity untouched and recovers as soon
+    // as foodStress falls, instead of a permanent cut.
+    expect(mockWorldContext.markets[0].foodLedger.foodProduced).toBeCloseTo(1075 * 0.675, 1);
   });
 
   it("keeps the quarterly food allocation uniform at the equator", () => {
