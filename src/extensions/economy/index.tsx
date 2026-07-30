@@ -73,6 +73,7 @@ import {
 } from "./generators/taxes-generator";
 import { TradeAnimation } from "./generators/trade-animation";
 import { TradeSecurity } from "./generators/tradeSecurity";
+import { UrbanLaborIntake } from "./generators/urbanLaborIntake";
 import { drawGoods } from "./renderers/draw-goods";
 import { drawMarketsLayer } from "./renderers/draw-markets";
 import {
@@ -657,6 +658,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       const world = getWorldContext();
       resetEffectiveCapacities(world.pack.burgs);
       DevelopmentPotential.clear();
+      UrbanLaborIntake.clear();
       clearBurgMarketLedgers();
       clearMarketManagers();
       MineOperations.clear();
@@ -1321,7 +1323,7 @@ export function init(api: ExtensionAPI): void {
     id: "economy.tick",
     phase: "economy",
     reads: ["map.politics", "extension.economy", "simulation.burgs", "simulation.states"],
-    writes: ["extension.economy", "simulation.states"],
+    writes: ["extension.economy", "simulation.burgs", "simulation.states", "map.settlements"],
     cadence: { every: 1 },
     profileLabel: "economy",
     run: (context, writer) => {
@@ -1396,6 +1398,7 @@ export function init(api: ExtensionAPI): void {
       daysSinceLastProduction += effectiveDays;
 
       const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
+      const urbanMobility = UrbanLaborIntake.updateAnnualState(getWorldContext(), context.rng);
       const burgGroupsChanged = DevelopmentPotential.updateAnnualBurgGroups();
       const forestChanged = tickForestRegrowth(effectiveDeltaYears);
 
@@ -1417,7 +1420,9 @@ export function init(api: ExtensionAPI): void {
       }
 
       writer.markChanged("extension.economy", "simulation.states");
-      if (burgGroupsChanged) writer.markChanged("map.settlements");
+      if (burgGroupsChanged || (urbanMobility?.settledAdults ?? 0) > 0) {
+        writer.markChanged("simulation.burgs", "map.settlements");
+      }
     }
   });
 

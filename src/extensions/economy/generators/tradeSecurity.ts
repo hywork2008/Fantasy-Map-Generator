@@ -1,5 +1,6 @@
 import { rn } from "../../hostUtils";
 import { getApi, getTradeSecurityLedgers, getWorldContext, setTradeSecurityLedgers } from "../economyContext";
+import { UrbanLaborIntake } from "./urbanLaborIntake";
 
 export interface TradeSecurityLedger {
   stateId: number;
@@ -101,9 +102,17 @@ export class TradeSecurityModule {
     const danger = Math.max(0, Math.min(255, cells?.danger?.[burg.cell] ?? 0));
     const dangerMultiplier = 1 + (3 * danger) / 255;
     const warMultiplier = 1 + Math.max(0, Number.isFinite(warIntensity) ? warIntensity : 0);
+    // Rural surplus may eventually become outlaw cohorts. Keep their pressure separate
+    // from static map danger so an improved route-security budget can still counter it.
+    const banditMultiplier = 1 + (UrbanLaborIntake.getBanditPressureByState().get(stateId) ?? 0);
     const securityMultiplier = 1 - this.getEffectiveInvestment(stateId);
     return this.clampUnit(
-      BASE_BANDIT_RISK_PER_DAY * warMultiplier * frontierMultiplier * dangerMultiplier * securityMultiplier
+      BASE_BANDIT_RISK_PER_DAY *
+        warMultiplier *
+        frontierMultiplier *
+        dangerMultiplier *
+        banditMultiplier *
+        securityMultiplier
     );
   }
 

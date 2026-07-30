@@ -74,9 +74,12 @@ foodProduced - ruralNeed = 0.25 × G × (C - R)
 | 状態 | 所有者 | 単位 | 意味 |
 | --- | --- | --- | --- |
 | `cells.capacity` | core world | 人口ポイント | 土地に居住する農村人口の基礎K値。食料生産量そのものではない。 |
-| `foodPotential[cellId]` | economy simulation | 年間食料単位 | 十分な農業労働力・通常の生産条件で得られる基礎食料生産力。人口からは導かない。 |
+| `cultivableArea[cellId]` | economy simulation | 面積ポイント | 森林・水域・気候・地形から得る、通常技術で耕作へ転用できる上限面積。 |
+| `cultivatedArea[cellId]` | economy simulation | 面積ポイント | 当期に実際に作付・維持する面積。需要、労働力、開墾状態で変化する。 |
+| `yieldPerArea[cellId]` | economy simulation | 年間食料 / 面積ポイント | 気候、水利、地形、技術から決まる作付面積当たり収量。 |
+| `foodPotential[cellId]` | economy simulation | 年間食料単位 | 全`cultivableArea`を十分な農業労働力で耕した場合の上限。人口からは導かない。 |
 | `foodProductivityModifier[cellId]` | economy simulation | 倍率 | 水利、技術、戦禍、洪水、干ばつ、開墾などの動的補正。 |
-| `farmLaborRequired[cellId]` | economy simulation | 成人労働者ポイント | `foodPotential`を生産するために必要な農業労働力。 |
+| `farmLaborRequired[cellId]` | economy simulation | 成人労働者ポイント | 当期の`cultivatedArea`を維持・収穫するために必要な農業労働力。人口比からは導かない。 |
 | `settlementDevelopmentPotential[cellId]` | economy simulation | 無次元スコア | 港、河川、道路・海路結節、資源、政治中心性から得る都市化の立地優位。 |
 | Market food ledger / stock | economy simulation | 食料単位 | 生産、消費、在庫、輸出余力、輸入、輸送損失を記録する。 |
 | `burg.demographics.effectiveCapacity` | core world | 人口ポイント | 基礎Burg容量と、安定して到着する食料に支えられる追加容量の合計。 |
@@ -90,16 +93,20 @@ foodProduced - ruralNeed = 0.25 × G × (C - R)
 初期式は以下の要因を使う。
 
 ```text
-foodPotential = usableArea
-              × biomeYield
-              × climateYield
-              × waterAccessModifier
-              × terrainModifier
-              × baseAgriculturalTechnology
+cultivableArea = usableLandArea × initialCroplandShare
+foodPotential = cultivableArea × yieldPerArea
+
+yieldPerArea = baseGrainYield
+             × grainTemperatureFactor
+             × precipitationFactor
+             × waterAccessModifier
+             × terrainModifier
+             × baseAgriculturalTechnology
 ```
 
-- `usableArea`: セル面積、水域・極端な高地・不毛地を除いた耕作可能面積。
-- `biomeYield` / `climateYield`: バイオーム、温度、降水から得る基礎収量。
+- `usableLandArea`: セル面積から水域・極端な高地・不毛地を除いた土地面積。
+- `initialCroplandShare`: `forestCover`、湿地・氾濫林などから決める初期の耕地比率。開墾で変化する余地を残し、森林だけで将来の発展を永久に否定しない。
+- `grainTemperatureFactor` / `precipitationFactor`: 年平均温度と降水から得る穀物生産適性。降水は少雨で減衰し、十分な値で飽和する。
 - `waterAccessModifier`: 河川流量、湖、沿岸低地などによる水利・沖積地の補正。
 - `terrainModifier`: 高度・急峻さ・土壌悪化の減衰。
 - `baseAgriculturalTechnology`: 時代・世界設定による全体係数。後の技術システムの接続点。
@@ -108,16 +115,18 @@ foodPotential = usableArea
 
 ### 3.3 生産と農業労働力
 
-食料生産は全農村人口ではなく、成人の農業労働力に依存する。
+食料生産は全農村人口ではなく、当期の実作付面積を耕す成人の農業労働力に依存する。農業労働者を人口比で直接固定しない。
 
 ```text
-availableFarmLabor = eligibleAdults × agriculturalParticipationRate
-laborCoverage = min(1, availableFarmLabor / farmLaborRequired)
-foodProduced = foodPotential × foodProductivityModifier × laborCoverage
+farmLaborRequired = cultivatedArea × laborDaysPerArea / workableDaysPerAdult
+laborCoverage = min(1, farmLaborAllocated / farmLaborRequired)
+foodProduced = cultivatedArea × yieldPerArea × foodProductivityModifier × laborCoverage
 ```
 
-- `eligibleAdults`はセルの男女成人バケットを使い、子ども・高齢者を農業労働力に数えない。
-- `farmLaborRequired`未満では生産が比例して低下する。必要人数を超える農村人口は、食料を追加生産しない非必須労働力となり、都市移住の候補になる。
+- `farmLaborAllocated`はセルの男女成人バケットから農業へ割り当てた人数であり、子ども・高齢者を含めない。
+- `cultivatedArea`は地域消費・目標在庫・確定輸出需要から求め、`cultivableArea`を超えない。
+- `farmLaborRequired`未満では生産が比例して低下する。農業に不要な成人は、農村の非農業需要と安全余力を除いて都市移住の候補になる。
+- 初期校正では結果として成人労働力の70〜80%級が農業へ配分される範囲を目標にするが、この比率を移住計算の固定入力にはしない。
 - 初期v1では規模の経済・作物別季節性を持ち込まず、四半期重みと一律の`"food"`タグを維持する。作物別の腐敗・収穫暦は後続課題とする。
 
 この分離により、農村人口が`cells.capacity`未満でも十分な農業労働力に達していれば、安定した余剰が生まれる。また、技術・水利・戦争が`foodProductivityModifier`を変えれば、人口を変えずに生産力だけが変化する。
@@ -279,7 +288,7 @@ interface PopulationMigration {
 
 ### Phase 2 — 農業労働力・市場在庫・セル生産
 
-- 成人バケットから農業労働力を算出し、`farmLaborRequired`と生産量を求める。
+- `cultivableArea`、`cultivatedArea`、面積当たり収量と成人バケットから、`farmLaborRequired`と生産量を求める。
 - `FoodLedger`を在庫開始・終了、未充足需要、輸出可能量を含む契約へ移行する。
 - 四半期をまたぐ在庫を実装し、季節性の既存重みを適用する。
 - 旧来の`capacity × cultivation`生産式を削除する。
@@ -299,11 +308,13 @@ interface PopulationMigration {
 
 - 年齢・性別バケットを保った人口移動ユーティリティを作る。
 - 農業労働力の安全余力と最低共同体人口を守る農村移住元選定を実装する。
-- 食料余力・都市容量・都市吸引力から移住先Burgを選ぶ。
+- 食料余力・都市容量・年次`annualUrbanLaborIntake`の残枠から移住先Burgを選ぶ。受入枠はBurg人口の年率1〜3%を基礎とし、State単位の好況・不況とBurgごとの小変動で年一回決める。
+- 近隣の最大三都市でも受入枠を得られない成人を`mobileAdultCohort`へ入れる。一年後も未就職なら、開拓申請、野盗集団、餓死・域外流出へ集計配分する。
+- 野盗集団の`banditPressure`を既存`TradeSecurity`へ接続し、隊商損失を増やす。Food Ledger導入後は出身地以外の農村在庫略奪にも接続する。
 - `settlementDevelopmentPotential`を移住先と新Burg昇格候補の順位付けへ接続する。
 - 移住量の上限、同一State/Market制約、移住履歴を実装する。
 
-**完了条件**: 食料生産を維持したまま農村人口が減り、輸入可能なBurgの人口が出生だけより速く増える。
+**完了条件**: 食料生産を維持したまま農村人口が減り、年次受入枠を得たBurgだけが出生だけより速く増える。未就職者は人口複製・消滅を起こさず、漂泊・開拓・野盗・死亡のいずれかへ記録される。
 
 ### Phase 5 — 都市→農村流出と飢饉
 
@@ -347,7 +358,7 @@ export function getUrbanConcentrationBonus(burgId: number): {
 ## 9. 未解決事項
 
 - `foodPotential`を地図生成時にどの程度地域差へ正規化するか。
-- 農業労働者を男女成人からどの比率で取るか、季節雇用をv1に含めるか。
+- 初期時代・地域をどこに置き、`laborDaysPerArea`と成人一人当たりの年間農業可能日をどう絶対校正するか。季節雇用をv1に含めるか。
 - 市場圏を跨ぐ農村→都市移住と、難民・越境移住をいつ導入するか。
 - 都市吸引力に雇用・賃金・政治的首都補正をどの順序で導入するか。
 - 食料を単一`"food"`タグのままにする期間と、穀物・魚・肉の腐敗差を導入する時期。
