@@ -62,6 +62,7 @@ import { MineOperations } from "./generators/mineOperations";
 import { MineralResources } from "./generators/mineralResources";
 import { Minting } from "./generators/minting";
 import { Production } from "./generators/production-generator";
+import { releaseRuralLaborSurplus } from "./generators/ruralLaborRelease";
 import { seedShipbuildingInitialStock } from "./generators/shipbuildingInitialStock";
 import { SmelterOperations } from "./generators/smelterOperations";
 import { refreshStateEconomySummaries } from "./generators/stateEconomySummary";
@@ -1335,7 +1336,10 @@ export function init(api: ExtensionAPI): void {
       const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
       // Must run before the quarter's food ledger so annual demographic changes
       // alter cultivated area and farm labour without waiting an extra quarter.
-      DevelopmentPotential.updateAnnualAgriculture();
+      const agricultureRefreshed = DevelopmentPotential.updateAnnualAgriculture();
+      // Only release this year's freshly recomputed migratableAdults surplus — running on a
+      // tick where agriculture wasn't refreshed would re-read last year's (already-extracted) figures.
+      if (agricultureRefreshed) releaseRuralLaborSurplus(getWorldContext());
 
       const caravanTick = Caravans.tick(effectiveDays);
       StrategicProcurement.reconcileCaravans(caravanTick.arrived, caravanTick.lost);

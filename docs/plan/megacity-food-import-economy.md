@@ -705,7 +705,7 @@ interface PopulationMigration {
 ### Phase 4 — 農村→都市移住
 
 - [x] 年齢・性別バケットを保った人口移動ユーティリティを作る。`children`/`maleAdults`/`femaleAdults`/`elders`の4バケットを、セル（`pack.cells`の列配列）・Burg（`burg.demographics`）のどちらからでも読み書きできる共通プリミティブ（`getCellDemographics`/`setCellDemographics`/`getBurgDemographics`/`setBurgDemographics`）と、比率で分割・合算する`splitDemographicBuckets`/`addDemographicBuckets`を`demographicTransfer.ts`に実装した。既存の重複実装だった、セル間の過密移住（`simulateDemographics()`）とセル→Burg昇格時の人口按分（`promoteRuralSettlements()`）の2箇所をこのユーティリティへ置換し、動作は変えず共通化した。`urbanLaborIntake.ts`の`addAdultsToBurg()`（成人のみ、出典セルなし）は移住キューの性質上そのまま維持し、置換対象外とした。
-- [ ] 農業労働力の安全余力と最低共同体人口を守る農村移住元選定を実装する。`migratableAdults`は計算済みだが、農村から実際に取り出す処理へ未接続である。
+- [x] 農業労働力の安全余力と最低共同体人口を守る農村移住元選定を実装した（`ruralLaborRelease.ts`の`releaseRuralLaborSurplus()`）。`DevelopmentPotential.updateAnnualAgriculture()`が当年の`migratableAdults`を再計算した直後に一度だけ実行し、各セルの既存男女成人比で按分して`maleAdults`/`femaleAdults`から実際に取り出し（`children`/`elders`は残す）、`UrbanLaborIntake.enqueueRuralDisplacement()`へ`MobileAdultCohort`として渡す。人口フロア`MINIMUM_RURAL_COMMUNITY_POPULATION`（暫定値1）を下回る取り出しは行わない。**既知の簡略化**: 労働安全余力は`migratableAdults`（`FARM_LABOR_SAFETY_MARGIN`込み）でその年の状態から再計算される上限を使っており、§4.1後半で決定した`sustainableAdultOutflow`（当年の子→成人到達数が上限）・`ruralReleasePressure`（最低食料計画からの余力）への分離はまだ実装していない。
 - [x] 通常の農村→都市就職移住を成人単独とし、農業余剰に加えて年次`sustainableAdultOutflow`で平時の農村再生産を守る方針を決定する。世帯単位の避難・開拓・結婚定住は後続イベントとする。
 - [x] 通常の就職移住を同一State内に限定し、Market境界では制限しないと決定する。越境移住・難民は後続システムとする。
 - [x] 年齢区分は既存の子ども・男女成人・高齢者の4区分を維持し、`sustainableAdultOutflow`の原資を当年の子ども→成人到達人数、男女配分を同じ到達比率と決定する。
