@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { FoodProduction } from "./foodProduction";
+import { DEFAULT_QUARTERLY_WEIGHTS, FoodProduction, getGlobalQuarterlyFoodWeights } from "./foodProduction";
 
 // Mock economy context
 vi.mock("../economyContext", () => ({
@@ -117,5 +117,34 @@ describe("FoodProduction", () => {
 
     // Two available adults cover half of four required agricultural adults.
     expect(mockWorldContext.markets[0].foodLedger.foodProduced).toBeCloseTo(1075, 3);
+  });
+
+  it("keeps the quarterly food allocation uniform at the equator", () => {
+    const weights = getGlobalQuarterlyFoodWeights({
+      mapCoordinates: { latN: 5, latS: -5 },
+      climate: { temperatureEquator: 30, temperatureNorthPole: -20, temperatureSouthPole: -20 }
+    });
+
+    expect(weights).toEqual(DEFAULT_QUARTERLY_WEIGHTS);
+  });
+
+  it("applies a small, normalized northern harvest peak in strongly seasonal worlds", () => {
+    const weights = getGlobalQuarterlyFoodWeights({
+      mapCoordinates: { latN: 90, latS: 70 },
+      climate: { temperatureEquator: 30, temperatureNorthPole: -20, temperatureSouthPole: -20 }
+    });
+
+    expect(weights[2]).toBeGreaterThan(weights[0]);
+    expect(weights.reduce((sum, weight) => sum + weight, 0)).toBeCloseTo(1, 12);
+  });
+
+  it("moves the mild harvest peak by half a year for southern maps", () => {
+    const weights = getGlobalQuarterlyFoodWeights({
+      mapCoordinates: { latN: -70, latS: -90 },
+      climate: { temperatureEquator: 30, temperatureNorthPole: -20, temperatureSouthPole: -20 }
+    });
+
+    expect(weights[0]).toBeGreaterThan(weights[2]);
+    expect(weights.reduce((sum, weight) => sum + weight, 0)).toBeCloseTo(1, 12);
   });
 });

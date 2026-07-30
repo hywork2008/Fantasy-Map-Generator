@@ -1,4 +1,4 @@
-import { minmax, rn } from "../../hostUtils";
+import { getSeasonalAmplitude, minmax, rn } from "../../hostUtils";
 import {
   getCultivableArea,
   getCultivatedArea,
@@ -13,9 +13,81 @@ import { resolveFoodImportNetwork } from "./foodImportNetwork";
 
 export { GROSS_FOOD_NEED, RURAL_MARKETABLE_SHARE } from "./foodConstants";
 
-// デフォルトの四半期ごとの生産の重み（春夏秋冬など）。合計1.0
-// ここで重みを変更することで、収穫期の過剰や農閑期の逼迫を演出できる
-export const DEFAULT_QUARTERLY_WEIGHTS = [0.25, 0.25, 0.25, 0.25];
+/** Uniform fallback for legacy maps or incomplete World Configurator settings. */
+export const DEFAULT_QUARTERLY_WEIGHTS = [0.25, 0.25, 0.25, 0.25] as const;
+
+export type QuarterlyFoodWeights = readonly [number, number, number, number];
+
+type FoodSeasonalitySettings = {
+  mapCoordinates?: { latN?: number; latS?: number };
+  climate?: {
+    temperatureEquator: number;
+    temperatureNorthPole: number;
+    temperatureSouthPole: number;
+  };
+};
+
+/**
+ * A deliberately mild northern-hemisphere reference harvest profile. It preserves the annual
+ * total while putting a little more supply into July–September, without claiming to model a
+ * specific crop calendar. Southern maps rotate this profile by half a year.
+ */
+const NORTHERN_HARVEST_PROFILE: QuarterlyFoodWeights = [0.2, 0.23, 0.34, 0.23];
+
+/** Caps this global foundation below the strength of a future market- or crop-level calendar. */
+const MAX_GLOBAL_SEASONAL_BLEND = 0.1;
+const REFERENCE_SEASONAL_AMPLITUDE_C = 20;
+
+function isFiniteNumber(value: number | undefined): value is number {
+  return value !== undefined && Number.isFinite(value);
+}
+
+function getMapReferenceLatitude(mapCoordinates: FoodSeasonalitySettings["mapCoordinates"]): number | null {
+  if (!mapCoordinates) return null;
+  const { latN, latS } = mapCoordinates;
+  if (isFiniteNumber(latN) && isFiniteNumber(latS)) return (latN + latS) / 2;
+  if (isFiniteNumber(latN)) return latN;
+  if (isFiniteNumber(latS)) return latS;
+  return null;
+}
+
+function rotateHalfYear(weights: QuarterlyFoodWeights): QuarterlyFoodWeights {
+  return [weights[2], weights[3], weights[0], weights[1]];
+}
+
+/**
+ * Calculates one harvest-timing profile for the whole map. It intentionally uses the map's
+ * reference latitude rather than individual cell locations: this is a subtle common baseline
+ * for the food ledger, not a replacement for later producer-level crop calendars.
+ */
+export function getGlobalQuarterlyFoodWeights({
+  mapCoordinates,
+  climate
+}: FoodSeasonalitySettings): QuarterlyFoodWeights {
+  const latitude = getMapReferenceLatitude(mapCoordinates);
+  if (
+    latitude === null ||
+    !climate ||
+    !isFiniteNumber(climate.temperatureEquator) ||
+    !isFiniteNumber(climate.temperatureNorthPole) ||
+    !isFiniteNumber(climate.temperatureSouthPole)
+  ) {
+    return DEFAULT_QUARTERLY_WEIGHTS;
+  }
+
+  const amplitude = getSeasonalAmplitude(latitude, climate);
+  const climateStrength = minmax(amplitude / REFERENCE_SEASONAL_AMPLITUDE_C, 0, 1);
+  const blend = climateStrength * MAX_GLOBAL_SEASONAL_BLEND;
+  if (blend === 0) return DEFAULT_QUARTERLY_WEIGHTS;
+
+  const harvestProfile = latitude < 0 ? rotateHalfYear(NORTHERN_HARVEST_PROFILE) : NORTHERN_HARVEST_PROFILE;
+  return [
+    DEFAULT_QUARTERLY_WEIGHTS[0] + (harvestProfile[0] - DEFAULT_QUARTERLY_WEIGHTS[0]) * blend,
+    DEFAULT_QUARTERLY_WEIGHTS[1] + (harvestProfile[1] - DEFAULT_QUARTERLY_WEIGHTS[1]) * blend,
+    DEFAULT_QUARTERLY_WEIGHTS[2] + (harvestProfile[2] - DEFAULT_QUARTERLY_WEIGHTS[2]) * blend,
+    DEFAULT_QUARTERLY_WEIGHTS[3] + (harvestProfile[3] - DEFAULT_QUARTERLY_WEIGHTS[3]) * blend
+  ];
+}
 
 export class FoodProductionModule {
   private get worldContext() {
@@ -42,7 +114,11 @@ export class FoodProductionModule {
       foodPotential.length === pack.cells.i.length;
 
     const safeQuarterIndex = Math.max(0, Math.min(3, Math.floor(quarterIndex % 4)));
-    const quarterWeight = DEFAULT_QUARTERLY_WEIGHTS[safeQuarterIndex] ?? 0.25;
+    const quarterlyWeights = getGlobalQuarterlyFoodWeights({
+      mapCoordinates: this.worldContext.mapCoordinates,
+      climate: this.worldContext.options
+    });
+    const quarterWeight = quarterlyWeights[safeQuarterIndex];
 
     for (const market of markets) {
       let ruralPopulation = 0;
