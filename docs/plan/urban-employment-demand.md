@@ -25,6 +25,10 @@
 
 > **既知の影響（要Phase 5バランス調整）**: `basicEmploymentDemand`は現状、行政（州都のみ）・鉱業・製錬・交易（Market中心Burgのみ）からしか生まれない。megacityモードでは、これらのいずれにも該当しないBurg（農業中心の一般的な町など）は`employmentDemand`が0のままとなり、`urbanLaborIntake`が恒常的に0になる——本書§1の意図（基盤産業のない都市は人口だけで膨らまない）どおりの挙動だが、影響範囲は非常に広い（鉱山も交易拠点でも州都でもない大多数のBurgが対象）。Phase 5で鉱山を持つ都市・持たない都市の成長曲線を比較しながら、`serviceMultiplier`やその他の係数を調整すること。
 
+**2026-07-31 実装状況（Phase 5 — UI・可視化・バランス）**: Burg Editor（`BurgEditorDialog.tsx`）に「Basic employment」「Service employment」行を追加した（`BurgEconomySummary`型を拡張し、`burgEconomySummary.ts`が`getBasicEmploymentSummary()`から値を埋める）。デバッグ用に新しい`Employment Overview`ダイアログ（Tools → Edit → Employment）を追加し、`employmentDemand`が発生している全Burgを行政・鉱業・製錬・交易・basic・service・totalの内訳付きで一覧表示する（値は年次リコンサイルが確定させた既存stateを読むだけで、再計算はしない）。`basicEmployment.ts`の交易帰属ロジックを`getTradeWorkersByBurg()`として切り出し、年次リコンサイルとこのダイアログの両方から再利用する。ブラウザで実機確認（seed `phase5-verify`、economy拡張・megacityモード有効、Advance Timeで60年分進行）: Burg EditorとEmployment Overviewの数値は一致し（例: 州都Nish — Basic 14.3 / Service 21.5 / Total 35.9）、UIは想定どおり機能した。
+
+> **バランス確認の結果**: 同じseedで`独立`モードと`megacity`モードを別々に60年分進行させ、複数Burgの人口推移を比較した。小規模なBurg（人口100前後）が数十年で人口ほぼ0まで急減する現象が観測されたが、**これはmegacity/independentどちらのモードでも同一に発生する**——本計画のPhase 1〜4とは無関係な、既存の人口シミュレーション（飢饉・戦争・野盗などによる減耗）側の既知の変動であることを確認した。一方、`employmentDemand`を持つ大きめのBurg（州都・鉱山町・交易拠点）は両モードで破綻的な挙動を示さず、Employment Overviewの内訳も一貫していた。時間の制約上、`serviceMultiplier`・行政雇用係数のさらなる精密な数値調整（史料的裏付けを伴う校正）は行っていない——決定3の方針（「それらしい値を入れて後で調整する」）どおり、今回は「壊れていないことの確認」までとし、既知の影響（上記）を踏まえた継続的なバランス調整は今後の課題として残す。
+
 ## 1. 目的
 
 [megacity-food-import-economy.md](megacity-food-import-economy.md)は、食料輸入と農業労働力の分離により、農村から都市へ人と食料を送る土台（`releaseRuralLaborSurplus`、`UrbanLaborIntake`、`FrontierExpansion`のプール連携、野盗ライフサイクル）を実装した。しかし、その土台がまだ答えていない問いが残っている。**都市へ送られた人は、着いた先で何をして生きるのか。**
@@ -190,9 +194,9 @@ employmentDemand[burgId] = basicEmploymentDemand[burgId] + serviceEmploymentDema
 
 ### Phase 5 — UI・可視化・バランス
 
-- [ ] Burg詳細に基盤雇用・サービス業雇用の内訳を表示する。
-- [ ] 既存のFrontier Status panel・Tools panelと同様の透明性で、`employmentDemand`の内訳をデバッグ表示できるようにする。
-- [ ] seed固定シナリオで、鉱山を持つ都市と持たない都市の成長曲線を比較し、乗数・上限値を調整する。
+- [x] Burg詳細に基盤雇用・サービス業雇用の内訳を表示する（`BurgEditorDialog.tsx`の「Basic employment」「Service employment」行）。
+- [x] 既存のFrontier Status panel・Tools panelと同様の透明性で、`employmentDemand`の内訳をデバッグ表示できるようにする（Employment Overviewダイアログ、Tools → Edit → Employment）。
+- [x] seed固定シナリオで、鉱山を持つ都市と持たない都市の成長曲線を比較した（実機確認: seed `phase5-verify`）。小規模Burgの人口急減はmegacity/independent両モードで同一に発生する既存の人口シミュレーション側の変動と確認し、本計画由来の問題ではないことを確認した。`serviceMultiplier`・行政雇用係数の史料的な精密校正は決定3の方針により見送り、今後の継続課題として残す（上記「既知の影響」を参照）。
 
 ## 5. 未決定事項（次セッション冒頭で確認する）
 

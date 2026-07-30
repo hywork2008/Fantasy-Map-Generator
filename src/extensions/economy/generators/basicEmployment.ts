@@ -97,16 +97,7 @@ export function reconcileAnnualBasicEmploymentWorkers(): void {
     });
   }
 
-  const tradeWorkersByBurg = new Map<number, number>();
-  const laborMarketByMarketId = new Map(
-    getStrategicLaborMarkets().map(laborMarket => [laborMarket.marketId, laborMarket])
-  );
-  for (const market of getMarkets()) {
-    if (!market.centerBurgId) continue;
-    const tradeWorkers = laborMarketByMarketId.get(market.i)?.workersByOccupation.trade ?? 0;
-    if (tradeWorkers <= 0) continue;
-    tradeWorkersByBurg.set(market.centerBurgId, (tradeWorkersByBurg.get(market.centerBurgId) ?? 0) + tradeWorkers);
-  }
+  const tradeWorkersByBurg = getTradeWorkersByBurg();
 
   const summaryBurgIds = new Set<number>([...slotsByBurg.keys(), ...tradeWorkersByBurg.keys()]);
   const summaryRecords: BasicEmploymentSummaryRecord[] = [];
@@ -137,6 +128,26 @@ export function reconcileAnnualBasicEmploymentWorkers(): void {
 
   setAdministrationEmployment(administrationRecords);
   setBasicEmploymentSummary(summaryRecords);
+}
+
+/**
+ * Reads (does not reallocate) each market's current `"trade"` LaborMarket headcount
+ * (§3.3, Phase 2) and attributes it to that market's `centerBurgId`. Exported so the
+ * Employment Overview debug dialog (Phase 5) can show the same breakdown the annual
+ * reconciliation uses, without duplicating the attribution logic.
+ */
+export function getTradeWorkersByBurg(): Map<number, number> {
+  const tradeWorkersByBurg = new Map<number, number>();
+  const laborMarketByMarketId = new Map(
+    getStrategicLaborMarkets().map(laborMarket => [laborMarket.marketId, laborMarket])
+  );
+  for (const market of getMarkets()) {
+    if (!market.centerBurgId) continue;
+    const tradeWorkers = laborMarketByMarketId.get(market.i)?.workersByOccupation.trade ?? 0;
+    if (tradeWorkers <= 0) continue;
+    tradeWorkersByBurg.set(market.centerBurgId, (tradeWorkersByBurg.get(market.centerBurgId) ?? 0) + tradeWorkers);
+  }
+  return tradeWorkersByBurg;
 }
 
 function pushSlot(map: Map<number, BasicEmploymentSlot[]>, burgId: number, slot: BasicEmploymentSlot): void {

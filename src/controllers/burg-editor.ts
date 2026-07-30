@@ -142,6 +142,8 @@ const burgEditorInternal = {
       wealth: economySummary?.wealth ?? "—",
       treasury: economySummary?.treasury ?? "—",
       foodImportDependency: economySummary?.foodImportDependency ?? "—",
+      basicEmploymentDemand: economySummary?.basicEmploymentDemand ?? "—",
+      serviceEmploymentDemand: economySummary?.serviceEmploymentDemand ?? "—",
       capital: !!b.capital,
       port: !!b.port,
       citadel: !!b.citadel,

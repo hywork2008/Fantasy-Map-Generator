@@ -197,6 +197,18 @@ export const BurgEditorDialog: React.FC = () => {
                   <span id="burgFoodImportDependency">{burgData.foodImportDependency}</span>
                 </td>
               </tr>
+              <tr data-tip="Basic employment (administration, mining, smelting, trade) that earns income from outside the burg, in adult-worker points. Drives population growth in Megacity mode.">
+                <th scope="row">Basic employment</th>
+                <td>
+                  <span id="burgBasicEmploymentDemand">{burgData.basicEmploymentDemand}</span>
+                </td>
+              </tr>
+              <tr data-tip="Service employment (inns, brokers, artisans) that basic employment supports, in adult-worker points.">
+                <th scope="row">Service employment</th>
+                <td>
+                  <span id="burgServiceEmploymentDemand">{burgData.serviceEmploymentDemand}</span>
+                </td>
+              </tr>
               <tr>
                 <th scope="row">Features:</th>
                 <td>

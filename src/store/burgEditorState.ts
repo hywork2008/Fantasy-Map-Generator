@@ -27,6 +27,8 @@ export interface BurgData {
   wealth: string;
   treasury: string;
   foodImportDependency: string;
+  basicEmploymentDemand: string;
+  serviceEmploymentDemand: string;
 
   // Features
   capital: boolean;

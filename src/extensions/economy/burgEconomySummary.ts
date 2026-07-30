@@ -1,6 +1,6 @@
 import type { Burg, BurgEconomySummary } from "../hostTypes";
 import { formatPrice, rn } from "../hostUtils";
-import { getWorldContext } from "./economyContext";
+import { getBasicEmploymentSummary, getWorldContext } from "./economyContext";
 import { Goods } from "./generators/goods-generator";
 import { Production } from "./generators/production-generator";
 
@@ -27,10 +27,14 @@ export function getBurgEconomySummary(burgId: number): BurgEconomySummary | null
   const importedSupport = Math.max(0, effectiveCapacity - baseCapacity);
   const foodImportDependency = burg.population && burg.population > 0 ? (importedSupport / burg.population) * 100 : 0;
 
+  const employmentSummary = getBasicEmploymentSummary().find(record => record.burgId === burgId);
+
   return {
     production,
     wealth: formatPrice(wealth),
     treasury: formatPrice(burg.treasury || 0),
-    foodImportDependency: `${rn(foodImportDependency, 1)}%`
+    foodImportDependency: `${rn(foodImportDependency, 1)}%`,
+    basicEmploymentDemand: employmentSummary ? `${rn(employmentSummary.basicEmploymentDemand, 1)}` : "—",
+    serviceEmploymentDemand: employmentSummary ? `${rn(employmentSummary.serviceEmploymentDemand, 1)}` : "—"
   };
 }

@@ -1,0 +1,118 @@
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { worldContext } from "../../hostCore";
+import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
+import {
+  clearEconomyContext,
+  initEconomyContext,
+  setAdministrationEmployment,
+  setBasicEmploymentSummary,
+  setMarkets,
+  setMineOperations,
+  setSmelterOperations,
+  setStrategicLaborMarkets
+} from "../economyContext";
+import { getEmploymentOverviewState } from "../store/employmentOverviewState";
+import { refreshEmploymentOverview } from "./employment-overview";
+
+describe("refreshEmploymentOverview", () => {
+  beforeEach(() => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.pack = {
+      burgs: [
+        undefined,
+        { i: 1, cell: 0, x: 0, y: 0, name: "Capital City", state: 1, capital: 1, market: 1, removed: false },
+        { i: 2, cell: 1, x: 1, y: 1, name: "Mining Town", state: 1, market: 2, removed: false }
+      ],
+      states: [undefined, { i: 1, name: "Testland" }]
+    } as unknown as PackedGraph;
+  });
+
+  afterEach(() => clearEconomyContext());
+
+  it("builds one row per Burg, combining administration/mining/smelting/trade into the basic total", () => {
+    setAdministrationEmployment([{ burgId: 1, stateId: 1, workers: 10 }]);
+    setMineOperations([
+      {
+        i: 1,
+        depositId: 1,
+        burgId: 2,
+        marketId: 2,
+        workers: 20,
+        technology: 1,
+        drainage: 1,
+        fuelAccess: 1,
+        annualOutputTons: {},
+        active: true
+      }
+    ]);
+    setSmelterOperations([]);
+    setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: {} }]);
+    setStrategicLaborMarkets([
+      {
+        marketId: 1,
+        workersByOccupation: { trade: 5 },
+        wageByOccupation: {},
+        skillByOccupation: {},
+        capacityByOccupation: {}
+      }
+    ]);
+    setBasicEmploymentSummary([
+      { burgId: 1, basicEmploymentDemand: 15, serviceEmploymentDemand: 22.5 },
+      { burgId: 2, basicEmploymentDemand: 20, serviceEmploymentDemand: 30 }
+    ]);
+
+    refreshEmploymentOverview();
+
+    const rows = getEmploymentOverviewState().rows;
+    expect(rows).toHaveLength(2);
+
+    const capital = rows.find(row => row.id === 1);
+    expect(capital).toMatchObject({
+      burgName: "Capital City",
+      stateName: "Testland",
+      isCapital: true,
+      administration: 10,
+      mining: 0,
+      trade: 5,
+      basicEmploymentDemand: 15,
+      serviceEmploymentDemand: 22.5,
+      employmentDemand: 37.5
+    });
+
+    const miningTown = rows.find(row => row.id === 2);
+    expect(miningTown).toMatchObject({
+      burgName: "Mining Town",
+      isCapital: false,
+      administration: 0,
+      mining: 20,
+      basicEmploymentDemand: 20,
+      employmentDemand: 50
+    });
+
+    // Sorted by total employmentDemand, highest first.
+    expect(rows[0].id).toBe(2);
+  });
+
+  it("excludes inactive mine/smelter operations from the sub-breakdown", () => {
+    setMineOperations([
+      {
+        i: 1,
+        depositId: 1,
+        burgId: 2,
+        marketId: 2,
+        workers: 20,
+        technology: 1,
+        drainage: 1,
+        fuelAccess: 1,
+        annualOutputTons: {},
+        active: false
+      }
+    ]);
+    setBasicEmploymentSummary([{ burgId: 2, basicEmploymentDemand: 0, serviceEmploymentDemand: 0 }]);
+
+    refreshEmploymentOverview();
+
+    const rows = getEmploymentOverviewState().rows;
+    expect(rows.find(row => row.id === 2)?.mining).toBe(0);
+  });
+});
