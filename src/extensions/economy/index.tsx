@@ -41,7 +41,7 @@ import {
   setMarketCellColumn,
   setMarkets
 } from "./economyContext";
-import { reconcileAnnualIndustrialWorkers } from "./generators/basicEmployment";
+import { reconcileAnnualBasicEmploymentWorkers } from "./generators/basicEmployment";
 import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burgMarketLedgers";
 import { Caravans } from "./generators/caravans";
 import { DevelopmentPotential } from "./generators/developmentPotential";
@@ -1416,8 +1416,9 @@ export function init(api: ExtensionAPI): void {
       const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
       const urbanMobility = UrbanLaborIntake.updateAnnualState(getWorldContext(), context.rng);
       // Reuses UrbanLaborIntake's once-per-simulation-year gate (non-null only on the year
-      // transition) so mining/smelting employment reconciles annually, not every economy tick.
-      if (urbanMobility) reconcileAnnualIndustrialWorkers();
+      // transition) so administration/mining/smelting employment reconciles annually, not
+      // every economy tick.
+      if (urbanMobility) reconcileAnnualBasicEmploymentWorkers();
       const burgGroupsChanged = DevelopmentPotential.updateAnnualBurgGroups();
       const forestChanged = tickForestRegrowth(effectiveDeltaYears);
 

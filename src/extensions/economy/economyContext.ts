@@ -9,6 +9,7 @@
 import type { ExtensionAPI } from "../../types/extension-api";
 import type { Burg } from "../../types/models";
 import { addFrontierApplicants as addFrontierApplicantsToPool } from "../hostCore";
+import type { AdministrationEmploymentRecord } from "./generators/administrationEmployment";
 import type { BurgMarketLedger } from "./generators/burgMarketLedgers";
 import type { Good } from "./generators/goods-generator";
 import type { Caravan, Deal, Market } from "./generators/marketTypes";
@@ -22,6 +23,7 @@ import type {
 } from "./generators/mineralResources";
 import type { MintLedger } from "./generators/minting";
 import type { ProductionRecord } from "./generators/production-generator";
+import type { BasicEmploymentSummaryRecord } from "./generators/serviceEmployment";
 import type { SmelterOperation } from "./generators/smelterOperations";
 import type { LaborMarket } from "./generators/strategicLaborMarkets";
 import type { ProcurementOrder } from "./generators/strategicProcurement";
@@ -489,6 +491,18 @@ export function getSmelterOperations(): SmelterOperation[] {
 }
 export function setSmelterOperations(operations: readonly SmelterOperation[]): void {
   setSliceArray("smelterOperations", operations);
+}
+export function getAdministrationEmployment(): AdministrationEmploymentRecord[] {
+  return getSliceArray<AdministrationEmploymentRecord>("administrationEmployment");
+}
+export function setAdministrationEmployment(records: readonly AdministrationEmploymentRecord[]): void {
+  setSliceArray("administrationEmployment", records);
+}
+export function getBasicEmploymentSummary(): BasicEmploymentSummaryRecord[] {
+  return getSliceArray<BasicEmploymentSummaryRecord>("basicEmploymentSummary");
+}
+export function setBasicEmploymentSummary(records: readonly BasicEmploymentSummaryRecord[]): void {
+  setSliceArray("basicEmploymentSummary", records);
 }
 export function getMintLedgers(): MintLedger[] {
   return getSliceArray<MintLedger>("mintLedgers");
