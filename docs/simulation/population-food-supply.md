@@ -48,7 +48,31 @@ yieldPerArea = baseGrainYield
              × baseAgriculturalTechnology
 ```
 
-`foodPotential` は「そのセルに住む人口が多いほど増える値」ではなく、十分に耕作・維持した場合の年間上限である。地図ロード、economy 有効化、地図再生成で `simulation.extensions.economy.foodPotential` に決定的に再生成する。
+`foodPotential` は「そのセルに住む人口が多いほど増える値」ではなく、十分に耕作・維持した場合の年間上限である。地図ロード、economy 有効化、地図再生成で `simulation.extensions.economy.foodPotential` に決定的に再生成する。国家・局地の発展差はこの環境上限を上書きせず、実収量に別係数を掛けて表す。
+
+```text
+actualFoodProduced = foodPotential
+                   × stateAgriculturalProductivity
+                   × cellAgriculturalModifier
+                   × cultivatedAreaCoverage
+                   × labourCoverage
+```
+
+- `stateAgriculturalProductivity`: 技術、統治制度、治安、灌漑投資による国家単位の生産性。v1は全Stateで`1.0`とし、後続の技術・統治システムが更新する。
+- `cellAgriculturalModifier`: 開墾、水利、土壌疲弊、局地災害によるセル単位の生産性。v1は全セルで`1.0`とする。
+- 実装では両者の積を`foodProductivityModifier[cell]`として持てる。`foodPotential`自身は人口・国家技術で正規化しない。
+
+国家係数は各期にセルの現在の領有Stateから読む。領土移転後は次期の生産から新しい国家係数を適用するが、征服前から残る灌漑・開墾・土壌改良などはState係数に含めず、将来の`cellAgriculturalModifier`として保持する。
+
+戦争期の播種・収穫妨害から得る既存State `foodStress`は、`cells.capacity`やBurg容量を恒久的に削らず、翌年の国家生産性へ`max(0.15, 1 - 0.65 × foodStress)`として一時的に掛ける。恒久的な荒廃は将来のセル局地係数に分離する。
+
+Food Ledgerが有効な間は、同じ`foodStress`から既存のState一括飢餓死亡を別に適用しない。Food Ledgerが農村・都市別の実不足から死亡を一度だけ算出し、既存の人口損失集計へ`famine`として記録する。Population OverviewはState別、無所属は無所属枠へ集計し、文化別の死亡統計は追加しない。economy無効時は従来の直接処理を維持する。
+
+Food Ledgerの飢餓死亡総数は、文化ごとの食料配分規範を表す`FamineMortalityWeights`で子供・男女成人・高齢者へ割り振る。未設定文化は子供`1.3`、男女成人各`1.0`、高齢者`1.2`を既定の相対比とし、居住地の実際の年齢構成で正規化する。これにより、文化によって子供または老人を優先する配給を後から設定できる。文化はこの内部配分にだけ使い、死亡統計は文化別に保持しない。
+
+v1はculture IDごとに一組の規範を農村・都市へ共通適用する。国家、宗教、階層、為政者による差は後続で文化既定値へ重ねる。
+
+初期地図では生産量を人口需要へ自動一致させない。Market・Stateごとの国内生産対需要比を監査し、地図条件による不足・余剰を可視化する。これにより、後の国家技術・制度や局地投資が実際に不足を改善できる。
 
 ### 3.2 セル面積・人口上限との整合性監査
 
@@ -181,16 +205,56 @@ foodProduced = cultivatedArea × yieldPerArea × laborCoverage
 
 ### 4.2 作付面積の決定と移住上限
 
-各期の目標作付面積は、まず地域消費と目標在庫を満たし、次に市場が有効に買い取る輸出需要を満たす範囲で決める。
+作付面積は播種前に年1回決める。地域消費と確定輸出は最低生産量とするが、備蓄目標は作付の上限にしない。情報が乏しく自然条件も厳しい世界観では、耕地と労働力が許す限り多く作付けし、実際の余剰は在庫・輸出・上限超過処理へ渡す。
 
 ```text
-targetFood = localConsumption + targetStockChange + committedExport
-cultivatedAreaTarget = min(cultivableArea, targetFood / expectedYieldPerArea)
-requiredRuralAdults = farmLaborRequired × 1.15
-migratableAdults = max(0, ruralWorkingAdults - ruralNonFarmWorkers - requiredRuralAdults)
+minimumFood = localConsumption + committedExport
+minimumCultivatedArea = minimumFood / expectedYieldPerArea
+minimumFarmAdults = minimumCultivatedArea
+                  × laborDaysPerArea
+                  × 1.15
+                  / workableDaysPerAdult
+ruralReleasePressure = max(0, ruralAdultWorkers - minimumFarmAdults)
+labourAffordableCultivatedArea = min(
+  cultivableArea,
+  (ruralAdultWorkers - sustainableAdultOutflow - ruralNonFarmWorkers)
+    × workableDaysPerAdult
+    / (laborDaysPerArea × 1.15)
+)
+cultivatedAreaTarget = labourAffordableCultivatedArea
 ```
 
-15% の安全余力は、病気・季節的な欠勤・収穫期の変動を個別にシミュレートしない v1 の保守幅である。四半期の食料台帳は維持するが、作物別の繁忙期・臨時雇用は v2 以降に分ける。
+- `minimumCultivatedArea`を満たせない場合は、食料不足・移住停止・輸入需要へつながる。
+- `ruralReleasePressure`は最大生産ではなく最低食料計画を基準にした成人余力である。ここで余力と判定された成人到達者が通常の外部就業・開拓を目指せる。残った成人が、次に可能な限り作付を広げて余剰を作る。
+- `ruralReleasePressure`がある成人到達者は、都市の受入枠が直ちになくても村へ残さず、外部の職を探す`mobileAdultCohort`へ移す。都市に定着できなければ翌年の開拓・野盗・死亡／域外流出へ進む。
+- `cultivatedAreaTarget`は最低面積で止まらず、労働力で耕せる範囲まで拡大する。余剰はFood Ledgerの在庫、輸出、`storageOverflow`へ流れる。
+- 年次作付では、先に`sustainableAdultOutflow`と農村非農業者を労働力から予約する。残った常住成人で耕せる面積を`labourAffordableCultivatedArea`とする。したがって、成人到達分として許可された通常の都市流出は「可能な限り多く作る」方針によって取り消されない。
+- `1.15`を分母へ入れるため、最大生産を選んでも農業労働の15%安全余力を残す。
+- v1では`ruralNonFarmWorkers = 0`とし、鉱山・伐採・運送などの農村非農業者を推定で控除しない。実際の資源事業や労働市場を導入してから、その事業が必要とする明示的な人数だけを控除する。
+- Marketの6か月目標在庫は輸入回復の目標であり、農民へ「そこまでしか作らない」と命じる生産上限ではない。
+- v1ではセル間・Market内で農業労働力を融通せず、各セルが残った常住成人で耕せる面積まで作付する。将来の季節雇用では、播種・収穫期だけ都市から農村へ短期労働者を呼べるようにする。
+- 15% の安全余力は、病気・季節的な欠勤・収穫期の変動を個別にシミュレートしない v1 の保守幅である。四半期の食料台帳は維持するが、作物別の繁忙期・臨時雇用は v2 以降に分ける。
+
+### 4.3 初期時代の絶対校正
+
+v1の基準時代は、13世紀ごろの北西ヨーロッパに見られる、雨水依存の穀物・混合農業とする。近代的肥料や機械化は前提にしない。初期パラメータは次の通りとする。
+
+| パラメータ | 初期値 | 役割 |
+| --- | ---: | --- |
+| `BASE_NET_YIELD_KG_PER_SOWN_HECTARE` | 450 kg/ha | 気候補正前の低収量側の穀物基準収量 |
+| `LABOUR_DAYS_PER_HECTARE` | 45 日/ha | 年間の作付・維持・収穫・脱穀・運搬を含むモデル上の労働投入 |
+| `WORKABLE_DAYS_PER_ADULT` | 140 日/年 | 全労働日ではなく、成人が農作業へ割り当てられる日数 |
+| `FARM_LABOUR_SAFETY_MARGIN` | 1.15 | 病気・季節欠勤・収穫期変動をまとめた15%の余力 |
+
+史料を単一の普遍定数として扱わない。Clarkの1300年ごろの推計は、耕地1 acre当たり成人男性11〜14日、すなわち約27〜35日/haを示す。一方、この値は史料上の農作業を基にしたもので、FMGの45日/haは家畜世話、運搬、脱穀などを含めた保守的なモデル値である。成人の全労働日を140日と主張するものでもなく、農作業へ実際に配分可能な日数である。[Gregory Clark, *The Long March of History*](https://faculty.econ.ucdavis.edu/faculty/gclark/papers/echr2006.pdf)
+
+収量は土地・作物・経営形態で大きく変わる。中世ノーフォークの62荘園を使った研究も、播種量、作付頻度、作物構成、地域差を同時に考慮する必要を示している。したがって450 kg/haは低収量側の共通出発点に過ぎず、国家生産性、セル局地係数、気候補正で差を表す。[Bruce M. S. Campbell, *Arable Productivity in Medieval England*](https://www.cambridge.org/core/journals/journal-of-economic-history/article/abs/arable-productivity-in-medieval-england-some-evidence-from-norfolk/75CD5C8160488863D54BA7EBED38EB89)
+
+この組合せでは、通常の農村で成人の概ね70〜80%が農業へ残ることを校正目標とする。ただしこの比率は移住式への固定入力ではなく、面積と労働日から算出した結果の監査値である。
+
+v1では収穫期の季節雇用や、一時的な都市から農村への出稼ぎを個別の人口移動として扱わない。通常の移住判定は常住成人の余剰だけで行い、季節的な不足・欠勤・共同作業は`FARM_LABOUR_SAFETY_MARGIN = 1.15`へ含める。季節雇用は将来の労働市場モデルで、賃金・移動費・農繁期を持つ別の仕組みとして導入する。
+
+将来の季節雇用では、播種・収穫期に都市から農村へ短期労働者を呼び、作業後に都市へ戻すことを許す。これは常住人口の移住・農業労働力とは別の、一時的な労働契約として扱う。
 
 ### 4.3 地図全体の軽い収穫時期補正
 

@@ -2,6 +2,7 @@
 
 2026-07-30
 
+- docs/simulation/economy-market-accounting-audit.md
 - docs/simulation/population-food-supply.md
 
 2026-07-29
