@@ -23,6 +23,8 @@ export interface SmelterOperation {
   technology: number;
   smeltingYield: number;
   annualCapacityTons: number;
+  /** Actual employed adults, a subset of the owning Burg's population (docs/plan/urban-employment-demand.md §0). */
+  workers: number;
   /** Configured share (0..1) of the site's maximum state-funded security. */
   securityInvestment: number;
   /** Treasury actually paid for this site's security in the latest production month. */
@@ -44,6 +46,19 @@ const FRONTIER_WILDERNESS = 0;
 const FRONTIER_OUTPOST = 1;
 const FRONTIER_SETTLEMENT = 2;
 const FRONTIER_INCORPORATED = 3;
+/** Base headcount a smelter needs even at minimal throughput (furnace tending, hauling). */
+const REQUIRED_WORKERS_BASE = 4;
+/** Additional headcount per annual tonne of ore capacity to run at full processingFactor (calibration TBD). */
+const REQUIRED_WORKERS_PER_ANNUAL_TON = 0.05;
+
+/**
+ * Headcount needed to run a smelter's processing at full capacity. Reused by
+ * `produceMonth()` (as `workerFactor`'s denominator) and by the annual Burg-anchored
+ * employment reconciliation in `basicEmployment.ts` (docs/plan/urban-employment-demand.md §3.2).
+ */
+export function getSmelterRequiredWorkers(smelter: Pick<SmelterOperation, "annualCapacityTons">): number {
+  return REQUIRED_WORKERS_BASE + smelter.annualCapacityTons * REQUIRED_WORKERS_PER_ANNUAL_TON;
+}
 
 /** Creates one independently sited smelter for each active metal mine and settles monthly refining. */
 export class SmelterOperationsModule {
@@ -61,6 +76,7 @@ export class SmelterOperationsModule {
       if (!burgId) continue;
 
       const previous = previousByDeposit.get(deposit.i);
+      const annualCapacityTons = this.getAnnualCapacity(deposit.yields);
       operations.push({
         i: operations.length + 1,
         depositId: deposit.i,
@@ -71,7 +87,10 @@ export class SmelterOperationsModule {
         fuelAccess: site.fuelAccess,
         technology: previous?.technology ?? mine.technology,
         smeltingYield: previous?.smeltingYield ?? DEFAULT_SMELTING_YIELD,
-        annualCapacityTons: this.getAnnualCapacity(deposit.yields),
+        annualCapacityTons,
+        // A newly built smelter staffs up immediately; annual reconciliation (basicEmployment.ts)
+        // pulls this back down toward the Burg's actually-available adults over subsequent years.
+        workers: previous?.workers ?? getSmelterRequiredWorkers({ annualCapacityTons }),
         securityInvestment: previous?.securityInvestment ?? DEFAULT_SECURITY_INVESTMENT,
         lastSecurityUpkeep: 0,
         lastTheftLoss: 0,
@@ -110,7 +129,8 @@ export class SmelterOperationsModule {
       const totalAnnualOreCapacity = this.getAnnualCapacity(oreYields);
       if (!totalAnnualOreCapacity) continue;
 
-      const processingFactor = Math.min(1, smelter.waterPower * smelter.fuelAccess * smelter.technology);
+      const workerFactor = Math.min(1, smelter.workers / getSmelterRequiredWorkers(smelter));
+      const processingFactor = Math.min(1, smelter.waterPower * smelter.fuelAccess * smelter.technology * workerFactor);
       const monthlyCapacity = (smelter.annualCapacityTons * processingFactor) / 12;
       if (monthlyCapacity <= 0) continue;
 

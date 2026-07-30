@@ -6,7 +6,7 @@ export type { WorldContext } from "../context/worldContext";
 export { worldContext } from "../context/worldContext";
 export { foodStressPriceMultiplier, foodStressProductionMultiplier } from "../generators/agriculturalStress";
 export { Burgs } from "../generators/burgs-generator";
-export { getCellDemographics, setCellDemographics } from "../generators/demographicTransfer";
+export { getBurgDemographics, getCellDemographics, setCellDemographics } from "../generators/demographicTransfer";
 export { applyDemographicCasualties, CHILD_COHORT_YEARS } from "../generators/demography-simulator";
 export {
   analyzeFrontiers,

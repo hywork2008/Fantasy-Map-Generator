@@ -14,6 +14,19 @@ import { getMinedGoodName, type MineOperation, type MineralCommodity, type Miner
 
 const INITIAL_OPERATION_ACCESSIBILITY = 0.5;
 const PROSPECTING_ACCESSIBILITY = 0.35;
+/** Base headcount a mine needs even at minimal richness (prospecting, hauling, site upkeep). */
+const REQUIRED_WORKERS_BASE = 4;
+/** Additional headcount per richness point (1..5) to run the deposit at full extractionFactor. */
+const REQUIRED_WORKERS_PER_RICHNESS = 6;
+
+/**
+ * Headcount needed to run a deposit's extraction at full capacity. Reused by
+ * `produceMonth()` (as `workerFactor`'s denominator) and by the annual Burg-anchored
+ * employment reconciliation in `basicEmployment.ts` (docs/plan/urban-employment-demand.md §3.2).
+ */
+export function getMineRequiredWorkers(deposit: Pick<MineralDeposit, "richness">): number {
+  return REQUIRED_WORKERS_BASE + deposit.richness * REQUIRED_WORKERS_PER_RICHNESS;
+}
 
 /** Creates accessible mines and settles their monthly output into market stock. */
 export class MineOperationsModule {
@@ -102,7 +115,7 @@ export class MineOperationsModule {
         continue;
       }
 
-      const workerFactor = Math.min(1, operation.workers / (4 + deposit.richness * 6));
+      const workerFactor = Math.min(1, operation.workers / getMineRequiredWorkers(deposit));
       const extractionFactor = Math.max(
         0,
         Math.min(
@@ -164,7 +177,9 @@ export class MineOperationsModule {
       depositId: deposit.i,
       burgId,
       marketId,
-      workers: 4 + deposit.richness * 6,
+      // Newly opened mines staff up immediately; annual reconciliation (basicEmployment.ts)
+      // pulls this back down toward the Burg's actually-available adults over subsequent years.
+      workers: getMineRequiredWorkers(deposit),
       technology: developed ? 1.1 : 1,
       drainage: this.getDrainage(deposit.depth, developed),
       fuelAccess: developed ? (deposit.accessibility >= 0.6 ? 0.8 : 0.7) : 0.65,
