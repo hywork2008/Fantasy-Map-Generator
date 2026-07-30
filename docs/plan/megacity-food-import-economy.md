@@ -16,6 +16,8 @@
 
 **2026-07-30 不具合修正（人口消失バグ）**: 「Megacityモードで人口が伸びなくなる」という実プレイセーブ（920年分シミュレート、`frontierAdultCohorts`12190件・`banditCohorts`8742件が蓄積）の報告を調査し、`releaseRuralLaborSurplus()`が初めて起動させた既存の`urbanLaborIntake.ts`パイプラインに、農村から追い出された成人が都市定着できない場合の受け皿（`frontierAdultCohorts`／`banditCohorts`）がどちらも一方向にしか書き込まれず、消費者が存在しないバグを発見した。開拓申請35%・野盗25%のどちらも、実際には理由表示のないまま世界人口から永久に消えていた（残り40%の死亡／域外流出も`recordDeaths()`未接続で統計に出ていなかった）。ホスト側の`SimulationContext.frontier.applicantPoolByState`と野盗の食料略奪・自然減耗ライフサイクル（詳細はPhase 4を参照）を実装し、実セーブで検証した結果、蓄積していた`frontierAdultCohorts`は一度で全量がプールへ回収され、都市人口が減少から増加に転じることを確認した。
 
+**2026-07-31 追記（農村技術投資）**: §3.2 の `baseAgriculturalTechnology`(「後の技術システムの接続点」)を実装する設計を [rural-agtech-investment.md](rural-agtech-investment.md) として切り出した。`Tools`(鉄鉱石→精錬→インゴット→農具の既存サプライチェーンの終点)への Market 単位の年次投資が `yieldPerArea` と農業労働力必要量の両方を動かし、既存の `foodProduction.ts`／`ruralLaborRelease.ts` パイプラインには一切手を加えずに「技術発展→都市への食料・労働力供給増加」を成立させる。State 単位の `stateAgriculturalProductivity`(population-food-supply.md §3.1)は当該設計のスコープ外で未実装のまま。
+
 この決定により、食料輸入は「未使用の農村人口上限を都市へ振り替える」仕組みではなく、後背地の生産力・農業労働力・在庫・輸送網が実際に都市人口を支える仕組みになる。
 
 本書は設計・実装計画である。Phase 1の基盤実装は本改訂と同時に開始し、以降のPhaseはこの契約を満たす順序で進める。

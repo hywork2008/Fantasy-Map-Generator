@@ -9,6 +9,17 @@ export const LABOUR_DAYS_PER_HECTARE = 30;
 export const WORKABLE_DAYS_PER_ADULT = 140;
 export const FARM_LABOUR_SAFETY_MARGIN = 1.15;
 
+/**
+ * Rural technology (Tools/plow) adoption bonus, driven by AgTechInvestment.settleAnnual().
+ * See docs/plan/rural-agtech-investment.md §3.4. "calibration TBD" like the rest of this module.
+ */
+export const AGTECH_YIELD_BONUS_MAX = 0.4;
+export const AGTECH_LABOR_SAVINGS_MAX = 0.35;
+/** Share of the bonus reached with Tools alone, before a draft animal is available (see below). */
+export const AGTECH_NO_DRAFT_EFFECT_SHARE = 0.6;
+/** Biome tags where Cattle/Horses are actually raised locally (their biomeOutputByTag keys in goods-generator.ts). */
+export const DRAFT_CAPABLE_BIOME_TAGS: readonly string[] = ["grassland", "nomadic"];
+
 export interface AgriculturalLandProfile {
   /** Maximum area that can become cropland under current terrain and biome constraints, in ha. */
   readonly cultivableArea: Float32Array;
@@ -37,8 +48,17 @@ export interface AgriculturalLandProfile {
  * Calculates agriculture independently of `cells.capacity` on a per-cell basis.
  * It never reads population or carrying capacity while deriving environmental
  * production potential; those values are consumed only by current cultivation.
+ *
+ * `agTechStockByCell` is an optional per-cell resolution of Market.agTechStock (the caller
+ * broadcasts each market's stock to its cells via marketCellColumn — this function stays
+ * unaware of Markets, matching its existing population/Market-independent design). Omitted or
+ * out-of-range entries are treated as 0, so callers without AgTechInvestment wired up (tests,
+ * legacy call sites) get the pre-existing behavior unchanged. See docs/plan/rural-agtech-investment.md §3.4.
  */
-export function calculateAgriculturalLandProfile(world: Readonly<WorldContext>): AgriculturalLandProfile {
+export function calculateAgriculturalLandProfile(
+  world: Readonly<WorldContext>,
+  agTechStockByCell?: Float32Array
+): AgriculturalLandProfile {
   const cells = world.pack.cells;
   const count = cells?.i?.length ?? 0;
   const cultivableArea = new Float32Array(count);
@@ -77,12 +97,21 @@ export function calculateAgriculturalLandProfile(world: Readonly<WorldContext>):
   for (const cellId of cells.i) {
     const area = cultivableArea[cellId];
     if (area <= 0) continue;
-    const yieldKgPerHa = BASE_NET_YIELD_KG_PER_SOWN_HECTARE * relativeYield[cellId];
+
+    const biomeTags = world.biomesData.tags?.[cells.biomeCode[cellId] ?? 0] ?? [];
+    const hasDraftAnimal = biomeTags.some(tag => DRAFT_CAPABLE_BIOME_TAGS.includes(tag));
+    const rawAgTechStock = agTechStockByCell?.[cellId] ?? 0;
+    const effectiveAgTech = rawAgTechStock * (hasDraftAnimal ? 1 : AGTECH_NO_DRAFT_EFFECT_SHARE);
+
+    const yieldKgPerHa =
+      BASE_NET_YIELD_KG_PER_SOWN_HECTARE * relativeYield[cellId] * (1 + AGTECH_YIELD_BONUS_MAX * effectiveAgTech);
     yieldPerArea[cellId] = yieldKgPerHa;
 
     const supported = supportedPeople(area, yieldKgPerHa);
     ruralFoodCapacity[cellId] = supported / populationRate;
     foodPotential[cellId] = supported * GROSS_FOOD_NEED;
+
+    const effectiveLaborDaysPerHectare = LABOUR_DAYS_PER_HECTARE * (1 - AGTECH_LABOR_SAVINGS_MAX * effectiveAgTech);
 
     const currentPeople = Math.max(0, cells.pop[cellId] ?? 0) * populationRate;
     const requiredArea = requiredFieldAreaHectares(currentPeople, yieldKgPerHa);
@@ -90,7 +119,7 @@ export function calculateAgriculturalLandProfile(world: Readonly<WorldContext>):
     // cultivation when land exists; it does not make more land available.
     const currentArea = Math.min(area, requiredArea * 1.1);
     cultivatedArea[cellId] = currentArea;
-    const requiredAdults = (currentArea * LABOUR_DAYS_PER_HECTARE) / WORKABLE_DAYS_PER_ADULT;
+    const requiredAdults = (currentArea * effectiveLaborDaysPerHectare) / WORKABLE_DAYS_PER_ADULT;
     const requiredAdultPoints = requiredAdults / populationRate;
     farmLaborRequired[cellId] = requiredAdultPoints;
     const ruralAdults = Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
@@ -98,7 +127,7 @@ export function calculateAgriculturalLandProfile(world: Readonly<WorldContext>):
 
     // minimumFood = localConsumption + committedExport; committedExport isn't tracked yet (0),
     // so this uses the bare pre-buffer requiredArea rather than the 1.1x-buffered currentArea.
-    const minimumFarmAdults = (requiredArea * LABOUR_DAYS_PER_HECTARE) / WORKABLE_DAYS_PER_ADULT;
+    const minimumFarmAdults = (requiredArea * effectiveLaborDaysPerHectare) / WORKABLE_DAYS_PER_ADULT;
     const minimumFarmAdultPoints = minimumFarmAdults / populationRate;
     ruralReleasePressure[cellId] = Math.max(0, ruralAdults - minimumFarmAdultPoints * FARM_LABOUR_SAFETY_MARGIN);
   }

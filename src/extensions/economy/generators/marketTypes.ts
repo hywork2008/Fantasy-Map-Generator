@@ -15,6 +15,13 @@ export interface Market {
    * Drives the `"trade"` LaborMarket occupation's demand (docs/plan/urban-employment-demand.md §3.3/§5.1-6).
    */
   caravanArrivalVolume?: number;
+  /**
+   * 0..1 saturating EWMA of annual Tools (iron farm implements) investment coverage across this
+   * market's cultivated land. Feeds cellAgriculturalModifier in agriculturalLandUse.ts. Undefined
+   * (pre-Phase-1 saves, or a market with no cultivated land yet) is treated as 0.
+   * See docs/plan/rural-agtech-investment.md §3.2-3.3.
+   */
+  agTechStock?: number;
 }
 
 export interface MarketTreasury {

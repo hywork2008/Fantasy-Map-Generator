@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-07-31
+
+- docs/plan/rural-agtech-investment.md
+
 2026-07-30
 
 - docs/simulation/economy-market-accounting-audit.md

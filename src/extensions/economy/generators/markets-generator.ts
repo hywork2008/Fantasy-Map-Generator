@@ -211,6 +211,39 @@ export class MarketsModule {
     return consumed;
   }
 
+  /**
+   * Buys up to `requestedUnits` of a Good from local market stock at the going customer price,
+   * capped by both available stock and `budget`. Unlike consumeForSmelting/consumeForMilitary
+   * (free draws recorded elsewhere), this spends real money and reports the cost so the caller
+   * can debit its own account (e.g. MarketTreasury.balance in AgTechInvestment.settleAnnual —
+   * docs/plan/rural-agtech-investment.md §3.3). Charges no Deal/tax; this is capital investment
+   * by the market itself, not a Burg purchase.
+   */
+  consumeForMarketInvestment(
+    marketId: number,
+    goodId: number,
+    requestedUnits: number,
+    budget: number
+  ): { units: number; cost: number } {
+    const market = this.get(marketId);
+    const marketGood = market?.goods[goodId];
+    const good = Goods.get(goodId);
+    if (!market || !marketGood || !good || !isGoodEnabled(good) || requestedUnits <= 0 || budget <= 0) {
+      return { units: 0, cost: 0 };
+    }
+
+    const price = this.customerBuyPrice(marketGood.price, market.centerBurgId, goodId);
+    if (price <= 0) return { units: 0, cost: 0 };
+
+    const affordableUnits = budget / price;
+    const units = rn(Math.min(requestedUnits, marketGood.stock, affordableUnits), 4);
+    if (units <= 0) return { units: 0, cost: 0 };
+
+    const cost = rn(units * price, 2);
+    marketGood.stock = rn(Math.max(0, marketGood.stock - units), 4);
+    return { units, cost };
+  }
+
   generate(regenerate: boolean = false): Market[] {
     TIME && console.time("generateMarkets");
     this.invalidateTradeRouteCache();

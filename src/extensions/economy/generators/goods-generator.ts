@@ -295,7 +295,11 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Cattle",
     warEconomyType: "essential",
-    tags: ["food"],
+    // "draft" documents Cattle's role as a plow animal alongside food/leather. The actual
+    // agricultural-technology bonus (rural-agtech-investment.md §3.4) keys off this good's
+    // biomeOutputByTag grassland/nomadic biomes directly, not this tags array; distinct from
+    // Caravan.draftAnimalId, which governs land-route transport speed, not farm labor.
+    tags: ["food", "draft"],
     icon: "good-cattle",
     color: "#56b000",
     value: 5,
@@ -409,7 +413,8 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Horses",
     warEconomyType: "military",
-    tags: ["supply", "military"],
+    // See the "draft" note on Cattle above.
+    tags: ["supply", "military", "draft"],
     icon: "good-horses",
     color: "#ba7447",
     value: 10,

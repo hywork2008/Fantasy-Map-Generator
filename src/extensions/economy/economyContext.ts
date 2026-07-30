@@ -42,6 +42,7 @@ let _migratableAdultsFallback: Float32Array<ArrayBufferLike> = new Float32Array(
 let _ruralReleasePressureFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _settlementDevelopmentPotentialFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _settlementDevelopmentLastEvaluatedYearFallback: number | null = null;
+let _agTechLastSettledYearFallback: number | null = null;
 
 export function initEconomyContext(api: ExtensionAPI): void {
   _api = api;
@@ -59,6 +60,7 @@ export function clearEconomyContext(): void {
   _ruralReleasePressureFallback = new Float32Array();
   _settlementDevelopmentPotentialFallback = new Float32Array();
   _settlementDevelopmentLastEvaluatedYearFallback = null;
+  _agTechLastSettledYearFallback = null;
 }
 
 export function getApi(): ExtensionAPI {
@@ -321,6 +323,27 @@ export function clearSettlementDevelopmentLastEvaluatedYear(): void {
     return;
   }
   _settlementDevelopmentLastEvaluatedYearFallback = null;
+}
+
+/**
+ * Guards AgTechInvestment.settleAnnual() to run at most once per simulation year, the same way
+ * getSettlementDevelopmentLastEvaluatedYear guards updateAnnualAgriculture (docs/plan/rural-agtech-investment.md §3.3).
+ */
+export function getAgTechLastSettledYear(): number | null {
+  const slice = getEconomySlice();
+  if (slice) {
+    const value = slice.agTechLastSettledYear;
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return _agTechLastSettledYearFallback;
+}
+export function setAgTechLastSettledYear(year: number): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice.agTechLastSettledYear = year;
+    return;
+  }
+  _agTechLastSettledYearFallback = year;
 }
 
 /** Yearly burg-level intake ledgers; these model only new worker acceptance, not incumbent occupations. */

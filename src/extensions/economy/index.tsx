@@ -41,6 +41,7 @@ import {
   setMarketCellColumn,
   setMarkets
 } from "./economyContext";
+import { AgTechInvestment } from "./generators/agTechInvestment";
 import { reconcileAnnualBasicEmploymentWorkers } from "./generators/basicEmployment";
 import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burgMarketLedgers";
 import { Caravans } from "./generators/caravans";
@@ -1357,6 +1358,10 @@ export function init(api: ExtensionAPI): void {
 
       const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
       const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
+      // Must run before updateAnnualAgriculture() so this year's Tools investment feeds
+      // this year's yieldPerArea/farmLaborRequired recompute, not next year's
+      // (docs/plan/rural-agtech-investment.md §3.5).
+      AgTechInvestment.settleAnnual();
       // Must run before the quarter's food ledger so annual demographic changes
       // alter cultivated area and farm labour without waiting an extra quarter.
       const agricultureRefreshed = DevelopmentPotential.updateAnnualAgriculture();
