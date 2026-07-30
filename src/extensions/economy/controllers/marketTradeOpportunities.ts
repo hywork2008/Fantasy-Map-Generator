@@ -139,7 +139,10 @@ export function refresh(): void {
           buyPrice,
           sellPrice
         });
-        if (estimate) {
+        // This dialog evaluates one good in isolation for a human trader, not a shared
+        // caravan bundle, so it must apply the solo-trip viability bar itself: the estimator
+        // no longer enforces it (route bundling in Markets.runGlobalTrade needs the raw value).
+        if (estimate && estimate.totalProfit >= MIN_TRADE_PROFIT) {
           speculativeRows.push(
             createRow({
               source,

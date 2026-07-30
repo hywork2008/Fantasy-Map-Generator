@@ -389,9 +389,7 @@ export class CaravansModule {
 
       const durationDays = calculateRouteDurationDays(routeSegments, world.distanceScale);
       const maintenanceCost = getCaravanMaintenanceCost(durationDays);
-      const transportedDeals = bundle.deals.filter(deal =>
-        isDealWorthTransporting(deal, getGoods(), durationDays, maintenanceCost, routeSegments)
-      );
+      const transportedDeals = selectRouteCargo(bundle.deals, getGoods(), durationDays, maintenanceCost, routeSegments);
       if (!transportedDeals.length) continue;
 
       let totalUnits = 0;
@@ -515,22 +513,36 @@ export class CaravansModule {
   }
 }
 
-function isDealWorthTransporting(
-  deal: Deal,
+/**
+ * Decides which of a route's bundled deals become one caravan's cargo. `maintenanceCost` is a
+ * one-time cost for the whole trip, not per deal: as long as the bundle's combined cargo can
+ * cover it once, every eligible deal on that route rides along together — a high-value deal can
+ * fund the trip while low-value deals that could never justify a dedicated caravan alone travel
+ * as "filler" cargo. A bundle is always homogeneous in seller/buyer type (see the `bundles` map
+ * key above), so it never mixes market↔market deals with burg↔market deals.
+ */
+function selectRouteCargo(
+  deals: Deal[],
   goods: Good[],
   durationDays: number,
   maintenanceCost: number,
   routeSegments: readonly TradeRouteSegment[]
-): boolean {
-  const good = goods[deal.good];
-  if (!good || !isGoodTradePermitted(good, durationDays, routeSegments)) return false;
+): Deal[] {
+  const eligible = deals.filter(deal => {
+    const good = goods[deal.good];
+    return Boolean(good && isGoodTradePermitted(good, durationDays, routeSegments));
+  });
+  if (!eligible.length) return [];
 
-  // Market-to-market deals have already passed the full net-profit calculation in
-  // Markets.runGlobalTrade. Burg↔market deals represent local market aggregation and do not
-  // retain a margin, so use their cargo value as a conservative upper bound: a shipment whose
-  // entire value cannot cover the route's fixed cost must never appear as a caravan.
-  if (deal.sellerType === "market" && deal.buyerType === "market") return true;
-  return deal.price * deal.units - maintenanceCost >= MIN_TRADE_PROFIT;
+  // Market-to-market deals have already passed the full route-level profit check in
+  // Markets.runGlobalTrade (including this same shared-maintenanceCost bundling), so trust them.
+  if (eligible[0].sellerType === "market" && eligible[0].buyerType === "market") return eligible;
+
+  // Burg↔market deals represent local market aggregation and retain no margin of their own, so
+  // use the bundle's combined cargo value as a conservative upper bound: the trip only happens
+  // if that combined value can cover the route's fixed cost once.
+  const combinedValue = eligible.reduce((sum, deal) => sum + deal.price * deal.units, 0);
+  return combinedValue - maintenanceCost >= MIN_TRADE_PROFIT ? eligible : [];
 }
 
 export const Caravans = new CaravansModule();

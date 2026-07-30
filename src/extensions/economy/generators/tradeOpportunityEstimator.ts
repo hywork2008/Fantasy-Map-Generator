@@ -169,7 +169,12 @@ export function estimateSpeculativeTrade(input: SpeculativeTradeInput): Speculat
 
   const maintenanceCost = getCaravanMaintenanceCost(durationDays);
   const totalProfit = getNetTradeProfit(unitProfit, maxUnits, durationDays);
-  if (totalProfit < MIN_TRADE_PROFIT) return null;
+  // Whether this trade alone justifies a dedicated trip is a route-level decision, not a
+  // per-good one: a route bundles every good crossing it into one caravan/shipment, and the
+  // route's shared maintenanceCost only needs to be covered once by the bundle as a whole
+  // (see Markets.runGlobalTrade's route-viability pass and Caravans.selectRouteCargo).
+  // Callers that evaluate a single good in isolation (e.g. the trade-opportunities browser)
+  // must apply their own `totalProfit >= MIN_TRADE_PROFIT` check on the returned estimate.
 
   return {
     buyPrice,

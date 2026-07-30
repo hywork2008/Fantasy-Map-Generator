@@ -78,6 +78,33 @@ function getMarketDistanceMapUnits(source: Pick<Burg, "x" | "y">, target: Pick<B
   return dx > dy ? dx + 0.414 * dy : dy + 0.414 * dx;
 }
 
+interface MarketTradeOpportunity {
+  exporter: Market;
+  importer: Market;
+  reserveExporter: number;
+  reserveImporter: number;
+  transportCost: number;
+  exporterTaxPerUnit: number;
+  units: number;
+  unitProfit: number;
+  /** Net of the route's shared maintenanceCost (see routeKey/isRouteViable below). */
+  totalProfit: number;
+  distance: number;
+  distanceKm: number;
+  durationDays: number;
+  maintenanceCost: number;
+  routeSegments: TradeRouteSegment[];
+  targetSalePrice?: number;
+}
+
+/**
+ * Same exporter/importer market pair shares one caravan and pays `maintenanceCost` once,
+ * regardless of how many distinct goods ride along (see runGlobalTrade's route-viability pass).
+ */
+function tradeRouteKey(exporterId: number, importerId: number): string {
+  return `${exporterId}-${importerId}`;
+}
+
 export type { Deal, Market } from "./marketTypes";
 
 export class MarketsModule {
@@ -759,6 +786,15 @@ export class MarketsModule {
     const MIN_UNIT = 0.1;
     const travelRoutes = this.getCachedMarketTradeRoutes();
 
+    // Pass 1: collect every good's candidate opportunities without gating on whether that
+    // single good alone would justify a dedicated trip. A shared caravan/route only pays
+    // maintenanceCost once, so admission is decided per-route (pass 2) after every good
+    // sharing that exporter/importer pair is known — a high-value good can fund the trip
+    // while cheaper goods ride along for their own positive-but-thin margin.
+    const opportunitiesByGood = new Map<number, MarketTradeOpportunity[]>();
+    const routeMarginalProfit = new Map<string, number>();
+    const routeMaintenanceCost = new Map<string, number>();
+
     for (const good of goods) {
       if (!good.distribution && !good.recipes?.length) continue;
 
@@ -780,25 +816,7 @@ export class MarketsModule {
         }
       }
 
-      const opportunities: {
-        exporter: Market;
-        importer: Market;
-        reserveExporter: number;
-        reserveImporter: number;
-        transportCost: number;
-        exporterTaxPerUnit: number;
-        units: number;
-        unitProfit: number;
-        totalProfit: number;
-        distance: number;
-        distanceKm: number;
-        durationDays: number;
-        maintenanceCost: number;
-        routeSegments: TradeRouteSegment[];
-        targetSalePrice?: number;
-      }[] = [];
-
-      const importerStockAdjustments = new Map<number, number>();
+      const opportunities: MarketTradeOpportunity[] = [];
 
       if (exporters.length && importers.length) {
         for (const exporter of exporters) {
@@ -829,8 +847,8 @@ export class MarketsModule {
 
             const transportCost = getTransportCost(route.distance, mapDiagonal) * good.value;
             const unitProfit = importerGood.price - (exporterGood.price + transportCost + exporterTaxPerUnit);
+            if (unitProfit <= 0) continue;
             const totalProfit = getNetTradeProfit(unitProfit, units, route.durationDays);
-            if (totalProfit < MIN_TRADE_PROFIT) continue;
 
             opportunities.push({
               exporter: exporter.market,
@@ -863,7 +881,38 @@ export class MarketsModule {
       }
 
       opportunities.sort((a, b) => b.totalProfit - a.totalProfit || b.units - a.units);
+      opportunitiesByGood.set(good.i, opportunities);
+
       for (const opportunity of opportunities) {
+        const key = tradeRouteKey(opportunity.exporter.i, opportunity.importer.i);
+        // totalProfit is already net of this route's maintenanceCost; add it back once per
+        // candidate so goods sharing a route can be summed before the fixed cost is deducted.
+        const marginalProfit = opportunity.totalProfit + opportunity.maintenanceCost;
+        routeMarginalProfit.set(key, (routeMarginalProfit.get(key) || 0) + marginalProfit);
+        routeMaintenanceCost.set(key, opportunity.maintenanceCost);
+      }
+    }
+
+    // Pass 2: a route "launches" once the combined margin of every good crossing it clears
+    // the route's one-time maintenanceCost. Once launched, every candidate on that route rides
+    // along regardless of whether its own margin alone would have cleared the bar.
+    const viableRoutes = new Set<string>();
+    for (const [key, marginalProfit] of routeMarginalProfit) {
+      const maintenanceCost = routeMaintenanceCost.get(key) || 0;
+      if (marginalProfit - maintenanceCost >= MIN_TRADE_PROFIT) viableRoutes.add(key);
+    }
+
+    // Pass 3: emit deals and apply price/stock effects, good by good, exactly as before —
+    // only the admission gate (route viability instead of per-good totalProfit) changed.
+    for (const good of goods) {
+      const opportunities = opportunitiesByGood.get(good.i);
+      if (!opportunities?.length) continue;
+
+      const importerStockAdjustments = new Map<number, number>();
+
+      for (const opportunity of opportunities) {
+        if (!viableRoutes.has(tradeRouteKey(opportunity.exporter.i, opportunity.importer.i))) continue;
+
         const exporterGood = this.getMarketGood(opportunity.exporter, good);
         const importerGood = this.getMarketGood(opportunity.importer, good);
 
@@ -875,8 +924,7 @@ export class MarketsModule {
 
         const landedCost = exporterGood.price + opportunity.transportCost + opportunity.exporterTaxPerUnit;
         const targetSalePrice = opportunity.targetSalePrice ?? importerGood.price;
-        const totalProfit = getNetTradeProfit(targetSalePrice - landedCost, units, opportunity.durationDays);
-        if (totalProfit < MIN_TRADE_PROFIT) continue;
+        if (targetSalePrice - landedCost <= 0) continue;
 
         const deals = getDeals();
         const deal: Deal = {
@@ -916,23 +964,7 @@ export class MarketsModule {
     populationByMarket: number[];
     travelRoutes: Record<number, Record<number, MarketTradeRoute>>;
     mapDiagonal: number;
-    opportunities: {
-      exporter: Market;
-      importer: Market;
-      reserveExporter: number;
-      reserveImporter: number;
-      transportCost: number;
-      exporterTaxPerUnit: number;
-      units: number;
-      unitProfit: number;
-      totalProfit: number;
-      distance: number;
-      distanceKm: number;
-      durationDays: number;
-      maintenanceCost: number;
-      routeSegments: TradeRouteSegment[];
-      targetSalePrice?: number;
-    }[];
+    opportunities: MarketTradeOpportunity[];
   }): void {
     const markets = getMarkets();
     for (const exporter of markets) {
