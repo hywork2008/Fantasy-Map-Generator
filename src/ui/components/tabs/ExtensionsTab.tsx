@@ -152,78 +152,90 @@ export const ExtensionsTab: React.FC = () => {
       {installedMeta.length === 0 ? (
         <p>No extensions installed yet.</p>
       ) : (
-        <div className="d-flex">
-          {installedMeta.map(meta => {
-            const isEnabled = enabledExtensions[meta.id] ?? false;
-            const desc = extensions[meta.id]?.description;
-            const missingReq = meta.dependencies?.filter(d => d.required && !enabledExtensions[d.id]);
-            const canEnable = !missingReq?.length;
-            const blockingDependent = installedMeta.find(
-              m =>
-                m.id !== meta.id && enabledExtensions[m.id] && m.dependencies?.some(d => d.id === meta.id && d.required)
-            );
-            const canDisable = !blockingDependent;
-            const disabled =
-              (isMapGenerationInProgress && !canConfigureInitialMap) || (isEnabled ? !canDisable : !canEnable);
-            const toggleTitle = isMapGenerationInProgress
-              ? canConfigureInitialMap
-                ? isEnabled
-                  ? canDisable
-                    ? "Disable extension"
-                    : `Cannot disable: required by ${blockingDependent?.name}`
-                  : canEnable
-                    ? "Enable extension"
-                    : "Missing required dependencies"
-                : generationLockMessage
-              : isEnabled
-                ? canDisable
-                  ? "Disable extension"
-                  : `Cannot disable: required by ${blockingDependent?.name}`
-                : canEnable
-                  ? "Enable extension"
-                  : "Missing required dependencies";
+        <div className="table" style={{ maxHeight: "50vh", overflow: "auto" }}>
+          <table className="fmg-table">
+            <thead>
+              <tr>
+                <th>Enabled</th>
+                <th>Extension</th>
+                <th>Dependencies</th>
+                <th>Description</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {installedMeta.map(meta => {
+                const isEnabled = enabledExtensions[meta.id] ?? false;
+                const desc = extensions[meta.id]?.description;
+                const missingReq = meta.dependencies?.filter(d => d.required && !enabledExtensions[d.id]);
+                const canEnable = !missingReq?.length;
+                const blockingDependent = installedMeta.find(
+                  m =>
+                    m.id !== meta.id &&
+                    enabledExtensions[m.id] &&
+                    m.dependencies?.some(d => d.id === meta.id && d.required)
+                );
+                const canDisable = !blockingDependent;
+                const disabled =
+                  (isMapGenerationInProgress && !canConfigureInitialMap) || (isEnabled ? !canDisable : !canEnable);
+                const toggleTitle = isMapGenerationInProgress
+                  ? canConfigureInitialMap
+                    ? isEnabled
+                      ? canDisable
+                        ? "Disable extension"
+                        : `Cannot disable: required by ${blockingDependent?.name}`
+                      : canEnable
+                        ? "Enable extension"
+                        : "Missing required dependencies"
+                    : generationLockMessage
+                  : isEnabled
+                    ? canDisable
+                      ? "Disable extension"
+                      : `Cannot disable: required by ${blockingDependent?.name}`
+                    : canEnable
+                      ? "Enable extension"
+                      : "Missing required dependencies";
 
-            return (
-              <div key={meta.id} style={{ background: isEnabled ? "var(--bg-light)" : "transparent" }}>
-                <div>
-                  {/* Toggle switch */}
-                  <label title={toggleTitle}>
-                    <input
-                      type="checkbox"
-                      aria-label={`Toggle ${meta.name} extension`}
-                      checked={isEnabled}
-                      disabled={disabled}
-                      onChange={() => handleToggle(meta.id, isEnabled, meta.builtin)}
-                    />
-                    <span
-                      style={{
-                        background: isEnabled ? "#4a9e4a" : disabled ? "var(--disabled-color, #666)" : "#aaa",
-                        cursor: disabled ? "not-allowed" : "pointer"
-                      }}
-                    />
-                    <span
-                      style={{
-                        position: "absolute",
-                        top: "3px",
-                        left: isEnabled ? "19px" : "3px",
-                        pointerEvents: "none"
-                      }}
-                    />
-                  </label>
+                return (
+                  <tr key={meta.id} style={{ background: isEnabled ? "var(--bg-light)" : "transparent" }}>
+                    <td>
+                      {/* Toggle switch */}
+                      <label title={toggleTitle} style={{ position: "relative", display: "inline-block" }}>
+                        <input
+                          type="checkbox"
+                          aria-label={`Toggle ${meta.name} extension`}
+                          checked={isEnabled}
+                          disabled={disabled}
+                          onChange={() => handleToggle(meta.id, isEnabled, meta.builtin)}
+                        />
+                        <span
+                          style={{
+                            background: isEnabled ? "#4a9e4a" : disabled ? "var(--disabled-color, #666)" : "#aaa",
+                            cursor: disabled ? "not-allowed" : "pointer"
+                          }}
+                        />
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: "3px",
+                            left: isEnabled ? "19px" : "3px",
+                            pointerEvents: "none"
+                          }}
+                        />
+                      </label>
+                    </td>
 
-                  {/* Name + version */}
-                  <div>
-                    <strong>{meta.name}</strong>
-                    <span style={{ background: meta.builtin ? "#e8e8e8" : "#ddeeff" }}>
-                      {meta.builtin ? "built-in" : `v${meta.version}`}
-                    </span>
-                  </div>
+                    <td>
+                      {/* Name + version */}
+                      <strong>{meta.name}</strong>{" "}
+                      <span style={{ background: meta.builtin ? "#e8e8e8" : "#ddeeff" }}>
+                        {meta.builtin ? "built-in" : `v${meta.version}`}
+                      </span>
+                    </td>
 
-                  {/* Dependencies */}
-                  {meta.dependencies && meta.dependencies.length > 0 && (
-                    <div style={{ fontSize: "0.8em", marginTop: "4px" }}>
-                      Depends on:{" "}
-                      {meta.dependencies.map(dep => {
+                    <td>
+                      {/* Dependencies */}
+                      {meta.dependencies?.map(dep => {
                         const isMet = enabledExtensions[dep.id];
                         const color = dep.required
                           ? isMet
@@ -243,27 +255,29 @@ export const ExtensionsTab: React.FC = () => {
                           </span>
                         );
                       })}
-                    </div>
-                  )}
+                    </td>
 
-                  {/* Uninstall — only for dynamic (non-builtin) extensions */}
-                  {!meta.builtin && (
-                    <button
-                      type="button"
-                      className="options"
-                      title="Uninstall this extension"
-                      onClick={() => handleUninstall(meta.id)}
-                      disabled={isMapGenerationInProgress}
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
+                    <td style={{ whiteSpace: "normal" }}>{desc}</td>
 
-                {desc && <p>{desc}</p>}
-              </div>
-            );
-          })}
+                    <td>
+                      {/* Uninstall — only for dynamic (non-builtin) extensions */}
+                      {!meta.builtin && (
+                        <button
+                          type="button"
+                          className="options"
+                          title="Uninstall this extension"
+                          onClick={() => handleUninstall(meta.id)}
+                          disabled={isMapGenerationInProgress}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
