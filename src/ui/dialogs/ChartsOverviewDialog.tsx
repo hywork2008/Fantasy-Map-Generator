@@ -69,7 +69,7 @@ const ChartFigure: React.FC<ChartFigureProps> = ({ chart, figureNo, onRemove }) 
   }
 
   return (
-    <figure className="d-flex">
+    <figure>
       <div ref={containerRef} />
       <figcaption className="d-flex">
         <div>
