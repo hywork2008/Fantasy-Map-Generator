@@ -107,16 +107,16 @@ foodPotential = cultivableArea × yieldPerArea
 yieldPerArea = baseGrainYield
              × grainTemperatureFactor
              × precipitationFactor
-             × waterAccessModifier
-             × terrainModifier
+             × waterAccessFactor
+             × terrainFactor
              × baseAgriculturalTechnology
 ```
 
 - `usableLandArea`: セル面積から水域・極端な高地・不毛地を除いた土地面積。
 - `initialCroplandShare`: `forestCover`、湿地・氾濫林などから決める初期の耕地比率。開墾で変化する余地を残し、森林だけで将来の発展を永久に否定しない。
 - `grainTemperatureFactor` / `precipitationFactor`: 年平均温度と降水から得る穀物生産適性。降水は少雨で減衰し、十分な値で飽和する。
-- `waterAccessModifier`: 河川流量、湖、沿岸低地などによる水利・沖積地の補正。
-- `terrainModifier`: 高度・急峻さ・土壌悪化の減衰。
+- `waterAccessFactor`: 河川流量、湖、沿岸低地などによる**自然の**水利・沖積地の補正。地形から一度だけ決まる静的値であり、`foodPotential`に焼き込む。人為的な灌漑インフラの状態（`cellAgriculturalModifier`）や国家の灌漑政策水準（`stateAgriculturalProductivity`）とは別の層であり、同じ水利を二重計上しない（詳細は[population-food-supply.md](../simulation/population-food-supply.md) §3.1）。
+- `terrainFactor`: 高度・急峻さ・土壌悪化の減衰。
 - `baseAgriculturalTechnology`: 時代・世界設定による全体係数。後の技術システムの接続点。
 
 `cells.area × distanceScale²` を物理面積へ換算し、`cells.capacity × populationRate` と食料から独立に比較する。現行の`cells.capacity`は、すでに suitability・面積・河川・海岸・危険度を含む居住適性由来の値であるため、`foodPotential`を capacity から復元してはならない。詳細な面積・収量・開墾率の監査式は [population-food-supply.md](../simulation/population-food-supply.md) に定義する。
@@ -339,7 +339,7 @@ remainingPopulation >= minimumRuralCommunityPopulation
 
 **決定**: 軍団の食料不足は、5%以上で当期の戦闘力・行軍速度を25%下げる。10%以上の不足が一四半期続くと`troops × shortfallRate × 0.10`を脱走として減らし、同じ不足が二期連続した時は同量を死亡・離散として減らす。民間より先に脱走を出し、補給不能な軍が無損失で戦い続けないようにする。
 
-**決定**: manpower simulationが有効な時、食料不足で軍団を脱走した兵は死亡として扱わず、State内の既存農村・都市の男性成人比で民間人口へ戻す。個別の出身地、帰還先、野盗化・逃亡先はv1で追跡しない。食料不足による軍団の死亡・離散は軍団からだけを減らし、既に軍へ引き抜かれた民間男性成人を二重に減らさない。manpower simulationが無効な互換モードでは、軍団と民間人口に対応がないため、脱走・死亡・離散をすべて死亡扱いとして軍団人数だけから減らし、民間人口へ戻さない。
+**決定**: 食料不足で軍団を脱走した兵は、死亡としても民間人口へも戻さず、既存の`banditCohort`（野盗集団）へ合流させる。合流した集団の出身Stateには、脱走した軍団の所属Stateを記録する。給与・補給が途絶えた軍が野盗・傭兵集団化した中世ヨーロッパの実例に近い近似であり、既存の野盗・農村略奪の仕組みをそのまま再利用できる。個別の出身地、帰還先、脱走後の消息はv1で追跡しない。同じ不足が二期連続した時の`死亡・離散`は`banditCohort`へも加えず、軍団からだけを減らす。二期にわたる飢餓で逃走にも耐えられなかった兵の実質的な死亡・離散として扱う。`banditCohort`合流は軍団と民間人口の対応関係を必要としないため、manpower simulationの有効・無効を問わずこの扱いを統一する。
 
 **決定**: 前哨地は90日分の`outpostFoodReserve`を持ち、残量が45日分を下回ると首都倉庫へState補給Shipmentを要求する。到着分だけを補充し、補給不能で不足した時は既存の前哨地停滞・失敗判定へ渡す。常設の地方倉庫ではなく、前哨地自身が持つ小規模な運用在庫である。
 
@@ -605,17 +605,17 @@ interface PopulationMigration {
 
 **決定**: `foodPotential`、`farmLaborRequired`、`settlementDevelopmentPotential`のような環境・人口から再計算できる派生列は保存せず、ロード時に再生成する。`foodProductivityModifier`は保存された国家・局地生産性係数から再計算する。一方、Food Ledgerの年齢別在庫・平均原価・未払金・食料ストレス、`marketTreasury`残高・買付停止状態、輸送中FoodShipment、および将来の国家・局地生産性係数はextension-ownedの保存データへ直列化し、ロード時に同じ値で復元する。これらを再生成して食料・貨幣・輸送中貨物、技術・投資の成果を失わせない。Food Ledgerを持たない旧セーブはeconomy初回有効化と同じ移行として扱い、既定の初期在庫・初期商人資本を一度だけ生成する。
 
-**決定**: `foodPotential[cell]`は地形・気候・面積から得るセル固定の環境上限とし、人口や国家技術で正規化しない。実際の収量は`foodPotential[cell] × stateAgriculturalProductivity[state] × cellAgriculturalModifier[cell]`で求め、後二者の積を`foodProductivityModifier[cell]`として利用する。国家係数は技術、統治制度、治安、灌漑投資を表し、局地係数は開墾、水利、土壌疲弊、災害などを表す。v1の初期値はどちらも`1.0`とする。初期生成時に生産量を需要へ自動一致させず、Market・Stateごとの国内生産対需要比を監査・表示して不整合を検出する。
+**決定**: `foodPotential[cell]`は地形・気候・面積から得るセル固定の環境上限とし、人口や国家技術で正規化しない。実際の収量は§3.3の`foodProduced = cultivatedArea × yieldPerArea × foodProductivityModifier × laborCoverage`で求め、`foodProductivityModifier[cell] = stateAgriculturalProductivity[state] × cellAgriculturalModifier[cell]`とする。`foodPotential`（全耕作可能面積を耕した場合の上限）に`foodProductivityModifier`だけを掛けた値は、作付率・労働充足率を考慮しない理論上限としてのみ扱い、実収量の算出式には使わない。国家係数は技術、統治制度、治安、灌漑投資を表し、局地係数は開墾、水利、土壌疲弊、災害などを表す。v1の初期値はどちらも`1.0`とする。初期生成時に生産量を需要へ自動一致させず、Market・Stateごとの国内生産対需要比を監査・表示して不整合を検出する。
 
 **決定**: 作付面積は播種前に年1回決める。農村・都市の年間需要と確定輸出契約を最低生産量とするが、Marketの目標在庫は生産上限にしない。耕地・労働力が許す限り作付けして余剰を生み、Food Ledgerの在庫、輸出、`storageOverflow`へ渡す。未確定の輸出入入札は作付計画に含めない。
 
-**決定**: 年次作付では、先に`sustainableAdultOutflow`と農村非農業者を労働力から予約する。残った常住成人で耕せる面積を`labourAffordableCultivatedArea`とし、その範囲まで作付を拡大する。成人到達分として許可された通常の都市流出は、農業の最大生産方針によって取り消さない。
+**決定**: 年次作付では、先に`sustainableAdultOutflow`と農村非農業者を労働力から予約する。残った常住成人で耕せる面積を`laborAffordableCultivatedArea`とし、その範囲まで作付を拡大する。成人到達分として許可された通常の都市流出は、農業の最大生産方針によって取り消さない。
 
 **決定**: v1では農業労働力をMarket内・セル間で融通せず、各セルが残った常住成人で耕せる面積まで作付する。Marketは食料在庫・流通の単位に留める。将来の労働市場では、播種・収穫期だけ都市から農村へ短期労働者を呼び、作業後に都市へ戻す季節雇用を追加する。
 
 **決定**: v1の`ruralNonFarmWorkers`は`0`とし、農村の鉱山・伐採・運送などへ成人を推定で差し引かない。実際の資源事業・労働市場を実装してから、各事業の明示的な必要人数だけを農業労働力から控除する。
 
-**決定**: 各セルの`labourAffordableCultivatedArea`は、`min(cultivableArea, (ruralAdultWorkers - sustainableAdultOutflow - ruralNonFarmWorkers) × workableDaysPerAdult / (laborDaysPerArea × 1.15))`で求める。成人流出を先に予約し、分母の`1.15`で農業労働の15%安全余力を残した上で、残る労働力で耕せる面積まで作付する。
+**決定**: 各セルの`laborAffordableCultivatedArea`は、`min(cultivableArea, (ruralAdultWorkers - sustainableAdultOutflow - ruralNonFarmWorkers) × workableDaysPerAdult / (laborDaysPerArea × 1.15))`で求める。成人流出を先に予約し、分母の`1.15`で農業労働の15%安全余力を残した上で、残る労働力で耕せる面積まで作付する。
 
 **決定**: 各セルの`ruralReleasePressure`は、最低食料計画に必要な`minimumFarmAdults = minimumCultivatedArea × laborDaysPerArea × 1.15 / workableDaysPerAdult`を成人労働者から引いた正の余力とする。最大生産を理由に成人を農村へ縛らず、この余力と判定された成人到達者が通常の外部就業・開拓を目指せる。残った成人は、その後に可能な限り作付を広げて余剰を作る。
 
@@ -692,7 +692,7 @@ interface PopulationMigration {
 
 - [ ] State首都の`stateFoodReserve`、3年齢バケット、初期半年分の軍団・既存前哨地需要、およびMarket在庫との所有分離を実装する。
 - [ ] 国内Marketから首都への国家調達Shipmentと、首都から軍団・前哨地へのState補給Shipmentを実装する。通常のState調達は住民留保後・通常輸出前、国内余剰の均等配分とする。
-- [ ] 軍団の30日`unitFoodReserve`、15日での補給要求、駐留地だけへの補給、食料不足による能力低下・脱走・死亡／離散を実装する。manpower simulation無効時は全損失を軍団人数だけから減らす。
+- [ ] 軍団の30日`unitFoodReserve`、15日での補給要求、駐留地だけへの補給、食料不足による能力低下・脱走・死亡／離散を実装する。脱走兵は`banditCohort`へ合流させ、死亡・離散は軍団人数だけから減らす。この扱いはmanpower simulationの有効・無効を問わない。
 - [ ] `frontierProjectSlots`を、既存前哨地の資金・食料支援を先に確保する資源制約型の年次計算へ置換し、`frontierApplicantPool`を優先編入する。
 - [ ] State備蓄不足、Market余剰不足、補給中の戦争損失、Stateに首都・国内Marketがない場合を含む統合テストを追加する。
 

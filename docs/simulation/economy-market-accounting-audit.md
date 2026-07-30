@@ -29,22 +29,7 @@ Food Ledgerに`marketTreasury.balance`を導入する場合、既存の一般Goo
 
 ## 推奨する段階的境界
 
-- `Market.marketTreasury.balance`はMarket商人・商会が保有する運転資金として扱い、Burg・State treasuryとは別所有者にする。
-- Food Ledgerは、輸入Marketの残高から支払い、輸出Marketの残高へ同額を移す。価格、輸送費、損耗・略奪の負担先はFood Ledger固有の`FoodShipment`/`FoodTradeDeal`に記録する。
-- Food Ledgerの消費後に輸出留保を超える主食は、一般GoodsのGrain在庫として取引可能にし、そのGrain価格をFood Ledgerの入札・決済へ使う。Food Ledgerの期限付き在庫を唯一の主食物量正本とし、一般GoodsのGrain stockは取引可能余剰の同期ビューとする。一般GoodsのGrain売買はFood LedgerをFIFOで同時に控除し、二重計上しない。
-- `Good.tags`に`stapleFood`を追加し、v1はGrainだけに付与する。Food Ledgerが有効な間は`stapleFood`だけを既存の農村生産、Burg需要充足、一般Goods市場間交易から除外する。主食の生産・人口消費・輸送はFood Ledgerだけが担い、一般GoodsはFood Ledger余剰の在庫表示と価格形成に限る。既存`food`タグのWine、Beer、Honey、Fish、Cattleなどは従来の一般Goods経路に残す。
-- v1では`stapleFood`以外のGoodsを人口の主食需要・飢餓判定へ換算しない。肉、魚、油脂などを代替カロリーとして扱う栄養モデルは後続とする。
-- Cattleはv1ではFood Ledger外の一般Goodsのまま維持する。役牛と食肉・畜産物を分け、役牛を農耕・輸送力へ接続するのは後続である。
-- Food LedgerのAge0–Age2は物量と平均仕入れ単価を一組で保持する。生産・輸入はAge0へ加重平均原価で入り、FIFOで取り出す都市販売・輸出・略奪・輸送は対応する原価を使う。都市小売の粗利益は当月小売価格とFIFO原価の差額で記録する。
-- 農村Grainの仕入れ値は都市小売価格の80%とする。Market圏内の保管・資本費・通常損耗・取扱い・商人利益を20%の基礎差額へ集約し、市場間輸送費・護衛費・略奪損失はFoodShipmentの別原価として後続に分離する。
-- 農村GrainがAge0へ入る時、Marketは仕入れ額を支払える範囲で即時決済し、残額を`ruralGrainPayable`として負債に記録する。v1では農家個別の現金残高を作らず、食料物量は支払可否にかかわらず全量をFood Ledgerへ入れる。
-- 都市小売・食料輸出で入るMarket収入は、次の食料輸入より先に`ruralGrainPayable`の返済へ使う。Character・信用・政治を使う返済優先度の例外は後続である。
-- FoodShipmentの輸送費は輸入MarketがGrain代金へ上乗せして払い、輸出Marketを当面の隊商手配者としてその輸送収入へ移す。運び手の賃金・飼料・船舶維持費の分配は後続である。
-- FoodShipment初期版は既存の距離比例費・日数比例維持費を使うが、品目単独採算で出航を止めない。後続はFoodShipmentと一般Goods交易を経路単位の便・固定出航費・積載容量へ統合し、高価値貨物が出航費を負担する便へGrainを限界費用で相乗りさせる。固定費は重量・嵩・容量占有で配分する。
-- FoodShipmentの距離比例運賃は陸路1.0・河川0.5・海運0.125の係数を掛ける。中世イングランドの穀物輸送費およそ8:4:1を正規化した初期近似であり、低価格・大容量のGrainは河川・海運で遠距離輸送しやすく、陸路は近距離または高価格時に偏る。
-- 輸入Grainは積出量に対して払ったGrain代金・輸送費を実到着量で割った原価でAge0へ入り、損耗・略奪は到着品の原価を上げる。全損時は在庫を増やさず、支払総額を`foodTransportLoss`へ記録する。
-- 新規地図とFood Ledgerを初めて得る旧セーブの初期残高は、Burg treasuryからの実移転ではなく、初回生産後の所属Burg treasury合計へ`0.5〜1.0`の決定的係数を掛けて与える商人資本として扱う。Burg treasuryは減らさない。
-- Food Ledgerが安定した後、一般Goodsの`Markets.sell()`/`buy()`/`runGlobalTrade()`を同じMarket会計へ接続する。その時点で、農村生産者の売上、Burg消費、商人利益、税、運賃を一つの資金循環として設計する。
+本節で提案した会計境界は、[megacity-food-import-economy.md](../plan/megacity-food-import-economy.md) §3.4・§4.1の「決定」として正式に採用済みである。個別の決定内容・数値（`marketTreasury.balance`の所有権、Food Ledgerの決済範囲、`stapleFood`タグによる一般Goodsとの分離、Age0–Age2の加重平均原価、`ruralGrainPayable`、輸送費・輸送モード係数、初期商人資本の生成方法など）は同文書を一次ソースとし、本書では重複して保持しない。今後の変更は megacity-food-import-economy.md 側にのみ加える。
 
 ## 現時点でしないこと
 

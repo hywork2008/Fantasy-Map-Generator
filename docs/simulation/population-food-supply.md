@@ -55,12 +55,16 @@ actualFoodProduced = foodPotential
                    × stateAgriculturalProductivity
                    × cellAgriculturalModifier
                    × cultivatedAreaCoverage
-                   × labourCoverage
+                   × laborCoverage
 ```
 
-- `stateAgriculturalProductivity`: 技術、統治制度、治安、灌漑投資による国家単位の生産性。v1は全Stateで`1.0`とし、後続の技術・統治システムが更新する。
-- `cellAgriculturalModifier`: 開墾、水利、土壌疲弊、局地災害によるセル単位の生産性。v1は全セルで`1.0`とする。
+- `stateAgriculturalProductivity`: 技術、統治制度、治安、灌漑投資による**国家単位**の動的生産性。v1は全Stateで`1.0`とし、後続の技術・統治システムが更新する。
+- `cellAgriculturalModifier`: 開墾、水利、土壌疲弊、局地災害による**セル単位**の動的生産性。v1は全セルで`1.0`とする。
 - 実装では両者の積を`foodProductivityModifier[cell]`として持てる。`foodPotential`自身は人口・国家技術で正規化しない。
+- `cultivatedAreaCoverage = cultivatedArea / cultivableArea`: 開墾可能な全面積のうち、当期に実際に作付けている割合。
+- `laborCoverage = min(1, farmLaborAllocated / farmLaborRequired)`: §4.1で定義する労働充足率。面積・国家・局地係数と独立に、労働力不足だけで生産を減衰させる。
+
+`waterAccessFactor`（`yieldPerArea`側）と`cellAgriculturalModifier`の「水利」、`stateAgriculturalProductivity`の「灌漑投資」は同じ言葉を使うが指す層が異なり、二重計上ではない。`waterAccessFactor`は河川流量・湖沼・沿岸低地など**地形が持つ自然な水アクセス**であり、`foodPotential`に一度だけ焼き込まれるセル固定値である。`cellAgriculturalModifier`の水利は、灌漑用水路・堤防など**そのセルに実在する人工インフラの状態**（戦禍による破壊、開墾による新設など）を表す動的値である。`stateAgriculturalProductivity`の灌漑投資は、特定セルの設備ではなく**State全体の技術・統治能力としての灌漑政策水準**を表す動的値である。したがって「自然条件（静的・foodPotential側）」「セル単位の設備状態（動的）」「国家単位の政策水準（動的）」の3層は互いに独立した入力であり、同じ物理的水利を重複して数えているわけではない。
 
 国家係数は各期にセルの現在の領有Stateから読む。領土移転後は次期の生産から新しい国家係数を適用するが、征服前から残る灌漑・開墾・土壌改良などはState係数に含めず、将来の`cellAgriculturalModifier`として保持する。
 
@@ -123,6 +127,8 @@ agriculturalConsistencyRatio = capacityPeople / maxSupportedPeople
 ```text
 effectiveRuralCapacity = min(cells.capacity, ruralFoodCapacity + verifiedExternalFoodSupport)
 ```
+
+`verifiedExternalFoodSupport`は、そのセルが属するMarketの安定した輸入余剰のうち、当該セルへ帰属させられる分を指す想定であり、Burg側の`effectiveCapacity`が使う`stableImportedFood`（[megacity-food-import-economy.md](../plan/megacity-food-import-economy.md) §3.5）と同種の「一時的な豊作・単発輸送では動かない移動平均」であるべきだが、Market共通在庫から特定の農村セル一つへ配分する具体的な算出規則はv1でまだ設計していない。この式自体もv1の実装対象ではなく、将来`effectiveRuralCapacity`を実際に人口シミュレーションへ接続する段階で確定する。それまでは`ruralFoodCapacity`（外部支援なしの自給上限）と`cells.capacity`の監査比較だけをv1の観測範囲とする。
 
 これにより、食料は capacity のコピーにならず、食料不足だけが農村の持続可能人口を制限する。
 
@@ -191,7 +197,7 @@ FAO ECOCROP は、作物生産性に温度と年間降水量の最小・最大�
 ```text
 farmLaborRequired = cultivatedArea × laborDaysPerArea / workableDaysPerAdult
 laborCoverage = min(1, farmLaborAllocated / farmLaborRequired)
-foodProduced = cultivatedArea × yieldPerArea × laborCoverage
+foodProduced = cultivatedArea × yieldPerArea × foodProductivityModifier × laborCoverage
 ```
 
 - `laborDaysPerArea`: 播種、除草、収穫、脱穀、維持に必要な年間労働日。技術・作物・水利による補正対象である。
@@ -215,20 +221,20 @@ minimumFarmAdults = minimumCultivatedArea
                   × 1.15
                   / workableDaysPerAdult
 ruralReleasePressure = max(0, ruralAdultWorkers - minimumFarmAdults)
-labourAffordableCultivatedArea = min(
+laborAffordableCultivatedArea = min(
   cultivableArea,
   (ruralAdultWorkers - sustainableAdultOutflow - ruralNonFarmWorkers)
     × workableDaysPerAdult
     / (laborDaysPerArea × 1.15)
 )
-cultivatedAreaTarget = labourAffordableCultivatedArea
+cultivatedAreaTarget = laborAffordableCultivatedArea
 ```
 
 - `minimumCultivatedArea`を満たせない場合は、食料不足・移住停止・輸入需要へつながる。
 - `ruralReleasePressure`は最大生産ではなく最低食料計画を基準にした成人余力である。ここで余力と判定された成人到達者が通常の外部就業・開拓を目指せる。残った成人が、次に可能な限り作付を広げて余剰を作る。
 - `ruralReleasePressure`がある成人到達者は、都市の受入枠が直ちになくても村へ残さず、外部の職を探す`mobileAdultCohort`へ移す。都市に定着できなければ翌年の開拓・野盗・死亡／域外流出へ進む。
 - `cultivatedAreaTarget`は最低面積で止まらず、労働力で耕せる範囲まで拡大する。余剰はFood Ledgerの在庫、輸出、`storageOverflow`へ流れる。
-- 年次作付では、先に`sustainableAdultOutflow`と農村非農業者を労働力から予約する。残った常住成人で耕せる面積を`labourAffordableCultivatedArea`とする。したがって、成人到達分として許可された通常の都市流出は「可能な限り多く作る」方針によって取り消されない。
+- 年次作付では、先に`sustainableAdultOutflow`と農村非農業者を労働力から予約する。残った常住成人で耕せる面積を`laborAffordableCultivatedArea`とする。したがって、成人到達分として許可された通常の都市流出は「可能な限り多く作る」方針によって取り消されない。
 - `1.15`を分母へ入れるため、最大生産を選んでも農業労働の15%安全余力を残す。
 - v1では`ruralNonFarmWorkers = 0`とし、鉱山・伐採・運送などの農村非農業者を推定で控除しない。実際の資源事業や労働市場を導入してから、その事業が必要とする明示的な人数だけを控除する。
 - Marketの6か月目標在庫は輸入回復の目標であり、農民へ「そこまでしか作らない」と命じる生産上限ではない。
@@ -256,7 +262,7 @@ v1では収穫期の季節雇用や、一時的な都市から農村への出稼
 
 将来の季節雇用では、播種・収穫期に都市から農村へ短期労働者を呼び、作業後に都市へ戻すことを許す。これは常住人口の移住・農業労働力とは別の、一時的な労働契約として扱う。
 
-### 4.3 地図全体の軽い収穫時期補正
+### 4.4 地図全体の軽い収穫時期補正
 
 四半期台帳の供給配分には、セル別ではなく地図全体で共通の軽い季節補正を適用する。World Configurator が設定する地図中央緯度、赤道温度、北極・南極温度から季節温度振幅を求め、均等配分 `[0.25, 0.25, 0.25, 0.25]` と北半球基準の収穫配分 `[0.20, 0.23, 0.34, 0.23]` を最大10%だけ補間する。南半球中心の地図では配列を半年回転する。
 
@@ -363,3 +369,4 @@ rural excess adults
 - 開墾をどの速度・費用・森林減少で進めるか。
 - 河川の航行可能性を、流量閾値だけで始めるか、季節・勾配・船舶技術まで持つか。
 - 作物を単一の `food` とする v1 の終了時点、および水田・牧畜・漁業を導入する順序。
+- `effectiveRuralCapacity`（§3.2）の`verifiedExternalFoodSupport`を、Market共通在庫からどう特定の農村セルへ配分するか。Burg側`stableImportedFood`と同じ移動平均の考え方を流用できるかを含め、農村セルへの人口シミュレーション接続時に確定する。
