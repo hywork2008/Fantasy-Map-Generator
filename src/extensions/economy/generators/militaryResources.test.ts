@@ -78,4 +78,31 @@ describe("MilitaryResourcesModule", () => {
     expect(getMarkets()[0].goods[2].stock).toBe(10);
     expect(getMarkets()[0].goods[3].stock).toBe(10);
   });
+
+  it("consumes fodder for mounted units even when the gunpowder era is disabled", () => {
+    worldContext.options.gunpowderEraEnabled = false;
+    worldContext.options.military = [
+      { name: "artillery", type: "ranged" },
+      { name: "musketeers", type: "ranged" },
+      { name: "cavalry", type: "mounted" }
+    ] as unknown as typeof worldContext.options.military;
+    worldContext.pack.states[1].military = [
+      { i: 1, u: { cavalry: 20 } }
+    ] as unknown as (typeof worldContext.pack.states)[1]["military"];
+    setGoods([
+      { i: 4, name: "Fodder", tags: ["fodder", "supply"], value: 1, unit: "bale", icon: "good-grain", color: "#c9b458" }
+    ]);
+    setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 4: { stock: 10, price: 1 } } }]);
+    Goods.sync();
+    Markets.sync();
+
+    MilitaryResources.generate();
+    MilitaryResources.settleMonthly();
+
+    const ledger = getMilitaryResourceLedgers()[0];
+    expect(ledger.annualDemand.fodder).toBeGreaterThan(0);
+    expect(ledger.annualDemand.iron).toBeUndefined();
+    expect(ledger.lastConsumed.fodder).toBeGreaterThan(0);
+    expect(getMarkets()[0].goods[4].stock).toBeLessThan(10);
+  });
 });

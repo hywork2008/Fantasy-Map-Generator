@@ -7,8 +7,9 @@ import {
   setMilitaryResourceLedgers
 } from "../economyContext";
 import { Markets } from "./markets-generator";
+import { isMountedUnit } from "./militaryLogistics";
 
-export const MILITARY_RESOURCES = ["iron", "lead", "gunpowder", "saltpeter", "sulfur", "coal"] as const;
+export const MILITARY_RESOURCES = ["iron", "lead", "gunpowder", "saltpeter", "sulfur", "coal", "fodder"] as const;
 export type MilitaryResource = (typeof MILITARY_RESOURCES)[number];
 
 type ResourceAmounts = Partial<Record<MilitaryResource, number>>;
@@ -35,6 +36,9 @@ const ARTILLERY_GUNPOWDER_PER_GUN = 0.02;
 const FIREARM_IRON_PER_HEAD = 0.004;
 const FIREARM_LEAD_PER_HEAD = 0.012;
 const FIREARM_GUNPOWDER_PER_HEAD = 0.012;
+// Mounted units (options.military type "mounted") need fodder for their horses regardless of
+// gunpowder-era status — cavalry predates firearms. Uncalibrated, same as the rest of this file.
+const MOUNTED_FODDER_PER_HEAD = 0.08;
 
 /** Settles state military material demand against its principal market. */
 export class MilitaryResourcesModule {
@@ -48,7 +52,7 @@ export class MilitaryResourcesModule {
       ledgers.push({
         stateId: state.i,
         supplyMarketId: this.getSupplyMarketId(state.i),
-        annualDemand: gunpowderEraEnabled ? this.getAnnualDemand(state.i) : {},
+        annualDemand: this.getAnnualDemand(state.i, gunpowderEraEnabled),
         lastConsumed: prior?.lastConsumed ?? {},
         unmetDemand: prior?.unmetDemand ?? {}
       });
@@ -67,12 +71,17 @@ export class MilitaryResourcesModule {
 
     for (const ledger of getMilitaryResourceLedgers()) {
       ledger.supplyMarketId = this.getSupplyMarketId(ledger.stateId);
-      ledger.annualDemand = gunpowderEraEnabled ? this.getAnnualDemand(ledger.stateId) : {};
+      ledger.annualDemand = this.getAnnualDemand(ledger.stateId, gunpowderEraEnabled);
       ledger.lastConsumed = {};
       ledger.unmetDemand = {};
-      if (!gunpowderEraEnabled || !ledger.supplyMarketId) continue;
+      if (!ledger.supplyMarketId) continue;
 
-      for (const resource of ["iron", "lead", "gunpowder"] as const) {
+      // Fodder is settled regardless of era; iron/lead/gunpowder only apply once firearms exist.
+      const resources = gunpowderEraEnabled
+        ? (["fodder", "iron", "lead", "gunpowder"] as const)
+        : (["fodder"] as const);
+
+      for (const resource of resources) {
         const requested = (ledger.annualDemand[resource] ?? 0) / MONTHS_PER_YEAR;
         if (requested <= 0) continue;
         const good = goodsByName.get(resource === "iron" || resource === "lead" ? `${resource} ingot` : resource);
@@ -91,32 +100,39 @@ export class MilitaryResourcesModule {
     return market?.i ?? null;
   }
 
-  private getAnnualDemand(stateId: number): ResourceAmounts {
+  private getAnnualDemand(stateId: number, gunpowderEraEnabled: boolean): ResourceAmounts {
     const state = getWorldContext().pack.states[stateId];
     if (!state || state.removed) return {};
 
     const populationRate = getWorldContext().populationRate || 1;
     let artillery = 0;
     let firearms = 0;
+    let mounted = 0;
     for (const regiment of state.military || []) {
       for (const [unitName, rawCount] of Object.entries(regiment.u || {})) {
         const count = rawCount / populationRate;
         if (this.isArtillery(unitName)) artillery += count;
         else if (this.isFirearm(unitName)) firearms += count;
+        if (isMountedUnit(unitName)) mounted += count;
       }
     }
 
+    const demand: ResourceAmounts = {};
+    const fodder = rn(mounted * MOUNTED_FODDER_PER_HEAD, 4);
+    if (fodder > 0) demand.fodder = fodder;
+
+    if (!gunpowderEraEnabled) return demand;
+
     const gunpowder = artillery * ARTILLERY_GUNPOWDER_PER_GUN + firearms * FIREARM_GUNPOWDER_PER_HEAD;
-    return {
-      iron: rn(artillery * ARTILLERY_IRON_PER_GUN + firearms * FIREARM_IRON_PER_HEAD, 4),
-      lead: rn(artillery * ARTILLERY_LEAD_PER_GUN + firearms * FIREARM_LEAD_PER_HEAD, 4),
-      gunpowder: rn(gunpowder, 4),
-      // Gunpowder is consumed as a finished Good. These fields expose its recipe-level
-      // strategic inputs without consuming them a second time in the same market cycle.
-      saltpeter: rn(gunpowder * 0.5, 4),
-      sulfur: rn(gunpowder * 0.25, 4),
-      coal: rn(gunpowder * 0.5, 4)
-    };
+    demand.iron = rn(artillery * ARTILLERY_IRON_PER_GUN + firearms * FIREARM_IRON_PER_HEAD, 4);
+    demand.lead = rn(artillery * ARTILLERY_LEAD_PER_GUN + firearms * FIREARM_LEAD_PER_HEAD, 4);
+    demand.gunpowder = rn(gunpowder, 4);
+    // Gunpowder is consumed as a finished Good. These fields expose its recipe-level
+    // strategic inputs without consuming them a second time in the same market cycle.
+    demand.saltpeter = rn(gunpowder * 0.5, 4);
+    demand.sulfur = rn(gunpowder * 0.25, 4);
+    demand.coal = rn(gunpowder * 0.5, 4);
+    return demand;
   }
 
   private isArtillery(unitName: string): boolean {

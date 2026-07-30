@@ -12,7 +12,7 @@ const BASE_UPKEEP_PER_HEAD = 0.05; // treasury units per head per production cyc
 const MOUNTED_UPKEEP_MULTIPLIER = 2; // cavalry costs more (horse upkeep)
 const BASE_FOOD_CONSUMPTION_PER_HEAD_PER_DAY = 0.01; // food-good stock units per head per day, raw-score scale
 
-function isMountedUnit(unitName: string): boolean {
+export function isMountedUnit(unitName: string): boolean {
   const militaryOptions = getWorldContext().options.military || [];
   return militaryOptions.find(unit => unit.name === unitName)?.type === "mounted";
 }

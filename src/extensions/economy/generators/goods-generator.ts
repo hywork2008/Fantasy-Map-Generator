@@ -426,6 +426,23 @@ export const GOODS_DATA: GoodData[] = [
     biomeOutputByTag: { nomadic: 0.06, grassland: 0.05 }
   },
   {
+    name: "Fodder",
+    warEconomyType: "essential",
+    // Hay/feed for draft and cavalry animals. Bought by ordinary farms to keep cattle and oxen
+    // (civilian demand, "utilities") as well as by the army to keep mounted units in the field
+    // ("military", settled monthly by militaryResources.ts against MOUNTED_FODDER_PER_HEAD).
+    tags: ["fodder", "supply"],
+    icon: "good-grain",
+    color: "#c9b458",
+    value: 1,
+    chance: 4,
+    distribution: '(biomeTag("grassland") || biomeTag("arable")) && !elevation()',
+    unit: "bale",
+    demandCoverage: { utilities: 0.7, military: 0.3 },
+    multipliers: { cultureType: { Nomadic: 1.5, River: 1.2 } },
+    biomeOutputByTag: { grassland: 0.08, arable: 0.06 }
+  },
+  {
     name: "Elephants",
     warEconomyType: "military",
     tags: ["supply", "military"],
@@ -1317,6 +1334,7 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   "Silver Ingot": tradeProfile(2, 1, 4, 2, 0, 5, 2),
   "Gold Ingot": tradeProfile(2, 1, 5, 3, 0, 5, 2),
   Grain: tradeProfile(4, 4, 1, -1, -1, 2, 3),
+  Fodder: tradeProfile(4, 5, 1, -2, -1, 2, 3),
   Cattle: tradeProfile(5, 5, 2, 0, -2, 1, 5),
   Fish: tradeProfile(3, 3, 1, -1, -2, 1, 5),
   Game: tradeProfile(3, 3, 2, 0, -2, 1, 5),
