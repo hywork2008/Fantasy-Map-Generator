@@ -15,7 +15,9 @@
 
 **2026-07-30 設計確定（§6不変条件の補足）**: `MineOperation.workers`/`SmelterOperation.workers`は、Burgの総人口を実際に増減させる実体ではなく、**Burgの既存成人人口のうち何人がその仕事に従事しているかという内訳（サブセット）**として扱う。既存の`LaborMarket`（`strategicLaborMarkets.ts`、§2.3）が「Burg人口を物理的に減らさない、内部比率のみ」という設計であるのと同じ会計原則に揃え、二重計上・人口消失のリスクを避ける。したがって`workers`の増減はBurgの`population`/`demographics`を書き換えない。`employmentDemand`の総量が`urbanLaborIntake`を実際に動かす（Burg人口を増やす）のはPhase 4で`employmentDemand`と`urbanLaborIntake`を接続したときが最初になる。§6の該当文はこの解釈に修正する。
 
-**2026-07-30 実装状況**: Phase 1（鉱業・製錬雇用のBurg接続）を実装した。`MineOperation.workers`/`SmelterOperation.workers`は、その施設が立地するBurgの現有成人人口（`getBurgDemographics`で読み取り）から按分される内訳として、新しい年次リコンサイル`reconcileAnnualIndustrialWorkers()`（`basicEmployment.ts`）により毎年緩やかに目標値へ追随する。同一Burgに複数の鉱山・製錬所がある場合は共有の成人プールを奪い合う（上限は設けない＝決定2）。`workerFactor`（`produceMonth()`の抽出・製錬効率）は、この`workers`と「フル稼働に必要な労働力」（鉱山は既存の`4 + richness * 6`、製錬所は新設の`4 + annualCapacityTons * 0.05`）の比で決まるため、Burgの成人人口が不足しているBurgでは初めて意味のある値になる。Phase 2以降（港湾・交易雇用、行政・首都雇用、サービス業雇用、`employmentDemand`集計とurbanLaborIntakeへの接続）は未着手。
+**2026-07-30 実装状況**: Phase 1（鉱業・製錬雇用のBurg接続）を実装した。`MineOperation.workers`/`SmelterOperation.workers`は、その施設が立地するBurgの現有成人人口（`getBurgDemographics`で読み取り）から按分される内訳として、新しい年次リコンサイル`reconcileAnnualIndustrialWorkers()`（`basicEmployment.ts`）により毎年緩やかに目標値へ追随する。同一Burgに複数の鉱山・製錬所がある場合は共有の成人プールを奪い合う（上限は設けない＝決定2）。`workerFactor`（`produceMonth()`の抽出・製錬効率）は、この`workers`と「フル稼働に必要な労働力」（鉱山は既存の`4 + richness * 6`、製錬所は新設の`4 + annualCapacityTons * 0.05`）の比で決まるため、Burgの成人人口が不足しているBurgでは初めて意味のある値になる。
+
+**2026-07-30 実装状況（Phase 2 — 港湾・交易雇用）**: `LaborMarket`（`strategicLaborMarkets.ts`）へ`STRATEGIC_OCCUPATIONS`の5番目として`"trade"`を追加した。決定6により需要指標をCaravan到着量のみに絞ったため、§3.3が挙げていた`BurgMarketLedger`実績・`searoute`接続本数・河川水運/海路/陸上交易の優先順位づけは今回は採用しない（将来これらを追加する場合は同じ`getDemandMultiplierByOccupation`の分岐に足す）。`Market.caravanArrivalVolume`という新しいdecayingゲージを追加し、`Caravans.tick()`内でキャラバン到着のたびに積載量（`caravan.units`）を加算、半減期60日で指数減衰させる（積荷の積み替えに人足が必要という決定6の前提を「最近の到着実績」として近似）。この値を`getTradeDemandMultiplier()`で1〜4の需要倍率に変換し、他の4職種と同じ`getDesiredWorkers`/`moveWorkersTowardDemand`/`updateWagesSkillsAndCapacity`経路で毎月の生産サイクル中に配分・賃金・熟練度を更新する。`trade`はGoodsに紐づかない職種のため、賃金計算は`good?.value ?? 1`のフォールバックをそのまま使う。港湾・交易雇用そのものを`portTradeEmployment[burgId]`として集計しBurgへ帰属させる作業（§3.1）はPhase 4で行う。Phase 3以降（行政・首都雇用、サービス業雇用、`employmentDemand`集計とurbanLaborIntakeへの接続）は未着手。
 
 ## 1. 目的
 
@@ -119,6 +121,8 @@ workerFactor = min(1, workers / requiredWorkersForFullExtraction)
 3. 海路へ実際に接続した港（`port && searoute`）
 4. 道路・市場による陸上交易
 
+> **実装（Phase 2、§0参照）**: 決定6により、上記優先順位づけは初期実装では採用せず、需要指標を`Caravans.tick()`到着時の積載量（`Market.caravanArrivalVolume`、半減期60日で減衰）のみに絞った。`BurgMarketLedger`実績・`searoute`接続本数・河川水運/海路/陸上交易の優先順位反映は、必要になった時点で`strategicLaborMarkets.ts`の`getDemandMultiplierByOccupation()`に追加できる形にしてある。
+
 ### 3.4 行政・首都雇用
 
 `burg.capital`（州都・首都）を持つBurgに、Stateの人口・領域規模に応じた行政雇用を加える。既存の`getBurgLocationBonus`（[developmentPotential.ts:164](../../src/extensions/economy/generators/developmentPotential.ts#L164)）が`capital`に静的加点しているのと役割を分けること — あちらは移住先の魅力度、こちらは実際の雇用者数。初期式は最も単純に「Stateの総人口 × 小さな定数比率」から始めることを推奨する（詳細は次セッションで決定）。
@@ -156,9 +160,10 @@ employmentDemand[burgId] = basicEmploymentDemand[burgId] + serviceEmploymentDema
 
 ### Phase 2 — 港湾・交易雇用
 
-- [ ] `LaborMarket`（`strategicLaborMarkets.ts`）へ`trade`（または`portLabor`）職種を追加する。
-- [ ] Market圏の交易量（Caravan到着量、`BurgMarketLedger`実績、`searoute`接続）から需要を算出する。
-- [ ] 既存の優先順位（河川水運 > 海路接続港 > 陸上交易）を需要重みへ反映する。
+- [x] `LaborMarket`（`strategicLaborMarkets.ts`）へ`trade`職種を追加する。
+- [x] Market圏の交易量から需要を算出する（決定6によりCaravan到着量のみ。`Market.caravanArrivalVolume`、半減期60日で減衰）。
+- [ ] ~~既存の優先順位（河川水運 > 海路接続港 > 陸上交易）を需要重みへ反映する~~ — 決定6によりCaravan到着量のみに単純化されたため対象外（`BurgMarketLedger`実績・`searoute`接続本数を使う優先順位づけは、必要になれば`getDemandMultiplierByOccupation`に後から追加できる）。
+- [ ] `portTradeEmployment[burgId]`としてBurgへ帰属させる集計はPhase 4の`employmentDemand`集計時に行う。
 
 ### Phase 3 — 行政・首都雇用とサービス業雇用
 

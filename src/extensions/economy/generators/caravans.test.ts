@@ -1,7 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, getCaravans, getDeals, initEconomyContext } from "../economyContext";
+import {
+  clearEconomyContext,
+  getCaravans,
+  getDeals,
+  getMarkets,
+  initEconomyContext,
+  setCaravans
+} from "../economyContext";
 import { CaravanMovement } from "./caravanMovement";
 import { bakeCaravanTravelLegs, Caravans, getCaravanTravelTime } from "./caravans";
 import type { Good } from "./goods-generator";
@@ -64,6 +71,84 @@ describe("caravan viability", () => {
     Caravans.spawnFromDeals(getDeals());
 
     expect(getCaravans()).toEqual([]);
+  });
+});
+
+describe("caravan arrival volume tracking", () => {
+  beforeEach(() => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.distanceScale = 1;
+    worldContext.pack = {
+      burgs: [{ i: 0 } as unknown as Burg, { i: 1, cell: 1, x: 0, y: 0, market: 1 } as unknown as Burg],
+      markets: [{ i: 1, centerBurgId: 1, color: "#000", goods: {}, caravanArrivalVolume: 40 }],
+      caravans: [],
+      states: []
+    } as unknown as PackedGraph;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    clearEconomyContext();
+  });
+
+  it("decays a market's existing volume and adds newly delivered cargo units on arrival", () => {
+    setCaravans([
+      {
+        i: 1,
+        seller: 0,
+        sellerType: "burg",
+        buyer: 1,
+        buyerType: "market",
+        payload: [],
+        units: 15,
+        value: 0,
+        draftAnimalId: "horse",
+        routeSegments: [],
+        totalDistance: 0,
+        currentDistance: 0,
+        travelLegs: [{ endKm: 0, speedKmPerDay: 1 }],
+        state: "transit"
+      } as Caravan
+    ]);
+
+    const result = Caravans.tick(1);
+
+    expect(result.arrived).toHaveLength(1);
+    // 40 decays slightly over one day, then +15 newly delivered units.
+    const volume = getMarkets()[0].caravanArrivalVolume ?? 0;
+    expect(volume).toBeGreaterThan(15);
+    expect(volume).toBeLessThan(40 + 15);
+  });
+
+  it("resolves the delivery market through the destination Burg for burg-type buyers", () => {
+    setCaravans([
+      {
+        i: 1,
+        seller: 0,
+        sellerType: "burg",
+        buyer: 1,
+        buyerType: "burg",
+        payload: [],
+        units: 8,
+        value: 0,
+        draftAnimalId: "horse",
+        routeSegments: [],
+        totalDistance: 0,
+        currentDistance: 0,
+        travelLegs: [{ endKm: 0, speedKmPerDay: 1 }],
+        state: "transit"
+      } as Caravan
+    ]);
+
+    Caravans.tick(1);
+
+    expect(getMarkets()[0].caravanArrivalVolume ?? 0).toBeGreaterThan(40);
+  });
+
+  it("decays volume toward zero even when no caravans are in transit", () => {
+    Caravans.tick(120);
+
+    expect(getMarkets()[0].caravanArrivalVolume ?? 0).toBeLessThan(40);
   });
 });
 

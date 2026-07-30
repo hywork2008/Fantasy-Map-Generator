@@ -10,6 +10,11 @@ export interface Market {
   foodLedger?: FoodLedger;
   /** Working capital of the market manager's merchant company; separate from Burg/State treasury. */
   marketTreasury?: MarketTreasury;
+  /**
+   * Decaying gauge of recent caravan cargo (units) delivered here, updated in `Caravans.tick()`.
+   * Drives the `"trade"` LaborMarket occupation's demand (docs/plan/urban-employment-demand.md §3.3/§5.1-6).
+   */
+  caravanArrivalVolume?: number;
 }
 
 export interface MarketTreasury {

@@ -8,7 +8,7 @@ import {
   type StrategicProductionDemand
 } from "./strategicProductionDemand";
 
-export const STRATEGIC_OCCUPATIONS = ["forestry", "sailmaking", "ropeMaking", "tarBurning"] as const;
+export const STRATEGIC_OCCUPATIONS = ["forestry", "sailmaking", "ropeMaking", "tarBurning", "trade"] as const;
 export type StrategicOccupation = (typeof STRATEGIC_OCCUPATIONS)[number];
 
 export interface LaborMarket {
@@ -37,9 +37,40 @@ const MAX_TRANSFER_SHARE_PER_CYCLE = 0.05;
 const MIN_SKILL = 0.75;
 const MAX_SKILL = 1.5;
 const MAX_CAPACITY_PER_WORKER = 1.5;
+/**
+ * Cargo units of `Market.caravanArrivalVolume` worth one point of demand multiplier above
+ * baseline, capped the same way `getStrategicDemandMultiplier`'s outstanding-priority term is
+ * (docs/plan/urban-employment-demand.md §5.1-6: Caravan arrivals only, calibration TBD).
+ */
+const TRADE_VOLUME_UNITS_PER_DEMAND_POINT = 20;
+const MAX_TRADE_DEMAND_BONUS = 3;
 
 export function getStrategicOccupation(good: Pick<Good, "name">): StrategicOccupation | undefined {
   return OCCUPATION_BY_GOOD_NAME[good.name];
+}
+
+/** `"trade"` has no matching Good/recipe — its demand comes from recent caravan cargo instead. */
+function getTradeDemandMultiplier(market: Pick<Market, "caravanArrivalVolume">): number {
+  return 1 + Math.min(MAX_TRADE_DEMAND_BONUS, (market.caravanArrivalVolume ?? 0) / TRADE_VOLUME_UNITS_PER_DEMAND_POINT);
+}
+
+/** One demand multiplier per occupation: goods-order demand for the craft occupations, caravan-volume demand for `"trade"`. */
+function getDemandMultiplierByOccupation(
+  market: Market,
+  demandByGood: ReadonlyMap<number, StrategicProductionDemand>,
+  goodById: ReadonlyMap<number, Good>
+): Record<StrategicOccupation, number> {
+  const demandMultiplierByOccupation = {} as Record<StrategicOccupation, number>;
+  for (const occupation of STRATEGIC_OCCUPATIONS) {
+    if (occupation === "trade") {
+      demandMultiplierByOccupation[occupation] = getTradeDemandMultiplier(market);
+      continue;
+    }
+    const good = findOccupationGood(occupation, goodById);
+    const demand = good ? demandByGood.get(good.i) : undefined;
+    demandMultiplierByOccupation[occupation] = getStrategicDemandMultiplier(demand, false);
+  }
+  return demandMultiplierByOccupation;
 }
 
 /**
@@ -59,10 +90,11 @@ export function reconcileStrategicLaborMarkets(
     const prior = existingByMarket.get(market.i);
     const laborMarket = createLaborMarket(market.i, workforce, prior);
     const demandByGood = getStrategicProductionDemandByGood(inputs.orders, market.i);
-    const desiredWorkers = getDesiredWorkers(workforce, demandByGood, goodById);
+    const demandMultiplierByOccupation = getDemandMultiplierByOccupation(market, demandByGood, goodById);
+    const desiredWorkers = getDesiredWorkers(workforce, demandMultiplierByOccupation);
 
     moveWorkersTowardDemand(laborMarket, desiredWorkers, workforce);
-    updateWagesSkillsAndCapacity(laborMarket, demandByGood, goodById, workforce);
+    updateWagesSkillsAndCapacity(laborMarket, demandMultiplierByOccupation, goodById, workforce);
     return laborMarket;
   });
 }
@@ -107,16 +139,13 @@ function createLaborMarket(marketId: number, workforce: number, prior: LaborMark
 
 function getDesiredWorkers(
   workforce: number,
-  demandByGood: ReadonlyMap<number, StrategicProductionDemand>,
-  goodById: ReadonlyMap<number, Good>
+  demandMultiplierByOccupation: Record<StrategicOccupation, number>
 ): Record<StrategicOccupation, number> {
   const weights = {} as Record<StrategicOccupation, number>;
   let totalWeight = 0;
 
   for (const occupation of STRATEGIC_OCCUPATIONS) {
-    const good = findOccupationGood(occupation, goodById);
-    const demand = good ? demandByGood.get(good.i) : undefined;
-    const demandMultiplier = getStrategicDemandMultiplier(demand, false);
+    const demandMultiplier = demandMultiplierByOccupation[occupation];
     // Retain a small baseline cohort so a market can answer a new order without
     // creating trained specialists from nothing.
     const weight = 1 + (demandMultiplier - 1) * 2;
@@ -160,18 +189,17 @@ function moveWorkersTowardDemand(
 
 function updateWagesSkillsAndCapacity(
   laborMarket: LaborMarket,
-  demandByGood: ReadonlyMap<number, StrategicProductionDemand>,
+  demandMultiplierByOccupation: Record<StrategicOccupation, number>,
   goodById: ReadonlyMap<number, Good>,
   workforce: number
 ): void {
   for (const occupation of STRATEGIC_OCCUPATIONS) {
     const good = findOccupationGood(occupation, goodById);
-    const demand = good ? demandByGood.get(good.i) : undefined;
-    const demandMultiplier = getStrategicDemandMultiplier(demand, false);
+    const demandMultiplier = demandMultiplierByOccupation[occupation];
     const workers = laborMarket.workersByOccupation[occupation] ?? 0;
     const workforceShare = workforce > 0 ? workers / workforce : 0;
     const existingSkill = laborMarket.skillByOccupation[occupation] ?? 1;
-    const skillChange = demand ? 0.02 * workforceShare : -0.01;
+    const skillChange = demandMultiplier > 1 ? 0.02 * workforceShare : -0.01;
     const skill = clamp(existingSkill + skillChange, MIN_SKILL, MAX_SKILL);
     const currentCapacity = laborMarket.capacityByOccupation[occupation] ?? workers;
     const desiredCapacity = workers * (1 + Math.min(0.5, (demandMultiplier - 1) * 0.15));

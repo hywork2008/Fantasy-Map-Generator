@@ -21,13 +21,27 @@ import {
   getSeaConditionMultiplier
 } from "./caravanMovement";
 import type { Good } from "./goods-generator";
-import type { Caravan, Deal, TradeRouteSegment } from "./marketTypes";
+import type { Caravan, Deal, Market, TradeRouteSegment } from "./marketTypes";
 import { TradeAnimation } from "./trade-animation";
 import { getCaravanMaintenanceCost, isGoodTradePermitted, MIN_TRADE_PROFIT } from "./tradeOpportunityEstimator";
 import { calculateRouteDurationDays, getRouteDistanceKm } from "./tradeRouteDuration";
 import { TradeSecurity } from "./tradeSecurity";
 
 export type CaravanTravelLeg = { endKm: number; speedKmPerDay: number };
+
+/** Halves a market's tracked `caravanArrivalVolume` roughly every two months of no new arrivals. */
+const CARAVAN_VOLUME_HALF_LIFE_DAYS = 60;
+const CARAVAN_VOLUME_DECAY_RATE = Math.LN2 / CARAVAN_VOLUME_HALF_LIFE_DAYS;
+
+function decayCaravanArrivalVolume(markets: readonly Market[], deltaDays: number): void {
+  if (deltaDays <= 0) return;
+  const decay = Math.exp(-CARAVAN_VOLUME_DECAY_RATE * deltaDays);
+  for (const market of markets) {
+    if (!market.caravanArrivalVolume) continue;
+    const decayed = market.caravanArrivalVolume * decay;
+    market.caravanArrivalVolume = decayed < 0.01 ? 0 : decayed;
+  }
+}
 
 /** Travel-time summary for an in-transit caravan, rounded up to whole simulation days. */
 export interface CaravanTravelTime {
@@ -431,12 +445,14 @@ export class CaravansModule {
 
   tick(deltaDays: number): CaravanTickResult {
     const world = getWorldContext();
+    const markets = getMarkets();
+    decayCaravanArrivalVolume(markets, deltaDays);
+
     const caravans = getCaravans();
     if (!caravans.length) return { arrived: [], lost: [] };
 
     const movement = CaravanMovement.getOptions();
     const month = getSimulationMonth();
-    const markets = getMarkets();
     const arrived: Caravan[] = [];
     const lost: Caravan[] = [];
 
@@ -479,6 +495,16 @@ export class CaravansModule {
             }
           }
         }
+
+        // Cargo needs handlers to unload/reload regardless of buyer type — feeds the "trade"
+        // LaborMarket occupation's demand (docs/plan/urban-employment-demand.md §3.3/§5.1-6).
+        const deliveryMarketId =
+          caravan.buyerType === "market" ? caravan.buyer : world.pack.burgs[caravan.buyer]?.market;
+        const deliveryMarket = deliveryMarketId ? markets.find(market => market.i === deliveryMarketId) : undefined;
+        if (deliveryMarket) {
+          deliveryMarket.caravanArrivalVolume = rn((deliveryMarket.caravanArrivalVolume ?? 0) + caravan.units, 2);
+        }
+
         arrived.push(caravan);
       }
     }

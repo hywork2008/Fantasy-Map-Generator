@@ -74,4 +74,30 @@ describe("strategic labor markets", () => {
 
     expect(reconcileStrategicLaborMarkets({ markets: [], burgs, goods, orders: [] }, prior)).toEqual([]);
   });
+
+  describe("trade occupation (caravan arrival volume)", () => {
+    function reconcileWithVolume(caravanArrivalVolume: number, existing: LaborMarket[] = []): LaborMarket[] {
+      const busyMarkets = [{ i: 1, centerBurgId: 1, color: "#111", goods: {}, caravanArrivalVolume }] as Market[];
+      return reconcileStrategicLaborMarkets({ markets: busyMarkets, burgs, goods, orders: [] }, existing);
+    }
+
+    it("keeps trade at the baseline share when no caravans have arrived", () => {
+      const [laborMarket] = reconcileWithVolume(0);
+
+      // No demand anywhere -> all five occupations split the workforce evenly.
+      expect(laborMarket.workersByOccupation.trade).toBeCloseTo(6);
+      expect(laborMarket.wageByOccupation.trade).toBeCloseTo(1);
+    });
+
+    it("pulls workers toward trade and raises its wage as caravan cargo volume rises", () => {
+      let laborMarkets = reconcileWithVolume(0);
+      const initialTradeWorkers = laborMarkets[0].workersByOccupation.trade ?? 0;
+
+      for (let cycle = 0; cycle < 12; cycle++) laborMarkets = reconcileWithVolume(200, laborMarkets);
+
+      expect(laborMarkets[0].workersByOccupation.trade ?? 0).toBeGreaterThan(initialTradeWorkers);
+      expect(laborMarkets[0].wageByOccupation.trade).toBeGreaterThan(laborMarkets[0].wageByOccupation.forestry ?? 0);
+      expect(getStrategicLaborProductivity(laborMarkets[0], "trade")).toBeGreaterThan(1);
+    });
+  });
 });
