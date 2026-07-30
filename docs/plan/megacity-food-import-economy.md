@@ -6,6 +6,8 @@
 
 **2026-07-30 追記**: `foodPotential`と`settlementDevelopmentPotential`はcoreの`pack.cells`には追加しない。economy拡張が所有する`simulation.extensions.economy`のセルID直結`Float32Array`として、地図の環境データから決定的に再生成する。これは拡張専用の派生キャッシュであり、coreのPackedGraphスキーマを増やさない。
 
+**2026-07-30 実装状況**: Phase 2の基盤として、`cultivableArea`、`cultivatedArea`、`yieldPerArea`、`ruralFoodCapacity`、`farmLaborRequired`、`migratableAdults`をeconomy sliceへ追加した。面積・気候・森林から得る作物上限と、当年人口から得る作付面積・必要農業労働力を分離し、四半期食料台帳は新しい列が存在する地図で作付率・労働充足率を使う。農村から成人を実際に取り出して都市／漂泊キューへ渡す人口移動は、次の移住フェーズで接続する。
+
 **実装状況**: Phase 1を開始済み。potential列の生成・再生成と、非ロックBurgの年次group再評価は実装した。食料台帳の置換、移住、昇格候補へのpotential接続は後続Phaseで行う。
 
 この決定により、食料輸入は「未使用の農村人口上限を都市へ振り替える」仕組みではなく、後背地の生産力・農業労働力・在庫・輸送網が実際に都市人口を支える仕組みになる。
@@ -78,6 +80,7 @@ foodProduced - ruralNeed = 0.25 × G × (C - R)
 | `cultivatedArea[cellId]` | economy simulation | 面積ポイント | 当期に実際に作付・維持する面積。需要、労働力、開墾状態で変化する。 |
 | `yieldPerArea[cellId]` | economy simulation | 年間食料 / 面積ポイント | 気候、水利、地形、技術から決まる作付面積当たり収量。 |
 | `foodPotential[cellId]` | economy simulation | 年間食料単位 | 全`cultivableArea`を十分な農業労働力で耕した場合の上限。人口からは導かない。 |
+| `ruralFoodCapacity[cellId]` | economy simulation | 人口ポイント | `foodPotential`から逆算した、外部食料なしで持続できる農村人口上限。既存`cells.capacity`との整合性監査に使う。 |
 | `foodProductivityModifier[cellId]` | economy simulation | 倍率 | 水利、技術、戦禍、洪水、干ばつ、開墾などの動的補正。 |
 | `farmLaborRequired[cellId]` | economy simulation | 成人労働者ポイント | 当期の`cultivatedArea`を維持・収穫するために必要な農業労働力。人口比からは導かない。 |
 | `settlementDevelopmentPotential[cellId]` | economy simulation | 無次元スコア | 港、河川、道路・海路結節、資源、政治中心性から得る都市化の立地優位。 |
@@ -110,6 +113,8 @@ yieldPerArea = baseGrainYield
 - `waterAccessModifier`: 河川流量、湖、沿岸低地などによる水利・沖積地の補正。
 - `terrainModifier`: 高度・急峻さ・土壌悪化の減衰。
 - `baseAgriculturalTechnology`: 時代・世界設定による全体係数。後の技術システムの接続点。
+
+`cells.area × distanceScale²` を物理面積へ換算し、`cells.capacity × populationRate` と食料から独立に比較する。現行の`cells.capacity`は、すでに suitability・面積・河川・海岸・危険度を含む居住適性由来の値であるため、`foodPotential`を capacity から復元してはならない。詳細な面積・収量・開墾率の監査式は [population-food-supply.md](../simulation/population-food-supply.md) に定義する。
 
 生成後は、既存ワールドが初回のeconomy有効化で直ちに飢饉にならないよう、現行人口を満たす最低値へ正規化する。ロード済みのextension sliceに配列があっても、地図環境が変わった可能性を避けるため、同じ決定的生成器で再構築する。`capacity`だけから直接復元するのは移行用の最後のフォールバックに限定する。
 
@@ -288,7 +293,8 @@ interface PopulationMigration {
 
 ### Phase 2 — 農業労働力・市場在庫・セル生産
 
-- `cultivableArea`、`cultivatedArea`、面積当たり収量と成人バケットから、`farmLaborRequired`と生産量を求める。
+- `cells.area × distanceScale²` を使って物理面積へ換算し、`cultivableArea`、`cultivatedArea`、面積当たり収量と成人バケットから、`farmLaborRequired`と生産量を求める。
+- 初期農村人口と`cells.capacity`について、必要農地面積・最大開墾面積・`ruralFoodCapacity`の整合性監査を実装する。capacityを食料生産の直接入力に戻さない。
 - `FoodLedger`を在庫開始・終了、未充足需要、輸出可能量を含む契約へ移行する。
 - 四半期をまたぐ在庫を実装し、季節性の既存重みを適用する。
 - 旧来の`capacity × cultivation`生産式を削除する。

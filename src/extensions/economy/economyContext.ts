@@ -30,6 +30,12 @@ import type { BanditCohort, MobileAdultCohort, UrbanLaborIntake } from "./genera
 
 let _api: ExtensionAPI | null = null;
 let _foodPotentialFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _cultivableAreaFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _yieldPerAreaFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _ruralFoodCapacityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _cultivatedAreaFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _farmLaborRequiredFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _migratableAdultsFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _settlementDevelopmentPotentialFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _settlementDevelopmentLastEvaluatedYearFallback: number | null = null;
 
@@ -40,6 +46,12 @@ export function initEconomyContext(api: ExtensionAPI): void {
 export function clearEconomyContext(): void {
   _api = null;
   _foodPotentialFallback = new Float32Array();
+  _cultivableAreaFallback = new Float32Array();
+  _yieldPerAreaFallback = new Float32Array();
+  _ruralFoodCapacityFallback = new Float32Array();
+  _cultivatedAreaFallback = new Float32Array();
+  _farmLaborRequiredFallback = new Float32Array();
+  _migratableAdultsFallback = new Float32Array();
   _settlementDevelopmentPotentialFallback = new Float32Array();
   _settlementDevelopmentLastEvaluatedYearFallback = null;
 }
@@ -198,6 +210,56 @@ export function getFoodPotential(): Float32Array<ArrayBufferLike> {
 export function setFoodPotential(value: Float32Array<ArrayBufferLike>): void {
   setSliceFloat32Column("foodPotential", value, next => {
     _foodPotentialFallback = next;
+  });
+}
+
+/** Maximum environmental cropland, current cultivation, yield, and labour columns keyed by cell id. */
+export function getCultivableArea(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("cultivableArea", _cultivableAreaFallback);
+}
+export function setCultivableArea(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("cultivableArea", value, next => {
+    _cultivableAreaFallback = next;
+  });
+}
+export function getYieldPerArea(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("yieldPerArea", _yieldPerAreaFallback);
+}
+export function setYieldPerArea(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("yieldPerArea", value, next => {
+    _yieldPerAreaFallback = next;
+  });
+}
+export function getRuralFoodCapacity(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("ruralFoodCapacity", _ruralFoodCapacityFallback);
+}
+export function setRuralFoodCapacity(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("ruralFoodCapacity", value, next => {
+    _ruralFoodCapacityFallback = next;
+  });
+}
+export function getCultivatedArea(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("cultivatedArea", _cultivatedAreaFallback);
+}
+export function setCultivatedArea(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("cultivatedArea", value, next => {
+    _cultivatedAreaFallback = next;
+  });
+}
+export function getFarmLaborRequired(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("farmLaborRequired", _farmLaborRequiredFallback);
+}
+export function setFarmLaborRequired(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("farmLaborRequired", value, next => {
+    _farmLaborRequiredFallback = next;
+  });
+}
+export function getMigratableAdults(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("migratableAdults", _migratableAdultsFallback);
+}
+export function setMigratableAdults(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("migratableAdults", value, next => {
+    _migratableAdultsFallback = next;
   });
 }
 

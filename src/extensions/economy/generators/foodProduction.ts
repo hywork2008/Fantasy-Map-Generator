@@ -1,5 +1,13 @@
 import { minmax, rn } from "../../hostUtils";
-import { getMarketCellColumn, getMarkets, getWorldContext } from "../economyContext";
+import {
+  getCultivableArea,
+  getCultivatedArea,
+  getFarmLaborRequired,
+  getFoodPotential,
+  getMarketCellColumn,
+  getMarkets,
+  getWorldContext
+} from "../economyContext";
 import { GROSS_FOOD_NEED, RURAL_MARKETABLE_SHARE } from "./foodConstants";
 import { resolveFoodImportNetwork } from "./foodImportNetwork";
 
@@ -23,6 +31,15 @@ export class FoodProductionModule {
 
     const populationRate = this.worldContext.populationRate ?? 1000;
     const urbanization = this.worldContext.urbanization ?? 1;
+    const cultivableArea = getCultivableArea();
+    const cultivatedArea = getCultivatedArea();
+    const farmLaborRequired = getFarmLaborRequired();
+    const foodPotential = getFoodPotential();
+    const hasAgriculturalLandUse =
+      cultivableArea.length === pack.cells.i.length &&
+      cultivatedArea.length === pack.cells.i.length &&
+      farmLaborRequired.length === pack.cells.i.length &&
+      foodPotential.length === pack.cells.i.length;
 
     const safeQuarterIndex = Math.max(0, Math.min(3, Math.floor(quarterIndex % 4)));
     const quarterWeight = DEFAULT_QUARTERLY_WEIGHTS[safeQuarterIndex] ?? 0.25;
@@ -35,12 +52,23 @@ export class FoodProductionModule {
         if (marketCellColumn[cellId] !== market.i || pack.cells.h[cellId] < 20) continue;
 
         const rural = pack.cells.pop[cellId] * populationRate;
-        const capacity = pack.cells.capacity[cellId] * populationRate;
-        const saturation = capacity > 0 ? rural / capacity : 0;
-        const cultivation = minmax(0.25 + 0.75 * saturation, 0.25, 1);
-
         ruralPopulation += rural;
-        annualFoodProduced += capacity * GROSS_FOOD_NEED * cultivation;
+        if (hasAgriculturalLandUse) {
+          const availableAdults =
+            Math.max(0, pack.cells.maleAdults?.[cellId] ?? 0) + Math.max(0, pack.cells.femaleAdults?.[cellId] ?? 0);
+          const requiredAdults = Math.max(0, farmLaborRequired[cellId] ?? 0);
+          const labourCoverage = requiredAdults > 0 ? minmax(availableAdults / requiredAdults, 0, 1) : 0;
+          const landCoverage =
+            cultivableArea[cellId] > 0 ? minmax(cultivatedArea[cellId] / cultivableArea[cellId], 0, 1) : 0;
+          annualFoodProduced += foodPotential[cellId] * landCoverage * labourCoverage;
+        } else {
+          // Compatibility path for tests and maps created before the agricultural
+          // columns exist. New economy generation always takes the land-use path.
+          const capacity = pack.cells.capacity[cellId] * populationRate;
+          const saturation = capacity > 0 ? rural / capacity : 0;
+          const cultivation = minmax(0.25 + 0.75 * saturation, 0.25, 1);
+          annualFoodProduced += capacity * GROSS_FOOD_NEED * cultivation;
+        }
       }
 
       const urbanPopulation = pack.burgs

@@ -2,22 +2,40 @@ import { Burgs, type WorldContext } from "../../hostCore";
 import type { Burg } from "../../hostTypes";
 import {
   clearSettlementDevelopmentLastEvaluatedYear,
+  getCultivableArea,
+  getCultivatedArea,
+  getFarmLaborRequired,
   getFoodPotential,
+  getMigratableAdults,
   getMineralDeposits,
+  getRuralFoodCapacity,
   getSettlementDevelopmentLastEvaluatedYear,
   getSettlementDevelopmentPotential,
   getSimulationYear,
   getWorldContext,
+  getYieldPerArea,
+  setCultivableArea,
+  setCultivatedArea,
+  setFarmLaborRequired,
   setFoodPotential,
+  setMigratableAdults,
+  setRuralFoodCapacity,
   setSettlementDevelopmentLastEvaluatedYear,
-  setSettlementDevelopmentPotential
+  setSettlementDevelopmentPotential,
+  setYieldPerArea
 } from "../economyContext";
+import { calculateAgriculturalLandProfile } from "./agriculturalLandUse";
 
 const LAND_HEIGHT = 20;
-const FOOD_NEED_PER_PERSON = 0.43;
 
 export interface DevelopmentPotentials {
   readonly foodPotential: Float32Array;
+  readonly cultivableArea: Float32Array;
+  readonly yieldPerArea: Float32Array;
+  readonly ruralFoodCapacity: Float32Array;
+  readonly cultivatedArea: Float32Array;
+  readonly farmLaborRequired: Float32Array;
+  readonly migratableAdults: Float32Array;
   readonly settlementDevelopmentPotential: Float32Array;
 }
 
@@ -29,24 +47,44 @@ export interface DevelopmentPotentials {
 export class DevelopmentPotentialModule {
   generate(): DevelopmentPotentials {
     const world = getWorldContext();
-    const foodPotential = calculateFoodPotential(world);
+    const agriculture = calculateAgriculturalLandProfile(world);
     const settlementDevelopmentPotential = calculateSettlementDevelopmentPotential(world, getMineralDeposits());
-    setFoodPotential(foodPotential);
+    this.storeAgriculture(agriculture);
     setSettlementDevelopmentPotential(settlementDevelopmentPotential);
-    return { foodPotential, settlementDevelopmentPotential };
+    return { ...agriculture, settlementDevelopmentPotential };
   }
 
   getPotentials(): DevelopmentPotentials {
     return {
       foodPotential: getFoodPotential(),
+      cultivableArea: getCultivableArea(),
+      yieldPerArea: getYieldPerArea(),
+      ruralFoodCapacity: getRuralFoodCapacity(),
+      cultivatedArea: getCultivatedArea(),
+      farmLaborRequired: getFarmLaborRequired(),
+      migratableAdults: getMigratableAdults(),
       settlementDevelopmentPotential: getSettlementDevelopmentPotential()
     };
   }
 
   clear(): void {
     setFoodPotential(new Float32Array());
+    setCultivableArea(new Float32Array());
+    setYieldPerArea(new Float32Array());
+    setRuralFoodCapacity(new Float32Array());
+    setCultivatedArea(new Float32Array());
+    setFarmLaborRequired(new Float32Array());
+    setMigratableAdults(new Float32Array());
     setSettlementDevelopmentPotential(new Float32Array());
     clearSettlementDevelopmentLastEvaluatedYear();
+  }
+
+  /** Recomputes current crop area and farm labour once per year before food ledgers settle. */
+  updateAnnualAgriculture(): boolean {
+    const year = getSimulationYear();
+    if (getSettlementDevelopmentLastEvaluatedYear() === year) return false;
+    this.storeAgriculture(calculateAgriculturalLandProfile(getWorldContext()));
+    return true;
   }
 
   /** Reclassifies unlocked burgs at most once per simulation year. */
@@ -64,6 +102,16 @@ export class DevelopmentPotentialModule {
     setSettlementDevelopmentLastEvaluatedYear(year);
     return changed;
   }
+
+  private storeAgriculture(agriculture: Omit<DevelopmentPotentials, "settlementDevelopmentPotential">): void {
+    setFoodPotential(agriculture.foodPotential);
+    setCultivableArea(agriculture.cultivableArea);
+    setYieldPerArea(agriculture.yieldPerArea);
+    setRuralFoodCapacity(agriculture.ruralFoodCapacity);
+    setCultivatedArea(agriculture.cultivatedArea);
+    setFarmLaborRequired(agriculture.farmLaborRequired);
+    setMigratableAdults(agriculture.migratableAdults);
+  }
 }
 
 /**
@@ -72,33 +120,7 @@ export class DevelopmentPotentialModule {
  * value depends only on its environment and remains stable as its residents migrate.
  */
 export function calculateFoodPotential(world: Readonly<WorldContext>): Float32Array {
-  const { cells } = world.pack;
-  const cellCount = cells?.i?.length ?? 0;
-  const potential = new Float32Array(cellCount);
-  if (!cellCount) return potential;
-
-  const meanLandArea = getMeanLandArea(cells);
-  const maxFlux = getMaximum(cells.fl);
-  const baseline = Math.max(1, world.populationRate) * FOOD_NEED_PER_PERSON;
-
-  for (const cellId of cells.i) {
-    if (cells.h[cellId] < LAND_HEIGHT) continue;
-    const habitability = Math.max(0, world.biomesData.habitability[cells.biomeCode[cellId]] ?? 0);
-    if (habitability === 0) continue;
-
-    const areaFactor = Math.max(0.1, (cells.area[cellId] ?? meanLandArea) / meanLandArea);
-    const biomeYield = 0.25 + (0.75 * Math.min(100, habitability)) / 100;
-    const waterAccess =
-      1 +
-      (cells.r[cellId] ? 0.2 : 0) +
-      (cells.conf[cellId] ? 0.12 : 0) +
-      (maxFlux > 0 ? Math.min(0.18, ((cells.fl[cellId] ?? 0) / maxFlux) * 0.18) : 0);
-    const elevation = cells.h[cellId] ?? LAND_HEIGHT;
-    const terrainYield = elevation <= 50 ? 1 : Math.max(0.25, 1 - (elevation - 50) / 150);
-
-    potential[cellId] = baseline * areaFactor * biomeYield * waterAccess * terrainYield;
-  }
-  return potential;
+  return calculateAgriculturalLandProfile(world).foodPotential;
 }
 
 /**
@@ -131,23 +153,6 @@ export function calculateSettlementDevelopmentPotential(
     potential[burg.cell] += getBurgLocationBonus(burg);
   }
   return potential;
-}
-
-function getMeanLandArea(cells: WorldContext["pack"]["cells"]): number {
-  let total = 0;
-  let count = 0;
-  for (const cellId of cells.i) {
-    if (cells.h[cellId] < LAND_HEIGHT) continue;
-    total += cells.area[cellId] ?? 0;
-    count++;
-  }
-  return count && total > 0 ? total / count : 1;
-}
-
-function getMaximum(values: ArrayLike<number>): number {
-  let maximum = 0;
-  for (let index = 0; index < values.length; index++) maximum = Math.max(maximum, values[index] ?? 0);
-  return maximum;
 }
 
 function getBurgLocationBonus(burg: Burg): number {

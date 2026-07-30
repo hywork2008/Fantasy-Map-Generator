@@ -1331,6 +1331,9 @@ export function init(api: ExtensionAPI): void {
 
       const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
       const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
+      // Must run before the quarter's food ledger so annual demographic changes
+      // alter cultivated area and farm labour without waiting an extra quarter.
+      DevelopmentPotential.updateAnnualAgriculture();
 
       const caravanTick = Caravans.tick(effectiveDays);
       StrategicProcurement.reconcileCaravans(caravanTick.arrived, caravanTick.lost);

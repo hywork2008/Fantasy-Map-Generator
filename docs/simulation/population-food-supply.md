@@ -50,7 +50,82 @@ yieldPerArea = baseGrainYield
 
 `foodPotential` は「そのセルに住む人口が多いほど増える値」ではなく、十分に耕作・維持した場合の年間上限である。地図ロード、economy 有効化、地図再生成で `simulation.extensions.economy.foodPotential` に決定的に再生成する。
 
-### 3.2 森林と耕作可能面積
+### 3.2 セル面積・人口上限との整合性監査
+
+`pack.cells.area` は SVG 地図座標上の polygon 面積である。表示・物理換算に使う面積は、現在の距離スケールを適用して次で求める。
+
+```text
+cellAreaKm2 = cells.area[cellId] × distanceScale²
+cellAreaHa  = cellAreaKm2 × 100
+capacityPeople = cells.capacity[cellId] × populationRate
+currentRuralPeople = cells.pop[cellId] × populationRate
+```
+
+ただし `cells.capacity` は独立した農地データではない。現行の `rankCells()` は概ね `suitability × cells.area / meanCellArea` で容量を作り、その suitability 自体にバイオーム、河川・水域、標高、海岸、危険度を入れている。したがって、**容量から `foodPotential` を導くことは禁止する。** それは同じ環境要因と人口上限を二重に使う循環となる。
+
+容量の正しい役割は、食料から独立に求めた持続可能人口との監査である。
+
+```text
+edibleGrainNeedKg = people × stapleNeedKgPerPersonYear
+grossGrainNeedKg  = edibleGrainNeedKg / edibleShareAfterSeedLossStock
+requiredSownHa    = grossGrainNeedKg / netYieldKgPerSownHa
+requiredFieldHa   = requiredSownHa / annualSownShare
+
+maxSupportedPeople = maxCroplandHa
+                   × annualSownShare
+                   × netYieldKgPerSownHa
+                   × edibleShareAfterSeedLossStock
+                   / stapleNeedKgPerPersonYear
+
+ruralFoodCapacity = maxSupportedPeople / populationRate
+
+agriculturalConsistencyRatio = capacityPeople / maxSupportedPeople
+```
+
+- `requiredFieldHa` は当年の人口・在庫目標・輸出契約を満たすための実作付面積である。農業労働力はこの面積から算出する。
+- `maxCroplandHa` は物理面積そのものではなく、地形・バイオーム・森林・湿地を考慮した開墾可能上限である。
+- `annualSownShare` は休閑・輪作を含む、耕地のうち一年に播種される比率である。v1 では作物別輪作を持たず、世界設定の一律値にする。
+- `netYieldKgPerSownHa` は種子、収穫・保管損失、共同体の予備を差し引いた市場・消費可能な収量であり、気候、水利、技術で補正する。
+
+初期の実装値は `stapleNeedKgPerPersonYear = 200 kg`、`edibleShareAfterSeedLossStock = 0.65`、`annualSownShare = 0.67` を基準とし、`netYieldKgPerSownHa` は世界全体の校正値に気候補正を掛ける。FAO の近年の直接食用穀物は世界平均で一人年約149 kgであり、穀物比重が高い前近代的な仮想世界では200 kgを保守的な出発値にできる。[FAO Cereal Supply and Demand Brief](https://openknowledge.fao.org/3/cd1158en/CD1158EN_cereals.pdf) ただしこれは史実を一点再現する定数ではない。種子・備蓄・休閑・技術による差が大きいため、初期時代と地域設定を決めた後に校正する。
+
+監査は二段階で行う。
+
+1. `currentRuralPeople` に必要な `requiredFieldHa` が `maxCroplandHa` を超えないことを確認する。超えるセルは、初期地図の段階で食料不足である。
+2. `capacityPeople` が `maxSupportedPeople` を超えないことを確認する。超過は「将来、開墾・灌漑・輸入・非穀物生産なしには到達できない居住上限」として警告する。
+
+この監査で不整合を検出しても、v1 で直ちに `cells.capacity` を書き換えない。港・漁業・交易・政治的安全性も既存 capacity に混ざっているためである。代わりに `ruralFoodCapacity` を別に保持し、人口シミュレーションの実効上限を将来次で求める。
+
+```text
+effectiveRuralCapacity = min(cells.capacity, ruralFoodCapacity + verifiedExternalFoodSupport)
+```
+
+これにより、食料は capacity のコピーにならず、食料不足だけが農村の持続可能人口を制限する。
+
+### 3.3 開墾可能面積と初期作付面積
+
+```text
+maxCroplandHa = cellAreaHa
+              × terrainCroplandShare
+              × biomeCroplandCeiling
+
+initialCultivatedHa = min(
+  maxCroplandHa,
+  requiredFieldHa(currentRuralPeople + committedUrbanDemand) × 1.10
+)
+```
+
+`terrainCroplandShare` は水域、急斜面、極端な高地を除く割合である。`biomeCroplandCeiling` は森林・湿地・乾燥地により異なる開墾上限である。森林被覆は初期開墾の費用・速度を上げるが、発展可能性を永久にゼロにはしない。
+
+- `initialCultivatedHa / maxCroplandHa` が初期開墾率となる。
+- 現在の Phase 2 基盤では `committedUrbanDemand = 0` とし、セル自身の農村人口と10%の予備だけを作付へ反映する。Market の確定輸出・都市需要をこの項へ渡すのは、在庫契約を導入する次の段階である。
+- 低い比率は、将来の人口増加や輸出に対する開墾余地を意味する。
+- 高い比率は、余剰人口の都市移住、土地劣化、食料不足への脆弱性を意味する。
+- `requiredFieldHa > maxCroplandHa` は、開墾率では解決できない赤信号であり、収量改善・輸入・人口減少のいずれかが必要である。
+
+この値は `foodPotential` と混同しない。`foodPotential` は `maxCroplandHa` を十分な労働力で耕した場合の生産上限、`cultivatedArea` は当年の市場需要に応じて実際に使う面積である。
+
+### 3.4 森林と耕作可能面積
 
 森林は土地を永続的に不毛にするのではなく、初期時点で田畑に使われていない面積として扱う。
 
@@ -62,7 +137,7 @@ initialCroplandShare = clamp(0.10, 0.95, 1 - 0.85 × forestCover)
 - 将来追加する `clearedLand` は森林を開墾して `cultivableArea` を増やす動的状態とする。静的な `forestCover` だけで、森林地帯の発展可能性を永久に封じない。
 - 湿地・氾濫林など排水条件を表せるバイオームは、v1 では低い `initialCroplandShare` で表す。土壌排水や水田作は別の農業技術モデルができるまで導入しない。
 
-### 3.3 気温と降水
+### 3.5 気温と降水
 
 FAO ECOCROP は、作物生産性に温度と年間降水量の最小・最大値の双方が必要であるとしている。[ECOCROP](https://www.fao.org/geospatial/data-and-tools/data-portals/ecocrop/en) したがって、降水を無制限に加点する設計にはしない。過湿・湛水は収量を下げ、メタ分析では小麦も減収を示す。[水ストレス・湛水のメタ分析](https://pmc.ncbi.nlm.nih.gov/articles/PMC7933672/)
 

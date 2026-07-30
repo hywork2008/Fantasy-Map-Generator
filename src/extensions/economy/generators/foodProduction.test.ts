@@ -5,10 +5,22 @@ import { FoodProduction } from "./foodProduction";
 vi.mock("../economyContext", () => ({
   getWorldContext: vi.fn(),
   getMarkets: vi.fn(),
-  getMarketCellColumn: vi.fn()
+  getMarketCellColumn: vi.fn(),
+  getCultivableArea: vi.fn(() => new Float32Array()),
+  getCultivatedArea: vi.fn(() => new Float32Array()),
+  getFarmLaborRequired: vi.fn(() => new Float32Array()),
+  getFoodPotential: vi.fn(() => new Float32Array())
 }));
 
-import { getMarketCellColumn, getMarkets, getWorldContext } from "../economyContext";
+import {
+  getCultivableArea,
+  getCultivatedArea,
+  getFarmLaborRequired,
+  getFoodPotential,
+  getMarketCellColumn,
+  getMarkets,
+  getWorldContext
+} from "../economyContext";
 
 describe("FoodProduction", () => {
   let mockWorldContext: any;
@@ -74,5 +86,36 @@ describe("FoodProduction", () => {
     expect(market1.foodLedger.urbanNeed).toBeCloseTo(537.5, 1);
     expect(market1.foodLedger.exportable).toBe(0);
     expect(market1.foodLedger.importNeed).toBeGreaterThan(0);
+  });
+
+  it("uses cultivated area and farm labour coverage when agricultural columns are available", () => {
+    mockWorldContext = {
+      populationRate: 1000,
+      urbanization: 1,
+      pack: {
+        cells: {
+          i: new Uint16Array([0, 1]),
+          h: new Uint8Array([25, 25]),
+          pop: new Float32Array([10, 0]),
+          capacity: new Float32Array([20, 0]),
+          maleAdults: new Float32Array([1, 0]),
+          femaleAdults: new Float32Array([1, 0])
+        },
+        burgs: []
+      },
+      markets: [{ i: 1 }]
+    };
+    vi.mocked(getWorldContext).mockReturnValue(mockWorldContext);
+    vi.mocked(getMarkets).mockReturnValue(mockWorldContext.markets);
+    vi.mocked(getMarketCellColumn).mockReturnValue(new Uint16Array([1, 1]));
+    vi.mocked(getCultivableArea).mockReturnValue(new Float32Array([10, 0]));
+    vi.mocked(getCultivatedArea).mockReturnValue(new Float32Array([10, 0]));
+    vi.mocked(getFarmLaborRequired).mockReturnValue(new Float32Array([4, 0]));
+    vi.mocked(getFoodPotential).mockReturnValue(new Float32Array([8600, 0]));
+
+    FoodProduction.generateQuarterlyLedger(0);
+
+    // Two available adults cover half of four required agricultural adults.
+    expect(mockWorldContext.markets[0].foodLedger.foodProduced).toBeCloseTo(1075, 3);
   });
 });
