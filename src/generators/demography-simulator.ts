@@ -4,6 +4,12 @@ import { type WorldContext, worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import { applyFoodStressToDemographics } from "./agriculturalStress";
 import { Burgs } from "./burgs-generator";
+import {
+  addDemographicBuckets,
+  getCellDemographics,
+  setCellDemographics,
+  splitDemographicBuckets
+} from "./demographicTransfer";
 import { applyWoundedReturn, isManpowerSimEnabled, scaleLandMilitary } from "./manpower";
 import { recordDeaths } from "./populationLossTracker";
 
@@ -118,24 +124,16 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
       }
 
       if (bestNeighbor !== -1) {
-        // Migrate excessTotal to bestNeighbor
+        // Migrate excessTotal to bestNeighbor, preserving all four age/sex buckets.
         const ratio = excessTotal / currentTotal;
-        const mChildren = children * ratio;
-        const mMale = maleAdults * ratio;
-        const mFemale = femaleAdults * ratio;
-        const mElders = elders * ratio;
+        const { moved, remaining } = splitDemographicBuckets({ children, maleAdults, femaleAdults, elders }, ratio);
+        ({ children, maleAdults, femaleAdults, elders } = remaining);
 
-        children -= mChildren;
-        maleAdults -= mMale;
-        femaleAdults -= mFemale;
-        elders -= mElders;
-
-        pack.cells.children[bestNeighbor] += mChildren;
-        pack.cells.maleAdults[bestNeighbor] += mMale;
-        pack.cells.femaleAdults[bestNeighbor] += mFemale;
-        pack.cells.elders[bestNeighbor] += mElders;
-
-        pack.cells.pop[bestNeighbor] += excessTotal;
+        setCellDemographics(
+          pack.cells,
+          bestNeighbor,
+          addDemographicBuckets(getCellDemographics(pack.cells, bestNeighbor), moved)
+        );
       } else {
         // No migration possible -> Starvation reduction
         const starvationRate = Math.min(0.99, Math.abs(roomForGrowth) * deltaYears * 0.02);
@@ -323,18 +321,10 @@ function promoteRuralSettlements(
     const ruralPopulation = cells.pop[candidate.cellId] ?? 0;
     if (ruralPopulation <= 0) continue;
     const ratio = candidate.settlementPopulation / ruralPopulation;
+    const { moved, remaining } = splitDemographicBuckets(getCellDemographics(cells, candidate.cellId), ratio);
+    setCellDemographics(cells, candidate.cellId, remaining);
     burg.population = candidate.settlementPopulation;
-    burg.demographics = {
-      capacity: candidate.settlementPopulation * 1.5,
-      children: cells.children[candidate.cellId] * ratio,
-      maleAdults: cells.maleAdults[candidate.cellId] * ratio,
-      femaleAdults: cells.femaleAdults[candidate.cellId] * ratio,
-      elders: cells.elders[candidate.cellId] * ratio
-    };
-    for (const column of ["children", "maleAdults", "femaleAdults", "elders"] as const) {
-      cells[column][candidate.cellId] -= burg.demographics[column];
-    }
-    cells.pop[candidate.cellId] -= candidate.settlementPopulation;
+    burg.demographics = { capacity: candidate.settlementPopulation * 1.5, ...moved };
     Burgs.changeGroup(burg);
     newBurgsAdded = true;
     routesAdded = Boolean(result.newRoute) || routesAdded;
