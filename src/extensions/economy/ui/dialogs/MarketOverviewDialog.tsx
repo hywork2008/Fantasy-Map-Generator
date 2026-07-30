@@ -37,6 +37,7 @@ export const MarketOverviewDialog: React.FC = () => {
   const cellsCount = useMarketOverviewState(state => state.cellsCount);
   const burgsCount = useMarketOverviewState(state => state.burgsCount);
   const totalStock = useMarketOverviewState(state => state.totalStock);
+  const agTechStockPercent = useMarketOverviewState(state => state.agTechStockPercent);
   const headerRef = React.useRef<HTMLTableSectionElement | null>(null);
   const [activeTab, setActiveTab] = React.useState<"goods" | "burgMerchants">("goods");
 
@@ -264,6 +265,9 @@ export const MarketOverviewDialog: React.FC = () => {
               <div>Cells: {cellsCount}</div>
               <div>Burgs: {burgsCount}</div>
               <div>Stock: {totalStock}</div>
+              <div data-tip="Rural iron-tool/plow adoption funded from this market's treasury (docs/plan/rural-agtech-investment.md)">
+                Ag Tech: {agTechStockPercent}%
+              </div>
             </div>
             <div id="marketOverviewInfo">
               {owner && (

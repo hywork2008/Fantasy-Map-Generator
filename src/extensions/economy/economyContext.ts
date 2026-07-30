@@ -43,6 +43,8 @@ let _ruralReleasePressureFallback: Float32Array<ArrayBufferLike> = new Float32Ar
 let _settlementDevelopmentPotentialFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 let _settlementDevelopmentLastEvaluatedYearFallback: number | null = null;
 let _agTechLastSettledYearFallback: number | null = null;
+let _industrialTechLastSettledYearFallback: number | null = null;
+let _stateAgriculturalProductivityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
 export function initEconomyContext(api: ExtensionAPI): void {
   _api = api;
@@ -61,6 +63,8 @@ export function clearEconomyContext(): void {
   _settlementDevelopmentPotentialFallback = new Float32Array();
   _settlementDevelopmentLastEvaluatedYearFallback = null;
   _agTechLastSettledYearFallback = null;
+  _industrialTechLastSettledYearFallback = null;
+  _stateAgriculturalProductivityFallback = new Float32Array();
 }
 
 export function getApi(): ExtensionAPI {
@@ -344,6 +348,40 @@ export function setAgTechLastSettledYear(year: number): void {
     return;
   }
   _agTechLastSettledYearFallback = year;
+}
+
+/** Same guard as getAgTechLastSettledYear, for IndustrialTechInvestment.settleAnnual() (docs/plan/rural-agtech-investment.md §6.2). */
+export function getIndustrialTechLastSettledYear(): number | null {
+  const slice = getEconomySlice();
+  if (slice) {
+    const value = slice.industrialTechLastSettledYear;
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return _industrialTechLastSettledYearFallback;
+}
+export function setIndustrialTechLastSettledYear(year: number): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice.industrialTechLastSettledYear = year;
+    return;
+  }
+  _industrialTechLastSettledYearFallback = year;
+}
+
+/**
+ * 0..1 saturating EWMA of State-funded agricultural infrastructure investment, indexed by
+ * state.i (docs/plan/rural-agtech-investment.md §6.1). Kept in the economy extension's own
+ * slice rather than as a new `State` field, since `State` is a host type whose dynamic fields
+ * require also updating StateSimulationState/SIMULATION_STATE_FIELDS
+ * (src/runtime/simulationStateState.ts) — this value is purely an economy-extension artifact.
+ */
+export function getStateAgriculturalProductivity(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("stateAgriculturalProductivity", _stateAgriculturalProductivityFallback);
+}
+export function setStateAgriculturalProductivity(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("stateAgriculturalProductivity", value, next => {
+    _stateAgriculturalProductivityFallback = next;
+  });
 }
 
 /** Yearly burg-level intake ledgers; these model only new worker acceptance, not incumbent occupations. */

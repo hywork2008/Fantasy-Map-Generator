@@ -3,7 +3,8 @@ import type { WorldContext } from "../../hostCore";
 import {
   AGTECH_NO_DRAFT_EFFECT_SHARE,
   AGTECH_YIELD_BONUS_MAX,
-  calculateAgriculturalLandProfile
+  calculateAgriculturalLandProfile,
+  STATE_YIELD_BONUS_MAX
 } from "./agriculturalLandUse";
 
 function createWorld(): WorldContext {
@@ -103,5 +104,22 @@ describe("agricultural land use", () => {
     const partialBonusMultiplier = 1 + AGTECH_YIELD_BONUS_MAX * AGTECH_NO_DRAFT_EFFECT_SHARE;
     expect(withAgTech.yieldPerArea[0]).toBeCloseTo(baseline.yieldPerArea[0] * fullBonusMultiplier, 4);
     expect(withAgTech.yieldPerArea[1]).toBeCloseTo(baseline.yieldPerArea[1] * partialBonusMultiplier, 4);
+  });
+
+  it("raises yield with State-funded infrastructure, independent of market-level agTech", () => {
+    const world = createWorld();
+    const baseline = calculateAgriculturalLandProfile(world);
+    const withStateOnly = calculateAgriculturalLandProfile(world, undefined, new Float32Array([0, 1]));
+    const withBoth = calculateAgriculturalLandProfile(world, new Float32Array([0, 1]), new Float32Array([0, 1]));
+
+    const stateBonusMultiplier = 1 + STATE_YIELD_BONUS_MAX;
+    const combinedMultiplier =
+      (1 + AGTECH_YIELD_BONUS_MAX * AGTECH_NO_DRAFT_EFFECT_SHARE) * (1 + STATE_YIELD_BONUS_MAX);
+    expect(withStateOnly.yieldPerArea[1]).toBeCloseTo(baseline.yieldPerArea[1] * stateBonusMultiplier, 4);
+    expect(withBoth.yieldPerArea[1]).toBeCloseTo(baseline.yieldPerArea[1] * combinedMultiplier, 4);
+    // State-level infrastructure has no direct labor-savings multiplier (unlike market-level
+    // AgTech's effectiveLaborDaysPerHectare), but farmLaborRequired still falls indirectly:
+    // higher yield means less cultivatedArea is needed to feed the same population.
+    expect(withStateOnly.farmLaborRequired[1]).toBeLessThan(baseline.farmLaborRequired[1]);
   });
 });

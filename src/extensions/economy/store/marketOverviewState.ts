@@ -35,6 +35,8 @@ interface MarketOverviewState {
   cellsCount: number;
   burgsCount: number;
   totalStock: number;
+  /** Percent 0-100, rounded. See Market.agTechStock (docs/plan/rural-agtech-investment.md). */
+  agTechStockPercent: number;
 }
 
 export const useMarketOverviewState = create<MarketOverviewState>(() => ({
@@ -46,7 +48,8 @@ export const useMarketOverviewState = create<MarketOverviewState>(() => ({
   burgMerchantRows: [],
   cellsCount: 0,
   burgsCount: 0,
-  totalStock: 0
+  totalStock: 0,
+  agTechStockPercent: 0
 }));
 
 export const getMarketOverviewState = useMarketOverviewState.getState;

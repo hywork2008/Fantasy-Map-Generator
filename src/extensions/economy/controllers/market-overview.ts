@@ -108,7 +108,8 @@ export function refreshMarketOverview(): void {
     burgMerchantRows,
     cellsCount: getMarketCellColumn().reduce((count, marketCellId) => count + (marketCellId === market.i ? 1 : 0), 0),
     burgsCount: burgs.length,
-    totalStock: rn(totalUnits, 2)
+    totalStock: rn(totalUnits, 2),
+    agTechStockPercent: rn((market.agTechStock ?? 0) * 100, 0)
   });
 }
 

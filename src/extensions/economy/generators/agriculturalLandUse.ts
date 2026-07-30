@@ -20,6 +20,14 @@ export const AGTECH_NO_DRAFT_EFFECT_SHARE = 0.6;
 /** Biome tags where Cattle/Horses are actually raised locally (their biomeOutputByTag keys in goods-generator.ts). */
 export const DRAFT_CAPABLE_BIOME_TAGS: readonly string[] = ["grassland", "nomadic"];
 
+/**
+ * State-funded public agricultural infrastructure (roads, irrigation), driven by
+ * AgTechInvestment.settleAnnual()'s state-level settlement. See docs/plan/rural-agtech-investment.md §6.1.
+ * Yield-only: unlike AGTECH_*, this has no labor-savings or draft-animal gating — infrastructure
+ * helps crops grow but doesn't reduce any individual farmer's labor.
+ */
+export const STATE_YIELD_BONUS_MAX = 0.15;
+
 export interface AgriculturalLandProfile {
   /** Maximum area that can become cropland under current terrain and biome constraints, in ha. */
   readonly cultivableArea: Float32Array;
@@ -49,15 +57,17 @@ export interface AgriculturalLandProfile {
  * It never reads population or carrying capacity while deriving environmental
  * production potential; those values are consumed only by current cultivation.
  *
- * `agTechStockByCell` is an optional per-cell resolution of Market.agTechStock (the caller
- * broadcasts each market's stock to its cells via marketCellColumn — this function stays
- * unaware of Markets, matching its existing population/Market-independent design). Omitted or
+ * `agTechStockByCell` is an optional per-cell resolution of Market.agTechStock, and
+ * `stateProductivityByCell` of stateAgriculturalProductivity (the caller broadcasts each
+ * market's/state's stock to its cells via marketCellColumn/cells.state — this function stays
+ * unaware of Markets and States, matching its existing population-independent design). Omitted or
  * out-of-range entries are treated as 0, so callers without AgTechInvestment wired up (tests,
- * legacy call sites) get the pre-existing behavior unchanged. See docs/plan/rural-agtech-investment.md §3.4.
+ * legacy call sites) get the pre-existing behavior unchanged. See docs/plan/rural-agtech-investment.md §3.4, §6.1.
  */
 export function calculateAgriculturalLandProfile(
   world: Readonly<WorldContext>,
-  agTechStockByCell?: Float32Array
+  agTechStockByCell?: Float32Array,
+  stateProductivityByCell?: Float32Array
 ): AgriculturalLandProfile {
   const cells = world.pack.cells;
   const count = cells?.i?.length ?? 0;
@@ -102,9 +112,13 @@ export function calculateAgriculturalLandProfile(
     const hasDraftAnimal = biomeTags.some(tag => DRAFT_CAPABLE_BIOME_TAGS.includes(tag));
     const rawAgTechStock = agTechStockByCell?.[cellId] ?? 0;
     const effectiveAgTech = rawAgTechStock * (hasDraftAnimal ? 1 : AGTECH_NO_DRAFT_EFFECT_SHARE);
+    const stateProductivity = stateProductivityByCell?.[cellId] ?? 0;
 
     const yieldKgPerHa =
-      BASE_NET_YIELD_KG_PER_SOWN_HECTARE * relativeYield[cellId] * (1 + AGTECH_YIELD_BONUS_MAX * effectiveAgTech);
+      BASE_NET_YIELD_KG_PER_SOWN_HECTARE *
+      relativeYield[cellId] *
+      (1 + AGTECH_YIELD_BONUS_MAX * effectiveAgTech) *
+      (1 + STATE_YIELD_BONUS_MAX * stateProductivity);
     yieldPerArea[cellId] = yieldKgPerHa;
 
     const supported = supportedPeople(area, yieldKgPerHa);

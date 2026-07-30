@@ -98,6 +98,12 @@ export interface MineOperation {
   technology: number;
   drainage: number;
   fuelAccess: number;
+  /**
+   * 0..1 EWMA of annual Tools investment coverage, independent of the prospect()-derived
+   * `technology` baseline (docs/plan/rural-agtech-investment.md §6.2). Undefined (pre-Phase-2
+   * saves, or test fixtures that construct MineOperation directly) is treated as 0.
+   */
+  toolsInvestmentStock?: number;
   annualOutputTons: Partial<Record<MineralCommodity, number>>;
   active: boolean;
 }

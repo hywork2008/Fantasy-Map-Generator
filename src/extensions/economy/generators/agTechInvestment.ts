@@ -6,8 +6,10 @@ import {
   getMarketCellColumn,
   getMarkets,
   getSimulationYear,
+  getStateAgriculturalProductivity,
   getWorldContext,
-  setAgTechLastSettledYear
+  setAgTechLastSettledYear,
+  setStateAgriculturalProductivity
 } from "../economyContext";
 import { isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
@@ -16,6 +18,8 @@ import { Markets } from "./markets-generator";
  * Rural technology investment: Markets spend from their own treasury to buy Tools (the existing
  * Iron Ore -> Iron Ingot -> Tools chain's end product) for their cultivated land, building up a
  * saturating adoption stock that feeds cellAgriculturalModifier in agriculturalLandUse.ts.
+ * States separately fund a slower, State-treasury-financed layer (stateAgriculturalProductivity,
+ * §6.1) modeling public infrastructure (roads, irrigation) rather than individual farm tools.
  * See docs/plan/rural-agtech-investment.md.
  */
 
@@ -25,6 +29,13 @@ export const TARGET_TOOLS_PER_HECTARE = 0.02;
 export const AGTECH_BUDGET_SHARE_OF_TREASURY = 0.15;
 /** EWMA smoothing: ~7 simulated years of sustained full coverage to approach agTechStock = 1. */
 export const AGTECH_ADOPTION_RATE = 0.15;
+
+/** Smaller than TARGET_TOOLS_PER_HECTARE — public infrastructure, not per-farmer tool ownership. */
+export const STATE_TARGET_TOOLS_PER_HECTARE = 0.008;
+/** Share of a State's treasury (not a Market's) that may fund this investment in one year. */
+export const STATE_BUDGET_SHARE_OF_TREASURY = 0.1;
+/** Slower institutional adoption than the market-level EWMA. */
+export const STATE_ADOPTION_RATE = 0.1;
 
 export class AgTechInvestmentModule {
   private get worldContext() {
@@ -44,14 +55,24 @@ export class AgTechInvestmentModule {
     const marketCellColumn = getMarketCellColumn();
     if (!cultivatedAreaByCell.length || !marketCellColumn.length) return true;
 
-    const cultivatedHectaresByMarket = new Map<number, number>();
     const cells = this.worldContext.pack.cells;
+    const cultivatedHectaresByMarket = new Map<number, number>();
+    // stateId -> marketId -> hectares, so State investment (§6.1) buys from the same market's
+    // Tools stock its farmers use, apportioned to whichever state actually owns each cell.
+    const hectaresByStateAndMarket = new Map<number, Map<number, number>>();
+
     for (const cellId of cells.i) {
       const marketId = marketCellColumn[cellId];
       if (!marketId) continue;
       const hectares = cultivatedAreaByCell[cellId] || 0;
       if (hectares <= 0) continue;
       cultivatedHectaresByMarket.set(marketId, (cultivatedHectaresByMarket.get(marketId) ?? 0) + hectares);
+
+      const stateId = cells.state?.[cellId] ?? 0;
+      if (!stateId) continue;
+      const byMarket = hectaresByStateAndMarket.get(stateId) ?? new Map<number, number>();
+      byMarket.set(marketId, (byMarket.get(marketId) ?? 0) + hectares);
+      hectaresByStateAndMarket.set(stateId, byMarket);
     }
 
     for (const market of getMarkets()) {
@@ -84,7 +105,50 @@ export class AgTechInvestmentModule {
       market.agTechStock = rn(previousStock * (1 - AGTECH_ADOPTION_RATE) + coverageThisYear * AGTECH_ADOPTION_RATE, 4);
     }
 
+    this.settleStates(toolsGood.i, hectaresByStateAndMarket);
+
     return true;
+  }
+
+  /** State-treasury-funded public agricultural infrastructure (§6.1); a separate pool from Markets'. */
+  private settleStates(toolsGoodId: number, hectaresByStateAndMarket: Map<number, Map<number, number>>): void {
+    const states = this.worldContext.pack.states ?? [];
+    const stockByState = getStateAgriculturalProductivity();
+    const nextStockByState =
+      stockByState.length >= states.length ? stockByState.slice() : new Float32Array(states.length);
+
+    for (const state of states) {
+      if (!state?.i || state.removed) continue;
+      const byMarket = hectaresByStateAndMarket.get(state.i);
+      const totalHectares = byMarket ? [...byMarket.values()].reduce((sum, hectares) => sum + hectares, 0) : 0;
+      const previousStock = nextStockByState[state.i] ?? 0;
+
+      if (!byMarket || totalHectares <= 0) {
+        nextStockByState[state.i] = rn(previousStock * (1 - STATE_ADOPTION_RATE), 4);
+        continue;
+      }
+
+      const totalBudget = Math.max(0, state.treasury ?? 0) * STATE_BUDGET_SHARE_OF_TREASURY;
+      let purchasedTotal = 0;
+      let requestedTotal = 0;
+
+      for (const [marketId, hectares] of byMarket) {
+        const requestedUnits = hectares * STATE_TARGET_TOOLS_PER_HECTARE;
+        const marketBudget = totalBudget * (hectares / totalHectares);
+        const { units, cost } = Markets.consumeForMarketInvestment(marketId, toolsGoodId, requestedUnits, marketBudget);
+        purchasedTotal += units;
+        requestedTotal += requestedUnits;
+        if (cost > 0) state.treasury = rn((state.treasury ?? 0) - cost, 2);
+      }
+
+      const coverageThisYear = requestedTotal > 0 ? Math.min(1, purchasedTotal / requestedTotal) : 0;
+      nextStockByState[state.i] = rn(
+        previousStock * (1 - STATE_ADOPTION_RATE) + coverageThisYear * STATE_ADOPTION_RATE,
+        4
+      );
+    }
+
+    setStateAgriculturalProductivity(nextStockByState);
   }
 }
 

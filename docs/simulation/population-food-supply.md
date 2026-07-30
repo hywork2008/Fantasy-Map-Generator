@@ -61,7 +61,8 @@ actualFoodProduced = foodPotential
 - `stateAgriculturalProductivity`: 技術、統治制度、治安、灌漑投資による**国家単位**の動的生産性。v1は全Stateで`1.0`とし、後続の技術・統治システムが更新する。
 - `cellAgriculturalModifier`: 開墾、水利、土壌疲弊、局地災害による**セル単位**の動的生産性。v1は全セルで`1.0`とする。
 - 実装では両者の積を`foodProductivityModifier[cell]`として持てる。`foodPotential`自身は人口・国家技術で正規化しない。
-- **2026-07-31 追記**: `cellAgriculturalModifier`のうち「Tools(鉄製農具)普及・役畜」由来の技術要因は[rural-agtech-investment.md](../plan/rural-agtech-investment.md)で実装する。ただし同設計は`yieldPerArea`側の乗数（§3.1式の`baseAgriculturalTechnology`相当）として`agriculturalLandUse.ts`内に直接織り込む形を取り、本節が定義する`actualFoodProduced`側の別係数としては実装しない（二重計上を避けるため）。`stateAgriculturalProductivity`は同設計のスコープ外で、v1の`1.0`固定のまま。
+- **2026-07-31 追記**: `cellAgriculturalModifier`のうち「Tools(鉄製農具)普及・役畜」由来の技術要因は[rural-agtech-investment.md](../plan/rural-agtech-investment.md)で実装した。ただし同設計は`yieldPerArea`側の乗数（§3.1式の`baseAgriculturalTechnology`相当）として`agriculturalLandUse.ts`内に直接織り込む形を取り、本節が定義する`actualFoodProduced`側の別係数としては実装しない（二重計上を避けるため）。
+- **2026-07-31 追記(Phase 2)**: `stateAgriculturalProductivity`のうち「技術・灌漑投資」要因も同設計の§6.1で実装した(同じく`yieldPerArea`側の乗数として)。「統治制度」要因は未実装、「治安」要因は既存の`foodStressProductionMultiplier(stateId)`が担う。
 - `cultivatedAreaCoverage = cultivatedArea / cultivableArea`: 開墾可能な全面積のうち、当期に実際に作付けている割合。
 - `laborCoverage = min(1, farmLaborAllocated / farmLaborRequired)`: §4.1で定義する労働充足率。面積・国家・局地係数と独立に、労働力不足だけで生産を減衰させる。
 

@@ -14,6 +14,8 @@ import { getMinedGoodName, type MineOperation, type MineralCommodity, type Miner
 
 const INITIAL_OPERATION_ACCESSIBILITY = 0.5;
 const PROSPECTING_ACCESSIBILITY = 0.35;
+/** How much toolsInvestmentStock=1 (IndustrialTechInvestment) raises extractionFactor. */
+const MINE_TECH_BONUS_MAX = 0.3;
 /** Base headcount a mine needs even at minimal richness (prospecting, hauling, site upkeep). */
 const REQUIRED_WORKERS_BASE = 4;
 /** Additional headcount per richness point (1..5) to run the deposit at full extractionFactor. */
@@ -116,11 +118,19 @@ export class MineOperationsModule {
       }
 
       const workerFactor = Math.min(1, operation.workers / getMineRequiredWorkers(deposit));
+      // toolsInvestmentStock (IndustrialTechInvestment.settleAnnual(), independent of the
+      // prospect()-derived `technology` baseline) applies as its own multiplier — docs/plan/rural-agtech-investment.md §6.2.
+      const investmentBonus = 1 + MINE_TECH_BONUS_MAX * (operation.toolsInvestmentStock ?? 0);
       const extractionFactor = Math.max(
         0,
         Math.min(
           1,
-          workerFactor * operation.technology * operation.drainage * operation.fuelAccess * deposit.accessibility
+          workerFactor *
+            operation.technology *
+            investmentBonus *
+            operation.drainage *
+            operation.fuelAccess *
+            deposit.accessibility
         )
       );
       const annualOutput: Partial<Record<MineralCommodity, number>> = {};
@@ -183,6 +193,7 @@ export class MineOperationsModule {
       technology: developed ? 1.1 : 1,
       drainage: this.getDrainage(deposit.depth, developed),
       fuelAccess: developed ? (deposit.accessibility >= 0.6 ? 0.8 : 0.7) : 0.65,
+      toolsInvestmentStock: 0,
       annualOutputTons: {},
       active: true
     };

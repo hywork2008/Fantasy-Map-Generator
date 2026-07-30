@@ -15,6 +15,7 @@ import {
   getSettlementDevelopmentLastEvaluatedYear,
   getSettlementDevelopmentPotential,
   getSimulationYear,
+  getStateAgriculturalProductivity,
   getWorldContext,
   getYieldPerArea,
   setCultivableArea,
@@ -49,6 +50,27 @@ function resolveAgTechStockByCell(cellCount: number): Float32Array {
   return stockByCell;
 }
 
+/**
+ * Broadcasts each State's stateAgriculturalProductivity (docs/plan/rural-agtech-investment.md
+ * §6.1) to its cells via cells.state, so calculateAgriculturalLandProfile stays State-unaware.
+ */
+function resolveStateProductivityByCell(cells: WorldContext["pack"]["cells"]): Float32Array {
+  const cellCount = cells?.i?.length ?? 0;
+  const stockByCell = new Float32Array(cellCount);
+  const stateColumn = cells?.state;
+  if (!stateColumn) return stockByCell;
+
+  const productivityByState = getStateAgriculturalProductivity();
+  if (!productivityByState.length) return stockByCell;
+
+  for (let cellId = 0; cellId < cellCount; cellId++) {
+    const stateId = stateColumn[cellId];
+    if (!stateId) continue;
+    stockByCell[cellId] = productivityByState[stateId] ?? 0;
+  }
+  return stockByCell;
+}
+
 const LAND_HEIGHT = 20;
 
 export interface DevelopmentPotentials {
@@ -72,7 +94,8 @@ export class DevelopmentPotentialModule {
   generate(): DevelopmentPotentials {
     const world = getWorldContext();
     const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
-    const agriculture = calculateAgriculturalLandProfile(world, agTechStockByCell);
+    const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
+    const agriculture = calculateAgriculturalLandProfile(world, agTechStockByCell, stateProductivityByCell);
     const settlementDevelopmentPotential = calculateSettlementDevelopmentPotential(world, getMineralDeposits());
     this.storeAgriculture(agriculture);
     setSettlementDevelopmentPotential(settlementDevelopmentPotential);
@@ -112,7 +135,8 @@ export class DevelopmentPotentialModule {
     if (getSettlementDevelopmentLastEvaluatedYear() === year) return false;
     const world = getWorldContext();
     const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
-    this.storeAgriculture(calculateAgriculturalLandProfile(world, agTechStockByCell));
+    const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
+    this.storeAgriculture(calculateAgriculturalLandProfile(world, agTechStockByCell, stateProductivityByCell));
     return true;
   }
 

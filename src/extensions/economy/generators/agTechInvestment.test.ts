@@ -4,6 +4,7 @@ import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
   getMarkets,
+  getStateAgriculturalProductivity,
   initEconomyContext,
   setCultivatedArea,
   setGoodCellColumn,
@@ -11,7 +12,7 @@ import {
   setMarketCellColumn,
   setMarkets
 } from "../economyContext";
-import { AGTECH_ADOPTION_RATE, AgTechInvestment } from "./agTechInvestment";
+import { AGTECH_ADOPTION_RATE, AgTechInvestment, STATE_ADOPTION_RATE } from "./agTechInvestment";
 import { Goods } from "./goods-generator";
 import { Markets } from "./markets-generator";
 
@@ -133,5 +134,56 @@ describe("AgTechInvestmentModule", () => {
     const market = getMarkets()[0];
     expect(market.agTechStock).toBeLessThan(0.5);
     expect(market.agTechStock).toBeGreaterThan(0);
+  });
+
+  it("also funds stateAgriculturalProductivity from the state treasury, separately from the market's", () => {
+    worldContext.pack.cells.state = Uint16Array.from([1, 1]);
+    worldContext.pack.states = [
+      { i: 0, name: "Neutral" },
+      { i: 1, name: "Test State", treasury: 1000 }
+    ] as unknown as PackedGraph["states"];
+    setMarkets([
+      {
+        i: 1,
+        centerBurgId: 1,
+        color: "#111",
+        goods: { [TOOLS_ID]: { stock: 100, price: 14 } },
+        marketTreasury: { balance: 1000, ruralGrainPayable: 0 }
+      }
+    ]);
+    Markets.sync();
+
+    AgTechInvestment.settleAnnual();
+
+    const state = worldContext.pack.states[1];
+    expect(state.treasury).toBeLessThan(1000);
+    const productivity = getStateAgriculturalProductivity();
+    expect(productivity[1]).toBeGreaterThan(0);
+    expect(productivity[1]).toBeLessThanOrEqual(STATE_ADOPTION_RATE + 1e-6);
+    // Market-level agTech (funded from marketTreasury) is unaffected by the state's own spend.
+    expect(getMarkets()[0].agTechStock).toBeGreaterThan(0);
+  });
+
+  it("decays stateAgriculturalProductivity for a state with no cultivated cells", () => {
+    worldContext.pack.cells.state = Uint16Array.from([0, 0]);
+    worldContext.pack.states = [
+      { i: 0, name: "Neutral" },
+      { i: 1, name: "Test State", treasury: 1000 }
+    ] as unknown as PackedGraph["states"];
+    setMarkets([
+      {
+        i: 1,
+        centerBurgId: 1,
+        color: "#111",
+        goods: { [TOOLS_ID]: { stock: 100, price: 14 } },
+        marketTreasury: { balance: 1000, ruralGrainPayable: 0 }
+      }
+    ]);
+    Markets.sync();
+
+    AgTechInvestment.settleAnnual();
+
+    expect(getStateAgriculturalProductivity()[1] ?? 0).toBe(0);
+    expect(worldContext.pack.states[1].treasury).toBe(1000);
   });
 });

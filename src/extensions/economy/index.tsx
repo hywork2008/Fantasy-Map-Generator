@@ -57,6 +57,7 @@ import {
   isGoodEnabled,
   migrateLegacyOreIngotGoods
 } from "./generators/goods-generator";
+import { IndustrialTechInvestment } from "./generators/industrialTechInvestment";
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
 import { Markets } from "./generators/markets-generator";
 import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
@@ -1360,8 +1361,10 @@ export function init(api: ExtensionAPI): void {
       const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
       // Must run before updateAnnualAgriculture() so this year's Tools investment feeds
       // this year's yieldPerArea/farmLaborRequired recompute, not next year's
-      // (docs/plan/rural-agtech-investment.md §3.5).
+      // (docs/plan/rural-agtech-investment.md §3.5). Industrial tech runs right after so
+      // mine/smelter investment claims each market's treasury only after farms have (§6.3).
       AgTechInvestment.settleAnnual();
+      IndustrialTechInvestment.settleAnnual();
       // Must run before the quarter's food ledger so annual demographic changes
       // alter cultivated area and farm labour without waiting an extra quarter.
       const agricultureRefreshed = DevelopmentPotential.updateAnnualAgriculture();

@@ -21,6 +21,11 @@ export interface SmelterOperation {
   waterPower: number;
   fuelAccess: number;
   technology: number;
+  /**
+   * 0..1 EWMA of annual Tools investment coverage, independent of `technology`
+   * (docs/plan/rural-agtech-investment.md §6.2). Undefined (pre-Phase-2 saves/fixtures) is 0.
+   */
+  toolsInvestmentStock?: number;
   smeltingYield: number;
   annualCapacityTons: number;
   /** Actual employed adults, a subset of the owning Burg's population (docs/plan/urban-employment-demand.md §0). */
@@ -46,6 +51,8 @@ const FRONTIER_WILDERNESS = 0;
 const FRONTIER_OUTPOST = 1;
 const FRONTIER_SETTLEMENT = 2;
 const FRONTIER_INCORPORATED = 3;
+/** How much toolsInvestmentStock=1 (IndustrialTechInvestment) raises processingFactor. */
+const SMELTER_TECH_BONUS_MAX = 0.3;
 /** Base headcount a smelter needs even at minimal throughput (furnace tending, hauling). */
 const REQUIRED_WORKERS_BASE = 4;
 /** Additional headcount per annual tonne of ore capacity to run at full processingFactor (calibration TBD). */
@@ -86,6 +93,7 @@ export class SmelterOperationsModule {
         waterPower: site.waterPower,
         fuelAccess: site.fuelAccess,
         technology: previous?.technology ?? mine.technology,
+        toolsInvestmentStock: previous?.toolsInvestmentStock ?? 0,
         smeltingYield: previous?.smeltingYield ?? DEFAULT_SMELTING_YIELD,
         annualCapacityTons,
         // A newly built smelter staffs up immediately; annual reconciliation (basicEmployment.ts)
@@ -130,7 +138,13 @@ export class SmelterOperationsModule {
       if (!totalAnnualOreCapacity) continue;
 
       const workerFactor = Math.min(1, smelter.workers / getSmelterRequiredWorkers(smelter));
-      const processingFactor = Math.min(1, smelter.waterPower * smelter.fuelAccess * smelter.technology * workerFactor);
+      // toolsInvestmentStock (IndustrialTechInvestment.settleAnnual()) applies as its own
+      // multiplier, independent of the prospect()-derived `technology` — docs/plan/rural-agtech-investment.md §6.2.
+      const investmentBonus = 1 + SMELTER_TECH_BONUS_MAX * (smelter.toolsInvestmentStock ?? 0);
+      const processingFactor = Math.min(
+        1,
+        smelter.waterPower * smelter.fuelAccess * smelter.technology * investmentBonus * workerFactor
+      );
       const monthlyCapacity = (smelter.annualCapacityTons * processingFactor) / 12;
       if (monthlyCapacity <= 0) continue;
 
