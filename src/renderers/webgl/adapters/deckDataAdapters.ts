@@ -40,8 +40,10 @@ import { getCachedBurgIconRaster } from "../burgIconRasterCache";
 import { getCachedEmblemIconUrl } from "../emblemIconCache";
 import { hasExternalIconFailed } from "../externalIconFailureCache";
 import { isFlatLandTopology, type LandGeometryProjection, materializeLandPolygon } from "../flatLandTopology";
+import type { DeckLandCellGeometry, DeckPosition } from "./deckGeometryTypes";
 
-export type DeckPosition = [number, number];
+export type { DeckLandCellGeometry, DeckPosition } from "./deckGeometryTypes";
+
 export type DeckPathDashArray = readonly [number, number];
 
 export interface DeckCellPolygon {
@@ -288,11 +290,6 @@ export interface DeckEmblemIcon {
 }
 
 export type DeckDivisionBoundaryKind = "state" | "province" | "culture" | "religion";
-
-export interface DeckLandCellGeometry {
-  cellId: number;
-  polygon: DeckPosition[];
-}
 
 export function colorToRgba(value: string | undefined, fallback: string, opacity = 1): Color {
   const parsed = parseColor(value || fallback) ?? parseColor(fallback);

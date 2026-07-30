@@ -1,23 +1,16 @@
 import type { Burg } from "../../hostTypes";
 import type { Good } from "./goods-generator";
 import type { Market } from "./marketTypes";
-import type { ProcurementOrder } from "./strategicProcurement";
+import { type LaborMarket, STRATEGIC_OCCUPATIONS, type StrategicOccupation } from "./strategicLaborMarketsTypes";
+import type { ProcurementOrder } from "./strategicProcurementTypes";
 import {
   getStrategicDemandMultiplier,
   getStrategicProductionDemandByGood,
   type StrategicProductionDemand
 } from "./strategicProductionDemand";
 
-export const STRATEGIC_OCCUPATIONS = ["forestry", "sailmaking", "ropeMaking", "tarBurning", "trade"] as const;
-export type StrategicOccupation = (typeof STRATEGIC_OCCUPATIONS)[number];
-
-export interface LaborMarket {
-  marketId: number;
-  workersByOccupation: Partial<Record<StrategicOccupation, number>>;
-  wageByOccupation: Partial<Record<StrategicOccupation, number>>;
-  skillByOccupation: Partial<Record<StrategicOccupation, number>>;
-  capacityByOccupation: Partial<Record<StrategicOccupation, number>>;
-}
+export type { LaborMarket, StrategicOccupation } from "./strategicLaborMarketsTypes";
+export { STRATEGIC_OCCUPATIONS } from "./strategicLaborMarketsTypes";
 
 export interface StrategicLaborMarketInputs {
   markets: readonly Market[];

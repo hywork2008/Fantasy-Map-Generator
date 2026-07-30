@@ -1,16 +1,9 @@
 import { rn } from "../../hostUtils";
 import { getApi, getTradeSecurityLedgers, getWorldContext, setTradeSecurityLedgers } from "../economyContext";
+import type { TradeSecurityLedger } from "./tradeSecurityTypes";
 import { UrbanLaborIntake } from "./urbanLaborIntake";
 
-export interface TradeSecurityLedger {
-  stateId: number;
-  /** Configured 0..1 investment level for state-wide caravan security. */
-  investmentLevel: number;
-  /** State treasury actually paid for the current production month. */
-  monthlyUpkeepPaid: number;
-  /** Caravans lost while travelling toward this state during the current production month. */
-  lastCaravansLost: number;
-}
+export type { TradeSecurityLedger } from "./tradeSecurityTypes";
 
 const BASE_BANDIT_RISK_PER_DAY = 0.001;
 const SECURITY_UPKEEP_BASE = 0.2;

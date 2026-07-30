@@ -53,6 +53,7 @@ let presets: Record<string, string[]> = {};
 import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { WEBGL_LAYER_TOGGLES } from "../renderers/webgl/buildDeckLayers";
 import { DeckGlRenderer } from "../renderers/webgl/deckRenderer";
+import { registerSvgPaintFunction } from "../services/svgPaintRegistry";
 import { tip } from "../services/tooltipService";
 import { generationProgressStore } from "../store/generationProgressState";
 import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
@@ -424,6 +425,8 @@ export function paintSvgMapLayers(): void {
   if (layerIsOn("toggleRulers")) rulers.draw();
   syncWebglManagedSvgLayerVisibility();
 }
+
+registerSvgPaintFunction(paintSvgMapLayers);
 
 export function drawLayers(): void {
   if (viewContext.renderMode === "webglHybrid" && DeckGlRenderer.render(worldContext, viewContext, appServices)) {

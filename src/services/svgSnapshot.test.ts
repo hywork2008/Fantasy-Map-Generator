@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../controllers/layers", () => ({
+vi.mock("./svgPaintRegistry", () => ({
   paintSvgMapLayers: vi.fn()
 }));
 
@@ -21,10 +21,10 @@ vi.mock("../runtime/presentationData", () => ({
 }));
 
 import { viewContext } from "../context/viewContext";
-import { paintSvgMapLayers } from "../controllers/layers";
 import { bindViewLayersFromSvg } from "../initViewLayers";
 import { projectPresentationToSvg } from "../renderers/presentationProjection";
 import { applyHybridLayerPolicy } from "../renderers/webgl/hybridLayerPolicy";
+import { paintSvgMapLayers } from "./svgPaintRegistry";
 import { withOffscreenSvgExport } from "./svgSnapshot";
 
 function installLiveMap(): SVGSVGElement {

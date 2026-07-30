@@ -11,27 +11,9 @@ import {
 } from "../economyContext";
 import { rollBalancedEconomyGender } from "./economyCharacterGender";
 import type { Market } from "./marketTypes";
+import type { MerchantOrganization, MerchantOrganizationScale } from "./merchantOrganizationsTypes";
 
-export type MerchantOrganizationScale = "local" | "regional" | "major";
-
-export interface MerchantOrganization {
-  i: number;
-  name: string;
-  scale: MerchantOrganizationScale;
-  homeBurgId: number;
-  homeMarketId: number;
-  homeStateId: number;
-  chairpersonCharacterId: number;
-  secretaryCharacterId?: number;
-  bodyguardCharacterId?: number;
-  executiveCharacterIds?: number[];
-  memberCharacterIds: number[];
-  parentOrganizationId?: number;
-  childOrganizationIds?: number[];
-  tradeRangeKm: number;
-  urbanPreference: number;
-  ruralFocus: number;
-}
+export type { MerchantOrganization, MerchantOrganizationScale } from "./merchantOrganizationsTypes";
 
 const LOCAL_TRADE_RANGE_KM = 120;
 const REGIONAL_TRADE_RANGE_KM = 260;

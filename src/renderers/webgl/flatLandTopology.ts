@@ -1,4 +1,4 @@
-import type { DeckLandCellGeometry, DeckPosition } from "./adapters/deckDataAdapters";
+import type { DeckLandCellGeometry, DeckPosition } from "./adapters/deckGeometryTypes";
 
 /**
  * Compact, renderer-owned projection of land polygons. `polygonOffsets` is a CSR-style

@@ -10,29 +10,29 @@ import type { ExtensionAPI } from "../../types/extension-api";
 import type { Burg } from "../../types/models";
 import { addFrontierApplicants as addFrontierApplicantsToPool } from "../hostCore";
 import type { AdministrationEmploymentRecord } from "./generators/administrationEmployment";
-import type { BurgMarketLedger } from "./generators/burgMarketLedgers";
-import type { ConstructionOperation } from "./generators/constructionEmployment";
-import type { Good } from "./generators/goods-generator";
+import type { BurgMarketLedger } from "./generators/burgMarketLedgersTypes";
+import type { ConstructionOperation } from "./generators/constructionEmploymentTypes";
+import type { Good } from "./generators/goodsGeneratorTypes";
 import type { Caravan, Deal, Market } from "./generators/marketTypes";
-import type { MerchantOrganization } from "./generators/merchantOrganizations";
-import type { MilitaryResourceLedger } from "./generators/militaryResources";
+import type { MerchantOrganization } from "./generators/merchantOrganizationsTypes";
+import type { MilitaryResourceLedger } from "./generators/militaryResourcesTypes";
 import type {
   MineOperation,
   MineralDeposit,
   MineralDistrict,
   MineralGeologicalProvince
-} from "./generators/mineralResources";
-import type { MintLedger } from "./generators/minting";
-import type { ProductionRecord } from "./generators/production-generator";
-import type { QuarryOperation } from "./generators/quarryOperations";
+} from "./generators/mineralResourcesTypes";
+import type { MintLedger } from "./generators/mintingTypes";
+import type { ProductionRecord } from "./generators/productionRecordTypes";
+import type { QuarryOperation } from "./generators/quarryOperationsTypes";
 import type { BasicEmploymentSummaryRecord } from "./generators/serviceEmployment";
-import type { SmelterOperation } from "./generators/smelterOperations";
-import type { LaborMarket } from "./generators/strategicLaborMarkets";
-import type { ProcurementOrder } from "./generators/strategicProcurement";
+import type { SmelterOperation } from "./generators/smelterOperationsTypes";
+import type { LaborMarket } from "./generators/strategicLaborMarketsTypes";
 import type { StrategicGoodsPolicy } from "./generators/strategicProcurementPolicy";
-import type { TradeSecurityLedger } from "./generators/tradeSecurity";
-import type { BanditCohort, MobileAdultCohort, UrbanLaborIntake } from "./generators/urbanLaborIntake";
-import type { VolcanicAshOperation } from "./generators/volcanicAshOperations";
+import type { ProcurementOrder } from "./generators/strategicProcurementTypes";
+import type { TradeSecurityLedger } from "./generators/tradeSecurityTypes";
+import type { BanditCohort, MobileAdultCohort, UrbanLaborIntake } from "./generators/urbanLaborIntakeTypes";
+import type { VolcanicAshOperation } from "./generators/volcanicAshOperationsTypes";
 
 let _api: ExtensionAPI | null = null;
 let _foodPotentialFallback: Float32Array<ArrayBufferLike> = new Float32Array();

@@ -3,81 +3,21 @@ import { color, shuffler } from "d3";
 import { resolveBiomeOutputRate } from "../../../data/biomeEconomy";
 import { getCoastalHabitatKey, getNearshoreHabitatKey } from "../../../data/coastalHabitatCatalog";
 import type { BiomeTag } from "../../../types/biome";
-import {
-  type CultureType,
-  type PackedGraph,
-  SHIP_CLASS_DEFINITIONS,
-  SHIP_VALUE_PER_BUILD_POINT
-} from "../../hostTypes";
+import { type PackedGraph, SHIP_CLASS_DEFINITIONS, SHIP_VALUE_PER_BUILD_POINT } from "../../hostTypes";
 import { TIME } from "../../hostUtils";
 import { getGoodCellColumn, getGoods, getWorldContext, setGoodCellColumn, setGoods } from "../economyContext";
+import {
+  DEMAND_PRIORITY,
+  type DemandCategory,
+  type Good,
+  type GoodTradeProfile,
+  type TradeScale,
+  type TradeTrend
+} from "./goodsGeneratorTypes";
 
-export type WarEconomyType = "military" | "essential" | "strategic" | "luxury";
-type TradeScale = 1 | 2 | 3 | 4 | 5;
-type TradeTrend = -2 | -1 | 0 | 1 | 2 | 3;
+export type { DemandCategory, Good, GoodTradeProfile, WarEconomyType } from "./goodsGeneratorTypes";
+export { DEMAND_PRIORITY } from "./goodsGeneratorTypes";
 
-export interface GoodTradeProfile {
-  /** Low values are easier to transport. */
-  weight: TradeScale;
-  /** Low values fit more units into a cart, ship hold, or warehouse. */
-  bulk: TradeScale;
-  /** How constrained the good is by rare origin, skill, or materials. */
-  rarity: TradeScale;
-  /** Value change from moving the good away from its origin. Negative means local sale is usually better. */
-  distancePremium: TradeTrend;
-  /** Value change while cargo waits in transit or storage. Negative means rapid spoilage. */
-  timeValueTrend: TradeTrend;
-  /** Resistance to spoilage, breakage, escape, theft-prone handling loss, and similar cargo damage. */
-  durability: TradeScale;
-  /** Expected loss rate in normal carriage. High values are worse. */
-  lossRisk: TradeScale;
-}
-
-export interface Good {
-  warEconomyType?: WarEconomyType;
-  /** This cargo can only travel over water-only trade routes. */
-  seaOnly?: boolean;
-  i: number;
-
-  // generation
-  chance?: number;
-  distribution?: string;
-  /** Explicit production by catalog-local code (legacy / fine-grained). */
-  biomeOutput?: Partial<Record<number, number>>;
-  /**
-   * Production by BiomeTag — applies to all biomes carrying that tag, including
-   * Phase-1 additions (great forest, mangrove, cloud forest, …).
-   */
-  biomeOutputByTag?: Partial<Record<BiomeTag, number>>;
-  recipes?: Record<number, number>[];
-
-  // multipliers; absent or 1 = no effect; 0 = fully suppressed
-  multipliers?: {
-    cultureType?: Partial<Record<CultureType, number>>;
-    culture?: Partial<Record<number, number>>;
-    state?: Partial<Record<number, number>>;
-    religion?: Partial<Record<number, number>>;
-    biome?: Partial<Record<number, number>>;
-    zone?: Partial<Record<number, number>>; // keyed by zone.i; rare, resolved via cell membership
-  };
-
-  // effects
-  demandCoverage?: Partial<Record<DemandCategory, number>>;
-  trade?: GoodTradeProfile;
-
-  // lore
-  name: string;
-  tags: string[];
-  value: number;
-  unit: string;
-
-  // ui
-  icon: string;
-  color: string;
-}
-
-export const DEMAND_PRIORITY = ["food", "utilities", "construction", "military", "hunting", "luxury"] as const;
-export type DemandCategory = (typeof DEMAND_PRIORITY)[number];
 export const DEMAND_TARGET_FACTORS: Record<DemandCategory, number> = {
   food: 0.2,
   utilities: 0.15,

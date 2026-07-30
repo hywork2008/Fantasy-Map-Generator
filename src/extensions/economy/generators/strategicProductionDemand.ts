@@ -1,4 +1,4 @@
-import type { ProcurementOrder } from "./strategicProcurement";
+import type { ProcurementOrder } from "./strategicProcurementTypes";
 
 export interface StrategicProductionDemand {
   goodId: number;

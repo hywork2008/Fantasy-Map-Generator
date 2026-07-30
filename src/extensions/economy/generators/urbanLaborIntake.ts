@@ -17,6 +17,11 @@ import {
 } from "../economyContext";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import type { FoodLedger } from "./marketTypes";
+import type {
+  BanditCohort,
+  MobileAdultCohort,
+  UrbanLaborIntake as UrbanLaborIntakeRecord
+} from "./urbanLaborIntakeTypes";
 
 /** Fraction of a burg's current population it can absorb as new workers in a neutral year. */
 export const DEFAULT_ANNUAL_URBAN_INTAKE_RATE = 0.02;
@@ -38,35 +43,6 @@ const FOOD_STOCK_AGE_KEYS = ["foodStockAge0", "foodStockAge1", "foodStockAge2"] 
 
 export interface UrbanLaborRandom {
   rand(): number;
-}
-
-/** A burg's new-worker capacity for a single year; it does not model incumbent jobs. */
-export interface UrbanLaborIntake {
-  burgId: number;
-  year: number;
-  businessCycle: number;
-  localVariation: number;
-  offeredAdults: number;
-  remainingAdults: number;
-}
-
-/** Adults expelled by rural labour allocation, awaiting a city, frontier, or outlaw outcome. */
-export interface MobileAdultCohort {
-  originCell: number;
-  originState: number;
-  maleAdults: number;
-  femaleAdults: number;
-  yearsSearching: number;
-}
-
-/** People outside a burg or rural cell who subsist through predation until later security work resolves them. */
-export interface BanditCohort {
-  originCell: number;
-  targetState: number;
-  maleAdults: number;
-  femaleAdults: number;
-  /** Consecutive quarters this cohort's raid fell 10%+ short of its basic food need. */
-  consecutiveShortfallQuarters?: number;
 }
 
 export interface UrbanMobilityResult {
@@ -98,10 +74,10 @@ export class UrbanLaborIntakeModule {
     return this.resolveMobileAdults(world, rng);
   }
 
-  generateAnnualIntakes(world: Readonly<WorldContext>, rng: UrbanLaborRandom): UrbanLaborIntake[] {
+  generateAnnualIntakes(world: Readonly<WorldContext>, rng: UrbanLaborRandom): UrbanLaborIntakeRecord[] {
     const year = getSimulationYear();
     const businessCycleByState = new Map<number, number>();
-    const intakes: UrbanLaborIntake[] = [];
+    const intakes: UrbanLaborIntakeRecord[] = [];
 
     // §5.1 decision 4 / Phase 4: total-driven employmentDemand replaces the population-self-
     // referencing formula only in "megacity" mode. In "independent" mode (the default), the
@@ -294,7 +270,7 @@ export class UrbanLaborIntakeModule {
     const candidates = getUrbanLaborIntakes()
       .filter(intake => intake.remainingAdults > 0)
       .map(intake => ({ intake, burg: world.pack.burgs[intake.burgId] }))
-      .filter((candidate): candidate is { intake: UrbanLaborIntake; burg: Burg } => {
+      .filter((candidate): candidate is { intake: UrbanLaborIntakeRecord; burg: Burg } => {
         const burg = candidate.burg;
         if (!burg?.i || burg.removed || burg.state !== cohort.originState) return false;
         return Math.hypot(burg.x - origin[0], burg.y - origin[1]) <= maximumDistance;

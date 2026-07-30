@@ -2,26 +2,11 @@ import type { Character, CharacterRole } from "../../characters/characterTypes";
 import type { Burg } from "../../hostTypes";
 import { minmax, rn } from "../../hostUtils";
 import { getBurgMarketLedgers, getDeals, getMarkets, getWorldContext, setBurgMarketLedgers } from "../economyContext";
+import type { BurgMarketLedger, BurgMarketMerchantEntry } from "./burgMarketLedgersTypes";
 import type { Deal, Market } from "./marketTypes";
 import { clearMerchantOrganizations, syncMerchantOrganizations } from "./merchantOrganizations";
 
-export interface BurgMarketLedger {
-  burgId: number;
-  marketId: number;
-  merchants: BurgMarketMerchantEntry[];
-  lastUpdatedTick?: number;
-  vacantSinceTick?: number;
-  warIntensity?: number;
-  warDurationTicks?: number;
-}
-
-export interface BurgMarketMerchantEntry {
-  characterId: number;
-  revenue: number;
-  share: number;
-  influence?: number;
-  organizationId?: number;
-}
+export type { BurgMarketLedger, BurgMarketMerchantEntry } from "./burgMarketLedgersTypes";
 
 export const BURG_MARKET_MERCHANT_ROLE_SOURCE = "economy";
 export const BURG_MARKET_MERCHANT_ROLE_KIND = "burgMarketMerchant";

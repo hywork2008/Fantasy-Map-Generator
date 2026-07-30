@@ -22,6 +22,7 @@ import { patchPresentation } from "../runtime/worldRuntime";
 import { onFontAdded } from "../services/fonts";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
+import { viewStateStore } from "../store";
 import { useExtensionState } from "../store/extensionState";
 import { useOptionsState } from "../store/optionsState";
 import type { SelectOption } from "../store/styleState";
@@ -37,7 +38,6 @@ import { confirmationDialog, downloadFile, uploadFile } from "../utils/editorHel
 import { getElementById, layerIsOn, getElementBySelector as queryElementBySelector } from "../utils/nodeUtils";
 import { VERSION } from "../versioning";
 import { schedule3dSceneUpdate, scheduleWebglUpdate, toggleRelief } from "./layers";
-import { showOptions } from "./options";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -105,7 +105,7 @@ document.addEventListener("fmg:edit-style", (e: Event) => {
 });
 
 export function editStyle(element: string, group?: string): void {
-  showOptions();
+  viewStateStore.getState().setMenuOpen(true);
   getRequiredElementById<HTMLButtonElement>("styleTab").click();
   useStyleState.getState().setActiveElement(element);
   if (group) {

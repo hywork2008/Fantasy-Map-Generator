@@ -9,6 +9,9 @@ import {
 } from "../economyContext";
 import { isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
+import type { VolcanicAshOperation } from "./volcanicAshOperationsTypes";
+
+export type { VolcanicAshOperation } from "./volcanicAshOperationsTypes";
 
 /** Base headcount an ash works needs even at minimal site quality. */
 const REQUIRED_WORKERS_BASE = 3;
@@ -20,15 +23,6 @@ export interface VolcanicAshCandidate {
   burgId: number;
   /** Count of the burg's immediate neighbor cells belonging to the "volcanic" geological province. */
   volcanicNeighborCount: number;
-}
-
-export interface VolcanicAshOperation {
-  i: number;
-  burgId: number;
-  marketId: number;
-  ashWorkers: number;
-  volcanicNeighborCount: number;
-  active: boolean;
 }
 
 /**

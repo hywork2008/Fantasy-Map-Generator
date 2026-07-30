@@ -9,8 +9,11 @@ import {
   getWorldContext,
   setConstructionOperations
 } from "../economyContext";
+import type { ConstructionOperation } from "./constructionEmploymentTypes";
 import { isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
+
+export type { ConstructionOperation } from "./constructionEmploymentTypes";
 
 /** Adult headcount at which `getTargetBuildingStock()` reaches ~63% of full saturation. */
 const POPULATION_SCALE_ADULTS = 400;
@@ -42,19 +45,6 @@ const BASE_ANNUAL_STOCK_GROWTH = 0.25;
  * bootstrapping deadlock before construction has had any time to grow.
  */
 const MIN_CAPACITY_SHARE = 0.5;
-
-export interface ConstructionOperation {
-  i: number;
-  burgId: number;
-  marketId: number;
-  masonWorkers: number;
-  carpenterWorkers: number;
-  /** 0..1 saturating stock of built infrastructure relative to the Burg's current population. */
-  buildingStock: number;
-  /** Set at generate() time from QuarryOperations; §7.1 decision 5's "地形が建材を排出しない" case. */
-  hasQuarryAccess: boolean;
-  active: boolean;
-}
 
 /**
  * Population-driven target for `buildingStock` (docs/plan/urban-construction-industry.md §3.3):

@@ -7,7 +7,7 @@
  */
 
 import type { ExtensionAPI } from "../hostTypes";
-import type { ShipHull, ShipyardQueueEntry, SurplusShipyardQueueEntry } from "./generators/shipyardQueue";
+import type { ShipHull, ShipyardQueueEntry, SurplusShipyardQueueEntry } from "./generators/shipyardQueueTypes";
 
 let _api: ExtensionAPI | null = null;
 

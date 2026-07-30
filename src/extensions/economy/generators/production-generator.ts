@@ -30,6 +30,14 @@ import { MineOperations } from "./mineOperations";
 import { isMineSuppliedGoodName } from "./mineralResources";
 import { Minting } from "./minting";
 import { getModifiers, MAX_BONUS_PRODUCTION } from "./production-utils";
+import type {
+  DealRecord,
+  Ingredient,
+  MfgRecord,
+  ProductionCandidate,
+  ProductionRecipeEntry,
+  ProductionRecord
+} from "./productionRecordTypes";
 import { QuarryOperations } from "./quarryOperations";
 import { SmelterOperations } from "./smelterOperations";
 import {
@@ -45,6 +53,16 @@ import {
 } from "./strategicProductionDemand";
 import { TradeSecurity } from "./tradeSecurity";
 import { VolcanicAshOperations } from "./volcanicAshOperations";
+
+export type {
+  DealRecord,
+  Ingredient,
+  LocalRecord,
+  MfgRecord,
+  ProductionCandidate,
+  ProductionRecipeEntry,
+  ProductionRecord
+} from "./productionRecordTypes";
 
 const BONUS_URBAN_PRODUCTION = 1;
 
@@ -866,7 +884,6 @@ type PlannedAction = {
 };
 
 type Recipe = { good: Good; ingredients: Ingredient[] };
-export type Ingredient = { goodId: number; amount: number };
 
 type ProductionIndex = {
   goods: Good[];
@@ -917,22 +934,6 @@ type ProductionDecision = {
   laborProductivity: number;
 };
 
-export type ProductionCandidate = {
-  goodId: number;
-  units: number;
-  sellPrice: number;
-  ingredientCost: number;
-  cultureModifier: number;
-  demandCategory: DemandCategory | null;
-  demandMultiplier: number;
-  score: number;
-  ingredients: readonly Ingredient[];
-  goalGoodId?: number;
-  isPreparation?: boolean;
-  gainPerWorker?: number; // set for prep candidates: goal projected gain per worker (demand-weighted)
-  workersNeeded?: number; // total workers in the chain (prep + goal)
-};
-
 type GoalActionPlan = {
   goalGoodId: number;
   workersNeeded: number;
@@ -942,21 +943,5 @@ type GoalActionPlan = {
   action: PlannedAction;
   candidate: ProductionCandidate;
 };
-
-export type ProductionRecipeEntry = { goodId: number; units: number };
-
-export type DealRecord = { dealId: number };
-
-export type MfgRecord = {
-  goodId: number;
-  units: number;
-  recipe: ProductionRecipeEntry[];
-  cultureModifier?: number; // omitted when 1
-  candidates?: readonly ProductionCandidate[]; // recorded only when DEBUG.production is on
-};
-
-export type LocalRecord = { goodId: number; units: number };
-
-export type ProductionRecord = DealRecord | MfgRecord | LocalRecord;
 
 export const Production = new ProductionModule();

@@ -1,9 +1,9 @@
 import { viewContext } from "../context/viewContext";
-import { paintSvgMapLayers } from "../controllers/layers";
 import { bindViewLayersFromSvg } from "../initViewLayers";
 import { projectPresentationToSvg } from "../renderers/presentationProjection";
 import { applyHybridLayerPolicy } from "../renderers/webgl/hybridLayerPolicy";
 import { presentationData } from "../runtime/presentationData";
+import { paintSvgMapLayers } from "./svgPaintRegistry";
 
 const BODY_HYBRID_CLASS = "fmg-webgl-hybrid";
 const OFFSCREEN_ATTR = "data-fmg-offscreen-export";
