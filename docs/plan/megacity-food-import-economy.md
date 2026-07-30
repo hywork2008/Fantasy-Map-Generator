@@ -10,6 +10,8 @@
 
 **実装状況**: Phase 1を開始済み。potential列の生成・再生成と、非ロックBurgの年次group再評価は実装した。食料台帳の置換、移住、昇格候補へのpotential接続は後続Phaseで行う。
 
+**2026-07-30 再校正**: `LABOUR_DAYS_PER_HECTARE`を45日/haから30日/haへ再校正した。45日/haは既定フォールバック気候（climateYield≈0.90）のセルでさえ自給に成人の102%を要する計算となり、輸出余剰・移住余剰のどちらの原資も残らないことが判明したためである。本モデルは同じ農村成人プールから食料輸出と都市移住の両方を賄う設計であるため、典型セルに双方の原資となる明確な余力（30〜40%程度）が必要である。30日/haはClark(2006)の史料範囲（27〜35日/ha）にそのまま収まり、既定フォールバック気候で成人の約68%、良好な気候・河川ありのセルで約57%の従事率となる。詳細は[population-food-supply.md](../simulation/population-food-supply.md) §4.3を参照。
+
 **2026-07-30 実装状況（Food Ledger v2 マイルストーン1）**: Phase 2の中核を実装した。`FoodLedger`をAge0/1/2の数量・加重平均原価・`storageOverflow`・不足カウンタを持つ契約へ拡張し、四半期ごとに最古バケットの繰り上げ・破棄と新規生産の追加を行う（`foodProduction.ts`）。月次FIFO消費・Grain価格（0.8〜2.0倍レンジ）・`marketTreasury`（残高・`ruralGrainPayable`）による農村仕入れ決済と都市小売収入の優先返済を実装した（新規`foodLedgerConsumption.ts`）。`stapleFood`タグをGrainへ付与し、月次生産・価格形成・Burg需要充足の一般Goods経路から除外、`market.goods[GrainId].stock`は`exportable + storageOverflow`の同期ビューとした。当初計画にはなかった追加として、各Burgに自都市消費量10日分の手元備蓄`Burg.foodReserve`を新設し、都市の食料消費はまずこれを消費してからMarket在庫を使う。市場間輸送・State備蓄・軍事補給・移住・飢餓死亡切替は本マイルストーンでは未着手（既存のFood Ledger暫定`resolveFoodImportNetwork()`は、新しいバケット合計から再計算した`exportable`/`importNeed`を使うよう更新しただけで、内部ロジックは変更していない）。
 
 この決定により、食料輸入は「未使用の農村人口上限を都市へ振り替える」仕組みではなく、後背地の生産力・農業労働力・在庫・輸送網が実際に都市人口を支える仕組みになる。
@@ -139,7 +141,7 @@ foodProduced = cultivatedArea × yieldPerArea × foodProductivityModifier × lab
 - `cultivatedArea`は地域消費・目標在庫・確定輸出需要から求め、`cultivableArea`を超えない。
 - `farmLaborRequired`未満では生産が比例して低下する。農業に不要な成人は、農村の非農業需要と安全余力を除いて都市移住の候補になる。
 - 実際に都市へ出せる成人は、農業余剰`migratableAdults`だけで決めず、年次の`sustainableAdultOutflow`も満たす必要がある。災害がない場合に成人在庫を一度に都市へ移して農村を空洞化させないためである。
-- 初期校正では結果として成人労働力の70〜80%級が農業へ配分される範囲を目標にするが、この比率を移住計算の固定入力にはしない。
+- 初期校正では結果として、既定フォールバック気候のセルで成人労働力の概ね65〜70%、気候・水利に恵まれたセルではそれ以下が農業へ配分される範囲を目標にするが、この比率を移住計算の固定入力にはしない。
 - 初期v1では規模の経済・作物別季節性を持ち込まず、一律の`"food"`タグを維持する。ただし、World Configuratorの地図中央緯度と赤道・極地温度から導く地図共通の軽い四半期収穫補正は適用する。作物別の腐敗・収穫暦は後続課題とする。
 
 この分離により、農村人口が`cells.capacity`未満でも十分な農業労働力に達していれば、安定した余剰が生まれる。また、技術・水利・戦争が`foodProductivityModifier`を変えれば、人口を変えずに生産力だけが変化する。
@@ -653,7 +655,7 @@ interface PopulationMigration {
 
 - [x] `simulation.extensions.economy`へ`foodPotential`と`settlementDevelopmentPotential`のTypedArrayを追加し、環境要因だけから決定的に生成する。
 - [ ] Stateごとの国内生産対需要比を監査・表示し、国家・局地の農業生産性係数を実収量へ適用する。初期時点で人口や地図全体を基準に`foodPotential`を自動正規化しない。
-- [x] 農業の初期時代を13世紀ごろの北西ヨーロッパ型とし、基準収量450 kg/ha、労働投入45日/ha、農業可能日140日/成人年、安全余力15%と決定する。
+- [x] 農業の初期時代を13世紀ごろの北西ヨーロッパ型とし、基準収量450 kg/ha、労働投入30日/ha（2026-07-30再校正、旧45日/ha）、農業可能日140日/成人年、安全余力15%と決定する。
 - [x] v1では季節雇用・出稼ぎ移住を個別には扱わず、15%の農業労働安全余力へ含め、労働市場モデルへ後送すると決定する。
 - [x] economy有効化、マップロード、再生成時の再計算を実装する。派生キャッシュなので、旧セーブへの列追加やPackedGraphの保存形式変更は行わない。
 - [ ] `agriculturalStress`の`capacity`直接削減を廃止し、State `foodStress`から一時的な食料生産性補正を適用する（設計決定済み、未実装）。
