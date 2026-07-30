@@ -55,6 +55,7 @@ export const EmploymentOverviewDialog: React.FC = () => {
             <col />
             <col />
             <col />
+            <col />
           </colgroup>
           <thead className="header">
             <tr>
@@ -64,7 +65,10 @@ export const EmploymentOverviewDialog: React.FC = () => {
               <th data-tip="Mining employment (§3.2)">Mining</th>
               <th data-tip="Smelting employment (§3.2)">Smelting</th>
               <th data-tip="Trade employment attributed from this Burg's Market (§3.3)">Trade</th>
-              <th data-tip="basicEmploymentDemand = Admin + Mining + Smelting + Trade">Basic</th>
+              <th data-tip="Craft/manufacturing employment observed from recipe-based Goods production, e.g. Cloth/Garments (§3.7)">
+                Craft
+              </th>
+              <th data-tip="basicEmploymentDemand = Admin + Mining + Smelting + Trade + Craft">Basic</th>
               <th data-tip="serviceEmploymentDemand = basicEmploymentDemand × serviceMultiplier (§3.5)">Service</th>
               <th data-tip="employmentDemand = basicEmploymentDemand + serviceEmploymentDemand — drives urbanLaborIntake in Megacity mode (§3.6)">
                 Total
@@ -74,7 +78,7 @@ export const EmploymentOverviewDialog: React.FC = () => {
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={9}>
+                <td colSpan={10}>
                   <span>No Burg has recorded employment demand yet</span>
                 </td>
               </tr>
@@ -102,6 +106,7 @@ const EmploymentRow: React.FC<{ row: EmploymentOverviewRow }> = ({ row }) => (
     <td>{row.mining || ""}</td>
     <td>{row.smelting || ""}</td>
     <td>{row.trade || ""}</td>
+    <td>{row.craft || ""}</td>
     <td>{row.basicEmploymentDemand}</td>
     <td>{row.serviceEmploymentDemand}</td>
     <td>

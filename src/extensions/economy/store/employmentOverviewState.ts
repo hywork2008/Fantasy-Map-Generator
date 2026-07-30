@@ -9,6 +9,7 @@ export interface EmploymentOverviewRow {
   mining: number;
   smelting: number;
   trade: number;
+  craft: number;
   basicEmploymentDemand: number;
   serviceEmploymentDemand: number;
   employmentDemand: number;

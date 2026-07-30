@@ -3,6 +3,7 @@ import { rn } from "../../hostUtils";
 import {
   getAdministrationEmployment,
   getBasicEmploymentSummary,
+  getCraftEmploymentRecords,
   getMineOperations,
   getSmelterOperations,
   getWorldContext
@@ -31,6 +32,7 @@ export function refreshEmploymentOverview(): void {
   const miningByBurg = sumActiveByBurg(getMineOperations());
   const smeltingByBurg = sumActiveByBurg(getSmelterOperations());
   const tradeByBurg = getTradeWorkersByBurg();
+  const craftByBurg = new Map(getCraftEmploymentRecords().map(record => [record.burgId, record.workers]));
   const summaryByBurg = new Map(getBasicEmploymentSummary().map(record => [record.burgId, record]));
 
   const burgIds = new Set<number>([
@@ -38,6 +40,7 @@ export function refreshEmploymentOverview(): void {
     ...miningByBurg.keys(),
     ...smeltingByBurg.keys(),
     ...tradeByBurg.keys(),
+    ...craftByBurg.keys(),
     ...summaryByBurg.keys()
   ]);
 
@@ -59,6 +62,7 @@ export function refreshEmploymentOverview(): void {
       mining: rn(miningByBurg.get(burgId) ?? 0, 1),
       smelting: rn(smeltingByBurg.get(burgId) ?? 0, 1),
       trade: rn(tradeByBurg.get(burgId) ?? 0, 1),
+      craft: rn(craftByBurg.get(burgId) ?? 0, 1),
       basicEmploymentDemand: rn(basicEmploymentDemand, 1),
       serviceEmploymentDemand: rn(serviceEmploymentDemand, 1),
       employmentDemand: rn(basicEmploymentDemand + serviceEmploymentDemand, 1)

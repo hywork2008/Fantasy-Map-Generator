@@ -8,6 +8,7 @@ import {
   getMineOperations,
   getSmelterOperations,
   initEconomyContext,
+  setCraftEmploymentRecords,
   setMarkets,
   setMineOperations,
   setMineralDeposits,
@@ -284,6 +285,33 @@ describe("reconcileAnnualBasicEmploymentWorkers", () => {
     const [summary] = getBasicEmploymentSummary();
     expect(summary).toMatchObject({ burgId: 1, basicEmploymentDemand: 12 });
     expect(summary.serviceEmploymentDemand).toBeCloseTo(12 * 1.5, 5);
+  });
+
+  it("attributes a Burg's craft employment record without an admin/mine/smelter slot", () => {
+    setBurgs({ maleAdults: 100, femaleAdults: 100 });
+    setCraftEmploymentRecords([{ burgId: 1, workers: 7 }]);
+
+    reconcileAnnualBasicEmploymentWorkers();
+
+    // Craft is read (not reallocated), like trade — it does not draw on the Burg's own adult pool.
+    const [summary] = getBasicEmploymentSummary();
+    expect(summary).toMatchObject({ burgId: 1, basicEmploymentDemand: 7 });
+    expect(summary.serviceEmploymentDemand).toBeCloseTo(7 * 1.5, 5);
+  });
+
+  it("sums craft employment alongside admin/mine/smelter/trade into the same Burg's basicEmploymentDemand", () => {
+    setBurgs({ maleAdults: 100, femaleAdults: 100 });
+    worldContext.pack.states = [
+      undefined,
+      { i: 1, name: "Test", capital: 1, burgs: 1, rural: 0, urban: 0, removed: false }
+    ] as unknown as PackedGraph["states"];
+    setCraftEmploymentRecords([{ burgId: 1, workers: 3 }]);
+
+    reconcileAnnualBasicEmploymentWorkers();
+
+    // admin required = 4 + 0 + 1 = 5; maxChange = max(1, 5*0.25) = 1.25 -> 0 to 1.25.
+    const [summary] = getBasicEmploymentSummary();
+    expect(summary.basicEmploymentDemand).toBeCloseTo(1.25 + 3, 5);
   });
 
   it("derives serviceEmploymentDemand as 1.5x the Burg's basicEmploymentDemand subtotal", () => {

@@ -3,6 +3,7 @@ import { DEBUG, ERROR, rn, TIME } from "../../hostUtils";
 import {
   getBurgProductionRecords,
   getConstructionOperations,
+  getCraftEmploymentRecords,
   getDeals,
   getGoodCellColumn,
   getGoods,
@@ -11,6 +12,7 @@ import {
   getStrategicProcurementOrders,
   getWorldContext,
   setBurgProductionRecords,
+  setCraftEmploymentRecords,
   setDeals,
   setStrategicLaborMarkets
 } from "../economyContext";
@@ -21,6 +23,7 @@ import {
   ConstructionOperations,
   getConstructionProductivityMultiplier
 } from "./constructionEmployment";
+import { smoothCraftWorkers } from "./craftEmployment";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, Goods, getDemandTargets, isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
@@ -166,8 +169,9 @@ export class ProductionModule {
     const constructionOperationByBurg = new Map(
       getConstructionOperations().map(operation => [operation.burgId, operation])
     );
+    const craftWorkersByBurg = new Map(getCraftEmploymentRecords().map(record => [record.burgId, record.workers]));
 
-    return { index, sortedBurgs, strategicLaborMarketById, constructionOperationByBurg };
+    return { index, sortedBurgs, strategicLaborMarketById, constructionOperationByBurg, craftWorkersByBurg };
   }
 
   private produceForBurg(burg: Burg, cycle: ProductionCycle): void {
@@ -182,7 +186,11 @@ export class ProductionModule {
       cycle.strategicLaborMarketById.get(market.i),
       cycle.constructionOperationByBurg.get(burg.i)
     );
-    this.runWorkerLoop(cycle.index, state);
+    const craftWorkersUsed = this.runWorkerLoop(cycle.index, state);
+    cycle.craftWorkersByBurg.set(
+      burg.i,
+      smoothCraftWorkers(cycle.craftWorkersByBurg.get(burg.i) ?? 0, craftWorkersUsed)
+    );
 
     const phaseRevenue = this.sellInventoryToMarket(state);
     burg.treasury = rn((burg.treasury || 0) + phaseRevenue, 2);
@@ -196,6 +204,11 @@ export class ProductionModule {
     Caravans.spawnFromDeals(getDeals());
     this.fillBurgsDemand(cycle.sortedBurgs, cycle.index);
     syncBurgMarketLedgers();
+
+    const craftEmploymentRecords = Array.from(cycle.craftWorkersByBurg.entries())
+      .filter(([, workers]) => workers > 0)
+      .map(([burgId, workers]) => ({ burgId, workers }));
+    setCraftEmploymentRecords(craftEmploymentRecords);
   }
 
   private fillBurgsDemand(sortedBurgs: Burg[], index: ProductionIndex): void {
@@ -277,7 +290,8 @@ export class ProductionModule {
     };
   }
 
-  private runWorkerLoop(index: ProductionIndex, state: BurgProductionState): void {
+  /** Returns how many of the Burg's population points were engaged manufacturing recipe-based Goods this cycle (docs/plan/urban-employment-demand.md §3.7). */
+  private runWorkerLoop(index: ProductionIndex, state: BurgProductionState): number {
     let workersUsed = 0;
 
     for (let i = 0; i < Math.ceil(state.population); i++) {
@@ -300,6 +314,8 @@ export class ProductionModule {
       this.executeManufacture(state, index, decision, workerFraction);
       workersUsed += workerFraction;
     }
+
+    return workersUsed;
   }
 
   private executeManufacture(
@@ -899,6 +915,8 @@ type ProductionCycle = {
   sortedBurgs: Burg[];
   strategicLaborMarketById: ReadonlyMap<number, LaborMarket>;
   constructionOperationByBurg: ReadonlyMap<number, ConstructionOperation>;
+  /** Smoothed craft/manufacturing worker figure per Burg (docs/plan/urban-employment-demand.md §3.7), mutated in place as each Burg is produced and persisted once the cycle finishes. */
+  craftWorkersByBurg: Map<number, number>;
 };
 
 type IncrementalProductionOptions = {

@@ -2,6 +2,7 @@ import { getBurgDemographics } from "../../hostCore";
 import {
   getAdministrationEmployment,
   getConstructionOperations,
+  getCraftEmploymentRecords,
   getMarkets,
   getMineOperations,
   getMineralDeposits,
@@ -49,7 +50,10 @@ interface BasicEmploymentSlot {
  * is already reconciled monthly against the Market's own workforce pool
  * (`reconcileStrategicLaborMarkets` in `production-generator.ts`), so this only attributes the
  * current trade headcount to its market's `centerBurgId` — it does not compete for, or draw
- * down, that Burg's adult pool a second time here.
+ * down, that Burg's adult pool a second time here. Craft/manufacturing employment (§3.7, Phase
+ * 6) follows the same read-only pattern: `production-generator.ts`'s worker loop already
+ * decides monthly how much of a Burg's population goes into recipe-based Goods, so this only
+ * reads the smoothed `craftEmployment` figure.
  *
  * Call once per simulation year, gated the same way as `UrbanLaborIntake.updateAnnualState()`.
  */
@@ -150,8 +154,13 @@ export function reconcileAnnualBasicEmploymentWorkers(): void {
   }
 
   const tradeWorkersByBurg = getTradeWorkersByBurg();
+  const craftWorkersByBurg = new Map(getCraftEmploymentRecords().map(record => [record.burgId, record.workers]));
 
-  const summaryBurgIds = new Set<number>([...slotsByBurg.keys(), ...tradeWorkersByBurg.keys()]);
+  const summaryBurgIds = new Set<number>([
+    ...slotsByBurg.keys(),
+    ...tradeWorkersByBurg.keys(),
+    ...craftWorkersByBurg.keys()
+  ]);
   const summaryRecords: BasicEmploymentSummaryRecord[] = [];
   for (const burgId of summaryBurgIds) {
     const burg = burgs[burgId];
@@ -174,7 +183,8 @@ export function reconcileAnnualBasicEmploymentWorkers(): void {
     }
 
     const burgAnchoredDemand = slots?.reduce((sum, slot) => sum + slot.getWorkers(), 0) ?? 0;
-    const basicEmploymentDemand = burgAnchoredDemand + (tradeWorkersByBurg.get(burgId) ?? 0);
+    const basicEmploymentDemand =
+      burgAnchoredDemand + (tradeWorkersByBurg.get(burgId) ?? 0) + (craftWorkersByBurg.get(burgId) ?? 0);
     summaryRecords.push(buildBasicEmploymentSummary(burgId, basicEmploymentDemand));
   }
 

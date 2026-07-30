@@ -12,6 +12,7 @@ import { addFrontierApplicants as addFrontierApplicantsToPool } from "../hostCor
 import type { AdministrationEmploymentRecord } from "./generators/administrationEmployment";
 import type { BurgMarketLedger } from "./generators/burgMarketLedgersTypes";
 import type { ConstructionOperation } from "./generators/constructionEmploymentTypes";
+import type { CraftEmploymentRecord } from "./generators/craftEmployment";
 import type { Good } from "./generators/goodsGeneratorTypes";
 import type { Caravan, Deal, Market } from "./generators/marketTypes";
 import type { MerchantOrganization } from "./generators/merchantOrganizationsTypes";
@@ -591,6 +592,12 @@ export function getBasicEmploymentSummary(): BasicEmploymentSummaryRecord[] {
 }
 export function setBasicEmploymentSummary(records: readonly BasicEmploymentSummaryRecord[]): void {
   setSliceArray("basicEmploymentSummary", records);
+}
+export function getCraftEmploymentRecords(): CraftEmploymentRecord[] {
+  return getSliceArray<CraftEmploymentRecord>("craftEmployment");
+}
+export function setCraftEmploymentRecords(records: readonly CraftEmploymentRecord[]): void {
+  setSliceArray("craftEmployment", records);
 }
 export function getMintLedgers(): MintLedger[] {
   return getSliceArray<MintLedger>("mintLedgers");

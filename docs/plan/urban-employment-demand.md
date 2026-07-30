@@ -29,6 +29,12 @@
 
 > **バランス確認の結果**: 同じseedで`独立`モードと`megacity`モードを別々に60年分進行させ、複数Burgの人口推移を比較した。小規模なBurg（人口100前後）が数十年で人口ほぼ0まで急減する現象が観測されたが、**これはmegacity/independentどちらのモードでも同一に発生する**——本計画のPhase 1〜4とは無関係な、既存の人口シミュレーション（飢饉・戦争・野盗などによる減耗）側の既知の変動であることを確認した。一方、`employmentDemand`を持つ大きめのBurg（州都・鉱山町・交易拠点）は両モードで破綻的な挙動を示さず、Employment Overviewの内訳も一貫していた。時間の制約上、`serviceMultiplier`・行政雇用係数のさらなる精密な数値調整（史料的裏付けを伴う校正）は行っていない——決定3の方針（「それらしい値を入れて後で調整する」）どおり、今回は「壊れていないことの確認」までとし、既知の影響（上記）を踏まえた継続的なバランス調整は今後の課題として残す。
 
+**2026-07-31 調査結果（サービス業雇用によるGoods需要への波及確認）**: 本計画がめざした「これまで増えなかった都市人口を、実雇用に基づいて増やす」ことが、food以外のGoods需要（衣類など`clothing`タグのGoodsを含む）にも正しく波及するかを確認した。結論: **追加実装は不要**。既存のGoods需要式（`goods-generator.ts`の`DEMAND_TARGET_FACTORS`/`demandCoverage`、`markets-generator.ts`の`collectConsumerDemand()`/`calculatePopulationByMarket()`）は、職業構成に関係なくBurgの`population`にのみ比例する汎用の人口比例式であり、`runGlobalTrade()`はこの人口比例需要を在庫目標（`reserve`）として使い、不足分をキャラバンで輸入する。したがって`employmentDemand`（本計画）が`urbanLaborIntake`（megacityモードのみ、Phase 4）経由でBurg人口を増やせば、その増加分は他の産業由来の人口増と全く同じ扱いで、foodを含む全カテゴリのGoods需要（`utilities`/`luxury`/`construction`等に紐づく`clothing`タグGoods含む）に自動的に反映される。サービス業人口だけを特別扱いする消費モデルは存在しないし、本計画の意図（人口が増えた分だけ生活必需品の需要も増える）に照らして追加する必要もない——`employmentDemand`/`serviceEmploymentDemand`は`goods-generator.ts`・`markets-generator.ts`・`production-generator.ts`のいずれからも参照されておらず（雇用系ファイルとUI表示にのみ出現）、Goods需要側は`burg.population`だけを見れば足りる設計のままで良い。この経路は`"independent"`モードでは`urbanLaborIntake`が`employmentDemand`を読まないため機能しない点は既存の不変条件（§6）どおり。
+
+**2026-07-31 調査結果（羊毛→生地→衣装の加工チェーンと雇用の関係）**: 上記の続きで、`clothing`需要を満たす具体的な物資フロー（例: `Sheep`→`Cloth`→`Garments`、`goods-generator.ts`のレシピ）が実際に機能しているか、またそれが「雇用」を生んでいるかを確認した。物資フロー自体は既に機能していた——`production-generator.ts`の`executeManufacture()`が原料を地元在庫優先で使い、不足分は`Markets.buy()`で市場から購入するため（`runGlobalTrade()`の輸入経路に乗る）、羊毛（Sheep）や生地（Cloth）を自給していないBurgでも交易で流入した原料から衣装を作れる。一方、この加工ループ（`runWorkerLoop`）は`burg.population`（人口ポイント、`demographics.maleAdults`等と同一単位）を「1周期に何工程回せるか」という汎用キャパシティとして消費するだけで、`employmentDemand`/`basicEmploymentDemand`のどこからも参照されておらず、§2.5がもともと指摘していた欠落（「原料→製品の加工に伴う雇用」）がそのまま残っていた。
+
+**2026-07-31 実装状況（Phase 6 — 手工業雇用、§3.7）**: 上記の欠落を埋めるため、`runWorkerLoop`が既に算出している「このBurgの人口ポイントのうちレシピ加工（Cloth/Garmentsなど、原料採取ではなく`recipes`を持つGoods全般）に投入された量」を`craftEmployment.ts`（新規）の`smoothCraftWorkers()`で毎周期スムージングし（減衰半減期に相当する指数平滑、係数0.2）、`basicEmployment.ts`の年次集計へ`trade`と同じ「読み取り専用・年次スロット競合に含めない」方式で合算した。`trade`同様に読み取り専用としたのは、この労働力が競合する対象（`runWorkerLoop`内の`burg.population`）が、年次スロット側の`remainingAdults`（鉱業・製錬・行政が奪い合うプール）とは別会計であり、スロット側で二重に差し引くと整合しなくなるため。`basicEmploymentDemand = 行政 + 鉱業 + 製錬 + 交易 + 手工業`となり、`serviceEmploymentDemand`（§3.5、「非基盤（サービス・小売・職人）人口」との元々の説明どおり）はこの拡大した基盤雇用にも1.5倍で反応するようになった。Employment Overviewダイアログ（Phase 5）に「Craft」列を追加し、Burg Editorの「Basic employment」表示はこの変更を自動的に反映する（`basicEmploymentSummary`を読むだけの既存コードのため変更不要）。ユニットテスト（`craftEmployment.test.ts`、`basicEmployment.test.ts`）を追加。
+
 ## 1. 目的
 
 [megacity-food-import-economy.md](megacity-food-import-economy.md)は、食料輸入と農業労働力の分離により、農村から都市へ人と食料を送る土台（`releaseRuralLaborSurplus`、`UrbanLaborIntake`、`FrontierExpansion`のプール連携、野盗ライフサイクル）を実装した。しかし、その土台がまだ答えていない問いが残っている。**都市へ送られた人は、着いた先で何をして生きるのか。**
@@ -77,7 +83,7 @@ return Math.min(
 | 産業 | 現状 | 欠けているもの |
 | --- | --- | --- |
 | 鉱業 | `MineOperation`は物資フローのみ、`workers`は固定値で人口と無関係 | 実人口を消費する採掘労働力、鉱山閉山・新規開山時の雇用増減 |
-| 製錬・加工（鍛冶相当） | `SmelterOperation`に労働力概念なし。一般`Production`（recipe変換）も労働力を消費しない | 原料→製品の加工に伴う雇用 |
+| 製錬・加工（鍛冶相当） | `SmelterOperation`に労働力概念なし。一般`Production`（recipe変換）も労働力を消費しない ~~（Phase 6で解消、§3.7）~~ | ~~原料→製品の加工に伴う雇用~~ Phase 6で`craftEmployment`として実装済み |
 | 港湾・交易 | Caravan・searoute・`BurgMarketLedger`は交易量を追跡するが、雇用への変換なし | 港湾労働者・商人の雇用 |
 | 行政・首都機能 | `burg.capital`フラグのみ。`settlementDevelopmentPotential`に加点はあるが雇用ではない | 行政職の雇用 |
 | サービス業（飲食・宿など） | 存在しない | 基盤産業雇用に追随して生まれる非基盤雇用 |
@@ -93,7 +99,8 @@ return Math.min(
 | `SmelterOperation.workers` | economy（新規フィールド） | 人口ポイント | その製錬所で実際に働く成人数。 |
 | `portTradeEmployment[burgId]` | economy simulation | 人口ポイント | 港湾荷役・商人としての雇用。交易量から導出。 |
 | `administrationEmployment[burgId]` | economy simulation | 人口ポイント | 首都・州都としての行政雇用。 |
-| `basicEmploymentDemand[burgId]` | economy simulation | 人口ポイント | 鉱業・製錬・港湾交易・行政の合計（基盤雇用）。 |
+| `craftEmployment[burgId]` | economy simulation | 人口ポイント | レシピ加工業（Cloth/Garmentsなど、専用Operationを持たない一般`Production`）の実雇用。`runWorkerLoop`の実測を指数平滑した値（§3.7、Phase 6）。 |
+| `basicEmploymentDemand[burgId]` | economy simulation | 人口ポイント | 鉱業・製錬・港湾交易・行政・手工業の合計（基盤雇用）。 |
 | `serviceEmploymentDemand[burgId]` | economy simulation | 人口ポイント | 基盤雇用に追随して生まれる非基盤雇用（飲食・小売・宿など）。 |
 | `employmentDemand[burgId]` | economy simulation | 人口ポイント | `basicEmploymentDemand + serviceEmploymentDemand`。`annualUrbanLaborIntake`の入力になる。 |
 
@@ -163,6 +170,20 @@ employmentDemand[burgId] = basicEmploymentDemand[burgId] + serviceEmploymentDema
 
 > **実装（Phase 4、§0参照）**: 決定4どおり前者（総量駆動）を採用した。`currentEmployedPopulation`はBurgの現有成人人口（`maleAdults + femaleAdults`）として実装した — `employmentDemand`自体は既に「求人数」（成人ポイント単位）であり、`burg.population`（子供・老人を含む総人口）と単位が揃わないため。`effectiveCapacity`ベースの安全弁（`remainingCapacity`）は既存のまま維持し、雇用側には追加の上限を設けていない（決定2と整合）。
 
+### 3.7 手工業（加工業）雇用 — 一般`Production`の実労働を`basicEmploymentDemand`へ読み込む
+
+§2.5がまとめていた欠落「原料→製品の加工に伴う雇用」に対応する。`production-generator.ts`の`runWorkerLoop`は、レシピ（`recipes`）を持つGoods（Cloth、Garmentsなど、鉱業・製錬・採石のような専用Operationを持たない一般加工業全般）に対して、Burgの人口ポイント（`burg.population`）のうちどれだけを毎周期の加工に投入するかを既に決定している。この値（`workersUsed`）は、鉱業・製錬の`requiredWorkers`のような固定の物理式ではなく、需要（`demandCoverage`の未充足分）に応じて周期ごとに変動する。
+
+```text
+craftWorkersUsed = runWorkerLoop()の戻り値  // 今周期、加工に投入されたBurg人口ポイント
+craftEmploymentDemand[burgId] = smoothCraftWorkers(前回値, craftWorkersUsed)  // 指数平滑（係数0.2）
+basicEmploymentDemand[burgId] += craftEmploymentDemand[burgId]
+```
+
+`trade`（§3.3）と同じ理由で、年次リコンサイルのスロット競合（`remainingAdults`を奪い合う仕組み）には含めず、読み取り専用で合算する: `runWorkerLoop`が消費する労働力プール（`burg.population`）は、年次スロットが参照する`demographics.maleAdults + femaleAdults`（`remainingAdults`）とは別会計であり、ここでスロットとして二重に差し引くと、同じ人口が「鉱業に割り当てられている」かつ「加工にも割り当てられている」という矛盾ではなく、単に一方の会計から不当に差し引かれるだけになってしまう。
+
+> **実装（Phase 6、§0参照）**: `craftEmployment.ts`（新規）の`smoothCraftWorkers()`が上記の指数平滑を行い、`production-generator.ts`の`startProductionCycle`/`produceForBurg`/`finishProductionCycle`が毎周期`craftEmployment`スライス（`CraftEmploymentRecord[]`）を更新する。`basicEmployment.ts`は`trade`と並ぶ第5の入力としてこれを読み取り、`basicEmploymentDemand`に合算する。
+
 ## 4. 実装フェーズ（暫定・次セッションで確定）
 
 進捗はコードとテストで確認できる状態だけを`[x]`とする。
@@ -197,6 +218,13 @@ employmentDemand[burgId] = basicEmploymentDemand[burgId] + serviceEmploymentDema
 - [x] Burg詳細に基盤雇用・サービス業雇用の内訳を表示する（`BurgEditorDialog.tsx`の「Basic employment」「Service employment」行）。
 - [x] 既存のFrontier Status panel・Tools panelと同様の透明性で、`employmentDemand`の内訳をデバッグ表示できるようにする（Employment Overviewダイアログ、Tools → Edit → Employment）。
 - [x] seed固定シナリオで、鉱山を持つ都市と持たない都市の成長曲線を比較した（実機確認: seed `phase5-verify`）。小規模Burgの人口急減はmegacity/independent両モードで同一に発生する既存の人口シミュレーション側の変動と確認し、本計画由来の問題ではないことを確認した。`serviceMultiplier`・行政雇用係数の史料的な精密校正は決定3の方針により見送り、今後の継続課題として残す（上記「既知の影響」を参照）。
+
+### Phase 6 — 手工業（加工業）雇用（§3.7）
+
+- [x] `production-generator.ts`の`runWorkerLoop`が返す実測値（レシピ加工に投入されたBurg人口ポイント）を`craftEmployment.ts`の`smoothCraftWorkers()`で指数平滑する。
+- [x] `basicEmployment.ts`の年次集計へ`trade`と同じ「読み取り専用」方式で合算し、`basicEmploymentDemand = 行政 + 鉱業 + 製錬 + 交易 + 手工業`とする。
+- [x] Employment Overviewダイアログに「Craft」列を追加する。Burg Editorの「Basic employment」表示は既存コードのまま自動的に反映される。
+- [ ] seed固定シナリオでの実機確認（鉱山を持たないがCloth/Garments加工が盛んなBurgが`serviceEmploymentDemand`経由で成長するか）はまだ行っていない。既知の影響（§2.5表の「基盤産業のない大多数のBurgは`employmentDemand`が0のまま」）を、手工業だけでどこまで緩和できるかはPhase 7以降のバランス調整課題として残す。
 
 ## 5. 未決定事項（次セッション冒頭で確認する）
 
