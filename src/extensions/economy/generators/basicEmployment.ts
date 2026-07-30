@@ -1,9 +1,11 @@
 import { getBurgDemographics } from "../../hostCore";
 import {
   getAdministrationEmployment,
+  getMarkets,
   getMineOperations,
   getMineralDeposits,
   getSmelterOperations,
+  getStrategicLaborMarkets,
   getWorldContext,
   setAdministrationEmployment,
   setBasicEmploymentSummary
@@ -34,9 +36,13 @@ interface BasicEmploymentSlot {
  * ore supply has nothing to process). No cross-Burg or cross-industry share cap is applied
  * (§5.1 decision 2).
  *
- * Also derives each Burg's `serviceEmploymentDemand` (§3.5) from the resulting
- * `basicEmploymentDemand` subtotal — Market-anchored port/trade employment (§3.3, Phase 2)
- * is not yet attributed to a Burg here, so this subtotal is partial until Phase 4.
+ * Also aggregates each Burg's `basicEmploymentDemand` and derives `serviceEmploymentDemand`
+ * (§3.5) from it, into `basicEmploymentSummary` (Phase 4). Market-anchored `"trade"`
+ * employment (§3.3, Phase 2) is read here, not reallocated: `LaborMarket.workersByOccupation`
+ * is already reconciled monthly against the Market's own workforce pool
+ * (`reconcileStrategicLaborMarkets` in `production-generator.ts`), so this only attributes the
+ * current trade headcount to its market's `centerBurgId` — it does not compete for, or draw
+ * down, that Burg's adult pool a second time here.
  *
  * Call once per simulation year, gated the same way as `UrbanLaborIntake.updateAnnualState()`.
  */
@@ -91,25 +97,41 @@ export function reconcileAnnualBasicEmploymentWorkers(): void {
     });
   }
 
+  const tradeWorkersByBurg = new Map<number, number>();
+  const laborMarketByMarketId = new Map(
+    getStrategicLaborMarkets().map(laborMarket => [laborMarket.marketId, laborMarket])
+  );
+  for (const market of getMarkets()) {
+    if (!market.centerBurgId) continue;
+    const tradeWorkers = laborMarketByMarketId.get(market.i)?.workersByOccupation.trade ?? 0;
+    if (tradeWorkers <= 0) continue;
+    tradeWorkersByBurg.set(market.centerBurgId, (tradeWorkersByBurg.get(market.centerBurgId) ?? 0) + tradeWorkers);
+  }
+
+  const summaryBurgIds = new Set<number>([...slotsByBurg.keys(), ...tradeWorkersByBurg.keys()]);
   const summaryRecords: BasicEmploymentSummaryRecord[] = [];
-  for (const [burgId, slots] of slotsByBurg) {
+  for (const burgId of summaryBurgIds) {
     const burg = burgs[burgId];
     if (!burg) continue;
 
-    const demographics = getBurgDemographics(burg);
-    let remainingAdults = Math.max(0, demographics.maleAdults + demographics.femaleAdults);
+    const slots = slotsByBurg.get(burgId);
+    if (slots) {
+      const demographics = getBurgDemographics(burg);
+      let remainingAdults = Math.max(0, demographics.maleAdults + demographics.femaleAdults);
 
-    for (const slot of slots) {
-      const desiredWorkers = Math.min(slot.requiredWorkers, remainingAdults);
-      const maxChange = Math.max(MIN_ANNUAL_WORKER_CHANGE, slot.requiredWorkers * MAX_ANNUAL_WORKER_CHANGE_SHARE);
-      const change = clamp(desiredWorkers - slot.getWorkers(), -maxChange, maxChange);
-      const nextWorkers = Math.max(0, slot.getWorkers() + change);
+      for (const slot of slots) {
+        const desiredWorkers = Math.min(slot.requiredWorkers, remainingAdults);
+        const maxChange = Math.max(MIN_ANNUAL_WORKER_CHANGE, slot.requiredWorkers * MAX_ANNUAL_WORKER_CHANGE_SHARE);
+        const change = clamp(desiredWorkers - slot.getWorkers(), -maxChange, maxChange);
+        const nextWorkers = Math.max(0, slot.getWorkers() + change);
 
-      slot.setWorkers(nextWorkers);
-      remainingAdults = Math.max(0, remainingAdults - nextWorkers);
+        slot.setWorkers(nextWorkers);
+        remainingAdults = Math.max(0, remainingAdults - nextWorkers);
+      }
     }
 
-    const basicEmploymentDemand = slots.reduce((sum, slot) => sum + slot.getWorkers(), 0);
+    const burgAnchoredDemand = slots?.reduce((sum, slot) => sum + slot.getWorkers(), 0) ?? 0;
+    const basicEmploymentDemand = burgAnchoredDemand + (tradeWorkersByBurg.get(burgId) ?? 0);
     summaryRecords.push(buildBasicEmploymentSummary(burgId, basicEmploymentDemand));
   }
 

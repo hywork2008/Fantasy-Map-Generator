@@ -1,22 +1,31 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { getDeathsByState, resetPopulationLossTracker } from "../../hostCore";
+import { getDeathsByState, resetPopulationLossTracker, useOptionsState } from "../../hostCore";
 import type { ExtensionAPI } from "../../hostTypes";
 import {
   clearEconomyContext,
   getBanditCohorts,
   getFrontierAdultCohorts,
   getMobileAdultCohorts,
+  getUrbanLaborIntakes,
   initEconomyContext,
   setBanditCohorts,
+  setBasicEmploymentSummary,
   setFrontierAdultCohorts,
   setMarketCellColumn,
   setMarkets
 } from "../economyContext";
-import { calculateAnnualUrbanLaborIntake, UrbanLaborIntakeModule } from "./urbanLaborIntake";
+import {
+  calculateAnnualUrbanLaborIntake,
+  calculateAnnualUrbanLaborIntakeFromEmploymentDemand,
+  UrbanLaborIntakeModule
+} from "./urbanLaborIntake";
+
+const DEFAULT_RURAL_URBAN_MIGRATION = useOptionsState.getState().ruralUrbanMigration;
 
 afterEach(() => {
   clearEconomyContext();
   resetPopulationLossTracker();
+  useOptionsState.setState({ ruralUrbanMigration: DEFAULT_RURAL_URBAN_MIGRATION });
 });
 
 describe("annual urban labour intake", () => {
@@ -154,6 +163,97 @@ describe("annual urban labour intake", () => {
     module.resolveMobileAdults(world as never, { rand: () => 0.9 }); // 0.9 >= 0.6 -> death/emigration
 
     expect(getDeathsByState("day").get(5)?.other).toBeCloseTo(2000);
+  });
+});
+
+describe("employment-demand-driven intake (Phase 4, §5.1 decision 4)", () => {
+  function buildWorld() {
+    return {
+      graphWidth: 100,
+      graphHeight: 100,
+      pack: {
+        cells: { p: [[0, 0]] },
+        burgs: [
+          { cell: 0 },
+          {
+            i: 1,
+            cell: 0,
+            state: 1,
+            x: 10,
+            y: 0,
+            population: 100,
+            demographics: {
+              capacity: 200,
+              effectiveCapacity: 200,
+              children: 0,
+              maleAdults: 50,
+              femaleAdults: 50,
+              elders: 0
+            }
+          }
+        ]
+      }
+    };
+  }
+
+  it("calculateAnnualUrbanLaborIntakeFromEmploymentDemand offers only the unfilled-jobs gap, bounded by capacity", () => {
+    const burg = {
+      population: 100,
+      demographics: { capacity: 200, effectiveCapacity: 200, children: 0, maleAdults: 50, femaleAdults: 50, elders: 0 }
+    };
+
+    // employmentDemand 120 vs 100 current adults -> gap 20, at neutral cycle/variation.
+    expect(calculateAnnualUrbanLaborIntakeFromEmploymentDemand(burg, 120, 1, 1)).toBeCloseTo(20);
+    // employmentDemand already covered by current adults -> no intake, never negative.
+    expect(calculateAnnualUrbanLaborIntakeFromEmploymentDemand(burg, 80, 1, 1)).toBe(0);
+  });
+
+  it("ignores basicEmploymentSummary in 'independent' mode — the classic population-rate formula runs unchanged (§6 invariant)", () => {
+    useOptionsState.setState({ ruralUrbanMigration: "independent" });
+    const world = buildWorld();
+    initEconomyContext({
+      worldContext: world,
+      simulationContext: { currentYear: 100, extensions: {} }
+    } as unknown as ExtensionAPI);
+    setBasicEmploymentSummary([{ burgId: 1, basicEmploymentDemand: 80, serviceEmploymentDemand: 40 }]);
+    const neutralRandom = { rand: () => 0.5 };
+
+    new UrbanLaborIntakeModule().generateAnnualIntakes(world as never, neutralRandom);
+
+    // population(100) * 0.02 * businessCycle(1) * localVariation(1) = 2, regardless of the
+    // (much larger) employmentDemand set above.
+    expect(getUrbanLaborIntakes()[0].offeredAdults).toBeCloseTo(2);
+  });
+
+  it("drives intake from employmentDemand in 'megacity' mode", () => {
+    useOptionsState.setState({ ruralUrbanMigration: "megacity" });
+    const world = buildWorld();
+    initEconomyContext({
+      worldContext: world,
+      simulationContext: { currentYear: 100, extensions: {} }
+    } as unknown as ExtensionAPI);
+    setBasicEmploymentSummary([{ burgId: 1, basicEmploymentDemand: 80, serviceEmploymentDemand: 40 }]);
+    const neutralRandom = { rand: () => 0.5 };
+
+    new UrbanLaborIntakeModule().generateAnnualIntakes(world as never, neutralRandom);
+
+    // employmentDemand(120) - currentAdults(100) = 20 unfilled jobs.
+    expect(getUrbanLaborIntakes()[0].offeredAdults).toBeCloseTo(20);
+  });
+
+  it("offers nothing in 'megacity' mode to a Burg with no recorded employment demand", () => {
+    useOptionsState.setState({ ruralUrbanMigration: "megacity" });
+    const world = buildWorld();
+    initEconomyContext({
+      worldContext: world,
+      simulationContext: { currentYear: 100, extensions: {} }
+    } as unknown as ExtensionAPI);
+    // No setBasicEmploymentSummary call — this Burg has no basic/service industry yet.
+    const neutralRandom = { rand: () => 0.5 };
+
+    new UrbanLaborIntakeModule().generateAnnualIntakes(world as never, neutralRandom);
+
+    expect(getUrbanLaborIntakes()[0].offeredAdults).toBe(0);
   });
 });
 

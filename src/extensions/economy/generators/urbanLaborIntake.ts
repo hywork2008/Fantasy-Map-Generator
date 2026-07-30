@@ -1,8 +1,9 @@
-import { recordDeaths, type WorldContext } from "../../hostCore";
+import { recordDeaths, useOptionsState, type WorldContext } from "../../hostCore";
 import type { Burg } from "../../hostTypes";
 import {
   addFrontierApplicants,
   getBanditCohorts,
+  getBasicEmploymentSummary,
   getFrontierAdultCohorts,
   getMarketCellColumn,
   getMarkets,
@@ -102,6 +103,20 @@ export class UrbanLaborIntakeModule {
     const businessCycleByState = new Map<number, number>();
     const intakes: UrbanLaborIntake[] = [];
 
+    // §5.1 decision 4 / Phase 4: total-driven employmentDemand replaces the population-self-
+    // referencing formula only in "megacity" mode. In "independent" mode (the default), the
+    // employmentDemand model (docs/plan/urban-employment-demand.md) is never evaluated — the
+    // classic population*rate formula runs unchanged, matching the §6 invariant.
+    const employmentDemandDriven = useOptionsState.getState().ruralUrbanMigration === "megacity";
+    const employmentDemandByBurg = employmentDemandDriven
+      ? new Map(
+          getBasicEmploymentSummary().map(record => [
+            record.burgId,
+            record.basicEmploymentDemand + record.serviceEmploymentDemand
+          ])
+        )
+      : null;
+
     for (const burg of world.pack.burgs) {
       if (!burg?.i || burg.removed || !burg.population || !burg.demographics) continue;
       const stateId = burg.state ?? 0;
@@ -112,7 +127,14 @@ export class UrbanLaborIntakeModule {
       }
 
       const localVariation = LOCAL_VARIATION_MIN + rng.rand() * LOCAL_VARIATION_RANGE;
-      const offeredAdults = calculateAnnualUrbanLaborIntake(burg, businessCycle, localVariation);
+      const offeredAdults = employmentDemandByBurg
+        ? calculateAnnualUrbanLaborIntakeFromEmploymentDemand(
+            burg,
+            employmentDemandByBurg.get(burg.i) ?? 0,
+            businessCycle,
+            localVariation
+          )
+        : calculateAnnualUrbanLaborIntake(burg, businessCycle, localVariation);
       intakes.push({
         burgId: burg.i,
         year,
@@ -309,6 +331,32 @@ export function calculateAnnualUrbanLaborIntake(
     remainingCapacity,
     population * Math.max(0, intakeRate) * Math.max(0, businessCycle) * Math.max(0, localVariation)
   );
+}
+
+/**
+ * Total-driven replacement for `calculateAnnualUrbanLaborIntake()` (§5.1 decision 4,
+ * docs/plan/urban-employment-demand.md §3.6): a Burg only draws new adults while its
+ * `employmentDemand` (basic + service, `basicEmploymentSummary`) exceeds the adults it
+ * already has — an unfilled-jobs gap, not a self-referencing share of current population.
+ * `businessCycle`/`localVariation` remain as job-filling-speed friction; neither
+ * `employmentDemand` nor its inputs (Phases 1-3) carry their own randomness, so this does not
+ * double-count variability.
+ */
+export function calculateAnnualUrbanLaborIntakeFromEmploymentDemand(
+  burg: Pick<Burg, "population" | "demographics">,
+  employmentDemand: number,
+  businessCycle: number,
+  localVariation: number
+): number {
+  const population = Math.max(0, burg.population ?? 0);
+  const capacity = Math.max(0, burg.demographics?.effectiveCapacity ?? burg.demographics?.capacity ?? 0);
+  const remainingCapacity = Math.max(0, capacity - population);
+  const currentAdultPopulation = Math.max(
+    0,
+    (burg.demographics?.maleAdults ?? 0) + (burg.demographics?.femaleAdults ?? 0)
+  );
+  const unfilledDemand = Math.max(0, employmentDemand - currentAdultPopulation);
+  return Math.min(remainingCapacity, unfilledDemand * Math.max(0, businessCycle) * Math.max(0, localVariation));
 }
 
 function getAdultTotal(cohort: Pick<MobileAdultCohort, "maleAdults" | "femaleAdults">): number {

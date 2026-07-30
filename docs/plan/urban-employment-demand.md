@@ -21,6 +21,10 @@
 
 **2026-07-31 実装状況（Phase 3 — 行政・首都雇用とサービス業雇用）**: `administrationEmployment.ts`（新規）を追加し、`burg.capital`を持つBurg（`state.capital`）に、`state.rural + state.urban`（州人口）と`state.burgs`（Burg数）に比例した行政雇用需要`4 + population * 0.005 + burgs * 1`を与えた（決定5。衛兵人員は独立させず行政雇用に含める）。`basicEmployment.ts`の年次リコンサイルへBurgアンカー型スロットとして追加し、同一Burgでは行政を鉱山・製錬所より先に配分する（州都は鉱床の有無に関わらず統治機能が要る、という優先順位の判断）。既存の`reconcileAnnualIndustrialWorkers()`は`reconcileAnnualBasicEmploymentWorkers()`へ改名した。州の首都が変わった／州が消滅した場合、`administrationEmployment`レコードは翌年の再構築時に新しい首都だけへ再生成されるため、旧首都に幽霊雇用が残らない。`serviceEmployment.ts`（新規）で`serviceEmploymentDemand = basicEmploymentDemand × 1.5`を実装した（決定3。前近代都市の非基盤サービス人口は基盤人口の1〜2.5倍程度という経済地理学の目安を参考にした暫定値、校正は次段階）。`basicEmploymentDemand[burgId]`は現時点では行政＋鉱業＋製錬（Burgアンカー型のみ）の合計であり、Market圏の`trade`雇用（Phase 2）はまだBurgへ帰属させていない——`basicEmploymentSummary`（新規state）としてBurgごとに保存され、Phase 4で`trade`雇用を合算し`employmentDemand`として`urbanLaborIntake`へ接続する。
 
+**2026-07-31 実装状況（Phase 4 — `employmentDemand`を`urbanLaborIntake`へ接続する）**: `basicEmployment.ts`の年次リコンサイル末尾で、Market圏`trade`雇用（`LaborMarket.workersByOccupation.trade`、Phase 2）をそのMarketの`centerBurgId`へ帰属させて`basicEmploymentDemand[burgId]`に合算するようにした（読み取りのみ — `reconcileStrategicLaborMarkets`が毎月別途Market圏の労働力プールに対して配分するため、ここでBurgの成人プールへ二重に競合させない）。これで`basicEmploymentDemand`は行政＋鉱業＋製錬＋交易の全4種を含む。`urbanLaborIntake.ts`に`calculateAnnualUrbanLaborIntakeFromEmploymentDemand()`を追加し、決定4（総量駆動）どおり`min(effectiveCapacity - population, max(0, employmentDemand - currentAdultPopulation) * businessCycle * localVariation)`を実装した（`employmentDemand = basicEmploymentDemand + serviceEmploymentDemand`、`currentAdultPopulation = maleAdults + femaleAdults`）。`businessCycle`/`localVariation`はそのまま雇用充足速度の揺らぎとして残した — Phase 1〜3のどの雇用計算も乱数を持たないため、二重計上の心配はない。`generateAnnualIntakes()`は`useOptionsState.getState().ruralUrbanMigration === "megacity"`のときだけこの新式へ切り替え、`"independent"`（既定値）では`basicEmploymentSummary`を一切読まず既存の`population × 2%`式を使う（§6不変条件、回帰テストあり）。
+
+> **既知の影響（要Phase 5バランス調整）**: `basicEmploymentDemand`は現状、行政（州都のみ）・鉱業・製錬・交易（Market中心Burgのみ）からしか生まれない。megacityモードでは、これらのいずれにも該当しないBurg（農業中心の一般的な町など）は`employmentDemand`が0のままとなり、`urbanLaborIntake`が恒常的に0になる——本書§1の意図（基盤産業のない都市は人口だけで膨らまない）どおりの挙動だが、影響範囲は非常に広い（鉱山も交易拠点でも州都でもない大多数のBurgが対象）。Phase 5で鉱山を持つ都市・持たない都市の成長曲線を比較しながら、`serviceMultiplier`やその他の係数を調整すること。
+
 ## 1. 目的
 
 [megacity-food-import-economy.md](megacity-food-import-economy.md)は、食料輸入と農業労働力の分離により、農村から都市へ人と食料を送る土台（`releaseRuralLaborSurplus`、`UrbanLaborIntake`、`FrontierExpansion`のプール連携、野盗ライフサイクル）を実装した。しかし、その土台がまだ答えていない問いが残っている。**都市へ送られた人は、着いた先で何をして生きるのか。**
@@ -153,6 +157,8 @@ employmentDemand[burgId] = basicEmploymentDemand[burgId] + serviceEmploymentDema
 
 前者は「未充足の雇用がある限り都市は成長を続ける」という当初のmegacity構想に近く、後者は「新しい産業が興きた時だけ都市が伸びる」というより保守的な成長モデルになる。既存の暫定式（`population × 2%`）は前者に近い性質（既存人口起点の緩やかな自己成長）を持つため、**後方互換的には前者寄りの式を推奨する**が、無制限の都市肥大化を防ぐ安全弁（`effectiveCapacity`は既にあるが、雇用側にも上限が必要か）は次セッションで検討する。
 
+> **実装（Phase 4、§0参照）**: 決定4どおり前者（総量駆動）を採用した。`currentEmployedPopulation`はBurgの現有成人人口（`maleAdults + femaleAdults`）として実装した — `employmentDemand`自体は既に「求人数」（成人ポイント単位）であり、`burg.population`（子供・老人を含む総人口）と単位が揃わないため。`effectiveCapacity`ベースの安全弁（`remainingCapacity`）は既存のまま維持し、雇用側には追加の上限を設けていない（決定2と整合）。
+
 ## 4. 実装フェーズ（暫定・次セッションで確定）
 
 進捗はコードとテストで確認できる状態だけを`[x]`とする。
@@ -169,7 +175,7 @@ employmentDemand[burgId] = basicEmploymentDemand[burgId] + serviceEmploymentDema
 - [x] `LaborMarket`（`strategicLaborMarkets.ts`）へ`trade`職種を追加する。
 - [x] Market圏の交易量から需要を算出する（決定6によりCaravan到着量のみ。`Market.caravanArrivalVolume`、半減期60日で減衰）。
 - [ ] ~~既存の優先順位（河川水運 > 海路接続港 > 陸上交易）を需要重みへ反映する~~ — 決定6によりCaravan到着量のみに単純化されたため対象外（`BurgMarketLedger`実績・`searoute`接続本数を使う優先順位づけは、必要になれば`getDemandMultiplierByOccupation`に後から追加できる）。
-- [ ] `portTradeEmployment[burgId]`としてBurgへ帰属させる集計はPhase 4の`employmentDemand`集計時に行う。
+- [x] `portTradeEmployment[burgId]`としてBurgへ帰属させる集計（Phase 4で実装、`basicEmployment.ts`が`market.centerBurgId`へ帰属）。
 
 ### Phase 3 — 行政・首都雇用とサービス業雇用
 
@@ -178,9 +184,9 @@ employmentDemand[burgId] = basicEmploymentDemand[burgId] + serviceEmploymentDema
 
 ### Phase 4 — `employmentDemand`を`urbanLaborIntake`へ接続する
 
-- [ ] `basicEmploymentDemand` + `serviceEmploymentDemand` = `employmentDemand`を集計する。
-- [ ] §3.6の「総量駆動」か「増分駆動」かを決定し、`calculateAnnualUrbanLaborIntake`を置き換える。既存の`businessCycle`/`localVariation`は雇用創出速度の揺らぎとして残すか、雇用側の乱数（需要変動）と重複しないか確認する。
-- [ ] `ruralUrbanMigration`オプション（[optionsState.ts](../../src/store/optionsState.ts)の`"independent" | "megacity"`）がoffの間は本モデルを一切評価しないことを確認する回帰テストを追加する。
+- [x] `basicEmploymentDemand` + `serviceEmploymentDemand` = `employmentDemand`を集計する（`basicEmploymentSummary`。`trade`のBurg帰属をPhase 2から前倒しで統合）。
+- [x] §3.6の「総量駆動」か「増分駆動」かを決定し（決定4＝総量駆動）、新関数`calculateAnnualUrbanLaborIntakeFromEmploymentDemand`で置き換えた。既存の`businessCycle`/`localVariation`は雇用創出速度の揺らぎとして残した（雇用側計算はPhase 1〜3どれも乱数を持たないため重複なし）。
+- [x] `ruralUrbanMigration`オプション（[optionsState.ts](../../src/store/optionsState.ts)の`"independent" | "megacity"`）がoffの間は本モデルを一切評価しないことを確認する回帰テストを追加する（`urbanLaborIntake.test.ts`）。
 
 ### Phase 5 — UI・可視化・バランス
 

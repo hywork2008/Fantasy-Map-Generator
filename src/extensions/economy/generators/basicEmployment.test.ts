@@ -8,9 +8,11 @@ import {
   getMineOperations,
   getSmelterOperations,
   initEconomyContext,
+  setMarkets,
   setMineOperations,
   setMineralDeposits,
-  setSmelterOperations
+  setSmelterOperations,
+  setStrategicLaborMarkets
 } from "../economyContext";
 import { reconcileAnnualBasicEmploymentWorkers } from "./basicEmployment";
 
@@ -260,6 +262,28 @@ describe("reconcileAnnualBasicEmploymentWorkers", () => {
     reconcileAnnualBasicEmploymentWorkers();
 
     expect(getAdministrationEmployment()).toHaveLength(0);
+  });
+
+  it("attributes a market's trade employment to its center Burg without an admin/mine/smelter slot", () => {
+    setBurgs({ maleAdults: 100, femaleAdults: 100 });
+    setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: {} }]);
+    setStrategicLaborMarkets([
+      {
+        marketId: 1,
+        workersByOccupation: { trade: 12 },
+        wageByOccupation: {},
+        skillByOccupation: {},
+        capacityByOccupation: {}
+      }
+    ]);
+
+    reconcileAnnualBasicEmploymentWorkers();
+
+    // No admin/mine/smelter at this Burg — trade is the only contributor, and it is read
+    // (not reallocated) so it does not draw on the Burg's own adult pool here.
+    const [summary] = getBasicEmploymentSummary();
+    expect(summary).toMatchObject({ burgId: 1, basicEmploymentDemand: 12 });
+    expect(summary.serviceEmploymentDemand).toBeCloseTo(12 * 1.5, 5);
   });
 
   it("derives serviceEmploymentDemand as 1.5x the Burg's basicEmploymentDemand subtotal", () => {
