@@ -8,6 +8,22 @@ export const CARAVAN_DAILY_MAINTENANCE_COST = 0.5;
 export const VALUE_DENSITY_BASE_MAX_DAYS = 12;
 export const VALUE_DENSITY_MULTIPLIER = 4;
 export const PERISHABLE_MAX_TRADE_DAYS = 10;
+/**
+ * Sea-leg cap for dry-stored staples (grain), distinct from PERISHABLE_MAX_TRADE_DAYS (which
+ * governs genuinely fast-rotting fresh food like Fish/Game). Grounded in bulk grain-by-sea
+ * history rather than the value-density "worth the wagon" heuristic:
+ * - Rome's Alexandria–Ostia grain fleet ran 18–25 days under normal wind, with adverse-wind
+ *   voyages of 50–60 days still delivering usable cargo (not a spoilage failure case).
+ * - Grain shipped dry (<12% moisture, the trading norm) stays stable for months without
+ *   ventilation; deterioration on a ~6-week timescale only shows up at high moisture (>14%) and
+ *   warm holds — i.e. dampness/temperature drive spoilage, not elapsed voyage days alone.
+ * - Age-of-sail victualling routinely provisioned 4–8 months of grain-based rations (hardtack),
+ *   corroborating multi-month viability for well-dried grain.
+ * 30 days comfortably covers the historically "normal" case with margin, while still being
+ * shorter than a fully durable good's reach (Major org cap is 50 days) to keep some at-sea
+ * dampness risk in the model per the same reasoning that keeps land uncapped below.
+ */
+export const STAPLE_FOOD_SEA_MAX_TRADE_DAYS = 30;
 
 interface MarketGoodState {
   stock: number;
@@ -86,14 +102,14 @@ export function getGoodMaxTradeDurationDays(
   const densityLimit = Math.max(1, VALUE_DENSITY_BASE_MAX_DAYS * getGoodValueDensity(good) * VALUE_DENSITY_MULTIPLIER);
 
   if (good.tags.includes("stapleFood")) {
-    // Dry-stored staples (grain: ~1 year shelf life) aren't decay-limited on a wagon — airflow in
-    // transit is arguably kinder than granary storage. The density cap above still represents
-    // "worth the wagon" bulk-transport economics, not spoilage, so land-only routes skip it
-    // entirely and fall back to the merchant organization's own day cap (isMarketTradePermitted)
-    // plus route profitability. A damp ship's hold is the real spoilage risk, so any route that
-    // touches water keeps the existing value-density/perishable cap.
+    // Dry-stored staples (grain: ~1 year shelf life) aren't decay-limited by elapsed transit time
+    // on either leg — the density cap above represents "worth the wagon" bulk-transport
+    // economics, not spoilage, so it doesn't apply to this good at all. Land-only routes are
+    // bounded only by the merchant organization's own day cap (isMarketTradePermitted) and route
+    // profitability. Sea routes get STAPLE_FOOD_SEA_MAX_TRADE_DAYS instead, reflecting real
+    // (if modest, for well-dried cargo) dampness risk in a ship's hold.
     const hasSeaLeg = routeSegments?.some(segment => segment.type === "water") ?? false;
-    return hasSeaLeg ? Math.min(densityLimit, PERISHABLE_MAX_TRADE_DAYS) : Number.POSITIVE_INFINITY;
+    return hasSeaLeg ? STAPLE_FOOD_SEA_MAX_TRADE_DAYS : Number.POSITIVE_INFINITY;
   }
 
   return trade.timeValueTrend < 0 ? Math.min(densityLimit, PERISHABLE_MAX_TRADE_DAYS) : densityLimit;
