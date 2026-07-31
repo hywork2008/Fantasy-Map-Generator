@@ -64,7 +64,7 @@ describe("StateSecretKnowledgeModule", () => {
 
   it("matures a poorly-funded state's stock slower than a well-funded one", () => {
     worldContext.pack.states = [
-      { i: 0 },
+      { i: 0 } as unknown as State,
       { i: 1, treasury: 1000 } as unknown as State,
       { i: 2, treasury: 10 } as unknown as State
     ];

@@ -17,6 +17,7 @@ import type { CraftEmploymentRecord } from "./generators/craftEmployment";
 import type { Good } from "./generators/goodsGeneratorTypes";
 import type { CraftDomainEmploymentRecord, GuildKnowledgeStock } from "./generators/guildKnowledgeTypes";
 import type { Caravan, Deal, Market } from "./generators/marketTypes";
+import type { MartialDisciplineStock } from "./generators/martialDisciplineTypes";
 import type { MerchantOrganization } from "./generators/merchantOrganizationsTypes";
 import type { MilitaryResourceLedger } from "./generators/militaryResourcesTypes";
 import type {
@@ -54,6 +55,7 @@ let _industrialTechLastSettledYearFallback: number | null = null;
 let _guildKnowledgeLastSettledYearFallback: number | null = null;
 let _academyKnowledgeLastSettledYearFallback: number | null = null;
 let _stateSecretLastSettledYearFallback: number | null = null;
+let _martialDisciplineLastSettledYearFallback: number | null = null;
 let _stateAgriculturalProductivityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
 export function initEconomyContext(api: ExtensionAPI): void {
@@ -77,12 +79,26 @@ export function clearEconomyContext(): void {
   _guildKnowledgeLastSettledYearFallback = null;
   _academyKnowledgeLastSettledYearFallback = null;
   _stateSecretLastSettledYearFallback = null;
+  _martialDisciplineLastSettledYearFallback = null;
   _stateAgriculturalProductivityFallback = new Float32Array();
 }
 
 export function getApi(): ExtensionAPI {
   if (!_api) throw new Error("[economy] Extension context not initialized — call init(api) first");
   return _api;
+}
+
+/**
+ * True once init(api) has run. For cross-extension reads only (e.g. Nobility's
+ * commanderPowerMultiplier reading getMartialDisciplineMultiplier, docs/plan/
+ * knowledge-guild-system.md §9 Phase 5) — those callers may run before, or entirely without,
+ * this extension's own init having been called (economy disabled, or a Nobility unit test that
+ * only sets up its own context), and must degrade to "no bonus" instead of throwing. Economy's
+ * own modules should keep using getApi()/getWorldContext() directly so a real init-ordering bug
+ * still throws loudly.
+ */
+export function isEconomyContextReady(): boolean {
+  return _api !== null;
 }
 
 export function getWorldContext() {
@@ -435,6 +451,24 @@ export function setStateSecretLastSettledYear(year: number): void {
   _stateSecretLastSettledYearFallback = year;
 }
 
+/** Same guard as getGuildKnowledgeLastSettledYear, for MartialDisciplineKnowledge.settleAnnual() (docs/plan/knowledge-guild-system.md §9 Phase 5). */
+export function getMartialDisciplineLastSettledYear(): number | null {
+  const slice = getEconomySlice();
+  if (slice) {
+    const value = slice.martialDisciplineLastSettledYear;
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return _martialDisciplineLastSettledYearFallback;
+}
+export function setMartialDisciplineLastSettledYear(year: number): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice.martialDisciplineLastSettledYear = year;
+    return;
+  }
+  _martialDisciplineLastSettledYearFallback = year;
+}
+
 /**
  * 0..1 saturating EWMA of State-funded agricultural infrastructure investment, indexed by
  * state.i (docs/plan/rural-agtech-investment.md §6.1). Kept in the economy extension's own
@@ -667,6 +701,14 @@ export function getStateSecretStocks(): StateSecretStock[] {
 }
 export function setStateSecretStocks(stocks: readonly StateSecretStock[]): void {
   setSliceArray("stateSecretStocks", stocks);
+}
+
+/** State-scoped standing-army training stocks, one entry per (stateId, domain) (docs/plan/knowledge-guild-system.md §6, §9 Phase 5). */
+export function getMartialDisciplineStocks(): MartialDisciplineStock[] {
+  return getSliceArray<MartialDisciplineStock>("martialDisciplineStocks");
+}
+export function setMartialDisciplineStocks(stocks: readonly MartialDisciplineStock[]): void {
+  setSliceArray("martialDisciplineStocks", stocks);
 }
 export function getAdministrationEmployment(): AdministrationEmploymentRecord[] {
   return getSliceArray<AdministrationEmploymentRecord>("administrationEmployment");

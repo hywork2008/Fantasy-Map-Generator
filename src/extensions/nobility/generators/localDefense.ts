@@ -1,4 +1,5 @@
 import type { Character } from "../../characters/characterTypes";
+import { getMartialDisciplineMultiplier } from "../../economy/generators/martialDisciplineKnowledge";
 import { findSeaRouteDistance, regimentQualityMultiplier, type SeaRouteGraph } from "../../hostCore";
 import type { Burg, MilitaryRegiment, MilitaryUnit, PackedGraph } from "../../hostTypes";
 import { getRegimentCommander } from "./officerAssignment";
@@ -53,12 +54,15 @@ export const REINFORCEMENT_RADIUS = { cavalry: 50, infantry: 50, naval: 500 } as
 /**
  * A regiment led by a dedicated officer (see officerAssignment.ts) fights above its raw
  * headcount — up to +50% at Martial 100. Regiments without a commander fight at their
- * plain troop count. This only scales the power total used to decide a battle's outcome;
- * actual casualties are still applied against real troop counts.
+ * plain troop count. Stacks with the owning State's MartialDisciplineStock (docs/plan/
+ * knowledge-guild-system.md §9 Phase 5) — well-drilled standing regiments fight above their raw
+ * headcount the same way a good commander does. This only scales the power total used to decide
+ * a battle's outcome; actual casualties are still applied against real troop counts.
  */
 export function commanderPowerMultiplier(characters: Character[], regiment: MilitaryRegiment): number {
   const commander = getRegimentCommander(characters, regiment);
-  return commander ? 1 + (commander.skills.martial / 100) * 0.5 : 1;
+  const commanderMultiplier = commander ? 1 + (commander.skills.martial / 100) * 0.5 : 1;
+  return commanderMultiplier * getMartialDisciplineMultiplier(regiment.state, regiment.u || {});
 }
 
 /** The marching/sailing radius a regiment can reinforce from, based on its composition. */

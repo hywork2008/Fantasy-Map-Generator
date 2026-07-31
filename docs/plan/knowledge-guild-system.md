@@ -68,6 +68,20 @@
 
 テスト: `stateSecretKnowledge.test.ts`新規追加(8件)。`militaryResources.test.ts`に1件追加。`tsc --noEmit`・`npm run lint`・`npm run madge`はクリーン(確認手順は本フェーズの末尾参照)。
 
+**2026-07-31 Phase 5(武術、剣術・弓術・馬術の3ドメインのみ先行実装)**: §3-Dの4ドメイン(剣術/槍術/弓術/馬術)のうち、`options.military`の`type`フィールドで頭数を実際に分離できる**剣術(swordsmanship)/弓術(archery)/馬術(horsemanship)の3ドメイン**を実装した。槍術(spearmanship)は、基本ゲームが汎用的な単一の"melee"ユニットタイプしか持たず、剣術と区別する実データが存在しない(pike/sword分岐を恣意的に発明しない限り分離不可能)ため、Phase 3/4と同じ理由で次フェーズへ送った。
+
+- `MartialDisciplineStock`はGuild/Academyと同じ頭数駆動型EWMAだが、Burgではなく**State**スコープ(§3-D「State/常備軍スコープ」)。実践者頭数は各Stateの`state.military[].u`をユニット名→`options.military`の`type`フィールドで分類して集計する(`melee`→swordsmanship、`ranged`→archery、`mounted`→horsemanship)。専用の雇用レコードを新設せず、既存の`MilitaryRegiment`をそのまま流用している点はStateSecret(Phase 4)がMilitaryResourceLedgerを流用したのと同じ方針。
+- `src/extensions/economy/generators/martialDisciplineTypes.ts` / `martialDisciplineKnowledge.ts`: `MartialDisciplineKnowledgeModule.settleAnnual()`(構造はGuild/Academyと同一)、および`getMartialDisciplineMultiplier(stateId, unitCounts)`——1つのregimentが複数ユニットタイプを混在させうるため、regiment自身の構成比で加重平均したボーナスを返す(分類できないユニットタイプ(artillery/fleet)は加重平均を薄める形で寄与ゼロ)。
+- 接続先は**Nobility拡張**の`commanderPowerMultiplier()`(`src/extensions/nobility/generators/localDefense.ts`)——指揮官のMartial スキルによる戦力倍率と直接乗算で合成した。この関数は`battle-resolution.ts`/`homeRecapture.ts`/`marchCapture.ts`/`localSkirmish.ts`/`strategic-planner.ts`の計12箇所から呼ばれる、Nobility内の攻城・遭遇戦・防衛計算が実際に共有している唯一の戦力係数フックであり、1箇所の変更で全消費先に伝播する。`MilitaryRegiment`が`state`フィールドを直接持つため、呼び出し側のシグネチャ変更は不要だった(内部で`regiment.state`を読むだけで済んだ)。
+- これは本設計で初めてEconomy拡張の外(Nobility拡張)へ実際に接続する例であり、§7で事前に許可されていた依存方向(「Nobility拡張はStateSecretStock/MartialDisciplineStockを読み取り専用で参照する」)を初めて実装した。ビルド時ES importで直接Economyのgetterを呼ぶ形を採用——動的(ZIP)拡張の禁止事項(host直接import禁止)はbuilt-in拡張同士には適用されない。Economy拡張が無効、または(Nobilityの既存ユニットテストのように)economyContextが未初期化のままNobility側だけが動く状況に備え、`economyContext.ts`に`isEconomyContextReady()`を新設し、`getMartialDisciplineMultiplier()`はEconomy未初期化時に例外を投げず1(ボーナスなし)を返すようにした——既存のNobilityテスト群(`initEconomyContext`を呼ばない)がこの変更で壊れないことを確認済み。
+
+**今回のスコープ外(次フェーズ以降に送った項目)**:
+
+- `spearmanship`ドメイン本体——`options.military`の`type`だけでは剣術と区別できないため(上記調査結果参照)。
+- Nobility拡張からの`StateSecretStock`参照の実装(§7で設計は既定だが、Phase 4・5とも消費先が見つからず/見つかったが対象外だったため未着手のまま)。
+
+テスト: `martialDisciplineKnowledge.test.ts`新規追加(9件)。`localDefense.test.ts`に2件追加(`commanderPowerMultiplier()`自体の単体テストは今回が初出)。`tsc --noEmit`・`npm run lint`・`npm run madge`はクリーン(確認手順は本フェーズの末尾参照)。
+
 ---
 
 ## 0. 背景・目的
@@ -265,7 +279,7 @@ Economy拡張はどの拡張にも依存しない自己完結型であり、`Mil
 - [x] Phase 2: 他クラフトドメインの展開(§3-A 残り7ドメイン、2026-07-31実装済み、状態節参照) — `CraftDomainEmploymentRecord`(新規並行スライス)で`production-generator.ts`のworker使用量をドメイン別に追跡し、`executeManufacture()`のrecipe生産効率へ`getGuildBonus(burgId, domain)`を接続。`masonry`↔`constructionEmployment.ts`本体、`woodworking`↔shipbuilding拡張の船体recipe、`instruments`ドメイン用Goodの新設は次フェーズ以降に持ち越し(状態節参照)。
 - [x] Phase 3: アカデミー/修道院の実装(§3-B、2026-07-31実装済み、状態節参照)——法学・行政ドメインのみ先行実装(`AdministrationEmploymentRecord`を頭数源、`taxes-generator.ts`の人頭税収入を接続先ボーナス消費者とする垂直スライス)。medicine/theology/naturalPhilosophyの3ドメインは頭数モデル・ボーナス消費者ともに既存コードに皆無なため次フェーズへ送った。教会networkによるState境界越え伝播は§8.1決定4によりスコープ外(後続タスク)。
 - [x] Phase 4: 国家機密ドメインと`MilitaryResourceLedger`の接続(§3-C、2026-07-31実装済み、状態節参照)——火薬術(pyrotechnics)ドメインのみ先行実装(Treasury継続投資駆動のEWMAで`MilitaryResourceLedger`の`gunpowder`需要を削減する垂直スライス)。militaryEngineering/fortificationScienceの2ドメインは対応する消費先(要塞/攻城メカニクス)がNobility拡張側にしかなく、AGENTS.mdの依存方向によりEconomyから到達できないため次フェーズへ送った。
-- [ ] Phase 5: 武術ドメインと`regimentMovement.ts`戦力係数の接続(§3-D)
+- [x] Phase 5: 武術ドメインと戦力係数の接続(§3-D、2026-07-31実装済み、状態節参照)——剣術/弓術/馬術の3ドメインのみ先行実装。接続先は当初想定の`regimentMovement.ts`(coreの移動・追撃判定、実際には加重power計算を持たない)ではなく、Nobility拡張の`commanderPowerMultiplier()`(localDefense.ts、攻城・遭遇戦・防衛計算が共有する唯一の戦力係数フック)だった。槍術ドメインは`options.military`の`type`だけでは剣術と区別できないため次フェーズへ送った。
 - [ ] Phase 6: 個人継承(Characters拡張必須、§5、§8.1決定5)
 - [ ] Phase 7: 征服/従属による技術の段階的吸収(§4-4、§8.1決定3)、諜報による技術窃取の接続。着手前に、Nobility拡張内のannexation/loyalty相当の機構(現状未発見、§1参照)の有無を再調査すること。
 - [ ] Phase 8(範囲未確定): 初期解禁ラインへの文化・地形バイアス(§8.1決定6)。将来のCulture拡張を見据えた設計が必要なため、Culture拡張の具体像が固まった時点で範囲を確定する。

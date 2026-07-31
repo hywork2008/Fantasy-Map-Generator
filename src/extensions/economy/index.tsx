@@ -63,6 +63,7 @@ import { GuildKnowledge } from "./generators/guildKnowledge";
 import { IndustrialTechInvestment } from "./generators/industrialTechInvestment";
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
 import { Markets } from "./generators/markets-generator";
+import { MartialDisciplineKnowledge } from "./generators/martialDisciplineKnowledge";
 import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
 import { MilitaryResources } from "./generators/militaryResources";
 import { MineOperations } from "./generators/mineOperations";
@@ -1499,6 +1500,10 @@ export function init(api: ExtensionAPI): void {
       // above) — it reads MilitaryResourceLedger and state.treasury, not a headcount reconciliation
       // output. Self-gates to once per simulation year (docs/plan/knowledge-guild-system.md §9 Phase 4).
       StateSecretKnowledge.settleAnnual();
+      // Reads state.military directly (not a reconciled employment record), so no ordering
+      // dependency either — self-gates to once per simulation year (docs/plan/
+      // knowledge-guild-system.md §9 Phase 5).
+      MartialDisciplineKnowledge.settleAnnual();
       const burgGroupsChanged = DevelopmentPotential.updateAnnualBurgGroups();
       const forestChanged = tickForestRegrowth(effectiveDeltaYears);
 
