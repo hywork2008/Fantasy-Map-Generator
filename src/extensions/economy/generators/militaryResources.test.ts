@@ -7,7 +7,8 @@ import {
   getMilitaryResourceLedgers,
   initEconomyContext,
   setGoods,
-  setMarkets
+  setMarkets,
+  setStateSecretStocks
 } from "../economyContext";
 import { Goods } from "./goods-generator";
 import { Markets } from "./markets-generator";
@@ -72,6 +73,22 @@ describe("MilitaryResourcesModule", () => {
     expect(getMarkets()[0].goods[2].stock).toBeLessThan(10);
     expect(getMarkets()[0].goods[3].stock).toBeLessThan(10);
     expect(getMarkets()[0].goods[4].stock).toBeLessThan(10);
+  });
+
+  it("reduces gunpowder-chain demand by the state's pyrotechnics state-secret stock", () => {
+    MilitaryResources.generate();
+    MilitaryResources.settleMonthly();
+    const baseline = getMilitaryResourceLedgers()[0];
+    const baselineGunpowder = baseline.annualDemand.gunpowder ?? 0;
+    const baselineSaltpeter = baseline.annualDemand.saltpeter ?? 0;
+
+    setStateSecretStocks([{ stateId: 1, domain: "pyrotechnics", stock: 1 }]);
+    MilitaryResources.settleMonthly();
+
+    const ledger = getMilitaryResourceLedgers()[0];
+    // STATE_SECRET_BONUS_MAX = 0.3 at stock = 1 cuts gunpowder-chain demand by 30%.
+    expect(ledger.annualDemand.gunpowder).toBeCloseTo(baselineGunpowder * 0.7, 4);
+    expect(ledger.annualDemand.saltpeter).toBeCloseTo(baselineSaltpeter * 0.7, 4);
   });
 
   it("does not create gunpowder-era demand when the era is disabled", () => {

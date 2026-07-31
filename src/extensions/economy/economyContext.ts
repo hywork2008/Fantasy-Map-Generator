@@ -30,6 +30,7 @@ import type { ProductionRecord } from "./generators/productionRecordTypes";
 import type { QuarryOperation } from "./generators/quarryOperationsTypes";
 import type { BasicEmploymentSummaryRecord } from "./generators/serviceEmployment";
 import type { SmelterOperation } from "./generators/smelterOperationsTypes";
+import type { StateSecretStock } from "./generators/stateSecretTypes";
 import type { LaborMarket } from "./generators/strategicLaborMarketsTypes";
 import type { StrategicGoodsPolicy } from "./generators/strategicProcurementPolicy";
 import type { ProcurementOrder } from "./generators/strategicProcurementTypes";
@@ -52,6 +53,7 @@ let _agTechLastSettledYearFallback: number | null = null;
 let _industrialTechLastSettledYearFallback: number | null = null;
 let _guildKnowledgeLastSettledYearFallback: number | null = null;
 let _academyKnowledgeLastSettledYearFallback: number | null = null;
+let _stateSecretLastSettledYearFallback: number | null = null;
 let _stateAgriculturalProductivityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
 export function initEconomyContext(api: ExtensionAPI): void {
@@ -74,6 +76,7 @@ export function clearEconomyContext(): void {
   _industrialTechLastSettledYearFallback = null;
   _guildKnowledgeLastSettledYearFallback = null;
   _academyKnowledgeLastSettledYearFallback = null;
+  _stateSecretLastSettledYearFallback = null;
   _stateAgriculturalProductivityFallback = new Float32Array();
 }
 
@@ -414,6 +417,24 @@ export function setAcademyKnowledgeLastSettledYear(year: number): void {
   _academyKnowledgeLastSettledYearFallback = year;
 }
 
+/** Same guard as getGuildKnowledgeLastSettledYear, for StateSecretKnowledge.settleAnnual() (docs/plan/knowledge-guild-system.md §9 Phase 4). */
+export function getStateSecretLastSettledYear(): number | null {
+  const slice = getEconomySlice();
+  if (slice) {
+    const value = slice.stateSecretLastSettledYear;
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return _stateSecretLastSettledYearFallback;
+}
+export function setStateSecretLastSettledYear(year: number): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice.stateSecretLastSettledYear = year;
+    return;
+  }
+  _stateSecretLastSettledYearFallback = year;
+}
+
 /**
  * 0..1 saturating EWMA of State-funded agricultural infrastructure investment, indexed by
  * state.i (docs/plan/rural-agtech-investment.md §6.1). Kept in the economy extension's own
@@ -638,6 +659,14 @@ export function getAcademyKnowledgeStocks(): AcademyKnowledgeStock[] {
 }
 export function setAcademyKnowledgeStocks(stocks: readonly AcademyKnowledgeStock[]): void {
   setSliceArray("academyKnowledgeStocks", stocks);
+}
+
+/** State-scoped national-secret technique stocks, one entry per (stateId, domain) (docs/plan/knowledge-guild-system.md §6, §9 Phase 4). */
+export function getStateSecretStocks(): StateSecretStock[] {
+  return getSliceArray<StateSecretStock>("stateSecretStocks");
+}
+export function setStateSecretStocks(stocks: readonly StateSecretStock[]): void {
+  setSliceArray("stateSecretStocks", stocks);
 }
 export function getAdministrationEmployment(): AdministrationEmploymentRecord[] {
   return getSliceArray<AdministrationEmploymentRecord>("administrationEmployment");

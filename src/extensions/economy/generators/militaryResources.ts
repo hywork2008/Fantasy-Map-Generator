@@ -9,6 +9,7 @@ import {
 import { Markets } from "./markets-generator";
 import { isMountedUnit } from "./militaryLogistics";
 import type { MilitaryResource, MilitaryResourceLedger } from "./militaryResourcesTypes";
+import { getStateSecretMaterialMultiplier } from "./stateSecretKnowledge";
 
 export type { MilitaryResource, MilitaryResourceLedger } from "./militaryResourcesTypes";
 export { MILITARY_RESOURCES } from "./militaryResourcesTypes";
@@ -120,7 +121,13 @@ export class MilitaryResourcesModule {
 
     if (!gunpowderEraEnabled) return demand;
 
-    const gunpowder = artillery * ARTILLERY_GUNPOWDER_PER_GUN + firearms * FIREARM_GUNPOWDER_PER_HEAD;
+    // Better black-powder chemistry needs less raw sulfur/saltpeter/coal per unit of gunpowder
+    // produced — the pyrotechnics state secret (docs/plan/knowledge-guild-system.md §9 Phase 4)
+    // reduces gunpowder demand itself, so saltpeter/sulfur/coal (derived from it below) scale down
+    // with it automatically.
+    const pyrotechnicsMultiplier = getStateSecretMaterialMultiplier(stateId, "pyrotechnics");
+    const gunpowder =
+      (artillery * ARTILLERY_GUNPOWDER_PER_GUN + firearms * FIREARM_GUNPOWDER_PER_HEAD) * pyrotechnicsMultiplier;
     demand.iron = rn(artillery * ARTILLERY_IRON_PER_GUN + firearms * FIREARM_IRON_PER_HEAD, 4);
     demand.gunpowder = rn(gunpowder, 4);
     demand.bullets = rn(firearms * FIREARM_BULLETS_PER_HEAD, 4);

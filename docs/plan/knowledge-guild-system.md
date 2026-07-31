@@ -54,6 +54,20 @@
 
 テスト: `academyKnowledge.test.ts`新規追加(6件)。`taxes-generator.test.ts`に1件追加。`tsc --noEmit`・`npm run lint`・`npm run madge`はクリーン(確認手順は本フェーズの末尾参照)。
 
+**2026-07-31 Phase 4(国家機密、火薬術ドメインのみ先行実装)**: §3-Cの2ドメイン(火薬術/軍事工学・築城、データモデル上は`pyrotechnics`/`militaryEngineering`/`fortificationScience`の3分類)のうち、既存の`MilitaryResourceLedger`に実在の消費先を持つ**火薬術(pyrotechnics)ドメインのみ**を先行実装した。Phase 3と同じ理由で残り2ドメインは次フェーズへ送った——調査の結果、築城・軍事工学に対応する消費先(要塞/攻城メカニクス)はNobility拡張側(`marchCapture.ts`等)にのみ存在し、AGENTS.md §7.1の依存方向(EconomyはどのExtensionにも依存しない)によりEconomy拡張からは到達できない。Nobility側がPhase 4のデータを読み取り専用で参照する経路(§7で既定)が今後整備されるまで、この2ドメインは保留とした。
+
+- `StateSecretStock`はGuild/Academy層と異なり、実践者頭数ではなく**Treasuryからの継続投資**で育つ(§8.1決定2)。これは既存の`IndustrialTechInvestment`(Tools購入カバレッジ)と同じ「投資駆動型EWMA」の型であり、Guild/Academyの「頭数駆動型EWMA」とは別系統として実装した。
+- `src/extensions/economy/generators/stateSecretTypes.ts`: `STATE_SECRET_DOMAINS`(現状`["pyrotechnics"]`のみ)・`StateSecretStock { stateId, domain, stock }`(Burgではなく**State**単位、Guild/Academyと異なる点)。
+- `src/extensions/economy/generators/stateSecretKnowledge.ts`: `StateSecretKnowledgeModule.settleAnnual()`。`MilitaryResourceLedger.annualDemand.gunpowder`が0より大きいStateを「現役の火薬・銃砲プログラムを持つ」とみなし、Treasuryの一定割合(`STATE_SECRET_BUDGET_SHARE_OF_TREASURY = 0.05`)を上限`STATE_SECRET_TARGET_ANNUAL_SPEND`(年20、要調整の仮値)まで実際に支出し、`spend / TARGET`をカバレッジとしてEWMA更新する。他のGuild/Academyモジュールと異なり、このモジュール自身が`state.treasury`を直接減算する副作用を持つ(`IndustrialTechInvestment.invest()`が`market.marketTreasury.balance`を直接減算するのと同型のパターン)。火薬需要がゼロ(または`gunpowderEraEnabled`がオフ)のStateは投資せず、既存ストックが減衰する。
+- `getStateSecretMaterialMultiplier(stateId, domain)`を`militaryResources.ts`の`getAnnualDemand()`内、`gunpowder`需要の算出式に直接乗算する形で接続した(`STATE_SECRET_BONUS_MAX = 0.3`、満stockで火薬需要-30%)。`saltpeter`/`sulfur`/`coal`は`gunpowder`から導出される値のため、この1点への接続だけで火薬生産チェーン全体に一貫して波及する。「精製された火薬術ほど、同じ攻撃力を得るのに必要な原料が少なくて済む」というフレーバー。
+
+**今回のスコープ外(次フェーズ以降に送った項目)**:
+
+- `militaryEngineering`/`fortificationScience`ドメイン本体——Nobility拡張側の要塞/攻城メカニクスへの読み取り専用アクセス経路が未整備なため(上記調査結果参照)。
+- Nobility拡張からの`StateSecretStock`参照(§7で設計だけ既定、実装はまだ)。
+
+テスト: `stateSecretKnowledge.test.ts`新規追加(8件)。`militaryResources.test.ts`に1件追加。`tsc --noEmit`・`npm run lint`・`npm run madge`はクリーン(確認手順は本フェーズの末尾参照)。
+
 ---
 
 ## 0. 背景・目的
@@ -250,7 +264,7 @@ Economy拡張はどの拡張にも依存しない自己完結型であり、`Mil
 - [x] Phase 1: ギルド基盤(2026-07-31実装済み、状態節参照) — Metallurgyドメインのみで`GuildKnowledgeStock`を実装し、`SmelterOperation.processingFactor`に接続する垂直スライス。武器・防具(`Arms`/`Tools`)recipeの効率接続はPhase 2へ送った(craft employmentのドメイン別分離が前提のため)。
 - [x] Phase 2: 他クラフトドメインの展開(§3-A 残り7ドメイン、2026-07-31実装済み、状態節参照) — `CraftDomainEmploymentRecord`(新規並行スライス)で`production-generator.ts`のworker使用量をドメイン別に追跡し、`executeManufacture()`のrecipe生産効率へ`getGuildBonus(burgId, domain)`を接続。`masonry`↔`constructionEmployment.ts`本体、`woodworking`↔shipbuilding拡張の船体recipe、`instruments`ドメイン用Goodの新設は次フェーズ以降に持ち越し(状態節参照)。
 - [x] Phase 3: アカデミー/修道院の実装(§3-B、2026-07-31実装済み、状態節参照)——法学・行政ドメインのみ先行実装(`AdministrationEmploymentRecord`を頭数源、`taxes-generator.ts`の人頭税収入を接続先ボーナス消費者とする垂直スライス)。medicine/theology/naturalPhilosophyの3ドメインは頭数モデル・ボーナス消費者ともに既存コードに皆無なため次フェーズへ送った。教会networkによるState境界越え伝播は§8.1決定4によりスコープ外(後続タスク)。
-- [ ] Phase 4: 国家機密ドメインと`MilitaryResourceLedger`の接続(§3-C)
+- [x] Phase 4: 国家機密ドメインと`MilitaryResourceLedger`の接続(§3-C、2026-07-31実装済み、状態節参照)——火薬術(pyrotechnics)ドメインのみ先行実装(Treasury継続投資駆動のEWMAで`MilitaryResourceLedger`の`gunpowder`需要を削減する垂直スライス)。militaryEngineering/fortificationScienceの2ドメインは対応する消費先(要塞/攻城メカニクス)がNobility拡張側にしかなく、AGENTS.mdの依存方向によりEconomyから到達できないため次フェーズへ送った。
 - [ ] Phase 5: 武術ドメインと`regimentMovement.ts`戦力係数の接続(§3-D)
 - [ ] Phase 6: 個人継承(Characters拡張必須、§5、§8.1決定5)
 - [ ] Phase 7: 征服/従属による技術の段階的吸収(§4-4、§8.1決定3)、諜報による技術窃取の接続。着手前に、Nobility拡張内のannexation/loyalty相当の機構(現状未発見、§1参照)の有無を再調査すること。

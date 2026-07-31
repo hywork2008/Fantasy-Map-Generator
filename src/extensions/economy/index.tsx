@@ -74,6 +74,7 @@ import { releaseRuralLaborSurplus } from "./generators/ruralLaborRelease";
 import { seedShipbuildingInitialStock } from "./generators/shipbuildingInitialStock";
 import { SmelterOperations } from "./generators/smelterOperations";
 import { refreshStateEconomySummaries } from "./generators/stateEconomySummary";
+import { StateSecretKnowledge } from "./generators/stateSecretKnowledge";
 import { StrategicProcurement } from "./generators/strategicProcurement";
 import {
   clearStrategicProcurementExpenses,
@@ -1494,6 +1495,10 @@ export function init(api: ExtensionAPI): void {
       // coverage (docs/plan/knowledge-guild-system.md §9 Phase 3). Self-gates to once per
       // simulation year.
       AcademyKnowledge.settleAnnual();
+      // No ordering dependency on reconcileAnnualBasicEmploymentWorkers() (unlike Guild/Academy
+      // above) — it reads MilitaryResourceLedger and state.treasury, not a headcount reconciliation
+      // output. Self-gates to once per simulation year (docs/plan/knowledge-guild-system.md §9 Phase 4).
+      StateSecretKnowledge.settleAnnual();
       const burgGroupsChanged = DevelopmentPotential.updateAnnualBurgGroups();
       const forestChanged = tickForestRegrowth(effectiveDeltaYears);
 
