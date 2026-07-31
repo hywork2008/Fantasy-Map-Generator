@@ -20,7 +20,12 @@ import {
   getProvinceThreats,
   mergeFrontiers
 } from "./frontierAnalysis";
-import { isManpowerSimEnabled, markStatesNeedManpowerReconcile, reconcileAllStatesManpower } from "./manpower";
+import {
+  effectiveTroopTarget,
+  isManpowerSimEnabled,
+  markStatesNeedManpowerReconcile,
+  reconcileAllStatesManpower
+} from "./manpower";
 import { getNavalTechBonus } from "./navalTechBonus";
 import { buildSeaRouteGraph } from "./seaRouteGraph";
 
@@ -569,6 +574,27 @@ class MilitaryModule {
     valid.forEach(s => {
       const platoons = s.temp!.platoons!;
       delete s.temp; // do not store temp data
+
+      // Rescale land forces (fleets excluded — the manpower ledger is land-only, see
+      // manpower.ts) to the population-ratio policy target instead of leaving them at
+      // whatever the raw rural/urban recruitment-rate formula above produced. Without this,
+      // initial/regenerated forces can land well above the peacetime 1% (or wartime 3%)
+      // target and only manpower.ts's tickManpower() would ever pull them back down, which is
+      // slow (DEMOBILIZATION_SHARE_PEACE=0.3/year) and only runs on Advance Time. Rescaling
+      // uniformly preserves the existing unit-type/biome/culture distribution shape produced
+      // above; only the absolute headcount changes.
+      if (isManpowerSimEnabled()) {
+        const landPlatoons = platoons.filter(pl => !pl.n);
+        const rawLandTotal = landPlatoons.reduce((sum, pl) => sum + pl.a, 0);
+        if (rawLandTotal > 0) {
+          const target = effectiveTroopTarget(pack, s, populationRate, urbanization);
+          const scale = target / rawLandTotal;
+          for (const pl of landPlatoons) {
+            pl.a *= scale;
+            pl.t *= scale;
+          }
+        }
+      }
 
       const navalPlatoons = platoons.filter(pl => pl.n);
       const capitalPlatoons = platoons.filter(pl => !pl.n && pl.cell === s.center);

@@ -308,21 +308,26 @@ function hostilePowerFromIntel(state: State): number {
   return total;
 }
 
+/**
+ * "At war" is defined solely by Enemy diplomacy (see stateHasEnemy) — state.alert is a static,
+ * generation-time political-tension scalar (manually editable in Military Overview), not a live
+ * war signal, and treating it as one left aggressive-but-peaceful states permanently pinned to
+ * wartime mobilization targets with demobilization never kicking in.
+ */
 export function getTargetMobilizationRatio(state: State): number {
+  if (!stateHasEnemy(state)) return PEACE_TARGET_MOBILIZATION;
   const outnumbered = hostilePowerFromIntel(state) > currentLandTroops(state);
-  if (outnumbered || (state.alert ?? 0) >= 2) return WAR_TARGET_MOBILIZATION;
-  if (stateHasEnemy(state)) return (PEACE_TARGET_MOBILIZATION + WAR_TARGET_MOBILIZATION) / 2;
-  return PEACE_TARGET_MOBILIZATION;
+  return outnumbered ? WAR_TARGET_MOBILIZATION : (PEACE_TARGET_MOBILIZATION + WAR_TARGET_MOBILIZATION) / 2;
 }
 
 export function getMaxLevyRate(state: State): number {
   let base: number;
-  if (hostilePowerFromIntel(state) > currentLandTroops(state) || (state.alert ?? 0) >= 2) {
-    base = WAR_MAX_LEVY_OF_MALE_ADULTS;
-  } else if (stateHasEnemy(state)) {
-    base = (MAX_LEVY_OF_MALE_ADULTS + WAR_MAX_LEVY_OF_MALE_ADULTS) / 2;
-  } else {
+  if (!stateHasEnemy(state)) {
     base = MAX_LEVY_OF_MALE_ADULTS;
+  } else if (hostilePowerFromIntel(state) > currentLandTroops(state)) {
+    base = WAR_MAX_LEVY_OF_MALE_ADULTS;
+  } else {
+    base = (MAX_LEVY_OF_MALE_ADULTS + WAR_MAX_LEVY_OF_MALE_ADULTS) / 2;
   }
   // Supply/food stress trims how hard a state can push its male pool
   const eff = getDraftEfficiency(state);
@@ -430,7 +435,7 @@ export function tickManpower(
 
     const target = effectiveTroopTarget(pack, state, populationRate);
     let capacity = currentLandCapacity(state);
-    const atWar = stateHasEnemy(state) || (state.alert ?? 0) >= 1.5;
+    const atWar = stateHasEnemy(state);
 
     if (capacity < target) {
       const growth = (target - capacity) * ANNUAL_DRAFT_SHARE * deltaYears;
