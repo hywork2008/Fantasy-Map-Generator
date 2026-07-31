@@ -1554,7 +1554,14 @@ export function init(api: ExtensionAPI): void {
   function attachSvgClickHandlers() {
     api.getSvgLayer("goods")?.on("click.openEditor", (event: MouseEvent) => {
       const target = event.target as SVGElement;
-      if (target.closest("#goodsIcons, #goodsBurgs")) {
+
+      const burgPlate = target.closest<SVGGElement>("#goodsBurgs g[data-id]");
+      if (burgPlate?.dataset.id) {
+        api.openDialog("productionOverview", { burgId: +burgPlate.dataset.id });
+        return;
+      }
+
+      if (target.closest("#goodsIcons")) {
         api.openDialog("goodsEditor");
       }
     });
