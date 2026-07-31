@@ -4,10 +4,9 @@
 
 **2026-07-31 Phase 1(冶金ギルド基盤)実装済み**: §8.1の決定に従い、Metallurgyドメインのみで`GuildKnowledgeStock`を実装した。
 
-- `src/extensions/economy/generators/guildKnowledgeTypes.ts`: `CRAFT_KNOWLEDGE_DOMAINS`(現状`["metallurgy"]`のみ、他ドメインはPhase 2以降で追加)・`GuildKnowledgeStock { burgId, domain, stock }`。
-- `src/extensions/economy/generators/guildKnowledge.ts`: `GuildKnowledgeModule.settleAnnual()`。既存の`IndustrialTechInvestment`と同型のEWMAだが、駆動源はTools購入カバレッジではなく`SmelterOperation.workers`(実践者頭数)。`coverage = min(1, workers / METALLURGY_GUILD_SATURATION_WORKERS)`で、`METALLURGY_GUILD_SATURATION_WORKERS = 6`という小さな飽和定数により、§8.1決定2(人口閾値なし・数人規模のギルド支部を許容)をそのまま実装している——都市規模差は`stock`の到達上限ではなく、`workers`頭数(=集計生産量)側に現れる。非稼働smelterは`METALLURGY_GUILD_DECAY_RATE`で減衰し、smelterサイト自体が消滅したBurgも孤児ストックとしてしばらく減衰し続ける(即消滅しない)。
-- `getMetallurgyGuildBonus(burgId)`を`smelterOperations.ts`の`processingFactor`に第3の独立乗数として接続(`toolsInvestmentStock`由来の`investmentBonus`と並列)。`METALLURGY_GUILD_BONUS_MAX = 0.25`。
-- 年次tickでは`reconcileAnnualBasicEmploymentWorkers()`の**後**に`GuildKnowledge.settleAnnual()`を呼ぶ([index.tsx](../../src/extensions/economy/index.tsx))。理由: その年に再計算されたばかりの`SmelterOperation.workers`を、古い(前年の)値ではなくその年のカバレッジ計算へ反映するため。
+- `src/extensions/economy/generators/guildKnowledgeTypes.ts`: `CRAFT_KNOWLEDGE_DOMAINS`(当初`["metallurgy"]`のみ、Phase 2で残り7ドメインを追加)・`GuildKnowledgeStock { burgId, domain, stock }`。
+- `src/extensions/economy/generators/guildKnowledge.ts`: `GuildKnowledgeModule.settleAnnual()`。既存の`IndustrialTechInvestment`と同型のEWMAだが、駆動源はTools購入カバレッジではなく`SmelterOperation.workers`(実践者頭数)。`coverage = min(1, workers / 飽和定数)`で、飽和定数を小さく取ることで§8.1決定2(人口閾値なし・数人規模のギルド支部を許容)をそのまま実装している——都市規模差は`stock`の到達上限ではなく、`workers`頭数(=集計生産量)側に現れる。非稼働smelterは減衰し、smelterサイト自体が消滅したBurgも孤児ストックとしてしばらく減衰し続ける(即消滅しない)。
+- `getMetallurgyGuildBonus(burgId)`(Phase 2で`getGuildBonus(burgId, domain)`に一般化)を`smelterOperations.ts`の`processingFactor`に第3の独立乗数として接続(`toolsInvestmentStock`由来の`investmentBonus`と並列)。
 
 **今回のスコープ外(Phase 2以降に送った項目)**:
 
@@ -15,6 +14,31 @@
 - Characters拡張連携の師弟継承(§5、§9 Phase 6)。
 
 テスト: `guildKnowledge.test.ts`(6件)新規追加。economy拡張51ファイル291テスト、リポジトリ全体165ファイル1155テストがgreen。`tsc --noEmit`・`npm run lint`・`npm run madge`はすべてクリーン。
+
+**2026-07-31 Phase 2(残り7クラフトドメイン展開)実装済み**: §3-Aの8ドメイン全てで`GuildKnowledgeStock`を有効化した。
+
+- `guildKnowledgeTypes.ts`: `CRAFT_KNOWLEDGE_DOMAINS`を`metallurgy` / `woodworking` / `masonry` / `textiles` / `leather` / `glassware` / `instruments` / `printing`の8つに拡張。`CRAFT_DOMAIN_BY_GOOD_NAME`(`Good.name`→ドメインの静的対応表)と`getCraftDomainForGood()`を新規追加——`good.recipes`のingredientキーは登録時に数値idへ変換されるため`Good.name`をキーにした。`instruments`(精密機器)は対応する`Good`が未実装のため型としては定義するが実質休眠(Clockmaker系Goodが将来追加された時点で接続する)。
+- 新規`CraftDomainEmploymentRecord { burgId, domain, workers }`(`economyContext.ts`の`getCraftDomainEmploymentRecords`/`setCraftDomainEmploymentRecords`)を`production-generator.ts`に追加。既存の`CraftEmploymentRecord`(Burg合計、`basicEmployment.ts`・`employment-overview.ts`が読む)の形は変更せず、並行する別スライスとしてドメイン別頭数を追跡する——既存2消費者への影響をゼロにするため。
+  - `runWorkerLoop()`は総workersUsedに加え、各生産ステップで`decision.action.good`のドメインへ`workerFraction`を積算した`Map<domain, number>`を返す。
+  - `executeManufacture()`の`produced`計算に`getGuildBonus(burgId, domain)`をcultureModifierと並ぶ独立乗数として追加(ドメイン未対応のGoodはbonus=1のno-op)。
+- `guildKnowledge.ts`を一般化: `settleAnnual()`は`SmelterOperation.workers`(active時のみ、metallurgyドメイン固定)と`CraftDomainEmploymentRecord`全件を`(burgId, domain)`キーで合算した"practitioners"マップを1本のロジックで処理する。冶金だけは精錬(smelter)と鍛冶(recipe)の2系統の実践者が同一`GuildKnowledgeStock`に合流する——現実の「同じ鍛冶ギルドが製錬も加工も担う」構造に対応。定数名を`METALLURGY_GUILD_*`から`GUILD_*`へ一般化(全ドメイン共通の飽和・EWMA・減衰・ボーナス定数)。
+- `Good→ドメイン`対応表(§3-Aとの対応):
+  - `metallurgy`: Bronze, Tools, Arms, Bullets, Harnesses(Artilleryは国家機密ドメイン(§3-C, Phase 4)候補として除外)
+  - `woodworking`: Barrels, Ropes, Arrows(矢羽根/矢柄の木工。造船・船体recipeはshipbuilding拡張側の別Goodで、`recipes`を持たないため今回は未接続——将来の連携ポイントとして§9 Phase 2ノートに記録)
+  - `masonry`: Lime, Roman Concrete(`constructionEmployment.ts`のmason労働力への直接接続は見送り——`ConstructionOperation`にはSmelterOperationに相当する単純な"workers"駆動口がなく、`buildingStock`という別の状態変数で駆動されるため。今回はLime/Roman Concreteのrecipe生産効率のみに留めた)
+  - `textiles`: Cloth, Garments, Sails
+  - `leather`: Leather, Boots
+  - `glassware`: Ceramics, Glass
+  - `printing`: Paper, Ink, Books(アカデミー層への「知識の記録媒体」としての接続はPhase 3待ち)
+
+**Phase 2のスコープ外(引き続き未着手)**:
+
+- masonryドメインと`constructionEmployment.ts`本体(`buildingStock`/mason労働力)の直接接続。
+- woodworkingドメインとshipbuilding拡張の船体recipeの接続(拡張間の疎結合を保ったまま接続する設計が必要)。
+- instrumentsドメインに対応する`Good`の新設。
+- printingドメインのストックをAcademy層(§3-B, Phase 3)の入力として使う接続。
+
+テスト: `guildKnowledge.test.ts`に2件追加(計8件)。economy拡張51ファイル293テスト、リポジトリ全体165ファイル1157テストがgreen。`tsc --noEmit`・`npm run lint`・`npm run madge`はすべてクリーン。
 
 ---
 
@@ -210,7 +234,7 @@ Economy拡張はどの拡張にも依存しない自己完結型であり、`Mil
 ## 9. 実装フェーズ(案・すべて未着手)
 
 - [x] Phase 1: ギルド基盤(2026-07-31実装済み、状態節参照) — Metallurgyドメインのみで`GuildKnowledgeStock`を実装し、`SmelterOperation.processingFactor`に接続する垂直スライス。武器・防具(`Arms`/`Tools`)recipeの効率接続はPhase 2へ送った(craft employmentのドメイン別分離が前提のため)。
-- [ ] Phase 2: 他クラフトドメインの展開(§3-A 残り7ドメイン)。前提作業として、`production-generator.ts`の`craftWorkersUsed`/`CraftEmploymentRecord`をドメイン別(生産したGoodのタグ等)に分離する必要がある — 現状は全レシピ横断の単一集計値(`craftEmployment.ts`)。
+- [x] Phase 2: 他クラフトドメインの展開(§3-A 残り7ドメイン、2026-07-31実装済み、状態節参照) — `CraftDomainEmploymentRecord`(新規並行スライス)で`production-generator.ts`のworker使用量をドメイン別に追跡し、`executeManufacture()`のrecipe生産効率へ`getGuildBonus(burgId, domain)`を接続。`masonry`↔`constructionEmployment.ts`本体、`woodworking`↔shipbuilding拡張の船体recipe、`instruments`ドメイン用Goodの新設は次フェーズ以降に持ち越し(状態節参照)。
 - [ ] Phase 3: アカデミー/修道院の実装(§3-B)。教会networkによるState境界越え伝播は§8.1決定4によりスコープ外(後続タスク)。
 - [ ] Phase 4: 国家機密ドメインと`MilitaryResourceLedger`の接続(§3-C)
 - [ ] Phase 5: 武術ドメインと`regimentMovement.ts`戦力係数の接続(§3-D)

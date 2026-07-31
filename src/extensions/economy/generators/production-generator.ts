@@ -3,6 +3,7 @@ import { DEBUG, ERROR, rn, TIME } from "../../hostUtils";
 import {
   getBurgProductionRecords,
   getConstructionOperations,
+  getCraftDomainEmploymentRecords,
   getCraftEmploymentRecords,
   getDeals,
   getGoodCellColumn,
@@ -12,6 +13,7 @@ import {
   getStrategicProcurementOrders,
   getWorldContext,
   setBurgProductionRecords,
+  setCraftDomainEmploymentRecords,
   setCraftEmploymentRecords,
   setDeals,
   setStrategicLaborMarkets
@@ -26,6 +28,12 @@ import {
 import { smoothCraftWorkers } from "./craftEmployment";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, Goods, getDemandTargets, isGoodEnabled } from "./goods-generator";
+import { getGuildBonus } from "./guildKnowledge";
+import {
+  CRAFT_KNOWLEDGE_DOMAINS,
+  type CraftDomainEmploymentRecord,
+  getCraftDomainForGood
+} from "./guildKnowledgeTypes";
 import { Markets } from "./markets-generator";
 import type { Deal, Market } from "./marketTypes";
 import { MilitaryResources } from "./militaryResources";
@@ -170,8 +178,18 @@ export class ProductionModule {
       getConstructionOperations().map(operation => [operation.burgId, operation])
     );
     const craftWorkersByBurg = new Map(getCraftEmploymentRecords().map(record => [record.burgId, record.workers]));
+    const craftDomainWorkersByKey = new Map(
+      getCraftDomainEmploymentRecords().map(record => [craftDomainKey(record.burgId, record.domain), record.workers])
+    );
 
-    return { index, sortedBurgs, strategicLaborMarketById, constructionOperationByBurg, craftWorkersByBurg };
+    return {
+      index,
+      sortedBurgs,
+      strategicLaborMarketById,
+      constructionOperationByBurg,
+      craftWorkersByBurg,
+      craftDomainWorkersByKey
+    };
   }
 
   private produceForBurg(burg: Burg, cycle: ProductionCycle): void {
@@ -189,8 +207,14 @@ export class ProductionModule {
     const craftWorkersUsed = this.runWorkerLoop(cycle.index, state);
     cycle.craftWorkersByBurg.set(
       burg.i,
-      smoothCraftWorkers(cycle.craftWorkersByBurg.get(burg.i) ?? 0, craftWorkersUsed)
+      smoothCraftWorkers(cycle.craftWorkersByBurg.get(burg.i) ?? 0, craftWorkersUsed.total)
     );
+    for (const domain of CRAFT_KNOWLEDGE_DOMAINS) {
+      const key = craftDomainKey(burg.i, domain);
+      const observed = craftWorkersUsed.byDomain.get(domain) ?? 0;
+      const smoothed = smoothCraftWorkers(cycle.craftDomainWorkersByKey.get(key) ?? 0, observed);
+      cycle.craftDomainWorkersByKey.set(key, smoothed);
+    }
 
     const phaseRevenue = this.sellInventoryToMarket(state);
     burg.treasury = rn((burg.treasury || 0) + phaseRevenue, 2);
@@ -209,6 +233,14 @@ export class ProductionModule {
       .filter(([, workers]) => workers > 0)
       .map(([burgId, workers]) => ({ burgId, workers }));
     setCraftEmploymentRecords(craftEmploymentRecords);
+
+    const craftDomainEmploymentRecords: CraftDomainEmploymentRecord[] = [];
+    for (const [key, workers] of cycle.craftDomainWorkersByKey) {
+      if (workers <= 0) continue;
+      const [burgId, domain] = parseCraftDomainKey(key);
+      craftDomainEmploymentRecords.push({ burgId, domain, workers });
+    }
+    setCraftDomainEmploymentRecords(craftDomainEmploymentRecords);
   }
 
   private fillBurgsDemand(sortedBurgs: Burg[], index: ProductionIndex): void {
@@ -290,9 +322,15 @@ export class ProductionModule {
     };
   }
 
-  /** Returns how many of the Burg's population points were engaged manufacturing recipe-based Goods this cycle (docs/plan/urban-employment-demand.md §3.7). */
-  private runWorkerLoop(index: ProductionIndex, state: BurgProductionState): number {
+  /**
+   * Returns how many of the Burg's population points were engaged manufacturing recipe-based
+   * Goods this cycle (docs/plan/urban-employment-demand.md §3.7), both as a Burg-wide total (the
+   * pre-existing `basicEmploymentDemand` signal) and broken down by craft-guild domain
+   * (docs/plan/knowledge-guild-system.md §9 Phase 2).
+   */
+  private runWorkerLoop(index: ProductionIndex, state: BurgProductionState): CraftWorkerUsage {
     let workersUsed = 0;
+    const byDomain = new Map<CraftDomainEmploymentRecord["domain"], number>();
 
     for (let i = 0; i < Math.ceil(state.population); i++) {
       const workersLeft = state.population - workersUsed;
@@ -313,9 +351,12 @@ export class ProductionModule {
       state.activeGoalGoodId = decision.goalGoodId;
       this.executeManufacture(state, index, decision, workerFraction);
       workersUsed += workerFraction;
+
+      const domain = getCraftDomainForGood(decision.action.good.name);
+      if (domain) byDomain.set(domain, (byDomain.get(domain) ?? 0) + workerFraction);
     }
 
-    return workersUsed;
+    return { total: workersUsed, byDomain };
   }
 
   private executeManufacture(
@@ -327,7 +368,11 @@ export class ProductionModule {
     const { good, ingredients, maxYield } = decision.action;
     const actualYield = Math.min(workerFraction, maxYield);
     const cultureModifier = getModifiers(good, state.burg.cell);
-    const produced = rn(actualYield * cultureModifier * decision.laborProductivity, 2);
+    // The Burg's craft guild for this Good's domain (GuildKnowledge.settleAnnual()) applies as an
+    // efficiency multiplier alongside culture — docs/plan/knowledge-guild-system.md §6, §9 Phase 2.
+    const domain = getCraftDomainForGood(good.name);
+    const guildBonus = domain && state.burg.i ? getGuildBonus(state.burg.i, domain) : 1;
+    const produced = rn(actualYield * cultureModifier * guildBonus * decision.laborProductivity, 2);
     if (!produced) return;
 
     // Plan all ingredient sourcing first; bail out before mutating state if any market buy fails.
@@ -917,6 +962,23 @@ type ProductionCycle = {
   constructionOperationByBurg: ReadonlyMap<number, ConstructionOperation>;
   /** Smoothed craft/manufacturing worker figure per Burg (docs/plan/urban-employment-demand.md §3.7), mutated in place as each Burg is produced and persisted once the cycle finishes. */
   craftWorkersByBurg: Map<number, number>;
+  /** Same as craftWorkersByBurg, but keyed by `craftDomainKey(burgId, domain)` (docs/plan/knowledge-guild-system.md §9 Phase 2). */
+  craftDomainWorkersByKey: Map<string, number>;
+};
+
+/** `${burgId}:${domain}` key into craftDomainWorkersByKey / craftDomainEmploymentRecords. */
+function craftDomainKey(burgId: number, domain: CraftDomainEmploymentRecord["domain"]): string {
+  return `${burgId}:${domain}`;
+}
+
+function parseCraftDomainKey(key: string): [number, CraftDomainEmploymentRecord["domain"]] {
+  const [burgIdStr, domain] = key.split(":");
+  return [+burgIdStr, domain as CraftDomainEmploymentRecord["domain"]];
+}
+
+type CraftWorkerUsage = {
+  total: number;
+  byDomain: Map<CraftDomainEmploymentRecord["domain"], number>;
 };
 
 type IncrementalProductionOptions = {

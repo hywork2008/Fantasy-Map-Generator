@@ -14,7 +14,7 @@ import type { BurgMarketLedger } from "./generators/burgMarketLedgersTypes";
 import type { ConstructionOperation } from "./generators/constructionEmploymentTypes";
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
 import type { Good } from "./generators/goodsGeneratorTypes";
-import type { GuildKnowledgeStock } from "./generators/guildKnowledgeTypes";
+import type { CraftDomainEmploymentRecord, GuildKnowledgeStock } from "./generators/guildKnowledgeTypes";
 import type { Caravan, Deal, Market } from "./generators/marketTypes";
 import type { MerchantOrganization } from "./generators/merchantOrganizationsTypes";
 import type { MilitaryResourceLedger } from "./generators/militaryResourcesTypes";
@@ -627,6 +627,13 @@ export function getCraftEmploymentRecords(): CraftEmploymentRecord[] {
 }
 export function setCraftEmploymentRecords(records: readonly CraftEmploymentRecord[]): void {
   setSliceArray("craftEmployment", records);
+}
+/** Domain-split counterpart of `craftEmployment` (docs/plan/knowledge-guild-system.md §9 Phase 2). */
+export function getCraftDomainEmploymentRecords(): CraftDomainEmploymentRecord[] {
+  return getSliceArray<CraftDomainEmploymentRecord>("craftDomainEmployment");
+}
+export function setCraftDomainEmploymentRecords(records: readonly CraftDomainEmploymentRecord[]): void {
+  setSliceArray("craftDomainEmployment", records);
 }
 export function getMintLedgers(): MintLedger[] {
   return getSliceArray<MintLedger>("mintLedgers");

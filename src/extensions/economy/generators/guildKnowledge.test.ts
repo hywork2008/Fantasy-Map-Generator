@@ -5,9 +5,10 @@ import {
   clearEconomyContext,
   getGuildKnowledgeStocks,
   initEconomyContext,
+  setCraftDomainEmploymentRecords,
   setSmelterOperations
 } from "../economyContext";
-import { GuildKnowledge, getMetallurgyGuildBonus, METALLURGY_GUILD_SATURATION_WORKERS } from "./guildKnowledge";
+import { GUILD_SATURATION_WORKERS, GuildKnowledge, getGuildBonus } from "./guildKnowledge";
 
 describe("GuildKnowledgeModule", () => {
   beforeEach(() => {
@@ -33,7 +34,7 @@ describe("GuildKnowledgeModule", () => {
       technology: 1,
       smeltingYield: 0.8,
       annualCapacityTons: 120,
-      workers: METALLURGY_GUILD_SATURATION_WORKERS,
+      workers: GUILD_SATURATION_WORKERS,
       securityInvestment: 0,
       lastSecurityUpkeep: 0,
       lastTheftLoss: 0,
@@ -50,7 +51,7 @@ describe("GuildKnowledgeModule", () => {
 
     const stock = getGuildKnowledgeStocks().find(entry => entry.burgId === 1 && entry.domain === "metallurgy");
     expect(stock?.stock).toBeGreaterThan(0);
-    expect(getMetallurgyGuildBonus(1)).toBeGreaterThan(1);
+    expect(getGuildBonus(1, "metallurgy")).toBeGreaterThan(1);
   });
 
   it("matures a small chapter's stock by raw headcount, not gated by a population/burg.group threshold", () => {
@@ -58,7 +59,7 @@ describe("GuildKnowledgeModule", () => {
     // to the saturation constant) still accumulates real technique over time — it is simply
     // capped below stock=1 by its own headcount, exactly like a fully-staffed chapter is capped
     // at 1, not blocked outright the way a burg.group-tier gate would block it.
-    setSmelterOperations([smelter({ workers: METALLURGY_GUILD_SATURATION_WORKERS / 2 })]);
+    setSmelterOperations([smelter({ workers: GUILD_SATURATION_WORKERS / 2 })]);
 
     let stock = 0;
     for (let i = 0; i < 200; i++) {
@@ -113,6 +114,44 @@ describe("GuildKnowledgeModule", () => {
   });
 
   it("returns bonus 1 (no bonus) for a Burg with no tracked stock", () => {
-    expect(getMetallurgyGuildBonus(999)).toBe(1);
+    expect(getGuildBonus(999, "metallurgy")).toBe(1);
+  });
+
+  it("grows a non-metallurgy domain's stock from CraftDomainEmploymentRecord alone", () => {
+    setCraftDomainEmploymentRecords([{ burgId: 1, domain: "textiles", workers: GUILD_SATURATION_WORKERS }]);
+
+    GuildKnowledge.settleAnnual();
+
+    const stock = getGuildKnowledgeStocks().find(entry => entry.burgId === 1 && entry.domain === "textiles");
+    expect(stock?.stock).toBeGreaterThan(0);
+    expect(getGuildBonus(1, "textiles")).toBeGreaterThan(1);
+    // Unrelated domains stay untouched by this Burg's textiles headcount.
+    expect(getGuildBonus(1, "leather")).toBe(1);
+  });
+
+  it("combines SmelterOperation.workers and metallurgy-domain CraftDomainEmploymentRecord into one stock", () => {
+    setSmelterOperations([smelter({ workers: GUILD_SATURATION_WORKERS })]);
+    setCraftDomainEmploymentRecords([{ burgId: 1, domain: "metallurgy", workers: GUILD_SATURATION_WORKERS }]);
+
+    GuildKnowledge.settleAnnual();
+    const combinedStock = getGuildKnowledgeStocks().find(
+      entry => entry.burgId === 1 && entry.domain === "metallurgy"
+    )?.stock;
+
+    clearEconomyContext();
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.options = { year: 500 };
+    worldContext.pack = {
+      burgs: [{ i: 1, cell: 0, x: 0, y: 0, market: 1 }],
+      cells: { i: [0], p: [[0, 0]], h: Uint8Array.from([55]), r: Uint16Array.from([0]), routes: {} }
+    } as unknown as PackedGraph;
+    setSmelterOperations([smelter({ workers: GUILD_SATURATION_WORKERS })]);
+    GuildKnowledge.settleAnnual();
+    const smelterOnlyStock = getGuildKnowledgeStocks().find(
+      entry => entry.burgId === 1 && entry.domain === "metallurgy"
+    )?.stock;
+
+    // Combined double headcount saturates coverage (capped at 1) at least as fast as smelter workers alone.
+    expect(combinedStock).toBeGreaterThanOrEqual(smelterOnlyStock ?? 0);
   });
 });

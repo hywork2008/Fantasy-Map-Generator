@@ -9,7 +9,7 @@ import {
   setSmelterOperations
 } from "../economyContext";
 import { isGoodEnabled } from "./goods-generator";
-import { getMetallurgyGuildBonus } from "./guildKnowledge";
+import { getGuildBonus } from "./guildKnowledge";
 import { Markets } from "./markets-generator";
 import { getIngotGoodName, ORE_COMMODITIES, type OreCommodity } from "./mineralResources";
 import type { SmelterOperation } from "./smelterOperationsTypes";
@@ -118,7 +118,7 @@ export class SmelterOperationsModule {
       const investmentBonus = 1 + SMELTER_TECH_BONUS_MAX * (smelter.toolsInvestmentStock ?? 0);
       // The Burg's Metallurgy guild technique (GuildKnowledge.settleAnnual()) applies as a third,
       // independent multiplier — docs/plan/knowledge-guild-system.md §6, §9 Phase 1.
-      const guildBonus = getMetallurgyGuildBonus(smelter.burgId);
+      const guildBonus = getGuildBonus(smelter.burgId, "metallurgy");
       const processingFactor = Math.min(
         1,
         smelter.waterPower * smelter.fuelAccess * smelter.technology * investmentBonus * guildBonus * workerFactor
