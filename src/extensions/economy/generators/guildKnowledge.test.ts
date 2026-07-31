@@ -166,7 +166,7 @@ describe("GuildKnowledgeModule", () => {
 
   describe("applyMasterlessGuildPenalty()", () => {
     it("cuts a Burg's tracked stock by GUILD_MASTERLESS_DEATH_PENALTY", () => {
-      setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.8 }]);
+      setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.8, treasury: 0 }]);
 
       applyMasterlessGuildPenalty(1, "metallurgy");
 
@@ -184,9 +184,9 @@ describe("GuildKnowledgeModule", () => {
   describe("applyConquestDisruptionToGuilds()", () => {
     it("cuts every domain a Burg has a tracked stock in by GUILD_CONQUEST_DISRUPTION_PENALTY", () => {
       setGuildKnowledgeStocks([
-        { burgId: 1, domain: "metallurgy", stock: 0.8 },
-        { burgId: 1, domain: "textiles", stock: 0.5 },
-        { burgId: 2, domain: "metallurgy", stock: 0.9 }
+        { burgId: 1, domain: "metallurgy", stock: 0.8, treasury: 0 },
+        { burgId: 1, domain: "textiles", stock: 0.5, treasury: 0 },
+        { burgId: 2, domain: "metallurgy", stock: 0.9, treasury: 0 }
       ]);
 
       applyConquestDisruptionToGuilds(1);

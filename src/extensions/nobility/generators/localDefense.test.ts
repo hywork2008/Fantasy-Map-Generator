@@ -79,7 +79,7 @@ describe("captureBurg()", () => {
     afterEach(() => clearEconomyContext());
 
     it("disrupts the burg's GuildKnowledgeStock on a genuinely new conquest", () => {
-      setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.8 }]);
+      setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.8, treasury: 0 }]);
       const burg = { i: 1, stateHistory: [1] } as Burg;
 
       captureBurg(makePack(), burg, 2);
@@ -88,7 +88,7 @@ describe("captureBurg()", () => {
     });
 
     it("does not disrupt the stock when the winner is reclaiming a burg it held before", () => {
-      setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.8 }]);
+      setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.8, treasury: 0 }]);
       const burg = { i: 1, stateHistory: [1, 2] } as Burg;
 
       captureBurg(makePack(), burg, 1);

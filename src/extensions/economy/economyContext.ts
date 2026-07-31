@@ -57,6 +57,7 @@ let _academyKnowledgeLastSettledYearFallback: number | null = null;
 let _stateSecretLastSettledYearFallback: number | null = null;
 let _martialDisciplineLastSettledYearFallback: number | null = null;
 let _guildSuccessionLastSettledYearFallback: number | null = null;
+let _burgTreasuryLastSettledYearFallback: number | null = null;
 let _stateAgriculturalProductivityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
 export function initEconomyContext(api: ExtensionAPI): void {
@@ -82,6 +83,7 @@ export function clearEconomyContext(): void {
   _stateSecretLastSettledYearFallback = null;
   _martialDisciplineLastSettledYearFallback = null;
   _guildSuccessionLastSettledYearFallback = null;
+  _burgTreasuryLastSettledYearFallback = null;
   _stateAgriculturalProductivityFallback = new Float32Array();
 }
 
@@ -487,6 +489,24 @@ export function setGuildSuccessionLastSettledYear(year: number): void {
     return;
   }
   _guildSuccessionLastSettledYearFallback = year;
+}
+
+/** Same guard as getGuildKnowledgeLastSettledYear, for GuildTreasury.settleAnnual() (docs/plan/burg-treasury-equilibrium.md §3.3). */
+export function getBurgTreasuryLastSettledYear(): number | null {
+  const slice = getEconomySlice();
+  if (slice) {
+    const value = slice.burgTreasuryLastSettledYear;
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return _burgTreasuryLastSettledYearFallback;
+}
+export function setBurgTreasuryLastSettledYear(year: number): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice.burgTreasuryLastSettledYear = year;
+    return;
+  }
+  _burgTreasuryLastSettledYearFallback = year;
 }
 
 /**

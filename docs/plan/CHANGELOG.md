@@ -2,6 +2,7 @@
 
 2026-07-31
 
+- docs/plan/burg-treasury-equilibrium.md
 - docs/plan/knowledge-guild-system.md
 - docs/plan/rural-agtech-investment.md
 - docs/plan/urban-construction-industry.md

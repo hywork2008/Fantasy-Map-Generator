@@ -75,12 +75,14 @@ export class GuildKnowledgeModule {
     const next: GuildKnowledgeStock[] = [];
     for (const { burgId, domain, workers } of practitioners.values()) {
       const key = keyOf(burgId, domain);
-      const previousStock = remaining.get(key)?.stock ?? 0;
+      const previous = remaining.get(key);
       remaining.delete(key);
 
       const coverage = Math.min(1, workers / GUILD_SATURATION_WORKERS);
-      const stock = rn(previousStock * (1 - GUILD_ADOPTION_RATE) + coverage * GUILD_ADOPTION_RATE, 4);
-      next.push({ burgId, domain, stock });
+      const stock = rn((previous?.stock ?? 0) * (1 - GUILD_ADOPTION_RATE) + coverage * GUILD_ADOPTION_RATE, 4);
+      // Rebuilding this entry from scratch each year must not drop its accumulated guild capital
+      // (docs/plan/burg-treasury-equilibrium.md §3.1) — only `stock` (technique) is recomputed here.
+      next.push({ burgId, domain, stock, treasury: previous?.treasury ?? 0 });
     }
 
     // A Burg whose practitioners vanished (site closed, workers reassigned) keeps its guild hall

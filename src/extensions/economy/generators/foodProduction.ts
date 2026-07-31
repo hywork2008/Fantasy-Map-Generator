@@ -59,9 +59,12 @@ const INITIAL_TREASURY_SHARE_SPAN = 0.5;
  * Starting working capital per raw population point, seeded once so a fresh Burg can afford a
  * few cycles of manufacturing ingredients before it earns its own market revenue (see
  * docs/temp/profits.md and executeManufacture's budget cap in production-generator.ts). Placeholder
- * magnitude — not yet balance-tuned.
+ * magnitude — not yet balance-tuned. Exported for reuse as guildTreasury.ts's population-scaled
+ * floor under getComfortableTreasuryLevel() (docs/plan/burg-treasury-equilibrium.md §3.3) — the
+ * same "how much working capital does a Burg of this size need" question, just asked again for the
+ * upper bound instead of the initial seed.
  */
-const STARTING_BURG_TREASURY_PER_POPULATION = 20;
+export const STARTING_BURG_TREASURY_PER_POPULATION = 20;
 /** Days of a burg's own staple-food need kept on hand locally, independent of the Market pool. */
 export const BURG_TARGET_RESERVE_DAYS = 10;
 

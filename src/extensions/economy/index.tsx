@@ -61,6 +61,7 @@ import {
 } from "./generators/goods-generator";
 import { GuildKnowledge } from "./generators/guildKnowledge";
 import { GuildSuccession } from "./generators/guildSuccession";
+import { GuildTreasury } from "./generators/guildTreasury";
 import { IndustrialTechInvestment } from "./generators/industrialTechInvestment";
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
 import { Markets } from "./generators/markets-generator";
@@ -1515,6 +1516,10 @@ export function init(api: ExtensionAPI): void {
       // dependency either — self-gates to once per simulation year (docs/plan/
       // knowledge-guild-system.md §9 Phase 5).
       MartialDisciplineKnowledge.settleAnnual();
+      // No ordering dependency on the guild/academy settles above — sweeps burg.treasury surplus
+      // into market/state treasury regardless of guild presence. Self-gates to once per simulation
+      // year (docs/plan/burg-treasury-equilibrium.md §3.3).
+      GuildTreasury.settleAnnual();
       const burgGroupsChanged = DevelopmentPotential.updateAnnualBurgGroups();
       const forestChanged = tickForestRegrowth(effectiveDeltaYears);
 

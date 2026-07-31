@@ -69,7 +69,7 @@ describe("GuildSuccessionModule", () => {
   });
 
   it("creates a guild master for a burg with an active metallurgy stock", () => {
-    setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.5 }]);
+    setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.5, treasury: 0 }]);
 
     GuildSuccession.settleAnnual();
 
@@ -82,7 +82,7 @@ describe("GuildSuccessionModule", () => {
   });
 
   it("keeps the existing master instead of creating a second one on the following year", () => {
-    setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.5 }]);
+    setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.5, treasury: 0 }]);
     GuildSuccession.settleAnnual();
     const firstMasterCount = worldContext.pack.characters.filter(c => isMaster(c)).length;
 
@@ -93,7 +93,7 @@ describe("GuildSuccessionModule", () => {
   });
 
   it("caps a master at two apprentices", () => {
-    setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.5 }]);
+    setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.5, treasury: 0 }]);
     for (let year = 500; year < 510; year++) {
       worldContext.options = { year };
       GuildSuccession.settleAnnual();
@@ -175,7 +175,7 @@ describe("GuildSuccessionModule", () => {
       ]
     };
     worldContext.pack.characters = [master, apprentice];
-    setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 1 }]);
+    setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 1, treasury: 0 }]);
 
     GuildSuccession.settleAnnual();
 
@@ -256,7 +256,7 @@ describe("GuildSuccessionModule", () => {
       ]
     };
     worldContext.pack.characters = [master, apprentice];
-    setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.8 }]);
+    setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.8, treasury: 0 }]);
 
     GuildSuccession.settleAnnual();
 
@@ -320,7 +320,7 @@ describe("GuildSuccessionModule", () => {
       ]
     };
     worldContext.pack.characters = [master];
-    setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.8 }]);
+    setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.8, treasury: 0 }]);
 
     GuildSuccession.settleAnnual();
 
@@ -330,7 +330,7 @@ describe("GuildSuccessionModule", () => {
   });
 
   it("is a no-op the second time it is called within the same simulation year", () => {
-    setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.5 }]);
+    setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.5, treasury: 0 }]);
     GuildSuccession.settleAnnual();
     const countAfterFirstCall = worldContext.pack.characters.length;
 

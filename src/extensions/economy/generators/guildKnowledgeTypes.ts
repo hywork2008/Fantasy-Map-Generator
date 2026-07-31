@@ -24,6 +24,14 @@ export interface GuildKnowledgeStock {
   domain: CraftKnowledgeDomain;
   /** 0..1 saturating EWMA, same shape as MineOperation/SmelterOperation.toolsInvestmentStock. */
   stock: number;
+  /**
+   * The domain guild's own private capital at this Burg, separate from `burg.treasury`
+   * (docs/plan/burg-treasury-equilibrium.md §3.1) — funded by a share of this guild's
+   * craft-domain manufacturing profit (guildTreasury.ts's GUILD_PROFIT_SHARE) and trickled back to
+   * the Burg when it falls below its comfortable level (GUILD_PAYOUT_RATE). Independent of `stock`
+   * (technique) — a guild chapter can be flush with capital while still unskilled, or vice versa.
+   */
+  treasury: number;
 }
 
 /**

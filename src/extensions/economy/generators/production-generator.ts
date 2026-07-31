@@ -34,6 +34,7 @@ import {
   type CraftDomainEmploymentRecord,
   getCraftDomainForGood
 } from "./guildKnowledgeTypes";
+import { GUILD_PROFIT_SHARE, GuildTreasury } from "./guildTreasury";
 import { Markets } from "./markets-generator";
 import type { Deal, Market } from "./marketTypes";
 import { MilitaryResources } from "./militaryResources";
@@ -219,6 +220,10 @@ export class ProductionModule {
     const phaseRevenue = this.sellInventoryToMarket(state);
     burg.treasury = rn((burg.treasury || 0) + phaseRevenue, 2);
     burg.product = rn(Math.max(0, phaseRevenue - state.ingredientCosts), 2);
+    // Gives a treasury=0 Burg with no local resource a recovery chance even without new product
+    // this cycle, drawing only from its own domain guilds' accumulated capital (docs/plan/
+    // burg-treasury-equilibrium.md §3.2).
+    GuildTreasury.payoutStrugglingBurg(burg);
 
     setBurgProductionRecords(burg, state.records);
   }
@@ -459,7 +464,18 @@ export class ProductionModule {
       const taxAmount = deal.tax ?? grossRevenue * taxRate;
       const revenue = grossRevenue - taxAmount;
 
-      phaseRevenue += revenue;
+      // Craft-domain manufactured goods split their after-tax revenue between the domain guild's
+      // own treasury and the Burg's — private-industry vs. public-city wealth (docs/plan/
+      // burg-treasury-equilibrium.md §3.1). Goods with no guild domain (local-resource bonuses,
+      // unmapped goods) stay entirely burg.treasury, as before.
+      const domain = state.burg.i ? getCraftDomainForGood(good.name) : null;
+      if (domain && revenue > 0) {
+        const guildShare = rn(revenue * GUILD_PROFIT_SHARE, 2);
+        GuildTreasury.creditGuildTreasury(state.burg.i!, domain, guildShare);
+        phaseRevenue += revenue - guildShare;
+      } else {
+        phaseRevenue += revenue;
+      }
       state.records.push({ dealId: deal.i });
     }
 

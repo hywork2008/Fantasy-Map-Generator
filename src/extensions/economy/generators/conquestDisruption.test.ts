@@ -17,7 +17,7 @@ describe("applyConquestDisruption()", () => {
   it("disrupts both guild and academy stocks for the Burg when economy context is ready", () => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
     worldContext.pack = {} as unknown as PackedGraph;
-    setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.8 }]);
+    setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.8, treasury: 0 }]);
     setAcademyKnowledgeStocks([{ burgId: 1, domain: "administration", stock: 0.6 }]);
 
     applyConquestDisruption(1);
