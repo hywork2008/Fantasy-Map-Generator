@@ -41,7 +41,7 @@ export function incorporateEligibleFrontierSettlements(input: FrontierIncorporat
   for (const project of Object.values(frontier.projects)) {
     if (!isEligibleSettlement(project, frontier, cells, states, simulation.currentYear)) continue;
 
-    const corridor = findAdministrativeCorridor(cells, project.cellId, project.stateId);
+    const corridor = findAdministrativeCorridor(cells, frontier, project.cellId, project.stateId);
     if (!corridor) continue;
 
     const provinceId = getOrCreateAdministrativeProvince(world, project.stateId, project.cellId, corridor);
@@ -94,6 +94,7 @@ function isEligibleSettlement(
  */
 function findAdministrativeCorridor(
   cells: WorldContext["pack"]["cells"],
+  frontier: FrontierSimulationState,
   settlementCellId: number,
   stateId: number
 ): number[] | null {
@@ -108,7 +109,13 @@ function findAdministrativeCorridor(
 
     for (const neighborId of cells.c[current.cellId] ?? []) {
       if (visited.has(neighborId)) continue;
-      if (cells.h[neighborId] < 20 || (cells.state[neighborId] !== 0 && cells.state[neighborId] !== stateId)) continue;
+      if (cells.h[neighborId] < 20) continue;
+      const neighborState = cells.state[neighborId];
+      if (neighborState !== 0 && neighborState !== stateId) continue;
+      // Unclaimed cells still hosting another active frontier project (outpost
+      // or settlement) must not be swallowed as corridor land — that would
+      // desync frontier.cellStages from that project's own stage.
+      if (neighborState === 0 && frontier.cellStages[neighborId] !== FRONTIER_STAGE.wilderness) continue;
       visited.add(neighborId);
       queue.push({ cellId: neighborId, path: [...current.path, neighborId] });
     }
