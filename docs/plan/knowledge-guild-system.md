@@ -1,0 +1,198 @@
+# 知識・技術蓄積システム設計: ギルド・アカデミー・国家機密 (Knowledge & Guild System)
+
+## 状態
+
+**2026-07-31 設計提案段階(未着手)**: コード変更なし。`docs/plan/data/medieval-european-disciplines.csv`・`docs/plan/data/medieval-european-occupations.csv`を技術ドメインの原案として用いた設計ブレインストームの結果をここに文書化する。§8の未解決事項がすべて決定してから実装フェーズ(§9)に着手する。
+
+---
+
+## 0. 背景・目的
+
+農村から都市への食料供給と人口集中が技術・文化発展の土壌になる、という前提のもとで、大国と小国の間に技術発展速度の差をつけたい。特に:
+
+- 火薬・銃・大砲の研究は国家が溜め込む可能性が高い。
+- 鉱石の精錬技術・鍛冶の技術は、国家/都市/個人のどこが溜め込み、どう継承されるか。
+- 剣術・槍術・弓術・馬術のような軍事技能は、参考CSVに欠けているため別途設計が必要。
+
+この設計は、上記の問いに対する回答として「知識には蓄積主体ごとに異なる層があり、層ごとに蓄積速度・伝播速度・喪失リスクが違う」というモデルを提案する。
+
+---
+
+## 1. 現状監査(コード参照)
+
+| 項目 | 現状 | 参照 |
+| --- | --- | --- |
+| 技術投資EWMAパターン(参考実装) | `IndustrialTechInvestment`が`MineOperation.toolsInvestmentStock`/`SmelterOperation.toolsInvestmentStock`を「Tools購入カバレッジ→0..1のEWMA→生産式への乗数」で年次更新する。`AgTechInvestment`も`market.agTechStock`/`stateAgriculturalProductivity`で同型。いずれも`getXLastSettledYear()`/`setXLastSettledYear()`で年1回ゲート。 | [industrialTechInvestment.ts:18-111](../../src/extensions/economy/generators/industrialTechInvestment.ts#L18-L111)、[agTechInvestment.ts:21-155](../../src/extensions/economy/generators/agTechInvestment.ts#L21-L155) |
+| 国家単位の軍需資源ledger | `MilitaryResourceLedger`が`stateId`単位で`gunpowder`/`saltpeter`/`sulfur`/`arrows`/`bullets`等の`annualDemand`/`lastConsumed`/`unmetDemand`を持つ。ただし「解禁されるまでの蓄積」「技術水準」の概念はなく、需給フローのみ。 | [militaryResourcesTypes.ts:1-29](../../src/extensions/economy/generators/militaryResourcesTypes.ts#L1-L29) |
+| 都市単位のクラフト雇用 | `CraftEmploymentRecord { burgId, workers }`が`production-generator.ts`のレシピ加工に従事する労働者数を平滑化して観測する。都市の職業別労働力集計は`EmploymentOverviewRow`(`administration`/`mining`/`smelting`/`trade`/`strategicIndustry`/`craft`/`construction`)に集約される。 | [craftEmployment.ts:20-35](../../src/extensions/economy/generators/craftEmployment.ts#L20-L35)、[employmentOverviewState.ts:3-14](../../src/extensions/economy/store/employmentOverviewState.ts#L3-L14) |
+| 個人スキル | `CharacterSkills { artistry, diplomacy, engineering, geography, intrigue, learning, martial, prowess, stewardship }`は静的な1-100値。加齢時の一度きりのランダム成長(25歳以降は効果なし)のみで、**師弟継承・スキル伝達の仕組みは存在しない**。 | [characterTypes.ts:33-40](../../src/extensions/characters/characterTypes.ts#L33-L40) |
+| 年次tickの編成順序(参考実装) | `economy.tick`は`AgTechInvestment.settleAnnual()` → `IndustrialTechInvestment.settleAnnual()` → `DevelopmentPotential.updateAnnualAgriculture()` → (中略) → `reconcileAnnualBasicEmploymentWorkers()` → `DevelopmentPotential.updateAnnualBurgGroups()`の順で固定的に呼ぶ。 | [index.tsx:1387-1485](../../src/extensions/economy/index.tsx#L1387-L1485) |
+| シミュレーションtickの粒度・登録API | 基本単位は1日。`SimulationSystem { id, phase, cadence: { every: N }, run }`を`registerSimulationSystem()`で登録し、`runsOnTick()`が`(tick-1) % every === 0`で判定する。年次システムは`every`を365相当にするか、既存パターンのように内部で`getXLastSettledYear()`比較する。 | [simulationSystem.ts:52-166](../../src/generators/simulationSystem.ts#L52-L166) |
+| guild/technology/research概念 | リポジトリ全体をgrepしたが実質ゼロ件(`names-generator.ts`の"Guildford"という地名の偶然の部分一致のみ)。**ギルド・技術ツリー・研究機構は現状まったく存在しない**ため、本設計は追加のみで既存機能との衝突はない。 | grep確認済み |
+
+---
+
+## 2. 知識の4層モデル
+
+| 層 | 蓄積主体 | スコープ | 伝播速度 | 実装の置き場所(案) |
+| --- | --- | --- | --- | --- |
+| 個人の暗黙知 | Character(親方・職人) | 個人 | ほぼゼロ(本人と共に失われる) | Characters拡張、`CharacterSkills`に師弟継承を追加(§5) |
+| ギルド(職人組合) | 都市(Burg) | 都市単位。同一State内では緩やか、State間は遅い | 遅い(交易・移住経由) | Economy拡張、新規`GuildKnowledgeStock` |
+| アカデミー/修道院 | 都市 / 教会network | 都市〜宗教network | 中(教会networkはState境界を越えて緩やかに) | Economy拡張、新規`AcademyKnowledgeStock` |
+| 国家機密 | 国家(兵器廠) | State単位、原則非公開 | 極めて遅い(諜報・征服のみ) | Economy拡張、`MilitaryResourceLedger`と同スコープの新規`StateSecretStock` |
+
+ユーザーの元の問いへの直接的な回答:
+
+- **火薬・銃・大砲** → 国家機密層。既存の`MilitaryResourceLedger`(State単位)と同じスコープに`StateSecretStock`を追加すれば足りる。
+- **鉱石精錬・鍛冶** → ギルド層。既存の`SmelterOperation`/`MineOperation`(Burg単位)にギルドの`GuildKnowledgeStock`を紐付ける。ただし軍需向け高品質鍛冶だけは、国家が上乗せ投資して囲い込める(§6 王立工廠パターン)。
+- **個人がどう継承するか** → 師弟関係(§5)。現状唯一実装が存在しないギャップ。
+
+---
+
+## 3. CSVからの知識ドメイン分類
+
+`medieval-european-occupations.csv`と`medieval-european-disciplines.csv`を蓄積主体でクラスタリングした案。既存の`production-generator.ts`の`recipes`チェーン(原料→精製→加工品)、`craftEmployment.ts`と1対1で対応させる。
+
+### A. 都市ギルド(Burgスコープ、`recipes`の効率へ乗数)
+
+| ドメイン | 学問(CSV) | 代表職業(CSV) | 接続先 |
+| --- | --- | --- | --- |
+| 冶金・鍛冶 | Metallurgy, Assaying | Blacksmith, Swordsmith, Armorer, Founder, Smelter | `SmelterOperation`、武器/防具recipe |
+| 木工・造船 | Naval Architecture, Hydraulics, Mechanics | Carpenter, Shipwright, Millwright, Cooper | shipbuilding拡張、船体recipe |
+| 石工・建築 | Architecture, Civil Engineering, Geometry, Surveying | Mason, Bricklayer, Stonemason | `constructionEmployment.ts`/`buildingStock` |
+| 織物・染色 | Textile Science, Dyeing Science | Weaver, Dyer, Tailor, Draper | Cloth/Garment recipe |
+| 皮革 | Tanning Chemistry | Tanner, Cordwainer, Saddler | 皮革recipe |
+| ガラス・陶芸 | Glassmaking, Ceramics Science | Glassblower, Potter | 奢侈品recipe |
+| 精密機器 | Horology, Instrument Making, Optics | Clockmaker, Instrument Maker | 高付加価値財 |
+| 書物・印刷 | Calligraphy, Papermaking, Printing Craft | Scribe, Printer, Papermaker | アカデミー層の「知識の記録媒体」そのもの |
+
+### B. アカデミー/修道院(都市〜教会networkスコープ、識字労働力が前提)
+
+| ドメイン | 学問(CSV) | 代表職業(CSV) |
+| --- | --- | --- |
+| 医学 | Medicine, Surgery, Herbalism, Anatomy | Physician, Surgeon, Herbalist |
+| 法学・行政 | Civil Law, Canon Law, Rhetoric, Logic | Lawyer, Judge, Notary |
+| 神学 | Theology | Priest, Monk, Bishop, Abbot |
+| 自然哲学 | Alchemy, Astronomy, Natural Philosophy | Alchemist, Astrologer, Scholar |
+
+神学だけは教会networkを介してState境界を越えて緩やかに伝播させる。これは「小国は孤立して技術発展が遅れる」という主題への意図的な緩和弁になる。小国でも信仰篤い修道院を持てば、医学・法学の一部が周辺国から流れ込む、という物語が作れる。
+
+### C. 国家機密(Stateスコープ、`MilitaryResourceLedger`に接続)
+
+| ドメイン | 学問(CSV) | 代表職業(CSV) |
+| --- | --- | --- |
+| 火薬術 | Pyrotechnics | Gunsmith |
+| 軍事工学・築城 | Military Engineering, Fortification Science | Siege Engineer, Engineer |
+
+### D. 武術(新規追加、両CSVに欠落)
+
+家門・従士団・訓練場(State/常備軍スコープ)で蓄積する。都市ギルドと異なり、識字も都市化も前提としない。
+
+| ドメイン(新規) | 蓄積主体 | 代表職業(CSVに既存) | 接続先 |
+| --- | --- | --- | --- |
+| 剣術 | 騎士団/常備軍 | Knight, Man-at-Arms, Mercenary, Captain | Nobility拡張のOfficer、regiment戦闘力 |
+| 槍術 | 常備軍訓練場 | Pikeman, Man-at-Arms | regiment戦闘力 |
+| 弓術 | 都市の射場+常備軍(装備生産はギルド、射撃技能は訓練場と二重構造) | Archer, Crossbowman, Fletcher, Bowyer | regiment戦闘力 |
+| 馬術 | 貴族家門 | Knight, Squire | regiment機動力/騎兵運用 |
+
+弓術だけは「Fletcher/Bowyer(矢・弓の製造)」をギルド層(A)、「射撃技能そのもの」を訓練場層(D)に分離するのが史実にも合う。
+
+---
+
+## 4. 大国・小国の技術格差メカニズム
+
+既存コードに接続可能な4つの閾値効果を提案する。
+
+1. **ギルド設立の人口閾値**: `burg.group`(village/town/city)が一定段階以上でなければギルドが存在できない(`developmentPotential.ts`の発展段階と同じ思想)。大国は都市化した都市を多数抱えるため複数都市で並行してギルドが育つ。小国は都市自体が少なく閾値を超えられない。
+2. **国家機密は財源+常備インフラが前提**: `MilitaryResourceLedger`と同様、Treasuryからの継続投資がないと`StateSecretStock`が育たない。大国=大きい財源=先行しやすい。
+3. **State内伝播 vs State間伝播**: 同一State内の都市ギルド同士は交易路(既存`trade`network)経由で比較的速く伝播させ、異なるState間は大幅に遅くする(教会networkの学術のみ緩やかに国境を越える)。大国は内部で技術を使い回せるため実効的な技術水準が高くなる。
+4. **征服・従属による技術の一括吸収**: Nobility拡張の行軍占領(march capture)/属国化イベント時に、征服都市の`GuildKnowledgeStock`をそのままStateの技術プールへ編入する。大国が拡大するほど他国のノウハウを吸収でき、複利的に差が開く。ここが最も「大国と小国の差」を演出しやすいレバー。
+
+小国側の対抗手段として、既存のEspionage(諜報)による職人引き抜き/技術窃取と、教会networkの学術流入を残す。これにより小国が完全に詰まない設計になる。
+
+---
+
+## 5. 個人継承メカニズム
+
+`CharacterSkills`には成長も継承もないため、ここだけは新規実装が必要になる唯一のギャップ。
+
+- 職業に就くCharacter(親方 = 高い該当スキル値)に1〜2人の弟子(若年Character、同職業)を紐付ける。
+- 弟子のスキル成長率は「親方のスキル値 × 所属ギルドの`GuildKnowledgeStock`」で決まる。ギルドが発展しているほど弟子の伸びが早い=制度が個人を後押しする。
+- 親方が弟子を持たずに死亡した場合、ギルドの`GuildKnowledgeStock`に一時的な減衰ペナルティを与える(「秘伝が失われた」というフレーバーがそのまま機能として成立)。
+- Characters拡張が無効な場合は、Character単位の師弟関係を飛ばし、`craftEmployment.ts`の頭数だけで`GuildKnowledgeStock`を成長させる(既存拡張群の"optional dependency"パターンに合わせた優雅な劣化)。
+
+---
+
+## 6. データモデル案(素案・未確定)
+
+既存の`toolsInvestmentStock`/`agTechStock`と同じEWMA更新テンプレートを踏襲する。型・フィールド名は仮称。
+
+```ts
+// Economy拡張所有(MineOperation/SmelterOperationと同型: burgId/marketIdでキー)
+interface GuildKnowledgeStock {
+  burgId: number;
+  domain: CraftKnowledgeDomain; // §3-A の8ドメイン
+  stock: number; // 0..1 EWMA
+  practitioners: number; // CraftEmploymentRecord由来
+  masterCharacterIds?: number[]; // Characters拡張有効時のみ
+}
+
+interface AcademyKnowledgeStock {
+  burgId: number;
+  domain: ScholarlyKnowledgeDomain; // §3-B の4ドメイン
+  stock: number;
+  churchNetworkId?: number; // 神学ドメインのみ、State境界を越えた緩伝播に使用
+}
+
+interface StateSecretStock {
+  stateId: number;
+  domain: "pyrotechnics" | "militaryEngineering" | "fortificationScience";
+  stock: number; // MilitaryResourceLedgerの生産効率/解禁ラインに接続
+}
+
+interface MartialDisciplineStock {
+  stateId: number; // 将来的にはhouseId(貴族家門)に細分化する余地あり
+  domain: "swordsmanship" | "spearmanship" | "archery" | "horsemanship";
+  stock: number; // regimentMovement.tsの戦力係数に接続
+}
+```
+
+「王立工廠パターン」: 軍需向け高品質な鍛冶(武器・防具)は`GuildKnowledgeStock`(冶金・鍛冶ドメイン)をベースラインにしつつ、State側が追加投資して同ドメインに上乗せストックを持てるようにする。これにより「民間の鍛冶は開かれたギルド技術、国家軍向けの高品質装備は国家が囲い込む」という二重構造を1つのドメインの中で表現できる。
+
+---
+
+## 7. 置き場所・拡張間の依存
+
+Economy拡張はどの拡張にも依存しない自己完結型であり、`MilitaryResourceLedger`も既にEconomy拡張に置かれている。したがって:
+
+- `GuildKnowledgeStock` / `AcademyKnowledgeStock` / `StateSecretStock` / `MartialDisciplineStock`はすべて`src/extensions/economy/generators/`配下の新規モジュール(例: `knowledgeInstitutions.ts`)に置く。
+- Characters拡張が有効な場合のみ、§5の師弟継承ロジックを追加で接続する(economyからcharactersへの直接依存は作らず、`ExtensionAPI`経由の疎結合を維持)。
+- Nobility拡張は、`StateSecretStock`(国家機密の解禁判定)と`MartialDisciplineStock`(regiment戦力係数)を読み取り専用で参照する。Nobilityは既にCharacters必須の依存を持つため、この経路もAGENTS.mdの依存ルールと矛盾しない。
+
+---
+
+## 8. 未解決事項(実装着手前にユーザー確認が必要な決定)
+
+| # | 論点 | 選択肢の例 |
+| --- | --- | --- |
+| 1 | ドメインの粒度 | CSV全53学問+52職業をほぼ1:1で個別トラックにするか、§3のA/B/C/D程度(15前後)の粗いドメインにまとめるか |
+| 2 | ギルド設立の都市段階閾値 | town以上か、city以上か。village止まりの集落は永久にギルドを持てないとするか |
+| 3 | 征服時の技術吸収 | 即時全量編入か、年単位で緩やかに移行するか(占領直後の反乱・混乱で一部消失する余地を残すか) |
+| 4 | 教会networkのスコープ | 今回のスコープに含めるか、後続タスクとして神学以外は国境を越えないシンプル版から始めるか |
+| 5 | 師弟継承システムの必須度 | v1からCharacters拡張必須の個人継承を実装するか、まずは craft雇用頭数ベースの簡易版(§5後段)から始めるか |
+| 6 | 初期解禁ライン | ゲーム開始時点(生成時)で、どのState/Burgがどのドメインを既に保有した状態にするか。全State同一水準からスタートさせるか、文化・地形起源のバイアスを与えるか |
+| 7 | Roman Concreteとの整合 | 冶金・鍛冶以外の既存EWMAストック(`concreteTechStock`等)を、このKnowledge系ドメイン体系に将来統合するか、独立のまま残すか |
+
+---
+
+## 9. 実装フェーズ(案・すべて未着手)
+
+- [ ] Phase 1: ギルド基盤 — 冶金・鍛冶ドメインのみで`GuildKnowledgeStock`を実装し、`SmelterOperation`/武器・防具recipeの効率に接続する垂直スライス
+- [ ] Phase 2: 他クラフトドメインの展開(§3-A 残り7ドメイン)
+- [ ] Phase 3: アカデミー/修道院と教会networkの実装(§3-B)
+- [ ] Phase 4: 国家機密ドメインと`MilitaryResourceLedger`の接続(§3-C)
+- [ ] Phase 5: 武術ドメインと`regimentMovement.ts`戦力係数の接続(§3-D)
+- [ ] Phase 6: 個人継承(Characters拡張連携、§5)
+- [ ] Phase 7: 征服/従属による技術吸収、諜報による技術窃取の接続(§4-4、既存Espionage機構との統合)
+
+各フェーズ開始前に、そのフェーズが依存する§8の未解決事項を確定させること。

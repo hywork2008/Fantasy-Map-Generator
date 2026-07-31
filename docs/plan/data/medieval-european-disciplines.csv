@@ -1,0 +1,60 @@
+No,English Name,Japanese Name,Related Occupation(s),Leads To (Modern Field)
+1,Alchemy,錬金術,Alchemist; Apothecary; Assayer,Chemistry
+2,Astrology,占星術,Astrologer; Physician,Astronomy
+3,Astronomy,天文学,Astronomer; Navigator; Pilot,Astronomy / Physics
+4,Arithmetic,算術,Notary; Clerk; Moneyer; Tax Collector,Mathematics
+5,Geometry,幾何学,Architect; Mason; Surveyor; Cartographer,Mathematics / Engineering
+6,Natural Philosophy,自然哲学,Scholar; Alchemist; Physician,Physics / Natural Science
+7,Medicine,医学,Physician; Surgeon; Barber-Surgeon,Medicine
+8,Surgery,外科学,Surgeon; Barber-Surgeon,Surgery
+9,Herbalism,薬草学,Herbalist; Apothecary; Midwife,Botany / Pharmacology
+10,Anatomy,解剖学,Physician; Surgeon,Anatomy / Medicine
+11,Theology,神学,Priest; Monk; Bishop; Abbot,Philosophy / Ethics
+12,Philosophy,哲学,Scholar; Tutor; Schoolmaster,Philosophy
+13,Logic (Dialectic),論理学,Scholar; Lawyer; Judge,Logic / Computer Science
+14,Rhetoric,修辞学,Notary; Lawyer; Herald,Linguistics / Law
+15,Grammar,文法学,Scribe; Tutor; Schoolmaster,Linguistics
+16,Canon Law,教会法,Bishop; Abbot; Notary,Law
+17,Civil Law,市民法,Lawyer; Judge; Bailiff,Law
+18,Music Theory,音楽理論,Musician; Choir Singer; Organ Builder,Musicology / Acoustics
+19,Cartography,地図学,Cartographer; Surveyor; Navigator,Geography / GIS
+20,Cosmography,宇宙誌学,Astronomer; Cartographer; Scholar,Geography / Astronomy
+21,Mechanics,機械学,Millwright; Engineer; Clockmaker,Mechanical Engineering
+22,Hydraulics,水利学,Millwright; Miller; Engineer,Civil / Mechanical Engineering
+23,Metallurgy,冶金学,Smelter; Refiner; Founder; Blacksmith,Metallurgy / Materials Science
+24,Assaying,鉱物鑑定学,Assayer; Moneyer; Mintmaster,Analytical Chemistry
+25,Architecture,建築学,Architect; Mason; Carpenter,Architecture / Civil Engineering
+26,Civil Engineering,土木工学,Engineer; Mason; Surveyor,Civil Engineering
+27,Military Engineering,軍事工学,Siege Engineer; Engineer; Armorer,Military / Mechanical Engineering
+28,Fortification Science,築城学,Siege Engineer; Mason; Engineer,Civil / Military Engineering
+29,Pyrotechnics,火薬術,Gunsmith; Siege Engineer,Chemistry / Explosives Engineering
+30,Navigation,航海術,Navigator; Pilot; Sailor,Navigation / Nautical Science
+31,Naval Architecture,造船学,Shipwright; Sailmaker,Naval Engineering
+32,Heraldry,紋章学,Herald,Genealogy / Graphic Design
+33,Calligraphy,書法,Scribe; Illuminator; Notary,Typography / Graphic Design
+34,Bookbinding Craft,製本術,Bookbinder; Parchmenter,Printing / Publishing
+35,Papermaking Science,製紙学,Papermaker,Materials Science / Chemistry
+36,Printing Craft,印刷術,Printer; Bookbinder,Printing / Information Technology
+37,Optics,光学,Astrologer; Astronomer; Instrument Maker,Optics / Physics
+38,Horology,時計学,Clockmaker; Instrument Maker,Precision Engineering
+39,Instrument Making,器具製作学,Instrument Maker; Organ Builder,Precision Engineering
+40,Agronomy,農学,Farmer; Plowman; Steward,Agricultural Science
+41,Viticulture,葡萄栽培学,Vinedresser; Vintner,Agricultural Science / Fermentation Science
+42,Apiculture,養蜂学,Beekeeper; Chandler,Entomology / Agricultural Science
+43,Venery (Hunting Lore),狩猟学,Huntsman; Falconer; Gamekeeper,Wildlife Biology
+44,Divination,占術,Astrologer; Herald,Statistics / Probability Theory (satirical origin)
+45,Geomancy,地相術,Astrologer; Surveyor,Geology / Geography
+46,Physiognomy,観相学,Physician; Barber-Surgeon,Psychology (early pseudo-science)
+47,Dyeing Science,染色学,Dyer; Fuller,Chemistry / Textile Engineering
+48,Glassmaking Science,ガラス製造学,Glassblower; Glazier,Materials Science / Optics
+49,Ceramics Science,陶芸学,Potter,Materials Science / Ceramic Engineering
+50,Tanning Chemistry,なめし革化学,Tanner; Currier,Chemistry / Materials Science
+51,Textile Science,織物学,Weaver; Fuller; Draper,Textile Engineering
+52,Mineralogy,鉱物学,Miner; Quarryman; Assayer,Geology / Materials Science
+53,Surveying,測量学,Surveyor; Engineer; Cartographer,Geodesy / Civil Engineering
+54,Meteorology,気象学,Farmer; Sailor; Astrologer,Meteorology / Atmospheric Science
+55,Natural History,博物学,Scholar; Herbalist; Forester,Biology / Zoology / Botany
+56,Numismatics (Mint Craft),貨幣鋳造学,Moneyer; Mintmaster,Metallurgy / Economics
+57,Acoustics (Bell-founding),鐘鋳造音響学,Bell Founder; Founder,Acoustics / Materials Science
+58,Distillation,蒸留術,Alchemist; Apothecary; Vintner,Chemical Engineering
+59,Perfumery,調香術,Apothecary; Soap Maker,Chemistry / Cosmetic Science

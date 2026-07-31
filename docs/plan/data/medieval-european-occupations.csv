@@ -1,0 +1,251 @@
+No,English Name,Japanese Name
+1,Blacksmith,鍛冶屋
+2,Farrier,蹄鉄工
+3,Whitesmith,白鍛冶（すず・ブリキ細工師）
+4,Goldsmith,金細工師
+5,Silversmith,銀細工師
+6,Coppersmith,銅細工師
+7,Tinsmith,ブリキ職人
+8,Locksmith,錠前師
+9,Armorer,甲冑師
+10,Swordsmith,刀鍛冶（剣鍛冶）
+11,Bladesmith,刃物鍛冶
+12,Cutler,刃物商・刃物師
+13,Gunsmith,銃器職人
+14,Carpenter,大工
+15,Joiner,指物師
+16,Cabinetmaker,家具職人
+17,Cooper,樽職人
+18,Wheelwright,車輪職人
+19,Cartwright,荷車職人
+20,Wainwright,馬車職人
+21,Shipwright,造船職人
+22,Sawyer,木挽き職人
+23,Turner,轆轤（ろくろ）職人
+24,Mason,石工
+25,Stonemason,石積み職人
+26,Bricklayer,煉瓦職人
+27,Plasterer,左官
+28,Tiler,タイル職人・屋根瓦職人
+29,Thatcher,茅葺き職人
+30,Roofer,屋根職人
+31,Glazier,ガラス職人
+32,Glassblower,ガラス吹き職人
+33,Potter,陶工
+34,Tanner,なめし革職人
+35,Currier,革仕上げ職人
+36,Cordwainer,靴職人（高級靴）
+37,Cobbler,靴修理職人
+38,Shoemaker,靴屋
+39,Saddler,鞍職人
+40,Harness Maker,馬具職人
+41,Leatherworker,革細工師
+42,Glover,手袋職人
+43,Furrier,毛皮商・毛皮職人
+44,Skinner,皮剥ぎ職人
+45,Weaver,織工
+46,Fuller,縮絨職人（布仕上げ職人）
+47,Dyer,染物師
+48,Tailor,仕立屋
+49,Draper,織物商
+50,Mercer,絹織物商
+51,Hosier,靴下商・靴下職人
+52,Hatter,帽子職人
+53,Milliner,婦人帽子職人
+54,Spinner,紡ぎ職人
+55,Rope Maker,縄職人（ロープ職人）
+56,Sailmaker,帆布職人
+57,Basket Weaver,籠職人
+58,Cooper's Apprentice,樽職人見習い
+59,Baker,パン職人
+60,Miller,粉挽き職人
+61,Brewer,醸造職人
+62,Vintner,ワイン商・ワイン醸造家
+63,Cheesemaker,チーズ職人
+64,Butcher,肉屋
+65,Fishmonger,魚屋
+66,Chandler,蝋燭職人
+67,Soap Maker,石鹸職人
+68,Apothecary,薬種商
+69,Barber,理髪師
+70,Barber-Surgeon,理髪外科医
+71,Physician,医師
+72,Surgeon,外科医
+73,Herbalist,薬草師
+74,Midwife,産婆
+75,Scribe,写字生
+76,Illuminator,彩飾写本師
+77,Bookbinder,製本職人
+78,Printer,印刷職人
+79,Papermaker,製紙職人
+80,Parchmenter,羊皮紙職人
+81,Notary,公証人
+82,Clerk,書記
+83,Lawyer,法律家
+84,Judge,裁判官
+85,Bailiff,執行官・代官
+86,Reeve,荘園管理人
+87,Steward,家令・執事
+88,Chamberlain,侍従
+89,Seneschal,家令長
+90,Constable,警吏・城代
+91,Sheriff,州長官
+92,Herald,紋章官・伝令官
+93,Falconer,鷹匠
+94,Huntsman,猟師頭
+95,Gamekeeper,猟場管理人
+96,Fowler,鳥猟師
+97,Fisherman,漁師
+98,Farmer,農民
+99,Plowman,犂を扱う農夫
+100,Shepherd,羊飼い
+101,Herdsman,牧夫
+102,Cowherd,牛飼い
+103,Swineherd,豚飼い
+104,Goatherd,山羊飼い
+105,Dairymaid,乳搾り女
+106,Gardener,庭師
+107,Beekeeper,養蜂家
+108,Vinedresser,葡萄栽培農夫
+109,Forester,森林管理人
+110,Woodcutter,木こり
+111,Charcoal Burner,炭焼き職人
+112,Collier,石炭夫・炭焼き
+113,Miner,鉱夫
+114,Quarryman,採石夫
+115,Salter,製塩業者
+116,Merchant,商人
+117,Trader,交易商
+118,Peddler,行商人
+119,Innkeeper,宿屋の主人
+120,Tavern Keeper,酒場の主人
+121,Alewife,エール醸造女性
+122,Cook,料理人
+123,Kitchen Maid,台所女中
+124,Scullion,下働きの少年（皿洗い）
+125,Groom,馬丁
+126,Ostler,馬丁（宿屋の）
+127,Stable Boy,馬小屋番の少年
+128,Coachman,馬車の御者
+129,Carter,荷車引き
+130,Porter,荷担ぎ人・門番
+131,Messenger,伝令
+132,Courier,急使
+133,Watchman,見張り番
+134,Town Crier,触れ役
+135,Executioner,処刑人
+136,Jailer,牢番
+137,Knight,騎士
+138,Squire,従騎士
+139,Man-at-Arms,重装歩兵
+140,Archer,弓兵
+141,Crossbowman,弩兵（クロスボウ兵）
+142,Pikeman,槍兵
+143,Mercenary,傭兵
+144,Soldier,兵士
+145,Captain,隊長
+146,Standard Bearer,旗手
+147,Priest,司祭
+148,Monk,修道士
+149,Nun,修道女
+150,Abbot,修道院長（男）
+151,Abbess,修道院長（女）
+152,Bishop,司教
+153,Archbishop,大司教
+154,Cardinal,枢機卿
+155,Friar,托鉢修道士
+156,Deacon,助祭
+157,Chaplain,礼拝堂付き司祭
+158,Sexton,教会堂守
+159,Bell Ringer,鐘つき
+160,Choir Singer,聖歌隊員
+161,Pilgrim,巡礼者
+162,Minstrel,吟遊詩人
+163,Troubadour,吟遊詩人（南仏系）
+164,Bard,バード（詩人歌手）
+165,Jester,道化師
+166,Fool,宮廷道化師
+167,Juggler,曲芸師
+168,Acrobat,アクロバット芸人
+169,Musician,楽師
+170,Piper,笛吹き
+171,Actor,役者
+172,Painter,画家
+173,Sculptor,彫刻家
+174,Architect,建築家
+175,Astrologer,占星術師
+176,Alchemist,錬金術師
+177,Astronomer,天文学者
+178,Scholar,学者
+179,Tutor,家庭教師
+180,Schoolmaster,校長・教師
+181,Steward of the Household,家政管理人
+182,Lady-in-Waiting,侍女
+183,Nursemaid,乳母・子守
+184,Wet Nurse,乳母
+185,Laundress,洗濯女
+186,Seamstress,お針子
+187,Embroiderer,刺繍師
+188,Lacemaker,レース職人
+189,Weaponsmith,武器鍛冶
+190,Fletcher,矢羽根職人
+191,Bowyer,弓職人
+192,Stringer,弦職人
+193,Founder,鋳物師
+194,Bell Founder,鋳鐘師
+195,Smelter,製錬工
+196,Refiner,精製工
+197,Assayer,鑑定人（金属）
+198,Moneyer,貨幣鋳造人
+199,Mintmaster,造幣局長
+200,Banker,銀行家
+201,Moneylender,金貸し
+202,Tax Collector,徴税人
+203,Toll Collector,通行税徴収人
+204,Customs Officer,税関吏
+205,Miller's Assistant,粉挽き職人の助手
+206,Wet Cooper,液体樽職人
+207,Dry Cooper,乾物樽職人
+208,Chandler's Apprentice,蝋燭職人見習い
+209,Ferryman,渡し守
+210,Bargeman,運河船頭
+211,Boatman,船頭
+212,Navigator,航海士
+213,Pilot,水先案内人
+214,Sailor,水夫
+215,Cabin Boy,船室係の少年
+216,Fishwife,魚売り女
+217,Cheese Vendor,チーズ売り
+218,Egg Seller,卵売り
+219,Flower Girl,花売り娘
+220,Water Carrier,水運び人
+221,Rat Catcher,ねずみ捕り
+222,Chimney Sweep,煙突掃除人
+223,Nightsoil Man,汚物処理人
+224,Grave Digger,墓掘り人
+225,Undertaker,葬儀屋
+226,Midwife's Assistant,産婆の助手
+227,Wet Nurse's Companion,乳母の付き添い
+228,Tinker,いかけ屋（鍋修理職人）
+229,Knacker,廃馬処理業者
+230,Rendering Worker,獣脂精製工
+231,Tallow Chandler,獣脂蝋燭職人
+232,Wax Chandler,蜜蝋蝋燭職人
+233,Feltmaker,フェルト職人
+234,Hornworker,角細工師
+235,Comb Maker,櫛職人
+236,Button Maker,ボタン職人
+237,Pinmaker,ピン職人
+238,Needlemaker,針職人
+239,Wireworker,針金職人
+240,Cutlery Grinder,刃物研ぎ職人
+241,Knife Grinder,ナイフ研ぎ職人
+242,Millwright,製粉機職人
+243,Clockmaker,時計職人
+244,Instrument Maker,楽器職人
+245,Organ Builder,オルガン製作者
+246,Bell Ringer's Assistant,鐘つき助手
+247,Cartographer,地図製作者
+248,Surveyor,測量士
+249,Engineer,技師
+250,Siege Engineer,攻城兵器技師
