@@ -11,7 +11,12 @@ export interface VirtualTableBodyProps<T> {
 export function VirtualTableBody<T>({
   items,
   scrollElementRef,
-  estimateSize = 28,
+  // .fmg-table td has padding: 0 and line-height: 0.9, so a real row renders at
+  // ~12px (13px font × 0.9), not the ~28px a generic default would suggest. A
+  // guess this far off makes rows appear to gain/lose count while scrolling
+  // into not-yet-measured territory, since freshly-scrolled-to rows still use
+  // the stale estimate until they're individually measured.
+  estimateSize = 12,
   renderRow
 }: VirtualTableBodyProps<T>) {
   const rowVirtualizer = useVirtualizer({

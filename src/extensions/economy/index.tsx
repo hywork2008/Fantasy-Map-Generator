@@ -109,6 +109,7 @@ import { GoodsEditorDialog } from "./ui/dialogs/GoodsEditorDialog";
 import { GoodsProducersDialog } from "./ui/dialogs/GoodsProducersDialog";
 import { GoodsStockDialog } from "./ui/dialogs/GoodsStockDialog";
 import { GoodsTagsFilterDialog } from "./ui/dialogs/GoodsTagsFilterDialog";
+import { GuildOverviewDialog } from "./ui/dialogs/GuildOverviewDialog";
 import { MarketDealsDialog } from "./ui/dialogs/MarketDealsDialog";
 import { MarketOverviewDialog } from "./ui/dialogs/MarketOverviewDialog";
 import { MarketsGoodCompareDialog } from "./ui/dialogs/MarketsGoodCompareDialog";
@@ -837,6 +838,11 @@ export function init(api: ExtensionAPI): void {
     extensionId: ECONOMY_EXTENSION_ID,
     component: EmploymentOverviewDialog
   });
+  api.registerDialog({
+    id: "GuildOverviewDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: GuildOverviewDialog
+  });
 
   // Register Economy Style Config
   api.registerStyleConfig(economyStyleConfig);
@@ -979,6 +985,19 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
+  api.registerAction({
+    id: "economy-edit-guilds",
+    extensionId: ECONOMY_EXTENSION_ID,
+    tab: "tools",
+    section: "edit",
+    label: "Guilds",
+    dialogId: "guildOverview",
+    tooltip: "Click to open Guild Overview — craft-domain guild technique and treasury by Burg",
+    onClick: () => {
+      document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: "guildOverviewButton" } }));
+    }
+  });
+
   // Register tool action handlers so core tools.ts has no knowledge of extension dialogs.
   // The handler implements the same open/close + layer toggle pattern used for built-in editors.
   const toggleEditorDialog = (dialogId: string, layerId: string | null) => {
@@ -1001,6 +1020,7 @@ export function init(api: ExtensionAPI): void {
   api.registerToolAction("overviewMarketsButton", () => toggleEditorDialog("marketsOverview", "toggleMarketsLayer"));
   api.registerToolAction("editTradeAnimationButton", () => toggleEditorDialog("tradeAnimationEditor", "toggleTrade"));
   api.registerToolAction("employmentOverviewButton", () => toggleEditorDialog("employmentOverview", null));
+  api.registerToolAction("guildOverviewButton", () => toggleEditorDialog("guildOverview", null));
   api.registerToolAction("burgProductionOverview", detail => {
     const burgId = (detail as { burgId?: number } | undefined)?.burgId;
     if (!burgId) return;
@@ -1091,6 +1111,7 @@ export function init(api: ExtensionAPI): void {
       api.closeDialog("productionOverview");
       api.closeDialog("tradeAnimationEditor");
       api.closeDialog("employmentOverview");
+      api.closeDialog("guildOverview");
 
       // Clear economy data through the extension-owned command after disabling.
       api.dispatchExtensionCommand({ extensionId: ECONOMY_EXTENSION_ID, name: "clear", payload: undefined });
@@ -1801,6 +1822,7 @@ export function cleanup(api: ExtensionAPI): void {
   api.unregisterToolAction("editTradeAnimationButton");
   api.unregisterToolAction("burgProductionOverview");
   api.unregisterToolAction("employmentOverviewButton");
+  api.unregisterToolAction("guildOverviewButton");
 
   api.unregisterExtension(ECONOMY_EXTENSION_ID);
   clearEconomyContext();
