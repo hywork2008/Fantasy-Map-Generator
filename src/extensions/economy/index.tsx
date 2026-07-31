@@ -58,6 +58,7 @@ import {
   isGoodEnabled,
   migrateLegacyOreIngotGoods
 } from "./generators/goods-generator";
+import { GuildKnowledge } from "./generators/guildKnowledge";
 import { IndustrialTechInvestment } from "./generators/industrialTechInvestment";
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
 import { Markets } from "./generators/markets-generator";
@@ -1482,6 +1483,11 @@ export function init(api: ExtensionAPI): void {
         // year's buildingStock (docs/plan/urban-construction-industry.md §3.3, decision §7.1-2b).
         ConstructionOperations.constrainEffectiveCapacity();
       }
+      // Must run after reconcileAnnualBasicEmploymentWorkers(), not before: it reads this year's
+      // freshly-reconciled SmelterOperation.workers headcount as the Metallurgy guild's
+      // practitioner coverage (docs/plan/knowledge-guild-system.md §9 Phase 1). Self-gates to
+      // once per simulation year regardless of how often this tick runs.
+      GuildKnowledge.settleAnnual();
       const burgGroupsChanged = DevelopmentPotential.updateAnnualBurgGroups();
       const forestChanged = tickForestRegrowth(effectiveDeltaYears);
 

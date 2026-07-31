@@ -14,6 +14,7 @@ import type { BurgMarketLedger } from "./generators/burgMarketLedgersTypes";
 import type { ConstructionOperation } from "./generators/constructionEmploymentTypes";
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
 import type { Good } from "./generators/goodsGeneratorTypes";
+import type { GuildKnowledgeStock } from "./generators/guildKnowledgeTypes";
 import type { Caravan, Deal, Market } from "./generators/marketTypes";
 import type { MerchantOrganization } from "./generators/merchantOrganizationsTypes";
 import type { MilitaryResourceLedger } from "./generators/militaryResourcesTypes";
@@ -48,6 +49,7 @@ let _settlementDevelopmentPotentialFallback: Float32Array<ArrayBufferLike> = new
 let _settlementDevelopmentLastEvaluatedYearFallback: number | null = null;
 let _agTechLastSettledYearFallback: number | null = null;
 let _industrialTechLastSettledYearFallback: number | null = null;
+let _guildKnowledgeLastSettledYearFallback: number | null = null;
 let _stateAgriculturalProductivityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
 export function initEconomyContext(api: ExtensionAPI): void {
@@ -68,6 +70,7 @@ export function clearEconomyContext(): void {
   _settlementDevelopmentLastEvaluatedYearFallback = null;
   _agTechLastSettledYearFallback = null;
   _industrialTechLastSettledYearFallback = null;
+  _guildKnowledgeLastSettledYearFallback = null;
   _stateAgriculturalProductivityFallback = new Float32Array();
 }
 
@@ -372,6 +375,24 @@ export function setIndustrialTechLastSettledYear(year: number): void {
   _industrialTechLastSettledYearFallback = year;
 }
 
+/** Same guard as getAgTechLastSettledYear, for GuildKnowledge.settleAnnual() (docs/plan/knowledge-guild-system.md §9 Phase 1). */
+export function getGuildKnowledgeLastSettledYear(): number | null {
+  const slice = getEconomySlice();
+  if (slice) {
+    const value = slice.guildKnowledgeLastSettledYear;
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return _guildKnowledgeLastSettledYearFallback;
+}
+export function setGuildKnowledgeLastSettledYear(year: number): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice.guildKnowledgeLastSettledYear = year;
+    return;
+  }
+  _guildKnowledgeLastSettledYearFallback = year;
+}
+
 /**
  * 0..1 saturating EWMA of State-funded agricultural infrastructure investment, indexed by
  * state.i (docs/plan/rural-agtech-investment.md §6.1). Kept in the economy extension's own
@@ -580,6 +601,14 @@ export function getSmelterOperations(): SmelterOperation[] {
 }
 export function setSmelterOperations(operations: readonly SmelterOperation[]): void {
   setSliceArray("smelterOperations", operations);
+}
+
+/** Burg-scoped guild technique stocks, one entry per (burgId, domain) (docs/plan/knowledge-guild-system.md §6, §9 Phase 1). */
+export function getGuildKnowledgeStocks(): GuildKnowledgeStock[] {
+  return getSliceArray<GuildKnowledgeStock>("guildKnowledgeStocks");
+}
+export function setGuildKnowledgeStocks(stocks: readonly GuildKnowledgeStock[]): void {
+  setSliceArray("guildKnowledgeStocks", stocks);
 }
 export function getAdministrationEmployment(): AdministrationEmploymentRecord[] {
   return getSliceArray<AdministrationEmploymentRecord>("administrationEmployment");

@@ -2,7 +2,19 @@
 
 ## 状態
 
-**2026-07-31 設計提案段階(未着手)**: コード変更なし。`docs/plan/data/medieval-european-disciplines.csv`・`docs/plan/data/medieval-european-occupations.csv`を技術ドメインの原案として用いた設計ブレインストームの結果をここに文書化する。§8の未解決事項がすべて決定してから実装フェーズ(§9)に着手する。
+**2026-07-31 Phase 1(冶金ギルド基盤)実装済み**: §8.1の決定に従い、Metallurgyドメインのみで`GuildKnowledgeStock`を実装した。
+
+- `src/extensions/economy/generators/guildKnowledgeTypes.ts`: `CRAFT_KNOWLEDGE_DOMAINS`(現状`["metallurgy"]`のみ、他ドメインはPhase 2以降で追加)・`GuildKnowledgeStock { burgId, domain, stock }`。
+- `src/extensions/economy/generators/guildKnowledge.ts`: `GuildKnowledgeModule.settleAnnual()`。既存の`IndustrialTechInvestment`と同型のEWMAだが、駆動源はTools購入カバレッジではなく`SmelterOperation.workers`(実践者頭数)。`coverage = min(1, workers / METALLURGY_GUILD_SATURATION_WORKERS)`で、`METALLURGY_GUILD_SATURATION_WORKERS = 6`という小さな飽和定数により、§8.1決定2(人口閾値なし・数人規模のギルド支部を許容)をそのまま実装している——都市規模差は`stock`の到達上限ではなく、`workers`頭数(=集計生産量)側に現れる。非稼働smelterは`METALLURGY_GUILD_DECAY_RATE`で減衰し、smelterサイト自体が消滅したBurgも孤児ストックとしてしばらく減衰し続ける(即消滅しない)。
+- `getMetallurgyGuildBonus(burgId)`を`smelterOperations.ts`の`processingFactor`に第3の独立乗数として接続(`toolsInvestmentStock`由来の`investmentBonus`と並列)。`METALLURGY_GUILD_BONUS_MAX = 0.25`。
+- 年次tickでは`reconcileAnnualBasicEmploymentWorkers()`の**後**に`GuildKnowledge.settleAnnual()`を呼ぶ([index.tsx](../../src/extensions/economy/index.tsx))。理由: その年に再計算されたばかりの`SmelterOperation.workers`を、古い(前年の)値ではなくその年のカバレッジ計算へ反映するため。
+
+**今回のスコープ外(Phase 2以降に送った項目)**:
+
+- 武器/防具(`Arms`/`Tools`)recipeの生産効率への直接接続。`production-generator.ts`の`craftWorkersUsed`は現状すべてのレシピ横断の集計値であり、ドメイン別(冶金 vs 織物 vs 木工…)に分離されていない。ドメイン別分離は他クラフトドメイン展開(§9 Phase 2)と合わせて行うほうが手戻りが少ないため、Phase 1では`SmelterOperation`(製錬)側の効率ボーナスのみに留めた。
+- Characters拡張連携の師弟継承(§5、§9 Phase 6)。
+
+テスト: `guildKnowledge.test.ts`(6件)新規追加。economy拡張51ファイル291テスト、リポジトリ全体165ファイル1155テストがgreen。`tsc --noEmit`・`npm run lint`・`npm run madge`はすべてクリーン。
 
 ---
 
@@ -75,7 +87,7 @@
 | 神学 | Theology | Priest, Monk, Bishop, Abbot |
 | 自然哲学 | Alchemy, Astronomy, Natural Philosophy | Alchemist, Astrologer, Scholar |
 
-神学だけは教会networkを介してState境界を越えて緩やかに伝播させる。これは「小国は孤立して技術発展が遅れる」という主題への意図的な緩和弁になる。小国でも信仰篤い修道院を持てば、医学・法学の一部が周辺国から流れ込む、という物語が作れる。
+神学だけは教会networkを介してState境界を越えて緩やかに伝播させる案だったが、**§8.1決定4によりこのラウンドではスコープ外**とした。当面、神学ドメインも他の学術ドメインと同じくState/都市スコープ内で閉じて扱う。「小国は孤立して技術発展が遅れる」への緩和弁としての教会networkは、後続タスクとして再検討する。
 
 ### C. 国家機密(Stateスコープ、`MilitaryResourceLedger`に接続)
 
@@ -103,10 +115,10 @@
 
 既存コードに接続可能な4つの閾値効果を提案する。
 
-1. **ギルド設立の人口閾値**: `burg.group`(village/town/city)が一定段階以上でなければギルドが存在できない(`developmentPotential.ts`の発展段階と同じ思想)。大国は都市化した都市を多数抱えるため複数都市で並行してギルドが育つ。小国は都市自体が少なく閾値を超えられない。
+1. **ギルドの人口閾値は設けない、頭数による連続スケーリングにする**(§8.1決定2で確定): `burg.group`による設立ゲートは採用しない。小さな村でも数人の実践者がいれば`GuildKnowledgeStock`は育ち、時間をかければ`stock`(技術の熟練度)は大都市のギルドホールと同じ上限まで到達しうる。差が出るのは`stock`の到達上限ではなく**実践者の頭数=集計生産量**の側であり、大国は都市化した都市を多数抱えるため、頭数の多いギルドが複数都市で並行して育ち、国全体の実生産量で差がつく。実装は[guildKnowledge.ts](../../src/extensions/economy/generators/guildKnowledge.ts)の`METALLURGY_GUILD_SATURATION_WORKERS`(飽和定数を意図的に小さく取り、少人数の支部でも`stock`が満ちるようにする)を参照。
 2. **国家機密は財源+常備インフラが前提**: `MilitaryResourceLedger`と同様、Treasuryからの継続投資がないと`StateSecretStock`が育たない。大国=大きい財源=先行しやすい。
-3. **State内伝播 vs State間伝播**: 同一State内の都市ギルド同士は交易路(既存`trade`network)経由で比較的速く伝播させ、異なるState間は大幅に遅くする(教会networkの学術のみ緩やかに国境を越える)。大国は内部で技術を使い回せるため実効的な技術水準が高くなる。
-4. **征服・従属による技術の一括吸収**: Nobility拡張の行軍占領(march capture)/属国化イベント時に、征服都市の`GuildKnowledgeStock`をそのままStateの技術プールへ編入する。大国が拡大するほど他国のノウハウを吸収でき、複利的に差が開く。ここが最も「大国と小国の差」を演出しやすいレバー。
+3. **State内伝播 vs State間伝播**: 同一State内の都市ギルド同士は交易路(既存`trade`network)経由で比較的速く伝播させ、異なるState間は大幅に遅くする。大国は内部で技術を使い回せるため実効的な技術水準が高くなる。
+4. **征服・従属による技術の緩やかな吸収**(§8.1決定3で確定): Nobility拡張の行軍占領(march capture)/属国化イベント時、征服都市の`GuildKnowledgeStock`は即時全量編入ではなく、年単位で段階的にStateの技術プールへ統合する(占領直後の混乱・反乱で一部が失われる余地を残す)。大国が拡大するほど他国のノウハウを吸収でき、複利的に差が開くという狙いは変わらないが、征服直後に一足飛びで並び立てない設計にする。具体的な統合速度・不安定化率は§9 Phase 7で既存のNobility annexationイベントとの接続点を調査した上で決定する(現状、annexation/loyaltyの専用機構は見つかっていない — §1参照)。
 
 小国側の対抗手段として、既存のEspionage(諜報)による職人引き抜き/技術窃取と、教会networkの学術流入を残す。これにより小国が完全に詰まない設計になる。
 
@@ -141,7 +153,7 @@ interface AcademyKnowledgeStock {
   burgId: number;
   domain: ScholarlyKnowledgeDomain; // §3-B の4ドメイン
   stock: number;
-  churchNetworkId?: number; // 神学ドメインのみ、State境界を越えた緩伝播に使用
+  // churchNetworkIdは§8.1決定4によりスコープ外。教会networkを実装する場合のみ追加する。
 }
 
 interface StateSecretStock {
@@ -183,16 +195,27 @@ Economy拡張はどの拡張にも依存しない自己完結型であり、`Mil
 | 6 | 初期解禁ライン | ゲーム開始時点(生成時)で、どのState/Burgがどのドメインを既に保有した状態にするか。全State同一水準からスタートさせるか、文化・地形起源のバイアスを与えるか |
 | 7 | Roman Concreteとの整合 | 冶金・鍛冶以外の既存EWMAストック(`concreteTechStock`等)を、このKnowledge系ドメイン体系に将来統合するか、独立のまま残すか |
 
+### 8.1 意思決定
+
+1. 粗いドメイン
+2. 制限なし。villageでも1.9Kほどの人口がいる場合がある。ファンタジーなら3-5人程度の盗賊ギルドの支部があってもおかしくない。
+3. 年単位で緩やかに移行
+4. 含めない
+5. Characters拡張必須の個人継承
+6. 文化・地形バイアスを与える。文化の拡張も視野に入れる。
+7. 独立
+
 ---
 
 ## 9. 実装フェーズ(案・すべて未着手)
 
-- [ ] Phase 1: ギルド基盤 — 冶金・鍛冶ドメインのみで`GuildKnowledgeStock`を実装し、`SmelterOperation`/武器・防具recipeの効率に接続する垂直スライス
-- [ ] Phase 2: 他クラフトドメインの展開(§3-A 残り7ドメイン)
-- [ ] Phase 3: アカデミー/修道院と教会networkの実装(§3-B)
+- [x] Phase 1: ギルド基盤(2026-07-31実装済み、状態節参照) — Metallurgyドメインのみで`GuildKnowledgeStock`を実装し、`SmelterOperation.processingFactor`に接続する垂直スライス。武器・防具(`Arms`/`Tools`)recipeの効率接続はPhase 2へ送った(craft employmentのドメイン別分離が前提のため)。
+- [ ] Phase 2: 他クラフトドメインの展開(§3-A 残り7ドメイン)。前提作業として、`production-generator.ts`の`craftWorkersUsed`/`CraftEmploymentRecord`をドメイン別(生産したGoodのタグ等)に分離する必要がある — 現状は全レシピ横断の単一集計値(`craftEmployment.ts`)。
+- [ ] Phase 3: アカデミー/修道院の実装(§3-B)。教会networkによるState境界越え伝播は§8.1決定4によりスコープ外(後続タスク)。
 - [ ] Phase 4: 国家機密ドメインと`MilitaryResourceLedger`の接続(§3-C)
 - [ ] Phase 5: 武術ドメインと`regimentMovement.ts`戦力係数の接続(§3-D)
-- [ ] Phase 6: 個人継承(Characters拡張連携、§5)
-- [ ] Phase 7: 征服/従属による技術吸収、諜報による技術窃取の接続(§4-4、既存Espionage機構との統合)
+- [ ] Phase 6: 個人継承(Characters拡張必須、§5、§8.1決定5)
+- [ ] Phase 7: 征服/従属による技術の段階的吸収(§4-4、§8.1決定3)、諜報による技術窃取の接続。着手前に、Nobility拡張内のannexation/loyalty相当の機構(現状未発見、§1参照)の有無を再調査すること。
+- [ ] Phase 8(範囲未確定): 初期解禁ラインへの文化・地形バイアス(§8.1決定6)。将来のCulture拡張を見据えた設計が必要なため、Culture拡張の具体像が固まった時点で範囲を確定する。
 
 各フェーズ開始前に、そのフェーズが依存する§8の未解決事項を確定させること。

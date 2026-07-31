@@ -9,6 +9,7 @@ import {
   setSmelterOperations
 } from "../economyContext";
 import { isGoodEnabled } from "./goods-generator";
+import { getMetallurgyGuildBonus } from "./guildKnowledge";
 import { Markets } from "./markets-generator";
 import { getIngotGoodName, ORE_COMMODITIES, type OreCommodity } from "./mineralResources";
 import type { SmelterOperation } from "./smelterOperationsTypes";
@@ -115,9 +116,12 @@ export class SmelterOperationsModule {
       // toolsInvestmentStock (IndustrialTechInvestment.settleAnnual()) applies as its own
       // multiplier, independent of the prospect()-derived `technology` — docs/plan/rural-agtech-investment.md §6.2.
       const investmentBonus = 1 + SMELTER_TECH_BONUS_MAX * (smelter.toolsInvestmentStock ?? 0);
+      // The Burg's Metallurgy guild technique (GuildKnowledge.settleAnnual()) applies as a third,
+      // independent multiplier — docs/plan/knowledge-guild-system.md §6, §9 Phase 1.
+      const guildBonus = getMetallurgyGuildBonus(smelter.burgId);
       const processingFactor = Math.min(
         1,
-        smelter.waterPower * smelter.fuelAccess * smelter.technology * investmentBonus * workerFactor
+        smelter.waterPower * smelter.fuelAccess * smelter.technology * investmentBonus * guildBonus * workerFactor
       );
       const monthlyCapacity = (smelter.annualCapacityTons * processingFactor) / 12;
       if (monthlyCapacity <= 0) continue;
