@@ -11,6 +11,7 @@ export interface EmploymentOverviewRow {
   trade: number;
   strategicIndustry: number;
   craft: number;
+  construction: number;
   basicEmploymentDemand: number;
   serviceEmploymentDemand: number;
   employmentDemand: number;

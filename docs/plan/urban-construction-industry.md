@@ -174,7 +174,7 @@ export type GeologicalProvinceKind =
 
 ### 3.5 Phase 4(将来・スコープ外): UI可視化
 
-- Employment Overview([employment-overview.ts](../../src/extensions/economy/controllers/employment-overview.ts))に石工/大工の雇用列を追加する(既存のパターンに`ConstructionOperation`を読む行を1つ足すだけ)。
+- ~~Employment Overview([employment-overview.ts](../../src/extensions/economy/controllers/employment-overview.ts))に石工/大工の雇用列を追加する(既存のパターンに`ConstructionOperation`を読む行を1つ足すだけ)。~~ **2026-07-31実装済み**: [urban-employment-demand.md](urban-employment-demand.md)側の実機検証中に発見した欠落(`basicEmploymentDemand`は建設業を合算済みだがダイアログに列がなく不可視だった)として対応した。`getConstructionEmploymentByBurg()`(masonWorkers+carpenterWorkers+採石場quarryWorkers+Volcanic Ash ashWorkers)を追加し、「Construction」列として表示。「Basic」列のツールチップ数式も建設業を含む形に修正した。
 - Market Overview Dialogに`concreteTechStock`表示を追加する(Ag Tech表示の既存パターンを踏襲)。
 - `buildingStock`とバーグアイコンの城壁/寺院/城塞フラグとの接続(非目的§1で明示的にPhase 1-3のスコープ外としたもの)。
 

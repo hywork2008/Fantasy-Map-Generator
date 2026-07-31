@@ -3,9 +3,12 @@ import { rn } from "../../hostUtils";
 import {
   getAdministrationEmployment,
   getBasicEmploymentSummary,
+  getConstructionOperations,
   getCraftEmploymentRecords,
   getMineOperations,
+  getQuarryOperations,
   getSmelterOperations,
+  getVolcanicAshOperations,
   getWorldContext
 } from "../economyContext";
 import { getStrategicIndustryWorkersByBurg, getTradeWorkersByBurg } from "../generators/basicEmployment";
@@ -34,6 +37,7 @@ export function refreshEmploymentOverview(): void {
   const tradeByBurg = getTradeWorkersByBurg();
   const strategicIndustryByBurg = getStrategicIndustryWorkersByBurg();
   const craftByBurg = new Map(getCraftEmploymentRecords().map(record => [record.burgId, record.workers]));
+  const constructionByBurg = getConstructionEmploymentByBurg();
   const summaryByBurg = new Map(getBasicEmploymentSummary().map(record => [record.burgId, record]));
 
   const burgIds = new Set<number>([
@@ -43,6 +47,7 @@ export function refreshEmploymentOverview(): void {
     ...tradeByBurg.keys(),
     ...strategicIndustryByBurg.keys(),
     ...craftByBurg.keys(),
+    ...constructionByBurg.keys(),
     ...summaryByBurg.keys()
   ]);
 
@@ -66,6 +71,7 @@ export function refreshEmploymentOverview(): void {
       trade: rn(tradeByBurg.get(burgId) ?? 0, 1),
       strategicIndustry: rn(strategicIndustryByBurg.get(burgId) ?? 0, 1),
       craft: rn(craftByBurg.get(burgId) ?? 0, 1),
+      construction: rn(constructionByBurg.get(burgId) ?? 0, 1),
       basicEmploymentDemand: rn(basicEmploymentDemand, 1),
       serviceEmploymentDemand: rn(serviceEmploymentDemand, 1),
       employmentDemand: rn(basicEmploymentDemand + serviceEmploymentDemand, 1)
@@ -74,6 +80,31 @@ export function refreshEmploymentOverview(): void {
 
   rows.sort((a, b) => b.employmentDemand - a.employmentDemand);
   setEmploymentOverviewState({ rows });
+}
+
+/**
+ * Sums masonry/carpentry (docs/plan/urban-construction-industry.md §3.3), quarrying (§3.2), and
+ * Volcanic Ash extraction (§3.4) per Burg — the "Construction" column this dialog previously
+ * lacked (urban-construction-industry.md §3.5 listed it as a future item). All three are
+ * Burg-anchored `basicEmploymentDemand` slots reconciled the same way as mining/smelting, so
+ * they belong beside those columns rather than folded invisibly into "Basic".
+ */
+function getConstructionEmploymentByBurg(): Map<number, number> {
+  const sums = new Map<number, number>();
+  for (const operation of getConstructionOperations()) {
+    if (!operation.active || !operation.burgId) continue;
+    const workers = operation.masonWorkers + operation.carpenterWorkers;
+    sums.set(operation.burgId, (sums.get(operation.burgId) ?? 0) + workers);
+  }
+  for (const quarry of getQuarryOperations()) {
+    if (!quarry.active || !quarry.burgId) continue;
+    sums.set(quarry.burgId, (sums.get(quarry.burgId) ?? 0) + quarry.quarryWorkers);
+  }
+  for (const ashWorks of getVolcanicAshOperations()) {
+    if (!ashWorks.active || !ashWorks.burgId) continue;
+    sums.set(ashWorks.burgId, (sums.get(ashWorks.burgId) ?? 0) + ashWorks.ashWorkers);
+  }
+  return sums;
 }
 
 /** Sums `.workers` per Burg for active mine/smelter operations, matching `basicEmployment.ts`'s own filter. */

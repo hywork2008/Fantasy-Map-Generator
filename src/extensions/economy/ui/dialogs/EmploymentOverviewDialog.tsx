@@ -57,6 +57,7 @@ export const EmploymentOverviewDialog: React.FC = () => {
             <col />
             <col />
             <col />
+            <col />
           </colgroup>
           <thead className="header">
             <tr>
@@ -72,7 +73,12 @@ export const EmploymentOverviewDialog: React.FC = () => {
               <th data-tip="Craft/manufacturing employment observed from recipe-based Goods production, e.g. Cloth/Garments (§3.7)">
                 Craft
               </th>
-              <th data-tip="basicEmploymentDemand = Admin + Mining + Smelting + Trade + Industry + Craft">Basic</th>
+              <th data-tip="Masonry/carpentry, quarrying, and Volcanic Ash extraction (docs/plan/urban-construction-industry.md) — the basic-employment floor every Burg with a market gets regardless of mines, capital status, or trade">
+                Construction
+              </th>
+              <th data-tip="basicEmploymentDemand = Admin + Mining + Smelting + Trade + Industry + Craft + Construction">
+                Basic
+              </th>
               <th data-tip="serviceEmploymentDemand = basicEmploymentDemand × serviceMultiplier (§3.5)">Service</th>
               <th data-tip="employmentDemand = basicEmploymentDemand + serviceEmploymentDemand — drives urbanLaborIntake in Megacity mode (§3.6)">
                 Total
@@ -82,7 +88,7 @@ export const EmploymentOverviewDialog: React.FC = () => {
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={11}>
+                <td colSpan={12}>
                   <span>No Burg has recorded employment demand yet</span>
                 </td>
               </tr>
@@ -112,6 +118,7 @@ const EmploymentRow: React.FC<{ row: EmploymentOverviewRow }> = ({ row }) => (
     <td>{row.trade || ""}</td>
     <td>{row.strategicIndustry || ""}</td>
     <td>{row.craft || ""}</td>
+    <td>{row.construction || ""}</td>
     <td>{row.basicEmploymentDemand}</td>
     <td>{row.serviceEmploymentDemand}</td>
     <td>

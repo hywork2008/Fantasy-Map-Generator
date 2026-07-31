@@ -24,6 +24,8 @@
 **2026-07-31 実装状況（Phase 4 — `employmentDemand`を`urbanLaborIntake`へ接続する）**: `basicEmployment.ts`の年次リコンサイル末尾で、Market圏`trade`雇用（`LaborMarket.workersByOccupation.trade`、Phase 2）をそのMarketの`centerBurgId`へ帰属させて`basicEmploymentDemand[burgId]`に合算するようにした（読み取りのみ — `reconcileStrategicLaborMarkets`が毎月別途Market圏の労働力プールに対して配分するため、ここでBurgの成人プールへ二重に競合させない）。これで`basicEmploymentDemand`は行政＋鉱業＋製錬＋交易の全4種を含む。`urbanLaborIntake.ts`に`calculateAnnualUrbanLaborIntakeFromEmploymentDemand()`を追加し、決定4（総量駆動）どおり`min(effectiveCapacity - population, max(0, employmentDemand - currentAdultPopulation) * businessCycle * localVariation)`を実装した（`employmentDemand = basicEmploymentDemand + serviceEmploymentDemand`、`currentAdultPopulation = maleAdults + femaleAdults`）。`businessCycle`/`localVariation`はそのまま雇用充足速度の揺らぎとして残した — Phase 1〜3のどの雇用計算も乱数を持たないため、二重計上の心配はない。`generateAnnualIntakes()`は`useOptionsState.getState().ruralUrbanMigration === "megacity"`のときだけこの新式へ切り替え、`"independent"`（既定値）では`basicEmploymentSummary`を一切読まず既存の`population × 2%`式を使う（§6不変条件、回帰テストあり）。
 
 > **既知の影響（要Phase 5バランス調整）**: `basicEmploymentDemand`は現状、行政（州都のみ）・鉱業・製錬・交易（Market中心Burgのみ）からしか生まれない。megacityモードでは、これらのいずれにも該当しないBurg（農業中心の一般的な町など）は`employmentDemand`が0のままとなり、`urbanLaborIntake`が恒常的に0になる——本書§1の意図（基盤産業のない都市は人口だけで膨らまない）どおりの挙動だが、影響範囲は非常に広い（鉱山も交易拠点でも州都でもない大多数のBurgが対象）。Phase 5で鉱山を持つ都市・持たない都市の成長曲線を比較しながら、`serviceMultiplier`やその他の係数を調整すること。
+>
+> **2026-07-31 追記（後日談）**: 上記の懸念は、本書とは別に立案・実装された[urban-construction-industry.md](urban-construction-industry.md)（石工・大工の建設雇用、Phase 1-3実装済み）によって実質的に大きく緩和された。同計画の`ConstructionOperationsModule`は「市場に属する全Burg」（鉱床や首都機能の有無を問わない）に対し、人口成長に比例して伸びる建築ストックの`backlog`から石工・大工の雇用需要を生成し、`basicEmployment.ts`の年次リコンサイルへ鉱業・製錬と同じ第4スロットとして統合済み（`reconcileAnnualBasicEmploymentWorkers()`内の`ConstructionOperations`ループ）。したがって「鉱山も交易拠点でも州都でもない大多数のBurg」も、今は建設雇用経由で`basicEmploymentDemand > 0`になる構造になっている。ただし、この2計画を組み合わせた場合に実際にどの程度の`employmentDemand`が生まれ、それが`urbanLaborIntake`をどこまで動かすかの実機検証（seed固定シナリオでの成長曲線比較）はまだ行われていない——両計画のPhase 5的な検証タスクがそれぞれ未完のまま残っており（本書Phase 6/7の実機確認チェックボックス、[urban-construction-industry.md §7.2](urban-construction-industry.md)の`effectiveCapacity`統合課題）、次に着手すべき項目はこの合算検証である。**2026-07-31追記: 検証済み。結果は§0の「2026-07-31 実機検証」を参照。**
 
 **2026-07-31 実装状況（Phase 5 — UI・可視化・バランス）**: Burg Editor（`BurgEditorDialog.tsx`）に「Basic employment」「Service employment」行を追加した（`BurgEconomySummary`型を拡張し、`burgEconomySummary.ts`が`getBasicEmploymentSummary()`から値を埋める）。デバッグ用に新しい`Employment Overview`ダイアログ（Tools → Edit → Employment）を追加し、`employmentDemand`が発生している全Burgを行政・鉱業・製錬・交易・basic・service・totalの内訳付きで一覧表示する（値は年次リコンサイルが確定させた既存stateを読むだけで、再計算はしない）。`basicEmployment.ts`の交易帰属ロジックを`getTradeWorkersByBurg()`として切り出し、年次リコンサイルとこのダイアログの両方から再利用する。ブラウザで実機確認（seed `phase5-verify`、economy拡張・megacityモード有効、Advance Timeで60年分進行）: Burg EditorとEmployment Overviewの数値は一致し（例: 州都Nish — Basic 14.3 / Service 21.5 / Total 35.9）、UIは想定どおり機能した。
 
@@ -38,6 +40,10 @@
 **2026-07-31 調査結果（造船業と雇用の関係）**: Phase 6の手工業雇用と対比する形で、造船（`shipbuilding`拡張）が同様に雇用を生んでいるかを調べた。結論: 2段構えで穴がある。(1) 船体建造そのもの（`shipyardQueue.ts`の`runShipyardTick`/`advanceQueueWithMaterials`）は`worker`/`employ`概念を一切持たず、固定の`SHIPYARD_BUILD_POINTS_PER_YEAR`（造船所1つあたり年間固定値）と資材・tech pointのみで進行する——Burgの人口を全く見ない設計。(2) 造船資材（木材・帆布・ロープ・タール）を供給する`forestry`/`sailmaking`/`ropeMaking`/`tarBurning`（§2.3の`STRATEGIC_OCCUPATIONS`、`trade`を除く4職種）は`LaborMarket`に実在するコホートだが、`basicEmployment.ts`が読んでいたのは`trade`だけで、この4職種は`basicEmploymentDemand`に一度も合算されていなかった——Phase 6が埋めた穴と同型（「労働力の実測はあるのに雇用集計に繋がっていない」）。(1)は`SHIPYARD_BUILD_POINTS_PER_YEAR`という意図的な「施設の存在が主要な制約」という設計を崩すため今回は対象外とし、(2)のみをPhase 7として実施することにした。
 
 **2026-07-31 実装状況（Phase 7 — 戦略産業雇用、§3.8）**: `basicEmployment.ts`に`getStrategicOccupationWorkersByBurg(occupations)`という共通ヘルパーを追加し、既存の`getTradeWorkersByBurg()`をこの上に再実装（`["trade"]`のみを渡す）。新たに`getStrategicIndustryWorkersByBurg()`を追加し、`forestry`/`sailmaking`/`ropeMaking`/`tarBurning`の合計をMarketの`centerBurgId`へ、`trade`と全く同じ「読み取り専用」方式で帰属させた——`LaborMarket`はBurg人口を物理的に減らさない内部比率（§2.3）であり、`trade`同様この帰属は年次スロットの`remainingAdults`と競合しない。`basicEmploymentDemand = 行政 + 鉱業 + 製錬 + 交易 + 戦略産業 + 手工業`となった。Employment Overviewダイアログに「Industry」列を追加。ユニットテスト（`basicEmployment.test.ts`に1ケース追加）。
+
+**2026-07-31 実機検証（`urban-construction-industry.md`との合算効果、§2.5後日談の続き）**: 上記「既知の影響」で「鉱山も交易拠点でも州都でもない一般Burgの検証は未実施」としていた項目を検証した。ブラウザで実機確認（economy拡張・megacityモード有効、Points 4/10K・Burgs auto設定で749 Burg生成、Advance Timeで10年分進行）: 鉱業・製錬・採石・Volcanic Ash・Market中心（trade）・州都のいずれにも該当しない一般Burg「Krash」（人口13.2）で`basicEmploymentSummary`の`basicEmploymentDemand`が3.12（`serviceEmploymentDemand`込みで`employmentDemand`7.8）と実際に非ゼロになっていることを`window.fmg.simulation.extensions.economy`の直接読み取りで確認した。内訳を遡ると、その基盤雇用は`urban-construction-industry.md`（本書とは別プラン、Phase 1-3実装済み）の大工雇用（`ConstructionOperationsModule`、市場を持つ全Burgが対象）由来であり、`basicEmployment.ts`の年次リコンサイルが既にこれを鉱業・製錬と同じスロットとして統合していることを確認した。**結論: 「既知の影響」で懸念していた恒常的ゼロ雇用の問題は、本書のPhase 1-4と別プランのPhase 1-3を組み合わせた現行実装で、少なくとも構造的には既に解消されている。**
+
+この検証中に、Employment Overviewダイアログ（Phase 5）の欠落も発見・修正した——`basicEmployment.ts`は行政・鉱業・製錬・交易・戦略産業・手工業に加えて建設業（大工・石工・採石・Volcanic Ash、`urban-construction-industry.md`）も`basicEmploymentDemand`へ合算していたが、ダイアログには対応する列がなく（同計画§3.5が「Phase 4（将来・スコープ外）」として明示的に未実装のまま残していた項目）、「Basic」列の合計に建設業由来の値が不可視のまま混ざっていた。加えて「Basic」列のツールチップ文言（`= Admin + Mining + Smelting + Trade + Industry + Craft`）も建設業を含めておらず、実装と食い違っていた。`employment-overview.ts`に`getConstructionEmploymentByBurg()`（`masonWorkers + carpenterWorkers`＋採石場`quarryWorkers`＋Volcanic Ash `ashWorkers`の合算）を追加し、`EmploymentOverviewDialog.tsx`に「Construction」列を追加、ツールチップの数式も修正した。ブラウザで再確認（同シナリオ）: 「Construction」列に非ゼロ値（Burgごとに1〜7程度）が表示され、Krash単体も含め一般Burgの基盤雇用の出自が可視化されるようになった。`tsc --noEmit`・`npm run lint`・`npm run madge`（循環依存0件を維持）・`npx vitest run src/extensions/economy`（50ファイル285テスト green）を確認済み。
 
 ## 1. 目的
 
@@ -84,14 +90,16 @@ return Math.min(
 
 ### 2.5 まとめ: 何が欠けているか
 
+> **2026-07-31 追記（§0参照）**: 本表はPhase 6実装時に行2のみ更新され、他の行はPhase 1〜4実装後も古い記述のまま放置されていた。以下は実装済みのものを取り消し線で反映し、実際に残っている欠落だけを明示する。
+
 | 産業 | 現状 | 欠けているもの |
 | --- | --- | --- |
-| 鉱業 | `MineOperation`は物資フローのみ、`workers`は固定値で人口と無関係 | 実人口を消費する採掘労働力、鉱山閉山・新規開山時の雇用増減 |
+| 鉱業 | ~~`MineOperation`は物資フローのみ、`workers`は固定値で人口と無関係~~ Phase 1で解消（`getMineRequiredWorkers`＋`reconcileAnnualBasicEmploymentWorkers()`） | ~~実人口を消費する採掘労働力~~ Phase 1で解消。鉱山閉山・新規開山時の雇用増減は、年次リコンサイルが毎年`getMineOperations()`を再走査してスロットを組み直す設計上、閉山時はスロットが消え・新規開山時はスロットが追加される形で自動的に対応済み（専用の増減ロジックは不要だった） |
 | 製錬・加工（鍛冶相当） | `SmelterOperation`に労働力概念なし。一般`Production`（recipe変換）も労働力を消費しない ~~（Phase 6で解消、§3.7）~~ | ~~原料→製品の加工に伴う雇用~~ Phase 6で`craftEmployment`として実装済み |
-| 港湾・交易 | Caravan・searoute・`BurgMarketLedger`は交易量を追跡するが、雇用への変換なし | 港湾労働者・商人の雇用 |
-| 行政・首都機能 | `burg.capital`フラグのみ。`settlementDevelopmentPotential`に加点はあるが雇用ではない | 行政職の雇用 |
-| サービス業（飲食・宿など） | 存在しない | 基盤産業雇用に追随して生まれる非基盤雇用 |
-| 都市受け入れ枠 | 人口の年率2%固定 | 上記`employmentDemand`の合計、またはその**増分**で駆動 |
+| 港湾・交易 | ~~Caravan・searoute・`BurgMarketLedger`は交易量を追跡するが、雇用への変換なし~~ Phase 2/4で解消（`LaborMarket`の`trade`職種＋`getTradeWorkersByBurg()`） | ~~港湾労働者・商人の雇用~~ Phase 2/4で解消（決定6によりCaravan到着量のみが需要指標。`searoute`/`BurgMarketLedger`の優先順位づけは対象外のまま） |
+| 行政・首都機能 | ~~`burg.capital`フラグのみ。`settlementDevelopmentPotential`に加点はあるが雇用ではない~~ Phase 3で解消（`administrationEmployment.ts`） | ~~行政職の雇用~~ Phase 3で解消。属州都Burgは対象外のまま（§3.4） |
+| サービス業（飲食・宿など） | ~~存在しない~~ Phase 3で解消（`serviceEmployment.ts`、`serviceMultiplier = 1.5`） | ~~基盤産業雇用に追随して生まれる非基盤雇用~~ Phase 3で解消。乗数の史料的精密校正は未着手（決定3どおり暫定値のまま、Phase 5で保留） |
+| 都市受け入れ枠 | ~~人口の年率2%固定~~ Phase 4で解消（`calculateAnnualUrbanLaborIntakeFromEmploymentDemand`、`ruralUrbanMigration === "megacity"`時のみ） | 総量駆動での接続自体はPhase 4で解消。ただし下記「既知の影響」の後日談を参照 — 鉱業/製錬/交易/行政のいずれも持たない一般Burgの`employmentDemand`が恒常的に0になる問題は、本書とは別の[urban-construction-industry.md](urban-construction-industry.md)（石工・大工雇用、市場を持つ全Burgが対象）が実質的に埋めており、`basicEmployment.ts`は既にそれを鉱業・製錬と同じスロットとして統合済み。両プランを合わせた挙動の実機検証はまだ行われていない（次の作業候補、本文末尾参照） |
 
 ## 3. 目標モデル
 
