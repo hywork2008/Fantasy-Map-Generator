@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph, State } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext, setDeals, setMarkets } from "../economyContext";
+import {
+  clearEconomyContext,
+  initEconomyContext,
+  setAcademyKnowledgeStocks,
+  setDeals,
+  setMarkets
+} from "../economyContext";
 import { Markets } from "./markets-generator";
 import type { Market } from "./marketTypes";
 import {
@@ -154,6 +160,26 @@ describe("TaxesModule", () => {
       taxesModule.collectTaxes();
 
       expect(neutral.treasury).toBe(0);
+    });
+
+    it("scales poll tax revenue up by the capital's administration academy bonus", () => {
+      const state1: State = {
+        i: 1,
+        salesTax: 0,
+        pollTax: 0.5,
+        rural: 100,
+        urban: 50,
+        capital: 1
+      } as unknown as State;
+      worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
+      worldContext.pack.burgs = [];
+      setDeals([]);
+      setAcademyKnowledgeStocks([{ burgId: 1, domain: "administration", stock: 1 }]);
+
+      taxesModule.collectTaxes();
+
+      // Baseline (no bonus) would be 75; ACADEMY_BONUS_MAX = 0.2 at stock = 1 raises it to 90.
+      expect(state1.treasury).toBe(90);
     });
 
     it("carries forward the existing balance instead of resetting to 0", () => {

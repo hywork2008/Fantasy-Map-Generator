@@ -40,6 +40,20 @@
 
 テスト: `guildKnowledge.test.ts`に2件追加(計8件)。economy拡張51ファイル293テスト、リポジトリ全体165ファイル1157テストがgreen。`tsc --noEmit`・`npm run lint`・`npm run madge`はすべてクリーン。
 
+**2026-07-31 Phase 3(アカデミー/修道院、法学・行政ドメインのみ先行実装)**: §3-Bの4ドメイン(医学/法学・行政/神学/自然哲学)のうち、既存コードに実在の頭数データと接続先ボーナス消費者を持つ**法学・行政ドメインのみ**を先行実装した。残り3ドメインは実装前提となるデータが皆無(調査結果は下記)のため、明示的に次フェーズへ送った。
+
+- 調査の結果判明した制約: `medicine`/`theology`/`naturalPhilosophy`にはBurg単位の実践者頭数データが存在しない(Physician/Priest/Alchemist等のCSV上の職業はどの拡張のCharacter/雇用トラッキングにも接続されていない)。ボーナスの接続先となる既存メカニクス(死亡率、安定度/腐敗、錬金術等)も皆無。Guild層(Phase1-2)のように既存のシミュレーション済み頭数(SmelterOperation.workers等)を再利用する経路が無いため、この3ドメインは頭数モデルとボーナス消費者の両方を新規発明する必要があり、Phase3のスコープからは意図的に除外した(ユーザー確認済み、2026-07-31)。
+- `src/extensions/economy/generators/academyKnowledgeTypes.ts`: `SCHOLARLY_KNOWLEDGE_DOMAINS`(現状`["administration"]`のみ)・`AcademyKnowledgeStock { burgId, domain, stock }`(`GuildKnowledgeStock`と同型)。
+- `src/extensions/economy/generators/academyKnowledge.ts`: `AcademyKnowledgeModule.settleAnnual()`。`GuildKnowledgeModule`と構造的に同一のEWMA。実践者頭数は`AdministrationEmploymentRecord.workers`(`administrationEmployment.ts`)——各Stateの首都Burgのみに1件存在する、書記/公証人/裁判官相当のclerks(実際にはgarrison込みの混合値、既存コードの制約としてそのまま流用)。`ACADEMY_SATURATION_WORKERS = 8`(Guildの6よりやや高いが、首都の最低clerks基礎値である`REQUIRED_WORKERS_BASE = 4`より十分低く、一都市国家でも到達可能)。
+- `getAcademyBonus(burgId, domain)`を`taxes-generator.ts`の`collectTaxes()`の人頭税(pollTax)収入に乗数として接続した(`state.capital`のAcademyKnowledgeStockを参照)。「公証人・裁判官による記録管理が整うほど、人頭税の徴収漏れ・脱税が減る」というフレーバー。既存の売上税(`deal.tax`、市場取引ごとに別モジュールで計算済み)には未接続——人頭税は本ファイル内で完結する唯一の州単位の税収計算行であり、最小限の1接続に留めた(Phase1のSmelterOperation.processingFactorと同様の方針)。`ACADEMY_BONUS_MAX = 0.2`(満stockで人頭税収入+20%)。
+
+**今回のスコープ外(次フェーズ以降に送った項目)**:
+
+- `medicine`/`theology`/`naturalPhilosophy`ドメイン本体——頭数モデル・ボーナス消費者ともに未設計(上記調査結果参照)。
+- 教会network越境伝播(§3-B本文、§8.1決定4によりそもそも本設計全体のスコープ外)。
+
+テスト: `academyKnowledge.test.ts`新規追加(6件)。`taxes-generator.test.ts`に1件追加。`tsc --noEmit`・`npm run lint`・`npm run madge`はクリーン(確認手順は本フェーズの末尾参照)。
+
 ---
 
 ## 0. 背景・目的
@@ -235,7 +249,7 @@ Economy拡張はどの拡張にも依存しない自己完結型であり、`Mil
 
 - [x] Phase 1: ギルド基盤(2026-07-31実装済み、状態節参照) — Metallurgyドメインのみで`GuildKnowledgeStock`を実装し、`SmelterOperation.processingFactor`に接続する垂直スライス。武器・防具(`Arms`/`Tools`)recipeの効率接続はPhase 2へ送った(craft employmentのドメイン別分離が前提のため)。
 - [x] Phase 2: 他クラフトドメインの展開(§3-A 残り7ドメイン、2026-07-31実装済み、状態節参照) — `CraftDomainEmploymentRecord`(新規並行スライス)で`production-generator.ts`のworker使用量をドメイン別に追跡し、`executeManufacture()`のrecipe生産効率へ`getGuildBonus(burgId, domain)`を接続。`masonry`↔`constructionEmployment.ts`本体、`woodworking`↔shipbuilding拡張の船体recipe、`instruments`ドメイン用Goodの新設は次フェーズ以降に持ち越し(状態節参照)。
-- [ ] Phase 3: アカデミー/修道院の実装(§3-B)。教会networkによるState境界越え伝播は§8.1決定4によりスコープ外(後続タスク)。
+- [x] Phase 3: アカデミー/修道院の実装(§3-B、2026-07-31実装済み、状態節参照)——法学・行政ドメインのみ先行実装(`AdministrationEmploymentRecord`を頭数源、`taxes-generator.ts`の人頭税収入を接続先ボーナス消費者とする垂直スライス)。medicine/theology/naturalPhilosophyの3ドメインは頭数モデル・ボーナス消費者ともに既存コードに皆無なため次フェーズへ送った。教会networkによるState境界越え伝播は§8.1決定4によりスコープ外(後続タスク)。
 - [ ] Phase 4: 国家機密ドメインと`MilitaryResourceLedger`の接続(§3-C)
 - [ ] Phase 5: 武術ドメインと`regimentMovement.ts`戦力係数の接続(§3-D)
 - [ ] Phase 6: 個人継承(Characters拡張必須、§5、§8.1決定5)

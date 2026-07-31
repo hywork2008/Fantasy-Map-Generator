@@ -1,6 +1,7 @@
 import type { Burg } from "../../hostTypes";
 import { gauss, rn, TIME } from "../../hostUtils";
 import { getDeals, getWorldContext } from "../economyContext";
+import { getAcademyBonus } from "./academyKnowledge";
 import { Markets } from "./markets-generator";
 import type { Deal } from "./marketTypes";
 import { getStateMilitaryUpkeep } from "./militaryLogistics";
@@ -86,11 +87,12 @@ export class TaxesModule {
       const voyageIncome = _voyageIncomeByState.get(state.i) ?? 0;
       const procurementExpense = _strategicProcurementExpenseByState.get(state.i) ?? 0;
       const militaryUpkeep = getStateMilitaryUpkeep(state);
+      // Better-staffed notaries/judges/clerks at the capital collect the household levy more
+      // completely (less unrecorded evasion) — docs/plan/knowledge-guild-system.md §9 Phase 3.
+      const administrationBonus = getAcademyBonus(state.capital ?? 0, "administration");
+      const pollTaxRevenue = (state.pollTax || 0) * population * administrationBonus;
       state.treasury = rn(
-        Math.max(
-          0,
-          (state.treasury || 0) + (state.pollTax || 0) * population + voyageIncome - procurementExpense - militaryUpkeep
-        ),
+        Math.max(0, (state.treasury || 0) + pollTaxRevenue + voyageIncome - procurementExpense - militaryUpkeep),
         2
       );
     }

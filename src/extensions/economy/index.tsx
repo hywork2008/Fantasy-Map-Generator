@@ -41,6 +41,7 @@ import {
   setMarketCellColumn,
   setMarkets
 } from "./economyContext";
+import { AcademyKnowledge } from "./generators/academyKnowledge";
 import { AgTechInvestment } from "./generators/agTechInvestment";
 import { reconcileAnnualBasicEmploymentWorkers } from "./generators/basicEmployment";
 import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burgMarketLedgers";
@@ -1488,6 +1489,11 @@ export function init(api: ExtensionAPI): void {
       // practitioner coverage (docs/plan/knowledge-guild-system.md §9 Phase 1). Self-gates to
       // once per simulation year regardless of how often this tick runs.
       GuildKnowledge.settleAnnual();
+      // Same ordering requirement as GuildKnowledge above: reads this year's freshly-reconciled
+      // AdministrationEmploymentRecord headcount as the law/administration academy's practitioner
+      // coverage (docs/plan/knowledge-guild-system.md §9 Phase 3). Self-gates to once per
+      // simulation year.
+      AcademyKnowledge.settleAnnual();
       const burgGroupsChanged = DevelopmentPotential.updateAnnualBurgGroups();
       const forestChanged = tickForestRegrowth(effectiveDeltaYears);
 
