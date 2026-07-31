@@ -365,8 +365,19 @@ export class ProductionModule {
     decision: ProductionDecision,
     workerFraction: number
   ): void {
-    const { good, ingredients, maxYield } = decision.action;
-    const actualYield = Math.min(workerFraction, maxYield);
+    const { good, ingredients, maxYield, ingredientCostPerUnit } = decision.action;
+    let actualYield = Math.min(workerFraction, maxYield);
+
+    // Cap production by what the Burg can actually afford. Without this, ingredient purchases below
+    // had no budget check (Markets.buy() defaults to an unlimited budget) and a Burg could keep
+    // manufacturing at a loss indefinitely, sinking burg.treasury unboundedly negative — mirrors the
+    // budget cap fillDemandFromMarket already applies to demand-fulfillment purchases.
+    if (ingredientCostPerUnit > 0) {
+      const affordableYield = Math.max(0, state.burg.treasury || 0) / ingredientCostPerUnit;
+      actualYield = Math.min(actualYield, affordableYield);
+    }
+    if (actualYield <= 0.001) return;
+
     const cultureModifier = getModifiers(good, state.burg.cell);
     // The Burg's craft guild for this Good's domain (GuildKnowledge.settleAnnual()) applies as an
     // efficiency multiplier alongside culture — docs/plan/knowledge-guild-system.md §6, §9 Phase 2.
@@ -378,6 +389,7 @@ export class ProductionModule {
     // Plan all ingredient sourcing first; bail out before mutating state if any market buy fails.
     type Plan = { ingredientId: number; amount: number; fromInventory: number; deal: Deal | null };
     const plans: Plan[] = [];
+    let remainingBudget = Math.max(0, state.burg.treasury || 0);
     for (const ingredient of ingredients) {
       const ingredientId = ingredient.goodId;
       const amount = actualYield * ingredient.amount;
@@ -386,12 +398,21 @@ export class ProductionModule {
 
       let deal: Deal | null = null;
       if (fromMarket > 0.01) {
-        deal = Markets.buy({ burg: state.burg, good: Goods.get(ingredientId)!, units: fromMarket });
-        if (!deal) {
+        deal = Markets.buy({
+          burg: state.burg,
+          good: Goods.get(ingredientId)!,
+          units: fromMarket,
+          budget: remainingBudget
+        });
+        if (!deal || deal.units < fromMarket - 0.01) {
+          // Null deal: no stock or no budget left at all. Partial deal: budget ran out mid-purchase
+          // (the affordableYield cap above is an estimate and can drift from execution-time prices).
+          // Either way, bail out before producing more than the ingredients actually paid for.
           const message = `Failed to acquire ${rn(fromMarket, 2)} units of ${Goods.get(ingredientId)?.name} from market for production of ${good.name}`;
           ERROR && console.error(message);
           return;
         }
+        remainingBudget = Math.max(0, remainingBudget - deal.units * deal.price);
       }
       plans.push({ ingredientId, amount, fromInventory, deal });
     }
@@ -689,7 +710,8 @@ export class ProductionModule {
       action: {
         good: recipe.good,
         ingredients: recipe.ingredients,
-        maxYield
+        maxYield,
+        ingredientCostPerUnit: ingredientCost
       },
       candidate: {
         goodId: recipe.good.i,
@@ -942,6 +964,8 @@ type PlannedAction = {
   good: Good;
   ingredients: Ingredient[];
   maxYield: number;
+  /** Estimated market cost per unit yielded, used to cap actualYield by the Burg's treasury at execution time. */
+  ingredientCostPerUnit: number;
 };
 
 type Recipe = { good: Good; ingredients: Ingredient[] };

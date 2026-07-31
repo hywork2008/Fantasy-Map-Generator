@@ -55,6 +55,13 @@ const INITIAL_STOCK_MONTHS_PER_BUCKET = 3;
 /** Deterministic initial merchant capital as a fraction of the market's burgs' combined treasury. */
 const INITIAL_TREASURY_MIN_SHARE = 0.5;
 const INITIAL_TREASURY_SHARE_SPAN = 0.5;
+/**
+ * Starting working capital per raw population point, seeded once so a fresh Burg can afford a
+ * few cycles of manufacturing ingredients before it earns its own market revenue (see
+ * docs/temp/profits.md and executeManufacture's budget cap in production-generator.ts). Placeholder
+ * magnitude — not yet balance-tuned.
+ */
+const STARTING_BURG_TREASURY_PER_POPULATION = 20;
 /** Days of a burg's own staple-food need kept on hand locally, independent of the Market pool. */
 export const BURG_TARGET_RESERVE_DAYS = 10;
 
@@ -193,6 +200,15 @@ export class FoodProductionModule {
         foodStockAge0UnitCost: farmgateCost,
         foodStockAge1UnitCost: farmgateCost
       };
+
+      // Seed each Burg's own working capital first: burgTreasurySum below would otherwise always be
+      // 0 on a fresh map (no production cycle has run yet), collapsing the Market's derived capital
+      // to 0 as well.
+      for (const burg of marketBurgs) {
+        if (!burg.treasury) {
+          burg.treasury = rn((burg.population ?? 0) * STARTING_BURG_TREASURY_PER_POPULATION, 2);
+        }
+      }
 
       const burgTreasurySum = marketBurgs.reduce((sum, b) => sum + Math.max(0, b.treasury ?? 0), 0);
       const treasuryShare = INITIAL_TREASURY_MIN_SHARE + Math.random() * INITIAL_TREASURY_SHARE_SPAN;
