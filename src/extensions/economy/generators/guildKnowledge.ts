@@ -40,6 +40,16 @@ const MIN_TRACKED_STOCK = 0.001;
  * discrete event, not gradual understaffing (docs/plan/knowledge-guild-system.md §5, §9 Phase 6).
  */
 export const GUILD_MASTERLESS_DEATH_PENALTY = 0.3;
+/**
+ * One-time hit applied to every domain a conquered Burg has a tracked guild stock in, the instant
+ * it changes hands to a State that never held it before — GuildKnowledgeStock is Burg-scoped, so
+ * without this a conqueror would get the captured guild's full accumulated technique for free the
+ * moment the burg falls. §8.1 decision 3 ("not instant full absorption, integrate gradually over
+ * years, with room for loss in the immediate post-conquest chaos") is realized by this penalty
+ * plus the existing annual EWMA simply doing its normal job under the new owner — no separate
+ * "integration" logic is needed (docs/plan/knowledge-guild-system.md §9 Phase 7).
+ */
+export const GUILD_CONQUEST_DISRUPTION_PENALTY = 0.4;
 
 function keyOf(burgId: number, domain: CraftKnowledgeDomain): string {
   return `${burgId}:${domain}`;
@@ -125,4 +135,20 @@ export function applyMasterlessGuildPenalty(burgId: number, domain: CraftKnowled
 
   entry.stock = rn(entry.stock * (1 - GUILD_MASTERLESS_DEATH_PENALTY), 4);
   setGuildKnowledgeStocks(stocks);
+}
+
+/**
+ * Applies GUILD_CONQUEST_DISRUPTION_PENALTY to every domain a Burg has a tracked guild stock in.
+ * Called by conquestDisruption.ts on a genuine new conquest (docs/plan/knowledge-guild-system.md
+ * §9 Phase 7). No-op if the Burg has no tracked stock in any domain.
+ */
+export function applyConquestDisruptionToGuilds(burgId: number): void {
+  const stocks = getGuildKnowledgeStocks();
+  let changed = false;
+  for (const entry of stocks) {
+    if (entry.burgId !== burgId) continue;
+    entry.stock = rn(entry.stock * (1 - GUILD_CONQUEST_DISRUPTION_PENALTY), 4);
+    changed = true;
+  }
+  if (changed) setGuildKnowledgeStocks(stocks);
 }

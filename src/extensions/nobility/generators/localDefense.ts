@@ -1,4 +1,5 @@
 import type { Character } from "../../characters/characterTypes";
+import { applyConquestDisruption } from "../../economy/generators/conquestDisruption";
 import { getMartialDisciplineMultiplier } from "../../economy/generators/martialDisciplineKnowledge";
 import { findSeaRouteDistance, regimentQualityMultiplier, type SeaRouteGraph } from "../../hostCore";
 import type { Burg, MilitaryRegiment, MilitaryUnit, PackedGraph } from "../../hostTypes";
@@ -32,8 +33,16 @@ export function canOccupyBurg(
  * in `burg.stateHistory` (oldest first) — the single entry point every capture path (formal
  * siege resolution, background skirmish annihilation, marching-through raids) must go through so
  * the ownership trail stays complete for reconquest-legitimacy checks (see Burg.stateHistory).
+ *
+ * `winnerStateId` already appearing in `stateHistory` means this is a State reclaiming a burg it
+ * held before (e.g. tryRecaptureHomeBurg's own historically-owned city) rather than a genuinely
+ * new conquest — only a first-time-for-this-owner capture disrupts the burg's Economy-owned
+ * technique stocks (docs/plan/knowledge-guild-system.md §9 Phase 7); recapturing your own city
+ * doesn't inflict a second disruption on top of whatever it already suffered when it was lost.
  */
 export function captureBurg(pack: PackedGraph, burg: Burg, winnerStateId: number): void {
+  const isNewConquest = !(burg.stateHistory ?? []).includes(winnerStateId);
+
   burg.state = winnerStateId;
   burg.stateHistory = [...(burg.stateHistory ?? []), winnerStateId];
   for (let i = 0; i < pack.cells.burg.length; i++) {
@@ -41,6 +50,8 @@ export function captureBurg(pack: PackedGraph, burg: Burg, winnerStateId: number
       pack.cells.state[i] = winnerStateId;
     }
   }
+
+  if (isNewConquest && burg.i !== undefined) applyConquestDisruption(burg.i);
 }
 
 /**

@@ -98,6 +98,27 @@
 
 テスト: `guildSuccession.test.ts`新規追加(8件)。`guildKnowledge.test.ts`に2件追加(`applyMasterlessGuildPenalty()`)。`tsc --noEmit`・`npm run lint`・`npm run madge`はクリーン(確認手順は本フェーズの末尾参照)。
 
+**2026-07-31 Phase 7(征服による技術吸収、Burg単位の征服撹乱ペナルティのみ実装)**: §4-4/§8.1決定3の「征服都市の技術は即時全量編入ではなく年単位で段階的に統合、占領直後の混乱で一部が失われる余地を残す」を実装した。着手前の再調査(チェックリスト記載どおり)で以下が判明した:
+
+- **§4-4が前提としていた「State単位の技術プール」は実装に存在しない**。`GuildKnowledgeStock`/`AcademyKnowledgeStock`はどちらもBurgId単位のキーであり、Stateへ集約する仕組みはEconomy拡張のどこにも無い(`stateEconomySummary.ts`は市場在庫・食料のみ集計、Guild/Academyには一切触れない)。つまり現状、Burgが征服されるとBurgId紐付けのstockはそのまま新しい領主国に即時・無条件で引き継がれてしまう——これ自体が決定3の「即時全量編入」問題そのものだった。
+- **vassalage(従属国化)は`src/generators/vassalage.ts`(core、Nobility拡張ではない)に部分的に実装済み**——マップ生成時一回限りの`establishVassalage()`が`tributeRate`と駐屯ガリソンを設定するのみで、シミュレーション中に発生する「ルーラーのintrigueによる乗っ取り」イベントは`docs/plan/military-organization-and-vassalage.md`で明記されたとおり次フェーズ止まりで未実装。annexation/loyalty/subjugationイベントはNobility拡張のどこにも存在しない(前回セッションの調査結果どおり)。
+- **諜報による技術窃取の接続先も皆無**——`espionage-generator.ts`の`EspionageGenerator`は`IntelligenceReport`(推定軍事力/推定財力)を生成するだけの読み取り専用の情報収集で、対象Stateの実データを書き換える「窃取アクション」は存在しない。
+
+以上を踏まえ、実装可能な唯一の垂直スライスとして**Burg単位の征服撹乱ペナルティ**を実装した。State単位の技術プールという当初の前提が無いため、「段階的統合」は新規のプール・ブレンドロジックではなく、「征服の瞬間に一度だけペナルティを与え、その後は既存の年次EWMA(Phase1/3で実装済み)がそのまま新しい領主国の下での回復を担う」形で実現した——決定3が求める効果(即時全量編入の否定、年単位での段階的回復、占領直後の喪失リスク)を、新しい状態やブレンドロジックを一切追加せずに達成できる。
+
+- `src/extensions/economy/generators/guildKnowledge.ts`: `GUILD_CONQUEST_DISRUPTION_PENALTY = 0.4`・`applyConquestDisruptionToGuilds(burgId)`——そのBurgが持つ全ドメインのGuildKnowledgeStockに一括適用(Phase6の`applyMasterlessGuildPenalty`と同型、ドメイン限定なしで汎用)。
+- `src/extensions/economy/generators/academyKnowledge.ts`: 同型の`ACADEMY_CONQUEST_DISRUPTION_PENALTY`・`applyConquestDisruptionToAcademies(burgId)`。GuildKnowledgeStockと同じくBurgId単位でState跨ぎの即時引き継ぎ問題を抱えていたため、片方だけ直さず両方に適用した。
+- `StateSecretStock`/`MartialDisciplineStock`(Phase4/5)はState単位で、Burgの征服では一切変化しない——1都市を失っても国家機密や武術の技量はStateに残るのが正しい挙動であり、対象外とした。
+- `src/extensions/economy/generators/conquestDisruption.ts`(新規): 上記2つをまとめて呼ぶ単一の入口`applyConquestDisruption(burgId)`。`isEconomyContextReady()`(Phase5で新設済み)で未初期化時は無視する。
+- 接続先は`src/extensions/nobility/generators/localDefense.ts`の`captureBurg()`——`marchCapture.ts`/`homeRecapture.ts`/`battle-resolution.ts`/`localSkirmish.ts`の全征服経路が収束する唯一の関数(Phase5の`commanderPowerMultiplier`と同じ「単一フック、複数消費先」パターン)。`winnerStateId`が`burg.stateHistory`に既出かどうかで「新規征服」と「自国都市の奪還」を区別する——奪還は`homeRecapture.ts`が`captureBurg()`を呼ぶ前に`isOccupiedHomeBurg`で既に判定している既存ロジックと同じ判定材料(`stateHistory`)を再利用しており、奪還に対しては二重にペナルティを与えない(奪還対象都市は失陥時に既に一度撹乱を受けている)。
+
+**今回のスコープ外(次フェーズ以降に送った項目)**:
+
+- 諜報による技術窃取——`espionage-generator.ts`に対象Stateの実データを書き換えるアクション自体が存在しないため、Phase3と同じ「消費先が皆無」の状況(新規メカニクスの発明が必要)。
+- vassalage/annexationイベント経由の技術吸収——シミュレーション中に発生する従属国化・乗っ取りイベント自体が`docs/plan/military-organization-and-vassalage.md`が明記するとおりまだ実装されていない。イベントが実装された時点で、そのイベントも`captureBurg()`と同様に`applyConquestDisruption()`を呼ぶか再検討する。
+
+テスト: `guildKnowledge.test.ts`/`academyKnowledge.test.ts`に各2件追加。`conquestDisruption.test.ts`新規追加(2件)。`localDefense.test.ts`に`captureBurg()`のテスト3件追加(既存の`captureBurg()`単体テストは今回が初出)。`tsc --noEmit`・`npm run lint`・`npm run madge`はクリーン(確認手順は本フェーズの末尾参照)。
+
 ---
 
 ## 0. 背景・目的
@@ -297,7 +318,7 @@ Economy拡張はどの拡張にも依存しない自己完結型であり、`Mil
 - [x] Phase 4: 国家機密ドメインと`MilitaryResourceLedger`の接続(§3-C、2026-07-31実装済み、状態節参照)——火薬術(pyrotechnics)ドメインのみ先行実装(Treasury継続投資駆動のEWMAで`MilitaryResourceLedger`の`gunpowder`需要を削減する垂直スライス)。militaryEngineering/fortificationScienceの2ドメインは対応する消費先(要塞/攻城メカニクス)がNobility拡張側にしかなく、AGENTS.mdの依存方向によりEconomyから到達できないため次フェーズへ送った。
 - [x] Phase 5: 武術ドメインと戦力係数の接続(§3-D、2026-07-31実装済み、状態節参照)——剣術/弓術/馬術の3ドメインのみ先行実装。接続先は当初想定の`regimentMovement.ts`(coreの移動・追撃判定、実際には加重power計算を持たない)ではなく、Nobility拡張の`commanderPowerMultiplier()`(localDefense.ts、攻城・遭遇戦・防衛計算が共有する唯一の戦力係数フック)だった。槍術ドメインは`options.military`の`type`だけでは剣術と区別できないため次フェーズへ送った。
 - [x] Phase 6: 個人継承(Characters拡張必須、§5、§8.1決定5、2026-07-31実装済み、状態節参照)——metallurgyドメインのみ先行実装。着手前調査でCharacters拡張側に前提データ(職業タグ・師弟リンク・年次tick・死亡フック)が皆無と判明したためユーザーにスコープを確認し、フル実装(1ドメイン垂直スライス)を選択。実装はEconomy拡張側(`guildSuccession.ts`)に置き、Characters拡張に新規tick機構を作らず既存の`economy.tick`に相乗りする形で回避した。
-- [ ] Phase 7: 征服/従属による技術の段階的吸収(§4-4、§8.1決定3)、諜報による技術窃取の接続。着手前に、Nobility拡張内のannexation/loyalty相当の機構(現状未発見、§1参照)の有無を再調査すること。
+- [x] Phase 7: 征服による技術の段階的吸収(§4-4、§8.1決定3、2026-07-31実装済み、状態節参照)——`captureBurg()`(Nobility)を単一フックにBurg単位のGuildKnowledgeStock/AcademyKnowledgeStockへ征服撹乱ペナルティを適用し、その後は既存の年次EWMAが新領主国の下での回復を担う形で「段階的統合」を実現した。再調査の結果、State単位の技術プールは実装に存在せず、annexation/loyaltyイベントもvassalage(`src/generators/vassalage.ts`、core)側にマップ生成時の一回限りの設定しかなく未実装のままと確認。諜報による技術窃取は接続先(窃取アクション自体)が皆無のため次フェーズへ送った。
 - [ ] Phase 8(範囲未確定): 初期解禁ラインへの文化・地形バイアス(§8.1決定6)。将来のCulture拡張を見据えた設計が必要なため、Culture拡張の具体像が固まった時点で範囲を確定する。
 
 各フェーズ開始前に、そのフェーズが依存する§8の未解決事項を確定させること。

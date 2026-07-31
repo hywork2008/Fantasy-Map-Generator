@@ -34,6 +34,8 @@ export const ACADEMY_DECAY_RATE = 0.15;
 export const ACADEMY_BONUS_MAX = 0.2;
 /** Below this a decayed stock is dropped instead of lingering at a near-zero value forever. */
 const MIN_TRACKED_STOCK = 0.001;
+/** Same conquest-disruption reasoning as GUILD_CONQUEST_DISRUPTION_PENALTY (guildKnowledge.ts, §9 Phase 7). */
+export const ACADEMY_CONQUEST_DISRUPTION_PENALTY = 0.4;
 
 function keyOf(burgId: number, domain: ScholarlyKnowledgeDomain): string {
   return `${burgId}:${domain}`;
@@ -104,4 +106,20 @@ export function getAcademyBonus(burgId: number, domain: ScholarlyKnowledgeDomain
   const stock =
     getAcademyKnowledgeStocks().find(entry => entry.burgId === burgId && entry.domain === domain)?.stock ?? 0;
   return 1 + ACADEMY_BONUS_MAX * stock;
+}
+
+/**
+ * Applies ACADEMY_CONQUEST_DISRUPTION_PENALTY to every domain a Burg has a tracked academy stock
+ * in. Called by conquestDisruption.ts on a genuine new conquest (docs/plan/knowledge-guild-system.md
+ * §9 Phase 7). No-op if the Burg has no tracked stock in any domain.
+ */
+export function applyConquestDisruptionToAcademies(burgId: number): void {
+  const stocks = getAcademyKnowledgeStocks();
+  let changed = false;
+  for (const entry of stocks) {
+    if (entry.burgId !== burgId) continue;
+    entry.stock = rn(entry.stock * (1 - ACADEMY_CONQUEST_DISRUPTION_PENALTY), 4);
+    changed = true;
+  }
+  if (changed) setAcademyKnowledgeStocks(stocks);
 }

@@ -5,9 +5,16 @@ import {
   clearEconomyContext,
   getAcademyKnowledgeStocks,
   initEconomyContext,
+  setAcademyKnowledgeStocks,
   setAdministrationEmployment
 } from "../economyContext";
-import { ACADEMY_SATURATION_WORKERS, AcademyKnowledge, getAcademyBonus } from "./academyKnowledge";
+import {
+  ACADEMY_CONQUEST_DISRUPTION_PENALTY,
+  ACADEMY_SATURATION_WORKERS,
+  AcademyKnowledge,
+  applyConquestDisruptionToAcademies,
+  getAcademyBonus
+} from "./academyKnowledge";
 
 describe("AcademyKnowledgeModule", () => {
   beforeEach(() => {
@@ -93,5 +100,22 @@ describe("AcademyKnowledgeModule", () => {
 
   it("returns bonus 1 (no bonus) for a Burg with no tracked stock", () => {
     expect(getAcademyBonus(999, "administration")).toBe(1);
+  });
+
+  describe("applyConquestDisruptionToAcademies()", () => {
+    it("cuts a Burg's tracked stock by ACADEMY_CONQUEST_DISRUPTION_PENALTY", () => {
+      setAcademyKnowledgeStocks([{ burgId: 1, domain: "administration", stock: 0.6 }]);
+
+      applyConquestDisruptionToAcademies(1);
+
+      const stock = getAcademyKnowledgeStocks().find(entry => entry.burgId === 1)?.stock;
+      expect(stock).toBeCloseTo(0.6 * (1 - ACADEMY_CONQUEST_DISRUPTION_PENALTY), 4);
+    });
+
+    it("is a no-op for a Burg with no tracked stock", () => {
+      applyConquestDisruptionToAcademies(999);
+
+      expect(getAcademyKnowledgeStocks()).toEqual([]);
+    });
   });
 });

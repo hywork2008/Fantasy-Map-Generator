@@ -10,7 +10,9 @@ import {
   setSmelterOperations
 } from "../economyContext";
 import {
+  applyConquestDisruptionToGuilds,
   applyMasterlessGuildPenalty,
+  GUILD_CONQUEST_DISRUPTION_PENALTY,
   GUILD_MASTERLESS_DEATH_PENALTY,
   GUILD_SATURATION_WORKERS,
   GuildKnowledge,
@@ -174,6 +176,36 @@ describe("GuildKnowledgeModule", () => {
 
     it("is a no-op for a Burg with no tracked stock", () => {
       applyMasterlessGuildPenalty(999, "metallurgy");
+
+      expect(getGuildKnowledgeStocks()).toEqual([]);
+    });
+  });
+
+  describe("applyConquestDisruptionToGuilds()", () => {
+    it("cuts every domain a Burg has a tracked stock in by GUILD_CONQUEST_DISRUPTION_PENALTY", () => {
+      setGuildKnowledgeStocks([
+        { burgId: 1, domain: "metallurgy", stock: 0.8 },
+        { burgId: 1, domain: "textiles", stock: 0.5 },
+        { burgId: 2, domain: "metallurgy", stock: 0.9 }
+      ]);
+
+      applyConquestDisruptionToGuilds(1);
+
+      const stocks = getGuildKnowledgeStocks();
+      expect(stocks.find(e => e.burgId === 1 && e.domain === "metallurgy")?.stock).toBeCloseTo(
+        0.8 * (1 - GUILD_CONQUEST_DISRUPTION_PENALTY),
+        4
+      );
+      expect(stocks.find(e => e.burgId === 1 && e.domain === "textiles")?.stock).toBeCloseTo(
+        0.5 * (1 - GUILD_CONQUEST_DISRUPTION_PENALTY),
+        4
+      );
+      // A different Burg's stock is untouched.
+      expect(stocks.find(e => e.burgId === 2)?.stock).toBe(0.9);
+    });
+
+    it("is a no-op for a Burg with no tracked stock", () => {
+      applyConquestDisruptionToGuilds(999);
 
       expect(getGuildKnowledgeStocks()).toEqual([]);
     });
