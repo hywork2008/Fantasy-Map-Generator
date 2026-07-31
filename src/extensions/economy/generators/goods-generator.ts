@@ -1091,10 +1091,12 @@ export const GOODS_DATA: GoodData[] = [
       { Cattle: 1, Salt: 1 },
       { Game: 1, Salt: 1 },
       { Sheep: 1, Salt: 1 },
+      { Pig: 1, Salt: 1 },
       { Fish: 1, Vinegar: 0.5 },
       { Cattle: 1, Vinegar: 0.5 },
       { Game: 1, Vinegar: 0.5 },
       { Sheep: 1, Vinegar: 0.5 },
+      { Pig: 1, Vinegar: 0.5 },
       { Fish: 1, Wood: 1 }
     ],
     unit: "wain",
@@ -1127,6 +1129,18 @@ export const GOODS_DATA: GoodData[] = [
       { Goats: 0.5, Vinegar: 0.25 }
     ],
     unit: "wain",
+    demandCoverage: { food: 1 }
+  },
+  {
+    name: "Egg",
+    tags: ["food"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#f0e2b6",
+    value: 1,
+    chance: 0,
+    recipes: [{ Chicken: 1 }],
+    unit: "basket",
     demandCoverage: { food: 1 }
   },
   {
@@ -1272,6 +1286,37 @@ export const GOODS_DATA: GoodData[] = [
     unit: "head",
     demandCoverage: { food: 0.8, utilities: 0.2 },
     biomeOutputByTag: { scrub: 0.1, mountain: 0.08, dry: 0.06 }
+  },
+  {
+    name: "Pig",
+    warEconomyType: "essential",
+    tags: ["food"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#e8a0a0",
+    value: 2,
+    chance: 3,
+    // Forest pannage (mast/acorns) and village scrap-feeding, not open grassland droving — pigs
+    // historically don't herd well over long distances or arid/nomadic terrain (unlike sheep/goats).
+    distribution: 'biomeTag("forest") || (biomeTag("arable") && random(60))',
+    unit: "head",
+    demandCoverage: { food: 1 },
+    multipliers: { cultureType: { Nomadic: 0.2 } },
+    biomeOutputByTag: { forest: 0.08, arable: 0.05 }
+  },
+  {
+    name: "Chicken",
+    warEconomyType: "essential",
+    tags: ["food"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#d9c589",
+    value: 1,
+    chance: 4,
+    distribution: "habitability() && random(85)",
+    unit: "head",
+    demandCoverage: { food: 1 },
+    biomeOutputByTag: { arable: 0.04, grassland: 0.03 }
   }
 ];
 
@@ -1308,6 +1353,12 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Grain: tradeProfile(4, 4, 1, -1, -1, 2, 3),
   Fodder: tradeProfile(4, 5, 1, -2, -1, 2, 3),
   Cattle: tradeProfile(5, 5, 2, 0, -2, 1, 5),
+  // Pigs don't drove well over distance (stress/weight loss), so local sale is preferred even more
+  // than Grain's -1; distancePremium keeps that as an economic disincentive, not a hard trade ban.
+  Pig: tradeProfile(4, 4, 1, -1, -2, 1, 5),
+  // A live bird is cheap and fragile enough that it was essentially never a long-haul trade good —
+  // distancePremium matches Stone's -2 ("definitely sell it locally").
+  Chicken: tradeProfile(2, 2, 1, -2, -2, 1, 5),
   Fish: tradeProfile(3, 3, 1, -1, -2, 1, 5),
   Game: tradeProfile(3, 3, 2, 0, -2, 1, 5),
   Wine: tradeProfile(3, 3, 3, 2, 2, 4, 2),
@@ -1369,6 +1420,10 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   "Preserved food": tradeProfile(4, 4, 2, 1, 0, 4, 2),
   Vinegar: tradeProfile(3, 3, 2, 1, 1, 4, 2),
   Cheese: tradeProfile(3, 3, 3, 1, 1, 3, 2),
+  // Room-temperature shelf life of roughly a month (unwashed) puts this alongside Preserved food's
+  // "keeps a while, not a fast-decay good" timeValueTrend, not the freshFood day-count model — but
+  // low value density and fragility (durability/lossRisk) mean it's still not worth hauling far.
+  Egg: tradeProfile(2, 3, 1, 1, 0, 2, 3),
   Beer: tradeProfile(4, 4, 2, 1, -1, 2, 3),
   Liquor: tradeProfile(2, 2, 4, 2, 1, 4, 2),
   Candles: tradeProfile(2, 3, 3, 1, 0, 3, 2),
