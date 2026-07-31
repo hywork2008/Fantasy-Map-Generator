@@ -1314,9 +1314,15 @@ export function init(api: ExtensionAPI): void {
   );
 
   // Listen for Shipbuilding's trade-voyage income (optional dependency — harmless no-op
-  // if Shipbuilding is never enabled). Buffered in taxes-generator.ts and folded into
-  // treasury on the next collectTaxes() call rather than written directly, since it must
-  // compose with the other income/expense terms collectTaxes() applies each cycle.
+  // if Shipbuilding is never enabled). Buffered in taxes-generator.ts and folded into treasury
+  // via foldBufferedStateIncome() rather than written directly, since it must compose with
+  // strategic-procurement expenses buffered the same way. This event fires once per ship hull
+  // per tick (runVoyageTick in shipVoyages.ts), so a state with several hulls can queue several
+  // of these microtasks for the same tick — foldBufferedStateIncome() only touches the buffered
+  // voyage-income/procurement-expense maps and is safe to call repeatedly. Taxes.collectTaxes()
+  // itself must NOT be called here: it also re-sums the current cycle's deal taxes and re-applies
+  // poll tax / military upkeep in full, neither of which is idempotent between production cycles,
+  // so calling it once per hull would double- (or N-times-) count those every tick.
   _voyageIncomeHandler = e => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
     const { stateId, amount } = (e as CustomEvent).detail as { stateId: number; amount: number };
@@ -1325,7 +1331,7 @@ export function init(api: ExtensionAPI): void {
     // Voyage income changes tax accounting, not production, so do not force an
     // expensive production/trade settlement just to expose it to the treasury.
     queueMicrotask(() => {
-      if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) Taxes.collectTaxes();
+      if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) Taxes.foldBufferedStateIncome();
     });
   };
   document.addEventListener("fmg:shipbuilding-voyage-income", _voyageIncomeHandler);

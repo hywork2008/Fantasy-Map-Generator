@@ -18,13 +18,13 @@ const DEFAULT_TAX_BY_FORM: Record<string, TaxBases> = {
 const DEFAULT_TAX: TaxBases = DEFAULT_TAX_BY_FORM.Monarchy;
 
 // Gold from Shipbuilding's trade-voyage ships (fmg:shipbuilding-voyage-income), buffered
-// here until the next collectTaxes() fold-in — mirrors how `deals` represents "income
-// since the last cycle" rather than a running total, so it composes cleanly with a
-// treasury that now carries forward between cycles instead of resetting. See
+// here until the next collectTaxes()/foldBufferedStateIncome() fold-in — mirrors how `deals`
+// represents "income since the last cycle" rather than a running total, so it composes cleanly
+// with a treasury that now carries forward between cycles instead of resetting. See
 // docs/plan/ships.md ("航海訓練・偽装通商・諜報（暫定案）").
 const _voyageIncomeByState = new Map<number, number>();
-// Procurement spends between collectTaxes() calls must be buffered here and folded into
-// the next carry-forward update, since they happen outside collectTaxes() itself.
+// Procurement spends between fold-ins must be buffered here and folded into the next
+// carry-forward update, since they happen outside collectTaxes()/foldBufferedStateIncome().
 const _strategicProcurementExpenseByState = new Map<number, number>();
 
 export function registerVoyageIncome(stateId: number, amount: number): void {
@@ -65,7 +65,11 @@ export class TaxesModule {
    * Folds this generation cycle's deals plus poll tax into every non-neutral state's treasury,
    * which is now a carry-forward stock rather than a from-scratch recalculation (docs/temp/profits.md
    * decision #1). The economy deals slice is cleared at the start of each Production.produce() cycle
-   * (production-generator.ts), so the deals loop below only ever sees the current cycle's deals.
+   * (production-generator.ts), so the deals loop below only ever sees the current cycle's deals —
+   * this method is NOT idempotent and must only be called once per production cycle (every existing
+   * call site pairs it 1:1 with a preceding Production.produce()/produceIncrementally()). Callers
+   * that need to expose buffered voyage-income/procurement-expense adjustments outside of a
+   * production cycle must call foldBufferedStateIncome() instead, not this method.
    */
   collectTaxes(): void {
     TIME && console.time("collectTaxes");
@@ -100,6 +104,30 @@ export class TaxesModule {
     _strategicProcurementExpenseByState.clear();
 
     TIME && console.timeEnd("collectTaxes");
+  }
+
+  /**
+   * Folds only the buffered Shipbuilding voyage-income / strategic-procurement adjustments into
+   * state treasuries. Unlike collectTaxes(), this must NOT re-sum the current cycle's deal taxes
+   * or re-apply poll tax / military upkeep — those are only valid once per production cycle
+   * (collectTaxes() is always called immediately after Production.produce(), which is the only
+   * place `deals` gets cleared). Safe to call any number of times between production cycles —
+   * e.g. once per ship hull per tick from the Shipbuilding voyage-income event — since the
+   * underlying buffers are drained on read, same as collectTaxes()'s own handling of them.
+   */
+  foldBufferedStateIncome(): void {
+    const { states } = this.worldContext.pack;
+
+    for (const state of states) {
+      if (!state.i) continue;
+      const voyageIncome = _voyageIncomeByState.get(state.i) ?? 0;
+      const procurementExpense = _strategicProcurementExpenseByState.get(state.i) ?? 0;
+      if (!voyageIncome && !procurementExpense) continue;
+      state.treasury = rn(Math.max(0, (state.treasury || 0) + voyageIncome - procurementExpense), 2);
+    }
+
+    _voyageIncomeByState.clear();
+    _strategicProcurementExpenseByState.clear();
   }
 
   private getSellerStateId(deal: Deal, burgs: Burg[]): number | undefined {
