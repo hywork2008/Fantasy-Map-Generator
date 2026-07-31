@@ -8,7 +8,7 @@ import {
 } from "../economyContext";
 import { Markets } from "./markets-generator";
 import { isMountedUnit } from "./militaryLogistics";
-import type { MilitaryResource, MilitaryResourceLedger } from "./militaryResourcesTypes";
+import { type MilitaryResource, type MilitaryResourceLedger, MOUNTED_FODDER_PER_HEAD } from "./militaryResourcesTypes";
 import { getStateSecretMaterialMultiplier } from "./stateSecretKnowledge";
 
 export type { MilitaryResource, MilitaryResourceLedger } from "./militaryResourcesTypes";
@@ -22,9 +22,6 @@ const ARTILLERY_LEAD_PER_GUN = 0.03;
 const ARTILLERY_GUNPOWDER_PER_GUN = 0.02;
 const FIREARM_IRON_PER_HEAD = 0.004;
 const FIREARM_GUNPOWDER_PER_HEAD = 0.012;
-// Mounted units (options.military type "mounted") need fodder for their horses regardless of
-// gunpowder-era status — cavalry predates firearms. Uncalibrated, same as the rest of this file.
-const MOUNTED_FODDER_PER_HEAD = 0.08;
 // Archer units (name matches /archer|bowman|longbow|crossbow/) need arrows regardless of
 // gunpowder-era status — bows predate and outlast firearms. Uncalibrated.
 const ARCHER_ARROWS_PER_HEAD = 0.05;
