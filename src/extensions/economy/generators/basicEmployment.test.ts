@@ -287,6 +287,27 @@ describe("reconcileAnnualBasicEmploymentWorkers", () => {
     expect(summary.serviceEmploymentDemand).toBeCloseTo(12 * 1.5, 5);
   });
 
+  it("sums the non-trade strategic occupations (forestry/sailmaking/ropeMaking/tarBurning) into the center Burg's basicEmploymentDemand", () => {
+    setBurgs({ maleAdults: 100, femaleAdults: 100 });
+    setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: {} }]);
+    setStrategicLaborMarkets([
+      {
+        marketId: 1,
+        workersByOccupation: { forestry: 4, sailmaking: 2, ropeMaking: 1, tarBurning: 1, trade: 9 },
+        wageByOccupation: {},
+        skillByOccupation: {},
+        capacityByOccupation: {}
+      }
+    ]);
+
+    reconcileAnnualBasicEmploymentWorkers();
+
+    // trade (9) is attributed separately from forestry+sailmaking+ropeMaking+tarBurning (4+2+1+1=8);
+    // both are read (not reallocated), so basicEmploymentDemand = 9 + 8 = 17.
+    const [summary] = getBasicEmploymentSummary();
+    expect(summary).toMatchObject({ burgId: 1, basicEmploymentDemand: 17 });
+  });
+
   it("attributes a Burg's craft employment record without an admin/mine/smelter slot", () => {
     setBurgs({ maleAdults: 100, femaleAdults: 100 });
     setCraftEmploymentRecords([{ burgId: 1, workers: 7 }]);

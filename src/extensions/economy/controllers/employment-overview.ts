@@ -8,7 +8,7 @@ import {
   getSmelterOperations,
   getWorldContext
 } from "../economyContext";
-import { getTradeWorkersByBurg } from "../generators/basicEmployment";
+import { getStrategicIndustryWorkersByBurg, getTradeWorkersByBurg } from "../generators/basicEmployment";
 import { type EmploymentOverviewRow, setEmploymentOverviewState } from "../store/employmentOverviewState";
 
 /**
@@ -32,6 +32,7 @@ export function refreshEmploymentOverview(): void {
   const miningByBurg = sumActiveByBurg(getMineOperations());
   const smeltingByBurg = sumActiveByBurg(getSmelterOperations());
   const tradeByBurg = getTradeWorkersByBurg();
+  const strategicIndustryByBurg = getStrategicIndustryWorkersByBurg();
   const craftByBurg = new Map(getCraftEmploymentRecords().map(record => [record.burgId, record.workers]));
   const summaryByBurg = new Map(getBasicEmploymentSummary().map(record => [record.burgId, record]));
 
@@ -40,6 +41,7 @@ export function refreshEmploymentOverview(): void {
     ...miningByBurg.keys(),
     ...smeltingByBurg.keys(),
     ...tradeByBurg.keys(),
+    ...strategicIndustryByBurg.keys(),
     ...craftByBurg.keys(),
     ...summaryByBurg.keys()
   ]);
@@ -62,6 +64,7 @@ export function refreshEmploymentOverview(): void {
       mining: rn(miningByBurg.get(burgId) ?? 0, 1),
       smelting: rn(smeltingByBurg.get(burgId) ?? 0, 1),
       trade: rn(tradeByBurg.get(burgId) ?? 0, 1),
+      strategicIndustry: rn(strategicIndustryByBurg.get(burgId) ?? 0, 1),
       craft: rn(craftByBurg.get(burgId) ?? 0, 1),
       basicEmploymentDemand: rn(basicEmploymentDemand, 1),
       serviceEmploymentDemand: rn(serviceEmploymentDemand, 1),

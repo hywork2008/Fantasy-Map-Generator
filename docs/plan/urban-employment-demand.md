@@ -35,6 +35,10 @@
 
 **2026-07-31 実装状況（Phase 6 — 手工業雇用、§3.7）**: 上記の欠落を埋めるため、`runWorkerLoop`が既に算出している「このBurgの人口ポイントのうちレシピ加工（Cloth/Garmentsなど、原料採取ではなく`recipes`を持つGoods全般）に投入された量」を`craftEmployment.ts`（新規）の`smoothCraftWorkers()`で毎周期スムージングし（減衰半減期に相当する指数平滑、係数0.2）、`basicEmployment.ts`の年次集計へ`trade`と同じ「読み取り専用・年次スロット競合に含めない」方式で合算した。`trade`同様に読み取り専用としたのは、この労働力が競合する対象（`runWorkerLoop`内の`burg.population`）が、年次スロット側の`remainingAdults`（鉱業・製錬・行政が奪い合うプール）とは別会計であり、スロット側で二重に差し引くと整合しなくなるため。`basicEmploymentDemand = 行政 + 鉱業 + 製錬 + 交易 + 手工業`となり、`serviceEmploymentDemand`（§3.5、「非基盤（サービス・小売・職人）人口」との元々の説明どおり）はこの拡大した基盤雇用にも1.5倍で反応するようになった。Employment Overviewダイアログ（Phase 5）に「Craft」列を追加し、Burg Editorの「Basic employment」表示はこの変更を自動的に反映する（`basicEmploymentSummary`を読むだけの既存コードのため変更不要）。ユニットテスト（`craftEmployment.test.ts`、`basicEmployment.test.ts`）を追加。
 
+**2026-07-31 調査結果（造船業と雇用の関係）**: Phase 6の手工業雇用と対比する形で、造船（`shipbuilding`拡張）が同様に雇用を生んでいるかを調べた。結論: 2段構えで穴がある。(1) 船体建造そのもの（`shipyardQueue.ts`の`runShipyardTick`/`advanceQueueWithMaterials`）は`worker`/`employ`概念を一切持たず、固定の`SHIPYARD_BUILD_POINTS_PER_YEAR`（造船所1つあたり年間固定値）と資材・tech pointのみで進行する——Burgの人口を全く見ない設計。(2) 造船資材（木材・帆布・ロープ・タール）を供給する`forestry`/`sailmaking`/`ropeMaking`/`tarBurning`（§2.3の`STRATEGIC_OCCUPATIONS`、`trade`を除く4職種）は`LaborMarket`に実在するコホートだが、`basicEmployment.ts`が読んでいたのは`trade`だけで、この4職種は`basicEmploymentDemand`に一度も合算されていなかった——Phase 6が埋めた穴と同型（「労働力の実測はあるのに雇用集計に繋がっていない」）。(1)は`SHIPYARD_BUILD_POINTS_PER_YEAR`という意図的な「施設の存在が主要な制約」という設計を崩すため今回は対象外とし、(2)のみをPhase 7として実施することにした。
+
+**2026-07-31 実装状況（Phase 7 — 戦略産業雇用、§3.8）**: `basicEmployment.ts`に`getStrategicOccupationWorkersByBurg(occupations)`という共通ヘルパーを追加し、既存の`getTradeWorkersByBurg()`をこの上に再実装（`["trade"]`のみを渡す）。新たに`getStrategicIndustryWorkersByBurg()`を追加し、`forestry`/`sailmaking`/`ropeMaking`/`tarBurning`の合計をMarketの`centerBurgId`へ、`trade`と全く同じ「読み取り専用」方式で帰属させた——`LaborMarket`はBurg人口を物理的に減らさない内部比率（§2.3）であり、`trade`同様この帰属は年次スロットの`remainingAdults`と競合しない。`basicEmploymentDemand = 行政 + 鉱業 + 製錬 + 交易 + 戦略産業 + 手工業`となった。Employment Overviewダイアログに「Industry」列を追加。ユニットテスト（`basicEmployment.test.ts`に1ケース追加）。
+
 ## 1. 目的
 
 [megacity-food-import-economy.md](megacity-food-import-economy.md)は、食料輸入と農業労働力の分離により、農村から都市へ人と食料を送る土台（`releaseRuralLaborSurplus`、`UrbanLaborIntake`、`FrontierExpansion`のプール連携、野盗ライフサイクル）を実装した。しかし、その土台がまだ答えていない問いが残っている。**都市へ送られた人は、着いた先で何をして生きるのか。**
@@ -100,7 +104,8 @@ return Math.min(
 | `portTradeEmployment[burgId]` | economy simulation | 人口ポイント | 港湾荷役・商人としての雇用。交易量から導出。 |
 | `administrationEmployment[burgId]` | economy simulation | 人口ポイント | 首都・州都としての行政雇用。 |
 | `craftEmployment[burgId]` | economy simulation | 人口ポイント | レシピ加工業（Cloth/Garmentsなど、専用Operationを持たない一般`Production`）の実雇用。`runWorkerLoop`の実測を指数平滑した値（§3.7、Phase 6）。 |
-| `basicEmploymentDemand[burgId]` | economy simulation | 人口ポイント | 鉱業・製錬・港湾交易・行政・手工業の合計（基盤雇用）。 |
+| `LaborMarket.workersByOccupation`（forestry/sailmaking/ropeMaking/tarBurning分） | economy simulation（既存、§2.3） | 人口ポイント | 造船・一般Wood供給を支える資材労働コホート。`basicEmployment.ts`の`getStrategicIndustryWorkersByBurg()`がMarketの`centerBurgId`へ読み取り専用で帰属（§3.8、Phase 7）。 |
+| `basicEmploymentDemand[burgId]` | economy simulation | 人口ポイント | 鉱業・製錬・港湾交易・行政・戦略産業・手工業の合計（基盤雇用）。 |
 | `serviceEmploymentDemand[burgId]` | economy simulation | 人口ポイント | 基盤雇用に追随して生まれる非基盤雇用（飲食・小売・宿など）。 |
 | `employmentDemand[burgId]` | economy simulation | 人口ポイント | `basicEmploymentDemand + serviceEmploymentDemand`。`annualUrbanLaborIntake`の入力になる。 |
 
@@ -184,6 +189,19 @@ basicEmploymentDemand[burgId] += craftEmploymentDemand[burgId]
 
 > **実装（Phase 6、§0参照）**: `craftEmployment.ts`（新規）の`smoothCraftWorkers()`が上記の指数平滑を行い、`production-generator.ts`の`startProductionCycle`/`produceForBurg`/`finishProductionCycle`が毎周期`craftEmployment`スライス（`CraftEmploymentRecord[]`）を更新する。`basicEmployment.ts`は`trade`と並ぶ第5の入力としてこれを読み取り、`basicEmploymentDemand`に合算する。
 
+### 3.8 戦略産業雇用（forestry/sailmaking/ropeMaking/tarBurning）— `trade`と同じ帰属をその他の`LaborMarket`職種にも広げる
+
+§2.3で先に決定・実装されていた`LaborMarket`（`strategicLaborMarkets.ts`）は、`trade`を含む5職種（`STRATEGIC_OCCUPATIONS`）すべてでMarket圏人口の30%を再配分するコホートを持つ。しかし`basicEmployment.ts`が`basicEmploymentDemand`へ帰属させていたのは`trade`だけで、造船（および一般Wood供給）の資材を支える`forestry`/`sailmaking`/`ropeMaking`/`tarBurning`の4職種は、実データ（`workersByOccupation`）が存在するにもかかわらず一度も雇用集計に反映されていなかった。Phase 6が一般`Production`について埋めた穴と同型の欠落である。
+
+```text
+strategicIndustryWorkers[burgId] = Σ(forestry, sailmaking, ropeMaking, tarBurning)の該当MarketのworkersByOccupation
+basicEmploymentDemand[burgId] += strategicIndustryWorkers[burgId]
+```
+
+`trade`と同じ理由（`LaborMarket`はBurg人口を物理的に減らさない内部比率であり、年次スロットの`remainingAdults`とは別会計）で読み取り専用として扱う。造船の船体建造そのもの（`SHIPYARD_BUILD_POINTS_PER_YEAR`という固定ペース＋資材/tech gate）には労働力概念がなく、これは意図的な設計（施設の存在自体が主要な制約）と判断し、本フェーズの対象外とした。
+
+> **実装（Phase 7、§0参照）**: `basicEmployment.ts`に`getStrategicOccupationWorkersByBurg(occupations)`共通ヘルパーを追加し、`getTradeWorkersByBurg()`をこの上に再実装、新規`getStrategicIndustryWorkersByBurg()`が残り4職種を同じ方式で帰属させる。`basicEmploymentDemand = 行政 + 鉱業 + 製錬 + 交易 + 戦略産業 + 手工業`。Employment Overviewに「Industry」列を追加。
+
 ## 4. 実装フェーズ（暫定・次セッションで確定）
 
 進捗はコードとテストで確認できる状態だけを`[x]`とする。
@@ -225,6 +243,14 @@ basicEmploymentDemand[burgId] += craftEmploymentDemand[burgId]
 - [x] `basicEmployment.ts`の年次集計へ`trade`と同じ「読み取り専用」方式で合算し、`basicEmploymentDemand = 行政 + 鉱業 + 製錬 + 交易 + 手工業`とする。
 - [x] Employment Overviewダイアログに「Craft」列を追加する。Burg Editorの「Basic employment」表示は既存コードのまま自動的に反映される。
 - [ ] seed固定シナリオでの実機確認（鉱山を持たないがCloth/Garments加工が盛んなBurgが`serviceEmploymentDemand`経由で成長するか）はまだ行っていない。既知の影響（§2.5表の「基盤産業のない大多数のBurgは`employmentDemand`が0のまま」）を、手工業だけでどこまで緩和できるかはPhase 7以降のバランス調整課題として残す。
+
+### Phase 7 — 戦略産業雇用（forestry/sailmaking/ropeMaking/tarBurning、§3.8）
+
+- [x] `basicEmployment.ts`に`getStrategicOccupationWorkersByBurg(occupations)`共通ヘルパーを追加し、`getTradeWorkersByBurg()`をその上に再実装する。
+- [x] `getStrategicIndustryWorkersByBurg()`（forestry/sailmaking/ropeMaking/tarBurningの合計）を追加し、`trade`と同じ読み取り専用方式で`basicEmploymentDemand`へ合算する。
+- [x] Employment Overviewダイアログに「Industry」列を追加する。
+- [ ] 造船の船体建造自体（`SHIPYARD_BUILD_POINTS_PER_YEAR`固定ペース）に労働力ゲートを設けるかどうかは、意図的に対象外とした（§3.8参照）。将来検討する場合は別途決定が必要。
+- [ ] seed固定シナリオでの実機確認（forestry等が盛んなBurgが`employmentDemand`経由で成長するか）はまだ行っていない。
 
 ## 5. 未決定事項（次セッション冒頭で確認する）
 

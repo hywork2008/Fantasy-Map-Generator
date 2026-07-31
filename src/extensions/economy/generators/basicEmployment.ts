@@ -20,7 +20,13 @@ import { getMineRequiredWorkers } from "./mineOperations";
 import { getQuarryRequiredWorkers } from "./quarryOperations";
 import { type BasicEmploymentSummaryRecord, buildBasicEmploymentSummary } from "./serviceEmployment";
 import { getSmelterRequiredWorkers } from "./smelterOperations";
+import { STRATEGIC_OCCUPATIONS, type StrategicOccupation } from "./strategicLaborMarketsTypes";
 import { getVolcanicAshRequiredWorkers } from "./volcanicAshOperations";
+
+/** The non-`"trade"` strategic occupations (§2.3) — raw-material supply for shipbuilding and general Wood, e.g. forestry (§3.8, Phase 7). */
+const STRATEGIC_INDUSTRY_OCCUPATIONS: readonly StrategicOccupation[] = STRATEGIC_OCCUPATIONS.filter(
+  occupation => occupation !== "trade"
+);
 
 /** Share of an operation's `requiredWorkers` it may gain or lose in a single reconciliation year. */
 const MAX_ANNUAL_WORKER_CHANGE_SHARE = 0.25;
@@ -53,7 +59,10 @@ interface BasicEmploymentSlot {
  * down, that Burg's adult pool a second time here. Craft/manufacturing employment (§3.7, Phase
  * 6) follows the same read-only pattern: `production-generator.ts`'s worker loop already
  * decides monthly how much of a Burg's population goes into recipe-based Goods, so this only
- * reads the smoothed `craftEmployment` figure.
+ * reads the smoothed `craftEmployment` figure. The remaining `LaborMarket` occupations —
+ * forestry/sailmaking/ropeMaking/tarBurning (§3.8, Phase 7) — are read the same read-only way as
+ * `"trade"`: they already exist as a real `workersByOccupation` cohort (§2.3), just never
+ * attributed to a Burg before this.
  *
  * Call once per simulation year, gated the same way as `UrbanLaborIntake.updateAnnualState()`.
  */
@@ -154,11 +163,13 @@ export function reconcileAnnualBasicEmploymentWorkers(): void {
   }
 
   const tradeWorkersByBurg = getTradeWorkersByBurg();
+  const strategicIndustryWorkersByBurg = getStrategicIndustryWorkersByBurg();
   const craftWorkersByBurg = new Map(getCraftEmploymentRecords().map(record => [record.burgId, record.workers]));
 
   const summaryBurgIds = new Set<number>([
     ...slotsByBurg.keys(),
     ...tradeWorkersByBurg.keys(),
+    ...strategicIndustryWorkersByBurg.keys(),
     ...craftWorkersByBurg.keys()
   ]);
   const summaryRecords: BasicEmploymentSummaryRecord[] = [];
@@ -184,12 +195,40 @@ export function reconcileAnnualBasicEmploymentWorkers(): void {
 
     const burgAnchoredDemand = slots?.reduce((sum, slot) => sum + slot.getWorkers(), 0) ?? 0;
     const basicEmploymentDemand =
-      burgAnchoredDemand + (tradeWorkersByBurg.get(burgId) ?? 0) + (craftWorkersByBurg.get(burgId) ?? 0);
+      burgAnchoredDemand +
+      (tradeWorkersByBurg.get(burgId) ?? 0) +
+      (strategicIndustryWorkersByBurg.get(burgId) ?? 0) +
+      (craftWorkersByBurg.get(burgId) ?? 0);
     summaryRecords.push(buildBasicEmploymentSummary(burgId, basicEmploymentDemand));
   }
 
   setAdministrationEmployment(administrationRecords);
   setBasicEmploymentSummary(summaryRecords);
+}
+
+/**
+ * Reads (does not reallocate) each market's current LaborMarket headcount for the given
+ * occupation(s) and attributes the sum to that market's `centerBurgId`. Shared by
+ * `getTradeWorkersByBurg()` (§3.3, Phase 2) and `getStrategicIndustryWorkersByBurg()`
+ * (§3.8, Phase 7).
+ */
+function getStrategicOccupationWorkersByBurg(occupations: readonly StrategicOccupation[]): Map<number, number> {
+  const workersByBurg = new Map<number, number>();
+  const laborMarketByMarketId = new Map(
+    getStrategicLaborMarkets().map(laborMarket => [laborMarket.marketId, laborMarket])
+  );
+  for (const market of getMarkets()) {
+    if (!market.centerBurgId) continue;
+    const laborMarket = laborMarketByMarketId.get(market.i);
+    if (!laborMarket) continue;
+    const workers = occupations.reduce(
+      (sum, occupation) => sum + (laborMarket.workersByOccupation[occupation] ?? 0),
+      0
+    );
+    if (workers <= 0) continue;
+    workersByBurg.set(market.centerBurgId, (workersByBurg.get(market.centerBurgId) ?? 0) + workers);
+  }
+  return workersByBurg;
 }
 
 /**
@@ -199,17 +238,18 @@ export function reconcileAnnualBasicEmploymentWorkers(): void {
  * reconciliation uses, without duplicating the attribution logic.
  */
 export function getTradeWorkersByBurg(): Map<number, number> {
-  const tradeWorkersByBurg = new Map<number, number>();
-  const laborMarketByMarketId = new Map(
-    getStrategicLaborMarkets().map(laborMarket => [laborMarket.marketId, laborMarket])
-  );
-  for (const market of getMarkets()) {
-    if (!market.centerBurgId) continue;
-    const tradeWorkers = laborMarketByMarketId.get(market.i)?.workersByOccupation.trade ?? 0;
-    if (tradeWorkers <= 0) continue;
-    tradeWorkersByBurg.set(market.centerBurgId, (tradeWorkersByBurg.get(market.centerBurgId) ?? 0) + tradeWorkers);
-  }
-  return tradeWorkersByBurg;
+  return getStrategicOccupationWorkersByBurg(["trade"]);
+}
+
+/**
+ * Reads (does not reallocate) the sum of every non-`"trade"` LaborMarket occupation —
+ * forestry/sailmaking/ropeMaking/tarBurning, the raw-material supply chain for shipbuilding
+ * and general Wood (§2.3, §3.8, Phase 7) — and attributes it to each market's `centerBurgId`.
+ * These cohorts existed since before this plan (shipbuilding-industrial-policy.md §4.5) but
+ * were never attributed to a Burg's `basicEmploymentDemand` until now.
+ */
+export function getStrategicIndustryWorkersByBurg(): Map<number, number> {
+  return getStrategicOccupationWorkersByBurg(STRATEGIC_INDUSTRY_OCCUPATIONS);
 }
 
 function pushSlot(map: Map<number, BasicEmploymentSlot[]>, burgId: number, slot: BasicEmploymentSlot): void {
