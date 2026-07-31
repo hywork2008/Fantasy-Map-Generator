@@ -78,9 +78,24 @@ export function getGoodValueDensity(good: Good): number {
   return good.value / Math.max(1, trade.weight + trade.bulk);
 }
 
-export function getGoodMaxTradeDurationDays(good: Good): number {
+export function getGoodMaxTradeDurationDays(
+  good: Good,
+  routeSegments?: readonly Pick<TradeRouteSegment, "type">[]
+): number {
   const trade = good.trade ?? getDefaultGoodTradeProfile(good);
   const densityLimit = Math.max(1, VALUE_DENSITY_BASE_MAX_DAYS * getGoodValueDensity(good) * VALUE_DENSITY_MULTIPLIER);
+
+  if (good.tags.includes("stapleFood")) {
+    // Dry-stored staples (grain: ~1 year shelf life) aren't decay-limited on a wagon — airflow in
+    // transit is arguably kinder than granary storage. The density cap above still represents
+    // "worth the wagon" bulk-transport economics, not spoilage, so land-only routes skip it
+    // entirely and fall back to the merchant organization's own day cap (isMarketTradePermitted)
+    // plus route profitability. A damp ship's hold is the real spoilage risk, so any route that
+    // touches water keeps the existing value-density/perishable cap.
+    const hasSeaLeg = routeSegments?.some(segment => segment.type === "water") ?? false;
+    return hasSeaLeg ? Math.min(densityLimit, PERISHABLE_MAX_TRADE_DAYS) : Number.POSITIVE_INFINITY;
+  }
+
   return trade.timeValueTrend < 0 ? Math.min(densityLimit, PERISHABLE_MAX_TRADE_DAYS) : densityLimit;
 }
 
@@ -89,7 +104,7 @@ export function isGoodTradePermitted(
   durationDays: number,
   routeSegments?: readonly Pick<TradeRouteSegment, "type">[]
 ): boolean {
-  if (!Number.isFinite(durationDays) || durationDays > getGoodMaxTradeDurationDays(good)) return false;
+  if (!Number.isFinite(durationDays) || durationDays > getGoodMaxTradeDurationDays(good, routeSegments)) return false;
   return (
     !good.seaOnly ||
     (Boolean(routeSegments?.length) && routeSegments?.every(segment => segment.type === "water") === true)
