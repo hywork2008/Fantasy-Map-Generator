@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { FRONTIER_STAGE } from "../../../context/simulationContext";
+import { FRONTIER_STAGE, simulationContext } from "../../../context/simulationContext";
+import { worldContext } from "../../../context/worldContext";
 import {
   getFrontierCandidateBlockerSummaries,
   getFrontierCandidateSummaries,
@@ -17,7 +18,8 @@ const STAGE_LABELS: Record<number, string> = {
 /** A compact operational ledger: candidates, works, failures and the next legal transition. */
 export function FrontierStatusPanel() {
   const [revision, setRevision] = useState(0);
-  const { world, simulation } = window.fmg;
+  const world = worldContext;
+  const simulation = simulationContext;
 
   useEffect(() => {
     const refresh = () => setRevision(current => current + 1);

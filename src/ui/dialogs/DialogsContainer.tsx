@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { applyStoredOptions } from "../../controllers/options";
 import { useDialogState } from "../../store/dialogState";
 import { type ExtensionDialog, useExtensionState } from "../../store/extensionState";
+import { AdvanceTimeDialog } from "./AdvanceTimeDialog";
 import { AiGeneratorDialog } from "./AiGeneratorDialog";
 import { AlertDialog } from "./AlertDialog";
 import { BattleScreenDialog, RegimentSelectorScreenDialog } from "./BattleScreenDialog";
@@ -25,6 +26,7 @@ import { ExportMapDialog } from "./ExportMapDialog";
 import { ExportToPngTilesDialog } from "./ExportToPngTilesDialog";
 import { EDITOR_REGISTRY } from "./editorRegistry";
 import { FontDialog } from "./FontDialog";
+import { FrontierOperationsDialog } from "./FrontierOperationsDialog";
 import { GenerationErrorDialog } from "./GenerationErrorDialog";
 import { GenerationProgressDialog } from "./GenerationProgressDialog";
 import { HeightmapEditModeDialog } from "./HeightmapEditModeDialog";
@@ -105,6 +107,7 @@ export const DialogsContainer: React.FC = () => {
     <div id="dialogs-root">
       {mounted && (
         <>
+          <AdvanceTimeDialog />
           <AiGeneratorDialog />
           <AlertDialog config={alertConfig} />
           <BattleScreenDialog />
@@ -125,6 +128,7 @@ export const DialogsContainer: React.FC = () => {
           <ExportMapDialog />
           <ExportToPngTilesDialog />
           <FontDialog />
+          <FrontierOperationsDialog />
           <GenerationErrorDialog />
           <GenerationProgressDialog />
           <HeightmapEditModeDialog />

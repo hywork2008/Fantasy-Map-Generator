@@ -1,11 +1,9 @@
 import type React from "react";
-import { useEffect, useState } from "react";
+import { worldContext } from "../../../context/worldContext";
 import { useDebugSnapshotState } from "../../../store/debugSnapshotState";
 import { useDialogState } from "../../../store/dialogState";
 import { useExtensionState } from "../../../store/extensionState";
 import { useHeightmapEditModeState } from "../../../store/heightmapDialogState";
-import { useTimeSimulationState } from "../../../store/timeSimulationState";
-import { FrontierStatusPanel } from "./FrontierStatusPanel";
 
 interface StaticEditButton {
   key: string;
@@ -170,35 +168,13 @@ const STATIC_EDIT_BUTTONS: StaticEditButton[] = [
 export const ToolsTab: React.FC = () => {
   const { actions: allActions, enabledExtensions } = useExtensionState();
   const openDialogs = useDialogState(state => state.openDialogs);
-  const { isRunning, progress, totalDays, stopSimulation } = useTimeSimulationState();
   const isHeightmapModeOpen = useHeightmapEditModeState(state => state.isOpen);
   const actions = allActions.filter(a => a.tab === "tools" && enabledExtensions[a.extensionId]);
   const editActions = actions.filter(a => a.section === "edit");
   const regenerateActions = actions.filter(a => a.section === "regenerate");
-
-  const [simulationClock, setSimulationClock] = useState(() => ({
-    currentYear: window.fmg.simulation.currentYear,
-    currentMonth: window.fmg.simulation.currentMonth,
-    currentDay: window.fmg.simulation.currentDay,
-    era: window.fmg.simulation.era
-  }));
-  const [advanceYears, setAdvanceYears] = useState(1);
-  const [advanceMonths, setAdvanceMonths] = useState(1);
-  const [advanceDays, setAdvanceDays] = useState(1);
-
-  useEffect(() => {
-    const onSimulationUpdated = (e: Event) => {
-      const detail = (e as CustomEvent).detail as {
-        currentYear: number;
-        currentMonth: number;
-        currentDay: number;
-        era: string;
-      };
-      setSimulationClock(detail);
-    };
-    document.addEventListener("fmg:simulation-updated", onSimulationUpdated);
-    return () => document.removeEventListener("fmg:simulation-updated", onSimulationUpdated);
-  }, []);
+  const isFrontierMap =
+    worldContext.options.initialSettlementPattern === "frontier" ||
+    worldContext.options.initialSettlementPattern === "scattered";
 
   const triggerEvent = (eventName: string) => {
     document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: eventName } }));
@@ -460,105 +436,24 @@ export const ToolsTab: React.FC = () => {
       </div>
       <div className="separator">Simulation</div>
       <div className="grid">
-        <span data-tip="Current in-world year, month, day, and era">
-          {simulationClock.currentYear} / {simulationClock.currentMonth} / {simulationClock.currentDay}{" "}
-          {simulationClock.era}
-        </span>
-        <div>Advance Time</div>
-        <div style={{ display: "flex", gap: "5px", flexDirection: "column" }}>
-          {isRunning ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: "5px", padding: "5px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Simulating...</span>
-                <span>{Math.floor((progress / totalDays) * 100)}%</span>
-              </div>
-              <progress value={progress} max={totalDays} style={{ width: "100%" }} />
-              <button
-                type="button"
-                onClick={stopSimulation}
-                style={{ marginTop: "5px", background: "indianred", color: "white", flex: 1 }}
-              >
-                Stop
-              </button>
-            </div>
-          ) : (
-            <>
-              <div style={{ display: "flex", gap: "5px" }}>
-                <input
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={advanceYears}
-                  onChange={e => setAdvanceYears(Number(e.target.value))}
-                  data-tip="Years to advance"
-                />
-                <button
-                  data-tip="Click to advance the world's simulation clock by a number of years"
-                  type="button"
-                  style={{ flex: 1 }}
-                  onClick={() => {
-                    document.dispatchEvent(
-                      new CustomEvent("react-tool-action", {
-                        detail: { action: "advanceTimeButton", years: advanceYears, months: 0, days: 0 }
-                      })
-                    );
-                  }}
-                >
-                  Advance Year
-                </button>
-              </div>
-              <div style={{ display: "flex", gap: "5px" }}>
-                <input
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={advanceMonths}
-                  onChange={e => setAdvanceMonths(Number(e.target.value))}
-                  data-tip="Months to advance"
-                />
-                <button
-                  data-tip="Click to advance the world's simulation clock by a number of months"
-                  type="button"
-                  style={{ flex: 1 }}
-                  onClick={() => {
-                    document.dispatchEvent(
-                      new CustomEvent("react-tool-action", {
-                        detail: { action: "advanceTimeButton", years: 0, months: advanceMonths, days: 0 }
-                      })
-                    );
-                  }}
-                >
-                  Advance Month
-                </button>
-              </div>
-              <div style={{ display: "flex", gap: "5px" }}>
-                <input
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={advanceDays}
-                  onChange={e => setAdvanceDays(Number(e.target.value))}
-                  data-tip="Days to advance"
-                />
-                <button
-                  data-tip="Click to advance the world's simulation clock by a number of days"
-                  type="button"
-                  style={{ flex: 1 }}
-                  onClick={() => {
-                    document.dispatchEvent(
-                      new CustomEvent("react-tool-action", {
-                        detail: { action: "advanceTimeButton", years: 0, months: 0, days: advanceDays }
-                      })
-                    );
-                  }}
-                >
-                  Advance Day
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-        <FrontierStatusPanel />
+        <button
+          data-tip="Click to open the Advance Time dialog and step the world's simulation clock forward by years, months, or days"
+          type="button"
+          className={openDialogs.has("advanceTime") ? "pressed" : undefined}
+          onClick={() => triggerEvent("openAdvanceTimeDialog")}
+        >
+          Advance Time
+        </button>
+        {isFrontierMap && (
+          <button
+            data-tip="Click to open the Frontier operations dialog (outposts, viable candidates, and blocked expansion)"
+            type="button"
+            className={openDialogs.has("frontierOperations") ? "pressed" : undefined}
+            onClick={() => triggerEvent("openFrontierOperationsDialog")}
+          >
+            Frontier Operations
+          </button>
+        )}
       </div>
       <div className="separator">Create</div>
       <div className="grid">

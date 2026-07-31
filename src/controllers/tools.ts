@@ -211,6 +211,8 @@ document.addEventListener("react-tool-action", e => {
     toggleEditor("markersOverview", "toggleMarkers", MarkersOverview.overviewMarkers);
   else if (button === "overviewCellsButton") viewCellDetails();
   else if (button === "openMinimapButton") openMinimap?.();
+  else if (button === "openAdvanceTimeDialog") openDialog("advanceTime");
+  else if (button === "openFrontierOperationsDialog") openDialog("frontierOperations");
   else getToolActionHandler(button)?.(detail);
 
   if (button.startsWith("regenerate")) {
