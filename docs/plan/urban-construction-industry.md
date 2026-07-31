@@ -12,8 +12,8 @@
 
 **既知の逸脱・制約(実装時の判断)**:
 
-- `npm run madge`の循環依存件数が27→30に増加した(採石場・建設・火山灰の3モジュールがそれぞれ+1)。これは既存の`mineOperations.ts`/`smelterOperations.ts`がすでに持っていた`economyContext.ts ⇄ production-generator.ts`間の循環と同型・同カテゴリであり、新しいアーキテクチャ上の問題ではない(economyContextのアクセサ注入パターンの構造的帰結)。AGENTS.md §8の「循環が増えたら解消する」という原則には反するため、次回セッションで対応方針を確認すること(§7未決定事項に追記)。
-- decision 2b(`effectiveCapacity`の建設ストック連動キャップ)は年次ゲート(`reconcileAnnualBasicEmploymentWorkers()`直後)でのみ再適用され、`foodImportNetwork.ts`の四半期処理とは統合されていない。同一年内で食料輸入側が`effectiveCapacity`を引き上げ直す可能性があり、両者の統合は§7未決定事項として持ち越し。
+- ~~`npm run madge`の循環依存件数が27→30に増加した~~ **2026-07-31解決済み**(別コミットで全体0件まで解消、§7.2参照)。
+- ~~decision 2b(`effectiveCapacity`の建設ストック連動キャップ)は年次ゲート...のみ再適用され...統合されていない~~ **2026-07-31解決済み**: 四半期処理(`FoodProduction.generateQuarterlyLedger()`)の直後にも`ConstructionOperations.constrainEffectiveCapacity()`を呼ぶよう`index.tsx`を修正し、年次リコンサイル後の一瞬だけでなく四半期ごとに建設キャップを再適用するようにした(詳細は§7.2参照)。
 - decision 4(船大工 vs 住宅大工のWood優先度)は、economy拡張がshipbuilding拡張に依存できない制約上、直接的な優先度切り替えではなく市場在庫の共有による間接調整として実装した。
 
 ## 0. 決定記録
@@ -230,6 +230,6 @@ export type GeologicalProvinceKind =
 
 ### 7.2 実装で新たに判明した未決定事項(次セッション冒頭で確認する)
 
-1. **madgeの循環依存増加(27→30)**: 採石場・建設・火山灰の3モジュールがそれぞれ`economyContext.ts ⇄ production-generator.ts`間の循環に1件ずつ加わった。既存の`mineOperations.ts`/`smelterOperations.ts`と同型・同カテゴリの構造的帰結(economyContextのアクセサ注入パターン)だが、AGENTS.md §8の「循環が増えたら解消する」原則には反する。解消するなら`ProductionRecord`型を`production-generator.ts`から依存フリーな型モジュールへ切り出す再設計が必要(経済拡張全体に影響するため本機能単体のスコープ外)。このまま許容するか、切り出しリファクタを別タスクとして起票するかを決定する。
-2. **`effectiveCapacity`統合**: `ConstructionOperations.constrainEffectiveCapacity()`(年次)と`foodImportNetwork.ts`の`applyImportCapacity()`(四半期)は独立して`effectiveCapacity`を書き換えており、同一年内で食料輸入側が建設ストック側のキャップを上書きする可能性がある。四半期処理側でも建設キャップをMin適用するか、年次キャップの再適用頻度を上げるか、あるいは両者を1つの関数に統合するかを決定する。
+1. ~~**madgeの循環依存増加(27→30)**~~ **2026-07-31解決済み**: 別のリファクタコミット（`refactor: 0 circular dependencies`）で全体の循環依存が0件まで解消されており、本機能由来の循環も含めて解消済み（`npm run madge`で確認済み）。
+2. ~~**`effectiveCapacity`統合**~~ **2026-07-31実装（決定: 四半期処理側でも建設キャップをMin適用する、上記選択肢の1番目）**: `src/extensions/economy/index.tsx`の四半期ブロック（`FoodProduction.generateQuarterlyLedger()`呼び出し直後）に`ConstructionOperations.constrainEffectiveCapacity()`の呼び出しを追加した。理由: `applyImportCapacity()`（`foodImportNetwork.ts`）は`effectiveCapacity = baseCapacity + capacityBonus * share`という無条件の**上書き**であり、常に`baseCapacity`以上の値になる——つまり年次リコンサイル直後の一瞬を除き、1年のうち4四半期中3四半期は建設ストックの上限が実質的に無効化されていた（年次キャップが次の年次リコンサイルまで再適用されないため）。「年次キャップの再適用頻度を四半期側に合わせる」案を採用し、`constrainEffectiveCapacity()`自体は変更せず（既存の`Math.min(current, ceiling)`のままで四半期ごとに呼べば十分）、呼び出しを追加するだけで解決した。ブラウザで実機確認（economy拡張・megacityモード有効、887 Burg生成）: 食料輸入ボーナスが大きい市場（`importCapacityBonus`234超）に属する建設バックログ持ちのBurgで、修正前なら`effectiveCapacity`が`baseCapacity`超まで跳ね上がるはずの状況で、実際には全Burgが建設ストック由来の上限（`buildingStock=0`のBurgは`baseCapacity`の50%）にちょうど一致したままだったことを確認した。`tsc --noEmit`・`npm run lint`・`npm run madge`（循環依存0件）・`npx vitest run src/extensions/economy`（50ファイル285テスト green）も確認済み。
 3. **`Wood`優先度の実装乖離**: §7.1決定4は「船の需要量に応じた優先度切り替え」を意図していたが、economy拡張はshipbuilding拡張(別の任意拡張)に直接依存できないため、実装は「同一市場在庫を両者が奪い合う」間接調整に留めた。shipbuilding側から何らかのシグナルを`ExtensionAPI`経由で公開し、真の優先度切り替えを実現する価値があるかを判断する。

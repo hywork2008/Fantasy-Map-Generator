@@ -1409,6 +1409,14 @@ export function init(api: ExtensionAPI): void {
         for (let i = 0; i < quartersPassed; i++) {
           currentQuarterIndex = (currentQuarterIndex + 1) % 4;
           FoodProduction.generateQuarterlyLedger(currentQuarterIndex);
+          // generateQuarterlyLedger's applyImportCapacity() unconditionally overwrites
+          // effectiveCapacity with baseCapacity + importBonus, which is >= baseCapacity and so
+          // silently undoes the buildingStock-derived ceiling below baseCapacity that
+          // constrainEffectiveCapacity() set at the last annual reconcile (docs/plan/
+          // urban-construction-industry.md §7.2 "effectiveCapacity統合"). Re-clamping here,
+          // every quarter, keeps the construction ceiling in force between annual reconciles
+          // instead of only for the brief window right after one.
+          ConstructionOperations.constrainEffectiveCapacity();
           UrbanLaborIntake.raidBanditFood(getWorldContext(), context.rng);
         }
       }
