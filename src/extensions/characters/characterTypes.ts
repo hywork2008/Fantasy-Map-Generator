@@ -28,6 +28,8 @@ export interface CharacterRole {
   reason?: string;
   /** Optional subsystem-specific organization pointer, e.g. economy merchant company id. */
   organizationId?: number;
+  /** Optional subsystem-specific domain tag, e.g. Economy's CraftKnowledgeDomain for a guild role. */
+  domain?: string;
 }
 
 export interface CharacterSkills {

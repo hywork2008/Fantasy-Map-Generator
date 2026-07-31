@@ -56,6 +56,7 @@ let _guildKnowledgeLastSettledYearFallback: number | null = null;
 let _academyKnowledgeLastSettledYearFallback: number | null = null;
 let _stateSecretLastSettledYearFallback: number | null = null;
 let _martialDisciplineLastSettledYearFallback: number | null = null;
+let _guildSuccessionLastSettledYearFallback: number | null = null;
 let _stateAgriculturalProductivityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
 export function initEconomyContext(api: ExtensionAPI): void {
@@ -80,6 +81,7 @@ export function clearEconomyContext(): void {
   _academyKnowledgeLastSettledYearFallback = null;
   _stateSecretLastSettledYearFallback = null;
   _martialDisciplineLastSettledYearFallback = null;
+  _guildSuccessionLastSettledYearFallback = null;
   _stateAgriculturalProductivityFallback = new Float32Array();
 }
 
@@ -467,6 +469,24 @@ export function setMartialDisciplineLastSettledYear(year: number): void {
     return;
   }
   _martialDisciplineLastSettledYearFallback = year;
+}
+
+/** Same guard as getGuildKnowledgeLastSettledYear, for GuildSuccession.settleAnnual() (docs/plan/knowledge-guild-system.md §9 Phase 6). */
+export function getGuildSuccessionLastSettledYear(): number | null {
+  const slice = getEconomySlice();
+  if (slice) {
+    const value = slice.guildSuccessionLastSettledYear;
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return _guildSuccessionLastSettledYearFallback;
+}
+export function setGuildSuccessionLastSettledYear(year: number): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice.guildSuccessionLastSettledYear = year;
+    return;
+  }
+  _guildSuccessionLastSettledYearFallback = year;
 }
 
 /**

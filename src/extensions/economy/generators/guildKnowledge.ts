@@ -34,6 +34,12 @@ export const GUILD_DECAY_RATE = 0.15;
 export const GUILD_BONUS_MAX = 0.25;
 /** Below this a decayed stock is dropped instead of lingering at a near-zero value forever. */
 const MIN_TRACKED_STOCK = 0.001;
+/**
+ * One-time hit applied when a guild master dies with no apprentice to inherit their technique
+ * ("secrets were lost") — steeper than the routine annual GUILD_DECAY_RATE since this is a
+ * discrete event, not gradual understaffing (docs/plan/knowledge-guild-system.md §5, §9 Phase 6).
+ */
+export const GUILD_MASTERLESS_DEATH_PENALTY = 0.3;
 
 function keyOf(burgId: number, domain: CraftKnowledgeDomain): string {
   return `${burgId}:${domain}`;
@@ -105,4 +111,18 @@ export const GuildKnowledge = new GuildKnowledgeModule();
 export function getGuildBonus(burgId: number, domain: CraftKnowledgeDomain): number {
   const stock = getGuildKnowledgeStocks().find(entry => entry.burgId === burgId && entry.domain === domain)?.stock ?? 0;
   return 1 + GUILD_BONUS_MAX * stock;
+}
+
+/**
+ * Applies GUILD_MASTERLESS_DEATH_PENALTY to a Burg's guild stock — called by guildSuccession.ts
+ * when a guild master (docs/plan/knowledge-guild-system.md §5, §9 Phase 6) dies without an
+ * apprentice to hand their technique down to. No-op if the Burg has no tracked stock yet.
+ */
+export function applyMasterlessGuildPenalty(burgId: number, domain: CraftKnowledgeDomain): void {
+  const stocks = getGuildKnowledgeStocks();
+  const entry = stocks.find(candidate => candidate.burgId === burgId && candidate.domain === domain);
+  if (!entry) return;
+
+  entry.stock = rn(entry.stock * (1 - GUILD_MASTERLESS_DEATH_PENALTY), 4);
+  setGuildKnowledgeStocks(stocks);
 }

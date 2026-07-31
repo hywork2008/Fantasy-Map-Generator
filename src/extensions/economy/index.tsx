@@ -60,6 +60,7 @@ import {
   migrateLegacyOreIngotGoods
 } from "./generators/goods-generator";
 import { GuildKnowledge } from "./generators/guildKnowledge";
+import { GuildSuccession } from "./generators/guildSuccession";
 import { IndustrialTechInvestment } from "./generators/industrialTechInvestment";
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
 import { Markets } from "./generators/markets-generator";
@@ -1491,6 +1492,10 @@ export function init(api: ExtensionAPI): void {
       // practitioner coverage (docs/plan/knowledge-guild-system.md §9 Phase 1). Self-gates to
       // once per simulation year regardless of how often this tick runs.
       GuildKnowledge.settleAnnual();
+      // Must run after GuildKnowledge above: reads this year's freshly-settled metallurgy
+      // GuildKnowledgeStock for apprentice growth-rate/eligibility checks (docs/plan/
+      // knowledge-guild-system.md §9 Phase 6). Self-gates to once per simulation year.
+      GuildSuccession.settleAnnual();
       // Same ordering requirement as GuildKnowledge above: reads this year's freshly-reconciled
       // AdministrationEmploymentRecord headcount as the law/administration academy's practitioner
       // coverage (docs/plan/knowledge-guild-system.md §9 Phase 3). Self-gates to once per

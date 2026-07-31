@@ -82,6 +82,22 @@
 
 テスト: `martialDisciplineKnowledge.test.ts`新規追加(9件)。`localDefense.test.ts`に2件追加(`commanderPowerMultiplier()`自体の単体テストは今回が初出)。`tsc --noEmit`・`npm run lint`・`npm run madge`はクリーン(確認手順は本フェーズの末尾参照)。
 
+**2026-07-31 Phase 6(個人継承、metallurgyドメインのみ先行実装)**: §5の師弟継承メカニズムを実装した。着手前調査で、他フェーズと異なりCharacters拡張側に前提データがほぼ皆無であることが判明した(Characterに職業/craft domainフィールドが無い、師弟リンクフィールドが無い、Characters拡張自体に年次tick機構が無く現状のCharacterAging/死亡判定はすべてNobility拡張のtickに間借りしている、死亡フックが無く`character.dead`をポーリングするしかない)。ユーザーに調査結果を提示し、「フル実装、1ドメイン(metallurgy)の垂直スライス」を明示的に選択してもらった上で着手した(§8.1決定5どおりCharacters拡張必須の個人継承)。
+
+- **設置場所はEconomy拡張**(`src/extensions/economy/generators/guildSuccession.ts`)——Characters拡張ではない。§7の「economyからcharactersへの直接依存は作らず」という文言は逆方向(Economy→Characters)の話であり、依存の向きとしてはCharacters側の型・`createPerson`をEconomyが直接importする形は`marketManagers.ts`/`merchantOrganizations.ts`が既に同じことをしている既存踏襲パターンだった(Character生成はCharacters拡張の有効/無効トグルに一切ゲートされていないことも確認済み)。この置き場所選択により、Characters拡張に初の年次tick機構を新設する必要が消え(既存のEconomy拡張の`economy.tick`と`getXLastSettledYear()`パターンをそのまま流用)、想定より作業量を圧縮できた。
+- **師弟関係は`Character.roles[]`のみで表現**——`Character`本体に新規フィールドは追加していない。`CharacterRole`に汎用`domain?: string`フィールドを1つ追加しただけ(既存の`organizationId`と同じ「サブシステム固有ポインタ」枠)。マスターは`kind: "guildMaster"`(`entityType: "burg"`, `entityId: burgId`, `domain: "metallurgy"`)、弟子は`kind: "guildApprentice"`で、`organizationId`をマスターのcharacter idとして流用する(本来「組織id」用のフィールドだが、doc上も汎用ポインタと説明されているため転用)。ロール終了(死亡・昇格)は削除せず`endYear`をセットして残す。
+- **年次ロジック**(`GuildSuccessionModule.settleAnnual()`、`economy.tick`内`GuildKnowledge.settleAnnual()`の直後、docs記載順どおり自己ゲート): stock>0のBurgごとに(1)既存マスターが死亡していれば弟子がいれば昇格・いなければ`applyMasterlessGuildPenalty()`(新規、`guildKnowledge.ts`、一回限り-30%の"secrets were lost"ペナルティ、通常の年次減衰`GUILD_DECAY_RATE`とは別の定数)、(2)マスター不在なら`createPerson`で新規生成(`marketManagers.ts`と同型)、(3)既存弟子の`engineering`スキルを`masterSkill/100 × GuildKnowledgeStock.stock × APPRENTICE_MAX_ANNUAL_GROWTH`で成長、(4)マスターの`engineering`が閾値(40)以上かつ弟子2人未満なら新規弟子を生成(`ageOverride`で12-17歳の若年キャラクターとして)。
+- **職業→スキルの対応**: metallurgyの実践スキルは`CharacterSkills`の`engineering`を流用(既存フィールドの中で最も近い、Phase3の法学→AdministrationEmploymentRecord流用などと同じ思想)。`personFactory.ts`の`createPerson()`の`primarySkill`バイアス(40-100)が`engineering`だけ実装から漏れていたバグを発見・修正(既存の呼び出し元は皆無だったため副作用なし)——今回`primarySkill: "engineering"`を初めて使う呼び出し元として必要だった。
+- 死亡起点のペナルティ/昇格処理は、既存の`character.dead`フラグに依存するため、`advanceCharacterAging()`がNobility拡張のtickに間借りしている既存の制約をそのまま引き継ぐ(Nobility無効時はマスターも弟子も加齢・死亡しない)。これは本フェーズが生んだ制約ではなく、調査で判明した既存の構造的制約であり、Nobility側のtickをリファクタリングする対応は今回のスコープ外とした。
+
+**今回のスコープ外(次フェーズ以降に送った項目)**:
+
+- metallurgy以外の7クラフトドメインへの展開(Phase 2と同様の横展開が必要)。
+- Characters拡張自体が年次tick機構を持つように一般化すること(今回はEconomy拡張のtickに相乗りする形で回避した)。
+- `advanceCharacterAging()`をNobility拡張から独立させ、Characters拡張自身が死亡を管理するようにするアーキテクチャ変更(死亡起点のペナルティ/昇格が引き続きNobility依存のまま)。
+
+テスト: `guildSuccession.test.ts`新規追加(8件)。`guildKnowledge.test.ts`に2件追加(`applyMasterlessGuildPenalty()`)。`tsc --noEmit`・`npm run lint`・`npm run madge`はクリーン(確認手順は本フェーズの末尾参照)。
+
 ---
 
 ## 0. 背景・目的
@@ -280,7 +296,7 @@ Economy拡張はどの拡張にも依存しない自己完結型であり、`Mil
 - [x] Phase 3: アカデミー/修道院の実装(§3-B、2026-07-31実装済み、状態節参照)——法学・行政ドメインのみ先行実装(`AdministrationEmploymentRecord`を頭数源、`taxes-generator.ts`の人頭税収入を接続先ボーナス消費者とする垂直スライス)。medicine/theology/naturalPhilosophyの3ドメインは頭数モデル・ボーナス消費者ともに既存コードに皆無なため次フェーズへ送った。教会networkによるState境界越え伝播は§8.1決定4によりスコープ外(後続タスク)。
 - [x] Phase 4: 国家機密ドメインと`MilitaryResourceLedger`の接続(§3-C、2026-07-31実装済み、状態節参照)——火薬術(pyrotechnics)ドメインのみ先行実装(Treasury継続投資駆動のEWMAで`MilitaryResourceLedger`の`gunpowder`需要を削減する垂直スライス)。militaryEngineering/fortificationScienceの2ドメインは対応する消費先(要塞/攻城メカニクス)がNobility拡張側にしかなく、AGENTS.mdの依存方向によりEconomyから到達できないため次フェーズへ送った。
 - [x] Phase 5: 武術ドメインと戦力係数の接続(§3-D、2026-07-31実装済み、状態節参照)——剣術/弓術/馬術の3ドメインのみ先行実装。接続先は当初想定の`regimentMovement.ts`(coreの移動・追撃判定、実際には加重power計算を持たない)ではなく、Nobility拡張の`commanderPowerMultiplier()`(localDefense.ts、攻城・遭遇戦・防衛計算が共有する唯一の戦力係数フック)だった。槍術ドメインは`options.military`の`type`だけでは剣術と区別できないため次フェーズへ送った。
-- [ ] Phase 6: 個人継承(Characters拡張必須、§5、§8.1決定5)
+- [x] Phase 6: 個人継承(Characters拡張必須、§5、§8.1決定5、2026-07-31実装済み、状態節参照)——metallurgyドメインのみ先行実装。着手前調査でCharacters拡張側に前提データ(職業タグ・師弟リンク・年次tick・死亡フック)が皆無と判明したためユーザーにスコープを確認し、フル実装(1ドメイン垂直スライス)を選択。実装はEconomy拡張側(`guildSuccession.ts`)に置き、Characters拡張に新規tick機構を作らず既存の`economy.tick`に相乗りする形で回避した。
 - [ ] Phase 7: 征服/従属による技術の段階的吸収(§4-4、§8.1決定3)、諜報による技術窃取の接続。着手前に、Nobility拡張内のannexation/loyalty相当の機構(現状未発見、§1参照)の有無を再調査すること。
 - [ ] Phase 8(範囲未確定): 初期解禁ラインへの文化・地形バイアス(§8.1決定6)。将来のCulture拡張を見据えた設計が必要なため、Culture拡張の具体像が固まった時点で範囲を確定する。
 

@@ -6,9 +6,16 @@ import {
   getGuildKnowledgeStocks,
   initEconomyContext,
   setCraftDomainEmploymentRecords,
+  setGuildKnowledgeStocks,
   setSmelterOperations
 } from "../economyContext";
-import { GUILD_SATURATION_WORKERS, GuildKnowledge, getGuildBonus } from "./guildKnowledge";
+import {
+  applyMasterlessGuildPenalty,
+  GUILD_MASTERLESS_DEATH_PENALTY,
+  GUILD_SATURATION_WORKERS,
+  GuildKnowledge,
+  getGuildBonus
+} from "./guildKnowledge";
 
 describe("GuildKnowledgeModule", () => {
   beforeEach(() => {
@@ -153,5 +160,22 @@ describe("GuildKnowledgeModule", () => {
 
     // Combined double headcount saturates coverage (capped at 1) at least as fast as smelter workers alone.
     expect(combinedStock).toBeGreaterThanOrEqual(smelterOnlyStock ?? 0);
+  });
+
+  describe("applyMasterlessGuildPenalty()", () => {
+    it("cuts a Burg's tracked stock by GUILD_MASTERLESS_DEATH_PENALTY", () => {
+      setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.8 }]);
+
+      applyMasterlessGuildPenalty(1, "metallurgy");
+
+      const stock = getGuildKnowledgeStocks().find(entry => entry.burgId === 1 && entry.domain === "metallurgy")?.stock;
+      expect(stock).toBeCloseTo(0.8 * (1 - GUILD_MASTERLESS_DEATH_PENALTY), 4);
+    });
+
+    it("is a no-op for a Burg with no tracked stock", () => {
+      applyMasterlessGuildPenalty(999, "metallurgy");
+
+      expect(getGuildKnowledgeStocks()).toEqual([]);
+    });
   });
 });

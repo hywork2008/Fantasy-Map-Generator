@@ -172,7 +172,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   const skills: CharacterSkills = {
     artistry: rand(1, 100),
     diplomacy: primarySkill === "diplomacy" ? rand(40, 100) : rand(1, 100),
-    engineering: rand(1, 100),
+    engineering: primarySkill === "engineering" ? rand(40, 100) : rand(1, 100),
     geography: rand(1, 100),
     intrigue: primarySkill === "intrigue" ? rand(40, 100) : rand(1, 100),
     learning: primarySkill === "learning" ? rand(40, 100) : rand(1, 100),
