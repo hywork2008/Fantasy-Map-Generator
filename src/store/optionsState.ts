@@ -13,6 +13,11 @@ export interface OptionsState {
   mapName: string;
   year: number;
   era: string;
+  /**
+   * Historical-technology backdrop for goods/military gating. Default "highMedieval" targets
+   * ~1100-1300 Europe (pre-gunpowder) for fantasy-setting consistency.
+   */
+  historicalPeriod: "earlyMedieval" | "highMedieval" | "lateMedieval";
   template: string;
   /** Restricts unlocked random heightmap selection by the templates' mean land coverage. */
   templateRandomization: HeightmapTemplateRandomization;
@@ -202,6 +207,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   mapName: "",
   year: 100,
   era: "Era",
+  historicalPeriod: "highMedieval",
   template: "highIsland",
   templateRandomization: "all",
   cultures: 12,

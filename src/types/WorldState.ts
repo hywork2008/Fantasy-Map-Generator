@@ -80,6 +80,8 @@ export interface WorldOptions {
   eraShort?: string;
   /** Whether gunpowder-era military units and goods are available. Undefined preserves legacy maps' enabled behavior. */
   gunpowderEraEnabled?: boolean;
+  /** Historical-technology backdrop selected in Generation Settings. Undefined preserves legacy maps as "highMedieval". */
+  historicalPeriod?: "earlyMedieval" | "highMedieval" | "lateMedieval";
   /**
    * Persisted generation distribution policy. Archives created before frontier
    * expansion normalize this to "standard" during archive migration.

@@ -512,6 +512,29 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
+          <tr data-tip="Select the historical-technology backdrop. Gates what feels anachronistic (e.g. gunpowder is off by default before Late Medieval).">
+            <td>
+              <LockIconButton id="historicalPeriod" />
+            </td>
+            <td>Historical period</td>
+            <td>
+              <select
+                className="long"
+                value={options.historicalPeriod}
+                onChange={e => {
+                  const period = e.target.value as "earlyMedieval" | "highMedieval" | "lateMedieval";
+                  updateOptionAndLock("historicalPeriod", period);
+                  document.dispatchEvent(new CustomEvent("react-change-historical-period", { detail: { period } }));
+                }}
+              >
+                <option value="earlyMedieval">Early Medieval (c. 500-1000)</option>
+                <option value="highMedieval">High Medieval (c. 1000-1300)</option>
+                <option value="lateMedieval">Late Medieval (c. 1300-1500)</option>
+              </select>
+            </td>
+            <td></td>
+          </tr>
+
           <tr data-tip="Select state labels mode: display short or full names">
             <td>
               <LockIconButton id="stateLabelsMode" />

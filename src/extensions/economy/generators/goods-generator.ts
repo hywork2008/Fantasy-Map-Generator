@@ -733,7 +733,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#e8e69c",
     value: 5,
     chance: 0,
-    recipes: [{ Sheep: 1 }, { Hemp: 1 }, { Silk: 0.5 }],
+    recipes: [{ Wool: 1 }, { Hemp: 1 }, { Silk: 0.5 }, { Cotton: 1 }],
     unit: "bolt",
     demandCoverage: { utilities: 0.2 }
   },
@@ -746,7 +746,8 @@ export const GOODS_DATA: GoodData[] = [
     value: 12,
     chance: 0,
     recipes: [
-      { Cloth: 1, Dyes: 0.5 },
+      { Cloth: 1, Dyes: 0.5, Alum: 0.25 },
+      { Linen: 1, Dyes: 0.5, Alum: 0.25 },
       { Cloth: 0.5, Furs: 1 }
     ],
     unit: "set",
@@ -772,7 +773,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#a0c8e8",
     value: 6,
     chance: 0,
-    recipes: [{ "White sand": 1 }],
+    recipes: [{ "White sand": 1, Potash: 0.5 }],
     unit: "wain",
     demandCoverage: { luxury: 1 },
     multipliers: { cultureType: { Nomadic: 0.2 } }
@@ -863,7 +864,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#ffffff",
     value: 8,
     chance: 0,
-    recipes: [{ Cloth: 1 }],
+    recipes: [{ Cloth: 1 }, { Linen: 1 }],
     unit: "set",
     demandCoverage: { military: 1 }
   },
@@ -1071,9 +1072,13 @@ export const GOODS_DATA: GoodData[] = [
       { Gemstones: 1, "Gold Ingot": 0.5 },
       { Pearls: 1, "Gold Ingot": 0.5 },
       { Amber: 2, "Gold Ingot": 0.5 },
+      { Ivory: 1, "Gold Ingot": 0.5 },
+      { Coral: 1, "Gold Ingot": 0.5 },
       { Gemstones: 1, "Silver Ingot": 1 },
       { Pearls: 1, "Silver Ingot": 1 },
-      { Amber: 2, "Silver Ingot": 1 }
+      { Amber: 2, "Silver Ingot": 1 },
+      { Ivory: 1, "Silver Ingot": 1 },
+      { Coral: 1, "Silver Ingot": 1 }
     ],
     unit: "piece",
     demandCoverage: { luxury: 1 }
@@ -1182,7 +1187,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#fffacd",
     value: 10,
     chance: 0,
-    recipes: [{ Honey: 2 }, { Oil: 1 }],
+    recipes: [{ Honey: 2 }, { Oil: 1 }, { Beeswax: 1 }, { Tallow: 1 }],
     unit: "block",
     demandCoverage: { utilities: 0.5, luxury: 0.5 }
   },
@@ -1193,7 +1198,11 @@ export const GOODS_DATA: GoodData[] = [
     color: "#e0e4cc",
     value: 6,
     chance: 0,
-    recipes: [{ Olives: 1 }, { Cattle: 1 }],
+    recipes: [
+      { Olives: 1, Potash: 0.3 },
+      { Cattle: 1, Potash: 0.3 },
+      { Tallow: 1, Potash: 0.3 }
+    ],
     unit: "barrel",
     demandCoverage: { utilities: 0.4, luxury: 0.6 }
   },
@@ -1317,6 +1326,200 @@ export const GOODS_DATA: GoodData[] = [
     unit: "head",
     demandCoverage: { food: 1 },
     biomeOutputByTag: { arable: 0.04, grassland: 0.03 }
+  },
+  // Raw-material / processed-good chains: sheared/grown fiber feeds Cloth & Linen so textile
+  // manufacturing has an actual import-raw/export-finished trade loop instead of consuming the
+  // live-animal Good directly (see docs discussion on medieval wool/flax trade).
+  {
+    name: "Wool",
+    tags: ["clothing"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#f2e9d8",
+    value: 2,
+    chance: 0,
+    recipes: [{ Sheep: 1 }],
+    unit: "fleece"
+  },
+  {
+    name: "Flax",
+    tags: ["clothing"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#8faee0",
+    value: 1,
+    chance: 3,
+    distribution: '(biomeTag("arable") && river()) || (biomeTag("wetland") && random(40))',
+    unit: "bundle",
+    multipliers: { cultureType: { River: 1.4, Lake: 1.2 } },
+    biomeOutputByTag: { arable: 0.05, wetland: 0.03 }
+  },
+  {
+    name: "Linen",
+    warEconomyType: "strategic",
+    tags: ["clothing"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#f5f0e6",
+    value: 6,
+    chance: 0,
+    recipes: [{ Flax: 1 }],
+    unit: "bolt",
+    demandCoverage: { utilities: 0.2 }
+  },
+  {
+    name: "Cotton",
+    tags: ["clothing"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#f5f5f0",
+    value: 2,
+    chance: 3,
+    distribution: 'biomeTag("arable") && minTemp(20) && random(50)',
+    unit: "bale",
+    biomeOutputByTag: { arable: 0.03 }
+  },
+  {
+    name: "Tallow",
+    tags: ["fuel"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#e8d9b8",
+    value: 2,
+    chance: 0,
+    recipes: [{ Cattle: 0.5 }, { Sheep: 0.5 }, { Pig: 0.5 }, { Goats: 0.5 }],
+    unit: "barrel",
+    demandCoverage: { utilities: 0.3 }
+  },
+  {
+    name: "Beeswax",
+    tags: ["ritual"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#f0c419",
+    value: 5,
+    chance: 0,
+    recipes: [{ Honey: 0.5 }],
+    unit: "block",
+    demandCoverage: { utilities: 0.1 }
+  },
+  {
+    name: "Flour",
+    warEconomyType: "essential",
+    tags: ["food"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#efe1c1",
+    value: 2,
+    chance: 0,
+    recipes: [{ Grain: 1 }],
+    unit: "sack",
+    demandCoverage: { food: 0.3 }
+  },
+  {
+    name: "Bread",
+    warEconomyType: "essential",
+    tags: ["food"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#d9a66c",
+    value: 3,
+    chance: 0,
+    recipes: [{ Flour: 1 }],
+    unit: "loaf",
+    demandCoverage: { food: 1 }
+  },
+  {
+    name: "Timber",
+    warEconomyType: "strategic",
+    tags: ["construction"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#7a5230",
+    value: 3,
+    chance: 0,
+    recipes: [{ Wood: 1.5 }],
+    unit: "beam",
+    demandCoverage: { construction: 0.5 }
+  },
+  {
+    name: "Alum",
+    warEconomyType: "luxury",
+    tags: ["mineral"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#e0d8c8",
+    value: 9,
+    chance: 1,
+    distribution: "minHeight(50) || (minHeight(25) && elevation())",
+    unit: "sack",
+    demandCoverage: { luxury: 0.2 },
+    multipliers: { cultureType: { Highland: 1.4 } }
+  },
+  {
+    name: "Potash",
+    warEconomyType: "strategic",
+    tags: ["mineral"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#c9c2a6",
+    value: 3,
+    chance: 0,
+    recipes: [{ Wood: 2 }],
+    unit: "barrel",
+    demandCoverage: { utilities: 0.3 }
+  },
+  {
+    name: "Ivory",
+    warEconomyType: "luxury",
+    tags: ["luxury"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#fff8dc",
+    value: 35,
+    chance: 0,
+    recipes: [{ Elephants: 0.2 }],
+    unit: "tusk",
+    demandCoverage: { luxury: 0.8 }
+  },
+  {
+    name: "Coral",
+    warEconomyType: "luxury",
+    tags: ["luxury", "aquatic"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#ff6f61",
+    value: 16,
+    chance: 2,
+    distribution: 'nearshoreHabitat("coralReef")',
+    unit: "branch",
+    demandCoverage: { luxury: 0.5 },
+    multipliers: { cultureType: { Naval: 1.4 } }
+  },
+  {
+    name: "Stockfish",
+    warEconomyType: "essential",
+    tags: ["food", "preservative"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#c9b896",
+    value: 4,
+    chance: 0,
+    recipes: [{ Fish: 1 }],
+    unit: "bundle",
+    demandCoverage: { food: 0.8 }
+  },
+  {
+    name: "Spinning Wheel",
+    tags: ["construction"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#6b4226",
+    value: 12,
+    chance: 0,
+    recipes: [{ Wood: 1.5, "Iron Ingot": 0.2 }],
+    unit: "wheel",
+    demandCoverage: { utilities: 0.5 }
   }
 ];
 
@@ -1434,7 +1637,22 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   "Medicinal herbs": tradeProfile(1, 2, 4, 3, -1, 2, 3),
   Shellfish: tradeProfile(3, 3, 2, 0, -2, 1, 5),
   Reeds: tradeProfile(3, 4, 1, -1, 0, 3, 2),
-  Goats: tradeProfile(4, 4, 2, 0, -2, 1, 5)
+  Goats: tradeProfile(4, 4, 2, 0, -2, 1, 5),
+  Wool: tradeProfile(3, 4, 2, 1, 0, 4, 1),
+  Flax: tradeProfile(3, 4, 2, 0, 0, 3, 2),
+  Linen: tradeProfile(2, 3, 3, 2, 0, 3, 2),
+  Cotton: tradeProfile(3, 4, 3, 1, 0, 3, 2),
+  Tallow: tradeProfile(4, 3, 1, 0, -1, 2, 3),
+  Beeswax: tradeProfile(2, 2, 3, 2, 0, 5, 1),
+  Flour: tradeProfile(4, 4, 1, -1, -1, 1, 3),
+  Bread: tradeProfile(3, 3, 1, -2, -2, 1, 4),
+  Timber: tradeProfile(4, 5, 2, 0, 0, 4, 2),
+  Alum: tradeProfile(3, 3, 4, 2, 0, 5, 1),
+  Potash: tradeProfile(4, 4, 2, 0, 0, 4, 2),
+  Ivory: tradeProfile(1, 1, 5, 3, 0, 5, 2),
+  Coral: tradeProfile(1, 1, 4, 3, 0, 4, 2),
+  Stockfish: tradeProfile(3, 3, 2, 1, 0, 4, 2),
+  "Spinning Wheel": tradeProfile(4, 4, 3, 1, 0, 4, 2)
 };
 
 export function getDefaultGoodTradeProfile(good: Pick<Good, "name" | "tags" | "unit" | "value">): GoodTradeProfile {

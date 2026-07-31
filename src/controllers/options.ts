@@ -495,6 +495,7 @@ export function applyStoredOptions(): void {
     "mapName",
     "year",
     "era",
+    "historicalPeriod",
     "cultures",
     "culturesSet",
     "statesNumber",
@@ -902,6 +903,14 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
       .map((w: string) => w[0]?.toUpperCase() ?? "")
       .join("");
     syncSimulationClockFromOptions();
+  });
+
+  document.addEventListener("react-change-historical-period", (e: Event) => {
+    lock("historicalPeriod");
+    worldContext.options.historicalPeriod = (e as CustomEvent).detail.period as
+      | "earlyMedieval"
+      | "highMedieval"
+      | "lateMedieval";
   });
 
   document.addEventListener("react-change-state-labels-mode", (e: Event) => {

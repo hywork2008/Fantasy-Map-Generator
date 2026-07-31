@@ -1008,6 +1008,7 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
   applyGraphSize();
   randomizeOptions();
   worldContext.options.gunpowderEraEnabled = useOptionsState.getState().gunpowderEraEnabled;
+  worldContext.options.historicalPeriod = useOptionsState.getState().historicalPeriod;
   worldContext.options.conflictAutonomy = normalizeConflictAutonomy(useOptionsState.getState().conflictAutonomy);
   worldContext.options.initialSettlementPattern = useOptionsState.getState().initialSettlementPattern;
   worldContext.options.biomeRegionProfile = useOptionsState.getState().biomeRegionProfile;
