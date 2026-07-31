@@ -12,6 +12,7 @@ import { TradeAnimation } from "../generators/trade-animation";
 import {
   estimateSpeculativeTrade,
   getNetTradeProfit,
+  getRouteMaxTemperatureC,
   getTransportCost,
   isGoodTradePermitted,
   MIN_TRADE_PROFIT
@@ -115,8 +116,18 @@ export function refresh(): void {
         distance.transfers
       );
       const routeSegments = [{ type: distance.land > 0 ? ("land" as const) : ("water" as const) }];
+      // This graph-distance estimate has no intermediate route cells to sample, so approximate the
+      // route's hottest point with the warmer of its two endpoints.
+      const routeMaxTemperatureC = getRouteMaxTemperatureC(
+        [
+          { points: [[sourceCenter.x, sourceCenter.y, sourceCenter.cell] as const] },
+          { points: [[targetCenter.x, targetCenter.y, targetCenter.cell] as const] }
+        ],
+        world.pack.cells?.g,
+        world.grid.cells?.temp
+      );
       if (
-        !isGoodTradePermitted(good, durationDays, routeSegments) ||
+        !isGoodTradePermitted(good, durationDays, routeSegments, routeMaxTemperatureC) ||
         !isMarketTradePermitted(source, target, durationDays)
       )
         continue;
@@ -137,7 +148,8 @@ export function refresh(): void {
           routeSegments: routeSegments.map(segment => ({ ...segment, points: [] as [number, number][] })),
           durationDays,
           buyPrice,
-          sellPrice
+          sellPrice,
+          routeMaxTemperatureC
         });
         // This dialog evaluates one good in isolation for a human trader, not a shared
         // caravan bundle, so it must apply the solo-trip viability bar itself: the estimator

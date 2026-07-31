@@ -256,7 +256,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Fish",
     warEconomyType: "essential",
-    tags: ["food", "aquatic"],
+    tags: ["food", "aquatic", "freshFood"],
     icon: "good-fish",
     color: "#7fcdff",
     value: 1,
@@ -270,7 +270,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Game",
     warEconomyType: "essential",
-    tags: ["food"],
+    tags: ["food", "freshFood"],
     icon: "good-game",
     color: "#c38a8a",
     value: 2,
@@ -1239,7 +1239,7 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Shellfish",
-    tags: ["food", "aquatic"],
+    tags: ["food", "aquatic", "freshFood"],
     icon: "good-shellfish",
     color: "#b8c2ad",
     value: 2,

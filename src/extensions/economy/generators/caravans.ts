@@ -23,7 +23,12 @@ import {
 import type { Good } from "./goods-generator";
 import type { Caravan, Deal, Market, TradeRouteSegment } from "./marketTypes";
 import { TradeAnimation } from "./trade-animation";
-import { getCaravanMaintenanceCost, isGoodTradePermitted, MIN_TRADE_PROFIT } from "./tradeOpportunityEstimator";
+import {
+  getCaravanMaintenanceCost,
+  getRouteMaxTemperatureC,
+  isGoodTradePermitted,
+  MIN_TRADE_PROFIT
+} from "./tradeOpportunityEstimator";
 import { calculateRouteDurationDays, getRouteDistanceKm } from "./tradeRouteDuration";
 import { TradeSecurity } from "./tradeSecurity";
 
@@ -528,9 +533,11 @@ function selectRouteCargo(
   maintenanceCost: number,
   routeSegments: readonly TradeRouteSegment[]
 ): Deal[] {
+  const world = getWorldContext();
+  const routeMaxTemperatureC = getRouteMaxTemperatureC(routeSegments, world.pack.cells?.g, world.grid.cells?.temp);
   const eligible = deals.filter(deal => {
     const good = goods[deal.good];
-    return Boolean(good && isGoodTradePermitted(good, durationDays, routeSegments));
+    return Boolean(good && isGoodTradePermitted(good, durationDays, routeSegments, routeMaxTemperatureC));
   });
   if (!eligible.length) return [];
 

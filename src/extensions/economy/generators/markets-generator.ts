@@ -39,6 +39,7 @@ import {
   getCaravanMaintenanceCost,
   getLocalTradePriceMultiplier,
   getNetTradeProfit,
+  getRouteMaxTemperatureC,
   getTradeAccountingPeriodDays,
   getTransportCost,
   isGoodTradePermitted,
@@ -57,6 +58,8 @@ interface MarketTradeRoute {
   distanceKm: number;
   durationDays: number;
   segments: TradeRouteSegment[];
+  /** Hottest cell temperature (°C) the route passes through; see getRouteMaxTemperatureC. */
+  maxTemperatureC: number | undefined;
 }
 
 type MarketTradeRoutes = Record<number, Record<number, MarketTradeRoute>>;
@@ -882,7 +885,7 @@ export class MarketsModule {
             const route = routes[importer.market.i];
             if (
               !route ||
-              !isGoodTradePermitted(good, route.durationDays, route.segments) ||
+              !isGoodTradePermitted(good, route.durationDays, route.segments, route.maxTemperatureC) ||
               !isMarketTradePermitted(exporter.market, importer.market, route.durationDays)
             ) {
               continue;
@@ -1025,7 +1028,7 @@ export class MarketsModule {
         const route = routes[importer.i];
         if (
           !route ||
-          !isGoodTradePermitted(good, route.durationDays, route.segments) ||
+          !isGoodTradePermitted(good, route.durationDays, route.segments, route.maxTemperatureC) ||
           !isMarketTradePermitted(exporter, importer, route.durationDays)
         ) {
           continue;
@@ -1043,7 +1046,8 @@ export class MarketsModule {
           distance: route.distance,
           mapDiagonal,
           routeSegments: route.segments,
-          distanceScale: this.worldContext.distanceScale
+          distanceScale: this.worldContext.distanceScale,
+          routeMaxTemperatureC: route.maxTemperatureC
         });
         if (!estimate) continue;
 
@@ -1109,7 +1113,12 @@ export class MarketsModule {
       distance,
       distanceKm,
       durationDays: calculateRouteDurationDays(segments, this.worldContext.distanceScale),
-      segments
+      segments,
+      maxTemperatureC: getRouteMaxTemperatureC(
+        segments,
+        this.worldContext.pack.cells?.g,
+        this.worldContext.grid.cells?.temp
+      )
     };
   }
 

@@ -1,5 +1,5 @@
 import { type Good, type GoodTradeProfile, getDefaultGoodTradeProfile } from "./goods-generator";
-import type { TradeRouteSegment } from "./marketTypes";
+import type { TradeRoutePoint, TradeRouteSegment } from "./marketTypes";
 import { calculateRouteDurationDays } from "./tradeRouteDuration";
 
 const DISTANCE_COST_FACTOR = 0.5;
@@ -24,6 +24,26 @@ export const PERISHABLE_MAX_TRADE_DAYS = 10;
  * dampness risk in the model per the same reasoning that keeps land uncapped below.
  */
 export const STAPLE_FOOD_SEA_MAX_TRADE_DAYS = 30;
+/**
+ * Day caps for "freshFood"-tagged goods (Fish, Game, Shellfish — raw, unprocessed protein, as
+ * opposed to Grain/other `stapleFood`, which store for a year dry). Unlike staples, real spoilage
+ * here is dominated by ambient heat, not elapsed transit time alone, so the cap is keyed off the
+ * hottest cell the route actually passes through (see `getRouteMaxTemperatureC`):
+ * - At or below FRESH_FOOD_COLD_MAX_TEMP_C (naturally cool/alpine terrain, effectively a moving
+ *   icebox): treated like a durability good, capped only by PERISHABLE_MAX_TRADE_DAYS/density.
+ * - Above that but at or below FRESH_FOOD_COOL_MAX_TEMP_C (temperate climate, no active cooling):
+ *   a short multi-day window.
+ * - Above FRESH_FOOD_COOL_MAX_TEMP_C (warm/hot climate): next to no window — raw fish/meat left
+ *   at ambient warmth spoils within about a day without preservation (salting/drying/smoking,
+ *   which are separate processed goods, not this good).
+ * Route temperature is unavailable when a route carries no cell ids (e.g. the trade-opportunities
+ * dialog's graph-distance estimate); callers pass `undefined` in that case and this falls back to
+ * the same flat PERISHABLE_MAX_TRADE_DAYS cap other perishables use, rather than guessing hot.
+ */
+export const FRESH_FOOD_COLD_MAX_TEMP_C = 10;
+export const FRESH_FOOD_COOL_MAX_TEMP_C = 20;
+export const FRESH_FOOD_COOL_MAX_TRADE_DAYS = 2;
+export const FRESH_FOOD_HOT_MAX_TRADE_DAYS = 1;
 
 interface MarketGoodState {
   stock: number;
@@ -45,6 +65,7 @@ export interface SpeculativeTradeInput {
   durationDays?: number;
   buyPrice?: number;
   sellPrice?: number;
+  routeMaxTemperatureC?: number;
 }
 
 interface LocalPriceBiasInput {
@@ -94,9 +115,42 @@ export function getGoodValueDensity(good: Good): number {
   return good.value / Math.max(1, trade.weight + trade.bulk);
 }
 
+/**
+ * Reads the cell temperature (°C, grid-cell-indexed) each route point falls on and returns the
+ * hottest one encountered — the leg that actually limits how long raw perishable cargo survives
+ * the trip. `undefined` when no point on the route carries a cell id (see module doc above).
+ */
+export function getRouteMaxTemperatureC(
+  routeSegments: readonly Pick<TradeRouteSegment, "points">[] | undefined,
+  packCellGridIndex: ArrayLike<number> | undefined,
+  gridCellTemperatureC: ArrayLike<number> | undefined
+): number | undefined {
+  if (!packCellGridIndex || !gridCellTemperatureC) return undefined;
+  let maxTemp: number | undefined;
+  for (const segment of routeSegments ?? []) {
+    for (const point of segment.points) {
+      const cellId = (point as TradeRoutePoint)[2];
+      if (cellId === undefined) continue;
+      const gridCellId = packCellGridIndex[cellId];
+      const temp = gridCellId === undefined ? undefined : gridCellTemperatureC[gridCellId];
+      if (temp === undefined) continue;
+      if (maxTemp === undefined || temp > maxTemp) maxTemp = temp;
+    }
+  }
+  return maxTemp;
+}
+
+function getFreshFoodMaxTradeDays(routeMaxTemperatureC: number | undefined): number {
+  if (routeMaxTemperatureC === undefined) return PERISHABLE_MAX_TRADE_DAYS;
+  if (routeMaxTemperatureC <= FRESH_FOOD_COLD_MAX_TEMP_C) return PERISHABLE_MAX_TRADE_DAYS;
+  if (routeMaxTemperatureC <= FRESH_FOOD_COOL_MAX_TEMP_C) return FRESH_FOOD_COOL_MAX_TRADE_DAYS;
+  return FRESH_FOOD_HOT_MAX_TRADE_DAYS;
+}
+
 export function getGoodMaxTradeDurationDays(
   good: Good,
-  routeSegments?: readonly Pick<TradeRouteSegment, "type">[]
+  routeSegments?: readonly Pick<TradeRouteSegment, "type">[],
+  routeMaxTemperatureC?: number
 ): number {
   const trade = good.trade ?? getDefaultGoodTradeProfile(good);
   const densityLimit = Math.max(1, VALUE_DENSITY_BASE_MAX_DAYS * getGoodValueDensity(good) * VALUE_DENSITY_MULTIPLIER);
@@ -112,15 +166,24 @@ export function getGoodMaxTradeDurationDays(
     return hasSeaLeg ? STAPLE_FOOD_SEA_MAX_TRADE_DAYS : Number.POSITIVE_INFINITY;
   }
 
+  if (good.tags.includes("freshFood")) {
+    return Math.min(densityLimit, getFreshFoodMaxTradeDays(routeMaxTemperatureC));
+  }
+
   return trade.timeValueTrend < 0 ? Math.min(densityLimit, PERISHABLE_MAX_TRADE_DAYS) : densityLimit;
 }
 
 export function isGoodTradePermitted(
   good: Good,
   durationDays: number,
-  routeSegments?: readonly Pick<TradeRouteSegment, "type">[]
+  routeSegments?: readonly Pick<TradeRouteSegment, "type">[],
+  routeMaxTemperatureC?: number
 ): boolean {
-  if (!Number.isFinite(durationDays) || durationDays > getGoodMaxTradeDurationDays(good, routeSegments)) return false;
+  if (
+    !Number.isFinite(durationDays) ||
+    durationDays > getGoodMaxTradeDurationDays(good, routeSegments, routeMaxTemperatureC)
+  )
+    return false;
   return (
     !good.seaOnly ||
     (Boolean(routeSegments?.length) && routeSegments?.every(segment => segment.type === "water") === true)
@@ -152,7 +215,8 @@ export function estimateSpeculativeTrade(input: SpeculativeTradeInput): Speculat
     mapDiagonal,
     routeSegments,
     distanceScale,
-    durationDays: suppliedDurationDays
+    durationDays: suppliedDurationDays,
+    routeMaxTemperatureC
   } = input;
   if (sourceGood.stock < 0.1) return null;
 
@@ -161,7 +225,7 @@ export function estimateSpeculativeTrade(input: SpeculativeTradeInput): Speculat
     (routeSegments && distanceScale !== undefined
       ? calculateRouteDurationDays(routeSegments, distanceScale)
       : Infinity);
-  if (!isGoodTradePermitted(good, durationDays, routeSegments)) return null;
+  if (!isGoodTradePermitted(good, durationDays, routeSegments, routeMaxTemperatureC)) return null;
 
   const transportCost = getTransportCost(distance, mapDiagonal) * good.value;
   const demandWeight = getDemandWeight(good);
