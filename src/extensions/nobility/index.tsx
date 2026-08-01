@@ -20,6 +20,7 @@ import {
   refreshPlayerCharacterSelection,
   selectRandomPlayerCharacter
 } from "./controllers/playerCharacter";
+import { clearPlayerTravel, requestTravelToBurg, tickPlayerTravel } from "./controllers/playerCharacterTravel";
 import { applyPersonalityToCapitalGuard } from "./generators/capitalGuardModifier";
 import { Characters } from "./generators/characterLifecycle";
 import { applyAffinitiesToDiplomacy } from "./generators/diplomacy-modifier";
@@ -136,6 +137,20 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
+  // Edit Burg footer "travel here" — same confirm + advance flow as the Player Character Move button.
+  api.registerToolAction("travelPlayerCharacterToBurg", detail => {
+    if (!api.isExtensionEnabled(NOBILITY_EXTENSION_ID)) {
+      tip("Enable Nobility & Characters to travel with a player character", false, "error");
+      return;
+    }
+    const burgId = Number(detail?.burgId);
+    if (!Number.isFinite(burgId) || burgId <= 0) {
+      tip("Invalid destination burg", false, "error");
+      return;
+    }
+    requestTravelToBurg(burgId);
+  });
+
   _unsubscribe = api.subscribeExtensionState((state, prevState) => {
     const isEnabled = state.enabledExtensions[NOBILITY_EXTENSION_ID];
     const wasEnabled = prevState.enabledExtensions[NOBILITY_EXTENSION_ID];
@@ -153,6 +168,7 @@ export function init(api: ExtensionAPI): void {
         selectRandomPlayerCharacter();
       }
     } else if (!isEnabled && wasEnabled) {
+      clearPlayerTravel();
       clearPlayerCharacterSelection();
       api.dispatchExtensionCommand({ extensionId: CHARACTERS_EXTENSION_ID, name: "clear", payload: undefined });
     }
@@ -277,6 +293,8 @@ export function init(api: ExtensionAPI): void {
       Characters.processResignationsAndSuccessions(effectiveDeltaYears);
       assignOfficers();
       assignProvinceLords();
+      // Consume in-flight player travel days; location updates on arrival.
+      tickPlayerTravel(deltaDays);
 
       const canAdvanceConflict = mayAdvanceAnyConflict();
       if (api.simulationContext.currentDay === 1) {
@@ -332,7 +350,9 @@ export function init(api: ExtensionAPI): void {
 }
 
 export function cleanup(api: ExtensionAPI): void {
+  clearPlayerTravel();
   clearPlayerCharacterSelection();
+  api.unregisterToolAction("travelPlayerCharacterToBurg");
   if (_unsubscribe) {
     _unsubscribe();
     _unsubscribe = null;

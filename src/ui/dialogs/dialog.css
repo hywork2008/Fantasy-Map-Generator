@@ -293,6 +293,28 @@
   cursor: pointer;
 }
 
+/* Emoji action buttons in Edit Burg footer (travel, …) — match icon-font button hit area. */
+#burgFooter .burg-footer-emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15em;
+  min-height: 1.15em;
+  margin: 0;
+  padding: 0 2px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1em;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+#burgFooter .burg-footer-emoji:hover {
+  opacity: 0.8;
+}
+
 /* ── Resize handle ─────────────────────────────────────────────────────────── */
 .fmg-dialog-resize {
   position: absolute;

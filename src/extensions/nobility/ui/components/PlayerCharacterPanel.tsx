@@ -4,6 +4,7 @@ import { useCharactersUiState } from "../../../characters/ui/charactersUiState";
 import { Dialog, isDialogOpen, openDialog } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 import { buildPlayerCharacterSummary, selectRandomPlayerCharacter } from "../../controllers/playerCharacter";
+import { isSvgRenderMode, togglePlayerMoveMode } from "../../controllers/playerCharacterTravel";
 import { getApi, getWorldContext } from "../../nobilityContext";
 import { usePlayerCharacterState } from "../../store/playerCharacterState";
 import "./playerCharacterPanel.css";
@@ -17,6 +18,8 @@ export const PlayerCharacterPanel: React.FC = () => {
   const playerCharacterId = usePlayerCharacterState(state => state.playerCharacterId);
   // Intentionally subscribed so in-place mutations (aging, succession) re-render the HUD.
   const refreshToken = usePlayerCharacterState(state => state.refreshToken);
+  const isMoveMode = usePlayerCharacterState(state => state.isMoveMode);
+  const pendingTravel = usePlayerCharacterState(state => state.pendingTravel);
   const setSelectedCharacterId = useCharactersUiState(state => state.setSelectedCharacterId);
 
   // refreshToken is an intentional extra dep: characters mutate in place on ticks.
@@ -28,6 +31,10 @@ export const PlayerCharacterPanel: React.FC = () => {
     if (!character) return null;
     return buildPlayerCharacterSummary(character, pack);
   }, [playerCharacterId, refreshToken]);
+
+  // Render mode is sticky session state; read live so a mid-session switch updates the toolbar.
+  const showMoveAction = isSvgRenderMode();
+  const canMove = Boolean(summary?.location) && !pendingTravel;
 
   const handleOpenDetails = () => {
     if (playerCharacterId === null) return;
@@ -47,6 +54,13 @@ export const PlayerCharacterPanel: React.FC = () => {
     if (!summary?.location) return;
     getApi().zoomTo(summary.location.x, summary.location.y, 20, 2000);
   };
+
+  const handleToggleMove = () => {
+    togglePlayerMoveMode();
+  };
+
+  const pendingLabel =
+    pendingTravel && pendingTravel.remainingDays > 0 ? `Travelling · ${pendingTravel.remainingDays}d left` : null;
 
   return (
     <Dialog isOpen title="Player Character" showCloseAllDialogsButton={false} className="player-character-panel">
@@ -82,6 +96,12 @@ export const PlayerCharacterPanel: React.FC = () => {
                 "Unknown"
               )}
             </dd>
+            {pendingLabel ? (
+              <>
+                <dt>Travel</dt>
+                <dd title={pendingLabel}>{pendingLabel}</dd>
+              </>
+            ) : null}
             <dt>Title</dt>
             <dd title={summary.title}>{summary.title}</dd>
             <dt>State</dt>
@@ -92,8 +112,8 @@ export const PlayerCharacterPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Future action buttons (diplomacy, treasury, military, …) land in this toolbar. */}
-      <div className="pcp-actions" role="toolbar" aria-label="Player character actions">
+      {/* Information / inspection — not world actions. */}
+      <div className="pcp-actions" role="toolbar" aria-label="Player character information">
         <button
           type="button"
           className="pcp-action"
@@ -104,6 +124,28 @@ export const PlayerCharacterPanel: React.FC = () => {
           Character Details
         </button>
       </div>
+
+      {/* World actions (travel, future diplomacy / military). SVG map mode only for Move. */}
+      {showMoveAction ? (
+        <div className="pcp-actions pcp-actions-world" role="toolbar" aria-label="Player character actions">
+          <button
+            type="button"
+            className={`pcp-action${isMoveMode ? " pcp-action-active" : ""}`}
+            data-tip={
+              isMoveMode
+                ? "Cancel destination selection"
+                : pendingTravel
+                  ? "Travel already in progress"
+                  : "Select a destination burg on the map"
+            }
+            disabled={!canMove && !isMoveMode}
+            aria-pressed={isMoveMode}
+            onClick={handleToggleMove}
+          >
+            {isMoveMode ? "Cancel Move" : "Move"}
+          </button>
+        </div>
+      ) : null}
     </Dialog>
   );
 };

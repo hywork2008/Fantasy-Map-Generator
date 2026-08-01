@@ -132,6 +132,12 @@
   background: rgba(246, 242, 233, 0.55);
 }
 
+/* Second toolbar for world actions (Move, …) — slightly stronger separation. */
+.player-character-panel .pcp-actions-world {
+  padding-top: 6px;
+  background: rgba(240, 234, 220, 0.7);
+}
+
 .player-character-panel .pcp-action {
   display: inline-flex;
   align-items: center;
@@ -159,6 +165,12 @@
 .player-character-panel .pcp-action:focus-visible {
   outline: 2px solid #c4a35a;
   outline-offset: 1px;
+}
+
+.player-character-panel .pcp-action-active {
+  background: #fff8e8;
+  border-color: #6b4f2a;
+  box-shadow: inset 0 0 0 1px rgba(107, 79, 42, 0.25);
 }
 
 .player-character-panel .pcp-empty {

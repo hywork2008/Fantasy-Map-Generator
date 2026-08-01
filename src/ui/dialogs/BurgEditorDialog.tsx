@@ -366,6 +366,22 @@ export const BurgEditorDialog: React.FC = () => {
             ></button>
             <button
               type="button"
+              id="burgTravelHere"
+              data-tip="Travel the player character to this burg"
+              aria-label="Travel player character here"
+              className="burg-footer-emoji"
+              onClick={() =>
+                document.dispatchEvent(
+                  new CustomEvent("react-tool-action", {
+                    detail: { action: "travelPlayerCharacterToBurg", burgId: burgData.id }
+                  })
+                )
+              }
+            >
+              🐴
+            </button>
+            <button
+              type="button"
               id="burgRelocate"
               data-tip="Relocate burg. Click on map to move the burg"
               className={`icon-map-pin ${isRelocateMode ? "pressed" : ""}`}
