@@ -246,6 +246,86 @@ describe("treasuryAllocation", () => {
     });
   });
 
+  describe("allocateTreasury() central office stipends (payCentralOfficeStipends)", () => {
+    afterEach(() => {
+      clearEconomyContext();
+      clearCharactersContext();
+      clearTreasuryAllocationSnapshots();
+    });
+
+    beforeEach(() => {
+      initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+      initCharactersContext({ worldContext } as unknown as ExtensionAPI);
+      worldContext.pack = { states: [], characters: [] } as unknown as PackedGraph;
+    });
+
+    it("pays each living central office holder their department's nominal Budget", () => {
+      const state = { i: 1, form: "Monarchy", diplomacy: [] } as unknown as State;
+      const chancellor = makeRuler({
+        i: 10,
+        titles: [{ title: "Chancellor", landed: false, entityType: "state", entityId: 1 }]
+      });
+      const marshal = makeRuler({
+        i: 11,
+        titles: [{ title: "Marshal", landed: false, entityType: "state", entityId: 1 }]
+      });
+      worldContext.pack.characters = [chancellor, marshal];
+
+      const allocation = allocateTreasury(state, 1000);
+
+      expect(chancellor.wealth).toBe(150); // Monarchy chancery 15%
+      expect(marshal.wealth).toBe(350); // Monarchy marshalcy 35%, no structural adjustment
+      expect(allocation.officeStipendsPaid).toBe(500);
+    });
+
+    it("leaves a vacant office's share in treasury instead of paying anyone", () => {
+      const state = { i: 1, form: "Monarchy", diplomacy: [] } as unknown as State;
+      worldContext.pack.characters = [];
+
+      const allocation = allocateTreasury(state, 1000);
+
+      expect(allocation.officeStipendsPaid).toBe(0);
+      expect(allocation.chancery).toBe(150); // nominal Budget unaffected by vacancy
+    });
+
+    it("does not pay a dead office holder", () => {
+      const state = { i: 1, form: "Monarchy", diplomacy: [] } as unknown as State;
+      const deadChancellor = makeRuler({
+        i: 10,
+        dead: true,
+        titles: [{ title: "Chancellor", landed: false, entityType: "state", entityId: 1 }]
+      });
+      worldContext.pack.characters = [deadChancellor];
+
+      allocateTreasury(state, 1000);
+
+      expect(deadChancellor.wealth).toBe(0);
+    });
+
+    it("does not pay a same-title office holder of a different state", () => {
+      const state = { i: 1, form: "Monarchy", diplomacy: [] } as unknown as State;
+      const otherStateChancellor = makeRuler({
+        i: 10,
+        titles: [{ title: "Chancellor", landed: false, entityType: "state", entityId: 2 }]
+      });
+      worldContext.pack.characters = [otherStateChancellor];
+
+      allocateTreasury(state, 1000);
+
+      expect(otherStateChancellor.wealth).toBe(0);
+    });
+
+    it("keeps the nominal Marshalcy Budget (and militaryFundingRatio) unaffected by Marshal vacancy", () => {
+      const state = { i: 1, form: "Monarchy", diplomacy: [], military: [] } as unknown as State;
+      worldContext.pack.characters = [];
+
+      const allocation = allocateTreasury(state, 1000);
+
+      expect(allocation.militaryFundingRatio).toBe(1); // no troops => Need 0 => ratio 1, unaffected by vacancy
+      expect(allocation.marshalcy).toBe(350);
+    });
+  });
+
   describe("getTreasuryAllocationSnapshots() / clearTreasuryAllocationSnapshots()", () => {
     afterEach(() => {
       clearEconomyContext();

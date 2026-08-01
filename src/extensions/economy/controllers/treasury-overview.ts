@@ -31,6 +31,7 @@ export function refreshTreasuryOverview(): void {
       form: state.form || "—",
       domesticIncome: rn(snapshot.domesticIncome, 2),
       household: snapshot.household,
+      officeStipendsPaid: snapshot.officeStipendsPaid,
       marshalcy: snapshot.marshalcy,
       militaryFundingRatio: snapshot.militaryFundingRatio,
       militaryDiscontent: rn(state.militaryDiscontent || 0, 2),

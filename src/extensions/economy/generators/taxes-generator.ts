@@ -105,7 +105,8 @@ export class TaxesModule {
             voyageIncome -
             procurementExpense -
             militaryUpkeep -
-            allocation.household
+            allocation.household -
+            allocation.officeStipendsPaid
         ),
         2
       );

@@ -6,6 +6,7 @@ export interface TreasuryOverviewRow {
   form: string;
   domesticIncome: number;
   household: number;
+  officeStipendsPaid: number;
   marshalcy: number;
   militaryFundingRatio: number;
   militaryDiscontent: number;

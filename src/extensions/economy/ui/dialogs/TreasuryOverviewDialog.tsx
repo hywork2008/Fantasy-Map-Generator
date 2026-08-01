@@ -83,6 +83,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
             <col />
             <col />
             <col />
+            <col />
           </colgroup>
           <thead className="header">
             <tr>
@@ -121,13 +122,22 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 tip="Ruler's household stipend — a real deduction paid into the ruler's Character.wealth"
               />
               <SortableHeader
+                field="officeStipendsPaid"
+                label="Stipends"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="Sum actually paid to the state's 5 central office holders (Chancellor/Marshal/Steward/Spymaster/Court Chaplain) this cycle — a real deduction; 0 for any currently-vacant office"
+              />
+              <SortableHeader
                 field="marshalcy"
                 label="Marshalcy"
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Military department Budget — informational; the existing military upkeep charge (Need) is unchanged and does not double-deduct this"
+                tip="Nominal military department Budget — the Marshal's actual stipend is included in Stipends, not deducted again here; the existing military upkeep charge (Need) is unchanged"
               />
               <SortableHeader
                 field="militaryFundingRatio"
@@ -154,7 +164,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Informational — no game effect wired yet, not deducted from treasury"
+                tip="Nominal department Budget — the office holder's actual stipend is included in Stipends, not deducted again here"
               />
               <SortableHeader
                 field="stewardship"
@@ -163,7 +173,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Informational — no game effect wired yet, not deducted from treasury"
+                tip="Nominal department Budget — the office holder's actual stipend is included in Stipends, not deducted again here"
               />
               <SortableHeader
                 field="spymastery"
@@ -172,7 +182,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Informational — no game effect wired yet, not deducted from treasury"
+                tip="Nominal department Budget — the office holder's actual stipend is included in Stipends, not deducted again here"
               />
               <SortableHeader
                 field="ecclesiastica"
@@ -181,14 +191,14 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Informational — no game effect wired yet, not deducted from treasury"
+                tip="Nominal department Budget — the office holder's actual stipend is included in Stipends, not deducted again here"
               />
             </tr>
           </thead>
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={11}>
+                <td colSpan={12}>
                   <span>No state has an allocated treasury yet — run a generation cycle first</span>
                 </td>
               </tr>
@@ -212,6 +222,7 @@ const TreasuryRow: React.FC<{ row: TreasuryOverviewRow }> = ({ row }) => (
     <td>{row.form}</td>
     <td>{row.domesticIncome.toFixed(2)}</td>
     <td>{row.household.toFixed(2)}</td>
+    <td>{row.officeStipendsPaid.toFixed(2)}</td>
     <td>{row.marshalcy.toFixed(2)}</td>
     <td>{row.militaryFundingRatio.toFixed(2)}</td>
     <td>{row.militaryDiscontent.toFixed(1)}</td>

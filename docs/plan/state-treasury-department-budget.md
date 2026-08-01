@@ -2,7 +2,7 @@
 
 ## 状態
 
-**大部分実装済み**(§5: 為政者家政費、§7: 6部門フルテーブル+軍事充足率+`militaryDiscontent`+Treasury Overview UI)。未実装は「予算配分を政策レバーとして操作する仕組み(戦時動員/War Footing含む)」と、非軍事4部門のゲーム内効果(§8非目的)。[burg-treasury-equilibrium.md](burg-treasury-equilibrium.md)の非目的節で「政体(君主制/共和制等)による上納比率の作り込み」が将来の拡張ポイントとして明示的に保留されていた項目に着手する。本ドキュメントは state 財政の**支出側**——為政者(ルーラー)給与と、統治に関わる各部門への配分——を、`state.form`(Monarchy/Republic/Theocracy/Union/Anarchy)に応じて設計する。
+**大部分実装済み**(§5: 為政者家政費、§7: 6部門フルテーブル+軍事充足率+`militaryDiscontent`+Treasury Overview UI+中央官職俸給)。未実装は「予算配分を政策レバーとして操作する仕組み(戦時動員/War Footing含む)」と、非軍事4部門のゲーム内効果(§8非目的)。[burg-treasury-equilibrium.md](burg-treasury-equilibrium.md)の非目的節で「政体(君主制/共和制等)による上納比率の作り込み」が将来の拡張ポイントとして明示的に保留されていた項目に着手する。本ドキュメントは state 財政の**支出側**——為政者(ルーラー)給与と、統治に関わる各部門への配分——を、`state.form`(Monarchy/Republic/Theocracy/Union/Anarchy)に応じて設計する。
 
 **改訂(v2)**: 初版では軍事(Marshalcy)を「既存実装があるから」という理由で配分調整の対象外に置いたが、これは軍事予算を政策レバーとして操作できない設計になってしまい、「平時国家・属領の軍事予算を意図的に削る」という中核ユースケースを表現できないという指摘を受けて撤回した。v2では軍事も他の4部門と同列の配分対象部門とし、代わりに「必要額(既存の`getStateMilitaryUpkeep`)」と「配分予算」を分離することで、削減とその帰結(readiness低下・不満蓄積)を表現できるようにした。詳細は§4。
 
@@ -134,11 +134,11 @@
 
 ## 7. 実装アーキテクチャ案
 
-§5(ルーラー給与)・§7項目1〜5は実装済み:
+§5(ルーラー給与)・§7項目1〜6は実装済み:
 
 1. ✅ [`treasuryAllocation.ts`](../../src/extensions/economy/generators/treasuryAllocation.ts)の`BASELINE_ALLOCATION_BY_FORM`(§3、6部門フルテーブル)。`getHouseholdStipendRate()`はこのテーブルのHousehold行を参照するよう改修(値は不変、テストも既存のまま通過)。
 2. ✅ `getMilitaryStructuralMultiplier(state)`(vassal/Union判定による常時適用の構造係数、§4.2)+ `getMilitaryFundingCeiling(state)`(構造係数×`stateHasEnemy()`による平時/戦時許容フロア)。後者は§4.4-1のWar Footingレバーが実装されるまで参照者がいない、参照専用の公開関数。
-3. ✅ `allocateTreasury(state, domesticIncome)` — 6部門の配分額(baseline%×収入、MarshalcyのみさらにgetMilitaryStructuralMultiplier適用)を返す。Household(`payRulerHouseholdStipend`呼び出し、実際に`Character.wealth`へ移転)とMarshalcy(既存`getStateMilitaryUpkeep`との比較で充足率算出、treasury控除額は変更なし)以外の4部門は情報値のみで、treasuryからの実控除はしない(§8非目的により効果先が存在しないため——存在しない効果のために国庫を減らすのは説明不能な支出になる)。[`taxes-generator.ts`](../../src/extensions/economy/generators/taxes-generator.ts)の`collectTaxes()`から`payRulerHouseholdStipend`直接呼び出しを置き換える形で統合。
+3. ✅ `allocateTreasury(state, domesticIncome)` — 6部門の配分額(baseline%×収入、MarshalcyのみさらにgetMilitaryStructuralMultiplier適用)を返す。返り値の`marshalcy`/`chancery`/`stewardship`/`spymastery`/`ecclesiastica`は**名目Budget**(officeの在職状況に関わらず一定、充足率/§4.2フロア比較の基準値として使われる)。実際にtreasuryから引かれるのは`household`と`officeStipendsPaid`(項目6参照)のみ。[`taxes-generator.ts`](../../src/extensions/economy/generators/taxes-generator.ts)の`collectTaxes()`から`payRulerHouseholdStipend`直接呼び出しを置き換える形で統合。
 4. ✅ `state.militaryFundingRatio`/`state.militaryDiscontent`([models.ts](../../src/types/models.ts))——§4.3の段階的蓄積/減衰を`allocateTreasury()`内で毎サイクル更新。閾値(100)超過時のみ`fmg:military-discontent-threshold` CustomEventを一度だけ発火(発火後の処理はフェーズ2、§4.3参照)。
    - テスト: [`treasuryAllocation.test.ts`](../../src/extensions/economy/generators/treasuryAllocation.test.ts)に追加(構造係数・フロア値・配分内訳・充足率・discontent蓄積/減衰・イベント発火の単発性を検証)。
 5. ✅ Treasury Overview UI(Editグループの一覧ダイアログ)——各国が動かせる予算の大きさは地図世界への影響力そのものであり、ゲームバランス調整の可視化に直結するため、`GuildOverviewDialog`と同型のソート可能テーブルダイアログとして実装した(単一指標の棒グラフである`ChartsOverviewDialog`側には載せず、6部門を同時比較できる表形式を優先)。
@@ -146,12 +146,20 @@
    - [`treasury-overview.ts`](../../src/extensions/economy/controllers/treasury-overview.ts)(新規コントローラ)・[`treasuryOverviewState.ts`](../../src/extensions/economy/store/treasuryOverviewState.ts)(新規Zustand store)・[`TreasuryOverviewDialog.tsx`](../../src/extensions/economy/ui/dialogs/TreasuryOverviewDialog.tsx)(新規ダイアログ)を、既存の`guild-overview.ts`/`guildOverviewState.ts`/`GuildOverviewDialog.tsx`と同じ三層構造で追加。ToolsTab「Edit」セクションに"Treasury"ボタンとして登録([`economy/index.tsx`](../../src/extensions/economy/index.tsx))。
    - 新規マップ生成時(`state id`再利用)と拡張無効化時の両方で`clearTreasuryAllocationSnapshots()`を呼び、前回マップ/前回セッションのスナップショットが残留しないようにした(既存の`clearVoyageIncome()`等と同じ箇所に追加)。
    - テスト: [`treasuryAllocation.test.ts`](../../src/extensions/economy/generators/treasuryAllocation.test.ts)にスナップショットの記録/上書き/クリアを追加。[`treasury-overview.test.ts`](../../src/extensions/economy/controllers/treasury-overview.test.ts)(新規)で行構築・除去済みState除外・クリア後の空表示を検証。
+6. ✅ **中央官職(CENTRAL_OFFICES)俸給** — Player Character HUD([`PlayerCharacterPanel.tsx`](../../src/extensions/nobility/ui/components/PlayerCharacterPanel.tsx))でランダム選出された非ルーラーの官職者(例: Chancellor)の`wealth`が常に0になる不具合の報告を受けて実装。[`titleTable.ts`](../../src/extensions/nobility/data/titleTable.ts)の`CENTRAL_OFFICES`(Chancellor/Marshal/Steward/Spymaster/Court Chaplain)は§2で各部門と1対1対応済みだったが、実際に俸給が支払われる経路がこれまで存在しなかった(`payRulerHouseholdStipend`はルーラーのみ対象)。
+   - `treasuryAllocation.ts`に`payCentralOfficeStipends(state, breakdown)`を追加。`state.i`+`entityType:"state"`+官職名(`title.title`)で`pack.characters`から生存中の在職者を検索し、その部門の名目Budgetを100%そのままその官職者の`Character.wealth`へ移転する(Householdと同じパターン)。官職が空席の場合はスキップし、該当分はtreasuryに残る(消えない)。
+   - `allocateTreasury()`の返り値に`officeStipendsPaid`(実際に支払われた合計、treasuryからの実控除対象)を追加。名目Budget自体(`marshalcy`等)は在職状況に関わらず不変のまま——充足率(§4.3)や§4.2のフロア比較が官職の空席で歪まないようにするため、意図的に分離した。
+   - [`taxes-generator.ts`](../../src/extensions/economy/generators/taxes-generator.ts)の`collectTaxes()`で`allocation.officeStipendsPaid`をtreasury控除に追加。
+   - Treasury Overview UI(項目5)に"Stipends"列を追加。
+   - **経済バランスへの影響に注意**: これまでChancery/Stewardship/Spymastery/Ecclesiastica(合計で内国収入の35〜92%、統治形態依存)はtreasuryから一切控除されない情報値だったが、官職が埋まっている限りその全額が官職者個人へ実際に流出するようになった。結果としてtreasuryの蓄積速度は大幅に低下する(統治形態次第ではほぼ増えなくなる可能性がある)。意図的な変更だが、既存セーブの財政バランスに大きく影響するため明記しておく。
+   - テスト: [`treasuryAllocation.test.ts`](../../src/extensions/economy/generators/treasuryAllocation.test.ts)に`payCentralOfficeStipends()`の在職者支払い・空席スキップ・死亡官職者スキップ・他State官職者との混同なし・充足率が空席の影響を受けないことを検証する`describe`ブロックを追加。
 
 未着手(次フェーズ以降):
 
 1. §4.4のWar Footingレバーと過剰投資(案β)の一般化実装
 2. Personality平均値による補正(states-personality.mdとの接続): Greedが高い国家ほど家政比率が上振れ、Boldness/Confidenceが高い国家ほど軍事削減により踏み込みやすい、という形で§4.2の係数をpersonality平均でシフトする
-3. 各部門(軍事以外)支出のゲーム内効果——家宰府→徴税効率ボーナス拡張、諜報府→nobility espionage資金源、教会庁→宗教不満度緩和、あたりが自然な接続候補。これが実装されるまで`allocateTreasury()`が返すChancery/Stewardship/Spymastery/Ecclesiastica額はtreasuryから控除されない(項目3参照)
+3. 中央官職以外の俸給——項目6で対応したのは`CENTRAL_OFFICES`(国家中枢5官職)のみ。属州領主(Count/Governor/Sheriff等)・軍事指揮官(Commander/Admiral)・ギルド関連の称号(Guild Apprentice/Guild Master等、economy拡張のギルド財産システムが別途存在する可能性あり)・商人組織の称号(Market Rival Merchant/Merchant Company Head)には、この設計が定義する部門予算からの資金源が存在しない——支払い元をどう設計するかは未着手の設計課題
+4. 各部門(軍事以外)支出の「俸給以外」のゲーム内効果——家宰府→徴税効率ボーナス拡張、諜報府→nobility espionage資金源、教会庁→宗教不満度緩和、あたりが自然な接続候補(項目6の俸給支払いとは別軸)
 
 ## 8. 非目的
 

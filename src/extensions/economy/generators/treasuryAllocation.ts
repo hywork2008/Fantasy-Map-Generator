@@ -1,7 +1,9 @@
 import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
+import type { Character } from "../../characters/characterTypes";
 import { stateHasEnemy } from "../../hostCore";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
+import { CENTRAL_OFFICES } from "../../nobility/data/titleTable";
 import { getRulerId } from "../../nobility/nobilityContext";
 import { getStateMilitaryUpkeep } from "./militaryLogistics";
 
@@ -155,18 +157,72 @@ export function payRulerHouseholdStipend(state: State, domesticIncome: number): 
   return stipend;
 }
 
+/** §2 maps each CENTRAL_OFFICES primarySkill onto the department its office holder is paid from. */
+const DEPARTMENT_BY_PRIMARY_SKILL: Record<
+  string,
+  keyof Pick<DepartmentBaselineAllocation, "marshalcy" | "chancery" | "stewardship" | "spymastery" | "ecclesiastica">
+> = {
+  diplomacy: "chancery",
+  martial: "marshalcy",
+  stewardship: "stewardship",
+  intrigue: "spymastery",
+  learning: "ecclesiastica"
+};
+
+function findLivingOfficeHolder(characters: Character[], stateId: number, title: string): Character | undefined {
+  return characters.find(
+    character =>
+      !character.dead &&
+      character.titles.some(
+        holding => holding.entityType === "state" && holding.entityId === stateId && holding.title === title
+      )
+  );
+}
+
+/**
+ * Pays each of the 5 CENTRAL_OFFICES (Chancellor/Marshal/Steward/Spymaster/Court Chaplain,
+ * titleTable.ts) its department's full nominal Budget from `breakdown` as a personal stipend,
+ * mirroring payRulerHouseholdStipend() for Household (§2's 1:1 office-to-department mapping).
+ * Returns the total actually paid. An office currently vacant (no living holder — e.g. between
+ * successions) contributes 0 and its share stays in state.treasury instead of disappearing,
+ * same degrade pattern as the ruler stipend. Does not mutate `breakdown` — the nominal Budget
+ * figures stay intact for militaryFundingRatio/§4 ceiling comparisons and Treasury Overview
+ * display regardless of who is currently staffing the office.
+ */
+export function payCentralOfficeStipends(state: Pick<State, "i">, breakdown: TreasuryAllocationBreakdown): number {
+  if (!state.i || !hasCharactersContext()) return 0;
+  const characters = getCharacters();
+
+  let totalPaid = 0;
+  for (const office of CENTRAL_OFFICES) {
+    const departmentKey = office.primarySkill && DEPARTMENT_BY_PRIMARY_SKILL[office.primarySkill];
+    if (!departmentKey) continue;
+    const amount = breakdown[departmentKey];
+    if (!(amount > 0)) continue;
+
+    const holder = findLivingOfficeHolder(characters, state.i, office.title);
+    if (!holder) continue;
+
+    holder.wealth = rn((holder.wealth || 0) + amount, 2);
+    totalPaid = rn(totalPaid + amount, 2);
+  }
+  return totalPaid;
+}
+
 export interface TreasuryAllocationBreakdown {
   /** Real deduction — paid to the ruler's Character.wealth (§5), same figure payRulerHouseholdStipend() returns. */
   household: number;
-  /** Policy "Budget" (§4.1) — informational only. The existing getStateMilitaryUpkeep() "Need" deduction is unchanged; this does not double-deduct. */
+  /** Nominal department Budget (§4.1) — unaffected by whether the office is currently staffed; used for militaryFundingRatio/§4.2 ceiling comparisons. See officeStipendsPaid for what actually left state.treasury. */
   marshalcy: number;
-  /** Informational — no wired game effect yet (§8 non-goal), not deducted from state.treasury. */
+  /** Nominal department Budget — see officeStipendsPaid for what actually left state.treasury. */
   chancery: number;
   stewardship: number;
   spymastery: number;
   ecclesiastica: number;
   /** Marshalcy Budget ÷ Need, mirrors state.militaryFundingRatio after this call. */
   militaryFundingRatio: number;
+  /** Real deduction — sum of §2's CENTRAL_OFFICES stipends actually paid this cycle (payCentralOfficeStipends()); 0 for any vacant office, whose share stays in state.treasury instead of disappearing. */
+  officeStipendsPaid: number;
 }
 
 export interface TreasuryAllocationSnapshot extends TreasuryAllocationBreakdown {
@@ -190,11 +246,12 @@ export function clearTreasuryAllocationSnapshots(): void {
 
 /**
  * §7 item 3 — this cycle's full department breakdown (§3 baseline × domestic income) plus the
- * Marshalcy funding-ratio/discontent update (§4). Only `household` (a real Character.wealth
- * transfer) and the pre-existing getStateMilitaryUpkeep() upkeep charge actually move
- * state.treasury today — Chancery/Stewardship/Spymastery/Ecclesiastica have no game effect
- * wired yet, so deducting their share would just be an unexplained sink; callers should treat
- * those four as read-only figures for now (future UI / future effect wiring).
+ * Marshalcy funding-ratio/discontent update (§4). `household` and `officeStipendsPaid` (§2's
+ * CENTRAL_OFFICES stipends, §7 item 6) are real Character.wealth transfers deducted from
+ * state.treasury by the caller, alongside the pre-existing getStateMilitaryUpkeep() upkeep
+ * charge. The nominal department Budget figures themselves (marshalcy/chancery/stewardship/
+ * spymastery/ecclesiastica) are unaffected by office vacancy — see officeStipendsPaid for what
+ * actually left the treasury this cycle.
  */
 export function allocateTreasury(state: State, domesticIncome: number): TreasuryAllocationBreakdown {
   const income = Math.max(0, domesticIncome);
@@ -214,8 +271,10 @@ export function allocateTreasury(state: State, domesticIncome: number): Treasury
     stewardship: rn(income * baseline.stewardship, 2),
     spymastery: rn(income * baseline.spymastery, 2),
     ecclesiastica: rn(income * baseline.ecclesiastica, 2),
-    militaryFundingRatio: fundingRatio
+    militaryFundingRatio: fundingRatio,
+    officeStipendsPaid: 0
   };
+  breakdown.officeStipendsPaid = payCentralOfficeStipends(state, breakdown);
 
   if (state.i) _snapshotByState.set(state.i, { stateId: state.i, domesticIncome: income, ...breakdown });
 
