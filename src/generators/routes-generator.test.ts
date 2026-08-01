@@ -294,6 +294,18 @@ describe("RoutesModule settlement water connections", () => {
     expect(Routes.buildLinks(routes)).toEqual({});
   });
 
+  it("extends a river route from the channel to a shifted port anchor", () => {
+    worldContext.pack.burgs[2].x = 23;
+    worldContext.pack.burgs[2].y = -5;
+    Routes.sync();
+
+    const [route] = routeGenerationInternals.createRoutesData([], "augmented");
+
+    expect(route.points.at(-2)).toEqual([20, 0, 2]);
+    expect(route.points.at(-1)).toEqual([23, -5, 2]);
+    expect(Routes.buildLinks([route])).toEqual({});
+  });
+
   it("keeps a locked road and charts the river route separately", () => {
     Routes.sync();
     const lockedRoad = {

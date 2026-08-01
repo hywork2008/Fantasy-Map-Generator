@@ -1007,7 +1007,7 @@ class RoutesModule {
       if (!sourcePortFeature) continue;
       if (!riverGraph.getOutgoing(source.cell).length) continue;
 
-      let nearest: { cells: number[]; distance: number; targetCell: number } | undefined;
+      let nearest: { cells: number[]; distance: number; target: Burg } | undefined;
       for (const target of riverPorts) {
         if (target.i === source.i) continue;
         const path = findDownstreamRiverPath(riverGraph, source.cell, target.cell);
@@ -1016,20 +1016,27 @@ class RoutesModule {
         if (
           !nearest ||
           path.distanceMapUnits < nearest.distance ||
-          (path.distanceMapUnits === nearest.distance && target.cell < nearest.targetCell)
+          (path.distanceMapUnits === nearest.distance && target.cell < nearest.target.cell)
         ) {
-          nearest = { cells: path.cellIds, distance: path.distanceMapUnits, targetCell: target.cell };
+          nearest = { cells: path.cellIds, distance: path.distanceMapUnits, target };
         }
       }
       if (!nearest) continue;
 
       const anchors = nearest.cells.map(cellId => pack.cells.p[cellId] as [number, number]);
+      const points = this.addMeandering(nearest.cells, anchors);
+      const [firstX, firstY] = points[0];
+      if (source.x !== firstX || source.y !== firstY) points.unshift([source.x, source.y, source.cell]);
+      const [lastX, lastY] = points.at(-1)!;
+      if (nearest.target.x !== lastX || nearest.target.y !== lastY) {
+        points.push([nearest.target.x, nearest.target.y, nearest.target.cell]);
+      }
       riverRoutes.push({
         i: -1,
         group: "searoutes",
         feature: sourcePortFeature,
         cells: nearest.cells,
-        points: this.addMeandering(nearest.cells, anchors),
+        points,
         navigation: "river"
       });
     }

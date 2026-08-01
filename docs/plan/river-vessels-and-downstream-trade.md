@@ -133,7 +133,8 @@ Route generator は次の責務へ戻す。
   ただし河川港どうしの接続を地図上で失わせないため、直近の下流港へ至る区間だけは
   `Route { group: "searoutes", navigation: "river" }` として charted line を持てる。この route は
   `pack.cells.routes`、SeaRouteGraph、海流描画のいずれにも入れない表示専用データであり、実際の通行可否は
-  常に RiverNavigationGraph を読む。
+  常に RiverNavigationGraph を読む。河道セルと港アイコン座標が離れている場合は、同じセルを指す短い
+  port approach point を末端に足して、航路が都市へ到達して見えるようにする。
   海路と河路を接続するには、同一 Burg の sea / river access または明示された land transfer を使う。
 
 ### 4.3 Economy: `TradeRoutePlanner`
