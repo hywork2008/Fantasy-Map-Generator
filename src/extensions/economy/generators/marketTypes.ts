@@ -6,7 +6,20 @@ export interface Market {
   managerCharacterId?: number;
   /** Two merchants competing with the market manager across this market's burgs. */
   rivalCharacterIds?: number[];
-  goods: Record<number, { stock: number; price: number }>;
+  goods: Record<
+    number,
+    {
+      stock: number;
+      price: number;
+      /**
+       * Manufactured goods only: this cycle's average local ingredient cost (the same figure
+       * `initializeMarketPrices()` used to price the good), persisted so guild-margin accounting
+       * (guildTreasury.ts) can credit a domain guild for its actual value-added rather than gross
+       * sale revenue. Undefined for raw/gathered goods, which have no recipe cost to subtract.
+       */
+      costBasis?: number;
+    }
+  >;
   foodLedger?: FoodLedger;
   /** Working capital of the market manager's merchant company; separate from Burg/State treasury. */
   marketTreasury?: MarketTreasury;

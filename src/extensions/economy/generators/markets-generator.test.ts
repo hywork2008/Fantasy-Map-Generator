@@ -11,6 +11,7 @@ import {
   initEconomyContext,
   setMarkets
 } from "../economyContext";
+import { Goods } from "./goods-generator";
 import { MarketsModule } from "./markets-generator";
 import type { Market } from "./marketTypes";
 
@@ -20,7 +21,10 @@ vi.mock("./goods-generator", async importOriginal => {
     ...actual,
     Goods: {
       getBiomesProduction: vi.fn(() => ({})),
-      get: vi.fn((id: number) => actual.Goods.get(id))
+      get: vi.fn((id: number) => actual.Goods.get(id)),
+      // Real sync(), needed for tests whose recipes require Goods.get() to resolve an ingredient
+      // (goodById is only rebuilt by sync(), matching how production code refreshes it).
+      sync: vi.fn(() => actual.Goods.sync())
     }
   };
 });
@@ -265,6 +269,51 @@ describe("MarketsModule", () => {
       marketsModule.initializeMarketPrices();
 
       expect(market1.goods[grain.i].price).toBe(1.23);
+    });
+
+    it("initializeMarketPrices() should compress a manufactured good's markup toward cost when oversupplied, and set costBasis", () => {
+      const bread = {
+        i: 1,
+        name: "Bread",
+        value: 20,
+        tags: [],
+        unit: "loaf",
+        icon: "icon",
+        color: "#fff",
+        recipes: [{ 0: 1 }],
+        demandCoverage: { utilities: 1 }
+      };
+      worldContext.pack = { ...worldContext.pack, goods: [...getGoods(), bread] } as unknown as PackedGraph;
+      Goods.sync();
+
+      const scarceMarket: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#ff0000",
+        goods: { 0: { stock: 10, price: 10 }, 1: { stock: 1, price: 20 } }
+      };
+      const glutMarket: Market = {
+        i: 2,
+        centerBurgId: 2,
+        color: "#00ff00",
+        goods: { 0: { stock: 10, price: 10 }, 1: { stock: 1000, price: 20 } }
+      };
+      const burg1: Burg = { i: 1, population: 100, market: 1 } as unknown as Burg;
+      const burg2: Burg = { i: 2, population: 100, market: 2 } as unknown as Burg;
+      setMarkets([scarceMarket, glutMarket]);
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg1, burg2];
+
+      marketsModule.initializeMarketPrices();
+
+      const scarcePrice = scarceMarket.goods[bread.i].price;
+      const glutPrice = glutMarket.goods[bread.i].price;
+      const costBasis = glutMarket.goods[bread.i].costBasis;
+
+      // Flooding a market with an already-manufactured good pulls its price down toward the
+      // ingredient cost basis (compressed markup), while a scarce market keeps a fuller markup.
+      expect(costBasis).toBeGreaterThan(0);
+      expect(scarcePrice).toBeGreaterThan(glutPrice);
+      expect(glutPrice - costBasis!).toBeLessThan(scarcePrice - costBasis!);
     });
 
     it("runGlobalTrade() should skip low-value trades beyond their value-density day limit", () => {

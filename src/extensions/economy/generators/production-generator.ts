@@ -464,13 +464,19 @@ export class ProductionModule {
       const taxAmount = deal.tax ?? grossRevenue * taxRate;
       const revenue = grossRevenue - taxAmount;
 
-      // Craft-domain manufactured goods split their after-tax revenue between the domain guild's
-      // own treasury and the Burg's — private-industry vs. public-city wealth (docs/plan/
-      // burg-treasury-equilibrium.md §3.1). Goods with no guild domain (local-resource bonuses,
-      // unmapped goods) stay entirely burg.treasury, as before.
+      // Craft-domain manufactured goods split their after-tax MARGIN (not gross revenue) between
+      // the domain guild's own treasury and the Burg's — private-industry vs. public-city wealth
+      // (docs/plan/burg-treasury-equilibrium.md §3.1). Margin, not revenue, is what "value-added"
+      // means: crediting gross revenue made a cheap-input/high-markup good (e.g. Paper off ~1-value
+      // Hemp) the guild's best earner purely through sale volume, independent of how much profit it
+      // actually turned. costBasis is this cycle's average local ingredient cost for the good,
+      // captured alongside its price in initializeMarketPrices() (markets-generator.ts). Goods with
+      // no guild domain (local-resource bonuses, unmapped goods) stay entirely burg.treasury, as before.
       const domain = state.burg.i ? getCraftDomainForGood(good.name) : null;
       if (domain && revenue > 0) {
-        const guildShare = rn(revenue * GUILD_PROFIT_SHARE, 2);
+        const unitCost = state.market.goods[goodId]?.costBasis ?? 0;
+        const margin = Math.max(0, revenue - unitCost * deal.units);
+        const guildShare = rn(margin * GUILD_PROFIT_SHARE, 2);
         GuildTreasury.creditGuildTreasury(state.burg.i!, domain, guildShare);
         phaseRevenue += revenue - guildShare;
       } else {

@@ -455,11 +455,11 @@ export class MarketsModule {
     this.ruralProductionIndex = null;
   }
 
-  private getMarketGood(market: Market, good: Good) {
+  private getMarketGood(market: Market, good: Good): Market["goods"][number] {
     const existing = market.goods[good.i];
     if (existing) return existing;
 
-    const initial = { stock: 0, price: good.value };
+    const initial: Market["goods"][number] = { stock: 0, price: good.value };
     market.goods[good.i] = initial;
     return initial;
   }
@@ -587,7 +587,15 @@ export class MarketsModule {
         marketGood.price = rn(good.value * minmax(ratio, PRICE_FLOOR_FACTOR, PRICE_CEILING_FACTOR), 2);
       }
 
-      // Second pass: manufactured goods - average local ingredient cost + base value-added
+      // Second pass: manufactured goods - average local ingredient cost + demand-scaled value-added.
+      // The value-added slice (not the ingredient-cost slice, which stays cost-reflective) shrinks
+      // toward zero once a market is oversupplied relative to modeled demand for that specific good
+      // and grows when scarce, using the same demand/stock ratio shape as the raw-goods pass above.
+      // Without this, a manufactured good's price — and thus its guild's margin-based income
+      // (guildTreasury.ts) and the production-decision algorithm's projected gain for it
+      // (production-generator.ts) — never responded to how much of it had already piled up unsold,
+      // so a handful of high-markup/cheap-input goods (e.g. Paper, Cloth) stayed the most profitable
+      // thing to manufacture forever, in every burg, regardless of realistic demand.
       for (const good of goods) {
         if (!good.recipes?.length) continue;
         const marketGood = this.getMarketGood(market, good);
@@ -601,8 +609,18 @@ export class MarketsModule {
           }
         }
         const avgMarketCost = totalMarketCost / good.recipes.length;
+        marketGood.costBasis = rn(avgMarketCost, 2);
+
         const avgBaseCost = avgIngredientsCostByGood[good.i] ?? 0;
-        const demandPrice = avgMarketCost + Math.max(0, good.value - avgBaseCost);
+        const baseMarkup = Math.max(0, good.value - avgBaseCost);
+
+        const consumerDemand = consumerDemandFactors[good.i] || 0;
+        const industrialDemand = industrialDemandFactors[good.i] || 0;
+        const demand = population * (consumerDemand + industrialDemand);
+        const supplyRatio = (demand + LAPLACE_PRICE_SMOOTHING) / (marketGood.stock + LAPLACE_PRICE_SMOOTHING);
+        const demandMarkup = baseMarkup * minmax(supplyRatio, PRICE_FLOOR_FACTOR, PRICE_CEILING_FACTOR);
+
+        const demandPrice = avgMarketCost + demandMarkup;
         marketGood.price = rn(
           minmax(demandPrice, good.value * PRICE_FLOOR_FACTOR, good.value * PRICE_CEILING_FACTOR),
           2
