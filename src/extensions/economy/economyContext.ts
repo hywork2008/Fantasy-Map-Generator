@@ -16,7 +16,14 @@ import type { ConstructionOperation } from "./generators/constructionEmploymentT
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
 import type { Good } from "./generators/goodsGeneratorTypes";
 import type { CraftDomainEmploymentRecord, GuildKnowledgeStock } from "./generators/guildKnowledgeTypes";
-import type { Caravan, Deal, Market, MerchantTransportLedger, TransportReservation } from "./generators/marketTypes";
+import type {
+  Caravan,
+  Deal,
+  Market,
+  MerchantTransportLedger,
+  TransportAssetOrder,
+  TransportReservation
+} from "./generators/marketTypes";
 import type { MartialDisciplineStock } from "./generators/martialDisciplineTypes";
 import type { MerchantOrganization } from "./generators/merchantOrganizationsTypes";
 import type { MilitaryResourceLedger } from "./generators/militaryResourcesTypes";
@@ -637,6 +644,20 @@ export function getNextTransportReservationId(): number {
 }
 export function setNextTransportReservationId(id: number): void {
   setSliceNumber("nextTransportReservationId", id);
+}
+
+/** Market-funded durable transport-asset orders. */
+export function getTransportAssetOrders(): TransportAssetOrder[] {
+  return getSliceArray<TransportAssetOrder>("transportAssetOrders");
+}
+export function setTransportAssetOrders(orders: readonly TransportAssetOrder[]): void {
+  setSliceArray("transportAssetOrders", orders);
+}
+export function getNextTransportAssetOrderId(): number {
+  return getSliceNumber("nextTransportAssetOrderId");
+}
+export function setNextTransportAssetOrderId(id: number): void {
+  setSliceNumber("nextTransportAssetOrderId", id);
 }
 
 /** Per-burg market ledgers owned by the economy extension. */

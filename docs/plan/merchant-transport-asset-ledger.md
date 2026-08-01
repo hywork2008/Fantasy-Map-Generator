@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :-- | :-- |
-| Status | In progress — Phase F1/F2/F3 implemented; G1/G2 remain |
+| Status | In progress — Phase F1/F2/F3/G1 implemented; G2 remains |
 | 対象 | Economy extension、任意の Shipbuilding extension、Trade Details |
 | 前提計画 | [trade-cargo-capacity-and-diversity.md](trade-cargo-capacity-and-diversity.md) Phase F / G |
 | 調査日 | 2026-08-01 |
@@ -312,7 +312,8 @@ Caravan を直接選ばせない。注文の進捗・材料待ち・完成後の
 
 ### Phase G1 — blueprint と simulation 補充 order
 
-- TransportAssetBlueprint、材料予約、woodworking work point、Market treasury 支払いを実装する。
+- Implemented: TransportAssetBlueprint、原材料の原子的予約、craft-domain work point、Market treasury 支払いを実装する。
+- Implemented: 通常の recipe 生産より先に予約 work point を Burg の worker budget から除き、同じ作業を二重計上しない。
 - 受け入れ: 完成品は `Market.goods` に入らず、材料・現金・作業量が保存され、取消時の返却が一度だけ起きる。
 
 ### Phase G2 — player order

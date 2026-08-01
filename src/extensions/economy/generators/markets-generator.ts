@@ -47,6 +47,7 @@ import {
   MIN_TRADE_PROFIT
 } from "./tradeOpportunityEstimator";
 import { calculateRouteDurationDays, getRouteDistanceMapUnits } from "./tradeRouteDuration";
+import { TransportAssetOrders } from "./transportAssetOrders";
 
 const PRICE_FLOOR_FACTOR = 0.25;
 const PRICE_CEILING_FACTOR = 3.0;
@@ -269,6 +270,7 @@ export class MarketsModule {
     setMarkets(markets);
     setDeals([]);
     MerchantTransportAssets.clear();
+    TransportAssetOrders.clear();
     // Market ids are regenerated together with territories, so a cohort tied to a
     // previous market map must not be reused for a different settlement network.
     setStrategicLaborMarkets([]);

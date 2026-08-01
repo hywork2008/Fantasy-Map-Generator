@@ -156,6 +156,23 @@ export type TransportReservation = {
   state: "reserved" | "inTransit" | "released" | "lost" | "cancelled";
 };
 
+/** A durable-asset order. Its output is credited to MerchantTransportLedger, never Market.goods. */
+export type TransportAssetOrderStatus = "queued" | "waitingMaterials" | "building" | "completed" | "cancelled";
+export type TransportAssetOrder = {
+  id: number;
+  marketId: number;
+  requestedBy: "simulation" | "player";
+  blueprintId: "pack-train" | "cart" | "wagon";
+  quantity: number;
+  completedQuantity: number;
+  fundedAmount: number;
+  /** Materials removed from market stock but not yet consumed by a completed asset. */
+  reservedMaterials: Record<number, number>;
+  workPoints: number;
+  status: TransportAssetOrderStatus;
+  blockedReason?: "insufficientTreasury" | "missingMaterials" | "missingCraftWorkers";
+};
+
 /**
  * Route polyline vertex. Cell id (pack.cells index) is required for grade-aware land travel;
  * `[x, y]` alone falls back to planar-only duration (legacy / speculative rows).

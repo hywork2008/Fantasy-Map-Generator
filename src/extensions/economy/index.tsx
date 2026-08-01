@@ -89,6 +89,7 @@ import {
 } from "./generators/taxes-generator";
 import { TradeAnimation } from "./generators/trade-animation";
 import { TradeSecurity } from "./generators/tradeSecurity";
+import { TransportAssetOrders } from "./generators/transportAssetOrders";
 import { clearTreasuryAllocationSnapshots } from "./generators/treasuryAllocation";
 import { UrbanLaborIntake } from "./generators/urbanLaborIntake";
 import { VolcanicAshOperations } from "./generators/volcanicAshOperations";
@@ -708,6 +709,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       setMarkets([]);
       setDeals([]);
       MerchantTransportAssets.clear();
+      TransportAssetOrders.clear();
       setBurgMarketLedgers([]);
       clearMerchantOrganizations();
       if (world.pack.cells?.i) {

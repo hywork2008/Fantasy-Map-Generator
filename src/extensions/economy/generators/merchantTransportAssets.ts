@@ -474,6 +474,16 @@ export class MerchantTransportAssetsModule {
     return reservationId === undefined ? undefined : getTransportReservations().find(item => item.id === reservationId);
   }
 
+  /** Credits completed land assets directly to the durable ledger, bypassing saleable market stock. */
+  addAvailableLandAssets(marketId: number, assetId: MerchantLandAssetBalance["assetId"], quantity: number): void {
+    if (!(quantity > 0)) return;
+    const ledger = this.ensureLedger(marketId);
+    const balance = ledger?.landAssets.find(asset => asset.assetId === assetId);
+    if (!balance) return;
+    balance.available += quantity;
+    assertBalance(balance);
+  }
+
   clear(): void {
     this.waterAssetModeActive = false;
     setMerchantTransportLedgers([]);

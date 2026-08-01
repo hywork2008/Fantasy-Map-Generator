@@ -32,6 +32,7 @@ import { getGuildBonus } from "./guildKnowledge";
 import {
   CRAFT_KNOWLEDGE_DOMAINS,
   type CraftDomainEmploymentRecord,
+  type CraftKnowledgeDomain,
   getCraftDomainForGood
 } from "./guildKnowledgeTypes";
 import { GUILD_PROFIT_SHARE, GuildTreasury } from "./guildTreasury";
@@ -64,6 +65,7 @@ import {
   type StrategicProductionDemand
 } from "./strategicProductionDemand";
 import { TradeSecurity } from "./tradeSecurity";
+import { TransportAssetOrders } from "./transportAssetOrders";
 import { VolcanicAshOperations } from "./volcanicAshOperations";
 
 export type {
@@ -153,6 +155,7 @@ export class ProductionModule {
     MilitaryResources.settleMonthly();
     TradeSecurity.settleMonthly();
     Markets.initializeMarketPrices();
+    TransportAssetOrders.beginProductionCycle();
 
     // stapleFood (Grain) production and Burg demand are owned by the Food Ledger's own
     // quarterly/monthly pipeline (foodProduction.ts / foodLedgerConsumption.ts), not by the
@@ -334,8 +337,13 @@ export class ProductionModule {
    * (docs/plan/knowledge-guild-system.md §9 Phase 2).
    */
   private runWorkerLoop(index: ProductionIndex, state: BurgProductionState): CraftWorkerUsage {
-    let workersUsed = 0;
+    const burgId = state.burg.i;
+    const reservedTransportWork = burgId
+      ? TransportAssetOrders.consumePlannedWork(burgId, state.population)
+      : { total: 0, byDomain: new Map<CraftKnowledgeDomain, number>() };
+    let workersUsed = reservedTransportWork.total;
     const byDomain = new Map<CraftDomainEmploymentRecord["domain"], number>();
+    for (const [domain, workers] of reservedTransportWork.byDomain) byDomain.set(domain, workers);
 
     for (let i = 0; i < Math.ceil(state.population); i++) {
       const workersLeft = state.population - workersUsed;
