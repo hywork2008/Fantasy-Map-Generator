@@ -166,10 +166,14 @@ export const TradeDetailsDialog: React.FC = () => {
             Value: <span id="tradeDetailsFooterValue">{formatPrice(totalValue)}</span>
           </div>
           {transportSummaries.map(summary => (
-            <div key={summary.mode} data-tip="Cargo capacity and remaining free space for this route mode">
+            <div
+              key={`${summary.mode}-${summary.transportName}`}
+              data-tip="Cargo capacity and remaining free space for this route mode"
+            >
               {summary.mode === "land" ? "Land" : "Water"}: {summary.transportName} × {summary.unitCount} —{" "}
               {summary.usedSlots} / {summary.capacitySlots} slots, free {summary.freeSlots} (
-              {Math.round(summary.utilization * 100)}% loaded)
+              {Math.round(summary.utilization * 100)}% loaded) · {summary.assetSource}
+              {summary.reservationState ? ` (${summary.reservationState})` : ""}
             </div>
           ))}
         </div>

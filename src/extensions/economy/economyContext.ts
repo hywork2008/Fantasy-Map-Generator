@@ -16,7 +16,7 @@ import type { ConstructionOperation } from "./generators/constructionEmploymentT
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
 import type { Good } from "./generators/goodsGeneratorTypes";
 import type { CraftDomainEmploymentRecord, GuildKnowledgeStock } from "./generators/guildKnowledgeTypes";
-import type { Caravan, Deal, Market } from "./generators/marketTypes";
+import type { Caravan, Deal, Market, MerchantTransportLedger, TransportReservation } from "./generators/marketTypes";
 import type { MartialDisciplineStock } from "./generators/martialDisciplineTypes";
 import type { MerchantOrganization } from "./generators/merchantOrganizationsTypes";
 import type { MilitaryResourceLedger } from "./generators/militaryResourcesTypes";
@@ -614,6 +614,29 @@ export function getNextCaravanId(): number {
 }
 export function setNextCaravanId(id: number): void {
   setSliceNumber("nextCaravanId", id);
+}
+
+/** Durable merchant transport assets, keyed by market id. */
+export function getMerchantTransportLedgers(): MerchantTransportLedger[] {
+  return getSliceArray<MerchantTransportLedger>("merchantTransportLedgers");
+}
+export function setMerchantTransportLedgers(ledgers: readonly MerchantTransportLedger[]): void {
+  setSliceArray("merchantTransportLedgers", ledgers);
+}
+
+/** Reservations tie a transient caravan to a market-owned transport asset. */
+export function getTransportReservations(): TransportReservation[] {
+  return getSliceArray<TransportReservation>("transportReservations");
+}
+export function setTransportReservations(reservations: readonly TransportReservation[]): void {
+  setSliceArray("transportReservations", reservations);
+}
+
+export function getNextTransportReservationId(): number {
+  return getSliceNumber("nextTransportReservationId");
+}
+export function setNextTransportReservationId(id: number): void {
+  setSliceNumber("nextTransportReservationId", id);
 }
 
 /** Per-burg market ledgers owned by the economy extension. */

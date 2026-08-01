@@ -2,9 +2,10 @@ import { type Point, useOptionsState } from "../../hostCore";
 import { openDialog } from "../../hostUi";
 import { minmax, rn } from "../../hostUtils";
 
-import { getApi, getMarkets, getWorldContext } from "../economyContext";
+import { getApi, getMarketById, getMarkets, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import type { Caravan } from "../generators/marketTypes";
+import { MerchantTransportAssets } from "../generators/merchantTransportAssets";
 import { getGoodCargoSlotsPerUnit } from "../generators/tradeCargo";
 import { clearHighlight, highlight } from "../renderers/draw-trade-animation";
 import { setTradeDetailsState } from "../store/tradeDetailsState";
@@ -76,6 +77,8 @@ function tradeDetailsAddLines(): void {
       occupiedSlots: rn(item.units * cargoSlotsPerUnit, 2)
     };
   });
+  const reservation = MerchantTransportAssets.getReservation(caravan.transportReservationId);
+  const dispatcherMarket = reservation ? getMarketById(reservation.dispatcherMarketId) : undefined;
   const transportSummaries = (caravan.transportAllocations ?? []).map(allocation => ({
     mode: allocation.mode,
     transportName: allocation.transportName,
@@ -83,7 +86,12 @@ function tradeDetailsAddLines(): void {
     usedSlots: rn(allocation.usedSlots, 2),
     capacitySlots: rn(allocation.capacitySlots, 2),
     freeSlots: rn(Math.max(0, allocation.capacitySlots - allocation.usedSlots), 2),
-    utilization: allocation.capacitySlots > 0 ? allocation.usedSlots / allocation.capacitySlots : 0
+    utilization: allocation.capacitySlots > 0 ? allocation.usedSlots / allocation.capacitySlots : 0,
+    assetSource:
+      allocation.mode === "land" && reservation
+        ? (dispatcherMarket?.name ?? `Market ${reservation.dispatcherMarketId}`)
+        : "Abstract allocation",
+    reservationState: allocation.mode === "land" && reservation ? reservation.state : undefined
   }));
 
   const distUnit = useOptionsState.getState().distanceUnit || "km";

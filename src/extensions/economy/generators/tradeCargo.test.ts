@@ -58,6 +58,16 @@ describe("trade cargo manifests", () => {
     expect((slotsByGood.get(0) ?? 0) / manifest.usedSlots).toBeLessThanOrEqual(0.55 + 0.000001);
   });
 
+  it("forms smaller partial manifests when only a cart-sized land asset remains", () => {
+    const goods = [good(0, "Wood", 1, 1)];
+    const deals = [deal(1, 0, 300, 1)];
+
+    const manifests = buildCargoManifests(deals, goods, LAND_ROUTE, "horse", 80);
+
+    expect(manifests.every(manifest => getManifestCapacitySlots(manifest.allocations) <= 80)).toBe(true);
+    expect(manifests[0].allocations[0].transportId).toBe("cart");
+  });
+
   it("uses the smaller capacity when a route has both land and water legs", () => {
     const allocations = getTransportAllocations(
       [

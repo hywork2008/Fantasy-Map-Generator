@@ -32,6 +32,7 @@ import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, GOODS_DATA, Goods, isGoodEnable
 import { syncMarketManagers } from "./marketManagers";
 import type { Deal, Market, TradeRouteSegment } from "./marketTypes";
 import { isMarketTradePermitted } from "./merchantOrganizations";
+import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { getRuralProductionContributions, getSeasonalFoodProductionMultiplier } from "./production-utils";
 import { TradeAnimation } from "./trade-animation";
 import {
@@ -267,6 +268,7 @@ export class MarketsModule {
 
     setMarkets(markets);
     setDeals([]);
+    MerchantTransportAssets.clear();
     // Market ids are regenerated together with territories, so a cohort tied to a
     // previous market map must not be reused for a different settlement network.
     setStrategicLaborMarkets([]);

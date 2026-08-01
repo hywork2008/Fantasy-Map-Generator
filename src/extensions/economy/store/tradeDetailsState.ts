@@ -31,6 +31,8 @@ export interface TradeTransportSummary {
   capacitySlots: number;
   freeSlots: number;
   utilization: number;
+  assetSource?: string;
+  reservationState?: string;
 }
 
 interface TradeDetailsState {

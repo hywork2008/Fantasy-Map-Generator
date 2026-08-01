@@ -67,6 +67,7 @@ import { clearMarketManagers, syncMarketManagers } from "./generators/marketMana
 import { Markets } from "./generators/markets-generator";
 import { MartialDisciplineKnowledge } from "./generators/martialDisciplineKnowledge";
 import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
+import { MerchantTransportAssets } from "./generators/merchantTransportAssets";
 import { MilitaryResources } from "./generators/militaryResources";
 import { MineOperations } from "./generators/mineOperations";
 import { MineralResources } from "./generators/mineralResources";
@@ -702,6 +703,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       setGoods([]);
       setMarkets([]);
       setDeals([]);
+      MerchantTransportAssets.clear();
       setBurgMarketLedgers([]);
       clearMerchantOrganizations();
       if (world.pack.cells?.i) {

@@ -5,6 +5,7 @@
 - docs/analytics/cost-of-living.md
 - docs/plan/currency-denomination.md
 - docs/plan/goods-unit-scale.md
+- docs/plan/merchant-transport-asset-ledger.md
 - docs/plan/state-treasury-department-budget.md
 - docs/plan/trade-cargo-capacity-and-diversity.md
 

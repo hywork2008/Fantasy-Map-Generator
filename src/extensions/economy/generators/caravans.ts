@@ -22,6 +22,7 @@ import {
 } from "./caravanMovement";
 import type { Good } from "./goods-generator";
 import type { Caravan, Deal, Market, TradeRouteSegment } from "./marketTypes";
+import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { TradeAnimation } from "./trade-animation";
 import { buildCargoManifests, getGoodCargoSlotsPerUnit, getTransportAllocations } from "./tradeCargo";
 import {
@@ -286,8 +287,15 @@ export class CaravansModule {
     const transportAllocations = getTransportAllocations(routeSegments, cargoSlots, DEFAULT_DRAFT_ANIMAL_ID, true);
     for (const allocation of transportAllocations) allocation.usedSlots = cargoSlots;
 
+    const caravanId = this.ensureNextCaravanId();
+    const dispatcherMarketId = MerchantTransportAssets.getDispatcherMarketId(deal);
+    if (dispatcherMarketId === null) return null;
+    const reservation = MerchantTransportAssets.reserve(dispatcherMarketId, caravanId, transportAllocations);
+    const hasLandTransport = transportAllocations.some(allocation => allocation.mode === "land");
+    if (hasLandTransport && !reservation) return null;
+
     const caravan: Caravan = {
-      i: this.ensureNextCaravanId(),
+      i: caravanId,
       seller: deal.seller,
       sellerType: deal.sellerType,
       buyer: deal.buyer,
@@ -306,6 +314,8 @@ export class CaravansModule {
       value: rn(deal.price * deal.units, 2),
       draftAnimalId: DEFAULT_DRAFT_ANIMAL_ID,
       transportAllocations,
+      transportReservationId: reservation?.reservation.id,
+      transportDispatcherMarketId: reservation?.dispatcherMarketId,
       routeSegments,
       totalDistance,
       currentDistance: 0,
@@ -314,6 +324,7 @@ export class CaravansModule {
     };
 
     getCaravans().push(caravan);
+    if (reservation) MerchantTransportAssets.depart(reservation.reservation.id);
     setNextCaravanId(caravan.i + 1);
     deal.remainingUnits = 0;
     deal.spawned = true;
@@ -404,8 +415,24 @@ export class CaravansModule {
       const transportedDeals = selectRouteCargo(bundle.deals, getGoods(), durationDays, maintenanceCost, routeSegments);
       if (!transportedDeals.length) continue;
 
-      const manifests = buildCargoManifests(transportedDeals, getGoods(), routeSegments, DEFAULT_DRAFT_ANIMAL_ID);
-      for (const manifest of manifests) {
+      const dispatcherMarketId = MerchantTransportAssets.getDispatcherMarketId(bundle);
+      if (dispatcherMarketId === null) continue;
+      while (true) {
+        const maxLandCapacitySlots = routeSegments.some(segment => segment.type === "land")
+          ? MerchantTransportAssets.getLargestAvailableLandCapacity(dispatcherMarketId, DEFAULT_DRAFT_ANIMAL_ID)
+          : undefined;
+        if (maxLandCapacitySlots === 0) break;
+        const [manifest] = buildCargoManifests(
+          transportedDeals,
+          getGoods(),
+          routeSegments,
+          DEFAULT_DRAFT_ANIMAL_ID,
+          maxLandCapacitySlots
+        );
+        if (!manifest) break;
+        const reservation = MerchantTransportAssets.reserve(dispatcherMarketId, nextId, manifest.allocations);
+        const hasLandTransport = manifest.allocations.some(allocation => allocation.mode === "land");
+        if (hasLandTransport && !reservation) break;
         let totalUnits = 0;
         let totalValue = 0;
         const payload = manifest.items.map(item => {
@@ -444,6 +471,8 @@ export class CaravansModule {
           value: rn(totalValue, 2),
           draftAnimalId: DEFAULT_DRAFT_ANIMAL_ID,
           transportAllocations: manifest.allocations,
+          transportReservationId: reservation?.reservation.id,
+          transportDispatcherMarketId: reservation?.dispatcherMarketId,
           routeSegments,
           totalDistance: distance,
           currentDistance: 0,
@@ -452,17 +481,12 @@ export class CaravansModule {
         };
 
         getCaravans().push(caravan);
-      }
-
-      for (const deal of transportedDeals) {
-        const loadedUnits = manifests.reduce(
-          (sum, manifest) =>
-            sum +
-            manifest.items.filter(item => item.deal.i === deal.i).reduce((itemSum, item) => itemSum + item.units, 0),
-          0
-        );
-        deal.remainingUnits = Math.max(0, (deal.remainingUnits ?? deal.units) - loadedUnits);
-        deal.spawned = deal.remainingUnits <= 0.000001;
+        if (reservation) MerchantTransportAssets.depart(reservation.reservation.id);
+        for (const item of manifest.items) {
+          const remainingUnits = item.deal.remainingUnits ?? item.deal.units;
+          item.deal.remainingUnits = Math.max(0, remainingUnits - item.units);
+          item.deal.spawned = item.deal.remainingUnits <= 0.000001;
+        }
       }
     }
 
@@ -473,6 +497,7 @@ export class CaravansModule {
     const world = getWorldContext();
     const markets = getMarkets();
     decayCaravanArrivalVolume(markets, deltaDays);
+    MerchantTransportAssets.recoverMaintenance(deltaDays);
 
     const caravans = getCaravans();
     if (!caravans.length) return { arrived: [], lost: [] };
@@ -499,6 +524,7 @@ export class CaravansModule {
         const risk = banditRiskPerDay * deltaDays;
         if (Math.random() < risk) {
           caravan.state = "lost";
+          MerchantTransportAssets.settleCaravan(caravan, "lost");
           lost.push(caravan);
           const destinationStateId = world.pack.burgs[destinationBurgId]?.state ?? 0;
           TradeSecurity.recordCaravanLoss(destinationStateId);
@@ -508,6 +534,7 @@ export class CaravansModule {
 
       if (caravan.currentDistance >= caravan.totalDistance) {
         caravan.state = "arrived";
+        MerchantTransportAssets.settleCaravan(caravan, "arrived");
 
         // Add goods to target market
         if (caravan.buyerType === "market") {

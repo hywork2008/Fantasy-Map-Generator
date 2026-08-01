@@ -15,18 +15,22 @@ export type CargoManifest = {
   usedSlots: number;
 };
 
-type LandTransportDefinition = {
+export type LandTransportDefinition = {
   id: string;
   name: string;
   cargoCapacitySlots: number;
   requiredDraftAnimals: number;
 };
 
-const LAND_TRANSPORTS: readonly LandTransportDefinition[] = [
+export const LAND_TRANSPORTS: readonly LandTransportDefinition[] = [
   { id: "pack-train", name: "Pack train", cargoCapacitySlots: 36, requiredDraftAnimals: 2 },
   { id: "cart", name: "Cart", cargoCapacitySlots: 80, requiredDraftAnimals: 1 },
   { id: "wagon", name: "Wagon", cargoCapacitySlots: 240, requiredDraftAnimals: 2 }
 ];
+
+export function getLandTransportDefinition(id: string): LandTransportDefinition | undefined {
+  return LAND_TRANSPORTS.find(transport => transport.id === id);
+}
 
 const MINIMUM_CARGO_SLOTS = 1;
 const MAX_DISTINCT_GOODS_PER_MANIFEST = 6;
@@ -127,7 +131,8 @@ export function buildCargoManifests(
   deals: readonly Deal[],
   goods: readonly Good[],
   routeSegments: readonly TradeRouteSegment[],
-  draftAnimalId: string
+  draftAnimalId: string,
+  maxLandCapacitySlots?: number
 ): CargoManifest[] {
   const pending = deals
     .map(deal => {
@@ -143,7 +148,11 @@ export function buildCargoManifests(
       (sum, entry) => sum + entry.remainingUnits * getGoodCargoSlotsPerUnit(entry.good),
       0
     );
-    const allocations = getTransportAllocations(routeSegments, pendingSlots, draftAnimalId);
+    const requestedSlots =
+      maxLandCapacitySlots !== undefined && routeSegments.some(segment => segment.type === "land")
+        ? Math.min(pendingSlots, maxLandCapacitySlots)
+        : pendingSlots;
+    const allocations = getTransportAllocations(routeSegments, requestedSlots, draftAnimalId);
     const capacitySlots = getManifestCapacitySlots(allocations);
     if (capacitySlots <= 0) break;
 

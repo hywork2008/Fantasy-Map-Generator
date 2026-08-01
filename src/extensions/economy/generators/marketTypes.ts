@@ -113,6 +113,36 @@ export type TransportAllocation = {
   requiredDraftAnimals?: number;
 };
 
+export type TransportAssetState = "available" | "reserved" | "inTransit" | "maintenance";
+
+/** Aggregate land vehicles owned by one market's merchant company. */
+export type MerchantLandAssetBalance = {
+  assetId: "pack-train" | "cart" | "wagon";
+  available: number;
+  reserved: number;
+  inTransit: number;
+  maintenance: number;
+  /** Days remaining until the currently-maintained group returns to service. */
+  recoveryDays: number;
+};
+
+/** Durable transport assets owned by a market, separate from saleable Market.goods. */
+export type MerchantTransportLedger = {
+  marketId: number;
+  /** Derived display reference only; marketId remains the ownership key. */
+  organizationId?: number;
+  landAssets: MerchantLandAssetBalance[];
+  lastReconciledTick: number;
+};
+
+export type TransportReservation = {
+  id: number;
+  dispatcherMarketId: number;
+  caravanId: number;
+  allocations: TransportAllocation[];
+  state: "reserved" | "inTransit" | "released" | "lost" | "cancelled";
+};
+
 /**
  * Route polyline vertex. Cell id (pack.cells index) is required for grade-aware land travel;
  * `[x, y]` alone falls back to planar-only duration (legacy / speculative rows).
@@ -146,6 +176,10 @@ export interface Caravan {
   draftAnimalId: string;
   /** Per-mode convoy / vessel capacity selected when this shipment was loaded. */
   transportAllocations?: TransportAllocation[];
+  /** Present only when this caravan has reserved a market-owned land transport asset. */
+  transportReservationId?: number;
+  /** Market that dispatched the reserved land transport asset. */
+  transportDispatcherMarketId?: number;
   routeSegments: TradeRouteSegment[];
   totalDistance: number;
   currentDistance: number;

@@ -23,6 +23,7 @@ import {
 import {
   type MarketOverviewBurgMerchantRow,
   type MarketOverviewRow,
+  type MarketOverviewTransportAssetRow,
   useMarketOverviewState
 } from "../../store/marketOverviewState";
 
@@ -34,12 +35,15 @@ export const MarketOverviewDialog: React.FC = () => {
   const owner = useMarketOverviewState(state => state.owner);
   const rows = useMarketOverviewState(state => state.rows);
   const burgMerchantRows = useMarketOverviewState(state => state.burgMerchantRows);
+  const transportAssetRows = useMarketOverviewState(state => state.transportAssetRows);
   const cellsCount = useMarketOverviewState(state => state.cellsCount);
   const burgsCount = useMarketOverviewState(state => state.burgsCount);
   const totalStock = useMarketOverviewState(state => state.totalStock);
   const agTechStockPercent = useMarketOverviewState(state => state.agTechStockPercent);
+  const transportCargoCapacitySlots = useMarketOverviewState(state => state.transportCargoCapacitySlots);
+  const transportUtilizationPercent = useMarketOverviewState(state => state.transportUtilizationPercent);
   const headerRef = React.useRef<HTMLTableSectionElement | null>(null);
-  const [activeTab, setActiveTab] = React.useState<"goods" | "burgMerchants">("goods");
+  const [activeTab, setActiveTab] = React.useState<"goods" | "burgMerchants" | "transportAssets">("goods");
 
   const [goodsSortBy, setGoodsSortBy] = React.useState<keyof MarketOverviewRow>("stock");
   const [goodsSortOrder, setGoodsSortOrder] = React.useState<"asc" | "desc">("desc");
@@ -48,6 +52,7 @@ export const MarketOverviewDialog: React.FC = () => {
   const [merchantsSortOrder, setMerchantsSortOrder] = React.useState<"asc" | "desc">("desc");
 
   const merchantsRef = React.useRef<HTMLDivElement | null>(null);
+  const transportAssetsRef = React.useRef<HTMLDivElement | null>(null);
 
   const handleGoodsSort = (field: string) => {
     if (goodsSortBy === field) setGoodsSortOrder(prev => (prev === "asc" ? "desc" : "asc"));
@@ -192,6 +197,13 @@ export const MarketOverviewDialog: React.FC = () => {
             onClick={() => setActiveTab("burgMerchants")}
           >
             Burg merchants
+          </button>
+          <button
+            type="button"
+            className={`options ${activeTab === "transportAssets" ? "active" : ""}`}
+            onClick={() => setActiveTab("transportAssets")}
+          >
+            Transport assets
           </button>
         </div>
 
@@ -355,6 +367,57 @@ export const MarketOverviewDialog: React.FC = () => {
               )}
             </table>
           </div>
+        )}
+
+        {activeTab === "transportAssets" && (
+          <>
+            <div ref={transportAssetsRef} id="marketOverviewTransportAssets" className="table">
+              <table className="fmg-table">
+                <thead>
+                  <tr className="header">
+                    <th>Asset</th>
+                    <th data-tip="Cargo slots carried by one asset">Slots</th>
+                    <th data-tip="Assets ready for a new shipment">Available</th>
+                    <th data-tip="Assets allocated before departure">Reserved</th>
+                    <th data-tip="Assets currently travelling with cargo">In transit</th>
+                    <th data-tip="Assets recovering after a lost caravan">Maintenance</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                {transportAssetRows.length === 0 ? (
+                  <tbody>
+                    <tr>
+                      <td colSpan={7}>No transport assets available</td>
+                    </tr>
+                  </tbody>
+                ) : (
+                  <VirtualTableBody
+                    items={transportAssetRows}
+                    scrollElementRef={transportAssetsRef}
+                    renderRow={(row: MarketOverviewTransportAssetRow) => (
+                      <tr key={row.assetId} className="states">
+                        <td>{row.assetName}</td>
+                        <td style={{ textAlign: "right" }}>{row.cargoCapacitySlots}</td>
+                        <td style={{ textAlign: "right" }}>{row.available}</td>
+                        <td style={{ textAlign: "right" }}>{row.reserved}</td>
+                        <td style={{ textAlign: "right" }}>{row.inTransit}</td>
+                        <td style={{ textAlign: "right" }}>{row.maintenance}</td>
+                        <td style={{ textAlign: "right" }}>{row.total}</td>
+                      </tr>
+                    )}
+                  />
+                )}
+              </table>
+            </div>
+            <div className="totalLine">
+              <div data-tip="Total cargo capacity of this market's durable land transport assets">
+                Fleet capacity: {transportCargoCapacitySlots} slots
+              </div>
+              <div data-tip="Reserved or travelling capacity as a share of the durable land fleet">
+                Fleet utilization: {transportUtilizationPercent}%
+              </div>
+            </div>
+          </>
         )}
 
         <div id="marketOverviewBottom" className="footer">

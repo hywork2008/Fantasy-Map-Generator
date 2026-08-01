@@ -12,9 +12,11 @@ import {
 } from "../generators/burgMarketLedgers";
 import { Goods } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
+import { MerchantTransportAssets } from "../generators/merchantTransportAssets";
 import {
   type MarketOverviewBurgMerchantRow,
   type MarketOverviewRow,
+  type MarketOverviewTransportAssetRow,
   setMarketOverviewState
 } from "../store/marketOverviewState";
 import { open as openMarketDealsOverview } from "./market-deals-overview";
@@ -98,6 +100,15 @@ export function refreshMarketOverview(): void {
   const burgs = getWorldContext().pack.burgs.filter(b => !b.removed && b.market === market.i);
   const burgMerchantRows = getBurgMerchantRows(burgs);
   const totalUnits = Object.values(market.goods).reduce((sum, mg) => sum + mg.stock, 0);
+  const transportAssetRows: MarketOverviewTransportAssetRow[] = MerchantTransportAssets.getAvailability(market.i);
+  const transportCargoCapacitySlots = transportAssetRows.reduce(
+    (sum, row) => sum + row.total * row.cargoCapacitySlots,
+    0
+  );
+  const occupiedTransportSlots = transportAssetRows.reduce(
+    (sum, row) => sum + (row.reserved + row.inTransit) * row.cargoCapacitySlots,
+    0
+  );
 
   setMarketOverviewState({
     marketId: market.i,
@@ -106,10 +117,15 @@ export function refreshMarketOverview(): void {
     owner: state ? { coaId, name: state.fullName || state.name } : null,
     rows,
     burgMerchantRows,
+    transportAssetRows,
     cellsCount: getMarketCellColumn().reduce((count, marketCellId) => count + (marketCellId === market.i ? 1 : 0), 0),
     burgsCount: burgs.length,
     totalStock: rn(totalUnits, 2),
-    agTechStockPercent: rn((market.agTechStock ?? 0) * 100, 0)
+    agTechStockPercent: rn((market.agTechStock ?? 0) * 100, 0),
+    transportCargoCapacitySlots,
+    transportUtilizationPercent: transportCargoCapacitySlots
+      ? rn((occupiedTransportSlots / transportCargoCapacitySlots) * 100, 0)
+      : 0
   });
 }
 
