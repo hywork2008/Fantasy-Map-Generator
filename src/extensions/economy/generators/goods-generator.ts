@@ -14,6 +14,7 @@ import {
   type TradeScale,
   type TradeTrend
 } from "./goodsGeneratorTypes";
+import { getDefaultGoodCargoProfile } from "./tradeCargo";
 
 export type { DemandCategory, Good, GoodTradeProfile, WarEconomyType } from "./goodsGeneratorTypes";
 export { DEMAND_PRIORITY } from "./goodsGeneratorTypes";
@@ -1901,10 +1902,12 @@ export class GoodsModule {
       });
     }
 
+    const trade = good.trade ?? getDefaultGoodTradeProfile(good);
     return {
       i: index + 1,
       ...good,
-      trade: good.trade ?? getDefaultGoodTradeProfile(good),
+      trade,
+      cargo: good.cargo ?? getDefaultGoodCargoProfile({ ...good, trade }),
       ...(recipes && { recipes })
     };
   });
@@ -1967,6 +1970,7 @@ export function migrateLegacyOreIngotGoods(): boolean {
       unit: ore.unit
     };
     ingot.trade = getDefaultGoodTradeProfile(ingot);
+    ingot.cargo = getDefaultGoodCargoProfile(ingot);
     if (legacyName === "Lead") ingot.demandCoverage = { construction: 0.3 };
     goods.push(ingot);
   }

@@ -46,6 +46,10 @@ export interface DraftAnimalType {
   name: string;
   /** Multiplier applied to landKmPerDay for a caravan pulled by this animal. */
   speedMultiplier: number;
+  /** Maximum cargo slots that one animal can pull when attached to a cart or wagon. */
+  towCapacitySlots: number;
+  /** Direct cargo capacity for a pack animal. Omit for animals represented only as draft teams. */
+  cargoCapacitySlots?: number;
   /** How harshly grade slows this animal (Phase 1). */
   gradeSensitivity: GradeSensitivity;
 }
@@ -62,12 +66,15 @@ export const DRAFT_ANIMAL_TYPES: Record<string, DraftAnimalType> = {
     id: "horse",
     name: "Horse",
     speedMultiplier: 1,
+    towCapacitySlots: 80,
+    cargoCapacitySlots: 18,
     gradeSensitivity: DEFAULT_HORSE_GRADE_SENSITIVITY
   },
   ox: {
     id: "ox",
     name: "Ox",
     speedMultiplier: 0.5,
+    towCapacitySlots: 120,
     gradeSensitivity: DEFAULT_OX_GRADE_SENSITIVITY
   }
 };

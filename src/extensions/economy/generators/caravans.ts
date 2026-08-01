@@ -23,6 +23,7 @@ import {
 import type { Good } from "./goods-generator";
 import type { Caravan, Deal, Market, TradeRouteSegment } from "./marketTypes";
 import { TradeAnimation } from "./trade-animation";
+import { buildCargoManifests, getGoodCargoSlotsPerUnit, getTransportAllocations } from "./tradeCargo";
 import {
   getCaravanMaintenanceCost,
   getRouteMaxTemperatureC,
@@ -280,6 +281,10 @@ export class CaravansModule {
       bake.heights,
       bake.heightExponent
     );
+    const good = getGoods()[deal.good];
+    const cargoSlots = good ? deal.units * getGoodCargoSlotsPerUnit(good) : 0;
+    const transportAllocations = getTransportAllocations(routeSegments, cargoSlots, DEFAULT_DRAFT_ANIMAL_ID, true);
+    for (const allocation of transportAllocations) allocation.usedSlots = cargoSlots;
 
     const caravan: Caravan = {
       i: this.ensureNextCaravanId(),
@@ -293,12 +298,14 @@ export class CaravansModule {
           dealId: deal.i,
           units: deal.units,
           value: deal.price * deal.units,
+          cargoSlotsPerUnit: good ? getGoodCargoSlotsPerUnit(good) : undefined,
           strategicProcurementOrderId: deal.strategicProcurementOrderId
         }
       ],
       units: rn(deal.units, 2),
       value: rn(deal.price * deal.units, 2),
       draftAnimalId: DEFAULT_DRAFT_ANIMAL_ID,
+      transportAllocations,
       routeSegments,
       totalDistance,
       currentDistance: 0,
@@ -308,6 +315,7 @@ export class CaravansModule {
 
     getCaravans().push(caravan);
     setNextCaravanId(caravan.i + 1);
+    deal.remainingUnits = 0;
     deal.spawned = true;
     return caravan;
   }
@@ -340,7 +348,6 @@ export class CaravansModule {
 
     for (const deal of deals) {
       if (deal.units <= 0 || deal.spawned) continue;
-      deal.spawned = true;
 
       const key: RouteKey = `${deal.seller}-${deal.sellerType}-${deal.buyer}-${deal.buyerType}`;
       let bundle = bundles.get(key);
@@ -397,50 +404,66 @@ export class CaravansModule {
       const transportedDeals = selectRouteCargo(bundle.deals, getGoods(), durationDays, maintenanceCost, routeSegments);
       if (!transportedDeals.length) continue;
 
-      let totalUnits = 0;
-      let totalValue = 0;
-      const payload = transportedDeals.map(d => {
-        const value = d.price * d.units;
-        totalUnits += d.units;
-        totalValue += value;
-        return {
-          goodId: d.good,
-          dealId: d.i,
-          units: d.units,
-          value,
-          strategicProcurementOrderId: d.strategicProcurementOrderId
+      const manifests = buildCargoManifests(transportedDeals, getGoods(), routeSegments, DEFAULT_DRAFT_ANIMAL_ID);
+      for (const manifest of manifests) {
+        let totalUnits = 0;
+        let totalValue = 0;
+        const payload = manifest.items.map(item => {
+          const value = item.deal.price * item.units;
+          totalUnits += item.units;
+          totalValue += value;
+          return {
+            goodId: item.deal.good,
+            dealId: item.deal.i,
+            units: item.units,
+            value,
+            cargoSlotsPerUnit: item.cargoSlotsPerUnit,
+            strategicProcurementOrderId: item.deal.strategicProcurementOrderId
+          };
+        });
+
+        const bake = resolveBakeContext(getSimulationMonth());
+        const travelLegs = bakeCaravanTravelLegs(
+          routeSegments,
+          world.distanceScale,
+          DEFAULT_DRAFT_ANIMAL_ID,
+          bake.movement,
+          bake.month,
+          bake.heights,
+          bake.heightExponent
+        );
+
+        const caravan: Caravan = {
+          i: nextId++,
+          seller: bundle.seller,
+          sellerType: bundle.sellerType,
+          buyer: bundle.buyer,
+          buyerType: bundle.buyerType,
+          payload,
+          units: rn(totalUnits, 2),
+          value: rn(totalValue, 2),
+          draftAnimalId: DEFAULT_DRAFT_ANIMAL_ID,
+          transportAllocations: manifest.allocations,
+          routeSegments,
+          totalDistance: distance,
+          currentDistance: 0,
+          travelLegs,
+          state: "transit"
         };
-      });
 
-      const bake = resolveBakeContext(getSimulationMonth());
-      const travelLegs = bakeCaravanTravelLegs(
-        routeSegments,
-        world.distanceScale,
-        DEFAULT_DRAFT_ANIMAL_ID,
-        bake.movement,
-        bake.month,
-        bake.heights,
-        bake.heightExponent
-      );
+        getCaravans().push(caravan);
+      }
 
-      const caravan: Caravan = {
-        i: nextId++,
-        seller: bundle.seller,
-        sellerType: bundle.sellerType,
-        buyer: bundle.buyer,
-        buyerType: bundle.buyerType,
-        payload,
-        units: rn(totalUnits, 2),
-        value: rn(totalValue, 2),
-        draftAnimalId: DEFAULT_DRAFT_ANIMAL_ID,
-        routeSegments,
-        totalDistance: distance,
-        currentDistance: 0,
-        travelLegs,
-        state: "transit"
-      };
-
-      getCaravans().push(caravan);
+      for (const deal of transportedDeals) {
+        const loadedUnits = manifests.reduce(
+          (sum, manifest) =>
+            sum +
+            manifest.items.filter(item => item.deal.i === deal.i).reduce((itemSum, item) => itemSum + item.units, 0),
+          0
+        );
+        deal.remainingUnits = Math.max(0, (deal.remainingUnits ?? deal.units) - loadedUnits);
+        deal.spawned = deal.remainingUnits <= 0.000001;
+      }
     }
 
     setNextCaravanId(nextId);

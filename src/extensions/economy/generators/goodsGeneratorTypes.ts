@@ -4,6 +4,13 @@ import type { CultureType } from "../../hostTypes";
 export type WarEconomyType = "military" | "essential" | "strategic" | "luxury";
 export type TradeScale = 1 | 2 | 3 | 4 | 5;
 export type TradeTrend = -2 | -1 | 0 | 1 | 2 | 3;
+export type CargoHandlingClass = "loose" | "barreled" | "crated" | "fragile" | "live";
+
+/** Physical hold occupancy, expressed in abstract cargo slots rather than real-world cubic metres. */
+export interface GoodCargoProfile {
+  cargoSlotsPerUnit: number;
+  handlingClass: CargoHandlingClass;
+}
 
 export interface GoodTradeProfile {
   /** Low values are easier to transport. */
@@ -56,6 +63,8 @@ export interface Good {
   // effects
   demandCoverage?: Partial<Record<DemandCategory, number>>;
   trade?: GoodTradeProfile;
+  /** Missing only on legacy or user-created catalogue entries; callers must use the migration fallback. */
+  cargo?: GoodCargoProfile;
 
   // lore
   name: string;

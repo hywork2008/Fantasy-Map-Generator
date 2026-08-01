@@ -19,6 +19,18 @@ export interface TradeDealRow {
   units: number;
   price: number;
   value: number;
+  cargoSlotsPerUnit: number;
+  occupiedSlots: number;
+}
+
+export interface TradeTransportSummary {
+  mode: "land" | "water";
+  transportName: string;
+  unitCount: number;
+  usedSlots: number;
+  capacitySlots: number;
+  freeSlots: number;
+  utilization: number;
 }
 
 interface TradeDetailsState {
@@ -27,6 +39,7 @@ interface TradeDetailsState {
   distance: string;
   totalUnits: number;
   totalValue: number;
+  transportSummaries: TradeTransportSummary[];
   sortBy: "good" | "units" | "price" | "value";
   sortDirection: number;
 }
@@ -37,6 +50,7 @@ export const useTradeDetailsState = create<TradeDetailsState>(() => ({
   distance: "",
   totalUnits: 0,
   totalValue: 0,
+  transportSummaries: [],
   sortBy: "units",
   sortDirection: -1
 }));

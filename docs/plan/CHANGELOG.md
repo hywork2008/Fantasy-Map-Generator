@@ -6,6 +6,7 @@
 - docs/plan/currency-denomination.md
 - docs/plan/goods-unit-scale.md
 - docs/plan/state-treasury-department-budget.md
+- docs/plan/trade-cargo-capacity-and-diversity.md
 
 2026-07-31
 

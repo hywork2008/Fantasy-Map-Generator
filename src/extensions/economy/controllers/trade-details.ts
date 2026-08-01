@@ -5,6 +5,7 @@ import { minmax, rn } from "../../hostUtils";
 import { getApi, getMarkets, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import type { Caravan } from "../generators/marketTypes";
+import { getGoodCargoSlotsPerUnit } from "../generators/tradeCargo";
 import { clearHighlight, highlight } from "../renderers/draw-trade-animation";
 import { setTradeDetailsState } from "../store/tradeDetailsState";
 
@@ -39,7 +40,7 @@ export function open(caravan: Caravan): void {
 
 export function closeTradeDetails(): void {
   activeCaravan = undefined;
-  setTradeDetailsState({ summary: null, rows: [], distance: "", totalUnits: 0, totalValue: 0 });
+  setTradeDetailsState({ summary: null, rows: [], distance: "", totalUnits: 0, totalValue: 0, transportSummaries: [] });
   clearHighlight();
 }
 
@@ -60,6 +61,7 @@ function tradeDetailsAddLines(): void {
 
   const rows = (caravan.payload || []).map(item => {
     const good = Goods.get(item.goodId);
+    const cargoSlotsPerUnit = item.cargoSlotsPerUnit ?? (good ? getGoodCargoSlotsPerUnit(good) : 0);
     return {
       dealId: item.dealId,
       goodId: item.goodId,
@@ -69,9 +71,20 @@ function tradeDetailsAddLines(): void {
       goodIcon: good?.icon ?? "",
       units: rn(item.units, 2),
       price: rn(item.value / item.units, 2),
-      value: rn(item.value, 2)
+      value: rn(item.value, 2),
+      cargoSlotsPerUnit: rn(cargoSlotsPerUnit, 2),
+      occupiedSlots: rn(item.units * cargoSlotsPerUnit, 2)
     };
   });
+  const transportSummaries = (caravan.transportAllocations ?? []).map(allocation => ({
+    mode: allocation.mode,
+    transportName: allocation.transportName,
+    unitCount: allocation.unitCount,
+    usedSlots: rn(allocation.usedSlots, 2),
+    capacitySlots: rn(allocation.capacitySlots, 2),
+    freeSlots: rn(Math.max(0, allocation.capacitySlots - allocation.usedSlots), 2),
+    utilization: allocation.capacitySlots > 0 ? allocation.usedSlots / allocation.capacitySlots : 0
+  }));
 
   const distUnit = useOptionsState.getState().distanceUnit || "km";
 
@@ -91,7 +104,8 @@ function tradeDetailsAddLines(): void {
     rows,
     distance: `${rn(caravan.totalDistance)} ${distUnit} (progress: ${Math.round(minmax(caravan.currentDistance / caravan.totalDistance, 0, 1) * 100)}%)`,
     totalUnits: rn(caravan.units, 2),
-    totalValue: caravan.value
+    totalValue: caravan.value,
+    transportSummaries
   });
 }
 

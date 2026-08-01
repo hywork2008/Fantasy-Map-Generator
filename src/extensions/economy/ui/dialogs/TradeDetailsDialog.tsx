@@ -12,6 +12,7 @@ export const TradeDetailsDialog: React.FC = () => {
   const distance = useTradeDetailsState(state => state.distance);
   const totalUnits = useTradeDetailsState(state => state.totalUnits);
   const totalValue = useTradeDetailsState(state => state.totalValue);
+  const transportSummaries = useTradeDetailsState(state => state.transportSummaries);
   const sortBy = useTradeDetailsState(state => state.sortBy);
   const sortDirection = useTradeDetailsState(state => state.sortDirection);
 
@@ -84,6 +85,8 @@ export const TradeDetailsDialog: React.FC = () => {
               <col />
               <col />
               <col />
+              <col />
+              <col />
             </colgroup>
             <thead>
               <tr className="header">
@@ -116,6 +119,8 @@ export const TradeDetailsDialog: React.FC = () => {
                 >
                   Value
                 </th>
+                <th data-tip="Cargo slots occupied by one unit">Unit volume</th>
+                <th data-tip="Total cargo slots occupied by this good">Volume</th>
               </tr>
             </thead>
             <VirtualTableBody
@@ -142,6 +147,8 @@ export const TradeDetailsDialog: React.FC = () => {
                   <td className="goodUnits">{rn(row.units, 2)}</td>
                   <td className="goodPrice">{formatPrice(rn(row.price, 2))}</td>
                   <td className="goodValue">{formatPrice(rn(row.value, 2))}</td>
+                  <td>{rn(row.cargoSlotsPerUnit, 2)}</td>
+                  <td>{rn(row.occupiedSlots, 2)}</td>
                 </tr>
               )}
             />
@@ -158,6 +165,13 @@ export const TradeDetailsDialog: React.FC = () => {
           <div data-tip="Total deal value">
             Value: <span id="tradeDetailsFooterValue">{formatPrice(totalValue)}</span>
           </div>
+          {transportSummaries.map(summary => (
+            <div key={summary.mode} data-tip="Cargo capacity and remaining free space for this route mode">
+              {summary.mode === "land" ? "Land" : "Water"}: {summary.transportName} × {summary.unitCount} —{" "}
+              {summary.usedSlots} / {summary.capacitySlots} slots, free {summary.freeSlots} (
+              {Math.round(summary.utilization * 100)}% loaded)
+            </div>
+          ))}
         </div>
       </div>
     </Dialog>

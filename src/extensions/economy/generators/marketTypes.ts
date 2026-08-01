@@ -93,12 +93,25 @@ export interface Deal {
   durationDays?: number;
   maintenanceCost?: number;
   accountingPeriodDays?: 7 | 30;
+  /** Quantity that has not yet been placed on a shipment. Missing on legacy deals means `units`. */
+  remainingUnits?: number;
   spawned?: boolean;
   /** Purpose metadata is only set for state-funded strategic procurement. */
   purpose?: "strategicProcurement";
   payerStateId?: number;
   strategicProcurementOrderId?: number;
 }
+
+export type TransportAllocation = {
+  mode: "land" | "water";
+  transportId: string;
+  transportName: string;
+  unitCount: number;
+  capacitySlots: number;
+  usedSlots: number;
+  draftAnimalId?: string;
+  requiredDraftAnimals?: number;
+};
 
 /**
  * Route polyline vertex. Cell id (pack.cells index) is required for grade-aware land travel;
@@ -122,6 +135,8 @@ export interface Caravan {
     dealId: number;
     units: number;
     value: number;
+    /** Cargo profile snapshotted at loading time so later catalogue edits do not rewrite a manifest. */
+    cargoSlotsPerUnit?: number;
     strategicProcurementOrderId?: number;
   }[];
   units: number; // total units
@@ -129,6 +144,8 @@ export interface Caravan {
   merchantOrganizationId?: number;
   /** Land draft-animal type id (see DRAFT_ANIMAL_TYPES in caravanMovement.ts); "horse" for every caravan today. */
   draftAnimalId: string;
+  /** Per-mode convoy / vessel capacity selected when this shipment was loaded. */
+  transportAllocations?: TransportAllocation[];
   routeSegments: TradeRouteSegment[];
   totalDistance: number;
   currentDistance: number;
