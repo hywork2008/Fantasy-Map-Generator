@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { registerOverviewDialogRefreshers } from "./dialogs/overviewDialogRefresh";
 import { initRangeInputStyles } from "./rangeInputStyles";
+import "../i18n";
 
 export function initReactUI(container?: HTMLElement) {
   registerOverviewDialogRefreshers();

@@ -391,58 +391,6 @@ function changeDialogsTheme(themeColor: string, transparency: string): void {
   });
 }
 
-// ─── Google translate ─────────────────────────────────────────────────────────
-
-function loadGoogleTranslate(): void {
-  const script = document.createElement("script");
-  script.src = "https://translate.google.com/translate_a/element.js?cb=initGoogleTranslate";
-  script.onload = () => {
-    getElementById<HTMLElement>("loadGoogleTranslateButton")?.remove();
-
-    getElementById<HTMLElement>("mapLayers")
-      ?.querySelectorAll("button")
-      .forEach(el => {
-        el.querySelectorAll("u").forEach(u => {
-          u.replaceWith(u.textContent ?? "");
-        });
-      });
-  };
-
-  document.head.appendChild(script);
-}
-
-export function initGoogleTranslate(): void {
-  const google = (
-    window as Window &
-      typeof globalThis & {
-        google: {
-          translate: {
-            TranslateElement: new (opts: object, id: string) => undefined & { InlineLayout: Record<string, unknown> };
-          };
-        };
-      }
-  ).google;
-  new google.translate.TranslateElement(
-    {
-      pageLanguage: "en",
-      layout: (google.translate.TranslateElement as unknown as { InlineLayout: Record<string, unknown> }).InlineLayout
-        .VERTICAL
-    },
-    "google_translate_element"
-  );
-}
-
-function resetLanguage(): void {
-  const languageSelect = getElementBySelector<HTMLSelectElement>("#google_translate_element select");
-  if (!languageSelect?.value) return;
-
-  languageSelect.value = "en";
-  (languageSelect as HTMLSelectElement & { handleChange: (event: Event) => void }).handleChange(new Event("change"));
-
-  languageSelect.value = "en";
-  (languageSelect as HTMLSelectElement & { handleChange: (event: Event) => void }).handleChange(new Event("change"));
-}
-
 // ─── Zoom extent ──────────────────────────────────────────────────────────────
 
 function changeZoomExtent(value: string): void {
@@ -1000,8 +948,6 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
     }
   });
 
-  document.addEventListener("react-load-google-translate", loadGoogleTranslate);
-  document.addEventListener("react-reset-language", resetLanguage);
   document.addEventListener("react-open-world-configurator", editWorld);
   document.addEventListener("react-cleanup-data", () => {
     void cleanupData();
@@ -1014,14 +960,6 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
   // View mode / 3D handled via React
 }
 
-export {
-  changeZoomExtent,
-  loadGoogleTranslate,
-  resetLanguage,
-  restoreDefaultCanvasSize,
-  restoreDefaultZoomExtent,
-  testSpeaker,
-  toggleTranslateExtent
-};
+export { changeZoomExtent, restoreDefaultCanvasSize, restoreDefaultZoomExtent, testSpeaker, toggleTranslateExtent };
 
 document.addEventListener("fmg:show-export-pane", () => showExportPane());

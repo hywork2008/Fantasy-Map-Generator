@@ -1,12 +1,18 @@
 import type React from "react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { isSupportedLanguage, SUPPORTED_LANGUAGES } from "../../../../i18n";
 import { COArenderer } from "../../../../renderers/emblem-renderer";
+import { useLocaleState } from "../../../../store/localeState";
 import { useOptionsState } from "../../../../store/optionsState";
 import { LockIconButton } from "../../LockIconButton";
 import { SliderInput } from "../../SliderInput";
 
 export const UiSettingsTab: React.FC = () => {
   const options = useOptionsState();
+  const language = useLocaleState(state => state.language);
+  const setLanguage = useLocaleState(state => state.setLanguage);
+  const { t } = useTranslation();
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [translateExtentOn, setTranslateExtentOn] = useState(false);
 
@@ -21,14 +27,12 @@ export const UiSettingsTab: React.FC = () => {
 
   return (
     <div>
-      <p data-tip="Tool settings that don't affect maps. Changes are getting applied immediately">
-        Generator settings:
-      </p>
+      <p data-tip={t("uiSettings.intro")}>{t("uiSettings.heading")}</p>
       <table>
         <tbody>
-          <tr data-tip="Set user interface size. Please note browser zoom also affects interface size (Ctrl + or Ctrl - to change)">
+          <tr data-tip={t("uiSettings.interfaceSizeTip")}>
             <td></td>
-            <td>Interface size</td>
+            <td>{t("uiSettings.interfaceSize")}</td>
             <td colSpan={2}>
               <SliderInput
                 min="0.6"
@@ -43,9 +47,9 @@ export const UiSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Set tooltip size">
+          <tr data-tip={t("uiSettings.tooltipSizeTip")}>
             <td></td>
-            <td>Tooltip size</td>
+            <td>{t("uiSettings.tooltipSize")}</td>
             <td colSpan={2}>
               <SliderInput
                 id="tooltipSizeInput"
@@ -60,16 +64,16 @@ export const UiSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Set theme hue for dialogs and tool windows">
+          <tr data-tip={t("uiSettings.themeColorTip")}>
             <td>
               <i
-                data-tip="Restore default theme color: pale magenta"
+                data-tip={t("uiSettings.restoreThemeColor")}
                 id="themeColorRestore"
                 className="icon-ccw"
                 onClick={() => document.dispatchEvent(new CustomEvent("react-restore-theme"))}
               ></i>
             </td>
-            <td>Theme color</td>
+            <td>{t("uiSettings.themeColor")}</td>
             <td>
               <input
                 id="themeColorInput"
@@ -88,16 +92,16 @@ export const UiSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
-          <tr data-tip="Set the color used for Character Details radar charts">
+          <tr data-tip={t("uiSettings.radarChartColorTip")}>
             <td>
               <i
-                data-tip="Restore default radar chart color: blue"
+                data-tip={t("uiSettings.restoreRadarChartColor")}
                 id="radarChartColorRestore"
                 className="icon-ccw"
                 onClick={() => document.dispatchEvent(new CustomEvent("react-restore-radar-chart-color"))}
               ></i>
             </td>
-            <td>Radar chart color</td>
+            <td>{t("uiSettings.radarChartColor")}</td>
             <td>
               <input
                 id="radarChartColorInput"
@@ -111,9 +115,9 @@ export const UiSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
-          <tr data-tip="Set dialog and tool windows transparency">
+          <tr data-tip={t("uiSettings.transparencyTip")}>
             <td></td>
-            <td>Transparency</td>
+            <td>{t("uiSettings.transparency")}</td>
             <td colSpan={2}>
               <SliderInput
                 min="0"
@@ -131,9 +135,9 @@ export const UiSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Set autosave interval in minutes. Set 0 to disable autosave. Map is saved to browser memory">
+          <tr data-tip={t("uiSettings.autosaveTip")}>
             <td></td>
-            <td>Autosave interval</td>
+            <td>{t("uiSettings.autosave")}</td>
             <td>
               <input
                 type="range"
@@ -156,41 +160,41 @@ export const UiSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
-          <tr data-tip="Set what Generator should do on load">
+          <tr data-tip={t("uiSettings.onloadTip")}>
             <td></td>
-            <td>Onload behavior</td>
+            <td>{t("uiSettings.onload")}</td>
             <td>
               <select
                 id="onloadBehavior"
                 value={options.onloadBehavior}
                 onChange={e => updateOption("onloadBehavior", e.target.value)}
               >
-                <option value="random">Generate random map</option>
-                <option value="lastSaved">Open last saved map</option>
+                <option value="random">{t("uiSettings.generateRandom")}</option>
+                <option value="lastSaved">{t("uiSettings.openLastSaved")}</option>
               </select>
             </td>
             <td></td>
           </tr>
 
-          <tr data-tip="Toggle Azgaar Assistant (help bubble on the bottom right corner)">
+          <tr data-tip={t("uiSettings.assistantTip")}>
             <td></td>
-            <td>Azgaar assistant</td>
+            <td>{t("uiSettings.assistant")}</td>
             <td>
               <select
                 id="azgaarAssistant"
                 value={options.azgaarAssistant}
                 onChange={e => updateOption("azgaarAssistant", e.target.value as "show" | "hide")}
               >
-                <option value="show">Show</option>
-                <option value="hide">Hide</option>
+                <option value="show">{t("uiSettings.show")}</option>
+                <option value="hide">{t("uiSettings.hide")}</option>
               </select>
             </td>
             <td></td>
           </tr>
 
-          <tr data-tip="Show the current map zoom level in the bottom-left corner">
+          <tr data-tip={t("uiSettings.zoomLevelTip")}>
             <td></td>
-            <td>Zoom level</td>
+            <td>{t("uiSettings.zoomLevel")}</td>
             <td>
               <input
                 id="showZoomLevel"
@@ -200,28 +204,28 @@ export const UiSettingsTab: React.FC = () => {
                 onChange={e => updateOption("showZoomLevel", e.target.checked)}
               />
               <label htmlFor="showZoomLevel" className="checkbox-label">
-                Show
+                {t("uiSettings.show")}
               </label>
             </td>
             <td></td>
           </tr>
 
-          <tr data-tip="Select voice for text-to-speech. Click the test button to preview">
+          <tr data-tip={t("uiSettings.speakerVoiceTip")}>
             <td>
               <i
-                data-tip="Test selected voice"
+                data-tip={t("uiSettings.testVoice")}
                 className="icon-volume"
                 onClick={() => document.dispatchEvent(new CustomEvent("react-test-speaker"))}
               ></i>
             </td>
-            <td>Speaker voice</td>
+            <td>{t("uiSettings.speakerVoice")}</td>
             <td>
               <select
                 id="speakerVoice"
                 value={options.speakerVoice}
                 onChange={e => updateOption("speakerVoice", e.target.value)}
               >
-                <option value="">Default</option>
+                <option value="">{t("uiSettings.default")}</option>
                 {voices.map(v => (
                   <option key={`${v.name}-${v.lang}`} value={v.name}>
                     {v.name} ({v.lang})
@@ -232,11 +236,11 @@ export const UiSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
-          <tr data-tip="Select emblem shape. Can be changed individually in Emblem editor">
+          <tr data-tip={t("uiSettings.emblemShapeTip")}>
             <td>
               <LockIconButton id="emblemShape" />
             </td>
-            <td>Emblem shape</td>
+            <td>{t("uiSettings.emblemShape")}</td>
             <td>
               <select
                 id="emblemShape"
@@ -248,24 +252,24 @@ export const UiSettingsTab: React.FC = () => {
                   );
                 }}
               >
-                <optgroup label="Diversiform">
-                  <option value="culture">Culture-specific</option>
-                  <option value="random">Culture-random</option>
-                  <option value="state">State-specific</option>
+                <optgroup label={t("uiSettings.shapeGroups.diversiform")}>
+                  <option value="culture">{t("uiSettings.shapeOptions.culture")}</option>
+                  <option value="random">{t("uiSettings.shapeOptions.random")}</option>
+                  <option value="state">{t("uiSettings.shapeOptions.state")}</option>
                 </optgroup>
-                <optgroup label="Basic">
+                <optgroup label={t("uiSettings.shapeGroups.basic")}>
                   <option value="heater">Heater</option>
                   <option value="spanish">Spanish</option>
                   <option value="french">French</option>
                 </optgroup>
-                <optgroup label="Regional">
+                <optgroup label={t("uiSettings.shapeGroups.regional")}>
                   <option value="horsehead">Horsehead</option>
                   <option value="horsehead2">Horsehead Edgy</option>
                   <option value="polish">Polish</option>
                   <option value="hessen">Hessen</option>
                   <option value="swiss">Swiss</option>
                 </optgroup>
-                <optgroup label="Historical">
+                <optgroup label={t("uiSettings.shapeGroups.historical")}>
                   <option value="boeotian">Boeotian</option>
                   <option value="roman">Roman</option>
                   <option value="kite">Kite</option>
@@ -273,13 +277,13 @@ export const UiSettingsTab: React.FC = () => {
                   <option value="renaissance">Renaissance</option>
                   <option value="baroque">Baroque</option>
                 </optgroup>
-                <optgroup label="Specific">
+                <optgroup label={t("uiSettings.shapeGroups.specific")}>
                   <option value="targe">Targe</option>
                   <option value="targe2">Targe2</option>
                   <option value="pavise">Pavise</option>
                   <option value="wedged">Wedged</option>
                 </optgroup>
-                <optgroup label="Banner">
+                <optgroup label={t("uiSettings.shapeGroups.banner")}>
                   <option value="flag">Flag</option>
                   <option value="pennon">Pennon</option>
                   <option value="guidon">Guidon</option>
@@ -288,14 +292,14 @@ export const UiSettingsTab: React.FC = () => {
                   <option value="gonfalon">Gonfalon</option>
                   <option value="pennant">Pennant</option>
                 </optgroup>
-                <optgroup label="Simple">
+                <optgroup label={t("uiSettings.shapeGroups.simple")}>
                   <option value="round">Round</option>
                   <option value="oval">Oval</option>
                   <option value="vesicaPiscis">Vesica Piscis</option>
                   <option value="square">Square</option>
                   <option value="diamond">Diamond</option>
                 </optgroup>
-                <optgroup label="Fantasy">
+                <optgroup label={t("uiSettings.shapeGroups.fantasy")}>
                   <option value="fantasy1">Fantasy1</option>
                   <option value="fantasy2">Fantasy2</option>
                   <option value="fantasy3">Fantasy3</option>
@@ -311,20 +315,20 @@ export const UiSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Set minimum and maximum possible zoom level">
+          <tr data-tip={t("uiSettings.zoomExtentTip")}>
             <td>
               <i
-                data-tip="Restore default zoom extent: [1, 20]"
+                data-tip={t("uiSettings.restoreZoomExtent")}
                 id="zoomExtentDefault"
                 className="icon-ccw"
                 onClick={() => document.dispatchEvent(new CustomEvent("react-restore-default-zoom-extent"))}
               ></i>
             </td>
-            <td>Zoom extent</td>
+            <td>{t("uiSettings.zoomExtent")}</td>
             <td>
-              <span data-tip="Minimal possible zoom level (should be > 0)">min</span>
+              <span data-tip={t("uiSettings.minZoom")}>{t("uiSettings.min")}</span>
               <input
-                data-tip="Minimal possible zoom level (should be > 0)"
+                data-tip={t("uiSettings.minZoom")}
                 id="zoomExtentMin"
                 className="paired"
                 type="number"
@@ -339,9 +343,9 @@ export const UiSettingsTab: React.FC = () => {
                   );
                 }}
               />
-              <span data-tip="Maximal possible zoom level (should be > 1)">max</span>
+              <span data-tip={t("uiSettings.maxZoom")}>{t("uiSettings.max")}</span>
               <input
-                data-tip="Maximal possible zoom level (should be > 1)"
+                data-tip={t("uiSettings.maxZoom")}
                 id="zoomExtentMax"
                 className="paired"
                 type="number"
@@ -358,7 +362,7 @@ export const UiSettingsTab: React.FC = () => {
             </td>
             <td>
               <i
-                data-tip="Allow to drag map beyond canvas borders"
+                data-tip={t("uiSettings.allowDragBeyondCanvas")}
                 id="translateExtent"
                 className={`icon-hand-paper-o${translateExtentOn ? " active" : ""}`}
                 onClick={() => {
@@ -370,9 +374,9 @@ export const UiSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Select the population layer visualization style">
+          <tr data-tip={t("uiSettings.populationRenderingTip")}>
             <td></td>
-            <td>Population rendering</td>
+            <td>{t("uiSettings.populationRendering")}</td>
             <td>
               <select
                 id="populationRenderingMode"
@@ -383,17 +387,17 @@ export const UiSettingsTab: React.FC = () => {
                   document.dispatchEvent(new CustomEvent("react-change-population-rendering-mode"));
                 }}
               >
-                <option value="original">3D Bars</option>
-                <option value="contour">Smooth Contours</option>
-                <option value="choropleth">Cell Heatmap</option>
+                <option value="original">{t("uiSettings.bars3d")}</option>
+                <option value="contour">{t("uiSettings.smoothContours")}</option>
+                <option value="choropleth">{t("uiSettings.cellHeatmap")}</option>
               </select>
             </td>
             <td></td>
           </tr>
 
-          <tr data-tip="Select how Heightmap is drawn in SVG mode. WebGL Hybrid always uses its optimized terrain renderer">
+          <tr data-tip={t("uiSettings.heightmapRenderingTip")}>
             <td></td>
-            <td>Heightmap rendering</td>
+            <td>{t("uiSettings.heightmapRendering")}</td>
             <td>
               <select
                 id="heightmapRenderingMode"
@@ -404,17 +408,17 @@ export const UiSettingsTab: React.FC = () => {
                   document.dispatchEvent(new CustomEvent("react-change-heightmap-rendering-mode"));
                 }}
               >
-                <option value="heatmap">Heatmap (current)</option>
-                <option value="contours">Contour Lines (SVG only)</option>
-                <option value="labeledContours">Black Contours + Elevation Labels (SVG only)</option>
+                <option value="heatmap">{t("uiSettings.heatmapCurrent")}</option>
+                <option value="contours">{t("uiSettings.contourLinesSvg")}</option>
+                <option value="labeledContours">{t("uiSettings.blackContoursSvg")}</option>
               </select>
             </td>
             <td></td>
           </tr>
 
-          <tr data-tip="Select how recent combat deaths are drawn (window matches Population Overview Deaths)">
+          <tr data-tip={t("uiSettings.combatDeathsRenderingTip")}>
             <td></td>
-            <td>Combat deaths rendering</td>
+            <td>{t("uiSettings.combatDeathsRendering")}</td>
             <td>
               <select
                 id="combatDeathsRenderingMode"
@@ -425,16 +429,16 @@ export const UiSettingsTab: React.FC = () => {
                   document.dispatchEvent(new CustomEvent("react-change-combat-deaths-rendering-mode"));
                 }}
               >
-                <option value="contour">Smooth Contours</option>
-                <option value="choropleth">Cell Heatmap</option>
+                <option value="contour">{t("uiSettings.smoothContours")}</option>
+                <option value="choropleth">{t("uiSettings.cellHeatmap")}</option>
               </select>
             </td>
             <td></td>
           </tr>
 
-          <tr data-tip="Select rendering model. Try to set to 'optimized' if you face performance issues">
+          <tr data-tip={t("uiSettings.renderingTip")}>
             <td></td>
-            <td>Rendering</td>
+            <td>{t("uiSettings.rendering")}</td>
             <td>
               <select
                 id="shapeRendering"
@@ -449,32 +453,31 @@ export const UiSettingsTab: React.FC = () => {
                   );
                 }}
               >
-                <option value="geometricPrecision">Best quality</option>
-                <option value="optimizeSpeed">Best performance</option>
+                <option value="geometricPrecision">{t("uiSettings.bestQuality")}</option>
+                <option value="optimizeSpeed">{t("uiSettings.bestPerformance")}</option>
               </select>
             </td>
             <td></td>
           </tr>
 
-          <tr data-tip="Load Google Translate and select language. Note that automatic translation can break some page functionality. In this case reset the language back to English or refresh the page">
+          <tr data-tip={t("uiSettings.languageTip")}>
+            <td></td>
+            <td>{t("uiSettings.language")}</td>
             <td>
-              <i
-                data-tip="Reset language to English"
-                id="resetLanguage"
-                className="icon-ccw"
-                onClick={() => document.dispatchEvent(new CustomEvent("react-reset-language"))}
-              ></i>
-            </td>
-            <td>Language</td>
-            <td>
-              <button
-                type="button"
-                id="loadGoogleTranslateButton"
-                onClick={() => document.dispatchEvent(new CustomEvent("react-load-google-translate"))}
+              <select
+                id="language"
+                value={language}
+                onChange={event => {
+                  const nextLanguage = event.target.value;
+                  if (isSupportedLanguage(nextLanguage)) setLanguage(nextLanguage);
+                }}
               >
-                Init Google Translate
-              </button>
-              <div id="google_translate_element"></div>
+                {SUPPORTED_LANGUAGES.map(supportedLanguage => (
+                  <option key={supportedLanguage} value={supportedLanguage}>
+                    {t(`languages.${supportedLanguage}`)}
+                  </option>
+                ))}
+              </select>
             </td>
             <td></td>
           </tr>
@@ -485,18 +488,18 @@ export const UiSettingsTab: React.FC = () => {
         <button
           type="button"
           id="configureWorldButton"
-          data-tip="Click to open world configurator to setup map position on Globe and World climate"
+          data-tip={t("uiSettings.configureWorldTip")}
           onClick={() => document.dispatchEvent(new CustomEvent("react-open-world-configurator"))}
         >
-          Configure World
+          {t("uiSettings.configureWorld")}
         </button>
         <button
           type="button"
           id="optionsReset"
-          data-tip="Click to restore default options and reload the page"
+          data-tip={t("uiSettings.resetDefaultsTip")}
           onClick={() => document.dispatchEvent(new CustomEvent("react-cleanup-data"))}
         >
-          Reset to defaults
+          {t("uiSettings.resetDefaults")}
         </button>
       </div>
     </div>
