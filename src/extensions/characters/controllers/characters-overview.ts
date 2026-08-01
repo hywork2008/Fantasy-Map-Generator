@@ -73,6 +73,9 @@ export function filterAndSortCharacters(
       case "prestige":
         result = (a.c.prestige ?? 0) - (b.c.prestige ?? 0);
         break;
+      case "wealth":
+        result = (a.c.wealth ?? 0) - (b.c.wealth ?? 0);
+        break;
       case "gender":
         result = a.c.gender.localeCompare(b.c.gender);
         break;

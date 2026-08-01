@@ -1,6 +1,7 @@
 import type React from "react";
 import { useState } from "react";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
+import { formatPrice } from "../../../hostUtils";
 import { getApi, getCharacters, getWorldContext } from "../../charactersContext";
 import type { CharacterRole, TitleHolding } from "../../characterTypes";
 import { useCharactersUiState } from "../charactersUiState";
@@ -99,6 +100,7 @@ export const CharacterDetailsDialog: React.FC = () => {
     rows.push(`Location, ${locationStr}`);
     rows.push(`Appearance, ${character.appearance ?? "N/A"}`);
     rows.push(`Prestige, ${character.prestige ?? "N/A"}`);
+    rows.push(`Wealth, ${character.wealth ?? 0}`);
 
     // Family
     if (character.family) {
@@ -252,6 +254,12 @@ export const CharacterDetailsDialog: React.FC = () => {
             <tr>
               <th style={{ padding: "4px 0" }}>Prestige</th>
               <td>{character.prestige ?? "N/A"}</td>
+            </tr>
+            <tr>
+              <th style={{ padding: "4px 0" }} data-tip="Personal wealth (held money), distinct from state treasury">
+                Wealth
+              </th>
+              <td>{formatPrice(character.wealth ?? 0)}</td>
             </tr>
             <tr>
               <th style={{ padding: "4px 0" }}>Location</th>

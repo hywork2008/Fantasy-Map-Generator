@@ -2,6 +2,7 @@ import type React from "react";
 import { useMemo } from "react";
 import { useCharactersUiState } from "../../../characters/ui/charactersUiState";
 import { Dialog, openDialog } from "../../../hostUi";
+import { formatPrice } from "../../../hostUtils";
 import { buildPlayerCharacterSummary, selectRandomPlayerCharacter } from "../../controllers/playerCharacter";
 import { getWorldContext } from "../../nobilityContext";
 import { usePlayerCharacterState } from "../../store/playerCharacterState";
@@ -46,6 +47,8 @@ export const PlayerCharacterPanel: React.FC = () => {
         <div className="pcp-content">
           <h2 className="pcp-name">{summary.name}</h2>
           <dl className="pcp-fields">
+            <dt>Wealth</dt>
+            <dd title="Personal wealth (held money)">{formatPrice(summary.wealth)}</dd>
             <dt>Title</dt>
             <dd title={summary.title}>{summary.title}</dd>
             <dt>State</dt>

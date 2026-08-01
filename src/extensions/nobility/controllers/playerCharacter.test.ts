@@ -76,6 +76,7 @@ describe("playerCharacter", () => {
     expect(buildPlayerCharacterSummary(character, pack)).toEqual({
       id: 5,
       name: "Elena",
+      wealth: 0,
       title: "Queen",
       stateId: 2,
       stateName: "Vespera",

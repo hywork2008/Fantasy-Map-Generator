@@ -8,6 +8,8 @@ const FIELD_COMMAND_TITLES = new Set(["Commander", "Admiral"]);
 export interface PlayerCharacterSummary {
   id: number;
   name: string;
+  /** Personal held money (`Character.wealth`), distinct from state treasury. */
+  wealth: number;
   /** Gender-resolved office title, e.g. "King", "Marshal", "Count". */
   title: string;
   stateId: number;
@@ -83,6 +85,7 @@ export function buildPlayerCharacterSummary(
   return {
     id: character.i,
     name: character.name,
+    wealth: character.wealth ?? 0,
     title: holding.title,
     stateId,
     stateName: resolveStateName(pack.states, stateId),
