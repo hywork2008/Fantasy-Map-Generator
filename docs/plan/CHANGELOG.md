@@ -2,6 +2,7 @@
 
 2026-08-01
 
+- docs/analytics/cost-of-living.md
 - docs/plan/state-treasury-department-budget.md
 
 2026-07-31
