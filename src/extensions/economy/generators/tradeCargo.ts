@@ -132,7 +132,7 @@ export function buildCargoManifests(
   goods: readonly Good[],
   routeSegments: readonly TradeRouteSegment[],
   draftAnimalId: string,
-  maxLandCapacitySlots?: number
+  maxCapacitySlots?: number
 ): CargoManifest[] {
   const pending = deals
     .map(deal => {
@@ -148,10 +148,7 @@ export function buildCargoManifests(
       (sum, entry) => sum + entry.remainingUnits * getGoodCargoSlotsPerUnit(entry.good),
       0
     );
-    const requestedSlots =
-      maxLandCapacitySlots !== undefined && routeSegments.some(segment => segment.type === "land")
-        ? Math.min(pendingSlots, maxLandCapacitySlots)
-        : pendingSlots;
+    const requestedSlots = maxCapacitySlots !== undefined ? Math.min(pendingSlots, maxCapacitySlots) : pendingSlots;
     const allocations = getTransportAllocations(routeSegments, requestedSlots, draftAnimalId);
     const capacitySlots = getManifestCapacitySlots(allocations);
     if (capacitySlots <= 0) break;

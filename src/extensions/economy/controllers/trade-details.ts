@@ -88,10 +88,14 @@ function tradeDetailsAddLines(): void {
     freeSlots: rn(Math.max(0, allocation.capacitySlots - allocation.usedSlots), 2),
     utilization: allocation.capacitySlots > 0 ? allocation.usedSlots / allocation.capacitySlots : 0,
     assetSource:
-      allocation.mode === "land" && reservation
-        ? (dispatcherMarket?.name ?? `Market ${reservation.dispatcherMarketId}`)
+      reservation && (allocation.mode === "land" || allocation.shipHullIds?.length)
+        ? [
+            dispatcherMarket?.name ?? `Market ${reservation.dispatcherMarketId}`,
+            ...(allocation.shipHullIds?.map(hullId => `Hull #${hullId}`) ?? [])
+          ].join(" — ")
         : "Abstract allocation",
-    reservationState: allocation.mode === "land" && reservation ? reservation.state : undefined
+    reservationState:
+      reservation && (allocation.mode === "land" || allocation.shipHullIds?.length) ? reservation.state : undefined
   }));
 
   const distUnit = useOptionsState.getState().distanceUnit || "km";

@@ -1,3 +1,4 @@
+import { SHIP_CLASS_DEFINITIONS, type ShipbuildingMerchantHullSnapshot } from "../../hostTypes";
 import {
   getMarketById,
   getMerchantOrganizations,
@@ -14,6 +15,8 @@ import type {
   Caravan,
   MerchantLandAssetBalance,
   MerchantTransportLedger,
+  MerchantWaterAssetReference,
+  TradeRouteSegment,
   TransportAllocation,
   TransportReservation
 } from "./marketTypes";
@@ -22,7 +25,7 @@ import { getLandTransportDefinition } from "./tradeCargo";
 const MAINTENANCE_RECOVERY_DAYS = 30;
 
 export type MerchantTransportAssetAvailability = {
-  assetId: MerchantLandAssetBalance["assetId"];
+  assetId: string;
   assetName: string;
   cargoCapacitySlots: number;
   available: number;
@@ -65,6 +68,24 @@ function findLedger(marketId: number): MerchantTransportLedger | undefined {
   return getMerchantTransportLedgers().find(ledger => ledger.marketId === marketId);
 }
 
+function getShipDefinition(shipClassId: string) {
+  return SHIP_CLASS_DEFINITIONS.find(shipClass => shipClass.id === shipClassId);
+}
+
+function getWaterAssetAvailability(asset: MerchantWaterAssetReference): MerchantTransportAssetAvailability {
+  const definition = getShipDefinition(asset.shipClassId);
+  return {
+    assetId: `hull-${asset.shipHullId}`,
+    assetName: `${definition?.name ?? asset.shipClassId} #${asset.shipHullId}`,
+    cargoCapacitySlots: definition?.cargoCapacitySlots ?? 0,
+    available: asset.state === "available" ? 1 : 0,
+    reserved: asset.state === "reserved" ? 1 : 0,
+    inTransit: asset.state === "inTransit" ? 1 : 0,
+    maintenance: asset.state === "maintenance" ? 1 : 0,
+    total: 1
+  };
+}
+
 function assertBalance(balance: MerchantLandAssetBalance): void {
   if ([balance.available, balance.reserved, balance.inTransit, balance.maintenance].some(value => value < 0)) {
     throw new Error(`[economy] Invalid merchant transport balance for ${balance.assetId}`);
@@ -75,16 +96,40 @@ function hasLandAllocation(allocations: readonly TransportAllocation[]): boolean
   return allocations.some(allocation => allocation.mode === "land" && allocation.unitCount > 0);
 }
 
+function hasWaterAllocation(allocations: readonly TransportAllocation[]): boolean {
+  return allocations.some(allocation => allocation.mode === "water" && allocation.usedSlots > 0);
+}
+
+function takeWaterConvoy<T extends { definition: { cargoCapacitySlots: number } }>(
+  available: readonly T[],
+  neededSlots: number
+): T[] {
+  const selected: T[] = [];
+  let capacity = 0;
+  for (const entry of [...available].sort(
+    (left, right) => right.definition.cargoCapacitySlots - left.definition.cargoCapacitySlots
+  )) {
+    selected.push(entry);
+    capacity += entry.definition.cargoCapacitySlots;
+    if (capacity >= neededSlots) return selected;
+  }
+  return [];
+}
+
 /**
  * Owns all mutation rules for durable market transport assets. Caravans only receive a
  * reservation id, so callers cannot accidentally duplicate an asset between shipments.
  */
 export class MerchantTransportAssetsModule {
+  /** True only while Shipbuilding has published a current merchant-hull snapshot. */
+  private waterAssetModeActive = false;
+
   ensureLedger(marketId: number): MerchantTransportLedger | null {
     if (!getMarketById(marketId)) return null;
     const existing = findLedger(marketId);
     if (existing) {
       existing.organizationId = getOrganizationId(marketId);
+      existing.waterAssets ??= [];
       return existing;
     }
 
@@ -92,12 +137,68 @@ export class MerchantTransportAssetsModule {
       marketId,
       organizationId: getOrganizationId(marketId),
       landAssets: createLandAssets(marketId),
+      waterAssets: [],
       lastReconciledTick: 0
     };
     const ledgers = getMerchantTransportLedgers();
     ledgers.push(ledger);
     setMerchantTransportLedgers(ledgers);
     return ledger;
+  }
+
+  /** Reconciles Economy references without duplicating Shipbuilding's individual hull records. */
+  reconcileMerchantHulls(hulls: readonly ShipbuildingMerchantHullSnapshot[]): void {
+    this.waterAssetModeActive = true;
+    const burgs = getWorldContext().pack.burgs ?? [];
+    const hullIdsByMarket = new Map<number, Set<number>>();
+
+    for (const hull of hulls) {
+      const marketId = burgs[hull.homeBurgId]?.market;
+      if (typeof marketId !== "number" || !getMarketById(marketId)) continue;
+      const ledger = this.ensureLedger(marketId);
+      if (!ledger) continue;
+      const existing = ledger.waterAssets.find(asset => asset.shipHullId === hull.id);
+      const state =
+        existing?.reservationId !== undefined
+          ? existing.state
+          : hull.status === "maintenance"
+            ? "maintenance"
+            : hull.status === "cargo"
+              ? "inTransit"
+              : "available";
+      const next: MerchantWaterAssetReference = {
+        shipHullId: hull.id,
+        shipClassId: hull.shipClassId,
+        homeBurgId: hull.homeBurgId,
+        state,
+        ...(existing?.reservationId === undefined ? {} : { reservationId: existing.reservationId })
+      };
+      if (existing) Object.assign(existing, next);
+      else ledger.waterAssets.push(next);
+
+      let ids = hullIdsByMarket.get(marketId);
+      if (!ids) {
+        ids = new Set();
+        hullIdsByMarket.set(marketId, ids);
+      }
+      ids.add(hull.id);
+    }
+
+    for (const ledger of getMerchantTransportLedgers()) {
+      const currentIds = hullIdsByMarket.get(ledger.marketId) ?? new Set<number>();
+      ledger.waterAssets ??= [];
+      ledger.waterAssets = ledger.waterAssets.filter(asset => currentIds.has(asset.shipHullId));
+    }
+  }
+
+  setWaterAssetModeActive(active: boolean): void {
+    this.waterAssetModeActive = active;
+  }
+
+  requestMerchantHullSnapshot(): void {
+    const detail = { source: "economy" as const, handled: false };
+    document.dispatchEvent(new CustomEvent("fmg:shipbuilding-merchant-hulls-request", { detail }));
+    if (!detail.handled) this.waterAssetModeActive = false;
   }
 
   getDispatcherMarketId(caravan: Pick<Caravan, "seller" | "sellerType">): number | null {
@@ -112,7 +213,7 @@ export class MerchantTransportAssetsModule {
     caravanId: number,
     allocations: readonly TransportAllocation[]
   ): TransportReservationResult | null {
-    if (!hasLandAllocation(allocations)) return null;
+    if (!hasLandAllocation(allocations) && !hasWaterAllocation(allocations)) return null;
     const ledger = this.ensureLedger(dispatcherMarketId);
     if (!ledger) return null;
 
@@ -126,6 +227,14 @@ export class MerchantTransportAssetsModule {
     }));
     if (balances.some(({ balance, allocation }) => !balance || balance.available < allocation.unitCount)) return null;
 
+    const waterAllocations = this.allocateWaterAssets(ledger, allocations);
+    if (hasWaterAllocation(allocations) && this.waterAssetModeActive && !waterAllocations) return null;
+    const resolvedAllocations = waterAllocations
+      ? [...allocations.filter(allocation => allocation.mode !== "water"), ...waterAllocations]
+      : allocations.map(allocation => ({ ...allocation }));
+    const hullIds = resolvedAllocations.flatMap(allocation => allocation.shipHullIds ?? []);
+    if (hullIds.length && !this.reserveShipbuildingHulls(hullIds)) return null;
+
     for (const { balance, allocation } of balances) {
       if (!balance) continue;
       balance.available -= allocation.unitCount;
@@ -138,14 +247,82 @@ export class MerchantTransportAssetsModule {
       id: nextId,
       dispatcherMarketId,
       caravanId,
-      allocations: allocations.map(allocation => ({ ...allocation })),
+      allocations: resolvedAllocations.map(allocation => ({ ...allocation })),
       state: "reserved"
     };
     const reservations = getTransportReservations();
     reservations.push(reservation);
+    for (const hullId of hullIds) {
+      const asset = ledger.waterAssets.find(item => item.shipHullId === hullId);
+      if (!asset) continue;
+      asset.state = "reserved";
+      asset.reservationId = reservation.id;
+    }
     setTransportReservations(reservations);
     setNextTransportReservationId(nextId + 1);
     return { reservation, dispatcherMarketId };
+  }
+
+  private allocateWaterAssets(
+    ledger: MerchantTransportLedger,
+    allocations: readonly TransportAllocation[]
+  ): TransportAllocation[] | null {
+    const requested = allocations.filter(allocation => allocation.mode === "water" && allocation.usedSlots > 0);
+    if (!requested.length) return [];
+    if (!this.waterAssetModeActive) return null;
+
+    const available = ledger.waterAssets
+      .filter(asset => asset.state === "available")
+      .map(asset => ({ asset, definition: getShipDefinition(asset.shipClassId) }))
+      .filter(
+        (
+          entry
+        ): entry is {
+          asset: MerchantWaterAssetReference;
+          definition: NonNullable<ReturnType<typeof getShipDefinition>>;
+        } => Boolean(entry.definition)
+      );
+    const resolved: TransportAllocation[] = [];
+
+    for (const allocation of requested) {
+      const neededSlots = allocation.usedSlots;
+      const single = available
+        .filter(entry => entry.definition.cargoCapacitySlots >= neededSlots)
+        .sort((left, right) => left.definition.cargoCapacitySlots - right.definition.cargoCapacitySlots)[0];
+      const selected = single ? [single] : takeWaterConvoy(available, neededSlots);
+      if (!selected.length) return null;
+
+      let remainingSlots = neededSlots;
+      for (const entry of selected) {
+        const index = available.indexOf(entry);
+        if (index >= 0) available.splice(index, 1);
+        const capacitySlots = entry.definition.cargoCapacitySlots;
+        const usedSlots = Math.min(capacitySlots, remainingSlots);
+        remainingSlots -= usedSlots;
+        resolved.push({
+          mode: "water",
+          transportId: entry.definition.id,
+          transportName: entry.definition.name,
+          unitCount: 1,
+          capacitySlots,
+          usedSlots,
+          shipHullIds: [entry.asset.shipHullId]
+        });
+      }
+    }
+    return resolved;
+  }
+
+  private reserveShipbuildingHulls(hullIds: readonly number[]): boolean {
+    const detail = { hullIds, result: undefined as "fulfilled" | "unavailable" | undefined };
+    document.dispatchEvent(new CustomEvent("fmg:shipbuilding-merchant-hull-reservation-request", { detail }));
+    return detail.result === "fulfilled";
+  }
+
+  private releaseShipbuildingHulls(hullIds: readonly number[], outcome: "arrived" | "lost"): void {
+    if (!hullIds.length) return;
+    const detail = { hullIds, outcome, result: undefined as "fulfilled" | "unavailable" | undefined };
+    document.dispatchEvent(new CustomEvent("fmg:shipbuilding-merchant-hull-release-request", { detail }));
   }
 
   depart(reservationId: number): void {
@@ -161,6 +338,11 @@ export class MerchantTransportAssetsModule {
       balance.reserved -= allocation.unitCount;
       balance.inTransit += allocation.unitCount;
       assertBalance(balance);
+    }
+    for (const hullId of reservation.allocations.flatMap(allocation => allocation.shipHullIds ?? [])) {
+      const asset = ledger.waterAssets.find(item => item.shipHullId === hullId);
+      if (!asset) continue;
+      asset.state = "inTransit";
     }
     reservation.state = "inTransit";
   }
@@ -179,6 +361,14 @@ export class MerchantTransportAssetsModule {
       balance.available += allocation.unitCount;
       assertBalance(balance);
     }
+    const hullIds = reservation.allocations.flatMap(allocation => allocation.shipHullIds ?? []);
+    for (const hullId of hullIds) {
+      const asset = ledger.waterAssets.find(item => item.shipHullId === hullId);
+      if (!asset) continue;
+      asset.state = "available";
+      asset.reservationId = undefined;
+    }
+    this.releaseShipbuildingHulls(hullIds, "arrived");
     reservation.state = "cancelled";
   }
 
@@ -201,6 +391,14 @@ export class MerchantTransportAssetsModule {
       }
       assertBalance(balance);
     }
+    const hullIds = reservation.allocations.flatMap(allocation => allocation.shipHullIds ?? []);
+    for (const hullId of hullIds) {
+      const asset = ledger.waterAssets.find(item => item.shipHullId === hullId);
+      if (!asset) continue;
+      asset.state = outcome === "arrived" ? "available" : "maintenance";
+      asset.reservationId = undefined;
+    }
+    this.releaseShipbuildingHulls(hullIds, outcome);
     reservation.state = outcome === "arrived" ? "released" : "lost";
   }
 
@@ -221,7 +419,7 @@ export class MerchantTransportAssetsModule {
   getAvailability(marketId: number): MerchantTransportAssetAvailability[] {
     const ledger = this.ensureLedger(marketId);
     if (!ledger) return [];
-    return ledger.landAssets.map(asset => {
+    const landAssets = ledger.landAssets.map(asset => {
       const definition = getLandTransportDefinition(asset.assetId);
       const total = asset.available + asset.reserved + asset.inTransit + asset.maintenance;
       return {
@@ -235,6 +433,7 @@ export class MerchantTransportAssetsModule {
         total
       };
     });
+    return [...landAssets, ...ledger.waterAssets.map(getWaterAssetAvailability)];
   }
 
   /** Largest single ready land vehicle for a route; callers use it to form a shippable partial manifest. */
@@ -252,11 +451,31 @@ export class MerchantTransportAssetsModule {
     }, 0);
   }
 
+  /** The largest shipment that can be assigned without bypassing a physical mode's capacity. */
+  getLargestAvailableRouteCapacity(
+    marketId: number,
+    routeSegments: readonly TradeRouteSegment[],
+    draftAnimalId: string
+  ): number {
+    const modes = new Set(routeSegments.map(segment => segment.type));
+    const capacities: number[] = [];
+    if (modes.has("land")) capacities.push(this.getLargestAvailableLandCapacity(marketId, draftAnimalId));
+    if (modes.has("water") && this.waterAssetModeActive) {
+      capacities.push(
+        this.getAvailability(marketId)
+          .filter(asset => asset.assetId.startsWith("hull-") && asset.available > 0)
+          .reduce((largest, asset) => Math.max(largest, asset.cargoCapacitySlots), 0)
+      );
+    }
+    return capacities.length ? Math.min(...capacities) : Number.POSITIVE_INFINITY;
+  }
+
   getReservation(reservationId: number | undefined): TransportReservation | undefined {
     return reservationId === undefined ? undefined : getTransportReservations().find(item => item.id === reservationId);
   }
 
   clear(): void {
+    this.waterAssetModeActive = false;
     setMerchantTransportLedgers([]);
     setTransportReservations([]);
     setNextTransportReservationId(0);

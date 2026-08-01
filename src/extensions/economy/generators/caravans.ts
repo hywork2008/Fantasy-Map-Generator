@@ -284,12 +284,18 @@ export class CaravansModule {
     );
     const good = getGoods()[deal.good];
     const cargoSlots = good ? deal.units * getGoodCargoSlotsPerUnit(good) : 0;
+    const dispatcherMarketId = MerchantTransportAssets.getDispatcherMarketId(deal);
+    if (dispatcherMarketId === null) return null;
+    const maxCapacitySlots = MerchantTransportAssets.getLargestAvailableRouteCapacity(
+      dispatcherMarketId,
+      routeSegments,
+      DEFAULT_DRAFT_ANIMAL_ID
+    );
+    if (cargoSlots > maxCapacitySlots) return null;
     const transportAllocations = getTransportAllocations(routeSegments, cargoSlots, DEFAULT_DRAFT_ANIMAL_ID, true);
     for (const allocation of transportAllocations) allocation.usedSlots = cargoSlots;
 
     const caravanId = this.ensureNextCaravanId();
-    const dispatcherMarketId = MerchantTransportAssets.getDispatcherMarketId(deal);
-    if (dispatcherMarketId === null) return null;
     const reservation = MerchantTransportAssets.reserve(dispatcherMarketId, caravanId, transportAllocations);
     const hasLandTransport = transportAllocations.some(allocation => allocation.mode === "land");
     if (hasLandTransport && !reservation) return null;
@@ -313,7 +319,7 @@ export class CaravansModule {
       units: rn(deal.units, 2),
       value: rn(deal.price * deal.units, 2),
       draftAnimalId: DEFAULT_DRAFT_ANIMAL_ID,
-      transportAllocations,
+      transportAllocations: reservation?.reservation.allocations ?? transportAllocations,
       transportReservationId: reservation?.reservation.id,
       transportDispatcherMarketId: reservation?.dispatcherMarketId,
       routeSegments,
@@ -418,16 +424,18 @@ export class CaravansModule {
       const dispatcherMarketId = MerchantTransportAssets.getDispatcherMarketId(bundle);
       if (dispatcherMarketId === null) continue;
       while (true) {
-        const maxLandCapacitySlots = routeSegments.some(segment => segment.type === "land")
-          ? MerchantTransportAssets.getLargestAvailableLandCapacity(dispatcherMarketId, DEFAULT_DRAFT_ANIMAL_ID)
-          : undefined;
-        if (maxLandCapacitySlots === 0) break;
+        const maxCapacitySlots = MerchantTransportAssets.getLargestAvailableRouteCapacity(
+          dispatcherMarketId,
+          routeSegments,
+          DEFAULT_DRAFT_ANIMAL_ID
+        );
+        if (maxCapacitySlots === 0) break;
         const [manifest] = buildCargoManifests(
           transportedDeals,
           getGoods(),
           routeSegments,
           DEFAULT_DRAFT_ANIMAL_ID,
-          maxLandCapacitySlots
+          maxCapacitySlots
         );
         if (!manifest) break;
         const reservation = MerchantTransportAssets.reserve(dispatcherMarketId, nextId, manifest.allocations);
@@ -470,7 +478,7 @@ export class CaravansModule {
           units: rn(totalUnits, 2),
           value: rn(totalValue, 2),
           draftAnimalId: DEFAULT_DRAFT_ANIMAL_ID,
-          transportAllocations: manifest.allocations,
+          transportAllocations: reservation?.reservation.allocations ?? manifest.allocations,
           transportReservationId: reservation?.reservation.id,
           transportDispatcherMarketId: reservation?.dispatcherMarketId,
           routeSegments,

@@ -21,6 +21,13 @@ export function runVoyageTick(burgs: readonly Burg[], states: readonly State[], 
   if (deltaYears <= 0) return;
 
   for (const hull of getHulls()) {
+    if (hull.status === "cargo") continue;
+    if (hull.status === "maintenance") {
+      const remainingDays = Math.max(0, (hull.maintenanceDays ?? 0) - deltaYears * 365.2425);
+      hull.maintenanceDays = remainingDays;
+      if (remainingDays > 0) continue;
+      setHullStatus(hull.id, "voyage");
+    }
     // `state`/`ownerId` use 0 as the "no state" sentinel throughout this codebase
     // (e.g. `determineOwner()` in shipyardQueue.ts), so falsy — not just undefined —
     // means "no treasury to credit."

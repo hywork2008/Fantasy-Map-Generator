@@ -17,7 +17,7 @@ export interface SurplusShipyardQueueEntry extends Omit<ShipyardQueueEntry, "own
   owner: "shipyard";
 }
 
-export type ShipHullStatus = "docked" | "voyage";
+export type ShipHullStatus = "docked" | "voyage" | "cargo" | "maintenance";
 
 /**
  * A single completed hull. `ownerId` is a stateId for `owner: "state"` (navy hulls are
@@ -34,4 +34,6 @@ export interface ShipHull {
   ownerId: number;
   homeBurgId: number;
   status: ShipHullStatus;
+  /** Shipbuilding-owned recovery timer used after an Economy cargo loss. */
+  maintenanceDays?: number;
 }

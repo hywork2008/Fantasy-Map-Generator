@@ -14,6 +14,42 @@ export type ShipbuildingMaterialBlockedReason =
   | "insufficientMaterials";
 
 export type ShipbuildingOwner = "state" | "market" | "shipyard";
+
+/**
+ * Read-only projection of a merchant-owned hull. Shipbuilding owns the hull record;
+ * Economy only retains the id while assigning trade cargo.
+ */
+export interface ShipbuildingMerchantHullSnapshot {
+  id: number;
+  shipClassId: string;
+  homeBurgId: number;
+  ownerId: number;
+  status: "docked" | "voyage" | "cargo" | "maintenance";
+}
+
+/** Economy requests a fresh snapshot without importing Shipbuilding internals. */
+export interface ShipbuildingMerchantHullsRequest {
+  source: "economy";
+  handled?: boolean;
+}
+
+/** Published after a snapshot request and whenever a merchant hull changes. */
+export interface ShipbuildingMerchantHullsSnapshot {
+  hulls: readonly ShipbuildingMerchantHullSnapshot[];
+}
+
+/** Mutable synchronous request to take one or more hulls out of Shipbuilding voyages. */
+export interface ShipbuildingMerchantHullReservationRequest {
+  hullIds: readonly number[];
+  result?: "fulfilled" | "unavailable";
+}
+
+/** Mutable synchronous request to return merchant hulls to their Shipbuilding lifecycle. */
+export interface ShipbuildingMerchantHullReleaseRequest {
+  hullIds: readonly number[];
+  outcome: "arrived" | "lost";
+  result?: "fulfilled" | "unavailable";
+}
 export const SHIP_GOOD_NAMES = ["Sloop", "Caravel", "Galleon"] as const;
 export type ShipGoodName = (typeof SHIP_GOOD_NAMES)[number];
 export type ShipGoodStock = Readonly<Record<ShipGoodName, number>>;
@@ -90,6 +126,54 @@ export function isShipbuildingMaterialRequest(value: unknown): value is Shipbuil
     const amount = request.materials?.[material];
     return typeof amount === "number" && Number.isFinite(amount) && amount >= 0;
   });
+}
+
+export function isShipbuildingMerchantHullsRequest(value: unknown): value is ShipbuildingMerchantHullsRequest {
+  return Boolean(
+    value && typeof value === "object" && (value as Partial<ShipbuildingMerchantHullsRequest>).source === "economy"
+  );
+}
+
+export function isShipbuildingMerchantHullsSnapshot(value: unknown): value is ShipbuildingMerchantHullsSnapshot {
+  if (!value || typeof value !== "object") return false;
+  const snapshot = value as Partial<ShipbuildingMerchantHullsSnapshot>;
+  return (
+    Array.isArray(snapshot.hulls) &&
+    snapshot.hulls.every(hull => {
+      if (!hull || typeof hull !== "object") return false;
+      const candidate = hull as Partial<ShipbuildingMerchantHullSnapshot>;
+      return (
+        Number.isInteger(candidate.id) &&
+        typeof candidate.shipClassId === "string" &&
+        Number.isInteger(candidate.homeBurgId) &&
+        Number.isInteger(candidate.ownerId) &&
+        (candidate.status === "docked" ||
+          candidate.status === "voyage" ||
+          candidate.status === "cargo" ||
+          candidate.status === "maintenance")
+      );
+    })
+  );
+}
+
+export function isShipbuildingMerchantHullReservationRequest(
+  value: unknown
+): value is ShipbuildingMerchantHullReservationRequest {
+  if (!value || typeof value !== "object") return false;
+  const request = value as Partial<ShipbuildingMerchantHullReservationRequest>;
+  return Array.isArray(request.hullIds) && request.hullIds.every(id => Number.isInteger(id) && id > 0);
+}
+
+export function isShipbuildingMerchantHullReleaseRequest(
+  value: unknown
+): value is ShipbuildingMerchantHullReleaseRequest {
+  if (!value || typeof value !== "object") return false;
+  const request = value as Partial<ShipbuildingMerchantHullReleaseRequest>;
+  return (
+    Array.isArray(request.hullIds) &&
+    request.hullIds.every(id => Number.isInteger(id) && id > 0) &&
+    (request.outcome === "arrived" || request.outcome === "lost")
+  );
 }
 
 /** Synchronous Economy query used only to choose a market shipyard's next surplus hull. */

@@ -4,6 +4,7 @@ import { useOptionsState } from "../hostCore";
 import {
   isShipbuildingInitialStockRequest,
   isShipbuildingMaterialRequest,
+  isShipbuildingMerchantHullsSnapshot,
   isShipbuildingProcurementStatusRequest,
   isShipbuildingShipGoodStockRequest,
   isShipbuildingStrategicProcurementDemand,
@@ -276,6 +277,9 @@ let _strategicProcurementStatusHandler: ((e: Event) => void) | null = null;
 let _shipbuildingInitialStockRequestHandler: ((e: Event) => void) | null = null;
 let _shipbuildingShipGoodStockRequestHandler: ((e: Event) => void) | null = null;
 let _shipbuildingSurplusShipRequestHandler: ((e: Event) => void) | null = null;
+let _shipbuildingMerchantHullsSnapshotHandler: ((e: Event) => void) | null = null;
+let _shipbuildingMerchantHullChangedHandler: ((e: Event) => void) | null = null;
+let _shipbuildingMerchantHullsUnavailableHandler: (() => void) | null = null;
 let _voyageIncomeHandler: ((e: Event) => void) | null = null;
 let _mapPickCandidatesHandler: ((e: Event) => void) | null = null;
 let _gunpowderEraChangedHandler: (() => void) | null = null;
@@ -1192,6 +1196,7 @@ export function init(api: ExtensionAPI): void {
           DevelopmentPotential.generate();
           Goods.generate();
           Markets.generate();
+          MerchantTransportAssets.requestMerchantHullSnapshot();
           MineOperations.generate();
           SmelterOperations.generate();
           QuarryOperations.generate();
@@ -1327,6 +1332,29 @@ export function init(api: ExtensionAPI): void {
     detail.result = Markets.addSurplusShipStock(detail.marketId, detail.shipClassId);
   };
   document.addEventListener("fmg:shipbuilding-surplus-ship-completed", _shipbuildingSurplusShipRequestHandler);
+
+  _shipbuildingMerchantHullsSnapshotHandler = e => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    const detail = (e as CustomEvent<unknown>).detail;
+    if (!isShipbuildingMerchantHullsSnapshot(detail)) return;
+    MerchantTransportAssets.reconcileMerchantHulls(detail.hulls);
+  };
+  document.addEventListener("fmg:shipbuilding-merchant-hulls-snapshot", _shipbuildingMerchantHullsSnapshotHandler);
+
+  _shipbuildingMerchantHullChangedHandler = e => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    const detail = (e as CustomEvent<unknown>).detail;
+    if (!isShipbuildingMerchantHullsSnapshot({ hulls: [detail] })) return;
+    MerchantTransportAssets.requestMerchantHullSnapshot();
+  };
+  document.addEventListener("fmg:shipbuilding-merchant-hull-changed", _shipbuildingMerchantHullChangedHandler);
+
+  _shipbuildingMerchantHullsUnavailableHandler = () => MerchantTransportAssets.setWaterAssetModeActive(false);
+  document.addEventListener(
+    "fmg:shipbuilding-merchant-hulls-unavailable",
+    _shipbuildingMerchantHullsUnavailableHandler
+  );
+  MerchantTransportAssets.requestMerchantHullSnapshot();
 
   // Shipbuilding only signals demand. Economy owns policy, payment, Deal, Caravan,
   // and delivery lifecycle after this extension boundary.
@@ -1786,6 +1814,21 @@ export function cleanup(api: ExtensionAPI): void {
   if (_shipbuildingSurplusShipRequestHandler) {
     document.removeEventListener("fmg:shipbuilding-surplus-ship-completed", _shipbuildingSurplusShipRequestHandler);
     _shipbuildingSurplusShipRequestHandler = null;
+  }
+  if (_shipbuildingMerchantHullsSnapshotHandler) {
+    document.removeEventListener("fmg:shipbuilding-merchant-hulls-snapshot", _shipbuildingMerchantHullsSnapshotHandler);
+    _shipbuildingMerchantHullsSnapshotHandler = null;
+  }
+  if (_shipbuildingMerchantHullChangedHandler) {
+    document.removeEventListener("fmg:shipbuilding-merchant-hull-changed", _shipbuildingMerchantHullChangedHandler);
+    _shipbuildingMerchantHullChangedHandler = null;
+  }
+  if (_shipbuildingMerchantHullsUnavailableHandler) {
+    document.removeEventListener(
+      "fmg:shipbuilding-merchant-hulls-unavailable",
+      _shipbuildingMerchantHullsUnavailableHandler
+    );
+    _shipbuildingMerchantHullsUnavailableHandler = null;
   }
   if (_strategicProcurementDemandHandler) {
     document.removeEventListener("fmg:shipbuilding-strategic-procurement-demand", _strategicProcurementDemandHandler);

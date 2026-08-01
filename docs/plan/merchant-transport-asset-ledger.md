@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :-- | :-- |
-| Status | Proposed — 容量・多様性の初期実装後に着手する設計 |
+| Status | In progress — Phase F1/F2/F3 implemented; G1/G2 remain |
 | 対象 | Economy extension、任意の Shipbuilding extension、Trade Details |
 | 前提計画 | [trade-cargo-capacity-and-diversity.md](trade-cargo-capacity-and-diversity.md) Phase F / G |
 | 調査日 | 2026-08-01 |
@@ -304,9 +304,11 @@ Caravan を直接選ばせない。注文の進捗・材料待ち・完成後の
 
 ### Phase F3 — Shipbuilding adapter
 
-- Hull snapshot/change event と `shipHullId` 参照を導入する。
-- Shipbuilding 有効・無効の双方で Economy が起動し、正本の Hull が二重作成されないことを確認する。
-- 受け入れ: 一隻の Hull を二便へ予約できず、Shipbuilding の voyage/port tests が維持される。
+- Implemented: Hull snapshot/change event と `shipHullId` 参照を導入する。
+- Implemented: Shipbuilding 有効・無効の双方で Economy が起動し、正本の Hull が二重作成されないことを確認する。
+- Implemented: 一隻の Hull を二便へ予約できず、Shipbuilding の voyage/port tests が維持される。
+- 補足: Economy が予約した merchant hull は Shipbuilding で `cargo` 状態となり、到着時に `voyage`、喪失時に30日間の
+  `maintenance` 状態へ遷移する。このため、貨物便と voyage income が同じ船体を同時に利用しない。
 
 ### Phase G1 — blueprint と simulation 補充 order
 

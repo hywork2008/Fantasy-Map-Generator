@@ -3,7 +3,7 @@ import type { Burg, State } from "../../hostTypes";
 import { runVoyageTick } from "./shipVoyages";
 import type { ShipyardCandidate } from "./shipyardCandidates";
 import type { GetEffectiveSkillFn } from "./shipyardQueue";
-import { clearShipyardQueues, getHulls, runShipyardTick } from "./shipyardQueue";
+import { clearShipyardQueues, getHulls, runShipyardTick, setHullStatus } from "./shipyardQueue";
 
 function makeBurgs(overrides: Partial<Burg>[]): Burg[] {
   const burgs: Burg[] = [{} as Burg];
@@ -118,6 +118,21 @@ describe("runVoyageTick", () => {
 
     expect(dispatchedEventsOf(dispatchSpy, "fmg:shipbuilding-voyage-intel")).toHaveLength(0);
     expect(dispatchedEventsOf(dispatchSpy, "fmg:shipbuilding-voyage-income")).toHaveLength(1);
+  });
+
+  it("does not claim voyage income while Economy has reserved a merchant hull for cargo", () => {
+    const burgs = makeBurgs([{ i: 1, state: 1, capital: 0, citadel: 0 }]);
+    const states = makeStates([{ i: 1, diplomacy: [] }]);
+    const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];
+
+    runShipyardTick(candidates, burgs, states, 5, noSkill);
+    const hull = getHulls()[0];
+    setHullStatus(hull.id, "cargo");
+
+    runVoyageTick(burgs, states, 1);
+
+    expect(getHulls()[0].status).toBe("cargo");
+    expect(dispatchedEventsOf(dispatchSpy, "fmg:shipbuilding-voyage-income")).toHaveLength(0);
   });
 
   it("skips income/intel for a stateless free-city hull (no treasury to credit)", () => {

@@ -6,6 +6,11 @@ import type {
   ShipbuildingStrategicProcurementDemand,
   ShipbuildingSurplusShipRequest
 } from "../hostTypes";
+import {
+  isShipbuildingMerchantHullReleaseRequest,
+  isShipbuildingMerchantHullReservationRequest,
+  isShipbuildingMerchantHullsRequest
+} from "../hostTypes";
 import type { LayerConfig } from "../hostUi";
 import { measureGenerationStep } from "../hostUtils";
 import {
@@ -18,7 +23,14 @@ import { runLoggingTick } from "./generators/logging";
 import { computePortCapacity, type PortCapacity } from "./generators/portCapacity";
 import { runVoyageTick } from "./generators/shipVoyages";
 import { computeShipyardCandidates, type ShipyardCandidate } from "./generators/shipyardCandidates";
-import { clearShipyardQueues, getInitialStateOwnedDemand, runShipyardTick } from "./generators/shipyardQueue";
+import {
+  clearShipyardQueues,
+  getHulls,
+  getInitialStateOwnedDemand,
+  runShipyardTick,
+  setHullStatus,
+  setMerchantHullMaintenance
+} from "./generators/shipyardQueue";
 import { clearShipyards, drawShipyards } from "./renderers/drawShipyards";
 import { clearShipbuildingContext, getWorldContext, initShipbuildingContext } from "./shipbuildingContext";
 import { ShipyardsOverviewDialog } from "./ui/dialogs/ShipyardsOverviewDialog";
@@ -43,6 +55,27 @@ let _unsubscribe: (() => void) | null = null;
 let _unregisterMapReadyTask: (() => void) | null = null;
 let _unregisterResetCommand: (() => void) | null = null;
 let _unregisterTickSystem: (() => void) | null = null;
+let _merchantHullsRequestHandler: ((event: Event) => void) | null = null;
+let _merchantHullReservationRequestHandler: ((event: Event) => void) | null = null;
+let _merchantHullReleaseRequestHandler: ((event: Event) => void) | null = null;
+
+function publishMerchantHullSnapshot(): void {
+  document.dispatchEvent(
+    new CustomEvent("fmg:shipbuilding-merchant-hulls-snapshot", {
+      detail: {
+        hulls: getHulls()
+          .filter(hull => hull.owner === "market")
+          .map(hull => ({
+            id: hull.id,
+            shipClassId: hull.shipClassId,
+            homeBurgId: hull.homeBurgId,
+            ownerId: hull.ownerId,
+            status: hull.status
+          }))
+      }
+    })
+  );
+}
 
 function resetShipbuildingState(): void {
   _candidates = [];
@@ -82,6 +115,52 @@ function recomputeAndMaybeDraw(api: ExtensionAPI): void {
 
 export function init(api: ExtensionAPI): void {
   initShipbuildingContext(api);
+
+  _merchantHullsRequestHandler = event => {
+    if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
+    const detail = (event as CustomEvent<unknown>).detail;
+    if (!isShipbuildingMerchantHullsRequest(detail)) return;
+    detail.handled = true;
+    publishMerchantHullSnapshot();
+  };
+  document.addEventListener("fmg:shipbuilding-merchant-hulls-request", _merchantHullsRequestHandler);
+
+  _merchantHullReservationRequestHandler = event => {
+    if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
+    const detail = (event as CustomEvent<unknown>).detail;
+    if (!isShipbuildingMerchantHullReservationRequest(detail)) return;
+    const hulls = detail.hullIds.map(id => getHulls().find(hull => hull.id === id));
+    if (hulls.some(hull => hull?.owner !== "market" || (hull.status !== "docked" && hull.status !== "voyage"))) {
+      detail.result = "unavailable";
+      return;
+    }
+    for (const hull of hulls) {
+      if (hull) setHullStatus(hull.id, "cargo");
+    }
+    detail.result = "fulfilled";
+  };
+  document.addEventListener(
+    "fmg:shipbuilding-merchant-hull-reservation-request",
+    _merchantHullReservationRequestHandler
+  );
+
+  _merchantHullReleaseRequestHandler = event => {
+    if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
+    const detail = (event as CustomEvent<unknown>).detail;
+    if (!isShipbuildingMerchantHullReleaseRequest(detail)) return;
+    const hulls = detail.hullIds.map(id => getHulls().find(hull => hull.id === id));
+    if (hulls.some(hull => hull?.owner !== "market" || hull.status !== "cargo")) {
+      detail.result = "unavailable";
+      return;
+    }
+    for (const hull of hulls) {
+      if (!hull) continue;
+      if (detail.outcome === "lost") setMerchantHullMaintenance(hull.id, 30);
+      else setHullStatus(hull.id, "voyage");
+    }
+    detail.result = "fulfilled";
+  };
+  document.addEventListener("fmg:shipbuilding-merchant-hull-release-request", _merchantHullReleaseRequestHandler);
 
   _unregisterResetCommand = api.registerExtensionCommand({
     extensionId: SHIPBUILDING_EXTENSION_ID,
@@ -201,17 +280,20 @@ export function init(api: ExtensionAPI): void {
 
     if (isEnabled && !wasEnabled) {
       api.addLayers(shipbuildingLayers);
+      publishMerchantHullSnapshot();
       if (getWorldContext().pack.burgs?.length) recomputeAndMaybeDraw(api);
     } else if (!isEnabled && wasEnabled) {
       if (api.layerIsOn("toggleShipyards")) api.toggleLayerById("toggleShipyards");
       api.removeLayers(shipbuildingLayers.map(l => l.id));
       api.dispatchExtensionCommand({ extensionId: SHIPBUILDING_EXTENSION_ID, name: "reset", payload: undefined });
+      document.dispatchEvent(new CustomEvent("fmg:shipbuilding-merchant-hulls-unavailable"));
       closeShipyardsOverview();
     }
   });
 
   if (api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) {
     api.addLayers(shipbuildingLayers);
+    publishMerchantHullSnapshot();
   }
 
   _unregisterMapReadyTask = api.registerMapReadyTask({
@@ -225,6 +307,7 @@ export function init(api: ExtensionAPI): void {
         // A brand-new map reuses burg/state ids from 0, so queue/tech/completed-hull
         // state tied to the previous map's ids must not carry over.
         api.dispatchExtensionCommand({ extensionId: SHIPBUILDING_EXTENSION_ID, name: "reset", payload: undefined });
+        publishMerchantHullSnapshot();
         recomputeAndMaybeDraw(api);
         refreshShipyardsOverviewIfOpen(_candidates, _portCapacity);
       });
@@ -259,5 +342,21 @@ export function cleanup(api: ExtensionAPI): void {
   _unregisterTickSystem = null;
 
   api.unregisterExtension(SHIPBUILDING_EXTENSION_ID);
+  document.dispatchEvent(new CustomEvent("fmg:shipbuilding-merchant-hulls-unavailable"));
+  if (_merchantHullsRequestHandler) {
+    document.removeEventListener("fmg:shipbuilding-merchant-hulls-request", _merchantHullsRequestHandler);
+    _merchantHullsRequestHandler = null;
+  }
+  if (_merchantHullReservationRequestHandler) {
+    document.removeEventListener(
+      "fmg:shipbuilding-merchant-hull-reservation-request",
+      _merchantHullReservationRequestHandler
+    );
+    _merchantHullReservationRequestHandler = null;
+  }
+  if (_merchantHullReleaseRequestHandler) {
+    document.removeEventListener("fmg:shipbuilding-merchant-hull-release-request", _merchantHullReleaseRequestHandler);
+    _merchantHullReleaseRequestHandler = null;
+  }
   clearShipbuildingContext();
 }

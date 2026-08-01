@@ -71,7 +71,30 @@ export function getHullsAtBurg(burgId: number): ShipHull[] {
 
 export function setHullStatus(hullId: number, status: ShipHullStatus): void {
   const hull = getShipbuildingRuntimeState().hulls[hullId];
-  if (hull) hull.status = status;
+  if (!hull) return;
+  hull.status = status;
+  if (hull.owner === "market") dispatchMerchantHullChanged(hull);
+}
+
+export function setMerchantHullMaintenance(hullId: number, maintenanceDays: number): void {
+  const hull = getShipbuildingRuntimeState().hulls[hullId];
+  if (hull?.owner !== "market") return;
+  hull.maintenanceDays = Math.max(0, maintenanceDays);
+  setHullStatus(hullId, hull.maintenanceDays > 0 ? "maintenance" : "voyage");
+}
+
+function dispatchMerchantHullChanged(hull: ShipHull): void {
+  document.dispatchEvent(
+    new CustomEvent("fmg:shipbuilding-merchant-hull-changed", {
+      detail: {
+        id: hull.id,
+        shipClassId: hull.shipClassId,
+        homeBurgId: hull.homeBurgId,
+        ownerId: hull.ownerId,
+        status: hull.status
+      }
+    })
+  );
 }
 
 /**
@@ -180,9 +203,11 @@ function completeHull(burg: Burg, owner: ShipHullOwner, shipClassId: string, sta
   };
   runtimeState.hulls[hull.id] = hull;
 
+  if (hull.owner === "market") dispatchMerchantHullChanged(hull);
+
   document.dispatchEvent(
     new CustomEvent("fmg:shipbuilding-ship-completed", {
-      detail: { burgId: burg.i, stateId: burg.state ?? null, owner, shipClassId }
+      detail: { hullId: hull.id, burgId: burg.i, stateId: burg.state ?? null, owner, shipClassId }
     })
   );
 }

@@ -111,6 +111,8 @@ export type TransportAllocation = {
   usedSlots: number;
   draftAnimalId?: string;
   requiredDraftAnimals?: number;
+  /** Concrete Shipbuilding hulls used for a physical water allocation. */
+  shipHullIds?: number[];
 };
 
 export type TransportAssetState = "available" | "reserved" | "inTransit" | "maintenance";
@@ -126,12 +128,23 @@ export type MerchantLandAssetBalance = {
   recoveryDays: number;
 };
 
+/** Economy's durable reference to one Shipbuilding-owned merchant hull. */
+export type MerchantWaterAssetReference = {
+  shipHullId: number;
+  shipClassId: string;
+  homeBurgId: number;
+  state: TransportAssetState;
+  reservationId?: number;
+};
+
 /** Durable transport assets owned by a market, separate from saleable Market.goods. */
 export type MerchantTransportLedger = {
   marketId: number;
   /** Derived display reference only; marketId remains the ownership key. */
   organizationId?: number;
   landAssets: MerchantLandAssetBalance[];
+  /** References only; Shipbuilding's ShipHull remains the source of truth. */
+  waterAssets: MerchantWaterAssetReference[];
   lastReconciledTick: number;
 };
 
