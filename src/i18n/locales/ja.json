@@ -161,6 +161,40 @@
     "rationality": "合理性",
     "sociability": "社交性",
     "vengefulness": "復讐心",
-    "zeal": "熱意"
+    "zeal": "熱意",
+    "titleUnderRegency": "{{title}}（摂政統治下）",
+    "titleNames": {
+      "king": "王", "queen": "女王", "emperor": "皇帝", "empress": "女帝",
+      "khan": "ハーン", "khatun": "ハトゥン", "bey": "ベイ", "begum": "ベグム",
+      "tsar": "ツァーリ", "tsarina": "ツァリーツァ", "caliph": "カリフ", "emir": "首長", "emira": "女首長",
+      "shogun": "将軍", "despot": "専制君主", "despotissa": "女専制君主", "satrap": "太守",
+      "grandDuke": "大公", "grandDuchess": "大公妃", "duke": "公爵", "duchess": "公爵夫人",
+      "prince": "王子", "princess": "王女", "margrave": "辺境伯", "margravine": "辺境伯夫人",
+      "lordProtector": "護国卿", "ladyProtector": "護国女卿", "president": "大統領",
+      "chairman": "議長", "chairwoman": "女性議長", "highPriest": "大祭司",
+      "highPriestess": "女大祭司", "warlord": "軍閥", "count": "伯爵", "countess": "伯爵夫人",
+      "earl": "伯爵", "sheriff": "州長官", "landgrave": "方伯", "landgravine": "方伯夫人",
+      "baron": "男爵", "baroness": "男爵夫人", "captain": "隊長", "seneschal": "宮宰",
+      "vicar": "司祭代理", "dean": "司祭長", "governor": "総督", "prefect": "長官",
+      "magistrate": "行政官", "councilor": "評議員", "chief": "族長", "elder": "長老",
+      "chieftain": "部族長", "lord": "領主", "lady": "女領主", "warden": "守護官",
+      "clanChief": "氏族長", "steward": "執事", "chancellor": "宰相", "marshal": "元帥",
+      "spymaster": "諜報長官", "courtChaplain": "宮廷司祭", "primeMinister": "首相",
+      "ministerOfForeignAffairs": "外務大臣", "ministerOfWar": "陸軍大臣",
+      "ministerOfFinance": "財務大臣", "directorOfIntelligence": "情報局長",
+      "commander": "指揮官", "admiral": "提督", "regent": "摂政", "patrician": "貴族"
+    },
+    "roleNames": {
+      "marketManager": "市場管理人",
+      "marketRivalMerchant": "競合市場の商人",
+      "marketMerchant": "市場商人",
+      "guildMaster": "ギルド親方",
+      "guildApprentice": "ギルド見習い",
+      "merchantCompanyHead": "商会代表",
+      "merchantCompanySecretary": "商会書記",
+      "merchantCompanyBodyguard": "商会護衛",
+      "merchantCompanyExecutive": "商会幹部",
+      "merchantCompanyAgent": "商会代理人"
+    }
   }
 }

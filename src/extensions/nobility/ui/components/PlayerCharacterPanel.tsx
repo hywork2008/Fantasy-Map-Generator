@@ -1,5 +1,6 @@
 import type React from "react";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useCharactersUiState } from "../../../characters/ui/charactersUiState";
 import { Dialog, isDialogOpen, openDialog } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
@@ -15,6 +16,7 @@ import "./playerCharacterPanel.css";
  * Uses the shared Dialog shell for drag, resize, and minimize like other UI panels.
  */
 export const PlayerCharacterPanel: React.FC = () => {
+  const { i18n } = useTranslation();
   const playerCharacterId = usePlayerCharacterState(state => state.playerCharacterId);
   // Intentionally subscribed so in-place mutations (aging, succession) re-render the HUD.
   const refreshToken = usePlayerCharacterState(state => state.refreshToken);
@@ -30,7 +32,7 @@ export const PlayerCharacterPanel: React.FC = () => {
     const character = pack.characters?.find(c => c.i === playerCharacterId);
     if (!character) return null;
     return buildPlayerCharacterSummary(character, pack);
-  }, [playerCharacterId, refreshToken]);
+  }, [playerCharacterId, refreshToken, i18n.language]);
 
   // Render mode is sticky session state; read live so a mid-session switch updates the toolbar.
   const showMoveAction = isSvgRenderMode();

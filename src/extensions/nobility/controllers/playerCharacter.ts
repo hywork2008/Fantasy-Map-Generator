@@ -1,4 +1,5 @@
 import type { Character, TitleHolding } from "../../characters/characterTypes";
+import { getCharacterRoleLabel, getCharacterTitleLabel } from "../../characters/utils/characterLabels";
 import type { Burg, Province, State } from "../../hostTypes";
 import { getWorldContext } from "../nobilityContext";
 import { usePlayerCharacterState } from "../store/playerCharacterState";
@@ -125,10 +126,10 @@ export function buildPlayerCharacterSummary(
     id: character.i,
     name: character.name,
     wealth: character.wealth ?? 0,
-    title: holding?.title ?? role?.label ?? "—",
+    title: holding ? getCharacterTitleLabel(holding.title) : role ? getCharacterRoleLabel(role) : "—",
     stateId,
     stateName: resolveStateName(pack.states, stateId),
-    organization: holding ? resolveOrganization(character, holding, pack) : (role?.label ?? "—"),
+    organization: holding ? resolveOrganization(character, holding, pack) : role ? getCharacterRoleLabel(role) : "—",
     location: resolveLocation(character, pack)
   };
 }

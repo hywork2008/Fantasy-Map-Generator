@@ -161,6 +161,40 @@
     "rationality": "Rationality",
     "sociability": "Sociability",
     "vengefulness": "Vengefulness",
-    "zeal": "Zeal"
+    "zeal": "Zeal",
+    "titleUnderRegency": "{{title}} (Under Regency)",
+    "titleNames": {
+      "king": "King", "queen": "Queen", "emperor": "Emperor", "empress": "Empress",
+      "khan": "Khan", "khatun": "Khatun", "bey": "Bey", "begum": "Begum",
+      "tsar": "Tsar", "tsarina": "Tsarina", "caliph": "Caliph", "emir": "Emir", "emira": "Emira",
+      "shogun": "Shogun", "despot": "Despot", "despotissa": "Despotissa", "satrap": "Satrap",
+      "grandDuke": "Grand Duke", "grandDuchess": "Grand Duchess", "duke": "Duke", "duchess": "Duchess",
+      "prince": "Prince", "princess": "Princess", "margrave": "Margrave", "margravine": "Margravine",
+      "lordProtector": "Lord Protector", "ladyProtector": "Lady Protector", "president": "President",
+      "chairman": "Chairman", "chairwoman": "Chairwoman", "highPriest": "High Priest",
+      "highPriestess": "High Priestess", "warlord": "Warlord", "count": "Count", "countess": "Countess",
+      "earl": "Earl", "sheriff": "Sheriff", "landgrave": "Landgrave", "landgravine": "Landgravine",
+      "baron": "Baron", "baroness": "Baroness", "captain": "Captain", "seneschal": "Seneschal",
+      "vicar": "Vicar", "dean": "Dean", "governor": "Governor", "prefect": "Prefect",
+      "magistrate": "Magistrate", "councilor": "Councilor", "chief": "Chief", "elder": "Elder",
+      "chieftain": "Chieftain", "lord": "Lord", "lady": "Lady", "warden": "Warden",
+      "clanChief": "Clan Chief", "steward": "Steward", "chancellor": "Chancellor", "marshal": "Marshal",
+      "spymaster": "Spymaster", "courtChaplain": "Court Chaplain", "primeMinister": "Prime Minister",
+      "ministerOfForeignAffairs": "Minister of Foreign Affairs", "ministerOfWar": "Minister of War",
+      "ministerOfFinance": "Minister of Finance", "directorOfIntelligence": "Director of Intelligence",
+      "commander": "Commander", "admiral": "Admiral", "regent": "Regent", "patrician": "Patrician"
+    },
+    "roleNames": {
+      "marketManager": "Market Manager",
+      "marketRivalMerchant": "Market Rival Merchant",
+      "marketMerchant": "Market Merchant",
+      "guildMaster": "Guild Master",
+      "guildApprentice": "Guild Apprentice",
+      "merchantCompanyHead": "Merchant Company Head",
+      "merchantCompanySecretary": "Merchant Company Secretary",
+      "merchantCompanyBodyguard": "Merchant Company Bodyguard",
+      "merchantCompanyExecutive": "Merchant Company Executive",
+      "merchantCompanyAgent": "Merchant Company Agent"
+    }
   }
 }

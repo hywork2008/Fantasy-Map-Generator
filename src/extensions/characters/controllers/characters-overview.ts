@@ -1,6 +1,7 @@
 import type { State } from "../../hostTypes";
 import type { Character } from "../characterTypes";
 import { useCharactersUiState } from "../ui/charactersUiState";
+import { getCharacterRoleLabel, getCharacterTitleLabel } from "../utils/characterLabels";
 
 export interface CharacterRowData {
   c: Character;
@@ -31,7 +32,7 @@ export function filterAndSortCharacters(
       c,
       stateId,
       stateName,
-      title: holding?.title ?? role?.label ?? ""
+      title: holding ? getCharacterTitleLabel(holding.title) : role ? getCharacterRoleLabel(role) : ""
     };
   });
 
@@ -48,7 +49,9 @@ export function filterAndSortCharacters(
       if (r.stateName.toLowerCase().includes(search)) return true;
       if (r.title.toLowerCase().includes(search)) return true;
       if (
-        r.c.roles?.some(role => role.kind.toLowerCase().includes(search) || role.label.toLowerCase().includes(search))
+        r.c.roles?.some(
+          role => role.kind.toLowerCase().includes(search) || getCharacterRoleLabel(role).toLowerCase().includes(search)
+        )
       ) {
         return true;
       }

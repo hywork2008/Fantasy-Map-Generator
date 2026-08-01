@@ -13,6 +13,8 @@ return <button aria-label={t("common.close")}>{t("common.close")}</button>;
 
 Use semantic keys, not English sentences as keys. Do not translate DOM IDs, layer IDs, saved-data keys, map-generation data, or user-created names.
 
+Character titles and role labels are persisted as English data for saved-map compatibility. Render them through `getCharacterTitleLabel()` and `getCharacterRoleLabel()` in `src/extensions/characters/utils/characterLabels.ts`; do not translate or overwrite the stored values directly.
+
 ## Language state
 
 `src/store/localeState.ts` owns the selected application language and persists it under `localStorage["fmg-language"]`. The selector is currently in the UI settings tab. Changing it also updates `document.documentElement.lang` and the initialized i18next instance.

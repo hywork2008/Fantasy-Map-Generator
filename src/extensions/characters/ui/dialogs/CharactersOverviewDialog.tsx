@@ -1,5 +1,6 @@
 import type React from "react";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { closeDialog, Dialog, openDialog, useDialogState } from "../../../hostUi";
 import { getCharacters, getWorldContext } from "../../charactersContext";
 import { filterAndSortCharacters } from "../../controllers/characters-overview";
@@ -9,6 +10,7 @@ import { CharactersTable } from "../components/tables/CharactersTable";
 
 export const CharactersOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("charactersOverview"));
+  const { i18n } = useTranslation();
 
   const {
     sortBy,
@@ -42,7 +44,7 @@ export const CharactersOverviewDialog: React.FC = () => {
       sortBy,
       sortOrder
     });
-  }, [characters, states, searchText, filterStateId, sortBy, sortOrder, refreshToken]);
+  }, [characters, states, searchText, filterStateId, sortBy, sortOrder, refreshToken, i18n.language]);
 
   const handleCharacterClick = (characterId: number) => {
     setSelectedCharacterId(characterId);

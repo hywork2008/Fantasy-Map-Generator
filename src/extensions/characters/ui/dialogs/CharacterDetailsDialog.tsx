@@ -8,6 +8,7 @@ import { hasNobilityContext } from "../../../nobility/nobilityContext";
 import { usePlayerCharacterState } from "../../../nobility/store/playerCharacterState";
 import { getApi, getCharacters, getWorldContext } from "../../charactersContext";
 import type { CharacterRole, TitleHolding } from "../../characterTypes";
+import { getCharacterRoleLabel, getCharacterTitleLabel } from "../../utils/characterLabels";
 import { useCharactersUiState } from "../charactersUiState";
 import { RadarChart } from "../components/charts/RadarChart";
 
@@ -176,7 +177,7 @@ export const CharacterDetailsDialog: React.FC = () => {
       character.titles.forEach(titleHolding => {
         const entityName = getTitleEntityName(titleHolding);
         rows.push(
-          `${t("characters.titleOf", { title: titleHolding.title, entity: entityName })}, ${titleHolding.landed ? t("characters.landed") : ""} ${titleHolding.startYear ? t("characters.since", { year: titleHolding.startYear }) : ""}`
+          `${t("characters.titleOf", { title: getCharacterTitleLabel(titleHolding.title), entity: entityName })}, ${titleHolding.landed ? t("characters.landed") : ""} ${titleHolding.startYear ? t("characters.since", { year: titleHolding.startYear }) : ""}`
         );
       });
     }
@@ -184,7 +185,7 @@ export const CharacterDetailsDialog: React.FC = () => {
     if (character.roles && character.roles.length > 0) {
       rows.push(t("characters.roles"));
       character.roles.forEach(role => {
-        rows.push(`${role.label}, ${getRoleEntityName(role)}`);
+        rows.push(`${getCharacterRoleLabel(role)}, ${getRoleEntityName(role)}`);
       });
     }
 
@@ -192,7 +193,7 @@ export const CharacterDetailsDialog: React.FC = () => {
       rows.push(t("characters.pastTitles"));
       character.pastTitles.forEach(titleHolding => {
         const entityName = getTitleEntityName(titleHolding);
-        let titleStr = `${t("characters.titleOf", { title: titleHolding.title, entity: entityName })}, ${titleHolding.startYear ?? "?"} - ${titleHolding.endYear ?? "?"}`;
+        let titleStr = `${t("characters.titleOf", { title: getCharacterTitleLabel(titleHolding.title), entity: entityName })}, ${titleHolding.startYear ?? "?"} - ${titleHolding.endYear ?? "?"}`;
         if (titleHolding.reason) titleStr += ` (${titleHolding.reason})`;
         rows.push(titleStr);
       });
@@ -334,7 +335,7 @@ export const CharacterDetailsDialog: React.FC = () => {
                     {character.titles.map(titleHolding => (
                       <li key={`${titleHolding.entityType}-${titleHolding.entityId}-${titleHolding.title}`}>
                         {t("characters.titleOf", {
-                          title: titleHolding.title,
+                          title: getCharacterTitleLabel(titleHolding.title),
                           entity: getTitleEntityName(titleHolding)
                         })}{" "}
                         {titleHolding.landed ? t("characters.landed") : ""}{" "}
@@ -352,7 +353,7 @@ export const CharacterDetailsDialog: React.FC = () => {
                   <ul style={{ margin: 0, listStyleType: "none", padding: 0 }}>
                     {character.roles.map(role => (
                       <li key={`${role.source}-${role.kind}-${role.entityType}-${role.entityId}`}>
-                        {role.label}: {getRoleEntityName(role)}
+                        {getCharacterRoleLabel(role)}: {getRoleEntityName(role)}
                       </li>
                     ))}
                   </ul>
@@ -368,7 +369,7 @@ export const CharacterDetailsDialog: React.FC = () => {
                       // biome-ignore lint/suspicious/noArrayIndexKey: Past titles can be identical
                       <li key={`past-${idx}`}>
                         {t("characters.titleOf", {
-                          title: titleHolding.title,
+                          title: getCharacterTitleLabel(titleHolding.title),
                           entity: getTitleEntityName(titleHolding)
                         })}{" "}
                         ({titleHolding.startYear ?? "?"} - {titleHolding.endYear ?? "?"})
