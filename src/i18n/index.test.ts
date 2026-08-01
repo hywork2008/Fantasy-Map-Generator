@@ -15,6 +15,7 @@ describe("internationalization", () => {
     expect(document.documentElement.lang).toBe("ja");
     expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("ja");
     expect(i18n.t("uiSettings.language")).toBe("言語");
+    expect(i18n.t("characters.dialogTitle", { name: "Ari" })).toBe("人物詳細：Ari");
   });
 
   it("uses the requested default value for an untranslated key", () => {

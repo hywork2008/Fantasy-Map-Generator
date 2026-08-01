@@ -1,5 +1,6 @@
 import type React from "react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 import { setPlayerCharacter } from "../../../nobility/controllers/playerCharacter";
@@ -20,6 +21,7 @@ function getEconomyMarkets(pack: unknown): readonly EconomyMarketSnapshot[] {
 }
 
 export const CharacterDetailsDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("characterDetails"));
   const selectedCharacterId = useCharactersUiState(state => state.selectedCharacterId);
   useCharactersUiState(state => state.refreshToken);
@@ -51,50 +53,63 @@ export const CharacterDetailsDialog: React.FC = () => {
 
   // "state" titles (rulers, central offices, field/fleet officers) point at pack.states;
   // "province" titles (frontier lords) point at pack.provinces — same entityId space, different table.
-  const getTitleEntityName = (t: TitleHolding) =>
-    t.entityType === "province"
-      ? (provinces?.[t.entityId]?.name ?? "Unknown")
-      : (states[t.entityId]?.name ?? "Unknown");
+  const getTitleEntityName = (titleHolding: TitleHolding) =>
+    titleHolding.entityType === "province"
+      ? (provinces?.[titleHolding.entityId]?.name ?? t("characters.unknown"))
+      : (states[titleHolding.entityId]?.name ?? t("characters.unknown"));
 
   const getRoleEntityName = (role: CharacterRole) => {
     if (role.entityType === "burg") {
       const burg = burgs[role.entityId];
-      if (!burg) return `Burg ${role.entityId}`;
+      if (!burg) return t("characters.burg", { id: role.entityId });
       const market = markets.find(m => m.i === burg.market);
       const marketCenter = market ? burgs[market.centerBurgId] : undefined;
-      const marketName = market?.name || marketCenter?.name || (market ? `Market ${market.i}` : "No market");
-      return `${burg.name ?? `Burg ${role.entityId}`} (${marketName} market)`;
+      const marketName =
+        market?.name ||
+        marketCenter?.name ||
+        (market ? t("characters.market", { id: market.i }) : t("characters.noMarket"));
+      return t("characters.marketAtBurg", {
+        burg: burg.name ?? t("characters.burg", { id: role.entityId }),
+        market: marketName
+      });
     }
 
-    if (role.entityType !== "market") return `${role.entityType} ${role.entityId}`;
+    if (role.entityType !== "market") return t("characters.entity", { type: role.entityType, id: role.entityId });
 
     const market = markets.find(m => m.i === role.entityId);
-    if (!market) return `Market ${role.entityId}`;
+    if (!market) return t("characters.market", { id: role.entityId });
 
     const center = burgs[market.centerBurgId];
-    const marketName = market.name || center?.name || `Market ${market.i}`;
+    const marketName = market.name || center?.name || t("characters.market", { id: market.i });
     return center ? `${marketName} (${center.name})` : marketName;
   };
 
-  const cultureName = cultures[character.culture]?.name ?? "Unknown";
+  const cultureName = cultures[character.culture]?.name ?? t("characters.unknown");
 
   const getAffinityText = (score: number) => {
-    if (score >= 50) return "Friendly";
-    if (score >= 20) return "Positive";
-    if (score <= -50) return "Hostile";
-    if (score <= -20) return "Negative";
-    return "Neutral";
+    if (score >= 50) return t("characters.friendly");
+    if (score >= 20) return t("characters.positive");
+    if (score <= -50) return t("characters.hostile");
+    if (score <= -20) return t("characters.negative");
+    return t("characters.neutral");
   };
 
-  let locationStr = "Unknown";
+  let locationStr = t("characters.unknown");
   if (character.location !== undefined) {
     const burg = burgs[character.location];
     if (burg) {
       const stateId = burg.state;
-      const stateName = stateId !== undefined ? (states[stateId]?.name ?? "Unknown State") : "Unknown State";
+      const stateName =
+        stateId !== undefined ? (states[stateId]?.name ?? t("characters.unknownState")) : t("characters.unknownState");
       locationStr = `${burg.name} (${stateName})`;
     }
   }
+
+  const statusText = character.dead
+    ? character.deathYear
+      ? t("characters.deceasedWithYear", { age: character.age, year: character.deathYear })
+      : t("characters.deceased", { age: character.age })
+    : t("characters.alive");
 
   const downloadCSV = () => {
     if (!character) return;
@@ -102,107 +117,105 @@ export const CharacterDetailsDialog: React.FC = () => {
     const rows: string[] = [];
 
     // Basic Info
-    rows.push("Personal Information");
-    rows.push(`Name, ${character.name}`);
-    rows.push(`Age, ${character.age}`);
-    rows.push(`Gender, ${character.gender}`);
-    rows.push(
-      `Status, ${character.dead ? `Deceased (Died at age ${character.age}${character.deathYear ? ` in ${character.deathYear}` : ""})` : "Alive"}`
-    );
-    rows.push(`Culture, ${cultureName}`);
-    rows.push(`Location, ${locationStr}`);
-    rows.push(`Appearance, ${character.appearance ?? "N/A"}`);
-    rows.push(`Prestige, ${character.prestige ?? "N/A"}`);
-    rows.push(`Wealth, ${character.wealth ?? 0}`);
+    rows.push(t("characters.personalInformation"));
+    rows.push(`${t("characters.name")}, ${character.name}`);
+    rows.push(`${t("characters.age")}, ${character.age}`);
+    rows.push(`${t("characters.gender")}, ${t(`characters.${character.gender}`)}`);
+    rows.push(`${t("characters.status")}, ${statusText}`);
+    rows.push(`${t("characters.culture")}, ${cultureName}`);
+    rows.push(`${t("characters.location")}, ${locationStr}`);
+    rows.push(`${t("characters.appearance")}, ${character.appearance ?? t("characters.notAvailable")}`);
+    rows.push(`${t("characters.prestige")}, ${character.prestige ?? t("characters.notAvailable")}`);
+    rows.push(`${t("characters.wealth")}, ${character.wealth ?? 0}`);
 
     // Family
     if (character.family) {
-      rows.push("Family");
-      rows.push(`Spouses, ${character.family.spouses}`);
-      rows.push(`Children, ${character.family.children}`);
-      rows.push(`Grandchildren, ${character.family.grandchildren}`);
+      rows.push(t("characters.family"));
+      rows.push(`${t("characters.spouses")}, ${character.family.spouses}`);
+      rows.push(`${t("characters.children")}, ${character.family.children}`);
+      rows.push(`${t("characters.grandchildren")}, ${character.family.grandchildren}`);
       if (character.family.greatGrandchildren > 0) {
-        rows.push(`Great-grandchildren, ${character.family.greatGrandchildren}`);
+        rows.push(`${t("characters.greatGrandchildrenLabel")}, ${character.family.greatGrandchildren}`);
       }
     }
 
     // Skills
     if (character.skills) {
-      rows.push("Skills");
-      rows.push(`Artistry, ${character.skills.artistry}`);
-      rows.push(`Diplomacy, ${character.skills.diplomacy}`);
-      rows.push(`Engineering, ${character.skills.engineering}`);
-      rows.push(`Geography, ${character.skills.geography}`);
-      rows.push(`Intrigue, ${character.skills.intrigue}`);
-      rows.push(`Learning, ${character.skills.learning}`);
-      rows.push(`Martial, ${character.skills.martial}`);
-      rows.push(`Prowess, ${character.skills.prowess}`);
-      rows.push(`Stewardship, ${character.skills.stewardship}`);
+      rows.push(t("characters.skills"));
+      rows.push(`${t("characters.artistry")}, ${character.skills.artistry}`);
+      rows.push(`${t("characters.diplomacy")}, ${character.skills.diplomacy}`);
+      rows.push(`${t("characters.engineering")}, ${character.skills.engineering}`);
+      rows.push(`${t("characters.geography")}, ${character.skills.geography}`);
+      rows.push(`${t("characters.intrigue")}, ${character.skills.intrigue}`);
+      rows.push(`${t("characters.learning")}, ${character.skills.learning}`);
+      rows.push(`${t("characters.martial")}, ${character.skills.martial}`);
+      rows.push(`${t("characters.prowess")}, ${character.skills.prowess}`);
+      rows.push(`${t("characters.stewardship")}, ${character.skills.stewardship}`);
     }
 
     // Personality
     if (character.personality) {
-      rows.push("Personality");
-      rows.push(`Boldness, ${character.personality.boldness}`);
-      rows.push(`Compassion, ${character.personality.compassion}`);
-      rows.push(`Confidence, ${character.personality.confidence ?? "N/A"}`);
-      rows.push(`Energy, ${character.personality.energy}`);
-      rows.push(`Greed, ${character.personality.greed}`);
-      rows.push(`Guile, ${character.personality.guile}`);
-      rows.push(`Honor, ${character.personality.honor}`);
-      rows.push(`Piety, ${character.personality.piety}`);
-      rows.push(`Rationality, ${character.personality.rationality}`);
-      rows.push(`Sociability, ${character.personality.sociability}`);
-      rows.push(`Vengefulness, ${character.personality.vengefulness}`);
-      rows.push(`Zeal, ${character.personality.zeal}`);
+      rows.push(t("characters.personality"));
+      rows.push(`${t("characters.boldness")}, ${character.personality.boldness}`);
+      rows.push(`${t("characters.compassion")}, ${character.personality.compassion}`);
+      rows.push(`${t("characters.confidence")}, ${character.personality.confidence ?? t("characters.notAvailable")}`);
+      rows.push(`${t("characters.energy")}, ${character.personality.energy}`);
+      rows.push(`${t("characters.greed")}, ${character.personality.greed}`);
+      rows.push(`${t("characters.guile")}, ${character.personality.guile}`);
+      rows.push(`${t("characters.honor")}, ${character.personality.honor}`);
+      rows.push(`${t("characters.piety")}, ${character.personality.piety}`);
+      rows.push(`${t("characters.rationality")}, ${character.personality.rationality}`);
+      rows.push(`${t("characters.sociability")}, ${character.personality.sociability}`);
+      rows.push(`${t("characters.vengefulness")}, ${character.personality.vengefulness}`);
+      rows.push(`${t("characters.zeal")}, ${character.personality.zeal}`);
     }
 
     // Titles
     if (character.titles && character.titles.length > 0) {
-      rows.push("Titles");
-      character.titles.forEach(t => {
-        const entityName = getTitleEntityName(t);
+      rows.push(t("characters.titles"));
+      character.titles.forEach(titleHolding => {
+        const entityName = getTitleEntityName(titleHolding);
         rows.push(
-          `${t.title} of ${entityName}, ${t.landed ? "(Landed)" : ""} ${t.startYear ? `[Since ${t.startYear}]` : ""}`
+          `${t("characters.titleOf", { title: titleHolding.title, entity: entityName })}, ${titleHolding.landed ? t("characters.landed") : ""} ${titleHolding.startYear ? t("characters.since", { year: titleHolding.startYear }) : ""}`
         );
       });
     }
 
     if (character.roles && character.roles.length > 0) {
-      rows.push("Roles");
+      rows.push(t("characters.roles"));
       character.roles.forEach(role => {
         rows.push(`${role.label}, ${getRoleEntityName(role)}`);
       });
     }
 
     if (character.pastTitles && character.pastTitles.length > 0) {
-      rows.push("Past Titles");
-      character.pastTitles.forEach(t => {
-        const entityName = getTitleEntityName(t);
-        let titleStr = `${t.title} of ${entityName}, ${t.startYear ?? "?"} - ${t.endYear ?? "?"}`;
-        if (t.reason) titleStr += ` (${t.reason})`;
+      rows.push(t("characters.pastTitles"));
+      character.pastTitles.forEach(titleHolding => {
+        const entityName = getTitleEntityName(titleHolding);
+        let titleStr = `${t("characters.titleOf", { title: titleHolding.title, entity: entityName })}, ${titleHolding.startYear ?? "?"} - ${titleHolding.endYear ?? "?"}`;
+        if (titleHolding.reason) titleStr += ` (${titleHolding.reason})`;
         rows.push(titleStr);
       });
     }
 
     // Dynastic Ties
     if (character.marriages && character.marriages.length > 0) {
-      rows.push("Dynastic Ties (Marriages)");
+      rows.push(t("characters.dynasticTies"));
       character.marriages.forEach(stateId => {
-        const stateName = states[stateId]?.name ?? "Unknown";
-        rows.push(`Married into ${stateName}`);
+        const stateName = states[stateId]?.name ?? t("characters.unknown");
+        rows.push(t("characters.marriedInto", { state: stateName }));
       });
     }
 
     // Affinities
     if (character.affinities && Object.keys(character.affinities).length > 0) {
-      rows.push("State Affinities");
+      rows.push(t("characters.stateAffinities"));
       Object.entries(character.affinities).forEach(([stateIdStr, score]) => {
         const stateId = Number(stateIdStr);
         const state = states[stateId];
         if (state && !state.removed) {
           const text = getAffinityText(score);
-          rows.push(`${state.name}, ${score} (${text})`);
+          rows.push(`${state.name}, ${t("characters.affinity", { score, affinity: text })}`);
         }
       });
     }
@@ -220,10 +233,10 @@ export const CharacterDetailsDialog: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const dialogButtons = [{ label: "Download CSV", onClick: downloadCSV }];
+  const dialogButtons = [{ label: t("characters.downloadCsv"), onClick: downloadCSV }];
   if (canSetAsPlayer) {
     dialogButtons.unshift({
-      label: "Set as Player Character",
+      label: t("characters.setAsPlayer"),
       onClick: handleSetAsPlayerCharacter
     });
   }
@@ -231,63 +244,60 @@ export const CharacterDetailsDialog: React.FC = () => {
   return (
     <Dialog
       isOpen={isOpen}
-      title={`Character Details: ${character.name}`}
+      title={t("characters.dialogTitle", { name: character.name })}
       onClose={() => closeDialog("characterDetails")}
       buttons={dialogButtons}
     >
       <div id="characterDetailsContainer" style={{ padding: "10px" }}>
-        <h3>Personal Information</h3>
+        <h3>{t("characters.personalInformation")}</h3>
         <table className="fmg-table fmg-property-table character-details__table">
           <tbody>
             <tr>
-              <th style={{ width: "120px", padding: "4px 0" }}>Name</th>
+              <th style={{ width: "120px", padding: "4px 0" }}>{t("characters.name")}</th>
               <td>{character.name}</td>
             </tr>
             <tr>
-              <th style={{ padding: "4px 0" }}>Age</th>
+              <th style={{ padding: "4px 0" }}>{t("characters.age")}</th>
               <td>{character.age}</td>
             </tr>
             <tr>
-              <th style={{ padding: "4px 0" }}>Gender</th>
-              <td>{character.gender}</td>
+              <th style={{ padding: "4px 0" }}>{t("characters.gender")}</th>
+              <td>{t(`characters.${character.gender}`)}</td>
             </tr>
             <tr>
-              <th style={{ padding: "4px 0" }}>Status</th>
+              <th style={{ padding: "4px 0" }}>{t("characters.status")}</th>
               <td>
                 {character.dead ? (
-                  <span style={{ color: "#ff6b6b", fontWeight: "bold" }}>
-                    Deceased (Died at age {character.age}
-                    {character.deathYear ? ` in ${character.deathYear}` : ""})
-                  </span>
+                  <span style={{ color: "#ff6b6b", fontWeight: "bold" }}>{statusText}</span>
                 ) : (
-                  <span style={{ color: "#51cf66", fontWeight: "bold" }}>Alive</span>
+                  <span style={{ color: "#51cf66", fontWeight: "bold" }}>{statusText}</span>
                 )}
               </td>
             </tr>
             <tr>
-              <th style={{ padding: "4px 0" }}>Culture</th>
+              <th style={{ padding: "4px 0" }}>{t("characters.culture")}</th>
               <td>{cultureName}</td>
             </tr>
             <tr>
-              <th style={{ padding: "4px 0" }}>Appearance</th>
-              <td>{character.appearance ?? "N/A"}</td>
+              <th style={{ padding: "4px 0" }}>{t("characters.appearance")}</th>
+              <td>{character.appearance ?? t("characters.notAvailable")}</td>
             </tr>
             <tr>
-              <th style={{ padding: "4px 0" }}>Prestige</th>
-              <td>{character.prestige ?? "N/A"}</td>
+              <th style={{ padding: "4px 0" }}>{t("characters.prestige")}</th>
+              <td>{character.prestige ?? t("characters.notAvailable")}</td>
             </tr>
             <tr>
-              <th style={{ padding: "4px 0" }} data-tip="Personal wealth (held money), distinct from state treasury">
-                Wealth
+              <th style={{ padding: "4px 0" }} data-tip={t("characters.wealthTip")}>
+                {t("characters.wealth")}
               </th>
               <td>{formatPrice(character.wealth ?? 0)}</td>
             </tr>
             <tr>
-              <th style={{ padding: "4px 0" }}>Location</th>
+              <th style={{ padding: "4px 0" }}>{t("characters.location")}</th>
               <td style={{ display: "flex", alignItems: "center" }}>
                 {character.location !== undefined && burgs[character.location] && (
                   <span
-                    data-tip="Click to zoom into view"
+                    data-tip={t("characters.zoomToLocation")}
                     className="icon-dot-circled pointer"
                     style={{ marginRight: "6px" }}
                     onClick={() => {
@@ -301,24 +311,34 @@ export const CharacterDetailsDialog: React.FC = () => {
             </tr>
             {character.family && (
               <tr>
-                <th style={{ padding: "4px 0" }}>Family</th>
+                <th style={{ padding: "4px 0" }}>{t("characters.family")}</th>
                 <td>
-                  {character.family.spouses > 0 ? "Married" : "Unmarried"}; {character.family.spouses} Spouses,{" "}
-                  {character.family.children} Children, {character.family.grandchildren} Grandchildren
-                  {character.family.greatGrandchildren > 0 &&
-                    `, ${character.family.greatGrandchildren} Great-grandchildren`}
+                  {t("characters.familySummary", {
+                    maritalStatus: character.family.spouses > 0 ? t("characters.married") : t("characters.unmarried"),
+                    spouses: character.family.spouses,
+                    children: character.family.children,
+                    grandchildren: character.family.grandchildren,
+                    greatGrandchildren:
+                      character.family.greatGrandchildren > 0
+                        ? t("characters.greatGrandchildren", { count: character.family.greatGrandchildren })
+                        : ""
+                  })}
                 </td>
               </tr>
             )}
             {character.titles && character.titles.length > 0 && (
               <tr>
-                <th style={{ padding: "4px 0", verticalAlign: "top" }}>Titles</th>
+                <th style={{ padding: "4px 0", verticalAlign: "top" }}>{t("characters.titles")}</th>
                 <td>
                   <ul style={{ margin: 0, listStyleType: "none", padding: 0 }}>
-                    {character.titles.map(t => (
-                      <li key={`${t.entityType}-${t.entityId}-${t.title}`}>
-                        {t.title} of {getTitleEntityName(t)} {t.landed ? "(Landed)" : ""}{" "}
-                        {t.startYear ? `[Since ${t.startYear}]` : ""}
+                    {character.titles.map(titleHolding => (
+                      <li key={`${titleHolding.entityType}-${titleHolding.entityId}-${titleHolding.title}`}>
+                        {t("characters.titleOf", {
+                          title: titleHolding.title,
+                          entity: getTitleEntityName(titleHolding)
+                        })}{" "}
+                        {titleHolding.landed ? t("characters.landed") : ""}{" "}
+                        {titleHolding.startYear ? t("characters.since", { year: titleHolding.startYear }) : ""}
                       </li>
                     ))}
                   </ul>
@@ -327,7 +347,7 @@ export const CharacterDetailsDialog: React.FC = () => {
             )}
             {character.roles && character.roles.length > 0 && (
               <tr>
-                <th style={{ padding: "4px 0", verticalAlign: "top" }}>Roles</th>
+                <th style={{ padding: "4px 0", verticalAlign: "top" }}>{t("characters.roles")}</th>
                 <td>
                   <ul style={{ margin: 0, listStyleType: "none", padding: 0 }}>
                     {character.roles.map(role => (
@@ -341,14 +361,20 @@ export const CharacterDetailsDialog: React.FC = () => {
             )}
             {character.pastTitles && character.pastTitles.length > 0 && (
               <tr>
-                <th style={{ padding: "4px 0", verticalAlign: "top" }}>Past Titles</th>
+                <th style={{ padding: "4px 0", verticalAlign: "top" }}>{t("characters.pastTitles")}</th>
                 <td>
                   <ul style={{ margin: 0, listStyleType: "none", padding: 0 }}>
-                    {character.pastTitles.map((t, idx) => (
+                    {character.pastTitles.map((titleHolding, idx) => (
                       // biome-ignore lint/suspicious/noArrayIndexKey: Past titles can be identical
                       <li key={`past-${idx}`}>
-                        {t.title} of {getTitleEntityName(t)} ({t.startYear ?? "?"} - {t.endYear ?? "?"})
-                        {t.reason ? <span style={{ color: "#adb5bd", fontStyle: "italic" }}> - {t.reason}</span> : null}
+                        {t("characters.titleOf", {
+                          title: titleHolding.title,
+                          entity: getTitleEntityName(titleHolding)
+                        })}{" "}
+                        ({titleHolding.startYear ?? "?"} - {titleHolding.endYear ?? "?"})
+                        {titleHolding.reason ? (
+                          <span style={{ color: "#adb5bd", fontStyle: "italic" }}> - {titleHolding.reason}</span>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
@@ -364,14 +390,14 @@ export const CharacterDetailsDialog: React.FC = () => {
             className={`options ${activeTab === "skills" ? "active" : ""}`}
             onClick={() => setActiveTab("skills")}
           >
-            Skills
+            {t("characters.skills")}
           </button>
           <button
             type="button"
             className={`options ${activeTab === "personality" ? "active" : ""}`}
             onClick={() => setActiveTab("personality")}
           >
-            Personality
+            {t("characters.personality")}
           </button>
         </div>
 
@@ -380,19 +406,19 @@ export const CharacterDetailsDialog: React.FC = () => {
             {character.skills ? (
               <RadarChart
                 data={[
-                  { axis: "Artistry", value: character.skills.artistry },
-                  { axis: "Diplomacy", value: character.skills.diplomacy },
-                  { axis: "Engineering", value: character.skills.engineering },
-                  { axis: "Geography", value: character.skills.geography },
-                  { axis: "Intrigue", value: character.skills.intrigue },
-                  { axis: "Learning", value: character.skills.learning },
-                  { axis: "Martial", value: character.skills.martial },
-                  { axis: "Prowess", value: character.skills.prowess },
-                  { axis: "Stewardship", value: character.skills.stewardship }
+                  { axis: t("characters.artistry"), value: character.skills.artistry },
+                  { axis: t("characters.diplomacy"), value: character.skills.diplomacy },
+                  { axis: t("characters.engineering"), value: character.skills.engineering },
+                  { axis: t("characters.geography"), value: character.skills.geography },
+                  { axis: t("characters.intrigue"), value: character.skills.intrigue },
+                  { axis: t("characters.learning"), value: character.skills.learning },
+                  { axis: t("characters.martial"), value: character.skills.martial },
+                  { axis: t("characters.prowess"), value: character.skills.prowess },
+                  { axis: t("characters.stewardship"), value: character.skills.stewardship }
                 ]}
               />
             ) : (
-              <p>No skills data.</p>
+              <p>{t("characters.noSkills")}</p>
             )}
           </div>
         )}
@@ -402,38 +428,40 @@ export const CharacterDetailsDialog: React.FC = () => {
             {character.personality ? (
               <RadarChart
                 data={[
-                  { axis: "Boldness", value: character.personality.boldness },
-                  { axis: "Compassion", value: character.personality.compassion },
-                  { axis: "Confidence", value: character.personality.confidence ?? 0 },
-                  { axis: "Energy", value: character.personality.energy },
-                  { axis: "Greed", value: character.personality.greed },
-                  { axis: "Guile", value: character.personality.guile },
-                  { axis: "Honor", value: character.personality.honor },
-                  { axis: "Piety", value: character.personality.piety },
-                  { axis: "Rationality", value: character.personality.rationality },
-                  { axis: "Sociability", value: character.personality.sociability },
-                  { axis: "Vengefulness", value: character.personality.vengefulness },
-                  { axis: "Zeal", value: character.personality.zeal }
+                  { axis: t("characters.boldness"), value: character.personality.boldness },
+                  { axis: t("characters.compassion"), value: character.personality.compassion },
+                  { axis: t("characters.confidence"), value: character.personality.confidence ?? 0 },
+                  { axis: t("characters.energy"), value: character.personality.energy },
+                  { axis: t("characters.greed"), value: character.personality.greed },
+                  { axis: t("characters.guile"), value: character.personality.guile },
+                  { axis: t("characters.honor"), value: character.personality.honor },
+                  { axis: t("characters.piety"), value: character.personality.piety },
+                  { axis: t("characters.rationality"), value: character.personality.rationality },
+                  { axis: t("characters.sociability"), value: character.personality.sociability },
+                  { axis: t("characters.vengefulness"), value: character.personality.vengefulness },
+                  { axis: t("characters.zeal"), value: character.personality.zeal }
                 ]}
               />
             ) : (
-              <p>No personality data.</p>
+              <p>{t("characters.noPersonality")}</p>
             )}
           </div>
         )}
 
         {character.marriages && character.marriages.length > 0 && (
           <>
-            <h3>Dynastic Ties (Marriages)</h3>
+            <h3>{t("characters.dynasticTies")}</h3>
             <ul>
               {character.marriages.map(stateId => (
-                <li key={`m-${stateId}`}>Married into {states[stateId]?.name ?? "Unknown"}</li>
+                <li key={`m-${stateId}`}>
+                  {t("characters.marriedInto", { state: states[stateId]?.name ?? t("characters.unknown") })}
+                </li>
               ))}
             </ul>
           </>
         )}
 
-        <h3>State Affinities</h3>
+        <h3>{t("characters.stateAffinities")}</h3>
         {character.affinities && Object.keys(character.affinities).length > 0 ? (
           <ul>
             {Object.entries(character.affinities).map(([stateIdStr, score]) => {
@@ -444,13 +472,13 @@ export const CharacterDetailsDialog: React.FC = () => {
               const text = getAffinityText(score);
               return (
                 <li key={`aff-${stateId}`}>
-                  <strong>{state.name}:</strong> {score} ({text})
+                  <strong>{state.name}:</strong> {t("characters.affinity", { score, affinity: text })}
                 </li>
               );
             })}
           </ul>
         ) : (
-          <p>No affinities calculated.</p>
+          <p>{t("characters.noAffinities")}</p>
         )}
       </div>
     </Dialog>

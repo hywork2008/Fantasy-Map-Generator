@@ -1,6 +1,7 @@
 import * as d3 from "d3";
 import type React from "react";
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useOptionsState } from "../../../../hostCore";
 
 export interface RadarData {
@@ -16,6 +17,7 @@ export interface RadarChartProps {
 }
 
 export const RadarChart: React.FC<RadarChartProps> = ({ data, width = 320, height = 320, maxValue = 100 }) => {
+  const { t } = useTranslation();
   const svgRef = useRef<SVGSVGElement>(null);
   const radarChartColor = useOptionsState(state => state.radarChartColor);
 
@@ -171,7 +173,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({ data, width = 320, heigh
   return (
     <div style={{ display: "flex", justifyContent: "center", margin: "10px 0" }}>
       <svg ref={svgRef} width={width} height={height} style={{ overflow: "visible" }}>
-        <title>Radar Chart</title>
+        <title>{t("characters.radarChart")}</title>
       </svg>
     </div>
   );
