@@ -1,9 +1,17 @@
 import type { Character, TitleHolding } from "../../characters/characterTypes";
-import type { Province, State } from "../../hostTypes";
+import type { Burg, Province, State } from "../../hostTypes";
 import { getWorldContext } from "../nobilityContext";
 import { usePlayerCharacterState } from "../store/playerCharacterState";
 
 const FIELD_COMMAND_TITLES = new Set(["Commander", "Admiral"]);
+
+export interface PlayerCharacterLocation {
+  burgId: number;
+  /** Full label, e.g. "Riverton (Aldoria)". */
+  label: string;
+  x: number;
+  y: number;
+}
 
 export interface PlayerCharacterSummary {
   id: number;
@@ -19,10 +27,17 @@ export interface PlayerCharacterSummary {
    * provincial lordship, or a named field/fleet command.
    */
   organization: string;
+  /** Settled burg when known; null if location is missing or invalid. */
+  location: PlayerCharacterLocation | null;
 }
 
+function isLiving(character: Character): boolean {
+  return !character.dead;
+}
+
+/** Living characters that hold a political title — the random-pick pool. */
 function isLivingPolitician(character: Character): boolean {
-  return !character.dead && character.titles.length > 0;
+  return isLiving(character) && character.titles.length > 0;
 }
 
 function listPoliticalCandidates(characters: Character[] | undefined): Character[] {
@@ -45,6 +60,24 @@ function resolveRegimentName(states: State[] | undefined, stateId: number, chara
   if (!regiments?.length) return null;
   const regiment = regiments.find(r => r.commanderId === characterId);
   return regiment?.name ?? null;
+}
+
+function resolveLocation(
+  character: Character,
+  pack: { states?: State[]; burgs?: Burg[] }
+): PlayerCharacterLocation | null {
+  if (character.location === undefined) return null;
+  const burg = pack.burgs?.[character.location];
+  if (!burg || burg.removed) return null;
+  const stateName =
+    burg.state !== undefined && burg.state > 0 ? resolveStateName(pack.states, burg.state) : "Unknown State";
+  const burgName = burg.name || `Burg ${character.location}`;
+  return {
+    burgId: burg.i ?? character.location,
+    label: `${burgName} (${stateName})`,
+    x: burg.x,
+    y: burg.y
+  };
 }
 
 /**
@@ -72,24 +105,31 @@ export function resolveOrganization(
 
 export function buildPlayerCharacterSummary(
   character: Character,
-  pack: { states?: State[]; provinces?: Province[] }
+  pack: { states?: State[]; provinces?: Province[]; burgs?: Burg[] }
 ): PlayerCharacterSummary | null {
-  if (!isLivingPolitician(character)) return null;
+  if (!isLiving(character)) return null;
 
   const holding = character.titles[0];
-  const stateId =
-    holding.entityType === "state"
-      ? holding.entityId
-      : (character.state ?? pack.provinces?.[holding.entityId]?.state ?? -1);
+  const role = character.roles?.[0];
+  let stateId = character.state ?? -1;
+  if (holding) {
+    stateId =
+      holding.entityType === "state"
+        ? holding.entityId
+        : (character.state ?? pack.provinces?.[holding.entityId]?.state ?? -1);
+  } else if (role?.entityType === "state") {
+    stateId = role.entityId;
+  }
 
   return {
     id: character.i,
     name: character.name,
     wealth: character.wealth ?? 0,
-    title: holding.title,
+    title: holding?.title ?? role?.label ?? "—",
     stateId,
     stateName: resolveStateName(pack.states, stateId),
-    organization: resolveOrganization(character, holding, pack)
+    organization: holding ? resolveOrganization(character, holding, pack) : (role?.label ?? "—"),
+    location: resolveLocation(character, pack)
   };
 }
 
@@ -114,7 +154,7 @@ export function pickRandomPoliticalCharacterId(
 
 /**
  * Assign a fresh random focus character. Call after nobility generation or when
- * the current selection is no longer a living politician.
+ * the current selection is no longer a living character.
  * Pass `excludeCurrent: true` for the HUD reroll control.
  */
 export function selectRandomPlayerCharacter(options?: { excludeCurrent?: boolean }): number | null {
@@ -128,8 +168,22 @@ export function selectRandomPlayerCharacter(options?: { excludeCurrent?: boolean
 }
 
 /**
+ * Explicitly set the player focus character (e.g. from Character Details).
+ * Rejects missing or deceased characters.
+ */
+export function setPlayerCharacter(characterId: number): boolean {
+  const { pack } = getWorldContext();
+  const character = pack.characters?.find(c => c.i === characterId);
+  if (!character || !isLiving(character)) return false;
+  const store = usePlayerCharacterState.getState();
+  store.setPlayerCharacterId(characterId);
+  store.bumpRefreshToken();
+  return true;
+}
+
+/**
  * Keep the HUD selection valid after succession / death ticks.
- * - Missing or dead / title-less selection → re-roll.
+ * - Missing or dead selection → re-roll among living politicians.
  * - Still valid → just bump the refresh token so live title/age changes re-render.
  */
 export function refreshPlayerCharacterSelection(): void {
@@ -138,7 +192,7 @@ export function refreshPlayerCharacterSelection(): void {
   const currentId = store.playerCharacterId;
   const current = currentId !== null ? pack.characters?.find(c => c.i === currentId) : undefined;
 
-  if (!current || !isLivingPolitician(current)) {
+  if (!current || !isLiving(current)) {
     selectRandomPlayerCharacter();
     return;
   }

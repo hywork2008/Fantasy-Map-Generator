@@ -2,6 +2,9 @@ import type React from "react";
 import { useState } from "react";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
+import { setPlayerCharacter } from "../../../nobility/controllers/playerCharacter";
+import { hasNobilityContext } from "../../../nobility/nobilityContext";
+import { usePlayerCharacterState } from "../../../nobility/store/playerCharacterState";
 import { getApi, getCharacters, getWorldContext } from "../../charactersContext";
 import type { CharacterRole, TitleHolding } from "../../characterTypes";
 import { useCharactersUiState } from "../charactersUiState";
@@ -20,6 +23,7 @@ export const CharacterDetailsDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("characterDetails"));
   const selectedCharacterId = useCharactersUiState(state => state.selectedCharacterId);
   useCharactersUiState(state => state.refreshToken);
+  const playerCharacterId = usePlayerCharacterState(state => state.playerCharacterId);
   const [activeTab, setActiveTab] = useState<"skills" | "personality">("skills");
 
   const worldContext = getWorldContext();
@@ -35,6 +39,15 @@ export const CharacterDetailsDialog: React.FC = () => {
   if (!isOpen || !character) {
     return null;
   }
+
+  const nobilityAvailable = hasNobilityContext();
+  const isCurrentPlayer = playerCharacterId === character.i;
+  const canSetAsPlayer = nobilityAvailable && !character.dead && !isCurrentPlayer;
+
+  const handleSetAsPlayerCharacter = () => {
+    if (!canSetAsPlayer) return;
+    setPlayerCharacter(character.i);
+  };
 
   // "state" titles (rulers, central offices, field/fleet officers) point at pack.states;
   // "province" titles (frontier lords) point at pack.provinces — same entityId space, different table.
@@ -207,12 +220,20 @@ export const CharacterDetailsDialog: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const dialogButtons = [{ label: "Download CSV", onClick: downloadCSV }];
+  if (canSetAsPlayer) {
+    dialogButtons.unshift({
+      label: "Set as Player Character",
+      onClick: handleSetAsPlayerCharacter
+    });
+  }
+
   return (
     <Dialog
       isOpen={isOpen}
       title={`Character Details: ${character.name}`}
       onClose={() => closeDialog("characterDetails")}
-      buttons={[{ label: "Download CSV", onClick: downloadCSV }]}
+      buttons={dialogButtons}
     >
       <div id="characterDetailsContainer" style={{ padding: "10px" }}>
         <h3>Personal Information</h3>

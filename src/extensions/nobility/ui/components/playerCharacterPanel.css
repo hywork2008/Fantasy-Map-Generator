@@ -28,14 +28,71 @@
   padding: 10px 12px 8px;
 }
 
-.player-character-panel .pcp-name {
+.player-character-panel .pcp-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 0 0 8px;
+}
+
+.player-character-panel .pcp-name {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
   color: #161b22;
   font-family: var(--serif);
   font-size: 17px;
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-character-panel .pcp-name-row .icon-cw {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 0 4px;
+  border: 1px solid rgba(42, 49, 64, 0.35);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #1e2430;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.player-character-panel .pcp-name-row .icon-cw:hover {
+  background: #fff;
+  border-color: #6b4f2a;
+}
+
+.player-character-panel .pcp-name-row .icon-cw:focus-visible {
+  outline: 2px solid #c4a35a;
+  outline-offset: 1px;
+}
+
+.player-character-panel .pcp-location {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.player-character-panel .pcp-location .icon-dot-circled {
+  flex-shrink: 0;
+  margin-right: 2px;
+}
+
+.player-character-panel .pcp-location-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .player-character-panel .pcp-fields {
@@ -73,32 +130,6 @@
   padding: 8px 12px 10px;
   border-top: 1px solid rgba(42, 49, 64, 0.18);
   background: rgba(246, 242, 233, 0.55);
-}
-
-.player-character-panel .pcp-actions .icon-cw {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 26px;
-  min-height: 26px;
-  padding: 0 4px;
-  border: 1px solid rgba(42, 49, 64, 0.35);
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.9);
-  color: #1e2430;
-  cursor: pointer;
-  font-size: 14px;
-  line-height: 1;
-}
-
-.player-character-panel .pcp-actions .icon-cw:hover {
-  background: #fff;
-  border-color: #6b4f2a;
-}
-
-.player-character-panel .pcp-actions .icon-cw:focus-visible {
-  outline: 2px solid #c4a35a;
-  outline-offset: 1px;
 }
 
 .player-character-panel .pcp-action {

@@ -80,7 +80,29 @@ describe("playerCharacter", () => {
       title: "Queen",
       stateId: 2,
       stateName: "Vespera",
-      organization: "Ruling Court"
+      organization: "Ruling Court",
+      location: null
+    });
+  });
+
+  it("resolves location from the character's burg", () => {
+    const character = makeCharacter({
+      i: 5,
+      name: "Elena",
+      state: 2,
+      location: 3,
+      titles: [{ title: "Queen", landed: true, entityType: "state", entityId: 2 }]
+    });
+    const pack = {
+      states: [undefined, undefined, { i: 2, name: "Vespera" } as never],
+      burgs: [undefined, undefined, undefined, { i: 3, name: "Riverton", state: 2, x: 100, y: 200, cell: 0 } as never]
+    };
+
+    expect(buildPlayerCharacterSummary(character, pack)?.location).toEqual({
+      burgId: 3,
+      label: "Riverton (Vespera)",
+      x: 100,
+      y: 200
     });
   });
 

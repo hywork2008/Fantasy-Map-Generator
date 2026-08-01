@@ -1,10 +1,10 @@
 import type React from "react";
 import { useMemo } from "react";
 import { useCharactersUiState } from "../../../characters/ui/charactersUiState";
-import { Dialog, openDialog } from "../../../hostUi";
+import { Dialog, isDialogOpen, openDialog } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 import { buildPlayerCharacterSummary, selectRandomPlayerCharacter } from "../../controllers/playerCharacter";
-import { getWorldContext } from "../../nobilityContext";
+import { getApi, getWorldContext } from "../../nobilityContext";
 import { usePlayerCharacterState } from "../../store/playerCharacterState";
 import "./playerCharacterPanel.css";
 
@@ -36,7 +36,16 @@ export const PlayerCharacterPanel: React.FC = () => {
   };
 
   const handleReroll = () => {
-    selectRandomPlayerCharacter({ excludeCurrent: true });
+    const newId = selectRandomPlayerCharacter({ excludeCurrent: true });
+    // Keep Character Details in sync when it is already open, so the user sees the new pick.
+    if (newId !== null && isDialogOpen("characterDetails")) {
+      setSelectedCharacterId(newId);
+    }
+  };
+
+  const handleZoomToLocation = () => {
+    if (!summary?.location) return;
+    getApi().zoomTo(summary.location.x, summary.location.y, 20, 2000);
   };
 
   return (
@@ -45,10 +54,34 @@ export const PlayerCharacterPanel: React.FC = () => {
         <div className="pcp-empty">No ruling character available yet. Generate or enable Characters & Nobility.</div>
       ) : (
         <div className="pcp-content">
-          <h2 className="pcp-name">{summary.name}</h2>
+          <div className="pcp-name-row">
+            <h2 className="pcp-name">{summary.name}</h2>
+            <button
+              type="button"
+              className="icon-cw"
+              data-tip="Select a different random character"
+              aria-label="Select a different random character"
+              onClick={handleReroll}
+            />
+          </div>
           <dl className="pcp-fields">
             <dt>Wealth</dt>
             <dd title="Personal wealth (held money)">{formatPrice(summary.wealth)}</dd>
+            <dt>Location</dt>
+            <dd className="pcp-location" title={summary.location?.label ?? "Unknown"}>
+              {summary.location ? (
+                <>
+                  <span
+                    data-tip="Click to zoom into view"
+                    className="icon-dot-circled pointer"
+                    onClick={handleZoomToLocation}
+                  />
+                  <span className="pcp-location-label">{summary.location.label}</span>
+                </>
+              ) : (
+                "Unknown"
+              )}
+            </dd>
             <dt>Title</dt>
             <dd title={summary.title}>{summary.title}</dd>
             <dt>State</dt>
@@ -61,13 +94,6 @@ export const PlayerCharacterPanel: React.FC = () => {
 
       {/* Future action buttons (diplomacy, treasury, military, …) land in this toolbar. */}
       <div className="pcp-actions" role="toolbar" aria-label="Player character actions">
-        <button
-          type="button"
-          className="icon-cw"
-          data-tip="Select a different random character"
-          aria-label="Select a different random character"
-          onClick={handleReroll}
-        />
         <button
           type="button"
           className="pcp-action"
