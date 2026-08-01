@@ -14,6 +14,11 @@ import {
   mayAdvanceAutonomousConflict,
   startPlayerConflict
 } from "./conflictDirector";
+import {
+  clearPlayerCharacterSelection,
+  refreshPlayerCharacterSelection,
+  selectRandomPlayerCharacter
+} from "./controllers/playerCharacter";
 import { applyPersonalityToCapitalGuard } from "./generators/capitalGuardModifier";
 import { Characters } from "./generators/characterLifecycle";
 import { applyAffinitiesToDiplomacy } from "./generators/diplomacy-modifier";
@@ -26,6 +31,7 @@ import { assignOfficers } from "./generators/officerAssignment";
 import { assignProvinceLords } from "./generators/provinceLordGenerator";
 import { StrategicPlanner } from "./generators/strategic-planner";
 import { clearNobilityContext, getWorldContext, initNobilityContext } from "./nobilityContext";
+import { PlayerCharacterPanel } from "./ui/components/PlayerCharacterPanel";
 import { StatesEditorPersonalityTab } from "./ui/components/StatesEditorPersonalityTab";
 
 export const NOBILITY_EXTENSION_ID = "nobility";
@@ -59,6 +65,8 @@ function regenerateNobilityData(mode: NobilityRegenerationMode): void {
   }
   Espionage.generate();
   if (mayAdvanceAutonomousConflict()) StrategicPlanner.generate();
+  // Government roster was rebuilt — re-roll the focus character for the player HUD.
+  selectRandomPlayerCharacter();
 }
 
 export function init(api: ExtensionAPI): void {
@@ -98,6 +106,14 @@ export function init(api: ExtensionAPI): void {
     component: StatesEditorPersonalityTab
   });
 
+  // Always-visible top-right HUD (not a modal). Mounted while the extension is enabled
+  // via DialogsContainer's extension-dialog filter.
+  api.registerDialog({
+    id: "PlayerCharacterPanel",
+    extensionId: NOBILITY_EXTENSION_ID,
+    component: PlayerCharacterPanel
+  });
+
   api.registerAction({
     id: "nobility-regenerate-characters",
     extensionId: NOBILITY_EXTENSION_ID,
@@ -126,8 +142,12 @@ export function init(api: ExtensionAPI): void {
           name: "regenerate",
           payload: { mode: "bootstrap" }
         });
+      } else {
+        // Roster already exists (e.g. re-enable mid-session) — pick a focus character.
+        selectRandomPlayerCharacter();
       }
     } else if (!isEnabled && wasEnabled) {
+      clearPlayerCharacterSelection();
       api.dispatchExtensionCommand({ extensionId: CHARACTERS_EXTENSION_ID, name: "clear", payload: undefined });
     }
   });
@@ -295,6 +315,8 @@ export function init(api: ExtensionAPI): void {
       const militaryChanged = settlementsChanged || regimentsMoved;
 
       refreshCharactersOverviewIfOpen(api.isDialogOpen("charactersOverview"));
+      // Keep the top-right player HUD honest after death/succession/title swaps.
+      refreshPlayerCharacterSelection();
 
       writer.markChanged("extension.characters", "extension.nobility");
       if (settlementsChanged) writer.markChanged("map.politics", "map.settlements");
@@ -304,6 +326,7 @@ export function init(api: ExtensionAPI): void {
 }
 
 export function cleanup(api: ExtensionAPI): void {
+  clearPlayerCharacterSelection();
   if (_unsubscribe) {
     _unsubscribe();
     _unsubscribe = null;

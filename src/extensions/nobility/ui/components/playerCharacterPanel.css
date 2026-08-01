@@ -1,0 +1,138 @@
+/* Top-right player focus HUD. Uses the shared .fmg-dialog shell (drag/resize/
+   minimize) but anchors to the top-right instead of the viewport center. */
+
+.fmg-dialog.player-character-panel {
+  top: 12px;
+  left: auto;
+  right: 12px;
+  width: 280px;
+  min-height: 0;
+  max-width: min(360px, calc(100vw - 24px));
+  max-height: none;
+  /* Drop the dialog's default -50%/-50% centering; drag offsets still apply. */
+  transform: translate(var(--dialog-offset-x), var(--dialog-offset-y));
+}
+
+.fmg-dialog.player-character-panel.titlebar-anchored {
+  transform: translate(var(--dialog-offset-x), var(--dialog-offset-y));
+}
+
+.player-character-panel .fmg-dialog-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+}
+
+.player-character-panel .pcp-content {
+  padding: 10px 12px 8px;
+}
+
+.player-character-panel .pcp-name {
+  margin: 0 0 8px;
+  color: #161b22;
+  font-family: var(--serif);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+.player-character-panel .pcp-fields {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 10px;
+  margin: 0;
+}
+
+.player-character-panel .pcp-fields dt {
+  margin: 0;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.player-character-panel .pcp-fields dd {
+  margin: 0;
+  color: #1f2937;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-character-panel .pcp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px 10px;
+  border-top: 1px solid rgba(42, 49, 64, 0.18);
+  background: rgba(246, 242, 233, 0.55);
+}
+
+.player-character-panel .pcp-actions .icon-cw {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 0 4px;
+  border: 1px solid rgba(42, 49, 64, 0.35);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #1e2430;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.player-character-panel .pcp-actions .icon-cw:hover {
+  background: #fff;
+  border-color: #6b4f2a;
+}
+
+.player-character-panel .pcp-actions .icon-cw:focus-visible {
+  outline: 2px solid #c4a35a;
+  outline-offset: 1px;
+}
+
+.player-character-panel .pcp-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 3px 10px;
+  border: 1px solid rgba(42, 49, 64, 0.35);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #1e2430;
+  font: 600 12px/1 var(--sans-serif);
+  cursor: pointer;
+}
+
+.player-character-panel .pcp-action:hover:not(:disabled) {
+  background: #fff;
+  border-color: #6b4f2a;
+}
+
+.player-character-panel .pcp-action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.player-character-panel .pcp-action:focus-visible {
+  outline: 2px solid #c4a35a;
+  outline-offset: 1px;
+}
+
+.player-character-panel .pcp-empty {
+  padding: 12px;
+  color: #5b6472;
+  font-size: 12px;
+  line-height: 1.4;
+}
