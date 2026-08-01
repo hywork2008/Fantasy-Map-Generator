@@ -103,7 +103,7 @@ export interface Deal {
 }
 
 export type TransportAllocation = {
-  mode: "land" | "water";
+  mode: "land" | "water" | "river";
   transportId: string;
   transportName: string;
   unitCount: number;
@@ -128,6 +128,16 @@ export type MerchantLandAssetBalance = {
   recoveryDays: number;
 };
 
+/** Aggregate shallow-draft vessels. Unlike sea hulls, river barges are Economy-owned assets. */
+export type MerchantRiverAssetBalance = {
+  assetId: "river-barge";
+  available: number;
+  reserved: number;
+  inTransit: number;
+  maintenance: number;
+  recoveryDays: number;
+};
+
 /** Economy's durable reference to one Shipbuilding-owned merchant hull. */
 export type MerchantWaterAssetReference = {
   shipHullId: number;
@@ -143,6 +153,7 @@ export type MerchantTransportLedger = {
   /** Derived display reference only; marketId remains the ownership key. */
   organizationId?: number;
   landAssets: MerchantLandAssetBalance[];
+  riverAssets: MerchantRiverAssetBalance[];
   /** References only; Shipbuilding's ShipHull remains the source of truth. */
   waterAssets: MerchantWaterAssetReference[];
   lastReconciledTick: number;
@@ -162,7 +173,7 @@ export type TransportAssetOrder = {
   id: number;
   marketId: number;
   requestedBy: "simulation" | "player";
-  blueprintId: "pack-train" | "cart" | "wagon";
+  blueprintId: "pack-train" | "cart" | "wagon" | "river-barge";
   quantity: number;
   completedQuantity: number;
   /** Player orders may not reserve materials whose total current price exceeds this amount. */
@@ -182,7 +193,8 @@ export type TransportAssetOrder = {
 export type TradeRoutePoint = [number, number] | [number, number, number];
 
 export type TradeRouteSegment = {
-  type: "land" | "water";
+  /** `water` is retained only for caravans saved before sea and river legs were separated. */
+  type: "land" | "water" | "sea" | "river";
   points: TradeRoutePoint[];
 };
 

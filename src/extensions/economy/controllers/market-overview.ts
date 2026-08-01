@@ -166,6 +166,10 @@ export function refreshMarketOverview(): void {
     (sum, row) => sum + row.total * row.cargoCapacitySlots,
     0
   );
+  const transportReadyCapacitySlots = transportAssetRows.reduce(
+    (sum, row) => sum + row.available * row.cargoCapacitySlots,
+    0
+  );
   const occupiedTransportSlots = transportAssetRows.reduce(
     (sum, row) => sum + (row.reserved + row.inTransit) * row.cargoCapacitySlots,
     0
@@ -185,6 +189,7 @@ export function refreshMarketOverview(): void {
     totalStock: rn(totalUnits, 2),
     agTechStockPercent: rn((market.agTechStock ?? 0) * 100, 0),
     transportCargoCapacitySlots,
+    transportReadyCapacitySlots,
     transportUtilizationPercent: transportCargoCapacitySlots
       ? rn((occupiedTransportSlots / transportCargoCapacitySlots) * 100, 0)
       : 0

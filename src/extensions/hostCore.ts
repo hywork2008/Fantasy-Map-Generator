@@ -28,6 +28,7 @@ export { Military } from "../generators/military-generator";
 export { Names } from "../generators/names-generator";
 export { getDeathsByState, recordDeaths, resetPopulationLossTracker } from "../generators/populationLossTracker";
 export { advanceAllRegimentMovement, isOccupiedHomeBurg } from "../generators/regimentMovement";
+export { buildRiverNavigationGraph, findDownstreamRiverPath } from "../generators/riverNavigationGraph";
 export { buildSeaRouteGraph, findSeaRouteDistance, type SeaRouteGraph } from "../generators/seaRouteGraph";
 export { States } from "../generators/states-generator";
 export type { Point } from "../generators/voronoi";

@@ -30,9 +30,9 @@ import {
 } from "./strategicProcurementPolicy";
 import type { ProcurementOrder, ProcurementOrderBlockedReason } from "./strategicProcurementTypes";
 import { registerStrategicProcurementExpense } from "./taxes-generator";
-import { TradeAnimation } from "./trade-animation";
 import { getTransportCost } from "./tradeOpportunityEstimator";
 import { calculateRouteDurationDays, getRouteDistanceMapUnits } from "./tradeRouteDuration";
+import { TradeRoutePlanner } from "./tradeRoutePlanner";
 
 export type {
   ProcurementOrder,
@@ -308,7 +308,7 @@ export class StrategicProcurementModule {
     const destinationBurg = pack.burgs[destination.centerBurgId];
     if (!sourceBurg || !destinationBurg || sourceBurg.i === destinationBurg.i) return null;
 
-    const routePath = TradeAnimation.findRoutePath(sourceBurg.cell, destinationBurg.cell);
+    const routePath = TradeRoutePlanner.findRoutePath(sourceBurg.cell, destinationBurg.cell);
     const segments: TradeRouteSegment[] = routePath?.segments?.length
       ? routePath.segments.map(segment => ({
           type: segment.type,

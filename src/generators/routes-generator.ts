@@ -321,15 +321,15 @@ class RoutesModule {
 
   getWaterPathCost(current: number, next: number): number {
     const { pack } = this.worldContext;
-    const { h, r, fl } = pack.cells;
+    const { h } = pack.cells;
     const haven = pack.cells.haven as typeof pack.cells.haven | undefined;
 
     const currentIsWater = h[current] < 20;
     const nextIsWater = h[next] < 20;
 
-    // A coastal port's haven is its official sea portal. Check it before
-    // river adjacency so a low-flux river mouth can still reach the sea,
-    // without making the river itself navigable.
+    // Sea routes enter and leave land only through an official haven. River
+    // navigation is modeled by RiverNavigationGraph, not this bidirectional
+    // sea-route evaluator.
     if (!currentIsWater && nextIsWater && haven?.[current] === next) {
       return distanceSquared(pack.cells.p[current], pack.cells.p[next]);
     }
@@ -338,32 +338,8 @@ class RoutesModule {
       return distanceSquared(pack.cells.p[current], pack.cells.p[next]);
     }
 
-    if (this.riverAdjacency.has(`${current}-${next}`)) {
-      if (!currentIsWater && !nextIsWater) {
-        if (r[current] && fl[current] >= MIN_NAVIGABLE_FLUX && r[next] && fl[next] >= MIN_NAVIGABLE_FLUX) {
-          return distanceSquared(pack.cells.p[current], pack.cells.p[next]);
-        }
-        return Infinity;
-      }
-      const landCell = currentIsWater ? next : current;
-      if (r[landCell] && fl[landCell] >= MIN_NAVIGABLE_FLUX) {
-        return distanceSquared(pack.cells.p[current], pack.cells.p[next]);
-      }
-      return Infinity;
-    }
-
     if (currentIsWater && nextIsWater) {
       return distanceSquared(pack.cells.p[current], pack.cells.p[next]);
-    }
-
-    if (!currentIsWater && nextIsWater && !r[current]) {
-      const havenCell = haven?.[current];
-      return havenCell === next ? distanceSquared(pack.cells.p[current], pack.cells.p[next]) : Infinity;
-    }
-
-    if (currentIsWater && !nextIsWater && !r[next]) {
-      const havenCell = haven?.[next];
-      return havenCell === current ? distanceSquared(pack.cells.p[current], pack.cells.p[next]) : Infinity;
     }
 
     return Infinity;
@@ -967,13 +943,18 @@ class RoutesModule {
     const seaRoutes: Route[] = [];
 
     for (const portGroup of portGroups) {
-      const { feature, burgs: featurePorts } = portGroup;
+      const { feature } = portGroup;
+      // A river burg retains `port` for existing settlement / drain metadata, but it is
+      // not a sea port unless it has a haven cell. Do not let its shared feature create
+      // a bidirectional sea lane along the river channel.
+      const featurePorts = portGroup.burgs.filter(burg => Boolean(pack.cells.haven[burg.cell]));
+      if (featurePorts.length < 2) continue;
       const points = featurePorts.map(burg => [burg.x, burg.y] as Point);
       const allPortEdges =
         seaRouteGenerationMode === "augmented"
           ? this.calculateAugmentedEdges(points)
           : this.calculateUrquhartEdges(points);
-      const coastalPortIndices = featurePorts.flatMap((burg, index) => (pack.cells.haven[burg.cell] ? [index] : []));
+      const coastalPortIndices = featurePorts.map((_, index) => index);
       const portEdges =
         seaRouteGenerationMode === "augmented"
           ? this.addCoastalBackboneEdges(points, allPortEdges, coastalPortIndices)
@@ -1217,7 +1198,7 @@ class RoutesModule {
   connectPort(cellId: number, stateId: number): Route | undefined {
     const { pack } = this.worldContext;
     const source = pack.burgs[pack.cells.burg[cellId]];
-    if (!source?.port || source.state !== stateId) return;
+    if (!source?.port || source.state !== stateId || !pack.cells.haven[cellId]) return;
     const international = this.allowsInternationalSeaRoutes();
 
     const targetCells = new Set(
@@ -1228,7 +1209,8 @@ class RoutesModule {
             !burg.removed &&
             burg.i !== source.i &&
             (international || burg.state === stateId) &&
-            burg.port === source.port
+            burg.port === source.port &&
+            Boolean(pack.cells.haven[burg.cell])
         )
         .map(burg => burg.cell)
     );

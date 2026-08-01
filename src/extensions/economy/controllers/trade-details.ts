@@ -4,7 +4,7 @@ import { minmax, rn } from "../../hostUtils";
 
 import { getApi, getMarketById, getMarkets, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
-import type { Caravan } from "../generators/marketTypes";
+import type { Caravan, TradeRouteSegment } from "../generators/marketTypes";
 import { MerchantTransportAssets } from "../generators/merchantTransportAssets";
 import { getGoodCargoSlotsPerUnit } from "../generators/tradeCargo";
 import { clearHighlight, highlight } from "../renderers/draw-trade-animation";
@@ -41,7 +41,15 @@ export function open(caravan: Caravan): void {
 
 export function closeTradeDetails(): void {
   activeCaravan = undefined;
-  setTradeDetailsState({ summary: null, rows: [], distance: "", totalUnits: 0, totalValue: 0, transportSummaries: [] });
+  setTradeDetailsState({
+    summary: null,
+    rows: [],
+    distance: "",
+    totalUnits: 0,
+    totalValue: 0,
+    transportSummaries: [],
+    routeLegs: []
+  });
   clearHighlight();
 }
 
@@ -88,14 +96,17 @@ function tradeDetailsAddLines(): void {
     freeSlots: rn(Math.max(0, allocation.capacitySlots - allocation.usedSlots), 2),
     utilization: allocation.capacitySlots > 0 ? allocation.usedSlots / allocation.capacitySlots : 0,
     assetSource:
-      reservation && (allocation.mode === "land" || allocation.shipHullIds?.length)
+      reservation && (allocation.mode === "land" || allocation.mode === "river" || allocation.shipHullIds?.length)
         ? [
             dispatcherMarket?.name ?? `Market ${reservation.dispatcherMarketId}`,
+            ...(allocation.mode === "river" ? [`Transfers to ${buyerMarket?.name ?? to?.name ?? "destination"}`] : []),
             ...(allocation.shipHullIds?.map(hullId => `Hull #${hullId}`) ?? [])
           ].join(" — ")
         : "Abstract allocation",
     reservationState:
-      reservation && (allocation.mode === "land" || allocation.shipHullIds?.length) ? reservation.state : undefined
+      reservation && (allocation.mode === "land" || allocation.mode === "river" || allocation.shipHullIds?.length)
+        ? reservation.state
+        : undefined
   }));
 
   const distUnit = useOptionsState.getState().distanceUnit || "km";
@@ -117,8 +128,22 @@ function tradeDetailsAddLines(): void {
     distance: `${rn(caravan.totalDistance)} ${distUnit} (progress: ${Math.round(minmax(caravan.currentDistance / caravan.totalDistance, 0, 1) * 100)}%)`,
     totalUnits: rn(caravan.units, 2),
     totalValue: caravan.value,
-    transportSummaries
+    transportSummaries,
+    routeLegs: caravan.routeSegments.map(segment => ({
+      mode: segment.type,
+      distance: rn(getSegmentDistance(segment) * getWorldContext().distanceScale, 1)
+    }))
   });
+}
+
+function getSegmentDistance(segment: TradeRouteSegment): number {
+  let distance = 0;
+  for (let index = 0; index < segment.points.length - 1; index++) {
+    const [x1, y1] = segment.points[index];
+    const [x2, y2] = segment.points[index + 1];
+    distance += Math.hypot(x2 - x1, y2 - y1);
+  }
+  return distance;
 }
 
 document.addEventListener("trade:showDetails", (e: Event) => {

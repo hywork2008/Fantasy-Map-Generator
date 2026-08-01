@@ -1,8 +1,7 @@
 import FlatQueue from "flatqueue";
 import { calculateLandTravelDays } from "../../../services/routeGrade";
 import { normalizeHeightExponent } from "../../../utils/height";
-import type { Point } from "../../hostCore";
-import { useOptionsState } from "../../hostCore";
+import { buildRiverNavigationGraph, type Point, useOptionsState } from "../../hostCore";
 import { getWorldContext } from "../economyContext";
 import { CaravanMovement, getDraftAnimalType } from "./caravanMovement";
 import type { TradeRoutePoint } from "./marketTypes";
@@ -10,7 +9,7 @@ import { PORT_TRANSFER_PENALTY_DAYS } from "./tradeRouteDuration";
 
 type DrawFn = () => Promise<void>;
 type ClearFn = () => void;
-type RouteSegmentType = "land" | "water";
+type RouteSegmentType = "land" | "sea" | "river";
 type RoutePath = { points: Point[]; segments: { type: RouteSegmentType; points: TradeRoutePoint[] }[] };
 type RouteGeometry = { points: number[][] };
 
@@ -39,13 +38,13 @@ export class TradeAnimationModule {
   private isLayerOnFn: (() => boolean) | null = null;
 
   // findRoutePath() runs a full Dijkstra search over the cell graph (state arrays sized
-  // 2x cell count) — expensive on real maps, and callers (Shipbuilding's daily procurement
+  // 3x cell count) — expensive on real maps, and callers (Shipbuilding's daily procurement
   // demand, Caravans, market trade-opportunity scans) repeatedly ask for the same
   // (startCell, endCell) pairs every simulated day. The route network only changes on map
   // (re)generation or a caravan-speed / grade setting change, so cache results between those
   // points instead of re-running the search for every call. See clearRouteCache().
   private routePathCache = new Map<string, RoutePath | null>();
-  private routeLookupCache: { isWaterRoute: Map<number, boolean>; routeById: Map<number, RouteGeometry> } | null = null;
+  private routeLookupCache: { isSeaRoute: Map<number, boolean>; routeById: Map<number, RouteGeometry> } | null = null;
 
   bind(deps: { draw: DrawFn; clear: ClearFn; isLayerOn: () => boolean }): void {
     this.drawFn = deps.draw;
@@ -101,6 +100,7 @@ export class TradeAnimationModule {
       endCell,
       movement.landKmPerDay,
       movement.seaKmPerDay,
+      movement.riverKmPerDay,
       movement.gradeEffectStrength,
       movement.merchantRoutePreference
     ].join(":");
@@ -118,53 +118,47 @@ export class TradeAnimationModule {
 
   /**
    * Clears cached pathfinding results. Call whenever the route network or the caravan
-   * land/sea speed / grade preference changes — either can change which path is shortest.
+   * land/sea/river speed or grade preference changes — either can change which path is shortest.
    */
   clearRouteCache(): void {
     this.routePathCache.clear();
     this.routeLookupCache = null;
   }
 
-  private getRouteLookup(): { isWaterRoute: Map<number, boolean>; routeById: Map<number, RouteGeometry> } {
+  private getRouteLookup(): { isSeaRoute: Map<number, boolean>; routeById: Map<number, RouteGeometry> } {
     if (this.routeLookupCache) return this.routeLookupCache;
-    const isWaterRoute = new Map<number, boolean>();
+    const isSeaRoute = new Map<number, boolean>();
     const routeById = new Map<number, RouteGeometry>();
     for (const route of getWorldContext().pack.routes) {
-      isWaterRoute.set(route.i, route.group === "searoutes");
+      isSeaRoute.set(route.i, route.group === "searoutes");
       routeById.set(route.i, route);
     }
-    this.routeLookupCache = { isWaterRoute, routeById };
+    this.routeLookupCache = { isSeaRoute, routeById };
     return this.routeLookupCache;
   }
 
-  private findRoutePathWithAllowedEdges(startCell: number, endCell: number, waterOnly: boolean): RoutePath | null {
+  private findRoutePathWithAllowedEdges(startCell: number, endCell: number, seaOnly: boolean): RoutePath | null {
     const world = getWorldContext();
     const { cells } = world.pack;
-    const cellRoutes = cells.routes;
-    const startNeighbors = cellRoutes[startCell];
-    if (!startNeighbors) return null;
+    const cellRoutes = cells.routes ?? {};
+    const { isSeaRoute, routeById } = this.getRouteLookup();
+    const riverGraph = buildRiverNavigationGraph(world.pack);
 
-    const { isWaterRoute, routeById } = this.getRouteLookup();
-
-    // State encoding: stateId = cell * 2 + (isWater ? 1 : 0)
-    const maxState = cells.h.length * 2;
+    // State encoding: stateId = cell * 3 + mode index. Retaining the prior mode makes the
+    // port transfer penalty apply correctly to land/sea/river changes.
+    const maxState = cells.h.length * 3;
     const distArr = new Float64Array(maxState).fill(Infinity);
     const prevCellArr = new Int32Array(maxState).fill(-1);
     const prevStateArr = new Int32Array(maxState).fill(-1); // -1 = came directly from startCell
 
     // Prevent startCell from ever being re-enqueued.
-    distArr[startCell * 2] = 0;
-    distArr[startCell * 2 + 1] = 0;
+    for (let modeIndex = 0; modeIndex < 3; modeIndex++) distArr[startCell * 3 + modeIndex] = 0;
 
     const queue = new FlatQueue<number>();
-    for (const nextStr of Object.keys(startNeighbors)) {
-      const next = Number(nextStr);
-      const routeId = startNeighbors[next];
-      const water = isWaterRoute.get(routeId) ?? false;
-      if (waterOnly && !water) continue;
-
-      const cost = this.getEdgeTravelDays(startCell, next, routeId, water, undefined, routeById);
-      const state = next * 2 + (water ? 1 : 0);
+    for (const edge of this.getOutgoingEdges(startCell, cellRoutes, isSeaRoute, riverGraph)) {
+      if (seaOnly && edge.type !== "sea") continue;
+      const cost = this.getEdgeTravelDays(startCell, edge.toCell, edge.routeId, edge.type, undefined, routeById);
+      const state = edge.toCell * 3 + this.getModeIndex(edge.type);
       if (cost < distArr[state]) {
         distArr[state] = cost;
         prevCellArr[state] = startCell;
@@ -177,23 +171,16 @@ export class TradeAnimationModule {
       const stateId: number = queue.pop()!;
       if (cost > distArr[stateId]) continue;
 
-      const cell = stateId >> 1;
-      const wasWater = (stateId & 1) === 1;
+      const cell = Math.floor(stateId / 3);
+      const previousType = this.getModeType(stateId % 3);
 
       if (cell === endCell) return this.buildPathResult(stateId, prevCellArr, prevStateArr);
 
-      const neighbors = cellRoutes[cell];
-      if (!neighbors) continue;
-
-      for (const nextStr of Object.keys(neighbors)) {
-        const next = Number(nextStr);
-        const routeId = neighbors[next];
-        const water = isWaterRoute.get(routeId) ?? false;
-        if (waterOnly && !water) continue;
-
-        const edgeCost = this.getEdgeTravelDays(cell, next, routeId, water, wasWater, routeById);
+      for (const edge of this.getOutgoingEdges(cell, cellRoutes, isSeaRoute, riverGraph)) {
+        if (seaOnly && edge.type !== "sea") continue;
+        const edgeCost = this.getEdgeTravelDays(cell, edge.toCell, edge.routeId, edge.type, previousType, routeById);
         const newCost = cost + edgeCost;
-        const nextState = next * 2 + (water ? 1 : 0);
+        const nextState = edge.toCell * 3 + this.getModeIndex(edge.type);
 
         if (newCost < distArr[nextState]) {
           distArr[nextState] = newCost;
@@ -207,6 +194,28 @@ export class TradeAnimationModule {
     return null;
   }
 
+  private getOutgoingEdges(
+    cell: number,
+    cellRoutes: Record<number, Record<number, number>>,
+    isSeaRoute: Map<number, boolean>,
+    riverGraph: ReturnType<typeof buildRiverNavigationGraph>
+  ): { toCell: number; routeId?: number; type: RouteSegmentType }[] {
+    const edges: { toCell: number; routeId?: number; type: RouteSegmentType }[] = [];
+    for (const [toCell, routeId] of Object.entries(cellRoutes[cell] ?? {})) {
+      edges.push({ toCell: Number(toCell), routeId, type: isSeaRoute.get(routeId) ? "sea" : "land" });
+    }
+    for (const edge of riverGraph.getOutgoing(cell)) edges.push({ toCell: edge.toCellId, type: "river" });
+    return edges;
+  }
+
+  private getModeIndex(type: RouteSegmentType): number {
+    return type === "land" ? 0 : type === "sea" ? 1 : 2;
+  }
+
+  private getModeType(index: number): RouteSegmentType {
+    return index === 0 ? "land" : index === 1 ? "sea" : "river";
+  }
+
   /**
    * Dijkstra costs are journey days, matching the duration model used for deal eligibility.
    * Route geometry is used where available so winding roads and sea lanes retain their real
@@ -217,17 +226,17 @@ export class TradeAnimationModule {
     fromCell: number,
     toCell: number,
     routeId: number | undefined,
-    water: boolean,
-    previousWasWater: boolean | undefined,
+    type: RouteSegmentType,
+    previousType: RouteSegmentType | undefined,
     routeById: Map<number, RouteGeometry>
   ): number {
     const world = getWorldContext();
     const movement = CaravanMovement.getOptions();
     const points = this.extractEdgePoints(fromCell, toCell, routeId, routeById);
-    const transferDays = previousWasWater !== undefined && previousWasWater !== water ? PORT_TRANSFER_PENALTY_DAYS : 0;
+    const transferDays = previousType !== undefined && previousType !== type ? PORT_TRANSFER_PENALTY_DAYS : 0;
 
-    if (water) {
-      const speed = movement.seaKmPerDay;
+    if (type === "sea" || type === "river") {
+      const speed = type === "river" ? movement.riverKmPerDay : movement.seaKmPerDay;
       if (speed <= 0) return Infinity;
       let distanceMapUnits = 0;
       for (let index = 0; index < points.length - 1; index++) {
@@ -257,25 +266,25 @@ export class TradeAnimationModule {
   }
 
   private buildPathResult(terminalState: number, prevCellArr: Int32Array, prevStateArr: Int32Array): RoutePath {
-    const cells: number[] = [terminalState >> 1]; // endCell
-    const waterEdges: boolean[] = [];
+    const cells: number[] = [Math.floor(terminalState / 3)]; // endCell
+    const edgeTypes: RouteSegmentType[] = [];
     let state = terminalState;
     while (prevStateArr[state] !== -1) {
-      waterEdges.push((state & 1) === 1);
+      edgeTypes.push(this.getModeType(state % 3));
       cells.push(prevCellArr[state]);
       state = prevStateArr[state];
     }
-    waterEdges.push((state & 1) === 1); // first hop from startCell
+    edgeTypes.push(this.getModeType(state % 3)); // first hop from startCell
     cells.push(prevCellArr[state]); // startCell
     cells.reverse();
-    waterEdges.reverse();
+    edgeTypes.reverse();
 
     if (cells.length < 2) return { points: [], segments: [] };
 
     const { routeById } = this.getRouteLookup();
 
     const segments: { type: RouteSegmentType; points: TradeRoutePoint[] }[] = [];
-    let currentType: RouteSegmentType = waterEdges[0] ? "water" : "land";
+    let currentType: RouteSegmentType = edgeTypes[0];
 
     const firstEdge = this.extractEdgePoints(
       cells[0],
@@ -288,7 +297,7 @@ export class TradeAnimationModule {
     for (let i = 1; i < cells.length - 1; i++) {
       const fromCell = cells[i];
       const toCell = cells[i + 1];
-      const type: RouteSegmentType = waterEdges[i] ? "water" : "land";
+      const type: RouteSegmentType = edgeTypes[i];
 
       if (type !== currentType) {
         segments.push({ type: currentType, points: currentPoints });

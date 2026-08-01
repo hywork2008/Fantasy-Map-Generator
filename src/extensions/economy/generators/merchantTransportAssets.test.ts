@@ -25,6 +25,15 @@ const SLOOP_ALLOCATION: TransportAllocation = {
   usedSlots: 75
 };
 
+const RIVER_BARGE_ALLOCATION: TransportAllocation = {
+  mode: "river",
+  transportId: "river-barge",
+  transportName: "River barge",
+  unitCount: 1,
+  capacitySlots: 160,
+  usedSlots: 100
+};
+
 describe("merchant transport assets", () => {
   const reservedHullIds: number[] = [];
   const releasedHullIds: number[] = [];
@@ -42,8 +51,11 @@ describe("merchant transport assets", () => {
   beforeEach(() => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
     worldContext.pack = {
-      burgs: [{ i: 0 } as Burg, { i: 1, market: 1, population: 100 } as Burg],
-      markets: [{ i: 1, centerBurgId: 1, color: "#000", goods: {} }]
+      burgs: [{ i: 0 } as Burg, { i: 1, market: 1, population: 100 } as Burg, { i: 2, market: 2 } as Burg],
+      markets: [
+        { i: 1, centerBurgId: 1, color: "#000", goods: {} },
+        { i: 2, centerBurgId: 2, color: "#111", goods: {} }
+      ]
     } as unknown as PackedGraph;
     reservedHullIds.length = 0;
     releasedHullIds.length = 0;
@@ -94,6 +106,25 @@ describe("merchant transport assets", () => {
   it("uses a burg's home market as the stable dispatcher", () => {
     expect(MerchantTransportAssets.getDispatcherMarketId({ seller: 1, sellerType: "burg" })).toBe(1);
     expect(MerchantTransportAssets.getDispatcherMarketId({ seller: 1, sellerType: "market" })).toBe(1);
+  });
+
+  it("moves an arrived river barge to the destination market instead of returning it upstream", () => {
+    MerchantTransportAssets.addAvailableRiverAssets(1, 1);
+    const reservation = MerchantTransportAssets.reserve(1, 10, [RIVER_BARGE_ALLOCATION]);
+    expect(reservation).not.toBeNull();
+    MerchantTransportAssets.depart(reservation?.reservation.id ?? -1);
+
+    MerchantTransportAssets.settleCaravan(
+      { transportReservationId: reservation?.reservation.id, buyer: 2, buyerType: "burg" },
+      "arrived"
+    );
+
+    expect(
+      MerchantTransportAssets.getAvailability(1).find(asset => asset.assetId === "river-barge")?.available ?? 0
+    ).toBe(0);
+    expect(MerchantTransportAssets.getAvailability(2).find(asset => asset.assetId === "river-barge")?.available).toBe(
+      1
+    );
   });
 
   it("reserves one concrete merchant hull at a time and releases it through Shipbuilding", () => {

@@ -17,18 +17,20 @@ import { MerchantTransportAssets } from "./merchantTransportAssets";
 
 export type TransportAssetBlueprint = {
   id: TransportAssetOrder["blueprintId"];
-  outputAssetId: MerchantLandAssetBalance["assetId"];
+  outputAssetId: MerchantLandAssetBalance["assetId"] | "river-barge";
+  outputMode: "land" | "river";
   materialNames: Readonly<Record<string, number>>;
   requiredWorkPoints: number;
   requiredCraft: CraftKnowledgeDomain;
   cargoCapacitySlots: number;
-  requiredDraftAnimals: number;
+  requiredDraftAnimals?: number;
 };
 
 const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
   {
     id: "pack-train",
     outputAssetId: "pack-train",
+    outputMode: "land",
     materialNames: { Leather: 1, Harnesses: 1 },
     requiredWorkPoints: 2,
     requiredCraft: "leather",
@@ -38,6 +40,7 @@ const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
   {
     id: "cart",
     outputAssetId: "cart",
+    outputMode: "land",
     materialNames: { Wood: 3, Harnesses: 1 },
     requiredWorkPoints: 4,
     requiredCraft: "woodworking",
@@ -47,11 +50,21 @@ const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
   {
     id: "wagon",
     outputAssetId: "wagon",
+    outputMode: "land",
     materialNames: { Wood: 6, Harnesses: 2 },
     requiredWorkPoints: 8,
     requiredCraft: "woodworking",
     cargoCapacitySlots: 180,
     requiredDraftAnimals: 2
+  },
+  {
+    id: "river-barge",
+    outputAssetId: "river-barge",
+    outputMode: "river",
+    materialNames: { Wood: 5, Ropes: 1, Tar: 1 },
+    requiredWorkPoints: 6,
+    requiredCraft: "woodworking",
+    cargoCapacitySlots: 160
   }
 ];
 
@@ -304,7 +317,15 @@ export class TransportAssetOrdersModule {
     const completed = Math.min(order.quantity, Math.floor(order.workPoints / blueprint.requiredWorkPoints));
     const newlyCompleted = completed - order.completedQuantity;
     if (newlyCompleted > 0) {
-      MerchantTransportAssets.addAvailableLandAssets(order.marketId, blueprint.outputAssetId, newlyCompleted);
+      if (blueprint.outputMode === "land") {
+        MerchantTransportAssets.addAvailableLandAssets(
+          order.marketId,
+          blueprint.outputAssetId as MerchantLandAssetBalance["assetId"],
+          newlyCompleted
+        );
+      } else {
+        MerchantTransportAssets.addAvailableRiverAssets(order.marketId, newlyCompleted);
+      }
       for (const [goodId, reserved] of Object.entries(order.reservedMaterials)) {
         order.reservedMaterials[+goodId] = rn(
           Math.max(0, reserved - (requiredMaterials(blueprint, newlyCompleted)?.[+goodId] ?? 0)),

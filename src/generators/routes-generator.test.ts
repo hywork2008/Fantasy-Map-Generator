@@ -270,24 +270,21 @@ describe("RoutesModule settlement water connections", () => {
     worldContext.biomesData = { habitability: [0, 100] } as unknown as typeof worldContext.biomesData;
   });
 
-  it("prefers a searoute along a shared navigable river between two State ports", () => {
+  it("does not create a sea route along a shared navigable river", () => {
     const route = Routes.connectPort(0, 1);
 
-    expect(route).toMatchObject({ group: "searoutes", feature: 1 });
-    expect(route?.points.map(point => point[2])).toEqual([0, 1, 2]);
-    expect(route?.cells).toEqual([0, 1, 2]);
+    expect(route).toBeUndefined();
   });
 
-  it("generates a river searoute instead of a road between two river ports", () => {
+  it("does not generate a sea route between river-only ports", () => {
     Routes.sync();
 
     const routes = routeGenerationInternals.createRoutesData([], "augmented");
 
-    expect(routes).toEqual([expect.objectContaining({ group: "searoutes", cells: [0, 1, 2] })]);
-    expect(routes.some(route => route.group === "roads" || route.group === "trails")).toBe(false);
+    expect(routes).toEqual([]);
   });
 
-  it("does not let a locked road suppress its river searoute", () => {
+  it("keeps a locked road without creating a river sea route", () => {
     Routes.sync();
     const lockedRoad = {
       i: 0,
@@ -302,10 +299,10 @@ describe("RoutesModule settlement water connections", () => {
 
     const routes = routeGenerationInternals.createRoutesData([lockedRoad], "augmented");
 
-    expect(routes).toContainEqual(expect.objectContaining({ group: "searoutes", cells: [0, 1, 2] }));
+    expect(routes).toEqual([lockedRoad]);
   });
 
-  it("permits standard-map searoutes between nearby ports of different States", () => {
+  it("does not treat river-only ports as international sea ports", () => {
     const graphInternals = Routes as unknown as RoutesGraphInternals;
     worldContext.pack.cells.state = [1, 0, 2];
     worldContext.pack.burgs = [
@@ -319,18 +316,16 @@ describe("RoutesModule settlement water connections", () => {
     } as typeof worldContext.options;
     Routes.sync();
 
-    expect(graphInternals.generateSeaRoutes(new Map(), "augmented")).toEqual([
-      expect.objectContaining({ feature: 1, cells: [0, 1, 2] })
-    ]);
+    expect(graphInternals.generateSeaRoutes(new Map(), "augmented")).toEqual([]);
 
     worldContext.options.initialSettlementPattern = "frontier";
     expect(graphInternals.generateSeaRoutes(new Map(), "augmented")).toEqual([]);
 
     worldContext.options.initialSettlementPattern = "standard";
-    expect(Routes.connectPort(0, 1)?.points.map(point => point[2])).toEqual([0, 1, 2]);
+    expect(Routes.connectPort(0, 1)).toBeUndefined();
   });
 
-  it("adds only the new spur when a port joins an existing sea lane", () => {
+  it("does not join a river-only port to an existing sea lane", () => {
     worldContext.pack.cells.c = [[1], [0, 2, 3], [1], [1]];
     worldContext.pack.cells.h = [25, 25, 25, 25];
     worldContext.pack.cells.biomeCode = [1, 1, 1, 1];
@@ -372,8 +367,8 @@ describe("RoutesModule settlement water connections", () => {
 
     const route = Routes.connectPort(3, 1);
 
-    expect(route?.points.map(point => point[2])).toEqual([3, 1]);
-    expect(worldContext.pack.routes).toHaveLength(2);
+    expect(route).toBeUndefined();
+    expect(worldContext.pack.routes).toHaveLength(1);
   });
 });
 
@@ -417,10 +412,10 @@ describe("RoutesModule river-aware water cost", () => {
     Routes.sync();
   }
 
-  it("allows a step along the river course above the flux threshold", () => {
+  it("does not use a river course as a sea-route edge", () => {
     setupTwoRiverPack();
-    expect(Routes.getWaterPathCost(1, 2)).toBeLessThan(Infinity);
-    expect(Routes.getWaterPathCost(2, 1)).toBeLessThan(Infinity);
+    expect(Routes.getWaterPathCost(1, 2)).toBe(Infinity);
+    expect(Routes.getWaterPathCost(2, 1)).toBe(Infinity);
   });
 
   it("forbids land routes from following a navigable river channel", () => {
@@ -438,11 +433,11 @@ describe("RoutesModule river-aware water cost", () => {
     expect(getLandRouteCost(2, 3)).toBeLessThan(Infinity);
   });
 
-  it("uses the river-aware cost evaluator when generating sea routes", () => {
+  it("does not expose river edges through the sea-route cost evaluator", () => {
     setupTwoRiverPack();
     const getSeaRouteCost = routeInternals.createCostEvaluator({ isWater: true, connections: new Map() });
 
-    expect(getSeaRouteCost(1, 2)).toBeLessThan(Infinity);
+    expect(getSeaRouteCost(1, 2)).toBe(Infinity);
     expect(getSeaRouteCost(2, 3)).toBe(Infinity);
   });
 
@@ -482,10 +477,10 @@ describe("RoutesModule river-aware water cost", () => {
     expect(Routes.getWaterPathCost(1, 2)).toBe(Infinity);
   });
 
-  it("permits the river mouth ↔ sea transition", () => {
+  it("does not permit a river mouth ↔ sea transition in the sea-route graph", () => {
     setupTwoRiverPack();
-    expect(Routes.getWaterPathCost(2, 5)).toBeLessThan(Infinity);
-    expect(Routes.getWaterPathCost(5, 2)).toBeLessThan(Infinity);
+    expect(Routes.getWaterPathCost(2, 5)).toBe(Infinity);
+    expect(Routes.getWaterPathCost(5, 2)).toBe(Infinity);
   });
 
   it("permits a low-flux river port through its official haven only", () => {
@@ -627,7 +622,7 @@ describe("RoutesModule river-aware water cost", () => {
     ]);
   });
 
-  it("rejects exit from a river-mouth land cell into a non-mouth water cell", () => {
+  it("rejects every river-mouth land cell exit from the sea-route graph", () => {
     worldContext.pack.cells = {
       h: [25, 25, 25, 5, 5, 5, 5],
       r: [0, 1, 1, 0, 0, 0, 0],
@@ -647,7 +642,7 @@ describe("RoutesModule river-aware water cost", () => {
     worldContext.pack.rivers = [{ i: 1, cells: [1, 2, 5] }] as unknown as PackedGraph["rivers"];
     Routes.sync();
 
-    expect(Routes.getWaterPathCost(2, 5)).toBeLessThan(Infinity);
+    expect(Routes.getWaterPathCost(2, 5)).toBe(Infinity);
     expect(Routes.getWaterPathCost(2, 6)).toBe(Infinity);
   });
 

@@ -28,6 +28,12 @@ export const LAND_TRANSPORTS: readonly LandTransportDefinition[] = [
   { id: "wagon", name: "Wagon", cargoCapacitySlots: 240, requiredDraftAnimals: 2 }
 ];
 
+export const RIVER_BARGE_TRANSPORT = {
+  id: "river-barge",
+  name: "River barge",
+  cargoCapacitySlots: 160
+} as const;
+
 export function getLandTransportDefinition(id: string): LandTransportDefinition | undefined {
   return LAND_TRANSPORTS.find(transport => transport.id === id);
 }
@@ -98,7 +104,7 @@ export function getTransportAllocations(
     });
   }
 
-  if (modes.has("water")) {
+  if (modes.has("water") || modes.has("sea")) {
     const selected =
       SHIP_CLASS_DEFINITIONS.find(shipClass => shipClass.cargoCapacitySlots >= pendingSlots) ??
       SHIP_CLASS_DEFINITIONS[SHIP_CLASS_DEFINITIONS.length - 1];
@@ -109,6 +115,18 @@ export function getTransportAllocations(
       transportName: selected.name,
       unitCount,
       capacitySlots: selected.cargoCapacitySlots * unitCount,
+      usedSlots: 0
+    });
+  }
+
+  if (modes.has("river")) {
+    const unitCount = allowConvoy ? Math.max(1, Math.ceil(pendingSlots / RIVER_BARGE_TRANSPORT.cargoCapacitySlots)) : 1;
+    allocations.push({
+      mode: "river",
+      transportId: RIVER_BARGE_TRANSPORT.id,
+      transportName: RIVER_BARGE_TRANSPORT.name,
+      unitCount,
+      capacitySlots: RIVER_BARGE_TRANSPORT.cargoCapacitySlots * unitCount,
       usedSlots: 0
     });
   }

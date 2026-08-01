@@ -24,7 +24,7 @@ export interface TradeDealRow {
 }
 
 export interface TradeTransportSummary {
-  mode: "land" | "water";
+  mode: "land" | "water" | "sea" | "river";
   transportName: string;
   unitCount: number;
   usedSlots: number;
@@ -35,6 +35,11 @@ export interface TradeTransportSummary {
   reservationState?: string;
 }
 
+export interface TradeRouteLegSummary {
+  mode: "land" | "water" | "sea" | "river";
+  distance: number;
+}
+
 interface TradeDetailsState {
   summary: TradeSummary | null;
   rows: TradeDealRow[];
@@ -42,6 +47,7 @@ interface TradeDetailsState {
   totalUnits: number;
   totalValue: number;
   transportSummaries: TradeTransportSummary[];
+  routeLegs: TradeRouteLegSummary[];
   sortBy: "good" | "units" | "price" | "value";
   sortDirection: number;
 }
@@ -53,6 +59,7 @@ export const useTradeDetailsState = create<TradeDetailsState>(() => ({
   totalUnits: 0,
   totalValue: 0,
   transportSummaries: [],
+  routeLegs: [],
   sortBy: "units",
   sortDirection: -1
 }));

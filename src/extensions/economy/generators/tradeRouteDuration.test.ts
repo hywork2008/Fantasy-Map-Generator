@@ -9,7 +9,7 @@ import {
   getNetTradeProfit,
   isGoodTradePermitted
 } from "./tradeOpportunityEstimator";
-import { calculateRouteDurationDays } from "./tradeRouteDuration";
+import { calculateRouteDurationDays, calculateRouteDurationFromDistances } from "./tradeRouteDuration";
 
 describe("trade route duration and viability", () => {
   beforeEach(() => {
@@ -22,6 +22,7 @@ describe("trade route duration and viability", () => {
     CaravanMovement.configure({
       landKmPerDay: 32,
       seaKmPerDay: 60,
+      riverKmPerDay: 72,
       seaCurrentStrength: 0,
       gradeEffectStrength: 0,
       merchantRoutePreference: "preferSpeed"
@@ -54,6 +55,27 @@ describe("trade route duration and viability", () => {
         1
       )
     ).toBe(4);
+  });
+
+  it("uses the independent downstream-river speed", () => {
+    expect(
+      calculateRouteDurationDays(
+        [
+          {
+            type: "river",
+            points: [
+              [0, 0],
+              [72, 0]
+            ]
+          }
+        ],
+        1
+      )
+    ).toBe(1);
+  });
+
+  it("includes river distance in graph-based opportunity estimates", () => {
+    expect(calculateRouteDurationFromDistances(0, 0, 0, 72)).toBe(1);
   });
 
   it("increases land duration when grade effect is on and cells climb", () => {
