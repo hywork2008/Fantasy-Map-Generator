@@ -26,6 +26,11 @@ export function clearCharactersContext(): void {
   _api = null;
 }
 
+/** Supports cross-extension callers (e.g. Economy's ruler household stipend) that must degrade gracefully when Characters is disabled, instead of hitting getApi()'s throw. */
+export function hasCharactersContext(): boolean {
+  return _api !== null;
+}
+
 export function getApi(): ExtensionAPI {
   if (!_api) throw new Error("[characters] Extension context not initialized — call init(api) first");
   return _api;

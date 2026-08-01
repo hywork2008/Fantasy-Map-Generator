@@ -139,6 +139,13 @@ export interface Character {
   family: CharacterFamily;
   appearance: number;
   prestige: number;
+  /**
+   * Personal wealth, distinct from state.treasury — a ruler's household stipend
+   * (docs/plan/state-treasury-department-budget.md §5) accrues here rather than being folded
+   * back into state funds, and future character-as-player mechanics (spending, gifting,
+   * inheritance) read/write this field directly.
+   */
+  wealth: number;
   dead?: boolean;
   deathYear?: number;
   location?: number;

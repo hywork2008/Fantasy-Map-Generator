@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-08-01
+
+- docs/plan/state-treasury-department-budget.md
+
 2026-07-31
 
 - docs/plan/burg-treasury-equilibrium.md

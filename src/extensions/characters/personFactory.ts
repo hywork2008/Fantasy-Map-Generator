@@ -239,6 +239,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     culture: cultureId,
     appearance,
     prestige: rand(1, 100),
+    wealth: 0,
     titles: [],
     affinities: {},
     marriages: [],
