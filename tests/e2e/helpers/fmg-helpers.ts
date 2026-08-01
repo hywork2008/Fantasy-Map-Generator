@@ -1721,10 +1721,19 @@ export async function waitForWebglCanvasPixels(page: Page, minColoredPixels = 50
   return getWebglCanvasPixelStats(page);
 }
 
+// The `canvas3d` viewMesh canvas is drawn by THREE.WebGPURenderer against a `webgpu` canvas
+// context. Directly `context2d.drawImage(sourceCanvas, ...)`-ing (or `createImageBitmap`-ing) a
+// `webgpu`-context canvas silently yields all-zero pixels in Chromium — `toDataURL()` on the same
+// canvas at the same instant does return the real frame, so every pixel-sampling helper below
+// round-trips through a data URL / <img> instead of drawing the source canvas directly. This is
+// unrelated to (and unaffected by) `#webglMapCanvas`, which stays on a real `webgl2` context.
+// (Each function inlines this rather than sharing a closure: page.evaluate/waitForFunction
+// callbacks are serialized and run in-browser, so they can't reference an outer helper function.)
+
 /** Waits until a canvas has enough non-black pixels to prove that its renderer produced a frame. */
 export async function waitForCanvasPixels(page: Page, canvasId: string, minColoredPixels = 500): Promise<void> {
   await page.waitForFunction(
-    ({ id, minimum }) => {
+    async ({ id, minimum }) => {
       const source = document.getElementById(id);
       if (!(source instanceof HTMLCanvasElement) || source.width === 0 || source.height === 0) return false;
 
@@ -1735,7 +1744,17 @@ export async function waitForCanvasPixels(page: Page, canvasId: string, minColor
       canvas.height = height;
       const context = canvas.getContext("2d");
       if (!context) return false;
-      context.drawImage(source, 0, 0, width, height);
+
+      const dataUrl = source.toDataURL("image/png");
+      const img = new Image();
+      const loaded = new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("Failed to decode canvas snapshot"));
+      });
+      img.src = dataUrl;
+      await loaded;
+
+      context.drawImage(img, 0, 0, width, height);
       const data = context.getImageData(0, 0, width, height).data;
       let colored = 0;
       for (let index = 0; index < data.length; index += 4) {
@@ -1750,7 +1769,7 @@ export async function waitForCanvasPixels(page: Page, canvasId: string, minColor
 
 /** A compact colour fingerprint for asserting that a canvas frame was actually replaced. */
 export async function getCanvasColorChecksum(page: Page, canvasId: string): Promise<number> {
-  return page.evaluate(id => {
+  return page.evaluate(async id => {
     const source = document.getElementById(id);
     if (!(source instanceof HTMLCanvasElement) || source.width === 0 || source.height === 0) return 0;
 
@@ -1759,7 +1778,16 @@ export async function getCanvasColorChecksum(page: Page, canvasId: string): Prom
     canvas.height = 40;
     const context = canvas.getContext("2d");
     if (!context) return 0;
-    context.drawImage(source, 0, 0, canvas.width, canvas.height);
+
+    const dataUrl = source.toDataURL("image/png");
+    const img = new Image();
+    const loaded = new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("Failed to decode canvas snapshot"));
+    });
+    img.src = dataUrl;
+    await loaded;
+    context.drawImage(img, 0, 0, canvas.width, canvas.height);
 
     let checksum = 2166136261;
     for (const value of context.getImageData(0, 0, canvas.width, canvas.height).data) {
@@ -1782,7 +1810,7 @@ export async function getCanvasColorChecksum(page: Page, canvasId: string): Prom
  */
 export async function getCanvasColorDiversity(page: Page, canvasId: string, bucket = 16): Promise<number> {
   return page.evaluate(
-    ({ id, bucket }) => {
+    async ({ id, bucket }) => {
       const source = document.getElementById(id);
       if (!(source instanceof HTMLCanvasElement) || source.width === 0 || source.height === 0) return 0;
 
@@ -1791,7 +1819,16 @@ export async function getCanvasColorDiversity(page: Page, canvasId: string, buck
       canvas.height = 40;
       const context = canvas.getContext("2d");
       if (!context) return 0;
-      context.drawImage(source, 0, 0, canvas.width, canvas.height);
+
+      const dataUrl = source.toDataURL("image/png");
+      const img = new Image();
+      const loaded = new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("Failed to decode canvas snapshot"));
+      });
+      img.src = dataUrl;
+      await loaded;
+      context.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
       const seen = new Set<string>();

@@ -1,6 +1,34 @@
 // GPU erosion-detail bake, a noise-based erosion appearance filter for the 3D view
 
 import * as THREE from "three";
+import {
+  Break,
+  clamp,
+  cos,
+  dot,
+  exp,
+  Fn,
+  float,
+  floor,
+  fract,
+  If,
+  int,
+  Loop,
+  length,
+  max,
+  min,
+  mix,
+  pow,
+  screenUV,
+  sign,
+  sin,
+  smoothstep,
+  texture,
+  vec2,
+  vec3,
+  vec4
+} from "three/tsl";
+import { NodeMaterial, type WebGPURenderer } from "three/webgpu";
 import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
@@ -441,293 +469,302 @@ function buildRiverCanvas(bakeW: number, bakeH: number) {
   return toTexture();
 }
 
-const vertexShader = /* glsl */ `
-    precision highp float;
-    attribute vec3 position;
-    void main() {
-      gl_Position = vec4(position.xy, 0.0, 1.0);
+// Tunable constants from the original GLSL bake shader (see docs/webgl-renderer-migration-candidates.md
+// for the WebGPU/TSL migration context). Kept as plain JS numbers: the TSL graph below is rebuilt fresh
+// for every bake call, so there is no need for uniform() indirection — these are baked in as node
+// constants at graph-construction time, same as the GLSL `const` declarations they replace.
+const MAX_OCTAVES = 6;
+const TAU = 6.2831853;
+const SEA = 0.2;
+const BASE_NOISE_CELLS = 0.7; // base-FBM wavelength in worldContext.grid cells
+const BASE_NOISE_AMP = 0.008;
+const NOISE_STEER = 0.5; // fraction of FBM gradient perturbing the flow
+const GULLY_CELLS0 = 0.16; // octave-0 erosion lattice: ~6 worldContext.grid cells per kernel
+const GULLY_AMP0 = 0.07;
+const GULLY_GAIN = 0.55; // per-octave amplitude falloff
+const DIR_SCALE = 0.5; // stripes per lattice cell per unit slope
+const MAX_STRIPE_FREQ = 4.0; // cap stripes per lattice cell
+const RIVER_RELIEF_CAP = 0.15; // max carve depth, in 0..1 height units
+const COAST_RAMP = 0.2; // land mask span
+const RIDGE_SHARPEN = 0.8; // unsharp-mask strength for crest sharpening
+const EDGE_SHARP = 0.7; // edge-shaping exponent: sharper crests, rounder gully floors
+const SLOPE_LO = 0.015; // gradient trick: local slope (height delta per worldContext.grid cell)
+const SLOPE_HI = 0.05; // slope above which erosion energy is unaffected
+const FLAT_ENERGY_FLOOR = 0.5; // min energy fraction kept on dead-flat ground
+
+// biome-ignore lint/suspicious/noExplicitAny: TSL node types are not exported from three/tsl; these helpers are pure GLSL-to-TSL ports always called with the same shapes GLSL used.
+type TslNode = any;
+
+const hash12 = Fn(([p]: [TslNode]) => {
+  const p3 = fract(vec3(p.x, p.y, p.x).mul(0.1031)).toVar();
+  p3.addAssign(dot(p3, p3.yzx.add(33.33)));
+  return fract(p3.x.add(p3.y).mul(p3.z));
+});
+
+const hash22 = Fn(([p]: [TslNode]) => {
+  const p3 = fract(vec3(p.x, p.y, p.x).mul(vec3(0.1031, 0.103, 0.0973))).toVar();
+  p3.addAssign(dot(p3, p3.yzx.add(33.33)));
+  return fract(p3.xx.add(p3.yz).mul(p3.zy));
+});
+
+// value noise with analytic derivative: (value [-1,1], d/dx, d/dy)
+const noised = Fn(([pIn]: [TslNode]) => {
+  const p = vec2(pIn).toVar();
+  const i = floor(p).toVar();
+  const f = fract(p).toVar();
+  const a = hash12(i).toVar();
+  const b = hash12(i.add(vec2(1.0, 0.0))).toVar();
+  const c = hash12(i.add(vec2(0.0, 1.0))).toVar();
+  const d = hash12(i.add(vec2(1.0, 1.0))).toVar();
+  const u = f
+    .mul(f)
+    .mul(f)
+    .mul(f.mul(f.mul(6.0).sub(15.0)).add(10.0))
+    .toVar();
+  const du = f
+    .mul(f)
+    .mul(f.mul(f.sub(2.0)).add(1.0))
+    .mul(30.0)
+    .toVar();
+  const k0 = b.sub(a).toVar();
+  const k1 = c.sub(a).toVar();
+  const k2 = a.sub(b).sub(c).add(d).toVar();
+  const value = a.add(k0.mul(u.x)).add(k1.mul(u.y)).add(k2.mul(u.x).mul(u.y));
+  const grad = vec2(k0.add(k2.mul(u.y)).mul(du.x), k1.add(k2.mul(u.x)).mul(du.y));
+  return vec3(value.mul(2.0).sub(1.0), grad.mul(2.0));
+});
+
+// Erosion kernel after the technique of clayjohn (2018) / Fewes (2023), implemented from the
+// published descriptions: a 4x4 window of cosine-wave kernels around jittered pivots, blended with
+// a gaussian falloff. The phase is dot(p - pivot, dir) with UNNORMALIZED dir, so stripe frequency
+// scales with the slope: steep faces get dense gullies, flats degenerate to cos(0) = 1 — a constant
+// — which is the technique's built-in fade and what makes summits (slope 0) rise into points. The
+// sine term carries the analytic derivative used to steer later octaves (kernel-falloff derivatives
+// are deliberately ignored, like the reference, to keep the steering smooth). Returns (value, d/dx,
+// d/dy) in lattice units
+const erosionKernel = Fn(([pIn, dirIn, seed]: [TslNode, TslNode, TslNode]) => {
+  const p = vec2(pIn).toVar();
+  const dir = vec2(dirIn).toVar();
+  const ip = floor(p).toVar();
+  const fp = fract(p).toVar();
+  const acc = vec3(0.0).toVar();
+  const wsum = float(0.0).toVar();
+
+  Loop(
+    { start: -2, end: 1, condition: "<=" },
+    { start: -2, end: 1, condition: "<=" },
+    ({ i, j }: { i: TslNode; j: TslNode }) => {
+      const o = vec2(float(i), float(j));
+      const pivot = o.add(hash22(ip.add(o).add(seed.mul(7.0))).mul(0.5));
+      const d = fp.sub(pivot).toVar();
+      const w = exp(dot(d, d).mul(-2.0)).toVar();
+      const phase = dot(d, dir).mul(TAU);
+      acc.addAssign(vec3(cos(phase), sin(phase).negate().mul(dir)).mul(w));
+      wsum.addAssign(w);
     }
-  `;
+  );
 
-const fragmentShader = /* glsl */ `
-    precision highp float;
+  return acc.div(wsum);
+});
 
-    uniform sampler2D uHeight; // R: height byte 0-100, G: local relief
-    uniform sampler2D uCoast;  // R: blurred land mask (0.5 = true coastline),
-                               // G: water surface byte 0-100 -- bake resolution, sampled directly
-    uniform sampler2D uRivers; // R: valley intensity
-    uniform vec2 uGridSize;    // (cellsX, cellsY)
-    uniform vec2 uResolution;  // bake size in px
-    uniform float uAspect;     // worldContext.graphHeight / worldContext.graphWidth
-    uniform float uSeed;
-    uniform float uStrength;   // gully amplitude factor (1 = default)
-    uniform float uRiverDepth; // 0..1
-    uniform int uOctaves;
+const pack16 = Fn(([vIn]: [TslNode]) => {
+  const s = clamp(vIn, 0.0, 1.0).mul(65535.0).toVar();
+  const hi = floor(s.div(256.0)).toVar();
+  const lo = floor(s.sub(hi.mul(256.0)));
+  return vec2(hi, lo).div(255.0);
+});
 
-    const int MAX_OCTAVES = 6;
-    const float TAU = 6.2831853;
-    const float SEA = 0.20;
+function buildErosionFragmentNode(
+  params: BakeParams,
+  bakeW: number,
+  bakeH: number,
+  textures: { height: THREE.DataTexture; coast: THREE.DataTexture; rivers: THREE.Texture }
+): TslNode {
+  const uHeightTex = texture(textures.height);
+  const uCoastTex = texture(textures.coast);
+  const uRiversTex = texture(textures.rivers);
+  const uGridSize = vec2(worldContext.grid.cellsX, worldContext.grid.cellsY);
+  const uResolution = vec2(bakeW, bakeH);
+  const uAspect = worldContext.graphHeight / worldContext.graphWidth;
+  const uSeed = float((Number.parseInt(worldContext.seed, 10) % 1e5 || 1) / 1e5 + 1);
+  const uStrength = params.strength / 50;
+  const uRiverDepth = params.riverDepth / 100;
+  const uOctaves = int(params.octaves);
 
-    const float BASE_NOISE_CELLS = 0.7;  // base-FBM wavelength in worldContext.grid cells
-    const float BASE_NOISE_AMP = 0.008;
-    const float NOISE_STEER = 0.5;       // fraction of FBM gradient perturbing the flow
-    const float GULLY_CELLS0 = 0.16;     // octave-0 erosion lattice: ~6 worldContext.grid cells per kernel
-    const float GULLY_AMP0 = 0.07;
-    const float GULLY_GAIN = 0.55;       // per-octave amplitude falloff
-    const float DIR_SCALE = 0.5;         // stripes per lattice cell per unit slope
-    const float MAX_STRIPE_FREQ = 4.0;   // cap stripes per lattice cell
-    const float RIVER_RELIEF_CAP = 0.15; // max carve depth, in 0..1 height units
-    const float COAST_RAMP = 0.2;        // land mask span
-    const float RIDGE_SHARPEN = 0.8;      // unsharp-mask strength for crest sharpening
-    const float EDGE_SHARP = 0.7;         // edge-shaping exponent: sharper crests, rounder gully floors
-    const float SLOPE_LO = 0.015;         // gradient trick: local slope (height delta per worldContext.grid cell
-    const float SLOPE_HI = 0.05;          // slope above which erosion energy is unaffected
-    const float FLAT_ENERGY_FLOOR = 0.5;  // min energy fraction kept on dead-flat ground
-    const bool QUANTIZE_GULLY_DIR = true; // runevision sign trick: feed back only the sign of the derivative
+  // sample the coarse heightmap; half-texel alignment maps uv 0..1 onto cell centers 0..N-1,
+  // matching how the classic mesh spans the map. Returns (height 0..1, local relief: max
+  // land-neighbor delta, 0..1 height units)
+  const heightSample = Fn(([uvIn]: [TslNode]) => {
+    const uv = vec2(uvIn).toVar();
+    const t = vec2(1.0).div(uGridSize);
+    const huv = uv.mul(vec2(1.0).sub(t)).add(t.mul(0.5));
+    const rg = uHeightTex.sample(huv).rg;
+    return vec2(rg.x.mul(2.55), rg.y.mul(0.255));
+  });
 
-    float hash12(vec2 p) {
-      vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-      p3 += dot(p3, p3.yzx + 33.33);
-      return fract((p3.x + p3.y) * p3.z);
-    }
+  const baseHeight = Fn(([uv]: [TslNode]) => heightSample(uv).x);
 
-    vec2 hash22(vec2 p) {
-      vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
-      p3 += dot(p3, p3.yzx + 33.33);
-      return fract((p3.xx + p3.yz) * p3.zy);
-    }
+  // unsharp-mask blur: average of 4 taps at ~1.5 worldContext.grid cells, used to pull out the
+  // high-frequency detail the bilinear base already implies
+  const blurredHeight = Fn(([uvIn]: [TslNode]) => {
+    const uv = vec2(uvIn).toVar();
+    const e = vec2(1.5).div(uGridSize);
+    const h0 = baseHeight(uv.add(vec2(e.x, 0.0)));
+    const h1 = baseHeight(uv.sub(vec2(e.x, 0.0)));
+    const h2 = baseHeight(uv.add(vec2(0.0, e.y)));
+    const h3 = baseHeight(uv.sub(vec2(0.0, e.y)));
+    return h0.add(h1).add(h2).add(h3).mul(0.25);
+  });
 
-    // value noise with analytic derivative: (value [-1,1], d/dx, d/dy)
-    vec3 noised(vec2 p) {
-      vec2 i = floor(p);
-      vec2 f = fract(p);
-      float a = hash12(i);
-      float b = hash12(i + vec2(1.0, 0.0));
-      float c = hash12(i + vec2(0.0, 1.0));
-      float d = hash12(i + vec2(1.0, 1.0));
-      vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
-      vec2 du = 30.0 * f * f * (f * (f - 2.0) + 1.0);
-      float k0 = b - a;
-      float k1 = c - a;
-      float k2 = a - b - c + d;
-      float value = a + k0 * u.x + k1 * u.y + k2 * u.x * u.y;
-      vec2 grad = vec2((k0 + k2 * u.y) * du.x, (k1 + k2 * u.x) * du.y);
-      return vec3(value * 2.0 - 1.0, grad * 2.0);
-    }
+  // gradient in isotropic map space p = (u, v * aspect), per unit map width
+  const baseGradient = Fn(([uvIn]: [TslNode]) => {
+    const uv = vec2(uvIn).toVar();
+    const e = vec2(1.0).div(uGridSize);
+    const hx1 = baseHeight(uv.add(vec2(e.x, 0.0)));
+    const hx0 = baseHeight(uv.sub(vec2(e.x, 0.0)));
+    const hy1 = baseHeight(uv.add(vec2(0.0, e.y)));
+    const hy0 = baseHeight(uv.sub(vec2(0.0, e.y)));
+    return vec2(hx1.sub(hx0).div(e.x.mul(2.0)), hy1.sub(hy0).div(e.y.mul(2.0)).div(uAspect));
+  });
 
-    // sample the coarse heightmap; half-texel alignment maps uv 0..1 onto
-    // cell centers 0..N-1, matching how the classic mesh spans the map.
-    // returns (height 0..1, local relief: max land-neighbor delta, 0..1 height units)
-    vec2 heightSample(vec2 uv) {
-      vec2 t = 1.0 / uGridSize;
-      vec2 huv = uv * (1.0 - t) + 0.5 * t;
-      vec2 rg = texture2D(uHeight, huv).rg;
-      return vec2(rg.x * 2.55, rg.y * 0.255);
-    }
+  const main = Fn(() => {
+    const uv = screenUV.toVar();
+    const p = vec2(uv.x, uv.y.mul(uAspect)).toVar(); // isotropic map space
 
-    float baseHeight(vec2 uv) {
-      return heightSample(uv).x;
-    }
+    const base = baseHeight(uv).toVar();
+    const grad = baseGradient(uv).toVar();
+    const coast = uCoastTex.sample(uv);
+    const landFactor = coast.r.toVar(); // 0.5 = the true coastline
+    const waterSurface = coast.g.mul(2.55).toVar();
 
-    // unsharp-mask blur: average of 4 taps at ~1.5 worldContext.grid cells, used to pull
-    // out the high-frequency detail the bilinear base already implies
-    float blurredHeight(vec2 uv) {
-      vec2 e = 1.5 / uGridSize;
-      float h0 = baseHeight(uv + vec2(e.x, 0.0));
-      float h1 = baseHeight(uv - vec2(e.x, 0.0));
-      float h2 = baseHeight(uv + vec2(0.0, e.y));
-      float h3 = baseHeight(uv - vec2(0.0, e.y));
-      return (h0 + h1 + h2 + h3) * 0.25;
-    }
+    // keep detail off the water and let it ramp in over the first ~10 height units of land, so
+    // beaches and shores stay clean
+    const aboveSea = clamp(base.sub(SEA).div(0.1), 0.0, 1.0);
+    const contrib = landFactor.mul(aboveSea);
 
-    // built at bake resolution from the actual coastline geometry, sampled
-    // directly (no half-texel cell alignment): R = blurred land mask, 0.5 at
-    // the true coastline; G = water surface byte 0-100
-    vec4 coastSample(vec2 uv) {
-      return texture2D(uCoast, uv);
-    }
+    // erosion energy follows the map's terrain classes: h 50+ are hills and h 70+ mountains (full
+    // sculpting), rugged areas qualify via local relief regardless of elevation. Flat lowlands get
+    // exactly zero energy (h<=30 gets none even if locally rugged)
+    const localRelief = heightSample(uv).y;
+    const hillCurve = smoothstep(0.4, 0.7, base).toVar();
+    const reliefCurve = smoothstep(0.03, 0.1, localRelief);
+    const anomalyWeight = smoothstep(0.3, 0.55, base);
+    const energy = max(hillCurve, reliefCurve.mul(anomalyWeight)).toVar();
 
-    // gradient in isotropic map space p = (u, v * aspect), per unit map width
-    vec2 baseGradient(vec2 uv) {
-      vec2 e = 1.0 / uGridSize;
-      float hx1 = baseHeight(uv + vec2(e.x, 0.0));
-      float hx0 = baseHeight(uv - vec2(e.x, 0.0));
-      float hy1 = baseHeight(uv + vec2(0.0, e.y));
-      float hy0 = baseHeight(uv - vec2(0.0, e.y));
-      return vec2((hx1 - hx0) / (2.0 * e.x), (hy1 - hy0) / (2.0 * e.y) / uAspect);
-    }
+    // gradient trick: scale energy by the local slope of the base heightmap so genuinely flat
+    // ground (plains, plateau tops, valley floors) stays smooth even inside a height band that
+    // would otherwise get full erosion detail
+    const slopeMag = length(grad).div(uGridSize.x);
+    const slopeCurve = smoothstep(SLOPE_LO, SLOPE_HI, slopeMag);
+    energy.mulAssign(mix(FLAT_ENERGY_FLOOR, 1.0, slopeCurve));
 
-    // Erosion kernel after the technique of clayjohn (2018) / Fewes (2023),
-    // implemented from the published descriptions: a 4x4 window of cosine-wave
-    // kernels around jittered pivots, blended with a gaussian falloff. The
-    // phase is dot(p - pivot, dir) with UNNORMALIZED dir, so stripe frequency
-    // scales with the slope: steep faces get dense gullies, flats degenerate
-    // to cos(0) = 1 — a constant — which is the technique's built-in fade and
-    // what makes summits (slope 0) rise into points. The sine term carries the
-    // analytic derivative used to steer later octaves (kernel-falloff
-    // derivatives are deliberately ignored, like the reference, to keep the
-    // steering smooth). Returns (value, d/dx, d/dy) in lattice units
-    vec3 erosionKernel(vec2 p, vec2 dir) {
-      vec2 ip = floor(p);
-      vec2 fp = fract(p);
-      vec3 acc = vec3(0.0);
-      float wsum = 0.0;
-      for (int j = -2; j <= 1; j++) {
-        for (int i = -2; i <= 1; i++) {
-          vec2 o = vec2(float(i), float(j));
-          vec2 pivot = o + hash22(ip + o + uSeed * 7.0) * 0.5;
-          vec2 d = fp - pivot;
-          float w = exp(-2.0 * dot(d, d));
-          float phase = TAU * dot(d, dir);
-          acc += w * vec3(cos(phase), -sin(phase) * dir);
-          wsum += w;
-        }
-      }
-      return acc / wsum;
-    }
+    const gate = contrib.mul(energy).toVar();
 
-    vec2 pack16(float v) {
-      float s = clamp(v, 0.0, 1.0) * 65535.0;
-      float hi = floor(s / 256.0);
-      float lo = floor(s - hi * 256.0);
-      return vec2(hi, lo) / 255.0;
-    }
+    const h = base.toVar();
 
-    void main() {
-      vec2 uv = gl_FragCoord.xy / uResolution;
-      vec2 p = vec2(uv.x, uv.y * uAspect); // isotropic map space
+    // small analytic FBM perturbs the flow direction so gullies on the blobby bilinear base don't
+    // all run perfectly parallel
+    const baseFreq = uGridSize.x.mul(BASE_NOISE_CELLS);
+    const n = noised(p.mul(baseFreq).add(uSeed.mul(17.0)));
+    h.addAssign(n.x.mul(BASE_NOISE_AMP).mul(gate));
+    grad.addAssign(n.yz.mul(BASE_NOISE_AMP).mul(baseFreq).mul(NOISE_STEER).mul(gate));
 
-      float base = baseHeight(uv);
-      vec2 grad = baseGradient(uv);
-      vec4 coast = coastSample(uv);
-      float landFactor = coast.r; // 0.5 = the true coastline
-      float waterSurface = coast.g * 2.55;
+    // octave stack after the reference technique: each octave's stripes run along the slope of
+    // base + previous octaves (analytic derivative feedback), branching like real drainage. The
+    // slope-scaled phase makes summits rise toward +1 (pointy peaks) and flats stay quiet — no
+    // explicit fade or slope gating is needed
+    const acc = vec3(0.0).toVar(); // accumulated erosion: value, d/dx, d/dy (map units)
+    const amp = float(GULLY_AMP0 * uStrength).toVar();
+    const freq = uGridSize.x.mul(GULLY_CELLS0).toVar();
 
-      // keep detail off the water and let it ramp in over the first ~10 height
-      // units of land, so beaches and shores stay clean
-      float land = landFactor;
-      float aboveSea = clamp((base - SEA) / 0.10, 0.0, 1.0);
-      float contrib = land * aboveSea;
+    Loop(MAX_OCTAVES, ({ i }: { i: TslNode }) => {
+      If(i.greaterThanEqual(uOctaves), () => {
+        Break();
+      });
+      If(freq.greaterThan(uResolution.x.mul(0.3)), () => {
+        Break();
+      });
 
-      // erosion energy follows the map's terrain classes: h 50+ are hills and
-      // h 70+ mountains (full sculpting), rugged areas qualify via local
-      // relief regardless of elevation. Flat lowlands get exactly zero energy
-      // h<=30 gets none even if locally rugged)
-      vec2 heightData = heightSample(uv);
-      float localRelief = heightData.y;
-      float hillCurve = smoothstep(0.40, 0.70, base);
-      float reliefCurve = smoothstep(0.03, 0.10, localRelief);
-      float anomalyWeight = smoothstep(0.30, 0.55, base);
-      float energy = max(hillCurve, reliefCurve * anomalyWeight);
+      const flowGrad = grad.add(acc.yz);
+      const dir = vec2(flowGrad.y, flowGrad.x.negate()).mul(DIR_SCALE).toVar();
+      const dirLen = length(dir).toVar();
+      If(dirLen.greaterThan(MAX_STRIPE_FREQ), () => {
+        dir.mulAssign(float(MAX_STRIPE_FREQ).div(dirLen));
+      });
+      const e = erosionKernel(p.mul(freq), dir, uSeed).toVar();
 
-      // gradient trick: scale energy by the local slope of the base
-      // heightmap so genuinely flat ground (plains, plateau tops, valley
-      // floors) stays smooth even inside a height band that would
-      // otherwise get full erosion detail
-      float slopeMag = length(grad) / uGridSize.x;
-      float slopeCurve = smoothstep(SLOPE_LO, SLOPE_HI, slopeMag);
-      energy *= mix(FLAT_ENERGY_FLOOR, 1.0, slopeCurve);
+      // edge shaping (runevision "edge rounding"): sharpens crests between gullies while rounding
+      // the gully floors. Only the value channel is reshaped; e.yz keeps the kernel's raw
+      // derivative for steering
+      e.x.assign(float(1.0).sub(float(2.0).mul(pow(clamp(float(1.0).sub(e.x).mul(0.5), 1e-4, 1.0), EDGE_SHARP))));
 
-      float gate = contrib * energy;
+      // on flats the kernel returns ~+1 (its built-in fade). Keep that lift only for mountain
+      // summits (pointy peaks); neutralize it elsewhere so plains, plateau tops and coastal
+      // shelves are not raised into mesas
+      const flatness = float(1.0).sub(smoothstep(0.05, 0.4, dirLen));
+      e.x.assign(mix(e.x, hillCurve, flatness));
 
-      float h = base;
+      acc.x.addAssign(e.x.mul(amp));
+      // runevision sign trick: feed back only the sign of the derivative rather than its value, so
+      // smaller-scale gullies snap to a consistent angle instead of wobbling with the noise
+      // magnitude
+      const feedback = sign(e.yz);
+      acc.yz.addAssign(feedback.mul(freq).mul(amp));
 
-      // small analytic FBM perturbs the flow direction so gullies on the
-      // blobby bilinear base don't all run perfectly parallel
-      float baseFreq = uGridSize.x * BASE_NOISE_CELLS;
-      vec3 n = noised(p * baseFreq + uSeed * 17.0);
-      h += n.x * BASE_NOISE_AMP * gate;
-      grad += n.yz * BASE_NOISE_AMP * baseFreq * NOISE_STEER * gate;
+      amp.mulAssign(GULLY_GAIN);
+      freq.mulAssign(2.0);
+    });
 
-      // octave stack after the reference technique: each octave's stripes run
-      // along the slope of base + previous octaves (analytic derivative
-      // feedback), branching like real drainage. The slope-scaled phase makes
-      // summits rise toward +1 (pointy peaks) and flats stay quiet — no
-      // explicit fade or slope gating is needed
-      vec3 acc = vec3(0.0); // accumulated erosion: value, d/dx, d/dy (map units)
-      float amp = GULLY_AMP0 * uStrength;
-      float freq = uGridSize.x * GULLY_CELLS0;
-      for (int i = 0; i < MAX_OCTAVES; i++) {
-        if (i >= uOctaves) break;
-        if (freq > uResolution.x * 0.3) break; // Nyquist guard
+    const ridgeAcc = acc.x.mul(gate).toVar();
+    h.addAssign(ridgeAcc);
 
-        vec2 flowGrad = grad + acc.yz;
-        vec2 dir = vec2(flowGrad.y, -flowGrad.x) * DIR_SCALE;
-        float dirLen = length(dir);
-        if (dirLen > MAX_STRIPE_FREQ) dir *= MAX_STRIPE_FREQ / dirLen;
-        vec3 e = erosionKernel(p * freq, dir);
+    // unsharp-mask crest sharpening: pull the high-frequency detail the bilinear base already
+    // implies into defined peaked crests, gated to the hill/mountain band so lowlands stay
+    // untouched
+    const detail = base.sub(blurredHeight(uv));
+    const crestDetail = detail.mul(RIDGE_SHARPEN).mul(hillCurve).toVar();
+    h.addAssign(crestDetail);
 
-        // edge shaping (runevision "edge rounding"): sharpens crests between
-        // gullies while rounding the gully floors. Only the value channel is
-        // reshaped; e.yz keeps the kernel's raw derivative for steering
-        e.x = 1.0 - 2.0 * pow(clamp((1.0 - e.x) * 0.5, 1e-4, 1.0), EDGE_SHARP);
+    // texturing signal: positive on ridges/crests, negative in gullies, ~0 on untouched ground.
+    // Consumed by the terrain texture pass (draw-satellite-texture) to blend exposed rock vs.
+    // dirt-filled gullies
+    const erosionDetail = ridgeAcc.add(crestDetail);
 
-        // on flats the kernel returns ~+1 (its built-in fade). Keep that lift
-        // only for mountain summits (pointy peaks); neutralize it elsewhere so
-        // plains, plateau tops and coastal shelves are not raised into mesas
-        float flatness = 1.0 - smoothstep(0.05, 0.4, dirLen);
-        e.x = mix(e.x, hillCurve, flatness);
+    // carve valleys toward the real rivers; depth is limited by the relief above the local water
+    // surface, so beds never drop below water level. pow() narrows the deep core and softens the
+    // rims (V-profile), and the terrain modulation keeps floodplain rivers in shallow swales while
+    // rivers cutting through hills get real valleys
+    const riverIntensity = pow(uRiversTex.sample(uv).r, 1.4).toVar();
+    const carveMod = mix(0.3, 1.0, max(hillCurve, reliefCurve.mul(0.85)));
+    const available = max(h.sub(waterSurface), 0.0);
+    h.subAssign(float(uRiverDepth).mul(riverIntensity).mul(carveMod).mul(min(available, RIVER_RELIEF_CAP)));
 
-        acc.x += e.x * amp;
-        // runevision sign trick: feed back the sign of the derivative rather
-        // than its value, so smaller-scale gullies snap to a consistent
-        // angle instead of wobbling with the noise magnitude
-        vec2 feedback = QUANTIZE_GULLY_DIR ? sign(e.yz) : e.yz;
-        acc.yz += feedback * freq * amp;
+    // water flattening + coastal taper in one step, driven by the true coastline mask: fully flat
+    // at the water surface for landFactor <= 0.5 (the coastline itself and everything seaward of
+    // it), ramping up to the full land height over the next COAST_RAMP of mask inland. The
+    // 0-elevation line therefore sits exactly on the true coastline, not in the middle of a
+    // worldContext.grid cell
+    const coastBlend = smoothstep(0.5, 0.5 + COAST_RAMP, landFactor);
+    h.assign(mix(waterSurface, max(h, waterSurface), coastBlend));
 
-        amp *= GULLY_GAIN;
-        freq *= 2.0;
-      }
-      float ridgeAcc = acc.x * gate;
-      h += ridgeAcc;
+    // worldContext.pack the texturing signals alongside the height: B = erosion detail (ridge/
+    // gully, scaled to fit ±0.4 into 0..1), A = drainage intensity (rivers + sub-river flow,
+    // already 0..1)
+    const erosionPacked = clamp(erosionDetail.div(0.4).add(0.5), 0.0, 1.0);
+    return vec4(pack16(h), erosionPacked, riverIntensity);
+  });
 
-      // unsharp-mask crest sharpening: pull the high-frequency detail the
-      // bilinear base already implies into defined peaked crests, gated to
-      // the hill/mountain band so lowlands stay untouched
-      float detail = base - blurredHeight(uv);
-      float crestDetail = detail * RIDGE_SHARPEN * hillCurve;
-      h += crestDetail;
+  return main();
+}
 
-      // texturing signal: positive on ridges/crests, negative in gullies,
-      // ~0 on untouched ground. Consumed by the terrain texture pass
-      // (draw-satellite-texture) to blend exposed rock vs. dirt-filled gullies
-      float erosionDetail = ridgeAcc + crestDetail;
-
-      // carve valleys toward the real rivers; depth is limited by the relief
-      // above the local water surface, so beds never drop below water level.
-      // pow() narrows the deep core and softens the rims (V-profile), and the
-      // terrain modulation keeps floodplain rivers in shallow swales while
-      // rivers cutting through hills get real valleys
-      float riverIntensity = pow(texture2D(uRivers, uv).r, 1.4);
-      float carveMod = mix(0.3, 1.0, max(hillCurve, 0.85 * reliefCurve));
-      float available = max(h - waterSurface, 0.0);
-      h -= uRiverDepth * riverIntensity * carveMod * min(available, RIVER_RELIEF_CAP);
-
-      // water flattening + coastal taper in one step, driven by the true
-      // coastline mask: fully flat at the water surface for landFactor <= 0.5
-      // (the coastline itself and everything seaward of it), ramping up to
-      // the full land height over the next COAST_RAMP of mask inland. The
-      // 0-elevation line therefore sits exactly on the true coastline, not in
-      // the middle of a worldContext.grid cell
-      float coastBlend = smoothstep(0.5, 0.5 + COAST_RAMP, landFactor);
-      h = mix(waterSurface, max(h, waterSurface), coastBlend);
-
-      // worldContext.pack the texturing signals alongside the height: B = erosion detail
-      // (ridge/gully, scaled to fit ±0.4 into 0..1), A = drainage intensity
-      // (rivers + sub-river flow, already 0..1)
-      float erosionPacked = clamp(erosionDetail / 0.4 + 0.5, 0.0, 1.0);
-      gl_FragColor = vec4(pack16(h), erosionPacked, riverIntensity);
-    }
-  `;
-
-function runErosionPass(
-  renderer: THREE.WebGLRenderer,
+async function runErosionPass(
+  renderer: WebGPURenderer,
   params: BakeParams,
   bakeW: number,
   bakeH: number,
   textures: { height: THREE.DataTexture; coast: THREE.DataTexture; rivers: THREE.Texture }
 ) {
-  const renderTarget = new THREE.WebGLRenderTarget(bakeW, bakeH, {
+  const renderTarget = new THREE.RenderTarget(bakeW, bakeH, {
     format: THREE.RGBAFormat,
     type: THREE.UnsignedByteType,
     minFilter: THREE.NearestFilter,
@@ -736,24 +773,10 @@ function runErosionPass(
     stencilBuffer: false
   });
 
-  const material = new THREE.RawShaderMaterial({
-    vertexShader,
-    fragmentShader,
-    uniforms: {
-      uHeight: { value: textures.height },
-      uCoast: { value: textures.coast },
-      uRivers: { value: textures.rivers },
-      uGridSize: { value: new THREE.Vector2(worldContext.grid.cellsX, worldContext.grid.cellsY) },
-      uResolution: { value: new THREE.Vector2(bakeW, bakeH) },
-      uAspect: { value: worldContext.graphHeight / worldContext.graphWidth },
-      uSeed: { value: (Number.parseInt(worldContext.seed, 10) % 1e5 || 1) / 1e5 + 1 },
-      uStrength: { value: params.strength / 50 },
-      uRiverDepth: { value: params.riverDepth / 100 },
-      uOctaves: { value: params.octaves }
-    },
-    depthTest: false,
-    depthWrite: false
-  });
+  const material = new NodeMaterial();
+  material.fragmentNode = buildErosionFragmentNode(params, bakeW, bakeH, textures);
+  material.depthTest = false;
+  material.depthWrite = false;
 
   // fullscreen triangle
   const geometry = new THREE.BufferGeometry();
@@ -766,10 +789,13 @@ function runErosionPass(
 
   const previousTarget = renderer.getRenderTarget();
   renderer.setRenderTarget(renderTarget);
-  renderer.render(bakeScene, bakeCamera);
+  await renderer.renderAsync(bakeScene, bakeCamera);
 
-  const pixels = new Uint8Array(bakeW * bakeH * 4);
-  renderer.readRenderTargetPixels(renderTarget, 0, 0, bakeW, bakeH, pixels);
+  // Unlike WebGLRenderer's readRenderTargetPixels (which fills a caller-provided buffer),
+  // the unified Renderer's readRenderTargetPixelsAsync allocates and returns the pixel data.
+  const pixels = new Uint8Array(
+    (await renderer.readRenderTargetPixelsAsync(renderTarget, 0, 0, bakeW, bakeH)) as ArrayLike<number>
+  );
   renderer.setRenderTarget(previousTarget);
 
   renderTarget.dispose();
@@ -875,7 +901,7 @@ function enforceDownhillCourses(bakeResult: ErosionBakeResult) {
   }
 }
 
-export async function bake(renderer: THREE.WebGLRenderer, params: BakeParams): Promise<ErosionBakeResult | null> {
+export async function bake(renderer: WebGPURenderer, params: BakeParams): Promise<ErosionBakeResult | null> {
   const key = makeKey(params);
   if (cached && cached.key === key) return cached;
 
@@ -890,7 +916,7 @@ export async function bake(renderer: THREE.WebGLRenderer, params: BakeParams): P
       rivers: buildRiverCanvas(bakeW, bakeH)
     };
 
-    const pixels = runErosionPass(renderer, params, bakeW, bakeH, textures);
+    const pixels = await runErosionPass(renderer, params, bakeW, bakeH, textures);
     for (const texture of Object.values(textures)) texture.dispose();
 
     const heights = new Float32Array(bakeW * bakeH);

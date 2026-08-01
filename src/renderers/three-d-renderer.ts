@@ -2,9 +2,30 @@ import * as THREE from "three";
 import { MapControls } from "three/examples/jsm/controls/MapControls.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { OBJExporter } from "three/examples/jsm/exporters/OBJExporter.js";
-import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
+import { LineSegments2 } from "three/examples/jsm/lines/webgpu/LineSegments2.js";
+import {
+  atan,
+  clamp,
+  dot,
+  Fn,
+  float,
+  floor,
+  fract,
+  If,
+  materialColor,
+  materialReference,
+  mix,
+  pow,
+  sin,
+  smoothstep,
+  texture,
+  uniform,
+  uv,
+  vec2,
+  vec3
+} from "three/tsl";
+import { Line2NodeMaterial, MeshLambertNodeMaterial, WebGPURenderer } from "three/webgpu";
 import { LoopSubdivision } from "three-subdivide";
 import { layerIsOn } from "../utils/nodeUtils";
 import {
@@ -74,6 +95,8 @@ interface TimeOfDayPreset {
   waterColor: string;
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: TSL node types are not exported from three/tsl; this is a pure GLSL-to-TSL port always called with the same shapes GLSL used.
+type TslNode = any;
 type LabelSprite = THREE.Sprite & { size: number };
 type IconBatch = THREE.InstancedMesh<THREE.BufferGeometry, THREE.MeshPhongMaterial>;
 type LowPolyBurgSymbol = ReturnType<typeof buildLowPolyBurgSymbols>[number];
@@ -81,8 +104,9 @@ type NightscapeGlowBatch = THREE.Points<THREE.BufferGeometry, THREE.PointsMateri
 type FloatingRouteBatch =
   | THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial | THREE.LineDashedMaterial>
   | LineSegments2;
-// @types/three currently omits LineMaterial.linewidth, though the Three.js implementation exposes it.
-type ScreenLineMaterial = LineMaterial & { linewidth: number };
+// @types/three currently omits Line2NodeMaterial.linewidth, though the Three.js implementation
+// exposes it (inherited from LineDashedMaterial's default-value shape, see setDefaultValues).
+type ScreenLineMaterial = Line2NodeMaterial & { linewidth: number };
 interface ThreeDBurgPointerStart {
   pointerId: number;
   clientX: number;
@@ -210,12 +234,12 @@ class ThreeDModule {
     }
   };
 
-  private Renderer: THREE.WebGLRenderer | undefined;
+  private Renderer: WebGPURenderer | undefined;
   private scene: THREE.Scene | undefined;
   private camera: THREE.PerspectiveCamera | undefined;
   private controls: MapControls | OrbitControls | undefined;
   private animationFrame: number = 0;
-  private material: THREE.MeshLambertMaterial | THREE.MeshBasicMaterial | undefined;
+  private material: MeshLambertNodeMaterial | THREE.MeshBasicMaterial | undefined;
   private texture: THREE.Texture | undefined;
   private geometry: THREE.BufferGeometry | undefined;
   private mesh: THREE.Mesh | undefined;
@@ -260,7 +284,7 @@ class ThreeDModule {
   private terrainOverlayBuildToken: number = 0;
   private terrainOverlayBuildFrame: number | null = null;
   private waterAnimationFrame: number | null = null;
-  private waterTime = { value: 0 };
+  private readonly waterTime = uniform(0);
   private labelBuildToken = 0;
   private labelsBuildFrame: number | null = null;
   private lastLabelVisibilityCamera = {
@@ -366,7 +390,8 @@ class ThreeDModule {
     this.deleteLowPolyBurgIcons();
     this.deleteFloatingRoutes();
 
-    this.Renderer!.renderLists.dispose();
+    // WebGPURenderer's dispose() already frees its internal render lists; there is no public
+    // `renderLists` accessor to call separately (unlike WebGLRenderer).
     this.Renderer!.dispose();
     this.scene!.remove(this.mesh!);
     this.scene!.remove(this.spotLight!);
@@ -480,7 +505,20 @@ class ThreeDModule {
     if (this.options.sceneOnly) {
       if (this.texture) this.texture.dispose();
       this.texture = undefined;
-      if (this.material) this.material.map = null;
+      if (this.material) {
+        this.material.map = null;
+        // applyWaterAnimation()'s colorNode unconditionally samples material.map (there is no TSL
+        // equivalent of the classic pipeline's `#ifdef USE_MAP` guard) — clearing it here prevents
+        // a null-texture crash if this now-map-less material renders again (mesh.visible=false
+        // below normally prevents that, but redraw()'s render() on the *next* toggle-back can fire
+        // synchronously before the async mesh rebuild has restored `.map`, see toggleNightscape()'s
+        // other branch). queueMeshBuild() reassigns a fresh colorNode once satellite mode rebuilds.
+        if ("colorNode" in this.material) this.material.colorNode = null;
+        // NodeMaterial caches its compiled pipeline; mutating .colorNode alone does not invalidate
+        // it. Without this, a render before the async rebuild completes (see below) can still use
+        // the stale pipeline built against the old, now-disposed map texture.
+        this.material.needsUpdate = true;
+      }
       if (this.mesh) this.mesh.visible = false;
       if (this.waterMesh) this.waterMesh.visible = false;
       if (this.scene) this.scene.background = new THREE.Color("#03050b");
@@ -494,7 +532,11 @@ class ThreeDModule {
       return;
     }
 
-    if (this.mesh) this.mesh.visible = true;
+    // Do not restore mesh.visible here: this.material still has the map=null/colorNode=null state
+    // set above, and redraw() below triggers a synchronous render() before its async
+    // queueMeshBuild() has rebuilt the mesh/material — rendering the stale mesh in between crashes
+    // the water-animation colorNode's texture reference (and the derived shadow pass) against a
+    // null map. queueMeshBuild() sets mesh.visible = !sceneOnly itself once the new mesh is ready.
     if (this.waterMesh) this.waterMesh.visible = Boolean(this.options.extendedWater);
     if (this.scene) this.scene.background = this.options.extendedWater ? new THREE.Color(this.options.skyColor) : null;
     this.redraw();
@@ -634,7 +676,8 @@ class ThreeDModule {
     this.spotLight.shadow.mapSize.height = 2048;
     this.scene.add(this.spotLight);
 
-    this.Renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+    this.Renderer = new WebGPURenderer({ canvas, antialias: true });
+    await this.Renderer.init();
     // CanvasTexture is explicitly tagged as sRGB in createMeshTexture. Encode the rendered
     // frame back to sRGB as well, otherwise viewMesh writes linear values straight to the
     // browser canvas and its colours no longer match the 2D WebGL map.
@@ -695,7 +738,7 @@ class ThreeDModule {
 
   private textureToSprite(canvas: HTMLCanvasElement, width: number, height: number): THREE.Sprite {
     const map = new THREE.CanvasTexture(canvas);
-    map.anisotropy = this.Renderer!.capabilities.getMaxAnisotropy();
+    map.anisotropy = this.Renderer!.getMaxAnisotropy();
     const mat = new THREE.SpriteMaterial({ map });
 
     const sprite = new THREE.Sprite(mat);
@@ -1157,7 +1200,7 @@ class ThreeDModule {
       const geometry = new LineSegmentsGeometry();
       geometry.setPositions(batch.positions);
       geometry.setColors(batch.colors);
-      const material = new LineMaterial({
+      const material = new Line2NodeMaterial({
         vertexColors: true,
         transparent: true,
         opacity,
@@ -1169,7 +1212,9 @@ class ThreeDModule {
         toneMapped: false
       }) as ScreenLineMaterial;
       material.linewidth = linewidth;
-      material.resolution.set(this.Renderer?.domElement.width ?? 1, this.Renderer?.domElement.height ?? 1);
+      // Unlike the classic LineMaterial, Line2NodeMaterial/LineSegments2 (webgpu variant) derive
+      // screen resolution automatically each frame from the renderer viewport in
+      // LineSegments2.onBeforeRender() — there is no settable `resolution` property to mirror.
 
       const line = new LineSegments2(geometry, material);
       if (isDashed) line.computeLineDistances();
@@ -1532,7 +1577,7 @@ class ThreeDModule {
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
-    if (this.Renderer) texture.anisotropy = this.Renderer.capabilities.getMaxAnisotropy();
+    if (this.Renderer) texture.anisotropy = this.Renderer.getMaxAnisotropy();
     return texture;
   }
 
@@ -1614,7 +1659,10 @@ class ThreeDModule {
     // The map texture is already composited by deck.gl. Lighting it again makes overlapping,
     // semi-transparent layers clip to white, so preserve its 2D colours with an unlit material.
     // Satellite terrain remains lit because its procedural texture intentionally includes relief.
-    this.material = useSatellite ? new THREE.MeshLambertMaterial() : new THREE.MeshBasicMaterial();
+    // The satellite branch needs a Node material (MeshLambertNodeMaterial) rather than the classic
+    // MeshLambertMaterial: applyWaterAnimation() drives its colorNode, and onBeforeCompile-style
+    // GLSL patching has no equivalent in the WebGPURenderer node-material pipeline.
+    this.material = useSatellite ? new MeshLambertNodeMaterial() : new THREE.MeshBasicMaterial();
 
     if (this.options.wireframe) {
       this.material.wireframe = true;
@@ -1636,7 +1684,10 @@ class ThreeDModule {
       const desiredBakeResolution = useSatellite
         ? Math.max(baseBakeResolution, satelliteBakeResolution)
         : baseBakeResolution;
-      const maxBakeResolution = Math.min(this.Renderer!.capabilities.maxTextureSize, 8192);
+      // WebGPURenderer exposes no public max-texture-size query (WebGLRenderer's
+      // `capabilities.maxTextureSize` has no equivalent); 8192 is safely below the texture
+      // dimension limit on both the WebGPU and WebGL2-fallback backends.
+      const maxBakeResolution = 8192;
 
       bakeResult = await ErosionBake.bake(this.Renderer!, {
         strength: this.options.erosion ? this.options.erosionStrength : 0,
@@ -1709,13 +1760,13 @@ class ThreeDModule {
     if (useSatellite) {
       const satelliteTexture =
         bakeResult &&
-        generateSatelliteTexture(this.Renderer!, bakeResult, {
+        (await generateSatelliteTexture(this.Renderer!, bakeResult, {
           scale: this.options.scale,
           maxOutput: Math.max(512, Math.min(this.options.resolutionScale, 8192))
-        });
+        }));
       if (satelliteTexture) {
         this.material.map = satelliteTexture;
-        this.applyWaterAnimation(this.material as THREE.MeshLambertMaterial, generateRiverFlowTexture());
+        this.applyWaterAnimation(this.material as MeshLambertNodeMaterial, generateRiverFlowTexture());
         this.startWaterAnimation();
       } else
         console.warn("Satellite terrain texture generation failed; rendering the height mesh without a map texture");
@@ -1794,7 +1845,7 @@ class ThreeDModule {
 
         if (this.isSatelliteTerrainMode()) {
           if (this.erosionBakeData) {
-            const satelliteTexture = generateSatelliteTexture(this.Renderer, this.erosionBakeData, {
+            const satelliteTexture = await generateSatelliteTexture(this.Renderer, this.erosionBakeData, {
               scale: this.options.scale,
               maxOutput: Math.max(512, Math.min(this.options.resolutionScale, 8192))
             });
@@ -1859,7 +1910,8 @@ class ThreeDModule {
       () => this.render()
     );
 
-    this.Renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+    this.Renderer = new WebGPURenderer({ canvas, antialias: true });
+    await this.Renderer.init();
     this.Renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.Renderer.setSize(canvas.width, canvas.height);
 
@@ -2040,75 +2092,118 @@ class ThreeDModule {
     this.waterAnimationFrame = null;
   }
 
-  private applyWaterAnimation(mat: THREE.MeshLambertMaterial, flowTexture: THREE.Texture): void {
-    mat.onBeforeCompile = (shader: { uniforms: Record<string, unknown>; fragmentShader: string }) => {
-      shader.uniforms.uTime = this.waterTime;
-      shader.uniforms.uFlow = { value: flowTexture };
-      shader.fragmentShader =
-        /* glsl */ `uniform float uTime;
-        uniform sampler2D uFlow;
-        float fmgWaterHash(vec2 p) {
-          vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-          p3 += dot(p3, p3.yzx + 33.33);
-          return fract((p3.x + p3.y) * p3.z);
-        }
-        float fmgWaterNoise(vec2 p) {
-          vec2 i = floor(p);
-          vec2 f = fract(p);
-          vec2 u = f * f * (3.0 - 2.0 * f);
-          float a = fmgWaterHash(i);
-          float b = fmgWaterHash(i + vec2(1.0, 0.0));
-          float c = fmgWaterHash(i + vec2(0.0, 1.0));
-          float d = fmgWaterHash(i + vec2(1.0, 1.0));
-          return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
-        }
-        ` +
-        shader.fragmentShader.replace(
-          "#include <map_fragment>",
-          /* glsl */ `#include <map_fragment>
-          float waterMask = 1.0 - smoothstep(0.30, 0.38, diffuseColor.a);
-          if (waterMask > 0.001) {
-            vec2 wp = vMapUv * vec2(140.0, 100.0);
-            float n1 = fmgWaterNoise(wp + vec2(uTime * 0.6, uTime * 0.25));
-            float n2 = fmgWaterNoise(wp * 2.3 - vec2(uTime * 0.45, -uTime * 0.7));
-            float waves = n1 * 0.65 + n2 * 0.35;
-            float crest = pow(waves, 4.0);
-            float swell = sin(dot(vMapUv, vec2(36.0, 28.0)) + uTime * 0.6) * 0.025;
-            diffuseColor.rgb *= 1.0 + waterMask * ((waves - 0.5) * 0.12 + swell);
-            diffuseColor.rgb += waterMask * crest * vec3(0.04, 0.09, 0.09);
-            float shoreGlow = smoothstep(0.02, 0.3, diffuseColor.a) * waterMask;
-            float surf = shoreGlow * (0.5 + 0.5 * sin(uTime * 1.5 + (n1 - 0.5) * 9.0 + dot(vMapUv, vec2(420.0, 380.0))));
-            diffuseColor.rgb += surf * 0.08 * vec3(0.9, 1.0, 1.0);
-          }
-          float lakeBand = smoothstep(0.64, 0.69, diffuseColor.a) * (1.0 - smoothstep(0.71, 0.78, diffuseColor.a));
-          if (lakeBand > 0.001) {
-            vec2 lp = vMapUv * vec2(160.0, 115.0);
-            float l1 = fmgWaterNoise(lp + vec2(uTime * 0.18, uTime * 0.12));
-            float l2 = fmgWaterNoise(lp * 2.1 - vec2(uTime * 0.14, -uTime * 0.21));
-            diffuseColor.rgb *= 1.0 + lakeBand * (l1 * 0.6 + l2 * 0.4 - 0.5) * 0.05;
-          }
-          float riverBand = smoothstep(0.36, 0.42, diffuseColor.a) * (1.0 - smoothstep(0.50, 0.58, diffuseColor.a));
-          if (riverBand > 0.001) {
-            vec4 flow = texture2D(uFlow, vMapUv);
-            if (flow.b > 0.1) {
-              float steep = clamp(flow.b * 1.186 - 0.186, 0.0, 1.0);
-              float flowPhase = atan(flow.r - 0.5, flow.g - 0.5);
-              float speedMul = 1.0 + steep * 2.0;
-              float texNoise = fmgWaterNoise(vMapUv * vec2(380.0, 280.0));
-              float fineNoise = fmgWaterNoise(vMapUv * vec2(880.0, 640.0));
-              float flowWave = sin(flowPhase - uTime * 2.2 * speedMul + texNoise * 2.5) * 0.6
-                + sin(flowPhase * 2.0 - uTime * 3.4 * speedMul + 1.7 + texNoise * 3.5) * 0.4;
-              diffuseColor.rgb *= 1.0 + riverBand * flowWave * (0.5 + texNoise) * mix(0.05, 0.11, steep);
-              
-              float fineRipple = sin(flowPhase * 30.0 - uTime * 24.0 * speedMul + fineNoise * 4.0);
-              float aeration = pow(steep, 3.0) * smoothstep(0.2, 0.8, fineRipple) * fineNoise;
-              diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0), riverBand * aeration * 0.85);
-            }
-          }
-          diffuseColor.a = 1.0;
-        `
+  // onBeforeCompile-style GLSL patching (the classic-pipeline approach this replaced) has no
+  // equivalent in the WebGPURenderer node-material pipeline, so this builds an equivalent
+  // colorNode graph instead. materialColor / materialReference("map", "texture") are the TSL
+  // accessors for "material.color * material.map" and "material.map" respectively — both resolve
+  // `mat.map` dynamically on every frame, so later `mat.map = newTexture` reassignments (see
+  // flush3dTextureUpdates) are picked up automatically without rebuilding this colorNode.
+  private applyWaterAnimation(mat: MeshLambertNodeMaterial, flowTexture: THREE.Texture): void {
+    const fmgWaterHash = Fn(([p]: [TslNode]) => {
+      const p3 = fract(vec3(p.x, p.y, p.x).mul(0.1031)).toVar();
+      p3.addAssign(dot(p3, p3.yzx.add(33.33)));
+      return fract(p3.x.add(p3.y).mul(p3.z));
+    });
+
+    const fmgWaterNoise = Fn(([pIn]: [TslNode]) => {
+      const p = vec2(pIn).toVar();
+      const i = floor(p).toVar();
+      const f = fract(p).toVar();
+      const u = f
+        .mul(f)
+        .mul(float(3.0).sub(f.mul(2.0)))
+        .toVar();
+      const a = fmgWaterHash(i);
+      const b = fmgWaterHash(i.add(vec2(1.0, 0.0)));
+      const c = fmgWaterHash(i.add(vec2(0.0, 1.0)));
+      const d = fmgWaterHash(i.add(vec2(1.0, 1.0)));
+      return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+    });
+
+    const mapAlpha = (materialReference("map", "texture", mat) as TslNode).a;
+    const uFlowTex = texture(flowTexture);
+    const uTime = this.waterTime;
+
+    mat.colorNode = Fn(() => {
+      const vMapUv = uv().toVar();
+      const diffuseA = mapAlpha.toVar();
+      const color = materialColor.toVar();
+
+      const waterMask = float(1.0)
+        .sub(smoothstep(0.3, 0.38, diffuseA))
+        .toVar();
+      If(waterMask.greaterThan(0.001), () => {
+        const wp = vMapUv.mul(vec2(140.0, 100.0));
+        const n1 = fmgWaterNoise(wp.add(vec2(uTime.mul(0.6), uTime.mul(0.25)))).toVar();
+        const n2 = fmgWaterNoise(wp.mul(2.3).sub(vec2(uTime.mul(0.45), uTime.mul(-0.7))));
+        const waves = n1.mul(0.65).add(n2.mul(0.35));
+        const crest = pow(waves, 4.0);
+        const swell = sin(dot(vMapUv, vec2(36.0, 28.0)).add(uTime.mul(0.6))).mul(0.025);
+        color.mulAssign(float(1.0).add(waterMask.mul(waves.sub(0.5).mul(0.12).add(swell))));
+        color.addAssign(vec3(0.04, 0.09, 0.09).mul(waterMask).mul(crest));
+        const shoreGlow = smoothstep(0.02, 0.3, diffuseA).mul(waterMask);
+        const surf = shoreGlow.mul(
+          float(0.5).add(
+            float(0.5).mul(
+              sin(
+                uTime
+                  .mul(1.5)
+                  .add(n1.sub(0.5).mul(9.0))
+                  .add(dot(vMapUv, vec2(420.0, 380.0)))
+              )
+            )
+          )
         );
-    };
+        color.addAssign(vec3(0.9, 1.0, 1.0).mul(surf).mul(0.08));
+      });
+
+      const lakeBand = smoothstep(0.64, 0.69, diffuseA)
+        .mul(float(1.0).sub(smoothstep(0.71, 0.78, diffuseA)))
+        .toVar();
+      If(lakeBand.greaterThan(0.001), () => {
+        const lp = vMapUv.mul(vec2(160.0, 115.0));
+        const l1 = fmgWaterNoise(lp.add(vec2(uTime.mul(0.18), uTime.mul(0.12))));
+        const l2 = fmgWaterNoise(lp.mul(2.1).sub(vec2(uTime.mul(0.14), uTime.mul(-0.21))));
+        color.mulAssign(float(1.0).add(lakeBand.mul(l1.mul(0.6).add(l2.mul(0.4)).sub(0.5)).mul(0.05)));
+      });
+
+      const riverBand = smoothstep(0.36, 0.42, diffuseA)
+        .mul(float(1.0).sub(smoothstep(0.5, 0.58, diffuseA)))
+        .toVar();
+      If(riverBand.greaterThan(0.001), () => {
+        const flow = uFlowTex.sample(vMapUv).toVar();
+        If(flow.b.greaterThan(0.1), () => {
+          const steep = clamp(flow.b.mul(1.186).sub(0.186), 0.0, 1.0).toVar();
+          const flowPhase = atan(flow.r.sub(0.5), flow.g.sub(0.5)).toVar();
+          const speedMul = float(1.0).add(steep.mul(2.0)).toVar();
+          const texNoise = fmgWaterNoise(vMapUv.mul(vec2(380.0, 280.0))).toVar();
+          const fineNoise = fmgWaterNoise(vMapUv.mul(vec2(880.0, 640.0)));
+          const flowWave = sin(flowPhase.sub(uTime.mul(2.2).mul(speedMul)).add(texNoise.mul(2.5)))
+            .mul(0.6)
+            .add(sin(flowPhase.mul(2.0).sub(uTime.mul(3.4).mul(speedMul)).add(1.7).add(texNoise.mul(3.5))).mul(0.4));
+          color.mulAssign(
+            float(1.0).add(
+              riverBand
+                .mul(flowWave)
+                .mul(float(0.5).add(texNoise))
+                .mul(mix(0.05, 0.11, steep))
+            )
+          );
+
+          const fineRipple = sin(flowPhase.mul(30.0).sub(uTime.mul(24.0).mul(speedMul)).add(fineNoise.mul(4.0)));
+          const aeration = pow(steep, 3.0)
+            .mul(smoothstep(0.2, 0.8, fineRipple))
+            .mul(fineNoise);
+          color.assign(mix(color, vec3(1.0), riverBand.mul(aeration).mul(0.85)));
+        });
+      });
+
+      // the original GLSL patch always forced diffuseColor.a = 1.0 here (the map alpha channel is
+      // only ever used above as an internal water/lake/river band classifier, never as output
+      // transparency); colorNode returning a vec3 keeps that behavior — NodeMaterial promotes it to
+      // vec4 with alpha 1 automatically.
+      return color;
+    })();
   }
 }
 
