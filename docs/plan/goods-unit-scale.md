@@ -2,13 +2,13 @@
 
 ## 状態
 
-**未着手**(設計のみ)。[currency-denomination.md](currency-denomination.md) の「個人視点(プレイヤーキャラクター)の価格スケール問題」(未確定・要調整事項 9)から派生した、独立した設計文書。通貨のデノミネーションとは別軸の、Goods テーブルの `unit` 解釈に関する計画。当初は Boots(pair)のみを検証対象としていたが、2026-08-01 の追加検証で Bread(loaf)・Wine(barrel)も対象に加わった。
+**設計更新済み・未実装**。 [currency-denomination.md](currency-denomination.md) の「個人視点(プレイヤーキャラクター)の価格スケール問題」(未確定・要調整事項 9)から派生した、独立した設計文書。通貨のデノミネーションとは別軸の、Goods テーブルの `unit` 解釈に関する計画である。2026-08-01 に現行 `GOODS_DATA` 全111品目と全46加工品のレシピを再試算し、表示専用の単位フレーバーと、実際に経済計算へ影響する値・レシピの修正範囲を確定した。
 
 ## 通貨デノミ計画との関係、別文書にする理由
 
 [currency-denomination.md](currency-denomination.md) は 🟡 という**通貨**を金貨/銀貨/銅貨に表示レイヤーだけで置き換える計画であり、スコープを通貨側に絞っている。本ドキュメントが扱うのは、Boots(`value: 7`, `unit: "pair"`)のような**商品(Goods)側**の `unit` が実際には何個分の物理アイテムを指すのかというフレーバー値の追加であり、通貨の変換ロジック(`GOLD_TO_SILVER_RATE` 等)には一切触れない。実装時に触るファイルもほぼ重ならない(通貨側は `src/utils/unitUtils.ts` 系、本計画は `src/extensions/economy/generators/goods-generator.ts` 周辺のフレーバー定義)ため、別文書として切り出す。
 
-両ドキュメントは同じ「内部の保存値・計算式は一切変更せず、意味づけだけを追加するフレーバーレイヤー」という手法を共有しており、その点で設計方針は一貫している。**ただし本ドキュメントの調査により、Bread(後述)は例外的にこの前提が崩れ、実際の `value` 変更が必要であることが判明した**(該当セクション参照)。
+両ドキュメントは同じ「内部の保存値・計算式は一切変更せず、意味づけだけを追加するフレーバーレイヤー」という手法を共有している。ただし本監査では、Bread/Flour の小売スケールと、8加工品の赤字代替レシピについては、表示だけでは解決できない実データ修正が必要と判明した(後述)。
 
 ## 「unit = ロット」解釈の既存の裏付け
 
@@ -26,23 +26,23 @@
 - 価格の問題: 1 unit = 20足のロットなら、実質1足あたり `7 / 20 ≈ 0.35 old🟡` となり、生存費と比較して妥当なレンジに収まる。
 - 端数の問題: 「0.5 unit」は「ロットの半分(10足)」という、他の bulk 商品(バレル・ワゴン等)と同じ自然な部分出荷の意味になる。
 
-`value` や `unit` フィールドの実数・計算式は一切変更しない。追加するのは「1 unit は実際何個分か」という**表示・ドキュメント専用のフレーバー値**のみで、[currency-denomination.md](currency-denomination.md) のフェーズ1(🟡→銀貨の表示置き換え、内部値不変)や、[cost-of-living.md](../analytics/cost-of-living.md) の住宅価格・[currency-denomination.md](currency-denomination.md) の「1食」と同じ手法を踏襲する。
+Boots と酒場小売の参照値には、`value` や `unit` の実数・計算式を変えない**表示・ドキュメント専用のフレーバー値**を使う。これは [currency-denomination.md](currency-denomination.md) のフェーズ1(🟡→銀貨の表示置き換え)、[cost-of-living.md](../analytics/cost-of-living.md) の住宅価格、「1食」と同じ手法である。Bread/Flour と後述の赤字レシピは、この原則の明示的な例外である。
 
 ## 既存の Goods テーブルにおける unit の使われ方調査
 
-`goods-generator.ts` 内の全 `unit:` 値(約110商品)を集計した結果:
+`goods-generator.ts` 内の現行 `GOODS_DATA` 全111品目の `unit` を集計した結果:
 
 | unit語 | 件数 | 性質 |
 | --- | --- | --- |
-| barrel / wain / wagon / sack / bag / bundle / bale / chest / pallet / bottle / basket / roll / ream / coil / bolt / pile / block / bullion / set | 計約87件 | **既に「容器・ロット」を意味する語**。0.5単位の端数取引も「半樽」「半台分」として自然。フレーバー値の追加は不要。 |
-| head | 8件(Cattle, Horses, Elephants, Camels, Sheep, Goats ×2, Chicken) | **既に1頭=1匹で曖昧さがない**。「1 unitが何個分か」という問題ではなく、1匹あたりの価格自体が妥当かという*ゲームバランス*の問題(通貨デノミ計画の未確定事項9側の対象)。本ドキュメントの対象外。 |
+| barrel / wain / wagon / sack / bag / bundle / bale / chest / pallet / bottle / basket / roll / ream / coil / bolt / pile / block / bullion / set / quiver / pouch / vessel / beam | 85件 | **既に容器・荷姿・複数品目のセットを意味する会計ロット**。0.5単位の端数取引も自然であり、品目別の個数フレーバーは不要。 |
+| head | 8件(Cattle, Horses, Elephants, Camels, Sheep, Goats, Pig, Chicken) | **既に1頭=1匹で曖昧さがない**。価格は家畜・役畜という資本財として読むべきで、個人の年次生活費との直接比較対象ではない。 |
 | slave | 1件(Slaves) | head と同様、1 unit=1人で曖昧さなし。本ドキュメントの対象外(倫理的にも価格面の「お得感」演出は避けるべき題材)。 |
-| pair | 1件(Boots, value 7) | **対象(フレーバーのみで解決)**。基本的な生活必需品で個人が単体所有する物のため、1unit=1個という文字通りの解釈だと価格が破綻する。本計画の主要な検証ケース。 |
-| loaf | 1件(Bread, value 3) | **対象(フレーバーだけでは解決せず、`value` 自体の見直しが必要)**。パンという日常の主食が1個=3old🟡だと、農民の年間生存費(約0.34)の約9倍という、Boots以上に深刻な不整合。加えて体積面の制約からフレーバー値だけでは解決しないことが判明した。詳細は後述。 |
+| pair | 1件(Boots, value 7) | **表示フレーバー対象**。`1 unit = 20 pairs` と明示して小売換算・端数取引を自然にする。経済値は変更しない。 |
+| loaf | 1件(Bread, value 3) | **表示と実データの両方の対象**。`1 unit = 20 loaves` を明示し、Flour と合わせて `Flour: 1.5` / `Bread: 2` に調整する。1個約1.2CPとなり、加工利幅も維持できる。 |
 | barrel(Wine, value 5) | 1件 | **対象外(unit自体は問題なし)、ただし別種の課題を発見**。「1樽」は既に自然なロット単位で端数取引も問題ない。ただし樽の内容量から1杯あたりの小売価格を逆算すると、通貨デノミ計画で既出の「銅貨未満に沈む」問題と同じ現象が起きることが判明した。詳細は後述。 |
-| piece(Jewelry, value 55)/ vessel(Liquor, value 12)/ cannon(Artillery, value 70)/ quiver(Arrows, value 3)/ pouch(Bullets, value 6) | 各1件 | **対象外(優先度低)**。Jewelry・Artilleryは高額であることが題材上正しい(宝飾品・大砲)。Liquorの"vessel"は元々酒瓶程度の小容量を連想させ突飛ではない。quiver/pouchは元々矢筒・薬包入れという「複数本入りの容器」を連想させる語であり、Boots(pair=1足)ほど致命的な誤解を招かない。 |
+| pearl / gem / stone / pelt / fleece / tusk / branch / volume / ship / cannon / service / piece / wheel | 15件 | 高級素材・完成資本財・サービスであり、高額な単体表示は意図どおり。`value` は小売価格ではなく市場会計値なので、年次生活費との比率だけで変更しない。 |
 
-**結論: 本計画が実際に手当てすべきは Boots(pair)・Bread(loaf)・Wine(barrel)の3件が中心**であり、「discrete-unitを持つ商品は全てロット化が必要」という一律対応ではない。このうち Boots と Wine はフレーバー値の追加のみで解決できるが、Bread だけは `value` 自体の変更を要する例外である(詳細は各セクション後述)。
+**結論: 個数フレーバーを必要とするのは Boots と Bread のみ**であり、「単数形の unit を持つ商品を全てロット化する」対応は採らない。Wine/Beer は卸売ロットと酒場小売を分ける表示上の問題、Bread/Flour と赤字加工経路は実際の経済データ問題として分けて扱う。
 
 ## Boots の具体例(試算)
 
@@ -60,45 +60,44 @@ Boots: value = 7 old🟡 / unit ("pair")
     → 「1食 ≈ 銅貨1〜3枚」と比較しても、靴1足が食費1〜2日分よりやや高い程度という妥当な相対スケールになる
 ```
 
-`itemsPerUnit = 20` は暫定の試算値であり、確定した根拠はない(未確定・要調整事項を参照)。
+`itemsPerUnit = 20` を本計画の採用値とする。これは厳密な史料上の梱包規格ではなく、0.5 unit を10足として自然に読め、小売換算も整合するゲーム内フレーバー値である。
 
-## Bread(loaf)についての分析 — フレーバーのみでは解決しない例外
+## Bread(loaf)についての分析 — 小売フレーバーと加工利幅を同時に直す
 
 Bread(`value: 3`, `unit: "loaf"`)も同じ試算をすると `3 / 0.34 ≈ 8.8年分` となり、Boots(耐久財、たまに買う)よりむしろ深刻——パンは毎日消費する主食であるため。
 
-### レシピからの裏付け: 「1 unit = 1個」は既に自己矛盾している
+### レシピは物理重量ではなく Economy unit の投入比である
 
-Bread は `recipes: [{ Flour: 1 }]`(`goods-generator.ts:1428`)、つまり **Flour 1 unit(`unit: "sack"`) から Bread 1 unit を作る**というレシピを持つ。Flour の `unit` は既に「1袋」というロット単位であり、1袋の小麦粉から実際に焼けるパンの数は決して1個ではない。英国式の小麦粉袋(1 sack ≈ 280 lb ≈ 127kg、パン1個あたり粉500g前後という一般的な目安で試算)で概算すると、1袋の小麦粉から**約250個のパンが焼ける**。つまり、このレシピが物理的に成立するためには、Bread の `unit`(ラベルは"loaf"だが)は**既に「1個」ではありえず、Flour 1袋に見合う相応の個数(バッチ)を暗黙に表している**ことが、Boots のような外部からの類推ではなく、レシピの内部整合性そのものから確認できる。
+Bread は `recipes: [{ Flour: 1 }]` を持つ。この `1:1` は「127kg の史実上の sack からパン1個を焼く」という物理的換算ではなく、全Goodsに共通する **Economy unit 同士の投入比**である。`sack`、`wain`、`barrel` の内容量はコードで定義されておらず、英国の特定の sack 容量を当てはめて250個と断定することはできない。
 
-### Boots と異なり、フレーバーだけでは解決しない: 体積(馬車への積載量)の制約
+ただし、このことは Bread を1個と読める理由にはならない。`value: 3` を生活費・銅貨スケールにそのまま当てると不合理なので、Bread は他の加工品と同様に市場用バッチであることを明示する必要がある。物理量を決めるのはレシピではなく、表示専用の `itemsPerUnit` とする。
 
-Boots の場合、「1 unit = 20足のロット」は靴20足分の小箱程度であり、他の bulk 商品(バレル・ワゴン等)と同じ荷姿として全く不自然ではない。
+### 確定するバッチと値
 
-しかし Bread で同じ発想を機械的に適用すると問題が生じる。上記のレシピ整合性から導かれる「1 unit ≈ 250個」というロットサイズは、Boots の20個よりはるかに大きく、しかも**パンは嵩張り(かさばり)日持ちしない生鮮品**であるため、Grain の1 wain や Wine の1 barrel と同じ「荷車に載る1ロット」の物理量として妥当かどうかは全く別の検証が要る。250個のパンを1台の荷車の1商品スロットに積むという想定は、他の商品(1 wain の穀物、1 barrel のワイン等)と横並びで比較したときに嵩張りすぎる可能性が高く、単に「フレーバー値を足すだけ」では済まない。
+Bread は `1 unit = 20 loaves` とする。これは一回の焼成・近隣市場への出荷として無理のない量であり、0.5 unit は10個である。現行の `Bread.value = 3` のままなら1個は1.8CPとなるが、パンは日常食の一部なのでこの水準は高い。
 
-これがユーザーからの指摘(2026-08-01)の要点: **Bread は Boots と違い、フレーバー値の追加だけでなく `value` 自体を実際に引き下げ、1 unit が表す個数(バッチサイズ)も無理のない規模に抑える、という実際のゲームバランス変更が必要**。これは本計画・[currency-denomination.md](currency-denomination.md) が一貫して守ってきた「内部の保存値は一切変更しない」というフレーバーのみの手法から明確に外れる、**唯一の例外**として記録する。
+`Bread.value` だけを1.5〜2へ下げると、現行 `Flour.value = 2` を丸ごと投入するレシピが赤字になり、`Production` の原料購入ゲートで継続生産されない。したがって Bread は単独では変更しない。Flour と一組で次のように変更する。
 
-### 試算(内部値変更を伴う提案・要合意)
+### 試算(内部値変更を伴う採用案)
 
 ```text
-前提: Boots と同じ itemsPerUnit=20(1ロット=パン20個、通常のパン窯1回分の焼成量程度で
-      無理のない嵩)を採用し、Bread(unit="loaf")のレシピ上の「1 unit = 250個」という
-      機械的な帰結は採用しない(嵩張りすぎるため)。
-
 目標: パン1個の実勢価格が、currency-denomination.md で既に採用済みの
       「酒場での質素な1食 ≈ 銅貨1〜3枚」という基準に対し、パンは食事の一部品に過ぎない
       ことを踏まえ、その中でも低めの銅貨1枚程度(≈1食の1/3〜1/1)に収まることとする。
 
   1 CP ≈ 1/12 old🟡(SP)(currency-denomination.md の SILVER_TO_COPPER_RATE=12 を流用)
-  itemsPerUnit=20 で 1個≈1CP を満たす unit価格
-    = 1 CP × (1/12 SP/CP) × 20個 ≈ 1.67 old🟡
+  採用値:
+    Flour.value: 2 → 1.5
+    Bread.value: 3 → 2
+    Bread.itemsPerUnit: 20 loaves
 
-→ 現行 value=3 を、value≈1.5〜2 程度まで引き下げる案(暫定・要合意)。
-  現行のFlour(value 2)との相対関係が「加工品(Bread)が原材料(Flour)より安い」という
-  逆転を起こさないよう、Flourとの相対価格も合わせて確認する必要がある。
+  1 loaf = 2 / 20 SP = 0.1 SP = 1.2CP
+  Flour → Bread の基準加工利幅 = 2 - 1.5 = 0.5 SP / Economy unit
+
+→ 1個のパンは銅貨約1枚、加工品は原料より高く、加工者にも正の利幅が残る。
 ```
 
-`value≈1.5〜2` は本ドキュメントの試算による暫定値であり、実装前に必ずゲームバランス調査・ユーザー確認を経ること(Boots の `itemsPerUnit=20` のような表示専用フレーバーとは異なり、**これは実際に `goods-generator.ts` の `Bread.value` を書き換えるコード変更であり、既存のバランス調整・関連テストへの影響確認が必要**)。
+この変更は `goods-generator.ts` の実データを変更する。Food Ledger の主食基準は引き続き Grain であり、Grain の値は変更しない。実装時にはレシピ原価の非赤字検証をテストに追加する。
 
 Bread と Grain(原材料、`cost-of-living.md` の生存費算出の基準)の関係は、Flour を介した間接的なものであり、Grain 自体の `value` を変更する話ではない。
 
@@ -124,36 +123,103 @@ Wine: value = 5 old🟡(SP)/barrel
 
 [currency-denomination.md](currency-denomination.md)が「1食」で既に採用した解決策と同じ手法をそのまま踏襲する: 樽の卸売`value`から1杯単価を割り算で逆算するのではなく、**「酒場で提供されるワイン1杯」を独立したフレーバー値として直接定義する**。
 
-- 目安値(暫定): **ワイン1杯 ≈ 銅貨1枚程度**、または「1食(銅貨1〜3枚)」に含める形で「食事+酒 ≈ 銅貨2〜4枚」のようにまとめて扱う案。どちらも `currency-denomination.md` の「1食 ≈ 銅貨1〜3枚」と同じ粒度・同じ性質(既存の財政ロジックに一切接続しないUI/ドキュメント専用フレーバー)。
+- 採用フレーバー値は **ワイン/ビール1杯 ≈ 銅貨1枚** とする。「1食(銅貨1〜3枚)」に統合して「食事+酒 ≈ 銅貨2〜4枚」と見せることもできる。いずれも `currency-denomination.md` の「1食 ≈ 銅貨1〜3枚」と同じ粒度・同じ性質(既存の財政ロジックに一切接続しないUI/ドキュメント専用フレーバー)である。
 - Wine の `unit`(barrel)自体にはフレーバー値([Boots](#boots-の具体例試算)のような`itemsPerUnit`)は不要——問題の所在は「unitの意味の誤解」ではなく「卸売ロット価格を割り算しただけでは小売の1回分価格にならない」という、通貨デノミ計画で既に扱った論点の再現であるため。
-- Beer(`value: 3`, `unit: "barrel"`)、Liquor(`value: 12`, `unit: "vessel"`)も同種の飲料であり、将来「食事+酒」のフレーバー値を具体化する際は同じ考え方(独立フレーバー値、樽/vesselのvalueから逆算しない)を適用できる。ただし本ドキュメントでは Wine のみ試算し、他は未検証(未確定・要調整事項に記録)。
+- Beer(`value: 3`, 実装時は`4`, `unit: "barrel"`)にも Wine と同じ独立フレーバーを適用する。Liquor(`value: 12`, `unit: "vessel"`)は小容量の奢侈飲料として扱い、今回の酒場基準には加えない。
 
-## 設計方針: フレーバー値としての「unit あたり個数」追加(表示専用、内部値は不変) — Boots・Wineに適用、Breadは対象外
+## 全Goods監査 — 値を変えるべき条件
 
-- 対象は Boots(`itemsPerUnit`)と Wine(「1杯」フレーバー価格)のみ。Bread は前述の通り例外で、`Good.value` 自体の変更を伴う。Boots・Wine については `Good.value` / `Good.unit` および取引量計算(`markets-generator.ts`, `caravans.ts` 等)の実装・数値は一切変更しない。
-- 新しいフレーバー値は、既存の90件超の Goods テーブル(ゲームバランスの中核であり、経済計算ロジックから直接参照される)には追加しない。代わりに**独立した表示専用モジュール**(例: `src/extensions/economy/generators/goodsUnitFlavor.ts`)に `{ goodName: string; itemsPerUnit: number; itemNoun: string }` のようなマップとして保持する案を推奨する。
-  - 理由: Goods 型に直接フィールドを追加すると、将来誰かがこの値を誤って計算ロジックに参照してしまうリスクがある。独立モジュールに分離することで「この値は表示専用であり経済計算に接続してはいけない」という制約をファイル構造レベルで明示できる([currency-denomination.md](currency-denomination.md)の「1食」フレーバー値が既存の財政ロジックに一切接続しないのと同じ設計原則)。
-- UI上は GoodsEditorDialog のツールチップ、または該当商品の価格表示脇に「(1 unit ≈ 20 pairs)」のような形で補足する案(表示場所は未確定)。
+`Good.value` は、小売一個の定価ではなく市場・交易・生産の **Economy unit あたり会計値** である。このため、全111品目について「年次生活費で割って高額か」だけで値を変更することはしない。値の変更を認める条件は次の二つに限定する。
+
+1. 日用品を単数形で読んだ時の小売価格が破綻し、妥当なバッチ表示と値の組合せが必要なこと(Bread)。
+2. 基準値で `output.value < Σ(input.amount × input.value)` となり、通常価格では製造するほど損をすること。
+
+2番目を全46加工品・全110代替レシピに適用した。100経路は非赤字、10経路が赤字だった。以下は実装で同時に適用する修正であり、単位フレーバーとは異なり経済計算へ影響する。
+
+| 完成品 | 現行の赤字経路 (基準原料費) | 設計上の修正 | 修正後の最小利幅 |
+| --- | --- | --- | ---: |
+| Tar (2) | Resin ×0.75 (4.5) | `Tar.value: 2 → 5` | 0.5 |
+| Leather (6) | Horses ×1 (10), Camels ×1 (12) | 馬を`0.5`、駱駝を`0.25`にする | 1 |
+| Cloth (5) | Silk ×0.5 (8) | Silk を`0.25`にする | 1 |
+| Garments (12) | Linen ×1 + Dyes ×0.5 + Alum ×0.25 (12.25) | Linen を`0.75`にする | 0.75 |
+| Preserved food (5) | Cattle ×1 + Salt ×1 (8)、Cattle ×1 + Vinegar ×0.5 (7) | 両経路の Cattle を`0.25`にする | 0 |
+| Vinegar (4) | Wine ×1 (5) | `Vinegar.value: 4 → 5` | 0 |
+| Beer (3) | Honey ×0.5 + Barrels ×1 (4) | `Beer.value: 3 → 4` | 0 |
+| Tallow (2) | Cattle ×0.5 (2.5) | Cattle を`0.4`にする | 0 |
+| Flour / Bread | Bread だけを下げると Flour ×1 (2) を下回る | `Flour.value: 2 → 1.5`、`Bread.value: 3 → 2` | 0.5 |
+
+利幅0の Vinegar・Beer・Tallow は、原料の変質/副産物化を表すために許容する下限である。労務・需給による市場価格上振れはこの基準値の外で発生する。上表の変更を適用すれば、全110経路が基準値で非赤字となり、これ以外の値・レシピ変更は不要である。
+
+## 全111品目の unit / value 監査記録
+
+次表は現行カタログを unit ごとに全件列挙したもの。括弧内は現行 `value`。`cargo` は既存の単位語だけで部分出荷を説明できるためフレーバー追加不要、`asset` は単体の高額資本財・奢侈品、`retail batch` は今回の追加対象である。
+
+| Unit | 品目 (現行 value) | 判定 |
+| --- | --- | --- |
+| pile | Wood (1), Mahogany (10) | cargo |
+| pallet | Stone (1), Marble (8), Roman Concrete (6) | cargo |
+| wagon | Iron Ore (2), Copper Ore (2.5), Tin Ore (3), Lead Ore (1.5), Iron Ingot (4), Copper Ingot (5), Tin Ingot (6), Lead Ingot (3), Bronze (8) | cargo |
+| bullion | Silver Ore (10), Gold Ore (20), Silver Ingot (20), Gold Ingot (40) | cargo |
+| wain | Grain (1), Fish (1), Game (2), Hemp (1), Coal (2), Clay (1), White sand (1), Ceramics (4), Glass (6), Preserved food (5), Cheese (5) | cargo |
+| barrel | Wine (5), Olives (3), Honey (4), Tar (2), Sulfur (5), Saltpeter (4), Oil (4), Whales (3), Barrels (2), Gunpowder (12), Vinegar (4), Beer (3), Soap (6), Resin (6), Tallow (2), Potash (3) | cargo; Wine/Beer only retail reference |
+| bag | Salt (3), Dyes (8), Sugarcane (4), Tea (10), Tobacco (8) | cargo |
+| chest | Dates (7), Incense (12), Spices (18) | cargo |
+| bale | Fodder (1), Peat (2), Cotton (2) | cargo |
+| bolt | Silk (16), Cloth (5), Linen (6) | cargo |
+| sack | Volcanic Ash (3), Lime (2), Flour (2), Alum (9) | cargo |
+| roll | Leather (6) | cargo |
+| set | Garments (12), Sails (8), Harnesses (10), Tools (14), Arms (24) | cargo / equipment set |
+| coil | Ropes (3) | cargo |
+| ream | Paper (5) | cargo |
+| bottle | Ink (7), Perfume (28) | packaged luxury; no count needed |
+| basket | Egg (1), Shellfish (2) | cargo |
+| bundle | Medicinal herbs (10), Reeds (1), Flax (1), Stockfish (4) | cargo |
+| block | Candles (10), Beeswax (5) | cargo |
+| beam | Timber (3) | cargo |
+| quiver / pouch / vessel | Arrows (3), Bullets (6), Liquor (12) | packaged cargo |
+| head | Cattle (5), Horses (10), Elephants (30), Camels (12), Sheep (1), Goats (3), Pig (2), Chicken (1) | living asset |
+| slave | Slaves (10) | person; no retail flavour |
+| pearl / gem / stone / pelt / fleece / tusk / branch | Pearls (18), Gemstones (20), Amber (8), Furs (6), Wool (2), Ivory (35), Coral (16) | high-value material; value retained |
+| volume | Books (18) | asset / luxury |
+| ship | Sloop (80), Caravel (200), Galleon (480) | capital asset |
+| cannon / service / piece / wheel | Artillery (70), Coins (45), Jewelry (55), Spinning Wheel (12) | capital asset / service |
+| pair | Boots (7) | **retail batch: 20 pairs** |
+| loaf | Bread (3) | **retail batch: 20 loaves; value 2 planned** |
+
+## 設計方針: 表示専用フレーバーと経済値を分離する
+
+- `Goods` 型へフレーバー値を追加しない。`value` と `recipes` はシミュレーションの入力であり、表示上の個数が混入すると誤用を招く。
+- `src/extensions/economy/generators/goodsUnitFlavor.ts` を表示専用モジュールとして新設し、少なくとも次を保持する。経済計算コードからは参照禁止とする。
+
+  ```ts
+  type GoodsUnitFlavor = {
+    readonly itemsPerUnit?: number;
+    readonly itemNoun?: string;
+    readonly retailReference?: { readonly label: string; readonly copperPrice: number };
+  };
+
+  // Boots: { itemsPerUnit: 20, itemNoun: "pairs" }
+  // Bread: { itemsPerUnit: 20, itemNoun: "loaves" }
+  // Wine / Beer: { retailReference: { label: "cup", copperPrice: 1 } }
+  ```
+
+- Wine/Beer の「1杯 ≈ 1CP」は樽値から逆算しない酒場小売の独立フレーバーである。Liquor は `vessel` が既に小容量包装を表し、奢侈飲料なので今回の小売基準には加えない。
+- GoodsEditorDialog の価格セルのツールチップにのみ表示し、品目を新規作成・編集した場合には適用しない。表示対象は名前一致の既定Goodsに限る。
 
 ## 未確定・要調整事項
 
-1. **Boots の `itemsPerUnit` 具体値**: 本ドキュメントの試算では20を仮採用しているが、確定根拠はない。実装前に確定させる。
-2. **Bread の `value` 変更の具体値と合意**: 本ドキュメントでは `value≈1.5〜2`(itemsPerUnit=20相当)を試算したが、暫定値。`Good.value` を実際に書き換える唯一のケースであるため、他の食品(Flour, Beer等)との相対価格バランスも含め、実装着手前に別途のゲームバランス確認が要る。
-3. **フレーバー値の格納場所**: 独立モジュール(推奨)か、`Good` 型への直接追加(オプショナルフィールド)か。Boots の `itemsPerUnit` と Wine の「1杯」価格の両方をどう同じ構造で持つか(異なる種類のフレーバー値のため、単純に同じマップ形状で扱えるか要検討)。
-4. **UI表示箇所**: GoodsEditorDialog のツールチップか、About タブか、他の商品ダイアログか。i18n化(`about.*` や新規namespace)の要否も含めて未定。
-5. **対象範囲の全数調査**: 本ドキュメントでは Boots・Bread・Wine のみ具体的に試算した。piece(Jewelry)/vessel(Liquor)/quiver(Arrows)/pouch(Bullets)、および同じ飲料系のBeer/Liquorは「対象外(優先度低)」「未検証」と暫定判断したが、個人視点での厳密なチェックはまだ全数実施していない。
-6. **通貨デノミ計画([currency-denomination.md](currency-denomination.md))との実装順序**: 本フレーバー値は old🟡 のままでも独立して定義できるが、実際にUIへ表示する際の単位(🟡のままか、銀貨/銅貨表記か)は通貨デノミの進捗次第で見た目が変わる。どちらを先に実装するかは未確定。
-7. **「食事+酒」フレーバー値の具体的な数字**: Wine「1杯 ≈ 銅貨1枚」は本ドキュメントの試算による暫定値。[currency-denomination.md](currency-denomination.md)の「1食 ≈ 銅貨1〜3枚」と統合して「食事+酒」の1セット価格として提示するか、別々に表示するかも未確定。
+1. **通貨デノミ計画との実装順序**: フレーバーは先行実装できるが、CP表記を有効にするUIはデノミネーションの導入後にするか、暫定で`≈ one copper`という文言にするかを決める必要がある。
+2. **食事+酒の見せ方**: Wine/Beerの1杯を単独表示するか、`Meal with drink ≈ 2–4 CP` として About の生活費説明へ統合するかはUI設計時に決める。
+3. **動的・ユーザー作成Goods**: 本計画は既定カタログのみを対象にする。任意の新規Goodsへ物理換算を推測して自動適用しない。
 
 ## 実装ステップ(想定・未実施)
 
-1. Boots について `itemsPerUnit` の暫定値を確定する。
-2. Bread の `value` 変更の具体値をゲームバランス調査・ユーザー確認を経て確定し、`goods-generator.ts` の `Bread.value` を実際に変更する(本計画で唯一の内部値変更)。Flour等の関連Goodsとの相対価格を合わせて確認する。
-3. Wine「1杯」フレーバー価格の具体値を確定する(Beer/Liquor等、他の飲料系Goodsに広げるかも判断)。
-4. フレーバー値保存モジュール(`goodsUnitFlavor.ts` 案)を新規作成し、Boots・Wineの表示専用フレーバー値が経済計算コードから一切参照されないことをコードレビュー・ユニットテストで担保する(Bread の `value` 変更は別枠の通常のバランス変更として扱う)。
-5. GoodsEditorDialog または該当ツールチップにフレーバー文言を追加(実装済みの `about.costOfLiving*` と同様の方式で i18n 化)。
-6. [cost-of-living.md](../analytics/cost-of-living.md) に「代表的な耐久財・食品の価格」項目として Boots・Bread・Wine を追記する。
-7. `npx tsc --noEmit` / `npm run lint` / `npx madge --circular` / 既存テストスイート全体で回帰がないことを確認する(Boots・Wineのフレーバーは表示専用のため経済系テストの期待値は変更不要のはずだが、Bread の `value` 変更はテスト・既存バランスへの影響を個別に確認すること)。
+1. `GOODS_DATA` に「全Goods監査」の9行の値・レシピ修正を適用する。Breadだけでなく、赤字の代替レシピを残さない。
+2. `goodsUnitFlavor.ts` を新規作成し、Boots/Breadの20個バッチとWine/Beerの独立した1CP小売参照を定義する。`Good` 型・市場・生産・交易コードは変更しない。
+3. `GoodsEditorDialog` の既定Goodsの価格ツールチップへフレーバー文言をi18nで表示する。編集済みまたは新規Goodsには表示しない。
+4. `GOODS_DATA` を復元するユニットテストに、全レシピの基準原料費が完成品値を超えないことを検証するテストを追加する。これは将来の値変更で赤字経路を再導入しないための回帰防止策である。
+5. [cost-of-living.md](../analytics/cost-of-living.md) に代表的な耐久財・食品・酒場小売の価格説明を追記する。
+6. `npx tsc --noEmit`、`npm run lint`、該当Vitest、既存テストスイートで回帰がないことを確認する。値変更後は生産・交易のスモーク確認も行う。
 
 ## 関連ドキュメント
 
