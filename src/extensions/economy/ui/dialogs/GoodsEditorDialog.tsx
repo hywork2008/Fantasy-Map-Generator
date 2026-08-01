@@ -1,6 +1,6 @@
 import React from "react";
 import { closeDialog, Dialog, IconButton, SortableHeader, useDialogState, VirtualTableBody } from "../../../hostUi";
-import { rn } from "../../../hostUtils";
+import { formatPrice, rn } from "../../../hostUtils";
 
 import {
   addGood,
@@ -296,7 +296,7 @@ export const GoodsEditorDialog: React.FC = () => {
                           className="goodBasePrice pointer"
                           onClick={e => e.stopPropagation()}
                         >
-                          🟡 {good.basePrice}
+                          {formatPrice(good.basePrice)}
                         </td>
                         <td>
                           <IconButton

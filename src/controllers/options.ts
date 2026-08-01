@@ -464,6 +464,8 @@ export function applyStoredOptions(): void {
     "stateLabelsMode",
     "demographicBirthRate",
     "demographicChildMortalityRate",
+    "goldToSilverRate",
+    "silverToCopperRate",
     "warFrequency",
     "threatCalculation",
     "emblemShape",

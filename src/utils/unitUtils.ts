@@ -1,3 +1,5 @@
+import { useOptionsState } from "../store/optionsState";
+import { type CurrencyRates, DEFAULT_CURRENCY_RATES, normalizeCurrencyRates } from "./currency";
 import { rn } from "./numberUtils";
 
 type TemperatureScale = "°C" | "°F" | "K" | "°R" | "°De" | "°N" | "°Ré" | "°Rø";
@@ -101,7 +103,48 @@ export const getIntegerFromSI = (value: string): number => {
   return parseInt(value, 10);
 };
 
-/** Display-only currency formatting (embeds a decorative icon) — never use for CSV/data exports; write the raw numeric value instead. */
+export interface Coinage {
+  gold: number;
+  silver: number;
+  copper: number;
+}
+
+/**
+ * Converts the app's internal silver-piece amount to display-only coinage.
+ * Internal balances and prices remain untouched; never use this result for
+ * finance calculations or data export.
+ */
+export function toCoinage(silverAmount: number, rates: CurrencyRates = DEFAULT_CURRENCY_RATES): Coinage {
+  const { goldToSilverRate, silverToCopperRate } = normalizeCurrencyRates(rates);
+  const amount = Number.isFinite(silverAmount) ? Math.max(0, silverAmount) : 0;
+  const totalCopper = Math.round(amount * silverToCopperRate);
+  const goldToCopperRate = goldToSilverRate * silverToCopperRate;
+  const gold = Math.floor(totalCopper / goldToCopperRate);
+  const remainder = totalCopper % goldToCopperRate;
+  const silver = Math.floor(remainder / silverToCopperRate);
+  const copper = remainder % silverToCopperRate;
+
+  return { gold, silver, copper };
+}
+
+/** Formats an internal silver-piece amount as gold, silver, and copper coins. */
+export function formatCoinage(silverAmount: number, rates: CurrencyRates = DEFAULT_CURRENCY_RATES): string {
+  const { gold, silver, copper } = toCoinage(silverAmount, rates);
+  const parts: string[] = [];
+
+  if (gold > 0) parts.push(`🟡${gold}`);
+  if (silver > 0 || parts.length === 0) parts.push(`⚪${silver}`);
+  if (copper > 0) parts.push(`🟤${copper}`);
+
+  return parts.join(" ");
+}
+
+/**
+ * Display-only currency formatting — never use for CSV/data exports; write the
+ * raw numeric value instead. Existing callers retain their API while following
+ * the live denomination settings.
+ */
 export function formatPrice(value: number): string {
-  return `🟡 ${rn(value, 2)}`;
+  const { goldToSilverRate, silverToCopperRate } = useOptionsState.getState();
+  return formatCoinage(value, { goldToSilverRate, silverToCopperRate });
 }

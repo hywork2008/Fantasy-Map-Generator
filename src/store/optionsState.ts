@@ -3,6 +3,7 @@ import type { HeightmapTemplateRandomization } from "../data";
 import type { BiomeRegionProfile } from "../types/biomeRegion";
 import type { ConflictAutonomy, InitialSettlementPattern } from "../types/WorldState";
 import { DEFAULT_CONFLICT_AUTONOMY } from "../utils/conflictAutonomy";
+import { DEFAULT_GOLD_TO_SILVER_RATE, DEFAULT_SILVER_TO_COPPER_RATE } from "../utils/currency";
 
 export interface OptionsState {
   // Map settings
@@ -49,6 +50,10 @@ export interface OptionsState {
   biomeRegionProfile: BiomeRegionProfile;
   demographicBirthRate: number;
   demographicChildMortalityRate: number;
+  /** Display-only denomination: silver pieces represented by one gold piece. */
+  goldToSilverRate: number;
+  /** Display-only denomination: copper pieces represented by one silver piece. */
+  silverToCopperRate: number;
   /**
    * Advance-time simulation feature toggles — skip expensive subsystems when OFF.
    * Day is the base unit; month/year buttons are multi-day loops of the same ticks.
@@ -231,6 +236,8 @@ export const useOptionsState = create<OptionsState>(set => ({
   biomeRegionProfile: "global",
   demographicBirthRate: 0.25,
   demographicChildMortalityRate: 0.2,
+  goldToSilverRate: DEFAULT_GOLD_TO_SILVER_RATE,
+  silverToCopperRate: DEFAULT_SILVER_TO_COPPER_RATE,
   simDemographics: true,
   simManpower: true,
   simAgriculture: true,

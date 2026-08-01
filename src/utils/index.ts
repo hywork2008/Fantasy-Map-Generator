@@ -54,7 +54,7 @@ import { getPortAnchorPosition, PORT_ANCHOR_WATER_OFFSET } from "./portAccess";
 import { biased, each, gauss, generateSeed, getNumberInRange, P, Pint, ra, rand, rw } from "./probabilityUtils";
 import { capitalize, isValidJSON, parseTransform, round, safeParseJSON, sanitizeId, splitInTwo } from "./stringUtils";
 
-import { convertTemperature, formatPrice, getIntegerFromSI, si } from "./unitUtils";
+import { convertTemperature, formatCoinage, formatPrice, getIntegerFromSI, si, toCoinage } from "./unitUtils";
 import { createObjectURL, revokeObjectURL } from "./urlUtils";
 
 JSON.isValid = isValidJSON;
@@ -111,6 +111,7 @@ export {
   findGridAll,
   findGridCell,
   findPath,
+  formatCoinage,
   formatPrice,
   gauss,
   generateDate,
@@ -174,6 +175,7 @@ export {
   splitInTwo,
   TYPED_ARRAY_MAX_VALUES,
   throttle,
+  toCoinage,
   toHEX,
   trimVowels,
   unique,

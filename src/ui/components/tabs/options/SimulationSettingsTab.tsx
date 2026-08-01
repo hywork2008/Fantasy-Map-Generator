@@ -1,6 +1,7 @@
 import type React from "react";
 import { setConflictAutonomy } from "../../../../controllers/simulationSettings";
 import { useOptionsState } from "../../../../store/optionsState";
+import { MIN_CURRENCY_EXCHANGE_RATE } from "../../../../utils/currency";
 import { lock } from "../../../../utils/domUtils";
 import { LockIconButton } from "../../LockIconButton";
 import { SliderInput } from "../../SliderInput";
@@ -15,6 +16,12 @@ export const SimulationSettingsTab: React.FC = () => {
   ) => {
     updateOption(key, value);
     lock(key as string);
+  };
+
+  const updateCurrencyRate = (key: "goldToSilverRate" | "silverToCopperRate", value: string) => {
+    const rate = Number(value);
+    if (!Number.isInteger(rate) || rate < MIN_CURRENCY_EXCHANGE_RATE) return;
+    updateOptionAndLock(key, rate);
   };
 
   return (
@@ -95,6 +102,54 @@ export const SimulationSettingsTab: React.FC = () => {
                 onChange={v => updateOptionAndLock("warFrequency", Number(v))}
               />
             </td>
+          </tr>
+
+          <tr>
+            <td colSpan={4}>
+              <p data-tip="Display-only coin denominations. Internal prices, treasuries, and personal wealth remain stored as silver-piece values.">
+                Currency denominations:
+              </p>
+            </td>
+          </tr>
+          <tr data-tip="How many silver pieces equal one gold piece. This changes display only.">
+            <td>
+              <LockIconButton id="goldToSilverRate" />
+            </td>
+            <td>
+              <label htmlFor="goldToSilverRate">1 Gold Piece</label>
+            </td>
+            <td>
+              ={" "}
+              <input
+                id="goldToSilverRate"
+                type="number"
+                min={MIN_CURRENCY_EXCHANGE_RATE}
+                step="1"
+                value={options.goldToSilverRate}
+                onChange={e => updateCurrencyRate("goldToSilverRate", e.target.value)}
+              />
+            </td>
+            <td>Silver Pieces</td>
+          </tr>
+          <tr data-tip="How many copper pieces equal one silver piece. This changes display only.">
+            <td>
+              <LockIconButton id="silverToCopperRate" />
+            </td>
+            <td>
+              <label htmlFor="silverToCopperRate">1 Silver Piece</label>
+            </td>
+            <td>
+              ={" "}
+              <input
+                id="silverToCopperRate"
+                type="number"
+                min={MIN_CURRENCY_EXCHANGE_RATE}
+                step="1"
+                value={options.silverToCopperRate}
+                onChange={e => updateCurrencyRate("silverToCopperRate", e.target.value)}
+              />
+            </td>
+            <td>Copper Pieces</td>
           </tr>
 
           <tr>
