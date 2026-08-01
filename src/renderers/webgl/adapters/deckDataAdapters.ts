@@ -810,7 +810,7 @@ export function buildSeaCurrentCellPolygons(
   const polygons: DeckSeaCurrentPolygon[] = [];
 
   for (const route of worldContext.pack.routes ?? []) {
-    if (route.group !== "searoutes") continue;
+    if (route.group !== "searoutes" || route.navigation === "river") continue;
 
     // route.points is already ordered origin -> destination (Dijkstra path order); collapse
     // consecutive duplicates to get the cell sequence the route actually crosses.

@@ -95,4 +95,25 @@ describe("trade cargo manifests", () => {
       Math.min(...allocations.map(allocation => allocation.capacitySlots))
     );
   });
+
+  it("assigns an Economy river barge rather than a Shipbuilding hull to river legs", () => {
+    const allocations = getTransportAllocations(
+      [
+        {
+          type: "river",
+          points: [
+            [0, 0],
+            [10, 0]
+          ]
+        }
+      ],
+      200,
+      "horse",
+      true
+    );
+
+    expect(allocations).toMatchObject([
+      { mode: "river", transportId: "river-barge", unitCount: 2, capacitySlots: 320 }
+    ]);
+  });
 });

@@ -113,6 +113,13 @@ export const MarketTradeOpportunitiesDialog: React.FC = () => {
                   Sea
                 </th>
                 <th
+                  data-tip="Downstream river distance along the selected route. Click to sort"
+                  className={`sortable ${getSortIcon("riverDistance")}`}
+                  onClick={() => setSorting("riverDistance")}
+                >
+                  River
+                </th>
+                <th
                   data-tip="Number of land/sea mode changes on the route. Click to sort"
                   className={`sortable ${getSortIcon("transferCount")}`}
                   onClick={() => setSorting("transferCount")}
@@ -166,7 +173,7 @@ export const MarketTradeOpportunitiesDialog: React.FC = () => {
             {sortedRows.length === 0 ? (
               <tbody>
                 <tr>
-                  <td colSpan={12}>No profitable routes for the selected good</td>
+                  <td colSpan={13}>No profitable routes for the selected good</td>
                 </tr>
               </tbody>
             ) : (
@@ -185,6 +192,7 @@ export const MarketTradeOpportunitiesDialog: React.FC = () => {
                     <td style={{ textAlign: "right" }}>{`${row.distance} ${distanceUnit}`}</td>
                     <td style={{ textAlign: "right" }}>{`${row.landDistance} ${distanceUnit}`}</td>
                     <td style={{ textAlign: "right" }}>{`${row.seaDistance} ${distanceUnit}`}</td>
+                    <td style={{ textAlign: "right" }}>{`${row.riverDistance} ${distanceUnit}`}</td>
                     <td style={{ textAlign: "right" }}>{row.transferCount}</td>
                     <td style={{ textAlign: "right" }}>{formatPrice(row.buyPrice)}</td>
                     <td style={{ textAlign: "right" }}>{formatPrice(row.sellPrice)}</td>

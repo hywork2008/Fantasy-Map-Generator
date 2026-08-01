@@ -162,7 +162,7 @@ export function getGoodMaxTradeDurationDays(
     // bounded only by the merchant organization's own day cap (isMarketTradePermitted) and route
     // profitability. Sea routes get STAPLE_FOOD_SEA_MAX_TRADE_DAYS instead, reflecting real
     // (if modest, for well-dried cargo) dampness risk in a ship's hold.
-    const hasSeaLeg = routeSegments?.some(segment => segment.type === "water") ?? false;
+    const hasSeaLeg = routeSegments?.some(segment => segment.type === "water" || segment.type === "sea") ?? false;
     return hasSeaLeg ? STAPLE_FOOD_SEA_MAX_TRADE_DAYS : Number.POSITIVE_INFINITY;
   }
 
@@ -186,7 +186,8 @@ export function isGoodTradePermitted(
     return false;
   return (
     !good.seaOnly ||
-    (Boolean(routeSegments?.length) && routeSegments?.every(segment => segment.type === "water") === true)
+    (Boolean(routeSegments?.length) &&
+      routeSegments?.every(segment => segment.type === "water" || segment.type === "sea") === true)
   );
 }
 

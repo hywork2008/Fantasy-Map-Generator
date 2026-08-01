@@ -23,7 +23,6 @@ import {
 import type { Good } from "./goods-generator";
 import type { Caravan, Deal, Market, TradeRouteSegment } from "./marketTypes";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
-import { TradeAnimation } from "./trade-animation";
 import { buildCargoManifests, getGoodCargoSlotsPerUnit, getTransportAllocations } from "./tradeCargo";
 import {
   getCaravanMaintenanceCost,
@@ -32,6 +31,7 @@ import {
   MIN_TRADE_PROFIT
 } from "./tradeOpportunityEstimator";
 import { calculateRouteDurationDays, getRouteDistanceKm } from "./tradeRouteDuration";
+import { TradeRoutePlanner } from "./tradeRoutePlanner";
 import { TradeSecurity } from "./tradeSecurity";
 
 export type CaravanTravelLeg = { endKm: number; speedKmPerDay: number };
@@ -131,7 +131,7 @@ export function bakeCaravanTravelLegs(
   for (const seg of segments) {
     if (seg.points.length < 2) continue;
 
-    if (seg.type === "water") {
+    if (seg.type === "water" || seg.type === "sea" || seg.type === "river") {
       let runKm = 0;
       for (let i = 0; i < seg.points.length - 1; i++) {
         const [x1, y1] = seg.points[i];
@@ -141,8 +141,9 @@ export function bakeCaravanTravelLegs(
       if (runKm <= 0) continue;
       const from = toXy(seg.points[0]);
       const to = toXy(seg.points[seg.points.length - 1]);
-      const currentMultiplier = getSeaConditionMultiplier(from, to, month, movement.seaCurrentStrength);
-      const speed = movement.seaKmPerDay * currentMultiplier;
+      const currentMultiplier =
+        seg.type === "river" ? 1 : getSeaConditionMultiplier(from, to, month, movement.seaCurrentStrength);
+      const speed = (seg.type === "river" ? movement.riverKmPerDay : movement.seaKmPerDay) * currentMultiplier;
       cursorKm += runKm;
       legs.push({ endKm: cursorKm, speedKmPerDay: Math.max(speed, 1e-6) });
       continue;
@@ -405,7 +406,7 @@ export class CaravansModule {
 
       if (!startBurg || !endBurg || startBurg.i === endBurg.i) continue;
 
-      const routePath = TradeAnimation.findRoutePath(startBurg.cell, endBurg.cell);
+      const routePath = TradeRoutePlanner.findRoutePath(startBurg.cell, endBurg.cell);
       if (!routePath || routePath.segments.length === 0) continue;
 
       const routeSegments: TradeRouteSegment[] = routePath.segments.map(segment => ({

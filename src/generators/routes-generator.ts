@@ -24,6 +24,7 @@ import {
 import { TIME } from "../utils/debug";
 import { isLand } from "../utils/graphUtils";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
+import { buildRiverNavigationGraph, findDownstreamRiverPath } from "./riverNavigationGraph";
 import type { Point } from "./voronoi";
 
 const ROUTES_SHARP_ANGLE = 135;
@@ -321,15 +322,15 @@ class RoutesModule {
 
   getWaterPathCost(current: number, next: number): number {
     const { pack } = this.worldContext;
-    const { h, r, fl } = pack.cells;
+    const { h } = pack.cells;
     const haven = pack.cells.haven as typeof pack.cells.haven | undefined;
 
     const currentIsWater = h[current] < 20;
     const nextIsWater = h[next] < 20;
 
-    // A coastal port's haven is its official sea portal. Check it before
-    // river adjacency so a low-flux river mouth can still reach the sea,
-    // without making the river itself navigable.
+    // Sea routes enter and leave land only through an official haven. River
+    // navigation is modeled by RiverNavigationGraph, not this bidirectional
+    // sea-route evaluator.
     if (!currentIsWater && nextIsWater && haven?.[current] === next) {
       return distanceSquared(pack.cells.p[current], pack.cells.p[next]);
     }
@@ -338,32 +339,8 @@ class RoutesModule {
       return distanceSquared(pack.cells.p[current], pack.cells.p[next]);
     }
 
-    if (this.riverAdjacency.has(`${current}-${next}`)) {
-      if (!currentIsWater && !nextIsWater) {
-        if (r[current] && fl[current] >= MIN_NAVIGABLE_FLUX && r[next] && fl[next] >= MIN_NAVIGABLE_FLUX) {
-          return distanceSquared(pack.cells.p[current], pack.cells.p[next]);
-        }
-        return Infinity;
-      }
-      const landCell = currentIsWater ? next : current;
-      if (r[landCell] && fl[landCell] >= MIN_NAVIGABLE_FLUX) {
-        return distanceSquared(pack.cells.p[current], pack.cells.p[next]);
-      }
-      return Infinity;
-    }
-
     if (currentIsWater && nextIsWater) {
       return distanceSquared(pack.cells.p[current], pack.cells.p[next]);
-    }
-
-    if (!currentIsWater && nextIsWater && !r[current]) {
-      const havenCell = haven?.[current];
-      return havenCell === next ? distanceSquared(pack.cells.p[current], pack.cells.p[next]) : Infinity;
-    }
-
-    if (currentIsWater && !nextIsWater && !r[next]) {
-      const havenCell = haven?.[next];
-      return havenCell === current ? distanceSquared(pack.cells.p[current], pack.cells.p[next]) : Infinity;
     }
 
     return Infinity;
@@ -426,7 +403,10 @@ class RoutesModule {
   buildLinks(routes: Route[]): Record<number, Record<number, number>> {
     const links: Record<number, Record<number, number>> = {};
 
-    for (const { points, i: routeId } of routes) {
+    for (const { points, i: routeId, navigation } of routes) {
+      // River routes are a charted visual aid. Their actual travel graph is
+      // directional, so they must never enter this bidirectional link table.
+      if (navigation === "river") continue;
       const cells = points.map(p => p[2]);
 
       for (let i = 0; i < cells.length - 1; i++) {
@@ -967,13 +947,18 @@ class RoutesModule {
     const seaRoutes: Route[] = [];
 
     for (const portGroup of portGroups) {
-      const { feature, burgs: featurePorts } = portGroup;
+      const { feature } = portGroup;
+      // A river burg retains `port` for existing settlement / drain metadata, but it is
+      // not a sea port unless it has a haven cell. Do not let its shared feature create
+      // a bidirectional sea lane along the river channel.
+      const featurePorts = portGroup.burgs.filter(burg => Boolean(pack.cells.haven[burg.cell]));
+      if (featurePorts.length < 2) continue;
       const points = featurePorts.map(burg => [burg.x, burg.y] as Point);
       const allPortEdges =
         seaRouteGenerationMode === "augmented"
           ? this.calculateAugmentedEdges(points)
           : this.calculateUrquhartEdges(points);
-      const coastalPortIndices = featurePorts.flatMap((burg, index) => (pack.cells.haven[burg.cell] ? [index] : []));
+      const coastalPortIndices = featurePorts.map((_, index) => index);
       const portEdges =
         seaRouteGenerationMode === "augmented"
           ? this.addCoastalBackboneEdges(points, allPortEdges, coastalPortIndices)
@@ -1002,6 +987,61 @@ class RoutesModule {
 
     TIME && console.timeEnd("generateSeaRoutes");
     return seaRoutes;
+  }
+
+  /**
+   * Creates charted river-trade lines between successive downstream river ports.
+   * They share the existing sea-route presentation layer, but remain visual-only:
+   * RiverNavigationGraph is the sole authority for directed river travel.
+   */
+  private generateRiverRoutes(): Route[] {
+    const { pack } = this.worldContext;
+    const riverGraph = buildRiverNavigationGraph(pack);
+    const riverPorts = pack.burgs.filter(burg =>
+      Boolean(burg?.i && !burg.removed && burg.port && pack.cells.r[burg.cell])
+    );
+    const riverRoutes: Route[] = [];
+
+    for (const source of riverPorts) {
+      const sourcePortFeature = source.port;
+      if (!sourcePortFeature) continue;
+      if (!riverGraph.getOutgoing(source.cell).length) continue;
+
+      let nearest: { cells: number[]; distance: number; target: Burg } | undefined;
+      for (const target of riverPorts) {
+        if (target.i === source.i) continue;
+        const path = findDownstreamRiverPath(riverGraph, source.cell, target.cell);
+        if (!path) continue;
+
+        if (
+          !nearest ||
+          path.distanceMapUnits < nearest.distance ||
+          (path.distanceMapUnits === nearest.distance && target.cell < nearest.target.cell)
+        ) {
+          nearest = { cells: path.cellIds, distance: path.distanceMapUnits, target };
+        }
+      }
+      if (!nearest) continue;
+
+      const anchors = nearest.cells.map(cellId => pack.cells.p[cellId] as [number, number]);
+      const points = this.addMeandering(nearest.cells, anchors);
+      const [firstX, firstY] = points[0];
+      if (source.x !== firstX || source.y !== firstY) points.unshift([source.x, source.y, source.cell]);
+      const [lastX, lastY] = points.at(-1)!;
+      if (nearest.target.x !== lastX || nearest.target.y !== lastY) {
+        points.push([nearest.target.x, nearest.target.y, nearest.target.cell]);
+      }
+      riverRoutes.push({
+        i: -1,
+        group: "searoutes",
+        feature: sourcePortFeature,
+        cells: nearest.cells,
+        points,
+        navigation: "river"
+      });
+    }
+
+    return riverRoutes;
   }
 
   private preparePointsArray(): Point[] {
@@ -1096,6 +1136,7 @@ class RoutesModule {
     const landConnections = new Map<string, boolean>();
     const waterConnections = new Map<string, boolean>();
     for (const route of routes) {
+      if (route.navigation === "river") continue;
       this.addConnections(
         route.points.map(point => point[2]),
         route.group === "searoutes" ? waterConnections : landConnections
@@ -1108,6 +1149,7 @@ class RoutesModule {
     const trails = this.generateTrails(landConnections);
     const internationalTrails = this.generateInternationalTrails(landConnections);
     const seaRoutes = this.generateSeaRoutes(waterConnections, seaRouteGenerationMode);
+    const riverRoutes = this.generateRiverRoutes();
     const pointsArray = this.preparePointsArray();
 
     for (const { feature, cells, merged } of this.mergeRoutes(mainRoads)) {
@@ -1132,6 +1174,11 @@ class RoutesModule {
       if (merged) continue;
       const points = this.getPoints("searoutes", cells!, pointsArray);
       routes.push({ i: routes.length, group: "searoutes", feature, points, cells: cells! });
+    }
+
+    for (const riverRoute of riverRoutes) {
+      riverRoute.i = routes.length;
+      routes.push(riverRoute);
     }
 
     return routes;
@@ -1217,7 +1264,7 @@ class RoutesModule {
   connectPort(cellId: number, stateId: number): Route | undefined {
     const { pack } = this.worldContext;
     const source = pack.burgs[pack.cells.burg[cellId]];
-    if (!source?.port || source.state !== stateId) return;
+    if (!source?.port || source.state !== stateId || !pack.cells.haven[cellId]) return;
     const international = this.allowsInternationalSeaRoutes();
 
     const targetCells = new Set(
@@ -1228,7 +1275,8 @@ class RoutesModule {
             !burg.removed &&
             burg.i !== source.i &&
             (international || burg.state === stateId) &&
-            burg.port === source.port
+            burg.port === source.port &&
+            Boolean(pack.cells.haven[burg.cell])
         )
         .map(burg => burg.cell)
     );

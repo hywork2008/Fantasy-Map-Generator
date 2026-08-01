@@ -52,6 +52,25 @@ describe("buildSeaRouteGraph", () => {
     expect(graph.adjacency.has(4)).toBe(false);
     expect(graph.adjacency.get(0)?.has(4)).toBe(false);
   });
+
+  it("ignores visual-only downstream river routes", () => {
+    const pack = makePack();
+    pack.routes.push({
+      i: 3,
+      group: "searoutes",
+      navigation: "river",
+      feature: 1,
+      points: [
+        [0, 0, 8],
+        [10, 0, 9]
+      ]
+    });
+
+    const graph = buildSeaRouteGraph(pack);
+
+    expect(graph.adjacency.has(8)).toBe(false);
+    expect(graph.adjacency.has(9)).toBe(false);
+  });
 });
 
 describe("findSeaRouteDistance", () => {

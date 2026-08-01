@@ -67,6 +67,7 @@ interface MarketOverviewState {
   /** Percent 0-100, rounded. See Market.agTechStock (docs/plan/rural-agtech-investment.md). */
   agTechStockPercent: number;
   transportCargoCapacitySlots: number;
+  transportReadyCapacitySlots: number;
   transportUtilizationPercent: number;
 }
 
@@ -84,6 +85,7 @@ export const useMarketOverviewState = create<MarketOverviewState>(() => ({
   totalStock: 0,
   agTechStockPercent: 0,
   transportCargoCapacitySlots: 0,
+  transportReadyCapacitySlots: 0,
   transportUtilizationPercent: 0
 }));
 

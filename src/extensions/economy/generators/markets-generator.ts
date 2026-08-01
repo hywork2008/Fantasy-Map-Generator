@@ -34,7 +34,6 @@ import type { Deal, Market, TradeRouteSegment } from "./marketTypes";
 import { isMarketTradePermitted } from "./merchantOrganizations";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { getRuralProductionContributions, getSeasonalFoodProductionMultiplier } from "./production-utils";
-import { TradeAnimation } from "./trade-animation";
 import {
   estimateSpeculativeTrade,
   getCaravanMaintenanceCost,
@@ -47,6 +46,7 @@ import {
   MIN_TRADE_PROFIT
 } from "./tradeOpportunityEstimator";
 import { calculateRouteDurationDays, getRouteDistanceMapUnits } from "./tradeRouteDuration";
+import { TradeRoutePlanner } from "./tradeRoutePlanner";
 import { TransportAssetOrders } from "./transportAssetOrders";
 
 const PRICE_FLOOR_FACTOR = 0.25;
@@ -1102,7 +1102,7 @@ export class MarketsModule {
     if (source.i === target.i) return null;
 
     const routePath = this.worldContext.pack.cells?.routes
-      ? TradeAnimation.findRoutePath(source.cell, target.cell)
+      ? TradeRoutePlanner.findRoutePath(source.cell, target.cell)
       : null;
     const segments: TradeRouteSegment[] = routePath?.segments?.length
       ? routePath.segments.map(segment => ({

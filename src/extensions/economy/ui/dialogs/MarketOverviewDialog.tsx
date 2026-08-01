@@ -49,6 +49,12 @@ const TRANSPORT_ORDER_BLOCKED_LABELS: Record<NonNullable<MarketOverviewTransport
 
 const TRANSPORT_ASSET_BLUEPRINTS = getTransportAssetOrderBlueprints();
 
+function formatTransportBlueprintName(blueprintId: TransportAssetOrder["blueprintId"]): string {
+  if (blueprintId === "pack-train") return "Pack train";
+  if (blueprintId === "river-barge") return "River barge";
+  return `${blueprintId[0].toUpperCase()}${blueprintId.slice(1)}`;
+}
+
 export const MarketOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("marketOverview"));
   const marketId = useDialogState(state => state.dialogConfigs.marketOverview?.marketId as number | undefined);
@@ -64,6 +70,7 @@ export const MarketOverviewDialog: React.FC = () => {
   const totalStock = useMarketOverviewState(state => state.totalStock);
   const agTechStockPercent = useMarketOverviewState(state => state.agTechStockPercent);
   const transportCargoCapacitySlots = useMarketOverviewState(state => state.transportCargoCapacitySlots);
+  const transportReadyCapacitySlots = useMarketOverviewState(state => state.transportReadyCapacitySlots);
   const transportUtilizationPercent = useMarketOverviewState(state => state.transportUtilizationPercent);
   const headerRef = React.useRef<HTMLTableSectionElement | null>(null);
   const [activeTab, setActiveTab] = React.useState<"goods" | "burgMerchants" | "transportAssets">("goods");
@@ -418,12 +425,13 @@ export const MarketOverviewDialog: React.FC = () => {
                     <th data-tip="Assets currently travelling with cargo">In transit</th>
                     <th data-tip="Assets recovering after a lost caravan">Maintenance</th>
                     <th>Total</th>
+                    <th data-tip="Cargo slots ready for a new shipment">Ready slots</th>
                   </tr>
                 </thead>
                 {transportAssetRows.length === 0 ? (
                   <tbody>
                     <tr>
-                      <td colSpan={7}>No transport assets available</td>
+                      <td colSpan={8}>No transport assets available</td>
                     </tr>
                   </tbody>
                 ) : (
@@ -439,6 +447,7 @@ export const MarketOverviewDialog: React.FC = () => {
                         <td style={{ textAlign: "right" }}>{row.inTransit}</td>
                         <td style={{ textAlign: "right" }}>{row.maintenance}</td>
                         <td style={{ textAlign: "right" }}>{row.total}</td>
+                        <td style={{ textAlign: "right" }}>{row.available * row.cargoCapacitySlots}</td>
                       </tr>
                     )}
                   />
@@ -446,10 +455,13 @@ export const MarketOverviewDialog: React.FC = () => {
               </table>
             </div>
             <div className="totalLine">
-              <div data-tip="Total cargo capacity of this market's durable land transport assets">
+              <div data-tip="Total cargo capacity of this market's durable transport assets">
                 Fleet capacity: {transportCargoCapacitySlots} slots
               </div>
-              <div data-tip="Reserved or travelling capacity as a share of the durable land fleet">
+              <div data-tip="Cargo slots ready for the next shipment">
+                Ready capacity: {transportReadyCapacitySlots} slots
+              </div>
+              <div data-tip="Reserved or travelling capacity as a share of the durable transport fleet">
                 Fleet utilization: {transportUtilizationPercent}%
               </div>
             </div>
@@ -531,10 +543,7 @@ export const MarketOverviewDialog: React.FC = () => {
                   >
                     {TRANSPORT_ASSET_BLUEPRINTS.map(blueprint => (
                       <option key={blueprint.id} value={blueprint.id}>
-                        {blueprint.id === "pack-train"
-                          ? "Pack train"
-                          : `${blueprint.id[0].toUpperCase()}${blueprint.id.slice(1)}`}{" "}
-                        · {blueprint.cargoCapacitySlots} slots
+                        {formatTransportBlueprintName(blueprint.id)} · {blueprint.cargoCapacitySlots} slots
                       </option>
                     ))}
                   </select>

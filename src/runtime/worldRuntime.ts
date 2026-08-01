@@ -1978,6 +1978,7 @@ class LegacyWorldRuntime implements WorldRuntime {
   }
 
   private connectRoute(route: Route): void {
+    if (route.navigation === "river") return;
     const routeMap = this.world.pack.cells.routes;
     for (let index = 0; index < route.points.length - 1; index++) {
       const from = route.points[index][2];

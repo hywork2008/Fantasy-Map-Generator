@@ -112,7 +112,7 @@ describe("findRoutePath", () => {
 
     const result = ta.findRoutePath(0, 3);
 
-    expect(result?.segments.map(segment => segment.type)).toEqual(["water"]);
+    expect(result?.segments.map(segment => segment.type)).toEqual(["sea"]);
     expect(result?.points).toEqual([
       [0, 0],
       [0, 20],
@@ -145,7 +145,7 @@ describe("findRoutePath", () => {
     const result = ta.findRoutePath(0, 3);
 
     // 10km by land + 190km by sea + a two-day port transfer beats 200km by land.
-    expect(result?.segments.map(segment => segment.type)).toEqual(["land", "water"]);
+    expect(result?.segments.map(segment => segment.type)).toEqual(["land", "sea"]);
     expect(result?.points).toEqual([
       [0, 0],
       [10, 0],
@@ -174,5 +174,17 @@ describe("findRoutePath", () => {
     ta.clearRouteCache();
 
     expect(ta.findRoutePath(0, 1)).toBeNull();
+  });
+
+  it("uses a navigable river only in its downstream direction", () => {
+    const pack = makePack();
+    pack.cells.r = [1, 1, 1, 0];
+    pack.cells.fl = [100, 100, 100, 0];
+    pack.cells.enclosure = [0, 0, 0, 0];
+    (pack as { rivers?: unknown[] }).rivers = [{ i: 1, cells: [0, 1, 2] }];
+    worldContext.pack = pack as unknown as PackedGraph;
+
+    expect(ta.findRoutePath(0, 2)?.segments.map(segment => segment.type)).toEqual(["river"]);
+    expect(ta.findRoutePath(2, 0)).toBeNull();
   });
 });

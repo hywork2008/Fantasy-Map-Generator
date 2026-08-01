@@ -11,6 +11,8 @@ export interface CaravanMovementSettings {
   landKmPerDay: number;
   /** Ship base pace at sea, km/day. */
   seaKmPerDay: number;
+  /** Shallow-draft vessel pace on a downstream river leg, km/day. */
+  riverKmPerDay: number;
   /**
    * 0..1 magnitude of the seasonal wind/current speed swing applied to sea legs (see
    * getSeaConditionMultiplier below). 0 = no correction.
@@ -32,6 +34,7 @@ export interface CaravanMovementSettings {
 const DEFAULT_MOVEMENT_SETTINGS: CaravanMovementSettings = {
   landKmPerDay: 32,
   seaKmPerDay: 60,
+  riverKmPerDay: 72,
   seaCurrentStrength: 0,
   gradeEffectStrength: 1,
   merchantRoutePreference: "preferSpeed"

@@ -5,6 +5,13 @@ import { formatPrice, rn } from "../../../hostUtils";
 import { closeTradeDetails } from "../../controllers/trade-details";
 import { useTradeDetailsState } from "../../store/tradeDetailsState";
 
+const ROUTE_MODE_LABELS = {
+  land: "Land",
+  water: "Sea",
+  sea: "Sea",
+  river: "Downstream river"
+} as const;
+
 export const TradeDetailsDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("tradeDetails"));
   const summary = useTradeDetailsState(state => state.summary);
@@ -13,6 +20,7 @@ export const TradeDetailsDialog: React.FC = () => {
   const totalUnits = useTradeDetailsState(state => state.totalUnits);
   const totalValue = useTradeDetailsState(state => state.totalValue);
   const transportSummaries = useTradeDetailsState(state => state.transportSummaries);
+  const routeLegs = useTradeDetailsState(state => state.routeLegs);
   const sortBy = useTradeDetailsState(state => state.sortBy);
   const sortDirection = useTradeDetailsState(state => state.sortDirection);
 
@@ -165,14 +173,19 @@ export const TradeDetailsDialog: React.FC = () => {
           <div data-tip="Total deal value">
             Value: <span id="tradeDetailsFooterValue">{formatPrice(totalValue)}</span>
           </div>
+          {routeLegs.length > 0 && (
+            <div data-tip="Route sections and their travel mode">
+              Route: {routeLegs.map(leg => `${ROUTE_MODE_LABELS[leg.mode]} ${leg.distance} km`).join(" · ")}
+            </div>
+          )}
           {transportSummaries.map(summary => (
             <div
               key={`${summary.mode}-${summary.transportName}`}
               data-tip="Cargo capacity and remaining free space for this route mode"
             >
-              {summary.mode === "land" ? "Land" : "Water"}: {summary.transportName} × {summary.unitCount} —{" "}
-              {summary.usedSlots} / {summary.capacitySlots} slots, free {summary.freeSlots} (
-              {Math.round(summary.utilization * 100)}% loaded) · {summary.assetSource}
+              {ROUTE_MODE_LABELS[summary.mode]}: {summary.transportName} × {summary.unitCount} — {summary.usedSlots} /{" "}
+              {summary.capacitySlots} slots, free {summary.freeSlots} ({Math.round(summary.utilization * 100)}% loaded)
+              · {summary.assetSource}
               {summary.reservationState ? ` (${summary.reservationState})` : ""}
             </div>
           ))}

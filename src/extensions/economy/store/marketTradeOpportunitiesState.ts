@@ -15,6 +15,7 @@ export interface MarketTradeOpportunityRow {
   distance: number;
   landDistance: number;
   seaDistance: number;
+  riverDistance: number;
   transferCount: number;
   buyPrice: number;
   sellPrice: number;
@@ -30,6 +31,7 @@ export type MarketTradeOpportunitySort =
   | "distance"
   | "landDistance"
   | "seaDistance"
+  | "riverDistance"
   | "transferCount"
   | "buyPrice"
   | "sellPrice"

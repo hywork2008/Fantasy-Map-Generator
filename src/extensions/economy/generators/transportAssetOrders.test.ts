@@ -27,7 +27,9 @@ describe("transport asset orders", () => {
     setGoods([
       { i: 1, name: "Wood", value: 2, tags: [] },
       { i: 2, name: "Leather", value: 3, tags: [] },
-      { i: 3, name: "Harnesses", value: 5, tags: [] }
+      { i: 3, name: "Harnesses", value: 5, tags: [] },
+      { i: 4, name: "Ropes", value: 2, tags: [] },
+      { i: 5, name: "Tar", value: 1, tags: [] }
     ]);
   });
 
@@ -114,5 +116,20 @@ describe("transport asset orders", () => {
 
     expect(playerOrder).toMatchObject({ status: "building", fundedAmount: 11 });
     expect(automaticOrder).toMatchObject({ status: "waitingMaterials", blockedReason: "missingMaterials" });
+  });
+
+  it("credits a completed river barge to the durable ledger instead of market goods", () => {
+    worldContext.pack.markets[0].goods[4] = { stock: 20, price: 2 };
+    worldContext.pack.markets[0].goods[5] = { stock: 20, price: 1 };
+    setCraftDomainEmploymentRecords([{ burgId: 1, domain: "woodworking", workers: 24 }]);
+    const order = TransportAssetOrders.createOrder({ marketId: 1, blueprintId: "river-barge", quantity: 1 });
+
+    TransportAssetOrders.beginProductionCycle();
+    TransportAssetOrders.consumePlannedWork(1, 100);
+
+    expect(order).toMatchObject({ status: "completed", completedQuantity: 1 });
+    expect(MerchantTransportAssets.getAvailability(1).find(asset => asset.assetId === "river-barge")?.available).toBe(
+      1
+    );
   });
 });

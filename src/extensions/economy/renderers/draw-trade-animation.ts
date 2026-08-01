@@ -48,7 +48,12 @@ function ensureSymbols(): Promise<void> {
   return symbolsReady;
 }
 
-export function getCaravanPosition(caravan: Caravan): { x: number; y: number; angle: number; type: "land" | "water" } {
+export function getCaravanPosition(caravan: Caravan): {
+  x: number;
+  y: number;
+  angle: number;
+  type: "land" | "water" | "sea" | "river";
+} {
   const segments = caravan.routeSegments;
   if (!segments || segments.length === 0) return { x: 0, y: 0, angle: 0, type: "land" };
 

@@ -26,7 +26,7 @@ export function buildSeaRouteGraph(pack: PackedGraph): SeaRouteGraph {
   };
 
   for (const route of pack.routes ?? []) {
-    if (route.group !== "searoutes") continue;
+    if (route.group !== "searoutes" || route.navigation === "river") continue;
 
     const points = route.points;
     for (let i = 0; i < points.length - 1; i++) {

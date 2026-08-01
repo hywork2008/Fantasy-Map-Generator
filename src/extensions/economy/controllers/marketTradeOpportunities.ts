@@ -1,5 +1,6 @@
 import FlatQueue from "flatqueue";
 
+import { buildRiverNavigationGraph } from "../../hostCore";
 import type { Burg, PackedGraph } from "../../hostTypes";
 import { openDialog } from "../../hostUi";
 import { downloadFile, getFileName, rn } from "../../hostUtils";
@@ -8,7 +9,6 @@ import { Goods, isGoodEnabled } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
 import type { Market } from "../generators/marketTypes";
 import { isMarketTradePermitted } from "../generators/merchantOrganizations";
-import { TradeAnimation } from "../generators/trade-animation";
 import {
   estimateSpeculativeTrade,
   getNetTradeProfit,
@@ -18,6 +18,7 @@ import {
   MIN_TRADE_PROFIT
 } from "../generators/tradeOpportunityEstimator";
 import { calculateRouteDurationFromDistances } from "../generators/tradeRouteDuration";
+import { TradeRoutePlanner } from "../generators/tradeRoutePlanner";
 import { clearHighlight, highlight } from "../renderers/draw-trade-animation";
 import {
   getMarketTradeOpportunitiesState,
@@ -29,7 +30,7 @@ import {
 
 const TRADE_ROUTE_GROUPS = new Set(["roads", "trails", "searoutes"]);
 
-type TradeRouteKind = "land" | "sea";
+type TradeRouteKind = "land" | "sea" | "river";
 
 interface TradeRouteEdge {
   readonly distance: number;
@@ -44,6 +45,7 @@ interface TradeRouteDistance {
   readonly total: number;
   readonly land: number;
   readonly sea: number;
+  readonly river: number;
   readonly transfers: number;
 }
 
@@ -113,9 +115,19 @@ export function refresh(): void {
       const durationDays = calculateRouteDurationFromDistances(
         distance.land * world.distanceScale,
         distance.sea * world.distanceScale,
-        distance.transfers
+        distance.transfers,
+        distance.river * world.distanceScale
       );
-      const routeSegments = [{ type: distance.land > 0 ? ("land" as const) : ("water" as const) }];
+      const routeSegments = [
+        {
+          type:
+            distance.river > 0 && distance.land === 0 && distance.sea === 0
+              ? ("river" as const)
+              : distance.land > 0
+                ? ("land" as const)
+                : ("water" as const)
+        }
+      ];
       // This graph-distance estimate has no intermediate route cells to sample, so approximate the
       // route's hottest point with the warmer of its two endpoints.
       const routeMaxTemperatureC = getRouteMaxTemperatureC(
@@ -228,6 +240,7 @@ function createRow({
     distance: rn(distance.total * world.distanceScale),
     landDistance: rn(distance.land * world.distanceScale),
     seaDistance: rn(distance.sea * world.distanceScale),
+    riverDistance: rn(distance.river * world.distanceScale),
     transferCount: distance.transfers,
     buyPrice,
     sellPrice,
@@ -265,6 +278,11 @@ function buildTradeRouteGraph(pack: PackedGraph): TradeRouteGraph {
     }
   }
 
+  for (const edges of buildRiverNavigationGraph(pack).outgoing.values()) {
+    for (const edge of edges)
+      addEdge(edge.fromCellId, edge.toCellId, { distance: edge.distanceMapUnits, kind: "river" });
+  }
+
   return { adjacency };
 }
 
@@ -278,11 +296,11 @@ function getTradeDistance(
   if (routeDistance !== null) return routeDistance;
   if (hasTradeRoutes) return null;
   const fallbackDistance = getStraightLineApproximation(source, target);
-  return { total: fallbackDistance, land: fallbackDistance, sea: 0, transfers: 0 };
+  return { total: fallbackDistance, land: fallbackDistance, sea: 0, river: 0, transfers: 0 };
 }
 
 function findTradeRouteDistance(graph: TradeRouteGraph, start: number, end: number): TradeRouteDistance | null {
-  if (start === end) return { total: 0, land: 0, sea: 0, transfers: 0 };
+  if (start === end) return { total: 0, land: 0, sea: 0, river: 0, transfers: 0 };
   if (!graph.adjacency.has(start) || !graph.adjacency.has(end)) return null;
 
   const dist = new Map<number, number>();
@@ -337,18 +355,20 @@ function summarizeTradeRoute(
 
   let land = 0;
   let sea = 0;
+  let river = 0;
   let transfers = 0;
   let previousKind: TradeRouteKind | null = null;
 
   for (const edge of edges) {
     if (edge.kind === "sea") sea += edge.distance;
+    else if (edge.kind === "river") river += edge.distance;
     else land += edge.distance;
 
     if (previousKind !== null && edge.kind !== previousKind) transfers++;
     previousKind = edge.kind;
   }
 
-  return { total, land, sea, transfers };
+  return { total, land, sea, river, transfers };
 }
 
 function getStraightLineApproximation(source: { x: number; y: number }, target: { x: number; y: number }): number {
@@ -383,7 +403,7 @@ export function highlightTradeOpportunity(row: MarketTradeOpportunityRow): void 
   if (!source || !target) return;
 
   const routePath = getWorldContext().pack.cells?.routes
-    ? TradeAnimation.findRoutePath(source.cell, target.cell)
+    ? TradeRoutePlanner.findRoutePath(source.cell, target.cell)
     : null;
   highlight(
     routePath?.points?.length
@@ -405,7 +425,7 @@ export function downloadCsv(): void {
   if (!good) return;
 
   let csv =
-    "Good,Buy Market,Sell Market,Distance,Land Distance,Sea Distance,Transfers,Buy Price,Sell Price,Transport Cost,Unit Profit,Max Units,Total Profit\n";
+    "Good,Buy Market,Sell Market,Distance,Land Distance,Sea Distance,River Distance,Transfers,Buy Price,Sell Price,Transport Cost,Unit Profit,Max Units,Total Profit\n";
   for (const row of getMarketTradeOpportunitiesState().rows) {
     csv += [
       good.name,
@@ -414,6 +434,7 @@ export function downloadCsv(): void {
       row.distance,
       row.landDistance,
       row.seaDistance,
+      row.riverDistance,
       row.transferCount,
       rn(row.buyPrice, 2),
       rn(row.sellPrice, 2),

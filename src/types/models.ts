@@ -298,6 +298,11 @@ export interface Route {
   feature: number;
   points: [number, number, number][];
   cells?: number[];
+  /**
+   * A visual-only route that follows the directed RiverNavigationGraph. It is
+   * deliberately excluded from `pack.cells.routes`, which is bidirectional.
+   */
+  navigation?: "river";
   /** A cross-State trade or pilgrimage trail, rather than State-maintained infrastructure. */
   international?: boolean;
   merged?: boolean;

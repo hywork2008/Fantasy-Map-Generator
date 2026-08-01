@@ -96,6 +96,9 @@ export function calculateRouteDurationDays(
       const days = getLandSegmentTravelDays(segment.points, distanceScale, options);
       if (!Number.isFinite(days)) return Infinity;
       duration += days;
+    } else if (segment.type === "river") {
+      if (movement.riverKmPerDay <= 0) return Infinity;
+      duration += (getSegmentDistanceMapUnits(segment) * distanceScale) / movement.riverKmPerDay;
     } else {
       if (movement.seaKmPerDay <= 0) return Infinity;
       duration += (getSegmentDistanceMapUnits(segment) * distanceScale) / movement.seaKmPerDay;
@@ -116,14 +119,21 @@ export function calculateRouteDurationDays(
 export function calculateRouteDurationFromDistances(
   landDistanceKm: number,
   seaDistanceKm: number,
-  transferCount: number
+  transferCount: number,
+  riverDistanceKm: number = 0
 ): number {
   const movement = CaravanMovement.getOptions();
-  if (movement.landKmPerDay <= 0 || movement.seaKmPerDay <= 0) return Infinity;
+  if (
+    (landDistanceKm > 0 && movement.landKmPerDay <= 0) ||
+    (seaDistanceKm > 0 && movement.seaKmPerDay <= 0) ||
+    (riverDistanceKm > 0 && movement.riverKmPerDay <= 0)
+  )
+    return Infinity;
 
   const duration =
-    landDistanceKm / movement.landKmPerDay +
-    seaDistanceKm / movement.seaKmPerDay +
+    (landDistanceKm > 0 ? landDistanceKm / movement.landKmPerDay : 0) +
+    (seaDistanceKm > 0 ? seaDistanceKm / movement.seaKmPerDay : 0) +
+    (riverDistanceKm > 0 ? riverDistanceKm / movement.riverKmPerDay : 0) +
     Math.max(0, transferCount) * PORT_TRANSFER_PENALTY_DAYS;
   return Math.ceil(duration);
 }

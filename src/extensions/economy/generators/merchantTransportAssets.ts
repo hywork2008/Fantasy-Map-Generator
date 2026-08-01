@@ -14,15 +14,17 @@ import { getDraftAnimalType } from "./caravanMovement";
 import type {
   Caravan,
   MerchantLandAssetBalance,
+  MerchantRiverAssetBalance,
   MerchantTransportLedger,
   MerchantWaterAssetReference,
   TradeRouteSegment,
   TransportAllocation,
   TransportReservation
 } from "./marketTypes";
-import { getLandTransportDefinition } from "./tradeCargo";
+import { getLandTransportDefinition, RIVER_BARGE_TRANSPORT } from "./tradeCargo";
 
 const MAINTENANCE_RECOVERY_DAYS = 30;
+export const RIVER_BARGE_CARGO_CAPACITY_SLOTS = RIVER_BARGE_TRANSPORT.cargoCapacitySlots;
 
 export type MerchantTransportAssetAvailability = {
   assetId: string;
@@ -86,7 +88,7 @@ function getWaterAssetAvailability(asset: MerchantWaterAssetReference): Merchant
   };
 }
 
-function assertBalance(balance: MerchantLandAssetBalance): void {
+function assertBalance(balance: MerchantLandAssetBalance | MerchantRiverAssetBalance): void {
   if ([balance.available, balance.reserved, balance.inTransit, balance.maintenance].some(value => value < 0)) {
     throw new Error(`[economy] Invalid merchant transport balance for ${balance.assetId}`);
   }
@@ -98,6 +100,10 @@ function hasLandAllocation(allocations: readonly TransportAllocation[]): boolean
 
 function hasWaterAllocation(allocations: readonly TransportAllocation[]): boolean {
   return allocations.some(allocation => allocation.mode === "water" && allocation.usedSlots > 0);
+}
+
+function hasRiverAllocation(allocations: readonly TransportAllocation[]): boolean {
+  return allocations.some(allocation => allocation.mode === "river" && allocation.unitCount > 0);
 }
 
 function takeWaterConvoy<T extends { definition: { cargoCapacitySlots: number } }>(
@@ -130,6 +136,7 @@ export class MerchantTransportAssetsModule {
     if (existing) {
       existing.organizationId = getOrganizationId(marketId);
       existing.waterAssets ??= [];
+      existing.riverAssets ??= [];
       return existing;
     }
 
@@ -137,6 +144,7 @@ export class MerchantTransportAssetsModule {
       marketId,
       organizationId: getOrganizationId(marketId),
       landAssets: createLandAssets(marketId),
+      riverAssets: [],
       waterAssets: [],
       lastReconciledTick: 0
     };
@@ -213,7 +221,8 @@ export class MerchantTransportAssetsModule {
     caravanId: number,
     allocations: readonly TransportAllocation[]
   ): TransportReservationResult | null {
-    if (!hasLandAllocation(allocations) && !hasWaterAllocation(allocations)) return null;
+    if (!hasLandAllocation(allocations) && !hasWaterAllocation(allocations) && !hasRiverAllocation(allocations))
+      return null;
     const ledger = this.ensureLedger(dispatcherMarketId);
     if (!ledger) return null;
 
@@ -226,6 +235,18 @@ export class MerchantTransportAssetsModule {
       balance: ledger.landAssets.find(asset => asset.assetId === allocation.transportId)
     }));
     if (balances.some(({ balance, allocation }) => !balance || balance.available < allocation.unitCount)) return null;
+    const riverAllocations = allocations.filter(
+      (allocation): allocation is TransportAllocation & { mode: "river" } =>
+        allocation.mode === "river" && allocation.unitCount > 0
+    );
+    const riverBalance = ledger.riverAssets.find(asset => asset.assetId === "river-barge");
+    if (
+      riverAllocations.some(allocation => allocation.transportId !== "river-barge") ||
+      (riverAllocations.length &&
+        (!riverBalance || riverBalance.available < riverAllocations.reduce((sum, item) => sum + item.unitCount, 0)))
+    ) {
+      return null;
+    }
 
     const waterAllocations = this.allocateWaterAssets(ledger, allocations);
     if (hasWaterAllocation(allocations) && this.waterAssetModeActive && !waterAllocations) return null;
@@ -240,6 +261,12 @@ export class MerchantTransportAssetsModule {
       balance.available -= allocation.unitCount;
       balance.reserved += allocation.unitCount;
       assertBalance(balance);
+    }
+    for (const allocation of riverAllocations) {
+      if (!riverBalance) continue;
+      riverBalance.available -= allocation.unitCount;
+      riverBalance.reserved += allocation.unitCount;
+      assertBalance(riverBalance);
     }
 
     const nextId = getNextTransportReservationId();
@@ -339,6 +366,14 @@ export class MerchantTransportAssetsModule {
       balance.inTransit += allocation.unitCount;
       assertBalance(balance);
     }
+    for (const allocation of reservation.allocations) {
+      if (allocation.mode !== "river") continue;
+      const balance = ledger.riverAssets.find(asset => asset.assetId === allocation.transportId);
+      if (!balance) continue;
+      balance.reserved -= allocation.unitCount;
+      balance.inTransit += allocation.unitCount;
+      assertBalance(balance);
+    }
     for (const hullId of reservation.allocations.flatMap(allocation => allocation.shipHullIds ?? [])) {
       const asset = ledger.waterAssets.find(item => item.shipHullId === hullId);
       if (!asset) continue;
@@ -361,6 +396,14 @@ export class MerchantTransportAssetsModule {
       balance.available += allocation.unitCount;
       assertBalance(balance);
     }
+    for (const allocation of reservation.allocations) {
+      if (allocation.mode !== "river") continue;
+      const balance = ledger.riverAssets.find(asset => asset.assetId === allocation.transportId);
+      if (!balance) continue;
+      balance.reserved -= allocation.unitCount;
+      balance.available += allocation.unitCount;
+      assertBalance(balance);
+    }
     const hullIds = reservation.allocations.flatMap(allocation => allocation.shipHullIds ?? []);
     for (const hullId of hullIds) {
       const asset = ledger.waterAssets.find(item => item.shipHullId === hullId);
@@ -372,7 +415,10 @@ export class MerchantTransportAssetsModule {
     reservation.state = "cancelled";
   }
 
-  settleCaravan(caravan: Pick<Caravan, "transportReservationId">, outcome: "arrived" | "lost"): void {
+  settleCaravan(
+    caravan: Pick<Caravan, "transportReservationId"> & Partial<Pick<Caravan, "buyer" | "buyerType">>,
+    outcome: "arrived" | "lost"
+  ): void {
     if (caravan.transportReservationId === undefined) return;
     const reservation = getTransportReservations().find(item => item.id === caravan.transportReservationId);
     if (reservation?.state !== "inTransit") return;
@@ -391,6 +437,38 @@ export class MerchantTransportAssetsModule {
       }
       assertBalance(balance);
     }
+    const destinationMarketId =
+      caravan.buyerType === "market" && typeof caravan.buyer === "number"
+        ? caravan.buyer
+        : caravan.buyerType === "burg" && typeof caravan.buyer === "number"
+          ? getWorldContext().pack.burgs[caravan.buyer]?.market
+          : undefined;
+    const destinationLedger =
+      typeof destinationMarketId === "number" ? (this.ensureLedger(destinationMarketId) ?? ledger) : ledger;
+    for (const allocation of reservation.allocations) {
+      if (allocation.mode !== "river") continue;
+      const sourceBalance = ledger.riverAssets.find(asset => asset.assetId === allocation.transportId);
+      if (!sourceBalance) continue;
+      sourceBalance.inTransit -= allocation.unitCount;
+      let destinationBalance = destinationLedger.riverAssets.find(asset => asset.assetId === allocation.transportId);
+      if (!destinationBalance) {
+        destinationBalance = {
+          assetId: "river-barge",
+          available: 0,
+          reserved: 0,
+          inTransit: 0,
+          maintenance: 0,
+          recoveryDays: 0
+        };
+        destinationLedger.riverAssets.push(destinationBalance);
+      }
+      if (outcome === "arrived") destinationBalance.available += allocation.unitCount;
+      else {
+        destinationBalance.maintenance += allocation.unitCount;
+        destinationBalance.recoveryDays = MAINTENANCE_RECOVERY_DAYS;
+      }
+      assertBalance(sourceBalance);
+    }
     const hullIds = reservation.allocations.flatMap(allocation => allocation.shipHullIds ?? []);
     for (const hullId of hullIds) {
       const asset = ledger.waterAssets.find(item => item.shipHullId === hullId);
@@ -406,6 +484,14 @@ export class MerchantTransportAssetsModule {
     if (deltaDays <= 0) return;
     for (const ledger of getMerchantTransportLedgers()) {
       for (const balance of ledger.landAssets) {
+        if (balance.maintenance <= 0 || balance.recoveryDays <= 0) continue;
+        balance.recoveryDays = Math.max(0, balance.recoveryDays - deltaDays);
+        if (balance.recoveryDays > 0) continue;
+        balance.available += balance.maintenance;
+        balance.maintenance = 0;
+        assertBalance(balance);
+      }
+      for (const balance of ledger.riverAssets) {
         if (balance.maintenance <= 0 || balance.recoveryDays <= 0) continue;
         balance.recoveryDays = Math.max(0, balance.recoveryDays - deltaDays);
         if (balance.recoveryDays > 0) continue;
@@ -433,7 +519,17 @@ export class MerchantTransportAssetsModule {
         total
       };
     });
-    return [...landAssets, ...ledger.waterAssets.map(getWaterAssetAvailability)];
+    const riverAssets = ledger.riverAssets.map(asset => ({
+      assetId: asset.assetId,
+      assetName: RIVER_BARGE_TRANSPORT.name,
+      cargoCapacitySlots: RIVER_BARGE_CARGO_CAPACITY_SLOTS,
+      available: asset.available,
+      reserved: asset.reserved,
+      inTransit: asset.inTransit,
+      maintenance: asset.maintenance,
+      total: asset.available + asset.reserved + asset.inTransit + asset.maintenance
+    }));
+    return [...landAssets, ...riverAssets, ...ledger.waterAssets.map(getWaterAssetAvailability)];
   }
 
   /** Largest single ready land vehicle for a route; callers use it to form a shippable partial manifest. */
@@ -467,6 +563,13 @@ export class MerchantTransportAssetsModule {
           .reduce((largest, asset) => Math.max(largest, asset.cargoCapacitySlots), 0)
       );
     }
+    if (modes.has("river")) {
+      capacities.push(
+        this.getAvailability(marketId)
+          .filter(asset => asset.assetId === "river-barge" && asset.available > 0)
+          .reduce((largest, asset) => Math.max(largest, asset.cargoCapacitySlots), 0)
+      );
+    }
     return capacities.length ? Math.min(...capacities) : Number.POSITIVE_INFINITY;
   }
 
@@ -482,6 +585,25 @@ export class MerchantTransportAssetsModule {
     if (!balance) return;
     balance.available += quantity;
     assertBalance(balance);
+  }
+
+  /** Credits completed shallow-draft vessels to Economy's aggregate river-asset ledger. */
+  addAvailableRiverAssets(marketId: number, quantity: number): void {
+    if (!(quantity > 0)) return;
+    const ledger = this.ensureLedger(marketId);
+    if (!ledger) return;
+    const balance = ledger.riverAssets.find(asset => asset.assetId === "river-barge");
+    if (balance) balance.available += quantity;
+    else {
+      ledger.riverAssets.push({
+        assetId: "river-barge",
+        available: quantity,
+        reserved: 0,
+        inTransit: 0,
+        maintenance: 0,
+        recoveryDays: 0
+      });
+    }
   }
 
   clear(): void {
