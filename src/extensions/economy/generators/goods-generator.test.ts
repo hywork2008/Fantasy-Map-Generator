@@ -11,6 +11,7 @@ import {
   setGoods
 } from "../economyContext";
 import { GoodsModule, isGoodEnabled, migrateLegacyOreIngotGoods } from "./goods-generator";
+import { getDefaultGoodsUnitFlavor } from "./goodsUnitFlavor";
 
 describe("GoodsModule", () => {
   let goodsModule: GoodsModule;
@@ -96,6 +97,31 @@ describe("GoodsModule", () => {
     expect(getGoods().find(good => good.name === "Gold Ore")?.trade?.distancePremium).toBe(0);
     expect(getGoods().find(good => good.name === "Gold Ingot")?.trade?.distancePremium).toBe(3);
     expect(getGoods().find(good => good.name === "Fish")?.trade?.timeValueTrend).toBe(-2);
+  });
+
+  it("keeps every default manufacturing recipe at or above its ingredient cost", () => {
+    goodsModule.restoreDefaults();
+    const goodsById = new Map(getGoods().map(good => [good.i, good]));
+
+    for (const good of getGoods()) {
+      for (const recipe of good.recipes ?? []) {
+        const ingredientCost = Object.entries(recipe).reduce((sum, [goodId, amount]) => {
+          const ingredient = goodsById.get(Number(goodId));
+          if (!ingredient) throw new Error(`Unknown ingredient ${goodId} in ${good.name}`);
+          return sum + ingredient.value * amount;
+        }, 0);
+        expect(ingredientCost, `${good.name} recipe must not be sold below ingredient cost`).toBeLessThanOrEqual(
+          good.value
+        );
+      }
+    }
+  });
+
+  it("defines display-only batch and tavern references without changing Goods", () => {
+    expect(getDefaultGoodsUnitFlavor("Boots")).toEqual({ itemsPerUnit: 20, itemNoun: "pairs" });
+    expect(getDefaultGoodsUnitFlavor("Bread")).toEqual({ itemsPerUnit: 20, itemNoun: "loaves" });
+    expect(getDefaultGoodsUnitFlavor("Wine")).toEqual({ retailReference: { label: "cup", copperPrice: 1 } });
+    expect(getDefaultGoodsUnitFlavor("Custom good")).toBeUndefined();
   });
 
   it("includes lead and gunpowder-era sulfur in the default mineral supply chain", () => {
@@ -205,6 +231,16 @@ describe("GoodsModule", () => {
     goodsModule.restoreDefaults();
 
     expect(getGoods()[0].name).toBe("Wood");
+  });
+
+  it("recognises only unedited default catalogue entries", () => {
+    goodsModule.restoreDefaults();
+    const boots = getGoods().find(good => good.name === "Boots");
+    if (!boots) throw new Error("Boots must be present in the default catalogue");
+
+    expect(goodsModule.isUnmodifiedDefault(boots)).toBe(true);
+    boots.value += 1;
+    expect(goodsModule.isUnmodifiedDefault(boots)).toBe(false);
   });
 
   it("initialises the catalogue from defaults when none exists yet", () => {

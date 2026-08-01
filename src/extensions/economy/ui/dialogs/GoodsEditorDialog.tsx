@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { closeDialog, Dialog, IconButton, SortableHeader, useDialogState, VirtualTableBody } from "../../../hostUi";
 import { formatPrice, rn } from "../../../hostUtils";
 
@@ -35,6 +36,7 @@ const TypeBadge: React.FC<{ type: string }> = ({ type }) => {
 };
 
 export const GoodsEditorDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("goodsEditor"));
   const {
     goods,
@@ -205,6 +207,17 @@ export const GoodsEditorDialog: React.FC = () => {
                 const displayedStock = isPercentageMode
                   ? `${rn(totalStock ? (good.stock / totalStock) * 100 : 0, 2)}%`
                   : String(good.stock);
+                const priceTip = good.unitFlavor?.itemsPerUnit
+                  ? t("economy.goodsUnitFlavor.batch", {
+                      count: good.unitFlavor.itemsPerUnit,
+                      noun: good.unitFlavor.itemNoun
+                        ? t(`economy.goodsUnitFlavor.itemNoun.${good.unitFlavor.itemNoun}`)
+                        : "",
+                      price: formatPrice(good.basePrice / good.unitFlavor.itemsPerUnit)
+                    })
+                  : good.unitFlavor?.retailReference
+                    ? t("economy.goodsUnitFlavor.retail", good.unitFlavor.retailReference)
+                    : "Base (initial) price. Click to compare prices across markets";
 
                 return (
                   <tr
@@ -291,11 +304,7 @@ export const GoodsEditorDialog: React.FC = () => {
                         >
                           {good.productionPerThousand}
                         </td>
-                        <td
-                          data-tip="Base (initial) price. Click to compare prices across markets"
-                          className="goodBasePrice pointer"
-                          onClick={e => e.stopPropagation()}
-                        >
+                        <td data-tip={priceTip} className="goodBasePrice pointer" onClick={e => e.stopPropagation()}>
                           {formatPrice(good.basePrice)}
                         </td>
                         <td>

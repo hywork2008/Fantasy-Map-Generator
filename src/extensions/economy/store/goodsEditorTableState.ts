@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { GoodsUnitFlavor } from "../generators/goodsUnitFlavor";
 
 export interface GoodTableRow {
   i: number;
@@ -17,6 +18,7 @@ export interface GoodTableRow {
   resourceCells: number;
   productionPerThousand: number;
   basePrice: number;
+  unitFlavor?: GoodsUnitFlavor;
   isDisplayed: boolean;
   isTagVisible: boolean;
 }

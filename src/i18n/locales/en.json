@@ -197,6 +197,16 @@
       "merchantCompanyAgent": "Merchant Company Agent"
     }
   },
+  "economy": {
+    "goodsUnitFlavor": {
+      "batch": "This Economy unit represents {{count}} {{noun}}. The base-price reference is {{price}} per item.",
+      "retail": "Tavern reference: one {{label}} is about {{copperPrice}} copper piece. This is independent of the wholesale unit price.",
+      "itemNoun": {
+        "pairs": "pairs",
+        "loaves": "loaves"
+      }
+    }
+  },
   "about": {
     "costOfLivingHeading": "Cost of Living",
     "costOfLivingIntro": "This world uses one shared coinage: gold pieces 🟡, silver pieces ⚪, and copper pieces 🟤. Prices, treasury balances, and personal wealth are stored as silver-piece values and displayed as coinage. Grain trades at roughly one silver piece per wain at market (farmgate prices run about 20% lower), anchoring the currency's baseline value. The figures below are storytelling guidelines, not exact simulated totals; actual prices vary with local market conditions.",

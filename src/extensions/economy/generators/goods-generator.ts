@@ -557,7 +557,7 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["naval"],
     icon: "good-tar",
     color: "#727272",
-    value: 2,
+    value: 5,
     chance: 0,
     unit: "barrel",
     demandCoverage: { utilities: 0.4, military: 0.1 },
@@ -721,7 +721,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#8b5a2b",
     value: 6,
     chance: 0,
-    recipes: [{ Cattle: 1 }, { Game: 1 }, { Horses: 1 }, { Camels: 1 }],
+    recipes: [{ Cattle: 1 }, { Game: 1 }, { Horses: 0.5 }, { Camels: 0.25 }],
     unit: "roll",
     multipliers: { cultureType: { Naval: 0.6 } }
   },
@@ -733,7 +733,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#e8e69c",
     value: 5,
     chance: 0,
-    recipes: [{ Wool: 1 }, { Hemp: 1 }, { Silk: 0.5 }, { Cotton: 1 }],
+    recipes: [{ Wool: 1 }, { Hemp: 1 }, { Silk: 0.25 }, { Cotton: 1 }],
     unit: "bolt",
     demandCoverage: { utilities: 0.2 }
   },
@@ -747,7 +747,7 @@ export const GOODS_DATA: GoodData[] = [
     chance: 0,
     recipes: [
       { Cloth: 1, Dyes: 0.5, Alum: 0.25 },
-      { Linen: 1, Dyes: 0.5, Alum: 0.25 },
+      { Linen: 0.75, Dyes: 0.5, Alum: 0.25 },
       { Cloth: 0.5, Furs: 1 }
     ],
     unit: "set",
@@ -1093,12 +1093,12 @@ export const GOODS_DATA: GoodData[] = [
     recipes: [
       { Fish: 1, Salt: 1 },
       { Shellfish: 1, Salt: 1 },
-      { Cattle: 1, Salt: 1 },
+      { Cattle: 0.25, Salt: 1 },
       { Game: 1, Salt: 1 },
       { Sheep: 1, Salt: 1 },
       { Pig: 1, Salt: 1 },
       { Fish: 1, Vinegar: 0.5 },
-      { Cattle: 1, Vinegar: 0.5 },
+      { Cattle: 0.25, Vinegar: 0.5 },
       { Game: 1, Vinegar: 0.5 },
       { Sheep: 1, Vinegar: 0.5 },
       { Pig: 1, Vinegar: 0.5 },
@@ -1112,7 +1112,7 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["food", "preservative"],
     icon: "good-vinegar",
     color: "#9b111e",
-    value: 4,
+    value: 5,
     chance: 0,
     recipes: [{ Wine: 1 }, { Honey: 1 }],
     unit: "barrel",
@@ -1153,7 +1153,7 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["food"],
     icon: "good-beer",
     color: "#fbb117",
-    value: 3,
+    value: 4,
     chance: 0,
     recipes: [
       { Grain: 1, Barrels: 1 },
@@ -1387,7 +1387,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#e8d9b8",
     value: 2,
     chance: 0,
-    recipes: [{ Cattle: 0.5 }, { Sheep: 0.5 }, { Pig: 0.5 }, { Goats: 0.5 }],
+    recipes: [{ Cattle: 0.4 }, { Sheep: 0.5 }, { Pig: 0.5 }, { Goats: 0.5 }],
     unit: "barrel",
     demandCoverage: { utilities: 0.3 }
   },
@@ -1410,7 +1410,7 @@ export const GOODS_DATA: GoodData[] = [
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#efe1c1",
-    value: 2,
+    value: 1.5,
     chance: 0,
     recipes: [{ Grain: 1 }],
     unit: "sack",
@@ -1423,7 +1423,7 @@ export const GOODS_DATA: GoodData[] = [
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#d9a66c",
-    value: 3,
+    value: 2,
     chance: 0,
     recipes: [{ Flour: 1 }],
     unit: "loaf",
@@ -1875,6 +1875,12 @@ export class GoodsModule {
 
   get(i: number): Good | undefined {
     return this.goodById[i];
+  }
+
+  /** True only while a catalogue entry still exactly matches its shipped definition. */
+  isUnmodifiedDefault(good: Readonly<Good>): boolean {
+    const defaultGood = this.defaultGoods[good.i - 1];
+    return defaultGood?.name === good.name && JSON.stringify(defaultGood) === JSON.stringify(good);
   }
 
   sync() {

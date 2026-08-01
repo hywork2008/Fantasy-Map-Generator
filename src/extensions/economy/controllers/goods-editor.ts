@@ -13,6 +13,7 @@ import {
   getWorldContext
 } from "../economyContext";
 import { Goods, getDefaultGoodTradeProfile, isGoodEnabled } from "../generators/goods-generator";
+import { getDefaultGoodsUnitFlavor } from "../generators/goodsUnitFlavor";
 import { Markets } from "../generators/markets-generator";
 import { isDealRecord, isMfgRecord, Production } from "../generators/production-generator";
 import { getCellProduction } from "../generators/production-utils";
@@ -108,6 +109,7 @@ export function goodsEditorAddLines(): void {
       resourceCells: cellsByGood[good.i] ?? 0,
       productionPerThousand: rn(totalPopulation > 0 ? (produced / totalPopulation) * 1000 : 0, 2),
       basePrice: good.value,
+      unitFlavor: Goods.isUnmodifiedDefault(good) ? getDefaultGoodsUnitFlavor(good.name) : undefined,
       isDisplayed: getDisplayedGoodIds().has(good.i),
       isTagVisible
     };
