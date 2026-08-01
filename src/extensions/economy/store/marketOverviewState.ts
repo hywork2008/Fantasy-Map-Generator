@@ -31,6 +31,22 @@ export interface MarketOverviewTransportAssetRow {
   total: number;
 }
 
+export interface MarketOverviewTransportOrderRow {
+  id: number;
+  requestedBy: "simulation" | "player";
+  blueprintName: string;
+  quantity: number;
+  completedQuantity: number;
+  workPoints: number;
+  requiredWorkPoints: number;
+  progressPercent: number;
+  materials: string;
+  budgetLimit?: number;
+  fundedAmount: number;
+  status: "queued" | "waitingMaterials" | "building" | "completed" | "cancelled";
+  blockedReason?: "insufficientTreasury" | "budgetLimit" | "missingMaterials" | "missingCraftWorkers";
+}
+
 interface MarketOverviewOwner {
   coaId: string;
   name: string;
@@ -44,6 +60,7 @@ interface MarketOverviewState {
   rows: MarketOverviewRow[];
   burgMerchantRows: MarketOverviewBurgMerchantRow[];
   transportAssetRows: MarketOverviewTransportAssetRow[];
+  transportOrderRows: MarketOverviewTransportOrderRow[];
   cellsCount: number;
   burgsCount: number;
   totalStock: number;
@@ -61,6 +78,7 @@ export const useMarketOverviewState = create<MarketOverviewState>(() => ({
   rows: [],
   burgMerchantRows: [],
   transportAssetRows: [],
+  transportOrderRows: [],
   cellsCount: 0,
   burgsCount: 0,
   totalStock: 0,

@@ -318,7 +318,8 @@ Caravan を直接選ばせない。注文の進捗・材料待ち・完成後の
 
 ### Phase G2 — player order
 
-- 市場別発注 UI、予算上限、状態表示を追加する。
+- Implemented: Market Overview の Transport assets タブに市場別の発注フォームと注文台帳を追加する。
+- Implemented: player order は予算上限、必要材料、work progress、blocked 理由、取消を表示し、自動補充より先に資材・作業キューへ入る。
 - 受け入れ: プレイヤー注文が通常補充と同じキューを通り、完成時に指定 market の available capacity を増やす。
 
 ## 11. テスト計画

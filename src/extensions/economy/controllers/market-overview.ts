@@ -12,11 +12,14 @@ import {
 } from "../generators/burgMarketLedgers";
 import { Goods } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
+import type { TransportAssetOrder } from "../generators/marketTypes";
 import { MerchantTransportAssets } from "../generators/merchantTransportAssets";
+import { TransportAssetOrders } from "../generators/transportAssetOrders";
 import {
   type MarketOverviewBurgMerchantRow,
   type MarketOverviewRow,
   type MarketOverviewTransportAssetRow,
+  type MarketOverviewTransportOrderRow,
   setMarketOverviewState
 } from "../store/marketOverviewState";
 import { open as openMarketDealsOverview } from "./market-deals-overview";
@@ -61,6 +64,40 @@ export function openTradeOpportunities(): void {
   openMarketTradeOpportunities();
 }
 
+export function getTransportAssetOrderBlueprints() {
+  return TransportAssetOrders.getBlueprints();
+}
+
+export function createPlayerTransportOrder({
+  blueprintId,
+  quantity,
+  budgetLimit
+}: {
+  blueprintId: TransportAssetOrder["blueprintId"];
+  quantity: number;
+  budgetLimit: number;
+}): boolean {
+  const order = TransportAssetOrders.createOrder({
+    marketId: activeMarketId,
+    blueprintId,
+    quantity,
+    budgetLimit,
+    requestedBy: "player"
+  });
+  if (!order) {
+    tip("Enter a positive whole quantity and a non-negative budget limit", true, "error", 5000);
+    return false;
+  }
+  refreshMarketOverview();
+  return true;
+}
+
+export function cancelTransportAssetOrder(orderId: number): boolean {
+  if (!TransportAssetOrders.cancel(orderId)) return false;
+  refreshMarketOverview();
+  return true;
+}
+
 export function refreshMarketOverview(): void {
   const market = Markets.get(activeMarketId);
   if (!market) {
@@ -101,6 +138,30 @@ export function refreshMarketOverview(): void {
   const burgMerchantRows = getBurgMerchantRows(burgs);
   const totalUnits = Object.values(market.goods).reduce((sum, mg) => sum + mg.stock, 0);
   const transportAssetRows: MarketOverviewTransportAssetRow[] = MerchantTransportAssets.getAvailability(market.i);
+  const transportOrderRows: MarketOverviewTransportOrderRow[] = TransportAssetOrders.getOrders(market.i).map(order => {
+    const blueprint = TransportAssetOrders.getBlueprints().find(candidate => candidate.id === order.blueprintId);
+    const materials = blueprint
+      ? Object.entries(blueprint.materialNames)
+          .map(([name, units]) => `${name} ×${units * order.quantity}`)
+          .join(", ")
+      : "Unknown materials";
+    const requiredWorkPoints = (blueprint?.requiredWorkPoints ?? 0) * order.quantity;
+    return {
+      id: order.id,
+      requestedBy: order.requestedBy,
+      blueprintName: blueprint ? formatTransportAssetName(blueprint.id) : order.blueprintId,
+      quantity: order.quantity,
+      completedQuantity: order.completedQuantity,
+      workPoints: order.workPoints,
+      requiredWorkPoints,
+      progressPercent: requiredWorkPoints ? Math.min(100, rn((order.workPoints / requiredWorkPoints) * 100, 0)) : 0,
+      materials,
+      budgetLimit: order.budgetLimit,
+      fundedAmount: order.fundedAmount,
+      status: order.status,
+      blockedReason: order.blockedReason
+    };
+  });
   const transportCargoCapacitySlots = transportAssetRows.reduce(
     (sum, row) => sum + row.total * row.cargoCapacitySlots,
     0
@@ -118,6 +179,7 @@ export function refreshMarketOverview(): void {
     rows,
     burgMerchantRows,
     transportAssetRows,
+    transportOrderRows,
     cellsCount: getMarketCellColumn().reduce((count, marketCellId) => count + (marketCellId === market.i ? 1 : 0), 0),
     burgsCount: burgs.length,
     totalStock: rn(totalUnits, 2),
@@ -127,6 +189,10 @@ export function refreshMarketOverview(): void {
       ? rn((occupiedTransportSlots / transportCargoCapacitySlots) * 100, 0)
       : 0
   });
+}
+
+function formatTransportAssetName(assetId: TransportAssetOrder["blueprintId"]): string {
+  return assetId === "pack-train" ? "Pack train" : `${assetId[0].toUpperCase()}${assetId.slice(1)}`;
 }
 
 function getBurgMerchantRows(burgs: Burg[]): MarketOverviewBurgMerchantRow[] {

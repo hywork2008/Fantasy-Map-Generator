@@ -165,12 +165,14 @@ export type TransportAssetOrder = {
   blueprintId: "pack-train" | "cart" | "wagon";
   quantity: number;
   completedQuantity: number;
+  /** Player orders may not reserve materials whose total current price exceeds this amount. */
+  budgetLimit?: number;
   fundedAmount: number;
   /** Materials removed from market stock but not yet consumed by a completed asset. */
   reservedMaterials: Record<number, number>;
   workPoints: number;
   status: TransportAssetOrderStatus;
-  blockedReason?: "insufficientTreasury" | "missingMaterials" | "missingCraftWorkers";
+  blockedReason?: "insufficientTreasury" | "budgetLimit" | "missingMaterials" | "missingCraftWorkers";
 };
 
 /**

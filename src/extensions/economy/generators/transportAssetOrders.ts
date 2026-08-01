@@ -102,14 +102,23 @@ export class TransportAssetOrdersModule {
     marketId,
     blueprintId,
     quantity,
-    requestedBy = "simulation"
+    requestedBy = "simulation",
+    budgetLimit
   }: {
     marketId: number;
     blueprintId: TransportAssetOrder["blueprintId"];
     quantity: number;
     requestedBy?: TransportAssetOrder["requestedBy"];
+    budgetLimit?: number;
   }): TransportAssetOrder | null {
-    if (!getMarketById(marketId) || !Number.isInteger(quantity) || quantity <= 0) return null;
+    if (
+      !getMarketById(marketId) ||
+      !Number.isInteger(quantity) ||
+      quantity <= 0 ||
+      (budgetLimit !== undefined && (!Number.isFinite(budgetLimit) || budgetLimit < 0))
+    ) {
+      return null;
+    }
     const order: TransportAssetOrder = {
       id: getNextTransportAssetOrderId() + 1,
       marketId,
@@ -117,6 +126,7 @@ export class TransportAssetOrdersModule {
       blueprintId,
       quantity,
       completedQuantity: 0,
+      budgetLimit,
       fundedAmount: 0,
       reservedMaterials: {},
       workPoints: 0,
@@ -152,7 +162,7 @@ export class TransportAssetOrdersModule {
   beginProductionCycle(): void {
     this.plannedWorkByBurg.clear();
     this.queueSimulationReplenishment();
-    for (const order of getTransportAssetOrders()) this.fundOrder(order);
+    for (const order of this.getOrdersByPriority()) this.fundOrder(order);
     this.planCraftWork();
   }
 
@@ -222,6 +232,11 @@ export class TransportAssetOrdersModule {
       return;
     }
     const totalCost = costs.reduce((sum, item) => sum + item.cost, 0);
+    if (order.budgetLimit !== undefined && totalCost > order.budgetLimit + 0.0001) {
+      order.status = "waitingMaterials";
+      order.blockedReason = "budgetLimit";
+      return;
+    }
     const treasury = getMarketTreasury(market);
     if (treasury.balance + 0.0001 < totalCost) {
       order.status = "waitingMaterials";
@@ -241,8 +256,9 @@ export class TransportAssetOrdersModule {
     for (const record of getCraftDomainEmploymentRecords())
       observed.set(`${record.burgId}:${record.domain}`, record.workers);
     const assigned = new Map<string, number>();
-    const orders = getTransportAssetOrders().filter(order => order.status === "building");
+    const orders = this.getOrdersByPriority().filter(order => order.status === "building");
     for (const order of orders) {
+      order.blockedReason = undefined;
       const blueprint = getBlueprint(order.blueprintId);
       const remaining = Math.max(0, blueprint.requiredWorkPoints * order.quantity - order.workPoints);
       if (!(remaining > 0)) continue;
@@ -270,6 +286,13 @@ export class TransportAssetOrdersModule {
       }
       if (unassigned > 0) order.blockedReason = "missingCraftWorkers";
     }
+  }
+
+  private getOrdersByPriority(): TransportAssetOrder[] {
+    return [...getTransportAssetOrders()].toSorted((left, right) => {
+      const priority = Number(right.requestedBy === "player") - Number(left.requestedBy === "player");
+      return priority || left.id - right.id;
+    });
   }
 
   private applyWork(orderId: number, workPoints: number, domain: CraftKnowledgeDomain, burgId: number): void {

@@ -80,4 +80,39 @@ describe("transport asset orders", () => {
     expect(worldContext.pack.markets[0].goods[1].stock).toBe(20);
     expect(worldContext.pack.markets[0].goods[3].stock).toBe(20);
   });
+
+  it("honors a player budget limit without reserving materials or treasury", () => {
+    const order = TransportAssetOrders.createOrder({
+      marketId: 1,
+      blueprintId: "cart",
+      quantity: 1,
+      requestedBy: "player",
+      budgetLimit: 10
+    });
+
+    TransportAssetOrders.beginProductionCycle();
+
+    expect(order).toMatchObject({ status: "waitingMaterials", blockedReason: "budgetLimit" });
+    expect(worldContext.pack.markets[0].goods[1].stock).toBe(20);
+    expect(worldContext.pack.markets[0].goods[3].stock).toBe(20);
+    expect(worldContext.pack.markets[0].marketTreasury?.balance).toBe(100);
+  });
+
+  it("funds player orders before automatic replacement orders", () => {
+    worldContext.pack.markets[0].goods[1].stock = 3;
+    worldContext.pack.markets[0].goods[3].stock = 1;
+    const automaticOrder = TransportAssetOrders.createOrder({ marketId: 1, blueprintId: "cart", quantity: 1 });
+    const playerOrder = TransportAssetOrders.createOrder({
+      marketId: 1,
+      blueprintId: "cart",
+      quantity: 1,
+      requestedBy: "player",
+      budgetLimit: 11
+    });
+
+    TransportAssetOrders.beginProductionCycle();
+
+    expect(playerOrder).toMatchObject({ status: "building", fundedAmount: 11 });
+    expect(automaticOrder).toMatchObject({ status: "waitingMaterials", blockedReason: "missingMaterials" });
+  });
 });

@@ -12,7 +12,10 @@ import {
 import { formatPrice } from "../../../hostUtils";
 
 import {
+  cancelTransportAssetOrder,
+  createPlayerTransportOrder,
   downloadStockCsv,
+  getTransportAssetOrderBlueprints,
   openActiveMarketDeals,
   open as openMarketOverview,
   openTradeOpportunities,
@@ -20,12 +23,31 @@ import {
   renameActiveMarket,
   resetActiveMarketName
 } from "../../controllers/market-overview";
+import type { TransportAssetOrder } from "../../generators/marketTypes";
 import {
   type MarketOverviewBurgMerchantRow,
   type MarketOverviewRow,
   type MarketOverviewTransportAssetRow,
+  type MarketOverviewTransportOrderRow,
   useMarketOverviewState
 } from "../../store/marketOverviewState";
+
+const TRANSPORT_ORDER_STATUS_LABELS: Record<MarketOverviewTransportOrderRow["status"], string> = {
+  queued: "Queued",
+  waitingMaterials: "Waiting",
+  building: "Building",
+  completed: "Completed",
+  cancelled: "Cancelled"
+};
+
+const TRANSPORT_ORDER_BLOCKED_LABELS: Record<NonNullable<MarketOverviewTransportOrderRow["blockedReason"]>, string> = {
+  insufficientTreasury: "Market treasury is too low",
+  budgetLimit: "Material cost exceeds the order budget",
+  missingMaterials: "Required materials are not in stock",
+  missingCraftWorkers: "No matching craft workers are available"
+};
+
+const TRANSPORT_ASSET_BLUEPRINTS = getTransportAssetOrderBlueprints();
 
 export const MarketOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("marketOverview"));
@@ -36,6 +58,7 @@ export const MarketOverviewDialog: React.FC = () => {
   const rows = useMarketOverviewState(state => state.rows);
   const burgMerchantRows = useMarketOverviewState(state => state.burgMerchantRows);
   const transportAssetRows = useMarketOverviewState(state => state.transportAssetRows);
+  const transportOrderRows = useMarketOverviewState(state => state.transportOrderRows);
   const cellsCount = useMarketOverviewState(state => state.cellsCount);
   const burgsCount = useMarketOverviewState(state => state.burgsCount);
   const totalStock = useMarketOverviewState(state => state.totalStock);
@@ -44,6 +67,9 @@ export const MarketOverviewDialog: React.FC = () => {
   const transportUtilizationPercent = useMarketOverviewState(state => state.transportUtilizationPercent);
   const headerRef = React.useRef<HTMLTableSectionElement | null>(null);
   const [activeTab, setActiveTab] = React.useState<"goods" | "burgMerchants" | "transportAssets">("goods");
+  const [transportBlueprintId, setTransportBlueprintId] = React.useState<TransportAssetOrder["blueprintId"]>("cart");
+  const [transportQuantity, setTransportQuantity] = React.useState("1");
+  const [transportBudgetLimit, setTransportBudgetLimit] = React.useState("");
 
   const [goodsSortBy, setGoodsSortBy] = React.useState<keyof MarketOverviewRow>("stock");
   const [goodsSortOrder, setGoodsSortOrder] = React.useState<"asc" | "desc">("desc");
@@ -53,6 +79,16 @@ export const MarketOverviewDialog: React.FC = () => {
 
   const merchantsRef = React.useRef<HTMLDivElement | null>(null);
   const transportAssetsRef = React.useRef<HTMLDivElement | null>(null);
+
+  const handleTransportOrderSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const quantity = Number(transportQuantity);
+    const budgetLimit = Number(transportBudgetLimit);
+    if (createPlayerTransportOrder({ blueprintId: transportBlueprintId, quantity, budgetLimit })) {
+      setTransportQuantity("1");
+      setTransportBudgetLimit("");
+    }
+  };
 
   const handleGoodsSort = (field: string) => {
     if (goodsSortBy === field) setGoodsSortOrder(prev => (prev === "asc" ? "desc" : "asc"));
@@ -417,6 +453,123 @@ export const MarketOverviewDialog: React.FC = () => {
                 Fleet utilization: {transportUtilizationPercent}%
               </div>
             </div>
+            <section id="marketOverviewTransportOrders" aria-labelledby="marketOverviewTransportOrdersHeading">
+              <div className="header d-flex">
+                <b id="marketOverviewTransportOrdersHeading">Transport order ledger</b>
+                <span data-tip="Player orders are funded from this market's treasury and are scheduled before automatic replacements">
+                  Player orders take priority
+                </span>
+              </div>
+              {transportOrderRows.length === 0 ? (
+                <p>No transport orders are open for this market.</p>
+              ) : (
+                <div className="table">
+                  <table className="fmg-table">
+                    <thead>
+                      <tr className="header">
+                        <th>Order</th>
+                        <th>Materials</th>
+                        <th>Progress</th>
+                        <th>Budget</th>
+                        <th>Status</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {transportOrderRows.map((row: MarketOverviewTransportOrderRow) => (
+                        <tr key={row.id} className="states">
+                          <td>
+                            {row.blueprintName} ×{row.quantity}
+                            <small>{row.requestedBy === "player" ? "Player order" : "Automatic replacement"}</small>
+                          </td>
+                          <td>{row.materials}</td>
+                          <td data-tip={`${row.workPoints} of ${row.requiredWorkPoints} work points completed`}>
+                            {row.completedQuantity}/{row.quantity} complete · {row.progressPercent}%
+                          </td>
+                          <td>
+                            {row.budgetLimit === undefined ? "—" : formatPrice(row.budgetLimit)}
+                            {row.fundedAmount > 0 && <small>Funded: {formatPrice(row.fundedAmount)}</small>}
+                          </td>
+                          <td
+                            data-tip={row.blockedReason ? TRANSPORT_ORDER_BLOCKED_LABELS[row.blockedReason] : undefined}
+                          >
+                            {TRANSPORT_ORDER_STATUS_LABELS[row.status]}
+                            {row.blockedReason && <small>{TRANSPORT_ORDER_BLOCKED_LABELS[row.blockedReason]}</small>}
+                          </td>
+                          <td>
+                            {row.requestedBy === "player" &&
+                            row.status !== "completed" &&
+                            row.status !== "cancelled" ? (
+                              <button
+                                type="button"
+                                data-tip="Cancel this order and return unconsumed materials to market stock"
+                                onClick={() => cancelTransportAssetOrder(row.id)}
+                              >
+                                Cancel
+                              </button>
+                            ) : null}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <form id="marketOverviewTransportOrderForm" onSubmit={handleTransportOrderSubmit}>
+                <div className="header">Order transport assets</div>
+                <label>
+                  Market
+                  <input value={name || defaultName || "Selected market"} readOnly aria-readonly="true" />
+                </label>
+                <label>
+                  Asset
+                  <select
+                    value={transportBlueprintId}
+                    onChange={event =>
+                      setTransportBlueprintId(event.target.value as TransportAssetOrder["blueprintId"])
+                    }
+                  >
+                    {TRANSPORT_ASSET_BLUEPRINTS.map(blueprint => (
+                      <option key={blueprint.id} value={blueprint.id}>
+                        {blueprint.id === "pack-train"
+                          ? "Pack train"
+                          : `${blueprint.id[0].toUpperCase()}${blueprint.id.slice(1)}`}{" "}
+                        · {blueprint.cargoCapacitySlots} slots
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Quantity
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    inputMode="numeric"
+                    value={transportQuantity}
+                    onChange={event => setTransportQuantity(event.target.value)}
+                  />
+                </label>
+                <label>
+                  Budget limit
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    inputMode="decimal"
+                    required
+                    value={transportBudgetLimit}
+                    onChange={event => setTransportBudgetLimit(event.target.value)}
+                  />
+                </label>
+                <button
+                  type="submit"
+                  data-tip="Reserve this market's materials and funds when the next production cycle begins"
+                >
+                  Place order
+                </button>
+              </form>
+            </section>
           </>
         )}
 
