@@ -276,15 +276,25 @@ describe("RoutesModule settlement water connections", () => {
     expect(route).toBeUndefined();
   });
 
-  it("does not generate a sea route between river-only ports", () => {
+  it("charts a downstream river route without adding a bidirectional route link", () => {
+    // A sea-accessible mouth port has a different port feature than its upstream river port.
+    // Directed reachability, rather than the shared `burg.port` number, must join them.
+    worldContext.pack.burgs[2].port = 2;
     Routes.sync();
 
     const routes = routeGenerationInternals.createRoutesData([], "augmented");
 
-    expect(routes).toEqual([]);
+    expect(routes).toEqual([
+      expect.objectContaining({
+        group: "searoutes",
+        navigation: "river",
+        cells: [0, 1, 2]
+      })
+    ]);
+    expect(Routes.buildLinks(routes)).toEqual({});
   });
 
-  it("keeps a locked road without creating a river sea route", () => {
+  it("keeps a locked road and charts the river route separately", () => {
     Routes.sync();
     const lockedRoad = {
       i: 0,
@@ -299,7 +309,10 @@ describe("RoutesModule settlement water connections", () => {
 
     const routes = routeGenerationInternals.createRoutesData([lockedRoad], "augmented");
 
-    expect(routes).toEqual([lockedRoad]);
+    expect(routes).toEqual([
+      lockedRoad,
+      expect.objectContaining({ group: "searoutes", navigation: "river", cells: [0, 1, 2] })
+    ]);
   });
 
   it("does not treat river-only ports as international sea ports", () => {

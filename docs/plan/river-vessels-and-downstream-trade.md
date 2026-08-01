@@ -130,6 +130,10 @@ Route generator は次の責務へ戻す。
 - `Burg.port` の既存値を海船可否の唯一の根拠にしない。`haven` を持つ coastal/lake access と、
   `Rivers.isNavigable(burg.cell)` の river access を小さな helper で判定する。
 - river line 自体は既存 Rivers renderer が描くため、河川のすべてを `pack.routes` に複製しない。
+  ただし河川港どうしの接続を地図上で失わせないため、直近の下流港へ至る区間だけは
+  `Route { group: "searoutes", navigation: "river" }` として charted line を持てる。この route は
+  `pack.cells.routes`、SeaRouteGraph、海流描画のいずれにも入れない表示専用データであり、実際の通行可否は
+  常に RiverNavigationGraph を読む。
   海路と河路を接続するには、同一 Burg の sea / river access または明示された land transfer を使う。
 
 ### 4.3 Economy: `TradeRoutePlanner`
@@ -252,6 +256,8 @@ Trade Details と Market Overview に次を追加する。新規 UI は React / 
 
 - Implemented: `RiverNavigationGraph` を追加し、Core test を作る。
 - Implemented: Route generator から river edge を sea route generation から外し、coastal/lake と river access を分離する。
+- Implemented: 上流の河川港から直近の下流港までを表示専用 `navigation: "river"` route として chart し、
+  双方向の `cells.routes` や SeaRouteGraph へは入れない。
 - SeaRouteGraph / naval tests が river の directed edge を海路と数えないことを確認する。
 - 完了条件: 海船の route graph に river edge がなく、下流 graph にだけ A→B がある。
 

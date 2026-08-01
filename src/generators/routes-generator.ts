@@ -24,6 +24,7 @@ import {
 import { TIME } from "../utils/debug";
 import { isLand } from "../utils/graphUtils";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "./river-generator";
+import { buildRiverNavigationGraph, findDownstreamRiverPath } from "./riverNavigationGraph";
 import type { Point } from "./voronoi";
 
 const ROUTES_SHARP_ANGLE = 135;
@@ -402,7 +403,10 @@ class RoutesModule {
   buildLinks(routes: Route[]): Record<number, Record<number, number>> {
     const links: Record<number, Record<number, number>> = {};
 
-    for (const { points, i: routeId } of routes) {
+    for (const { points, i: routeId, navigation } of routes) {
+      // River routes are a charted visual aid. Their actual travel graph is
+      // directional, so they must never enter this bidirectional link table.
+      if (navigation === "river") continue;
       const cells = points.map(p => p[2]);
 
       for (let i = 0; i < cells.length - 1; i++) {
@@ -985,6 +989,54 @@ class RoutesModule {
     return seaRoutes;
   }
 
+  /**
+   * Creates charted river-trade lines between successive downstream river ports.
+   * They share the existing sea-route presentation layer, but remain visual-only:
+   * RiverNavigationGraph is the sole authority for directed river travel.
+   */
+  private generateRiverRoutes(): Route[] {
+    const { pack } = this.worldContext;
+    const riverGraph = buildRiverNavigationGraph(pack);
+    const riverPorts = pack.burgs.filter(burg =>
+      Boolean(burg?.i && !burg.removed && burg.port && pack.cells.r[burg.cell])
+    );
+    const riverRoutes: Route[] = [];
+
+    for (const source of riverPorts) {
+      const sourcePortFeature = source.port;
+      if (!sourcePortFeature) continue;
+      if (!riverGraph.getOutgoing(source.cell).length) continue;
+
+      let nearest: { cells: number[]; distance: number; targetCell: number } | undefined;
+      for (const target of riverPorts) {
+        if (target.i === source.i) continue;
+        const path = findDownstreamRiverPath(riverGraph, source.cell, target.cell);
+        if (!path) continue;
+
+        if (
+          !nearest ||
+          path.distanceMapUnits < nearest.distance ||
+          (path.distanceMapUnits === nearest.distance && target.cell < nearest.targetCell)
+        ) {
+          nearest = { cells: path.cellIds, distance: path.distanceMapUnits, targetCell: target.cell };
+        }
+      }
+      if (!nearest) continue;
+
+      const anchors = nearest.cells.map(cellId => pack.cells.p[cellId] as [number, number]);
+      riverRoutes.push({
+        i: -1,
+        group: "searoutes",
+        feature: sourcePortFeature,
+        cells: nearest.cells,
+        points: this.addMeandering(nearest.cells, anchors),
+        navigation: "river"
+      });
+    }
+
+    return riverRoutes;
+  }
+
   private preparePointsArray(): Point[] {
     const { pack } = this.worldContext;
     const { cells, burgs } = pack;
@@ -1077,6 +1129,7 @@ class RoutesModule {
     const landConnections = new Map<string, boolean>();
     const waterConnections = new Map<string, boolean>();
     for (const route of routes) {
+      if (route.navigation === "river") continue;
       this.addConnections(
         route.points.map(point => point[2]),
         route.group === "searoutes" ? waterConnections : landConnections
@@ -1089,6 +1142,7 @@ class RoutesModule {
     const trails = this.generateTrails(landConnections);
     const internationalTrails = this.generateInternationalTrails(landConnections);
     const seaRoutes = this.generateSeaRoutes(waterConnections, seaRouteGenerationMode);
+    const riverRoutes = this.generateRiverRoutes();
     const pointsArray = this.preparePointsArray();
 
     for (const { feature, cells, merged } of this.mergeRoutes(mainRoads)) {
@@ -1113,6 +1167,11 @@ class RoutesModule {
       if (merged) continue;
       const points = this.getPoints("searoutes", cells!, pointsArray);
       routes.push({ i: routes.length, group: "searoutes", feature, points, cells: cells! });
+    }
+
+    for (const riverRoute of riverRoutes) {
+      riverRoute.i = routes.length;
+      routes.push(riverRoute);
     }
 
     return routes;
