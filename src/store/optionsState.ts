@@ -126,6 +126,7 @@ export interface OptionsState {
   uiSize: number;
   tooltipSize: number;
   themeColor: string;
+  radarChartColor: string;
   transparency: number;
   autosaveInterval: number;
   onloadBehavior: string;
@@ -168,6 +169,7 @@ export const DEFAULT_UI_OPTIONS = {
   uiSize: 1,
   tooltipSize: 14,
   themeColor: "rgb(109, 149, 201)",
+  radarChartColor: "rgb(16, 72, 132)", // "#104884"
   transparency: 70,
   autosaveInterval: 15,
   onloadBehavior: "random",

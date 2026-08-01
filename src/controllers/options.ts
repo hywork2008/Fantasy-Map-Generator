@@ -338,6 +338,11 @@ function restoreDefaultThemeColor(): void {
   changeDialogsTheme(DEFAULT_UI_OPTIONS.themeColor, String(useOptionsState.getState().transparency));
 }
 
+function restoreDefaultRadarChartColor(): void {
+  localStorage.removeItem("radarChartColor");
+  useOptionsState.getState().setOptions({ radarChartColor: DEFAULT_UI_OPTIONS.radarChartColor });
+}
+
 export function changeThemeHue(hue: string): void {
   const { s, l } = hsl(useOptionsState.getState().themeColor);
   const newColor = hsl(+hue, s, l).formatHex();
@@ -522,6 +527,7 @@ export function applyStoredOptions(): void {
     "uiSize",
     "tooltipSize",
     "themeColor",
+    "radarChartColor",
     "transparency",
     // This setting is stored by the legacy control without a React lock button.
     "gunpowderEraEnabled"
@@ -866,6 +872,7 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
   });
 
   document.addEventListener("react-restore-theme", restoreDefaultThemeColor);
+  document.addEventListener("react-restore-radar-chart-color", restoreDefaultRadarChartColor);
 
   document.addEventListener("react-change-theme", (e: Event) => {
     const { color, transparency } = (e as CustomEvent).detail;

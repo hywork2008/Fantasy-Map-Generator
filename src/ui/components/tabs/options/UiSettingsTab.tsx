@@ -88,6 +88,29 @@ export const UiSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
+          <tr data-tip="Set the color used for Character Details radar charts">
+            <td>
+              <i
+                data-tip="Restore default radar chart color: blue"
+                id="radarChartColorRestore"
+                className="icon-ccw"
+                onClick={() => document.dispatchEvent(new CustomEvent("react-restore-radar-chart-color"))}
+              ></i>
+            </td>
+            <td>Radar chart color</td>
+            <td>
+              <input
+                id="radarChartColorInput"
+                type="color"
+                value={options.radarChartColor}
+                onChange={e => {
+                  updateOption("radarChartColor", e.target.value);
+                }}
+              />
+            </td>
+            <td></td>
+          </tr>
+
           <tr data-tip="Set dialog and tool windows transparency">
             <td></td>
             <td>Transparency</td>

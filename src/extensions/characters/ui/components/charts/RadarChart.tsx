@@ -1,6 +1,7 @@
 import * as d3 from "d3";
 import type React from "react";
 import { useEffect, useRef } from "react";
+import { useOptionsState } from "../../../../hostCore";
 
 export interface RadarData {
   axis: string;
@@ -16,6 +17,7 @@ export interface RadarChartProps {
 
 export const RadarChart: React.FC<RadarChartProps> = ({ data, width = 320, height = 320, maxValue = 100 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
+  const radarChartColor = useOptionsState(state => state.radarChartColor);
 
   useEffect(() => {
     if (!svgRef.current || data.length === 0) return;
@@ -109,22 +111,32 @@ export const RadarChart: React.FC<RadarChartProps> = ({ data, width = 320, heigh
       .datum(data)
       .attr("class", "radarArea")
       .attr("d", radarLine)
-      .style("fill", "none")
-      .style("stroke", "var(--active-color, #007bff)")
-      .style("stroke-width", 2);
+      .style("fill", radarChartColor)
+      .style("fill-opacity", 0.16)
+      .style("stroke", radarChartColor)
+      .style("stroke-linejoin", "round")
+      .style("stroke-width", 2.5);
 
-    // Points
-    blobWrapper
-      .selectAll(".radarCircle")
+    // White halos keep points distinct where a transparent dialog reveals the map below.
+    const points = blobWrapper
+      .selectAll(".radarPoint")
       .data(data)
       .enter()
+      .append("g")
+      .attr("class", "radarPoint")
+      .attr("transform", (d, i) => {
+        const x = rScale(d.value) * Math.cos(angleSlice * i - Math.PI / 2);
+        const y = rScale(d.value) * Math.sin(angleSlice * i - Math.PI / 2);
+        return `translate(${x}, ${y})`;
+      });
+
+    points.append("circle").attr("class", "radarCircleHalo").attr("r", 6).style("fill", "rgba(255, 255, 255, 0.92)");
+
+    points
       .append("circle")
       .attr("class", "radarCircle")
-      .attr("r", 4)
-      .attr("cx", (d, i) => rScale(d.value) * Math.cos(angleSlice * i - Math.PI / 2))
-      .attr("cy", (d, i) => rScale(d.value) * Math.sin(angleSlice * i - Math.PI / 2))
-      .style("fill", "var(--active-color, #007bff)")
-      .style("fill-opacity", 0.8)
+      .attr("r", 3.75)
+      .style("fill", radarChartColor)
       .append("title")
       .text(d => `${d.axis}: ${d.value}`);
 
@@ -136,7 +148,12 @@ export const RadarChart: React.FC<RadarChartProps> = ({ data, width = 320, heigh
       .append("text")
       .attr("class", "radarValueLabel")
       .style("font-size", "10px")
-      .style("fill", "var(--active-color, #007bff)")
+      .style("font-weight", "700")
+      .style("fill", radarChartColor)
+      .style("paint-order", "stroke")
+      .style("stroke", "rgba(255, 255, 255, 0.94)")
+      .style("stroke-width", "3px")
+      .style("stroke-linejoin", "round")
       .attr("text-anchor", "middle")
       .attr("dy", "0.35em")
       .attr("x", (d, i) => {
@@ -149,7 +166,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({ data, width = 320, heigh
         return offsetRadius * Math.sin(angleSlice * i - Math.PI / 2);
       })
       .text(d => d.value);
-  }, [data, width, height, maxValue]);
+  }, [data, width, height, maxValue, radarChartColor]);
 
   return (
     <div style={{ display: "flex", justifyContent: "center", margin: "10px 0" }}>
