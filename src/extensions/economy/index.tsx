@@ -87,6 +87,7 @@ import {
 } from "./generators/taxes-generator";
 import { TradeAnimation } from "./generators/trade-animation";
 import { TradeSecurity } from "./generators/tradeSecurity";
+import { clearTreasuryAllocationSnapshots } from "./generators/treasuryAllocation";
 import { UrbanLaborIntake } from "./generators/urbanLaborIntake";
 import { VolcanicAshOperations } from "./generators/volcanicAshOperations";
 import { drawGoods } from "./renderers/draw-goods";
@@ -119,6 +120,7 @@ import { ProductionChainsDialog } from "./ui/dialogs/ProductionChainsDialog";
 import { ProductionOverviewDialog } from "./ui/dialogs/ProductionOverviewDialog";
 import { TradeAnimationDialog } from "./ui/dialogs/TradeAnimationDialog";
 import { TradeDetailsDialog } from "./ui/dialogs/TradeDetailsDialog";
+import { TreasuryOverviewDialog } from "./ui/dialogs/TreasuryOverviewDialog";
 
 function withRegenerateConfirmation(featureName: string, _id: string, onConfirm: () => void) {
   if (useUiPreferencesState.getState().dontAskRegenerateFeature) return onConfirm();
@@ -708,6 +710,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       }
       clearForestDepletion();
       clearStrategicProcurementExpenses();
+      clearTreasuryAllocationSnapshots();
       StrategicProcurement.clear();
       return { changed: true };
     }
@@ -842,6 +845,11 @@ export function init(api: ExtensionAPI): void {
     id: "GuildOverviewDialog",
     extensionId: ECONOMY_EXTENSION_ID,
     component: GuildOverviewDialog
+  });
+  api.registerDialog({
+    id: "TreasuryOverviewDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: TreasuryOverviewDialog
   });
 
   // Register Economy Style Config
@@ -998,6 +1006,19 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
+  api.registerAction({
+    id: "economy-edit-treasury",
+    extensionId: ECONOMY_EXTENSION_ID,
+    tab: "tools",
+    section: "edit",
+    label: "Treasury",
+    dialogId: "treasuryOverview",
+    tooltip: "Click to open Treasury Overview — department budget allocation and military funding ratio by State",
+    onClick: () => {
+      document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: "treasuryOverviewButton" } }));
+    }
+  });
+
   // Register tool action handlers so core tools.ts has no knowledge of extension dialogs.
   // The handler implements the same open/close + layer toggle pattern used for built-in editors.
   const toggleEditorDialog = (dialogId: string, layerId: string | null) => {
@@ -1021,6 +1042,7 @@ export function init(api: ExtensionAPI): void {
   api.registerToolAction("editTradeAnimationButton", () => toggleEditorDialog("tradeAnimationEditor", "toggleTrade"));
   api.registerToolAction("employmentOverviewButton", () => toggleEditorDialog("employmentOverview", null));
   api.registerToolAction("guildOverviewButton", () => toggleEditorDialog("guildOverview", null));
+  api.registerToolAction("treasuryOverviewButton", () => toggleEditorDialog("treasuryOverview", null));
   api.registerToolAction("burgProductionOverview", detail => {
     const burgId = (detail as { burgId?: number } | undefined)?.burgId;
     if (!burgId) return;
@@ -1112,6 +1134,7 @@ export function init(api: ExtensionAPI): void {
       api.closeDialog("tradeAnimationEditor");
       api.closeDialog("employmentOverview");
       api.closeDialog("guildOverview");
+      api.closeDialog("treasuryOverview");
 
       // Clear economy data through the extension-owned command after disabling.
       api.dispatchExtensionCommand({ extensionId: ECONOMY_EXTENSION_ID, name: "clear", payload: undefined });
@@ -1160,6 +1183,7 @@ export function init(api: ExtensionAPI): void {
           // previous map's states must not carry over.
           clearVoyageIncome();
           clearStrategicProcurementExpenses();
+          clearTreasuryAllocationSnapshots();
           StrategicProcurement.clear();
           TradeAnimation.clearRouteCache();
           MineralResources.generate();
@@ -1798,6 +1822,7 @@ export function cleanup(api: ExtensionAPI): void {
   }
   clearVoyageIncome();
   clearStrategicProcurementExpenses();
+  clearTreasuryAllocationSnapshots();
   clearForestDepletion();
   resetEffectiveCapacities(getWorldContext().pack.burgs);
   StrategicProcurement.clear();
@@ -1823,6 +1848,7 @@ export function cleanup(api: ExtensionAPI): void {
   api.unregisterToolAction("burgProductionOverview");
   api.unregisterToolAction("employmentOverviewButton");
   api.unregisterToolAction("guildOverviewButton");
+  api.unregisterToolAction("treasuryOverviewButton");
 
   api.unregisterExtension(ECONOMY_EXTENSION_ID);
   clearEconomyContext();

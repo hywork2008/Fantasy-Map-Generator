@@ -169,6 +169,25 @@ export interface TreasuryAllocationBreakdown {
   militaryFundingRatio: number;
 }
 
+export interface TreasuryAllocationSnapshot extends TreasuryAllocationBreakdown {
+  stateId: number;
+  /** Domestic income this breakdown was computed from (poll tax + voyage income). */
+  domesticIncome: number;
+}
+
+// Last allocateTreasury() result per state, for the Treasury Overview dialog (docs/plan/state-treasury-department-budget.md
+// §7 item "Treasury Overview UI"). Read-only snapshot of what a real collectTaxes() cycle already computed — never
+// recomputed on dialog open, since allocateTreasury() has side effects (household stipend payment, discontent update).
+const _snapshotByState = new Map<number, TreasuryAllocationSnapshot>();
+
+export function getTreasuryAllocationSnapshots(): TreasuryAllocationSnapshot[] {
+  return Array.from(_snapshotByState.values());
+}
+
+export function clearTreasuryAllocationSnapshots(): void {
+  _snapshotByState.clear();
+}
+
 /**
  * §7 item 3 — this cycle's full department breakdown (§3 baseline × domestic income) plus the
  * Marshalcy funding-ratio/discontent update (§4). Only `household` (a real Character.wealth
@@ -188,7 +207,7 @@ export function allocateTreasury(state: State, domesticIncome: number): Treasury
   state.militaryFundingRatio = fundingRatio;
   updateMilitaryDiscontent(state, fundingRatio);
 
-  return {
+  const breakdown: TreasuryAllocationBreakdown = {
     household: payRulerHouseholdStipend(state, income),
     marshalcy: marshalcyBudget,
     chancery: rn(income * baseline.chancery, 2),
@@ -197,4 +216,8 @@ export function allocateTreasury(state: State, domesticIncome: number): Treasury
     ecclesiastica: rn(income * baseline.ecclesiastica, 2),
     militaryFundingRatio: fundingRatio
   };
+
+  if (state.i) _snapshotByState.set(state.i, { stateId: state.i, domesticIncome: income, ...breakdown });
+
+  return breakdown;
 }

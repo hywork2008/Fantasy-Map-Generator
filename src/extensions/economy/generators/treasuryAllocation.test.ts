@@ -8,9 +8,11 @@ import { clearNobilityContext, initNobilityContext, setRulerId } from "../../nob
 import { clearEconomyContext, initEconomyContext } from "../economyContext";
 import {
   allocateTreasury,
+  clearTreasuryAllocationSnapshots,
   getHouseholdStipendRate,
   getMilitaryFundingCeiling,
   getMilitaryStructuralMultiplier,
+  getTreasuryAllocationSnapshots,
   payRulerHouseholdStipend
 } from "./treasuryAllocation";
 
@@ -241,6 +243,50 @@ describe("treasuryAllocation", () => {
       } finally {
         document.removeEventListener("fmg:military-discontent-threshold", handler);
       }
+    });
+  });
+
+  describe("getTreasuryAllocationSnapshots() / clearTreasuryAllocationSnapshots()", () => {
+    afterEach(() => {
+      clearEconomyContext();
+      clearTreasuryAllocationSnapshots();
+    });
+
+    beforeEach(() => {
+      initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+      worldContext.pack = { states: [] } as unknown as PackedGraph;
+      clearTreasuryAllocationSnapshots();
+    });
+
+    it("is empty before any allocateTreasury() call", () => {
+      expect(getTreasuryAllocationSnapshots()).toEqual([]);
+    });
+
+    it("records the latest breakdown per state, keyed by stateId", () => {
+      const state = { i: 7, form: "Monarchy", diplomacy: [] } as unknown as State;
+
+      allocateTreasury(state, 1000);
+      const [snapshot] = getTreasuryAllocationSnapshots();
+
+      expect(snapshot).toMatchObject({ stateId: 7, domesticIncome: 1000, marshalcy: 350, ecclesiastica: 80 });
+    });
+
+    it("overwrites rather than accumulates on repeated calls for the same state", () => {
+      const state = { i: 1, form: "Monarchy", diplomacy: [] } as unknown as State;
+
+      allocateTreasury(state, 1000);
+      allocateTreasury(state, 2000);
+
+      const snapshots = getTreasuryAllocationSnapshots();
+      expect(snapshots).toHaveLength(1);
+      expect(snapshots[0].domesticIncome).toBe(2000);
+    });
+
+    it("clears all recorded snapshots", () => {
+      allocateTreasury({ i: 1, form: "Monarchy", diplomacy: [] } as unknown as State, 1000);
+      clearTreasuryAllocationSnapshots();
+
+      expect(getTreasuryAllocationSnapshots()).toEqual([]);
     });
   });
 });
