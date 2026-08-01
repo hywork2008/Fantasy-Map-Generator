@@ -2,11 +2,16 @@
 
 ## 状態
 
-**部分実装済み**(§5: 為政者家政費のみ)。残りの部門配分(§4, §7)は設計のみ。[burg-treasury-equilibrium.md](burg-treasury-equilibrium.md)の非目的節で「政体(君主制/共和制等)による上納比率の作り込み」が将来の拡張ポイントとして明示的に保留されていた項目に着手する。本ドキュメントは state 財政の**支出側**——為政者(ルーラー)給与と、統治に関わる各部門への配分——を、`state.form`(Monarchy/Republic/Theocracy/Union/Anarchy)に応じて設計する。
+**大部分実装済み**(§5: 為政者家政費、§7: 6部門フルテーブル+軍事充足率+`militaryDiscontent`)。未実装は「予算配分を政策レバーとして操作する仕組み(戦時動員/War Footing含む)」と、非軍事4部門のゲーム内効果(§8非目的)。[burg-treasury-equilibrium.md](burg-treasury-equilibrium.md)の非目的節で「政体(君主制/共和制等)による上納比率の作り込み」が将来の拡張ポイントとして明示的に保留されていた項目に着手する。本ドキュメントは state 財政の**支出側**——為政者(ルーラー)給与と、統治に関わる各部門への配分——を、`state.form`(Monarchy/Republic/Theocracy/Union/Anarchy)に応じて設計する。
 
 **改訂(v2)**: 初版では軍事(Marshalcy)を「既存実装があるから」という理由で配分調整の対象外に置いたが、これは軍事予算を政策レバーとして操作できない設計になってしまい、「平時国家・属領の軍事予算を意図的に削る」という中核ユースケースを表現できないという指摘を受けて撤回した。v2では軍事も他の4部門と同列の配分対象部門とし、代わりに「必要額(既存の`getStateMilitaryUpkeep`)」と「配分予算」を分離することで、削減とその帰結(readiness低下・不満蓄積)を表現できるようにした。詳細は§4。
 
 **改訂(v3)**: §5の為政者給与を`Character.wealth`(案B)で実装。判断根拠と、それに伴う一般設計方針の更新は§6を参照。
+
+**改訂(v4)**: §7(6部門フルテーブル・`getMilitaryFundingCeiling`・`allocateTreasury`・`militaryDiscontent`)を実装。加えて、実装前の設計問答で浮上した2つの未解決点を§4.4として明記(いずれも実装は次フェーズ):
+
+1. 「戦時動員(War Footing)」——特定部門(例: 神権政治の聖戦なら元帥府+教会庁)へ基準比率を上書きして予算を全振りする政策レバー。神権国家の聖戦モードは Marshalcy+Ecclesiastica 合算100% という案が出たが、**非宗教国家の総動員もあり得るため、この形では設計として未完成**——一般化が必要。
+2. 充足率が1.0を超える(過剰投資)場合の扱い——案β(`effectiveTroopTarget()`への一時的な動員ブースト接続)を採用方針とし、まだ財政の影響を受けない兵力目標値(manpower.ts)に、War Footing発動時に限定して接続を開く設計とする。
 
 ## 背景・目的
 
@@ -94,11 +99,18 @@
 
 | 充足率 | 即時効果 | 蓄積効果 |
 | :--- | :--- | :--- |
-| 0.8〜1.0 | なし(許容誤差) | なし |
-| 0.5〜0.8 | 軍事効果値(既存の`military-generator.ts`の政体別モディファイア群と同じ接続点)にreadiness低下ペナルティ | 弱い不満蓄積(`militaryDiscontent`スコア、新規フィールド) |
-| 0.5未満が継続 | readinessペナルティ拡大 | 不満蓄積が加速。一定閾値超過で政治的イベント(下記) |
+| 0.8〜1.0 | なし(許容誤差) | なし。`militaryDiscontent`は5/サイクルで減衰 |
+| 0.5〜0.8 | (未接続、下記) | 弱い不満蓄積(`militaryDiscontent` +3/サイクル) |
+| 0.5未満 | (未接続、下記) | 強い不満蓄積(+10/サイクル)。100到達で`fmg:military-discontent-threshold`イベントを一度だけ発火 |
 
 **不満蓄積が閾値を超えた場合の帰結は、本設計のスコープ外とし、フェーズ2の課題として明示的に残す**——現状nobility拡張にクーデター/離反/内乱の仕組みが存在しない(grep確認済み)ため、ここで無理に設計すると本題の配分設計から逸脱する。フェーズ1では「`militaryDiscontent`という観測可能なスコアが存在し、閾値超過をイベントとして発火できる」ところまでを実装範囲とし、実際に何が起きるか(将校の離反、Marshal官職者による簒奪、反乱軍化等)は将来のnobility拡張のクーデター機構と合わせて別途設計する。
+
+**即時効果(readinessペナルティ)は実装していない**——初版は「`military-generator.ts`の政体別モディファイアと同じ接続点」を想定していたが、実装時に調査した結果、それらのモディファイアは兵力生成(recruitment)時のみ働く値であり、かつ`military-generator.ts`はホスト側コア生成ロジックで、economy拡張(オプショナル)へ依存させることはできない(§1のレイヤールールに反する)。継続的に読める「戦闘有効性」スコアは`MilitaryRegiment.quality`のみ既存だが、これは新兵希釈という別の確立済み意味を持ち、無関係な原因(財政)で上書きするのは既存システムの汚染になる。よって現時点では`state.militaryFundingRatio`(観測可能な生データ)と`state.militaryDiscontent`(蓄積スコア)のみを新設し、実際のゲーム効果への接続は次フェーズの課題として残す。
+
+### 4.4 実装前の設計問答で残った未解決点(次フェーズ)
+
+1. **戦時動員(War Footing)レバー**: §4.1の「配分予算」を、基準比率(§3)から離れて政策的に上書きする仕組みは未実装。神権政治が聖戦のため元帥府へ予算を全振りする例で議論した結果、「Marshalcy+Ecclesiastica合算100%」という神権政治向けの案が出たが、**非宗教国家の総動員(例: 君主制の総力戦)も表現できる必要があり、形態ごとに個別の組み合わせを決め打ちする設計では一般性が足りない**。次フェーズでは「動員の対象部門をどう選ぶか」を形態非依存の形で設計し直す必要がある。
+2. **充足率が1.0を超える場合(過剰投資)の扱い**: §4.3の帰結表は充足率<1.0のみを扱っており、政策的に基準比率を超えて元帥府へ投資した場合の効果が未定義。**採用方針は案β**——`effectiveTroopTarget()`(manpower.ts)は現状、人口と外交(`stateHasEnemy`)のみで兵力目標が決まり財政の影響を一切受けないが、War Footing発動時に限り、充足率1.0超過分を一時的な兵力目標の上振れ(動員ブースト)に接続する。平時の財政↔兵力の非接続はそのまま維持し、War Footingという明示的な政策発動時だけ接続を開く設計とする。
 
 ## 5. 為政者(ルーラー)給与の設計 — 実装済み(案B)
 
@@ -114,22 +126,27 @@
 - 安全策: Characters拡張が無効化されている場合(`hasCharactersContext()`が`false`)は家政費支出自体をスキップし、金額は治療に残る(消えない)。Nobility拡張が無効/在位者未設定の場合も`getRulerId()`が`undefined`を返すため同様にスキップされる——単一拡張のみを有効化した状態でも安全に動作する。
 - テスト: [`treasuryAllocation.test.ts`](../../src/extensions/economy/generators/treasuryAllocation.test.ts)。
 
-軍事(§4)の`militaryDiscontent`等、まだ着手していない部分は引き続きフェーズ2として残す。
+軍事(§4)の残りの実装状況は§7を参照。
 
 ## 6. 一般設計方針の更新
 
 本セッションでの指摘を受け、今後の本プロジェクトの設計判断に対する方針を明確化する: **「投機的な将来要件のための設計をしない」という一般原則を機械的に適用しない。** 既に具体的に計画されている後続タスクがシステムを合理化・説明する見込みが高い場合は、それを見越した設計を優先し、システムが表現する舞台に不自然な断崖絶壁(後から取ってつけたような概念の追加)が生まれることを避ける。過剰な先回り(まだ何も決まっていない仮説的な将来要件への対応)とは区別すること——今回の案Bはあくまで「次のタスクとして既に明言されている」ことが根拠であり、無条件の先回り設計を許可するものではない。
 
-## 7. 実装アーキテクチャ案(次フェーズ・未着手)
+## 7. 実装アーキテクチャ案
 
-§5(ルーラー給与)は実装済み。残る4部門(尚書院・家宰府・諜報府・教会庁)と軍事の可変化(§4)は未着手——想定変更範囲:
+§5(ルーラー給与)・§7項目1〜4は実装済み:
 
-1. `treasuryAllocation.ts`に`BASELINE_ALLOCATION_BY_FORM`(§3、6部門フルテーブル)を追加
-2. `getMilitaryFundingCeiling(state)` — §4.2の削減許容係数を`stateHasEnemy()`/vassal判定から算出
-3. `allocateTreasury(state)` — 残り部門への配分額を計算。Marshalcyのみ`getStateMilitaryUpkeep(state)`との比較で充足率を算出
-4. `state.militaryDiscontent`(新規フィールド、§4.3)——充足率不足の蓄積スコア。閾値超過をイベントとして発火するが、発火後の処理はフェーズ2
-5. Personality平均値による補正(states-personality.mdとの接続): Greedが高い国家ほど家政比率が上振れ、Boldness/Confidenceが高い国家ほど軍事削減により踏み込みやすい、という形で§4.2の係数をpersonality平均でシフトする
-6. 各部門(軍事以外)支出のゲーム内効果——家宰府→徴税効率ボーナス拡張、諜報府→nobility espionage資金源、教会庁→宗教不満度緩和、あたりが自然な接続候補
+1. ✅ [`treasuryAllocation.ts`](../../src/extensions/economy/generators/treasuryAllocation.ts)の`BASELINE_ALLOCATION_BY_FORM`(§3、6部門フルテーブル)。`getHouseholdStipendRate()`はこのテーブルのHousehold行を参照するよう改修(値は不変、テストも既存のまま通過)。
+2. ✅ `getMilitaryStructuralMultiplier(state)`(vassal/Union判定による常時適用の構造係数、§4.2)+ `getMilitaryFundingCeiling(state)`(構造係数×`stateHasEnemy()`による平時/戦時許容フロア)。後者は§4.4-1のWar Footingレバーが実装されるまで参照者がいない、参照専用の公開関数。
+3. ✅ `allocateTreasury(state, domesticIncome)` — 6部門の配分額(baseline%×収入、MarshalcyのみさらにgetMilitaryStructuralMultiplier適用)を返す。Household(`payRulerHouseholdStipend`呼び出し、実際に`Character.wealth`へ移転)とMarshalcy(既存`getStateMilitaryUpkeep`との比較で充足率算出、treasury控除額は変更なし)以外の4部門は情報値のみで、treasuryからの実控除はしない(§8非目的により効果先が存在しないため——存在しない効果のために国庫を減らすのは説明不能な支出になる)。[`taxes-generator.ts`](../../src/extensions/economy/generators/taxes-generator.ts)の`collectTaxes()`から`payRulerHouseholdStipend`直接呼び出しを置き換える形で統合。
+4. ✅ `state.militaryFundingRatio`/`state.militaryDiscontent`([models.ts](../../src/types/models.ts))——§4.3の段階的蓄積/減衰を`allocateTreasury()`内で毎サイクル更新。閾値(100)超過時のみ`fmg:military-discontent-threshold` CustomEventを一度だけ発火(発火後の処理はフェーズ2、§4.3参照)。
+   - テスト: [`treasuryAllocation.test.ts`](../../src/extensions/economy/generators/treasuryAllocation.test.ts)に追加(構造係数・フロア値・配分内訳・充足率・discontent蓄積/減衰・イベント発火の単発性を検証)。
+
+未着手(次フェーズ以降):
+
+1. §4.4のWar Footingレバーと過剰投資(案β)の一般化実装
+2. Personality平均値による補正(states-personality.mdとの接続): Greedが高い国家ほど家政比率が上振れ、Boldness/Confidenceが高い国家ほど軍事削減により踏み込みやすい、という形で§4.2の係数をpersonality平均でシフトする
+3. 各部門(軍事以外)支出のゲーム内効果——家宰府→徴税効率ボーナス拡張、諜報府→nobility espionage資金源、教会庁→宗教不満度緩和、あたりが自然な接続候補。これが実装されるまで`allocateTreasury()`が返すChancery/Stewardship/Spymastery/Ecclesiastica額はtreasuryから控除されない(項目3参照)
 
 ## 8. 非目的
 

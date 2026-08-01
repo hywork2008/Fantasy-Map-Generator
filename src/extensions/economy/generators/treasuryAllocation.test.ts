@@ -1,10 +1,18 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearCharactersContext, initCharactersContext } from "../../characters/charactersContext";
 import type { Character } from "../../characters/characterTypes";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph, State } from "../../hostTypes";
+import { rn } from "../../hostUtils";
 import { clearNobilityContext, initNobilityContext, setRulerId } from "../../nobility/nobilityContext";
-import { getHouseholdStipendRate, payRulerHouseholdStipend } from "./treasuryAllocation";
+import { clearEconomyContext, initEconomyContext } from "../economyContext";
+import {
+  allocateTreasury,
+  getHouseholdStipendRate,
+  getMilitaryFundingCeiling,
+  getMilitaryStructuralMultiplier,
+  payRulerHouseholdStipend
+} from "./treasuryAllocation";
 
 function makeRuler(overrides: Partial<Character> = {}): Character {
   return {
@@ -105,6 +113,134 @@ describe("treasuryAllocation", () => {
 
         expect(ruler.wealth).toBe(110);
       });
+    });
+  });
+
+  describe("getMilitaryStructuralMultiplier()", () => {
+    it("is 1 for a sovereign Monarchy with no vassal diplomacy", () => {
+      const state = { form: "Monarchy", diplomacy: ["Ally", "Enemy"] } as unknown as State;
+      expect(getMilitaryStructuralMultiplier(state)).toBe(1);
+    });
+
+    it("applies the vassal multiplier when diplomacy includes Vassal", () => {
+      const state = { form: "Monarchy", diplomacy: ["Vassal"] } as unknown as State;
+      expect(getMilitaryStructuralMultiplier(state)).toBe(0.55);
+    });
+
+    it("applies the Union multiplier for Union-form states", () => {
+      const state = { form: "Union", diplomacy: [] } as unknown as State;
+      expect(getMilitaryStructuralMultiplier(state)).toBe(0.75);
+    });
+
+    it("stacks vassal and Union multipliers", () => {
+      const state = { form: "Union", diplomacy: ["Vassal"] } as unknown as State;
+      expect(getMilitaryStructuralMultiplier(state)).toBeCloseTo(0.55 * 0.75, 10);
+    });
+  });
+
+  describe("getMilitaryFundingCeiling()", () => {
+    it("uses the peacetime tolerance floor when the state has no Enemy diplomacy", () => {
+      const state = { form: "Monarchy", diplomacy: [] } as unknown as State;
+      expect(getMilitaryFundingCeiling(state)).toBe(0.6);
+    });
+
+    it("uses the tighter wartime tolerance floor when the state has an Enemy", () => {
+      const state = { form: "Monarchy", diplomacy: ["Enemy"] } as unknown as State;
+      expect(getMilitaryFundingCeiling(state)).toBe(0.9);
+    });
+
+    it("combines the vassal structural multiplier with the peacetime floor (§4.3 worked example)", () => {
+      const state = { form: "Union", diplomacy: ["Vassal"] } as unknown as State;
+      // baseline(Union Marshalcy 20%) × structural(0.55×0.75) × peacetime(0.6) ≈ 6.6% per the design doc.
+      expect(getMilitaryFundingCeiling(state)).toBeCloseTo(0.55 * 0.75 * 0.6, 2);
+    });
+  });
+
+  describe("allocateTreasury()", () => {
+    afterEach(() => {
+      clearEconomyContext();
+    });
+
+    beforeEach(() => {
+      initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+      worldContext.pack = { states: [] } as unknown as PackedGraph;
+    });
+
+    it("splits domestic income across all 6 departments per the form's baseline table", () => {
+      const state = { i: 1, form: "Theocracy", diplomacy: [] } as unknown as State;
+
+      const allocation = allocateTreasury(state, 1000);
+
+      expect(allocation.marshalcy).toBe(150); // 15%, no vassal/Union structural adjustment
+      expect(allocation.household).toBe(0); // no Characters/Nobility context in this describe block
+      expect(allocation.chancery).toBe(120);
+      expect(allocation.stewardship).toBe(120);
+      expect(allocation.spymastery).toBe(50);
+      expect(allocation.ecclesiastica).toBe(480);
+    });
+
+    it("scales the Marshalcy Budget down by the structural multiplier for a vassal", () => {
+      const state = { i: 1, form: "Monarchy", diplomacy: ["Vassal"] } as unknown as State;
+
+      const allocation = allocateTreasury(state, 1000);
+
+      expect(allocation.marshalcy).toBe(rn(1000 * 0.35 * 0.55, 2));
+    });
+
+    it("reports militaryFundingRatio 1 (no discontent risk) when the state has no troops to pay for", () => {
+      const state = { i: 1, form: "Monarchy", diplomacy: [], military: [] } as unknown as State;
+
+      const allocation = allocateTreasury(state, 1000);
+
+      expect(allocation.militaryFundingRatio).toBe(1);
+      expect(state.militaryFundingRatio).toBe(1);
+      expect(state.militaryDiscontent ?? 0).toBe(0);
+    });
+
+    it("accumulates militaryDiscontent while the funding ratio stays underfunded, and decays once well-funded", () => {
+      // Marshalcy Budget = 1000 × 0.35 = 350; Need is forced far above that so the ratio lands under 0.5.
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        diplomacy: [],
+        military: [{ u: { Infantry: 100000 } }]
+      } as unknown as State;
+
+      allocateTreasury(state, 1000);
+      expect(state.militaryFundingRatio).toBeLessThan(0.5);
+      expect(state.militaryDiscontent).toBe(10); // strong gain, first cycle
+
+      allocateTreasury(state, 1000);
+      expect(state.militaryDiscontent).toBe(20); // strong gain again
+
+      // Remove the troops so Need drops to 0 and the ratio becomes fully funded again.
+      state.military = [];
+      allocateTreasury(state, 1000);
+      expect(state.militaryFundingRatio).toBe(1);
+      expect(state.militaryDiscontent).toBe(15); // decays by 5
+    });
+
+    it("dispatches fmg:military-discontent-threshold exactly once when discontent crosses 100", () => {
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        diplomacy: [],
+        military: [{ u: { Infantry: 100000 } }]
+      } as unknown as State;
+      const handler = vi.fn();
+      document.addEventListener("fmg:military-discontent-threshold", handler);
+
+      try {
+        // Strong gain is 10/cycle; 11 cycles crosses the 100 threshold exactly once.
+        for (let i = 0; i < 11; i++) allocateTreasury(state, 1000);
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect((handler.mock.calls[0][0] as CustomEvent).detail).toEqual({ stateId: 1, discontent: 100 });
+
+        allocateTreasury(state, 1000); // stays above threshold — must not re-fire
+        expect(handler).toHaveBeenCalledTimes(1);
+      } finally {
+        document.removeEventListener("fmg:military-discontent-threshold", handler);
+      }
     });
   });
 });

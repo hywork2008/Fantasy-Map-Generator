@@ -5,7 +5,7 @@ import { getAcademyBonus } from "./academyKnowledge";
 import { Markets } from "./markets-generator";
 import type { Deal } from "./marketTypes";
 import { getStateMilitaryUpkeep } from "./militaryLogistics";
-import { payRulerHouseholdStipend } from "./treasuryAllocation";
+import { allocateTreasury } from "./treasuryAllocation";
 
 type TaxBases = { salesTax: number; pollTax: number };
 
@@ -96,11 +96,16 @@ export class TaxesModule {
       // completely (less unrecorded evasion) — docs/plan/knowledge-guild-system.md §9 Phase 3.
       const administrationBonus = getAcademyBonus(state.capital ?? 0, "administration");
       const pollTaxRevenue = (state.pollTax || 0) * population * administrationBonus;
-      const householdStipend = payRulerHouseholdStipend(state, pollTaxRevenue + voyageIncome);
+      const allocation = allocateTreasury(state, pollTaxRevenue + voyageIncome);
       state.treasury = rn(
         Math.max(
           0,
-          (state.treasury || 0) + pollTaxRevenue + voyageIncome - procurementExpense - militaryUpkeep - householdStipend
+          (state.treasury || 0) +
+            pollTaxRevenue +
+            voyageIncome -
+            procurementExpense -
+            militaryUpkeep -
+            allocation.household
         ),
         2
       );

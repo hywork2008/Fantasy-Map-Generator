@@ -363,6 +363,17 @@ export interface State {
   /** Computed grain-equivalent tribute amount paid to the suzerain (Vassal states only). */
   tributePaid?: number;
 
+  // ── Treasury department allocation (docs/plan/state-treasury-department-budget.md §4) ──
+  /** Marshalcy funding ratio (allocated Budget ÷ getStateMilitaryUpkeep Need). Undefined until Economy's allocateTreasury() has run at least once. */
+  militaryFundingRatio?: number;
+  /**
+   * Accumulates while militaryFundingRatio stays below the well-funded tier, decays while
+   * above it (§4.3). Crossing the event threshold dispatches "fmg:military-discontent-threshold"
+   * once per upward crossing; no consequence is wired to that event yet (deferred to a future
+   * nobility coup/mutiny mechanic).
+   */
+  militaryDiscontent?: number;
+
   // ── Manpower / agriculture simulation (docs/plan/military/manpower-ecosystem.md) ──
   /**
    * True after initial under-arms headcount has been deducted from civilian maleAdults

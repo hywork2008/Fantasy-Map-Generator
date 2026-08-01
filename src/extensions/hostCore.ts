@@ -21,6 +21,7 @@ export {
   isManpowerSimEnabled,
   PEACE_TARGET_MOBILIZATION,
   regimentQualityMultiplier,
+  stateHasEnemy,
   WAR_TARGET_MOBILIZATION
 } from "../generators/manpower";
 export { Military } from "../generators/military-generator";
