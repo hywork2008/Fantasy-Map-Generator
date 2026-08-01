@@ -153,7 +153,7 @@ export const religionsEditorActions = {
     if (state.sortBy === sortBy) {
       setReligionsEditorState({ sortDirection: state.sortDirection * -1 });
     } else {
-      setReligionsEditorState({ sortBy, sortDirection: 1 });
+      setReligionsEditorState({ sortBy, sortDirection: -1 });
     }
   },
 

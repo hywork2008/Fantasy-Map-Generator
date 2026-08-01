@@ -27,7 +27,7 @@ export const GuildOverviewDialog: React.FC = () => {
       setSortOrder(order => (order === "asc" ? "desc" : "asc"));
     } else {
       setSortBy(field as SortField);
-      setSortOrder("asc");
+      setSortOrder("desc");
     }
   };
 

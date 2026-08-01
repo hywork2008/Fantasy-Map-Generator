@@ -34,7 +34,7 @@ export const ZonesEditorContent: React.FC = () => {
       setSortDirection(prev => (prev === 1 ? -1 : 1));
     } else {
       setSortBy(field);
-      setSortDirection(1);
+      setSortDirection(-1);
     }
   };
 

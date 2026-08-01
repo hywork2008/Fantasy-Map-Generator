@@ -61,7 +61,7 @@ export const ProvinceEditorDialog: React.FC = () => {
     setBurgSort(prev =>
       prev.sortBy === field
         ? { sortBy: field, sortOrder: prev.sortOrder === "asc" ? "desc" : "asc" }
-        : { sortBy: field, sortOrder: "asc" }
+        : { sortBy: field, sortOrder: "desc" }
     );
   }
 

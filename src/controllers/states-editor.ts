@@ -364,7 +364,7 @@ export const statesEditorActions = {
     if (st.sortBy === field) {
       setStatesEditorState({ sortDirection: st.sortDirection === 1 ? -1 : 1 });
     } else {
-      setStatesEditorState({ sortBy: field, sortDirection: 1 });
+      setStatesEditorState({ sortBy: field, sortDirection: -1 });
     }
   },
 

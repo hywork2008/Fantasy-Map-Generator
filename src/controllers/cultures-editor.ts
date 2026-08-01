@@ -152,7 +152,7 @@ export const culturesEditorActions = {
     if (state.sortBy === sortBy) {
       setCulturesEditorState({ sortDirection: state.sortDirection * -1 });
     } else {
-      setCulturesEditorState({ sortBy, sortDirection: 1 });
+      setCulturesEditorState({ sortBy, sortDirection: -1 });
     }
   },
 

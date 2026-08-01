@@ -73,7 +73,7 @@ export const StateEditorDialog: React.FC = () => {
     setProvinceSort(prev =>
       prev.sortBy === field
         ? { sortBy: field, sortDirection: -prev.sortDirection }
-        : { sortBy: field, sortDirection: 1 }
+        : { sortBy: field, sortDirection: -1 }
     );
   }
 
@@ -81,7 +81,7 @@ export const StateEditorDialog: React.FC = () => {
     setBurgSort(prev =>
       prev.sortBy === field
         ? { sortBy: field, sortOrder: prev.sortOrder === "asc" ? "desc" : "asc" }
-        : { sortBy: field, sortOrder: "asc" }
+        : { sortBy: field, sortOrder: "desc" }
     );
   }
 

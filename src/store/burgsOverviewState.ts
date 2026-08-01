@@ -39,7 +39,7 @@ export const useBurgsOverviewState = create<BurgsOverviewState>(set => ({
   toggleSortBy: field =>
     set(state => {
       if (state.sortBy === field) return { sortOrder: state.sortOrder === "asc" ? "desc" : "asc" };
-      return { sortBy: field, sortOrder: "asc" };
+      return { sortBy: field, sortOrder: "desc" };
     }),
   setSearchText: text => set({ searchText: text }),
   setFilterStateId: id => set({ filterStateId: id }),

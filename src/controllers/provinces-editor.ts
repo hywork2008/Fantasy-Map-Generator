@@ -937,7 +937,7 @@ function changeSort(sortBy: string): void {
   if (state.sortBy === sortBy) {
     setProvincesEditorState({ sortDirection: state.sortDirection * -1 });
   } else {
-    setProvincesEditorState({ sortBy, sortDirection: 1 });
+    setProvincesEditorState({ sortBy, sortDirection: -1 });
   }
 }
 

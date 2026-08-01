@@ -34,7 +34,7 @@ export const useCharactersUiState = create<CharactersUiState>((set, get) => ({
     if (sortBy === field) {
       set({ sortOrder: sortOrder === "asc" ? "desc" : "asc" });
     } else {
-      set({ sortBy: field, sortOrder: "asc" });
+      set({ sortBy: field, sortOrder: "desc" });
     }
   },
   setSearchText: text => set({ searchText: text }),

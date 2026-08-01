@@ -94,7 +94,7 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
       setSortOrder(o => (o === "asc" ? "desc" : "asc"));
     } else {
       setSortBy(field);
-      setSortOrder("asc");
+      setSortOrder("desc");
     }
   };
 
