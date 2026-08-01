@@ -4,6 +4,7 @@ import type { ExtensionAPI } from "../../types/extension-api";
 import { advanceCharacterAging } from "../characters/advanceAge";
 import { refreshCharactersOverviewIfOpen } from "../characters/controllers/characters-overview";
 import { CHARACTERS_EXTENSION_ID } from "../characters/index";
+import { seedMissingCharacterWealth } from "../economy/generators/characterStipends";
 import { advanceAllRegimentMovement, advanceFrontierGovernance, Military } from "../hostCore";
 import { tip } from "../hostServices";
 import { measureGenerationStep } from "../hostUtils";
@@ -65,6 +66,11 @@ function regenerateNobilityData(mode: NobilityRegenerationMode): void {
   }
   Espionage.generate();
   if (mayAdvanceAutonomousConflict()) StrategicPlanner.generate();
+  // Fabricate starting wealth for any newly-created titled/roled character so they aren't
+  // stuck at 0 until the next Advance Time tick (docs/plan/state-treasury-department-budget.md
+  // §7 item 8). Only ever touches characters still at wealth=0, so re-running this on every
+  // regenerate is safe.
+  seedMissingCharacterWealth();
   // Government roster was rebuilt — re-roll the focus character for the player HUD.
   selectRandomPlayerCharacter();
 }

@@ -326,6 +326,73 @@ describe("treasuryAllocation", () => {
     });
   });
 
+  describe("allocateTreasury() field commander stipends (payFieldCommanderStipends)", () => {
+    afterEach(() => {
+      clearEconomyContext();
+      clearCharactersContext();
+      clearTreasuryAllocationSnapshots();
+    });
+
+    beforeEach(() => {
+      initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+      initCharactersContext({ worldContext } as unknown as ExtensionAPI);
+      worldContext.pack = { states: [], characters: [] } as unknown as PackedGraph;
+    });
+
+    it("pays a regiment's living commander a share of that regiment's own upkeep", () => {
+      const commander = makeRuler({
+        i: 20,
+        titles: [{ title: "Commander", landed: false, entityType: "state", entityId: 1 }]
+      });
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        diplomacy: [],
+        military: [{ state: 1, commanderId: 20, u: { Infantry: 100 } }]
+      } as unknown as State;
+      worldContext.pack.characters = [commander];
+
+      const allocation = allocateTreasury(state, 1000);
+
+      // regiment upkeep = 100 heads × 0.12/head = 12; stipend = 12 × 0.15 = 1.8
+      expect(allocation.fieldCommanderStipendsPaid).toBe(1.8);
+      expect(commander.wealth).toBe(1.8);
+    });
+
+    it("never pays the capital guard's commander (already paid in full as Marshal via officeStipendsPaid)", () => {
+      const marshal = makeRuler({
+        i: 21,
+        titles: [{ title: "Marshal", landed: false, entityType: "state", entityId: 1 }]
+      });
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        diplomacy: [],
+        military: [{ state: 1, commanderId: 21, isCapitalGuard: true, u: { Infantry: 100 } }]
+      } as unknown as State;
+      worldContext.pack.characters = [marshal];
+
+      const allocation = allocateTreasury(state, 1000);
+
+      expect(allocation.fieldCommanderStipendsPaid).toBe(0);
+      expect(marshal.wealth).toBe(350); // still paid the Marshalcy office stipend, once
+    });
+
+    it("skips a regiment with no living dedicated officer", () => {
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        diplomacy: [],
+        military: [{ state: 1, u: { Infantry: 100 } }]
+      } as unknown as State;
+      worldContext.pack.characters = [];
+
+      const allocation = allocateTreasury(state, 1000);
+
+      expect(allocation.fieldCommanderStipendsPaid).toBe(0);
+    });
+  });
+
   describe("getTreasuryAllocationSnapshots() / clearTreasuryAllocationSnapshots()", () => {
     afterEach(() => {
       clearEconomyContext();

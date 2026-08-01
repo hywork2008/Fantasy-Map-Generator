@@ -2,6 +2,7 @@ import type { Burg } from "../../hostTypes";
 import { gauss, rn, TIME } from "../../hostUtils";
 import { getDeals, getWorldContext } from "../economyContext";
 import { getAcademyBonus } from "./academyKnowledge";
+import { payGuildStipends, payMarketStipends, payProvinceLordStipends } from "./characterStipends";
 import { Markets } from "./markets-generator";
 import type { Deal } from "./marketTypes";
 import { getStateMilitaryUpkeep } from "./militaryLogistics";
@@ -106,13 +107,23 @@ export class TaxesModule {
             procurementExpense -
             militaryUpkeep -
             allocation.household -
-            allocation.officeStipendsPaid
+            allocation.officeStipendsPaid -
+            allocation.fieldCommanderStipendsPaid
         ),
         2
       );
+
+      // Province lords are paid from their own seated Burg's treasury, not state.treasury
+      // (docs/plan/state-treasury-department-budget.md §7 item 7) — no deduction here.
+      payProvinceLordStipends(state);
     }
     _voyageIncomeByState.clear();
     _strategicProcurementExpenseByState.clear();
+
+    // Guild/Market roles are paid from their own domain-guild/market treasuries, not
+    // state.treasury — global passes, not part of the per-state loop above.
+    payGuildStipends();
+    payMarketStipends();
 
     TIME && console.timeEnd("collectTaxes");
   }

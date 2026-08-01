@@ -2,7 +2,7 @@
 
 ## 状態
 
-**大部分実装済み**(§5: 為政者家政費、§7: 6部門フルテーブル+軍事充足率+`militaryDiscontent`+Treasury Overview UI+中央官職俸給)。未実装は「予算配分を政策レバーとして操作する仕組み(戦時動員/War Footing含む)」と、非軍事4部門のゲーム内効果(§8非目的)。[burg-treasury-equilibrium.md](burg-treasury-equilibrium.md)の非目的節で「政体(君主制/共和制等)による上納比率の作り込み」が将来の拡張ポイントとして明示的に保留されていた項目に着手する。本ドキュメントは state 財政の**支出側**——為政者(ルーラー)給与と、統治に関わる各部門への配分——を、`state.form`(Monarchy/Republic/Theocracy/Union/Anarchy)に応じて設計する。
+**大部分実装済み**(§5: 為政者家政費、§7: 6部門フルテーブル+軍事充足率+`militaryDiscontent`+Treasury Overview UI+中央官職俸給+属州領主/野戦指揮官/Guild/Market俸給+初期所持金でっち上げ)。未実装は「予算配分を政策レバーとして操作する仕組み(戦時動員/War Footing含む)」と、非軍事4部門のゲーム内効果(§8非目的)。[burg-treasury-equilibrium.md](burg-treasury-equilibrium.md)の非目的節で「政体(君主制/共和制等)による上納比率の作り込み」が将来の拡張ポイントとして明示的に保留されていた項目に着手する。本ドキュメントは state 財政の**支出側**——為政者(ルーラー)給与と、統治に関わる各部門への配分——を、`state.form`(Monarchy/Republic/Theocracy/Union/Anarchy)に応じて設計する。
 
 **改訂(v2)**: 初版では軍事(Marshalcy)を「既存実装があるから」という理由で配分調整の対象外に置いたが、これは軍事予算を政策レバーとして操作できない設計になってしまい、「平時国家・属領の軍事予算を意図的に削る」という中核ユースケースを表現できないという指摘を受けて撤回した。v2では軍事も他の4部門と同列の配分対象部門とし、代わりに「必要額(既存の`getStateMilitaryUpkeep`)」と「配分予算」を分離することで、削減とその帰結(readiness低下・不満蓄積)を表現できるようにした。詳細は§4。
 
@@ -134,7 +134,7 @@
 
 ## 7. 実装アーキテクチャ案
 
-§5(ルーラー給与)・§7項目1〜6は実装済み:
+§5(ルーラー給与)・§7項目1〜8は実装済み:
 
 1. ✅ [`treasuryAllocation.ts`](../../src/extensions/economy/generators/treasuryAllocation.ts)の`BASELINE_ALLOCATION_BY_FORM`(§3、6部門フルテーブル)。`getHouseholdStipendRate()`はこのテーブルのHousehold行を参照するよう改修(値は不変、テストも既存のまま通過)。
 2. ✅ `getMilitaryStructuralMultiplier(state)`(vassal/Union判定による常時適用の構造係数、§4.2)+ `getMilitaryFundingCeiling(state)`(構造係数×`stateHasEnemy()`による平時/戦時許容フロア)。後者は§4.4-1のWar Footingレバーが実装されるまで参照者がいない、参照専用の公開関数。
@@ -153,12 +153,23 @@
    - Treasury Overview UI(項目5)に"Stipends"列を追加。
    - **経済バランスへの影響に注意**: これまでChancery/Stewardship/Spymastery/Ecclesiastica(合計で内国収入の35〜92%、統治形態依存)はtreasuryから一切控除されない情報値だったが、官職が埋まっている限りその全額が官職者個人へ実際に流出するようになった。結果としてtreasuryの蓄積速度は大幅に低下する(統治形態次第ではほぼ増えなくなる可能性がある)。意図的な変更だが、既存セーブの財政バランスに大きく影響するため明記しておく。
    - テスト: [`treasuryAllocation.test.ts`](../../src/extensions/economy/generators/treasuryAllocation.test.ts)に`payCentralOfficeStipends()`の在職者支払い・空席スキップ・死亡官職者スキップ・他State官職者との混同なし・充足率が空席の影響を受けないことを検証する`describe`ブロックを追加。
+7. ✅ **非中央官職の俸給接続**(項目3の未着手課題を解消)——「属州領主はBurgsから、野戦指揮官はStateの軍事費から、ギルド/商人系称号はGuildsやMarketsから」という支払い元の指定を受けて実装。いずれも`state.treasury`とは別のプール(Burg/Market/Guildそれぞれの自己資金)から支払われるため、Treasury Overviewの表(6部門+Stipends)には含まれない——state財政とは独立した資金移動。
+   - **属州領主**(`entityType:"province"`の生存中領主)——[`characterStipends.ts`](../../src/extensions/economy/generators/characterStipends.ts)の`payProvinceLordStipends(state)`が、領主の着任Burg(`province.burg`)の`burg.treasury`から`PROVINCE_LORD_STIPEND_RATE`(10%)を`Character.wealth`へ移転。Burg側は控除、`state.treasury`は無関係。
+   - **野戦指揮官**(Commander/Admiral、`officerAssignment.ts`の`getRegimentCommander()`で解決)——`treasuryAllocation.ts`に`payFieldCommanderStipends(state)`を追加(Marshalcyの名目Budgetを100%受け取るMarshal(項目6)と資金源を分けるため、あえて同ファイル内に配置)。各regimentの`getRegimentMilitaryUpkeep(regiment)`(militaryLogistics.tsに新規追加、`getStateMilitaryUpkeep()`と同じper-head式を単一regimentに適用)×`FIELD_COMMANDER_STIPEND_RATE`(15%)を、その部隊の生存中の専属士官に支払う。首都親衛隊(`isCapitalGuard`、指揮官はMarshal)は対象外——Marshalと同じ資金を二重取りしないため。`officeStipendsPaid`と同様`state.treasury`から実控除し、`TreasuryAllocationBreakdown.fieldCommanderStipendsPaid`として`allocation`に含める。
+   - **Guild Master/Apprentice**(economy拡張自身の`character.roles`ベースの称号、`guildSuccession.ts`)——`characterStipends.ts`の`payGuildStipends()`が、`GuildKnowledgeStock.treasury`(Burg+domain単位のギルド自己資金、`guildTreasury.ts`)からMaster(`GUILD_MASTER_STIPEND_RATE`10%)→Apprentice(`GUILD_APPRENTICE_STIPEND_RATE`3%、複数人いれば人数分)の順に控除・支払い。
+   - **Market Manager/Rival Merchant**(`marketManagers.ts`。ManagerはChairperson役も兼務するため`merchantOrganizations.ts`の"Merchant Company Head"も同一キャラクターで自動的にカバーされる。Secretary/Bodyguard/Executive役職は`MERCHANT_ORGANIZATION_STAFF_ENABLED=false`で現状生成されないため対象外)——`payMarketStipends()`が`market.marketTreasury.balance`からManager(`MARKET_MANAGER_STIPEND_RATE`8%)→各Rival(`MARKET_RIVAL_STIPEND_RATE`3%)の順に控除・支払い。
+   - いずれもレートは仮値・未調整(guildTreasury.ts/foodProduction.tsの既存プレースホルダーと同じ扱い)。
+   - テスト: [`characterStipends.test.ts`](../../src/extensions/economy/generators/characterStipends.test.ts)(新規)で領主/Guild/Market各関数の支払い・空席/資金枯渇時のno-op・他State/他Burgとの混同なしを検証。[`treasuryAllocation.test.ts`](../../src/extensions/economy/generators/treasuryAllocation.test.ts)に`payFieldCommanderStipends()`用の`describe`ブロックを追加(通常regiment/首都親衛隊除外/専属士官不在時のno-op)。
+8. ✅ **初期所持金のでっち上げ**(Advance Time前でも各人が資金を持つ設計)——「Marketsが最初からでっちあげの予算を持っている」のと同じ考え方で、`STARTING_BURG_TREASURY_PER_POPULATION`(foodProduction.ts)/Market初期資本(同ファイル)に倣い、生成直後にキャラクター側にも同様の初期資金を持たせる。
+   - `characterStipends.ts`の`seedMissingCharacterWealth()`——ルーラー/中央官職/属州領主/野戦指揮官/Guild Master・Apprentice/Market Manager・Rivalの全役職について、`Character.wealth === 0`(＝一度も実俸給を受け取っていない)の者だけを対象に、その役職の1サイクル分の想定俸給額(上記の各レート×既に生成済みの`state.pollTax`/`burg.treasury`/`market.marketTreasury.balance`/guild treasury等)に、6〜18サイクル分のランダムな「積立年数」を乗じた金額を`wealth`へ設定する。wealthが0でない(既に実際の俸給や消費が発生した)キャラクターには一切触れないため、複数回の"regenerate"実行でも安全。
+   - 呼び出し元は[`nobility/index.tsx`](../../src/extensions/nobility/index.tsx)の`regenerateNobilityData()`——`assignOfficers()`/`assignProvinceLords()`(領主/士官の生成)の直後、かつeconomy拡張の初期生成タスク(`registerMapReadyTask`、economyが先に登録されるため必ず先に完了し`state.pollTax`/各treasuryが計算済み)より後に実行される、というタスク実行順(`src/runtime/mapReadyTaskCoordinator.ts`が登録順に`await`で逐次実行)に依拠した設計。economy拡張が無効な場合は各種getterが空配列を返すだけで安全にno-opする。
+   - テスト: [`characterStipends.test.ts`](../../src/extensions/economy/generators/characterStipends.test.ts)に`seedMissingCharacterWealth()`の新規ルーラー/属州領主への初期資金付与、既にwealthを持つキャラクターへの非上書きを検証。
 
 未着手(次フェーズ以降):
 
 1. §4.4のWar Footingレバーと過剰投資(案β)の一般化実装
 2. Personality平均値による補正(states-personality.mdとの接続): Greedが高い国家ほど家政比率が上振れ、Boldness/Confidenceが高い国家ほど軍事削減により踏み込みやすい、という形で§4.2の係数をpersonality平均でシフトする
-3. 中央官職以外の俸給——項目6で対応したのは`CENTRAL_OFFICES`(国家中枢5官職)のみ。属州領主(Count/Governor/Sheriff等)・軍事指揮官(Commander/Admiral)・ギルド関連の称号(Guild Apprentice/Guild Master等、economy拡張のギルド財産システムが別途存在する可能性あり)・商人組織の称号(Market Rival Merchant/Merchant Company Head)には、この設計が定義する部門予算からの資金源が存在しない——支払い元をどう設計するかは未着手の設計課題
+3. 項目7で接続した俸給レート(領主10%/野戦指揮官15%/Guild Master10%・Apprentice3%/Market Manager8%・Rival3%)・項目8の積立年数(6〜18サイクル)はいずれも未調整のプレースホルダー——実プレイでのtreasury/burg.treasury/guild treasury/market treasuryの蓄積速度とのバランス確認が必要
 4. 各部門(軍事以外)支出の「俸給以外」のゲーム内効果——家宰府→徴税効率ボーナス拡張、諜報府→nobility espionage資金源、教会庁→宗教不満度緩和、あたりが自然な接続候補(項目6の俸給支払いとは別軸)
 
 ## 8. 非目的

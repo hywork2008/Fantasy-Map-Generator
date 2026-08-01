@@ -1,4 +1,4 @@
-import type { State } from "../../hostTypes";
+import type { MilitaryRegiment, State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 import { MOUNTED_FODDER_PER_HEAD } from "./militaryResourcesTypes";
@@ -39,18 +39,27 @@ export function isMountedUnit(unitName: string): boolean {
   return militaryOptions.find(unit => unit.name === unitName)?.type === "mounted";
 }
 
-function sumRegimentHeads(state: State, perUnit: (unitName: string, count: number) => number): number {
-  // military-generator.ts multiplies recruit counts by populationRate to produce real troop
-  // headcounts (e.g. thousands), while state.pollTax/market.goods stock stay in the economy
-  // extension's raw-score population unit (docs/temp/profits.md decision #5). Divide back down
-  // so upkeep/consumption stay comparable to treasury income and goods stock instead of always
-  // dwarfing them.
+// military-generator.ts multiplies recruit counts by populationRate to produce real troop
+// headcounts (e.g. thousands), while state.pollTax/market.goods stock stay in the economy
+// extension's raw-score population unit (docs/temp/profits.md decision #5). Divide back down
+// so upkeep/consumption stay comparable to treasury income and goods stock instead of always
+// dwarfing them.
+function sumUnitHeads(
+  u: Record<string, number> | undefined,
+  perUnit: (unitName: string, count: number) => number
+): number {
   const populationRate = getWorldContext().populationRate || 1;
   let total = 0;
+  for (const [unitName, count] of Object.entries(u || {})) {
+    total += perUnit(unitName, count / populationRate);
+  }
+  return total;
+}
+
+function sumRegimentHeads(state: State, perUnit: (unitName: string, count: number) => number): number {
+  let total = 0;
   for (const regiment of state.military || []) {
-    for (const [unitName, count] of Object.entries(regiment.u || {})) {
-      total += perUnit(unitName, count / populationRate);
-    }
+    total += sumUnitHeads(regiment.u, perUnit);
   }
   return total;
 }
@@ -59,6 +68,19 @@ function sumRegimentHeads(state: State, perUnit: (unitName: string, count: numbe
 export function getStateMilitaryUpkeep(state: State): number {
   const total = sumRegimentHeads(
     state,
+    (unitName, count) => count * (BASE_UPKEEP_PER_HEAD + (isMountedUnit(unitName) ? MOUNTED_FODDER_COST_PER_HEAD : 0))
+  );
+  return rn(total, 2);
+}
+
+/**
+ * Same per-head upkeep formula as getStateMilitaryUpkeep(), for a single regiment — used to size
+ * a field/fleet commander's personal stipend (docs/plan/state-treasury-department-budget.md §7
+ * item 7) off the actual cost of the force they command, without re-deriving the calibration.
+ */
+export function getRegimentMilitaryUpkeep(regiment: Pick<MilitaryRegiment, "u">): number {
+  const total = sumUnitHeads(
+    regiment.u,
     (unitName, count) => count * (BASE_UPKEEP_PER_HEAD + (isMountedUnit(unitName) ? MOUNTED_FODDER_COST_PER_HEAD : 0))
   );
   return rn(total, 2);

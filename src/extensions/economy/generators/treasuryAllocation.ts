@@ -4,8 +4,9 @@ import { stateHasEnemy } from "../../hostCore";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { CENTRAL_OFFICES } from "../../nobility/data/titleTable";
+import { getRegimentCommander } from "../../nobility/generators/officerAssignment";
 import { getRulerId } from "../../nobility/nobilityContext";
-import { getStateMilitaryUpkeep } from "./militaryLogistics";
+import { getRegimentMilitaryUpkeep, getStateMilitaryUpkeep } from "./militaryLogistics";
 
 export interface DepartmentBaselineAllocation {
   marshalcy: number;
@@ -158,7 +159,7 @@ export function payRulerHouseholdStipend(state: State, domesticIncome: number): 
 }
 
 /** §2 maps each CENTRAL_OFFICES primarySkill onto the department its office holder is paid from. */
-const DEPARTMENT_BY_PRIMARY_SKILL: Record<
+export const DEPARTMENT_BY_PRIMARY_SKILL: Record<
   string,
   keyof Pick<DepartmentBaselineAllocation, "marshalcy" | "chancery" | "stewardship" | "spymastery" | "ecclesiastica">
 > = {
@@ -169,7 +170,7 @@ const DEPARTMENT_BY_PRIMARY_SKILL: Record<
   learning: "ecclesiastica"
 };
 
-function findLivingOfficeHolder(characters: Character[], stateId: number, title: string): Character | undefined {
+export function findLivingOfficeHolder(characters: Character[], stateId: number, title: string): Character | undefined {
   return characters.find(
     character =>
       !character.dead &&
@@ -209,6 +210,46 @@ export function payCentralOfficeStipends(state: Pick<State, "i">, breakdown: Tre
   return totalPaid;
 }
 
+/**
+ * Share of a single regiment's own getRegimentMilitaryUpkeep() (militaryLogistics.ts, same
+ * per-head formula getStateMilitaryUpkeep()/the Marshalcy funding-ratio "Need" use) paid as
+ * personal command pay to that regiment's living field/fleet officer (Commander/Admiral,
+ * officerAssignment.ts — never the capital guard, which is led by the Marshal and already paid
+ * in full via payCentralOfficeStipends()). Deliberately sourced from the regiment's own upkeep
+ * cost rather than from the Marshalcy Budget line, which payCentralOfficeStipends() already
+ * transfers 100% of to the Marshal — this is a separate pool so field officers don't compete
+ * with the Marshal for the same money. Placeholder rate, not yet balance-tuned.
+ */
+export const FIELD_COMMANDER_STIPEND_RATE = 0.15;
+
+/**
+ * Pays each living field/fleet officer (Commander/Admiral) commanding one of `state.military`'s
+ * non-capital-guard regiments a stipend off that regiment's own upkeep cost (see
+ * FIELD_COMMANDER_STIPEND_RATE). Returns the total actually paid — a real deduction from
+ * state.treasury, folded into TreasuryAllocationBreakdown.fieldCommanderStipendsPaid alongside
+ * officeStipendsPaid. A regiment with no dedicated officer yet (assignOfficers() only sparsely
+ * assigns them) or a dead one simply pays nothing for that regiment.
+ */
+export function payFieldCommanderStipends(state: Pick<State, "i" | "military">): number {
+  if (!state.i || !hasCharactersContext()) return 0;
+  const characters = getCharacters();
+
+  let totalPaid = 0;
+  for (const regiment of state.military || []) {
+    if (regiment.isCapitalGuard) continue;
+
+    const commander = getRegimentCommander(characters, regiment);
+    if (!commander) continue;
+
+    const amount = rn(getRegimentMilitaryUpkeep(regiment) * FIELD_COMMANDER_STIPEND_RATE, 2);
+    if (!(amount > 0)) continue;
+
+    commander.wealth = rn((commander.wealth || 0) + amount, 2);
+    totalPaid = rn(totalPaid + amount, 2);
+  }
+  return totalPaid;
+}
+
 export interface TreasuryAllocationBreakdown {
   /** Real deduction — paid to the ruler's Character.wealth (§5), same figure payRulerHouseholdStipend() returns. */
   household: number;
@@ -223,6 +264,8 @@ export interface TreasuryAllocationBreakdown {
   militaryFundingRatio: number;
   /** Real deduction — sum of §2's CENTRAL_OFFICES stipends actually paid this cycle (payCentralOfficeStipends()); 0 for any vacant office, whose share stays in state.treasury instead of disappearing. */
   officeStipendsPaid: number;
+  /** Real deduction — sum of field/fleet officer command-pay stipends actually paid this cycle (payFieldCommanderStipends()); 0 for any regiment with no living dedicated officer. */
+  fieldCommanderStipendsPaid: number;
 }
 
 export interface TreasuryAllocationSnapshot extends TreasuryAllocationBreakdown {
@@ -246,12 +289,13 @@ export function clearTreasuryAllocationSnapshots(): void {
 
 /**
  * §7 item 3 — this cycle's full department breakdown (§3 baseline × domestic income) plus the
- * Marshalcy funding-ratio/discontent update (§4). `household` and `officeStipendsPaid` (§2's
- * CENTRAL_OFFICES stipends, §7 item 6) are real Character.wealth transfers deducted from
- * state.treasury by the caller, alongside the pre-existing getStateMilitaryUpkeep() upkeep
- * charge. The nominal department Budget figures themselves (marshalcy/chancery/stewardship/
- * spymastery/ecclesiastica) are unaffected by office vacancy — see officeStipendsPaid for what
- * actually left the treasury this cycle.
+ * Marshalcy funding-ratio/discontent update (§4). `household`, `officeStipendsPaid` (§2's
+ * CENTRAL_OFFICES stipends, §7 item 6), and `fieldCommanderStipendsPaid` (§7 item 7) are real
+ * Character.wealth transfers deducted from state.treasury by the caller, alongside the
+ * pre-existing getStateMilitaryUpkeep() upkeep charge. The nominal department Budget figures
+ * themselves (marshalcy/chancery/stewardship/spymastery/ecclesiastica) are unaffected by office
+ * vacancy — see officeStipendsPaid/fieldCommanderStipendsPaid for what actually left the
+ * treasury this cycle.
  */
 export function allocateTreasury(state: State, domesticIncome: number): TreasuryAllocationBreakdown {
   const income = Math.max(0, domesticIncome);
@@ -272,9 +316,11 @@ export function allocateTreasury(state: State, domesticIncome: number): Treasury
     spymastery: rn(income * baseline.spymastery, 2),
     ecclesiastica: rn(income * baseline.ecclesiastica, 2),
     militaryFundingRatio: fundingRatio,
-    officeStipendsPaid: 0
+    officeStipendsPaid: 0,
+    fieldCommanderStipendsPaid: 0
   };
   breakdown.officeStipendsPaid = payCentralOfficeStipends(state, breakdown);
+  breakdown.fieldCommanderStipendsPaid = payFieldCommanderStipends(state);
 
   if (state.i) _snapshotByState.set(state.i, { stateId: state.i, domesticIncome: income, ...breakdown });
 

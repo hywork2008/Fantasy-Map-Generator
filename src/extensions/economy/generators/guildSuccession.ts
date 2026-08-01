@@ -100,11 +100,15 @@ function resolveBurgCulture(burg: Burg | undefined): number {
   return burg?.culture ?? cellCulture ?? stateCulture ?? 0;
 }
 
-function findMaster(characters: Character[], burgId: number, domain: CraftKnowledgeDomain): Character | undefined {
+export function findMaster(
+  characters: Character[],
+  burgId: number,
+  domain: CraftKnowledgeDomain
+): Character | undefined {
   return characters.find(c => c.roles?.some(role => isMasterRole(role, burgId, domain) && role.endYear === undefined));
 }
 
-function findApprentices(
+export function findApprentices(
   characters: Character[],
   masterId: number,
   burgId: number,
