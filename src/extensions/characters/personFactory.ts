@@ -1,5 +1,5 @@
 import { Names } from "../hostCore";
-import { P, rand } from "../hostUtils";
+import { gauss, P, rand } from "../hostUtils";
 import { APPEARANCE_DECLINE_PER_YEAR, DECLINE_AGE_THRESHOLD, PROWESS_DECLINE_PER_YEAR } from "./advanceAge";
 import { getAbilityPreset } from "./charactersContext";
 import type {
@@ -14,6 +14,19 @@ import type {
 /** Default adult age range rolled when no `ageOverride` is given. */
 const DEFAULT_MIN_AGE = 28;
 const DEFAULT_MAX_AGE = 65;
+
+/**
+ * Peak-of-life appearance (before age decline): normal distribution on 1–100.
+ * μ=50 (ordinary faces dominate), σ=15 (~2/3 in 35–65, extremes rare).
+ * Uniform 1–100 made beauty/ugliness too common for Favor / lust thresholds.
+ */
+export const APPEARANCE_MEAN = 50;
+export const APPEARANCE_STDDEV = 15;
+
+/** Roll peak appearance 1–100 (integer). Age decline is applied separately in createPerson. */
+export function rollPeakAppearance(): number {
+  return Math.max(1, Math.min(100, gauss(APPEARANCE_MEAN, APPEARANCE_STDDEV, 1, 100, 0)));
+}
 
 /** How strongly a character's role encourages forming a household. */
 export type MarriageExpectation = "ordinary" | "elite" | "dynastic";
@@ -156,7 +169,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   // Religious figures are typically zealous, unless they are highly guileful (deceitful)
   const zeal = isReligiousRole && guile < 70 ? rand(50, 100) : rand(1, 100);
 
-  const baseAppearance = rand(1, 100);
+  const baseAppearance = rollPeakAppearance();
   const appearance =
     age > DECLINE_AGE_THRESHOLD
       ? Math.max(1, baseAppearance - Math.floor((age - DECLINE_AGE_THRESHOLD) * APPEARANCE_DECLINE_PER_YEAR))
