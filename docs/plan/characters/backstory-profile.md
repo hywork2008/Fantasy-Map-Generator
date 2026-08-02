@@ -175,11 +175,11 @@ street          // 路上・孤児
 | :--- | :--- | :--- |
 | **Ruler（君主）** | royal 70%, high_noble 25%, unknown 5% | birth=home=capital（王朝定着）。征服王朝なら birth は旧都・異国も可 |
 | **中央官職**（Chancellor 等） | high_noble 40%, minor_noble 30%, gentry 20%, commoner 10% | location=capital 固定。home は自領 or 首都。birth は国内都市を重み付き |
-| **Marshal / 軍務** | minor_noble 45%, high_noble 25%, gentry 15%, commoner 15% | location=capital。frontier 育ち（raisedIn: frontier/military）をやや増やす |
-| **Spymaster** | minor_noble 30%, gentry 30%, commoner 25%, foreigner 10%, unknown 5% | 出自をぼかす（unknown/foreigner）確率を他職より高く |
+| **Marshal / General / 軍務司令** | high_noble 18%, minor_noble 32%, gentry 18%, commoner 22%, freedman 5%, foreigner 5%（実装: `commander` に統合） | Marshal は `central_officer` ではなく **commander**。高位は capital_court 育ちもあり、下位は camp/frontier |
+| **Spymaster** | minor_noble 30%, gentry 30%, commoner 25%, foreigner 10%, unknown 5% | 出自をぼかす（unknown/foreigner）。称号検出で central_officer から分岐 |
 | **宗教官**（Dean, Chaplain 等） | clergy_orphan 25%, minor_noble 30%, gentry 25%, commoner 20% | raisedIn: monastery を厚く。piety/zeal と整合 |
 | **Province Lord（地方領主）** | high_noble 30%, minor_noble 55%, gentry 15% | home=州の中心 burg、location=home。birth も同州寄り |
-| **Commander / Admiral** | minor_noble 35%, gentry 25%, commoner 30%, freedman 5%, foreigner 5% | location=駐屯/艦隊母港。raisedIn: military_camp / frontier を厚く |
+| **Commander / Admiral** | 上表（Marshal と同テーブル。高位将軍〜成り上がり将校を同一ロールで表現） | location=駐屯/艦隊母港。raisedIn は身分で分岐 |
 | **Market Merchant** | merchant_born 50%, commoner 30%, freedman 10%, minor_noble 5%, foreigner 5% | birth/home=市場都市。複数都市に商圏があっても home は本店 |
 | **Market Rival** | merchant_born 55%, commoner 25%, foreigner 15%, minor_noble 5% | 同上。foreigner と rival 親和性を少し上げる |
 | **後継者・王族傍流**（将来） | royal / high_noble | capital_court 育ちを強制寄り |
@@ -316,7 +316,10 @@ interface CommitmentFocus {
 | `compassion ≥ 80` かつ `greed ≤ 40` | `people` / `family` を +25 |
 | `vengefulness ≥ 85` | `rivalry` を secondary に強制候補 |
 | `sociability ≤ 20` | `comrades` / `people` を減らし `craft` / `self` を増やす |
-| `honor ≥ 85` かつ socialStratum が noble 系 | `house` / `liege` を +20 |
+| `honor ≥ 85` かつ socialStratum が noble 系 / 官職 | `house` / `liege` を +15（平民は family 寄り） |
+| 低出自（commoner / freedman / slave_born）× 高位ロール | `self` / `wealth` / `office` を増し `house` を減らす（成り上がり） |
+| freedman / slave_born | `family` / `patron` / `self` を増やす |
+| 低 piety × 高 energy × 社交 or bold × 低 honor | `hedonism` を候補に +28（到達可能にする） |
 | `rationality ≥ 80` | `conflictPolicy = negotiate` 寄り |
 | `rationality ≤ 25` かつ `zeal ≥ 70` | `conflictPolicy = burn_both` 寄り |
 
@@ -432,27 +435,28 @@ interface TasteTag {
 | 条件 | 出やすい like | 出やすい dislike |
 | :--- | :--- | :--- |
 | `sociability ≥ 75`（男） | company, feast, wine | solitude |
-| `sociability ≥ 75`（女） | gossip, salon, music | solitude |
+| `sociability ≥ 75`（女） | gossip, salon, music（賭博もゼロにはしない） | solitude |
 | `sociability ≤ 25` | solitude, books, maps | company / salon, feast, ceremony |
 | `greed ≥ 75` | gold, luxury, land（rational/steward 寄り） | mercy（低確率） |
-| 高 greed でも高 rationality + 低 boldness/energy/confidence（＋工学/統治） | **gambling は抑制**（`gamblingPersonalityMult`）。確かな金・土地寄り | gambling（`gamblingAverse` で dislike 寄り） |
+| 高 greed でも高 rationality + 低 boldness/energy/confidence（＋工学/統治） | **gambling は抑制**（`gamblingPersonalityMult` / `gamblingAverse`）。確かな金・土地寄り | gambling dislike 寄り |
+| **身分 × 悪徳（史実寄り）** | 庶民: 酒・低 stakes 賭博。貴族: 饗宴の酒・寵愛・**高 stakes 賭博**（上流ほど「品行方正」にしない） | 高 piety 時のみ公的イメージで lust/gambling dislike |
 | 為政者 + 高 greed + 低 honor（+ guile） | **corruption like**（裏金・袖の下。gold とは別） | — |
 | 高 honor（≥70） | — | corruption |
-| `piety ≥ 75` | theology, ceremony, piety_practice | lust, luxury, corruption |
+| `piety ≥ 75` | theology, ceremony, piety_practice | lust, luxury, corruption（生臭坊主は除く） |
 | `piety ≤ 25` | wine, lust, gold | ceremony, clergy |
 | `martial ≥ 75` or Commander（高 prestige / 高位） | hunting, sport, soldiers, **ceremony（閲兵）** | （peace は低） |
 | 下級武人（低 prestige / 下位身分） | sport, soldiers, wine | **ceremony**（空々しい儀礼嫌い） |
-| `martial` 低 かつ中央文官 | books, law, ceremony | war, soldiers（低〜中確率） |
+| `martial` 低 かつ中央文官（非 Spymaster） | books, law, ceremony | war（低〜中確率） |
 | `artistry ≥ 75` | art, music, feast, luxury | cruelty |
-| `intrigue ≥ 75` | gossip, flattery, corruption(like は闇) | — |
+| `intrigue ≥ 75` / Spymaster | gossip, flattery | — |
 | `compassion ≥ 75` | mercy, peasants, peace | cruelty, war |
 | `compassion ≤ 25` | cruelty（低確率）, war | peasants, mercy |
-| Merchant role | gold, merchants, feast, luxury | soldiers（時々）, nobles（成り上がり） |
-| Spymaster | gossip, solitude, corruption | ceremony（表の儀式嫌い） |
-| Religious office | theology, ceremony | lust, war（例外: 聖戦型は war like） |
-| `zeal` 高 + primary faith | war(like) if 好戦宗, foreigners(dislike) | — |
-| Frontier raisedIn | hunting, soldiers, maps | courtiers, luxury |
-| Capital court raisedIn | ceremony, flattery, luxury, art | peasants, solitude |
+| Merchant role | gold, merchants, feast, luxury | soldiers（**martial 低のときのみ**） |
+| Religious office（sincere） | theology, ceremony | lust, gambling, corruption |
+| 生臭坊主 | wine/lust/gambling/gold + ceremony の表層 | piety_practice（時々） |
+| Frontier / military raisedIn | hunting, soldiers | courtiers（時々） |
+| Capital court raisedIn | ceremony, flattery, luxury, art | — |
+| **同一 id の like+dislike は禁止**（G 実装） | — | — |
 
 ### 5.4 Personality との二重定義を避けるルール
 
@@ -761,36 +765,43 @@ interface CharacterBond {
 
 CommitmentKind 自体は時代不変。**重み表とラベル** が時代・文化で変わる。
 
-### 7.1 中世ヨーロッパ風（デフォルト想定）
+### 7.1 中世ヨーロッパ風（デフォルト想定 / monarchy pack）
 
 - 庶民: `faith` + `family` 厚め、`state` は薄い（王は遠い）
 - 貴族: `house` > `liege` > `state`（「王を尊崇しつつ家が第一」をデフォルト物語に）
-- 聖職: `faith` 第一
+- 聖職: `faith` 第一。**ラテン系独身戒を想定**（`clericalCelibacyExpected`）→ 大家族は生臭シグナルになりうる
 - 王: `house` と `state` が同一視されやすい（dynastic state）
+- 悪徳: 上流の饗宴・高額賭博・寵愛を消さない（「下層ほど悪徳」の通俗バイアスは採らない）
 
-### 7.2 神権・聖地国家
+### 7.2 神権・聖地国家（theocracy pack）
 
 - 全ロールで `faith` の重み +20〜40
-- Ruler の primary が `faith` でも違和感がない
-- Taste: ceremony, theology を厚く、lust/luxury を dislike 側へ
+- **Ruler の stratum**: clergy_orphan / minor_noble 等（血の royal 一択にしない）
+- raisedIn: monastery 厚め
+- Taste: ceremony, theology を厚く
+- 独身戒: on（ラテン/法王庁系をデフォルト。カリフ等は form 名で empire/horde 側へ寄せる）
 
-### 7.3 遊牧・血族
+### 7.3 遊牧・血族（horde pack）
 
 - `house` / `family` / `comrades` を厚く
 - `domain` は「土地」より「放牧権・移動路」ラベルへ
-- raisedIn: military_camp / rural_manor 寄り
+- raisedIn: **military_camp / frontier** を強く（capital_court を抑制）
+- `clericalCelibacyExpected: false`（既婚聖職を破戒扱いしない）
+- `slaveryCommon: true` → slave_born / freedman を指揮系統に乗せやすい
 
-### 7.4 商業共和国・都市国家
+### 7.4 商業共和国・都市国家（republic pack）
 
-- `domain`（都市）と `wealth` / `craft` を厚く
-- socialStratum: merchant_born / gentry が増える
-- Ruler でも royal 比率を下げる
+- `domain`（都市）と `wealth` / `craft` / `ideology` を厚く
+- **Ruler stratum**: merchant_born / gentry 中心（doge が royal だらけにならない）
+- raisedIn: merchant_quarter / capital_city 厚め
+- Ruler の royal 比率を強く下げる
 
-### 7.5 奴隷制が強い文化
+### 7.5 奴隷制・帝国奉仕が強い文化（empire pack 等）
 
-- `slave_born` / `freedman` の出現率を上げる
-- 解放後の primary に `patron` / `self` を厚く
-- 貴族の Taste に `slaves`（所有・嫌悪）をカタログ追加する余地
+- `slave_born` / `freedman` / `foreigner` の出現率を上げる（指揮・官職テーブルに注入）
+- 解放後の primary に `patron` / `self` / `family` を厚く
+- `clericalCelibacyExpected: false`（多宗教帝国を想定）
+- 貴族の Taste に `slaves`（所有・嫌悪）をカタログ追加する余地（未実装）
 
 ### 7.6 「古代〜現代」の段階的差し替え
 
@@ -840,15 +851,18 @@ CommitmentKind 自体は時代不変。**重み表とラベル** が時代・文
 
 | ルール | 内容 |
 | :--- | :--- |
-| G1 | primary=`faith` なのに piety < 20 → piety を底上げ or primary 再抽選 |
-| G2 | socialStratum=`royal` なのに Ruler 以外かつ prestige < 40 → prestige 補正 |
-| G3 | Merchant なのに like に `gold` も `craft` も無い → どちらかを強制追加 |
-| G4 | dislike `company` と sociability ≥ 90 が同居 → どちらかを弱める（偽善キャラとして残すなら note で説明） |
+| G1 | primary=`faith` なのに piety < 20 → piety を底上げ or primary 再抽選（実装済み・soft） |
+| G2 | socialStratum=`royal` なのに Ruler 以外かつ prestige < 40 → prestige 補正（stratum 帯への soft re-roll） |
+| G3 | Merchant なのに like に `gold` も craft 相当も無い → 強制追加（実装済み） |
+| G4 | dislike `company`/`salon` と sociability ≥ 90 が同居 → dislike intensity を弱める（実装済み） |
 | G5 | location が capital 固定の中央官職で birth が国外ばかりにならないよう、国外率に上限 |
 | G6 | female で多配偶者文化以外、family.spouses ≤ 1（既存）を Origin でも壊さない |
 | G7 | favor は常に [-100, 100]。自己参照 favor[i][i] は作らない |
 | G8 | intent=`bribe` かつ受け手 honor 高・greed 低なのに Δfavor が常に正、はテストで禁止 |
 | G9 | 芸術 Taste / 高 artistry への match に、完成品 Good がカタログに無い場合は設計上の既知ギャップ（§6.5.5）として追跡する |
+| G10 | **同一 taste id を like と dislike の両方に持たない**（`pushTaste` で両 polarity を検査） |
+| G11 | `liege` の `targetId` に stateId を入れない（未解決の個人主君 id は省略） |
+| G12 | 既婚大家族を生臭聖職とみなすのは **`clericalCelibacyExpected` form のみ** |
 
 ---
 

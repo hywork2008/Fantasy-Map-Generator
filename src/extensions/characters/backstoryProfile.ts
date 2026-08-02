@@ -21,7 +21,14 @@ import type {
   SolidarityBand,
   TastePolarity
 } from "./characterTypes";
-import { applyFormCommitmentBoost, applyFormStratumMultiplier } from "./cultureFormPacks";
+import {
+  applyFormCommitmentBoost,
+  applyFormRaisedInMultiplier,
+  applyFormStratumMultiplier,
+  expectsClericalCelibacy,
+  getFormPack,
+  isSlaveryCommonForm
+} from "./cultureFormPacks";
 
 // ---------------------------------------------------------------------------
 // Relation score helpers (solidarity = political; favor = romantic only)
@@ -103,7 +110,21 @@ export function getFavorBand(score: number): FavorBand {
 // ---------------------------------------------------------------------------
 
 const RELIGIOUS_TITLE_RE = /chaplain|priest|dean|vicar|bishop|cleric|imam|monk|abb|pontiff|patriarch|caliph/i;
-const COMMANDER_TITLES = new Set(["Commander", "Admiral"]);
+/** Field command and war leadership — includes Marshal / General (not only "Commander"). */
+const MARTIAL_COMMAND_TITLE_RE = /^(Commander|Admiral|Marshal|General|Warlord)$/i;
+const SPYMASTER_TITLE_RE = /spymaster|spy\b|intelligence|secretar.*state|whisper/i;
+
+export function isSpymasterTitle(title: string): boolean {
+  return SPYMASTER_TITLE_RE.test(title);
+}
+
+export function isMartialCommandTitle(title: string): boolean {
+  return MARTIAL_COMMAND_TITLE_RE.test(title);
+}
+
+export function characterHasSpymasterOffice(character: Character): boolean {
+  return character.titles.some(t => isSpymasterTitle(t.title));
+}
 
 export function inferRoleClass(character: Character): CharacterRoleClass {
   const roles = character.roles ?? [];
@@ -113,13 +134,22 @@ export function inferRoleClass(character: Character): CharacterRoleClass {
 
   for (const title of character.titles) {
     if (title.entityType === "province" && title.landed) return "province_lord";
-    if (COMMANDER_TITLES.has(title.title)) return "commander";
+    // Marshal / Admiral / field generals are military careers, not generic court officers.
+    if (isMartialCommandTitle(title.title)) return "commander";
     if (RELIGIOUS_TITLE_RE.test(title.title)) return "religious";
     if (title.landed && title.entityType === "state") return "ruler";
   }
 
   if (character.titles.some(t => t.entityType === "state" && !t.landed)) return "central_officer";
   return "ordinary";
+}
+
+function isNobleStratum(stratum?: SocialStratum): boolean {
+  return stratum === "royal" || stratum === "high_noble" || stratum === "minor_noble" || stratum === "gentry";
+}
+
+function isLowBirthStratum(stratum?: SocialStratum): boolean {
+  return stratum === "commoner" || stratum === "freedman" || stratum === "slave_born" || stratum === "unknown";
 }
 
 // ---------------------------------------------------------------------------
@@ -167,6 +197,7 @@ function prestigeForStratum(stratum: SocialStratum): number {
 function estateForRole(roleClass: CharacterRoleClass, stratum: SocialStratum): EstateStatus {
   switch (roleClass) {
     case "ruler":
+      // Usurpers / elected heads are still reigning; blood claim is socialStratum's job.
       return "reigning_dynasty";
     case "province_lord":
       return "landed_noble";
@@ -179,83 +210,172 @@ function estateForRole(roleClass: CharacterRoleClass, stratum: SocialStratum): E
     case "merchant":
       return "burgher";
     default:
+      // Birth can leave ordinary people unfree even without a high office.
+      if (stratum === "slave_born") return "slave";
+      if (stratum === "freedman") return "freeman";
       return "freeman";
   }
 }
 
-function stratumWeights(roleClass: CharacterRoleClass, formName?: string): Partial<Record<SocialStratum, number>> {
+function stratumWeights(
+  roleClass: CharacterRoleClass,
+  formName?: string,
+  character?: Character
+): Partial<Record<SocialStratum, number>> {
+  const pack = getFormPack(formName);
   let weights: Partial<Record<SocialStratum, number>>;
-  switch (roleClass) {
-    case "ruler":
-      weights = { royal: 70, high_noble: 25, unknown: 5 };
-      break;
-    case "central_officer":
-      weights = { high_noble: 40, minor_noble: 30, gentry: 20, commoner: 10 };
-      break;
-    case "commander":
-      weights = { minor_noble: 35, gentry: 25, commoner: 30, freedman: 5, foreigner: 5 };
-      break;
-    case "province_lord":
-      weights = { high_noble: 30, minor_noble: 55, gentry: 15 };
-      break;
-    case "religious":
-      weights = { clergy_orphan: 25, minor_noble: 30, gentry: 25, commoner: 20 };
-      break;
-    case "merchant":
-      weights = { merchant_born: 50, commoner: 30, freedman: 10, minor_noble: 5, foreigner: 5 };
-      break;
-    default:
-      weights = { commoner: 50, gentry: 20, merchant_born: 15, minor_noble: 10, freedman: 5 };
+
+  // Spymasters: deliberately blurred origins (spec §3.3) — not the high-noble court table.
+  if (character && characterHasSpymasterOffice(character) && roleClass === "central_officer") {
+    weights = { minor_noble: 30, gentry: 30, commoner: 25, foreigner: 10, unknown: 5 };
+  } else {
+    switch (roleClass) {
+      case "ruler":
+        // Form packs may replace the feudal "blood royal" prior (republic / theocracy / horde).
+        weights = pack.rulerStratumWeights
+          ? { ...pack.rulerStratumWeights }
+          : { royal: 70, high_noble: 25, unknown: 5 };
+        break;
+      case "central_officer":
+        // Medieval Western courts lean noble; empires later inject freedman/slave paths via form mult.
+        weights = { high_noble: 35, minor_noble: 28, gentry: 22, commoner: 12, foreigner: 3 };
+        break;
+      case "commander":
+        // Blend field captains (commoner rise) with aristocratic marshals (high_noble).
+        weights = {
+          high_noble: 18,
+          minor_noble: 32,
+          gentry: 18,
+          commoner: 22,
+          freedman: 5,
+          foreigner: 5
+        };
+        break;
+      case "province_lord":
+        weights = { high_noble: 30, minor_noble: 55, gentry: 15 };
+        break;
+      case "religious":
+        weights = { clergy_orphan: 25, minor_noble: 30, gentry: 25, commoner: 20 };
+        break;
+      case "merchant":
+        weights = { merchant_born: 50, commoner: 30, freedman: 10, minor_noble: 5, foreigner: 5 };
+        break;
+      default:
+        weights = { commoner: 50, gentry: 20, merchant_born: 15, minor_noble: 10, freedman: 5 };
+    }
   }
+
   applyFormStratumMultiplier(weights, formName);
+
+  // Slavery-common forms: open rare slave_born / freedman slots on power careers.
+  if (isSlaveryCommonForm(formName)) {
+    if (roleClass === "commander" || roleClass === "central_officer") {
+      weights.slave_born = (weights.slave_born ?? 0) + 6;
+      weights.freedman = (weights.freedman ?? 0) + 8;
+    }
+    if (roleClass === "ordinary") {
+      weights.slave_born = (weights.slave_born ?? 0) + 4;
+      weights.freedman = (weights.freedman ?? 0) + 6;
+    }
+  }
+
   return weights;
 }
 
-function raisedInFor(roleClass: CharacterRoleClass, stratum: SocialStratum, hasCapital: boolean): RaisedIn {
+function raisedInFor(
+  roleClass: CharacterRoleClass,
+  stratum: SocialStratum,
+  hasCapital: boolean,
+  formName?: string
+): RaisedIn {
+  let weights: Partial<Record<RaisedIn, number>>;
+
   if (roleClass === "religious" || stratum === "clergy_orphan") {
-    return P(0.55) ? "monastery" : hasCapital ? "capital_city" : "provincial_seat";
-  }
-  if (roleClass === "merchant") {
-    return P(0.7) ? "merchant_quarter" : hasCapital ? "capital_city" : "provincial_seat";
-  }
-  if (roleClass === "commander") {
-    return pickWeighted({
-      military_camp: 35,
-      frontier_burg: 30,
-      provincial_seat: 20,
-      capital_city: 15
-    });
-  }
-  if (roleClass === "ruler") {
-    return hasCapital && P(0.8) ? "capital_court" : "provincial_seat";
-  }
-  if (roleClass === "central_officer") {
-    return pickWeighted({
+    weights = {
+      monastery: 55,
+      capital_city: hasCapital ? 25 : 0,
+      provincial_seat: 20
+    };
+  } else if (roleClass === "merchant") {
+    weights = {
+      merchant_quarter: 55,
+      capital_city: hasCapital ? 25 : 10,
+      provincial_seat: 20
+    };
+  } else if (roleClass === "commander") {
+    // High-born marshals more often raised at court; low-born at camp/frontier.
+    if (stratum === "high_noble" || stratum === "royal") {
+      weights = {
+        capital_court: 30,
+        provincial_seat: 25,
+        military_camp: 25,
+        frontier_burg: 20
+      };
+    } else {
+      weights = {
+        military_camp: 35,
+        frontier_burg: 30,
+        provincial_seat: 20,
+        capital_city: 15
+      };
+    }
+  } else if (roleClass === "ruler") {
+    weights = hasCapital
+      ? { capital_court: 70, provincial_seat: 15, military_camp: 10, capital_city: 5 }
+      : { provincial_seat: 50, military_camp: 30, rural_manor: 20 };
+  } else if (roleClass === "central_officer") {
+    weights = {
       capital_court: 40,
-      capital_city: 35,
-      provincial_seat: 20,
-      foreign_court: 5
-    });
+      capital_city: 30,
+      provincial_seat: 18,
+      foreign_court: 7,
+      monastery: 5
+    };
+  } else if (roleClass === "province_lord") {
+    weights = {
+      provincial_seat: 45,
+      rural_manor: 28,
+      frontier_burg: 15,
+      capital_court: 12
+    };
+  } else if (stratum === "slave_born" || stratum === "freedman") {
+    weights = {
+      street: 25,
+      military_camp: 20,
+      rural_manor: 20,
+      provincial_seat: 15,
+      merchant_quarter: 10,
+      frontier_burg: 10
+    };
+  } else {
+    weights = {
+      capital_city: 15,
+      provincial_seat: 25,
+      rural_manor: 25,
+      merchant_quarter: 15,
+      street: 10,
+      frontier_burg: 10
+    };
   }
-  if (roleClass === "province_lord") {
-    return pickWeighted({ provincial_seat: 50, rural_manor: 30, frontier_burg: 20 });
-  }
-  return pickWeighted({
-    capital_city: 15,
-    provincial_seat: 25,
-    rural_manor: 25,
-    merchant_quarter: 15,
-    street: 10,
-    frontier_burg: 10
-  });
+
+  applyFormRaisedInMultiplier(weights, formName);
+  return pickWeighted(weights);
 }
 
 // ---------------------------------------------------------------------------
 // Commitment
 // ---------------------------------------------------------------------------
 
-function commitmentWeights(roleClass: CharacterRoleClass, formName?: string): Partial<Record<CommitmentKind, number>> {
+function commitmentWeights(
+  roleClass: CharacterRoleClass,
+  formName?: string,
+  character?: Character
+): Partial<Record<CommitmentKind, number>> {
   const base: Partial<Record<CommitmentKind, number>> = (() => {
+    // Spymasters: personal loyalty, office secrecy, self-preservation (spec §4.5).
+    if (character && characterHasSpymasterOffice(character) && roleClass === "central_officer") {
+      return { liege: 25, office: 20, self: 20, state: 15, wealth: 10, house: 10 };
+    }
     switch (roleClass) {
       case "ruler":
         return { state: 30, house: 25, domain: 15, faith: 10, self: 10, ideology: 5, people: 5 };
@@ -264,7 +384,8 @@ function commitmentWeights(roleClass: CharacterRoleClass, formName?: string): Pa
       case "province_lord":
         return { domain: 30, house: 30, family: 15, state: 10, liege: 10, wealth: 5 };
       case "commander":
-        return { comrades: 25, liege: 20, craft: 15, state: 15, self: 10, house: 10, wealth: 5 };
+        // Marshals lean state/office slightly more than camp captains (craft/comrades).
+        return { comrades: 22, liege: 18, craft: 14, state: 18, office: 8, self: 8, house: 8, wealth: 4 };
       case "religious":
         return { faith: 45, office: 15, state: 10, people: 10, house: 10, craft: 10 };
       case "merchant":
@@ -287,10 +408,48 @@ function commitmentWeights(roleClass: CharacterRoleClass, formName?: string): Pa
   return base;
 }
 
+/**
+ * Birth vs office gap: commoners elevated to power chase self/wealth/office more than house glory.
+ * Freedmen / slave-born retain family & patron loyalty (spec §4.5).
+ */
+function applyStratumToCommitmentWeights(
+  weights: Partial<Record<CommitmentKind, number>>,
+  stratum: SocialStratum | undefined,
+  roleClass: CharacterRoleClass
+): Partial<Record<CommitmentKind, number>> {
+  const w = { ...weights };
+  if (!stratum) return w;
+
+  const elevatedOffice =
+    roleClass === "central_officer" ||
+    roleClass === "commander" ||
+    roleClass === "province_lord" ||
+    roleClass === "ruler";
+
+  if (isLowBirthStratum(stratum) && elevatedOffice) {
+    w.self = (w.self ?? 0) + 20;
+    w.wealth = (w.wealth ?? 0) + 15;
+    w.office = (w.office ?? 0) + 12;
+    w.house = Math.max(0, (w.house ?? 0) - 12);
+  }
+  if (stratum === "freedman" || stratum === "slave_born") {
+    w.family = (w.family ?? 0) + 18;
+    w.patron = (w.patron ?? 0) + 22;
+    w.self = (w.self ?? 0) + 12;
+    w.state = Math.max(0, (w.state ?? 0) - 5);
+  }
+  if (stratum === "merchant_born" && roleClass !== "merchant") {
+    w.wealth = (w.wealth ?? 0) + 10;
+    w.craft = (w.craft ?? 0) + 8;
+  }
+  return w;
+}
+
 function applyPersonalityToCommitmentWeights(
   weights: Partial<Record<CommitmentKind, number>>,
   character: Character,
-  roleClass: CharacterRoleClass
+  roleClass: CharacterRoleClass,
+  stratum?: SocialStratum
 ): Partial<Record<CommitmentKind, number>> {
   const p = character.personality;
   const w = { ...weights };
@@ -298,6 +457,10 @@ function applyPersonalityToCommitmentWeights(
   if (p.greed >= 80 && p.honor <= 40) {
     w.wealth = (w.wealth ?? 0) + 30;
     w.self = (w.self ?? 0) + 20;
+    // Territorial greed among landholders (domain hunger).
+    if (roleClass === "province_lord" || roleClass === "ruler") {
+      w.domain = (w.domain ?? 0) + 15;
+    }
   }
   if (p.compassion >= 80 && p.greed <= 40) {
     w.people = (w.people ?? 0) + 25;
@@ -310,11 +473,20 @@ function applyPersonalityToCommitmentWeights(
     w.craft = (w.craft ?? 0) + 15;
     w.self = (w.self ?? 0) + 10;
   }
+  // Pleasure-first lives: reachable hedonism axis (was a dead CommitmentKind).
+  if (p.piety <= 35 && p.energy >= 65 && p.honor <= 55 && (p.sociability >= 60 || p.boldness >= 65)) {
+    w.hedonism = (w.hedonism ?? 0) + 28;
+  }
   if (p.honor >= 85) {
     w.house = (w.house ?? 0) + 15;
-    // High honor → personal fealty for subjects; for sovereigns, loyalty means crown/realm/house.
+    // Personal fealty is a noble / subject-of-lord pattern; low-birth freemen less so.
     if (roleClass !== "ruler") {
-      w.liege = (w.liege ?? 0) + 15;
+      if (isNobleStratum(stratum) || roleClass === "commander" || roleClass === "central_officer") {
+        w.liege = (w.liege ?? 0) + 15;
+      } else {
+        w.family = (w.family ?? 0) + 10;
+        w.house = (w.house ?? 0) + 5;
+      }
     } else {
       w.state = (w.state ?? 0) + 10;
       w.house = (w.house ?? 0) + 5;
@@ -334,25 +506,43 @@ function pickConflictPolicy(character: Character): ConflictPolicy {
   return "primary_wins";
 }
 
-function buildCommitment(character: Character, roleClass: CharacterRoleClass, formName?: string): CharacterCommitment {
-  const weights = applyPersonalityToCommitmentWeights(commitmentWeights(roleClass, formName), character, roleClass);
+function buildCommitment(
+  character: Character,
+  roleClass: CharacterRoleClass,
+  formName?: string,
+  stratum?: SocialStratum
+): CharacterCommitment {
+  let weights = commitmentWeights(roleClass, formName, character);
+  weights = applyStratumToCommitmentWeights(weights, stratum, roleClass);
+  weights = applyPersonalityToCommitmentWeights(weights, character, roleClass, stratum);
   const primaryKind = pickWeighted(weights);
   const secondaryWeights = { ...weights };
   delete secondaryWeights[primaryKind];
-  const secondaryKind = Object.keys(secondaryWeights).length > 0 ? pickWeighted(secondaryWeights) : undefined;
+  // High vengefulness: force rivalry as secondary candidate when not primary (spec §4.6).
+  let secondaryKind: CommitmentKind | undefined;
+  if (
+    character.personality.vengefulness >= 85 &&
+    primaryKind !== "rivalry" &&
+    (secondaryWeights.rivalry ?? 0) > 0 &&
+    P(0.7)
+  ) {
+    secondaryKind = "rivalry";
+  } else {
+    secondaryKind = Object.keys(secondaryWeights).length > 0 ? pickWeighted(secondaryWeights) : undefined;
+  }
 
   const primary: CommitmentFocus = {
     kind: primaryKind,
     weight: 100,
     label: primaryKind === "state" ? `State ${character.state}` : undefined
   };
-  if (primaryKind === "state" || primaryKind === "liege") {
-    // liege target should eventually be a character id (suzerain); state is only a placeholder for state commitment
+  // state → stateId; liege is a person and must not reuse stateId as a fake suzerain.
+  if (primaryKind === "state") {
     primary.targetId = character.state;
   }
 
   let secondary: CommitmentFocus | undefined;
-  if (secondaryKind && P(0.75)) {
+  if (secondaryKind && (secondaryKind === "rivalry" || P(0.75))) {
     secondary = { kind: secondaryKind, weight: rand(30, 70) };
     if (secondaryKind === "state") secondary.targetId = character.state;
   }
@@ -428,21 +618,22 @@ export const TASTE_GOOD_MATCH: Readonly<Record<string, readonly string[]>> = {
   gossip: ["Perfume", "Wine", "Silk"]
 };
 
-/** Commoner-and-below strata: tavern vices (wine / lust / gambling) dominate leisure. */
+/**
+ * Street / commoner leisure culture (tavern). Foreigners are *not* included —
+ * origin abroad is not a class; use raisedIn=street instead.
+ */
 function isPopularVicesStratum(stratum?: SocialStratum): boolean {
-  return (
-    stratum === "commoner" ||
-    stratum === "freedman" ||
-    stratum === "slave_born" ||
-    stratum === "foreigner" ||
-    stratum === "unknown"
-  );
+  return stratum === "commoner" || stratum === "freedman" || stratum === "slave_born";
 }
 
 /**
- * Gender × rank multipliers for popular vices (design bias, not historical claim).
- * - Lower ranks: men lean hard into wine / lust / gambling; women less lust, almost no gambling, milder wine.
- * - Among nobles: men's wine & lust stronger the lower the rank; gambling fades as rank rises.
+ * Gender × rank multipliers for popular vices (historically flavoured priors).
+ *
+ * - Wine: both ranks drink; elite feast culture keeps wine high upstream.
+ * - Lust: double standard exists, but elite male mistress culture stays substantial;
+ *   women are damped, not erased.
+ * - Gambling: ruinous high-stakes play is an *elite* pattern; commoners play more
+ *   often at low stakes (lower intensity in the vice path).
  */
 function popularViceMultipliers(
   gender: Character["gender"],
@@ -451,27 +642,27 @@ function popularViceMultipliers(
   const female = gender === "female";
 
   if (isPopularVicesStratum(stratum)) {
-    return female ? { wine: 0.55, lust: 0.35, gambling: 0.08 } : { wine: 1.15, lust: 1.1, gambling: 1.15 };
+    return female ? { wine: 0.7, lust: 0.45, gambling: 0.4 } : { wine: 1.15, lust: 1.05, gambling: 0.85 };
   }
   if (stratum === "merchant_born" || stratum === "gentry") {
-    return female ? { wine: 0.5, lust: 0.3, gambling: 0.12 } : { wine: 1.0, lust: 0.95, gambling: 0.9 };
+    return female ? { wine: 0.65, lust: 0.4, gambling: 0.45 } : { wine: 1.05, lust: 0.95, gambling: 1.0 };
   }
   if (stratum === "minor_noble") {
-    // Lower nobility: men still drink and chase; dice less than commoners
-    return female ? { wine: 0.45, lust: 0.28, gambling: 0.1 } : { wine: 0.95, lust: 0.9, gambling: 0.45 };
+    return female ? { wine: 0.6, lust: 0.38, gambling: 0.5 } : { wine: 1.05, lust: 1.0, gambling: 1.05 };
   }
   if (stratum === "high_noble") {
-    return female ? { wine: 0.4, lust: 0.22, gambling: 0.06 } : { wine: 0.7, lust: 0.65, gambling: 0.22 };
+    return female ? { wine: 0.55, lust: 0.35, gambling: 0.55 } : { wine: 1.0, lust: 0.95, gambling: 1.1 };
   }
   if (stratum === "royal") {
-    return female ? { wine: 0.35, lust: 0.18, gambling: 0.04 } : { wine: 0.55, lust: 0.5, gambling: 0.12 };
+    return female ? { wine: 0.5, lust: 0.32, gambling: 0.45 } : { wine: 0.95, lust: 0.9, gambling: 0.95 };
   }
-  // clergy_orphan / unknown-ish fallback
-  return female ? { wine: 0.45, lust: 0.25, gambling: 0.1 } : { wine: 0.85, lust: 0.8, gambling: 0.7 };
+  // foreigner / clergy_orphan / unknown: moderate, not automatic street culture
+  return female ? { wine: 0.55, lust: 0.35, gambling: 0.4 } : { wine: 0.9, lust: 0.85, gambling: 0.85 };
 }
 
 function tryViceLike(
   likes: CharacterTaste[],
+  dislikes: CharacterTaste[],
   id: "wine" | "lust" | "gambling",
   baseChance: number,
   mult: number,
@@ -480,7 +671,7 @@ function tryViceLike(
 ): void {
   const chance = Math.min(0.92, Math.max(0, baseChance * mult));
   if (chance > 0 && P(chance)) {
-    pushTaste(likes, id, "like", rand(intensityLo, intensityHi));
+    pushTaste(likes, dislikes, id, "like", rand(intensityLo, intensityHi));
   }
 }
 
@@ -631,10 +822,14 @@ function corruptionLikeChance(
 /**
  * "Broken-precept" / worldly cleric (生臭坊主) — vocation is religious, but character
  * is driven by greed, hollow piety, spite, or low self-control rather than sincere zeal.
- * Design bias for flavor: high piety + low zeal is the classic "office faith" pattern;
- * greed/vengefulness/low honor make the hypocrisy obvious in tastes.
+ * Married households only count when the form pack expects Latin-style clerical celibacy;
+ * Orthodox / Islamic / horde religious offices must not treat marriage as hypocrisy.
  */
-export function isWorldlyClericProfile(character: Character, roleClass: CharacterRoleClass): boolean {
+export function isWorldlyClericProfile(
+  character: Character,
+  roleClass: CharacterRoleClass,
+  formName?: string
+): boolean {
   if (roleClass !== "religious") return false;
   const p = character.personality;
   // Outward devotion without fire
@@ -645,14 +840,26 @@ export function isWorldlyClericProfile(character: Character, roleClass: Characte
   const spitefulGreed = p.greed >= 80 || (p.greed >= 65 && p.vengefulness >= 70);
   // Impulsive, poorly governed appetites
   const recklessAppetites = p.rationality <= 35 && (p.greed >= 60 || p.boldness >= 70);
-  // Married clergy / large households often signal worldly life (when family already rolled)
+  // Celibacy cultures only: large clerical household as worldliness signal
   const worldlyHousehold =
-    (character.family?.spouses ?? 0) >= 1 && ((character.family?.children ?? 0) >= 3 || p.greed >= 65);
+    expectsClericalCelibacy(formName) &&
+    (character.family?.spouses ?? 0) >= 1 &&
+    ((character.family?.children ?? 0) >= 3 || p.greed >= 65);
   return hollowPiety || greedyOffice || spitefulGreed || recklessAppetites || worldlyHousehold;
 }
 
-function pushTaste(list: CharacterTaste[], id: string, polarity: TastePolarity, intensity: number): void {
-  if (list.some(t => t.id === id)) return;
+/**
+ * Push a taste only if the id is not already liked or disliked (spec §5.1).
+ */
+function pushTaste(
+  likes: CharacterTaste[],
+  dislikes: CharacterTaste[],
+  id: string,
+  polarity: TastePolarity,
+  intensity: number
+): void {
+  if (likes.some(t => t.id === id) || dislikes.some(t => t.id === id)) return;
+  const list = polarity === "like" ? likes : dislikes;
   list.push({ id, polarity, intensity: Math.max(1, Math.min(100, Math.round(intensity))) });
 }
 
@@ -660,7 +867,8 @@ function buildTastes(
   character: Character,
   roleClass: CharacterRoleClass,
   commitment?: CharacterCommitment,
-  origin?: CharacterOrigin
+  origin?: CharacterOrigin,
+  formName?: string
 ): CharacterTaste[] {
   const p = character.personality;
   const s = character.skills;
@@ -668,43 +876,48 @@ function buildTastes(
   const raisedIn = origin?.raisedIn;
   const likes: CharacterTaste[] = [];
   const dislikes: CharacterTaste[] = [];
+  // foreigner/unknown are not automatic tavern culture; street raisedIn still is.
   const popularVices = isPopularVicesStratum(stratum) || raisedIn === "street";
   const merchantBorn = stratum === "merchant_born";
   const female = character.gender === "female";
   const viceMul = popularViceMultipliers(character.gender, stratum);
   const gambleMul = viceMul.gambling * gamblingPersonalityMult(p, s);
-  // Street life amplifies tavern culture slightly (still gender-scaled)
   const streetBoost = raisedIn === "street" ? 1.15 : 1;
-  const worldlyCleric = isWorldlyClericProfile(character, roleClass);
-  // Sincere vocation: high piety + real zeal, without the worldly-cleric flags
+  const worldlyCleric = isWorldlyClericProfile(character, roleClass, formName);
   const sincereCleric = roleClass === "religious" && !worldlyCleric && p.piety >= 60 && p.zeal >= 55;
-  // Cautious calculator: high reason + low nerve → actively rejects gambling
   const gamblingAverse = p.rationality >= 75 && p.boldness <= 35 && p.energy <= 40;
+  const formPackId = getFormPack(formName).id;
+  const like = (id: string, intensity: number) => pushTaste(likes, dislikes, id, "like", intensity);
+  const dislike = (id: string, intensity: number) => pushTaste(likes, dislikes, id, "dislike", intensity);
+  const vice = (id: "wine" | "lust" | "gambling", baseChance: number, mult: number, lo: number, hi: number) => {
+    // Calculators with no appetite for variance never "like" dice (even tiny mult rolls).
+    if (id === "gambling" && gamblingAverse) return;
+    tryViceLike(likes, dislikes, id, baseChance, mult, lo, hi);
+  };
 
-  // Social style: men lean tavern company / banquets; women lean gossip / salon tea society
+  // Social style: men lean tavern company / banquets; women lean gossip / salon
   if (p.sociability >= 75) {
     if (female) {
-      pushTaste(likes, "gossip", "like", rand(60, 95));
-      if (P(0.75)) pushTaste(likes, "salon", "like", rand(55, 92));
-      if (P(0.3)) pushTaste(likes, "company", "like", rand(45, 80));
-      if (P(0.18)) pushTaste(likes, "feast", "like", rand(40, 75));
-      if (P(0.4)) pushTaste(likes, "music", "like", rand(45, 85));
-      tryViceLike(likes, "wine", 0.28, viceMul.wine, 40, 75);
+      like("gossip", rand(60, 95));
+      if (P(0.75)) like("salon", rand(55, 92));
+      if (P(0.3)) like("company", rand(45, 80));
+      if (P(0.18)) like("feast", rand(40, 75));
+      if (P(0.4)) like("music", rand(45, 85));
+      vice("wine", 0.28, viceMul.wine, 40, 75);
     } else {
-      pushTaste(likes, "company", "like", rand(60, 95));
-      tryViceLike(likes, "wine", 0.5, viceMul.wine, 50, 90);
-      if (P(0.45)) pushTaste(likes, "feast", "like", rand(50, 90));
-      if (P(0.25)) pushTaste(likes, "gossip", "like", rand(40, 75));
+      like("company", rand(60, 95));
+      vice("wine", 0.5, viceMul.wine, 50, 90);
+      if (P(0.45)) like("feast", rand(50, 90));
+      if (P(0.25)) like("gossip", rand(40, 75));
     }
-    pushTaste(dislikes, "solitude", "dislike", rand(40, 80));
+    dislike("solitude", rand(40, 80));
   } else if (p.sociability >= 55 && female) {
-    // Moderately social women still trade in salon talk more than banquets
-    if (P(0.55)) pushTaste(likes, "gossip", "like", rand(50, 88));
-    if (P(0.4)) pushTaste(likes, "salon", "like", rand(45, 85));
+    if (P(0.55)) like("gossip", rand(50, 88));
+    if (P(0.4)) like("salon", rand(45, 85));
   } else if (p.sociability <= 25) {
-    pushTaste(likes, "solitude", "like", rand(60, 95));
-    if (P(0.5)) pushTaste(likes, "books", "like", rand(50, 90));
-    pushTaste(dislikes, female && P(0.55) ? "salon" : "company", "dislike", rand(50, 90));
+    like("solitude", rand(60, 95));
+    if (P(0.5)) like("books", rand(50, 90));
+    dislike(female && P(0.55) ? "salon" : "company", rand(50, 90));
   }
 
   // Gossip: women and high-intrigue characters (courtiers, spies)
@@ -713,218 +926,229 @@ function buildTastes(
       (female ? 0.22 : 0.06) +
       (p.sociability >= 60 ? 0.12 : 0) +
       (s.intrigue >= 70 ? 0.35 : s.intrigue >= 55 ? 0.15 : 0) +
-      (roleClass === "central_officer" ? 0.1 : 0);
+      (roleClass === "central_officer" || characterHasSpymasterOffice(character) ? 0.12 : 0);
     if (P(Math.min(0.75, gossipChance))) {
-      pushTaste(likes, "gossip", "like", rand(45, 90));
+      like("gossip", rand(45, 90));
     }
   }
 
   if (p.greed >= 75) {
-    pushTaste(likes, "gold", "like", rand(70, 100));
-    if (P(0.5)) pushTaste(likes, "luxury", "like", rand(50, 90));
-    // Methodical greed → land/sure coin more than dice (gambleMul already damps cautious types)
+    like("gold", rand(70, 100));
+    if (P(0.5)) like("luxury", rand(50, 90));
     if (p.rationality >= 70 || skillsLikeSteward(s)) {
-      if (P(0.45)) pushTaste(likes, "land", "like", rand(50, 90));
+      if (P(0.45)) like("land", rand(50, 90));
     }
-    // Greedy gamblers need appetite for risk — not automatic with greed alone
-    tryViceLike(likes, "gambling", worldlyCleric ? 0.55 : 0.35, gambleMul, 50, 90);
+    // Elite high-stakes gambling intensity when risk appetite exists
+    const gLo = isNobleStratum(stratum) ? 55 : 40;
+    const gHi = isNobleStratum(stratum) ? 95 : 80;
+    vice("gambling", worldlyCleric ? 0.55 : 0.35, gambleMul, gLo, gHi);
   }
   if (p.piety >= 75) {
-    // Ceremony is useful for both sincere and worldly clergy (performance of office)
-    if (P(worldlyCleric ? 0.55 : 0.9)) {
-      pushTaste(likes, "ceremony", "like", rand(50, 90));
+    if (P(worldlyCleric ? 0.55 : formPackId === "theocracy" ? 0.95 : 0.9)) {
+      like("ceremony", rand(50, 90));
     }
     if (sincereCleric || (!worldlyCleric && P(0.85))) {
-      pushTaste(likes, "theology", "like", rand(60, 95));
+      like("theology", rand(60, 95));
     } else if (worldlyCleric && P(0.4)) {
-      // Some broken-precept clergy still enjoy argument / books of law more than doctrine
-      pushTaste(likes, "theology", "like", rand(40, 75));
+      like("theology", rand(40, 75));
     }
-    // Only sincere (or non-cleric devout) take the clean "anti-vice" package
     if (!worldlyCleric) {
-      if (P(0.5)) pushTaste(dislikes, "lust", "dislike", rand(40, 80));
-      if (P(0.45)) pushTaste(dislikes, "gambling", "dislike", rand(40, 80));
-      if (P(0.4)) pushTaste(dislikes, "corruption", "dislike", rand(50, 90));
+      if (P(0.5)) dislike("lust", rand(40, 80));
+      if (P(0.45)) dislike("gambling", rand(40, 80));
+      if (P(0.4)) dislike("corruption", rand(50, 90));
     }
   } else if (p.piety <= 25) {
-    tryViceLike(likes, "wine", 0.5, viceMul.wine, 50, 90);
-    if (P(0.3)) pushTaste(likes, "gold", "like", rand(50, 85));
+    vice("wine", 0.5, viceMul.wine, 50, 90);
+    if (P(0.3)) like("gold", rand(50, 85));
   }
 
-  // Worldly / broken-precept clergy: office + appetites (生臭坊主)
+  // Worldly / broken-precept clergy
   if (worldlyCleric) {
-    // Keep a fig leaf of vocation
-    if (P(0.7)) pushTaste(likes, "ceremony", "like", rand(45, 85));
-    if (P(0.35)) pushTaste(likes, "flattery", "like", rand(45, 85));
-    // Appetites the clean path blocked
-    tryViceLike(likes, "wine", 0.7, viceMul.wine * 1.05, 55, 95);
-    tryViceLike(likes, "lust", 0.55, viceMul.lust * 1.05, 50, 92);
-    tryViceLike(likes, "gambling", 0.5, gambleMul * 1.1, 50, 92);
-    if (p.greed >= 70 && P(0.65)) pushTaste(likes, "gold", "like", rand(70, 100));
-    if (p.greed >= 70 && P(0.45)) pushTaste(likes, "luxury", "like", rand(55, 92));
-    // Hypocrisy: may dislike genuine piety practice in others, or peasants who see through them
-    if (P(0.4)) pushTaste(dislikes, "piety_practice", "dislike", rand(40, 75));
-    if (p.vengefulness >= 70 && P(0.35)) pushTaste(dislikes, "mercy", "dislike", rand(40, 70));
+    if (P(0.7)) like("ceremony", rand(45, 85));
+    if (P(0.35)) like("flattery", rand(45, 85));
+    vice("wine", 0.7, viceMul.wine * 1.05, 55, 95);
+    vice("lust", 0.55, viceMul.lust * 1.05, 50, 92);
+    vice("gambling", 0.5, gambleMul * 1.1, 50, 92);
+    if (p.greed >= 70 && P(0.65)) like("gold", rand(70, 100));
+    if (p.greed >= 70 && P(0.45)) like("luxury", rand(55, 92));
+    if (P(0.4)) dislike("piety_practice", rand(40, 75));
+    if (p.vengefulness >= 70 && P(0.35)) dislike("mercy", rand(40, 70));
   }
 
-  // Corruption / open palm: distinct from loving gold. Rulers and officers with soft honor
-  // often enjoy receiving under-the-table money; clean high-honor types reject it.
+  // Corruption / open palm
   {
     const hasCorr = likes.some(t => t.id === "corruption") || dislikes.some(t => t.id === "corruption");
     if (!hasCorr) {
       const corrChance = corruptionLikeChance(character, roleClass, commitment, worldlyCleric);
       if (corrChance > 0 && P(corrChance)) {
-        pushTaste(likes, "corruption", "like", rand(50, 95));
+        like("corruption", rand(50, 95));
       } else if (p.honor >= 70 && P(0.35 + (p.honor - 70) / 120)) {
-        pushTaste(dislikes, "corruption", "dislike", rand(50, 90));
+        dislike("corruption", rand(50, 90));
       }
     }
   }
 
-  // Ceremony: parade & court pageant vs camp disdain for empty ritual
+  // Ceremony: parade & court pageant vs camp disdain
   {
     const parade = ceremonyParadeScore(character, roleClass, stratum, raisedIn);
+    let likeScore = parade.like;
+    let dislikeScore = parade.dislike;
+    if (formPackId === "theocracy") likeScore += 0.2;
+    if (formPackId === "horde") dislikeScore += 0.1;
     if (!likes.some(t => t.id === "ceremony") && !dislikes.some(t => t.id === "ceremony")) {
-      if (parade.like >= 0.4 && parade.like >= parade.dislike && P(Math.min(0.85, parade.like))) {
-        pushTaste(likes, "ceremony", "like", rand(50, 95));
-      } else if (parade.dislike >= 0.35 && P(Math.min(0.8, parade.dislike))) {
-        pushTaste(dislikes, "ceremony", "dislike", rand(45, 88));
+      if (likeScore >= 0.4 && likeScore >= dislikeScore && P(Math.min(0.85, likeScore))) {
+        like("ceremony", rand(50, 95));
+      } else if (dislikeScore >= 0.35 && P(Math.min(0.8, dislikeScore))) {
+        dislike("ceremony", rand(45, 88));
       }
     }
   }
 
-  // --- Popular vices: wine / lust / gambling (gender × rank) ---
-  // Design bias (not a historical study): lower-rank men → strong drink/sex/dice;
-  // lower-rank women → milder wine, less lust, almost no gambling;
-  // among noble men, wine & lust fall with rank and gambling drops faster upstream.
+  // --- Popular vices: wine / lust / gambling (historically flavoured rank gradient) ---
+  // Commoners: frequent low-stakes leisure. Elites: feast, mistress culture, high-stakes play.
   // Worldly clerics use the dedicated block above; sincere clergy skip tavern path.
   if (roleClass !== "religious" && p.piety < 80) {
     const pietyDamp = Math.max(0.55, 1 - p.piety / 200);
 
     if (popularVices) {
-      tryViceLike(likes, "wine", 0.78 * pietyDamp * streetBoost, viceMul.wine, 55, 95);
-      tryViceLike(likes, "lust", 0.62 * pietyDamp * streetBoost, viceMul.lust, 50, 92);
-      tryViceLike(likes, "gambling", 0.58 * pietyDamp * streetBoost, gambleMul, 50, 92);
+      vice("wine", 0.78 * pietyDamp * streetBoost, viceMul.wine, 50, 90);
+      vice("lust", 0.55 * pietyDamp * streetBoost, viceMul.lust, 45, 88);
+      // Low-stakes dice: slightly lower intensity than elite ruin
+      vice("gambling", 0.5 * pietyDamp * streetBoost, gambleMul, 35, 75);
     } else if (merchantBorn) {
-      tryViceLike(likes, "wine", 0.55 * pietyDamp, viceMul.wine, 50, 90);
-      tryViceLike(likes, "gambling", 0.45 * pietyDamp, gambleMul, 45, 88);
-      if (p.piety < 65) tryViceLike(likes, "lust", 0.35 * pietyDamp, viceMul.lust, 45, 85);
+      vice("wine", 0.55 * pietyDamp, viceMul.wine, 50, 90);
+      vice("gambling", 0.48 * pietyDamp, gambleMul, 45, 90);
+      if (p.piety < 65) vice("lust", 0.35 * pietyDamp, viceMul.lust, 45, 85);
     } else if (stratum === "gentry" || stratum === "minor_noble") {
-      // Minor nobility / gentry men: wine & lust still present; gambling softer than commoners
-      tryViceLike(likes, "wine", 0.5 * pietyDamp, viceMul.wine, 45, 88);
-      if (p.piety < 65) tryViceLike(likes, "lust", 0.38 * pietyDamp, viceMul.lust, 45, 88);
-      if (p.piety < 60) tryViceLike(likes, "gambling", 0.28 * pietyDamp, gambleMul, 40, 80);
+      vice("wine", 0.55 * pietyDamp, viceMul.wine, 50, 92);
+      if (p.piety < 65) vice("lust", 0.42 * pietyDamp, viceMul.lust, 45, 90);
+      if (p.piety < 60) vice("gambling", 0.45 * pietyDamp, gambleMul, 50, 92);
     } else if (stratum === "high_noble" || stratum === "royal") {
-      // Upstream: men drink/chase less than minor nobles; gambling rare
-      tryViceLike(likes, "wine", 0.38 * pietyDamp, viceMul.wine, 40, 82);
-      if (p.piety < 60) tryViceLike(likes, "lust", 0.28 * pietyDamp, viceMul.lust, 40, 80);
-      if (p.piety < 55) tryViceLike(likes, "gambling", 0.18 * pietyDamp, gambleMul, 35, 70);
+      // Court feast / high-stakes gaming — not ascetic by default
+      vice("wine", 0.52 * pietyDamp, viceMul.wine, 50, 95);
+      if (p.piety < 65) vice("lust", 0.4 * pietyDamp, viceMul.lust, 45, 92);
+      if (p.piety < 60 || p.greed >= 60) vice("gambling", 0.48 * pietyDamp, gambleMul, 55, 98);
     }
   }
 
-  // Extra lust path for secular / social / high-energy people (still gender-scaled)
-  if (p.piety < 70 && !likes.some(t => t.id === "lust")) {
+  // Extra lust path for secular / social / high-energy people
+  if (p.piety < 70 && !likes.some(t => t.id === "lust") && !dislikes.some(t => t.id === "lust")) {
     const lustChance =
       ((p.piety <= 30 ? 0.28 : 0) +
         (p.sociability >= 65 ? 0.16 : 0) +
         (p.energy >= 65 ? 0.1 : 0) +
         (p.boldness >= 70 ? 0.08 : 0) +
         (character.appearance >= 70 ? 0.08 : 0) +
-        (popularVices ? 0.12 : 0)) *
+        (popularVices ? 0.12 : 0) +
+        (isNobleStratum(stratum) && !female ? 0.08 : 0)) *
       viceMul.lust;
     if (P(Math.min(0.7, lustChance))) {
-      pushTaste(likes, "lust", "like", rand(45, 92));
+      like("lust", rand(45, 92));
     }
   }
-  // Hedonism-leaning commitment reinforces vices (gender still applies)
   if (commitment?.primary.kind === "hedonism" || commitment?.secondary?.kind === "hedonism") {
     if (p.piety < 75) {
-      tryViceLike(likes, "lust", 0.85, viceMul.lust, 55, 95);
-      tryViceLike(likes, "wine", 0.65, viceMul.wine, 50, 90);
-      tryViceLike(likes, "gambling", 0.55, gambleMul, 50, 90);
+      vice("lust", 0.85, viceMul.lust, 55, 95);
+      vice("wine", 0.65, viceMul.wine, 50, 90);
+      vice("gambling", 0.55, gambleMul, 50, 90);
     }
   }
 
   if (s.martial >= 75 || roleClass === "commander") {
-    pushTaste(likes, "sport", "like", rand(50, 90));
-    if (P(0.5)) pushTaste(likes, "hunting", "like", rand(50, 90));
-    if (P(0.4)) pushTaste(likes, "soldiers", "like", rand(50, 90));
-    // Camp life: drink and dice (male soldiers much more)
-    if (p.piety < 65) tryViceLike(likes, "wine", 0.45, viceMul.wine, 45, 85);
-    if (p.piety < 60) tryViceLike(likes, "gambling", 0.4, gambleMul, 45, 85);
-    // Low-prestige field officers: more likely to resent court ceremony (if not already set)
+    like("sport", rand(50, 90));
+    if (P(0.5)) like("hunting", rand(50, 90));
+    if (P(0.4)) like("soldiers", rand(50, 90));
+    if (p.piety < 65) vice("wine", 0.45, viceMul.wine, 45, 85);
+    if (p.piety < 60) vice("gambling", 0.4, gambleMul, 45, 85);
     if (
       (character.prestige ?? 50) < 45 &&
       !likes.some(t => t.id === "ceremony") &&
       !dislikes.some(t => t.id === "ceremony") &&
       P(0.55)
     ) {
-      pushTaste(dislikes, "ceremony", "dislike", rand(50, 88));
+      dislike("ceremony", rand(50, 88));
     }
   }
-  if (s.intrigue >= 75) {
+  if (s.intrigue >= 75 || characterHasSpymasterOffice(character)) {
     if (P(0.55) && !likes.some(t => t.id === "gossip")) {
-      pushTaste(likes, "gossip", "like", rand(55, 92));
+      like("gossip", rand(55, 92));
     }
-    if (P(0.4)) pushTaste(likes, "flattery", "like", rand(45, 85));
+    if (P(0.4)) like("flattery", rand(45, 85));
   }
   if (s.artistry >= 75) {
-    pushTaste(likes, "art", "like", rand(70, 100));
-    if (P(0.4)) pushTaste(likes, "music", "like", rand(50, 90));
+    like("art", rand(70, 100));
+    if (P(0.4)) like("music", rand(50, 90));
   }
   if (s.learning >= 75) {
-    pushTaste(likes, "books", "like", rand(60, 95));
+    like("books", rand(60, 95));
   }
   if (p.compassion >= 75) {
-    pushTaste(likes, "mercy", "like", rand(60, 95));
-    pushTaste(dislikes, "cruelty", "dislike", rand(50, 90));
+    like("mercy", rand(60, 95));
+    dislike("cruelty", rand(50, 90));
   } else if (p.compassion <= 25 && P(0.25)) {
-    pushTaste(likes, "cruelty", "like", rand(40, 80));
+    like("cruelty", rand(40, 80));
+  }
+
+  // RaisedIn flavour (spec §5.3)
+  if (raisedIn === "frontier_burg" || raisedIn === "military_camp") {
+    if (P(0.35)) like("hunting", rand(45, 85));
+    if (P(0.25)) like("soldiers", rand(45, 85));
+    if (P(0.2)) dislike("courtiers", rand(40, 75));
+  }
+  if (raisedIn === "capital_court") {
+    if (P(0.3)) like("flattery", rand(45, 85));
+    if (P(0.25)) like("luxury", rand(45, 85));
+    if (P(0.2)) like("art", rand(40, 80));
   }
 
   if (roleClass === "merchant") {
-    pushTaste(likes, "gold", "like", rand(70, 100));
-    if (P(0.4)) pushTaste(likes, "merchants", "like", rand(50, 85));
-    if (P(0.25)) pushTaste(dislikes, "soldiers", "dislike", rand(40, 75));
-    tryViceLike(likes, "wine", 0.42, viceMul.wine, 45, 85);
-    tryViceLike(likes, "gambling", 0.38, gambleMul, 45, 85);
+    like("gold", rand(70, 100));
+    if (P(0.4)) like("merchants", rand(50, 85));
+    // Armed traders / high martial are less likely to despise soldiers
+    if (s.martial < 55 && P(0.25)) dislike("soldiers", rand(40, 75));
+    vice("wine", 0.42, viceMul.wine, 45, 85);
+    vice("gambling", 0.4, gambleMul, 45, 90);
   }
   if (roleClass === "religious" && sincereCleric) {
-    pushTaste(likes, "theology", "like", rand(70, 100));
-    pushTaste(likes, "ceremony", "like", rand(50, 90));
-    // Sincere clerics lean against lust/gambling (wine often tolerated)
-    if (P(0.55) && !likes.some(t => t.id === "lust")) {
-      pushTaste(dislikes, "lust", "dislike", rand(45, 85));
-    }
-    if (P(0.5) && !likes.some(t => t.id === "gambling")) {
-      pushTaste(dislikes, "gambling", "dislike", rand(45, 85));
-    }
-    if (P(0.4) && !likes.some(t => t.id === "corruption")) {
-      pushTaste(dislikes, "corruption", "dislike", rand(45, 85));
-    }
+    like("theology", rand(70, 100));
+    like("ceremony", rand(50, 90));
+    if (P(0.55)) dislike("lust", rand(45, 85));
+    if (P(0.5)) dislike("gambling", rand(45, 85));
+    if (P(0.4)) dislike("corruption", rand(45, 85));
   }
-  if (roleClass === "central_officer" && s.martial < 40 && P(0.35)) {
-    pushTaste(dislikes, "war", "dislike", rand(40, 80));
+  // Pure civilian central officers (not spy / martial) may dislike war
+  if (roleClass === "central_officer" && s.martial < 40 && !characterHasSpymasterOffice(character) && P(0.35)) {
+    dislike("war", rand(40, 80));
   }
 
-  // High nobility: public image often rejects dice (and sometimes lust) when devout
-  // (skip for worldly clerics — they already have vice likes)
-  if (!worldlyCleric && (stratum === "royal" || stratum === "high_noble") && p.piety >= 50 && P(0.4)) {
-    if (!likes.some(t => t.id === "lust") && P(female ? 0.55 : 0.35)) {
-      pushTaste(dislikes, "lust", "dislike", rand(35, 70));
+  // Devout high nobility: public piety may reject dice/lust — only if not already liked
+  if (!worldlyCleric && (stratum === "royal" || stratum === "high_noble") && p.piety >= 70 && P(0.35)) {
+    if (!likes.some(t => t.id === "lust") && P(female ? 0.5 : 0.3)) {
+      dislike("lust", rand(35, 70));
     }
-    if (!likes.some(t => t.id === "gambling") && P(female ? 0.6 : 0.45)) {
-      pushTaste(dislikes, "gambling", "dislike", rand(35, 75));
+    if (!likes.some(t => t.id === "gambling") && P(female ? 0.45 : 0.3)) {
+      dislike("gambling", rand(35, 75));
     }
   }
 
-  // Cautious calculators actively dislike gambling (Turnorovo-type: greed + reason, no nerve)
   if (gamblingAverse && !likes.some(t => t.id === "gambling") && P(0.7)) {
-    pushTaste(dislikes, "gambling", "dislike", rand(45, 85));
+    dislike("gambling", rand(45, 85));
   }
 
-  // Pad to 2–4 likes and 1–3 dislikes with catalog fills
-  // Popular-vices strata / worldly clerics: when padding likes, bias toward wine/lust/gambling.
+  // --- Integrity guards (spec §8.2 G3 / G4) ---
+  if (roleClass === "merchant" && !likes.some(t => t.id === "gold") && !likes.some(t => t.id === "craft")) {
+    if (P(0.55)) like("gold", rand(60, 90));
+    else like("machinery", rand(50, 85)); // craft-adjacent when gold not forced
+  }
+  // G4: extreme sociability should not permanently dislike company/salon without dampening
+  if (p.sociability >= 90) {
+    const socialDislike = dislikes.find(t => t.id === "company" || t.id === "salon");
+    if (socialDislike && socialDislike.intensity > 40) {
+      socialDislike.intensity = Math.max(25, socialDislike.intensity - 25);
+    }
+  }
+
+  // Pad to 2–4 likes and 1–3 dislikes
   const canPadLustLike = (p.piety < 65 || worldlyCleric) && !sincereCleric && viceMul.lust >= 0.25;
   const canPadLustDislike = (p.piety >= 55 || sincereCleric) && !worldlyCleric;
   const canPadGamblingLike = (p.piety < 65 || worldlyCleric) && !sincereCleric && !gamblingAverse && gambleMul >= 0.12;
@@ -935,7 +1159,6 @@ function buildTastes(
     if (id === "wine" && viceMul.wine < 0.2) return false;
     return !likes.some(t => t.id === id) && !dislikes.some(t => t.id === id);
   });
-  // Weight pad picks by gender multipliers (women rarely pad into gambling)
   const weightedPadPick = (): string | null => {
     if (!popularPadPool.length) return null;
     const weights = popularPadPool.map(id => {
@@ -952,23 +1175,32 @@ function buildTastes(
     }
     return popularPadPool[popularPadPool.length - 1]!;
   };
-  // Female pad bias: salon / gossip / music over feast / company / gambling
   const femalePadPool = (["gossip", "salon", "music", "luxury", "art"] as const).filter(
     id => !likes.some(t => t.id === id) && !dislikes.some(t => t.id === id)
   );
+  // Role-conditioned pad pools reduce pure catalog noise
+  const rolePadPool: string[] = [];
+  if (roleClass === "commander") rolePadPool.push("sport", "hunting", "soldiers", "wine");
+  if (roleClass === "merchant") rolePadPool.push("gold", "luxury", "merchants", "wine");
+  if (roleClass === "religious") rolePadPool.push("theology", "ceremony", "books");
+  if (roleClass === "ruler" || roleClass === "province_lord")
+    rolePadPool.push("land", "titles_glory", "ceremony", "hunting");
+  if (formPackId === "theocracy") rolePadPool.push("theology", "ceremony", "piety_practice");
+  const filteredRolePad = rolePadPool.filter(id => !likes.some(t => t.id === id) && !dislikes.some(t => t.id === id));
+
   while (likes.length < 2) {
     let id: string | null = null;
     if (female && femalePadPool.length && P(0.55)) {
       id = femalePadPool[rand(0, femalePadPool.length - 1)]!;
-    } else if ((popularVices || worldlyCleric) && P(worldlyCleric ? 0.75 : 0.65)) {
+    } else if (filteredRolePad.length && P(0.45)) {
+      id = filteredRolePad[rand(0, filteredRolePad.length - 1)]!;
+    } else if ((popularVices || worldlyCleric) && P(worldlyCleric ? 0.75 : 0.55)) {
       id = weightedPadPick();
     }
     if (!id) id = TASTE_CATALOG[rand(0, TASTE_CATALOG.length - 1)]!;
     if (id === "lust" && !canPadLustLike) continue;
     if (id === "gambling" && !canPadGamblingLike) continue;
-    // Women rarely pad into rough company / heavy banquets
-    if (female && (id === "feast" || id === "company") && P(0.7)) continue;
-    // Worldly clerics / corrupt officers pad into gold/corruption rather than clean theology spam
+    if (female && (id === "feast" || id === "company") && P(0.55)) continue;
     if (
       (worldlyCleric || likes.some(t => t.id === "corruption")) &&
       id === "theology" &&
@@ -978,14 +1210,13 @@ function buildTastes(
       id = P(0.5) ? "gold" : "luxury";
     }
     if (!likes.some(t => t.id === id) && !dislikes.some(t => t.id === id)) {
-      pushTaste(likes, id, "like", rand(40, 75));
+      like(id, rand(40, 75));
     } else break;
   }
   while (dislikes.length < 1) {
     const id = TASTE_CATALOG[rand(0, TASTE_CATALOG.length - 1)]!;
     if (id === "lust" && !canPadLustDislike) continue;
     if (id === "gambling" && !canPadGamblingDislike) continue;
-    // Don't randomly make worldly lower-status men / worldly clerics / palm-open officers dislike their vices
     if (
       (popularVices || worldlyCleric || likes.some(t => t.id === "corruption")) &&
       (id === "wine" || id === "lust" || id === "gambling" || id === "corruption" || id === "gold") &&
@@ -994,11 +1225,10 @@ function buildTastes(
       continue;
     }
     if (!likes.some(t => t.id === id) && !dislikes.some(t => t.id === id)) {
-      pushTaste(dislikes, id, "dislike", rand(40, 75));
+      dislike(id, rand(40, 75));
     } else break;
   }
 
-  // Cap and sort each polarity by intensity (high → low) for UI/CSV consistency
   const sortByIntensity = (list: CharacterTaste[]) => list.sort((a, b) => b.intensity - a.intensity);
   return [...sortByIntensity(likes.slice(0, 4)), ...sortByIntensity(dislikes.slice(0, 3))];
 }
@@ -1027,15 +1257,18 @@ function buildOrigin(
 ): CharacterOrigin {
   const capital = options.capitalBurgId;
   const location = character.location;
-  const stratum = pickWeighted(stratumWeights(roleClass, options.formName));
+  const stratum = pickWeighted(stratumWeights(roleClass, options.formName, character));
   const estateStatus = estateForRole(roleClass, stratum);
   const hasCapital = capital !== undefined && capital > 0;
+  const packId = getFormPack(options.formName).id;
 
   let birthBurgId = options.birthBurgId;
   let homeBurgId = options.homeBurgId;
 
   if (roleClass === "ruler" && hasCapital) {
-    birthBurgId ??= P(0.8) ? capital : (location ?? capital);
+    // Dynastic capitals: high continuity; republics / hordes less "always capital birth".
+    const capitalBirthP = packId === "republic" ? 0.45 : packId === "horde" ? 0.35 : 0.8;
+    birthBurgId ??= P(capitalBirthP) ? capital : (location ?? capital);
     homeBurgId ??= capital;
   } else if (roleClass === "central_officer" && hasCapital) {
     birthBurgId ??= P(0.4) ? capital : (location ?? capital);
@@ -1051,8 +1284,13 @@ function buildOrigin(
     homeBurgId ??= location ?? capital;
   }
 
-  const raisedIn = raisedInFor(roleClass, stratum, hasCapital);
+  const raisedIn = raisedInFor(roleClass, stratum, hasCapital, options.formName);
   const birthStateId = character.birthStateId ?? character.state;
+
+  // Rulers of non-royal strata (doges, elective heads) are office-holders, not dynastic claimants by default.
+  const isDynasticClaimant =
+    stratum === "royal" ||
+    (roleClass === "ruler" && (stratum === "high_noble" || packId === "monarchy" || packId === "horde"));
 
   return {
     socialStratum: stratum,
@@ -1061,7 +1299,7 @@ function buildOrigin(
     birthStateId,
     homeBurgId: homeBurgId && homeBurgId > 0 ? homeBurgId : undefined,
     raisedIn,
-    isDynasticClaimant: roleClass === "ruler" || stratum === "royal",
+    isDynasticClaimant,
     religionId: options.religionId
   };
 }
@@ -1077,8 +1315,8 @@ export function applyCharacterBackstory(character: Character, options: ApplyBack
     options.roleClass ?? (options.isReligiousRole ? "religious" : undefined) ?? inferRoleClass(character);
 
   const origin = buildOrigin(character, options, roleClass);
-  const commitment = buildCommitment(character, roleClass, options.formName);
-  const tastes = buildTastes(character, roleClass, commitment, origin);
+  const commitment = buildCommitment(character, roleClass, options.formName, origin.socialStratum);
+  const tastes = buildTastes(character, roleClass, commitment, origin, options.formName);
 
   // Integrity: faith commitment with very low piety → boost piety slightly (G1 soft)
   if (commitment.primary.kind === "faith" && character.personality.piety < 20) {
@@ -1107,7 +1345,7 @@ export function applyCharacterBackstory(character: Character, options: ApplyBack
 function isMilitaryRole(character: Character): boolean {
   const cls = inferRoleClass(character);
   if (cls === "commander" || cls === "ruler") return true;
-  return character.titles.some(t => COMMANDER_TITLES.has(t.title) || /Marshal|War|General|Admiral/i.test(t.title));
+  return character.titles.some(t => isMartialCommandTitle(t.title) || /Marshal|War|General|Admiral/i.test(t.title));
 }
 
 function isCourtPowerPlayer(character: Character): boolean {
@@ -1182,11 +1420,11 @@ export function computeInitialSolidarity(from: Character, to: Character): number
       }
     }
 
-    // Marshal-like vs Spymaster-like office tension
+    // Marshal-like vs Spymaster-like office tension (chaplains are not spies)
     const fromTitles = from.titles.map(t => t.title);
     const toTitles = to.titles.map(t => t.title);
-    const martialOffice = (titles: string[]) => titles.some(t => /Marshal|War|Commander|Admiral/i.test(t));
-    const intrigueOffice = (titles: string[]) => titles.some(t => /Spy|Intelligence|Chaplain/i.test(t));
+    const martialOffice = (titles: string[]) => titles.some(t => /Marshal|War|Commander|Admiral|General/i.test(t));
+    const intrigueOffice = (titles: string[]) => titles.some(t => isSpymasterTitle(t));
     if (martialOffice(fromTitles) && intrigueOffice(toTitles)) score -= rand(8, 20);
     if (intrigueOffice(fromTitles) && martialOffice(toTitles)) score -= rand(5, 15);
   }

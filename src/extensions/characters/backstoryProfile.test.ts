@@ -8,12 +8,14 @@ import {
   getFavorBand,
   getSolidarity,
   getSolidarityBand,
+  inferRoleClass,
   isWorldlyClericProfile,
   offerGift,
   seedCharacterRelations,
   setSolidarity
 } from "./backstoryProfile";
 import type { Character } from "./characterTypes";
+import { expectsClericalCelibacy, getFormPack, resolveFormPackId } from "./cultureFormPacks";
 
 function baseCharacter(overrides: Partial<Character> & Pick<Character, "i" | "name">): Character {
   return {
@@ -101,7 +103,36 @@ describe("isWorldlyClericProfile", () => {
       },
       family: { spouses: 1, children: 9, grandchildren: 6, greatGrandchildren: 0 }
     });
+    // Default / monarchy packs expect Latin-style celibacy; household reinforces worldliness.
+    expect(isWorldlyClericProfile(cleric, "religious", "Monarchy")).toBe(true);
     expect(isWorldlyClericProfile(cleric, "religious")).toBe(true);
+  });
+
+  it("does not treat married clergy as worldly under non-celibacy forms when otherwise sincere", () => {
+    const marriedImam = baseCharacter({
+      i: 3,
+      name: "Married cleric",
+      titles: [{ title: "Imam", landed: false, entityType: "state", entityId: 1 }],
+      personality: {
+        boldness: 40,
+        compassion: 70,
+        greed: 30,
+        honor: 75,
+        rationality: 60,
+        sociability: 50,
+        vengefulness: 20,
+        zeal: 80,
+        energy: 50,
+        piety: 85,
+        guile: 30,
+        confidence: 55
+      },
+      family: { spouses: 1, children: 5, grandchildren: 0, greatGrandchildren: 0 }
+    });
+    expect(expectsClericalCelibacy("Horde")).toBe(false);
+    expect(isWorldlyClericProfile(marriedImam, "religious", "Horde")).toBe(false);
+    // Same household under Latin celibacy expectation is a worldliness signal
+    expect(isWorldlyClericProfile(marriedImam, "religious", "Monarchy")).toBe(true);
   });
 
   it("does not flag sincere low-greed high-zeal clergy", () => {
@@ -936,5 +967,154 @@ describe("offerGift", () => {
     });
     expect(result.newFavor).toBeDefined();
     expect(getFavor(beloved, suitor.i)).not.toBe(0);
+  });
+});
+
+describe("historical origin / role biases", () => {
+  it("classifies Marshal and General as commander, not generic central_officer", () => {
+    const marshal = baseCharacter({
+      i: 1,
+      name: "Marshal",
+      titles: [{ title: "Marshal", landed: false, entityType: "state", entityId: 1 }]
+    });
+    const general = baseCharacter({
+      i: 2,
+      name: "General",
+      titles: [{ title: "General", landed: false, entityType: "state", entityId: 1 }]
+    });
+    expect(inferRoleClass(marshal)).toBe("commander");
+    expect(inferRoleClass(general)).toBe("commander");
+  });
+
+  it("never assigns the same taste id as both like and dislike", () => {
+    for (let i = 0; i < 60; i++) {
+      const c = baseCharacter({
+        i: 1000 + i,
+        name: `TasteCheck${i}`,
+        gender: i % 2 === 0 ? "male" : "female",
+        personality: {
+          boldness: 30 + (i % 50),
+          compassion: 40,
+          greed: 40 + (i % 40),
+          honor: 40,
+          rationality: 40,
+          sociability: 20 + (i % 70),
+          vengefulness: 30,
+          zeal: 40,
+          energy: 40,
+          piety: 20 + (i % 70),
+          guile: 40,
+          confidence: 50
+        }
+      });
+      applyCharacterBackstory(c, { roleClass: "ordinary", formName: "Monarchy", capitalBurgId: 1 });
+      const likes = new Set(c.backstory!.tastes.filter(t => t.polarity === "like").map(t => t.id));
+      const dislikes = c.backstory!.tastes.filter(t => t.polarity === "dislike").map(t => t.id);
+      for (const id of dislikes) {
+        expect(likes.has(id)).toBe(false);
+      }
+    }
+  });
+
+  it("does not put stateId on liege commitment targets", () => {
+    let sawLiegeWithStateTarget = false;
+    for (let i = 0; i < 30; i++) {
+      const officer = baseCharacter({
+        i: 2000 + i,
+        name: `Officer${i}`,
+        state: 7,
+        titles: [{ title: "Chancellor", landed: false, entityType: "state", entityId: 7 }],
+        personality: {
+          boldness: 50,
+          compassion: 40,
+          greed: 30,
+          honor: 90,
+          rationality: 50,
+          sociability: 50,
+          vengefulness: 20,
+          zeal: 50,
+          energy: 50,
+          piety: 40,
+          guile: 30,
+          confidence: 60
+        }
+      });
+      applyCharacterBackstory(officer, { roleClass: "central_officer", formName: "Monarchy", capitalBurgId: 1 });
+      const { primary, secondary } = officer.backstory!.commitment;
+      if (primary.kind === "liege" && primary.targetId === 7) sawLiegeWithStateTarget = true;
+      if (secondary?.kind === "liege" && secondary.targetId === 7) sawLiegeWithStateTarget = true;
+    }
+    expect(sawLiegeWithStateTarget).toBe(false);
+  });
+
+  it("biases republic rulers away from blood-royal monopoly", () => {
+    let royal = 0;
+    let merchantOrGentry = 0;
+    for (let i = 0; i < 40; i++) {
+      const doge = baseCharacter({
+        i: 3000 + i,
+        name: `Doge${i}`,
+        titles: [{ title: "Doge", landed: true, entityType: "state", entityId: 1 }]
+      });
+      applyCharacterBackstory(doge, { roleClass: "ruler", formName: "Republic", capitalBurgId: 1 });
+      const s = doge.backstory!.origin.socialStratum;
+      if (s === "royal") royal++;
+      if (s === "merchant_born" || s === "gentry") merchantOrGentry++;
+    }
+    expect(resolveFormPackId("Republic")).toBe("republic");
+    expect(getFormPack("Republic").rulerStratumWeights).toBeDefined();
+    expect(merchantOrGentry).toBeGreaterThan(royal);
+    expect(royal).toBeLessThan(15);
+  });
+
+  it("raises horde rulers more often in camp/frontier than pure capital_court", () => {
+    let campOrFrontier = 0;
+    let capitalCourt = 0;
+    for (let i = 0; i < 40; i++) {
+      const khan = baseCharacter({
+        i: 4000 + i,
+        name: `Khan${i}`,
+        titles: [{ title: "Khan", landed: true, entityType: "state", entityId: 1 }]
+      });
+      applyCharacterBackstory(khan, { roleClass: "ruler", formName: "Horde", capitalBurgId: 1 });
+      const r = khan.backstory!.origin.raisedIn;
+      if (r === "military_camp" || r === "frontier_burg") campOrFrontier++;
+      if (r === "capital_court") capitalCourt++;
+    }
+    // Form raisedIn multiplier strongly boosts camp; capital_court still possible but not dominant.
+    expect(campOrFrontier + capitalCourt).toBeGreaterThan(10);
+    expect(campOrFrontier).toBeGreaterThan(5);
+  });
+
+  it("can roll slave_born under slavery-common forms for officers", () => {
+    let slaveOrFreed = 0;
+    for (let i = 0; i < 80; i++) {
+      const officer = baseCharacter({
+        i: 5000 + i,
+        name: `Imperial${i}`,
+        titles: [{ title: "Commander", landed: false, entityType: "state", entityId: 1 }]
+      });
+      applyCharacterBackstory(officer, { roleClass: "commander", formName: "Empire", capitalBurgId: 1 });
+      const s = officer.backstory!.origin.socialStratum;
+      if (s === "slave_born" || s === "freedman") slaveOrFreed++;
+    }
+    expect(slaveOrFreed).toBeGreaterThan(0);
+  });
+
+  it("biases spymaster origins toward commoner/foreigner/unknown more than pure high_noble courts", () => {
+    let blurred = 0;
+    let highNoble = 0;
+    for (let i = 0; i < 50; i++) {
+      const spy = baseCharacter({
+        i: 6000 + i,
+        name: `Spy${i}`,
+        titles: [{ title: "Spymaster", landed: false, entityType: "state", entityId: 1 }]
+      });
+      applyCharacterBackstory(spy, { roleClass: "central_officer", formName: "Monarchy", capitalBurgId: 1 });
+      const s = spy.backstory!.origin.socialStratum;
+      if (s === "commoner" || s === "foreigner" || s === "unknown" || s === "gentry") blurred++;
+      if (s === "high_noble") highNoble++;
+    }
+    expect(blurred).toBeGreaterThan(highNoble);
   });
 });

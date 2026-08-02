@@ -152,6 +152,9 @@ describe("evaluateDynasticMarriage", () => {
     const b = baseCharacter({ i: 2, name: "B", prestige: 40 });
     applyCharacterBackstory(a, { roleClass: "ruler", capitalBurgId: 1 });
     a.backstory!.commitment.primary = { kind: "house", weight: 100 };
+    // applyCharacterBackstory re-biases prestige by stratum; pin a large gap for the assertion.
+    a.prestige = 90;
+    b.prestige = 40;
 
     const result = evaluateDynasticMarriage(a, b);
     expect(result.accept).toBe(false);
