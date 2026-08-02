@@ -261,7 +261,8 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
     "mintLedgers",
     "militaryResourceLedgers",
     "tradeSecurityLedgers",
-    "guildChapters"
+    "guildChapters",
+    "individualSkills"
   ]) {
     assertOptionalArrayField(slice, field, "economy");
   }

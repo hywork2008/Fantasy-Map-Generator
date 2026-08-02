@@ -12,6 +12,7 @@ import {
 } from "../economyContext";
 import { getGuildBonus } from "./guildKnowledge";
 import { GuildSuccession } from "./guildSuccession";
+import { getIndividualSkill } from "./individualSkillMastery";
 
 const MASTER_ROLE_KIND = "guildMaster";
 const APPRENTICE_ROLE_KIND = "guildApprentice";
@@ -104,7 +105,7 @@ describe("GuildSuccessionModule", () => {
     expect(apprentices.length).toBeLessThanOrEqual(2);
   });
 
-  it("grows an apprentice's engineering skill based on the master's skill and the guild's stock", () => {
+  it("migrates practical blacksmithing from engineering and grows it through guild training", () => {
     const master: Character = {
       i: 1,
       name: "Master",
@@ -179,8 +180,10 @@ describe("GuildSuccessionModule", () => {
 
     GuildSuccession.settleAnnual();
 
-    // masterSkill(100)/100 * stock(1) * APPRENTICE_MAX_ANNUAL_GROWTH(6) = 6
-    expect(apprentice.skills.engineering).toBe(16);
+    const practicalSkill = getIndividualSkill(apprentice.i);
+    expect(practicalSkill?.proficiency).toBeGreaterThan(8);
+    // Engineering remains the broad technical trait; it is no longer mutated as craft practice.
+    expect(apprentice.skills.engineering).toBe(10);
   });
 
   it("promotes the apprentice to master when the master dies", () => {

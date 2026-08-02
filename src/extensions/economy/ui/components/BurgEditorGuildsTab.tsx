@@ -30,6 +30,7 @@ export const BurgEditorGuildsTab: FC = () => {
               <th scope="col">Bonus</th>
               <th scope="col">Treasury</th>
               <th scope="col">Master</th>
+              <th scope="col">Mastery</th>
               <th scope="col">Founded</th>
             </tr>
           </thead>
@@ -42,6 +43,15 @@ export const BurgEditorGuildsTab: FC = () => {
                 <td>{row.bonus.toFixed(3)}</td>
                 <td>{row.treasury.toFixed(2)}</td>
                 <td>{row.masterName ?? "—"}</td>
+                <td
+                  data-tip={
+                    row.masterTechniques.length
+                      ? `Personal techniques: ${row.masterTechniques.join(", ")}`
+                      : "Practical mastery and aptitude; personal techniques appear here when learned"
+                  }
+                >
+                  {row.masterProficiency === null ? "—" : `${row.masterProficiency.toFixed(1)} · ${row.masterAptitude}`}
+                </td>
                 <td>{row.foundedYear ?? "—"}</td>
               </tr>
             ))}

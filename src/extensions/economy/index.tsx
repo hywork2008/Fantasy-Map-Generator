@@ -42,6 +42,7 @@ import {
   setGoods,
   setGuildChapters,
   setGuildChaptersLastSettledYear,
+  setIndividualSkills,
   setMarketCellColumn,
   setMarkets
 } from "./economyContext";
@@ -720,8 +721,8 @@ function registerEconomyCommands(api: ExtensionAPI): void {
         FoodProduction.seedFoodLedgerBootstrap();
         Production.produce();
         Taxes.collectTaxes();
-        GuildChapters.seedAfterGenerate();
       }
+      if (value.target === "economy") GuildChapters.seedAfterGenerate();
       return { changed: true, result: { target: value.target } };
     }
   });
@@ -840,6 +841,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       StrategicProcurement.clear();
       setGuildChapters([]);
       setGuildChaptersLastSettledYear(null);
+      setIndividualSkills([]);
       return { changed: true };
     }
   });
@@ -1735,7 +1737,7 @@ export function init(api: ExtensionAPI): void {
       // Must run after GuildKnowledge above: reads this year's freshly-settled metallurgy
       // GuildKnowledgeStock for apprentice growth-rate/eligibility checks (docs/plan/
       // knowledge-guild-system.md §9 Phase 6). Self-gates to once per simulation year.
-      GuildSuccession.settleAnnual();
+      GuildSuccession.settleAnnual(probability => context.rng.P(probability));
       // Same ordering requirement as GuildKnowledge above: reads this year's freshly-reconciled
       // AdministrationEmploymentRecord headcount as the law/administration academy's practitioner
       // coverage (docs/plan/knowledge-guild-system.md §9 Phase 3). Self-gates to once per

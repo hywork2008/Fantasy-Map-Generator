@@ -2,6 +2,7 @@ import { getGuildChapters, getGuildKnowledgeStocks, getWorldContext } from "../e
 import type { BurgGuildListRow } from "../generators/guildChapterTypes";
 import { getGuildBonus } from "../generators/guildKnowledge";
 import { findMaster } from "../generators/guildSuccession";
+import { getIndividualSkill } from "../generators/individualSkillMastery";
 
 /** Returns formal halls and informal practitioner stocks for one Burg's editor tab. */
 export function listGuildsForBurg(burgId: number): BurgGuildListRow[] {
@@ -17,6 +18,7 @@ export function listGuildsForBurg(burgId: number): BurgGuildListRow[] {
       const stock = stockByDomain.get(domain);
       const chapter = chapterByDomain.get(domain);
       const master = findMaster(characters, burgId, domain);
+      const mastery = master && domain === "metallurgy" ? getIndividualSkill(master.i) : undefined;
       return {
         domain,
         status: chapter ? "chapter" : "informal",
@@ -26,7 +28,10 @@ export function listGuildsForBurg(burgId: number): BurgGuildListRow[] {
         suitability: chapter?.suitability ?? null,
         foundedYear: chapter?.foundedYear ?? null,
         masterCharacterId: master?.i ?? null,
-        masterName: master?.name ?? null
+        masterName: master?.name ?? null,
+        masterProficiency: mastery?.proficiency ?? null,
+        masterAptitude: mastery?.aptitude ?? null,
+        masterTechniques: mastery?.techniques ?? []
       };
     })
     .toSorted((a, b) => {

@@ -1,4 +1,5 @@
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
+import type { AptitudeTier, BlacksmithingTechnique } from "./individualSkillTypes";
 
 /** A formal, city-based guild hall. Technique stock remains an independent practitioner measure. */
 export interface GuildChapter {
@@ -23,4 +24,7 @@ export interface BurgGuildListRow {
   foundedYear: number | null;
   masterCharacterId: number | null;
   masterName: string | null;
+  masterProficiency: number | null;
+  masterAptitude: AptitudeTier | null;
+  masterTechniques: BlacksmithingTechnique[];
 }

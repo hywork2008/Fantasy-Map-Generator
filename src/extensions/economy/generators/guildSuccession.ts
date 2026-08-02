@@ -1,9 +1,9 @@
 import { applyCharacterBackstory, seedRelationsWithPeers } from "../../characters/backstoryProfile";
-import type { Character, CharacterRole, CharacterSkills } from "../../characters/characterTypes";
+import type { Character, CharacterRole } from "../../characters/characterTypes";
 import { finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { createPerson } from "../../characters/personFactory";
 import type { Burg } from "../../hostTypes";
-import { rand } from "../../hostUtils";
+import { P, rand } from "../../hostUtils";
 import {
   getGuildKnowledgeStocks,
   getGuildSuccessionLastSettledYear,
@@ -14,6 +14,15 @@ import {
 import { rollBalancedEconomyGender } from "./economyCharacterGender";
 import { applyMasterlessGuildPenalty } from "./guildKnowledge";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
+import {
+  discardIndividualSkills,
+  ensureBlacksmithingSkill,
+  growApprenticeBlacksmithing,
+  growMasterBlacksmithing,
+  inheritBlacksmithingTechniques,
+  settleBlacksmithingTechniques
+} from "./individualSkillMastery";
+import type { CharacterDomainSkill } from "./individualSkillTypes";
 
 /**
  * Master/apprentice succession for GuildKnowledgeStock (docs/plan/knowledge-guild-system.md §5,
@@ -35,16 +44,9 @@ const MASTER_ROLE_KIND = "guildMaster";
 const APPRENTICE_ROLE_KIND = "guildApprentice";
 const SUCCESSION_DOMAINS: readonly CraftKnowledgeDomain[] = ["metallurgy"];
 
-/** Which generic CharacterSkills field stands in for each craft domain's practical skill. */
-const DOMAIN_SKILL: Partial<Record<CraftKnowledgeDomain, keyof CharacterSkills>> = {
-  metallurgy: "engineering"
-};
-
 /** Skill level at which a master is established enough to start training an apprentice. */
 const MASTER_APPRENTICE_ELIGIBLE_SKILL = 40;
 const MAX_APPRENTICES_PER_MASTER = 2;
-/** Annual skill growth ceiling at stock=1 and masterSkill=100 — "master's skill × guild stock" (§5). */
-const APPRENTICE_MAX_ANNUAL_GROWTH = 6;
 const APPRENTICE_MIN_AGE = 12;
 const APPRENTICE_MAX_AGE = 17;
 
@@ -127,7 +129,9 @@ function createMaster(characters: Character[], burgId: number, domain: CraftKnow
   const { pack } = getWorldContext();
   const burg = pack.burgs[burgId] as Burg | undefined;
   const character = createPerson(getNextCharacterId(characters), resolveBurgCulture(burg), {
-    primarySkill: DOMAIN_SKILL[domain],
+    // Engineering is retained as a broad technical trait and seeds the initial
+    // blacksmithing record below; it is no longer the practical craft skill.
+    primarySkill: "engineering",
     roleClass: "ordinary",
     homeStateId: burg?.state ?? 0,
     genderOverride: rollBalancedEconomyGender(characters)
@@ -150,6 +154,7 @@ function createMaster(characters: Character[], burgId: number, domain: CraftKnow
     stateNames: {},
     currentYear: getSimulationYear()
   });
+  if (domain === "metallurgy") ensureBlacksmithingSkill(character, "master");
   return character;
 }
 
@@ -162,7 +167,7 @@ function createApprentice(
   const { pack } = getWorldContext();
   const burg = pack.burgs[burgId] as Burg | undefined;
   const character = createPerson(getNextCharacterId(characters), resolveBurgCulture(burg), {
-    primarySkill: DOMAIN_SKILL[domain],
+    primarySkill: "engineering",
     roleClass: "ordinary",
     ageOverride: rand(APPRENTICE_MIN_AGE, APPRENTICE_MAX_AGE),
     homeStateId: burg?.state ?? 0,
@@ -186,6 +191,7 @@ function createApprentice(
     stateNames: {},
     currentYear: getSimulationYear()
   });
+  if (domain === "metallurgy") ensureBlacksmithingSkill(character, "apprentice");
   return character;
 }
 
@@ -229,33 +235,45 @@ function handleMasterDeath(
   const successor = apprentices.find(apprentice => !apprentice.dead);
 
   if (successor) {
+    if (domain === "metallurgy") {
+      const masterSkill = ensureBlacksmithingSkill(master, "master");
+      const successorSkill = ensureBlacksmithingSkill(successor, "apprentice");
+      inheritBlacksmithingTechniques(masterSkill, successorSkill);
+    }
     promoteApprentice(successor, apprentices, burgId, domain, year);
   } else {
     applyMasterlessGuildPenalty(burgId, domain);
   }
+  if (domain === "metallurgy") discardIndividualSkills(master.i);
 }
 
 function growApprentices(
   characters: Character[],
   master: Character,
   burgId: number,
-  domain: CraftKnowledgeDomain
+  domain: CraftKnowledgeDomain,
+  chance: (probability: number) => boolean
 ): void {
-  const skillKey = DOMAIN_SKILL[domain];
-  if (!skillKey || master.dead) return;
+  if (domain !== "metallurgy" || master.dead) return;
 
   const apprentices = findApprentices(characters, master.i, burgId, domain);
-  if (!apprentices.length) return;
-
   const stock = getGuildKnowledgeStocks().find(entry => entry.burgId === burgId && entry.domain === domain)?.stock ?? 0;
-  const masterSkill = master.skills[skillKey];
+  const masterSkill = ensureBlacksmithingSkill(master, "master");
+  growMasterBlacksmithing(masterSkill, stock);
+
+  const apprenticeSkills: CharacterDomainSkill[] = [];
 
   for (const apprentice of apprentices) {
-    if (apprentice.dead) continue;
-    const growth = Math.round((masterSkill / 100) * stock * APPRENTICE_MAX_ANNUAL_GROWTH);
-    if (growth <= 0) continue;
-    apprentice.skills[skillKey] = Math.min(100, apprentice.skills[skillKey] + growth);
+    if (apprentice.dead) {
+      discardIndividualSkills(apprentice.i);
+      continue;
+    }
+    const apprenticeSkill = ensureBlacksmithingSkill(apprentice, "apprentice");
+    growApprenticeBlacksmithing(apprenticeSkill, masterSkill, stock);
+    apprenticeSkills.push(apprenticeSkill);
   }
+
+  settleBlacksmithingTechniques(masterSkill, apprenticeSkills, stock, chance);
 }
 
 function maybeSpawnApprentice(
@@ -264,9 +282,8 @@ function maybeSpawnApprentice(
   burgId: number,
   domain: CraftKnowledgeDomain
 ): void {
-  const skillKey = DOMAIN_SKILL[domain];
-  if (!skillKey || master.dead) return;
-  if (master.skills[skillKey] < MASTER_APPRENTICE_ELIGIBLE_SKILL) return;
+  if (domain !== "metallurgy" || master.dead) return;
+  if (ensureBlacksmithingSkill(master, "master").proficiency < MASTER_APPRENTICE_ELIGIBLE_SKILL) return;
 
   const apprenticeCount = findApprentices(characters, master.i, burgId, domain).length;
   if (apprenticeCount >= MAX_APPRENTICES_PER_MASTER) return;
@@ -278,7 +295,8 @@ function processGuildSuccession(
   characters: Character[],
   burgId: number,
   domain: CraftKnowledgeDomain,
-  year: number
+  year: number,
+  chance: (probability: number) => boolean
 ): void {
   let master = findMaster(characters, burgId, domain);
 
@@ -289,7 +307,7 @@ function processGuildSuccession(
 
   if (!master) master = createMaster(characters, burgId, domain);
 
-  growApprentices(characters, master, burgId, domain);
+  growApprentices(characters, master, burgId, domain, chance);
   maybeSpawnApprentice(characters, master, burgId, domain);
 }
 
@@ -299,7 +317,7 @@ export class GuildSuccessionModule {
    * settled this year's stock first, so this year's growth/eligibility checks read fresh values
    * (docs/plan/knowledge-guild-system.md §9 Phase 6).
    */
-  settleAnnual(): boolean {
+  settleAnnual(chance: (probability: number) => boolean = P): boolean {
     const year = getSimulationYear();
     if (getGuildSuccessionLastSettledYear() === year) return false;
     setGuildSuccessionLastSettledYear(year);
@@ -314,7 +332,7 @@ export class GuildSuccessionModule {
         .map(entry => entry.burgId);
 
       for (const burgId of burgIds) {
-        processGuildSuccession(characters, burgId, domain, year);
+        processGuildSuccession(characters, burgId, domain, year, chance);
       }
     }
 

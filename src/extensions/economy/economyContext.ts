@@ -18,6 +18,7 @@ import type { CraftEmploymentRecord } from "./generators/craftEmployment";
 import type { Good } from "./generators/goodsGeneratorTypes";
 import type { GuildChapter } from "./generators/guildChapterTypes";
 import type { CraftDomainEmploymentRecord, GuildKnowledgeStock } from "./generators/guildKnowledgeTypes";
+import type { CharacterDomainSkill } from "./generators/individualSkillTypes";
 import {
   type InnConstructionOrder,
   type InnFacility,
@@ -937,6 +938,14 @@ export function getGuildChapters(): GuildChapter[] {
 }
 export function setGuildChapters(chapters: readonly GuildChapter[]): void {
   setSliceArray("guildChapters", chapters);
+}
+
+/** Practical skills for the small set of Economy-owned master/apprentice characters. */
+export function getIndividualSkills(): CharacterDomainSkill[] {
+  return getSliceArray<CharacterDomainSkill>("individualSkills");
+}
+export function setIndividualSkills(skills: readonly CharacterDomainSkill[]): void {
+  setSliceArray("individualSkills", skills);
 }
 
 /** Burg-scoped academy/chancery technique stocks, one entry per (burgId, domain) (docs/plan/knowledge-guild-system.md §6, §9 Phase 3). */
