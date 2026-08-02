@@ -26,7 +26,7 @@ import {
 } from "./caravanMovement";
 import { ExportStaging } from "./exportStaging";
 import type { Good } from "./goods-generator";
-import { DEFAULT_MIN_SAIL_UTILIZATION, DEFAULT_TARGET_UTILIZATION, utilizationOf } from "./marketFlowBudget";
+import { utilizationOf } from "./marketFlowBudget";
 import type { Caravan, Deal, ExportStagingLot, Market, TradeRouteSegment } from "./marketTypes";
 import { MerchantTradeCapital } from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
@@ -36,6 +36,7 @@ import {
   getManifestCapacitySlots,
   getTransportAllocations
 } from "./tradeCargo";
+import { TradeLogisticsSettings } from "./tradeLogisticsSettings";
 import {
   getCaravanMaintenanceCost,
   getRouteMaxTemperatureC,
@@ -48,7 +49,7 @@ import {
   decideSailDeparture,
   maxWaitDaysForRoute,
   nextScheduledSailDay,
-  SCHEDULED_SAIL_DAYS
+  sailDecisionFromReason
 } from "./tradeSailSchedule";
 import { TradeSecurity } from "./tradeSecurity";
 
@@ -196,17 +197,23 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
   const planned = caravan.loading.plannedCapacitySlots;
   const util = utilizationOf(usedSlots, planned);
   const dayOfMonth = getSimulationDay();
-  caravan.loading.nextSailDay = nextScheduledSailDay(dayOfMonth);
+  const logistics = TradeLogisticsSettings.getOptions();
+  const sailDays = caravan.loading.sailScheduleDays?.length ? caravan.loading.sailScheduleDays : logistics.sailDays;
+  caravan.loading.nextSailDay = nextScheduledSailDay(dayOfMonth, sailDays);
+  caravan.loading.sailScheduleDays = [...sailDays];
 
-  const decision = decideSailDeparture({
+  const reason = decideSailDeparture({
     utilization: util,
     targetUtilization: caravan.loading.targetUtilization,
     minSailUtilization: caravan.loading.minSailUtilization,
     waitedDays: caravan.loading.waitedDays,
     maxWaitDays: caravan.loading.maxWaitDays,
     dayOfMonth,
+    sailDays,
     unitEpsilon: UNIT_EPSILON
   });
+  const decision = sailDecisionFromReason(reason);
+  caravan.departReason = reason === "waiting" ? "waiting" : reason;
 
   if (decision === "waiting") return "waiting";
   if (decision === "cancelled") {
@@ -694,6 +701,7 @@ export class CaravansModule {
         );
 
         const dayOfMonth = getSimulationDay();
+        const logistics = TradeLogisticsSettings.getOptions();
         const caravan: Caravan = {
           i: nextId++,
           seller: bundle.seller,
@@ -716,14 +724,20 @@ export class CaravansModule {
           currentDistance: 0,
           travelLegs,
           state: "loading",
+          departReason: "waiting",
           loading: {
             waitedDays: 0,
-            maxWaitDays: maxWaitDaysForRoute(routeSegments, distance),
-            targetUtilization: DEFAULT_TARGET_UTILIZATION,
-            minSailUtilization: DEFAULT_MIN_SAIL_UTILIZATION,
+            maxWaitDays: maxWaitDaysForRoute(routeSegments, distance, {
+              maxWaitDaysLand: logistics.maxWaitDaysLand,
+              maxWaitDaysSea: logistics.maxWaitDaysSea,
+              maxWaitDaysShortSea: logistics.maxWaitDaysShortSea,
+              shortSeaDistanceKm: logistics.shortSeaDistanceKm
+            }),
+            targetUtilization: logistics.targetUtilization,
+            minSailUtilization: logistics.minSailUtilization,
             plannedCapacitySlots,
-            sailScheduleDays: [...SCHEDULED_SAIL_DAYS],
-            nextSailDay: nextScheduledSailDay(dayOfMonth)
+            sailScheduleDays: [...logistics.sailDays],
+            nextSailDay: nextScheduledSailDay(dayOfMonth, logistics.sailDays)
           }
         };
         appendPayloadFromManifest(caravan, manifest);

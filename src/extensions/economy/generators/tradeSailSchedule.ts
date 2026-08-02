@@ -1,8 +1,8 @@
 /**
- * Commercial sail calendar and route-dependent loading waits (Phase E).
- * Pure helpers — no economyContext imports.
+ * Commercial sail calendar and route-dependent loading waits (Phase E / F).
+ * Pure helpers — no economyContext imports. Tunable defaults come from TradeLogisticsSettings.
  *
- * @see docs/plan/merchant-logistics-warehouses.md Phase E
+ * @see docs/plan/merchant-logistics-warehouses.md Phase E / F
  * @see docs/plan/drop-poor-trade.md step 2 schedule notes
  */
 
@@ -30,24 +30,32 @@ export {
   DEFAULT_TARGET_UTILIZATION
 };
 
-export function isScheduledSailDay(dayOfMonth: number): boolean {
+export type SailWaitOptions = {
+  maxWaitDaysLand?: number;
+  maxWaitDaysSea?: number;
+  maxWaitDaysShortSea?: number;
+  shortSeaDistanceKm?: number;
+};
+
+export function isScheduledSailDay(dayOfMonth: number, sailDays: readonly number[] = SCHEDULED_SAIL_DAYS): boolean {
   if (!Number.isFinite(dayOfMonth)) return false;
   const day = Math.floor(dayOfMonth);
-  return (SCHEDULED_SAIL_DAYS as readonly number[]).includes(day);
+  return sailDays.includes(day);
 }
 
-/** Next calendar sail day on or after `dayOfMonth` (wraps to 1 next month conceptually). */
-export function nextScheduledSailDay(dayOfMonth: number): number {
+/** Next calendar sail day on or after `dayOfMonth` (wraps to first sail day next month). */
+export function nextScheduledSailDay(dayOfMonth: number, sailDays: readonly number[] = SCHEDULED_SAIL_DAYS): number {
+  const days = sailDays.length ? [...sailDays].sort((a, b) => a - b) : [...SCHEDULED_SAIL_DAYS];
   const day = Math.max(1, Math.floor(dayOfMonth));
-  for (const sailDay of SCHEDULED_SAIL_DAYS) {
+  for (const sailDay of days) {
     if (sailDay >= day) return sailDay;
   }
-  return SCHEDULED_SAIL_DAYS[0];
+  return days[0];
 }
 
-export function daysUntilNextSailDay(dayOfMonth: number): number {
+export function daysUntilNextSailDay(dayOfMonth: number, sailDays: readonly number[] = SCHEDULED_SAIL_DAYS): number {
   const day = Math.max(1, Math.floor(dayOfMonth));
-  const next = nextScheduledSailDay(day);
+  const next = nextScheduledSailDay(day, sailDays);
   if (next >= day) return next - day;
   // Wrap: treat remaining days in a 30-day month approximation.
   return 30 - day + next;
@@ -63,22 +71,57 @@ export function routeHasLand(routeSegments: readonly TradeRouteSegment[]): boole
 
 /**
  * Loading wait before a thin shipment cancels or sails overdue.
- * Water-only short hops use a 1–2 day lake/coastal muster.
+ * Water-only short hops use a short lake/coastal muster.
  */
-export function maxWaitDaysForRoute(routeSegments: readonly TradeRouteSegment[], distanceKm: number): number {
+export function maxWaitDaysForRoute(
+  routeSegments: readonly TradeRouteSegment[],
+  distanceKm: number,
+  options: SailWaitOptions = {}
+): number {
   const water = routeHasWater(routeSegments);
   const land = routeHasLand(routeSegments);
-  if (water && !land && distanceKm > 0 && distanceKm <= SHORT_SEA_DISTANCE_KM) {
-    return DEFAULT_MAX_WAIT_DAYS_SHORT_SEA;
+  const shortKm = options.shortSeaDistanceKm ?? SHORT_SEA_DISTANCE_KM;
+  const shortWait = options.maxWaitDaysShortSea ?? DEFAULT_MAX_WAIT_DAYS_SHORT_SEA;
+  const seaWait = options.maxWaitDaysSea ?? DEFAULT_MAX_WAIT_DAYS_SEA;
+  const landWait = options.maxWaitDaysLand ?? DEFAULT_MAX_WAIT_DAYS_LAND;
+
+  if (water && !land && distanceKm > 0 && distanceKm <= shortKm) {
+    return shortWait;
   }
-  if (water) return DEFAULT_MAX_WAIT_DAYS_SEA;
-  return DEFAULT_MAX_WAIT_DAYS_LAND;
+  if (water) return seaWait;
+  return landWait;
 }
+
+/** Diagnostic sail / cancel reasons shown in Trade Details and Active Caravans. */
+export type SailDecisionReason = "depart-full" | "depart-schedule" | "depart-overdue" | "waiting" | "cancelled-thin";
 
 export type SailDecision = "depart" | "waiting" | "cancelled";
 
+export function sailDecisionFromReason(reason: SailDecisionReason): SailDecision {
+  if (reason.startsWith("depart-")) return "depart";
+  if (reason === "cancelled-thin") return "cancelled";
+  return "waiting";
+}
+
+export function formatSailDecisionReason(reason: SailDecisionReason | undefined): string {
+  switch (reason) {
+    case "depart-full":
+      return "Full hold";
+    case "depart-schedule":
+      return "Scheduled sail day";
+    case "depart-overdue":
+      return "Overdue (max wait)";
+    case "cancelled-thin":
+      return "Cancelled (under-filled)";
+    case "waiting":
+      return "Loading";
+    default:
+      return "—";
+  }
+}
+
 /**
- * Whether a loading shipment may leave now.
+ * Whether a loading shipment may leave now, with a diagnostic reason.
  * - Full enough: depart any day (charter when the hold is full).
  * - Min fill on a scheduled sail day: depart (regular service).
  * - Min fill after max wait: depart even off-schedule (overdue cargo).
@@ -91,16 +134,18 @@ export function decideSailDeparture(input: {
   waitedDays: number;
   maxWaitDays: number;
   dayOfMonth: number;
+  sailDays?: readonly number[];
   unitEpsilon?: number;
-}): SailDecision {
+}): SailDecisionReason {
   const eps = input.unitEpsilon ?? 0.000001;
   const fullEnough = input.utilization + eps >= input.targetUtilization;
   const minFill = input.utilization + eps >= input.minSailUtilization;
   const waitExpired = input.waitedDays + eps >= input.maxWaitDays;
-  const sailDay = isScheduledSailDay(input.dayOfMonth);
+  const sailDay = isScheduledSailDay(input.dayOfMonth, input.sailDays ?? SCHEDULED_SAIL_DAYS);
 
-  if (fullEnough) return "depart";
-  if (minFill && (sailDay || waitExpired)) return "depart";
-  if (waitExpired && !minFill) return "cancelled";
+  if (fullEnough) return "depart-full";
+  if (minFill && sailDay) return "depart-schedule";
+  if (minFill && waitExpired) return "depart-overdue";
+  if (waitExpired && !minFill) return "cancelled-thin";
   return "waiting";
 }

@@ -296,4 +296,9 @@ export interface Caravan {
   state: "loading" | "transit" | "arrived" | "lost";
   /** Present while state === "loading". */
   loading?: CaravanLoadingState;
+  /**
+   * Why this shipment left (or was cancelled). Set when leaving loading / cancel-thin.
+   * Values: depart-full | depart-schedule | depart-overdue | cancelled-thin
+   */
+  departReason?: "depart-full" | "depart-schedule" | "depart-overdue" | "cancelled-thin" | "waiting";
 }

@@ -9,6 +9,12 @@ import { getCaravanTravelTime } from "../../generators/caravans";
 import { Goods } from "../../generators/goods-generator";
 import type { Caravan } from "../../generators/marketTypes";
 import { TradeAnimation } from "../../generators/trade-animation";
+import {
+  DEFAULT_TRADE_LOGISTICS_SETTINGS,
+  TradeLogisticsSettings,
+  type TradeLogisticsSettings as TradeLogisticsSettingsType
+} from "../../generators/tradeLogisticsSettings";
+import { formatSailDecisionReason } from "../../generators/tradeSailSchedule";
 
 export const TradeAnimationDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("tradeAnimationEditor"));
@@ -82,7 +88,8 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
 
   React.useEffect(() => {
     const update = () => {
-      setCaravans(getCaravans().filter(c => c.state === "transit"));
+      // Include loading shipments so players can inspect accumulation and sail reasons.
+      setCaravans(getCaravans().filter(c => c.state === "transit" || c.state === "loading"));
     };
     update();
     const intervalId = setInterval(update, 500);
@@ -126,8 +133,16 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
       } else if (c.payload && c.payload.length > 1) {
         goodName = `Mixed (${c.payload.length})`;
       }
-      const progress = c.totalDistance > 0 ? (c.currentDistance / c.totalDistance) * 100 : 0;
-      const travelTime = getCaravanTravelTime(c);
+      const progress =
+        c.state === "loading" && c.loading
+          ? (() => {
+              const used = (c.payload ?? []).reduce((sum, item) => sum + item.units * (item.cargoSlotsPerUnit ?? 1), 0);
+              return c.loading.plannedCapacitySlots > 0 ? (used / c.loading.plannedCapacitySlots) * 100 : 0;
+            })()
+          : c.totalDistance > 0
+            ? (c.currentDistance / c.totalDistance) * 100
+            : 0;
+      const travelTime = c.state === "transit" ? getCaravanTravelTime(c) : null;
 
       let landDistance = 0;
       let seaDistance = 0;
@@ -149,6 +164,9 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
 
       return {
         i: c.i,
+        state: c.state,
+        statusLabel: c.state === "loading" ? "Loading" : "In transit",
+        reasonLabel: formatSailDecisionReason(c.departReason),
         goodName,
         sourceBurgName,
         targetBurgName,
@@ -185,6 +203,22 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
         <table className="fmg-table">
           <thead>
             <tr className="header">
+              <SortableHeader
+                field="statusLabel"
+                label="Status"
+                tip="Loading = accumulating at origin; In transit = on the route"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+              />
+              <SortableHeader
+                field="reasonLabel"
+                label="Sail reason"
+                tip="Why the shipment is waiting, left, or was cancelled"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+              />
               <SortableHeader field="goodName" label="Good" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
               <SortableHeader
                 field="sourceBurgName"
@@ -209,33 +243,9 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
                 numeric
               />
               <SortableHeader
-                field="landDistance"
-                label="Land"
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                onSort={handleSort}
-                numeric
-              />
-              <SortableHeader
-                field="seaDistance"
-                label="Sea"
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                onSort={handleSort}
-                numeric
-              />
-              <SortableHeader
-                field="transferCount"
-                label="Transfers"
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                onSort={handleSort}
-                numeric
-              />
-              <SortableHeader
                 field="progress"
                 label="Progress"
-                tip="Distance travelled as a share of the route. It can differ from the time-based ETA because terrain and travel speeds vary by route segment."
+                tip="In transit: route progress. Loading: hold fill percent."
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={handleSort}
@@ -244,7 +254,7 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
               <SortableHeader
                 field="remainingDays"
                 label="ETA"
-                tip="Estimated days remaining / total journey duration"
+                tip="Estimated days remaining / total journey duration (transit only)"
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={handleSort}
@@ -271,7 +281,7 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
           {sortedRows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={11}>No active trade caravans</td>
+                <td colSpan={10}>No loading or in-transit caravans</td>
               </tr>
             </tbody>
           ) : (
@@ -292,13 +302,12 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
                     }
                   }}
                 >
+                  <td>{row.statusLabel}</td>
+                  <td>{row.reasonLabel}</td>
                   <td>{row.goodName}</td>
                   <td>{row.sourceBurgName}</td>
                   <td>{row.targetBurgName}</td>
                   <td style={{ textAlign: "right" }}>{`${row.distance} ${distanceUnit}`}</td>
-                  <td style={{ textAlign: "right" }}>{`${row.landDistance} ${distanceUnit}`}</td>
-                  <td style={{ textAlign: "right" }}>{`${row.seaDistance} ${distanceUnit}`}</td>
-                  <td style={{ textAlign: "right" }}>{row.transferCount}</td>
                   <td style={{ textAlign: "right" }}>{`${row.progress.toFixed(0)}%`}</td>
                   <td style={{ textAlign: "right" }}>
                     {Number.isFinite(row.remainingDays) ? `${row.remainingDays} / ${row.totalDays} days` : "—"}
@@ -312,7 +321,10 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
         </table>
       </div>
       <div className="totalLine">
-        <div>Active Caravans: {sortedRows.length}</div>
+        <div>
+          Shipments: {sortedRows.length} ({sortedRows.filter(row => row.state === "loading").length} loading /{" "}
+          {sortedRows.filter(row => row.state === "transit").length} in transit)
+        </div>
       </div>
     </div>
   );
@@ -369,7 +381,141 @@ const SettingsTab: React.FC = () => {
         />
       </div>
 
+      <LogisticsSettingsSection />
       <MovementSettingsSection />
+    </div>
+  );
+};
+
+const LogisticsSettingsSection: React.FC = () => {
+  const [logistics, setLogistics] = React.useState<TradeLogisticsSettingsType>(() => ({
+    ...TradeLogisticsSettings.getOptions(),
+    sailDays: [...TradeLogisticsSettings.getOptions().sailDays]
+  }));
+  const [sailDaysText, setSailDaysText] = React.useState(() => logistics.sailDays.join(", "));
+
+  const update = (partial: Partial<TradeLogisticsSettingsType>) => {
+    TradeLogisticsSettings.configure(partial);
+    const next = TradeLogisticsSettings.getOptions();
+    setLogistics({ ...next, sailDays: [...next.sailDays] });
+    if (partial.sailDays) setSailDaysText(next.sailDays.join(", "));
+  };
+
+  return (
+    <div
+      id="tradeLogisticsSettings"
+      style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid #555" }}
+    >
+      <div style={{ fontWeight: "bold", marginBottom: "0.25rem" }}>Logistics (loading &amp; sail)</div>
+
+      <div data-tip="Hold fill share that lets a shipment leave without waiting for the calendar">
+        <label htmlFor="logisticsTargetUtil">Target fill %:</label>
+        <SliderInput
+          id="logisticsTargetUtil"
+          min="20"
+          max="100"
+          step="1"
+          value={Math.round(logistics.targetUtilization * 100)}
+          onChange={value => update({ targetUtilization: Number(value) / 100 })}
+        />
+      </div>
+
+      <div data-tip="Minimum fill before a scheduled or overdue sail is allowed">
+        <label htmlFor="logisticsMinUtil">Min sail fill %:</label>
+        <SliderInput
+          id="logisticsMinUtil"
+          min="5"
+          max="100"
+          step="1"
+          value={Math.round(logistics.minSailUtilization * 100)}
+          onChange={value => update({ minSailUtilization: Number(value) / 100 })}
+        />
+      </div>
+
+      <div data-tip="Days a land caravan may wait before overdue sail or cancel">
+        <label htmlFor="logisticsWaitLand">Max wait land (days):</label>
+        <SliderInput
+          id="logisticsWaitLand"
+          min="1"
+          max="40"
+          step="1"
+          value={logistics.maxWaitDaysLand}
+          onChange={value => update({ maxWaitDaysLand: Number(value) })}
+        />
+      </div>
+
+      <div data-tip="Days a sea/river shipment may wait before overdue sail or cancel">
+        <label htmlFor="logisticsWaitSea">Max wait sea (days):</label>
+        <SliderInput
+          id="logisticsWaitSea"
+          min="1"
+          max="40"
+          step="1"
+          value={logistics.maxWaitDaysSea}
+          onChange={value => update({ maxWaitDaysSea: Number(value) })}
+        />
+      </div>
+
+      <div data-tip="Short water-only hops (lakes / coasts) use this shorter muster">
+        <label htmlFor="logisticsWaitShortSea">Max wait short sea (days):</label>
+        <SliderInput
+          id="logisticsWaitShortSea"
+          min="1"
+          max="14"
+          step="1"
+          value={logistics.maxWaitDaysShortSea}
+          onChange={value => update({ maxWaitDaysShortSea: Number(value) })}
+        />
+      </div>
+
+      <div data-tip="Water-only routes at or under this distance use the short-sea wait">
+        <label htmlFor="logisticsShortSeaKm">Short sea distance (km):</label>
+        <SliderInput
+          id="logisticsShortSeaKm"
+          min="20"
+          max="300"
+          step="5"
+          value={logistics.shortSeaDistanceKm}
+          onChange={value => update({ shortSeaDistanceKm: Number(value) })}
+        />
+      </div>
+
+      <div data-tip="Comma-separated calendar days of the month for regular sailings (1–28)">
+        <label htmlFor="logisticsSailDays">Sail days of month:</label>
+        <input
+          id="logisticsSailDays"
+          type="text"
+          value={sailDaysText}
+          onChange={e => setSailDaysText(e.target.value)}
+          onBlur={() => {
+            const days = sailDaysText
+              .split(/[,\s]+/)
+              .map(part => Number(part))
+              .filter(day => Number.isFinite(day));
+            update({ sailDays: days });
+            setSailDaysText(TradeLogisticsSettings.getOptions().sailDays.join(", "));
+          }}
+          style={{ width: "8em", marginLeft: "0.4em" }}
+        />
+      </div>
+
+      <button
+        type="button"
+        data-tip="Restore default fill targets, waits, and sail calendar"
+        onClick={() => {
+          TradeLogisticsSettings.reset();
+          const next = TradeLogisticsSettings.getOptions();
+          setLogistics({ ...next, sailDays: [...next.sailDays] });
+          setSailDaysText(next.sailDays.join(", "));
+        }}
+      >
+        Reset logistics defaults
+      </button>
+      <div style={{ opacity: 0.75, fontSize: "0.9em", marginTop: "0.35rem" }}>
+        Defaults: target {Math.round(DEFAULT_TRADE_LOGISTICS_SETTINGS.targetUtilization * 100)}% · min{" "}
+        {Math.round(DEFAULT_TRADE_LOGISTICS_SETTINGS.minSailUtilization * 100)}% · sail days{" "}
+        {DEFAULT_TRADE_LOGISTICS_SETTINGS.sailDays.join("/")}
+      </div>
     </div>
   );
 };

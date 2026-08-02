@@ -6,11 +6,13 @@ import {
   DEFAULT_MAX_WAIT_DAYS_SHORT_SEA,
   daysUntilNextSailDay,
   decideSailDeparture,
+  formatSailDecisionReason,
   isScheduledSailDay,
   maxWaitDaysForRoute,
   nextScheduledSailDay,
   SCHEDULED_SAIL_DAYS,
-  SHORT_SEA_DISTANCE_KM
+  SHORT_SEA_DISTANCE_KM,
+  sailDecisionFromReason
 } from "./tradeSailSchedule";
 
 const LAND: TradeRouteSegment[] = [
@@ -55,6 +57,7 @@ describe("trade sail schedule", () => {
     }
     expect(isScheduledSailDay(5)).toBe(false);
     expect(isScheduledSailDay(15)).toBe(false);
+    expect(isScheduledSailDay(5, [5, 15])).toBe(true);
   });
 
   it("finds the next sail day and days until it", () => {
@@ -67,14 +70,20 @@ describe("trade sail schedule", () => {
     expect(daysUntilNextSailDay(25)).toBe(6); // 30-day wrap approximation
   });
 
-  it("uses short wait for water-only short hops", () => {
+  it("uses short wait for water-only short hops and honors overrides", () => {
     expect(maxWaitDaysForRoute(SEA, SHORT_SEA_DISTANCE_KM)).toBe(DEFAULT_MAX_WAIT_DAYS_SHORT_SEA);
     expect(maxWaitDaysForRoute(SEA, SHORT_SEA_DISTANCE_KM + 1)).toBe(DEFAULT_MAX_WAIT_DAYS_SEA);
     expect(maxWaitDaysForRoute(LAND, 50)).toBe(DEFAULT_MAX_WAIT_DAYS_LAND);
     expect(maxWaitDaysForRoute(MIXED, 50)).toBe(DEFAULT_MAX_WAIT_DAYS_SEA);
+    expect(
+      maxWaitDaysForRoute(SEA, 50, {
+        maxWaitDaysShortSea: 3,
+        shortSeaDistanceKm: 80
+      })
+    ).toBe(3);
   });
 
-  it("departs when full regardless of calendar day", () => {
+  it("returns diagnostic depart reasons", () => {
     expect(
       decideSailDeparture({
         utilization: 0.6,
@@ -84,10 +93,8 @@ describe("trade sail schedule", () => {
         maxWaitDays: 10,
         dayOfMonth: 5
       })
-    ).toBe("depart");
-  });
+    ).toBe("depart-full");
 
-  it("departs thin-but-viable cargo on sail days or when overdue", () => {
     expect(
       decideSailDeparture({
         utilization: 0.25,
@@ -97,7 +104,29 @@ describe("trade sail schedule", () => {
         maxWaitDays: 10,
         dayOfMonth: 10
       })
-    ).toBe("depart");
+    ).toBe("depart-schedule");
+
+    expect(
+      decideSailDeparture({
+        utilization: 0.25,
+        targetUtilization: 0.55,
+        minSailUtilization: 0.2,
+        waitedDays: 10,
+        maxWaitDays: 10,
+        dayOfMonth: 5
+      })
+    ).toBe("depart-overdue");
+
+    expect(
+      decideSailDeparture({
+        utilization: 0.05,
+        targetUtilization: 0.55,
+        minSailUtilization: 0.2,
+        waitedDays: 14,
+        maxWaitDays: 14,
+        dayOfMonth: 1
+      })
+    ).toBe("cancelled-thin");
 
     expect(
       decideSailDeparture({
@@ -109,29 +138,12 @@ describe("trade sail schedule", () => {
         dayOfMonth: 5
       })
     ).toBe("waiting");
-
-    expect(
-      decideSailDeparture({
-        utilization: 0.25,
-        targetUtilization: 0.55,
-        minSailUtilization: 0.2,
-        waitedDays: 10,
-        maxWaitDays: 10,
-        dayOfMonth: 5
-      })
-    ).toBe("depart");
   });
 
-  it("cancels after max wait when utilization stays below the min sail floor", () => {
-    expect(
-      decideSailDeparture({
-        utilization: 0.05,
-        targetUtilization: 0.55,
-        minSailUtilization: 0.2,
-        waitedDays: 14,
-        maxWaitDays: 14,
-        dayOfMonth: 1
-      })
-    ).toBe("cancelled");
+  it("maps reasons to decisions and human labels", () => {
+    expect(sailDecisionFromReason("depart-full")).toBe("depart");
+    expect(sailDecisionFromReason("cancelled-thin")).toBe("cancelled");
+    expect(sailDecisionFromReason("waiting")).toBe("waiting");
+    expect(formatSailDecisionReason("depart-schedule")).toBe("Scheduled sail day");
   });
 });

@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :-- | :-- |
-| Status | Phases A–E implemented |
+| Status | Phases A–F implemented |
 | 前提 | [market-goods-flow-budget.md](market-goods-flow-budget.md), [drop-poor-trade.md](drop-poor-trade.md), [trade-cargo-capacity-and-diversity.md](trade-cargo-capacity-and-diversity.md), [merchant-transport-asset-ledger.md](merchant-transport-asset-ledger.md) |
 
 ## Problem
@@ -31,7 +31,7 @@ Many caravans sail at ~1% hold utilization. Causes:
 - **C** Export staging warehouse — done (`exportStaging.ts`; `runGlobalTrade` books lots; caravans load from lots; survives deal wipes)
 - **D** Soft trade working capital — done (`merchantTradeCapital.ts`; lock on book; unlock/profit on arrive; write-off on loss; inherited warehouse seed at first production)
 - **E** Schedule, org ownership, short-sea wait, Market Overview logistics panel — done (`tradeSailSchedule.ts`)
-- **F** Optional further diagnostics / player tuning (remaining)
+- **F** Player tuning + diagnostics — done (`tradeLogisticsSettings.ts`; Trade Animation logistics sliders; Active Caravans show loading + sail reason; `departReason` on caravans)
 
 ## Defaults
 

@@ -21,7 +21,7 @@ import { Markets } from "../generators/markets-generator";
 import type { TransportAssetOrder } from "../generators/marketTypes";
 import { MerchantTradeCapital } from "../generators/merchantTradeCapital";
 import { MerchantTransportAssets } from "../generators/merchantTransportAssets";
-import { SCHEDULED_SAIL_DAYS } from "../generators/tradeSailSchedule";
+import { TradeLogisticsSettings } from "../generators/tradeLogisticsSettings";
 import { TransportAssetOrders } from "../generators/transportAssetOrders";
 import {
   type MarketOverviewBurgMerchantRow,
@@ -218,7 +218,7 @@ export function refreshMarketOverview(): void {
     exportStagingUnits: rn(exportStagingUnits, 2),
     exportStagingValue: rn(exportStagingValue, 2),
     merchantOrganizationName: organization?.name ?? "",
-    sailScheduleLabel: `Days ${SCHEDULED_SAIL_DAYS.join(" / ")} each month`
+    sailScheduleLabel: `Days ${TradeLogisticsSettings.getOptions().sailDays.join(" / ")} each month`
   });
 }
 
