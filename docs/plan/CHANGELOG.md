@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-08-02
+
+- docs/plan/characters/backstory-profile.md
+
 2026-08-01
 
 - docs/analytics/cost-of-living.md
