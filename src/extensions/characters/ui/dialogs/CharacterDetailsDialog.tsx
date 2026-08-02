@@ -1,5 +1,5 @@
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
@@ -26,9 +26,20 @@ export const CharacterDetailsDialog: React.FC = () => {
   const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("characterDetails"));
   const selectedCharacterId = useCharactersUiState(state => state.selectedCharacterId);
+  const detailsHistory = useCharactersUiState(state => state.detailsHistory);
+  const detailsHistoryIndex = useCharactersUiState(state => state.detailsHistoryIndex);
+  const pushCharacterDetails = useCharactersUiState(state => state.pushCharacterDetails);
+  const goBackCharacterDetails = useCharactersUiState(state => state.goBackCharacterDetails);
+  const goForwardCharacterDetails = useCharactersUiState(state => state.goForwardCharacterDetails);
+  const clearCharacterDetailsHistory = useCharactersUiState(state => state.clearCharacterDetailsHistory);
   useCharactersUiState(state => state.refreshToken);
   const playerCharacterId = usePlayerCharacterState(state => state.playerCharacterId);
   const [activeTab, setActiveTab] = useState<"skills" | "personality">("skills");
+
+  // Clear browsing history whenever the dialog is closed (X, close-all, or programmatic).
+  useEffect(() => {
+    if (!isOpen) clearCharacterDetailsHistory();
+  }, [isOpen, clearCharacterDetailsHistory]);
 
   const worldContext = getWorldContext();
   const characters = getCharacters();
@@ -44,13 +55,26 @@ export const CharacterDetailsDialog: React.FC = () => {
     return null;
   }
 
+  const canGoBack = detailsHistoryIndex > 0;
+  const canGoForward = detailsHistoryIndex >= 0 && detailsHistoryIndex < detailsHistory.length - 1;
+
   const nobilityAvailable = hasNobilityContext();
   const isCurrentPlayer = playerCharacterId === character.i;
   const canSetAsPlayer = nobilityAvailable && !character.dead && !isCurrentPlayer;
 
+  const handleClose = () => {
+    closeDialog("characterDetails");
+    // History is cleared by the isOpen effect above.
+  };
+
   const handleSetAsPlayerCharacter = () => {
     if (!canSetAsPlayer) return;
     setPlayerCharacter(character.i);
+  };
+
+  const handleOpenLinkedCharacter = (id: number) => {
+    if (id === character.i) return;
+    pushCharacterDetails(id);
   };
 
   // "state" titles (rulers, central offices, field/fleet officers) point at pack.states;
@@ -326,19 +350,31 @@ export const CharacterDetailsDialog: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const dialogButtons = [{ label: t("characters.downloadCsv"), onClick: downloadCSV }];
+  const dialogButtons: Array<{ label: string; onClick: () => void; disabled?: boolean }> = [
+    {
+      label: t("characters.historyBack"),
+      onClick: () => goBackCharacterDetails(),
+      disabled: !canGoBack
+    },
+    {
+      label: t("characters.historyForward"),
+      onClick: () => goForwardCharacterDetails(),
+      disabled: !canGoForward
+    }
+  ];
   if (canSetAsPlayer) {
-    dialogButtons.unshift({
+    dialogButtons.push({
       label: t("characters.setAsPlayer"),
       onClick: handleSetAsPlayerCharacter
     });
   }
+  dialogButtons.push({ label: t("characters.downloadCsv"), onClick: downloadCSV });
 
   return (
     <Dialog
       isOpen={isOpen}
       title={t("characters.dialogTitle", { name: character.name })}
-      onClose={() => closeDialog("characterDetails")}
+      onClose={handleClose}
       buttons={dialogButtons}
     >
       <div id="characterDetailsContainer" style={{ padding: "10px" }}>
@@ -657,7 +693,26 @@ export const CharacterDetailsDialog: React.FC = () => {
               const band = getSolidarityBand(score);
               return (
                 <li key={`sol-${other.i}`}>
-                  <strong>{other.name}:</strong>{" "}
+                  <button
+                    type="button"
+                    className="pointer"
+                    data-tip={t("characters.openCharacterDetails")}
+                    onClick={() => handleOpenLinkedCharacter(other.i)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      margin: 0,
+                      color: "inherit",
+                      font: "inherit",
+                      fontWeight: "bold",
+                      textDecoration: "underline",
+                      cursor: "pointer"
+                    }}
+                  >
+                    {other.name}
+                  </button>
+                  {": "}
                   {t("characters.solidarityEntry", {
                     score,
                     band: t(`characters.solidarityBand.${band}`)

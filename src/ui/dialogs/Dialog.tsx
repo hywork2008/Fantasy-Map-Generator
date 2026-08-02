@@ -10,7 +10,7 @@ export interface DialogProps {
   title?: React.ReactNode;
   onClose?: () => void;
   children: React.ReactNode;
-  buttons?: Array<{ label: string; onClick: () => void }>;
+  buttons?: Array<{ label: string; onClick: () => void; disabled?: boolean }>;
   /** Whether to show the titlebar control that closes every open dialog. */
   showCloseAllDialogsButton?: boolean;
   className?: string;
@@ -104,7 +104,13 @@ export const Dialog: React.FC<DialogProps> = ({
           {buttons && buttons.length > 0 && (
             <div className="fmg-dialog-buttonpane">
               {buttons.map(btn => (
-                <button type="button" key={btn.label} className="fmg-dialog-button" onClick={btn.onClick}>
+                <button
+                  type="button"
+                  key={btn.label}
+                  className="fmg-dialog-button"
+                  onClick={btn.onClick}
+                  disabled={btn.disabled}
+                >
                   {btn.label}
                 </button>
               ))}

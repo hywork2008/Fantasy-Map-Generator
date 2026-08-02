@@ -608,6 +608,19 @@ function isCentralGovernment(character: Character): boolean {
   return character.titles.some(t => t.entityType === "state");
 }
 
+/** Court minister / officer (not the sovereign) who can play the flatterer. */
+function isMinisterLike(roleClass: CharacterRoleClass): boolean {
+  return roleClass === "central_officer" || roleClass === "commander" || roleClass === "religious";
+}
+
+/**
+ * 佞臣 profile: greedy, guileful, and socially agile enough to fawn on a sovereign.
+ * Distinct from raw "high guile = threat" — sociability is the courtier's polish.
+ */
+function isSycophantProfile(p: Character["personality"]): boolean {
+  return p.greed >= 65 && p.guile >= 65 && p.sociability >= 65;
+}
+
 /**
  * Personality-driven political regard from `from` toward `to`.
  * Same-regime peers get mild institutional solidarity, then power rivalry and
@@ -636,12 +649,24 @@ export function computeInitialSolidarity(from: Character, to: Character): number
       } else if (fromRuler && !toRuler) {
         // Ruler viewing subordinate: useful tool vs threat
         score += rand(0, 8);
-        if (tp.guile >= 70 && tp.honor <= 45) score -= rand(10, 25);
-        if (tp.honor >= 70 && tp.guile <= 40) score += rand(5, 15);
+        const sycophantSubordinate = isMinisterLike(toClass) && isSycophantProfile(tp);
+        if (sycophantSubordinate) {
+          // Enjoys the flattery; less quick to read polished guile as pure threat
+          score += rand(8, 16);
+        } else {
+          if (tp.guile >= 70 && tp.honor <= 45) score -= rand(10, 25);
+          if (tp.honor >= 70 && tp.guile <= 40) score += rand(5, 15);
+        }
       } else if (!fromRuler && toRuler) {
         // Subject viewing ruler: loyalty / fear / resentment
         if (fp.honor >= 60) score += rand(5, 18);
-        if (fp.greed >= 70 || fp.guile >= 70) score -= rand(5, 18);
+        const sycophantMinister = isMinisterLike(fromClass) && isSycophantProfile(fp);
+        if (sycophantMinister) {
+          // Fawns on the sovereign rather than resenting power for greed/guile
+          score += rand(10, 20);
+        } else {
+          if (fp.greed >= 70 || fp.guile >= 70) score -= rand(5, 18);
+        }
         if (fp.vengefulness >= 70) score -= rand(5, 15);
       }
     }
@@ -664,9 +689,8 @@ export function computeInitialSolidarity(from: Character, to: Character): number
     score += rand(3, 10);
   }
   if (isMilitaryRole(from) && isMilitaryRole(to) && from.state === to.state) {
-    // Comradeship tempered by glory-seeking
+    // Comradeship (glory rivalry handled via general boldness cohort below, not a flat penalty)
     score += rand(4, 12);
-    if (fp.boldness >= 70 && tp.boldness >= 70) score -= rand(8, 18);
   }
 
   // --- Guile / competence: schemers respect skill, despise the shallow ---
@@ -685,26 +709,53 @@ export function computeInitialSolidarity(from: Character, to: Character): number
       score -= rand(18, 40);
     }
   } else if (fp.guile <= 35 && tp.guile >= 70) {
-    // Naive actor distrusts / fears the schemer
+    // Naive actor distrusts / fears the schemer — unless guile is high enough to stay liked on surface
+    // (distrust of schemers is about from's reading of to; to's guile does not fully erase suspicion)
     score -= rand(12, 28);
   }
 
-  // --- Honor axis ---
-  if (fp.honor >= 70) {
-    if (tp.honor <= 35) score -= rand(15, 32);
-    else if (tp.honor >= 70) score += rand(6, 16);
-  }
-  if (fp.honor <= 35 && tp.honor >= 75) {
-    // Low-honor actor finds the upright inconvenient
-    score -= rand(8, 20);
+  // --- Warm cohort: high sociability + high compassion get along ---
+  if (fp.sociability >= 65 && fp.compassion >= 65 && tp.sociability >= 65 && tp.compassion >= 65) {
+    score += rand(10, 24);
+  } else if (fp.sociability >= 65 && fp.compassion >= 65 && (tp.sociability >= 55 || tp.compassion >= 55)) {
+    score += rand(4, 12);
   }
 
-  // --- Greed competition ---
-  if (fp.greed >= 70 && tp.greed >= 70) score -= rand(10, 28);
-  if (fp.greed >= 75 && tp.greed <= 30 && tp.honor >= 60) score -= rand(5, 15); // pious thrift annoys the greedy
+  // --- Cold / repulsive: high vengefulness + greed ---
+  // Such people rarely warm to others...
+  if (fp.vengefulness >= 70 && fp.greed >= 70) {
+    score -= rand(10, 22);
+  }
+  // ...and are disliked by others — but high guile masks those traits
+  if (tp.vengefulness >= 70 && tp.greed >= 70) {
+    const mask = Math.min(1, Math.max(0, (tp.guile - 40) / 50)); // 0@40 → 1@90
+    const rawPenalty = rand(12, 28);
+    score -= Math.round(rawPenalty * (1 - mask * 0.85));
+  }
 
-  // --- Faith / zeal friction ---
-  if (fp.piety >= 75 && tp.piety <= 30) score -= rand(10, 25);
+  // --- Virtue cohort: high honor and/or piety on both sides ---
+  const fromVirtue = fp.honor >= 65 || fp.piety >= 65;
+  const toVirtue = tp.honor >= 65 || tp.piety >= 65;
+  if (fromVirtue && toVirtue) {
+    score += rand(8, 20);
+  }
+  // Friction when one side is virtuous and the other is not
+  if (fp.honor >= 70 && tp.honor <= 35) score -= rand(12, 28);
+  if (fp.piety >= 70 && tp.piety <= 30) score -= rand(8, 20);
+  if (fp.honor <= 35 && tp.honor >= 75) score -= rand(8, 20);
+
+  // --- Active cohort: high zeal / boldness / energy flock together ---
+  const activeCount = (p: Character["personality"]) =>
+    (p.zeal >= 65 ? 1 : 0) + (p.boldness >= 65 ? 1 : 0) + (p.energy >= 65 ? 1 : 0);
+  if (activeCount(fp) >= 2 && activeCount(tp) >= 2) {
+    score += rand(8, 20);
+  }
+
+  // --- Greed competition (distinct from cold+greedy personal coldness) ---
+  if (fp.greed >= 70 && tp.greed >= 70) score -= rand(8, 22);
+  if (fp.greed >= 75 && tp.greed <= 30 && tp.honor >= 60) score -= rand(5, 15);
+
+  // --- Zeal mismatch when faith-committed ---
   if (fp.zeal >= 75 && tp.zeal <= 30 && from.backstory?.commitment.primary.kind === "faith") {
     score -= rand(8, 20);
   }
@@ -719,11 +770,11 @@ export function computeInitialSolidarity(from: Character, to: Character): number
     if (fk === "faith" && (tk === "wealth" || tk === "hedonism")) score -= rand(8, 18);
   }
 
-  // --- Compassion mismatch ---
+  // --- Compassion mismatch (when not already covered by warm cohort) ---
   if (fp.compassion >= 75 && tp.compassion <= 25) score -= rand(8, 20);
   if (fp.compassion <= 25 && tp.compassion >= 75) score -= rand(5, 12);
 
-  // --- Vengefulness makes enemies stick ---
+  // --- Vengefulness digs in once relations are already bad ---
   if (fp.vengefulness >= 75 && score < 0) score -= rand(5, 15);
 
   // Market rivals

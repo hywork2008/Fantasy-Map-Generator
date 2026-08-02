@@ -394,7 +394,7 @@ export const MarketOverviewDialog: React.FC = () => {
                         onClick={e => {
                           if (row.topMerchantId !== undefined) {
                             e.stopPropagation();
-                            useCharactersUiState.getState().setSelectedCharacterId(row.topMerchantId);
+                            useCharactersUiState.getState().openCharacterDetails(row.topMerchantId);
                             openDialog("characterDetails");
                           }
                         }}

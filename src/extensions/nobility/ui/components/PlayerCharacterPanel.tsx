@@ -22,7 +22,7 @@ export const PlayerCharacterPanel: React.FC = () => {
   const refreshToken = usePlayerCharacterState(state => state.refreshToken);
   const isMoveMode = usePlayerCharacterState(state => state.isMoveMode);
   const pendingTravel = usePlayerCharacterState(state => state.pendingTravel);
-  const setSelectedCharacterId = useCharactersUiState(state => state.setSelectedCharacterId);
+  const openCharacterDetails = useCharactersUiState(state => state.openCharacterDetails);
 
   // refreshToken is an intentional extra dep: characters mutate in place on ticks.
   // biome-ignore lint/correctness/useExhaustiveDependencies: see comment above
@@ -40,7 +40,7 @@ export const PlayerCharacterPanel: React.FC = () => {
 
   const handleOpenDetails = () => {
     if (playerCharacterId === null) return;
-    setSelectedCharacterId(playerCharacterId);
+    openCharacterDetails(playerCharacterId);
     openDialog("characterDetails");
   };
 
@@ -48,7 +48,7 @@ export const PlayerCharacterPanel: React.FC = () => {
     const newId = selectRandomPlayerCharacter({ excludeCurrent: true });
     // Keep Character Details in sync when it is already open, so the user sees the new pick.
     if (newId !== null && isDialogOpen("characterDetails")) {
-      setSelectedCharacterId(newId);
+      openCharacterDetails(newId);
     }
   };
 

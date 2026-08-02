@@ -188,6 +188,151 @@ describe("computeInitialSolidarity", () => {
     expect(avg).toBeGreaterThan(-25);
   });
 
+  it("raises solidarity between sycophant ministers and rulers", () => {
+    const ruler = baseCharacter({
+      i: 1,
+      name: "King",
+      titles: [{ title: "King", landed: true, entityType: "state", entityId: 1 }],
+      personality: {
+        boldness: 50,
+        compassion: 50,
+        greed: 40,
+        honor: 50,
+        rationality: 50,
+        sociability: 50,
+        vengefulness: 30,
+        zeal: 40,
+        energy: 50,
+        piety: 40,
+        guile: 40,
+        confidence: 60
+      }
+    });
+    const flatterer = baseCharacter({
+      i: 2,
+      name: "Flatterer",
+      titles: [{ title: "Chancellor", landed: false, entityType: "state", entityId: 1 }],
+      personality: {
+        boldness: 40,
+        compassion: 30,
+        greed: 80,
+        honor: 35,
+        rationality: 55,
+        sociability: 85,
+        vengefulness: 40,
+        zeal: 30,
+        energy: 60,
+        piety: 25,
+        guile: 80,
+        confidence: 70
+      }
+    });
+    applyCharacterBackstory(ruler, { roleClass: "ruler", capitalBurgId: 1 });
+    applyCharacterBackstory(flatterer, { roleClass: "central_officer", capitalBurgId: 1 });
+
+    const towardRuler: number[] = [];
+    const towardFlatterer: number[] = [];
+    for (let trial = 0; trial < 25; trial++) {
+      towardRuler.push(computeInitialSolidarity(flatterer, ruler));
+      towardFlatterer.push(computeInitialSolidarity(ruler, flatterer));
+    }
+    const avgToRuler = towardRuler.reduce((s, n) => s + n, 0) / towardRuler.length;
+    const avgToFlatterer = towardFlatterer.reduce((s, n) => s + n, 0) / towardFlatterer.length;
+    // Sycophants should not sit deep-negative toward their sovereign on average
+    expect(avgToRuler).toBeGreaterThan(0);
+    expect(avgToFlatterer).toBeGreaterThan(-5);
+  });
+
+  it("warms sociable compassionate pairs", () => {
+    const warm = (i: number, name: string) => {
+      const c = baseCharacter({
+        i,
+        name,
+        personality: {
+          boldness: 40,
+          compassion: 80,
+          greed: 30,
+          honor: 50,
+          rationality: 50,
+          sociability: 80,
+          vengefulness: 20,
+          zeal: 40,
+          energy: 50,
+          piety: 40,
+          guile: 30,
+          confidence: 50
+        }
+      });
+      applyCharacterBackstory(c, { roleClass: "ordinary" });
+      return c;
+    };
+    const scores: number[] = [];
+    for (let trial = 0; trial < 20; trial++) {
+      scores.push(computeInitialSolidarity(warm(1, "A"), warm(2, "B")));
+    }
+    const avg = scores.reduce((s, n) => s + n, 0) / scores.length;
+    expect(avg).toBeGreaterThan(0);
+  });
+
+  it("makes high vengefulness+greed cold and disliked, but guile softens being disliked", () => {
+    const cold = baseCharacter({
+      i: 1,
+      name: "Cold",
+      personality: {
+        boldness: 50,
+        compassion: 20,
+        greed: 85,
+        honor: 30,
+        rationality: 50,
+        sociability: 30,
+        vengefulness: 85,
+        zeal: 40,
+        energy: 50,
+        piety: 20,
+        guile: 25,
+        confidence: 50
+      }
+    });
+    const masked = baseCharacter({
+      i: 2,
+      name: "Masked",
+      personality: { ...cold.personality, guile: 95 }
+    });
+    const observer = baseCharacter({
+      i: 3,
+      name: "Observer",
+      personality: {
+        boldness: 50,
+        compassion: 50,
+        greed: 40,
+        honor: 50,
+        rationality: 50,
+        sociability: 50,
+        vengefulness: 40,
+        zeal: 40,
+        energy: 50,
+        piety: 40,
+        guile: 40,
+        confidence: 50
+      }
+    });
+    applyCharacterBackstory(cold, { roleClass: "ordinary" });
+    applyCharacterBackstory(masked, { roleClass: "ordinary" });
+    applyCharacterBackstory(observer, { roleClass: "ordinary" });
+
+    const coldSeen: number[] = [];
+    const maskedSeen: number[] = [];
+    for (let trial = 0; trial < 25; trial++) {
+      coldSeen.push(computeInitialSolidarity(observer, cold));
+      maskedSeen.push(computeInitialSolidarity(observer, masked));
+    }
+    const avgCold = coldSeen.reduce((s, n) => s + n, 0) / coldSeen.length;
+    const avgMasked = maskedSeen.reduce((s, n) => s + n, 0) / maskedSeen.length;
+    expect(avgCold).toBeLessThan(0);
+    // High guile hides much of the repulsive penalty
+    expect(avgMasked).toBeGreaterThan(avgCold);
+  });
+
   it("gives high-guile contempt for shallow low-guile targets", () => {
     const schemer = baseCharacter({
       i: 1,

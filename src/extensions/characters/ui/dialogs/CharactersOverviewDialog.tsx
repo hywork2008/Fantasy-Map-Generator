@@ -22,8 +22,8 @@ export const CharactersOverviewDialog: React.FC = () => {
     toggleSortBy,
     setSearchText,
     setFilterStateId,
-    setSelectedCharacterId,
-    setActiveTab
+    setActiveTab,
+    openCharacterDetails
   } = useCharactersUiState();
 
   const worldContext = getWorldContext();
@@ -47,7 +47,7 @@ export const CharactersOverviewDialog: React.FC = () => {
   }, [characters, states, searchText, filterStateId, sortBy, sortOrder, refreshToken, i18n.language]);
 
   const handleCharacterClick = (characterId: number) => {
-    setSelectedCharacterId(characterId);
+    openCharacterDetails(characterId);
     openDialog("characterDetails");
   };
 

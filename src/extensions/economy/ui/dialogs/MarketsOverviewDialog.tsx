@@ -376,7 +376,7 @@ export const MarketsOverviewDialog: React.FC = () => {
                         onClick={e => {
                           if (m.managerId !== undefined) {
                             e.stopPropagation();
-                            useCharactersUiState.getState().setSelectedCharacterId(m.managerId);
+                            useCharactersUiState.getState().openCharacterDetails(m.managerId);
                             openDialog("characterDetails");
                           }
                         }}
