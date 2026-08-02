@@ -12,6 +12,7 @@ import {
   getWorldContext
 } from "../economyContext";
 import { getStrategicIndustryWorkersByBurg, getTradeWorkersByBurg } from "../generators/basicEmployment";
+import { getHousingLedgerSnapshot } from "../generators/constructionEmployment";
 import { type EmploymentOverviewRow, setEmploymentOverviewState } from "../store/employmentOverviewState";
 
 /**
@@ -39,6 +40,12 @@ export function refreshEmploymentOverview(): void {
   const craftByBurg = new Map(getCraftEmploymentRecords().map(record => [record.burgId, record.workers]));
   const constructionByBurg = getConstructionEmploymentByBurg();
   const summaryByBurg = new Map(getBasicEmploymentSummary().map(record => [record.burgId, record]));
+  const constructionOpByBurg = new Map(
+    getConstructionOperations()
+      .filter(op => op.active)
+      .map(op => [op.burgId, op])
+  );
+  const populationRate = Math.max(0, world.populationRate ?? 0) || 1;
 
   const burgIds = new Set<number>([
     ...administrationByBurg.keys(),
@@ -59,6 +66,7 @@ export function refreshEmploymentOverview(): void {
     const summary = summaryByBurg.get(burgId);
     const basicEmploymentDemand = summary?.basicEmploymentDemand ?? 0;
     const serviceEmploymentDemand = summary?.serviceEmploymentDemand ?? 0;
+    const housing = getHousingLedgerSnapshot(constructionOpByBurg.get(burgId), burg, populationRate);
 
     rows.push({
       id: burgId,
@@ -72,6 +80,9 @@ export function refreshEmploymentOverview(): void {
       strategicIndustry: rn(strategicIndustryByBurg.get(burgId) ?? 0, 1),
       craft: rn(craftByBurg.get(burgId) ?? 0, 1),
       construction: rn(constructionByBurg.get(burgId) ?? 0, 1),
+      dwellings: housing?.dwellingStock ?? 0,
+      requiredDwellings: housing?.requiredDwellings ?? 0,
+      housingGapPct: housing ? rn(housing.housingBacklog * 100, 1) : 0,
       basicEmploymentDemand: rn(basicEmploymentDemand, 1),
       serviceEmploymentDemand: rn(serviceEmploymentDemand, 1),
       employmentDemand: rn(basicEmploymentDemand + serviceEmploymentDemand, 1)

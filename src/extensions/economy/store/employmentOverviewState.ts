@@ -12,6 +12,12 @@ export interface EmploymentOverviewRow {
   strategicIndustry: number;
   craft: number;
   construction: number;
+  /** Built permanent dwellings (housing ledger). */
+  dwellings: number;
+  /** Required dwellings from population × populationRate / 4.5. */
+  requiredDwellings: number;
+  /** Housing gap 0–100 (% of required still unbuilt). */
+  housingGapPct: number;
   basicEmploymentDemand: number;
   serviceEmploymentDemand: number;
   employmentDemand: number;

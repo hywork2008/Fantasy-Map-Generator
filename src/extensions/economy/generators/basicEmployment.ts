@@ -15,7 +15,11 @@ import {
   setBasicEmploymentSummary
 } from "../economyContext";
 import { type AdministrationEmploymentRecord, getAdministrationRequiredWorkers } from "./administrationEmployment";
-import { getConstructionRequiredWorkers } from "./constructionEmployment";
+import {
+  getConstructionRequiredWorkers,
+  getRequiredDwellings,
+  normalizeConstructionOperation
+} from "./constructionEmployment";
 import { getMineRequiredWorkers } from "./mineOperations";
 import { getQuarryRequiredWorkers } from "./quarryOperations";
 import { type BasicEmploymentSummaryRecord, buildBasicEmploymentSummary } from "./serviceEmployment";
@@ -139,25 +143,28 @@ export function reconcileAnnualBasicEmploymentWorkers(): void {
     });
   }
 
+  const populationRate = Math.max(0, getWorldContext().populationRate ?? 0) || 1;
   for (const construction of getConstructionOperations()) {
     if (!construction.active || !construction.burgId) continue;
     const burg = burgs[construction.burgId];
-    if (!burg || burg.removed) continue;
+    if (!burg || burg.removed || burg.group === "fort") continue;
+    const operation = normalizeConstructionOperation(construction, burg, populationRate);
     const demographics = getBurgDemographics(burg);
     const adults = Math.max(0, demographics.maleAdults + demographics.femaleAdults);
-    const required = getConstructionRequiredWorkers(construction, adults);
-    pushSlot(slotsByBurg, construction.burgId, {
+    const requiredDwellings = getRequiredDwellings(burg.population ?? 0, populationRate);
+    const required = getConstructionRequiredWorkers({ ...operation, requiredDwellings }, adults);
+    pushSlot(slotsByBurg, operation.burgId, {
       requiredWorkers: required.mason,
-      getWorkers: () => construction.masonWorkers,
+      getWorkers: () => operation.masonWorkers,
       setWorkers: value => {
-        construction.masonWorkers = value;
+        operation.masonWorkers = value;
       }
     });
-    pushSlot(slotsByBurg, construction.burgId, {
+    pushSlot(slotsByBurg, operation.burgId, {
       requiredWorkers: required.carpenter,
-      getWorkers: () => construction.carpenterWorkers,
+      getWorkers: () => operation.carpenterWorkers,
       setWorkers: value => {
-        construction.carpenterWorkers = value;
+        operation.carpenterWorkers = value;
       }
     });
   }

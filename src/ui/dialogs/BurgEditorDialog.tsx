@@ -209,6 +209,18 @@ export const BurgEditorDialog: React.FC = () => {
                   <span id="burgServiceEmploymentDemand">{burgData.serviceEmploymentDemand}</span>
                 </td>
               </tr>
+              <tr data-tip="Built permanent dwellings versus required dwellings from urban population (household size 4.5).">
+                <th scope="row">Dwellings</th>
+                <td>
+                  <span id="burgDwellings">{burgData.dwellings}</span>
+                </td>
+              </tr>
+              <tr data-tip="Share of required dwellings still unbuilt (housing backlog). Construction employment and material demand rise with this gap.">
+                <th scope="row">Housing gap</th>
+                <td>
+                  <span id="burgHousingGap">{burgData.housingGap}</span>
+                </td>
+              </tr>
               <tr>
                 <th scope="row">Features:</th>
                 <td>

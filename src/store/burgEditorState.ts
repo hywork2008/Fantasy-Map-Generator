@@ -29,6 +29,8 @@ export interface BurgData {
   foodImportDependency: string;
   basicEmploymentDemand: string;
   serviceEmploymentDemand: string;
+  dwellings: string;
+  housingGap: string;
 
   // Features
   capital: boolean;

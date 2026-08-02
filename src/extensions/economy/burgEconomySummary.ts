@@ -1,6 +1,7 @@
 import type { Burg, BurgEconomySummary } from "../hostTypes";
 import { formatPrice, rn } from "../hostUtils";
-import { getBasicEmploymentSummary, getWorldContext } from "./economyContext";
+import { getBasicEmploymentSummary, getConstructionOperations, getWorldContext } from "./economyContext";
+import { getHousingLedgerSnapshot } from "./generators/constructionEmployment";
 import { Goods } from "./generators/goods-generator";
 import { Production } from "./generators/production-generator";
 
@@ -28,6 +29,9 @@ export function getBurgEconomySummary(burgId: number): BurgEconomySummary | null
   const foodImportDependency = burg.population && burg.population > 0 ? (importedSupport / burg.population) * 100 : 0;
 
   const employmentSummary = getBasicEmploymentSummary().find(record => record.burgId === burgId);
+  const populationRate = Math.max(0, getWorldContext().populationRate ?? 0) || 1;
+  const constructionOp = getConstructionOperations().find(op => op.burgId === burgId && op.active);
+  const housing = getHousingLedgerSnapshot(constructionOp, burg, populationRate);
 
   return {
     production,
@@ -35,6 +39,8 @@ export function getBurgEconomySummary(burgId: number): BurgEconomySummary | null
     treasury: formatPrice(burg.treasury || 0),
     foodImportDependency: `${rn(foodImportDependency, 1)}%`,
     basicEmploymentDemand: employmentSummary ? `${rn(employmentSummary.basicEmploymentDemand, 1)}` : "—",
-    serviceEmploymentDemand: employmentSummary ? `${rn(employmentSummary.serviceEmploymentDemand, 1)}` : "—"
+    serviceEmploymentDemand: employmentSummary ? `${rn(employmentSummary.serviceEmploymentDemand, 1)}` : "—",
+    dwellings: housing ? `${rn(housing.dwellingStock, 1)} / ${housing.requiredDwellings}` : "—",
+    housingGap: housing ? `${rn(housing.housingBacklog * 100, 1)}%` : "—"
   };
 }

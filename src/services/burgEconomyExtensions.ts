@@ -12,6 +12,12 @@ export interface BurgEconomySummary {
    */
   basicEmploymentDemand: string;
   serviceEmploymentDemand: string;
+  /**
+   * Housing ledger (docs/plan/urban-housing-system.md): built dwellings / required, gap %.
+   * "—" when the burg has no ConstructionOperation (fort, no market, economy disabled).
+   */
+  dwellings: string;
+  housingGap: string;
 }
 
 export const burgEconomyExtensions: {

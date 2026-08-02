@@ -58,6 +58,9 @@ export const EmploymentOverviewDialog: React.FC = () => {
             <col />
             <col />
             <col />
+            <col />
+            <col />
+            <col />
           </colgroup>
           <thead className="header">
             <tr>
@@ -76,6 +79,11 @@ export const EmploymentOverviewDialog: React.FC = () => {
               <th data-tip="Masonry/carpentry, quarrying, and Volcanic Ash extraction (docs/plan/urban-construction-industry.md) — the basic-employment floor every Burg with a market gets regardless of mines, capital status, or trade">
                 Construction
               </th>
+              <th data-tip="Built permanent dwellings (housing ledger, docs/plan/urban-housing-system.md)">
+                Dwellings
+              </th>
+              <th data-tip="Required dwellings from population × populationRate / 4.5">Need</th>
+              <th data-tip="Housing gap % — share of required dwellings still unbuilt">Gap %</th>
               <th data-tip="basicEmploymentDemand = Admin + Mining + Smelting + Trade + Industry + Craft + Construction">
                 Basic
               </th>
@@ -88,7 +96,7 @@ export const EmploymentOverviewDialog: React.FC = () => {
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={12}>
+                <td colSpan={15}>
                   <span>No Burg has recorded employment demand yet</span>
                 </td>
               </tr>
@@ -119,6 +127,11 @@ const EmploymentRow: React.FC<{ row: EmploymentOverviewRow }> = ({ row }) => (
     <td>{row.strategicIndustry || ""}</td>
     <td>{row.craft || ""}</td>
     <td>{row.construction || ""}</td>
+    <td data-tip={`${row.dwellings} built / ${row.requiredDwellings} required`}>
+      {row.requiredDwellings > 0 ? row.dwellings : ""}
+    </td>
+    <td>{row.requiredDwellings || ""}</td>
+    <td>{row.requiredDwellings > 0 ? row.housingGapPct : ""}</td>
     <td>{row.basicEmploymentDemand}</td>
     <td>{row.serviceEmploymentDemand}</td>
     <td>

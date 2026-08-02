@@ -16,7 +16,7 @@ import {
   useTimeSimulationState,
   useUiPreferencesState
 } from "../hostUi";
-import { formatPrice, TIME } from "../hostUtils";
+import { formatPrice, rn, TIME } from "../hostUtils";
 import { getBurgEconomySummary, getBurgProductPerThousandResidents } from "./burgEconomySummary";
 import { economyStyleConfig } from "./EconomyStyleConfig";
 import {
@@ -239,6 +239,19 @@ function registerOverviewColumns(api: ExtensionAPI): void {
     getValue: burg => burg.treasury || 0,
     format: formatPrice
   });
+  api.registerBurgOverviewColumn({
+    id: "housingGap",
+    extensionId: ECONOMY_EXTENSION_ID,
+    label: "Housing gap %",
+    tip: "Share of required dwellings still unbuilt (docs/plan/urban-housing-system.md). Empty when the burg has no construction operation.",
+    getValue: burg => {
+      if (!burg?.i) return 0;
+      const summary = getBurgEconomySummary(burg.i);
+      if (!summary || summary.housingGap === "—") return 0;
+      return Number.parseFloat(summary.housingGap) || 0;
+    },
+    format: value => (value > 0 || value === 0 ? `${rn(value, 1)}%` : "—")
+  });
   api.registerStateOverviewColumn({
     id: "treasury",
     extensionId: ECONOMY_EXTENSION_ID,
@@ -263,6 +276,7 @@ function unregisterOverviewColumns(api: ExtensionAPI): void {
   api.unregisterBurgOverviewColumn("product");
   api.unregisterBurgOverviewColumn("wealth");
   api.unregisterBurgOverviewColumn("treasury");
+  api.unregisterBurgOverviewColumn("housingGap");
   api.unregisterStateOverviewColumn("treasury");
   api.unregisterCellInfoRow("good");
   api.unregisterCellInfoRow("market");
