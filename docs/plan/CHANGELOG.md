@@ -1,5 +1,11 @@
 # 追加したドキュメント
 
+2026-08-03
+
+- docs/plan/individual-skill-mastery-system.md
+- docs/plan/technology-development-roadmap.md
+- docs/plan/urban-water-and-sanitation-system.md
+
 2026-08-02
 
 - docs/plan/characters/backstory-profile.md
