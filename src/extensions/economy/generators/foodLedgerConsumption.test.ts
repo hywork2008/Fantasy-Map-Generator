@@ -8,8 +8,13 @@ vi.mock("../economyContext", () => ({
   getGoods: vi.fn(() => [])
 }));
 
+vi.mock("./innStays", () => ({
+  getTemporaryLodgerPopulationPointsByBurg: vi.fn(() => new Map())
+}));
+
 import { getGoods, getMarketCellColumn, getMarkets, getSimulationMonth, getWorldContext } from "../economyContext";
 import { settleMonthlyFoodConsumption } from "./foodLedgerConsumption";
+import { getTemporaryLodgerPopulationPointsByBurg } from "./innStays";
 import type { FoodLedger, Market } from "./marketTypes";
 
 function makeLedger(overrides: Partial<FoodLedger> = {}): FoodLedger {
@@ -43,6 +48,7 @@ describe("settleMonthlyFoodConsumption", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(getGoods).mockReturnValue([]);
+    vi.mocked(getTemporaryLodgerPopulationPointsByBurg).mockReturnValue(new Map());
     vi.mocked(getSimulationMonth).mockReturnValue(1);
     mockWorldContext = {
       populationRate: 1,
@@ -59,6 +65,24 @@ describe("settleMonthlyFoodConsumption", () => {
   function setMarket(market: Market): void {
     vi.mocked(getMarkets).mockReturnValue([market]);
   }
+
+  it("charges temporary inn lodgers against the market food ledger, not burg population", () => {
+    mockWorldContext.populationRate = 10;
+    mockWorldContext.pack.burgs = [{ i: 1, market: 1, removed: false, population: 0, foodReserve: 0 }];
+    vi.mocked(getTemporaryLodgerPopulationPointsByBurg).mockReturnValue(new Map([[1, 1]]));
+    const market = {
+      i: 1,
+      centerBurgId: 1,
+      goods: {},
+      foodLedger: makeLedger({ foodStockAge0: 100 })
+    } as Market;
+    setMarket(market);
+
+    settleMonthlyFoodConsumption();
+
+    expect(mockWorldContext.pack.burgs[0].population).toBe(0);
+    expect(market.foodLedger?.foodStockAge0).toBeLessThan(100);
+  });
 
   it("draws rural need from the oldest bucket first, rolling over once it is exhausted", () => {
     // Index 0 is an unused placeholder cell id; cell id 1 is the only real one.

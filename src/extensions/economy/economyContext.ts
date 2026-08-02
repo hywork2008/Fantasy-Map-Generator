@@ -17,7 +17,7 @@ import type { ConstructionHireApplication, ConstructionNamedSeat } from "./gener
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
 import type { Good } from "./generators/goodsGeneratorTypes";
 import type { CraftDomainEmploymentRecord, GuildKnowledgeStock } from "./generators/guildKnowledgeTypes";
-import type { InnConstructionOrder, InnFacility } from "./generators/innFacilityTypes";
+import type { InnConstructionOrder, InnFacility, InnStayLedger } from "./generators/innFacilityTypes";
 import type { FlowCycleSnapshot } from "./generators/marketFlowTypes";
 import type {
   Caravan,
@@ -130,20 +130,20 @@ export function getWorldContext() {
 export function getSimulationYear(): number {
   const year = _api?.simulationContext?.currentYear;
   if (typeof year === "number" && Number.isFinite(year)) return year;
-  return Number(getWorldContext().options.year) || 0;
+  return Number(getWorldContext().options?.year) || 0;
 }
 
 export function getSimulationMonth(): number {
   const month = _api?.simulationContext?.currentMonth;
   if (typeof month === "number" && Number.isFinite(month) && month >= 1 && month <= 12) return month;
-  const fallback = Number(getWorldContext().options.month);
+  const fallback = Number(getWorldContext().options?.month);
   return Number.isFinite(fallback) && fallback >= 1 && fallback <= 12 ? fallback : 1;
 }
 
 export function getSimulationDay(): number {
   const day = _api?.simulationContext?.currentDay;
   if (typeof day === "number" && Number.isFinite(day) && day >= 1) return Math.floor(day);
-  const fallback = Number(getWorldContext().options.day);
+  const fallback = Number(getWorldContext().options?.day);
   return Number.isFinite(fallback) && fallback >= 1 ? Math.floor(fallback) : 1;
 }
 
@@ -813,6 +813,14 @@ export function getInnConstructionOrders(): InnConstructionOrder[] {
 }
 export function setInnConstructionOrders(orders: readonly InnConstructionOrder[]): void {
   setSliceArray("innConstructionOrders", orders);
+}
+
+/** Short-stay inn occupancy; separate from burg population and permanent housing. */
+export function getInnStayLedgers(): InnStayLedger[] {
+  return getSliceArray<InnStayLedger>("innStayLedgers");
+}
+export function setInnStayLedgers(ledgers: readonly InnStayLedger[]): void {
+  setSliceArray("innStayLedgers", ledgers);
 }
 
 /** Once-per-simulation-year guard for InnFacilities.settleAnnual(). */

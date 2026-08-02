@@ -182,6 +182,46 @@ function validateInnConstructionOrders(value: unknown, world: WorldContext): voi
   }
 }
 
+function validateInnStayLedgers(value: unknown, world: WorldContext): void {
+  if (value === undefined) return;
+  const name = "simulation.extensions.economy.innStayLedgers";
+  if (!Array.isArray(value)) throw new Error(`Archive ${name} must be an array`);
+  const seenBurgIds = new Set<number>();
+  for (const [index, ledger] of value.entries()) {
+    const entryName = `${name}[${index}]`;
+    assertRecord(ledger, entryName);
+    const burgId = typeof ledger.burgId === "number" ? ledger.burgId : -1;
+    if (!Number.isInteger(burgId) || burgId <= 0 || !world.pack.burgs[burgId]) {
+      throw new Error(`${entryName}.burgId must reference an existing burg`);
+    }
+    if (seenBurgIds.has(burgId)) throw new Error(`${entryName}.burgId is duplicated`);
+    seenBurgIds.add(burgId);
+    if (
+      typeof ledger.transientGuests !== "number" ||
+      !Number.isFinite(ledger.transientGuests) ||
+      ledger.transientGuests < 0
+    ) {
+      throw new Error(`${entryName}.transientGuests must be a finite non-negative number`);
+    }
+    if (!Array.isArray(ledger.temporaryLodgerCohorts)) {
+      throw new Error(`${entryName}.temporaryLodgerCohorts must be an array`);
+    }
+    for (const [cohortIndex, cohort] of ledger.temporaryLodgerCohorts.entries()) {
+      const cohortName = `${entryName}.temporaryLodgerCohorts[${cohortIndex}]`;
+      assertRecord(cohort, cohortName);
+      for (const field of ["maleAdults", "femaleAdults"]) {
+        const count = cohort[field];
+        if (typeof count !== "number" || !Number.isFinite(count) || count < 0) {
+          throw new Error(`${cohortName}.${field} must be a finite non-negative number`);
+        }
+      }
+      for (const field of ["originCell", "originState", "deadlineMonth"]) {
+        if (!Number.isInteger(cohort[field])) throw new Error(`${cohortName}.${field} must be an integer`);
+      }
+    }
+  }
+}
+
 function validateCharactersSlice(slice: Record<string, unknown>): void {
   assertOptionalArrayField(slice, "characters", "characters");
 }
@@ -225,6 +265,7 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
   }
   validateInnFacilities(slice.innFacilities, world);
   validateInnConstructionOrders(slice.innConstructionOrders, world);
+  validateInnStayLedgers(slice.innStayLedgers, world);
   if (slice.innFacilitiesLastSettledYear !== undefined) {
     const year = slice.innFacilitiesLastSettledYear;
     if (typeof year !== "number" || !Number.isFinite(year)) {
@@ -317,6 +358,7 @@ function collectEconomyCoreReferences(slice: Record<string, unknown>): readonly 
     ...collectEntityReferences(slice.productionByBurg, "burg"),
     ...collectEntityReferences(slice.innFacilities, "burg", "orphan"),
     ...collectEntityReferences(slice.innConstructionOrders, "burg", "orphan"),
+    ...collectEntityReferences(slice.innStayLedgers, "burg", "orphan"),
     ...collectEntityReferences(slice.strategicGoodsPolicies, "state", "orphan")
   ];
 }

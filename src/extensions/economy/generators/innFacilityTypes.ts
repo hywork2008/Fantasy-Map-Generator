@@ -40,3 +40,23 @@ export interface InnConstructionOrder {
   woodAcquired: number;
   masonryAcquired: number;
 }
+
+/** A temporary, adult-only lodging cohort measured in population points. */
+export interface InnTemporaryLodgerCohort {
+  originCell: number;
+  originState: number;
+  maleAdults: number;
+  femaleAdults: number;
+  /** Absolute simulation month at which this group must find permanent housing or leave. */
+  deadlineMonth: number;
+}
+
+/**
+ * Per-burg short-stay occupancy. transientGuests are actual people; temporary lodger cohorts
+ * retain population-point and origin data so expiry can return them to the mobile-cohort flow.
+ */
+export interface InnStayLedger {
+  burgId: number;
+  transientGuests: number;
+  temporaryLodgerCohorts: InnTemporaryLodgerCohort[];
+}

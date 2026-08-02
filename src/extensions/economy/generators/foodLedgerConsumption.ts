@@ -3,6 +3,7 @@ import { minmax, rn } from "../../hostUtils";
 import { getMarkets, getSimulationMonth, getWorldContext } from "../economyContext";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { BURG_TARGET_RESERVE_DAYS, getMarketRuralPopulation, getStapleFoodGood } from "./foodProduction";
+import { getTemporaryLodgerPopulationPointsByBurg } from "./innStays";
 import type { FoodLedger, Market } from "./marketTypes";
 
 const STRESS_THRESHOLD = 0.05;
@@ -48,6 +49,10 @@ function getBurgDailyNeed(burg: Burg, populationRate: number, urbanization: numb
   return (burg.population ?? 0) * populationRate * urbanization * dailyNeedPerPerson();
 }
 
+function getTemporaryLodgerDailyNeed(populationPoints: number, populationRate: number, urbanization: number): number {
+  return Math.max(0, populationPoints) * populationRate * urbanization * dailyNeedPerPerson();
+}
+
 /** Tops up a burg's small local reserve from the market pool, capped by what the market can spare. */
 function topUpBurgFoodReserve(burg: Burg, ledger: FoodLedger, populationRate: number, urbanization: number): void {
   const target = getBurgDailyNeed(burg, populationRate, urbanization) * BURG_TARGET_RESERVE_DAYS;
@@ -68,6 +73,14 @@ function drawBurgMonthlyNeed(
   const stillNeeded = monthlyNeed - fromReserve;
   const fromMarket = stillNeeded > 0 ? drawFromLedgerFifo(ledger, stillNeeded) : 0;
   return { satisfied: rn(fromReserve + fromMarket, 2), needed: rn(monthlyNeed, 2) };
+}
+
+/** Temporary inn guests buy from the market directly; they do not draw a burg household reserve. */
+function drawTemporaryLodgerMonthlyNeed(
+  ledger: FoodLedger,
+  monthlyNeed: number
+): { satisfied: number; needed: number } {
+  return { satisfied: drawFromLedgerFifo(ledger, monthlyNeed), needed: rn(monthlyNeed, 2) };
 }
 
 function updateStressCounters(ledger: FoodLedger, ruralShortfallRate: number, urbanShortfallRate: number): void {
@@ -91,6 +104,7 @@ export function settleMonthlyFoodConsumption(): void {
 
   const populationRate = worldContext.populationRate ?? 1000;
   const urbanization = worldContext.urbanization ?? 1;
+  const temporaryLodgersByBurg = getTemporaryLodgerPopulationPointsByBurg();
   const stapleFoodGood = getStapleFoodGood();
   const simulationMonth = getSimulationMonth();
   const isQuarterEnd = simulationMonth % 3 === 0;
@@ -109,14 +123,30 @@ export function settleMonthlyFoodConsumption(): void {
     let urbanMonthlyNeed = 0;
     let urbanDrawn = 0;
     let urbanRevenue = 0;
-    const retailPrice = settleGrainPrice(ledger, ruralPopulation, marketBurgs, populationRate, urbanization);
+    const retailPrice = settleGrainPrice(
+      ledger,
+      ruralPopulation,
+      marketBurgs,
+      temporaryLodgersByBurg,
+      populationRate,
+      urbanization
+    );
 
     for (const burg of marketBurgs) {
+      const burgId = burg.i ?? 0;
       const monthlyNeed = getBurgDailyNeed(burg, populationRate, urbanization) * (DAYS_PER_YEAR / 12);
       const { satisfied, needed } = drawBurgMonthlyNeed(burg, ledger, monthlyNeed);
       urbanMonthlyNeed += needed;
       urbanDrawn += satisfied;
       urbanRevenue += satisfied * retailPrice;
+
+      const temporaryMonthlyNeed =
+        getTemporaryLodgerDailyNeed(temporaryLodgersByBurg.get(burgId) ?? 0, populationRate, urbanization) *
+        (DAYS_PER_YEAR / 12);
+      const temporaryDraw = drawTemporaryLodgerMonthlyNeed(ledger, temporaryMonthlyNeed);
+      urbanMonthlyNeed += temporaryDraw.needed;
+      urbanDrawn += temporaryDraw.satisfied;
+      urbanRevenue += temporaryDraw.satisfied * retailPrice;
     }
     urbanMonthlyNeed = rn(urbanMonthlyNeed, 2);
     urbanDrawn = rn(urbanDrawn, 2);
@@ -157,6 +187,7 @@ function settleGrainPrice(
   ledger: FoodLedger,
   ruralPopulation: number,
   marketBurgs: Burg[],
+  temporaryLodgersByBurg: ReadonlyMap<number, number>,
   populationRate: number,
   urbanization: number
 ): number {
@@ -164,7 +195,11 @@ function settleGrainPrice(
   const basePrice = stapleFoodGood?.value ?? 1;
   const currentStock = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2;
 
-  const urbanPopulation = marketBurgs.reduce((sum, b) => sum + (b.population ?? 0) * populationRate * urbanization, 0);
+  const urbanPopulation = marketBurgs.reduce(
+    (sum, burg) =>
+      sum + ((burg.population ?? 0) + (temporaryLodgersByBurg.get(burg.i ?? 0) ?? 0)) * populationRate * urbanization,
+    0
+  );
   const annualDemand = (ruralPopulation + urbanPopulation) * GROSS_FOOD_NEED;
   const positionInQuarter = ((getSimulationMonth() - 1) % 3) + 1; // 1, 2, or 3
   const monthsRemainingInQuarter = 4 - positionInQuarter; // includes the current month

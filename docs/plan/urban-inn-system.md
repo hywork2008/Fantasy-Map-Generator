@@ -2,7 +2,7 @@
 
 | Field | Value |
 | :--- | :--- |
-| **Status** | In progress — PR-I1 through PR-I3 implemented 2026-08-02 |
+| **Status** | Implemented through PR-I4 — 2026-08-02 |
 | **Date** | 2026-08-02 |
 | **Owner** | Economy extension (`src/extensions/economy/`) |
 | **Depends on** | [urban-housing-system.md](./urban-housing-system.md), [guild-city-bases.md](./guild-city-bases.md) (Burg Editor extension-tab host support) |
@@ -103,14 +103,12 @@ export interface InnStayLedger {
   burgId: number;
   /** Guests who remain after the current monthly settlement; transient only. */
   transientGuests: number;
-  /** Job-seeking/seasonal people whose maximum stay is limited by policy. */
-  temporaryLodgers: number;
-  /** Simulation month in which the oldest temporary-lodger cohort must resolve. */
-  oldestLodgerDeadlineMonth: number | null;
+  /** Origin-preserving adult cohorts; each has male/female points and deadlineMonth. */
+  temporaryLodgerCohorts: InnTemporaryLodgerCohort[];
 }
 ```
 
-`InnStayLedger` is deferred until actual travel or migration queues exist. `InnFacility` is enough for the first generation/UI milestone.
+PR-I4 stores temporary lodgers as origin-preserving adult cohorts in `InnStayLedger`. This keeps their beds, food demand, and expiry distinct from permanent Burg demographics. Generic travellers remain deferred until a travel queue supplies them.
 
 ### Derived values
 
@@ -121,7 +119,8 @@ beds          = Σ (facility.privateBeds + facility.sharedBeds)
 commonSeats   = Σ facility.commonSeats
 stableSpaces  = Σ facility.stableSpaces
 
-availableTransientBeds = max(0, beds - transientGuests - temporaryLodgers)
+temporaryLodgerPeople = Σ cohort population-points × populationRate × urbanization
+availableTransientBeds = max(0, beds - transientGuests - temporaryLodgerPeople)
 ```
 
 No value above appears in `ConstructionOperation.dwellingStock`. A bed is not a dwelling and is not a promise of a household's future home.
@@ -244,7 +243,7 @@ Guild Chapters and inns share a Burg and can both be shown in its editor, but ne
 
 ```text
 GuildKnowledgeStock → formal GuildChapter        (organisation / technique)
-InnFacility         → InnStayLedger (future)    (commercial lodging)
+InnFacility         → InnStayLedger             (commercial lodging)
 ConstructionOperation → dwellingStock            (permanent housing)
 ```
 
@@ -344,10 +343,11 @@ The initial seed must use Economy's map-ready task, not `fmg:generate-post-core`
 - Add slow construction/decline based on actual connectivity and economic demand.
 - Integrate material costs as an explicit non-dwelling construction work order.
 
-### PR-I4 — travellers and temporary lodgers
+### PR-I4 — travellers and temporary lodgers — implemented (temporary lodgers)
 
 - Add `InnStayLedger`, market food demand, bounded temporary stays, and resolution into permanent housing or existing mobile-cohort outcomes.
 - Add no permanent population or capacity shortcut.
+- Generic passing travellers remain deferred: there is not yet a travel queue that can create and remove them.
 
 ### PR-I5 — city-detail / visual variants (optional)
 

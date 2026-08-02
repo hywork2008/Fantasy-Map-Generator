@@ -16,6 +16,7 @@ import {
   setUrbanLaborIntakes
 } from "../economyContext";
 import { GROSS_FOOD_NEED } from "./foodConstants";
+import { InnStays } from "./innStays";
 import type { FoodLedger } from "./marketTypes";
 import type {
   BanditCohort,
@@ -160,9 +161,13 @@ export class UrbanLaborIntakeModule {
     let deaths = 0;
 
     for (const cohort of getMobileAdultCohorts()) {
-      const unresolved = this.placeInNearbyBurgs(world, cohort);
+      const permanentlyUnresolved = this.placeInNearbyBurgs(world, cohort);
+      settledAdults += getAdultTotal(cohort) - getAdultTotal(permanentlyUnresolved);
+      const unresolved = InnStays.admitTemporaryLodgers(
+        permanentlyUnresolved,
+        this.getNearbyBurgs(world, permanentlyUnresolved)
+      );
       const remainingAdults = getAdultTotal(unresolved);
-      settledAdults += getAdultTotal(cohort) - remainingAdults;
       if (remainingAdults <= 0) continue;
 
       if (unresolved.yearsSearching < 1) {
@@ -263,19 +268,13 @@ export class UrbanLaborIntakeModule {
   }
 
   private placeInNearbyBurgs(world: Readonly<WorldContext>, cohort: MobileAdultCohort): MobileAdultCohort {
-    const origin = world.pack.cells.p[cohort.originCell];
-    if (!origin) return cohort;
-
-    const maximumDistance = Math.hypot(world.graphWidth, world.graphHeight) * MAX_WALK_DISTANCE_FRACTION;
+    const nearbyBurgIds = new Set(this.getNearbyBurgs(world, cohort).map(burg => burg.i));
     const candidates = getUrbanLaborIntakes()
       .filter(intake => intake.remainingAdults > 0)
       .map(intake => ({ intake, burg: world.pack.burgs[intake.burgId] }))
       .filter((candidate): candidate is { intake: UrbanLaborIntakeRecord; burg: Burg } => {
-        const burg = candidate.burg;
-        if (!burg?.i || burg.removed || burg.state !== cohort.originState) return false;
-        return Math.hypot(burg.x - origin[0], burg.y - origin[1]) <= maximumDistance;
+        return candidate.burg !== undefined && nearbyBurgIds.has(candidate.burg.i);
       })
-      .sort((a, b) => distanceTo(origin, a.burg) - distanceTo(origin, b.burg))
       .slice(0, MAX_CITY_SEARCHES);
 
     const unresolved = { ...cohort };
@@ -291,6 +290,19 @@ export class UrbanLaborIntakeModule {
     }
     setUrbanLaborIntakes(getUrbanLaborIntakes());
     return unresolved;
+  }
+
+  private getNearbyBurgs(world: Readonly<WorldContext>, cohort: MobileAdultCohort): Burg[] {
+    const origin = world.pack.cells.p[cohort.originCell];
+    if (!origin) return [];
+    const maximumDistance = Math.hypot(world.graphWidth, world.graphHeight) * MAX_WALK_DISTANCE_FRACTION;
+    return world.pack.burgs
+      .filter((burg): burg is Burg => {
+        if (!burg?.i || burg.removed || burg.state !== cohort.originState) return false;
+        return Math.hypot(burg.x - origin[0], burg.y - origin[1]) <= maximumDistance;
+      })
+      .sort((left, right) => distanceTo(origin, left) - distanceTo(origin, right))
+      .slice(0, MAX_CITY_SEARCHES);
   }
 }
 

@@ -74,6 +74,7 @@ import { GuildSuccession } from "./generators/guildSuccession";
 import { GuildTreasury } from "./generators/guildTreasury";
 import { IndustrialTechInvestment } from "./generators/industrialTechInvestment";
 import { InnFacilities } from "./generators/innFacilities";
+import { InnStays } from "./generators/innStays";
 import { clearFlowDiagnostics } from "./generators/marketFlowDiagnostics";
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
 import { Markets } from "./generators/markets-generator";
@@ -672,6 +673,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (value !== undefined) throw new Error("economy.production.settle does not accept a payload");
 
       Production.produce();
+      InnStays.settleMonthly();
       settleMonthlyFoodConsumption();
       Taxes.collectTaxes();
       refreshStateEconomySummaries();
@@ -691,7 +693,10 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       }
       if (value.target === "economy" || value.target === "goods") Goods.generate();
       if (value.target === "economy" || value.target === "markets") Markets.generate(true);
-      if (value.target === "economy") InnFacilities.generate();
+      if (value.target === "economy") {
+        InnFacilities.generate();
+        InnStays.clear();
+      }
       if (value.target === "economy" || value.target === "minerals") MineOperations.generate();
       if (value.target === "economy" || value.target === "minerals") SmelterOperations.generate();
       // Quarries are a separate site model from ore (docs/plan/urban-construction-industry.md
@@ -803,6 +808,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       VolcanicAshOperations.clear();
       ConstructionOperations.clear();
       InnFacilities.clear();
+      InnStays.clear();
       clearConstructionHireState();
       clearUrbanPregnancy();
       MineralResources.clear();
@@ -1206,6 +1212,7 @@ export function init(api: ExtensionAPI): void {
         Goods.generate();
         Markets.generate();
         InnFacilities.generate();
+        InnStays.clear();
         MineOperations.generate();
         SmelterOperations.generate();
         QuarryOperations.generate();
@@ -1230,7 +1237,10 @@ export function init(api: ExtensionAPI): void {
           syncBurgMarketLedgers();
           FoodProduction.seedFoodLedgerBootstrap();
         }
-        if (!getInnFacilities().length) InnFacilities.generate();
+        if (!getInnFacilities().length) {
+          InnFacilities.generate();
+          InnStays.clear();
+        }
       }
     } else if (!isEnabled && wasEnabled) {
       // Visually turn off layers before removing them
@@ -1336,6 +1346,7 @@ export function init(api: ExtensionAPI): void {
           if (!completed || !context.isCurrent() || !api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
           Taxes.collectTaxes();
           InnFacilities.generate();
+          InnStays.clear();
           api.requestWebglRender();
         } finally {
           TIME && console.timeEnd("generateEconomy");

@@ -2,6 +2,7 @@ import type React from "react";
 import { useBurgEditorState } from "../../../hostUi";
 import { getInnFacilitiesForBurg, getInnFacilityTotals } from "../../generators/innFacilities";
 import type { InnClass } from "../../generators/innFacilityTypes";
+import { getAvailableTemporaryInnBeds, getTemporaryLodgerPeopleByBurg } from "../../generators/innStays";
 
 const INN_CLASS_LABELS: Record<InnClass, string> = {
   wayside: "Wayside Inn",
@@ -19,6 +20,7 @@ export const BurgEditorInnsTab: React.FC = () => {
   const burgId = useBurgEditorState(state => state.burgData?.id);
   const facilities = burgId === undefined ? [] : getInnFacilitiesForBurg(burgId);
   const totals = getInnFacilityTotals(facilities);
+  const temporaryLodgerPeople = burgId === undefined ? 0 : (getTemporaryLodgerPeopleByBurg().get(burgId) ?? 0);
 
   if (!facilities.length) {
     return (
@@ -71,7 +73,8 @@ export const BurgEditorInnsTab: React.FC = () => {
       <p>
         Common-room seats: {totals.commonSeats}
         <br />
-        Temporary beds free: — (travel system absent)
+        Temporary beds free: {getAvailableTemporaryInnBeds(burgId ?? 0)}
+        {temporaryLodgerPeople > 0 ? ` · temporary lodgers: ${Math.round(temporaryLodgerPeople)}` : ""}
       </p>
     </div>
   );
