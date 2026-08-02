@@ -13,6 +13,19 @@ export interface RouteRegenerationModes {
   landRouteElevationAversion?: number;
 }
 
+/**
+ * RNG seed policy for Tools → regenerate Characters.
+ * - mapSeed: deterministic from the map seed (same roster every time)
+ * - mixTime: map seed mixed with wall-clock time (new variation, still map-linked)
+ * - random: independent entropy each click
+ */
+export type CharacterRegenerationEntropy = "mapSeed" | "mixTime" | "random";
+
+/** Options bag returned by the confirm dialog's Proceed handler. */
+export interface RegenerateConfirmProceedOptions extends RouteRegenerationModes {
+  characterEntropy?: CharacterRegenerationEntropy;
+}
+
 export interface RegenerateConfirmConfig {
   [key: string]: unknown;
   featureName: string;
@@ -20,10 +33,19 @@ export interface RegenerateConfirmConfig {
   seaRouteGenerationMode?: SeaRouteGenerationMode;
   landRouteGenerationMode?: LandRouteGenerationMode;
   landRouteElevationAversion?: number;
-  onProceed: (dontAskAgain: boolean, routeModes?: RouteRegenerationModes) => void;
+  /**
+   * When set (even to the default `"mapSeed"`), the Characters seed-policy selector is shown.
+   * Presence of the field gates the UI — same pattern as the routes mode fields.
+   */
+  characterEntropy?: CharacterRegenerationEntropy;
+  onProceed: (dontAskAgain: boolean, options?: RegenerateConfirmProceedOptions) => void;
 }
 
 const DIALOG_ID = "regenerateConfirm";
+
+function isCharacterRegenerationEntropy(value: string): value is CharacterRegenerationEntropy {
+  return value === "mapSeed" || value === "mixTime" || value === "random";
+}
 
 export const RegenerateConfirmDialog: React.FC = () => {
   const config = useDialogState(s => s.dialogConfigs[DIALOG_ID]) as unknown as RegenerateConfirmConfig | undefined;
@@ -31,12 +53,19 @@ export const RegenerateConfirmDialog: React.FC = () => {
   const [seaRouteGenerationMode, setSeaRouteGenerationMode] = useState<SeaRouteGenerationMode>("augmented");
   const [landRouteGenerationMode, setLandRouteGenerationMode] = useState<LandRouteGenerationMode>("elevationAware");
   const [landRouteElevationAversion, setLandRouteElevationAversion] = useState(1);
+  const [characterEntropy, setCharacterEntropy] = useState<CharacterRegenerationEntropy>("mapSeed");
 
   useEffect(() => {
     setSeaRouteGenerationMode(config?.seaRouteGenerationMode ?? "augmented");
     setLandRouteGenerationMode(config?.landRouteGenerationMode ?? "elevationAware");
     setLandRouteElevationAversion(config?.landRouteElevationAversion ?? 1);
-  }, [config?.seaRouteGenerationMode, config?.landRouteGenerationMode, config?.landRouteElevationAversion]);
+    setCharacterEntropy(config?.characterEntropy ?? "mapSeed");
+  }, [
+    config?.seaRouteGenerationMode,
+    config?.landRouteGenerationMode,
+    config?.landRouteElevationAversion,
+    config?.characterEntropy
+  ]);
 
   const handleProceed = useCallback(() => {
     const dontAsk = checkboxRef.current?.checked ?? false;
@@ -45,19 +74,21 @@ export const RegenerateConfirmDialog: React.FC = () => {
       config?.seaRouteGenerationMode !== undefined ||
       config?.landRouteGenerationMode !== undefined ||
       config?.landRouteElevationAversion !== undefined;
+    const showCharacterEntropy = config?.characterEntropy !== undefined;
     config?.onProceed(
       dontAsk,
-      showRouteModes
+      showRouteModes || showCharacterEntropy
         ? {
             seaRouteGenerationMode: config?.seaRouteGenerationMode !== undefined ? seaRouteGenerationMode : undefined,
             landRouteGenerationMode:
               config?.landRouteGenerationMode !== undefined ? landRouteGenerationMode : undefined,
             landRouteElevationAversion:
-              config?.landRouteElevationAversion !== undefined ? landRouteElevationAversion : undefined
+              config?.landRouteElevationAversion !== undefined ? landRouteElevationAversion : undefined,
+            characterEntropy: showCharacterEntropy ? characterEntropy : undefined
           }
         : undefined
     );
-  }, [config, seaRouteGenerationMode, landRouteGenerationMode, landRouteElevationAversion]);
+  }, [config, seaRouteGenerationMode, landRouteGenerationMode, landRouteElevationAversion, characterEntropy]);
 
   const handleCancel = useCallback(() => closeDialog(DIALOG_ID), []);
 
@@ -67,6 +98,7 @@ export const RegenerateConfirmDialog: React.FC = () => {
     config.seaRouteGenerationMode !== undefined ||
     config.landRouteGenerationMode !== undefined ||
     config.landRouteElevationAversion !== undefined;
+  const showCharacterEntropy = config.characterEntropy !== undefined;
 
   return (
     <Dialog
@@ -148,6 +180,27 @@ export const RegenerateConfirmDialog: React.FC = () => {
                 </p>
               </div>
             )}
+          </div>
+        )}
+        {showCharacterEntropy && (
+          <div>
+            <label htmlFor="characterRegenerationEntropy">Random seed </label>
+            <select
+              id="characterRegenerationEntropy"
+              value={characterEntropy}
+              onChange={event => {
+                const value = event.target.value;
+                if (isCharacterRegenerationEntropy(value)) setCharacterEntropy(value);
+              }}
+            >
+              <option value="mapSeed">Map seed (deterministic roster)</option>
+              <option value="mixTime">Mix map seed with current time</option>
+              <option value="random">Fresh random seed</option>
+            </select>
+            <p>
+              Map seed always rebuilds the same rulers and officers. Mix with time or use a fresh seed when you want a
+              different roster without regenerating the whole map.
+            </p>
           </div>
         )}
         {config.showDontAskAgain !== false && (

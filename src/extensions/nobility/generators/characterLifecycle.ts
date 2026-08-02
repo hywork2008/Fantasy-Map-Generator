@@ -82,7 +82,7 @@ function isReligiousForm(
   );
 }
 
-function generate(options: { randomSeed?: number } = {}): void {
+function generate(options: { randomSeed?: string | number } = {}): void {
   TIME && console.time("generateCharacters");
   const worldContext = getWorldContext();
   Math.random = Alea(options.randomSeed ?? worldContext.seed);

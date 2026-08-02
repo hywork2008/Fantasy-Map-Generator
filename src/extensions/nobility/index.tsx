@@ -7,6 +7,7 @@ import { CHARACTERS_EXTENSION_ID } from "../characters/index";
 import { seedMissingCharacterWealth } from "../economy/generators/characterStipends";
 import { advanceAllRegimentMovement, advanceFrontierGovernance, Military } from "../hostCore";
 import { tip } from "../hostServices";
+import { openDialog, type RegenerateConfirmConfig } from "../hostUi";
 import { measureGenerationStep } from "../hostUtils";
 import {
   applyConflictAutonomy,
@@ -32,7 +33,8 @@ import { Mobilization } from "./generators/mobilization";
 import { assignOfficers } from "./generators/officerAssignment";
 import { assignProvinceLords } from "./generators/provinceLordGenerator";
 import { StrategicPlanner } from "./generators/strategic-planner";
-import { clearNobilityContext, getWorldContext, initNobilityContext } from "./nobilityContext";
+import { clearNobilityContext, getApi, getWorldContext, initNobilityContext } from "./nobilityContext";
+import { resolveCharacterRegenerationSeed } from "./resolveCharacterRegenerationSeed";
 import { PlayerCharacterPanel } from "./ui/components/PlayerCharacterPanel";
 import { StatesEditorPersonalityTab } from "./ui/components/StatesEditorPersonalityTab";
 
@@ -49,16 +51,23 @@ let _unregisterTickSystem: (() => void) | null = null;
 
 type NobilityRegenerationMode = "bootstrap" | "full";
 
-function isNobilityRegenerationRequest(value: unknown): value is { readonly mode: NobilityRegenerationMode } {
-  return (
-    !!value &&
-    typeof value === "object" &&
-    ((value as { mode?: unknown }).mode === "bootstrap" || (value as { mode?: unknown }).mode === "full")
-  );
+type NobilityRegenerationRequest = {
+  readonly mode: NobilityRegenerationMode;
+  /** When set, overrides the map seed for Characters.generate RNG. */
+  readonly randomSeed?: string | number;
+};
+
+function isNobilityRegenerationRequest(value: unknown): value is NobilityRegenerationRequest {
+  if (!value || typeof value !== "object") return false;
+  const mode = (value as { mode?: unknown }).mode;
+  if (mode !== "bootstrap" && mode !== "full") return false;
+  const randomSeed = (value as { randomSeed?: unknown }).randomSeed;
+  if (randomSeed !== undefined && typeof randomSeed !== "string" && typeof randomSeed !== "number") return false;
+  return true;
 }
 
-function regenerateNobilityData(mode: NobilityRegenerationMode): void {
-  Characters.generate();
+function regenerateNobilityData(mode: NobilityRegenerationMode, randomSeed?: string | number): void {
+  Characters.generate(randomSeed !== undefined ? { randomSeed } : {});
   applyAffinitiesToDiplomacy();
   applyPersonalityToCapitalGuard();
   if (mode === "full") {
@@ -74,6 +83,8 @@ function regenerateNobilityData(mode: NobilityRegenerationMode): void {
   seedMissingCharacterWealth();
   // Government roster was rebuilt — re-roll the focus character for the player HUD.
   selectRandomPlayerCharacter();
+  // Overview reads pack via getCharacters() on render; bump so an open dialog refreshes.
+  refreshCharactersOverviewIfOpen(getApi().isDialogOpen("charactersOverview"));
 }
 
 export function init(api: ExtensionAPI): void {
@@ -88,7 +99,7 @@ export function init(api: ExtensionAPI): void {
         throw new Error("Nobility must be enabled to regenerate government data");
       }
       if (!isNobilityRegenerationRequest(value)) throw new Error("nobility.regenerate requires a regeneration mode");
-      regenerateNobilityData(value.mode);
+      regenerateNobilityData(value.mode, value.randomSeed);
       return { changed: true };
     }
   });
@@ -129,11 +140,23 @@ export function init(api: ExtensionAPI): void {
     label: "Characters",
     tooltip: "Click to regenerate rulers and government offices",
     onClick: () => {
-      api.dispatchExtensionCommand({
-        extensionId: NOBILITY_EXTENSION_ID,
-        name: "regenerate",
-        payload: { mode: "full" }
-      });
+      // Same host confirm dialog as Routes regenerate: options live inside the dialog,
+      // and "do not ask again" is suppressed because seed policy is chosen each time.
+      const regenerateConfig: RegenerateConfirmConfig = {
+        featureName: "characters",
+        showDontAskAgain: false,
+        characterEntropy: "mapSeed",
+        onProceed: (_dontAskAgain, options) => {
+          const entropy = options?.characterEntropy ?? "mapSeed";
+          const randomSeed = resolveCharacterRegenerationSeed(entropy, String(getWorldContext().seed));
+          api.dispatchExtensionCommand({
+            extensionId: NOBILITY_EXTENSION_ID,
+            name: "regenerate",
+            payload: { mode: "full", randomSeed }
+          });
+        }
+      };
+      openDialog("regenerateConfirm", regenerateConfig);
     }
   });
 

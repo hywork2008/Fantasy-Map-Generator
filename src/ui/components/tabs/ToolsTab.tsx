@@ -14,6 +14,16 @@ interface StaticEditButton {
   dialogId?: string;
 }
 
+interface StaticRegenerateButton {
+  key: string;
+  domId?: string;
+  label: string;
+  tooltip: string;
+  eventName: string;
+  /** Optional gear-icon config control rendered after the label. */
+  config?: { tooltip: string; eventName: string };
+}
+
 const STATIC_EDIT_BUTTONS: StaticEditButton[] = [
   {
     key: "biomes",
@@ -165,6 +175,102 @@ const STATIC_EDIT_BUTTONS: StaticEditButton[] = [
   }
 ];
 
+const STATIC_REGENERATE_BUTTONS: StaticRegenerateButton[] = [
+  {
+    key: "burgs",
+    label: "Burgs",
+    tooltip: "Click to regenerate all unlocked burgs and routes",
+    eventName: "regenerateBurgs"
+  },
+  {
+    key: "cultures",
+    label: "Cultures",
+    tooltip: "Click to regenerate non-locked cultures",
+    eventName: "regenerateCultures"
+  },
+  {
+    key: "emblems",
+    label: "Emblems",
+    tooltip: "Click to regenerate all emblems",
+    eventName: "regenerateEmblems"
+  },
+  {
+    key: "ice",
+    label: "Ice",
+    tooltip: "Click to regenerate icebergs and glaciers",
+    eventName: "regenerateIce"
+  },
+  {
+    key: "markers",
+    label: "Markers",
+    tooltip: "Click to regenerate unlocked markers",
+    eventName: "regenerateMarkers",
+    config: { tooltip: "Click to set number multiplier", eventName: "configRegenerateMarkers" }
+  },
+  {
+    key: "military",
+    domId: "regenerateMilitary",
+    label: "Military",
+    tooltip: "Click to recalculate military forces",
+    eventName: "regenerateMilitary"
+  },
+  {
+    key: "population",
+    label: "Population",
+    tooltip: "Click to recalculate rural and urban population",
+    eventName: "regeneratePopulation"
+  },
+  {
+    key: "provinces",
+    label: "Provinces",
+    tooltip: "Click to regenerate non-locked provinces",
+    eventName: "regenerateProvinces"
+  },
+  {
+    key: "reliefIcons",
+    label: "Relief Icons",
+    tooltip: "Click to regenerate all relief icons",
+    eventName: "regenerateReliefIcons",
+    config: { tooltip: "Click to open relief icons settings", eventName: "configRegenerateRelief" }
+  },
+  {
+    key: "religions",
+    label: "Religions",
+    tooltip: "Click to regenerate religions",
+    eventName: "regenerateReligions"
+  },
+  {
+    key: "rivers",
+    label: "Rivers",
+    tooltip: "Click to regenerate rivers",
+    eventName: "regenerateRivers"
+  },
+  {
+    key: "routes",
+    label: "Routes",
+    tooltip: "Click to regenerate routes",
+    eventName: "regenerateRoutes"
+  },
+  {
+    key: "stateLabels",
+    label: "State Labels",
+    tooltip: "Click to update state labels placement",
+    eventName: "regenerateStateLabels"
+  },
+  {
+    key: "states",
+    label: "States",
+    tooltip: "Click to regenerate non-locked states",
+    eventName: "regenerateStates"
+  },
+  {
+    key: "zones",
+    label: "Zones",
+    tooltip: "Click to regenerate zones",
+    eventName: "regenerateZones"
+  }
+];
+
 export const ToolsTab: React.FC = () => {
   const { actions: allActions, enabledExtensions } = useExtensionState();
   const openDialogs = useDialogState(state => state.openDialogs);
@@ -199,6 +305,25 @@ export const ToolsTab: React.FC = () => {
     }))
   ].sort((a, b) => a.label.localeCompare(b.label));
 
+  const allRegenerateButtons = [
+    ...STATIC_REGENERATE_BUTTONS.map(b => ({
+      key: b.key,
+      domId: b.domId,
+      label: b.label,
+      tooltip: b.tooltip,
+      onClick: () => triggerEvent(b.eventName),
+      config: b.config
+    })),
+    ...regenerateActions.map(a => ({
+      key: a.id,
+      domId: undefined as string | undefined,
+      label: a.label,
+      tooltip: a.tooltip ?? "",
+      onClick: a.onClick,
+      config: undefined as StaticRegenerateButton["config"] | undefined
+    }))
+  ].sort((a, b) => a.label.localeCompare(b.label));
+
   return (
     <div id="toolsContent" className="tabcontent d-block">
       <div className="separator">Edit</div>
@@ -226,125 +351,27 @@ export const ToolsTab: React.FC = () => {
       </div>
       <div className="separator">Regenerate</div>
       <div className="grid" id="regenerateFeature">
-        <button
-          data-tip="Click to regenerate all unlocked burgs and routes"
-          type="button"
-          onClick={() => triggerEvent("regenerateBurgs")}
-        >
-          Burgs
-        </button>
-        <button
-          data-tip="Click to regenerate non-locked cultures"
-          type="button"
-          onClick={() => triggerEvent("regenerateCultures")}
-        >
-          Cultures
-        </button>
-
-        <button
-          data-tip="Click to regenerate all emblems"
-          type="button"
-          onClick={() => triggerEvent("regenerateEmblems")}
-        >
-          Emblems
-        </button>
-
-        <button
-          data-tip="Click to regenerate icebergs and glaciers"
-          type="button"
-          onClick={() => triggerEvent("regenerateIce")}
-        >
-          Ice
-        </button>
-        <button
-          data-tip="Click to regenerate unlocked markers"
-          type="button"
-          onClick={() => triggerEvent("regenerateMarkers")}
-        >
-          Markers{" "}
-          <i
-            className="icon-cog"
-            data-tip="Click to set number multiplier"
-            onClick={e => {
-              e.stopPropagation();
-              triggerEvent("configRegenerateMarkers");
-            }}
-          />
-        </button>
-        {regenerateActions.map(action => (
-          <button key={action.id} data-tip={action.tooltip} type="button" onClick={action.onClick}>
-            {action.label}
-          </button>
-        ))}
-
-        <button
-          id="regenerateMilitary"
-          data-tip="Click to recalculate military forces"
-          type="button"
-          onClick={() => triggerEvent("regenerateMilitary")}
-        >
-          Military
-        </button>
-        <button
-          data-tip="Click to recalculate rural and urban population"
-          type="button"
-          onClick={() => triggerEvent("regeneratePopulation")}
-        >
-          Population
-        </button>
-
-        <button
-          data-tip="Click to regenerate non-locked provinces"
-          type="button"
-          onClick={() => triggerEvent("regenerateProvinces")}
-        >
-          Provinces
-        </button>
-        <button
-          data-tip="Click to regenerate all relief icons"
-          type="button"
-          onClick={() => triggerEvent("regenerateReliefIcons")}
-        >
-          Relief Icons{" "}
-          <i
-            className="icon-cog"
-            data-tip="Click to open relief icons settings"
-            onClick={e => {
-              e.stopPropagation();
-              triggerEvent("configRegenerateRelief");
-            }}
-          />
-        </button>
-        <button
-          data-tip="Click to regenerate religions"
-          type="button"
-          onClick={() => triggerEvent("regenerateReligions")}
-        >
-          Religions
-        </button>
-        <button data-tip="Click to regenerate rivers" type="button" onClick={() => triggerEvent("regenerateRivers")}>
-          Rivers
-        </button>
-        <button data-tip="Click to regenerate routes" type="button" onClick={() => triggerEvent("regenerateRoutes")}>
-          Routes
-        </button>
-        <button
-          data-tip="Click to update state labels placement"
-          type="button"
-          onClick={() => triggerEvent("regenerateStateLabels")}
-        >
-          State Labels
-        </button>
-        <button
-          data-tip="Click to regenerate non-locked states"
-          type="button"
-          onClick={() => triggerEvent("regenerateStates")}
-        >
-          States
-        </button>
-        <button data-tip="Click to regenerate zones" type="button" onClick={() => triggerEvent("regenerateZones")}>
-          Zones
-        </button>
+        {allRegenerateButtons.map(btn => {
+          const config = btn.config;
+          return (
+            <button key={btn.key} id={btn.domId} data-tip={btn.tooltip} type="button" onClick={btn.onClick}>
+              {btn.label}
+              {config ? (
+                <>
+                  {" "}
+                  <i
+                    className="icon-cog"
+                    data-tip={config.tooltip}
+                    onClick={e => {
+                      e.stopPropagation();
+                      triggerEvent(config.eventName);
+                    }}
+                  />
+                </>
+              ) : null}
+            </button>
+          );
+        })}
       </div>
       <div className="separator">Add</div>
       <div className="grid" id="addFeature">

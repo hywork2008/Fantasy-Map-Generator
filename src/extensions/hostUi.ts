@@ -20,4 +20,9 @@ export {
   openConfirm,
   openDialog
 } from "../ui/dialogs/dialogService";
+export type {
+  CharacterRegenerationEntropy,
+  RegenerateConfirmConfig,
+  RegenerateConfirmProceedOptions
+} from "../ui/dialogs/RegenerateConfirmDialog";
 export { TableDialogLayout } from "../ui/dialogs/TableDialogLayout";
