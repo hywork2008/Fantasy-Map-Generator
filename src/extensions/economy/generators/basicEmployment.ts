@@ -1,4 +1,4 @@
-import { getBurgDemographics } from "../../hostCore";
+import { getBurgDemographics, useOptionsState } from "../../hostCore";
 import {
   getAdministrationEmployment,
   getConstructionOperations,
@@ -18,7 +18,9 @@ import { type AdministrationEmploymentRecord, getAdministrationRequiredWorkers }
 import {
   getConstructionRequiredWorkers,
   getRequiredDwellings,
-  normalizeConstructionOperation
+  isBrickGoodAvailable,
+  normalizeConstructionOperation,
+  resolveBurgCultureType
 } from "./constructionEmployment";
 import { getMineRequiredWorkers } from "./mineOperations";
 import { getQuarryRequiredWorkers } from "./quarryOperations";
@@ -144,6 +146,8 @@ export function reconcileAnnualBasicEmploymentWorkers(): void {
   }
 
   const populationRate = Math.max(0, getWorldContext().populationRate ?? 0) || 1;
+  const brickAvailable = isBrickGoodAvailable();
+  const highFantasy = useOptionsState.getState().culturesSet === "highFantasy";
   for (const construction of getConstructionOperations()) {
     if (!construction.active || !construction.burgId) continue;
     const burg = burgs[construction.burgId];
@@ -152,7 +156,11 @@ export function reconcileAnnualBasicEmploymentWorkers(): void {
     const demographics = getBurgDemographics(burg);
     const adults = Math.max(0, demographics.maleAdults + demographics.femaleAdults);
     const requiredDwellings = getRequiredDwellings(burg.population ?? 0, populationRate);
-    const required = getConstructionRequiredWorkers({ ...operation, requiredDwellings }, adults);
+    const required = getConstructionRequiredWorkers({ ...operation, requiredDwellings }, adults, {
+      cultureType: resolveBurgCultureType(burg),
+      highFantasy,
+      brickAvailable
+    });
     pushSlot(slotsByBurg, operation.burgId, {
       requiredWorkers: required.mason,
       getWorkers: () => operation.masonWorkers,

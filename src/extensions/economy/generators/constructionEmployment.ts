@@ -1,4 +1,5 @@
 import { getBurgDemographics, useOptionsState } from "../../hostCore";
+import type { CultureType } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
   getConstructionOperations,
@@ -11,9 +12,16 @@ import {
 } from "../economyContext";
 import type { ConstructionOperation, LegacyConstructionOperation } from "./constructionEmploymentTypes";
 import { isGoodEnabled } from "./goods-generator";
+import { getHousingRecipe, getMasonMaterialShare, type HousingRecipe } from "./housingRecipes";
 import { Markets } from "./markets-generator";
 
 export type { ConstructionOperation, LegacyConstructionOperation } from "./constructionEmploymentTypes";
+export {
+  BASE_HOUSING_RECIPE_BY_CULTURE,
+  getHousingRecipe,
+  getMasonMaterialShare,
+  type HousingRecipe
+} from "./housingRecipes";
 
 /** Adult headcount at which `getTargetBuildingStock()` reaches ~63% of full saturation. */
 const POPULATION_SCALE_ADULTS = 400;
@@ -21,17 +29,12 @@ const POPULATION_SCALE_ADULTS = 400;
 const CONSTRUCTION_WORKERS_BASE = 1;
 /** Share of a Burg's adults that become construction workers at maximum backlog (1.0). */
 const WORKERS_SHARE_PER_BACKLOG = 0.05;
-/** Default mason/carpenter split for a Burg with quarry access, absent any culture bonus. */
-const BASE_MASON_SHARE = 0.4;
-/** §7.1 decision 5: High Fantasy cultures set raises mason share when quarry exists. */
-const HIGH_FANTASY_MASON_SHARE_BONUS = 0.2;
-const MAX_MASON_SHARE = 0.8;
 /** How much of the annual material need may be drawn from local market stock per month. */
 const MATERIAL_STOCK_SHARE = 0.3;
 const STONE_PER_MASON_WORKER_ANNUAL = 8;
 const WOOD_PER_CARPENTER_WORKER_ANNUAL = 10;
 /**
- * Roman Concrete is a direct Stone substitute (efficiency 2×).
+ * Roman Concrete is a direct Stone substitute (efficiency 2×), not brick.
  * See docs/plan/urban-construction-industry.md §7.1 decision 3.
  */
 const ROMAN_CONCRETE_STONE_EFFICIENCY = 2;
@@ -58,14 +61,25 @@ export function getTargetBuildingStock(adults: number): number {
   return 1 - Math.exp(-Math.max(0, adults) / POPULATION_SCALE_ADULTS);
 }
 
+export interface MasonShareContext {
+  cultureType?: CultureType | string;
+  highFantasy?: boolean;
+  /** Defaults false in pure unit tests; live paths pass `isBrickGoodAvailable()`. */
+  brickAvailable?: boolean;
+}
+
 /**
- * §7.1 decision 5 (still in force for PR-H1 materials path): no quarry → all wood.
- * Culture brick recipes without quarry are PR-M.
+ * Mason share from culture recipe + terrain gates (K17).
+ * No quarry + no brick → 0 (all wood). No quarry + brick → masons allowed for brick cultures.
  */
-export function getMasonShare(hasQuarryAccess: boolean): number {
-  if (!hasQuarryAccess) return 0;
-  const bonus = useOptionsState.getState().culturesSet === "highFantasy" ? HIGH_FANTASY_MASON_SHARE_BONUS : 0;
-  return Math.min(MAX_MASON_SHARE, BASE_MASON_SHARE + bonus);
+export function getMasonShare(hasQuarryAccess: boolean, context: MasonShareContext = {}): number {
+  const recipe = getHousingRecipe({
+    cultureType: context.cultureType,
+    hasQuarryAccess,
+    highFantasy: context.highFantasy ?? useOptionsState.getState().culturesSet === "highFantasy",
+    brickAvailable: context.brickAvailable ?? false
+  });
+  return getMasonMaterialShare(recipe);
 }
 
 export function clamp01(value: number): number {
@@ -131,17 +145,15 @@ export function normalizeConstructionOperation(
 
 /**
  * Headcount needed to close this year's size-aware housing backlog, split masons/carpenters.
- * Caller should pass a normalized op (or one with consistent dwellingStock + buildingStock).
- * When only `buildingStock` is known (already write-through), dwellings are inferred as
- * `buildingStock * requiredDwellings` if `requiredDwellings` is provided; otherwise backlog is
- * derived solely from write-through sat (`max(0, 1 - buildingStock)`).
+ * `masonShareContext` drives culture brick/stone recipe (K17); omit for Generic-without-brick tests.
  */
 export function getConstructionRequiredWorkers(
   operation: Pick<ConstructionOperation, "buildingStock" | "hasQuarryAccess"> & {
     dwellingStock?: number;
     requiredDwellings?: number;
   },
-  adults: number
+  adults: number,
+  masonShareContext: MasonShareContext = {}
 ): { mason: number; carpenter: number } {
   let housingBacklog: number;
   if (operation.dwellingStock != null && operation.requiredDwellings != null) {
@@ -153,7 +165,7 @@ export function getConstructionRequiredWorkers(
   const sizeTarget = getTargetBuildingStock(adults);
   const effectiveBacklog = housingBacklog * sizeTarget;
   const totalRequired = CONSTRUCTION_WORKERS_BASE + effectiveBacklog * adults * WORKERS_SHARE_PER_BACKLOG;
-  const masonShare = getMasonShare(operation.hasQuarryAccess);
+  const masonShare = getMasonShare(operation.hasQuarryAccess, masonShareContext);
   return { mason: rn(totalRequired * masonShare, 2), carpenter: rn(totalRequired * (1 - masonShare), 2) };
 }
 
@@ -192,6 +204,35 @@ export function getHousingLedgerSnapshot(
   };
 }
 
+export function isBrickGoodAvailable(): boolean {
+  const brick = getGoods().find(good => good.name.toLowerCase() === "brick");
+  return Boolean(brick && isGoodEnabled(brick));
+}
+
+export function resolveBurgCultureType(burg: {
+  culture?: number;
+  type?: CultureType | string;
+}): CultureType | string | undefined {
+  const pack = getWorldContext().pack;
+  const cultureId = burg.culture;
+  if (cultureId != null && pack.cultures?.[cultureId]?.type) {
+    return pack.cultures[cultureId].type as CultureType;
+  }
+  return burg.type;
+}
+
+export function getHousingRecipeForBurg(
+  burg: { culture?: number; type?: CultureType | string },
+  hasQuarryAccess: boolean
+): HousingRecipe {
+  return getHousingRecipe({
+    cultureType: resolveBurgCultureType(burg),
+    hasQuarryAccess,
+    highFantasy: useOptionsState.getState().culturesSet === "highFantasy",
+    brickAvailable: isBrickGoodAvailable()
+  });
+}
+
 function getAdults(burg: Parameters<typeof getBurgDemographics>[0]): number {
   const demographics = getBurgDemographics(burg);
   return Math.max(0, demographics.maleAdults + demographics.femaleAdults);
@@ -199,6 +240,15 @@ function getAdults(burg: Parameters<typeof getBurgDemographics>[0]): number {
 
 function getPopulationRate(): number {
   return Math.max(0, getWorldContext().populationRate ?? 0) || 1;
+}
+
+function consumeMaterialMonthly(
+  marketId: number,
+  good: { i: number; name: string } | undefined,
+  annualNeed: number
+): number {
+  if (!good || annualNeed <= 0 || !isGoodEnabled(good)) return 0;
+  return Markets.consumeForConstruction(marketId, good.i, annualNeed / 12, MATERIAL_STOCK_SHARE);
 }
 
 /**
@@ -251,16 +301,19 @@ export class ConstructionOperationsModule {
   }
 
   /**
-   * Settles one Economy production month: consumes Stone/Wood, advances `dwellingStock`,
-   * write-through `buildingStock` (K13/K14). Never does independent `buildingStock +=`.
+   * Settles one Economy production month: consumes Stone/Brick/Wood by culture recipe,
+   * advances `dwellingStock`, write-through `buildingStock` (K13/K14/K17).
    */
   produceMonth(): void {
     const goodsByName = new Map(getGoods().map(good => [good.name.toLowerCase(), good]));
     const stoneGood = goodsByName.get("stone");
     const woodGood = goodsByName.get("wood");
+    const brickGood = goodsByName.get("brick");
     const concreteGood = goodsByName.get("roman concrete");
     const burgs = getWorldContext().pack.burgs;
     const populationRate = getPopulationRate();
+    const brickAvailable = isBrickGoodAvailable();
+    const highFantasy = useOptionsState.getState().culturesSet === "highFantasy";
 
     for (const raw of getConstructionOperations()) {
       if (!raw.active) continue;
@@ -273,43 +326,66 @@ export class ConstructionOperationsModule {
       // Re-assert write-through after population may have changed since last month.
       operation.buildingStock = clamp01(operation.dwellingStock / requiredDwellings);
 
+      const recipe = getHousingRecipe({
+        cultureType: resolveBurgCultureType(burg),
+        hasQuarryAccess: operation.hasQuarryAccess,
+        highFantasy,
+        brickAvailable
+      });
+      const masonShare = getMasonMaterialShare(recipe);
       const adults = getAdults(burg);
-      const required = getConstructionRequiredWorkers({ ...operation, requiredDwellings }, adults);
+      const required = getConstructionRequiredWorkers({ ...operation, requiredDwellings }, adults, {
+        cultureType: resolveBurgCultureType(burg),
+        highFantasy,
+        brickAvailable
+      });
       const masonFactor = required.mason > 0 ? Math.min(1, operation.masonWorkers / required.mason) : 1;
       const carpenterFactor = required.carpenter > 0 ? Math.min(1, operation.carpenterWorkers / required.carpenter) : 1;
 
-      let stoneFactor = 1;
-      if (operation.hasQuarryAccess && required.mason > 0) {
-        const stoneNeededAnnual = required.mason * STONE_PER_MASON_WORKER_ANNUAL;
-        let coveredAnnual = 0;
+      const masonLoad = required.mason * STONE_PER_MASON_WORKER_ANNUAL;
+      const masonMaterial = recipe.stone + recipe.brick;
+      const stoneFrac = masonMaterial > 0 ? recipe.stone / masonMaterial : 0;
+      const brickFrac = masonMaterial > 0 ? recipe.brick / masonMaterial : 0;
+      const stoneNeedAnnual = masonLoad * stoneFrac;
+      const brickNeedAnnual = masonLoad * brickFrac;
 
+      // Stone portion: Roman Concrete substitutes stone only (not brick), then Stone.
+      let stoneCoveredAnnual = 0;
+      if (stoneNeedAnnual > 0) {
         if (concreteGood && isGoodEnabled(concreteGood)) {
-          const concreteNeededMonthly = (stoneNeededAnnual - coveredAnnual) / ROMAN_CONCRETE_STONE_EFFICIENCY / 12;
+          const concreteNeededMonthly = (stoneNeedAnnual - stoneCoveredAnnual) / ROMAN_CONCRETE_STONE_EFFICIENCY / 12;
           const concreteConsumedMonthly = Markets.consumeForConstruction(
             operation.marketId,
             concreteGood.i,
             concreteNeededMonthly,
             MATERIAL_STOCK_SHARE
           );
-          coveredAnnual += concreteConsumedMonthly * ROMAN_CONCRETE_STONE_EFFICIENCY * 12;
+          stoneCoveredAnnual += concreteConsumedMonthly * ROMAN_CONCRETE_STONE_EFFICIENCY * 12;
         }
-        if (stoneGood && isGoodEnabled(stoneGood) && coveredAnnual < stoneNeededAnnual) {
-          const stoneNeededMonthly = (stoneNeededAnnual - coveredAnnual) / 12;
-          const stoneConsumedMonthly = Markets.consumeForConstruction(
-            operation.marketId,
-            stoneGood.i,
-            stoneNeededMonthly,
-            MATERIAL_STOCK_SHARE
-          );
-          coveredAnnual += stoneConsumedMonthly * 12;
+        if (stoneCoveredAnnual < stoneNeedAnnual) {
+          stoneCoveredAnnual +=
+            consumeMaterialMonthly(operation.marketId, stoneGood, stoneNeedAnnual - stoneCoveredAnnual) * 12;
         }
-        stoneFactor = stoneNeededAnnual > 0 ? Math.min(1, coveredAnnual / stoneNeededAnnual) : 1;
+      }
+      const stoneFactor = stoneNeedAnnual > 0 ? Math.min(1, stoneCoveredAnnual / stoneNeedAnnual) : 1;
+
+      let brickCoveredAnnual = 0;
+      if (brickNeedAnnual > 0) {
+        brickCoveredAnnual = consumeMaterialMonthly(operation.marketId, brickGood, brickNeedAnnual) * 12;
+      }
+      const brickFactor = brickNeedAnnual > 0 ? Math.min(1, brickCoveredAnnual / brickNeedAnnual) : 1;
+
+      // Mason material factor: weighted by stone/brick fracs when both apply.
+      let masonMaterialFactor = 1;
+      if (masonMaterial > 0 && required.mason > 0) {
+        masonMaterialFactor = stoneFrac * stoneFactor + brickFrac * brickFactor;
       }
 
       let woodFactor = 1;
       if (woodGood && isGoodEnabled(woodGood) && required.carpenter > 0) {
         const woodNeededAnnual = required.carpenter * WOOD_PER_CARPENTER_WORKER_ANNUAL;
-        // Shipbuilding competes indirectly via shared market stock (economy must not import it).
+        // Brick firing wood is paid when Brick is manufactured (recipe), not double-charged here.
+        // Shipbuilding competes indirectly via shared market stock.
         const consumed = Markets.consumeForConstruction(
           operation.marketId,
           woodGood.i,
@@ -319,9 +395,8 @@ export class ConstructionOperationsModule {
         woodFactor = woodNeededAnnual > 0 ? Math.min(1, (consumed * 12) / woodNeededAnnual) : 1;
       }
 
-      const masonShare = getMasonShare(operation.hasQuarryAccess);
       const laborFactor = masonShare * masonFactor + (1 - masonShare) * carpenterFactor;
-      const materialFactor = masonShare * stoneFactor + (1 - masonShare) * woodFactor;
+      const materialFactor = masonShare * masonMaterialFactor + (1 - masonShare) * woodFactor;
       const progressFactor = Math.min(laborFactor, materialFactor);
 
       // K14: growth uses full housingBacklog, not employment's size-aware effectiveBacklog.

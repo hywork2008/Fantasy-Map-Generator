@@ -690,6 +690,21 @@ export const GOODS_DATA: GoodData[] = [
     multipliers: { cultureType: { River: 1.4, Lake: 1.4 } }
   },
   {
+    // docs/plan/urban-housing-system.md K6/PR-M: construction brick distinct from Ceramics (utilities).
+    name: "Brick",
+    warEconomyType: "strategic",
+    tags: ["construction"],
+    icon: "good-clay",
+    color: "#a65d3f",
+    value: 2,
+    chance: 0,
+    // Clay body + Wood firing fuel; manufacture pulls Clay/Wood via the recipe pipeline.
+    recipes: [{ Clay: 1, Wood: 0.1 }],
+    unit: "wain",
+    demandCoverage: { construction: 1 },
+    multipliers: { cultureType: { River: 1.3, Lake: 1.3 } }
+  },
+  {
     name: "Volcanic Ash",
     warEconomyType: "luxury",
     tags: ["mineral", "construction"],
@@ -1673,6 +1688,7 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Tea: tradeProfile(1, 2, 4, 3, 0, 3, 2),
   Tobacco: tradeProfile(1, 2, 4, 3, 1, 3, 2),
   Clay: tradeProfile(5, 5, 1, -2, 0, 4, 2),
+  Brick: tradeProfile(5, 4, 2, -1, 0, 5, 2),
   "White sand": tradeProfile(5, 5, 1, -2, 0, 5, 1),
   Leather: tradeProfile(3, 3, 2, 0, 0, 4, 2),
   Cloth: tradeProfile(2, 3, 2, 1, 0, 3, 2),
