@@ -2,7 +2,7 @@
 
 | Field | Value |
 | :--- | :--- |
-| **Status** | In progress — PR-I1 and PR-I2 implemented 2026-08-02 |
+| **Status** | In progress — PR-I1 through PR-I3 implemented 2026-08-02 |
 | **Date** | 2026-08-02 |
 | **Owner** | Economy extension (`src/extensions/economy/`) |
 | **Depends on** | [urban-housing-system.md](./urban-housing-system.md), [guild-city-bases.md](./guild-city-bases.md) (Burg Editor extension-tab host support) |
@@ -197,22 +197,23 @@ This prevents a hamlet from obtaining a single 70-bed “inn” merely because a
 
 “Often 0” is intentional. A generic Burg is not guaranteed an inn just because the UI could display one. In `highFantasy` or `jrpg` presentation, the **probability and labels may be more generous**, but this is an explicit world-style option rather than a hidden historical override.
 
-### Annual settlement (future phase)
+### Annual settlement
 
-After the initial display-only milestone, annual settlement may add, expand, close, or deteriorate facilities.
+PR-I3 settles facilities at most once per simulation year. It recalculates the deterministic target mix, then moves one building at a time toward it. A new building receives its own `InnConstructionOrder`; it draws from the burg's existing construction workers and its market's Wood plus Stone/Brick stock, but never from `dwellingStock` or its permanent-housing work orders.
 
 ```text
 desiredBuildings = f(population, connectivity, trade, style policy)
 constructionOpportunity = available builders × material coverage
 
-if buildings < desiredBuildings and constructionOpportunity > threshold:
-  add or expand one facility class
+if buildings < desiredBuildings:
+  start or advance one InnConstructionOrder for the facility class
+  complete at most one building when labour and materials reach 100%
 
 if buildings > desiredBuildings after sustained population/trade decline:
-  reduce condition first; remove a building only after a long decay period
+  reduce condition first; remove one building only after a long decay period
 ```
 
-Facility construction must consume the same Wood/Stone/Brick market goods as other construction in a later phase, but it must be a separate work order from permanent dwellings. It cannot silently spend or create `dwellingStock`.
+The order records acquired materials and labour progress so a shortage cannot consume resources and then silently create a building. Existing facilities only recover condition slowly while appropriate; surplus stock deteriorates before a building disappears.
 
 ## Population and lodging contract
 
@@ -338,7 +339,7 @@ The initial seed must use Economy's map-ready task, not `fmg:generate-post-core`
 - Add the Inns tab after shared `BurgEditor` extension tabs from Guild plan PR-2 are present.
 - No editing controls in v1.
 
-### PR-I3 — annual facility lifecycle
+### PR-I3 — annual facility lifecycle — implemented
 
 - Add slow construction/decline based on actual connectivity and economic demand.
 - Integrate material costs as an explicit non-dwelling construction work order.

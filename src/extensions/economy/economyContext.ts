@@ -17,7 +17,7 @@ import type { ConstructionHireApplication, ConstructionNamedSeat } from "./gener
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
 import type { Good } from "./generators/goodsGeneratorTypes";
 import type { CraftDomainEmploymentRecord, GuildKnowledgeStock } from "./generators/guildKnowledgeTypes";
-import type { InnFacility } from "./generators/innFacilityTypes";
+import type { InnConstructionOrder, InnFacility } from "./generators/innFacilityTypes";
 import type { FlowCycleSnapshot } from "./generators/marketFlowTypes";
 import type {
   Caravan,
@@ -70,6 +70,7 @@ let _stateSecretLastSettledYearFallback: number | null = null;
 let _martialDisciplineLastSettledYearFallback: number | null = null;
 let _guildSuccessionLastSettledYearFallback: number | null = null;
 let _burgTreasuryLastSettledYearFallback: number | null = null;
+let _innFacilitiesLastSettledYearFallback: number | null = null;
 let _stateAgriculturalProductivityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
 export function initEconomyContext(api: ExtensionAPI): void {
@@ -96,6 +97,7 @@ export function clearEconomyContext(): void {
   _martialDisciplineLastSettledYearFallback = null;
   _guildSuccessionLastSettledYearFallback = null;
   _burgTreasuryLastSettledYearFallback = null;
+  _innFacilitiesLastSettledYearFallback = null;
   _stateAgriculturalProductivityFallback = new Float32Array();
 }
 
@@ -803,6 +805,32 @@ export function getInnFacilities(): InnFacility[] {
 }
 export function setInnFacilities(facilities: readonly InnFacility[]): void {
   setSliceArray("innFacilities", facilities);
+}
+
+/** Pending non-dwelling inn construction work orders. */
+export function getInnConstructionOrders(): InnConstructionOrder[] {
+  return getSliceArray<InnConstructionOrder>("innConstructionOrders");
+}
+export function setInnConstructionOrders(orders: readonly InnConstructionOrder[]): void {
+  setSliceArray("innConstructionOrders", orders);
+}
+
+/** Once-per-simulation-year guard for InnFacilities.settleAnnual(). */
+export function getInnFacilitiesLastSettledYear(): number | null {
+  const slice = getEconomySlice();
+  if (slice) {
+    const value = slice.innFacilitiesLastSettledYear;
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return _innFacilitiesLastSettledYearFallback;
+}
+export function setInnFacilitiesLastSettledYear(year: number): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice.innFacilitiesLastSettledYear = year;
+    return;
+  }
+  _innFacilitiesLastSettledYearFallback = year;
 }
 
 /** Pending construction hire applications (Phase 2 lag). */

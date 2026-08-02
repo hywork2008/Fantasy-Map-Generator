@@ -27,3 +27,16 @@ export interface InnFacilityTotals {
   commonSeats: number;
   stableSpaces: number;
 }
+
+/**
+ * A separate, non-dwelling construction work order for one additional inn building.
+ * Materials are acquired gradually; the completed building is folded into InnFacility.
+ */
+export interface InnConstructionOrder {
+  burgId: number;
+  innClass: InnClass;
+  startedYear: number;
+  laborProgress: number;
+  woodAcquired: number;
+  masonryAcquired: number;
+}

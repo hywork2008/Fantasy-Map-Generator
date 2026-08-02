@@ -149,6 +149,39 @@ function validateInnFacilities(value: unknown, world: WorldContext): void {
   }
 }
 
+function validateInnConstructionOrders(value: unknown, world: WorldContext): void {
+  if (value === undefined) return;
+  const name = "simulation.extensions.economy.innConstructionOrders";
+  if (!Array.isArray(value)) throw new Error(`Archive ${name} must be an array`);
+  const seenKeys = new Set<string>();
+  for (const [index, order] of value.entries()) {
+    const entryName = `${name}[${index}]`;
+    assertRecord(order, entryName);
+    const burgId = typeof order.burgId === "number" ? order.burgId : -1;
+    if (!Number.isInteger(burgId) || burgId <= 0 || !world.pack.burgs[burgId]) {
+      throw new Error(`${entryName}.burgId must reference an existing burg`);
+    }
+    if (typeof order.innClass !== "string" || !INN_CLASSES.has(order.innClass)) {
+      throw new Error(`${entryName}.innClass is invalid`);
+    }
+    const key = `${burgId}:${order.innClass}`;
+    if (seenKeys.has(key)) throw new Error(`${entryName} duplicates an inn construction order for ${key}`);
+    seenKeys.add(key);
+    if (typeof order.startedYear !== "number" || !Number.isFinite(order.startedYear)) {
+      throw new Error(`${entryName}.startedYear must be a finite number`);
+    }
+    for (const field of ["laborProgress", "woodAcquired", "masonryAcquired"]) {
+      const valueAtField = order[field];
+      if (typeof valueAtField !== "number" || !Number.isFinite(valueAtField) || valueAtField < 0) {
+        throw new Error(`${entryName}.${field} must be a finite non-negative number`);
+      }
+    }
+    if ((order.laborProgress as number) > 1) {
+      throw new Error(`${entryName}.laborProgress must not exceed 1`);
+    }
+  }
+}
+
 function validateCharactersSlice(slice: Record<string, unknown>): void {
   assertOptionalArrayField(slice, "characters", "characters");
 }
@@ -191,6 +224,13 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
     assertOptionalArrayField(slice, field, "economy");
   }
   validateInnFacilities(slice.innFacilities, world);
+  validateInnConstructionOrders(slice.innConstructionOrders, world);
+  if (slice.innFacilitiesLastSettledYear !== undefined) {
+    const year = slice.innFacilitiesLastSettledYear;
+    if (typeof year !== "number" || !Number.isFinite(year)) {
+      throw new Error("Archive simulation.extensions.economy.innFacilitiesLastSettledYear must be a finite number");
+    }
+  }
   for (const field of ["nextCaravanId", "nextStrategicProcurementOrderId"]) {
     if (slice[field] !== undefined) assertNonNegativeInteger(slice[field], `simulation.extensions.economy.${field}`);
   }
@@ -276,6 +316,7 @@ function collectEconomyCoreReferences(slice: Record<string, unknown>): readonly 
   return [
     ...collectEntityReferences(slice.productionByBurg, "burg"),
     ...collectEntityReferences(slice.innFacilities, "burg", "orphan"),
+    ...collectEntityReferences(slice.innConstructionOrders, "burg", "orphan"),
     ...collectEntityReferences(slice.strategicGoodsPolicies, "state", "orphan")
   ];
 }

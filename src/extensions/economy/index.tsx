@@ -1697,6 +1697,9 @@ export function init(api: ExtensionAPI): void {
         // year's buildingStock (docs/plan/urban-construction-industry.md §3.3, decision §7.1-2b).
         ConstructionOperations.constrainEffectiveCapacity();
       }
+      // Inn facilities use the same local builders and Wood/Stone/Brick market stock as
+      // construction, but settle through their own non-dwelling work orders.
+      InnFacilities.settleAnnual();
       // Must run after reconcileAnnualBasicEmploymentWorkers(), not before: it reads this year's
       // freshly-reconciled SmelterOperation.workers headcount as the Metallurgy guild's
       // practitioner coverage (docs/plan/knowledge-guild-system.md §9 Phase 1). Self-gates to
