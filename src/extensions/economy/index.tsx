@@ -65,6 +65,7 @@ import { GuildKnowledge } from "./generators/guildKnowledge";
 import { GuildSuccession } from "./generators/guildSuccession";
 import { GuildTreasury } from "./generators/guildTreasury";
 import { IndustrialTechInvestment } from "./generators/industrialTechInvestment";
+import { clearFlowDiagnostics } from "./generators/marketFlowDiagnostics";
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
 import { Markets } from "./generators/markets-generator";
 import { MartialDisciplineKnowledge } from "./generators/martialDisciplineKnowledge";
@@ -710,6 +711,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       setMarkets([]);
       setDeals([]);
       ExportStaging.clear();
+      clearFlowDiagnostics();
       setCaravans([]);
       MerchantTransportAssets.clear();
       TransportAssetOrders.clear();

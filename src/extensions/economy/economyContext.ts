@@ -16,6 +16,7 @@ import type { ConstructionOperation } from "./generators/constructionEmploymentT
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
 import type { Good } from "./generators/goodsGeneratorTypes";
 import type { CraftDomainEmploymentRecord, GuildKnowledgeStock } from "./generators/guildKnowledgeTypes";
+import type { FlowCycleSnapshot } from "./generators/marketFlowReport";
 import type {
   Caravan,
   Deal,
@@ -639,6 +640,17 @@ export function getExportWarehouseSeeded(): boolean {
 }
 export function setExportWarehouseSeeded(seeded: boolean): void {
   setSliceNumber("exportWarehouseSeeded", seeded ? 1 : 0);
+}
+
+/**
+ * Rolling A0 flow diagnostics: last ~12 production-cycle snapshots (market×good P/S/D/trade).
+ * @see docs/plan/market-goods-flow-budget.md
+ */
+export function getFlowCycleHistory(): FlowCycleSnapshot[] {
+  return getSliceArray<FlowCycleSnapshot>("flowCycleHistory");
+}
+export function setFlowCycleHistory(history: readonly FlowCycleSnapshot[]): void {
+  setSliceArray("flowCycleHistory", history);
 }
 
 /** In-transit caravans owned by the economy extension. */

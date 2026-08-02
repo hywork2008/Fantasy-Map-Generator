@@ -37,6 +37,7 @@ import {
   getCraftDomainForGood
 } from "./guildKnowledgeTypes";
 import { GUILD_PROFIT_SHARE, GuildTreasury } from "./guildTreasury";
+import { beginFlowCycleCapture, recordFlowCycleEnd } from "./marketFlowDiagnostics";
 import { Markets } from "./markets-generator";
 import type { Deal, Market } from "./marketTypes";
 import { MerchantTradeCapital } from "./merchantTradeCapital";
@@ -147,6 +148,9 @@ export class ProductionModule {
     // cycles, instead of for ~0ms (docs/temp/profits.md decision #1).
     setDeals([]);
 
+    // A0 flow diagnostics: retail stock before rural/burg production this cycle.
+    beginFlowCycleCapture();
+
     Markets.collectRuralProduction();
     MineOperations.produceMonth();
     SmelterOperations.produceMonth();
@@ -243,6 +247,9 @@ export class ProductionModule {
     Caravans.spawnFromDeals(getDeals());
     this.fillBurgsDemand(cycle.sortedBurgs, cycle.index);
     syncBurgMarketLedgers();
+
+    // A0: record market×good demand / production estimate / trade / end stock for the year rollup.
+    recordFlowCycleEnd();
 
     const craftEmploymentRecords = Array.from(cycle.craftWorkersByBurg.entries())
       .filter(([, workers]) => workers > 0)

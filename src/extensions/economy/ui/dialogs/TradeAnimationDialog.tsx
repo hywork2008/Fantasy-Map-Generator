@@ -7,6 +7,8 @@ import { getCaravans, getMarkets, getWorldContext } from "../../economyContext";
 import { CaravanMovement, type CaravanMovementSettings } from "../../generators/caravanMovement";
 import { getCaravanTravelTime } from "../../generators/caravans";
 import { Goods } from "../../generators/goods-generator";
+import { downloadFlowReportCsv, getFlowReport } from "../../generators/marketFlowDiagnostics";
+import type { FlowReportSummary, MarketGoodFlowReportRow } from "../../generators/marketFlowReport";
 import type { Caravan } from "../../generators/marketTypes";
 import { TradeAnimation } from "../../generators/trade-animation";
 import {
@@ -16,9 +18,21 @@ import {
 } from "../../generators/tradeLogisticsSettings";
 import { formatSailDecisionReason } from "../../generators/tradeSailSchedule";
 
+const tabButtonStyle = (active: boolean): React.CSSProperties => ({
+  padding: "4px 12px",
+  cursor: "pointer",
+  background: "none",
+  border: "none",
+  borderBottom: active ? "2px solid #ddd" : "2px solid transparent",
+  fontWeight: active ? "bold" : "normal",
+  opacity: active ? 1 : 0.7,
+  color: "inherit",
+  font: "inherit"
+});
+
 export const TradeAnimationDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("tradeAnimationEditor"));
-  const [activeTab, setActiveTab] = React.useState<"caravans" | "settings">("caravans");
+  const [activeTab, setActiveTab] = React.useState<"caravans" | "flow" | "settings">("caravans");
 
   return (
     <Dialog
@@ -32,34 +46,17 @@ export const TradeAnimationDialog: React.FC = () => {
         <div className="header" style={{ display: "flex", borderBottom: "1px solid #555", gap: 0 }}>
           <button
             type="button"
-            style={{
-              padding: "4px 12px",
-              cursor: "pointer",
-              background: "none",
-              border: "none",
-              borderBottom: activeTab === "caravans" ? "2px solid #ddd" : "2px solid transparent",
-              fontWeight: activeTab === "caravans" ? "bold" : "normal",
-              opacity: activeTab === "caravans" ? 1 : 0.7,
-              color: "inherit",
-              font: "inherit"
-            }}
+            style={tabButtonStyle(activeTab === "caravans")}
             onClick={() => setActiveTab("caravans")}
           >
             Active Caravans
           </button>
+          <button type="button" style={tabButtonStyle(activeTab === "flow")} onClick={() => setActiveTab("flow")}>
+            Flow report
+          </button>
           <button
             type="button"
-            style={{
-              padding: "4px 12px",
-              cursor: "pointer",
-              background: "none",
-              border: "none",
-              borderBottom: activeTab === "settings" ? "2px solid #ddd" : "2px solid transparent",
-              fontWeight: activeTab === "settings" ? "bold" : "normal",
-              opacity: activeTab === "settings" ? 1 : 0.7,
-              color: "inherit",
-              font: "inherit"
-            }}
+            style={tabButtonStyle(activeTab === "settings")}
             onClick={() => setActiveTab("settings")}
           >
             Settings
@@ -68,6 +65,7 @@ export const TradeAnimationDialog: React.FC = () => {
 
         {/* Keep both tabs mounted; hide the inactive one so VirtualTableBody isn't re-initialized on switch */}
         <ActiveCaravansTab hidden={activeTab !== "caravans"} />
+        {activeTab === "flow" && <FlowReportTab />}
         {activeTab === "settings" && <SettingsTab />}
       </div>
     </Dialog>
@@ -324,6 +322,227 @@ const ActiveCaravansTab: React.FC<ActiveCaravansTabProps> = ({ hidden = false })
         <div>
           Shipments: {sortedRows.length} ({sortedRows.filter(row => row.state === "loading").length} loading /{" "}
           {sortedRows.filter(row => row.state === "transit").length} in transit)
+        </div>
+      </div>
+    </div>
+  );
+};
+
+function formatPct(value: number | null): string {
+  if (value == null || !Number.isFinite(value)) return "—";
+  return `${(value * 100).toFixed(0)}%`;
+}
+
+function formatNum(value: number): string {
+  if (!Number.isFinite(value)) return value === Number.POSITIVE_INFINITY ? "∞" : "—";
+  if (Math.abs(value) >= 1000) return value.toFixed(0);
+  if (Math.abs(value) >= 10) return value.toFixed(1);
+  return value.toFixed(2);
+}
+
+const FlowReportTab: React.FC = () => {
+  const [summary, setSummary] = React.useState<FlowReportSummary>(() => getFlowReport());
+  const [sortBy, setSortBy] = React.useState<keyof MarketGoodFlowReportRow>("exportSlots");
+  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc");
+  const parentRef = React.useRef<HTMLDivElement>(null);
+  const world = getWorldContext();
+  const markets = getMarkets();
+
+  const refresh = React.useCallback(() => {
+    setSummary(getFlowReport());
+  }, []);
+
+  React.useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const marketLabel = React.useCallback(
+    (marketId: number) => {
+      const market = markets.find(candidate => candidate.i === marketId);
+      if (!market) return `Market ${marketId}`;
+      if (market.name) return market.name;
+      return world.pack.burgs[market.centerBurgId]?.name ?? `Market ${marketId}`;
+    },
+    [markets, world.pack.burgs]
+  );
+
+  const rows = React.useMemo(() => {
+    return summary.rows.map(row => ({
+      ...row,
+      marketName: marketLabel(row.marketId),
+      goodName: Goods.get(row.goodId)?.name ?? `Good ${row.goodId}`
+    }));
+  }, [summary.rows, marketLabel]);
+
+  const sortedRows = React.useMemo(() => {
+    return [...rows].sort((a, b) => {
+      let valA = a[sortBy as keyof typeof a];
+      let valB = b[sortBy as keyof typeof b];
+      if (typeof valA === "string") valA = (valA as string).toLowerCase();
+      if (typeof valB === "string") valB = (valB as string).toLowerCase();
+      const dir = sortOrder === "asc" ? 1 : -1;
+      if (valA < valB) return -dir;
+      if (valA > valB) return dir;
+      return 0;
+    });
+  }, [rows, sortBy, sortOrder]);
+
+  const handleSort = (field: string) => {
+    if (sortBy === field) {
+      setSortOrder(order => (order === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(field as keyof MarketGoodFlowReportRow);
+      setSortOrder("desc");
+    }
+  };
+
+  return (
+    <div style={{ display: "contents" }}>
+      <div
+        style={{
+          padding: "0.4rem 0.6rem",
+          borderBottom: "1px solid #555",
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "0.75rem",
+          alignItems: "center",
+          fontSize: "0.9em"
+        }}
+      >
+        <span data-tip="Production cycles recorded in the rolling year window (max 12)">
+          Cycles: {summary.cyclesRecorded}/{summary.targetCycles}
+        </span>
+        <span data-tip="Mean hold fill of loading + transit caravans across recorded cycles">
+          Mean util: {formatPct(summary.meanCaravanUtilization)}
+        </span>
+        <span data-tip="Median hold fill across recorded cycles">
+          Median util: {formatPct(summary.medianCaravanUtilization)}
+        </span>
+        <span data-tip="Share of caravans under 20% fill">&lt;20% fill: {formatPct(summary.shareUnder20pct)}</span>
+        <span data-tip="Sum of annualized export cargo slots from measured trade">
+          Annual export slots: {formatNum(summary.totalAnnualExportSlots)}
+        </span>
+        <button type="button" onClick={refresh} data-tip="Reload report from the latest production cycles">
+          Refresh
+        </button>
+        <button
+          type="button"
+          onClick={() => downloadFlowReportCsv()}
+          data-tip="Download the full market×good flow table as CSV"
+          disabled={summary.rows.length === 0}
+        >
+          Download CSV
+        </button>
+      </div>
+
+      <div ref={parentRef} className="table">
+        <table className="fmg-table">
+          <thead>
+            <tr className="header">
+              <SortableHeader
+                field="marketName"
+                label="Market"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+              />
+              <SortableHeader field="goodName" label="Good" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+              <SortableHeader
+                field="annualProd"
+                label="Ann. prod"
+                tip="Production scaled to 12 cycles from measured stock deltas + trade"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+                numeric
+              />
+              <SortableHeader
+                field="annualDemand"
+                label="Ann. demand"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+                numeric
+              />
+              <SortableHeader
+                field="annualExport"
+                label="Ann. export"
+                tip="Units booked as market→market export deals, annualized"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+                numeric
+              />
+              <SortableHeader
+                field="annualImport"
+                label="Ann. import"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+                numeric
+              />
+              <SortableHeader
+                field="endStock"
+                label="Stock"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+                numeric
+              />
+              <SortableHeader
+                field="monthsCover"
+                label="Mo cover"
+                tip="End stock ÷ mean cycle demand"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+                numeric
+              />
+              <SortableHeader
+                field="exportSlots"
+                label="Export slots"
+                tip="Annual export units × cargo slots per unit"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+                numeric
+              />
+            </tr>
+          </thead>
+          {sortedRows.length === 0 ? (
+            <tbody>
+              <tr>
+                <td colSpan={9}>
+                  No flow samples yet. Advance time through at least one production cycle (~30 sim days) with Economy
+                  enabled.
+                </td>
+              </tr>
+            </tbody>
+          ) : (
+            <VirtualTableBody
+              items={sortedRows}
+              scrollElementRef={parentRef}
+              renderRow={row => (
+                <tr key={`${row.marketId}-${row.goodId}`} className="states">
+                  <td>{row.marketName}</td>
+                  <td>{row.goodName}</td>
+                  <td style={{ textAlign: "right" }}>{formatNum(row.annualProd)}</td>
+                  <td style={{ textAlign: "right" }}>{formatNum(row.annualDemand)}</td>
+                  <td style={{ textAlign: "right" }}>{formatNum(row.annualExport)}</td>
+                  <td style={{ textAlign: "right" }}>{formatNum(row.annualImport)}</td>
+                  <td style={{ textAlign: "right" }}>{formatNum(row.endStock)}</td>
+                  <td style={{ textAlign: "right" }}>{formatNum(row.monthsCover)}</td>
+                  <td style={{ textAlign: "right" }}>{formatNum(row.exportSlots)}</td>
+                </tr>
+              )}
+            />
+          )}
+        </table>
+      </div>
+      <div className="totalLine">
+        <div>
+          Rows: {sortedRows.length} market×good · annualized from {summary.cyclesRecorded} cycle
+          {summary.cyclesRecorded === 1 ? "" : "s"}
         </div>
       </div>
     </div>
