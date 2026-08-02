@@ -100,6 +100,171 @@ export interface AbilityProfile {
   values: Record<string, number>;
 }
 
+/** Birth social stratum — see docs/plan/characters/backstory-profile.md §3. */
+export type SocialStratum =
+  | "royal"
+  | "high_noble"
+  | "minor_noble"
+  | "gentry"
+  | "commoner"
+  | "merchant_born"
+  | "clergy_orphan"
+  | "freedman"
+  | "slave_born"
+  | "foreigner"
+  | "unknown";
+
+/** Current estate / legal standing (may differ from birth stratum after rise/fall). */
+export type EstateStatus =
+  | "reigning_dynasty"
+  | "court_noble"
+  | "landed_noble"
+  | "officer"
+  | "official"
+  | "cleric"
+  | "freeman"
+  | "burgher"
+  | "serf"
+  | "slave"
+  | "outlaw"
+  | "exile";
+
+/** Where the character was primarily raised. */
+export type RaisedIn =
+  | "capital_court"
+  | "capital_city"
+  | "provincial_seat"
+  | "frontier_burg"
+  | "rural_manor"
+  | "monastery"
+  | "military_camp"
+  | "merchant_quarter"
+  | "foreign_court"
+  | "street";
+
+/** What the character primarily serves / values — zeal's *direction*. */
+export type CommitmentKind =
+  | "self"
+  | "family"
+  | "house"
+  | "liege"
+  | "patron"
+  | "office"
+  | "domain"
+  | "state"
+  | "nation_culture"
+  | "faith"
+  | "ideology"
+  | "craft"
+  | "wealth"
+  | "comrades"
+  | "people"
+  | "rivalry"
+  | "hedonism";
+
+export interface CommitmentFocus {
+  kind: CommitmentKind;
+  targetId?: number;
+  label?: string;
+  weight?: number;
+}
+
+export type ConflictPolicy = "primary_wins" | "negotiate" | "whichever_hurts_less" | "burn_both";
+
+export interface CharacterCommitment {
+  primary: CommitmentFocus;
+  secondary?: CommitmentFocus;
+  /** Devotion heat; defaults to personality.zeal when omitted at generation. */
+  intensity: number;
+  conflictPolicy: ConflictPolicy;
+}
+
+export type TastePolarity = "like" | "dislike";
+
+export interface CharacterTaste {
+  id: string;
+  polarity: TastePolarity;
+  intensity: number;
+  note?: string;
+}
+
+export interface CharacterOrigin {
+  socialStratum: SocialStratum;
+  estateStatus: EstateStatus;
+  birthBurgId?: number;
+  birthProvinceId?: number;
+  birthStateId: number;
+  homeBurgId?: number;
+  raisedIn: RaisedIn;
+  lineageId?: number;
+  lineageName?: string;
+  isDynasticClaimant?: boolean;
+  religionId?: number;
+}
+
+export type CharacterBondKind =
+  | "mentor"
+  | "benefactor"
+  | "rival"
+  | "nemesis"
+  | "lover"
+  | "friend"
+  | "ward"
+  | "patron"
+  | "client"
+  | "blood_feud"
+  | "comrade"
+  | "hometown_kin";
+
+export interface CharacterBond {
+  kind: CharacterBondKind;
+  targetType: "character" | "house" | "state" | "religion" | "organization";
+  targetId: number;
+  strength: number;
+  sinceYear?: number;
+  note?: string;
+}
+
+export interface CharacterBackstory {
+  origin: CharacterOrigin;
+  commitment: CharacterCommitment;
+  tastes: CharacterTaste[];
+  bonds?: CharacterBond[];
+  hooks?: string[];
+}
+
+/** Gift / bribe intent — primarily moves solidarity; romance intent may also move favor. */
+export type GiftIntent = "courtesy" | "bribe" | "tribute" | "romance" | "piety_offering";
+
+/**
+ * Political / collegial standing band for `solidarity` (-100..100).
+ * Court peers are often collegial-on-paper but rivalrous underneath.
+ */
+export type SolidarityBand =
+  | "bonded" // +80..+100 deep trust
+  | "solid" // +50..+79 reliable ally
+  | "collegial" // +20..+49 workable colleague
+  | "neutral" // -19..+19
+  | "strained" // -49..-20 friction
+  | "rivalrous" // -79..-50 power rivalry / distrust
+  | "hostile"; // -100..-80 open antagonism
+
+/** Romantic / sexual interest band for `favor` (-100..100). Not general liking. */
+export type FavorBand = "devoted" | "fond" | "friendly" | "neutral" | "wary" | "hostile" | "hatred";
+
+/**
+ * Role class used when rolling origin/commitment biases.
+ * Inferred from titles/roles when not supplied at generation.
+ */
+export type CharacterRoleClass =
+  | "ruler"
+  | "central_officer"
+  | "commander"
+  | "province_lord"
+  | "merchant"
+  | "religious"
+  | "ordinary";
+
 export interface Character {
   i: number;
   name: string;
@@ -113,8 +278,20 @@ export interface Character {
    * always populates exactly one entry per character.
    */
   titles: TitleHolding[];
-  /** State ID to affinity score (-100 to 100) */
+  /** State ID to affinity score (-100 to 100) — inter-*state* opinion, not person-to-person. */
   affinities: Record<number, number>;
+  /**
+   * Character-to-character solidarity / political standing (-100..100), keyed by other `i`.
+   * Default interpersonal axis: same regime + power rivalry + personality fit.
+   * Sparse; missing key ≈ neutral/uncontacted. Asymmetric.
+   * See docs/plan/characters/backstory-profile.md §6.
+   */
+  solidarity?: Record<number, number>;
+  /**
+   * Romantic / sexual interest only (-100..100), keyed by other `i`.
+   * Not used for general collegial liking — use `solidarity` for that.
+   */
+  favor?: Record<number, number>;
   /** State IDs of marriage ties */
   marriages: number[];
   /**
@@ -142,10 +319,20 @@ export interface Character {
   /**
    * Personal wealth, distinct from state.treasury — a ruler's household stipend
    * (docs/plan/state-treasury-department-budget.md §5) accrues here rather than being folded
-   * back into state funds, and future character-as-player mechanics (spending, gifting,
+   * back into state funds, and character-as-player mechanics (spending, gifting,
    * inheritance) read/write this field directly.
    */
   wealth: number;
+  /**
+   * Personal good holdings (good id → amount), distinct from market/burg stocks.
+   * Used for gifts and private property; optional until a gift is received or granted.
+   */
+  inventory?: Record<number, number>;
+  /**
+   * Origin, commitment (zeal's direction), tastes, and optional bonds/hooks.
+   * Populated by applyCharacterBackstory() after titles/roles/location are known.
+   */
+  backstory?: CharacterBackstory;
   dead?: boolean;
   deathYear?: number;
   location?: number;

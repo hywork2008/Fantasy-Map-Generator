@@ -1521,6 +1521,84 @@ export const GOODS_DATA: GoodData[] = [
     recipes: [{ Wood: 1.5, "Iron Ingot": 0.2 }],
     unit: "wheel",
     demandCoverage: { utilities: 0.5 }
+  },
+  // Gift / court luxury finishes — docs/plan/characters/backstory-profile.md §6.5.5
+  {
+    name: "Artworks",
+    warEconomyType: "luxury",
+    tags: ["luxury", "gift", "art"],
+    icon: "good-unknown",
+    color: "#c45c26",
+    value: 32,
+    chance: 0,
+    recipes: [
+      { Dyes: 1, Paper: 1, Ink: 0.5 },
+      { Dyes: 1, Cloth: 1 }
+    ],
+    unit: "piece",
+    demandCoverage: { luxury: 1 }
+  },
+  {
+    name: "Sculptures",
+    warEconomyType: "luxury",
+    tags: ["luxury", "gift", "art"],
+    icon: "good-unknown",
+    color: "#9aa0a6",
+    value: 42,
+    chance: 0,
+    recipes: [
+      { Marble: 1, Tools: 0.2 },
+      { Ivory: 1, Tools: 0.2 },
+      { Bronze: 1, Tools: 0.2 }
+    ],
+    unit: "piece",
+    demandCoverage: { luxury: 1 }
+  },
+  {
+    name: "Tapestries",
+    warEconomyType: "luxury",
+    tags: ["luxury", "gift", "art"],
+    icon: "good-unknown",
+    color: "#6b3fa0",
+    value: 28,
+    chance: 0,
+    recipes: [
+      { Cloth: 2, Dyes: 1 },
+      { Silk: 1, Dyes: 1 }
+    ],
+    unit: "hanging",
+    demandCoverage: { luxury: 1 }
+  },
+  {
+    name: "Instruments",
+    warEconomyType: "luxury",
+    tags: ["luxury", "gift", "art"],
+    icon: "good-unknown",
+    color: "#8b5a2b",
+    value: 24,
+    chance: 0,
+    recipes: [
+      { Wood: 1, "Copper Ingot": 0.2 },
+      { Mahogany: 1, "Copper Ingot": 0.1 }
+    ],
+    unit: "set",
+    demandCoverage: { luxury: 1 }
+  },
+  {
+    name: "Relics",
+    warEconomyType: "luxury",
+    tags: ["luxury", "gift", "ritual"],
+    icon: "good-unknown",
+    color: "#d4af37",
+    value: 48,
+    chance: 0,
+    // Rare finished religious objects; production is intentionally scarce.
+    recipes: [
+      { Incense: 1, "Gold Ingot": 0.1 },
+      { Ivory: 1, Incense: 0.5 }
+    ],
+    unit: "relic",
+    demandCoverage: { luxury: 0.5 }
   }
 ];
 

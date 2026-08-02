@@ -1,3 +1,4 @@
+import { applyCharacterBackstory, seedRelationsWithPeers } from "../../characters/backstoryProfile";
 import type { Character, CharacterRole } from "../../characters/characterTypes";
 import { createPerson } from "../../characters/personFactory";
 import type { Burg } from "../../hostTypes";
@@ -91,8 +92,15 @@ function createMarketManager(market: Market): Character | null {
   character.birthStateId = centerBurg?.state;
   character.nationalityStateId = centerBurg?.state;
   character.roles = [createMarketManagerRole(market.i)];
+  applyCharacterBackstory(character, {
+    roleClass: "merchant",
+    homeBurgId: centerBurg?.i,
+    birthBurgId: centerBurg?.i,
+    capitalBurgId: centerBurg?.state !== undefined ? pack.states?.[centerBurg.state]?.capital : undefined
+  });
 
   characters.push(character);
+  seedRelationsWithPeers(character, characters);
   market.managerCharacterId = character.i;
   return character;
 }
@@ -112,7 +120,14 @@ function createMarketRival(market: Market): Character {
   character.birthStateId = centerBurg?.state;
   character.nationalityStateId = centerBurg?.state;
   character.roles = [createMarketRivalRole(market.i)];
+  applyCharacterBackstory(character, {
+    roleClass: "merchant",
+    homeBurgId: centerBurg?.i,
+    birthBurgId: centerBurg?.i,
+    capitalBurgId: centerBurg?.state !== undefined ? pack.states?.[centerBurg.state]?.capital : undefined
+  });
   characters.push(character);
+  seedRelationsWithPeers(character, characters);
   return character;
 }
 

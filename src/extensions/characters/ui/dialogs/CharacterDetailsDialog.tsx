@@ -6,6 +6,7 @@ import { formatPrice } from "../../../hostUtils";
 import { setPlayerCharacter } from "../../../nobility/controllers/playerCharacter";
 import { hasNobilityContext } from "../../../nobility/nobilityContext";
 import { usePlayerCharacterState } from "../../../nobility/store/playerCharacterState";
+import { getFavorBand, getSolidarityBand } from "../../backstoryProfile";
 import { getApi, getCharacters, getWorldContext } from "../../charactersContext";
 import type { CharacterRole, TitleHolding } from "../../characterTypes";
 import { getCharacterRoleLabel, getCharacterTitleLabel } from "../../utils/characterLabels";
@@ -95,6 +96,17 @@ export const CharacterDetailsDialog: React.FC = () => {
     return t("characters.neutral");
   };
 
+  const formatBurgPlace = (burgId: number | undefined) => {
+    if (burgId === undefined) return t("characters.notAvailable");
+    const burg = burgs[burgId];
+    if (!burg) return t("characters.burg", { id: burgId });
+    const stateName =
+      burg.state !== undefined
+        ? (states[burg.state]?.name ?? t("characters.unknownState"))
+        : t("characters.unknownState");
+    return `${burg.name} (${stateName})`;
+  };
+
   let locationStr = t("characters.unknown");
   if (character.location !== undefined) {
     const burg = burgs[character.location];
@@ -105,6 +117,18 @@ export const CharacterDetailsDialog: React.FC = () => {
       locationStr = `${burg.name} (${stateName})`;
     }
   }
+
+  const backstory = character.backstory;
+  const mapRelationEntries = (map: Record<number, number> | undefined) =>
+    Object.entries(map ?? {})
+      .map(([idStr, score]) => {
+        const other = characters.find(c => c.i === Number(idStr));
+        return other ? { other, score } : null;
+      })
+      .filter((entry): entry is { other: (typeof characters)[number]; score: number } => entry !== null)
+      .sort((a, b) => b.score - a.score);
+  const solidarityEntries = mapRelationEntries(character.solidarity);
+  const favorEntries = mapRelationEntries(character.favor);
 
   const statusText = character.dead
     ? character.deathYear
@@ -219,6 +243,74 @@ export const CharacterDetailsDialog: React.FC = () => {
           rows.push(`${state.name}, ${t("characters.affinity", { score, affinity: text })}`);
         }
       });
+    }
+
+    if (backstory) {
+      rows.push(t("characters.origin"));
+      rows.push(
+        `${t("characters.socialStratum")}, ${t(`characters.socialStratumNames.${backstory.origin.socialStratum}`)}`
+      );
+      rows.push(
+        `${t("characters.estateStatus")}, ${t(`characters.estateStatusNames.${backstory.origin.estateStatus}`)}`
+      );
+      rows.push(`${t("characters.birthPlace")}, ${formatBurgPlace(backstory.origin.birthBurgId)}`);
+      rows.push(`${t("characters.homePlace")}, ${formatBurgPlace(backstory.origin.homeBurgId)}`);
+      rows.push(`${t("characters.raisedIn")}, ${t(`characters.raisedInNames.${backstory.origin.raisedIn}`)}`);
+
+      rows.push(t("characters.commitment"));
+      rows.push(
+        `${t("characters.commitmentPrimary")}, ${t(`characters.commitmentKindNames.${backstory.commitment.primary.kind}`)}`
+      );
+      if (backstory.commitment.secondary) {
+        rows.push(
+          `${t("characters.commitmentSecondary")}, ${t(`characters.commitmentKindNames.${backstory.commitment.secondary.kind}`)}`
+        );
+      }
+      rows.push(`${t("characters.commitmentIntensity")}, ${backstory.commitment.intensity}`);
+      rows.push(
+        `${t("characters.conflictPolicy")}, ${t(`characters.conflictPolicyNames.${backstory.commitment.conflictPolicy}`)}`
+      );
+
+      rows.push(t("characters.tastes"));
+      const likes = backstory.tastes
+        .filter(taste => taste.polarity === "like")
+        .slice()
+        .sort((a, b) => b.intensity - a.intensity);
+      const dislikes = backstory.tastes
+        .filter(taste => taste.polarity === "dislike")
+        .slice()
+        .sort((a, b) => b.intensity - a.intensity);
+      const formatTaste = (taste: { id: string; intensity: number }) => {
+        const label = t(`characters.tasteNames.${taste.id}`, { defaultValue: taste.id });
+        return `${label} (${String(taste.intensity)})`;
+      };
+      if (likes.length) {
+        rows.push(`${t("characters.likes")}, ${likes.map(formatTaste).join("; ")}`);
+      }
+      if (dislikes.length) {
+        rows.push(`${t("characters.dislikes")}, ${dislikes.map(formatTaste).join("; ")}`);
+      }
+    }
+
+    if (solidarityEntries.length > 0) {
+      rows.push(t("characters.characterSolidarity"));
+      for (const { other, score } of solidarityEntries) {
+        const band = getSolidarityBand(score);
+        rows.push(
+          `${other.name}, ${t("characters.solidarityEntry", {
+            score,
+            band: t(`characters.solidarityBand.${band}`)
+          })}`
+        );
+      }
+    }
+
+    if (favorEntries.length > 0) {
+      rows.push(t("characters.characterFavor"));
+      for (const { other, score } of favorEntries) {
+        const band = getFavorBand(score);
+        rows.push(`${other.name}, ${t("characters.favorEntry", { score, band: t(`characters.favorBand.${band}`) })}`);
+      }
     }
 
     const csvContent = rows.join("\n");
@@ -480,6 +572,123 @@ export const CharacterDetailsDialog: React.FC = () => {
           </ul>
         ) : (
           <p>{t("characters.noAffinities")}</p>
+        )}
+
+        {backstory && (
+          <>
+            <h3>{t("characters.backstory")}</h3>
+            <table className="fmg-table fmg-property-table character-details__table">
+              <tbody>
+                <tr>
+                  <th style={{ width: "120px", padding: "4px 0" }}>{t("characters.socialStratum")}</th>
+                  <td>{t(`characters.socialStratumNames.${backstory.origin.socialStratum}`)}</td>
+                </tr>
+                <tr>
+                  <th style={{ padding: "4px 0" }}>{t("characters.estateStatus")}</th>
+                  <td>{t(`characters.estateStatusNames.${backstory.origin.estateStatus}`)}</td>
+                </tr>
+                <tr>
+                  <th style={{ padding: "4px 0" }}>{t("characters.birthPlace")}</th>
+                  <td>{formatBurgPlace(backstory.origin.birthBurgId)}</td>
+                </tr>
+                <tr>
+                  <th style={{ padding: "4px 0" }}>{t("characters.homePlace")}</th>
+                  <td>{formatBurgPlace(backstory.origin.homeBurgId)}</td>
+                </tr>
+                <tr>
+                  <th style={{ padding: "4px 0" }}>{t("characters.raisedIn")}</th>
+                  <td>{t(`characters.raisedInNames.${backstory.origin.raisedIn}`)}</td>
+                </tr>
+                <tr>
+                  <th style={{ padding: "4px 0" }}>{t("characters.commitmentPrimary")}</th>
+                  <td>
+                    {t(`characters.commitmentKindNames.${backstory.commitment.primary.kind}`)}
+                    {backstory.commitment.secondary
+                      ? ` / ${t(`characters.commitmentKindNames.${backstory.commitment.secondary.kind}`)}`
+                      : ""}
+                  </td>
+                </tr>
+                <tr>
+                  <th style={{ padding: "4px 0" }}>{t("characters.commitmentIntensity")}</th>
+                  <td>{backstory.commitment.intensity}</td>
+                </tr>
+                <tr>
+                  <th style={{ padding: "4px 0" }}>{t("characters.conflictPolicy")}</th>
+                  <td>{t(`characters.conflictPolicyNames.${backstory.commitment.conflictPolicy}`)}</td>
+                </tr>
+                <tr>
+                  <th style={{ padding: "4px 0", verticalAlign: "top" }}>{t("characters.likes")}</th>
+                  <td>
+                    {backstory.tastes
+                      .filter(taste => taste.polarity === "like")
+                      .slice()
+                      .sort((a, b) => b.intensity - a.intensity)
+                      .map(taste => {
+                        const label = t(`characters.tasteNames.${taste.id}`, { defaultValue: taste.id });
+                        return `${label} (${String(taste.intensity)})`;
+                      })
+                      .join(", ") || t("characters.notAvailable")}
+                  </td>
+                </tr>
+                <tr>
+                  <th style={{ padding: "4px 0", verticalAlign: "top" }}>{t("characters.dislikes")}</th>
+                  <td>
+                    {backstory.tastes
+                      .filter(taste => taste.polarity === "dislike")
+                      .slice()
+                      .sort((a, b) => b.intensity - a.intensity)
+                      .map(taste => {
+                        const label = t(`characters.tasteNames.${taste.id}`, { defaultValue: taste.id });
+                        return `${label} (${String(taste.intensity)})`;
+                      })
+                      .join(", ") || t("characters.notAvailable")}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </>
+        )}
+
+        <h3>{t("characters.characterSolidarity")}</h3>
+        <p style={{ marginTop: 0, color: "#868e96", fontSize: "0.9em" }}>{t("characters.solidarityHint")}</p>
+        {solidarityEntries.length > 0 ? (
+          <ul>
+            {solidarityEntries.map(({ other, score }) => {
+              const band = getSolidarityBand(score);
+              return (
+                <li key={`sol-${other.i}`}>
+                  <strong>{other.name}:</strong>{" "}
+                  {t("characters.solidarityEntry", {
+                    score,
+                    band: t(`characters.solidarityBand.${band}`)
+                  })}
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p>{t("characters.noSolidarity")}</p>
+        )}
+
+        <h3>{t("characters.characterFavor")}</h3>
+        <p style={{ marginTop: 0, color: "#868e96", fontSize: "0.9em" }}>{t("characters.favorHint")}</p>
+        {favorEntries.length > 0 ? (
+          <ul>
+            {favorEntries.map(({ other, score }) => {
+              const band = getFavorBand(score);
+              return (
+                <li key={`favor-${other.i}`}>
+                  <strong>{other.name}:</strong>{" "}
+                  {t("characters.favorEntry", {
+                    score,
+                    band: t(`characters.favorBand.${band}`)
+                  })}
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p>{t("characters.noFavor")}</p>
         )}
       </div>
     </Dialog>

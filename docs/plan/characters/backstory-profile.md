@@ -1,7 +1,7 @@
 # キャラクター・バックストーリー属性設計
 
-**Status**: Plan（未実装）  
-**Related**: `docs/plan/characters.md`, `docs/plan/char-economy.md`, `docs/plan/char.md`, `src/extensions/characters/characterTypes.ts`, `src/extensions/characters/personFactory.ts`  
+**Status**: Phase A–C 実装済み（生成・Favor・贈答API・芸術 Good・Details/CSV）。Phase D（戦略AI接続）以降は未着手。  
+**Related**: `docs/plan/characters.md`, `docs/plan/char-economy.md`, `docs/plan/char.md`, `src/extensions/characters/characterTypes.ts`, `src/extensions/characters/backstoryProfile.ts`, `src/extensions/characters/personFactory.ts`  
 **Goal**: 能力・性格だけでは書けない「何に仕えて生きているか」「何が好きで何が嫌いか」「どこから来た誰か」「誰をどれだけ好むか（ギャルゲー式好感度）」「何を贈ると心が動く／逆に嫌われるか」をデータ化し、フレーバー文・伝記・政治/経済AIの動機付けの共通基盤にする。
 
 ---
@@ -471,16 +471,32 @@ interface TasteTag {
 
 ---
 
-## 6. Favor — 人物間好感度（ギャルゲー式）
+## 6. 対人関係 — Solidarity（連帯感）と Favor（恋愛好感度）
 
-「誰に連帯感を持つか」を、固定の所属フラグや抽象的な共同体愛着だけで持たない。  
-**ギャルゲー／育成SLGの好感度** と同じく、**人物 A が人物 B に対して持つ -100〜100 のスカラー** を正本とする。
+人物間感情は **2軸** に分ける（実装: `character.solidarity` / `character.favor`）。
 
-- 高い → 好き・信頼・協力しやすい  
-- 0 付近 → 無関心  
-- 低い → 嫌い・警戒・妨害しやすい  
+| 軸 | フィールド | 意味 | 典型用途 |
+| :--- | :--- | :--- | :--- |
+| **連帯感** | `solidarity` | 同僚・主従・ライバルとしての政治的立場 | 宮廷の権力争い、援軍要請、贈収賄 |
+| **恋愛好感度** | `favor` | 恋愛・性的関心のみ | 求婚・寵愛・ギャルゲー的ルート |
 
-同郷・同軍属・同じ文化は **好感度を自動で最大にする所属タグではない**。初期値やイベント時の補正材料にすぎない。贈り物・侮辱・戦場での共闘などで数値が動き、清廉な相手への賄賂は **マイナス方向** にも振れる。
+### 6.0 設計方針（改訂）
+
+1. **基本の関係性は連帯感**。同郷・同軍・同政権は薄い制度的連帯に留まり、友情の自動付与ではない。  
+2. **国家中枢は「同じ国家を支える仲間でありながら、権力を競うライバル」**。中央官職同士は同僚ボーナスより **権限争いペナルティ** が勝りやすい。  
+3. **Personality で複雑な好悪を出す**  
+   - 高 Guile × 高 Guile: 理性が高ければ **冷たい相互尊重**、低ければ **暗闘ライバル**  
+   - 高 Guile × 低 Guile/低 Rationality: 策士が浅慮な相手を **軽蔑**  
+   - 低 Guile × 高 Guile: 素朴な側が策士を **警戒・不信**  
+   - 高 Honor × 低 Honor、高 Greed 同士、信仰差、Commitment 衝突なども摩擦  
+4. **Favor は恋愛専用**。外見・好色 Taste・社交性で疎にシード。一般的な「Friendly だらけ」を Favor に載せない。  
+5. 贈り物・賄賂は原則 **連帯感** を動かす（`intent: romance` のときのみ Favor も動く）。
+
+### 6.0.1 Solidarity バンド
+
+- bonded / solid / collegial / neutral / **strained** / **rivalrous** / hostile  
+
+宮廷では collegial〜rivalrous が普通で、friendly 一色にならない。
 
 ### 6.1 現状で表現できないこと
 

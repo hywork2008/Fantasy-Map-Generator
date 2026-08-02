@@ -1,3 +1,4 @@
+import { applyCharacterBackstory, seedRelationsWithPeers } from "../../characters/backstoryProfile";
 import type { Character, CharacterRole, CharacterSkills } from "../../characters/characterTypes";
 import { createPerson } from "../../characters/personFactory";
 import type { Burg } from "../../hostTypes";
@@ -134,8 +135,15 @@ function createMaster(characters: Character[], burgId: number, domain: CraftKnow
   character.birthStateId = burg?.state;
   character.nationalityStateId = burg?.state;
   character.roles = [createMasterRole(burgId, domain)];
+  applyCharacterBackstory(character, {
+    roleClass: "ordinary",
+    homeBurgId: burg?.i,
+    birthBurgId: burg?.i,
+    capitalBurgId: burg?.state !== undefined ? pack.states?.[burg.state]?.capital : undefined
+  });
 
   characters.push(character);
+  seedRelationsWithPeers(character, characters);
   return character;
 }
 
@@ -158,8 +166,15 @@ function createApprentice(
   character.birthStateId = burg?.state;
   character.nationalityStateId = burg?.state;
   character.roles = [createApprenticeRole(burgId, domain, masterId)];
+  applyCharacterBackstory(character, {
+    roleClass: "ordinary",
+    homeBurgId: burg?.i,
+    birthBurgId: burg?.i,
+    capitalBurgId: burg?.state !== undefined ? pack.states?.[burg.state]?.capital : undefined
+  });
 
   characters.push(character);
+  seedRelationsWithPeers(character, characters);
   return character;
 }
 

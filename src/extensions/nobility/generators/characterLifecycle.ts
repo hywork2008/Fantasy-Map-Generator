@@ -1,4 +1,9 @@
 import Alea from "alea";
+import {
+  applyCharacterBackstory,
+  seedCharacterRelations,
+  seedRelationsWithPeers
+} from "../../characters/backstoryProfile";
 import type { Character, CharacterSkills } from "../../characters/characterTypes";
 import { createPerson } from "../../characters/personFactory";
 import { calculateCharacterTraits } from "../../characters/utils/personalityUtils";
@@ -82,16 +87,25 @@ function generate(options: { randomSeed?: number } = {}): void {
       entityId: state.i,
       startYear: currentYear - rand(0, Math.max(0, ruler.age - 20))
     });
+    applyCharacterBackstory(ruler, {
+      roleClass: "ruler",
+      isReligiousRole: isReligiousForm(state),
+      formName: state.formName,
+      capitalBurgId: state.capital,
+      homeBurgId: state.capital,
+      birthBurgId: state.capital
+    });
     characters.push(ruler);
     setRulerId(state, ruler.i);
 
     for (const office of CENTRAL_OFFICES) {
+      const religious = isReligiousForm(state, office.primarySkill);
       const officer = createPerson(nextId++, state.culture, {
         homeStateId: state.i,
         formName: state.formName,
         marriageExpectation: "elite",
         primarySkill: office.primarySkill,
-        isReligiousRole: isReligiousForm(state, office.primarySkill)
+        isReligiousRole: religious
       });
       officer.location = state.capital;
       officer.titles.push({
@@ -101,11 +115,18 @@ function generate(options: { randomSeed?: number } = {}): void {
         entityId: state.i,
         startYear: currentYear - rand(0, Math.max(0, officer.age - 20))
       });
+      applyCharacterBackstory(officer, {
+        roleClass: religious ? "religious" : "central_officer",
+        isReligiousRole: religious,
+        formName: state.formName,
+        capitalBurgId: state.capital
+      });
       characters.push(officer);
     }
   }
 
   calculateAffinities(characters);
+  seedCharacterRelations(characters);
 
   pack.characters = characters;
   TIME && console.timeEnd("generateCharacters");
@@ -214,7 +235,14 @@ function createOfficer(
     entityId: state.i,
     startYear: getCurrentYear()
   });
+  applyCharacterBackstory(officer, {
+    roleClass: "commander",
+    isReligiousRole: isReligiousForm(state, "martial"),
+    formName: state.formName,
+    capitalBurgId: state.capital
+  });
   pack.characters.push(officer);
+  seedRelationsWithPeers(officer, pack.characters);
   return officer;
 }
 
@@ -224,7 +252,7 @@ function createOfficer(
  * provinceLordGenerator.ts — so interior provinces don't add to the character roster.
  */
 function createProvinceLord(
-  state: Pick<State, "i" | "culture" | "form" | "formName">,
+  state: Pick<State, "i" | "culture" | "form" | "formName" | "capital">,
   province: Pick<Province, "i" | "formName" | "burg">
 ): Character {
   const { pack } = getWorldContext();
@@ -245,7 +273,16 @@ function createProvinceLord(
     entityId: province.i,
     startYear: getCurrentYear()
   });
+  applyCharacterBackstory(lord, {
+    roleClass: "province_lord",
+    isReligiousRole: isReligiousForm(state, "martial"),
+    formName: state.formName,
+    capitalBurgId: state.capital,
+    homeBurgId: province.burg,
+    birthBurgId: province.burg
+  });
   pack.characters.push(lord);
+  seedRelationsWithPeers(lord, pack.characters);
   return lord;
 }
 
@@ -490,7 +527,16 @@ function processSuccessions(): void {
         entityId: state.i,
         startYear: getCurrentYear()
       });
+      applyCharacterBackstory(heir, {
+        roleClass: "ruler",
+        isReligiousRole: isReligiousForm(state),
+        formName: state.formName,
+        capitalBurgId: state.capital,
+        homeBurgId: state.capital,
+        birthBurgId: state.capital
+      });
       pack.characters.push(heir);
+      seedRelationsWithPeers(heir, pack.characters);
       setRulerId(state, heir.i);
       currentRuler = heir;
       // The heir is now part of the living state characters if we do further processing
@@ -569,12 +615,13 @@ function processSuccessions(): void {
     }
 
     for (const office of vacantOffices) {
+      const religious = isReligiousForm(state, office.primarySkill);
       const officer = createPerson(nextId++, state.culture, {
         homeStateId: state.i,
         formName: state.formName,
         marriageExpectation: "elite",
         primarySkill: office.primarySkill,
-        isReligiousRole: isReligiousForm(state, office.primarySkill)
+        isReligiousRole: religious
       });
       officer.location = state.capital;
       officer.titles.push({
@@ -584,7 +631,14 @@ function processSuccessions(): void {
         entityId: state.i,
         startYear: getCurrentYear()
       });
+      applyCharacterBackstory(officer, {
+        roleClass: religious ? "religious" : "central_officer",
+        isReligiousRole: religious,
+        formName: state.formName,
+        capitalBurgId: state.capital
+      });
       pack.characters.push(officer);
+      seedRelationsWithPeers(officer, pack.characters);
     }
   }
 }

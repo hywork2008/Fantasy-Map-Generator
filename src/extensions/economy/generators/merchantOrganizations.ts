@@ -1,3 +1,4 @@
+import { applyCharacterBackstory, seedRelationsWithPeers } from "../../characters/backstoryProfile";
 import type { Character, CharacterRole, CharacterSkills } from "../../characters/characterTypes";
 import { createPerson } from "../../characters/personFactory";
 import type { Burg } from "../../hostTypes";
@@ -347,7 +348,14 @@ function createOrganizationStaff(
   character.birthStateId = burg?.state ?? organization.homeStateId;
   character.nationalityStateId = burg?.state ?? organization.homeStateId;
   character.roles = [createOrganizationRole(organization, roleKind, label, burg?.i ?? organization.homeBurgId)];
+  applyCharacterBackstory(character, {
+    roleClass: "merchant",
+    homeBurgId: burg?.i ?? organization.homeBurgId,
+    birthBurgId: burg?.i ?? organization.homeBurgId,
+    capitalBurgId: pack.states?.[character.state]?.capital
+  });
   pack.characters.push(character);
+  seedRelationsWithPeers(character, pack.characters);
 
   return character;
 }
