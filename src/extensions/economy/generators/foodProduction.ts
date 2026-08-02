@@ -215,9 +215,14 @@ export class FoodProductionModule {
 
       const burgTreasurySum = marketBurgs.reduce((sum, b) => sum + Math.max(0, b.treasury ?? 0), 0);
       const treasuryShare = INITIAL_TREASURY_MIN_SHARE + Math.random() * INITIAL_TREASURY_SHARE_SPAN;
+      // Trade working capital is a separate merchant-company pool (not debited from burg treasuries),
+      // seeded as if the house already traded before the map opened (Phase D).
+      const tradeShare = 0.25 + Math.random() * 0.55;
       market.marketTreasury = {
         balance: rn(burgTreasurySum * treasuryShare, 2),
-        ruralGrainPayable: 0
+        ruralGrainPayable: 0,
+        tradeWorkingCapital: rn(burgTreasurySum * tradeShare, 2),
+        tradeCapitalLocked: 0
       };
 
       for (const burg of marketBurgs) {

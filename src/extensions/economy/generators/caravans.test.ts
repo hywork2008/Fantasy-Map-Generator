@@ -163,7 +163,8 @@ describe("caravan loading accumulation", () => {
       goodId: 0,
       units: 2,
       unitCost: 50,
-      dealId: 0
+      dealId: 0,
+      requireCapital: false
     });
     expect(lot).not.toBeNull();
     setDeals([
@@ -207,7 +208,8 @@ describe("caravan loading accumulation", () => {
       destinationMarketId: 1,
       goodId: 0,
       units: 50,
-      unitCost: 50
+      unitCost: 50,
+      requireCapital: false
     });
     expect(lot).not.toBeNull();
     Caravans.spawnFromDeals([]);
@@ -225,7 +227,8 @@ describe("caravan loading accumulation", () => {
       destinationMarketId: 1,
       goodId: 0,
       units: 6,
-      unitCost: 50
+      unitCost: 50,
+      requireCapital: false
     });
     setDeals([]); // production cycle start
     expect(getExportStagingLots()).toHaveLength(1);

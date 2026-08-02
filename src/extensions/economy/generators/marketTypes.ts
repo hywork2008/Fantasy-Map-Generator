@@ -42,6 +42,13 @@ export interface MarketTreasury {
   balance: number;
   /** Aggregate unpaid farmgate debt owed to rural Grain producers when balance was insufficient. */
   ruralGrainPayable: number;
+  /**
+   * Merchant company working capital for inter-market trade (export warehouse booking).
+   * Soft ledger: not full B2B settlement between markets.
+   */
+  tradeWorkingCapital?: number;
+  /** Capital currently locked in export staging lots and in-transit cargo. */
+  tradeCapitalLocked?: number;
 }
 
 export interface FoodLedger {
@@ -118,6 +125,8 @@ export type ExportStagingLot = {
   units: number;
   /** Landed unit cost snapshot at booking (price used on the accounting deal). */
   unitCost: number;
+  /** Working capital locked against this lot (Phase D). */
+  lockedCapital?: number;
   /** Optional link back to the Deal created when this lot was booked. */
   dealId?: number;
   /** Route metadata copied from the booking deal for packing / UI. */
@@ -253,6 +262,8 @@ export interface Caravan {
     strategicProcurementOrderId?: number;
     /** Present when this payload was taken from an export warehouse lot. */
     stagingLotId?: number;
+    /** Working capital still locked against this cargo until arrival / cancel / loss. */
+    lockedCapital?: number;
   }[];
   units: number; // total units
   value: number; // total payload value

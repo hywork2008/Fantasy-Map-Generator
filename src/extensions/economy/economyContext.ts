@@ -626,6 +626,14 @@ export function setNextExportStagingLotId(id: number): void {
   setSliceNumber("nextExportStagingLotId", id);
 }
 
+/** 1 once merchant export warehouses were seeded with inherited pre-start stock. */
+export function getExportWarehouseSeeded(): boolean {
+  return getSliceNumber("exportWarehouseSeeded") === 1;
+}
+export function setExportWarehouseSeeded(seeded: boolean): void {
+  setSliceNumber("exportWarehouseSeeded", seeded ? 1 : 0);
+}
+
 /** In-transit caravans owned by the economy extension. */
 export function getCaravans(): Caravan[] {
   return getSliceArray<Caravan>("caravans");

@@ -29,7 +29,7 @@ Many caravans sail at ~1% hold utilization. Causes:
 - **A** Flow budget measure + API + light demand/production reconcile — pure API done (`marketFlowBudget.ts`)
 - **B** `loading` state, same-route merge, min utilization / max wait, re-size at depart — done
 - **C** Export staging warehouse — done (`exportStaging.ts`; `runGlobalTrade` books lots; caravans load from lots; survives deal wipes)
-- **D** Soft trade working capital
+- **D** Soft trade working capital — done (`merchantTradeCapital.ts`; lock on book; unlock/profit on arrive; write-off on loss; inherited warehouse seed at first production)
 - **E/F** Schedule, org ownership, UI diagnostics
 
 ## Defaults

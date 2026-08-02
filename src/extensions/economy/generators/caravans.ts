@@ -32,6 +32,7 @@ import {
   utilizationOf
 } from "./marketFlowBudget";
 import type { Caravan, Deal, ExportStagingLot, Market, TradeRouteSegment } from "./marketTypes";
+import { MerchantTradeCapital } from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import {
   buildCargoManifests,
@@ -90,9 +91,12 @@ function appendPayloadFromManifest(
   let totalValue = caravan.value;
   for (const item of manifest.items) {
     let units = item.units;
+    let lockedCapital = 0;
     // Prefer export-warehouse take when the deal (or pseudo-deal) is backed by a staging lot.
     if (item.deal.stagingLotId !== undefined) {
-      units = ExportStaging.takeFromLot(item.deal.stagingLotId, item.units);
+      const taken = ExportStaging.takeFromLot(item.deal.stagingLotId, item.units);
+      units = taken.units;
+      lockedCapital = taken.lockedCapital;
       if (units <= UNIT_EPSILON) continue;
       item.deal.remainingUnits = Math.max(0, (item.deal.remainingUnits ?? item.deal.units) - units);
     } else {
@@ -111,6 +115,7 @@ function appendPayloadFromManifest(
     if (existing) {
       existing.units += units;
       existing.value += value;
+      existing.lockedCapital = (existing.lockedCapital ?? 0) + lockedCapital;
     } else {
       caravan.payload.push({
         goodId: item.deal.good,
@@ -119,7 +124,8 @@ function appendPayloadFromManifest(
         value,
         cargoSlotsPerUnit: item.cargoSlotsPerUnit,
         strategicProcurementOrderId: item.deal.strategicProcurementOrderId,
-        stagingLotId: item.deal.stagingLotId
+        stagingLotId: item.deal.stagingLotId,
+        lockedCapital: lockedCapital > UNIT_EPSILON ? lockedCapital : undefined
       });
     }
   }
@@ -132,6 +138,19 @@ function restoreLoadingCargoToOrigin(caravan: Caravan): void {
   if (caravan.sellerType !== "market") return;
   for (const item of caravan.payload) {
     ExportStaging.returnUnitsToRetail(caravan.seller, item.goodId, item.units);
+    if ((item.lockedCapital ?? 0) > UNIT_EPSILON) {
+      MerchantTradeCapital.unlock(caravan.seller, item.lockedCapital ?? 0);
+    }
+  }
+}
+
+function settlePayloadCapital(caravan: Caravan, outcome: "arrived" | "lost"): void {
+  if (caravan.sellerType !== "market") return;
+  for (const item of caravan.payload) {
+    const locked = item.lockedCapital ?? 0;
+    if (!(locked > UNIT_EPSILON)) continue;
+    if (outcome === "arrived") MerchantTradeCapital.settleArrival(caravan.seller, locked);
+    else MerchantTradeCapital.settleLoss(caravan.seller, locked);
   }
 }
 
@@ -747,6 +766,7 @@ export class CaravansModule {
         if (Math.random() < risk) {
           caravan.state = "lost";
           MerchantTransportAssets.settleCaravan(caravan, "lost");
+          settlePayloadCapital(caravan, "lost");
           lost.push(caravan);
           const destinationStateId = world.pack.burgs[destinationBurgId]?.state ?? 0;
           TradeSecurity.recordCaravanLoss(destinationStateId);
@@ -757,6 +777,7 @@ export class CaravansModule {
       if (caravan.currentDistance >= caravan.totalDistance) {
         caravan.state = "arrived";
         MerchantTransportAssets.settleCaravan(caravan, "arrived");
+        settlePayloadCapital(caravan, "arrived");
 
         // Add goods to target market
         if (caravan.buyerType === "market") {

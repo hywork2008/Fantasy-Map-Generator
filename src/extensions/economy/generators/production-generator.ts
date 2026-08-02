@@ -26,6 +26,7 @@ import {
   getConstructionProductivityMultiplier
 } from "./constructionEmployment";
 import { smoothCraftWorkers } from "./craftEmployment";
+import { ExportStaging } from "./exportStaging";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, Goods, getDemandTargets, isGoodEnabled } from "./goods-generator";
 import { getGuildBonus } from "./guildKnowledge";
@@ -38,6 +39,7 @@ import {
 import { GUILD_PROFIT_SHARE, GuildTreasury } from "./guildTreasury";
 import { Markets } from "./markets-generator";
 import type { Deal, Market } from "./marketTypes";
+import { MerchantTradeCapital } from "./merchantTradeCapital";
 import { MilitaryResources } from "./militaryResources";
 import { MineOperations } from "./mineOperations";
 import { isMineSuppliedGoodName } from "./mineralResources";
@@ -232,6 +234,11 @@ export class ProductionModule {
   }
 
   private finishProductionCycle(cycle: ProductionCycle): void {
+    // Phase D: ensure merchant trade capital, then once per map seed inherited export-warehouse
+    // stock (pre-start merchant inventory) before this cycle's global trade books more lots.
+    MerchantTradeCapital.ensureAllMarkets();
+    ExportStaging.seedInheritedExportWarehouseIfNeeded();
+
     Markets.runGlobalTrade();
     Caravans.spawnFromDeals(getDeals());
     this.fillBurgsDemand(cycle.sortedBurgs, cycle.index);
