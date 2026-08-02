@@ -5,6 +5,7 @@
 - docs/plan/characters/backstory-profile.md
 - docs/plan/characters/flavor-text.md
 - docs/plan/great-library.md
+- docs/plan/guild-city-bases.md
 - docs/plan/market-goods-flow-budget.md
 - docs/plan/merchant-logistics-warehouses.md
 - docs/plan/urban-housing-system.md
