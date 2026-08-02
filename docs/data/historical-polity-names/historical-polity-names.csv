@@ -1,0 +1,287 @@
+name_base_id,name_base,polity,attested_name,generator_stem,start_year,end_year,era,relative_frequency,source_ids,notes
+0,German,East Francia,Regnum Francorum Orientalium,Franconia,843,962,early_medieval,55,WD-FORMER-STATES;BRITANNICA-HISTORY,Latin political name
+0,German,Holy Roman Empire,Heiliges Römisches Reich,Imperium,962,1806,high_medieval,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Use across multiple eras
+0,German,Duchy of Saxony,Herzogtum Sachsen,Saxony,804,1180,early_medieval,50,WD-FORMER-STATES,Stem is geographic
+0,German,Duchy of Bavaria,Herzogtum Bayern,Bavaria,555,1623,high_medieval,65,WD-FORMER-STATES,Date range covers changing duchies
+0,German,Duchy of Swabia,Herzogtum Schwaben,Swabia,915,1313,high_medieval,45,WD-FORMER-STATES,Regional duchy
+0,German,Margraviate of Brandenburg,Markgrafschaft Brandenburg,Brandenburg,1157,1806,late_medieval,70,WD-FORMER-STATES,Electorate after 1356
+0,German,Electorate of Saxony,Kurfürstentum Sachsen,Saxony,1356,1806,early_modern,65,WD-FORMER-STATES,Electoral dignity
+0,German,Kingdom of Prussia,Königreich Preußen,Prussia,1701,1918,modern,90,WD-FORMER-STATES;BRITANNICA-HISTORY,High modern salience
+0,German,German Confederation,Deutscher Bund,Germany,1815,1866,modern,55,WD-FORMER-STATES,Confederation
+0,German,German Empire,Deutsches Reich,Germany,1871,1918,modern,95,WD-FORMER-STATES;BRITANNICA-HISTORY,Imperial period
+0,German,Federal Republic of Germany,Bundesrepublik Deutschland,Germany,1949,9999,contemporary,100,BRITANNICA-HISTORY,Current state
+1,English,Kingdom of England,Kingdom of England,England,927,1707,high_medieval,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Core English state name
+1,English,Anglo-Saxon kingdoms,Kingdom of Wessex,Wessex,519,927,early_medieval,75,BRITANNICA-HISTORY,Pre-unification kingdom
+1,English,Kingdom of Mercia,Kingdom of Mercia,Mercia,527,918,early_medieval,70,BRITANNICA-HISTORY,Pre-unification kingdom
+1,English,Danelaw,Danelaw,Danelaw,878,954,early_medieval,35,BRITANNICA-HISTORY,Legal and territorial polity
+1,English,Commonwealth of England,Commonwealth of England,Commonwealth,1649,1660,early_modern,45,WD-FORMER-STATES,Republican interregnum
+1,English,Kingdom of Great Britain,Kingdom of Great Britain,Great Britain,1707,1801,early_modern,75,WD-FORMER-STATES,Union state
+1,English,United Kingdom,United Kingdom of Great Britain and Ireland,United Kingdom,1801,1922,modern,90,WD-FORMER-STATES,Pre-partition constitutional name
+1,English,United Kingdom,United Kingdom of Great Britain and Northern Ireland,United Kingdom,1922,9999,contemporary,100,BRITANNICA-HISTORY,Current constitutional name
+2,French,West Francia,Regnum Francorum Occidentalium,Francia,843,987,early_medieval,55,WD-FORMER-STATES,Pre-Capetian kingdom
+2,French,Kingdom of France,Royaume de France,France,987,1792,high_medieval,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Core royal name
+2,French,Duchy of Normandy,Duché de Normandie,Normandy,911,1469,high_medieval,60,WD-FORMER-STATES,Major northern duchy
+2,French,County of Toulouse,Comté de Toulouse,Toulouse,778,1271,high_medieval,45,WD-FORMER-STATES,Occitan polity
+2,French,Kingdom of Burgundy,Royaume de Bourgogne,Burgundy,879,1032,early_medieval,45,WD-FORMER-STATES,Transregional kingdom
+2,French,First French Republic,République française,France,1792,1804,modern,70,WD-FORMER-STATES,Revolutionary name
+2,French,First French Empire,Empire français,France,1804,1814,modern,75,WD-FORMER-STATES,First imperial period
+2,French,Third French Republic,République française,France,1870,1940,modern,90,WD-FORMER-STATES,Long republican period
+2,French,French Republic,République française,France,1958,9999,contemporary,100,BRITANNICA-HISTORY,Fifth Republic constitutional period
+3,Italian,Kingdom of Italy,Regnum Italiae,Italy,774,1806,high_medieval,80,WD-FORMER-STATES,Medieval imperial kingdom
+3,Italian,Republic of Venice,Repubblica di Venezia,Venice,697,1797,high_medieval,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Long-lived maritime republic
+3,Italian,Republic of Genoa,Repubblica di Genova,Genoa,1005,1797,high_medieval,70,WD-FORMER-STATES,Maritime republic
+3,Italian,Republic of Florence,Repubblica Fiorentina,Florence,1115,1532,late_medieval,75,WD-FORMER-STATES,Central Italian republic
+3,Italian,Papal States,Stato Pontificio,Papacy,756,1870,early_modern,80,WD-FORMER-STATES,Temporal papal state
+3,Italian,Duchy of Milan,Ducato di Milano,Milan,1395,1797,late_medieval,65,WD-FORMER-STATES,North Italian duchy
+3,Italian,Kingdom of the Two Sicilies,Regno delle Due Sicilie,Two Sicilies,1816,1861,modern,55,WD-FORMER-STATES,Restoration-era kingdom
+3,Italian,Kingdom of Italy,Regno d'Italia,Italy,1861,1946,modern,95,WD-FORMER-STATES,Unified kingdom
+3,Italian,Italian Republic,Repubblica Italiana,Italy,1946,9999,contemporary,100,BRITANNICA-HISTORY,Current state
+4,Castillian,Kingdom of Asturias,Reino de Asturias,Asturias,718,924,early_medieval,50,WD-FORMER-STATES,Early Christian kingdom
+4,Castillian,Kingdom of León,Reino de León,León,910,1230,early_medieval,60,WD-FORMER-STATES,Pre-union kingdom
+4,Castillian,Kingdom of Castile,Reino de Castilla,Castile,1065,1230,high_medieval,85,WD-FORMER-STATES,Core Castilian polity
+4,Castillian,Crown of Castile,Corona de Castilla,Castile,1230,1715,high_medieval,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Core Castilian composite monarchy
+4,Castillian,Kingdom of Navarre,Reino de Navarra,Navarre,824,1620,high_medieval,60,WD-FORMER-STATES,Pyrenean kingdom
+4,Castillian,Spanish Empire,Monarquía Hispánica,Spain,1492,1898,early_modern,95,WD-FORMER-STATES;BRITANNICA-HISTORY,Conventional historical label
+4,Castillian,First Spanish Republic,República Española,Spain,1873,1874,modern,35,WD-FORMER-STATES,Short-lived republic
+4,Castillian,Second Spanish Republic,República Española,Spain,1931,1939,modern,60,WD-FORMER-STATES,Republican period
+4,Castillian,Kingdom of Spain,Reino de España,Spain,1978,9999,contemporary,100,BRITANNICA-HISTORY,Current constitutional name
+5,Ruthenian,Kievan Rus',Русская земля,Rus,-879,1240,early_medieval,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Dates conventionally begin with Rurikid rule
+5,Ruthenian,Principality of Polotsk,Полацкае княства,Polotsk,987,1397,high_medieval,50,WD-FORMER-STATES,East Slavic principality
+5,Ruthenian,Principality of Halych,Галицьке князівство,Halych,1084,1199,high_medieval,40,WD-FORMER-STATES,Pre-union polity
+5,Ruthenian,Kingdom of Galicia-Volhynia,Королівство Русі,Ruthenia,1199,1349,late_medieval,70,WD-FORMER-STATES,Also Kingdom of Rus'
+5,Ruthenian,Grand Duchy of Moscow,Великое княжество Московское,Muscovy,1263,1547,late_medieval,75,WD-FORMER-STATES,Conventional English name
+5,Ruthenian,Tsardom of Russia,Русское царство,Russia,1547,1721,early_modern,90,WD-FORMER-STATES,Tsardom
+5,Ruthenian,Russian Empire,Российская империя,Russia,1721,1917,modern,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Imperial state
+5,Ruthenian,Soviet Union,Союз Советских Социалистических Республик,Soviet Union,1922,1991,modern,95,WD-FORMER-STATES,Multinational state; language assignment is approximate
+5,Ruthenian,Russian Federation,Российская Федерация,Russia,1991,9999,contemporary,100,BRITANNICA-HISTORY,Current state
+6,Nordic,Kingdom of Denmark,Kongeriget Danmark,Denmark,958,9999,high_medieval,100,BRITANNICA-HISTORY,Continuous kingdom with changing boundaries
+6,Nordic,Kingdom of Norway,Kongeriket Norge,Norway,872,1537,high_medieval,85,WD-FORMER-STATES,Independent medieval kingdom
+6,Nordic,Kingdom of Sweden,Sveriges rike,Sweden,970,9999,high_medieval,100,BRITANNICA-HISTORY,Continuous kingdom with changing boundaries
+6,Nordic,Kalmar Union,Kalmarunionen,Kalmar,1397,1523,late_medieval,75,WD-FORMER-STATES,Personal union
+6,Nordic,Denmark-Norway,Danmark-Norge,Denmark-Norway,1523,1814,early_modern,70,WD-FORMER-STATES,Composite monarchy
+6,Nordic,Sweden-Norway,Förenade konungarikena Sverige och Norge,Sweden-Norway,1814,1905,modern,60,WD-FORMER-STATES,Personal union
+6,Nordic,Republic of Iceland,Lýðveldið Ísland,Iceland,1944,9999,contemporary,85,BRITANNICA-HISTORY,Current republic
+6,Nordic,Republic of Finland,Suomen tasavalta,Finland,1917,9999,contemporary,90,BRITANNICA-HISTORY,Current republic
+7,Greek,Mycenaean Greece,Ἀχαιϝία,Achaea,-1600,-1100,ancient,50,BRITANNICA-HISTORY,Cultural-political umbrella; use cautiously
+7,Greek,Athenian democracy,Ἀθηναῖοι,Athens,-508,-322,ancient,100,BRITANNICA-HISTORY,City-state
+7,Greek,Sparta,Λακεδαιμόνιοι,Laconia,-900,-192,ancient,90,BRITANNICA-HISTORY,City-state
+7,Greek,Kingdom of Macedon,Μακεδονία,Macedon,-808,-168,ancient,95,WD-FORMER-STATES,Ancient kingdom
+7,Greek,Seleucid Empire,Βασιλεία τῶν Σελευκιδῶν,Seleucia,-312,-63,ancient,70,WD-FORMER-STATES,Hellenistic empire
+7,Greek,Kingdom of Pergamon,Βασίλειον τῆς Περγάμου,Pergamon,-281,-133,ancient,55,WD-FORMER-STATES,Hellenistic kingdom
+7,Greek,Byzantine Empire,Βασιλεία Ῥωμαίων,Rhomania,330,1453,high_medieval,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Modern conventional label; endonym shown
+7,Greek,First Hellenic Republic,Ἑλληνικὴ Πολιτεία,Hellas,1822,1832,modern,50,WD-FORMER-STATES,Early independent republic
+7,Greek,Hellenic Republic,Ελληνική Δημοκρατία,Hellas,1974,9999,contemporary,100,BRITANNICA-HISTORY,Current state
+8,Roman,Roman Kingdom,Regnum Romanum,Rome,-753,-509,ancient,60,BRITANNICA-HISTORY,Traditional dates
+8,Roman,Roman Republic,Res publica Romana,Rome,-509,-27,ancient,100,BRITANNICA-HISTORY,Core republican name
+8,Roman,Roman Empire,Imperium Romanum,Rome,-27,476,ancient,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Western date used for period boundary
+8,Roman,Western Roman Empire,Imperium Romanum Occidentale,Rome,285,476,late_antiquity,70,WD-FORMER-STATES,Retrospective distinction
+8,Roman,Byzantine Empire,Imperium Romanum,Romania,330,1453,high_medieval,95,WD-FORMER-STATES,Greek-speaking Roman continuation
+8,Roman,Papal States,Status Ecclesiae,Papacy,756,1870,early_modern,65,WD-FORMER-STATES,Latin political tradition
+8,Roman,Kingdom of Italy,Regnum Italiae,Italy,774,1806,high_medieval,60,WD-FORMER-STATES,Latin-form state name
+8,Roman,Vatican City State,Status Civitatis Vaticanae,Vatican,1929,9999,contemporary,75,BRITANNICA-HISTORY,Current Latin-named state
+9,Finnic,Grand Duchy of Finland,Suomen suuriruhtinaskunta,Finland,1809,1917,modern,75,WD-FORMER-STATES,Autonomous grand duchy
+9,Finnic,Republic of Finland,Suomen tasavalta,Finland,1917,9999,contemporary,100,BRITANNICA-HISTORY,Current state
+9,Finnic,Republic of Estonia,Eesti Vabariik,Estonia,1918,1940,modern,80,WD-FORMER-STATES,First independence
+9,Finnic,Estonian Soviet Socialist Republic,Eesti Nõukogude Sotsialistlik Vabariik,Estonia,1940,1991,modern,65,WD-FORMER-STATES,Occupation and union-republic chronology
+9,Finnic,Republic of Estonia,Eesti Vabariik,Estonia,1991,9999,contemporary,100,BRITANNICA-HISTORY,Restored independence
+9,Finnic,Republic of Karelia,Karjalan tasavalta,Karelia,1919,1923,modern,25,WD-FORMER-STATES,Short-lived proposed/limited polity; use sparingly
+9,Finnic,Komi Republic,Коми Республика,Komi,1992,9999,contemporary,35,BRITANNICA-HISTORY,Finnic-adjacent regional autonomy
+9,Finnic,Republic of Udmurtia,Удмуртская Республика,Udmurtia,1991,9999,contemporary,35,BRITANNICA-HISTORY,Finnic-adjacent regional autonomy
+10,Korean,Gojoseon,고조선,Gojoseon,-2333,-108,ancient,65,BRITANNICA-HISTORY,Traditional foundation date
+10,Korean,Goguryeo,고구려,Goguryeo,-37,668,ancient,80,WD-FORMER-STATES,Three Kingdoms period
+10,Korean,Baekje,백제,Baekje,-18,660,ancient,75,WD-FORMER-STATES,Three Kingdoms period
+10,Korean,Silla,신라,Silla,-57,935,early_medieval,85,WD-FORMER-STATES,Unified Silla after 668
+10,Korean,Goryeo,고려,Goryeo,918,1392,high_medieval,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Source of Korea exonym
+10,Korean,Joseon,조선,Joseon,1392,1897,late_medieval,100,WD-FORMER-STATES,Long-lived dynasty-state
+10,Korean,Korean Empire,대한제국,Daehan,1897,1910,modern,55,WD-FORMER-STATES,Short imperial period
+10,Korean,Republic of Korea,대한민국,Korea,1948,9999,contemporary,100,BRITANNICA-HISTORY,South Korea
+10,Korean,Democratic People's Republic of Korea,조선민주주의인민공화국,Chosŏn,1948,9999,contemporary,85,BRITANNICA-HISTORY,North Korea
+11,Chinese,Xia dynasty,夏,Xia,-2070,-1600,ancient,50,BRITANNICA-HISTORY,Traditional chronology
+11,Chinese,Shang dynasty,商,Shang,-1600,-1046,ancient,65,BRITANNICA-HISTORY,Bronze Age state
+11,Chinese,Zhou dynasty,周,Zhou,-1046,-256,ancient,80,BRITANNICA-HISTORY,Includes Western and Eastern Zhou
+11,Chinese,Qin dynasty,秦,Qin,-221,-206,ancient,70,BRITANNICA-HISTORY,First imperial unification
+11,Chinese,Han dynasty,漢,Han,-202,220,ancient,100,BRITANNICA-HISTORY,Major dynastic reference
+11,Chinese,Tang dynasty,唐,Tang,618,907,early_medieval,100,BRITANNICA-HISTORY,Major imperial period
+11,Chinese,Song dynasty,宋,Song,960,1279,high_medieval,95,BRITANNICA-HISTORY,Major imperial period
+11,Chinese,Yuan dynasty,元,Yuan,1271,1368,late_medieval,85,BRITANNICA-HISTORY,Mongol imperial dynasty
+11,Chinese,Ming dynasty,大明,Ming,1368,1644,early_modern,100,BRITANNICA-HISTORY,Major imperial period
+11,Chinese,Qing dynasty,大清,Qing,1636,1912,modern,100,BRITANNICA-HISTORY,Last imperial dynasty
+11,Chinese,Republic of China,中華民國,China,1912,9999,modern,85,BRITANNICA-HISTORY,Government relocated to Taiwan after 1949
+11,Chinese,People's Republic of China,中华人民共和国,China,1949,9999,contemporary,100,BRITANNICA-HISTORY,Current mainland state
+12,Japanese,Yamato polity,大和,Yamato,250,710,ancient,70,BRITANNICA-HISTORY,Conventional scholarly umbrella
+12,Japanese,Asuka period court,飛鳥,Asuka,538,710,early_medieval,60,BRITANNICA-HISTORY,Period/court label
+12,Japanese,Nara Japan,奈良,Nara,710,794,early_medieval,65,BRITANNICA-HISTORY,Capital-period label
+12,Japanese,Heian Japan,平安,Heian,794,1185,high_medieval,85,BRITANNICA-HISTORY,Imperial court period
+12,Japanese,Kamakura shogunate,鎌倉幕府,Kamakura,1185,1333,high_medieval,90,BRITANNICA-HISTORY,Military government
+12,Japanese,Muromachi shogunate,室町幕府,Muromachi,1336,1573,late_medieval,85,BRITANNICA-HISTORY,Military government
+12,Japanese,Tokugawa shogunate,江戸幕府,Edo,1603,1868,early_modern,100,BRITANNICA-HISTORY,Military government
+12,Japanese,Empire of Japan,大日本帝国,Japan,1868,1947,modern,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Constitutional imperial state
+12,Japanese,Japan,日本,Japan,1947,9999,contemporary,100,BRITANNICA-HISTORY,Current state
+13,Portuguese,County of Portugal,Condado Portucalense,Portucale,868,1139,early_medieval,50,WD-FORMER-STATES,Pre-kingdom county
+13,Portuguese,Kingdom of Portugal,Reino de Portugal,Portugal,1139,1910,high_medieval,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Core royal name
+13,Portuguese,Portuguese Empire,Império Português,Portugal,1415,1999,early_modern,90,WD-FORMER-STATES,Overseas empire label
+13,Portuguese,United Kingdom of Portugal Brazil and the Algarves,Reino Unido de Portugal Brasil e Algarves,Portugal,1815,1822,modern,55,WD-FORMER-STATES,Transatlantic kingdom
+13,Portuguese,First Portuguese Republic,República Portuguesa,Portugal,1910,1926,modern,60,WD-FORMER-STATES,First republic
+13,Portuguese,Portuguese Republic,República Portuguesa,Portugal,1976,9999,contemporary,100,BRITANNICA-HISTORY,Current constitutional period
+13,Portuguese,Empire of Brazil,Império do Brasil,Brazil,1822,1889,modern,80,WD-FORMER-STATES,Portuguese-language imperial state
+13,Portuguese,Federative Republic of Brazil,República Federativa do Brasil,Brazil,1889,9999,contemporary,100,BRITANNICA-HISTORY,Current Portuguese-language state
+14,Nahuatl,Aztec Empire,Ēxcān Tlahtōlōyān,Triple Alliance,1428,1521,late_medieval,100,BRITANNICA-HISTORY,Modern conventional label; Nahuatl endonym shown
+14,Nahuatl,Texcoco,Texcoco,Texcoco,1331,1521,late_medieval,65,BRITANNICA-HISTORY,Member of Triple Alliance
+14,Nahuatl,Tlacopan,Tlacopan,Tlacopan,1428,1521,late_medieval,45,BRITANNICA-HISTORY,Member of Triple Alliance
+14,Nahuatl,Tlaxcala,Tlaxcallān,Tlaxcala,1348,1521,late_medieval,70,BRITANNICA-HISTORY,Independent Nahua confederation
+14,Nahuatl,Tepanec state,Azcapotzalco,Azcapotzalco,1150,1428,late_medieval,55,BRITANNICA-HISTORY,Central Mexican polity
+14,Nahuatl,Chalco,Chālco,Chalco,1160,1521,late_medieval,45,BRITANNICA-HISTORY,Altepetl confederation
+14,Nahuatl,New Spain,Nueva España,Anahuac,1521,1821,early_modern,60,WD-FORMER-STATES,Colonial polity; Spanish name retained
+14,Nahuatl,First Mexican Empire,Imperio Mexicano,Mexico,1821,1823,modern,35,WD-FORMER-STATES,Post-colonial polity
+14,Nahuatl,United Mexican States,Estados Unidos Mexicanos,Mexico,1824,9999,contemporary,100,BRITANNICA-HISTORY,Modern state; Nahuatl-derived exonym
+15,Hungarian,Principality of Hungary,Magyar Nagyfejedelemség,Hungary,895,1000,early_medieval,60,WD-FORMER-STATES,Conquest-period polity
+15,Hungarian,Kingdom of Hungary,Magyar Királyság,Hungary,1000,1918,high_medieval,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Core royal state
+15,Hungarian,Eastern Hungarian Kingdom,Keleti Magyar Királyság,Transylvania,1526,1570,early_modern,45,WD-FORMER-STATES,Successor polity
+15,Hungarian,Principality of Transylvania,Erdélyi Fejedelemség,Transylvania,1570,1711,early_modern,70,WD-FORMER-STATES,Hungarian-speaking political tradition
+15,Hungarian,Lands of the Crown of Saint Stephen,A Szent Korona Országai,Hungary,1867,1918,modern,70,WD-FORMER-STATES,Constitutional component of Austria-Hungary
+15,Hungarian,Hungarian Democratic Republic,Magyar Népköztársaság,Hungary,1918,1919,modern,30,WD-FORMER-STATES,Short-lived republic
+15,Hungarian,Hungarian People's Republic,Magyar Népköztársaság,Hungary,1949,1989,modern,65,WD-FORMER-STATES,Socialist state
+15,Hungarian,Hungary,Magyarország,Hungary,1989,9999,contemporary,100,BRITANNICA-HISTORY,Current state
+16,Turkish,Göktürk Khaganate,Kök Türk,Göktürk,552,744,early_medieval,75,BRITANNICA-HISTORY,Early Turkic empire
+16,Turkish,Uyghur Khaganate,Toquz Oghuz,Uyghur,744,840,early_medieval,55,BRITANNICA-HISTORY,Turkic khaganate
+16,Turkish,Great Seljuk Empire,Devlet-i Selçukiyye,Seljuk,1037,1194,high_medieval,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Major Persianate-Turkic empire
+16,Turkish,Sultanate of Rum,Selçuklu Sultanlığı,Rum,1077,1308,high_medieval,85,WD-FORMER-STATES,Anatolian Seljuk state
+16,Turkish,Ottoman Empire,Devlet-i ʿAlīye-i ʿOsmānīye,Ottoman,1299,1922,late_medieval,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Long-lived empire
+16,Turkish,Republic of Turkey,Türkiye Cumhuriyeti,Turkey,1923,9999,contemporary,100,BRITANNICA-HISTORY,Current state
+16,Turkish,Turkish Republic of Northern Cyprus,Kuzey Kıbrıs Türk Cumhuriyeti,Northern Cyprus,1983,9999,contemporary,25,WD-FORMER-STATES,Limited-recognition polity
+16,Turkish,Republic of Azerbaijan,Azərbaycan Respublikası,Azerbaijan,1991,9999,contemporary,65,BRITANNICA-HISTORY,Turkic-language state
+17,Berber,Kingdom of Numidia,Numidia,Numidia,-202,-46,ancient,70,WD-FORMER-STATES,Ancient North African kingdom
+17,Berber,Mauretanian Kingdom,Mauretania,Mauretania,-300,40,ancient,55,WD-FORMER-STATES,Ancient kingdom not modern Mauritania
+17,Berber,Barghawata Confederacy,Barghawata,Barghawata,744,1058,early_medieval,50,BRITANNICA-HISTORY,Berber confederation
+17,Berber,Almoravid dynasty,Al-Murābiṭūn,Almoravid,1040,1147,high_medieval,85,WD-FORMER-STATES,Maghrebi empire
+17,Berber,Almohad Caliphate,Al-Muwaḥḥidūn,Almohad,1121,1269,high_medieval,90,WD-FORMER-STATES,Maghrebi empire
+17,Berber,Marinid Sultanate,Banū Marīn,Marinid,1244,1465,late_medieval,65,WD-FORMER-STATES,Moroccan dynasty-state
+17,Berber,Kingdom of Morocco,المملكة المغربية,Morocco,1957,9999,contemporary,100,BRITANNICA-HISTORY,Modern state with Arabic official long name
+17,Berber,People's Democratic Republic of Algeria,الجمهورية الجزائرية الديمقراطية الشعبية,Algeria,1962,9999,contemporary,100,BRITANNICA-HISTORY,Modern Maghrebi state
+18,Arabic,Rashidun Caliphate,الخلافة الراشدة,Rashidun,632,661,early_medieval,85,WD-FORMER-STATES,Early caliphate
+18,Arabic,Umayyad Caliphate,الخلافة الأموية,Umayyad,661,750,early_medieval,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Major caliphate
+18,Arabic,Abbasid Caliphate,الخلافة العباسية,Abbasid,750,1258,high_medieval,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Major caliphate
+18,Arabic,Fatimid Caliphate,الخلافة الفاطمية,Fatimid,909,1171,high_medieval,75,WD-FORMER-STATES,Isma'ili caliphate
+18,Arabic,Ayyubid Sultanate,الدولة الأيوبية,Ayyubid,1171,1260,high_medieval,70,WD-FORMER-STATES,Egypt-Levant dynasty-state
+18,Arabic,Mamluk Sultanate,سلطنة المماليك,Mamluk,1250,1517,late_medieval,90,WD-FORMER-STATES,Egypt-Levant sultanate
+18,Arabic,Kingdom of Hejaz,مملكة الحجاز,Hejaz,1916,1925,modern,45,WD-FORMER-STATES,Short-lived kingdom
+18,Arabic,Kingdom of Saudi Arabia,المملكة العربية السعودية,Saudi Arabia,1932,9999,contemporary,100,BRITANNICA-HISTORY,Current state
+18,Arabic,United Arab Republic,الجمهورية العربية المتحدة,Arab Republic,1958,1971,contemporary,55,WD-FORMER-STATES,Egypt-Syria union through 1961
+19,Inuit,Thule culture,Thule,Thule,1000,1600,high_medieval,75,BRITANNICA-HISTORY,Culture not a sovereign state; retained for geographic naming
+19,Inuit,Inuit Nunangat,ᐃᓄᐃᑦ ᓄᓇᖓᑦ,Inuit Nunangat,1970,9999,contemporary,85,BRITANNICA-HISTORY,Inuit homeland umbrella
+19,Inuit,Nunavut,ᓄᓇᕗᑦ,Nunavut,1999,9999,contemporary,100,BRITANNICA-HISTORY,Canadian territory
+19,Inuit,Greenland,Kalaallit Nunaanni,Kalaallit,1721,9999,modern,85,BRITANNICA-HISTORY,Name is Kalaallit-language endonym phrase
+19,Inuit,Inuvialuit Settlement Region,Inuvialuit Nunangit,Inuvialuit,1984,9999,contemporary,45,BRITANNICA-HISTORY,Indigenous regional governance
+19,Inuit,Nunavik,ᓄᓇᕕᒃ,Nunavik,1975,9999,contemporary,45,BRITANNICA-HISTORY,Inuit region in Quebec
+19,Inuit,Nunatsiavut,Nunatsiavut,Nunatsiavut,2005,9999,contemporary,50,BRITANNICA-HISTORY,Inuit regional government
+19,Inuit,Alaska Native regional corporations,Inuit regions,Alaska,1971,9999,contemporary,25,BRITANNICA-HISTORY,Not a single Inuit polity; do not treat as a state
+20,Basque,Kingdom of Pamplona,Erresuma Iruñea,Pamplona,824,1162,early_medieval,80,WD-FORMER-STATES,Predecessor name of Navarre
+20,Basque,Kingdom of Navarre,Nafarroako Erresuma,Navarre,824,1620,high_medieval,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Core Basque-associated kingdom
+20,Basque,Lordship of Biscay,Bizkaiko Jaurerria,Biscay,1043,1876,high_medieval,65,WD-FORMER-STATES,Autonomous lordship
+20,Basque,Republic of San Sebastián,Donostiako Errepublika,San Sebastián,1813,1813,modern,10,WD-FORMER-STATES,Very short-lived local polity
+20,Basque,First Carlist government,Karlistak,Navarre,1833,1876,modern,30,BRITANNICA-HISTORY,Insurgent administration; use sparingly
+20,Basque,Basque Autonomous Community,Euskal Autonomia Erkidegoa,Euskadi,1979,9999,contemporary,75,BRITANNICA-HISTORY,Autonomous community not sovereign state
+20,Basque,Chartered Community of Navarre,Nafarroako Foru Komunitatea,Navarre,1982,9999,contemporary,55,BRITANNICA-HISTORY,Autonomous community
+20,Basque,Northern Basque Country,Ipar Euskal Herria,Iparralde,2017,9999,contemporary,35,BRITANNICA-HISTORY,Cultural-administrative area
+21,Nigerian,Nok culture,Nok,Nok,-1500,500,ancient,35,BRITANNICA-HISTORY,Culture not a state; useful only as a naming period marker
+21,Nigerian,Kano Emirate,Masarautar Kano,Kano,1000,1903,high_medieval,75,BRITANNICA-HISTORY,Hausa state
+21,Nigerian,Katsina Emirate,Masarautar Katsina,Katsina,1100,1807,high_medieval,65,BRITANNICA-HISTORY,Hausa state
+21,Nigerian,Oyo Empire,Ilẹ̀ọba Ọ̀yọ́,Oyo,1300,1896,late_medieval,100,BRITANNICA-HISTORY,Yoruba empire
+21,Nigerian,Kingdom of Benin,Ẹdo,Benin,1180,1897,late_medieval,95,BRITANNICA-HISTORY,Edo state; distinct from modern Benin
+21,Nigerian,Sokoto Caliphate,Daular Usmaniyya,Sokoto,1804,1903,modern,90,WD-FORMER-STATES;BRITANNICA-HISTORY,West African caliphate
+21,Nigerian,Colony and Protectorate of Nigeria,Nigeria,Nigeria,1914,1960,modern,75,WD-FORMER-STATES,Colonial polity
+21,Nigerian,Federal Republic of Nigeria,Federal Republic of Nigeria,Nigeria,1963,9999,contemporary,100,BRITANNICA-HISTORY,Current state
+22,Celtic,Kingdom of Gwynedd,Teyrnas Gwynedd,Gwynedd,450,1216,early_medieval,85,BRITANNICA-HISTORY,Welsh kingdom
+22,Celtic,Kingdom of Powys,Teyrnas Powys,Powys,450,1160,early_medieval,65,BRITANNICA-HISTORY,Welsh kingdom
+22,Celtic,Kingdom of Alba,Rìoghachd na h-Alba,Alba,843,1286,high_medieval,90,BRITANNICA-HISTORY,Medieval Scottish kingdom
+22,Celtic,Kingdom of Scotland,Rìoghachd na h-Alba,Scotland,1286,1707,late_medieval,100,WD-FORMER-STATES,Kingdom before Union
+22,Celtic,Kingdom of Ireland,Ríocht na hÉireann,Ireland,1542,1801,early_modern,70,WD-FORMER-STATES,Early-modern kingdom
+22,Celtic,Irish Free State,Saorstát Éireann,Ireland,1922,1937,modern,65,WD-FORMER-STATES,Dominion period
+22,Celtic,Ireland,Éire,Ireland,1937,9999,contemporary,100,BRITANNICA-HISTORY,Current state
+22,Celtic,Principality of Wales,Tywysogaeth Cymru,Wales,1216,1543,late_medieval,75,BRITANNICA-HISTORY,Native principality
+23,Mesopotamian,Sumer,ki-en-gi,Sumer,-4500,-1900,ancient,85,BRITANNICA-HISTORY,City-state cultural region not unitary state
+23,Mesopotamian,Akkadian Empire,māt Akkadim,Akkad,-2334,-2154,ancient,90,WD-FORMER-STATES;BRITANNICA-HISTORY,Early empire
+23,Mesopotamian,Third Dynasty of Ur,Ur III,Ur,-2112,-2004,ancient,75,BRITANNICA-HISTORY,Neo-Sumerian state
+23,Mesopotamian,Old Assyrian Kingdom,māt Aššur,Assur,-2025,-1364,ancient,65,BRITANNICA-HISTORY,Assyrian polity
+23,Mesopotamian,Old Babylonian Empire,māt Bābili,Babylon,-1894,-1595,ancient,80,BRITANNICA-HISTORY,Hammurabi-era state
+23,Mesopotamian,Neo-Assyrian Empire,māt Aššur,Assyria,-911,-609,ancient,100,BRITANNICA-HISTORY,Major empire
+23,Mesopotamian,Neo-Babylonian Empire,māt Bābili,Babylon,-626,-539,ancient,95,BRITANNICA-HISTORY,Chaldean dynasty-state
+23,Mesopotamian,Kingdom of Iraq,المملكة العراقية,Iraq,1932,1958,modern,55,WD-FORMER-STATES,Modern Arabic-name state
+23,Mesopotamian,Republic of Iraq,جمهورية العراق,Iraq,1958,9999,contemporary,100,BRITANNICA-HISTORY,Current state
+24,Iranian,Median Empire,Māda,Media,-678,-550,ancient,65,BRITANNICA-HISTORY,Ancient Iranian empire
+24,Iranian,Achaemenid Empire,Xšāça,Achaemenid,-550,-330,ancient,100,BRITANNICA-HISTORY,Major Iranian empire
+24,Iranian,Parthian Empire,Parthava,Parthia,-247,224,ancient,90,BRITANNICA-HISTORY,Arsacid state
+24,Iranian,Sasanian Empire,Ērānshahr,Sasanian,224,651,late_antiquity,100,BRITANNICA-HISTORY,Middle Persian imperial name
+24,Iranian,Samanid Empire,دولت سامانیان,Samanid,819,999,early_medieval,65,WD-FORMER-STATES,Persianate dynasty-state
+24,Iranian,Safavid Iran,دولت صفویه,Safavid,1501,1736,early_modern,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Major early-modern state
+24,Iranian,Qajar Iran,دولت علیا ایران,Qajar,1789,1925,modern,80,WD-FORMER-STATES,Conventionally Persia in English sources
+24,Iranian,Imperial State of Iran,کشور شاهنشاهی ایران,Iran,1925,1979,modern,85,WD-FORMER-STATES,Foreign usage shifted from Persia in 1935
+24,Iranian,Islamic Republic of Iran,جمهوری اسلامی ایران,Iran,1979,9999,contemporary,100,BRITANNICA-HISTORY,Current state
+25,Hawaiian,Kingdom of Hawaiʻi,Ke Aupuni Mōʻī o Hawaiʻi,Hawaiʻi,1795,1893,early_modern,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Unified island kingdom
+25,Hawaiian,Provisional Government of Hawaii,Ke Aupuni Kūikawā o Hawaiʻi,Hawaiʻi,1893,1894,modern,30,WD-FORMER-STATES,Short-lived regime
+25,Hawaiian,Republic of Hawaii,Republic of Hawaiʻi,Hawaiʻi,1894,1898,modern,35,WD-FORMER-STATES,Short-lived republic
+25,Hawaiian,Territory of Hawaii,Teritore o Hawaiʻi,Hawaiʻi,1900,1959,modern,60,WD-FORMER-STATES,United States territory
+25,Hawaiian,State of Hawaii,Mokuʻāina o Hawaiʻi,Hawaiʻi,1959,9999,contemporary,100,BRITANNICA-HISTORY,United States state
+25,Hawaiian,Maui,The Kingdom of Maui,Maui,1500,1795,early_modern,45,BRITANNICA-HISTORY,Pre-unification island polity
+25,Hawaiian,Oʻahu,The Kingdom of Oʻahu,Oʻahu,1500,1795,early_modern,45,BRITANNICA-HISTORY,Pre-unification island polity
+25,Hawaiian,Kauaʻi,The Kingdom of Kauaʻi,Kauaʻi,1500,1810,early_modern,45,BRITANNICA-HISTORY,Pre-unification island polity
+26,Karnataka,Western Ganga Kingdom,ಪಶ್ಚಿಮ ಗಂಗ ಸಾಮ್ರಾಜ್ಯ,Ganga,350,1000,early_medieval,65,BRITANNICA-HISTORY,Kannada-region dynasty-state
+26,Karnataka,Kadamba kingdom,ಕದಂಬ ಸಾಮ್ರಾಜ್ಯ,Kadamba,345,540,early_medieval,60,BRITANNICA-HISTORY,Early Karnataka dynasty
+26,Karnataka,Chalukya Empire,ಚಾಲುಕ್ಯ ಸಾಮ್ರಾಜ್ಯ,Chalukya,543,757,early_medieval,85,BRITANNICA-HISTORY,Badami Chalukyas
+26,Karnataka,Rashtrakuta Empire,ರಾಷ್ಟ್ರಕೂಟ ಸಾಮ್ರಾಜ್ಯ,Rashtrakuta,753,982,early_medieval,85,BRITANNICA-HISTORY,Deccan empire
+26,Karnataka,Hoysala Empire,ಹೊಯ್ಸಳ ಸಾಮ್ರಾಜ್ಯ,Hoysala,1026,1343,high_medieval,90,BRITANNICA-HISTORY,Karnataka dynasty-state
+26,Karnataka,Vijayanagara Empire,ವಿಜಯನಗರ ಸಾಮ್ರಾಜ್ಯ,Vijayanagara,1336,1646,late_medieval,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Major south Indian empire
+26,Karnataka,Kingdom of Mysore,ಮೈಸೂರು ಸಂಸ್ಥಾನ,Mysore,1399,1947,early_modern,90,WD-FORMER-STATES,Long-lived princely state
+26,Karnataka,State of Karnataka,ಕರ್ನಾಟಕ,Karnataka,1973,9999,contemporary,100,BRITANNICA-HISTORY,Modern Indian state
+27,Quechua,Wari Empire,Wari,Wari,600,1100,early_medieval,70,BRITANNICA-HISTORY,Andean empire
+27,Quechua,Kingdom of Cusco,Qusqu,Cusco,1197,1438,high_medieval,60,BRITANNICA-HISTORY,Inca predecessor polity
+27,Quechua,Inca Empire,Tawantinsuyu,Tawantinsuyu,1438,1533,late_medieval,100,BRITANNICA-HISTORY,Four-part empire endonym
+27,Quechua,Viceroyalty of Peru,Virreynato del Perú,Peru,1542,1824,early_modern,75,WD-FORMER-STATES,Colonial Spanish name
+27,Quechua,Peruvian Republic,República Peruana,Peru,1821,9999,modern,100,BRITANNICA-HISTORY,Current state uses Spanish official name
+27,Quechua,Bolivian Republic,República de Bolivia,Bolivia,1825,2009,modern,85,WD-FORMER-STATES,State named after Bolívar
+27,Quechua,Plurinational State of Bolivia,Estado Plurinacional de Bolivia,Bolivia,2009,9999,contemporary,100,BRITANNICA-HISTORY,Current constitutional name
+27,Quechua,Republic of Ecuador,República del Ecuador,Ecuador,1830,9999,modern,85,BRITANNICA-HISTORY,Andean state with Quechua communities
+28,Swahili,City-state of Kilwa,Dola la Kilwa,Kilwa,957,1513,high_medieval,100,BRITANNICA-HISTORY,Swahili coast city-state
+28,Swahili,Sultanate of Zanzibar,Sultanate of Zanzibar,Zanzibar,1856,1964,modern,90,WD-FORMER-STATES;BRITANNICA-HISTORY,Swahili-speaking sultanate
+28,Swahili,Sultanate of Pate,Usultani wa Pate,Pate,1200,1895,high_medieval,55,BRITANNICA-HISTORY,Swahili coast city-state
+28,Swahili,Sultanate of Mombasa,Usultani wa Mombasa,Mombasa,1502,1824,early_modern,55,BRITANNICA-HISTORY,Coastal sultanate
+28,Swahili,German East Africa,Deutsch-Ostafrika,East Africa,1885,1919,modern,40,WD-FORMER-STATES,Colonial name; not Swahili endonym
+28,Swahili,Tanganyika,Tanganyika,Tanganyika,1961,1964,contemporary,65,WD-FORMER-STATES,Short-lived independent state
+28,Swahili,United Republic of Tanzania,Jamhuri ya Muungano wa Tanzania,Tanzania,1964,9999,contemporary,100,BRITANNICA-HISTORY,Current state
+28,Swahili,Republic of Kenya,Jamhuri ya Kenya,Kenya,1964,9999,contemporary,100,BRITANNICA-HISTORY,Current state with Kiswahili official language
+29,Vietnamese,Âu Lạc,Âu Lạc,Âu Lạc,-257,-179,ancient,55,BRITANNICA-HISTORY,Early Vietnamese polity
+29,Vietnamese,Vạn Xuân,Vạn Xuân,Vạn Xuân,544,602,early_medieval,60,BRITANNICA-HISTORY,Early independent kingdom
+29,Vietnamese,Đại Cồ Việt,Đại Cồ Việt,Cồ Việt,968,1054,high_medieval,75,BRITANNICA-HISTORY,Early dynasty-state
+29,Vietnamese,Đại Việt,Đại Việt,Đại Việt,1054,1804,high_medieval,100,BRITANNICA-HISTORY,Long-lived conventional state name
+29,Vietnamese,Đại Ngu,Đại Ngu,Đại Ngu,1400,1407,late_medieval,30,BRITANNICA-HISTORY,Short Hồ dynasty name
+29,Vietnamese,Đại Nam,Đại Nam,Đại Nam,1838,1945,modern,85,BRITANNICA-HISTORY,Nguyễn-era state name
+29,Vietnamese,State of Vietnam,Quốc gia Việt Nam,Vietnam,1949,1955,contemporary,45,WD-FORMER-STATES,Associated state
+29,Vietnamese,Republic of Vietnam,Việt Nam Cộng hòa,Vietnam,1955,1975,contemporary,65,WD-FORMER-STATES,South Vietnam
+29,Vietnamese,Socialist Republic of Vietnam,Cộng hòa Xã hội chủ nghĩa Việt Nam,Vietnam,1976,9999,contemporary,100,BRITANNICA-HISTORY,Current state
+30,Cantonese,Nanyue,南越,Nanyue,-204,-111,ancient,75,BRITANNICA-HISTORY,Ancient Lingnan kingdom
+30,Cantonese,Kingdom of Southern Han,南漢,South Han,917,971,early_medieval,55,BRITANNICA-HISTORY,Five Dynasties and Ten Kingdoms state
+30,Cantonese,Kingdom of Southern Yue,南越,South Yue,917,971,early_medieval,30,BRITANNICA-HISTORY,Variant translation not a separate polity
+30,Cantonese,Guangzhou government,廣州,Guangzhou,1368,1644,early_modern,25,BRITANNICA-HISTORY,Regional administration; not a sovereign state
+30,Cantonese,Republic of China in Canton,中華民國,Guangzhou,1917,1925,modern,40,WD-FORMER-STATES,Competing republican government
+30,Cantonese,Guangdong Province,廣東省,Guangdong,1912,9999,modern,80,BRITANNICA-HISTORY,Region; include for name geography only
+30,Cantonese,Hong Kong Special Administrative Region,香港特別行政區,Hong Kong,1997,9999,contemporary,100,BRITANNICA-HISTORY,Cantonese-majority special administrative region
+30,Cantonese,Macau Special Administrative Region,澳門特別行政區,Macau,1999,9999,contemporary,85,BRITANNICA-HISTORY,Cantonese-majority special administrative region
+31,Mongolian,Xiongnu confederation,匈奴,Xiongnu,-209,93,ancient,65,BRITANNICA-HISTORY,Steppe confederation
+31,Mongolian,Rouran Khaganate,柔然,Rouran,330,555,early_medieval,55,BRITANNICA-HISTORY,Steppe khaganate
+31,Mongolian,Mongol Empire,Их Монгол Улс,Mongol,1206,1368,high_medieval,100,WD-FORMER-STATES;BRITANNICA-HISTORY,Major empire
+31,Mongolian,Yuan dynasty,大元,Yuan,1271,1368,late_medieval,85,BRITANNICA-HISTORY,China-based Mongol dynasty
+31,Mongolian,Northern Yuan,Умард Юань,Northern Yuan,1368,1635,late_medieval,70,BRITANNICA-HISTORY,Mongolian successor state
+31,Mongolian,Dzungar Khanate,Зүүнгарын хаант улс,Dzungar,1634,1758,early_modern,75,WD-FORMER-STATES,Western Mongol state
+31,Mongolian,Bogd Khanate of Mongolia,Олноо Өргөгдсөн Монгол Улс,Mongolia,1911,1924,modern,70,WD-FORMER-STATES,Independent monarchy
+31,Mongolian,Mongolian People's Republic,Бүгд Найрамдах Монгол Ард Улс,Mongolia,1924,1992,modern,90,WD-FORMER-STATES,Socialist state
+31,Mongolian,Mongolia,Монгол Улс,Mongolia,1992,9999,contemporary,100,BRITANNICA-HISTORY,Current state
+42,Levantine,Canaanite city-states,Canaan,Canaan,-3000,-1200,ancient,50,BRITANNICA-HISTORY,Regional umbrella not unitary state
+42,Levantine,Kingdom of Israel,ממלכת ישראל,Israel,-930,-720,ancient,85,BRITANNICA-HISTORY,Iron Age kingdom
+42,Levantine,Kingdom of Judah,ממלכת יהודה,Judah,-930,-586,ancient,85,BRITANNICA-HISTORY,Iron Age kingdom
+42,Levantine,Phoenician city-states,Phoenicia,Phoenicia,-1500,-332,ancient,75,BRITANNICA-HISTORY,Regional city-state network
+42,Levantine,Nabatean Kingdom,𐢕𐢃𐢋𐢈,Nabataea,-312,106,ancient,70,WD-FORMER-STATES,Aramaic script attestation
+42,Levantine,Kingdom of Jerusalem,Regnum Hierosolymitanum,Jerusalem,1099,1291,high_medieval,75,WD-FORMER-STATES,Crusader state; Latin name
+42,Levantine,State of Greater Lebanon,دولة لبنان الكبير,Lebanon,1920,1926,modern,45,WD-FORMER-STATES,Mandate-era state
+42,Levantine,State of Israel,מְדִינַת יִשְׂרָאֵל,Israel,1948,9999,contemporary,100,BRITANNICA-HISTORY,Current state
+42,Levantine,Lebanese Republic,الجمهورية اللبنانية,Lebanon,1943,9999,contemporary,100,BRITANNICA-HISTORY,Current state
+42,Levantine,Hashemite Kingdom of Jordan,المملكة الأردنية الهاشمية,Jordan,1946,9999,contemporary,100,BRITANNICA-HISTORY,Current state

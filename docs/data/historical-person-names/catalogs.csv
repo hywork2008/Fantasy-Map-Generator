@@ -1,0 +1,3 @@
+file,role,default_for_generation,source_license,description
+cc0-country-given-names.csv,primary,true,CC0-1.0,General-population country names with source rank and year; coverage_kind identifies direct and proxy mappings
+cc0-wikidata-given-names.csv,spelling_dictionary,false,CC0-1.0,Language-attached given-name entities with no inferred gender or frequency; use only to broaden a filtered primary pool
