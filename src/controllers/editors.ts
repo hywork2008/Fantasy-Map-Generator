@@ -4,6 +4,7 @@ import { worldContext } from "../context/worldContext";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { useColorPickerDialogState } from "../store/colorPickerDialogState";
 import { elSelected, setElSelected } from "../store/editorState";
+import { is3DViewActive } from "../store/viewModeState";
 import type { WebglPickDetail } from "../types/webglPicking";
 
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
@@ -60,6 +61,11 @@ export function restoreDefaultEvents(): void {
 }
 
 function clicked(this: Element, event: MouseEvent): void {
+  // The map SVG is hidden behind canvas3d while a 3D view (viewMesh/viewGlobe) is active — any
+  // click that still reaches this handler (stale DOM state, a reinit race, etc.) must not open an
+  // editor the user can't see the context for.
+  if (is3DViewActive()) return;
+
   const el = event.target as Element | null;
   const parent = el?.parentElement;
   const grand = parent?.parentElement;
@@ -93,6 +99,7 @@ function clicked(this: Element, event: MouseEvent): void {
 }
 
 function editWebglPickCandidate(detail: WebglPickDetail): void {
+  if (is3DViewActive()) return;
   if (detail.kind === "emblem") editWebglEmblem(detail.id);
   else if (detail.kind === "burgIcon") editWebglBurg(detail.id);
   else if (detail.kind === "label") editWebglLabel(detail.id);

@@ -73,8 +73,9 @@ class EmblemRenderModule {
   private rawChargeCache = new Map<string, Promise<string>>();
 
   private async fetchCharge(charge: string, id: string) {
-    if (!this.rawChargeCache.has(charge)) {
-      const promise = fetch(`./charges/${charge}.svg`).then(res => {
+    let promise = this.rawChargeCache.get(charge);
+    if (!promise) {
+      promise = fetch(`./charges/${charge}.svg`).then(res => {
         if (res.ok) return res.text();
         else throw new Error(`Cannot fetch charge: ${charge}`);
       });
@@ -82,12 +83,16 @@ class EmblemRenderModule {
     }
 
     try {
-      const text = await this.rawChargeCache.get(charge)!;
+      const text = await promise;
       const doc = new DOMParser().parseFromString(text, "image/svg+xml");
       const g: SVGAElement = doc.querySelector("g") as SVGAElement;
       g.setAttribute("id", `${charge}_${id}`);
       return g.outerHTML;
     } catch (err) {
+      // A transient failure (dev-server hiccup, network blip) must not poison this charge for the
+      // rest of the session — leaving the rejected promise cached would make every future coa
+      // using this charge fail the same way forever. Evict it so the next request retries.
+      if (this.rawChargeCache.get(charge) === promise) this.rawChargeCache.delete(charge);
       ERROR && console.error(err);
       return "";
     }

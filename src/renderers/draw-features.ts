@@ -69,8 +69,12 @@ export const FeaturesRenderer: IRenderer = {
         // actual painted line impractically hard to click in SVG mode. Keep a
         // transparent, wider sibling in the same ancestry so the default
         // editor event dispatcher still resolves #coastline and data-f.
+        // vector-effect="non-scaling-stroke" keeps this hit margin a constant
+        // ~10 screen px regardless of zoom — without it, stroke-width is in
+        // map units and scales with the view, so at high zoom the hoverable
+        // area balloons far beyond the (always-thin) visible coastline.
         html.coastline[coastlineGroup].push(
-          `<use href="#feature_${feature.i}" data-f="${feature.i}" class="coastline-hit" fill="none" stroke="transparent" stroke-width="10" pointer-events="stroke"></use>`
+          `<use href="#feature_${feature.i}" data-f="${feature.i}" class="coastline-hit" fill="none" stroke="transparent" stroke-width="10" vector-effect="non-scaling-stroke" pointer-events="stroke"></use>`
         );
       }
     }
