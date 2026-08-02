@@ -409,6 +409,15 @@
       "merchantCompanyBodyguard": "Merchant Company Bodyguard",
       "merchantCompanyExecutive": "Merchant Company Executive",
       "merchantCompanyAgent": "Merchant Company Agent"
+    },
+    "roleClassNames": {
+      "ruler": "State Ruler",
+      "province_lord": "Province Lord",
+      "central_officer": "Court Officer",
+      "commander": "Military Commander",
+      "religious": "Religious",
+      "merchant": "Merchant",
+      "ordinary": "Other"
     }
   },
   "economy": {

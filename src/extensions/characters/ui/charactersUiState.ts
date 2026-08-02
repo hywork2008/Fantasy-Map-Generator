@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { CharacterRoleClass } from "../characterTypes";
 
 export type SortOrder = "asc" | "desc";
 export type CharactersTab = "overview" | "stats";
@@ -16,6 +17,11 @@ interface CharactersUiState {
   sortOrder: SortOrder;
   searchText: string;
   filterStateId: number | null;
+  /**
+   * Semantic title/role class filter (King/Emperor/Khan all share `"ruler"`).
+   * `null` means all classes.
+   */
+  filterRoleClass: CharacterRoleClass | null;
   activeTab: CharactersTab;
   /** Bumped whenever character data mutates in place (e.g. Advance Time aging). */
   refreshToken: number;
@@ -30,6 +36,7 @@ interface CharactersUiState {
   toggleSortBy: (field: string) => void;
   setSearchText: (text: string) => void;
   setFilterStateId: (id: number | null) => void;
+  setFilterRoleClass: (roleClass: CharacterRoleClass | null) => void;
   setActiveTab: (tab: CharactersTab) => void;
   bumpRefreshToken: () => void;
 }
@@ -42,6 +49,7 @@ export const useCharactersUiState = create<CharactersUiState>((set, get) => ({
   sortOrder: "asc",
   searchText: "",
   filterStateId: null,
+  filterRoleClass: null,
   activeTab: "overview",
   refreshToken: 0,
   setSelectedCharacterId: id => set({ selectedCharacterId: id }),
@@ -101,6 +109,7 @@ export const useCharactersUiState = create<CharactersUiState>((set, get) => ({
   },
   setSearchText: text => set({ searchText: text }),
   setFilterStateId: id => set({ filterStateId: id }),
+  setFilterRoleClass: roleClass => set({ filterRoleClass: roleClass }),
   setActiveTab: tab => set({ activeTab: tab }),
   bumpRefreshToken: () => set(state => ({ refreshToken: state.refreshToken + 1 }))
 }));

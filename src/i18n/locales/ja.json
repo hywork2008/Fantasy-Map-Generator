@@ -409,6 +409,15 @@
       "merchantCompanyBodyguard": "商会護衛",
       "merchantCompanyExecutive": "商会幹部",
       "merchantCompanyAgent": "商会代理人"
+    },
+    "roleClassNames": {
+      "ruler": "国家元首",
+      "province_lord": "地方領主",
+      "central_officer": "宮廷官",
+      "commander": "軍指揮官",
+      "religious": "聖職者",
+      "merchant": "商人",
+      "ordinary": "その他"
     }
   },
   "economy": {

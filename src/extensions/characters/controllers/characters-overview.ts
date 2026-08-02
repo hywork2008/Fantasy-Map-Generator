@@ -1,5 +1,6 @@
 import type { State } from "../../hostTypes";
-import type { Character } from "../characterTypes";
+import { inferRoleClass } from "../backstoryProfile";
+import type { Character, CharacterRoleClass } from "../characterTypes";
 import { useCharactersUiState } from "../ui/charactersUiState";
 import { getCharacterRoleLabel, getCharacterTitleLabel } from "../utils/characterLabels";
 
@@ -8,6 +9,8 @@ export interface CharacterRowData {
   stateName: string;
   stateId: number;
   title: string;
+  /** Semantic title/role class (King/Emperor/Khan → `"ruler"`). */
+  roleClass: CharacterRoleClass;
 }
 
 export function filterAndSortCharacters(
@@ -16,11 +19,13 @@ export function filterAndSortCharacters(
   options: {
     searchText: string;
     filterStateId: number;
+    /** When set, keep only characters whose inferred role class matches. */
+    filterRoleClass?: CharacterRoleClass | null;
     sortBy: string;
     sortOrder: "asc" | "desc";
   }
 ): CharacterRowData[] {
-  const { searchText, filterStateId, sortBy, sortOrder } = options;
+  const { searchText, filterStateId, filterRoleClass = null, sortBy, sortOrder } = options;
 
   // 1. Map to row data
   let rows: CharacterRowData[] = characters.map(c => {
@@ -32,7 +37,8 @@ export function filterAndSortCharacters(
       c,
       stateId,
       stateName,
-      title: holding ? getCharacterTitleLabel(holding.title) : role ? getCharacterRoleLabel(role) : ""
+      title: holding ? getCharacterTitleLabel(holding.title) : role ? getCharacterRoleLabel(role) : "",
+      roleClass: inferRoleClass(c)
     };
   });
 
@@ -41,7 +47,12 @@ export function filterAndSortCharacters(
     rows = rows.filter(r => r.stateId === filterStateId);
   }
 
-  // 3. Filter by search text
+  // 3. Filter by semantic title/role class (groups King/Emperor/etc. as rulers)
+  if (filterRoleClass) {
+    rows = rows.filter(r => r.roleClass === filterRoleClass);
+  }
+
+  // 4. Filter by search text
   if (searchText) {
     const search = searchText.toLowerCase();
     rows = rows.filter(r => {
@@ -60,7 +71,7 @@ export function filterAndSortCharacters(
     });
   }
 
-  // 4. Sort
+  // 5. Sort
   rows.sort((a, b) => {
     let result = 0;
     switch (sortBy) {

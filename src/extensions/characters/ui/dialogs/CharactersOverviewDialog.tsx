@@ -3,7 +3,9 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { closeDialog, Dialog, openDialog, useDialogState } from "../../../hostUi";
 import { getCharacters, getWorldContext } from "../../charactersContext";
+import type { CharacterRoleClass } from "../../characterTypes";
 import { filterAndSortCharacters } from "../../controllers/characters-overview";
+import { CHARACTER_ROLE_CLASS_FILTERS, getCharacterRoleClassLabel } from "../../utils/characterLabels";
 import { useCharactersUiState } from "../charactersUiState";
 import { CharactersStatsTable } from "../components/tables/CharactersStatsTable";
 import { CharactersTable } from "../components/tables/CharactersTable";
@@ -17,11 +19,13 @@ export const CharactersOverviewDialog: React.FC = () => {
     sortOrder,
     searchText,
     filterStateId,
+    filterRoleClass,
     activeTab,
     refreshToken,
     toggleSortBy,
     setSearchText,
     setFilterStateId,
+    setFilterRoleClass,
     setActiveTab,
     openCharacterDetails
   } = useCharactersUiState();
@@ -41,10 +45,11 @@ export const CharactersOverviewDialog: React.FC = () => {
     return filterAndSortCharacters(characters, states, {
       searchText,
       filterStateId: filterStateId ?? -1,
+      filterRoleClass,
       sortBy,
       sortOrder
     });
-  }, [characters, states, searchText, filterStateId, sortBy, sortOrder, refreshToken, i18n.language]);
+  }, [characters, states, searchText, filterStateId, filterRoleClass, sortBy, sortOrder, refreshToken, i18n.language]);
 
   const handleCharacterClick = (characterId: number) => {
     openCharacterDetails(characterId);
@@ -202,6 +207,28 @@ export const CharactersOverviewDialog: React.FC = () => {
               {sortedStates.map(s => (
                 <option key={s.i} value={s.i}>
                   {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label
+            htmlFor="charactersFilterRoleClass"
+            style={{ marginLeft: "10px" }}
+            data-tip="Filter by title/role class. Kings, emperors, and other sovereign titles share State Ruler."
+          >
+            Title/Role:{" "}
+            <select
+              id="charactersFilterRoleClass"
+              value={filterRoleClass ?? ""}
+              onChange={e => {
+                const value = e.target.value;
+                setFilterRoleClass(value ? (value as CharacterRoleClass) : null);
+              }}
+            >
+              <option value="">all</option>
+              {CHARACTER_ROLE_CLASS_FILTERS.map(roleClass => (
+                <option key={roleClass} value={roleClass}>
+                  {getCharacterRoleClassLabel(roleClass)}
                 </option>
               ))}
             </select>

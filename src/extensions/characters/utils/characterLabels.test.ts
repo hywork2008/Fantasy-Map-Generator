@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import i18n from "../../../i18n";
-import { getCharacterRoleLabel, getCharacterTitleLabel } from "./characterLabels";
+import { getCharacterRoleClassLabel, getCharacterRoleLabel, getCharacterTitleLabel } from "./characterLabels";
 
 afterEach(async () => {
   await i18n.changeLanguage("en");
@@ -19,5 +19,13 @@ describe("character labels", () => {
 
     expect(getCharacterRoleLabel({ kind: "guildMaster", label: "Guild Master" })).toBe("ギルド親方");
     expect(getCharacterRoleLabel({ kind: "customRole", label: "Court Astrologer" })).toBe("Court Astrologer");
+  });
+
+  it("localizes semantic role class filter labels", async () => {
+    expect(getCharacterRoleClassLabel("ruler")).toBe("State Ruler");
+
+    await i18n.changeLanguage("ja");
+    expect(getCharacterRoleClassLabel("ruler")).toBe("国家元首");
+    expect(getCharacterRoleClassLabel("central_officer")).toBe("宮廷官");
   });
 });

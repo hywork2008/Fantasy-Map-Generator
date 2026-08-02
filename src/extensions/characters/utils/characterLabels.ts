@@ -1,5 +1,16 @@
 import i18n from "../../../i18n";
-import type { CharacterRole } from "../characterTypes";
+import type { CharacterRole, CharacterRoleClass } from "../characterTypes";
+
+/** Stable filter options for the Characters Overview title/role dropdown. */
+export const CHARACTER_ROLE_CLASS_FILTERS: readonly CharacterRoleClass[] = [
+  "ruler",
+  "province_lord",
+  "central_officer",
+  "commander",
+  "religious",
+  "merchant",
+  "ordinary"
+] as const;
 
 const TITLE_KEY_BY_ENGLISH: Readonly<Record<string, string>> = {
   King: "king",
@@ -116,4 +127,12 @@ export function getCharacterTitleLabel(title: string): string {
 export function getCharacterRoleLabel(role: Pick<CharacterRole, "kind" | "label">): string {
   const roleKey = ROLE_KEY_BY_KIND[role.kind] ?? ROLE_KEY_BY_LABEL[role.label];
   return roleKey ? i18n.t(`characters.roleNames.${roleKey}`) : role.label;
+}
+
+/**
+ * Localized label for a semantic role class used by overview filters.
+ * Groups display titles that differ only by culture (King / Emperor / Khan → Ruler).
+ */
+export function getCharacterRoleClassLabel(roleClass: CharacterRoleClass): string {
+  return i18n.t(`characters.roleClassNames.${roleClass}`);
 }
