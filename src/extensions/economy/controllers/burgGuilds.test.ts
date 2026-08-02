@@ -46,7 +46,8 @@ describe("listGuildsForBurg", () => {
         domain: "blacksmithing",
         proficiency: 82,
         aptitude: "gifted",
-        techniques: ["heatTreatment"]
+        techniques: ["heatTreatment"],
+        reconstructionLeads: [{ technique: "patternWelding", progress: 0.45 }]
       }
     ]);
 
@@ -60,7 +61,8 @@ describe("listGuildsForBurg", () => {
         masterName: "Master Arin",
         masterProficiency: 82,
         masterAptitude: "gifted",
-        masterTechniques: ["heatTreatment"]
+        masterTechniques: ["heatTreatment"],
+        masterReconstructionLeads: [{ technique: "patternWelding", progress: 0.45 }]
       }),
       expect.objectContaining({ domain: "textiles", status: "informal", stock: 0.4, treasury: 12, foundedYear: null })
     ]);

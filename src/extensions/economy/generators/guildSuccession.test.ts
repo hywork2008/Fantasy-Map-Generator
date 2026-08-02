@@ -8,7 +8,8 @@ import {
   clearEconomyContext,
   getGuildKnowledgeStocks,
   initEconomyContext,
-  setGuildKnowledgeStocks
+  setGuildKnowledgeStocks,
+  setIndividualSkills
 } from "../economyContext";
 import { getGuildBonus } from "./guildKnowledge";
 import { GuildSuccession } from "./guildSuccession";
@@ -186,7 +187,7 @@ describe("GuildSuccessionModule", () => {
     expect(apprentice.skills.engineering).toBe(10);
   });
 
-  it("promotes the apprentice to master when the master dies", () => {
+  it("promotes an underqualified apprentice but leaves the master's technique as a reconstruction lead", () => {
     const master: Character = {
       i: 1,
       name: "Master",
@@ -259,13 +260,33 @@ describe("GuildSuccessionModule", () => {
       ]
     };
     worldContext.pack.characters = [master, apprentice];
+    setIndividualSkills([
+      {
+        characterId: master.i,
+        domain: "blacksmithing",
+        proficiency: 90,
+        aptitude: "gifted",
+        techniques: ["heatTreatment"]
+      },
+      {
+        characterId: apprentice.i,
+        domain: "blacksmithing",
+        proficiency: 30,
+        aptitude: "ordinary",
+        techniques: []
+      }
+    ]);
     setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.8, treasury: 0 }]);
 
     GuildSuccession.settleAnnual();
 
     expect(isMaster(apprentice)).toBe(true);
     expect(master.roles?.every(role => role.endYear !== undefined)).toBe(true);
-    // No penalty — the apprentice inherited the guild's technique.
+    expect(getIndividualSkill(apprentice.i)?.techniques).toEqual([]);
+    expect(getIndividualSkill(apprentice.i)?.reconstructionLeads).toEqual([
+      expect.objectContaining({ technique: "heatTreatment", progress: expect.any(Number) })
+    ]);
+    // A guild stock represents shared institutional practice, so loss of one personal recipe does not erase it.
     expect(getGuildKnowledgeStocks().find(entry => entry.burgId === 1)?.stock).toBe(0.8);
   });
 

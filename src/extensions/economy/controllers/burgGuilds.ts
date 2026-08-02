@@ -31,7 +31,8 @@ export function listGuildsForBurg(burgId: number): BurgGuildListRow[] {
         masterName: master?.name ?? null,
         masterProficiency: mastery?.proficiency ?? null,
         masterAptitude: mastery?.aptitude ?? null,
-        masterTechniques: mastery?.techniques ?? []
+        masterTechniques: mastery?.techniques ?? [],
+        masterReconstructionLeads: mastery?.reconstructionLeads ?? []
       };
     })
     .toSorted((a, b) => {

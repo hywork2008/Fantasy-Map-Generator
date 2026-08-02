@@ -1,6 +1,11 @@
 import type { Character } from "../../characters/characterTypes";
 import { getIndividualSkills, getSimulationYear, setIndividualSkills } from "../economyContext";
-import type { AptitudeTier, BlacksmithingTechnique, CharacterDomainSkill } from "./individualSkillTypes";
+import type {
+  AptitudeTier,
+  BlacksmithingTechnique,
+  BlacksmithingTechniqueLead,
+  CharacterDomainSkill
+} from "./individualSkillTypes";
 
 export const BLACKSMITHING_DOMAIN = "blacksmithing" as const;
 
@@ -14,6 +19,13 @@ const APTITUDE_GROWTH_MULTIPLIER: Readonly<Record<AptitudeTier, number>> = {
 
 const APPRENTICE_BASE_PRACTICE_GAIN = 5;
 const MASTER_BASE_PRACTICE_GAIN = 1.5;
+const TECHNIQUE_INHERITANCE_PROFICIENCY: Readonly<Record<BlacksmithingTechnique, number>> = {
+  heatTreatment: 80,
+  patternWelding: 95
+};
+const RECONSTRUCTION_MIN_PROFICIENCY_RATIO = 0.7;
+const SOLO_RECONSTRUCTION_PROGRESS = 0.035;
+const COLLABORATIVE_RECONSTRUCTION_PROGRESS = 0.21;
 
 function clampProficiency(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value * 100) / 100));
@@ -67,7 +79,8 @@ export function ensureBlacksmithingSkill(
     domain: BLACKSMITHING_DOMAIN,
     proficiency: initialProficiency(character, role),
     aptitude: aptitudeFromEngineering(character),
-    techniques: []
+    techniques: [],
+    reconstructionLeads: []
   };
   setIndividualSkills([...getIndividualSkills(), skill]);
   return skill;
@@ -119,6 +132,103 @@ function learn(skill: CharacterDomainSkill, technique: BlacksmithingTechnique): 
   return true;
 }
 
+function techniqueLeadProgress(skill: CharacterDomainSkill, technique: BlacksmithingTechnique): number | undefined {
+  return skill.reconstructionLeads?.find(lead => lead.technique === technique)?.progress;
+}
+
+function addTechniqueLead(skill: CharacterDomainSkill, technique: BlacksmithingTechnique): void {
+  const threshold = TECHNIQUE_INHERITANCE_PROFICIENCY[technique];
+  const inheritedProgress = Math.min(0.8, 0.15 + (skill.proficiency / threshold) * 0.65);
+  const existing = techniqueLeadProgress(skill, technique);
+  if (existing !== undefined) {
+    const lead = skill.reconstructionLeads?.find(candidate => candidate.technique === technique);
+    if (lead) lead.progress = Math.max(lead.progress, inheritedProgress);
+    return;
+  }
+  const leads = skill.reconstructionLeads ?? [];
+  skill.reconstructionLeads = leads;
+  leads.push({ technique, progress: inheritedProgress });
+}
+
+function removeTechniqueLead(skill: CharacterDomainSkill, technique: BlacksmithingTechnique): void {
+  if (!skill.reconstructionLeads?.length) return;
+  skill.reconstructionLeads = skill.reconstructionLeads.filter(lead => lead.technique !== technique);
+}
+
+export interface BlacksmithingSuccessionResult {
+  inherited: BlacksmithingTechnique[];
+  deferred: BlacksmithingTechnique[];
+}
+
+/**
+ * Transfers only techniques the successor can already execute safely. Every
+ * other technique becomes an incomplete lead instead of a usable recipe.
+ */
+export function settleBlacksmithingSuccession(
+  predecessor: CharacterDomainSkill,
+  successor: CharacterDomainSkill
+): BlacksmithingSuccessionResult {
+  const inherited: BlacksmithingTechnique[] = [];
+  const deferred: BlacksmithingTechnique[] = [];
+
+  for (const technique of predecessor.techniques) {
+    if (successor.proficiency >= TECHNIQUE_INHERITANCE_PROFICIENCY[technique]) {
+      if (learn(successor, technique)) inherited.push(technique);
+      removeTechniqueLead(successor, technique);
+    } else {
+      addTechniqueLead(successor, technique);
+      deferred.push(technique);
+    }
+  }
+
+  return { inherited, deferred };
+}
+
+/**
+ * Lets an established craftsperson turn inherited fragments into a technique.
+ * A peer at the technique's required practical level supplies collaborative
+ * experimentation; without one, rediscovery remains possible but much slower.
+ */
+export function advanceBlacksmithingTechniqueLeads(
+  owner: CharacterDomainSkill,
+  collaborators: readonly CharacterDomainSkill[],
+  guildStock: number
+): boolean {
+  if (!owner.reconstructionLeads?.length || !(guildStock > 0)) return false;
+
+  let changed = false;
+  const access = Math.min(1, Math.max(0, guildStock));
+  const remaining: BlacksmithingTechniqueLead[] = [];
+
+  for (const lead of owner.reconstructionLeads) {
+    if (hasTechnique(owner, lead.technique)) continue;
+    const requiredProficiency = TECHNIQUE_INHERITANCE_PROFICIENCY[lead.technique];
+    if (owner.proficiency < requiredProficiency * RECONSTRUCTION_MIN_PROFICIENCY_RATIO) {
+      remaining.push(lead);
+      continue;
+    }
+
+    const hasSkilledCollaborator = collaborators.some(collaborator => collaborator.proficiency >= requiredProficiency);
+    const baseProgress = hasSkilledCollaborator ? COLLABORATIVE_RECONSTRUCTION_PROGRESS : SOLO_RECONSTRUCTION_PROGRESS;
+    const progress = Math.min(1, lead.progress + baseProgress * access * APTITUDE_GROWTH_MULTIPLIER[owner.aptitude]);
+
+    if (progress >= 1 && owner.proficiency >= requiredProficiency) {
+      changed = learn(owner, lead.technique) || changed;
+      continue;
+    }
+    // A collaborator can complete the notes before the successor has the
+    // practical control to execute them. Keep the lead nearly complete until
+    // that final proficiency requirement is met.
+    remaining.push({
+      ...lead,
+      progress: owner.proficiency >= requiredProficiency ? progress : Math.min(0.99, progress)
+    });
+  }
+
+  owner.reconstructionLeads = remaining;
+  return changed;
+}
+
 /**
  * Performs threshold-and-access based metallurgy technique acquisition. The
  * caller supplies the deterministic simulation RNG so this is never a lone,
@@ -161,7 +271,11 @@ export function settleBlacksmithingTechniques(
   return changed;
 }
 
-/** A living successor keeps a master's personal techniques only through direct apprenticeship. */
+/**
+ * Backward-compatible helper for callers that intentionally model an already
+ * qualified, direct transfer. Death succession must use
+ * `settleBlacksmithingSuccession` instead.
+ */
 export function inheritBlacksmithingTechniques(
   predecessor: CharacterDomainSkill,
   successor: CharacterDomainSkill

@@ -15,11 +15,13 @@ import { rollBalancedEconomyGender } from "./economyCharacterGender";
 import { applyMasterlessGuildPenalty } from "./guildKnowledge";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
 import {
+  advanceBlacksmithingTechniqueLeads,
   discardIndividualSkills,
   ensureBlacksmithingSkill,
+  getIndividualSkill,
   growApprenticeBlacksmithing,
   growMasterBlacksmithing,
-  inheritBlacksmithingTechniques,
+  settleBlacksmithingSuccession,
   settleBlacksmithingTechniques
 } from "./individualSkillMastery";
 import type { CharacterDomainSkill } from "./individualSkillTypes";
@@ -220,7 +222,7 @@ function promoteApprentice(
   }
 }
 
-/** Ends a dead master's role and either promotes an apprentice or penalizes the guild's stock ("lost secrets"). */
+/** Ends a dead master's role and promotes an apprentice when one survives. */
 function handleMasterDeath(
   characters: Character[],
   master: Character,
@@ -238,7 +240,7 @@ function handleMasterDeath(
     if (domain === "metallurgy") {
       const masterSkill = ensureBlacksmithingSkill(master, "master");
       const successorSkill = ensureBlacksmithingSkill(successor, "apprentice");
-      inheritBlacksmithingTechniques(masterSkill, successorSkill);
+      settleBlacksmithingSuccession(masterSkill, successorSkill);
     }
     promoteApprentice(successor, apprentices, burgId, domain, year);
   } else {
@@ -274,6 +276,13 @@ function growApprentices(
   }
 
   settleBlacksmithingTechniques(masterSkill, apprenticeSkills, stock, chance);
+
+  const collaborators = characters.flatMap(character => {
+    if (character.dead || character.i === master.i || character.location !== burgId) return [];
+    const skill = getIndividualSkill(character.i);
+    return skill?.domain === "blacksmithing" ? [skill] : [];
+  });
+  advanceBlacksmithingTechniqueLeads(masterSkill, collaborators, stock);
 }
 
 function maybeSpawnApprentice(

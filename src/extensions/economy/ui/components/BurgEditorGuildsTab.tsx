@@ -45,8 +45,17 @@ export const BurgEditorGuildsTab: FC = () => {
                 <td>{row.masterName ?? "—"}</td>
                 <td
                   data-tip={
-                    row.masterTechniques.length
-                      ? `Personal techniques: ${row.masterTechniques.join(", ")}`
+                    row.masterTechniques.length || row.masterReconstructionLeads.length
+                      ? [
+                          row.masterTechniques.length
+                            ? `Personal techniques: ${row.masterTechniques.join(", ")}`
+                            : null,
+                          row.masterReconstructionLeads.length
+                            ? `Reconstruction leads: ${row.masterReconstructionLeads.map(lead => `${lead.technique} (${Math.round(lead.progress * 100)}%)`).join(", ")}`
+                            : null
+                        ]
+                          .filter((value): value is string => value !== null)
+                          .join(". ")
                       : "Practical mastery and aptitude; personal techniques appear here when learned"
                   }
                 >

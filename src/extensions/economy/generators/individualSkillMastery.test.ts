@@ -4,10 +4,12 @@ import { worldContext } from "../../hostCore";
 import type { ExtensionAPI } from "../../hostTypes";
 import { clearEconomyContext, getIndividualSkills, initEconomyContext, setIndividualSkills } from "../economyContext";
 import {
+  advanceBlacksmithingTechniqueLeads,
   ensureBlacksmithingSkill,
   growApprenticeBlacksmithing,
   growMasterBlacksmithing,
   inheritBlacksmithingTechniques,
+  settleBlacksmithingSuccession,
   settleBlacksmithingTechniques
 } from "./individualSkillMastery";
 import type { CharacterDomainSkill } from "./individualSkillTypes";
@@ -142,5 +144,84 @@ describe("individual metallurgy mastery", () => {
     inheritBlacksmithingTechniques(predecessor, successor);
 
     expect(successor.techniques).toEqual(["heatTreatment", "patternWelding"]);
+  });
+
+  it("defers a master's technique when the successor cannot yet perform it", () => {
+    const predecessor: CharacterDomainSkill = {
+      characterId: 1,
+      domain: "blacksmithing",
+      proficiency: 96,
+      aptitude: "exceptional",
+      techniques: ["heatTreatment", "patternWelding"]
+    };
+    const successor: CharacterDomainSkill = {
+      characterId: 2,
+      domain: "blacksmithing",
+      proficiency: 82,
+      aptitude: "ordinary",
+      techniques: []
+    };
+
+    const result = settleBlacksmithingSuccession(predecessor, successor);
+
+    expect(result.inherited).toEqual(["heatTreatment"]);
+    expect(result.deferred).toEqual(["patternWelding"]);
+    expect(successor.techniques).toEqual(["heatTreatment"]);
+    expect(successor.reconstructionLeads).toEqual([
+      expect.objectContaining({ technique: "patternWelding", progress: expect.any(Number) })
+    ]);
+  });
+
+  it("reconstructs incomplete knowledge much faster with a skilled collaborator", () => {
+    const owner: CharacterDomainSkill = {
+      characterId: 1,
+      domain: "blacksmithing",
+      proficiency: 85,
+      aptitude: "ordinary",
+      techniques: [],
+      reconstructionLeads: [{ technique: "heatTreatment", progress: 0.5 }]
+    };
+    const collaborator: CharacterDomainSkill = {
+      characterId: 2,
+      domain: "blacksmithing",
+      proficiency: 85,
+      aptitude: "ordinary",
+      techniques: []
+    };
+
+    advanceBlacksmithingTechniqueLeads(owner, [], 1);
+    const soloProgress = owner.reconstructionLeads?.[0]?.progress ?? 0;
+    advanceBlacksmithingTechniqueLeads(owner, [collaborator], 1);
+
+    expect(owner.reconstructionLeads?.[0]?.progress).toBeGreaterThan(soloProgress + 0.2 - Number.EPSILON);
+  });
+
+  it("does not turn a lead into a usable technique before the required proficiency", () => {
+    const owner: CharacterDomainSkill = {
+      characterId: 1,
+      domain: "blacksmithing",
+      proficiency: 79,
+      aptitude: "ordinary",
+      techniques: [],
+      reconstructionLeads: [{ technique: "heatTreatment", progress: 0.99 }]
+    };
+    const collaborator: CharacterDomainSkill = {
+      characterId: 2,
+      domain: "blacksmithing",
+      proficiency: 85,
+      aptitude: "ordinary",
+      techniques: []
+    };
+
+    advanceBlacksmithingTechniqueLeads(owner, [collaborator], 1);
+
+    expect(owner.techniques).toEqual([]);
+    expect(owner.reconstructionLeads?.[0]?.progress).toBe(0.99);
+
+    owner.proficiency = 80;
+    advanceBlacksmithingTechniqueLeads(owner, [collaborator], 1);
+
+    expect(owner.techniques).toEqual(["heatTreatment"]);
+    expect(owner.reconstructionLeads).toEqual([]);
   });
 });

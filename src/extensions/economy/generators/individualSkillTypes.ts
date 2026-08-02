@@ -22,6 +22,16 @@ export type AptitudeTier = (typeof APTITUDE_TIERS)[number];
 export const BLACKSMITHING_TECHNIQUES = ["heatTreatment", "patternWelding"] as const;
 export type BlacksmithingTechnique = (typeof BLACKSMITHING_TECHNIQUES)[number];
 
+/**
+ * A partial record left to an underqualified successor when a master's
+ * personal technique cannot be performed reliably yet.
+ */
+export interface BlacksmithingTechniqueLead {
+  technique: BlacksmithingTechnique;
+  /** Progress towards a reproducible technique, normalized to 0..1. */
+  progress: number;
+}
+
 export interface CharacterDomainSkill {
   characterId: number;
   domain: IndividualSkillDomain;
@@ -33,4 +43,9 @@ export interface CharacterDomainSkill {
   lastPracticedYear?: number;
   /** Personally known techniques. They do not automatically become city knowledge. */
   techniques: BlacksmithingTechnique[];
+  /**
+   * Incomplete notes and demonstrations inherited after a master's death.
+   * Optional to keep saves produced before this field compatible.
+   */
+  reconstructionLeads?: BlacksmithingTechniqueLead[];
 }
