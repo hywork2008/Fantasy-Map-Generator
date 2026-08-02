@@ -39,7 +39,6 @@ import * as ErosionBake from "./erosion-bake";
 THREE.ColorManagement.enabled = false;
 
 import { cloudImage } from "../assets/cloud-image";
-import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
@@ -54,7 +53,6 @@ import {
   type DeckPath,
   type LowPolyBurgShape
 } from "./webgl/adapters/deckDataAdapters";
-import { renderWebglMapTexture } from "./webgl/webglMapTexture";
 import { getBurgIconStyle, getPathDashStyles, getPathPaintStyles } from "./webgl/webglStyleExtractors";
 
 interface ThreeDOptions {
@@ -678,9 +676,9 @@ class ThreeDModule {
 
     this.Renderer = new WebGPURenderer({ canvas, antialias: true });
     await this.Renderer.init();
-    // CanvasTexture is explicitly tagged as sRGB in createMeshTexture. Encode the rendered
-    // frame back to sRGB as well, otherwise viewMesh writes linear values straight to the
-    // browser canvas and its colours no longer match the 2D WebGL map.
+    // Matches updateGlobeTexure()'s renderer below: the terrain CanvasTexture is left at its
+    // default colorSpace (untagged), so the output needs to be encoded to sRGB here for the
+    // canvas pixels to land on-screen unmodified.
     this.Renderer.outputColorSpace = THREE.SRGBColorSpace;
     // The full-map deck texture always has a background layer. Treat it as opaque so areas
     // outside the tilted terrain cannot blend with the page's white background while layers are
@@ -1564,19 +1562,43 @@ class ThreeDModule {
   }
 
   private async createMeshTexture(): Promise<THREE.CanvasTexture | null> {
-    const canvas = await renderWebglMapTexture(worldContext, viewContext, appServices, {
-      resolution: Math.min(this.options.resolutionScale, 8192),
-      // Labels, burg/anchor symbols, and routes are separate scene objects (sprites, instanced
-      // mesh, and floating lines respectively). Leaving any of them in the terrain bitmap would
-      // duplicate them and make them appear painted on.
-      includeLabels: false,
-      includeBurgIcons: false,
-      includeRoutes: false
+    // Same SVG-snapshot texture source viewGlobe already uses (updateGlobeTexure below), rather
+    // than a deck.gl offscreen bake: without a live on-screen Deck to copy pixels from (i.e. the
+    // user is in "svg" 2D render mode, not "webglHybrid"), the deck.gl offscreen-device path had
+    // no choice but to construct its own raw WebGL2 context and hand it to a fresh Deck instance
+    // via the `gl:` prop — bypassing Deck's own device setup. That produced land colors ~15%
+    // darker than the true SVG fill (confirmed empirically: identical CPU-side fillColor input,
+    // wrong GPU output, reproducing with or without the mask extension in the render). Going
+    // through the browser's native SVG rasterization instead sidesteps that path entirely and is
+    // pixel-correct by construction, matching what viewGlobe already relies on.
+    // Labels/burg icons are separate 3D scene objects (sprites, instanced mesh); routes are
+    // separate floating 3D lines. Baking any of them into the terrain texture too would duplicate
+    // them on screen.
+    const mapUrl = await getMapURL("mesh", { fullMap: true, noLabels: true, noRoutes: true, noScaleBar: true });
+    const maxDimension = Math.min(this.options.resolutionScale, 8192);
+    const aspect = worldContext.graphWidth / worldContext.graphHeight;
+    const width = aspect >= 1 ? maxDimension : Math.round(maxDimension * aspect);
+    const height = aspect >= 1 ? Math.round(maxDimension / aspect) : maxDimension;
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    await new Promise<void>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve();
+      };
+      img.onerror = () => reject(new Error("Failed to load mesh texture SVG"));
+      img.src = mapUrl;
     });
-    if (!canvas) return null;
 
+    // No explicit colorSpace tag here, matching updateGlobeTexure()'s CanvasTexture below — both
+    // now source from the same getMapURL SVG rasterization, and tagging this one SRGBColorSpace
+    // while leaving the globe's at the default caused the two to decode differently and rendered
+    // the mesh view's terrain noticeably darker than the globe/standard SVG view.
     const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
     if (this.Renderer) texture.anisotropy = this.Renderer.getMaxAnisotropy();
     return texture;
   }

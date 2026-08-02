@@ -577,7 +577,13 @@ export function buildDeckLayers(
           createLandMaskedPolygonLayer({
             id: "fmg-webgl-land",
             data: getCachedDeckData("land", `${signatures.land}${landTopologySuffix}`, () =>
-              buildLandPolygonsBase(worldContext, viewContext.focusScope, landFill, landCells)
+              buildLandPolygonsBase(
+                worldContext,
+                viewContext.focusScope,
+                landFill,
+                landCells,
+                cellLayerOpacities.landmass
+              )
             ),
             coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
             getPolygon: datum => datum.polygon,
@@ -589,7 +595,13 @@ export function buildDeckLayers(
           new SolidPolygonLayer<DeckCellPolygon>({
             id: "fmg-webgl-land",
             data: getCachedDeckData("land", `${signatures.land}${landTopologySuffix}`, () =>
-              buildLandPolygonsBase(worldContext, viewContext.focusScope, landFill, landCells)
+              buildLandPolygonsBase(
+                worldContext,
+                viewContext.focusScope,
+                landFill,
+                landCells,
+                cellLayerOpacities.landmass
+              )
             ),
             coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
             getPolygon: datum => datum.polygon,
@@ -1694,8 +1706,8 @@ function buildLayerSignatures(
     ),
     land: revisionSignature(
       ["map.topology", "map.physical", "presentation.styles"],
-      () => `${landGeometry()}|${landFill}`,
-      `land:${landFill}`
+      () => `${landGeometry()}|${landFill}|${styles.cellLayerOpacities.landmass}`,
+      `land:${landFill}:${styles.cellLayerOpacities.landmass}`
     ),
     landGeometrySignature: landGeometry(),
     // geometry() is included so coastline/lake vertex edits (which move pack.vertices.p without

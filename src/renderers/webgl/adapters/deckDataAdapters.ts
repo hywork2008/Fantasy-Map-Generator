@@ -403,9 +403,10 @@ export function buildLandPolygonsBase(
   worldContext: Readonly<WorldContext>,
   focusScope: FocusScope | null,
   fill = "#eef6fb",
-  landCells?: LandGeometryProjection
+  landCells?: LandGeometryProjection,
+  opacity = 1
 ): DeckCellPolygon[] {
-  return buildLandPolygons(worldContext, focusScope, "land", () => colorToRgba(fill, "#eef6fb"), landCells);
+  return buildLandPolygons(worldContext, focusScope, "land", () => colorToRgba(fill, "#eef6fb", opacity), landCells);
 }
 
 export function buildHeightPolygons(

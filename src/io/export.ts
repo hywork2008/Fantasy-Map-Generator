@@ -219,6 +219,7 @@ interface GetMapURLOptions {
   noScaleBar?: boolean;
   noIce?: boolean;
   noVignette?: boolean;
+  noRoutes?: boolean;
   fullMap?: boolean;
 }
 
@@ -241,6 +242,7 @@ async function getMapURLFromSvg(type: string, options: GetMapURLOptions = {}): P
     noScaleBar = false,
     noIce = false,
     noVignette = false,
+    noRoutes = false,
     fullMap = false
   } = options;
 
@@ -288,6 +290,7 @@ async function getMapURLFromSvg(type: string, options: GetMapURLOptions = {}): P
   }
   if (noIce) clone.select("#ice")?.remove();
   if (noVignette) clone.select("#vignette")?.remove();
+  if (noRoutes) clone.select("#routes")?.remove();
   if (fullMap) {
     clone.attr("width", String(worldContext.graphWidth)).attr("height", String(worldContext.graphHeight));
     clone.select("#viewbox").attr("transform", null);

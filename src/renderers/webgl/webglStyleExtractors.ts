@@ -306,6 +306,7 @@ export function getMilitaryBoxSize(_viewContext?: Readonly<ViewContext>): number
  * opacity attribute — their opacity is baked into per-cell colour intensity.
  */
 export function getCellLayerOpacities(_viewContext?: Readonly<ViewContext>): {
+  landmass: number;
   biomes: number;
   coastalHabitats: number;
   religions: number;
@@ -321,6 +322,7 @@ export function getCellLayerOpacities(_viewContext?: Readonly<ViewContext>): {
     parseOptionalNumber(presentationValue(selector, "opacity")) ?? fallback;
 
   return {
+    landmass: readOp("#landmass", 1),
     biomes: readOp("#biomes", 0.5),
     coastalHabitats: readOp("#coastalHabitats", 0.65),
     religions: readOp("#relig", 0.7),
