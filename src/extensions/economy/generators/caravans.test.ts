@@ -5,12 +5,15 @@ import {
   clearEconomyContext,
   getCaravans,
   getDeals,
+  getExportStagingLots,
   getMarkets,
   initEconomyContext,
-  setCaravans
+  setCaravans,
+  setDeals
 } from "../economyContext";
 import { CaravanMovement } from "./caravanMovement";
 import { bakeCaravanTravelLegs, Caravans, getCaravanTravelTime } from "./caravans";
+import { ExportStaging } from "./exportStaging";
 import type { Good } from "./goods-generator";
 import type { Caravan } from "./marketTypes";
 import { TradeAnimation } from "./trade-animation";
@@ -147,16 +150,45 @@ describe("caravan loading accumulation", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    ExportStaging.clear();
+    setCaravans([]);
     clearEconomyContext();
   });
 
   it("holds a thin market-to-market load in loading until max wait and then cancels below min fill", () => {
+    // Phase C: market↔market cargo is booked into the export warehouse, not only deals.
+    const lot = ExportStaging.bookFromRetail({
+      marketId: 0,
+      destinationMarketId: 1,
+      goodId: 0,
+      units: 2,
+      unitCost: 50,
+      dealId: 0
+    });
+    expect(lot).not.toBeNull();
+    setDeals([
+      {
+        i: 0,
+        seller: 0,
+        sellerType: "market",
+        buyer: 1,
+        buyerType: "market",
+        good: 0,
+        units: 2,
+        remainingUnits: 2,
+        price: 50,
+        tax: 0,
+        stagingLotId: lot!.id
+      }
+    ]);
+
     Caravans.spawnFromDeals(getDeals());
 
     const loading = getCaravans().filter(c => c.state === "loading");
     // 2 silk slots on a wagon-scale plan (~80–240) is well under 20% min sail.
     expect(loading.length).toBeGreaterThanOrEqual(1);
     expect(getCaravans().every(c => c.state !== "transit")).toBe(true);
+    expect(getExportStagingLots()).toHaveLength(0); // moved onto the loading caravan
 
     const originStockBefore = getMarkets()[0].goods[0].stock;
     // Exceed land max wait (14 days) with a thin hold → cancel and restore exporter stock.
@@ -167,13 +199,42 @@ describe("caravan loading accumulation", () => {
     expect(getMarkets()[0].goods[0].stock).toBeCloseTo(originStockBefore + 2, 5);
   });
 
-  it("departs immediately when the first load already meets target utilization", () => {
-    getDeals()[0].units = 200;
-    Caravans.spawnFromDeals(getDeals());
+  it("loads a warehouse lot that meets target utilization onto a shipment", () => {
+    // Fill at least 55% of a cart (80 slots): 50 silk × 1 slot = 62.5% on a cart.
+    getMarkets()[0].goods[0].stock = 100;
+    const lot = ExportStaging.bookFromRetail({
+      marketId: 0,
+      destinationMarketId: 1,
+      goodId: 0,
+      units: 50,
+      unitCost: 50
+    });
+    expect(lot).not.toBeNull();
+    Caravans.spawnFromDeals([]);
 
-    const transit = getCaravans().filter(c => c.state === "transit");
-    expect(transit.length).toBeGreaterThanOrEqual(1);
-    expect(transit[0].transportReservationId).toBeDefined();
+    const shipments = getCaravans().filter(c => c.state === "transit" || c.state === "loading");
+    expect(shipments.length).toBeGreaterThanOrEqual(1);
+    expect(shipments[0].units).toBeGreaterThanOrEqual(40);
+    // Cargo left the warehouse when placed on the shipment.
+    expect(getExportStagingLots().reduce((sum, entry) => sum + entry.units, 0)).toBeLessThan(1);
+  });
+
+  it("keeps export warehouse lots across deal wipes until loaded", () => {
+    ExportStaging.bookFromRetail({
+      marketId: 0,
+      destinationMarketId: 1,
+      goodId: 0,
+      units: 6,
+      unitCost: 50
+    });
+    setDeals([]); // production cycle start
+    expect(getExportStagingLots()).toHaveLength(1);
+
+    Caravans.spawnFromDeals([]);
+    expect(getCaravans().some(c => c.state === "loading" || c.state === "transit")).toBe(true);
+    expect(getExportStagingLots().every(lot => lot.units <= 0.000001) || getExportStagingLots().length === 0).toBe(
+      true
+    );
   });
 });
 

@@ -87,6 +87,7 @@ stagingSlots ≈ meanMonthlyExportSlots * (maxWaitDays / 30)
 
 - [x] 純粋 budget API と unit tests (`marketFlowBudget.ts`)
 - [x] 積載率診断ヘルパ (`summarizeCaravanUtilization`)
+- [x] 交易が exportBudget をソフト上限として利用（自然余剰パスのみ；投機取引は従来の available クランプ）
+- [x] Export staging 倉庫が retail から book（Phase C）
 - [ ] 固定 seed 12 サイクル計測レポート（ゲーム内 / 分析スクリプト）
-- [ ] 交易が exportBudget をソフト上限として利用
 - [ ] 艦隊 seed が年次 slots を参照（任意）

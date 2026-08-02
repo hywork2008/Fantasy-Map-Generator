@@ -49,6 +49,7 @@ import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burg
 import { Caravans } from "./generators/caravans";
 import { ConstructionOperations } from "./generators/constructionEmployment";
 import { DevelopmentPotential } from "./generators/developmentPotential";
+import { ExportStaging } from "./generators/exportStaging";
 import { resetEffectiveCapacities } from "./generators/foodImportNetwork";
 import { settleMonthlyFoodConsumption } from "./generators/foodLedgerConsumption";
 import { FoodProduction } from "./generators/foodProduction";
@@ -708,6 +709,8 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       setGoods([]);
       setMarkets([]);
       setDeals([]);
+      ExportStaging.clear();
+      setCaravans([]);
       MerchantTransportAssets.clear();
       TransportAssetOrders.clear();
       setBurgMarketLedgers([]);

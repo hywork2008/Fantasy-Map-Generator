@@ -19,6 +19,7 @@ import type { CraftDomainEmploymentRecord, GuildKnowledgeStock } from "./generat
 import type {
   Caravan,
   Deal,
+  ExportStagingLot,
   Market,
   MerchantTransportLedger,
   TransportAssetOrder,
@@ -606,6 +607,23 @@ export function getDeals(): Deal[] {
 }
 export function setDeals(deals: readonly Deal[]): void {
   setSliceArray("deals", deals);
+}
+
+/**
+ * Export warehouse lots: booked market↔market cargo held between retail deduction and caravan load.
+ * Persists across production cycles (unlike deals, which are wiped each cycle for UI history).
+ */
+export function getExportStagingLots(): ExportStagingLot[] {
+  return getSliceArray<ExportStagingLot>("exportStagingLots");
+}
+export function setExportStagingLots(lots: readonly ExportStagingLot[]): void {
+  setSliceArray("exportStagingLots", lots);
+}
+export function getNextExportStagingLotId(): number {
+  return getSliceNumber("nextExportStagingLotId");
+}
+export function setNextExportStagingLotId(id: number): void {
+  setSliceNumber("nextExportStagingLotId", id);
 }
 
 /** In-transit caravans owned by the economy extension. */

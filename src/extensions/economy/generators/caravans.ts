@@ -4,6 +4,8 @@ import { useOptionsState } from "../../hostCore";
 import { rn } from "../../hostUtils";
 import {
   getCaravans,
+  getDeals,
+  getExportStagingLots,
   getGoods,
   getMarkets,
   getNextCaravanId,
@@ -20,6 +22,7 @@ import {
   getDraftAnimalType,
   getSeaConditionMultiplier
 } from "./caravanMovement";
+import { ExportStaging } from "./exportStaging";
 import type { Good } from "./goods-generator";
 import {
   DEFAULT_MAX_WAIT_DAYS_LAND,
@@ -28,7 +31,7 @@ import {
   DEFAULT_TARGET_UTILIZATION,
   utilizationOf
 } from "./marketFlowBudget";
-import type { Caravan, Deal, Market, TradeRouteSegment } from "./marketTypes";
+import type { Caravan, Deal, ExportStagingLot, Market, TradeRouteSegment } from "./marketTypes";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import {
   buildCargoManifests,
@@ -86,26 +89,39 @@ function appendPayloadFromManifest(
   let totalUnits = caravan.units;
   let totalValue = caravan.value;
   for (const item of manifest.items) {
-    const value = item.deal.price * item.units;
-    totalUnits += item.units;
+    let units = item.units;
+    // Prefer export-warehouse take when the deal (or pseudo-deal) is backed by a staging lot.
+    if (item.deal.stagingLotId !== undefined) {
+      units = ExportStaging.takeFromLot(item.deal.stagingLotId, item.units);
+      if (units <= UNIT_EPSILON) continue;
+      item.deal.remainingUnits = Math.max(0, (item.deal.remainingUnits ?? item.deal.units) - units);
+    } else {
+      const remainingUnits = item.deal.remainingUnits ?? item.deal.units;
+      item.deal.remainingUnits = Math.max(0, remainingUnits - units);
+    }
+    item.deal.spawned = (item.deal.remainingUnits ?? 0) <= UNIT_EPSILON;
+
+    const value = item.deal.price * units;
+    totalUnits += units;
     totalValue += value;
-    const existing = caravan.payload.find(entry => entry.dealId === item.deal.i && entry.goodId === item.deal.good);
+    const existing = caravan.payload.find(
+      entry =>
+        entry.dealId === item.deal.i && entry.goodId === item.deal.good && entry.stagingLotId === item.deal.stagingLotId
+    );
     if (existing) {
-      existing.units += item.units;
+      existing.units += units;
       existing.value += value;
     } else {
       caravan.payload.push({
         goodId: item.deal.good,
         dealId: item.deal.i,
-        units: item.units,
+        units,
         value,
         cargoSlotsPerUnit: item.cargoSlotsPerUnit,
-        strategicProcurementOrderId: item.deal.strategicProcurementOrderId
+        strategicProcurementOrderId: item.deal.strategicProcurementOrderId,
+        stagingLotId: item.deal.stagingLotId
       });
     }
-    const remainingUnits = item.deal.remainingUnits ?? item.deal.units;
-    item.deal.remainingUnits = Math.max(0, remainingUnits - item.units);
-    item.deal.spawned = item.deal.remainingUnits <= UNIT_EPSILON;
   }
   caravan.units = rn(totalUnits, 2);
   caravan.value = rn(totalValue, 2);
@@ -114,13 +130,45 @@ function appendPayloadFromManifest(
 /** Return loading cargo to the exporter market retail stock when a thin hold is cancelled. */
 function restoreLoadingCargoToOrigin(caravan: Caravan): void {
   if (caravan.sellerType !== "market") return;
-  const market = getMarkets().find(entry => entry.i === caravan.seller);
-  if (!market) return;
   for (const item of caravan.payload) {
-    const row = market.goods[item.goodId];
-    if (row) row.stock = rn(row.stock + item.units, 2);
+    ExportStaging.returnUnitsToRetail(caravan.seller, item.goodId, item.units);
   }
 }
+
+/** Staging lots → deal-shaped rows so buildCargoManifests can pack them. */
+function stagingLotsToDeals(lots: readonly ExportStagingLot[]): Deal[] {
+  const liveDeals = getDeals();
+  return lots
+    .filter(lot => lot.units > UNIT_EPSILON)
+    .map(lot => {
+      const linked = lot.dealId !== undefined ? liveDeals.find(deal => deal.i === lot.dealId) : undefined;
+      return {
+        i: linked?.i ?? -lot.id,
+        seller: lot.marketId,
+        sellerType: "market" as const,
+        buyer: lot.destinationMarketId,
+        buyerType: "market" as const,
+        good: lot.goodId,
+        units: lot.units,
+        remainingUnits: lot.units,
+        price: lot.unitCost,
+        tax: (lot.taxPerUnit ?? 0) * lot.units,
+        distance: lot.distance ?? linked?.distance,
+        durationDays: lot.durationDays ?? linked?.durationDays,
+        maintenanceCost: lot.maintenanceCost ?? linked?.maintenanceCost,
+        stagingLotId: lot.id,
+        spawned: false
+      };
+    });
+}
+
+type RouteBundle = {
+  seller: number;
+  sellerType: "burg" | "market";
+  buyer: number;
+  buyerType: "burg" | "market";
+  deals: Deal[];
+};
 
 function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "cancelled" {
   if (caravan.state !== "loading" || !caravan.loading) return "waiting";
@@ -467,6 +515,11 @@ export class CaravansModule {
     return caravan;
   }
 
+  /**
+   * Loads commercial cargo into `loading` caravans.
+   * Market↔market cargo is taken from the export warehouse (staging lots), which survives
+   * production-cycle deal wipes. Burg↔market deals still come from the deals array.
+   */
   spawnFromDeals(deals: Deal[]) {
     const world = getWorldContext();
     // tick() below filters arrived/lost caravans out of the caravans slice, so deriving
@@ -482,20 +535,10 @@ export class CaravansModule {
     if (!burgs) return;
 
     type RouteKey = `${number}-${string}-${number}-${string}`;
-    const bundles = new Map<
-      RouteKey,
-      {
-        seller: number;
-        sellerType: "burg" | "market";
-        buyer: number;
-        buyerType: "burg" | "market";
-        deals: Deal[];
-      }
-    >();
+    const bundles = new Map<RouteKey, RouteBundle>();
 
-    for (const deal of deals) {
-      if (deal.units <= 0 || deal.spawned) continue;
-
+    const addToBundle = (deal: Deal): void => {
+      if ((deal.remainingUnits ?? deal.units) <= UNIT_EPSILON || deal.spawned) return;
       const key: RouteKey = `${deal.seller}-${deal.sellerType}-${deal.buyer}-${deal.buyerType}`;
       let bundle = bundles.get(key);
       if (!bundle) {
@@ -509,12 +552,21 @@ export class CaravansModule {
         bundles.set(key, bundle);
       }
       bundle.deals.push(deal);
+    };
+
+    // Phase C: market↔market physical cargo lives in the export warehouse, not only on deals.
+    for (const deal of stagingLotsToDeals(getExportStagingLots())) addToBundle(deal);
+
+    // Local aggregation still uses ephemeral deals (no warehouse).
+    for (const deal of deals) {
+      if (deal.sellerType === "market" && deal.buyerType === "market") continue;
+      addToBundle(deal);
     }
 
     for (const bundle of bundles.values()) {
       let startBurgId: number;
       if (bundle.sellerType === "market") {
-        const m = markets[bundle.seller];
+        const m = markets[bundle.seller] ?? markets.find(market => market.i === bundle.seller);
         if (!m) continue;
         startBurgId = m.centerBurgId;
       } else {
@@ -523,7 +575,7 @@ export class CaravansModule {
 
       let endBurgId: number;
       if (bundle.buyerType === "market") {
-        const m = markets[bundle.buyer];
+        const m = markets[bundle.buyer] ?? markets.find(market => market.i === bundle.buyer);
         if (!m) continue;
         endBurgId = m.centerBurgId;
       } else {
@@ -644,6 +696,7 @@ export class CaravansModule {
           }
         };
         appendPayloadFromManifest(caravan, manifest);
+        if (!caravan.payload.length) break;
         getCaravans().push(caravan);
 
         // Immediate depart when the first load already meets the fill target (common for large deals).

@@ -96,11 +96,36 @@ export interface Deal {
   /** Quantity that has not yet been placed on a shipment. Missing on legacy deals means `units`. */
   remainingUnits?: number;
   spawned?: boolean;
+  /** Links a market↔market deal to its export-warehouse lot (Phase C). */
+  stagingLotId?: number;
   /** Purpose metadata is only set for state-funded strategic procurement. */
   purpose?: "strategicProcurement";
   payerStateId?: number;
   strategicProcurementOrderId?: number;
 }
+
+/**
+ * Merchant export warehouse lot: goods already removed from retail stock and waiting to load
+ * onto a caravan bound for `destinationMarketId`. Survives production-cycle deal wipes.
+ * @see docs/plan/merchant-logistics-warehouses.md Phase C
+ */
+export type ExportStagingLot = {
+  id: number;
+  /** Origin market (warehouse location). */
+  marketId: number;
+  destinationMarketId: number;
+  goodId: number;
+  units: number;
+  /** Landed unit cost snapshot at booking (price used on the accounting deal). */
+  unitCost: number;
+  /** Optional link back to the Deal created when this lot was booked. */
+  dealId?: number;
+  /** Route metadata copied from the booking deal for packing / UI. */
+  distance?: number;
+  durationDays?: number;
+  maintenanceCost?: number;
+  taxPerUnit?: number;
+};
 
 export type TransportAllocation = {
   mode: "land" | "water" | "river";
@@ -226,6 +251,8 @@ export interface Caravan {
     /** Cargo profile snapshotted at loading time so later catalogue edits do not rewrite a manifest. */
     cargoSlotsPerUnit?: number;
     strategicProcurementOrderId?: number;
+    /** Present when this payload was taken from an export warehouse lot. */
+    stagingLotId?: number;
   }[];
   units: number; // total units
   value: number; // total payload value

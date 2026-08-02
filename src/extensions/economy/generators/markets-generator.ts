@@ -26,14 +26,21 @@ import {
 } from "../economyContext";
 import { getBurgMarketLedger, syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { CaravanMovement } from "./caravanMovement";
+import { ExportStaging } from "./exportStaging";
 import { getDepletedCells } from "./forestDepletion";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, GOODS_DATA, Goods, isGoodEnabled } from "./goods-generator";
+import {
+  computeMarketGoodFlowBudget,
+  TRADE_RESERVE_FACTOR as FLOW_TRADE_RESERVE_FACTOR,
+  getDefaultMonthsOfCover
+} from "./marketFlowBudget";
 import { syncMarketManagers } from "./marketManagers";
 import type { Deal, Market, TradeRouteSegment } from "./marketTypes";
 import { isMarketTradePermitted } from "./merchantOrganizations";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { getRuralProductionContributions, getSeasonalFoodProductionMultiplier } from "./production-utils";
+import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
 import {
   estimateSpeculativeTrade,
   getCaravanMaintenanceCost,
@@ -850,7 +857,7 @@ export class MarketsModule {
     const populationByMarket = this.calculatePopulationByMarket();
 
     const mapDiagonal = Math.hypot(this.worldContext.graphWidth, this.worldContext.graphHeight) || 1;
-    const TRADE_RESERVE_FACTOR = 0.2;
+    const TRADE_RESERVE_FACTOR = FLOW_TRADE_RESERVE_FACTOR;
     const MIN_UNIT = 0.1;
     const travelRoutes = this.getCachedMarketTradeRoutes();
 
@@ -987,7 +994,25 @@ export class MarketsModule {
         const available = Math.max(0, exporterGood.stock - opportunity.reserveExporter);
         const importerAdj = importerStockAdjustments.get(opportunity.importer.i) || 0;
         const needed = Math.max(0, opportunity.reserveImporter - (importerGood.stock + importerAdj));
-        const units = Math.min(available, needed);
+        // Soft export budget for natural surplus trades: keep target months-of-cover in retail.
+        // Speculative opportunities (targetSalePrice set) keep the classic available/needed clamp —
+        // they already use a different reserve definition and would otherwise be zeroed by cover.
+        let units = Math.min(available, needed);
+        if (opportunity.targetSalePrice === undefined) {
+          const population = populationByMarket[opportunity.exporter.i] || 0;
+          const cycleDemand =
+            population * ((consumerDemandFactors[good.i] || 0) + (industrialDemandFactors[good.i] || 0));
+          const flowBudget = computeMarketGoodFlowBudget({
+            marketId: opportunity.exporter.i,
+            goodId: good.i,
+            stock: exporterGood.stock,
+            cycleDemand,
+            monthsOfCover: getDefaultMonthsOfCover(good),
+            cargoSlotsPerUnit: getGoodCargoSlotsPerUnit(good),
+            tradeReserveFactor: TRADE_RESERVE_FACTOR
+          });
+          units = Math.min(units, flowBudget.exportBudget);
+        }
         if (units < MIN_UNIT) continue;
 
         const landedCost = exporterGood.price + opportunity.transportCost + opportunity.exporterTaxPerUnit;
@@ -1003,6 +1028,7 @@ export class MarketsModule {
           buyerType: "market",
           good: good.i,
           units,
+          remainingUnits: units,
           price: landedCost,
           tax: opportunity.exporterTaxPerUnit * units,
           distance: rn(opportunity.distanceKm, 2),
@@ -1010,11 +1036,26 @@ export class MarketsModule {
           maintenanceCost: rn(opportunity.maintenanceCost, 2),
           accountingPeriodDays: getTradeAccountingPeriodDays(opportunity.durationDays)
         };
+
+        // Retail → export warehouse (single stock deduct). Caravan load takes from the lot later.
+        const lot = ExportStaging.bookFromRetail({
+          marketId: opportunity.exporter.i,
+          destinationMarketId: opportunity.importer.i,
+          goodId: good.i,
+          units,
+          unitCost: landedCost,
+          dealId: deal.i,
+          distance: deal.distance,
+          durationDays: deal.durationDays,
+          maintenanceCost: deal.maintenanceCost,
+          taxPerUnit: opportunity.exporterTaxPerUnit
+        });
+        if (!lot) continue;
+        deal.stagingLotId = lot.id;
         deals.push(deal);
 
         exporterGood.price = rn(this.applyMarketPressure(good.value, exporterGood.price, units), 2);
         importerGood.price = rn(this.applyMarketPressure(good.value, importerGood.price, -units), 2);
-        exporterGood.stock = rn(exporterGood.stock - units, 2);
         importerStockAdjustments.set(opportunity.importer.i, importerAdj + units);
         // Note: importerGood.stock is NO LONGER instantly increased. Caravans physically transport it.
       }
