@@ -116,6 +116,7 @@ function assertOptionalArrayField(slice: Record<string, unknown>, field: string,
 }
 
 const INN_CLASSES = new Set(["wayside", "market", "waterside", "grand", "caravanserai"]);
+const LODGING_STYLES = new Set(["medievalCentralEuropean", "highFantasy", "jrpg"]);
 
 function validateInnFacilities(value: unknown, world: WorldContext): void {
   if (value === undefined) return;
@@ -266,6 +267,11 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
   validateInnFacilities(slice.innFacilities, world);
   validateInnConstructionOrders(slice.innConstructionOrders, world);
   validateInnStayLedgers(slice.innStayLedgers, world);
+  if (slice.lodgingStyle !== undefined) {
+    if (typeof slice.lodgingStyle !== "string" || !LODGING_STYLES.has(slice.lodgingStyle)) {
+      throw new Error("Archive simulation.extensions.economy.lodgingStyle is invalid");
+    }
+  }
   if (slice.innFacilitiesLastSettledYear !== undefined) {
     const year = slice.innFacilitiesLastSettledYear;
     if (typeof year !== "number" || !Number.isFinite(year)) {

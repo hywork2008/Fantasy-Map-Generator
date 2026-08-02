@@ -2,7 +2,7 @@
 
 | Field | Value |
 | :--- | :--- |
-| **Status** | Implemented through PR-I4 — 2026-08-02 |
+| **Status** | Implemented through PR-I5 — 2026-08-02 |
 | **Date** | 2026-08-02 |
 | **Owner** | Economy extension (`src/extensions/economy/`) |
 | **Depends on** | [urban-housing-system.md](./urban-housing-system.md), [guild-city-bases.md](./guild-city-bases.md) (Burg Editor extension-tab host support) |
@@ -24,6 +24,7 @@ The medieval German baseline is a guide for functional distinctions, not a claim
 | Concern | File |
 | :--- | :--- |
 | Facility type, class, and totals | `src/extensions/economy/generators/innFacilityTypes.ts` |
+| Style-specific labels and future scene cues | `src/extensions/economy/generators/innPresentation.ts` |
 | Deterministic seed and aggregate helpers | `src/extensions/economy/generators/innFacilities.ts` |
 | Economy slice accessors | `src/extensions/economy/economyContext.ts` |
 | Initialization, full regenerate, enable bootstrap, and clear | `src/extensions/economy/index.tsx` |
@@ -349,10 +350,11 @@ The initial seed must use Economy's map-ready task, not `fmg:generate-post-core`
 - Add no permanent population or capacity shortcut.
 - Generic passing travellers remain deferred: there is not yet a travel queue that can create and remove them.
 
-### PR-I5 — city-detail / visual variants (optional)
+### PR-I5 — city-detail / visual variants (implemented 2026-08-02)
 
-- Consume `InnFacility` read-only in the city generator.
-- Render signs, stables, courtyards, waterfront storage, and style-specific fantasy/JRPG dressing without changing simulation values.
+- A world-wide `LodgingStyle` is stored in the Economy extension slice, with a Central European default and High Fantasy / JRPG alternatives.
+- The Inns tab uses the selected style for facility names and city-detail cues (signs, yards, stables, waterfront storage, and fantasy/JRPG dressing), while keeping all capacity values unchanged.
+- The standalone city-detail generator is currently a design plan rather than a source module. Its future renderer can consume `InnFacility` and `getInnPresentation` read-only; no parallel pseudo-renderer is introduced here.
 
 ## Open tuning questions
 

@@ -1,7 +1,15 @@
-/** Functional lodging categories. Presentation style is intentionally deferred from simulation data. */
+/** Functional lodging categories. Presentation never changes their capacity or economy rules. */
 export const INN_CLASSES = ["wayside", "market", "waterside", "grand", "caravanserai"] as const;
 
 export type InnClass = (typeof INN_CLASSES)[number];
+
+/**
+ * World-wide visual language for commercial lodging. It is presentation-only so maps can switch
+ * from a Central European reading to a fantasy or JRPG reading without rebalancing facilities.
+ */
+export const LODGING_STYLES = ["medievalCentralEuropean", "highFantasy", "jrpg"] as const;
+
+export type LodgingStyle = (typeof LODGING_STYLES)[number];
 
 /**
  * Aggregate physical lodging stock for one class in one Burg. A record represents a class of

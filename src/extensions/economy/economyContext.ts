@@ -17,7 +17,13 @@ import type { ConstructionHireApplication, ConstructionNamedSeat } from "./gener
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
 import type { Good } from "./generators/goodsGeneratorTypes";
 import type { CraftDomainEmploymentRecord, GuildKnowledgeStock } from "./generators/guildKnowledgeTypes";
-import type { InnConstructionOrder, InnFacility, InnStayLedger } from "./generators/innFacilityTypes";
+import {
+  type InnConstructionOrder,
+  type InnFacility,
+  type InnStayLedger,
+  LODGING_STYLES,
+  type LodgingStyle
+} from "./generators/innFacilityTypes";
 import type { FlowCycleSnapshot } from "./generators/marketFlowTypes";
 import type {
   Caravan,
@@ -821,6 +827,22 @@ export function getInnStayLedgers(): InnStayLedger[] {
 }
 export function setInnStayLedgers(ledgers: readonly InnStayLedger[]): void {
   setSliceArray("innStayLedgers", ledgers);
+}
+
+/** Global visual language for lodging. It is stored in Economy's extension slice, never on Burg. */
+export function getLodgingStyle(): LodgingStyle {
+  const value = getEconomySlice()?.lodgingStyle ?? getLegacyPackFields().lodgingStyle;
+  return typeof value === "string" && (LODGING_STYLES as readonly string[]).includes(value)
+    ? (value as LodgingStyle)
+    : "medievalCentralEuropean";
+}
+export function setLodgingStyle(style: LodgingStyle): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice.lodgingStyle = style;
+    return;
+  }
+  getLegacyPackFields().lodgingStyle = style;
 }
 
 /** Once-per-simulation-year guard for InnFacilities.settleAnnual(). */
