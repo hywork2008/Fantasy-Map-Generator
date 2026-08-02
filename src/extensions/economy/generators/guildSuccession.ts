@@ -128,6 +128,7 @@ function createMaster(characters: Character[], burgId: number, domain: CraftKnow
   const burg = pack.burgs[burgId] as Burg | undefined;
   const character = createPerson(getNextCharacterId(characters), resolveBurgCulture(burg), {
     primarySkill: DOMAIN_SKILL[domain],
+    roleClass: "ordinary",
     homeStateId: burg?.state ?? 0,
     genderOverride: rollBalancedEconomyGender(characters)
   });
@@ -162,6 +163,7 @@ function createApprentice(
   const burg = pack.burgs[burgId] as Burg | undefined;
   const character = createPerson(getNextCharacterId(characters), resolveBurgCulture(burg), {
     primarySkill: DOMAIN_SKILL[domain],
+    roleClass: "ordinary",
     ageOverride: rand(APPRENTICE_MIN_AGE, APPRENTICE_MAX_AGE),
     homeStateId: burg?.state ?? 0,
     genderOverride: rollBalancedEconomyGender(characters)

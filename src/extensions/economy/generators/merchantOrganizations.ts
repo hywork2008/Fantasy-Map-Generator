@@ -342,6 +342,7 @@ function createOrganizationStaff(
   const burg = getBurg(burgId);
   const character = createPerson(getNextCharacterId(pack.characters), resolveBurgCulture(burg), {
     primarySkill,
+    roleClass: "merchant",
     homeStateId: burg?.state ?? organization.homeStateId,
     genderOverride: rollBalancedEconomyGender(pack.characters)
   });

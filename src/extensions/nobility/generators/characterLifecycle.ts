@@ -101,7 +101,8 @@ function generate(options: { randomSeed?: number } = {}): void {
       homeStateId: state.i,
       formName: state.formName,
       marriageExpectation: "dynastic",
-      isReligiousRole: isReligiousForm(state)
+      isReligiousRole: isReligiousForm(state),
+      roleClass: "ruler"
     });
     ruler.location = state.capital;
     ruler.titles.push({
@@ -124,12 +125,19 @@ function generate(options: { randomSeed?: number } = {}): void {
 
     for (const office of CENTRAL_OFFICES) {
       const religious = isReligiousForm(state, office.primarySkill);
+      // Marshal / Minister of War are court-side martial careers → commander skill medians.
+      const officerRoleClass = religious
+        ? "religious"
+        : office.primarySkill === "martial"
+          ? "commander"
+          : "central_officer";
       const officer = createPerson(nextId++, state.culture, {
         homeStateId: state.i,
         formName: state.formName,
         marriageExpectation: "elite",
         primarySkill: office.primarySkill,
-        isReligiousRole: religious
+        isReligiousRole: religious,
+        roleClass: officerRoleClass
       });
       officer.location = state.capital;
       officer.titles.push({
@@ -140,7 +148,7 @@ function generate(options: { randomSeed?: number } = {}): void {
         startYear: currentYear - rand(0, Math.max(0, officer.age - 20))
       });
       applyCharacterBackstory(officer, {
-        roleClass: religious ? "religious" : "central_officer",
+        roleClass: officerRoleClass,
         isReligiousRole: religious,
         formName: state.formName,
         capitalBurgId: state.capital
@@ -263,7 +271,8 @@ function createOfficer(
     marriageExpectation: "elite",
     primarySkill: "martial",
     isReligiousRole: isReligiousForm(state, "martial"),
-    ageOverride: rand(MIN_OFFICER_AGE, MAX_OFFICER_AGE)
+    ageOverride: rand(MIN_OFFICER_AGE, MAX_OFFICER_AGE),
+    roleClass: "commander"
   });
   officer.location = state.capital;
   officer.titles.push({
@@ -302,7 +311,8 @@ function createProvinceLord(
     marriageExpectation: "dynastic",
     primarySkill: "martial",
     isReligiousRole: isReligiousForm(state, "martial"),
-    ageOverride: rand(MIN_RULER_AGE, MAX_RULER_AGE)
+    ageOverride: rand(MIN_RULER_AGE, MAX_RULER_AGE),
+    roleClass: "province_lord"
   });
   lord.location = province.burg;
   lord.titles.push({
@@ -539,7 +549,8 @@ function processSuccessions(): void {
         formName: state.formName,
         marriageExpectation: "dynastic",
         isReligiousRole: isReligiousForm(state),
-        ageOverride: heirAge
+        ageOverride: heirAge,
+        roleClass: "ruler"
       });
 
       // Setup Heir relationships if possible
@@ -657,12 +668,18 @@ function processSuccessions(): void {
 
     for (const office of vacantOffices) {
       const religious = isReligiousForm(state, office.primarySkill);
+      const officerRoleClass = religious
+        ? "religious"
+        : office.primarySkill === "martial"
+          ? "commander"
+          : "central_officer";
       const officer = createPerson(nextId++, state.culture, {
         homeStateId: state.i,
         formName: state.formName,
         marriageExpectation: "elite",
         primarySkill: office.primarySkill,
-        isReligiousRole: religious
+        isReligiousRole: religious,
+        roleClass: officerRoleClass
       });
       officer.location = state.capital;
       officer.titles.push({
@@ -673,7 +690,7 @@ function processSuccessions(): void {
         startYear: getCurrentYear()
       });
       applyCharacterBackstory(officer, {
-        roleClass: religious ? "religious" : "central_officer",
+        roleClass: officerRoleClass,
         isReligiousRole: religious,
         formName: state.formName,
         capitalBurgId: state.capital

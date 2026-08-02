@@ -1,15 +1,17 @@
 import { Names } from "../hostCore";
 import { gauss, P, rand } from "../hostUtils";
-import { APPEARANCE_DECLINE_PER_YEAR, DECLINE_AGE_THRESHOLD, PROWESS_DECLINE_PER_YEAR } from "./advanceAge";
+import { APPEARANCE_DECLINE_PER_YEAR, DECLINE_AGE_THRESHOLD, prowessDeclineRateForCreation } from "./advanceAge";
 import { getAbilityPreset } from "./charactersContext";
 import type {
   AbilityProfile,
   Character,
   CharacterFamily,
   CharacterPersonality,
+  CharacterRoleClass,
   CharacterSkills,
   Gender
 } from "./characterTypes";
+import { rollCharacterSkills } from "./skillGeneration";
 
 /** Default adult age range rolled when no `ageOverride` is given. */
 const DEFAULT_MIN_AGE = 28;
@@ -44,8 +46,16 @@ const RELIGIOUS_UNMARRIED_RATE = 0.2;
 const RELIGIOUS_FORMS = new Set(["Theocracy", "Holy State", "Bishopric"]);
 
 export interface CreatePersonOptions {
-  /** Biases one skill's roll upward (40-100 instead of 1-100) — e.g. a state's Marshal biases "martial". */
+  /**
+   * Office / craft focus skill — gaussian mean pulled into the professional band
+   * with a soft floor of 40 (see skillGeneration.ts). E.g. Marshal → "martial".
+   */
   primarySkill?: keyof CharacterSkills;
+  /**
+   * Intended social/occupational role for skill medians (merchant, commander, …).
+   * Callers should pass the same class they later give applyCharacterBackstory.
+   */
+  roleClass?: CharacterRoleClass;
   /** Caller-resolved flag (state form, office, etc.) — see isReligiousForm() callers in nobility. */
   isReligiousRole?: boolean;
   /** State.formName, used only to bias family structure (harem/celibacy patterns) — see generateFamily(). */
@@ -151,6 +161,7 @@ export function generateFamily(
 export function createPerson(i: number, cultureId: number, options: CreatePersonOptions): Character {
   const {
     primarySkill,
+    roleClass,
     formName,
     ageOverride,
     genderOverride,
@@ -159,6 +170,8 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   } = options;
   const isReligiousRole = options.isReligiousRole ?? false;
   const presetId = options.presetId ?? "ck3e";
+  // Religious roles without an explicit class still get learning-oriented skill means.
+  const skillRoleClass: CharacterRoleClass | undefined = roleClass ?? (isReligiousRole ? "religious" : undefined);
 
   // デフォルトで90%を男性とする（特殊な文化設定がない場合の歴史的な封建制の再現）
   const gender: Gender = genderOverride ?? (P(0.9) ? "male" : "female");
@@ -175,24 +188,15 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
       ? Math.max(1, baseAppearance - Math.floor((age - DECLINE_AGE_THRESHOLD) * APPEARANCE_DECLINE_PER_YEAR))
       : baseAppearance;
 
-  const baseProwess = primarySkill === "prowess" ? rand(40, 100) : rand(1, 100);
-  // Physical decline
-  const prowess =
-    age > DECLINE_AGE_THRESHOLD
-      ? Math.max(1, baseProwess - Math.floor((age - DECLINE_AGE_THRESHOLD) * PROWESS_DECLINE_PER_YEAR))
-      : baseProwess;
+  // Occupation / office-biased gaussians (not uniform 1–100) — see skillGeneration.ts.
+  const skills = rollCharacterSkills({ primarySkill, roleClass: skillRoleClass });
 
-  const skills: CharacterSkills = {
-    artistry: rand(1, 100),
-    diplomacy: primarySkill === "diplomacy" ? rand(40, 100) : rand(1, 100),
-    engineering: primarySkill === "engineering" ? rand(40, 100) : rand(1, 100),
-    geography: rand(1, 100),
-    intrigue: primarySkill === "intrigue" ? rand(40, 100) : rand(1, 100),
-    learning: primarySkill === "learning" ? rand(40, 100) : rand(1, 100),
-    martial: primarySkill === "martial" ? rand(40, 100) : rand(1, 100),
-    prowess,
-    stewardship: primarySkill === "stewardship" ? rand(40, 100) : rand(1, 100)
-  };
+  // Physical decline for personal combat ability past peak age.
+  // Career soldiers / martial primaries use half the civilian rate (see advanceAge.ts).
+  if (age > DECLINE_AGE_THRESHOLD) {
+    const prowessRate = prowessDeclineRateForCreation(skillRoleClass, primarySkill);
+    skills.prowess = Math.max(1, skills.prowess - Math.floor((age - DECLINE_AGE_THRESHOLD) * prowessRate));
+  }
 
   // If character is a minor, drastically reduce base stats. They will grow over time in advanceCharacterAging.
   if (age < 16) {

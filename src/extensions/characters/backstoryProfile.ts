@@ -31,6 +31,7 @@ import {
   getFormPack,
   isSlaveryCommonForm
 } from "./cultureFormPacks";
+import { applyBackgroundSkillBias, syncCk3AbilityProfileSkills } from "./skillGeneration";
 
 // ---------------------------------------------------------------------------
 // Relation score helpers (solidarity = political; favor = romantic only)
@@ -1313,6 +1314,9 @@ function buildOrigin(
 export function applyCharacterBackstory(character: Character, options: ApplyBackstoryOptions = {}): void {
   if (options.onlyIfMissing && character.backstory) return;
 
+  // Skill background bias is one-shot: re-running this would stack deltas.
+  const applySkillBackground = !character.backstory;
+
   const roleClass =
     options.roleClass ?? (options.isReligiousRole ? "religious" : undefined) ?? inferRoleClass(character);
 
@@ -1323,6 +1327,13 @@ export function applyCharacterBackstory(character: Character, options: ApplyBack
   // Integrity: faith commitment with very low piety → boost piety slightly (G1 soft)
   if (commitment.primary.kind === "faith" && character.personality.piety < 20) {
     character.personality.piety = rand(20, 40);
+  }
+
+  // Stratum (家業・出自) + raisedIn (成育環境) nudge skills after occupation roll.
+  // createPerson already applied roleClass / primarySkill medians.
+  if (applySkillBackground) {
+    applyBackgroundSkillBias(character.skills, origin.socialStratum, origin.raisedIn);
+    syncCk3AbilityProfileSkills(character);
   }
 
   character.backstory = {

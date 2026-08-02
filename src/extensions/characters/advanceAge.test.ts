@@ -79,7 +79,26 @@ describe("advanceCharacterAging", () => {
     const character = worldContext.pack.characters[0];
     expect(character.age).toBe(37);
     expect(character.appearance).toBe(77); // 80 - floor(2 * 1.5)
-    expect(character.skills.prowess).toBe(76); // 80 - floor(2 * 2)
+    expect(character.skills.prowess).toBe(76); // civilian: 80 - floor(2 * 2)
+  });
+
+  it("declines prowess at half rate for military careers", () => {
+    worldContext.pack.characters = [
+      {
+        i: 0,
+        age: 34,
+        appearance: 80,
+        skills: { prowess: 80 } as never,
+        titles: [{ title: "Commander", landed: false, entityType: "state", entityId: 1 }]
+      } as never
+    ];
+
+    advanceCharacterAging(3); // 34 -> 37, 2 years past threshold at rate 1
+
+    const character = worldContext.pack.characters[0];
+    expect(character.age).toBe(37);
+    expect(character.appearance).toBe(77); // appearance is unchanged by military status
+    expect(character.skills.prowess).toBe(78); // military: 80 - floor(2 * 1)
   });
 
   it("does not decline appearance/prowess while still under the age-35 threshold", () => {

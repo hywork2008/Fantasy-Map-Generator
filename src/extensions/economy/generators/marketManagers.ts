@@ -86,6 +86,8 @@ function createMarketManager(market: Market): Character | null {
   pack.characters ??= [];
   const characters = pack.characters;
   const character = createPerson(getNextCharacterId(characters), resolveManagerCulture(centerBurg), {
+    primarySkill: "stewardship",
+    roleClass: "merchant",
     homeStateId: centerBurg?.state ?? 0,
     genderOverride: rollBalancedEconomyGender(characters)
   });
@@ -118,6 +120,7 @@ function createMarketRival(market: Market): Character {
   const characters = pack.characters;
   const character = createPerson(getNextCharacterId(characters), resolveManagerCulture(centerBurg), {
     primarySkill: "stewardship",
+    roleClass: "merchant",
     homeStateId: centerBurg?.state ?? 0,
     genderOverride: rollBalancedEconomyGender(characters)
   });

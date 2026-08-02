@@ -1,10 +1,49 @@
 import { P, rand } from "../hostUtils";
 import { getCharacters, getCurrentYear, replaceCharacters } from "./charactersContext";
+import type { Character, CharacterRoleClass, CharacterSkills } from "./characterTypes";
 
 /** Physical decline sets in past this age — mirrors the generation-time formula in personFactory.ts's createPerson(). */
 export const DECLINE_AGE_THRESHOLD = 35;
 export const APPEARANCE_DECLINE_PER_YEAR = 1.5;
+/** Civilian / non-military personal combat decline after peak age. */
 export const PROWESS_DECLINE_PER_YEAR = 2;
+/**
+ * Career soldiers keep form longer: half the civilian rate.
+ * Applied to commanders, martial offices, bodyguards, etc.
+ */
+export const PROWESS_DECLINE_PER_YEAR_MILITARY = 1;
+
+/** Active military title patterns (field + court war offices). */
+const MILITARY_TITLE_RE = /Commander|Admiral|Marshal|General|Warlord|Minister of War/i;
+/** Economy / extension roles that are professional fighters rather than desk careers. */
+const MILITARY_ROLE_KIND_RE = /bodyguard|soldier|guard|regiment|garrison/i;
+
+/**
+ * True for characters whose living is fighting or command — they age slower in prowess.
+ * Uses current titles/roles only (retired officers use the civilian rate).
+ */
+export function isMilitaryCareerCharacter(character: Pick<Character, "titles" | "roles">): boolean {
+  if (character.titles.some(t => MILITARY_TITLE_RE.test(t.title))) return true;
+  if (character.roles?.some(r => MILITARY_ROLE_KIND_RE.test(r.kind))) return true;
+  return false;
+}
+
+/** Per-year prowess decline rate for a living character (military ≈ half of civilian). */
+export function prowessDeclineRateForCharacter(character: Pick<Character, "titles" | "roles">): number {
+  return isMilitaryCareerCharacter(character) ? PROWESS_DECLINE_PER_YEAR_MILITARY : PROWESS_DECLINE_PER_YEAR;
+}
+
+/**
+ * Generation-time rate before titles exist: commander / martial-primary careers use the military rate.
+ */
+export function prowessDeclineRateForCreation(
+  roleClass?: CharacterRoleClass,
+  primarySkill?: keyof CharacterSkills
+): number {
+  if (roleClass === "commander") return PROWESS_DECLINE_PER_YEAR_MILITARY;
+  if (primarySkill === "martial" || primarySkill === "prowess") return PROWESS_DECLINE_PER_YEAR_MILITARY;
+  return PROWESS_DECLINE_PER_YEAR;
+}
 
 /** Total decline accrued by `age` under the generation-time formula (0 below the threshold). */
 export function declineAt(age: number, ratePerYear: number): number {
@@ -32,11 +71,17 @@ export function advanceCharacterAging(deltaYears: number): void {
 
     const appearanceDecline =
       declineAt(newAge, APPEARANCE_DECLINE_PER_YEAR) - declineAt(oldAge, APPEARANCE_DECLINE_PER_YEAR);
-    const prowessDecline = declineAt(newAge, PROWESS_DECLINE_PER_YEAR) - declineAt(oldAge, PROWESS_DECLINE_PER_YEAR);
+    const prowessRate = prowessDeclineRateForCharacter(character);
+    const prowessDecline = declineAt(newAge, prowessRate) - declineAt(oldAge, prowessRate);
 
     character.age = newAge;
     if (appearanceDecline > 0) character.appearance = Math.max(1, character.appearance - appearanceDecline);
-    if (prowessDecline > 0) character.skills.prowess = Math.max(1, character.skills.prowess - prowessDecline);
+    if (prowessDecline > 0) {
+      character.skills.prowess = Math.max(1, character.skills.prowess - prowessDecline);
+      if (character.abilityProfile?.presetId === "ck3e") {
+        character.abilityProfile.values.prowess = character.skills.prowess;
+      }
+    }
 
     // Mortality Check: Base risk 1% per year, increasing exponentially past 50.
     const mortalityRisk = 0.01 + (newAge > 50 ? 1.15 ** (newAge - 50) / 100 : 0);
