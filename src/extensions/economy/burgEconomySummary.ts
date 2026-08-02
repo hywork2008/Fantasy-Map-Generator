@@ -1,6 +1,10 @@
 import type { Burg, BurgEconomySummary } from "../hostTypes";
 import { formatPrice, rn } from "../hostUtils";
 import { getBasicEmploymentSummary, getConstructionOperations, getWorldContext } from "./economyContext";
+import {
+  formatEmploymentCompositionSummary,
+  getBurgEmploymentComposition
+} from "./generators/burgEmploymentComposition";
 import { getHousingLedgerSnapshot } from "./generators/constructionEmployment";
 import { Goods } from "./generators/goods-generator";
 import { Production } from "./generators/production-generator";
@@ -34,6 +38,7 @@ export function getBurgEconomySummary(burgId: number): BurgEconomySummary | null
   const populationRate = Math.max(0, getWorldContext().populationRate ?? 0) || 1;
   const constructionOp = getConstructionOperations().find(op => op.burgId === burgId && op.active);
   const housing = getHousingLedgerSnapshot(constructionOp, burg, populationRate);
+  const labor = getBurgEmploymentComposition(burgId);
 
   return {
     production,
@@ -51,6 +56,10 @@ export function getBurgEconomySummary(burgId: number): BurgEconomySummary | null
     settlementValue: (() => {
       const value = getBurgSettlementValue(burgId);
       return value ? formatPrice(value.total) : "—";
-    })()
+    })(),
+    employmentComposition: labor ? formatEmploymentCompositionSummary(labor) : "—",
+    laborResidual: labor ? `${rn(labor.residual, 1)}` : "—",
+    marketUnemployment: labor ? `${rn(labor.marketUnemployment * 100, 1)}%` : "—",
+    employmentFocus: labor?.recommendedFocus ?? "—"
   };
 }

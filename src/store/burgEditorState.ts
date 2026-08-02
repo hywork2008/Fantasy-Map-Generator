@@ -36,6 +36,10 @@ export interface BurgData {
   pregnant: string;
   expectedBirths: string;
   settlementValue: string;
+  employmentComposition: string;
+  laborResidual: string;
+  marketUnemployment: string;
+  employmentFocus: string;
 
   // Features
   capital: boolean;

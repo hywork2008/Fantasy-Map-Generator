@@ -49,6 +49,8 @@ describe("getBurgEconomySummary employment fields (Phase 5)", () => {
     expect(summary?.pregnant).toBe("—");
     expect(summary?.expectedBirths).toBe("—");
     expect(summary?.settlementValue).toBe("—");
+    // Composition uses demographics when present; fixture has no demographics → null labor
+    expect(summary?.employmentComposition).toBe("—");
   });
 
   it("falls back to '—' when the burg has no recorded employment demand", () => {
@@ -63,5 +65,34 @@ describe("getBurgEconomySummary employment fields (Phase 5)", () => {
     expect(summary?.pregnant).toBe("—");
     expect(summary?.expectedBirths).toBe("—");
     expect(summary?.settlementValue).toBe("—");
+    expect(summary?.employmentComposition).toBe("—");
+  });
+
+  it("fills labor residual fields when demographics exist", () => {
+    worldContext.pack = {
+      burgs: [
+        undefined,
+        {
+          i: 1,
+          cell: 0,
+          x: 0,
+          y: 0,
+          population: 5,
+          demographics: {
+            capacity: 100,
+            children: 10,
+            maleAdults: 20,
+            femaleAdults: 20,
+            elders: 5
+          }
+        }
+      ]
+    } as unknown as PackedGraph;
+
+    const summary = getBurgEconomySummary(1);
+    expect(summary?.laborResidual).not.toBe("—");
+    expect(summary?.marketUnemployment).toMatch(/%$/);
+    expect(summary?.employmentFocus).not.toBe("—");
+    expect(summary?.employmentComposition).toContain("Adults");
   });
 });

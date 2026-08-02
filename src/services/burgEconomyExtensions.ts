@@ -33,6 +33,17 @@ export interface BurgEconomySummary {
   expectedBirths: string;
   /** Housing settlement value (replacement cost × fortification). "—" without a construction op. */
   settlementValue: string;
+  /**
+   * Adult labor ledger (display-only): adults, household care, market residual, focus hint.
+   * Multi-line English string for Burg Editor.
+   */
+  employmentComposition: string;
+  /** Market-facing residual adults (points) after care + assigned work. */
+  laborResidual: string;
+  /** Market unemployment estimate 0–100%. */
+  marketUnemployment: string;
+  /** Suggested sector to expand when residual is high. */
+  employmentFocus: string;
 }
 
 export const burgEconomyExtensions: {

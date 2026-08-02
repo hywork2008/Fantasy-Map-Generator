@@ -209,6 +209,35 @@ export const BurgEditorDialog: React.FC = () => {
                   <span id="burgServiceEmploymentDemand">{burgData.serviceEmploymentDemand}</span>
                 </td>
               </tr>
+              <tr data-tip="Labor: adult ledger — household care (non-market) is excluded from unemployment. Residual > 0 means market jobs could expand.">
+                <th scope="row">Labor residual</th>
+                <td>
+                  <span id="burgLaborResidual">{burgData.laborResidual}</span>
+                </td>
+              </tr>
+              <tr data-tip="Labor: estimated market unemployment among adults after household care and assigned work (not a census; display model).">
+                <th scope="row">Market unemployment</th>
+                <td>
+                  <span id="burgMarketUnemployment">{burgData.marketUnemployment}</span>
+                </td>
+              </tr>
+              <tr data-tip="Labor: suggested sector to grow when residual labor remains (housing gap, services, trade, craft, …).">
+                <th scope="row">Employment focus</th>
+                <td>
+                  <span id="burgEmploymentFocus">{burgData.employmentFocus}</span>
+                </td>
+              </tr>
+              <tr data-tip="Labor: compact employment composition (adults, care, assigned, residual, focus). Display-only.">
+                <th scope="row">Labor ledger</th>
+                <td>
+                  <span
+                    id="burgEmploymentComposition"
+                    style={{ whiteSpace: "pre-line", display: "inline-block", textAlign: "left" }}
+                  >
+                    {burgData.employmentComposition}
+                  </span>
+                </td>
+              </tr>
               <tr data-tip="Housing: built permanent dwellings vs required (household size 4.5; people = population × populationRate). Requires Economy and a market burg.">
                 <th scope="row">Dwellings</th>
                 <td>
