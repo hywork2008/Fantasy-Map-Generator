@@ -41,6 +41,7 @@ import { beginFlowCycleCapture, recordFlowCycleEnd } from "./marketFlowDiagnosti
 import { Markets } from "./markets-generator";
 import type { Deal, Market } from "./marketTypes";
 import { MerchantTradeCapital } from "./merchantTradeCapital";
+import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { MilitaryResources } from "./militaryResources";
 import { MineOperations } from "./mineOperations";
 import { isMineSuppliedGoodName } from "./mineralResources";
@@ -250,6 +251,8 @@ export class ProductionModule {
 
     // A0: record market×good demand / production estimate / trade / end stock for the year rollup.
     recordFlowCycleEnd();
+    // After enough flow samples, grow land fleets toward measured annual export slots.
+    MerchantTransportAssets.topUpFleetsFromExportDemand();
 
     const craftEmploymentRecords = Array.from(cycle.craftWorkersByBurg.entries())
       .filter(([, workers]) => workers > 0)

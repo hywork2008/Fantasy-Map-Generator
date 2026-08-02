@@ -1,6 +1,6 @@
 import { SHIP_CLASS_DEFINITIONS } from "../../hostTypes";
 import { getDraftAnimalType } from "./caravanMovement";
-import type { Good } from "./goods-generator";
+import type { Good } from "./goodsGeneratorTypes";
 import type { Deal, TradeRouteSegment, TransportAllocation } from "./marketTypes";
 
 export type CargoManifestItem = {

@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :-- | :-- |
-| Status | A0–A3 + soft trade use implemented; fleet seed optional |
+| Status | A0–A3 + soft trade + fleet seed implemented |
 | 対象 | Economy extension 一般 Goods（stapleFood / Food Ledger は別系統） |
 | 関連 | [merchant-logistics-warehouses.md](merchant-logistics-warehouses.md), trade cargo, drop-poor-trade |
 | 調査日 | 2026-08-02 |
@@ -90,4 +90,4 @@ stagingSlots ≈ meanMonthlyExportSlots * (maxWaitDays / 30)
 - [x] 交易が exportBudget をソフト上限として利用（自然余剰パスのみ；投機取引は従来の available クランプ）
 - [x] Export staging 倉庫が retail から book（Phase C）
 - [x] 12 サイクル計測レポート（`marketFlowReport.ts` / `marketFlowDiagnostics.ts`；Trade Animation → Flow report + CSV；直近 12 生産サイクルの rolling window）
-- [ ] 艦隊 seed が年次 slots を参照（任意）
+- [x] 艦隊 seed が年次 slots を参照（`sizeLandFleetFromAnnualExportSlots` + burg floor merge；初回 ledger 生成時 soft budget、3+ サイクル後 `topUpFleetsFromExportDemand` で計測 slots へ成長のみ）

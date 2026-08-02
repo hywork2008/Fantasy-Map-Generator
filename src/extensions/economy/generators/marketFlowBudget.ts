@@ -5,7 +5,10 @@
  * @see docs/plan/market-goods-flow-budget.md
  */
 
+import type { CaravanUtilizationStats } from "./marketFlowTypes";
 import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
+
+export type { CaravanUtilizationStats } from "./marketFlowTypes";
 
 /** Production settlement is ~every 30 sim days → 12 cycles per year. */
 export const CYCLES_PER_YEAR = 12;
@@ -69,16 +72,6 @@ export type CaravanUtilizationSample = {
   usedSlots: number;
   capacitySlots: number;
   utilization: number;
-};
-
-export type CaravanUtilizationStats = {
-  count: number;
-  meanUtilization: number;
-  medianUtilization: number;
-  shareUnder10pct: number;
-  shareUnder20pct: number;
-  totalUsedSlots: number;
-  totalCapacitySlots: number;
 };
 
 export type FleetSizingInput = {
@@ -199,6 +192,121 @@ export function estimateFleetRequirement(input: FleetSizingInput): FleetSizingRe
     effectiveSlotsPerTrip,
     tripsPerYear,
     requiredConcurrentVehicles
+  };
+}
+
+/** Typical land round-trip for fleet seed (one-way ~12 days). */
+export const DEFAULT_MEAN_ROUND_TRIP_DAYS_LAND = 24;
+
+/** Reference land vehicle for concurrent-fleet math (matches cart cargoCapacitySlots). */
+export const FLEET_SEED_REFERENCE_CAPACITY_SLOTS = 80;
+
+export type LandFleetSeedCounts = {
+  packTrain: number;
+  cart: number;
+  wagon: number;
+};
+
+export type LandFleetSeedInput = {
+  annualExportCargoSlots: number;
+  meanRoundTripDays?: number;
+  targetUtilization?: number;
+  /** Absolute caps so a single export hub cannot mint an unbounded convoy. */
+  maxPackTrain?: number;
+  maxCart?: number;
+  maxWagon?: number;
+};
+
+/**
+ * Convert annual export cargo slots into a mixed land fleet (pack / cart / wagon).
+ * Uses cart-equivalent concurrent vehicles from {@link estimateFleetRequirement}, then
+ * allocates ~20% pack / 50% cart / 30% wagon by cargo capacity.
+ */
+export function sizeLandFleetFromAnnualExportSlots(input: LandFleetSeedInput): LandFleetSeedCounts {
+  const maxPack = input.maxPackTrain ?? 24;
+  const maxCart = input.maxCart ?? 40;
+  const maxWagon = input.maxWagon ?? 20;
+
+  const fleet = estimateFleetRequirement({
+    annualExportCargoSlots: input.annualExportCargoSlots,
+    capacitySlotsPerTrip: FLEET_SEED_REFERENCE_CAPACITY_SLOTS,
+    targetUtilization: input.targetUtilization,
+    meanRoundTripDays: input.meanRoundTripDays ?? DEFAULT_MEAN_ROUND_TRIP_DAYS_LAND
+  });
+
+  const cartEquivalent = Math.max(0, Math.ceil(fleet.requiredConcurrentVehicles));
+  if (cartEquivalent <= 0) {
+    return { packTrain: 0, cart: 0, wagon: 0 };
+  }
+
+  // Total concurrent cargo capacity needed at the reference utilization already baked into cartEquivalent.
+  const capacityNeeded = cartEquivalent * FLEET_SEED_REFERENCE_CAPACITY_SLOTS;
+  const wagonSlots = 240;
+  const cartSlots = 80;
+  const packSlots = 36;
+
+  let wagon = Math.min(maxWagon, Math.floor((capacityNeeded * 0.3) / wagonSlots));
+  let remaining = Math.max(0, capacityNeeded - wagon * wagonSlots);
+  let cart = Math.min(maxCart, Math.floor((remaining * 0.65) / cartSlots));
+  remaining = Math.max(0, remaining - cart * cartSlots);
+  let packTrain = Math.min(maxPack, Math.ceil(remaining / packSlots));
+
+  // Ensure at least one vehicle when throughput is positive but rounding zeroed the mix.
+  if (packTrain + cart + wagon === 0) cart = 1;
+
+  // If still under capacity after caps, prefer extra carts then wagons.
+  let covered = packTrain * packSlots + cart * cartSlots + wagon * wagonSlots;
+  while (covered < capacityNeeded && cart < maxCart) {
+    cart += 1;
+    covered += cartSlots;
+  }
+  while (covered < capacityNeeded && wagon < maxWagon) {
+    wagon += 1;
+    covered += wagonSlots;
+  }
+  while (covered < capacityNeeded && packTrain < maxPack) {
+    packTrain += 1;
+    covered += packSlots;
+  }
+
+  return { packTrain, cart, wagon };
+}
+
+/** Soft annual export slots from a single-cycle stock/demand snapshot (annualized). */
+export function estimateSoftAnnualExportCargoSlots(
+  rows: readonly Omit<MarketGoodFlowBudgetInput, "marketId" | "goodId">[]
+): number {
+  const budgets = rows.map((row, index) =>
+    computeMarketGoodFlowBudget({
+      marketId: 0,
+      goodId: index,
+      stock: row.stock,
+      cycleDemand: row.cycleDemand,
+      cycleProduction: row.cycleProduction,
+      monthsOfCover: row.monthsOfCover,
+      cargoSlotsPerUnit: row.cargoSlotsPerUnit,
+      tradeReserveFactor: row.tradeReserveFactor
+    })
+  );
+  return annualizeExportCargoSlots(sumExportCargoSlots(budgets));
+}
+
+/** Per-class max of two fleet mixes (burg floor ∪ export-slot seed). */
+export function mergeLandFleetCounts(a: LandFleetSeedCounts, b: LandFleetSeedCounts): LandFleetSeedCounts {
+  return {
+    packTrain: Math.max(a.packTrain, b.packTrain),
+    cart: Math.max(a.cart, b.cart),
+    wagon: Math.max(a.wagon, b.wagon)
+  };
+}
+
+/** Legacy burg-count floor used before export-slot seeding. */
+export function landFleetCountsFromBurgScale(burgCount: number): LandFleetSeedCounts {
+  const scale = Math.max(1, Math.floor(burgCount));
+  return {
+    packTrain: Math.max(1, Math.ceil(scale / 3)),
+    cart: Math.max(1, Math.ceil(scale / 2)),
+    wagon: Math.max(1, Math.floor(scale / 4))
   };
 }
 

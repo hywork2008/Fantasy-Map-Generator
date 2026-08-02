@@ -5,33 +5,10 @@
  * @see docs/plan/market-goods-flow-budget.md §8
  */
 
-import {
-  type CaravanUtilizationStats,
-  CYCLES_PER_YEAR,
-  computeMarketGoodFlowBudget,
-  type MarketGoodFlowBudget
-} from "./marketFlowBudget";
+import { CYCLES_PER_YEAR, computeMarketGoodFlowBudget, type MarketGoodFlowBudget } from "./marketFlowBudget";
+import type { FlowCycleSnapshot, MarketGoodCycleSample } from "./marketFlowTypes";
 
-/** One market×good observation for a single production cycle. */
-export type MarketGoodCycleSample = {
-  marketId: number;
-  goodId: number;
-  /** Local demand this cycle (consumer + industrial). */
-  cycleDemand: number;
-  /**
-   * Net production credited this cycle (rural + burg + industrial nets).
-   * May be estimated from stock deltas when exact ledgers are unavailable.
-   */
-  cycleProduction: number;
-  /** Units booked as market→market export deals this cycle. */
-  cycleExport: number;
-  /** Units booked as market→market import deals this cycle. */
-  cycleImport: number;
-  /** Retail stock after production, trade booking, and demand fill. */
-  endStock: number;
-  cargoSlotsPerUnit: number;
-  monthsOfCover?: number;
-};
+export type { FlowCycleSnapshot, MarketGoodCycleSample } from "./marketFlowTypes";
 
 export type MarketGoodFlowReportRow = {
   marketId: number;
@@ -65,16 +42,6 @@ export type MarketGoodFlowReportRow = {
   /** Mean soft export budget from stock/demand/production each cycle. */
   meanExportBudget: number;
   meanImportBudget: number;
-};
-
-export type FlowCycleSnapshot = {
-  /** Monotonic cycle index (0-based within a session). */
-  cycleIndex: number;
-  year: number;
-  month: number;
-  day: number;
-  samples: MarketGoodCycleSample[];
-  caravanUtilization?: CaravanUtilizationStats;
 };
 
 export type FlowReportSummary = {

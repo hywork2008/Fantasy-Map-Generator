@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext } from "../economyContext";
+import { clearEconomyContext, initEconomyContext, setFlowCycleHistory } from "../economyContext";
 import type { TransportAllocation } from "./marketTypes";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 
@@ -106,6 +106,54 @@ describe("merchant transport assets", () => {
   it("uses a burg's home market as the stable dispatcher", () => {
     expect(MerchantTransportAssets.getDispatcherMarketId({ seller: 1, sellerType: "burg" })).toBe(1);
     expect(MerchantTransportAssets.getDispatcherMarketId({ seller: 1, sellerType: "market" })).toBe(1);
+  });
+
+  it("seeds land fleets at least to the burg floor", () => {
+    const availability = MerchantTransportAssets.getAvailability(1);
+    const pack = availability.find(asset => asset.assetId === "pack-train");
+    const cart = availability.find(asset => asset.assetId === "cart");
+    const wagon = availability.find(asset => asset.assetId === "wagon");
+    // One burg → legacy floor pack=1, cart=1, wagon=1
+    expect(pack?.total).toBeGreaterThanOrEqual(1);
+    expect(cart?.total).toBeGreaterThanOrEqual(1);
+    expect(wagon?.total).toBeGreaterThanOrEqual(1);
+  });
+
+  it("tops up fleets from measured export demand without shrinking", () => {
+    const ledger = MerchantTransportAssets.ensureLedger(1);
+    expect(ledger).not.toBeNull();
+    const cartBefore = ledger!.landAssets.find(asset => asset.assetId === "cart")!;
+    const baseline = cartBefore.available + cartBefore.reserved + cartBefore.inTransit + cartBefore.maintenance;
+
+    // Inject A0 history with large export slots for market 1 (3+ cycles).
+    setFlowCycleHistory(
+      [0, 1, 2].map(cycleIndex => ({
+        cycleIndex,
+        year: 1000,
+        month: cycleIndex + 1,
+        day: 1,
+        samples: [
+          {
+            marketId: 1,
+            goodId: 1,
+            cycleDemand: 10,
+            cycleProduction: 50,
+            cycleExport: 40,
+            cycleImport: 0,
+            endStock: 20,
+            cargoSlotsPerUnit: 5,
+            monthsOfCover: 2
+          }
+        ]
+      }))
+    );
+
+    MerchantTransportAssets.topUpFleetsFromExportDemand();
+    const cartAfter = ledger!.landAssets.find(asset => asset.assetId === "cart")!;
+    const totalAfter = cartAfter.available + cartAfter.reserved + cartAfter.inTransit + cartAfter.maintenance;
+    expect(totalAfter).toBeGreaterThanOrEqual(baseline);
+    // Large export (40 units * 5 slots * 12 / 3 cycles annualized heavily) should grow the fleet.
+    expect(totalAfter).toBeGreaterThan(baseline);
   });
 
   it("moves an arrived river barge to the destination market instead of returning it upstream", () => {

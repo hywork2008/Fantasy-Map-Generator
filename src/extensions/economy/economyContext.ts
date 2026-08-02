@@ -16,7 +16,7 @@ import type { ConstructionOperation } from "./generators/constructionEmploymentT
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
 import type { Good } from "./generators/goodsGeneratorTypes";
 import type { CraftDomainEmploymentRecord, GuildKnowledgeStock } from "./generators/guildKnowledgeTypes";
-import type { FlowCycleSnapshot } from "./generators/marketFlowReport";
+import type { FlowCycleSnapshot } from "./generators/marketFlowTypes";
 import type {
   Caravan,
   Deal,

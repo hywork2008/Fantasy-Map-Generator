@@ -6,9 +6,13 @@ import {
   DEFAULT_MIN_SAIL_UTILIZATION,
   DEFAULT_TARGET_UTILIZATION,
   estimateFleetRequirement,
+  estimateSoftAnnualExportCargoSlots,
   estimateStagingCargoSlots,
   getDefaultMonthsOfCover,
   inferGoodsTradeAffinity,
+  landFleetCountsFromBurgScale,
+  mergeLandFleetCounts,
+  sizeLandFleetFromAnnualExportSlots,
   summarizeCaravanUtilization,
   TRADE_RESERVE_FACTOR
 } from "./marketFlowBudget";
@@ -115,5 +119,33 @@ describe("market flow budget", () => {
     expect(stats.shareUnder20pct).toBeCloseTo(0.5);
     expect(stats.totalUsedSlots).toBe(1 + 15 + 55 + 90);
     expect(DEFAULT_MIN_SAIL_UTILIZATION).toBe(0.2);
+  });
+
+  it("sizes a mixed land fleet from annual export slots", () => {
+    // Large annual throughput should exceed a single-market burg floor.
+    const fleet = sizeLandFleetFromAnnualExportSlots({
+      annualExportCargoSlots: 50_000,
+      meanRoundTripDays: 24,
+      targetUtilization: 0.55
+    });
+    expect(fleet.cart + fleet.wagon + fleet.packTrain).toBeGreaterThan(3);
+    expect(fleet.cart).toBeGreaterThan(0);
+
+    const empty = sizeLandFleetFromAnnualExportSlots({ annualExportCargoSlots: 0 });
+    expect(empty).toEqual({ packTrain: 0, cart: 0, wagon: 0 });
+  });
+
+  it("merges burg floor with export-slot seed and soft-annualizes budgets", () => {
+    const burg = landFleetCountsFromBurgScale(1);
+    expect(burg).toEqual({ packTrain: 1, cart: 1, wagon: 1 });
+
+    const merged = mergeLandFleetCounts(burg, { packTrain: 0, cart: 5, wagon: 0 });
+    expect(merged).toEqual({ packTrain: 1, cart: 5, wagon: 1 });
+
+    // stock 100, demand 10, cover 2 → hold 20 → export 80 slots/cycle → *12
+    const annual = estimateSoftAnnualExportCargoSlots([
+      { stock: 100, cycleDemand: 10, cargoSlotsPerUnit: 1, monthsOfCover: 2 }
+    ]);
+    expect(annual).toBeCloseTo(80 * CYCLES_PER_YEAR);
   });
 });
