@@ -21,6 +21,9 @@ export const GuildOverviewDialog: React.FC = () => {
   const parentRef = React.useRef<HTMLDivElement>(null);
   const [sortBy, setSortBy] = React.useState<SortField>("stock");
   const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc");
+  const [filterBurgId, setFilterBurgId] = React.useState<number | null>(null);
+  const [filterStateId, setFilterStateId] = React.useState<number | null>(null);
+  const [filterDomain, setFilterDomain] = React.useState<GuildOverviewRow["domain"] | null>(null);
 
   const toggleSortBy = (field: string) => {
     if (field === sortBy) {
@@ -35,14 +38,46 @@ export const GuildOverviewDialog: React.FC = () => {
     if (isOpen) setTimeout(() => openGuildOverview(), 0);
   }, [isOpen]);
 
+  const burgOptions = React.useMemo(
+    () =>
+      [...new Map(rawRows.map(row => [row.burgId, { id: row.burgId, name: row.burgName }])).values()].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      ),
+    [rawRows]
+  );
+  const stateOptions = React.useMemo(
+    () =>
+      [...new Map(rawRows.map(row => [row.stateId, { id: row.stateId, name: row.stateName }])).values()].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      ),
+    [rawRows]
+  );
+  const domainOptions = React.useMemo(
+    () => [...new Set(rawRows.map(row => row.domain))].sort((a, b) => a.localeCompare(b)),
+    [rawRows]
+  );
+
+  React.useEffect(() => {
+    if (filterBurgId !== null && !burgOptions.some(option => option.id === filterBurgId)) setFilterBurgId(null);
+    if (filterStateId !== null && !stateOptions.some(option => option.id === filterStateId)) setFilterStateId(null);
+    if (filterDomain !== null && !domainOptions.includes(filterDomain)) setFilterDomain(null);
+  }, [burgOptions, domainOptions, filterBurgId, filterDomain, filterStateId, stateOptions]);
+
   const rows = React.useMemo(() => {
-    return [...rawRows].sort((a, b) => {
-      const valA = a[sortBy];
-      const valB = b[sortBy];
-      const cmp = typeof valA === "string" ? valA.localeCompare(valB as string) : (valA as number) - (valB as number);
-      return sortOrder === "asc" ? cmp : -cmp;
-    });
-  }, [rawRows, sortBy, sortOrder]);
+    return rawRows
+      .filter(row => {
+        if (filterBurgId !== null && row.burgId !== filterBurgId) return false;
+        if (filterStateId !== null && row.stateId !== filterStateId) return false;
+        if (filterDomain !== null && row.domain !== filterDomain) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        const valA = a[sortBy];
+        const valB = b[sortBy];
+        const cmp = typeof valA === "string" ? valA.localeCompare(valB as string) : (valA as number) - (valB as number);
+        return sortOrder === "asc" ? cmp : -cmp;
+      });
+  }, [filterBurgId, filterDomain, filterStateId, rawRows, sortBy, sortOrder]);
 
   const totalTreasury = rows.reduce((sum, row) => sum + row.treasury, 0);
 
@@ -55,9 +90,69 @@ export const GuildOverviewDialog: React.FC = () => {
     >
       <TableDialogLayout
         bodyRef={parentRef}
+        controls={
+          <div id="guildOverviewFilters" data-tip="Filter guild chapters" className="d-flex">
+            <label htmlFor="guildOverviewFilterBurg">
+              Burg:
+              <select
+                id="guildOverviewFilterBurg"
+                value={filterBurgId ?? ""}
+                onChange={event => setFilterBurgId(event.target.value === "" ? null : Number(event.target.value))}
+              >
+                <option value="">all</option>
+                {burgOptions.map(option => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label htmlFor="guildOverviewFilterState">
+              State:
+              <select
+                id="guildOverviewFilterState"
+                value={filterStateId ?? ""}
+                onChange={event => setFilterStateId(event.target.value === "" ? null : Number(event.target.value))}
+              >
+                <option value="">all</option>
+                {stateOptions.map(option => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label htmlFor="guildOverviewFilterDomain">
+              Domain:
+              <select
+                id="guildOverviewFilterDomain"
+                value={filterDomain ?? ""}
+                onChange={event =>
+                  setFilterDomain(event.target.value === "" ? null : (event.target.value as GuildOverviewRow["domain"]))
+                }
+              >
+                <option value="">all</option>
+                {domainOptions.map(domain => (
+                  <option key={domain} value={domain}>
+                    {domain}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        }
         summary={
-          <div data-tip="Sum of every listed guild chapter's own private treasury" className="totalLine">
-            Total guild treasury: <span id="guildOverviewTotal">{totalTreasury.toFixed(1)}</span>
+          <div className="totalLine">
+            <span data-tip="Guild chapters displayed after filtering">
+              Guild chapters:{" "}
+              <span id="guildOverviewCount">
+                {rows.length} of {rawRows.length}
+              </span>
+            </span>
+            {" · "}
+            <span data-tip="Sum of every listed guild chapter's own private treasury">
+              Total guild treasury: <span id="guildOverviewTotal">{totalTreasury.toFixed(1)}</span>
+            </span>
           </div>
         }
         footer={
@@ -138,7 +233,11 @@ export const GuildOverviewDialog: React.FC = () => {
             <tbody>
               <tr>
                 <td colSpan={6}>
-                  <span>No Burg has an active guild chapter yet</span>
+                  <span>
+                    {rawRows.length
+                      ? "No guild chapters match the selected filters"
+                      : "No Burg has an active guild chapter yet"}
+                  </span>
                 </td>
               </tr>
             </tbody>

@@ -5,6 +5,7 @@ export interface GuildOverviewRow {
   id: string; // `${burgId}:${domain}`
   burgId: number;
   burgName: string;
+  stateId: number;
   stateName: string;
   domain: CraftKnowledgeDomain;
   stock: number;

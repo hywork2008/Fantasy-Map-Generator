@@ -29,6 +29,7 @@ export function refreshGuildOverview(): void {
       id: `${entry.burgId}:${entry.domain}`,
       burgId: entry.burgId,
       burgName: burg.name || `Burg ${entry.burgId}`,
+      stateId: burg.state ?? 0,
       stateName: (burg.state ? states[burg.state]?.name : undefined) ?? "—",
       domain: entry.domain,
       stock: rn(entry.stock, 3),
