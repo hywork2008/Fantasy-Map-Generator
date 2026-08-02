@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Author** | Design draft (AI agent) |
 | **Date** | 2026-08-02 |
-| **Status** | **Fully implemented (PR-H1 … PR-UI, 2026-08-02)** |
+| **Status** | **Fully implemented (PR-H1 … PR-UI + labor ledger + construction hire board, 2026-08-02)** |
 | **Depends on** | [urban-construction-industry.md](./urban-construction-industry.md) Phase 1–3 (implemented 2026-07-31) |
 | **Related** | [population-dynamics.md](../simulation/population-dynamics.md), [population-food-supply.md](../simulation/population-food-supply.md), [goods.md](../simulation/goods.md), [analytics/population.md](../analytics/population.md), city-generator v2 housing visuals |
 
@@ -20,7 +20,30 @@
 | Culture material recipes + Brick | `housingRecipes.ts`, `goods-generator.ts` (Brick) |
 | Pregnancy stock + birth floor | `urbanPregnancy.ts`, `generators/birthModifiers.ts`, `demography-simulator.ts` |
 | Settlement valuation | `settlementValuation.ts` |
-| UI | Burg Editor; Employment Overview; Burgs/States overview columns |
+| Adult labor ledger (care / residual / focus) | `burgEmploymentComposition.ts` |
+| Construction hire board (jobs, lag, PC apply) | `constructionJobPostings.ts`, `constructionHire.ts` |
+| UI | Burg Editor; Employment Overview; Player Character panel; Burgs/States overview columns |
+
+### Construction hire board (post PR-UI follow-up)
+
+Macro yearly hire and player/NPC applications are **separate**:
+
+```text
+Full demand D  (housing gap → getConstructionRequiredWorkers)
+  ├─ Macro target 0.85D  → anonymous masonWorkers/carpenterWorkers (annual reconcile)
+  └─ Hire board openings → applications (14d PC / 7d anon) → named seats or +1 anonymous
+```
+
+| Mechanism | Behavior |
+| :--- | :--- |
+| `CONSTRUCTION_RESERVED_FOR_HIRE = 0.15` | Macro never fills 100% of D |
+| Open seats | Sticky board size from demand + gap; minus pending apps |
+| PC apply | Must be in burg; `jobs.applyConstruction`; 14-day lag |
+| Cancel / resign | `jobs.cancelConstructionApplication` / `jobs.resignConstruction` |
+| Purge | Tick drops seats if character dies, leaves burg, or op removed |
+| Labor coverage | `produceMonth` counts anonymous + named seats |
+
+Commands: `economy.jobs.applyConstruction`, `economy.jobs.resignConstruction`, `economy.jobs.cancelConstructionApplication`.
 
 ---
 

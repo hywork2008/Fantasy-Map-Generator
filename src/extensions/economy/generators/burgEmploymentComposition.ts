@@ -14,6 +14,7 @@ import {
 } from "../economyContext";
 import { getStrategicIndustryWorkersByBurg, getTradeWorkersByBurg } from "./basicEmployment";
 import { getHousingBacklog, getRequiredDwellings, normalizeConstructionOperation } from "./constructionEmployment";
+import { countNamedSeats } from "./constructionHire";
 
 /**
  * Display-only adult labor ledger for a Burg (employment composition card).
@@ -124,6 +125,8 @@ export function getBurgEmploymentComposition(burgId: number): BurgEmploymentComp
       construction += operation.masonWorkers + operation.carpenterWorkers;
     }
   }
+  // Named hire-board seats (player/NPC) count toward construction assignment.
+  construction += countNamedSeats(burgId).total;
   const trade = getTradeWorkersByBurg().get(burgId) ?? 0;
   const strategicIndustry = getStrategicIndustryWorkersByBurg().get(burgId) ?? 0;
   const craft = getCraftEmploymentRecords().find(record => record.burgId === burgId)?.workers ?? 0;

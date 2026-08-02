@@ -186,6 +186,57 @@ export function resignConstructionJob(characterId: number): { ok: boolean; messa
   return { ok: true, message: "Left construction work." };
 }
 
+/** Withdraw a pending application (frees the reserved board seat). */
+export function cancelConstructionApplication(characterId: number): { ok: boolean; message: string } {
+  const apps = getConstructionHireApplications();
+  const next = apps.filter(app => app.characterId !== characterId);
+  if (next.length === apps.length) {
+    return { ok: false, message: "No pending construction application." };
+  }
+  setConstructionHireApplications(next);
+  return { ok: true, message: "Construction application withdrawn." };
+}
+
+/**
+ * Drop seats/apps for dead characters, wrong location, or missing construction ops.
+ * Called each hire tick so named labor cannot stick after travel/death.
+ */
+export function purgeInvalidConstructionHireState(): void {
+  const { pack } = getWorldContext();
+  const characters = pack.characters ?? [];
+  const byId = new Map(characters.map(c => [c.i, c]));
+  const activeBurgIds = new Set(
+    getConstructionOperations()
+      .filter(op => op.active)
+      .map(op => op.burgId)
+  );
+
+  const validSeats: ConstructionNamedSeat[] = [];
+  for (const seat of getConstructionNamedSeats()) {
+    if (!activeBurgIds.has(seat.burgId)) {
+      const ch = byId.get(seat.characterId);
+      if (ch) removeConstructionRole(ch);
+      continue;
+    }
+    const character = byId.get(seat.characterId);
+    if (!character || character.dead || character.location !== seat.burgId) {
+      if (character) removeConstructionRole(character);
+      continue;
+    }
+    validSeats.push(seat);
+  }
+  setConstructionNamedSeats(validSeats);
+
+  const validApps = getConstructionHireApplications().filter(app => {
+    if (!activeBurgIds.has(app.burgId)) return false;
+    if (app.characterId == null) return true;
+    const character = byId.get(app.characterId);
+    if (!character || character.dead || character.location !== app.burgId) return false;
+    return true;
+  });
+  setConstructionHireApplications(validApps);
+}
+
 function acceptApplication(app: ConstructionHireApplication): void {
   if (app.characterId != null) {
     const character = getWorldContext().pack.characters?.find(c => c.i === app.characterId);
@@ -212,6 +263,9 @@ function acceptApplication(app: ConstructionHireApplication): void {
  */
 export function tickConstructionHiring(deltaDays: number): void {
   if (!(deltaDays > 0)) return;
+
+  // Drop seats for dead / departed workers before resolving new hires.
+  purgeInvalidConstructionHireState();
 
   // Resolve pending applications.
   const remaining: ConstructionHireApplication[] = [];

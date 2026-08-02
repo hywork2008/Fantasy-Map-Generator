@@ -14,9 +14,11 @@ import type { ConstructionOperation } from "./constructionEmploymentTypes";
 import {
   ANON_HIRE_LAG_DAYS,
   applyCharacterToConstructionJob,
+  cancelConstructionApplication,
   clearConstructionHireState,
   HIRE_ROUND_DAYS,
   PLAYER_HIRE_LAG_DAYS,
+  purgeInvalidConstructionHireState,
   resignConstructionJob,
   tickConstructionHiring
 } from "./constructionHire";
@@ -130,5 +132,22 @@ describe("constructionHire Phase 2–3", () => {
     expect(resign.ok).toBe(true);
     expect(getConstructionNamedSeats()).toHaveLength(0);
     expect(worldContext.pack.characters![0].roles ?? []).toHaveLength(0);
+  });
+
+  it("cancel withdraws a pending application", () => {
+    applyCharacterToConstructionJob({ characterId: 10, burgId: 1 });
+    expect(getConstructionHireApplications().some(a => a.characterId === 10)).toBe(true);
+    const cancel = cancelConstructionApplication(10);
+    expect(cancel.ok).toBe(true);
+    expect(getConstructionHireApplications().some(a => a.characterId === 10)).toBe(false);
+  });
+
+  it("purges named seats when the character leaves the burg", () => {
+    applyCharacterToConstructionJob({ characterId: 10, burgId: 1, role: "mason" });
+    tickConstructionHiring(PLAYER_HIRE_LAG_DAYS);
+    expect(getConstructionNamedSeats()).toHaveLength(1);
+    (worldContext.pack.characters![0] as { location: number }).location = 2;
+    purgeInvalidConstructionHireState();
+    expect(getConstructionNamedSeats()).toHaveLength(0);
   });
 });

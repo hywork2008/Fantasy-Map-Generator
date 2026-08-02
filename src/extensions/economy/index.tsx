@@ -50,6 +50,7 @@ import { Caravans } from "./generators/caravans";
 import { ConstructionOperations } from "./generators/constructionEmployment";
 import {
   applyCharacterToConstructionJob,
+  cancelConstructionApplication,
   clearConstructionHireState,
   resignConstructionJob,
   tickConstructionHiring
@@ -349,6 +350,7 @@ let _unregisterMineProspectingCommand: (() => void) | null = null;
 let _unregisterClearCommand: (() => void) | null = null;
 let _unregisterJobsApplyCommand: (() => void) | null = null;
 let _unregisterJobsResignCommand: (() => void) | null = null;
+let _unregisterJobsCancelCommand: (() => void) | null = null;
 let _unregisterTickSystem: (() => void) | null = null;
 
 interface AssignGoodToCellRequest {
@@ -763,6 +765,19 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       const payload = value as { characterId?: number } | undefined;
       if (!payload?.characterId) throw new Error("jobs.resignConstruction requires { characterId }");
       const result = resignConstructionJob(payload.characterId);
+      return { changed: result.ok, result };
+    }
+  });
+  _unregisterJobsCancelCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "jobs.cancelConstructionApplication",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to cancel a construction application");
+      }
+      const payload = value as { characterId?: number } | undefined;
+      if (!payload?.characterId) throw new Error("jobs.cancelConstructionApplication requires { characterId }");
+      const result = cancelConstructionApplication(payload.characterId);
       return { changed: result.ok, result };
     }
   });
@@ -1891,6 +1906,8 @@ export function cleanup(api: ExtensionAPI): void {
   _unregisterJobsApplyCommand = null;
   _unregisterJobsResignCommand?.();
   _unregisterJobsResignCommand = null;
+  _unregisterJobsCancelCommand?.();
+  _unregisterJobsCancelCommand = null;
   _unregisterClearCommand?.();
   _unregisterClearCommand = null;
   _unregisterTickSystem?.();

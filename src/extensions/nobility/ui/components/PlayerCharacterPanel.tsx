@@ -124,6 +124,19 @@ export const PlayerCharacterPanel: React.FC = () => {
     (workStatus?.posting?.openSeats ?? 0) > 0;
 
   const canResignConstruction = Boolean(workStatus?.seat);
+  const canCancelApplication = Boolean(workStatus?.pendingApp);
+
+  const handleCancelApplication = () => {
+    if (playerCharacterId === null) return;
+    const result = getApi().dispatchExtensionCommand({
+      extensionId: ECONOMY_EXTENSION_ID,
+      name: "jobs.cancelConstructionApplication",
+      payload: { characterId: playerCharacterId }
+    });
+    const outcome = result?.result as { ok?: boolean; message?: string } | undefined;
+    if (outcome?.message) tip(outcome.message, false, outcome.ok ? "success" : "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
 
   return (
     <Dialog isOpen title="Player Character" showCloseAllDialogsButton={false} className="player-character-panel">
@@ -221,6 +234,15 @@ export const PlayerCharacterPanel: React.FC = () => {
           <button
             type="button"
             className="pcp-action"
+            data-tip="Withdraw a pending construction application"
+            disabled={!canCancelApplication}
+            onClick={handleCancelApplication}
+          >
+            Cancel Application
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
             data-tip="Leave construction work at this burg"
             disabled={!canResignConstruction}
             onClick={handleResignConstruction}
@@ -238,6 +260,15 @@ export const PlayerCharacterPanel: React.FC = () => {
             onClick={handleApplyConstruction}
           >
             Apply Construction
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip="Withdraw a pending construction application"
+            disabled={!canCancelApplication}
+            onClick={handleCancelApplication}
+          >
+            Cancel Application
           </button>
           <button
             type="button"

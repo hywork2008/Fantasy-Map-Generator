@@ -23,7 +23,8 @@ import type { ConstructionOperation } from "./constructionEmploymentTypes";
  *
  * Full demand D = getConstructionRequiredWorkers (housing gap driven).
  * Macro target M = D × (1 − RESERVED_FOR_HIRE)  ← basicEmployment fills toward this.
- * Vacancies V    = sticky open seats for hire board (display Phase 1; apply later).
+ * Vacancies V    = sticky open seats for hire board (minus pending apps / named seats).
+ * Apply path: constructionHire.ts (lag + named seats + slow anonymous fills).
  */
 
 /** Share of full construction demand never filled by anonymous macro reconcile. */
