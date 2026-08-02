@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :-- | :-- |
-| Status | Phases A–F implemented |
+| Status | Phases A–F + food co-load implemented |
 | 前提 | [market-goods-flow-budget.md](market-goods-flow-budget.md), [drop-poor-trade.md](drop-poor-trade.md), [trade-cargo-capacity-and-diversity.md](trade-cargo-capacity-and-diversity.md), [merchant-transport-asset-ledger.md](merchant-transport-asset-ledger.md) |
 
 ## Problem
@@ -57,4 +57,4 @@ Many caravans sail at ~1% hold utilization. Causes:
 - Retail stock deducted once into staging; never double-deduct on load
 - Loading/staging survive production cycle deal wipes
 - Strategic procurement may keep short-wait / immediate path
-- Food Ledger remains separate until optional co-load
+- Food Ledger staple co-load: free hold capacity on market→market commercial caravans is filled from exporter `exportable` (`foodCoLoad.ts`); arrival credits importer Age0 after spoilage; cancel returns cargo; quarterly abstract `resolveFoodImportNetwork` still covers residual capacity bonus

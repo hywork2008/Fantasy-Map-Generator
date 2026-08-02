@@ -25,6 +25,12 @@ import {
   getSeaConditionMultiplier
 } from "./caravanMovement";
 import { ExportStaging } from "./exportStaging";
+import {
+  restoreFoodCoLoadToOrigin,
+  settleFoodCoLoadOnArrival,
+  settleFoodCoLoadOnLoss,
+  tryCoLoadFoodOntoCaravan
+} from "./foodCoLoad";
 import type { Good } from "./goods-generator";
 import { utilizationOf } from "./marketFlowBudget";
 import type { Caravan, Deal, ExportStagingLot, Market, TradeRouteSegment } from "./marketTypes";
@@ -137,7 +143,9 @@ function appendPayloadFromManifest(
 /** Return loading cargo to the exporter market retail stock when a thin hold is cancelled. */
 function restoreLoadingCargoToOrigin(caravan: Caravan): void {
   if (caravan.sellerType !== "market") return;
+  restoreFoodCoLoadToOrigin(caravan);
   for (const item of caravan.payload) {
+    if (item.isFoodCoLoad) continue;
     ExportStaging.returnUnitsToRetail(caravan.seller, item.goodId, item.units);
     if ((item.lockedCapital ?? 0) > UNIT_EPSILON) {
       MerchantTradeCapital.unlock(caravan.seller, item.lockedCapital ?? 0);
@@ -148,6 +156,7 @@ function restoreLoadingCargoToOrigin(caravan: Caravan): void {
 function settlePayloadCapital(caravan: Caravan, outcome: "arrived" | "lost"): void {
   if (caravan.sellerType !== "market") return;
   for (const item of caravan.payload) {
+    if (item.isFoodCoLoad) continue;
     const locked = item.lockedCapital ?? 0;
     if (!(locked > UNIT_EPSILON)) continue;
     if (outcome === "arrived") MerchantTradeCapital.settleArrival(caravan.seller, locked);
@@ -192,6 +201,10 @@ type RouteBundle = {
 
 function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "cancelled" {
   if (caravan.state !== "loading" || !caravan.loading) return "waiting";
+
+  // Co-load staple food into free space first so it counts toward sail utilization
+  // (historical ballast / bulk grain riding with higher-value general cargo).
+  tryCoLoadFoodOntoCaravan(caravan, { distanceScale: getWorldContext().distanceScale });
 
   const usedSlots = payloadUsedSlots(caravan);
   const planned = caravan.loading.plannedCapacitySlots;
@@ -793,6 +806,7 @@ export class CaravansModule {
           caravan.state = "lost";
           MerchantTransportAssets.settleCaravan(caravan, "lost");
           settlePayloadCapital(caravan, "lost");
+          settleFoodCoLoadOnLoss(caravan);
           lost.push(caravan);
           const destinationStateId = world.pack.burgs[destinationBurgId]?.state ?? 0;
           TradeSecurity.recordCaravanLoss(destinationStateId);
@@ -804,12 +818,14 @@ export class CaravansModule {
         caravan.state = "arrived";
         MerchantTransportAssets.settleCaravan(caravan, "arrived");
         settlePayloadCapital(caravan, "arrived");
+        settleFoodCoLoadOnArrival(caravan, world.distanceScale);
 
-        // Add goods to target market
+        // Add ordinary (non-food-co-load) goods to target market retail stock
         if (caravan.buyerType === "market") {
           const buyerMarket = markets.find(market => market.i === caravan.buyer);
           if (buyerMarket) {
             for (const item of caravan.payload) {
+              if (item.isFoodCoLoad) continue;
               const good = buyerMarket.goods[item.goodId];
               if (good) {
                 good.stock = rn(good.stock + item.units, 2);

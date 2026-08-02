@@ -268,6 +268,13 @@ export interface Caravan {
     stagingLotId?: number;
     /** Working capital still locked against this cargo until arrival / cancel / loss. */
     lockedCapital?: number;
+    /**
+     * Staple food (Food Ledger) riding free capacity on a commercial caravan.
+     * Settled via foodCoLoad helpers, not ordinary retail stock transfer.
+     */
+    isFoodCoLoad?: boolean;
+    /** Farmgate / draw unit cost for food co-load settlement. */
+    unitCost?: number;
   }[];
   units: number; // total units
   value: number; // total payload value
