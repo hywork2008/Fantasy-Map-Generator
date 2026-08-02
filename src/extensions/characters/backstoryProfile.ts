@@ -1134,12 +1134,11 @@ function buildTastes(
   }
   if (s.learning >= 75) {
     like("books", rand(60, 95));
+    // Literacy can seed epistolary taste; office (steward/spymaster) does not —
+    // handling letters as duty is not the same as liking correspondence.
     if (P(0.4)) like("correspondence", rand(50, 90));
   } else if (s.learning >= 55 && p.sociability >= 40 && p.sociability <= 80 && P(0.22)) {
-    // Courtly / literate letter culture without pure tavern company
-    like("correspondence", rand(45, 85));
-  }
-  if (!likes.some(t => t.id === "correspondence") && roleClass === "central_officer" && s.learning >= 50 && P(0.28)) {
+    // Literate mid-sociability: personal letter culture, not tavern company
     like("correspondence", rand(45, 85));
   }
   if (!likes.some(t => t.id === "correspondence") && female && isNobleStratum(stratum) && s.learning >= 40 && P(0.3)) {
@@ -1256,7 +1255,8 @@ function buildTastes(
   if (roleClass === "religious") rolePadPool.push("theology", "ceremony", "books");
   if (roleClass === "ruler" || roleClass === "province_lord")
     rolePadPool.push("land", "titles_glory", "ceremony", "hunting");
-  if (roleClass === "central_officer") rolePadPool.push("books", "correspondence", "law", "ceremony");
+  // No correspondence in role pads: letter duty ≠ epistolary taste (steward/spy included).
+  if (roleClass === "central_officer") rolePadPool.push("books", "law", "ceremony");
   if (formPackId === "theocracy") rolePadPool.push("theology", "ceremony", "piety_practice");
   const filteredRolePad = rolePadPool.filter(id => !likes.some(t => t.id === id) && !dislikes.some(t => t.id === id));
 

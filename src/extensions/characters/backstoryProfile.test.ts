@@ -1359,7 +1359,7 @@ describe("historical origin / role biases", () => {
     }
   });
 
-  it("biases high-learning characters toward correspondence", () => {
+  it("biases high-learning characters toward correspondence (not by office)", () => {
     let withCorrespondence = 0;
     for (let i = 0; i < 40; i++) {
       const c = baseCharacter({
@@ -1391,7 +1391,8 @@ describe("historical origin / role biases", () => {
           confidence: 50
         }
       });
-      applyCharacterBackstory(c, { roleClass: "central_officer", formName: "Monarchy", capitalBurgId: 1 });
+      // ordinary role: correspondence must come from literacy/personality, not office
+      applyCharacterBackstory(c, { roleClass: "ordinary", formName: "Monarchy", capitalBurgId: 1 });
       if (c.backstory!.tastes.some(t => t.id === "correspondence" && t.polarity === "like")) {
         withCorrespondence++;
       }
