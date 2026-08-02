@@ -48,6 +48,12 @@ import { reconcileAnnualBasicEmploymentWorkers } from "./generators/basicEmploym
 import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burgMarketLedgers";
 import { Caravans } from "./generators/caravans";
 import { ConstructionOperations } from "./generators/constructionEmployment";
+import {
+  applyCharacterToConstructionJob,
+  clearConstructionHireState,
+  resignConstructionJob,
+  tickConstructionHiring
+} from "./generators/constructionHire";
 import { DevelopmentPotential } from "./generators/developmentPotential";
 import { ExportStaging } from "./generators/exportStaging";
 import { resetEffectiveCapacities } from "./generators/foodImportNetwork";
@@ -341,6 +347,8 @@ let _unregisterRegenerateCommand: (() => void) | null = null;
 let _unregisterGunpowderRefreshCommand: (() => void) | null = null;
 let _unregisterMineProspectingCommand: (() => void) | null = null;
 let _unregisterClearCommand: (() => void) | null = null;
+let _unregisterJobsApplyCommand: (() => void) | null = null;
+let _unregisterJobsResignCommand: (() => void) | null = null;
 let _unregisterTickSystem: (() => void) | null = null;
 
 interface AssignGoodToCellRequest {
@@ -726,6 +734,38 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       return { changed: result.discovered > 0 || result.upgraded > 0, result };
     }
   });
+  _unregisterJobsApplyCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "jobs.applyConstruction",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to apply for construction work");
+      }
+      const payload = value as { characterId?: number; burgId?: number; role?: "mason" | "carpenter" } | undefined;
+      if (!payload?.characterId || !payload?.burgId) {
+        throw new Error("jobs.applyConstruction requires { characterId, burgId }");
+      }
+      const result = applyCharacterToConstructionJob({
+        characterId: payload.characterId,
+        burgId: payload.burgId,
+        role: payload.role
+      });
+      return { changed: result.ok, result };
+    }
+  });
+  _unregisterJobsResignCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "jobs.resignConstruction",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to resign construction work");
+      }
+      const payload = value as { characterId?: number } | undefined;
+      if (!payload?.characterId) throw new Error("jobs.resignConstruction requires { characterId }");
+      const result = resignConstructionJob(payload.characterId);
+      return { changed: result.ok, result };
+    }
+  });
   _unregisterClearCommand = api.registerExtensionCommand({
     extensionId: ECONOMY_EXTENSION_ID,
     name: "clear",
@@ -743,6 +783,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       QuarryOperations.clear();
       VolcanicAshOperations.clear();
       ConstructionOperations.clear();
+      clearConstructionHireState();
       clearUrbanPregnancy();
       MineralResources.clear();
       Minting.clear();
@@ -1614,6 +1655,8 @@ export function init(api: ExtensionAPI): void {
       // Pregnancy observability (PR-P1): age/conceive after demography in the same advanceTime.
       // When PR-P2 registers a birth-floor provider, tickUrbanPregnancy is a no-op (provider owns mutation).
       tickUrbanPregnancy(effectiveDeltaYears);
+      // Construction hire-board lag + slow anonymous fills (job postings Phase 2).
+      tickConstructionHiring(effectiveDays);
       const urbanMobility = UrbanLaborIntake.updateAnnualState(getWorldContext(), context.rng);
       // Reuses UrbanLaborIntake's once-per-simulation-year gate (non-null only on the year
       // transition) so administration/mining/smelting employment reconciles annually, not
@@ -1844,6 +1887,10 @@ export function cleanup(api: ExtensionAPI): void {
   _unregisterGunpowderRefreshCommand = null;
   _unregisterMineProspectingCommand?.();
   _unregisterMineProspectingCommand = null;
+  _unregisterJobsApplyCommand?.();
+  _unregisterJobsApplyCommand = null;
+  _unregisterJobsResignCommand?.();
+  _unregisterJobsResignCommand = null;
   _unregisterClearCommand?.();
   _unregisterClearCommand = null;
   _unregisterTickSystem?.();

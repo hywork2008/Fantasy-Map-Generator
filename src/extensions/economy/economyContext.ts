@@ -13,6 +13,7 @@ import type { AcademyKnowledgeStock } from "./generators/academyKnowledgeTypes";
 import type { AdministrationEmploymentRecord } from "./generators/administrationEmployment";
 import type { BurgMarketLedger } from "./generators/burgMarketLedgersTypes";
 import type { ConstructionOperation } from "./generators/constructionEmploymentTypes";
+import type { ConstructionHireApplication, ConstructionNamedSeat } from "./generators/constructionHireTypes";
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
 import type { Good } from "./generators/goodsGeneratorTypes";
 import type { CraftDomainEmploymentRecord, GuildKnowledgeStock } from "./generators/guildKnowledgeTypes";
@@ -793,6 +794,22 @@ export function getConstructionOperations(): ConstructionOperation[] {
 }
 export function setConstructionOperations(operations: readonly ConstructionOperation[]): void {
   setSliceArray("constructionOperations", operations);
+}
+
+/** Pending construction hire applications (Phase 2 lag). */
+export function getConstructionHireApplications(): ConstructionHireApplication[] {
+  return getSliceArray<ConstructionHireApplication>("constructionHireApplications");
+}
+export function setConstructionHireApplications(apps: readonly ConstructionHireApplication[]): void {
+  setSliceArray("constructionHireApplications", apps);
+}
+
+/** Named characters on construction seats (Phase 3). */
+export function getConstructionNamedSeats(): ConstructionNamedSeat[] {
+  return getSliceArray<ConstructionNamedSeat>("constructionNamedSeats");
+}
+export function setConstructionNamedSeats(seats: readonly ConstructionNamedSeat[]): void {
+  setSliceArray("constructionNamedSeats", seats);
 }
 
 /** Urban pregnancy pipeline stock (docs/plan/urban-housing-system.md PR-P1). */

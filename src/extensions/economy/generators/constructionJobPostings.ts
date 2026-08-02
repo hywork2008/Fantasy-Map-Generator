@@ -1,6 +1,11 @@
 import { getBurgDemographics, useOptionsState } from "../../hostCore";
 import { rn } from "../../hostUtils";
-import { getConstructionOperations, getWorldContext } from "../economyContext";
+import {
+  getConstructionHireApplications,
+  getConstructionNamedSeats,
+  getConstructionOperations,
+  getWorldContext
+} from "../economyContext";
 import {
   getConstructionRequiredWorkers,
   getHousingBacklog,
@@ -55,6 +60,10 @@ export interface ConstructionJobPosting {
   openSeats: number;
   openMason: number;
   openCarpenter: number;
+  /** Named character seats already filled. */
+  namedSeats: number;
+  /** Applications still in hire lag (reserve board seats). */
+  pendingApplications: number;
   housingGap: number;
 }
 
@@ -166,10 +175,26 @@ export function getConstructionJobPosting(burgId: number): ConstructionJobPostin
 
   const demandRoles = getFullConstructionDemand({ ...operation, requiredDwellings }, adults, ctx);
   const macroRoles = getConstructionMacroRequiredWorkers({ ...operation, requiredDwellings }, adults, ctx);
+
+  let namedMason = 0;
+  let namedCarpenter = 0;
+  for (const seat of getConstructionNamedSeats()) {
+    if (seat.burgId !== burgId) continue;
+    if (seat.role === "mason") namedMason += 1;
+    else namedCarpenter += 1;
+  }
+  let pendingMason = 0;
+  let pendingCarpenter = 0;
+  for (const app of getConstructionHireApplications()) {
+    if (app.burgId !== burgId) continue;
+    if (app.role === "mason") pendingMason += 1;
+    else pendingCarpenter += 1;
+  }
+
   const filled: ConstructionRoleDemand = {
-    mason: operation.masonWorkers,
-    carpenter: operation.carpenterWorkers,
-    total: rn(operation.masonWorkers + operation.carpenterWorkers, 2)
+    mason: operation.masonWorkers + namedMason,
+    carpenter: operation.carpenterWorkers + namedCarpenter,
+    total: rn(operation.masonWorkers + namedMason + operation.carpenterWorkers + namedCarpenter, 2)
   };
   const openings = computeConstructionOpenSeats({
     demandTotal: demandRoles.total,
@@ -179,6 +204,10 @@ export function getConstructionJobPosting(burgId: number): ConstructionJobPostin
     masonFilled: filled.mason,
     carpenterFilled: filled.carpenter
   });
+  // Pending applications reserve seats so they are not double-offered.
+  const freeMason = Math.max(0, openings.openMason - pendingMason);
+  const freeCarpenter = Math.max(0, openings.openCarpenter - pendingCarpenter);
+  const openSeats = freeMason + freeCarpenter;
   const housingGap = getHousingBacklog(operation.dwellingStock, requiredDwellings);
 
   return {
@@ -190,19 +219,27 @@ export function getConstructionJobPosting(burgId: number): ConstructionJobPostin
       total: rn(macroRoles.mason + macroRoles.carpenter, 2)
     },
     filled,
-    openSeats: openings.openSeats,
-    openMason: openings.openMason,
-    openCarpenter: openings.openCarpenter,
+    openSeats,
+    openMason: freeMason,
+    openCarpenter: freeCarpenter,
+    namedSeats: namedMason + namedCarpenter,
+    pendingApplications: pendingMason + pendingCarpenter,
     housingGap: rn(housingGap, 4)
   };
 }
 
 /** One-line English for Burg Editor. */
 export function formatConstructionJobPosting(posting: ConstructionJobPosting | null): string {
-  if (!posting || posting.openSeats <= 0) return "—";
+  if (!posting) return "—";
+  if (posting.openSeats <= 0 && posting.pendingApplications <= 0) return "—";
   const parts: string[] = [];
-  if (posting.openMason > 0) parts.push(`${posting.openMason} mason`);
-  if (posting.openCarpenter > 0) parts.push(`${posting.openCarpenter} carpenter`);
-  const roles = parts.length ? parts.join(", ") : `${posting.openSeats} seat(s)`;
-  return `${posting.openSeats} open (${roles})`;
+  if (posting.openSeats > 0) {
+    const roles: string[] = [];
+    if (posting.openMason > 0) roles.push(`${posting.openMason} mason`);
+    if (posting.openCarpenter > 0) roles.push(`${posting.openCarpenter} carpenter`);
+    parts.push(`${posting.openSeats} open${roles.length ? ` (${roles.join(", ")})` : ""}`);
+  }
+  if (posting.pendingApplications > 0) parts.push(`${posting.pendingApplications} pending`);
+  if (posting.namedSeats > 0) parts.push(`${posting.namedSeats} named`);
+  return parts.join(" · ") || "—";
 }

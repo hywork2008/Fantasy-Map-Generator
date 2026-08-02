@@ -2,6 +2,12 @@ import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useCharactersUiState } from "../../../characters/ui/charactersUiState";
+import {
+  getCharacterConstructionEmployment,
+  getCharacterPendingConstructionApplication
+} from "../../../economy/generators/constructionHire";
+import { getConstructionJobPosting } from "../../../economy/generators/constructionJobPostings";
+import { tip } from "../../../hostServices";
 import { Dialog, isDialogOpen, openDialog } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 import { buildPlayerCharacterSummary, selectRandomPlayerCharacter } from "../../controllers/playerCharacter";
@@ -9,6 +15,8 @@ import { isSvgRenderMode, togglePlayerMoveMode } from "../../controllers/playerC
 import { getApi, getWorldContext } from "../../nobilityContext";
 import { usePlayerCharacterState } from "../../store/playerCharacterState";
 import "./playerCharacterPanel.css";
+
+const ECONOMY_EXTENSION_ID = "economy";
 
 /**
  * Always-visible top-right HUD for the nobility focus character.
@@ -61,8 +69,61 @@ export const PlayerCharacterPanel: React.FC = () => {
     togglePlayerMoveMode();
   };
 
+  // refreshToken also refreshes job board / hire state read from economy slices.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: see comment above
+  const workStatus = useMemo(() => {
+    if (playerCharacterId === null) return null;
+    const seat = getCharacterConstructionEmployment(playerCharacterId);
+    const pendingApp = getCharacterPendingConstructionApplication(playerCharacterId);
+    const burgId = summary?.location?.burgId;
+    const posting = burgId != null ? getConstructionJobPosting(burgId) : null;
+    return { seat, pendingApp, posting, burgId: burgId ?? null };
+  }, [playerCharacterId, refreshToken, summary?.location?.burgId]);
+
+  const handleApplyConstruction = () => {
+    if (playerCharacterId === null || workStatus?.burgId == null) return;
+    const result = getApi().dispatchExtensionCommand({
+      extensionId: ECONOMY_EXTENSION_ID,
+      name: "jobs.applyConstruction",
+      payload: { characterId: playerCharacterId, burgId: workStatus.burgId }
+    });
+    const outcome = result?.result as { ok?: boolean; message?: string } | undefined;
+    if (outcome?.message) tip(outcome.message, false, outcome.ok ? "success" : "error");
+    else if (!result) tip("Enable the Economy extension to apply for work.", false, "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
+  const handleResignConstruction = () => {
+    if (playerCharacterId === null) return;
+    const result = getApi().dispatchExtensionCommand({
+      extensionId: ECONOMY_EXTENSION_ID,
+      name: "jobs.resignConstruction",
+      payload: { characterId: playerCharacterId }
+    });
+    const outcome = result?.result as { ok?: boolean; message?: string } | undefined;
+    if (outcome?.message) tip(outcome.message, false, outcome.ok ? "success" : "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
   const pendingLabel =
     pendingTravel && pendingTravel.remainingDays > 0 ? `Travelling · ${pendingTravel.remainingDays}d left` : null;
+
+  const workLabel = workStatus?.seat
+    ? `${workStatus.seat.role} @ burg ${workStatus.seat.burgId}`
+    : workStatus?.pendingApp
+      ? `Applying (${workStatus.pendingApp.role}, ${Math.ceil(workStatus.pendingApp.daysRemaining)}d)`
+      : workStatus?.posting && workStatus.posting.openSeats > 0
+        ? `${workStatus.posting.openSeats} construction job(s) here`
+        : "No construction opening here";
+
+  const canApplyConstruction =
+    Boolean(summary?.location) &&
+    !pendingTravel &&
+    !workStatus?.seat &&
+    !workStatus?.pendingApp &&
+    (workStatus?.posting?.openSeats ?? 0) > 0;
+
+  const canResignConstruction = Boolean(workStatus?.seat);
 
   return (
     <Dialog isOpen title="Player Character" showCloseAllDialogsButton={false} className="player-character-panel">
@@ -110,6 +171,8 @@ export const PlayerCharacterPanel: React.FC = () => {
             <dd title={summary.stateName}>{summary.stateName}</dd>
             <dt>Organization</dt>
             <dd title={summary.organization}>{summary.organization}</dd>
+            <dt>Work</dt>
+            <dd title={workLabel}>{workLabel}</dd>
           </dl>
         </div>
       )}
@@ -146,8 +209,47 @@ export const PlayerCharacterPanel: React.FC = () => {
           >
             {isMoveMode ? "Cancel Move" : "Move"}
           </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip="Apply for a construction job in this burg (Economy). Hire resolves after 14 days."
+            disabled={!canApplyConstruction}
+            onClick={handleApplyConstruction}
+          >
+            Apply Construction
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip="Leave construction work at this burg"
+            disabled={!canResignConstruction}
+            onClick={handleResignConstruction}
+          >
+            Resign Construction
+          </button>
         </div>
-      ) : null}
+      ) : (
+        <div className="pcp-actions pcp-actions-world" role="toolbar" aria-label="Player character work">
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip="Apply for a construction job in this burg (Economy). Hire resolves after 14 days."
+            disabled={!canApplyConstruction}
+            onClick={handleApplyConstruction}
+          >
+            Apply Construction
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip="Leave construction work at this burg"
+            disabled={!canResignConstruction}
+            onClick={handleResignConstruction}
+          >
+            Resign Construction
+          </button>
+        </div>
+      )}
     </Dialog>
   );
 };

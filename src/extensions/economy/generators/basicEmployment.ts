@@ -163,18 +163,19 @@ export function reconcileAnnualBasicEmploymentWorkers(): void {
       highFantasy,
       brickAvailable
     });
+    // Named hire-board seats live outside anonymous masonWorkers/carpenterWorkers pools.
     pushSlot(slotsByBurg, operation.burgId, {
       requiredWorkers: required.mason,
       getWorkers: () => operation.masonWorkers,
       setWorkers: value => {
-        operation.masonWorkers = value;
+        operation.masonWorkers = Math.max(0, value);
       }
     });
     pushSlot(slotsByBurg, operation.burgId, {
       requiredWorkers: required.carpenter,
       getWorkers: () => operation.carpenterWorkers,
       setWorkers: value => {
-        operation.carpenterWorkers = value;
+        operation.carpenterWorkers = Math.max(0, value);
       }
     });
   }

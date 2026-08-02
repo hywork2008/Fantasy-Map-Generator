@@ -2,6 +2,7 @@ import { getBurgDemographics, useOptionsState } from "../../hostCore";
 import type { CultureType } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
+  getConstructionNamedSeats,
   getConstructionOperations,
   getGoods,
   getMarketCellColumn,
@@ -188,6 +189,18 @@ export function getConstructionProductivityMultiplier(
  * roughly months–year). Material shortages are not folded in here — UI tip notes the estimate
  * is labor-limited; materials can only slow further.
  */
+/** Named hire seats (Phase 3) counted without importing constructionHire (madge cycle). */
+function countNamedConstructionSeats(burgId: number): { mason: number; carpenter: number } {
+  let mason = 0;
+  let carpenter = 0;
+  for (const seat of getConstructionNamedSeats()) {
+    if (seat.burgId !== burgId) continue;
+    if (seat.role === "mason") mason += 1;
+    else carpenter += 1;
+  }
+  return { mason, carpenter };
+}
+
 export function estimateDwellingsUnderConstruction(args: {
   dwellingStock: number;
   requiredDwellings: number;
@@ -237,11 +250,14 @@ export function getHousingLedgerSnapshot(
     highFantasy: useOptionsState.getState().culturesSet === "highFantasy",
     brickAvailable: isBrickGoodAvailable()
   });
+  const named = countNamedConstructionSeats(normalized.burgId);
+  const effectiveMason = normalized.masonWorkers + named.mason;
+  const effectiveCarpenter = normalized.carpenterWorkers + named.carpenter;
   const underConstruction = estimateDwellingsUnderConstruction({
     dwellingStock: normalized.dwellingStock,
     requiredDwellings: required,
-    masonWorkers: normalized.masonWorkers,
-    carpenterWorkers: normalized.carpenterWorkers,
+    masonWorkers: effectiveMason,
+    carpenterWorkers: effectiveCarpenter,
     requiredMason: workersNeeded.mason,
     requiredCarpenter: workersNeeded.carpenter
   });
@@ -252,7 +268,7 @@ export function getHousingLedgerSnapshot(
     housingBacklog: rn(getHousingBacklog(normalized.dwellingStock, required), 4),
     buildingStock: rn(normalized.buildingStock, 4),
     underConstruction,
-    constructionWorkers: rn(normalized.masonWorkers + normalized.carpenterWorkers, 1)
+    constructionWorkers: rn(effectiveMason + effectiveCarpenter, 1)
   };
 }
 
@@ -391,8 +407,12 @@ export class ConstructionOperationsModule {
         highFantasy,
         brickAvailable
       });
-      const masonFactor = required.mason > 0 ? Math.min(1, operation.masonWorkers / required.mason) : 1;
-      const carpenterFactor = required.carpenter > 0 ? Math.min(1, operation.carpenterWorkers / required.carpenter) : 1;
+      // Named hire-board seats count toward labor coverage (Phase 3).
+      const namedSeats = countNamedConstructionSeats(operation.burgId);
+      const masonHeadcount = operation.masonWorkers + namedSeats.mason;
+      const carpenterHeadcount = operation.carpenterWorkers + namedSeats.carpenter;
+      const masonFactor = required.mason > 0 ? Math.min(1, masonHeadcount / required.mason) : 1;
+      const carpenterFactor = required.carpenter > 0 ? Math.min(1, carpenterHeadcount / required.carpenter) : 1;
 
       const masonLoad = required.mason * STONE_PER_MASON_WORKER_ANNUAL;
       const masonMaterial = recipe.stone + recipe.brick;
