@@ -291,6 +291,8 @@ export function init(api: ExtensionAPI): void {
 
       advanceCharacterAging(effectiveDeltaYears);
       Characters.processResignationsAndSuccessions(effectiveDeltaYears);
+      // Phase D: greed/commitment-driven skimming and court bribes.
+      Characters.processCharacterCorruption(effectiveDeltaYears);
       assignOfficers();
       assignProvinceLords();
       // Consume in-flight player travel days; location updates on arrival.

@@ -1,3 +1,4 @@
+import { getWarDriveModifiers } from "../../characters/characterSimulationHooks";
 import {
   analyzeFrontiers,
   analyzeSeaFrontiers,
@@ -51,7 +52,7 @@ export class StrategicPlannerGenerator {
         simulationContext.strategicGoals[attacker.i] = [];
       }
 
-      // Attacker ruler personality
+      // Attacker ruler personality + backstory war drive
       const ruler = characters.find(c => c.i === getRulerId(attacker));
       const boldness = ruler?.personality.boldness ?? 50;
       const caution = 100 - boldness;
@@ -170,6 +171,14 @@ export class StrategicPlannerGenerator {
         // unfortified town in the open only needs a solid numerical edge.
         let requiredAttackForce = perceivedDefense * (isFortified ? FORTIFIED_ATTACK_RATIO : FIELD_ATTACK_RATIO);
 
+        const historicallyOwn = !!targetBurgData?.stateHistory?.includes(attacker.i);
+        const warDrive = getWarDriveModifiers(ruler, {
+          isCornered,
+          historicallyOwn,
+          targetCulture: targetState.culture
+        });
+        requiredAttackForce *= warDrive.forceRequirementMultiplier;
+
         let expectedCasualties: StrategicGoal["expectedCasualties"] = "moderate";
         if (isCornered) {
           expectedCasualties = "high_cornered";
@@ -215,9 +224,9 @@ export class StrategicPlannerGenerator {
             targetBurg,
             targetState: targetStateId,
             type: "siege",
-            tension: 10 + appServices.rng.rand() * 20,
+            tension: 10 + appServices.rng.rand() * 20 + warDrive.initialTensionBonus,
             expectedCasualties,
-            justification: isCornered ? "overwhelming_force_crush" : "border_expansion",
+            justification: warDrive.justification,
             requiredAttackForce
           });
         }
@@ -243,7 +252,7 @@ export class StrategicPlannerGenerator {
       const state = pack.states[stateId];
       if (!state) continue;
 
-      // Attacker ruler personality
+      // Attacker ruler personality + commitment-driven war pace
       const ruler = characters.find(c => c.i === getRulerId(state));
       const boldness = ruler?.personality.boldness ?? 50;
 
@@ -272,9 +281,17 @@ export class StrategicPlannerGenerator {
           continue; // Goal invalid due to allied/friendly status, drop it
         }
 
+        const targetStateObj = pack.states[goal.targetState];
+        const historicallyOwn = !!pack.burgs[goal.targetBurg]?.stateHistory?.includes(stateId);
+        const warDrive = getWarDriveModifiers(ruler, {
+          isCornered: false,
+          historicallyOwn,
+          targetCulture: targetStateObj?.culture
+        });
+
         // Tension calculation — top-down (ruler ambition) plus bottom-up (ground reality).
         // Base increment per year: +1 to +5 based on boldness
-        const baseIncrement = 1 + boldness / 25;
+        const baseIncrement = (1 + boldness / 25) * warDrive.tensionSpeedMultiplier;
         // Add random noise so they don't all progress identically
         const noise = appServices.rng.rand() * 4;
 

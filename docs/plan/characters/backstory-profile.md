@@ -1,6 +1,6 @@
 # キャラクター・バックストーリー属性設計
 
-**Status**: Phase A–C 実装済み（生成・Favor・贈答API・芸術 Good・Details/CSV）。Phase D（戦略AI接続）以降は未着手。  
+**Status**: Phase A–D 実装済み（生成・Solidarity/Favor・贈答・芸術 Good・Details/CSV・戦略AI/結婚/汚職接続）。Phase E（家門・Bonds・文化パック）は未着手。  
 **Related**: `docs/plan/characters.md`, `docs/plan/char-economy.md`, `docs/plan/char.md`, `src/extensions/characters/characterTypes.ts`, `src/extensions/characters/backstoryProfile.ts`, `src/extensions/characters/personFactory.ts`  
 **Goal**: 能力・性格だけでは書けない「何に仕えて生きているか」「何が好きで何が嫌いか」「どこから来た誰か」「誰をどれだけ好むか（ギャルゲー式好感度）」「何を贈ると心が動く／逆に嫌われるか」をデータ化し、フレーバー文・伝記・政治/経済AIの動機付けの共通基盤にする。
 
@@ -1083,12 +1083,14 @@ skills/personality の凸凹
 3. Economy に Artworks / Sculptures / Tapestries / Instruments（必要最小）を追加  
 4. Taste↔Good マッチング表で artistry 高キャラへの芸術品ボーナス  
 
-### Phase D — シミュレーション接続
+### Phase D — シミュレーション接続 ✅
 
-1. 戦略 AI: 宣戦理由に Commitment を参照  
-2. 汚職・贈収賄: favor デルタ + Taste `corruption`/`gold` + Commitment `wealth`  
-3. 結婚 AI: house/faith 優先の拒否理由、当事者 favor  
-4. `Patriotism` スカラー導入（任意）  
+実装: `src/extensions/characters/characterSimulationHooks.ts`
+
+1. 戦略 AI: `getWarDriveModifiers` を `strategic-planner.ts` に接続（必要兵力・緊張速度・justification: holy_war / greed_expansion / dynastic_ambition 等）  
+2. 汚職・贈収賄: `applyCharacterCorruption` / `tryCourtBribe` を nobility tick から実行。検出時は ruler 連帯感悪化。`offerGift` で清廉君主への bribe 逆効果  
+3. 結婚 AI: `evaluateDynasticMarriage` を `calculateAffinities` の政略結婚判定に接続（faith/house 拒否、favor 加点）  
+4. 愛国心: 格納フィールドは増やさず `getEffectivePatriotism`（Commitment + honor 由来）として導出  
 
 ### Phase E — 家門・Bonds・文化パック
 

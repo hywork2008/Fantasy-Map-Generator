@@ -4,6 +4,12 @@ import {
   seedCharacterRelations,
   seedRelationsWithPeers
 } from "../../characters/backstoryProfile";
+import {
+  applyCharacterCorruption,
+  evaluateDynasticMarriage,
+  resolveCorruptionEvents,
+  tryCourtBribe
+} from "../../characters/characterSimulationHooks";
 import type { Character, CharacterSkills } from "../../characters/characterTypes";
 import { createPerson } from "../../characters/personFactory";
 import { calculateCharacterTraits } from "../../characters/utils/personalityUtils";
@@ -179,9 +185,8 @@ function calculateAffinities(characters: Character[]): void {
       // Assuming "Monarchy" is a standard form.
       const isMonarchy = (s: { form?: string }) => s.form === "Monarchy";
       if (isMonarchy(state) && isMonarchy(other)) {
-        // Dynastic ties: chance to form a marriage alliance (max 2 per family to prevent excessive ties)
-        if (affinity >= -10 && P(0.05) && ruler.marriages.length < 2) {
-          // Check if the other ruler also hasn't reached the limit
+        // Dynastic ties: commitment/favor-gated chance (max 2 per family to prevent excessive ties)
+        if (affinity >= -10 && ruler.marriages.length < 2) {
           let otherRuler: Character | undefined;
           const otherRulerId = getRulerId(other);
           if (otherRulerId !== undefined) {
@@ -189,11 +194,19 @@ function calculateAffinities(characters: Character[]): void {
           }
 
           if (!otherRuler || otherRuler.marriages.length < 2) {
-            affinity += 80;
-            if (!ruler.marriages.includes(other.i)) ruler.marriages.push(other.i);
+            const evalA = evaluateDynasticMarriage(ruler, otherRuler);
+            const evalB = otherRuler
+              ? evaluateDynasticMarriage(otherRuler, ruler)
+              : { accept: true, weight: 0.5, reason: "no_partner" };
+            // Base 5% scaled by both sides' willingness weights
+            const marriageChance = 0.05 * evalA.weight * evalB.weight;
+            if (evalA.accept && evalB.accept && P(marriageChance)) {
+              affinity += 80;
+              if (!ruler.marriages.includes(other.i)) ruler.marriages.push(other.i);
 
-            if (otherRuler && !otherRuler.marriages.includes(state.i)) {
-              otherRuler.marriages.push(state.i);
+              if (otherRuler && !otherRuler.marriages.includes(state.i)) {
+                otherRuler.marriages.push(state.i);
+              }
             }
           }
         }
@@ -643,10 +656,40 @@ function processSuccessions(): void {
   }
 }
 
+/**
+ * Phase D: embezzlement from state treasury + rare court bribes.
+ * Call during the nobility simulation tick (military phase).
+ */
+function processCharacterCorruption(deltaYears: number): void {
+  if (!(deltaYears > 0)) return;
+  const { pack } = getWorldContext();
+  const characters = pack.characters;
+  if (!characters?.length) return;
+
+  const events = applyCharacterCorruption(characters, deltaYears);
+  if (events.length) {
+    resolveCorruptionEvents(characters, events, {
+      get: stateId => pack.states[stateId]?.treasury ?? 0,
+      set: (stateId, value) => {
+        const state = pack.states[stateId];
+        if (state) state.treasury = value;
+      }
+    });
+  }
+
+  // Occasional bribe attempts (per year rate scaled by delta)
+  if (P(Math.min(0.4, 0.12 * deltaYears))) {
+    for (const state of pack.states.filter(s => s.i && !s.removed)) {
+      if (P(0.25)) tryCourtBribe(characters, state.i);
+    }
+  }
+}
+
 export const Characters = {
   generate,
   createOfficer,
   createProvinceLord,
   clear,
-  processResignationsAndSuccessions
+  processResignationsAndSuccessions,
+  processCharacterCorruption
 };
