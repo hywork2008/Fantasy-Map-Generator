@@ -233,6 +233,12 @@ export const BurgEditorDialog: React.FC = () => {
                   <span id="burgExpectedBirths">{burgData.expectedBirths}</span>
                 </td>
               </tr>
+              <tr data-tip="Housing replacement cost at the current culture recipe, multiplied by walls/citadel fortification premium.">
+                <th scope="row">Settlement value</th>
+                <td>
+                  <span id="burgSettlementValue">{burgData.settlementValue}</span>
+                </td>
+              </tr>
               <tr>
                 <th scope="row">Features:</th>
                 <td>

@@ -24,6 +24,8 @@ export interface BurgEconomySummary {
    */
   pregnant: string;
   expectedBirths: string;
+  /** Housing settlement value (replacement cost × fortification). "—" without a construction op. */
+  settlementValue: string;
 }
 
 export const burgEconomyExtensions: {

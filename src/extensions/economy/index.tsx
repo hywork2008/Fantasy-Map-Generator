@@ -78,6 +78,7 @@ import { Minting } from "./generators/minting";
 import { Production } from "./generators/production-generator";
 import { QuarryOperations } from "./generators/quarryOperations";
 import { releaseRuralLaborSurplus } from "./generators/ruralLaborRelease";
+import { getBurgSettlementValue, getStateSettlementValue } from "./generators/settlementValuation";
 import { seedShipbuildingInitialStock } from "./generators/shipbuildingInitialStock";
 import { SmelterOperations } from "./generators/smelterOperations";
 import { refreshStateEconomySummaries } from "./generators/stateEconomySummary";
@@ -253,6 +254,14 @@ function registerOverviewColumns(api: ExtensionAPI): void {
     },
     format: value => (value > 0 || value === 0 ? `${rn(value, 1)}%` : "—")
   });
+  api.registerBurgOverviewColumn({
+    id: "settlementValue",
+    extensionId: ECONOMY_EXTENSION_ID,
+    label: "Settlement value",
+    tip: "Housing replacement cost × fortification premium (docs/plan/urban-housing-system.md PR-V). Empty without a construction operation.",
+    getValue: burg => (burg?.i ? (getBurgSettlementValue(burg.i)?.total ?? 0) : 0),
+    format: formatPrice
+  });
   api.registerStateOverviewColumn({
     id: "treasury",
     extensionId: ECONOMY_EXTENSION_ID,
@@ -264,6 +273,14 @@ function registerOverviewColumns(api: ExtensionAPI): void {
       document.dispatchEvent(
         new CustomEvent("fmg:activate-editor-tab", { detail: { editorId: "statesEditor", tabId: "states-treasury" } })
       )
+  });
+  api.registerStateOverviewColumn({
+    id: "settlementValue",
+    extensionId: ECONOMY_EXTENSION_ID,
+    label: "Settlement value",
+    tip: "Sum of burg housing settlement values in this state (docs/plan/urban-housing-system.md PR-V).",
+    getValue: state => (state?.i ? getStateSettlementValue(state.i) : 0),
+    format: formatPrice
   });
 
   api.registerCellInfoRow({ id: "good", extensionId: ECONOMY_EXTENSION_ID, label: "Good" });
@@ -278,7 +295,9 @@ function unregisterOverviewColumns(api: ExtensionAPI): void {
   api.unregisterBurgOverviewColumn("wealth");
   api.unregisterBurgOverviewColumn("treasury");
   api.unregisterBurgOverviewColumn("housingGap");
+  api.unregisterBurgOverviewColumn("settlementValue");
   api.unregisterStateOverviewColumn("treasury");
+  api.unregisterStateOverviewColumn("settlementValue");
   api.unregisterCellInfoRow("good");
   api.unregisterCellInfoRow("market");
   api.unregisterCellInfoRow("marketHolder");

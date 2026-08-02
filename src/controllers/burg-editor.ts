@@ -148,6 +148,7 @@ const burgEditorInternal = {
       housingGap: economySummary?.housingGap ?? "—",
       pregnant: economySummary?.pregnant ?? "—",
       expectedBirths: economySummary?.expectedBirths ?? "—",
+      settlementValue: economySummary?.settlementValue ?? "—",
       capital: !!b.capital,
       port: !!b.port,
       citadel: !!b.citadel,

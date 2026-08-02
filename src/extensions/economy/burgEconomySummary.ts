@@ -4,6 +4,7 @@ import { getBasicEmploymentSummary, getConstructionOperations, getWorldContext }
 import { getHousingLedgerSnapshot } from "./generators/constructionEmployment";
 import { Goods } from "./generators/goods-generator";
 import { Production } from "./generators/production-generator";
+import { getBurgSettlementValue } from "./generators/settlementValuation";
 import { formatExpectedBirthsLowerBound, formatPregnantHeadcount } from "./generators/urbanPregnancy";
 
 /** Gross product normalized to 1,000 actual residents for a readable, comparable value. */
@@ -44,6 +45,10 @@ export function getBurgEconomySummary(burgId: number): BurgEconomySummary | null
     dwellings: housing ? `${rn(housing.dwellingStock, 1)} / ${housing.requiredDwellings}` : "—",
     housingGap: housing ? `${rn(housing.housingBacklog * 100, 1)}%` : "—",
     pregnant: formatPregnantHeadcount(burgId),
-    expectedBirths: formatExpectedBirthsLowerBound(burgId)
+    expectedBirths: formatExpectedBirthsLowerBound(burgId),
+    settlementValue: (() => {
+      const value = getBurgSettlementValue(burgId);
+      return value ? formatPrice(value.total) : "—";
+    })()
   };
 }

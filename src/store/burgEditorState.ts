@@ -33,6 +33,7 @@ export interface BurgData {
   housingGap: string;
   pregnant: string;
   expectedBirths: string;
+  settlementValue: string;
 
   // Features
   capital: boolean;
