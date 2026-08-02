@@ -1,9 +1,11 @@
 import type React from "react";
 import { useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog, VirtualTableBody } from "../../../hostUi";
 import { setGoodsStockDialogState, useGoodsStockDialogState } from "../../store/goodsStockDialogState";
 
 export const GoodsStockDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useGoodsStockDialogState(s => s.isOpen);
   const goodName = useGoodsStockDialogState(s => s.goodName);
   const sources = useGoodsStockDialogState(s => s.sources);
@@ -12,12 +14,13 @@ export const GoodsStockDialog: React.FC = () => {
   const close = () => setGoodsStockDialogState({ isOpen: false });
 
   const parentRef = useRef<HTMLDivElement>(null);
+  const localizedGoodName = t(`economy.goods.names.${goodName}`, { defaultValue: goodName });
 
   return (
-    <Dialog isOpen={isOpen} title={`${goodName} — Stock`} onClose={close} className="fmg-dialog--table">
+    <Dialog isOpen={isOpen} title={`${localizedGoodName} — Stock`} onClose={close} className="fmg-dialog--table">
       <div id="goodsStockContainer">
         {sources.length === 0 ? (
-          <i>No stock of {goodName} found in any market or burg inventory.</i>
+          <i>No stock of {localizedGoodName} found in any market or burg inventory.</i>
         ) : (
           <div ref={parentRef} className="table">
             <table className="fmg-table">

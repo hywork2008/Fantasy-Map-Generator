@@ -201,6 +201,7 @@ export const GoodsEditorDialog: React.FC = () => {
               items={goods}
               scrollElementRef={parentRef}
               renderRow={good => {
+                const localizedName = t(`economy.goods.names.${good.name}`, { defaultValue: good.name });
                 const displayedProduced = isPercentageMode
                   ? `${rn(totalProduced ? (good.produced / totalProduced) * 100 : 0, 2)}%`
                   : String(good.produced);
@@ -237,7 +238,13 @@ export const GoodsEditorDialog: React.FC = () => {
                   >
                     {isAssignMode ? (
                       <td>
-                        <svg aria-label={good.name} data-tip="Good icon" width="2em" height="2em" className="goodIcon">
+                        <svg
+                          aria-label={localizedName}
+                          data-tip="Good icon"
+                          width="2em"
+                          height="2em"
+                          className="goodIcon"
+                        >
                           <circle cx="50%" cy="50%" r="42%" fill={good.color} stroke={good.strokeColor} />
                           <use href={`#${good.icon}`} x="10%" y="10%" width="80%" height="80%" />
                         </svg>
@@ -254,14 +261,20 @@ export const GoodsEditorDialog: React.FC = () => {
                             toggleDisplayedGood(good.i, e.target.checked);
                           }}
                         />
-                        <svg aria-label={good.name} data-tip="Good icon" width="2em" height="2em" className="goodIcon">
+                        <svg
+                          aria-label={localizedName}
+                          data-tip="Good icon"
+                          width="2em"
+                          height="2em"
+                          className="goodIcon"
+                        >
                           <circle cx="50%" cy="50%" r="42%" fill={good.color} stroke={good.strokeColor} />
                           <use href={`#${good.icon}`} x="10%" y="10%" width="80%" height="80%" />
                         </svg>
                       </td>
                     )}
                     <td data-tip="Good name" className="goodName">
-                      {good.name}
+                      {localizedName}
                     </td>
                     <td data-tip="Good types" className="goodType">
                       {good.types.map(t => (

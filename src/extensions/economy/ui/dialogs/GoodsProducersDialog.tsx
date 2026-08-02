@@ -1,9 +1,11 @@
 import type React from "react";
 import { useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog, VirtualTableBody } from "../../../hostUi";
 import { setGoodsProducersDialogState, useGoodsProducersDialogState } from "../../store/goodsProducersDialogState";
 
 export const GoodsProducersDialog: React.FC = () => {
+  const { t } = useTranslation();
   const isOpen = useGoodsProducersDialogState(s => s.isOpen);
   const goodName = useGoodsProducersDialogState(s => s.goodName);
   const producers = useGoodsProducersDialogState(s => s.producers);
@@ -12,12 +14,13 @@ export const GoodsProducersDialog: React.FC = () => {
   const close = () => setGoodsProducersDialogState({ isOpen: false });
 
   const parentRef = useRef<HTMLDivElement>(null);
+  const localizedGoodName = t(`economy.goods.names.${goodName}`, { defaultValue: goodName });
 
   return (
-    <Dialog isOpen={isOpen} title={`${goodName} — Producers`} onClose={close} className="fmg-dialog--table">
+    <Dialog isOpen={isOpen} title={`${localizedGoodName} — Producers`} onClose={close} className="fmg-dialog--table">
       <div id="goodsProducersContainer">
         {producers.length === 0 ? (
-          <i>No burgs produced {goodName}.</i>
+          <i>No burgs produced {localizedGoodName}.</i>
         ) : (
           <div ref={parentRef} className="table">
             <table className="fmg-table">
