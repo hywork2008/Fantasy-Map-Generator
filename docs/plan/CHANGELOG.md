@@ -4,6 +4,7 @@
 
 - docs/plan/characters/backstory-profile.md
 - docs/plan/characters/flavor-text.md
+- docs/plan/great-library.md
 
 2026-08-01
 
