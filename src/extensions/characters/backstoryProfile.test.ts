@@ -1,18 +1,24 @@
 import { describe, expect, it } from "vitest";
 import {
   applyCharacterBackstory,
+  canHaveDirectSolidarity,
   clampRelation,
   computeInitialSolidarity,
   gamblingPersonalityMult,
+  getAudienceSpheres,
   getFavor,
   getFavorBand,
   getSolidarity,
   getSolidarityBand,
   inferRoleClass,
+  isCapitalAudienceMerchant,
+  isFieldCommander,
   isWorldlyClericProfile,
   offerGift,
   seedCharacterRelations,
-  setSolidarity
+  seedRelationsWithPeers,
+  setSolidarity,
+  shouldRecordSolidarity
 } from "./backstoryProfile";
 import type { Character } from "./characterTypes";
 import { expectsClericalCelibacy, getFormPack, resolveFormPackId } from "./cultureFormPacks";
@@ -854,6 +860,257 @@ describe("seedCharacterRelations", () => {
     // Not asserting false always (8% chance), but solidarity is the main filled axis
     expect(Object.keys(a.solidarity ?? {}).length + Object.keys(b.solidarity ?? {}).length).toBeGreaterThan(0);
     void sameSexFavor;
+  });
+
+  it("never seeds solidarity between a ruler and a field commander", () => {
+    const ruler = baseCharacter({
+      i: 1,
+      name: "King",
+      location: 10,
+      titles: [{ title: "King", landed: true, entityType: "state", entityId: 1 }]
+    });
+    const fieldCommander = baseCharacter({
+      i: 2,
+      name: "Field Captain",
+      location: 10,
+      titles: [{ title: "Commander", landed: false, entityType: "state", entityId: 1 }]
+    });
+    applyCharacterBackstory(ruler, { roleClass: "ruler", capitalBurgId: 10, formName: "Monarchy" });
+    applyCharacterBackstory(fieldCommander, {
+      roleClass: "commander",
+      capitalBurgId: 10,
+      formName: "Monarchy"
+    });
+
+    seedCharacterRelations([ruler, fieldCommander]);
+    seedRelationsWithPeers(fieldCommander, [ruler, fieldCommander]);
+
+    expect(isFieldCommander(fieldCommander)).toBe(true);
+    expect(canHaveDirectSolidarity(ruler, fieldCommander)).toBe(false);
+    expect(ruler.solidarity?.[2]).toBeUndefined();
+    expect(fieldCommander.solidarity?.[1]).toBeUndefined();
+  });
+
+  it("still allows ruler solidarity with a court Marshal", () => {
+    const ruler = baseCharacter({
+      i: 1,
+      name: "King",
+      location: 10,
+      titles: [{ title: "King", landed: true, entityType: "state", entityId: 1 }]
+    });
+    const marshal = baseCharacter({
+      i: 2,
+      name: "Marshal",
+      location: 10,
+      titles: [{ title: "Marshal", landed: false, entityType: "state", entityId: 1 }]
+    });
+    applyCharacterBackstory(ruler, { roleClass: "ruler", capitalBurgId: 10, formName: "Monarchy" });
+    applyCharacterBackstory(marshal, { roleClass: "commander", capitalBurgId: 10, formName: "Monarchy" });
+
+    seedCharacterRelations([ruler, marshal]);
+
+    expect(isFieldCommander(marshal)).toBe(false);
+    expect(canHaveDirectSolidarity(ruler, marshal)).toBe(true);
+    expect(ruler.solidarity?.[2]).toBeDefined();
+    expect(marshal.solidarity?.[1]).toBeDefined();
+  });
+
+  it("records field-commander peers only when the score is strong", () => {
+    const commander = baseCharacter({
+      i: 1,
+      name: "Commander",
+      titles: [{ title: "Commander", landed: false, entityType: "state", entityId: 1 }]
+    });
+    const admiral = baseCharacter({
+      i: 2,
+      name: "Admiral",
+      titles: [{ title: "Admiral", landed: false, entityType: "state", entityId: 1 }]
+    });
+
+    expect(shouldRecordSolidarity(4, commander, admiral)).toBe(false);
+    expect(shouldRecordSolidarity(10, commander, admiral)).toBe(true);
+    expect(shouldRecordSolidarity(-12, commander, admiral)).toBe(true);
+  });
+
+  it("blocks ordinary merchants from ruler solidarity but allows capital market heads", () => {
+    const ruler = baseCharacter({
+      i: 1,
+      name: "King",
+      location: 10,
+      titles: [{ title: "King", landed: true, entityType: "state", entityId: 1 }]
+    });
+    const capitalHead = baseCharacter({
+      i: 2,
+      name: "Capital Merchant Prince",
+      location: 10,
+      roles: [
+        {
+          source: "economy",
+          kind: "marketManager",
+          entityType: "market",
+          entityId: 3,
+          label: "Market Manager"
+        }
+      ]
+    });
+    const rival = baseCharacter({
+      i: 3,
+      name: "Rival Trader",
+      location: 10,
+      roles: [
+        {
+          source: "economy",
+          kind: "marketRivalMerchant",
+          entityType: "market",
+          entityId: 3,
+          label: "Market Rival Merchant"
+        }
+      ]
+    });
+    const provincialGuild = baseCharacter({
+      i: 4,
+      name: "Guild Master",
+      location: 99,
+      roles: [
+        {
+          source: "economy",
+          kind: "guildMaster",
+          entityType: "burg",
+          entityId: 99,
+          label: "Guild Master",
+          domain: "textiles"
+        }
+      ]
+    });
+
+    applyCharacterBackstory(ruler, { roleClass: "ruler", capitalBurgId: 10, formName: "Monarchy" });
+    applyCharacterBackstory(capitalHead, {
+      roleClass: "merchant",
+      capitalBurgId: 10,
+      homeBurgId: 10,
+      birthBurgId: 10
+    });
+    applyCharacterBackstory(rival, {
+      roleClass: "merchant",
+      capitalBurgId: 10,
+      homeBurgId: 10,
+      birthBurgId: 10
+    });
+    applyCharacterBackstory(provincialGuild, {
+      roleClass: "merchant",
+      capitalBurgId: 10,
+      homeBurgId: 99,
+      birthBurgId: 99
+    });
+
+    expect(isCapitalAudienceMerchant(capitalHead, ruler)).toBe(true);
+    expect(isCapitalAudienceMerchant(rival, ruler)).toBe(false);
+    expect(isCapitalAudienceMerchant(provincialGuild, ruler)).toBe(false);
+    expect(canHaveDirectSolidarity(ruler, capitalHead)).toBe(true);
+    expect(canHaveDirectSolidarity(ruler, rival)).toBe(false);
+    expect(canHaveDirectSolidarity(ruler, provincialGuild)).toBe(false);
+
+    seedCharacterRelations([ruler, capitalHead, rival, provincialGuild]);
+
+    expect(ruler.solidarity?.[2]).toBeDefined();
+    expect(capitalHead.solidarity?.[1]).toBeDefined();
+    expect(ruler.solidarity?.[3]).toBeUndefined();
+    expect(ruler.solidarity?.[4]).toBeUndefined();
+    expect(rival.solidarity?.[1]).toBeUndefined();
+    expect(provincialGuild.solidarity?.[1]).toBeUndefined();
+  });
+
+  it("matches office portfolios: Marshal meets commanders, Chancellor meets merchants", () => {
+    const chancellor = baseCharacter({
+      i: 1,
+      name: "Chancellor",
+      location: 10,
+      titles: [{ title: "Chancellor", landed: false, entityType: "state", entityId: 1 }]
+    });
+    const marshal = baseCharacter({
+      i: 2,
+      name: "Marshal",
+      location: 10,
+      titles: [{ title: "Marshal", landed: false, entityType: "state", entityId: 1 }]
+    });
+    const steward = baseCharacter({
+      i: 3,
+      name: "Steward",
+      location: 10,
+      titles: [{ title: "Steward", landed: false, entityType: "state", entityId: 1 }]
+    });
+    const spymaster = baseCharacter({
+      i: 4,
+      name: "Spymaster",
+      location: 10,
+      titles: [{ title: "Spymaster", landed: false, entityType: "state", entityId: 1 }]
+    });
+    const fieldCommander = baseCharacter({
+      i: 5,
+      name: "Field Captain",
+      location: 10,
+      titles: [{ title: "Commander", landed: false, entityType: "state", entityId: 1 }]
+    });
+    const capitalHead = baseCharacter({
+      i: 6,
+      name: "Capital Merchant Prince",
+      location: 10,
+      roles: [
+        {
+          source: "economy",
+          kind: "merchantOrganizationHead",
+          entityType: "burg",
+          entityId: 10,
+          label: "Merchant Company Head",
+          organizationId: 1
+        }
+      ]
+    });
+
+    applyCharacterBackstory(chancellor, { roleClass: "central_officer", capitalBurgId: 10 });
+    applyCharacterBackstory(marshal, { roleClass: "commander", capitalBurgId: 10 });
+    applyCharacterBackstory(steward, { roleClass: "central_officer", capitalBurgId: 10 });
+    applyCharacterBackstory(spymaster, { roleClass: "central_officer", capitalBurgId: 10 });
+    applyCharacterBackstory(fieldCommander, { roleClass: "commander", capitalBurgId: 10 });
+    applyCharacterBackstory(capitalHead, {
+      roleClass: "merchant",
+      capitalBurgId: 10,
+      homeBurgId: 10,
+      birthBurgId: 10
+    });
+
+    expect([...getAudienceSpheres(chancellor)].sort()).toEqual(["commerce", "court"]);
+    expect([...getAudienceSpheres(marshal)].sort()).toEqual(["court", "military"]);
+    expect([...getAudienceSpheres(fieldCommander)]).toEqual(["military"]);
+    expect([...getAudienceSpheres(capitalHead)]).toEqual(["commerce"]);
+
+    // Commanders report to the war portfolio, not the chancery / spy network.
+    expect(canHaveDirectSolidarity(marshal, fieldCommander)).toBe(true);
+    expect(canHaveDirectSolidarity(chancellor, fieldCommander)).toBe(false);
+    expect(canHaveDirectSolidarity(steward, fieldCommander)).toBe(false);
+    expect(canHaveDirectSolidarity(spymaster, fieldCommander)).toBe(false);
+
+    // Capital merchants deal with commerce portfolios, not the Marshal.
+    expect(canHaveDirectSolidarity(chancellor, capitalHead)).toBe(true);
+    expect(canHaveDirectSolidarity(steward, capitalHead)).toBe(true);
+    expect(canHaveDirectSolidarity(marshal, capitalHead)).toBe(false);
+    expect(canHaveDirectSolidarity(spymaster, capitalHead)).toBe(false);
+
+    // Court peers still meet each other.
+    expect(canHaveDirectSolidarity(chancellor, marshal)).toBe(true);
+    expect(canHaveDirectSolidarity(chancellor, spymaster)).toBe(true);
+
+    seedCharacterRelations([chancellor, marshal, steward, spymaster, fieldCommander, capitalHead]);
+
+    expect(marshal.solidarity?.[5]).toBeDefined();
+    expect(fieldCommander.solidarity?.[2]).toBeDefined();
+    expect(chancellor.solidarity?.[5]).toBeUndefined();
+    expect(fieldCommander.solidarity?.[1]).toBeUndefined();
+
+    expect(chancellor.solidarity?.[6]).toBeDefined();
+    expect(steward.solidarity?.[6]).toBeDefined();
+    expect(marshal.solidarity?.[6]).toBeUndefined();
+    expect(spymaster.solidarity?.[6]).toBeUndefined();
   });
 });
 

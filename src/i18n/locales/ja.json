@@ -263,6 +263,12 @@
     "solidarityHint": "同僚・ライバル・脅威としての評価。恋愛・性的関心ではありません。",
     "noSolidarity": "記録された連帯感はまだありません。",
     "solidarityEntry": "{{score}}（{{band}}）",
+    "score": "数値",
+    "relation": "関係",
+    "titleOrRole": "役職",
+    "sameCountry": "同国人",
+    "yes": "はい",
+    "no": "いいえ",
     "solidarityBand": {
       "bonded": "深い絆",
       "solid": "堅い連帯",

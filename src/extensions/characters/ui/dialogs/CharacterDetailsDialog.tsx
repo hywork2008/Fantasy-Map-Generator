@@ -8,11 +8,24 @@ import { hasNobilityContext } from "../../../nobility/nobilityContext";
 import { usePlayerCharacterState } from "../../../nobility/store/playerCharacterState";
 import { getFavorBand, getSolidarityBand } from "../../backstoryProfile";
 import { getApi, getCharacters, getWorldContext } from "../../charactersContext";
-import type { CharacterRole, TitleHolding } from "../../characterTypes";
+import type { Character, CharacterRole, TitleHolding } from "../../characterTypes";
 import { formatFlavorHook } from "../../flavorHooks";
 import { getCharacterRoleLabel, getCharacterTitleLabel } from "../../utils/characterLabels";
 import { useCharactersUiState } from "../charactersUiState";
 import { RadarChart } from "../components/charts/RadarChart";
+
+/** Primary office label for overview/relation tables (first title, else first role). */
+function getOfficeLabel(character: Character): string {
+  const holding = character.titles[0];
+  if (holding) return getCharacterTitleLabel(holding.title);
+  const role = character.roles?.[0];
+  return role ? getCharacterRoleLabel(role) : "";
+}
+
+/** State used for “same country” checks: nationality when known, else affiliation. */
+function getCountryStateId(character: Character): number {
+  return character.nationalityStateId ?? character.state;
+}
 
 // Economy's `markets` no longer augments PackedGraph's type (see
 // src/extensions/economy/types.ts); read it structurally instead of importing Economy.
@@ -345,13 +358,29 @@ export const CharacterDetailsDialog: React.FC = () => {
 
     if (solidarityEntries.length > 0) {
       rows.push(t("characters.characterSolidarity"));
+      rows.push(
+        [
+          t("characters.name"),
+          t("characters.score"),
+          t("characters.relation"),
+          t("characters.titleOrRole"),
+          t("characters.socialStratum"),
+          t("characters.sameCountry")
+        ].join(", ")
+      );
       for (const { other, score } of solidarityEntries) {
         const band = getSolidarityBand(score);
+        const sameCountry = getCountryStateId(character) === getCountryStateId(other);
+        const stratum = other.backstory?.origin.socialStratum;
         rows.push(
-          `${other.name}, ${t("characters.solidarityEntry", {
-            score,
-            band: t(`characters.solidarityBand.${band}`)
-          })}`
+          [
+            other.name,
+            String(score),
+            t(`characters.solidarityBand.${band}`),
+            getOfficeLabel(other) || t("characters.notAvailable"),
+            stratum ? t(`characters.socialStratumNames.${stratum}`) : t("characters.notAvailable"),
+            sameCountry ? t("characters.yes") : t("characters.no")
+          ].join(", ")
         );
       }
     }
@@ -784,39 +813,58 @@ export const CharacterDetailsDialog: React.FC = () => {
         <h3>{t("characters.characterSolidarity")}</h3>
         <p style={{ marginTop: 0, color: "#868e96", fontSize: "0.9em" }}>{t("characters.solidarityHint")}</p>
         {solidarityEntries.length > 0 ? (
-          <ul>
-            {solidarityEntries.map(({ other, score }) => {
-              const band = getSolidarityBand(score);
-              return (
-                <li key={`sol-${other.i}`}>
-                  <button
-                    type="button"
-                    className="pointer"
-                    data-tip={t("characters.openCharacterDetails")}
-                    onClick={() => handleOpenLinkedCharacter(other.i)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      padding: 0,
-                      margin: 0,
-                      color: "inherit",
-                      font: "inherit",
-                      fontWeight: "bold",
-                      textDecoration: "underline",
-                      cursor: "pointer"
-                    }}
-                  >
-                    {other.name}
-                  </button>
-                  {": "}
-                  {t("characters.solidarityEntry", {
-                    score,
-                    band: t(`characters.solidarityBand.${band}`)
-                  })}
-                </li>
-              );
-            })}
-          </ul>
+          <div style={{ overflow: "auto", maxHeight: "280px", marginBottom: "10px" }}>
+            <table className="fmg-table character-details__table character-details__relation-table">
+              <thead>
+                <tr>
+                  <th>{t("characters.name")}</th>
+                  <th style={{ textAlign: "right" }}>{t("characters.score")}</th>
+                  <th>{t("characters.relation")}</th>
+                  <th>{t("characters.titleOrRole")}</th>
+                  <th>{t("characters.socialStratum")}</th>
+                  <th>{t("characters.sameCountry")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {solidarityEntries.map(({ other, score }) => {
+                  const band = getSolidarityBand(score);
+                  const office = getOfficeLabel(other);
+                  const sameCountry = getCountryStateId(character) === getCountryStateId(other);
+                  const stratum = other.backstory?.origin.socialStratum;
+                  return (
+                    <tr key={`sol-${other.i}`}>
+                      <td>
+                        <button
+                          type="button"
+                          className="pointer"
+                          data-tip={t("characters.openCharacterDetails")}
+                          onClick={() => handleOpenLinkedCharacter(other.i)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            padding: 0,
+                            margin: 0,
+                            color: "inherit",
+                            font: "inherit",
+                            fontWeight: "bold",
+                            textDecoration: "underline",
+                            cursor: "pointer"
+                          }}
+                        >
+                          {other.name}
+                        </button>
+                      </td>
+                      <td style={{ textAlign: "right" }}>{score}</td>
+                      <td>{t(`characters.solidarityBand.${band}`)}</td>
+                      <td>{office || t("characters.notAvailable")}</td>
+                      <td>{stratum ? t(`characters.socialStratumNames.${stratum}`) : t("characters.notAvailable")}</td>
+                      <td>{sameCountry ? t("characters.yes") : t("characters.no")}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <p>{t("characters.noSolidarity")}</p>
         )}

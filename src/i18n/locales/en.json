@@ -263,6 +263,12 @@
     "solidarityHint": "How this person regards others as colleagues, rivals, or threats — not romance.",
     "noSolidarity": "No solidarity scores recorded yet.",
     "solidarityEntry": "{{score}} ({{band}})",
+    "score": "Score",
+    "relation": "Relation",
+    "titleOrRole": "Title / Role",
+    "sameCountry": "Same Country",
+    "yes": "Yes",
+    "no": "No",
     "solidarityBand": {
       "bonded": "Bonded",
       "solid": "Solid",

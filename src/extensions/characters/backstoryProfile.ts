@@ -3,11 +3,13 @@
  * Spec: docs/plan/characters/backstory-profile.md
  */
 import { P, rand } from "../hostUtils";
+import { getWorldContext, hasCharactersContext } from "./charactersContext";
 import type {
   Character,
   CharacterBackstory,
   CharacterCommitment,
   CharacterOrigin,
+  CharacterRole,
   CharacterRoleClass,
   CharacterTaste,
   CommitmentFocus,
@@ -1342,15 +1344,225 @@ export function applyCharacterBackstory(character: Character, options: ApplyBack
 // Solidarity (political) + Favor (romantic) seeding
 // ---------------------------------------------------------------------------
 
+/** Absolute score at or above this always warrants recording a solidarity edge. */
+const STRONG_SOLIDARITY_THRESHOLD = 10;
+
+/** Field regiment/fleet command titles — not central court martial offices (Marshal). */
+const FIELD_COMMAND_TITLE_RE = /^(Commander|Admiral)$/i;
+
+/** Court-side martial offices that still belong in the power-player clique. */
+const COURT_MARTIAL_TITLE_RE = /^(Marshal|General|Minister of War)$/i;
+
+/** Economy role kinds that mark the top commercial power of a market. */
+const CAPITAL_AUDIENCE_MERCHANT_ROLE_KINDS = new Set(["marketManager", "merchantOrganizationHead"]);
+
+/**
+ * Who routinely meets whom, by portfolio.
+ * - court: council / crown peers
+ * - military: Marshal ↔ field commanders, frontier lords
+ * - commerce: Chancellor/Steward/ruler ↔ capital top merchants
+ * - faith: chaplains and clergy
+ */
+export type AudienceSphere = "court" | "military" | "commerce" | "faith";
+
 function isMilitaryRole(character: Character): boolean {
   const cls = inferRoleClass(character);
   if (cls === "commander" || cls === "ruler") return true;
   return character.titles.some(t => isMartialCommandTitle(t.title) || /Marshal|War|General|Admiral/i.test(t.title));
 }
 
+/**
+ * Court / provincial power holders who always share a thin institutional solidarity edge.
+ * Field Commander/Admiral are intentionally excluded — they sit under the Marshal, not the crown.
+ */
 function isCourtPowerPlayer(character: Character): boolean {
   const cls = inferRoleClass(character);
-  return cls === "ruler" || cls === "central_officer" || cls === "commander" || cls === "province_lord";
+  if (cls === "ruler" || cls === "central_officer" || cls === "province_lord") return true;
+  // Marshal/General keep court standing even though inferRoleClass maps them to "commander".
+  return character.titles.some(t => COURT_MARTIAL_TITLE_RE.test(t.title));
+}
+
+/** Regiment/fleet officer (Commander/Admiral), as opposed to court Marshal. */
+export function isFieldCommander(character: Character): boolean {
+  return character.titles.some(t => FIELD_COMMAND_TITLE_RE.test(t.title));
+}
+
+/** Court war portfolio (Marshal / General / Minister of War). */
+export function isCourtMartialOfficer(character: Character): boolean {
+  return character.titles.some(t => COURT_MARTIAL_TITLE_RE.test(t.title));
+}
+
+function isRulerCharacter(character: Character): boolean {
+  return inferRoleClass(character) === "ruler";
+}
+
+function isMerchantCharacter(character: Character): boolean {
+  return inferRoleClass(character) === "merchant";
+}
+
+function isDiplomaticOfficeTitle(title: string): boolean {
+  return /Chancellor|Foreign Affairs|Diplomat|Envoy|Secretary of State/i.test(title);
+}
+
+function isStewardshipOfficeTitle(title: string): boolean {
+  return /^(Steward|Prime Minister|Minister of Finance|Treasurer)$/i.test(title) || /Finance|Treasury/i.test(title);
+}
+
+function isFaithOfficeTitle(title: string): boolean {
+  return /Chaplain|Priest|Priestess|Bishop|Cleric|Imam|Dean|Vicar|Patriarch|Pontiff/i.test(title);
+}
+
+/**
+ * Portfolio spheres for contact filtering. Overlap is required before solidarity can seed.
+ * Rulers deliberately lack "military" so field commanders report via the Marshal.
+ */
+export function getAudienceSpheres(character: Character): ReadonlySet<AudienceSphere> {
+  const spheres = new Set<AudienceSphere>();
+  const cls = inferRoleClass(character);
+
+  if (isFieldCommander(character)) {
+    spheres.add("military");
+    return spheres;
+  }
+
+  if (isMerchantCharacter(character)) {
+    spheres.add("commerce");
+    return spheres;
+  }
+
+  if (cls === "ruler") {
+    spheres.add("court");
+    spheres.add("commerce"); // rare audiences with the capital market head only
+    spheres.add("faith");
+    return spheres;
+  }
+
+  if (cls === "province_lord") {
+    spheres.add("court");
+    spheres.add("military");
+    return spheres;
+  }
+
+  if (cls === "religious") {
+    spheres.add("faith");
+    if (character.titles.some(t => t.entityType === "state")) spheres.add("court");
+    return spheres;
+  }
+
+  if (isCourtPowerPlayer(character) || cls === "central_officer" || cls === "commander") {
+    spheres.add("court");
+    for (const holding of character.titles) {
+      const title = holding.title;
+      if (isCourtMartialOfficer(character) || COURT_MARTIAL_TITLE_RE.test(title)) spheres.add("military");
+      if (isDiplomaticOfficeTitle(title) || isStewardshipOfficeTitle(title)) spheres.add("commerce");
+      if (isFaithOfficeTitle(title)) spheres.add("faith");
+    }
+  }
+
+  // Unmapped state titles still sit at court rather than becoming universal contacts.
+  if (spheres.size === 0 && isCentralGovernment(character)) {
+    spheres.add("court");
+  }
+
+  return spheres;
+}
+
+function spheresIntersect(a: Character, b: Character): boolean {
+  const sa = getAudienceSpheres(a);
+  const sb = getAudienceSpheres(b);
+  for (const sphere of sa) {
+    if (sb.has(sphere)) return true;
+  }
+  return false;
+}
+
+function hasAudienceSphere(character: Character, sphere: AudienceSphere): boolean {
+  return getAudienceSpheres(character).has(sphere);
+}
+
+function resolveStateCapitalBurgId(character: Character): number | undefined {
+  if (hasCharactersContext()) {
+    const pack = getWorldContext().pack;
+    const capital = pack.states?.[character.state]?.capital;
+    if (typeof capital === "number") return capital;
+  }
+  if (isRulerCharacter(character)) {
+    return character.location ?? character.backstory?.origin.homeBurgId ?? character.backstory?.origin.birthBurgId;
+  }
+  // Central officers are generated at the capital; use that as a test-friendly fallback.
+  return character.location ?? character.backstory?.origin.homeBurgId;
+}
+
+function resolveCapitalMarketId(capitalBurgId: number): number | undefined {
+  if (!hasCharactersContext()) return undefined;
+  const burg = getWorldContext().pack.burgs?.[capitalBurgId];
+  return typeof burg?.market === "number" ? burg.market : undefined;
+}
+
+function isTopMerchantRoleForCapital(
+  role: CharacterRole,
+  capitalBurgId: number,
+  capitalMarketId: number | undefined
+): boolean {
+  if (!CAPITAL_AUDIENCE_MERCHANT_ROLE_KINDS.has(role.kind)) return false;
+  if (role.entityType === "market") {
+    return capitalMarketId === undefined || role.entityId === capitalMarketId;
+  }
+  if (role.entityType === "burg") {
+    return role.entityId === capitalBurgId;
+  }
+  return false;
+}
+
+/**
+ * Leading merchant of the capital's market (market manager / company head).
+ * Used for audiences with the crown and with commercial-portfolio officers
+ * (Chancellor, Steward, Finance) — not guilds, rivals, or provincial traders.
+ */
+export function isCapitalAudienceMerchant(merchant: Character, counterpart: Character): boolean {
+  if (!isMerchantCharacter(merchant)) return false;
+  if (merchant.state !== counterpart.state || merchant.state === 0) return false;
+  if (!hasAudienceSphere(counterpart, "commerce")) return false;
+
+  const capitalBurgId = resolveStateCapitalBurgId(counterpart);
+  if (capitalBurgId === undefined) return false;
+
+  const capitalMarketId = resolveCapitalMarketId(capitalBurgId);
+  const roles = merchant.roles ?? [];
+  if (!roles.some(role => isTopMerchantRoleForCapital(role, capitalBurgId, capitalMarketId))) {
+    return false;
+  }
+
+  // When market ids are unknown (unit tests without pack), require capital residence/home.
+  if (capitalMarketId === undefined) {
+    const home = merchant.backstory?.origin.homeBurgId ?? merchant.location;
+    if (home !== capitalBurgId) return false;
+  }
+
+  return true;
+}
+
+/**
+ * Hard contact rules for initial solidarity seeding, by office portfolio.
+ * Does not replace score computation — only whether an edge may exist at all.
+ *
+ * Examples:
+ * - Marshal meets field commanders; Chancellor does not.
+ * - Chancellor/Steward meet capital top merchants; Marshal does not.
+ * - Court officers still meet each other via the shared "court" sphere.
+ */
+export function canHaveDirectSolidarity(a: Character, b: Character): boolean {
+  if (a.i === b.i) return false;
+  if (!spheresIntersect(a, b)) return false;
+
+  // Merchants only meet commerce-portfolio officials (and the crown), and only capital top power.
+  if (isMerchantCharacter(a) !== isMerchantCharacter(b)) {
+    const merchant = isMerchantCharacter(a) ? a : b;
+    const official = isMerchantCharacter(a) ? b : a;
+    return isCapitalAudienceMerchant(merchant, official);
+  }
+
+  return true;
 }
 
 function isCentralGovernment(character: Character): boolean {
@@ -1555,10 +1767,28 @@ export function computeInitialSolidarity(from: Character, to: Character): number
   return clampRelation(score);
 }
 
-function shouldRecordSolidarity(score: number, a: Character, b: Character): boolean {
-  if (Math.abs(score) >= 10) return true;
+/**
+ * Whether a computed solidarity score should be persisted for the pair.
+ * Field commanders are never court-power auto-edges — they need a strong score,
+ * a Marshal chain-of-command link, or shared birthplace (when contact is allowed).
+ */
+export function shouldRecordSolidarity(score: number, a: Character, b: Character): boolean {
+  if (!canHaveDirectSolidarity(a, b)) return false;
+
+  if (Math.abs(score) >= STRONG_SOLIDARITY_THRESHOLD) return true;
   if (isCourtPowerPlayer(a) && isCourtPowerPlayer(b)) return true;
-  if (a.titles.length > 0 && b.titles.length > 0) return true;
+  // Marshal (etc.) ↔ field command is an institutional reporting line.
+  if ((isFieldCommander(a) && isCourtMartialOfficer(b)) || (isFieldCommander(b) && isCourtMartialOfficer(a))) {
+    return true;
+  }
+  // Capital market head audience with commerce-portfolio officials or the crown.
+  if (isCapitalAudienceMerchant(a, b) || isCapitalAudienceMerchant(b, a)) {
+    return true;
+  }
+  // Titled peers still auto-record, but field commanders are sparse (strong score only).
+  if (a.titles.length > 0 && b.titles.length > 0 && !isFieldCommander(a) && !isFieldCommander(b)) {
+    return true;
+  }
   const ao = a.backstory?.origin;
   const bo = b.backstory?.origin;
   if (ao?.birthBurgId && ao.birthBurgId === bo?.birthBurgId) return true;
@@ -1590,6 +1820,33 @@ export function computeRomanticFavor(from: Character, to: Character): number | n
   return clampRelation(score);
 }
 
+/**
+ * `setSolidarity` treats 0 as "delete edge" (sparse map). When contact is real but the
+ * roll lands on neutral, keep a ±1 stub so the relationship remains visible.
+ */
+function materializeRecordedSolidarity(score: number): number {
+  const clamped = clampRelation(score);
+  if (clamped !== 0) return clamped;
+  return P(0.5) ? 1 : -1;
+}
+
+function trySeedSolidarityPair(a: Character, b: Character): void {
+  if (!canHaveDirectSolidarity(a, b)) return;
+  const ab = computeInitialSolidarity(a, b);
+  const ba = computeInitialSolidarity(b, a);
+  if (shouldRecordSolidarity(ab, a, b) || shouldRecordSolidarity(ba, b, a)) {
+    setSolidarity(a, b.i, materializeRecordedSolidarity(ab));
+    setSolidarity(b, a.i, materializeRecordedSolidarity(ba));
+  }
+}
+
+function trySeedRomanticFavorPair(a: Character, b: Character): void {
+  const fab = computeRomanticFavor(a, b);
+  if (fab !== null) setFavor(a, b.i, fab);
+  const fba = computeRomanticFavor(b, a);
+  if (fba !== null) setFavor(b, a.i, fba);
+}
+
 /** Seed solidarity (and sparse romantic favor) for same-state pairs. */
 export function seedCharacterRelations(characters: Character[]): void {
   const living = characters.filter(c => !c.dead);
@@ -1605,16 +1862,8 @@ export function seedCharacterRelations(characters: Character[]): void {
       for (let j = i + 1; j < group.length; j++) {
         const a = group[i]!;
         const b = group[j]!;
-        const ab = computeInitialSolidarity(a, b);
-        const ba = computeInitialSolidarity(b, a);
-        if (shouldRecordSolidarity(ab, a, b) || shouldRecordSolidarity(ba, b, a)) {
-          setSolidarity(a, b.i, ab);
-          setSolidarity(b, a.i, ba);
-        }
-        const fab = computeRomanticFavor(a, b);
-        if (fab !== null) setFavor(a, b.i, fab);
-        const fba = computeRomanticFavor(b, a);
-        if (fba !== null) setFavor(b, a.i, fba);
+        trySeedSolidarityPair(a, b);
+        trySeedRomanticFavorPair(a, b);
       }
     }
   }
@@ -1628,16 +1877,8 @@ export function seedRelationsWithPeers(character: Character, allCharacters: Char
   if (character.dead) return;
   for (const other of allCharacters) {
     if (other.dead || other.i === character.i || other.state !== character.state) continue;
-    const ab = computeInitialSolidarity(character, other);
-    const ba = computeInitialSolidarity(other, character);
-    if (shouldRecordSolidarity(ab, character, other) || shouldRecordSolidarity(ba, other, character)) {
-      setSolidarity(character, other.i, ab);
-      setSolidarity(other, character.i, ba);
-    }
-    const fab = computeRomanticFavor(character, other);
-    if (fab !== null) setFavor(character, other.i, fab);
-    const fba = computeRomanticFavor(other, character);
-    if (fba !== null) setFavor(other, character.i, fba);
+    trySeedSolidarityPair(character, other);
+    trySeedRomanticFavorPair(character, other);
   }
 }
 
