@@ -44,6 +44,8 @@ export function getBurgEconomySummary(burgId: number): BurgEconomySummary | null
     serviceEmploymentDemand: employmentSummary ? `${rn(employmentSummary.serviceEmploymentDemand, 1)}` : "—",
     dwellings: housing ? `${rn(housing.dwellingStock, 1)} / ${housing.requiredDwellings}` : "—",
     housingGap: housing ? `${rn(housing.housingBacklog * 100, 1)}%` : "—",
+    underConstruction: housing ? (housing.underConstruction > 0 ? `${rn(housing.underConstruction, 1)}` : "0") : "—",
+    constructionWorkers: housing ? `${rn(housing.constructionWorkers, 1)}` : "—",
     pregnant: formatPregnantHeadcount(burgId),
     expectedBirths: formatExpectedBirthsLowerBound(burgId),
     settlementValue: (() => {

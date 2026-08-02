@@ -39,7 +39,7 @@ const WOOD_PER_CARPENTER_WORKER_ANNUAL = 10;
  */
 const ROMAN_CONCRETE_STONE_EFFICIENCY = 2;
 /** Share of the remaining housing gap a fully-staffed, fully-supplied operation closes in one year. */
-const BASE_ANNUAL_STOCK_GROWTH = 0.25;
+export const BASE_ANNUAL_STOCK_GROWTH = 0.25;
 /**
  * Floor on the annual `effectiveCapacity` ceiling: undeveloped towns still reach half capacity.
  */
@@ -180,10 +180,42 @@ export function getConstructionProductivityMultiplier(
   return MIN_CAPACITY_SHARE + (1 - MIN_CAPACITY_SHARE) * clamp01(operation.buildingStock);
 }
 
+/**
+ * Estimate dwellings currently under construction (pipeline, not a stored stock).
+ *
+ * Model: at full labor coverage, annual completions ≈ gap × BASE_ANNUAL_STOCK_GROWTH (25%).
+ * Treat one year of that throughput as concurrent new-build volume (medieval house cycle
+ * roughly months–year). Material shortages are not folded in here — UI tip notes the estimate
+ * is labor-limited; materials can only slow further.
+ */
+export function estimateDwellingsUnderConstruction(args: {
+  dwellingStock: number;
+  requiredDwellings: number;
+  masonWorkers: number;
+  carpenterWorkers: number;
+  requiredMason: number;
+  requiredCarpenter: number;
+}): number {
+  const gap = Math.max(0, args.requiredDwellings - Math.max(0, args.dwellingStock));
+  if (gap <= 0) return 0;
+  const needLabor = Math.max(0, args.requiredMason) + Math.max(0, args.requiredCarpenter);
+  const haveLabor = Math.max(0, args.masonWorkers) + Math.max(0, args.carpenterWorkers);
+  // Upkeep-only ops (needLabor ≈ base headcount) still produce some throughput when staffed.
+  const laborFactor = needLabor > 0 ? Math.min(1, haveLabor / needLabor) : haveLabor > 0 ? 1 : 0;
+  return Math.max(0, rn(gap * BASE_ANNUAL_STOCK_GROWTH * laborFactor, 1));
+}
+
 /** Debug/summary snapshot of housing ledger for a construction op + burg. */
 export function getHousingLedgerSnapshot(
   operation: ConstructionOperation | LegacyConstructionOperation | undefined,
-  burg: { population?: number } | undefined,
+  burg:
+    | {
+        population?: number;
+        culture?: number;
+        type?: CultureType | string;
+        demographics?: { maleAdults?: number; femaleAdults?: number };
+      }
+    | undefined,
   populationRate: number
 ): {
   dwellingStock: number;
@@ -191,16 +223,36 @@ export function getHousingLedgerSnapshot(
   households: number;
   housingBacklog: number;
   buildingStock: number;
+  /** Estimated new dwellings in the construction pipeline (labor-limited). */
+  underConstruction: number;
+  /** Assigned mason + carpenter headcount (population points). */
+  constructionWorkers: number;
 } | null {
   if (!operation || !burg) return null;
   const normalized = normalizeConstructionOperation({ ...operation }, burg, populationRate);
   const required = getRequiredDwellings(burg.population ?? 0, populationRate);
+  const adults = Math.max(0, (burg.demographics?.maleAdults ?? 0) + (burg.demographics?.femaleAdults ?? 0));
+  const workersNeeded = getConstructionRequiredWorkers({ ...normalized, requiredDwellings: required }, adults, {
+    cultureType: resolveBurgCultureType(burg),
+    highFantasy: useOptionsState.getState().culturesSet === "highFantasy",
+    brickAvailable: isBrickGoodAvailable()
+  });
+  const underConstruction = estimateDwellingsUnderConstruction({
+    dwellingStock: normalized.dwellingStock,
+    requiredDwellings: required,
+    masonWorkers: normalized.masonWorkers,
+    carpenterWorkers: normalized.carpenterWorkers,
+    requiredMason: workersNeeded.mason,
+    requiredCarpenter: workersNeeded.carpenter
+  });
   return {
     dwellingStock: rn(normalized.dwellingStock, 2),
     requiredDwellings: required,
     households: rn(getHouseholds(burg.population ?? 0, populationRate), 2),
     housingBacklog: rn(getHousingBacklog(normalized.dwellingStock, required), 4),
-    buildingStock: rn(normalized.buildingStock, 4)
+    buildingStock: rn(normalized.buildingStock, 4),
+    underConstruction,
+    constructionWorkers: rn(normalized.masonWorkers + normalized.carpenterWorkers, 1)
   };
 }
 

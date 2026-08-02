@@ -221,6 +221,18 @@ export const BurgEditorDialog: React.FC = () => {
                   <span id="burgHousingGap">{burgData.housingGap}</span>
                 </td>
               </tr>
+              <tr data-tip="Housing: estimated new dwellings under construction this year (labor-limited; ~25% of the remaining gap when fully staffed). Material shortages can slow real progress further.">
+                <th scope="row">Under construction</th>
+                <td>
+                  <span id="burgUnderConstruction">{burgData.underConstruction}</span>
+                </td>
+              </tr>
+              <tr data-tip="Housing: mason + carpenter workers assigned to this burg (adult population points).">
+                <th scope="row">Construction workers</th>
+                <td>
+                  <span id="burgConstructionWorkers">{burgData.constructionWorkers}</span>
+                </td>
+              </tr>
               <tr data-tip="Demography: estimated pregnant women (urban pregnancy pipeline). Economy enabled only; forts excluded.">
                 <th scope="row">Pregnant</th>
                 <td>

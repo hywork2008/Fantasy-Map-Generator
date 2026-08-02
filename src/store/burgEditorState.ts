@@ -31,6 +31,8 @@ export interface BurgData {
   serviceEmploymentDemand: string;
   dwellings: string;
   housingGap: string;
+  underConstruction: string;
+  constructionWorkers: string;
   pregnant: string;
   expectedBirths: string;
   settlementValue: string;

@@ -44,6 +44,8 @@ describe("getBurgEconomySummary employment fields (Phase 5)", () => {
     expect(summary?.serviceEmploymentDemand).toBe("18.5");
     expect(summary?.dwellings).toBe("—");
     expect(summary?.housingGap).toBe("—");
+    expect(summary?.underConstruction).toBe("—");
+    expect(summary?.constructionWorkers).toBe("—");
     expect(summary?.pregnant).toBe("—");
     expect(summary?.expectedBirths).toBe("—");
     expect(summary?.settlementValue).toBe("—");
@@ -56,6 +58,8 @@ describe("getBurgEconomySummary employment fields (Phase 5)", () => {
     expect(summary?.serviceEmploymentDemand).toBe("—");
     expect(summary?.dwellings).toBe("—");
     expect(summary?.housingGap).toBe("—");
+    expect(summary?.underConstruction).toBe("—");
+    expect(summary?.constructionWorkers).toBe("—");
     expect(summary?.pregnant).toBe("—");
     expect(summary?.expectedBirths).toBe("—");
     expect(summary?.settlementValue).toBe("—");

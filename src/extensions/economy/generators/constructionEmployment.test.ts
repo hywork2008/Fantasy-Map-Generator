@@ -14,7 +14,9 @@ import {
   setQuarryOperations
 } from "../economyContext";
 import {
+  BASE_ANNUAL_STOCK_GROWTH,
   ConstructionOperations,
+  estimateDwellingsUnderConstruction,
   getConstructionProductivityMultiplier,
   getConstructionRequiredWorkers,
   getEffectiveConstructionBacklog,
@@ -287,6 +289,46 @@ describe("getConstructionRequiredWorkers", () => {
     const large = getConstructionRequiredWorkers({ buildingStock: 0, hasQuarryAccess: false }, 4000, ctx);
     expect(mid.carpenter).toBeGreaterThan(small.carpenter);
     expect(large.carpenter).toBeGreaterThan(mid.carpenter);
+  });
+});
+
+describe("estimateDwellingsUnderConstruction", () => {
+  it("is 0 when the housing gap is closed", () => {
+    expect(
+      estimateDwellingsUnderConstruction({
+        dwellingStock: 100,
+        requiredDwellings: 100,
+        masonWorkers: 10,
+        carpenterWorkers: 10,
+        requiredMason: 5,
+        requiredCarpenter: 5
+      })
+    ).toBe(0);
+  });
+
+  it("is 25% of the gap when fully staffed", () => {
+    expect(
+      estimateDwellingsUnderConstruction({
+        dwellingStock: 0,
+        requiredDwellings: 100,
+        masonWorkers: 10,
+        carpenterWorkers: 10,
+        requiredMason: 5,
+        requiredCarpenter: 5
+      })
+    ).toBeCloseTo(100 * BASE_ANNUAL_STOCK_GROWTH, 5);
+  });
+
+  it("scales down with labor shortfall", () => {
+    const half = estimateDwellingsUnderConstruction({
+      dwellingStock: 0,
+      requiredDwellings: 100,
+      masonWorkers: 2.5,
+      carpenterWorkers: 2.5,
+      requiredMason: 5,
+      requiredCarpenter: 5
+    });
+    expect(half).toBeCloseTo(100 * BASE_ANNUAL_STOCK_GROWTH * 0.5, 5);
   });
 });
 
