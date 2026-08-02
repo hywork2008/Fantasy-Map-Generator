@@ -151,14 +151,17 @@
     "flavorLines": {
       "joinTwo": "{{a}}と{{b}}",
       "stratumUnknown": "出自の定かでない者",
-      "identity": "{{stratum}}の身でありながら、{{role}}。",
+      "identity": {
+        "contrast": "{{stratum}}であり、{{role}}。",
+        "roleOnly": "{{role}}。"
+      },
       "role": {
         "ruler": "見た目以上に重い冠を戴いている",
         "central_officer": "権力の回廊を静かに渡り歩いている",
         "commander": "鉄と濡れた革の匂いをまとう",
         "province_lord": "一方の目を国境に、もう一方を帳簿に向けている",
         "merchant": "握手の数も硬貨と同じく価値として数える",
-        "religious": "天が耳を澄ませているかのように語る",
+        "religious": "厳かな雰囲気で話す",
         "ordinary": "大きな名のあいだを消えずに歩いている"
       },
       "commitment": {
@@ -221,6 +224,7 @@
       "wine": "酒",
       "feast": "美食・饗宴",
       "lust": "好色",
+      "gambling": "博打",
       "luxury": "贅沢・装身",
       "hunting": "狩猟",
       "sport": "武芸試合・競技",
@@ -232,11 +236,12 @@
       "theology": "神学",
       "law": "法と前例",
       "company": "人付き合い・宴席",
+      "salon": "お茶会・サロン",
       "solitude": "孤独・静謐",
       "flattery": "追従",
       "debate": "議論",
       "gossip": "噂話",
-      "ceremony": "儀式・儀礼",
+      "ceremony": "儀式・儀礼・閲兵",
       "soldiers": "軍人",
       "courtiers": "廷臣",
       "merchants": "商人",

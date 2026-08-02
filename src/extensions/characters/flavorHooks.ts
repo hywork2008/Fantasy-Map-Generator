@@ -25,6 +25,55 @@ function joinTasteIds(tastes: CharacterTaste[]): string {
   return tastes.map(t => t.id).join(",");
 }
 
+const LOW_BIRTH: ReadonlySet<SocialStratum | "unknown"> = new Set([
+  "commoner",
+  "freedman",
+  "slave_born",
+  "foreigner",
+  "unknown",
+  "clergy_orphan"
+]);
+
+const HIGH_BIRTH: ReadonlySet<SocialStratum | "unknown"> = new Set(["royal", "high_noble"]);
+
+const HIGH_OFFICE: ReadonlySet<CharacterRoleClass> = new Set(["ruler", "central_officer", "province_lord"]);
+
+/**
+ * True when pairing birth stratum with role class creates useful tension
+ * (e.g. commoner chancellor). Expected pairs (high noble + court office) return false.
+ */
+export function hasStratumRoleContrast(stratum: SocialStratum | "unknown", role: CharacterRoleClass): boolean {
+  // Low birth in high office — classic surprise
+  if (LOW_BIRTH.has(stratum) && HIGH_OFFICE.has(role)) return true;
+  if (stratum === "commoner" && (role === "commander" || role === "religious")) return true;
+
+  // High birth in commercial / unremarkable life
+  if (HIGH_BIRTH.has(stratum) && (role === "merchant" || role === "ordinary")) return true;
+  // Royal blood in field command (not the crown itself)
+  if (stratum === "royal" && role === "commander") return true;
+
+  // Merchant stock in court, faith, or war
+  if (
+    stratum === "merchant_born" &&
+    (role === "central_officer" || role === "religious" || role === "commander" || role === "ruler")
+  ) {
+    return true;
+  }
+
+  // Temple-raised into commerce or arms
+  if (stratum === "clergy_orphan" && (role === "merchant" || role === "commander" || role === "ruler")) {
+    return true;
+  }
+
+  // Minor noble turned merchant
+  if (stratum === "minor_noble" && role === "merchant") return true;
+
+  // Unknown birth always reads as a question mark
+  if (stratum === "unknown" && role !== "ordinary") return true;
+
+  return false;
+}
+
 /**
  * Build 1–3 structured hooks (ids + params). Text is resolved via i18n in the UI.
  */
@@ -35,10 +84,12 @@ export function generateCharacterHooks(character: Character): CharacterFlavorHoo
   const role = inferRoleClass(character);
   const stratum: SocialStratum | "unknown" = origin?.socialStratum ?? "unknown";
 
-  hooks.push({
-    id: "identity",
-    params: { stratum, role }
-  });
+  // Pair stratum + role only when the combination is interesting; otherwise role alone.
+  if (hasStratumRoleContrast(stratum, role)) {
+    hooks.push({ id: "identity.contrast", params: { stratum, role } });
+  } else {
+    hooks.push({ id: "identity.roleOnly", params: { role } });
+  }
 
   const primary = character.backstory?.commitment.primary.kind as CommitmentKind | undefined;
   if (primary) {
@@ -115,9 +166,19 @@ export function formatFlavorHook(hook: CharacterFlavorHook | string, t: TFunctio
   const id = hook.id;
   const params = { ...(hook.params ?? {}) };
 
-  if (id === "identity") {
-    return t("characters.flavorLines.identity", {
+  // identity / identity.contrast: stratum + role (only when contrast is interesting)
+  if (id === "identity" || id === "identity.contrast") {
+    return t("characters.flavorLines.identity.contrast", {
+      defaultValue: t("characters.flavorLines.identity", {
+        stratum: stratumLabel(params.stratum, t),
+        role: roleClause(params.role as CharacterRoleClass | undefined, t)
+      }),
       stratum: stratumLabel(params.stratum, t),
+      role: roleClause(params.role as CharacterRoleClass | undefined, t)
+    });
+  }
+  if (id === "identity.roleOnly") {
+    return t("characters.flavorLines.identity.roleOnly", {
       role: roleClause(params.role as CharacterRoleClass | undefined, t)
     });
   }

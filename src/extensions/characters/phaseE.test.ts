@@ -5,7 +5,7 @@ import type { Character } from "./characterTypes";
 import { applyFormCommitmentBoost, getFormPack, resolveFormPackId } from "./cultureFormPacks";
 import { assignDynasties, deriveHouseName } from "./dynastyGenerator";
 import { finalizeCharacterSociety } from "./finalizeCharacterSociety";
-import { generateCharacterHooks } from "./flavorHooks";
+import { generateCharacterHooks, hasStratumRoleContrast } from "./flavorHooks";
 
 function baseCharacter(overrides: Partial<Character> & Pick<Character, "i" | "name">): Character {
   return {
@@ -49,6 +49,40 @@ function baseCharacter(overrides: Partial<Character> & Pick<Character, "i" | "na
     ...overrides
   };
 }
+
+describe("ruler commitment", () => {
+  it("does not assign primary liege to sovereign rulers", () => {
+    let sawLiege = false;
+    for (let i = 0; i < 40; i++) {
+      const ruler = baseCharacter({
+        i: i + 1,
+        name: `King ${i}`,
+        titles: [{ title: "King", landed: true, entityType: "state", entityId: 1 }],
+        personality: {
+          boldness: 50,
+          compassion: 50,
+          greed: 30,
+          honor: 95,
+          rationality: 50,
+          sociability: 50,
+          vengefulness: 30,
+          zeal: 50,
+          energy: 50,
+          piety: 50,
+          guile: 30,
+          confidence: 60
+        }
+      });
+      applyCharacterBackstory(ruler, { roleClass: "ruler", capitalBurgId: 1, formName: "Monarchy" });
+      if (ruler.backstory?.commitment.primary.kind === "liege") sawLiege = true;
+      if (ruler.backstory?.commitment.secondary?.kind === "liege") {
+        // secondary liege is also odd for a sovereign; allow only if we ever model vassal kings
+        sawLiege = true;
+      }
+    }
+    expect(sawLiege).toBe(false);
+  });
+});
 
 describe("cultureFormPacks", () => {
   it("maps theocracy form names", () => {
@@ -153,6 +187,33 @@ describe("bonds and hooks", () => {
     expect(hooks.length).toBeGreaterThanOrEqual(1);
     expect(hooks.length).toBeLessThanOrEqual(3);
     expect(hooks[0]).toMatchObject({ id: expect.any(String) });
+  });
+
+  it("uses contrast identity only when stratum and role are surprising", () => {
+    expect(hasStratumRoleContrast("high_noble", "central_officer")).toBe(false);
+    expect(hasStratumRoleContrast("royal", "ruler")).toBe(false);
+    expect(hasStratumRoleContrast("commoner", "central_officer")).toBe(true);
+    expect(hasStratumRoleContrast("royal", "merchant")).toBe(true);
+
+    const expected = baseCharacter({
+      i: 1,
+      name: "Court",
+      titles: [{ title: "Chancellor", landed: false, entityType: "state", entityId: 1 }]
+    });
+    applyCharacterBackstory(expected, { roleClass: "central_officer", capitalBurgId: 1 });
+    expected.backstory!.origin.socialStratum = "high_noble";
+    const expectedHooks = generateCharacterHooks(expected);
+    expect(expectedHooks[0]?.id).toBe("identity.roleOnly");
+
+    const surprise = baseCharacter({
+      i: 2,
+      name: "Risen",
+      titles: [{ title: "Chancellor", landed: false, entityType: "state", entityId: 1 }]
+    });
+    applyCharacterBackstory(surprise, { roleClass: "central_officer", capitalBurgId: 1 });
+    surprise.backstory!.origin.socialStratum = "commoner";
+    const surpriseHooks = generateCharacterHooks(surprise);
+    expect(surpriseHooks[0]?.id).toBe("identity.contrast");
   });
 });
 

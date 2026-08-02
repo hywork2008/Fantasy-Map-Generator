@@ -29,10 +29,13 @@ Turn structured character data (origin, commitment, tastes, bonds, dynasty) into
 ## Generation rules (v1)
 
 1. Prefer concrete motives over stat dumps (“Doctrine is the spine” not “Piety 87”).  
-2. Cap at three lines; strongest axes first (role → commitment → tastes → bonds/house).  
+2. Cap at three lines; strongest axes first (identity → commitment → tastes → bonds/house).  
 3. Do not invent events not present in data (no “won the battle of X” unless stored).  
 4. Bonds are **labels**; numbers live in `solidarity` / `favor`.  
-5. Dynasty motto is shown next to house name in Details; hooks may mention the house name only.
+5. Dynasty motto is shown next to house name in Details; hooks may mention the house name only.  
+6. **Stratum + role contrast only when surprising** (`hasStratumRoleContrast`):  
+   - Good: commoner chancellor, royal merchant, temple-raised commander.  
+   - Avoid: high noble + court office (“walks corridors of power”) — expected, use role-only line.
 
 ## Example
 

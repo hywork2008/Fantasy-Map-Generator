@@ -151,7 +151,10 @@
     "flavorLines": {
       "joinTwo": "{{a}} and {{b}}",
       "stratumUnknown": "person of unknown birth",
-      "identity": "A {{stratum}} who {{role}}.",
+      "identity": {
+        "contrast": "A {{stratum}} who {{role}}.",
+        "roleOnly": "Someone who {{role}}."
+      },
       "role": {
         "ruler": "wears a crown heavier than it looks",
         "central_officer": "moves quietly through the corridors of power",
@@ -221,6 +224,7 @@
       "wine": "Wine",
       "feast": "Feasting / Fine food",
       "lust": "Lust",
+      "gambling": "Gambling",
       "luxury": "Luxury",
       "hunting": "Hunting",
       "sport": "Sport / Martial games",
@@ -232,11 +236,12 @@
       "theology": "Theology",
       "law": "Law & precedent",
       "company": "Company / Society",
+      "salon": "Salon / Tea society",
       "solitude": "Solitude",
       "flattery": "Flattery",
       "debate": "Debate",
       "gossip": "Gossip",
-      "ceremony": "Ceremony",
+      "ceremony": "Ceremony / Parade",
       "soldiers": "Soldiers",
       "courtiers": "Courtiers",
       "merchants": "Merchants",

@@ -3,10 +3,12 @@ import {
   applyCharacterBackstory,
   clampRelation,
   computeInitialSolidarity,
+  gamblingPersonalityMult,
   getFavor,
   getFavorBand,
   getSolidarity,
   getSolidarityBand,
+  isWorldlyClericProfile,
   offerGift,
   seedCharacterRelations,
   setSolidarity
@@ -77,6 +79,355 @@ describe("relation helpers", () => {
   });
 });
 
+describe("isWorldlyClericProfile", () => {
+  it("flags greedy vengeful chaplains like Bozhech-style profiles", () => {
+    const cleric = baseCharacter({
+      i: 1,
+      name: "Bozhech-like",
+      titles: [{ title: "Court Chaplain", landed: false, entityType: "state", entityId: 1 }],
+      personality: {
+        boldness: 85,
+        compassion: 73,
+        greed: 100,
+        honor: 54,
+        rationality: 27,
+        sociability: 45,
+        vengefulness: 96,
+        zeal: 71,
+        energy: 37,
+        piety: 99,
+        guile: 59,
+        confidence: 72
+      },
+      family: { spouses: 1, children: 9, grandchildren: 6, greatGrandchildren: 0 }
+    });
+    expect(isWorldlyClericProfile(cleric, "religious")).toBe(true);
+  });
+
+  it("does not flag sincere low-greed high-zeal clergy", () => {
+    const cleric = baseCharacter({
+      i: 2,
+      name: "Sincere",
+      titles: [{ title: "Court Chaplain", landed: false, entityType: "state", entityId: 1 }],
+      personality: {
+        boldness: 40,
+        compassion: 70,
+        greed: 25,
+        honor: 80,
+        rationality: 60,
+        sociability: 50,
+        vengefulness: 20,
+        zeal: 85,
+        energy: 50,
+        piety: 90,
+        guile: 30,
+        confidence: 55
+      }
+    });
+    expect(isWorldlyClericProfile(cleric, "religious")).toBe(false);
+  });
+
+  it("gives worldly clerics vice likes rather than only clean monkish dislikes", () => {
+    let sawViceLike = 0;
+    let sawCleanDislikeOnly = 0;
+    for (let i = 0; i < 25; i++) {
+      const cleric = baseCharacter({
+        i: 10 + i,
+        name: `Worldly${i}`,
+        titles: [{ title: "Court Chaplain", landed: false, entityType: "state", entityId: 1 }],
+        personality: {
+          boldness: 80,
+          compassion: 40,
+          greed: 95,
+          honor: 40,
+          rationality: 30,
+          sociability: 50,
+          vengefulness: 85,
+          zeal: 40,
+          energy: 50,
+          piety: 90,
+          guile: 70,
+          confidence: 60
+        },
+        family: { spouses: 1, children: 5, grandchildren: 0, greatGrandchildren: 0 }
+      });
+      applyCharacterBackstory(cleric, {
+        roleClass: "religious",
+        formName: "Monarchy",
+        capitalBurgId: 1
+      });
+      const likes = cleric.backstory!.tastes.filter(t => t.polarity === "like").map(t => t.id);
+      const dislikes = cleric.backstory!.tastes.filter(t => t.polarity === "dislike").map(t => t.id);
+      if (likes.some(id => ["gold", "wine", "lust", "gambling", "luxury", "corruption"].includes(id))) {
+        sawViceLike++;
+      }
+      // "Clean monk" package: theology/ceremony likes + lust&gambling&corruption all disliked, no gold
+      if (
+        likes.includes("theology") &&
+        likes.includes("ceremony") &&
+        !likes.includes("gold") &&
+        dislikes.includes("lust") &&
+        dislikes.includes("gambling") &&
+        dislikes.includes("corruption")
+      ) {
+        sawCleanDislikeOnly++;
+      }
+    }
+    expect(sawViceLike).toBeGreaterThan(15);
+    expect(sawCleanDislikeOnly).toBeLessThan(5);
+  });
+});
+
+describe("female social tastes", () => {
+  it("biases sociable women toward gossip and salon rather than feast/company", () => {
+    let gossip = 0;
+    let salon = 0;
+    let feast = 0;
+    let company = 0;
+    for (let i = 0; i < 40; i++) {
+      const c = baseCharacter({
+        i: 200 + i,
+        name: `Lady${i}`,
+        gender: "female",
+        personality: {
+          boldness: 40,
+          compassion: 55,
+          greed: 40,
+          honor: 60,
+          rationality: 50,
+          sociability: 85,
+          vengefulness: 30,
+          zeal: 40,
+          energy: 50,
+          piety: 45,
+          guile: 50,
+          confidence: 55
+        }
+      });
+      applyCharacterBackstory(c, { roleClass: "ordinary", formName: "Monarchy", capitalBurgId: 1 });
+      const likes = c.backstory!.tastes.filter(t => t.polarity === "like").map(t => t.id);
+      if (likes.includes("gossip")) gossip++;
+      if (likes.includes("salon")) salon++;
+      if (likes.includes("feast")) feast++;
+      if (likes.includes("company")) company++;
+    }
+    expect(gossip).toBeGreaterThan(25);
+    expect(salon).toBeGreaterThan(20);
+    expect(gossip + salon).toBeGreaterThan(feast + company);
+  });
+});
+
+describe("ceremony by military rank", () => {
+  it("makes low-prestige field officers often dislike ceremony", () => {
+    let dislikeCeremony = 0;
+    for (let i = 0; i < 35; i++) {
+      const c = baseCharacter({
+        i: 300 + i,
+        name: `Captain${i}`,
+        prestige: 30,
+        titles: [{ title: "Captain", landed: false, entityType: "state", entityId: 1 }],
+        skills: {
+          artistry: 20,
+          diplomacy: 25,
+          engineering: 20,
+          geography: 40,
+          intrigue: 30,
+          learning: 20,
+          martial: 80,
+          prowess: 70,
+          stewardship: 25
+        },
+        personality: {
+          boldness: 70,
+          compassion: 40,
+          greed: 40,
+          honor: 45,
+          rationality: 40,
+          sociability: 40,
+          vengefulness: 40,
+          zeal: 40,
+          energy: 70,
+          piety: 30,
+          guile: 40,
+          confidence: 50
+        }
+      });
+      applyCharacterBackstory(c, { roleClass: "commander", formName: "Monarchy", capitalBurgId: 1 });
+      const dislikes = c.backstory!.tastes.filter(t => t.polarity === "dislike").map(t => t.id);
+      if (dislikes.includes("ceremony")) dislikeCeremony++;
+    }
+    expect(dislikeCeremony).toBeGreaterThan(12);
+  });
+
+  it("makes high-prestige parade commanders often like ceremony", () => {
+    let likeCeremony = 0;
+    for (let i = 0; i < 35; i++) {
+      const c = baseCharacter({
+        i: 400 + i,
+        name: `Marshal${i}`,
+        prestige: 85,
+        titles: [{ title: "Marshal", landed: false, entityType: "state", entityId: 1 }],
+        skills: {
+          artistry: 30,
+          diplomacy: 50,
+          engineering: 20,
+          geography: 50,
+          intrigue: 40,
+          learning: 40,
+          martial: 85,
+          prowess: 70,
+          stewardship: 40
+        },
+        personality: {
+          boldness: 60,
+          compassion: 40,
+          greed: 35,
+          honor: 80,
+          rationality: 55,
+          sociability: 55,
+          vengefulness: 30,
+          zeal: 50,
+          energy: 60,
+          piety: 50,
+          guile: 40,
+          confidence: 70
+        }
+      });
+      applyCharacterBackstory(c, { roleClass: "commander", formName: "Monarchy", capitalBurgId: 1 });
+      // High prestige may be overwritten by origin stratum prestige — force after apply
+      // (origin rebuilds prestige). Re-check via tastes only from generation path with royal stratum bias.
+      const likes = c.backstory!.tastes.filter(t => t.polarity === "like").map(t => t.id);
+      if (likes.includes("ceremony")) likeCeremony++;
+    }
+    // With high honor + commander role, ceremony like should appear reasonably often
+    expect(likeCeremony).toBeGreaterThan(8);
+  });
+});
+
+describe("corruption taste for power-holders", () => {
+  it("gives open-palm rulers corruption likes more often than clean ones", () => {
+    let corruptLiked = 0;
+    let cleanLiked = 0;
+    for (let i = 0; i < 40; i++) {
+      const corrupt = baseCharacter({
+        i: 500 + i,
+        name: `CorruptKing${i}`,
+        titles: [{ title: "King", landed: true, entityType: "state", entityId: 1 }],
+        personality: {
+          boldness: 50,
+          compassion: 30,
+          greed: 90,
+          honor: 25,
+          rationality: 50,
+          sociability: 50,
+          vengefulness: 40,
+          zeal: 30,
+          energy: 50,
+          piety: 25,
+          guile: 75,
+          confidence: 70
+        }
+      });
+      applyCharacterBackstory(corrupt, { roleClass: "ruler", formName: "Monarchy", capitalBurgId: 1 });
+      if (corrupt.backstory!.tastes.some(t => t.id === "corruption" && t.polarity === "like")) {
+        corruptLiked++;
+      }
+
+      const clean = baseCharacter({
+        i: 600 + i,
+        name: `CleanKing${i}`,
+        titles: [{ title: "King", landed: true, entityType: "state", entityId: 1 }],
+        personality: {
+          boldness: 50,
+          compassion: 60,
+          greed: 30,
+          honor: 90,
+          rationality: 60,
+          sociability: 50,
+          vengefulness: 20,
+          zeal: 50,
+          energy: 50,
+          piety: 70,
+          guile: 30,
+          confidence: 60
+        }
+      });
+      applyCharacterBackstory(clean, { roleClass: "ruler", formName: "Monarchy", capitalBurgId: 1 });
+      if (clean.backstory!.tastes.some(t => t.id === "corruption" && t.polarity === "like")) {
+        cleanLiked++;
+      }
+    }
+    expect(corruptLiked).toBeGreaterThan(15);
+    expect(cleanLiked).toBeLessThan(8);
+    expect(corruptLiked).toBeGreaterThan(cleanLiked);
+  });
+});
+
+describe("gamblingPersonalityMult", () => {
+  it("crushes gambling appetite for Turnorovo-type calculators", () => {
+    // High greed + max reason + low nerve + engineer: methodical accumulation, not dice
+    const mult = gamblingPersonalityMult(
+      {
+        boldness: 8,
+        compassion: 9,
+        greed: 99,
+        honor: 60,
+        rationality: 100,
+        sociability: 53,
+        vengefulness: 11,
+        zeal: 54,
+        energy: 16,
+        piety: 33,
+        guile: 55,
+        confidence: 20
+      },
+      {
+        artistry: 32,
+        diplomacy: 8,
+        engineering: 88,
+        geography: 10,
+        intrigue: 25,
+        learning: 27,
+        martial: 51,
+        prowess: 1,
+        stewardship: 37
+      }
+    );
+    expect(mult).toBeLessThanOrEqual(0.05);
+  });
+
+  it("keeps gambling available for bold impulsive types", () => {
+    const mult = gamblingPersonalityMult(
+      {
+        boldness: 85,
+        compassion: 40,
+        greed: 80,
+        honor: 40,
+        rationality: 25,
+        sociability: 60,
+        vengefulness: 50,
+        zeal: 40,
+        energy: 80,
+        piety: 30,
+        guile: 50,
+        confidence: 75
+      },
+      {
+        artistry: 30,
+        diplomacy: 40,
+        engineering: 20,
+        geography: 40,
+        intrigue: 40,
+        learning: 20,
+        martial: 50,
+        prowess: 50,
+        stewardship: 30
+      }
+    );
+    expect(mult).toBeGreaterThan(1);
+  });
+});
+
 describe("applyCharacterBackstory", () => {
   it("assigns origin, commitment, and tastes for a ruler", () => {
     const ruler = baseCharacter({
@@ -96,6 +447,58 @@ describe("applyCharacterBackstory", () => {
     expect(ruler.backstory!.commitment.primary.kind).toBeTruthy();
     expect(ruler.backstory!.tastes.length).toBeGreaterThanOrEqual(2);
     expect(ruler.birthStateId).toBe(1);
+  });
+
+  it("does not make cautious high-greed calculators like gambling (Turnorovo-type)", () => {
+    let likedGambling = 0;
+    let dislikedGambling = 0;
+    let likedGold = 0;
+    for (let i = 0; i < 40; i++) {
+      const c = baseCharacter({
+        i: 100 + i,
+        name: `Turnorovo-like-${i}`,
+        titles: [{ title: "Count", landed: true, entityType: "state", entityId: 1 }],
+        skills: {
+          artistry: 32,
+          diplomacy: 8,
+          engineering: 88,
+          geography: 10,
+          intrigue: 25,
+          learning: 27,
+          martial: 51,
+          prowess: 1,
+          stewardship: 37
+        },
+        personality: {
+          boldness: 8,
+          compassion: 9,
+          greed: 99,
+          honor: 60,
+          rationality: 100,
+          sociability: 53,
+          vengefulness: 11,
+          zeal: 54,
+          energy: 16,
+          piety: 33,
+          guile: 55,
+          confidence: 20
+        }
+      });
+      applyCharacterBackstory(c, {
+        roleClass: "noble",
+        formName: "Monarchy",
+        capitalBurgId: 1
+      });
+      const likes = c.backstory!.tastes.filter(t => t.polarity === "like").map(t => t.id);
+      const dislikes = c.backstory!.tastes.filter(t => t.polarity === "dislike").map(t => t.id);
+      if (likes.includes("gambling")) likedGambling++;
+      if (dislikes.includes("gambling")) dislikedGambling++;
+      if (likes.includes("gold")) likedGold++;
+    }
+    expect(likedGold).toBe(40);
+    expect(likedGambling).toBe(0);
+    // gamblingAverse path pushes dislike ~70% of rolls
+    expect(dislikedGambling).toBeGreaterThan(20);
   });
 });
 

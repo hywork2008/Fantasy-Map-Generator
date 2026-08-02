@@ -391,12 +391,13 @@ interface TasteTag {
 
 | id | 表示例 | 関連 |
 | :--- | :--- | :--- |
-| `company` | 人付き合い・宴席 | sociability |
+| `company` | 人付き合い・宴席 | sociability（男性寄り） |
+| `salon` | お茶会・サロン | sociability（女性寄り） |
 | `solitude` | 孤独・静謐 | low sociability |
 | `flattery` | 追従されること | confidence, greed |
 | `debate` | 議論 | diplomacy, learning |
-| `gossip` | 噂話 | intrigue, sociability |
-| `ceremony` | 儀式・儀礼 | piety, prestige |
+| `gossip` | 噂話 | intrigue, sociability（女性・廷臣寄り） |
+| `ceremony` | 儀式・儀礼・閲兵 | piety, prestige, honor（高位武官 like / 下級武人 dislike） |
 
 #### D. 職業・階層への態度（カテゴリ好悪）
 
@@ -430,12 +431,17 @@ interface TasteTag {
 
 | 条件 | 出やすい like | 出やすい dislike |
 | :--- | :--- | :--- |
-| `sociability ≥ 75` | company, feast, wine, gossip | solitude |
-| `sociability ≤ 25` | solitude, books, maps | company, feast, ceremony |
-| `greed ≥ 75` | gold, luxury, land | mercy（低確率） |
+| `sociability ≥ 75`（男） | company, feast, wine | solitude |
+| `sociability ≥ 75`（女） | gossip, salon, music | solitude |
+| `sociability ≤ 25` | solitude, books, maps | company / salon, feast, ceremony |
+| `greed ≥ 75` | gold, luxury, land（rational/steward 寄り） | mercy（低確率） |
+| 高 greed でも高 rationality + 低 boldness/energy/confidence（＋工学/統治） | **gambling は抑制**（`gamblingPersonalityMult`）。確かな金・土地寄り | gambling（`gamblingAverse` で dislike 寄り） |
+| 為政者 + 高 greed + 低 honor（+ guile） | **corruption like**（裏金・袖の下。gold とは別） | — |
+| 高 honor（≥70） | — | corruption |
 | `piety ≥ 75` | theology, ceremony, piety_practice | lust, luxury, corruption |
 | `piety ≤ 25` | wine, lust, gold | ceremony, clergy |
-| `martial ≥ 75` or Commander | hunting, sport, soldiers, war | （peace は低） |
+| `martial ≥ 75` or Commander（高 prestige / 高位） | hunting, sport, soldiers, **ceremony（閲兵）** | （peace は低） |
+| 下級武人（低 prestige / 下位身分） | sport, soldiers, wine | **ceremony**（空々しい儀礼嫌い） |
 | `martial` 低 かつ中央文官 | books, law, ceremony | war, soldiers（低〜中確率） |
 | `artistry ≥ 75` | art, music, feast, luxury | cruelty |
 | `intrigue ≥ 75` | gossip, flattery, corruption(like は闇) | — |
