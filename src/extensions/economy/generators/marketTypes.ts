@@ -198,6 +198,20 @@ export type TradeRouteSegment = {
   points: TradeRoutePoint[];
 };
 
+/** Port / yard accumulation before a commercial shipment sails. */
+export type CaravanLoadingState = {
+  /** Days already spent waiting for a fuller hold (advanced in Caravans.tick). */
+  waitedDays: number;
+  /** Sail once waitedDays reaches this, if utilization clears the min floor. */
+  maxWaitDays: number;
+  /** Preferred fill ratio before early departure (e.g. 0.55). */
+  targetUtilization: number;
+  /** Hard floor; below this after maxWait the shipment is cancelled rather than sailing nearly empty. */
+  minSailUtilization: number;
+  /** Capacity the shipment is accumulating toward (usually one vehicle / hull bottleneck). */
+  plannedCapacitySlots: number;
+};
+
 export interface Caravan {
   i: number;
   seller: number;
@@ -233,5 +247,11 @@ export interface Caravan {
    * Missing on legacy caravans → recompute from segments each tick (fallback).
    */
   travelLegs?: { endKm: number; speedKmPerDay: number }[];
-  state: "transit" | "arrived" | "lost";
+  /**
+   * `loading` = accumulating cargo at origin (not drawn on the map).
+   * `transit` = moving. `arrived` / `lost` are terminal and removed after tick settlement.
+   */
+  state: "loading" | "transit" | "arrived" | "lost";
+  /** Present while state === "loading". */
+  loading?: CaravanLoadingState;
 }

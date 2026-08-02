@@ -5,6 +5,8 @@
 - docs/plan/characters/backstory-profile.md
 - docs/plan/characters/flavor-text.md
 - docs/plan/great-library.md
+- docs/plan/market-goods-flow-budget.md
+- docs/plan/merchant-logistics-warehouses.md
 
 2026-08-01
 

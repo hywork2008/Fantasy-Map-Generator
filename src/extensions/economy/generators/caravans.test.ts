@@ -74,6 +74,109 @@ describe("caravan viability", () => {
   });
 });
 
+describe("caravan loading accumulation", () => {
+  beforeEach(() => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.distanceScale = 1;
+    worldContext.pack = {
+      goods: [
+        {
+          i: 0,
+          name: "Silk",
+          value: 40,
+          tags: ["luxury"],
+          unit: "bolt",
+          icon: "silk",
+          color: "#f0f",
+          cargo: { cargoSlotsPerUnit: 1, handlingClass: "crated" },
+          trade: { weight: 1, bulk: 1, rarity: 4, distancePremium: 2, timeValueTrend: 0, durability: 4, lossRisk: 1 }
+        } as Good
+      ],
+      markets: [
+        {
+          i: 0,
+          centerBurgId: 1,
+          color: "#000",
+          goods: { 0: { stock: 100, price: 40 } }
+        },
+        {
+          i: 1,
+          centerBurgId: 2,
+          color: "#000",
+          goods: { 0: { stock: 0, price: 60 } }
+        }
+      ],
+      burgs: [
+        { i: 0 } as unknown as Burg,
+        { i: 1, cell: 1, x: 0, y: 0, market: 0 } as unknown as Burg,
+        { i: 2, cell: 2, x: 100, y: 0, market: 1 } as unknown as Burg
+      ],
+      deals: [
+        {
+          i: 0,
+          seller: 0,
+          sellerType: "market",
+          buyer: 1,
+          buyerType: "market",
+          good: 0,
+          units: 2,
+          price: 50,
+          tax: 0
+        }
+      ],
+      caravans: [],
+      merchantTransportLedgers: [],
+      transportReservations: []
+    } as unknown as PackedGraph;
+    vi.spyOn(TradeAnimation, "findRoutePath").mockReturnValue({
+      points: [
+        [0, 0],
+        [100, 0]
+      ],
+      segments: [
+        {
+          type: "land",
+          points: [
+            [0, 0],
+            [100, 0]
+          ]
+        }
+      ]
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    clearEconomyContext();
+  });
+
+  it("holds a thin market-to-market load in loading until max wait and then cancels below min fill", () => {
+    Caravans.spawnFromDeals(getDeals());
+
+    const loading = getCaravans().filter(c => c.state === "loading");
+    // 2 silk slots on a wagon-scale plan (~80–240) is well under 20% min sail.
+    expect(loading.length).toBeGreaterThanOrEqual(1);
+    expect(getCaravans().every(c => c.state !== "transit")).toBe(true);
+
+    const originStockBefore = getMarkets()[0].goods[0].stock;
+    // Exceed land max wait (14 days) with a thin hold → cancel and restore exporter stock.
+    const result = Caravans.tick(15);
+
+    expect(result.lost.length).toBeGreaterThanOrEqual(1);
+    expect(getCaravans()).toEqual([]);
+    expect(getMarkets()[0].goods[0].stock).toBeCloseTo(originStockBefore + 2, 5);
+  });
+
+  it("departs immediately when the first load already meets target utilization", () => {
+    getDeals()[0].units = 200;
+    Caravans.spawnFromDeals(getDeals());
+
+    const transit = getCaravans().filter(c => c.state === "transit");
+    expect(transit.length).toBeGreaterThanOrEqual(1);
+    expect(transit[0].transportReservationId).toBeDefined();
+  });
+});
+
 describe("caravan arrival volume tracking", () => {
   beforeEach(() => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);

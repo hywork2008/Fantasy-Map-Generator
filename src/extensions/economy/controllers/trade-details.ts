@@ -111,6 +111,24 @@ function tradeDetailsAddLines(): void {
 
   const distUnit = useOptionsState.getState().distanceUnit || "km";
 
+  // Prefer planned loading capacity when the shipment is still accumulating at origin.
+  const loadingCapacity = caravan.loading?.plannedCapacitySlots;
+  if (caravan.state === "loading" && loadingCapacity && loadingCapacity > 0) {
+    const usedSlots = rows.reduce((sum, row) => sum + row.occupiedSlots, 0);
+    for (const summary of transportSummaries) {
+      summary.capacitySlots = rn(loadingCapacity, 2);
+      summary.usedSlots = rn(usedSlots, 2);
+      summary.freeSlots = rn(Math.max(0, loadingCapacity - usedSlots), 2);
+      summary.utilization = usedSlots / loadingCapacity;
+      summary.assetSource = summary.assetSource ?? "Loading — assets reserved at departure";
+    }
+  }
+
+  const distanceLabel =
+    caravan.state === "loading" && caravan.loading
+      ? `${rn(caravan.totalDistance)} ${distUnit} (loading: day ${rn(caravan.loading.waitedDays, 1)}/${caravan.loading.maxWaitDays}, target ${Math.round(caravan.loading.targetUtilization * 100)}%)`
+      : `${rn(caravan.totalDistance)} ${distUnit} (progress: ${Math.round(minmax(caravan.currentDistance / caravan.totalDistance, 0, 1) * 100)}%)`;
+
   setTradeDetailsState({
     summary: {
       sellerName: from?.name ?? "",
@@ -125,7 +143,7 @@ function tradeDetailsAddLines(): void {
       }
     },
     rows,
-    distance: `${rn(caravan.totalDistance)} ${distUnit} (progress: ${Math.round(minmax(caravan.currentDistance / caravan.totalDistance, 0, 1) * 100)}%)`,
+    distance: distanceLabel,
     totalUnits: rn(caravan.units, 2),
     totalValue: caravan.value,
     transportSummaries,
