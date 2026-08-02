@@ -1,6 +1,7 @@
 import type { Character } from "../../characters/characterTypes";
 import { applyConquestDisruption } from "../../economy/generators/conquestDisruption";
 import { getMartialDisciplineMultiplier } from "../../economy/generators/martialDisciplineKnowledge";
+import { getCommanderMartialSkillMultiplier } from "../../economy/generators/martialIndividualMastery";
 import { findSeaRouteDistance, regimentQualityMultiplier, type SeaRouteGraph } from "../../hostCore";
 import type { Burg, MilitaryRegiment, MilitaryUnit, PackedGraph } from "../../hostTypes";
 import { getRegimentCommander } from "./officerAssignment";
@@ -73,7 +74,10 @@ export const REINFORCEMENT_RADIUS = { cavalry: 50, infantry: 50, naval: 500 } as
 export function commanderPowerMultiplier(characters: Character[], regiment: MilitaryRegiment): number {
   const commander = getRegimentCommander(characters, regiment);
   const commanderMultiplier = commander ? 1 + (commander.skills.martial / 100) * 0.5 : 1;
-  return commanderMultiplier * getMartialDisciplineMultiplier(regiment.state, regiment.u || {});
+  const individualSkillMultiplier = commander ? getCommanderMartialSkillMultiplier(commander, regiment) : 1;
+  return (
+    commanderMultiplier * individualSkillMultiplier * getMartialDisciplineMultiplier(regiment.state, regiment.u || {})
+  );
 }
 
 /** The marching/sailing radius a regiment can reinforce from, based on its composition. */

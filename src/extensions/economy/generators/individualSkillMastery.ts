@@ -4,7 +4,8 @@ import type {
   AptitudeTier,
   BlacksmithingTechnique,
   BlacksmithingTechniqueLead,
-  CharacterDomainSkill
+  CharacterDomainSkill,
+  IndividualSkillDomain
 } from "./individualSkillTypes";
 
 export const BLACKSMITHING_DOMAIN = "blacksmithing" as const;
@@ -61,7 +62,7 @@ function initialProficiency(character: Pick<Character, "skills">, role: "master"
 
 export function getIndividualSkill(
   characterId: number,
-  domain = BLACKSMITHING_DOMAIN
+  domain: IndividualSkillDomain = BLACKSMITHING_DOMAIN
 ): CharacterDomainSkill | undefined {
   return getIndividualSkills().find(skill => skill.characterId === characterId && skill.domain === domain);
 }
@@ -89,6 +90,13 @@ export function ensureBlacksmithingSkill(
 export function discardIndividualSkills(characterId: number): void {
   const skills = getIndividualSkills();
   const retained = skills.filter(skill => skill.characterId !== characterId);
+  if (retained.length !== skills.length) setIndividualSkills(retained);
+}
+
+/** Removes one domain record without disturbing a character's other practical skills. */
+export function discardIndividualSkill(characterId: number, domain: string): void {
+  const skills = getIndividualSkills();
+  const retained = skills.filter(skill => skill.characterId !== characterId || skill.domain !== domain);
   if (retained.length !== skills.length) setIndividualSkills(retained);
 }
 

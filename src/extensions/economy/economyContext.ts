@@ -77,6 +77,7 @@ let _guildChaptersLastSettledYearFallback: number | null = null;
 let _academyKnowledgeLastSettledYearFallback: number | null = null;
 let _stateSecretLastSettledYearFallback: number | null = null;
 let _martialDisciplineLastSettledYearFallback: number | null = null;
+let _martialIndividualMasteryLastSettledYearFallback: number | null = null;
 let _guildSuccessionLastSettledYearFallback: number | null = null;
 let _burgTreasuryLastSettledYearFallback: number | null = null;
 let _innFacilitiesLastSettledYearFallback: number | null = null;
@@ -105,6 +106,7 @@ export function clearEconomyContext(): void {
   _academyKnowledgeLastSettledYearFallback = null;
   _stateSecretLastSettledYearFallback = null;
   _martialDisciplineLastSettledYearFallback = null;
+  _martialIndividualMasteryLastSettledYearFallback = null;
   _guildSuccessionLastSettledYearFallback = null;
   _burgTreasuryLastSettledYearFallback = null;
   _innFacilitiesLastSettledYearFallback = null;
@@ -521,6 +523,24 @@ export function setMartialDisciplineLastSettledYear(year: number): void {
     return;
   }
   _martialDisciplineLastSettledYearFallback = year;
+}
+
+/** Once-per-year guard for individual commander practice, after MartialDisciplineStock settles. */
+export function getMartialIndividualMasteryLastSettledYear(): number | null {
+  const slice = getEconomySlice();
+  if (slice) {
+    const value = slice.martialIndividualMasteryLastSettledYear;
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return _martialIndividualMasteryLastSettledYearFallback;
+}
+export function setMartialIndividualMasteryLastSettledYear(year: number): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice.martialIndividualMasteryLastSettledYear = year;
+    return;
+  }
+  _martialIndividualMasteryLastSettledYearFallback = year;
 }
 
 /** Same guard as getGuildKnowledgeLastSettledYear, for GuildSuccession.settleAnnual() (docs/plan/knowledge-guild-system.md §9 Phase 6). */

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Character } from "../../characters/characterTypes";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, MilitaryRegiment, PackedGraph } from "../../hostTypes";
 import { clearNobilityContext, initNobilityContext } from "../nobilityContext";
@@ -57,6 +58,7 @@ describe("assignOfficers", () => {
     assignOfficers();
 
     expect(guard.commanderId).toBe(5);
+    expect(getRegimentCommander([marshal] as unknown as Character[], guard)).toBe(marshal);
     // No extra character was created for the capital guard.
     expect(worldContext.pack.characters).toHaveLength(1);
   });

@@ -83,6 +83,7 @@ import { clearFlowDiagnostics } from "./generators/marketFlowDiagnostics";
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
 import { Markets } from "./generators/markets-generator";
 import { MartialDisciplineKnowledge } from "./generators/martialDisciplineKnowledge";
+import { MartialIndividualMastery } from "./generators/martialIndividualMastery";
 import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
 import { MerchantTransportAssets } from "./generators/merchantTransportAssets";
 import { MilitaryResources } from "./generators/militaryResources";
@@ -1751,6 +1752,9 @@ export function init(api: ExtensionAPI): void {
       // dependency either — self-gates to once per simulation year (docs/plan/
       // knowledge-guild-system.md §9 Phase 5).
       MartialDisciplineKnowledge.settleAnnual();
+      // Builds on the freshly-settled State training stock, but only creates records for
+      // named commanders; ordinary regiment members remain aggregate headcount.
+      MartialIndividualMastery.settleAnnual();
       // No ordering dependency on the guild/academy settles above — sweeps burg.treasury surplus
       // into market/state treasury regardless of guild presence. Self-gates to once per simulation
       // year (docs/plan/burg-treasury-equilibrium.md §3.3).

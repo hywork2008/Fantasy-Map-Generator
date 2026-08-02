@@ -5,7 +5,7 @@ import { getWorldContext } from "../nobilityContext";
 import { Characters } from "./characterLifecycle";
 
 /** Titles that mark a character as an active field/fleet commander, as opposed to a central government office. */
-const COMMANDER_TITLES: readonly string[] = ["Commander", "Admiral"];
+const COMMANDER_TITLES: readonly string[] = ["Commander", "Admiral", "Marshal"];
 
 /** Chance that any single eligible regiment gets a dedicated officer per pass — officers are the exception, not the rule. */
 const OFFICER_ASSIGNMENT_CHANCE = 0.35;

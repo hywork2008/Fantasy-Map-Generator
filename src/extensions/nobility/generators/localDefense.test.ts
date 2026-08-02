@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Burg } from "../../../types/models";
+import type { Character } from "../../characters/characterTypes";
 import {
   clearEconomyContext,
   getGuildKnowledgeStocks,
   initEconomyContext,
   setGuildKnowledgeStocks,
+  setIndividualSkills,
   setMartialDisciplineStocks
 } from "../../economy/economyContext";
 import { worldContext } from "../../hostCore";
@@ -51,6 +53,30 @@ describe("commanderPowerMultiplier()", () => {
       const withStock = commanderPowerMultiplier([], regiment);
 
       expect(withStock).toBeGreaterThan(withoutStock);
+    });
+
+    it("adds a small unit-mix-weighted bonus from a commander's practical weapon skill", () => {
+      const commander = {
+        i: 7,
+        dead: false,
+        skills: { martial: 50 },
+        titles: [{ title: "Commander", entityType: "state", entityId: 1 }]
+      };
+      const commandedRegiment = { ...regiment, commanderId: commander.i };
+      const broadSkillOnly = commanderPowerMultiplier([commander] as unknown as Character[], commandedRegiment);
+      setIndividualSkills([
+        {
+          characterId: commander.i,
+          domain: "swordsmanship",
+          proficiency: 90,
+          aptitude: "gifted",
+          techniques: []
+        }
+      ]);
+
+      expect(commanderPowerMultiplier([commander] as unknown as Character[], commandedRegiment)).toBeGreaterThan(
+        broadSkillOnly
+      );
     });
   });
 });
