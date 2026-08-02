@@ -2,7 +2,7 @@
 
 | Field | Value |
 | :--- | :--- |
-| **Status** | In progress — PR-I1 and Edit Burg Overview portion of PR-I2 implemented 2026-08-02 |
+| **Status** | In progress — PR-I1 and PR-I2 implemented 2026-08-02 |
 | **Date** | 2026-08-02 |
 | **Owner** | Economy extension (`src/extensions/economy/`) |
 | **Depends on** | [urban-housing-system.md](./urban-housing-system.md), [guild-city-bases.md](./guild-city-bases.md) (Burg Editor extension-tab host support) |
@@ -269,7 +269,7 @@ Tooltip:
 Commercial short-stay lodging. Beds are not permanent homes and do not raise housing capacity.
 ```
 
-Show `—` when Economy is disabled or the Burg has no inn facility, and `None` when Economy is enabled but generation produced zero facilities. That distinction lets the player tell “feature unavailable” from “this town has no inn”.
+Show `—` when Economy is disabled and `None` when Economy is enabled but generation produced zero facilities. That distinction lets the player tell “feature unavailable” from “this town has no inn”.
 
 ### Inns tab (after shared tab-host milestone)
 
@@ -332,7 +332,7 @@ The initial seed must use Economy's map-ready task, not `fmg:generate-post-core`
 - Seed from `economy.initialization`; clear on Economy cleanup.
 - No occupancy, food demand, or employment effects.
 
-### PR-I2 — Burg Editor observability — Overview row implemented; Inns tab deferred
+### PR-I2 — Burg Editor observability — implemented
 
 - Add `Inns` summary to `BurgEconomySummary` and the Edit Burg Overview row.
 - Add the Inns tab after shared `BurgEditor` extension tabs from Guild plan PR-2 are present.

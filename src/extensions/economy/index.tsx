@@ -125,6 +125,7 @@ import { economyMapPickHandler } from "./renderers/economyMapPickHandler";
 import { createEconomyWebglLayerSpec } from "./renderers/economyWebglLayers";
 import { getDisplayedGoodIds } from "./store/goodsDisplaySelection";
 import { showEconomyTooltip, updateEconomyCellInfo } from "./tooltipHandler";
+import { BurgEditorInnsTab } from "./ui/components/BurgEditorInnsTab";
 import { StatesEditorTreasuryTab } from "./ui/components/StatesEditorTreasuryTab";
 import { EmploymentOverviewDialog } from "./ui/dialogs/EmploymentOverviewDialog";
 import { GoodsDistributionEditorDialog } from "./ui/dialogs/GoodsDistributionEditorDialog";
@@ -893,6 +894,13 @@ export function init(api: ExtensionAPI): void {
     editorId: "statesEditor",
     label: "Treasury",
     component: StatesEditorTreasuryTab
+  });
+  api.registerEditorTab({
+    id: "burg-inns",
+    extensionId: ECONOMY_EXTENSION_ID,
+    editorId: "burgEditor",
+    label: "Inns",
+    component: BurgEditorInnsTab
   });
 
   // Register Economy Dialogs

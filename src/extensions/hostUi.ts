@@ -1,3 +1,4 @@
+export { useBurgEditorState } from "../store/burgEditorState";
 export { useCellInfoState } from "../store/cellInfoState";
 export { useDialogState } from "../store/dialogState";
 export type { ExtensionStyleConfig, ExtensionStyleProps } from "../store/extensionState";

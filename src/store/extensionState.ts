@@ -49,6 +49,15 @@ export interface ExtensionEditorTab {
   component: React.ComponentType;
 }
 
+/** Return the tabs that are both registered for an editor and currently enabled. */
+export function getEnabledEditorTabs(
+  tabs: readonly ExtensionEditorTab[],
+  enabledExtensions: Readonly<Record<string, boolean>>,
+  editorId: string
+): ExtensionEditorTab[] {
+  return tabs.filter(tab => tab.editorId === editorId && enabledExtensions[tab.extensionId]);
+}
+
 /**
  * An extension-supplied numeric column inserted into the Burgs Overview table (and any table
  * sharing BurgsTable), positioned after Population.
