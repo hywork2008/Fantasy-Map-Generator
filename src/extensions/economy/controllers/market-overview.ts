@@ -3,7 +3,13 @@ import type { Burg } from "../../hostTypes";
 import { openDialog } from "../../hostUi";
 import { downloadFile, getFileName, rn } from "../../hostUtils";
 
-import { getAppServices, getMarketCellColumn, getWorldContext } from "../economyContext";
+import {
+  getAppServices,
+  getExportStagingLots,
+  getMarketCellColumn,
+  getMerchantOrganizations,
+  getWorldContext
+} from "../economyContext";
 import {
   getBurgMarketLedger,
   getDominantMerchant,
@@ -13,7 +19,9 @@ import {
 import { Goods } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
 import type { TransportAssetOrder } from "../generators/marketTypes";
+import { MerchantTradeCapital } from "../generators/merchantTradeCapital";
 import { MerchantTransportAssets } from "../generators/merchantTransportAssets";
+import { SCHEDULED_SAIL_DAYS } from "../generators/tradeSailSchedule";
 import { TransportAssetOrders } from "../generators/transportAssetOrders";
 import {
   type MarketOverviewBurgMerchantRow,
@@ -175,6 +183,16 @@ export function refreshMarketOverview(): void {
     0
   );
 
+  MerchantTradeCapital.ensureTradeCapital(market);
+  const tradeWorkingCapital = market.marketTreasury?.tradeWorkingCapital ?? 0;
+  const tradeCapitalLocked = market.marketTreasury?.tradeCapitalLocked ?? 0;
+  const tradeCapitalAvailable = Math.max(0, tradeWorkingCapital - tradeCapitalLocked);
+
+  const stagingLots = getExportStagingLots().filter(lot => lot.marketId === market.i && lot.units > 0);
+  const exportStagingUnits = stagingLots.reduce((sum, lot) => sum + lot.units, 0);
+  const exportStagingValue = stagingLots.reduce((sum, lot) => sum + lot.units * lot.unitCost, 0);
+  const organization = getMerchantOrganizations().find(org => org.homeMarketId === market.i);
+
   setMarketOverviewState({
     marketId: market.i,
     name: market.name || "",
@@ -192,7 +210,15 @@ export function refreshMarketOverview(): void {
     transportReadyCapacitySlots,
     transportUtilizationPercent: transportCargoCapacitySlots
       ? rn((occupiedTransportSlots / transportCargoCapacitySlots) * 100, 0)
-      : 0
+      : 0,
+    tradeWorkingCapital: rn(tradeWorkingCapital, 2),
+    tradeCapitalLocked: rn(tradeCapitalLocked, 2),
+    tradeCapitalAvailable: rn(tradeCapitalAvailable, 2),
+    exportStagingLotCount: stagingLots.length,
+    exportStagingUnits: rn(exportStagingUnits, 2),
+    exportStagingValue: rn(exportStagingValue, 2),
+    merchantOrganizationName: organization?.name ?? "",
+    sailScheduleLabel: `Days ${SCHEDULED_SAIL_DAYS.join(" / ")} each month`
   });
 }
 

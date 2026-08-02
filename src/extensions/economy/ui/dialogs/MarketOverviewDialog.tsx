@@ -72,6 +72,14 @@ export const MarketOverviewDialog: React.FC = () => {
   const transportCargoCapacitySlots = useMarketOverviewState(state => state.transportCargoCapacitySlots);
   const transportReadyCapacitySlots = useMarketOverviewState(state => state.transportReadyCapacitySlots);
   const transportUtilizationPercent = useMarketOverviewState(state => state.transportUtilizationPercent);
+  const tradeWorkingCapital = useMarketOverviewState(state => state.tradeWorkingCapital);
+  const tradeCapitalLocked = useMarketOverviewState(state => state.tradeCapitalLocked);
+  const tradeCapitalAvailable = useMarketOverviewState(state => state.tradeCapitalAvailable);
+  const exportStagingLotCount = useMarketOverviewState(state => state.exportStagingLotCount);
+  const exportStagingUnits = useMarketOverviewState(state => state.exportStagingUnits);
+  const exportStagingValue = useMarketOverviewState(state => state.exportStagingValue);
+  const merchantOrganizationName = useMarketOverviewState(state => state.merchantOrganizationName);
+  const sailScheduleLabel = useMarketOverviewState(state => state.sailScheduleLabel);
   const headerRef = React.useRef<HTMLTableSectionElement | null>(null);
   const [activeTab, setActiveTab] = React.useState<"goods" | "burgMerchants" | "transportAssets">("goods");
   const [transportBlueprintId, setTransportBlueprintId] = React.useState<TransportAssetOrder["blueprintId"]>("cart");
@@ -224,6 +232,21 @@ export const MarketOverviewDialog: React.FC = () => {
             className="icon-ccw pointer -3em"
             onClick={resetActiveMarketName}
           />
+        </div>
+
+        <div className="totalLine" id="marketOverviewTradeLogistics">
+          {merchantOrganizationName ? (
+            <div data-tip="Merchant company based at this market">{merchantOrganizationName}</div>
+          ) : null}
+          <div data-tip="Trade working capital available for export booking (not grain farmgate balance)">
+            Trade capital: {formatPrice(tradeCapitalAvailable)} free / {formatPrice(tradeWorkingCapital)} total
+            {tradeCapitalLocked > 0 ? ` (${formatPrice(tradeCapitalLocked)} locked)` : ""}
+          </div>
+          <div data-tip="Goods already bought into the export warehouse, waiting to load">
+            Export warehouse: {exportStagingLotCount} lots · {exportStagingUnits} units ·{" "}
+            {formatPrice(exportStagingValue)}
+          </div>
+          <div data-tip="Regular commercial sail days; full holds may leave earlier">{sailScheduleLabel}</div>
         </div>
 
         <div className="tab d-flex">

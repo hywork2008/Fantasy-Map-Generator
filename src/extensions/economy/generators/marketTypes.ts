@@ -244,6 +244,10 @@ export type CaravanLoadingState = {
   minSailUtilization: number;
   /** Capacity the shipment is accumulating toward (usually one vehicle / hull bottleneck). */
   plannedCapacitySlots: number;
+  /** Calendar sail days of month (e.g. 1, 10, 20) used for scheduled departures. */
+  sailScheduleDays?: number[];
+  /** Next calendar sail day (1–31) from the current simulation day. */
+  nextSailDay?: number;
 };
 
 export interface Caravan {

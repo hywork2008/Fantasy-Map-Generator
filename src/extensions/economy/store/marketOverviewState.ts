@@ -69,6 +69,16 @@ interface MarketOverviewState {
   transportCargoCapacitySlots: number;
   transportReadyCapacitySlots: number;
   transportUtilizationPercent: number;
+  /** Merchant trade working capital (available = total − locked). */
+  tradeWorkingCapital: number;
+  tradeCapitalLocked: number;
+  tradeCapitalAvailable: number;
+  /** Export warehouse lots waiting to load at this market. */
+  exportStagingLotCount: number;
+  exportStagingUnits: number;
+  exportStagingValue: number;
+  merchantOrganizationName: string;
+  sailScheduleLabel: string;
 }
 
 export const useMarketOverviewState = create<MarketOverviewState>(() => ({
@@ -86,7 +96,15 @@ export const useMarketOverviewState = create<MarketOverviewState>(() => ({
   agTechStockPercent: 0,
   transportCargoCapacitySlots: 0,
   transportReadyCapacitySlots: 0,
-  transportUtilizationPercent: 0
+  transportUtilizationPercent: 0,
+  tradeWorkingCapital: 0,
+  tradeCapitalLocked: 0,
+  tradeCapitalAvailable: 0,
+  exportStagingLotCount: 0,
+  exportStagingUnits: 0,
+  exportStagingValue: 0,
+  merchantOrganizationName: "",
+  sailScheduleLabel: ""
 }));
 
 export const getMarketOverviewState = useMarketOverviewState.getState;

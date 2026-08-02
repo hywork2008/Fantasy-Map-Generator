@@ -8,7 +8,9 @@ import {
   getExportStagingLots,
   getGoods,
   getMarkets,
+  getMerchantOrganizations,
   getNextCaravanId,
+  getSimulationDay,
   getSimulationMonth,
   getWorldContext,
   setCaravans,
@@ -24,13 +26,7 @@ import {
 } from "./caravanMovement";
 import { ExportStaging } from "./exportStaging";
 import type { Good } from "./goods-generator";
-import {
-  DEFAULT_MAX_WAIT_DAYS_LAND,
-  DEFAULT_MAX_WAIT_DAYS_SEA,
-  DEFAULT_MIN_SAIL_UTILIZATION,
-  DEFAULT_TARGET_UTILIZATION,
-  utilizationOf
-} from "./marketFlowBudget";
+import { DEFAULT_MIN_SAIL_UTILIZATION, DEFAULT_TARGET_UTILIZATION, utilizationOf } from "./marketFlowBudget";
 import type { Caravan, Deal, ExportStagingLot, Market, TradeRouteSegment } from "./marketTypes";
 import { MerchantTradeCapital } from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
@@ -48,6 +44,12 @@ import {
 } from "./tradeOpportunityEstimator";
 import { calculateRouteDurationDays, getRouteDistanceKm } from "./tradeRouteDuration";
 import { TradeRoutePlanner } from "./tradeRoutePlanner";
+import {
+  decideSailDeparture,
+  maxWaitDaysForRoute,
+  nextScheduledSailDay,
+  SCHEDULED_SAIL_DAYS
+} from "./tradeSailSchedule";
 import { TradeSecurity } from "./tradeSecurity";
 
 export type CaravanTravelLeg = { endKm: number; speedKmPerDay: number };
@@ -64,11 +66,9 @@ function payloadUsedSlots(caravan: Pick<Caravan, "payload">): number {
   }, 0);
 }
 
-function maxWaitDaysForRoute(routeSegments: readonly TradeRouteSegment[]): number {
-  const hasWater = routeSegments.some(
-    segment => segment.type === "water" || segment.type === "sea" || segment.type === "river"
-  );
-  return hasWater ? DEFAULT_MAX_WAIT_DAYS_SEA : DEFAULT_MAX_WAIT_DAYS_LAND;
+function resolveMerchantOrganizationId(dispatcherMarketId: number | null | undefined): number | undefined {
+  if (dispatcherMarketId === null || dispatcherMarketId === undefined) return undefined;
+  return getMerchantOrganizations().find(organization => organization.homeMarketId === dispatcherMarketId)?.i;
 }
 
 function sameRouteBundle(
@@ -195,18 +195,24 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
   const usedSlots = payloadUsedSlots(caravan);
   const planned = caravan.loading.plannedCapacitySlots;
   const util = utilizationOf(usedSlots, planned);
-  const waited = caravan.loading.waitedDays;
-  const fullEnough = util >= caravan.loading.targetUtilization - UNIT_EPSILON;
-  const waitExpired = waited + UNIT_EPSILON >= caravan.loading.maxWaitDays;
-  const minFill = util >= caravan.loading.minSailUtilization - UNIT_EPSILON;
+  const dayOfMonth = getSimulationDay();
+  caravan.loading.nextSailDay = nextScheduledSailDay(dayOfMonth);
 
-  if (!fullEnough && !(waitExpired && minFill)) {
-    if (waitExpired && !minFill) {
-      restoreLoadingCargoToOrigin(caravan);
-      caravan.state = "lost";
-      return "cancelled";
-    }
-    return "waiting";
+  const decision = decideSailDeparture({
+    utilization: util,
+    targetUtilization: caravan.loading.targetUtilization,
+    minSailUtilization: caravan.loading.minSailUtilization,
+    waitedDays: caravan.loading.waitedDays,
+    maxWaitDays: caravan.loading.maxWaitDays,
+    dayOfMonth,
+    unitEpsilon: UNIT_EPSILON
+  });
+
+  if (decision === "waiting") return "waiting";
+  if (decision === "cancelled") {
+    restoreLoadingCargoToOrigin(caravan);
+    caravan.state = "lost";
+    return "cancelled";
   }
 
   // Right-size the vehicle to the actual cargo, then reserve durable assets at sail time only.
@@ -230,6 +236,7 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
   caravan.transportAllocations = reservation?.reservation.allocations ?? allocations;
   caravan.transportReservationId = reservation?.reservation.id;
   caravan.transportDispatcherMarketId = reservation?.dispatcherMarketId ?? dispatcherMarketId;
+  caravan.merchantOrganizationId ??= resolveMerchantOrganizationId(dispatcherMarketId);
   caravan.state = "transit";
   caravan.loading = undefined;
   if (reservation) MerchantTransportAssets.depart(reservation.reservation.id);
@@ -515,6 +522,7 @@ export class CaravansModule {
       ],
       units: rn(deal.units, 2),
       value: rn(deal.price * deal.units, 2),
+      merchantOrganizationId: resolveMerchantOrganizationId(dispatcherMarketId),
       draftAnimalId: DEFAULT_DRAFT_ANIMAL_ID,
       transportAllocations: reservation?.reservation.allocations ?? transportAllocations,
       transportReservationId: reservation?.reservation.id,
@@ -685,6 +693,7 @@ export class CaravansModule {
           bake.heightExponent
         );
 
+        const dayOfMonth = getSimulationDay();
         const caravan: Caravan = {
           i: nextId++,
           seller: bundle.seller,
@@ -694,6 +703,7 @@ export class CaravansModule {
           payload: [],
           units: 0,
           value: 0,
+          merchantOrganizationId: resolveMerchantOrganizationId(dispatcherMarketId),
           draftAnimalId: DEFAULT_DRAFT_ANIMAL_ID,
           // Planned abstract allocations for UI; real assets attach at depart.
           transportAllocations: manifest.allocations.map(allocation => ({
@@ -708,10 +718,12 @@ export class CaravansModule {
           state: "loading",
           loading: {
             waitedDays: 0,
-            maxWaitDays: maxWaitDaysForRoute(routeSegments),
+            maxWaitDays: maxWaitDaysForRoute(routeSegments, distance),
             targetUtilization: DEFAULT_TARGET_UTILIZATION,
             minSailUtilization: DEFAULT_MIN_SAIL_UTILIZATION,
-            plannedCapacitySlots
+            plannedCapacitySlots,
+            sailScheduleDays: [...SCHEDULED_SAIL_DAYS],
+            nextSailDay: nextScheduledSailDay(dayOfMonth)
           }
         };
         appendPayloadFromManifest(caravan, manifest);

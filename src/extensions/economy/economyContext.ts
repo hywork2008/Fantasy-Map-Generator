@@ -134,6 +134,13 @@ export function getSimulationMonth(): number {
   return Number.isFinite(fallback) && fallback >= 1 && fallback <= 12 ? fallback : 1;
 }
 
+export function getSimulationDay(): number {
+  const day = _api?.simulationContext?.currentDay;
+  if (typeof day === "number" && Number.isFinite(day) && day >= 1) return Math.floor(day);
+  const fallback = Number(getWorldContext().options.day);
+  return Number.isFinite(fallback) && fallback >= 1 ? Math.floor(fallback) : 1;
+}
+
 /**
  * Hands displaced adults to the host's (extension-agnostic) frontier applicant pool instead of
  * economy-only bookkeeping, so `advanceFrontierExpansion` can draw on them directly

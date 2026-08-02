@@ -2,11 +2,12 @@ import { type Point, useOptionsState } from "../../hostCore";
 import { openDialog } from "../../hostUi";
 import { minmax, rn } from "../../hostUtils";
 
-import { getApi, getMarketById, getMarkets, getWorldContext } from "../economyContext";
+import { getApi, getMarketById, getMarkets, getMerchantOrganizations, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import type { Caravan, TradeRouteSegment } from "../generators/marketTypes";
 import { MerchantTransportAssets } from "../generators/merchantTransportAssets";
 import { getGoodCargoSlotsPerUnit } from "../generators/tradeCargo";
+import { SCHEDULED_SAIL_DAYS } from "../generators/tradeSailSchedule";
 import { clearHighlight, highlight } from "../renderers/draw-trade-animation";
 import { setTradeDetailsState } from "../store/tradeDetailsState";
 
@@ -124,10 +125,15 @@ function tradeDetailsAddLines(): void {
     }
   }
 
+  const organization = caravan.merchantOrganizationId
+    ? getMerchantOrganizations().find(org => org.i === caravan.merchantOrganizationId)
+    : undefined;
+  const orgLabel = organization?.name ? ` · ${organization.name}` : "";
+
   const distanceLabel =
     caravan.state === "loading" && caravan.loading
-      ? `${rn(caravan.totalDistance)} ${distUnit} (loading: day ${rn(caravan.loading.waitedDays, 1)}/${caravan.loading.maxWaitDays}, target ${Math.round(caravan.loading.targetUtilization * 100)}%)`
-      : `${rn(caravan.totalDistance)} ${distUnit} (progress: ${Math.round(minmax(caravan.currentDistance / caravan.totalDistance, 0, 1) * 100)}%)`;
+      ? `${rn(caravan.totalDistance)} ${distUnit}${orgLabel} (loading day ${rn(caravan.loading.waitedDays, 1)}/${caravan.loading.maxWaitDays}, target ${Math.round(caravan.loading.targetUtilization * 100)}%, sail days ${(caravan.loading.sailScheduleDays ?? SCHEDULED_SAIL_DAYS).join("/")}${caravan.loading.nextSailDay ? `, next ${caravan.loading.nextSailDay}` : ""})`
+      : `${rn(caravan.totalDistance)} ${distUnit}${orgLabel} (progress: ${Math.round(minmax(caravan.currentDistance / caravan.totalDistance, 0, 1) * 100)}%)`;
 
   setTradeDetailsState({
     summary: {
