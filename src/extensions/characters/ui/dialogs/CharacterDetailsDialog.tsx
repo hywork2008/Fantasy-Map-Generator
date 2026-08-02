@@ -9,6 +9,7 @@ import { usePlayerCharacterState } from "../../../nobility/store/playerCharacter
 import { getFavorBand, getSolidarityBand } from "../../backstoryProfile";
 import { getApi, getCharacters, getWorldContext } from "../../charactersContext";
 import type { CharacterRole, TitleHolding } from "../../characterTypes";
+import { formatFlavorHook } from "../../flavorHooks";
 import { getCharacterRoleLabel, getCharacterTitleLabel } from "../../utils/characterLabels";
 import { useCharactersUiState } from "../charactersUiState";
 import { RadarChart } from "../components/charts/RadarChart";
@@ -47,6 +48,7 @@ export const CharacterDetailsDialog: React.FC = () => {
   const provinces = worldContext.pack.provinces;
   const cultures = worldContext.pack.cultures;
   const burgs = worldContext.pack.burgs;
+  const dynasties = worldContext.pack.dynasties ?? [];
   const markets = getEconomyMarkets(worldContext.pack);
 
   const character = characters.find(c => c.i === selectedCharacterId);
@@ -143,6 +145,8 @@ export const CharacterDetailsDialog: React.FC = () => {
   }
 
   const backstory = character.backstory;
+  const dynasty =
+    backstory?.origin.lineageId !== undefined ? dynasties.find(d => d.i === backstory.origin.lineageId) : undefined;
   const mapRelationEntries = (map: Record<number, number> | undefined) =>
     Object.entries(map ?? {})
       .map(([idStr, score]) => {
@@ -280,6 +284,12 @@ export const CharacterDetailsDialog: React.FC = () => {
       rows.push(`${t("characters.birthPlace")}, ${formatBurgPlace(backstory.origin.birthBurgId)}`);
       rows.push(`${t("characters.homePlace")}, ${formatBurgPlace(backstory.origin.homeBurgId)}`);
       rows.push(`${t("characters.raisedIn")}, ${t(`characters.raisedInNames.${backstory.origin.raisedIn}`)}`);
+      if (backstory.origin.lineageName) {
+        rows.push(`${t("characters.lineage")}, ${backstory.origin.lineageName}`);
+      }
+      if (dynasty?.motto) {
+        rows.push(`${t("characters.houseMotto")}, ${dynasty.motto}`);
+      }
 
       rows.push(t("characters.commitment"));
       rows.push(
@@ -313,6 +323,23 @@ export const CharacterDetailsDialog: React.FC = () => {
       }
       if (dislikes.length) {
         rows.push(`${t("characters.dislikes")}, ${dislikes.map(formatTaste).join("; ")}`);
+      }
+
+      if (backstory.hooks?.length) {
+        rows.push(t("characters.flavorHooks"));
+        for (const hook of backstory.hooks) rows.push(formatFlavorHook(hook, t));
+      }
+
+      if (backstory.bonds?.length) {
+        rows.push(t("characters.bonds"));
+        for (const bond of backstory.bonds) {
+          const target =
+            bond.targetType === "character"
+              ? (characters.find(c => c.i === bond.targetId)?.name ?? String(bond.targetId))
+              : `${bond.targetType}:${String(bond.targetId)}`;
+          const kindLabel = t(`characters.bondKindNames.${bond.kind}`, { defaultValue: bond.kind });
+          rows.push(`${kindLabel} -> ${target} (${String(bond.strength)})`);
+        }
       }
     }
 
@@ -635,6 +662,75 @@ export const CharacterDetailsDialog: React.FC = () => {
                   <th style={{ padding: "4px 0" }}>{t("characters.raisedIn")}</th>
                   <td>{t(`characters.raisedInNames.${backstory.origin.raisedIn}`)}</td>
                 </tr>
+                {(backstory.origin.lineageName || dynasty) && (
+                  <tr>
+                    <th style={{ padding: "4px 0" }}>{t("characters.lineage")}</th>
+                    <td>
+                      {backstory.origin.lineageName ?? dynasty?.name}
+                      {dynasty?.motto ? (
+                        <span style={{ color: "#868e96", fontStyle: "italic" }}> — {dynasty.motto}</span>
+                      ) : null}
+                    </td>
+                  </tr>
+                )}
+                {backstory.hooks && backstory.hooks.length > 0 && (
+                  <tr>
+                    <th style={{ padding: "4px 0", verticalAlign: "top" }}>{t("characters.flavorHooks")}</th>
+                    <td>
+                      <ul style={{ margin: 0, paddingLeft: "1.1em" }}>
+                        {backstory.hooks.map((hook, index) => {
+                          const text = formatFlavorHook(hook, t);
+                          return <li key={typeof hook === "string" ? hook : `${hook.id}-${index}`}>{text}</li>;
+                        })}
+                      </ul>
+                    </td>
+                  </tr>
+                )}
+                {backstory.bonds && backstory.bonds.length > 0 && (
+                  <tr>
+                    <th style={{ padding: "4px 0", verticalAlign: "top" }}>{t("characters.bonds")}</th>
+                    <td>
+                      <ul style={{ margin: 0, listStyleType: "none", padding: 0 }}>
+                        {backstory.bonds.map(bond => {
+                          const targetChar =
+                            bond.targetType === "character" ? characters.find(c => c.i === bond.targetId) : undefined;
+                          const kindLabel = t(`characters.bondKindNames.${bond.kind}`, {
+                            defaultValue: bond.kind
+                          });
+                          return (
+                            <li key={`${bond.kind}-${bond.targetType}-${bond.targetId}`}>
+                              {kindLabel}
+                              {": "}
+                              {targetChar ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenLinkedCharacter(targetChar.i)}
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    padding: 0,
+                                    color: "inherit",
+                                    font: "inherit",
+                                    fontWeight: "bold",
+                                    textDecoration: "underline",
+                                    cursor: "pointer"
+                                  }}
+                                >
+                                  {targetChar.name}
+                                </button>
+                              ) : (
+                                `${bond.targetType} ${bond.targetId}`
+                              )}
+                              {" ("}
+                              {bond.strength}
+                              {")"}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </td>
+                  </tr>
+                )}
                 <tr>
                   <th style={{ padding: "4px 0" }}>{t("characters.commitmentPrimary")}</th>
                   <td>

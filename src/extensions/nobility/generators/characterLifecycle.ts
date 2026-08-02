@@ -11,12 +11,29 @@ import {
   tryCourtBribe
 } from "../../characters/characterSimulationHooks";
 import type { Character, CharacterSkills } from "../../characters/characterTypes";
+import { finalizeCharacterSociety, finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { createPerson } from "../../characters/personFactory";
 import { calculateCharacterTraits } from "../../characters/utils/personalityUtils";
 import type { Province, State } from "../../hostTypes";
 import { P, rand, TIME } from "../../hostUtils";
 import { CENTRAL_OFFICES, resolveProvinceLordTitle, resolveRulerTitle } from "../data/titleTable";
 import { getCurrentYear, getRulerId, getWorldContext, setRulerId } from "../nobilityContext";
+
+function buildStateNameMap(states: { i: number; name?: string }[]): Record<number, string> {
+  const map: Record<number, string> = {};
+  for (const s of states) {
+    if (s.i) map[s.i] = s.name ?? `State ${s.i}`;
+  }
+  return map;
+}
+
+function societyContext() {
+  const { pack } = getWorldContext();
+  return {
+    stateNames: buildStateNameMap((pack.states ?? []).filter(s => s.i && !s.removed)),
+    currentYear: getCurrentYear()
+  };
+}
 
 export type {
   Character,
@@ -73,6 +90,7 @@ function generate(options: { randomSeed?: number } = {}): void {
   const { pack } = worldContext;
   clearStateRulerIds();
   const characters: Character[] = [...preserveNonPoliticalCharacters(pack.characters)];
+  pack.dynasties = [];
   let nextId = getNextCharacterId(characters);
 
   const currentYear = getCurrentYear();
@@ -133,6 +151,13 @@ function generate(options: { randomSeed?: number } = {}): void {
 
   calculateAffinities(characters);
   seedCharacterRelations(characters);
+
+  // Phase E: houses, bond labels, flavor hooks
+  const { dynasties } = finalizeCharacterSociety(characters, {
+    stateNames: buildStateNameMap(states),
+    currentYear
+  });
+  pack.dynasties = dynasties;
 
   pack.characters = characters;
   TIME && console.timeEnd("generateCharacters");
@@ -256,6 +281,7 @@ function createOfficer(
   });
   pack.characters.push(officer);
   seedRelationsWithPeers(officer, pack.characters);
+  finalizeCharacterSocietyForPeer(officer, pack.characters, societyContext());
   return officer;
 }
 
@@ -296,6 +322,7 @@ function createProvinceLord(
   });
   pack.characters.push(lord);
   seedRelationsWithPeers(lord, pack.characters);
+  finalizeCharacterSocietyForPeer(lord, pack.characters, societyContext());
   return lord;
 }
 
@@ -550,6 +577,7 @@ function processSuccessions(): void {
       });
       pack.characters.push(heir);
       seedRelationsWithPeers(heir, pack.characters);
+      finalizeCharacterSocietyForPeer(heir, pack.characters, societyContext());
       setRulerId(state, heir.i);
       currentRuler = heir;
       // The heir is now part of the living state characters if we do further processing
@@ -652,6 +680,7 @@ function processSuccessions(): void {
       });
       pack.characters.push(officer);
       seedRelationsWithPeers(officer, pack.characters);
+      finalizeCharacterSocietyForPeer(officer, pack.characters, societyContext());
     }
   }
 }

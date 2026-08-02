@@ -145,6 +145,70 @@
     "birthPlace": "Birthplace",
     "homePlace": "Home",
     "raisedIn": "Raised In",
+    "lineage": "House / Lineage",
+    "houseMotto": "House motto",
+    "flavorHooks": "Flavor",
+    "flavorLines": {
+      "joinTwo": "{{a}} and {{b}}",
+      "stratumUnknown": "person of unknown birth",
+      "identity": "A {{stratum}} who {{role}}.",
+      "role": {
+        "ruler": "wears a crown heavier than it looks",
+        "central_officer": "moves quietly through the corridors of power",
+        "commander": "smells of iron and wet leather",
+        "province_lord": "keeps one eye on the border and one on the ledgers",
+        "merchant": "counts value in handshakes as much as coin",
+        "religious": "speaks as if heaven were listening",
+        "ordinary": "walks among greater names without vanishing"
+      },
+      "commitment": {
+        "house": "The name of the house matters more than any single life.",
+        "faith": "Doctrine is not a costume — it is the spine.",
+        "wealth": "Gold is the only language that never lies.",
+        "state": "The realm must outlast its servants.",
+        "liege": "Loyalty is a blade held by the hilt, not the edge.",
+        "domain": "Land is memory made solid.",
+        "comrades": "The only family that matters wears the same scars.",
+        "people": "A throne that forgets the fields will starve.",
+        "self": "Ambition needs no banner but its own.",
+        "rivalry": "Some debts are paid only in ruin.",
+        "craft": "Mastery is a quieter kind of power.",
+        "office": "The seal of office is worth more than friendship.",
+        "family": "Blood and hearth come before banners.",
+        "patron": "A debt of favor is still a chain.",
+        "ideology": "The idea is larger than the person who serves it.",
+        "nation_culture": "The people and their tongue outrank any court.",
+        "hedonism": "Pleasure is the only honest prayer.",
+        "default": "Something greater than the self still pulls the will."
+      },
+      "tastes": {
+        "both": "Drawn to {{likes}}; turns cold at {{dislikes}}.",
+        "likesOnly": "Cannot quite hide a fondness for {{likes}}.",
+        "dislikesOnly": "Makes little secret of despising {{dislikes}}."
+      },
+      "bonds": {
+        "nemesis": "Keeps a private ledger of enemies who will not be forgiven.",
+        "rival": "Treats certain peers as ladders — or obstacles."
+      },
+      "house": {
+        "tongue": "{{house}} is never far from the tongue."
+      }
+    },
+    "bonds": "Bonds",
+    "bondKindNames": {
+      "mentor": "Mentor",
+      "benefactor": "Benefactor",
+      "rival": "Rival",
+      "nemesis": "Nemesis",
+      "lover": "Lover",
+      "friend": "Friend",
+      "ward": "Ward",
+      "patron": "Patron",
+      "client": "Client",
+      "blood_feud": "Blood feud",
+      "comrade": "Comrade",
+      "hometown_kin": "Hometown kin"
+    },
     "commitment": "Commitment",
     "commitmentPrimary": "Primary",
     "commitmentSecondary": "Secondary",

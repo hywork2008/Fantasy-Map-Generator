@@ -1,6 +1,6 @@
 # キャラクター・バックストーリー属性設計
 
-**Status**: Phase A–D 実装済み（生成・Solidarity/Favor・贈答・芸術 Good・Details/CSV・戦略AI/結婚/汚職接続）。Phase E（家門・Bonds・文化パック）は未着手。  
+**Status**: Phase A–E 実装済み（生成・Solidarity/Favor・贈答・芸術 Good・Details/CSV・戦略AI/結婚/汚職・Dynasty/Bonds/文化パック/フレーバー）。  
 **Related**: `docs/plan/characters.md`, `docs/plan/char-economy.md`, `docs/plan/char.md`, `src/extensions/characters/characterTypes.ts`, `src/extensions/characters/backstoryProfile.ts`, `src/extensions/characters/personFactory.ts`  
 **Goal**: 能力・性格だけでは書けない「何に仕えて生きているか」「何が好きで何が嫌いか」「どこから来た誰か」「誰をどれだけ好むか（ギャルゲー式好感度）」「何を贈ると心が動く／逆に嫌われるか」をデータ化し、フレーバー文・伝記・政治/経済AIの動機付けの共通基盤にする。
 
@@ -1092,12 +1092,15 @@ skills/personality の凸凹
 3. 結婚 AI: `evaluateDynasticMarriage` を `calculateAffinities` の政略結婚判定に接続（faith/house 拒否、favor 加点）  
 4. 愛国心: 格納フィールドは増やさず `getEffectivePatriotism`（Commitment + honor 由来）として導出  
 
-### Phase E — 家門・Bonds・文化パック
+### Phase E — 家門・Bonds・文化パック ✅
 
-1. 軽量 Dynasty テーブル  
-2. Bond ラベル自動付与（rival / hometown_kin / comrade）  
-3. form / culture 別重みと時代ラベル  
-4. フレーバー文専用ドキュメント  
+| 項目 | 実装 |
+| :--- | :--- |
+| Dynasty | `pack.dynasties` + `dynastyGenerator.ts`（君主・有力貴族・商人成金など） |
+| Bonds | `characterBonds.ts`（rival/nemesis/hometown_kin/comrade/lover/benefactor…） |
+| 文化・政体パック | `cultureFormPacks.ts`（monarchy/theocracy/republic/horde/empire）→ commitment/stratum 重み |
+| フレーバー | `flavorHooks.ts` + `docs/plan/characters/flavor-text.md` |
+| 統合 | `finalizeCharacterSociety` を `Characters.generate` 後に実行。Details UI/CSV に家門・Bonds・hooks 表示 |
 
 ---
 

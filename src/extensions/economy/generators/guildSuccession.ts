@@ -1,5 +1,6 @@
 import { applyCharacterBackstory, seedRelationsWithPeers } from "../../characters/backstoryProfile";
 import type { Character, CharacterRole, CharacterSkills } from "../../characters/characterTypes";
+import { finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { createPerson } from "../../characters/personFactory";
 import type { Burg } from "../../hostTypes";
 import { rand } from "../../hostUtils";
@@ -144,6 +145,10 @@ function createMaster(characters: Character[], burgId: number, domain: CraftKnow
 
   characters.push(character);
   seedRelationsWithPeers(character, characters);
+  finalizeCharacterSocietyForPeer(character, characters, {
+    stateNames: {},
+    currentYear: getSimulationYear()
+  });
   return character;
 }
 
@@ -175,6 +180,10 @@ function createApprentice(
 
   characters.push(character);
   seedRelationsWithPeers(character, characters);
+  finalizeCharacterSocietyForPeer(character, characters, {
+    stateNames: {},
+    currentYear: getSimulationYear()
+  });
   return character;
 }
 

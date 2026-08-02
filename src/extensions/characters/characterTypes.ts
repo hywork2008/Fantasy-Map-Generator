@@ -225,12 +225,43 @@ export interface CharacterBond {
   note?: string;
 }
 
+/**
+ * Structured flavor line — resolve with i18n at display time.
+ * Legacy plain strings may still appear on old saves.
+ */
+export interface CharacterFlavorHook {
+  /** Key under `characters.flavorLines.<id>`. */
+  id: string;
+  /** Interpolation params (often other i18n keys resolved by formatFlavorHook). */
+  params?: Record<string, string>;
+}
+
 export interface CharacterBackstory {
   origin: CharacterOrigin;
   commitment: CharacterCommitment;
   tastes: CharacterTaste[];
   bonds?: CharacterBond[];
-  hooks?: string[];
+  /**
+   * Flavor hooks (structured for i18n). Plain strings are legacy English only.
+   */
+  hooks?: Array<CharacterFlavorHook | string>;
+}
+
+/**
+ * Lightweight house / lineage record (Phase E).
+ * Characters reference this via `backstory.origin.lineageId`.
+ */
+export interface Dynasty {
+  i: number;
+  /** Display name, e.g. "House Aldric". */
+  name: string;
+  culture: number;
+  /** Home state when founded (optional). */
+  stateId?: number;
+  founderBurgId?: number;
+  founderCharacterId?: number;
+  /** Optional motto / house saying. */
+  motto?: string;
 }
 
 /** Gift / bribe intent — primarily moves solidarity; romance intent may also move favor. */

@@ -1,6 +1,8 @@
 import { applyCharacterBackstory, seedRelationsWithPeers } from "../../characters/backstoryProfile";
 import type { Character, CharacterRole } from "../../characters/characterTypes";
+import { finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { createPerson } from "../../characters/personFactory";
+import { simulationContext } from "../../hostCore";
 import type { Burg } from "../../hostTypes";
 import { getMarkets, getWorldContext } from "../economyContext";
 import { rollBalancedEconomyGender } from "./economyCharacterGender";
@@ -101,6 +103,10 @@ function createMarketManager(market: Market): Character | null {
 
   characters.push(character);
   seedRelationsWithPeers(character, characters);
+  finalizeCharacterSocietyForPeer(character, characters, {
+    stateNames: {},
+    currentYear: simulationContext.currentYear
+  });
   market.managerCharacterId = character.i;
   return character;
 }
@@ -128,6 +134,10 @@ function createMarketRival(market: Market): Character {
   });
   characters.push(character);
   seedRelationsWithPeers(character, characters);
+  finalizeCharacterSocietyForPeer(character, characters, {
+    stateNames: {},
+    currentYear: simulationContext.currentYear
+  });
   return character;
 }
 

@@ -1,6 +1,8 @@
 import { applyCharacterBackstory, seedRelationsWithPeers } from "../../characters/backstoryProfile";
 import type { Character, CharacterRole, CharacterSkills } from "../../characters/characterTypes";
+import { finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { createPerson } from "../../characters/personFactory";
+import { simulationContext } from "../../hostCore";
 import type { Burg } from "../../hostTypes";
 import { rand, rn } from "../../hostUtils";
 import {
@@ -356,6 +358,10 @@ function createOrganizationStaff(
   });
   pack.characters.push(character);
   seedRelationsWithPeers(character, pack.characters);
+  finalizeCharacterSocietyForPeer(character, pack.characters, {
+    stateNames: {},
+    currentYear: simulationContext.currentYear
+  });
 
   return character;
 }

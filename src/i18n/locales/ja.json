@@ -145,6 +145,70 @@
     "birthPlace": "出生地",
     "homePlace": "本拠",
     "raisedIn": "成育環境",
+    "lineage": "家門",
+    "houseMotto": "家訓",
+    "flavorHooks": "フレーバー",
+    "flavorLines": {
+      "joinTwo": "{{a}}と{{b}}",
+      "stratumUnknown": "出自の定かでない者",
+      "identity": "{{stratum}}の身でありながら、{{role}}。",
+      "role": {
+        "ruler": "見た目以上に重い冠を戴いている",
+        "central_officer": "権力の回廊を静かに渡り歩いている",
+        "commander": "鉄と濡れた革の匂いをまとう",
+        "province_lord": "一方の目を国境に、もう一方を帳簿に向けている",
+        "merchant": "握手の数も硬貨と同じく価値として数える",
+        "religious": "天が耳を澄ませているかのように語る",
+        "ordinary": "大きな名のあいだを消えずに歩いている"
+      },
+      "commitment": {
+        "house": "家の名は、いかなる一命よりも重い。",
+        "faith": "教義は衣装ではない——それは背骨だ。",
+        "wealth": "金だけが、決して嘘をつかない言葉だ。",
+        "state": "国は、その僕たちより長く生きねばならない。",
+        "liege": "忠義は刃先ではなく、柄を握る手にある。",
+        "domain": "土地とは、形を得た記憶である。",
+        "comrades": "本当の家族は、同じ傷を帯びた者たちだけだ。",
+        "people": "田畑を忘れる玉座は、いずれ飢える。",
+        "self": "野心に、己以外の旗は要らない。",
+        "rivalry": "ある種の借りは、破滅でしか返しない。",
+        "craft": "熟達とは、より静かな力の形だ。",
+        "office": "官職の印は、友情より値打ちがある。",
+        "family": "血と炉端は、どの旗印よりも先に来る。",
+        "patron": "恩義もまた、鎖の一種である。",
+        "ideology": "理念は、それに仕える者より大きい。",
+        "nation_culture": "民とその言葉は、どんな宮廷にも勝る。",
+        "hedonism": "快楽こそ、唯一誠実な祈りだ。",
+        "default": "なお己を超える何かが、意志を引っ張っている。"
+      },
+      "tastes": {
+        "both": "{{likes}}を愛し、{{dislikes}}を厭う。",
+        "likesOnly": "{{likes}}への興味を、うまく隠しきれない。",
+        "dislikesOnly": "{{dislikes}}を嫌うことを、ほとんど隠さない。"
+      },
+      "bonds": {
+        "nemesis": "決して許さない敵の名を、私的な帳簿に記している。",
+        "rival": "ある同僚を、梯子——あるいは障害——として扱う。"
+      },
+      "house": {
+        "tongue": "{{house}}の名は、舌の先から離れない。"
+      }
+    },
+    "bonds": "関係ラベル",
+    "bondKindNames": {
+      "mentor": "師",
+      "benefactor": "恩人・主君",
+      "rival": "ライバル",
+      "nemesis": "宿敵",
+      "lover": "恋人",
+      "friend": "友人",
+      "ward": "被後見人",
+      "patron": "後援者",
+      "client": "取り巻き",
+      "blood_feud": "血仇",
+      "comrade": "戦友",
+      "hometown_kin": "同郷"
+    },
     "commitment": "献身の対象",
     "commitmentPrimary": "第一",
     "commitmentSecondary": "第二",

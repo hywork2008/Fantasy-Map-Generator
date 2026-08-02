@@ -3,6 +3,7 @@
 2026-08-02
 
 - docs/plan/characters/backstory-profile.md
+- docs/plan/characters/flavor-text.md
 
 2026-08-01
 

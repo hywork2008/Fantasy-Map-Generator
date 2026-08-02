@@ -21,6 +21,7 @@ import type {
   SolidarityBand,
   TastePolarity
 } from "./characterTypes";
+import { applyFormCommitmentBoost, applyFormStratumMultiplier } from "./cultureFormPacks";
 
 // ---------------------------------------------------------------------------
 // Relation score helpers (solidarity = political; favor = romantic only)
@@ -182,23 +183,32 @@ function estateForRole(roleClass: CharacterRoleClass, stratum: SocialStratum): E
   }
 }
 
-function stratumWeights(roleClass: CharacterRoleClass): Partial<Record<SocialStratum, number>> {
+function stratumWeights(roleClass: CharacterRoleClass, formName?: string): Partial<Record<SocialStratum, number>> {
+  let weights: Partial<Record<SocialStratum, number>>;
   switch (roleClass) {
     case "ruler":
-      return { royal: 70, high_noble: 25, unknown: 5 };
+      weights = { royal: 70, high_noble: 25, unknown: 5 };
+      break;
     case "central_officer":
-      return { high_noble: 40, minor_noble: 30, gentry: 20, commoner: 10 };
+      weights = { high_noble: 40, minor_noble: 30, gentry: 20, commoner: 10 };
+      break;
     case "commander":
-      return { minor_noble: 35, gentry: 25, commoner: 30, freedman: 5, foreigner: 5 };
+      weights = { minor_noble: 35, gentry: 25, commoner: 30, freedman: 5, foreigner: 5 };
+      break;
     case "province_lord":
-      return { high_noble: 30, minor_noble: 55, gentry: 15 };
+      weights = { high_noble: 30, minor_noble: 55, gentry: 15 };
+      break;
     case "religious":
-      return { clergy_orphan: 25, minor_noble: 30, gentry: 25, commoner: 20 };
+      weights = { clergy_orphan: 25, minor_noble: 30, gentry: 25, commoner: 20 };
+      break;
     case "merchant":
-      return { merchant_born: 50, commoner: 30, freedman: 10, minor_noble: 5, foreigner: 5 };
+      weights = { merchant_born: 50, commoner: 30, freedman: 10, minor_noble: 5, foreigner: 5 };
+      break;
     default:
-      return { commoner: 50, gentry: 20, merchant_born: 15, minor_noble: 10, freedman: 5 };
+      weights = { commoner: 50, gentry: 20, merchant_born: 15, minor_noble: 10, freedman: 5 };
   }
+  applyFormStratumMultiplier(weights, formName);
+  return weights;
 }
 
 function raisedInFor(roleClass: CharacterRoleClass, stratum: SocialStratum, hasCapital: boolean): RaisedIn {
@@ -264,19 +274,8 @@ function commitmentWeights(roleClass: CharacterRoleClass, formName?: string): Pa
     }
   })();
 
-  if (formName && /Theocracy|Holy State|Bishopric|Caliphate/i.test(formName)) {
-    base.faith = (base.faith ?? 0) + 30;
-  }
-  if (formName && /Republic|Free City|League/i.test(formName)) {
-    base.domain = (base.domain ?? 0) + 15;
-    base.state = (base.state ?? 0) + 10;
-    base.house = Math.max(0, (base.house ?? 0) - 10);
-  }
-  if (formName && /Horde|Khan|Khagan|Clan/i.test(formName)) {
-    base.house = (base.house ?? 0) + 20;
-    base.family = (base.family ?? 0) + 15;
-    base.comrades = (base.comrades ?? 0) + 10;
-  }
+  // Form pack boosts (theocracy / republic / horde / empire / monarchy)
+  applyFormCommitmentBoost(base, formName);
   return base;
 }
 
@@ -516,7 +515,7 @@ function buildOrigin(
 ): CharacterOrigin {
   const capital = options.capitalBurgId;
   const location = character.location;
-  const stratum = pickWeighted(stratumWeights(roleClass));
+  const stratum = pickWeighted(stratumWeights(roleClass, options.formName));
   const estateStatus = estateForRole(roleClass, stratum);
   const hasCapital = capital !== undefined && capital > 0;
 
