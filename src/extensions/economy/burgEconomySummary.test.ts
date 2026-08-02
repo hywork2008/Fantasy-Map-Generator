@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../hostTypes";
 import { getBurgEconomySummary, getBurgProductPerThousandResidents } from "./burgEconomySummary";
-import { clearEconomyContext, initEconomyContext, setBasicEmploymentSummary } from "./economyContext";
+import { clearEconomyContext, initEconomyContext, setBasicEmploymentSummary, setInnFacilities } from "./economyContext";
 
 describe("burg product per thousand residents", () => {
   beforeEach(() => {
@@ -52,6 +52,7 @@ describe("getBurgEconomySummary employment fields (Phase 5)", () => {
     // Composition uses demographics when present; fixture has no demographics → null labor
     expect(summary?.employmentComposition).toBe("—");
     expect(summary?.constructionJobs).toBe("—");
+    expect(summary?.inns).toBe("None");
   });
 
   it("falls back to '—' when the burg has no recorded employment demand", () => {
@@ -68,6 +69,25 @@ describe("getBurgEconomySummary employment fields (Phase 5)", () => {
     expect(summary?.settlementValue).toBe("—");
     expect(summary?.employmentComposition).toBe("—");
     expect(summary?.constructionJobs).toBe("—");
+    expect(summary?.inns).toBe("None");
+  });
+
+  it("summarizes physical inn buildings and their separate capacities", () => {
+    setInnFacilities([
+      {
+        burgId: 1,
+        innClass: "market",
+        buildingCount: 2,
+        privateRooms: 5,
+        privateBeds: 8,
+        sharedBeds: 16,
+        commonSeats: 32,
+        stableSpaces: 9,
+        condition: 0.8
+      }
+    ]);
+
+    expect(getBurgEconomySummary(1)?.inns).toBe("2 buildings · 5 rooms · 24 beds · 9 stable spaces");
   });
 
   it("fills labor residual fields when demographics exist", () => {

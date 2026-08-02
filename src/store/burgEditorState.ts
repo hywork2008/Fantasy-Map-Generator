@@ -41,6 +41,7 @@ export interface BurgData {
   marketUnemployment: string;
   employmentFocus: string;
   constructionJobs: string;
+  inns: string;
 
   // Features
   capital: boolean;

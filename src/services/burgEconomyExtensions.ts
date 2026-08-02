@@ -49,6 +49,8 @@ export interface BurgEconomySummary {
    * "—" when no construction operation or no open postings.
    */
   constructionJobs: string;
+  /** Commercial short-stay lodging totals. "—" when Economy is disabled, "None" when no facility exists. */
+  inns: string;
 }
 
 export const burgEconomyExtensions: {

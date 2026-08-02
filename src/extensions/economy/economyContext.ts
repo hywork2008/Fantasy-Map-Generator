@@ -17,6 +17,7 @@ import type { ConstructionHireApplication, ConstructionNamedSeat } from "./gener
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
 import type { Good } from "./generators/goodsGeneratorTypes";
 import type { CraftDomainEmploymentRecord, GuildKnowledgeStock } from "./generators/guildKnowledgeTypes";
+import type { InnFacility } from "./generators/innFacilityTypes";
 import type { FlowCycleSnapshot } from "./generators/marketFlowTypes";
 import type {
   Caravan,
@@ -794,6 +795,14 @@ export function getConstructionOperations(): ConstructionOperation[] {
 }
 export function setConstructionOperations(operations: readonly ConstructionOperation[]): void {
   setSliceArray("constructionOperations", operations);
+}
+
+/** Commercial short-stay lodging stock. It is intentionally separate from permanent dwellings. */
+export function getInnFacilities(): InnFacility[] {
+  return getSliceArray<InnFacility>("innFacilities");
+}
+export function setInnFacilities(facilities: readonly InnFacility[]): void {
+  setSliceArray("innFacilities", facilities);
 }
 
 /** Pending construction hire applications (Phase 2 lag). */

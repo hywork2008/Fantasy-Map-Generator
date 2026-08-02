@@ -8,6 +8,7 @@ import {
 import { getHousingLedgerSnapshot } from "./generators/constructionEmployment";
 import { formatConstructionJobPosting, getConstructionJobPosting } from "./generators/constructionJobPostings";
 import { Goods } from "./generators/goods-generator";
+import { getInnFacilitiesForBurg, getInnFacilityTotals } from "./generators/innFacilities";
 import { Production } from "./generators/production-generator";
 import { getBurgSettlementValue } from "./generators/settlementValuation";
 import { formatExpectedBirthsLowerBound, formatPregnantHeadcount } from "./generators/urbanPregnancy";
@@ -41,6 +42,10 @@ export function getBurgEconomySummary(burgId: number): BurgEconomySummary | null
   const housing = getHousingLedgerSnapshot(constructionOp, burg, populationRate);
   const labor = getBurgEmploymentComposition(burgId);
   const constructionJobs = formatConstructionJobPosting(getConstructionJobPosting(burgId));
+  const innTotals = getInnFacilityTotals(getInnFacilitiesForBurg(burgId));
+  const inns = innTotals.buildingCount
+    ? `${innTotals.buildingCount} buildings · ${innTotals.privateRooms} rooms · ${innTotals.beds} beds · ${innTotals.stableSpaces} stable spaces`
+    : "None";
 
   return {
     production,
@@ -63,6 +68,7 @@ export function getBurgEconomySummary(burgId: number): BurgEconomySummary | null
     laborResidual: labor ? `${rn(labor.residual, 1)}` : "—",
     marketUnemployment: labor ? `${rn(labor.marketUnemployment * 100, 1)}%` : "—",
     employmentFocus: labor?.recommendedFocus ?? "—",
-    constructionJobs
+    constructionJobs,
+    inns
   };
 }

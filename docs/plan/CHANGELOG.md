@@ -9,6 +9,7 @@
 - docs/plan/market-goods-flow-budget.md
 - docs/plan/merchant-logistics-warehouses.md
 - docs/plan/urban-housing-system.md
+- docs/plan/urban-inn-system.md
 
 2026-08-01
 

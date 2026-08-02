@@ -268,6 +268,12 @@ export const BurgEditorDialog: React.FC = () => {
                   <span id="burgConstructionJobs">{burgData.constructionJobs}</span>
                 </td>
               </tr>
+              <tr data-tip="Commercial short-stay lodging. Inn beds are not permanent homes and do not raise housing capacity.">
+                <th scope="row">Inns</th>
+                <td>
+                  <span id="burgInns">{burgData.inns}</span>
+                </td>
+              </tr>
               <tr data-tip="Demography: estimated pregnant women (urban pregnancy pipeline). Economy enabled only; forts excluded.">
                 <th scope="row">Pregnant</th>
                 <td>

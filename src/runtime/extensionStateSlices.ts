@@ -53,6 +53,7 @@ export const EXTENSION_SLICE_DEFINITIONS: readonly ExtensionSliceDefinition[] = 
   { extensionId: "economy", legacyTarget: "pack", legacyField: "mintLedgers", defaultValue: () => [] },
   { extensionId: "economy", legacyTarget: "pack", legacyField: "militaryResourceLedgers", defaultValue: () => [] },
   { extensionId: "economy", legacyTarget: "pack", legacyField: "tradeSecurityLedgers", defaultValue: () => [] },
+  { extensionId: "economy", legacyTarget: "pack", legacyField: "innFacilities", defaultValue: () => [] },
   { extensionId: "economy", legacyTarget: "cells", legacyField: "good", defaultValue: () => new Uint16Array() },
   { extensionId: "economy", legacyTarget: "cells", legacyField: "market", defaultValue: () => new Uint16Array() }
 ];
@@ -114,6 +115,40 @@ function assertOptionalArrayField(slice: Record<string, unknown>, field: string,
   if (slice[field] !== undefined) assertArray(slice[field], `simulation.extensions.${extensionId}.${field}`);
 }
 
+const INN_CLASSES = new Set(["wayside", "market", "waterside", "grand", "caravanserai"]);
+
+function validateInnFacilities(value: unknown, world: WorldContext): void {
+  if (value === undefined) return;
+  const name = "simulation.extensions.economy.innFacilities";
+  if (!Array.isArray(value)) throw new Error(`Archive ${name} must be an array`);
+  for (const [index, facility] of value.entries()) {
+    const entryName = `${name}[${index}]`;
+    assertRecord(facility, entryName);
+    const burgId = facility.burgId;
+    const resolvedBurgId = typeof burgId === "number" ? burgId : -1;
+    if (!Number.isInteger(resolvedBurgId) || resolvedBurgId <= 0 || !world.pack.burgs[resolvedBurgId]) {
+      throw new Error(`${entryName}.burgId must reference an existing burg`);
+    }
+    if (typeof facility.innClass !== "string" || !INN_CLASSES.has(facility.innClass)) {
+      throw new Error(`${entryName}.innClass is invalid`);
+    }
+    for (const field of ["buildingCount", "privateRooms", "sharedBeds", "privateBeds", "commonSeats", "stableSpaces"]) {
+      assertNonNegativeInteger(facility[field], `${entryName}.${field}`);
+    }
+    if ((facility.buildingCount as number) < 1) {
+      throw new Error(`${entryName}.buildingCount must be at least 1`);
+    }
+    if (
+      typeof facility.condition !== "number" ||
+      !Number.isFinite(facility.condition) ||
+      facility.condition < 0 ||
+      facility.condition > 1
+    ) {
+      throw new Error(`${entryName}.condition must be a finite number from 0 to 1`);
+    }
+  }
+}
+
 function validateCharactersSlice(slice: Record<string, unknown>): void {
   assertOptionalArrayField(slice, "characters", "characters");
 }
@@ -155,6 +190,7 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
   ]) {
     assertOptionalArrayField(slice, field, "economy");
   }
+  validateInnFacilities(slice.innFacilities, world);
   for (const field of ["nextCaravanId", "nextStrategicProcurementOrderId"]) {
     if (slice[field] !== undefined) assertNonNegativeInteger(slice[field], `simulation.extensions.economy.${field}`);
   }
@@ -239,6 +275,7 @@ function collectEconomyCoreReferences(slice: Record<string, unknown>): readonly 
   // CoreEntityKind targets for restrict/orphan delete).
   return [
     ...collectEntityReferences(slice.productionByBurg, "burg"),
+    ...collectEntityReferences(slice.innFacilities, "burg", "orphan"),
     ...collectEntityReferences(slice.strategicGoodsPolicies, "state", "orphan")
   ];
 }
