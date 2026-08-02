@@ -14,6 +14,7 @@ import {
 import { getStrategicIndustryWorkersByBurg, getTradeWorkersByBurg } from "../generators/basicEmployment";
 import { getBurgEmploymentComposition } from "../generators/burgEmploymentComposition";
 import { getHousingLedgerSnapshot } from "../generators/constructionEmployment";
+import { getConstructionJobPosting } from "../generators/constructionJobPostings";
 import { type EmploymentOverviewRow, setEmploymentOverviewState } from "../store/employmentOverviewState";
 
 /**
@@ -73,6 +74,7 @@ export function refreshEmploymentOverview(): void {
     const serviceEmploymentDemand = summary?.serviceEmploymentDemand ?? 0;
     const housing = getHousingLedgerSnapshot(constructionOpByBurg.get(burgId), burg, populationRate);
     const labor = getBurgEmploymentComposition(burgId);
+    const jobPosting = getConstructionJobPosting(burgId);
 
     rows.push({
       id: burgId,
@@ -93,6 +95,7 @@ export function refreshEmploymentOverview(): void {
       laborResidual: labor?.residual ?? 0,
       marketUnemploymentPct: labor ? rn(labor.marketUnemployment * 100, 1) : 0,
       employmentFocus: labor?.recommendedFocus ?? "—",
+      constructionJobsOpen: jobPosting?.openSeats ?? 0,
       householdCare: labor?.householdCare ?? 0,
       marketLaborForce: labor?.marketLaborForce ?? 0,
       basicEmploymentDemand: rn(basicEmploymentDemand, 1),

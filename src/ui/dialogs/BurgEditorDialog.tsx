@@ -262,6 +262,12 @@ export const BurgEditorDialog: React.FC = () => {
                   <span id="burgConstructionWorkers">{burgData.constructionWorkers}</span>
                 </td>
               </tr>
+              <tr data-tip="Jobs: construction hire-board openings. Anonymous yearly hire only fills ~85% of demand so these seats stay open for applicants (player/NPC).">
+                <th scope="row">Construction jobs</th>
+                <td>
+                  <span id="burgConstructionJobs">{burgData.constructionJobs}</span>
+                </td>
+              </tr>
               <tr data-tip="Demography: estimated pregnant women (urban pregnancy pipeline). Economy enabled only; forts excluded.">
                 <th scope="row">Pregnant</th>
                 <td>

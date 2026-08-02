@@ -16,12 +16,12 @@ import {
 } from "../economyContext";
 import { type AdministrationEmploymentRecord, getAdministrationRequiredWorkers } from "./administrationEmployment";
 import {
-  getConstructionRequiredWorkers,
   getRequiredDwellings,
   isBrickGoodAvailable,
   normalizeConstructionOperation,
   resolveBurgCultureType
 } from "./constructionEmployment";
+import { getConstructionMacroRequiredWorkers } from "./constructionJobPostings";
 import { getMineRequiredWorkers } from "./mineOperations";
 import { getQuarryRequiredWorkers } from "./quarryOperations";
 import { type BasicEmploymentSummaryRecord, buildBasicEmploymentSummary } from "./serviceEmployment";
@@ -156,7 +156,9 @@ export function reconcileAnnualBasicEmploymentWorkers(): void {
     const demographics = getBurgDemographics(burg);
     const adults = Math.max(0, demographics.maleAdults + demographics.femaleAdults);
     const requiredDwellings = getRequiredDwellings(burg.population ?? 0, populationRate);
-    const required = getConstructionRequiredWorkers({ ...operation, requiredDwellings }, adults, {
+    // Macro target only — reserve a share of full demand for hire-board openings
+    // so anonymous reconcile does not wipe seats a player could apply for.
+    const required = getConstructionMacroRequiredWorkers({ ...operation, requiredDwellings }, adults, {
       cultureType: resolveBurgCultureType(burg),
       highFantasy,
       brickAvailable

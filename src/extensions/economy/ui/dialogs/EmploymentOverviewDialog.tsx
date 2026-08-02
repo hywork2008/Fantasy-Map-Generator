@@ -18,6 +18,7 @@ export const EmploymentOverviewDialog: React.FC = () => {
   const totalEmploymentDemand = rows.reduce((sum, row) => sum + row.employmentDemand, 0);
   const totalResidual = rows.reduce((sum, row) => sum + Math.max(0, row.laborResidual), 0);
   const highUnemployment = rows.filter(row => row.marketUnemploymentPct >= 20).length;
+  const totalConstructionJobs = rows.reduce((sum, row) => sum + row.constructionJobsOpen, 0);
 
   return (
     <Dialog
@@ -40,6 +41,10 @@ export const EmploymentOverviewDialog: React.FC = () => {
             {" · "}
             <span data-tip="Burgs with market unemployment ≥ 20%">
               High u (≥20%): <span id="employmentOverviewHighU">{highUnemployment}</span>
+            </span>
+            {" · "}
+            <span data-tip="Sum of construction hire-board open seats (reserved from anonymous macro hire)">
+              Construction jobs: <span id="employmentOverviewConstructionJobs">{totalConstructionJobs}</span>
             </span>
           </div>
         }
@@ -75,6 +80,7 @@ export const EmploymentOverviewDialog: React.FC = () => {
             <col />
             <col />
             <col />
+            <col />
           </colgroup>
           <thead className="header">
             <tr>
@@ -86,11 +92,12 @@ export const EmploymentOverviewDialog: React.FC = () => {
               <th data-tip="Trade employment from this Burg's Market">Trade</th>
               <th data-tip="Strategic industry (forestry, sailmaking, rope, tar)">Industry</th>
               <th data-tip="Craft/manufacturing from recipe production">Craft</th>
-              <th data-tip="Masonry/carpentry, quarrying, volcanic ash">Construction</th>
+              <th data-tip="Masonry/carpentry, quarrying, volcanic ash (anonymous filled)">Construction</th>
               <th data-tip="Built permanent dwellings">Dwellings</th>
               <th data-tip="Required dwellings (pop × rate / 4.5)">Need</th>
               <th data-tip="Housing gap % still unbuilt">Gap %</th>
               <th data-tip="Estimated new dwellings under construction (labor-limited)">Building</th>
+              <th data-tip="Hire-board open construction seats (macro hire leaves ~15% of demand open)">Jobs</th>
               <th data-tip="Household care / domestic band (non-market adults, population points)">Care</th>
               <th data-tip="Market labor force after household care">Market</th>
               <th data-tip="Unassigned market adults (residual). Positive ⇒ room for more jobs">Residual</th>
@@ -104,7 +111,7 @@ export const EmploymentOverviewDialog: React.FC = () => {
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={21}>
+                <td colSpan={22}>
                   <span>No Burg has recorded employment or demographics yet</span>
                 </td>
               </tr>
@@ -150,6 +157,15 @@ const EmploymentRow: React.FC<{ row: EmploymentOverviewRow }> = ({ row }) => (
     </td>
     <td data-tip={row.underConstruction > 0 ? "Est. dwellings under construction this year" : ""}>
       {row.underConstruction > 0 ? row.underConstruction : ""}
+    </td>
+    <td
+      data-tip={
+        row.constructionJobsOpen > 0
+          ? `${row.constructionJobsOpen} construction hire-board seat(s) open for applicants`
+          : ""
+      }
+    >
+      {row.constructionJobsOpen > 0 ? row.constructionJobsOpen : ""}
     </td>
     <td data-tip={row.householdCare > 0 ? "Non-market household care band" : ""}>
       {row.householdCare > 0 ? row.householdCare : ""}

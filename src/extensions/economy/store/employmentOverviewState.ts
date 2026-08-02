@@ -26,6 +26,8 @@ export interface EmploymentOverviewRow {
   marketUnemploymentPct: number;
   /** Suggested sector to expand when residual is high. */
   employmentFocus: string;
+  /** Construction hire-board open seats (reserved from macro fill). */
+  constructionJobsOpen: number;
   /** Household-care band (non-market adults). */
   householdCare: number;
   /** Market labor force after care. */

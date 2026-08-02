@@ -44,6 +44,11 @@ export interface BurgEconomySummary {
   marketUnemployment: string;
   /** Suggested sector to expand when residual is high. */
   employmentFocus: string;
+  /**
+   * Construction hire-board openings (seats reserved from anonymous macro hire).
+   * "—" when no construction operation or no open postings.
+   */
+  constructionJobs: string;
 }
 
 export const burgEconomyExtensions: {

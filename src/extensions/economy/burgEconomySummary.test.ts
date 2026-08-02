@@ -51,6 +51,7 @@ describe("getBurgEconomySummary employment fields (Phase 5)", () => {
     expect(summary?.settlementValue).toBe("—");
     // Composition uses demographics when present; fixture has no demographics → null labor
     expect(summary?.employmentComposition).toBe("—");
+    expect(summary?.constructionJobs).toBe("—");
   });
 
   it("falls back to '—' when the burg has no recorded employment demand", () => {
@@ -66,6 +67,7 @@ describe("getBurgEconomySummary employment fields (Phase 5)", () => {
     expect(summary?.expectedBirths).toBe("—");
     expect(summary?.settlementValue).toBe("—");
     expect(summary?.employmentComposition).toBe("—");
+    expect(summary?.constructionJobs).toBe("—");
   });
 
   it("fills labor residual fields when demographics exist", () => {
