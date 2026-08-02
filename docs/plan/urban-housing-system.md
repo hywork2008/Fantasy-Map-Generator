@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Author** | Design draft (AI agent) |
 | **Date** | 2026-08-02 |
-| **Status** | **Implemented through PR-P2 (2026-08-02)** — PR-UI polish optional |
+| **Status** | **Fully implemented (PR-H1 … PR-UI, 2026-08-02)** |
 | **Depends on** | [urban-construction-industry.md](./urban-construction-industry.md) Phase 1–3 (implemented 2026-07-31) |
 | **Related** | [population-dynamics.md](../simulation/population-dynamics.md), [population-food-supply.md](../simulation/population-food-supply.md), [goods.md](../simulation/goods.md), [analytics/population.md](../analytics/population.md), city-generator v2 housing visuals |
 
@@ -12,7 +12,21 @@
 
 ## Overview
 
+### Implementation map (where to look in code)
+
+| Concern | Primary files |
+| :--- | :--- |
+| Dwelling ledger / growth / capacity | `constructionEmployment.ts`, `constructionEmploymentTypes.ts` |
+| Culture material recipes + Brick | `housingRecipes.ts`, `goods-generator.ts` (Brick) |
+| Pregnancy stock + birth floor | `urbanPregnancy.ts`, `generators/birthModifiers.ts`, `demography-simulator.ts` |
+| Settlement valuation | `settlementValuation.ts` |
+| UI | Burg Editor; Employment Overview; Burgs/States overview columns |
+
+---
+
 Medieval-ish burgs currently have (a) cohort population and logistic births, and (b) an aggregate `ConstructionOperation.buildingStock ∈ [0,1]` that drives mason/carpenter employment, Stone/Wood/Roman Concrete consumption, productivity, and `effectiveCapacity` caps — but **no explicit household or dwelling counts**, **no pregnancy pipeline**, **no per-culture housing materials beyond global `culturesSet === "highFantasy"`**, and **no housing-derived city valuation** for conquest/strategy.
+
+> **Note:** The paragraph above is historical motivation. All of those gaps are addressed by the implemented design below (PR-H1 … PR-UI).
 
 > Product intent (JP): 都市に家を建てたい。人口から世帯・住戸を概算し、人口増に応じた必要家屋を出す。妊娠数が分かれば翌年の人口増の下限が分かる。文化で建材（木・石・煉瓦等）が決まり、交易量と建設雇用を生む。住宅ストックは都市価値→国家価値の根拠になり、戦争の「取る価値」計算を地に足の着いたものにする。
 
@@ -969,12 +983,14 @@ Each PR mergeable, green on `tsc` / lint / madge / economy vitest. Builds on Pha
 - **Acceptance:** value scales with dwellingStock; null for fort/disabled; state sum = Σ burgs
 - **Deps:** PR-H1, PR-M (recipe costs)
 
-### PR-UI — Docs & remaining UI polish *(former PR7)*
+### PR-UI — Docs & remaining UI polish *(former PR7)* — **done 2026-08-02**
 
 - **Title:** `docs+ui(economy): housing docs cross-links and overview polish`
-- **Files:** docs pointers from urban-construction-industry.md; remaining columns/tooltips
-- **Deps:** PR-H1–PR-V as available
-- **Note:** Core debug dwellings column already in PR-H1
+- **Done:**
+  - Cross-links: `urban-construction-industry.md`, `goods.md`, `population-dynamics.md`, `population-food-supply.md`, `advance-time.md`, `this-project.md`
+  - Employment Overview: Dwellings / Need / Gap % formatting and tooltips
+  - Burg Editor + Burgs/States overview tips for housing / pregnancy / settlement value
+- **Deps:** PR-H1–PR-V
 
 ### Merge order
 

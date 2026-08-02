@@ -335,6 +335,7 @@ annualUrbanLaborIntake = min(
 - `stateBusinessCycle` は State ごとに年一回、0.5〜1.5 の決定的乱数で引く。同じ地域の都市が同時に好況・不況になる。
 - `burgLocalVariation` は Burg ごとに 0.85〜1.15 の決定的乱数で引く。地域景気だけでは同質になりすぎることを防ぐ。
 - 食料に支えられる `effectiveCapacity` の残余を絶対上限とする。職があっても、食料や住居の余地がなければ定着できない。
+- 住居側の天井は Economy の `ConstructionOperations.constrainEffectiveCapacity()` が `buildingStock`（住居飽和度）から年次・四半期で再適用する。住戸台帳と文化建材は [urban-housing-system.md](../plan/urban-housing-system.md)。
 
 この暫定値は `simulation.extensions.economy.urbanLaborIntakes` に年次 ledger として保存する。資源・港・産業別の雇用枠は、後続の詳細雇用モデルでこの ledger の基礎率を置き換える。
 

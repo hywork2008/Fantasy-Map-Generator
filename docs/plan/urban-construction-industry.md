@@ -4,6 +4,8 @@
 
 **2026-07-31 Phase 1-3 実装済み**: §7.1 の意思決定に従い、以下をすべて実装した。
 
+**後続（実装済み）**: 住居台帳・文化別建材・妊娠出生下限・都市評価は [urban-housing-system.md](./urban-housing-system.md)（2026-08-02）。本ドキュメントの `buildingStock` 0..1 スカラーは同計画で `dwellingStock` 正本 + write-through 飽和度へ拡張されている。
+
 - **Phase 1(採石場)**: `src/extensions/economy/generators/quarryOperations.ts`(`computeQuarryCandidates()`・`QuarryOperation`・`QuarryOperationsModule`)。既存の`Stone`/`Marble`のdistribution scatterとは併存させる方針(§7未決定事項1の決定)。`basicEmployment.ts`に石工採用前段の採石場ワーカー枠を追加。
 - **Phase 2(建設職業・都市建築ストック)**: `src/extensions/economy/generators/constructionEmployment.ts`(`ConstructionOperation`・`getTargetBuildingStock()`・`getMasonShare()`・`getConstructionRequiredWorkers()`・`ConstructionOperationsModule`)。`buildingStock`のフィードバックは決定通り両方実装: (a) `getConstructionProductivityMultiplier()`を`production-generator.ts`の都市ボーナス生産式に接続(静的`shanty`フラグの動的代替)、(b) `constrainEffectiveCapacity()`で`burg.demographics.effectiveCapacity`に年次上限を課す(`foodImportNetwork.ts`の四半期処理とは独立した、別々に再適用される上限として層状に実装— 統合は今後の課題として本文に明記)。石工/大工比率は地形(採石場アクセスの有無)を最優先し、その範囲内で`culturesSet === "highFantasy"`が石工比率を押し上げる。木材需要は船大工との直接調整ではなく、市場在庫の奪い合いという間接的な形で実装(economy拡張はshipbuilding拡張に依存できないため)。
 - **Phase 3(火山地質・ローマン・コンクリート)**: `mineralResources.ts`の`GeologicalProvinceKind`に`"volcanic"`(希少・高高度カーブアウト)を追加。`src/extensions/economy/generators/volcanicAshOperations.ts`で採石場と同型のBurgアンカー型サイトを実装。新規Good「Volcanic Ash」「Lime」(§7.1決定6により中間財として追加)「Roman Concrete」を`goods-generator.ts`に追加。Roman Concreteは§7.1決定3の通り、EWMA技術投資ストックではなくStoneの直接代替(効率2倍)として`constructionEmployment.ts`のマテリアル消費ロジックに実装。
@@ -172,11 +174,12 @@ export type GeologicalProvinceKind =
 - `economy.tick`の呼び出し順序に`ConstructionTechInvestment.settleAnnual()`を追加する。挿入位置は`IndustrialTechInvestment.settleAnnual()`の直後・`reconcileAnnualBasicEmploymentWorkers()`([index.tsx:1450](../../src/extensions/economy/index.tsx#L1450))の直前とし、当年の技術投資が当年の建設職業改定に反映されるようにする([index.tsx:1362-1370](../../src/extensions/economy/index.tsx#L1362-L1370)のコメント規約に倣い、なぜこの順序かを明示的にコメントする)。
 - 火山性セルの希少性は、鉱石の`"placer"`プロヴィンスの確率ハッシュ手法([mineralResources.ts:267-276](../../src/extensions/economy/generators/mineralResources.ts#L267-L276))をそのまま流用する。
 
-### 3.5 Phase 4(将来・スコープ外): UI可視化
+### 3.5 Phase 4: UI 可視化と住居レイヤ
 
 - ~~Employment Overview([employment-overview.ts](../../src/extensions/economy/controllers/employment-overview.ts))に石工/大工の雇用列を追加する(既存のパターンに`ConstructionOperation`を読む行を1つ足すだけ)。~~ **2026-07-31実装済み**: [urban-employment-demand.md](urban-employment-demand.md)側の実機検証中に発見した欠落(`basicEmploymentDemand`は建設業を合算済みだがダイアログに列がなく不可視だった)として対応した。`getConstructionEmploymentByBurg()`(masonWorkers+carpenterWorkers+採石場quarryWorkers+Volcanic Ash ashWorkers)を追加し、「Construction」列として表示。「Basic」列のツールチップ数式も建設業を含む形に修正した。
-- Market Overview Dialogに`concreteTechStock`表示を追加する(Ag Tech表示の既存パターンを踏襲)。
-- `buildingStock`とバーグアイコンの城壁/寺院/城塞フラグとの接続(非目的§1で明示的にPhase 1-3のスコープ外としたもの)。
+- ~~住居台帳・文化レシピ・妊娠・評価 UI~~ **2026-08-02実装済み**: [urban-housing-system.md](./urban-housing-system.md) — Employment Overview の Dwellings/Need/Gap%、Burg Editor の housing/pregnancy/settlement value、Burgs/States Overview の Housing gap% と Settlement value。
+- Market Overview Dialogに`concreteTechStock`表示を追加する(Ag Tech表示の既存パターンを踏襲) — 未着手。
+- `buildingStock`とバーグアイコンの城壁/寺院/城塞フラグとの接続(非目的§1で明示的にPhase 1-3のスコープ外としたもの) — 未着手。
 
 ---
 
@@ -187,7 +190,8 @@ export type GeologicalProvinceKind =
 | 1 | 採石場候補地(`computeQuarryCandidates`)・`QuarryOperation`・Stone/Marbleの供給源接続 | `quarryOperations.ts` | なし(独立に着手可能) |
 | 2 | `ConstructionOperation`・石工/大工の年次雇用改定・`buildingStock` | `constructionTypes.ts`, `constructionEmployment.ts` | Phase 1(Stone供給が必要) |
 | 3 | `volcanic`プロヴィンス・Volcanic Ash・Roman Concrete・`ConstructionTechInvestment` | `constructionTechInvestment.ts` | Phase 2(`buildingStock`獲得効率への乗数として接続) |
-| 4(将来) | UI可視化・バーグアイコン接続 | 既存ファイルへの追記 | Phase 1-3 |
+| 4a | 住居レイヤ（住戸・文化建材・妊娠・評価） | 詳細は [urban-housing-system.md](./urban-housing-system.md) | Phase 1–3（**実装済み 2026-08-02**） |
+| 4b(将来) | バーグアイコンと `buildingStock` の接続、concreteTechStock UI | 既存ファイルへの追記 | Phase 1–3 |
 
 ---
 

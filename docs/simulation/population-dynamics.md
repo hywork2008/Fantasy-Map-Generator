@@ -51,11 +51,26 @@ const K = initialCalculatedPopulation; // バイオームから算出された�
 const roomForGrowth = Math.max(0, 1 - (currentTotal / K));
 
 // 出生数（女性の数 × 自然増加率 × 土地の余裕度）
-const births = femaleAdults * baseGrowthRate * deltaYears * roomForGrowth;
+const continuousBirths = femaleAdults * baseGrowthRate * deltaYears * roomForGrowth;
+// Economy 有効時（都市・非砦）: 妊娠パイプラインの due が下限になる
+// births = max(continuousBirths, birthsFromPregnancy)
+// 詳細: docs/plan/urban-housing-system.md PR-P2、src/generators/birthModifiers.ts
+const births = continuousBirths; // host 単体。provider 登録時は max を取る
 ```
 
 **【効果】**
 戦争で男性が激減しても、女性が残っていれば出生率は維持されるため、戦後には急速な人口回復（ベビーブーム）が発生します。
+
+### 3.4 都市妊娠ストック（Economy 拡張）
+
+Economy が有効なとき、都市 Burg（砦以外）は簡易妊娠パイプライン（`simulation.extensions.economy.urbanPregnancy`）を持つ。
+
+- 妊娠上限 ≈ 成人女性の 15%、妊娠期間 ≈ 9/12 年
+- `roomForGrowth` は demography と同じ `effectiveCapacity` 式
+- demography は `births = max(連続出生, 出産予定 due)` とし、**合算しない**
+- 表示: Burg Editor の Pregnant / Expected births
+
+仕様と実装の正本: [urban-housing-system.md](../plan/urban-housing-system.md)。
 
 ## 4. フロンティア開拓と新都市（Burg）の誕生
 

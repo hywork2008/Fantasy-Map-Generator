@@ -209,31 +209,31 @@ export const BurgEditorDialog: React.FC = () => {
                   <span id="burgServiceEmploymentDemand">{burgData.serviceEmploymentDemand}</span>
                 </td>
               </tr>
-              <tr data-tip="Built permanent dwellings versus required dwellings from urban population (household size 4.5).">
+              <tr data-tip="Housing: built permanent dwellings vs required (household size 4.5; people = population × populationRate). Requires Economy and a market burg.">
                 <th scope="row">Dwellings</th>
                 <td>
                   <span id="burgDwellings">{burgData.dwellings}</span>
                 </td>
               </tr>
-              <tr data-tip="Share of required dwellings still unbuilt (housing backlog). Construction employment and material demand rise with this gap.">
+              <tr data-tip="Housing: share of required dwellings still unbuilt. Raises mason/carpenter jobs and Stone/Brick/Wood demand.">
                 <th scope="row">Housing gap</th>
                 <td>
                   <span id="burgHousingGap">{burgData.housingGap}</span>
                 </td>
               </tr>
-              <tr data-tip="Estimated pregnant women (urban pregnancy pipeline). When Economy is enabled, due births set a lower bound on demography births.">
+              <tr data-tip="Demography: estimated pregnant women (urban pregnancy pipeline). Economy enabled only; forts excluded.">
                 <th scope="row">Pregnant</th>
                 <td>
                   <span id="burgPregnant">{burgData.pregnant}</span>
                 </td>
               </tr>
-              <tr data-tip="Lower bound on near-term births per year from current pregnancies (demography uses max of continuous growth and pregnancy due).">
+              <tr data-tip="Demography: lower bound on near-term births/year. Live births use max(continuous growth, pregnancy due).">
                 <th scope="row">Expected births</th>
                 <td>
                   <span id="burgExpectedBirths">{burgData.expectedBirths}</span>
                 </td>
               </tr>
-              <tr data-tip="Housing replacement cost at the current culture recipe, multiplied by walls/citadel fortification premium.">
+              <tr data-tip="Valuation: housing replacement cost at the current culture building recipe × walls/citadel premium.">
                 <th scope="row">Settlement value</th>
                 <td>
                   <span id="burgSettlementValue">{burgData.settlementValue}</span>

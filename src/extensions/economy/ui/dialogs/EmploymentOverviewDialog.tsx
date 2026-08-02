@@ -76,14 +76,18 @@ export const EmploymentOverviewDialog: React.FC = () => {
               <th data-tip="Craft/manufacturing employment observed from recipe-based Goods production, e.g. Cloth/Garments (§3.7)">
                 Craft
               </th>
-              <th data-tip="Masonry/carpentry, quarrying, and Volcanic Ash extraction (docs/plan/urban-construction-industry.md) — the basic-employment floor every Burg with a market gets regardless of mines, capital status, or trade">
+              <th data-tip="Masonry/carpentry (housing backlog), quarrying, and Volcanic Ash — every market Burg gets construction demand when dwellings lag population (urban-housing-system + urban-construction-industry).">
                 Construction
               </th>
-              <th data-tip="Built permanent dwellings (housing ledger, docs/plan/urban-housing-system.md)">
+              <th data-tip="Built permanent dwellings (housing ledger). Households ≈ people / 4.5; people = population × populationRate.">
                 Dwellings
               </th>
-              <th data-tip="Required dwellings from population × populationRate / 4.5">Need</th>
-              <th data-tip="Housing gap % — share of required dwellings still unbuilt">Gap %</th>
+              <th data-tip="Required dwellings = ceil(population × populationRate / 4.5). Forts and burgs without a market have no housing op.">
+                Need
+              </th>
+              <th data-tip="Housing gap % = share of required dwellings still unbuilt. Raises mason/carpenter demand (size-aware) and material buys.">
+                Gap %
+              </th>
               <th data-tip="basicEmploymentDemand = Admin + Mining + Smelting + Trade + Industry + Craft + Construction">
                 Basic
               </th>
@@ -127,11 +131,19 @@ const EmploymentRow: React.FC<{ row: EmploymentOverviewRow }> = ({ row }) => (
     <td>{row.strategicIndustry || ""}</td>
     <td>{row.craft || ""}</td>
     <td>{row.construction || ""}</td>
-    <td data-tip={`${row.dwellings} built / ${row.requiredDwellings} required`}>
-      {row.requiredDwellings > 0 ? row.dwellings : ""}
+    <td
+      data-tip={
+        row.requiredDwellings > 0
+          ? `${row.dwellings} built / ${row.requiredDwellings} required dwellings`
+          : "No housing operation for this burg"
+      }
+    >
+      {row.requiredDwellings > 0 ? Math.round(row.dwellings) : ""}
     </td>
-    <td>{row.requiredDwellings || ""}</td>
-    <td>{row.requiredDwellings > 0 ? row.housingGapPct : ""}</td>
+    <td data-tip={row.requiredDwellings > 0 ? "Required permanent dwellings" : ""}>{row.requiredDwellings || ""}</td>
+    <td data-tip={row.requiredDwellings > 0 ? `${row.housingGapPct}% of required dwellings still unbuilt` : ""}>
+      {row.requiredDwellings > 0 ? `${row.housingGapPct}%` : ""}
+    </td>
     <td>{row.basicEmploymentDemand}</td>
     <td>{row.serviceEmploymentDemand}</td>
     <td>

@@ -37,8 +37,8 @@ tick フック（森林回復・造船・軍事シミュレーション等）が
 1. 全国家の連隊の `actionStatus` を `"waiting"` にリセット
 2. `simulationContext.currentYear`/`currentMonth`/`currentDay` を更新（月末繰り上げ・うるう年を考慮した日付演算）
 3. `simulationContext.tickCount` をインクリメント（**options への mirror はしない** — ライブ時計の正は simulationContext のみ）
-4. `simulateDemographics()` を実行（人口動態）
-5. 登録済み simulation systems を実行
+4. `simulateDemographics()` を実行（人口動態）。Economy 有効時は都市妊娠の birth-floor provider（`src/generators/birthModifiers.ts`）が due を下限として出生に反映する — **demography が economy.tick より先**なので mutation はここで行う
+5. 登録済み simulation systems を実行（`economy.tick` 等）
 6. `fmg:time-advanced` / `fmg:simulation-updated` を dispatch
 7. 開発ビルドでは `useDebugSnapshotState` にスナップショットを追加（デバッグ用）
 
@@ -99,7 +99,7 @@ tick フック（森林回復・造船・軍事シミュレーション等）が
 | 拡張 | フック内容 | ファイル |
 | :--- | :--- | :--- |
 | Shipbuilding | `runLoggingTick`（伐採量計上） → `runShipyardTick`（造船キュー進行・技術ポイント蓄積） → `checkForeignInterference`（外国干渉フレーバーログ） → `refreshShipyardsOverviewIfOpen()`。マップ再描画は tick 内の `draw*` ではなく `writer.markChanged(extension.*)` → RenderCoordinator → `registerDrawLayerHook`（P2-12）。全て `effectiveDeltaYears` を使用。 | `src/extensions/shipbuilding/index.ts` |
-| Economy | `tickForestRegrowth(effectiveDeltaYears)`（伐採で減少した森林生産性の自然回復） → 変化があれば `scheduleProductionRefresh()` | `src/extensions/economy/index.tsx` |
+| Economy | `registerSimulationSystem("economy.tick")`: 森林回復、農業・技術投資、キャラバン、四半期食料、建設 `produceMonth` 経路、年次雇用、**妊娠ストックは demography 側 birth-floor provider が所有**（economy.tick は provider 有効時 mutation しない）。詳細は [urban-housing-system.md](../plan/urban-housing-system.md)。 | `src/extensions/economy/index.tsx` |
 | Nobility | `Characters.advanceAge` → `assignOfficers`/`assignProvinceLords` → （月初）`Mobilization.conscript` → `Espionage.generate()` → `Military.updateDynamic()` → `advanceAllRegimentMovement()` → `refreshCharactersOverviewIfOpen()`。`autonomous` では月初の `StrategicPlanner.evaluatePlans()`、戦略目標の生成・緊張進行・包囲、小競り合い、戦略目標への進軍、進軍中の占領・略奪も実行する。`playerDirected` では `State.conflictAuthorizations` に保存されたユーザー認可済みの国家ペアに限って同じ紛争経路を実行する。認可のない国家間では経済・人口・人物・徴募の時間進行だけが進む。 | `src/extensions/nobility/index.tsx` |
 | Military | 直接の tick フックは**持たない**（core generatorのため、代わりにNobility拡張のtick hookから `Military.updateDynamic()`/`advanceAllRegimentMovement()` が呼ばれる）。`fmg:shipbuilding-ship-completed` イベント経由で `navalTechBonus.ts` にボーナスが蓄積されるのみで、実際に艦隊数へ反映するには `Military.generate()` の**手動**再実行（`bordersChanged`時にNobility拡張が呼ぶか、Toolsの regenerate ボタン）が必要。 |
 

@@ -1,26 +1,40 @@
 # 交易品
 
-`src/extensions/economy/generators/goods-generator.ts`
+主実装: `src/extensions/economy/generators/goods-generator.ts`（`GOODS_DATA`）。
 
-GOODS_DATAの編集機能が必要。
+## カタログ編集
 
-小麦 Wheat
-大麦 arley
-蕎麦 Buckwheat
-米 Rice
-芋 Potatoes
+GOODS_DATA の編集 UI（Goods Editor）が存在する。マップ生成時にカタログが materialize され、economy 拡張スライスに保存される。
 
-綿 Cotton
-Cacao
-Narwhalの角
-ゴムの木
-ゴム
-煉瓦
+## 建材・住居関連（実装済み）
 
-文化タイプによる建築物の違い
+住居建設と文化別建材は [urban-housing-system.md](../plan/urban-housing-system.md) と [urban-construction-industry.md](../plan/urban-construction-industry.md) を参照。
 
-家を何で建てるか
+| Good | 役割 |
+| :--- | :--- |
+| **Wood** | 大工材料。造船と市場在庫を間接競合 |
+| **Stone** / **Marble** | 石工材料。採石場オペレーションからも供給 |
+| **Clay** | 煉瓦の原料。River/Lake 文化で産出補正 |
+| **Brick** | 建設用中間財（`Clay` + `Wood` 0.1 焼成）。Ceramics（utilities）とは別 |
+| **Lime** / **Volcanic Ash** / **Roman Concrete** | 上級建材。Roman Concrete は石の直接代替（効率 2×） |
 
-- 石
-- 煉瓦
-- 木
+### 文化タイプと建材ミックス
+
+`housingRecipes.ts` が `CultureType` ごとに Wood / Stone / Brick の比率を決める。
+
+- 採石場なし → **石**シェアのみ無効化し、残り材へ比例再配分
+- Brick は採石なしでも可（River/Lake などで石工が立つ）
+- High Fantasy 文化セット + 採石あり → wood→stone 最大 0.2 移動
+
+家を何で建てるか（概略）:
+
+- 石 — Highland 寄り
+- 煉瓦 — River / Lake 寄り
+- 木 — Hunting / Nomadic / 採石なし
+
+## メモ・候補（未整理）
+
+以下は過去のメモであり、必ずしも実装済みではない。
+
+- 小麦 Wheat / 大麦 Barley / 蕎麦 Buckwheat / 米 Rice / 芋 Potatoes
+- 綿 Cotton / Cacao / Narwhal の角 / ゴムの木 / ゴム

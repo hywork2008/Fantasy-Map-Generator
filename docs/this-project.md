@@ -58,7 +58,7 @@
 
 | ID | 概要 | デフォルト |
 | :-- | :-- | :-- |
-| `economy` | goods、markets、production、trade、taxes、treasury | disabled |
+| `economy` | goods、markets、production、trade、taxes、treasury、都市建設・住居・妊娠下限・定住価値 | disabled |
 | `characters` | 汎用キャラクター名簿、能力値、性格、家族 | disabled |
 | `nobility` | ruler / officer / province lord、外交補正、戦略 AI、諜報、動員、行軍制圧 | disabled、`characters` が必須 |
 | `shipbuilding` | 造船所候補、伐採、建造キュー、完成船、外国干渉ログ | disabled、`economy` は任意 |
@@ -75,6 +75,8 @@
 | `docs/extension-agent-spec.md` | AI エージェント向けの拡張実装ルール |
 | `docs/simulation/advance-time.md` | Advance Time と tick hook の仕様 |
 | `docs/simulation/` | 経済・人口・時間経過などのシミュレーション仕様 |
+| `docs/plan/urban-housing-system.md` | 都市住居・文化建材・妊娠出生下限・定住価値（実装済み設計） |
+| `docs/plan/urban-construction-industry.md` | 採石・建設雇用・Roman Concrete（Phase 1–3 実装済み） |
 | `docs/analytics/` | 実装調査メモ |
 | `docs/plan/` | 設計案、実装計画、検討ログ。一部は実装済みの履歴を含みます |
 | `docs/debug/` / `docs/reviews/` | バグ調査・レビュー履歴 |

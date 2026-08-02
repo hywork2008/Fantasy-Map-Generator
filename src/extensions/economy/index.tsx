@@ -251,20 +251,20 @@ function registerOverviewColumns(api: ExtensionAPI): void {
     id: "housingGap",
     extensionId: ECONOMY_EXTENSION_ID,
     label: "Housing gap %",
-    tip: "Share of required dwellings still unbuilt (docs/plan/urban-housing-system.md). Empty when the burg has no construction operation.",
+    tip: "Share of required dwellings still unbuilt. Drives construction jobs and material demand when Economy is enabled.",
     getValue: burg => {
       if (!burg?.i) return 0;
       const summary = getBurgEconomySummary(burg.i);
       if (!summary || summary.housingGap === "—") return 0;
       return Number.parseFloat(summary.housingGap) || 0;
     },
-    format: value => (value > 0 || value === 0 ? `${rn(value, 1)}%` : "—")
+    format: value => `${rn(value, 1)}%`
   });
   api.registerBurgOverviewColumn({
     id: "settlementValue",
     extensionId: ECONOMY_EXTENSION_ID,
     label: "Settlement value",
-    tip: "Housing replacement cost × fortification premium (docs/plan/urban-housing-system.md PR-V). Empty without a construction operation.",
+    tip: "Housing replacement cost at the current culture recipe, × walls/citadel premium. Useful later for conquest worth estimates.",
     getValue: burg => (burg?.i ? (getBurgSettlementValue(burg.i)?.total ?? 0) : 0),
     format: formatPrice
   });
@@ -284,7 +284,7 @@ function registerOverviewColumns(api: ExtensionAPI): void {
     id: "settlementValue",
     extensionId: ECONOMY_EXTENSION_ID,
     label: "Settlement value",
-    tip: "Sum of burg housing settlement values in this state (docs/plan/urban-housing-system.md PR-V).",
+    tip: "Sum of burg housing settlement values in this state (culture recipe replacement cost × fortification).",
     getValue: state => (state?.i ? getStateSettlementValue(state.i) : 0),
     format: formatPrice
   });
