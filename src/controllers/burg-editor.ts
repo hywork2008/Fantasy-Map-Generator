@@ -146,6 +146,8 @@ const burgEditorInternal = {
       serviceEmploymentDemand: economySummary?.serviceEmploymentDemand ?? "—",
       dwellings: economySummary?.dwellings ?? "—",
       housingGap: economySummary?.housingGap ?? "—",
+      pregnant: economySummary?.pregnant ?? "—",
+      expectedBirths: economySummary?.expectedBirths ?? "—",
       capital: !!b.capital,
       port: !!b.port,
       citadel: !!b.citadel,

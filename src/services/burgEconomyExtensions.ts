@@ -18,6 +18,12 @@ export interface BurgEconomySummary {
    */
   dwellings: string;
   housingGap: string;
+  /**
+   * Pregnancy observability (PR-P1): pregnant headcount and expected births lower bound / year.
+   * "—" when no stock or economy disabled. Does not yet change demography (PR-P2).
+   */
+  pregnant: string;
+  expectedBirths: string;
 }
 
 export const burgEconomyExtensions: {

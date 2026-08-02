@@ -44,6 +44,8 @@ describe("getBurgEconomySummary employment fields (Phase 5)", () => {
     expect(summary?.serviceEmploymentDemand).toBe("18.5");
     expect(summary?.dwellings).toBe("—");
     expect(summary?.housingGap).toBe("—");
+    expect(summary?.pregnant).toBe("—");
+    expect(summary?.expectedBirths).toBe("—");
   });
 
   it("falls back to '—' when the burg has no recorded employment demand", () => {
@@ -53,5 +55,7 @@ describe("getBurgEconomySummary employment fields (Phase 5)", () => {
     expect(summary?.serviceEmploymentDemand).toBe("—");
     expect(summary?.dwellings).toBe("—");
     expect(summary?.housingGap).toBe("—");
+    expect(summary?.pregnant).toBe("—");
+    expect(summary?.expectedBirths).toBe("—");
   });
 });

@@ -4,6 +4,7 @@ import { getBasicEmploymentSummary, getConstructionOperations, getWorldContext }
 import { getHousingLedgerSnapshot } from "./generators/constructionEmployment";
 import { Goods } from "./generators/goods-generator";
 import { Production } from "./generators/production-generator";
+import { formatExpectedBirthsLowerBound, formatPregnantHeadcount } from "./generators/urbanPregnancy";
 
 /** Gross product normalized to 1,000 actual residents for a readable, comparable value. */
 export function getBurgProductPerThousandResidents(burg: Burg): number {
@@ -41,6 +42,8 @@ export function getBurgEconomySummary(burgId: number): BurgEconomySummary | null
     basicEmploymentDemand: employmentSummary ? `${rn(employmentSummary.basicEmploymentDemand, 1)}` : "—",
     serviceEmploymentDemand: employmentSummary ? `${rn(employmentSummary.serviceEmploymentDemand, 1)}` : "—",
     dwellings: housing ? `${rn(housing.dwellingStock, 1)} / ${housing.requiredDwellings}` : "—",
-    housingGap: housing ? `${rn(housing.housingBacklog * 100, 1)}%` : "—"
+    housingGap: housing ? `${rn(housing.housingBacklog * 100, 1)}%` : "—",
+    pregnant: formatPregnantHeadcount(burgId),
+    expectedBirths: formatExpectedBirthsLowerBound(burgId)
   };
 }

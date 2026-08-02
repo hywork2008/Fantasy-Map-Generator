@@ -221,6 +221,18 @@ export const BurgEditorDialog: React.FC = () => {
                   <span id="burgHousingGap">{burgData.housingGap}</span>
                 </td>
               </tr>
+              <tr data-tip="Estimated pregnant women (from the urban pregnancy pipeline). Observability only until birth floor is enabled.">
+                <th scope="row">Pregnant</th>
+                <td>
+                  <span id="burgPregnant">{burgData.pregnant}</span>
+                </td>
+              </tr>
+              <tr data-tip="Lower bound on near-term births per year implied by current pregnancies (does not yet change demography).">
+                <th scope="row">Expected births</th>
+                <td>
+                  <span id="burgExpectedBirths">{burgData.expectedBirths}</span>
+                </td>
+              </tr>
               <tr>
                 <th scope="row">Features:</th>
                 <td>

@@ -94,6 +94,7 @@ import { TradeSecurity } from "./generators/tradeSecurity";
 import { TransportAssetOrders } from "./generators/transportAssetOrders";
 import { clearTreasuryAllocationSnapshots } from "./generators/treasuryAllocation";
 import { UrbanLaborIntake } from "./generators/urbanLaborIntake";
+import { clearUrbanPregnancy, tickUrbanPregnancy } from "./generators/urbanPregnancy";
 import { VolcanicAshOperations } from "./generators/volcanicAshOperations";
 import { drawGoods } from "./renderers/draw-goods";
 import { drawMarketsLayer } from "./renderers/draw-markets";
@@ -717,6 +718,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       QuarryOperations.clear();
       VolcanicAshOperations.clear();
       ConstructionOperations.clear();
+      clearUrbanPregnancy();
       MineralResources.clear();
       Minting.clear();
       MilitaryResources.clear();
@@ -1580,6 +1582,9 @@ export function init(api: ExtensionAPI): void {
       daysSinceLastProduction += effectiveDays;
 
       const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
+      // Pregnancy observability (PR-P1): age/conceive after demography in the same advanceTime.
+      // When PR-P2 registers a birth-floor provider, tickUrbanPregnancy is a no-op (provider owns mutation).
+      tickUrbanPregnancy(effectiveDeltaYears);
       const urbanMobility = UrbanLaborIntake.updateAnnualState(getWorldContext(), context.rng);
       // Reuses UrbanLaborIntake's once-per-simulation-year gate (non-null only on the year
       // transition) so administration/mining/smelting employment reconciles annually, not

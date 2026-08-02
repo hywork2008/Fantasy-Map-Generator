@@ -46,6 +46,7 @@ import type { StrategicGoodsPolicy } from "./generators/strategicProcurementPoli
 import type { ProcurementOrder } from "./generators/strategicProcurementTypes";
 import type { TradeSecurityLedger } from "./generators/tradeSecurityTypes";
 import type { BanditCohort, MobileAdultCohort, UrbanLaborIntake } from "./generators/urbanLaborIntakeTypes";
+import type { UrbanPregnancyRecord } from "./generators/urbanPregnancyTypes";
 import type { VolcanicAshOperation } from "./generators/volcanicAshOperationsTypes";
 
 let _api: ExtensionAPI | null = null;
@@ -792,6 +793,14 @@ export function getConstructionOperations(): ConstructionOperation[] {
 }
 export function setConstructionOperations(operations: readonly ConstructionOperation[]): void {
   setSliceArray("constructionOperations", operations);
+}
+
+/** Urban pregnancy pipeline stock (docs/plan/urban-housing-system.md PR-P1). */
+export function getUrbanPregnancy(): UrbanPregnancyRecord[] {
+  return getSliceArray<UrbanPregnancyRecord>("urbanPregnancy");
+}
+export function setUrbanPregnancy(records: readonly UrbanPregnancyRecord[]): void {
+  setSliceArray("urbanPregnancy", records);
 }
 
 /** Burg-anchored Volcanic Ash sites (docs/plan/urban-construction-industry.md §3.4, Phase 3). */
