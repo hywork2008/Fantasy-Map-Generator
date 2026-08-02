@@ -260,7 +260,8 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
     "smelterOperations",
     "mintLedgers",
     "militaryResourceLedgers",
-    "tradeSecurityLedgers"
+    "tradeSecurityLedgers",
+    "guildChapters"
   ]) {
     assertOptionalArrayField(slice, field, "economy");
   }
@@ -276,6 +277,12 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
     const year = slice.innFacilitiesLastSettledYear;
     if (typeof year !== "number" || !Number.isFinite(year)) {
       throw new Error("Archive simulation.extensions.economy.innFacilitiesLastSettledYear must be a finite number");
+    }
+  }
+  if (slice.guildChaptersLastSettledYear !== undefined) {
+    const year = slice.guildChaptersLastSettledYear;
+    if (typeof year !== "number" || !Number.isFinite(year)) {
+      throw new Error("Archive simulation.extensions.economy.guildChaptersLastSettledYear must be a finite number");
     }
   }
   for (const field of ["nextCaravanId", "nextStrategicProcurementOrderId"]) {

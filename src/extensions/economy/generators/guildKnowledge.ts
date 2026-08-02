@@ -19,7 +19,7 @@ import type { CraftKnowledgeDomain, GuildKnowledgeStock } from "./guildKnowledge
  */
 
 /**
- * Practitioner headcount that already counts as a "fully staffed" guild chapter for technique
+ * Practitioner headcount sufficient for a technique stock to reach its full maturity
  * purposes. Deliberately small: a handful of master craftspeople (docs/plan/
  * knowledge-guild-system.md §8.1 decision 2 — village chapters of a few practitioners are
  * explicitly allowed) can mature a domain's technique on their own. A big city's larger workforce
@@ -28,7 +28,7 @@ import type { CraftKnowledgeDomain, GuildKnowledgeStock } from "./guildKnowledge
 export const GUILD_SATURATION_WORKERS = 6;
 /** EWMA smoothing: ~7 simulated years of sustained full staffing to approach stock = 1. */
 export const GUILD_ADOPTION_RATE = 0.15;
-/** Undermanned/abandoned guild chapters lose technique at the same rate they would have gained it. */
+/** Undermanned/abandoned technique stocks lose technique at the same rate they would have gained it. */
 export const GUILD_DECAY_RATE = 0.15;
 /** How much stock=1 raises a domain's production efficiency (SmelterOperation.processingFactor, recipe yield). */
 export const GUILD_BONUS_MAX = 0.25;

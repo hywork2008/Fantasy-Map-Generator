@@ -3,6 +3,7 @@ import React from "react";
 import {
   closeDialog,
   Dialog,
+  IconButton,
   SortableHeader,
   TableDialogLayout,
   useDialogState,
@@ -10,9 +11,13 @@ import {
 } from "../../../hostUi";
 
 import { open as openGuildOverview, refreshGuildOverview } from "../../controllers/guild-overview";
+import { getApi } from "../../economyContext";
 import { type GuildOverviewRow, useGuildOverviewState } from "../../store/guildOverviewState";
 
-type SortField = keyof Pick<GuildOverviewRow, "burgName" | "stateName" | "domain" | "stock" | "bonus" | "treasury">;
+type SortField = keyof Pick<
+  GuildOverviewRow,
+  "burgName" | "stateName" | "domain" | "status" | "stock" | "bonus" | "treasury"
+>;
 
 export const GuildOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("guildOverview"));
@@ -91,7 +96,7 @@ export const GuildOverviewDialog: React.FC = () => {
       <TableDialogLayout
         bodyRef={parentRef}
         controls={
-          <div id="guildOverviewFilters" data-tip="Filter guild chapters" className="d-flex">
+          <div id="guildOverviewFilters" data-tip="Filter guild technique stocks" className="d-flex">
             <label htmlFor="guildOverviewFilterBurg">
               Burg:
               <select
@@ -143,14 +148,14 @@ export const GuildOverviewDialog: React.FC = () => {
         }
         summary={
           <div className="totalLine">
-            <span data-tip="Guild chapters displayed after filtering">
-              Guild chapters:{" "}
+            <span data-tip="Guild technique stocks displayed after filtering">
+              Guild stocks:{" "}
               <span id="guildOverviewCount">
                 {rows.length} of {rawRows.length}
               </span>
             </span>
             {" · "}
-            <span data-tip="Sum of every listed guild chapter's own private treasury">
+            <span data-tip="Sum of every listed guild technique stock's private treasury">
               Total guild treasury: <span id="guildOverviewTotal">{totalTreasury.toFixed(1)}</span>
             </span>
           </div>
@@ -173,6 +178,7 @@ export const GuildOverviewDialog: React.FC = () => {
             <col />
             <col />
             <col />
+            <col />
           </colgroup>
           <thead className="header">
             <tr>
@@ -182,7 +188,7 @@ export const GuildOverviewDialog: React.FC = () => {
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
-                tip="Burg hosting this guild chapter"
+                tip="Burg hosting this guild technique stock"
               />
               <SortableHeader
                 field="stateName"
@@ -199,6 +205,14 @@ export const GuildOverviewDialog: React.FC = () => {
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 tip="Craft-domain guild (metallurgy, woodworking, masonry, textiles, leather, glassware, instruments, printing)"
+              />
+              <SortableHeader
+                field="status"
+                label="Status"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                tip="Formal chapter or informal craft-practitioner stock"
               />
               <SortableHeader
                 field="stock"
@@ -232,11 +246,11 @@ export const GuildOverviewDialog: React.FC = () => {
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={6}>
+                <td colSpan={7}>
                   <span>
                     {rawRows.length
-                      ? "No guild chapters match the selected filters"
-                      : "No Burg has an active guild chapter yet"}
+                      ? "No guild stocks match the selected filters"
+                      : "No Burg has an active guild technique stock yet"}
                   </span>
                 </td>
               </tr>
@@ -256,9 +270,20 @@ export const GuildOverviewDialog: React.FC = () => {
 
 const GuildRow: React.FC<{ row: GuildOverviewRow }> = ({ row }) => (
   <tr className="states" data-id={row.id} data-burg={row.burgName}>
-    <td data-tip={row.burgName}>{row.burgName}</td>
+    <td className="d-flex">
+      <IconButton
+        data-tip="Click to zoom into view"
+        className="icon-dot-circled pointer"
+        onClick={() => {
+          const burg = getApi().worldContext.pack.burgs[row.burgId];
+          if (burg) getApi().zoomTo(burg.x, burg.y, 8, 2000);
+        }}
+      />
+      <span data-tip={row.burgName}>{row.burgName}</span>
+    </td>
     <td>{row.stateName}</td>
     <td>{row.domain}</td>
+    <td>{row.status === "chapter" ? "Chapter" : "Informal"}</td>
     <td>{row.stock.toFixed(3)}</td>
     <td>{row.bonus.toFixed(3)}</td>
     <td>{row.treasury.toFixed(2)}</td>

@@ -40,6 +40,8 @@ import {
   setDeals,
   setGoodCellColumn,
   setGoods,
+  setGuildChapters,
+  setGuildChaptersLastSettledYear,
   setMarketCellColumn,
   setMarkets
 } from "./economyContext";
@@ -69,6 +71,7 @@ import {
   isGoodEnabled,
   migrateLegacyOreIngotGoods
 } from "./generators/goods-generator";
+import { GuildChapters } from "./generators/guildChapters";
 import { GuildKnowledge } from "./generators/guildKnowledge";
 import { GuildSuccession } from "./generators/guildSuccession";
 import { GuildTreasury } from "./generators/guildTreasury";
@@ -126,6 +129,7 @@ import { economyMapPickHandler } from "./renderers/economyMapPickHandler";
 import { createEconomyWebglLayerSpec } from "./renderers/economyWebglLayers";
 import { getDisplayedGoodIds } from "./store/goodsDisplaySelection";
 import { showEconomyTooltip, updateEconomyCellInfo } from "./tooltipHandler";
+import { BurgEditorGuildsTab } from "./ui/components/BurgEditorGuildsTab";
 import { BurgEditorInnsTab } from "./ui/components/BurgEditorInnsTab";
 import { StatesEditorTreasuryTab } from "./ui/components/StatesEditorTreasuryTab";
 import { EmploymentOverviewDialog } from "./ui/dialogs/EmploymentOverviewDialog";
@@ -716,6 +720,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
         FoodProduction.seedFoodLedgerBootstrap();
         Production.produce();
         Taxes.collectTaxes();
+        GuildChapters.seedAfterGenerate();
       }
       return { changed: true, result: { target: value.target } };
     }
@@ -833,6 +838,8 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       clearStrategicProcurementExpenses();
       clearTreasuryAllocationSnapshots();
       StrategicProcurement.clear();
+      setGuildChapters([]);
+      setGuildChaptersLastSettledYear(null);
       return { changed: true };
     }
   });
@@ -907,6 +914,13 @@ export function init(api: ExtensionAPI): void {
     editorId: "burgEditor",
     label: "Inns",
     component: BurgEditorInnsTab
+  });
+  api.registerEditorTab({
+    id: "burg-guilds",
+    extensionId: ECONOMY_EXTENSION_ID,
+    editorId: "burgEditor",
+    label: "Guilds",
+    component: BurgEditorGuildsTab
   });
 
   // Register Economy Dialogs
@@ -1345,6 +1359,7 @@ export function init(api: ExtensionAPI): void {
           });
           if (!completed || !context.isCurrent() || !api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
           Taxes.collectTaxes();
+          GuildChapters.seedAfterGenerate();
           InnFacilities.generate();
           InnStays.clear();
           api.requestWebglRender();
@@ -1716,6 +1731,7 @@ export function init(api: ExtensionAPI): void {
       // practitioner coverage (docs/plan/knowledge-guild-system.md §9 Phase 1). Self-gates to
       // once per simulation year regardless of how often this tick runs.
       GuildKnowledge.settleAnnual();
+      GuildChapters.settleAnnual(context.rng);
       // Must run after GuildKnowledge above: reads this year's freshly-settled metallurgy
       // GuildKnowledgeStock for apprentice growth-rate/eligibility checks (docs/plan/
       // knowledge-guild-system.md §9 Phase 6). Self-gates to once per simulation year.

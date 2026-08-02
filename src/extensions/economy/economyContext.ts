@@ -16,6 +16,7 @@ import type { ConstructionOperation } from "./generators/constructionEmploymentT
 import type { ConstructionHireApplication, ConstructionNamedSeat } from "./generators/constructionHireTypes";
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
 import type { Good } from "./generators/goodsGeneratorTypes";
+import type { GuildChapter } from "./generators/guildChapterTypes";
 import type { CraftDomainEmploymentRecord, GuildKnowledgeStock } from "./generators/guildKnowledgeTypes";
 import {
   type InnConstructionOrder,
@@ -71,6 +72,7 @@ let _settlementDevelopmentLastEvaluatedYearFallback: number | null = null;
 let _agTechLastSettledYearFallback: number | null = null;
 let _industrialTechLastSettledYearFallback: number | null = null;
 let _guildKnowledgeLastSettledYearFallback: number | null = null;
+let _guildChaptersLastSettledYearFallback: number | null = null;
 let _academyKnowledgeLastSettledYearFallback: number | null = null;
 let _stateSecretLastSettledYearFallback: number | null = null;
 let _martialDisciplineLastSettledYearFallback: number | null = null;
@@ -98,6 +100,7 @@ export function clearEconomyContext(): void {
   _agTechLastSettledYearFallback = null;
   _industrialTechLastSettledYearFallback = null;
   _guildKnowledgeLastSettledYearFallback = null;
+  _guildChaptersLastSettledYearFallback = null;
   _academyKnowledgeLastSettledYearFallback = null;
   _stateSecretLastSettledYearFallback = null;
   _martialDisciplineLastSettledYearFallback = null;
@@ -444,6 +447,25 @@ export function setGuildKnowledgeLastSettledYear(year: number): void {
     return;
   }
   _guildKnowledgeLastSettledYearFallback = year;
+}
+
+/** Independent annual guard for formal GuildChapter placement. */
+export function getGuildChaptersLastSettledYear(): number | null {
+  const slice = getEconomySlice();
+  if (slice) {
+    const value = slice.guildChaptersLastSettledYear;
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return _guildChaptersLastSettledYearFallback;
+}
+export function setGuildChaptersLastSettledYear(year: number | null): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    if (year === null) delete slice.guildChaptersLastSettledYear;
+    else slice.guildChaptersLastSettledYear = year;
+    return;
+  }
+  _guildChaptersLastSettledYearFallback = year;
 }
 
 /** Same guard as getGuildKnowledgeLastSettledYear, for AcademyKnowledge.settleAnnual() (docs/plan/knowledge-guild-system.md §9 Phase 3). */
@@ -907,6 +929,14 @@ export function getGuildKnowledgeStocks(): GuildKnowledgeStock[] {
 }
 export function setGuildKnowledgeStocks(stocks: readonly GuildKnowledgeStock[]): void {
   setSliceArray("guildKnowledgeStocks", stocks);
+}
+
+/** Formal guild halls, distinct from practitioner-driven GuildKnowledgeStock entries. */
+export function getGuildChapters(): GuildChapter[] {
+  return getSliceArray<GuildChapter>("guildChapters");
+}
+export function setGuildChapters(chapters: readonly GuildChapter[]): void {
+  setSliceArray("guildChapters", chapters);
 }
 
 /** Burg-scoped academy/chancery technique stocks, one entry per (burgId, domain) (docs/plan/knowledge-guild-system.md §6, §9 Phase 3). */

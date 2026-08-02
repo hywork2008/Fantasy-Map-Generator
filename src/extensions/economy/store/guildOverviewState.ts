@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { GuildPresenceStatus } from "../generators/guildChapterTypes";
 import type { CraftKnowledgeDomain } from "../generators/guildKnowledgeTypes";
 
 export interface GuildOverviewRow {
@@ -8,6 +9,7 @@ export interface GuildOverviewRow {
   stateId: number;
   stateName: string;
   domain: CraftKnowledgeDomain;
+  status: GuildPresenceStatus;
   stock: number;
   bonus: number;
   treasury: number;

@@ -1,6 +1,6 @@
 import { openDialog } from "../../hostUi";
 import { rn } from "../../hostUtils";
-import { getGuildKnowledgeStocks, getWorldContext } from "../economyContext";
+import { getGuildChapters, getGuildKnowledgeStocks, getWorldContext } from "../economyContext";
 import { getGuildBonus } from "../generators/guildKnowledge";
 import { type GuildOverviewRow, setGuildOverviewState } from "../store/guildOverviewState";
 
@@ -19,6 +19,7 @@ export function refreshGuildOverview(): void {
   const world = getWorldContext();
   const burgs = world.pack.burgs;
   const states = world.pack.states ?? [];
+  const chapters = new Set(getGuildChapters().map(chapter => `${chapter.burgId}:${chapter.domain}`));
 
   const rows: GuildOverviewRow[] = [];
   for (const entry of getGuildKnowledgeStocks()) {
@@ -32,6 +33,7 @@ export function refreshGuildOverview(): void {
       stateId: burg.state ?? 0,
       stateName: (burg.state ? states[burg.state]?.name : undefined) ?? "—",
       domain: entry.domain,
+      status: chapters.has(`${entry.burgId}:${entry.domain}`) ? "chapter" : "informal",
       stock: rn(entry.stock, 3),
       bonus: rn(getGuildBonus(entry.burgId, entry.domain), 3),
       treasury: rn(entry.treasury, 2)

@@ -13,10 +13,10 @@ export type CraftKnowledgeDomain = (typeof CRAFT_KNOWLEDGE_DOMAINS)[number];
 
 /**
  * A Burg-scoped guild's accumulated technique for one craft domain. Any Burg with at least one
- * practitioner can carry a stock — there is no minimum population/burg.group gate
+ * practitioner can carry a technique stock — there is no minimum population/burg.group gate
  * (docs/plan/knowledge-guild-system.md §8.1 decision 2): a handful of smiths in a small village
- * can found a modest guild chapter and, given time, reach the same technique quality as a large
- * city's guild hall. What differs by settlement size is headcount (aggregate output), not the
+ * can retain a modest technique stock and, given time, reach the same technique quality as a large
+ * city's formal guild hall. What differs by settlement size is headcount (aggregate output), not the
  * achievable stock ceiling.
  */
 export interface GuildKnowledgeStock {
@@ -29,7 +29,7 @@ export interface GuildKnowledgeStock {
    * (docs/plan/burg-treasury-equilibrium.md §3.1) — funded by a share of this guild's
    * craft-domain manufacturing profit (guildTreasury.ts's GUILD_PROFIT_SHARE) and trickled back to
    * the Burg when it falls below its comfortable level (GUILD_PAYOUT_RATE). Independent of `stock`
-   * (technique) — a guild chapter can be flush with capital while still unskilled, or vice versa.
+   * (technique) — a technique stock can be flush with capital while still unskilled, or vice versa.
    */
   treasury: number;
 }
