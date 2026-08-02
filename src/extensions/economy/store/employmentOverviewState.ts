@@ -18,6 +18,18 @@ export interface EmploymentOverviewRow {
   requiredDwellings: number;
   /** Housing gap 0–100 (% of required still unbuilt). */
   housingGapPct: number;
+  /** Estimated dwellings under construction (labor-limited). */
+  underConstruction: number;
+  /** Adults after household care still unassigned to market work. */
+  laborResidual: number;
+  /** Market unemployment 0–100 among market labor force. */
+  marketUnemploymentPct: number;
+  /** Suggested sector to expand when residual is high. */
+  employmentFocus: string;
+  /** Household-care band (non-market adults). */
+  householdCare: number;
+  /** Market labor force after care. */
+  marketLaborForce: number;
   basicEmploymentDemand: number;
   serviceEmploymentDemand: number;
   employmentDemand: number;

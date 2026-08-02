@@ -12,15 +12,14 @@ import {
   getWorldContext
 } from "../economyContext";
 import { getStrategicIndustryWorkersByBurg, getTradeWorkersByBurg } from "../generators/basicEmployment";
+import { getBurgEmploymentComposition } from "../generators/burgEmploymentComposition";
 import { getHousingLedgerSnapshot } from "../generators/constructionEmployment";
 import { type EmploymentOverviewRow, setEmploymentOverviewState } from "../store/employmentOverviewState";
 
 /**
- * Debug/transparency view over `employmentDemand`'s inputs (docs/plan/urban-employment-demand.md
- * Phase 5), in the same spirit as the host's Frontier Status panel: every Burg with any
- * recorded basic or service employment, broken down by source. Reads already-persisted state
- * from the last annual reconciliation (`reconcileAnnualBasicEmploymentWorkers`) — it does not
- * recompute anything live.
+ * Debug/transparency view over employment demand and the adult labor ledger
+ * (docs/plan/urban-employment-demand.md Phase 5 + burg employment composition).
+ * Reads already-persisted employment seats plus live demographics/housing; does not reallocate.
  */
 export function open(): void {
   openDialog("employmentOverview");
@@ -57,6 +56,12 @@ export function refreshEmploymentOverview(): void {
     ...constructionByBurg.keys(),
     ...summaryByBurg.keys()
   ]);
+  // Include market burgs that have demographics (labor ledger) even before the first employment reconcile.
+  for (const burg of burgs ?? []) {
+    if (!burg?.i || burg.removed || !burg.demographics) continue;
+    if (burg.group === "fort") continue;
+    burgIds.add(burg.i);
+  }
 
   const rows: EmploymentOverviewRow[] = [];
   for (const burgId of burgIds) {
@@ -67,6 +72,7 @@ export function refreshEmploymentOverview(): void {
     const basicEmploymentDemand = summary?.basicEmploymentDemand ?? 0;
     const serviceEmploymentDemand = summary?.serviceEmploymentDemand ?? 0;
     const housing = getHousingLedgerSnapshot(constructionOpByBurg.get(burgId), burg, populationRate);
+    const labor = getBurgEmploymentComposition(burgId);
 
     rows.push({
       id: burgId,
@@ -83,22 +89,25 @@ export function refreshEmploymentOverview(): void {
       dwellings: housing?.dwellingStock ?? 0,
       requiredDwellings: housing?.requiredDwellings ?? 0,
       housingGapPct: housing ? rn(housing.housingBacklog * 100, 1) : 0,
+      underConstruction: housing?.underConstruction ?? 0,
+      laborResidual: labor?.residual ?? 0,
+      marketUnemploymentPct: labor ? rn(labor.marketUnemployment * 100, 1) : 0,
+      employmentFocus: labor?.recommendedFocus ?? "—",
+      householdCare: labor?.householdCare ?? 0,
+      marketLaborForce: labor?.marketLaborForce ?? 0,
       basicEmploymentDemand: rn(basicEmploymentDemand, 1),
       serviceEmploymentDemand: rn(serviceEmploymentDemand, 1),
       employmentDemand: rn(basicEmploymentDemand + serviceEmploymentDemand, 1)
     });
   }
 
-  rows.sort((a, b) => b.employmentDemand - a.employmentDemand);
+  // Highest residual first when demand is equal — surfaces towns that need jobs.
+  rows.sort((a, b) => b.laborResidual - a.laborResidual || b.employmentDemand - a.employmentDemand);
   setEmploymentOverviewState({ rows });
 }
 
 /**
- * Sums masonry/carpentry (docs/plan/urban-construction-industry.md §3.3), quarrying (§3.2), and
- * Volcanic Ash extraction (§3.4) per Burg — the "Construction" column this dialog previously
- * lacked (urban-construction-industry.md §3.5 listed it as a future item). All three are
- * Burg-anchored `basicEmploymentDemand` slots reconciled the same way as mining/smelting, so
- * they belong beside those columns rather than folded invisibly into "Basic".
+ * Sums masonry/carpentry, quarrying, and Volcanic Ash extraction per Burg.
  */
 function getConstructionEmploymentByBurg(): Map<number, number> {
   const sums = new Map<number, number>();
@@ -118,7 +127,6 @@ function getConstructionEmploymentByBurg(): Map<number, number> {
   return sums;
 }
 
-/** Sums `.workers` per Burg for active mine/smelter operations, matching `basicEmployment.ts`'s own filter. */
 function sumActiveByBurg(
   operations: readonly { active: boolean; burgId: number; workers: number }[]
 ): Map<number, number> {

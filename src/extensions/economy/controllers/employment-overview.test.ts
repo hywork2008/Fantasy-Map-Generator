@@ -76,7 +76,8 @@ describe("refreshEmploymentOverview", () => {
       trade: 5,
       basicEmploymentDemand: 15,
       serviceEmploymentDemand: 22.5,
-      employmentDemand: 37.5
+      employmentDemand: 37.5,
+      employmentFocus: "—" // no demographics → no labor ledger
     });
 
     const miningTown = rows.find(row => row.id === 2);
@@ -88,9 +89,67 @@ describe("refreshEmploymentOverview", () => {
       basicEmploymentDemand: 20,
       employmentDemand: 50
     });
+  });
 
-    // Sorted by total employmentDemand, highest first.
-    expect(rows[0].id).toBe(2);
+  it("fills residual/focus from demographics and sorts by residual first", () => {
+    worldContext.pack = {
+      burgs: [
+        undefined,
+        {
+          i: 1,
+          cell: 0,
+          x: 0,
+          y: 0,
+          name: "Busy Town",
+          state: 1,
+          capital: 1,
+          removed: false,
+          population: 5,
+          demographics: {
+            capacity: 200,
+            children: 10,
+            maleAdults: 30,
+            femaleAdults: 30,
+            elders: 5
+          }
+        },
+        {
+          i: 2,
+          cell: 1,
+          x: 1,
+          y: 1,
+          name: "Idle Town",
+          state: 1,
+          removed: false,
+          population: 8,
+          demographics: {
+            capacity: 400,
+            children: 20,
+            maleAdults: 50,
+            femaleAdults: 50,
+            elders: 10
+          }
+        }
+      ],
+      states: [undefined, { i: 1, name: "Testland" }]
+    } as unknown as PackedGraph;
+    setBasicEmploymentSummary([
+      { burgId: 1, basicEmploymentDemand: 40, serviceEmploymentDemand: 60 },
+      { burgId: 2, basicEmploymentDemand: 0, serviceEmploymentDemand: 0 }
+    ]);
+    setAdministrationEmployment([{ burgId: 1, stateId: 1, workers: 40 }]);
+
+    refreshEmploymentOverview();
+
+    const rows = getEmploymentOverviewState().rows;
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+    const idle = rows.find(row => row.id === 2);
+    const busy = rows.find(row => row.id === 1);
+    expect(idle?.laborResidual).toBeGreaterThan(busy?.laborResidual ?? 0);
+    expect(idle?.employmentFocus).not.toBe("—");
+    expect(idle?.marketLaborForce).toBeGreaterThan(0);
+    // Sorted by residual descending
+    expect(rows[0].laborResidual).toBeGreaterThanOrEqual(rows[1].laborResidual);
   });
 
   it("excludes inactive mine/smelter operations from the sub-breakdown", () => {
