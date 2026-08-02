@@ -1190,6 +1190,63 @@ describe("offerGift", () => {
     });
     expect(result.delta).toBeGreaterThan(0);
     expect(getSolidarity(artist, giver.i)).toBeGreaterThan(0);
+
+    const potter = baseCharacter({
+      i: 3,
+      name: "Potter",
+      skills: { ...artist.skills, artistry: 80 },
+      personality: { ...artist.personality }
+    });
+    applyCharacterBackstory(potter, { roleClass: "ordinary" });
+    potter.backstory!.tastes = [{ id: "art", polarity: "like", intensity: 90 }];
+    const ceramicsGift = offerGift(giver, potter, {
+      goodName: "Ceramics",
+      valueHint: 45,
+      intent: "courtesy"
+    });
+    expect(ceramicsGift.delta).toBeGreaterThan(0);
+  });
+
+  it("rewards correspondence lovers with paper or ink", () => {
+    const sender = baseCharacter({ i: 1, name: "Sender" });
+    const writer = baseCharacter({
+      i: 2,
+      name: "Writer",
+      skills: {
+        artistry: 40,
+        diplomacy: 55,
+        engineering: 30,
+        geography: 40,
+        intrigue: 40,
+        learning: 80,
+        martial: 25,
+        prowess: 25,
+        stewardship: 40
+      },
+      personality: {
+        boldness: 35,
+        compassion: 50,
+        greed: 35,
+        honor: 55,
+        rationality: 65,
+        sociability: 50,
+        vengefulness: 25,
+        zeal: 40,
+        energy: 45,
+        piety: 40,
+        guile: 35,
+        confidence: 50
+      }
+    });
+    applyCharacterBackstory(writer, { roleClass: "central_officer" });
+    writer.backstory!.tastes = [{ id: "correspondence", polarity: "like", intensity: 90 }];
+
+    const paperGift = offerGift(sender, writer, {
+      goodName: "Paper",
+      valueHint: 40,
+      intent: "courtesy"
+    });
+    expect(paperGift.delta).toBeGreaterThan(0);
   });
 
   it("romance intent can move romantic favor", () => {
@@ -1271,6 +1328,75 @@ describe("historical origin / role biases", () => {
         expect(likes.has(id)).toBe(false);
       }
     }
+  });
+
+  it("never assigns opposite polarities to feast and company", () => {
+    for (let i = 0; i < 80; i++) {
+      const c = baseCharacter({
+        i: 3000 + i,
+        name: `FeastCompany${i}`,
+        gender: i % 2 === 0 ? "male" : "female",
+        personality: {
+          boldness: 30 + (i % 50),
+          compassion: 40,
+          greed: 40 + (i % 40),
+          honor: 40,
+          rationality: 40,
+          sociability: 10 + (i % 85),
+          vengefulness: 30,
+          zeal: 40,
+          energy: 40,
+          piety: 20 + (i % 70),
+          guile: 40,
+          confidence: 50
+        }
+      });
+      applyCharacterBackstory(c, { roleClass: "ordinary", formName: "Monarchy", capitalBurgId: 1 });
+      const likes = new Set(c.backstory!.tastes.filter(t => t.polarity === "like").map(t => t.id));
+      const dislikes = new Set(c.backstory!.tastes.filter(t => t.polarity === "dislike").map(t => t.id));
+      expect(likes.has("feast") && dislikes.has("company")).toBe(false);
+      expect(likes.has("company") && dislikes.has("feast")).toBe(false);
+    }
+  });
+
+  it("biases high-learning characters toward correspondence", () => {
+    let withCorrespondence = 0;
+    for (let i = 0; i < 40; i++) {
+      const c = baseCharacter({
+        i: 4000 + i,
+        name: `Scholar${i}`,
+        skills: {
+          artistry: 40,
+          diplomacy: 50,
+          engineering: 40,
+          geography: 50,
+          intrigue: 40,
+          learning: 85,
+          martial: 30,
+          prowess: 30,
+          stewardship: 45
+        },
+        personality: {
+          boldness: 35,
+          compassion: 50,
+          greed: 35,
+          honor: 55,
+          rationality: 70,
+          sociability: 45,
+          vengefulness: 25,
+          zeal: 40,
+          energy: 45,
+          piety: 40,
+          guile: 35,
+          confidence: 50
+        }
+      });
+      applyCharacterBackstory(c, { roleClass: "central_officer", formName: "Monarchy", capitalBurgId: 1 });
+      if (c.backstory!.tastes.some(t => t.id === "correspondence" && t.polarity === "like")) {
+        withCorrespondence++;
+      }
+    }
+    expect(withCorrespondence).toBeGreaterThan(8);
   });
 
   it("does not put stateId on liege commitment targets", () => {

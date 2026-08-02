@@ -571,6 +571,7 @@ const TASTE_CATALOG = [
   "hunting",
   "sport",
   "books",
+  "correspondence",
   "music",
   "art",
   "maps",
@@ -602,15 +603,20 @@ const TASTE_CATALOG = [
   "mercy"
 ] as const;
 
-/** Good names preferred by each taste id (for gift matching). */
+/**
+ * Good names preferred by each taste id (for gift matching).
+ * Jewelry stays under luxury/gold (not art) so bribes of jewels don't double-count as fine art.
+ * Ceramics/Glass cover pottery and glassware as objets d'art under `art`.
+ */
 export const TASTE_GOOD_MATCH: Readonly<Record<string, readonly string[]>> = {
   wine: ["Wine", "Liquor", "Beer"],
   feast: ["Spices", "Wine", "Cheese", "Honey"],
   salon: ["Honey", "Spices", "Perfume", "Silk", "Cheese"],
   luxury: ["Silk", "Jewelry", "Perfume", "Garments"],
-  art: ["Artworks", "Sculptures", "Tapestries", "Marble", "Ivory"],
+  art: ["Artworks", "Sculptures", "Tapestries", "Marble", "Ivory", "Ceramics", "Glass"],
   music: ["Instruments"],
   books: ["Books", "Paper", "Ink"],
+  correspondence: ["Paper", "Ink", "Books"],
   gold: ["Coins", "Gold Ingot", "Jewelry"],
   gambling: ["Coins"],
   theology: ["Incense", "Candles", "Relics"],
@@ -853,6 +859,8 @@ export function isWorldlyClericProfile(
 
 /**
  * Push a taste only if the id is not already liked or disliked (spec §5.1).
+ * Also blocks feast↔company opposite polarities (food culture vs socializing —
+ * opposite signs read as nonsense when labels share banquet connotations).
  */
 function pushTaste(
   likes: CharacterTaste[],
@@ -862,8 +870,50 @@ function pushTaste(
   intensity: number
 ): void {
   if (likes.some(t => t.id === id) || dislikes.some(t => t.id === id)) return;
+  if (feastCompanyConflict(likes, dislikes, id, polarity)) return;
   const list = polarity === "like" ? likes : dislikes;
   list.push({ id, polarity, intensity: Math.max(1, Math.min(100, Math.round(intensity))) });
+}
+
+/**
+ * feast = cuisine / fine dining; company = people / socializing.
+ * Both as likes or both as dislikes is fine; opposite polarities are not.
+ */
+function feastCompanyConflict(
+  likes: CharacterTaste[],
+  dislikes: CharacterTaste[],
+  id: string,
+  polarity: TastePolarity
+): boolean {
+  if (id === "feast") {
+    if (polarity === "like" && dislikes.some(t => t.id === "company")) return true;
+    if (polarity === "dislike" && likes.some(t => t.id === "company")) return true;
+  }
+  if (id === "company") {
+    if (polarity === "like" && dislikes.some(t => t.id === "feast")) return true;
+    if (polarity === "dislike" && likes.some(t => t.id === "feast")) return true;
+  }
+  return false;
+}
+
+/** Safety net if older paths left opposite feast/company polarities. */
+function resolveFeastCompanyConflict(likes: CharacterTaste[], dislikes: CharacterTaste[]): void {
+  const drop = (list: CharacterTaste[], tasteId: string) => {
+    const i = list.findIndex(t => t.id === tasteId);
+    if (i >= 0) list.splice(i, 1);
+  };
+  const feastLike = likes.find(t => t.id === "feast");
+  const feastDis = dislikes.find(t => t.id === "feast");
+  const companyLike = likes.find(t => t.id === "company");
+  const companyDis = dislikes.find(t => t.id === "company");
+  if (feastLike && companyDis) {
+    if (feastLike.intensity >= companyDis.intensity) drop(dislikes, "company");
+    else drop(likes, "feast");
+  }
+  if (companyLike && feastDis) {
+    if (companyLike.intensity >= feastDis.intensity) drop(dislikes, "feast");
+    else drop(likes, "company");
+  }
 }
 
 function buildTastes(
@@ -1084,6 +1134,24 @@ function buildTastes(
   }
   if (s.learning >= 75) {
     like("books", rand(60, 95));
+    if (P(0.4)) like("correspondence", rand(50, 90));
+  } else if (s.learning >= 55 && p.sociability >= 40 && p.sociability <= 80 && P(0.22)) {
+    // Courtly / literate letter culture without pure tavern company
+    like("correspondence", rand(45, 85));
+  }
+  if (!likes.some(t => t.id === "correspondence") && roleClass === "central_officer" && s.learning >= 50 && P(0.28)) {
+    like("correspondence", rand(45, 85));
+  }
+  if (!likes.some(t => t.id === "correspondence") && female && isNobleStratum(stratum) && s.learning >= 40 && P(0.3)) {
+    like("correspondence", rand(45, 88));
+  }
+  if (
+    !likes.some(t => t.id === "correspondence") &&
+    likes.some(t => t.id === "books") &&
+    likes.some(t => t.id === "solitude") &&
+    P(0.4)
+  ) {
+    like("correspondence", rand(45, 85));
   }
   if (p.compassion >= 75) {
     like("mercy", rand(60, 95));
@@ -1178,7 +1246,7 @@ function buildTastes(
     }
     return popularPadPool[popularPadPool.length - 1]!;
   };
-  const femalePadPool = (["gossip", "salon", "music", "luxury", "art"] as const).filter(
+  const femalePadPool = (["gossip", "salon", "music", "luxury", "art", "correspondence"] as const).filter(
     id => !likes.some(t => t.id === id) && !dislikes.some(t => t.id === id)
   );
   // Role-conditioned pad pools reduce pure catalog noise
@@ -1188,6 +1256,7 @@ function buildTastes(
   if (roleClass === "religious") rolePadPool.push("theology", "ceremony", "books");
   if (roleClass === "ruler" || roleClass === "province_lord")
     rolePadPool.push("land", "titles_glory", "ceremony", "hunting");
+  if (roleClass === "central_officer") rolePadPool.push("books", "correspondence", "law", "ceremony");
   if (formPackId === "theocracy") rolePadPool.push("theology", "ceremony", "piety_practice");
   const filteredRolePad = rolePadPool.filter(id => !likes.some(t => t.id === id) && !dislikes.some(t => t.id === id));
 
@@ -1204,6 +1273,7 @@ function buildTastes(
     if (id === "lust" && !canPadLustLike) continue;
     if (id === "gambling" && !canPadGamblingLike) continue;
     if (female && (id === "feast" || id === "company") && P(0.55)) continue;
+    if (feastCompanyConflict(likes, dislikes, id, "like")) continue;
     if (
       (worldlyCleric || likes.some(t => t.id === "corruption")) &&
       id === "theology" &&
@@ -1220,6 +1290,7 @@ function buildTastes(
     const id = TASTE_CATALOG[rand(0, TASTE_CATALOG.length - 1)]!;
     if (id === "lust" && !canPadLustDislike) continue;
     if (id === "gambling" && !canPadGamblingDislike) continue;
+    if (feastCompanyConflict(likes, dislikes, id, "dislike")) continue;
     if (
       (popularVices || worldlyCleric || likes.some(t => t.id === "corruption")) &&
       (id === "wine" || id === "lust" || id === "gambling" || id === "corruption" || id === "gold") &&
@@ -1231,6 +1302,8 @@ function buildTastes(
       dislike(id, rand(40, 75));
     } else break;
   }
+
+  resolveFeastCompanyConflict(likes, dislikes);
 
   const sortByIntensity = (list: CharacterTaste[]) => list.sort((a, b) => b.intensity - a.intensity);
   return [...sortByIntensity(likes.slice(0, 4)), ...sortByIntensity(dislikes.slice(0, 3))];
@@ -1930,10 +2003,10 @@ function tasteMatchScore(recipient: Character, goodName: string | undefined): nu
     const weight = taste.intensity / 100;
     score += taste.polarity === "like" ? 40 * weight : -45 * weight;
   }
-  if (/artwork|sculpture|tapestry|instrument/i.test(goodName)) {
+  if (/artwork|sculpture|tapestry|instrument|ceramic|glass/i.test(goodName)) {
     score += (recipient.skills.artistry - 40) * 0.35;
   }
-  if (/book/i.test(goodName)) score += (recipient.skills.learning - 40) * 0.25;
+  if (/book|paper|ink/i.test(goodName)) score += (recipient.skills.learning - 40) * 0.25;
   if (/wine|liquor|beer/i.test(goodName) && recipient.personality.sociability >= 60) score += 10;
   if (/coin|gold|jewelry|ingot/i.test(goodName)) score += (recipient.personality.greed - 40) * 0.3;
   return score;
