@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Author** | Design draft (AI agent) |
 | **Date** | 2026-08-02 |
-| **Status** | Ready for implementation (rev. 4); **PR-H1 + PR-M + PR-P1 + PR-V implemented 2026-08-02** |
+| **Status** | **Implemented through PR-P2 (2026-08-02)** — PR-UI polish optional |
 | **Depends on** | [urban-construction-industry.md](./urban-construction-industry.md) Phase 1–3 (implemented 2026-07-31) |
 | **Related** | [population-dynamics.md](../simulation/population-dynamics.md), [population-food-supply.md](../simulation/population-food-supply.md), [goods.md](../simulation/goods.md), [analytics/population.md](../analytics/population.md), city-generator v2 housing visuals |
 

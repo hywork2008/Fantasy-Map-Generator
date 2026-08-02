@@ -3,6 +3,7 @@ import { simulationContext } from "../context/simulationContext";
 import { type WorldContext, worldContext } from "../context/worldContext";
 import { useOptionsState } from "../store/optionsState";
 import { applyFoodStressToDemographics } from "./agriculturalStress";
+import { getBirthFloorProvider } from "./birthModifiers";
 import { Burgs } from "./burgs-generator";
 import {
   addDemographicBuckets,
@@ -191,7 +192,22 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
     if (roomForGrowth > 0) {
       // Garrison forts have negligible resident families — suppress natural increase.
       if (burg.group !== "fort") {
-        const births = femaleAdults * baseGrowthRate * deltaYears * roomForGrowth;
+        const continuousBirths = femaleAdults * baseGrowthRate * deltaYears * roomForGrowth;
+        // Optional economy birth-floor provider (urban pregnancy due). Never sum with continuous —
+        // take the max so near-term pregnancies set a lower bound without double counting.
+        // docs/plan/urban-housing-system.md PR-P2 / K19.
+        const birthFloorProvider = getBirthFloorProvider();
+        const birthsFromPregnancy =
+          birthFloorProvider && burg.i
+            ? birthFloorProvider({
+                burgId: burg.i,
+                femaleAdults,
+                continuousBirths,
+                roomForGrowth,
+                deltaYears
+              })
+            : 0;
+        const births = Math.max(continuousBirths, Math.max(0, birthsFromPregnancy));
         children += births;
       }
     } else if (roomForGrowth < 0) {

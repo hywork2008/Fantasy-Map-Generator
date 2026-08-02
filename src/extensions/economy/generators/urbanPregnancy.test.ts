@@ -1,17 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { getBirthFloorProvider } from "../../../generators/birthModifiers";
 import { useOptionsState, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearEconomyContext, getUrbanPregnancy, initEconomyContext } from "../economyContext";
 import {
   advanceBurgPregnancy,
   clearUrbanPregnancy,
+  clearUrbanPregnancyBirthFloorRegistration,
   GESTATION_YEARS,
   getBurgRoomForGrowth,
   getExpectedBirthsLowerBoundAnnual,
   isBirthFloorProviderActive,
   MAX_PREGNANT_FRACTION,
+  registerUrbanPregnancyBirthFloor,
   setBirthFloorProviderActive,
-  tickUrbanPregnancy
+  tickUrbanPregnancy,
+  unregisterUrbanPregnancyBirthFloor,
+  urbanPregnancyBirthFloorProvider
 } from "./urbanPregnancy";
 
 function setUpBurgs(
@@ -187,5 +192,56 @@ describe("tickUrbanPregnancy", () => {
     for (let i = 0; i < 30; i++) tickUrbanPregnancy(1 / 12); // ~2.5 years monthly
     const pregnant = getUrbanPregnancy().find(r => r.burgId === 1)?.pregnant ?? 0;
     expect(pregnant).toBeLessThanOrEqual(MAX_PREGNANT_FRACTION * 80 + 1e-6);
+  });
+});
+
+describe("urbanPregnancy birth floor provider (PR-P2)", () => {
+  beforeEach(() => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    useOptionsState.setState({ demographicBirthRate: 0.25 });
+    clearUrbanPregnancyBirthFloorRegistration();
+  });
+  afterEach(() => {
+    clearUrbanPregnancyBirthFloorRegistration();
+    clearEconomyContext();
+  });
+
+  it("returns due and writes slice when registered", () => {
+    setUpBurgs({ femaleAdults: 100, capacity: 1000 });
+    // Seed stock via observability path first
+    setBirthFloorProviderActive(false);
+    tickUrbanPregnancy(1);
+    const pregnantBefore = getUrbanPregnancy().find(r => r.burgId === 1)?.pregnant ?? 0;
+    expect(pregnantBefore).toBeGreaterThan(0);
+
+    registerUrbanPregnancyBirthFloor();
+    expect(isBirthFloorProviderActive()).toBe(true);
+    expect(getBirthFloorProvider()).toBe(urbanPregnancyBirthFloorProvider);
+
+    // economy.tick path must not mutate while provider active
+    const snapshot = getUrbanPregnancy().map(r => ({ ...r }));
+    tickUrbanPregnancy(1);
+    expect(getUrbanPregnancy()).toEqual(snapshot);
+
+    const due = urbanPregnancyBirthFloorProvider({
+      burgId: 1,
+      femaleAdults: 100,
+      continuousBirths: 1,
+      roomForGrowth: 0.5,
+      deltaYears: GESTATION_YEARS
+    });
+    expect(due).toBeGreaterThan(0);
+    // After full gestation, prior stock is largely due
+    expect(due).toBeCloseTo(pregnantBefore, 1);
+  });
+
+  it("unregister restores economy.tick mutation ownership", () => {
+    setUpBurgs({ femaleAdults: 100, capacity: 1000 });
+    registerUrbanPregnancyBirthFloor();
+    unregisterUrbanPregnancyBirthFloor();
+    expect(isBirthFloorProviderActive()).toBe(false);
+    expect(getBirthFloorProvider()).toBeNull();
+    tickUrbanPregnancy(1);
+    expect(getUrbanPregnancy().some(r => r.burgId === 1 && r.pregnant > 0)).toBe(true);
   });
 });

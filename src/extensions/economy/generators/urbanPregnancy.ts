@@ -1,3 +1,9 @@
+import type { BirthFloorProviderArgs } from "../../../generators/birthModifiers";
+import {
+  clearBirthFloorProvider,
+  registerBirthFloorProvider,
+  unregisterBirthFloorProvider
+} from "../../../generators/birthModifiers";
 import { useOptionsState } from "../../hostCore";
 import { rn } from "../../hostUtils";
 import { getUrbanPregnancy, getWorldContext, setUrbanPregnancy } from "../economyContext";
@@ -12,7 +18,7 @@ export const MAX_PREGNANT_FRACTION = 0.15;
 
 /**
  * When true (PR-P2), demography's birth-floor provider owns all pregnancy mutation and
- * `economy.tick` must not age/conceive/due. PR-P1 leaves this false.
+ * `economy.tick` must not age/conceive/due.
  */
 let birthFloorProviderActive = false;
 
@@ -22,6 +28,53 @@ export function setBirthFloorProviderActive(active: boolean): void {
 
 export function isBirthFloorProviderActive(): boolean {
   return birthFloorProviderActive;
+}
+
+/**
+ * Upsert one burg record into the urbanPregnancy slice (provider path mutates one burg at a time).
+ */
+function upsertUrbanPregnancyRecord(record: UrbanPregnancyRecord): void {
+  const next = getUrbanPregnancy().filter(entry => entry.burgId !== record.burgId);
+  if (record.pregnant > 0 || record.lastDue > 0) {
+    next.push(record);
+  }
+  setUrbanPregnancy(next);
+}
+
+/**
+ * Birth-floor provider for demography (PR-P2): ages stock, records due, applies conceptions,
+ * writes the slice, returns due completions as birthsFromPregnancy (population points).
+ */
+export function urbanPregnancyBirthFloorProvider(args: BirthFloorProviderArgs): number {
+  const birthRate = useOptionsState.getState().demographicBirthRate;
+  const previous = getUrbanPregnancy().find(record => record.burgId === args.burgId);
+  const record = advanceBurgPregnancy(previous, {
+    burgId: args.burgId,
+    femaleAdults: args.femaleAdults,
+    roomForGrowth: args.roomForGrowth,
+    deltaYears: args.deltaYears,
+    birthRate
+  });
+  upsertUrbanPregnancyRecord(record);
+  return Math.max(0, record.lastDue);
+}
+
+/** Register provider with host demography and mark economy.tick as read-only for pregnancy. */
+export function registerUrbanPregnancyBirthFloor(): void {
+  registerBirthFloorProvider(urbanPregnancyBirthFloorProvider);
+  setBirthFloorProviderActive(true);
+}
+
+/** Unregister provider; economy.tick resumes observability mutation (PR-P1 path). */
+export function unregisterUrbanPregnancyBirthFloor(): void {
+  unregisterBirthFloorProvider(urbanPregnancyBirthFloorProvider);
+  setBirthFloorProviderActive(false);
+}
+
+/** Force-clear host registry (cleanup / tests). */
+export function clearUrbanPregnancyBirthFloorRegistration(): void {
+  clearBirthFloorProvider();
+  setBirthFloorProviderActive(false);
 }
 
 /**

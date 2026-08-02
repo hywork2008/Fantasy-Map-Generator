@@ -95,7 +95,13 @@ import { TradeSecurity } from "./generators/tradeSecurity";
 import { TransportAssetOrders } from "./generators/transportAssetOrders";
 import { clearTreasuryAllocationSnapshots } from "./generators/treasuryAllocation";
 import { UrbanLaborIntake } from "./generators/urbanLaborIntake";
-import { clearUrbanPregnancy, tickUrbanPregnancy } from "./generators/urbanPregnancy";
+import {
+  clearUrbanPregnancy,
+  clearUrbanPregnancyBirthFloorRegistration,
+  registerUrbanPregnancyBirthFloor,
+  tickUrbanPregnancy,
+  unregisterUrbanPregnancyBirthFloor
+} from "./generators/urbanPregnancy";
 import { VolcanicAshOperations } from "./generators/volcanicAshOperations";
 import { drawGoods } from "./renderers/draw-goods";
 import { drawMarketsLayer } from "./renderers/draw-markets";
@@ -1116,6 +1122,8 @@ export function init(api: ExtensionAPI): void {
       api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
       api.burgEconomyExtensions.getBurgEconomySummary = getBurgEconomySummary;
       registerOverviewColumns(api);
+      // Demography birth floor: pregnancy due sets a lower bound on urban births (PR-P2).
+      registerUrbanPregnancyBirthFloor();
       // Generate economy if it's completely missing
       if (!getGoods().length) {
         if (
@@ -1186,6 +1194,7 @@ export function init(api: ExtensionAPI): void {
 
       // Clear economy data through the extension-owned command after disabling.
       api.dispatchExtensionCommand({ extensionId: ECONOMY_EXTENSION_ID, name: "clear", payload: undefined });
+      unregisterUrbanPregnancyBirthFloor();
       api.tooltipExtensions.showMapTooltip = undefined;
       api.tooltipExtensions.updateCellInfo = undefined;
       api.burgEconomyExtensions.getBurgEconomySummary = undefined;
@@ -1206,6 +1215,7 @@ export function init(api: ExtensionAPI): void {
     api.tooltipExtensions.updateCellInfo = updateEconomyCellInfo;
     api.burgEconomyExtensions.getBurgEconomySummary = getBurgEconomySummary;
     registerOverviewColumns(api);
+    registerUrbanPregnancyBirthFloor();
     // A persisted preference is restored before the first map has generated.
     // Defer state-dependent data work until fmg:generate-post-core in that case.
     if (getWorldContext().pack.states?.length) {
@@ -1930,6 +1940,7 @@ export function cleanup(api: ExtensionAPI): void {
   api.tooltipExtensions.updateCellInfo = undefined;
   api.burgEconomyExtensions.getBurgEconomySummary = undefined;
   unregisterOverviewColumns(api);
+  clearUrbanPregnancyBirthFloorRegistration();
 
   // Unregister tool action handlers
   api.unregisterToolAction("editGoods");
