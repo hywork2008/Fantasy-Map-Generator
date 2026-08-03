@@ -2,7 +2,9 @@ import { stateHasEnemy } from "../../hostCore";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getCouncilSupport, scaleFailureChanceBySupport, updateCouncilSupportSnapshot } from "./councilAssembly";
+import { refreshCouncilBudgetApprovals } from "./councilBudget";
 import { lendFromCreditPool, payCreditorsWithSyndicate, routeTaxFarmProceeds } from "./creditPool";
+import { canIssueDebtWhileNotInDefault, updateDebtDefaultStatus } from "./debtDefault";
 import { getStateDebtInterestRate, splitCreditorPayout, updateMoneylenderSnapshot } from "./moneylenders";
 import { isWarFootingActive } from "./warFooting";
 
@@ -94,6 +96,8 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
 
   // PR-8: refresh assembly support before any veto roll.
   const councilSupport = updateCouncilSupportSnapshot(state);
+  // PR-11: budget-line approvals from support thresholds.
+  const budgetApprovals = refreshCouncilBudgetApprovals(state);
   // PR-10: named syndicate + effective interest rate for this cycle.
   updateMoneylenderSnapshot(state);
 
@@ -131,21 +135,28 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
 
   // ── Public debt service (interest + repay → credit pool / syndicate, PR-9/10) ──
   const debt = state.publicDebt || 0;
+  let interestDue = 0;
   if (debt > 0) {
     const interestRate = state.debtInterestRate ?? getStateDebtInterestRate(state);
-    const interest = rn(debt * interestRate, 2);
+    interestDue = rn(debt * interestRate, 2);
     const cash = state.treasury || 0;
-    debtInterestPaid = rn(Math.min(interest, cash), 2);
+    debtInterestPaid = rn(Math.min(interestDue, cash), 2);
     if (debtInterestPaid > 0) {
       state.treasury = rn(cash - debtInterestPaid, 2);
       // Syndicate split: named moneylenders take a personal cut of interest.
       payCreditorsWithSyndicate(state, debtInterestPaid, splitCreditorPayout);
-    } else if (interest > 0) {
-      // Capitalize unpaid interest (pool is not credited until cash is paid).
-      state.publicDebt = rn(debt + interest, 2);
+    }
+    // Unpaid coupon is capitalized onto principal (lenders keep the claim).
+    const unpaid = rn(interestDue - debtInterestPaid, 2);
+    if (unpaid > 0) {
+      state.publicDebt = rn((state.publicDebt || 0) + unpaid, 2);
     }
 
+    // PR-11: missed-interest streak → default freeze.
+    updateDebtDefaultStatus(state, interestDue, debtInterestPaid);
+
     // Repay principal from surplus L2 (keep a small buffer) → pool + syndicate.
+    // Only auto-repay when not deep in default coupon trouble (still allow if cash exists).
     const surplus = state.treasury || 0;
     if (surplus > WAR_DEBT_CASH_THRESHOLD && (state.publicDebt || 0) > 0) {
       const repay = rn(Math.min(surplus - WAR_DEBT_CASH_THRESHOLD, state.publicDebt || 0), 2);
@@ -156,17 +167,22 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
         debtRepaid = repay;
       }
     }
+  } else {
+    // No principal → clear any stale default streak.
+    updateDebtDefaultStatus(state, 0, 0);
   }
 
-  // ── Thin war debt issue from credit pool (PR-9) ─────────────────────────
-  // Cash-strapped at war: borrow only what moneylenders can actually fund.
+  // ── Thin war debt issue from credit pool (PR-9/PR-11) ───────────────────
+  // Cash-strapped at war: borrow only what moneylenders can fund and council allows.
   if (
     isWarFootingActive(state) &&
     stateHasEnemy(state) &&
     (state.form === "Republic" || state.form === "Monarchy") &&
     (state.treasury || 0) <= WAR_DEBT_CASH_THRESHOLD &&
     (state.publicDebt || 0) < PUBLIC_DEBT_CAP &&
-    councilSupport >= 30
+    councilSupport >= 30 &&
+    budgetApprovals.debtIssue &&
+    canIssueDebtWhileNotInDefault(state)
   ) {
     const room = rn(PUBLIC_DEBT_CAP - (state.publicDebt || 0), 2);
     const want = rn(Math.min(WAR_DEBT_ISSUE_AMOUNT, room), 2);

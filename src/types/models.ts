@@ -465,9 +465,31 @@ export interface State {
    */
   debtInterestRate?: number;
   /**
+   * PR-11 relative negotiation modifier on the computed rate (−0.25 … +0.25).
+   * Negative = ruler successfully pressed for cheaper credit.
+   */
+  debtRateNegotiation?: number;
+  /**
+   * PR-11: consecutive tax cycles where interest was not fully paid.
+   */
+  debtMissedInterestCycles?: number;
+  /**
+   * PR-11: true while missed-interest streak is at/above threshold — new borrowing frozen.
+   */
+  debtInDefault?: boolean;
+  /**
    * PR-8 assembly support snapshot (0–100) from the last tax cycle / support refresh.
    */
   councilSupport?: number;
+  /**
+   * PR-11 thin budget-line approvals (support thresholds). Refreshed each tax cycle.
+   */
+  councilApprovals?: {
+    debtIssue: boolean;
+    warFooting: boolean;
+    extraordinaryTax: boolean;
+    militaryExpansion: boolean;
+  };
   /** PR-8: whether the last wartime assembly vetoed part of revenue. */
   councilLastFailed?: boolean;
   /** PR-8: last cycle tax-farm leak amount (for UI). */

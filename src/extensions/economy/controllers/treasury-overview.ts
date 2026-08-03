@@ -64,6 +64,7 @@ export function refreshTreasuryOverview(): void {
       creditPoolBalance: peekCreditPoolBalance(state),
       primaryMoneylenderName: getPrimaryMoneylenderLabel(state),
       debtInterestRate: rn(state.debtInterestRate || 0, 4),
+      debtInDefault: Boolean(state.debtInDefault),
       councilSupport: rn(state.councilSupport ?? 0, 1),
       lastTaxFarmLeak: rn(state.lastTaxFarmLeak || 0, 2),
       chancery: snapshot.chancery,

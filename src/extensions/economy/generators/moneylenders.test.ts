@@ -9,6 +9,7 @@ import {
   BASE_PUBLIC_DEBT_INTEREST_RATE,
   getStateDebtInterestRate,
   MONEYLENDER_PERSONAL_SHARE,
+  negotiateDebtInterestRate,
   resolveMoneylenderSyndicate,
   splitCreditorPayout
 } from "./moneylenders";
@@ -133,5 +134,31 @@ describe("moneylenders (PR-10)", () => {
     expect(result.toPool).toBe(50);
     expect(result.toLenders).toBe(0);
     expect(result.primaryName).toBeNull();
+  });
+
+  it("negotiates a lower rate when treasury can pay the bribe", () => {
+    const manager = makeMerchant(1, "Aldo", 50, 10);
+    const state = {
+      i: 1,
+      form: "Monarchy",
+      capital: 1,
+      treasury: 20,
+      councilSupport: 60,
+      creditPoolBalance: 50,
+      debtRateNegotiation: 0
+    } as unknown as State;
+    worldContext.pack = {
+      characters: [manager],
+      states: [undefined, state],
+      burgs: [undefined, { i: 1, removed: false }]
+    } as unknown as PackedGraph;
+    setMarkets([{ i: 1, centerBurgId: 1, color: "#fff", goods: {}, managerCharacterId: 1 } as Market]);
+
+    const before = getStateDebtInterestRate(state);
+    const result = negotiateDebtInterestRate(state, -1);
+    expect(result.ok).toBe(true);
+    expect(state.debtRateNegotiation).toBeLessThan(0);
+    expect(getStateDebtInterestRate(state)).toBeLessThan(before);
+    expect(state.treasury).toBeLessThan(20);
   });
 });

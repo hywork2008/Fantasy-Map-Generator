@@ -1,7 +1,8 @@
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
-import { canCouncilApproveDebtIssue } from "./councilAssembly";
+import { isCouncilLineApproved } from "./councilBudget";
 import { getCreditPoolBalance, lendFromCreditPool, payCreditorsWithSyndicate } from "./creditPool";
+import { canIssueDebtWhileNotInDefault } from "./debtDefault";
 import { PUBLIC_DEBT_CAP, WAR_DEBT_ISSUE_AMOUNT } from "./fiscalEvents";
 import { splitCreditorPayout } from "./moneylenders";
 
@@ -32,12 +33,15 @@ export function issuePublicDebt(state: State, amount = PUBLIC_DEBT_PLAYER_ISSUE_
   if (form === "Anarchy" || form === "Theocracy") {
     return { ok: false, amount: 0, error: `${form} does not float ordinary public debt from this HUD` };
   }
-  if (!canCouncilApproveDebtIssue(state)) {
+  if (!isCouncilLineApproved(state, "debtIssue")) {
     return {
       ok: false,
       amount: 0,
-      error: `Assembly support too low to authorize new debt (need ≥ ${45})`
+      error: "Assembly has not approved the debt-issue budget line"
     };
+  }
+  if (!canIssueDebtWhileNotInDefault(state)) {
+    return { ok: false, amount: 0, error: "In default — creditors refuse new loans until interest is current" };
   }
   const room = rn(PUBLIC_DEBT_CAP - (state.publicDebt || 0), 2);
   if (!(room > 0)) return { ok: false, amount: 0, error: "Public debt is at the cap" };

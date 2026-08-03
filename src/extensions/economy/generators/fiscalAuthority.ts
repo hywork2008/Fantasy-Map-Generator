@@ -1,11 +1,14 @@
 import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
 import type { Character } from "../../characters/characterTypes";
+import { stateHasEnemy } from "../../hostCore";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getRulerId } from "../../nobility/nobilityContext";
 import { getWorldContext } from "../economyContext";
-import { canCouncilApproveDebtIssue, getCouncilSupport } from "./councilAssembly";
+import { getCouncilSupport } from "./councilAssembly";
+import { isCouncilLineApproved } from "./councilBudget";
 import { creditPoolCanLend, peekCreditPoolBalance } from "./creditPool";
+import { canIssueDebtWhileNotInDefault } from "./debtDefault";
 import {
   adjustDomainLevyForCharacter,
   clampDomainLevyRate,
@@ -14,7 +17,7 @@ import {
   normalizeDomainFiscalPolicy,
   resolveDomainBurgForCharacter
 } from "./domainFiscalPolicy";
-import { getPrimaryMoneylenderLabel } from "./moneylenders";
+import { getPrimaryMoneylenderLabel, negotiateDebtInterestRate } from "./moneylenders";
 import {
   issuePublicDebt,
   PUBLIC_DEBT_PLAYER_ISSUE_AMOUNT,
@@ -68,10 +71,15 @@ export interface FiscalAuthorityView {
   primaryMoneylenderName: string;
   /** PR-10 effective monthly debt interest rate (fraction). */
   debtInterestRate: number | null;
+  /** PR-11 relative rate negotiation modifier. */
+  debtRateNegotiation: number;
+  /** PR-11 public debt default flag. */
+  debtInDefault: boolean;
   /** PR-8 assembly support 0–100. */
   councilSupport: number;
   canIssuePublicDebt: boolean;
   canRepayPublicDebt: boolean;
+  canNegotiateDebtRate: boolean;
   /** Province lord may cycle domain fiscal policy (PR-7). */
   canSetDomainPolicy: boolean;
   domainFiscalPolicy: DomainFiscalPolicy | null;
@@ -183,22 +191,28 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
   const canSetDomainPolicy = Boolean(domainBurg);
   const domainFiscalPolicy = domainBurg ? normalizeDomainFiscalPolicy(domainBurg.domainFiscalPolicy) : null;
   const isRuler = character ? isLivingRulerOf(state, character.i) : false;
-  const canToggleWarFooting = isRuler;
   const warFooting = isWarFootingActive(state);
+  // PR-11: peacetime war footing needs assembly warFooting line; wartime always ok for ruler.
+  const canToggleWarFooting =
+    isRuler && (warFooting || stateHasEnemy(state) || isCouncilLineApproved(state, "warFooting"));
   const militaryMobilizationBoost = rn(state.militaryMobilizationBoost || 0, 3);
   const publicDebt = rn(state.publicDebt || 0, 2);
   const creditPoolBalance = peekCreditPoolBalance(state);
   const primaryMoneylenderName = getPrimaryMoneylenderLabel(state);
   const debtInterestRate = state.debtInterestRate !== undefined ? rn(state.debtInterestRate, 4) : null;
+  const debtRateNegotiation = rn(state.debtRateNegotiation || 0, 3);
+  const debtInDefault = Boolean(state.debtInDefault);
   const councilSupport =
     state.councilSupport !== undefined ? rn(state.councilSupport, 1) : getCouncilSupport(state).support;
   const canIssuePublicDebt =
     isRuler &&
-    canCouncilApproveDebtIssue(state) &&
     form !== "Anarchy" &&
     form !== "Theocracy" &&
-    creditPoolCanLend(state);
+    creditPoolCanLend(state) &&
+    canIssueDebtWhileNotInDefault(state) &&
+    isCouncilLineApproved(state, "debtIssue");
   const canRepayPublicDebt = isRuler && publicDebt > 0 && publicTreasury > 0;
+  const canNegotiateDebtRate = isRuler && !debtInDefault && (publicDebt > 0 || creditPoolBalance > 0);
   const domainLevyRate = domainBurg ? clampDomainLevyRate(domainBurg.domainLevyRate) : null;
   const domainWorksProgress = domainBurg ? rn(domainBurg.domainWorksProgress || 0, 1) : null;
 
@@ -234,11 +248,22 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
   if (publicDebt > 0) {
     notes.push(`Public debt ${publicDebt.toFixed(2)} SP (interest each tax cycle).`);
   }
+  if (debtInDefault) notes.push("IN DEFAULT — new borrowing frozen until interest is current.");
   notes.push(`Credit pool ${creditPoolBalance.toFixed(2)} SP — led by ${primaryMoneylenderName}.`);
   if (debtInterestRate != null) {
-    notes.push(`Debt interest ${(debtInterestRate * 100).toFixed(2)}%/cycle.`);
+    notes.push(
+      `Debt interest ${(debtInterestRate * 100).toFixed(2)}%/cycle` +
+        (debtRateNegotiation !== 0 ? ` (nego ${debtRateNegotiation > 0 ? "+" : ""}${debtRateNegotiation})` : "") +
+        "."
+    );
   }
   notes.push(`Assembly support ${councilSupport}/100.`);
+  if (state.councilApprovals) {
+    const a = state.councilApprovals;
+    notes.push(
+      `Council lines: debt ${a.debtIssue ? "OK" : "no"}, war ${a.warFooting ? "OK" : "no"}, tax ${a.extraordinaryTax ? "OK" : "no"}.`
+    );
+  }
   if (state.councilLastFailed) notes.push("Last wartime assembly vetoed part of revenue.");
   if (domainFiscalPolicy && domainFiscalPolicy !== "balanced") {
     notes.push(`Domain policy: ${domainFiscalPolicy}${domainLevyRate != null ? ` × levy ${domainLevyRate}` : ""}.`);
@@ -268,9 +293,12 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
     creditPoolBalance,
     primaryMoneylenderName,
     debtInterestRate,
+    debtRateNegotiation,
+    debtInDefault,
     councilSupport,
     canIssuePublicDebt,
     canRepayPublicDebt,
+    canNegotiateDebtRate,
     canSetDomainPolicy,
     domainFiscalPolicy,
     domainLevyRate,
@@ -424,8 +452,31 @@ export function toggleWarFootingForRuler(
   if (!isLivingRulerOf(state, characterId)) {
     return { ok: false, paid: 0, error: "Only the living ruler may set war footing" };
   }
-  const next = setWarFootingByPlayer(state, !isWarFootingActive(state));
+  const turningOn = !isWarFootingActive(state);
+  if (turningOn && !stateHasEnemy(state) && !isCouncilLineApproved(state, "warFooting")) {
+    return { ok: false, paid: 0, error: "Assembly has not approved peacetime war footing" };
+  }
+  const next = setWarFootingByPlayer(state, turningOn);
   return { ok: true, paid: 0, warFooting: next };
+}
+
+/** PR-11: living ruler negotiates debt interest terms with the moneylender syndicate. */
+export function negotiateDebtRateForRuler(
+  state: State,
+  characterId: number,
+  direction: 1 | -1
+): FiscalActionResult & { rate?: number; negotiation?: number } {
+  if (!isLivingRulerOf(state, characterId)) {
+    return { ok: false, paid: 0, error: "Only the living ruler may negotiate debt terms" };
+  }
+  const result = negotiateDebtInterestRate(state, direction);
+  if (!result.ok) return { ok: false, paid: result.bribePaid || 0, error: result.error };
+  return {
+    ok: true,
+    paid: result.bribePaid || 0,
+    rate: result.rate,
+    negotiation: result.negotiation
+  };
 }
 
 /**

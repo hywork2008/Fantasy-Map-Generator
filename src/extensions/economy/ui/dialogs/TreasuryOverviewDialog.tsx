@@ -117,6 +117,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
             <col />
             <col />
             <col />
+            <col />
           </colgroup>
           <thead className="header">
             <tr>
@@ -285,7 +286,15 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Effective monthly interest on public debt (form × greed × assembly support) — PR-10"
+                tip="Effective monthly interest on public debt (form × greed × assembly support × negotiation) — PR-10/11"
+              />
+              <SortableHeader
+                field="debtInDefault"
+                label="Default"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                tip="PR-11: missed interest streak — new borrowing frozen"
               />
               <SortableHeader
                 field="councilSupport"
@@ -346,7 +355,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={25}>
+                <td colSpan={26}>
                   <span>No state has an allocated treasury yet — run a generation cycle first</span>
                 </td>
               </tr>
@@ -387,6 +396,7 @@ const TreasuryRow: React.FC<{ row: TreasuryOverviewRow }> = ({ row }) => (
     <td data-tip="Debt interest rate">
       {row.debtInterestRate > 0 ? `${(row.debtInterestRate * 100).toFixed(2)}%` : "—"}
     </td>
+    <td data-tip={row.debtInDefault ? "In default" : "Current"}>{row.debtInDefault ? "YES" : "—"}</td>
     <td data-tip="Assembly support">{row.councilSupport > 0 ? row.councilSupport.toFixed(0) : "—"}</td>
     <td data-tip="Last tax-farm leak">{row.lastTaxFarmLeak > 0 ? row.lastTaxFarmLeak.toFixed(2) : "—"}</td>
     <td>{row.chancery.toFixed(2)}</td>

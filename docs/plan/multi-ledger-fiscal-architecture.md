@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計案。PR-1〜PR-10 実装済み** — 多層台帳本線 + 信用プール + 名前付き金貸しシンジケート（Market Manager/Rival）。
+**設計案。PR-1〜PR-11 実装済み** — 多層台帳本線 + 信用プール + 金貸し + 金利交渉 + 債務不履行 + 議会歳出ライン。
 
 史実対照 [polity-fiscal-regimes-historical.md](../analytics/polity-fiscal-regimes-historical.md) の結論「豊かさの本体はどの名義の金庫を誰が使えるか」を、現行の単一 `state.treasury` + `Character.wealth` モデルへ段階実装するための仕様と PR 計画。
 
@@ -442,14 +442,21 @@ Lord personal: ZZZ
 - ✅ `primaryMoneylenderName` / `debtInterestRate` スナップショット  
 - ✅ Treasury Overview: **Banker** / **Rate** 列  
 
-**意図的に薄い点（PR-11+）**: 交渉 UI、債務不履行、専用 banker 役職生成、議会の歳出項目別承認。
+### PR-11 — 金利交渉 / 債務不履行 / 議会歳出ライン / WF 反発 ✅
 
-### PR-11 以降（外縁）
+- ✅ `negotiateDebtInterestRate` + PC HUD **Rate − / Rate +**（値下げは L2 賄賂）  
+- ✅ `debtDefault.ts`: 未払い利子ストリーク → `debtInDefault`、借入凍結、`fmg:public-debt-default`  
+- ✅ 不履行中は金利ペナルティ、militaryDiscontent 蓄積  
+- ✅ `councilBudget.ts`: debt / warFooting / extraordinaryTax / militaryExpansion ライン承認  
+- ✅ 平時 War Footing は議会 war ライン必須；支持低時の動員は discontent 追加  
+- ✅ Treasury Overview **Default** 列  
 
-- 金利交渉 UI / 債務不履行イベント  
-- 議会の勢力票・歳出項目別承認  
+### PR-12 以降（外縁）
+
+- 専用 banker 役職生成・金利交渉ダイアログ  
+- 議会の勢力票シミュレーション  
 - 領税率の poll 直結と建設キュー UI  
-- War Footing 政治イベントの帰結（不満・クーデター接続）  
+- 債務不履行の商人離反 / クーデター接続  
 
 ---
 

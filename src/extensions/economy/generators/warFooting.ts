@@ -276,6 +276,7 @@ export interface WarFootingCostResult {
 /**
  * Political cost of war footing for this tax cycle: drains L1 household purse.
  * Peacetime war footing (player override while no Enemy) also accrues militaryDiscontent.
+ * PR-11: low assembly support while mobilized adds extra discontent (assembly backlash).
  */
 export function applyWarFootingPoliticalCost(state: State): WarFootingCostResult {
   if (!isWarFootingActive(state)) {
@@ -296,6 +297,14 @@ export function applyWarFootingPoliticalCost(state: State): WarFootingCostResult
   if (!stateHasEnemy(state)) {
     peacetimeDiscontent = WAR_FOOTING_PEACETIME_DISCONTENT;
     state.militaryDiscontent = rn(Math.min(200, (state.militaryDiscontent || 0) + peacetimeDiscontent), 2);
+  }
+
+  // PR-11: mobilizing against a reluctant assembly (support < 40) agitates the officer corps.
+  const support = state.councilSupport ?? 50;
+  if (support < 40) {
+    const backlash = 3;
+    state.militaryDiscontent = rn(Math.min(200, (state.militaryDiscontent || 0) + backlash), 2);
+    peacetimeDiscontent += backlash;
   }
 
   return { householdCost, peacetimeDiscontent };

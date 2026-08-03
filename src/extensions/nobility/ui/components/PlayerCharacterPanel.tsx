@@ -17,6 +17,7 @@ import {
   getFiscalAuthorityView,
   HOUSEHOLD_DRAW_ACTION_CAP,
   issuePublicDebtForRuler,
+  negotiateDebtRateForRuler,
   PUBLIC_SEIZE_ACTION_CAP,
   remitDomainToStateTreasury,
   repayPublicDebtForRuler,
@@ -288,6 +289,29 @@ export const PlayerCharacterPanel: React.FC = () => {
     usePlayerCharacterState.getState().bumpRefreshToken();
   };
 
+  const handleNegotiateRate = (direction: 1 | -1) => {
+    if (playerCharacterId === null || !summary) return;
+    const { pack } = getWorldContext();
+    const state = pack.states?.[summary.stateId];
+    if (!state?.i) {
+      tip("No state ledger for this character.", false, "error");
+      return;
+    }
+    const result = negotiateDebtRateForRuler(state, playerCharacterId, direction);
+    if (result.ok && result.rate != null) {
+      tip(
+        direction < 0
+          ? `Negotiated cheaper credit (${(result.rate * 100).toFixed(2)}%/cycle).`
+          : `Accepted harsher terms (${(result.rate * 100).toFixed(2)}%/cycle).`,
+        false,
+        "success"
+      );
+    } else {
+      tip(result.error || "Could not renegotiate.", false, "error");
+    }
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
   return (
     <Dialog isOpen title="Player Character" showCloseAllDialogsButton={false} className="player-character-panel">
       {!summary ? (
@@ -537,6 +561,34 @@ export const PlayerCharacterPanel: React.FC = () => {
             onClick={handleRepayDebt}
           >
             Repay debt
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={
+              fiscal.canNegotiateDebtRate
+                ? `Press ${fiscal.primaryMoneylenderName} for cheaper credit (costs public treasury bribe)`
+                : fiscal.debtInDefault
+                  ? "Cannot renegotiate while in default"
+                  : "Only the living ruler may negotiate debt terms"
+            }
+            disabled={!fiscal.canNegotiateDebtRate}
+            onClick={() => handleNegotiateRate(-1)}
+          >
+            Rate −
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={
+              fiscal.canNegotiateDebtRate
+                ? "Accept harsher credit terms (no bribe; raises interest)"
+                : "Only the living ruler may negotiate debt terms"
+            }
+            disabled={!fiscal.canNegotiateDebtRate}
+            onClick={() => handleNegotiateRate(1)}
+          >
+            Rate +
           </button>
         </div>
       ) : null}

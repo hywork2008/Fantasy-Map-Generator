@@ -38,9 +38,14 @@ export interface RevenueMixResult {
 
 /**
  * Form-gated wartime income boost for Monarchy only. Other forms use raw domestic income.
+ * PR-11: extraordinary tax line must be assembly-approved when councilApprovals is present.
  */
-export function getWartimeIncomeMultiplier(state: Pick<State, "form" | "diplomacy">): number {
+export function getWartimeIncomeMultiplier(state: Pick<State, "form" | "diplomacy" | "councilApprovals">): number {
   if (state.form === "Monarchy" && stateHasEnemy(state as State)) {
+    // If approvals snapshot exists and blocks extraordinary tax, no wartime subsidy.
+    if (state.councilApprovals && !state.councilApprovals.extraordinaryTax) {
+      return 1;
+    }
     return MONARCHY_WARTIME_INCOME_MULTIPLIER;
   }
   return 1;

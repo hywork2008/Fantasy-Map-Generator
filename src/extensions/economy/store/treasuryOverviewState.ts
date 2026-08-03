@@ -47,6 +47,8 @@ export interface TreasuryOverviewRow {
   primaryMoneylenderName: string;
   /** PR-10 effective interest rate fraction. */
   debtInterestRate: number;
+  /** PR-11 debt default flag. */
+  debtInDefault: boolean;
   /** PR-8 assembly support 0–100. */
   councilSupport: number;
   /** PR-8 last-cycle tax farm leak. */
