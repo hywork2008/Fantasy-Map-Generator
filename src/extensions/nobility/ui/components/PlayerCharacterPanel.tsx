@@ -517,8 +517,8 @@ export const PlayerCharacterPanel: React.FC = () => {
             className="pcp-action"
             data-tip={
               fiscal.canIssuePublicDebt
-                ? `Issue public debt into L2 (assembly support ${fiscal.councilSupport}/100)`
-                : "Cannot issue debt (need ruler + assembly support; not Anarchy/Theocracy)"
+                ? `Borrow from credit pool into L2 (pool ${formatPrice(fiscal.creditPoolBalance)}; support ${fiscal.councilSupport}/100)`
+                : "Cannot issue debt (need ruler, assembly support, and non-empty credit pool)"
             }
             disabled={!fiscal.canIssuePublicDebt}
             onClick={handleIssueDebt}

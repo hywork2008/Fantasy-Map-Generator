@@ -1,14 +1,14 @@
 import { stateHasEnemy } from "../../hostCore";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
-import { getWorldContext } from "../economyContext";
 import { getCouncilSupport, scaleFailureChanceBySupport, updateCouncilSupportSnapshot } from "./councilAssembly";
+import { lendFromCreditPool, payToCreditPool, routeTaxFarmProceeds } from "./creditPool";
 import { isWarFootingActive } from "./warFooting";
 
 /**
- * Multi-ledger PR-7/PR-8 — thin fiscal events on top of the multi-ledger pipe:
- * council/assembly consent (income haircut, support-scaled in PR-8), tax farming leak,
- * public debt service/issue.
+ * Multi-ledger PR-7/PR-8/PR-9 — thin fiscal events on top of the multi-ledger pipe:
+ * council/assembly consent (income haircut, support-scaled in PR-8), tax farming leak
+ * (routed to credit pool / merchants in PR-9), public debt service/issue against credit pool.
  *
  * Deterministic rolls use state id + income so unit tests stay stable without a seeded RNG.
  */
@@ -111,9 +111,8 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
   }
   state.councilLastFailed = councilFailed;
 
-  // ── Tax farming leak (contractor profit → capital burg if any) ──────────
-  // PR-8 calibration: high-greed forms already have higher rates; support slightly
-  // reduces farming abuse when assemblies are strong (Republic/Union).
+  // ── Tax farming leak → credit pool + capital market / manager (PR-9) ────
+  // PR-8 calibration: support slightly reduces farming abuse when assemblies are strong.
   const farmRate = getTaxFarmRate(state.form);
   const farmSupportFactor = state.form === "Republic" || state.form === "Union" ? 1 - (councilSupport - 50) / 400 : 1;
   if (farmRate > 0 && income > 0) {
@@ -122,12 +121,12 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
     taxFarmLeak = rn(Math.min(desired, available), 2);
     if (taxFarmLeak > 0) {
       state.treasury = rn(available - taxFarmLeak, 2);
-      creditTaxFarmToCapital(state, taxFarmLeak);
+      routeTaxFarmProceeds(state, taxFarmLeak);
     }
   }
   state.lastTaxFarmLeak = taxFarmLeak;
 
-  // ── Public debt service ─────────────────────────────────────────────────
+  // ── Public debt service (interest + repay → credit pool, PR-9) ──────────
   const debt = state.publicDebt || 0;
   if (debt > 0) {
     const interest = rn(debt * PUBLIC_DEBT_INTEREST_RATE, 2);
@@ -135,25 +134,27 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
     debtInterestPaid = rn(Math.min(interest, cash), 2);
     if (debtInterestPaid > 0) {
       state.treasury = rn(cash - debtInterestPaid, 2);
+      payToCreditPool(state, debtInterestPaid);
     } else if (interest > 0) {
-      // Capitalize unpaid interest.
+      // Capitalize unpaid interest (pool is not credited until cash is paid).
       state.publicDebt = rn(debt + interest, 2);
     }
 
-    // Repay principal from surplus L2 (keep a small buffer).
+    // Repay principal from surplus L2 (keep a small buffer) → credit pool.
     const surplus = state.treasury || 0;
     if (surplus > WAR_DEBT_CASH_THRESHOLD && (state.publicDebt || 0) > 0) {
       const repay = rn(Math.min(surplus - WAR_DEBT_CASH_THRESHOLD, state.publicDebt || 0), 2);
       if (repay > 0) {
         state.treasury = rn(surplus - repay, 2);
         state.publicDebt = rn((state.publicDebt || 0) - repay, 2);
+        payToCreditPool(state, repay);
         debtRepaid = repay;
       }
     }
   }
 
-  // ── Thin war debt issue ─────────────────────────────────────────────────
-  // PR-8: still auto-issues when cash-strapped at war, but only if support is not abysmal.
+  // ── Thin war debt issue from credit pool (PR-9) ─────────────────────────
+  // Cash-strapped at war: borrow only what moneylenders can actually fund.
   if (
     isWarFootingActive(state) &&
     stateHasEnemy(state) &&
@@ -163,10 +164,14 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
     councilSupport >= 30
   ) {
     const room = rn(PUBLIC_DEBT_CAP - (state.publicDebt || 0), 2);
-    debtIssued = rn(Math.min(WAR_DEBT_ISSUE_AMOUNT, room), 2);
-    if (debtIssued > 0) {
-      state.publicDebt = rn((state.publicDebt || 0) + debtIssued, 2);
-      state.treasury = rn((state.treasury || 0) + debtIssued, 2);
+    const want = rn(Math.min(WAR_DEBT_ISSUE_AMOUNT, room), 2);
+    if (want > 0) {
+      const { lent } = lendFromCreditPool(state, want);
+      if (lent > 0) {
+        debtIssued = lent;
+        state.publicDebt = rn((state.publicDebt || 0) + lent, 2);
+        state.treasury = rn((state.treasury || 0) + lent, 2);
+      }
     }
   }
 
@@ -183,16 +188,4 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
     debtIssued,
     debtRepaid
   };
-}
-
-function creditTaxFarmToCapital(state: State, amount: number): void {
-  if (!(amount > 0) || !state.capital) return;
-  try {
-    const { pack } = getWorldContext();
-    const burg = pack.burgs?.[state.capital];
-    if (!burg || burg.removed) return;
-    burg.treasury = rn((burg.treasury || 0) + amount, 2);
-  } catch {
-    // Economy context missing in pure unit tests — leak still left L2 (contractor profit absorbed).
-  }
 }

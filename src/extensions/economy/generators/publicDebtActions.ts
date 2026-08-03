@@ -1,10 +1,12 @@
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { canCouncilApproveDebtIssue } from "./councilAssembly";
+import { getCreditPoolBalance, lendFromCreditPool, payToCreditPool } from "./creditPool";
 import { PUBLIC_DEBT_CAP, WAR_DEBT_ISSUE_AMOUNT } from "./fiscalEvents";
 
 /**
- * Multi-ledger PR-8 — ruler-facing public debt issue / repay hooks (UI + calibration).
+ * Multi-ledger PR-8/PR-9 — ruler-facing public debt issue / repay hooks.
+ * Issues draw from the anonymous credit pool; repayments return cash to the pool.
  */
 
 export const PUBLIC_DEBT_PLAYER_ISSUE_AMOUNT = WAR_DEBT_ISSUE_AMOUNT;
@@ -16,10 +18,11 @@ export interface PublicDebtActionResult {
   error?: string;
   publicDebt?: number;
   treasury?: number;
+  creditPool?: number;
 }
 
 /**
- * Issue thin public debt into L2 if council support allows and principal is under cap.
+ * Issue public debt into L2 funded by the credit pool (moneylenders), if council allows.
  * Available to Republic/Monarchy/Union (polities that historically floated credit).
  */
 export function issuePublicDebt(state: State, amount = PUBLIC_DEBT_PLAYER_ISSUE_AMOUNT): PublicDebtActionResult {
@@ -38,16 +41,32 @@ export function issuePublicDebt(state: State, amount = PUBLIC_DEBT_PLAYER_ISSUE_
   const room = rn(PUBLIC_DEBT_CAP - (state.publicDebt || 0), 2);
   if (!(room > 0)) return { ok: false, amount: 0, error: "Public debt is at the cap" };
 
-  const issued = rn(Math.min(amount, room, PUBLIC_DEBT_PLAYER_ISSUE_AMOUNT), 2);
-  if (!(issued > 0)) return { ok: false, amount: 0, error: "Nothing to issue" };
+  const want = rn(Math.min(amount, room, PUBLIC_DEBT_PLAYER_ISSUE_AMOUNT), 2);
+  if (!(want > 0)) return { ok: false, amount: 0, error: "Nothing to issue" };
 
-  state.publicDebt = rn((state.publicDebt || 0) + issued, 2);
-  state.treasury = rn((state.treasury || 0) + issued, 2);
-  return { ok: true, amount: issued, publicDebt: state.publicDebt, treasury: state.treasury };
+  const poolAvail = getCreditPoolBalance(state);
+  if (!(poolAvail > 0)) {
+    return { ok: false, amount: 0, error: "Credit pool is empty — moneylenders will not lend" };
+  }
+
+  const { lent } = lendFromCreditPool(state, want);
+  if (!(lent > 0)) {
+    return { ok: false, amount: 0, error: "Credit pool could not fund this issue" };
+  }
+
+  state.publicDebt = rn((state.publicDebt || 0) + lent, 2);
+  state.treasury = rn((state.treasury || 0) + lent, 2);
+  return {
+    ok: true,
+    amount: lent,
+    publicDebt: state.publicDebt,
+    treasury: state.treasury,
+    creditPool: state.creditPoolBalance
+  };
 }
 
 /**
- * Repay public debt principal from L2 public treasury.
+ * Repay public debt principal from L2 into the credit pool.
  */
 export function repayPublicDebt(state: State, amount = PUBLIC_DEBT_PLAYER_REPAY_AMOUNT): PublicDebtActionResult {
   if (!state.i) return { ok: false, amount: 0, error: "Invalid state" };
@@ -61,5 +80,12 @@ export function repayPublicDebt(state: State, amount = PUBLIC_DEBT_PLAYER_REPAY_
 
   state.publicDebt = rn(debt - paid, 2);
   state.treasury = rn(cash - paid, 2);
-  return { ok: true, amount: paid, publicDebt: state.publicDebt, treasury: state.treasury };
+  payToCreditPool(state, paid);
+  return {
+    ok: true,
+    amount: paid,
+    publicDebt: state.publicDebt,
+    treasury: state.treasury,
+    creditPool: state.creditPoolBalance
+  };
 }

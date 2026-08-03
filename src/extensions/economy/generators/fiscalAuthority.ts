@@ -5,6 +5,7 @@ import { rn } from "../../hostUtils";
 import { getRulerId } from "../../nobility/nobilityContext";
 import { getWorldContext } from "../economyContext";
 import { canCouncilApproveDebtIssue, getCouncilSupport } from "./councilAssembly";
+import { creditPoolCanLend, peekCreditPoolBalance } from "./creditPool";
 import {
   adjustDomainLevyForCharacter,
   clampDomainLevyRate,
@@ -60,6 +61,8 @@ export interface FiscalAuthorityView {
   militaryMobilizationBoost: number;
   /** Outstanding public debt principal (PR-7). */
   publicDebt: number;
+  /** PR-9 anonymous credit pool balance (moneylender v0). */
+  creditPoolBalance: number;
   /** PR-8 assembly support 0–100. */
   councilSupport: number;
   canIssuePublicDebt: boolean;
@@ -179,9 +182,15 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
   const warFooting = isWarFootingActive(state);
   const militaryMobilizationBoost = rn(state.militaryMobilizationBoost || 0, 3);
   const publicDebt = rn(state.publicDebt || 0, 2);
+  const creditPoolBalance = peekCreditPoolBalance(state);
   const councilSupport =
     state.councilSupport !== undefined ? rn(state.councilSupport, 1) : getCouncilSupport(state).support;
-  const canIssuePublicDebt = isRuler && canCouncilApproveDebtIssue(state) && form !== "Anarchy" && form !== "Theocracy";
+  const canIssuePublicDebt =
+    isRuler &&
+    canCouncilApproveDebtIssue(state) &&
+    form !== "Anarchy" &&
+    form !== "Theocracy" &&
+    creditPoolCanLend(state);
   const canRepayPublicDebt = isRuler && publicDebt > 0 && publicTreasury > 0;
   const domainLevyRate = domainBurg ? clampDomainLevyRate(domainBurg.domainLevyRate) : null;
   const domainWorksProgress = domainBurg ? rn(domainBurg.domainWorksProgress || 0, 1) : null;
@@ -218,6 +227,7 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
   if (publicDebt > 0) {
     notes.push(`Public debt ${publicDebt.toFixed(2)} SP (interest each tax cycle).`);
   }
+  notes.push(`Credit pool ${creditPoolBalance.toFixed(2)} SP (moneylenders).`);
   notes.push(`Assembly support ${councilSupport}/100.`);
   if (state.councilLastFailed) notes.push("Last wartime assembly vetoed part of revenue.");
   if (domainFiscalPolicy && domainFiscalPolicy !== "balanced") {
@@ -245,6 +255,7 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
     warFooting,
     militaryMobilizationBoost,
     publicDebt,
+    creditPoolBalance,
     councilSupport,
     canIssuePublicDebt,
     canRepayPublicDebt,

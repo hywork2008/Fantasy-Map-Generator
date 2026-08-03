@@ -208,6 +208,24 @@ export function shouldAiEnableWarFooting(state: State): boolean {
 }
 
 /**
+ * PR-9: dispatch when AI or policy changes war footing so nobility/UI can react later.
+ */
+function dispatchWarFootingChange(state: State, warFooting: boolean, reason: string): void {
+  if (typeof document === "undefined") return;
+  document.dispatchEvent(
+    new CustomEvent("fmg:war-footing-change", {
+      detail: {
+        stateId: state.i,
+        warFooting,
+        reason,
+        atWar: stateHasEnemy(state),
+        boldness: getRulerBoldness(state)
+      }
+    })
+  );
+}
+
+/**
  * AI / system sync: align warFooting with diplomacy + ruler boldness unless the player has
  * locked a deliberate override (PR-7/PR-8). Peacetime demobilization clears the player lock
  * unless a bold ruler keeps a Rival-facing posture.
@@ -218,7 +236,10 @@ export function syncWarFootingFromDiplomacy(state: State): { changed: boolean; w
 
   if (!atWar && !wantOn) {
     const wasOn = isWarFootingActive(state);
-    if (wasOn) setWarFooting(state, false);
+    if (wasOn) {
+      setWarFooting(state, false);
+      dispatchWarFootingChange(state, false, "demobilize-peace");
+    }
     state.warFootingPlayerLocked = false;
     return { changed: wasOn, warFooting: false };
   }
@@ -229,10 +250,12 @@ export function syncWarFootingFromDiplomacy(state: State): { changed: boolean; w
 
   if (wantOn && !isWarFootingActive(state)) {
     setWarFooting(state, true);
+    dispatchWarFootingChange(state, true, atWar ? "mobilize-war" : "preemptive-rival");
     return { changed: true, warFooting: true };
   }
   if (!wantOn && isWarFootingActive(state)) {
     setWarFooting(state, false);
+    dispatchWarFootingChange(state, false, "ai-stand-down");
     return { changed: true, warFooting: false };
   }
   return { changed: false, warFooting: isWarFootingActive(state) };

@@ -4,6 +4,7 @@ import { openDialog } from "../../hostUi";
 import { rn } from "../../hostUtils";
 import { getRulerId } from "../../nobility/nobilityContext";
 import { getWorldContext } from "../economyContext";
+import { peekCreditPoolBalance } from "../generators/creditPool";
 import { getTreasuryAllocationSnapshots, sumDepartmentBalances } from "../generators/treasuryAllocation";
 import { setTreasuryOverviewState, type TreasuryOverviewRow } from "../store/treasuryOverviewState";
 
@@ -59,6 +60,7 @@ export function refreshTreasuryOverview(): void {
       warFooting: Boolean(state.warFooting),
       militaryMobilizationBoost: rn(state.militaryMobilizationBoost || 0, 3),
       publicDebt: rn(state.publicDebt || 0, 2),
+      creditPoolBalance: peekCreditPoolBalance(state),
       councilSupport: rn(state.councilSupport ?? 0, 1),
       lastTaxFarmLeak: rn(state.lastTaxFarmLeak || 0, 2),
       chancery: snapshot.chancery,

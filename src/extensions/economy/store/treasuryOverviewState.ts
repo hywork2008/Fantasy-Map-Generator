@@ -41,6 +41,8 @@ export interface TreasuryOverviewRow {
   militaryMobilizationBoost: number;
   /** PR-7 public debt principal. */
   publicDebt: number;
+  /** PR-9 credit pool (moneylender) balance. */
+  creditPoolBalance: number;
   /** PR-8 assembly support 0–100. */
   councilSupport: number;
   /** PR-8 last-cycle tax farm leak. */

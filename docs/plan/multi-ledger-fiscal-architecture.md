@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計案。PR-1〜PR-8 実装済み** — 多層台帳本線 + 議会支持 + 公債 UI + 領 levy/工事 + War Footing 性格差 AI。
+**設計案。PR-1〜PR-9 実装済み** — 多層台帳本線 + 公債の相手方（匿名信用プール／金貸し v0）+ 請負の商人層接続。
 
 史実対照 [polity-fiscal-regimes-historical.md](../analytics/polity-fiscal-regimes-historical.md) の結論「豊かさの本体はどの名義の金庫を誰が使えるか」を、現行の単一 `state.treasury` + `Character.wealth` モデルへ段階実装するための仕様と PR 計画。
 
@@ -426,12 +426,22 @@ Lord personal: ZZZ
 - ✅ 領 `domainLevyRate` + fortify **works progress**（100 で walls/citadel）  
 - ✅ War Footing AI: 低 Boldness は戦時でも慎重、高 Boldness は Rival 先制動員  
 
-### PR-9 以降（外縁）
+### PR-9 — 信用プール（金貸し v0）/ 請負の商人接続 / WF イベント ✅
 
+- ✅ `creditPool.ts`: `state.creditPoolBalance` — 公債の相手方（借入元・利子/返済先）  
+- ✅ 戦時/手動の debt issue はプール残高まで；空なら借りられない（空中印刷廃止）  
+- ✅ 税請負スキムの大部分 → 信用プール、残余 → 首都 Market / Manager wealth  
+- ✅ Treasury Overview **Credit** 列；PC HUD は pool 残高を債務発行 tip に表示  
+- ✅ `fmg:war-footing-change` CustomEvent（動員/復員の薄い政治フック）  
+
+**意図的に薄い点（PR-10+）**: 名前付き金貸しキャラ、金利差、債務不履行イベント、議会の歳出項目別承認。
+
+### PR-10 以降（外縁）
+
+- 名前付き金貸し / 都市銀行家キャラと金利交渉  
 - 議会の勢力票・歳出項目別承認  
-- 請負契約の商人キャラ接続  
 - 領税率の poll 直結と建設キュー UI  
-- War Footing の政治イベント連鎖  
+- War Footing 政治イベントの帰結（不満・クーデター接続）  
 
 ---
 

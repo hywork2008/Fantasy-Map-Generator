@@ -445,8 +445,14 @@ export interface State {
   /**
    * Outstanding public debt principal (L2 liability). Serviced each tax cycle; Republic/Monarchy
    * may issue thin war debt when war footing and cash-strapped. Multi-ledger PR-7.
+   * Counterparty is `creditPoolBalance` (PR-9 anonymous moneylender pool).
    */
   publicDebt?: number;
+  /**
+   * PR-9 anonymous credit pool (moneylender v0) — liquid reserves that fund publicDebt issues
+   * and receive interest, principal repayments, and most tax-farm skims.
+   */
+  creditPoolBalance?: number;
   /**
    * PR-8 assembly support snapshot (0–100) from the last tax cycle / support refresh.
    */

@@ -72,13 +72,14 @@ describe("fiscalEvents (PR-7)", () => {
     expect(state.treasury).toBeLessThan(income);
   });
 
-  it("skims tax farm share from L2 for Republic", () => {
+  it("skims tax farm share from L2 into the credit pool for Republic (PR-9)", () => {
     const state = {
       i: 2,
       form: "Republic",
       diplomacy: [],
       treasury: 100,
-      capital: 1
+      capital: 1,
+      creditPoolBalance: 10
     } as unknown as State;
     const capital = { i: 1, treasury: 0, removed: false } as unknown as Burg;
     worldContext.pack = { states: [undefined, state], burgs: [undefined, capital] } as unknown as PackedGraph;
@@ -88,16 +89,18 @@ describe("fiscalEvents (PR-7)", () => {
     expect(result.taxFarmLeak).toBeCloseTo(TAX_FARM_RATE_BY_FORM.Republic! * 100, 0);
     expect(result.taxFarmLeak).toBeGreaterThan(0);
     expect(state.treasury).toBeCloseTo(100 - result.taxFarmLeak, 5);
-    expect(capital.treasury).toBeCloseTo(result.taxFarmLeak, 5);
+    // PR-9: majority of farm skim lands in the credit pool, not only the capital burg.
+    expect(state.creditPoolBalance).toBeGreaterThan(10);
   });
 
-  it("services public debt interest from L2 and repays surplus principal down to the cash buffer", () => {
+  it("services public debt interest from L2 into the credit pool and repays surplus principal", () => {
     const state = {
       i: 3,
       form: "Monarchy",
       diplomacy: [],
       treasury: 50,
-      publicDebt: 100
+      publicDebt: 100,
+      creditPoolBalance: 0
     } as unknown as State;
 
     const result = applyFiscalEvents(state, 0);
@@ -106,21 +109,42 @@ describe("fiscalEvents (PR-7)", () => {
     expect(state.treasury).toBe(5);
     expect(result.debtRepaid).toBeGreaterThan(0);
     expect(state.publicDebt).toBeLessThan(100);
+    // Interest + repaid principal returned to moneylenders.
+    expect(state.creditPoolBalance).toBeGreaterThan(0);
   });
 
-  it("issues thin war debt when war footing and cash-strapped", () => {
+  it("issues thin war debt from the credit pool when war footing and cash-strapped", () => {
     const state = {
       i: 4,
       form: "Republic",
       diplomacy: ["Enemy"],
       warFooting: true,
       treasury: 0,
-      publicDebt: 0
+      publicDebt: 0,
+      creditPoolBalance: 100
     } as unknown as State;
 
     const result = applyFiscalEvents(state, 0);
     expect(result.debtIssued).toBe(WAR_DEBT_ISSUE_AMOUNT);
     expect(state.publicDebt).toBe(WAR_DEBT_ISSUE_AMOUNT);
     expect(state.treasury).toBe(WAR_DEBT_ISSUE_AMOUNT);
+    expect(state.creditPoolBalance).toBe(100 - WAR_DEBT_ISSUE_AMOUNT);
+  });
+
+  it("does not issue war debt when the credit pool is empty", () => {
+    const state = {
+      i: 5,
+      form: "Republic",
+      diplomacy: ["Enemy"],
+      warFooting: true,
+      treasury: 0,
+      publicDebt: 0,
+      creditPoolBalance: 0
+    } as unknown as State;
+
+    const result = applyFiscalEvents(state, 0);
+    expect(result.debtIssued).toBe(0);
+    expect(state.publicDebt || 0).toBe(0);
+    expect(state.treasury).toBe(0);
   });
 });
