@@ -509,6 +509,40 @@ describe("MarketsModule", () => {
       expect(market1.goods[grain.i]).toBeUndefined();
     });
 
+    it("collectRuralProduction() should place rural output at the nearest same-market collection burg", async () => {
+      const { getRuralProductionContributions } = await import("./production-utils");
+      const good = getGoods()[0];
+      const market1: Market = { i: 1, centerBurgId: 1, color: "#ff0000", goods: {} };
+      setMarkets([market1]);
+      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
+      marketsModule["marketById"] = [market1, market1];
+      worldContext.pack.burgs = [
+        { i: 0 } as Burg,
+        { i: 1, market: 1, x: 0, y: 0 } as Burg,
+        { i: 2, market: 1, x: 100, y: 0 } as Burg
+      ];
+      worldContext.pack.cells = {
+        i: [0, 1],
+        p: [
+          [10, 0],
+          [90, 0]
+        ],
+        market: Uint16Array.from([1, 1]),
+        state: Uint16Array.from([0, 0])
+      } as unknown as PackedGraph["cells"];
+      vi.mocked(Goods.get).mockImplementation((id: number) => (id === good.i ? good : undefined));
+      vi.mocked(getRuralProductionContributions).mockReturnValue([{ goodId: good.i, amount: 5 }]);
+
+      marketsModule.collectRuralProduction();
+
+      expect(market1.goods[good.i].stock).toBe(10);
+      expect(getBurgWholesaleInventories()).toEqual([
+        { burgId: 1, marketId: 1, goods: { [good.i]: 5 } },
+        { burgId: 2, marketId: 1, goods: { [good.i]: 5 } }
+      ]);
+      expect(validateRetailInventory()).toEqual([]);
+    });
+
     it("getName() should prefer a custom name, fall back to the center burg, then to a generic label", () => {
       worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, { i: 1, name: "Riverton" } as unknown as Burg];
 

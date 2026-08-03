@@ -75,13 +75,16 @@ interface MarketTradeRoute {
 type MarketTradeRoutes = Record<number, Record<number, MarketTradeRoute>>;
 
 type MarketGoodTotals = Map<number, number>;
-type FoodTotalsByState = Map<number, Map<number, number[]>>;
-type WoodContribution = { marketId: number; goodId: number; amount: number };
+/** Market → collection Burg (0 when none exists) → Good → units. */
+type RuralTotalsByMarket = Map<number, Map<number, MarketGoodTotals>>;
+/** State → collection Burg (0 when none exists) → Good → monthly units. */
+type FoodTotalsByState = Map<number, Map<number, Map<number, number[]>>>;
+type WoodContribution = { marketId: number; collectionBurgId: number; goodId: number; amount: number };
 type RuralProductionIndex = {
   populationSnapshotPeriod: string;
-  standard: Map<number, MarketGoodTotals>;
+  standard: RuralTotalsByMarket;
   food: Map<number, FoodTotalsByState>;
-  wood: Map<number, MarketGoodTotals>;
+  wood: RuralTotalsByMarket;
   woodByCell: Map<number, WoodContribution[]>;
 };
 
@@ -430,13 +433,14 @@ export class MarketsModule {
         ? this.ruralProductionIndex
         : this.buildRuralProductionIndex(populationSnapshotPeriod);
     const monthIndex = Math.max(0, Math.min(11, getSimulationMonth() - 1));
-    const woodAdjustments = new Map<number, MarketGoodTotals>();
+    const woodAdjustments: RuralTotalsByMarket = new Map();
 
     for (const [cellId, depletion] of getDepletedCells()) {
       for (const contribution of index.woodByCell.get(cellId) ?? []) {
-        this.addMarketGoodTotal(
+        this.addRuralGoodTotal(
           woodAdjustments,
           contribution.marketId,
+          contribution.collectionBurgId,
           contribution.goodId,
           -contribution.amount * depletion
         );
@@ -446,18 +450,23 @@ export class MarketsModule {
     this.applyRuralTotals(index.standard);
 
     for (const [marketId, totalsByState] of index.food) {
-      for (const [stateId, totals] of totalsByState) {
+      for (const [stateId, totalsByCollectionBurg] of totalsByState) {
         const multiplier = foodStressProductionMultiplier(stateId);
-        for (const [goodId, monthlyTotals] of totals) {
-          this.addRuralOutput(marketId, goodId, monthlyTotals[monthIndex] * multiplier);
+        for (const [collectionBurgId, totals] of totalsByCollectionBurg) {
+          for (const [goodId, monthlyTotals] of totals) {
+            this.addRuralOutput(marketId, collectionBurgId, goodId, monthlyTotals[monthIndex] * multiplier);
+          }
         }
       }
     }
 
-    for (const [marketId, totals] of index.wood) {
+    for (const [marketId, totalsByCollectionBurg] of index.wood) {
       const adjustments = woodAdjustments.get(marketId);
-      for (const [goodId, amount] of totals) {
-        this.addRuralOutput(marketId, goodId, amount + (adjustments?.get(goodId) ?? 0));
+      for (const [collectionBurgId, totals] of totalsByCollectionBurg) {
+        const adjustmentTotals = adjustments?.get(collectionBurgId);
+        for (const [goodId, amount] of totals) {
+          this.addRuralOutput(marketId, collectionBurgId, goodId, amount + (adjustmentTotals?.get(goodId) ?? 0));
+        }
       }
     }
   }
@@ -494,11 +503,13 @@ export class MarketsModule {
     const markets = getMarkets();
     const marketCellColumn = getMarketCellColumn();
     const marketIds = new Set(markets.map(market => market.i));
+    const collectionBurgsByMarket = this.getCollectionBurgsByMarket();
     const biomeProduction = Goods.getBiomesProduction();
 
     for (const cellId of cells.i) {
       const marketId = marketCellColumn[cellId];
       if (!marketId || !marketIds.has(marketId)) continue;
+      const collectionBurgId = this.getCollectionBurgId(cellId, marketId, collectionBurgsByMarket);
 
       for (const contribution of getRuralProductionContributions(cellId, biomeProduction)) {
         const good = Goods.get(contribution.goodId);
@@ -508,28 +519,30 @@ export class MarketsModule {
         if (good.tags.includes("stapleFood")) continue;
 
         if (good.name === "Wood") {
-          this.addMarketGoodTotal(index.wood, marketId, good.i, contribution.amount);
+          this.addRuralGoodTotal(index.wood, marketId, collectionBurgId, good.i, contribution.amount);
           const entries = index.woodByCell.get(cellId) ?? [];
-          entries.push({ marketId, goodId: good.i, amount: contribution.amount });
+          entries.push({ marketId, collectionBurgId, goodId: good.i, amount: contribution.amount });
           index.woodByCell.set(cellId, entries);
           continue;
         }
 
         if (good.tags.includes("food")) {
           const stateId = cells.state?.[cellId] ?? 0;
-          const totalsByState = index.food.get(marketId) ?? new Map<number, Map<number, number[]>>();
-          const totals = totalsByState.get(stateId) ?? new Map<number, number[]>();
+          const totalsByState = index.food.get(marketId) ?? new Map<number, Map<number, Map<number, number[]>>>();
+          const totalsByCollectionBurg = totalsByState.get(stateId) ?? new Map<number, Map<number, number[]>>();
+          const totals = totalsByCollectionBurg.get(collectionBurgId) ?? new Map<number, number[]>();
           const monthlyTotals = totals.get(good.i) ?? Array.from({ length: 12 }, () => 0);
           for (let month = 1; month <= 12; month++) {
             monthlyTotals[month - 1] += contribution.amount * getSeasonalFoodProductionMultiplier(good, cellId, month);
           }
           totals.set(good.i, monthlyTotals);
-          totalsByState.set(stateId, totals);
+          totalsByCollectionBurg.set(collectionBurgId, totals);
+          totalsByState.set(stateId, totalsByCollectionBurg);
           index.food.set(marketId, totalsByState);
           continue;
         }
 
-        this.addMarketGoodTotal(index.standard, marketId, good.i, contribution.amount);
+        this.addRuralGoodTotal(index.standard, marketId, collectionBurgId, good.i, contribution.amount);
       }
     }
 
@@ -549,30 +562,75 @@ export class MarketsModule {
     return `${year}:${Math.floor((month - 1) / 3)}`;
   }
 
-  private applyRuralTotals(totalsByMarket: Map<number, MarketGoodTotals>): void {
-    for (const [marketId, totals] of totalsByMarket) {
-      for (const [goodId, amount] of totals) this.addRuralOutput(marketId, goodId, amount);
+  private applyRuralTotals(totalsByMarket: RuralTotalsByMarket): void {
+    for (const [marketId, totalsByCollectionBurg] of totalsByMarket) {
+      for (const [collectionBurgId, totals] of totalsByCollectionBurg) {
+        for (const [goodId, amount] of totals) this.addRuralOutput(marketId, collectionBurgId, goodId, amount);
+      }
     }
   }
 
-  private addRuralOutput(marketId: number, goodId: number, amount: number): void {
+  private addRuralOutput(marketId: number, collectionBurgId: number, goodId: number, amount: number): void {
     if (amount <= 0) return;
     const market = this.marketById[marketId];
     const good = Goods.get(goodId);
     if (!market || !good || !isGoodEnabled(good)) return;
     const marketGood = this.getMarketGood(market, good);
     marketGood.stock = rn(marketGood.stock + amount, 2);
+    if (collectionBurgId) addWholesaleGoodStock(collectionBurgId, marketId, goodId, amount);
   }
 
-  private addMarketGoodTotal(
-    totalsByMarket: Map<number, MarketGoodTotals>,
+  private addRuralGoodTotal(
+    totalsByMarket: RuralTotalsByMarket,
     marketId: number,
+    collectionBurgId: number,
     goodId: number,
     amount: number
   ): void {
-    const totals = totalsByMarket.get(marketId) ?? new Map<number, number>();
+    const totalsByCollectionBurg = totalsByMarket.get(marketId) ?? new Map<number, MarketGoodTotals>();
+    const totals = totalsByCollectionBurg.get(collectionBurgId) ?? new Map<number, number>();
     totals.set(goodId, (totals.get(goodId) ?? 0) + amount);
-    totalsByMarket.set(marketId, totals);
+    totalsByCollectionBurg.set(collectionBurgId, totals);
+    totalsByMarket.set(marketId, totalsByCollectionBurg);
+  }
+
+  /** Valid Burg depots grouped by the market they physically serve. */
+  private getCollectionBurgsByMarket(): Map<number, Burg[]> {
+    const byMarket = new Map<number, Burg[]>();
+    for (const burg of this.worldContext.pack.burgs) {
+      if (!burg.i || burg.removed || !burg.market) continue;
+      const burgs = byMarket.get(burg.market) ?? [];
+      burgs.push(burg);
+      byMarket.set(burg.market, burgs);
+    }
+    return byMarket;
+  }
+
+  /**
+   * Rural output is collected at the closest active Burg in the same market.
+   * A missing depot deliberately returns 0: the canonical market stock still increases and
+   * reconciliation later places it at the market center once the topology has a Burg again.
+   */
+  private getCollectionBurgId(cellId: number, marketId: number, burgsByMarket: ReadonlyMap<number, Burg[]>): number {
+    const burgs = burgsByMarket.get(marketId);
+    if (!burgs?.length) return 0;
+
+    const point = this.worldContext.pack.cells.p?.[cellId];
+    if (!point) {
+      const market = this.marketById[marketId];
+      return burgs.find(burg => burg.i === market?.centerBurgId)?.i ?? burgs[0].i!;
+    }
+
+    let closest = burgs[0];
+    let closestDistance = Math.hypot((closest.x ?? 0) - point[0], (closest.y ?? 0) - point[1]);
+    for (const burg of burgs.slice(1)) {
+      const distance = Math.hypot((burg.x ?? 0) - point[0], (burg.y ?? 0) - point[1]);
+      if (distance < closestDistance || (distance === closestDistance && burg.i! < closest.i!)) {
+        closest = burg;
+        closestDistance = distance;
+      }
+    }
+    return closest.i!;
   }
 
   initializeMarketPrices(): void {
