@@ -375,6 +375,31 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 tip="PR-14 civil unrest after debt coup"
               />
               <SortableHeader
+                field="legitimacyWarActive"
+                label="LWar"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                tip="PR-15 legitimacy war (pretender vs regime)"
+              />
+              <SortableHeader
+                field="creditRating"
+                label="Rating"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                tip="PR-15 sovereign credit rating (bond market)"
+              />
+              <SortableHeader
+                field="tradeSanctionMult"
+                label="Trade×"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="PR-15 trade sanction multiplier on deal/voyage income while in FX default"
+              />
+              <SortableHeader
                 field="councilSessionNumber"
                 label="Sess#"
                 sortBy={sortBy}
@@ -424,7 +449,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={34}>
+                <td colSpan={37}>
                   <span>No state has an allocated treasury yet — run a generation cycle first</span>
                 </td>
               </tr>
@@ -481,6 +506,9 @@ const TreasuryRow: React.FC<{ row: TreasuryOverviewRow }> = ({ row }) => (
     </td>
     <td data-tip="Coup legitimacy">{row.coupLegitimacy > 0 ? row.coupLegitimacy.toFixed(0) : "—"}</td>
     <td data-tip={row.civilUnrest ? "Civil unrest" : "Stable"}>{row.civilUnrest ? "YES" : "—"}</td>
+    <td data-tip={row.legitimacyWarActive ? "Legitimacy war" : "—"}>{row.legitimacyWarActive ? "YES" : "—"}</td>
+    <td data-tip="Credit rating">{row.creditRating !== "—" ? row.creditRating : "—"}</td>
+    <td data-tip="Trade sanction mult">{row.tradeSanctionMult < 1 ? `×${row.tradeSanctionMult.toFixed(2)}` : "—"}</td>
     <td data-tip="Council sessions">{row.councilSessionNumber > 0 ? row.councilSessionNumber : "—"}</td>
     <td>{row.chancery.toFixed(2)}</td>
     <td>{row.stewardship.toFixed(2)}</td>

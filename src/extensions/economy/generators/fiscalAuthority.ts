@@ -91,6 +91,13 @@ export interface FiscalAuthorityView {
   coupLegitimacy: number | null;
   /** PR-14 civil unrest after coup. */
   civilUnrest: boolean;
+  /** PR-15 legitimacy war active. */
+  legitimacyWarActive: boolean;
+  pretenderName: string | null;
+  /** PR-15 credit rating. */
+  creditRating: string | null;
+  /** PR-15 trade sanction mult. */
+  tradeSanctionMult: number;
   /** PR-13 foreign debt principal (外債). */
   foreignDebt: number;
   /** PR-14 any foreign loan in default. */
@@ -233,6 +240,10 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
   const debtCoupRisk = Boolean(state.debtCoupRisk);
   const coupLegitimacy = state.coupLegitimacy !== undefined ? rn(state.coupLegitimacy, 1) : null;
   const civilUnrest = Boolean(state.civilUnrest);
+  const legitimacyWarActive = Boolean(state.legitimacyWarActive);
+  const pretenderName = state.legitimacyPretenderName ?? null;
+  const creditRating = state.creditRating ?? null;
+  const tradeSanctionMult = rn(state.tradeSanctionMult ?? 1, 3);
   const foreignDebt = sumForeignDebtPrincipal(state);
   const foreignDebtInDefault = Boolean(state.foreignDebtInDefault);
   const councilSupport =
@@ -299,6 +310,13 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
   if (coupLegitimacy != null) {
     notes.push(`Coup legitimacy ${coupLegitimacy}/100${civilUnrest ? " — civil unrest active" : ""}.`);
   }
+  if (legitimacyWarActive) {
+    notes.push(`Legitimacy war active${pretenderName ? ` — pretender ${pretenderName}` : ""}.`);
+  }
+  if (creditRating) notes.push(`Credit rating ${creditRating}.`);
+  if (tradeSanctionMult < 1) {
+    notes.push(`Trade sanctions active (×${tradeSanctionMult.toFixed(2)} on deal/voyage income).`);
+  }
   if (councilSessionNumber > 0) notes.push(`Assembly sessions logged: ${councilSessionNumber}.`);
   const banker = resolveStateBanker(state);
   notes.push(`Credit pool ${creditPoolBalance.toFixed(2)} SP — Banker: ${banker?.name ?? primaryMoneylenderName}.`);
@@ -356,6 +374,10 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
     debtCoupRisk,
     coupLegitimacy,
     civilUnrest,
+    legitimacyWarActive,
+    pretenderName,
+    creditRating,
+    tradeSanctionMult,
     foreignDebt,
     foreignDebtInDefault,
     councilSupport,

@@ -2,9 +2,10 @@ import { openDialog } from "../../hostUi";
 import { rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 import { getCouncilSessionLog } from "../generators/councilSession";
+import { getCouncilSessionSnapshots } from "../generators/councilSessionReplay";
 import { type CouncilSessionRow, setCouncilSessionState } from "../store/councilSessionState";
 
-/** PR-13 council session chronicle dialog. */
+/** PR-13/15 council session chronicle + replay dialog. */
 export function openCouncilSession(stateId?: number): void {
   openDialog("councilSession");
   refreshCouncilSession(stateId);
@@ -16,7 +17,23 @@ export function refreshCouncilSession(stateId?: number): void {
   for (const state of pack.states || []) {
     if (!state?.i || state.removed) continue;
     const log = getCouncilSessionLog(state);
-    if (!(state.councilSessionNumber || 0) && log.length === 0) continue;
+    const snapshots = getCouncilSessionSnapshots(state).map(s => ({
+      sessionNumber: s.sessionNumber,
+      year: s.year,
+      month: s.month,
+      support: s.support,
+      debtVoteYes: s.debtVoteYes,
+      lineVotes: s.lineVotes,
+      factions: s.factions.map(f => ({
+        faction: f.faction,
+        share: f.share,
+        lean: f.lean,
+        contribution: f.contribution
+      })),
+      councilFailed: s.councilFailed,
+      notes: s.notes
+    }));
+    if (!(state.councilSessionNumber || 0) && log.length === 0 && snapshots.length === 0) continue;
     rows.push({
       stateId: state.i,
       stateName: state.name || `State ${state.i}`,
@@ -41,14 +58,23 @@ export function refreshCouncilSession(stateId?: number): void {
       coupLegitimacy: state.coupLegitimacy !== undefined ? rn(state.coupLegitimacy, 1) : null,
       civilUnrest: Boolean(state.civilUnrest),
       foreignDebtInDefault: Boolean(state.foreignDebtInDefault),
+      creditRating: state.creditRating ?? null,
+      tradeSanctionMult: rn(state.tradeSanctionMult ?? 1, 3),
+      legitimacyWarActive: Boolean(state.legitimacyWarActive),
+      pretenderName: state.legitimacyPretenderName ?? null,
+      snapshots,
       log
     });
   }
   rows.sort((a, b) => b.sessionNumber - a.sessionNumber || a.stateName.localeCompare(b.stateName));
   const selected = stateId && rows.some(r => r.stateId === stateId) ? stateId : (rows[0]?.stateId ?? null);
-  setCouncilSessionState({ rows, selectedStateId: selected });
+  setCouncilSessionState({ rows, selectedStateId: selected, replaySessionNumber: null });
 }
 
 export function selectCouncilSessionState(stateId: number): void {
-  setCouncilSessionState({ selectedStateId: stateId });
+  setCouncilSessionState({ selectedStateId: stateId, replaySessionNumber: null });
+}
+
+export function selectCouncilReplaySession(sessionNumber: number | null): void {
+  setCouncilSessionState({ replaySessionNumber: sessionNumber });
 }

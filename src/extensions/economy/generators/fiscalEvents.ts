@@ -1,9 +1,11 @@
 import { stateHasEnemy } from "../../hostCore";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
+import { refreshCreditRatingAndBondPrices, runBondSecondaryMarket } from "./bondMarket";
 import { scaleFailureChanceBySupport, updateCouncilSupportSnapshot } from "./councilAssembly";
 import { refreshCouncilBudgetApprovals } from "./councilBudget";
 import { formatFactionVoteSummary, recordCouncilSession } from "./councilSession";
+import { captureCouncilSessionSnapshot } from "./councilSessionReplay";
 import { tickCoupLegitimacyAndUnrest } from "./coupAftermath";
 import { lendFromCreditPool, payCreditorsWithSyndicate, routeTaxFarmProceeds } from "./creditPool";
 import { tryDebtCoup } from "./debtCoup";
@@ -11,12 +13,14 @@ import { canIssueDebtWhileNotInDefault, updateDebtDefaultStatus } from "./debtDe
 import { applyDebtDefaultConsequences } from "./debtDefaultConsequences";
 import { issueForeignOrBondDebt } from "./foreignDebt";
 import { applyDomesticDefaultForeignDiplomacyHit, serviceForeignDebtWithDiplomacy } from "./foreignDebtDiplomacy";
+import { tickLegitimacyWar } from "./legitimacyWar";
 import { getStateDebtInterestRate, splitCreditorPayout, updateMoneylenderSnapshot } from "./moneylenders";
+import { refreshTradeSanctions } from "./tradeSanctions";
 import { isWarFootingActive } from "./warFooting";
 
 /**
- * Multi-ledger PR-7…PR-14 — fiscal events: council, tax farm, public/foreign/bond debt,
- * coup aftermath, diplomacy, session log with faction vote detail.
+ * Multi-ledger PR-7…PR-15 — fiscal events: council, tax farm, public/foreign/bond debt,
+ * coup aftermath, legitimacy war, trade sanctions, credit rating, session replay snapshots.
  *
  * Deterministic rolls use state id + income so unit tests stay stable without a seeded RNG.
  */
@@ -259,10 +263,20 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
   // PR-14: legitimacy recovery / civil unrest tick.
   const unrest = tickCoupLegitimacyAndUnrest(state);
 
+  // PR-15: legitimacy war (pretender vs regime) while unrest is acute.
+  const legitWar = tickLegitimacyWar(state);
+
+  // PR-15: refresh FX trade sanctions for next collectTaxes cycle.
+  refreshTradeSanctions(state);
+
+  // PR-15: credit rating + bond reprice + thin secondary market transfer.
+  refreshCreditRatingAndBondPrices(state);
+  const secondary = runBondSecondaryMarket(state);
+
   state.lastDebtIssued = debtIssued;
   state.lastDebtRepaid = debtRepaid;
 
-  // PR-13/14: chronicle this cycle's assembly session (incl. faction vote detail).
+  // PR-13/14/15: chronicle this cycle's assembly session (incl. faction vote detail).
   recordCouncilSession(state, {
     councilFailed,
     councilSupport,
@@ -282,8 +296,17 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
     coupRisk,
     coupSucceeded,
     coupSummary,
-    civilUnrestTick: unrest.unrestFired,
+    civilUnrestTick: unrest.unrestFired || legitWar.opened || legitWar.resolved,
     legitimacy: unrest.legitimacy
+  });
+
+  // PR-15: freeze session snapshot for replay / faction graphs.
+  captureCouncilSessionSnapshot(state, {
+    councilFailed,
+    notes:
+      (legitWar.summary ? `${legitWar.summary} ` : "") +
+      (secondary.transferred > 0 ? `Bond secondary ${secondary.transferred} SP. ` : "") +
+      (state.creditRating ? `Rating ${state.creditRating}.` : "")
   });
 
   return {

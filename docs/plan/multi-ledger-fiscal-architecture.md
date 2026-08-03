@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計案。PR-1〜PR-14 実装済み** — 多層台帳本線 + 信用/外債/債券市場 + 金貸し + 議会勢力票 + クーデ正統性/内乱 + 外債外交接続。
+**設計案。PR-1〜PR-15 実装済み** — 多層台帳本線 + 信用/外債/格付/二次流通 + 議会リプレイ + 通商制裁 + 正統性戦争。
 
 史実対照 [polity-fiscal-regimes-historical.md](../analytics/polity-fiscal-regimes-historical.md) の結論「豊かさの本体はどの名義の金庫を誰が使えるか」を、現行の単一 `state.treasury` + `Character.wealth` モデルへ段階実装するための仕様と PR 計画。
 
@@ -474,12 +474,20 @@ Lord personal: ZZZ
 - ✅ `issueBondMarketDebt`: Ally 不在時 Neutral 引受の第三者債券（高金利）  
 - ✅ Treasury Overview: **FX Def** / **Legit** / **Unrest** 列  
 
-### PR-15 以降（任意の深掘り）
+### PR-15 — 会期リプレイ / 通商制裁 / 正統性戦争 / 格付・二次流通 ✅
 
-- 議会ログの会期リプレイ / 勢力別票グラフ  
-- 外債デフォルト時の通商制裁・関税  
-- クーデ後の正統性戦争（旧為政者派 vs 新政権）  
-- 国際債券市場の二次流通・格付け  
+- ✅ `councilSessionReplay.ts` + Council log **Replay** セレクタ + 勢力 yes-lean バーグラフ  
+- ✅ `tradeSanctions.ts`: 外債 default 中 deal tax / voyage を haircut、債権国へ関税スキム  
+- ✅ `legitimacyWar.ts`: クーデ後 pretender が unrest 中に正統性戦争 → 政権維持 or 復辟、`fmg:legitimacy-war`  
+- ✅ `bondMarket.ts`: 主権格付 AAA…D、bond 金利再価格、二次流通で tranche 移管  
+- ✅ Treasury Overview: **LWar** / **Rating** / **Trade×** 列  
+
+### PR-16 以降（任意の深掘り）
+
+- 議会リプレイの時系列チャート（複数セッション重ね描き）  
+- 通商制裁の関税レイヤ可視化  
+- 正統性戦争の地図イベント / 反乱軍  
+- 債券格付機関キャラクター  
 
 ---
 

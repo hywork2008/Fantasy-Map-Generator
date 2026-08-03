@@ -10,6 +10,7 @@ import { Markets } from "./markets-generator";
 import type { Deal } from "./marketTypes";
 import { getStateMilitaryUpkeep } from "./militaryLogistics";
 import { applyFormRevenueMix } from "./revenueMix";
+import { applyTradeSanctionToIncome, refreshTradeSanctions } from "./tradeSanctions";
 import { allocateTreasury, payMilitaryUpkeep } from "./treasuryAllocation";
 import { applyWarFootingPoliticalCost, syncWarFootingFromDiplomacy } from "./warFooting";
 
@@ -83,13 +84,22 @@ export class TaxesModule {
     const { states, burgs } = this.worldContext.pack;
     const deals = getDeals();
 
+    // PR-15: reset trade-sanction counters and refresh multipliers from prior-cycle FX default.
+    for (const state of states) {
+      if (!state?.i) continue;
+      state.lastTradeSanctionBlocked = 0;
+      refreshTradeSanctions(state);
+    }
+
     for (const deal of deals) {
       if (!deal.tax) continue;
       const sellerStateId = this.getSellerStateId(deal, burgs);
       if (!sellerStateId) continue;
       const state = states[sellerStateId];
       if (!state) continue;
-      state.treasury = rn((state.treasury || 0) + deal.tax, 2);
+      // PR-15: foreign-debt sanctions haircut deal-tax receipts.
+      const keptTax = applyTradeSanctionToIncome(state, deal.tax);
+      state.treasury = rn((state.treasury || 0) + keptTax, 2);
     }
 
     for (const state of states) {
@@ -105,7 +115,9 @@ export class TaxesModule {
       const domainPollMult = getStateDomainPollTaxMultiplier(state);
       state.domainPollTaxMultiplier = domainPollMult;
       const pollTaxRevenue = (state.pollTax || 0) * population * administrationBonus * domainPollMult;
-      const rawDomesticIncome = pollTaxRevenue + voyageIncome;
+      // PR-15: voyage income is trade-exposed; poll tax stays domestic.
+      const voyageKept = applyTradeSanctionToIncome(state, voyageIncome);
+      const rawDomesticIncome = pollTaxRevenue + voyageKept;
       // Credit L2 first so multi-ledger household purse (L2→L1) can draw this cycle's revenue.
       state.treasury = rn((state.treasury || 0) + rawDomesticIncome, 2);
       // PR-6 form revenue mix: wartime Monarchy subsidy, Theocracy tithe, Anarchy plunder share.

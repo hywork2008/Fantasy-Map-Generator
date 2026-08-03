@@ -67,6 +67,12 @@ export interface TreasuryOverviewRow {
   coupLegitimacy: number;
   /** PR-14 civil unrest. */
   civilUnrest: boolean;
+  /** PR-15 credit rating. */
+  creditRating: string;
+  /** PR-15 trade sanction mult. */
+  tradeSanctionMult: number;
+  /** PR-15 legitimacy war active. */
+  legitimacyWarActive: boolean;
   /** PR-13 assembly session count. */
   councilSessionNumber: number;
   chancery: number;

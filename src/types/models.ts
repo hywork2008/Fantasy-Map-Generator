@@ -518,6 +518,51 @@ export interface State {
   /** PR-14: tax cycles while civil unrest has been active. */
   civilUnrestCycles?: number;
   /**
+   * PR-15: living deposed ruler id for legitimacy war.
+   */
+  legitimacyPretenderId?: number;
+  legitimacyPretenderName?: string;
+  /** PR-15: legitimacy war (pretender vs regime) is active. */
+  legitimacyWarActive?: boolean;
+  /** PR-15: ticks while legitimacy war has been open. */
+  legitimacyWarTicks?: number;
+  /**
+   * PR-15: trade income multiplier while foreign debt is in default (< 1 when sanctioned).
+   */
+  tradeSanctionMult?: number;
+  /** PR-15: creditor state ids applying trade sanctions. */
+  tradeSanctionCreditorIds?: number[];
+  /** PR-15: income blocked by trade sanctions this tax cycle. */
+  lastTradeSanctionBlocked?: number;
+  /**
+   * PR-15 sovereign credit rating (bond market).
+   */
+  creditRating?: "AAA" | "AA" | "A" | "BBB" | "BB" | "B" | "CCC" | "D";
+  creditRatingScore?: number;
+  /** PR-15 effective bond-market monthly rate after rating. */
+  bondMarketRate?: number;
+  /** PR-15 last secondary-market bond transfer amount. */
+  lastBondSecondaryTransfer?: number;
+  /**
+   * PR-15 council session replay snapshots (faction graphs).
+   */
+  councilSessionSnapshots?: {
+    sessionNumber: number;
+    year: number;
+    month: number;
+    support: number;
+    debtVoteYes: number;
+    lineVotes: {
+      debtIssue: number;
+      warFooting: number;
+      extraordinaryTax: number;
+      militaryExpansion: number;
+    };
+    factions: { faction: string; share: number; lean: number; contribution: number }[];
+    councilFailed: boolean;
+    notes: string;
+  }[];
+  /**
    * PR-13 foreign/international debt principal total (sum of foreignLoans).
    */
   foreignDebt?: number;

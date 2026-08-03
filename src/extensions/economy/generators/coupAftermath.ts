@@ -1,6 +1,7 @@
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { appendCouncilLog } from "./councilSession";
+import { ensurePretenderFromLastCoup } from "./legitimacyWar";
 
 /**
  * Multi-ledger PR-14 — post-coup legitimacy and thin civil-unrest tick.
@@ -53,6 +54,8 @@ export function applyCoupAftermath(state: State, summary?: string): CoupAftermat
     state.warFooting = true;
     state.warFootingPlayerLocked = false;
   }
+  // PR-15: deposed ruler becomes pretender for legitimacy-war resolution.
+  ensurePretenderFromLastCoup(state);
   appendCouncilLog(
     state,
     "coup",
