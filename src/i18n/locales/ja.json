@@ -114,6 +114,7 @@
     "skills": "技能",
     "personality": "性格",
     "inventory": "所持品",
+    "relationships": "対人関係",
     "noInventory": "この人物は商品を所持していません。",
     "good": "商品",
     "quantity": "数量",

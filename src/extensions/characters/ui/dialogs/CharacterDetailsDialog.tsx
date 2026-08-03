@@ -45,6 +45,7 @@ type CharacterInventoryRow = Readonly<{
   units: number;
   averageUnitCost: number | null;
 }>;
+type CharacterDetailsTab = "skills" | "personality" | "inventory" | "backstory" | "relationships";
 
 function getEconomyMarkets(pack: unknown): readonly EconomyMarketSnapshot[] {
   const markets = (pack as Record<string, unknown>).markets;
@@ -114,7 +115,7 @@ export const CharacterDetailsDialog: React.FC = () => {
   const clearCharacterDetailsHistory = useCharactersUiState(state => state.clearCharacterDetailsHistory);
   useCharactersUiState(state => state.refreshToken);
   const playerCharacterId = usePlayerCharacterState(state => state.playerCharacterId);
-  const [activeTab, setActiveTab] = useState<"skills" | "personality" | "inventory">("skills");
+  const [activeTab, setActiveTab] = useState<CharacterDetailsTab>("skills");
   const [, setInventoryRevision] = useState(0);
 
   useEffect(() => {
@@ -671,6 +672,20 @@ export const CharacterDetailsDialog: React.FC = () => {
           >
             {t("characters.inventory")}
           </button>
+          <button
+            type="button"
+            className={`options ${activeTab === "backstory" ? "active" : ""}`}
+            onClick={() => setActiveTab("backstory")}
+          >
+            {t("characters.backstory")}
+          </button>
+          <button
+            type="button"
+            className={`options ${activeTab === "relationships" ? "active" : ""}`}
+            onClick={() => setActiveTab("relationships")}
+          >
+            {t("characters.relationships")}
+          </button>
         </div>
 
         {activeTab === "skills" && (
@@ -798,7 +813,7 @@ export const CharacterDetailsDialog: React.FC = () => {
           <p>{t("characters.noAffinities")}</p>
         )}
 
-        {backstory && (
+        {activeTab === "backstory" && backstory && (
           <>
             <h3>{t("characters.backstory")}</h3>
             <table className="fmg-table fmg-property-table character-details__table">
@@ -942,84 +957,90 @@ export const CharacterDetailsDialog: React.FC = () => {
           </>
         )}
 
-        <h3>{t("characters.characterSolidarity")}</h3>
-        <p style={{ marginTop: 0, color: "#868e96", fontSize: "0.9em" }}>{t("characters.solidarityHint")}</p>
-        {solidarityEntries.length > 0 ? (
-          <div style={{ overflow: "auto", maxHeight: "280px", marginBottom: "10px" }}>
-            <table className="fmg-table character-details__table character-details__relation-table">
-              <thead>
-                <tr>
-                  <th>{t("characters.name")}</th>
-                  <th style={{ textAlign: "right" }}>{t("characters.score")}</th>
-                  <th>{t("characters.relation")}</th>
-                  <th>{t("characters.titleOrRole")}</th>
-                  <th>{t("characters.socialStratum")}</th>
-                  <th>{t("characters.sameCountry")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {solidarityEntries.map(({ other, score }) => {
-                  const band = getSolidarityBand(score);
-                  const office = getOfficeLabel(other);
-                  const sameCountry = getCountryStateId(character) === getCountryStateId(other);
-                  const stratum = other.backstory?.origin.socialStratum;
-                  return (
-                    <tr key={`sol-${other.i}`}>
-                      <td>
-                        <button
-                          type="button"
-                          className="pointer"
-                          data-tip={t("characters.openCharacterDetails")}
-                          onClick={() => handleOpenLinkedCharacter(other.i)}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            padding: 0,
-                            margin: 0,
-                            color: "inherit",
-                            font: "inherit",
-                            fontWeight: "bold",
-                            textDecoration: "underline",
-                            cursor: "pointer"
-                          }}
-                        >
-                          {other.name}
-                        </button>
-                      </td>
-                      <td style={{ textAlign: "right" }}>{score}</td>
-                      <td>{t(`characters.solidarityBand.${band}`)}</td>
-                      <td>{office || t("characters.notAvailable")}</td>
-                      <td>{stratum ? t(`characters.socialStratumNames.${stratum}`) : t("characters.notAvailable")}</td>
-                      <td>{sameCountry ? t("characters.yes") : t("characters.no")}</td>
+        {activeTab === "relationships" && (
+          <>
+            <h3>{t("characters.characterSolidarity")}</h3>
+            <p style={{ marginTop: 0, color: "#868e96", fontSize: "0.9em" }}>{t("characters.solidarityHint")}</p>
+            {solidarityEntries.length > 0 ? (
+              <div style={{ overflow: "auto", maxHeight: "280px", marginBottom: "10px" }}>
+                <table className="fmg-table character-details__table character-details__relation-table">
+                  <thead>
+                    <tr>
+                      <th>{t("characters.name")}</th>
+                      <th style={{ textAlign: "right" }}>{t("characters.score")}</th>
+                      <th>{t("characters.relation")}</th>
+                      <th>{t("characters.titleOrRole")}</th>
+                      <th>{t("characters.socialStratum")}</th>
+                      <th>{t("characters.sameCountry")}</th>
                     </tr>
+                  </thead>
+                  <tbody>
+                    {solidarityEntries.map(({ other, score }) => {
+                      const band = getSolidarityBand(score);
+                      const office = getOfficeLabel(other);
+                      const sameCountry = getCountryStateId(character) === getCountryStateId(other);
+                      const stratum = other.backstory?.origin.socialStratum;
+                      return (
+                        <tr key={`sol-${other.i}`}>
+                          <td>
+                            <button
+                              type="button"
+                              className="pointer"
+                              data-tip={t("characters.openCharacterDetails")}
+                              onClick={() => handleOpenLinkedCharacter(other.i)}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                padding: 0,
+                                margin: 0,
+                                color: "inherit",
+                                font: "inherit",
+                                fontWeight: "bold",
+                                textDecoration: "underline",
+                                cursor: "pointer"
+                              }}
+                            >
+                              {other.name}
+                            </button>
+                          </td>
+                          <td style={{ textAlign: "right" }}>{score}</td>
+                          <td>{t(`characters.solidarityBand.${band}`)}</td>
+                          <td>{office || t("characters.notAvailable")}</td>
+                          <td>
+                            {stratum ? t(`characters.socialStratumNames.${stratum}`) : t("characters.notAvailable")}
+                          </td>
+                          <td>{sameCountry ? t("characters.yes") : t("characters.no")}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p>{t("characters.noSolidarity")}</p>
+            )}
+
+            <h3>{t("characters.characterFavor")}</h3>
+            <p style={{ marginTop: 0, color: "#868e96", fontSize: "0.9em" }}>{t("characters.favorHint")}</p>
+            {favorEntries.length > 0 ? (
+              <ul>
+                {favorEntries.map(({ other, score }) => {
+                  const band = getFavorBand(score);
+                  return (
+                    <li key={`favor-${other.i}`}>
+                      <strong>{other.name}:</strong>{" "}
+                      {t("characters.favorEntry", {
+                        score,
+                        band: t(`characters.favorBand.${band}`)
+                      })}
+                    </li>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p>{t("characters.noSolidarity")}</p>
-        )}
-
-        <h3>{t("characters.characterFavor")}</h3>
-        <p style={{ marginTop: 0, color: "#868e96", fontSize: "0.9em" }}>{t("characters.favorHint")}</p>
-        {favorEntries.length > 0 ? (
-          <ul>
-            {favorEntries.map(({ other, score }) => {
-              const band = getFavorBand(score);
-              return (
-                <li key={`favor-${other.i}`}>
-                  <strong>{other.name}:</strong>{" "}
-                  {t("characters.favorEntry", {
-                    score,
-                    band: t(`characters.favorBand.${band}`)
-                  })}
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p>{t("characters.noFavor")}</p>
+              </ul>
+            ) : (
+              <p>{t("characters.noFavor")}</p>
+            )}
+          </>
         )}
       </div>
     </Dialog>

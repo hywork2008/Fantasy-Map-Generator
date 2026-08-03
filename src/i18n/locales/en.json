@@ -114,6 +114,7 @@
     "skills": "Skills",
     "personality": "Personality",
     "inventory": "Inventory",
+    "relationships": "Relationships",
     "noInventory": "No goods are held by this character.",
     "good": "Good",
     "quantity": "Quantity",
