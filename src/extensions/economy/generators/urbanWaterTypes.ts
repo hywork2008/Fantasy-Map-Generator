@@ -49,7 +49,7 @@ export type WaterDemandSignal = {
 
 /**
  * Per-burg water/sanitation state owned by the economy extension slice.
- * Tier 4–5 exist in the type for later phases; Phase 2 can invest up to tier 3.
+ * Tier 4–5 exist in the type for later phases; investment currently tops out at tier 3.
  */
 export type UrbanWaterSystem = {
   burgId: number;
@@ -93,6 +93,48 @@ export type UrbanWaterSystem = {
   lastMaintenanceSpend: number;
   /** Treasury spent on construction last settlement. */
   lastConstructionSpend: number;
+
+  // ── Phase 3: institutions, organic routes, externalities ─────────────────
+  /**
+   * Share of household/workshop connections under permit (0..1).
+   * Reduces illegal dumping when coverage is high; requires tier ≥ 3 to grow strongly.
+   */
+  connectionPermitCoverage: number;
+  /**
+   * Cleaning-tax rate levied on product for street/cesspit/drain cleaning (0..~0.04).
+   * Revenue funds maintenance; distinct from state poll tax.
+   */
+  cleaningTaxRate: number;
+  /**
+   * Discharge / outfall regulation strictness (0..1).
+   * Protects local intake when high; reduces export of raw pollution when high.
+   */
+  dischargeRegulation: number;
+  /** Cleaning tax collected into burg treasury last year. */
+  lastCleaningTaxRevenue: number;
+  /** Residual street organic load after pathway processing (0..1). */
+  organicStreetLoad: number;
+  /** Effective managed-composting success after climate and pile scale (0..1). */
+  compostingEfficiency: number;
+  /**
+   * Facility-style pig-toilet practice (0..1). Free-range market pigs do not raise this;
+   * remains near 0 for standard European-style culture types.
+   */
+  pigToiletPractice: number;
+  /** Pollution imported from upstream river burgs (0..1). */
+  upstreamPollutionImport: number;
+  /** Pollution exported to downstream river users this year (0..1). */
+  downstreamPollutionExport: number;
+  /**
+   * Disease / health pressure from sanitation (0..1).
+   * Feeds civic score; reserved for a future epidemic system.
+   */
+  healthPressure: number;
+  /**
+   * True when drinking water is not protected from local outfall mixing.
+   * Tier upgrades alone do not grant a drinking-water health bonus while this is true.
+   */
+  localMixedIntakeOutfall: boolean;
 };
 
 export const WATER_SANITATION_TIER_LABELS: Readonly<Record<WaterSanitationTier, string>> = {
@@ -120,7 +162,7 @@ export const WATER_DEMAND_SIGNAL_LABELS: Readonly<Record<WaterDemandSignalId, st
   droughtService: "Drought / service water"
 };
 
-/** Phase 2 can invest up through covered culverts; tier 4+ needs institutions (Phase 3). */
+/** Investment currently tops out at covered culverts; tier 4+ needs later phases. */
 export const MAX_INVESTABLE_TIER: WaterSanitationTier = 3;
 
 export const CLEANSING_MATERIALS: readonly CleansingMaterial[] = ["water", "plant", "cloth", "paper", "sharedTool"];

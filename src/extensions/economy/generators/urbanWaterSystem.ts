@@ -1,5 +1,5 @@
 /**
- * Urban water and sanitation (Phase 1 + Phase 2).
+ * Urban water and sanitation (Phase 1–3).
  *
  * Owns simulation.extensions.economy.urbanWaterSystems and writes the host
  * civic score `burg.sanitation` (0–100).
@@ -7,8 +7,10 @@
  * Phase 1: geography, demand, flood/mud/odor, cultural weights.
  * Phase 2: demand-signal-driven public works (tier 0→3), separate maintenance
  * vs construction budgets, clogging/decay under underfunding.
+ * Phase 3: cleaning tax / permits / discharge regulation, organic-waste pathways
+ * with climate-aware composting, intake–outfall mixing, river pollution externalities.
  *
- * Design: docs/plan/urban-water-and-sanitation-system.md §4–5, §11.
+ * Design: docs/plan/urban-water-and-sanitation-system.md §4–5, §7–8, §11.
  */
 
 import type { Burg, CultureType } from "../../hostTypes";
@@ -25,8 +27,20 @@ import {
   setUrbanWaterLastSettledYear,
   setUrbanWaterSystems
 } from "../economyContext";
+import { getAcademyBonus } from "./academyKnowledge";
 import { getComfortableTreasuryLevel } from "./guildTreasury";
 import { Markets } from "./markets-generator";
+import {
+  cleaningTaxRevenue,
+  evolveInstitutions,
+  healthPressureFromSanitation,
+  irrigationPollutionPenalty,
+  localMixedIntakeOutfall,
+  pollutionExport,
+  propagateRiverPollution,
+  resolveOrganicPathways,
+  tierDrinkingHealthBonus
+} from "./urbanWaterInstitutions";
 import type {
   CleansingMaterial,
   CulturalHygieneProfile,
@@ -561,6 +575,7 @@ export function computeUrbanWaterSystem(args: {
   geography: BurgWaterGeography;
   people: number;
   cultureType: CultureType | string | undefined;
+  ambientTemperature?: number;
   /** Preserve tier / maintenance / investment across annual refreshes when provided. */
   previous?: UrbanWaterSystem | null;
   /** Override maintenance after budget settlement (Phase 2). */
@@ -574,6 +589,11 @@ export function computeUrbanWaterSystem(args: {
   lastMaintenanceCoverage?: number;
   lastMaintenanceSpend?: number;
   lastConstructionSpend?: number;
+  connectionPermitCoverage?: number;
+  cleaningTaxRate?: number;
+  dischargeRegulation?: number;
+  lastCleaningTaxRevenue?: number;
+  upstreamPollutionImport?: number;
 }): UrbanWaterSystem {
   const { burg, geography, people, cultureType, previous } = args;
   const hasMarket = (burg.market ?? 0) > 0;
@@ -592,6 +612,10 @@ export function computeUrbanWaterSystem(args: {
     previous?.maintenanceCondition ??
     clamp01(0.72 + tier * 0.06 + geography.slopeAdvantage * 0.08);
   const clogging = args.clogging ?? previous?.clogging ?? 0;
+  const connectionPermitCoverage = args.connectionPermitCoverage ?? previous?.connectionPermitCoverage ?? 0;
+  const cleaningTaxRate = args.cleaningTaxRate ?? previous?.cleaningTaxRate ?? 0;
+  const dischargeRegulation = args.dischargeRegulation ?? previous?.dischargeRegulation ?? 0;
+  const upstreamPollutionImport = args.upstreamPollutionImport ?? previous?.upstreamPollutionImport ?? 0;
 
   const base = tierBaseCapacities(tier);
   const maint = clamp01(maintenanceCondition);
@@ -600,60 +624,90 @@ export function computeUrbanWaterSystem(args: {
   const stormwaterDrainageCapacity = clamp01(
     base.stormwater * maint * clearFactor * (0.75 + geography.slopeAdvantage * 0.4)
   );
-  const wastewaterCapacity = clamp01(base.wastewater * maint * clearFactor);
+  // Connection permits raise effective wastewater handling of an existing network.
+  const permitBoost = 1 + connectionPermitCoverage * 0.12;
+  const wastewaterCapacity = clamp01(base.wastewater * maint * clearFactor * permitBoost);
   const serviceWaterCapacity = clamp01(base.service * maint * (geography.hasRiver || geography.isCoastal ? 1.1 : 0.85));
-  const irrigationCapacity = clamp01(base.irrigation * maint * geography.irrigationPotential * 1.2);
+  let irrigationCapacity = clamp01(base.irrigation * maint * geography.irrigationPotential * 1.2);
   const drinkingBase =
     base.drinking * (geography.hasRiver || geography.isCoastal ? 1.05 : geography.isDry ? 0.75 : 0.95);
 
   const popFactor = clamp01(people / 12000);
   const rainFactor = clamp01(geography.precipitation / 90);
   const workshops = workshopIntensity(burg);
+  // Ports concentrate baths, crews, and craft wastewater.
+  const portLoad = burg.port ? 0.1 : 0;
   const stormwaterDemand = clamp01(0.15 + popFactor * 0.45 + rainFactor * 0.35 + geography.naturalFloodRisk * 0.25);
-  const wastewaterDemand = clamp01(0.12 + popFactor * 0.55 + workshops * 0.3 + (hasMarket ? 0.08 : 0));
+  const wastewaterDemand = clamp01(0.12 + popFactor * 0.55 + workshops * 0.3 + (hasMarket ? 0.08 : 0) + portLoad);
 
   const stormDeficit = Math.max(0, stormwaterDemand - stormwaterDrainageCapacity);
   const wasteDeficit = Math.max(0, wastewaterDemand - wastewaterCapacity);
 
   const profile = culturalHygieneProfile(cultureType);
-  const openDisposal = profile.organicWaste.openDisposal;
-  const waterDischarge = profile.organicWaste.waterDischarge;
-  const animalScavenging = profile.organicWaste.animalScavenging;
-  const composting = profile.organicWaste.managedComposting + profile.organicWaste.nightSoilCollection;
   const pigs = pigScavengingShare(burg);
-  const scavengingRelief = clamp01(animalScavenging * 0.35 + pigs * 0.25);
-  const scavengingRisk = clamp01(animalScavenging * 0.2 + pigs * 0.3);
+  const ambientTemperature =
+    args.ambientTemperature ??
+    (() => {
+      const packCells = getWorldContext().pack?.cells;
+      const gridCell = packCells?.g?.[burg.cell] ?? burg.cell;
+      return getWorldContext().grid?.cells?.temp?.[gridCell] ?? 12;
+    })();
 
-  const sanitationBurden = clamp01(
-    0.2 +
-      wasteDeficit * 0.55 +
-      stormDeficit * 0.2 +
-      openDisposal * 0.25 +
-      workshops * 0.1 +
-      popFactor * 0.15 -
-      composting * 0.12 -
-      scavengingRelief * 0.15 -
-      tier * 0.04 +
-      clogging * 0.12
-  );
+  const organic = resolveOrganicPathways({
+    profile,
+    people,
+    ambientTemperature,
+    tier,
+    isCapital: Boolean(burg.capital),
+    isPort: Boolean(burg.port),
+    pigScavenging: pigs,
+    connectionPermitCoverage,
+    irrigationCapacity
+  });
+
+  // Night-soil / compost return slightly supports near-burg irrigation utility.
+  irrigationCapacity = clamp01(irrigationCapacity * (1 + organic.fertilizerReturn * 0.12));
+  irrigationCapacity = irrigationPollutionPenalty(upstreamPollutionImport, irrigationCapacity);
 
   const hasDownstreamOutfall = geography.hasRiver || geography.isCoastal;
   const hasUpstreamIntake = geography.hasRiver && !geography.isWetland;
   const hasSeparateWastewaterRoute = previous?.hasSeparateWastewaterRoute ?? false;
+  const mixedLocal = localMixedIntakeOutfall({
+    hasRiver: geography.hasRiver,
+    hasSeparateWastewaterRoute,
+    dischargeRegulation
+  });
 
-  const mixedUsePenalty =
-    hasDownstreamOutfall && geography.hasRiver && waterDischarge > 0.15 && !hasSeparateWastewaterRoute
-      ? 0.15 + waterDischarge * 0.25
-      : 0.05;
+  const mixedUsePenalty = mixedLocal
+    ? 0.18 + organic.waterDischargeShare * 0.28 * (1 - dischargeRegulation * 0.7)
+    : organic.waterDischargeShare * 0.05;
+
   const waterContamination = clamp01(
-    wasteDeficit * 0.45 +
-      openDisposal * 0.2 +
+    wasteDeficit * 0.4 +
+      organic.openDisposalShare * 0.18 +
       mixedUsePenalty +
-      scavengingRisk * 0.15 +
-      (geography.isWetland ? 0.12 : 0) +
-      clogging * 0.08 -
-      (hasUpstreamIntake ? 0.12 : 0) -
-      tier * 0.03
+      organic.scavengingRisk * 0.12 +
+      (geography.isWetland ? 0.1 : 0) +
+      clogging * 0.08 +
+      upstreamPollutionImport * 0.35 -
+      (hasUpstreamIntake && !mixedLocal ? 0.14 : hasUpstreamIntake ? 0.05 : 0) -
+      connectionPermitCoverage * 0.06 -
+      dischargeRegulation * 0.08
+  );
+
+  const sanitationBurden = clamp01(
+    0.18 +
+      wasteDeficit * 0.5 +
+      stormDeficit * 0.18 +
+      organic.organicStreetLoad * 0.35 +
+      workshops * 0.08 +
+      popFactor * 0.12 +
+      portLoad * 0.05 -
+      organic.fertilizerReturn * 0.1 -
+      organic.scavengingRelief * 0.12 -
+      connectionPermitCoverage * 0.08 -
+      tier * 0.03 +
+      clogging * 0.1
   );
 
   const floodExposure = clamp01(
@@ -661,12 +715,44 @@ export function computeUrbanWaterSystem(args: {
   );
   const muddiness = clamp01(stormDeficit * 0.55 + rainFactor * 0.25 + (geography.isWetland ? 0.2 : 0) - tier * 0.05);
   const odor = clamp01(
-    sanitationBurden * 0.55 + wasteDeficit * 0.3 + openDisposal * 0.2 + scavengingRisk * 0.1 + clogging * 0.1
+    sanitationBurden * 0.45 +
+      wasteDeficit * 0.25 +
+      organic.organicStreetLoad * 0.25 +
+      organic.scavengingRisk * 0.1 +
+      clogging * 0.1
   );
 
+  const tierDrinkBonus = tierDrinkingHealthBonus({
+    tier,
+    localMixed: mixedLocal,
+    dischargeRegulation,
+    hasUpstreamIntake
+  });
   const drinkingWaterSecurity = clamp01(
-    drinkingBase * maint * (1 - waterContamination * 0.55) * (geography.isDry && !geography.hasRiver ? 0.7 : 1)
+    (drinkingBase + tierDrinkBonus) *
+      maint *
+      (1 - waterContamination * 0.55) *
+      (geography.isDry && !geography.hasRiver ? 0.7 : 1) *
+      (1 - upstreamPollutionImport * 0.25)
   );
+
+  const exportLoad = pollutionExport({
+    wasteDeficit,
+    waterDischargeShare: organic.waterDischargeShare,
+    openDisposalShare: organic.openDisposalShare,
+    dischargeRegulation,
+    hasDownstreamOutfall,
+    people
+  });
+
+  const healthPressure = healthPressureFromSanitation({
+    waterContamination,
+    sanitationBurden,
+    organicStreetLoad: organic.organicStreetLoad,
+    scavengingRisk: organic.scavengingRisk,
+    upstreamPollutionImport,
+    drinkingWaterSecurity
+  });
 
   const signals = evaluateWaterDemandSignals({
     geography,
@@ -711,18 +797,30 @@ export function computeUrbanWaterSystem(args: {
     demandUrgency: rn(args.demandUrgency ?? primary?.strength ?? 0, 4),
     lastMaintenanceCoverage: rn(args.lastMaintenanceCoverage ?? previous?.lastMaintenanceCoverage ?? 1, 4),
     lastMaintenanceSpend: rn(args.lastMaintenanceSpend ?? previous?.lastMaintenanceSpend ?? 0, 2),
-    lastConstructionSpend: rn(args.lastConstructionSpend ?? previous?.lastConstructionSpend ?? 0, 2)
+    lastConstructionSpend: rn(args.lastConstructionSpend ?? previous?.lastConstructionSpend ?? 0, 2),
+    connectionPermitCoverage: rn(connectionPermitCoverage, 4),
+    cleaningTaxRate: rn(cleaningTaxRate, 4),
+    dischargeRegulation: rn(dischargeRegulation, 4),
+    lastCleaningTaxRevenue: rn(args.lastCleaningTaxRevenue ?? previous?.lastCleaningTaxRevenue ?? 0, 2),
+    organicStreetLoad: organic.organicStreetLoad,
+    compostingEfficiency: organic.compostingEfficiency,
+    pigToiletPractice: organic.pigToiletPractice,
+    upstreamPollutionImport: rn(upstreamPollutionImport, 4),
+    downstreamPollutionExport: rn(exportLoad, 4),
+    healthPressure: rn(healthPressure, 4),
+    localMixedIntakeOutfall: mixedLocal
   };
 }
 
 /** Map UrbanWaterSystem metrics to the host 0–100 civic sanitation score. */
 export function sanitationScoreFromSystem(system: UrbanWaterSystem): number {
   const score =
-    system.drinkingWaterSecurity * 38 +
-    (1 - system.sanitationBurden) * 28 +
-    (1 - system.waterContamination) * 20 +
-    (1 - system.floodExposure) * 8 +
-    (1 - system.odor) * 6;
+    system.drinkingWaterSecurity * 34 +
+    (1 - system.sanitationBurden) * 24 +
+    (1 - system.waterContamination) * 18 +
+    (1 - system.floodExposure) * 7 +
+    (1 - system.odor) * 5 +
+    (1 - system.healthPressure) * 12;
   return Math.max(0, Math.min(100, rn(score, 1)));
 }
 
@@ -736,7 +834,12 @@ export function formatUrbanWaterSummary(system: UrbanWaterSystem): string {
     system.activeProject && system.upgradeProgress > 0
       ? ` · building ${WATER_WORKS_PROJECT_LABELS[system.activeProject]} ${rn(system.upgradeProgress * 100, 0)}%`
       : "";
-  return `${tierLabel} · sanitation burden ${rn(system.sanitationBurden * 100, 0)}% · flood ${rn(system.floodExposure * 100, 0)}% · odor ${rn(system.odor * 100, 0)}%${project}`;
+  const health = system.healthPressure >= 0.45 ? ` · health risk ${rn(system.healthPressure * 100, 0)}%` : "";
+  const upstream =
+    system.upstreamPollutionImport >= 0.15
+      ? ` · upstream pollution ${rn(system.upstreamPollutionImport * 100, 0)}%`
+      : "";
+  return `${tierLabel} · sanitation burden ${rn(system.sanitationBurden * 100, 0)}% · flood ${rn(system.floodExposure * 100, 0)}% · odor ${rn(system.odor * 100, 0)}%${project}${health}${upstream}`;
 }
 
 function cultureTypeForBurg(burg: Burg): CultureType | string | undefined {
@@ -746,7 +849,7 @@ function cultureTypeForBurg(burg: Burg): CultureType | string | undefined {
   return culture?.type;
 }
 
-function phase2Defaults(
+function systemDefaults(
   partial: Partial<UrbanWaterSystem> & Pick<UrbanWaterSystem, "burgId" | "tier">
 ): UrbanWaterSystem {
   return {
@@ -774,6 +877,17 @@ function phase2Defaults(
     lastMaintenanceCoverage: 1,
     lastMaintenanceSpend: 0,
     lastConstructionSpend: 0,
+    connectionPermitCoverage: 0,
+    cleaningTaxRate: 0,
+    dischargeRegulation: 0,
+    lastCleaningTaxRevenue: 0,
+    organicStreetLoad: 0.3,
+    compostingEfficiency: 0,
+    pigToiletPractice: 0,
+    upstreamPollutionImport: 0,
+    downstreamPollutionExport: 0,
+    healthPressure: 0.3,
+    localMixedIntakeOutfall: false,
     ...partial
   };
 }
@@ -822,7 +936,7 @@ function purchaseProjectMaterials(
 }
 
 /**
- * One burg's Phase 2 annual investment: maintenance first, then construction progress.
+ * One burg's annual investment: institutions + cleaning tax, then maintenance, then construction.
  * Mutates `burg.treasury`. Returns intermediate state for final metric recompute.
  */
 export function settleBurgWaterInvestment(args: {
@@ -841,6 +955,10 @@ export function settleBurgWaterInvestment(args: {
   lastMaintenanceCoverage: number;
   lastMaintenanceSpend: number;
   lastConstructionSpend: number;
+  connectionPermitCoverage: number;
+  cleaningTaxRate: number;
+  dischargeRegulation: number;
+  lastCleaningTaxRevenue: number;
 } {
   const { burg, system, geography, people } = args;
   const workshops = workshopIntensity(burg);
@@ -865,7 +983,26 @@ export function settleBurgWaterInvestment(args: {
   const primary = primaryDemandSignal(signals);
   const demandUrgency = primary?.strength ?? 0;
 
-  // ── Maintenance (separate budget from construction) ──────────────────────
+  // ── Phase 3 institutions ─────────────────────────────────────────────────
+  const capitalId = burg.state ? (getWorldContext().pack.states[burg.state]?.capital ?? burg.i!) : burg.i!;
+  const administrationBonus = getAcademyBonus(capitalId, "administration");
+  const institutions = evolveInstitutions({
+    previous: system,
+    tier: system.tier,
+    contamination: system.waterContamination,
+    sanitationBurden: system.sanitationBurden,
+    demandUrgency,
+    administrationBonus
+  });
+
+  const taxRevenue = cleaningTaxRevenue({
+    cleaningTaxRate: institutions.cleaningTaxRate,
+    people,
+    product: burg.product ?? 0
+  });
+  if (taxRevenue > 0) burg.treasury = rn((burg.treasury ?? 0) + taxRevenue, 2);
+
+  // ── Maintenance (separate budget from construction; can use cleaning tax) ─
   const needed = annualMaintenanceNeed({
     tier: system.tier,
     people,
@@ -875,7 +1012,7 @@ export function settleBurgWaterInvestment(args: {
   const liquid = Math.max(0, burg.treasury ?? 0);
   // Keep a small operating cushion so maintenance does not zero the burg.
   const cushion = getComfortableTreasuryLevel(burg) * 0.15;
-  const maintBudget = Math.max(0, Math.min(liquid - cushion, liquid * WATER_MAINTENANCE_BUDGET_SHARE));
+  const maintBudget = Math.max(0, Math.min(liquid - cushion, liquid * WATER_MAINTENANCE_BUDGET_SHARE + taxRevenue));
   const maintSpend = rn(Math.min(maintBudget, needed), 2);
   if (maintSpend > 0) burg.treasury = rn((burg.treasury ?? 0) - maintSpend, 2);
   const coverage = needed > 0 ? clamp01(maintSpend / needed) : 1;
@@ -906,7 +1043,6 @@ export function settleBurgWaterInvestment(args: {
       upgradeProgress = 0;
     } else if (demandUrgency < WATER_PROJECT_URGENCY_THRESHOLD * 0.5) {
       // Demand collapsed — freeze progress but keep partial work (no refund).
-      // Project remains so it can resume when urgency returns.
     }
   } else if (suggested && demandUrgency >= WATER_PROJECT_URGENCY_THRESHOLD) {
     if (
@@ -930,7 +1066,6 @@ export function settleBurgWaterInvestment(args: {
       Math.min(liquidAfterMaint - cushion * 0.5, liquidAfterMaint * WATER_CONSTRUCTION_BUDGET_SHARE)
     );
 
-    // Split construction budget: cash toward project + materials from market.
     const cashShare = 0.55;
     const cashBudget = constructBudget * cashShare;
     const materialBudget = constructBudget * (1 - cashShare);
@@ -945,10 +1080,8 @@ export function settleBurgWaterInvestment(args: {
       materialBudget
     );
 
-    // Labor/admin progress even without a full market when ditches are cheap.
     const laborFallback = activeProject === "openDitches" && !marketId ? 0.35 : 0.1;
     const yearProgress = Math.max(cashProgress, laborFallback) * 0.55 + materialProgress * 0.45;
-    // Urgency accelerates funded years slightly.
     const urgencyBoost = 0.85 + demandUrgency * 0.3;
     upgradeProgress = clamp01(upgradeProgress + yearProgress * urgencyBoost);
 
@@ -960,11 +1093,9 @@ export function settleBurgWaterInvestment(args: {
       tier = asTier(Math.max(tier, target));
       upgradeProgress = 0;
       activeProject = null;
-      // Fresh works start in good condition with cleared channels.
     }
   }
 
-  // Completing a project this year resets clogging somewhat and lifts condition.
   const completedUpgrade = tier > system.tier;
   const nextCondition = completedUpgrade ? clamp01(Math.max(maintenanceCondition, 0.82)) : maintenanceCondition;
   const nextClogging = completedUpgrade ? clamp01(clogging * 0.35) : clogging;
@@ -979,8 +1110,91 @@ export function settleBurgWaterInvestment(args: {
     demandUrgency: rn(demandUrgency, 4),
     lastMaintenanceCoverage: rn(coverage, 4),
     lastMaintenanceSpend: maintSpend,
-    lastConstructionSpend: constructionSpend
+    lastConstructionSpend: constructionSpend,
+    connectionPermitCoverage: institutions.connectionPermitCoverage,
+    cleaningTaxRate: institutions.cleaningTaxRate,
+    dischargeRegulation: institutions.dischargeRegulation,
+    lastCleaningTaxRevenue: taxRevenue
   };
+}
+
+function ambientTemperatureForBurg(burg: Burg): number {
+  const world = getWorldContext();
+  const gridCell = world.pack?.cells?.g?.[burg.cell] ?? burg.cell;
+  return world.grid?.cells?.temp?.[gridCell] ?? 12;
+}
+
+/** Apply upstream river pollution imports and recompute contamination-sensitive fields. */
+function applyRiverPollutionExternalities(systems: UrbanWaterSystem[]): UrbanWaterSystem[] {
+  const world = getWorldContext();
+  const cells = world.pack.cells;
+  const burgs = world.pack.burgs;
+  const nodes = [];
+
+  for (const system of systems) {
+    const burg = burgs[system.burgId];
+    if (!burg?.i || !system.hasDownstreamOutfall) continue;
+    const riverId = cells.r?.[burg.cell] ?? 0;
+    if (!riverId) continue;
+    const height = cells.h?.[burg.cell] ?? 50;
+    // Prefer order along the river polyline when available (source → mouth).
+    const river = world.pack.rivers?.find(r => r.i === riverId);
+    let upstreamRank = height;
+    if (river?.cells?.length) {
+      const idx = river.cells.indexOf(burg.cell);
+      if (idx >= 0) upstreamRank = river.cells.length - idx;
+    }
+    nodes.push({
+      burgId: system.burgId,
+      riverId,
+      upstreamRank,
+      exportLoad: system.downstreamPollutionExport
+    });
+  }
+
+  const pollution = propagateRiverPollution(nodes);
+  if (!pollution.size) return systems;
+
+  return systems.map(system => {
+    const transfer = pollution.get(system.burgId);
+    if (!transfer) return system;
+    const burg = burgs[system.burgId];
+    if (!burg?.i) return { ...system, ...transfer };
+
+    // Recompute with imported pollution so drinking/irrigation/health feel the plume.
+    const geography = readBurgWaterGeography({
+      cellId: burg.cell,
+      isPort: Boolean(burg.port),
+      cells,
+      biomesTags: world.biomesData?.tags,
+      gridTemp: world.grid?.cells?.temp,
+      gridPrec: world.grid?.cells?.prec
+    });
+    const people = actualUrbanPeople(burg, world.populationRate, world.urbanization);
+    return computeUrbanWaterSystem({
+      burg,
+      geography,
+      people,
+      cultureType: cultureTypeForBurg(burg),
+      ambientTemperature: ambientTemperatureForBurg(burg),
+      previous: system,
+      tier: system.tier,
+      maintenanceCondition: system.maintenanceCondition,
+      clogging: system.clogging,
+      upgradeProgress: system.upgradeProgress,
+      activeProject: system.activeProject,
+      primaryDemandSignal: system.primaryDemandSignal,
+      demandUrgency: system.demandUrgency,
+      lastMaintenanceCoverage: system.lastMaintenanceCoverage,
+      lastMaintenanceSpend: system.lastMaintenanceSpend,
+      lastConstructionSpend: system.lastConstructionSpend,
+      connectionPermitCoverage: system.connectionPermitCoverage,
+      cleaningTaxRate: system.cleaningTaxRate,
+      dischargeRegulation: system.dischargeRegulation,
+      lastCleaningTaxRevenue: system.lastCleaningTaxRevenue,
+      upstreamPollutionImport: transfer.upstreamPollutionImport
+    });
+  });
 }
 
 function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
@@ -991,7 +1205,7 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
     for (const system of getUrbanWaterSystems()) previousByBurg.set(system.burgId, system);
   }
 
-  const systems: UrbanWaterSystem[] = [];
+  let systems: UrbanWaterSystem[] = [];
   for (const burg of world.pack.burgs) {
     if (!burg?.i || burg.removed) continue;
     if (burg.group === "fort") continue;
@@ -1006,6 +1220,7 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
     });
     const people = actualUrbanPeople(burg, world.populationRate, world.urbanization);
     const previous = mode === "annual" ? (previousByBurg.get(burg.i) ?? null) : null;
+    const ambientTemperature = ambientTemperatureForBurg(burg);
 
     // First pass metrics (for demand / investment decisions).
     let draft = computeUrbanWaterSystem({
@@ -1013,6 +1228,7 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
       geography,
       people,
       cultureType: cultureTypeForBurg(burg),
+      ambientTemperature,
       previous
     });
 
@@ -1028,7 +1244,8 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
         geography,
         people,
         cultureType: cultureTypeForBurg(burg),
-        previous: phase2Defaults({
+        ambientTemperature,
+        previous: systemDefaults({
           burgId: burg.i,
           tier: investment.tier,
           maintenanceCondition: investment.maintenanceCondition,
@@ -1039,7 +1256,11 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
           demandUrgency: investment.demandUrgency,
           lastMaintenanceCoverage: investment.lastMaintenanceCoverage,
           lastMaintenanceSpend: investment.lastMaintenanceSpend,
-          lastConstructionSpend: investment.lastConstructionSpend
+          lastConstructionSpend: investment.lastConstructionSpend,
+          connectionPermitCoverage: investment.connectionPermitCoverage,
+          cleaningTaxRate: investment.cleaningTaxRate,
+          dischargeRegulation: investment.dischargeRegulation,
+          lastCleaningTaxRevenue: investment.lastCleaningTaxRevenue
         }),
         tier: investment.tier,
         maintenanceCondition: investment.maintenanceCondition,
@@ -1050,12 +1271,23 @@ function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
         demandUrgency: investment.demandUrgency,
         lastMaintenanceCoverage: investment.lastMaintenanceCoverage,
         lastMaintenanceSpend: investment.lastMaintenanceSpend,
-        lastConstructionSpend: investment.lastConstructionSpend
+        lastConstructionSpend: investment.lastConstructionSpend,
+        connectionPermitCoverage: investment.connectionPermitCoverage,
+        cleaningTaxRate: investment.cleaningTaxRate,
+        dischargeRegulation: investment.dischargeRegulation,
+        lastCleaningTaxRevenue: investment.lastCleaningTaxRevenue
       });
     }
 
     systems.push(draft);
-    burg.sanitation = sanitationScoreFromSystem(draft);
+  }
+
+  // Second pass: upstream outfalls pollute downstream intakes.
+  systems = applyRiverPollutionExternalities(systems);
+
+  for (const system of systems) {
+    const burg = world.pack.burgs[system.burgId];
+    if (burg?.i) burg.sanitation = sanitationScoreFromSystem(system);
   }
   return systems;
 }

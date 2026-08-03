@@ -90,6 +90,17 @@ function baseSystem(overrides: Partial<UrbanWaterSystem> = {}): UrbanWaterSystem
     lastMaintenanceCoverage: 1,
     lastMaintenanceSpend: 0,
     lastConstructionSpend: 0,
+    connectionPermitCoverage: 0,
+    cleaningTaxRate: 0,
+    dischargeRegulation: 0,
+    lastCleaningTaxRevenue: 0,
+    organicStreetLoad: 0.4,
+    compostingEfficiency: 0.1,
+    pigToiletPractice: 0,
+    upstreamPollutionImport: 0,
+    downstreamPollutionExport: 0.2,
+    healthPressure: 0.35,
+    localMixedIntakeOutfall: true,
     ...overrides
   };
 }
@@ -314,7 +325,8 @@ describe("computeUrbanWaterSystem", () => {
       burg: burg({ population: 5, market: 1, capital: 1 }),
       geography: baseGeography({ hasRiver: true, naturalFloodRisk: 0.4 }),
       people: 5000,
-      cultureType: "River"
+      cultureType: "River",
+      ambientTemperature: 12
     });
     expect(system.tier).toBeGreaterThanOrEqual(0);
     expect(system.tier).toBeLessThanOrEqual(2);
@@ -328,13 +340,64 @@ describe("computeUrbanWaterSystem", () => {
       "muddiness",
       "odor",
       "maintenanceCondition",
-      "clogging"
+      "clogging",
+      "healthPressure",
+      "organicStreetLoad"
     ] as const) {
       expect(system[key]).toBeGreaterThanOrEqual(0);
       expect(system[key]).toBeLessThanOrEqual(1);
     }
     expect(system.hasDownstreamOutfall).toBe(true);
     expect(system.hasSeparateWastewaterRoute).toBe(false);
+    expect(system.pigToiletPractice).toBe(0);
+  });
+
+  it("does not grant drinking security from tier alone when intake mixes with outfall", () => {
+    const mixed = computeUrbanWaterSystem({
+      burg: burg({ population: 8 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 8000,
+      cultureType: "River",
+      ambientTemperature: 12,
+      tier: 3,
+      maintenanceCondition: 0.9,
+      clogging: 0,
+      dischargeRegulation: 0.1
+    });
+    const regulated = computeUrbanWaterSystem({
+      burg: burg({ population: 8 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 8000,
+      cultureType: "River",
+      ambientTemperature: 12,
+      tier: 3,
+      maintenanceCondition: 0.9,
+      clogging: 0,
+      dischargeRegulation: 0.7
+    });
+    expect(mixed.localMixedIntakeOutfall).toBe(true);
+    expect(regulated.drinkingWaterSecurity).toBeGreaterThan(mixed.drinkingWaterSecurity);
+  });
+
+  it("worsens contamination when upstream pollution is imported", () => {
+    const clean = computeUrbanWaterSystem({
+      burg: burg({ population: 5 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "Generic",
+      ambientTemperature: 12,
+      upstreamPollutionImport: 0
+    });
+    const polluted = computeUrbanWaterSystem({
+      burg: burg({ population: 5 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "Generic",
+      ambientTemperature: 12,
+      upstreamPollutionImport: 0.6
+    });
+    expect(polluted.waterContamination).toBeGreaterThan(clean.waterContamination);
+    expect(polluted.irrigationCapacity).toBeLessThanOrEqual(clean.irrigationCapacity);
   });
 
   it("raises flood exposure when stormwater demand exceeds capacity", () => {
@@ -342,7 +405,8 @@ describe("computeUrbanWaterSystem", () => {
       burg: burg({ population: 0.2 }),
       geography: baseGeography({ precipitation: 10, naturalFloodRisk: 0.05 }),
       people: 200,
-      cultureType: "Generic"
+      cultureType: "Generic",
+      ambientTemperature: 12
     });
     const soaked = computeUrbanWaterSystem({
       burg: burg({ population: 20, market: 1 }),
@@ -354,6 +418,7 @@ describe("computeUrbanWaterSystem", () => {
       }),
       people: 20000,
       cultureType: "Generic",
+      ambientTemperature: 12,
       previous: { ...dry, tier: 0, maintenanceCondition: 0.5 }
     });
     expect(soaked.floodExposure).toBeGreaterThan(dry.floodExposure);
@@ -366,6 +431,7 @@ describe("computeUrbanWaterSystem", () => {
       geography: baseGeography({ hasRiver: true }),
       people: 5000,
       cultureType: "Generic",
+      ambientTemperature: 12,
       tier: 2,
       maintenanceCondition: 0.9,
       clogging: 0
@@ -375,6 +441,7 @@ describe("computeUrbanWaterSystem", () => {
       geography: baseGeography({ hasRiver: true }),
       people: 5000,
       cultureType: "Generic",
+      ambientTemperature: 12,
       tier: 2,
       maintenanceCondition: 0.9,
       clogging: 0.8
@@ -388,7 +455,8 @@ describe("computeUrbanWaterSystem", () => {
       burg: burg({ population: 3 }),
       geography: baseGeography({ hasRiver: true }),
       people: 3000,
-      cultureType: "Generic"
+      cultureType: "Generic",
+      ambientTemperature: 12
     });
     const score = sanitationScoreFromSystem(system);
     expect(score).toBeGreaterThanOrEqual(0);
@@ -400,13 +468,15 @@ describe("computeUrbanWaterSystem", () => {
       burg: burg({ population: 10, capital: 1, market: 1 }),
       geography: baseGeography({ hasRiver: true }),
       people: 12000,
-      cultureType: "River"
+      cultureType: "River",
+      ambientTemperature: 12
     });
     const second = computeUrbanWaterSystem({
       burg: burg({ population: 1 }),
       geography: baseGeography(),
       people: 500,
       cultureType: "Generic",
+      ambientTemperature: 12,
       previous: first
     });
     expect(second.tier).toBe(first.tier);
@@ -462,6 +532,29 @@ describe("settleBurgWaterInvestment", () => {
     expect(result.lastMaintenanceSpend).toBeGreaterThan(0);
     expect(settlement.treasury!).toBeLessThan(before);
     expect(result.lastMaintenanceCoverage).toBeGreaterThan(0);
+  });
+
+  it("collects cleaning tax into burg treasury before maintenance at organised tiers", () => {
+    const settlement = burg({ treasury: 10, product: 200, market: 1, population: 10 });
+    const result = settleBurgWaterInvestment({
+      burg: settlement,
+      system: baseSystem({
+        tier: 2,
+        waterContamination: 0.7,
+        sanitationBurden: 0.6,
+        floodExposure: 0.5,
+        muddiness: 0.4,
+        stormwaterDemand: 0.5,
+        stormwaterDrainageCapacity: 0.35,
+        wastewaterDemand: 0.45,
+        wastewaterCapacity: 0.3,
+        cleaningTaxRate: 0.02
+      }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 10000
+    });
+    expect(result.cleaningTaxRate).toBeGreaterThan(0);
+    expect(result.lastCleaningTaxRevenue).toBeGreaterThan(0);
   });
 
   it("starts open ditches under flood demand and advances progress", () => {

@@ -40,7 +40,7 @@ function pct(value: number): string {
 
 /**
  * Read-only water / sanitation ledger for the open burg.
- * Phase 1 metrics + Phase 2 public works, maintenance, and demand signals.
+ * Phases 1–3: metrics, public works, institutions, organic routes, river externalities.
  */
 export const BurgEditorWaterTab: FC = () => {
   const burgId = useBurgEditorState(state => state.burgData?.id);
@@ -72,7 +72,7 @@ export const BurgEditorWaterTab: FC = () => {
 
   return (
     <div id="burgWaterTab">
-      <p data-tip="Drainage tier is local practice; Phase 2 invests up to covered culverts without a tech-tree unlock.">
+      <p data-tip="Drainage tier is local practice; institutions and organic-waste pathways shape health beyond tier alone.">
         {formatUrbanWaterSummary(system)}
       </p>
       <p data-tip="Host civic score written to burg.sanitation (0 worst – 100 best).">
@@ -107,6 +107,26 @@ export const BurgEditorWaterTab: FC = () => {
                 {system.activeProject ? ` · ${pct(system.upgradeProgress)} complete` : ""}
               </td>
             </tr>
+            <tr data-tip="Cleaning tax is a burg levy for street/drain cleaning, separate from state poll tax.">
+              <th scope="row">Cleaning tax</th>
+              <td>
+                rate {pct(system.cleaningTaxRate)} · revenue {rn(system.lastCleaningTaxRevenue, 1)}
+              </td>
+            </tr>
+            <tr data-tip="Share of connections under permit. Reduces illegal dumping when high (grows from tier 3).">
+              <th scope="row">Connection permits</th>
+              <td>{pct(system.connectionPermitCoverage)}</td>
+            </tr>
+            <tr data-tip="Outfall and discharge controls. Protects local drinking water when high.">
+              <th scope="row">Discharge regulation</th>
+              <td>{pct(system.dischargeRegulation)}</td>
+            </tr>
+            <tr data-tip="True when the burg's drinking intake shares the same watercourse as its outfall without adequate regulation.">
+              <th scope="row">Mixed intake/outfall</th>
+              <td>
+                {system.localMixedIntakeOutfall ? "Yes — tier alone does not secure drinking water" : "No / protected"}
+              </td>
+            </tr>
             <tr data-tip="Share of needed annual maintenance paid from burg treasury (separate from construction).">
               <th scope="row">Maintenance coverage</th>
               <td>
@@ -120,6 +140,30 @@ export const BurgEditorWaterTab: FC = () => {
             <tr data-tip="Silt, debris, and illegal dumping that cut capacity even when the structure is intact.">
               <th scope="row">Clogging</th>
               <td>{pct(system.clogging)}</td>
+            </tr>
+            <tr data-tip="Residual street organic load after cesspits, night soil, composting, and scavenging.">
+              <th scope="row">Organic street load</th>
+              <td>{pct(system.organicStreetLoad)}</td>
+            </tr>
+            <tr data-tip="Managed composting success after climate, pile mass, and cover. Cold slows but does not forbid composting.">
+              <th scope="row">Composting efficiency</th>
+              <td>{pct(system.compostingEfficiency)}</td>
+            </tr>
+            <tr data-tip="Facility pig-toilets are not free-range market pigs. European-style free-range scavenging leaves this near zero.">
+              <th scope="row">Pig-toilet practice</th>
+              <td>{pct(system.pigToiletPractice)}</td>
+            </tr>
+            <tr data-tip="Pollution imported from upstream river burgs' outfalls.">
+              <th scope="row">Upstream pollution</th>
+              <td>{pct(system.upstreamPollutionImport)}</td>
+            </tr>
+            <tr data-tip="Pollution this burg exports downstream.">
+              <th scope="row">Downstream export</th>
+              <td>{pct(system.downstreamPollutionExport)}</td>
+            </tr>
+            <tr data-tip="Disease pressure from contamination, organic load, and scavenging risk. Reserved for a future epidemic system.">
+              <th scope="row">Health pressure</th>
+              <td>{pct(system.healthPressure)}</td>
             </tr>
             <tr data-tip="Effective capacity after maintenance and local slope.">
               <th scope="row">Stormwater capacity</th>
@@ -186,7 +230,7 @@ export const BurgEditorWaterTab: FC = () => {
         Cleansing customs:{" "}
         {topCleansing.map(entry => `${CLEANSING_LABELS[entry.key]} ${pct(entry.weight)}`).join(" · ")}
       </p>
-      <p data-tip="Organic-waste pathways. Market pigs contribute to animal scavenging relief and risk.">
+      <p data-tip="Organic-waste pathway weights. Market pigs contribute scavenging relief and risk, not pig-toilet practice.">
         Organic waste routes: {topWaste.map(entry => `${WASTE_LABELS[entry.key]} ${pct(entry.weight)}`).join(" · ")}
       </p>
     </div>

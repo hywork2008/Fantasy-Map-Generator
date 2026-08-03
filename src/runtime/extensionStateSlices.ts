@@ -192,11 +192,25 @@ function validateUrbanWaterSystems(value: unknown, world: WorldContext): void {
     ]) {
       assertUnitInterval(system[field], `${entryName}.${field}`);
     }
-    // Phase 2 fields — optional on older archives; when present they must be valid.
-    for (const field of ["clogging", "upgradeProgress", "demandUrgency", "lastMaintenanceCoverage"]) {
+    // Phase 2–3 fields — optional on older archives; when present they must be valid.
+    for (const field of [
+      "clogging",
+      "upgradeProgress",
+      "demandUrgency",
+      "lastMaintenanceCoverage",
+      "connectionPermitCoverage",
+      "cleaningTaxRate",
+      "dischargeRegulation",
+      "organicStreetLoad",
+      "compostingEfficiency",
+      "pigToiletPractice",
+      "upstreamPollutionImport",
+      "downstreamPollutionExport",
+      "healthPressure"
+    ]) {
       if (system[field] !== undefined) assertUnitInterval(system[field], `${entryName}.${field}`);
     }
-    for (const field of ["lastMaintenanceSpend", "lastConstructionSpend"]) {
+    for (const field of ["lastMaintenanceSpend", "lastConstructionSpend", "lastCleaningTaxRevenue"]) {
       if (system[field] === undefined) continue;
       if (
         typeof system[field] !== "number" ||
@@ -223,6 +237,9 @@ function validateUrbanWaterSystems(value: unknown, world: WorldContext): void {
       if (typeof system[field] !== "boolean") {
         throw new Error(`${entryName}.${field} must be a boolean`);
       }
+    }
+    if (system.localMixedIntakeOutfall !== undefined && typeof system.localMixedIntakeOutfall !== "boolean") {
+      throw new Error(`${entryName}.localMixedIntakeOutfall must be a boolean`);
     }
   }
 }
