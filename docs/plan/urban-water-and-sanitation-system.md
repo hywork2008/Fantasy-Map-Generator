@@ -2,13 +2,14 @@
 
 ## 状態
 
-**Phase 1–3 実装済み**（2026-08-03）
+**Phase 1–4 実装済み**（2026-08-03）
 
 - Phase 1: Burg 状態、地理初期化、年次需要・洪水・悪臭、`burg.sanitation` 更新、Burg Editor Water タブ。
-- Phase 2: 需要シグナル駆動の公共事業（側溝→石張り→被覆暗渠、tier 0–3）、建設と維持の別予算、維持不足による劣化・詰まり、市場 Stone/Tools/Brick 消費。
-- Phase 3: 清掃税・接続許可・放流規制、有機廃棄物経路（便槽・汲み取り・堆肥・豚あさり）、寒冷地堆肥補正、取水/放流混在、河川上下流汚染の外部性、`healthPressure`（疫病システムへの接続点）。
+- Phase 2: 需要シグナル駆動の公共事業、建設と維持の別予算、維持不足による劣化・詰まり。
+- Phase 3: 清掃税・接続許可・放流規制、有機廃棄物経路、寒冷地堆肥、取水/放流混在、河川汚染、`healthPressure`。
+- Phase 4: `waterLifting` / `municipalSanitation` / `sanitaryEngineering` の局所採用ストック（歴史時代の天井付き）、tier 4–5 事業、上下水分離、州間汚染補償と `state.alert` への外交圧。
 
-Phase 4（上水揚水・衛生工学・外交補償）は未実装。
+フル技術グラフ（locked/known/demonstrated…）は [technology-development-roadmap.md](./technology-development-roadmap.md) 側の後続実装。Phase 4 のストックはその接続点。
 
 本書は、中世ヨーロッパ風世界における都市の上水、灌漑、雨水排水、汚水、廃棄物を、相互に接続した公共インフラとして設計する。
 

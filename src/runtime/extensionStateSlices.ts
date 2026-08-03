@@ -206,11 +206,21 @@ function validateUrbanWaterSystems(value: unknown, world: WorldContext): void {
       "pigToiletPractice",
       "upstreamPollutionImport",
       "downstreamPollutionExport",
-      "healthPressure"
+      "healthPressure",
+      "waterLifting",
+      "municipalSanitation",
+      "sanitaryEngineering",
+      "pollutionDiplomaticStrain"
     ]) {
       if (system[field] !== undefined) assertUnitInterval(system[field], `${entryName}.${field}`);
     }
-    for (const field of ["lastMaintenanceSpend", "lastConstructionSpend", "lastCleaningTaxRevenue"]) {
+    for (const field of [
+      "lastMaintenanceSpend",
+      "lastConstructionSpend",
+      "lastCleaningTaxRevenue",
+      "lastPollutionCompensationPaid",
+      "lastPollutionCompensationReceived"
+    ]) {
       if (system[field] === undefined) continue;
       if (
         typeof system[field] !== "number" ||
@@ -223,7 +233,14 @@ function validateUrbanWaterSystems(value: unknown, world: WorldContext): void {
     if (system.activeProject !== undefined && system.activeProject !== null) {
       if (
         typeof system.activeProject !== "string" ||
-        !["openDitches", "stoneDrains", "coveredCulverts"].includes(system.activeProject)
+        ![
+          "openDitches",
+          "stoneDrains",
+          "coveredCulverts",
+          "managedSewers",
+          "sanitarySeparation",
+          "waterLiftingWorks"
+        ].includes(system.activeProject)
       ) {
         throw new Error(`${entryName}.activeProject is invalid`);
       }

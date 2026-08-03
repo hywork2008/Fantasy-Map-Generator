@@ -165,6 +165,32 @@ export const BurgEditorWaterTab: FC = () => {
               <th scope="row">Health pressure</th>
               <td>{pct(system.healthPressure)}</td>
             </tr>
+            <tr data-tip="Local water-lifting adoption (wheels, cisterns, pumps). Raises service and drinking supply; capped by historical period.">
+              <th scope="row">Water lifting</th>
+              <td>{pct(system.waterLifting)}</td>
+            </tr>
+            <tr data-tip="Municipal sanitation doctrine (permits, cleaning, workshop rules) as a tech stock alongside institution fields.">
+              <th scope="row">Municipal sanitation tech</th>
+              <td>{pct(system.municipalSanitation)}</td>
+            </tr>
+            <tr data-tip="Sanitary engineering stock. Required for tier 5 and separate foul-water routes. Nearly unavailable before late medieval pressure.">
+              <th scope="row">Sanitary engineering</th>
+              <td>
+                {pct(system.sanitaryEngineering)}
+                {system.hasSeparateWastewaterRoute ? " · separate wastewater route" : ""}
+              </td>
+            </tr>
+            <tr data-tip="Interstate pollution indemnity paid from the polluter's state treasury to the victim's.">
+              <th scope="row">Pollution compensation</th>
+              <td>
+                paid {rn(system.lastPollutionCompensationPaid, 1)} · received{" "}
+                {rn(system.lastPollutionCompensationReceived, 1)}
+              </td>
+            </tr>
+            <tr data-tip="Unresolved cross-border pollution grievance. High unpaid strain can raise state alert.">
+              <th scope="row">Diplomatic strain</th>
+              <td>{pct(system.pollutionDiplomaticStrain)}</td>
+            </tr>
             <tr data-tip="Effective capacity after maintenance and local slope.">
               <th scope="row">Stormwater capacity</th>
               <td>

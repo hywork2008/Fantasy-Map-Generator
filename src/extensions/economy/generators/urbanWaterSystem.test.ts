@@ -101,6 +101,12 @@ function baseSystem(overrides: Partial<UrbanWaterSystem> = {}): UrbanWaterSystem
     downstreamPollutionExport: 0.2,
     healthPressure: 0.35,
     localMixedIntakeOutfall: true,
+    waterLifting: 0,
+    municipalSanitation: 0,
+    sanitaryEngineering: 0,
+    lastPollutionCompensationPaid: 0,
+    lastPollutionCompensationReceived: 0,
+    pollutionDiplomaticStrain: 0,
     ...overrides
   };
 }
@@ -200,11 +206,13 @@ describe("initialTier", () => {
 });
 
 describe("Phase 2 demand signals and projects", () => {
-  it("maps upgrade projects tier 0→1→2→3 and stops after max investable", () => {
+  it("maps upgrade projects tier 0→1→2→3 and stops at default max without late tech", () => {
     expect(projectForUpgrade(0)).toBe("openDitches");
     expect(projectForUpgrade(1)).toBe("stoneDrains");
     expect(projectForUpgrade(2)).toBe("coveredCulverts");
     expect(projectForUpgrade(3)).toBe(null);
+    expect(projectForUpgrade(3, 4)).toBe("managedSewers");
+    expect(projectForUpgrade(4, 5)).toBe("sanitarySeparation");
   });
 
   it("allows open ditches without masonry or special tech", () => {
