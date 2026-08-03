@@ -2,11 +2,16 @@ import { describe, expect, it } from "vitest";
 import type { State } from "../../hostTypes";
 import { BASELINE_ALLOCATION_BY_FORM } from "./treasuryAllocation";
 import {
+  applyWarFootingPoliticalCost,
   applyWarFootingToBaseline,
   MOBILIZATION_BOOST_CAP,
   setWarFooting,
+  setWarFootingByPlayer,
+  syncWarFootingFromDiplomacy,
   updateMilitaryMobilizationBoost,
-  WAR_FOOTING_MARSHALCY_FLOOR
+  WAR_FOOTING_HOUSEHOLD_COST_FLOOR,
+  WAR_FOOTING_MARSHALCY_FLOOR,
+  WAR_FOOTING_PEACETIME_DISCONTENT
 } from "./warFooting";
 
 describe("warFooting (PR-6)", () => {
@@ -68,6 +73,90 @@ describe("warFooting (PR-6)", () => {
       expect(setWarFooting(state, false)).toBe(false);
       expect(state.warFooting).toBe(false);
       expect(state.militaryMobilizationBoost).toBe(0);
+    });
+  });
+
+  describe("syncWarFootingFromDiplomacy() (PR-7 AI)", () => {
+    it("enables war footing when at war and not player-locked", () => {
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        diplomacy: ["Enemy"],
+        warFooting: false
+      } as unknown as State;
+      const result = syncWarFootingFromDiplomacy(state);
+      expect(result).toEqual({ changed: true, warFooting: true });
+      expect(state.warFooting).toBe(true);
+    });
+
+    it("respects player lock while at war", () => {
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        diplomacy: ["Enemy"],
+        warFooting: false,
+        warFootingPlayerLocked: true
+      } as unknown as State;
+      const result = syncWarFootingFromDiplomacy(state);
+      expect(result.changed).toBe(false);
+      expect(state.warFooting).toBe(false);
+    });
+
+    it("demobilizes and clears player lock in peacetime", () => {
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        diplomacy: ["Ally"],
+        warFooting: true,
+        warFootingPlayerLocked: true,
+        militaryMobilizationBoost: 0.1
+      } as unknown as State;
+      const result = syncWarFootingFromDiplomacy(state);
+      expect(result.warFooting).toBe(false);
+      expect(state.warFootingPlayerLocked).toBe(false);
+      expect(state.militaryMobilizationBoost).toBe(0);
+    });
+  });
+
+  describe("setWarFootingByPlayer()", () => {
+    it("locks when the player diverges from AI default", () => {
+      const state = {
+        i: 1,
+        diplomacy: ["Enemy"],
+        warFooting: true
+      } as unknown as State;
+      // AI default at war is ON; player turns OFF → locked
+      setWarFootingByPlayer(state, false);
+      expect(state.warFooting).toBe(false);
+      expect(state.warFootingPlayerLocked).toBe(true);
+    });
+  });
+
+  describe("applyWarFootingPoliticalCost()", () => {
+    it("drains household purse while war footing is on", () => {
+      const state = {
+        i: 1,
+        warFooting: true,
+        diplomacy: ["Enemy"],
+        householdPurse: 10
+      } as unknown as State;
+      const result = applyWarFootingPoliticalCost(state);
+      expect(result.householdCost).toBeGreaterThanOrEqual(WAR_FOOTING_HOUSEHOLD_COST_FLOOR);
+      expect(state.householdPurse).toBe(10 - result.householdCost);
+      expect(result.peacetimeDiscontent).toBe(0);
+    });
+
+    it("accrues peacetime discontent when war footing is kept without Enemy", () => {
+      const state = {
+        i: 1,
+        warFooting: true,
+        diplomacy: [],
+        householdPurse: 0,
+        militaryDiscontent: 10
+      } as unknown as State;
+      const result = applyWarFootingPoliticalCost(state);
+      expect(result.peacetimeDiscontent).toBe(WAR_FOOTING_PEACETIME_DISCONTENT);
+      expect(state.militaryDiscontent).toBe(10 + WAR_FOOTING_PEACETIME_DISCONTENT);
     });
   });
 });

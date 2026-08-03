@@ -4,11 +4,14 @@ import { getDeals, getWorldContext } from "../economyContext";
 import { getAcademyBonus } from "./academyKnowledge";
 import { applyCharacterLivingCosts } from "./characterLivingCosts";
 import { payGuildStipends, payMarketStipends, payProvinceLordStipends } from "./characterStipends";
+import { applyAllDomainFiscalPolicies } from "./domainFiscalPolicy";
+import { applyFiscalEvents } from "./fiscalEvents";
 import { Markets } from "./markets-generator";
 import type { Deal } from "./marketTypes";
 import { getStateMilitaryUpkeep } from "./militaryLogistics";
 import { applyFormRevenueMix } from "./revenueMix";
 import { allocateTreasury, payMilitaryUpkeep } from "./treasuryAllocation";
+import { applyWarFootingPoliticalCost, syncWarFootingFromDiplomacy } from "./warFooting";
 
 type TaxBases = { salesTax: number; pollTax: number };
 
@@ -104,9 +107,15 @@ export class TaxesModule {
       state.treasury = rn((state.treasury || 0) + rawDomesticIncome, 2);
       // PR-6 form revenue mix: wartime Monarchy subsidy, Theocracy tithe, Anarchy plunder share.
       const mix = applyFormRevenueMix(state, rawDomesticIncome);
+      // PR-7: council failure / tax farm / public debt — may scale income and move L2 cash.
+      const events = applyFiscalEvents(state, mix.adjustedDomesticIncome);
+      const budgetIncome = rn(mix.adjustedDomesticIncome * events.incomeScale, 2);
+      // PR-7: AI war footing sync from diplomacy (unless player-locked), then court cost.
+      syncWarFootingFromDiplomacy(state);
       // Field commanders cash-settle inside allocateTreasury (L3a.marshalcy → L2, PR-5).
       // War footing reweights department shares (PR-6) when state.warFooting is set.
-      allocateTreasury(state, mix.adjustedDomesticIncome);
+      allocateTreasury(state, budgetIncome);
+      applyWarFootingPoliticalCost(state);
       // Troop upkeep: L3a.marshalcy first, then L2 remainder (multi-ledger PR-5). Need is
       // recomputed here so it matches the same military snapshot collectTaxes already used.
       payMilitaryUpkeep(state, militaryUpkeep);
@@ -119,6 +128,8 @@ export class TaxesModule {
       // (docs/plan/state-treasury-department-budget.md §7 item 7) — no deduction here.
       payProvinceLordStipends(state);
     }
+    // PR-7 domain policies (extract / fortify) after all province lord stipends this cycle.
+    applyAllDomainFiscalPolicies();
     _voyageIncomeByState.clear();
     _strategicProcurementExpenseByState.clear();
 

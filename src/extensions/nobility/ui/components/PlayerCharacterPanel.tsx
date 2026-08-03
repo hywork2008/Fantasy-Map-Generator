@@ -9,6 +9,7 @@ import {
 } from "../../../economy/generators/constructionHire";
 import { getConstructionJobPosting } from "../../../economy/generators/constructionJobPostings";
 import {
+  cycleDomainPolicyForLord,
   DOMAIN_REMIT_ACTION_CAP,
   DOMAIN_SPEND_ACTION_CAP,
   drawHouseholdPurseToPersonal,
@@ -222,12 +223,25 @@ export const PlayerCharacterPanel: React.FC = () => {
     const result = toggleWarFootingForRuler(state, playerCharacterId);
     if (result.ok) {
       tip(
-        result.warFooting ? "War footing enabled — next tax cycle favors marshalcy." : "War footing disabled.",
+        result.warFooting
+          ? "War footing enabled — next tax cycle favors marshalcy (AI will not override while locked)."
+          : "War footing disabled.",
         false,
         "success"
       );
     } else {
       tip(result.error || "Could not change war footing.", false, "error");
+    }
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
+  const handleCycleDomainPolicy = () => {
+    if (playerCharacterId === null) return;
+    const result = cycleDomainPolicyForLord(playerCharacterId);
+    if (result.ok && result.policy) {
+      tip(`Domain policy set to ${result.policy}.`, false, "success");
+    } else {
+      tip(result.error || "Could not change domain policy.", false, "error");
     }
     usePlayerCharacterState.getState().bumpRefreshToken();
   };
@@ -416,6 +430,19 @@ export const PlayerCharacterPanel: React.FC = () => {
             onClick={handleToggleWarFooting}
           >
             {fiscal.warFooting ? "War footing ON" : "War footing"}
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={
+              fiscal.canSetDomainPolicy
+                ? `Cycle domain policy (now ${fiscal.domainFiscalPolicy ?? "balanced"}): balanced → extract → fortify`
+                : "No provincial domain seat"
+            }
+            disabled={!fiscal.canSetDomainPolicy}
+            onClick={handleCycleDomainPolicy}
+          >
+            Domain: {fiscal.domainFiscalPolicy ?? "—"}
           </button>
         </div>
       ) : null}

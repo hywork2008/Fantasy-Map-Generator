@@ -111,6 +111,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
             <col />
             <col />
             <col />
+            <col />
           </colgroup>
           <thead className="header">
             <tr>
@@ -247,6 +248,15 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 tip="Troop-target uplift while war footing is on and marshalcy Budget exceeds Need (case β)"
               />
               <SortableHeader
+                field="publicDebt"
+                label="Debt"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="Public debt principal (PR-7) — interest serviced each tax cycle; war debt may issue when cash-strapped"
+              />
+              <SortableHeader
                 field="chancery"
                 label="Chancery"
                 sortBy={sortBy}
@@ -287,7 +297,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={19}>
+                <td colSpan={20}>
                   <span>No state has an allocated treasury yet — run a generation cycle first</span>
                 </td>
               </tr>
@@ -322,6 +332,7 @@ const TreasuryRow: React.FC<{ row: TreasuryOverviewRow }> = ({ row }) => (
     <td>{row.militaryDiscontent.toFixed(1)}</td>
     <td data-tip={row.warFooting ? "War footing ON" : "War footing off"}>{row.warFooting ? "ON" : "—"}</td>
     <td>{row.militaryMobilizationBoost > 0 ? row.militaryMobilizationBoost.toFixed(3) : "—"}</td>
+    <td data-tip="Public debt principal">{row.publicDebt > 0 ? row.publicDebt.toFixed(2) : "—"}</td>
     <td>{row.chancery.toFixed(2)}</td>
     <td>{row.stewardship.toFixed(2)}</td>
     <td>{row.spymastery.toFixed(2)}</td>

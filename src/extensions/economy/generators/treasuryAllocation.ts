@@ -9,6 +9,11 @@ import { getRulerId } from "../../nobility/nobilityContext";
 import { getRegimentMilitaryUpkeep, getStateMilitaryUpkeep } from "./militaryLogistics";
 import { applyWarFootingToBaseline, updateMilitaryMobilizationBoost } from "./warFooting";
 
+/** Max absolute share points ruler greed can add to household (PR-7 personality). */
+export const PERSONALITY_HOUSEHOLD_GREED_SHIFT = 0.04;
+/** Max absolute share points ruler boldness can add to marshalcy (PR-7 personality). */
+export const PERSONALITY_MARSHALCY_BOLDNESS_SHIFT = 0.05;
+
 export interface DepartmentBaselineAllocation {
   marshalcy: number;
   household: number;
@@ -50,6 +55,64 @@ const DEFAULT_BASELINE_ALLOCATION = BASELINE_ALLOCATION_BY_FORM.Monarchy;
 
 export function getDepartmentBaselineAllocation(state: Pick<State, "form">): DepartmentBaselineAllocation {
   return BASELINE_ALLOCATION_BY_FORM[state.form || ""] ?? DEFAULT_BASELINE_ALLOCATION;
+}
+
+/**
+ * PR-7 — thin ruler-personality shift on department shares before war footing.
+ * High greed → slightly more household; high boldness → slightly more marshalcy.
+ * Renormalizes to sum 1. No-op without Characters / vacant throne.
+ */
+export function applyRulerPersonalityToBaseline(
+  baseline: DepartmentBaselineAllocation,
+  state: Pick<State, "i" | "form">
+): DepartmentBaselineAllocation {
+  if (!state.i || !hasCharactersContext()) return { ...baseline };
+
+  const rulerId = getRulerId(state as State);
+  if (rulerId === undefined) return { ...baseline };
+  const ruler = getCharacters().find(c => c.i === rulerId && !c.dead);
+  if (!ruler?.personality) return { ...baseline };
+
+  const greed = ruler.personality.greed ?? 50;
+  const boldness = ruler.personality.boldness ?? 50;
+  // Map 0..100 → -shift..+shift around neutral 50.
+  const greedDelta = ((greed - 50) / 50) * PERSONALITY_HOUSEHOLD_GREED_SHIFT;
+  const boldDelta = ((boldness - 50) / 50) * PERSONALITY_MARSHALCY_BOLDNESS_SHIFT;
+
+  const next: DepartmentBaselineAllocation = { ...baseline };
+  next.household = Math.max(0, next.household + greedDelta);
+  next.marshalcy = Math.max(0, next.marshalcy + boldDelta);
+
+  // Pull the opposite of each delta from the largest other non-target pools.
+  const absorb = -greedDelta - boldDelta;
+  if (Math.abs(absorb) > 0.0001) {
+    const donors: (keyof DepartmentBaselineAllocation)[] = ["chancery", "stewardship", "spymastery", "ecclesiastica"];
+    let donorSum = 0;
+    for (const key of donors) donorSum += next[key];
+    if (donorSum > 0) {
+      for (const key of donors) {
+        next[key] = Math.max(0, next[key] + absorb * (next[key] / donorSum));
+      }
+    }
+  }
+
+  const keys: (keyof DepartmentBaselineAllocation)[] = [
+    "marshalcy",
+    "household",
+    "chancery",
+    "stewardship",
+    "spymastery",
+    "ecclesiastica"
+  ];
+  let sum = 0;
+  for (const key of keys) sum += next[key];
+  if (sum > 0) {
+    for (const key of keys) next[key] = rn(next[key] / sum, 4);
+    let again = 0;
+    for (const key of keys) again += next[key];
+    next.marshalcy = rn(next.marshalcy + (1 - again), 4);
+  }
+  return next;
 }
 
 export function getHouseholdStipendRate(state: Pick<State, "form">): number {
@@ -517,9 +580,11 @@ export function clearTreasuryAllocationSnapshots(): void {
  */
 export function allocateTreasury(state: State, domesticIncome: number): TreasuryAllocationBreakdown {
   const income = Math.max(0, domesticIncome);
-  const rawBaseline = getDepartmentBaselineAllocation(state);
+  const formBaseline = getDepartmentBaselineAllocation(state);
+  // PR-7: ruler personality nudges household/marshalcy before war footing.
+  const personalityBaseline = applyRulerPersonalityToBaseline(formBaseline, state);
   // PR-6: war footing reweights department shares before any cash moves.
-  const baseline = applyWarFootingToBaseline(rawBaseline, state);
+  const baseline = applyWarFootingToBaseline(personalityBaseline, state);
 
   const marshalcyBudget = rn(income * baseline.marshalcy * getMilitaryStructuralMultiplier(state), 2);
   const need = getStateMilitaryUpkeep(state);

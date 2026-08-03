@@ -175,8 +175,8 @@
 
 未着手(次フェーズ以降):
 
-1. ✅ §4.4のWar Footingレバーと過剰投資(案β)の薄い実装（multi-ledger PR-6: `warFooting.ts` + `militaryMobilizationBoost` → manpower）— AI自動切替・政治コストは未
-2. Personality平均値による補正(states-personality.mdとの接続): Greedが高い国家ほど家政比率が上振れ、Boldness/Confidenceが高い国家ほど軍事削減により踏み込みやすい、という形で§4.2の係数をpersonality平均でシフトする
+1. ✅ §4.4のWar Footingレバーと過剰投資(案β)の薄い実装（multi-ledger PR-6/PR-7: `warFooting.ts` + AI sync + 政治コスト + `militaryMobilizationBoost`）
+2. ✅ Personality 薄い補正（PR-7: 為政者 greed→household / boldness→marshalcy）。国家平均 personality 全体への拡張は未
 3. 項目7で接続した俸給レート(領主10%/野戦指揮官15%/Guild Master10%・Apprentice3%/Market Manager8%・Rival3%)・項目8の積立年数(6〜18サイクル)はいずれも未調整のプレースホルダー——実プレイでのtreasury/burg.treasury/guild treasury/market treasuryの蓄積速度とのバランス確認が必要
 4. 各部門(軍事以外)支出の「俸給以外」のゲーム内効果——家宰府→徴税効率ボーナス拡張、諜報府→nobility espionage資金源、教会庁→宗教不満度緩和、あたりが自然な接続候補(項目6の俸給支払いとは別軸)
 

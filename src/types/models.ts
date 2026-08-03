@@ -111,6 +111,11 @@ export interface Burg {
   province?: number;
   product?: number;
   treasury?: number;
+  /**
+   * Multi-ledger PR-7 domain fiscal policy for this seat (province lord UI).
+   * balanced = default; extract = auto-remit/personal skim; fortify = local works + security.
+   */
+  domainFiscalPolicy?: "balanced" | "extract" | "fortify";
   /** Public-order score from 0 (unsafe) to 100 (secure). Seeded at 50; no simulation effects yet. */
   security?: number;
   /**
@@ -413,15 +418,26 @@ export interface State {
   /**
    * Explicit war-economy policy lever (multi-ledger PR-6). When true, allocateTreasury reweights
    * department shares toward marshalcy (and form-protected secondaries). Not the same as
-   * diplomacy Enemy — must be set by policy (UI / AI), not auto-derived.
+   * diplomacy Enemy — AI may sync this from Enemy diplomacy unless warFootingPlayerLocked.
    */
   warFooting?: boolean;
+  /**
+   * When true, AI will not auto-toggle warFooting (player set it via HUD). Cleared when the
+   * state leaves war and AI demobilizes, or when the player toggles again into the AI-aligned state.
+   * Multi-ledger PR-7.
+   */
+  warFootingPlayerLocked?: boolean;
   /**
    * Temporary troop-target uplift fraction (0..~0.25) written by Economy when warFooting is on
    * and marshalcy Budget exceeds Need. Read by `effectiveTroopTarget` (manpower.ts). 0 / unset
    * when inactive. docs/plan/state-treasury-department-budget.md §4.4 case β.
    */
   militaryMobilizationBoost?: number;
+  /**
+   * Outstanding public debt principal (L2 liability). Serviced each tax cycle; Republic/Monarchy
+   * may issue thin war debt when war footing and cash-strapped. Multi-ledger PR-7.
+   */
+  publicDebt?: number;
 
   // ── Manpower / agriculture simulation (docs/plan/military/manpower-ecosystem.md) ──
   /**

@@ -1,13 +1,16 @@
+import { stateHasEnemy } from "../../hostCore";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import type { DepartmentBaselineAllocation } from "./treasuryAllocation";
 
 /**
- * Multi-ledger PR-6 / state-treasury-department-budget §4.4 — War Footing policy lever.
+ * Multi-ledger PR-6/PR-7 / state-treasury-department-budget §4.4 — War Footing policy lever.
  *
  * Form-independent core: boost marshalcy. Form-specific secondary floors protect one other
  * department so crusading theocracies and merchant republics do not empty their Camera / council
  * purse when mobilizing.
+ *
+ * PR-7 adds AI diplomacy sync (unless player-locked) and a per-cycle political/court cost.
  */
 
 /** Absolute marshalcy share floor while war footing is on (before renorm). */
@@ -138,4 +141,80 @@ export function setWarFooting(state: State, enabled: boolean): boolean {
     state.militaryMobilizationBoost = 0;
   }
   return state.warFooting;
+}
+
+/**
+ * Player-facing toggle: sets warFooting and locks AI from overriding until demobilization unlocks.
+ * If the player sets the value equal to the AI-default for current diplomacy, clear the lock.
+ */
+export function setWarFootingByPlayer(state: State, enabled: boolean): boolean {
+  const next = setWarFooting(state, enabled);
+  const aiDefault = stateHasEnemy(state);
+  state.warFootingPlayerLocked = next !== aiDefault;
+  return next;
+}
+
+/**
+ * AI / system sync: align warFooting with Enemy diplomacy unless the player has locked a
+ * deliberate override. When peace returns, always demobilize and clear the player lock so the
+ * next war can re-arm without a stuck peacetime war economy.
+ */
+export function syncWarFootingFromDiplomacy(state: State): { changed: boolean; warFooting: boolean } {
+  const atWar = stateHasEnemy(state);
+  if (!atWar) {
+    const wasOn = isWarFootingActive(state);
+    if (wasOn) setWarFooting(state, false);
+    state.warFootingPlayerLocked = false;
+    return { changed: wasOn, warFooting: false };
+  }
+
+  if (state.warFootingPlayerLocked) {
+    return { changed: false, warFooting: isWarFootingActive(state) };
+  }
+
+  if (!isWarFootingActive(state)) {
+    setWarFooting(state, true);
+    return { changed: true, warFooting: true };
+  }
+  return { changed: false, warFooting: true };
+}
+
+/** Share of L1 household purse drained each cycle while war footing is active (court war burden). */
+export const WAR_FOOTING_HOUSEHOLD_COST_RATE = 0.05;
+/** Minimum L1 drain per cycle when war footing is on and the purse is non-empty. */
+export const WAR_FOOTING_HOUSEHOLD_COST_FLOOR = 0.25;
+/** Extra militaryDiscontent per cycle when war footing is kept on in peacetime (player lock). */
+export const WAR_FOOTING_PEACETIME_DISCONTENT = 2;
+
+export interface WarFootingCostResult {
+  householdCost: number;
+  peacetimeDiscontent: number;
+}
+
+/**
+ * Political cost of war footing for this tax cycle: drains L1 household purse.
+ * Peacetime war footing (player override while no Enemy) also accrues militaryDiscontent.
+ */
+export function applyWarFootingPoliticalCost(state: State): WarFootingCostResult {
+  if (!isWarFootingActive(state)) {
+    return { householdCost: 0, peacetimeDiscontent: 0 };
+  }
+
+  const purse = state.householdPurse || 0;
+  let householdCost = 0;
+  if (purse > 0) {
+    householdCost = rn(
+      Math.min(purse, Math.max(WAR_FOOTING_HOUSEHOLD_COST_FLOOR, purse * WAR_FOOTING_HOUSEHOLD_COST_RATE)),
+      2
+    );
+    state.householdPurse = rn(purse - householdCost, 2);
+  }
+
+  let peacetimeDiscontent = 0;
+  if (!stateHasEnemy(state)) {
+    peacetimeDiscontent = WAR_FOOTING_PEACETIME_DISCONTENT;
+    state.militaryDiscontent = rn(Math.min(200, (state.militaryDiscontent || 0) + peacetimeDiscontent), 2);
+  }
+
+  return { householdCost, peacetimeDiscontent };
 }

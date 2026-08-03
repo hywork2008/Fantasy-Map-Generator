@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計案。PR-1〜PR-6 実装済み** — 多層台帳 + 形態ゲート支出 + marshalcy 優先 upkeep + 歳入ミックス薄い差分 + War Footing + 領上納。
+**設計案。PR-1〜PR-7 実装済み** — 多層台帳本線 + 歳入イベント薄い差分 + War Footing AI/政治コスト + 領政策 + 公債。
 
 史実対照 [polity-fiscal-regimes-historical.md](../analytics/polity-fiscal-regimes-historical.md) の結論「豊かさの本体はどの名義の金庫を誰が使えるか」を、現行の単一 `state.treasury` + `Character.wealth` モデルへ段階実装するための仕様と PR 計画。
 
@@ -410,11 +410,20 @@ Lord personal: ZZZ
 - ✅ `remitDomainToStateTreasury`（L3b→L2）+ PC HUD（Remit domain / War footing）  
 - ✅ Treasury Overview: War / Mob+ 列  
 
-### PR-7 以降（外縁）
+### PR-7 — 歳入イベント / War Footing AI / 領政策 / personality ✅
 
-- 歳入ミックスの深掘り（議会同意失敗、請負、公債）  
-- 領主 domain の本格政策メニュー（建設・防衛・税率）  
-- War Footing の AI 自動切替・政治コスト  
+- ✅ `fiscalEvents.ts`: 戦時議会否決、税請負リーク、`publicDebt` 利子・戦時借入  
+- ✅ `syncWarFootingFromDiplomacy` + `warFootingPlayerLocked` + L1 政治コスト  
+- ✅ `domainFiscalPolicy` on Burg: balanced / extract / fortify + PC HUD サイクル  
+- ✅ 為政者 personality（greed→household、boldness→marshalcy）薄い補正  
+- ✅ Treasury Overview: Debt 列  
+
+### PR-8 以降（外縁）
+
+- 議会シミュレーションの本格化（勢力票・歳出承認）  
+- 請負・公債の UI とキャリブレーション  
+- 領主 domain 建設キュー / 税率レバー  
+- War Footing の AI 性格差（Boldness で先制動員など）  
 
 ---
 

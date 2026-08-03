@@ -147,7 +147,7 @@ describe("TaxesModule", () => {
 
       taxesModule.collectTaxes();
 
-      // income 75; HH 5% → L1; remaining 95% → L3a; L2 emptied of this cycle's share
+      // income 75; PR-7 tax farm 8% = 6 leaves L2; HH 5% of 75 = 3.75; depts get remainder 65.25
       expect(state1.householdPurse).toBe(3.75);
       expect(state1.treasury).toBe(0);
       expect(
@@ -156,7 +156,7 @@ describe("TaxesModule", () => {
           (state1.departmentBalances?.stewardship || 0) +
           (state1.departmentBalances?.spymastery || 0) +
           (state1.departmentBalances?.ecclesiastica || 0)
-      ).toBe(71.25);
+      ).toBe(65.25);
     });
 
     it("never credits the neutral state (i === 0)", () => {
@@ -197,9 +197,16 @@ describe("TaxesModule", () => {
       taxesModule.collectTaxes();
 
       // Baseline (no bonus) would be 75; ACADEMY_BONUS_MAX = 0.2 at stock = 1 raises it to 90.
-      // Republic HH 5% of 90 = 4.5 → L1; depts 85.5 → L3a
+      // Tax farm 8% of 90 = 7.2; HH 4.5; depts get 78.3 of desired 85.5
       expect(state1.householdPurse).toBe(4.5);
       expect(state1.treasury).toBe(0);
+      const deptSum =
+        (state1.departmentBalances?.marshalcy || 0) +
+        (state1.departmentBalances?.chancery || 0) +
+        (state1.departmentBalances?.stewardship || 0) +
+        (state1.departmentBalances?.spymastery || 0) +
+        (state1.departmentBalances?.ecclesiastica || 0);
+      expect(deptSum).toBeCloseTo(78.3, 5);
     });
 
     it("carries forward the existing balance instead of resetting to 0", () => {
@@ -230,7 +237,7 @@ describe("TaxesModule", () => {
 
       taxesModule.collectTaxes();
 
-      // income 50; Republic HH 5% = 2.5 → L1; depts 47.5 → L3a
+      // income 50; tax farm 4; HH 2.5; depts 43.5
       expect(state1.householdPurse).toBe(2.5);
       expect(state1.treasury).toBe(0);
     });
@@ -252,7 +259,7 @@ describe("TaxesModule", () => {
       taxesModule.collectTaxes();
       taxesModule.collectTaxes();
 
-      // First cycle: 40 income → HH 2 + depts 38. Second: income 0, stocks unchanged.
+      // First cycle: 40 income, tax farm 3.2 → HH 2; depts 34.8. Second: income 0, stocks unchanged.
       expect(state1.householdPurse).toBe(2);
       expect(state1.treasury).toBe(0);
     });
@@ -272,12 +279,12 @@ describe("TaxesModule", () => {
       registerStrategicProcurementExpense(1, 30);
 
       taxesModule.collectTaxes();
-      // treasury += 100; HH 5 + depts 95 → L1/L3a; then procurement 30 from L2 (already 0) → L2 stays 0
+      // income 100, tax farm 8; HH 5; depts from remainder; procurement from L2 (0) → L2 stays 0
       expect(state1.householdPurse).toBe(5);
       expect(state1.treasury).toBe(0);
 
       taxesModule.collectTaxes();
-      // +100 again; HH 10; depts accumulate another 95; procurement buffer empty
+      // +100 again; HH 10; procurement buffer empty
       expect(state1.householdPurse).toBe(10);
       expect(state1.treasury).toBe(0);
     });
@@ -299,10 +306,11 @@ describe("TaxesModule", () => {
 
       taxesModule.collectTaxes();
 
-      // income 100 → HH 5, depts 95 of which marshalcy 30; then upkeep 12 from marshalcy
+      // income 100, tax farm 8 → L2 92; HH 5; depts get 87 of desired 95 (pro-rata).
+      // marshalcy credit = 30 * 87/95 = 27.47; upkeep 12 → 15.47
       expect(state1.householdPurse).toBe(5);
       expect(state1.treasury).toBe(0);
-      expect(state1.departmentBalances?.marshalcy).toBe(18); // 30 - 12
+      expect(state1.departmentBalances?.marshalcy).toBeCloseTo(15.47, 1);
     });
   });
 });

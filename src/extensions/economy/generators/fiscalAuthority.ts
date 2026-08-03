@@ -4,8 +4,14 @@ import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getRulerId } from "../../nobility/nobilityContext";
 import { getWorldContext } from "../economyContext";
+import {
+  cycleDomainFiscalPolicyForCharacter,
+  type DomainFiscalPolicy,
+  normalizeDomainFiscalPolicy,
+  resolveDomainBurgForCharacter
+} from "./domainFiscalPolicy";
 import { sumDepartmentBalances } from "./treasuryAllocation";
-import { isWarFootingActive, setWarFooting } from "./warFooting";
+import { isWarFootingActive, setWarFootingByPlayer } from "./warFooting";
 
 /**
  * Multi-ledger PR-4 — fiscal authority view + first spend hooks.
@@ -43,6 +49,11 @@ export interface FiscalAuthorityView {
   canToggleWarFooting: boolean;
   warFooting: boolean;
   militaryMobilizationBoost: number;
+  /** Outstanding public debt principal (PR-7). */
+  publicDebt: number;
+  /** Province lord may cycle domain fiscal policy (PR-7). */
+  canSetDomainPolicy: boolean;
+  domainFiscalPolicy: DomainFiscalPolicy | null;
   /** Human-readable policy notes for tooltips. */
   notes: string[];
 }
@@ -144,10 +155,14 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
   const domain = resolveDomainTreasury(character);
   const canSpendDomain = domain.amount !== null && domain.amount > 0;
   const canRemitDomainToState = canSpendDomain;
+  const domainBurg = character ? resolveDomainBurgForCharacter(character.i) : null;
+  const canSetDomainPolicy = Boolean(domainBurg);
+  const domainFiscalPolicy = domainBurg ? normalizeDomainFiscalPolicy(domainBurg.domainFiscalPolicy) : null;
   const isRuler = character ? isLivingRulerOf(state, character.i) : false;
   const canToggleWarFooting = isRuler;
   const warFooting = isWarFootingActive(state);
   const militaryMobilizationBoost = rn(state.militaryMobilizationBoost || 0, 3);
+  const publicDebt = rn(state.publicDebt || 0, 2);
 
   const householdSpendable = policy.canDrawHouseholdToPersonal ? householdPurse : 0;
   const publicSpendable = policy.canSpendPublicDirectly ? publicTreasury : 0;
@@ -178,6 +193,12 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
         : "War footing ON — marshalcy-weighted budgets (no overfund boost yet)."
     );
   }
+  if (publicDebt > 0) {
+    notes.push(`Public debt ${publicDebt.toFixed(2)} SP (interest each tax cycle).`);
+  }
+  if (domainFiscalPolicy && domainFiscalPolicy !== "balanced") {
+    notes.push(`Domain policy: ${domainFiscalPolicy}.`);
+  }
 
   return {
     stateId: state.i || 0,
@@ -196,6 +217,9 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
     canToggleWarFooting,
     warFooting,
     militaryMobilizationBoost,
+    publicDebt,
+    canSetDomainPolicy,
+    domainFiscalPolicy,
     notes
   };
 }
@@ -335,7 +359,7 @@ export function remitDomainToStateTreasury(characterId: number, amount: number):
 }
 
 /**
- * Living ruler toggles war footing on their state (PR-6 policy lever).
+ * Living ruler toggles war footing on their state (PR-6 policy lever; PR-7 player lock).
  */
 export function toggleWarFootingForRuler(
   state: State,
@@ -345,6 +369,15 @@ export function toggleWarFootingForRuler(
   if (!isLivingRulerOf(state, characterId)) {
     return { ok: false, paid: 0, error: "Only the living ruler may set war footing" };
   }
-  const next = setWarFooting(state, !isWarFootingActive(state));
+  const next = setWarFootingByPlayer(state, !isWarFootingActive(state));
   return { ok: true, paid: 0, warFooting: next };
+}
+
+/**
+ * Province lord cycles domain fiscal policy: balanced → extract → fortify → balanced (PR-7).
+ */
+export function cycleDomainPolicyForLord(characterId: number): FiscalActionResult & { policy?: DomainFiscalPolicy } {
+  const result = cycleDomainFiscalPolicyForCharacter(characterId);
+  if (!result.ok) return { ok: false, paid: 0, error: result.error };
+  return { ok: true, paid: 0, policy: result.policy };
 }

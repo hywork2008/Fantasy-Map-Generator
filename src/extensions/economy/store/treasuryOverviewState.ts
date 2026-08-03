@@ -39,6 +39,8 @@ export interface TreasuryOverviewRow {
   warFooting: boolean;
   /** PR-6 troop-target uplift (0 when inactive). */
   militaryMobilizationBoost: number;
+  /** PR-7 public debt principal. */
+  publicDebt: number;
   chancery: number;
   stewardship: number;
   spymastery: number;
