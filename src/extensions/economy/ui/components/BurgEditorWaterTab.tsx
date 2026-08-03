@@ -6,7 +6,9 @@ import {
   formatUrbanWaterSummary,
   getUrbanWaterSystemForBurg,
   sanitationScoreFromSystem,
-  WATER_SANITATION_TIER_LABELS
+  WATER_DEMAND_SIGNAL_LABELS,
+  WATER_SANITATION_TIER_LABELS,
+  WATER_WORKS_PROJECT_LABELS
 } from "../../generators/urbanWaterSystem";
 import {
   CLEANSING_MATERIALS,
@@ -38,7 +40,7 @@ function pct(value: number): string {
 
 /**
  * Read-only water / sanitation ledger for the open burg.
- * Phase 1: geographic demand, tier 0–2 practice, flood/mud/odor, cultural weights.
+ * Phase 1 metrics + Phase 2 public works, maintenance, and demand signals.
  */
 export const BurgEditorWaterTab: FC = () => {
   const burgId = useBurgEditorState(state => state.burgData?.id);
@@ -65,9 +67,12 @@ export const BurgEditorWaterTab: FC = () => {
     .sort((a, b) => b.weight - a.weight)
     .slice(0, 3);
 
+  const projectLabel = system.activeProject ? WATER_WORKS_PROJECT_LABELS[system.activeProject] : "None";
+  const demandLabel = system.primaryDemandSignal ? WATER_DEMAND_SIGNAL_LABELS[system.primaryDemandSignal] : "None";
+
   return (
     <div id="burgWaterTab">
-      <p data-tip="Drainage tier is local practice in Phase 1, not a researched tech node. Tier 3+ requires later phases.">
+      <p data-tip="Drainage tier is local practice; Phase 2 invests up to covered culverts without a tech-tree unlock.">
         {formatUrbanWaterSummary(system)}
       </p>
       <p data-tip="Host civic score written to burg.sanitation (0 worst – 100 best).">
@@ -88,6 +93,33 @@ export const BurgEditorWaterTab: FC = () => {
               <td>
                 {system.tier} — {WATER_SANITATION_TIER_LABELS[system.tier]}
               </td>
+            </tr>
+            <tr data-tip="Demand signal that most strongly justifies a waterworks project this year.">
+              <th scope="row">Primary demand</th>
+              <td>
+                {demandLabel} ({pct(system.demandUrgency)})
+              </td>
+            </tr>
+            <tr data-tip="Active public works project paid from burg treasury + market Stone/Tools/Brick.">
+              <th scope="row">Active project</th>
+              <td>
+                {projectLabel}
+                {system.activeProject ? ` · ${pct(system.upgradeProgress)} complete` : ""}
+              </td>
+            </tr>
+            <tr data-tip="Share of needed annual maintenance paid from burg treasury (separate from construction).">
+              <th scope="row">Maintenance coverage</th>
+              <td>
+                {pct(system.lastMaintenanceCoverage)} (spent {rn(system.lastMaintenanceSpend, 1)})
+              </td>
+            </tr>
+            <tr data-tip="Treasury spent on construction last year (cash + materials).">
+              <th scope="row">Construction spend</th>
+              <td>{rn(system.lastConstructionSpend, 1)}</td>
+            </tr>
+            <tr data-tip="Silt, debris, and illegal dumping that cut capacity even when the structure is intact.">
+              <th scope="row">Clogging</th>
+              <td>{pct(system.clogging)}</td>
             </tr>
             <tr data-tip="Effective capacity after maintenance and local slope.">
               <th scope="row">Stormwater capacity</th>

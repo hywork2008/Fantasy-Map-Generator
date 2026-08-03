@@ -6,6 +6,7 @@
 - docs/plan/player-character-market-commerce.md
 - docs/plan/technology-development-roadmap.md
 - docs/plan/urban-water-and-sanitation-system.md
+- docs/simulation/civic-conditions.md
 
 2026-08-02
 

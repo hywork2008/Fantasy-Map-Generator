@@ -1,11 +1,14 @@
 /**
- * Urban water and sanitation Phase 1: burg state, geographic init, annual update.
+ * Urban water and sanitation (Phase 1 + Phase 2).
  *
  * Owns simulation.extensions.economy.urbanWaterSystems and writes the host
- * civic score `burg.sanitation` (0–100). Does not yet build public works,
- * charge maintenance budgets, or unlock tech nodes (Phase 2+).
+ * civic score `burg.sanitation` (0–100).
  *
- * Design: docs/plan/urban-water-and-sanitation-system.md §5, §8, §11 Phase 1.
+ * Phase 1: geography, demand, flood/mud/odor, cultural weights.
+ * Phase 2: demand-signal-driven public works (tier 0→3), separate maintenance
+ * vs construction budgets, clogging/decay under underfunding.
+ *
+ * Design: docs/plan/urban-water-and-sanitation-system.md §4–5, §11.
  */
 
 import type { Burg, CultureType } from "../../hostTypes";
@@ -13,6 +16,7 @@ import { rn } from "../../hostUtils";
 import {
   getBurgProductionRecords,
   getGoods,
+  getGuildKnowledgeStocks,
   getMarkets,
   getSimulationYear,
   getUrbanWaterLastSettledYear,
@@ -21,17 +25,40 @@ import {
   setUrbanWaterLastSettledYear,
   setUrbanWaterSystems
 } from "../economyContext";
+import { getComfortableTreasuryLevel } from "./guildTreasury";
+import { Markets } from "./markets-generator";
 import type {
   CleansingMaterial,
   CulturalHygieneProfile,
   OrganicWasteRoute,
   UrbanWaterSystem,
-  WaterSanitationTier
+  WaterDemandSignal,
+  WaterDemandSignalId,
+  WaterSanitationTier,
+  WaterWorksProjectKind
 } from "./urbanWaterTypes";
-import { CLEANSING_MATERIALS, ORGANIC_WASTE_ROUTES, WATER_SANITATION_TIER_LABELS } from "./urbanWaterTypes";
+import {
+  CLEANSING_MATERIALS,
+  MAX_INVESTABLE_TIER,
+  ORGANIC_WASTE_ROUTES,
+  WATER_SANITATION_TIER_LABELS,
+  WATER_WORKS_PROJECT_LABELS
+} from "./urbanWaterTypes";
 
-export type { CulturalHygieneProfile, UrbanWaterSystem, WaterSanitationTier } from "./urbanWaterTypes";
-export { WATER_SANITATION_TIER_LABELS } from "./urbanWaterTypes";
+export type {
+  CulturalHygieneProfile,
+  UrbanWaterSystem,
+  WaterDemandSignal,
+  WaterDemandSignalId,
+  WaterSanitationTier,
+  WaterWorksProjectKind
+} from "./urbanWaterTypes";
+export {
+  MAX_INVESTABLE_TIER,
+  WATER_DEMAND_SIGNAL_LABELS,
+  WATER_SANITATION_TIER_LABELS,
+  WATER_WORKS_PROJECT_LABELS
+} from "./urbanWaterTypes";
 
 /** Inputs derived from map cells and burg attributes (pure, testable). */
 export type BurgWaterGeography = {
@@ -48,9 +75,23 @@ export type BurgWaterGeography = {
   irrigationPotential: number;
 };
 
+/** Share of liquid burg treasury available for annual drain maintenance. */
+export const WATER_MAINTENANCE_BUDGET_SHARE = 0.08;
+/** Share of liquid burg treasury available for construction (separate from maintenance). */
+export const WATER_CONSTRUCTION_BUDGET_SHARE = 0.12;
+/** Minimum demand urgency to start or continue a public works project. */
+export const WATER_PROJECT_URGENCY_THRESHOLD = 0.35;
+/** Masonry guild stock needed before covered culverts (tier 3) may start. */
+export const COVERED_CULVERT_MASONRY_STOCK_MIN = 0.15;
+
 function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(1, value));
+}
+
+function asTier(value: number): WaterSanitationTier {
+  const n = Math.max(0, Math.min(5, Math.floor(value)));
+  return n as WaterSanitationTier;
 }
 
 function actualUrbanPeople(burg: Burg, populationRate: number, urbanization: number): number {
@@ -215,7 +256,6 @@ export function readBurgWaterGeography(args: {
 function workshopIntensity(burg: Burg): number {
   const records = getBurgProductionRecords(burg);
   if (!records.length) {
-    // Fallback when production is not yet settled: product density.
     const people = Math.max(1, burg.population ?? 0);
     return clamp01((burg.product ?? 0) / (people * 40));
   }
@@ -236,11 +276,14 @@ function pigScavengingShare(burg: Burg): number {
   if (!pig) return 0;
   const heads = market.goods[pig.i]?.stock ?? 0;
   const people = Math.max(1, actualUrbanPeople(burg, getWorldContext().populationRate, getWorldContext().urbanization));
-  // A few pigs per thousand people matter; large herds at the market edge matter more.
   return clamp01(heads / (people / 80));
 }
 
-/** Baseline capacities for a tier before maintenance and geography modifiers. */
+function masonryGuildStock(burgId: number): number {
+  return getGuildKnowledgeStocks().find(entry => entry.burgId === burgId && entry.domain === "masonry")?.stock ?? 0;
+}
+
+/** Baseline capacities for a tier before maintenance, clogging, and geography modifiers. */
 export function tierBaseCapacities(tier: WaterSanitationTier): {
   stormwater: number;
   wastewater: number;
@@ -265,7 +308,7 @@ export function tierBaseCapacities(tier: WaterSanitationTier): {
 }
 
 /**
- * Initial tier from geography and settlement size (Phase 1 only assigns 0–2).
+ * Initial tier from geography and settlement size (generation only assigns 0–2).
  * Large river / wetland / dry-irrigation towns start with more drainage practice.
  */
 export function initialTier(args: {
@@ -292,17 +335,250 @@ export function initialTier(args: {
   return 0;
 }
 
+/** Project that raises tier from `fromTier` to `fromTier + 1` (Phase 2 max target 3). */
+export function projectForUpgrade(fromTier: WaterSanitationTier): WaterWorksProjectKind | null {
+  if (fromTier >= MAX_INVESTABLE_TIER) return null;
+  if (fromTier <= 0) return "openDitches";
+  if (fromTier === 1) return "stoneDrains";
+  return "coveredCulverts";
+}
+
+export function targetTierForProject(project: WaterWorksProjectKind): WaterSanitationTier {
+  switch (project) {
+    case "openDitches":
+      return 1;
+    case "stoneDrains":
+      return 2;
+    case "coveredCulverts":
+      return 3;
+  }
+}
+
+/**
+ * Demand signals that justify waterworks investment (§4.2).
+ * Pure function of current metrics + geography + settlement size.
+ */
+export function evaluateWaterDemandSignals(args: {
+  geography: BurgWaterGeography;
+  people: number;
+  workshops: number;
+  floodExposure: number;
+  muddiness: number;
+  odor: number;
+  waterContamination: number;
+  sanitationBurden: number;
+  stormDeficit: number;
+  wasteDeficit: number;
+  irrigationCapacity: number;
+  serviceWaterCapacity: number;
+  hasMarket: boolean;
+}): WaterDemandSignal[] {
+  const {
+    geography,
+    people,
+    workshops,
+    floodExposure,
+    muddiness,
+    odor,
+    waterContamination,
+    sanitationBurden,
+    stormDeficit,
+    wasteDeficit,
+    irrigationCapacity,
+    serviceWaterCapacity,
+    hasMarket
+  } = args;
+  const popFactor = clamp01(people / 12000);
+
+  const signals: WaterDemandSignal[] = [
+    {
+      id: "floodMud",
+      strength: clamp01(
+        floodExposure * 0.55 + muddiness * 0.35 + stormDeficit * 0.35 + geography.naturalFloodRisk * 0.2
+      )
+    },
+    {
+      id: "wetlandExpansion",
+      strength: clamp01(
+        (geography.isWetland ? 0.45 : 0) +
+          popFactor * 0.35 +
+          (hasMarket ? 0.15 : 0) +
+          stormDeficit * 0.2 +
+          geography.naturalFloodRisk * 0.15
+      )
+    },
+    {
+      id: "irrigationDrain",
+      strength: clamp01(
+        geography.irrigationPotential * 0.5 +
+          (geography.isDry && geography.hasRiver ? 0.35 : 0) +
+          Math.max(0, geography.irrigationPotential - irrigationCapacity) * 0.4
+      )
+    },
+    {
+      id: "workshopEffluent",
+      strength: clamp01(workshops * 0.7 + wasteDeficit * 0.4 + (hasMarket ? 0.1 : 0) + odor * 0.15)
+    },
+    {
+      id: "densityOdor",
+      strength: clamp01(popFactor * 0.45 + odor * 0.4 + sanitationBurden * 0.35)
+    },
+    {
+      id: "waterContamination",
+      strength: clamp01(waterContamination * 0.75 + wasteDeficit * 0.25 + (geography.isWetland ? 0.1 : 0))
+    },
+    {
+      id: "droughtService",
+      strength: clamp01(
+        (geography.isDry ? 0.4 : 0) +
+          clamp01((20 - geography.precipitation) / 20) * 0.45 +
+          Math.max(0, 0.45 - serviceWaterCapacity) * 0.4
+      )
+    }
+  ];
+  return signals;
+}
+
+export function primaryDemandSignal(signals: readonly WaterDemandSignal[]): WaterDemandSignal | null {
+  let best: WaterDemandSignal | null = null;
+  for (const signal of signals) {
+    if (!best || signal.strength > best.strength) best = signal;
+  }
+  return best && best.strength > 0 ? best : null;
+}
+
+/** Whether a project is eligible given geography, guild skill, and outfall. */
+export function canStartProject(args: {
+  project: WaterWorksProjectKind;
+  geography: BurgWaterGeography;
+  masonryStock: number;
+  people: number;
+}): boolean {
+  const { project, geography, masonryStock, people } = args;
+  if (people < 80 && project !== "openDitches") return false;
+  switch (project) {
+    case "openDitches":
+      // Design: no special tech — diggable with labor and minimal slope or a wet sink.
+      return geography.slopeAdvantage >= 0.05 || geography.hasRiver || geography.isWetland || geography.isCoastal;
+    case "stoneDrains":
+      return geography.slopeAdvantage >= 0.08 || geography.hasRiver || geography.isCoastal;
+    case "coveredCulverts":
+      // Phase 2: local masonry practice + an outfall, not a full tech-graph node.
+      return (
+        masonryStock >= COVERED_CULVERT_MASONRY_STOCK_MIN &&
+        (geography.hasRiver || geography.isCoastal) &&
+        (geography.slopeAdvantage >= 0.1 || geography.isWetland)
+      );
+  }
+}
+
+/** Treasury cash cost to fully complete a project (materials charged separately). */
+export function projectTreasuryCost(project: WaterWorksProjectKind, people: number): number {
+  const scale = 0.55 + clamp01(people / 15000) * 1.45;
+  switch (project) {
+    case "openDitches":
+      return rn(40 * scale, 2);
+    case "stoneDrains":
+      return rn(120 * scale, 2);
+    case "coveredCulverts":
+      return rn(280 * scale, 2);
+  }
+}
+
+/** Material units requested for a full project (Stone / Tools / Brick). */
+export function projectMaterialNeeds(
+  project: WaterWorksProjectKind,
+  people: number
+): {
+  stone: number;
+  tools: number;
+  brick: number;
+} {
+  const scale = 0.5 + clamp01(people / 15000);
+  switch (project) {
+    case "openDitches":
+      return { stone: rn(2 * scale, 2), tools: rn(4 * scale, 2), brick: 0 };
+    case "stoneDrains":
+      return { stone: rn(18 * scale, 2), tools: rn(8 * scale, 2), brick: rn(4 * scale, 2) };
+    case "coveredCulverts":
+      return { stone: rn(36 * scale, 2), tools: rn(12 * scale, 2), brick: rn(14 * scale, 2) };
+  }
+}
+
+/** Annual maintenance cash need for the installed tier and clogging. */
+export function annualMaintenanceNeed(args: {
+  tier: WaterSanitationTier;
+  people: number;
+  clogging: number;
+  product: number;
+}): number {
+  const { tier, people, clogging, product } = args;
+  if (tier <= 0) {
+    // Individual handling still needs well / cesspit labor.
+    return rn(Math.max(2, people * 0.0004 + product * 0.005), 2);
+  }
+  const base = people * (0.0012 + tier * 0.0009) + product * (0.01 + tier * 0.004);
+  return rn(base * (1 + clogging * 0.75), 2);
+}
+
+/**
+ * Update maintenance condition and clogging from paid coverage and demand deficits.
+ * Pure; used by settle and tests.
+ */
+export function applyMaintenanceYear(args: {
+  maintenanceCondition: number;
+  clogging: number;
+  coverage: number;
+  stormDeficit: number;
+  wasteDeficit: number;
+  tier: WaterSanitationTier;
+}): { maintenanceCondition: number; clogging: number } {
+  const { coverage, stormDeficit, wasteDeficit, tier } = args;
+  let { maintenanceCondition, clogging } = args;
+
+  // Paid maintenance repairs structure; underfunding decays it.
+  maintenanceCondition = clamp01(maintenanceCondition + (coverage - 0.55) * 0.12 + (tier >= 2 ? 0.01 : 0));
+  if (coverage < 0.4) maintenanceCondition = clamp01(maintenanceCondition - (0.4 - coverage) * 0.1);
+
+  // Deficits and neglect clog channels; good maintenance digs them out.
+  const clogPressure = stormDeficit * 0.2 + wasteDeficit * 0.25 + (1 - coverage) * 0.12;
+  const unclog = coverage * 0.18 + (tier >= 2 ? 0.03 : 0);
+  clogging = clamp01(clogging + clogPressure - unclog);
+
+  // Catastrophic neglect slowly undermines higher tiers' effective operation via condition.
+  if (coverage < 0.15 && tier >= 2) {
+    maintenanceCondition = clamp01(maintenanceCondition - 0.04);
+  }
+
+  return {
+    maintenanceCondition: rn(maintenanceCondition, 4),
+    clogging: rn(clogging, 4)
+  };
+}
+
 export function computeUrbanWaterSystem(args: {
   burg: Burg;
   geography: BurgWaterGeography;
   people: number;
   cultureType: CultureType | string | undefined;
-  /** Preserve tier / maintenance across annual refreshes when provided. */
+  /** Preserve tier / maintenance / investment across annual refreshes when provided. */
   previous?: UrbanWaterSystem | null;
+  /** Override maintenance after budget settlement (Phase 2). */
+  maintenanceCondition?: number;
+  clogging?: number;
+  tier?: WaterSanitationTier;
+  upgradeProgress?: number;
+  activeProject?: WaterWorksProjectKind | null;
+  primaryDemandSignal?: WaterDemandSignalId | null;
+  demandUrgency?: number;
+  lastMaintenanceCoverage?: number;
+  lastMaintenanceSpend?: number;
+  lastConstructionSpend?: number;
 }): UrbanWaterSystem {
   const { burg, geography, people, cultureType, previous } = args;
   const hasMarket = (burg.market ?? 0) > 0;
   const tier: WaterSanitationTier =
+    args.tier ??
     previous?.tier ??
     initialTier({
       people,
@@ -310,20 +586,26 @@ export function computeUrbanWaterSystem(args: {
       isCapital: Boolean(burg.capital),
       hasMarket
     });
-  const base = tierBaseCapacities(tier);
-  const maintenanceCondition = previous
-    ? clamp01(previous.maintenanceCondition - (people > 8000 && tier <= 1 ? 0.02 : 0.005) + (tier >= 2 ? 0.01 : 0))
-    : clamp01(0.72 + tier * 0.06 + geography.slopeAdvantage * 0.08);
 
-  const maint = maintenanceCondition;
-  const stormwaterDrainageCapacity = clamp01(base.stormwater * maint * (0.75 + geography.slopeAdvantage * 0.4));
-  const wastewaterCapacity = clamp01(base.wastewater * maint);
+  const maintenanceCondition =
+    args.maintenanceCondition ??
+    previous?.maintenanceCondition ??
+    clamp01(0.72 + tier * 0.06 + geography.slopeAdvantage * 0.08);
+  const clogging = args.clogging ?? previous?.clogging ?? 0;
+
+  const base = tierBaseCapacities(tier);
+  const maint = clamp01(maintenanceCondition);
+  const clearFactor = 1 - clamp01(clogging) * 0.65;
+
+  const stormwaterDrainageCapacity = clamp01(
+    base.stormwater * maint * clearFactor * (0.75 + geography.slopeAdvantage * 0.4)
+  );
+  const wastewaterCapacity = clamp01(base.wastewater * maint * clearFactor);
   const serviceWaterCapacity = clamp01(base.service * maint * (geography.hasRiver || geography.isCoastal ? 1.1 : 0.85));
   const irrigationCapacity = clamp01(base.irrigation * maint * geography.irrigationPotential * 1.2);
   const drinkingBase =
     base.drinking * (geography.hasRiver || geography.isCoastal ? 1.05 : geography.isDry ? 0.75 : 0.95);
 
-  // Demand scales with population, rain, workshops.
   const popFactor = clamp01(people / 12000);
   const rainFactor = clamp01(geography.precipitation / 90);
   const workshops = workshopIntensity(burg);
@@ -339,7 +621,6 @@ export function computeUrbanWaterSystem(args: {
   const animalScavenging = profile.organicWaste.animalScavenging;
   const composting = profile.organicWaste.managedComposting + profile.organicWaste.nightSoilCollection;
   const pigs = pigScavengingShare(burg);
-  // Free-ranging / market pigs cut organic street waste but add zoonotic & street mess risk.
   const scavengingRelief = clamp01(animalScavenging * 0.35 + pigs * 0.25);
   const scavengingRisk = clamp01(animalScavenging * 0.2 + pigs * 0.3);
 
@@ -352,15 +633,14 @@ export function computeUrbanWaterSystem(args: {
       popFactor * 0.15 -
       composting * 0.12 -
       scavengingRelief * 0.15 -
-      tier * 0.04
+      tier * 0.04 +
+      clogging * 0.12
   );
 
   const hasDownstreamOutfall = geography.hasRiver || geography.isCoastal;
   const hasUpstreamIntake = geography.hasRiver && !geography.isWetland;
-  // Phase 1 never separates wastewater routes (Tier 5 territory).
-  const hasSeparateWastewaterRoute = false;
+  const hasSeparateWastewaterRoute = previous?.hasSeparateWastewaterRoute ?? false;
 
-  // Draining into the same river used for drinking raises contamination unless intake is protected.
   const mixedUsePenalty =
     hasDownstreamOutfall && geography.hasRiver && waterDischarge > 0.15 && !hasSeparateWastewaterRoute
       ? 0.15 + waterDischarge * 0.25
@@ -370,7 +650,8 @@ export function computeUrbanWaterSystem(args: {
       openDisposal * 0.2 +
       mixedUsePenalty +
       scavengingRisk * 0.15 +
-      (geography.isWetland ? 0.12 : 0) -
+      (geography.isWetland ? 0.12 : 0) +
+      clogging * 0.08 -
       (hasUpstreamIntake ? 0.12 : 0) -
       tier * 0.03
   );
@@ -379,11 +660,30 @@ export function computeUrbanWaterSystem(args: {
     geography.naturalFloodRisk * 0.65 + stormDeficit * 0.45 - stormwaterDrainageCapacity * 0.25
   );
   const muddiness = clamp01(stormDeficit * 0.55 + rainFactor * 0.25 + (geography.isWetland ? 0.2 : 0) - tier * 0.05);
-  const odor = clamp01(sanitationBurden * 0.55 + wasteDeficit * 0.3 + openDisposal * 0.2 + scavengingRisk * 0.1);
+  const odor = clamp01(
+    sanitationBurden * 0.55 + wasteDeficit * 0.3 + openDisposal * 0.2 + scavengingRisk * 0.1 + clogging * 0.1
+  );
 
   const drinkingWaterSecurity = clamp01(
     drinkingBase * maint * (1 - waterContamination * 0.55) * (geography.isDry && !geography.hasRiver ? 0.7 : 1)
   );
+
+  const signals = evaluateWaterDemandSignals({
+    geography,
+    people,
+    workshops,
+    floodExposure,
+    muddiness,
+    odor,
+    waterContamination,
+    sanitationBurden,
+    stormDeficit,
+    wasteDeficit,
+    irrigationCapacity,
+    serviceWaterCapacity,
+    hasMarket
+  });
+  const primary = primaryDemandSignal(signals);
 
   return {
     burgId: burg.i!,
@@ -403,7 +703,15 @@ export function computeUrbanWaterSystem(args: {
     hasDownstreamOutfall,
     hasSeparateWastewaterRoute,
     stormwaterDemand: rn(stormwaterDemand, 4),
-    wastewaterDemand: rn(wastewaterDemand, 4)
+    wastewaterDemand: rn(wastewaterDemand, 4),
+    clogging: rn(clogging, 4),
+    upgradeProgress: rn(args.upgradeProgress ?? previous?.upgradeProgress ?? 0, 4),
+    activeProject: args.activeProject ?? previous?.activeProject ?? null,
+    primaryDemandSignal: args.primaryDemandSignal ?? primary?.id ?? null,
+    demandUrgency: rn(args.demandUrgency ?? primary?.strength ?? 0, 4),
+    lastMaintenanceCoverage: rn(args.lastMaintenanceCoverage ?? previous?.lastMaintenanceCoverage ?? 1, 4),
+    lastMaintenanceSpend: rn(args.lastMaintenanceSpend ?? previous?.lastMaintenanceSpend ?? 0, 2),
+    lastConstructionSpend: rn(args.lastConstructionSpend ?? previous?.lastConstructionSpend ?? 0, 2)
   };
 }
 
@@ -424,7 +732,11 @@ export function getUrbanWaterSystemForBurg(burgId: number): UrbanWaterSystem | u
 
 export function formatUrbanWaterSummary(system: UrbanWaterSystem): string {
   const tierLabel = WATER_SANITATION_TIER_LABELS[system.tier];
-  return `${tierLabel} · sanitation burden ${rn(system.sanitationBurden * 100, 0)}% · flood ${rn(system.floodExposure * 100, 0)}% · odor ${rn(system.odor * 100, 0)}%`;
+  const project =
+    system.activeProject && system.upgradeProgress > 0
+      ? ` · building ${WATER_WORKS_PROJECT_LABELS[system.activeProject]} ${rn(system.upgradeProgress * 100, 0)}%`
+      : "";
+  return `${tierLabel} · sanitation burden ${rn(system.sanitationBurden * 100, 0)}% · flood ${rn(system.floodExposure * 100, 0)}% · odor ${rn(system.odor * 100, 0)}%${project}`;
 }
 
 function cultureTypeForBurg(burg: Burg): CultureType | string | undefined {
@@ -434,11 +746,248 @@ function cultureTypeForBurg(burg: Burg): CultureType | string | undefined {
   return culture?.type;
 }
 
-function buildSystems(preservePrevious: boolean): UrbanWaterSystem[] {
+function phase2Defaults(
+  partial: Partial<UrbanWaterSystem> & Pick<UrbanWaterSystem, "burgId" | "tier">
+): UrbanWaterSystem {
+  return {
+    drinkingWaterSecurity: 0.5,
+    serviceWaterCapacity: 0.3,
+    irrigationCapacity: 0.2,
+    stormwaterDrainageCapacity: 0.2,
+    wastewaterCapacity: 0.15,
+    maintenanceCondition: 0.75,
+    sanitationBurden: 0.4,
+    waterContamination: 0.3,
+    floodExposure: 0.25,
+    muddiness: 0.25,
+    odor: 0.3,
+    hasUpstreamIntake: false,
+    hasDownstreamOutfall: false,
+    hasSeparateWastewaterRoute: false,
+    stormwaterDemand: 0.3,
+    wastewaterDemand: 0.3,
+    clogging: 0,
+    upgradeProgress: 0,
+    activeProject: null,
+    primaryDemandSignal: null,
+    demandUrgency: 0,
+    lastMaintenanceCoverage: 1,
+    lastMaintenanceSpend: 0,
+    lastConstructionSpend: 0,
+    ...partial
+  };
+}
+
+/**
+ * Spend burg treasury on market goods for construction (Stone / Tools / Brick).
+ * Returns fraction of requested materials obtained (cash-limited separately).
+ */
+function purchaseProjectMaterials(
+  marketId: number,
+  project: WaterWorksProjectKind,
+  people: number,
+  materialBudget: number
+): { materialProgress: number; spend: number } {
+  if (!marketId || materialBudget <= 0) return { materialProgress: 0, spend: 0 };
+  const needs = projectMaterialNeeds(project, people);
+  const goods = getGoods();
+  const stone = goods.find(g => g.name === "Stone");
+  const tools = goods.find(g => g.name === "Tools");
+  const brick = goods.find(g => g.name === "Brick");
+
+  const lines: Array<{ goodId: number; units: number }> = [];
+  if (stone && needs.stone > 0) lines.push({ goodId: stone.i, units: needs.stone });
+  if (tools && needs.tools > 0) lines.push({ goodId: tools.i, units: needs.tools });
+  if (brick && needs.brick > 0) lines.push({ goodId: brick.i, units: needs.brick });
+  if (!lines.length) return { materialProgress: 1, spend: 0 };
+
+  const totalUnits = lines.reduce((sum, line) => sum + line.units, 0);
+  let spend = 0;
+  let obtained = 0;
+  let remainingBudget = materialBudget;
+
+  for (const line of lines) {
+    const share = line.units / totalUnits;
+    const lineBudget = remainingBudget * share;
+    const { units, cost } = Markets.consumeForMarketInvestment(marketId, line.goodId, line.units, lineBudget);
+    obtained += units;
+    spend += cost;
+    remainingBudget = Math.max(0, remainingBudget - cost);
+  }
+
+  return {
+    materialProgress: clamp01(obtained / totalUnits),
+    spend: rn(spend, 2)
+  };
+}
+
+/**
+ * One burg's Phase 2 annual investment: maintenance first, then construction progress.
+ * Mutates `burg.treasury`. Returns intermediate state for final metric recompute.
+ */
+export function settleBurgWaterInvestment(args: {
+  burg: Burg;
+  system: UrbanWaterSystem;
+  geography: BurgWaterGeography;
+  people: number;
+}): {
+  tier: WaterSanitationTier;
+  maintenanceCondition: number;
+  clogging: number;
+  upgradeProgress: number;
+  activeProject: WaterWorksProjectKind | null;
+  primaryDemandSignal: WaterDemandSignalId | null;
+  demandUrgency: number;
+  lastMaintenanceCoverage: number;
+  lastMaintenanceSpend: number;
+  lastConstructionSpend: number;
+} {
+  const { burg, system, geography, people } = args;
+  const workshops = workshopIntensity(burg);
+  const stormDeficit = Math.max(0, system.stormwaterDemand - system.stormwaterDrainageCapacity);
+  const wasteDeficit = Math.max(0, system.wastewaterDemand - system.wastewaterCapacity);
+
+  const signals = evaluateWaterDemandSignals({
+    geography,
+    people,
+    workshops,
+    floodExposure: system.floodExposure,
+    muddiness: system.muddiness,
+    odor: system.odor,
+    waterContamination: system.waterContamination,
+    sanitationBurden: system.sanitationBurden,
+    stormDeficit,
+    wasteDeficit,
+    irrigationCapacity: system.irrigationCapacity,
+    serviceWaterCapacity: system.serviceWaterCapacity,
+    hasMarket: (burg.market ?? 0) > 0
+  });
+  const primary = primaryDemandSignal(signals);
+  const demandUrgency = primary?.strength ?? 0;
+
+  // ── Maintenance (separate budget from construction) ──────────────────────
+  const needed = annualMaintenanceNeed({
+    tier: system.tier,
+    people,
+    clogging: system.clogging,
+    product: burg.product ?? 0
+  });
+  const liquid = Math.max(0, burg.treasury ?? 0);
+  // Keep a small operating cushion so maintenance does not zero the burg.
+  const cushion = getComfortableTreasuryLevel(burg) * 0.15;
+  const maintBudget = Math.max(0, Math.min(liquid - cushion, liquid * WATER_MAINTENANCE_BUDGET_SHARE));
+  const maintSpend = rn(Math.min(maintBudget, needed), 2);
+  if (maintSpend > 0) burg.treasury = rn((burg.treasury ?? 0) - maintSpend, 2);
+  const coverage = needed > 0 ? clamp01(maintSpend / needed) : 1;
+
+  const { maintenanceCondition, clogging } = applyMaintenanceYear({
+    maintenanceCondition: system.maintenanceCondition,
+    clogging: system.clogging,
+    coverage,
+    stormDeficit,
+    wasteDeficit,
+    tier: system.tier
+  });
+
+  // ── Construction ─────────────────────────────────────────────────────────
+  let tier = system.tier;
+  let upgradeProgress = system.upgradeProgress;
+  let activeProject = system.activeProject;
+  let constructionSpend = 0;
+
+  const masonryStock = masonryGuildStock(burg.i!);
+  const suggested = projectForUpgrade(tier);
+
+  // Start or drop project based on demand and eligibility.
+  if (activeProject) {
+    const target = targetTierForProject(activeProject);
+    if (tier >= target) {
+      activeProject = null;
+      upgradeProgress = 0;
+    } else if (demandUrgency < WATER_PROJECT_URGENCY_THRESHOLD * 0.5) {
+      // Demand collapsed — freeze progress but keep partial work (no refund).
+      // Project remains so it can resume when urgency returns.
+    }
+  } else if (suggested && demandUrgency >= WATER_PROJECT_URGENCY_THRESHOLD) {
+    if (
+      canStartProject({
+        project: suggested,
+        geography,
+        masonryStock,
+        people
+      })
+    ) {
+      activeProject = suggested;
+      upgradeProgress = 0;
+    }
+  }
+
+  if (activeProject && demandUrgency >= WATER_PROJECT_URGENCY_THRESHOLD * 0.45) {
+    const treasuryCost = projectTreasuryCost(activeProject, people);
+    const liquidAfterMaint = Math.max(0, burg.treasury ?? 0);
+    const constructBudget = Math.max(
+      0,
+      Math.min(liquidAfterMaint - cushion * 0.5, liquidAfterMaint * WATER_CONSTRUCTION_BUDGET_SHARE)
+    );
+
+    // Split construction budget: cash toward project + materials from market.
+    const cashShare = 0.55;
+    const cashBudget = constructBudget * cashShare;
+    const materialBudget = constructBudget * (1 - cashShare);
+    const cashProgress = treasuryCost > 0 ? clamp01(cashBudget / treasuryCost) : 0;
+    const cashSpend = rn(Math.min(cashBudget, treasuryCost * Math.max(0.05, 1 - upgradeProgress)), 2);
+
+    const marketId = burg.market ?? 0;
+    const { materialProgress, spend: materialSpend } = purchaseProjectMaterials(
+      marketId,
+      activeProject,
+      people,
+      materialBudget
+    );
+
+    // Labor/admin progress even without a full market when ditches are cheap.
+    const laborFallback = activeProject === "openDitches" && !marketId ? 0.35 : 0.1;
+    const yearProgress = Math.max(cashProgress, laborFallback) * 0.55 + materialProgress * 0.45;
+    // Urgency accelerates funded years slightly.
+    const urgencyBoost = 0.85 + demandUrgency * 0.3;
+    upgradeProgress = clamp01(upgradeProgress + yearProgress * urgencyBoost);
+
+    constructionSpend = rn(cashSpend + materialSpend, 2);
+    if (cashSpend > 0) burg.treasury = rn((burg.treasury ?? 0) - cashSpend, 2);
+
+    if (upgradeProgress >= 0.999) {
+      const target = targetTierForProject(activeProject);
+      tier = asTier(Math.max(tier, target));
+      upgradeProgress = 0;
+      activeProject = null;
+      // Fresh works start in good condition with cleared channels.
+    }
+  }
+
+  // Completing a project this year resets clogging somewhat and lifts condition.
+  const completedUpgrade = tier > system.tier;
+  const nextCondition = completedUpgrade ? clamp01(Math.max(maintenanceCondition, 0.82)) : maintenanceCondition;
+  const nextClogging = completedUpgrade ? clamp01(clogging * 0.35) : clogging;
+
+  return {
+    tier,
+    maintenanceCondition: nextCondition,
+    clogging: nextClogging,
+    upgradeProgress: rn(upgradeProgress, 4),
+    activeProject,
+    primaryDemandSignal: primary?.id ?? null,
+    demandUrgency: rn(demandUrgency, 4),
+    lastMaintenanceCoverage: rn(coverage, 4),
+    lastMaintenanceSpend: maintSpend,
+    lastConstructionSpend: constructionSpend
+  };
+}
+
+function buildSystems(mode: "generate" | "annual"): UrbanWaterSystem[] {
   const world = getWorldContext();
   const cells = world.pack.cells;
   const previousByBurg = new Map<number, UrbanWaterSystem>();
-  if (preservePrevious) {
+  if (mode === "annual") {
     for (const system of getUrbanWaterSystems()) previousByBurg.set(system.burgId, system);
   }
 
@@ -456,15 +1005,57 @@ function buildSystems(preservePrevious: boolean): UrbanWaterSystem[] {
       gridPrec: world.grid?.cells?.prec
     });
     const people = actualUrbanPeople(burg, world.populationRate, world.urbanization);
-    const system = computeUrbanWaterSystem({
+    const previous = mode === "annual" ? (previousByBurg.get(burg.i) ?? null) : null;
+
+    // First pass metrics (for demand / investment decisions).
+    let draft = computeUrbanWaterSystem({
       burg,
       geography,
       people,
       cultureType: cultureTypeForBurg(burg),
-      previous: preservePrevious ? (previousByBurg.get(burg.i) ?? null) : null
+      previous
     });
-    systems.push(system);
-    burg.sanitation = sanitationScoreFromSystem(system);
+
+    if (mode === "annual" && previous) {
+      const investment = settleBurgWaterInvestment({
+        burg,
+        system: draft,
+        geography,
+        people
+      });
+      draft = computeUrbanWaterSystem({
+        burg,
+        geography,
+        people,
+        cultureType: cultureTypeForBurg(burg),
+        previous: phase2Defaults({
+          burgId: burg.i,
+          tier: investment.tier,
+          maintenanceCondition: investment.maintenanceCondition,
+          clogging: investment.clogging,
+          upgradeProgress: investment.upgradeProgress,
+          activeProject: investment.activeProject,
+          primaryDemandSignal: investment.primaryDemandSignal,
+          demandUrgency: investment.demandUrgency,
+          lastMaintenanceCoverage: investment.lastMaintenanceCoverage,
+          lastMaintenanceSpend: investment.lastMaintenanceSpend,
+          lastConstructionSpend: investment.lastConstructionSpend
+        }),
+        tier: investment.tier,
+        maintenanceCondition: investment.maintenanceCondition,
+        clogging: investment.clogging,
+        upgradeProgress: investment.upgradeProgress,
+        activeProject: investment.activeProject,
+        primaryDemandSignal: investment.primaryDemandSignal,
+        demandUrgency: investment.demandUrgency,
+        lastMaintenanceCoverage: investment.lastMaintenanceCoverage,
+        lastMaintenanceSpend: investment.lastMaintenanceSpend,
+        lastConstructionSpend: investment.lastConstructionSpend
+      });
+    }
+
+    systems.push(draft);
+    burg.sanitation = sanitationScoreFromSystem(draft);
   }
   return systems;
 }
@@ -516,16 +1107,16 @@ function rollupProvinceAndStateSanitation(): void {
 }
 
 class UrbanWaterSystemModule {
-  /** Full rebuild after map generation or economy enable — assigns tiers 0–2. */
+  /** Full rebuild after map generation or economy enable — assigns tiers 0–2, no spend. */
   generate(): void {
-    setUrbanWaterSystems(buildSystems(false));
+    setUrbanWaterSystems(buildSystems("generate"));
     rollupProvinceAndStateSanitation();
     setUrbanWaterLastSettledYear(getSimulationYear());
   }
 
   /**
-   * Annual refresh of demand, burden, contamination, flood, and civic sanitation.
-   * Preserves tier and slowly adjusts maintenance until Phase 2 investments exist.
+   * Annual: pay maintenance, progress public works under demand signals, recompute civic sanitation.
+   * Runs before GuildTreasury surplus sweep so investment can use working capital.
    */
   settleAnnual(): boolean {
     const year = getSimulationYear();
@@ -537,7 +1128,7 @@ class UrbanWaterSystemModule {
       return true;
     }
 
-    setUrbanWaterSystems(buildSystems(true));
+    setUrbanWaterSystems(buildSystems("annual"));
     rollupProvinceAndStateSanitation();
     return true;
   }

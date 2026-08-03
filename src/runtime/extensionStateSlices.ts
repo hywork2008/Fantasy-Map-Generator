@@ -192,6 +192,33 @@ function validateUrbanWaterSystems(value: unknown, world: WorldContext): void {
     ]) {
       assertUnitInterval(system[field], `${entryName}.${field}`);
     }
+    // Phase 2 fields — optional on older archives; when present they must be valid.
+    for (const field of ["clogging", "upgradeProgress", "demandUrgency", "lastMaintenanceCoverage"]) {
+      if (system[field] !== undefined) assertUnitInterval(system[field], `${entryName}.${field}`);
+    }
+    for (const field of ["lastMaintenanceSpend", "lastConstructionSpend"]) {
+      if (system[field] === undefined) continue;
+      if (
+        typeof system[field] !== "number" ||
+        !Number.isFinite(system[field] as number) ||
+        (system[field] as number) < 0
+      ) {
+        throw new Error(`${entryName}.${field} must be a finite non-negative number`);
+      }
+    }
+    if (system.activeProject !== undefined && system.activeProject !== null) {
+      if (
+        typeof system.activeProject !== "string" ||
+        !["openDitches", "stoneDrains", "coveredCulverts"].includes(system.activeProject)
+      ) {
+        throw new Error(`${entryName}.activeProject is invalid`);
+      }
+    }
+    if (system.primaryDemandSignal !== undefined && system.primaryDemandSignal !== null) {
+      if (typeof system.primaryDemandSignal !== "string") {
+        throw new Error(`${entryName}.primaryDemandSignal is invalid`);
+      }
+    }
     for (const field of ["hasUpstreamIntake", "hasDownstreamOutfall", "hasSeparateWastewaterRoute"]) {
       if (typeof system[field] !== "boolean") {
         throw new Error(`${entryName}.${field} must be a boolean`);

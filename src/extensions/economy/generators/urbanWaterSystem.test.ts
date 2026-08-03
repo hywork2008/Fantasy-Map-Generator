@@ -5,18 +5,33 @@ import {
   clearEconomyContext,
   getUrbanWaterSystems,
   initEconomyContext,
+  setGoods,
+  setGuildKnowledgeStocks,
+  setMarkets,
   setUrbanWaterLastSettledYear,
   setUrbanWaterSystems
 } from "../economyContext";
+import type { Good } from "./goodsGeneratorTypes";
+import type { Market } from "./marketTypes";
 import type { BurgWaterGeography } from "./urbanWaterSystem";
 import {
+  annualMaintenanceNeed,
+  applyMaintenanceYear,
+  canStartProject,
   computeUrbanWaterSystem,
   culturalHygieneProfile,
+  evaluateWaterDemandSignals,
   initialTier,
+  projectForUpgrade,
+  projectMaterialNeeds,
+  projectTreasuryCost,
   readBurgWaterGeography,
   sanitationScoreFromSystem,
-  UrbanWater
+  settleBurgWaterInvestment,
+  UrbanWater,
+  WATER_PROJECT_URGENCY_THRESHOLD
 } from "./urbanWaterSystem";
+import type { UrbanWaterSystem } from "./urbanWaterTypes";
 
 function baseGeography(overrides: Partial<BurgWaterGeography> = {}): BurgWaterGeography {
   return {
@@ -41,6 +56,40 @@ function burg(overrides: Partial<Burg> = {}): Burg {
     y: 0,
     population: 2,
     type: "Generic",
+    treasury: 500,
+    product: 40,
+    ...overrides
+  };
+}
+
+function baseSystem(overrides: Partial<UrbanWaterSystem> = {}): UrbanWaterSystem {
+  return {
+    burgId: 1,
+    tier: 0,
+    drinkingWaterSecurity: 0.5,
+    serviceWaterCapacity: 0.3,
+    irrigationCapacity: 0.2,
+    stormwaterDrainageCapacity: 0.2,
+    wastewaterCapacity: 0.15,
+    maintenanceCondition: 0.75,
+    sanitationBurden: 0.45,
+    waterContamination: 0.35,
+    floodExposure: 0.4,
+    muddiness: 0.4,
+    odor: 0.4,
+    hasUpstreamIntake: false,
+    hasDownstreamOutfall: true,
+    hasSeparateWastewaterRoute: false,
+    stormwaterDemand: 0.55,
+    wastewaterDemand: 0.5,
+    clogging: 0.1,
+    upgradeProgress: 0,
+    activeProject: null,
+    primaryDemandSignal: "floodMud",
+    demandUrgency: 0.6,
+    lastMaintenanceCoverage: 1,
+    lastMaintenanceSpend: 0,
+    lastConstructionSpend: 0,
     ...overrides
   };
 }
@@ -139,6 +188,118 @@ describe("initialTier", () => {
   });
 });
 
+describe("Phase 2 demand signals and projects", () => {
+  it("maps upgrade projects tier 0→1→2→3 and stops after max investable", () => {
+    expect(projectForUpgrade(0)).toBe("openDitches");
+    expect(projectForUpgrade(1)).toBe("stoneDrains");
+    expect(projectForUpgrade(2)).toBe("coveredCulverts");
+    expect(projectForUpgrade(3)).toBe(null);
+  });
+
+  it("allows open ditches without masonry or special tech", () => {
+    expect(
+      canStartProject({
+        project: "openDitches",
+        geography: baseGeography({ slopeAdvantage: 0.1 }),
+        masonryStock: 0,
+        people: 200
+      })
+    ).toBe(true);
+  });
+
+  it("requires masonry stock and outfall for covered culverts", () => {
+    expect(
+      canStartProject({
+        project: "coveredCulverts",
+        geography: baseGeography({ hasRiver: true, slopeAdvantage: 0.2 }),
+        masonryStock: 0,
+        people: 5000
+      })
+    ).toBe(false);
+    expect(
+      canStartProject({
+        project: "coveredCulverts",
+        geography: baseGeography({ hasRiver: true, slopeAdvantage: 0.2 }),
+        masonryStock: 0.2,
+        people: 5000
+      })
+    ).toBe(true);
+  });
+
+  it("raises floodMud urgency when flood and mud are high", () => {
+    const calm = evaluateWaterDemandSignals({
+      geography: baseGeography({ naturalFloodRisk: 0.05, precipitation: 20 }),
+      people: 500,
+      workshops: 0.1,
+      floodExposure: 0.1,
+      muddiness: 0.1,
+      odor: 0.1,
+      waterContamination: 0.1,
+      sanitationBurden: 0.2,
+      stormDeficit: 0.05,
+      wasteDeficit: 0.05,
+      irrigationCapacity: 0.3,
+      serviceWaterCapacity: 0.4,
+      hasMarket: false
+    });
+    const flooded = evaluateWaterDemandSignals({
+      geography: baseGeography({ naturalFloodRisk: 0.7, isWetland: true, precipitation: 90 }),
+      people: 8000,
+      workshops: 0.4,
+      floodExposure: 0.8,
+      muddiness: 0.75,
+      odor: 0.3,
+      waterContamination: 0.2,
+      sanitationBurden: 0.4,
+      stormDeficit: 0.5,
+      wasteDeficit: 0.2,
+      irrigationCapacity: 0.2,
+      serviceWaterCapacity: 0.4,
+      hasMarket: true
+    });
+    const calmFlood = calm.find(s => s.id === "floodMud")!.strength;
+    const floodedFlood = flooded.find(s => s.id === "floodMud")!.strength;
+    expect(floodedFlood).toBeGreaterThan(calmFlood);
+    expect(floodedFlood).toBeGreaterThan(WATER_PROJECT_URGENCY_THRESHOLD);
+  });
+
+  it("scales project costs with population", () => {
+    expect(projectTreasuryCost("openDitches", 20000)).toBeGreaterThan(projectTreasuryCost("openDitches", 500));
+    expect(projectMaterialNeeds("coveredCulverts", 10000).stone).toBeGreaterThan(
+      projectMaterialNeeds("openDitches", 10000).stone
+    );
+  });
+});
+
+describe("Phase 2 maintenance and clogging", () => {
+  it("decays condition and raises clogging when coverage is low", () => {
+    const neglected = applyMaintenanceYear({
+      maintenanceCondition: 0.8,
+      clogging: 0.1,
+      coverage: 0.1,
+      stormDeficit: 0.4,
+      wasteDeficit: 0.3,
+      tier: 2
+    });
+    const funded = applyMaintenanceYear({
+      maintenanceCondition: 0.8,
+      clogging: 0.1,
+      coverage: 1,
+      stormDeficit: 0.1,
+      wasteDeficit: 0.05,
+      tier: 2
+    });
+    expect(neglected.maintenanceCondition).toBeLessThan(funded.maintenanceCondition);
+    expect(neglected.clogging).toBeGreaterThan(funded.clogging);
+  });
+
+  it("needs more maintenance cash at higher tiers and clogging", () => {
+    const low = annualMaintenanceNeed({ tier: 0, people: 5000, clogging: 0, product: 20 });
+    const high = annualMaintenanceNeed({ tier: 3, people: 5000, clogging: 0.5, product: 20 });
+    expect(high).toBeGreaterThan(low);
+  });
+});
+
 describe("computeUrbanWaterSystem", () => {
   beforeEach(() => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
@@ -166,7 +327,8 @@ describe("computeUrbanWaterSystem", () => {
       "floodExposure",
       "muddiness",
       "odor",
-      "maintenanceCondition"
+      "maintenanceCondition",
+      "clogging"
     ] as const) {
       expect(system[key]).toBeGreaterThanOrEqual(0);
       expect(system[key]).toBeLessThanOrEqual(1);
@@ -196,6 +358,29 @@ describe("computeUrbanWaterSystem", () => {
     });
     expect(soaked.floodExposure).toBeGreaterThan(dry.floodExposure);
     expect(soaked.muddiness).toBeGreaterThan(dry.muddiness);
+  });
+
+  it("reduces capacity when clogging is high at the same tier", () => {
+    const clear = computeUrbanWaterSystem({
+      burg: burg({ population: 5 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "Generic",
+      tier: 2,
+      maintenanceCondition: 0.9,
+      clogging: 0
+    });
+    const clogged = computeUrbanWaterSystem({
+      burg: burg({ population: 5 }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000,
+      cultureType: "Generic",
+      tier: 2,
+      maintenanceCondition: 0.9,
+      clogging: 0.8
+    });
+    expect(clogged.stormwaterDrainageCapacity).toBeLessThan(clear.stormwaterDrainageCapacity);
+    expect(clogged.wastewaterCapacity).toBeLessThan(clear.wastewaterCapacity);
   });
 
   it("maps systems to civic sanitation scores between 0 and 100", () => {
@@ -228,6 +413,148 @@ describe("computeUrbanWaterSystem", () => {
   });
 });
 
+describe("settleBurgWaterInvestment", () => {
+  beforeEach(() => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.populationRate = 1000;
+    worldContext.urbanization = 1;
+    setGoods([
+      { i: 1, name: "Stone", value: 2 } as Good,
+      { i: 2, name: "Tools", value: 5 } as Good,
+      { i: 3, name: "Brick", value: 3 } as Good
+    ]);
+    setMarkets([
+      {
+        i: 1,
+        centerBurgId: 1,
+        color: "#000",
+        goods: {
+          1: { stock: 100, price: 2 },
+          2: { stock: 100, price: 5 },
+          3: { stock: 100, price: 3 }
+        }
+      } as Market
+    ]);
+    setGuildKnowledgeStocks([]);
+  });
+
+  afterEach(() => clearEconomyContext());
+
+  it("spends maintenance from burg treasury without using construction budget alone", () => {
+    const settlement = burg({ treasury: 200, product: 50, market: 1, population: 5 });
+    const before = settlement.treasury!;
+    const result = settleBurgWaterInvestment({
+      burg: settlement,
+      system: baseSystem({
+        tier: 1,
+        stormwaterDemand: 0.3,
+        stormwaterDrainageCapacity: 0.35,
+        wastewaterDemand: 0.25,
+        wastewaterCapacity: 0.3,
+        floodExposure: 0.15,
+        muddiness: 0.1,
+        demandUrgency: 0.1,
+        primaryDemandSignal: null
+      }),
+      geography: baseGeography({ hasRiver: true }),
+      people: 5000
+    });
+    expect(result.lastMaintenanceSpend).toBeGreaterThan(0);
+    expect(settlement.treasury!).toBeLessThan(before);
+    expect(result.lastMaintenanceCoverage).toBeGreaterThan(0);
+  });
+
+  it("starts open ditches under flood demand and advances progress", () => {
+    const settlement = burg({ treasury: 2000, product: 80, market: 1, population: 8 });
+    const result = settleBurgWaterInvestment({
+      burg: settlement,
+      system: baseSystem({
+        tier: 0,
+        floodExposure: 0.85,
+        muddiness: 0.8,
+        stormwaterDemand: 0.7,
+        stormwaterDrainageCapacity: 0.15,
+        wastewaterDemand: 0.4,
+        wastewaterCapacity: 0.12,
+        odor: 0.5,
+        sanitationBurden: 0.6
+      }),
+      geography: baseGeography({ hasRiver: true, naturalFloodRisk: 0.6, slopeAdvantage: 0.3 }),
+      people: 8000
+    });
+    expect(result.demandUrgency).toBeGreaterThanOrEqual(WATER_PROJECT_URGENCY_THRESHOLD);
+    expect(result.activeProject).toBe("openDitches");
+    expect(result.upgradeProgress).toBeGreaterThan(0);
+    expect(result.lastConstructionSpend).toBeGreaterThan(0);
+  });
+
+  it("completes a nearly finished project and raises tier", () => {
+    const settlement = burg({ treasury: 5000, product: 100, market: 1, population: 10 });
+    const result = settleBurgWaterInvestment({
+      burg: settlement,
+      system: baseSystem({
+        tier: 0,
+        activeProject: "openDitches",
+        upgradeProgress: 0.92,
+        floodExposure: 0.8,
+        muddiness: 0.75,
+        stormwaterDemand: 0.65,
+        stormwaterDrainageCapacity: 0.15,
+        wastewaterDemand: 0.4,
+        wastewaterCapacity: 0.12
+      }),
+      geography: baseGeography({ hasRiver: true, slopeAdvantage: 0.3, naturalFloodRisk: 0.55 }),
+      people: 10000
+    });
+    expect(result.tier).toBe(1);
+    expect(result.activeProject).toBe(null);
+    expect(result.upgradeProgress).toBe(0);
+  });
+
+  it("does not start covered culverts without masonry guild stock", () => {
+    const settlement = burg({ treasury: 5000, product: 100, market: 1, population: 12 });
+    const result = settleBurgWaterInvestment({
+      burg: settlement,
+      system: baseSystem({
+        tier: 2,
+        floodExposure: 0.7,
+        muddiness: 0.6,
+        stormwaterDemand: 0.7,
+        stormwaterDrainageCapacity: 0.4,
+        wastewaterDemand: 0.55,
+        wastewaterCapacity: 0.3,
+        sanitationBurden: 0.55,
+        odor: 0.5
+      }),
+      geography: baseGeography({ hasRiver: true, slopeAdvantage: 0.25, isWetland: true }),
+      people: 12000
+    });
+    expect(result.activeProject).toBe(null);
+  });
+
+  it("can start covered culverts when masonry stock and outfall exist", () => {
+    setGuildKnowledgeStocks([{ burgId: 1, domain: "masonry", stock: 0.4, treasury: 0 }]);
+    const settlement = burg({ treasury: 8000, product: 120, market: 1, population: 15 });
+    const result = settleBurgWaterInvestment({
+      burg: settlement,
+      system: baseSystem({
+        tier: 2,
+        floodExposure: 0.75,
+        muddiness: 0.65,
+        stormwaterDemand: 0.75,
+        stormwaterDrainageCapacity: 0.45,
+        wastewaterDemand: 0.6,
+        wastewaterCapacity: 0.35,
+        sanitationBurden: 0.55,
+        odor: 0.5
+      }),
+      geography: baseGeography({ hasRiver: true, slopeAdvantage: 0.25, isWetland: true }),
+      people: 15000
+    });
+    expect(result.activeProject).toBe("coveredCulverts");
+  });
+});
+
 describe("UrbanWater module", () => {
   beforeEach(() => {
     initEconomyContext({
@@ -256,7 +583,9 @@ describe("UrbanWater module", () => {
           type: "River",
           state: 1,
           province: 1,
-          sanitation: 50
+          sanitation: 50,
+          treasury: 2000,
+          product: 80
         },
         {
           i: 2,
@@ -267,7 +596,9 @@ describe("UrbanWater module", () => {
           type: "Nomadic",
           state: 1,
           province: 1,
-          sanitation: 50
+          sanitation: 50,
+          treasury: 20,
+          product: 2
         },
         {
           i: 3,
@@ -294,6 +625,24 @@ describe("UrbanWater module", () => {
       provinces: [{ i: 1, removed: false, sanitation: 50 }],
       states: [{ i: 1, removed: false, sanitation: 50 }]
     } as unknown as PackedGraph;
+    setGoods([
+      { i: 1, name: "Stone", value: 2 } as Good,
+      { i: 2, name: "Tools", value: 5 } as Good,
+      { i: 3, name: "Brick", value: 3 } as Good
+    ]);
+    setMarkets([
+      {
+        i: 1,
+        centerBurgId: 1,
+        color: "#000",
+        goods: {
+          1: { stock: 200, price: 2 },
+          2: { stock: 200, price: 5 },
+          3: { stock: 200, price: 3 }
+        }
+      } as Market
+    ]);
+    setGuildKnowledgeStocks([]);
     setUrbanWaterSystems([]);
     setUrbanWaterLastSettledYear(-1);
   });
@@ -318,12 +667,42 @@ describe("UrbanWater module", () => {
     expect(worldContext.pack.states![0].sanitation).not.toBe(50);
   });
 
-  it("settleAnnual is once-per-year and preserves tier", () => {
+  it("settleAnnual is once-per-year and can invest under demand", () => {
     UrbanWater.generate();
     const tierBefore = getUrbanWaterSystems().find(s => s.burgId === 1)!.tier;
     expect(UrbanWater.settleAnnual()).toBe(false);
     setUrbanWaterLastSettledYear(999);
+    const treasuryBefore = worldContext.pack.burgs[1]!.treasury!;
     expect(UrbanWater.settleAnnual()).toBe(true);
-    expect(getUrbanWaterSystems().find(s => s.burgId === 1)!.tier).toBe(tierBefore);
+    const after = getUrbanWaterSystems().find(s => s.burgId === 1)!;
+    // Tier is preserved or upgraded, never reduced by annual settle.
+    expect(after.tier).toBeGreaterThanOrEqual(tierBefore);
+    expect(after.lastMaintenanceSpend + after.lastConstructionSpend).toBeGreaterThanOrEqual(0);
+    // With treasury and demand, some spend is expected for the river capital.
+    expect(worldContext.pack.burgs[1]!.treasury!).toBeLessThanOrEqual(treasuryBefore);
+  });
+
+  it("multi-year neglect worsens clogging versus funded maintenance", () => {
+    UrbanWater.generate();
+    // Starve the capital.
+    worldContext.pack.burgs[1]!.treasury = 0;
+    setUrbanWaterLastSettledYear(999);
+    UrbanWater.settleAnnual();
+    setUrbanWaterLastSettledYear(998);
+    UrbanWater.settleAnnual();
+    setUrbanWaterLastSettledYear(997);
+    UrbanWater.settleAnnual();
+    const starved = getUrbanWaterSystems().find(s => s.burgId === 1)!;
+
+    // Re-fund and settle a few years.
+    worldContext.pack.burgs[1]!.treasury = 5000;
+    setUrbanWaterLastSettledYear(996);
+    UrbanWater.settleAnnual();
+    setUrbanWaterLastSettledYear(995);
+    UrbanWater.settleAnnual();
+    const recovered = getUrbanWaterSystems().find(s => s.burgId === 1)!;
+
+    expect(starved.lastMaintenanceCoverage).toBeLessThan(0.2);
+    expect(recovered.lastMaintenanceCoverage).toBeGreaterThan(starved.lastMaintenanceCoverage);
   });
 });
