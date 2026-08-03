@@ -281,7 +281,17 @@ export function adjustRetailGoodStock(burgId: number, marketId: number, goodId: 
 }
 
 export function addWholesaleGoodStock(burgId: number, marketId: number, goodId: number, units: number): void {
-  addWholesale(wholesaleRecord(burgId, marketId)!, goodId, units);
+  if (!(units > EPSILON)) return;
+  const inventories = getBurgWholesaleInventories();
+  let record = inventories.find(row => row.burgId === burgId && row.marketId === marketId);
+  if (!record) {
+    record = { burgId, marketId, goods: {} };
+    inventories.push(record);
+  }
+  addWholesale(record, goodId, units);
+  // Unlike reconciliation, this function can be called before any inventory array has
+  // been established. Persist the new row into Economy's simulation slice immediately.
+  setBurgWholesaleInventories(inventories);
 }
 
 export function validateRetailInventory(markets: readonly Market[] = getMarkets()): RetailInventoryInvariantIssue[] {

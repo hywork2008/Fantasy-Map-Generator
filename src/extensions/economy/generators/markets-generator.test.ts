@@ -4,6 +4,7 @@ import { States, worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
+  getBurgWholesaleInventories,
   getDeals,
   getGoods,
   getMarketCellColumn,
@@ -14,6 +15,7 @@ import {
 import { Goods } from "./goods-generator";
 import { MarketsModule } from "./markets-generator";
 import type { Market } from "./marketTypes";
+import { validateRetailInventory } from "./retailInventory";
 
 vi.mock("./goods-generator", async importOriginal => {
   const actual = await importOriginal<typeof import("./goods-generator")>();
@@ -544,6 +546,8 @@ describe("MarketsModule", () => {
       expect(deal).not.toBeNull();
       expect(deal!.tax).toBeGreaterThan(0);
       expect(deal!.tax).toBeCloseTo(deal!.units * deal!.price * 0.2, 2);
+      expect(getBurgWholesaleInventories()).toEqual([{ burgId: 1, marketId: 1, goods: { 0: 5 } }]);
+      expect(validateRetailInventory()).toEqual([]);
     });
 
     it("sync() should rebuild the id index so get() resolves markets after a load", () => {

@@ -11,7 +11,8 @@
 
 - 実装済み: Economy slice の小売・卸売・輸送中在庫、保存量 validator、Manager/Rival Merchant の品目群販売権、購入・売却 command と receipt、商人 `wealth`・税・Market treasury・Character inventory の原子的更新、Player Character HUD からの `Character Market` 画面。
 - 実装済み: 新規／既存 Market の在庫は初回に中心 Burg の卸売へ移行され、人口比の店頭目標へ直接輸送される。購入は店頭だけから行い、購入直後の補充は行わない。
-- 未実装: 生産処理の時点で生産 Burg／農村の `collectionBurg` へ直接入れる配分、実経路を使う locality surcharge、Markets/Goods Stock Overview の所在別表示、Character Details の inventory 表示。現段階では既存生産が増減させた `Market.goods.stock` の差分を中心 Burg の卸売在庫へ reconcile する。
+- 実装済み: 都市の自動生産が `Markets.sell` で Market に納入される時、その同じ Burg の卸売・集荷在庫にも置く。したがって工房 B で作られた商品は、次回の補充で B の店頭を優先して満たし、余剰だけが他都市へ直接輸送される。
+- 未実装: 農村セルの生産を最寄りの `collectionBurg` へ直接入れる配分、実経路を使う locality surcharge、Markets/Goods Stock Overview の所在別表示、Character Details の inventory 表示。現段階では農村・既存システムが増減させた `Market.goods.stock` の差分を中心 Burg の卸売在庫へ reconcile する。
 
 ## 1. 結論
 

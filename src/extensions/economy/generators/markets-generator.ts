@@ -40,6 +40,7 @@ import type { Deal, Market, TradeRouteSegment } from "./marketTypes";
 import { isMarketTradePermitted } from "./merchantOrganizations";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { getRuralProductionContributions, getSeasonalFoodProductionMultiplier } from "./production-utils";
+import { addWholesaleGoodStock } from "./retailInventory";
 import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
 import {
   estimateSpeculativeTrade,
@@ -788,6 +789,9 @@ export class MarketsModule {
     const price = this.customerSellPrice(marketGood.price, burg.i, good.i);
     const tax = rn(units * price * taxRate, 2);
     marketGood.stock = rn(marketGood.stock + units, 2);
+    // A burg's automatic production reaches its own collection/wholesale depot first.
+    // Market.goods remains the canonical market-wide total; this records its physical location.
+    addWholesaleGoodStock(burg.i!, market.i, good.i, units);
 
     const deals = getDeals();
     const deal: Deal = {
