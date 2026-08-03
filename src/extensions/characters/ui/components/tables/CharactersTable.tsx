@@ -12,6 +12,8 @@ export interface CharactersTableProps {
   sortOrder: "asc" | "desc";
   onSort: (field: string) => void;
   onCharacterClick: (characterId: number) => void;
+  /** Fantasy culture sets only — show Race after Wealth. */
+  showRace?: boolean;
 }
 
 export const CharactersTable: React.FC<CharactersTableProps> = ({
@@ -19,7 +21,8 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
   sortBy,
   sortOrder,
   onSort,
-  onCharacterClick
+  onCharacterClick,
+  showRace = false
 }) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
@@ -33,6 +36,7 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
   const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
   const paddingBottom =
     virtualItems.length > 0 ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end : 0;
+  const colSpan = showRace ? 11 : 10;
 
   function SortHeader({
     field,
@@ -69,6 +73,7 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
             <SortHeader field="appearance" label="App" numeric width="4em" />
             <SortHeader field="prestige" label="Pre" numeric width="4em" />
             <SortHeader field="wealth" label="Wealth" numeric width="6em" />
+            {showRace && <SortHeader field="race" label="Race" width="7em" />}
             <SortHeader field="gender" label="Gender" width="6em" />
             <SortHeader field="maritalStatus" label="Family" width="7em" />
             <SortHeader field="children" label="Children" numeric width="5em" />
@@ -79,17 +84,17 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={10}>No characters found</td>
+              <td colSpan={colSpan}>No characters found</td>
             </tr>
           ) : (
             <>
               {paddingTop > 0 && (
                 <tr>
-                  <td colSpan={10} style={{ height: `${paddingTop}px` }} />
+                  <td colSpan={colSpan} style={{ height: `${paddingTop}px` }} />
                 </tr>
               )}
               {virtualItems.map(virtualRow => {
-                const { c, stateName, title } = rows[virtualRow.index];
+                const { c, stateName, title, raceName } = rows[virtualRow.index];
 
                 let rowStyle: React.CSSProperties = {};
                 if (c.personality) {
@@ -122,6 +127,7 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
                     <td style={{ textAlign: "right" }} data-tip="Personal wealth (held money)">
                       {formatPrice(c.wealth ?? 0)}
                     </td>
+                    {showRace && <td>{raceName}</td>}
                     <td>{c.gender}</td>
                     <td>{(c.family?.spouses ?? 0) > 0 ? "Married" : "Unmarried"}</td>
                     <td style={{ textAlign: "right" }}>{c.family?.children ?? 0}</td>
@@ -132,7 +138,7 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
               })}
               {paddingBottom > 0 && (
                 <tr>
-                  <td colSpan={10} style={{ height: `${paddingBottom}px` }} />
+                  <td colSpan={colSpan} style={{ height: `${paddingBottom}px` }} />
                 </tr>
               )}
             </>

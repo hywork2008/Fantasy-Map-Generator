@@ -6,7 +6,14 @@ import { worldContext } from "../context/worldContext";
 import { syncLoadedStylePreset } from "../controllers/style";
 import { snapshotToBiomesData } from "../data/biomeCatalog";
 import { ensureCoastalHabitatColumns } from "../data/coastalHabitatCatalog";
-import { createDefaultRaces, DEFAULT_RACE_KEY, HUMAN_RACE_ID, raceIdByKey, UNKNOWN_RACE_ID } from "../data/races";
+import {
+  applyCatalogRaceDefaults,
+  createDefaultRaces,
+  DEFAULT_RACE_KEY,
+  HUMAN_RACE_ID,
+  raceIdByKey,
+  UNKNOWN_RACE_ID
+} from "../data/races";
 import { Burgs } from "../generators/burgs-generator";
 import { Features } from "../generators/features";
 import { Routes } from "../generators/routes-generator";
@@ -1306,6 +1313,9 @@ function migrateLoadedRaces(loaded: Race[] | undefined, cultures: Culture[]): Ra
       }
     }
   }
+
+  // Backfill lifespan / looks / fertility / beauty ideals on older saves.
+  for (const race of races) applyCatalogRaceDefaults(race);
 
   for (const culture of cultures) {
     if (culture.race === undefined || culture.race === null || !races[culture.race]) {

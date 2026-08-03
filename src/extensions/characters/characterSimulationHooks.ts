@@ -4,6 +4,7 @@
  *
  * Pure helpers over Character data; call sites live in Nobility / Economy.
  */
+import { attractiveness, isSameRace } from "./appearance";
 import { adjustSolidarity, getFavor, getSolidarity, offerGift } from "./backstoryProfile";
 import type { Character, CommitmentKind } from "./characterTypes";
 
@@ -200,12 +201,21 @@ export function evaluateDynasticMarriage(
     }
   }
 
-  // Self / hedonism: appearance-driven
+  // Cross-race dynastic marriage is treated as deviant scandal — usually refused.
+  if (otherRuler && !isSameRace(ruler, otherRuler)) {
+    return { accept: false, weight: 0, reason: "cross_race_deviant" };
+  }
+
+  // Self / hedonism: same-race Appearance judgment (observer-relative)
   if (primary === "self" || primary === "hedonism") {
-    const app = otherRuler?.appearance ?? 50;
-    if (app < 35) return { accept: false, weight: 0, reason: "appearance_reject" };
-    weight += (app - 50) / 100;
-    reason = "personal_attraction";
+    if (!otherRuler) {
+      /* no candidate looks */
+    } else {
+      const app = attractiveness(ruler, otherRuler).score;
+      if (app < 35) return { accept: false, weight: 0, reason: "appearance_reject" };
+      weight += (app - 50) / 100;
+      reason = "personal_attraction";
+    }
   }
 
   // Romantic favor if known

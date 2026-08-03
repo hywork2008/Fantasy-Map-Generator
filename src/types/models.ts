@@ -32,6 +32,33 @@ export type RaceKey =
   | "amazones"
   | (string & {});
 
+/** Phenotype axes for character looks (1–100). Not beauty scores. */
+export const APPEARANCE_AXIS_IDS = ["stature", "build", "symmetry", "refinement", "vitality", "ornament"] as const;
+export type AppearanceAxisId = (typeof APPEARANCE_AXIS_IDS)[number];
+export type AppearanceAxes = Record<AppearanceAxisId, number>;
+
+/**
+ * Race-default weights over phenotype axes when judging same-race beauty.
+ * Positive weight = prefer high axis values; negative = prefer low.
+ */
+export interface RaceBeautyIdeal {
+  weights: Partial<Record<AppearanceAxisId, number>>;
+}
+
+/** Species reproductive defaults (character households / future tick births). */
+export interface RaceFertility {
+  /** Age of reproductive maturity (years). */
+  fertilityStart: number;
+  /** Soft end of the primary fertile window (years). */
+  fertilityEnd: number;
+  /** Typical years between successful births for a continuously paired couple. */
+  interbirthYears: number;
+  /** Mean live births per pregnancy / clutch (1 ≈ singleton norm). */
+  litterMean: number;
+  /** Cap on live births per pregnancy. */
+  litterMax: number;
+}
+
 /**
  * Species / folk traits, independent of culture (language, names, expansion).
  * Index 0 is "Unknown" (Wildlands / unset).
@@ -46,6 +73,22 @@ export interface Race {
    * Used by the characters extension (`createPerson`); omitted = male_dominant.
    */
   characterGender?: CharacterGenderMode;
+  /**
+   * Typical natural lifespan in years (genre-default Western fantasy scale).
+   * Soft expectation for aging / mortality; not a hard cap.
+   */
+  lifespan?: number;
+  /**
+   * Rare extreme maximum age in years for this race.
+   * Should be ≥ `lifespan` when both are set.
+   */
+  maxLifespan?: number;
+  /** Mean phenotype at generation (axes still get individual noise). */
+  looksBaseline?: Partial<AppearanceAxes>;
+  /** Same-race beauty ideal weights. */
+  beautyIdeal?: RaceBeautyIdeal;
+  /** Reproductive biology defaults. */
+  fertility?: RaceFertility;
   lock?: boolean;
   removed?: boolean;
 }
@@ -229,6 +272,13 @@ export interface Culture {
    * Never persisted on saved maps.
    */
   raceKey?: RaceKey;
+  /**
+   * Fantasy sets: when true, states of this culture are mono-racial purity polities
+   * (dangerous fringe in the multi-race balance setting). When false/omitted, states
+   * are multi-racial mixed societies with a cultural majority.
+   * See docs/world/help/multi-race-geopolitics.md.
+   */
+  monoRacial?: boolean;
   /**
    * @deprecated Prefer race.characterGender. Still read as a fallback for pre-split maps.
    */
@@ -424,6 +474,9 @@ export interface ChronicleEvent {
   rawText: string;
 }
 
+/** How races compose a polity — derived from culture.monoRacial on generation. */
+export type StateRacialComposition = "mono" | "mixed";
+
 export interface State {
   i: number;
   name: string;
@@ -432,6 +485,11 @@ export interface State {
   type: string;
   center: number;
   culture: number;
+  /**
+   * Fantasy multi-race maps: `mono` = purity ethnostate of the culture's race;
+   * `mixed` = multi-racial society (default / non-fantasy).
+   */
+  racialComposition?: StateRacialComposition;
   coa: Emblem | null;
   lock?: boolean;
   removed?: boolean;

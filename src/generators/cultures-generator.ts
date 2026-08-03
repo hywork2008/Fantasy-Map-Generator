@@ -35,6 +35,11 @@ function assignCultureRaces(pack: PackedGraph, cultures: Culture[]): void {
       if (race && race.characterGender === undefined) race.characterGender = c.characterGender;
       delete c.characterGender;
     }
+    // Non-human cultures default to mono-racial purity polities (fantasy ethnostates).
+    // Human / unknown cultures stay mixed multi-folk societies unless explicitly flagged.
+    if (c.monoRacial === undefined) {
+      c.monoRacial = c.race !== undefined && c.race !== HUMAN_RACE_ID && c.race !== UNKNOWN_RACE_ID;
+    }
   }
 }
 

@@ -220,6 +220,7 @@ export const CharacterDetailsDialog: React.FC = () => {
     (raceId !== undefined ? races[raceId]?.name : undefined) ??
     (raceId !== undefined ? cultures[character.culture]?.name : undefined) ??
     t("characters.unknown");
+  const looks = character.looks;
 
   const getAffinityText = (score: number) => {
     if (score >= 50) return t("characters.friendly");
@@ -285,7 +286,14 @@ export const CharacterDetailsDialog: React.FC = () => {
     rows.push(`${t("characters.culture")}, ${cultureName}`);
     rows.push(`${t("characters.race")}, ${raceName}`);
     rows.push(`${t("characters.location")}, ${locationStr}`);
-    rows.push(`${t("characters.appearance")}, ${character.appearance ?? t("characters.notAvailable")}`);
+    rows.push(
+      `${t("characters.appearance")}, ${character.appearance ?? t("characters.notAvailable")} (${t("characters.appearanceSameRaceHint")})`
+    );
+    if (looks) {
+      rows.push(
+        `${t("characters.looks")}, stature ${looks.stature}, build ${looks.build}, symmetry ${looks.symmetry}, refinement ${looks.refinement}, vitality ${looks.vitality}, ornament ${looks.ornament}`
+      );
+    }
     rows.push(`${t("characters.prestige")}, ${character.prestige ?? t("characters.notAvailable")}`);
     rows.push(`${t("characters.wealth")}, ${character.wealth ?? 0}`);
 
@@ -592,9 +600,36 @@ export const CharacterDetailsDialog: React.FC = () => {
               <td>{raceName}</td>
             </tr>
             <tr>
-              <th style={{ padding: "4px 0" }}>{t("characters.appearance")}</th>
-              <td>{character.appearance ?? t("characters.notAvailable")}</td>
+              <th style={{ padding: "4px 0" }} data-tip={t("characters.appearanceTip")}>
+                {t("characters.appearance")}
+              </th>
+              <td>
+                {character.appearance ?? t("characters.notAvailable")}
+                <span style={{ color: "#868e96", fontSize: "0.85em", marginLeft: 6 }}>
+                  ({t("characters.appearanceSameRaceHint")})
+                </span>
+              </td>
             </tr>
+            {looks && (
+              <tr>
+                <th style={{ padding: "4px 0", verticalAlign: "top" }} data-tip={t("characters.looksTip")}>
+                  {t("characters.looks")}
+                </th>
+                <td style={{ fontSize: "0.9em", lineHeight: 1.45 }}>
+                  {t("characters.looksStature")}: {looks.stature}
+                  <br />
+                  {t("characters.looksBuild")}: {looks.build}
+                  <br />
+                  {t("characters.looksSymmetry")}: {looks.symmetry}
+                  <br />
+                  {t("characters.looksRefinement")}: {looks.refinement}
+                  <br />
+                  {t("characters.looksVitality")}: {looks.vitality}
+                  <br />
+                  {t("characters.looksOrnament")}: {looks.ornament}
+                </td>
+              </tr>
+            )}
             <tr>
               <th style={{ padding: "4px 0" }}>{t("characters.prestige")}</th>
               <td>{character.prestige ?? t("characters.notAvailable")}</td>

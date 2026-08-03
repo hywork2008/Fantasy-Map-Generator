@@ -13,6 +13,12 @@ import {
 import type { Character, CharacterSkills } from "../../characters/characterTypes";
 import { finalizeCharacterSociety, finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { createPerson } from "../../characters/personFactory";
+import {
+  densityForState,
+  ensureStateRacialComposition,
+  resolvePersonCultureAndRace,
+  selectCentralOffices
+} from "../../characters/raceRoster";
 import { calculateCharacterTraits } from "../../characters/utils/personalityUtils";
 import type { Province, State } from "../../hostTypes";
 import { P, rand, TIME } from "../../hostUtils";
@@ -97,12 +103,18 @@ function generate(options: { randomSeed?: string | number } = {}): void {
   const states = pack.states.filter(s => s.i && !s.removed);
 
   for (const state of states) {
-    const ruler = createPerson(nextId++, state.culture, {
+    const culture = pack.cultures?.[state.culture];
+    ensureStateRacialComposition(state, culture);
+    const density = densityForState(state, pack);
+
+    const rulerIds = resolvePersonCultureAndRace(state, pack);
+    const ruler = createPerson(nextId++, rulerIds.cultureId, {
       homeStateId: state.i,
       formName: state.formName,
       marriageExpectation: "dynastic",
       isReligiousRole: isReligiousForm(state),
-      roleClass: "ruler"
+      roleClass: "ruler",
+      raceOverride: rulerIds.raceId
     });
     ruler.location = state.capital;
     ruler.titles.push({
@@ -123,7 +135,9 @@ function generate(options: { randomSeed?: string | number } = {}): void {
     characters.push(ruler);
     setRulerId(state, ruler.i);
 
-    for (const office of CENTRAL_OFFICES) {
+    // Long-lived mono polities field thinner courts (scarce elders / heirs).
+    const offices = selectCentralOffices(CENTRAL_OFFICES, density);
+    for (const office of offices) {
       const religious = isReligiousForm(state, office.primarySkill);
       // Marshal / Minister of War are court-side martial careers → commander skill medians.
       const officerRoleClass = religious
@@ -131,13 +145,15 @@ function generate(options: { randomSeed?: string | number } = {}): void {
         : office.primarySkill === "martial"
           ? "commander"
           : "central_officer";
-      const officer = createPerson(nextId++, state.culture, {
+      const ids = resolvePersonCultureAndRace(state, pack);
+      const officer = createPerson(nextId++, ids.cultureId, {
         homeStateId: state.i,
         formName: state.formName,
         marriageExpectation: "elite",
         primarySkill: office.primarySkill,
         isReligiousRole: religious,
-        roleClass: officerRoleClass
+        roleClass: officerRoleClass,
+        raceOverride: ids.raceId
       });
       officer.location = state.capital;
       officer.titles.push({
@@ -260,19 +276,21 @@ function calculateAffinities(characters: Character[]): void {
  * callers (see officerAssignment.ts) decide sparsely and randomly which regiments get one.
  */
 function createOfficer(
-  state: Pick<State, "i" | "culture" | "form" | "formName" | "capital">,
+  state: Pick<State, "i" | "culture" | "form" | "formName" | "capital" | "racialComposition">,
   title: "Commander" | "Admiral"
 ): Character {
   const { pack } = getWorldContext();
   const nextId = getNextCharacterId(pack.characters);
-  const officer = createPerson(nextId, state.culture, {
+  const ids = resolvePersonCultureAndRace(state, pack);
+  const officer = createPerson(nextId, ids.cultureId, {
     homeStateId: state.i,
     formName: state.formName,
     marriageExpectation: "elite",
     primarySkill: "martial",
     isReligiousRole: isReligiousForm(state, "martial"),
     ageOverride: rand(MIN_OFFICER_AGE, MAX_OFFICER_AGE),
-    roleClass: "commander"
+    roleClass: "commander",
+    raceOverride: ids.raceId
   });
   officer.location = state.capital;
   officer.titles.push({
@@ -300,19 +318,21 @@ function createOfficer(
  * provinceLordGenerator.ts — so interior provinces don't add to the character roster.
  */
 function createProvinceLord(
-  state: Pick<State, "i" | "culture" | "form" | "formName" | "capital">,
+  state: Pick<State, "i" | "culture" | "form" | "formName" | "capital" | "racialComposition">,
   province: Pick<Province, "i" | "formName" | "burg">
 ): Character {
   const { pack } = getWorldContext();
   const nextId = getNextCharacterId(pack.characters);
-  const lord = createPerson(nextId, state.culture, {
+  const ids = resolvePersonCultureAndRace(state, pack);
+  const lord = createPerson(nextId, ids.cultureId, {
     homeStateId: state.i,
     formName: state.formName,
     marriageExpectation: "dynastic",
     primarySkill: "martial",
     isReligiousRole: isReligiousForm(state, "martial"),
     ageOverride: rand(MIN_RULER_AGE, MAX_RULER_AGE),
-    roleClass: "province_lord"
+    roleClass: "province_lord",
+    raceOverride: ids.raceId
   });
   lord.location = province.burg;
   lord.titles.push({
@@ -544,13 +564,15 @@ function processSuccessions(): void {
         }
       }
 
-      const heir = createPerson(nextId++, state.culture, {
+      const heirIds = resolvePersonCultureAndRace(state, pack);
+      const heir = createPerson(nextId++, heirIds.cultureId, {
         homeStateId: state.i,
         formName: state.formName,
         marriageExpectation: "dynastic",
         isReligiousRole: isReligiousForm(state),
         ageOverride: heirAge,
-        roleClass: "ruler"
+        roleClass: "ruler",
+        raceOverride: heirIds.raceId
       });
 
       // Setup Heir relationships if possible
@@ -666,20 +688,31 @@ function processSuccessions(): void {
       }
     }
 
+    // Do not grow mono long-lived courts beyond density-scaled roster size.
+    const density = densityForState(state, pack);
+    const maxCentral = selectCentralOffices(CENTRAL_OFFICES, density).length;
+    const livingCentral = livingStateChars.filter(c =>
+      c.titles.some(t => !t.landed && CENTRAL_OFFICES.some(o => o.title === t.title))
+    ).length;
+    let fillBudget = Math.max(0, maxCentral - livingCentral);
+
     for (const office of vacantOffices) {
+      if (fillBudget <= 0) break;
       const religious = isReligiousForm(state, office.primarySkill);
       const officerRoleClass = religious
         ? "religious"
         : office.primarySkill === "martial"
           ? "commander"
           : "central_officer";
-      const officer = createPerson(nextId++, state.culture, {
+      const ids = resolvePersonCultureAndRace(state, pack);
+      const officer = createPerson(nextId++, ids.cultureId, {
         homeStateId: state.i,
         formName: state.formName,
         marriageExpectation: "elite",
         primarySkill: office.primarySkill,
         isReligiousRole: religious,
-        roleClass: officerRoleClass
+        roleClass: officerRoleClass,
+        raceOverride: ids.raceId
       });
       officer.location = state.capital;
       officer.titles.push({
@@ -698,6 +731,7 @@ function processSuccessions(): void {
       pack.characters.push(officer);
       seedRelationsWithPeers(officer, pack.characters);
       finalizeCharacterSocietyForPeer(officer, pack.characters, societyContext());
+      fillBudget--;
     }
   }
 }

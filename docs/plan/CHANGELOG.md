@@ -5,12 +5,15 @@
 - docs/analytics/advance-year-performance.md
 - docs/analytics/character-wealth-balance.md
 - docs/analytics/polity-fiscal-regimes-historical.md
+- docs/plan/characters/appearance-and-reproduction.md
 - docs/plan/individual-skill-mastery-system.md
 - docs/plan/multi-ledger-fiscal-architecture.md
 - docs/plan/player-character-market-commerce.md
 - docs/plan/technology-development-roadmap.md
 - docs/plan/urban-water-and-sanitation-system.md
 - docs/simulation/civic-conditions.md
+- docs/world/help/multi-race-geopolitics.md
+- docs/world/help/races-beauty-and-pairing.md
 
 2026-08-02
 

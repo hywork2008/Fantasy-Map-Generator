@@ -1,10 +1,11 @@
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { useOptionsState } from "../../../hostCore";
 import { closeDialog, Dialog, openDialog, useDialogState } from "../../../hostUi";
 import { getCharacters, getWorldContext } from "../../charactersContext";
 import type { CharacterRoleClass } from "../../characterTypes";
-import { filterAndSortCharacters } from "../../controllers/characters-overview";
+import { filterAndSortCharacters, isFantasyCulturesSet } from "../../controllers/characters-overview";
 import { CHARACTER_ROLE_CLASS_FILTERS, getCharacterRoleClassLabel } from "../../utils/characterLabels";
 import { useCharactersUiState } from "../charactersUiState";
 import { CharactersStatsTable } from "../components/tables/CharactersStatsTable";
@@ -13,6 +14,8 @@ import { CharactersTable } from "../components/tables/CharactersTable";
 export const CharactersOverviewDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("charactersOverview"));
   const { i18n } = useTranslation();
+  const culturesSet = useOptionsState(state => state.culturesSet);
+  const showRace = isFantasyCulturesSet(culturesSet);
 
   const {
     sortBy,
@@ -33,6 +36,8 @@ export const CharactersOverviewDialog: React.FC = () => {
   const worldContext = getWorldContext();
   const characters = getCharacters().filter(c => !c.dead);
   const states = worldContext.pack.states ?? [];
+  const races = worldContext.pack.races ?? [];
+  const cultures = worldContext.pack.cultures ?? [];
 
   const sortedStates = useMemo(() => {
     return states.filter(s => s.i && !s.removed).sort((a, b) => (a.name > b.name ? 1 : -1));
@@ -47,9 +52,23 @@ export const CharactersOverviewDialog: React.FC = () => {
       filterStateId: filterStateId ?? -1,
       filterRoleClass,
       sortBy,
-      sortOrder
+      sortOrder,
+      races,
+      cultures
     });
-  }, [characters, states, searchText, filterStateId, filterRoleClass, sortBy, sortOrder, refreshToken, i18n.language]);
+  }, [
+    characters,
+    states,
+    races,
+    cultures,
+    searchText,
+    filterStateId,
+    filterRoleClass,
+    sortBy,
+    sortOrder,
+    refreshToken,
+    i18n.language
+  ]);
 
   const handleCharacterClick = (characterId: number) => {
     openCharacterDetails(characterId);
@@ -62,6 +81,7 @@ export const CharactersOverviewDialog: React.FC = () => {
       "Title",
       "State",
       "Wealth",
+      ...(showRace ? ["Race"] : []),
       "Marital Status",
       "Children",
       "Artistry",
@@ -103,6 +123,7 @@ export const CharactersOverviewDialog: React.FC = () => {
         row.title,
         row.stateName,
         c.wealth ?? 0,
+        ...(showRace ? [row.raceName] : []),
         (c.family?.spouses ?? 0) > 0 ? "Married" : "Unmarried",
         c.family?.children ?? 0,
         c.skills?.artistry ?? 0,
@@ -174,6 +195,7 @@ export const CharactersOverviewDialog: React.FC = () => {
             sortOrder={sortOrder}
             onSort={toggleSortBy}
             onCharacterClick={handleCharacterClick}
+            showRace={showRace}
           />
         ) : (
           <CharactersStatsTable

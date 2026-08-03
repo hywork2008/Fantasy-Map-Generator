@@ -160,6 +160,17 @@ describe("evaluateDynasticMarriage", () => {
     expect(result.accept).toBe(false);
     expect(result.reason).toBe("house_prestige_gap");
   });
+
+  it("rejects cross-race dynastic marriage as deviant", () => {
+    const a = baseCharacter({ i: 1, name: "Human ruler", race: 1, prestige: 80 });
+    const b = baseCharacter({ i: 2, name: "Orc ruler", race: 6, prestige: 85 });
+    applyCharacterBackstory(a, { roleClass: "ruler", capitalBurgId: 1 });
+    a.backstory!.commitment.primary = { kind: "state", weight: 100 };
+
+    const result = evaluateDynasticMarriage(a, b);
+    expect(result.accept).toBe(false);
+    expect(result.reason).toBe("cross_race_deviant");
+  });
 });
 
 describe("getEffectivePatriotism", () => {

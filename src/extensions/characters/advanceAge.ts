@@ -1,8 +1,16 @@
+import { getRaceById } from "../../data/races";
 import { P, rand } from "../hostUtils";
-import { getCharacters, getCurrentYear, replaceCharacters } from "./charactersContext";
+import { ownRaceAppearanceScore, resolveCharacterRaceId } from "./appearance";
+import {
+  getCharacters,
+  getCurrentYear,
+  getWorldContext,
+  hasCharactersContext,
+  replaceCharacters
+} from "./charactersContext";
 import type { Character, CharacterRoleClass, CharacterSkills } from "./characterTypes";
 
-/** Physical decline sets in past this age — mirrors the generation-time formula in personFactory.ts's createPerson(). */
+/** Physical decline sets in past this age for short-lived (human-scale) races only. */
 export const DECLINE_AGE_THRESHOLD = 35;
 export const APPEARANCE_DECLINE_PER_YEAR = 1.5;
 /** Civilian / non-military personal combat decline after peak age. */
@@ -12,6 +20,28 @@ export const PROWESS_DECLINE_PER_YEAR = 2;
  * Applied to commanders, martial offices, bodyguards, etc.
  */
 export const PROWESS_DECLINE_PER_YEAR_MILITARY = 1;
+
+/**
+ * Races with typical lifespan at or above this skip human-scale age decline
+ * (prowess / looks). Elves, dwarves, giants, draconic, etc.
+ */
+export const LONG_LIVED_LIFESPAN_MIN = 150;
+
+/** True when this race should not take human mid-life physical age penalties. */
+export function raceIgnoresAgeDecline(lifespan: number | undefined | null): boolean {
+  return (lifespan ?? 75) >= LONG_LIVED_LIFESPAN_MIN;
+}
+
+export function characterIgnoresAgeDecline(character: Pick<Character, "race" | "culture">): boolean {
+  if (!hasCharactersContext()) return false;
+  try {
+    const raceId = resolveCharacterRaceId(character);
+    const race = getRaceById(getWorldContext().pack.races, raceId);
+    return raceIgnoresAgeDecline(race?.lifespan);
+  } catch {
+    return false;
+  }
+}
 
 /** Active military title patterns (field + court war offices). */
 const MILITARY_TITLE_RE = /Commander|Admiral|Marshal|General|Warlord|Minister of War/i;
@@ -45,8 +75,12 @@ export function prowessDeclineRateForCreation(
   return PROWESS_DECLINE_PER_YEAR;
 }
 
-/** Total decline accrued by `age` under the generation-time formula (0 below the threshold). */
-export function declineAt(age: number, ratePerYear: number): number {
+/**
+ * Total decline accrued by `age` under the generation-time formula (0 below the threshold).
+ * Pass `skipDecline: true` for long-lived races (no human-scale age penalty).
+ */
+export function declineAt(age: number, ratePerYear: number, skipDecline = false): number {
+  if (skipDecline) return 0;
   return age > DECLINE_AGE_THRESHOLD ? Math.floor((age - DECLINE_AGE_THRESHOLD) * ratePerYear) : 0;
 }
 
@@ -68,14 +102,34 @@ export function advanceCharacterAging(deltaYears: number): void {
 
     const oldAge = character.age;
     const newAge = Math.round(oldAge + deltaYears);
+    const skipAgePenalty = characterIgnoresAgeDecline(character);
 
     const appearanceDecline =
-      declineAt(newAge, APPEARANCE_DECLINE_PER_YEAR) - declineAt(oldAge, APPEARANCE_DECLINE_PER_YEAR);
+      declineAt(newAge, APPEARANCE_DECLINE_PER_YEAR, skipAgePenalty) -
+      declineAt(oldAge, APPEARANCE_DECLINE_PER_YEAR, skipAgePenalty);
+    // Mild soft-feature loss (~1/3 of vitality decline rate), only when aging past the threshold.
+    const softDecline =
+      declineAt(newAge, APPEARANCE_DECLINE_PER_YEAR * 0.35, skipAgePenalty) -
+      declineAt(oldAge, APPEARANCE_DECLINE_PER_YEAR * 0.35, skipAgePenalty);
     const prowessRate = prowessDeclineRateForCharacter(character);
-    const prowessDecline = declineAt(newAge, prowessRate) - declineAt(oldAge, prowessRate);
+    const prowessDecline =
+      declineAt(newAge, prowessRate, skipAgePenalty) - declineAt(oldAge, prowessRate, skipAgePenalty);
 
     character.age = newAge;
-    if (appearanceDecline > 0) character.appearance = Math.max(1, character.appearance - appearanceDecline);
+    if (appearanceDecline > 0) {
+      // Prefer axis decline (vitality) + own-race Appearance cache when looks exist.
+      if (character.looks) {
+        character.looks.vitality = Math.max(1, character.looks.vitality - appearanceDecline);
+        if (softDecline > 0) {
+          character.looks.symmetry = Math.max(1, character.looks.symmetry - softDecline);
+          character.looks.refinement = Math.max(1, character.looks.refinement - softDecline);
+        }
+        const races = hasCharactersContext() ? getWorldContext().pack.races : undefined;
+        character.appearance = ownRaceAppearanceScore(character.looks, resolveCharacterRaceId(character), races);
+      } else {
+        character.appearance = Math.max(1, character.appearance - appearanceDecline);
+      }
+    }
     if (prowessDecline > 0) {
       character.skills.prowess = Math.max(1, character.skills.prowess - prowessDecline);
       if (character.abilityProfile?.presetId === "ck3e") {
@@ -83,8 +137,9 @@ export function advanceCharacterAging(deltaYears: number): void {
       }
     }
 
-    // Mortality Check: Base risk 1% per year, increasing exponentially past 50.
-    const mortalityRisk = 0.01 + (newAge > 50 ? 1.15 ** (newAge - 50) / 100 : 0);
+    // Mortality: human-scale curve for short-lived races only.
+    // Long-lived folk do not take the "past 50" spike (no human mid-life age penalty).
+    const mortalityRisk = skipAgePenalty ? 0.002 : 0.01 + (newAge > 50 ? 1.15 ** (newAge - 50) / 100 : 0);
     const survivalProb = (1 - Math.min(0.99, mortalityRisk)) ** deltaYears;
     if (Math.random() > survivalProb) {
       character.dead = true;

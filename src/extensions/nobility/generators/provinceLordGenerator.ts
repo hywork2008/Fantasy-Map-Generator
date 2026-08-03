@@ -1,3 +1,4 @@
+import { densityForState, shouldGenerateSparseRole } from "../../characters/raceRoster";
 import { analyzeFrontiers, getProvinceThreats } from "../../hostCore";
 import { getCurrentYear, getWorldContext } from "../nobilityContext";
 import { Characters } from "./characterLifecycle";
@@ -27,6 +28,8 @@ export function assignProvinceLords(): void {
     if (!segments?.length) continue;
 
     const threats = getProvinceThreats(pack, segments);
+    // Long-lived mono courts cannot staff every march — thin frontier lord density.
+    const density = densityForState(state, pack);
 
     for (const provinceId of threats.keys()) {
       if (!provinceId) continue; // 0 = "no province" (states with too few burgs to have any)
@@ -38,6 +41,7 @@ export function assignProvinceLords(): void {
         c => !c.dead && c.titles.some(t => t.entityType === "province" && t.entityId === provinceId)
       );
       if (hasLivingLord) continue;
+      if (!shouldGenerateSparseRole(density)) continue;
 
       Characters.createProvinceLord(state, province);
     }

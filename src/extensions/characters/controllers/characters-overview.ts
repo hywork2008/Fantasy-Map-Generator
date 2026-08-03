@@ -1,8 +1,15 @@
-import type { State } from "../../hostTypes";
+import type { Culture, Race, State } from "../../hostTypes";
 import { inferRoleClass } from "../backstoryProfile";
 import type { Character, CharacterRoleClass } from "../characterTypes";
 import { useCharactersUiState } from "../ui/charactersUiState";
 import { getCharacterRoleLabel, getCharacterTitleLabel } from "../utils/characterLabels";
+
+/** Culture sets where non-human races are first-class and worth a dedicated Race column. */
+export const FANTASY_CULTURE_SETS = new Set(["highFantasy", "darkFantasy"]);
+
+export function isFantasyCulturesSet(culturesSet: string | undefined | null): boolean {
+  return !!culturesSet && FANTASY_CULTURE_SETS.has(culturesSet);
+}
 
 export interface CharacterRowData {
   c: Character;
@@ -11,6 +18,20 @@ export interface CharacterRowData {
   title: string;
   /** Semantic title/role class (King/Emperor/Khan → `"ruler"`). */
   roleClass: CharacterRoleClass;
+  /** Display name from pack.races (or culture.race fallback). */
+  raceName: string;
+}
+
+export function resolveCharacterRaceName(
+  character: Character,
+  races?: readonly Pick<Race, "i" | "name" | "removed">[] | null,
+  cultures?: readonly Pick<Culture, "i" | "race">[] | null
+): string {
+  const raceId = character.race ?? cultures?.[character.culture]?.race;
+  if (raceId === undefined || raceId === null) return "Unknown";
+  const race = races?.[raceId];
+  if (!race || race.removed) return "Unknown";
+  return race.name || "Unknown";
 }
 
 export function filterAndSortCharacters(
@@ -23,9 +44,19 @@ export function filterAndSortCharacters(
     filterRoleClass?: CharacterRoleClass | null;
     sortBy: string;
     sortOrder: "asc" | "desc";
+    races?: readonly Pick<Race, "i" | "name" | "removed">[] | null;
+    cultures?: readonly Pick<Culture, "i" | "race">[] | null;
   }
 ): CharacterRowData[] {
-  const { searchText, filterStateId, filterRoleClass = null, sortBy, sortOrder } = options;
+  const {
+    searchText,
+    filterStateId,
+    filterRoleClass = null,
+    sortBy,
+    sortOrder,
+    races = null,
+    cultures = null
+  } = options;
 
   // 1. Map to row data
   let rows: CharacterRowData[] = characters.map(c => {
@@ -38,7 +69,8 @@ export function filterAndSortCharacters(
       stateId,
       stateName,
       title: holding ? getCharacterTitleLabel(holding.title) : role ? getCharacterRoleLabel(role) : "",
-      roleClass: inferRoleClass(c)
+      roleClass: inferRoleClass(c),
+      raceName: resolveCharacterRaceName(c, races, cultures)
     };
   });
 
@@ -67,6 +99,7 @@ export function filterAndSortCharacters(
         return true;
       }
       if (r.c.gender.toLowerCase().startsWith(search)) return true;
+      if (r.raceName.toLowerCase().includes(search)) return true;
       return false;
     });
   }
@@ -89,6 +122,9 @@ export function filterAndSortCharacters(
         break;
       case "wealth":
         result = (a.c.wealth ?? 0) - (b.c.wealth ?? 0);
+        break;
+      case "race":
+        result = a.raceName.localeCompare(b.raceName);
         break;
       case "gender":
         result = a.c.gender.localeCompare(b.c.gender);

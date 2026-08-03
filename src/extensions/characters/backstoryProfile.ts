@@ -3,6 +3,7 @@
  * Spec: docs/plan/characters/backstory-profile.md
  */
 import { P, rand } from "../hostUtils";
+import { attractiveness, isSameRace } from "./appearance";
 import { getWorldContext, hasCharactersContext } from "./charactersContext";
 import type {
   Character,
@@ -1881,20 +1882,36 @@ export function shouldRecordSolidarity(score: number, a: Character, b: Character
 
 /**
  * Romantic / sexual interest only. Sparse; not seeded for every peer pair.
- * High appearance, lust taste, and sociability raise chance and score.
+ * Same race: uses observer-relative attractiveness (Appearance judgment).
+ * Cross race: almost never; when it does, scores stay low and read as deviant curiosity.
+ * Lore: docs/world/help/races-beauty-and-pairing.md
  */
 export function computeRomanticFavor(from: Character, to: Character): number | null {
   if (from.i === to.i || from.dead || to.dead) return null;
   // Default: heterosexual court pairing; rare same-sex interest
   if (from.gender === to.gender && !P(0.08)) return null;
 
+  const sameRace = isSameRace(from, to);
+  const pull = attractiveness(from, to);
+
+  // Cross-race pairing is socially deviant; rare private obsession only.
+  if (!sameRace) {
+    const lust = from.backstory?.tastes.find(t => t.id === "lust" && t.polarity === "like");
+    const deviantChance = 0.008 + (lust ? lust.intensity / 2000 : 0);
+    if (from.personality.piety >= 60 || !P(deviantChance)) return null;
+    // Cap scores: never reads as conventional court romance
+    let score = rand(5, 18) + Math.round(pull.score * 0.15);
+    if (from.personality.piety >= 40) score -= rand(5, 15);
+    return clampRelation(Math.min(35, score));
+  }
+
   const lust = from.backstory?.tastes.find(t => t.id === "lust" && t.polarity === "like");
-  const appearancePull = (to.appearance - 45) / 55; // -0.8..1
+  const appearancePull = (pull.score - 45) / 55; // -0.8..1
   const sociability = from.personality.sociability / 100;
   const baseChance = 0.04 + Math.max(0, appearancePull) * 0.12 + (lust ? lust.intensity / 400 : 0) + sociability * 0.04;
   if (!P(Math.min(0.35, baseChance))) return null;
 
-  let score = rand(5, 25) + Math.round(to.appearance * 0.45) + (lust ? Math.round(lust.intensity * 0.2) : 0);
+  let score = rand(5, 25) + Math.round(pull.score * 0.45) + (lust ? Math.round(lust.intensity * 0.2) : 0);
   score += Math.round((from.personality.sociability - 40) * 0.15);
   if (from.personality.piety >= 75) score -= rand(10, 25);
   if (from.backstory?.tastes.some(t => t.id === "lust" && t.polarity === "dislike")) score -= rand(20, 40);

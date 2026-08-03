@@ -1,47 +1,306 @@
 /**
  * Built-in race catalog.
  *
- * Race = species / folk traits (gender policy, future lifespan, etc.).
+ * Race = species / folk traits (gender, lifespan, looks baselines, beauty ideals, fertility).
  * Culture = language, names, expansion style — and a reference to a race.
  *
  * Index 0 is reserved for "Unknown" (Wildlands / unset), matching culture id 0.
+ *
+ * Lifespans / fertility / beauty ideals are Western-fantasy genre defaults
+ * (Tolkien-ish / D&D-flavoured tabletop scale), not historical demography.
+ *
+ * World rule (beauty & pairing): same-race judgment uses phenotype + race ideals;
+ * cross-race looks are mostly "incomprehensible / odd", with limited grasp when
+ * stature/build are similar. Cross-race pairing is socially deviant.
+ * See docs/world/help/races-beauty-and-pairing.md.
  */
-import type { CharacterGenderMode, Race, RaceKey } from "../types/models";
+import type {
+  AppearanceAxes,
+  CharacterGenderMode,
+  Race,
+  RaceBeautyIdeal,
+  RaceFertility,
+  RaceKey
+} from "../types/models";
 
 export interface RaceDefinition {
   key: RaceKey;
   name: string;
   characterGender?: CharacterGenderMode;
+  lifespan: number;
+  maxLifespan: number;
+  looksBaseline: AppearanceAxes;
+  beautyIdeal: RaceBeautyIdeal;
+  fertility: RaceFertility;
 }
 
-/** Stable catalog order → race `i` at generation / migration. */
+const humanLooks: AppearanceAxes = {
+  stature: 50,
+  build: 50,
+  symmetry: 50,
+  refinement: 50,
+  vitality: 55,
+  ornament: 45
+};
+
+const humanFertility: RaceFertility = {
+  fertilityStart: 16,
+  fertilityEnd: 45,
+  interbirthYears: 3.5,
+  litterMean: 1.05,
+  litterMax: 3
+};
+
+const humanIdeal: RaceBeautyIdeal = {
+  weights: { symmetry: 1.2, refinement: 0.8, vitality: 0.9, stature: 0.3, build: 0.2, ornament: 0.2 }
+};
+
+/**
+ * Stable catalog order → race `i` at generation / migration.
+ */
 export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
-  { key: "unknown", name: "Unknown" },
-  { key: "human", name: "Human" },
-  { key: "elf", name: "Elf" },
-  { key: "dark_elf", name: "Dark Elf" },
-  { key: "dwarf", name: "Dwarf" },
-  { key: "goblin", name: "Goblin" },
-  { key: "orc", name: "Orc" },
-  { key: "giant", name: "Giant" },
-  { key: "draconic", name: "Draconic" },
-  { key: "arachnid", name: "Arachnid" },
-  { key: "serpent", name: "Serpent" },
-  /** All-female warrior folk — Amazones polities force female characters. */
-  { key: "amazones", name: "Amazones", characterGender: "female_only" }
+  {
+    key: "unknown",
+    name: "Unknown",
+    lifespan: 75,
+    maxLifespan: 100,
+    looksBaseline: { ...humanLooks },
+    beautyIdeal: humanIdeal,
+    fertility: humanFertility
+  },
+  {
+    key: "human",
+    name: "Human",
+    lifespan: 75,
+    maxLifespan: 100,
+    looksBaseline: { ...humanLooks },
+    beautyIdeal: humanIdeal,
+    fertility: humanFertility
+  },
+  {
+    key: "elf",
+    name: "Elf",
+    lifespan: 750,
+    maxLifespan: 1000,
+    looksBaseline: { stature: 55, build: 35, symmetry: 65, refinement: 75, vitality: 60, ornament: 40 },
+    beautyIdeal: {
+      weights: { refinement: 1.4, symmetry: 1.1, stature: 0.4, build: -0.6, vitality: 0.5, ornament: 0.2 }
+    },
+    fertility: {
+      fertilityStart: 100,
+      fertilityEnd: 500,
+      interbirthYears: 20,
+      litterMean: 1.0,
+      litterMax: 2
+    }
+  },
+  {
+    key: "dark_elf",
+    name: "Dark Elf",
+    lifespan: 700,
+    maxLifespan: 950,
+    looksBaseline: { stature: 50, build: 40, symmetry: 60, refinement: 70, vitality: 50, ornament: 55 },
+    beautyIdeal: {
+      weights: { refinement: 1.2, symmetry: 1.0, ornament: 0.7, vitality: 0.4, build: -0.3, stature: 0.3 }
+    },
+    fertility: {
+      fertilityStart: 80,
+      fertilityEnd: 450,
+      interbirthYears: 18,
+      litterMean: 1.0,
+      litterMax: 2
+    }
+  },
+  {
+    key: "dwarf",
+    name: "Dwarf",
+    lifespan: 350,
+    maxLifespan: 450,
+    looksBaseline: { stature: 30, build: 70, symmetry: 50, refinement: 45, vitality: 60, ornament: 50 },
+    beautyIdeal: {
+      weights: { build: 1.2, vitality: 0.9, ornament: 0.6, symmetry: 0.7, stature: -0.4, refinement: 0.2 }
+    },
+    fertility: {
+      fertilityStart: 40,
+      fertilityEnd: 200,
+      interbirthYears: 8,
+      litterMean: 1.05,
+      litterMax: 2
+    }
+  },
+  {
+    key: "goblin",
+    name: "Goblin",
+    lifespan: 50,
+    maxLifespan: 70,
+    looksBaseline: { stature: 25, build: 40, symmetry: 40, refinement: 30, vitality: 50, ornament: 55 },
+    beautyIdeal: {
+      weights: { vitality: 1.0, ornament: 0.8, build: 0.5, symmetry: 0.3, refinement: -0.4, stature: 0.2 }
+    },
+    fertility: {
+      fertilityStart: 10,
+      fertilityEnd: 35,
+      interbirthYears: 1.5,
+      litterMean: 2.0,
+      litterMax: 5
+    }
+  },
+  {
+    key: "orc",
+    name: "Orc",
+    lifespan: 60,
+    maxLifespan: 80,
+    looksBaseline: { stature: 65, build: 75, symmetry: 45, refinement: 30, vitality: 65, ornament: 60 },
+    beautyIdeal: {
+      weights: { build: 1.4, stature: 1.0, ornament: 0.8, vitality: 0.9, refinement: -0.7, symmetry: 0.2 }
+    },
+    fertility: {
+      fertilityStart: 12,
+      fertilityEnd: 40,
+      interbirthYears: 2.5,
+      litterMean: 1.3,
+      litterMax: 4
+    }
+  },
+  {
+    key: "giant",
+    name: "Giant",
+    lifespan: 250,
+    maxLifespan: 400,
+    looksBaseline: { stature: 90, build: 80, symmetry: 45, refinement: 35, vitality: 55, ornament: 40 },
+    beautyIdeal: {
+      weights: { stature: 1.5, build: 1.0, vitality: 0.7, symmetry: 0.4, refinement: -0.3, ornament: 0.2 }
+    },
+    fertility: {
+      fertilityStart: 30,
+      fertilityEnd: 150,
+      interbirthYears: 10,
+      litterMean: 1.0,
+      litterMax: 2
+    }
+  },
+  {
+    key: "draconic",
+    name: "Draconic",
+    lifespan: 1200,
+    maxLifespan: 2000,
+    looksBaseline: { stature: 70, build: 65, symmetry: 55, refinement: 50, vitality: 70, ornament: 55 },
+    beautyIdeal: {
+      weights: { vitality: 1.2, stature: 0.9, ornament: 0.8, build: 0.7, symmetry: 0.5, refinement: 0.4 }
+    },
+    fertility: {
+      fertilityStart: 50,
+      fertilityEnd: 600,
+      interbirthYears: 25,
+      litterMean: 1.0,
+      litterMax: 3
+    }
+  },
+  {
+    key: "arachnid",
+    name: "Arachnid",
+    lifespan: 60,
+    maxLifespan: 100,
+    looksBaseline: { stature: 40, build: 45, symmetry: 35, refinement: 40, vitality: 55, ornament: 70 },
+    beautyIdeal: {
+      weights: { ornament: 1.3, vitality: 0.8, refinement: 0.5, build: 0.4, symmetry: -0.2, stature: 0.3 }
+    },
+    fertility: {
+      fertilityStart: 8,
+      fertilityEnd: 30,
+      interbirthYears: 1.2,
+      litterMean: 3.0,
+      litterMax: 8
+    }
+  },
+  {
+    key: "serpent",
+    name: "Serpent",
+    lifespan: 200,
+    maxLifespan: 400,
+    looksBaseline: { stature: 55, build: 45, symmetry: 50, refinement: 55, vitality: 55, ornament: 60 },
+    beautyIdeal: {
+      weights: { refinement: 0.9, ornament: 1.0, symmetry: 0.8, vitality: 0.6, build: 0.3, stature: 0.4 }
+    },
+    fertility: {
+      fertilityStart: 18,
+      fertilityEnd: 120,
+      interbirthYears: 5,
+      litterMean: 1.5,
+      litterMax: 4
+    }
+  },
+  {
+    key: "amazones",
+    name: "Amazones",
+    characterGender: "female_only",
+    lifespan: 80,
+    maxLifespan: 110,
+    looksBaseline: { stature: 55, build: 60, symmetry: 52, refinement: 50, vitality: 65, ornament: 50 },
+    beautyIdeal: {
+      weights: { vitality: 1.2, build: 1.0, stature: 0.6, symmetry: 0.7, refinement: 0.4, ornament: 0.3 }
+    },
+    fertility: {
+      fertilityStart: 16,
+      fertilityEnd: 42,
+      interbirthYears: 3.0,
+      litterMean: 1.1,
+      litterMax: 3
+    }
+  }
 ] as const;
 
 export const DEFAULT_RACE_KEY: RaceKey = "human";
 export const UNKNOWN_RACE_ID = 0;
 export const HUMAN_RACE_ID = 1;
 
+export const DEFAULT_RACE_LIFESPAN = 75;
+export const DEFAULT_RACE_MAX_LIFESPAN = 100;
+
+export const DEFAULT_RACE_FERTILITY: RaceFertility = { ...humanFertility };
+
 /** Fresh race table for a new map (full catalog, fixed ids). */
 export function createDefaultRaces(): Race[] {
-  return RACE_DEFINITIONS.map((def, i) => {
-    const race: Race = { i, key: def.key, name: def.name };
-    if (def.characterGender) race.characterGender = def.characterGender;
-    return race;
-  });
+  return RACE_DEFINITIONS.map((def, i) => definitionToRace(def, i));
+}
+
+function definitionToRace(def: RaceDefinition, i: number): Race {
+  const race: Race = {
+    i,
+    key: def.key,
+    name: def.name,
+    lifespan: def.lifespan,
+    maxLifespan: def.maxLifespan,
+    looksBaseline: { ...def.looksBaseline },
+    beautyIdeal: { weights: { ...def.beautyIdeal.weights } },
+    fertility: { ...def.fertility }
+  };
+  if (def.characterGender) race.characterGender = def.characterGender;
+  return race;
+}
+
+/** Fill missing catalog fields on a loaded race (lifespan, looks, fertility, ideals). */
+export function applyCatalogLifespanDefaults(race: Race): Race {
+  return applyCatalogRaceDefaults(race);
+}
+
+/** Backfill all catalog-derived race fields for older saves. */
+export function applyCatalogRaceDefaults(race: Race): Race {
+  const def = RACE_DEFINITIONS.find(d => d.key === race.key);
+  if (race.lifespan === undefined) {
+    race.lifespan = def?.lifespan ?? DEFAULT_RACE_LIFESPAN;
+  }
+  if (race.maxLifespan === undefined) {
+    race.maxLifespan = def?.maxLifespan ?? DEFAULT_RACE_MAX_LIFESPAN;
+  }
+  if (race.maxLifespan < race.lifespan) {
+    race.maxLifespan = race.lifespan;
+  }
+  if (!race.looksBaseline && def) race.looksBaseline = { ...def.looksBaseline };
+  if (!race.beautyIdeal && def) race.beautyIdeal = { weights: { ...def.beautyIdeal.weights } };
+  if (!race.fertility && def) race.fertility = { ...def.fertility };
+  if (!race.fertility) race.fertility = { ...DEFAULT_RACE_FERTILITY };
+  return race;
 }
 
 export function raceIdByKey(races: readonly Race[], key: RaceKey | string | undefined): number {
@@ -53,4 +312,48 @@ export function raceIdByKey(races: readonly Race[], key: RaceKey | string | unde
 export function getRaceById(races: readonly Race[] | undefined, raceId: number | undefined): Race | undefined {
   if (!races || raceId === undefined || raceId < 0) return undefined;
   return races[raceId];
+}
+
+export function getRaceLifespan(races: readonly Race[] | undefined, raceId: number | undefined): number {
+  const race = getRaceById(races, raceId);
+  if (race?.lifespan !== undefined) return race.lifespan;
+  const def = race ? RACE_DEFINITIONS.find(d => d.key === race.key) : undefined;
+  return def?.lifespan ?? DEFAULT_RACE_LIFESPAN;
+}
+
+export function getRaceMaxLifespan(races: readonly Race[] | undefined, raceId: number | undefined): number {
+  const race = getRaceById(races, raceId);
+  if (race?.maxLifespan !== undefined) return race.maxLifespan;
+  const def = race ? RACE_DEFINITIONS.find(d => d.key === race.key) : undefined;
+  return def?.maxLifespan ?? DEFAULT_RACE_MAX_LIFESPAN;
+}
+
+export function getRaceFertility(races: readonly Race[] | undefined, raceId: number | undefined): RaceFertility {
+  const race = getRaceById(races, raceId);
+  if (race?.fertility) return race.fertility;
+  const def = race ? RACE_DEFINITIONS.find(d => d.key === race.key) : undefined;
+  return def ? { ...def.fertility } : { ...DEFAULT_RACE_FERTILITY };
+}
+
+export function getRaceLooksBaseline(races: readonly Race[] | undefined, raceId: number | undefined): AppearanceAxes {
+  const race = getRaceById(races, raceId);
+  if (race?.looksBaseline) {
+    return {
+      stature: race.looksBaseline.stature ?? 50,
+      build: race.looksBaseline.build ?? 50,
+      symmetry: race.looksBaseline.symmetry ?? 50,
+      refinement: race.looksBaseline.refinement ?? 50,
+      vitality: race.looksBaseline.vitality ?? 55,
+      ornament: race.looksBaseline.ornament ?? 45
+    };
+  }
+  const def = race ? RACE_DEFINITIONS.find(d => d.key === race.key) : undefined;
+  return def ? { ...def.looksBaseline } : { ...humanLooks };
+}
+
+export function getRaceBeautyIdeal(races: readonly Race[] | undefined, raceId: number | undefined): RaceBeautyIdeal {
+  const race = getRaceById(races, raceId);
+  if (race?.beautyIdeal) return race.beautyIdeal;
+  const def = race ? RACE_DEFINITIONS.find(d => d.key === race.key) : undefined;
+  return def ? { weights: { ...def.beautyIdeal.weights } } : humanIdeal;
 }

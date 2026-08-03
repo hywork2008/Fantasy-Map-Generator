@@ -1,4 +1,7 @@
+import type { AppearanceAxes } from "../../types/models";
+
 export type Gender = "male" | "female";
+export type { AppearanceAxes, AppearanceAxisId } from "../../types/models";
 
 export interface TitleHolding {
   /** Gender-resolved display title, e.g. "King", "Prime Minister", "Khan". */
@@ -350,6 +353,16 @@ export interface Character {
    */
   abilityProfile?: AbilityProfile;
   family: CharacterFamily;
+  /**
+   * Objective phenotype axes (1–100). Beauty is observer-relative — see
+   * `attractiveness()` / docs/world/help/races-beauty-and-pairing.md.
+   */
+  looks?: AppearanceAxes;
+  /**
+   * Cached same-race attractiveness (own race ideal of own looks): how striking
+   * this person is *among their people*. Not a universal beauty rank.
+   * Cross-race romantic judgment must not use this alone.
+   */
   appearance: number;
   prestige: number;
   /**

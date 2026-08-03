@@ -2,7 +2,8 @@ import { DEFAULT_RACE_KEY, getRaceById, HUMAN_RACE_ID, raceIdByKey } from "../..
 import { Names } from "../hostCore";
 import type { CharacterGenderMode } from "../hostTypes";
 import { gauss, P, rand } from "../hostUtils";
-import { APPEARANCE_DECLINE_PER_YEAR, DECLINE_AGE_THRESHOLD, prowessDeclineRateForCreation } from "./advanceAge";
+import { DECLINE_AGE_THRESHOLD, prowessDeclineRateForCreation, raceIgnoresAgeDecline } from "./advanceAge";
+import { rollLooksForRace } from "./appearance";
 import { getAbilityPreset, getWorldContext, hasCharactersContext } from "./charactersContext";
 import type {
   AbilityProfile,
@@ -13,21 +14,26 @@ import type {
   CharacterSkills,
   Gender
 } from "./characterTypes";
+import {
+  expectedChildrenFromFertility,
+  resolveFertilityForRace,
+  rollFirstMarriageAge,
+  sampleLitter
+} from "./fertility";
 import { rollCharacterSkills } from "./skillGeneration";
 
-/** Default adult age range rolled when no `ageOverride` is given. */
+/** Default adult age range rolled when no `ageOverride` is given (human-scale roles). */
 const DEFAULT_MIN_AGE = 28;
 const DEFAULT_MAX_AGE = 65;
 
 /**
- * Peak-of-life appearance (before age decline): normal distribution on 1–100.
- * μ=50 (ordinary faces dominate), σ=15 (~2/3 in 35–65, extremes rare).
- * Uniform 1–100 made beauty/ugliness too common for Favor / lust thresholds.
+ * Historical scalar appearance mean/σ (own-race cache still clusters near this for humans).
+ * Multi-axis looks are preferred; see rollLooksForRace / attractiveness().
  */
 export const APPEARANCE_MEAN = 50;
 export const APPEARANCE_STDDEV = 15;
 
-/** Roll peak appearance 1–100 (integer). Age decline is applied separately in createPerson. */
+/** Peak scalar sample (1–100) — used by tests and as a simple noise source. Prefer looks axes. */
 export function rollPeakAppearance(): number {
   return Math.max(1, Math.min(100, gauss(APPEARANCE_MEAN, APPEARANCE_STDDEV, 1, 100, 0)));
 }
@@ -69,6 +75,11 @@ export interface CreatePersonOptions {
   ageOverride?: number;
   /** Caller-specified gender. Omit to use race `characterGender` policy, then feudal male bias. */
   genderOverride?: Gender;
+  /**
+   * pack.races id when different from culture.race (mixed polities).
+   * Drives looks, fertility, gender policy, and Character.race.
+   */
+  raceOverride?: number;
   /** Ability preset id to roll into `abilityProfile` in addition to the mandatory skills/personality. Defaults to "ck3e" (no extra roll — same values, merged). */
   presetId?: string;
 }
@@ -90,15 +101,15 @@ export function resolveRaceIdForCulture(cultureId: number): number {
 }
 
 /**
- * Read gender policy from the culture's race (preferred), with legacy culture.characterGender fallback.
+ * Read gender policy from a race id, with culture fallback when only cultureId is known.
  */
-export function getRaceCharacterGenderMode(cultureId: number): CharacterGenderMode | undefined {
+export function getRaceCharacterGenderMode(cultureId: number, raceId?: number): CharacterGenderMode | undefined {
   if (!hasCharactersContext()) return undefined;
   try {
     const { pack } = getWorldContext();
     const culture = pack.cultures?.[cultureId];
-    const raceId = culture?.race ?? resolveRaceIdForCulture(cultureId);
-    const race = getRaceById(pack.races, raceId);
+    const resolvedRaceId = raceId ?? culture?.race ?? resolveRaceIdForCulture(cultureId);
+    const race = getRaceById(pack.races, resolvedRaceId);
     if (race?.characterGender) return race.characterGender;
     // Pre-split maps that still store gender on culture
     return culture?.characterGender;
@@ -112,10 +123,10 @@ export function getRaceCharacterGenderMode(cultureId: number): CharacterGenderMo
  * Amazones race (`characterGender: "female_only"`) forces female for every createPerson path
  * that does not pass genderOverride.
  */
-export function resolvePersonGender(cultureId: number, genderOverride?: Gender): Gender {
+export function resolvePersonGender(cultureId: number, genderOverride?: Gender, raceId?: number): Gender {
   if (genderOverride) return genderOverride;
 
-  const mode = getRaceCharacterGenderMode(cultureId);
+  const mode = getRaceCharacterGenderMode(cultureId, raceId);
   if (mode === "female_only") return "female";
   if (mode === "balanced") return P(0.5) ? "male" : "female";
   // male_dominant or undefined: historical feudal court bias
@@ -162,9 +173,12 @@ export function generateFamily(
   gender: Gender,
   formName?: string,
   marriageExpectation: MarriageExpectation = "ordinary",
-  isReligiousRole = false
+  isReligiousRole = false,
+  /** pack.races id — drives interbirth interval and litter size. */
+  raceId?: number
 ): CharacterFamily {
-  if (age < 16) {
+  const fertility = resolveFertilityForRace(raceId);
+  if (age < fertility.fertilityStart) {
     return { spouses: 0, children: 0, grandchildren: 0, greatGrandchildren: 0, spouseIds: [], childIds: [] };
   }
 
@@ -182,27 +196,39 @@ export function generateFamily(
   }
 
   const spouses = spouseBase;
-  // A first-marriage age of 24 for women and 27 for men follows the c.1300 English estimate.
-  const firstMarriageAge = gender === "female" ? rand(21, 26) : rand(24, 29);
+  const firstMarriageAge = rollFirstMarriageAge(gender, fertility.fertilityStart);
   const yearsMarried = Math.max(0, age - firstMarriageAge);
 
-  // For monogamy, child-bearing years are capped at ~30 years (e.g., age 16 to 46) due to menopause.
-  // For polygamy/harem, the ruler can continually take younger spouses, so fertile years scale with age.
-  const fertileYears = spouses === 1 ? Math.min(yearsMarried, 30) : yearsMarried;
+  // Fertile window is race-specific; polygyny still multiplies birth events.
+  const windowYears = Math.max(
+    0,
+    Math.min(age, fertility.fertilityEnd) - Math.max(firstMarriageAge, fertility.fertilityStart)
+  );
+  const fertileYears = spouses === 1 ? Math.min(yearsMarried, windowYears) : yearsMarried;
 
-  // Base rate: 1 surviving child every 4 years of fertility per spouse.
-  const expectedChildren = spouses * (fertileYears / 4);
-  let children = Math.round(expectedChildren * (0.5 + Math.random()));
+  const expected = expectedChildrenFromFertility(fertileYears, spouses, fertility);
+  // Noise around expectation; for high litterMean races this still yields larger broods.
+  let children = Math.round(expected * (0.55 + Math.random() * 0.9));
+  // Ensure at least occasional multi-birth flavor when litterMean is high and years allow.
+  if (children > 0 && fertility.litterMean >= 1.5 && P(0.35)) {
+    children = Math.max(children, sampleLitter(fertility));
+  }
   if (children < 0) children = 0;
 
+  const grandStart = fertility.fertilityStart + 20;
   let grandchildren = 0;
-  if (age >= 35) {
-    grandchildren = Math.round(children * rand(1, 3) * ((age - 35) / 30));
+  if (age >= grandStart) {
+    grandchildren = Math.round(
+      children * rand(1, 3) * ((age - grandStart) / Math.max(20, fertility.interbirthYears * 4))
+    );
   }
 
+  const greatStart = fertility.fertilityStart + 40;
   let greatGrandchildren = 0;
-  if (age >= 55) {
-    greatGrandchildren = Math.round(grandchildren * rand(0, 2) * ((age - 55) / 20));
+  if (age >= greatStart) {
+    greatGrandchildren = Math.round(
+      grandchildren * rand(0, 2) * ((age - greatStart) / Math.max(15, fertility.interbirthYears * 3))
+    );
   }
 
   return { spouses, children, grandchildren, greatGrandchildren, spouseIds: [], childIds: [] };
@@ -216,6 +242,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     formName,
     ageOverride,
     genderOverride,
+    raceOverride,
     homeStateId,
     marriageExpectation = "ordinary"
   } = options;
@@ -224,9 +251,9 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   // Religious roles without an explicit class still get learning-oriented skill means.
   const skillRoleClass: CharacterRoleClass | undefined = roleClass ?? (isReligiousRole ? "religious" : undefined);
 
+  const race = raceOverride ?? resolveRaceIdForCulture(cultureId);
   // Race policy (e.g. Amazones female_only) or feudal ~90% male default — see resolvePersonGender.
-  const gender: Gender = resolvePersonGender(cultureId, genderOverride);
-  const race = resolveRaceIdForCulture(cultureId);
+  const gender: Gender = resolvePersonGender(cultureId, genderOverride, race);
   const age = ageOverride !== undefined ? ageOverride : rand(DEFAULT_MIN_AGE, DEFAULT_MAX_AGE);
 
   const guile = rand(1, 100);
@@ -234,18 +261,24 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   // Religious figures are typically zealous, unless they are highly guileful (deceitful)
   const zeal = isReligiousRole && guile < 70 ? rand(50, 100) : rand(1, 100);
 
-  const baseAppearance = rollPeakAppearance();
-  const appearance =
-    age > DECLINE_AGE_THRESHOLD
-      ? Math.max(1, baseAppearance - Math.floor((age - DECLINE_AGE_THRESHOLD) * APPEARANCE_DECLINE_PER_YEAR))
-      : baseAppearance;
+  // Long-lived races (elf, dwarf, …) take no human mid-life age penalties on looks/prowess.
+  const raceLifespan = (() => {
+    try {
+      return getRaceById(getWorldContext().pack.races, race)?.lifespan;
+    } catch {
+      return undefined;
+    }
+  })();
+  const skipAgePenalty = raceIgnoresAgeDecline(raceLifespan);
+  const declineThreshold = skipAgePenalty ? Number.POSITIVE_INFINITY : DECLINE_AGE_THRESHOLD;
+  const { looks, appearance } = rollLooksForRace(race, age, declineThreshold);
 
   // Occupation / office-biased gaussians (not uniform 1–100) — see skillGeneration.ts.
   const skills = rollCharacterSkills({ primarySkill, roleClass: skillRoleClass });
 
-  // Physical decline for personal combat ability past peak age.
+  // Physical decline for personal combat ability past peak age (human-scale races only).
   // Career soldiers / martial primaries use half the civilian rate (see advanceAge.ts).
-  if (age > DECLINE_AGE_THRESHOLD) {
+  if (!skipAgePenalty && age > DECLINE_AGE_THRESHOLD) {
     const prowessRate = prowessDeclineRateForCreation(skillRoleClass, primarySkill);
     skills.prowess = Math.max(1, skills.prowess - Math.floor((age - DECLINE_AGE_THRESHOLD) * prowessRate));
   }
@@ -307,6 +340,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     gender,
     culture: cultureId,
     race,
+    looks,
     appearance,
     prestige: rand(1, 100),
     wealth: 0,
@@ -315,7 +349,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     marriages: [],
     skills,
     personality,
-    family: generateFamily(age, gender, formName, marriageExpectation, isReligiousRole),
+    family: generateFamily(age, gender, formName, marriageExpectation, isReligiousRole, race),
     pastTitles: [],
     state: homeStateId
   };
