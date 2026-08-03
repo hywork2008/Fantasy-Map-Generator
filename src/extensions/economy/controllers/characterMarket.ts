@@ -69,8 +69,8 @@ export function getCharacterMarketSnapshot(characterId: number | null): Characte
         unit: good.unit,
         merchantName: merchantName ?? "Unassigned",
         retailStock: getRetailGoodStock(burg.i ?? character.location!, market.i, good.i)?.onHand ?? 0,
-        buyPrice: Markets.customerBuyPrice(market.goods[good.i].price, burg.i ?? character.location!, good.i),
-        sellPrice: Markets.customerSellPrice(market.goods[good.i].price, burg.i ?? character.location!, good.i),
+        buyPrice: Markets.retailBuyPrice(market.goods[good.i].price, burg.i ?? character.location!, market.i, good.i),
+        sellPrice: Markets.retailSellPrice(market.goods[good.i].price, burg.i ?? character.location!, market.i, good.i),
         playerUnits: character.inventory?.[good.i] ?? 0
       };
     })

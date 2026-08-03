@@ -13,7 +13,8 @@
 - 実装済み: 新規／既存 Market の在庫は初回に中心 Burg の卸売へ移行され、人口比の店頭目標へ直接輸送される。購入は店頭だけから行い、購入直後の補充は行わない。
 - 実装済み: 都市の自動生産が `Markets.sell` で Market に納入される時、その同じ Burg の卸売・集荷在庫にも置く。したがって工房 B で作られた商品は、次回の補充で B の店頭を優先して満たし、余剰だけが他都市へ直接輸送される。
 - 実装済み: `Markets.collectRuralProduction` の通常 Goods は、各農村セルから同一 Market 内で最も近い Burg の `collectionBurg` へ直接入る。季節変動する food tag と森林減耗する Wood も同じ集荷先をキャッシュし、Market 合計在庫との保存則を保つ。`stapleFood` は既存の Food Ledger が別途管理する。
-- 未実装: 実経路を使う locality surcharge、Markets/Goods Stock Overview の所在別表示、Character Details の inventory 表示。Burg が一つもない Market や既存の別システムが増減させた `Market.goods.stock` の差分は、従来どおり中心 Burg の卸売在庫へ reconcile する。
+- 実装済み: 都市間補充は道路・河川・海路グラフの `TradeRoutePlanner` と既存の隊商移動速度を使って到着日を決める。到着した店頭在庫は配送日数の加重平均を保持し、プレイヤーの ask/bid に一日 0.4%、最大 15% の locality surcharge を反映する。経路がない旧データでは従来の直線距離推定へ安全にフォールバックする。
+- 未実装: Markets/Goods Stock Overview の所在別表示、Character Details の inventory 表示。Burg が一つもない Market や既存の別システムが増減させた `Market.goods.stock` の差分は、従来どおり中心 Burg の卸売在庫へ reconcile する。
 
 ## 1. 結論
 
@@ -135,6 +136,8 @@ type RetailGoodStock = {
   /** 次回補充時に目指す店頭量。診断・UI用で、在庫の二重計上には使わない */
   target: number;
   lastRestockedTick: number;
+  /** 現在棚にある在庫の加重平均輸送日数。価格差に使う */
+  transportDays: number;
 };
 
 type BurgRetailInventory = {
@@ -160,6 +163,7 @@ type MarketShipment = {
   destinationBurgId: number;
   dispatchedTick: number;
   arrivalTick: number;
+  travelDays: number;
 };
 
 type PlayerMarketTransaction = {
@@ -251,7 +255,7 @@ player bid = marketBid / localityFactor
 
 - `midPrice` は Market 全体で一つ。既存の需給、戦争、food stress、交易による変化をそのまま受ける。
 - `customerBuyPrice` / `customerSellPrice` の既存 10% spread は維持する。ただし名前は「顧客が買う／売る」の向きが読み取りづらいため、新 API では `marketAskPrice` / `marketBidPrice` を導入し、旧名は互換 alias にする。
-- `localityFactor` は Market 中心からの距離ではなく、その Burg の当期の補充計画における配送費を小さく表す。同一 Burg の卸売在庫から棚へ置ける品は 1.00、良路・近距離からの補充は 1.02 程度、遠隔・悪路でも上限 1.15 程度とする。供給源がまだ決まらない時は、前回の補充係数または 1.00 に安全にフォールバックする。
+- `localityFactor` は Market 中心からの距離ではなく、その Burg の棚に実際に届いた在庫の加重平均配送日数を小さく表す。同一 Burg の卸売在庫から棚へ置ける品は 1.00、到着在庫は一日ごとに 0.4% を加算し、遠隔・悪路でも上限は 1.15 とする。道路・河川・海路グラフがある場合は `TradeRoutePlanner` と隊商速度で配送日数を求め、旧データで経路が得られない場合だけ直線距離へフォールバックする。
 - したがって B の製造品が B の店頭にあるなら、B の価格は通常 C と同額か低く、必ず C の価格で買うわけではない。逆に C に多量の在庫があり B へ返送する局面では B の価格が高くなり得る。同一商圏の基準価格は一つだが、実売買価格は配送費を含む。この差は個別の都市価格投機ではなく、店頭への配送・回収費を表す。
 
 価格をリクエスト側から渡してはならない。コマンド実行時に再見積もりし、実際に成立した単価・税・合計を receipt として返す。市場価格は購入後に既存と同じ市場圧力で上げ、売却後に下げる。

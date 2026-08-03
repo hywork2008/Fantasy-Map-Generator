@@ -83,8 +83,8 @@ function buildQuote(args: {
   const taxRate = Math.max(0, state?.salesTax ?? 0);
   const unitPrice =
     args.direction === "buy"
-      ? Markets.customerBuyPrice(market.goods[good.i].price, burgId, good.i)
-      : Markets.customerSellPrice(market.goods[good.i].price, burgId, good.i);
+      ? Markets.retailBuyPrice(market.goods[good.i].price, burgId, market.i, good.i)
+      : Markets.retailSellPrice(market.goods[good.i].price, burgId, market.i, good.i);
   const goodsValue = rn(units * unitPrice, 2);
   const salesTax = rn(goodsValue * taxRate, 2);
   const totalPaid = args.direction === "buy" ? rn(goodsValue + salesTax, 2) : rn(goodsValue - salesTax, 2);

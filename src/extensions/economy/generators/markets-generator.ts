@@ -40,7 +40,7 @@ import type { Deal, Market, TradeRouteSegment } from "./marketTypes";
 import { isMarketTradePermitted } from "./merchantOrganizations";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { getRuralProductionContributions, getSeasonalFoodProductionMultiplier } from "./production-utils";
-import { addWholesaleGoodStock } from "./retailInventory";
+import { addWholesaleGoodStock, getRetailLocalityMultiplier } from "./retailInventory";
 import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
 import {
   estimateSpeculativeTrade,
@@ -1384,6 +1384,28 @@ export class MarketsModule {
   customerSellPrice(midPrice: number, burgId?: number, goodId?: number): number {
     const warMod = this.getWarPriceModifier(burgId, goodId);
     return rn(midPrice * warMod * (1 - MARKET_MARGIN), 2);
+  }
+
+  /** Player-facing over-the-counter price, including the delivered shelf's route-cost premium. */
+  retailBuyPrice(midPrice: number, burgId: number, marketId: number, goodId: number): number {
+    return rn(
+      midPrice *
+        this.getWarPriceModifier(burgId, goodId) *
+        (1 + MARKET_MARGIN) *
+        getRetailLocalityMultiplier(burgId, marketId, goodId),
+      2
+    );
+  }
+
+  /** Player-facing purchase offer for goods sold into this Burg's market. */
+  retailSellPrice(midPrice: number, burgId: number, marketId: number, goodId: number): number {
+    return rn(
+      midPrice *
+        this.getWarPriceModifier(burgId, goodId) *
+        (1 - MARKET_MARGIN) *
+        (1 / getRetailLocalityMultiplier(burgId, marketId, goodId)),
+      2
+    );
   }
 
   /**

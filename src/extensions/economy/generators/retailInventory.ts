@@ -20,10 +20,14 @@ import type {
   RetailGoodStock,
   RetailInventoryInvariantIssue
 } from "./retailInventoryTypes";
+import { calculateRouteDurationDays } from "./tradeRouteDuration";
+import { TradeRoutePlanner } from "./tradeRoutePlanner";
 
 const EPSILON = 1e-7;
 const INITIAL_RETAIL_SHARE = 0.2;
-const DISTANCE_PER_TICK = 150;
+const FALLBACK_DISTANCE_PER_DAY = 150;
+const RETAIL_SURCHARGE_PER_TRAVEL_DAY = 0.004;
+const MAX_RETAIL_LOCALITY_SURCHARGE = 0.15;
 type MarketBurg = Burg & { i: number };
 
 function currentTick(): number {
@@ -59,7 +63,7 @@ function wholesaleRecord(burgId: number, marketId: number, create = true): BurgW
 function retailGood(record: BurgRetailInventory, goodId: number, tick: number): RetailGoodStock {
   const existing = record.goods[goodId];
   if (existing) return existing;
-  const created: RetailGoodStock = { onHand: 0, target: 0, lastRestockedTick: tick };
+  const created: RetailGoodStock = { onHand: 0, target: 0, lastRestockedTick: tick, transportDays: 0 };
   record.goods[goodId] = created;
   return created;
 }
@@ -192,6 +196,34 @@ function distance(a: MarketBurg, b: MarketBurg): number {
   return Math.hypot((a.x ?? 0) - (b.x ?? 0), (a.y ?? 0) - (b.y ?? 0));
 }
 
+/** Use the established road/river/sea graph; retain the direct-distance estimate only as a compatibility fallback. */
+function travelDays(origin: MarketBurg, destination: MarketBurg): number {
+  const { pack, distanceScale } = getWorldContext();
+  const hasRouteGraph = Object.keys(pack.cells?.routes ?? {}).length > 0;
+  const routePath = hasRouteGraph ? TradeRoutePlanner.findRoutePath(origin.cell, destination.cell) : null;
+  if (routePath?.segments.length) {
+    const duration = calculateRouteDurationDays(
+      routePath.segments.map(segment => ({
+        type: segment.type,
+        points: segment.points.map(point =>
+          typeof point[2] === "number" ? [point[0], point[1], point[2]] : [point[0], point[1]]
+        )
+      })),
+      distanceScale
+    );
+    if (Number.isFinite(duration) && duration > 0) return duration;
+  }
+  return Math.max(1, Math.ceil(distance(origin, destination) / FALLBACK_DISTANCE_PER_DAY));
+}
+
+function addRetailStock(stock: RetailGoodStock, units: number, transportDays: number, tick: number): void {
+  if (!(units > EPSILON)) return;
+  const onHand = Math.max(0, stock.onHand);
+  stock.transportDays = (onHand * (stock.transportDays ?? 0) + units * transportDays) / (onHand + units);
+  stock.onHand = onHand + units;
+  stock.lastRestockedTick = tick;
+}
+
 function planGoodReplenishment(market: Market, goodId: number, tick: number): void {
   const burgs = validBurgs(market.i);
   for (const destination of burgs) {
@@ -203,8 +235,7 @@ function planGoodReplenishment(market: Market, goodId: number, tick: number): vo
     const localUnits = Math.min(required, localWholesale.goods[goodId] ?? 0);
     if (localUnits > EPSILON) {
       localWholesale.goods[goodId] = nonNegative((localWholesale.goods[goodId] ?? 0) - localUnits);
-      retail.onHand += localUnits;
-      retail.lastRestockedTick = tick;
+      addRetailStock(retail, localUnits, 0, tick);
     }
 
     let remaining = Math.max(0, retail.target - retail.onHand);
@@ -216,6 +247,7 @@ function planGoodReplenishment(market: Market, goodId: number, tick: number): vo
       const sourceWholesale = wholesaleRecord(source.i, market.i)!;
       const units = Math.min(remaining, sourceWholesale.goods[goodId] ?? 0);
       sourceWholesale.goods[goodId] = nonNegative((sourceWholesale.goods[goodId] ?? 0) - units);
+      const routeTravelDays = travelDays(source, destination);
       const id = Math.max(1, getNextMarketShipmentId());
       setNextMarketShipmentId(id + 1);
       getMarketShipments().push({
@@ -226,7 +258,8 @@ function planGoodReplenishment(market: Market, goodId: number, tick: number): vo
         originBurgId: source.i,
         destinationBurgId: destination.i,
         dispatchedTick: tick,
-        arrivalTick: tick + Math.max(1, Math.ceil(distance(source, destination) / DISTANCE_PER_TICK))
+        arrivalTick: tick + routeTravelDays,
+        travelDays: routeTravelDays
       });
       remaining -= units;
     }
@@ -260,7 +293,14 @@ export function tickRetailInventory(tick = currentTick()): boolean {
       pending.push(shipment);
       continue;
     }
-    addWholesale(wholesaleRecord(shipment.destinationBurgId, shipment.marketId)!, shipment.goodId, shipment.units);
+    const retail = retailGood(retailRecord(shipment.destinationBurgId, shipment.marketId)!, shipment.goodId, tick);
+    const shelfUnits = Math.min(shipment.units, Math.max(0, retail.target - retail.onHand));
+    addRetailStock(retail, shelfUnits, shipment.travelDays ?? 0, tick);
+    addWholesale(
+      wholesaleRecord(shipment.destinationBurgId, shipment.marketId)!,
+      shipment.goodId,
+      shipment.units - shelfUnits
+    );
     changed = true;
   }
   if (changed) setMarketShipments(pending);
@@ -271,6 +311,13 @@ export function tickRetailInventory(tick = currentTick()): boolean {
 
 export function getRetailGoodStock(burgId: number, marketId: number, goodId: number): RetailGoodStock | undefined {
   return retailRecord(burgId, marketId, false)?.goods[goodId];
+}
+
+/** Multiplicative player-facing local price adjustment for stock already delivered to this Burg. */
+export function getRetailLocalityMultiplier(burgId: number, marketId: number, goodId: number): number {
+  const stock = getRetailGoodStock(burgId, marketId, goodId);
+  const days = Math.max(0, stock?.transportDays ?? 0);
+  return 1 + Math.min(MAX_RETAIL_LOCALITY_SURCHARGE, days * RETAIL_SURCHARGE_PER_TRAVEL_DAY);
 }
 
 export function adjustRetailGoodStock(burgId: number, marketId: number, goodId: number, delta: number): boolean {

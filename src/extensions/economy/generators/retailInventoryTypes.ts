@@ -5,6 +5,8 @@ export interface RetailGoodStock {
   onHand: number;
   target: number;
   lastRestockedTick: number;
+  /** Weighted inland/sea travel time of stock currently on the shelf. */
+  transportDays: number;
 }
 
 export interface BurgRetailInventory {
@@ -30,6 +32,8 @@ export interface MarketShipment {
   destinationBurgId: number;
   dispatchedTick: number;
   arrivalTick: number;
+  /** Route-derived duration retained after delivery for retail price calculation. */
+  travelDays: number;
 }
 
 /** A product-family concession held by a real Market Manager or Rival Merchant Character. */
