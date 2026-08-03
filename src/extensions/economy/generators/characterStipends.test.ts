@@ -4,7 +4,6 @@ import type { Character } from "../../characters/characterTypes";
 import "../../characters/types";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph, Province, State } from "../../hostTypes";
-import { rn } from "../../hostUtils";
 import { clearNobilityContext, initNobilityContext, setRulerId } from "../../nobility/nobilityContext";
 import {
   clearEconomyContext,
@@ -17,18 +16,23 @@ import {
 import {
   apprenticePocketBaseByAge,
   computeApprenticePocketMoney,
+  computeGuildMasterStipend,
+  computeMarketManagerStipend,
+  computeMarketRivalStipend,
+  computeProvinceLordStipend,
   GUILD_APPRENTICE_POCKET_BY_AGE,
   GUILD_APPRENTICE_POCKET_MAX,
-  GUILD_MASTER_STIPEND_RATE,
+  GUILD_MASTER_STIPEND,
   isGoodMasterApprenticeBond,
-  MARKET_MANAGER_STIPEND_RATE,
-  MARKET_RIVAL_STIPEND_RATE,
-  PROVINCE_LORD_STIPEND_RATE,
+  MARKET_MANAGER_STIPEND,
+  MARKET_RIVAL_STIPEND,
+  PROVINCE_LORD_STIPEND,
   payGuildStipends,
   payMarketStipends,
   payProvinceLordStipends,
   seedMissingCharacterWealth
 } from "./characterStipends";
+import { HOUSEHOLD_STIPEND_CAP, HOUSEHOLD_STIPEND_FLOOR } from "./treasuryAllocation";
 
 function makeCharacter(overrides: Partial<Character> = {}): Character {
   return {
@@ -53,6 +57,27 @@ function makeCharacter(overrides: Partial<Character> = {}): Character {
 }
 
 describe("characterStipends", () => {
+  describe("fixed personal-pay helpers", () => {
+    it("never scales guild/market/province pay with huge institutional piles", () => {
+      expect(computeProvinceLordStipend(1_000_000)).toBe(PROVINCE_LORD_STIPEND);
+      expect(computeGuildMasterStipend(1_000_000)).toBe(GUILD_MASTER_STIPEND);
+      expect(computeMarketManagerStipend(1_000_000)).toBe(MARKET_MANAGER_STIPEND);
+      expect(computeMarketRivalStipend(1_000_000)).toBe(MARKET_RIVAL_STIPEND);
+    });
+
+    it("pays only what the pool can fund", () => {
+      expect(computeProvinceLordStipend(0.4)).toBe(0.4);
+      expect(computeGuildMasterStipend(0)).toBe(0);
+    });
+
+    it("keeps the role ladder: apprentice max < rival < master < manager < province lord", () => {
+      expect(GUILD_APPRENTICE_POCKET_MAX).toBeLessThan(MARKET_RIVAL_STIPEND);
+      expect(MARKET_RIVAL_STIPEND).toBeLessThan(GUILD_MASTER_STIPEND);
+      expect(GUILD_MASTER_STIPEND).toBeLessThan(MARKET_MANAGER_STIPEND);
+      expect(MARKET_MANAGER_STIPEND).toBeLessThan(PROVINCE_LORD_STIPEND);
+    });
+  });
+
   describe("payProvinceLordStipends()", () => {
     afterEach(() => {
       clearEconomyContext();
@@ -65,7 +90,7 @@ describe("characterStipends", () => {
       initCharactersContext(api);
     });
 
-    it("pays the living province lord a share of their seated Burg's treasury, deducted from that Burg", () => {
+    it("pays the living province lord a fixed stipend from their seated Burg", () => {
       const lord = makeCharacter({
         i: 30,
         titles: [{ title: "Count", landed: true, entityType: "province", entityId: 1 }]
@@ -79,8 +104,8 @@ describe("characterStipends", () => {
 
       payProvinceLordStipends({ i: 1 });
 
-      expect(lord.wealth).toBe(rn(200 * PROVINCE_LORD_STIPEND_RATE, 2));
-      expect(burg.treasury).toBe(rn(200 - 200 * PROVINCE_LORD_STIPEND_RATE, 2));
+      expect(lord.wealth).toBe(PROVINCE_LORD_STIPEND);
+      expect(burg.treasury).toBe(200 - PROVINCE_LORD_STIPEND);
     });
 
     it("does nothing when the province has no living lord", () => {
@@ -128,7 +153,7 @@ describe("characterStipends", () => {
       worldContext.pack = { characters: [] } as unknown as PackedGraph;
     });
 
-    it("pays fixed age-band pocket money (not a treasury %) to a well-bonded apprentice", () => {
+    it("pays fixed master stipend and age-band pocket money when the bond is good", () => {
       const master = makeCharacter({
         i: 40,
         solidarity: { 41: 40 },
@@ -160,35 +185,16 @@ describe("characterStipends", () => {
         ]
       });
       worldContext.pack.characters = [master, apprentice];
-      // Huge treasury must not inflate pocket money above the age-band base.
       setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.5, treasury: 10_000 }]);
 
       payGuildStipends();
 
-      const masterAmount = rn(10_000 * GUILD_MASTER_STIPEND_RATE, 2);
-      const apprenticeAmount = computeApprenticePocketMoney(10_000 - masterAmount, master, apprentice);
-      expect(master.wealth).toBe(masterAmount);
+      const apprenticeAmount = computeApprenticePocketMoney(10_000 - GUILD_MASTER_STIPEND, master, apprentice);
+      expect(master.wealth).toBe(GUILD_MASTER_STIPEND);
       expect(apprentice.wealth).toBe(apprenticeAmount);
       expect(apprentice.wealth).toBeGreaterThan(0);
-      expect(apprentice.wealth).toBeLessThanOrEqual(apprenticePocketBaseByAge(14));
       expect(apprentice.wealth).toBeLessThanOrEqual(GUILD_APPRENTICE_POCKET_BY_AGE.child);
-      // Same apprentice against a modest treasury yields the same pocket (treasury is a ceiling only).
-      expect(computeApprenticePocketMoney(50, master, apprentice)).toBe(apprenticeAmount);
-      expect(getGuildKnowledgeStocks()[0].treasury).toBe(rn(10_000 - masterAmount - apprenticeAmount, 2));
-    });
-
-    it("uses larger fixed bands for older apprentices and never scales with treasury piles", () => {
-      const master = makeCharacter({ i: 40, solidarity: { 41: 80, 42: 80 } });
-      const youth = makeCharacter({ i: 41, age: 16, solidarity: { 40: 80 } });
-      const adult = makeCharacter({ i: 42, age: 20, solidarity: { 40: 80 } });
-
-      expect(apprenticePocketBaseByAge(13)).toBe(GUILD_APPRENTICE_POCKET_BY_AGE.child);
-      expect(apprenticePocketBaseByAge(16)).toBe(GUILD_APPRENTICE_POCKET_BY_AGE.youth);
-      expect(apprenticePocketBaseByAge(20)).toBe(GUILD_APPRENTICE_POCKET_BY_AGE.adult);
-      expect(computeApprenticePocketMoney(1_000_000, master, youth)).toBe(GUILD_APPRENTICE_POCKET_BY_AGE.youth);
-      expect(computeApprenticePocketMoney(1_000_000, master, adult)).toBe(GUILD_APPRENTICE_POCKET_MAX);
-      // Empty coffers: gift is skipped entirely.
-      expect(computeApprenticePocketMoney(0, master, youth)).toBe(0);
+      expect(getGuildKnowledgeStocks()[0].treasury).toBe(10_000 - GUILD_MASTER_STIPEND - apprenticeAmount);
     });
 
     it("pays the master but withholds apprentice pocket money when the bond is cool", () => {
@@ -227,10 +233,23 @@ describe("characterStipends", () => {
 
       payGuildStipends();
 
-      expect(master.wealth).toBe(rn(100 * GUILD_MASTER_STIPEND_RATE, 2));
+      expect(master.wealth).toBe(GUILD_MASTER_STIPEND);
       expect(apprentice.wealth).toBe(0);
       expect(isGoodMasterApprenticeBond(master, apprentice)).toBe(false);
-      expect(getGuildKnowledgeStocks()[0].treasury).toBe(rn(100 - 100 * GUILD_MASTER_STIPEND_RATE, 2));
+      expect(getGuildKnowledgeStocks()[0].treasury).toBe(100 - GUILD_MASTER_STIPEND);
+    });
+
+    it("uses larger fixed bands for older apprentices and never scales with treasury piles", () => {
+      const master = makeCharacter({ i: 40, solidarity: { 41: 80, 42: 80 } });
+      const youth = makeCharacter({ i: 41, age: 16, solidarity: { 40: 80 } });
+      const adult = makeCharacter({ i: 42, age: 20, solidarity: { 40: 80 } });
+
+      expect(apprenticePocketBaseByAge(13)).toBe(GUILD_APPRENTICE_POCKET_BY_AGE.child);
+      expect(apprenticePocketBaseByAge(16)).toBe(GUILD_APPRENTICE_POCKET_BY_AGE.youth);
+      expect(apprenticePocketBaseByAge(20)).toBe(GUILD_APPRENTICE_POCKET_BY_AGE.adult);
+      expect(computeApprenticePocketMoney(1_000_000, master, youth)).toBe(GUILD_APPRENTICE_POCKET_BY_AGE.youth);
+      expect(computeApprenticePocketMoney(1_000_000, master, adult)).toBe(GUILD_APPRENTICE_POCKET_MAX);
+      expect(computeApprenticePocketMoney(0, master, youth)).toBe(0);
     });
 
     it("does nothing for a domain with no settled master", () => {
@@ -256,7 +275,7 @@ describe("characterStipends", () => {
       worldContext.pack = { characters: [] } as unknown as PackedGraph;
     });
 
-    it("pays the market manager and rival merchants out of the market's own working capital", () => {
+    it("pays fixed manager and rival stipends from market working capital", () => {
       const manager = makeCharacter({ i: 50 });
       const rival = makeCharacter({ i: 51 });
       worldContext.pack.characters = [manager, rival];
@@ -274,11 +293,9 @@ describe("characterStipends", () => {
 
       payMarketStipends();
 
-      const managerAmount = rn(100 * MARKET_MANAGER_STIPEND_RATE, 2);
-      const rivalAmount = rn((100 - managerAmount) * MARKET_RIVAL_STIPEND_RATE, 2);
-      expect(manager.wealth).toBe(managerAmount);
-      expect(rival.wealth).toBe(rivalAmount);
-      expect(getMarkets()[0].marketTreasury?.balance).toBe(rn(100 - managerAmount - rivalAmount, 2));
+      expect(manager.wealth).toBe(MARKET_MANAGER_STIPEND);
+      expect(rival.wealth).toBe(MARKET_RIVAL_STIPEND);
+      expect(getMarkets()[0].marketTreasury?.balance).toBe(100 - MARKET_MANAGER_STIPEND - MARKET_RIVAL_STIPEND);
     });
 
     it("does nothing for a market with no working capital", () => {
@@ -315,7 +332,7 @@ describe("characterStipends", () => {
       initNobilityContext(api);
     });
 
-    it("seeds a fresh ruler's wealth from the state's estimated household income, without needing any ticks", () => {
+    it("seeds a fresh ruler's wealth within the household floor/cap × short back-pay window", () => {
       const state = { i: 1, form: "Monarchy", diplomacy: [], pollTax: 0.2, rural: 100, urban: 100 } as unknown as State;
       const ruler = makeCharacter({ i: 60, wealth: 0 });
       worldContext.pack = { states: [state], characters: [ruler], provinces: [], burgs: [] } as unknown as PackedGraph;
@@ -323,9 +340,9 @@ describe("characterStipends", () => {
 
       seedMissingCharacterWealth();
 
-      // income = 0.2 * 200 = 40; household rate = 0.25; per-cycle = 10; 6-18 cycles => [60, 180]
-      expect(ruler.wealth).toBeGreaterThanOrEqual(60);
-      expect(ruler.wealth).toBeLessThanOrEqual(180);
+      // income = 40; raw household 10 → capped at 5; 4–10 cycles => [20, 50]
+      expect(ruler.wealth).toBeGreaterThanOrEqual(HOUSEHOLD_STIPEND_FLOOR * 4);
+      expect(ruler.wealth).toBeLessThanOrEqual(HOUSEHOLD_STIPEND_CAP * 10);
     });
 
     it("never overwrites a character who already has wealth", () => {
@@ -339,7 +356,7 @@ describe("characterStipends", () => {
       expect(ruler.wealth).toBe(5);
     });
 
-    it("seeds a fresh province lord's wealth from their seated Burg's treasury", () => {
+    it("seeds a fresh province lord from the fixed stipend × back-pay, not a treasury percentage", () => {
       const state = { i: 1, form: "Monarchy", diplomacy: [], pollTax: 0, rural: 0, urban: 0 } as unknown as State;
       const lord = makeCharacter({
         i: 61,
@@ -356,9 +373,9 @@ describe("characterStipends", () => {
 
       seedMissingCharacterWealth();
 
-      // per-cycle = 100 * 0.1 = 10; 6-18 cycles => [60, 180]
-      expect(lord.wealth).toBeGreaterThanOrEqual(60);
-      expect(lord.wealth).toBeLessThanOrEqual(180);
+      // fixed 1.0 × 4–10 cycles
+      expect(lord.wealth).toBeGreaterThanOrEqual(PROVINCE_LORD_STIPEND * 4);
+      expect(lord.wealth).toBeLessThanOrEqual(PROVINCE_LORD_STIPEND * 10);
     });
   });
 });

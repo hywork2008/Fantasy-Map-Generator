@@ -11,85 +11,91 @@ import { findApprentices, findMaster } from "./guildSuccession";
 import {
   DEPARTMENT_BY_PRIMARY_SKILL,
   findLivingOfficeHolder,
+  getCentralOfficePersonalStipend,
   getDepartmentBaselineAllocation,
   getFieldCommanderStipend,
-  getHouseholdStipendRate,
-  getMilitaryStructuralMultiplier
+  getMilitaryStructuralMultiplier,
+  getRulerHouseholdStipend
 } from "./treasuryAllocation";
 
 /**
- * docs/plan/state-treasury-department-budget.md §7 item 7 — stipends for the character roles
- * that §2's CENTRAL_OFFICES mapping doesn't cover: province lords, field/fleet officers (see
- * treasuryAllocation.ts for the latter — kept there since it deducts from state.treasury and
- * needs to appear in TreasuryAllocationBreakdown), and the economy extension's own guild/market
- * roles. Each pays from the pool the user specified rather than state.treasury:
- *   - Province lords ← the Burg they are seated in (province.burg's burg.treasury)
- *   - Guild Master/Apprentice ← that domain guild's own per-Burg treasury (guildKnowledge)
- *   - Market Manager/Rival Merchant ← that Market's own working capital (marketTreasury.balance)
+ * Personal stipends for non–central-budget roles (province lords, guild, market) and the
+ * shared seed path for all paid characters.
  *
- * Guild apprentice cash is not a wage share of the guild treasury (that produced multi-gold
- * purses for 12–14 year olds). It is optional pocket money paid only when the master–apprentice
- * solidarity bond is good — board/training remain the real compensation.
+ * ## Target ladder (silver pieces / production cycle; ~12 cycles ≈ 1 year)
+ *
+ * | Role | Typical pay | Notes |
+ * | :--- | ---: | :--- |
+ * | Soldier (reference) | 0.12 | BASE_UPKEEP_PER_HEAD — not Character.wealth |
+ * | Guild apprentice | 0.03–0.08 | Fixed age band; only if master–apprentice bond is good |
+ * | Market rival | 0.30 | Fixed; market treasury is a ceiling only |
+ * | Guild master | 0.35 | Fixed; guild treasury is a ceiling only |
+ * | Market manager | 0.70 | Fixed |
+ * | Field commander | 0.50–1.50 | Upkeep share with floor/cap (treasuryAllocation) |
+ * | Province lord | 1.00 | Fixed from seated Burg treasury |
+ * | Central office | 0.80–3.00 | Share of department budget with floor/cap |
+ * | Ruler household | 1.00–5.00 | Share of income with floor/cap |
+ *
+ * Percentage draws against large institutional piles (burg/market/guild treasuries, full
+ * department budgets) are avoided for *personal* pay — they made children richer than captains
+ * and officers richer than small-realm kings. Pools only cap what can be funded this cycle.
+ *
+ * docs/plan/state-treasury-department-budget.md §7 item 7–8; docs/analytics/character-wealth-balance.md
  */
-export const PROVINCE_LORD_STIPEND_RATE = 0.1;
-/** Master draw on the domain guild treasury per production cycle. */
-export const GUILD_MASTER_STIPEND_RATE = 0.05;
+
+/** @deprecated Was 10% of burg treasury. Personal pay is now PROVINCE_LORD_STIPEND fixed. */
+export const PROVINCE_LORD_STIPEND_RATE = 0;
+/** Fixed personal stipend (SP / cycle) for a landed province lord, paid from their seated Burg. */
+export const PROVINCE_LORD_STIPEND = 1.0;
+
+/** @deprecated Was 5–10% of guild treasury. Personal pay is now GUILD_MASTER_STIPEND fixed. */
+export const GUILD_MASTER_STIPEND_RATE = 0;
+/** Fixed master stipend (SP / cycle). Above apprentices, below field-commander floor. */
+export const GUILD_MASTER_STIPEND = 0.35;
+
 /**
- * @deprecated Former wage share of guild treasury (was 3%). Apprentices no longer take a
- * percentage of the guild purse — that scaled with treasury piles and minted multi-gold
- * child fortunes. Pocket money is a fixed age-band amount; this symbol stays at 0 so older
- * diagnostics that import it still resolve.
+ * @deprecated Former wage share of guild treasury (was 3%). Pocket money is age-fixed; kept at 0.
  */
 export const GUILD_APPRENTICE_STIPEND_RATE = 0;
-/**
- * @deprecated Percentage-of-treasury pocket money was removed for the same reason as the old
- * 3% wage share. Kept at 0 for any leftover imports.
- */
+/** @deprecated Percentage pocket money removed; kept at 0. */
 export const GUILD_APPRENTICE_POCKET_RATE = 0;
-/**
- * Minimum solidarity on *both* directions (master→apprentice and apprentice→master) before
- * pocket money is paid. Matches getSolidarityBand()'s "collegial" floor (score ≥ 20).
- */
+
 export const GUILD_APPRENTICE_POCKET_SOLIDARITY_MIN = 20;
 
 /**
- * Fixed pocket money (silver pieces) per production cycle by apprentice age — not a share of
- * the guild treasury. Board and training remain the real compensation; cash is a small gift
- * that must not grow just because the guild's coffers are flush.
- *
- * At ~12 production cycles/year the full (bond-quality 100%) annual totals are roughly:
- *   12–14 → 0.36 SP,  15–17 → 0.60 SP,  18+ → 0.96 SP.
+ * Fixed pocket money (SP / cycle) by apprentice age — never a share of guild treasury.
+ * Full bond, ~12 cycles/year: 12–14 → 0.36, 15–17 → 0.60, 18+ → 0.96 SP/year.
  */
 export const GUILD_APPRENTICE_POCKET_BY_AGE = {
-  /** Ages 12–14 (younger apprentices in guildSuccession's 12–17 spawn range). */
   child: 0.03,
-  /** Ages 15–17. */
   youth: 0.05,
-  /** 18+ still carrying an apprentice role (late promotion / long terms). */
   adult: 0.08
 } as const;
 
-/** Highest fixed pocket band — useful as a diagnostic ceiling, not a % cap. */
 export const GUILD_APPRENTICE_POCKET_MAX = GUILD_APPRENTICE_POCKET_BY_AGE.adult;
 
-export const MARKET_MANAGER_STIPEND_RATE = 0.08;
-export const MARKET_RIVAL_STIPEND_RATE = 0.03;
+/** @deprecated Was 8% of market balance. Personal pay is now MARKET_MANAGER_STIPEND fixed. */
+export const MARKET_MANAGER_STIPEND_RATE = 0;
+/** Fixed market-manager stipend (SP / cycle). */
+export const MARKET_MANAGER_STIPEND = 0.7;
 
-/**
- * Age-appropriate fixed pocket-money base (silver pieces / production cycle).
- * Independent of guild treasury size — treasury only limits whether the guild can afford it.
- */
+/** @deprecated Was 3% of market balance. Personal pay is now MARKET_RIVAL_STIPEND fixed. */
+export const MARKET_RIVAL_STIPEND_RATE = 0;
+/** Fixed rival-merchant stipend (SP / cycle). Below manager, above apprentice pocket money. */
+export const MARKET_RIVAL_STIPEND = 0.3;
+
+/** Pay `desired` from `pool` without overdrawing. */
+export function payFromPool(pool: number, desired: number): number {
+  if (!(pool > 0) || !(desired > 0)) return 0;
+  return rn(Math.min(pool, desired), 2);
+}
+
 export function apprenticePocketBaseByAge(age: number): number {
   if (age < 15) return GUILD_APPRENTICE_POCKET_BY_AGE.child;
   if (age < 18) return GUILD_APPRENTICE_POCKET_BY_AGE.youth;
   return GUILD_APPRENTICE_POCKET_BY_AGE.adult;
 }
 
-/**
- * True when the living master–apprentice pair has a good bond on both sides
- * (solidarity ≥ GUILD_APPRENTICE_POCKET_SOLIDARITY_MIN each way). Missing edges read as 0
- * (neutral) and do not qualify.
- */
 export function isGoodMasterApprenticeBond(master: Character, apprentice: Character): boolean {
   if (master.dead || apprentice.dead || master.i === apprentice.i) return false;
   const masterToApprentice = getSolidarity(master, apprentice.i);
@@ -101,32 +107,42 @@ export function isGoodMasterApprenticeBond(master: Character, apprentice: Charac
 }
 
 /**
- * Optional pocket money for a living apprentice, paid from the guild treasury only when the
- * master–apprentice bond is good. Amount is a **fixed age band** (see
- * `apprenticePocketBaseByAge`), scaled by bond quality — never a percentage of the guild
- * treasury. If the treasury is too thin to cover the gift, pays whatever remains (or 0).
- *
- * Not a salary: board and training are the real compensation.
+ * Optional apprentice pocket money: fixed age band × bond quality, funded by guild treasury
+ * only as a ceiling. Cool/unknown bonds pay 0.
  */
 export function computeApprenticePocketMoney(guildTreasury: number, master: Character, apprentice: Character): number {
   if (!(guildTreasury > 0) || !isGoodMasterApprenticeBond(master, apprentice)) return 0;
 
-  // Scale within the "good" band: just-collegial (~20) pays less than bonded (~80+).
   const bond = Math.min(getSolidarity(master, apprentice.i), getSolidarity(apprentice, master.i));
   const quality = Math.min(1, Math.max(0, (bond - GUILD_APPRENTICE_POCKET_SOLIDARITY_MIN) / 60));
-  const scale = 0.4 + 0.6 * quality; // 40%–100% of the age-band base
-
+  const scale = 0.4 + 0.6 * quality;
   const desired = apprenticePocketBaseByAge(apprentice.age ?? 0) * scale;
-  // Treasury is only a funding ceiling, never a multiplier.
-  return rn(Math.min(desired, guildTreasury), 2);
+  return payFromPool(guildTreasury, desired);
+}
+
+/** Fixed province-lord stipend limited by the seated Burg's treasury. */
+export function computeProvinceLordStipend(burgTreasury: number): number {
+  return payFromPool(burgTreasury, PROVINCE_LORD_STIPEND);
+}
+
+/** Fixed guild-master stipend limited by the domain guild treasury. */
+export function computeGuildMasterStipend(guildTreasury: number): number {
+  return payFromPool(guildTreasury, GUILD_MASTER_STIPEND);
+}
+
+/** Fixed market-manager stipend limited by market working capital. */
+export function computeMarketManagerStipend(marketBalance: number): number {
+  return payFromPool(marketBalance, MARKET_MANAGER_STIPEND);
+}
+
+/** Fixed rival-merchant stipend limited by market working capital. */
+export function computeMarketRivalStipend(marketBalance: number): number {
+  return payFromPool(marketBalance, MARKET_RIVAL_STIPEND);
 }
 
 /**
- * Pays each of `state`'s living, landed province lords (provinceLordGenerator.ts's sparse
- * frontier assignment) a stipend out of their own seated Burg's treasury — never state.treasury,
- * per the user's explicit "属州領主はBurgsから" direction. An unseated/removed province, a
- * Burg-less province, or a currently vacant lordship simply pays nothing; the money stays with
- * the Burg instead of disappearing, same degrade pattern as the central-office stipends.
+ * Pays each of `state`'s living, landed province lords a fixed stipend from their seated Burg's
+ * treasury — never state.treasury. Vacant/unseated provinces pay nothing.
  */
 export function payProvinceLordStipends(state: Pick<State, "i">): void {
   if (!state.i || !hasCharactersContext()) return;
@@ -148,7 +164,7 @@ export function payProvinceLordStipends(state: Pick<State, "i">): void {
     );
     if (!lord) continue;
 
-    const amount = rn(burg.treasury * PROVINCE_LORD_STIPEND_RATE, 2);
+    const amount = computeProvinceLordStipend(burg.treasury);
     if (!(amount > 0)) continue;
 
     burg.treasury = rn(burg.treasury - amount, 2);
@@ -157,11 +173,8 @@ export function payProvinceLordStipends(state: Pick<State, "i">): void {
 }
 
 /**
- * Pays each Burg+domain's Guild Master (guildSuccession.ts) a stipend, and optionally a tiny
- * pocket-money gift to living apprentices when the master–apprentice solidarity bond is good —
- * always out of that domain guild's own private treasury (guildTreasury.ts), never burg.treasury
- * or state.treasury ("ギルド/商人系称号はGuildsやMarketsから"). Cool or unknown bonds pay the
- * apprentice nothing; the remainder stays banked in the guild treasury.
+ * Pays each Burg+domain Guild Master a fixed stipend and optional apprentice pocket money from
+ * that domain guild's private treasury.
  */
 export function payGuildStipends(): void {
   if (!hasCharactersContext()) return;
@@ -177,7 +190,7 @@ export function payGuildStipends(): void {
     const master = findMaster(characters, entry.burgId, entry.domain);
     if (!master) continue;
 
-    const masterAmount = rn(entry.treasury * GUILD_MASTER_STIPEND_RATE, 2);
+    const masterAmount = computeGuildMasterStipend(entry.treasury);
     if (masterAmount > 0) {
       entry.treasury = rn(entry.treasury - masterAmount, 2);
       master.wealth = rn((master.wealth || 0) + masterAmount, 2);
@@ -199,10 +212,7 @@ export function payGuildStipends(): void {
 }
 
 /**
- * Pays each Market's manager (marketManagers.ts — also holds the "Merchant Company Head" role,
- * merchantOrganizations.ts, since the chairperson is the same character) and its rival merchants
- * a stipend out of that Market's own working capital — never burg.treasury or state.treasury.
- * A Market with an empty/negative balance, no living manager, or no rivals simply pays less.
+ * Pays each Market's manager and rivals fixed personal stipends from market working capital.
  */
 export function payMarketStipends(): void {
   if (!hasCharactersContext()) return;
@@ -217,7 +227,7 @@ export function payMarketStipends(): void {
 
     const manager = characters.find(character => character.i === market.managerCharacterId && !character.dead);
     if (manager) {
-      const amount = rn(treasury.balance * MARKET_MANAGER_STIPEND_RATE, 2);
+      const amount = computeMarketManagerStipend(treasury.balance);
       if (amount > 0) {
         treasury.balance = rn(treasury.balance - amount, 2);
         manager.wealth = rn((manager.wealth || 0) + amount, 2);
@@ -229,7 +239,7 @@ export function payMarketStipends(): void {
       const rival = characters.find(character => character.i === rivalId && !character.dead);
       if (!rival) continue;
 
-      const amount = rn(treasury.balance * MARKET_RIVAL_STIPEND_RATE, 2);
+      const amount = computeMarketRivalStipend(treasury.balance);
       if (!(amount > 0)) continue;
 
       treasury.balance = rn(treasury.balance - amount, 2);
@@ -238,27 +248,17 @@ export function payMarketStipends(): void {
   }
 }
 
-/** How many cycles' worth of a role's stipend rate to fabricate as pre-existing savings. */
-const BACK_PAY_CYCLES_MIN = 6;
-const BACK_PAY_CYCLES_MAX = 18;
+/** Back-pay cycles for generation-time seed — shorter than the old 6–18 to avoid multi-year piles. */
+const BACK_PAY_CYCLES_MIN = 4;
+const BACK_PAY_CYCLES_MAX = 10;
 
 function backPayCycles(): number {
   return rand(BACK_PAY_CYCLES_MIN, BACK_PAY_CYCLES_MAX);
 }
 
 /**
- * docs/plan/state-treasury-department-budget.md §7 item 8 — fabricates a starting
- * Character.wealth for every paid role at generation time, so a character has spendable money
- * immediately after "Generate" without needing to Advance Time first (the same idea as
- * STARTING_BURG_TREASURY_PER_POPULATION/foodProduction.ts seeding a fresh Burg's treasury, or
- * Markets.generate() seeding marketTreasury.balance as a share of Burg treasury). Estimates each
- * role's typical per-cycle stipend from data already computed by economy's own initial
- * generation pass (state.pollTax, burg.treasury, guild/market treasuries — all seeded before
- * nobility's map-ready task runs, since map-ready tasks are awaited sequentially in registration
- * order and economy registers first) and multiplies by a random back-pay factor. Only ever
- * touches a character whose wealth is still exactly 0 (never yet paid a real stipend), so it is
- * safe to call again after a "regenerate" — it will only fill genuinely fresh characters, never
- * overwrite money a character has already earned or spent.
+ * Seeds Character.wealth for paid roles still at 0 after generate, using the same per-cycle
+ * formulas as live pay × a short random back-pay window. Never overwrites non-zero wealth.
  */
 export function seedMissingCharacterWealth(): void {
   if (!hasCharactersContext()) return;
@@ -275,7 +275,7 @@ export function seedMissingCharacterWealth(): void {
     const rulerId = getRulerId(state);
     const ruler = characters.find(character => character.i === rulerId && !character.dead);
     if (ruler && !ruler.wealth) {
-      ruler.wealth = rn(income * getHouseholdStipendRate(state) * backPayCycles(), 2);
+      ruler.wealth = rn(getRulerHouseholdStipend(state, income) * backPayCycles(), 2);
     }
 
     for (const office of CENTRAL_OFFICES) {
@@ -286,7 +286,8 @@ export function seedMissingCharacterWealth(): void {
       if (!holder || holder.wealth) continue;
 
       const structuralMultiplier = departmentKey === "marshalcy" ? getMilitaryStructuralMultiplier(state) : 1;
-      holder.wealth = rn(income * baseline[departmentKey] * structuralMultiplier * backPayCycles(), 2);
+      const departmentBudget = rn(income * baseline[departmentKey] * structuralMultiplier, 2);
+      holder.wealth = rn(getCentralOfficePersonalStipend(departmentBudget) * backPayCycles(), 2);
     }
 
     for (const regiment of state.military || []) {
@@ -294,7 +295,6 @@ export function seedMissingCharacterWealth(): void {
       const commander = getRegimentCommander(characters, regiment);
       if (!commander || commander.wealth) continue;
 
-      // Floor applies at seed time too, so tiny regiments do not start commanders on copper scraps.
       commander.wealth = rn(getFieldCommanderStipend(regiment) * backPayCycles(), 2);
     }
   }
@@ -311,7 +311,7 @@ export function seedMissingCharacterWealth(): void {
     );
     if (!lord || lord.wealth) continue;
 
-    lord.wealth = rn(burg.treasury * PROVINCE_LORD_STIPEND_RATE * backPayCycles(), 2);
+    lord.wealth = rn(computeProvinceLordStipend(burg.treasury) * backPayCycles(), 2);
   }
 
   for (const entry of getGuildKnowledgeStocks()) {
@@ -319,10 +319,8 @@ export function seedMissingCharacterWealth(): void {
 
     const master = findMaster(characters, entry.burgId, entry.domain);
     if (!master) continue;
-    if (!master.wealth) master.wealth = rn(entry.treasury * GUILD_MASTER_STIPEND_RATE * backPayCycles(), 2);
+    if (!master.wealth) master.wealth = rn(computeGuildMasterStipend(entry.treasury) * backPayCycles(), 2);
 
-    // Apprentices only seed a few cycles of pocket money when the bond is already good;
-    // otherwise they start at 0 (board/training, not cash wages). Never use the old 6–18× wage share.
     for (const apprentice of findApprentices(characters, master.i, entry.burgId, entry.domain)) {
       if (apprentice.wealth || apprentice.dead) continue;
       const pocket = computeApprenticePocketMoney(entry.treasury, master, apprentice);
@@ -337,13 +335,13 @@ export function seedMissingCharacterWealth(): void {
 
     const manager = characters.find(character => character.i === market.managerCharacterId && !character.dead);
     if (manager && !manager.wealth) {
-      manager.wealth = rn(balance * MARKET_MANAGER_STIPEND_RATE * backPayCycles(), 2);
+      manager.wealth = rn(computeMarketManagerStipend(balance) * backPayCycles(), 2);
     }
 
     for (const rivalId of market.rivalCharacterIds ?? []) {
       const rival = characters.find(character => character.i === rivalId && !character.dead);
       if (!rival || rival.wealth) continue;
-      rival.wealth = rn(balance * MARKET_RIVAL_STIPEND_RATE * backPayCycles(), 2);
+      rival.wealth = rn(computeMarketRivalStipend(balance) * backPayCycles(), 2);
     }
   }
 }

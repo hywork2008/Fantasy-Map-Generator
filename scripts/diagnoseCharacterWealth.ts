@@ -566,15 +566,18 @@ function printReport(report: DiagnosisReport): void {
     line();
   }
 
-  line("── Reference rates ──");
-  line("  GUILD_MASTER_STIPEND_RATE           = 5% of guild treasury / cycle");
-  line("  Apprentice pocket money             = only if both-way solidarity ≥ 20 (collegial+);");
-  line("                                        fixed age band 0.03/0.05/0.08 SP × bond quality");
-  line("                                        (treasury is a ceiling only, never a % share)");
-  line("  FIELD_COMMANDER_STIPEND             = max(upkeep×15%, floor 0.5 SP) / cycle");
-  line("  BASE_UPKEEP_PER_HEAD                = 0.12 SP / head / cycle");
-  line("  MARKET_MANAGER / RIVAL              = 8% / 3% of market treasury / cycle");
-  line("  seed back-pay                       = 6–18 cycles (apprentice: 2–6 of pocket only if bonded)");
+  line("── Reference pay ladder (SP / cycle; pools are ceilings only) ──");
+  line("  Apprentice pocket   0.03/0.05/0.08  if solidarity ≥ 20 both ways");
+  line("  Market rival        0.30 fixed");
+  line("  Guild master        0.35 fixed");
+  line("  Market manager      0.70 fixed");
+  line("  Field commander     clamp(upkeep×15%, 0.5, 1.5)");
+  line("  Province lord       1.00 fixed");
+  line("  Central office      clamp(dept×12%, 0.8, 3.0)");
+  line("  Ruler household     clamp(income×formRate, 1.0, 5.0)");
+  line("  Soldier reference   0.12 (upkeep, not Character.wealth)");
+  line("  seed back-pay       4–10 cycles (apprentice 2–6 pocket if bonded)");
+  line("  See docs/analytics/character-wealth-balance.md");
   line();
   line("Done.");
 }

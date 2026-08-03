@@ -143,6 +143,26 @@ function updateMilitaryDiscontent(state: State, fundingRatio: number): void {
  * independent case of Characters being disabled while Nobility still holds a stale
  * rulerId, since getCharacters() throws without an initialized Characters context.
  */
+/**
+ * Personal household pay uses the form's baseline *share* of domestic income as a soft target,
+ * then clamps to a floor/cap so large states do not mint multi-hundred-gold private purses every
+ * cycle. Surplus above the cap stays in state.treasury (the household *budget intent* still
+ * shows up via the baseline table; only personal Character.wealth is capped).
+ *
+ * Scale target (silver pieces / production cycle, ~12 cycles/year):
+ *   soldier wage ≈ 0.12, field commander 0.5–1.5, province lord ≈ 1, office 0.8–3, ruler 1–5.
+ */
+export const HOUSEHOLD_STIPEND_FLOOR = 1.0;
+export const HOUSEHOLD_STIPEND_CAP = 5.0;
+
+/** Personal pay for a ruler this cycle from `domesticIncome` (after floor/cap). */
+export function getRulerHouseholdStipend(state: Pick<State, "form">, domesticIncome: number): number {
+  if (!(domesticIncome > 0)) return 0;
+  const raw = domesticIncome * getHouseholdStipendRate(state);
+  const floored = Math.max(raw, Math.min(HOUSEHOLD_STIPEND_FLOOR, domesticIncome));
+  return rn(Math.min(floored, HOUSEHOLD_STIPEND_CAP, domesticIncome), 2);
+}
+
 export function payRulerHouseholdStipend(state: State, domesticIncome: number): number {
   if (!(domesticIncome > 0) || !hasCharactersContext()) return 0;
 
@@ -151,7 +171,7 @@ export function payRulerHouseholdStipend(state: State, domesticIncome: number): 
   const ruler = getCharacters().find(character => character.i === rulerId && !character.dead);
   if (!ruler) return 0;
 
-  const stipend = rn(domesticIncome * getHouseholdStipendRate(state), 2);
+  const stipend = getRulerHouseholdStipend(state, domesticIncome);
   if (stipend <= 0) return 0;
 
   ruler.wealth = rn((ruler.wealth || 0) + stipend, 2);
@@ -181,14 +201,29 @@ export function findLivingOfficeHolder(characters: Character[], stateId: number,
 }
 
 /**
+ * Fraction of a department's *nominal* Budget paid as the office holder's personal stipend.
+ * The rest of the department line stays in state.treasury for institutional spending — paying
+ * 100% of Marshalcy/Chancery/etc. into Character.wealth made officers richer than rulers of
+ * small realms and drained state cash every cycle.
+ */
+export const CENTRAL_OFFICE_PERSONAL_SHARE = 0.12;
+export const CENTRAL_OFFICE_STIPEND_FLOOR = 0.8;
+export const CENTRAL_OFFICE_STIPEND_CAP = 3.0;
+
+/** Personal pay for one central office from its department's nominal budget this cycle. */
+export function getCentralOfficePersonalStipend(departmentBudget: number): number {
+  if (!(departmentBudget > 0)) return 0;
+  const proportional = departmentBudget * CENTRAL_OFFICE_PERSONAL_SHARE;
+  const floored = Math.max(proportional, Math.min(CENTRAL_OFFICE_STIPEND_FLOOR, departmentBudget));
+  return rn(Math.min(floored, CENTRAL_OFFICE_STIPEND_CAP, departmentBudget), 2);
+}
+
+/**
  * Pays each of the 5 CENTRAL_OFFICES (Chancellor/Marshal/Steward/Spymaster/Court Chaplain,
- * titleTable.ts) its department's full nominal Budget from `breakdown` as a personal stipend,
- * mirroring payRulerHouseholdStipend() for Household (§2's 1:1 office-to-department mapping).
- * Returns the total actually paid. An office currently vacant (no living holder — e.g. between
- * successions) contributes 0 and its share stays in state.treasury instead of disappearing,
- * same degrade pattern as the ruler stipend. Does not mutate `breakdown` — the nominal Budget
- * figures stay intact for militaryFundingRatio/§4 ceiling comparisons and Treasury Overview
- * display regardless of who is currently staffing the office.
+ * titleTable.ts) a *personal* stipend derived from its department's nominal Budget — share +
+ * floor/cap, not the full Budget. Nominal department figures on `breakdown` stay intact for
+ * militaryFundingRatio/§4 ceiling comparisons and Treasury Overview. Vacant offices pay 0;
+ * their share remains in state.treasury.
  */
 export function payCentralOfficeStipends(state: Pick<State, "i">, breakdown: TreasuryAllocationBreakdown): number {
   if (!state.i || !hasCharactersContext()) return 0;
@@ -198,7 +233,7 @@ export function payCentralOfficeStipends(state: Pick<State, "i">, breakdown: Tre
   for (const office of CENTRAL_OFFICES) {
     const departmentKey = office.primarySkill && DEPARTMENT_BY_PRIMARY_SKILL[office.primarySkill];
     if (!departmentKey) continue;
-    const amount = breakdown[departmentKey];
+    const amount = getCentralOfficePersonalStipend(breakdown[departmentKey]);
     if (!(amount > 0)) continue;
 
     const holder = findLivingOfficeHolder(characters, state.i, office.title);
@@ -224,19 +259,24 @@ export const FIELD_COMMANDER_STIPEND_RATE = 0.15;
 
 /**
  * Minimum personal command pay per production cycle (silver pieces), regardless of how small
- * the regiment's raw-score upkeep is after populationRate scaling. Without this floor, many
- * field officers sat on copper scraps while guild apprentices accumulated multi-gold purses.
- * Calibrated as roughly 4× a common soldier's monthly wage (BASE_UPKEEP_PER_HEAD = 0.12).
+ * the regiment's raw-score upkeep is after populationRate scaling. Roughly 4× a common
+ * soldier's monthly wage (BASE_UPKEEP_PER_HEAD = 0.12).
  */
 export const FIELD_COMMANDER_STIPEND_FLOOR = 0.5;
 
 /**
- * Per-cycle stipend for a field/fleet officer: max(regiment upkeep × rate, floor).
+ * Maximum personal command pay per cycle so huge regiments do not pay captains like princes.
+ * ~1.5 SP × 12 cycles ≈ 18 SP/year held income — sits above guild masters, below central offices.
+ */
+export const FIELD_COMMANDER_STIPEND_CAP = 1.5;
+
+/**
+ * Per-cycle stipend for a field/fleet officer: clamp(upkeep × rate, floor, cap).
  * Used by payFieldCommanderStipends and seedMissingCharacterWealth.
  */
 export function getFieldCommanderStipend(regiment: Pick<MilitaryRegiment, "u">): number {
   const proportional = getRegimentMilitaryUpkeep(regiment) * FIELD_COMMANDER_STIPEND_RATE;
-  return rn(Math.max(proportional, FIELD_COMMANDER_STIPEND_FLOOR), 2);
+  return rn(Math.min(Math.max(proportional, FIELD_COMMANDER_STIPEND_FLOOR), FIELD_COMMANDER_STIPEND_CAP), 2);
 }
 
 /**

@@ -2,6 +2,7 @@
 
 2026-08-03
 
+- docs/analytics/character-wealth-balance.md
 - docs/plan/individual-skill-mastery-system.md
 - docs/plan/player-character-market-commerce.md
 - docs/plan/technology-development-roadmap.md

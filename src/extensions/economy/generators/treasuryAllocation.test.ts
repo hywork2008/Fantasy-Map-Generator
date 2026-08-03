@@ -8,11 +8,19 @@ import { clearNobilityContext, initNobilityContext, setRulerId } from "../../nob
 import { clearEconomyContext, initEconomyContext } from "../economyContext";
 import {
   allocateTreasury,
+  CENTRAL_OFFICE_STIPEND_CAP,
+  CENTRAL_OFFICE_STIPEND_FLOOR,
   clearTreasuryAllocationSnapshots,
+  FIELD_COMMANDER_STIPEND_CAP,
+  FIELD_COMMANDER_STIPEND_FLOOR,
+  getCentralOfficePersonalStipend,
+  getFieldCommanderStipend,
   getHouseholdStipendRate,
   getMilitaryFundingCeiling,
   getMilitaryStructuralMultiplier,
+  getRulerHouseholdStipend,
   getTreasuryAllocationSnapshots,
+  HOUSEHOLD_STIPEND_CAP,
   payRulerHouseholdStipend
 } from "./treasuryAllocation";
 
@@ -92,16 +100,18 @@ describe("treasuryAllocation", () => {
         expect(payRulerHouseholdStipend(state, 1000)).toBe(0);
       });
 
-      it("pays the Monarchy rate (25%) to the ruler and returns the deducted amount", () => {
+      it("pays the Monarchy household share capped at HOUSEHOLD_STIPEND_CAP", () => {
         const state = { i: 1, form: "Monarchy" } as unknown as State;
         setRulerId(state, 1);
         const ruler = makeRuler();
         worldContext.pack.characters = [ruler];
 
+        // Raw 25% of 1000 = 250 → capped at 5
         const paid = payRulerHouseholdStipend(state, 1000);
 
-        expect(paid).toBe(250);
-        expect(ruler.wealth).toBe(250);
+        expect(paid).toBe(HOUSEHOLD_STIPEND_CAP);
+        expect(ruler.wealth).toBe(HOUSEHOLD_STIPEND_CAP);
+        expect(getRulerHouseholdStipend(state, 1000)).toBe(HOUSEHOLD_STIPEND_CAP);
       });
 
       it("accumulates wealth across multiple cycles instead of overwriting it", () => {
@@ -110,10 +120,11 @@ describe("treasuryAllocation", () => {
         const ruler = makeRuler({ wealth: 10 });
         worldContext.pack.characters = [ruler];
 
-        payRulerHouseholdStipend(state, 1000); // +50 (5% of 1000)
-        payRulerHouseholdStipend(state, 1000); // +50 again
+        // Republic 5% of 1000 = 50 → still capped at 5
+        payRulerHouseholdStipend(state, 1000);
+        payRulerHouseholdStipend(state, 1000);
 
-        expect(ruler.wealth).toBe(110);
+        expect(ruler.wealth).toBe(10 + HOUSEHOLD_STIPEND_CAP * 2);
       });
     });
   });
@@ -259,7 +270,7 @@ describe("treasuryAllocation", () => {
       worldContext.pack = { states: [], characters: [] } as unknown as PackedGraph;
     });
 
-    it("pays each living central office holder their department's nominal Budget", () => {
+    it("pays each living central office holder a personal share of the department Budget (not 100%)", () => {
       const state = { i: 1, form: "Monarchy", diplomacy: [] } as unknown as State;
       const chancellor = makeRuler({
         i: 10,
@@ -273,9 +284,15 @@ describe("treasuryAllocation", () => {
 
       const allocation = allocateTreasury(state, 1000);
 
-      expect(chancellor.wealth).toBe(150); // Monarchy chancery 15%
-      expect(marshal.wealth).toBe(350); // Monarchy marshalcy 35%, no structural adjustment
-      expect(allocation.officeStipendsPaid).toBe(500);
+      // Nominal budgets still full for funding-ratio / overview; personal pay is share+cap.
+      expect(allocation.chancery).toBe(150);
+      expect(allocation.marshalcy).toBe(350);
+      expect(chancellor.wealth).toBe(getCentralOfficePersonalStipend(150));
+      expect(marshal.wealth).toBe(getCentralOfficePersonalStipend(350));
+      expect(chancellor.wealth).toBeLessThanOrEqual(CENTRAL_OFFICE_STIPEND_CAP);
+      expect(marshal.wealth).toBeLessThanOrEqual(CENTRAL_OFFICE_STIPEND_CAP);
+      expect(marshal.wealth).toBeGreaterThanOrEqual(CENTRAL_OFFICE_STIPEND_FLOOR);
+      expect(allocation.officeStipendsPaid).toBe(chancellor.wealth + marshal.wealth);
     });
 
     it("leaves a vacant office's share in treasury instead of paying anyone", () => {
@@ -354,9 +371,10 @@ describe("treasuryAllocation", () => {
 
       const allocation = allocateTreasury(state, 1000);
 
-      // regiment upkeep = 100 heads × 0.12/head = 12; stipend = max(12 × 0.15, floor 0.5) = 1.8
-      expect(allocation.fieldCommanderStipendsPaid).toBe(1.8);
-      expect(commander.wealth).toBe(1.8);
+      // regiment upkeep = 100 heads × 0.12/head = 12; stipend = clamp(12 × 0.15, 0.5, 1.5) = 1.5 (cap)
+      expect(allocation.fieldCommanderStipendsPaid).toBe(FIELD_COMMANDER_STIPEND_CAP);
+      expect(commander.wealth).toBe(FIELD_COMMANDER_STIPEND_CAP);
+      expect(getFieldCommanderStipend({ u: { Infantry: 100 } })).toBe(FIELD_COMMANDER_STIPEND_CAP);
     });
 
     it("applies the personal-pay floor when regiment upkeep would yield copper scraps", () => {
@@ -375,11 +393,11 @@ describe("treasuryAllocation", () => {
 
       const allocation = allocateTreasury(state, 1000);
 
-      expect(allocation.fieldCommanderStipendsPaid).toBe(0.5);
-      expect(commander.wealth).toBe(0.5);
+      expect(allocation.fieldCommanderStipendsPaid).toBe(FIELD_COMMANDER_STIPEND_FLOOR);
+      expect(commander.wealth).toBe(FIELD_COMMANDER_STIPEND_FLOOR);
     });
 
-    it("never pays the capital guard's commander (already paid in full as Marshal via officeStipendsPaid)", () => {
+    it("never pays the capital guard's commander (already paid as Marshal via officeStipendsPaid)", () => {
       const marshal = makeRuler({
         i: 21,
         titles: [{ title: "Marshal", landed: false, entityType: "state", entityId: 1 }]
@@ -395,7 +413,7 @@ describe("treasuryAllocation", () => {
       const allocation = allocateTreasury(state, 1000);
 
       expect(allocation.fieldCommanderStipendsPaid).toBe(0);
-      expect(marshal.wealth).toBe(350); // still paid the Marshalcy office stipend, once
+      expect(marshal.wealth).toBe(getCentralOfficePersonalStipend(350));
     });
 
     it("skips a regiment with no living dedicated officer", () => {

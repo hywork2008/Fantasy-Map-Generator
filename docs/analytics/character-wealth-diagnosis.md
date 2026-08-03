@@ -4,14 +4,18 @@ Diagnoses personal `Character.wealth` distributions by paid role, with flags for
 
 Related code (all stipend rates are still placeholders):
 
-| Pool | File | Rate |
+Full ladder: [character-wealth-balance.md](./character-wealth-balance.md).
+
+| Role | File | Personal pay / cycle |
 | :--- | :--- | :--- |
-| Guild master | `src/extensions/economy/generators/characterStipends.ts` | 5% of guild treasury / cycle |
-| Guild apprentice | same | **Fixed age-band pocket money only** when both-way solidarity ≥ 20: 0.03 / 0.05 / 0.08 SP per cycle (12–14 / 15–17 / 18+) × bond quality. Treasury is a funding ceiling only — never a multiplier |
-| Field commander | `src/extensions/economy/generators/treasuryAllocation.ts` | `max(upkeep × 15%, floor 0.5 SP)` / cycle |
-| Soldier upkeep base | `src/extensions/economy/generators/militaryLogistics.ts` | `BASE_UPKEEP_PER_HEAD = 0.12` |
-| Market manager / rival | `characterStipends.ts` | 8% / 3% of market treasury |
-| Seed back-pay | `seedMissingCharacterWealth()` | 6–18 cycles × rate (apprentice: 2–6 of pocket only if already bonded) |
+| Guild apprentice | `characterStipends.ts` | Fixed 0.03/0.05/0.08 × bond; solidarity ≥ 20 both ways |
+| Guild master | same | Fixed 0.35 |
+| Market rival / manager | same | Fixed 0.30 / 0.70 |
+| Province lord | same | Fixed 1.00 |
+| Field commander | `treasuryAllocation.ts` | `clamp(upkeep×15%, 0.5, 1.5)` |
+| Central office | same | `clamp(dept×12%, 0.8, 3.0)` |
+| Ruler | same | `clamp(income×formRate, 1.0, 5.0)` |
+| Seed | `seedMissingCharacterWealth()` | 4–10 × same formulas (apprentice 2–6 pocket if bonded) |
 
 See also [cost-of-living.md](./cost-of-living.md) (flavor only; not wired into stipend math) and [state-treasury-department-budget.md](../plan/state-treasury-department-budget.md) §7.
 
