@@ -342,6 +342,18 @@ export const BurgEditorDialog: React.FC = () => {
                     <span id="burgInns">{burgData.inns}</span>
                   </td>
                 </tr>
+                <tr data-tip="Urban water and sanitation: drainage tier, burden, flood, and odor. See the Water tab for detail.">
+                  <th scope="row">Water / sanitation</th>
+                  <td>
+                    <span id="burgWaterSanitation">{burgData.waterSanitation}</span>
+                  </td>
+                </tr>
+                <tr data-tip="Civic sanitation score 0–100 written to burg.sanitation from the urban water model.">
+                  <th scope="row">Sanitation score</th>
+                  <td>
+                    <span id="burgSanitationScore">{burgData.sanitationScore}</span>
+                  </td>
+                </tr>
                 <tr data-tip="Demography: estimated pregnant women (urban pregnancy pipeline). Economy enabled only; forts excluded.">
                   <th scope="row">Pregnant</th>
                   <td>

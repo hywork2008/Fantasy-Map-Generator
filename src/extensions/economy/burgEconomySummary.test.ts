@@ -53,6 +53,8 @@ describe("getBurgEconomySummary employment fields (Phase 5)", () => {
     expect(summary?.employmentComposition).toBe("—");
     expect(summary?.constructionJobs).toBe("—");
     expect(summary?.inns).toBe("None");
+    expect(summary?.waterSanitation).toBe("—");
+    expect(summary?.sanitationScore).toBe("—");
   });
 
   it("falls back to '—' when the burg has no recorded employment demand", () => {
@@ -70,6 +72,8 @@ describe("getBurgEconomySummary employment fields (Phase 5)", () => {
     expect(summary?.employmentComposition).toBe("—");
     expect(summary?.constructionJobs).toBe("—");
     expect(summary?.inns).toBe("None");
+    expect(summary?.waterSanitation).toBe("—");
+    expect(summary?.sanitationScore).toBe("—");
   });
 
   it("summarizes physical inn buildings and their separate capacities", () => {

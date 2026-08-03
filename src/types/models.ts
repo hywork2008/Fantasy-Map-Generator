@@ -113,7 +113,11 @@ export interface Burg {
   treasury?: number;
   /** Public-order score from 0 (unsafe) to 100 (secure). Seeded at 50; no simulation effects yet. */
   security?: number;
-  /** Public-health and cleanliness score from 0 (unsanitary) to 100 (sanitary). Seeded at 50; no simulation effects yet. */
+  /**
+   * Public-health and cleanliness score from 0 (unsanitary) to 100 (sanitary).
+   * Seeded at 50; when Economy is enabled, UrbanWater.settleAnnual/generate overwrites this
+   * from UrbanWaterSystem (docs/plan/urban-water-and-sanitation-system.md Phase 1).
+   */
   sanitation?: number;
   /** Small local staple-food buffer (Grain-equivalent units), independent of the Market's pooled stock. */
   foodReserve?: number;

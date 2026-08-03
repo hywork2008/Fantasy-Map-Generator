@@ -12,6 +12,11 @@ import { getInnFacilitiesForBurg, getInnFacilityTotals } from "./generators/innF
 import { Production } from "./generators/production-generator";
 import { getBurgSettlementValue } from "./generators/settlementValuation";
 import { formatExpectedBirthsLowerBound, formatPregnantHeadcount } from "./generators/urbanPregnancy";
+import {
+  formatUrbanWaterSummary,
+  getUrbanWaterSystemForBurg,
+  sanitationScoreFromSystem
+} from "./generators/urbanWaterSystem";
 
 /** Gross product normalized to 1,000 actual residents for a readable, comparable value. */
 export function getBurgProductPerThousandResidents(burg: Burg): number {
@@ -46,6 +51,9 @@ export function getBurgEconomySummary(burgId: number): BurgEconomySummary | null
   const inns = innTotals.buildingCount
     ? `${innTotals.buildingCount} buildings · ${innTotals.privateRooms} rooms · ${innTotals.beds} beds · ${innTotals.stableSpaces} stable spaces`
     : "None";
+  const waterSystem = getUrbanWaterSystemForBurg(burgId);
+  const waterSanitation = waterSystem ? formatUrbanWaterSummary(waterSystem) : "—";
+  const sanitationScore = waterSystem ? `${sanitationScoreFromSystem(waterSystem)}` : "—";
 
   return {
     production,
@@ -69,6 +77,8 @@ export function getBurgEconomySummary(burgId: number): BurgEconomySummary | null
     marketUnemployment: labor ? `${rn(labor.marketUnemployment * 100, 1)}%` : "—",
     employmentFocus: labor?.recommendedFocus ?? "—",
     constructionJobs,
-    inns
+    inns,
+    waterSanitation,
+    sanitationScore
   };
 }

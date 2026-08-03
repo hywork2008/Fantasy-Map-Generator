@@ -33,6 +33,7 @@ import {
   getMintLedgers,
   getSmelterOperations,
   getTradeSecurityLedgers,
+  getUrbanWaterSystems,
   getWorldContext,
   initEconomyContext,
   setBurgMarketLedgers,
@@ -127,6 +128,7 @@ import {
   tickUrbanPregnancy,
   unregisterUrbanPregnancyBirthFloor
 } from "./generators/urbanPregnancy";
+import { UrbanWater } from "./generators/urbanWaterSystem";
 import { VolcanicAshOperations } from "./generators/volcanicAshOperations";
 import { drawGoods } from "./renderers/draw-goods";
 import { drawMarketsLayer } from "./renderers/draw-markets";
@@ -143,6 +145,7 @@ import { getDisplayedGoodIds } from "./store/goodsDisplaySelection";
 import { showEconomyTooltip, updateEconomyCellInfo } from "./tooltipHandler";
 import { BurgEditorGuildsTab } from "./ui/components/BurgEditorGuildsTab";
 import { BurgEditorInnsTab } from "./ui/components/BurgEditorInnsTab";
+import { BurgEditorWaterTab } from "./ui/components/BurgEditorWaterTab";
 import { StatesEditorTreasuryTab } from "./ui/components/StatesEditorTreasuryTab";
 import { CharacterMarketDialog } from "./ui/dialogs/CharacterMarketDialog";
 import { EmploymentOverviewDialog } from "./ui/dialogs/EmploymentOverviewDialog";
@@ -748,6 +751,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (value.target === "economy") {
         InnFacilities.generate();
         InnStays.clear();
+        UrbanWater.generate();
       }
       if (value.target === "economy" || value.target === "minerals") MineOperations.generate();
       if (value.target === "economy" || value.target === "minerals") SmelterOperations.generate();
@@ -880,6 +884,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       ConstructionOperations.clear();
       InnFacilities.clear();
       InnStays.clear();
+      UrbanWater.clear();
       clearConstructionHireState();
       clearUrbanPregnancy();
       MineralResources.clear();
@@ -982,6 +987,13 @@ export function init(api: ExtensionAPI): void {
     editorId: "burgEditor",
     label: "Inns",
     component: BurgEditorInnsTab
+  });
+  api.registerEditorTab({
+    id: "burg-water",
+    extensionId: ECONOMY_EXTENSION_ID,
+    editorId: "burgEditor",
+    label: "Water",
+    component: BurgEditorWaterTab
   });
   api.registerEditorTab({
     id: "burg-guilds",
@@ -1296,6 +1308,7 @@ export function init(api: ExtensionAPI): void {
         Markets.generate();
         InnFacilities.generate();
         InnStays.clear();
+        UrbanWater.generate();
         MineOperations.generate();
         SmelterOperations.generate();
         QuarryOperations.generate();
@@ -1328,6 +1341,9 @@ export function init(api: ExtensionAPI): void {
         if (!getInnFacilities().length) {
           InnFacilities.generate();
           InnStays.clear();
+        }
+        if (!getUrbanWaterSystems().length) {
+          UrbanWater.generate();
         }
       }
     } else if (!isEnabled && wasEnabled) {
@@ -1439,6 +1455,7 @@ export function init(api: ExtensionAPI): void {
           GuildChapters.seedAfterGenerate();
           InnFacilities.generate();
           InnStays.clear();
+          UrbanWater.generate();
           api.requestWebglRender();
         } finally {
           TIME && console.timeEnd("generateEconomy");
@@ -1808,6 +1825,9 @@ export function init(api: ExtensionAPI): void {
       // Inn facilities use the same local builders and Wood/Stone/Brick market stock as
       // construction, but settle through their own non-dwelling work orders.
       InnFacilities.settleAnnual();
+      // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
+      // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).
+      const urbanWaterChanged = UrbanWater.settleAnnual();
       // Must run after reconcileAnnualBasicEmploymentWorkers(), not before: it reads this year's
       // freshly-reconciled SmelterOperation.workers headcount as the Metallurgy guild's
       // practitioner coverage (docs/plan/knowledge-guild-system.md §9 Phase 1). Self-gates to
@@ -1859,7 +1879,7 @@ export function init(api: ExtensionAPI): void {
       }
 
       writer.markChanged("extension.economy", "simulation.states");
-      if (burgGroupsChanged || (urbanMobility?.settledAdults ?? 0) > 0) {
+      if (burgGroupsChanged || (urbanMobility?.settledAdults ?? 0) > 0 || urbanWaterChanged) {
         writer.markChanged("simulation.burgs", "map.settlements");
       }
     }

@@ -51,6 +51,13 @@ export interface BurgEconomySummary {
   constructionJobs: string;
   /** Commercial short-stay lodging totals. "—" when Economy is disabled, "None" when no facility exists. */
   inns: string;
+  /**
+   * Urban water / sanitation one-liner (tier, burden, flood, odor).
+   * "—" when Economy is disabled or no UrbanWaterSystem exists for the burg.
+   */
+  waterSanitation: string;
+  /** Host civic sanitation score 0–100 derived from UrbanWaterSystem, or "—". */
+  sanitationScore: string;
 }
 
 export const burgEconomyExtensions: {

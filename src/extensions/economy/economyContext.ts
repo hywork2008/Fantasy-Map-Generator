@@ -66,6 +66,7 @@ import type { ProcurementOrder } from "./generators/strategicProcurementTypes";
 import type { TradeSecurityLedger } from "./generators/tradeSecurityTypes";
 import type { BanditCohort, MobileAdultCohort, UrbanLaborIntake } from "./generators/urbanLaborIntakeTypes";
 import type { UrbanPregnancyRecord } from "./generators/urbanPregnancyTypes";
+import type { UrbanWaterSystem } from "./generators/urbanWaterTypes";
 import type { VolcanicAshOperation } from "./generators/volcanicAshOperationsTypes";
 
 let _api: ExtensionAPI | null = null;
@@ -90,6 +91,7 @@ let _martialIndividualMasteryLastSettledYearFallback: number | null = null;
 let _guildSuccessionLastSettledYearFallback: number | null = null;
 let _burgTreasuryLastSettledYearFallback: number | null = null;
 let _innFacilitiesLastSettledYearFallback: number | null = null;
+let _urbanWaterLastSettledYearFallback: number | null = null;
 let _stateAgriculturalProductivityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
 export function initEconomyContext(api: ExtensionAPI): void {
@@ -119,6 +121,7 @@ export function clearEconomyContext(): void {
   _guildSuccessionLastSettledYearFallback = null;
   _burgTreasuryLastSettledYearFallback = null;
   _innFacilitiesLastSettledYearFallback = null;
+  _urbanWaterLastSettledYearFallback = null;
   _stateAgriculturalProductivityFallback = new Float32Array();
 }
 
@@ -977,6 +980,32 @@ export function setInnFacilitiesLastSettledYear(year: number): void {
     return;
   }
   _innFacilitiesLastSettledYearFallback = year;
+}
+
+/** Burg water / sanitation infrastructure (docs/plan/urban-water-and-sanitation-system.md Phase 1). */
+export function getUrbanWaterSystems(): UrbanWaterSystem[] {
+  return getSliceArray<UrbanWaterSystem>("urbanWaterSystems");
+}
+export function setUrbanWaterSystems(systems: readonly UrbanWaterSystem[]): void {
+  setSliceArray("urbanWaterSystems", systems);
+}
+
+/** Once-per-simulation-year guard for UrbanWater.settleAnnual(). */
+export function getUrbanWaterLastSettledYear(): number | null {
+  const slice = getEconomySlice();
+  if (slice) {
+    const value = slice.urbanWaterLastSettledYear;
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return _urbanWaterLastSettledYearFallback;
+}
+export function setUrbanWaterLastSettledYear(year: number): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice.urbanWaterLastSettledYear = year;
+    return;
+  }
+  _urbanWaterLastSettledYearFallback = year;
 }
 
 /** Pending construction hire applications (Phase 2 lag). */

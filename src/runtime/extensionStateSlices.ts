@@ -54,6 +54,7 @@ export const EXTENSION_SLICE_DEFINITIONS: readonly ExtensionSliceDefinition[] = 
   { extensionId: "economy", legacyTarget: "pack", legacyField: "militaryResourceLedgers", defaultValue: () => [] },
   { extensionId: "economy", legacyTarget: "pack", legacyField: "tradeSecurityLedgers", defaultValue: () => [] },
   { extensionId: "economy", legacyTarget: "pack", legacyField: "innFacilities", defaultValue: () => [] },
+  { extensionId: "economy", legacyTarget: "pack", legacyField: "urbanWaterSystems", defaultValue: () => [] },
   { extensionId: "economy", legacyTarget: "cells", legacyField: "good", defaultValue: () => new Uint16Array() },
   { extensionId: "economy", legacyTarget: "cells", legacyField: "market", defaultValue: () => new Uint16Array() }
 ];
@@ -146,6 +147,55 @@ function validateInnFacilities(value: unknown, world: WorldContext): void {
       facility.condition > 1
     ) {
       throw new Error(`${entryName}.condition must be a finite number from 0 to 1`);
+    }
+  }
+}
+
+function assertUnitInterval(value: unknown, name: string): void {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1) {
+    throw new Error(`${name} must be a finite number from 0 to 1`);
+  }
+}
+
+function validateUrbanWaterSystems(value: unknown, world: WorldContext): void {
+  if (value === undefined) return;
+  const name = "simulation.extensions.economy.urbanWaterSystems";
+  if (!Array.isArray(value)) throw new Error(`Archive ${name} must be an array`);
+  const seenBurgIds = new Set<number>();
+  for (const [index, system] of value.entries()) {
+    const entryName = `${name}[${index}]`;
+    assertRecord(system, entryName);
+    const burgId = typeof system.burgId === "number" ? system.burgId : -1;
+    if (!Number.isInteger(burgId) || burgId <= 0 || !world.pack.burgs[burgId]) {
+      throw new Error(`${entryName}.burgId must reference an existing burg`);
+    }
+    if (seenBurgIds.has(burgId)) throw new Error(`${entryName}.burgId is duplicated`);
+    seenBurgIds.add(burgId);
+    const tier = system.tier;
+    if (!Number.isInteger(tier) || (tier as number) < 0 || (tier as number) > 5) {
+      throw new Error(`${entryName}.tier must be an integer from 0 to 5`);
+    }
+    for (const field of [
+      "drinkingWaterSecurity",
+      "serviceWaterCapacity",
+      "irrigationCapacity",
+      "stormwaterDrainageCapacity",
+      "wastewaterCapacity",
+      "maintenanceCondition",
+      "sanitationBurden",
+      "waterContamination",
+      "floodExposure",
+      "muddiness",
+      "odor",
+      "stormwaterDemand",
+      "wastewaterDemand"
+    ]) {
+      assertUnitInterval(system[field], `${entryName}.${field}`);
+    }
+    for (const field of ["hasUpstreamIntake", "hasDownstreamOutfall", "hasSeparateWastewaterRoute"]) {
+      if (typeof system[field] !== "boolean") {
+        throw new Error(`${entryName}.${field} must be a boolean`);
+      }
     }
   }
 }
@@ -269,6 +319,7 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
   validateInnFacilities(slice.innFacilities, world);
   validateInnConstructionOrders(slice.innConstructionOrders, world);
   validateInnStayLedgers(slice.innStayLedgers, world);
+  validateUrbanWaterSystems(slice.urbanWaterSystems, world);
   if (slice.lodgingStyle !== undefined) {
     if (typeof slice.lodgingStyle !== "string" || !LODGING_STYLES.has(slice.lodgingStyle)) {
       throw new Error("Archive simulation.extensions.economy.lodgingStyle is invalid");
@@ -278,6 +329,12 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
     const year = slice.innFacilitiesLastSettledYear;
     if (typeof year !== "number" || !Number.isFinite(year)) {
       throw new Error("Archive simulation.extensions.economy.innFacilitiesLastSettledYear must be a finite number");
+    }
+  }
+  if (slice.urbanWaterLastSettledYear !== undefined) {
+    const year = slice.urbanWaterLastSettledYear;
+    if (typeof year !== "number" || !Number.isFinite(year)) {
+      throw new Error("Archive simulation.extensions.economy.urbanWaterLastSettledYear must be a finite number");
     }
   }
   if (slice.guildChaptersLastSettledYear !== undefined) {
@@ -373,6 +430,7 @@ function collectEconomyCoreReferences(slice: Record<string, unknown>): readonly 
     ...collectEntityReferences(slice.innFacilities, "burg", "orphan"),
     ...collectEntityReferences(slice.innConstructionOrders, "burg", "orphan"),
     ...collectEntityReferences(slice.innStayLedgers, "burg", "orphan"),
+    ...collectEntityReferences(slice.urbanWaterSystems, "burg", "orphan"),
     ...collectEntityReferences(slice.strategicGoodsPolicies, "state", "orphan")
   ];
 }

@@ -42,6 +42,8 @@ export interface BurgData {
   employmentFocus: string;
   constructionJobs: string;
   inns: string;
+  waterSanitation: string;
+  sanitationScore: string;
 
   // Features
   capital: boolean;
