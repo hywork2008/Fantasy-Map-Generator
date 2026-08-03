@@ -28,7 +28,6 @@ export type RaceKey =
   | "giant"
   | "draconic"
   | "arachnid"
-  | "serpent"
   | "amazones"
   | (string & {});
 

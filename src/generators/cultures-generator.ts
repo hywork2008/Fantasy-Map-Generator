@@ -528,14 +528,6 @@ class CulturesModule {
           shield: "horsehead2",
           raceKey: "arachnid"
         },
-        {
-          name: "Aj'Snaga",
-          base: 41,
-          odd: 0.7,
-          sort: (i: number) => n(i) / bd(i, [12], 10),
-          shield: "fantasy1",
-          raceKey: "serpent"
-        },
         // Fantasy human cultures
         {
           name: "Anor",
@@ -832,14 +824,6 @@ class CulturesModule {
           sort: (i: number) => t[i] - s[i],
           shield: "horsehead2",
           raceKey: "arachnid"
-        },
-        {
-          name: "Aj'Snaga",
-          base: 41,
-          odd: 0.9,
-          sort: (i: number) => n(i) / bd(i, [12], 10),
-          shield: "fantasy1",
-          raceKey: "serpent"
         }
       ];
     }

@@ -214,23 +214,6 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     }
   },
   {
-    key: "serpent",
-    name: "Serpent",
-    lifespan: 200,
-    maxLifespan: 400,
-    looksBaseline: { stature: 55, build: 45, symmetry: 50, refinement: 55, vitality: 55, ornament: 60 },
-    beautyIdeal: {
-      weights: { refinement: 0.9, ornament: 1.0, symmetry: 0.8, vitality: 0.6, build: 0.3, stature: 0.4 }
-    },
-    fertility: {
-      fertilityStart: 18,
-      fertilityEnd: 120,
-      interbirthYears: 5,
-      litterMean: 1.5,
-      litterMax: 4
-    }
-  },
-  {
     key: "amazones",
     name: "Amazones",
     characterGender: "female_only",
