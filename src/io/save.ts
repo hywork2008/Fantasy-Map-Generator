@@ -194,6 +194,7 @@ function prepareMapDataFromSvg(): string {
   const gridGeneral = JSON.stringify({ spacing, cellsX, cellsY, boundary, points, features, cellsDesired });
   const packFeatures = JSON.stringify(worldContext.pack.features);
   const cultures = JSON.stringify(worldContext.pack.cultures);
+  const races = JSON.stringify(worldContext.pack.races ?? []);
   const states = JSON.stringify(worldContext.pack.states);
   const burgs = JSON.stringify(worldContext.pack.burgs);
   const religions = JSON.stringify(worldContext.pack.religions);
@@ -304,7 +305,8 @@ function prepareMapDataFromSvg(): string {
     strategicEconomy, // [52] economy strategic procurement and labor cohorts
     worldContext.pack.cells.coastalHabitat ? Array.from(worldContext.pack.cells.coastalHabitat).join(",") : "", // [53] coastal habitat codes
     worldContext.pack.cells.nearshoreHabitat ? Array.from(worldContext.pack.cells.nearshoreHabitat).join(",") : "", // [54] nearshore habitat codes
-    mineralResources // [55] Economy mineral-resource state
+    mineralResources, // [55] Economy mineral-resource state
+    races // [56] pack.races (species table; optional on legacy maps)
   ].join("\r\n");
 
   return mapData;

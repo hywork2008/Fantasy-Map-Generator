@@ -1,7 +1,9 @@
+import { DEFAULT_RACE_KEY, getRaceById, HUMAN_RACE_ID, raceIdByKey } from "../../data/races";
 import { Names } from "../hostCore";
+import type { CharacterGenderMode } from "../hostTypes";
 import { gauss, P, rand } from "../hostUtils";
 import { APPEARANCE_DECLINE_PER_YEAR, DECLINE_AGE_THRESHOLD, prowessDeclineRateForCreation } from "./advanceAge";
-import { getAbilityPreset } from "./charactersContext";
+import { getAbilityPreset, getWorldContext, hasCharactersContext } from "./charactersContext";
 import type {
   AbilityProfile,
   Character,
@@ -65,10 +67,59 @@ export interface CreatePersonOptions {
   /** Denormalized pointer stored on Character.state, e.g. for UI grouping/filtering. */
   homeStateId: number;
   ageOverride?: number;
-  /** Caller-specified gender. Omit to use the default feudal/nobility-biased roll. */
+  /** Caller-specified gender. Omit to use race `characterGender` policy, then feudal male bias. */
   genderOverride?: Gender;
   /** Ability preset id to roll into `abilityProfile` in addition to the mandatory skills/personality. Defaults to "ck3e" (no extra roll — same values, merged). */
   presetId?: string;
+}
+
+/**
+ * Resolve pack.races id for a culture. Falls back to Human when races are missing (legacy maps).
+ */
+export function resolveRaceIdForCulture(cultureId: number): number {
+  if (!hasCharactersContext()) return HUMAN_RACE_ID;
+  try {
+    const { pack } = getWorldContext();
+    const culture = pack.cultures?.[cultureId];
+    if (culture?.race !== undefined && culture.race !== null) return culture.race;
+    if (pack.races?.length) return raceIdByKey(pack.races, culture?.raceKey ?? DEFAULT_RACE_KEY);
+    return HUMAN_RACE_ID;
+  } catch {
+    return HUMAN_RACE_ID;
+  }
+}
+
+/**
+ * Read gender policy from the culture's race (preferred), with legacy culture.characterGender fallback.
+ */
+export function getRaceCharacterGenderMode(cultureId: number): CharacterGenderMode | undefined {
+  if (!hasCharactersContext()) return undefined;
+  try {
+    const { pack } = getWorldContext();
+    const culture = pack.cultures?.[cultureId];
+    const raceId = culture?.race ?? resolveRaceIdForCulture(cultureId);
+    const race = getRaceById(pack.races, raceId);
+    if (race?.characterGender) return race.characterGender;
+    // Pre-split maps that still store gender on culture
+    return culture?.characterGender;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Resolve gender for a new person: explicit override → race policy → feudal male bias (~90%).
+ * Amazones race (`characterGender: "female_only"`) forces female for every createPerson path
+ * that does not pass genderOverride.
+ */
+export function resolvePersonGender(cultureId: number, genderOverride?: Gender): Gender {
+  if (genderOverride) return genderOverride;
+
+  const mode = getRaceCharacterGenderMode(cultureId);
+  if (mode === "female_only") return "female";
+  if (mode === "balanced") return P(0.5) ? "male" : "female";
+  // male_dominant or undefined: historical feudal court bias
+  return P(0.9) ? "male" : "female";
 }
 
 function buildAbilityProfile(
@@ -173,8 +224,9 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   // Religious roles without an explicit class still get learning-oriented skill means.
   const skillRoleClass: CharacterRoleClass | undefined = roleClass ?? (isReligiousRole ? "religious" : undefined);
 
-  // デフォルトで90%を男性とする（特殊な文化設定がない場合の歴史的な封建制の再現）
-  const gender: Gender = genderOverride ?? (P(0.9) ? "male" : "female");
+  // Race policy (e.g. Amazones female_only) or feudal ~90% male default — see resolvePersonGender.
+  const gender: Gender = resolvePersonGender(cultureId, genderOverride);
+  const race = resolveRaceIdForCulture(cultureId);
   const age = ageOverride !== undefined ? ageOverride : rand(DEFAULT_MIN_AGE, DEFAULT_MAX_AGE);
 
   const guile = rand(1, 100);
@@ -254,6 +306,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     age,
     gender,
     culture: cultureId,
+    race,
     appearance,
     prestige: rand(1, 100),
     wealth: 0,

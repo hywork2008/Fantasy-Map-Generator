@@ -7,8 +7,9 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { isForestBiome, isNomadicBiome, isWetlandBiome } from "../data/biomeCatalog";
+import { createDefaultRaces, DEFAULT_RACE_KEY, HUMAN_RACE_ID, raceIdByKey, UNKNOWN_RACE_ID } from "../data/races";
 import { useOptionsState } from "../store/optionsState";
-import type { Culture } from "../types/models";
+import type { Culture, RaceKey } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { openAlert } from "../ui/dialogs/dialogService";
@@ -16,6 +17,26 @@ import { abbreviate, biased, getColors, getRandomColor, minmax, P, rand, rn, rw 
 import { ERROR, TIME, WARN } from "../utils/debug";
 import { COA } from "./emblem/generator";
 import { Names } from "./names-generator";
+
+/** Bind each culture to a race id; seed pack.races when missing. Drops transient raceKey. */
+function assignCultureRaces(pack: PackedGraph, cultures: Culture[]): void {
+  if (!pack.races?.length) pack.races = createDefaultRaces();
+  const races = pack.races;
+
+  for (const c of cultures) {
+    const key = (c.raceKey ?? DEFAULT_RACE_KEY) as RaceKey;
+    if (c.race === undefined || c.race === null) {
+      c.race = c.i === 0 ? UNKNOWN_RACE_ID : raceIdByKey(races, key);
+    }
+    delete c.raceKey;
+    // Gender policy lives on Race; strip obsolete culture-level copy after migration.
+    if (c.characterGender !== undefined) {
+      const race = races[c.race];
+      if (race && race.characterGender === undefined) race.characterGender = c.characterGender;
+      delete c.characterGender;
+    }
+  }
+}
 
 class CulturesModule {
   worldContext: WorldContext = worldContext;
@@ -152,6 +173,15 @@ class CulturesModule {
           odd: 0.05,
           sort: (i: number) => (n(i) / td(i, 11) / bd(i, [6, 8])) * t[i],
           shield: "oval"
+        },
+        {
+          // Amazones race (female_only); culture keeps Greek naming base
+          name: "Amazones",
+          base: 7,
+          odd: 0.08,
+          sort: (i: number) => (n(i) / td(i, 18)) * h[i],
+          shield: "boeotian",
+          raceKey: "amazones"
         }
       ];
     }
@@ -381,132 +411,166 @@ class CulturesModule {
           odd: 0.2,
           sort: (i: number) => n(i) / td(i, 22) / bd(i, [1, 2, 3]),
           shield: "oval"
-        } // Mesopotamian
+        }, // Mesopotamian
+        {
+          // Classical Amazons culture with Amazones race
+          name: "Amazones",
+          base: 7,
+          odd: 0.35,
+          sort: (i: number) => (n(i) / td(i, 18) / sf(i)) * h[i],
+          shield: "boeotian",
+          raceKey: "amazones"
+        }
       ];
     }
 
     if (useOptionsState.getState().culturesSet === "highFantasy") {
       return [
-        // fantasy races
+        // Culture name + separate race (raceKey) — no race parentheticals in names
         {
-          name: "Quenian (Elfish)",
+          name: "Quenian",
           base: 33,
           odd: 1,
           sort: (i: number) => (n(i) / bd(i, [6, 7, 8, 9], 10)) * t[i],
-          shield: "gondor"
-        }, // Elves
+          shield: "gondor",
+          raceKey: "elf"
+        },
         {
-          name: "Eldar (Elfish)",
+          name: "Eldar",
           base: 33,
           odd: 1,
           sort: (i: number) => (n(i) / bd(i, [6, 7, 8, 9], 10)) * t[i],
-          shield: "noldor"
-        }, // Elves
+          shield: "noldor",
+          raceKey: "elf"
+        },
         {
-          name: "Trow (Dark Elfish)",
+          name: "Trow",
           base: 34,
           odd: 0.9,
           sort: (i: number) => (n(i) / bd(i, [7, 8, 9, 12], 10)) * t[i],
-          shield: "hessen"
-        }, // Dark Elves
+          shield: "hessen",
+          raceKey: "dark_elf"
+        },
         {
-          name: "Lothian (Dark Elfish)",
+          name: "Lothian",
           base: 34,
           odd: 0.3,
           sort: (i: number) => (n(i) / bd(i, [7, 8, 9, 12], 10)) * t[i],
-          shield: "wedged"
-        }, // Dark Elves
+          shield: "wedged",
+          raceKey: "dark_elf"
+        },
         {
-          name: "Dunirr (Dwarven)",
+          name: "Dunirr",
           base: 35,
           odd: 1,
           sort: (i: number) => n(i) + h[i],
-          shield: "ironHills"
-        }, // Dwarfs
+          shield: "ironHills",
+          raceKey: "dwarf"
+        },
         {
-          name: "Khazadur (Dwarven)",
+          name: "Khazadur",
           base: 35,
           odd: 1,
           sort: (i: number) => n(i) + h[i],
-          shield: "erebor"
-        }, // Dwarfs
+          shield: "erebor",
+          raceKey: "dwarf"
+        },
         {
-          name: "Kobold (Goblin)",
+          name: "Kobold",
           base: 36,
           odd: 1,
           sort: (i: number) => t[i] - s[i],
-          shield: "moriaOrc"
-        }, // Goblin
+          shield: "moriaOrc",
+          raceKey: "goblin"
+        },
         {
-          name: "Uruk (Orkish)",
+          name: "Uruk",
           base: 37,
           odd: 1,
           sort: (i: number) => h[i] * t[i],
-          shield: "urukHai"
-        }, // Orc
+          shield: "urukHai",
+          raceKey: "orc"
+        },
         {
-          name: "Ugluk (Orkish)",
+          name: "Ugluk",
           base: 37,
           odd: 0.5,
           sort: (i: number) => (h[i] * t[i]) / bd(i, [1, 2, 10, 11]),
-          shield: "moriaOrc"
-        }, // Orc
+          shield: "moriaOrc",
+          raceKey: "orc"
+        },
         {
-          name: "Yotunn (Giants)",
+          name: "Yotunn",
           base: 38,
           odd: 0.7,
           sort: (i: number) => td(i, -10),
-          shield: "pavise"
-        }, // Giant
+          shield: "pavise",
+          raceKey: "giant"
+        },
         {
-          name: "Rake (Drakonic)",
+          name: "Rake",
           base: 39,
           odd: 0.7,
           sort: (i: number) => -s[i],
-          shield: "fantasy2"
-        }, // Draconic
+          shield: "fantasy2",
+          raceKey: "draconic"
+        },
         {
-          name: "Arago (Arachnid)",
+          name: "Arago",
           base: 40,
           odd: 0.7,
           sort: (i: number) => t[i] - s[i],
-          shield: "horsehead2"
-        }, // Arachnid
+          shield: "horsehead2",
+          raceKey: "arachnid"
+        },
         {
-          name: "Aj'Snaga (Serpents)",
+          name: "Aj'Snaga",
           base: 41,
           odd: 0.7,
           sort: (i: number) => n(i) / bd(i, [12], 10),
-          shield: "fantasy1"
-        }, // Serpents
-        // fantasy human
+          shield: "fantasy1",
+          raceKey: "serpent"
+        },
+        // Fantasy human cultures
         {
-          name: "Anor (Human)",
+          name: "Anor",
           base: 32,
           odd: 1,
           sort: (i: number) => n(i) / td(i, 10),
-          shield: "fantasy5"
+          shield: "fantasy5",
+          raceKey: "human"
         },
         {
-          name: "Dail (Human)",
+          name: "Dail",
           base: 32,
           odd: 1,
           sort: (i: number) => n(i) / td(i, 13),
-          shield: "roman"
+          shield: "roman",
+          raceKey: "human"
         },
         {
-          name: "Rohand (Human)",
+          name: "Rohand",
           base: 16,
           odd: 1,
           sort: (i: number) => n(i) / td(i, 16),
-          shield: "round"
+          shield: "round",
+          raceKey: "human"
         },
         {
-          name: "Dulandir (Human)",
+          name: "Dulandir",
           base: 31,
           odd: 1,
           sort: (i: number) => (n(i) / td(i, 5) / bd(i, [2, 4, 10], 7)) * t[i],
-          shield: "easterling"
+          shield: "easterling",
+          raceKey: "human"
+        },
+        {
+          name: "Amazones",
+          base: 7,
+          odd: 0.6,
+          sort: (i: number) => (n(i) / td(i, 18)) * h[i],
+          shield: "boeotian",
+          raceKey: "amazones"
         }
       ];
     }
@@ -685,76 +749,93 @@ class CulturesModule {
           shield: "boeotian"
         },
         {
+          name: "Amazones",
+          base: 7,
+          odd: 0.25,
+          sort: (i: number) => (n(i) / td(i, 18) / sf(i)) * h[i],
+          shield: "boeotian",
+          raceKey: "amazones"
+        },
+        {
           name: "Romian",
           base: 8,
           odd: 0.2,
           sort: (i: number) => n(i) / td(i, 14) / t[i],
           shield: "roman"
         },
-        // fantasy races
+        // Fantasy cultures with separate race
         {
           name: "Eldar",
           base: 33,
           odd: 0.5,
           sort: (i: number) => (n(i) / bd(i, [6, 7, 8, 9], 10)) * t[i],
-          shield: "fantasy5"
-        }, // Elves
+          shield: "fantasy5",
+          raceKey: "elf"
+        },
         {
           name: "Trow",
           base: 34,
           odd: 0.8,
           sort: (i: number) => (n(i) / bd(i, [7, 8, 9, 12], 10)) * t[i],
-          shield: "hessen"
-        }, // Dark Elves
+          shield: "hessen",
+          raceKey: "dark_elf"
+        },
         {
           name: "Durinn",
           base: 35,
           odd: 0.8,
           sort: (i: number) => n(i) + h[i],
-          shield: "erebor"
-        }, // Dwarven
+          shield: "erebor",
+          raceKey: "dwarf"
+        },
         {
           name: "Kobblin",
           base: 36,
           odd: 0.8,
           sort: (i: number) => t[i] - s[i],
-          shield: "moriaOrc"
-        }, // Goblin
+          shield: "moriaOrc",
+          raceKey: "goblin"
+        },
         {
           name: "Uruk",
           base: 37,
           odd: 0.8,
           sort: (i: number) => (h[i] * t[i]) / bd(i, [1, 2, 10, 11]),
-          shield: "urukHai"
-        }, // Orc
+          shield: "urukHai",
+          raceKey: "orc"
+        },
         {
           name: "Yotunn",
           base: 38,
           odd: 0.8,
           sort: (i: number) => td(i, -10),
-          shield: "pavise"
-        }, // Giant
+          shield: "pavise",
+          raceKey: "giant"
+        },
         {
           name: "Drake",
           base: 39,
           odd: 0.9,
           sort: (i: number) => -s[i],
-          shield: "fantasy2"
-        }, // Draconic
+          shield: "fantasy2",
+          raceKey: "draconic"
+        },
         {
           name: "Rakhnid",
           base: 40,
           odd: 0.9,
           sort: (i: number) => t[i] - s[i],
-          shield: "horsehead2"
-        }, // Arachnid
+          shield: "horsehead2",
+          raceKey: "arachnid"
+        },
         {
           name: "Aj'Snaga",
           base: 41,
           odd: 0.9,
           sort: (i: number) => n(i) / bd(i, [12], 10),
-          shield: "fantasy1"
-        } // Serpents
+          shield: "fantasy1",
+          raceKey: "serpent"
+        }
       ];
     }
 
@@ -823,6 +904,14 @@ class CulturesModule {
         odd: 0.7,
         sort: (i: number) => (n(i) / td(i, 18)) * h[i],
         shield: "boeotian"
+      },
+      {
+        name: "Amazones",
+        base: 7,
+        odd: 0.15,
+        sort: (i: number) => (n(i) / td(i, 18)) * h[i],
+        shield: "boeotian",
+        raceKey: "amazones"
       },
       {
         name: "Romian",
@@ -1028,6 +1117,7 @@ class CulturesModule {
         pack.cultures = [{ name: "Wildlands", i: 0, base: 1, shield: "round" }];
         this.cells!.culture = cultureIds;
 
+        pack.races = createDefaultRaces();
         openAlert(
           `The climate is harsh and people cannot live in this world.<br />
           No cultures, states and burgs will be created.<br />
@@ -1072,6 +1162,7 @@ class CulturesModule {
     };
 
     const cultures = selectCultures(count);
+    pack.races = createDefaultRaces();
     pack.cultures = cultures;
     const centers = quadtree<[number, number]>();
     const colors = getColors(count);
@@ -1177,7 +1268,9 @@ class CulturesModule {
       i: 0,
       base: 1,
       origins: [null],
-      shield: "round"
+      shield: "round",
+      race: UNKNOWN_RACE_ID,
+      raceKey: "unknown"
     });
 
     // make sure all bases exist in nameBases
@@ -1191,6 +1284,8 @@ class CulturesModule {
       c.base = c.base % nameBases.length;
     });
 
+    assignCultureRaces(pack, cultures);
+
     TIME && console.timeEnd("generateCultures");
   }
 
@@ -1199,17 +1294,24 @@ class CulturesModule {
     const defaultCultures = this.getDefault();
     let culture: number, base: number, name: string;
 
+    let raceKey: RaceKey | undefined;
+    let race: number | undefined;
     if (pack.cultures.length < defaultCultures.length) {
       // add one of the default cultures
       culture = pack.cultures.length;
       base = defaultCultures[culture].base;
       name = defaultCultures[culture].name;
+      raceKey = (defaultCultures[culture] as Culture).raceKey;
     } else {
       // add random culture based on one of the current ones
       culture = rand(pack.cultures.length - 1);
       name = Names.getCulture(culture, 5, 8, "");
       base = pack.cultures[culture].base;
+      race = pack.cultures[culture].race ?? HUMAN_RACE_ID;
     }
+
+    if (!pack.races?.length) pack.races = createDefaultRaces();
+    const resolvedRace = race ?? raceIdByKey(pack.races, raceKey ?? DEFAULT_RACE_KEY);
 
     const code = abbreviate(name, pack.cultures.map(c => c.code) as string[]);
     const i = pack.cultures.length;
@@ -1232,7 +1334,8 @@ class CulturesModule {
       urban: 0,
       origins: [pack.cells.culture[center]],
       code,
-      shield: emblemShape === "random" ? this.getRandomShield() : ""
+      shield: emblemShape === "random" ? this.getRandomShield() : "",
+      race: resolvedRace
     });
   }
 

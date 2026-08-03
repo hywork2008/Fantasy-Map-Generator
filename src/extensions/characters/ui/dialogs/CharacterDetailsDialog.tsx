@@ -140,6 +140,7 @@ export const CharacterDetailsDialog: React.FC = () => {
   const states = worldContext.pack.states;
   const provinces = worldContext.pack.provinces;
   const cultures = worldContext.pack.cultures;
+  const races = worldContext.pack.races ?? [];
   const burgs = worldContext.pack.burgs;
   const dynasties = worldContext.pack.dynasties ?? [];
   const markets = getEconomyMarkets(worldContext.pack);
@@ -214,6 +215,11 @@ export const CharacterDetailsDialog: React.FC = () => {
   };
 
   const cultureName = cultures[character.culture]?.name ?? t("characters.unknown");
+  const raceId = character.race ?? cultures[character.culture]?.race;
+  const raceName =
+    (raceId !== undefined ? races[raceId]?.name : undefined) ??
+    (raceId !== undefined ? cultures[character.culture]?.name : undefined) ??
+    t("characters.unknown");
 
   const getAffinityText = (score: number) => {
     if (score >= 50) return t("characters.friendly");
@@ -277,6 +283,7 @@ export const CharacterDetailsDialog: React.FC = () => {
     rows.push(`${t("characters.gender")}, ${t(`characters.${character.gender}`)}`);
     rows.push(`${t("characters.status")}, ${statusText}`);
     rows.push(`${t("characters.culture")}, ${cultureName}`);
+    rows.push(`${t("characters.race")}, ${raceName}`);
     rows.push(`${t("characters.location")}, ${locationStr}`);
     rows.push(`${t("characters.appearance")}, ${character.appearance ?? t("characters.notAvailable")}`);
     rows.push(`${t("characters.prestige")}, ${character.prestige ?? t("characters.notAvailable")}`);
@@ -579,6 +586,10 @@ export const CharacterDetailsDialog: React.FC = () => {
             <tr>
               <th style={{ padding: "4px 0" }}>{t("characters.culture")}</th>
               <td>{cultureName}</td>
+            </tr>
+            <tr>
+              <th style={{ padding: "4px 0" }}>{t("characters.race")}</th>
+              <td>{raceName}</td>
             </tr>
             <tr>
               <th style={{ padding: "4px 0" }}>{t("characters.appearance")}</th>

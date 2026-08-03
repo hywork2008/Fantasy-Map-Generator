@@ -226,6 +226,10 @@ class Resampler {
       const center = findClosestCell(centerX, centerY, Infinity, pack);
       return { ...culture, center };
     });
+    // Races are not spatial — copy the parent catalog as-is.
+    if (parentMap.pack.races?.length) {
+      pack.races = parentMap.pack.races.map(r => ({ ...r }));
+    }
   }
 
   private getBurgCoordinates(

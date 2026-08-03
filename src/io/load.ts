@@ -6,6 +6,7 @@ import { worldContext } from "../context/worldContext";
 import { syncLoadedStylePreset } from "../controllers/style";
 import { snapshotToBiomesData } from "../data/biomeCatalog";
 import { ensureCoastalHabitatColumns } from "../data/coastalHabitatCatalog";
+import { createDefaultRaces, DEFAULT_RACE_KEY, HUMAN_RACE_ID, raceIdByKey, UNKNOWN_RACE_ID } from "../data/races";
 import { Burgs } from "../generators/burgs-generator";
 import { Features } from "../generators/features";
 import { Routes } from "../generators/routes-generator";
@@ -35,7 +36,15 @@ import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
 import { loadErrorDialogStore } from "../store/loadErrorDialogState";
 import { loadMapDialogStore } from "../store/loadMapDialogState";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
-import type { LandRouteGenerationMode, NameBase, River, Route, SeaRouteGenerationMode } from "../types/models";
+import type {
+  Culture,
+  LandRouteGenerationMode,
+  NameBase,
+  Race,
+  River,
+  Route,
+  SeaRouteGenerationMode
+} from "../types/models";
 import { closeDialogs, openAlert, openConfirm } from "../ui/dialogs/dialogService";
 import { calculateVoronoi, findCell, last, link, minmax, parseError, rn } from "../utils";
 import { heightmapColorSchemes } from "../utils/colorUtils";
@@ -582,6 +591,11 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
   Features.markupPack();
   worldContext.pack.features = JSON.parse(data[12]);
   worldContext.pack.cultures = JSON.parse(data[13]);
+  // [56] races — optional trailing slot; migrate legacy culture.characterGender onto races.
+  worldContext.pack.races = migrateLoadedRaces(
+    data[56] ? (JSON.parse(data[56]) as Race[]) : undefined,
+    worldContext.pack.cultures as Culture[]
+  );
   worldContext.pack.states = JSON.parse(data[14]);
   bindSimulationStateState(worldContext, simulationContext);
   bindSimulationMilitaryState(worldContext, simulationContext);
@@ -1274,4 +1288,40 @@ function restoreMineralResourceState(serialized: string | undefined): void {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+/**
+ * Ensure pack.races exists after load. Legacy maps only had culture.characterGender;
+ * migrate that onto the matching race entry and assign culture.race when missing.
+ */
+function migrateLoadedRaces(loaded: Race[] | undefined, cultures: Culture[]): Race[] {
+  const races = loaded?.length ? loaded : createDefaultRaces();
+
+  // Merge any missing catalog entries by key so UI dropdowns stay complete.
+  if (loaded?.length) {
+    const byKey = new Set(races.map(r => r.key));
+    for (const def of createDefaultRaces()) {
+      if (!byKey.has(def.key)) {
+        races.push({ ...def, i: races.length });
+      }
+    }
+  }
+
+  for (const culture of cultures) {
+    if (culture.race === undefined || culture.race === null || !races[culture.race]) {
+      if (culture.i === 0) culture.race = UNKNOWN_RACE_ID;
+      else if (culture.raceKey) culture.race = raceIdByKey(races, culture.raceKey);
+      else if (culture.characterGender === "female_only") culture.race = raceIdByKey(races, "amazones");
+      else culture.race = raceIdByKey(races, culture.raceKey ?? DEFAULT_RACE_KEY) || HUMAN_RACE_ID;
+    }
+
+    if (culture.characterGender !== undefined) {
+      const race = races[culture.race];
+      if (race && race.characterGender === undefined) race.characterGender = culture.characterGender;
+      delete culture.characterGender;
+    }
+    delete culture.raceKey;
+  }
+
+  return races;
 }

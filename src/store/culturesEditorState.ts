@@ -10,6 +10,8 @@ export interface CultureRowData {
   name: string;
   color: string;
   type: string;
+  /** pack.races id for this culture's dominant folk. */
+  race: number;
   base: number;
   cells: number;
   expansionism: number;
@@ -19,6 +21,11 @@ export interface CultureRowData {
   urban: number;
   shield: string;
   lock?: boolean;
+}
+
+export interface RaceOption {
+  i: number;
+  name: string;
 }
 
 interface CulturesEditorState {
@@ -34,6 +41,7 @@ interface CulturesEditorState {
 
   cultures: CultureRowData[];
   nameBases: NameBaseOption[];
+  races: RaceOption[];
 
   totalCells: number;
   totalArea: number;
@@ -54,6 +62,7 @@ export const useCulturesEditorState = create<CulturesEditorState>(() => ({
 
   cultures: [],
   nameBases: [],
+  races: [],
 
   totalCells: 0,
   totalArea: 0,

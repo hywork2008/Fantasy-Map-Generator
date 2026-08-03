@@ -54,6 +54,33 @@ describe("Characters (nobility characterLifecycle)", () => {
     expect(republicRuler!.titles[0].title).toBe("President");
   });
 
+  it("generates only female characters for states whose culture uses Amazones race", () => {
+    worldContext.pack.races = [
+      { i: 0, key: "unknown", name: "Unknown" },
+      { i: 1, key: "human", name: "Human" },
+      { i: 2, key: "amazones", name: "Amazones", characterGender: "female_only" }
+    ] as never;
+    worldContext.pack.cultures = [
+      { i: 0, name: "Wildlands", base: 0, shield: "round", race: 0 },
+      // Culture name is independent; race drives female_only policy
+      { i: 1, name: "Thermodons", base: 0, shield: "boeotian", race: 2 }
+    ] as never;
+    worldContext.pack.states = [
+      { i: 0, name: "Neutrals" },
+      { i: 1, name: "Queendom of Thermodons", culture: 1, form: "Monarchy", formName: "Kingdom", capital: 0 }
+    ] as never;
+
+    Characters.generate({ randomSeed: 7 });
+
+    const stateChars = worldContext.pack.characters.filter(c => c.titles.some(t => t.entityId === 1));
+    expect(stateChars.length).toBeGreaterThan(0);
+    expect(stateChars.every(c => c.gender === "female")).toBe(true);
+    expect(stateChars.every(c => c.race === 2)).toBe(true);
+
+    const ruler = stateChars.find(c => c.titles.some(t => t.landed));
+    expect(ruler?.titles[0].title).toBe("Queen");
+  });
+
   it("sets state.rulerId to the ruler's character id and skips removed/neutral states", () => {
     Characters.generate({ randomSeed: 3 });
 

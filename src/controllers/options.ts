@@ -876,13 +876,13 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
 
   document.addEventListener("react-change-cultures-set", () => {
     const culturesSetMaxMap: Record<string, number> = {
-      world: 32,
-      european: 15,
+      world: 33,
+      european: 16,
       oriental: 13,
       english: 10,
-      antique: 10,
-      highFantasy: 17,
-      darkFantasy: 18,
+      antique: 17,
+      highFantasy: 18,
+      darkFantasy: 36,
       random: 100
     };
     const { culturesSet, cultures } = useOptionsState.getState();

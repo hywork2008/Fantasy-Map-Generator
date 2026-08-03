@@ -4,6 +4,7 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
+import { createDefaultRaces, HUMAN_RACE_ID } from "../data/races";
 import { CulturesRenderer, PopulationRenderer } from "../renderers";
 import { COArenderer, type Emblem as RendererEmblem } from "../renderers/emblem-renderer";
 import { assignCells, removeEntity } from "../runtime/worldRuntime";
@@ -14,7 +15,7 @@ import type { CultureRowData, NameBaseOption } from "../store/culturesEditorStat
 import { getCulturesEditorState, setCulturesEditorState } from "../store/culturesEditorState";
 import { useOptionsState } from "../store/optionsState";
 import type { HierarchyElement } from "../types/HierarchyTree";
-import type { Burg, Culture, CultureType, NameBase, Province, State } from "../types/models";
+import type { Burg, Culture, CultureType, NameBase, Province, Race, State } from "../types/models";
 import { closeDialogs, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import { abbreviate, debounce, findAll, findCell, parseTransform, rn, si } from "../utils";
 import { getArea, getAreaUnit } from "../utils/domUtils";
@@ -34,6 +35,13 @@ const cultureTypes = ["Generic", "River", "Lake", "Naval", "Nomadic", "Hunting",
 
 let worldContext: WorldContext;
 let appServices: AppServices;
+
+/** Read races for UI; fall back to catalog without writing pack (world-writers lint). */
+function getRacesForEditor(): Race[] {
+  const races = worldContext.pack.races;
+  if (races?.length) return races;
+  return createDefaultRaces();
+}
 
 const culturesManualHistory = new BrushHistory();
 
@@ -120,6 +128,7 @@ export const culturesEditorActions = {
           name: c.name,
           color: c.color ?? "",
           type: c.type ?? "",
+          race: c.race ?? (c.i === 0 ? 0 : HUMAN_RACE_ID),
           base: c.base,
           cells: c.cells ?? 0,
           expansionism: c.expansionism ?? 0,
@@ -137,9 +146,14 @@ export const culturesEditorActions = {
 
     const nameBases: NameBaseOption[] = (worldContext.nameBases as NameBase[]).map((n, i) => ({ i, name: n.name }));
 
+    const races = getRacesForEditor()
+      .filter(r => !r.removed)
+      .map(r => ({ i: r.i, name: r.name }));
+
     setCulturesEditorState({
       cultures: rowData,
       nameBases,
+      races,
       totalCells,
       totalArea,
       totalPopulation,
@@ -251,6 +265,15 @@ export const culturesEditorActions = {
       view.debug.select(`#cultureCenter${i}`).attr("fill", newFill);
       culturesEditorActions.refresh();
     });
+  },
+
+  changeRace(i: number, raceId: number): void {
+    const culture = worldContext.pack.cultures[i] as Culture;
+    if (!culture || culture.i === 0) return;
+    const races = getRacesForEditor();
+    if (!races[raceId] || races[raceId].removed) return;
+    culture.race = raceId;
+    this.refresh();
   },
 
   changeType(i: number, type: string): void {

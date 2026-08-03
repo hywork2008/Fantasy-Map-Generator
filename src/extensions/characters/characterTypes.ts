@@ -301,8 +301,13 @@ export interface Character {
   name: string;
   age: number;
   gender: Gender;
-  /** pack.cultures id — drives name generation. */
+  /** pack.cultures id — drives name generation / cultural identity. */
   culture: number;
+  /**
+   * pack.races id — species / folk traits (gender policy, future lifespan, …).
+   * Usually mirrors the culture's race at creation; may diverge later (adoption, etc.).
+   */
+  race?: number;
   /**
    * Array (not a single field) so a future personal union — one character
    * holding titles over multiple states — needs no schema change. Phase 1

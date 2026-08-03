@@ -31,6 +31,7 @@ export const CulturesEditorDialog: React.FC = () => {
     selectedCultureId,
     cultures,
     nameBases,
+    races,
     totalCells,
     totalArea,
     totalPopulation
@@ -38,6 +39,12 @@ export const CulturesEditorDialog: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const parentRef = useRef<HTMLDivElement>(null);
+
+  const raceNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const r of races) map.set(r.i, r.name);
+    return map;
+  }, [races]);
 
   const sortedCultures = useMemo(() => {
     return [...cultures].sort((a, b) => {
@@ -47,6 +54,9 @@ export const CulturesEditorDialog: React.FC = () => {
       if (sortBy === "type") {
         valA = a.type;
         valB = b.type;
+      } else if (sortBy === "race") {
+        valA = raceNameById.get(a.race) ?? a.race;
+        valB = raceNameById.get(b.race) ?? b.race;
       } else if (sortBy === "base") {
         valA = a.base;
         valB = b.base;
@@ -71,7 +81,7 @@ export const CulturesEditorDialog: React.FC = () => {
       if (valA > valB) return 1 * sortDirection;
       return 0;
     });
-  }, [cultures, sortBy, sortDirection]);
+  }, [cultures, sortBy, sortDirection, raceNameById]);
 
   if (!isOpen) return null;
 
@@ -130,6 +140,12 @@ export const CulturesEditorDialog: React.FC = () => {
               <tr id="culturesHeader">
                 <SortHeader label="Culture" col="name" tip="Click to sort by culture name" width="10em" />
                 <SortHeader label="Type" col="type" tip="Click to sort by type" width="7em" />
+                <SortHeader
+                  label="Race"
+                  col="race"
+                  tip="Species / folk for this culture (independent of language and names). Click to sort"
+                  width="8em"
+                />
                 <SortHeader label="Namesbase" col="base" tip="Click to sort by culture namesbase" width="9em" />
                 <SortHeader
                   label="Cells"
@@ -236,6 +252,26 @@ export const CulturesEditorDialog: React.FC = () => {
                             {t}
                           </option>
                         ))}
+                      </select>
+                    </td>
+                    <td>
+                      <select
+                        data-tip={
+                          isNeutral
+                            ? undefined
+                            : "Race (species). Separate from culture name/language. Amazones race forces female characters."
+                        }
+                        className={`cultureRace${isNeutral ? " placeholder" : ""}`}
+                        value={c.race}
+                        disabled={isNeutral}
+                        onChange={e => culturesEditorActions.changeRace(c.i, +e.target.value)}
+                      >
+                        {races.map(r => (
+                          <option key={r.i} value={r.i}>
+                            {r.name}
+                          </option>
+                        ))}
+                        {!raceNameById.has(c.race) && <option value={c.race}>removed</option>}
                       </select>
                     </td>
                     <td>

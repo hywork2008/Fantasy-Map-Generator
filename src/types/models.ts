@@ -4,6 +4,52 @@ export const CULTURE_TYPES = ["Generic", "Hunting", "Highland", "River", "Lake",
 export const DEFAULT_CULTURE_TYPE: CultureType = "Generic";
 export type CultureType = (typeof CULTURE_TYPES)[number];
 
+/**
+ * How character generation rolls sex for people of this race (nobility / createPerson).
+ * - male_dominant: historical feudal court bias (~90% male) — the default when omitted
+ * - female_only: Amazones-style all-female polities
+ * - balanced: ~50/50
+ */
+export const CHARACTER_GENDER_MODES = ["male_dominant", "female_only", "balanced"] as const;
+export type CharacterGenderMode = (typeof CHARACTER_GENDER_MODES)[number];
+
+/**
+ * Stable race catalog keys. Cultures reference a race by id; the key survives renames.
+ * See `src/data/races.ts` for the built-in catalog.
+ */
+export type RaceKey =
+  | "unknown"
+  | "human"
+  | "elf"
+  | "dark_elf"
+  | "dwarf"
+  | "goblin"
+  | "orc"
+  | "giant"
+  | "draconic"
+  | "arachnid"
+  | "serpent"
+  | "amazones"
+  | (string & {});
+
+/**
+ * Species / folk traits, independent of culture (language, names, expansion).
+ * Index 0 is "Unknown" (Wildlands / unset).
+ */
+export interface Race {
+  i: number;
+  /** Stable catalog key (`human`, `elf`, `amazones`, …). */
+  key: RaceKey;
+  name: string;
+  /**
+   * Character-generation gender policy for this race.
+   * Used by the characters extension (`createPerson`); omitted = male_dominant.
+   */
+  characterGender?: CharacterGenderMode;
+  lock?: boolean;
+  removed?: boolean;
+}
+
 import type { Emblem } from "./emblem";
 
 export interface EmblemEl {
@@ -172,6 +218,21 @@ export interface Culture {
   area?: number;
   rural?: number;
   urban?: number;
+  /**
+   * `pack.races` id for this culture's dominant folk.
+   * Culture = language / names / expansion; race = species traits (e.g. Amazones gender).
+   * Defaults to Human (1) when omitted on legacy maps.
+   */
+  race?: number;
+  /**
+   * Generation-time only: catalog key resolved to `race` id when cultures are seeded.
+   * Never persisted on saved maps.
+   */
+  raceKey?: RaceKey;
+  /**
+   * @deprecated Prefer race.characterGender. Still read as a fallback for pre-split maps.
+   */
+  characterGender?: CharacterGenderMode;
 }
 
 export interface PackedGraphFeature {

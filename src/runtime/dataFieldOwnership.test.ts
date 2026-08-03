@@ -230,6 +230,7 @@ describe("Phase 8 data field ownership inventory", () => {
       "burgs",
       "states",
       "cultures",
+      "races",
       "routes",
       "religions",
       "zones",

@@ -1,5 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { APPEARANCE_MEAN, APPEARANCE_STDDEV, getUnmarriedChance, rollPeakAppearance } from "./personFactory";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { worldContext } from "../hostCore";
+import type { ExtensionAPI, PackedGraph } from "../hostTypes";
+import { clearCharactersContext, initCharactersContext } from "./charactersContext";
+import {
+  APPEARANCE_MEAN,
+  APPEARANCE_STDDEV,
+  getUnmarriedChance,
+  resolvePersonGender,
+  rollPeakAppearance
+} from "./personFactory";
 
 describe("getUnmarriedChance", () => {
   it("uses a 20% permanent-unmarried baseline for established ordinary adults", () => {
@@ -55,5 +64,54 @@ describe("rollPeakAppearance", () => {
     // Extremes should be uncommon (uniform would put ~20% in each ≤20 / ≥80)
     expect(lowTail / n).toBeLessThan(0.08);
     expect(highTail / n).toBeLessThan(0.08);
+  });
+});
+
+describe("resolvePersonGender", () => {
+  afterEach(() => {
+    clearCharactersContext();
+  });
+
+  beforeEach(() => {
+    initCharactersContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.pack = {
+      races: [
+        { i: 0, key: "unknown", name: "Unknown" },
+        { i: 1, key: "human", name: "Human" },
+        { i: 2, key: "amazones", name: "Amazones", characterGender: "female_only" },
+        { i: 3, key: "balanced", name: "Balanced Folk", characterGender: "balanced" },
+        { i: 4, key: "patriarchal", name: "Patriarchal", characterGender: "male_dominant" }
+      ],
+      cultures: [
+        { i: 0, name: "Wildlands", base: 0, shield: "round", race: 0 },
+        { i: 1, name: "Amazones", base: 7, shield: "boeotian", race: 2 },
+        { i: 2, name: "Balanced Culture", base: 1, shield: "heater", race: 3 },
+        { i: 3, name: "Patriarchy Culture", base: 1, shield: "heater", race: 4 }
+      ]
+    } as unknown as PackedGraph;
+  });
+
+  it("honors an explicit genderOverride over race policy", () => {
+    expect(resolvePersonGender(1, "male")).toBe("male");
+    expect(resolvePersonGender(1, "female")).toBe("female");
+  });
+
+  it("forces female for Amazones race (female_only) regardless of culture name", () => {
+    for (let i = 0; i < 30; i++) {
+      expect(resolvePersonGender(1)).toBe("female");
+    }
+  });
+
+  it("uses feudal male bias when race has no characterGender", () => {
+    const samples = Array.from({ length: 200 }, () => resolvePersonGender(0));
+    const maleShare = samples.filter(g => g === "male").length / samples.length;
+    // ~90% male; allow sampling noise
+    expect(maleShare).toBeGreaterThan(0.75);
+  });
+
+  it("uses feudal male bias for explicit male_dominant race", () => {
+    const samples = Array.from({ length: 200 }, () => resolvePersonGender(3));
+    const maleShare = samples.filter(g => g === "male").length / samples.length;
+    expect(maleShare).toBeGreaterThan(0.75);
   });
 });

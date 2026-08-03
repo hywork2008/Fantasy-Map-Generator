@@ -9,6 +9,7 @@ import type {
   Monster,
   PackedGraphFeature,
   Province,
+  Race,
   Religion,
   River,
   Route,
@@ -96,6 +97,11 @@ export interface PackedGraph {
   burgs: Burg[];
   states: State[];
   cultures: Culture[];
+  /**
+   * Species / folk table. Culture.race and Character.race index into this array.
+   * Absent only on legacy maps until load migration seeds the default catalog.
+   */
+  races?: Race[];
   routes: Route[];
   religions: Religion[];
   zones: Zone[];
