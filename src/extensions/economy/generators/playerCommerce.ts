@@ -2,14 +2,17 @@ import type { Character } from "../../characters/characterTypes";
 import { rn } from "../../hostUtils";
 import {
   getApi,
+  getCharacterInventoryCostBases,
   getMarkets,
   getNextPlayerMarketTransactionId,
   getPlayerMarketTransactions,
   getWorldContext,
+  setCharacterInventoryCostBases,
   setNextPlayerMarketTransactionId,
   setPlayerMarketTransactions
 } from "../economyContext";
 import { Goods, isGoodEnabled } from "./goods-generator";
+import { floorToRetailLot, formatRetailQuantity, getRetailLotSize, isRetailLotQuantity } from "./goodsTradeLots";
 import { Markets } from "./markets-generator";
 import { getMerchantPortfolio, recordMerchantPlayerSale, syncMarketMerchantPortfolios } from "./merchantPortfolios";
 import {
@@ -18,7 +21,7 @@ import {
   getRetailGoodStock,
   reconcileRetailInventory
 } from "./retailInventory";
-import type { PlayerMarketTransaction } from "./retailInventoryTypes";
+import type { CharacterInventoryCostBasis, PlayerMarketTransaction } from "./retailInventoryTypes";
 
 export interface PlayerMarketQuote {
   characterId: number;
@@ -28,6 +31,9 @@ export interface PlayerMarketQuote {
   merchantId: number;
   merchantName: string;
   direction: "buy" | "sell";
+  /** Quantity requested after validation against the Good's smallest retail lot. */
+  units: number;
+  retailLotSize: number;
   availableUnits: number;
   playerUnits: number;
   unitPrice: number;
@@ -51,14 +57,46 @@ function resolveCharacter(characterId: number): Character | undefined {
   return getWorldContext().pack.characters?.find(character => character.i === characterId && !character.dead);
 }
 
+function updateInventoryCostBasis(
+  characterId: number,
+  goodId: number,
+  units: number,
+  direction: "buy" | "sell",
+  unitCost: number,
+  remainingInventory: number
+): void {
+  const bases = getCharacterInventoryCostBases();
+  const index = bases.findIndex(basis => basis.characterId === characterId && basis.goodId === goodId);
+  const existing = index === -1 ? undefined : bases[index];
+
+  if (direction === "buy") {
+    const knownUnits = existing?.units ?? 0;
+    const averageUnitCost =
+      knownUnits > 0 && existing
+        ? rn((knownUnits * existing.averageUnitCost + units * unitCost) / (knownUnits + units), 2)
+        : rn(unitCost, 2);
+    const next: CharacterInventoryCostBasis = {
+      characterId,
+      goodId,
+      units: rn(knownUnits + units, 2),
+      averageUnitCost
+    };
+    if (existing) bases[index] = next;
+    else bases.push(next);
+  } else if (existing) {
+    existing.units = rn(Math.max(0, Math.min(remainingInventory, existing.units - units)), 2);
+    if (!(existing.units > 0)) bases.splice(index, 1);
+  }
+  setCharacterInventoryCostBases(bases);
+}
+
 function buildQuote(args: {
   characterId: number;
   goodId: number;
   units: number;
   direction: "buy" | "sell";
 }): PlayerMarketCommerceResult {
-  const units = rn(args.units, 2);
-  if (!(units > 0)) return { ok: false, message: "Enter a positive quantity." };
+  if (!(args.units > 0)) return { ok: false, message: "Enter a positive quantity." };
 
   const character = resolveCharacter(args.characterId);
   if (!character) return { ok: false, message: "Character not found or dead." };
@@ -72,6 +110,14 @@ function buildQuote(args: {
   const good = Goods.get(args.goodId);
   if (!good || !isGoodEnabled(good) || !market.goods[good.i])
     return { ok: false, message: "This good is not traded here." };
+  const retailLotSize = getRetailLotSize(good);
+  if (!isRetailLotQuantity(args.units, retailLotSize)) {
+    return {
+      ok: false,
+      message: `This good is traded in increments of ${formatRetailQuantity(retailLotSize, retailLotSize)} ${good.unit}.`
+    };
+  }
+  const units = floorToRetailLot(args.units, retailLotSize);
 
   reconcileRetailInventory();
   syncMarketMerchantPortfolios();
@@ -101,8 +147,13 @@ function buildQuote(args: {
       merchantId: merchant.i,
       merchantName: merchant.name,
       direction: args.direction,
-      availableUnits: args.direction === "buy" ? (shelf?.onHand ?? 0) : (character.inventory?.[good.i] ?? 0),
-      playerUnits: character.inventory?.[good.i] ?? 0,
+      units,
+      retailLotSize,
+      availableUnits: floorToRetailLot(
+        args.direction === "buy" ? (shelf?.onHand ?? 0) : (character.inventory?.[good.i] ?? 0),
+        retailLotSize
+      ),
+      playerUnits: floorToRetailLot(character.inventory?.[good.i] ?? 0, retailLotSize),
       unitPrice,
       goodsValue,
       salesTax,
@@ -143,19 +194,19 @@ export function executePlayerMarketTrade(args: {
   market.marketTreasury = treasury;
 
   if (quote.direction === "buy") {
-    if (quote.availableUnits + 1e-7 < args.units)
+    if (quote.availableUnits + 1e-7 < quote.units)
       return { ok: false, message: "Not enough stock on this burg's shelves." };
     if ((character.wealth ?? 0) + 1e-7 < quote.totalPaid)
       return { ok: false, message: "Character cannot afford this purchase." };
   } else {
-    if (quote.availableUnits + 1e-7 < args.units)
+    if (quote.availableUnits + 1e-7 < quote.units)
       return { ok: false, message: "Character does not hold enough of this good." };
     if (Math.max(0, treasury.balance) + 1e-7 < quote.goodsValue) {
       return { ok: false, message: "The market treasury cannot fund this purchase." };
     }
   }
 
-  const units = rn(args.units, 2);
+  const units = quote.units;
   const merchantProfit =
     quote.direction === "buy"
       ? rn((quote.goodsValue * (getMerchantPortfolio(market.i, good)?.retailMarginBps ?? 0)) / 10000, 2)
@@ -165,6 +216,7 @@ export function executePlayerMarketTrade(args: {
       return { ok: false, message: "Shelf stock changed; request a new quote." };
     character.inventory ??= {};
     character.inventory[good.i] = (character.inventory[good.i] ?? 0) + units;
+    updateInventoryCostBasis(character.i, good.i, units, "buy", quote.totalPaid / units, character.inventory[good.i]);
     character.wealth = rn((character.wealth ?? 0) - quote.totalPaid, 2);
     merchant.wealth = rn((merchant.wealth ?? 0) + merchantProfit, 2);
     treasury.balance = rn(treasury.balance + quote.goodsValue - merchantProfit, 2);
@@ -182,6 +234,7 @@ export function executePlayerMarketTrade(args: {
   } else {
     character.inventory![good.i] = rn((character.inventory![good.i] ?? 0) - units, 2);
     if (!(character.inventory![good.i] > 0)) delete character.inventory![good.i];
+    updateInventoryCostBasis(character.i, good.i, units, "sell", quote.unitPrice, character.inventory![good.i] ?? 0);
     character.wealth = rn((character.wealth ?? 0) + quote.totalPaid, 2);
     treasury.balance = rn(treasury.balance - quote.goodsValue, 2);
     addWholesaleGoodStock(quote.burgId, market.i, good.i, units);
@@ -210,11 +263,13 @@ export function executePlayerMarketTrade(args: {
   };
   getPlayerMarketTransactions().push(receipt);
   setPlayerMarketTransactions(getPlayerMarketTransactions());
+  document.dispatchEvent(new CustomEvent("fmg:character-inventory-changed", { detail: { characterId: character.i } }));
   reconcileRetailInventory();
   return { ok: true, message: quote.direction === "buy" ? "Purchase completed." : "Sale completed.", receipt };
 }
 
 export function clearPlayerMarketCommerce(): void {
   setPlayerMarketTransactions([]);
+  setCharacterInventoryCostBases([]);
   setNextPlayerMarketTransactionId(1);
 }

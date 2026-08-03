@@ -5,6 +5,7 @@ import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
+  getCharacterInventoryCostBases,
   getMerchantGoodSalesLedgers,
   initEconomyContext,
   setGoods,
@@ -13,7 +14,7 @@ import {
 import { Goods } from "./goods-generator";
 import type { Market } from "./marketTypes";
 import { syncMarketMerchantPortfolios } from "./merchantPortfolios";
-import { executePlayerMarketTrade } from "./playerCommerce";
+import { executePlayerMarketTrade, quotePlayerMarketTrade } from "./playerCommerce";
 import { planRetailReplenishment, reconcileRetailInventory, validateRetailInventory } from "./retailInventory";
 
 function character(i: number, name: string, wealth: number, location?: number): Character {
@@ -91,6 +92,7 @@ describe("player commerce", () => {
     expect(result.receipt).toMatchObject({ direction: "buy", merchantId: 2, units: 2, goodsValue: 22, salesTax: 2.2 });
     expect(worldContext.pack.characters![0].inventory?.[1]).toBe(2);
     expect(worldContext.pack.characters![0].wealth).toBe(75.8);
+    expect(getCharacterInventoryCostBases()).toEqual([{ characterId: 1, goodId: 1, units: 2, averageUnitCost: 12.1 }]);
     expect(worldContext.pack.characters![1].wealth).toBe(2.64);
     expect(worldContext.pack.states[1].treasury).toBe(2.2);
     expect(getMerchantGoodSalesLedgers()).toMatchObject([{ merchantId: 2, goodId: 1, playerUnitsSold: 2 }]);
@@ -116,5 +118,24 @@ describe("player commerce", () => {
         state: worldContext.pack.states[1]
       })
     ).toBe(before);
+  });
+
+  it("rejects a quantity below the product's retail lot before changing any balance", () => {
+    const before = JSON.stringify(worldContext.pack);
+
+    const quote = quotePlayerMarketTrade({ characterId: 1, goodId: 1, units: 1.231, direction: "buy" });
+    const result = executePlayerMarketTrade({ characterId: 1, goodId: 1, units: 1.231, direction: "buy" });
+
+    expect(quote).toMatchObject({ ok: false, message: "This good is traded in increments of 0.01 bale." });
+    expect(result).toMatchObject({ ok: false, message: "This good is traded in increments of 0.01 bale." });
+    expect(JSON.stringify(worldContext.pack)).toBe(before);
+  });
+
+  it("keeps the remaining average acquisition cost when the character sells part of a holding", () => {
+    expect(executePlayerMarketTrade({ characterId: 1, goodId: 1, units: 2, direction: "buy" }).ok).toBe(true);
+    expect(executePlayerMarketTrade({ characterId: 1, goodId: 1, units: 1, direction: "sell" }).ok).toBe(true);
+
+    expect(worldContext.pack.characters![0].inventory).toEqual({ 1: 1 });
+    expect(getCharacterInventoryCostBases()).toEqual([{ characterId: 1, goodId: 1, units: 1, averageUnitCost: 12.1 }]);
   });
 });

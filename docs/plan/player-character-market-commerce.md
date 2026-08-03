@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :-- | :-- |
-| 状態 | Phase 1-3 の最小縦切りを実装済み（2026-08-03）。物流・価格の精緻化は継続 |
+| 状態 | Phase 1-3 の最小縦切りと Character Market の取引単位を実装済み（2026-08-03）。物流・価格の精緻化は継続 |
 | 対象 | Economy / Characters / Nobility 拡張、および Goods / Markets UI |
 | 作成日 | 2026-08-03 |
 | 非対象 | upstream の Economy UI・手動市場計算の移植、全一般 Goods の完全複式簿記 |
@@ -14,7 +14,9 @@
 - 実装済み: 都市の自動生産が `Markets.sell` で Market に納入される時、その同じ Burg の卸売・集荷在庫にも置く。したがって工房 B で作られた商品は、次回の補充で B の店頭を優先して満たし、余剰だけが他都市へ直接輸送される。
 - 実装済み: `Markets.collectRuralProduction` の通常 Goods は、各農村セルから同一 Market 内で最も近い Burg の `collectionBurg` へ直接入る。季節変動する food tag と森林減耗する Wood も同じ集荷先をキャッシュし、Market 合計在庫との保存則を保つ。`stapleFood` は既存の Food Ledger が別途管理する。
 - 実装済み: 都市間補充は道路・河川・海路グラフの `TradeRoutePlanner` と既存の隊商移動速度を使って到着日を決める。到着した店頭在庫は配送日数の加重平均を保持し、プレイヤーの ask/bid に一日 0.4%、最大 15% の locality surcharge を反映する。経路がない旧データでは従来の直線距離推定へ安全にフォールバックする。
-- 未実装: Markets/Goods Stock Overview の所在別表示、Character Details の inventory 表示。Burg が一つもない Market や既存の別システムが増減させた `Market.goods.stock` の差分は、従来どおり中心 Burg の卸売在庫へ reconcile する。
+- 実装済み: Character Details に inventory tab を置き、保有商品の数量・売上税込み平均仕入れ値・取得原価を表示する。平均原価は Character Market の購入と部分売却でのみ台帳化し、旧データや贈与など取得原価不明の品は `N/A` とする。
+- 実装済み: Character Market は Good ごとの `retailLotSize` で売買単位を統一する。未指定の `head`・`ship`・`cannon` 等および live cargo は 1 単位、その他の bulk Good は 0.01 単位で扱う。店頭／所持数は常にこの単位へ切り捨てて表示し、`Buy all` と command も同じ値を使うため、端数を切り上げた表示より多く買おうとして失敗することがない。
+- 未実装: Markets/Goods Stock Overview の所在別表示。Burg が一つもない Market や既存の別システムが増減させた `Market.goods.stock` の差分は、従来どおり中心 Burg の卸売在庫へ reconcile する。
 
 ## 1. 結論
 
@@ -325,6 +327,21 @@ Market Overview からも「Visit as selected character」を開けるが、Char
 ### 表示上の保留事項
 
 `Good.value` と `Market.goods.price` は Economy unit（多くは卸売ロット）の会計値であり、必ずしもパン一個・ワイン一杯の小売価格ではない。[goods-unit-scale.md](goods-unit-scale.md) の unit flavor と [currency-denomination.md](currency-denomination.md) の通貨表示を取引画面でも再利用する。ロットを分割して個売りする仕組みは本計画の対象外である。
+
+### 7.1 取引単位と端数
+
+数量を小数第 2 位へ単純に丸めて表示する方法は採らない。例えば棚に `2.001` ある商品を `2.01` と表示すると、プレイヤーが表示どおり `2.01` を入力しても実在庫不足になるためである。各 Good は `retailLotSize` を持てるようにし、Character Market の数量表示、`input.step`、`Buy all`、command の検証に共通して使う。
+
+```text
+availableForRetail = floor(actualQuantity / retailLotSize) * retailLotSize
+```
+
+- 動物、船、砲、奴隷、装備セットなどは既定で `retailLotSize = 1`。そのため 0.5 頭・0.5 隻は小売では売買できない。
+- 穀物・鉱石・布などのバルク品は既定で `0.01`。将来 Goods Editor が単位設定を公開した時は、樽なら `1`、荷車単位なら `0.5` のように Good ごとに変更できる。
+- 入力が単位の整数倍でなければ command は拒否し、丸めて成立させない。プレイヤーの意図しない超過購入を避けるためである。
+- 取引成立後の自動生産、卸売、輸送中在庫は当面連続量を保持できる。小売の境界だけを丸めるので、0.004 の残余は次の生産・補充と合算されるまで表示も購入対象にもならない。
+
+商人 Character が将来、卸売・隊商取引を行う場合は `wholesaleLotSize` を別途追加する。これは小売の 100 倍程度を Good ごとに定め、Character Market の `retailLotSize` を流用しない。これにより、一頭単位の商品と大量積載されるバルク品を同じ「小数 2 桁」規則に押し込めずに済む。
 
 ## 8. 実装フェーズと受入条件
 

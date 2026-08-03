@@ -30,10 +30,76 @@ function getCountryStateId(character: Character): number {
 // Economy's `markets` no longer augments PackedGraph's type (see
 // src/extensions/economy/types.ts); read it structurally instead of importing Economy.
 type EconomyMarketSnapshot = Readonly<{ i: number; centerBurgId: number; name?: string }>;
+type EconomyGoodSnapshot = Readonly<{ i: number; name: string; icon: string; unit: string }>;
+type EconomyInventoryCostBasisSnapshot = Readonly<{
+  characterId: number;
+  goodId: number;
+  units: number;
+  averageUnitCost: number;
+}>;
+type CharacterInventoryRow = Readonly<{
+  goodId: number;
+  goodName: string;
+  goodIcon: string;
+  unit: string;
+  units: number;
+  averageUnitCost: number | null;
+}>;
 
 function getEconomyMarkets(pack: unknown): readonly EconomyMarketSnapshot[] {
   const markets = (pack as Record<string, unknown>).markets;
   return Array.isArray(markets) ? (markets as EconomyMarketSnapshot[]) : [];
+}
+
+function isEconomyGood(value: unknown): value is EconomyGoodSnapshot {
+  if (!value || typeof value !== "object") return false;
+  const good = value as Record<string, unknown>;
+  return (
+    typeof good.i === "number" &&
+    typeof good.name === "string" &&
+    typeof good.icon === "string" &&
+    typeof good.unit === "string"
+  );
+}
+
+function isInventoryCostBasis(value: unknown): value is EconomyInventoryCostBasisSnapshot {
+  if (!value || typeof value !== "object") return false;
+  const basis = value as Record<string, unknown>;
+  return (
+    typeof basis.characterId === "number" &&
+    typeof basis.goodId === "number" &&
+    typeof basis.units === "number" &&
+    typeof basis.averageUnitCost === "number"
+  );
+}
+
+function getEconomyInventoryRows(character: Character): CharacterInventoryRow[] {
+  const economy = getApi().simulationContext?.extensions?.economy;
+  if (!economy || typeof economy !== "object" || !character.inventory) return [];
+  const slice = economy as Record<string, unknown>;
+  const goods = Array.isArray(slice.goods) ? slice.goods.filter(isEconomyGood) : [];
+  const costs = Array.isArray(slice.characterInventoryCostBases)
+    ? slice.characterInventoryCostBases.filter(isInventoryCostBasis)
+    : [];
+  const goodById = new Map(goods.map(good => [good.i, good]));
+  const costByGoodId = new Map(costs.filter(cost => cost.characterId === character.i).map(cost => [cost.goodId, cost]));
+
+  return Object.entries(character.inventory)
+    .map(([goodIdString, units]) => {
+      const goodId = Number(goodIdString);
+      const good = goodById.get(goodId);
+      const cost = costByGoodId.get(goodId);
+      return {
+        goodId,
+        goodName: good?.name ?? `Good ${goodId}`,
+        goodIcon: good?.icon ?? "good-unknown",
+        unit: good?.unit ?? "",
+        units,
+        averageUnitCost: cost && cost.units + 1e-7 >= units ? cost.averageUnitCost : null
+      };
+    })
+    .filter(row => row.units > 0)
+    .sort((left, right) => left.goodName.localeCompare(right.goodName));
 }
 
 export const CharacterDetailsDialog: React.FC = () => {
@@ -48,7 +114,20 @@ export const CharacterDetailsDialog: React.FC = () => {
   const clearCharacterDetailsHistory = useCharactersUiState(state => state.clearCharacterDetailsHistory);
   useCharactersUiState(state => state.refreshToken);
   const playerCharacterId = usePlayerCharacterState(state => state.playerCharacterId);
-  const [activeTab, setActiveTab] = useState<"skills" | "personality">("skills");
+  const [activeTab, setActiveTab] = useState<"skills" | "personality" | "inventory">("skills");
+  const [, setInventoryRevision] = useState(0);
+
+  useEffect(() => {
+    const onInventoryChanged = (event: Event) => {
+      const detail = event instanceof CustomEvent ? event.detail : undefined;
+      if (!detail || typeof detail !== "object") return;
+      if ((detail as { characterId?: unknown }).characterId === selectedCharacterId) {
+        setInventoryRevision(revision => revision + 1);
+      }
+    };
+    document.addEventListener("fmg:character-inventory-changed", onInventoryChanged);
+    return () => document.removeEventListener("fmg:character-inventory-changed", onInventoryChanged);
+  }, [selectedCharacterId]);
 
   // Clear browsing history whenever the dialog is closed (X, close-all, or programmatic).
   useEffect(() => {
@@ -65,6 +144,7 @@ export const CharacterDetailsDialog: React.FC = () => {
   const markets = getEconomyMarkets(worldContext.pack);
 
   const character = characters.find(c => c.i === selectedCharacterId);
+  const inventoryRows = character ? getEconomyInventoryRows(character) : [];
 
   if (!isOpen || !character) {
     return null;
@@ -584,6 +664,13 @@ export const CharacterDetailsDialog: React.FC = () => {
           >
             {t("characters.personality")}
           </button>
+          <button
+            type="button"
+            className={`options ${activeTab === "inventory" ? "active" : ""}`}
+            onClick={() => setActiveTab("inventory")}
+          >
+            {t("characters.inventory")}
+          </button>
         </div>
 
         {activeTab === "skills" && (
@@ -629,6 +716,51 @@ export const CharacterDetailsDialog: React.FC = () => {
               />
             ) : (
               <p>{t("characters.noPersonality")}</p>
+            )}
+          </div>
+        )}
+
+        {activeTab === "inventory" && (
+          <div>
+            {inventoryRows.length ? (
+              <table className="fmg-table character-details__table">
+                <thead>
+                  <tr>
+                    <th>{t("characters.good")}</th>
+                    <th>{t("characters.quantity")}</th>
+                    <th data-tip={t("characters.purchasePriceTip")}>{t("characters.purchasePrice")}</th>
+                    <th>{t("characters.inventoryValue")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inventoryRows.map(row => {
+                    const goodName = t(`economy.goods.names.${row.goodName}`, { defaultValue: row.goodName });
+                    return (
+                      <tr key={row.goodId}>
+                        <td title={row.unit}>
+                          <svg aria-hidden="true" width="1.3em" height="1.3em" className="goodIcon">
+                            <use href={`#${row.goodIcon}`} x="10%" y="10%" width="80%" height="80%" />
+                          </svg>{" "}
+                          {goodName}
+                        </td>
+                        <td>{row.units}</td>
+                        <td>
+                          {row.averageUnitCost === null
+                            ? t("characters.notAvailable")
+                            : formatPrice(row.averageUnitCost)}
+                        </td>
+                        <td>
+                          {row.averageUnitCost === null
+                            ? t("characters.notAvailable")
+                            : formatPrice(row.units * row.averageUnitCost)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <p>{t("characters.noInventory")}</p>
             )}
           </div>
         )}

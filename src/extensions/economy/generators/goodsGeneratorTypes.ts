@@ -71,6 +71,8 @@ export interface Good {
   tags: string[];
   value: number;
   unit: string;
+  /** Smallest amount a Character may buy or sell over a retail counter. Defaults by cargo type. */
+  retailLotSize?: number;
 
   // ui
   icon: string;

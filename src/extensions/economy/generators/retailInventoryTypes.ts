@@ -73,6 +73,16 @@ export interface PlayerMarketTransaction {
   totalPaid: number;
 }
 
+/** Average all-in acquisition cost for Goods that a Character purchased through Character Market. */
+export interface CharacterInventoryCostBasis {
+  characterId: number;
+  goodId: number;
+  /** Units in the Character inventory covered by this known cost basis. */
+  units: number;
+  /** Average price paid per unit, including point-of-sale sales tax. */
+  averageUnitCost: number;
+}
+
 export interface RetailInventoryInvariantIssue {
   marketId: number;
   goodId: number;

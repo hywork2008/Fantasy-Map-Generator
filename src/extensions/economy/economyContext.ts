@@ -51,6 +51,7 @@ import type { QuarryOperation } from "./generators/quarryOperationsTypes";
 import type {
   BurgRetailInventory,
   BurgWholesaleInventory,
+  CharacterInventoryCostBasis,
   MarketMerchantPortfolio,
   MarketShipment,
   MerchantGoodSalesLedger,
@@ -824,6 +825,13 @@ export function getPlayerMarketTransactions(): PlayerMarketTransaction[] {
 }
 export function setPlayerMarketTransactions(transactions: readonly PlayerMarketTransaction[]): void {
   setSliceArray("playerMarketTransactions", transactions);
+}
+/** Known average acquisition costs for Character-held Goods. */
+export function getCharacterInventoryCostBases(): CharacterInventoryCostBasis[] {
+  return getSliceArray<CharacterInventoryCostBasis>("characterInventoryCostBases");
+}
+export function setCharacterInventoryCostBases(bases: readonly CharacterInventoryCostBasis[]): void {
+  setSliceArray("characterInventoryCostBases", bases);
 }
 export function getNextPlayerMarketTransactionId(): number {
   return getSliceNumber("nextPlayerMarketTransactionId");

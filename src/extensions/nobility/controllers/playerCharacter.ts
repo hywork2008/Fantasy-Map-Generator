@@ -36,6 +36,10 @@ function isLiving(character: Character): boolean {
   return !character.dead;
 }
 
+function announcePlayerCharacterChange(characterId: number | null): void {
+  document.dispatchEvent(new CustomEvent("fmg:player-character-changed", { detail: { characterId } }));
+}
+
 /** Living characters that hold a political title — the random-pick pool. */
 function isLivingPolitician(character: Character): boolean {
   return isLiving(character) && character.titles.length > 0;
@@ -165,6 +169,7 @@ export function selectRandomPlayerCharacter(options?: { excludeCurrent?: boolean
   const id = pickRandomPoliticalCharacterId(pack.characters, excludeId);
   store.setPlayerCharacterId(id);
   store.bumpRefreshToken();
+  announcePlayerCharacterChange(id);
   return id;
 }
 
@@ -179,6 +184,7 @@ export function setPlayerCharacter(characterId: number): boolean {
   const store = usePlayerCharacterState.getState();
   store.setPlayerCharacterId(characterId);
   store.bumpRefreshToken();
+  announcePlayerCharacterChange(characterId);
   return true;
 }
 

@@ -2,6 +2,7 @@ import { tip } from "../../hostServices";
 import { openDialog } from "../../hostUi";
 import { getMarkets, getWorldContext } from "../economyContext";
 import { Goods, isGoodEnabled } from "../generators/goods-generator";
+import { floorToRetailLot, getRetailLotSize } from "../generators/goodsTradeLots";
 import { Markets } from "../generators/markets-generator";
 import { getMerchantPortfolio, syncMarketMerchantPortfolios } from "../generators/merchantPortfolios";
 import { getRetailGoodStock, reconcileRetailInventory } from "../generators/retailInventory";
@@ -11,7 +12,10 @@ export interface CharacterMarketRow {
   goodId: number;
   goodName: string;
   goodIcon: string;
+  tags: readonly string[];
   unit: string;
+  retailLotSize: number;
+  merchantId: number | null;
   merchantName: string;
   retailStock: number;
   buyPrice: number;
@@ -25,6 +29,27 @@ export interface CharacterMarketSnapshot {
   burgName: string;
   marketName: string;
   rows: CharacterMarketRow[];
+}
+
+export type CharacterMarketMerchantFilter = number | "unassigned" | null;
+
+export interface CharacterMarketFilters {
+  tag: string | null;
+  merchant: CharacterMarketMerchantFilter;
+  inStockOnly: boolean;
+}
+
+/** Applies the Character Market's composable, client-side catalogue filters. */
+export function filterCharacterMarketRows(
+  rows: readonly CharacterMarketRow[],
+  filters: CharacterMarketFilters
+): CharacterMarketRow[] {
+  return rows.filter(row => {
+    if (filters.tag !== null && !row.tags.includes(filters.tag)) return false;
+    if (typeof filters.merchant === "number" && row.merchantId !== filters.merchant) return false;
+    if (filters.merchant === "unassigned" && row.merchantId !== null) return false;
+    return !filters.inStockOnly || row.retailStock > 0;
+  });
 }
 
 export function openCharacterMarket(characterId: number): boolean {
@@ -58,6 +83,7 @@ export function getCharacterMarketSnapshot(characterId: number | null): Characte
     .map(goodId => Goods.get(goodId))
     .filter((good): good is NonNullable<typeof good> => Boolean(good && isGoodEnabled(good)))
     .map(good => {
+      const retailLotSize = getRetailLotSize(good);
       const merchant = getMerchantPortfolio(market.i, good);
       const merchantName = merchant
         ? pack.characters?.find(candidate => candidate.i === merchant.merchantId)?.name
@@ -66,12 +92,18 @@ export function getCharacterMarketSnapshot(characterId: number | null): Characte
         goodId: good.i,
         goodName: good.name,
         goodIcon: good.icon,
+        tags: good.tags,
         unit: good.unit,
+        retailLotSize,
+        merchantId: merchant?.merchantId ?? null,
         merchantName: merchantName ?? "Unassigned",
-        retailStock: getRetailGoodStock(burg.i ?? character.location!, market.i, good.i)?.onHand ?? 0,
+        retailStock: floorToRetailLot(
+          getRetailGoodStock(burg.i ?? character.location!, market.i, good.i)?.onHand ?? 0,
+          retailLotSize
+        ),
         buyPrice: Markets.retailBuyPrice(market.goods[good.i].price, burg.i ?? character.location!, market.i, good.i),
         sellPrice: Markets.retailSellPrice(market.goods[good.i].price, burg.i ?? character.location!, market.i, good.i),
-        playerUnits: character.inventory?.[good.i] ?? 0
+        playerUnits: floorToRetailLot(character.inventory?.[good.i] ?? 0, retailLotSize)
       };
     })
     .sort((a, b) => a.goodName.localeCompare(b.goodName));
