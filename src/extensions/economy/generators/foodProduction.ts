@@ -14,6 +14,7 @@ import { GROSS_FOOD_NEED } from "./foodConstants";
 import { resolveFoodImportNetwork } from "./foodImportNetwork";
 import type { Good } from "./goods-generator";
 import type { FoodLedger, Market } from "./marketTypes";
+import { markRetailInventoryDirty } from "./retailInventory";
 
 export { GROSS_FOOD_NEED } from "./foodConstants";
 
@@ -379,6 +380,7 @@ export class FoodProductionModule {
         const marketGood = market.goods[stapleFoodGood.i] ?? { stock: 0, price: previousPrice };
         marketGood.stock = rn(ledger.exportable + ledger.storageOverflow, 2);
         market.goods[stapleFoodGood.i] = marketGood;
+        markRetailInventoryDirty(market.i);
       }
     }
 

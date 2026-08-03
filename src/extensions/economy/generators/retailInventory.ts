@@ -32,11 +32,87 @@ const RETAIL_SURCHARGE_PER_TRAVEL_DAY = 0.004;
 const MAX_RETAIL_LOCALITY_SURCHARGE = 0.15;
 type MarketBurg = Burg & { i: number };
 
+/**
+ * Set when Market.goods stock or topology changes outside this module's
+ * delivery/replenishment path. Daily Advance Time only re-runs the expensive
+ * reconcile when this is true or internal shipments are due — quiet days are free.
+ * Starts true so the first tick after enable still lays out positions.
+ *
+ * When only a subset of markets changed (typical: one caravan arrival),
+ * `dirtyMarketIds` limits ensurePositions to those markets. Topology / bulk
+ * regenerates use `null` (= all markets).
+ */
+let retailInventoryDirty = true;
+/** `null` means every market; a Set means only those ids. Meaningful only while dirty. */
+let dirtyMarketIds: Set<number> | null = null;
+
+/**
+ * Call when market stock / burg↔market membership may have changed outside retailInventory.
+ * Prefer `marketId` when a single market's stock changed so daily ticks can re-layout only that market.
+ */
+export function markRetailInventoryDirty(marketId?: number): void {
+  if (marketId === undefined) {
+    retailInventoryDirty = true;
+    dirtyMarketIds = null;
+    return;
+  }
+  if (!retailInventoryDirty) {
+    retailInventoryDirty = true;
+    dirtyMarketIds = new Set([marketId]);
+    return;
+  }
+  // Already dirty for all markets — stay broad.
+  if (dirtyMarketIds === null) return;
+  dirtyMarketIds.add(marketId);
+}
+
+export function isRetailInventoryDirty(): boolean {
+  return retailInventoryDirty;
+}
+
+function clearRetailDirty(): void {
+  retailInventoryDirty = false;
+  dirtyMarketIds = new Set();
+}
+
+/** After laying out `processed`, drop those ids from the dirty set (or clear entirely). */
+function acknowledgeReconciledMarkets(processed: readonly Market[], allMarkets: readonly Market[]): void {
+  if (!retailInventoryDirty) return;
+  if (dirtyMarketIds === null || processed.length >= allMarkets.length) {
+    clearRetailDirty();
+    return;
+  }
+  for (const market of processed) dirtyMarketIds.delete(market.i);
+  if (!dirtyMarketIds.size) clearRetailDirty();
+}
+
 function currentTick(): number {
   return Math.max(0, Math.floor(getApi().simulationContext?.tickCount ?? 0));
 }
 
-function validBurgs(marketId: number): MarketBurg[] {
+function physicalKey(marketId: number, goodId: number): string {
+  return `${marketId}:${goodId}`;
+}
+
+/**
+ * One pack.burgs scan → marketId → burgs. Replaces N full-burg filters inside a
+ * single reconcile (N ≈ market count, often hundreds on large maps).
+ */
+function buildBurgsByMarket(): Map<number, MarketBurg[]> {
+  const byMarket = new Map<number, MarketBurg[]>();
+  const burgs = getWorldContext().pack.burgs;
+  if (!burgs?.length) return byMarket;
+  for (const burg of burgs) {
+    if (!burg || burg.removed || typeof burg.i !== "number" || !burg.market) continue;
+    const list = byMarket.get(burg.market);
+    if (list) list.push(burg as MarketBurg);
+    else byMarket.set(burg.market, [burg as MarketBurg]);
+  }
+  return byMarket;
+}
+
+function validBurgs(marketId: number, burgsByMarket?: Map<number, MarketBurg[]>): MarketBurg[] {
+  if (burgsByMarket) return burgsByMarket.get(marketId) ?? [];
   return getWorldContext().pack.burgs.filter((burg): burg is MarketBurg =>
     Boolean(burg && !burg.removed && burg.market === marketId && typeof burg.i === "number")
   );
@@ -85,20 +161,53 @@ function marketGoodsIds(market: Market): number[] {
     .filter(goodId => Number.isInteger(goodId));
 }
 
-function physicalTotal(marketId: number, goodId: number): number {
-  const retail = getBurgRetailInventories().reduce(
-    (sum, row) => sum + (row.marketId === marketId ? (row.goods[goodId]?.onHand ?? 0) : 0),
-    0
-  );
-  const wholesale = getBurgWholesaleInventories().reduce(
-    (sum, row) => sum + (row.marketId === marketId ? (row.goods[goodId] ?? 0) : 0),
-    0
-  );
-  const transit = getMarketShipments().reduce(
-    (sum, row) => sum + (row.marketId === marketId && row.goodId === goodId ? row.units : 0),
-    0
-  );
-  return retail + wholesale + transit;
+/**
+ * Single O(inventory rows + shipments) pass (optionally restricted to a market id set).
+ * Replaces the old O(markets × goods × rows) pattern where each ensurePositions good
+ * re-scanned every row.
+ */
+function buildPhysicalTotals(marketIds?: ReadonlySet<number>): Map<string, number> {
+  const totals = new Map<string, number>();
+  const include = (marketId: number) => !marketIds || marketIds.has(marketId);
+  const add = (marketId: number, goodId: number, units: number) => {
+    if (!(units > EPSILON) || !include(marketId)) return;
+    const key = physicalKey(marketId, goodId);
+    totals.set(key, (totals.get(key) ?? 0) + units);
+  };
+
+  for (const row of getBurgRetailInventories()) {
+    if (!include(row.marketId)) continue;
+    for (const [goodId, stock] of Object.entries(row.goods)) {
+      add(row.marketId, Number(goodId), stock.onHand ?? 0);
+    }
+  }
+  for (const row of getBurgWholesaleInventories()) {
+    if (!include(row.marketId)) continue;
+    for (const [goodId, units] of Object.entries(row.goods)) {
+      add(row.marketId, Number(goodId), units ?? 0);
+    }
+  }
+  for (const shipment of getMarketShipments()) {
+    add(shipment.marketId, shipment.goodId, shipment.units);
+  }
+  return totals;
+}
+
+function physicalTotal(marketId: number, goodId: number, totals?: Map<string, number>): number {
+  if (totals) return totals.get(physicalKey(marketId, goodId)) ?? 0;
+
+  // Fallback for validators / one-off callers outside a bulk reconcile.
+  let sum = 0;
+  for (const row of getBurgRetailInventories()) {
+    if (row.marketId === marketId) sum += row.goods[goodId]?.onHand ?? 0;
+  }
+  for (const row of getBurgWholesaleInventories()) {
+    if (row.marketId === marketId) sum += row.goods[goodId] ?? 0;
+  }
+  for (const row of getMarketShipments()) {
+    if (row.marketId === marketId && row.goodId === goodId) sum += row.units;
+  }
+  return sum;
 }
 
 /** Reduce positions when legacy systems have consumed Market.goods stock directly. */
@@ -126,13 +235,13 @@ function removePhysicalStock(marketId: number, goodId: number, units: number): v
   }
 }
 
-function pruneEmptyRows(): void {
+function pruneEmptyRows(burgsByMarket: Map<number, MarketBurg[]>): void {
   const markets = getMarkets();
   const marketIds = new Set(markets.map(market => market.i));
   const marketGoodIds = new Map(markets.map(market => [market.i, new Set(marketGoodsIds(market))]));
   const validBurgKeys = new Set<string>();
   for (const market of markets) {
-    for (const burg of validBurgs(market.i)) validBurgKeys.add(`${market.i}:${burg.i}`);
+    for (const burg of validBurgs(market.i, burgsByMarket)) validBurgKeys.add(`${market.i}:${burg.i}`);
   }
   setBurgRetailInventories(
     getBurgRetailInventories()
@@ -170,20 +279,29 @@ function pruneEmptyRows(): void {
   );
 }
 
-function ensurePositions(market: Market, tick: number): void {
-  const burgs = validBurgs(market.i);
+function ensurePositions(
+  market: Market,
+  tick: number,
+  burgsByMarket: Map<number, MarketBurg[]>,
+  totals: Map<string, number>
+): void {
+  const burgs = validBurgs(market.i, burgsByMarket);
   if (!burgs.length) return;
   const centerBurgId = burgs.some(burg => burg.i === market.centerBurgId) ? market.centerBurgId : burgs[0].i;
+  const totalWeight = burgs.reduce((sum, burg) => sum + Math.max(1, burg.population ?? 0), 0);
+
   for (const goodId of marketGoodsIds(market)) {
     const marketStock = Math.max(0, market.goods[goodId]?.stock ?? 0);
-    const positioned = physicalTotal(market.i, goodId);
+    const positioned = physicalTotal(market.i, goodId, totals);
     if (positioned + EPSILON < marketStock) {
-      addWholesale(wholesaleRecord(centerBurgId, market.i)!, goodId, marketStock - positioned);
+      const delta = marketStock - positioned;
+      addWholesale(wholesaleRecord(centerBurgId, market.i)!, goodId, delta);
+      totals.set(physicalKey(market.i, goodId), positioned + delta);
     } else if (positioned > marketStock + EPSILON) {
       removePhysicalStock(market.i, goodId, positioned - marketStock);
+      totals.set(physicalKey(market.i, goodId), marketStock);
     }
 
-    const totalWeight = burgs.reduce((sum, burg) => sum + Math.max(1, burg.population ?? 0), 0);
     for (const burg of burgs) {
       const retail = retailRecord(burg.i, market.i)!;
       const stock = retailGood(retail, goodId, tick);
@@ -246,8 +364,13 @@ function replenishFromLocalWholesale(market: Market, burgId: number, goodId: num
   return units;
 }
 
-function planGoodReplenishment(market: Market, goodId: number, tick: number): void {
-  const burgs = validBurgs(market.i);
+function planGoodReplenishment(
+  market: Market,
+  goodId: number,
+  tick: number,
+  burgsByMarket: Map<number, MarketBurg[]>
+): void {
+  const burgs = validBurgs(market.i, burgsByMarket);
   for (const destination of burgs) {
     replenishFromLocalWholesale(market, destination.i, goodId, tick);
 
@@ -281,33 +404,64 @@ function planGoodReplenishment(market: Market, goodId: number, tick: number): vo
   }
 }
 
-/** Establish or repair the location breakdown without changing Market.goods total stock. */
+/**
+ * Establish or repair the location breakdown without changing Market.goods total stock.
+ * Pass an explicit `markets` subset to re-layout only those markets (partial dirty).
+ * Topology prune still considers the full market list so orphaned rows are cleaned once.
+ */
 export function reconcileRetailInventory(markets: readonly Market[] = getMarkets(), tick = currentTick()): void {
-  pruneEmptyRows();
-  for (const market of markets) ensurePositions(market, tick);
+  const allMarkets = getMarkets();
+  const isFullPass = markets.length >= allMarkets.length;
+  const burgsByMarket = buildBurgsByMarket();
+  // Full prune only on whole-map passes (monthly plan / initial layout). Partial daily
+  // passes skip it — orphaned rows are cleaned on the next full pass.
+  if (isFullPass) pruneEmptyRows(burgsByMarket);
+  const marketIdSet = isFullPass ? undefined : new Set(markets.map(market => market.i));
+  const totals = buildPhysicalTotals(marketIdSet);
+  for (const market of markets) ensurePositions(market, tick, burgsByMarket, totals);
   setBurgRetailInventories(getBurgRetailInventories());
   setBurgWholesaleInventories(getBurgWholesaleInventories());
   setMarketShipments(getMarketShipments());
+  acknowledgeReconciledMarkets(markets, allMarkets);
 }
 
 /** Plan direct burg-to-burg resupply; the market center is not an obligatory waypoint. */
 export function planRetailReplenishment(markets: readonly Market[] = getMarkets(), tick = currentTick()): void {
   reconcileRetailInventory(markets, tick);
+  const allMarkets = getMarkets();
+  const burgsByMarket = buildBurgsByMarket();
   for (const market of markets) {
-    for (const goodId of marketGoodsIds(market)) planGoodReplenishment(market, goodId, tick);
+    for (const goodId of marketGoodsIds(market)) planGoodReplenishment(market, goodId, tick, burgsByMarket);
   }
-  pruneEmptyRows();
+  // Full prune only when planning the whole map (monthly / enable). Partial daily
+  // delivery plans leave orphan cleanup to the next full pass.
+  if (markets.length >= allMarkets.length) pruneEmptyRows(burgsByMarket);
 }
 
-/** Deliver due internal cargo, then let the normal replenishment rule refill shelves. */
+/**
+ * Deliver due internal burg↔burg cargo and replan shelves for those markets only.
+ *
+ * External Market.goods stock changes (inter-market caravans, quarterly food, production)
+ * intentionally do **not** force a daily re-layout here. Those paths set
+ * `markRetailInventoryDirty`; the next monthly `synchronizePlayerCommerce` /
+ * explicit `reconcileRetailInventory` caller applies them. Quiet Advance Time days
+ * then stay near free (see docs/analytics/advance-year-performance.md).
+ *
+ * Player-facing quotes call `reconcileRetailInventory` themselves before reading stock.
+ */
 export function tickRetailInventory(tick = currentTick()): boolean {
-  let changed = false;
+  const shipments = getMarketShipments();
+  if (!shipments.length) return false;
+
+  const due: MarketShipment[] = [];
   const pending: MarketShipment[] = [];
-  for (const shipment of getMarketShipments()) {
-    if (shipment.arrivalTick > tick) {
-      pending.push(shipment);
-      continue;
-    }
+  for (const shipment of shipments) {
+    if (shipment.arrivalTick > tick) pending.push(shipment);
+    else due.push(shipment);
+  }
+  if (!due.length) return false;
+
+  for (const shipment of due) {
     const retail = retailGood(retailRecord(shipment.destinationBurgId, shipment.marketId)!, shipment.goodId, tick);
     const shelfUnits = Math.min(shipment.units, Math.max(0, retail.target - retail.onHand));
     addRetailStock(retail, shelfUnits, shipment.travelDays ?? 0, tick);
@@ -316,12 +470,13 @@ export function tickRetailInventory(tick = currentTick()): boolean {
       shipment.goodId,
       shipment.units - shelfUnits
     );
-    changed = true;
   }
-  if (changed) setMarketShipments(pending);
-  reconcileRetailInventory();
-  if (changed) planRetailReplenishment();
-  return changed;
+  setMarketShipments(pending);
+
+  // Physical totals stay balanced (transit → shelf/wholesale). Further shelf refill
+  // from wholesale / new internal shipments is deferred to the monthly
+  // planRetailReplenishment (synchronizePlayerCommerce) so daily ticks stay O(due shipments).
+  return true;
 }
 
 export function getRetailGoodStock(burgId: number, marketId: number, goodId: number): RetailGoodStock | undefined {
@@ -356,6 +511,9 @@ export function removeBurgTradeableGoodStock(burgId: number, marketId: number, g
     wholesale.goods[goodId] = nonNegative((wholesale.goods[goodId] ?? 0) - remaining);
   }
 
+  // Positions still sum to the new market total after the caller decrements stock;
+  // no full reconcile required, but mark dirty so the next tick re-checks targets.
+  retailInventoryDirty = true;
   return true;
 }
 
@@ -370,6 +528,7 @@ export function adjustRetailGoodStock(burgId: number, marketId: number, goodId: 
   const stock = getRetailGoodStock(burgId, marketId, goodId);
   if (!stock || stock.onHand + delta < -EPSILON) return false;
   stock.onHand = nonNegative(stock.onHand + delta);
+  retailInventoryDirty = true;
   return true;
 }
 
@@ -385,14 +544,16 @@ export function addWholesaleGoodStock(burgId: number, marketId: number, goodId: 
   // Unlike reconciliation, this function can be called before any inventory array has
   // been established. Persist the new row into Economy's simulation slice immediately.
   setBurgWholesaleInventories(inventories);
+  retailInventoryDirty = true;
 }
 
 export function validateRetailInventory(markets: readonly Market[] = getMarkets()): RetailInventoryInvariantIssue[] {
   const issues: RetailInventoryInvariantIssue[] = [];
+  const totals = buildPhysicalTotals();
   for (const market of markets) {
     for (const goodId of marketGoodsIds(market)) {
       const expected = Math.max(0, market.goods[goodId]?.stock ?? 0);
-      const actual = physicalTotal(market.i, goodId);
+      const actual = physicalTotal(market.i, goodId, totals);
       if (Math.abs(expected - actual) > 1e-5) issues.push({ marketId: market.i, goodId, expected, actual });
     }
   }
@@ -404,4 +565,6 @@ export function clearRetailInventory(): void {
   setBurgWholesaleInventories([]);
   setMarketShipments([]);
   setNextMarketShipmentId(1);
+  retailInventoryDirty = true;
+  dirtyMarketIds = null;
 }

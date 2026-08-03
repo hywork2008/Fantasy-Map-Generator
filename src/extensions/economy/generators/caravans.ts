@@ -36,6 +36,7 @@ import { utilizationOf } from "./marketFlowBudget";
 import type { Caravan, Deal, ExportStagingLot, Market, TradeRouteSegment } from "./marketTypes";
 import { MerchantTradeCapital } from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
+import { markRetailInventoryDirty } from "./retailInventory";
 import {
   buildCargoManifests,
   getGoodCargoSlotsPerUnit,
@@ -824,13 +825,17 @@ export class CaravansModule {
         if (caravan.buyerType === "market") {
           const buyerMarket = markets.find(market => market.i === caravan.buyer);
           if (buyerMarket) {
+            let stockChanged = false;
             for (const item of caravan.payload) {
               if (item.isFoodCoLoad) continue;
               const good = buyerMarket.goods[item.goodId];
               if (good) {
                 good.stock = rn(good.stock + item.units, 2);
+                stockChanged = true;
               }
             }
+            // Market.goods stock moved; daily retail tick re-layouts only this market.
+            if (stockChanged) markRetailInventoryDirty(buyerMarket.i);
           }
         }
 

@@ -16,6 +16,8 @@ import {
   getBurgTradeableGoodStock,
   getRetailGoodStock,
   getRetailLocalityMultiplier,
+  isRetailInventoryDirty,
+  markRetailInventoryDirty,
   planRetailReplenishment,
   reconcileRetailInventory,
   removeBurgTradeableGoodStock,
@@ -126,6 +128,34 @@ describe("retail inventory logistics", () => {
     getMarkets()[0].goods[1].stock -= 20;
     getMarkets()[0].goods[2].stock -= 1;
     expect(getMarketShipments()).toEqual([]);
+    expect(validateRetailInventory()).toEqual([]);
+  });
+
+  it("skips work on quiet ticks when inventory layout is clean", () => {
+    reconcileRetailInventory();
+    planRetailReplenishment();
+    expect(isRetailInventoryDirty()).toBe(false);
+
+    // Tick before any shipment arrives — must be a no-op, not a full re-layout.
+    expect(tickRetailInventory(1)).toBe(false);
+    expect(getMarketShipments()).toHaveLength(1);
+    expect(getRetailGoodStock(2, 1, 1)?.onHand ?? 0).toBe(0);
+    expect(validateRetailInventory()).toEqual([]);
+  });
+
+  it("defers external stock dirty to explicit reconcile (not the daily tick)", () => {
+    reconcileRetailInventory();
+    expect(isRetailInventoryDirty()).toBe(false);
+
+    getMarkets()[0].goods[1].stock += 50;
+    markRetailInventoryDirty(1);
+    // Daily tick ignores external dirty — keeps Advance Year cheap.
+    expect(tickRetailInventory(0)).toBe(false);
+    expect(isRetailInventoryDirty()).toBe(true);
+    // Explicit reconcile (monthly / player quote path) applies the layout.
+    reconcileRetailInventory(getMarkets().filter(m => m.i === 1));
+    expect(isRetailInventoryDirty()).toBe(false);
+    expect(getBurgTradeableGoodStock(1, 1, 1)).toBe(150);
     expect(validateRetailInventory()).toEqual([]);
   });
 });

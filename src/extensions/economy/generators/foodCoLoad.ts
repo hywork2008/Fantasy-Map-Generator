@@ -15,6 +15,7 @@ import { getMarkets } from "../economyContext";
 import { FOOD_SPOILAGE_HALF_LIFE_DAYS } from "./foodImportNetwork";
 import { getStapleFoodGood } from "./foodProduction";
 import type { Caravan, FoodLedger, Market } from "./marketTypes";
+import { markRetailInventoryDirty } from "./retailInventory";
 import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
 import { calculateRouteDurationDays } from "./tradeRouteDuration";
 
@@ -170,6 +171,7 @@ export function syncStapleFoodMarketStock(market: Market, stapleGoodId: number, 
   const marketGood = market.goods[stapleGoodId] ?? { stock: 0, price: priceFallback };
   marketGood.stock = rn(ledger.exportable + ledger.storageOverflow, 2);
   market.goods[stapleGoodId] = marketGood;
+  markRetailInventoryDirty(market.i);
 }
 
 function payloadUsedSlots(caravan: Pick<Caravan, "payload">): number {

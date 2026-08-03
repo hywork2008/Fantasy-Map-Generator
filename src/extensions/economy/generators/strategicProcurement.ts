@@ -20,6 +20,7 @@ import {
 import { Caravans } from "./caravans";
 import type { Good } from "./goods-generator";
 import type { Caravan, Deal, Market, TradeRouteSegment } from "./marketTypes";
+import { markRetailInventoryDirty } from "./retailInventory";
 import {
   type ForeignProcurementMode,
   getMarketStateId,
@@ -248,6 +249,7 @@ export class StrategicProcurementModule {
       }
 
       sourceGood.stock = rn(Math.max(0, sourceGood.stock - units), 2);
+      markRetailInventoryDirty(source.i);
       const state = this.worldContext.pack.states[stateId];
       if (state) state.treasury = rn(Math.max(0, treasury - totalCost), 2);
       registerStrategicProcurementExpense(stateId, totalCost);

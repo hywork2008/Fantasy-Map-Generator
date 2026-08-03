@@ -98,12 +98,7 @@ import { Minting } from "./generators/minting";
 import { clearPlayerMarketCommerce, executePlayerMarketTrade } from "./generators/playerCommerce";
 import { Production } from "./generators/production-generator";
 import { QuarryOperations } from "./generators/quarryOperations";
-import {
-  clearRetailInventory,
-  planRetailReplenishment,
-  reconcileRetailInventory,
-  tickRetailInventory
-} from "./generators/retailInventory";
+import { clearRetailInventory, planRetailReplenishment, tickRetailInventory } from "./generators/retailInventory";
 import { releaseRuralLaborSurplus } from "./generators/ruralLaborRelease";
 import { getBurgSettlementValue, getStateSettlementValue } from "./generators/settlementValuation";
 import { seedShipbuildingInitialStock } from "./generators/shipbuildingInitialStock";
@@ -545,7 +540,7 @@ function isSettlementPromotionEvent(
 /** Refresh the player-commerce projection after a market topology or stock source changes. */
 function synchronizePlayerCommerce(): void {
   syncMarketMerchantPortfolios();
-  reconcileRetailInventory();
+  // planRetailReplenishment already reconciles once; do not call reconcile separately.
   planRetailReplenishment();
 }
 
