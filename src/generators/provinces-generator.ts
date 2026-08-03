@@ -146,7 +146,9 @@ class ProvinceModule {
           formName,
           fullName,
           color,
-          coa
+          coa,
+          security: 50,
+          sanitation: 50
         });
       }
     });
@@ -294,7 +296,9 @@ class ProvinceModule {
           formName,
           fullName,
           color,
-          coa
+          coa,
+          security: 50,
+          sanitation: 50
         });
         s.provinces.push(provinceId);
 

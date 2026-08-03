@@ -58,3 +58,11 @@ Many caravans sail at ~1% hold utilization. Causes:
 - Loading/staging survive production cycle deal wipes
 - Strategic procurement may keep short-wait / immediate path
 - Food Ledger staple co-load: free hold capacity on market→market commercial caravans is filled from exporter `exportable` (`foodCoLoad.ts`); arrival credits importer Age0 after spoilage; cancel returns cargo; quarterly abstract `resolveFoodImportNetwork` still covers residual capacity bonus
+
+## Civic-condition data (seeded; effects deferred)
+
+Each Market owns one export warehouse, represented by its staging lots rather than by a separate
+warehouse entity. The warehouse stores neutral `warehouseSecurity` and `warehouseSanitation`
+scores (`50` on creation). These values currently do not alter booking, loading, or cargo loss.
+Their future effect contract, including grain-rat loss and deployment of live `Cats`, is defined
+in [治安・衛生](../simulation/civic-conditions.md).

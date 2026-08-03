@@ -242,7 +242,7 @@ export const GOODS_DATA: GoodData[] = [
     // agricultural-technology bonus (rural-agtech-investment.md §3.4) keys off this good's
     // biomeOutputByTag grassland/nomadic biomes directly, not this tags array; distinct from
     // Caravan.draftAnimalId, which governs land-route transport speed, not farm labor.
-    tags: ["food", "draft"],
+    tags: ["food", "draft", "liveAnimal"],
     icon: "good-cattle",
     color: "#56b000",
     value: 5,
@@ -357,7 +357,7 @@ export const GOODS_DATA: GoodData[] = [
     name: "Horses",
     warEconomyType: "military",
     // See the "draft" note on Cattle above.
-    tags: ["supply", "military", "draft"],
+    tags: ["supply", "military", "draft", "liveAnimal"],
     icon: "good-horses",
     color: "#ba7447",
     value: 10,
@@ -388,7 +388,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Elephants",
     warEconomyType: "military",
-    tags: ["supply", "military"],
+    tags: ["supply", "military", "liveAnimal"],
     icon: "good-elephants",
     color: "#C5CACD",
     value: 30,
@@ -401,7 +401,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Camels",
     warEconomyType: "military",
-    tags: ["supply", "military"],
+    tags: ["supply", "military", "liveAnimal"],
     icon: "good-camels",
     color: "#C19A6B",
     value: 12,
@@ -528,7 +528,7 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Sheep",
-    tags: ["clothing"],
+    tags: ["clothing", "liveAnimal"],
     icon: "good-sheep",
     color: "#53b574",
     value: 1,
@@ -1302,7 +1302,7 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Goats",
-    tags: ["food", "clothing", "supply"],
+    tags: ["food", "clothing", "supply", "liveAnimal"],
     icon: "good-goats",
     color: "#a98f75",
     value: 3,
@@ -1315,7 +1315,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Pig",
     warEconomyType: "essential",
-    tags: ["food"],
+    tags: ["food", "liveAnimal"],
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#e8a0a0",
@@ -1332,7 +1332,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Chicken",
     warEconomyType: "essential",
-    tags: ["food"],
+    tags: ["food", "liveAnimal"],
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#d9c589",
@@ -1614,6 +1614,19 @@ export const GOODS_DATA: GoodData[] = [
     ],
     unit: "relic",
     demandCoverage: { luxury: 0.5 }
+  },
+  // Appended to preserve stable IDs for the existing default catalogue.
+  {
+    name: "Cats",
+    tags: ["liveAnimal", "pestControl"],
+    // Cats are deliberately a live good, rather than an abstract pest-control service: future
+    // warehouse assignment consumes actual market stock.
+    icon: "good-cats",
+    color: "#8c8c8c",
+    value: 3,
+    chance: 0,
+    unit: "head",
+    biomeOutputByTag: { arable: 0.005, grassland: 0.003 }
   }
 ];
 
@@ -1650,6 +1663,7 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Grain: tradeProfile(4, 4, 1, -1, -1, 2, 3),
   Fodder: tradeProfile(4, 5, 1, -2, -1, 2, 3),
   Cattle: tradeProfile(5, 5, 2, 0, -2, 1, 5),
+  Cats: tradeProfile(1, 1, 2, -2, -2, 1, 5),
   // Pigs don't drove well over distance (stress/weight loss), so local sale is preferred even more
   // than Grain's -1; distancePremium keeps that as an economic disincentive, not a hard trade ban.
   Pig: tradeProfile(4, 4, 1, -1, -2, 1, 5),
@@ -1983,6 +1997,12 @@ export class GoodsModule {
     for (const good of getGoods()) this.goodById[good.i] = good;
   }
 
+  /** Returns a detached shipped default, for additive migrations of existing catalogues. */
+  getDefaultGood(name: string): Good | undefined {
+    const good = this.defaultGoods.find(candidate => candidate.name === name);
+    return good ? structuredClone(good) : undefined;
+  }
+
   private readonly defaultGoods = GOODS_DATA.map((good, index): Good => {
     let recipes: Good["recipes"];
     if ("recipes" in good && good.recipes) {
@@ -2008,6 +2028,44 @@ export class GoodsModule {
 }
 
 export const Goods = new GoodsModule();
+
+const LIVE_ANIMAL_GOOD_NAMES = new Set([
+  "Cattle",
+  "Horses",
+  "Elephants",
+  "Camels",
+  "Sheep",
+  "Goats",
+  "Pig",
+  "Chicken",
+  "Cats"
+]);
+
+/**
+ * Adds Cats to catalogues saved before the live pest-control good existed. It deliberately does
+ * not seed stock: only a future production pass may create new animals.
+ */
+export function migrateLiveCatsGood(): boolean {
+  const goods = getGoods();
+  if (goods.some(good => good.name === "Cats")) return false;
+
+  const cats = Goods.getDefaultGood("Cats");
+  if (!cats) throw new Error("Cats must be present in the shipped goods catalogue");
+  cats.i = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  goods.push(cats);
+  return true;
+}
+
+/** Adds the liveAnimal tag to shipped living animals in catalogues saved before the tag existed. */
+export function migrateLiveAnimalTags(): boolean {
+  let changed = false;
+  for (const good of getGoods()) {
+    if (!LIVE_ANIMAL_GOOD_NAMES.has(good.name) || good.tags.includes("liveAnimal")) continue;
+    good.tags.push("liveAnimal");
+    changed = true;
+  }
+  return changed;
+}
 
 const LEGACY_METAL_NAMES = ["Iron", "Copper", "Tin", "Lead", "Silver", "Gold"] as const;
 type LegacyMetalName = (typeof LEGACY_METAL_NAMES)[number];

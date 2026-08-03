@@ -23,6 +23,10 @@ export interface Market {
   foodLedger?: FoodLedger;
   /** Working capital of the market manager's merchant company; separate from Burg/State treasury. */
   marketTreasury?: MarketTreasury;
+  /** Merchant export-warehouse security from 0 (unsafe) to 100 (secure). Seeded at 50; no effects yet. */
+  warehouseSecurity?: number;
+  /** Merchant export-warehouse sanitation from 0 (unsanitary) to 100 (sanitary). Seeded at 50; no effects yet. */
+  warehouseSanitation?: number;
   /**
    * Decaying gauge of recent caravan cargo (units) delivered here, updated in `Caravans.tick()`.
    * Drives the `"trade"` LaborMarket occupation's demand (docs/plan/urban-employment-demand.md §3.3/§5.1-6).

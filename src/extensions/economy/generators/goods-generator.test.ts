@@ -10,7 +10,13 @@ import {
   setGoodCellColumn,
   setGoods
 } from "../economyContext";
-import { GoodsModule, isGoodEnabled, migrateLegacyOreIngotGoods } from "./goods-generator";
+import {
+  GoodsModule,
+  isGoodEnabled,
+  migrateLegacyOreIngotGoods,
+  migrateLiveAnimalTags,
+  migrateLiveCatsGood
+} from "./goods-generator";
 import { getDefaultGoodsUnitFlavor } from "./goodsUnitFlavor";
 
 describe("GoodsModule", () => {
@@ -194,6 +200,51 @@ describe("GoodsModule", () => {
       expect(byName.get(name)?.biomeOutput).toBeUndefined();
       expect(byName.get(name)?.biomeOutputByTag).toBeDefined();
     }
+  });
+
+  it("defines Cats as a live, locally produced pest-control good", () => {
+    goodsModule.restoreDefaults();
+
+    const cats = getGoods().find(good => good.name === "Cats");
+    expect(cats).toMatchObject({
+      unit: "head",
+      tags: expect.arrayContaining(["liveAnimal", "pestControl"]),
+      biomeOutputByTag: { arable: 0.005, grassland: 0.003 }
+    });
+    expect(cats?.trade).toMatchObject({ distancePremium: -2, lossRisk: 5 });
+    expect(cats?.cargo?.handlingClass).toBe("live");
+  });
+
+  it("tags every default head-counted animal as live while excluding carcass goods", () => {
+    goodsModule.restoreDefaults();
+
+    const headCountedGoods = getGoods().filter(good => good.unit === "head");
+    expect(headCountedGoods).not.toHaveLength(0);
+    expect(headCountedGoods.every(good => good.tags.includes("liveAnimal"))).toBe(true);
+    expect(getGoods().find(good => good.name === "Game")?.tags).not.toContain("liveAnimal");
+    expect(getGoods().find(good => good.name === "Whales")?.tags).not.toContain("liveAnimal");
+  });
+
+  it("adds Cats once to catalogues saved before the good existed", () => {
+    setGoods([{ i: 7, name: "Legacy good", tags: [], value: 1, unit: "unit", icon: "legacy", color: "#000000" }]);
+
+    expect(migrateLiveCatsGood()).toBe(true);
+    expect(getGoods().find(good => good.name === "Cats")).toMatchObject({ i: 8, unit: "head" });
+    expect(migrateLiveCatsGood()).toBe(false);
+  });
+
+  it("backfills liveAnimal only for shipped living animals in old catalogues", () => {
+    setGoods([
+      { i: 1, name: "Cattle", tags: ["food"], value: 5, unit: "head", icon: "good-cattle", color: "#56b000" },
+      { i: 2, name: "Game", tags: ["food"], value: 2, unit: "wain", icon: "good-game", color: "#c38a8a" },
+      { i: 3, name: "Whales", tags: ["food"], value: 3, unit: "barrel", icon: "good-whales", color: "#7fcdff" }
+    ]);
+
+    expect(migrateLiveAnimalTags()).toBe(true);
+    expect(getGoods()[0].tags).toEqual(["food", "liveAnimal"]);
+    expect(getGoods()[1].tags).not.toContain("liveAnimal");
+    expect(getGoods()[2].tags).not.toContain("liveAnimal");
+    expect(migrateLiveAnimalTags()).toBe(false);
   });
 
   it("exposes coastal and nearshore habitat predicates to Goods distributions", () => {

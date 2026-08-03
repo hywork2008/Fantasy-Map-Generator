@@ -568,6 +568,13 @@ class BurgModule {
     generateCapitals();
     generateTowns();
 
+    for (const burg of burgs) {
+      if (!burg.i) continue;
+      // Civic-condition simulation has not started yet; every new settlement begins neutral.
+      burg.security = 50;
+      burg.sanitation = 50;
+    }
+
     pack.burgs = burgs;
     this.shift();
 
@@ -1163,7 +1170,9 @@ class BurgModule {
       name,
       feature,
       capital: 0,
-      port: 0
+      port: 0,
+      security: 50,
+      sanitation: 50
     };
     this.definePopulation(burg);
     this.defineEmblem(burg);

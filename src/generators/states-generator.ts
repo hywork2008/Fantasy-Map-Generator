@@ -63,7 +63,9 @@ class StatesModule {
         type: type!,
         center: burg.cell,
         culture: burg.culture!,
-        coa
+        coa,
+        security: 50,
+        sanitation: 50
       });
     });
 

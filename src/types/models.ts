@@ -111,6 +111,10 @@ export interface Burg {
   province?: number;
   product?: number;
   treasury?: number;
+  /** Public-order score from 0 (unsafe) to 100 (secure). Seeded at 50; no simulation effects yet. */
+  security?: number;
+  /** Public-health and cleanliness score from 0 (unsanitary) to 100 (sanitary). Seeded at 50; no simulation effects yet. */
+  sanitation?: number;
   /** Small local staple-food buffer (Grain-equivalent units), independent of the Market's pooled stock. */
   foodReserve?: number;
   market?: number;
@@ -261,6 +265,10 @@ export interface Province {
   rural?: number;
   urban?: number;
   burgs?: number[];
+  /** Regional public-order score from 0 (unsafe) to 100 (secure). */
+  security?: number;
+  /** Regional public-health and cleanliness score from 0 (unsanitary) to 100 (sanitary). */
+  sanitation?: number;
 }
 
 export interface Religion extends NamedReligion {
@@ -406,6 +414,10 @@ export interface State {
    * production cycle by stateEconomySummary.ts's refreshStateEconomySummaries()).
    */
   foodStock?: number;
+  /** State-wide public-order score from 0 (unsafe) to 100 (secure). */
+  security?: number;
+  /** State-wide public-health and cleanliness score from 0 (unsanitary) to 100 (sanitary). */
+  sanitation?: number;
 }
 
 export interface Zone {

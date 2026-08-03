@@ -324,7 +324,14 @@ export class MarketsModule {
       if (!nearest) {
         // Create a new market anchored at this burg
         const marketId = markets.length + 1;
-        const market = { i: marketId, centerBurgId: burg.i, color: "", goods: {} };
+        const market: Market = {
+          i: marketId,
+          centerBurgId: burg.i,
+          color: "",
+          goods: {},
+          warehouseSecurity: 50,
+          warehouseSanitation: 50
+        };
         markets.push(market);
         this.marketById[marketId] = market;
         tree.add([x, y, marketId]);
@@ -741,7 +748,14 @@ export class MarketsModule {
 
     const maxId = markets.reduce((max, m) => Math.max(max, m.i), 0);
     const marketId = maxId + 1;
-    const market: Market = { i: marketId, centerBurgId: burgId, color: getRandomColor(), goods: {} };
+    const market: Market = {
+      i: marketId,
+      centerBurgId: burgId,
+      color: getRandomColor(),
+      goods: {},
+      warehouseSecurity: 50,
+      warehouseSanitation: 50
+    };
     markets.push(market);
     setDeals([]);
     this.invalidateTradeRouteCache();

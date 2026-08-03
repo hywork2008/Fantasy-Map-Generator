@@ -70,7 +70,9 @@ import {
   Goods,
   getDefaultGoodTradeProfile,
   isGoodEnabled,
-  migrateLegacyOreIngotGoods
+  migrateLegacyOreIngotGoods,
+  migrateLiveAnimalTags,
+  migrateLiveCatsGood
 } from "./generators/goods-generator";
 import { GuildChapters } from "./generators/guildChapters";
 import { GuildKnowledge } from "./generators/guildKnowledge";
@@ -1308,7 +1310,10 @@ export function init(api: ExtensionAPI): void {
         Taxes.collectTaxes();
         synchronizePlayerCommerce();
       } else {
-        if (migrateLegacyOreIngotGoods()) {
+        const migratedLegacyMetals = migrateLegacyOreIngotGoods();
+        const migratedLiveCats = migrateLiveCatsGood();
+        const migratedLiveAnimalTags = migrateLiveAnimalTags();
+        if (migratedLegacyMetals || migratedLiveCats || migratedLiveAnimalTags) {
           Goods.sync();
           Markets.initializeMarketPrices();
         }
@@ -1450,11 +1455,14 @@ export function init(api: ExtensionAPI): void {
 
   // Archives from before the Ore/Ingot split retain their old Good ids. Upgrade the
   // catalog after a full world replacement so market stock becomes Ore in place and
-  // newly added Ingots begin at zero stock (no duplicated wealth).
+  // newly added Ingots/Cats begin at zero stock (no duplicated wealth).
   _worldLoadedHandler = () => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
     DevelopmentPotential.generate();
-    if (migrateLegacyOreIngotGoods()) {
+    const migratedLegacyMetals = migrateLegacyOreIngotGoods();
+    const migratedLiveCats = migrateLiveCatsGood();
+    const migratedLiveAnimalTags = migrateLiveAnimalTags();
+    if (migratedLegacyMetals || migratedLiveCats || migratedLiveAnimalTags) {
       Goods.sync();
       Markets.initializeMarketPrices();
     }
@@ -1898,7 +1906,10 @@ export function init(api: ExtensionAPI): void {
   api.registerMapReinitHook(() => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
     attachSvgClickHandlers();
-    if (migrateLegacyOreIngotGoods()) {
+    const migratedLegacyMetals = migrateLegacyOreIngotGoods();
+    const migratedLiveCats = migrateLiveCatsGood();
+    const migratedLiveAnimalTags = migrateLiveAnimalTags();
+    if (migratedLegacyMetals || migratedLiveCats || migratedLiveAnimalTags) {
       Goods.sync();
       Markets.initializeMarketPrices();
     }

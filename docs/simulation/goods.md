@@ -6,6 +6,12 @@
 
 GOODS_DATA の編集 UI（Goods Editor）が存在する。マップ生成時にカタログが materialize され、economy 拡張スライスに保存される。
 
+## 生きた猫（実装済み）
+
+`Cats` は `unit: "head"`、タグ `liveAnimal` / `pestControl` を持つ生きた交易品である。農耕地・草地から少量が供給され、長距離取引には不向きな小型・壊れやすい生体貨物として扱う。倉庫のネズミ抑制へ接続する将来仕様は[治安・衛生](civic-conditions.md)を参照。
+
+`liveAnimal` は、生きたまま取引・輸送される Cattle、Horses、Elephants、Camels、Sheep、Goats、Pig、Chicken、Cats に付与する。捕獲後の肉・副産物として流通する Game や Whales、および人間を示す Slaves には付与しない。
+
 ## 建材・住居関連（実装済み）
 
 住居建設と文化別建材は [urban-housing-system.md](../plan/urban-housing-system.md) と [urban-construction-industry.md](../plan/urban-construction-industry.md) を参照。
