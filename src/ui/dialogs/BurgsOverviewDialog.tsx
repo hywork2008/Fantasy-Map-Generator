@@ -189,6 +189,8 @@ export const BurgsOverviewDialog: React.FC = () => {
           onSort={toggleSortBy}
           onRemoveBurg={handleRemoveBurg}
           onToggleLock={handleToggleLock}
+          showProvinceColumn={false}
+          showCultureColumn={false}
         />
 
         <div id="burgsFilters" data-tip="Apply a filter" className="d-flex">
@@ -259,8 +261,8 @@ export const BurgsOverviewDialog: React.FC = () => {
             {filteredBurgs.length ? si(totalPopulation / filteredBurgs.length) : "0"}
           </div>
           {overviewColumns.map(column => (
-            <div key={column.id} data-tip={`Average ${column.label.toLowerCase()}: ${column.tip}`}>
-              Average {column.label.toLowerCase()}:
+            <div key={column.id} data-tip={column.tip}>
+              Avg {column.label}:
               {column.format(filteredBurgs.length ? (columnTotals[column.id] ?? 0) / filteredBurgs.length : 0)}
             </div>
           ))}

@@ -18,6 +18,10 @@ export interface BurgsTableProps {
   onSort: (field: string) => void;
   onRemoveBurg: (burgId: number) => void;
   onToggleLock: (burgId: number) => void;
+  /** When false, the Province column is omitted (Burgs Overview). Default true for embedded editors. */
+  showProvinceColumn?: boolean;
+  /** When false, the Culture column is omitted (Burgs Overview). Default true for embedded editors. */
+  showCultureColumn?: boolean;
 }
 
 /**
@@ -32,7 +36,9 @@ export const BurgsTable: React.FC<BurgsTableProps> = ({
   sortOrder,
   onSort,
   onRemoveBurg,
-  onToggleLock
+  onToggleLock,
+  showProvinceColumn = true,
+  showCultureColumn = true
 }) => {
   const overviewColumns = useExtensionState(state => state.burgOverviewColumns);
   const parentRef = useRef<HTMLDivElement>(null);
@@ -56,11 +62,11 @@ export const BurgsTable: React.FC<BurgsTableProps> = ({
         <thead style={{ zIndex: 3 }}>
           <tr>
             {header("name", "Burg", false, "14em")}
-            {header("province", "Province", false, "7em")}
+            {showProvinceColumn && header("province", "Province", false, "7em")}
             {header("state", "State", false, "7.5em")}
-            {header("culture", "Culture", false, "7.2em")}
+            {showCultureColumn && header("culture", "Culture", false, "7.2em")}
             {header("group", "Group", false, "6.5em")}
-            {header("population", "Population", true, "7em")}
+            {header("population", "Pops", true, "5em")}
             {overviewColumns.map(column => (
               <SortableHeader
                 key={column.id}
@@ -71,10 +77,10 @@ export const BurgsTable: React.FC<BurgsTableProps> = ({
                 onSort={onSort}
                 numeric
                 tip={column.tip}
-                style={{ width: "5.5em", minWidth: "5.5em" }}
+                style={{ width: "4.5em", minWidth: "4.5em" }}
               />
             ))}
-            {header("features", "Feat.", false, "3.5em")}
+            {header("features", "Feat", false, "3.5em")}
             <th></th>
           </tr>
         </thead>
@@ -105,15 +111,19 @@ export const BurgsTable: React.FC<BurgsTableProps> = ({
                   />
                   <input data-tip="Burg name" className="burgName" value={b.name ?? ""} disabled readOnly />
                 </td>
-                <td>
-                  <input data-tip="Burg province" value={province} disabled readOnly />
-                </td>
+                {showProvinceColumn && (
+                  <td>
+                    <input data-tip="Burg province" value={province} disabled readOnly />
+                  </td>
+                )}
                 <td>
                   <input data-tip="Burg state" value={stateName} disabled readOnly />
                 </td>
-                <td>
-                  <input data-tip="Dominant culture" value={cultureName} disabled readOnly />
-                </td>
+                {showCultureColumn && (
+                  <td>
+                    <input data-tip="Dominant culture" value={cultureName} disabled readOnly />
+                  </td>
+                )}
                 <td>
                   <input data-tip="Burg group" value={b.group ?? ""} disabled readOnly />
                 </td>

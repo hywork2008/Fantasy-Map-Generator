@@ -16,8 +16,8 @@ import {
   useTimeSimulationState,
   useUiPreferencesState
 } from "../hostUi";
-import { formatPrice, rn, TIME } from "../hostUtils";
-import { getBurgEconomySummary, getBurgProductPerThousandResidents } from "./burgEconomySummary";
+import { formatPrice, rn, si, TIME } from "../hostUtils";
+import { getBurgEconomySummary } from "./burgEconomySummary";
 import { economyStyleConfig } from "./EconomyStyleConfig";
 import {
   clearEconomyContext,
@@ -50,6 +50,7 @@ import {
 import { AcademyKnowledge } from "./generators/academyKnowledge";
 import { AgTechInvestment } from "./generators/agTechInvestment";
 import { reconcileAnnualBasicEmploymentWorkers } from "./generators/basicEmployment";
+import { getBurgEmploymentComposition } from "./generators/burgEmploymentComposition";
 import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burgMarketLedgers";
 import { Caravans } from "./generators/caravans";
 import { ConstructionOperations } from "./generators/constructionEmployment";
@@ -128,7 +129,7 @@ import {
   tickUrbanPregnancy,
   unregisterUrbanPregnancyBirthFloor
 } from "./generators/urbanPregnancy";
-import { UrbanWater } from "./generators/urbanWaterSystem";
+import { getUrbanWaterSystemForBurg, sanitationScoreFromSystem, UrbanWater } from "./generators/urbanWaterSystem";
 import { VolcanicAshOperations } from "./generators/volcanicAshOperations";
 import { drawGoods } from "./renderers/draw-goods";
 import { drawMarketsLayer } from "./renderers/draw-markets";
@@ -246,43 +247,70 @@ export const economyLayers: LayerConfig[] = [
 ];
 
 /**
- * Registers/unregisters the Product/Wealth/Treasury (Burgs Overview) and Treasury (States Editor)
- * overview columns, plus the Good/Market/Cell Production/Burg Production Cell Info rows. Called
- * from the enable/disable branches of subscribeExtensionState (and once at init() if already
- * enabled) so these appear/disappear live with the extension toggle, instead of always showing —
- * unlike registerDialog/registerAction/registerEditorTab, which are one-shot and only fully
- * cleaned up on unregisterExtension().
+ * Formats an internal silver-piece amount as a compact numeric string (no coin emojis).
+ * Display-only — CSV export uses getValue() raw numbers instead.
+ */
+function formatSilverAmount(value: number): string {
+  return si(value);
+}
+
+/**
+ * Registers/unregisters Burg Overview columns (Product, Treasury, labor residual, sanitation,
+ * housing gap, settlement value), States Editor Treasury/Settlement value columns, and
+ * Good/Market/Cell Production/Burg Production Cell Info rows. Called from the enable/disable
+ * branches of subscribeExtensionState (and once at init() if already enabled) so these
+ * appear/disappear live with the extension toggle, instead of always showing — unlike
+ * registerDialog/registerAction/registerEditorTab, which are one-shot and only fully cleaned
+ * up on unregisterExtension().
  */
 function registerOverviewColumns(api: ExtensionAPI): void {
+  // Header labels are deliberately short (3–4 chars) so dense Burgs Overview columns stay readable;
+  // full names and units live in `tip` (hover) and in the footer average line's data-tip.
   api.registerBurgOverviewColumn({
     id: "product",
     extensionId: ECONOMY_EXTENSION_ID,
-    label: "Product",
-    tip: "Gross Product: local sale revenue minus purchased ingredient costs during the production",
+    label: "Prod",
+    tip: "Product — gross product in silver pieces: local sale revenue minus purchased ingredient costs during production",
     getValue: burg => burg.product || 0,
-    format: formatPrice
-  });
-  api.registerBurgOverviewColumn({
-    id: "wealth",
-    extensionId: ECONOMY_EXTENSION_ID,
-    label: "Product / 1k",
-    tip: "Gross product per 1,000 actual residents during the production cycle",
-    getValue: getBurgProductPerThousandResidents,
-    format: formatPrice
+    format: formatSilverAmount
   });
   api.registerBurgOverviewColumn({
     id: "treasury",
     extensionId: ECONOMY_EXTENSION_ID,
-    label: "Treasury",
-    tip: "Treasury: accumulated cash balance",
+    label: "Tres",
+    tip: "Treasury — balance in silver pieces",
     getValue: burg => burg.treasury || 0,
-    format: formatPrice
+    format: formatSilverAmount
+  });
+  api.registerBurgOverviewColumn({
+    id: "laborResidual",
+    extensionId: ECONOMY_EXTENSION_ID,
+    label: "Lab",
+    tip: "Labor residual — market adults still unassigned after household care and sector employment. Positive means room for jobs; negative may indicate over-assignment.",
+    getValue: burg => {
+      if (!burg?.i) return 0;
+      return getBurgEmploymentComposition(burg.i)?.residual ?? 0;
+    },
+    format: value => `${rn(value, 1)}`
+  });
+  api.registerBurgOverviewColumn({
+    id: "sanitationScore",
+    extensionId: ECONOMY_EXTENSION_ID,
+    label: "San",
+    tip: "Sanitation score — civic score 0–100 from the urban water model (written to burg.sanitation)",
+    getValue: burg => {
+      if (!burg?.i) return 0;
+      const system = getUrbanWaterSystemForBurg(burg.i);
+      if (system) return sanitationScoreFromSystem(system);
+      return typeof burg.sanitation === "number" ? burg.sanitation : 0;
+    },
+    format: value => `${rn(value, 1)}`
   });
   api.registerBurgOverviewColumn({
     id: "housingGap",
     extensionId: ECONOMY_EXTENSION_ID,
-    label: "Housing gap %",
-    tip: "Share of required dwellings still unbuilt. Drives construction jobs and material demand when Economy is enabled.",
+    label: "Gap",
+    tip: "Housing gap % — share of required dwellings still unbuilt. Drives construction jobs and material demand when Economy is enabled.",
     getValue: burg => {
       if (!burg?.i) return 0;
       const summary = getBurgEconomySummary(burg.i);
@@ -294,10 +322,10 @@ function registerOverviewColumns(api: ExtensionAPI): void {
   api.registerBurgOverviewColumn({
     id: "settlementValue",
     extensionId: ECONOMY_EXTENSION_ID,
-    label: "Settlement value",
-    tip: "Housing replacement cost at the current culture recipe, × walls/citadel premium. Useful later for conquest worth estimates.",
+    label: "Val",
+    tip: "Settlement value — housing replacement cost at the current culture recipe, × walls/citadel premium (silver pieces)",
     getValue: burg => (burg?.i ? (getBurgSettlementValue(burg.i)?.total ?? 0) : 0),
-    format: formatPrice
+    format: formatSilverAmount
   });
   api.registerStateOverviewColumn({
     id: "treasury",
@@ -329,8 +357,11 @@ function registerOverviewColumns(api: ExtensionAPI): void {
 
 function unregisterOverviewColumns(api: ExtensionAPI): void {
   api.unregisterBurgOverviewColumn("product");
+  // Legacy Product / 1k column id (removed); keep unregister so a hot-reload does not leave a stale header.
   api.unregisterBurgOverviewColumn("wealth");
   api.unregisterBurgOverviewColumn("treasury");
+  api.unregisterBurgOverviewColumn("laborResidual");
+  api.unregisterBurgOverviewColumn("sanitationScore");
   api.unregisterBurgOverviewColumn("housingGap");
   api.unregisterBurgOverviewColumn("settlementValue");
   api.unregisterStateOverviewColumn("treasury");
