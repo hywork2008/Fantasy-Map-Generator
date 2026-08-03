@@ -52,8 +52,9 @@ export function applyDebtDefaultConsequences(
   };
 
   if (!update.inDefault) {
-    // Clear sticky coup flag when default clears.
+    // Clear sticky coup flags when default clears.
     if (state.debtCoupRisk) state.debtCoupRisk = false;
+    state.debtCoupRiskStreak = 0;
     return result;
   }
 

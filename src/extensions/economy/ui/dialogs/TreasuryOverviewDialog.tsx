@@ -341,6 +341,24 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 tip="PR-12 domain levy → poll-tax collection multiplier"
               />
               <SortableHeader
+                field="foreignDebt"
+                label="FX Debt"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="PR-13 foreign/international debt principal (Ally/Friendly creditors)"
+              />
+              <SortableHeader
+                field="councilSessionNumber"
+                label="Sess#"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="PR-13 assembly session counter (council log)"
+              />
+              <SortableHeader
                 field="chancery"
                 label="Chancery"
                 sortBy={sortBy}
@@ -381,7 +399,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={29}>
+                <td colSpan={31}>
                   <span>No state has an allocated treasury yet — run a generation cycle first</span>
                 </td>
               </tr>
@@ -432,6 +450,8 @@ const TreasuryRow: React.FC<{ row: TreasuryOverviewRow }> = ({ row }) => (
     <td data-tip="Domain poll mult">
       {row.domainPollTaxMultiplier !== 1 ? `×${row.domainPollTaxMultiplier.toFixed(2)}` : "—"}
     </td>
+    <td data-tip="Foreign debt">{row.foreignDebt > 0 ? row.foreignDebt.toFixed(2) : "—"}</td>
+    <td data-tip="Council sessions">{row.councilSessionNumber > 0 ? row.councilSessionNumber : "—"}</td>
     <td>{row.chancery.toFixed(2)}</td>
     <td>{row.stewardship.toFixed(2)}</td>
     <td>{row.spymastery.toFixed(2)}</td>

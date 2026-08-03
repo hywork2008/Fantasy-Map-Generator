@@ -18,6 +18,7 @@ import {
   fundDomainWorksForLord,
   getFiscalAuthorityView,
   HOUSEHOLD_DRAW_ACTION_CAP,
+  issueForeignDebtForRuler,
   issuePublicDebtForRuler,
   negotiateDebtRateForRuler,
   PUBLIC_SEIZE_ACTION_CAP,
@@ -316,6 +317,35 @@ export const PlayerCharacterPanel: React.FC = () => {
 
   const handleOpenDebtNegotiation = () => {
     openDialog("debtNegotiation");
+  };
+
+  const handleOpenCouncilLog = () => {
+    openDialog("councilSession");
+  };
+
+  const handleOpenDomainPoll = () => {
+    openDialog("domainPollDetail");
+  };
+
+  const handleIssueForeignDebt = () => {
+    if (playerCharacterId === null || !summary) return;
+    const { pack } = getWorldContext();
+    const state = pack.states?.[summary.stateId];
+    if (!state?.i) {
+      tip("No state ledger for this character.", false, "error");
+      return;
+    }
+    const result = issueForeignDebtForRuler(state, playerCharacterId);
+    if (result.ok) {
+      tip(
+        `Borrowed ${formatPrice(result.paid)} from ${result.creditorName || "a foreign creditor"}.`,
+        false,
+        "success"
+      );
+    } else {
+      tip(result.error || "Could not issue foreign debt.", false, "error");
+    }
+    usePlayerCharacterState.getState().bumpRefreshToken();
   };
 
   const handleCycleWorksTarget = () => {
@@ -630,6 +660,35 @@ export const PlayerCharacterPanel: React.FC = () => {
             onClick={handleOpenDebtNegotiation}
           >
             Terms…
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={
+              fiscal.canIssueForeignDebt
+                ? `Borrow from Ally/Friendly foreign treasury (owed ${formatPrice(fiscal.foreignDebt)})`
+                : "Cannot issue foreign debt (need ruler, friendly creditor with surplus, not in default)"
+            }
+            disabled={!fiscal.canIssueForeignDebt}
+            onClick={handleIssueForeignDebt}
+          >
+            Foreign debt
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={`Open assembly session log${fiscal.councilSessionNumber ? ` (${fiscal.councilSessionNumber} sessions)` : ""}`}
+            onClick={handleOpenCouncilLog}
+          >
+            Council log
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip="Open domain poll detail — per-burg levy contribution to state poll tax"
+            onClick={handleOpenDomainPoll}
+          >
+            Domain poll
           </button>
           <button
             type="button"

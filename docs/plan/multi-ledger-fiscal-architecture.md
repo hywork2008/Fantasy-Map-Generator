@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計案。PR-1〜PR-12 実装済み** — 多層台帳本線 + 信用プール + 金貸し + 金利交渉 + 債務不履行 + 議会歳出ライン + 外縁（Banker / 勢力票 / 領 poll / 不履行帰結）。
+**設計案。PR-1〜PR-13 実装済み** — 多層台帳本線 + 信用/外債 + 金貸し + 金利交渉 + 債務不履行 + 議会ログ + クーデター交代 + 領 poll 明細。
 
 史実対照 [polity-fiscal-regimes-historical.md](../analytics/polity-fiscal-regimes-historical.md) の結論「豊かさの本体はどの名義の金庫を誰が使えるか」を、現行の単一 `state.treasury` + `Character.wealth` モデルへ段階実装するための仕様と PR 計画。
 
@@ -458,12 +458,20 @@ Lord personal: ZZZ
 - ✅ 領 `domainLevyRate` → state poll-tax 乗数；建設キュー（walls / citadel / plaza）+ PC **Fund works**  
 - ✅ `debtDefaultConsequences.ts`: プール逃亡・シンジケート haircut・`fmg:debt-coup-risk`  
 
-### PR-13 以降（任意の深掘り）
+### PR-13 — 議会ログ / 外債 / クーデター交代 / 領 poll 明細 ✅
 
-- フル議会ログ UI / 会期  
-- 国際債務・外債  
-- クーデター成功時の為政者交代接続  
-- 領 poll の都市別明細 UI  
+- ✅ `councilSession.ts` + **Council Session Log** ダイアログ（会期カウンタ + 票/否決/債務/クーデ chronicle）  
+- ✅ `foreignDebt.ts`: Ally/Friendly から 外債発行・利子送金・自動返済；PC **Foreign debt**  
+- ✅ `debtCoup.ts`: 不履行クーデリスクが続くと Marshal 等が為政者交代（`fmg:debt-coup-success`）  
+- ✅ `domainPollDetail.ts` + **Domain Poll Detail** ダイアログ（都市別 levy / policy / weight）  
+- ✅ Treasury Overview: **FX Debt** / **Sess#** 列  
+
+### PR-14 以降（任意の深掘り）
+
+- フル議会ログの勢力別票明細 UI  
+- 外債デフォルトと外交悪化の双方向接続  
+- クーデター後の正統性・内戦イベント  
+- 国際債券市場（第三者仲介）  
 
 ---
 

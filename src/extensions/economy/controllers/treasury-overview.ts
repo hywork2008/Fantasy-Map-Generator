@@ -5,6 +5,7 @@ import { rn } from "../../hostUtils";
 import { getRulerId } from "../../nobility/nobilityContext";
 import { getWorldContext } from "../economyContext";
 import { peekCreditPoolBalance } from "../generators/creditPool";
+import { sumForeignDebtPrincipal } from "../generators/foreignDebt";
 import { getPrimaryMoneylenderLabel } from "../generators/moneylenders";
 import { getTreasuryAllocationSnapshots, sumDepartmentBalances } from "../generators/treasuryAllocation";
 import { setTreasuryOverviewState, type TreasuryOverviewRow } from "../store/treasuryOverviewState";
@@ -70,6 +71,8 @@ export function refreshTreasuryOverview(): void {
       councilLastDebtVoteYes: state.councilLastDebtVoteYes !== undefined ? rn(state.councilLastDebtVoteYes, 3) : 0,
       lastTaxFarmLeak: rn(state.lastTaxFarmLeak || 0, 2),
       domainPollTaxMultiplier: rn(state.domainPollTaxMultiplier ?? 1, 3),
+      foreignDebt: sumForeignDebtPrincipal(state),
+      councilSessionNumber: state.councilSessionNumber || 0,
       chancery: snapshot.chancery,
       stewardship: snapshot.stewardship,
       spymastery: snapshot.spymastery,

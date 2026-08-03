@@ -3,16 +3,18 @@ import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { scaleFailureChanceBySupport, updateCouncilSupportSnapshot } from "./councilAssembly";
 import { refreshCouncilBudgetApprovals } from "./councilBudget";
+import { recordCouncilSession } from "./councilSession";
 import { lendFromCreditPool, payCreditorsWithSyndicate, routeTaxFarmProceeds } from "./creditPool";
+import { tryDebtCoup } from "./debtCoup";
 import { canIssueDebtWhileNotInDefault, updateDebtDefaultStatus } from "./debtDefault";
 import { applyDebtDefaultConsequences } from "./debtDefaultConsequences";
+import { issueForeignDebt, serviceForeignDebt } from "./foreignDebt";
 import { getStateDebtInterestRate, splitCreditorPayout, updateMoneylenderSnapshot } from "./moneylenders";
 import { isWarFootingActive } from "./warFooting";
 
 /**
- * Multi-ledger PR-7/PR-8/PR-9 — thin fiscal events on top of the multi-ledger pipe:
- * council/assembly consent (income haircut, support-scaled in PR-8), tax farming leak
- * (routed to credit pool / merchants in PR-9), public debt service/issue against credit pool.
+ * Multi-ledger PR-7…PR-13 — thin fiscal events on top of the multi-ledger pipe:
+ * council/assembly consent, tax farming, public debt, foreign debt, coup, session log.
  *
  * Deterministic rolls use state id + income so unit tests stay stable without a seeded RNG.
  */
@@ -62,6 +64,12 @@ export interface FiscalEventsResult {
   debtInterestPaid: number;
   debtIssued: number;
   debtRepaid: number;
+  /** PR-13 foreign debt interest paid this cycle. */
+  foreignDebtInterest: number;
+  /** PR-13 foreign debt principal issued this cycle. */
+  foreignDebtIssued: number;
+  /** PR-13 debt coup succeeded this cycle. */
+  coupSucceeded: boolean;
 }
 
 /** Stable 0–99 roll from state id + income (no RNG stream dependency). */
@@ -94,10 +102,17 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
   let debtInterestPaid = 0;
   let debtIssued = 0;
   let debtRepaid = 0;
+  let foreignDebtInterest = 0;
+  let foreignDebtIssued = 0;
+  let coupSucceeded = false;
+  let enteredDefault = false;
+  let clearedDefault = false;
+  let coupRisk = false;
+  let coupSummary: string | undefined;
 
   // PR-8: refresh assembly support before any veto roll.
   const councilSupport = updateCouncilSupportSnapshot(state);
-  // PR-11: budget-line approvals from support thresholds.
+  // PR-11: budget-line approvals from support thresholds (+ PR-12 faction votes).
   const budgetApprovals = refreshCouncilBudgetApprovals(state);
   // PR-10: named syndicate + effective interest rate for this cycle.
   updateMoneylenderSnapshot(state);
@@ -156,7 +171,10 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
     // PR-11: missed-interest streak → default freeze.
     // PR-12: merchant pool flight / coup risk while in default.
     const defaultStatus = updateDebtDefaultStatus(state, interestDue, debtInterestPaid);
-    applyDebtDefaultConsequences(state, defaultStatus);
+    const consequences = applyDebtDefaultConsequences(state, defaultStatus);
+    enteredDefault = defaultStatus.enteredDefault;
+    clearedDefault = defaultStatus.clearedDefault;
+    coupRisk = consequences.coupRisk;
 
     // Repay principal from surplus L2 (keep a small buffer) → pool + syndicate.
     // Only auto-repay when not deep in default coupon trouble (still allow if cash exists).
@@ -174,7 +192,12 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
     // No principal → clear any stale default streak / coup flags.
     const defaultStatus = updateDebtDefaultStatus(state, 0, 0);
     applyDebtDefaultConsequences(state, defaultStatus);
+    clearedDefault = defaultStatus.clearedDefault;
   }
+
+  // ── PR-13 foreign debt service (外債) ────────────────────────────────────
+  const foreignService = serviceForeignDebt(state);
+  foreignDebtInterest = foreignService.interestPaid;
 
   // ── Thin war debt issue from credit pool (PR-9/PR-11) ───────────────────
   // Cash-strapped at war: borrow only what moneylenders can fund and council allows.
@@ -200,8 +223,46 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
     }
   }
 
+  // PR-13: if still cash-strapped after domestic pool, try foreign loan (外債).
+  if (
+    isWarFootingActive(state) &&
+    stateHasEnemy(state) &&
+    (state.form === "Republic" || state.form === "Monarchy" || state.form === "Union") &&
+    (state.treasury || 0) <= WAR_DEBT_CASH_THRESHOLD &&
+    canIssueDebtWhileNotInDefault(state)
+  ) {
+    const foreign = issueForeignDebt(state);
+    if (foreign.ok) foreignDebtIssued = foreign.amount;
+  }
+
+  // PR-13: acute debt-coup risk may transfer the crown.
+  const coup = tryDebtCoup(state);
+  if (coup.succeeded) {
+    coupSucceeded = true;
+    coupSummary = coup.summary;
+  }
+  if (state.debtCoupRisk) coupRisk = true;
+
   state.lastDebtIssued = debtIssued;
   state.lastDebtRepaid = debtRepaid;
+
+  // PR-13: chronicle this cycle's assembly session.
+  recordCouncilSession(state, {
+    councilFailed,
+    councilSupport,
+    debtVoteYes: state.councilLastDebtVoteYes,
+    taxFarmLeak,
+    debtIssued,
+    debtRepaid,
+    debtInterestPaid,
+    enteredDefault,
+    clearedDefault,
+    foreignDebtIssued,
+    foreignDebtInterest,
+    coupRisk,
+    coupSucceeded,
+    coupSummary
+  });
 
   return {
     incomeScale,
@@ -211,6 +272,9 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
     taxFarmLeak,
     debtInterestPaid,
     debtIssued,
-    debtRepaid
+    debtRepaid,
+    foreignDebtInterest,
+    foreignDebtIssued,
+    coupSucceeded
   };
 }

@@ -149,7 +149,9 @@ import { BurgEditorInnsTab } from "./ui/components/BurgEditorInnsTab";
 import { BurgEditorWaterTab } from "./ui/components/BurgEditorWaterTab";
 import { StatesEditorTreasuryTab } from "./ui/components/StatesEditorTreasuryTab";
 import { CharacterMarketDialog } from "./ui/dialogs/CharacterMarketDialog";
+import { CouncilSessionDialog } from "./ui/dialogs/CouncilSessionDialog";
 import { DebtNegotiationDialog } from "./ui/dialogs/DebtNegotiationDialog";
+import { DomainPollDetailDialog } from "./ui/dialogs/DomainPollDetailDialog";
 import { EmploymentOverviewDialog } from "./ui/dialogs/EmploymentOverviewDialog";
 import { GoodsDistributionEditorDialog } from "./ui/dialogs/GoodsDistributionEditorDialog";
 import { GoodsEditorDialog } from "./ui/dialogs/GoodsEditorDialog";
@@ -1111,6 +1113,16 @@ export function init(api: ExtensionAPI): void {
     extensionId: ECONOMY_EXTENSION_ID,
     component: DebtNegotiationDialog
   });
+  api.registerDialog({
+    id: "CouncilSessionDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: CouncilSessionDialog
+  });
+  api.registerDialog({
+    id: "DomainPollDetailDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: DomainPollDetailDialog
+  });
 
   // Register Economy Style Config
   api.registerStyleConfig(economyStyleConfig);
@@ -1292,6 +1304,32 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
+  api.registerAction({
+    id: "economy-edit-council-session",
+    extensionId: ECONOMY_EXTENSION_ID,
+    tab: "tools",
+    section: "edit",
+    label: "Council log",
+    dialogId: "councilSession",
+    tooltip: "Click to open Council Session Log — assembly votes, vetoes, debt, and coup chronicle",
+    onClick: () => {
+      document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: "councilSessionButton" } }));
+    }
+  });
+
+  api.registerAction({
+    id: "economy-edit-domain-poll",
+    extensionId: ECONOMY_EXTENSION_ID,
+    tab: "tools",
+    section: "edit",
+    label: "Domain poll",
+    dialogId: "domainPollDetail",
+    tooltip: "Click to open Domain Poll Detail — per-burg levy contribution to state poll tax",
+    onClick: () => {
+      document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: "domainPollDetailButton" } }));
+    }
+  });
+
   // Register tool action handlers so core tools.ts has no knowledge of extension dialogs.
   // The handler implements the same open/close + layer toggle pattern used for built-in editors.
   const toggleEditorDialog = (dialogId: string, layerId: string | null) => {
@@ -1317,6 +1355,8 @@ export function init(api: ExtensionAPI): void {
   api.registerToolAction("guildOverviewButton", () => toggleEditorDialog("guildOverview", null));
   api.registerToolAction("treasuryOverviewButton", () => toggleEditorDialog("treasuryOverview", null));
   api.registerToolAction("debtNegotiationButton", () => toggleEditorDialog("debtNegotiation", null));
+  api.registerToolAction("councilSessionButton", () => toggleEditorDialog("councilSession", null));
+  api.registerToolAction("domainPollDetailButton", () => toggleEditorDialog("domainPollDetail", null));
   api.registerToolAction("burgProductionOverview", detail => {
     const burgId = (detail as { burgId?: number } | undefined)?.burgId;
     if (!burgId) return;
@@ -1427,6 +1467,8 @@ export function init(api: ExtensionAPI): void {
       api.closeDialog("guildOverview");
       api.closeDialog("treasuryOverview");
       api.closeDialog("debtNegotiation");
+      api.closeDialog("councilSession");
+      api.closeDialog("domainPollDetail");
       api.closeDialog("characterMarket");
 
       // Clear economy data through the extension-owned command after disabling.
@@ -2225,6 +2267,8 @@ export function cleanup(api: ExtensionAPI): void {
   api.unregisterToolAction("guildOverviewButton");
   api.unregisterToolAction("treasuryOverviewButton");
   api.unregisterToolAction("debtNegotiationButton");
+  api.unregisterToolAction("councilSessionButton");
+  api.unregisterToolAction("domainPollDetailButton");
 
   api.unregisterExtension(ECONOMY_EXTENSION_ID);
   clearEconomyContext();

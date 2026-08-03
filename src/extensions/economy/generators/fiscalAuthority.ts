@@ -21,6 +21,12 @@ import {
   normalizeDomainWorksTarget,
   resolveDomainBurgForCharacter
 } from "./domainFiscalPolicy";
+import {
+  canIssueForeignDebt,
+  FOREIGN_DEBT_ISSUE_AMOUNT,
+  issueForeignDebt,
+  sumForeignDebtPrincipal
+} from "./foreignDebt";
 import { getPrimaryMoneylenderLabel, negotiateDebtInterestRate, resolveStateBanker } from "./moneylenders";
 import {
   issuePublicDebt,
@@ -81,13 +87,18 @@ export interface FiscalAuthorityView {
   debtInDefault: boolean;
   /** PR-12 debt coup-risk sticky flag. */
   debtCoupRisk: boolean;
+  /** PR-13 foreign debt principal (外債). */
+  foreignDebt: number;
   /** PR-8 assembly support 0–100. */
   councilSupport: number;
   /** PR-12 last debt-issue vote yes share 0–1. */
   councilLastDebtVoteYes: number | null;
+  /** PR-13 assembly session number. */
+  councilSessionNumber: number;
   canIssuePublicDebt: boolean;
   canRepayPublicDebt: boolean;
   canNegotiateDebtRate: boolean;
+  canIssueForeignDebt: boolean;
   /** Province lord may cycle domain fiscal policy (PR-7). */
   canSetDomainPolicy: boolean;
   domainFiscalPolicy: DomainFiscalPolicy | null;
@@ -214,10 +225,12 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
   const debtRateNegotiation = rn(state.debtRateNegotiation || 0, 3);
   const debtInDefault = Boolean(state.debtInDefault);
   const debtCoupRisk = Boolean(state.debtCoupRisk);
+  const foreignDebt = sumForeignDebtPrincipal(state);
   const councilSupport =
     state.councilSupport !== undefined ? rn(state.councilSupport, 1) : getCouncilSupport(state).support;
   const councilLastDebtVoteYes =
     state.councilLastDebtVoteYes !== undefined ? rn(state.councilLastDebtVoteYes, 3) : null;
+  const councilSessionNumber = state.councilSessionNumber || 0;
   const canIssuePublicDebt =
     isRuler &&
     form !== "Anarchy" &&
@@ -227,6 +240,7 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
     isCouncilLineApproved(state, "debtIssue");
   const canRepayPublicDebt = isRuler && publicDebt > 0 && publicTreasury > 0;
   const canNegotiateDebtRate = isRuler && !debtInDefault && (publicDebt > 0 || creditPoolBalance > 0);
+  const canIssueForeignDebtFlag = isRuler && canIssueForeignDebt(state);
   const domainLevyRate = domainBurg ? clampDomainLevyRate(domainBurg.domainLevyRate) : null;
   const domainWorksProgress = domainBurg ? rn(domainBurg.domainWorksProgress || 0, 1) : null;
   const domainWorksTarget = domainBurg ? normalizeDomainWorksTarget(domainBurg.domainWorksTarget) : null;
@@ -264,8 +278,15 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
   if (publicDebt > 0) {
     notes.push(`Public debt ${publicDebt.toFixed(2)} SP (interest each tax cycle).`);
   }
+  if (foreignDebt > 0) {
+    notes.push(`Foreign debt ${foreignDebt.toFixed(2)} SP (外債 — Ally/Friendly creditors).`);
+  }
   if (debtInDefault) notes.push("IN DEFAULT — new borrowing frozen until interest is current.");
   if (debtCoupRisk) notes.push("DEBT COUP RISK — military restiveness / merchant mutiny.");
+  if (state.lastDebtCoup?.newRulerName) {
+    notes.push(`Last debt coup: ${state.lastDebtCoup.newRulerName} replaced ${state.lastDebtCoup.oldRulerName}.`);
+  }
+  if (councilSessionNumber > 0) notes.push(`Assembly sessions logged: ${councilSessionNumber}.`);
   const banker = resolveStateBanker(state);
   notes.push(`Credit pool ${creditPoolBalance.toFixed(2)} SP — Banker: ${banker?.name ?? primaryMoneylenderName}.`);
   if (debtInterestRate != null) {
@@ -320,11 +341,14 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
     debtRateNegotiation,
     debtInDefault,
     debtCoupRisk,
+    foreignDebt,
     councilSupport,
     councilLastDebtVoteYes,
+    councilSessionNumber,
     canIssuePublicDebt,
     canRepayPublicDebt,
     canNegotiateDebtRate,
+    canIssueForeignDebt: canIssueForeignDebtFlag,
     canSetDomainPolicy,
     domainFiscalPolicy,
     domainLevyRate,
@@ -575,4 +599,22 @@ export function repayPublicDebtForRuler(
   }
   const result = repayPublicDebt(state, amount);
   return { ok: result.ok, paid: result.amount, error: result.error };
+}
+
+/** Living ruler draws a foreign loan (外債) from an Ally/Friendly creditor (PR-13). */
+export function issueForeignDebtForRuler(
+  state: State,
+  characterId: number,
+  amount = FOREIGN_DEBT_ISSUE_AMOUNT
+): FiscalActionResult & { creditorName?: string } {
+  if (!isLivingRulerOf(state, characterId)) {
+    return { ok: false, paid: 0, error: "Only the living ruler may issue foreign debt" };
+  }
+  const result = issueForeignDebt(state, amount);
+  return {
+    ok: result.ok,
+    paid: result.amount,
+    error: result.error,
+    creditorName: result.creditorName
+  };
 }

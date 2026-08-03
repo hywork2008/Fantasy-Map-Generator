@@ -59,6 +59,10 @@ export interface TreasuryOverviewRow {
   lastTaxFarmLeak: number;
   /** PR-12 domain levy → poll tax multiplier. */
   domainPollTaxMultiplier: number;
+  /** PR-13 foreign debt principal. */
+  foreignDebt: number;
+  /** PR-13 assembly session count. */
+  councilSessionNumber: number;
   chancery: number;
   stewardship: number;
   spymastery: number;

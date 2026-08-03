@@ -487,6 +487,10 @@ export interface State {
    */
   debtCoupRisk?: boolean;
   /**
+   * PR-13: consecutive tax cycles at acute debt-coup risk (toward success).
+   */
+  debtCoupRiskStreak?: number;
+  /**
    * PR-12: sticky assembly-support penalty after debt coup-risk (subtracted in getCouncilSupport).
    */
   debtCoupSupportPenalty?: number;
@@ -494,6 +498,49 @@ export interface State {
   lastDebtPoolFlight?: number;
   /** PR-12: last-cycle syndicate personal wealth haircut while in default. */
   lastDebtMerchantHaircut?: number;
+  /**
+   * PR-13: last successful debt-coup ruler transfer snapshot.
+   */
+  lastDebtCoup?: {
+    oldRulerId: number;
+    newRulerId: number;
+    oldRulerName?: string;
+    newRulerName?: string;
+  };
+  /**
+   * PR-13 foreign/international debt principal total (sum of foreignLoans).
+   */
+  foreignDebt?: number;
+  /**
+   * PR-13 bilateral foreign loans (外債) from Ally/Friendly creditors.
+   */
+  foreignLoans?: {
+    creditorStateId: number;
+    creditorName: string;
+    principal: number;
+    interestRate: number;
+  }[];
+  /** PR-13 last-cycle foreign debt issued. */
+  lastForeignDebtIssued?: number;
+  /** PR-13 last-cycle foreign interest paid. */
+  lastForeignDebtInterest?: number;
+  /** PR-13 last-cycle foreign principal repaid. */
+  lastForeignDebtRepaid?: number;
+  /**
+   * PR-13 council session chronicle (ring buffer).
+   */
+  councilSessionLog?: {
+    id: number;
+    kind: string;
+    summary: string;
+    year: number;
+    month: number;
+    support?: number;
+    yesShare?: number;
+    amount?: number;
+  }[];
+  /** PR-13 assembly session counter. */
+  councilSessionNumber?: number;
   /**
    * PR-8 assembly support snapshot (0–100) from the last tax cycle / support refresh.
    */
