@@ -545,6 +545,62 @@ describe("treasuryAllocation", () => {
     });
   });
 
+  describe("allocateTreasury() war footing reweight (PR-6)", () => {
+    afterEach(() => {
+      clearEconomyContext();
+      clearTreasuryAllocationSnapshots();
+    });
+
+    beforeEach(() => {
+      initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+      worldContext.pack = { states: [] } as unknown as PackedGraph;
+    });
+
+    it("raises nominal marshalcy Budget when warFooting is on", () => {
+      const peacetime = { i: 1, form: "Monarchy", diplomacy: [], treasury: 1000 } as unknown as State;
+      const wartime = {
+        i: 2,
+        form: "Monarchy",
+        diplomacy: [],
+        treasury: 1000,
+        warFooting: true
+      } as unknown as State;
+
+      const peaceAlloc = allocateTreasury(peacetime, 1000);
+      const warAlloc = allocateTreasury(wartime, 1000);
+
+      expect(warAlloc.marshalcy).toBeGreaterThan(peaceAlloc.marshalcy);
+      expect(warAlloc.householdNominal).toBeLessThan(peaceAlloc.householdNominal);
+    });
+
+    it("sets militaryMobilizationBoost only when war footing and overfunded", () => {
+      // No troops → Need 0 → funding ratio 1 → no overfund boost
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        diplomacy: [],
+        treasury: 1000,
+        warFooting: true,
+        military: []
+      } as unknown as State;
+      allocateTreasury(state, 1000);
+      expect(state.militaryMobilizationBoost).toBe(0);
+
+      // Tiny army → Need small → Budget >> Need → boost
+      const rich = {
+        i: 2,
+        form: "Monarchy",
+        diplomacy: [],
+        treasury: 1000,
+        warFooting: true,
+        military: [{ state: 2, u: { Infantry: 1 } }]
+      } as unknown as State;
+      allocateTreasury(rich, 1000);
+      expect(rich.militaryFundingRatio).toBeGreaterThan(1);
+      expect(rich.militaryMobilizationBoost).toBeGreaterThan(0);
+    });
+  });
+
   describe("drawFromMarshalcyThenTreasury() / payMilitaryUpkeep() (PR-5)", () => {
     it("draws from L3a.marshalcy before touching L2 public treasury", () => {
       const state = {

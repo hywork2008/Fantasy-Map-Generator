@@ -39,7 +39,12 @@ export const TreasuryOverviewDialog: React.FC = () => {
     return [...rawRows].sort((a, b) => {
       const valA = a[sortBy];
       const valB = b[sortBy];
-      const cmp = typeof valA === "string" ? valA.localeCompare(valB as string) : (valA as number) - (valB as number);
+      const cmp =
+        typeof valA === "string"
+          ? valA.localeCompare(valB as string)
+          : typeof valA === "boolean"
+            ? Number(valA) - Number(valB)
+            : (valA as number) - (valB as number);
       return sortOrder === "asc" ? cmp : -cmp;
     });
   }, [rawRows, sortBy, sortOrder]);
@@ -87,6 +92,8 @@ export const TreasuryOverviewDialog: React.FC = () => {
       >
         <table className="fmg-table">
           <colgroup>
+            <col />
+            <col />
             <col />
             <col />
             <col />
@@ -223,6 +230,23 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 tip="Accumulates while underfunded, decays while well-funded (0-200)"
               />
               <SortableHeader
+                field="warFooting"
+                label="War"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                tip="War footing policy (PR-6) — reweights department shares toward marshalcy when ON"
+              />
+              <SortableHeader
+                field="militaryMobilizationBoost"
+                label="Mob+"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="Troop-target uplift while war footing is on and marshalcy Budget exceeds Need (case β)"
+              />
+              <SortableHeader
                 field="chancery"
                 label="Chancery"
                 sortBy={sortBy}
@@ -263,7 +287,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={17}>
+                <td colSpan={19}>
                   <span>No state has an allocated treasury yet — run a generation cycle first</span>
                 </td>
               </tr>
@@ -296,6 +320,8 @@ const TreasuryRow: React.FC<{ row: TreasuryOverviewRow }> = ({ row }) => (
     <td>{row.marshalcy.toFixed(2)}</td>
     <td>{row.militaryFundingRatio.toFixed(2)}</td>
     <td>{row.militaryDiscontent.toFixed(1)}</td>
+    <td data-tip={row.warFooting ? "War footing ON" : "War footing off"}>{row.warFooting ? "ON" : "—"}</td>
+    <td>{row.militaryMobilizationBoost > 0 ? row.militaryMobilizationBoost.toFixed(3) : "—"}</td>
     <td>{row.chancery.toFixed(2)}</td>
     <td>{row.stewardship.toFixed(2)}</td>
     <td>{row.spymastery.toFixed(2)}</td>

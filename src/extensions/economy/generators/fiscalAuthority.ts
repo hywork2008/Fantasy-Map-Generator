@@ -5,6 +5,7 @@ import { rn } from "../../hostUtils";
 import { getRulerId } from "../../nobility/nobilityContext";
 import { getWorldContext } from "../economyContext";
 import { sumDepartmentBalances } from "./treasuryAllocation";
+import { isWarFootingActive, setWarFooting } from "./warFooting";
 
 /**
  * Multi-ledger PR-4 — fiscal authority view + first spend hooks.
@@ -36,6 +37,12 @@ export interface FiscalAuthorityView {
   canDrawHouseholdToPersonal: boolean;
   canSpendPublicDirectly: boolean;
   canSpendDomain: boolean;
+  /** Province lord may remit domain (L3b) cash to the state's public L2. */
+  canRemitDomainToState: boolean;
+  /** Living ruler may toggle war footing (PR-6). */
+  canToggleWarFooting: boolean;
+  warFooting: boolean;
+  militaryMobilizationBoost: number;
   /** Human-readable policy notes for tooltips. */
   notes: string[];
 }
@@ -136,6 +143,11 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
   const departmentBalancesTotal = sumDepartmentBalances(state.departmentBalances);
   const domain = resolveDomainTreasury(character);
   const canSpendDomain = domain.amount !== null && domain.amount > 0;
+  const canRemitDomainToState = canSpendDomain;
+  const isRuler = character ? isLivingRulerOf(state, character.i) : false;
+  const canToggleWarFooting = isRuler;
+  const warFooting = isWarFootingActive(state);
+  const militaryMobilizationBoost = rn(state.militaryMobilizationBoost || 0, 3);
 
   const householdSpendable = policy.canDrawHouseholdToPersonal ? householdPurse : 0;
   const publicSpendable = policy.canSpendPublicDirectly ? publicTreasury : 0;
@@ -158,6 +170,15 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
     2
   );
 
+  const notes = [...policy.notes];
+  if (warFooting) {
+    notes.push(
+      militaryMobilizationBoost > 0
+        ? `War footing ON — marshalcy-weighted budgets; mobilization boost +${rn(militaryMobilizationBoost * 100, 1)}%.`
+        : "War footing ON — marshalcy-weighted budgets (no overfund boost yet)."
+    );
+  }
+
   return {
     stateId: state.i || 0,
     form,
@@ -171,7 +192,11 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
     canDrawHouseholdToPersonal: policy.canDrawHouseholdToPersonal,
     canSpendPublicDirectly: policy.canSpendPublicDirectly,
     canSpendDomain,
-    notes: policy.notes
+    canRemitDomainToState,
+    canToggleWarFooting,
+    warFooting,
+    militaryMobilizationBoost,
+    notes
   };
 }
 
@@ -272,4 +297,54 @@ export function spendDomainTreasury(characterId: number, amount: number): Fiscal
 
   burg.treasury = rn((burg.treasury || 0) - paid, 2);
   return { ok: true, paid };
+}
+
+/** Max domain → state L2 remit per action (province lord contribution). */
+export const DOMAIN_REMIT_ACTION_CAP = 5;
+
+/**
+ * Province lord remits domain (L3b burg) cash into the owning state's public L2 treasury.
+ * Models feudal aid / contribution without a full council pipeline (PR-6 domain policy).
+ */
+export function remitDomainToStateTreasury(characterId: number, amount: number): FiscalActionResult {
+  if (!(amount > 0)) return { ok: false, paid: 0, error: "Amount must be positive" };
+  if (!hasCharactersContext()) return { ok: false, paid: 0, error: "Characters unavailable" };
+
+  const character = getCharacters().find(c => c.i === characterId && !c.dead);
+  if (!character) return { ok: false, paid: 0, error: "Character not found" };
+
+  const domain = resolveDomainTreasury(character);
+  if (domain.burgId === null || domain.amount === null) {
+    return { ok: false, paid: 0, error: "Character has no provincial domain seat" };
+  }
+
+  const { pack } = getWorldContext();
+  const burg = pack.burgs?.[domain.burgId];
+  if (!burg || burg.removed) return { ok: false, paid: 0, error: "Domain burg missing" };
+
+  const stateId = burg.state;
+  const state = stateId ? pack.states?.[stateId] : undefined;
+  if (!state?.i) return { ok: false, paid: 0, error: "Domain has no owning state" };
+
+  const paid = rn(Math.min(amount, burg.treasury || 0, DOMAIN_REMIT_ACTION_CAP), 2);
+  if (!(paid > 0)) return { ok: false, paid: 0, error: "Domain treasury is empty" };
+
+  burg.treasury = rn((burg.treasury || 0) - paid, 2);
+  state.treasury = rn((state.treasury || 0) + paid, 2);
+  return { ok: true, paid };
+}
+
+/**
+ * Living ruler toggles war footing on their state (PR-6 policy lever).
+ */
+export function toggleWarFootingForRuler(
+  state: State,
+  characterId: number
+): FiscalActionResult & { warFooting?: boolean } {
+  if (!state.i) return { ok: false, paid: 0, error: "Invalid state" };
+  if (!isLivingRulerOf(state, characterId)) {
+    return { ok: false, paid: 0, error: "Only the living ruler may set war footing" };
+  }
+  const next = setWarFooting(state, !isWarFootingActive(state));
+  return { ok: true, paid: 0, warFooting: next };
 }

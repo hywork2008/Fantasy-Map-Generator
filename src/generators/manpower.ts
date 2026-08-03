@@ -365,7 +365,10 @@ export function effectiveTroopTarget(
 ): number {
   const people = statePopulationPeople(pack, state, populationRate, urbanization);
   const eff = getDraftEfficiency(state);
-  const policyTroops = people * getTargetMobilizationRatio(state) * (0.5 + 0.5 * eff);
+  // Economy PR-6 war footing overfund (case β): temporary uplift when Budget/Need > 1.
+  // Written by allocateTreasury as state.militaryMobilizationBoost; 0/undefined when inactive.
+  const mobilizationBoost = Math.max(0, Math.min(0.25, state.militaryMobilizationBoost ?? 0));
+  const policyTroops = people * getTargetMobilizationRatio(state) * (0.5 + 0.5 * eff) * (1 + mobilizationBoost);
 
   const civilianPeople = sumCivilianMalePeople(pack, state.i, populationRate, urbanization);
   const malePeople = civilianPeople + currentLandTroops(state);

@@ -35,6 +35,10 @@ export interface TreasuryOverviewRow {
   marshalcy: number;
   militaryFundingRatio: number;
   militaryDiscontent: number;
+  /** PR-6 war footing policy flag. */
+  warFooting: boolean;
+  /** PR-6 troop-target uplift (0 when inactive). */
+  militaryMobilizationBoost: number;
   chancery: number;
   stewardship: number;
   spymastery: number;

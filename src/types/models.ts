@@ -410,6 +410,18 @@ export interface State {
    * nobility coup/mutiny mechanic).
    */
   militaryDiscontent?: number;
+  /**
+   * Explicit war-economy policy lever (multi-ledger PR-6). When true, allocateTreasury reweights
+   * department shares toward marshalcy (and form-protected secondaries). Not the same as
+   * diplomacy Enemy — must be set by policy (UI / AI), not auto-derived.
+   */
+  warFooting?: boolean;
+  /**
+   * Temporary troop-target uplift fraction (0..~0.25) written by Economy when warFooting is on
+   * and marshalcy Budget exceeds Need. Read by `effectiveTroopTarget` (manpower.ts). 0 / unset
+   * when inactive. docs/plan/state-treasury-department-budget.md §4.4 case β.
+   */
+  militaryMobilizationBoost?: number;
 
   // ── Manpower / agriculture simulation (docs/plan/military/manpower-ecosystem.md) ──
   /**

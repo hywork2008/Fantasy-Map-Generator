@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計案。PR-1〜PR-5 実装済み** — 多層台帳 + 形態ゲート付き支出フック + 軍事 upkeep / 野戦指揮官給の L3a.marshalcy → L2 優先控除。
+**設計案。PR-1〜PR-6 実装済み** — 多層台帳 + 形態ゲート支出 + marshalcy 優先 upkeep + 歳入ミックス薄い差分 + War Footing + 領上納。
 
 史実対照 [polity-fiscal-regimes-historical.md](../analytics/polity-fiscal-regimes-historical.md) の結論「豊かさの本体はどの名義の金庫を誰が使えるか」を、現行の単一 `state.treasury` + `Character.wealth` モデルへ段階実装するための仕様と PR 計画。
 
@@ -402,11 +402,19 @@ Lord personal: ZZZ
 - ✅ 野戦指揮官個人給: 同順で現金制約付き（薄い L2 からの無償印刷を廃止）  
 - 形態ポリシー薄いフック（Anarchy 押収は PR-4、Union 分担は既存 tribute 可視化）— 追加拡張は PR-6 以降
 
-### PR-6 以降（本設計の外縁）
+### PR-6 — 歳入ミックス薄い差分 / War Footing / 領政策 ✅
 
-- 歳入ミックス形態差（調査ノート P2）  
-- 領主の domain 政策メニュー  
-- War Footing と L3a 連動  
+- ✅ `revenueMix.ts`: Monarchy 戦時補助金、Theocracy 十分の一→L3a.ecclesiastica、Anarchy 略奪シェア→L0  
+- ✅ `warFooting.ts`: `state.warFooting` で部門%再重み（marshalcy 優先＋形態別二次フロア）  
+- ✅ 充足率 > 1 かつ War Footing 時 `militaryMobilizationBoost` → `effectiveTroopTarget`（案β）  
+- ✅ `remitDomainToStateTreasury`（L3b→L2）+ PC HUD（Remit domain / War footing）  
+- ✅ Treasury Overview: War / Mob+ 列  
+
+### PR-7 以降（外縁）
+
+- 歳入ミックスの深掘り（議会同意失敗、請負、公債）  
+- 領主 domain の本格政策メニュー（建設・防衛・税率）  
+- War Footing の AI 自動切替・政治コスト  
 
 ---
 

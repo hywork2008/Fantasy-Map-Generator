@@ -9,13 +9,16 @@ import {
 } from "../../../economy/generators/constructionHire";
 import { getConstructionJobPosting } from "../../../economy/generators/constructionJobPostings";
 import {
+  DOMAIN_REMIT_ACTION_CAP,
   DOMAIN_SPEND_ACTION_CAP,
   drawHouseholdPurseToPersonal,
   getFiscalAuthorityView,
   HOUSEHOLD_DRAW_ACTION_CAP,
   PUBLIC_SEIZE_ACTION_CAP,
+  remitDomainToStateTreasury,
   seizePublicTreasuryToPersonal,
-  spendDomainTreasury
+  spendDomainTreasury,
+  toggleWarFootingForRuler
 } from "../../../economy/generators/fiscalAuthority";
 import { tip } from "../../../hostServices";
 import { Dialog, isDialogOpen, openDialog } from "../../../hostUi";
@@ -200,6 +203,35 @@ export const PlayerCharacterPanel: React.FC = () => {
     usePlayerCharacterState.getState().bumpRefreshToken();
   };
 
+  const handleRemitDomain = () => {
+    if (playerCharacterId === null) return;
+    const result = remitDomainToStateTreasury(playerCharacterId, DOMAIN_REMIT_ACTION_CAP);
+    if (result.ok) tip(`Remitted ${formatPrice(result.paid)} from the domain to the state treasury.`, false, "success");
+    else tip(result.error || "Could not remit domain funds.", false, "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
+  const handleToggleWarFooting = () => {
+    if (playerCharacterId === null || !summary) return;
+    const { pack } = getWorldContext();
+    const state = pack.states?.[summary.stateId];
+    if (!state?.i) {
+      tip("No state ledger for this character.", false, "error");
+      return;
+    }
+    const result = toggleWarFootingForRuler(state, playerCharacterId);
+    if (result.ok) {
+      tip(
+        result.warFooting ? "War footing enabled — next tax cycle favors marshalcy." : "War footing disabled.",
+        false,
+        "success"
+      );
+    } else {
+      tip(result.error || "Could not change war footing.", false, "error");
+    }
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
   return (
     <Dialog isOpen title="Player Character" showCloseAllDialogsButton={false} className="player-character-panel">
       {!summary ? (
@@ -355,6 +387,35 @@ export const PlayerCharacterPanel: React.FC = () => {
             onClick={handleSpendDomain}
           >
             Spend domain
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={
+              fiscal.canRemitDomainToState
+                ? `Remit up to ${DOMAIN_REMIT_ACTION_CAP} SP from the domain seat to the state's public treasury (L3b→L2)`
+                : "No provincial domain seat with treasury"
+            }
+            disabled={!fiscal.canRemitDomainToState}
+            onClick={handleRemitDomain}
+          >
+            Remit domain
+          </button>
+          <button
+            type="button"
+            className={`pcp-action${fiscal.warFooting ? " pcp-action-active" : ""}`}
+            data-tip={
+              fiscal.canToggleWarFooting
+                ? fiscal.warFooting
+                  ? "Disable war footing (restore peacetime department shares next tax cycle)"
+                  : "Enable war footing — reweights budgets toward marshalcy; overfund can boost troop targets"
+                : "Only the living ruler may set war footing"
+            }
+            disabled={!fiscal.canToggleWarFooting}
+            aria-pressed={fiscal.warFooting}
+            onClick={handleToggleWarFooting}
+          >
+            {fiscal.warFooting ? "War footing ON" : "War footing"}
           </button>
         </div>
       ) : null}

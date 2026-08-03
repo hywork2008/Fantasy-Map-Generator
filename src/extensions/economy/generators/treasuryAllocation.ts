@@ -7,6 +7,7 @@ import { CENTRAL_OFFICES } from "../../nobility/data/titleTable";
 import { getRegimentCommander } from "../../nobility/generators/officerAssignment";
 import { getRulerId } from "../../nobility/nobilityContext";
 import { getRegimentMilitaryUpkeep, getStateMilitaryUpkeep } from "./militaryLogistics";
+import { applyWarFootingToBaseline, updateMilitaryMobilizationBoost } from "./warFooting";
 
 export interface DepartmentBaselineAllocation {
   marshalcy: number;
@@ -516,7 +517,9 @@ export function clearTreasuryAllocationSnapshots(): void {
  */
 export function allocateTreasury(state: State, domesticIncome: number): TreasuryAllocationBreakdown {
   const income = Math.max(0, domesticIncome);
-  const baseline = getDepartmentBaselineAllocation(state);
+  const rawBaseline = getDepartmentBaselineAllocation(state);
+  // PR-6: war footing reweights department shares before any cash moves.
+  const baseline = applyWarFootingToBaseline(rawBaseline, state);
 
   const marshalcyBudget = rn(income * baseline.marshalcy * getMilitaryStructuralMultiplier(state), 2);
   const need = getStateMilitaryUpkeep(state);
@@ -524,9 +527,11 @@ export function allocateTreasury(state: State, domesticIncome: number): Treasury
 
   state.militaryFundingRatio = fundingRatio;
   updateMilitaryDiscontent(state, fundingRatio);
+  updateMilitaryMobilizationBoost(state, fundingRatio);
 
-  const householdNominal = getHouseholdNominalBudget(state, income);
-  const householdPurseCredit = creditHouseholdPurse(state, income);
+  // Household nominal uses war-footing-adjusted household share (not peacetime table alone).
+  const householdNominal = rn(income * baseline.household, 2);
+  const householdPurseCredit = creditHouseholdPurseFromNominal(state, householdNominal);
   const household = payRulerHouseholdStipend(state, income);
 
   const chancery = rn(income * baseline.chancery, 2);
@@ -562,4 +567,18 @@ export function allocateTreasury(state: State, domesticIncome: number): Treasury
   if (state.i) _snapshotByState.set(state.i, { stateId: state.i, domesticIncome: income, ...breakdown });
 
   return breakdown;
+}
+
+/**
+ * Credit L1 from L2 using an already-resolved nominal household amount (war-footing-adjusted).
+ * Mirrors creditHouseholdPurse but without re-reading peacetime form %.
+ */
+function creditHouseholdPurseFromNominal(state: State, desired: number): number {
+  if (!(desired > 0)) return 0;
+  const available = state.treasury || 0;
+  const moved = rn(Math.min(desired, available), 2);
+  if (!(moved > 0)) return 0;
+  state.treasury = rn(available - moved, 2);
+  state.householdPurse = rn((state.householdPurse || 0) + moved, 2);
+  return moved;
 }

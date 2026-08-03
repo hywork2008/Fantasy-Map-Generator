@@ -7,6 +7,7 @@ import { payGuildStipends, payMarketStipends, payProvinceLordStipends } from "./
 import { Markets } from "./markets-generator";
 import type { Deal } from "./marketTypes";
 import { getStateMilitaryUpkeep } from "./militaryLogistics";
+import { applyFormRevenueMix } from "./revenueMix";
 import { allocateTreasury, payMilitaryUpkeep } from "./treasuryAllocation";
 
 type TaxBases = { salesTax: number; pollTax: number };
@@ -98,11 +99,14 @@ export class TaxesModule {
       // completely (less unrecorded evasion) — docs/plan/knowledge-guild-system.md §9 Phase 3.
       const administrationBonus = getAcademyBonus(state.capital ?? 0, "administration");
       const pollTaxRevenue = (state.pollTax || 0) * population * administrationBonus;
-      const domesticIncome = pollTaxRevenue + voyageIncome;
+      const rawDomesticIncome = pollTaxRevenue + voyageIncome;
       // Credit L2 first so multi-ledger household purse (L2→L1) can draw this cycle's revenue.
-      state.treasury = rn((state.treasury || 0) + domesticIncome, 2);
+      state.treasury = rn((state.treasury || 0) + rawDomesticIncome, 2);
+      // PR-6 form revenue mix: wartime Monarchy subsidy, Theocracy tithe, Anarchy plunder share.
+      const mix = applyFormRevenueMix(state, rawDomesticIncome);
       // Field commanders cash-settle inside allocateTreasury (L3a.marshalcy → L2, PR-5).
-      allocateTreasury(state, domesticIncome);
+      // War footing reweights department shares (PR-6) when state.warFooting is set.
+      allocateTreasury(state, mix.adjustedDomesticIncome);
       // Troop upkeep: L3a.marshalcy first, then L2 remainder (multi-ledger PR-5). Need is
       // recomputed here so it matches the same military snapshot collectTaxes already used.
       payMilitaryUpkeep(state, militaryUpkeep);
