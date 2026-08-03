@@ -384,8 +384,9 @@ export interface State {
   householdPurse?: number;
   /**
    * L3a department spendable balances (marshalcy…ecclesiastica). Credited each cycle from the
-   * form's nominal department shares; office personal stipends draw from here. Vacant offices
-   * leave balances parked. docs/plan/multi-ledger-fiscal-architecture.md PR-3.
+   * form's nominal department shares; office personal stipends draw from here. Military troop
+   * upkeep and field-commander pay prefer L3a.marshalcy before L2 (PR-5). Vacant offices leave
+   * balances parked. docs/plan/multi-ledger-fiscal-architecture.md PR-3/PR-5.
    */
   departmentBalances?: {
     marshalcy: number;

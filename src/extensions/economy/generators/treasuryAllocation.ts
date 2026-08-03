@@ -373,14 +373,57 @@ export function getFieldCommanderStipend(regiment: Pick<MilitaryRegiment, "u">):
 }
 
 /**
+ * Multi-ledger PR-5 — draw institutional military cash from L3a.marshalcy first, then L2 public
+ * treasury. Used for troop upkeep and field-commander personal pay so those costs still settle
+ * after PR-3 parks most of the cycle's revenue in department balances (which left L2 too thin
+ * for a pure-L2 deduct).
+ */
+export interface MarshalcySpendResult {
+  fromMarshalcy: number;
+  fromTreasury: number;
+  paid: number;
+}
+
+export function drawFromMarshalcyThenTreasury(state: State, amount: number): MarshalcySpendResult {
+  const desired = Math.max(0, amount);
+  if (!(desired > 0)) return { fromMarshalcy: 0, fromTreasury: 0, paid: 0 };
+
+  const balances = ensureDepartmentBalances(state);
+  const marshalcyAvail = Math.max(0, balances.marshalcy || 0);
+  const fromMarshalcy = rn(Math.min(desired, marshalcyAvail), 2);
+  if (fromMarshalcy > 0) {
+    balances.marshalcy = rn(marshalcyAvail - fromMarshalcy, 2);
+  }
+
+  const remaining = rn(desired - fromMarshalcy, 2);
+  const treasuryAvail = Math.max(0, state.treasury || 0);
+  const fromTreasury = rn(Math.min(remaining, treasuryAvail), 2);
+  if (fromTreasury > 0) {
+    state.treasury = rn(treasuryAvail - fromTreasury, 2);
+  }
+
+  return { fromMarshalcy, fromTreasury, paid: rn(fromMarshalcy + fromTreasury, 2) };
+}
+
+/**
+ * Deduct this cycle's military troop upkeep (getStateMilitaryUpkeep Need) from L3a.marshalcy
+ * first, then L2. Returns how much was actually paid (may be less than Need if both purses empty).
+ * Multi-ledger PR-5; called from collectTaxes after allocateTreasury.
+ */
+export function payMilitaryUpkeep(state: State, need?: number): MarshalcySpendResult & { need: number } {
+  const upkeepNeed = need ?? getStateMilitaryUpkeep(state);
+  const result = drawFromMarshalcyThenTreasury(state, upkeepNeed);
+  return { need: upkeepNeed, ...result };
+}
+
+/**
  * Pays each living field/fleet officer (Commander/Admiral) commanding one of `state.military`'s
  * non-capital-guard regiments a stipend off that regiment's own upkeep cost (see
- * FIELD_COMMANDER_STIPEND_RATE / FLOOR). Returns the total actually paid — a real deduction from
- * state.treasury, folded into TreasuryAllocationBreakdown.fieldCommanderStipendsPaid alongside
- * officeStipendsPaid. A regiment with no dedicated officer yet (assignOfficers() only sparsely
- * assigns them) or a dead one simply pays nothing for that regiment.
+ * FIELD_COMMANDER_STIPEND_RATE / FLOOR). Cash is drawn L3a.marshalcy → L2 (PR-5); payment is
+ * cash-limited so commanders are not paid from thin air when both purses are empty. Returns the
+ * total actually paid. A regiment with no dedicated officer yet or a dead one pays nothing.
  */
-export function payFieldCommanderStipends(state: Pick<State, "i" | "military">): number {
+export function payFieldCommanderStipends(state: State): number {
   if (!state.i || !hasCharactersContext()) return 0;
   const characters = getCharacters();
 
@@ -394,8 +437,11 @@ export function payFieldCommanderStipends(state: Pick<State, "i" | "military">):
     const amount = getFieldCommanderStipend(regiment);
     if (!(amount > 0)) continue;
 
-    commander.wealth = rn((commander.wealth || 0) + amount, 2);
-    totalPaid = rn(totalPaid + amount, 2);
+    const { paid } = drawFromMarshalcyThenTreasury(state, amount);
+    if (!(paid > 0)) continue;
+
+    commander.wealth = rn((commander.wealth || 0) + paid, 2);
+    totalPaid = rn(totalPaid + paid, 2);
   }
   return totalPaid;
 }
@@ -432,7 +478,10 @@ export interface TreasuryAllocationBreakdown {
    * Vacant offices contribute 0; their L3a share stays parked.
    */
   officeStipendsPaid: number;
-  /** Real L2 deduction — field/fleet officer command-pay this cycle (still paid from public treasury). */
+  /**
+   * Field/fleet officer command-pay this cycle, drawn L3a.marshalcy → L2 (PR-5). Cash-limited;
+   * may be less than the uncapped stipend sum when both purses are empty.
+   */
   fieldCommanderStipendsPaid: number;
 }
 
@@ -456,13 +505,14 @@ export function clearTreasuryAllocationSnapshots(): void {
 }
 
 /**
- * §7 item 3 + multi-ledger PR-2/PR-3 — department breakdown, funding ratio, household L2→L1,
- * department L2→L3a, personal stipends from L1/L3a, field commanders from L2.
+ * §7 item 3 + multi-ledger PR-2/PR-3/PR-5 — department breakdown, funding ratio, household L2→L1,
+ * department L2→L3a, personal stipends from L1/L3a, field commanders from marshalcy→L2.
  * Caller must have already added this cycle's domestic income to `state.treasury`.
  *
- * L2 deductions applied here: householdPurseCredit, departmentBalancesCredit.
- * L2 deductions applied by collectTaxes from the return value: fieldCommanderStipendsPaid
- * (plus military upkeep / procurement). Office personal pay is L3a→L0, not an L2 line.
+ * L2 deductions applied here: householdPurseCredit, departmentBalancesCredit, and any
+ * field-commander remainder that marshalcy could not cover.
+ * Military troop upkeep is paid after this call via payMilitaryUpkeep() in collectTaxes
+ * (also marshalcy→L2). Procurement expense remains an L2-only line in collectTaxes.
  */
 export function allocateTreasury(state: State, domesticIncome: number): TreasuryAllocationBreakdown {
   const income = Math.max(0, domesticIncome);

@@ -281,5 +281,28 @@ describe("TaxesModule", () => {
       expect(state1.householdPurse).toBe(10);
       expect(state1.treasury).toBe(0);
     });
+
+    it("pays military troop upkeep from L3a.marshalcy even when L2 is empty after department credit (PR-5)", () => {
+      // Republic HH 5% / marshalcy 30% of income. Infantry 100 heads → Need 12.
+      const state1: State = {
+        i: 1,
+        form: "Republic",
+        salesTax: 0,
+        pollTax: 1,
+        rural: 100,
+        urban: 0,
+        military: [{ state: 1, u: { Infantry: 100 } }]
+      } as unknown as State;
+      worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
+      worldContext.pack.burgs = [];
+      setDeals([]);
+
+      taxesModule.collectTaxes();
+
+      // income 100 → HH 5, depts 95 of which marshalcy 30; then upkeep 12 from marshalcy
+      expect(state1.householdPurse).toBe(5);
+      expect(state1.treasury).toBe(0);
+      expect(state1.departmentBalances?.marshalcy).toBe(18); // 30 - 12
+    });
   });
 });

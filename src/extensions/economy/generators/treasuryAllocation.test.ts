@@ -11,6 +11,8 @@ import {
   CENTRAL_OFFICE_STIPEND_CAP,
   CENTRAL_OFFICE_STIPEND_FLOOR,
   clearTreasuryAllocationSnapshots,
+  drawFromMarshalcyThenTreasury,
+  ensureDepartmentBalances,
   FIELD_COMMANDER_STIPEND_CAP,
   FIELD_COMMANDER_STIPEND_FLOOR,
   getCentralOfficePersonalStipend,
@@ -21,6 +23,7 @@ import {
   getRulerHouseholdStipend,
   getTreasuryAllocationSnapshots,
   HOUSEHOLD_STIPEND_CAP,
+  payMilitaryUpkeep,
   payRulerHouseholdStipend
 } from "./treasuryAllocation";
 
@@ -438,7 +441,7 @@ describe("treasuryAllocation", () => {
       worldContext.pack = { states: [], characters: [] } as unknown as PackedGraph;
     });
 
-    it("pays a regiment's living commander a share of that regiment's own upkeep", () => {
+    it("pays a regiment's living commander a share of that regiment's own upkeep from L3a.marshalcy", () => {
       const commander = makeRuler({
         i: 20,
         titles: [{ title: "Commander", landed: false, entityType: "state", entityId: 1 }]
@@ -447,6 +450,7 @@ describe("treasuryAllocation", () => {
         i: 1,
         form: "Monarchy",
         diplomacy: [],
+        treasury: 1000,
         military: [{ state: 1, commanderId: 20, u: { Infantry: 100 } }]
       } as unknown as State;
       worldContext.pack.characters = [commander];
@@ -457,6 +461,9 @@ describe("treasuryAllocation", () => {
       expect(allocation.fieldCommanderStipendsPaid).toBe(FIELD_COMMANDER_STIPEND_CAP);
       expect(commander.wealth).toBe(FIELD_COMMANDER_STIPEND_CAP);
       expect(getFieldCommanderStipend({ u: { Infantry: 100 } })).toBe(FIELD_COMMANDER_STIPEND_CAP);
+      // No Marshal office holder → full marshalcy credit 350, then field pay 1.5 from L3a
+      expect(state.departmentBalances?.marshalcy).toBe(rn(350 - FIELD_COMMANDER_STIPEND_CAP, 2));
+      expect(state.treasury).toBe(0);
     });
 
     it("applies the personal-pay floor when regiment upkeep would yield copper scraps", () => {
@@ -469,6 +476,7 @@ describe("treasuryAllocation", () => {
         i: 1,
         form: "Monarchy",
         diplomacy: [],
+        treasury: 1000,
         military: [{ state: 1, commanderId: 22, u: { Infantry: 1 } }]
       } as unknown as State;
       worldContext.pack.characters = [commander];
@@ -477,6 +485,7 @@ describe("treasuryAllocation", () => {
 
       expect(allocation.fieldCommanderStipendsPaid).toBe(FIELD_COMMANDER_STIPEND_FLOOR);
       expect(commander.wealth).toBe(FIELD_COMMANDER_STIPEND_FLOOR);
+      expect(state.departmentBalances?.marshalcy).toBe(rn(350 - FIELD_COMMANDER_STIPEND_FLOOR, 2));
     });
 
     it("never pays the capital guard's commander (already paid as Marshal via officeStipendsPaid)", () => {
@@ -504,6 +513,7 @@ describe("treasuryAllocation", () => {
         i: 1,
         form: "Monarchy",
         diplomacy: [],
+        treasury: 1000,
         military: [{ state: 1, u: { Infantry: 100 } }]
       } as unknown as State;
       worldContext.pack.characters = [];
@@ -511,6 +521,125 @@ describe("treasuryAllocation", () => {
       const allocation = allocateTreasury(state, 1000);
 
       expect(allocation.fieldCommanderStipendsPaid).toBe(0);
+    });
+
+    it("pays nothing when both marshalcy and public treasury are empty", () => {
+      const commander = makeRuler({
+        i: 23,
+        titles: [{ title: "Commander", landed: false, entityType: "state", entityId: 1 }]
+      });
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        diplomacy: [],
+        treasury: 0,
+        military: [{ state: 1, commanderId: 23, u: { Infantry: 100 } }]
+      } as unknown as State;
+      worldContext.pack.characters = [commander];
+
+      // income 0 → no L2 credit path; empty purses
+      const allocation = allocateTreasury(state, 0);
+
+      expect(allocation.fieldCommanderStipendsPaid).toBe(0);
+      expect(commander.wealth).toBe(0);
+    });
+  });
+
+  describe("drawFromMarshalcyThenTreasury() / payMilitaryUpkeep() (PR-5)", () => {
+    it("draws from L3a.marshalcy before touching L2 public treasury", () => {
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        treasury: 40,
+        departmentBalances: { marshalcy: 100, chancery: 0, stewardship: 0, spymastery: 0, ecclesiastica: 0 }
+      } as unknown as State;
+
+      const result = drawFromMarshalcyThenTreasury(state, 70);
+
+      expect(result).toEqual({ fromMarshalcy: 70, fromTreasury: 0, paid: 70 });
+      expect(state.departmentBalances?.marshalcy).toBe(30);
+      expect(state.treasury).toBe(40);
+    });
+
+    it("spills the remainder onto L2 when marshalcy is short", () => {
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        treasury: 50,
+        departmentBalances: { marshalcy: 20, chancery: 0, stewardship: 0, spymastery: 0, ecclesiastica: 0 }
+      } as unknown as State;
+
+      const result = drawFromMarshalcyThenTreasury(state, 60);
+
+      expect(result).toEqual({ fromMarshalcy: 20, fromTreasury: 40, paid: 60 });
+      expect(state.departmentBalances?.marshalcy).toBe(0);
+      expect(state.treasury).toBe(10);
+    });
+
+    it("pays only what both purses can cover (no debt, no free money)", () => {
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        treasury: 5,
+        departmentBalances: { marshalcy: 10, chancery: 0, stewardship: 0, spymastery: 0, ecclesiastica: 0 }
+      } as unknown as State;
+
+      const result = drawFromMarshalcyThenTreasury(state, 100);
+
+      expect(result).toEqual({ fromMarshalcy: 10, fromTreasury: 5, paid: 15 });
+      expect(state.departmentBalances?.marshalcy).toBe(0);
+      expect(state.treasury).toBe(0);
+    });
+
+    it("payMilitaryUpkeep settles troop Need from marshalcy first", () => {
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        treasury: 0,
+        departmentBalances: { marshalcy: 200, chancery: 0, stewardship: 0, spymastery: 0, ecclesiastica: 0 }
+      } as unknown as State;
+      // Pass Need explicitly so this unit test does not depend on militaryLogistics worldContext.
+      const result = payMilitaryUpkeep(state, 12);
+
+      expect(result.need).toBe(12);
+      expect(result.paid).toBe(12);
+      expect(result.fromMarshalcy).toBe(12);
+      expect(result.fromTreasury).toBe(0);
+      expect(state.departmentBalances?.marshalcy).toBe(188);
+      expect(state.treasury).toBe(0);
+    });
+
+    it("leaves other department balances untouched when paying military costs", () => {
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        treasury: 0,
+        departmentBalances: {
+          marshalcy: 5,
+          chancery: 99,
+          stewardship: 40,
+          spymastery: 10,
+          ecclesiastica: 7
+        }
+      } as unknown as State;
+
+      drawFromMarshalcyThenTreasury(state, 5);
+
+      expect(state.departmentBalances?.chancery).toBe(99);
+      expect(state.departmentBalances?.stewardship).toBe(40);
+      expect(state.departmentBalances?.spymastery).toBe(10);
+      expect(state.departmentBalances?.ecclesiastica).toBe(7);
+      expect(state.departmentBalances?.marshalcy).toBe(0);
+    });
+
+    it("creates departmentBalances if missing when drawing", () => {
+      const state = { i: 1, form: "Monarchy", treasury: 25 } as unknown as State;
+
+      const result = drawFromMarshalcyThenTreasury(state, 10);
+
+      expect(result).toEqual({ fromMarshalcy: 0, fromTreasury: 10, paid: 10 });
+      expect(ensureDepartmentBalances(state).marshalcy).toBe(0);
+      expect(state.treasury).toBe(15);
     });
   });
 

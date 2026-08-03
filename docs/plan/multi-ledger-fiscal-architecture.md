@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計案。PR-1〜PR-4 実装済み** — 多層台帳 + `getFiscalAuthorityView` と形態ゲート付き支出フック（家政引出・公金押収・領支出）。軍事 upkeep の L3a 優先は PR-5。
+**設計案。PR-1〜PR-5 実装済み** — 多層台帳 + 形態ゲート付き支出フック + 軍事 upkeep / 野戦指揮官給の L3a.marshalcy → L2 優先控除。
 
 史実対照 [polity-fiscal-regimes-historical.md](../analytics/polity-fiscal-regimes-historical.md) の結論「豊かさの本体はどの名義の金庫を誰が使えるか」を、現行の単一 `state.treasury` + `Character.wealth` モデルへ段階実装するための仕様と PR 計画。
 
@@ -69,8 +69,8 @@ L3b burg.treasury / (将来 province)  領・都市の運転資金（領主の�
 | :--- | :--- | :--- | :--- | :--- |
 | **L0 Personal** | 個人 | 俸給、小遣い、贈与、取引 | 生活費 sink、個人贈与、PC 市場 | その Character |
 | **L1 Household** | 王冠家政 | 歳入の household 配分、L2 からの合法振替 | 宮廷維持、威信、一部贈賄、限定的私的政策 | 在位為政者（形態で制約） |
-| **L2 Treasury** | 公金 | poll/sales/voyage、属国貢納、余剰 | 軍事 upkeep、調達、部門 replenish、属国補助 | 形態依存の権限モデル（§5） |
-| **L3a Department** | 官職・部局 | L2 からの配分振替 | 部門固有の将来効果（外交/行政/諜報/教会） | 対応中央官職（空席時は L2 に滞留） |
+| **L2 Treasury** | 公金 | poll/sales/voyage、属国貢納、余剰 | 軍事 upkeep 不足分、調達、部門 replenish、属国補助 | 形態依存の権限モデル（§5） |
+| **L3a Department** | 官職・部局 | L2 からの配分振替 | 官職個人給；**marshalcy は軍事 upkeep / 野戦指揮官給を優先**（PR-5）；他部門は将来効果 | 対応中央官職（空席時は残高滞留） |
 | **L3b Domain** | 都市・領 | 生産・市税シェア、ギルド還流 | 都市事業、領主政策、固定領主俸給 | 領主 / 市長（将来）/ 中央直轄時は L2 |
 
 ### 3.3 個人 wealth（L0）の位置づけ（再確認）
@@ -382,7 +382,7 @@ Lord personal: ZZZ
 - ✅ L2→L3a 振替（名目部門シェア、L2 不足時 pro-rata）  
 - ✅ 官職個人給は L3a→L0；空席は L3a に滞留  
 - ✅ Overview **Depts bal** 列  
-- 軍事 upkeep はまだ L2 から  
+- ✅ 軍事 upkeep / 野戦指揮官給は L3a.marshalcy → L2（PR-5）  
 
 **完了条件**: 「部門に割り当てられたお金」が残高として存在する。
 
@@ -395,11 +395,12 @@ Lord personal: ZZZ
 - ✅ Player Character HUD: Spendable 表示 + 3 ボタン  
 
 
-### PR-5 — Marshalcy 支払いを L3a 優先、形態ポリシー
+### PR-5 — Marshalcy 支払いを L3a 優先、形態ポリシー ✅
 
-- upkeep を L3a.marshalcy → L2 の順  
-- Anarchy の L0↔L2 近接  
-- Union 分担の薄いフック（既存 tribute 可視化＋任意）
+- ✅ `drawFromMarshalcyThenTreasury` / `payMilitaryUpkeep`  
+- ✅ 軍事 upkeep: L3a.marshalcy → L2（`collectTaxes`）  
+- ✅ 野戦指揮官個人給: 同順で現金制約付き（薄い L2 からの無償印刷を廃止）  
+- 形態ポリシー薄いフック（Anarchy 押収は PR-4、Union 分担は既存 tribute 可視化）— 追加拡張は PR-6 以降
 
 ### PR-6 以降（本設計の外縁）
 

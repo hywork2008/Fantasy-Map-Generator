@@ -7,7 +7,7 @@ import { payGuildStipends, payMarketStipends, payProvinceLordStipends } from "./
 import { Markets } from "./markets-generator";
 import type { Deal } from "./marketTypes";
 import { getStateMilitaryUpkeep } from "./militaryLogistics";
-import { allocateTreasury } from "./treasuryAllocation";
+import { allocateTreasury, payMilitaryUpkeep } from "./treasuryAllocation";
 
 type TaxBases = { salesTax: number; pollTax: number };
 
@@ -101,16 +101,15 @@ export class TaxesModule {
       const domesticIncome = pollTaxRevenue + voyageIncome;
       // Credit L2 first so multi-ledger household purse (L2→L1) can draw this cycle's revenue.
       state.treasury = rn((state.treasury || 0) + domesticIncome, 2);
-      const allocation = allocateTreasury(state, domesticIncome);
-      // householdPurseCredit + departmentBalancesCredit already left L2 inside allocateTreasury.
-      // Office personal pay is L3a→L0. Field commanders + military upkeep still hit L2.
-      state.treasury = rn(
-        Math.max(
-          0,
-          (state.treasury || 0) - procurementExpense - militaryUpkeep - allocation.fieldCommanderStipendsPaid
-        ),
-        2
-      );
+      // Field commanders cash-settle inside allocateTreasury (L3a.marshalcy → L2, PR-5).
+      allocateTreasury(state, domesticIncome);
+      // Troop upkeep: L3a.marshalcy first, then L2 remainder (multi-ledger PR-5). Need is
+      // recomputed here so it matches the same military snapshot collectTaxes already used.
+      payMilitaryUpkeep(state, militaryUpkeep);
+      // Strategic procurement stays an L2-only expense for now (not a marshalcy institutional line).
+      if (procurementExpense > 0) {
+        state.treasury = rn(Math.max(0, (state.treasury || 0) - procurementExpense), 2);
+      }
 
       // Province lords are paid from their own seated Burg's treasury, not state.treasury
       // (docs/plan/state-treasury-department-budget.md §7 item 7) — no deduction here.
