@@ -59,10 +59,12 @@ Markers / notes: keep rarity ≥ 3 only (unchanged).
 - [x] Selecting highFantasy / darkFantasy applies `initialSettlementPattern = frontier` (unless locked)  
 - [ ] Options UI labels for “Fantasy threat profile” (optional follow-up)
 
-### Phase 2 — Expand respects danger
+### Phase 2 — Expand respects danger ✅
 
-- State expand / flood: add danger to cost; **forbid** expand when `danger >= banThreshold` (e.g. 80–100).  
-- Prefer short corridors around settlement foundation clusters.
+- [x] `dangerExpandPolicy.ts`: ban at danger ≥ **80**; cost `danger × 30` below ban  
+- [x] `States.expandStates` (standard flood-fill) skips banned cells and pays danger cost  
+- [x] `assignInitialPolities` does not paint banned cells (routes / regions / pocket fill)  
+- [x] Frontier outpost eligibility max danger aligned to ban − 1 (was 120)
 
 ### Phase 3 — Wild land tags
 

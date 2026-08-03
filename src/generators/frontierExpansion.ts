@@ -8,6 +8,7 @@ import {
 import type { WorldContext } from "../context/worldContext";
 import type { DataTopic } from "../runtime/worldRuntime";
 import type { RNGService } from "../utils/probabilityUtils";
+import { FRONTIER_OUTPOST_MAX_DANGER } from "./dangerExpandPolicy";
 import { assessFrontierSupport, getFrontierGovernance, statusForProject } from "./frontierGovernance";
 import { incorporateEligibleFrontierSettlements } from "./frontierIncorporation";
 
@@ -17,7 +18,7 @@ const TREASURY_RESERVE = 12;
 const MIN_COLONISTS = 0.5;
 const MIN_OUTPOST_CAPACITY = 2;
 const SETTLEMENT_SUPPORT_YEARS = 3;
-const MAX_OUTPOST_DANGER = 120;
+const MAX_OUTPOST_DANGER = FRONTIER_OUTPOST_MAX_DANGER;
 const SETUP_FOOD = 4;
 const MAX_FRONTIER_HOPS = 6;
 const SOURCE_RETENTION_RATIO = 0.65;

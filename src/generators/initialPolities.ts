@@ -1,6 +1,7 @@
 import FlatQueue from "flatqueue";
 import type { Burg, State } from "../types/models";
 import type { SettlementFoundationPlan, SettlementNode } from "../types/settlementFoundation";
+import { canStateClaimCell } from "./dangerExpandPolicy";
 
 type NumberColumn = ArrayLike<number> & { [index: number]: number; fill(value: number): unknown };
 
@@ -12,6 +13,8 @@ export interface InitialPolityCells {
   readonly burg: ArrayLike<number>;
   readonly routes: Readonly<Record<number, Readonly<Record<number, number>>>>;
   readonly p: readonly (readonly [number, number])[];
+  /** Optional danger field — high danger cells are not claimed as state territory. */
+  readonly danger?: ArrayLike<number>;
   state: NumberColumn;
 }
 
@@ -37,7 +40,11 @@ export function assignInitialPolities({ plan, cells, burgs, states }: InitialPol
   }
 
   for (const [cellId, stateId] of stateAtRouteCell) {
-    if (cells.h[cellId] >= 20 && !lockedStateAtCell[cellId]) cells.state[cellId] = stateId;
+    if (cells.h[cellId] < 20 || lockedStateAtCell[cellId]) continue;
+    // Capitals / burgs stay claimed even if danger is high; pure wilderness cores stay out.
+    const forceCore = !!cells.burg[cellId] || cells.pop[cellId] > 0;
+    if (!forceCore && !canStateClaimCell(cells.danger?.[cellId])) continue;
+    cells.state[cellId] = stateId;
   }
 
   // Regions are the compact service areas selected by Phase 1. Their local
@@ -48,6 +55,8 @@ export function assignInitialPolities({ plan, cells, burgs, states }: InitialPol
     if (!servedNodes.length) continue;
     for (const cellId of region.cells) {
       if (cells.h[cellId] < 20 || lockedStateAtCell[cellId]) continue;
+      const forceCore = !!cells.burg[cellId] || cells.pop[cellId] > 0;
+      if (!forceCore && !canStateClaimCell(cells.danger?.[cellId])) continue;
       const owner = nearestNodeOwner(cellId, regionNodes, stateAtRouteCell, cells.p);
       if (owner) cells.state[cellId] = owner;
     }
@@ -234,6 +243,7 @@ function fillEnclosedUnclaimedLand(cells: InitialPolityCells): void {
   const checked = new Uint8Array(cells.i.length);
   for (const start of Array.from(cells.i)) {
     if (checked[start] || cells.state[start] || cells.h[start] < 20) continue;
+    if (!canStateClaimCell(cells.danger?.[start])) continue;
     const pocket: number[] = [];
     const owners = new Set<number>();
     const queue = [start];
@@ -244,6 +254,10 @@ function fillEnclosedUnclaimedLand(cells: InitialPolityCells): void {
       if (cellId === undefined) continue;
       if (cells.pop[cellId] > 0 || cells.burg[cellId]) {
         hasOpenBoundary = true;
+        continue;
+      }
+      if (!canStateClaimCell(cells.danger?.[cellId])) {
+        hasOpenBoundary = true; // danger core keeps the pocket open to wilderness
         continue;
       }
       pocket.push(cellId);
