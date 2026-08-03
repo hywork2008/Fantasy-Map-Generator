@@ -115,6 +115,8 @@ export const TreasuryOverviewDialog: React.FC = () => {
             <col />
             <col />
             <col />
+            <col />
+            <col />
           </colgroup>
           <thead className="header">
             <tr>
@@ -266,7 +268,24 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Anonymous credit pool (PR-9 moneylender v0) — funds debt issues; receives interest, repayments, tax-farm share"
+                tip="Credit pool (PR-9) — funds debt issues; interest/repay/tax-farm feed it; PR-10 named syndicate skims a personal share"
+              />
+              <SortableHeader
+                field="primaryMoneylenderName"
+                label="Banker"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                tip="Primary named moneylender (capital market manager or top rival) — PR-10"
+              />
+              <SortableHeader
+                field="debtInterestRate"
+                label="Rate"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="Effective monthly interest on public debt (form × greed × assembly support) — PR-10"
               />
               <SortableHeader
                 field="councilSupport"
@@ -327,7 +346,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={23}>
+                <td colSpan={25}>
                   <span>No state has an allocated treasury yet — run a generation cycle first</span>
                 </td>
               </tr>
@@ -364,6 +383,10 @@ const TreasuryRow: React.FC<{ row: TreasuryOverviewRow }> = ({ row }) => (
     <td>{row.militaryMobilizationBoost > 0 ? row.militaryMobilizationBoost.toFixed(3) : "—"}</td>
     <td data-tip="Public debt principal">{row.publicDebt > 0 ? row.publicDebt.toFixed(2) : "—"}</td>
     <td data-tip="Credit pool (moneylenders)">{row.creditPoolBalance > 0 ? row.creditPoolBalance.toFixed(2) : "—"}</td>
+    <td data-tip="Primary moneylender">{row.primaryMoneylenderName || "—"}</td>
+    <td data-tip="Debt interest rate">
+      {row.debtInterestRate > 0 ? `${(row.debtInterestRate * 100).toFixed(2)}%` : "—"}
+    </td>
     <td data-tip="Assembly support">{row.councilSupport > 0 ? row.councilSupport.toFixed(0) : "—"}</td>
     <td data-tip="Last tax-farm leak">{row.lastTaxFarmLeak > 0 ? row.lastTaxFarmLeak.toFixed(2) : "—"}</td>
     <td>{row.chancery.toFixed(2)}</td>

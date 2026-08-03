@@ -5,13 +5,13 @@ import { getMarkets, getWorldContext } from "../economyContext";
 import type { Market } from "./marketTypes";
 
 /**
- * Multi-ledger PR-9 — anonymous credit pool (moneylender v0).
+ * Multi-ledger PR-9/PR-10 — anonymous credit pool (institutional stock).
  *
- * Public debt is no longer "cash from nowhere": issue draws from `state.creditPoolBalance`,
- * interest and principal repayments return to the pool, and tax-farm skims feed it.
- * Named banker characters are deferred; optional thin skim to capital market managers.
+ * Public debt issues draw from `state.creditPoolBalance`. Named syndicate personal cuts are
+ * applied by callers via moneylenders.splitCreditorPayout before/alongside payToCreditPool
+ * (avoids a circular import with moneylenders.ts).
  *
- * docs/plan/multi-ledger-fiscal-architecture.md PR-9
+ * docs/plan/multi-ledger-fiscal-architecture.md PR-9/PR-10
  */
 
 /** Baseline seed when a state first touches the credit market (no market capital yet). */
@@ -119,6 +119,8 @@ export function lendFromCreditPool(state: State, amount: number): CreditPoolLend
 
 /**
  * Pay cash into the credit pool (interest, principal repayment, tax-farm share).
+ * For PR-10 syndicate personal cuts, callers should split first via splitCreditorPayout
+ * and only pass the institutional remainder here.
  */
 export function payToCreditPool(state: State, amount: number): CreditPoolPayResult {
   const pay = Math.max(0, amount);
@@ -126,6 +128,24 @@ export function payToCreditPool(state: State, amount: number): CreditPoolPayResu
   if (!(pay > 0)) return { paid: 0, poolAfter: pool };
   state.creditPoolBalance = rn(pool + pay, 2);
   return { paid: pay, poolAfter: state.creditPoolBalance };
+}
+
+/**
+ * PR-10 helper: split a creditor payment to named lenders, then credit the institutional remainder.
+ */
+export function payCreditorsWithSyndicate(
+  state: State,
+  amount: number,
+  splitFn: (state: State, amount: number) => { toPool: number; toLenders: number }
+): CreditPoolPayResult & { toLenders: number } {
+  const pay = Math.max(0, amount);
+  if (!(pay > 0)) {
+    const pool = ensureCreditPoolSeeded(state);
+    return { paid: 0, poolAfter: pool, toLenders: 0 };
+  }
+  const { toPool, toLenders } = splitFn(state, pay);
+  const result = payToCreditPool(state, toPool);
+  return { paid: pay, poolAfter: result.poolAfter, toLenders };
 }
 
 export interface TaxFarmRouteResult {
@@ -146,6 +166,7 @@ export function routeTaxFarmProceeds(state: State, amount: number): TaxFarmRoute
   const toPool = rn(amount * TAX_FARM_TO_CREDIT_POOL_SHARE, 2);
   let remainder = rn(amount - toPool, 2);
   if (toPool > 0) {
+    // Tax-farm institutional share stays in the pool (managers/rivals get residual below).
     payToCreditPool(state, toPool);
     result.toCreditPool = toPool;
   }

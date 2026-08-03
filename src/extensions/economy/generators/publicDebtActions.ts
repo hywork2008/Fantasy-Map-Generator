@@ -1,8 +1,9 @@
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { canCouncilApproveDebtIssue } from "./councilAssembly";
-import { getCreditPoolBalance, lendFromCreditPool, payToCreditPool } from "./creditPool";
+import { getCreditPoolBalance, lendFromCreditPool, payCreditorsWithSyndicate } from "./creditPool";
 import { PUBLIC_DEBT_CAP, WAR_DEBT_ISSUE_AMOUNT } from "./fiscalEvents";
+import { splitCreditorPayout } from "./moneylenders";
 
 /**
  * Multi-ledger PR-8/PR-9 — ruler-facing public debt issue / repay hooks.
@@ -80,7 +81,7 @@ export function repayPublicDebt(state: State, amount = PUBLIC_DEBT_PLAYER_REPAY_
 
   state.publicDebt = rn(debt - paid, 2);
   state.treasury = rn(cash - paid, 2);
-  payToCreditPool(state, paid);
+  payCreditorsWithSyndicate(state, paid, splitCreditorPayout);
   return {
     ok: true,
     amount: paid,

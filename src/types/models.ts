@@ -454,6 +454,17 @@ export interface State {
    */
   creditPoolBalance?: number;
   /**
+   * PR-10 primary named moneylender (usually capital market manager) for UI / diplomacy hooks.
+   */
+  primaryMoneylenderId?: number;
+  /** Display name of primaryMoneylenderId (last tax-cycle snapshot). */
+  primaryMoneylenderName?: string;
+  /**
+   * PR-10 effective monthly interest rate on publicDebt (greed/form/support scaled).
+   * Written each fiscal cycle; undefined until Economy has run allocate/collectTaxes once.
+   */
+  debtInterestRate?: number;
+  /**
    * PR-8 assembly support snapshot (0–100) from the last tax cycle / support refresh.
    */
   councilSupport?: number;

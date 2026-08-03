@@ -104,13 +104,16 @@ describe("fiscalEvents (PR-7)", () => {
     } as unknown as State;
 
     const result = applyFiscalEvents(state, 0);
-    expect(result.debtInterestPaid).toBe(100 * PUBLIC_DEBT_INTEREST_RATE);
+    // PR-10: rate is form/greed/support scaled — still near the base monthly rate.
+    expect(result.debtInterestPaid).toBeGreaterThan(0);
+    expect(result.debtInterestPaid).toBeLessThanOrEqual(100 * PUBLIC_DEBT_INTEREST_RATE * 1.5);
     // After interest, surplus above WAR_DEBT_CASH_THRESHOLD (5) repays principal.
     expect(state.treasury).toBe(5);
     expect(result.debtRepaid).toBeGreaterThan(0);
     expect(state.publicDebt).toBeLessThan(100);
-    // Interest + repaid principal returned to moneylenders.
+    // Interest + repaid principal returned to moneylenders / pool.
     expect(state.creditPoolBalance).toBeGreaterThan(0);
+    expect(state.debtInterestRate).toBeGreaterThan(0);
   });
 
   it("issues thin war debt from the credit pool when war footing and cash-strapped", () => {

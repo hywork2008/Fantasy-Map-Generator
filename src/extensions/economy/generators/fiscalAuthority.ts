@@ -14,6 +14,7 @@ import {
   normalizeDomainFiscalPolicy,
   resolveDomainBurgForCharacter
 } from "./domainFiscalPolicy";
+import { getPrimaryMoneylenderLabel } from "./moneylenders";
 import {
   issuePublicDebt,
   PUBLIC_DEBT_PLAYER_ISSUE_AMOUNT,
@@ -63,6 +64,10 @@ export interface FiscalAuthorityView {
   publicDebt: number;
   /** PR-9 anonymous credit pool balance (moneylender v0). */
   creditPoolBalance: number;
+  /** PR-10 primary named moneylender label. */
+  primaryMoneylenderName: string;
+  /** PR-10 effective monthly debt interest rate (fraction). */
+  debtInterestRate: number | null;
   /** PR-8 assembly support 0–100. */
   councilSupport: number;
   canIssuePublicDebt: boolean;
@@ -183,6 +188,8 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
   const militaryMobilizationBoost = rn(state.militaryMobilizationBoost || 0, 3);
   const publicDebt = rn(state.publicDebt || 0, 2);
   const creditPoolBalance = peekCreditPoolBalance(state);
+  const primaryMoneylenderName = getPrimaryMoneylenderLabel(state);
+  const debtInterestRate = state.debtInterestRate !== undefined ? rn(state.debtInterestRate, 4) : null;
   const councilSupport =
     state.councilSupport !== undefined ? rn(state.councilSupport, 1) : getCouncilSupport(state).support;
   const canIssuePublicDebt =
@@ -227,7 +234,10 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
   if (publicDebt > 0) {
     notes.push(`Public debt ${publicDebt.toFixed(2)} SP (interest each tax cycle).`);
   }
-  notes.push(`Credit pool ${creditPoolBalance.toFixed(2)} SP (moneylenders).`);
+  notes.push(`Credit pool ${creditPoolBalance.toFixed(2)} SP — led by ${primaryMoneylenderName}.`);
+  if (debtInterestRate != null) {
+    notes.push(`Debt interest ${(debtInterestRate * 100).toFixed(2)}%/cycle.`);
+  }
   notes.push(`Assembly support ${councilSupport}/100.`);
   if (state.councilLastFailed) notes.push("Last wartime assembly vetoed part of revenue.");
   if (domainFiscalPolicy && domainFiscalPolicy !== "balanced") {
@@ -256,6 +266,8 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
     militaryMobilizationBoost,
     publicDebt,
     creditPoolBalance,
+    primaryMoneylenderName,
+    debtInterestRate,
     councilSupport,
     canIssuePublicDebt,
     canRepayPublicDebt,

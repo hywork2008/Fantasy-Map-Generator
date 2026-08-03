@@ -5,6 +5,7 @@ import { rn } from "../../hostUtils";
 import { getRulerId } from "../../nobility/nobilityContext";
 import { getWorldContext } from "../economyContext";
 import { peekCreditPoolBalance } from "../generators/creditPool";
+import { getPrimaryMoneylenderLabel } from "../generators/moneylenders";
 import { getTreasuryAllocationSnapshots, sumDepartmentBalances } from "../generators/treasuryAllocation";
 import { setTreasuryOverviewState, type TreasuryOverviewRow } from "../store/treasuryOverviewState";
 
@@ -61,6 +62,8 @@ export function refreshTreasuryOverview(): void {
       militaryMobilizationBoost: rn(state.militaryMobilizationBoost || 0, 3),
       publicDebt: rn(state.publicDebt || 0, 2),
       creditPoolBalance: peekCreditPoolBalance(state),
+      primaryMoneylenderName: getPrimaryMoneylenderLabel(state),
+      debtInterestRate: rn(state.debtInterestRate || 0, 4),
       councilSupport: rn(state.councilSupport ?? 0, 1),
       lastTaxFarmLeak: rn(state.lastTaxFarmLeak || 0, 2),
       chancery: snapshot.chancery,

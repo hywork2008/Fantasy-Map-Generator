@@ -2,7 +2,8 @@ import { stateHasEnemy } from "../../hostCore";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getCouncilSupport, scaleFailureChanceBySupport, updateCouncilSupportSnapshot } from "./councilAssembly";
-import { lendFromCreditPool, payToCreditPool, routeTaxFarmProceeds } from "./creditPool";
+import { lendFromCreditPool, payCreditorsWithSyndicate, routeTaxFarmProceeds } from "./creditPool";
+import { getStateDebtInterestRate, splitCreditorPayout, updateMoneylenderSnapshot } from "./moneylenders";
 import { isWarFootingActive } from "./warFooting";
 
 /**
@@ -93,6 +94,8 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
 
   // PR-8: refresh assembly support before any veto roll.
   const councilSupport = updateCouncilSupportSnapshot(state);
+  // PR-10: named syndicate + effective interest rate for this cycle.
+  updateMoneylenderSnapshot(state);
 
   // ── Council / assembly consent (wartime / war-footing extraordinary only) ─
   // Peacetime ordinary revenue is not vetoed — keeps the base tax pipe stable.
@@ -126,28 +129,30 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
   }
   state.lastTaxFarmLeak = taxFarmLeak;
 
-  // ── Public debt service (interest + repay → credit pool, PR-9) ──────────
+  // ── Public debt service (interest + repay → credit pool / syndicate, PR-9/10) ──
   const debt = state.publicDebt || 0;
   if (debt > 0) {
-    const interest = rn(debt * PUBLIC_DEBT_INTEREST_RATE, 2);
+    const interestRate = state.debtInterestRate ?? getStateDebtInterestRate(state);
+    const interest = rn(debt * interestRate, 2);
     const cash = state.treasury || 0;
     debtInterestPaid = rn(Math.min(interest, cash), 2);
     if (debtInterestPaid > 0) {
       state.treasury = rn(cash - debtInterestPaid, 2);
-      payToCreditPool(state, debtInterestPaid);
+      // Syndicate split: named moneylenders take a personal cut of interest.
+      payCreditorsWithSyndicate(state, debtInterestPaid, splitCreditorPayout);
     } else if (interest > 0) {
       // Capitalize unpaid interest (pool is not credited until cash is paid).
       state.publicDebt = rn(debt + interest, 2);
     }
 
-    // Repay principal from surplus L2 (keep a small buffer) → credit pool.
+    // Repay principal from surplus L2 (keep a small buffer) → pool + syndicate.
     const surplus = state.treasury || 0;
     if (surplus > WAR_DEBT_CASH_THRESHOLD && (state.publicDebt || 0) > 0) {
       const repay = rn(Math.min(surplus - WAR_DEBT_CASH_THRESHOLD, state.publicDebt || 0), 2);
       if (repay > 0) {
         state.treasury = rn(surplus - repay, 2);
         state.publicDebt = rn((state.publicDebt || 0) - repay, 2);
-        payToCreditPool(state, repay);
+        payCreditorsWithSyndicate(state, repay, splitCreditorPayout);
         debtRepaid = repay;
       }
     }

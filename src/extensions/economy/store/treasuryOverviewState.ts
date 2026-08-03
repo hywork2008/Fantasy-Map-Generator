@@ -43,6 +43,10 @@ export interface TreasuryOverviewRow {
   publicDebt: number;
   /** PR-9 credit pool (moneylender) balance. */
   creditPoolBalance: number;
+  /** PR-10 primary named moneylender. */
+  primaryMoneylenderName: string;
+  /** PR-10 effective interest rate fraction. */
+  debtInterestRate: number;
   /** PR-8 assembly support 0–100. */
   councilSupport: number;
   /** PR-8 last-cycle tax farm leak. */

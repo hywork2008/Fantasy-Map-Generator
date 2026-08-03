@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計案。PR-1〜PR-9 実装済み** — 多層台帳本線 + 公債の相手方（匿名信用プール／金貸し v0）+ 請負の商人層接続。
+**設計案。PR-1〜PR-10 実装済み** — 多層台帳本線 + 信用プール + 名前付き金貸しシンジケート（Market Manager/Rival）。
 
 史実対照 [polity-fiscal-regimes-historical.md](../analytics/polity-fiscal-regimes-historical.md) の結論「豊かさの本体はどの名義の金庫を誰が使えるか」を、現行の単一 `state.treasury` + `Character.wealth` モデルへ段階実装するための仕様と PR 計画。
 
@@ -434,11 +434,19 @@ Lord personal: ZZZ
 - ✅ Treasury Overview **Credit** 列；PC HUD は pool 残高を債務発行 tip に表示  
 - ✅ `fmg:war-footing-change` CustomEvent（動員/復員の薄い政治フック）  
 
-**意図的に薄い点（PR-10+）**: 名前付き金貸しキャラ、金利差、債務不履行イベント、議会の歳出項目別承認。
+### PR-10 — 名前付き金貸しシンジケート / 金利差 ✅
 
-### PR-10 以降（外縁）
+- ✅ `moneylenders.ts`: 首都 Market Manager + Rival をシンジケート化（greed 重み）  
+- ✅ 利子・元本返済の一部が **個人 wealth** へ配分（プールは機関残高として維持）  
+- ✅ 実効金利 = 基本率 × 形態 × greed プレミアム × 議会支持ディスカウント  
+- ✅ `primaryMoneylenderName` / `debtInterestRate` スナップショット  
+- ✅ Treasury Overview: **Banker** / **Rate** 列  
 
-- 名前付き金貸し / 都市銀行家キャラと金利交渉  
+**意図的に薄い点（PR-11+）**: 交渉 UI、債務不履行、専用 banker 役職生成、議会の歳出項目別承認。
+
+### PR-11 以降（外縁）
+
+- 金利交渉 UI / 債務不履行イベント  
 - 議会の勢力票・歳出項目別承認  
 - 領税率の poll 直結と建設キュー UI  
 - War Footing 政治イベントの帰結（不満・クーデター接続）  
