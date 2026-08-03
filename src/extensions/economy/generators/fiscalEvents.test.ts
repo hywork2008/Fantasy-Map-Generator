@@ -84,9 +84,11 @@ describe("fiscalEvents (PR-7)", () => {
     worldContext.pack = { states: [undefined, state], burgs: [undefined, capital] } as unknown as PackedGraph;
 
     const result = applyFiscalEvents(state, 100);
-    expect(result.taxFarmLeak).toBe(TAX_FARM_RATE_BY_FORM.Republic! * 100);
-    expect(state.treasury).toBe(100 - result.taxFarmLeak);
-    expect(capital.treasury).toBe(result.taxFarmLeak);
+    // PR-8: farm rate is lightly scaled by assembly support (Republic base ~48).
+    expect(result.taxFarmLeak).toBeCloseTo(TAX_FARM_RATE_BY_FORM.Republic! * 100, 0);
+    expect(result.taxFarmLeak).toBeGreaterThan(0);
+    expect(state.treasury).toBeCloseTo(100 - result.taxFarmLeak, 5);
+    expect(capital.treasury).toBeCloseTo(result.taxFarmLeak, 5);
   });
 
   it("services public debt interest from L2 and repays surplus principal down to the cash buffer", () => {

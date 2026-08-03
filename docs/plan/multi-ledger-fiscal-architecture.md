@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計案。PR-1〜PR-7 実装済み** — 多層台帳本線 + 歳入イベント薄い差分 + War Footing AI/政治コスト + 領政策 + 公債。
+**設計案。PR-1〜PR-8 実装済み** — 多層台帳本線 + 議会支持 + 公債 UI + 領 levy/工事 + War Footing 性格差 AI。
 
 史実対照 [polity-fiscal-regimes-historical.md](../analytics/polity-fiscal-regimes-historical.md) の結論「豊かさの本体はどの名義の金庫を誰が使えるか」を、現行の単一 `state.treasury` + `Character.wealth` モデルへ段階実装するための仕様と PR 計画。
 
@@ -418,12 +418,20 @@ Lord personal: ZZZ
 - ✅ 為政者 personality（greed→household、boldness→marshalcy）薄い補正  
 - ✅ Treasury Overview: Debt 列  
 
-### PR-8 以降（外縁）
+### PR-8 — 議会支持 / 公債 UI / 領 levy・工事 / WF 性格 AI ✅
 
-- 議会シミュレーションの本格化（勢力票・歳出承認）  
-- 請負・公債の UI とキャリブレーション  
-- 領主 domain 建設キュー / 税率レバー  
-- War Footing の AI 性格差（Boldness で先制動員など）  
+- ✅ `councilAssembly.ts`: 形態ベース + 官職 honor/rationality → `councilSupport`；戦時否決確率を支持でスケール  
+- ✅ `publicDebtActions.ts` + PC HUD **Issue debt / Repay debt**（議会支持ゲート）  
+- ✅ Treasury Overview: **Council** / **Farm** 列  
+- ✅ 領 `domainLevyRate` + fortify **works progress**（100 で walls/citadel）  
+- ✅ War Footing AI: 低 Boldness は戦時でも慎重、高 Boldness は Rival 先制動員  
+
+### PR-9 以降（外縁）
+
+- 議会の勢力票・歳出項目別承認  
+- 請負契約の商人キャラ接続  
+- 領税率の poll 直結と建設キュー UI  
+- War Footing の政治イベント連鎖  
 
 ---
 

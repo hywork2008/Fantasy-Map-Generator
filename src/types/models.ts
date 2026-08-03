@@ -116,6 +116,15 @@ export interface Burg {
    * balanced = default; extract = auto-remit/personal skim; fortify = local works + security.
    */
   domainFiscalPolicy?: "balanced" | "extract" | "fortify";
+  /**
+   * PR-8 domain levy intensity multiplier (default 1). Scales extract remits; lord-adjustable.
+   * Clamped ~0.5–1.5 in domain fiscal policy helpers.
+   */
+  domainLevyRate?: number;
+  /**
+   * PR-8 fortify works progress 0–100. Accumulates under fortify policy; at 100 may raise walls/citadel.
+   */
+  domainWorksProgress?: number;
   /** Public-order score from 0 (unsafe) to 100 (secure). Seeded at 50; no simulation effects yet. */
   security?: number;
   /**
@@ -438,6 +447,18 @@ export interface State {
    * may issue thin war debt when war footing and cash-strapped. Multi-ledger PR-7.
    */
   publicDebt?: number;
+  /**
+   * PR-8 assembly support snapshot (0–100) from the last tax cycle / support refresh.
+   */
+  councilSupport?: number;
+  /** PR-8: whether the last wartime assembly vetoed part of revenue. */
+  councilLastFailed?: boolean;
+  /** PR-8: last cycle tax-farm leak amount (for UI). */
+  lastTaxFarmLeak?: number;
+  /** PR-8: last cycle auto debt issued. */
+  lastDebtIssued?: number;
+  /** PR-8: last cycle debt principal repaid. */
+  lastDebtRepaid?: number;
 
   // ── Manpower / agriculture simulation (docs/plan/military/manpower-ecosystem.md) ──
   /**

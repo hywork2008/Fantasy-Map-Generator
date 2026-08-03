@@ -2,11 +2,13 @@ import { stateHasEnemy } from "../../hostCore";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
+import { getCouncilSupport, scaleFailureChanceBySupport, updateCouncilSupportSnapshot } from "./councilAssembly";
 import { isWarFootingActive } from "./warFooting";
 
 /**
- * Multi-ledger PR-7 — thin fiscal events on top of the multi-ledger pipe:
- * council/assembly consent (income haircut), tax farming leak, public debt service/issue.
+ * Multi-ledger PR-7/PR-8 — thin fiscal events on top of the multi-ledger pipe:
+ * council/assembly consent (income haircut, support-scaled in PR-8), tax farming leak,
+ * public debt service/issue.
  *
  * Deterministic rolls use state id + income so unit tests stay stable without a seeded RNG.
  */
@@ -48,6 +50,10 @@ export interface FiscalEventsResult {
   /** Multiplier applied to domestic income used for allocateTreasury (1 or council failure scale). */
   incomeScale: number;
   councilFailed: boolean;
+  /** PR-8 assembly support snapshot used for this cycle's veto roll (0–100). */
+  councilSupport: number;
+  /** Effective wartime veto chance after support scaling (0–100). */
+  councilFailChance: number;
   taxFarmLeak: number;
   debtInterestPaid: number;
   debtIssued: number;
@@ -85,10 +91,15 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
   let debtIssued = 0;
   let debtRepaid = 0;
 
+  // PR-8: refresh assembly support before any veto roll.
+  const councilSupport = updateCouncilSupportSnapshot(state);
+
   // ── Council / assembly consent (wartime / war-footing extraordinary only) ─
   // Peacetime ordinary revenue is not vetoed — keeps the base tax pipe stable.
+  // PR-8: base form chance is scaled by inverse support (strong assemblies veto less often).
   const wartimeAssembly = isWarFootingActive(state) || stateHasEnemy(state);
-  const failChance = wartimeAssembly ? getCouncilFailureChance(state.form) : 0;
+  const baseFailChance = wartimeAssembly ? getCouncilFailureChance(state.form) : 0;
+  const failChance = scaleFailureChanceBySupport(baseFailChance, councilSupport);
   if (failChance > 0 && income > 0 && fiscalEventRoll(state.i || 0, income) < failChance) {
     councilFailed = true;
     incomeScale = COUNCIL_FAILURE_INCOME_SCALE;
@@ -98,11 +109,15 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
       state.treasury = rn(Math.max(0, (state.treasury || 0) - claw), 2);
     }
   }
+  state.councilLastFailed = councilFailed;
 
   // ── Tax farming leak (contractor profit → capital burg if any) ──────────
+  // PR-8 calibration: high-greed forms already have higher rates; support slightly
+  // reduces farming abuse when assemblies are strong (Republic/Union).
   const farmRate = getTaxFarmRate(state.form);
+  const farmSupportFactor = state.form === "Republic" || state.form === "Union" ? 1 - (councilSupport - 50) / 400 : 1;
   if (farmRate > 0 && income > 0) {
-    const desired = rn(income * farmRate * incomeScale, 2);
+    const desired = rn(income * farmRate * incomeScale * Math.max(0.5, farmSupportFactor), 2);
     const available = state.treasury || 0;
     taxFarmLeak = rn(Math.min(desired, available), 2);
     if (taxFarmLeak > 0) {
@@ -110,6 +125,7 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
       creditTaxFarmToCapital(state, taxFarmLeak);
     }
   }
+  state.lastTaxFarmLeak = taxFarmLeak;
 
   // ── Public debt service ─────────────────────────────────────────────────
   const debt = state.publicDebt || 0;
@@ -137,12 +153,14 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
   }
 
   // ── Thin war debt issue ─────────────────────────────────────────────────
+  // PR-8: still auto-issues when cash-strapped at war, but only if support is not abysmal.
   if (
     isWarFootingActive(state) &&
     stateHasEnemy(state) &&
     (state.form === "Republic" || state.form === "Monarchy") &&
     (state.treasury || 0) <= WAR_DEBT_CASH_THRESHOLD &&
-    (state.publicDebt || 0) < PUBLIC_DEBT_CAP
+    (state.publicDebt || 0) < PUBLIC_DEBT_CAP &&
+    councilSupport >= 30
   ) {
     const room = rn(PUBLIC_DEBT_CAP - (state.publicDebt || 0), 2);
     debtIssued = rn(Math.min(WAR_DEBT_ISSUE_AMOUNT, room), 2);
@@ -152,7 +170,19 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
     }
   }
 
-  return { incomeScale, councilFailed, taxFarmLeak, debtInterestPaid, debtIssued, debtRepaid };
+  state.lastDebtIssued = debtIssued;
+  state.lastDebtRepaid = debtRepaid;
+
+  return {
+    incomeScale,
+    councilFailed,
+    councilSupport,
+    councilFailChance: failChance,
+    taxFarmLeak,
+    debtInterestPaid,
+    debtIssued,
+    debtRepaid
+  };
 }
 
 function creditTaxFarmToCapital(state: State, amount: number): void {

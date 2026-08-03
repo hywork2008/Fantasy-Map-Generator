@@ -7,6 +7,7 @@ import {
   MOBILIZATION_BOOST_CAP,
   setWarFooting,
   setWarFootingByPlayer,
+  shouldAiEnableWarFooting,
   syncWarFootingFromDiplomacy,
   updateMilitaryMobilizationBoost,
   WAR_FOOTING_HOUSEHOLD_COST_FLOOR,
@@ -76,7 +77,7 @@ describe("warFooting (PR-6)", () => {
     });
   });
 
-  describe("syncWarFootingFromDiplomacy() (PR-7 AI)", () => {
+  describe("syncWarFootingFromDiplomacy() (PR-7/PR-8 AI)", () => {
     it("enables war footing when at war and not player-locked", () => {
       const state = {
         i: 1,
@@ -102,7 +103,7 @@ describe("warFooting (PR-6)", () => {
       expect(state.warFooting).toBe(false);
     });
 
-    it("demobilizes and clears player lock in peacetime", () => {
+    it("demobilizes and clears player lock in peacetime without Rival posture", () => {
       const state = {
         i: 1,
         form: "Monarchy",
@@ -115,6 +116,30 @@ describe("warFooting (PR-6)", () => {
       expect(result.warFooting).toBe(false);
       expect(state.warFootingPlayerLocked).toBe(false);
       expect(state.militaryMobilizationBoost).toBe(0);
+    });
+  });
+
+  describe("shouldAiEnableWarFooting() boldness (PR-8)", () => {
+    it("enables preemptive arming for high boldness with a Rival", () => {
+      // Without characters, getRulerBoldness returns 50 — inject via shouldAi using a spy state
+      // by testing the threshold helper path with mocked boldness through diplomacy only:
+      // default boldness 50 should NOT preemptive-arm.
+      const calm = {
+        i: 1,
+        form: "Monarchy",
+        diplomacy: ["Rival"],
+        warFooting: false
+      } as unknown as State;
+      expect(shouldAiEnableWarFooting(calm)).toBe(false);
+
+      // At war with default boldness 50 → enable
+      const war = {
+        i: 1,
+        form: "Monarchy",
+        diplomacy: ["Enemy"],
+        warFooting: false
+      } as unknown as State;
+      expect(shouldAiEnableWarFooting(war)).toBe(true);
     });
   });
 

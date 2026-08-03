@@ -1,6 +1,8 @@
+import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
 import { stateHasEnemy } from "../../hostCore";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
+import { getRulerId } from "../../nobility/nobilityContext";
 import type { DepartmentBaselineAllocation } from "./treasuryAllocation";
 
 /**
@@ -149,19 +151,72 @@ export function setWarFooting(state: State, enabled: boolean): boolean {
  */
 export function setWarFootingByPlayer(state: State, enabled: boolean): boolean {
   const next = setWarFooting(state, enabled);
-  const aiDefault = stateHasEnemy(state);
+  // Lock only when the player diverges from what AI would choose this cycle.
+  const aiDefault = shouldAiEnableWarFooting(state);
   state.warFootingPlayerLocked = next !== aiDefault;
   return next;
 }
 
+/** Boldness below this: only arm when underfunded or discontent is high. */
+export const WAR_FOOTING_CAUTIOUS_BOLDNESS = 30;
+/** Boldness at/above this: preemptive arming while a Rival exists (peacetime). */
+export const WAR_FOOTING_PREEMPTIVE_BOLDNESS = 80;
+/** Boldness at/above this: stay armed in peacetime while Rival remains. */
+export const WAR_FOOTING_STAY_ARMED_BOLDNESS = 85;
+
+function hasRivalDiplomacy(state: Pick<State, "diplomacy">): boolean {
+  const dip = state.diplomacy;
+  if (!dip) return false;
+  for (let i = 0; i < dip.length; i++) {
+    if (dip[i] === "Rival") return true;
+  }
+  return false;
+}
+
+/** Living ruler boldness (50 if unknown / no characters). */
+export function getRulerBoldness(state: Pick<State, "i">): number {
+  if (!state.i || !hasCharactersContext()) return 50;
+  const rulerId = getRulerId(state as State);
+  if (rulerId === undefined) return 50;
+  const ruler = getCharacters().find(c => c.i === rulerId && !c.dead);
+  return ruler?.personality?.boldness ?? 50;
+}
+
 /**
- * AI / system sync: align warFooting with Enemy diplomacy unless the player has locked a
- * deliberate override. When peace returns, always demobilize and clear the player lock so the
- * next war can re-arm without a stuck peacetime war economy.
+ * PR-8 AI decision: should war footing be ON given diplomacy + ruler boldness.
+ * - At war, bold rulers arm immediately; cautious ones wait for fiscal stress.
+ * - At peace, very bold rulers preemptively arm against Rivals and may stay armed.
+ */
+export function shouldAiEnableWarFooting(state: State): boolean {
+  const boldness = getRulerBoldness(state);
+  const atWar = stateHasEnemy(state);
+
+  if (atWar) {
+    if (boldness < WAR_FOOTING_CAUTIOUS_BOLDNESS) {
+      const ratio = state.militaryFundingRatio ?? 1;
+      const discontent = state.militaryDiscontent ?? 0;
+      return ratio < 0.6 || discontent > 40;
+    }
+    return true;
+  }
+
+  // Peacetime preemptive / stay-armed posture.
+  if (boldness >= WAR_FOOTING_PREEMPTIVE_BOLDNESS && hasRivalDiplomacy(state)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * AI / system sync: align warFooting with diplomacy + ruler boldness unless the player has
+ * locked a deliberate override (PR-7/PR-8). Peacetime demobilization clears the player lock
+ * unless a bold ruler keeps a Rival-facing posture.
  */
 export function syncWarFootingFromDiplomacy(state: State): { changed: boolean; warFooting: boolean } {
+  const wantOn = shouldAiEnableWarFooting(state);
   const atWar = stateHasEnemy(state);
-  if (!atWar) {
+
+  if (!atWar && !wantOn) {
     const wasOn = isWarFootingActive(state);
     if (wasOn) setWarFooting(state, false);
     state.warFootingPlayerLocked = false;
@@ -172,11 +227,15 @@ export function syncWarFootingFromDiplomacy(state: State): { changed: boolean; w
     return { changed: false, warFooting: isWarFootingActive(state) };
   }
 
-  if (!isWarFootingActive(state)) {
+  if (wantOn && !isWarFootingActive(state)) {
     setWarFooting(state, true);
     return { changed: true, warFooting: true };
   }
-  return { changed: false, warFooting: true };
+  if (!wantOn && isWarFootingActive(state)) {
+    setWarFooting(state, false);
+    return { changed: true, warFooting: false };
+  }
+  return { changed: false, warFooting: isWarFootingActive(state) };
 }
 
 /** Share of L1 household purse drained each cycle while war footing is active (court war burden). */

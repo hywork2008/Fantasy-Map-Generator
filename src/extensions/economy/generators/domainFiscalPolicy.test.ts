@@ -45,12 +45,13 @@ describe("domainFiscalPolicy (PR-7)", () => {
     expect(lord.wealth).toBe(1 + result.toLordPersonal);
   });
 
-  it("fortify spends domain cash and raises security", () => {
+  it("fortify spends domain cash, raises security, and advances works progress", () => {
     const burg = {
       i: 5,
       treasury: 100,
       security: 50,
-      domainFiscalPolicy: "fortify"
+      domainFiscalPolicy: "fortify",
+      domainWorksProgress: 0
     } as unknown as Burg;
 
     const result = applyDomainPolicyToBurg(burg, undefined, undefined);
@@ -59,6 +60,38 @@ describe("domainFiscalPolicy (PR-7)", () => {
     expect(burg.treasury).toBe(100 - result.fortifySpent);
     expect(result.securityGain).toBe(1);
     expect(burg.security).toBe(51);
+    expect(result.worksProgressGain).toBeGreaterThan(0);
+    expect(burg.domainWorksProgress).toBeGreaterThan(0);
+  });
+
+  it("completes domain works and sets walls/citadel at 100 progress", () => {
+    const burg = {
+      i: 5,
+      treasury: 100,
+      security: 50,
+      domainFiscalPolicy: "fortify",
+      domainWorksProgress: 95,
+      walls: 0,
+      citadel: 0
+    } as unknown as Burg;
+
+    const result = applyDomainPolicyToBurg(burg, undefined, undefined);
+    expect(result.worksCompleted).toBe(true);
+    expect(burg.walls).toBe(1);
+    expect(burg.citadel).toBe(1);
+    expect(burg.domainWorksProgress).toBe(0);
+  });
+
+  it("scales extract by domain levy rate", () => {
+    const burg = {
+      i: 5,
+      treasury: 100,
+      domainFiscalPolicy: "extract",
+      domainLevyRate: 1.5
+    } as unknown as Burg;
+    const state = { i: 1, treasury: 0 } as unknown as State;
+    const result = applyDomainPolicyToBurg(burg, state, { wealth: 0 });
+    expect(result.remittedToState).toBe(100 * DOMAIN_EXTRACT_REMIT_RATE * 1.5);
   });
 
   it("balanced is a no-op", () => {

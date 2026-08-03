@@ -20,6 +20,13 @@ export const DOMAIN_EXTRACT_PERSONAL_RATE = 0.02;
 export const DOMAIN_FORTIFY_SPEND_RATE = 0.08;
 /** Fortify: security points gained per cycle (capped at 100). */
 export const DOMAIN_FORTIFY_SECURITY_GAIN = 1;
+/** Fortify: works progress points per cycle toward walls/citadel completion. */
+export const DOMAIN_FORTIFY_WORKS_PROGRESS = 12;
+/** Default domain levy multiplier (PR-8). */
+export const DOMAIN_LEVY_RATE_DEFAULT = 1;
+export const DOMAIN_LEVY_RATE_MIN = 0.5;
+export const DOMAIN_LEVY_RATE_MAX = 1.5;
+export const DOMAIN_LEVY_RATE_STEP = 0.25;
 
 export interface DomainPolicyApplication {
   burgId: number;
@@ -28,6 +35,18 @@ export interface DomainPolicyApplication {
   toLordPersonal: number;
   fortifySpent: number;
   securityGain: number;
+  worksProgressGain: number;
+  worksCompleted: boolean;
+}
+
+export function clampDomainLevyRate(value: number | undefined): number {
+  if (!(typeof value === "number") || !Number.isFinite(value)) return DOMAIN_LEVY_RATE_DEFAULT;
+  return rn(Math.max(DOMAIN_LEVY_RATE_MIN, Math.min(DOMAIN_LEVY_RATE_MAX, value)), 2);
+}
+
+export function cycleDomainLevyRate(current: number | undefined, direction: 1 | -1): number {
+  const cur = clampDomainLevyRate(current);
+  return clampDomainLevyRate(cur + direction * DOMAIN_LEVY_RATE_STEP);
 }
 
 export function normalizeDomainFiscalPolicy(value: string | undefined): DomainFiscalPolicy {
@@ -50,22 +69,25 @@ export function applyDomainPolicyToBurg(
   lordWealthTarget: { wealth?: number } | undefined
 ): DomainPolicyApplication {
   const policy = normalizeDomainFiscalPolicy(burg.domainFiscalPolicy);
+  const levy = clampDomainLevyRate(burg.domainLevyRate);
   const result: DomainPolicyApplication = {
     burgId: burg.i || 0,
     policy,
     remittedToState: 0,
     toLordPersonal: 0,
     fortifySpent: 0,
-    securityGain: 0
+    securityGain: 0,
+    worksProgressGain: 0,
+    worksCompleted: false
   };
 
   if (policy === "balanced") return result;
   const treasury = burg.treasury || 0;
-  if (!(treasury > 0)) return result;
+  if (!(treasury > 0) && policy === "extract") return result;
 
   if (policy === "extract") {
-    const remit = rn(treasury * DOMAIN_EXTRACT_REMIT_RATE, 2);
-    const personal = rn(treasury * DOMAIN_EXTRACT_PERSONAL_RATE, 2);
+    const remit = rn(treasury * DOMAIN_EXTRACT_REMIT_RATE * levy, 2);
+    const personal = rn(treasury * DOMAIN_EXTRACT_PERSONAL_RATE * levy, 2);
     const total = rn(remit + personal, 2);
     if (!(total > 0)) return result;
 
@@ -86,17 +108,32 @@ export function applyDomainPolicyToBurg(
     return result;
   }
 
-  // fortify
-  const spent = rn(treasury * DOMAIN_FORTIFY_SPEND_RATE, 2);
-  if (spent > 0) {
-    burg.treasury = rn(treasury - spent, 2);
-    result.fortifySpent = spent;
+  // fortify — spend cash when available, always advance works progress a little when funded.
+  if (treasury > 0) {
+    const spent = rn(treasury * DOMAIN_FORTIFY_SPEND_RATE * levy, 2);
+    if (spent > 0) {
+      burg.treasury = rn(treasury - spent, 2);
+      result.fortifySpent = spent;
+    }
   }
   const security = burg.security ?? 50;
-  if (security < 100) {
+  if (security < 100 && result.fortifySpent > 0) {
     const gain = Math.min(DOMAIN_FORTIFY_SECURITY_GAIN, 100 - security);
     burg.security = rn(security + gain, 2);
     result.securityGain = gain;
+  }
+  if (result.fortifySpent > 0) {
+    const prev = burg.domainWorksProgress || 0;
+    const next = Math.min(100, prev + DOMAIN_FORTIFY_WORKS_PROGRESS);
+    result.worksProgressGain = next - prev;
+    burg.domainWorksProgress = next;
+    if (prev < 100 && next >= 100) {
+      result.worksCompleted = true;
+      // Soft fortification completion: raise walls/citadel flags if missing (no rebuild cost model).
+      if (!burg.walls) burg.walls = 1;
+      if (!burg.citadel) burg.citadel = 1;
+      burg.domainWorksProgress = 0; // allow another works cycle later
+    }
   }
   return result;
 }
@@ -164,4 +201,15 @@ export function cycleDomainFiscalPolicyForCharacter(characterId: number): {
   const next = cycleDomainFiscalPolicy(burg.domainFiscalPolicy);
   burg.domainFiscalPolicy = next;
   return { ok: true, policy: next };
+}
+
+export function adjustDomainLevyForCharacter(
+  characterId: number,
+  direction: 1 | -1
+): { ok: boolean; levyRate?: number; error?: string } {
+  const burg = resolveDomainBurgForCharacter(characterId);
+  if (!burg) return { ok: false, error: "Character has no provincial domain seat" };
+  const next = cycleDomainLevyRate(burg.domainLevyRate, direction);
+  burg.domainLevyRate = next;
+  return { ok: true, levyRate: next };
 }

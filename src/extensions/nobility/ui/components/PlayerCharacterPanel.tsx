@@ -9,14 +9,17 @@ import {
 } from "../../../economy/generators/constructionHire";
 import { getConstructionJobPosting } from "../../../economy/generators/constructionJobPostings";
 import {
+  adjustDomainLevyForLord,
   cycleDomainPolicyForLord,
   DOMAIN_REMIT_ACTION_CAP,
   DOMAIN_SPEND_ACTION_CAP,
   drawHouseholdPurseToPersonal,
   getFiscalAuthorityView,
   HOUSEHOLD_DRAW_ACTION_CAP,
+  issuePublicDebtForRuler,
   PUBLIC_SEIZE_ACTION_CAP,
   remitDomainToStateTreasury,
+  repayPublicDebtForRuler,
   seizePublicTreasuryToPersonal,
   spendDomainTreasury,
   toggleWarFootingForRuler
@@ -246,6 +249,45 @@ export const PlayerCharacterPanel: React.FC = () => {
     usePlayerCharacterState.getState().bumpRefreshToken();
   };
 
+  const handleDomainLevy = (direction: 1 | -1) => {
+    if (playerCharacterId === null) return;
+    const result = adjustDomainLevyForLord(playerCharacterId, direction);
+    if (result.ok && result.levyRate != null) {
+      tip(`Domain levy set to ×${result.levyRate}.`, false, "success");
+    } else {
+      tip(result.error || "Could not change domain levy.", false, "error");
+    }
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
+  const handleIssueDebt = () => {
+    if (playerCharacterId === null || !summary) return;
+    const { pack } = getWorldContext();
+    const state = pack.states?.[summary.stateId];
+    if (!state?.i) {
+      tip("No state ledger for this character.", false, "error");
+      return;
+    }
+    const result = issuePublicDebtForRuler(state, playerCharacterId);
+    if (result.ok) tip(`Issued ${formatPrice(result.paid)} public debt into the treasury.`, false, "success");
+    else tip(result.error || "Could not issue debt.", false, "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
+  const handleRepayDebt = () => {
+    if (playerCharacterId === null || !summary) return;
+    const { pack } = getWorldContext();
+    const state = pack.states?.[summary.stateId];
+    if (!state?.i) {
+      tip("No state ledger for this character.", false, "error");
+      return;
+    }
+    const result = repayPublicDebtForRuler(state, playerCharacterId);
+    if (result.ok) tip(`Repaid ${formatPrice(result.paid)} public debt.`, false, "success");
+    else tip(result.error || "Could not repay debt.", false, "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
   return (
     <Dialog isOpen title="Player Character" showCloseAllDialogsButton={false} className="player-character-panel">
       {!summary ? (
@@ -443,6 +485,58 @@ export const PlayerCharacterPanel: React.FC = () => {
             onClick={handleCycleDomainPolicy}
           >
             Domain: {fiscal.domainFiscalPolicy ?? "—"}
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={
+              fiscal.canSetDomainPolicy
+                ? `Raise domain levy (now ×${fiscal.domainLevyRate ?? 1}) — scales extract/fortify intensity`
+                : "No provincial domain seat"
+            }
+            disabled={!fiscal.canSetDomainPolicy}
+            onClick={() => handleDomainLevy(1)}
+          >
+            Levy+
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={
+              fiscal.canSetDomainPolicy
+                ? `Lower domain levy (now ×${fiscal.domainLevyRate ?? 1})`
+                : "No provincial domain seat"
+            }
+            disabled={!fiscal.canSetDomainPolicy}
+            onClick={() => handleDomainLevy(-1)}
+          >
+            Levy-
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={
+              fiscal.canIssuePublicDebt
+                ? `Issue public debt into L2 (assembly support ${fiscal.councilSupport}/100)`
+                : "Cannot issue debt (need ruler + assembly support; not Anarchy/Theocracy)"
+            }
+            disabled={!fiscal.canIssuePublicDebt}
+            onClick={handleIssueDebt}
+          >
+            Issue debt
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={
+              fiscal.canRepayPublicDebt
+                ? `Repay public debt from L2 (owed ${formatPrice(fiscal.publicDebt)})`
+                : "No debt to repay or empty public treasury"
+            }
+            disabled={!fiscal.canRepayPublicDebt}
+            onClick={handleRepayDebt}
+          >
+            Repay debt
           </button>
         </div>
       ) : null}

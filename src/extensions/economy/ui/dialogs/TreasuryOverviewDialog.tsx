@@ -112,6 +112,8 @@ export const TreasuryOverviewDialog: React.FC = () => {
             <col />
             <col />
             <col />
+            <col />
+            <col />
           </colgroup>
           <thead className="header">
             <tr>
@@ -257,6 +259,24 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 tip="Public debt principal (PR-7) — interest serviced each tax cycle; war debt may issue when cash-strapped"
               />
               <SortableHeader
+                field="councilSupport"
+                label="Council"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="Assembly support 0–100 (PR-8) — scales wartime veto chance and gates voluntary debt"
+              />
+              <SortableHeader
+                field="lastTaxFarmLeak"
+                label="Farm"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="Last-cycle tax-farm leak from L2 (PR-7/8)"
+              />
+              <SortableHeader
                 field="chancery"
                 label="Chancery"
                 sortBy={sortBy}
@@ -297,7 +317,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={20}>
+                <td colSpan={22}>
                   <span>No state has an allocated treasury yet — run a generation cycle first</span>
                 </td>
               </tr>
@@ -333,6 +353,8 @@ const TreasuryRow: React.FC<{ row: TreasuryOverviewRow }> = ({ row }) => (
     <td data-tip={row.warFooting ? "War footing ON" : "War footing off"}>{row.warFooting ? "ON" : "—"}</td>
     <td>{row.militaryMobilizationBoost > 0 ? row.militaryMobilizationBoost.toFixed(3) : "—"}</td>
     <td data-tip="Public debt principal">{row.publicDebt > 0 ? row.publicDebt.toFixed(2) : "—"}</td>
+    <td data-tip="Assembly support">{row.councilSupport > 0 ? row.councilSupport.toFixed(0) : "—"}</td>
+    <td data-tip="Last tax-farm leak">{row.lastTaxFarmLeak > 0 ? row.lastTaxFarmLeak.toFixed(2) : "—"}</td>
     <td>{row.chancery.toFixed(2)}</td>
     <td>{row.stewardship.toFixed(2)}</td>
     <td>{row.spymastery.toFixed(2)}</td>

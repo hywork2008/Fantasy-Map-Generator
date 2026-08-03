@@ -4,12 +4,21 @@ import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getRulerId } from "../../nobility/nobilityContext";
 import { getWorldContext } from "../economyContext";
+import { canCouncilApproveDebtIssue, getCouncilSupport } from "./councilAssembly";
 import {
+  adjustDomainLevyForCharacter,
+  clampDomainLevyRate,
   cycleDomainFiscalPolicyForCharacter,
   type DomainFiscalPolicy,
   normalizeDomainFiscalPolicy,
   resolveDomainBurgForCharacter
 } from "./domainFiscalPolicy";
+import {
+  issuePublicDebt,
+  PUBLIC_DEBT_PLAYER_ISSUE_AMOUNT,
+  PUBLIC_DEBT_PLAYER_REPAY_AMOUNT,
+  repayPublicDebt
+} from "./publicDebtActions";
 import { sumDepartmentBalances } from "./treasuryAllocation";
 import { isWarFootingActive, setWarFootingByPlayer } from "./warFooting";
 
@@ -51,9 +60,16 @@ export interface FiscalAuthorityView {
   militaryMobilizationBoost: number;
   /** Outstanding public debt principal (PR-7). */
   publicDebt: number;
+  /** PR-8 assembly support 0–100. */
+  councilSupport: number;
+  canIssuePublicDebt: boolean;
+  canRepayPublicDebt: boolean;
   /** Province lord may cycle domain fiscal policy (PR-7). */
   canSetDomainPolicy: boolean;
   domainFiscalPolicy: DomainFiscalPolicy | null;
+  /** PR-8 domain levy multiplier. */
+  domainLevyRate: number | null;
+  domainWorksProgress: number | null;
   /** Human-readable policy notes for tooltips. */
   notes: string[];
 }
@@ -163,6 +179,12 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
   const warFooting = isWarFootingActive(state);
   const militaryMobilizationBoost = rn(state.militaryMobilizationBoost || 0, 3);
   const publicDebt = rn(state.publicDebt || 0, 2);
+  const councilSupport =
+    state.councilSupport !== undefined ? rn(state.councilSupport, 1) : getCouncilSupport(state).support;
+  const canIssuePublicDebt = isRuler && canCouncilApproveDebtIssue(state) && form !== "Anarchy" && form !== "Theocracy";
+  const canRepayPublicDebt = isRuler && publicDebt > 0 && publicTreasury > 0;
+  const domainLevyRate = domainBurg ? clampDomainLevyRate(domainBurg.domainLevyRate) : null;
+  const domainWorksProgress = domainBurg ? rn(domainBurg.domainWorksProgress || 0, 1) : null;
 
   const householdSpendable = policy.canDrawHouseholdToPersonal ? householdPurse : 0;
   const publicSpendable = policy.canSpendPublicDirectly ? publicTreasury : 0;
@@ -196,8 +218,13 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
   if (publicDebt > 0) {
     notes.push(`Public debt ${publicDebt.toFixed(2)} SP (interest each tax cycle).`);
   }
+  notes.push(`Assembly support ${councilSupport}/100.`);
+  if (state.councilLastFailed) notes.push("Last wartime assembly vetoed part of revenue.");
   if (domainFiscalPolicy && domainFiscalPolicy !== "balanced") {
-    notes.push(`Domain policy: ${domainFiscalPolicy}.`);
+    notes.push(`Domain policy: ${domainFiscalPolicy}${domainLevyRate != null ? ` × levy ${domainLevyRate}` : ""}.`);
+  }
+  if (domainWorksProgress != null && domainWorksProgress > 0) {
+    notes.push(`Domain works ${domainWorksProgress}/100.`);
   }
 
   return {
@@ -218,8 +245,13 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
     warFooting,
     militaryMobilizationBoost,
     publicDebt,
+    councilSupport,
+    canIssuePublicDebt,
+    canRepayPublicDebt,
     canSetDomainPolicy,
     domainFiscalPolicy,
+    domainLevyRate,
+    domainWorksProgress,
     notes
   };
 }
@@ -380,4 +412,40 @@ export function cycleDomainPolicyForLord(characterId: number): FiscalActionResul
   const result = cycleDomainFiscalPolicyForCharacter(characterId);
   if (!result.ok) return { ok: false, paid: 0, error: result.error };
   return { ok: true, paid: 0, policy: result.policy };
+}
+
+/** Province lord adjusts domain levy intensity (PR-8). */
+export function adjustDomainLevyForLord(
+  characterId: number,
+  direction: 1 | -1
+): FiscalActionResult & { levyRate?: number } {
+  const result = adjustDomainLevyForCharacter(characterId, direction);
+  if (!result.ok) return { ok: false, paid: 0, error: result.error };
+  return { ok: true, paid: 0, levyRate: result.levyRate };
+}
+
+/** Living ruler issues public debt into L2 (PR-8; assembly-gated). */
+export function issuePublicDebtForRuler(
+  state: State,
+  characterId: number,
+  amount = PUBLIC_DEBT_PLAYER_ISSUE_AMOUNT
+): FiscalActionResult {
+  if (!isLivingRulerOf(state, characterId)) {
+    return { ok: false, paid: 0, error: "Only the living ruler may issue public debt" };
+  }
+  const result = issuePublicDebt(state, amount);
+  return { ok: result.ok, paid: result.amount, error: result.error };
+}
+
+/** Living ruler repays public debt from L2 (PR-8). */
+export function repayPublicDebtForRuler(
+  state: State,
+  characterId: number,
+  amount = PUBLIC_DEBT_PLAYER_REPAY_AMOUNT
+): FiscalActionResult {
+  if (!isLivingRulerOf(state, characterId)) {
+    return { ok: false, paid: 0, error: "Only the living ruler may repay public debt" };
+  }
+  const result = repayPublicDebt(state, amount);
+  return { ok: result.ok, paid: result.amount, error: result.error };
 }

@@ -59,6 +59,8 @@ export function refreshTreasuryOverview(): void {
       warFooting: Boolean(state.warFooting),
       militaryMobilizationBoost: rn(state.militaryMobilizationBoost || 0, 3),
       publicDebt: rn(state.publicDebt || 0, 2),
+      councilSupport: rn(state.councilSupport ?? 0, 1),
+      lastTaxFarmLeak: rn(state.lastTaxFarmLeak || 0, 2),
       chancery: snapshot.chancery,
       stewardship: snapshot.stewardship,
       spymastery: snapshot.spymastery,
