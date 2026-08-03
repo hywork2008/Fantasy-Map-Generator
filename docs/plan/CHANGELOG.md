@@ -2,6 +2,7 @@
 
 2026-08-03
 
+- docs/analytics/advance-year-performance.md
 - docs/analytics/character-wealth-balance.md
 - docs/analytics/polity-fiscal-regimes-historical.md
 - docs/plan/individual-skill-mastery-system.md

@@ -42,6 +42,20 @@ export interface FMGActionsAPI {
    * See docs/plan/city-generator/v2/13-fmg-site-input.md.
    */
   getBurgSiteDescriptor(burgId: number): BurgSiteDescriptor | null;
+  /**
+   * Tick-step wall-clock profile accumulated by `measureTickStep` (core systems
+   * and economy/production sub-steps). Sorted by totalMs descending. Intended
+   * for Advance Time optimization work — see `src/generators/tickProfiler.ts`.
+   */
+  getTickProfile(): Array<{
+    label: string;
+    calls: number;
+    totalMs: number;
+    lastMs: number;
+    maxMs: number;
+  }>;
+  /** Clears the tick profiler before a measurement run. */
+  resetTickProfile(): void;
 }
 
 export interface FMGNamespace {

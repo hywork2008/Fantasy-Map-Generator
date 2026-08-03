@@ -88,6 +88,12 @@ tick フック（森林回復・造船・軍事シミュレーション等）が
 - ロックされている Year/Era は再生成後もそのまま維持され、`initSimulationClock()` がそれを読むことで
   シミュレーションの開始年がロックされた値になる
 
+## 5.1 パフォーマンス調査（Advance Year）
+
+1 年進行時の周期別コストとホットスポットは  
+[`docs/analytics/advance-year-performance.md`](../analytics/advance-year-performance.md) を参照。  
+再現: `npm run perf:advance-year`（`scripts/benchmarkAdvanceYear.ts`）。
+
 ## 6. 各拡張機能の tick フック一覧
 
 すべて `registerTimeTickHook(fn)` で `(deltaYears, deltaMonths, deltaDays)` の3引数を受け取る。UIボタン経由の

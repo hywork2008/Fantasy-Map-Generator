@@ -1,5 +1,5 @@
 import type { Burg } from "../../hostTypes";
-import { DEBUG, ERROR, rn, TIME } from "../../hostUtils";
+import { DEBUG, ERROR, measureTickStep, rn, TIME } from "../../hostUtils";
 import {
   getBurgProductionRecords,
   getConstructionOperations,
@@ -98,9 +98,11 @@ export class ProductionModule {
   produce(): void {
     TIME && console.time("generateProduction");
     try {
-      const cycle = this.startProductionCycle();
-      for (const burg of cycle.sortedBurgs) this.produceForBurg(burg, cycle);
-      this.finishProductionCycle(cycle);
+      const cycle = measureTickStep("production:startCycle", () => this.startProductionCycle());
+      measureTickStep("production:burgLoop", () => {
+        for (const burg of cycle.sortedBurgs) this.produceForBurg(burg, cycle);
+      });
+      measureTickStep("production:finishCycle", () => this.finishProductionCycle(cycle));
     } finally {
       TIME && console.timeEnd("generateProduction");
     }
@@ -152,31 +154,41 @@ export class ProductionModule {
     // A0 flow diagnostics: retail stock before rural/burg production this cycle.
     beginFlowCycleCapture();
 
-    Markets.collectRuralProduction();
-    MineOperations.produceMonth();
-    SmelterOperations.produceMonth();
-    QuarryOperations.produceMonth();
-    VolcanicAshOperations.produceMonth();
-    ConstructionOperations.produceMonth();
-    Minting.settleMonthly();
-    MilitaryResources.settleMonthly();
-    TradeSecurity.settleMonthly();
-    Markets.initializeMarketPrices();
-    TransportAssetOrders.beginProductionCycle();
+    measureTickStep("production:rural", () => Markets.collectRuralProduction());
+    measureTickStep("production:minesSmelters", () => {
+      MineOperations.produceMonth();
+      SmelterOperations.produceMonth();
+    });
+    measureTickStep("production:quarryAshConstruction", () => {
+      QuarryOperations.produceMonth();
+      VolcanicAshOperations.produceMonth();
+      ConstructionOperations.produceMonth();
+    });
+    measureTickStep("production:monthlyLedgers", () => {
+      Minting.settleMonthly();
+      MilitaryResources.settleMonthly();
+      TradeSecurity.settleMonthly();
+    });
+    measureTickStep("production:pricesAndLabor", () => {
+      Markets.initializeMarketPrices();
+      TransportAssetOrders.beginProductionCycle();
+    });
 
     // stapleFood (Grain) production and Burg demand are owned by the Food Ledger's own
     // quarterly/monthly pipeline (foodProduction.ts / foodLedgerConsumption.ts), not by the
     // generic worker-production / demand-fulfillment loops built from this index.
     const nonStapleGoods = getGoods().filter(good => isGoodEnabled(good) && !good.tags.includes("stapleFood"));
-    const index = this.buildProductionIndex(nonStapleGoods);
-    const strategicLaborMarkets = reconcileStrategicLaborMarkets(
-      {
-        markets: getMarkets(),
-        burgs: this.worldContext.pack.burgs,
-        goods: index.goods,
-        orders: getStrategicProcurementOrders()
-      },
-      getStrategicLaborMarkets()
+    const index = measureTickStep("production:buildIndex", () => this.buildProductionIndex(nonStapleGoods));
+    const strategicLaborMarkets = measureTickStep("production:strategicLabor", () =>
+      reconcileStrategicLaborMarkets(
+        {
+          markets: getMarkets(),
+          burgs: this.worldContext.pack.burgs,
+          goods: index.goods,
+          orders: getStrategicProcurementOrders()
+        },
+        getStrategicLaborMarkets()
+      )
     );
     setStrategicLaborMarkets(strategicLaborMarkets);
     const strategicLaborMarketById = new Map(
@@ -241,31 +253,35 @@ export class ProductionModule {
   private finishProductionCycle(cycle: ProductionCycle): void {
     // Phase D: ensure merchant trade capital, then once per map seed inherited export-warehouse
     // stock (pre-start merchant inventory) before this cycle's global trade books more lots.
-    MerchantTradeCapital.ensureAllMarkets();
-    ExportStaging.seedInheritedExportWarehouseIfNeeded();
+    measureTickStep("production:merchantPrep", () => {
+      MerchantTradeCapital.ensureAllMarkets();
+      ExportStaging.seedInheritedExportWarehouseIfNeeded();
+    });
 
-    Markets.runGlobalTrade();
-    Caravans.spawnFromDeals(getDeals());
-    this.fillBurgsDemand(cycle.sortedBurgs, cycle.index);
-    syncBurgMarketLedgers();
+    measureTickStep("production:globalTrade", () => Markets.runGlobalTrade());
+    measureTickStep("production:spawnCaravans", () => Caravans.spawnFromDeals(getDeals()));
+    measureTickStep("production:fillDemand", () => this.fillBurgsDemand(cycle.sortedBurgs, cycle.index));
+    measureTickStep("production:syncLedgers", () => {
+      syncBurgMarketLedgers();
 
-    // A0: record market×good demand / production estimate / trade / end stock for the year rollup.
-    recordFlowCycleEnd();
-    // After enough flow samples, grow land fleets toward measured annual export slots.
-    MerchantTransportAssets.topUpFleetsFromExportDemand();
+      // A0: record market×good demand / production estimate / trade / end stock for the year rollup.
+      recordFlowCycleEnd();
+      // After enough flow samples, grow land fleets toward measured annual export slots.
+      MerchantTransportAssets.topUpFleetsFromExportDemand();
 
-    const craftEmploymentRecords = Array.from(cycle.craftWorkersByBurg.entries())
-      .filter(([, workers]) => workers > 0)
-      .map(([burgId, workers]) => ({ burgId, workers }));
-    setCraftEmploymentRecords(craftEmploymentRecords);
+      const craftEmploymentRecords = Array.from(cycle.craftWorkersByBurg.entries())
+        .filter(([, workers]) => workers > 0)
+        .map(([burgId, workers]) => ({ burgId, workers }));
+      setCraftEmploymentRecords(craftEmploymentRecords);
 
-    const craftDomainEmploymentRecords: CraftDomainEmploymentRecord[] = [];
-    for (const [key, workers] of cycle.craftDomainWorkersByKey) {
-      if (workers <= 0) continue;
-      const [burgId, domain] = parseCraftDomainKey(key);
-      craftDomainEmploymentRecords.push({ burgId, domain, workers });
-    }
-    setCraftDomainEmploymentRecords(craftDomainEmploymentRecords);
+      const craftDomainEmploymentRecords: CraftDomainEmploymentRecord[] = [];
+      for (const [key, workers] of cycle.craftDomainWorkersByKey) {
+        if (workers <= 0) continue;
+        const [burgId, domain] = parseCraftDomainKey(key);
+        craftDomainEmploymentRecords.push({ burgId, domain, workers });
+      }
+      setCraftDomainEmploymentRecords(craftDomainEmploymentRecords);
+    });
   }
 
   private fillBurgsDemand(sortedBurgs: Burg[], index: ProductionIndex): void {

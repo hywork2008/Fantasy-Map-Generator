@@ -30,6 +30,7 @@ import { changeViewMode } from "./controllers/viewMode";
 import { injectInfrastructure, injectVisibleUI } from "./dom/initDOM";
 import { initExtensions } from "./extensions/index";
 import { initModules } from "./generators/index";
+import { getTickProfile, resetTickProfile } from "./generators/tickProfiler";
 import { advanceTime, registerSimulationSystem, registerTimeTickHook } from "./generators/timeEngine";
 import { buildGeoJsonZones, saveGeoJsonZones } from "./io/export";
 import { generate, initMain, regenerateMap } from "./main";
@@ -291,7 +292,9 @@ export async function initApp(options: FMGInitOptions = {}): Promise<void> {
       getGeoJsonZones: buildGeoJsonZones,
       editBurg,
       advanceTime,
-      getBurgSiteDescriptor
+      getBurgSiteDescriptor,
+      getTickProfile,
+      resetTickProfile
     }),
     extensionAPI: buildExtensionAPI()
   });

@@ -16,7 +16,7 @@ import {
   useTimeSimulationState,
   useUiPreferencesState
 } from "../hostUi";
-import { formatPrice, rn, si, TIME } from "../hostUtils";
+import { formatPrice, measureTickStep, rn, si, TIME } from "../hostUtils";
 import { getBurgEconomySummary } from "./burgEconomySummary";
 import { economyStyleConfig } from "./EconomyStyleConfig";
 import {
@@ -760,12 +760,12 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       }
       if (value !== undefined) throw new Error("economy.production.settle does not accept a payload");
 
-      Production.produce();
-      InnStays.settleMonthly();
-      settleMonthlyFoodConsumption();
-      Taxes.collectTaxes();
-      refreshStateEconomySummaries();
-      synchronizePlayerCommerce();
+      measureTickStep("production:produce", () => Production.produce());
+      measureTickStep("production:innStays", () => InnStays.settleMonthly());
+      measureTickStep("production:foodConsumption", () => settleMonthlyFoodConsumption());
+      measureTickStep("production:taxes", () => Taxes.collectTaxes());
+      measureTickStep("production:stateSummaries", () => refreshStateEconomySummaries());
+      measureTickStep("production:playerCommerce", () => synchronizePlayerCommerce());
       return { changed: true };
     }
   });
@@ -1588,12 +1588,29 @@ export function init(api: ExtensionAPI): void {
   // 365 complete economy recalculations. The flag is intentionally independent of
   // the settlement scheduler: a future tick hook may mark production dirty without
   // needing to know when the current cycle closes.
+  //
+  // Multi-day batches (Advance Year / rAF frame budget) can step many calendar
+  // days before the scheduled microtask runs. Count how many monthly settlements
+  // are owed so a single coalesced microtask still runs one produce/tax cycle per
+  // due month instead of collapsing a whole year into one settle.
   let productionDirty = false;
-  let productionSettlementDue = false;
+  let productionSettlementsDue = 0;
   let productionSettlementScheduled = false;
 
   const markProductionDirty = () => {
     productionDirty = true;
+  };
+
+  const runOneProductionSettlement = () => {
+    measureTickStep("production:settle", () => {
+      const commit = api.dispatchExtensionCommand({
+        extensionId: ECONOMY_EXTENSION_ID,
+        name: "production.settle",
+        payload: undefined
+      });
+      if (!commit) return;
+      if (api.layerIsOn("toggleGoods")) drawGoods(getDisplayedGoodIds());
+    });
   };
 
   const scheduleProductionSettlement = () => {
@@ -1605,17 +1622,14 @@ export function init(api: ExtensionAPI): void {
 
       // A periodic settlement must run even when no external producer marked the
       // economy dirty: it is what accrues ordinary rural/urban output and demand.
-      if (!productionSettlementDue && !productionDirty) return;
-      productionSettlementDue = false;
+      // When only dirty (no monthly due), one settle is enough to absorb producer
+      // changes; when N months are due, run N full produce/tax cycles.
+      const times = Math.max(productionSettlementsDue, productionDirty ? 1 : 0);
+      if (times === 0) return;
+      productionSettlementsDue = 0;
       productionDirty = false;
 
-      const commit = api.dispatchExtensionCommand({
-        extensionId: ECONOMY_EXTENSION_ID,
-        name: "production.settle",
-        payload: undefined
-      });
-      if (!commit) return;
-      if (api.layerIsOn("toggleGoods")) drawGoods(getDisplayedGoodIds());
+      for (let i = 0; i < times; i++) runOneProductionSettlement();
     });
   };
 
@@ -1812,22 +1826,29 @@ export function init(api: ExtensionAPI): void {
       // this year's yieldPerArea/farmLaborRequired recompute, not next year's
       // (docs/plan/rural-agtech-investment.md §3.5). Industrial tech runs right after so
       // mine/smelter investment claims each market's treasury only after farms have (§6.3).
-      AgTechInvestment.settleAnnual();
-      IndustrialTechInvestment.settleAnnual();
-      // Must run before the quarter's food ledger so annual demographic changes
-      // alter cultivated area and farm labour without waiting an extra quarter.
-      const agricultureRefreshed = DevelopmentPotential.updateAnnualAgriculture();
-      // Only release this year's freshly recomputed migratableAdults surplus — running on a
-      // tick where agriculture wasn't refreshed would re-read last year's (already-extracted) figures.
-      // Options -> Simulation "Settlement growth" gate: "independent" keeps the classic
-      // births-only-toward-own-capacity behavior with no deliberate rural→urban movement.
-      if (agricultureRefreshed && useOptionsState.getState().ruralUrbanMigration === "megacity") {
-        releaseRuralLaborSurplus(getWorldContext());
-      }
+      let agricultureRefreshed = false;
+      measureTickStep("economy:annualAgTech", () => {
+        AgTechInvestment.settleAnnual();
+        IndustrialTechInvestment.settleAnnual();
+        // Must run before the quarter's food ledger so annual demographic changes
+        // alter cultivated area and farm labour without waiting an extra quarter.
+        agricultureRefreshed = DevelopmentPotential.updateAnnualAgriculture();
+        // Only release this year's freshly recomputed migratableAdults surplus — running on a
+        // tick where agriculture wasn't refreshed would re-read last year's (already-extracted) figures.
+        // Options -> Simulation "Settlement growth" gate: "independent" keeps the classic
+        // births-only-toward-own-capacity behavior with no deliberate rural→urban movement.
+        if (agricultureRefreshed && useOptionsState.getState().ruralUrbanMigration === "megacity") {
+          releaseRuralLaborSurplus(getWorldContext());
+        }
+      });
 
-      const caravanTick = Caravans.tick(effectiveDays);
-      tickRetailInventory();
-      StrategicProcurement.reconcileCaravans(caravanTick.arrived, caravanTick.lost);
+      measureTickStep("economy:caravans", () => {
+        const caravanTick = measureTickStep("economy:caravanMovement", () => Caravans.tick(effectiveDays));
+        measureTickStep("economy:retailInventory", () => tickRetailInventory());
+        measureTickStep("economy:strategicProcurement", () =>
+          StrategicProcurement.reconcileCaravans(caravanTick.arrived, caravanTick.lost)
+        );
+      });
       // Trade animation redraw is owned by registerDrawLayerHook after extension.economy
       // commits through RenderCoordinator (P2-12) — do not call draw* from the tick.
 
@@ -1835,145 +1856,160 @@ export function init(api: ExtensionAPI): void {
       if (daysSinceLastQuarterlyUpdate >= 90) {
         const quartersPassed = Math.floor(daysSinceLastQuarterlyUpdate / 90);
         daysSinceLastQuarterlyUpdate %= 90;
-        for (let i = 0; i < quartersPassed; i++) {
-          currentQuarterIndex = (currentQuarterIndex + 1) % 4;
-          FoodProduction.generateQuarterlyLedger(currentQuarterIndex);
-          // generateQuarterlyLedger's applyImportCapacity() unconditionally overwrites
-          // effectiveCapacity with baseCapacity + importBonus, which is >= baseCapacity and so
-          // silently undoes the buildingStock-derived ceiling below baseCapacity that
-          // constrainEffectiveCapacity() set at the last annual reconcile (docs/plan/
-          // urban-construction-industry.md §7.2 "effectiveCapacity統合"). Re-clamping here,
-          // every quarter, keeps the construction ceiling in force between annual reconciles
-          // instead of only for the brief window right after one.
-          ConstructionOperations.constrainEffectiveCapacity();
-          UrbanLaborIntake.raidBanditFood(getWorldContext(), context.rng);
-        }
-      }
-
-      // Check which states are at war
-      const states = getWorldContext().pack.states;
-      const statesAtWar = new Set<number>();
-      if (states) {
-        for (const state of states) {
-          if (!state.removed && state.diplomacy && (state.diplomacy as unknown[]).includes("Enemy")) {
-            statesAtWar.add(state.i);
+        measureTickStep("economy:quarterlyFood", () => {
+          for (let i = 0; i < quartersPassed; i++) {
+            currentQuarterIndex = (currentQuarterIndex + 1) % 4;
+            FoodProduction.generateQuarterlyLedger(currentQuarterIndex);
+            // generateQuarterlyLedger's applyImportCapacity() unconditionally overwrites
+            // effectiveCapacity with baseCapacity + importBonus, which is >= baseCapacity and so
+            // silently undoes the buildingStock-derived ceiling below baseCapacity that
+            // constrainEffectiveCapacity() set at the last annual reconcile (docs/plan/
+            // urban-construction-industry.md §7.2 "effectiveCapacity統合"). Re-clamping here,
+            // every quarter, keeps the construction ceiling in force between annual reconciles
+            // instead of only for the brief window right after one.
+            ConstructionOperations.constrainEffectiveCapacity();
+            UrbanLaborIntake.raidBanditFood(getWorldContext(), context.rng);
           }
-        }
+        });
       }
 
-      // Update war duration and intensity for burgs; roll up supplyStrain onto states for manpower draft
-      const ledgers = getBurgMarketLedgers();
-      const burgs = getWorldContext().pack.burgs;
-      const supplyByState = new Map<number, { sum: number; n: number }>();
-      if (ledgers.length && burgs) {
-        for (const ledger of ledgers) {
-          const burg = burgs[ledger.burgId];
-          if (!burg || burg.removed) continue;
-
-          if (burg.state && statesAtWar.has(burg.state)) {
-            ledger.warIntensity = Math.min(2.5, (ledger.warIntensity || 0) + 0.1);
-            ledger.warDurationTicks = (ledger.warDurationTicks || 0) + effectiveDays;
-          } else if (ledger.warIntensity && ledger.warIntensity > 0) {
-            ledger.warIntensity = Math.max(0, ledger.warIntensity - 0.1);
-            if (ledger.warIntensity <= 0.001) {
-              ledger.warIntensity = 0;
-              ledger.warDurationTicks = 0;
+      measureTickStep("economy:warIntensity", () => {
+        // Check which states are at war
+        const states = getWorldContext().pack.states;
+        const statesAtWar = new Set<number>();
+        if (states) {
+          for (const state of states) {
+            if (!state.removed && state.diplomacy && (state.diplomacy as unknown[]).includes("Enemy")) {
+              statesAtWar.add(state.i);
             }
           }
+        }
 
-          if (burg.state && ledger.warIntensity) {
-            const entry = supplyByState.get(burg.state) ?? { sum: 0, n: 0 };
-            entry.sum += ledger.warIntensity;
-            entry.n += 1;
-            supplyByState.set(burg.state, entry);
+        // Update war duration and intensity for burgs; roll up supplyStrain onto states for manpower draft
+        const ledgers = getBurgMarketLedgers();
+        const burgs = getWorldContext().pack.burgs;
+        const supplyByState = new Map<number, { sum: number; n: number }>();
+        if (ledgers.length && burgs) {
+          for (const ledger of ledgers) {
+            const burg = burgs[ledger.burgId];
+            if (!burg || burg.removed) continue;
+
+            if (burg.state && statesAtWar.has(burg.state)) {
+              ledger.warIntensity = Math.min(2.5, (ledger.warIntensity || 0) + 0.1);
+              ledger.warDurationTicks = (ledger.warDurationTicks || 0) + effectiveDays;
+            } else if (ledger.warIntensity && ledger.warIntensity > 0) {
+              ledger.warIntensity = Math.max(0, ledger.warIntensity - 0.1);
+              if (ledger.warIntensity <= 0.001) {
+                ledger.warIntensity = 0;
+                ledger.warDurationTicks = 0;
+              }
+            }
+
+            if (burg.state && ledger.warIntensity) {
+              const entry = supplyByState.get(burg.state) ?? { sum: 0, n: 0 };
+              entry.sum += ledger.warIntensity;
+              entry.n += 1;
+              supplyByState.set(burg.state, entry);
+            }
           }
         }
-      }
-      // Manpower Phase 5: 0..1 supply strain from average burg warIntensity (cap 2.5 → 1.0)
-      if (states) {
-        for (const state of states) {
-          if (!state?.i || state.removed) continue;
-          const entry = supplyByState.get(state.i);
-          state.supplyStrain = entry && entry.n > 0 ? Math.min(1, entry.sum / entry.n / 2.5) : 0;
+        // Manpower Phase 5: 0..1 supply strain from average burg warIntensity (cap 2.5 → 1.0)
+        if (states) {
+          for (const state of states) {
+            if (!state?.i || state.removed) continue;
+            const entry = supplyByState.get(state.i);
+            state.supplyStrain = entry && entry.n > 0 ? Math.min(1, entry.sum / entry.n / 2.5) : 0;
+          }
         }
-      }
+      });
 
       daysSinceLastProduction += effectiveDays;
 
       const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
-      // Pregnancy observability (PR-P1): age/conceive after demography in the same advanceTime.
-      // When PR-P2 registers a birth-floor provider, tickUrbanPregnancy is a no-op (provider owns mutation).
-      tickUrbanPregnancy(effectiveDeltaYears);
-      // Construction hire-board lag + slow anonymous fills (job postings Phase 2).
-      tickConstructionHiring(effectiveDays);
-      const urbanMobility = UrbanLaborIntake.updateAnnualState(getWorldContext(), context.rng);
-      // Reuses UrbanLaborIntake's once-per-simulation-year gate (non-null only on the year
-      // transition) so administration/mining/smelting employment reconciles annually, not
-      // every economy tick.
-      if (urbanMobility) {
-        reconcileAnnualBasicEmploymentWorkers();
-        // Must run after reconciliation, not before: it clamps effectiveCapacity from this
-        // year's buildingStock (docs/plan/urban-construction-industry.md §3.3, decision §7.1-2b).
-        ConstructionOperations.constrainEffectiveCapacity();
-      }
-      // Inn facilities use the same local builders and Wood/Stone/Brick market stock as
-      // construction, but settle through their own non-dwelling work orders.
-      InnFacilities.settleAnnual();
-      // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
-      // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).
-      const urbanWaterChanged = UrbanWater.settleAnnual();
-      // Must run after reconcileAnnualBasicEmploymentWorkers(), not before: it reads this year's
-      // freshly-reconciled SmelterOperation.workers headcount as the Metallurgy guild's
-      // practitioner coverage (docs/plan/knowledge-guild-system.md §9 Phase 1). Self-gates to
-      // once per simulation year regardless of how often this tick runs.
-      GuildKnowledge.settleAnnual();
-      GuildChapters.settleAnnual(context.rng);
-      // Must run after GuildKnowledge above: reads this year's freshly-settled metallurgy
-      // GuildKnowledgeStock for apprentice growth-rate/eligibility checks (docs/plan/
-      // knowledge-guild-system.md §9 Phase 6). Self-gates to once per simulation year.
-      GuildSuccession.settleAnnual(probability => context.rng.P(probability));
-      // Same ordering requirement as GuildKnowledge above: reads this year's freshly-reconciled
-      // AdministrationEmploymentRecord headcount as the law/administration academy's practitioner
-      // coverage (docs/plan/knowledge-guild-system.md §9 Phase 3). Self-gates to once per
-      // simulation year.
-      AcademyKnowledge.settleAnnual();
-      // No ordering dependency on reconcileAnnualBasicEmploymentWorkers() (unlike Guild/Academy
-      // above) — it reads MilitaryResourceLedger and state.treasury, not a headcount reconciliation
-      // output. Self-gates to once per simulation year (docs/plan/knowledge-guild-system.md §9 Phase 4).
-      StateSecretKnowledge.settleAnnual();
-      // Reads state.military directly (not a reconciled employment record), so no ordering
-      // dependency either — self-gates to once per simulation year (docs/plan/
-      // knowledge-guild-system.md §9 Phase 5).
-      MartialDisciplineKnowledge.settleAnnual();
-      // Builds on the freshly-settled State training stock, but only creates records for
-      // named commanders; ordinary regiment members remain aggregate headcount.
-      MartialIndividualMastery.settleAnnual();
-      // No ordering dependency on the guild/academy settles above — sweeps burg.treasury surplus
-      // into market/state treasury regardless of guild presence. Self-gates to once per simulation
-      // year (docs/plan/burg-treasury-equilibrium.md §3.3).
-      GuildTreasury.settleAnnual();
-      const burgGroupsChanged = DevelopmentPotential.updateAnnualBurgGroups();
-      const forestChanged = tickForestRegrowth(effectiveDeltaYears);
+      let settledAdultsFromMobility = 0;
+      let urbanWaterChanged = false;
+      let burgGroupsChanged = false;
+      measureTickStep("economy:dailyHiringPregnancy", () => {
+        // Pregnancy observability (PR-P1): age/conceive after demography in the same advanceTime.
+        // When PR-P2 registers a birth-floor provider, tickUrbanPregnancy is a no-op (provider owns mutation).
+        tickUrbanPregnancy(effectiveDeltaYears);
+        // Construction hire-board lag + slow anonymous fills (job postings Phase 2).
+        tickConstructionHiring(effectiveDays);
+      });
+      measureTickStep("economy:annualUrbanKnowledge", () => {
+        const urbanMobility = UrbanLaborIntake.updateAnnualState(getWorldContext(), context.rng);
+        settledAdultsFromMobility = urbanMobility?.settledAdults ?? 0;
+        // Reuses UrbanLaborIntake's once-per-simulation-year gate (non-null only on the year
+        // transition) so administration/mining/smelting employment reconciles annually, not
+        // every economy tick.
+        if (urbanMobility) {
+          reconcileAnnualBasicEmploymentWorkers();
+          // Must run after reconciliation, not before: it clamps effectiveCapacity from this
+          // year's buildingStock (docs/plan/urban-construction-industry.md §3.3, decision §7.1-2b).
+          ConstructionOperations.constrainEffectiveCapacity();
+        }
+        // Inn facilities use the same local builders and Wood/Stone/Brick market stock as
+        // construction, but settle through their own non-dwelling work orders.
+        InnFacilities.settleAnnual();
+        // Urban water / sanitation: recompute demand vs capacity and write burg.sanitation.
+        // Self-gates once per simulation year (docs/plan/urban-water-and-sanitation-system.md Phase 1).
+        urbanWaterChanged = UrbanWater.settleAnnual();
+        // Must run after reconcileAnnualBasicEmploymentWorkers(), not before: it reads this year's
+        // freshly-reconciled SmelterOperation.workers headcount as the Metallurgy guild's
+        // practitioner coverage (docs/plan/knowledge-guild-system.md §9 Phase 1). Self-gates to
+        // once per simulation year regardless of how often this tick runs.
+        GuildKnowledge.settleAnnual();
+        GuildChapters.settleAnnual(context.rng);
+        // Must run after GuildKnowledge above: reads this year's freshly-settled metallurgy
+        // GuildKnowledgeStock for apprentice growth-rate/eligibility checks (docs/plan/
+        // knowledge-guild-system.md §9 Phase 6). Self-gates to once per simulation year.
+        GuildSuccession.settleAnnual(probability => context.rng.P(probability));
+        // Same ordering requirement as GuildKnowledge above: reads this year's freshly-reconciled
+        // AdministrationEmploymentRecord headcount as the law/administration academy's practitioner
+        // coverage (docs/plan/knowledge-guild-system.md §9 Phase 3). Self-gates to once per
+        // simulation year.
+        AcademyKnowledge.settleAnnual();
+        // No ordering dependency on reconcileAnnualBasicEmploymentWorkers() (unlike Guild/Academy
+        // above) — it reads MilitaryResourceLedger and state.treasury, not a headcount reconciliation
+        // output. Self-gates to once per simulation year (docs/plan/knowledge-guild-system.md §9 Phase 4).
+        StateSecretKnowledge.settleAnnual();
+        // Reads state.military directly (not a reconciled employment record), so no ordering
+        // dependency either — self-gates to once per simulation year (docs/plan/
+        // knowledge-guild-system.md §9 Phase 5).
+        MartialDisciplineKnowledge.settleAnnual();
+        // Builds on the freshly-settled State training stock, but only creates records for
+        // named commanders; ordinary regiment members remain aggregate headcount.
+        MartialIndividualMastery.settleAnnual();
+        // No ordering dependency on the guild/academy settles above — sweeps burg.treasury surplus
+        // into market/state treasury regardless of guild presence. Self-gates to once per simulation
+        // year (docs/plan/burg-treasury-equilibrium.md §3.3).
+        GuildTreasury.settleAnnual();
+        burgGroupsChanged = DevelopmentPotential.updateAnnualBurgGroups();
+      });
 
-      if (forestChanged) markProductionDirty();
+      measureTickStep("economy:forestProspect", () => {
+        const forestChanged = tickForestRegrowth(effectiveDeltaYears);
+        if (forestChanged) markProductionDirty();
 
-      daysSinceLastProspecting += effectiveDays;
-      if (daysSinceLastProspecting >= PROSPECTING_INTERVAL_DAYS) {
-        daysSinceLastProspecting %= PROSPECTING_INTERVAL_DAYS;
-        const result = MineOperations.prospect();
-        if (result.discovered) SmelterOperations.generate();
-      }
+        daysSinceLastProspecting += effectiveDays;
+        if (daysSinceLastProspecting >= PROSPECTING_INTERVAL_DAYS) {
+          daysSinceLastProspecting %= PROSPECTING_INTERVAL_DAYS;
+          const result = MineOperations.prospect();
+          if (result.discovered) SmelterOperations.generate();
+        }
+      });
 
       if (daysSinceLastProduction >= 30) {
+        const monthsDue = Math.floor(daysSinceLastProduction / 30);
         daysSinceLastProduction %= 30;
-        productionSettlementDue = true;
+        productionSettlementsDue += monthsDue;
         // Queue after all synchronous simulation systems have run, so logging events from
         // Shipbuilding (same tick, economy phase after this system by lexical id) are included.
         scheduleProductionSettlement();
       }
 
       writer.markChanged("extension.economy", "simulation.states");
-      if (burgGroupsChanged || (urbanMobility?.settledAdults ?? 0) > 0 || urbanWaterChanged) {
+      if (burgGroupsChanged || settledAdultsFromMobility > 0 || urbanWaterChanged) {
         writer.markChanged("simulation.burgs", "map.settlements");
       }
     }
