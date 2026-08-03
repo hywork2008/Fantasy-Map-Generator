@@ -1,9 +1,10 @@
 /**
  * Phase 4: late water technology stocks, tier 4–5 gates, and pollution compensation.
  *
- * The full technology-graph stages (locked/known/demonstrated/…) live in
- * docs/plan/technology-development-roadmap.md and are not yet a host system.
- * This module keeps local 0..1 adoption stocks that those nodes will drive later.
+ * Host technology graph stages (locked/known/demonstrated/…) now live in
+ * `src/generators/technologyProgress.ts` (`urbanCoveredDrainage` and later nodes).
+ * This module keeps local 0..1 adoption stocks that those graph nodes can drive
+ * more tightly in a later pass.
  *
  * Design: urban-water-and-sanitation-system.md §6, §11 Phase 4.
  */

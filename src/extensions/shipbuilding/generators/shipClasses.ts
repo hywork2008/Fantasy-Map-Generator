@@ -52,11 +52,21 @@ export function getAnnualShipbuildingMaterialDemand(shipClass: ShipClass): Shipb
   return getMaterialsForWork(shipClass, SHIPYARD_BUILD_POINTS_PER_YEAR);
 }
 
-/** The highest ship class whose tech requirement has been met by the given tech points. */
-export function getHighestUnlockedShipClass(techPoints: number): ShipClass {
+/**
+ * The highest ship class whose tech-point and (optional) technology-graph tier requirements
+ * are met. `maxTechTier` comes from the host technology graph
+ * (docs/plan/technology-development-roadmap.md Phase 3): 0 = sloop only, 1 = caravel,
+ * 2 = galleon. Omit or pass a high value to keep legacy tech-points-only behaviour in tests.
+ */
+export function getHighestUnlockedShipClass(
+  techPoints: number,
+  maxTechTier: number = Number.POSITIVE_INFINITY
+): ShipClass {
   let unlocked = SHIP_CLASSES[0];
   for (const shipClass of SHIP_CLASSES) {
-    if (techPoints >= shipClass.techPointsRequired) unlocked = shipClass;
+    if (techPoints >= shipClass.techPointsRequired && shipClass.tier <= maxTechTier) {
+      unlocked = shipClass;
+    }
   }
   return unlocked;
 }

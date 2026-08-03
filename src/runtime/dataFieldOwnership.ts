@@ -134,6 +134,7 @@ export const DATA_FIELD_OWNERSHIP: readonly DataFieldOwnership[] = [
   simulation("simulation.populationLoss", "simulation.states", "state.id", ["state.id", "cell.id"]),
   simulation("simulation.navalTechBonus", "simulation.military", "state.id", ["state.id"]),
   simulation("simulation.frontier", "simulation.cells", "cell.id", ["cell.id", "state.id"]),
+  simulation("simulation.technology", "simulation.states", "state.id", ["state.id"]),
   extension("simulation.extensions.characters.characters", "characters", "character.id"),
   extension("simulation.extensions.economy.goods", "economy", "good.id"),
   extension("simulation.extensions.economy.markets", "economy", "market.id"),

@@ -2,7 +2,21 @@
 
 ## 状態
 
-**提案段階 — 未実装**（2026-08-03）
+**Phase 1–3 実装済み（大航海・海洋商業まで）**（2026-08-03）
+
+| Phase | 内容 | 状態 |
+| --- | --- | --- |
+| 1 | 共通モデル・開始時代シード・年次評価 | 実装済み |
+| 2 | 火薬ノード + State 別需要効率 | 実装済み |
+| 3 | 大航海ノード + 船級ゲート | 実装済み |
+| 4+ | 前工業化〜宇宙 | **未着手**（別機会） |
+
+コードの主な置き場:
+
+- `src/generators/technologyTypes.ts` / `technologyDefinitions.ts` / `technologyProgress.ts`
+- `simulationContext.technology`（セーブ対象、暦の `era` とは別）
+- 年次 tick: `technology.tick`（economy phase、`shipbuilding.tick` の後）
+- 効果: 火薬需要倍率（Economy `militaryResources`）、船級上限（Shipbuilding `getHighestUnlockedShipClass`）
 
 本書は、現在想定する「三圃式農業と鉄製農具が普及し、火薬・銃・砲はまだ実用化されていない世界」から、火薬時代・大航海時代・前工業化・蒸気機関・電化・近代化学・石油・宇宙開発までを連続して扱う技術発展のロードマップである。
 
@@ -402,25 +416,25 @@ interface TechnologyDefinition {
 
 ## 13. 実装順序
 
-### Phase 1: 共通モデルと開始時代の明文化
+### Phase 1: 共通モデルと開始時代の明文化 — **実装済み**
 
-1. `TechnologyDefinition` と `TechnologyProgress` の最小型、セーブ形式、年次更新の登録口を設計する。
-2. 成熟中世の開始プロファイルを作る。火薬は無効、農具・役畜・基礎冶金は利用可能とする。
-3. 既存の `gunpowderEraEnabled` を世界設定ゲートとして明文化する。
-4. まだ効果を接続せず、技術ノードの状態だけを可視化・テストする。
+1. `TechnologyDefinition` / `TechnologyProgress`、セーブ正規化、`technology.tick` 年次評価。
+2. 成熟中世の開始プロファイルを `diffused` でシード。火薬ノードは `gunpowderEraEnabled` ゲート。
+3. ユニットテストで段階遷移とゲートを検証。
 
-### Phase 2: 火薬の State 別採用
+### Phase 2: 火薬の State 別採用 — **実装済み（ソフト効果）**
 
-1. `pyrotechnics`、砲鋳造、砲兵術、火器量産のノードを実装する。
-2. `StateSecretStock`、冶金ギルド、Treasury、Gunpowder / Artillery 需要へ接続する。
-3. 火薬世界設定が無効なら、研究・Goods・軍事編成をすべて出現させない回帰テストを維持する。
+1. `blackPowder` / `cornedPowder` / `cannonFoundry` / `artilleryTactics` / `massFirearms` / `gunpowderFortification`。
+2. シグナル: pyrotechnics / metallurgy / gunpowderDemand / treasury / 戦争。
+3. 効果: `getGunpowderDemandTechMultiplier` を軍事火薬需要に接続（未実証は浪費、普及後は効率改善）。Goods の世界ゲートは従来どおり `gunpowderEraEnabled`。
 
-### Phase 3: 大航海ノード
+### Phase 3: 大航海ノード — **実装済み**
 
-1. 外洋航法、遠洋帆船、標準海図、船団補給を Shipbuilding と接続する。
-2. 海洋 State のみが有利になる地理条件と、内陸 State にも別経路があることを検証する。
+1. `oceanNavigation` / `oceanGoingHulls` / `standardCharts` / `fleetLogistics` / `navalGunnery` / `overseasTradingPosts`。
+2. 船級: sloop 常時可、caravel は `oceanGoingHulls` ≥ demonstrated、galleon は adopted + `oceanNavigation` ≥ known（加えて従来の tech points）。
+3. 内陸は港・船体シグナルが弱いため大航海ノードが停滞し、鉱山系 era-1 ノードは別経路で進行可能。
 
-### Phase 4: 前工業化と蒸気機関
+### Phase 4: 前工業化と蒸気機関 — **未着手**
 
 1. 鉱山排水、石炭、精密中ぐり、初期蒸気機関を順に実装する。
 2. 初期蒸気機関は深部鉱山に限定し、石炭・鉄の供給増という形で効果を接続する。

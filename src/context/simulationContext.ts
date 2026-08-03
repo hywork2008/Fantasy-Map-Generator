@@ -1,3 +1,5 @@
+import type { TechnologySimulationState } from "../generators/technologyTypes";
+import { createEmptyTechnologySimulationState } from "../generators/technologyTypes";
 import type { SimulationRngState } from "../runtime/simulationRngTypes";
 import type { BurgDemographics, MilitaryRegiment } from "../types/models";
 import type { Season } from "../utils/seasonUtils";
@@ -265,6 +267,11 @@ export interface SimulationContext {
   navalTechBonus: Record<number, number>;
   /** Unclaimed outposts and settlements; State incorporation is a later phase. */
   frontier: FrontierSimulationState;
+  /**
+   * Host-owned technology graph progress (locked→diffused). Distinct from calendar `era`.
+   * See docs/plan/technology-development-roadmap.md §12.
+   */
+  technology: TechnologySimulationState;
 }
 
 /**
@@ -300,5 +307,6 @@ export const simulationContext: SimulationContext = {
   strategicGoals: {},
   populationLoss: createEmptyPopulationLossState(),
   navalTechBonus: {},
-  frontier: createEmptyFrontierSimulationState()
+  frontier: createEmptyFrontierSimulationState(),
+  technology: createEmptyTechnologySimulationState()
 };

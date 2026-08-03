@@ -28,6 +28,12 @@ describe("shipClasses", () => {
     expect(getHighestUnlockedShipClass(1_000_000).id).toBe(SHIP_CLASSES[SHIP_CLASSES.length - 1].id);
   });
 
+  it("caps unlocks by technology-graph ship tier even when tech points are high", () => {
+    expect(getHighestUnlockedShipClass(200, 0).id).toBe("sloop");
+    expect(getHighestUnlockedShipClass(200, 1).id).toBe("caravel");
+    expect(getHighestUnlockedShipClass(200, 2).id).toBe("galleon");
+  });
+
   it("getShipClass returns undefined for an unknown id", () => {
     expect(getShipClass("dreadnought")).toBeUndefined();
   });

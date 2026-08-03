@@ -1,3 +1,4 @@
+import { getMaxShipClassTierForState } from "../../../generators/technologyProgress";
 import {
   type Burg,
   SHIPBUILDING_MATERIAL_IDS,
@@ -127,7 +128,10 @@ export function getInitialStateOwnedDemand(
     const burg = burgs[burgId];
     if (!burg || burg.removed || !burg.state || !burg.market || determineOwner(burg) !== "state") continue;
 
-    const unlockedClass = getHighestUnlockedShipClass(getStateTechPoints(burg.state));
+    const unlockedClass = getHighestUnlockedShipClass(
+      getStateTechPoints(burg.state),
+      getMaxShipClassTierForState(burg.state)
+    );
     const annualMaterials = getAnnualShipbuildingMaterialDemand(unlockedClass);
     const key = `${burg.state}:${burg.market}`;
     const existing = demandByKey.get(key);
@@ -250,7 +254,8 @@ export function runShipyardTick(
 
     const owner = determineOwner(burg);
     const techPoints = burg.state ? getStateTechPoints(burg.state) : 0;
-    const unlockedClass = getHighestUnlockedShipClass(techPoints);
+    const maxTechTier = burg.state ? getMaxShipClassTierForState(burg.state) : 0;
+    const unlockedClass = getHighestUnlockedShipClass(techPoints, maxTechTier);
 
     const runtimeState = getShipbuildingRuntimeState();
     let entry = runtimeState.queues[burgId];
@@ -276,6 +281,7 @@ export function runShipyardTick(
       advanceSurplusQueue(
         burg,
         techPoints,
+        maxTechTier,
         unusedWorkPoints,
         requestMaterials,
         requestShipGoodStock,
@@ -356,6 +362,7 @@ function advanceQueueWithMaterials(
 function advanceSurplusQueue(
   burg: Burg,
   techPoints: number,
+  maxTechTier: number,
   availableWorkPoints: number,
   requestMaterials: RequestShipbuildingMaterialsFn,
   requestShipGoodStock: RequestShipGoodStockFn,
@@ -376,7 +383,7 @@ function advanceSurplusQueue(
   const hasSunkProgress = Boolean(inProgress) && inProgress!.progress + inProgress!.pendingWorkPoints > EPSILON;
   const shipClass = hasSunkProgress
     ? getShipClass(inProgress!.shipClassId)
-    : selectSurplusShipClass(techPoints, mutableStock);
+    : selectSurplusShipClass(techPoints, maxTechTier, mutableStock);
   if (!shipClass || !hasFreePortBerth(burg.i, shipClass, mutableStock, portCapacity)) return;
 
   let entry = inProgress;
@@ -424,11 +431,18 @@ function advanceSurplusQueue(
   }
 }
 
-function selectSurplusShipClass(techPoints: number, stock: ShipGoodStock): ShipClass | undefined {
+function selectSurplusShipClass(techPoints: number, maxTechTier: number, stock: ShipGoodStock): ShipClass | undefined {
   const sloop = getShipClass("sloop");
   const caravel = getShipClass("caravel");
   if (!sloop || !caravel) return undefined;
-  if (techPoints >= caravel.techPointsRequired && stock.Sloop > 0 && stock.Caravel === 0) return caravel;
+  if (
+    maxTechTier >= caravel.tier &&
+    techPoints >= caravel.techPointsRequired &&
+    stock.Sloop > 0 &&
+    stock.Caravel === 0
+  ) {
+    return caravel;
+  }
   return sloop;
 }
 

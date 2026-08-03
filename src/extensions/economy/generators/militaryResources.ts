@@ -1,3 +1,4 @@
+import { getGunpowderDemandTechMultiplier } from "../../../generators/technologyProgress";
 import { rn } from "../../hostUtils";
 import {
   getGoods,
@@ -121,10 +122,15 @@ export class MilitaryResourcesModule {
     // Better black-powder chemistry needs less raw sulfur/saltpeter/coal per unit of gunpowder
     // produced — the pyrotechnics state secret (docs/plan/knowledge-guild-system.md §9 Phase 4)
     // reduces gunpowder demand itself, so saltpeter/sulfur/coal (derived from it below) scale down
-    // with it automatically.
+    // with it automatically. Host technology graph further scales by state adoption stage
+    // (docs/plan/technology-development-roadmap.md Phase 2): pre-demonstration programs waste powder.
     const pyrotechnicsMultiplier = getStateSecretMaterialMultiplier(stateId, "pyrotechnics");
+    // Host technology graph (roadmap Phase 2): pre-demonstration programs waste powder.
+    const techDemandMultiplier = getGunpowderDemandTechMultiplier(stateId);
     const gunpowder =
-      (artillery * ARTILLERY_GUNPOWDER_PER_GUN + firearms * FIREARM_GUNPOWDER_PER_HEAD) * pyrotechnicsMultiplier;
+      (artillery * ARTILLERY_GUNPOWDER_PER_GUN + firearms * FIREARM_GUNPOWDER_PER_HEAD) *
+      pyrotechnicsMultiplier *
+      techDemandMultiplier;
     demand.iron = rn(artillery * ARTILLERY_IRON_PER_GUN + firearms * FIREARM_IRON_PER_HEAD, 4);
     demand.gunpowder = rn(gunpowder, 4);
     demand.bullets = rn(firearms * FIREARM_BULLETS_PER_HEAD, 4);

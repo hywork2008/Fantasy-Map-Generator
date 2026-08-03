@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { setTechnologyProgressForTests } from "../../../generators/technologyProgress";
 import type { Burg, State } from "../../hostTypes";
 import type { PortCapacity } from "./portCapacity";
 import type { ShipyardCandidate } from "./shipyardCandidates";
@@ -14,6 +15,26 @@ import {
   runShipyardTick,
   setHullStatus
 } from "./shipyardQueue";
+
+/** Technology-graph gate for caravel/galleon (roadmap Phase 3); tests that assert higher hulls must seed it. */
+function unlockOceanGoingHulls(stateId: number, stage: "demonstrated" | "adopted" = "demonstrated"): void {
+  setTechnologyProgressForTests([
+    {
+      technologyId: "oceanGoingHulls",
+      scope: "state",
+      ownerId: stateId,
+      stage,
+      diffusion: stage === "adopted" ? 0.2 : 0
+    },
+    {
+      technologyId: "oceanNavigation",
+      scope: "state",
+      ownerId: stateId,
+      stage: stage === "adopted" ? "known" : "locked",
+      diffusion: 0
+    }
+  ]);
+}
 
 function makeBurgs(overrides: Partial<Burg>[]): Burg[] {
   const burgs: Burg[] = [{} as Burg]; // index 0 is unused, matches pack.burgs convention
@@ -35,6 +56,8 @@ const noSkill: GetEffectiveSkillFn = () => 0; // no Nobility ruler data -> engin
 describe("shipyardQueue", () => {
   beforeEach(() => {
     clearShipyardQueues();
+    // Default: no ocean-going tech — sloop only unless a test unlocks higher tiers.
+    setTechnologyProgressForTests([]);
   });
 
   it("assigns a state-owned queue to a state capital", () => {
@@ -207,6 +230,7 @@ describe("shipyardQueue", () => {
   it("upgrades a state's queue to caravel once tech points clear the threshold", () => {
     const burgs = makeBurgs([{ i: 1, state: 1, capital: 1 }]);
     const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];
+    unlockOceanGoingHulls(1, "demonstrated");
 
     // 1 shipyard * 1 point/year * 60 years = 60 tech points >= 50 required for caravel
     runShipyardTick(candidates, burgs, [], 60, noSkill);
@@ -363,7 +387,8 @@ describe("shipyardQueue", () => {
       return true;
     };
 
-    // Unlock Caravel while allowing the existing merchant queue to retain its normal hull lifecycle.
+    // Tech points + technology-graph gate (oceanGoingHulls demonstrated) unlock Caravel.
+    unlockOceanGoingHulls(1, "demonstrated");
     runShipyardTick(candidates, burgs, [], 50, noSkill);
     runShipyardTick(
       candidates,

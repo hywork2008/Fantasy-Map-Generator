@@ -586,6 +586,46 @@ function assertAndNormalizeNavalTechBonus(simulation: Record<string, unknown>): 
   assertFiniteNonNegativeNumberRecord(simulation.navalTechBonus, "simulation.navalTechBonus");
 }
 
+const TECHNOLOGY_STAGES = new Set(["locked", "known", "demonstrated", "adopted", "diffused"]);
+const TECHNOLOGY_SCOPES = new Set(["burg", "state", "network"]);
+
+function assertAndNormalizeTechnology(simulation: Record<string, unknown>): void {
+  if (simulation.technology === undefined) {
+    simulation.technology = { lastEvaluatedYear: null, progress: [] };
+    return;
+  }
+  if (!isRecord(simulation.technology)) {
+    throw new Error("Archive simulation.technology must be a record");
+  }
+  const technology = simulation.technology;
+  if (technology.lastEvaluatedYear !== null && !isFiniteNonNegativeInteger(technology.lastEvaluatedYear)) {
+    throw new Error("Archive simulation.technology.lastEvaluatedYear must be null or a non-negative integer");
+  }
+  if (!Array.isArray(technology.progress)) {
+    throw new Error("Archive simulation.technology.progress must be an array");
+  }
+  for (const [index, entry] of technology.progress.entries()) {
+    if (!isRecord(entry)) {
+      throw new Error(`Archive simulation.technology.progress[${index}] must be a record`);
+    }
+    if (typeof entry.technologyId !== "string" || entry.technologyId.length === 0) {
+      throw new Error(`Archive simulation.technology.progress[${index}].technologyId must be a non-empty string`);
+    }
+    if (!TECHNOLOGY_SCOPES.has(entry.scope as string)) {
+      throw new Error(`Archive simulation.technology.progress[${index}].scope is invalid`);
+    }
+    if (!Number.isInteger(entry.ownerId) || (entry.ownerId as number) < 0) {
+      throw new Error(`Archive simulation.technology.progress[${index}].ownerId must be a non-negative integer`);
+    }
+    if (!TECHNOLOGY_STAGES.has(entry.stage as string)) {
+      throw new Error(`Archive simulation.technology.progress[${index}].stage is invalid`);
+    }
+    if (typeof entry.diffusion !== "number" || !Number.isFinite(entry.diffusion) || entry.diffusion < 0) {
+      throw new Error(`Archive simulation.technology.progress[${index}].diffusion must be a non-negative number`);
+    }
+  }
+}
+
 function assertAndNormalizeFrontier(simulation: Record<string, unknown>, cellCount: number): void {
   if (simulation.frontier === undefined) {
     simulation.frontier = createEmptyFrontierSimulationState(cellCount);
@@ -782,6 +822,7 @@ export function assertValidWorldDocument(value: unknown): asserts value is World
   // omit them; empty defaults keep overview/heatmap/naval bonus state consistent.
   assertAndNormalizePopulationLoss(simulation);
   assertAndNormalizeNavalTechBonus(simulation);
+  assertAndNormalizeTechnology(simulation);
   const cells = pack.cells as Record<string, unknown>;
   if (cells.i !== undefined && !isTypedArray(cells.i)) {
     throw new Error("Archive pack.cells.i must be a typed array");

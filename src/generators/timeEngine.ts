@@ -37,6 +37,8 @@ import { advancePopulationLossClock, resetPopulationLossTracker } from "./popula
 import { advancePortDevelopment } from "./portDevelopment";
 import { advanceAllRegimentMovement } from "./regimentMovement";
 import { createSimulationSystemRegistry, type SimulationStepContext, type SimulationSystem } from "./simulationSystem";
+import { seedTechnologyStartProfile, settleTechnologyAnnual } from "./technologyProgress";
+import { createEmptyTechnologySimulationState } from "./technologyTypes";
 import { logTickProfile, measureTickStep, resetTickProfile } from "./tickProfiler";
 
 /** Day is the base simulation unit. Month/Year UI buttons expand to ~this many days. */
@@ -133,6 +135,23 @@ registerSimulationSystem({
   }
 });
 
+// Technology graph: evaluate after economy knowledge/stocks have updated in the
+// economy phase (lexical order places "technology.tick" after "shipbuilding.tick").
+// Self-gates to once per calendar year inside settleTechnologyAnnual().
+registerSimulationSystem({
+  id: "technology.tick",
+  phase: "economy",
+  reads: ["map.politics", "map.settlements", "simulation.states", "extension.economy", "extension.shipbuilding"],
+  writes: ["simulation.states"],
+  cadence: { every: 1 },
+  profileLabel: "technologyProgress",
+  run: (_context, writer) => {
+    if (settleTechnologyAnnual(simulationContext.currentYear)) {
+      writer.markChanged("simulation.states");
+    }
+  }
+});
+
 /** Test/support: ordered system ids currently registered for the host tick. */
 export function listRegisteredSimulationSystemIds(): readonly string[] {
   return timeTickSystems.list().map(system => system.id);
@@ -198,6 +217,8 @@ export function initSimulationClock(): void {
   simulationContext.strategicGoals = {};
   simulationContext.navalTechBonus = {};
   simulationContext.frontier = createEmptyFrontierSimulationState(worldContext.pack?.cells?.i.length ?? 0);
+  simulationContext.technology = createEmptyTechnologySimulationState();
+  seedTechnologyStartProfile(simulationContext.currentYear);
   resetPopulationLossTracker();
 }
 
