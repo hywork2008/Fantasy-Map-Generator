@@ -3,7 +3,9 @@
 2026-08-03
 
 - docs/analytics/character-wealth-balance.md
+- docs/analytics/polity-fiscal-regimes-historical.md
 - docs/plan/individual-skill-mastery-system.md
+- docs/plan/multi-ledger-fiscal-architecture.md
 - docs/plan/player-character-market-commerce.md
 - docs/plan/technology-development-roadmap.md
 - docs/plan/urban-water-and-sanitation-system.md

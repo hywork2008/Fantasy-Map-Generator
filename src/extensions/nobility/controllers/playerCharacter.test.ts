@@ -77,11 +77,49 @@ describe("playerCharacter", () => {
       id: 5,
       name: "Elena",
       wealth: 0,
+      publicTreasury: 0,
+      domainTreasury: null,
+      isLandedRuler: true,
       title: "Queen",
       stateId: 2,
       stateName: "Vespera",
       organization: "Ruling Court",
       location: null
+    });
+  });
+
+  it("surfaces public and domain treasuries beside personal wealth (multi-ledger PR-1)", () => {
+    const queen = makeCharacter({
+      i: 5,
+      name: "Elena",
+      wealth: 3,
+      state: 2,
+      titles: [{ title: "Queen", landed: true, entityType: "state", entityId: 2 }]
+    });
+    const lord = makeCharacter({
+      i: 6,
+      name: "Bors",
+      wealth: 1,
+      state: 2,
+      titles: [{ title: "Count", landed: true, entityType: "province", entityId: 1 }]
+    });
+    const pack = {
+      states: [undefined, undefined, { i: 2, name: "Vespera", treasury: 120 } as never],
+      provinces: [undefined, { i: 1, name: "North", state: 2, burg: 3 } as never],
+      burgs: [undefined, undefined, undefined, { i: 3, name: "Seat", state: 2, treasury: 45, x: 0, y: 0 } as never]
+    };
+
+    expect(buildPlayerCharacterSummary(queen, pack)).toMatchObject({
+      wealth: 3,
+      publicTreasury: 120,
+      domainTreasury: null,
+      isLandedRuler: true
+    });
+    expect(buildPlayerCharacterSummary(lord, pack)).toMatchObject({
+      wealth: 1,
+      publicTreasury: 120,
+      domainTreasury: 45,
+      isLandedRuler: false
     });
   });
 

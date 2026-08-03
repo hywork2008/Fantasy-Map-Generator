@@ -17,8 +17,20 @@ describe("refreshTreasuryOverview", () => {
   });
 
   it("builds one row per State from the last allocateTreasury() snapshot", () => {
-    const monarchy = { i: 1, form: "Monarchy", diplomacy: [], name: "Testland" } as unknown as State;
-    const theocracy = { i: 2, form: "Theocracy", diplomacy: [], name: "Holyrealm" } as unknown as State;
+    const monarchy = {
+      i: 1,
+      form: "Monarchy",
+      diplomacy: [],
+      name: "Testland",
+      treasury: 500
+    } as unknown as State;
+    const theocracy = {
+      i: 2,
+      form: "Theocracy",
+      diplomacy: [],
+      name: "Holyrealm",
+      treasury: 80
+    } as unknown as State;
     worldContext.pack = { states: [undefined, monarchy, theocracy] } as unknown as PackedGraph;
 
     allocateTreasury(monarchy, 1000);
@@ -33,7 +45,10 @@ describe("refreshTreasuryOverview", () => {
     expect(monarchyRow).toMatchObject({
       stateName: "Testland",
       form: "Monarchy",
-      household: 0, // no Characters/Nobility context in this test
+      publicTreasury: 500,
+      rulerPersonal: 0, // no Characters/Nobility context in this test
+      nominalDepartments: 350 + 150 + 120 + 50 + 80,
+      household: 0,
       marshalcy: 350,
       chancery: 150,
       stewardship: 120,
@@ -45,11 +60,12 @@ describe("refreshTreasuryOverview", () => {
     expect(theocracyRow).toMatchObject({
       stateName: "Holyrealm",
       form: "Theocracy",
+      publicTreasury: 80,
       marshalcy: 150,
       ecclesiastica: 480
     });
 
-    // Sorted by Marshalcy budget, highest first.
+    // Sorted by public treasury stock, highest first (multi-ledger PR-1).
     expect(rows[0].id).toBe(1);
   });
 

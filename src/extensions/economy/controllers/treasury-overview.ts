@@ -1,19 +1,30 @@
+import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
+import type { State } from "../../hostTypes";
 import { openDialog } from "../../hostUi";
 import { rn } from "../../hostUtils";
+import { getRulerId } from "../../nobility/nobilityContext";
 import { getWorldContext } from "../economyContext";
 import { getTreasuryAllocationSnapshots } from "../generators/treasuryAllocation";
 import { setTreasuryOverviewState, type TreasuryOverviewRow } from "../store/treasuryOverviewState";
 
 /**
  * Debug/transparency view over every State's last treasury department allocation
- * (docs/plan/state-treasury-department-budget.md §3/§4/§7). Reads the snapshot
- * allocateTreasury() already computed during the last collectTaxes() cycle — it does not
- * recompute anything live, since allocateTreasury() has side effects (household stipend
- * payment, militaryDiscontent update) that must only run once per real cycle.
+ * (docs/plan/state-treasury-department-budget.md §3/§4/§7) plus multi-ledger PR-1 stocks
+ * (docs/plan/multi-ledger-fiscal-architecture.md): public treasury vs ruler personal wealth.
+ * Reads the snapshot allocateTreasury() already computed during the last collectTaxes() cycle —
+ * it does not recompute allocation live (side effects: stipends, militaryDiscontent).
  */
 export function open(): void {
   openDialog("treasuryOverview");
   refreshTreasuryOverview();
+}
+
+function resolveRulerPersonalWealth(state: State): number {
+  if (!state.i || !hasCharactersContext()) return 0;
+  const rulerId = getRulerId(state);
+  if (rulerId === undefined) return 0;
+  const ruler = getCharacters().find(character => character.i === rulerId && !character.dead);
+  return rn(ruler?.wealth || 0, 2);
 }
 
 export function refreshTreasuryOverview(): void {
@@ -25,11 +36,19 @@ export function refreshTreasuryOverview(): void {
     const state = states[snapshot.stateId];
     if (!state?.i || state.removed) continue;
 
+    const nominalDepartments = rn(
+      snapshot.marshalcy + snapshot.chancery + snapshot.stewardship + snapshot.spymastery + snapshot.ecclesiastica,
+      2
+    );
+
     rows.push({
       id: state.i,
       stateName: state.name || `State ${state.i}`,
       form: state.form || "—",
       domesticIncome: rn(snapshot.domesticIncome, 2),
+      publicTreasury: rn(state.treasury || 0, 2),
+      rulerPersonal: resolveRulerPersonalWealth(state),
+      nominalDepartments,
       household: snapshot.household,
       officeStipendsPaid: snapshot.officeStipendsPaid,
       marshalcy: snapshot.marshalcy,
@@ -42,6 +61,6 @@ export function refreshTreasuryOverview(): void {
     });
   }
 
-  rows.sort((a, b) => b.marshalcy - a.marshalcy);
+  rows.sort((a, b) => b.publicTreasury - a.publicTreasury || b.marshalcy - a.marshalcy);
   setTreasuryOverviewState({ rows });
 }

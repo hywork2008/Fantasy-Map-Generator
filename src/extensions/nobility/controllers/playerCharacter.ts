@@ -19,6 +19,17 @@ export interface PlayerCharacterSummary {
   name: string;
   /** Personal held money (`Character.wealth`), distinct from state treasury. */
   wealth: number;
+  /**
+   * L2 public treasury of the character's political state (`state.treasury`).
+   * Multi-ledger PR-1: shown beside personal wealth so rulers are not read as "broke nations".
+   */
+  publicTreasury: number;
+  /**
+   * L3b domain treasury when the character is a province lord seated on a burg; otherwise null.
+   */
+  domainTreasury: number | null;
+  /** True when the primary title is a landed state ruler (king/etc.). */
+  isLandedRuler: boolean;
   /** Gender-resolved office title, e.g. "King", "Marshal", "Count". */
   title: string;
   stateId: number;
@@ -126,10 +137,27 @@ export function buildPlayerCharacterSummary(
     stateId = role.entityId;
   }
 
+  const state = stateId >= 0 ? pack.states?.[stateId] : undefined;
+  const publicTreasury = state?.treasury || 0;
+  const isLandedRuler = Boolean(holding?.landed && holding.entityType === "state");
+
+  let domainTreasury: number | null = null;
+  if (holding?.entityType === "province") {
+    const province = pack.provinces?.[holding.entityId];
+    const burgId = province?.burg;
+    if (burgId) {
+      const burg = pack.burgs?.[burgId];
+      if (burg && !burg.removed) domainTreasury = burg.treasury || 0;
+    }
+  }
+
   return {
     id: character.i,
     name: character.name,
     wealth: character.wealth ?? 0,
+    publicTreasury,
+    domainTreasury,
+    isLandedRuler,
     title: holding ? getCharacterTitleLabel(holding.title) : role ? getCharacterRoleLabel(role) : "—",
     stateId,
     stateName: resolveStateName(pack.states, stateId),

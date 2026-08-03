@@ -162,8 +162,28 @@ export const PlayerCharacterPanel: React.FC = () => {
             />
           </div>
           <dl className="pcp-fields">
-            <dt>Wealth</dt>
-            <dd title="Personal wealth (held money)">{formatPrice(summary.wealth)}</dd>
+            <dt>Personal</dt>
+            <dd title="L0 personal wealth (Character.wealth) — pocket money, not the state treasury">
+              {formatPrice(summary.wealth)}
+            </dd>
+            <dt>Public treasury</dt>
+            <dd
+              title={
+                summary.isLandedRuler
+                  ? "L2 state.treasury — institutional cash for the realm. A thin personal purse does not mean a poor state."
+                  : "L2 state.treasury of this character's political state (read-only here)"
+              }
+            >
+              {formatPrice(summary.publicTreasury)}
+            </dd>
+            {summary.domainTreasury !== null ? (
+              <>
+                <dt>Domain treasury</dt>
+                <dd title="L3b burg.treasury at the lord's seat — domain operating funds (stipend source), not personal cash">
+                  {formatPrice(summary.domainTreasury)}
+                </dd>
+              </>
+            ) : null}
             <dt>Location</dt>
             <dd className="pcp-location" title={summary.location?.label ?? "Unknown"}>
               {summary.location ? (

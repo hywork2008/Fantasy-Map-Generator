@@ -19,7 +19,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
   const rawRows = useTreasuryOverviewState(state => state.rows);
 
   const parentRef = React.useRef<HTMLDivElement>(null);
-  const [sortBy, setSortBy] = React.useState<SortField>("marshalcy");
+  const [sortBy, setSortBy] = React.useState<SortField>("publicTreasury");
   const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc");
 
   const toggleSortBy = (field: string) => {
@@ -44,7 +44,8 @@ export const TreasuryOverviewDialog: React.FC = () => {
     });
   }, [rawRows, sortBy, sortOrder]);
 
-  const totalMarshalcy = rows.reduce((sum, row) => sum + row.marshalcy, 0);
+  const totalPublic = rows.reduce((sum, row) => sum + row.publicTreasury, 0);
+  const totalPersonal = rows.reduce((sum, row) => sum + row.rulerPersonal, 0);
 
   return (
     <Dialog
@@ -56,8 +57,18 @@ export const TreasuryOverviewDialog: React.FC = () => {
       <TableDialogLayout
         bodyRef={parentRef}
         summary={
-          <div data-tip="Sum of every listed state's Marshalcy (military) budget this cycle" className="totalLine">
-            Total Marshalcy budget: <span id="treasuryOverviewTotal">{totalMarshalcy.toFixed(1)}</span>
+          <div className="totalLine">
+            <div data-tip="Multi-ledger PR-1: Public is state.treasury (institutional). Ruler personal is Character.wealth only — not the same purse. Household purse and real department balances are not implemented yet.">
+              Ledgers: Public (L2) total <span id="treasuryOverviewTotalPublic">{totalPublic.toFixed(1)}</span>
+              {" · "}
+              Rulers&apos; personal (L0) total{" "}
+              <span id="treasuryOverviewTotalPersonal">{totalPersonal.toFixed(1)}</span>
+            </div>
+            <div className="dim" style={{ fontSize: "0.9em", marginTop: "0.25em" }}>
+              Personal cash is pocket money. Governance capacity is the public treasury (and, later, household /
+              department purses). Department columns below are nominal allocation this cycle, not spendable department
+              balances yet.
+            </div>
           </div>
         }
         footer={
@@ -72,6 +83,9 @@ export const TreasuryOverviewDialog: React.FC = () => {
       >
         <table className="fmg-table">
           <colgroup>
+            <col />
+            <col />
+            <col />
             <col />
             <col />
             <col />
@@ -104,6 +118,24 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 tip="Governance form — determines the baseline department allocation table"
               />
               <SortableHeader
+                field="publicTreasury"
+                label="Public"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="L2 public treasury stock (state.treasury). Institutional cash for war and common government — not the ruler's personal purse"
+              />
+              <SortableHeader
+                field="rulerPersonal"
+                label="Ruler L0"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="Living ruler's Character.wealth (personal pocket money). Often much smaller than Public; that is intentional"
+              />
+              <SortableHeader
                 field="domesticIncome"
                 label="Income"
                 sortBy={sortBy}
@@ -114,12 +146,12 @@ export const TreasuryOverviewDialog: React.FC = () => {
               />
               <SortableHeader
                 field="household"
-                label="Household"
+                label="HH paid"
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Ruler's household stipend — a real deduction paid into the ruler's Character.wealth"
+                tip="Household stipend paid this cycle into the ruler's personal wealth (L0) — not a separate household purse yet (PR-2)"
               />
               <SortableHeader
                 field="officeStipendsPaid"
@@ -128,7 +160,16 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Sum actually paid to the state's 5 central office holders (Chancellor/Marshal/Steward/Spymaster/Court Chaplain) this cycle — a real deduction; 0 for any currently-vacant office"
+                tip="Sum actually paid to central office holders this cycle (real deduction from public treasury)"
+              />
+              <SortableHeader
+                field="nominalDepartments"
+                label="Depts Σ"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="Sum of nominal non-household department budgets this cycle. Not real department balances until PR-3"
               />
               <SortableHeader
                 field="marshalcy"
@@ -137,7 +178,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Nominal military department Budget — the Marshal's actual stipend is included in Stipends, not deducted again here; the existing military upkeep charge (Need) is unchanged"
+                tip="Nominal military department Budget — office stipend is in Stipends; military upkeep Need is separate"
               />
               <SortableHeader
                 field="militaryFundingRatio"
@@ -155,7 +196,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Accumulates while underfunded, decays while well-funded (0-200); crossing 100 fires an event with no consequence wired yet"
+                tip="Accumulates while underfunded, decays while well-funded (0-200)"
               />
               <SortableHeader
                 field="chancery"
@@ -164,7 +205,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Nominal department Budget — the office holder's actual stipend is included in Stipends, not deducted again here"
+                tip="Nominal department Budget this cycle"
               />
               <SortableHeader
                 field="stewardship"
@@ -173,7 +214,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Nominal department Budget — the office holder's actual stipend is included in Stipends, not deducted again here"
+                tip="Nominal department Budget this cycle"
               />
               <SortableHeader
                 field="spymastery"
@@ -182,7 +223,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Nominal department Budget — the office holder's actual stipend is included in Stipends, not deducted again here"
+                tip="Nominal department Budget this cycle"
               />
               <SortableHeader
                 field="ecclesiastica"
@@ -191,14 +232,14 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Nominal department Budget — the office holder's actual stipend is included in Stipends, not deducted again here"
+                tip="Nominal department Budget this cycle"
               />
             </tr>
           </thead>
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={12}>
+                <td colSpan={15}>
                   <span>No state has an allocated treasury yet — run a generation cycle first</span>
                 </td>
               </tr>
@@ -220,9 +261,12 @@ const TreasuryRow: React.FC<{ row: TreasuryOverviewRow }> = ({ row }) => (
   <tr className="states" data-id={row.id} data-state={row.stateName}>
     <td data-tip={row.stateName}>{row.stateName}</td>
     <td>{row.form}</td>
+    <td data-tip="Public treasury (L2)">{row.publicTreasury.toFixed(2)}</td>
+    <td data-tip="Ruler personal wealth (L0)">{row.rulerPersonal.toFixed(2)}</td>
     <td>{row.domesticIncome.toFixed(2)}</td>
-    <td>{row.household.toFixed(2)}</td>
+    <td data-tip="Household stipend paid this cycle (to L0)">{row.household.toFixed(2)}</td>
     <td>{row.officeStipendsPaid.toFixed(2)}</td>
+    <td data-tip="Nominal department budgets sum (not real balances yet)">{row.nominalDepartments.toFixed(2)}</td>
     <td>{row.marshalcy.toFixed(2)}</td>
     <td>{row.militaryFundingRatio.toFixed(2)}</td>
     <td>{row.militaryDiscontent.toFixed(1)}</td>
