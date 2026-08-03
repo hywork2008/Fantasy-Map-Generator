@@ -9,6 +9,7 @@ import { getHeightmapTemplateWeights, getInitialSettlementPatternPreset } from "
 import { Cultures } from "../generators/cultures-generator";
 import { COA } from "../generators/emblem/generator";
 import { Names } from "../generators/names-generator";
+import { culturesSetUsesFrontierSettlement } from "../generators/threatProfiles";
 import { syncSimulationClockFromOptions } from "../generators/timeEngine";
 import { Cloud } from "../io/cloud";
 import { loadMapFromURL } from "../io/load";
@@ -257,9 +258,12 @@ export function getCellsDensityColor(cells: number): string {
 // ─── Options changes ───────────────────────────────────────────────────────────
 
 function changeCultureSet(): void {
-  // const max = (culturesSet.selectedOptions[0] as HTMLElement).dataset.max!;
-  /* removed */
-  /* removed */
+  // Fantasy presets: limited oikoumene (frontier settlement) + culture-set threat profile
+  // applied at next generate (see threatProfiles.ts / Threats.generate).
+  const { culturesSet } = useOptionsState.getState();
+  if (culturesSetUsesFrontierSettlement(culturesSet) && !locked("initialSettlementPattern")) {
+    useOptionsState.getState().setOption("initialSettlementPattern", "frontier");
+  }
 }
 
 function changeEmblemShape(emblemShape: string): void {
@@ -888,6 +892,8 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
     const { culturesSet, cultures } = useOptionsState.getState();
     const max = culturesSetMaxMap[culturesSet] ?? 100;
     if (cultures > max) useOptionsState.getState().setOption("cultures", max);
+    // Apply frontier oikoumene + fantasy threat mood for High/Dark Fantasy.
+    changeCultureSet();
   });
 
   document.addEventListener("react-restore-default-zoom-extent", restoreDefaultZoomExtent);

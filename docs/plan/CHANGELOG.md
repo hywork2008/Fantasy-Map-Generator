@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-08-04
+
+- docs/plan/wild-oikoumene-frontier.md
+
 2026-08-03
 
 - docs/analytics/advance-year-performance.md

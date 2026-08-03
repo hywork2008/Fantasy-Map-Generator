@@ -5,6 +5,7 @@ import { useOptionsState } from "../store/optionsState";
 import type { Monster } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { rand } from "../utils";
+import { getThreatSpawnProfile, type ThreatSpawnProfile } from "./threatProfiles";
 
 export const Threats = {
   generate(worldContext: WorldContext, _viewContext: ViewContext, _appServices: AppServices, _state: WorldState) {
@@ -15,8 +16,9 @@ export const Threats = {
     cells.danger = new Uint8Array(cells.i.length);
     pack.monsters = [];
 
-    const isDarkFantasy = useOptionsState.getState().culturesSet === "darkFantasy";
-    if (!isDarkFantasy) return;
+    const culturesSet = useOptionsState.getState().culturesSet;
+    const profile = getThreatSpawnProfile(culturesSet);
+    if (!profile) return;
 
     const monsters: Monster[] = [];
     const validCells = Array.from(cells.i).filter(i => cells.h[i] >= 20); // land only
@@ -60,61 +62,16 @@ export const Threats = {
       }
     };
 
-    // Get settings
-    const options = useOptionsState.getState();
-
-    // Rarity 5: Unkillable / Multi-state alliance required
-    const numRarity5 = rand(options.dangerRarity5Min, options.dangerRarity5Max);
-    for (let i = 0; i < numRarity5; i++) {
-      spawnMonster(5, options.dangerRarity5Power, options.dangerRarity5Type);
+    for (const band of profile.bands) {
+      if (band.max <= 0 && band.min <= 0) continue;
+      const hi = Math.max(band.min, band.max);
+      const lo = Math.min(band.min, band.max);
+      const count = rand(lo, hi);
+      for (let i = 0; i < count; i++) spawnMonster(band.rarity, band.power, band.type);
     }
-
-    // Rarity 4: Regional bosses
-    const numRarity4 = rand(options.dangerRarity4Min, options.dangerRarity4Max);
-    for (let i = 0; i < numRarity4; i++) spawnMonster(4, options.dangerRarity4Power, options.dangerRarity4Type);
-
-    // Rarity 3: Greater monsters
-    const numRarity3 = rand(options.dangerRarity3Min, options.dangerRarity3Max);
-    for (let i = 0; i < numRarity3; i++) spawnMonster(3, options.dangerRarity3Power, options.dangerRarity3Type);
-
-    // Rarity 1-2: Background threats
-    const numRarity1 = rand(options.dangerRarity1Min, options.dangerRarity1Max);
-    for (let i = 0; i < numRarity1; i++) spawnMonster(1, options.dangerRarity1Power, options.dangerRarity1Type);
 
     pack.monsters = monsters;
-
-    // Propagate danger
-    for (const m of monsters) {
-      const start = m.cell;
-      const power = m.power;
-
-      const queue = [{ cell: start, dist: 0 }];
-      const visited = new Set<number>([start]);
-
-      while (queue.length > 0) {
-        const { cell, dist } = queue.shift()!;
-
-        const d = Math.max(0, power - dist);
-        if (d > 0) {
-          const threatCalculation = useOptionsState.getState().threatCalculation;
-          if (threatCalculation === "max") {
-            cells.danger[cell] = Math.max(cells.danger[cell], Math.min(255, d * 5));
-          } else if (threatCalculation === "nonlinear") {
-            const nonLinearDanger = Math.round(255 * (d / power) ** 2);
-            cells.danger[cell] = Math.max(cells.danger[cell], Math.min(255, nonLinearDanger));
-          } else {
-            cells.danger[cell] = Math.min(255, cells.danger[cell] + d * 4);
-          }
-
-          for (const n of cells.c[cell]) {
-            if (!visited.has(n)) {
-              visited.add(n);
-              queue.push({ cell: n, dist: dist + 1 });
-            }
-          }
-        }
-      }
-    }
+    propagateDanger(cells, monsters, profile);
   },
 
   appendCasualtyNotes(worldContext: WorldContext) {
@@ -124,7 +81,9 @@ export const Threats = {
 
     const populationRate = useOptionsState.getState().populationRate;
     const initialPopulationSaturation = useOptionsState.getState().initialPopulationSaturation / 100;
-    const threatCalculation = useOptionsState.getState().threatCalculation;
+    const culturesSet = useOptionsState.getState().culturesSet;
+    const profile = getThreatSpawnProfile(culturesSet);
+    const threatCalculation = profile?.threatCalculation ?? useOptionsState.getState().threatCalculation;
 
     // Calculate meanArea once for capacity formula
     let totalArea = 0;
@@ -198,3 +157,38 @@ export const Threats = {
     }
   }
 };
+
+function propagateDanger(cells: WorldContext["pack"]["cells"], monsters: Monster[], profile: ThreatSpawnProfile): void {
+  const threatCalculation = profile.threatCalculation;
+
+  for (const m of monsters) {
+    const start = m.cell;
+    const power = m.power;
+
+    const queue = [{ cell: start, dist: 0 }];
+    const visited = new Set<number>([start]);
+
+    while (queue.length > 0) {
+      const { cell, dist } = queue.shift()!;
+
+      const d = Math.max(0, power - dist);
+      if (d > 0) {
+        if (threatCalculation === "max") {
+          cells.danger[cell] = Math.max(cells.danger[cell], Math.min(255, d * 5));
+        } else if (threatCalculation === "nonlinear") {
+          const nonLinearDanger = Math.round(255 * (d / power) ** 2);
+          cells.danger[cell] = Math.max(cells.danger[cell], Math.min(255, nonLinearDanger));
+        } else {
+          cells.danger[cell] = Math.min(255, cells.danger[cell] + d * 4);
+        }
+
+        for (const n of cells.c[cell]) {
+          if (!visited.has(n)) {
+            visited.add(n);
+            queue.push({ cell: n, dist: dist + 1 });
+          }
+        }
+      }
+    }
+  }
+}
