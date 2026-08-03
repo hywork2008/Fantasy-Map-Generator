@@ -452,6 +452,8 @@ export const CharacterDetailsDialog: React.FC = () => {
           t("characters.score"),
           t("characters.relation"),
           t("characters.titleOrRole"),
+          t("characters.age"),
+          t("characters.gender"),
           t("characters.socialStratum"),
           t("characters.sameCountry")
         ].join(", ")
@@ -466,6 +468,8 @@ export const CharacterDetailsDialog: React.FC = () => {
             String(score),
             t(`characters.solidarityBand.${band}`),
             getOfficeLabel(other) || t("characters.notAvailable"),
+            String(other.age),
+            t(`characters.${other.gender}`),
             stratum ? t(`characters.socialStratumNames.${stratum}`) : t("characters.notAvailable"),
             sameCountry ? t("characters.yes") : t("characters.no")
           ].join(", ")
@@ -475,9 +479,34 @@ export const CharacterDetailsDialog: React.FC = () => {
 
     if (favorEntries.length > 0) {
       rows.push(t("characters.characterFavor"));
+      rows.push(
+        [
+          t("characters.name"),
+          t("characters.score"),
+          t("characters.relation"),
+          t("characters.titleOrRole"),
+          t("characters.age"),
+          t("characters.gender"),
+          t("characters.socialStratum"),
+          t("characters.sameCountry")
+        ].join(", ")
+      );
       for (const { other, score } of favorEntries) {
         const band = getFavorBand(score);
-        rows.push(`${other.name}, ${t("characters.favorEntry", { score, band: t(`characters.favorBand.${band}`) })}`);
+        const sameCountry = getCountryStateId(character) === getCountryStateId(other);
+        const stratum = other.backstory?.origin.socialStratum;
+        rows.push(
+          [
+            other.name,
+            String(score),
+            t(`characters.favorBand.${band}`),
+            getOfficeLabel(other) || t("characters.notAvailable"),
+            String(other.age),
+            t(`characters.${other.gender}`),
+            stratum ? t(`characters.socialStratumNames.${stratum}`) : t("characters.notAvailable"),
+            sameCountry ? t("characters.yes") : t("characters.no")
+          ].join(", ")
+        );
       }
     }
 
@@ -990,6 +1019,8 @@ export const CharacterDetailsDialog: React.FC = () => {
                       <th style={{ textAlign: "right" }}>{t("characters.score")}</th>
                       <th>{t("characters.relation")}</th>
                       <th>{t("characters.titleOrRole")}</th>
+                      <th style={{ textAlign: "right" }}>{t("characters.age")}</th>
+                      <th>{t("characters.gender")}</th>
                       <th>{t("characters.socialStratum")}</th>
                       <th>{t("characters.sameCountry")}</th>
                     </tr>
@@ -1026,6 +1057,8 @@ export const CharacterDetailsDialog: React.FC = () => {
                           <td style={{ textAlign: "right" }}>{score}</td>
                           <td>{t(`characters.solidarityBand.${band}`)}</td>
                           <td>{office || t("characters.notAvailable")}</td>
+                          <td style={{ textAlign: "right" }}>{other.age}</td>
+                          <td>{t(`characters.${other.gender}`)}</td>
                           <td>
                             {stratum ? t(`characters.socialStratumNames.${stratum}`) : t("characters.notAvailable")}
                           </td>
@@ -1043,20 +1076,64 @@ export const CharacterDetailsDialog: React.FC = () => {
             <h3>{t("characters.characterFavor")}</h3>
             <p style={{ marginTop: 0, color: "#868e96", fontSize: "0.9em" }}>{t("characters.favorHint")}</p>
             {favorEntries.length > 0 ? (
-              <ul>
-                {favorEntries.map(({ other, score }) => {
-                  const band = getFavorBand(score);
-                  return (
-                    <li key={`favor-${other.i}`}>
-                      <strong>{other.name}:</strong>{" "}
-                      {t("characters.favorEntry", {
-                        score,
-                        band: t(`characters.favorBand.${band}`)
-                      })}
-                    </li>
-                  );
-                })}
-              </ul>
+              <div style={{ overflow: "auto", maxHeight: "280px", marginBottom: "10px" }}>
+                <table className="fmg-table character-details__table character-details__relation-table">
+                  <thead>
+                    <tr>
+                      <th>{t("characters.name")}</th>
+                      <th style={{ textAlign: "right" }}>{t("characters.score")}</th>
+                      <th>{t("characters.relation")}</th>
+                      <th>{t("characters.titleOrRole")}</th>
+                      <th style={{ textAlign: "right" }}>{t("characters.age")}</th>
+                      <th>{t("characters.gender")}</th>
+                      <th>{t("characters.socialStratum")}</th>
+                      <th>{t("characters.sameCountry")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {favorEntries.map(({ other, score }) => {
+                      const band = getFavorBand(score);
+                      const office = getOfficeLabel(other);
+                      const sameCountry = getCountryStateId(character) === getCountryStateId(other);
+                      const stratum = other.backstory?.origin.socialStratum;
+                      return (
+                        <tr key={`favor-${other.i}`}>
+                          <td>
+                            <button
+                              type="button"
+                              className="pointer"
+                              data-tip={t("characters.openCharacterDetails")}
+                              onClick={() => handleOpenLinkedCharacter(other.i)}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                padding: 0,
+                                margin: 0,
+                                color: "inherit",
+                                font: "inherit",
+                                fontWeight: "bold",
+                                textDecoration: "underline",
+                                cursor: "pointer"
+                              }}
+                            >
+                              {other.name}
+                            </button>
+                          </td>
+                          <td style={{ textAlign: "right" }}>{score}</td>
+                          <td>{t(`characters.favorBand.${band}`)}</td>
+                          <td>{office || t("characters.notAvailable")}</td>
+                          <td style={{ textAlign: "right" }}>{other.age}</td>
+                          <td>{t(`characters.${other.gender}`)}</td>
+                          <td>
+                            {stratum ? t(`characters.socialStratumNames.${stratum}`) : t("characters.notAvailable")}
+                          </td>
+                          <td>{sameCountry ? t("characters.yes") : t("characters.no")}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             ) : (
               <p>{t("characters.noFavor")}</p>
             )}
