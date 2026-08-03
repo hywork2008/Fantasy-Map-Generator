@@ -66,7 +66,8 @@ STARTING_BURG_TREASURY_PER_POPULATION(20) を「一住民あたりの元手」�
 
 ## 位置づけと注意点
 
-- これらの数値は `Taxes.collectTaxes()` や `characterStipends.ts` の俸給計算など、実際にお金を動かすロジックには一切使われていない。About タブに表示するだけの読み物であり、ゲームバランスを拘束するものではない。
+- About タブの数値は**世界観説明用**であり、UI 文言そのものは引き続き flavor である。
+- ただし Character 個人の `wealth` については、`characterLivingCosts.ts` が生産サイクルごとに生活費 sink を適用する（`Taxes.collectTaxes()` の俸給支払いの後）。役職別の lifestyle 額と wealth 連動の status upkeep は [character-wealth-balance.md](./character-wealth-balance.md) を正とする。About の「農民 0.3〜0.4 銀/年」は人口マクロの食料需要からの概算であり、個人 sink の `LIVING_COST_BY_TIER` とは別系統（スケールは近いが 1:1 ではない）。
 - 農民/都市住民/家族の3項目は実在の定数(`GROSS_FOOD_NEED`, Grain価格, `FARMGATE_PRICE_SHARE`)から機械的に導けるが、住宅価格の1項目だけは既存の金銭スケールに合わせた**推測値**であることを明記しておく。将来、住宅購入メカニクスを実装する場合はこの目安値をそのまま採用せず、実装時に改めて設計すること。
 
 ## 商品ロットと小売の参照値

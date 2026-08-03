@@ -32,12 +32,36 @@ npm run diagnose:wealth -- --browser
 
 See [character-wealth-diagnosis.md](./character-wealth-diagnosis.md).
 
+## Living-cost sink (per production cycle)
+
+After all stipends in `Taxes.collectTaxes()`, `applyCharacterLivingCosts()` deducts:
+
+```text
+cost = lifestyle(tier) + min(wealth × 2%, lifestyle × 1.5)
+wealth = max(0, wealth − cost)
+```
+
+| Tier | Lifestyle SP/cycle |
+| :--- | ---: |
+| Apprentice (boarded) | 0.01 |
+| Common cash-holder | 0.05 |
+| Market rival | 0.12 |
+| Guild master | 0.15 |
+| Market manager | 0.30 |
+| Field commander | 0.35 |
+| Province lord | 0.55 |
+| Central office | 0.70 |
+| Ruler | 0.85 |
+
+Base lifestyle sits **below** typical stipend so paid roles still save slowly. Wealth-linked upkeep drains oversized seed piles. Spent cash is consumed (not transferred to a treasury).
+
 ## Code
 
 | Concern | File |
 | :--- | :--- |
 | Ruler, offices, field commanders | `src/extensions/economy/generators/treasuryAllocation.ts` |
 | Province / guild / market + seed | `src/extensions/economy/generators/characterStipends.ts` |
+| Living-cost sink | `src/extensions/economy/generators/characterLivingCosts.ts` |
 | Soldier upkeep reference | `src/extensions/economy/generators/militaryLogistics.ts` |
 
 ## Historical intent (soft)
@@ -46,5 +70,3 @@ See [character-wealth-diagnosis.md](./character-wealth-diagnosis.md).
 apprentice cash ≪ craftsman/merchant day-scale ≪ master ≪ field commander
   ≪ province lord / market head ≪ central office ≪ ruler
 ```
-
-Held wealth after a few years of accumulation without personal spending sinks will still be several× annual pay; living-cost drains are a separate future task.

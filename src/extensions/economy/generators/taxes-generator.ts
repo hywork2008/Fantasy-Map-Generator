@@ -2,6 +2,7 @@ import type { Burg } from "../../hostTypes";
 import { gauss, rn, TIME } from "../../hostUtils";
 import { getDeals, getWorldContext } from "../economyContext";
 import { getAcademyBonus } from "./academyKnowledge";
+import { applyCharacterLivingCosts } from "./characterLivingCosts";
 import { payGuildStipends, payMarketStipends, payProvinceLordStipends } from "./characterStipends";
 import { Markets } from "./markets-generator";
 import type { Deal } from "./marketTypes";
@@ -124,6 +125,10 @@ export class TaxesModule {
     // state.treasury — global passes, not part of the per-state loop above.
     payGuildStipends();
     payMarketStipends();
+
+    // After all personal stipends: consume lifestyle (+ soft wealth upkeep) from Character.wealth
+    // so purses do not grow unbounded. Order matters — pay first, then spend.
+    applyCharacterLivingCosts();
 
     TIME && console.timeEnd("collectTaxes");
   }

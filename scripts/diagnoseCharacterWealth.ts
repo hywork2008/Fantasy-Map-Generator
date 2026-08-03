@@ -577,6 +577,7 @@ function printReport(report: DiagnosisReport): void {
   line("  Ruler household     clamp(income×formRate, 1.0, 5.0)");
   line("  Soldier reference   0.12 (upkeep, not Character.wealth)");
   line("  seed back-pay       4–10 cycles (apprentice 2–6 pocket if bonded)");
+  line("  living-cost sink    lifestyle(tier) + min(wealth×2%, lifestyle×1.5) / cycle");
   line("  See docs/analytics/character-wealth-balance.md");
   line();
   line("Done.");
