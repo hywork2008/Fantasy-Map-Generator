@@ -1,4 +1,9 @@
-import { applyCharacterBackstory, seedRelationsWithPeers } from "../../characters/backstoryProfile";
+import {
+  applyCharacterBackstory,
+  getSolidarity,
+  seedRelationsWithPeers,
+  setSolidarity
+} from "../../characters/backstoryProfile";
 import type { Character, CharacterRole } from "../../characters/characterTypes";
 import { finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { createPerson } from "../../characters/personFactory";
@@ -160,6 +165,24 @@ function createMaster(characters: Character[], burgId: number, domain: CraftKnow
   return character;
 }
 
+/**
+ * Master–apprentice pairs live and work together daily. After general peer seeding, nudge any
+ * still-missing edge toward a mild positive bias so "good bond → pocket money" can fire without
+ * forcing every pair to be bonded. Existing edges (including cool/hostile ones) are left alone.
+ */
+function ensureMasterApprenticeContactBond(master: Character, apprentice: Character): void {
+  if (master.dead || apprentice.dead || master.i === apprentice.i) return;
+
+  // Only fill sparse missing edges — do not overwrite a sour relationship that peer seeding set.
+  if (getSolidarity(master, apprentice.i) === 0) {
+    // Bias positive but leave room below the collegial (20) pocket-money threshold.
+    setSolidarity(master, apprentice.i, rand(8, 48));
+  }
+  if (getSolidarity(apprentice, master.i) === 0) {
+    setSolidarity(apprentice, master.i, rand(8, 48));
+  }
+}
+
 function createApprentice(
   characters: Character[],
   burgId: number,
@@ -189,6 +212,8 @@ function createApprentice(
 
   characters.push(character);
   seedRelationsWithPeers(character, characters);
+  const master = characters.find(c => c.i === masterId);
+  if (master) ensureMasterApprenticeContactBond(master, character);
   finalizeCharacterSocietyForPeer(character, characters, {
     stateNames: {},
     currentYear: getSimulationYear()

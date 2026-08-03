@@ -31,7 +31,8 @@
     "prepare": "simple-git-hooks",
     "analyze-globals": "tsx scripts/analyze-window-globals.ts",
     "convert-global": "tsx scripts/convert-global.ts",
-    "perf:webgl-layers": "tsx scripts/benchmarkWebglLayers.ts"
+    "perf:webgl-layers": "tsx scripts/benchmarkWebglLayers.ts",
+    "diagnose:wealth": "tsx scripts/diagnoseCharacterWealth.ts"
   },
   "simple-git-hooks": {
     "pre-commit": "npx lint-staged && npm run lint:legacy"

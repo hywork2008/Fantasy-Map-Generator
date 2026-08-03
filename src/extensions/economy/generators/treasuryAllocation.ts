@@ -1,7 +1,7 @@
 import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
 import type { Character } from "../../characters/characterTypes";
 import { stateHasEnemy } from "../../hostCore";
-import type { State } from "../../hostTypes";
+import type { MilitaryRegiment, State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { CENTRAL_OFFICES } from "../../nobility/data/titleTable";
 import { getRegimentCommander } from "../../nobility/generators/officerAssignment";
@@ -218,14 +218,31 @@ export function payCentralOfficeStipends(state: Pick<State, "i">, breakdown: Tre
  * in full via payCentralOfficeStipends()). Deliberately sourced from the regiment's own upkeep
  * cost rather than from the Marshalcy Budget line, which payCentralOfficeStipends() already
  * transfers 100% of to the Marshal — this is a separate pool so field officers don't compete
- * with the Marshal for the same money. Placeholder rate, not yet balance-tuned.
+ * with the Marshal for the same money.
  */
 export const FIELD_COMMANDER_STIPEND_RATE = 0.15;
 
 /**
+ * Minimum personal command pay per production cycle (silver pieces), regardless of how small
+ * the regiment's raw-score upkeep is after populationRate scaling. Without this floor, many
+ * field officers sat on copper scraps while guild apprentices accumulated multi-gold purses.
+ * Calibrated as roughly 4× a common soldier's monthly wage (BASE_UPKEEP_PER_HEAD = 0.12).
+ */
+export const FIELD_COMMANDER_STIPEND_FLOOR = 0.5;
+
+/**
+ * Per-cycle stipend for a field/fleet officer: max(regiment upkeep × rate, floor).
+ * Used by payFieldCommanderStipends and seedMissingCharacterWealth.
+ */
+export function getFieldCommanderStipend(regiment: Pick<MilitaryRegiment, "u">): number {
+  const proportional = getRegimentMilitaryUpkeep(regiment) * FIELD_COMMANDER_STIPEND_RATE;
+  return rn(Math.max(proportional, FIELD_COMMANDER_STIPEND_FLOOR), 2);
+}
+
+/**
  * Pays each living field/fleet officer (Commander/Admiral) commanding one of `state.military`'s
  * non-capital-guard regiments a stipend off that regiment's own upkeep cost (see
- * FIELD_COMMANDER_STIPEND_RATE). Returns the total actually paid — a real deduction from
+ * FIELD_COMMANDER_STIPEND_RATE / FLOOR). Returns the total actually paid — a real deduction from
  * state.treasury, folded into TreasuryAllocationBreakdown.fieldCommanderStipendsPaid alongside
  * officeStipendsPaid. A regiment with no dedicated officer yet (assignOfficers() only sparsely
  * assigns them) or a dead one simply pays nothing for that regiment.
@@ -241,7 +258,7 @@ export function payFieldCommanderStipends(state: Pick<State, "i" | "military">):
     const commander = getRegimentCommander(characters, regiment);
     if (!commander) continue;
 
-    const amount = rn(getRegimentMilitaryUpkeep(regiment) * FIELD_COMMANDER_STIPEND_RATE, 2);
+    const amount = getFieldCommanderStipend(regiment);
     if (!(amount > 0)) continue;
 
     commander.wealth = rn((commander.wealth || 0) + amount, 2);

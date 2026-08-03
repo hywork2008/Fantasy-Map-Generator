@@ -15,8 +15,12 @@ import {
   setMarkets
 } from "../economyContext";
 import {
-  GUILD_APPRENTICE_STIPEND_RATE,
+  apprenticePocketBaseByAge,
+  computeApprenticePocketMoney,
+  GUILD_APPRENTICE_POCKET_BY_AGE,
+  GUILD_APPRENTICE_POCKET_MAX,
   GUILD_MASTER_STIPEND_RATE,
+  isGoodMasterApprenticeBond,
   MARKET_MANAGER_STIPEND_RATE,
   MARKET_RIVAL_STIPEND_RATE,
   PROVINCE_LORD_STIPEND_RATE,
@@ -124,9 +128,10 @@ describe("characterStipends", () => {
       worldContext.pack = { characters: [] } as unknown as PackedGraph;
     });
 
-    it("pays the domain's Guild Master and living apprentices out of the guild's own treasury", () => {
+    it("pays fixed age-band pocket money (not a treasury %) to a well-bonded apprentice", () => {
       const master = makeCharacter({
         i: 40,
+        solidarity: { 41: 40 },
         roles: [
           {
             source: "economy",
@@ -140,6 +145,71 @@ describe("characterStipends", () => {
       });
       const apprentice = makeCharacter({
         i: 41,
+        age: 14,
+        solidarity: { 40: 35 },
+        roles: [
+          {
+            source: "economy",
+            kind: "guildApprentice",
+            entityType: "burg",
+            entityId: 1,
+            domain: "metallurgy",
+            organizationId: 40,
+            label: "Guild Apprentice"
+          }
+        ]
+      });
+      worldContext.pack.characters = [master, apprentice];
+      // Huge treasury must not inflate pocket money above the age-band base.
+      setGuildKnowledgeStocks([{ burgId: 1, domain: "metallurgy", stock: 0.5, treasury: 10_000 }]);
+
+      payGuildStipends();
+
+      const masterAmount = rn(10_000 * GUILD_MASTER_STIPEND_RATE, 2);
+      const apprenticeAmount = computeApprenticePocketMoney(10_000 - masterAmount, master, apprentice);
+      expect(master.wealth).toBe(masterAmount);
+      expect(apprentice.wealth).toBe(apprenticeAmount);
+      expect(apprentice.wealth).toBeGreaterThan(0);
+      expect(apprentice.wealth).toBeLessThanOrEqual(apprenticePocketBaseByAge(14));
+      expect(apprentice.wealth).toBeLessThanOrEqual(GUILD_APPRENTICE_POCKET_BY_AGE.child);
+      // Same apprentice against a modest treasury yields the same pocket (treasury is a ceiling only).
+      expect(computeApprenticePocketMoney(50, master, apprentice)).toBe(apprenticeAmount);
+      expect(getGuildKnowledgeStocks()[0].treasury).toBe(rn(10_000 - masterAmount - apprenticeAmount, 2));
+    });
+
+    it("uses larger fixed bands for older apprentices and never scales with treasury piles", () => {
+      const master = makeCharacter({ i: 40, solidarity: { 41: 80, 42: 80 } });
+      const youth = makeCharacter({ i: 41, age: 16, solidarity: { 40: 80 } });
+      const adult = makeCharacter({ i: 42, age: 20, solidarity: { 40: 80 } });
+
+      expect(apprenticePocketBaseByAge(13)).toBe(GUILD_APPRENTICE_POCKET_BY_AGE.child);
+      expect(apprenticePocketBaseByAge(16)).toBe(GUILD_APPRENTICE_POCKET_BY_AGE.youth);
+      expect(apprenticePocketBaseByAge(20)).toBe(GUILD_APPRENTICE_POCKET_BY_AGE.adult);
+      expect(computeApprenticePocketMoney(1_000_000, master, youth)).toBe(GUILD_APPRENTICE_POCKET_BY_AGE.youth);
+      expect(computeApprenticePocketMoney(1_000_000, master, adult)).toBe(GUILD_APPRENTICE_POCKET_MAX);
+      // Empty coffers: gift is skipped entirely.
+      expect(computeApprenticePocketMoney(0, master, youth)).toBe(0);
+    });
+
+    it("pays the master but withholds apprentice pocket money when the bond is cool", () => {
+      const master = makeCharacter({
+        i: 40,
+        solidarity: { 41: 5 },
+        roles: [
+          {
+            source: "economy",
+            kind: "guildMaster",
+            entityType: "burg",
+            entityId: 1,
+            domain: "metallurgy",
+            label: "Guild Master"
+          }
+        ]
+      });
+      const apprentice = makeCharacter({
+        i: 41,
+        age: 13,
+        solidarity: { 40: 5 },
         roles: [
           {
             source: "economy",
@@ -157,11 +227,10 @@ describe("characterStipends", () => {
 
       payGuildStipends();
 
-      const masterAmount = rn(100 * GUILD_MASTER_STIPEND_RATE, 2);
-      const apprenticeAmount = rn((100 - masterAmount) * GUILD_APPRENTICE_STIPEND_RATE, 2);
-      expect(master.wealth).toBe(masterAmount);
-      expect(apprentice.wealth).toBe(apprenticeAmount);
-      expect(getGuildKnowledgeStocks()[0].treasury).toBe(rn(100 - masterAmount - apprenticeAmount, 2));
+      expect(master.wealth).toBe(rn(100 * GUILD_MASTER_STIPEND_RATE, 2));
+      expect(apprentice.wealth).toBe(0);
+      expect(isGoodMasterApprenticeBond(master, apprentice)).toBe(false);
+      expect(getGuildKnowledgeStocks()[0].treasury).toBe(rn(100 - 100 * GUILD_MASTER_STIPEND_RATE, 2));
     });
 
     it("does nothing for a domain with no settled master", () => {

@@ -354,9 +354,29 @@ describe("treasuryAllocation", () => {
 
       const allocation = allocateTreasury(state, 1000);
 
-      // regiment upkeep = 100 heads × 0.12/head = 12; stipend = 12 × 0.15 = 1.8
+      // regiment upkeep = 100 heads × 0.12/head = 12; stipend = max(12 × 0.15, floor 0.5) = 1.8
       expect(allocation.fieldCommanderStipendsPaid).toBe(1.8);
       expect(commander.wealth).toBe(1.8);
+    });
+
+    it("applies the personal-pay floor when regiment upkeep would yield copper scraps", () => {
+      const commander = makeRuler({
+        i: 22,
+        titles: [{ title: "Commander", landed: false, entityType: "state", entityId: 1 }]
+      });
+      // 1 head → upkeep 0.12 → proportional 0.018, floor lifts to 0.5
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        diplomacy: [],
+        military: [{ state: 1, commanderId: 22, u: { Infantry: 1 } }]
+      } as unknown as State;
+      worldContext.pack.characters = [commander];
+
+      const allocation = allocateTreasury(state, 1000);
+
+      expect(allocation.fieldCommanderStipendsPaid).toBe(0.5);
+      expect(commander.wealth).toBe(0.5);
     });
 
     it("never pays the capital guard's commander (already paid in full as Marshal via officeStipendsPaid)", () => {
