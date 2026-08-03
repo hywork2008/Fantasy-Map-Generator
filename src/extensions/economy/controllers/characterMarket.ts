@@ -5,7 +5,7 @@ import { Goods, isGoodEnabled } from "../generators/goods-generator";
 import { floorToRetailLot, getRetailLotSize } from "../generators/goodsTradeLots";
 import { Markets } from "../generators/markets-generator";
 import { getMerchantPortfolio, syncMarketMerchantPortfolios } from "../generators/merchantPortfolios";
-import { getRetailGoodStock, reconcileRetailInventory } from "../generators/retailInventory";
+import { getBurgTradeableGoodStock, reconcileRetailInventory } from "../generators/retailInventory";
 import { setCharacterMarketCharacterId, useCharacterMarketState } from "../store/characterMarketState";
 
 export interface CharacterMarketRow {
@@ -17,7 +17,7 @@ export interface CharacterMarketRow {
   retailLotSize: number;
   merchantId: number | null;
   merchantName: string;
-  retailStock: number;
+  availableStock: number;
   buyPrice: number;
   sellPrice: number;
   playerUnits: number;
@@ -48,7 +48,7 @@ export function filterCharacterMarketRows(
     if (filters.tag !== null && !row.tags.includes(filters.tag)) return false;
     if (typeof filters.merchant === "number" && row.merchantId !== filters.merchant) return false;
     if (filters.merchant === "unassigned" && row.merchantId !== null) return false;
-    return !filters.inStockOnly || row.retailStock > 0;
+    return !filters.inStockOnly || row.availableStock > 0;
   });
 }
 
@@ -75,6 +75,8 @@ export function getCharacterMarketSnapshot(characterId: number | null): Characte
   if (!character || !burg || burg.removed || !burg.market) return null;
   const market = getMarkets().find(candidate => candidate.i === burg.market);
   if (!market) return null;
+  const burgId = burg.i;
+  if (burgId === undefined) return null;
 
   reconcileRetailInventory();
   syncMarketMerchantPortfolios();
@@ -97,12 +99,9 @@ export function getCharacterMarketSnapshot(characterId: number | null): Characte
         retailLotSize,
         merchantId: merchant?.merchantId ?? null,
         merchantName: merchantName ?? "Unassigned",
-        retailStock: floorToRetailLot(
-          getRetailGoodStock(burg.i ?? character.location!, market.i, good.i)?.onHand ?? 0,
-          retailLotSize
-        ),
-        buyPrice: Markets.retailBuyPrice(market.goods[good.i].price, burg.i ?? character.location!, market.i, good.i),
-        sellPrice: Markets.retailSellPrice(market.goods[good.i].price, burg.i ?? character.location!, market.i, good.i),
+        availableStock: floorToRetailLot(getBurgTradeableGoodStock(burgId, market.i, good.i), retailLotSize),
+        buyPrice: Markets.retailBuyPrice(market.goods[good.i].price, burgId, market.i, good.i),
+        sellPrice: Markets.retailSellPrice(market.goods[good.i].price, burgId, market.i, good.i),
         playerUnits: floorToRetailLot(character.inventory?.[good.i] ?? 0, retailLotSize)
       };
     })

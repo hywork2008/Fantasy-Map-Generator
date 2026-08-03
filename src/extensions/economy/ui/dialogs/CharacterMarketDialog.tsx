@@ -160,7 +160,7 @@ export const CharacterMarketDialog: React.FC = () => {
                 <tr className="header">
                   <th>Good</th>
                   <th>Merchant</th>
-                  <th>On shelves</th>
+                  <th>Available locally</th>
                   <th>Ask</th>
                   <th>Bid</th>
                   <th>Owned</th>
@@ -180,7 +180,7 @@ export const CharacterMarketDialog: React.FC = () => {
                         {localizedGoodName}
                       </td>
                       <td>{row.merchantName}</td>
-                      <td>{formatRetailQuantity(row.retailStock, row.retailLotSize)}</td>
+                      <td>{formatRetailQuantity(row.availableStock, row.retailLotSize)}</td>
                       <td>{formatPrice(row.buyPrice)}</td>
                       <td>{formatPrice(row.sellPrice)}</td>
                       <td>{formatRetailQuantity(row.playerUnits, row.retailLotSize)}</td>
@@ -200,16 +200,16 @@ export const CharacterMarketDialog: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => execute(row.goodId, "buy")}
-                          disabled={row.retailStock <= 0}
+                          disabled={row.availableStock <= 0}
                         >
                           Buy
                         </button>{" "}
                         <button
                           type="button"
                           onClick={() =>
-                            execute(row.goodId, "buy", formatRetailQuantity(row.retailStock, row.retailLotSize))
+                            execute(row.goodId, "buy", formatRetailQuantity(row.availableStock, row.retailLotSize))
                           }
-                          disabled={row.retailStock <= 0}
+                          disabled={row.availableStock <= 0}
                         >
                           Buy all
                         </button>{" "}

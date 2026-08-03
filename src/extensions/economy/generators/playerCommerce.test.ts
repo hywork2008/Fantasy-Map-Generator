@@ -99,7 +99,7 @@ describe("player commerce", () => {
     expect(validateRetailInventory()).toEqual([]);
   });
 
-  it("leaves all balances and stock untouched when a purchase exceeds shelf stock", () => {
+  it("leaves all balances and stock untouched when a purchase exceeds locally held stock", () => {
     const before = JSON.stringify({
       player: worldContext.pack.characters![0],
       merchant: worldContext.pack.characters![1],
@@ -107,9 +107,9 @@ describe("player commerce", () => {
       state: worldContext.pack.states[1]
     });
 
-    const result = executePlayerMarketTrade({ characterId: 1, goodId: 1, units: 21, direction: "buy" });
+    const result = executePlayerMarketTrade({ characterId: 1, goodId: 1, units: 101, direction: "buy" });
 
-    expect(result).toMatchObject({ ok: false, message: "Not enough stock on this burg's shelves." });
+    expect(result).toMatchObject({ ok: false, message: "Not enough stock is available in this burg." });
     expect(
       JSON.stringify({
         player: worldContext.pack.characters![0],

@@ -17,9 +17,9 @@ import { Markets } from "./markets-generator";
 import { getMerchantPortfolio, recordMerchantPlayerSale, syncMarketMerchantPortfolios } from "./merchantPortfolios";
 import {
   addWholesaleGoodStock,
-  adjustRetailGoodStock,
-  getRetailGoodStock,
-  reconcileRetailInventory
+  getBurgTradeableGoodStock,
+  reconcileRetailInventory,
+  removeBurgTradeableGoodStock
 } from "./retailInventory";
 import type { CharacterInventoryCostBasis, PlayerMarketTransaction } from "./retailInventoryTypes";
 
@@ -134,7 +134,7 @@ function buildQuote(args: {
   const goodsValue = rn(units * unitPrice, 2);
   const salesTax = rn(goodsValue * taxRate, 2);
   const totalPaid = args.direction === "buy" ? rn(goodsValue + salesTax, 2) : rn(goodsValue - salesTax, 2);
-  const shelf = getRetailGoodStock(burgId, market.i, good.i);
+  const localStock = getBurgTradeableGoodStock(burgId, market.i, good.i);
 
   return {
     ok: true,
@@ -150,7 +150,7 @@ function buildQuote(args: {
       units,
       retailLotSize,
       availableUnits: floorToRetailLot(
-        args.direction === "buy" ? (shelf?.onHand ?? 0) : (character.inventory?.[good.i] ?? 0),
+        args.direction === "buy" ? localStock : (character.inventory?.[good.i] ?? 0),
         retailLotSize
       ),
       playerUnits: floorToRetailLot(character.inventory?.[good.i] ?? 0, retailLotSize),
@@ -195,7 +195,7 @@ export function executePlayerMarketTrade(args: {
 
   if (quote.direction === "buy") {
     if (quote.availableUnits + 1e-7 < quote.units)
-      return { ok: false, message: "Not enough stock on this burg's shelves." };
+      return { ok: false, message: "Not enough stock is available in this burg." };
     if ((character.wealth ?? 0) + 1e-7 < quote.totalPaid)
       return { ok: false, message: "Character cannot afford this purchase." };
   } else {
@@ -212,8 +212,8 @@ export function executePlayerMarketTrade(args: {
       ? rn((quote.goodsValue * (getMerchantPortfolio(market.i, good)?.retailMarginBps ?? 0)) / 10000, 2)
       : 0;
   if (quote.direction === "buy") {
-    if (!adjustRetailGoodStock(quote.burgId, market.i, good.i, -units))
-      return { ok: false, message: "Shelf stock changed; request a new quote." };
+    if (!removeBurgTradeableGoodStock(quote.burgId, market.i, good.i, units))
+      return { ok: false, message: "Local stock changed; request a new quote." };
     character.inventory ??= {};
     character.inventory[good.i] = (character.inventory[good.i] ?? 0) + units;
     updateInventoryCostBasis(character.i, good.i, units, "buy", quote.totalPaid / units, character.inventory[good.i]);

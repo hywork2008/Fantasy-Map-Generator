@@ -6,7 +6,7 @@ import { formatPrice } from "../../../hostUtils";
 import { setPlayerCharacter } from "../../../nobility/controllers/playerCharacter";
 import { hasNobilityContext } from "../../../nobility/nobilityContext";
 import { usePlayerCharacterState } from "../../../nobility/store/playerCharacterState";
-import { getFavorBand, getSolidarityBand } from "../../backstoryProfile";
+import { getFavorBand, getSolidarityBand, inferRoleClass } from "../../backstoryProfile";
 import { getApi, getCharacters, getWorldContext } from "../../charactersContext";
 import type { Character, CharacterRole, TitleHolding } from "../../characterTypes";
 import { formatFlavorHook } from "../../flavorHooks";
@@ -45,7 +45,7 @@ type CharacterInventoryRow = Readonly<{
   units: number;
   averageUnitCost: number | null;
 }>;
-type CharacterDetailsTab = "skills" | "personality" | "inventory" | "backstory" | "relationships";
+type CharacterDetailsTab = "skills" | "personality" | "inventory" | "backstory" | "relationships" | "stateAffinities";
 
 function getEconomyMarkets(pack: unknown): readonly EconomyMarketSnapshot[] {
   const markets = (pack as Record<string, unknown>).markets;
@@ -146,6 +146,13 @@ export const CharacterDetailsDialog: React.FC = () => {
 
   const character = characters.find(c => c.i === selectedCharacterId);
   const inventoryRows = character ? getEconomyInventoryRows(character) : [];
+  const hasStateAffinitiesTab = character ? inferRoleClass(character) === "ruler" : false;
+
+  useEffect(() => {
+    if (activeTab === "stateAffinities" && !hasStateAffinitiesTab) {
+      setActiveTab("skills");
+    }
+  }, [activeTab, hasStateAffinitiesTab]);
 
   if (!isOpen || !character) {
     return null;
@@ -686,6 +693,15 @@ export const CharacterDetailsDialog: React.FC = () => {
           >
             {t("characters.relationships")}
           </button>
+          {hasStateAffinitiesTab && (
+            <button
+              type="button"
+              className={`options ${activeTab === "stateAffinities" ? "active" : ""}`}
+              onClick={() => setActiveTab("stateAffinities")}
+            >
+              {t("characters.stateAffinities")}
+            </button>
+          )}
         </div>
 
         {activeTab === "skills" && (
@@ -793,24 +809,28 @@ export const CharacterDetailsDialog: React.FC = () => {
           </>
         )}
 
-        <h3>{t("characters.stateAffinities")}</h3>
-        {character.affinities && Object.keys(character.affinities).length > 0 ? (
-          <ul>
-            {Object.entries(character.affinities).map(([stateIdStr, score]) => {
-              const stateId = Number(stateIdStr);
-              const state = states[stateId];
-              if (!state || state.removed) return null;
+        {hasStateAffinitiesTab && activeTab === "stateAffinities" && (
+          <>
+            <h3>{t("characters.stateAffinities")}</h3>
+            {character.affinities && Object.keys(character.affinities).length > 0 ? (
+              <ul>
+                {Object.entries(character.affinities).map(([stateIdStr, score]) => {
+                  const stateId = Number(stateIdStr);
+                  const state = states[stateId];
+                  if (!state || state.removed) return null;
 
-              const text = getAffinityText(score);
-              return (
-                <li key={`aff-${stateId}`}>
-                  <strong>{state.name}:</strong> {t("characters.affinity", { score, affinity: text })}
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p>{t("characters.noAffinities")}</p>
+                  const text = getAffinityText(score);
+                  return (
+                    <li key={`aff-${stateId}`}>
+                      <strong>{state.name}:</strong> {t("characters.affinity", { score, affinity: text })}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p>{t("characters.noAffinities")}</p>
+            )}
+          </>
         )}
 
         {activeTab === "backstory" && backstory && (

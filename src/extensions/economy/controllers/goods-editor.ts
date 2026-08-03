@@ -4,7 +4,8 @@ import { confirmationDialog, downloadFile, findCell, getFileName, layerIsOn, rn,
 import {
   getApi,
   getBurgProductionRecords,
-  getDeals,
+  getBurgRetailInventories,
+  getBurgWholesaleInventories,
   getGoodCellColumn,
   getGoods,
   getMarketCellColumn,
@@ -15,8 +16,9 @@ import {
 import { Goods, getDefaultGoodTradeProfile, isGoodEnabled } from "../generators/goods-generator";
 import { getDefaultGoodsUnitFlavor } from "../generators/goodsUnitFlavor";
 import { Markets } from "../generators/markets-generator";
-import { isDealRecord, isMfgRecord, Production } from "../generators/production-generator";
+import { Production } from "../generators/production-generator";
 import { getCellProduction } from "../generators/production-utils";
+import { reconcileRetailInventory } from "../generators/retailInventory";
 import { drawGoods } from "../renderers/draw-goods";
 import {
   getDisplayedGoodIds,
@@ -201,64 +203,53 @@ export function openProducersDialog(goodId: number): void {
 type StockSource = { name: string; type: "market" | "burg"; x: number; y: number; id: number; stock: number };
 
 function getAllStockData(): Record<number, { total: number; sources: StockSource[] }> {
-  const dealById = new Map(getDeals().map(d => [d.i, d]));
   const result: Record<number, { total: number; sources: StockSource[] }> = {};
   for (const good of getGoods().filter(isGoodEnabled)) {
     result[good.i] = { total: 0, sources: [] };
   }
 
-  for (const market of getMarkets()) {
-    const centerBurg = worldContext().pack.burgs[market.centerBurgId];
-    if (!centerBurg) continue;
-    const x = centerBurg.x ?? 0;
-    const y = centerBurg.y ?? 0;
-    const marketName = Markets.getName(market);
+  // Materialize the market-wide total into its actual burg shelves / depots before
+  // presenting locations. Production records are a per-cycle accounting journal, not stock.
+  reconcileRetailInventory();
 
+  for (const market of getMarkets()) {
     for (const [goodIdStr, { stock }] of Object.entries(market.goods)) {
       const goodId = +goodIdStr;
       if (!result[goodId] || stock <= 0) continue;
       result[goodId].total += stock;
-      result[goodId].sources.push({ name: marketName, type: "market", x, y, id: market.i, stock });
     }
   }
 
-  for (const burg of worldContext().pack.burgs) {
-    if (!burg?.i || burg.removed) continue;
-
-    const netInventory: Record<number, number> = {};
-    for (const record of getBurgProductionRecords(burg)) {
-      if (isMfgRecord(record)) {
-        netInventory[record.goodId] = (netInventory[record.goodId] || 0) + record.units;
-        for (const item of record.recipe) {
-          netInventory[item.goodId] = (netInventory[item.goodId] || 0) - item.units;
-        }
-      } else if (isDealRecord(record)) {
-        const deal = dealById.get(record.dealId);
-        if (!deal) continue;
-        if (deal.buyerType === "burg" && deal.buyer === burg.i) {
-          netInventory[deal.good] = (netInventory[deal.good] || 0) + deal.units;
-        } else if (deal.sellerType === "burg" && deal.seller === burg.i) {
-          netInventory[deal.good] = (netInventory[deal.good] || 0) - deal.units;
-        }
-      } else {
-        netInventory[record.goodId] = (netInventory[record.goodId] || 0) + record.units;
-      }
+  const stockByBurgAndGood = new Map<string, number>();
+  const addPhysicalStock = (burgId: number, goodId: number, units: number): void => {
+    if (!result[goodId] || !(units > 0.001)) return;
+    const key = `${burgId}:${goodId}`;
+    stockByBurgAndGood.set(key, (stockByBurgAndGood.get(key) ?? 0) + units);
+  };
+  for (const inventory of getBurgRetailInventories()) {
+    for (const [goodId, stock] of Object.entries(inventory.goods)) {
+      addPhysicalStock(inventory.burgId, Number(goodId), stock.onHand);
     }
-
-    for (const [goodIdStr, units] of Object.entries(netInventory)) {
-      const goodId = +goodIdStr;
-      if (!result[goodId] || units <= 0.001) continue;
-      const roundedUnits = rn(units, 2);
-      result[goodId].total += roundedUnits;
-      result[goodId].sources.push({
-        name: burg.name || `Burg ${burg.i}`,
-        type: "burg",
-        x: burg.x ?? 0,
-        y: burg.y ?? 0,
-        id: burg.i,
-        stock: roundedUnits
-      });
+  }
+  for (const inventory of getBurgWholesaleInventories()) {
+    for (const [goodId, units] of Object.entries(inventory.goods)) {
+      addPhysicalStock(inventory.burgId, Number(goodId), units);
     }
+  }
+  for (const [key, stock] of stockByBurgAndGood) {
+    const [burgIdString, goodIdString] = key.split(":");
+    const burgId = Number(burgIdString);
+    const goodId = Number(goodIdString);
+    const burg = worldContext().pack.burgs[burgId];
+    if (!burg || burg.removed || !result[goodId]) continue;
+    result[goodId].sources.push({
+      name: burg.name || `Burg ${burgId}`,
+      type: "burg",
+      x: burg.x ?? 0,
+      y: burg.y ?? 0,
+      id: burgId,
+      stock: rn(stock, 2)
+    });
   }
 
   for (const good of getGoods().filter(isGoodEnabled)) {

@@ -1,15 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, getMarketShipments, initEconomyContext, setGoods, setMarkets } from "../economyContext";
+import {
+  clearEconomyContext,
+  getMarketShipments,
+  getMarkets,
+  initEconomyContext,
+  setGoods,
+  setMarkets
+} from "../economyContext";
 import { Goods } from "./goods-generator";
 import { Markets } from "./markets-generator";
 import type { Market } from "./marketTypes";
 import {
+  getBurgTradeableGoodStock,
   getRetailGoodStock,
   getRetailLocalityMultiplier,
   planRetailReplenishment,
   reconcileRetailInventory,
+  removeBurgTradeableGoodStock,
   tickRetailInventory,
   validateRetailInventory
 } from "./retailInventory";
@@ -63,10 +72,26 @@ describe("retail inventory logistics", () => {
         color: "",
         distribution: "1",
         recipes: []
+      },
+      {
+        i: 2,
+        name: "Cats",
+        value: 3,
+        tags: ["liveAnimal", "pestControl"],
+        unit: "head",
+        icon: "",
+        color: "",
+        distribution: "1",
+        recipes: []
       }
     ]);
     Goods.sync();
-    const market: Market = { i: 1, centerBurgId: 1, color: "#fff", goods: { 1: { stock: 100, price: 10 } } };
+    const market: Market = {
+      i: 1,
+      centerBurgId: 1,
+      color: "#fff",
+      goods: { 1: { stock: 100, price: 10 }, 2: { stock: 1, price: 3 } }
+    };
     setMarkets([market]);
   });
 
@@ -88,6 +113,19 @@ describe("retail inventory logistics", () => {
     expect(getRetailLocalityMultiplier(2, 1, 1)).toBeCloseTo(1.028);
     expect(Markets.retailBuyPrice(10, 2, 1, 1)).toBe(11.31);
     expect(Markets.retailSellPrice(10, 2, 1, 1)).toBe(8.75);
+    expect(validateRetailInventory()).toEqual([]);
+  });
+
+  it("makes a burg's wholesale stock available to a local player without creating a shipment", () => {
+    reconcileRetailInventory();
+
+    expect(getBurgTradeableGoodStock(1, 1, 1)).toBe(100);
+    expect(getBurgTradeableGoodStock(1, 1, 2)).toBe(1);
+    expect(removeBurgTradeableGoodStock(1, 1, 1, 20)).toBe(true);
+    expect(removeBurgTradeableGoodStock(1, 1, 2, 1)).toBe(true);
+    getMarkets()[0].goods[1].stock -= 20;
+    getMarkets()[0].goods[2].stock -= 1;
+    expect(getMarketShipments()).toEqual([]);
     expect(validateRetailInventory()).toEqual([]);
   });
 });

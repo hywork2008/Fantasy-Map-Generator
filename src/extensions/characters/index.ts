@@ -4,6 +4,7 @@ import type { ExtensionAPI } from "../../types/extension-api";
 import { clearCharacters } from "./advanceAge";
 import { clearCharactersContext, getCharacters, initCharactersContext } from "./charactersContext";
 import type { CharacterSkills } from "./characterTypes";
+import { BurgEditorCharactersTab } from "./ui/components/BurgEditorCharactersTab";
 import { CharacterDetailsDialog } from "./ui/dialogs/CharacterDetailsDialog";
 import { CharactersOverviewDialog } from "./ui/dialogs/CharactersOverviewDialog";
 
@@ -37,6 +38,14 @@ export function init(api: ExtensionAPI): void {
     },
     false
   );
+
+  api.registerEditorTab({
+    id: "burg-characters",
+    extensionId: CHARACTERS_EXTENSION_ID,
+    editorId: "burgEditor",
+    label: "Characters",
+    component: BurgEditorCharactersTab
+  });
 
   // Supplies each character's base skill value to the generic cross-extension skill
   // registry (see src/services/skillModifierService.ts) — e.g. Shipbuilding reads a

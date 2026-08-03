@@ -11,7 +11,7 @@ const rows: CharacterMarketRow[] = [
     retailLotSize: 0.01,
     merchantId: 4,
     merchantName: "Weaver",
-    retailStock: 3,
+    availableStock: 3,
     buyPrice: 4,
     sellPrice: 3,
     playerUnits: 0
@@ -25,7 +25,7 @@ const rows: CharacterMarketRow[] = [
     retailLotSize: 1,
     merchantId: 5,
     merchantName: "Drover",
-    retailStock: 0,
+    availableStock: 0,
     buyPrice: 20,
     sellPrice: 15,
     playerUnits: 1
@@ -39,7 +39,7 @@ const rows: CharacterMarketRow[] = [
     retailLotSize: 1,
     merchantId: null,
     merchantName: "Unassigned",
-    retailStock: 2,
+    availableStock: 2,
     buyPrice: 8,
     sellPrice: 6,
     playerUnits: 0

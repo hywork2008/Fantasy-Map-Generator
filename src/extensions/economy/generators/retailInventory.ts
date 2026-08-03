@@ -12,6 +12,8 @@ import {
   setMarketShipments,
   setNextMarketShipmentId
 } from "../economyContext";
+import { Goods } from "./goods-generator";
+import { getRetailLotSize } from "./goodsTradeLots";
 import type { Market } from "./marketTypes";
 import type {
   BurgRetailInventory,
@@ -224,19 +226,32 @@ function addRetailStock(stock: RetailGoodStock, units: number, transportDays: nu
   stock.lastRestockedTick = tick;
 }
 
+/** Moves goods already warehoused in a burg directly onto that burg's retail shelves. */
+function replenishFromLocalWholesale(market: Market, burgId: number, goodId: number, tick: number): number {
+  const retail = retailGood(retailRecord(burgId, market.i)!, goodId, tick);
+  const localWholesale = wholesaleRecord(burgId, market.i)!;
+  const availableUnits = localWholesale.goods[goodId] ?? 0;
+  const good = Goods.get(goodId);
+  // A locally stocked indivisible good (for example, one cat) must be visible as one
+  // tradeable unit instead of being lost to a fractional population-based shelf target.
+  const minimumShelfTarget = good ? Math.min(availableUnits, getRetailLotSize(good)) : 0;
+  const required = Math.max(0, Math.max(retail.target, minimumShelfTarget) - retail.onHand);
+  if (!(required > EPSILON)) return 0;
+
+  const units = Math.min(required, availableUnits);
+  if (!(units > EPSILON)) return 0;
+
+  localWholesale.goods[goodId] = nonNegative((localWholesale.goods[goodId] ?? 0) - units);
+  addRetailStock(retail, units, 0, tick);
+  return units;
+}
+
 function planGoodReplenishment(market: Market, goodId: number, tick: number): void {
   const burgs = validBurgs(market.i);
   for (const destination of burgs) {
-    const retail = retailGood(retailRecord(destination.i, market.i)!, goodId, tick);
-    const required = Math.max(0, retail.target - retail.onHand);
-    if (!(required > EPSILON)) continue;
+    replenishFromLocalWholesale(market, destination.i, goodId, tick);
 
-    const localWholesale = wholesaleRecord(destination.i, market.i)!;
-    const localUnits = Math.min(required, localWholesale.goods[goodId] ?? 0);
-    if (localUnits > EPSILON) {
-      localWholesale.goods[goodId] = nonNegative((localWholesale.goods[goodId] ?? 0) - localUnits);
-      addRetailStock(retail, localUnits, 0, tick);
-    }
+    const retail = retailGood(retailRecord(destination.i, market.i)!, goodId, tick);
 
     let remaining = Math.max(0, retail.target - retail.onHand);
     while (remaining > EPSILON) {
@@ -311,6 +326,37 @@ export function tickRetailInventory(tick = currentTick()): boolean {
 
 export function getRetailGoodStock(burgId: number, marketId: number, goodId: number): RetailGoodStock | undefined {
   return retailRecord(burgId, marketId, false)?.goods[goodId];
+}
+
+/** Goods physically held in this burg, whether displayed on shelves or stored in its wholesale depot. */
+export function getBurgTradeableGoodStock(burgId: number, marketId: number, goodId: number): number {
+  const retailUnits = getRetailGoodStock(burgId, marketId, goodId)?.onHand ?? 0;
+  const wholesaleUnits = wholesaleRecord(burgId, marketId, false)?.goods[goodId] ?? 0;
+  return Math.max(0, retailUnits) + Math.max(0, wholesaleUnits);
+}
+
+/**
+ * Removes locally held stock for a player purchase. Shelves are used first, then the
+ * same-burg wholesale depot; callers must update the matching market total separately.
+ */
+export function removeBurgTradeableGoodStock(burgId: number, marketId: number, goodId: number, units: number): boolean {
+  if (!(units > EPSILON) || getBurgTradeableGoodStock(burgId, marketId, goodId) + EPSILON < units) return false;
+
+  let remaining = units;
+  const retail = getRetailGoodStock(burgId, marketId, goodId);
+  if (retail) {
+    const fromShelf = Math.min(remaining, retail.onHand);
+    retail.onHand = nonNegative(retail.onHand - fromShelf);
+    remaining -= fromShelf;
+  }
+
+  if (remaining > EPSILON) {
+    const wholesale = wholesaleRecord(burgId, marketId, false);
+    if (!wholesale) return false;
+    wholesale.goods[goodId] = nonNegative((wholesale.goods[goodId] ?? 0) - remaining);
+  }
+
+  return true;
 }
 
 /** Multiplicative player-facing local price adjustment for stock already delivered to this Burg. */
