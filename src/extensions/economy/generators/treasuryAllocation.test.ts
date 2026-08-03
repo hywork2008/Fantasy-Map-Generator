@@ -171,13 +171,36 @@ describe("treasuryAllocation", () => {
 
       const allocation = allocateTreasury(state, 1000);
 
-      // Nominal HH 25% = 250 → L1; personal cap 5 → L0; L1 left 245
+      // Nominal HH 25% = 250 → L1; depts 750 → L3a; personal cap 5 → L0 from L1
       expect(allocation.householdNominal).toBe(250);
       expect(allocation.householdPurseCredit).toBe(250);
       expect(allocation.household).toBe(HOUSEHOLD_STIPEND_CAP);
+      expect(allocation.departmentBalancesCredit).toBe(750);
       expect(state.householdPurse).toBe(250 - HOUSEHOLD_STIPEND_CAP);
-      expect(state.treasury).toBe(750);
+      expect(state.treasury).toBe(0);
+      expect(state.departmentBalances?.marshalcy).toBe(350);
+      expect(state.departmentBalances?.chancery).toBe(150);
       expect(ruler.wealth).toBe(HOUSEHOLD_STIPEND_CAP);
+    });
+
+    it("parks department cash in L3a when the office is vacant (no personal pay)", () => {
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        diplomacy: [],
+        treasury: 1000,
+        householdPurse: 0
+      } as unknown as State;
+      worldContext.pack.characters = [];
+      worldContext.pack.states = [undefined, state] as unknown as State[];
+
+      const allocation = allocateTreasury(state, 1000);
+
+      expect(allocation.officeStipendsPaid).toBe(0);
+      expect(allocation.departmentBalancesCredit).toBe(750);
+      expect(state.departmentBalances?.marshalcy).toBe(350);
+      expect(state.departmentBalances?.ecclesiastica).toBe(80);
+      expect(state.treasury).toBe(0);
     });
   });
 
@@ -322,8 +345,8 @@ describe("treasuryAllocation", () => {
       worldContext.pack = { states: [], characters: [] } as unknown as PackedGraph;
     });
 
-    it("pays each living central office holder a personal share of the department Budget (not 100%)", () => {
-      const state = { i: 1, form: "Monarchy", diplomacy: [] } as unknown as State;
+    it("pays each living central office holder from L3a department balances (not 100% of Budget)", () => {
+      const state = { i: 1, form: "Monarchy", diplomacy: [], treasury: 1000 } as unknown as State;
       const chancellor = makeRuler({
         i: 10,
         titles: [{ title: "Chancellor", landed: false, entityType: "state", entityId: 1 }]
@@ -336,7 +359,7 @@ describe("treasuryAllocation", () => {
 
       const allocation = allocateTreasury(state, 1000);
 
-      // Nominal budgets still full for funding-ratio / overview; personal pay is share+cap.
+      // Nominal budgets still full for funding-ratio / overview; personal pay is share+cap from L3a.
       expect(allocation.chancery).toBe(150);
       expect(allocation.marshalcy).toBe(350);
       expect(chancellor.wealth).toBe(getCentralOfficePersonalStipend(150));
@@ -345,20 +368,25 @@ describe("treasuryAllocation", () => {
       expect(marshal.wealth).toBeLessThanOrEqual(CENTRAL_OFFICE_STIPEND_CAP);
       expect(marshal.wealth).toBeGreaterThanOrEqual(CENTRAL_OFFICE_STIPEND_FLOOR);
       expect(allocation.officeStipendsPaid).toBe(chancellor.wealth + marshal.wealth);
+      // Institutional remainder stays in L3a
+      expect(state.departmentBalances?.chancery).toBe(rn(150 - chancellor.wealth, 2));
+      expect(state.departmentBalances?.marshalcy).toBe(rn(350 - marshal.wealth, 2));
     });
 
-    it("leaves a vacant office's share in treasury instead of paying anyone", () => {
-      const state = { i: 1, form: "Monarchy", diplomacy: [] } as unknown as State;
+    it("leaves a vacant office's share in L3a instead of paying anyone", () => {
+      const state = { i: 1, form: "Monarchy", diplomacy: [], treasury: 1000 } as unknown as State;
       worldContext.pack.characters = [];
 
       const allocation = allocateTreasury(state, 1000);
 
       expect(allocation.officeStipendsPaid).toBe(0);
       expect(allocation.chancery).toBe(150); // nominal Budget unaffected by vacancy
+      expect(state.departmentBalances?.chancery).toBe(150);
+      expect(state.departmentBalances?.marshalcy).toBe(350);
     });
 
     it("does not pay a dead office holder", () => {
-      const state = { i: 1, form: "Monarchy", diplomacy: [] } as unknown as State;
+      const state = { i: 1, form: "Monarchy", diplomacy: [], treasury: 1000 } as unknown as State;
       const deadChancellor = makeRuler({
         i: 10,
         dead: true,
@@ -369,10 +397,11 @@ describe("treasuryAllocation", () => {
       allocateTreasury(state, 1000);
 
       expect(deadChancellor.wealth).toBe(0);
+      expect(state.departmentBalances?.chancery).toBe(150);
     });
 
     it("does not pay a same-title office holder of a different state", () => {
-      const state = { i: 1, form: "Monarchy", diplomacy: [] } as unknown as State;
+      const state = { i: 1, form: "Monarchy", diplomacy: [], treasury: 1000 } as unknown as State;
       const otherStateChancellor = makeRuler({
         i: 10,
         titles: [{ title: "Chancellor", landed: false, entityType: "state", entityId: 2 }]
@@ -385,13 +414,14 @@ describe("treasuryAllocation", () => {
     });
 
     it("keeps the nominal Marshalcy Budget (and militaryFundingRatio) unaffected by Marshal vacancy", () => {
-      const state = { i: 1, form: "Monarchy", diplomacy: [], military: [] } as unknown as State;
+      const state = { i: 1, form: "Monarchy", diplomacy: [], military: [], treasury: 1000 } as unknown as State;
       worldContext.pack.characters = [];
 
       const allocation = allocateTreasury(state, 1000);
 
       expect(allocation.militaryFundingRatio).toBe(1); // no troops => Need 0 => ratio 1, unaffected by vacancy
       expect(allocation.marshalcy).toBe(350);
+      expect(state.departmentBalances?.marshalcy).toBe(350);
     });
   });
 
@@ -458,6 +488,7 @@ describe("treasuryAllocation", () => {
         i: 1,
         form: "Monarchy",
         diplomacy: [],
+        treasury: 1000,
         military: [{ state: 1, commanderId: 21, isCapitalGuard: true, u: { Infantry: 100 } }]
       } as unknown as State;
       worldContext.pack.characters = [marshal];

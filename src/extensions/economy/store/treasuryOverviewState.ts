@@ -22,9 +22,13 @@ export interface TreasuryOverviewRow {
   rulerPersonal: number;
   /**
    * Sum of nominal non-household department budgets this cycle (marshalcy…ecclesiastica).
-   * Not yet real department balances (PR-3); display-only intent.
+   * Intent for this cycle; real spendable cash is departmentBalancesStock.
    */
   nominalDepartments: number;
+  /**
+   * L3a sum of real departmentBalances stock (after this cycle's credit and office personal pay).
+   */
+  departmentBalancesStock: number;
   /** Household stipend actually paid to the ruler this cycle (into Character.wealth). */
   household: number;
   officeStipendsPaid: number;

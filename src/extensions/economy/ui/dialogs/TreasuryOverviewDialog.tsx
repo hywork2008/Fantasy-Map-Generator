@@ -46,6 +46,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
 
   const totalPublic = rows.reduce((sum, row) => sum + row.publicTreasury, 0);
   const totalHouseholdPurse = rows.reduce((sum, row) => sum + row.householdPurse, 0);
+  const totalDeptBalances = rows.reduce((sum, row) => sum + row.departmentBalancesStock, 0);
   const totalPersonal = rows.reduce((sum, row) => sum + row.rulerPersonal, 0);
 
   return (
@@ -59,17 +60,18 @@ export const TreasuryOverviewDialog: React.FC = () => {
         bodyRef={parentRef}
         summary={
           <div className="totalLine">
-            <div data-tip="Multi-ledger: Public (L2) = state.treasury. Household purse (L1) = crown court cash. Ruler personal (L0) = Character.wealth. Real department balances are not implemented yet (PR-3).">
+            <div data-tip="Multi-ledger: Public (L2), Household purse (L1), Department balances (L3a), Ruler personal (L0).">
               Ledgers: Public (L2) <span id="treasuryOverviewTotalPublic">{totalPublic.toFixed(1)}</span>
               {" · "}
-              Household purse (L1){" "}
-              <span id="treasuryOverviewTotalHouseholdPurse">{totalHouseholdPurse.toFixed(1)}</span>
+              Household (L1) <span id="treasuryOverviewTotalHouseholdPurse">{totalHouseholdPurse.toFixed(1)}</span>
               {" · "}
-              Rulers&apos; personal (L0) <span id="treasuryOverviewTotalPersonal">{totalPersonal.toFixed(1)}</span>
+              Depts stock (L3a) <span id="treasuryOverviewTotalDeptBalances">{totalDeptBalances.toFixed(1)}</span>
+              {" · "}
+              Rulers L0 <span id="treasuryOverviewTotalPersonal">{totalPersonal.toFixed(1)}</span>
             </div>
             <div className="dim" style={{ fontSize: "0.9em", marginTop: "0.25em" }}>
-              Personal cash is pocket money. Crown capacity is Public + Household purse. Department columns below are
-              nominal allocation this cycle, not spendable department balances yet.
+              Personal cash is pocket money. Named department columns are this-cycle nominal intent;{" "}
+              <strong>Depts bal</strong> is real L3a spendable stock (office stipends already drawn).
             </div>
           </div>
         }
@@ -85,6 +87,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
       >
         <table className="fmg-table">
           <colgroup>
+            <col />
             <col />
             <col />
             <col />
@@ -175,13 +178,22 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 tip="Sum actually paid to central office holders this cycle (real deduction from public treasury)"
               />
               <SortableHeader
+                field="departmentBalancesStock"
+                label="Depts bal"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="L3a real departmentBalances stock (sum). Credited from this cycle's dept shares; vacant offices leave cash parked here"
+              />
+              <SortableHeader
                 field="nominalDepartments"
                 label="Depts Σ"
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Sum of nominal non-household department budgets this cycle. Not real department balances until PR-3"
+                tip="Sum of nominal non-household department budgets this cycle (intent, not stock)"
               />
               <SortableHeader
                 field="marshalcy"
@@ -251,7 +263,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={16}>
+                <td colSpan={17}>
                   <span>No state has an allocated treasury yet — run a generation cycle first</span>
                 </td>
               </tr>
@@ -279,7 +291,8 @@ const TreasuryRow: React.FC<{ row: TreasuryOverviewRow }> = ({ row }) => (
     <td>{row.domesticIncome.toFixed(2)}</td>
     <td data-tip="Household stipend paid this cycle (L1→L0)">{row.household.toFixed(2)}</td>
     <td>{row.officeStipendsPaid.toFixed(2)}</td>
-    <td data-tip="Nominal department budgets sum (not real balances yet)">{row.nominalDepartments.toFixed(2)}</td>
+    <td data-tip="L3a department balances stock">{row.departmentBalancesStock.toFixed(2)}</td>
+    <td data-tip="Nominal department budgets sum this cycle">{row.nominalDepartments.toFixed(2)}</td>
     <td>{row.marshalcy.toFixed(2)}</td>
     <td>{row.militaryFundingRatio.toFixed(2)}</td>
     <td>{row.militaryDiscontent.toFixed(1)}</td>

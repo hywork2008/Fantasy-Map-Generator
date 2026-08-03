@@ -147,9 +147,16 @@ describe("TaxesModule", () => {
 
       taxesModule.collectTaxes();
 
-      // income 75; HH nominal 3.75 → L1; L2 keeps 71.25
+      // income 75; HH 5% → L1; remaining 95% → L3a; L2 emptied of this cycle's share
       expect(state1.householdPurse).toBe(3.75);
-      expect(state1.treasury).toBe(71.25);
+      expect(state1.treasury).toBe(0);
+      expect(
+        (state1.departmentBalances?.marshalcy || 0) +
+          (state1.departmentBalances?.chancery || 0) +
+          (state1.departmentBalances?.stewardship || 0) +
+          (state1.departmentBalances?.spymastery || 0) +
+          (state1.departmentBalances?.ecclesiastica || 0)
+      ).toBe(71.25);
     });
 
     it("never credits the neutral state (i === 0)", () => {
@@ -190,9 +197,9 @@ describe("TaxesModule", () => {
       taxesModule.collectTaxes();
 
       // Baseline (no bonus) would be 75; ACADEMY_BONUS_MAX = 0.2 at stock = 1 raises it to 90.
-      // Republic HH 5% of 90 = 4.5 → L1; L2 = 85.5
+      // Republic HH 5% of 90 = 4.5 → L1; depts 85.5 → L3a
       expect(state1.householdPurse).toBe(4.5);
-      expect(state1.treasury).toBe(85.5);
+      expect(state1.treasury).toBe(0);
     });
 
     it("carries forward the existing balance instead of resetting to 0", () => {
@@ -223,9 +230,9 @@ describe("TaxesModule", () => {
 
       taxesModule.collectTaxes();
 
-      // income 50; Republic HH 5% = 2.5 → L1; L2 = 47.5
+      // income 50; Republic HH 5% = 2.5 → L1; depts 47.5 → L3a
       expect(state1.householdPurse).toBe(2.5);
-      expect(state1.treasury).toBe(47.5);
+      expect(state1.treasury).toBe(0);
     });
 
     it("consumes the voyage income buffer — a second collectTaxes() call without new income adds nothing more (but keeps the carried-forward balance)", () => {
@@ -245,9 +252,9 @@ describe("TaxesModule", () => {
       taxesModule.collectTaxes();
       taxesModule.collectTaxes();
 
-      // First cycle: 40 income, HH 2 → L1 2, L2 38. Second: income 0, no further HH credit.
+      // First cycle: 40 income → HH 2 + depts 38. Second: income 0, stocks unchanged.
       expect(state1.householdPurse).toBe(2);
-      expect(state1.treasury).toBe(38);
+      expect(state1.treasury).toBe(0);
     });
 
     it("subtracts state-funded strategic procurement from the next fiscal recalculation exactly once", () => {
@@ -265,15 +272,14 @@ describe("TaxesModule", () => {
       registerStrategicProcurementExpense(1, 30);
 
       taxesModule.collectTaxes();
-      // income 100 − procurement 30 = 70 net to ledgers; HH 5% of income 100 = 5 → L1; L2 = 65
-      // Wait: order is treasury += 100, credit HH 5, then subtract procurement 30 → L2 = 65
+      // treasury += 100; HH 5 + depts 95 → L1/L3a; then procurement 30 from L2 (already 0) → L2 stays 0
       expect(state1.householdPurse).toBe(5);
-      expect(state1.treasury).toBe(65);
+      expect(state1.treasury).toBe(0);
 
       taxesModule.collectTaxes();
-      // +100 income, HH +5 (purse 10), procurement 0, L2 = 65+100-5 = 160
+      // +100 again; HH 10; depts accumulate another 95; procurement buffer empty
       expect(state1.householdPurse).toBe(10);
-      expect(state1.treasury).toBe(160);
+      expect(state1.treasury).toBe(0);
     });
   });
 });

@@ -4,7 +4,7 @@ import { openDialog } from "../../hostUi";
 import { rn } from "../../hostUtils";
 import { getRulerId } from "../../nobility/nobilityContext";
 import { getWorldContext } from "../economyContext";
-import { getTreasuryAllocationSnapshots } from "../generators/treasuryAllocation";
+import { getTreasuryAllocationSnapshots, sumDepartmentBalances } from "../generators/treasuryAllocation";
 import { setTreasuryOverviewState, type TreasuryOverviewRow } from "../store/treasuryOverviewState";
 
 /**
@@ -50,6 +50,7 @@ export function refreshTreasuryOverview(): void {
       householdPurse: rn(state.householdPurse || 0, 2),
       rulerPersonal: resolveRulerPersonalWealth(state),
       nominalDepartments,
+      departmentBalancesStock: sumDepartmentBalances(state.departmentBalances),
       household: snapshot.household,
       officeStipendsPaid: snapshot.officeStipendsPaid,
       marshalcy: snapshot.marshalcy,

@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計案。PR-1（可視化）・PR-2（L1 householdPurse）実装済み** — L2→L1 家政振替と L1→L0 個人給。L3a 部門実残高は未実装。
+**設計案。PR-1〜PR-3 実装済み** — L0 個人 / L1 householdPurse / L2 treasury / L3a departmentBalances。軍事 upkeep は当面 L2。PR-4 支出権限フックは未実装。
 
 史実対照 [polity-fiscal-regimes-historical.md](../analytics/polity-fiscal-regimes-historical.md) の結論「豊かさの本体はどの名義の金庫を誰が使えるか」を、現行の単一 `state.treasury` + `Character.wealth` モデルへ段階実装するための仕様と PR 計画。
 
@@ -376,12 +376,13 @@ Lord personal: ZZZ
 
 **完了条件**: Monarchy 為政者の「王冠の財力 ≈ L1+L2」が個人の数倍〜桁上。
 
-### PR-3 — L3a departmentBalances
+### PR-3 — L3a departmentBalances ✅
 
-- 5 鍵の残高、官職個人給を差し引いた額を振替  
-- Overview に部門残高列  
-- 空席時は残高滞留  
-- 軍事 upkeep はまだ L2 から（変更最小）
+- ✅ `State.departmentBalances`（5 鍵）  
+- ✅ L2→L3a 振替（名目部門シェア、L2 不足時 pro-rata）  
+- ✅ 官職個人給は L3a→L0；空席は L3a に滞留  
+- ✅ Overview **Depts bal** 列  
+- 軍事 upkeep はまだ L2 から  
 
 **完了条件**: 「部門に割り当てられたお金」が残高として存在する。
 

@@ -223,13 +223,49 @@ export function findLivingOfficeHolder(characters: Character[], stateId: number,
 
 /**
  * Fraction of a department's *nominal* Budget paid as the office holder's personal stipend.
- * The rest of the department line stays in state.treasury for institutional spending — paying
- * 100% of Marshalcy/Chancery/etc. into Character.wealth made officers richer than rulers of
- * small realms and drained state cash every cycle.
+ * The institutional remainder stays in L3a `departmentBalances` (PR-3).
  */
 export const CENTRAL_OFFICE_PERSONAL_SHARE = 0.12;
 export const CENTRAL_OFFICE_STIPEND_FLOOR = 0.8;
 export const CENTRAL_OFFICE_STIPEND_CAP = 3.0;
+
+export type DepartmentBalanceKey = keyof Pick<
+  DepartmentBaselineAllocation,
+  "marshalcy" | "chancery" | "stewardship" | "spymastery" | "ecclesiastica"
+>;
+
+export type DepartmentBalances = Record<DepartmentBalanceKey, number>;
+
+export const DEPARTMENT_BALANCE_KEYS: readonly DepartmentBalanceKey[] = [
+  "marshalcy",
+  "chancery",
+  "stewardship",
+  "spymastery",
+  "ecclesiastica"
+] as const;
+
+export function emptyDepartmentBalances(): DepartmentBalances {
+  return { marshalcy: 0, chancery: 0, stewardship: 0, spymastery: 0, ecclesiastica: 0 };
+}
+
+/** Ensure `state.departmentBalances` exists (mutates state). */
+export function ensureDepartmentBalances(state: State): DepartmentBalances {
+  if (!state.departmentBalances) {
+    state.departmentBalances = emptyDepartmentBalances();
+  } else {
+    for (const key of DEPARTMENT_BALANCE_KEYS) {
+      if (state.departmentBalances[key] === undefined) state.departmentBalances[key] = 0;
+    }
+  }
+  return state.departmentBalances;
+}
+
+export function sumDepartmentBalances(balances: DepartmentBalances | undefined): number {
+  if (!balances) return 0;
+  let total = 0;
+  for (const key of DEPARTMENT_BALANCE_KEYS) total += balances[key] || 0;
+  return rn(total, 2);
+}
 
 /** Personal pay for one central office from its department's nominal budget this cycle. */
 export function getCentralOfficePersonalStipend(departmentBudget: number): number {
@@ -240,28 +276,64 @@ export function getCentralOfficePersonalStipend(departmentBudget: number): numbe
 }
 
 /**
- * Pays each of the 5 CENTRAL_OFFICES (Chancellor/Marshal/Steward/Spymaster/Court Chaplain,
- * titleTable.ts) a *personal* stipend derived from its department's nominal Budget — share +
- * floor/cap, not the full Budget. Nominal department figures on `breakdown` stay intact for
- * militaryFundingRatio/§4 ceiling comparisons and Treasury Overview. Vacant offices pay 0;
- * their share remains in state.treasury.
+ * Move this cycle's nominal department shares from L2 into L3a balances (pro-rata if L2 is short).
+ * Returns total cash moved. Caller must credit domestic income to L2 and run household L2→L1 first.
  */
-export function payCentralOfficeStipends(state: Pick<State, "i">, breakdown: TreasuryAllocationBreakdown): number {
+export function creditDepartmentBalances(state: State, nominal: DepartmentBalances): number {
+  let desiredTotal = 0;
+  for (const key of DEPARTMENT_BALANCE_KEYS) desiredTotal += Math.max(0, nominal[key] || 0);
+  desiredTotal = rn(desiredTotal, 2);
+  if (!(desiredTotal > 0)) return 0;
+
+  const available = state.treasury || 0;
+  if (!(available > 0)) return 0;
+
+  const scale = available >= desiredTotal ? 1 : available / desiredTotal;
+  const balances = ensureDepartmentBalances(state);
+  let moved = 0;
+  for (const key of DEPARTMENT_BALANCE_KEYS) {
+    const share = rn(Math.max(0, nominal[key] || 0) * scale, 2);
+    if (!(share > 0)) continue;
+    balances[key] = rn((balances[key] || 0) + share, 2);
+    moved = rn(moved + share, 2);
+  }
+  // Absorb rare rounding overshoot into marshalcy (largest typical share).
+  if (moved > available) {
+    const excess = rn(moved - available, 2);
+    balances.marshalcy = rn(Math.max(0, (balances.marshalcy || 0) - excess), 2);
+    moved = available;
+  }
+  state.treasury = rn(available - moved, 2);
+  return moved;
+}
+
+/**
+ * Pays each living central office holder a personal stipend from L3a departmentBalances
+ * (not from L2). Vacant offices leave L3a balances parked. Nominal breakdown figures stay
+ * for funding-ratio / overview.
+ */
+export function payCentralOfficeStipends(state: State, breakdown: TreasuryAllocationBreakdown): number {
   if (!state.i || !hasCharactersContext()) return 0;
   const characters = getCharacters();
+  const balances = ensureDepartmentBalances(state);
 
   let totalPaid = 0;
   for (const office of CENTRAL_OFFICES) {
     const departmentKey = office.primarySkill && DEPARTMENT_BY_PRIMARY_SKILL[office.primarySkill];
     if (!departmentKey) continue;
-    const amount = getCentralOfficePersonalStipend(breakdown[departmentKey]);
-    if (!(amount > 0)) continue;
+    const desired = getCentralOfficePersonalStipend(breakdown[departmentKey]);
+    if (!(desired > 0)) continue;
 
     const holder = findLivingOfficeHolder(characters, state.i, office.title);
     if (!holder) continue;
 
-    holder.wealth = rn((holder.wealth || 0) + amount, 2);
-    totalPaid = rn(totalPaid + amount, 2);
+    const available = balances[departmentKey] || 0;
+    const paid = rn(Math.min(desired, available), 2);
+    if (!(paid > 0)) continue;
+
+    balances[departmentKey] = rn(available - paid, 2);
+    holder.wealth = rn((holder.wealth || 0) + paid, 2);
+    totalPaid = rn(totalPaid + paid, 2);
   }
   return totalPaid;
 }
@@ -350,9 +422,17 @@ export interface TreasuryAllocationBreakdown {
   ecclesiastica: number;
   /** Marshalcy Budget ÷ Need, mirrors state.militaryFundingRatio after this call. */
   militaryFundingRatio: number;
-  /** Real deduction — sum of §2's CENTRAL_OFFICES stipends actually paid this cycle (payCentralOfficeStipends()); 0 for any vacant office, whose share stays in state.treasury instead of disappearing. */
+  /**
+   * Cash moved L2 → L3a departmentBalances this cycle (sum of nominal dept shares, L2-limited).
+   * Multi-ledger PR-3.
+   */
+  departmentBalancesCredit: number;
+  /**
+   * Personal office stipends paid this cycle from L3a → Character.wealth (not an L2 deduction).
+   * Vacant offices contribute 0; their L3a share stays parked.
+   */
   officeStipendsPaid: number;
-  /** Real deduction — sum of field/fleet officer command-pay stipends actually paid this cycle (payFieldCommanderStipends()); 0 for any regiment with no living dedicated officer. */
+  /** Real L2 deduction — field/fleet officer command-pay this cycle (still paid from public treasury). */
   fieldCommanderStipendsPaid: number;
 }
 
@@ -376,14 +456,13 @@ export function clearTreasuryAllocationSnapshots(): void {
 }
 
 /**
- * §7 item 3 + multi-ledger PR-2 — department breakdown, funding ratio, household L2→L1 credit,
- * personal L1→L0 stipend, office/field stipends. Caller must have already added this cycle's
- * domestic income to `state.treasury` before calling, so household purse credit can draw on it.
+ * §7 item 3 + multi-ledger PR-2/PR-3 — department breakdown, funding ratio, household L2→L1,
+ * department L2→L3a, personal stipends from L1/L3a, field commanders from L2.
+ * Caller must have already added this cycle's domestic income to `state.treasury`.
  *
- * L2 deductions applied here: householdPurseCredit (mutates treasury).
- * L2 deductions applied by collectTaxes from the return value: officeStipendsPaid,
- * fieldCommanderStipendsPaid (plus military upkeep / procurement).
- * Personal household pay is not an L2 deduction (comes from L1).
+ * L2 deductions applied here: householdPurseCredit, departmentBalancesCredit.
+ * L2 deductions applied by collectTaxes from the return value: fieldCommanderStipendsPaid
+ * (plus military upkeep / procurement). Office personal pay is L3a→L0, not an L2 line.
  */
 export function allocateTreasury(state: State, domesticIncome: number): TreasuryAllocationBreakdown {
   const income = Math.max(0, domesticIncome);
@@ -400,16 +479,30 @@ export function allocateTreasury(state: State, domesticIncome: number): Treasury
   const householdPurseCredit = creditHouseholdPurse(state, income);
   const household = payRulerHouseholdStipend(state, income);
 
+  const chancery = rn(income * baseline.chancery, 2);
+  const stewardship = rn(income * baseline.stewardship, 2);
+  const spymastery = rn(income * baseline.spymastery, 2);
+  const ecclesiastica = rn(income * baseline.ecclesiastica, 2);
+  const nominalDepartments: DepartmentBalances = {
+    marshalcy: marshalcyBudget,
+    chancery,
+    stewardship,
+    spymastery,
+    ecclesiastica
+  };
+  const departmentBalancesCredit = creditDepartmentBalances(state, nominalDepartments);
+
   const breakdown: TreasuryAllocationBreakdown = {
     household,
     householdPurseCredit,
     householdNominal,
     marshalcy: marshalcyBudget,
-    chancery: rn(income * baseline.chancery, 2),
-    stewardship: rn(income * baseline.stewardship, 2),
-    spymastery: rn(income * baseline.spymastery, 2),
-    ecclesiastica: rn(income * baseline.ecclesiastica, 2),
+    chancery,
+    stewardship,
+    spymastery,
+    ecclesiastica,
     militaryFundingRatio: fundingRatio,
+    departmentBalancesCredit,
     officeStipendsPaid: 0,
     fieldCommanderStipendsPaid: 0
   };

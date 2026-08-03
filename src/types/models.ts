@@ -382,6 +382,18 @@ export interface State {
    * docs/plan/multi-ledger-fiscal-architecture.md PR-2.
    */
   householdPurse?: number;
+  /**
+   * L3a department spendable balances (marshalcy…ecclesiastica). Credited each cycle from the
+   * form's nominal department shares; office personal stipends draw from here. Vacant offices
+   * leave balances parked. docs/plan/multi-ledger-fiscal-architecture.md PR-3.
+   */
+  departmentBalances?: {
+    marshalcy: number;
+    chancery: number;
+    stewardship: number;
+    spymastery: number;
+    ecclesiastica: number;
+  };
   /** Fraction of population-equivalent grain paid to the suzerain each generation (Vassal states only). */
   tributeRate?: number;
   /** Computed grain-equivalent tribute amount paid to the suzerain (Vassal states only). */
