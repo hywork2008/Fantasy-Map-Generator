@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計案。PR-1（可視化）実装済み** — Treasury Overview と Player Character パネルで L0 個人 / L2 国庫 / 名目部門Σ（および領主の L3b Burg）を並記。L1 `householdPurse` と L3a 実残高は未実装。
+**設計案。PR-1（可視化）・PR-2（L1 householdPurse）実装済み** — L2→L1 家政振替と L1→L0 個人給。L3a 部門実残高は未実装。
 
 史実対照 [polity-fiscal-regimes-historical.md](../analytics/polity-fiscal-regimes-historical.md) の結論「豊かさの本体はどの名義の金庫を誰が使えるか」を、現行の単一 `state.treasury` + `Character.wealth` モデルへ段階実装するための仕様と PR 計画。
 
@@ -367,12 +367,12 @@ Lord personal: ZZZ
 
 **完了条件**: 新規マップで為政者を開くと「個人は少ないが国庫は別」が一目で分かる。
 
-### PR-2 — L1 householdPurse + 振替
+### PR-2 — L1 householdPurse + 振替 ✅
 
-- `State.householdPurse` 追加  
-- `collectTaxes` で household 名目を L2→L1、為政者個人給を L1→L0  
-- スナップショット・テスト  
-- Monarchy で L1 が厚く溜まることを確認  
+- ✅ `State.householdPurse`  
+- ✅ `collectTaxes`: 歳入を L2 に加算 → `creditHouseholdPurse` (L2→L1) → `payRulerHouseholdStipend` (L1→L0)  
+- ✅ Treasury Overview / Player Character に HH purse  
+- ✅ テスト  
 
 **完了条件**: Monarchy 為政者の「王冠の財力 ≈ L1+L2」が個人の数倍〜桁上。
 

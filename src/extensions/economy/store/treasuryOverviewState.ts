@@ -11,6 +11,11 @@ export interface TreasuryOverviewRow {
    */
   publicTreasury: number;
   /**
+   * L1 crown household purse (`state.householdPurse`) — institutional court cash (PR-2).
+   * Distinct from ruler personal wealth and from this-cycle HH stipend paid.
+   */
+  householdPurse: number;
+  /**
    * L0 personal wealth of the living landed ruler, if any. Distinct from publicTreasury and from
    * the household *stipend paid this cycle* (`household` column).
    */

@@ -100,32 +100,84 @@ describe("treasuryAllocation", () => {
         expect(payRulerHouseholdStipend(state, 1000)).toBe(0);
       });
 
-      it("pays the Monarchy household share capped at HOUSEHOLD_STIPEND_CAP", () => {
-        const state = { i: 1, form: "Monarchy" } as unknown as State;
+      it("pays the Monarchy household share capped at HOUSEHOLD_STIPEND_CAP from the household purse", () => {
+        const state = { i: 1, form: "Monarchy", householdPurse: 100 } as unknown as State;
         setRulerId(state, 1);
         const ruler = makeRuler();
         worldContext.pack.characters = [ruler];
 
-        // Raw 25% of 1000 = 250 → capped at 5
+        // Raw 25% of 1000 = 250 → personal cap 5, drawn from L1
         const paid = payRulerHouseholdStipend(state, 1000);
 
         expect(paid).toBe(HOUSEHOLD_STIPEND_CAP);
         expect(ruler.wealth).toBe(HOUSEHOLD_STIPEND_CAP);
+        expect(state.householdPurse).toBe(100 - HOUSEHOLD_STIPEND_CAP);
         expect(getRulerHouseholdStipend(state, 1000)).toBe(HOUSEHOLD_STIPEND_CAP);
       });
 
       it("accumulates wealth across multiple cycles instead of overwriting it", () => {
-        const state = { i: 1, form: "Republic" } as unknown as State;
+        const state = { i: 1, form: "Republic", householdPurse: 100 } as unknown as State;
         setRulerId(state, 1);
         const ruler = makeRuler({ wealth: 10 });
         worldContext.pack.characters = [ruler];
 
-        // Republic 5% of 1000 = 50 → still capped at 5
+        // Republic 5% of 1000 = 50 → still capped at 5, from L1
         payRulerHouseholdStipend(state, 1000);
         payRulerHouseholdStipend(state, 1000);
 
         expect(ruler.wealth).toBe(10 + HOUSEHOLD_STIPEND_CAP * 2);
+        expect(state.householdPurse).toBe(100 - HOUSEHOLD_STIPEND_CAP * 2);
       });
+
+      it("pays nothing when the household purse is empty even if income is large", () => {
+        const state = { i: 1, form: "Monarchy", householdPurse: 0, treasury: 0 } as unknown as State;
+        setRulerId(state, 1);
+        const ruler = makeRuler();
+        worldContext.pack.characters = [ruler];
+
+        expect(payRulerHouseholdStipend(state, 1000)).toBe(0);
+        expect(ruler.wealth).toBe(0);
+      });
+    });
+  });
+
+  describe("creditHouseholdPurse() + allocateTreasury multi-ledger", () => {
+    afterEach(() => {
+      clearEconomyContext();
+      clearNobilityContext();
+      clearCharactersContext();
+      clearTreasuryAllocationSnapshots();
+    });
+
+    beforeEach(() => {
+      initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+      initNobilityContext({ worldContext } as unknown as ExtensionAPI);
+      initCharactersContext({ worldContext } as unknown as ExtensionAPI);
+      worldContext.pack = { states: [], characters: [] } as unknown as PackedGraph;
+    });
+
+    it("moves the nominal household share L2→L1 then pays the capped personal stipend L1→L0", () => {
+      const state = {
+        i: 1,
+        form: "Monarchy",
+        diplomacy: [],
+        treasury: 1000,
+        householdPurse: 0
+      } as unknown as State;
+      setRulerId(state, 1);
+      const ruler = makeRuler({ i: 1 });
+      worldContext.pack.characters = [ruler];
+      worldContext.pack.states = [undefined, state] as unknown as State[];
+
+      const allocation = allocateTreasury(state, 1000);
+
+      // Nominal HH 25% = 250 → L1; personal cap 5 → L0; L1 left 245
+      expect(allocation.householdNominal).toBe(250);
+      expect(allocation.householdPurseCredit).toBe(250);
+      expect(allocation.household).toBe(HOUSEHOLD_STIPEND_CAP);
+      expect(state.householdPurse).toBe(250 - HOUSEHOLD_STIPEND_CAP);
+      expect(state.treasury).toBe(750);
+      expect(ruler.wealth).toBe(HOUSEHOLD_STIPEND_CAP);
     });
   });
 

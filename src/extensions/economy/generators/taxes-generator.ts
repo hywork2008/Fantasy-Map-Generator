@@ -98,16 +98,17 @@ export class TaxesModule {
       // completely (less unrecorded evasion) — docs/plan/knowledge-guild-system.md §9 Phase 3.
       const administrationBonus = getAcademyBonus(state.capital ?? 0, "administration");
       const pollTaxRevenue = (state.pollTax || 0) * population * administrationBonus;
-      const allocation = allocateTreasury(state, pollTaxRevenue + voyageIncome);
+      const domesticIncome = pollTaxRevenue + voyageIncome;
+      // Credit L2 first so multi-ledger household purse (L2→L1) can draw this cycle's revenue.
+      state.treasury = rn((state.treasury || 0) + domesticIncome, 2);
+      const allocation = allocateTreasury(state, domesticIncome);
+      // householdPurseCredit already left L2 inside allocateTreasury; personal HH pay left L1→L0.
       state.treasury = rn(
         Math.max(
           0,
-          (state.treasury || 0) +
-            pollTaxRevenue +
-            voyageIncome -
+          (state.treasury || 0) -
             procurementExpense -
             militaryUpkeep -
-            allocation.household -
             allocation.officeStipendsPaid -
             allocation.fieldCommanderStipendsPaid
         ),

@@ -25,6 +25,10 @@ export interface PlayerCharacterSummary {
    */
   publicTreasury: number;
   /**
+   * L1 crown household purse (`state.householdPurse`). Institutional court cash for the realm.
+   */
+  householdPurse: number;
+  /**
    * L3b domain treasury when the character is a province lord seated on a burg; otherwise null.
    */
   domainTreasury: number | null;
@@ -139,6 +143,7 @@ export function buildPlayerCharacterSummary(
 
   const state = stateId >= 0 ? pack.states?.[stateId] : undefined;
   const publicTreasury = state?.treasury || 0;
+  const householdPurse = state?.householdPurse || 0;
   const isLandedRuler = Boolean(holding?.landed && holding.entityType === "state");
 
   let domainTreasury: number | null = null;
@@ -156,6 +161,7 @@ export function buildPlayerCharacterSummary(
     name: character.name,
     wealth: character.wealth ?? 0,
     publicTreasury,
+    householdPurse,
     domainTreasury,
     isLandedRuler,
     title: holding ? getCharacterTitleLabel(holding.title) : role ? getCharacterRoleLabel(role) : "—",

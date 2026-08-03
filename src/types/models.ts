@@ -374,7 +374,14 @@ export interface State {
   alert?: number;
   salesTax?: number;
   pollTax?: number;
+  /** L2 public treasury stock (institutional cash). */
   treasury?: number;
+  /**
+   * L1 crown household purse — court/institutional household cash, distinct from the ruler's
+   * personal Character.wealth (L0) and from public treasury (L2).
+   * docs/plan/multi-ledger-fiscal-architecture.md PR-2.
+   */
+  householdPurse?: number;
   /** Fraction of population-equivalent grain paid to the suzerain each generation (Vassal states only). */
   tributeRate?: number;
   /** Computed grain-equivalent tribute amount paid to the suzerain (Vassal states only). */

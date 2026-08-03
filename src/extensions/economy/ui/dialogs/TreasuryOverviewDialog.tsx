@@ -45,6 +45,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
   }, [rawRows, sortBy, sortOrder]);
 
   const totalPublic = rows.reduce((sum, row) => sum + row.publicTreasury, 0);
+  const totalHouseholdPurse = rows.reduce((sum, row) => sum + row.householdPurse, 0);
   const totalPersonal = rows.reduce((sum, row) => sum + row.rulerPersonal, 0);
 
   return (
@@ -58,16 +59,17 @@ export const TreasuryOverviewDialog: React.FC = () => {
         bodyRef={parentRef}
         summary={
           <div className="totalLine">
-            <div data-tip="Multi-ledger PR-1: Public is state.treasury (institutional). Ruler personal is Character.wealth only — not the same purse. Household purse and real department balances are not implemented yet.">
-              Ledgers: Public (L2) total <span id="treasuryOverviewTotalPublic">{totalPublic.toFixed(1)}</span>
+            <div data-tip="Multi-ledger: Public (L2) = state.treasury. Household purse (L1) = crown court cash. Ruler personal (L0) = Character.wealth. Real department balances are not implemented yet (PR-3).">
+              Ledgers: Public (L2) <span id="treasuryOverviewTotalPublic">{totalPublic.toFixed(1)}</span>
               {" · "}
-              Rulers&apos; personal (L0) total{" "}
-              <span id="treasuryOverviewTotalPersonal">{totalPersonal.toFixed(1)}</span>
+              Household purse (L1){" "}
+              <span id="treasuryOverviewTotalHouseholdPurse">{totalHouseholdPurse.toFixed(1)}</span>
+              {" · "}
+              Rulers&apos; personal (L0) <span id="treasuryOverviewTotalPersonal">{totalPersonal.toFixed(1)}</span>
             </div>
             <div className="dim" style={{ fontSize: "0.9em", marginTop: "0.25em" }}>
-              Personal cash is pocket money. Governance capacity is the public treasury (and, later, household /
-              department purses). Department columns below are nominal allocation this cycle, not spendable department
-              balances yet.
+              Personal cash is pocket money. Crown capacity is Public + Household purse. Department columns below are
+              nominal allocation this cycle, not spendable department balances yet.
             </div>
           </div>
         }
@@ -83,6 +85,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
       >
         <table className="fmg-table">
           <colgroup>
+            <col />
             <col />
             <col />
             <col />
@@ -127,13 +130,22 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 tip="L2 public treasury stock (state.treasury). Institutional cash for war and common government — not the ruler's personal purse"
               />
               <SortableHeader
+                field="householdPurse"
+                label="HH purse"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="L1 crown household purse (state.householdPurse) — court/institutional household cash. Credited each cycle from the form's household budget share"
+              />
+              <SortableHeader
                 field="rulerPersonal"
                 label="Ruler L0"
                 sortBy={sortBy}
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Living ruler's Character.wealth (personal pocket money). Often much smaller than Public; that is intentional"
+                tip="Living ruler's Character.wealth (personal pocket money). Paid from the household purse, capped — often much smaller than Public + HH purse"
               />
               <SortableHeader
                 field="domesticIncome"
@@ -151,7 +163,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="Household stipend paid this cycle into the ruler's personal wealth (L0) — not a separate household purse yet (PR-2)"
+                tip="Personal household stipend paid this cycle from L1 household purse into the ruler's L0 wealth"
               />
               <SortableHeader
                 field="officeStipendsPaid"
@@ -239,7 +251,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={15}>
+                <td colSpan={16}>
                   <span>No state has an allocated treasury yet — run a generation cycle first</span>
                 </td>
               </tr>
@@ -262,9 +274,10 @@ const TreasuryRow: React.FC<{ row: TreasuryOverviewRow }> = ({ row }) => (
     <td data-tip={row.stateName}>{row.stateName}</td>
     <td>{row.form}</td>
     <td data-tip="Public treasury (L2)">{row.publicTreasury.toFixed(2)}</td>
+    <td data-tip="Household purse (L1)">{row.householdPurse.toFixed(2)}</td>
     <td data-tip="Ruler personal wealth (L0)">{row.rulerPersonal.toFixed(2)}</td>
     <td>{row.domesticIncome.toFixed(2)}</td>
-    <td data-tip="Household stipend paid this cycle (to L0)">{row.household.toFixed(2)}</td>
+    <td data-tip="Household stipend paid this cycle (L1→L0)">{row.household.toFixed(2)}</td>
     <td>{row.officeStipendsPaid.toFixed(2)}</td>
     <td data-tip="Nominal department budgets sum (not real balances yet)">{row.nominalDepartments.toFixed(2)}</td>
     <td>{row.marshalcy.toFixed(2)}</td>

@@ -132,14 +132,24 @@ describe("TaxesModule", () => {
     });
 
     it("adds poll tax based on rural + urban population", () => {
-      const state1: State = { i: 1, salesTax: 0, pollTax: 0.5, rural: 100, urban: 50 } as unknown as State;
+      // form Republic → household 5% of income credits L1; remainder stays L2.
+      const state1: State = {
+        i: 1,
+        form: "Republic",
+        salesTax: 0,
+        pollTax: 0.5,
+        rural: 100,
+        urban: 50
+      } as unknown as State;
       worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
       worldContext.pack.burgs = [];
       setDeals([]);
 
       taxesModule.collectTaxes();
 
-      expect(state1.treasury).toBe(75);
+      // income 75; HH nominal 3.75 → L1; L2 keeps 71.25
+      expect(state1.householdPurse).toBe(3.75);
+      expect(state1.treasury).toBe(71.25);
     });
 
     it("never credits the neutral state (i === 0)", () => {
@@ -165,6 +175,7 @@ describe("TaxesModule", () => {
     it("scales poll tax revenue up by the capital's administration academy bonus", () => {
       const state1: State = {
         i: 1,
+        form: "Republic",
         salesTax: 0,
         pollTax: 0.5,
         rural: 100,
@@ -179,7 +190,9 @@ describe("TaxesModule", () => {
       taxesModule.collectTaxes();
 
       // Baseline (no bonus) would be 75; ACADEMY_BONUS_MAX = 0.2 at stock = 1 raises it to 90.
-      expect(state1.treasury).toBe(90);
+      // Republic HH 5% of 90 = 4.5 → L1; L2 = 85.5
+      expect(state1.householdPurse).toBe(4.5);
+      expect(state1.treasury).toBe(85.5);
     });
 
     it("carries forward the existing balance instead of resetting to 0", () => {
@@ -194,7 +207,14 @@ describe("TaxesModule", () => {
     });
 
     it("folds in Shipbuilding's buffered voyage income (docs/plan/ships.md 航海訓練・偽装通商・諜報)", () => {
-      const state1: State = { i: 1, salesTax: 0, pollTax: 0, rural: 0, urban: 0 } as unknown as State;
+      const state1: State = {
+        i: 1,
+        form: "Republic",
+        salesTax: 0,
+        pollTax: 0,
+        rural: 0,
+        urban: 0
+      } as unknown as State;
       worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
       worldContext.pack.burgs = [];
       setDeals([]);
@@ -203,11 +223,20 @@ describe("TaxesModule", () => {
 
       taxesModule.collectTaxes();
 
-      expect(state1.treasury).toBe(50);
+      // income 50; Republic HH 5% = 2.5 → L1; L2 = 47.5
+      expect(state1.householdPurse).toBe(2.5);
+      expect(state1.treasury).toBe(47.5);
     });
 
     it("consumes the voyage income buffer — a second collectTaxes() call without new income adds nothing more (but keeps the carried-forward balance)", () => {
-      const state1: State = { i: 1, salesTax: 0, pollTax: 0, rural: 0, urban: 0 } as unknown as State;
+      const state1: State = {
+        i: 1,
+        form: "Republic",
+        salesTax: 0,
+        pollTax: 0,
+        rural: 0,
+        urban: 0
+      } as unknown as State;
       worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
       worldContext.pack.burgs = [];
       setDeals([]);
@@ -216,21 +245,35 @@ describe("TaxesModule", () => {
       taxesModule.collectTaxes();
       taxesModule.collectTaxes();
 
-      expect(state1.treasury).toBe(40);
+      // First cycle: 40 income, HH 2 → L1 2, L2 38. Second: income 0, no further HH credit.
+      expect(state1.householdPurse).toBe(2);
+      expect(state1.treasury).toBe(38);
     });
 
     it("subtracts state-funded strategic procurement from the next fiscal recalculation exactly once", () => {
-      const state1: State = { i: 1, salesTax: 0, pollTax: 1, rural: 100, urban: 0 } as unknown as State;
+      const state1: State = {
+        i: 1,
+        form: "Republic",
+        salesTax: 0,
+        pollTax: 1,
+        rural: 100,
+        urban: 0
+      } as unknown as State;
       worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
       worldContext.pack.burgs = [];
       setDeals([]);
       registerStrategicProcurementExpense(1, 30);
 
       taxesModule.collectTaxes();
-      expect(state1.treasury).toBe(70);
+      // income 100 − procurement 30 = 70 net to ledgers; HH 5% of income 100 = 5 → L1; L2 = 65
+      // Wait: order is treasury += 100, credit HH 5, then subtract procurement 30 → L2 = 65
+      expect(state1.householdPurse).toBe(5);
+      expect(state1.treasury).toBe(65);
 
       taxesModule.collectTaxes();
-      expect(state1.treasury).toBe(170);
+      // +100 income, HH +5 (purse 10), procurement 0, L2 = 65+100-5 = 160
+      expect(state1.householdPurse).toBe(10);
+      expect(state1.treasury).toBe(160);
     });
   });
 });

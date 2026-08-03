@@ -176,6 +176,16 @@ export const PlayerCharacterPanel: React.FC = () => {
             >
               {formatPrice(summary.publicTreasury)}
             </dd>
+            <dt>Household purse</dt>
+            <dd
+              title={
+                summary.isLandedRuler
+                  ? "L1 crown household purse — court/institutional household cash. Personal stipend is paid from here, not the full purse."
+                  : "L1 crown household purse of this character's state (read-only here)"
+              }
+            >
+              {formatPrice(summary.householdPurse)}
+            </dd>
             {summary.domainTreasury !== null ? (
               <>
                 <dt>Domain treasury</dt>

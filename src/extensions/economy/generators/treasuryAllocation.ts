@@ -134,20 +134,10 @@ function updateMilitaryDiscontent(state: State, fundingRatio: number): void {
 }
 
 /**
- * Pays this cycle's household stipend to the state's ruler and returns the amount to
- * deduct from domestic income — same call shape as getStateMilitaryUpkeep(), so
- * collectTaxes() folds both into one treasury update. If no living ruler is on file
- * (Characters/Nobility disabled, or between successions), the stipend is skipped and the
- * income stays banked in state.treasury instead of disappearing. getRulerId() already
- * degrades to `undefined` when Nobility is inactive; hasCharactersContext() covers the
- * independent case of Characters being disabled while Nobility still holds a stale
- * rulerId, since getCharacters() throws without an initialized Characters context.
- */
-/**
  * Personal household pay uses the form's baseline *share* of domestic income as a soft target,
  * then clamps to a floor/cap so large states do not mint multi-hundred-gold private purses every
- * cycle. Surplus above the cap stays in state.treasury (the household *budget intent* still
- * shows up via the baseline table; only personal Character.wealth is capped).
+ * cycle. Multi-ledger PR-2: the form's full household *share* credits L1 `householdPurse` from
+ * L2; only this capped personal stipend moves L1 → ruler L0.
  *
  * Scale target (silver pieces / production cycle, ~12 cycles/year):
  *   soldier wage ≈ 0.12, field commander 0.5–1.5, province lord ≈ 1, office 0.8–3, ruler 1–5.
@@ -155,14 +145,42 @@ function updateMilitaryDiscontent(state: State, fundingRatio: number): void {
 export const HOUSEHOLD_STIPEND_FLOOR = 1.0;
 export const HOUSEHOLD_STIPEND_CAP = 5.0;
 
+/** Full household budget intent this cycle (form % × domestic income) — funds L1, not L0. */
+export function getHouseholdNominalBudget(state: Pick<State, "form">, domesticIncome: number): number {
+  if (!(domesticIncome > 0)) return 0;
+  return rn(domesticIncome * getHouseholdStipendRate(state), 2);
+}
+
 /** Personal pay for a ruler this cycle from `domesticIncome` (after floor/cap). */
 export function getRulerHouseholdStipend(state: Pick<State, "form">, domesticIncome: number): number {
   if (!(domesticIncome > 0)) return 0;
-  const raw = domesticIncome * getHouseholdStipendRate(state);
+  const raw = getHouseholdNominalBudget(state, domesticIncome);
   const floored = Math.max(raw, Math.min(HOUSEHOLD_STIPEND_FLOOR, domesticIncome));
   return rn(Math.min(floored, HOUSEHOLD_STIPEND_CAP, domesticIncome), 2);
 }
 
+/**
+ * Move up to the nominal household share from L2 public treasury into L1 household purse.
+ * Caller must credit this cycle's domestic income onto `state.treasury` first.
+ * Returns the amount actually moved (0 if the public purse is empty).
+ */
+export function creditHouseholdPurse(state: State, domesticIncome: number): number {
+  const desired = getHouseholdNominalBudget(state, domesticIncome);
+  if (!(desired > 0)) return 0;
+
+  const available = state.treasury || 0;
+  const moved = rn(Math.min(desired, available), 2);
+  if (!(moved > 0)) return 0;
+
+  state.treasury = rn(available - moved, 2);
+  state.householdPurse = rn((state.householdPurse || 0) + moved, 2);
+  return moved;
+}
+
+/**
+ * Pays the living ruler a personal stipend from L1 `householdPurse` (not from L2).
+ * Returns the amount paid into Character.wealth. Vacant throne / no Characters → 0; cash stays in L1.
+ */
 export function payRulerHouseholdStipend(state: State, domesticIncome: number): number {
   if (!(domesticIncome > 0) || !hasCharactersContext()) return 0;
 
@@ -171,11 +189,14 @@ export function payRulerHouseholdStipend(state: State, domesticIncome: number): 
   const ruler = getCharacters().find(character => character.i === rulerId && !character.dead);
   if (!ruler) return 0;
 
-  const stipend = getRulerHouseholdStipend(state, domesticIncome);
-  if (stipend <= 0) return 0;
+  const desired = getRulerHouseholdStipend(state, domesticIncome);
+  const purse = state.householdPurse || 0;
+  const paid = rn(Math.min(desired, purse), 2);
+  if (!(paid > 0)) return 0;
 
-  ruler.wealth = rn((ruler.wealth || 0) + stipend, 2);
-  return stipend;
+  state.householdPurse = rn(purse - paid, 2);
+  ruler.wealth = rn((ruler.wealth || 0) + paid, 2);
+  return paid;
 }
 
 /** §2 maps each CENTRAL_OFFICES primarySkill onto the department its office holder is paid from. */
@@ -308,8 +329,18 @@ export function payFieldCommanderStipends(state: Pick<State, "i" | "military">):
 }
 
 export interface TreasuryAllocationBreakdown {
-  /** Real deduction — paid to the ruler's Character.wealth (§5), same figure payRulerHouseholdStipend() returns. */
+  /**
+   * Personal household stipend paid this cycle into the ruler's Character.wealth (L0), drawn from
+   * L1 householdPurse — not a direct L2 deduction. See householdPurseCredit for L2→L1.
+   */
   household: number;
+  /**
+   * Cash moved L2 public treasury → L1 householdPurse this cycle (nominal household share of
+   * domestic income, limited by available L2). Multi-ledger PR-2.
+   */
+  householdPurseCredit: number;
+  /** Nominal household budget intent (form % × income) before L2 cash limits. */
+  householdNominal: number;
   /** Nominal department Budget (§4.1) — unaffected by whether the office is currently staffed; used for militaryFundingRatio/§4.2 ceiling comparisons. See officeStipendsPaid for what actually left state.treasury. */
   marshalcy: number;
   /** Nominal department Budget — see officeStipendsPaid for what actually left state.treasury. */
@@ -345,14 +376,14 @@ export function clearTreasuryAllocationSnapshots(): void {
 }
 
 /**
- * §7 item 3 — this cycle's full department breakdown (§3 baseline × domestic income) plus the
- * Marshalcy funding-ratio/discontent update (§4). `household`, `officeStipendsPaid` (§2's
- * CENTRAL_OFFICES stipends, §7 item 6), and `fieldCommanderStipendsPaid` (§7 item 7) are real
- * Character.wealth transfers deducted from state.treasury by the caller, alongside the
- * pre-existing getStateMilitaryUpkeep() upkeep charge. The nominal department Budget figures
- * themselves (marshalcy/chancery/stewardship/spymastery/ecclesiastica) are unaffected by office
- * vacancy — see officeStipendsPaid/fieldCommanderStipendsPaid for what actually left the
- * treasury this cycle.
+ * §7 item 3 + multi-ledger PR-2 — department breakdown, funding ratio, household L2→L1 credit,
+ * personal L1→L0 stipend, office/field stipends. Caller must have already added this cycle's
+ * domestic income to `state.treasury` before calling, so household purse credit can draw on it.
+ *
+ * L2 deductions applied here: householdPurseCredit (mutates treasury).
+ * L2 deductions applied by collectTaxes from the return value: officeStipendsPaid,
+ * fieldCommanderStipendsPaid (plus military upkeep / procurement).
+ * Personal household pay is not an L2 deduction (comes from L1).
  */
 export function allocateTreasury(state: State, domesticIncome: number): TreasuryAllocationBreakdown {
   const income = Math.max(0, domesticIncome);
@@ -365,8 +396,14 @@ export function allocateTreasury(state: State, domesticIncome: number): Treasury
   state.militaryFundingRatio = fundingRatio;
   updateMilitaryDiscontent(state, fundingRatio);
 
+  const householdNominal = getHouseholdNominalBudget(state, income);
+  const householdPurseCredit = creditHouseholdPurse(state, income);
+  const household = payRulerHouseholdStipend(state, income);
+
   const breakdown: TreasuryAllocationBreakdown = {
-    household: payRulerHouseholdStipend(state, income),
+    household,
+    householdPurseCredit,
+    householdNominal,
     marshalcy: marshalcyBudget,
     chancery: rn(income * baseline.chancery, 2),
     stewardship: rn(income * baseline.stewardship, 2),

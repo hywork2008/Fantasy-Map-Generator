@@ -47,6 +47,7 @@ export function refreshTreasuryOverview(): void {
       form: state.form || "—",
       domesticIncome: rn(snapshot.domesticIncome, 2),
       publicTreasury: rn(state.treasury || 0, 2),
+      householdPurse: rn(state.householdPurse || 0, 2),
       rulerPersonal: resolveRulerPersonalWealth(state),
       nominalDepartments,
       household: snapshot.household,

@@ -42,11 +42,13 @@ describe("refreshTreasuryOverview", () => {
     expect(rows).toHaveLength(2);
 
     const monarchyRow = rows.find(row => row.id === 1);
+    // allocateTreasury credits HH nominal 25%×1000=250 L2→L1 (no ruler → no L1→L0 pay).
     expect(monarchyRow).toMatchObject({
       stateName: "Testland",
       form: "Monarchy",
-      publicTreasury: 500,
-      rulerPersonal: 0, // no Characters/Nobility context in this test
+      publicTreasury: 250,
+      householdPurse: 250,
+      rulerPersonal: 0,
       nominalDepartments: 350 + 150 + 120 + 50 + 80,
       household: 0,
       marshalcy: 350,
@@ -57,15 +59,17 @@ describe("refreshTreasuryOverview", () => {
     });
 
     const theocracyRow = rows.find(row => row.id === 2);
+    // Theocracy HH 8%×1000=80 → all of public stock moves to L1.
     expect(theocracyRow).toMatchObject({
       stateName: "Holyrealm",
       form: "Theocracy",
-      publicTreasury: 80,
+      publicTreasury: 0,
+      householdPurse: 80,
       marshalcy: 150,
       ecclesiastica: 480
     });
 
-    // Sorted by public treasury stock, highest first (multi-ledger PR-1).
+    // Sorted by public treasury stock, highest first.
     expect(rows[0].id).toBe(1);
   });
 
