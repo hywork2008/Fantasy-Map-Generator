@@ -118,22 +118,68 @@ function validBurgs(marketId: number, burgsByMarket?: Map<number, MarketBurg[]>)
   );
 }
 
-function retailRecord(burgId: number, marketId: number, create = true): BurgRetailInventory | undefined {
+/**
+ * O(1) lookup for retail/wholesale rows — monthly plan used to linear-scan these every burg×good.
+ * Caches are bound to the live slice array reference: `getSliceArray` returns a fresh `[]` when
+ * the field is missing, so we always mutate + `set*` the same array the index was built from.
+ */
+let retailByKey: Map<string, BurgRetailInventory> | null = null;
+let wholesaleByKey: Map<string, BurgWholesaleInventory> | null = null;
+let cachedRetailArray: BurgRetailInventory[] | null = null;
+let cachedWholesaleArray: BurgWholesaleInventory[] | null = null;
+
+function inventoryKey(marketId: number, burgId: number): string {
+  return `${marketId}:${burgId}`;
+}
+
+function invalidateInventoryRecordIndexes(): void {
+  retailByKey = null;
+  wholesaleByKey = null;
+  cachedRetailArray = null;
+  cachedWholesaleArray = null;
+}
+
+function ensureRetailIndex(): BurgRetailInventory[] {
   const inventories = getBurgRetailInventories();
-  let record = inventories.find(row => row.burgId === burgId && row.marketId === marketId);
+  if (retailByKey && cachedRetailArray === inventories) return inventories;
+  retailByKey = new Map();
+  for (const row of inventories) retailByKey.set(inventoryKey(row.marketId, row.burgId), row);
+  cachedRetailArray = inventories;
+  return inventories;
+}
+
+function ensureWholesaleIndex(): BurgWholesaleInventory[] {
+  const inventories = getBurgWholesaleInventories();
+  if (wholesaleByKey && cachedWholesaleArray === inventories) return inventories;
+  wholesaleByKey = new Map();
+  for (const row of inventories) wholesaleByKey.set(inventoryKey(row.marketId, row.burgId), row);
+  cachedWholesaleArray = inventories;
+  return inventories;
+}
+
+function retailRecord(burgId: number, marketId: number, create = true): BurgRetailInventory | undefined {
+  const inventories = ensureRetailIndex();
+  const key = inventoryKey(marketId, burgId);
+  let record = retailByKey!.get(key);
   if (!record && create) {
     record = { burgId, marketId, goods: {} };
     inventories.push(record);
+    retailByKey!.set(key, record);
+    // Persist when the field was previously undefined (get returned a fresh []).
+    setBurgRetailInventories(inventories);
   }
   return record;
 }
 
 function wholesaleRecord(burgId: number, marketId: number, create = true): BurgWholesaleInventory | undefined {
-  const inventories = getBurgWholesaleInventories();
-  let record = inventories.find(row => row.burgId === burgId && row.marketId === marketId);
+  const inventories = ensureWholesaleIndex();
+  const key = inventoryKey(marketId, burgId);
+  let record = wholesaleByKey!.get(key);
   if (!record && create) {
     record = { burgId, marketId, goods: {} };
     inventories.push(record);
+    wholesaleByKey!.set(key, record);
+    setBurgWholesaleInventories(inventories);
   }
   return record;
 }
@@ -277,6 +323,8 @@ function pruneEmptyRows(burgsByMarket: Map<number, MarketBurg[]>): void {
         validBurgKeys.has(`${shipment.marketId}:${shipment.destinationBurgId}`)
     )
   );
+  // Array identity changed — rebuild O(1) record maps.
+  invalidateInventoryRecordIndexes();
 }
 
 function ensurePositions(
@@ -293,6 +341,9 @@ function ensurePositions(
   for (const goodId of marketGoodsIds(market)) {
     const marketStock = Math.max(0, market.goods[goodId]?.stock ?? 0);
     const positioned = physicalTotal(market.i, goodId, totals);
+    // Empty goods with no positioned stock need no shelf layout this cycle.
+    if (marketStock <= EPSILON && positioned <= EPSILON) continue;
+
     if (positioned + EPSILON < marketStock) {
       const delta = marketStock - positioned;
       addWholesale(wholesaleRecord(centerBurgId, market.i)!, goodId, delta);
@@ -371,6 +422,15 @@ function planGoodReplenishment(
   burgsByMarket: Map<number, MarketBurg[]>
 ): void {
   const burgs = validBurgs(market.i, burgsByMarket);
+  if (!burgs.length) return;
+
+  // Single-burg markets (common when every settlement is its own market centre) only need
+  // local wholesale → shelf; skip the multi-source shipment search entirely.
+  if (burgs.length === 1) {
+    replenishFromLocalWholesale(market, burgs[0].i, goodId, tick);
+    return;
+  }
+
   for (const destination of burgs) {
     replenishFromLocalWholesale(market, destination.i, goodId, tick);
 
@@ -378,12 +438,22 @@ function planGoodReplenishment(
 
     let remaining = Math.max(0, retail.target - retail.onHand);
     while (remaining > EPSILON) {
-      const source = burgs
-        .filter(burg => burg.i !== destination.i && (wholesaleRecord(burg.i, market.i)!.goods[goodId] ?? 0) > EPSILON)
-        .sort((a, b) => distance(a, destination) - distance(b, destination))[0];
+      let best: MarketBurg | undefined;
+      let bestDist = Infinity;
+      for (const burg of burgs) {
+        if (burg.i === destination.i) continue;
+        if (!((wholesaleRecord(burg.i, market.i)!.goods[goodId] ?? 0) > EPSILON)) continue;
+        const d = distance(burg, destination);
+        if (d < bestDist) {
+          bestDist = d;
+          best = burg;
+        }
+      }
+      const source = best;
       if (!source) break;
       const sourceWholesale = wholesaleRecord(source.i, market.i)!;
       const units = Math.min(remaining, sourceWholesale.goods[goodId] ?? 0);
+      if (!(units > EPSILON)) break;
       sourceWholesale.goods[goodId] = nonNegative((sourceWholesale.goods[goodId] ?? 0) - units);
       const routeTravelDays = travelDays(source, destination);
       const id = Math.max(1, getNextMarketShipmentId());
@@ -534,16 +604,8 @@ export function adjustRetailGoodStock(burgId: number, marketId: number, goodId: 
 
 export function addWholesaleGoodStock(burgId: number, marketId: number, goodId: number, units: number): void {
   if (!(units > EPSILON)) return;
-  const inventories = getBurgWholesaleInventories();
-  let record = inventories.find(row => row.burgId === burgId && row.marketId === marketId);
-  if (!record) {
-    record = { burgId, marketId, goods: {} };
-    inventories.push(record);
-  }
+  const record = wholesaleRecord(burgId, marketId, true)!;
   addWholesale(record, goodId, units);
-  // Unlike reconciliation, this function can be called before any inventory array has
-  // been established. Persist the new row into Economy's simulation slice immediately.
-  setBurgWholesaleInventories(inventories);
   retailInventoryDirty = true;
 }
 
@@ -565,6 +627,7 @@ export function clearRetailInventory(): void {
   setBurgWholesaleInventories([]);
   setMarketShipments([]);
   setNextMarketShipmentId(1);
+  invalidateInventoryRecordIndexes();
   retailInventoryDirty = true;
   dirtyMarketIds = null;
 }

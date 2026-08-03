@@ -9,25 +9,33 @@
 
 ## 1. 結論（先に読む）
 
-| 優先度 | ホットスポット | 周期 | 最適化前 | **P0 後 (2026-08-03)** |
-| :--- | :--- | :--- | ---: | ---: |
-| ~~P0~~ | `tickRetailInventory` 日次フル reconcile | 毎日 | **~37s** | **~0.02s** ✅ |
-| **P1** | 月次 `production.settle`（produce + playerCommerce） | 月次 ×12 | ~15s | **~11s**（まだ最大） |
-| **P2** | core `tickManpower` | 毎日 | ~4s | ~4s |
-| **P2** | military fallback / nobility | 毎日 | ~2.5–4s | ~2.4s |
+| 優先度 | ホットスポット | 周期 | 当初 | P0 後 | **P1 後** |
+| :--- | :--- | :--- | ---: | ---: | ---: |
+| ~~P0~~ | 日次 retail reconcile | 毎日 | ~37s | ~0.02s | **~0.02s** ✅ |
+| ~~P1~~ | 月次 production settle | 月次 ×12 | ~15s | ~11s | **~7.8s** ✅ 改善 |
+| **P2** | core `tickManpower` | 毎日 | ~4s | ~4s | **~4.0s**（次の本命） |
+| **P2** | military fallback | 毎日 | ~2.5s | ~2.4s | **~2.5s** |
+| 残り P1 | `planRetail` / `burgLoop` | 月次 | — | — | ~3.7s / ~2.7s |
 
-| シナリオ | 最適化前 wall | **P0 後 wall** |
-| :--- | ---: | ---: |
-| Economy ON (characters+economy) | **~60s** | **~19s（約 3.2× 高速化）** |
-| Economy OFF | ~6.8s | ~6.8s |
+| シナリオ | 当初 wall | P0 後 | **P1 後** |
+| :--- | ---: | ---: | ---: |
+| Economy ON | **~60s** | ~19s | **~15s（約 4×）** |
+| Economy OFF | ~6.8s | ~6.8s | ~6.8s |
 
 ### P0 で実施したこと
 
-1. **日次 `tickRetailInventory` を due shipment 配送のみに限定** — 無条件の `reconcileRetailInventory` を廃止
-2. **外部 market stock 変化は dirty フラグ**（`markRetailInventoryDirty(marketId?)`）に記録し、**月次 `synchronizePlayerCommerce` / 明示 reconcile** で適用
-3. **`physicalTotal` を一括 Map 集計**（旧 O(markets×goods×rows) を廃止）
-4. **`validBurgs` を market→burgs インデックスで 1 回スキャン**
-5. **月次の二重 reconcile 除去**（`planRetailReplenishment` が内部で 1 回だけ reconcile）
+1. **日次 `tickRetailInventory` を due shipment 配送のみに限定**
+2. **外部 stock 変化は dirty フラグ** → 月次 / 明示 reconcile
+3. **`physicalTotal` 一括 Map / market→burgs インデックス**
+4. **月次の二重 reconcile 除去**
+
+### P1 で実施したこと
+
+1. **retail/wholesale 行の O(1) インデックス**（月次 plan の線形 find を排除）
+2. **merchant portfolio 同期のインデックス化**
+3. **単一 burg 市場の shipment 計画スキップ**
+4. **burg worker ループの 4 worker ごと re-rank**（フル goods 評価回数を削減）
+5. **空 good の ensurePositions スキップ / DEBUG 時のみ candidates 収集**
 
 ---
 
@@ -192,30 +200,20 @@ export function tickRetailInventory(tick = currentTick()): boolean {
 
 ## 6. 最適化候補（推奨順）
 
-### ~~P0~~ — 日次 retail reconcile（**実装済み**）
+### ~~P0 / P1~~ — 実装済み（§1）
 
-上記 §1 参照。`tickRetailInventory` は due shipment 配送のみ。レイアウトは月次 / 明示 reconcile。
+### P2 — core manpower / military（次の本命、P1 後 wall の ~40%）
 
-### P1 — 月次 production（次の本命、P0 後 wall の ~60%）
-
-1. **`synchronizePlayerCommerce` / `planRetailReplenishment`**（~380ms ×12 ≈ 4.6s）  
-   - dirty が無ければスキップ、または topology/stock 変化時のみ  
-   - `planGoodReplenishment` の経路探索キャッシュ
-2. **`production:burgLoop`**（~400ms ×12 ≈ 4.7s）  
-   - per-burg worker/sales ループの再分割計測とホットパス削減
-3. `production:syncLedgers`（~75ms/月）
-
-### P2 — core / 軍事
-
-1. `tickManpower` の 11ms/日 — 日次ではなく週次/月次で足りるか仕様確認。
-2. nobility 無効時の `militaryFallback` も同様。
+1. `tickManpower` の ~11ms/日（年 ~4s）— 日次ではなく週次/月次で足りるか仕様確認。
+2. nobility 無効時の `militaryFallback`（~7ms/日）。
+3. 残月次: `planRetail`（~230ms/月）・`syncLedgers`（~74ms/月）の追加間引き。
 
 ### やらない方がよいこと
 
-- 年次 guild/knowledge 群のさらに細かい間引き — 既に self-gate で十分軽い。
-- 四半期 food の最適化 — 年 60ms 程度。
-- キャラバン移動の最適化 — 現状ほぼ無料。
-- 日次 retail の再最適化 — P0 後は年 ~20ms。
+- 年次 guild/knowledge — 既に十分軽い。
+- 四半期 food — 年 60ms 程度。
+- キャラバン移動 — ほぼ無料。
+- 日次 retail — P0 後は年 ~20ms。
 
 ---
 

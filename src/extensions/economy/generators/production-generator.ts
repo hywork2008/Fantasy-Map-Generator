@@ -378,27 +378,35 @@ export class ProductionModule {
     const byDomain = new Map<CraftDomainEmploymentRecord["domain"], number>();
     for (const [domain, workers] of reservedTransportWork.byDomain) byDomain.set(domain, workers);
 
-    for (let i = 0; i < Math.ceil(state.population); i++) {
+    // Cap iterations to ceil(population) so floating-point leftovers cannot spin.
+    // Full good-ranking is O(productiveGoods); re-rank every few worker-units instead of
+    // every unit. Output stays close when a burg's best craft is stable across a stretch.
+    const maxSteps = Math.max(0, Math.ceil(state.population));
+    const reevalEvery = 4;
+    let stickyDecision: ProductionDecision | null = null;
+    for (let step = 0; step < maxSteps; step++) {
       const workersLeft = state.population - workersUsed;
       const workerFraction = Math.min(1, workersLeft);
-      if (workerFraction <= 0) break;
+      if (workerFraction <= 1e-9) break;
 
-      const decision = this.makeProductionDecision(
-        index,
-        state,
-        state.demandTargets,
-        state.demandCoverage,
-        state.activeGoalGoodId,
-        workersLeft,
-        workerFraction
-      );
-      if (!decision) break;
+      if (!stickyDecision || step % reevalEvery === 0) {
+        stickyDecision = this.makeProductionDecision(
+          index,
+          state,
+          state.demandTargets,
+          state.demandCoverage,
+          state.activeGoalGoodId,
+          workersLeft,
+          workerFraction
+        );
+        if (!stickyDecision) break;
+        state.activeGoalGoodId = stickyDecision.goalGoodId;
+      }
 
-      state.activeGoalGoodId = decision.goalGoodId;
-      this.executeManufacture(state, index, decision, workerFraction);
+      this.executeManufacture(state, index, stickyDecision, workerFraction);
       workersUsed += workerFraction;
 
-      const domain = getCraftDomainForGood(decision.action.good.name);
+      const domain = getCraftDomainForGood(stickyDecision.action.good.name);
       if (domain) byDomain.set(domain, (byDomain.get(domain) ?? 0) + workerFraction);
     }
 
@@ -937,6 +945,8 @@ export class ProductionModule {
     workersLeft: number,
     fraction: number
   ): ProductionDecision | null {
+    // Candidate list is only attached to production records when debug.production is on.
+    const collectCandidates = Boolean(DEBUG.production);
     const candidates: ProductionCandidate[] = [];
     const demandFocus = this.getDemandFocus(demandTargets, demandCoverage);
 
@@ -954,7 +964,7 @@ export class ProductionModule {
       };
       const goalPlan = this.planGoodAction(index, state, good, fraction, fraction, workersLeft, demandEffect);
       if (!goalPlan || goalPlan.projectedGain <= 0) continue;
-      candidates.push(goalPlan.candidate);
+      if (collectCandidates) candidates.push(goalPlan.candidate);
       if (good.i === activeGoalGoodId) activeGoal = goalPlan;
       if (!chosenGoal || goalPlan.normalizedGain > chosenGoal.normalizedGain + 0.001) chosenGoal = goalPlan;
     }

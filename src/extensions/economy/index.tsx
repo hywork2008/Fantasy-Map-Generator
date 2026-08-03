@@ -539,9 +539,9 @@ function isSettlementPromotionEvent(
 
 /** Refresh the player-commerce projection after a market topology or stock source changes. */
 function synchronizePlayerCommerce(): void {
-  syncMarketMerchantPortfolios();
+  measureTickStep("production:merchantPortfolios", () => syncMarketMerchantPortfolios());
   // planRetailReplenishment already reconciles once; do not call reconcile separately.
-  planRetailReplenishment();
+  measureTickStep("production:planRetail", () => planRetailReplenishment());
 }
 
 function applyGoodSettings(good: Good, request: GoodSettingsRequest): boolean {

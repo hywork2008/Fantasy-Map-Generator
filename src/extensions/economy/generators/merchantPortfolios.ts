@@ -31,6 +31,16 @@ function getEligibleMerchantIds(market: Market): number[] {
  */
 export function syncMarketMerchantPortfolios(markets: readonly Market[] = getMarkets()): void {
   const current = getMarketMerchantPortfolios();
+  // Index once — monthly sync used to linear-scan `current` per market × affinity.
+  const byMarketMerchant = new Map<string, MarketMerchantPortfolio>();
+  const byMarketAffinity = new Map<string, MarketMerchantPortfolio>();
+  for (const portfolio of current) {
+    byMarketMerchant.set(`${portfolio.marketId}:${portfolio.merchantId}`, portfolio);
+    for (const affinity of portfolio.affinities) {
+      byMarketAffinity.set(`${portfolio.marketId}:${affinity}`, portfolio);
+    }
+  }
+
   const next: MarketMerchantPortfolio[] = [];
   const validMerchantKeys = new Set<string>();
 
@@ -41,23 +51,20 @@ export function syncMarketMerchantPortfolios(markets: readonly Market[] = getMar
     const assigned = new Map<number, GoodsTradeAffinity[]>();
     for (const merchantId of merchantIds) assigned.set(merchantId, []);
 
-    for (const affinity of AFFINITIES) {
-      const existing = current.find(
-        portfolio =>
-          portfolio.marketId === market.i &&
-          portfolio.affinities.includes(affinity) &&
-          assigned.has(portfolio.merchantId)
-      );
-      const merchantId = existing?.merchantId ?? merchantIds[AFFINITIES.indexOf(affinity) % merchantIds.length];
+    for (let affinityIndex = 0; affinityIndex < AFFINITIES.length; affinityIndex++) {
+      const affinity = AFFINITIES[affinityIndex];
+      const existing = byMarketAffinity.get(`${market.i}:${affinity}`);
+      const merchantId =
+        existing && assigned.has(existing.merchantId)
+          ? existing.merchantId
+          : merchantIds[affinityIndex % merchantIds.length];
       assigned.get(merchantId)?.push(affinity);
     }
 
     for (const merchantId of merchantIds) {
       const affinities = assigned.get(merchantId) ?? [];
       if (!affinities.length) continue;
-      const existing = current.find(
-        portfolio => portfolio.marketId === market.i && portfolio.merchantId === merchantId
-      );
+      const existing = byMarketMerchant.get(`${market.i}:${merchantId}`);
       next.push({
         marketId: market.i,
         merchantId,
