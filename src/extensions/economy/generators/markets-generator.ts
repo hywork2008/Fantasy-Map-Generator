@@ -1324,6 +1324,16 @@ export class MarketsModule {
     return rn(midPrice * warMod * (1 - MARKET_MARGIN), 2);
   }
 
+  /**
+   * Apply supply pressure from a player-facing commerce command without creating an automatic
+   * production Deal. Positive units are removed from the market; negative units are supplied.
+   */
+  applyPlayerTradePressure(market: Market, good: Good, units: number): void {
+    const row = market.goods[good.i];
+    if (!row) return;
+    row.price = rn(this.applyMarketPressure(good.value, row.price, units), 2);
+  }
+
   private applyMarketPressure(basePrice: number, currentPrice: number | undefined, units: number): number {
     const price = currentPrice ?? basePrice;
     const floor = basePrice * PRICE_FLOOR_FACTOR;

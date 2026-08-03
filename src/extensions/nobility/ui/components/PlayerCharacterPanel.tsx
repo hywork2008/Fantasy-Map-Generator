@@ -2,6 +2,7 @@ import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useCharactersUiState } from "../../../characters/ui/charactersUiState";
+import { openCharacterMarket } from "../../../economy/controllers/characterMarket";
 import {
   getCharacterConstructionEmployment,
   getCharacterPendingConstructionApplication
@@ -125,6 +126,7 @@ export const PlayerCharacterPanel: React.FC = () => {
 
   const canResignConstruction = Boolean(workStatus?.seat);
   const canCancelApplication = Boolean(workStatus?.pendingApp);
+  const canTrade = Boolean(summary?.location) && !pendingTravel && getApi().isExtensionEnabled(ECONOMY_EXTENSION_ID);
 
   const handleCancelApplication = () => {
     if (playerCharacterId === null) return;
@@ -136,6 +138,11 @@ export const PlayerCharacterPanel: React.FC = () => {
     const outcome = result?.result as { ok?: boolean; message?: string } | undefined;
     if (outcome?.message) tip(outcome.message, false, outcome.ok ? "success" : "error");
     usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
+  const handleTrade = () => {
+    if (playerCharacterId === null) return;
+    openCharacterMarket(playerCharacterId);
   };
 
   return (
@@ -225,6 +232,15 @@ export const PlayerCharacterPanel: React.FC = () => {
           <button
             type="button"
             className="pcp-action"
+            data-tip="Buy or sell goods available on this burg's market shelves"
+            disabled={!canTrade}
+            onClick={handleTrade}
+          >
+            Trade
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
             data-tip="Apply for a construction job in this burg (Economy). Hire resolves after 14 days."
             disabled={!canApplyConstruction}
             onClick={handleApplyConstruction}
@@ -252,6 +268,15 @@ export const PlayerCharacterPanel: React.FC = () => {
         </div>
       ) : (
         <div className="pcp-actions pcp-actions-world" role="toolbar" aria-label="Player character work">
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip="Buy or sell goods available on this burg's market shelves"
+            disabled={!canTrade}
+            onClick={handleTrade}
+          >
+            Trade
+          </button>
           <button
             type="button"
             className="pcp-action"

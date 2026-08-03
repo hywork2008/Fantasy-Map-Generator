@@ -48,6 +48,14 @@ import type {
 import type { MintLedger } from "./generators/mintingTypes";
 import type { ProductionRecord } from "./generators/productionRecordTypes";
 import type { QuarryOperation } from "./generators/quarryOperationsTypes";
+import type {
+  BurgRetailInventory,
+  BurgWholesaleInventory,
+  MarketMerchantPortfolio,
+  MarketShipment,
+  MerchantGoodSalesLedger,
+  PlayerMarketTransaction
+} from "./generators/retailInventoryTypes";
 import type { BasicEmploymentSummaryRecord } from "./generators/serviceEmployment";
 import type { SmelterOperation } from "./generators/smelterOperationsTypes";
 import type { StateSecretStock } from "./generators/stateSecretTypes";
@@ -765,6 +773,63 @@ export function getBurgMarketLedgers(): BurgMarketLedger[] {
 }
 export function setBurgMarketLedgers(ledgers: readonly BurgMarketLedger[]): void {
   setSliceArray("burgMarketLedgers", ledgers);
+}
+
+/** Per-burg shelves available to player commerce. */
+export function getBurgRetailInventories(): BurgRetailInventory[] {
+  return getSliceArray<BurgRetailInventory>("burgRetailInventories");
+}
+export function setBurgRetailInventories(inventories: readonly BurgRetailInventory[]): void {
+  setSliceArray("burgRetailInventories", inventories);
+}
+
+/** Per-burg collection and wholesale stock that backs the retail shelves. */
+export function getBurgWholesaleInventories(): BurgWholesaleInventory[] {
+  return getSliceArray<BurgWholesaleInventory>("burgWholesaleInventories");
+}
+export function setBurgWholesaleInventories(inventories: readonly BurgWholesaleInventory[]): void {
+  setSliceArray("burgWholesaleInventories", inventories);
+}
+
+/** Aggregated same-market cargo that has left an origin depot but has not yet arrived. */
+export function getMarketShipments(): MarketShipment[] {
+  return getSliceArray<MarketShipment>("marketShipments");
+}
+export function setMarketShipments(shipments: readonly MarketShipment[]): void {
+  setSliceArray("marketShipments", shipments);
+}
+export function getNextMarketShipmentId(): number {
+  return getSliceNumber("nextMarketShipmentId");
+}
+export function setNextMarketShipmentId(id: number): void {
+  setSliceNumber("nextMarketShipmentId", id);
+}
+
+export function getMarketMerchantPortfolios(): MarketMerchantPortfolio[] {
+  return getSliceArray<MarketMerchantPortfolio>("marketMerchantPortfolios");
+}
+export function setMarketMerchantPortfolios(portfolios: readonly MarketMerchantPortfolio[]): void {
+  setSliceArray("marketMerchantPortfolios", portfolios);
+}
+
+export function getMerchantGoodSalesLedgers(): MerchantGoodSalesLedger[] {
+  return getSliceArray<MerchantGoodSalesLedger>("merchantGoodSalesLedgers");
+}
+export function setMerchantGoodSalesLedgers(ledgers: readonly MerchantGoodSalesLedger[]): void {
+  setSliceArray("merchantGoodSalesLedgers", ledgers);
+}
+
+export function getPlayerMarketTransactions(): PlayerMarketTransaction[] {
+  return getSliceArray<PlayerMarketTransaction>("playerMarketTransactions");
+}
+export function setPlayerMarketTransactions(transactions: readonly PlayerMarketTransaction[]): void {
+  setSliceArray("playerMarketTransactions", transactions);
+}
+export function getNextPlayerMarketTransactionId(): number {
+  return getSliceNumber("nextPlayerMarketTransactionId");
+}
+export function setNextPlayerMarketTransactionId(id: number): void {
+  setSliceNumber("nextPlayerMarketTransactionId", id);
 }
 
 /** Merchant organizations owned by the economy extension. */

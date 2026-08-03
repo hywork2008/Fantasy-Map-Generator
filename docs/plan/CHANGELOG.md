@@ -3,6 +3,7 @@
 2026-08-03
 
 - docs/plan/individual-skill-mastery-system.md
+- docs/plan/player-character-market-commerce.md
 - docs/plan/technology-development-roadmap.md
 - docs/plan/urban-water-and-sanitation-system.md
 

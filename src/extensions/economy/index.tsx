@@ -85,13 +85,21 @@ import { Markets } from "./generators/markets-generator";
 import { MartialDisciplineKnowledge } from "./generators/martialDisciplineKnowledge";
 import { MartialIndividualMastery } from "./generators/martialIndividualMastery";
 import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
+import { clearMarketMerchantPortfolios, syncMarketMerchantPortfolios } from "./generators/merchantPortfolios";
 import { MerchantTransportAssets } from "./generators/merchantTransportAssets";
 import { MilitaryResources } from "./generators/militaryResources";
 import { MineOperations } from "./generators/mineOperations";
 import { MineralResources } from "./generators/mineralResources";
 import { Minting } from "./generators/minting";
+import { clearPlayerMarketCommerce, executePlayerMarketTrade } from "./generators/playerCommerce";
 import { Production } from "./generators/production-generator";
 import { QuarryOperations } from "./generators/quarryOperations";
+import {
+  clearRetailInventory,
+  planRetailReplenishment,
+  reconcileRetailInventory,
+  tickRetailInventory
+} from "./generators/retailInventory";
 import { releaseRuralLaborSurplus } from "./generators/ruralLaborRelease";
 import { getBurgSettlementValue, getStateSettlementValue } from "./generators/settlementValuation";
 import { seedShipbuildingInitialStock } from "./generators/shipbuildingInitialStock";
@@ -134,6 +142,7 @@ import { showEconomyTooltip, updateEconomyCellInfo } from "./tooltipHandler";
 import { BurgEditorGuildsTab } from "./ui/components/BurgEditorGuildsTab";
 import { BurgEditorInnsTab } from "./ui/components/BurgEditorInnsTab";
 import { StatesEditorTreasuryTab } from "./ui/components/StatesEditorTreasuryTab";
+import { CharacterMarketDialog } from "./ui/dialogs/CharacterMarketDialog";
 import { EmploymentOverviewDialog } from "./ui/dialogs/EmploymentOverviewDialog";
 import { GoodsDistributionEditorDialog } from "./ui/dialogs/GoodsDistributionEditorDialog";
 import { GoodsEditorDialog } from "./ui/dialogs/GoodsEditorDialog";
@@ -361,6 +370,7 @@ let _unregisterClearCommand: (() => void) | null = null;
 let _unregisterJobsApplyCommand: (() => void) | null = null;
 let _unregisterJobsResignCommand: (() => void) | null = null;
 let _unregisterJobsCancelCommand: (() => void) | null = null;
+let _unregisterCommerceTradeCommand: (() => void) | null = null;
 let _unregisterTickSystem: (() => void) | null = null;
 
 interface AssignGoodToCellRequest {
@@ -453,6 +463,24 @@ function isMarketIdRequest(value: unknown): value is { readonly marketId: number
   return !!value && typeof value === "object" && Number.isInteger((value as { marketId?: unknown }).marketId);
 }
 
+function isPlayerMarketTradeRequest(value: unknown): value is {
+  readonly characterId: number;
+  readonly goodId: number;
+  readonly units: number;
+  readonly direction: "buy" | "sell";
+} {
+  if (!value || typeof value !== "object") return false;
+  const request = value as { characterId?: unknown; goodId?: unknown; units?: unknown; direction?: unknown };
+  return (
+    Number.isInteger(request.characterId) &&
+    Number.isInteger(request.goodId) &&
+    typeof request.units === "number" &&
+    Number.isFinite(request.units) &&
+    request.units > 0 &&
+    (request.direction === "buy" || request.direction === "sell")
+  );
+}
+
 function isEconomyRegenerationRequest(value: unknown): value is { readonly target: EconomyRegenerationTarget } {
   if (!value || typeof value !== "object") return false;
   const target = (value as { target?: unknown }).target;
@@ -473,6 +501,13 @@ function isSettlementPromotionEvent(
   if (!detail || typeof detail !== "object") return false;
   const value = detail as { cellId?: unknown; burgId?: unknown; stateId?: unknown };
   return Number.isInteger(value.cellId) && Number.isInteger(value.burgId) && Number.isInteger(value.stateId);
+}
+
+/** Refresh the player-commerce projection after a market topology or stock source changes. */
+function synchronizePlayerCommerce(): void {
+  syncMarketMerchantPortfolios();
+  reconcileRetailInventory();
+  planRetailReplenishment();
 }
 
 function applyGoodSettings(good: Good, request: GoodSettingsRequest): boolean {
@@ -537,7 +572,10 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       const good = Goods.get(value.goodId);
       if (!good) throw new Error(`economy.goods.update could not find good ${value.goodId}`);
       const changed = applyGoodSettings(good, value);
-      if (changed) Goods.sync();
+      if (changed) {
+        Goods.sync();
+        synchronizePlayerCommerce();
+      }
       return { changed, result: { goodId: good.i } };
     }
   });
@@ -569,6 +607,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       };
       goods.push(good);
       Goods.sync();
+      synchronizePlayerCommerce();
       return { changed: true, result: { goodId: nextId } };
     }
   });
@@ -589,6 +628,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       }
       goods.splice(index, 1);
       Goods.sync();
+      synchronizePlayerCommerce();
       return { changed: true, result: { goodId: value.goodId } };
     }
   });
@@ -630,6 +670,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
 
       Markets.invalidateRuralProductionCache();
       syncBurgMarketLedgers();
+      synchronizePlayerCommerce();
       return { changed: true, result: { changedCellIds } };
     }
   });
@@ -641,6 +682,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (!isBurgIdRequest(value)) throw new Error("economy.markets.add requires an integer burgId");
 
       const market = Markets.addMarket(value.burgId);
+      if (market) synchronizePlayerCommerce();
       return market ? { changed: true, result: { marketId: market.i } } : { changed: false };
     }
   });
@@ -652,6 +694,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       if (!isMarketIdRequest(value)) throw new Error("economy.markets.remove requires an integer marketId");
 
       const removed = Markets.removeMarket(value.marketId);
+      if (removed) synchronizePlayerCommerce();
       return removed ? { changed: true, result: { marketId: value.marketId } } : { changed: false };
     }
   });
@@ -683,6 +726,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       settleMonthlyFoodConsumption();
       Taxes.collectTaxes();
       refreshStateEconomySummaries();
+      synchronizePlayerCommerce();
       return { changed: true };
     }
   });
@@ -724,6 +768,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
         Taxes.collectTaxes();
       }
       if (value.target === "economy") GuildChapters.seedAfterGenerate();
+      synchronizePlayerCommerce();
       return { changed: true, result: { target: value.target } };
     }
   });
@@ -797,6 +842,20 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       return { changed: result.ok, result };
     }
   });
+  _unregisterCommerceTradeCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "commerce.trade",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to trade goods");
+      }
+      if (!isPlayerMarketTradeRequest(value)) {
+        throw new Error("commerce.trade requires { characterId, goodId, units, direction }");
+      }
+      const result = executePlayerMarketTrade(value);
+      return { changed: result.ok, result };
+    }
+  });
   _unregisterClearCommand = api.registerExtensionCommand({
     extensionId: ECONOMY_EXTENSION_ID,
     name: "clear",
@@ -809,6 +868,9 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       UrbanLaborIntake.clear();
       clearBurgMarketLedgers();
       clearMarketManagers();
+      clearMarketMerchantPortfolios();
+      clearRetailInventory();
+      clearPlayerMarketCommerce();
       MineOperations.clear();
       SmelterOperations.clear();
       QuarryOperations.clear();
@@ -853,6 +915,7 @@ function refreshEconomyForGunpowderEraData(): void {
   Markets.generate(true);
   MilitaryResources.generate();
   Production.produce();
+  synchronizePlayerCommerce();
   const caravans = getCaravans();
   if (caravans.length) {
     setCaravans(
@@ -939,6 +1002,7 @@ export function init(api: ExtensionAPI): void {
     component: GoodsProducersDialog
   });
   api.registerDialog({ id: "GoodsStockDialog", extensionId: ECONOMY_EXTENSION_ID, component: GoodsStockDialog });
+  api.registerDialog({ id: "characterMarket", extensionId: ECONOMY_EXTENSION_ID, component: CharacterMarketDialog });
   api.registerDialog({
     id: "GoodsTagsFilterDialog",
     extensionId: ECONOMY_EXTENSION_ID,
@@ -1242,6 +1306,7 @@ export function init(api: ExtensionAPI): void {
         FoodProduction.seedFoodLedgerBootstrap();
         Production.produce();
         Taxes.collectTaxes();
+        synchronizePlayerCommerce();
       } else {
         if (migrateLegacyOreIngotGoods()) {
           Goods.sync();
@@ -1252,6 +1317,7 @@ export function init(api: ExtensionAPI): void {
           if (!getTradeSecurityLedgers().length) TradeSecurity.generate();
           syncMarketManagers();
           syncBurgMarketLedgers();
+          synchronizePlayerCommerce();
           FoodProduction.seedFoodLedgerBootstrap();
         }
         if (!getInnFacilities().length) {
@@ -1288,6 +1354,7 @@ export function init(api: ExtensionAPI): void {
       api.closeDialog("employmentOverview");
       api.closeDialog("guildOverview");
       api.closeDialog("treasuryOverview");
+      api.closeDialog("characterMarket");
 
       // Clear economy data through the extension-owned command after disabling.
       api.dispatchExtensionCommand({ extensionId: ECONOMY_EXTENSION_ID, name: "clear", payload: undefined });
@@ -1321,6 +1388,7 @@ export function init(api: ExtensionAPI): void {
       if (getMarkets().length) {
         syncMarketManagers();
         syncBurgMarketLedgers();
+        synchronizePlayerCommerce();
         FoodProduction.seedFoodLedgerBootstrap();
       }
     }
@@ -1362,6 +1430,7 @@ export function init(api: ExtensionAPI): void {
           });
           if (!completed || !context.isCurrent() || !api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
           Taxes.collectTaxes();
+          synchronizePlayerCommerce();
           GuildChapters.seedAfterGenerate();
           InnFacilities.generate();
           InnStays.clear();
@@ -1445,6 +1514,7 @@ export function init(api: ExtensionAPI): void {
     // production cycle. One microtask coalesces every same-tick promotion.
     if (assignedGoodId !== null) Markets.invalidateRuralProductionCache();
     syncBurgMarketLedgers();
+    synchronizePlayerCommerce();
     markProductionDirty();
     scheduleProductionSettlement();
   };
@@ -1637,6 +1707,7 @@ export function init(api: ExtensionAPI): void {
       }
 
       const caravanTick = Caravans.tick(effectiveDays);
+      tickRetailInventory();
       StrategicProcurement.reconcileCaravans(caravanTick.arrived, caravanTick.lost);
       // Trade animation redraw is owned by registerDrawLayerHook after extension.economy
       // commits through RenderCoordinator (P2-12) — do not call draw* from the tick.
@@ -1959,6 +2030,8 @@ export function cleanup(api: ExtensionAPI): void {
   _unregisterJobsResignCommand = null;
   _unregisterJobsCancelCommand?.();
   _unregisterJobsCancelCommand = null;
+  _unregisterCommerceTradeCommand?.();
+  _unregisterCommerceTradeCommand = null;
   _unregisterClearCommand?.();
   _unregisterClearCommand = null;
   _unregisterTickSystem?.();
@@ -2043,6 +2116,9 @@ export function cleanup(api: ExtensionAPI): void {
   StrategicProcurement.clear();
   clearBurgMarketLedgers();
   clearMarketManagers();
+  clearMarketMerchantPortfolios();
+  clearRetailInventory();
+  clearPlayerMarketCommerce();
 
   // Remove layers, presets and clear tooltip hooks
   api.removeLayers(economyLayers.map(l => l.id));
