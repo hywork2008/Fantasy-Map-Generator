@@ -42,6 +42,7 @@ import { States } from "./generators/states-generator";
 import { Threats } from "./generators/threats-generator";
 import { initSimulationClock } from "./generators/timeEngine";
 import { establishVassalage } from "./generators/vassalage";
+import { assignWildLandTags } from "./generators/wildLandTags";
 import { Zones } from "./generators/zones-generator";
 import { ldb } from "./io/ldb";
 import { loadMapFromURL, showUploadErrorMessage, uploadMap } from "./io/load";
@@ -1097,6 +1098,8 @@ function getGenerationStages(): Array<() => Promise<void>> {
       Burgs.specify(worldContext, viewContext, appServices, state);
       States.collectStatistics(state);
       States.defineStateForms(state);
+      // Phase 3: classify unclaimed land after politics are painted.
+      assignWildLandTags(worldContext.pack.cells);
       Provinces.generate(worldContext, viewContext, appServices, state);
       Provinces.getPoles(state);
       Rivers.specify(worldContext, viewContext, appServices, state);

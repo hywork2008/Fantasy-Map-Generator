@@ -66,11 +66,14 @@ Markers / notes: keep rarity ≥ 3 only (unchanged).
 - [x] `assignInitialPolities` does not paint banned cells (routes / regions / pocket fill)  
 - [x] Frontier outpost eligibility max danger aligned to ban − 1 (was 120)
 
-### Phase 3 — Wild land tags
+### Phase 3 — Wild land tags ✅
 
-- Tag unclaimed cells: `claimable_frontier` | `wild_margin` | `monster_domain`.  
-- Frontier Expansion: huge penalty or ban on `monster_domain` / high danger cores.  
-- “Survival right / distance” = mechanical expand ban + flavor text.
+- [x] `pack.cells.wildLand` codes: `0 none` | `1 claimable_frontier` | `2 wild_margin` | `3 monster_domain`  
+- [x] `assignWildLandTags()` after state generation; re-run after frontier incorporation  
+- [x] Thresholds: margin when danger ≥ 25; monster_domain when danger ≥ 80 (same as expand ban)  
+- [x] Frontier outposts **only** on `claimable_frontier` (margin/monster = keep distance)  
+- [x] Incorporation skips monster_domain corridor cells  
+- [x] Danger pick tooltip shows wild land label when present
 
 ### Phase 4 — Cullable threats + rewilding
 

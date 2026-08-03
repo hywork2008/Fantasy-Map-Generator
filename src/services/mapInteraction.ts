@@ -223,8 +223,13 @@ function formatWebglPickTooltip(detail: WebglPickDetail): string {
       return getPopulationTip(cellId);
     case "precipitation":
       return `Annual Precipitation: ${getFriendlyPrecipitation(cellId)}`;
-    case "danger":
-      return `Danger: ${worldContext.pack.cells.danger[cellId] ?? 0}`;
+    case "danger": {
+      const danger = worldContext.pack.cells.danger?.[cellId] ?? 0;
+      const wild = worldContext.pack.cells.wildLand?.[cellId];
+      const wildLabel =
+        wild === 1 ? "claimable_frontier" : wild === 2 ? "wild_margin" : wild === 3 ? "monster_domain" : null;
+      return wildLabel ? `Danger: ${danger} (${wildLabel})` : `Danger: ${danger}`;
+    }
     case "combatDeaths":
       return getCombatDeathsTip(cellId);
     case "cell":

@@ -2,8 +2,10 @@ import { FRONTIER_STAGE, type FrontierSimulationState, type SimulationContext } 
 import type { WorldContext } from "../context/worldContext";
 import type { Province, State } from "../types/models";
 import type { WorldState } from "../types/WorldState";
+import { canStateClaimCell } from "./dangerExpandPolicy";
 import { Provinces } from "./provinces-generator";
 import { States } from "./states-generator";
+import { assignWildLandTags, isMonsterDomain } from "./wildLandTags";
 
 const MIN_SETTLEMENT_POPULATION = 4;
 const MIN_SETTLEMENT_SUPPORT_YEARS = 3;
@@ -45,7 +47,20 @@ export function incorporateEligibleFrontierSettlements(input: FrontierIncorporat
     if (!corridor) continue;
 
     const provinceId = getOrCreateAdministrativeProvince(world, project.stateId, project.cellId, corridor);
-    const claimedCellIds = corridor.filter(cellId => cells.state[cellId] === 0);
+    // Never annex monster_domain cores along the corridor (survival distance).
+    const claimedCellIds = corridor.filter(
+      cellId =>
+        cells.state[cellId] === 0 &&
+        canStateClaimCell(cells.danger?.[cellId]) &&
+        !isMonsterDomain(cells.wildLand?.[cellId])
+    );
+    // Settlement must itself be claimable; otherwise abandon this incorporation.
+    if (
+      cells.state[project.cellId] === 0 &&
+      (!canStateClaimCell(cells.danger?.[project.cellId]) || isMonsterDomain(cells.wildLand?.[project.cellId]))
+    ) {
+      continue;
+    }
     for (const cellId of claimedCellIds) {
       cells.state[cellId] = project.stateId;
       cells.province[cellId] = provinceId;
@@ -61,7 +76,10 @@ export function incorporateEligibleFrontierSettlements(input: FrontierIncorporat
     });
   }
 
-  if (incorporations.length) recomputePoliticalAggregates(world);
+  if (incorporations.length) {
+    recomputePoliticalAggregates(world);
+    assignWildLandTags(cells);
+  }
   return { incorporations };
 }
 

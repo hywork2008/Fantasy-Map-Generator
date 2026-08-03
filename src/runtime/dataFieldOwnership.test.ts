@@ -281,6 +281,7 @@ describe("Phase 8 data field ownership inventory", () => {
       "province",
       "routes",
       "danger",
+      "wildLand",
       "capacity",
       "children",
       "maleAdults",

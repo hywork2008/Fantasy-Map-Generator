@@ -93,6 +93,7 @@ export const DATA_FIELD_OWNERSHIP: readonly DataFieldOwnership[] = [
   simulation("pack.cells.femaleAdults", "simulation.cells", "cell.id"),
   simulation("pack.cells.elders", "simulation.cells", "cell.id"),
   simulation("pack.cells.danger", "simulation.cells", "cell.id"),
+  simulation("pack.cells.wildLand", "simulation.cells", "cell.id"),
 
   map("pack.features", "map.topology", "feature.id", ["cell.id", "vertex.id"], "cascade"),
   map("pack.rivers", "map.networks", "river.id", ["cell.id", "feature.id"], "cascade"),

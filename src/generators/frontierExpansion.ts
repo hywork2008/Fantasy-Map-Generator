@@ -11,6 +11,7 @@ import type { RNGService } from "../utils/probabilityUtils";
 import { FRONTIER_OUTPOST_MAX_DANGER } from "./dangerExpandPolicy";
 import { assessFrontierSupport, getFrontierGovernance, statusForProject } from "./frontierGovernance";
 import { incorporateEligibleFrontierSettlements } from "./frontierIncorporation";
+import { allowsFrontierOutpost } from "./wildLandTags";
 
 const SETUP_COST = 8;
 const TREASURY_RESERVE = 12;
@@ -477,12 +478,15 @@ function isEligibleTarget(
   frontier: FrontierSimulationState,
   cellId: number
 ): boolean {
+  // monster_domain / wild_margin are not outpost targets (survival distance).
+  const wildOk = cells.wildLand ? allowsFrontierOutpost(cells.wildLand[cellId]) : true;
   return (
     cells.state[cellId] === 0 &&
     cells.province[cellId] === 0 &&
     frontier.cellStages[cellId] === FRONTIER_STAGE.wilderness &&
     cells.capacity[cellId] >= MIN_OUTPOST_CAPACITY &&
-    cells.danger[cellId] <= MAX_OUTPOST_DANGER
+    cells.danger[cellId] <= MAX_OUTPOST_DANGER &&
+    wildOk
   );
 }
 
