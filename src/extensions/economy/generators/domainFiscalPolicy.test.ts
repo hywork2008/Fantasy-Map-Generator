@@ -9,7 +9,8 @@ import {
   cycleDomainFiscalPolicy,
   DOMAIN_EXTRACT_PERSONAL_RATE,
   DOMAIN_EXTRACT_REMIT_RATE,
-  DOMAIN_FORTIFY_SPEND_RATE
+  DOMAIN_FORTIFY_SPEND_RATE,
+  domainLevyToPollMultiplier
 } from "./domainFiscalPolicy";
 
 describe("domainFiscalPolicy (PR-7)", () => {
@@ -64,13 +65,14 @@ describe("domainFiscalPolicy (PR-7)", () => {
     expect(burg.domainWorksProgress).toBeGreaterThan(0);
   });
 
-  it("completes domain works and sets walls/citadel at 100 progress", () => {
+  it("completes domain works for the queued target at 100 progress (PR-12)", () => {
     const burg = {
       i: 5,
       treasury: 100,
       security: 50,
       domainFiscalPolicy: "fortify",
       domainWorksProgress: 95,
+      domainWorksTarget: "walls",
       walls: 0,
       citadel: 0
     } as unknown as Burg;
@@ -78,8 +80,15 @@ describe("domainFiscalPolicy (PR-7)", () => {
     const result = applyDomainPolicyToBurg(burg, undefined, undefined);
     expect(result.worksCompleted).toBe(true);
     expect(burg.walls).toBe(1);
-    expect(burg.citadel).toBe(1);
+    // PR-12 completes only the queued target, not every fortification flag.
+    expect(burg.citadel).toBe(0);
     expect(burg.domainWorksProgress).toBe(0);
+  });
+
+  it("maps domain levy to poll-tax multiplier", () => {
+    expect(domainLevyToPollMultiplier(1)).toBe(1);
+    expect(domainLevyToPollMultiplier(0.5)).toBeLessThan(1);
+    expect(domainLevyToPollMultiplier(1.5)).toBeGreaterThan(1);
   });
 
   it("scales extract by domain levy rate", () => {

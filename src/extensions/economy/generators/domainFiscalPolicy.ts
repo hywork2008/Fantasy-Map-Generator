@@ -4,13 +4,18 @@ import { rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 
 /**
- * Multi-ledger PR-7 — thin domain fiscal policy for province seats (L3b).
+ * Multi-ledger PR-7/PR-8/PR-12 — thin domain fiscal policy for province seats (L3b).
  * Stored on `burg.domainFiscalPolicy`; applied once per tax cycle after lord stipends.
+ * PR-12: domain levy scales state poll-tax collection; construction queue picks works target.
  */
 
 export type DomainFiscalPolicy = "balanced" | "extract" | "fortify";
 
+/** PR-12 fortify completion target (construction queue item). */
+export type DomainWorksTarget = "walls" | "citadel" | "plaza";
+
 export const DOMAIN_POLICY_CYCLE: readonly DomainFiscalPolicy[] = ["balanced", "extract", "fortify"] as const;
+export const DOMAIN_WORKS_TARGETS: readonly DomainWorksTarget[] = ["walls", "citadel", "plaza"] as const;
 
 /** Extract: share of post-stipend domain treasury auto-remitted to state L2. */
 export const DOMAIN_EXTRACT_REMIT_RATE = 0.1;
@@ -27,6 +32,9 @@ export const DOMAIN_LEVY_RATE_DEFAULT = 1;
 export const DOMAIN_LEVY_RATE_MIN = 0.5;
 export const DOMAIN_LEVY_RATE_MAX = 1.5;
 export const DOMAIN_LEVY_RATE_STEP = 0.25;
+/** PR-12: poll-tax multiplier range mapped from average domain levy (0.5→0.9, 1.0→1.0, 1.5→1.1). */
+export const DOMAIN_POLL_MULT_MIN = 0.9;
+export const DOMAIN_POLL_MULT_MAX = 1.1;
 
 export interface DomainPolicyApplication {
   burgId: number;
@@ -58,6 +66,74 @@ export function cycleDomainFiscalPolicy(current: string | undefined): DomainFisc
   const cur = normalizeDomainFiscalPolicy(current);
   const idx = DOMAIN_POLICY_CYCLE.indexOf(cur);
   return DOMAIN_POLICY_CYCLE[(idx + 1) % DOMAIN_POLICY_CYCLE.length]!;
+}
+
+export function normalizeDomainWorksTarget(value: string | undefined): DomainWorksTarget {
+  if (value === "walls" || value === "citadel" || value === "plaza") return value;
+  return "walls";
+}
+
+export function cycleDomainWorksTarget(current: string | undefined): DomainWorksTarget {
+  const cur = normalizeDomainWorksTarget(current);
+  const idx = DOMAIN_WORKS_TARGETS.indexOf(cur);
+  return DOMAIN_WORKS_TARGETS[(idx + 1) % DOMAIN_WORKS_TARGETS.length]!;
+}
+
+/**
+ * PR-12: map average domain levy (0.5–1.5) to a poll-tax collection multiplier (0.9–1.1).
+ * Extract-policy seats weigh slightly heavier (harsher local extraction feeds the state levy).
+ */
+export function domainLevyToPollMultiplier(averageLevy: number, extractShare = 0): number {
+  const levy = clampDomainLevyRate(averageLevy);
+  const t = (levy - DOMAIN_LEVY_RATE_MIN) / (DOMAIN_LEVY_RATE_MAX - DOMAIN_LEVY_RATE_MIN);
+  let mult = DOMAIN_POLL_MULT_MIN + t * (DOMAIN_POLL_MULT_MAX - DOMAIN_POLL_MULT_MIN);
+  // Extract seats push collection slightly harder (up to +3%).
+  mult += Math.max(0, Math.min(1, extractShare)) * 0.03;
+  return rn(Math.max(DOMAIN_POLL_MULT_MIN, Math.min(DOMAIN_POLL_MULT_MAX + 0.03, mult)), 3);
+}
+
+/**
+ * Average domain levy across province seats of this state → poll-tax multiplier.
+ * Neutral / no seats → 1.0.
+ */
+export function getStateDomainPollTaxMultiplier(state: Pick<State, "i">): number {
+  if (!state.i) return 1;
+  try {
+    const { pack } = getWorldContext();
+    let levySum = 0;
+    let seatCount = 0;
+    let extractCount = 0;
+    for (const province of pack.provinces || []) {
+      if (!province?.i || province.removed || province.state !== state.i || !province.burg) continue;
+      const burg = pack.burgs?.[province.burg];
+      if (!burg || burg.removed) continue;
+      levySum += clampDomainLevyRate(burg.domainLevyRate);
+      seatCount += 1;
+      if (normalizeDomainFiscalPolicy(burg.domainFiscalPolicy) === "extract") extractCount += 1;
+    }
+    if (!(seatCount > 0)) return 1;
+    const avg = levySum / seatCount;
+    return domainLevyToPollMultiplier(avg, extractCount / seatCount);
+  } catch {
+    return 1;
+  }
+}
+
+function completeDomainWorksTarget(burg: Burg): DomainWorksTarget {
+  const target = normalizeDomainWorksTarget(burg.domainWorksTarget);
+  if (target === "walls") burg.walls = 1;
+  else if (target === "citadel") burg.citadel = 1;
+  else if (target === "plaza") burg.plaza = 1;
+  // Advance queue to the next target that is still missing (thin circular queue).
+  let next = cycleDomainWorksTarget(target);
+  for (let i = 0; i < DOMAIN_WORKS_TARGETS.length; i++) {
+    if (next === "walls" && !burg.walls) break;
+    if (next === "citadel" && !burg.citadel) break;
+    if (next === "plaza" && !burg.plaza) break;
+    next = cycleDomainWorksTarget(next);
+  }
+  burg.domainWorksTarget = next;
+  return target;
 }
 
 /**
@@ -129,9 +205,8 @@ export function applyDomainPolicyToBurg(
     burg.domainWorksProgress = next;
     if (prev < 100 && next >= 100) {
       result.worksCompleted = true;
-      // Soft fortification completion: raise walls/citadel flags if missing (no rebuild cost model).
-      if (!burg.walls) burg.walls = 1;
-      if (!burg.citadel) burg.citadel = 1;
+      // PR-12: complete the queued construction target (walls / citadel / plaza).
+      completeDomainWorksTarget(burg);
       burg.domainWorksProgress = 0; // allow another works cycle later
     }
   }
@@ -212,4 +287,61 @@ export function adjustDomainLevyForCharacter(
   const next = cycleDomainLevyRate(burg.domainLevyRate, direction);
   burg.domainLevyRate = next;
   return { ok: true, levyRate: next };
+}
+
+/** Province lord cycles the next fortify construction target (PR-12 queue). */
+export function cycleDomainWorksTargetForCharacter(characterId: number): {
+  ok: boolean;
+  target?: DomainWorksTarget;
+  error?: string;
+} {
+  const burg = resolveDomainBurgForCharacter(characterId);
+  if (!burg) return { ok: false, error: "Character has no provincial domain seat" };
+  const next = cycleDomainWorksTarget(burg.domainWorksTarget);
+  burg.domainWorksTarget = next;
+  return { ok: true, target: next };
+}
+
+/**
+ * Province lord funds works immediately from domain treasury (manual construction queue push).
+ * Consumes cash and advances progress without waiting for the tax-cycle fortify policy.
+ */
+export function fundDomainWorksForCharacter(
+  characterId: number,
+  amount = 5
+): { ok: boolean; spent?: number; progress?: number; completed?: boolean; target?: DomainWorksTarget; error?: string } {
+  const burg = resolveDomainBurgForCharacter(characterId);
+  if (!burg) return { ok: false, error: "Character has no provincial domain seat" };
+  const want = Math.max(0, amount);
+  const cash = burg.treasury || 0;
+  const spent = rn(Math.min(want, cash), 2);
+  if (!(spent > 0)) return { ok: false, error: "Domain treasury is empty" };
+
+  burg.treasury = rn(cash - spent, 2);
+  // Progress scales with spend (5 SP ≈ one fortify-cycle worth of progress).
+  const progressGain = rn(Math.min(100, (spent / 5) * DOMAIN_FORTIFY_WORKS_PROGRESS), 1);
+  const prev = burg.domainWorksProgress || 0;
+  const next = Math.min(100, prev + progressGain);
+  burg.domainWorksProgress = next;
+
+  let completed = false;
+  let target: DomainWorksTarget | undefined;
+  if (prev < 100 && next >= 100) {
+    completed = true;
+    target = completeDomainWorksTarget(burg);
+    burg.domainWorksProgress = 0;
+  }
+
+  // Nudge policy toward fortify so the seat is marked as building.
+  if (normalizeDomainFiscalPolicy(burg.domainFiscalPolicy) === "balanced") {
+    burg.domainFiscalPolicy = "fortify";
+  }
+
+  return {
+    ok: true,
+    spent,
+    progress: burg.domainWorksProgress,
+    completed,
+    target
+  };
 }

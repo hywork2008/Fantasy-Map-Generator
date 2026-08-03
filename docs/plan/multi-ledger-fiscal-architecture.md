@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計案。PR-1〜PR-11 実装済み** — 多層台帳本線 + 信用プール + 金貸し + 金利交渉 + 債務不履行 + 議会歳出ライン。
+**設計案。PR-1〜PR-12 実装済み** — 多層台帳本線 + 信用プール + 金貸し + 金利交渉 + 債務不履行 + 議会歳出ライン + 外縁（Banker / 勢力票 / 領 poll / 不履行帰結）。
 
 史実対照 [polity-fiscal-regimes-historical.md](../analytics/polity-fiscal-regimes-historical.md) の結論「豊かさの本体はどの名義の金庫を誰が使えるか」を、現行の単一 `state.treasury` + `Character.wealth` モデルへ段階実装するための仕様と PR 計画。
 
@@ -451,12 +451,19 @@ Lord personal: ZZZ
 - ✅ 平時 War Footing は議会 war ライン必須；支持低時の動員は discontent 追加  
 - ✅ Treasury Overview **Default** 列  
 
-### PR-12 以降（外縁）
+### PR-12 — 外縁（Banker / 勢力票 / 領 poll / 不履行帰結） ✅
 
-- 専用 banker 役職生成・金利交渉ダイアログ  
-- 議会の勢力票シミュレーション  
-- 領税率の poll 直結と建設キュー UI  
-- 債務不履行の商人離反 / クーデター接続  
+- ✅ 専用 Banker ロール（`stateBanker` on primary moneylender）+ **Debt Negotiation** ダイアログ  
+- ✅ `councilVotes.ts`: court / merchants / military / clergy 勢力票 → 歳出ライン veto  
+- ✅ 領 `domainLevyRate` → state poll-tax 乗数；建設キュー（walls / citadel / plaza）+ PC **Fund works**  
+- ✅ `debtDefaultConsequences.ts`: プール逃亡・シンジケート haircut・`fmg:debt-coup-risk`  
+
+### PR-13 以降（任意の深掘り）
+
+- フル議会ログ UI / 会期  
+- 国際債務・外債  
+- クーデター成功時の為政者交代接続  
+- 領 poll の都市別明細 UI  
 
 ---
 

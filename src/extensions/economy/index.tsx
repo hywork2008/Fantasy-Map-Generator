@@ -149,6 +149,7 @@ import { BurgEditorInnsTab } from "./ui/components/BurgEditorInnsTab";
 import { BurgEditorWaterTab } from "./ui/components/BurgEditorWaterTab";
 import { StatesEditorTreasuryTab } from "./ui/components/StatesEditorTreasuryTab";
 import { CharacterMarketDialog } from "./ui/dialogs/CharacterMarketDialog";
+import { DebtNegotiationDialog } from "./ui/dialogs/DebtNegotiationDialog";
 import { EmploymentOverviewDialog } from "./ui/dialogs/EmploymentOverviewDialog";
 import { GoodsDistributionEditorDialog } from "./ui/dialogs/GoodsDistributionEditorDialog";
 import { GoodsEditorDialog } from "./ui/dialogs/GoodsEditorDialog";
@@ -1105,6 +1106,11 @@ export function init(api: ExtensionAPI): void {
     extensionId: ECONOMY_EXTENSION_ID,
     component: TreasuryOverviewDialog
   });
+  api.registerDialog({
+    id: "DebtNegotiationDialog",
+    extensionId: ECONOMY_EXTENSION_ID,
+    component: DebtNegotiationDialog
+  });
 
   // Register Economy Style Config
   api.registerStyleConfig(economyStyleConfig);
@@ -1273,6 +1279,19 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
+  api.registerAction({
+    id: "economy-edit-debt-negotiation",
+    extensionId: ECONOMY_EXTENSION_ID,
+    tab: "tools",
+    section: "edit",
+    label: "Debt terms",
+    dialogId: "debtNegotiation",
+    tooltip: "Click to open Debt Negotiation — named Banker syndicate, rates, and faction vote snapshot",
+    onClick: () => {
+      document.dispatchEvent(new CustomEvent("react-tool-action", { detail: { action: "debtNegotiationButton" } }));
+    }
+  });
+
   // Register tool action handlers so core tools.ts has no knowledge of extension dialogs.
   // The handler implements the same open/close + layer toggle pattern used for built-in editors.
   const toggleEditorDialog = (dialogId: string, layerId: string | null) => {
@@ -1297,6 +1316,7 @@ export function init(api: ExtensionAPI): void {
   api.registerToolAction("employmentOverviewButton", () => toggleEditorDialog("employmentOverview", null));
   api.registerToolAction("guildOverviewButton", () => toggleEditorDialog("guildOverview", null));
   api.registerToolAction("treasuryOverviewButton", () => toggleEditorDialog("treasuryOverview", null));
+  api.registerToolAction("debtNegotiationButton", () => toggleEditorDialog("debtNegotiation", null));
   api.registerToolAction("burgProductionOverview", detail => {
     const burgId = (detail as { burgId?: number } | undefined)?.burgId;
     if (!burgId) return;
@@ -1406,6 +1426,7 @@ export function init(api: ExtensionAPI): void {
       api.closeDialog("employmentOverview");
       api.closeDialog("guildOverview");
       api.closeDialog("treasuryOverview");
+      api.closeDialog("debtNegotiation");
       api.closeDialog("characterMarket");
 
       // Clear economy data through the extension-owned command after disabling.
@@ -2203,6 +2224,7 @@ export function cleanup(api: ExtensionAPI): void {
   api.unregisterToolAction("employmentOverviewButton");
   api.unregisterToolAction("guildOverviewButton");
   api.unregisterToolAction("treasuryOverviewButton");
+  api.unregisterToolAction("debtNegotiationButton");
 
   api.unregisterExtension(ECONOMY_EXTENSION_ID);
   clearEconomyContext();

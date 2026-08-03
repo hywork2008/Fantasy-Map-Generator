@@ -11,9 +11,11 @@ import { getConstructionJobPosting } from "../../../economy/generators/construct
 import {
   adjustDomainLevyForLord,
   cycleDomainPolicyForLord,
+  cycleDomainWorksTargetForLord,
   DOMAIN_REMIT_ACTION_CAP,
   DOMAIN_SPEND_ACTION_CAP,
   drawHouseholdPurseToPersonal,
+  fundDomainWorksForLord,
   getFiscalAuthorityView,
   HOUSEHOLD_DRAW_ACTION_CAP,
   issuePublicDebtForRuler,
@@ -312,6 +314,33 @@ export const PlayerCharacterPanel: React.FC = () => {
     usePlayerCharacterState.getState().bumpRefreshToken();
   };
 
+  const handleOpenDebtNegotiation = () => {
+    openDialog("debtNegotiation");
+  };
+
+  const handleCycleWorksTarget = () => {
+    if (playerCharacterId === null) return;
+    const result = cycleDomainWorksTargetForLord(playerCharacterId);
+    if (result.ok && result.target) tip(`Domain works target: ${result.target}.`, false, "success");
+    else tip(result.error || "Could not change works target.", false, "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
+  const handleFundWorks = () => {
+    if (playerCharacterId === null) return;
+    const result = fundDomainWorksForLord(playerCharacterId, 5);
+    if (result.ok) {
+      if (result.completed) {
+        tip(`Works completed — built ${result.target ?? "structure"}.`, false, "success");
+      } else {
+        tip(`Funded works (${formatPrice(result.paid)}); progress ${result.progress ?? 0}/100.`, false, "success");
+      }
+    } else {
+      tip(result.error || "Could not fund works.", false, "error");
+    }
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
   return (
     <Dialog isOpen title="Player Character" showCloseAllDialogsButton={false} className="player-character-panel">
       {!summary ? (
@@ -589,6 +618,44 @@ export const PlayerCharacterPanel: React.FC = () => {
             onClick={() => handleNegotiateRate(1)}
           >
             Rate +
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={
+              fiscal.canNegotiateDebtRate || fiscal.publicDebt > 0 || fiscal.creditPoolBalance > 0
+                ? `Open debt negotiation with ${fiscal.primaryMoneylenderName}`
+                : "Open debt negotiation dialog (Banker / syndicate / votes)"
+            }
+            onClick={handleOpenDebtNegotiation}
+          >
+            Terms…
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={
+              fiscal.canSetDomainPolicy
+                ? `Cycle construction target (now ${fiscal.domainWorksTarget ?? "walls"}): walls → citadel → plaza`
+                : "No provincial domain seat"
+            }
+            disabled={!fiscal.canSetDomainPolicy}
+            onClick={handleCycleWorksTarget}
+          >
+            Works: {fiscal.domainWorksTarget ?? "—"}
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={
+              fiscal.canFundDomainWorks
+                ? `Fund domain works from L3b (5 SP → progress; now ${fiscal.domainWorksProgress ?? 0}/100)`
+                : "No domain cash to fund works"
+            }
+            disabled={!fiscal.canFundDomainWorks}
+            onClick={handleFundWorks}
+          >
+            Fund works
           </button>
         </div>
       ) : null}

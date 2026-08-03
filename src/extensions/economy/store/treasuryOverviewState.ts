@@ -49,10 +49,16 @@ export interface TreasuryOverviewRow {
   debtInterestRate: number;
   /** PR-11 debt default flag. */
   debtInDefault: boolean;
+  /** PR-12 debt coup-risk flag. */
+  debtCoupRisk: boolean;
   /** PR-8 assembly support 0–100. */
   councilSupport: number;
+  /** PR-12 last debt-issue vote yes share 0–1. */
+  councilLastDebtVoteYes: number;
   /** PR-8 last-cycle tax farm leak. */
   lastTaxFarmLeak: number;
+  /** PR-12 domain levy → poll tax multiplier. */
+  domainPollTaxMultiplier: number;
   chancery: number;
   stewardship: number;
   spymastery: number;

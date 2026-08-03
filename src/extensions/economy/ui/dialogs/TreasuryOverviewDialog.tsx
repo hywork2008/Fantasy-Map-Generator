@@ -297,6 +297,14 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 tip="PR-11: missed interest streak — new borrowing frozen"
               />
               <SortableHeader
+                field="debtCoupRisk"
+                label="Coup"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                tip="PR-12: high military discontent while in default — merchant mutiny / coup risk"
+              />
+              <SortableHeader
                 field="councilSupport"
                 label="Council"
                 sortBy={sortBy}
@@ -306,6 +314,15 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 tip="Assembly support 0–100 (PR-8) — scales wartime veto chance and gates voluntary debt"
               />
               <SortableHeader
+                field="councilLastDebtVoteYes"
+                label="Vote"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="PR-12 last debt-issue faction vote yes share"
+              />
+              <SortableHeader
                 field="lastTaxFarmLeak"
                 label="Farm"
                 sortBy={sortBy}
@@ -313,6 +330,15 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 onSort={toggleSortBy}
                 numeric
                 tip="Last-cycle tax-farm leak from L2 (PR-7/8)"
+              />
+              <SortableHeader
+                field="domainPollTaxMultiplier"
+                label="Poll×"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="PR-12 domain levy → poll-tax collection multiplier"
               />
               <SortableHeader
                 field="chancery"
@@ -355,7 +381,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={26}>
+                <td colSpan={29}>
                   <span>No state has an allocated treasury yet — run a generation cycle first</span>
                 </td>
               </tr>
@@ -397,8 +423,15 @@ const TreasuryRow: React.FC<{ row: TreasuryOverviewRow }> = ({ row }) => (
       {row.debtInterestRate > 0 ? `${(row.debtInterestRate * 100).toFixed(2)}%` : "—"}
     </td>
     <td data-tip={row.debtInDefault ? "In default" : "Current"}>{row.debtInDefault ? "YES" : "—"}</td>
+    <td data-tip={row.debtCoupRisk ? "Coup risk" : "No coup risk"}>{row.debtCoupRisk ? "YES" : "—"}</td>
     <td data-tip="Assembly support">{row.councilSupport > 0 ? row.councilSupport.toFixed(0) : "—"}</td>
+    <td data-tip="Debt-issue vote yes">
+      {row.councilLastDebtVoteYes > 0 ? `${(row.councilLastDebtVoteYes * 100).toFixed(0)}%` : "—"}
+    </td>
     <td data-tip="Last tax-farm leak">{row.lastTaxFarmLeak > 0 ? row.lastTaxFarmLeak.toFixed(2) : "—"}</td>
+    <td data-tip="Domain poll mult">
+      {row.domainPollTaxMultiplier !== 1 ? `×${row.domainPollTaxMultiplier.toFixed(2)}` : "—"}
+    </td>
     <td>{row.chancery.toFixed(2)}</td>
     <td>{row.stewardship.toFixed(2)}</td>
     <td>{row.spymastery.toFixed(2)}</td>

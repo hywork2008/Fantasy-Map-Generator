@@ -1,19 +1,26 @@
 import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
-import type { Character } from "../../characters/characterTypes";
+import type { Character, CharacterRole } from "../../characters/characterTypes";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { payToCreditPool, resolveCapitalMarket } from "./creditPool";
 import { DEBT_DEFAULT_RATE_PENALTY } from "./debtDefault";
 
 /**
- * Multi-ledger PR-10/PR-11 — named moneylender syndicate + rate negotiation.
+ * Multi-ledger PR-10/PR-11/PR-12 — named moneylender syndicate + rate negotiation + banker role.
  *
  * Capital-market Manager + Rival Merchants act as the visible face of the anonymous
  * credit pool: interest / repayments can skim into their personal wealth, and effective
  * interest rates rise with greed and fall with assembly support.
  *
+ * PR-12 tags the primary syndicate member with a state-scoped Banker role for UI/dialog.
+ *
  * The pool stock remains institutional; named lenders do not each hold separate ledgers yet.
  */
+
+/** PR-12 dedicated banker role on the primary moneylender (not a central office). */
+export const BANKER_ROLE_SOURCE = "economy";
+export const BANKER_ROLE_KIND = "stateBanker";
+export const BANKER_ROLE_LABEL = "Banker";
 
 /** Keep in sync with fiscalEvents.PUBLIC_DEBT_INTEREST_RATE (avoid circular import). */
 export const BASE_PUBLIC_DEBT_INTEREST_RATE = 0.02;
@@ -224,7 +231,6 @@ export function splitCreditorPayout(
   }
 
   const toLenders = rn(pay * personalShare, 2);
-  const _toPool = rn(pay - toLenders, 2);
   const perLender: { characterId: number; amount: number }[] = [];
 
   if (!(toLenders > 0)) {
@@ -256,18 +262,79 @@ export function splitCreditorPayout(
   return { toPool: actualToPool, toLenders: actualToLenders, perLender, primaryName };
 }
 
+export function isStateBankerRole(role: CharacterRole): boolean {
+  return role.source === BANKER_ROLE_SOURCE && role.kind === BANKER_ROLE_KIND && role.entityType === "state";
+}
+
+function createStateBankerRole(stateId: number): CharacterRole {
+  return {
+    source: BANKER_ROLE_SOURCE,
+    kind: BANKER_ROLE_KIND,
+    entityType: "state",
+    entityId: stateId,
+    label: BANKER_ROLE_LABEL
+  };
+}
+
+/**
+ * PR-12: tag the primary syndicate member as this state's Banker (soft role, not CENTRAL_OFFICE).
+ * Clears the role from other living characters who held it for this state.
+ */
+export function ensureStateBankerRole(state: State): Character | null {
+  if (!state.i || !hasCharactersContext()) return null;
+  const syndicate = resolveMoneylenderSyndicate(state);
+  const primary = syndicate.primary;
+  if (!primary) return null;
+
+  const characters = getCharacters();
+  const primaryChar = characters.find(c => c.i === primary.characterId && !c.dead);
+  if (!primaryChar) return null;
+
+  for (const character of characters) {
+    if (!character.roles?.length) continue;
+    if (character.i === primaryChar.i) continue;
+    character.roles = character.roles.filter(role => !(isStateBankerRole(role) && role.entityId === state.i));
+  }
+
+  primaryChar.roles ??= [];
+  if (!primaryChar.roles.some(role => isStateBankerRole(role) && role.entityId === state.i)) {
+    primaryChar.roles.push(createStateBankerRole(state.i));
+  }
+  return primaryChar;
+}
+
 /**
  * Snapshot primary creditor onto the state for UI (no cash movement).
+ * PR-12 also ensures the Banker role is assigned.
  */
 export function updateMoneylenderSnapshot(state: State): void {
   const syndicate = resolveMoneylenderSyndicate(state);
   state.primaryMoneylenderId = syndicate.primary?.characterId;
   state.primaryMoneylenderName = syndicate.primary?.name;
   state.debtInterestRate = getStateDebtInterestRate(state);
+  ensureStateBankerRole(state);
 }
 
 export function getPrimaryMoneylenderLabel(state: Pick<State, "primaryMoneylenderName" | "capital" | "i">): string {
   if (state.primaryMoneylenderName) return state.primaryMoneylenderName;
   const primary = resolveMoneylenderSyndicate(state).primary;
   return primary?.name ?? "Anonymous creditors";
+}
+
+/** Living character holding the Banker role for this state, if any. */
+export function resolveStateBanker(state: Pick<State, "i" | "primaryMoneylenderId" | "capital">): Character | null {
+  if (!hasCharactersContext()) return null;
+  const characters = getCharacters();
+  if (state.i) {
+    const byRole = characters.find(
+      c => !c.dead && c.roles?.some(role => isStateBankerRole(role) && role.entityId === state.i)
+    );
+    if (byRole) return byRole;
+  }
+  if (state.primaryMoneylenderId !== undefined) {
+    return characters.find(c => c.i === state.primaryMoneylenderId && !c.dead) ?? null;
+  }
+  const primaryId = resolveMoneylenderSyndicate(state).primary?.characterId;
+  if (primaryId === undefined) return null;
+  return characters.find(c => c.i === primaryId && !c.dead) ?? null;
 }

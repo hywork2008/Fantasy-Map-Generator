@@ -13,11 +13,15 @@ import {
   adjustDomainLevyForCharacter,
   clampDomainLevyRate,
   cycleDomainFiscalPolicyForCharacter,
+  cycleDomainWorksTargetForCharacter,
   type DomainFiscalPolicy,
+  type DomainWorksTarget,
+  fundDomainWorksForCharacter,
   normalizeDomainFiscalPolicy,
+  normalizeDomainWorksTarget,
   resolveDomainBurgForCharacter
 } from "./domainFiscalPolicy";
-import { getPrimaryMoneylenderLabel, negotiateDebtInterestRate } from "./moneylenders";
+import { getPrimaryMoneylenderLabel, negotiateDebtInterestRate, resolveStateBanker } from "./moneylenders";
 import {
   issuePublicDebt,
   PUBLIC_DEBT_PLAYER_ISSUE_AMOUNT,
@@ -75,8 +79,12 @@ export interface FiscalAuthorityView {
   debtRateNegotiation: number;
   /** PR-11 public debt default flag. */
   debtInDefault: boolean;
+  /** PR-12 debt coup-risk sticky flag. */
+  debtCoupRisk: boolean;
   /** PR-8 assembly support 0–100. */
   councilSupport: number;
+  /** PR-12 last debt-issue vote yes share 0–1. */
+  councilLastDebtVoteYes: number | null;
   canIssuePublicDebt: boolean;
   canRepayPublicDebt: boolean;
   canNegotiateDebtRate: boolean;
@@ -86,6 +94,9 @@ export interface FiscalAuthorityView {
   /** PR-8 domain levy multiplier. */
   domainLevyRate: number | null;
   domainWorksProgress: number | null;
+  /** PR-12 next fortify construction target. */
+  domainWorksTarget: DomainWorksTarget | null;
+  canFundDomainWorks: boolean;
   /** Human-readable policy notes for tooltips. */
   notes: string[];
 }
@@ -202,8 +213,11 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
   const debtInterestRate = state.debtInterestRate !== undefined ? rn(state.debtInterestRate, 4) : null;
   const debtRateNegotiation = rn(state.debtRateNegotiation || 0, 3);
   const debtInDefault = Boolean(state.debtInDefault);
+  const debtCoupRisk = Boolean(state.debtCoupRisk);
   const councilSupport =
     state.councilSupport !== undefined ? rn(state.councilSupport, 1) : getCouncilSupport(state).support;
+  const councilLastDebtVoteYes =
+    state.councilLastDebtVoteYes !== undefined ? rn(state.councilLastDebtVoteYes, 3) : null;
   const canIssuePublicDebt =
     isRuler &&
     form !== "Anarchy" &&
@@ -215,6 +229,8 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
   const canNegotiateDebtRate = isRuler && !debtInDefault && (publicDebt > 0 || creditPoolBalance > 0);
   const domainLevyRate = domainBurg ? clampDomainLevyRate(domainBurg.domainLevyRate) : null;
   const domainWorksProgress = domainBurg ? rn(domainBurg.domainWorksProgress || 0, 1) : null;
+  const domainWorksTarget = domainBurg ? normalizeDomainWorksTarget(domainBurg.domainWorksTarget) : null;
+  const canFundDomainWorks = Boolean(domainBurg && (domainBurg.treasury || 0) > 0);
 
   const householdSpendable = policy.canDrawHouseholdToPersonal ? householdPurse : 0;
   const publicSpendable = policy.canSpendPublicDirectly ? publicTreasury : 0;
@@ -249,7 +265,9 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
     notes.push(`Public debt ${publicDebt.toFixed(2)} SP (interest each tax cycle).`);
   }
   if (debtInDefault) notes.push("IN DEFAULT — new borrowing frozen until interest is current.");
-  notes.push(`Credit pool ${creditPoolBalance.toFixed(2)} SP — led by ${primaryMoneylenderName}.`);
+  if (debtCoupRisk) notes.push("DEBT COUP RISK — military restiveness / merchant mutiny.");
+  const banker = resolveStateBanker(state);
+  notes.push(`Credit pool ${creditPoolBalance.toFixed(2)} SP — Banker: ${banker?.name ?? primaryMoneylenderName}.`);
   if (debtInterestRate != null) {
     notes.push(
       `Debt interest ${(debtInterestRate * 100).toFixed(2)}%/cycle` +
@@ -258,6 +276,9 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
     );
   }
   notes.push(`Assembly support ${councilSupport}/100.`);
+  if (councilLastDebtVoteYes != null) {
+    notes.push(`Last debt-issue vote yes ${(councilLastDebtVoteYes * 100).toFixed(0)}%.`);
+  }
   if (state.councilApprovals) {
     const a = state.councilApprovals;
     notes.push(
@@ -269,7 +290,10 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
     notes.push(`Domain policy: ${domainFiscalPolicy}${domainLevyRate != null ? ` × levy ${domainLevyRate}` : ""}.`);
   }
   if (domainWorksProgress != null && domainWorksProgress > 0) {
-    notes.push(`Domain works ${domainWorksProgress}/100.`);
+    notes.push(`Domain works ${domainWorksProgress}/100 → ${domainWorksTarget ?? "walls"}.`);
+  }
+  if (state.domainPollTaxMultiplier != null && state.domainPollTaxMultiplier !== 1) {
+    notes.push(`Domain levy poll mult ×${state.domainPollTaxMultiplier.toFixed(2)}.`);
   }
 
   return {
@@ -295,7 +319,9 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
     debtInterestRate,
     debtRateNegotiation,
     debtInDefault,
+    debtCoupRisk,
     councilSupport,
+    councilLastDebtVoteYes,
     canIssuePublicDebt,
     canRepayPublicDebt,
     canNegotiateDebtRate,
@@ -303,6 +329,8 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
     domainFiscalPolicy,
     domainLevyRate,
     domainWorksProgress,
+    domainWorksTarget,
+    canFundDomainWorks,
     notes
   };
 }
@@ -496,6 +524,31 @@ export function adjustDomainLevyForLord(
   const result = adjustDomainLevyForCharacter(characterId, direction);
   if (!result.ok) return { ok: false, paid: 0, error: result.error };
   return { ok: true, paid: 0, levyRate: result.levyRate };
+}
+
+/** Province lord cycles next construction works target (PR-12). */
+export function cycleDomainWorksTargetForLord(
+  characterId: number
+): FiscalActionResult & { target?: DomainWorksTarget } {
+  const result = cycleDomainWorksTargetForCharacter(characterId);
+  if (!result.ok) return { ok: false, paid: 0, error: result.error };
+  return { ok: true, paid: 0, target: result.target };
+}
+
+/** Province lord funds domain construction works from L3b (PR-12). */
+export function fundDomainWorksForLord(
+  characterId: number,
+  amount = 5
+): FiscalActionResult & { progress?: number; completed?: boolean; target?: DomainWorksTarget } {
+  const result = fundDomainWorksForCharacter(characterId, amount);
+  if (!result.ok) return { ok: false, paid: 0, error: result.error };
+  return {
+    ok: true,
+    paid: result.spent || 0,
+    progress: result.progress,
+    completed: result.completed,
+    target: result.target
+  };
 }
 
 /** Living ruler issues public debt into L2 (PR-8; assembly-gated). */

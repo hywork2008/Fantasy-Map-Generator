@@ -6,7 +6,9 @@ import type { ExtensionAPI, PackedGraph, State } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext, setMarkets } from "../economyContext";
 import type { Market } from "./marketTypes";
 import {
+  BANKER_ROLE_KIND,
   BASE_PUBLIC_DEBT_INTEREST_RATE,
+  ensureStateBankerRole,
   getStateDebtInterestRate,
   MONEYLENDER_PERSONAL_SHARE,
   negotiateDebtInterestRate,
@@ -160,5 +162,20 @@ describe("moneylenders (PR-10)", () => {
     expect(state.debtRateNegotiation).toBeLessThan(0);
     expect(getStateDebtInterestRate(state)).toBeLessThan(before);
     expect(state.treasury).toBeLessThan(20);
+  });
+
+  it("tags the primary moneylender with a Banker role (PR-12)", () => {
+    const manager = makeMerchant(1, "Aldo", 70, 20);
+    const state = { i: 1, capital: 1 } as unknown as State;
+    worldContext.pack = {
+      characters: [manager],
+      states: [undefined, state],
+      burgs: [undefined, { i: 1, removed: false }]
+    } as unknown as PackedGraph;
+    setMarkets([{ i: 1, centerBurgId: 1, color: "#fff", goods: {}, managerCharacterId: 1 } as Market]);
+
+    const banker = ensureStateBankerRole(state);
+    expect(banker?.i).toBe(1);
+    expect(manager.roles?.some(r => r.kind === BANKER_ROLE_KIND && r.entityId === 1)).toBe(true);
   });
 });

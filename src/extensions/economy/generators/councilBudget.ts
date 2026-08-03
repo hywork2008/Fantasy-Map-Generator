@@ -1,12 +1,13 @@
 import { stateHasEnemy } from "../../hostCore";
 import type { State } from "../../hostTypes";
 import { getCouncilSupport } from "./councilAssembly";
+import { type CouncilBudgetLine, refreshCouncilFactionSnapshot, simulateCouncilVote } from "./councilVotes";
 
 /**
- * Multi-ledger PR-11 — thin council budget-line approvals (not full faction voting).
+ * Multi-ledger PR-11/PR-12 — thin council budget-line approvals + faction votes.
  *
- * Each tax cycle, support thresholds decide which expenditure lines the assembly will
- * rubber-stamp. Gates voluntary debt, peacetime war footing, and extraordinary tax boosts.
+ * Each tax cycle, support thresholds decide a floor, then PR-12 faction votes can veto
+ * (except wartime war-footing, which remains a military necessity).
  */
 
 export interface CouncilBudgetApprovals {
@@ -28,27 +29,51 @@ export const COUNCIL_LINE_THRESHOLDS = {
   militaryExpansion: 50
 } as const;
 
+function lineClearsSupport(line: CouncilBudgetLine, support: number, atWar: boolean): boolean {
+  switch (line) {
+    case "debtIssue":
+      return support >= COUNCIL_LINE_THRESHOLDS.debtIssue;
+    case "warFooting":
+      return atWar || support >= COUNCIL_LINE_THRESHOLDS.warFootingPeacetime;
+    case "extraordinaryTax":
+      return atWar && support >= COUNCIL_LINE_THRESHOLDS.extraordinaryTax;
+    case "militaryExpansion":
+      return support >= COUNCIL_LINE_THRESHOLDS.militaryExpansion;
+    default:
+      return false;
+  }
+}
+
 /**
  * Compute which budget lines the assembly currently approves.
+ * Support thresholds are the floor; faction votes (PR-12) can still veto peacetime lines.
+ * Wartime war footing always passes when at war (military necessity).
  */
 export function getCouncilBudgetApprovals(state: State): CouncilBudgetApprovals {
   const support = state.councilSupport !== undefined ? state.councilSupport : getCouncilSupport(state).support;
   const atWar = stateHasEnemy(state);
 
+  const voteDebt = simulateCouncilVote(state, "debtIssue");
+  const voteWar = simulateCouncilVote(state, "warFooting");
+  const voteTax = simulateCouncilVote(state, "extraordinaryTax");
+  const voteMil = simulateCouncilVote(state, "militaryExpansion");
+
   return {
     support,
-    debtIssue: support >= COUNCIL_LINE_THRESHOLDS.debtIssue,
+    debtIssue: lineClearsSupport("debtIssue", support, atWar) && voteDebt.passed,
     // At war, war footing is a military necessity the assembly rarely blocks.
-    warFooting: atWar || support >= COUNCIL_LINE_THRESHOLDS.warFootingPeacetime,
-    extraordinaryTax: atWar && support >= COUNCIL_LINE_THRESHOLDS.extraordinaryTax,
-    militaryExpansion: support >= COUNCIL_LINE_THRESHOLDS.militaryExpansion
+    warFooting: atWar || (lineClearsSupport("warFooting", support, atWar) && voteWar.passed),
+    extraordinaryTax: lineClearsSupport("extraordinaryTax", support, atWar) && voteTax.passed,
+    militaryExpansion: lineClearsSupport("militaryExpansion", support, atWar) && voteMil.passed
   };
 }
 
 /**
  * Persist approvals onto the state for UI and cross-module gates.
+ * Also refreshes PR-12 faction share snapshot.
  */
 export function refreshCouncilBudgetApprovals(state: State): CouncilBudgetApprovals {
+  refreshCouncilFactionSnapshot(state);
   const approvals = getCouncilBudgetApprovals(state);
   state.councilApprovals = {
     debtIssue: approvals.debtIssue,

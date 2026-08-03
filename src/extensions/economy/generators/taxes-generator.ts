@@ -4,7 +4,7 @@ import { getDeals, getWorldContext } from "../economyContext";
 import { getAcademyBonus } from "./academyKnowledge";
 import { applyCharacterLivingCosts } from "./characterLivingCosts";
 import { payGuildStipends, payMarketStipends, payProvinceLordStipends } from "./characterStipends";
-import { applyAllDomainFiscalPolicies } from "./domainFiscalPolicy";
+import { applyAllDomainFiscalPolicies, getStateDomainPollTaxMultiplier } from "./domainFiscalPolicy";
 import { applyFiscalEvents } from "./fiscalEvents";
 import { Markets } from "./markets-generator";
 import type { Deal } from "./marketTypes";
@@ -101,7 +101,10 @@ export class TaxesModule {
       // Better-staffed notaries/judges/clerks at the capital collect the household levy more
       // completely (less unrecorded evasion) — docs/plan/knowledge-guild-system.md §9 Phase 3.
       const administrationBonus = getAcademyBonus(state.capital ?? 0, "administration");
-      const pollTaxRevenue = (state.pollTax || 0) * population * administrationBonus;
+      // PR-12: domain levy intensity across province seats scales poll-tax collection.
+      const domainPollMult = getStateDomainPollTaxMultiplier(state);
+      state.domainPollTaxMultiplier = domainPollMult;
+      const pollTaxRevenue = (state.pollTax || 0) * population * administrationBonus * domainPollMult;
       const rawDomesticIncome = pollTaxRevenue + voyageIncome;
       // Credit L2 first so multi-ledger household purse (L2→L1) can draw this cycle's revenue.
       state.treasury = rn((state.treasury || 0) + rawDomesticIncome, 2);

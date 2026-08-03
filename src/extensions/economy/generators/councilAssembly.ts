@@ -37,7 +37,9 @@ export interface CouncilSupportBreakdown {
  * Compute current assembly support (0–100). Vacant offices leave the form base unchanged.
  * Living officers with high honor/rationality raise support; low values drag it down.
  */
-export function getCouncilSupport(state: Pick<State, "i" | "form">): CouncilSupportBreakdown {
+export function getCouncilSupport(
+  state: Pick<State, "i" | "form" | "debtCoupSupportPenalty">
+): CouncilSupportBreakdown {
   const form = state.form || "Monarchy";
   const formBase = COUNCIL_BASE_SUPPORT_BY_FORM[form] ?? COUNCIL_BASE_SUPPORT_BY_FORM.Monarchy;
   const notes: string[] = [`Form base support ${formBase}.`];
@@ -82,7 +84,13 @@ export function getCouncilSupport(state: Pick<State, "i" | "form">): CouncilSupp
     }
   }
 
-  const support = rn(Math.max(0, Math.min(100, formBase + officerBonus)), 1);
+  // PR-12: sticky penalty after debt-coup-risk (merchant mutiny / military restiveness).
+  const coupPenalty = state.debtCoupSupportPenalty || 0;
+  if (coupPenalty > 0) {
+    notes.push(`Debt coup-risk support penalty −${coupPenalty}.`);
+  }
+
+  const support = rn(Math.max(0, Math.min(100, formBase + officerBonus - coupPenalty)), 1);
   return { support, formBase, officerBonus, officerCount, notes };
 }
 

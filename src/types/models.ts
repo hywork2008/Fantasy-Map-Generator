@@ -118,13 +118,18 @@ export interface Burg {
   domainFiscalPolicy?: "balanced" | "extract" | "fortify";
   /**
    * PR-8 domain levy intensity multiplier (default 1). Scales extract remits; lord-adjustable.
-   * Clamped ~0.5–1.5 in domain fiscal policy helpers.
+   * Clamped ~0.5–1.5 in domain fiscal policy helpers. PR-12 also scales state poll-tax collection.
    */
   domainLevyRate?: number;
   /**
-   * PR-8 fortify works progress 0–100. Accumulates under fortify policy; at 100 may raise walls/citadel.
+   * PR-8 fortify works progress 0–100. Accumulates under fortify policy; at 100 completes the
+   * queued construction target (PR-12 domainWorksTarget).
    */
   domainWorksProgress?: number;
+  /**
+   * PR-12 next fortify completion target: walls | citadel | plaza.
+   */
+  domainWorksTarget?: "walls" | "citadel" | "plaza";
   /** Public-order score from 0 (unsafe) to 100 (secure). Seeded at 50; no simulation effects yet. */
   security?: number;
   /**
@@ -478,11 +483,34 @@ export interface State {
    */
   debtInDefault?: boolean;
   /**
+   * PR-12: military coup risk sticky flag while discontent is high during default.
+   */
+  debtCoupRisk?: boolean;
+  /**
+   * PR-12: sticky assembly-support penalty after debt coup-risk (subtracted in getCouncilSupport).
+   */
+  debtCoupSupportPenalty?: number;
+  /** PR-12: last-cycle credit-pool flight amount while in default. */
+  lastDebtPoolFlight?: number;
+  /** PR-12: last-cycle syndicate personal wealth haircut while in default. */
+  lastDebtMerchantHaircut?: number;
+  /**
    * PR-8 assembly support snapshot (0–100) from the last tax cycle / support refresh.
    */
   councilSupport?: number;
   /**
-   * PR-11 thin budget-line approvals (support thresholds). Refreshed each tax cycle.
+   * PR-12 faction bloc shares (court/merchants/military/clergy), last refresh.
+   */
+  councilFactionShares?: {
+    court: number;
+    merchants: number;
+    military: number;
+    clergy: number;
+  };
+  /** PR-12 last debt-issue vote yes share (0–1). */
+  councilLastDebtVoteYes?: number;
+  /**
+   * PR-11 thin budget-line approvals (support thresholds + PR-12 faction votes). Refreshed each tax cycle.
    */
   councilApprovals?: {
     debtIssue: boolean;
@@ -498,6 +526,10 @@ export interface State {
   lastDebtIssued?: number;
   /** PR-8: last cycle debt principal repaid. */
   lastDebtRepaid?: number;
+  /**
+   * PR-12 domain-levy → poll-tax collection multiplier applied last collectTaxes (≈0.9–1.13).
+   */
+  domainPollTaxMultiplier?: number;
 
   // ── Manpower / agriculture simulation (docs/plan/military/manpower-ecosystem.md) ──
   /**

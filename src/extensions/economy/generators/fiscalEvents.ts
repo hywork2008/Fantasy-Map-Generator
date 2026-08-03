@@ -1,10 +1,11 @@
 import { stateHasEnemy } from "../../hostCore";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
-import { getCouncilSupport, scaleFailureChanceBySupport, updateCouncilSupportSnapshot } from "./councilAssembly";
+import { scaleFailureChanceBySupport, updateCouncilSupportSnapshot } from "./councilAssembly";
 import { refreshCouncilBudgetApprovals } from "./councilBudget";
 import { lendFromCreditPool, payCreditorsWithSyndicate, routeTaxFarmProceeds } from "./creditPool";
 import { canIssueDebtWhileNotInDefault, updateDebtDefaultStatus } from "./debtDefault";
+import { applyDebtDefaultConsequences } from "./debtDefaultConsequences";
 import { getStateDebtInterestRate, splitCreditorPayout, updateMoneylenderSnapshot } from "./moneylenders";
 import { isWarFootingActive } from "./warFooting";
 
@@ -153,7 +154,9 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
     }
 
     // PR-11: missed-interest streak → default freeze.
-    updateDebtDefaultStatus(state, interestDue, debtInterestPaid);
+    // PR-12: merchant pool flight / coup risk while in default.
+    const defaultStatus = updateDebtDefaultStatus(state, interestDue, debtInterestPaid);
+    applyDebtDefaultConsequences(state, defaultStatus);
 
     // Repay principal from surplus L2 (keep a small buffer) → pool + syndicate.
     // Only auto-repay when not deep in default coupon trouble (still allow if cash exists).
@@ -168,8 +171,9 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
       }
     }
   } else {
-    // No principal → clear any stale default streak.
-    updateDebtDefaultStatus(state, 0, 0);
+    // No principal → clear any stale default streak / coup flags.
+    const defaultStatus = updateDebtDefaultStatus(state, 0, 0);
+    applyDebtDefaultConsequences(state, defaultStatus);
   }
 
   // ── Thin war debt issue from credit pool (PR-9/PR-11) ───────────────────
