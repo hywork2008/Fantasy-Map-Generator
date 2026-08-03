@@ -8,6 +8,15 @@ import {
   getCharacterPendingConstructionApplication
 } from "../../../economy/generators/constructionHire";
 import { getConstructionJobPosting } from "../../../economy/generators/constructionJobPostings";
+import {
+  DOMAIN_SPEND_ACTION_CAP,
+  drawHouseholdPurseToPersonal,
+  getFiscalAuthorityView,
+  HOUSEHOLD_DRAW_ACTION_CAP,
+  PUBLIC_SEIZE_ACTION_CAP,
+  seizePublicTreasuryToPersonal,
+  spendDomainTreasury
+} from "../../../economy/generators/fiscalAuthority";
 import { tip } from "../../../hostServices";
 import { Dialog, isDialogOpen, openDialog } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
@@ -42,6 +51,16 @@ export const PlayerCharacterPanel: React.FC = () => {
     if (!character) return null;
     return buildPlayerCharacterSummary(character, pack);
   }, [playerCharacterId, refreshToken, i18n.language]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refreshToken forces recompute after fiscal draws
+  const fiscal = useMemo(() => {
+    if (!summary) return null;
+    const { pack } = getWorldContext();
+    const state = pack.states?.[summary.stateId];
+    if (!state?.i) return null;
+    const character = pack.characters?.find(c => c.i === summary.id);
+    return getFiscalAuthorityView(state, character);
+  }, [summary, refreshToken]);
 
   // Render mode is sticky session state; read live so a mid-session switch updates the toolbar.
   const showMoveAction = isSvgRenderMode();
@@ -145,6 +164,42 @@ export const PlayerCharacterPanel: React.FC = () => {
     openCharacterMarket(playerCharacterId);
   };
 
+  const handleDrawHousehold = () => {
+    if (playerCharacterId === null || !summary) return;
+    const { pack } = getWorldContext();
+    const state = pack.states?.[summary.stateId];
+    if (!state?.i) {
+      tip("No state ledger for this character.", false, "error");
+      return;
+    }
+    const result = drawHouseholdPurseToPersonal(state, playerCharacterId, HOUSEHOLD_DRAW_ACTION_CAP);
+    if (result.ok) tip(`Drew ${formatPrice(result.paid)} from the household purse.`, false, "success");
+    else tip(result.error || "Could not draw household funds.", false, "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
+  const handleSeizePublic = () => {
+    if (playerCharacterId === null || !summary) return;
+    const { pack } = getWorldContext();
+    const state = pack.states?.[summary.stateId];
+    if (!state?.i) {
+      tip("No state ledger for this character.", false, "error");
+      return;
+    }
+    const result = seizePublicTreasuryToPersonal(state, playerCharacterId, PUBLIC_SEIZE_ACTION_CAP);
+    if (result.ok) tip(`Seized ${formatPrice(result.paid)} from the public treasury.`, false, "success");
+    else tip(result.error || "Could not seize public funds.", false, "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
+  const handleSpendDomain = () => {
+    if (playerCharacterId === null) return;
+    const result = spendDomainTreasury(playerCharacterId, DOMAIN_SPEND_ACTION_CAP);
+    if (result.ok) tip(`Spent ${formatPrice(result.paid)} from the domain treasury.`, false, "success");
+    else tip(result.error || "Could not spend domain funds.", false, "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
   return (
     <Dialog isOpen title="Player Character" showCloseAllDialogsButton={false} className="player-character-panel">
       {!summary ? (
@@ -194,6 +249,25 @@ export const PlayerCharacterPanel: React.FC = () => {
                 </dd>
               </>
             ) : null}
+            {fiscal ? (
+              <>
+                <dt>Spendable</dt>
+                <dd
+                  title={[
+                    `Personal ${formatPrice(fiscal.spendableBreakdown.personal)}`,
+                    `Household ${formatPrice(fiscal.spendableBreakdown.household)}`,
+                    `Public ${formatPrice(fiscal.spendableBreakdown.public)}`,
+                    `Domain ${formatPrice(fiscal.spendableBreakdown.domain)}`,
+                    ...fiscal.notes
+                  ].join(" · ")}
+                >
+                  {formatPrice(fiscal.spendableAsRuler)}
+                  <span className="dim" style={{ marginLeft: "0.35em", fontSize: "0.9em" }}>
+                    ({fiscal.form})
+                  </span>
+                </dd>
+              </>
+            ) : null}
             <dt>Location</dt>
             <dd className="pcp-location" title={summary.location?.label ?? "Unknown"}>
               {summary.location ? (
@@ -239,6 +313,51 @@ export const PlayerCharacterPanel: React.FC = () => {
           Character Details
         </button>
       </div>
+
+      {/* Multi-ledger PR-4: first form-gated spend hooks */}
+      {summary && fiscal && getApi().isExtensionEnabled(ECONOMY_EXTENSION_ID) ? (
+        <div className="pcp-actions pcp-actions-fiscal" role="toolbar" aria-label="Fiscal authority actions">
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={
+              fiscal.canDrawHouseholdToPersonal
+                ? `Draw up to ${HOUSEHOLD_DRAW_ACTION_CAP} SP from the crown household purse into personal wealth`
+                : fiscal.notes.join(" ")
+            }
+            disabled={!fiscal.canDrawHouseholdToPersonal || fiscal.householdPurse <= 0 || !summary.isLandedRuler}
+            onClick={handleDrawHousehold}
+          >
+            Draw household
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={
+              fiscal.canSpendPublicDirectly
+                ? `Seize up to ${PUBLIC_SEIZE_ACTION_CAP} SP from the public treasury (Anarchy war-chest)`
+                : "This polity does not allow free public-treasury spending from the ruler HUD"
+            }
+            disabled={!fiscal.canSpendPublicDirectly || fiscal.publicTreasury <= 0 || !summary.isLandedRuler}
+            onClick={handleSeizePublic}
+          >
+            Seize public
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={
+              fiscal.canSpendDomain
+                ? `Spend up to ${DOMAIN_SPEND_ACTION_CAP} SP from the domain (burg) treasury — consumed, not pocketed`
+                : "No provincial domain seat with treasury"
+            }
+            disabled={!fiscal.canSpendDomain}
+            onClick={handleSpendDomain}
+          >
+            Spend domain
+          </button>
+        </div>
+      ) : null}
 
       {/* World actions (travel, future diplomacy / military). SVG map mode only for Move. */}
       {showMoveAction ? (

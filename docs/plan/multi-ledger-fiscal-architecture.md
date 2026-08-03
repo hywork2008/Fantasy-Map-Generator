@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計案。PR-1〜PR-3 実装済み** — L0 個人 / L1 householdPurse / L2 treasury / L3a departmentBalances。軍事 upkeep は当面 L2。PR-4 支出権限フックは未実装。
+**設計案。PR-1〜PR-4 実装済み** — 多層台帳 + `getFiscalAuthorityView` と形態ゲート付き支出フック（家政引出・公金押収・領支出）。軍事 upkeep の L3a 優先は PR-5。
 
 史実対照 [polity-fiscal-regimes-historical.md](../analytics/polity-fiscal-regimes-historical.md) の結論「豊かさの本体はどの名義の金庫を誰が使えるか」を、現行の単一 `state.treasury` + `Character.wealth` モデルへ段階実装するための仕様と PR 計画。
 
@@ -386,11 +386,14 @@ Lord personal: ZZZ
 
 **完了条件**: 「部門に割り当てられたお金」が残高として存在する。
 
-### PR-4 — 支出権限の最初のフック
+### PR-4 — 支出権限の最初のフック ✅
 
-- `getFiscalAuthorityView`  
-- 1 つだけ実験的支出（例: 為政者が L1 から贈与、または L3b 領主が Burg から建設補助）  
-- Republic は L2 直接支出を UI で抑制（フラグのみでも可）
+- ✅ `fiscalAuthority.ts`: `getFiscalAuthorityView` / form policy  
+- ✅ `drawHouseholdPurseToPersonal`（Monarchy 等; Republic 不可）  
+- ✅ `seizePublicTreasuryToPersonal`（Anarchy）  
+- ✅ `spendDomainTreasury`（属州領主・L3b 消費）  
+- ✅ Player Character HUD: Spendable 表示 + 3 ボタン  
+
 
 ### PR-5 — Marshalcy 支払いを L3a 優先、形態ポリシー
 
