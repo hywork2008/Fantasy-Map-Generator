@@ -56,4 +56,12 @@ describe("councilVotes (PR-12)", () => {
     const vote = simulateCouncilVote(state, "warFooting");
     expect(vote.yesShare).toBeGreaterThan(0.3);
   });
+
+  it("exposes per-faction vote detail (PR-14)", () => {
+    const state = { i: 1, form: "Republic", councilSupport: 50, diplomacy: [] } as unknown as State;
+    const vote = simulateCouncilVote(state, "debtIssue");
+    expect(vote.factionDetails.length).toBe(4);
+    expect(vote.factionDetails.map(d => d.faction).sort()).toEqual(["clergy", "court", "merchants", "military"].sort());
+    expect(vote.factionDetails.every(d => d.share > 0 && d.lean >= 0 && d.lean <= 1)).toBe(true);
+  });
 });

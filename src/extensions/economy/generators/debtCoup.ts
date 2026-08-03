@@ -4,6 +4,7 @@ import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { CENTRAL_OFFICES } from "../../nobility/data/titleTable";
 import { getRulerId, setRulerId } from "../../nobility/nobilityContext";
+import { applyCoupAftermath } from "./coupAftermath";
 import { findLivingOfficeHolder } from "./treasuryAllocation";
 
 /**
@@ -171,6 +172,9 @@ export function tryDebtCoup(state: State): DebtCoupResult {
   result.newRulerName = leader.name;
   result.seizedWealth = seized;
   result.summary = summary;
+
+  // PR-14: legitimacy crash + civil unrest sticky flags.
+  applyCoupAftermath(state, summary);
 
   dispatchDebtCoupSuccessEvent(state, result);
   return result;

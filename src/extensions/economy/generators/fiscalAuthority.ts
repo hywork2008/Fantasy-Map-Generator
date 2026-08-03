@@ -24,7 +24,7 @@ import {
 import {
   canIssueForeignDebt,
   FOREIGN_DEBT_ISSUE_AMOUNT,
-  issueForeignDebt,
+  issueForeignOrBondDebt,
   sumForeignDebtPrincipal
 } from "./foreignDebt";
 import { getPrimaryMoneylenderLabel, negotiateDebtInterestRate, resolveStateBanker } from "./moneylenders";
@@ -87,8 +87,14 @@ export interface FiscalAuthorityView {
   debtInDefault: boolean;
   /** PR-12 debt coup-risk sticky flag. */
   debtCoupRisk: boolean;
+  /** PR-14 post-coup legitimacy 0–100 (null if none). */
+  coupLegitimacy: number | null;
+  /** PR-14 civil unrest after coup. */
+  civilUnrest: boolean;
   /** PR-13 foreign debt principal (外債). */
   foreignDebt: number;
+  /** PR-14 any foreign loan in default. */
+  foreignDebtInDefault: boolean;
   /** PR-8 assembly support 0–100. */
   councilSupport: number;
   /** PR-12 last debt-issue vote yes share 0–1. */
@@ -225,7 +231,10 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
   const debtRateNegotiation = rn(state.debtRateNegotiation || 0, 3);
   const debtInDefault = Boolean(state.debtInDefault);
   const debtCoupRisk = Boolean(state.debtCoupRisk);
+  const coupLegitimacy = state.coupLegitimacy !== undefined ? rn(state.coupLegitimacy, 1) : null;
+  const civilUnrest = Boolean(state.civilUnrest);
   const foreignDebt = sumForeignDebtPrincipal(state);
+  const foreignDebtInDefault = Boolean(state.foreignDebtInDefault);
   const councilSupport =
     state.councilSupport !== undefined ? rn(state.councilSupport, 1) : getCouncilSupport(state).support;
   const councilLastDebtVoteYes =
@@ -282,9 +291,13 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
     notes.push(`Foreign debt ${foreignDebt.toFixed(2)} SP (外債 — Ally/Friendly creditors).`);
   }
   if (debtInDefault) notes.push("IN DEFAULT — new borrowing frozen until interest is current.");
+  if (foreignDebtInDefault) notes.push("FOREIGN DEBT DEFAULT — creditor diplomacy chilled.");
   if (debtCoupRisk) notes.push("DEBT COUP RISK — military restiveness / merchant mutiny.");
   if (state.lastDebtCoup?.newRulerName) {
     notes.push(`Last debt coup: ${state.lastDebtCoup.newRulerName} replaced ${state.lastDebtCoup.oldRulerName}.`);
+  }
+  if (coupLegitimacy != null) {
+    notes.push(`Coup legitimacy ${coupLegitimacy}/100${civilUnrest ? " — civil unrest active" : ""}.`);
   }
   if (councilSessionNumber > 0) notes.push(`Assembly sessions logged: ${councilSessionNumber}.`);
   const banker = resolveStateBanker(state);
@@ -341,7 +354,10 @@ export function getFiscalAuthorityView(state: State, character?: Character): Fis
     debtRateNegotiation,
     debtInDefault,
     debtCoupRisk,
+    coupLegitimacy,
+    civilUnrest,
     foreignDebt,
+    foreignDebtInDefault,
     councilSupport,
     councilLastDebtVoteYes,
     councilSessionNumber,
@@ -610,7 +626,7 @@ export function issueForeignDebtForRuler(
   if (!isLivingRulerOf(state, characterId)) {
     return { ok: false, paid: 0, error: "Only the living ruler may issue foreign debt" };
   }
-  const result = issueForeignDebt(state, amount);
+  const result = issueForeignOrBondDebt(state, amount);
   return {
     ok: result.ok,
     paid: result.amount,

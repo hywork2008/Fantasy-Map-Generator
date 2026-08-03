@@ -3,18 +3,20 @@ import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { scaleFailureChanceBySupport, updateCouncilSupportSnapshot } from "./councilAssembly";
 import { refreshCouncilBudgetApprovals } from "./councilBudget";
-import { recordCouncilSession } from "./councilSession";
+import { formatFactionVoteSummary, recordCouncilSession } from "./councilSession";
+import { tickCoupLegitimacyAndUnrest } from "./coupAftermath";
 import { lendFromCreditPool, payCreditorsWithSyndicate, routeTaxFarmProceeds } from "./creditPool";
 import { tryDebtCoup } from "./debtCoup";
 import { canIssueDebtWhileNotInDefault, updateDebtDefaultStatus } from "./debtDefault";
 import { applyDebtDefaultConsequences } from "./debtDefaultConsequences";
-import { issueForeignDebt, serviceForeignDebt } from "./foreignDebt";
+import { issueForeignOrBondDebt } from "./foreignDebt";
+import { applyDomesticDefaultForeignDiplomacyHit, serviceForeignDebtWithDiplomacy } from "./foreignDebtDiplomacy";
 import { getStateDebtInterestRate, splitCreditorPayout, updateMoneylenderSnapshot } from "./moneylenders";
 import { isWarFootingActive } from "./warFooting";
 
 /**
- * Multi-ledger PR-7…PR-13 — thin fiscal events on top of the multi-ledger pipe:
- * council/assembly consent, tax farming, public debt, foreign debt, coup, session log.
+ * Multi-ledger PR-7…PR-14 — fiscal events: council, tax farm, public/foreign/bond debt,
+ * coup aftermath, diplomacy, session log with faction vote detail.
  *
  * Deterministic rolls use state id + income so unit tests stay stable without a seeded RNG.
  */
@@ -195,9 +197,16 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
     clearedDefault = defaultStatus.clearedDefault;
   }
 
-  // ── PR-13 foreign debt service (外債) ────────────────────────────────────
-  const foreignService = serviceForeignDebt(state);
+  // ── PR-13/14 foreign debt service + diplomacy (外債) ────────────────────
+  const foreignService = serviceForeignDebtWithDiplomacy(state);
   foreignDebtInterest = foreignService.interestPaid;
+  const foreignDebtDefaulted = foreignService.enteredDefaultWith.length > 0;
+  const diplomacyWorsened = foreignService.diplomacyWorsened.length;
+
+  // PR-14: domestic public default also chills foreign creditors.
+  if (enteredDefault) {
+    applyDomesticDefaultForeignDiplomacyHit(state);
+  }
 
   // ── Thin war debt issue from credit pool (PR-9/PR-11) ───────────────────
   // Cash-strapped at war: borrow only what moneylenders can fund and council allows.
@@ -223,7 +232,8 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
     }
   }
 
-  // PR-13: if still cash-strapped after domestic pool, try foreign loan (外債).
+  // PR-13/14: if still cash-strapped after domestic pool, try bilateral then bond market.
+  let bondMarketIssued = 0;
   if (
     isWarFootingActive(state) &&
     stateHasEnemy(state) &&
@@ -231,11 +241,14 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
     (state.treasury || 0) <= WAR_DEBT_CASH_THRESHOLD &&
     canIssueDebtWhileNotInDefault(state)
   ) {
-    const foreign = issueForeignDebt(state);
-    if (foreign.ok) foreignDebtIssued = foreign.amount;
+    const foreign = issueForeignOrBondDebt(state);
+    if (foreign.ok) {
+      foreignDebtIssued = foreign.amount;
+      if (foreign.viaBondMarket) bondMarketIssued = foreign.amount;
+    }
   }
 
-  // PR-13: acute debt-coup risk may transfer the crown.
+  // PR-13: acute debt-coup risk may transfer the crown (+ PR-14 aftermath).
   const coup = tryDebtCoup(state);
   if (coup.succeeded) {
     coupSucceeded = true;
@@ -243,14 +256,18 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
   }
   if (state.debtCoupRisk) coupRisk = true;
 
+  // PR-14: legitimacy recovery / civil unrest tick.
+  const unrest = tickCoupLegitimacyAndUnrest(state);
+
   state.lastDebtIssued = debtIssued;
   state.lastDebtRepaid = debtRepaid;
 
-  // PR-13: chronicle this cycle's assembly session.
+  // PR-13/14: chronicle this cycle's assembly session (incl. faction vote detail).
   recordCouncilSession(state, {
     councilFailed,
     councilSupport,
     debtVoteYes: state.councilLastDebtVoteYes,
+    debtVoteFactionSummary: formatFactionVoteSummary(state.councilLastVoteFactionDetail),
     taxFarmLeak,
     debtIssued,
     debtRepaid,
@@ -259,9 +276,14 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
     clearedDefault,
     foreignDebtIssued,
     foreignDebtInterest,
+    foreignDebtDefaulted,
+    diplomacyWorsened,
+    bondMarketIssued,
     coupRisk,
     coupSucceeded,
-    coupSummary
+    coupSummary,
+    civilUnrestTick: unrest.unrestFired,
+    legitimacy: unrest.legitimacy
   });
 
   return {

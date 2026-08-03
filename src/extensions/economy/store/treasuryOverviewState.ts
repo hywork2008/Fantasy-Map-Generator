@@ -61,6 +61,12 @@ export interface TreasuryOverviewRow {
   domainPollTaxMultiplier: number;
   /** PR-13 foreign debt principal. */
   foreignDebt: number;
+  /** PR-14 foreign debt default flag. */
+  foreignDebtInDefault: boolean;
+  /** PR-14 coup legitimacy (0 if none). */
+  coupLegitimacy: number;
+  /** PR-14 civil unrest. */
+  civilUnrest: boolean;
   /** PR-13 assembly session count. */
   councilSessionNumber: number;
   chancery: number;

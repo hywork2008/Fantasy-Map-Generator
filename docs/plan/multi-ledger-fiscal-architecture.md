@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計案。PR-1〜PR-13 実装済み** — 多層台帳本線 + 信用/外債 + 金貸し + 金利交渉 + 債務不履行 + 議会ログ + クーデター交代 + 領 poll 明細。
+**設計案。PR-1〜PR-14 実装済み** — 多層台帳本線 + 信用/外債/債券市場 + 金貸し + 議会勢力票 + クーデ正統性/内乱 + 外債外交接続。
 
 史実対照 [polity-fiscal-regimes-historical.md](../analytics/polity-fiscal-regimes-historical.md) の結論「豊かさの本体はどの名義の金庫を誰が使えるか」を、現行の単一 `state.treasury` + `Character.wealth` モデルへ段階実装するための仕様と PR 計画。
 
@@ -466,12 +466,20 @@ Lord personal: ZZZ
 - ✅ `domainPollDetail.ts` + **Domain Poll Detail** ダイアログ（都市別 levy / policy / weight）  
 - ✅ Treasury Overview: **FX Debt** / **Sess#** 列  
 
-### PR-14 以降（任意の深掘り）
+### PR-14 — 勢力票明細 / 外債外交 / クーデ正統性 / 債券市場 ✅
 
-- フル議会ログの勢力別票明細 UI  
-- 外債デフォルトと外交悪化の双方向接続  
-- クーデター後の正統性・内戦イベント  
-- 国際債券市場（第三者仲介）  
+- ✅ 議会ログに **勢力別票明細**（court/merchants/military/clergy lean×share）+ 全歳出ライン yes%  
+- ✅ `foreignDebtDiplomacy.ts`: 外債未払いストリーク → 外交ダウングレード（Ally→…→Enemy）；完済で軽い回復；国内 default も債権国を冷やす  
+- ✅ `coupAftermath.ts`: クーデ後 legitimacy / civil unrest ティック、`fmg:coup-civil-unrest`  
+- ✅ `issueBondMarketDebt`: Ally 不在時 Neutral 引受の第三者債券（高金利）  
+- ✅ Treasury Overview: **FX Def** / **Legit** / **Unrest** 列  
+
+### PR-15 以降（任意の深掘り）
+
+- 議会ログの会期リプレイ / 勢力別票グラフ  
+- 外債デフォルト時の通商制裁・関税  
+- クーデ後の正統性戦争（旧為政者派 vs 新政権）  
+- 国際債券市場の二次流通・格付け  
 
 ---
 

@@ -28,12 +28,24 @@ export interface CouncilFactionShares {
   clergy: number;
 }
 
+/** PR-14 per-faction breakdown for UI / session log. */
+export interface FactionVoteDetail {
+  faction: CouncilFaction;
+  share: number;
+  /** Raw yes lean 0–1 before support modulation. */
+  lean: number;
+  /** share × lean contribution before support factor. */
+  contribution: number;
+}
+
 export interface CouncilVoteResult {
   line: CouncilBudgetLine;
   passed: boolean;
   yesShare: number;
   noShare: number;
   shares: CouncilFactionShares;
+  /** PR-14 faction-level vote detail. */
+  factionDetails: FactionVoteDetail[];
   notes: string[];
 }
 
@@ -158,10 +170,17 @@ export function simulateCouncilVote(
 
   let yes = 0;
   const notes: string[] = [];
+  const factionDetails: FactionVoteDetail[] = [];
   for (const faction of FACTIONS) {
     const lean = factionYesLean(line, faction, state);
-    const contribution = bloc[faction] * lean;
+    const contribution = rn(bloc[faction] * lean, 4);
     yes += contribution;
+    factionDetails.push({
+      faction,
+      share: bloc[faction],
+      lean: rn(lean, 3),
+      contribution
+    });
     notes.push(`${faction} lean ${rn(lean, 2)} × share ${bloc[faction]}`);
   }
   yes = rn(Math.max(0, Math.min(1, yes * supportFactor)), 3);
@@ -174,17 +193,31 @@ export function simulateCouncilVote(
     yesShare: yes,
     noShare: no,
     shares: bloc,
+    factionDetails,
     notes
   };
 }
 
 /**
- * Persist faction shares + last debt-issue vote onto the state for UI.
+ * Persist faction shares + last debt-issue vote (+ PR-14 faction detail) onto the state for UI.
  */
 export function refreshCouncilFactionSnapshot(state: State): CouncilFactionShares {
   const shares = getCouncilFactionShares(state);
   state.councilFactionShares = shares;
   const debtVote = simulateCouncilVote(state, "debtIssue", shares);
   state.councilLastDebtVoteYes = debtVote.yesShare;
+  state.councilLastVoteFactionDetail = debtVote.factionDetails.map(d => ({
+    faction: d.faction,
+    share: d.share,
+    lean: d.lean,
+    contribution: d.contribution
+  }));
+  // Snapshot all budget-line yes shares for the faction-detail panel.
+  state.councilLastLineVotes = {
+    debtIssue: debtVote.yesShare,
+    warFooting: simulateCouncilVote(state, "warFooting", shares).yesShare,
+    extraordinaryTax: simulateCouncilVote(state, "extraordinaryTax", shares).yesShare,
+    militaryExpansion: simulateCouncilVote(state, "militaryExpansion", shares).yesShare
+  };
   return shares;
 }

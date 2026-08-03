@@ -4,7 +4,9 @@ import type { ExtensionAPI, PackedGraph, State } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext, setMarkets } from "../economyContext";
 import {
   FOREIGN_DEBT_ISSUE_AMOUNT,
+  findBondMarketUnderwriter,
   findForeignCreditor,
+  issueBondMarketDebt,
   issueForeignDebt,
   serviceForeignDebt,
   sumForeignDebtPrincipal
@@ -116,5 +118,36 @@ describe("foreignDebt (PR-13)", () => {
       characters: []
     } as unknown as PackedGraph;
     expect(issueForeignDebt(state, FOREIGN_DEBT_ISSUE_AMOUNT).ok).toBe(false);
+  });
+
+  it("issues bond-market debt via a Neutral underwriter (PR-14)", () => {
+    const borrower = {
+      i: 1,
+      form: "Monarchy",
+      treasury: 0,
+      diplomacy: ["x", "x", "Neutral"]
+    } as unknown as State;
+    const underwriter = {
+      i: 2,
+      name: "Bankport",
+      form: "Republic",
+      treasury: 120,
+      diplomacy: ["x", "Neutral", "x"]
+    } as unknown as State;
+    worldContext.pack = {
+      states: [undefined, borrower, underwriter],
+      burgs: [],
+      characters: []
+    } as unknown as PackedGraph;
+
+    expect(findForeignCreditor(borrower)).toBeNull();
+    expect(findBondMarketUnderwriter(borrower)?.i).toBe(2);
+
+    const result = issueBondMarketDebt(borrower);
+    expect(result.ok).toBe(true);
+    expect(result.viaBondMarket).toBe(true);
+    expect(borrower.foreignLoans?.[0]?.viaBondMarket).toBe(true);
+    expect(borrower.treasury).toBe(result.amount);
+    expect(underwriter.treasury).toBeLessThan(120);
   });
 });

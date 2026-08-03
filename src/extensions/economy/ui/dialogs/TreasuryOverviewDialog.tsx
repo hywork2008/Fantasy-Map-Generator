@@ -347,7 +347,32 @@ export const TreasuryOverviewDialog: React.FC = () => {
                 sortOrder={sortOrder}
                 onSort={toggleSortBy}
                 numeric
-                tip="PR-13 foreign/international debt principal (Ally/Friendly creditors)"
+                tip="PR-13/14 foreign/international debt principal (Ally/Friendly or bond market)"
+              />
+              <SortableHeader
+                field="foreignDebtInDefault"
+                label="FX Def"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                tip="PR-14 foreign loan default — creditor diplomacy chilled"
+              />
+              <SortableHeader
+                field="coupLegitimacy"
+                label="Legit"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                numeric
+                tip="PR-14 post-coup legitimacy 0–100 (0 = no recent coup)"
+              />
+              <SortableHeader
+                field="civilUnrest"
+                label="Unrest"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={toggleSortBy}
+                tip="PR-14 civil unrest after debt coup"
               />
               <SortableHeader
                 field="councilSessionNumber"
@@ -399,7 +424,7 @@ export const TreasuryOverviewDialog: React.FC = () => {
           {rows.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={31}>
+                <td colSpan={34}>
                   <span>No state has an allocated treasury yet — run a generation cycle first</span>
                 </td>
               </tr>
@@ -451,6 +476,11 @@ const TreasuryRow: React.FC<{ row: TreasuryOverviewRow }> = ({ row }) => (
       {row.domainPollTaxMultiplier !== 1 ? `×${row.domainPollTaxMultiplier.toFixed(2)}` : "—"}
     </td>
     <td data-tip="Foreign debt">{row.foreignDebt > 0 ? row.foreignDebt.toFixed(2) : "—"}</td>
+    <td data-tip={row.foreignDebtInDefault ? "Foreign default" : "Current"}>
+      {row.foreignDebtInDefault ? "YES" : "—"}
+    </td>
+    <td data-tip="Coup legitimacy">{row.coupLegitimacy > 0 ? row.coupLegitimacy.toFixed(0) : "—"}</td>
+    <td data-tip={row.civilUnrest ? "Civil unrest" : "Stable"}>{row.civilUnrest ? "YES" : "—"}</td>
     <td data-tip="Council sessions">{row.councilSessionNumber > 0 ? row.councilSessionNumber : "—"}</td>
     <td>{row.chancery.toFixed(2)}</td>
     <td>{row.stewardship.toFixed(2)}</td>

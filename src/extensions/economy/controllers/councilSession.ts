@@ -24,6 +24,23 @@ export function refreshCouncilSession(stateId?: number): void {
       sessionNumber: state.councilSessionNumber || 0,
       support: rn(state.councilSupport ?? 0, 1),
       debtVoteYes: rn(state.councilLastDebtVoteYes ?? 0, 3),
+      factionVotes: (state.councilLastVoteFactionDetail || []).map(d => ({
+        faction: d.faction,
+        share: d.share,
+        lean: d.lean,
+        contribution: d.contribution
+      })),
+      lineVotes: state.councilLastLineVotes
+        ? {
+            debtIssue: state.councilLastLineVotes.debtIssue,
+            warFooting: state.councilLastLineVotes.warFooting,
+            extraordinaryTax: state.councilLastLineVotes.extraordinaryTax,
+            militaryExpansion: state.councilLastLineVotes.militaryExpansion
+          }
+        : null,
+      coupLegitimacy: state.coupLegitimacy !== undefined ? rn(state.coupLegitimacy, 1) : null,
+      civilUnrest: Boolean(state.civilUnrest),
+      foreignDebtInDefault: Boolean(state.foreignDebtInDefault),
       log
     });
   }

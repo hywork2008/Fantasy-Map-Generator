@@ -20,6 +20,8 @@ export type CouncilLogKind =
   | "coup_risk"
   | "coup"
   | "foreign_debt"
+  | "diplomacy"
+  | "bond_market"
   | "note";
 
 export interface CouncilLogEntry {
@@ -31,6 +33,8 @@ export interface CouncilLogEntry {
   support?: number;
   yesShare?: number;
   amount?: number;
+  /** PR-14 optional faction breakdown string for vote lines. */
+  factionDetail?: string;
 }
 
 /** Max retained log lines per state. */
@@ -40,6 +44,8 @@ export interface CouncilSessionRecordInput {
   councilFailed?: boolean;
   councilSupport?: number;
   debtVoteYes?: number;
+  /** PR-14 human-readable faction vote line (e.g. "court 60% · merchants 35%…"). */
+  debtVoteFactionSummary?: string;
   taxFarmLeak?: number;
   debtIssued?: number;
   debtRepaid?: number;
@@ -48,9 +54,14 @@ export interface CouncilSessionRecordInput {
   clearedDefault?: boolean;
   foreignDebtIssued?: number;
   foreignDebtInterest?: number;
+  foreignDebtDefaulted?: boolean;
+  diplomacyWorsened?: number;
+  bondMarketIssued?: number;
   coupRisk?: boolean;
   coupSucceeded?: boolean;
   coupSummary?: string;
+  civilUnrestTick?: boolean;
+  legitimacy?: number;
 }
 
 function nextLogId(state: State): number {
@@ -66,7 +77,7 @@ export function appendCouncilLog(
   state: State,
   kind: CouncilLogKind,
   summary: string,
-  extra?: Partial<Pick<CouncilLogEntry, "support" | "yesShare" | "amount">>
+  extra?: Partial<Pick<CouncilLogEntry, "support" | "yesShare" | "amount" | "factionDetail">>
 ): CouncilLogEntry {
   const entry: CouncilLogEntry = {
     id: nextLogId(state),
@@ -101,8 +112,13 @@ export function recordCouncilSession(state: State, input: CouncilSessionRecordIn
       state,
       "vote",
       `Debt-issue motion: ${rn(input.debtVoteYes * 100, 0)}% yes` +
-        (input.debtVoteYes >= 0.5 ? " — carried." : " — defeated."),
-      { support, yesShare: input.debtVoteYes }
+        (input.debtVoteYes >= 0.5 ? " — carried." : " — defeated.") +
+        (input.debtVoteFactionSummary ? ` [${input.debtVoteFactionSummary}]` : ""),
+      {
+        support,
+        yesShare: input.debtVoteYes,
+        factionDetail: input.debtVoteFactionSummary
+      }
     );
   }
 
@@ -139,10 +155,27 @@ export function recordCouncilSession(state: State, input: CouncilSessionRecordIn
     });
   }
 
+  if ((input.bondMarketIssued || 0) > 0) {
+    appendCouncilLog(
+      state,
+      "bond_market",
+      `Bond-market issue ${rn(input.bondMarketIssued || 0, 2)} SP (third-party underwriter).`,
+      { amount: input.bondMarketIssued }
+    );
+  }
+
   if ((input.foreignDebtInterest || 0) > 0) {
     appendCouncilLog(state, "foreign_debt", `Foreign debt interest paid ${rn(input.foreignDebtInterest || 0, 2)} SP.`, {
       amount: input.foreignDebtInterest
     });
+  }
+
+  if (input.foreignDebtDefaulted) {
+    appendCouncilLog(state, "default", "Foreign loan(s) entered DEFAULT — creditor diplomacy chilled.");
+  }
+
+  if ((input.diplomacyWorsened || 0) > 0) {
+    appendCouncilLog(state, "diplomacy", `Diplomacy worsened with ${input.diplomacyWorsened} foreign creditor(s).`);
   }
 
   if (input.enteredDefault) {
@@ -151,10 +184,13 @@ export function recordCouncilSession(state: State, input: CouncilSessionRecordIn
     appendCouncilLog(state, "default", "Public debt default cleared — interest current.");
   }
 
-  if (input.coupSucceeded && input.coupSummary) {
-    appendCouncilLog(state, "coup", input.coupSummary);
-  } else if (input.coupRisk) {
+  // Coup success is logged by applyCoupAftermath; only note risk here if no success.
+  if (!input.coupSucceeded && input.coupRisk) {
     appendCouncilLog(state, "coup_risk", "Debt coup risk elevated (military restiveness).");
+  }
+
+  if (input.civilUnrestTick) {
+    appendCouncilLog(state, "note", `Civil unrest pressure (legitimacy ${rn(input.legitimacy ?? 0, 0)}).`);
   }
 }
 
@@ -168,6 +204,15 @@ export function getCouncilSessionLog(state: Pick<State, "councilSessionLog">): C
     month: entry.month,
     support: entry.support,
     yesShare: entry.yesShare,
-    amount: entry.amount
+    amount: entry.amount,
+    factionDetail: (entry as { factionDetail?: string }).factionDetail
   }));
+}
+
+/** Format PR-14 faction detail rows for session log / UI. */
+export function formatFactionVoteSummary(
+  details: { faction: string; lean: number; share: number }[] | undefined
+): string | undefined {
+  if (!details?.length) return undefined;
+  return details.map(d => `${d.faction} ${(d.lean * 100).toFixed(0)}%×${(d.share * 100).toFixed(0)}`).join(" · ");
 }

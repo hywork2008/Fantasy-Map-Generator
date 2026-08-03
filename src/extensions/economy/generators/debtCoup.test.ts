@@ -119,6 +119,10 @@ describe("debtCoup (PR-13)", () => {
     expect(state.debtCoupRisk).toBe(false);
     expect(handler).toHaveBeenCalled();
     expect(state.treasury).toBeGreaterThan(5);
+    // PR-14 aftermath
+    expect(state.civilUnrest).toBe(true);
+    expect(state.coupLegitimacy).toBeLessThan(50);
+    expect(state.warFooting).toBe(true);
 
     document.removeEventListener("fmg:debt-coup-success", handler);
   });

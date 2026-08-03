@@ -508,24 +508,45 @@ export interface State {
     newRulerName?: string;
   };
   /**
+   * PR-14: post-coup legitimacy 0–100 (undefined = no recent coup).
+   */
+  coupLegitimacy?: number;
+  /**
+   * PR-14: sticky civil unrest after a debt coup.
+   */
+  civilUnrest?: boolean;
+  /** PR-14: tax cycles while civil unrest has been active. */
+  civilUnrestCycles?: number;
+  /**
    * PR-13 foreign/international debt principal total (sum of foreignLoans).
    */
   foreignDebt?: number;
   /**
-   * PR-13 bilateral foreign loans (外債) from Ally/Friendly creditors.
+   * PR-13/14 bilateral or bond-market foreign loans (外債).
    */
   foreignLoans?: {
     creditorStateId: number;
     creditorName: string;
     principal: number;
     interestRate: number;
+    missedInterestCycles?: number;
+    inDefault?: boolean;
+    viaBondMarket?: boolean;
   }[];
+  /** PR-14: any foreign loan currently in default. */
+  foreignDebtInDefault?: boolean;
   /** PR-13 last-cycle foreign debt issued. */
   lastForeignDebtIssued?: number;
   /** PR-13 last-cycle foreign interest paid. */
   lastForeignDebtInterest?: number;
   /** PR-13 last-cycle foreign principal repaid. */
   lastForeignDebtRepaid?: number;
+  /** PR-14 last-cycle bond-market issue amount. */
+  lastBondMarketIssue?: number;
+  /** PR-14 diplomacy chill count last foreign-service cycle. */
+  lastForeignDiplomacyWorsened?: number;
+  /** PR-14 diplomacy thaw count last foreign-service cycle. */
+  lastForeignDiplomacyImproved?: number;
   /**
    * PR-13 council session chronicle (ring buffer).
    */
@@ -538,6 +559,7 @@ export interface State {
     support?: number;
     yesShare?: number;
     amount?: number;
+    factionDetail?: string;
   }[];
   /** PR-13 assembly session counter. */
   councilSessionNumber?: number;
@@ -556,6 +578,24 @@ export interface State {
   };
   /** PR-12 last debt-issue vote yes share (0–1). */
   councilLastDebtVoteYes?: number;
+  /**
+   * PR-14 last debt-issue vote per-faction detail.
+   */
+  councilLastVoteFactionDetail?: {
+    faction: string;
+    share: number;
+    lean: number;
+    contribution: number;
+  }[];
+  /**
+   * PR-14 last yes-share snapshot for each budget line.
+   */
+  councilLastLineVotes?: {
+    debtIssue: number;
+    warFooting: number;
+    extraordinaryTax: number;
+    militaryExpansion: number;
+  };
   /**
    * PR-11 thin budget-line approvals (support thresholds + PR-12 faction votes). Refreshed each tax cycle.
    */
