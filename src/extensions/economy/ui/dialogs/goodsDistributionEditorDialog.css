@@ -1,0 +1,322 @@
+/* Goods Distribution Editor — layout for the expression builder dialog.
+   Restores structure lost when inline styles were stripped; keeps the dialog
+   within the viewport and scrolls the builder / reference panes independently. */
+
+.fmg-dialog.goods-distribution-editor {
+  width: min(62em, calc(100vw - 2rem));
+  max-height: min(85vh, 52em);
+}
+
+.fmg-dialog.goods-distribution-editor > .fmg-dialog-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0.5em 0.75em;
+}
+
+.gde {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.5em;
+  min-height: 0;
+  min-width: 0;
+}
+
+.gde__intro {
+  flex-shrink: 0;
+  border: 1px solid var(--dark-solid);
+  border-radius: 3px;
+  padding: 0.4em 0.65em;
+  font-size: 0.9em;
+  opacity: 0.9;
+}
+
+.gde__meta {
+  display: grid;
+  flex-shrink: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5em;
+}
+
+.gde__meta label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+  min-width: 0;
+}
+
+.gde__meta label span {
+  font-size: 0.85em;
+  opacity: 0.85;
+}
+
+.gde__meta-span2 {
+  grid-column: span 2;
+}
+
+.gde__meta input[type="color"] {
+  width: 100%;
+  min-height: 1.8em;
+  padding: 0;
+  border: 1px solid var(--light-solid, #ccc);
+  cursor: pointer;
+}
+
+.gde__body {
+  display: flex;
+  flex: 1;
+  gap: 0.75em;
+  align-items: stretch;
+  min-height: 0;
+  min-width: 0;
+}
+
+.gde__builder {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.5em;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.gde__group {
+  border: 1px solid var(--light-solid, #ccc);
+  border-radius: 4px;
+  padding: 0.5em;
+  flex-shrink: 0;
+}
+
+.gde__or-sep,
+.gde__and-sep {
+  flex-shrink: 0;
+  text-align: center;
+  font-weight: 600;
+  opacity: 0.75;
+  padding: 0.15em 0;
+}
+
+.gde__and-sep {
+  text-align: left;
+  font-size: 0.85em;
+  padding: 0.25em 0;
+}
+
+.gde__cond-row {
+  display: grid;
+  grid-template-columns: 4.8em minmax(8em, 11em) minmax(0, 1fr) auto;
+  gap: 0.5em;
+  align-items: start;
+  margin-top: 0.35em;
+}
+
+.gde__not {
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.gde__params {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+  min-width: 0;
+}
+
+.gde__params-note,
+.gde__params-empty,
+.gde__params-label {
+  font-size: 0.85em;
+  opacity: 0.75;
+}
+
+.gde__params-empty {
+  font-style: italic;
+  padding-top: 0.35em;
+}
+
+.gde__params-note {
+  font-style: italic;
+}
+
+/* Cap multi-selects so biome / habitat lists cannot blow past the dialog. */
+.gde__multi {
+  width: 100%;
+  min-height: 5.5em;
+  max-height: 8.5em;
+  overflow-y: auto;
+}
+
+.gde__group-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5em;
+  margin-top: 0.5em;
+}
+
+.gde__add-or {
+  align-self: flex-start;
+  flex-shrink: 0;
+}
+
+.gde__output {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+  flex-shrink: 0;
+  border-top: 1px solid var(--light-solid, #e0e0e0);
+  padding-top: 0.5em;
+  margin-top: 0.15em;
+}
+
+.gde__output-title {
+  font-weight: 600;
+  opacity: 0.8;
+  font-size: 0.9em;
+}
+
+.gde__expression-row {
+  display: flex;
+  gap: 0.5em;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+/* Long expressions stay inside the pane: wrap and scroll instead of stretching
+   the dialog wider / taller than the viewport. */
+.gde__expression {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.85em;
+  line-height: 1.35;
+  resize: vertical;
+  min-height: 2.6em;
+  max-height: 6em;
+  overflow: auto;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.gde__cell-count {
+  flex-shrink: 0;
+  min-width: 8em;
+  text-align: right;
+  font-size: 0.9em;
+  opacity: 0.8;
+  padding-top: 0.25em;
+}
+
+.gde__preview {
+  font-size: 0.9em;
+  opacity: 0.8;
+  max-height: 4.5em;
+  overflow: auto;
+}
+
+.gde__ref {
+  display: flex;
+  flex-direction: column;
+  width: 17em;
+  flex-shrink: 0;
+  min-height: 0;
+  border-left: 1px solid var(--light-solid, #ccc);
+  padding-left: 0.65em;
+  overflow-y: auto;
+}
+
+.gde__ref-title {
+  flex-shrink: 0;
+  font-weight: 600;
+  margin-bottom: 0.35em;
+}
+
+.gde__ref-card {
+  margin-bottom: 0.45em;
+  padding: 0.35em 0.45em;
+  border: 1px solid var(--light-solid, #e4e4e4);
+  border-radius: 3px;
+  font-size: 0.88em;
+}
+
+.gde__ref-card code {
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.gde__ref-desc {
+  margin-top: 0.15em;
+  opacity: 0.8;
+}
+
+.gde__ref-note {
+  margin-top: 0.15em;
+  opacity: 0.75;
+  font-style: italic;
+}
+
+.gde__biome-swatch {
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+}
+
+.gde__biome-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.2em;
+}
+
+.gde__biome-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  opacity: 0.9;
+}
+
+@media (max-width: 52em) {
+  .fmg-dialog.goods-distribution-editor {
+    width: min(100vw - 1rem, 40em);
+  }
+
+  .gde__body {
+    flex-direction: column;
+  }
+
+  .gde__ref {
+    width: 100%;
+    max-height: 12em;
+    border-left: none;
+    border-top: 1px solid var(--light-solid, #ccc);
+    padding-left: 0;
+    padding-top: 0.5em;
+  }
+
+  .gde__meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .gde__cond-row {
+    grid-template-columns: 4.5em minmax(0, 1fr);
+  }
+
+  .gde__cond-row > :nth-child(3) {
+    grid-column: 1 / -1;
+  }
+
+  .gde__cond-row > :nth-child(4) {
+    grid-column: 2;
+    justify-self: end;
+  }
+}

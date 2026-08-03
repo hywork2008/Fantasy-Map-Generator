@@ -34,22 +34,11 @@ import {
 } from "../../controllers/goodsDistributionExpression";
 import { getGoods, getWorldContext } from "../../economyContext";
 import { useGoodsDistributionEditorState } from "../../store/goodsDistributionEditorState";
+import "./goodsDistributionEditorDialog.css";
 
 function getSelectedValues(event: React.ChangeEvent<HTMLSelectElement>): string[] {
   return Array.from(event.target.selectedOptions).map(option => option.value);
 }
-
-const styles = {
-  wrap: { display: "flex" },
-  body: { display: "flex" },
-  builder: { display: "flex" },
-  condRow: { display: "grid" },
-  params: { display: "flex" },
-  groupFooter: { display: "flex" },
-  output: { display: "flex" },
-  metaGrid: { display: "grid" },
-  ref: { overflowY: "auto" as const }
-};
 
 type BiomeOption = { id: number; name: string; color: string };
 
@@ -72,6 +61,25 @@ function getOccurrenceKey(occurrences: Map<string, number>, signature: string): 
   return `${signature}:${occurrence}`;
 }
 
+function paramSignature(def: (typeof FN_DEFS)[number]): string {
+  switch (def.paramType) {
+    case "none":
+      return "";
+    case "biomes":
+      return "id, ...";
+    case "biomeTags":
+      return '"tag", ...';
+    case "shore":
+      return "ring, ...";
+    case "featureType":
+      return '"type", ...';
+    case "habitats":
+      return '"habitat", ...';
+    default:
+      return "value";
+  }
+}
+
 const ConditionParams: React.FC<{
   condition: DistCondition;
   groupIndex: number;
@@ -82,19 +90,19 @@ const ConditionParams: React.FC<{
   if (!def) return null;
 
   if (def.paramType === "none") {
-    return <div>no parameters</div>;
+    return <div className="gde__params-empty">no parameters</div>;
   }
 
   if (def.paramType === "number") {
     return (
-      <div style={styles.params}>
+      <div className="gde__params">
         <input
           type="number"
           value={condition.numberVal}
           placeholder={def.paramLabel || "value"}
           onChange={event => setConditionNumberValue(groupIndex, conditionIndex, event.target.value)}
         />
-        {def.paramLabel && <div>{def.paramLabel}</div>}
+        {def.paramLabel && <div className="gde__params-label">{def.paramLabel}</div>}
       </div>
     );
   }
@@ -103,6 +111,8 @@ const ConditionParams: React.FC<{
     return (
       <select
         multiple
+        className="gde__multi"
+        size={6}
         value={condition.biomeIds.map(String)}
         onChange={event => setConditionBiomeIds(groupIndex, conditionIndex, getSelectedValues(event).map(Number))}
       >
@@ -119,6 +129,8 @@ const ConditionParams: React.FC<{
     return (
       <select
         multiple
+        className="gde__multi"
+        size={6}
         value={condition.biomeTagValues}
         onChange={event => setConditionBiomeTagValues(groupIndex, conditionIndex, getSelectedValues(event))}
       >
@@ -135,6 +147,8 @@ const ConditionParams: React.FC<{
     return (
       <select
         multiple
+        className="gde__multi"
+        size={5}
         value={condition.shoreValues}
         onChange={event => setConditionShoreValues(groupIndex, conditionIndex, getSelectedValues(event))}
       >
@@ -152,6 +166,8 @@ const ConditionParams: React.FC<{
     return (
       <select
         multiple
+        className="gde__multi"
+        size={6}
         value={condition.habitatValues}
         onChange={event => setConditionHabitatValues(groupIndex, conditionIndex, getSelectedValues(event))}
       >
@@ -167,6 +183,8 @@ const ConditionParams: React.FC<{
   return (
     <select
       multiple
+      className="gde__multi"
+      size={5}
       value={condition.typeValues}
       onChange={event => setConditionTypeValues(groupIndex, conditionIndex, getSelectedValues(event))}
     >
@@ -241,27 +259,29 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
       isOpen={isOpen}
       title={dialogTitle}
       onClose={handleClose}
+      className="goods-distribution-editor"
       buttons={[
         { label: "Cancel", onClick: handleClose },
         { label: "Apply", onClick: handleApply }
       ]}
     >
-      <div style={styles.wrap} className="fmg-dialog-content overflow-hidden">
-        <div className="header">
+      <div className="gde">
+        <div className="gde__intro">
           Edit the good metadata and its raw resource distribution. Leave distribution empty for manufactured-only
           goods.
         </div>
-        <div style={styles.metaGrid}>
+
+        <div className="gde__meta">
           <label>
-            <div>Name</div>
+            <span>Name</span>
             <input value={name} onChange={event => setDraftName(event.target.value)} />
           </label>
           <label>
-            <div>Color</div>
+            <span>Color</span>
             <input type="color" value={color} onChange={event => setDraftColor(event.target.value)} />
           </label>
           <label>
-            <div>Value</div>
+            <span>Value</span>
             <input
               type="number"
               min={0}
@@ -271,7 +291,7 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
             />
           </label>
           <label>
-            <div>Chance (%)</div>
+            <span>Chance (%)</span>
             <input
               type="number"
               min={0}
@@ -282,11 +302,11 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
             />
           </label>
           <label>
-            <div>Unit</div>
+            <span>Unit</span>
             <input value={unit} onChange={event => setDraftUnit(event.target.value)} />
           </label>
           <label>
-            <div>Icon</div>
+            <span>Icon</span>
             <input list="goods-icon-options" value={icon} onChange={event => setDraftIcon(event.target.value)} />
             <datalist id="goods-icon-options">
               {iconOptions.map(option => (
@@ -294,8 +314,8 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
               ))}
             </datalist>
           </label>
-          <label>
-            <div>Tags</div>
+          <label className="gde__meta-span2">
+            <span>Tags</span>
             <input
               value={tagsText}
               onChange={event => setDraftTagsText(event.target.value)}
@@ -303,8 +323,9 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
             />
           </label>
         </div>
-        <div style={styles.body} className="table overflow-hidden">
-          <div style={styles.builder}>
+
+        <div className="gde__body">
+          <div className="gde__builder">
             {(() => {
               const groupOccurrences = new Map<string, number>();
               return groups.map((group, groupIndex) => {
@@ -314,16 +335,16 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
 
                 return (
                   <React.Fragment key={groupKey}>
-                    {groupIndex > 0 && <div>OR</div>}
-                    <div>
+                    {groupIndex > 0 && <div className="gde__or-sep">OR</div>}
+                    <div className="gde__group">
                       {group.map((condition, conditionIndex) => {
                         const def = FN_DEFS.find(item => item.id === condition.fnId);
                         const conditionKey = getOccurrenceKey(conditionOccurrences, serializeCondition(condition));
                         return (
                           <div key={conditionKey}>
-                            {conditionIndex > 0 && <div>AND</div>}
-                            <div style={styles.condRow}>
-                              <label className="d-flex">
+                            {conditionIndex > 0 && <div className="gde__and-sep">AND</div>}
+                            <div className="gde__cond-row">
+                              <label className="gde__not">
                                 <input
                                   type="checkbox"
                                   className="native"
@@ -344,30 +365,36 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
                                   </option>
                                 ))}
                               </select>
-                              <div style={styles.params}>
+                              <div className="gde__params">
                                 <ConditionParams
                                   condition={condition}
                                   groupIndex={groupIndex}
                                   conditionIndex={conditionIndex}
                                   biomes={biomes}
                                 />
-                                {def?.note && <div>{def.note}</div>}
+                                {def?.note && <div className="gde__params-note">{def.note}</div>}
                               </div>
                               <button
                                 type="button"
                                 className="icon-trash-empty"
                                 onClick={() => removeCondition(groupIndex, conditionIndex)}
+                                aria-label="Remove condition"
                               />
                             </div>
                           </div>
                         );
                       })}
-                      <div style={styles.groupFooter}>
+                      <div className="gde__group-footer">
                         <button type="button" onClick={() => addCondition(groupIndex)}>
                           + Add condition
                         </button>
                         {groups.length > 1 && (
-                          <button type="button" className="icon-trash-empty" onClick={() => removeGroup(groupIndex)} />
+                          <button
+                            type="button"
+                            className="icon-trash-empty"
+                            onClick={() => removeGroup(groupIndex)}
+                            aria-label="Remove OR group"
+                          />
                         )}
                       </div>
                     </div>
@@ -375,55 +402,48 @@ export const GoodsDistributionEditorDialog: React.FC = () => {
                 );
               });
             })()}
-            <button type="button" onClick={addGroup}>
+
+            <button type="button" className="gde__add-or" onClick={addGroup}>
               + Add OR group
             </button>
-            <div style={styles.output}>
-              <div>Distribution</div>
-              <div className="d-flex">
-                <input readOnly value={expression} />
-                <span>{cellCountText}</span>
+
+            <div className="gde__output">
+              <div className="gde__output-title">Distribution</div>
+              <div className="gde__expression-row">
+                <textarea
+                  className="gde__expression"
+                  readOnly
+                  rows={2}
+                  value={expression}
+                  aria-label="Distribution expression"
+                />
+                <span className="gde__cell-count">{cellCountText}</span>
               </div>
-              <div>{previewText}</div>
+              <div className="gde__preview">{previewText}</div>
             </div>
           </div>
-          <div style={styles.ref}>
-            <div>Function Reference</div>
-            {FN_DEFS.map(def => {
-              const paramSig =
-                def.paramType === "none"
-                  ? ""
-                  : def.paramType === "biomes"
-                    ? "id, ..."
-                    : def.paramType === "biomeTags"
-                      ? '"tag", ...'
-                      : def.paramType === "shore"
-                        ? "ring, ..."
-                        : def.paramType === "featureType"
-                          ? '"type", ...'
-                          : def.paramType === "habitats"
-                            ? '"habitat", ...'
-                            : "value";
-              return (
-                <div key={def.id}>
-                  <code>{`${def.id}(${paramSig})`}</code>
-                  <div>{def.description}</div>
-                  {def.note && <div>{def.note}</div>}
-                </div>
-              );
-            })}
-            <div>
-              <div>Biome options</div>
-              <div className="d-grid">
+
+          <aside className="gde__ref">
+            <div className="gde__ref-title">Function Reference</div>
+            {FN_DEFS.map(def => (
+              <div key={def.id} className="gde__ref-card">
+                <code>{`${def.id}(${paramSignature(def)})`}</code>
+                <div className="gde__ref-desc">{def.description}</div>
+                {def.note && <div className="gde__ref-note">{def.note}</div>}
+              </div>
+            ))}
+            <div className="gde__ref-card">
+              <div className="gde__ref-title">Biome options</div>
+              <div className="gde__biome-list">
                 {biomes.map(biome => (
-                  <div key={biome.id} className="d-flex">
-                    <span style={{ display: "inline-block", background: biome.color }} />
+                  <div key={biome.id} className="gde__biome-item">
+                    <span className="gde__biome-swatch" style={{ background: biome.color }} />
                     {biome.name}
                   </div>
                 ))}
               </div>
             </div>
-          </div>
+          </aside>
         </div>
       </div>
     </Dialog>
