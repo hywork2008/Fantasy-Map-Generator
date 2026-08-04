@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createEmptyWildernessEcologyState, simulationContext } from "../../../context/simulationContext";
 import { createDefaultBiomesData } from "../../../data/biomeCatalog";
+import type { RNGService } from "../../../utils/probabilityUtils";
 import { useOptionsState, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
@@ -31,6 +32,24 @@ import {
   tickCullHiring
 } from "./threatCullHire";
 import { CULL_PLAYER_HIRE_LAG_DAYS, clearCullHireState, rebuildCullJobPostings } from "./threatCullJobPostings";
+
+/** Deterministic RNG that avoids death/injury and lands in success band for skilled hunters. */
+function alwaysSuccessRng(): RNGService {
+  let i = 0;
+  const seq = [0.9, 0.5, 0.99, 0.9, 0.5, 0.99, 0.9, 0.5, 0.99];
+  return {
+    rand: () => seq[i++ % seq.length] ?? 0.9,
+    P: () => false,
+    each: () => () => false,
+    gauss: () => 0,
+    Pint: n => Math.floor(n),
+    ra: <T>(a: T[]) => a[0],
+    rw: () => "",
+    biased: () => 0,
+    getNumberInRange: () => 0,
+    generateSeed: () => "0"
+  };
+}
 
 function setupFantasyBurgWithMonster(): void {
   const biomesData = createDefaultBiomesData();
@@ -93,7 +112,9 @@ function setupFantasyBurgWithMonster(): void {
         dead: false,
         roles: [],
         titles: [],
-        wealth: 0
+        wealth: 0,
+        // High personal combat so resolve prefers success vs r2 beast.
+        skills: { martial: 80, prowess: 90, diplomacy: 10, stewardship: 10, intrigue: 10, learning: 10 }
       }
     ]
   } as unknown as PackedGraph;
@@ -144,8 +165,8 @@ describe("threatCullHire PR-3a", () => {
     clearEconomyContext();
   });
 
-  it("keeps CULL_RESOLVE_ENABLED false in PR-3a", () => {
-    expect(CULL_RESOLVE_ENABLED).toBe(false);
+  it("enables CULL_RESOLVE_ENABLED in PR-3b", () => {
+    expect(CULL_RESOLVE_ENABLED).toBe(true);
   });
 
   it("lets a character apply and reserves a pending app for CULL_PLAYER_HIRE_LAG_DAYS", () => {
@@ -183,18 +204,27 @@ describe("threatCullHire PR-3a", () => {
     expect(character.roles?.some(r => r.kind === "cullHunter" || r.kind === "pestController")).toBe(true);
   });
 
-  it("freezes mission at 0 without resolving while CULL_RESOLVE_ENABLED is false", () => {
+  it("resolves combat when mission ends: pays bounty and reduces monster power", () => {
     const post = getCullJobPostings()[0];
     applyCharacterToCullJob({ characterId: 10, postingId: post.i });
-    tickCullHiring(CULL_PLAYER_HIRE_LAG_DAYS);
+    tickCullHiring(CULL_PLAYER_HIRE_LAG_DAYS, alwaysSuccessRng());
     const missionDays = getCharacterCullContract(10)!.missionDaysRemaining;
-    tickCullHiring(missionDays + 10);
-    const contract = getCharacterCullContract(10);
-    expect(contract).toBeTruthy();
-    expect(contract!.missionDaysRemaining).toBe(0);
-    // Still employed — no pay/ecology in PR-3a
-    expect(worldContext.pack.characters![0].roles?.length).toBeGreaterThan(0);
-    expect(worldContext.pack.monsters![0].power).toBe(8);
+    const powerBefore = worldContext.pack.monsters![0].power;
+    const wealthBefore = worldContext.pack.characters![0].wealth as number;
+
+    const { topics } = tickCullHiring(missionDays + 1, alwaysSuccessRng());
+
+    expect(getCharacterCullContract(10)).toBeNull();
+    expect(worldContext.pack.characters![0].roles ?? []).toHaveLength(0);
+    expect(worldContext.pack.characters![0].wealth).toBeGreaterThan(wealthBefore);
+    // Monster path may clear or just reduce depending on intensity/chunk.
+    const monsters = worldContext.pack.monsters ?? [];
+    if (monsters.length) {
+      expect(monsters[0].power).toBeLessThan(powerBefore);
+    } else {
+      expect(powerBefore).toBeGreaterThan(0);
+    }
+    expect(topics).toEqual(expect.arrayContaining(["simulation.cells", "map.annotations"]));
   });
 
   it("cancel withdraws pending application", () => {

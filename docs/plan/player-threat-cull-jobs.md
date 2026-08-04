@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Author** | Design draft (AI agent) |
 | **Date** | 2026-08-04 |
-| **Status** | Design approved — **PR-1 … PR-3a implemented** (board + apply/lag/accept; resolve still gated) |
+| **Status** | Design approved — **PR-1 … PR-3b implemented** (board + hire + combat resolve + ecology; PR-3c domain bonus still deferred) |
 | **Intended repo path** | `docs/plan/player-threat-cull-jobs.md` |
 | **Depends on** | Construction hire board (`constructionHire.ts`, urban-housing §hire board); wilderness ecology Phase 4–5 (`wildernessEcology.ts`, `biomePredators.ts`); characters skills + wealth; economy `martialIndividualMastery` / `individualSkills`; nobility PC panel |
 | **Related** | [wild-oikoumene-frontier.md](./wild-oikoumene-frontier.md) Phase 4–5; [urban-housing-system.md](./urban-housing-system.md) construction hire board; [individual-skill-mastery-system.md](./individual-skill-mastery-system.md) (plan; live code is `martialIndividualMastery.ts`); [high-fantasy-dungeons.md](./high-fantasy-dungeons.md) (explicit non-goal: dungeons); [knowledge-guild-system.md](./knowledge-guild-system.md) Phase 5 martial domains |

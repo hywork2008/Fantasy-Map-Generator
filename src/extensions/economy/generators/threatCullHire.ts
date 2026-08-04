@@ -1,10 +1,11 @@
 /**
- * Threat cull / pest hire lag, accept, purge, resign (PR-3a).
- * Combat resolve is gated off until PR-3b (`CULL_RESOLVE_ENABLED = false`).
+ * Threat cull / pest hire lag, accept, purge, resign, combat resolve (PR-3a/3b).
  * Spec: docs/plan/player-threat-cull-jobs.md.
  */
 
-import { HUNT_RESERVE } from "../../../generators/threatCullEffects";
+import { HUNT_RESERVE, resolvePlayerCullEffect } from "../../../generators/threatCullEffects";
+import type { DataTopic } from "../../../runtime/worldRuntime";
+import type { RNGService } from "../../../utils/probabilityUtils";
 import type { Character } from "../../characters/characterTypes";
 import { rn } from "../../hostUtils";
 import {
@@ -12,27 +13,38 @@ import {
   getCullCooldowns,
   getCullHireApplications,
   getCullJobPostings,
+  getSimulationContext,
+  getSimulationYear,
   getWorldContext,
   setCullActiveContracts,
-  setCullHireApplications
+  setCullCooldowns,
+  setCullHireApplications,
+  setCullJobPostings
 } from "../economyContext";
+import { cancelConstructionApplication, resignConstructionJob } from "./constructionHire";
 import { characterHasEmploymentCommitment } from "./employmentCommitment";
+import {
+  ANON_COMBAT_SCORE,
+  ANON_ECOLOGY_SCALE,
+  combatScore,
+  resolveCullCombat,
+  targetDifficulty
+} from "./threatCullCombat";
 import type { CullActiveContract, CullContractRole, CullHireApplication, CullJobPosting } from "./threatCullHireTypes";
 import { CULL_HUNTER_ROLE_KIND, CULL_PEST_ROLE_KIND, CULL_ROLE_SOURCE } from "./threatCullHireTypes";
 import {
   CULL_ANON_HIRE_LAG_DAYS,
   CULL_ANON_ROUND_DAYS,
+  CULL_INJURY_COOLDOWN_DAYS,
+  CULL_INJURY_WEALTH_LOSS,
   CULL_PLAYER_HIRE_LAG_DAYS,
   getCullJobPostingById,
   getLiveOpenSeats,
   getSimulationOrdinalDay
 } from "./threatCullJobPostings";
 
-/**
- * PR-3a: mission timer may hit 0 but resolve/pay/ecology must not run.
- * PR-3b flips this to true.
- */
-export const CULL_RESOLVE_ENABLED = false;
+/** PR-3b: mission timer reaching 0 runs combat + pay + ecology. */
+export const CULL_RESOLVE_ENABLED = true;
 
 /** Session accumulator for anonymous hire rounds (not persisted). */
 let daysSinceAnonRound = 0;
@@ -320,11 +332,12 @@ function acceptApplication(app: CullHireApplication): void {
 }
 
 /**
- * Advance hire lag, accept applications, decrement mission timers.
- * Does **not** resolve combat while `CULL_RESOLVE_ENABLED` is false (PR-3a).
+ * Advance hire lag, accept applications, decrement mission timers, resolve due contracts.
+ * Returns DataTopics that must be marked by economy.tick (ecology side effects).
  */
-export function tickCullHiring(deltaDays: number): void {
-  if (!(deltaDays > 0)) return;
+export function tickCullHiring(deltaDays: number, rng?: RNGService): { topics: DataTopic[] } {
+  const topics = new Set<DataTopic>();
+  if (!(deltaDays > 0)) return { topics: [] };
 
   purgeInvalidCullHireState();
 
@@ -346,15 +359,24 @@ export function tickCullHiring(deltaDays: number): void {
     acceptApplication(app);
   }
 
-  // Mission countdown — freeze at 0 without resolve in PR-3a.
+  // Mission countdown.
   const contracts = getCullActiveContracts().map(contract => ({
     ...contract,
     missionDaysRemaining: Math.max(0, contract.missionDaysRemaining - deltaDays)
   }));
   setCullActiveContracts(contracts);
 
-  if (CULL_RESOLVE_ENABLED) {
-    // PR-3b will resolve contracts with missionDaysRemaining <= 0 here.
+  if (CULL_RESOLVE_ENABLED && rng) {
+    const stillActive: CullActiveContract[] = [];
+    for (const contract of getCullActiveContracts()) {
+      if (contract.missionDaysRemaining > 0) {
+        stillActive.push(contract);
+        continue;
+      }
+      const resultTopics = resolveCullContract(contract, rng);
+      for (const t of resultTopics) topics.add(t);
+    }
+    setCullActiveContracts(stillActive);
   }
 
   // Anonymous applications (heroes get first crack — slower anon lag/round).
@@ -363,6 +385,109 @@ export function tickCullHiring(deltaDays: number): void {
     daysSinceAnonRound -= CULL_ANON_ROUND_DAYS;
     runAnonymousCullRound();
   }
+
+  if (topics.size) {
+    topics.add("extension.economy");
+    topics.add("simulation.states");
+  }
+  return { topics: [...topics] };
+}
+
+/**
+ * One-shot resolve for a due contract. Caller removes the contract from the active list.
+ * Returns ecology topics touched (may be empty on fail with no power cut).
+ */
+function resolveCullContract(contract: CullActiveContract, rng: RNGService): DataTopic[] {
+  const world = getWorldContext();
+  const named = contract.characterId != null;
+  const character = named ? world.pack.characters?.find(c => c.i === contract.characterId) : undefined;
+
+  // Named character must still be alive in burg; else forfeit (purge should have caught this).
+  if (named && (!character || character.dead || character.location !== contract.burgId)) {
+    disposeContract(contract, "forfeit", new Map(world.pack.characters?.map(c => [c.i, c]) ?? []));
+    return [];
+  }
+
+  const score = named && character ? combatScore(character, 0) : ANON_COMBAT_SCORE;
+  const combat = resolveCullCombat({
+    combatScore: score,
+    difficulty: targetDifficulty(contract.target),
+    rarity: contract.target.rarity,
+    rng
+  });
+  contract.lastOutcome = combat.outcome;
+
+  // Death path (named only).
+  if (named && character && combat.outcome === "dead") {
+    character.dead = true;
+    character.deathYear = getSimulationYear();
+    removeCullRole(character);
+    cancelConstructionApplication(character.i);
+    resignConstructionJob(character.i);
+    // Escrow forfeited (already deducted).
+    return [];
+  }
+
+  const topics: DataTopic[] = [];
+
+  // Ecology on success/partial intensity.
+  if (combat.intensity > 0) {
+    const simulation = getSimulationContext();
+    if (simulation) {
+      const scale = named ? 1 : ANON_ECOLOGY_SCALE;
+      const effect = resolvePlayerCullEffect({
+        world,
+        simulation,
+        target: contract.target,
+        intensity: combat.intensity * scale,
+        rng,
+        macroCellId: contract.macroCellId
+      });
+      for (const t of effect.topics) topics.push(t);
+      if (effect.cleared) {
+        // Drop the posting so the board does not re-offer a dead target.
+        setCullJobPostings(getCullJobPostings().filter(p => p.i !== contract.postingId));
+      }
+    }
+  }
+
+  // Pay named hunters only; follow ecology outcome (not injury).
+  if (named && character && (combat.outcome === "success" || combat.outcome === "partial")) {
+    payCullBounty(contract, character, combat.outcome);
+  }
+
+  // Injury orthogonal — after pay.
+  if (named && character && combat.injured) {
+    applyInjury(character);
+  }
+
+  if (named && character) removeCullRole(character);
+  return topics;
+}
+
+function payCullBounty(contract: CullActiveContract, character: Character, outcome: "success" | "partial"): void {
+  const state = getWorldContext().pack.states?.[contract.stateId];
+  if (!state?.i) return;
+
+  const targetPay = outcome === "success" ? contract.bounty : contract.bountyPartial;
+  const alreadyEscrowed = contract.escrow;
+  const extraWanted = Math.max(0, targetPay - alreadyEscrowed);
+  const available = Math.max(0, (state.treasury ?? 0) - HUNT_RESERVE);
+  const extraPaid = Math.min(extraWanted, available);
+  if (extraPaid > 0) {
+    state.treasury = rn((state.treasury ?? 0) - extraPaid, 2);
+  }
+  const paid = rn(Math.min(targetPay, alreadyEscrowed + extraPaid), 2);
+  if (paid > 0) {
+    character.wealth = rn((character.wealth || 0) + paid, 2);
+  }
+}
+
+function applyInjury(character: Character): void {
+  const cooldowns = { ...getCullCooldowns() };
+  cooldowns[String(character.i)] = getSimulationOrdinalDay() + CULL_INJURY_COOLDOWN_DAYS;
+  setCullCooldowns(cooldowns);
+  character.wealth = rn(Math.max(0, (character.wealth || 0) - CULL_INJURY_WEALTH_LOSS), 2);
 }
 
 function runAnonymousCullRound(): void {

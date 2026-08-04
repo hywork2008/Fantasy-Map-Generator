@@ -1,3 +1,4 @@
+import type { DataTopic } from "../../runtime/worldRuntime";
 import type { ExtensionAPI } from "../../types/extension-api";
 import type { Point } from "../hostCore";
 import { useOptionsState } from "../hostCore";
@@ -1871,8 +1872,24 @@ export function init(api: ExtensionAPI): void {
   _unregisterTickSystem = api.registerSimulationSystem({
     id: "economy.tick",
     phase: "economy",
-    reads: ["map.politics", "extension.economy", "simulation.burgs", "simulation.states"],
-    writes: ["extension.economy", "simulation.burgs", "simulation.states", "map.settlements"],
+    // map.annotations / simulation.cells: cull resolve may mutate monsters, markers, danger
+    // (docs/plan/player-threat-cull-jobs.md K18 / PR-3b).
+    reads: [
+      "map.politics",
+      "map.annotations",
+      "extension.economy",
+      "simulation.burgs",
+      "simulation.states",
+      "simulation.cells"
+    ],
+    writes: [
+      "extension.economy",
+      "simulation.burgs",
+      "simulation.states",
+      "map.settlements",
+      "simulation.cells",
+      "map.annotations"
+    ],
     cadence: { every: 1 },
     profileLabel: "economy",
     run: (context, writer) => {
@@ -1987,6 +2004,7 @@ export function init(api: ExtensionAPI): void {
       let settledAdultsFromMobility = 0;
       let urbanWaterChanged = false;
       let burgGroupsChanged = false;
+      let cullTopics: readonly DataTopic[] = [];
       measureTickStep("economy:dailyHiringPregnancy", () => {
         // Pregnancy observability (PR-P1): age/conceive after demography in the same advanceTime.
         // When PR-P2 registers a birth-floor provider, tickUrbanPregnancy is a no-op (provider owns mutation).
@@ -1995,8 +2013,8 @@ export function init(api: ExtensionAPI): void {
         tickConstructionHiring(effectiveDays);
         // Threat cull / pest job board expiry + monthly top-up (PR-2).
         tickCullJobBoard(effectiveDays);
-        // Cull hire lag / accept / mission countdown (PR-3a; resolve gated off until PR-3b).
-        tickCullHiring(effectiveDays);
+        // Cull hire lag / accept / combat resolve + ecology (PR-3b).
+        cullTopics = tickCullHiring(effectiveDays, context.rng).topics;
       });
       measureTickStep("economy:annualUrbanKnowledge", () => {
         const urbanMobility = UrbanLaborIntake.updateAnnualState(getWorldContext(), context.rng);
@@ -2073,6 +2091,11 @@ export function init(api: ExtensionAPI): void {
       writer.markChanged("extension.economy", "simulation.states");
       if (burgGroupsChanged || settledAdultsFromMobility > 0 || urbanWaterChanged) {
         writer.markChanged("simulation.burgs", "map.settlements");
+      }
+      // Cull ecology topics (cells/annotations) — only when resolve actually mutated host data.
+      if (cullTopics.length) {
+        const hostTopics = cullTopics.filter(t => t === "simulation.cells" || t === "map.annotations");
+        if (hostTopics.length) writer.markChanged(...hostTopics);
       }
     }
   });
