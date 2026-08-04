@@ -6,7 +6,8 @@ import {
 } from "../../characters/backstoryProfile";
 import type { Character, CharacterRole } from "../../characters/characterTypes";
 import { finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
-import { createPerson } from "../../characters/personFactory";
+import { createPerson, resolveRaceIdForCulture } from "../../characters/personFactory";
+import { rollApprenticeAge } from "../../characters/raceAge";
 import type { Burg } from "../../hostTypes";
 import { P, rand } from "../../hostUtils";
 import {
@@ -54,8 +55,6 @@ const SUCCESSION_DOMAINS: readonly CraftKnowledgeDomain[] = ["metallurgy"];
 /** Skill level at which a master is established enough to start training an apprentice. */
 const MASTER_APPRENTICE_ELIGIBLE_SKILL = 40;
 const MAX_APPRENTICES_PER_MASTER = 2;
-const APPRENTICE_MIN_AGE = 12;
-const APPRENTICE_MAX_AGE = 17;
 
 function isMasterRole(role: CharacterRole, burgId: number, domain: CraftKnowledgeDomain): boolean {
   return (
@@ -191,10 +190,11 @@ function createApprentice(
 ): Character {
   const { pack } = getWorldContext();
   const burg = pack.burgs[burgId] as Burg | undefined;
-  const character = createPerson(getNextCharacterId(characters), resolveBurgCulture(burg), {
+  const cultureId = resolveBurgCulture(burg);
+  const character = createPerson(getNextCharacterId(characters), cultureId, {
     primarySkill: "engineering",
     roleClass: "ordinary",
-    ageOverride: rand(APPRENTICE_MIN_AGE, APPRENTICE_MAX_AGE),
+    ageOverride: rollApprenticeAge(resolveRaceIdForCulture(cultureId)),
     homeStateId: burg?.state ?? 0,
     genderOverride: rollBalancedEconomyGender(characters)
   });

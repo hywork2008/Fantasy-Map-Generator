@@ -30,6 +30,16 @@ export function sampleLitter(fertility: RaceFertility): number {
 }
 
 /**
+ * Expected live births if monogamously paired for the entire fertile window.
+ * Primary calibration knob for multi-race population balance (R_max).
+ */
+export function lifetimeExpectedBirths(fertility: RaceFertility): number {
+  const window = Math.max(0, fertility.fertilityEnd - fertility.fertilityStart);
+  if (window <= 0) return 0;
+  return (window / Math.max(0.5, fertility.interbirthYears)) * fertility.litterMean;
+}
+
+/**
  * Expected surviving children over fertile years of marriage.
  * Polygyny multiplies birth-event opportunities (simplified).
  */

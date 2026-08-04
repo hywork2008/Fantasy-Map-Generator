@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createDefaultRaces } from "../../data/races";
 import { worldContext } from "../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../hostTypes";
 import { clearCharactersContext, initCharactersContext } from "./charactersContext";
@@ -9,6 +10,7 @@ import {
   resolvePersonGender,
   rollPeakAppearance
 } from "./personFactory";
+import { FEUDAL_MALE_SHARE, LONG_LIVED_MALE_SHARE, maleShareForLifespan } from "./raceAge";
 
 describe("getUnmarriedChance", () => {
   it("uses a 20% permanent-unmarried baseline for established ordinary adults", () => {
@@ -113,5 +115,33 @@ describe("resolvePersonGender", () => {
     const samples = Array.from({ length: 200 }, () => resolvePersonGender(3));
     const maleShare = samples.filter(g => g === "male").length / samples.length;
     expect(maleShare).toBeGreaterThan(0.75);
+  });
+
+  it("uses near-parity with slight female lean for long-lived races without characterGender", () => {
+    worldContext.pack = {
+      races: createDefaultRaces(),
+      cultures: [{ i: 0, name: "Elvenhold", base: 1, shield: "round", race: 2 }]
+    } as unknown as PackedGraph;
+    const elf = createDefaultRaces().find(r => r.key === "elf")!;
+    expect(elf.characterGender).toBeUndefined();
+    expect(maleShareForLifespan(elf.lifespan!)).toBe(LONG_LIVED_MALE_SHARE);
+
+    const samples = Array.from({ length: 400 }, () => resolvePersonGender(0, undefined, elf.i));
+    const maleShare = samples.filter(g => g === "male").length / samples.length;
+    // ~0.45 male; allow sampling noise but reject feudal ~0.9
+    expect(maleShare).toBeGreaterThan(0.32);
+    expect(maleShare).toBeLessThan(0.58);
+  });
+});
+
+describe("maleShareForLifespan", () => {
+  it("keeps feudal bias at human lifespan and female lean at elf scale", () => {
+    expect(maleShareForLifespan(75)).toBe(FEUDAL_MALE_SHARE);
+    expect(maleShareForLifespan(50)).toBe(FEUDAL_MALE_SHARE);
+    expect(maleShareForLifespan(500)).toBe(LONG_LIVED_MALE_SHARE);
+    expect(maleShareForLifespan(750)).toBe(LONG_LIVED_MALE_SHARE);
+    const dwarf = maleShareForLifespan(350);
+    expect(dwarf).toBeGreaterThan(LONG_LIVED_MALE_SHARE);
+    expect(dwarf).toBeLessThan(FEUDAL_MALE_SHARE);
   });
 });

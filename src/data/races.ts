@@ -6,8 +6,14 @@
  *
  * Index 0 is reserved for "Unknown" (Wildlands / unset), matching culture id 0.
  *
- * Lifespans / fertility / beauty ideals are Western-fantasy genre defaults
- * (Tolkien-ish / D&D-flavoured tabletop scale), not historical demography.
+ * Lifespans / beauty ideals are Western-fantasy genre defaults (Tolkien-ish /
+ * D&D tabletop scale). Fertility is calibrated for **population simulation**:
+ * long-lived races sit near replacement lifetime births (not human-scale
+ * spacing stretched only a little). See docs/plan/characters/appearance-and-reproduction.md §3.
+ *
+ * Court sex ratio when `characterGender` is omitted follows typical lifespan
+ * (short-lived ≈ feudal male bias; long-lived ≈ near parity / slight female majority).
+ * See `maleShareForLifespan` in src/extensions/characters/raceAge.ts.
  *
  * World rule (beauty & pairing): same-race judgment uses phenotype + race ideals;
  * cross-race looks are mostly "incomprehensible / odd", with limited grasp when
@@ -43,6 +49,7 @@ const humanLooks: AppearanceAxes = {
   ornament: 45
 };
 
+/** R_max ≈ 8.7 — pre-modern completed fertility under continuous pairing. */
 const humanFertility: RaceFertility = {
   fertilityStart: 16,
   fertilityEnd: 45,
@@ -86,10 +93,11 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     beautyIdeal: {
       weights: { refinement: 1.4, symmetry: 1.1, stature: 0.4, build: -0.6, vitality: 0.5, ornament: 0.2 }
     },
+    // R_max ≈ 2.5 (near-replacement; low adult mortality ⇒ must not explode)
     fertility: {
       fertilityStart: 100,
-      fertilityEnd: 500,
-      interbirthYears: 20,
+      fertilityEnd: 400,
+      interbirthYears: 120,
       litterMean: 1.0,
       litterMax: 2
     }
@@ -103,10 +111,11 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     beautyIdeal: {
       weights: { refinement: 1.2, symmetry: 1.0, ornament: 0.7, vitality: 0.4, build: -0.3, stature: 0.3 }
     },
+    // R_max ≈ 3.0 (slightly above high elves; higher war attrition assumed)
     fertility: {
       fertilityStart: 80,
-      fertilityEnd: 450,
-      interbirthYears: 18,
+      fertilityEnd: 380,
+      interbirthYears: 100,
       litterMean: 1.0,
       litterMax: 2
     }
@@ -120,10 +129,11 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     beautyIdeal: {
       weights: { build: 1.2, vitality: 0.9, ornament: 0.6, symmetry: 0.7, stature: -0.4, refinement: 0.2 }
     },
+    // R_max ≈ 4.2 (slow recovery, stable clans)
     fertility: {
       fertilityStart: 40,
-      fertilityEnd: 200,
-      interbirthYears: 8,
+      fertilityEnd: 160,
+      interbirthYears: 30,
       litterMean: 1.05,
       litterMax: 2
     }
@@ -137,6 +147,7 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     beautyIdeal: {
       weights: { vitality: 1.0, ornament: 0.8, build: 0.5, symmetry: 0.3, refinement: -0.4, stature: 0.2 }
     },
+    // R_max ≈ 33 (boom / bust; high juvenile death in macro demography later)
     fertility: {
       fertilityStart: 10,
       fertilityEnd: 35,
@@ -154,6 +165,7 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     beautyIdeal: {
       weights: { build: 1.4, stature: 1.0, ornament: 0.8, vitality: 0.9, refinement: -0.7, symmetry: 0.2 }
     },
+    // R_max ≈ 14.6 (fast breeders, below goblin clutches)
     fertility: {
       fertilityStart: 12,
       fertilityEnd: 40,
@@ -171,10 +183,11 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     beautyIdeal: {
       weights: { stature: 1.5, build: 1.0, vitality: 0.7, symmetry: 0.4, refinement: -0.3, ornament: 0.2 }
     },
+    // R_max ≈ 3.0
     fertility: {
       fertilityStart: 30,
-      fertilityEnd: 150,
-      interbirthYears: 10,
+      fertilityEnd: 120,
+      interbirthYears: 30,
       litterMean: 1.0,
       litterMax: 2
     }
@@ -188,10 +201,11 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     beautyIdeal: {
       weights: { vitality: 1.2, stature: 0.9, ornament: 0.8, build: 0.7, symmetry: 0.5, refinement: 0.4 }
     },
+    // R_max ≈ 2.5 (very slow; scarce clutches)
     fertility: {
-      fertilityStart: 50,
-      fertilityEnd: 600,
-      interbirthYears: 25,
+      fertilityStart: 100,
+      fertilityEnd: 500,
+      interbirthYears: 160,
       litterMean: 1.0,
       litterMax: 3
     }
@@ -205,6 +219,7 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     beautyIdeal: {
       weights: { ornament: 1.3, vitality: 0.8, refinement: 0.5, build: 0.4, symmetry: -0.2, stature: 0.3 }
     },
+    // R_max ≈ 55 (egg-sac boom; most offspring do not reach adulthood in lore)
     fertility: {
       fertilityStart: 8,
       fertilityEnd: 30,
@@ -223,6 +238,7 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     beautyIdeal: {
       weights: { vitality: 1.2, build: 1.0, stature: 0.6, symmetry: 0.7, refinement: 0.4, ornament: 0.3 }
     },
+    // R_max ≈ 9.5 (human-like; warrior attrition)
     fertility: {
       fertilityStart: 16,
       fertilityEnd: 42,

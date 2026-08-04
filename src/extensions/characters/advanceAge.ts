@@ -9,6 +9,7 @@ import {
   replaceCharacters
 } from "./charactersContext";
 import type { Character, CharacterRoleClass, CharacterSkills } from "./characterTypes";
+import { getRaceMaturityAge, resolveRaceAgeProfile, scaleHumanAgeToRace } from "./raceAge";
 
 /** Physical decline sets in past this age for short-lived (human-scale) races only. */
 export const DECLINE_AGE_THRESHOLD = 35;
@@ -163,9 +164,13 @@ export function advanceCharacterAging(deltaYears: number): void {
       continue;
     }
 
-    // Age Growth for young characters
-    if (newAge <= 25 && deltaYears > 0) {
-      const growthMax = newAge <= 16 ? rand(3, 8) : rand(0, 2);
+    // Age growth for young characters (thresholds scale with race maturity).
+    const raceId = resolveCharacterRaceId(character);
+    const profile = resolveRaceAgeProfile(raceId);
+    const maturity = getRaceMaturityAge(raceId);
+    const youngAdultCap = scaleHumanAgeToRace(25, profile);
+    if (newAge <= youngAdultCap && deltaYears > 0) {
+      const growthMax = newAge <= maturity ? rand(3, 8) : rand(0, 2);
       const growth = Math.floor(growthMax * deltaYears);
       if (growth > 0) {
         for (const key of Object.keys(character.skills) as (keyof typeof character.skills)[]) {
@@ -180,7 +185,7 @@ export function advanceCharacterAging(deltaYears: number): void {
       }
 
       // Personality drift for children (personalities become more extreme/defined as they grow)
-      if (newAge <= 16) {
+      if (newAge <= maturity) {
         const drift = Math.floor(rand(1, 4) * deltaYears);
         for (const key of Object.keys(character.personality) as (keyof typeof character.personality)[]) {
           if (key === "confidence") continue; // Handled above

@@ -20,11 +20,14 @@ import {
   rollFirstMarriageAge,
   sampleLitter
 } from "./fertility";
+import {
+  FEUDAL_MALE_SHARE,
+  isRaceMinor,
+  maleShareForRace,
+  raceLateMarriageThresholds,
+  rollDefaultAdultAge
+} from "./raceAge";
 import { rollCharacterSkills } from "./skillGeneration";
-
-/** Default adult age range rolled when no `ageOverride` is given (human-scale roles). */
-const DEFAULT_MIN_AGE = 28;
-const DEFAULT_MAX_AGE = 65;
 
 /**
  * Historical scalar appearance mean/σ (own-race cache still clusters near this for humans).
@@ -73,7 +76,11 @@ export interface CreatePersonOptions {
   /** Denormalized pointer stored on Character.state, e.g. for UI grouping/filtering. */
   homeStateId: number;
   ageOverride?: number;
-  /** Caller-specified gender. Omit to use race `characterGender` policy, then feudal male bias. */
+  /**
+   * Caller-specified gender. Omit to use race `characterGender` policy, else lifespan-based
+   * court sex ratio (feudal male bias for short-lived; near parity / slight female majority
+   * for long-lived).
+   */
   genderOverride?: Gender;
   /**
    * pack.races id when different from culture.race (mixed polities).
@@ -119,9 +126,13 @@ export function getRaceCharacterGenderMode(cultureId: number, raceId?: number): 
 }
 
 /**
- * Resolve gender for a new person: explicit override → race policy → feudal male bias (~90%).
- * Amazones race (`characterGender: "female_only"`) forces female for every createPerson path
- * that does not pass genderOverride.
+ * Resolve gender for a new person:
+ * 1. explicit `genderOverride`
+ * 2. race / culture `characterGender` policy (`female_only` / `balanced` / `male_dominant`)
+ * 3. default from typical lifespan — short-lived ≈ feudal male court bias; long-lived ≈
+ *    parity with a slight female majority (lower reproductive time-tax + male protector deaths).
+ *
+ * Amazones (`female_only`) forces female for every createPerson path without genderOverride.
  */
 export function resolvePersonGender(cultureId: number, genderOverride?: Gender, raceId?: number): Gender {
   if (genderOverride) return genderOverride;
@@ -129,8 +140,12 @@ export function resolvePersonGender(cultureId: number, genderOverride?: Gender, 
   const mode = getRaceCharacterGenderMode(cultureId, raceId);
   if (mode === "female_only") return "female";
   if (mode === "balanced") return P(0.5) ? "male" : "female";
-  // male_dominant or undefined: historical feudal court bias
-  return P(0.9) ? "male" : "female";
+  if (mode === "male_dominant") return P(FEUDAL_MALE_SHARE) ? "male" : "female";
+
+  // No explicit policy: reproductive time-budget from lifespan.
+  const resolvedRaceId = raceId ?? resolveRaceIdForCulture(cultureId);
+  const maleShare = maleShareForRace(resolvedRaceId);
+  return P(maleShare) ? "male" : "female";
 }
 
 function buildAbilityProfile(
@@ -147,24 +162,26 @@ function buildAbilityProfile(
 
 /**
  * Returns the chance that a person of this age has not married. It combines permanent
- * unmarriedness with late first marriage, rather than treating every adult as married from 16.
+ * unmarriedness with late first marriage, rather than treating every adult as married from maturity.
+ * Thresholds scale with race maturity / lifespan when `raceId` is provided.
  */
 export function getUnmarriedChance(
   age: number,
   marriageExpectation: MarriageExpectation,
   isReligiousRole: boolean,
-  formName?: string
+  formName?: string,
+  raceId?: number
 ): number {
-  if (age < 16) return 1;
+  const { maturity, early, mid, established } = raceLateMarriageThresholds(raceId);
+  if (age < maturity) return 1;
 
   const isReligious = isReligiousRole || (formName !== undefined && RELIGIOUS_FORMS.has(formName));
   const permanentRate = isReligious ? RELIGIOUS_UNMARRIED_RATE : PERMANENT_UNMARRIED_RATE[marriageExpectation];
 
-  // Medieval north-west European first marriages were commonly in the mid-to-late twenties.
-  // Keep younger adults visibly unmarried while converging on their role's permanent rate at 28.
-  if (age < 21) return Math.max(permanentRate, 0.8);
-  if (age < 25) return Math.max(permanentRate, 0.45);
-  if (age < 28) return Math.max(permanentRate, 0.28);
+  // Human baseline: mid-to-late twenties; race-scaled via raceLateMarriageThresholds.
+  if (age < early) return Math.max(permanentRate, 0.8);
+  if (age < mid) return Math.max(permanentRate, 0.45);
+  if (age < established) return Math.max(permanentRate, 0.28);
   return permanentRate;
 }
 
@@ -182,7 +199,7 @@ export function generateFamily(
     return { spouses: 0, children: 0, grandchildren: 0, greatGrandchildren: 0, spouseIds: [], childIds: [] };
   }
 
-  if (P(getUnmarriedChance(age, marriageExpectation, isReligiousRole, formName))) {
+  if (P(getUnmarriedChance(age, marriageExpectation, isReligiousRole, formName, raceId))) {
     return { spouses: 0, children: 0, grandchildren: 0, greatGrandchildren: 0, spouseIds: [], childIds: [] };
   }
 
@@ -254,7 +271,8 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   const race = raceOverride ?? resolveRaceIdForCulture(cultureId);
   // Race policy (e.g. Amazones female_only) or feudal ~90% male default — see resolvePersonGender.
   const gender: Gender = resolvePersonGender(cultureId, genderOverride, race);
-  const age = ageOverride !== undefined ? ageOverride : rand(DEFAULT_MIN_AGE, DEFAULT_MAX_AGE);
+  // Ages scale with race maturity + lifespan (elves are not rolled as 28–65 year “adults”).
+  const age = ageOverride !== undefined ? ageOverride : rollDefaultAdultAge(race);
 
   const guile = rand(1, 100);
   const piety = isReligiousRole ? rand(60, 100) : rand(1, 100);
@@ -283,9 +301,11 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     skills.prowess = Math.max(1, skills.prowess - Math.floor((age - DECLINE_AGE_THRESHOLD) * prowessRate));
   }
 
-  // If character is a minor, drastically reduce base stats. They will grow over time in advanceCharacterAging.
-  if (age < 16) {
-    const ageFactor = Math.max(0.05, age / 16);
+  // If character is a minor (below race maturity), drastically reduce base stats.
+  // They will grow over time in advanceCharacterAging.
+  if (isRaceMinor(age, race)) {
+    const maturity = Math.max(1, raceLateMarriageThresholds(race).maturity);
+    const ageFactor = Math.max(0.05, age / maturity);
     for (const key of Object.keys(skills) as (keyof CharacterSkills)[]) {
       skills[key] = Math.max(1, Math.floor(skills[key] * ageFactor));
     }
@@ -324,8 +344,9 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
 
   // If character is a minor, neutralize personality towards 50 so babies don't act like evil masterminds.
   // They will slowly drift towards extremes in advanceCharacterAging.
-  if (age < 16) {
-    const ageFactor = Math.max(0.1, age / 16);
+  if (isRaceMinor(age, race)) {
+    const maturity = Math.max(1, raceLateMarriageThresholds(race).maturity);
+    const ageFactor = Math.max(0.1, age / maturity);
     for (const key of Object.keys(personality) as (keyof CharacterPersonality)[]) {
       if (key === "confidence") continue; // Handled differently
       const val = (personality as unknown as Record<string, number>)[key as string];

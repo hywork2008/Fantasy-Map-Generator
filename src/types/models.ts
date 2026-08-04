@@ -6,9 +6,11 @@ export type CultureType = (typeof CULTURE_TYPES)[number];
 
 /**
  * How character generation rolls sex for people of this race (nobility / createPerson).
- * - male_dominant: historical feudal court bias (~90% male) — the default when omitted
+ * - male_dominant: historical feudal court bias (~90% male)
  * - female_only: Amazones-style all-female polities
  * - balanced: ~50/50
+ * When omitted, sex ratio is derived from typical lifespan (short-lived ≈ male-biased courts;
+ * long-lived ≈ parity with a slight female majority). See `maleShareForLifespan` in raceAge.ts.
  */
 export const CHARACTER_GENDER_MODES = ["male_dominant", "female_only", "balanced"] as const;
 export type CharacterGenderMode = (typeof CHARACTER_GENDER_MODES)[number];
@@ -44,7 +46,12 @@ export interface RaceBeautyIdeal {
   weights: Partial<Record<AppearanceAxisId, number>>;
 }
 
-/** Species reproductive defaults (character households / future tick births). */
+/**
+ * Species reproductive defaults (character households / future tick births).
+ * Calibrated so R_max = (end−start)/interbirth × litterMean supports multi-race
+ * population balance (long-lived races near replacement). See
+ * docs/plan/characters/appearance-and-reproduction.md §3.2.
+ */
 export interface RaceFertility {
   /** Age of reproductive maturity (years). */
   fertilityStart: number;
