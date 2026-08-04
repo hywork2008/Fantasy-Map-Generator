@@ -20,6 +20,7 @@ import type { Monster, State } from "../types/models";
 import type { RNGService } from "../utils/probabilityUtils";
 import { STATE_EXPAND_DANGER_BAN } from "./dangerExpandPolicy";
 import { biomePredatorScaleForMode, rebuildDangerField, type ThreatCalculationMode } from "./dangerField";
+import { dungeonsAsDangerSources } from "./dungeons-generator";
 import { getThreatSpawnProfile, resolveThreatCultureMode } from "./threatProfiles";
 import { assignWildLandTags, WILD_LAND_MARGIN_DANGER_MIN } from "./wildLandTags";
 
@@ -177,12 +178,13 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
   world.pack.monsters = monsters.filter(monster => monster && monster.power > 0);
   pruneDeadMonsterMarkers(world);
 
-  // 4) Rebuild danger from living monsters + biome predators (no annexation).
+  // 4) Rebuild danger from living monsters + dungeon bosses + biome predators (no annexation).
   if (!cells.danger || cells.danger.length !== cells.i.length) {
     cells.danger = new Uint8Array(cells.i.length);
   }
   const culturesSet = useOptionsState.getState().culturesSet;
-  rebuildDangerField(cells, world.pack.monsters, threatCalculation, {
+  const dangerSources = [...(world.pack.monsters ?? []), ...dungeonsAsDangerSources(world.pack.dungeons)];
+  rebuildDangerField(cells, dangerSources, threatCalculation, {
     biomesData: world.biomesData,
     biomePredatorScale: biomePredatorScaleForMode(resolveThreatCultureMode(culturesSet)),
     reducePredatorsOnGovernedLand: true

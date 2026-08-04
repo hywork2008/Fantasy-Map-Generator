@@ -387,6 +387,41 @@ export interface Monster {
   type: string;
 }
 
+/**
+ * Fixed fantasy dungeon site: boss danger + independent treasure tier.
+ * Spec: docs/plan/high-fantasy-dungeons.md
+ *
+ * Not the same as roaming Monster (cull/rewild) or legacy Watabou marker dungeons.
+ * Defeat boss → remove from pack.dungeons (map presence only; no interior sim).
+ */
+export type DungeonKind = "wealth_lair" | "problem_lair" | "lost_vault" | "empty_ruin";
+
+export interface Dungeon {
+  i: number;
+  cell: number;
+  x: number;
+  y: number;
+  name: string;
+  /** Boss strength ladder — same semantic as Monster.rarity (1–3 High Fantasy). */
+  bossRarity: number;
+  /** Influence radius for danger paint; scales with rarity like Monster.power. */
+  bossPower: number;
+  bossBasePower?: number;
+  bossType: string;
+  /**
+   * Independent of boss strength: 0 = barren lair, higher = richer haul.
+   * Soft-correlated with rarity at spawn, never guaranteed.
+   */
+  treasureTier: number;
+  kind: DungeonKind;
+  /** Optional economy mineral deposit id when placed on/near one. */
+  mineralDepositId?: number | null;
+  /** Year appeared (generation year or spontaneous spawn). */
+  appearedYear: number;
+  /** Linked markers layer id (`type: "dungeon-site"`). */
+  markerId?: number | null;
+}
+
 export interface Province {
   i: number;
   removed?: boolean;

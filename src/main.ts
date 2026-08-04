@@ -25,6 +25,7 @@ import { Biomes } from "./generators/biomes";
 import { Burgs } from "./generators/burgs-generator";
 import { Cultures } from "./generators/cultures-generator";
 import { applyHistoricalWarScars } from "./generators/demography-simulator";
+import { Dungeons } from "./generators/dungeons-generator";
 import { Features } from "./generators/features";
 import { FrontierForts } from "./generators/frontierFortsGenerator";
 import { HeightmapGenerator } from "./generators/heightmap-generator";
@@ -1113,6 +1114,8 @@ function getGenerationStages(): Array<() => Promise<void>> {
       establishVassalage(worldContext.pack, worldContext.populationRate);
       FrontierForts.generate(worldContext, viewContext, appServices, state);
       Markers.generate(worldContext, viewContext, appServices, state);
+      // High Fantasy dungeon sites (boss + treasure); after markers so icons share the layer.
+      Dungeons.generate(worldContext, { year: useOptionsState.getState().year });
       Zones.generate(worldContext, viewContext, appServices, state);
       initSimulationClock();
       bindSimulationBurgState(worldContext, simulationContext);

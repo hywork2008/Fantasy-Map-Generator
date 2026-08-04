@@ -242,7 +242,8 @@ describe("Phase 8 data field ownership inventory", () => {
       "frontierForts",
       "ice",
       "provinces",
-      "monsters"
+      "monsters",
+      "dungeons"
     ];
     for (const key of keys) {
       if (key === "cells" || key === "vertices" || key === "states" || key === "burgs") {

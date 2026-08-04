@@ -31,6 +31,7 @@ import { captureSnapshotData, debugSnapshotsEnabled } from "../utils/aiDebugExpo
 import { getDaysInMonth, getSeason } from "../utils/seasonUtils";
 import { tickAgriculturalCalendar } from "./agriculturalStress";
 import { type DemographicsSimulationResult, simulateDemographics } from "./demography-simulator";
+import { advanceDungeonEcology } from "./dungeonEcology";
 import { advanceFrontierExpansion } from "./frontierExpansion";
 import { tickManpower } from "./manpower";
 import { Military } from "./military-generator";
@@ -148,6 +149,24 @@ registerSimulationSystem({
   profileLabel: "wildernessEcology",
   run: (context, writer) => {
     const result = advanceWildernessEcology({
+      world: worldContext,
+      simulation: simulationContext,
+      rng: context.rng
+    });
+    if (result.topics.length) writer.markChanged(...result.topics);
+  }
+});
+
+// High Fantasy dungeons: rare spontaneous land sites over decades–centuries.
+registerSimulationSystem({
+  id: "dungeon-ecology.tick",
+  phase: "politics",
+  reads: ["map.annotations", "map.settlements", "simulation.cells"],
+  writes: ["map.annotations", "simulation.cells"],
+  cadence: { every: 1 },
+  profileLabel: "dungeonEcology",
+  run: (context, writer) => {
+    const result = advanceDungeonEcology({
       world: worldContext,
       simulation: simulationContext,
       rng: context.rng
