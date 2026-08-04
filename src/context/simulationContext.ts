@@ -152,6 +152,36 @@ export function addFrontierApplicants(
 }
 
 /**
+ * Annual hunt/cull work against a local threat. Lowering danger never assigns
+ * `cells.state` — claiming land remains a separate frontier / politics cost.
+ */
+export interface ThreatCullProject {
+  readonly cellId: number;
+  readonly stateId: number;
+  /** Stable monster id (`Monster.i`), or null for residual high-danger hunts. */
+  monsterId: number | null;
+  establishedYear: number;
+  progressYears: number;
+  lastOutcome?: "progress" | "cleared" | "abandoned";
+  /** Cumulative danger reduction observed at the hunt cell (diagnostic). */
+  dangerReduced: number;
+}
+
+/** Host-owned Phase 4 wilderness ecology runtime state. */
+export interface WildernessEcologyState {
+  cullProjects: Record<number, ThreatCullProject>;
+  /** The annual guard prevents daily ticks from re-running hunt/rewild. */
+  lastEvaluatedYear: number | null;
+}
+
+export function createEmptyWildernessEcologyState(): WildernessEcologyState {
+  return {
+    cullProjects: {},
+    lastEvaluatedYear: null
+  };
+}
+
+/**
  * Host-owned containers for built-in and dynamic extension runtime state.
  *
  * An extension slice is opaque to the host until its registered validator has
@@ -268,6 +298,11 @@ export interface SimulationContext {
   /** Unclaimed outposts and settlements; State incorporation is a later phase. */
   frontier: FrontierSimulationState;
   /**
+   * Phase 4 wild oikoumene: hunt/cull projects that lower danger without annexing land,
+   * plus annual rewilding pressure. Spec: docs/plan/wild-oikoumene-frontier.md
+   */
+  wilderness: WildernessEcologyState;
+  /**
    * Host-owned technology graph progress (locked→diffused). Distinct from calendar `era`.
    * See docs/plan/technology-development-roadmap.md §12.
    */
@@ -308,5 +343,6 @@ export const simulationContext: SimulationContext = {
   populationLoss: createEmptyPopulationLossState(),
   navalTechBonus: {},
   frontier: createEmptyFrontierSimulationState(),
+  wilderness: createEmptyWildernessEcologyState(),
   technology: createEmptyTechnologySimulationState()
 };

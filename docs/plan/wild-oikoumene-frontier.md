@@ -1,6 +1,6 @@
 # Wild oikoumene & frontier danger (Fantasy presets)
 
-- **Status**: Design + Phase 0–1 implementation in progress  
+- **Status**: Design + Phase 0–4 implementation  
 - **Last updated**: 2026-08-04  
 - **Related**: [frontier-expansion.md](frontier-expansion.md), [danger-layer.md](danger-layer.md), [multi-race-geopolitics.md](../world/help/multi-race-geopolitics.md)
 
@@ -91,11 +91,15 @@ Markers / notes: keep rarity ≥ 3 only (unchanged).
 - [x] Incorporation skips monster_domain corridor cells  
 - [x] Danger pick tooltip shows wild land label when present
 
-### Phase 4 — Cullable threats + rewilding
+### Phase 4 — Cullable threats + rewilding ✅
 
-- Hunt/cull projects reduce local danger.  
-- Claiming land remains a separate cost.  
-- Optional rewilding over years so the oikoumene does not eventually fill the map.
+- [x] `wildernessEcology.ts`: annual hunt/cull projects near state borders reduce monster `power`  
+- [x] Danger field rebuilt from living monsters (`dangerField.rebuildDangerFromMonsters`) after cull/rewild  
+- [x] Claiming land remains separate — cull never writes `cells.state`  
+- [x] Unhunted monsters recover toward `basePower` (rewild pressure)  
+- [x] Ambient danger creep on unclaimed threat-gradient cells; `assignWildLandTags` after each annual pass  
+- [x] `simulation.wilderness` cull project state + archive normalize; Tools panel shows active hunts  
+- [x] Registered as `wilderness-ecology.tick` (politics phase, self-gates to Jan 1)
 
 ### Phase 5 — Biome predators (non-monster)
 

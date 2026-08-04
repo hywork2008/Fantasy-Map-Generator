@@ -7,6 +7,7 @@ import {
   getFrontierProjectSlots
 } from "../../../generators/frontierExpansion";
 import { formatDisaster } from "../../../generators/frontierGovernance";
+import { getThreatCullProjectSummaries } from "../../../generators/wildernessEcology";
 
 const STAGE_LABELS: Record<number, string> = {
   [FRONTIER_STAGE.wilderness]: "Wilderness",
@@ -30,6 +31,7 @@ export function FrontierStatusPanel() {
   const candidates = getFrontierCandidateSummaries(world, simulation);
   const blockers = getFrontierCandidateBlockerSummaries(world, simulation);
   const projects = Object.values(simulation.frontier.projects).sort((a, b) => a.cellId - b.cellId);
+  const cullProjects = getThreatCullProjectSummaries(world, simulation);
   const activeProjectCountByState = projects.reduce<Record<number, number>>((counts, project) => {
     counts[project.stateId] = (counts[project.stateId] ?? 0) + 1;
     return counts;
@@ -39,7 +41,7 @@ export function FrontierStatusPanel() {
     world.options.initialSettlementPattern === "marches" ||
     world.options.initialSettlementPattern === "scattered";
 
-  if (!isFrontierMap) return null;
+  if (!isFrontierMap && cullProjects.length === 0) return null;
 
   return (
     <section
@@ -47,10 +49,29 @@ export function FrontierStatusPanel() {
       data-frontier-revision={revision}
       style={{ gridColumn: "1 / -1", display: "grid", gap: "6px" }}
     >
-      <div data-tip="Annual frontier work uses state reserves. Public works reduce both support costs and disaster risk.">
+      <div data-tip="Annual frontier work uses state reserves. Public works reduce both support costs and disaster risk. Hunt/cull projects lower local danger without claiming land; wilderness can rewild over years.">
         Frontier operations
       </div>
-      {projects.length === 0 ? (
+      {cullProjects.length > 0 && (
+        <div>
+          <small>Active hunts (cull danger only — no annexation):</small>
+          {cullProjects.map(project => {
+            const state = world.pack.states[project.stateId];
+            const monster =
+              project.monsterId === null ? null : world.pack.monsters?.find(entry => entry.i === project.monsterId);
+            return (
+              <small key={`cull-${project.cellId}`} style={{ display: "block" }}>
+                {state?.name ?? `State ${project.stateId}`}: cell {project.cellId}
+                {monster ? ` · ${monster.type} (r${monster.rarity}, power ${monster.power})` : " · residual danger"}
+                {" · "}
+                {project.progressYears} year(s)
+                {project.lastOutcome ? ` · ${project.lastOutcome}` : ""}
+              </small>
+            );
+          })}
+        </div>
+      )}
+      {!isFrontierMap ? null : projects.length === 0 ? (
         <small>No active outposts. Fund a reserve above the candidate requirement, then advance to a new year.</small>
       ) : (
         projects.map(project => {
@@ -90,7 +111,7 @@ export function FrontierStatusPanel() {
           );
         })
       )}
-      {candidates.length > 0 && (
+      {isFrontierMap && candidates.length > 0 && (
         <div>
           <small>Viable candidates:</small>
           {candidates.slice(0, 3).map(candidate => {
@@ -106,7 +127,7 @@ export function FrontierStatusPanel() {
           })}
         </div>
       )}
-      {blockers.length > 0 && (
+      {isFrontierMap && blockers.length > 0 && (
         <div>
           <small>Blocked expansion:</small>
           {blockers.slice(0, 3).map(blocker => {

@@ -377,7 +377,13 @@ export interface Monster {
   cell: number;
   name: string;
   rarity: number;
+  /** Current influence radius / strength (may drop as hunts progress). */
   power: number;
+  /**
+   * Spawn-time power used by Phase 4 rewilding to regenerate pressure toward
+   * the original threat level when a hunt does not finish the creature.
+   */
+  basePower?: number;
   type: string;
 }
 

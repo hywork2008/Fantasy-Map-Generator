@@ -5,7 +5,8 @@ import { useOptionsState } from "../store/optionsState";
 import type { Monster } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { rand } from "../utils";
-import { getThreatSpawnProfile, type ThreatSpawnProfile } from "./threatProfiles";
+import { rebuildDangerFromMonsters } from "./dangerField";
+import { getThreatSpawnProfile } from "./threatProfiles";
 
 export const Threats = {
   generate(worldContext: WorldContext, _viewContext: ViewContext, _appServices: AppServices, _state: WorldState) {
@@ -34,6 +35,7 @@ export const Threats = {
         name,
         rarity,
         power,
+        basePower: power,
         type
       });
 
@@ -71,7 +73,7 @@ export const Threats = {
     }
 
     pack.monsters = monsters;
-    propagateDanger(cells, monsters, profile);
+    rebuildDangerFromMonsters(cells, monsters, profile.threatCalculation);
   },
 
   appendCasualtyNotes(worldContext: WorldContext) {
@@ -157,38 +159,3 @@ export const Threats = {
     }
   }
 };
-
-function propagateDanger(cells: WorldContext["pack"]["cells"], monsters: Monster[], profile: ThreatSpawnProfile): void {
-  const threatCalculation = profile.threatCalculation;
-
-  for (const m of monsters) {
-    const start = m.cell;
-    const power = m.power;
-
-    const queue = [{ cell: start, dist: 0 }];
-    const visited = new Set<number>([start]);
-
-    while (queue.length > 0) {
-      const { cell, dist } = queue.shift()!;
-
-      const d = Math.max(0, power - dist);
-      if (d > 0) {
-        if (threatCalculation === "max") {
-          cells.danger[cell] = Math.max(cells.danger[cell], Math.min(255, d * 5));
-        } else if (threatCalculation === "nonlinear") {
-          const nonLinearDanger = Math.round(255 * (d / power) ** 2);
-          cells.danger[cell] = Math.max(cells.danger[cell], Math.min(255, nonLinearDanger));
-        } else {
-          cells.danger[cell] = Math.min(255, cells.danger[cell] + d * 4);
-        }
-
-        for (const n of cells.c[cell]) {
-          if (!visited.has(n)) {
-            visited.add(n);
-            queue.push({ cell: n, dist: dist + 1 });
-          }
-        }
-      }
-    }
-  }
-}

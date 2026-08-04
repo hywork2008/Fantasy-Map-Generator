@@ -171,7 +171,9 @@ describe("Phase 8 data field ownership inventory", () => {
       "strategicGoals",
       "populationLoss",
       "navalTechBonus",
-      "frontier"
+      "frontier",
+      "wilderness",
+      "technology"
     ];
     // Clock fields share simulation.clock; cells/burgs/states/military use pack.* compatibility paths.
     const pathByKey: Partial<Record<keyof SimulationContext, string | "group">> = {
@@ -191,7 +193,9 @@ describe("Phase 8 data field ownership inventory", () => {
       strategicGoals: "simulation.strategicGoals",
       populationLoss: "simulation.populationLoss",
       navalTechBonus: "simulation.navalTechBonus",
-      frontier: "simulation.frontier"
+      frontier: "simulation.frontier",
+      wilderness: "simulation.wilderness",
+      technology: "simulation.technology"
     };
     for (const key of keys) {
       const mapped = pathByKey[key];
