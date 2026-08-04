@@ -1,8 +1,9 @@
 import type React from "react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useCharactersUiState } from "../../../characters/ui/charactersUiState";
 import { openCharacterMarket } from "../../../economy/controllers/characterMarket";
+import { getCullCooldowns } from "../../../economy/economyContext";
 import {
   getCharacterConstructionEmployment,
   getCharacterPendingConstructionApplication
@@ -28,6 +29,16 @@ import {
   spendDomainTreasury,
   toggleWarFootingForRuler
 } from "../../../economy/generators/fiscalAuthority";
+import {
+  getCharacterCullContract,
+  getCharacterPendingCullApplication
+} from "../../../economy/generators/threatCullHire";
+import {
+  CULL_PLAYER_HIRE_LAG_DAYS,
+  getCullJobPostingsForBurg,
+  getLiveOpenSeats,
+  getSimulationOrdinalDay
+} from "../../../economy/generators/threatCullJobPostings";
 import { tip } from "../../../hostServices";
 import { Dialog, isDialogOpen, openDialog } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
@@ -38,6 +49,8 @@ import { usePlayerCharacterState } from "../../store/playerCharacterState";
 import "./playerCharacterPanel.css";
 
 const ECONOMY_EXTENSION_ID = "economy";
+
+const PEST_HUNT_TIP = "Hinterland pests (local pressure; may not show on the danger map unless Rural threats is on).";
 
 /**
  * Always-visible top-right HUD for the nobility focus character.
@@ -75,7 +88,15 @@ export const PlayerCharacterPanel: React.FC = () => {
 
   // Render mode is sticky session state; read live so a mid-session switch updates the toolbar.
   const showMoveAction = isSvgRenderMode();
-  const canMove = Boolean(summary?.location) && !pendingTravel;
+
+  // Mission lag/countdown advances in economy.tick — re-read work status without a click.
+  useEffect(() => {
+    const onSimUpdated = () => {
+      usePlayerCharacterState.getState().bumpRefreshToken();
+    };
+    document.addEventListener("fmg:simulation-updated", onSimUpdated);
+    return () => document.removeEventListener("fmg:simulation-updated", onSimUpdated);
+  }, []);
 
   const handleOpenDetails = () => {
     if (playerCharacterId === null) return;
@@ -106,10 +127,34 @@ export const PlayerCharacterPanel: React.FC = () => {
     if (playerCharacterId === null) return null;
     const seat = getCharacterConstructionEmployment(playerCharacterId);
     const pendingApp = getCharacterPendingConstructionApplication(playerCharacterId);
+    const cullContract = getCharacterCullContract(playerCharacterId);
+    const cullPendingApp = getCharacterPendingCullApplication(playerCharacterId);
     const burgId = summary?.location?.burgId;
     const posting = burgId != null ? getConstructionJobPosting(burgId) : null;
-    return { seat, pendingApp, posting, burgId: burgId ?? null };
+    const cullPosts = burgId != null ? getCullJobPostingsForBurg(burgId) : [];
+    const openCullPosts = cullPosts.filter(p => getLiveOpenSeats(p.i) > 0);
+    const cooldownUntil = getCullCooldowns()[String(playerCharacterId)];
+    const onInjuryCooldown = typeof cooldownUntil === "number" && getSimulationOrdinalDay() < cooldownUntil;
+    return {
+      seat,
+      pendingApp,
+      posting,
+      burgId: burgId ?? null,
+      cullContract,
+      cullPendingApp,
+      openCullPosts,
+      onInjuryCooldown,
+      cooldownDaysLeft:
+        onInjuryCooldown && cooldownUntil != null
+          ? Math.max(0, Math.ceil(cooldownUntil - getSimulationOrdinalDay()))
+          : 0
+    };
   }, [playerCharacterId, refreshToken, summary?.location?.burgId]);
+
+  const hasConstructionCommitment = Boolean(workStatus?.seat || workStatus?.pendingApp);
+  const hasCullCommitment = Boolean(workStatus?.cullContract || workStatus?.cullPendingApp);
+  // Panel-only: on active hunt, block Move so the player does not leave burg mid-mission by accident.
+  const canMove = Boolean(summary?.location) && !pendingTravel && !workStatus?.cullContract;
 
   const handleApplyConstruction = () => {
     if (playerCharacterId === null || workStatus?.burgId == null) return;
@@ -136,26 +181,121 @@ export const PlayerCharacterPanel: React.FC = () => {
     usePlayerCharacterState.getState().bumpRefreshToken();
   };
 
+  const handleApplyCull = () => {
+    if (playerCharacterId === null || !workStatus?.openCullPosts.length) return;
+    const postingId = workStatus.openCullPosts[0].i;
+    const result = getApi().dispatchExtensionCommand({
+      extensionId: ECONOMY_EXTENSION_ID,
+      name: "jobs.applyCull",
+      payload: { characterId: playerCharacterId, postingId }
+    });
+    const outcome = result?.result as { ok?: boolean; message?: string } | undefined;
+    if (outcome?.message) tip(outcome.message, false, outcome.ok ? "success" : "error");
+    else if (!result) tip("Enable the Economy extension to apply for hunt work.", false, "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
+  const handleCancelCullApplication = () => {
+    if (playerCharacterId === null) return;
+    const result = getApi().dispatchExtensionCommand({
+      extensionId: ECONOMY_EXTENSION_ID,
+      name: "jobs.cancelCullApplication",
+      payload: { characterId: playerCharacterId }
+    });
+    const outcome = result?.result as { ok?: boolean; message?: string } | undefined;
+    if (outcome?.message) tip(outcome.message, false, outcome.ok ? "success" : "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
+  const handleResignCull = () => {
+    if (playerCharacterId === null) return;
+    const result = getApi().dispatchExtensionCommand({
+      extensionId: ECONOMY_EXTENSION_ID,
+      name: "jobs.resignCull",
+      payload: { characterId: playerCharacterId }
+    });
+    const outcome = result?.result as { ok?: boolean; message?: string } | undefined;
+    if (outcome?.message) tip(outcome.message, false, outcome.ok ? "success" : "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
   const pendingLabel =
     pendingTravel && pendingTravel.remainingDays > 0 ? `Travelling · ${pendingTravel.remainingDays}d left` : null;
 
-  const workLabel = workStatus?.seat
-    ? `${workStatus.seat.role} @ burg ${workStatus.seat.burgId}`
-    : workStatus?.pendingApp
-      ? `Applying (${workStatus.pendingApp.role}, ${Math.ceil(workStatus.pendingApp.daysRemaining)}d)`
-      : workStatus?.posting && workStatus.posting.openSeats > 0
-        ? `${workStatus.posting.openSeats} construction job(s) here`
-        : "No construction opening here";
+  const workLabel = (() => {
+    if (workStatus?.cullContract) {
+      const c = workStatus.cullContract;
+      const days = Math.ceil(c.missionDaysRemaining);
+      return `Hunt: ${c.target.label} · ${days}d left`;
+    }
+    if (workStatus?.cullPendingApp) {
+      return `Applying hunt (${Math.ceil(workStatus.cullPendingApp.daysRemaining)}d)`;
+    }
+    if (workStatus?.onInjuryCooldown) {
+      return `Recovering from hunt (${workStatus.cooldownDaysLeft}d)`;
+    }
+    if (workStatus?.seat) {
+      return `${workStatus.seat.role} @ burg ${workStatus.seat.burgId}`;
+    }
+    if (workStatus?.pendingApp) {
+      return `Applying (${workStatus.pendingApp.role}, ${Math.ceil(workStatus.pendingApp.daysRemaining)}d)`;
+    }
+    const parts: string[] = [];
+    if (workStatus?.posting && workStatus.posting.openSeats > 0) {
+      parts.push(`${workStatus.posting.openSeats} construction`);
+    }
+    if (workStatus?.openCullPosts?.length) {
+      parts.push(`${workStatus.openCullPosts.length} hunt`);
+    }
+    if (parts.length) return `${parts.join(" · ")} job(s) here`;
+    return "No job openings here";
+  })();
+
+  const workTip = (() => {
+    if (workStatus?.cullContract) {
+      const c = workStatus.cullContract;
+      const pestNote = c.target.kind === "pest" || c.target.kind === "biomePredator" ? ` ${PEST_HUNT_TIP}` : "";
+      return `On mission: ${c.target.label} (bounty ${c.bounty}).${pestNote}`;
+    }
+    if (workStatus?.openCullPosts?.length) {
+      const labels = workStatus.openCullPosts
+        .slice(0, 3)
+        .map(p => {
+          const kind =
+            p.target.kind === "pest" || p.target.kind === "biomePredator"
+              ? "pest"
+              : p.macroCellId != null
+                ? "royal hunt"
+                : "cull";
+          return `${p.target.label} (${kind}, ${p.bounty})`;
+        })
+        .join("; ");
+      const hasPest = workStatus.openCullPosts.some(p => p.target.kind === "pest" || p.target.kind === "biomePredator");
+      return `${labels}${hasPest ? ` — ${PEST_HUNT_TIP}` : ""}`;
+    }
+    return workLabel;
+  })();
 
   const canApplyConstruction =
     Boolean(summary?.location) &&
     !pendingTravel &&
-    !workStatus?.seat &&
-    !workStatus?.pendingApp &&
+    !hasConstructionCommitment &&
+    !hasCullCommitment &&
+    !workStatus?.onInjuryCooldown &&
     (workStatus?.posting?.openSeats ?? 0) > 0;
+
+  const canApplyCull =
+    Boolean(summary?.location) &&
+    !pendingTravel &&
+    !hasConstructionCommitment &&
+    !hasCullCommitment &&
+    !workStatus?.onInjuryCooldown &&
+    (workStatus?.openCullPosts?.length ?? 0) > 0;
 
   const canResignConstruction = Boolean(workStatus?.seat);
   const canCancelApplication = Boolean(workStatus?.pendingApp);
+  const canCancelCullApplication = Boolean(workStatus?.cullPendingApp);
+  const canResignCull = Boolean(workStatus?.cullContract);
   const canTrade = Boolean(summary?.location) && !pendingTravel && getApi().isExtensionEnabled(ECONOMY_EXTENSION_ID);
 
   const handleCancelApplication = () => {
@@ -467,7 +607,7 @@ export const PlayerCharacterPanel: React.FC = () => {
             <dt>Organization</dt>
             <dd title={summary.organization}>{summary.organization}</dd>
             <dt>Work</dt>
-            <dd title={workLabel}>{workLabel}</dd>
+            <dd title={workTip}>{workLabel}</dd>
           </dl>
         </div>
       )}
@@ -730,7 +870,9 @@ export const PlayerCharacterPanel: React.FC = () => {
                 ? "Cancel destination selection"
                 : pendingTravel
                   ? "Travel already in progress"
-                  : "Select a destination burg on the map"
+                  : workStatus?.cullContract
+                    ? "Cannot travel while on an active hunt mission (resign first)"
+                    : "Select a destination burg on the map"
             }
             disabled={!canMove && !isMoveMode}
             aria-pressed={isMoveMode}
@@ -750,7 +892,7 @@ export const PlayerCharacterPanel: React.FC = () => {
           <button
             type="button"
             className="pcp-action"
-            data-tip="Apply for a construction job in this burg (Economy). Hire resolves after 14 days."
+            data-tip="Apply for a construction job in this burg (Economy). Hire resolves after 14 days. Cannot combine with a hunt."
             disabled={!canApplyConstruction}
             onClick={handleApplyConstruction}
           >
@@ -773,6 +915,42 @@ export const PlayerCharacterPanel: React.FC = () => {
             onClick={handleResignConstruction}
           >
             Resign Construction
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={
+              workStatus?.openCullPosts?.[0]
+                ? `Apply for the top hunt/pest contract here (Economy). Decision in ${CULL_PLAYER_HIRE_LAG_DAYS} days. Cannot combine with construction.${
+                    workStatus.openCullPosts[0].target.kind === "pest" ||
+                    workStatus.openCullPosts[0].target.kind === "biomePredator"
+                      ? ` ${PEST_HUNT_TIP}`
+                      : ""
+                  }`
+                : "Apply for a hunt or pest-control contract in this burg when the board has openings"
+            }
+            disabled={!canApplyCull}
+            onClick={handleApplyCull}
+          >
+            Apply Hunt
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip="Withdraw a pending hunt application"
+            disabled={!canCancelCullApplication}
+            onClick={handleCancelCullApplication}
+          >
+            Cancel Hunt App
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip="Resign an active hunt mission (forfeits escrow; no bounty)"
+            disabled={!canResignCull}
+            onClick={handleResignCull}
+          >
+            Resign Hunt
           </button>
         </div>
       ) : (
@@ -789,7 +967,7 @@ export const PlayerCharacterPanel: React.FC = () => {
           <button
             type="button"
             className="pcp-action"
-            data-tip="Apply for a construction job in this burg (Economy). Hire resolves after 14 days."
+            data-tip="Apply for a construction job in this burg (Economy). Hire resolves after 14 days. Cannot combine with a hunt."
             disabled={!canApplyConstruction}
             onClick={handleApplyConstruction}
           >
@@ -812,6 +990,42 @@ export const PlayerCharacterPanel: React.FC = () => {
             onClick={handleResignConstruction}
           >
             Resign Construction
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={
+              workStatus?.openCullPosts?.[0]
+                ? `Apply for the top hunt/pest contract here (Economy). Decision in ${CULL_PLAYER_HIRE_LAG_DAYS} days. Cannot combine with construction.${
+                    workStatus.openCullPosts[0].target.kind === "pest" ||
+                    workStatus.openCullPosts[0].target.kind === "biomePredator"
+                      ? ` ${PEST_HUNT_TIP}`
+                      : ""
+                  }`
+                : "Apply for a hunt or pest-control contract in this burg when the board has openings"
+            }
+            disabled={!canApplyCull}
+            onClick={handleApplyCull}
+          >
+            Apply Hunt
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip="Withdraw a pending hunt application"
+            disabled={!canCancelCullApplication}
+            onClick={handleCancelCullApplication}
+          >
+            Cancel Hunt App
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip="Resign an active hunt mission (forfeits escrow; no bounty)"
+            disabled={!canResignCull}
+            onClick={handleResignCull}
+          >
+            Resign Hunt
           </button>
         </div>
       )}
