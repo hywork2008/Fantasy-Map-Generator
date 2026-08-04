@@ -76,10 +76,11 @@ export function getFrontierCandidateSummaries(
   world: WorldContext,
   simulation: SimulationContext
 ): readonly FrontierCandidateSummary[] {
-  const { cells, states } = world.pack;
-  if (!isFrontierPattern(world.options?.initialSettlementPattern)) return [];
+  const cells = world.pack?.cells;
+  const states = world.pack?.states;
+  if (!cells || !states || !isFrontierPattern(world.options?.initialSettlementPattern)) return [];
   const candidates: FrontierCandidateSummary[] = [];
-  for (const state of states ?? []) {
+  for (const state of states) {
     if (!state?.i || state.removed || getStateStartBlocker(state, simulation, state.i, cells, state.center)) continue;
     candidates.push(...getAvailableStateCandidates(state.i, cells, simulation.frontier, state.center));
   }
@@ -95,22 +96,24 @@ export function getFrontierCandidateBlockerSummaries(
   world: WorldContext,
   simulation: SimulationContext
 ): readonly FrontierCandidateBlockerSummary[] {
-  if (!isFrontierPattern(world.options?.initialSettlementPattern)) return [];
+  const cells = world.pack?.cells;
+  const states = world.pack?.states;
+  if (!cells || !states || !isFrontierPattern(world.options?.initialSettlementPattern)) return [];
   const blockers: FrontierCandidateBlockerSummary[] = [];
-  for (const state of world.pack.states ?? []) {
+  for (const state of states) {
     if (!state?.i || state.removed) continue;
-    const startBlocker = getStateStartBlocker(state, simulation, state.i, world.pack.cells, state.center);
+    const startBlocker = getStateStartBlocker(state, simulation, state.i, cells, state.center);
     if (startBlocker) {
       blockers.push({ stateId: state.i, reason: startBlocker });
       continue;
     }
-    const allCandidates = getStateCandidates(state.i, world.pack.cells, simulation.frontier, state.center);
-    if (!getAvailableStateCandidates(state.i, world.pack.cells, simulation.frontier, state.center).length) {
+    const allCandidates = getStateCandidates(state.i, cells, simulation.frontier, state.center);
+    if (!getAvailableStateCandidates(state.i, cells, simulation.frontier, state.center).length) {
       if (allCandidates.length) {
         blockers.push({ stateId: state.i, reason: "All viable sites are in active frontier sectors" });
         continue;
       }
-      const available = getBestReachableColonistPool(state.i, world.pack.cells, simulation.frontier);
+      const available = getBestReachableColonistPool(state.i, cells, simulation.frontier);
       blockers.push({
         stateId: state.i,
         reason:

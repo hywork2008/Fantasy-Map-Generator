@@ -13,7 +13,11 @@ import Alea from "alea";
 import * as d3 from "d3";
 import { getWorldState, resetZoom, zoomTo } from "./actions";
 import { appServices, initRng } from "./context/appServices";
-import { simulationContext } from "./context/simulationContext";
+import {
+  createEmptyFrontierSimulationState,
+  createEmptyWildernessEcologyState,
+  simulationContext
+} from "./context/simulationContext";
 import { viewContext } from "./context/viewContext";
 import { worldContext } from "./context/worldContext";
 import { applyLayersPreset, drawLayers, scheduleWebglUpdate } from "./controllers/layers";
@@ -1029,6 +1033,12 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
     delete (worldContext.pack as unknown as Record<string, unknown>)[k];
   });
   Object.assign(worldContext.pack, {} as typeof worldContext.pack);
+  // Clear project-bearing simulation slices immediately. Pack wipe leaves React
+  // panels (e.g. FrontierStatusPanel) able to re-render before the late
+  // initSimulationClock() at the end of generation; stale cull/frontier projects
+  // would then index pack.states that no longer exist.
+  simulationContext.frontier = createEmptyFrontierSimulationState();
+  simulationContext.wilderness = createEmptyWildernessEcologyState();
   resetExtensionStateSlices(simulationContext);
   resetSimulationBurgState(simulationContext);
   resetSimulationStateState(simulationContext);

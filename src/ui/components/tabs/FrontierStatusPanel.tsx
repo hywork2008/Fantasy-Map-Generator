@@ -28,9 +28,16 @@ export function FrontierStatusPanel() {
     return () => document.removeEventListener("fmg:simulation-updated", refresh);
   }, []);
 
+  // Mid-generation (New Map) wipes pack fields before politics/states exist again.
+  // Never index pack.states while the graph is incomplete.
+  const states = world.pack?.states;
+  const packReady = Array.isArray(states) && Boolean(world.pack?.cells);
+
+  if (!packReady) return null;
+
   const candidates = getFrontierCandidateSummaries(world, simulation);
   const blockers = getFrontierCandidateBlockerSummaries(world, simulation);
-  const projects = Object.values(simulation.frontier.projects).sort((a, b) => a.cellId - b.cellId);
+  const projects = Object.values(simulation.frontier?.projects ?? {}).sort((a, b) => a.cellId - b.cellId);
   const cullProjects = getThreatCullProjectSummaries(world, simulation);
   const activeProjectCountByState = projects.reduce<Record<number, number>>((counts, project) => {
     counts[project.stateId] = (counts[project.stateId] ?? 0) + 1;
@@ -56,7 +63,7 @@ export function FrontierStatusPanel() {
         <div>
           <small>Active hunts (cull danger only — no annexation):</small>
           {cullProjects.map(project => {
-            const state = world.pack.states[project.stateId];
+            const state = states[project.stateId];
             const monster =
               project.monsterId === null ? null : world.pack.monsters?.find(entry => entry.i === project.monsterId);
             return (
@@ -75,8 +82,8 @@ export function FrontierStatusPanel() {
         <small>No active outposts. Fund a reserve above the candidate requirement, then advance to a new year.</small>
       ) : (
         projects.map(project => {
-          const state = world.pack.states[project.stateId];
-          const governance = simulation.frontier.governanceByState[project.stateId];
+          const state = states[project.stateId];
+          const governance = simulation.frontier?.governanceByState?.[project.stateId];
           const slots = getFrontierProjectSlots(project.stateId, world.pack.cells);
           const status = project.lastStatus;
           const nextStep =
@@ -115,7 +122,7 @@ export function FrontierStatusPanel() {
         <div>
           <small>Viable candidates:</small>
           {candidates.slice(0, 3).map(candidate => {
-            const state = world.pack.states[candidate.stateId];
+            const state = states[candidate.stateId];
             return (
               <small key={`${candidate.stateId}:${candidate.cellId}`} style={{ display: "block" }}>
                 {state?.name ?? `State ${candidate.stateId}`}: cell {candidate.cellId} from{" "}
@@ -131,7 +138,7 @@ export function FrontierStatusPanel() {
         <div>
           <small>Blocked expansion:</small>
           {blockers.slice(0, 3).map(blocker => {
-            const state = world.pack.states[blocker.stateId];
+            const state = states[blocker.stateId];
             return (
               <small key={blocker.stateId} style={{ display: "block" }}>
                 {state?.name ?? `State ${blocker.stateId}`}: {blocker.reason}

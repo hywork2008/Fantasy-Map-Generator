@@ -17,7 +17,26 @@ import { gauss } from "../hostUtils";
 import { getWorldContext, hasCharactersContext } from "./charactersContext";
 import type { Character } from "./characterTypes";
 
+/** Per-axis noise around race looks baseline (before age decline). */
 export const APPEARANCE_AXIS_STDDEV = 12;
+
+/**
+ * How strongly deviations from race-typical looks stretch the final Appearance score.
+ * Weighted multi-axis averages alone collapse to σ≈6 (almost never ≥70).
+ * Target after stretch (human peak / adult roster): ~several % ≥70, ~0.1% ≥90, ~0.01% =100.
+ */
+export const APPEARANCE_SCORE_SPREAD = 2.35;
+
+/** Center of the displayed Appearance scale (race-typical phenotype → this). */
+export const APPEARANCE_SCORE_CENTER = 50;
+
+/**
+ * Looks age decline rates (axis points per year past decline threshold).
+ * Softer than early multi-axis drafts so mid-life adults are not crushed to the 30s.
+ * Kept in sync with `advanceCharacterAging` looks path.
+ */
+export const LOOKS_VITALITY_DECLINE_PER_YEAR = 0.55;
+export const LOOKS_SOFT_DECLINE_PER_YEAR = 0.18;
 
 /** Peak looks noise around race baseline (before age decline). */
 export function rollPeakLooks(baseline: AppearanceAxes): AppearanceAxes {
@@ -33,8 +52,8 @@ export function rollPeakLooks(baseline: AppearanceAxes): AppearanceAxes {
 export function applyLooksAgeDecline(looks: AppearanceAxes, age: number, declineAgeThreshold: number): AppearanceAxes {
   if (age <= declineAgeThreshold) return { ...looks };
   const years = age - declineAgeThreshold;
-  const vitalityLoss = Math.floor(years * 1.2);
-  const softLoss = Math.floor(years * 0.35);
+  const vitalityLoss = Math.floor(years * LOOKS_VITALITY_DECLINE_PER_YEAR);
+  const softLoss = Math.floor(years * LOOKS_SOFT_DECLINE_PER_YEAR);
   return {
     stature: looks.stature,
     build: looks.build,
@@ -46,10 +65,10 @@ export function applyLooksAgeDecline(looks: AppearanceAxes, age: number, decline
 }
 
 /**
- * Same-race aesthetic score of `looks` under `ideal` (1–100).
+ * Weighted ideal match on a 1–100 raw scale (pre-spread).
  * Positive weight prefers high axis; negative prefers low.
  */
-export function scoreLooksAgainstIdeal(looks: AppearanceAxes, ideal: Race["beautyIdeal"]): number {
+export function rawLooksScoreAgainstIdeal(looks: AppearanceAxes, ideal: Race["beautyIdeal"]): number {
   const weights = ideal?.weights ?? {};
   let weighted = 0;
   let totalW = 0;
@@ -63,10 +82,38 @@ export function scoreLooksAgainstIdeal(looks: AppearanceAxes, ideal: Race["beaut
     totalW += abs;
   }
   if (totalW <= 0) {
-    // Neutral ideal: symmetry + vitality average
     return Math.round(((looks.symmetry ?? 50) + (looks.vitality ?? 50)) / 2);
   }
-  return Math.max(1, Math.min(100, Math.round(weighted / totalW)));
+  return weighted / totalW;
+}
+
+function clampAppearanceScore(value: number): number {
+  return Math.max(1, Math.min(100, Math.round(value)));
+}
+
+/**
+ * Stretch raw ideal match into the playable Appearance scale.
+ * When `typicalLooks` is set (race baseline), race-typical phenotype maps to
+ * {@link APPEARANCE_SCORE_CENTER} so “among our people” stays centered per race.
+ */
+export function expandAppearanceScore(raw: number, typicalRaw: number = APPEARANCE_SCORE_CENTER): number {
+  return clampAppearanceScore(APPEARANCE_SCORE_CENTER + (raw - typicalRaw) * APPEARANCE_SCORE_SPREAD);
+}
+
+/**
+ * Same-race aesthetic score of `looks` under `ideal` (1–100).
+ * Pass `typicalLooks` (race baseline) so average members score near 50 and only
+ * exceptional phenotypes reach 70 / 90 / 100.
+ */
+export function scoreLooksAgainstIdeal(
+  looks: AppearanceAxes,
+  ideal: Race["beautyIdeal"],
+  typicalLooks?: AppearanceAxes
+): number {
+  const raw = rawLooksScoreAgainstIdeal(looks, ideal);
+  const typicalRaw =
+    typicalLooks !== undefined ? rawLooksScoreAgainstIdeal(typicalLooks, ideal) : APPEARANCE_SCORE_CENTER;
+  return expandAppearanceScore(raw, typicalRaw);
 }
 
 /** Resolve race id from character (race field, else culture.race, else Human). */
@@ -139,7 +186,8 @@ export function attractiveness(
 
   if (observerRaceId === subjectRaceId) {
     const ideal = getRaceBeautyIdeal(races, observerRaceId);
-    const score = scoreLooksAgainstIdeal(subjectLooks, ideal);
+    const typicalLooks = getRaceLooksBaseline(races, observerRaceId);
+    const score = scoreLooksAgainstIdeal(subjectLooks, ideal, typicalLooks);
     return {
       score,
       kind: "same_race",
@@ -170,7 +218,7 @@ export function attractiveness(
 /** Same-race cached appearance: how the subject scores under their own race ideal. */
 export function ownRaceAppearanceScore(looks: AppearanceAxes, raceId: number, races?: readonly Race[]): number {
   const list = races ?? (hasCharactersContext() ? getWorldContext().pack.races : undefined);
-  return scoreLooksAgainstIdeal(looks, getRaceBeautyIdeal(list, raceId));
+  return scoreLooksAgainstIdeal(looks, getRaceBeautyIdeal(list, raceId), getRaceLooksBaseline(list, raceId));
 }
 
 /** Roll peak looks for a race id and apply age decline; returns looks + appearance cache. */

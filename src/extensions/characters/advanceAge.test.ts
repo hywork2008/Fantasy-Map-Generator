@@ -78,7 +78,7 @@ describe("advanceCharacterAging", () => {
 
     const character = worldContext.pack.characters[0];
     expect(character.age).toBe(37);
-    expect(character.appearance).toBe(77); // 80 - floor(2 * 1.5)
+    expect(character.appearance).toBe(79); // 80 - floor(2 * 0.55 vitality rate)
     expect(character.skills.prowess).toBe(76); // civilian: 80 - floor(2 * 2)
   });
 
@@ -97,7 +97,7 @@ describe("advanceCharacterAging", () => {
 
     const character = worldContext.pack.characters[0];
     expect(character.age).toBe(37);
-    expect(character.appearance).toBe(77); // appearance is unchanged by military status
+    expect(character.appearance).toBe(79); // appearance is unchanged by military status
     expect(character.skills.prowess).toBe(78); // military: 80 - floor(2 * 1)
   });
 

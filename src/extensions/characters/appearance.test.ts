@@ -1,8 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createDefaultRaces } from "../../data/races";
+import { createDefaultRaces, HUMAN_RACE_ID } from "../../data/races";
 import { worldContext } from "../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../hostTypes";
-import { attractiveness, isSameRace, physiqueSimilarity, scoreLooksAgainstIdeal } from "./appearance";
+import {
+  APPEARANCE_SCORE_CENTER,
+  attractiveness,
+  isSameRace,
+  ownRaceAppearanceScore,
+  physiqueSimilarity,
+  rollLooksForRace,
+  scoreLooksAgainstIdeal
+} from "./appearance";
 import { clearCharactersContext, initCharactersContext } from "./charactersContext";
 import type { Character } from "./characterTypes";
 
@@ -77,9 +85,16 @@ describe("appearance / attractiveness", () => {
     const races = createDefaultRaces();
     const elf = races.find(r => r.key === "elf")!;
     const orc = races.find(r => r.key === "orc")!;
-    const asElf = scoreLooksAgainstIdeal(refined, elf.beautyIdeal);
-    const asOrc = scoreLooksAgainstIdeal(refined, orc.beautyIdeal);
+    const asElf = scoreLooksAgainstIdeal(refined, elf.beautyIdeal, elf.looksBaseline);
+    const asOrc = scoreLooksAgainstIdeal(refined, orc.beautyIdeal, orc.looksBaseline);
     expect(asElf).toBeGreaterThan(asOrc);
+  });
+
+  it("maps race-typical looks near the Appearance center", () => {
+    const races = createDefaultRaces();
+    const human = races.find(r => r.key === "human")!;
+    const score = scoreLooksAgainstIdeal(human.looksBaseline!, human.beautyIdeal, human.looksBaseline);
+    expect(score).toBe(APPEARANCE_SCORE_CENTER);
   });
 
   it("treats same race as full Appearance judgment", () => {
@@ -97,6 +112,39 @@ describe("appearance / attractiveness", () => {
     const r = attractiveness(a, b);
     expect(r.kind).toBe("same_race");
     expect(r.score).toBeGreaterThan(55);
+  });
+
+  it("rolls peak Appearance with a few-percent ≥70 tail and rare ≥90", () => {
+    const n = 4000;
+    const samples: number[] = [];
+    for (let i = 0; i < n; i++) {
+      // Young peak (no age decline) — generation also includes older adults with lower means.
+      samples.push(rollLooksForRace(HUMAN_RACE_ID, 30, 35).appearance);
+    }
+    const ge70 = samples.filter(v => v >= 70).length / n;
+    const ge90 = samples.filter(v => v >= 90).length / n;
+    const eq100 = samples.filter(v => v === 100).length / n;
+    const mean = samples.reduce((s, v) => s + v, 0) / n;
+
+    expect(mean).toBeGreaterThan(45);
+    expect(mean).toBeLessThan(55);
+    // Target: several percent ≥70 (allow sampling noise on n=4k)
+    expect(ge70).toBeGreaterThan(0.03);
+    expect(ge70).toBeLessThan(0.15);
+    // 90 is rare; 100 is legendary-grade
+    expect(ge90).toBeLessThan(0.02);
+    expect(eq100).toBeLessThan(0.005);
+
+    // Exceptional phenotype still can reach the high band
+    const idealLooks = {
+      stature: 90,
+      build: 85,
+      symmetry: 95,
+      refinement: 95,
+      vitality: 95,
+      ornament: 80
+    };
+    expect(ownRaceAppearanceScore(idealLooks, HUMAN_RACE_ID, createDefaultRaces())).toBeGreaterThanOrEqual(90);
   });
 
   it("caps cross-race attractiveness and marks alien or partial", () => {

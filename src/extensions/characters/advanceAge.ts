@@ -1,6 +1,11 @@
 import { getRaceById } from "../../data/races";
 import { P, rand } from "../hostUtils";
-import { ownRaceAppearanceScore, resolveCharacterRaceId } from "./appearance";
+import {
+  LOOKS_SOFT_DECLINE_PER_YEAR,
+  LOOKS_VITALITY_DECLINE_PER_YEAR,
+  ownRaceAppearanceScore,
+  resolveCharacterRaceId
+} from "./appearance";
 import {
   getCharacters,
   getCurrentYear,
@@ -13,7 +18,8 @@ import { getRaceMaturityAge, resolveRaceAgeProfile, scaleHumanAgeToRace } from "
 
 /** Physical decline sets in past this age for short-lived (human-scale) races only. */
 export const DECLINE_AGE_THRESHOLD = 35;
-export const APPEARANCE_DECLINE_PER_YEAR = 1.5;
+/** Legacy scalar appearance decline (characters without `looks` axes). Matches vitality axis rate. */
+export const APPEARANCE_DECLINE_PER_YEAR = LOOKS_VITALITY_DECLINE_PER_YEAR;
 /** Civilian / non-military personal combat decline after peak age. */
 export const PROWESS_DECLINE_PER_YEAR = 2;
 /**
@@ -106,12 +112,12 @@ export function advanceCharacterAging(deltaYears: number): void {
     const skipAgePenalty = characterIgnoresAgeDecline(character);
 
     const appearanceDecline =
-      declineAt(newAge, APPEARANCE_DECLINE_PER_YEAR, skipAgePenalty) -
-      declineAt(oldAge, APPEARANCE_DECLINE_PER_YEAR, skipAgePenalty);
-    // Mild soft-feature loss (~1/3 of vitality decline rate), only when aging past the threshold.
+      declineAt(newAge, LOOKS_VITALITY_DECLINE_PER_YEAR, skipAgePenalty) -
+      declineAt(oldAge, LOOKS_VITALITY_DECLINE_PER_YEAR, skipAgePenalty);
+    // Mild soft-feature loss on symmetry/refinement after peak age.
     const softDecline =
-      declineAt(newAge, APPEARANCE_DECLINE_PER_YEAR * 0.35, skipAgePenalty) -
-      declineAt(oldAge, APPEARANCE_DECLINE_PER_YEAR * 0.35, skipAgePenalty);
+      declineAt(newAge, LOOKS_SOFT_DECLINE_PER_YEAR, skipAgePenalty) -
+      declineAt(oldAge, LOOKS_SOFT_DECLINE_PER_YEAR, skipAgePenalty);
     const prowessRate = prowessDeclineRateForCharacter(character);
     const prowessDecline =
       declineAt(newAge, prowessRate, skipAgePenalty) - declineAt(oldAge, prowessRate, skipAgePenalty);
