@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Author** | Design draft (AI agent) |
 | **Date** | 2026-08-04 |
-| **Status** | Design proposal — supersedes **PR-3c** of [player-threat-cull-jobs.md](./player-threat-cull-jobs.md). **EQ-1 implemented** (loadout schema + estate seed). |
+| **Status** | Design proposal — supersedes **PR-3c** of [player-threat-cull-jobs.md](./player-threat-cull-jobs.md). **EQ-1–EQ-2 implemented** (schema/seed + equip UI). |
 | **Intended repo path** | `docs/plan/character-loadout-and-readiness.md` |
 | **Depends on** | Characters extension (`Character`, `personFactory`, backstory estate/stratum); Economy goods + `Character.inventory` + market commerce; `individualSkills` / `martialIndividualMastery`; threat cull combat (`threatCullCombat.ts`); PC panel |
 | **Related** | [individual-skill-mastery-system.md](./individual-skill-mastery-system.md); [player-character-market-commerce.md](./player-character-market-commerce.md) §10 (consume/equip deferred); [player-threat-cull-jobs.md](./player-threat-cull-jobs.md) K5 / PR-3c; [characters/appearance-and-reproduction.md](./characters/appearance-and-reproduction.md) (phenotype only — not clothing); [goods-unit-scale.md](./goods-unit-scale.md) (Garments/Arms as `set`) |
@@ -418,10 +418,10 @@ No separate “fantasy clothing system.” Magic items stay out of v1; High Fant
 - **Dependencies:** none
 - **Description:** Add `CharacterLoadout` types; seed body (always) and weapon (martial roles); dignity floors (K4); idempotent backfill helper; no UI yet.
 
-### EQ-2 — Equip / unequip + Details UI
+### EQ-2 — Equip / unequip + Details UI — **DONE**
 
 - **Title:** `feat(characters): equip from inventory and Loadout tab`
-- **Files:** characters commands, `CharacterDetailsDialog.tsx`, i18n English strings, inventory interaction tests
+- **Files:** `loadoutEquip.ts`, `loadoutEquip.test.ts`, `characters/index.ts` commands, `CharacterDetailsDialog.tsx`, `en.json` / `ja.json`
 - **Dependencies:** EQ-1; economy market inventory already live
 - **Description:** Equip consumes 1 set; unequip restores; editor override path; `fmg:character-loadout-changed`.
 

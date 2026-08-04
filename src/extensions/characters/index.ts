@@ -3,7 +3,16 @@ import "./types"; // activate module augmentation for PackedGraph.characters
 import type { ExtensionAPI } from "../../types/extension-api";
 import { clearCharacters } from "./advanceAge";
 import { clearCharactersContext, getCharacters, initCharactersContext } from "./charactersContext";
-import type { CharacterSkills } from "./characterTypes";
+import type { CharacterLoadout, CharacterSkills, LoadoutSlotId } from "./characterTypes";
+import {
+  equipFromInventory,
+  isLoadoutSlotId,
+  notifyLoadoutChanged,
+  setLoadoutEditor,
+  setSlotQuality,
+  unequipSlot
+} from "./loadoutEquip";
+import type { NamedGoodRef } from "./loadoutSeed";
 import { BurgEditorCharactersTab } from "./ui/components/BurgEditorCharactersTab";
 import { CharacterDetailsDialog } from "./ui/dialogs/CharacterDetailsDialog";
 import { CharactersOverviewDialog } from "./ui/dialogs/CharactersOverviewDialog";
@@ -13,6 +22,76 @@ export const CHARACTERS_EXTENSION_ID = "characters";
 let _unsubscribe: (() => void) | null = null;
 let _unregisterSkillModifier: (() => void) | null = null;
 let _unregisterClearCommand: (() => void) | null = null;
+let _unregisterLoadoutCommands: (() => void) | null = null;
+
+function resolveGoodsCatalogForEquip(api: ExtensionAPI): NamedGoodRef[] {
+  try {
+    const pack = api.worldContext.pack as { goods?: NamedGoodRef[] };
+    if (Array.isArray(pack.goods) && pack.goods.length) return pack.goods;
+  } catch {
+    // Context may be incomplete in tests.
+  }
+
+  const economyGoods = api.simulationContext?.extensions?.economy?.goods;
+  if (Array.isArray(economyGoods)) {
+    return economyGoods.filter(
+      (g): g is NamedGoodRef =>
+        !!g &&
+        typeof g === "object" &&
+        typeof (g as NamedGoodRef).i === "number" &&
+        typeof (g as NamedGoodRef).name === "string"
+    );
+  }
+  return [];
+}
+
+function isEquipFromInventoryRequest(value: unknown): value is {
+  characterId: number;
+  slot: LoadoutSlotId;
+  goodId: number;
+  quality?: number;
+  goodName?: string;
+} {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  if (typeof v.characterId !== "number" || !Number.isInteger(v.characterId)) return false;
+  if (!isLoadoutSlotId(v.slot)) return false;
+  if (typeof v.goodId !== "number" || !Number.isInteger(v.goodId)) return false;
+  if (v.quality !== undefined && (typeof v.quality !== "number" || !Number.isFinite(v.quality))) return false;
+  if (v.goodName !== undefined && typeof v.goodName !== "string") return false;
+  return true;
+}
+
+function isUnequipSlotRequest(value: unknown): value is { characterId: number; slot: LoadoutSlotId } {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  return typeof v.characterId === "number" && Number.isInteger(v.characterId) && isLoadoutSlotId(v.slot);
+}
+
+function isSetSlotQualityRequest(
+  value: unknown
+): value is { characterId: number; slot: LoadoutSlotId; quality: number } {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v.characterId === "number" &&
+    Number.isInteger(v.characterId) &&
+    isLoadoutSlotId(v.slot) &&
+    typeof v.quality === "number" &&
+    Number.isFinite(v.quality)
+  );
+}
+
+function isSetLoadoutEditorRequest(
+  value: unknown
+): value is { characterId: number; loadout: CharacterLoadout | null; replaceAll?: boolean } {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  if (typeof v.characterId !== "number" || !Number.isInteger(v.characterId)) return false;
+  if (v.loadout !== null && (typeof v.loadout !== "object" || Array.isArray(v.loadout))) return false;
+  if (v.replaceAll !== undefined && typeof v.replaceAll !== "boolean") return false;
+  return true;
+}
 
 export function init(api: ExtensionAPI): void {
   initCharactersContext(api);
@@ -29,6 +108,91 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
+  const unregisterEquip = api.registerExtensionCommand({
+    extensionId: CHARACTERS_EXTENSION_ID,
+    name: "equipFromInventory",
+    topics: ["extension.characters"],
+    execute: value => {
+      if (!isEquipFromInventoryRequest(value)) {
+        throw new Error("characters.equipFromInventory requires characterId, slot, and goodId");
+      }
+      const character = getCharacters().find(c => c.i === value.characterId);
+      if (!character) throw new Error(`characters.equipFromInventory: character ${value.characterId} not found`);
+      const result = equipFromInventory({
+        character,
+        slot: value.slot,
+        goodId: value.goodId,
+        quality: value.quality,
+        goodName: value.goodName,
+        goods: resolveGoodsCatalogForEquip(api)
+      });
+      if (!result.ok) throw new Error(result.message ?? result.code ?? "equip failed");
+      if (result.changed) notifyLoadoutChanged(character.i);
+      return { changed: result.changed, result: { characterId: character.i, slot: value.slot } };
+    }
+  });
+
+  const unregisterUnequip = api.registerExtensionCommand({
+    extensionId: CHARACTERS_EXTENSION_ID,
+    name: "unequipSlot",
+    topics: ["extension.characters"],
+    execute: value => {
+      if (!isUnequipSlotRequest(value)) {
+        throw new Error("characters.unequipSlot requires characterId and slot");
+      }
+      const character = getCharacters().find(c => c.i === value.characterId);
+      if (!character) throw new Error(`characters.unequipSlot: character ${value.characterId} not found`);
+      const result = unequipSlot({ character, slot: value.slot });
+      if (!result.ok) throw new Error(result.message ?? result.code ?? "unequip failed");
+      if (result.changed) notifyLoadoutChanged(character.i);
+      return { changed: result.changed, result: { characterId: character.i, slot: value.slot } };
+    }
+  });
+
+  const unregisterSetQuality = api.registerExtensionCommand({
+    extensionId: CHARACTERS_EXTENSION_ID,
+    name: "setSlotQuality",
+    topics: ["extension.characters"],
+    execute: value => {
+      if (!isSetSlotQualityRequest(value)) {
+        throw new Error("characters.setSlotQuality requires characterId, slot, and quality");
+      }
+      const character = getCharacters().find(c => c.i === value.characterId);
+      if (!character) throw new Error(`characters.setSlotQuality: character ${value.characterId} not found`);
+      const result = setSlotQuality({ character, slot: value.slot, quality: value.quality });
+      if (!result.ok) throw new Error(result.message ?? result.code ?? "set quality failed");
+      if (result.changed) notifyLoadoutChanged(character.i);
+      return { changed: result.changed, result: { characterId: character.i, slot: value.slot } };
+    }
+  });
+
+  const unregisterSetLoadout = api.registerExtensionCommand({
+    extensionId: CHARACTERS_EXTENSION_ID,
+    name: "setLoadoutEditor",
+    topics: ["extension.characters"],
+    execute: value => {
+      if (!isSetLoadoutEditorRequest(value)) {
+        throw new Error("characters.setLoadoutEditor requires characterId and loadout");
+      }
+      const character = getCharacters().find(c => c.i === value.characterId);
+      if (!character) throw new Error(`characters.setLoadoutEditor: character ${value.characterId} not found`);
+      const result = setLoadoutEditor({
+        character,
+        loadout: value.loadout,
+        replaceAll: value.replaceAll
+      });
+      if (!result.ok) throw new Error(result.message ?? result.code ?? "set loadout failed");
+      if (result.changed) notifyLoadoutChanged(character.i);
+      return { changed: result.changed, result: { characterId: character.i } };
+    }
+  });
+
+  _unregisterLoadoutCommands = () => {
+    unregisterEquip();
+    unregisterUnequip();
+    unregisterSetQuality();
+    unregisterSetLoadout();
+  };
   api.registerExtension(
     {
       id: CHARACTERS_EXTENSION_ID,
@@ -111,6 +275,8 @@ export function cleanup(api: ExtensionAPI): void {
   }
   _unregisterClearCommand?.();
   _unregisterClearCommand = null;
+  _unregisterLoadoutCommands?.();
+  _unregisterLoadoutCommands = null;
 
   api.closeDialog("charactersOverview");
   api.closeDialog("characterDetails");
