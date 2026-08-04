@@ -22,6 +22,7 @@ import {
   setCullJobPostings
 } from "../economyContext";
 import { cancelConstructionApplication, resignConstructionJob } from "./constructionHire";
+import { applyCullPracticeCredit } from "./cullPractice";
 import { characterHasEmploymentCommitment } from "./employmentCommitment";
 import {
   ANON_COMBAT_SCORE,
@@ -460,6 +461,13 @@ function resolveCullContract(contract: CullActiveContract, rng: RNGService): Dat
   // Injury orthogonal — after pay.
   if (named && character && combat.injured) {
     applyInjury(character);
+  }
+
+  // EQ-4: practice credit on individualSkills (not base skills). Skip dead (already returned).
+  // Anonymous contracts never grow a Character domain skill.
+  if (named && character && !character.dead) {
+    const practice = applyCullPracticeCredit(character, combat.outcome, combat.injured);
+    if (practice) topics.push("extension.economy");
   }
 
   if (named && character) removeCullRole(character);
