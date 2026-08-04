@@ -16,11 +16,14 @@ import {
 import { SKILL_BASE_MEAN, SKILL_STDDEV, skillMeanFor } from "./skillGeneration";
 
 describe("raceSkillBias", () => {
-  it("gives elves lower martial and higher learning medians than baseline", () => {
+  it("gives elves lower martial and elevated learning/prowess medians", () => {
     const martial = skillMeanFor("martial", { raceKey: "elf" }).mean;
     const learning = skillMeanFor("learning", { raceKey: "elf" }).mean;
+    const prowess = skillMeanFor("prowess", { raceKey: "elf" }).mean;
     expect(martial).toBeLessThan(SKILL_BASE_MEAN);
-    expect(learning).toBeGreaterThan(SKILL_BASE_MEAN);
+    expect(learning).toBeGreaterThanOrEqual(SKILL_BASE_MEAN + 8);
+    expect(prowess).toBeGreaterThanOrEqual(SKILL_BASE_MEAN + 4);
+    expect(learning).toBeGreaterThan(prowess);
   });
 
   it("gives draconic the highest prowess tilt and low martial / diplomacy", () => {

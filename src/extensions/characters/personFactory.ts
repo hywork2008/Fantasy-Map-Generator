@@ -32,6 +32,7 @@ import {
   raceUsesEpisodicPairing,
   rollDefaultAdultAge
 } from "./raceAge";
+import { rollCharacterPersonality } from "./racePersonalityBias";
 import { isEnemyDedicatedRaceKey, isEnemyDedicatedRole } from "./raceSkillBias";
 import { rollCharacterSkills } from "./skillGeneration";
 
@@ -459,23 +460,15 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
       9
   );
 
-  // Confidence: based on average skill with a ±20 random variance
+  // Confidence: based on average skill with a ±20 random variance (race bias applied below).
   const confidence = Math.max(1, Math.min(100, avgSkill + rand(-20, 20)));
 
-  const personality: CharacterPersonality = {
-    boldness: rand(1, 100),
-    compassion: rand(1, 100),
-    greed: rand(1, 100),
-    honor: rand(1, 100),
-    rationality: rand(1, 100),
-    sociability: rand(1, 100),
-    vengefulness: rand(1, 100),
-    zeal,
-    energy: rand(1, 100),
-    piety,
-    guile,
-    confidence
-  };
+  // Species personality medians (elf: lower boldness/greed/vengefulness, …).
+  const personality: CharacterPersonality = rollCharacterPersonality({
+    raceKey: raceDef?.key,
+    lifespan: raceDef?.lifespan ?? raceLifespan,
+    presets: { zeal, piety, guile, confidence }
+  });
 
   // If character is a minor, neutralize personality towards 50 so babies don't act like evil masterminds.
   // They will slowly drift towards extremes in advanceCharacterAging.

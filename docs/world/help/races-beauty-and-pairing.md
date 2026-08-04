@@ -83,8 +83,9 @@ See [multi-race-geopolitics.md](./multi-race-geopolitics.md) and `src/data/raceC
 Role and office still dominate, but race shifts medians (`raceSkillBias.ts`):
 
 - Long-lived folk: lower median **Martial**; **wider skill σ** so rare masters appear more often.
-- **Elf / Dwarf / Human**: diplomatic core skill flavors (learning, engineering, baseline).
-- **Orc** (enemy colony): Prowess high; Martial ≈ human; Diplomacy very low.
+- **Elf**: Learning/Prowess elevated (memory & personal guardianship); Martial low; slight Diplomacy. Personality: lower **boldness / greed / vengefulness**, higher rationality (slow politics, costly-war memory).
+- **Dwarf / Human**: diplomatic core (engineering / baseline).
+- **Orc** (enemy colony): Prowess high; Martial ≈ human; Diplomacy very low; hotter boldness/vengefulness.
 - **Goblin / Arachnid** (enemy colony): warband / nest hunters; Diplomacy crushed.
 - **Draconic / Giant / Dark Elf / Amazones** (distant): power or intrigue; not cosmopolitan.
 

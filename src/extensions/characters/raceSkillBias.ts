@@ -21,13 +21,15 @@ export type RaceSkillMeanTable = Partial<Record<keyof CharacterSkills, number>>;
 export const RACE_SKILL_BIAS: Readonly<Record<string, RaceSkillMeanTable>> = {
   human: {},
   unknown: {},
-  // Sparse large-army culture; personal skill and study over mass war.
+  // Long memory & border guardianship: study and personal skill over mass war.
+  // (Higher learning/prowess than v1 — millennia of craft, not archmage-everyone.)
   elf: {
     martial: -8,
-    prowess: 4,
-    learning: 6,
-    artistry: 4,
-    geography: 2
+    prowess: 6,
+    learning: 10,
+    artistry: 5,
+    geography: 3,
+    diplomacy: 3
   },
   // Clan households + craft; slightly less Martial penalty than elves (tunnel war).
   dwarf: {
