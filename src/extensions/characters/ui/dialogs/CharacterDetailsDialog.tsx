@@ -6,6 +6,7 @@ import { formatPrice } from "../../../hostUtils";
 import { setPlayerCharacter } from "../../../nobility/controllers/playerCharacter";
 import { hasNobilityContext } from "../../../nobility/nobilityContext";
 import { usePlayerCharacterState } from "../../../nobility/store/playerCharacterState";
+import { attractiveness } from "../../appearance";
 import { getFavorBand, getSolidarityBand, inferRoleClass } from "../../backstoryProfile";
 import { getApi, getCharacters, getWorldContext } from "../../charactersContext";
 import type { Character, CharacterRole, TitleHolding } from "../../characterTypes";
@@ -167,6 +168,23 @@ export const CharacterDetailsDialog: React.FC = () => {
   const isCurrentPlayer = playerCharacterId === character.i;
   const canSetAsPlayer = nobilityAvailable && !character.dead && !isCurrentPlayer;
 
+  // Player-viewpoint beauty: observer = focus PC, subject = this sheet (hidden for self / no PC).
+  const playerCharacter =
+    playerCharacterId !== null && playerCharacterId !== character.i
+      ? characters.find(c => c.i === playerCharacterId)
+      : undefined;
+  const viewFromPlayer = playerCharacter ? attractiveness(playerCharacter, character) : null;
+  const appearanceToYouKindKey =
+    viewFromPlayer === null
+      ? null
+      : viewFromPlayer.kind === "same_race"
+        ? "appearanceToYouKindSameRace"
+        : viewFromPlayer.kind === "cross_race_aesthetic"
+          ? "appearanceToYouKindAesthetic"
+          : viewFromPlayer.kind === "cross_race_partial"
+            ? "appearanceToYouKindPartial"
+            : "appearanceToYouKindAlien";
+
   const handleClose = () => {
     closeDialog("characterDetails");
     // History is cleared by the isOpen effect above.
@@ -287,6 +305,11 @@ export const CharacterDetailsDialog: React.FC = () => {
     rows.push(
       `${t("characters.appearance")}, ${character.appearance ?? t("characters.notAvailable")} (${t("characters.appearanceSameRaceHint")})`
     );
+    if (viewFromPlayer && appearanceToYouKindKey) {
+      rows.push(
+        `${t("characters.appearanceToYou")}, ${viewFromPlayer.score} (${t(`characters.${appearanceToYouKindKey}`)}); ${viewFromPlayer.reaction}`
+      );
+    }
     if (looks) {
       rows.push(
         `${t("characters.looks")}, stature ${looks.stature}, build ${looks.build}, symmetry ${looks.symmetry}, refinement ${looks.refinement}, vitality ${looks.vitality}, ornament ${looks.ornament}`
@@ -608,6 +631,22 @@ export const CharacterDetailsDialog: React.FC = () => {
                 </span>
               </td>
             </tr>
+            {viewFromPlayer && appearanceToYouKindKey && (
+              <tr>
+                <th style={{ padding: "4px 0" }} data-tip={t("characters.appearanceToYouTip")}>
+                  {t("characters.appearanceToYou")}
+                </th>
+                <td>
+                  {viewFromPlayer.score}
+                  <span style={{ color: "#868e96", fontSize: "0.85em", marginLeft: 6 }}>
+                    ({t(`characters.${appearanceToYouKindKey}`)})
+                  </span>
+                  <div style={{ color: "#868e96", fontSize: "0.85em", marginTop: 2, lineHeight: 1.35 }}>
+                    {viewFromPlayer.reaction}
+                  </div>
+                </td>
+              </tr>
+            )}
             {looks && (
               <tr>
                 <th style={{ padding: "4px 0", verticalAlign: "top" }} data-tip={t("characters.looksTip")}>
