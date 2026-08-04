@@ -194,8 +194,8 @@ R_max = (fertilityEnd − fertilityStart) / interbirthYears × litterMean
 
 | Band | Target R_max | Role |
 | :--- | ---: | :--- |
-| Near-immortal / very long-lived (elf, draconic) | **2.0–3.5** | Near replacement; adult death is rare outside war |
-| Long-lived (dwarf, giant, dark elf) | **3.0–5.0** | Slow recovery; scarce heirs still feel true |
+| Near-immortal / deep-time (elf, giant, draconic) | **2.0–3.5** | Near replacement; adult death is rare outside war; multi-millennial polities |
+| Long-lived (dwarf, dark elf) | **3.0–5.0** | Slow recovery; scarce heirs still feel true |
 | Human-scale (human, amazones) | **7–10** | Pre-modern completed fertility; macro mortality trims growth |
 | Boom species (orc, goblin, arachnid) | **≫ 10** | Fast rebound / clutch lore; later juvenile loss can cap them |
 
@@ -215,7 +215,7 @@ A 400-year fertile window at 20-year spacing yields R_max ≈ **20** — higher 
 | Dwarf | 40 | 160 | **30** | 1.05 | 2 | **4.2** | Slow clans; not human spacing × long life |
 | Goblin | 10 | 35 | 1.5 | 2.0 | 5 | 33 | Boom / bust |
 | Orc | 12 | 40 | 2.5 | 1.3 | 4 | 14.6 | Fast, below goblin |
-| Giant | 30 | 120 | **30** | 1.0 | 2 | **3.0** | Rare births |
+| Giant | 100 | 450 | **130** | 1.0 | 2 | **2.7** | God-line deep time (lifespan 800 / max 1200); below draconic |
 | Draconic | 100 | 500 | **160** | 1.0 | 3 | **2.5** | Scarce clutches |
 | Arachnid | 8 | 30 | 1.2 | 3.0 | 8 | 55 | Egg-sac boom (lore: few reach adulthood) |
 

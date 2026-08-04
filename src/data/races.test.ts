@@ -24,11 +24,15 @@ describe("races catalog", () => {
     const human = races.find(r => r.key === "human")!;
     const elf = races.find(r => r.key === "elf")!;
     const dwarf = races.find(r => r.key === "dwarf")!;
+    const giant = races.find(r => r.key === "giant")!;
     const goblin = races.find(r => r.key === "goblin")!;
     const draconic = races.find(r => r.key === "draconic")!;
     expect(elf.lifespan!).toBeGreaterThan(human.lifespan!);
     expect(dwarf.lifespan!).toBeGreaterThan(human.lifespan!);
     expect(goblin.lifespan!).toBeLessThan(human.lifespan!);
+    // God-line giants: deep-time band just above high elves, below draconic.
+    expect(giant.lifespan!).toBeGreaterThan(elf.lifespan!);
+    expect(giant.lifespan!).toBeLessThan(draconic.lifespan!);
     expect(draconic.lifespan!).toBeGreaterThan(elf.lifespan!);
   });
 

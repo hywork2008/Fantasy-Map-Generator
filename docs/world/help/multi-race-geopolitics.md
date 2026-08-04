@@ -55,7 +55,7 @@ Coexistence with them means **frontiers, fortresses, and seasonal war**, not sha
 ## Distant folk
 
 - **Dark elf**: intrigue and isolation; not open ally, not pure monster. Court plots and in-house power.
-- **Giant** (god-line / Yotunn): cyclopean builders with draconic-level personal might. They keep lesser folk out with **secrecy, intermediaries, and controlled access** (Intrigue for non-involvement — not dark-elf succession games). Little interest in mortal scholarship. Personality: low sociability/compassion, high guile and confidence, restrained greed.
+- **Giant** (god-line / Yotunn): cyclopean builders with draconic-level personal might and **deep-time longevity** (typical ~800 years, under high elves only slightly, well under dragons). They keep lesser folk out with **secrecy, intermediaries, and controlled access** (Intrigue for non-involvement — not dark-elf succession games). Little interest in mortal scholarship. Personality: low sociability/compassion, high guile and confidence, restrained greed. Sparse named courts and near-replacement births match millennial mono realms.
 - **Draconic**: power and pride; keep lesser folk at arm’s length by apex presence more than scheming. **Named merchants and craft masters are almost never dragons** — those desks belong to **Wyrmkin**.
 - **Amazones**: strong female-led warrior culture; other peoples find the social order hard to live under, so contact stays limited.
 

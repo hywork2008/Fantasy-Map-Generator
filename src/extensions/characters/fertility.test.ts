@@ -39,8 +39,9 @@ describe("race fertility", () => {
     expect(darkElfR).toBeLessThanOrEqual(4);
     expect(dwarfR).toBeGreaterThanOrEqual(3);
     expect(dwarfR).toBeLessThanOrEqual(5.5);
+    // God-line giants share the deep-time near-replacement band with elves/dragons.
     expect(giantR).toBeGreaterThanOrEqual(2);
-    expect(giantR).toBeLessThanOrEqual(4);
+    expect(giantR).toBeLessThanOrEqual(3.5);
     expect(draconicR).toBeGreaterThanOrEqual(2);
     expect(draconicR).toBeLessThanOrEqual(3.5);
 

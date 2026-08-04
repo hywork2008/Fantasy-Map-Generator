@@ -56,6 +56,28 @@ describe("polityAgeEstimate", () => {
     expect(h.years!).toBeLessThan(e.years!);
   });
 
+  it("places god-line giants in the multi-millennial band with elves (not ~1.5K-year mid-scale)", () => {
+    const giant = races.find(r => r.key === "giant")!;
+    const giantFert = getRaceFertility(races, giant.i);
+    const pop = 100_000;
+    const g = estimatePolityAgeFromPopulation(pop, giantFert, {
+      lifespan: giant.lifespan,
+      foundingCouples: FOUNDING_COUPLES_DEFAULT,
+      raceName: "Giant"
+    });
+    const e = estimatePolityAgeFromPopulation(pop, elfFert, {
+      lifespan: elf.lifespan,
+      foundingCouples: FOUNDING_COUPLES_DEFAULT,
+      raceName: "Elf"
+    });
+    expect(g.status).toBe("ok");
+    expect(e.status).toBe("ok");
+    expect(g.years!).toBeGreaterThan(4000);
+    // Same order of magnitude as high elves (not an order below).
+    expect(g.years!).toBeGreaterThan(e.years! * 0.5);
+    expect(g.years!).toBeLessThan(e.years! * 1.5);
+  });
+
   it("treats population at or below founding cohort as age 0", () => {
     const est = estimatePolityAgeFromPopulation(80, humanFert, { lifespan: 75 });
     expect(est.status).toBe("too_small");

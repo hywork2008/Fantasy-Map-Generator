@@ -176,20 +176,22 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
   },
   {
     // God-line distant folk (Yotunn cultures): apex might + cyclopean craft; not hill-ogre colonies.
+    // Deep-time continuity sits just below high elves / well below draconic (skills already apex).
     // Skills/personality: raceSkillBias / racePersonalityBias.
     key: "giant",
     name: "Giant",
-    lifespan: 250,
-    maxLifespan: 400,
+    lifespan: 800,
+    maxLifespan: 1200,
     looksBaseline: { stature: 90, build: 80, symmetry: 45, refinement: 35, vitality: 55, ornament: 40 },
     beautyIdeal: {
       weights: { stature: 1.5, build: 1.0, vitality: 0.7, symmetry: 0.4, refinement: -0.3, ornament: 0.2 }
     },
-    // R_max ≈ 3.0
+    // R_max ≈ 2.7 — near-replacement + century-scale spacing so polity-age lore tracks millennia
+    // (not the old 250y / short-window profile that capped growth-age estimates ~1–2K years).
     fertility: {
-      fertilityStart: 30,
-      fertilityEnd: 120,
-      interbirthYears: 30,
+      fertilityStart: 100,
+      fertilityEnd: 450,
+      interbirthYears: 130,
       litterMean: 1.0,
       litterMax: 2
     }
@@ -307,21 +309,28 @@ export function applyCatalogLifespanDefaults(race: Race): Race {
   return applyCatalogRaceDefaults(race);
 }
 
-/** Backfill all catalog-derived race fields for older saves. */
+/**
+ * Backfill / refresh catalog-derived race fields for older saves.
+ * Built-in keys always re-sync lifespan + fertility from the current catalog so
+ * balance patches (e.g. god-line giant deep time) apply without New Map.
+ * Looks / beauty ideals only fill when missing (no race appearance editor yet).
+ */
 export function applyCatalogRaceDefaults(race: Race): Race {
   const def = RACE_DEFINITIONS.find(d => d.key === race.key);
-  if (race.lifespan === undefined) {
-    race.lifespan = def?.lifespan ?? DEFAULT_RACE_LIFESPAN;
+  if (def) {
+    race.lifespan = def.lifespan;
+    race.maxLifespan = def.maxLifespan;
+    race.fertility = { ...def.fertility };
+  } else {
+    if (race.lifespan === undefined) race.lifespan = DEFAULT_RACE_LIFESPAN;
+    if (race.maxLifespan === undefined) race.maxLifespan = DEFAULT_RACE_MAX_LIFESPAN;
+    if (!race.fertility) race.fertility = { ...DEFAULT_RACE_FERTILITY };
   }
-  if (race.maxLifespan === undefined) {
-    race.maxLifespan = def?.maxLifespan ?? DEFAULT_RACE_MAX_LIFESPAN;
-  }
-  if (race.maxLifespan < race.lifespan) {
+  if (race.maxLifespan! < race.lifespan!) {
     race.maxLifespan = race.lifespan;
   }
   if (!race.looksBaseline && def) race.looksBaseline = { ...def.looksBaseline };
   if (!race.beautyIdeal && def) race.beautyIdeal = { weights: { ...def.beautyIdeal.weights } };
-  if (!race.fertility && def) race.fertility = { ...def.fertility };
   if (!race.fertility) race.fertility = { ...DEFAULT_RACE_FERTILITY };
   return race;
 }
