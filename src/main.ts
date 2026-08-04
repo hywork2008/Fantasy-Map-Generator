@@ -1070,13 +1070,15 @@ function getGenerationStages(): Array<() => Promise<void>> {
       rankCells();
       Cultures.generate(worldContext, viewContext, appServices, state);
       Cultures.expand(state);
+      const optionsSnap = useOptionsState.getState();
       const settlementPattern = applyInitialSettlementPattern(
         worldContext.pack.cells,
         worldContext.options.initialSettlementPattern,
-        useOptionsState.getState().initialPopulationSaturation / 100,
+        optionsSnap.initialPopulationSaturation / 100,
         Math.random,
         { temperature: worldContext.grid.cells.temp, precipitation: worldContext.grid.cells.prec },
-        useOptionsState.getState().statesNumber
+        optionsSnap.statesNumber,
+        optionsSnap.oikoumeneLandShare
       );
       if (settlementPattern.plan) worldContext.pack.settlementFoundation = settlementPattern.plan;
       else delete worldContext.pack.settlementFoundation;

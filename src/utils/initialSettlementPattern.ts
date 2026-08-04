@@ -4,6 +4,14 @@ export const DEFAULT_INITIAL_SETTLEMENT_PATTERN: InitialSettlementPattern = "sta
 
 /** Converts saved or UI input to a supported initial settlement distribution. */
 export function normalizeInitialSettlementPattern(value: unknown): InitialSettlementPattern {
-  if (value === "frontier" || value === "scattered" || value === "standard" || value === "dense") return value;
+  if (
+    value === "frontier" ||
+    value === "marches" ||
+    value === "scattered" ||
+    value === "standard" ||
+    value === "dense"
+  ) {
+    return value;
+  }
   return DEFAULT_INITIAL_SETTLEMENT_PATTERN;
 }

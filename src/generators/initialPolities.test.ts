@@ -28,8 +28,11 @@ describe("Initial Polities Module", () => {
     expect(burgs[2].state).toBe(1);
   });
 
-  it("does not govern an isolated settlement merely because it shares a region", () => {
+  it("governs towns inside the same foundation region even without a route link", () => {
+    // Without this, political maps look inverted: countryside claimed, cities neutral holes.
     const cells = createCells(5, { 0: { 1: 0 }, 1: { 0: 0 } });
+    cells.burg[0] = 1;
+    cells.burg[4] = 2;
     const burgs = [0, { i: 1, cell: 0, capital: 1 }, { i: 2, cell: 4, capital: 0 }] as never;
 
     assignInitialPolities({
@@ -46,8 +49,60 @@ describe("Initial Polities Module", () => {
       states: [{ i: 0 }, { i: 1, capital: 1 }]
     });
 
+    expect(cells.state[0]).toBe(1);
+    expect(cells.state[1]).toBe(1);
+    expect(cells.state[4]).toBe(1);
+    expect(burgs[2].state).toBe(1);
+  });
+
+  it("does not claim a burg outside the foundation region as state territory", () => {
+    const cells = createCells(5, {});
+    cells.burg[0] = 1;
+    cells.burg[4] = 2;
+    const burgs = [0, { i: 1, cell: 0, capital: 1 }, { i: 2, cell: 4, capital: 0 }] as never;
+
+    assignInitialPolities({
+      plan: {
+        regions: [{ id: 0, kind: "river", center: 0, cells: [0, 1, 2] }],
+        nodes: [{ id: 0, regionId: 0, cell: 0, role: "center", score: 10 }],
+        links: []
+      },
+      cells,
+      burgs,
+      states: [{ i: 0 }, { i: 1, capital: 1 }]
+    });
+
+    expect(cells.state[0]).toBe(1);
+    expect(cells.state[1]).toBe(1);
+    expect(cells.state[2]).toBe(1);
     expect(cells.state[4]).toBe(0);
     expect(burgs[2].state).toBe(0);
+  });
+
+  it("claims the full foundation hinterland around a capital even without routes", () => {
+    // Large oikoumene region: only the capital is a burg. Hinterland cells still
+    // become state land so oikoumene land share is visible on the political map.
+    const cells = createCells(8, {});
+    cells.burg[0] = 1;
+    const burgs = [0, { i: 1, cell: 0, capital: 1 }] as never;
+
+    assignInitialPolities({
+      plan: {
+        regions: [{ id: 0, kind: "river", center: 0, cells: [0, 1, 2, 3, 4, 5] }],
+        nodes: [
+          { id: 0, regionId: 0, cell: 0, role: "center", score: 10 },
+          { id: 1, regionId: 0, cell: 3, role: "village", score: 5 }
+        ],
+        links: []
+      },
+      cells,
+      burgs,
+      states: [{ i: 0 }, { i: 1, capital: 1 }]
+    });
+
+    expect(Array.from(cells.state.slice(0, 6))).toEqual([1, 1, 1, 1, 1, 1]);
+    expect(cells.state[6]).toBe(0);
+    expect(cells.state[7]).toBe(0);
   });
 
   it("never assigns a State to a water cell used by a movement route", () => {
@@ -72,15 +127,27 @@ describe("Initial Polities Module", () => {
     expect(cells.state).toEqual(new Uint16Array([1, 0, 1]));
   });
 
-  it("treats States number as a network-density cap", () => {
+  it("treats States number as the capital count target (not node/2 capacity)", () => {
     const plan = {
-      regions: [{ id: 0, kind: "river" as const, center: 0, cells: [0] }],
-      nodes: Array.from({ length: 10 }, (_, id) => ({ id, regionId: 0, cell: id, role: "village" as const, score: 1 })),
+      regions: [
+        { id: 0, kind: "river" as const, center: 0, cells: [0] },
+        { id: 1, kind: "river" as const, center: 1, cells: [1] },
+        { id: 2, kind: "river" as const, center: 2, cells: [2] }
+      ],
+      nodes: Array.from({ length: 40 }, (_, id) => ({
+        id,
+        regionId: id % 3,
+        cell: id,
+        role: "village" as const,
+        score: 1
+      })),
       links: []
     };
 
-    expect(getInitialPolityCapitalCount(plan, 3)).toBe(1);
-    expect(getInitialPolityCapitalCount(plan, 15)).toBe(5);
+    // Many village nodes must not inflate capital count past the slider.
+    expect(getInitialPolityCapitalCount(plan, 3)).toBe(3);
+    expect(getInitialPolityCapitalCount(plan, 15)).toBe(15);
+    expect(getInitialPolityCapitalCount(plan, 50)).toBe(40);
   });
 
   it("spreads planned capitals between regional centers before using nearby villages", () => {

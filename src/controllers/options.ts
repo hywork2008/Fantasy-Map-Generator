@@ -27,7 +27,7 @@ import type { Burg, Culture, Province, State } from "../types/models";
 import { closeAllDialogs, closeDialogs, openAlert, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { gauss, last, minmax, P, rand, rn, rw } from "../utils";
 import { isValidCanvasDimension, isValidCanvasSize, MIN_CANVAS_HEIGHT, MIN_CANVAS_WIDTH } from "../utils/canvasSize";
-import { applyOption, lock, locked, stored, unlock } from "../utils/domUtils";
+import { applyOption, lock, locked, store, stored, unlock } from "../utils/domUtils";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
 import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
 import { cleanupData } from "../versioning";
@@ -258,12 +258,22 @@ export function getCellsDensityColor(cells: number): string {
 // ─── Options changes ───────────────────────────────────────────────────────────
 
 function changeCultureSet(): void {
-  // Fantasy presets: limited oikoumene (frontier settlement) + culture-set threat profile
-  // applied at next generate (see threatProfiles.ts / Threats.generate).
+  // Fantasy presets: marches oikoumene (~45% land share, several polity islands) +
+  // culture-set threat profile at next generate (threatProfiles.ts / Threats.generate).
+  // Always rewrite these values (and lock storage if present) so switching to High Fantasy
+  // after experimenting with Frontier does not leave a sticky locked "frontier" setting.
   const { culturesSet } = useOptionsState.getState();
-  if (culturesSetUsesFrontierSettlement(culturesSet) && !locked("initialSettlementPattern")) {
-    useOptionsState.getState().setOption("initialSettlementPattern", "frontier");
-  }
+  if (!culturesSetUsesFrontierSettlement(culturesSet)) return;
+
+  useOptionsState.getState().setOptions({
+    initialSettlementPattern: "marches",
+    oikoumeneLandShare: 0.45,
+    initialPopulationSaturation: 45
+  });
+  // Keep lock keys in sync with the new fantasy defaults when they were already locked.
+  if (locked("initialSettlementPattern")) store("initialSettlementPattern", "marches");
+  if (locked("oikoumeneLandShare")) store("oikoumeneLandShare", "0.45");
+  if (locked("initialPopulationSaturation")) store("initialPopulationSaturation", "45");
 }
 
 function changeEmblemShape(emblemShape: string): void {
@@ -462,6 +472,7 @@ export function applyStoredOptions(): void {
     "growthRate",
     "initialPopulationSaturation",
     "initialSettlementPattern",
+    "oikoumeneLandShare",
     "biomeRegionProfile",
     "manors",
     "religionsNumber",
@@ -515,6 +526,19 @@ export function applyStoredOptions(): void {
       loadedOptions.initialPopulationSaturation = getInitialSettlementPatternPreset(
         loadedOptions.initialSettlementPattern
       ).initialPopulationSaturation;
+    }
+    if (!locked("oikoumeneLandShare")) {
+      loadedOptions.oikoumeneLandShare = getInitialSettlementPatternPreset(
+        loadedOptions.initialSettlementPattern
+      ).settledFootprint;
+    }
+  }
+  if (typeof loadedOptions.oikoumeneLandShare === "number") {
+    // Stored as percent (45) or fraction (0.45) depending on older builds.
+    const share = loadedOptions.oikoumeneLandShare;
+    loadedOptions.oikoumeneLandShare = share > 1 ? share / 100 : share;
+    if (loadedOptions.oikoumeneLandShare < 0.1 || loadedOptions.oikoumeneLandShare > 0.95) {
+      loadedOptions.oikoumeneLandShare = 0.45;
     }
   }
   optionsStore.setOptions(loadedOptions);

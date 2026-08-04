@@ -35,7 +35,9 @@ export function FrontierStatusPanel() {
     return counts;
   }, {});
   const isFrontierMap =
-    world.options.initialSettlementPattern === "frontier" || world.options.initialSettlementPattern === "scattered";
+    world.options.initialSettlementPattern === "frontier" ||
+    world.options.initialSettlementPattern === "marches" ||
+    world.options.initialSettlementPattern === "scattered";
 
   if (!isFrontierMap) return null;
 

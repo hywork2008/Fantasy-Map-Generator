@@ -46,6 +46,13 @@ export interface OptionsState {
   initialPopulationSaturation: number;
   /** Initial settlement distribution; Phase 0 keeps "standard" behavior unchanged. */
   initialSettlementPattern: InitialSettlementPattern;
+  /**
+   * Target share (0–1) of suitable land capacity inside the oikoumene for non-standard
+   * settlement patterns. Overrides the pattern preset's settledFootprint when set.
+   * Higher → larger state-controlled area; lower → more wilderness / shorter interstate borders.
+   * Fantasy defaults use ~0.45 (Marches). Ignored for `standard`.
+   */
+  oikoumeneLandShare: number;
   /** Biome regional profile for auto-assignment masks (Phase 3). */
   biomeRegionProfile: BiomeRegionProfile;
   demographicBirthRate: number;
@@ -233,6 +240,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   gunpowderEraEnabled: false,
   initialPopulationSaturation: 60,
   initialSettlementPattern: "standard",
+  oikoumeneLandShare: 0.45,
   biomeRegionProfile: "global",
   demographicBirthRate: 0.25,
   demographicChildMortalityRate: 0.2,

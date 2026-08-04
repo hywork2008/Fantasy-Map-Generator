@@ -296,7 +296,7 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="Choose whether initial people are spread across suitable land or concentrated around favorable settlement hubs. Selecting a preset also applies its recommended initial population percentage.">
+          <tr data-tip="Choose whether initial people are spread across suitable land or concentrated around favorable settlement hubs. Selecting a preset also applies its recommended initial population percentage. Marches sits between Frontier and Scattered: several polity islands with wilderness/danger between them.">
             <td>
               <LockIconButton id="initialSettlementPattern" />
             </td>
@@ -309,9 +309,13 @@ export const GenerationSettingsTab: React.FC = () => {
                   const preset = getInitialSettlementPatternPreset(initialSettlementPattern);
                   options.setOptions({
                     initialSettlementPattern,
-                    initialPopulationSaturation: preset.initialPopulationSaturation
+                    initialPopulationSaturation: preset.initialPopulationSaturation,
+                    oikoumeneLandShare: preset.settledFootprint
                   });
+                  // Persist pattern + linked oikoumene share together so reloads stay consistent.
                   lock("initialSettlementPattern");
+                  lock("oikoumeneLandShare");
+                  lock("initialPopulationSaturation");
                 }}
               >
                 {INITIAL_SETTLEMENT_PATTERN_PRESETS.map(preset => (
@@ -320,6 +324,39 @@ export const GenerationSettingsTab: React.FC = () => {
                   </option>
                 ))}
               </select>
+            </td>
+          </tr>
+
+          <tr
+            data-tip="Target share of suitable land capacity that becomes the oikoumene (settled / state-claimable core). Lower = more wilderness and shorter interstate borders; higher = larger realms. Ignored for Standard (full habitable fill). Fantasy defaults ~45%."
+            style={{
+              display: options.initialSettlementPattern === "standard" ? "none" : undefined
+            }}
+          >
+            <td>
+              <LockIconButton id="oikoumeneLandShare" />
+            </td>
+            <td>Oikoumene land share</td>
+            <td>
+              <input
+                type="range"
+                min="15"
+                max="85"
+                step="5"
+                value={Math.round(options.oikoumeneLandShare * 100)}
+                onChange={e => updateOptionAndLock("oikoumeneLandShare", Number(e.target.value) / 100)}
+              />
+            </td>
+            <td>
+              <input
+                type="number"
+                min="15"
+                max="85"
+                step="5"
+                value={Math.round(options.oikoumeneLandShare * 100)}
+                onChange={e => updateOptionAndLock("oikoumeneLandShare", Number(e.target.value) / 100)}
+              />
+              %
             </td>
           </tr>
 

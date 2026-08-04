@@ -64,7 +64,10 @@ export function getThreatSpawnProfile(culturesSet: string | undefined | null): T
   return null;
 }
 
-/** Fantasy culture sets that should default to frontier settlement (limited oikoumene). */
+/**
+ * Fantasy culture sets that should default to marches settlement
+ * (moderate oikoumene islands separated by wilderness/danger).
+ */
 export function culturesSetUsesFrontierSettlement(culturesSet: string | undefined | null): boolean {
   return culturesSet === "highFantasy" || culturesSet === "darkFantasy";
 }

@@ -17,7 +17,11 @@ export type ConflictAutonomy = "autonomous" | "playerDirected";
  * Controls how much habitable land is populated at map generation. The Phase 0
  * default deliberately preserves the pre-frontier world distribution.
  */
-export type InitialSettlementPattern = "frontier" | "scattered" | "standard" | "dense";
+/**
+ * `marches` — between frontier and scattered: moderate oikoumene islands separated by
+ * wilderness/danger so states touch external threats more than long mutual borders.
+ */
+export type InitialSettlementPattern = "frontier" | "marches" | "scattered" | "standard" | "dense";
 
 /**
  * Runtime biome table. Semantic identity is `keys` / `definitionsByKey`;

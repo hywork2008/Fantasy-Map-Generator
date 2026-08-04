@@ -27,6 +27,16 @@ export const INITIAL_SETTLEMENT_PATTERN_PRESETS: readonly InitialSettlementPatte
     settlementRegionCount: [1, 3]
   },
   {
+    // Default High/Dark Fantasy mood: several polity islands, ~45% footprint,
+    // wilderness/danger between states (short interstate borders, long wild frontiers).
+    id: "marches",
+    label: "Marches",
+    initialPopulationSaturation: 45,
+    settledFootprint: 0.45,
+    settlementClustering: 0.7,
+    settlementRegionCount: [5, 12]
+  },
+  {
     id: "scattered",
     label: "Scattered Polities",
     initialPopulationSaturation: 50,

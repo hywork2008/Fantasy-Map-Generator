@@ -280,6 +280,7 @@ export const ToolsTab: React.FC = () => {
   const regenerateActions = actions.filter(a => a.section === "regenerate");
   const isFrontierMap =
     worldContext.options.initialSettlementPattern === "frontier" ||
+    worldContext.options.initialSettlementPattern === "marches" ||
     worldContext.options.initialSettlementPattern === "scattered";
 
   const triggerEvent = (eventName: string) => {

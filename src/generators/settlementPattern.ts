@@ -55,7 +55,9 @@ export function applyInitialSettlementPattern(
   initialPopulationSaturation: number,
   random: () => number = Math.random,
   climate: SettlementClimate = {},
-  initialPolityCount = 0
+  initialPolityCount = 0,
+  /** Override pattern settledFootprint (0–1). Used by fantasy oikoumene control. */
+  oikoumeneLandShare?: number
 ): SettlementPatternResult {
   if (pattern !== "standard" && canBuildFoundation(cells)) {
     return createSettlementFoundation(
@@ -64,7 +66,8 @@ export function applyInitialSettlementPattern(
       pattern,
       initialPopulationSaturation,
       random,
-      getMinimumFoundationRegionCount(pattern, initialPolityCount)
+      getMinimumFoundationRegionCount(pattern, initialPolityCount),
+      oikoumeneLandShare
     );
   }
 
@@ -133,13 +136,15 @@ export function applyInitialSettlementPattern(
 }
 
 /**
- * Frontier normally begins with only a handful of settlement regions. A high
- * polity-density request needs more independent hubs; otherwise additional
- * States can only become neighbours inside the same compact region.
+ * Sparse patterns begin with few settlement regions. A high polity-density
+ * request needs more independent hubs; otherwise additional States can only
+ * become neighbours inside the same compact region (long interstate borders).
  */
 function getMinimumFoundationRegionCount(pattern: InitialSettlementPattern, initialPolityCount: number): number {
-  if (pattern !== "frontier") return 0;
-  return Math.max(0, Math.ceil(initialPolityCount / 5));
+  if (pattern === "frontier") return Math.max(0, Math.ceil(initialPolityCount / 5));
+  // Marches: prefer roughly one region per 2–3 states so wild belts separate polities.
+  if (pattern === "marches") return Math.max(0, Math.ceil(initialPolityCount / 2.5));
+  return 0;
 }
 
 function canBuildFoundation(

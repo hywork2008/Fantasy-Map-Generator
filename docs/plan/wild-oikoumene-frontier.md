@@ -21,9 +21,22 @@ Produce maps where:
 
 | Culture set | Settlement default | Threat profile |
 | :--- | :--- | :--- |
-| **highFantasy** | `frontier` (clustered oikoumene, unclaimed land) | **Light frontier**: rarity **1–2** spread moderately; **3** rare; **4–5 none** |
-| **darkFantasy** | `frontier` (same spatial model) | **Heavy dark**: rarity 3–5 present (existing lethal scale); 1–2 background |
+| **highFantasy** | **`marches`** + **oikoumeneLandShare ≈ 45%** | **Light**: rarity **1–2** moderate; **3** rare; **4–5 none** |
+| **darkFantasy** | **`marches`** + same land-share control | **Heavy**: rarity 3–5 present; 1–2 background |
 | world / european / … | `standard` (compatibility) | No threat generation (current) |
+
+### Oikoumene land share (configurable)
+
+Option **`oikoumeneLandShare`** (UI: 15–85%): target share of **suitable land capacity** that becomes the settled oikoumene for non-`standard` patterns. Overrides the pattern’s built-in `settledFootprint`.
+
+| Share | Effect |
+| ---: | :--- |
+| ~30% (Frontier preset) | Small nuclei, long wild frontiers |
+| **~45% (Marches / Fantasy default)** | Several polity islands; each state tends to face wilderness/danger more than endless mutual borders |
+| ~55% (Scattered) | Larger realms, still some unclaimed land |
+| 100% (Standard) | Full habitable fill (share control ignored) |
+
+Patterns: `frontier` &lt; `marches` &lt; `scattered` &lt; `dense` in footprint.
 
 Rationale: Rarity 4–5 (Arch-Beast / Calamity) empty kingdoms and are “too fatal for humans” as the **default High Fantasy** mood. High Fantasy uses **frontier ecology + local beasts**, not continental disasters.
 
@@ -56,7 +69,10 @@ Markers / notes: keep rarity ≥ 3 only (unchanged).
 - [x] `threatProfiles` keyed by culture set  
 - [x] Threats.generate for `highFantasy` and `darkFantasy`  
 - [x] highFantasy: no r4/r5; r1–r2 heavy; r3 rare  
-- [x] Selecting highFantasy / darkFantasy applies `initialSettlementPattern = frontier` (unless locked)  
+- [x] Selecting highFantasy / darkFantasy applies `initialSettlementPattern = marches` + ~45% oikoumene land share (rewrites sticky locks)  
+- [x] Foundation expands through habitable hinterland (not only river/coast candidates) so Marches footprint is visible on the map  
+- [x] `assignInitialPolities` paints full foundation hinterland around capitals (not only route corridors)  
+- [x] Capital count follows Polity density slider (not node/2), so larger oikoumene does not spawn micro-states  
 - [ ] Options UI labels for “Fantasy threat profile” (optional follow-up)
 
 ### Phase 2 — Expand respects danger ✅
