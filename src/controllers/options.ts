@@ -953,7 +953,17 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
       import("../renderers").then(({ PopulationRenderer }) => {
         PopulationRenderer.render(worldContext, viewContext, appServices);
       });
+      // WebGL hybrid always uses the cell-heatmap projection; rebuild when style mode changes.
+      import("./layers").then(({ scheduleWebglUpdate }) => scheduleWebglUpdate());
     }
+  });
+
+  document.addEventListener("react-change-population-color-scale", () => {
+    if (!layerIsOn("togglePopulation")) return;
+    import("../renderers").then(({ PopulationRenderer }) => {
+      PopulationRenderer.render(worldContext, viewContext, appServices);
+    });
+    import("./layers").then(({ scheduleWebglUpdate }) => scheduleWebglUpdate());
   });
 
   document.addEventListener("react-change-heightmap-rendering-mode", () => {

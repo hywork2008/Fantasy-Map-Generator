@@ -17,6 +17,7 @@ import { getCoastalHabitatDefinition, getNearshoreHabitatDefinition } from "../.
 import { HeightThreshold } from "../../../data/constants";
 import { Rivers } from "../../../generators/river-generator";
 import { Routes } from "../../../generators/routes-generator";
+import { useOptionsState } from "../../../store/optionsState";
 import type {
   Burg,
   BurgGroup,
@@ -36,6 +37,7 @@ import { getColor, getColorScheme } from "../../../utils/colorUtils";
 import { type RelationKey, relations } from "../../../utils/diplomacyRelations";
 import { fractalizeCoastline, sampleCatmullRomPolyline, sampleCoastlineShape } from "../../coastline-fractal";
 import { isCellInScope, isGridCellInScope } from "../../core/focusScope";
+import { buildPopulationColorMetrics, heatBucketToColorT } from "../../populationColorScale";
 import { getCachedBurgIconRaster } from "../burgIconRasterCache";
 import { getCachedEmblemIconUrl } from "../emblemIconCache";
 import { hasExternalIconFailed } from "../externalIconFailureCache";
@@ -879,41 +881,19 @@ export function buildPopulationPolygons(
   const { cells, burgs } = pack;
   if (!cells?.i) return [];
 
-  const totalPop = new Float32Array(cells.i.length);
-  const densities = new Float32Array(cells.i.length);
-  let maxDensity = 0;
-
-  for (const i of cells.i) {
-    if (!isCellInScope(focusScope, i)) continue;
-    const pop = cells.pop[i] as number;
-    totalPop[i] = pop * populationRate;
-  }
-
-  for (const b of burgs) {
-    if (b.i && !b.removed && isCellInScope(focusScope, b.cell)) {
-      const uPop = (b.population ?? 0) * populationRate * urbanization;
-      totalPop[b.cell] += uPop;
-    }
-  }
-
-  for (const i of cells.i) {
-    if (!isCellInScope(focusScope, i)) continue;
-    const area = cells.area[i];
-    if (area > 0) {
-      const density = totalPop[i] / area;
-      densities[i] = density;
-      if (density > maxDensity) maxDensity = density;
-    }
-  }
-
-  const getPopBucket = (cellId: number): number => {
-    const density = densities[cellId];
-    if (density < 1) return -1;
-    if (maxDensity <= 1) return 0;
-
-    const ratio = Math.log(density) / Math.log(maxDensity);
-    return Math.min(9, Math.floor(ratio * 10));
-  };
+  const colorScale = useOptionsState.getState().populationColorScale;
+  const { totalPop, getBucket } = buildPopulationColorMetrics({
+    cellIds: cells.i,
+    pop: cells.pop,
+    area: cells.area,
+    capacity: cells.capacity,
+    height: cells.h,
+    burgs,
+    populationRate,
+    urbanization,
+    colorScale,
+    isInScope: i => isCellInScope(focusScope, i)
+  });
 
   return buildLandPolygons(
     worldContext,
@@ -921,9 +901,9 @@ export function buildPopulationPolygons(
     "population",
     cellId => {
       if (totalPop[cellId] <= 0) return [92, 88, 112, Math.round(maxOpacity * 255 * 0.22)];
-      const bucket = getPopBucket(cellId);
-      if (bucket < 0) return [0, 0, 0, 0];
-      const hexColor = interpolateYlOrRd((bucket + 1) / 10);
+      const bucket = getBucket(cellId);
+      if (bucket <= 0) return [0, 0, 0, 0];
+      const hexColor = interpolateYlOrRd(heatBucketToColorT(bucket));
       return colorToRgba(hexColor, "#999999", maxOpacity);
     },
     landCells

@@ -165,6 +165,12 @@ export interface OptionsState {
   rescaleLabels: boolean;
   hideLabels: boolean;
   populationRenderingMode: "original" | "contour" | "choropleth";
+  /**
+   * How the Population cell heatmap maps values to color (SVG choropleth + WebGL).
+   * - capacity: rural pop / cell capacity (default) — near-full cells are darkest
+   * - relativeDensity: legacy density vs densest cell on the map
+   */
+  populationColorScale: "capacity" | "relativeDensity";
   /** SVG-only heightmap visualization. WebGL Hybrid continues to use its deck.gl terrain renderer. */
   heightmapRenderingMode: "heatmap" | "contours" | "labeledContours";
   dangerRenderingMode: "contour" | "choropleth";
@@ -298,6 +304,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   rescaleLabels: true,
   hideLabels: false,
   populationRenderingMode: "choropleth",
+  populationColorScale: "capacity",
   heightmapRenderingMode: "labeledContours",
   dangerRenderingMode: "contour",
   combatDeathsRenderingMode: "contour",

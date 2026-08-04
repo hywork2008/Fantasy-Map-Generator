@@ -395,6 +395,26 @@ export const UiSettingsTab: React.FC = () => {
             <td></td>
           </tr>
 
+          <tr data-tip={t("uiSettings.populationColorScaleTip")}>
+            <td></td>
+            <td>{t("uiSettings.populationColorScale")}</td>
+            <td>
+              <select
+                id="populationColorScale"
+                value={options.populationColorScale}
+                onChange={e => {
+                  const scale = e.target.value as "capacity" | "relativeDensity";
+                  options.setOption("populationColorScale", scale);
+                  document.dispatchEvent(new CustomEvent("react-change-population-color-scale"));
+                }}
+              >
+                <option value="capacity">{t("uiSettings.capacityUtilization")}</option>
+                <option value="relativeDensity">{t("uiSettings.relativeDensity")}</option>
+              </select>
+            </td>
+            <td></td>
+          </tr>
+
           <tr data-tip={t("uiSettings.heightmapRenderingTip")}>
             <td></td>
             <td>{t("uiSettings.heightmapRendering")}</td>

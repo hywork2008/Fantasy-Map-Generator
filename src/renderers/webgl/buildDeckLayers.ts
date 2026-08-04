@@ -1558,7 +1558,8 @@ function buildLayerSignatures(
     "population",
     "togglePopulation",
     ["map.topology", "simulation.cells", "presentation.styles"],
-    () => `${landGeometry()}|${numberListSignature(pack.cells?.pop)}|op:${styles.cellLayerOpacities.population}`
+    () =>
+      `${landGeometry()}|${numberListSignature(pack.cells?.pop)}|${numberListSignature(pack.cells?.capacity)}|scale:${useOptionsState.getState().populationColorScale}|op:${styles.cellLayerOpacities.population}`
   );
   setIfActive(
     "precipitation",
