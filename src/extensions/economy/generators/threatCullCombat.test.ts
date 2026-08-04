@@ -1,7 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import type { RNGService } from "../../../utils/probabilityUtils";
 import type { Character } from "../../characters/characterTypes";
-import { ANON_COMBAT_SCORE, combatScore, resolveCullCombat, targetDifficulty } from "./threatCullCombat";
+import { worldContext } from "../../hostCore";
+import type { ExtensionAPI } from "../../hostTypes";
+import { clearEconomyContext, initEconomyContext, setIndividualSkills } from "../economyContext";
+import {
+  ANON_COMBAT_SCORE,
+  combatScore,
+  cullDomainBonus,
+  domainBonusFromProficiencies,
+  equipmentBonusFromLoadout,
+  namedHunterCombatScore,
+  resolveCullCombat,
+  targetDifficulty
+} from "./threatCullCombat";
 
 function rngSequence(values: number[]): RNGService {
   let i = 0;
@@ -24,6 +36,10 @@ function rngSequence(values: number[]): RNGService {
 }
 
 describe("threatCullCombat", () => {
+  afterEach(() => {
+    clearEconomyContext();
+  });
+
   it("combatScore weights prowess over martial (0.55 / 0.45)", () => {
     const character = {
       skills: { prowess: 100, martial: 0 }
@@ -33,6 +49,94 @@ describe("threatCullCombat", () => {
       skills: { prowess: 0, martial: 100 }
     } as Character;
     expect(combatScore(character2)).toBeCloseTo(45, 5);
+  });
+
+  it("equipmentBonusFromLoadout scales weapon quality and fine body attire", () => {
+    expect(equipmentBonusFromLoadout(undefined)).toBe(0);
+    expect(equipmentBonusFromLoadout({})).toBe(0);
+    expect(
+      equipmentBonusFromLoadout({
+        weapon: { goodId: 1, quality: 1, source: "seeded" }
+      })
+    ).toBe(0);
+    expect(
+      equipmentBonusFromLoadout({
+        weapon: { goodId: 1, quality: 5, source: "seeded" }
+      })
+    ).toBeCloseTo(10, 5);
+    expect(
+      equipmentBonusFromLoadout({
+        body: { goodId: 2, quality: 4, source: "seeded" }
+      })
+    ).toBe(1);
+    expect(
+      equipmentBonusFromLoadout({
+        weapon: { goodId: 1, quality: 5, source: "seeded" },
+        body: { goodId: 2, quality: 5, source: "seeded" }
+      })
+    ).toBeCloseTo(11, 5);
+  });
+
+  it("combatScore adds equipment from character.loadout", () => {
+    const character = {
+      skills: { prowess: 50, martial: 50 },
+      loadout: {
+        weapon: { goodId: 1, quality: 3, source: "equipped" }
+      }
+    } as Character;
+    // base 50 + weapon (3-1)*2.5 = 5
+    expect(combatScore(character)).toBeCloseTo(55, 5);
+  });
+
+  it("domainBonusFromProficiencies uses max practice × 0.08 capped at 8", () => {
+    expect(domainBonusFromProficiencies(0, 0)).toBe(0);
+    expect(domainBonusFromProficiencies(50, 10)).toBeCloseTo(4, 5);
+    expect(domainBonusFromProficiencies(100, 100)).toBe(8);
+    expect(domainBonusFromProficiencies(10, 80)).toBeCloseTo(6.4, 5);
+  });
+
+  it("cullDomainBonus and namedHunterCombatScore read individualSkills", () => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.pack = { characters: [] } as typeof worldContext.pack;
+    setIndividualSkills([
+      {
+        characterId: 7,
+        domain: "swordsmanship",
+        proficiency: 50,
+        aptitude: "ordinary",
+        techniques: []
+      },
+      {
+        characterId: 7,
+        domain: "archery",
+        proficiency: 10,
+        aptitude: "ordinary",
+        techniques: []
+      }
+    ]);
+
+    expect(cullDomainBonus(7)).toBeCloseTo(4, 5);
+    expect(cullDomainBonus(999)).toBe(0);
+
+    const character = {
+      i: 7,
+      skills: { prowess: 50, martial: 50 },
+      loadout: {
+        weapon: { goodId: 1, quality: 3, source: "equipped" }
+      }
+    } as Character;
+    // base 50 + domain 4 + weapon 5 = 59
+    expect(namedHunterCombatScore(character)).toBeCloseTo(59, 5);
+  });
+
+  it("explicit domainBonus argument stacks with equipment", () => {
+    const character = {
+      skills: { prowess: 50, martial: 50 },
+      loadout: {
+        weapon: { goodId: 1, quality: 1, source: "seeded" }
+      }
+    } as Character;
+    expect(combatScore(character, 3)).toBeCloseTo(53, 5);
   });
 
   it("targetDifficulty uses rarity and power snapshot", () => {

@@ -1147,7 +1147,7 @@ PR-4 → PR-6
 - [ ] Pest posts without painted danger; tooltip caveat; `ruralThreats` default false.
 - [ ] Pest suppression formula `base * scale * (1 - suppression)`; full-clear topics include `map.annotations`.
 - [ ] `uiDifficulty` 1–5 display only; combat uses `targetDifficulty(target)`.
-- [ ] PR-3b domainBonus = 0; PR-3c enables `cullDomainBonus`.
+- [x] PR-3b domainBonus = 0; **EQ-3** enables `cullDomainBonus` + equipment bonus via `namedHunterCombatScore` (see character-loadout-and-readiness.md).
 - [ ] PR-3a does not complete/pay missions without 3b resolve gate.
 - [ ] Archive: pestSuppression clamp; cull arrays in validateEconomySlice.
 - [ ] Hunt geometry exported from host; economy does not reimplement hops.

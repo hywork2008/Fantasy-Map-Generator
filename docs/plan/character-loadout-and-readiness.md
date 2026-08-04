@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Author** | Design draft (AI agent) |
 | **Date** | 2026-08-04 |
-| **Status** | Design proposal — supersedes **PR-3c** of [player-threat-cull-jobs.md](./player-threat-cull-jobs.md). **EQ-1–EQ-2 implemented** (schema/seed + equip UI). |
+| **Status** | Design proposal — supersedes **PR-3c** of [player-threat-cull-jobs.md](./player-threat-cull-jobs.md). **EQ-1–EQ-3 implemented** (schema/seed + equip UI + combat bonuses). |
 | **Intended repo path** | `docs/plan/character-loadout-and-readiness.md` |
 | **Depends on** | Characters extension (`Character`, `personFactory`, backstory estate/stratum); Economy goods + `Character.inventory` + market commerce; `individualSkills` / `martialIndividualMastery`; threat cull combat (`threatCullCombat.ts`); PC panel |
 | **Related** | [individual-skill-mastery-system.md](./individual-skill-mastery-system.md); [player-character-market-commerce.md](./player-character-market-commerce.md) §10 (consume/equip deferred); [player-threat-cull-jobs.md](./player-threat-cull-jobs.md) K5 / PR-3c; [characters/appearance-and-reproduction.md](./characters/appearance-and-reproduction.md) (phenotype only — not clothing); [goods-unit-scale.md](./goods-unit-scale.md) (Garments/Arms as `set`) |
@@ -425,10 +425,10 @@ No separate “fantasy clothing system.” Magic items stay out of v1; High Fant
 - **Dependencies:** EQ-1; economy market inventory already live
 - **Description:** Equip consumes 1 set; unequip restores; editor override path; `fmg:character-loadout-changed`.
 
-### EQ-3 — Combat bonuses (replaces PR-3c domain half)
+### EQ-3 — Combat bonuses (replaces PR-3c domain half) — **DONE**
 
 - **Title:** `feat(economy): cull combat equipmentBonus + cullDomainBonus`
-- **Files:** `threatCullCombat.ts`, optional `loadoutCombat.ts` pure helper, tests for worked examples, wire RESOLVE
+- **Files:** `threatCullCombat.ts`, `threatCullCombat.test.ts`, `threatCullHire.ts` (namedHunterCombatScore in RESOLVE)
 - **Dependencies:** EQ-1 (loadout present); PR-3b already live
 - **Description:** Enable domainBonus for named hunters; add weapon/body equipmentBonus; update unit tests; keep anon path unchanged.
 

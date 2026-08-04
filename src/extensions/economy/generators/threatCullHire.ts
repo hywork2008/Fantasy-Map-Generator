@@ -26,7 +26,7 @@ import { characterHasEmploymentCommitment } from "./employmentCommitment";
 import {
   ANON_COMBAT_SCORE,
   ANON_ECOLOGY_SCALE,
-  combatScore,
+  namedHunterCombatScore,
   resolveCullCombat,
   targetDifficulty
 } from "./threatCullCombat";
@@ -408,7 +408,8 @@ function resolveCullContract(contract: CullActiveContract, rng: RNGService): Dat
     return [];
   }
 
-  const score = named && character ? combatScore(character, 0) : ANON_COMBAT_SCORE;
+  // EQ-3: named hunters get domain practice + equipment; anon stays fixed synthetic score.
+  const score = named && character ? namedHunterCombatScore(character) : ANON_COMBAT_SCORE;
   const combat = resolveCullCombat({
     combatScore: score,
     difficulty: targetDifficulty(contract.target),
