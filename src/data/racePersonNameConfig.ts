@@ -32,6 +32,8 @@ export const DEFAULT_RACE_PERSON_NAME_SPHERES: Readonly<Record<string, RacePerso
   dwarf: { primary: 6, alternate: 0 }, // Nordic, German heroic
   giant: { primary: 6 }, // Nordic
   draconic: { primary: 11 }, // Chinese
+  // Same linguistic sphere as host dragons (no free culture of their own).
+  wyrmkin: { primary: 11 }, // Chinese
   amazones: { primary: 7 }, // Greek (antique / high fantasy Amazones)
   // Short-lived / Markov-default races intentionally omitted (null = place Markov)
   goblin: { primary: null },

@@ -95,4 +95,20 @@ describe("sampleRaceIdForState", () => {
       sampleRaceIdForState({ culture: 1, racialComposition: "mono" }, { race: arachnid, monoRacial: true }, races)
     ).toBe(arachnid);
   });
+
+  it("staffs draconic mono merchants as wyrmkin, rulers as draconic", () => {
+    const races = createDefaultRaces();
+    const draconic = races.find(r => r.key === "draconic")!.i;
+    const wyrmkin = races.find(r => r.key === "wyrmkin")!.i;
+    expect(
+      sampleRaceIdForState({ culture: 1, racialComposition: "mono" }, { race: draconic, monoRacial: true }, races, {
+        roleClass: "merchant"
+      })
+    ).toBe(wyrmkin);
+    expect(
+      sampleRaceIdForState({ culture: 1, racialComposition: "mono" }, { race: draconic, monoRacial: true }, races, {
+        roleClass: "ruler"
+      })
+    ).toBe(draconic);
+  });
 });

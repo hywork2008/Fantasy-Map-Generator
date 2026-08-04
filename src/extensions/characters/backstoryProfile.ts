@@ -2,6 +2,8 @@
  * Character backstory profile: origin, commitment, tastes, favor, and gifts.
  * Spec: docs/plan/characters/backstory-profile.md
  */
+import { isBoundServitorRaceKey } from "../../data/raceBoundServitors";
+import { getRaceById } from "../../data/races";
 import { P, rand } from "../hostUtils";
 import { attractiveness, isSameRace } from "./appearance";
 import { getWorldContext, hasCharactersContext } from "./charactersContext";
@@ -130,6 +132,15 @@ export function characterHasSpymasterOffice(character: Character): boolean {
   return character.titles.some(t => isSpymasterTitle(t.title));
 }
 
+function characterRaceKey(character: Character | undefined): string | undefined {
+  if (!character || !hasCharactersContext()) return undefined;
+  try {
+    return getRaceById(getWorldContext().pack.races, character.race)?.key;
+  } catch {
+    return undefined;
+  }
+}
+
 export function inferRoleClass(character: Character): CharacterRoleClass {
   const roles = character.roles ?? [];
   if (roles.some(r => /market|merchant|guild|company/i.test(r.kind) || /merchant|guild/i.test(r.source))) {
@@ -229,8 +240,16 @@ function stratumWeights(
   const pack = getFormPack(formName);
   let weights: Partial<Record<SocialStratum, number>>;
 
-  // Spymasters: deliberately blurred origins (spec §3.3) — not the high-noble court table.
-  if (character && characterHasSpymasterOffice(character) && roleClass === "central_officer") {
+  // Bound thralls (wyrmkin under dragons): slave/freedman stock, not free merchant dynasties.
+  const raceKey = characterRaceKey(character);
+  if (isBoundServitorRaceKey(raceKey)) {
+    if (roleClass === "merchant") {
+      weights = { slave_born: 45, freedman: 30, commoner: 15, merchant_born: 10 };
+    } else {
+      weights = { slave_born: 40, freedman: 35, commoner: 25 };
+    }
+  } else if (character && characterHasSpymasterOffice(character) && roleClass === "central_officer") {
+    // Spymasters: deliberately blurred origins (spec §3.3) — not the high-noble court table.
     weights = { minor_noble: 30, gentry: 30, commoner: 25, foreigner: 10, unknown: 5 };
   } else {
     switch (roleClass) {

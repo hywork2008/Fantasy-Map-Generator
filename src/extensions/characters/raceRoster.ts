@@ -6,6 +6,7 @@
  *
  * Lore: docs/world/help/multi-race-geopolitics.md
  */
+import { isBoundServitorRaceKey, resolveRaceIdWithBoundServitor } from "../../data/raceBoundServitors";
 import { canAppearInMixedCourt } from "../../data/raceCivicStance";
 import { HUMAN_RACE_ID, UNKNOWN_RACE_ID } from "../../data/races";
 import type { Culture, Race, State, StateRacialComposition } from "../../types/models";
@@ -92,18 +93,20 @@ export function selectCentralOffices<T>(offices: readonly T[], density: number):
 
 /**
  * Sample a race id for a new court character.
- * Mono: always culture race.
+ * Mono: culture race, or bound servitor when role is merchant/ordinary under a host (draconic→wyrmkin).
  * Mixed (rare): only diplomatic-core races (human / elf / dwarf); majority boosted.
  */
 export function sampleRaceIdForState(
   state: Pick<State, "culture" | "racialComposition">,
   culture: Pick<Culture, "race" | "monoRacial"> | undefined | null,
-  races: readonly Race[] | undefined | null
+  races: readonly Race[] | undefined | null,
+  options?: { roleClass?: string }
 ): number {
   const majorityRace = culture?.race ?? HUMAN_RACE_ID;
   const composition = resolveStateRacialComposition(state, culture);
   if (composition === "mono") {
-    return majorityRace > 0 ? majorityRace : HUMAN_RACE_ID;
+    const hostId = majorityRace > 0 ? majorityRace : HUMAN_RACE_ID;
+    return resolveRaceIdWithBoundServitor(hostId, options?.roleClass, races);
   }
 
   if (!races?.length) return majorityRace > 0 ? majorityRace : HUMAN_RACE_ID;
@@ -111,8 +114,9 @@ export function sampleRaceIdForState(
   const weights: Record<number, number> = {};
   for (const race of races) {
     if (!race || race.removed || race.i === UNKNOWN_RACE_ID) continue;
-    // Enemy colonies never staff mixed courts.
+    // Bound thralls and enemy colonies never staff free mixed courts.
     if (isEnemyDedicatedRaceKey(race.key)) continue;
+    if (isBoundServitorRaceKey(race.key)) continue;
     // Distant folk and others stay out of rare cosmopolitan courts.
     if (!canAppearInMixedCourt(race.key) && race.i !== majorityRace) continue;
     // If majority is somehow non-diplomatic, still only seat diplomatic-core minorities.
@@ -139,18 +143,21 @@ export function pickCultureIdForRace(
 
 /**
  * Bundle for createPerson: culture (names) + raceOverride.
+ * Pass `roleClass` so draconic mono courts staff merchants/ordinary as wyrmkin.
  */
 export function resolvePersonCultureAndRace(
   state: Pick<State, "i" | "culture" | "racialComposition">,
   pack: {
     cultures?: Culture[];
     races?: Race[];
-  }
+  },
+  options?: { roleClass?: string }
 ): { cultureId: number; raceId: number } {
   const culture = pack.cultures?.[state.culture];
-  const raceId = sampleRaceIdForState(state, culture, pack.races);
+  const raceId = sampleRaceIdForState(state, culture, pack.races, options);
   const composition = resolveStateRacialComposition(state, culture);
   if (composition === "mono") {
+    // Bound servitors keep the host culture for names/language.
     return { cultureId: state.culture, raceId };
   }
   // Mixed: name-base from a culture of that race when possible

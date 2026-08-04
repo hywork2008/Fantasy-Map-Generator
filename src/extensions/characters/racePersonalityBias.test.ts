@@ -51,4 +51,17 @@ describe("racePersonalityBias", () => {
       expect(v).toBeLessThanOrEqual(100);
     }
   });
+
+  it("shapes god-line giants as distant, guileful, low-extraction (non-involvement)", () => {
+    const bias = racePersonalityBiasForKey("giant");
+    expect(bias.sociability ?? 0).toBeLessThan(0);
+    expect(bias.compassion ?? 0).toBeLessThan(0);
+    expect(bias.guile ?? 0).toBeGreaterThan(0);
+    expect(bias.confidence ?? 0).toBeGreaterThan(0);
+    expect(bias.rationality ?? 0).toBeGreaterThan(0);
+    expect(bias.greed ?? 0).toBeLessThanOrEqual(0);
+    // Not dark-elf court peak guile; not orc raid boldness
+    expect(bias.guile ?? 0).toBeLessThan(racePersonalityBiasForKey("dark_elf").guile ?? 99);
+    expect(bias.boldness ?? 0).toBeLessThan(racePersonalityBiasForKey("orc").boldness ?? 99);
+  });
 });

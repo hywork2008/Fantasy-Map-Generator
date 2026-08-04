@@ -29,6 +29,8 @@ export type RaceKey =
   | "orc"
   | "giant"
   | "draconic"
+  /** Bound servitors of draconic realms — no free polities (see raceBoundServitors). */
+  | "wyrmkin"
   | "arachnid"
   | "amazones"
   | (string & {});

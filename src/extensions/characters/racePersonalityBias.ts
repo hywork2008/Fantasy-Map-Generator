@@ -6,6 +6,10 @@
  *
  * Elf design: lower boldness / greed / vengefulness (slow politics, long memory of
  * costly wars, little short-term extraction); higher rationality & mild compassion.
+ *
+ * Giant (god-line): low sociability / compassion (non-involvement); guile for
+ * managed distance (not dark-elf power plots); calculated, unhurried, confident
+ * divine pride — not orc-hot raid greed.
  */
 import { gauss } from "../hostUtils";
 import type { CharacterPersonality } from "./characterTypes";
@@ -75,13 +79,31 @@ export const RACE_PERSONALITY_BIAS: Readonly<Record<string, PersonalityBiasTable
     rationality: 4,
     sociability: -10
   },
-  giant: {
-    boldness: 6,
+  // Bound thralls: face the world for dragons — careful, social enough to trade, not proud.
+  wyrmkin: {
+    boldness: -6,
+    confidence: -4,
+    sociability: 4,
+    guile: 4,
     greed: 2,
+    honor: -2,
+    compassion: 2,
+    energy: 2,
+    zeal: -2
+  },
+  // God-line distant: control contact, do not mingle or raid for loot.
+  giant: {
+    sociability: -8,
+    compassion: -6,
+    guile: 6,
+    rationality: 4,
+    confidence: 6,
+    boldness: 2,
+    honor: 2,
     vengefulness: 2,
-    compassion: -4,
-    sociability: -6,
-    energy: 4
+    greed: -2,
+    energy: -2,
+    zeal: 2
   },
   amazones: {
     boldness: 6,

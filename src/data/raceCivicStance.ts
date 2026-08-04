@@ -4,13 +4,15 @@
  * - **diplomatic** (human, elf, dwarf): can war *or* ally; rare mixed polities.
  * - **distant** (dark elf, giant, draconic, amazones): civilized but keep distance; mono.
  * - **enemy_colony** (goblin, orc, arachnid): own colonies/lairs; hostile ecology; mono war courts.
+ * - **bound** (wyrmkin): no free polities; only under a host race (see raceBoundServitors).
  *
  * Multi-race states are uncommon — mono is the map default.
  * Lore: docs/world/help/multi-race-geopolitics.md
  */
 import type { RaceKey } from "../types/models";
+import { isBoundServitorRaceKey } from "./raceBoundServitors";
 
-export type RaceCivicStance = "diplomatic" | "distant" | "enemy_colony";
+export type RaceCivicStance = "diplomatic" | "distant" | "enemy_colony" | "bound";
 
 /** Human / high elf / dwarf — “still people you can talk to” relative to other folk. */
 export const DIPLOMATIC_CORE_RACE_KEYS: ReadonlySet<string> = new Set(["human", "elf", "dwarf"]);
@@ -26,6 +28,7 @@ export const ENEMY_COLONY_RACE_KEYS: ReadonlySet<string> = new Set(["goblin", "o
 
 export function raceCivicStance(raceKey: RaceKey | string | undefined | null): RaceCivicStance {
   if (!raceKey) return "diplomatic";
+  if (isBoundServitorRaceKey(raceKey)) return "bound";
   if (ENEMY_COLONY_RACE_KEYS.has(raceKey)) return "enemy_colony";
   if (DISTANT_RACE_KEYS.has(raceKey)) return "distant";
   if (DIPLOMATIC_CORE_RACE_KEYS.has(raceKey)) return "diplomatic";
@@ -48,9 +51,10 @@ export function isEnemyColonyRaceKey(raceKey: string | undefined | null): boolea
 
 /**
  * Chance a culture of this race is multi-folk (`monoRacial = false`).
- * Only diplomatic-core races can roll mixed; all others are always mono.
+ * Only diplomatic-core races can roll mixed; bound servitors and others always mono (or no polity).
  */
 export function mixedPolityChanceForRaceKey(raceKey: RaceKey | string | undefined | null): number {
+  if (isBoundServitorRaceKey(raceKey)) return 0;
   if (!isDiplomaticCoreRaceKey(raceKey)) return 0;
   if (raceKey === "human") return 0.18;
   if (raceKey === "elf" || raceKey === "dwarf") return 0.1;
@@ -72,5 +76,6 @@ export function defaultMonoRacialForRaceKey(
 
 /** Races allowed as minority / random staff in a rare mixed court. */
 export function canAppearInMixedCourt(raceKey: string | undefined | null): boolean {
+  if (isBoundServitorRaceKey(raceKey)) return false;
   return isDiplomaticCoreRaceKey(raceKey);
 }

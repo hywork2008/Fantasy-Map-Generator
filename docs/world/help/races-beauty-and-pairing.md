@@ -77,6 +77,7 @@ See [multi-race-geopolitics.md](./multi-race-geopolitics.md) and `src/data/raceC
 | **Diplomatic** | Human, Elf, Dwarf | Mostly mono; rare mixed (only these three as staff) |
 | **Distant** | Dark Elf, Giant, Draconic, Amazones | Always mono; full civil offices; keep distance |
 | **Enemy colony** | Goblin, Orc, Arachnid | Always mono; **ruler + martial only**; no merchants/guilds |
+| **Bound** | Wyrmkin | No free polity; only under **Draconic** (markets/craft thralls) |
 
 ### Named-character skills (species tilt)
 
@@ -87,7 +88,10 @@ Role and office still dominate, but race shifts medians (`raceSkillBias.ts`):
 - **Dwarf / Human**: diplomatic core (engineering / baseline).
 - **Orc** (enemy colony): Prowess high; Martial ≈ human; Diplomacy very low; hotter boldness/vengefulness.
 - **Goblin / Arachnid** (enemy colony): warband / nest hunters; Diplomacy crushed.
-- **Draconic / Giant / Dark Elf / Amazones** (distant): power or intrigue; not cosmopolitan.
+- **Giant** (distant god-line): Prowess = Draconic; Engineering = Dwarf; Artistry mid-high; Martial low; Learning −3; Intrigue +4 (managed distance, not court poison). Personality: low sociability/compassion, guile & confidence up, greed down, unhurried.
+- **Draconic** (distant): apex Prowess; weak Martial/Diplomacy/Engineering pride. **Merchants are Wyrmkin**, not dragons.
+- **Wyrmkin** (bound): stewardship/diplomacy up; prowess down; thrall origins; face of dragon trade.
+- **Dark Elf / Amazones** (distant): underdark intrigue or warrior matriarchy — not cosmopolitan.
 
 ---
 

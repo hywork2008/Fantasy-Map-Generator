@@ -6,6 +6,7 @@ import { clearCharactersContext, initCharactersContext } from "./charactersConte
 import {
   APPEARANCE_MEAN,
   APPEARANCE_STDDEV,
+  createPerson,
   generateFamily,
   getEpisodicCurrentlyPairedChance,
   getUnmarriedChance,
@@ -220,5 +221,47 @@ describe("generateFamily episodic pairing (long-lived)", () => {
     const dynastic = getEpisodicCurrentlyPairedChance(200, "dynastic", false, undefined, 0, fert);
     expect(raising).toBeGreaterThan(alone);
     expect(dynastic).toBeGreaterThan(alone);
+  });
+});
+
+describe("createPerson bound servitors (wyrmkin under draconic)", () => {
+  afterEach(() => clearCharactersContext());
+
+  beforeEach(() => {
+    initCharactersContext({ worldContext } as unknown as ExtensionAPI);
+    const races = createDefaultRaces();
+    const draconic = races.find(r => r.key === "draconic")!.i;
+    worldContext.pack = {
+      races,
+      cultures: [
+        { i: 0, name: "Wildlands", base: 0, shield: "round", race: 0 },
+        { i: 1, name: "Drake", base: 39, shield: "fantasy2", race: draconic }
+      ],
+      nameBases: []
+    } as unknown as PackedGraph;
+  });
+
+  it("makes market merchants wyrmkin, not draconic", () => {
+    const races = createDefaultRaces();
+    const wyrmkin = races.find(r => r.key === "wyrmkin")!.i;
+    const draconic = races.find(r => r.key === "draconic")!.i;
+    const merchant = createPerson(0, 1, {
+      roleClass: "merchant",
+      primarySkill: "stewardship",
+      homeStateId: 1
+    });
+    expect(merchant.race).toBe(wyrmkin);
+    expect(merchant.race).not.toBe(draconic);
+  });
+
+  it("keeps rulers draconic under the same culture", () => {
+    const races = createDefaultRaces();
+    const draconic = races.find(r => r.key === "draconic")!.i;
+    const ruler = createPerson(0, 1, {
+      roleClass: "ruler",
+      homeStateId: 1,
+      marriageExpectation: "dynastic"
+    });
+    expect(ruler.race).toBe(draconic);
   });
 });

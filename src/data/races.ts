@@ -175,6 +175,8 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
     }
   },
   {
+    // God-line distant folk (Yotunn cultures): apex might + cyclopean craft; not hill-ogre colonies.
+    // Skills/personality: raceSkillBias / racePersonalityBias.
     key: "giant",
     name: "Giant",
     lifespan: 250,
@@ -246,6 +248,26 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
       fertilityEnd: 42,
       interbirthYears: 3.0,
       litterMean: 1.1,
+      litterMax: 3
+    }
+  },
+  {
+    // Bound servitors of draconic realms only — no independent cultures/states.
+    // Fill merchant, craft, and desk roles dragons will not take (see raceBoundServitors).
+    key: "wyrmkin",
+    name: "Wyrmkin",
+    lifespan: 55,
+    maxLifespan: 75,
+    looksBaseline: { stature: 38, build: 42, symmetry: 48, refinement: 42, vitality: 55, ornament: 68 },
+    beautyIdeal: {
+      weights: { ornament: 1.3, vitality: 0.8, symmetry: 0.5, refinement: 0.4, build: 0.3, stature: -0.2 }
+    },
+    // R_max ≈ 12 (short-lived thrall stock under long-lived masters)
+    fertility: {
+      fertilityStart: 14,
+      fertilityEnd: 40,
+      interbirthYears: 2.5,
+      litterMean: 1.2,
       litterMax: 3
     }
   }

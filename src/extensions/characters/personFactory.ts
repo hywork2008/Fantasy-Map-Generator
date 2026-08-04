@@ -1,4 +1,5 @@
 import { tryRollMythicPersonName } from "../../data/personNames";
+import { resolveRaceIdWithBoundServitor, roleUsesBoundServitor } from "../../data/raceBoundServitors";
 import { DEFAULT_RACE_KEY, getRaceById, HUMAN_RACE_ID, raceIdByKey } from "../../data/races";
 import type { RaceFertility } from "../../types/models";
 import { Names } from "../hostCore";
@@ -381,8 +382,25 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   // Religious roles without an explicit class still get learning-oriented skill means.
   const skillRoleClass: CharacterRoleClass | undefined = roleClass ?? (isReligiousRole ? "religious" : undefined);
 
-  // Goblins (enemy-dedicated) only fill war roles; peaceful callers fall back to Human.
-  let race = raceOverride ?? resolveRaceIdForCulture(cultureId);
+  // Race resolve order:
+  // 1) culture host (or raceOverride for mixed courts / explicit callers)
+  // 2) bound servitor swap when culture host is e.g. draconic and role is merchant/ordinary
+  // 3) enemy-colony peaceful roles fall back to Human
+  const cultureHostRace = resolveRaceIdForCulture(cultureId);
+  const packRaces = (() => {
+    try {
+      return getWorldContext().pack.races;
+    } catch {
+      return undefined;
+    }
+  })();
+  let race: number;
+  if (roleUsesBoundServitor(skillRoleClass)) {
+    // Always key off the culture’s majority race so draconic markets never spawn dragon merchants.
+    race = resolveRaceIdWithBoundServitor(cultureHostRace, skillRoleClass, packRaces);
+  } else {
+    race = raceOverride ?? cultureHostRace;
+  }
   const peekRaceKey = (() => {
     try {
       return getRaceById(getWorldContext().pack.races, race)?.key;

@@ -49,6 +49,22 @@ describe("raceSkillBias", () => {
     expect(skillMeanFor("engineering", { raceKey: "dwarf" }).mean).toBeGreaterThan(SKILL_BASE_MEAN + 5);
   });
 
+  it("gives god-line giants draconic prowess, dwarf engineering, low learning, intrigue for distance", () => {
+    const g = (skill: "prowess" | "engineering" | "artistry" | "martial" | "learning" | "intrigue" | "diplomacy") =>
+      skillMeanFor(skill, { raceKey: "giant" }).mean;
+    expect(g("prowess")).toBe(skillMeanFor("prowess", { raceKey: "draconic" }).mean);
+    expect(g("engineering")).toBe(skillMeanFor("engineering", { raceKey: "dwarf" }).mean);
+    expect(g("artistry")).toBeGreaterThan(SKILL_BASE_MEAN);
+    expect(g("artistry")).toBeLessThan(g("engineering"));
+    expect(g("martial")).toBeLessThan(SKILL_BASE_MEAN - 5);
+    expect(g("learning")).toBeLessThan(SKILL_BASE_MEAN);
+    expect(g("intrigue")).toBeGreaterThan(SKILL_BASE_MEAN + 2);
+    expect(g("diplomacy")).toBeLessThan(SKILL_BASE_MEAN - 4);
+    // Learning− is milder than goblin stupidity tilt; intrigue below dark-elf court peak
+    expect(g("learning")).toBeGreaterThan(skillMeanFor("learning", { raceKey: "goblin" }).mean);
+    expect(g("intrigue")).toBeLessThan(skillMeanFor("intrigue", { raceKey: "dark_elf" }).mean);
+  });
+
   it("widens skill variance for long-lived lifespans", () => {
     expect(skillStddevForRace(75)).toBe(SKILL_STDDEV);
     expect(skillStddevForRace(750)).toBe(LONG_LIVED_SKILL_STDDEV);

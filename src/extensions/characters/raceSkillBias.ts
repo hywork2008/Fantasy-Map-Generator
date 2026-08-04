@@ -8,6 +8,9 @@
  * - Long-lived folk: lower median Martial; wider skill σ for rare masters.
  * - Orcs: enemy colonies; Prowess high, Martial ≈ human (field experience).
  * - Draconic: top Prowess, weak Martial; pride depresses Diplomacy / Engineering.
+ * - Giant (god-line): Prowess = draconic, Engineering = dwarf, Artistry mid-high;
+ *   Learning slightly low (not mortal scholarship — not stupidity); Intrigue for
+ *   non-involvement (controlled distance / intermediaries), not dark-elf court plots.
  * - Goblin / orc / arachnid: enemy-colony roster (martial mono courts only).
  */
 import { isEnemyColonyRaceKey } from "../../data/raceCivicStance";
@@ -61,15 +64,19 @@ export const RACE_SKILL_BIAS: Readonly<Record<string, RaceSkillMeanTable>> = {
     artistry: -4,
     engineering: -3
   },
-  // Distant: keep other folk at arm's length (not full enemy).
+  // Distant god-line (Yotunn): cyclopean craft + apex might; keep folk out via
+  // secrecy and access control, not libraries or open war. Learning− ≠ stupidity.
   giant: {
     martial: -8,
-    prowess: 8,
-    learning: -2,
-    diplomacy: -5,
-    engineering: -3
+    prowess: 14,
+    engineering: 8,
+    artistry: 4,
+    learning: -3,
+    intrigue: 4,
+    diplomacy: -6
   },
   // Distant apex; pride at diplomacy & craft; poor mass command.
+  // Merchants/desk work: bound wyrmkin (raceBoundServitors), not dragons.
   draconic: {
     martial: -12,
     prowess: 14,
@@ -78,6 +85,16 @@ export const RACE_SKILL_BIAS: Readonly<Record<string, RaceSkillMeanTable>> = {
     learning: 2,
     intrigue: 2,
     artistry: 1
+  },
+  // Bound thralls of draconic realms — trade face, craft, low personal might.
+  wyrmkin: {
+    stewardship: 6,
+    diplomacy: 4,
+    intrigue: 2,
+    prowess: -4,
+    martial: -2,
+    artistry: 1,
+    learning: -1
   },
   // Distant matriarchal warrior culture — strong, not cosmopolitan.
   amazones: {
