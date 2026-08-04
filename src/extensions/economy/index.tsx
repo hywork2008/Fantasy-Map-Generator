@@ -112,6 +112,7 @@ import {
   registerVoyageIncome,
   Taxes
 } from "./generators/taxes-generator";
+import { clearCullHireState, rebuildCullJobPostings, tickCullJobBoard } from "./generators/threatCullJobPostings";
 import { TradeAnimation } from "./generators/trade-animation";
 import { TradeSecurity } from "./generators/tradeSecurity";
 import { TransportAssetOrders } from "./generators/transportAssetOrders";
@@ -915,6 +916,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       InnStays.clear();
       UrbanWater.clear();
       clearConstructionHireState();
+      clearCullHireState();
       clearUrbanPregnancy();
       MineralResources.clear();
       Minting.clear();
@@ -1408,6 +1410,7 @@ export function init(api: ExtensionAPI): void {
         Production.produce();
         Taxes.collectTaxes();
         synchronizePlayerCommerce();
+        rebuildCullJobPostings({ clearAll: true });
       } else {
         const migratedLegacyMetals = migrateLegacyOreIngotGoods();
         const migratedLiveCats = migrateLiveCatsGood();
@@ -1431,6 +1434,7 @@ export function init(api: ExtensionAPI): void {
         if (!getUrbanWaterSystems().length) {
           UrbanWater.generate();
         }
+        rebuildCullJobPostings();
       }
     } else if (!isEnabled && wasEnabled) {
       // Visually turn off layers before removing them
@@ -1545,6 +1549,8 @@ export function init(api: ExtensionAPI): void {
           InnFacilities.generate();
           InnStays.clear();
           UrbanWater.generate();
+          // Threat cull / pest job board (docs/plan/player-threat-cull-jobs.md PR-2).
+          rebuildCullJobPostings({ clearAll: true });
           api.requestWebglRender();
         } finally {
           TIME && console.timeEnd("generateEconomy");
@@ -1574,6 +1580,8 @@ export function init(api: ExtensionAPI): void {
     }
     if (!getSmelterOperations().length && getMineOperations().length) SmelterOperations.generate();
     if (!getTradeSecurityLedgers().length) TradeSecurity.generate();
+    // Rebuild cull board when empty or only invalid targets remain after load.
+    rebuildCullJobPostings();
   };
   document.addEventListener("fmg:world-loaded", _worldLoadedHandler);
 
@@ -1930,6 +1938,8 @@ export function init(api: ExtensionAPI): void {
         tickUrbanPregnancy(effectiveDeltaYears);
         // Construction hire-board lag + slow anonymous fills (job postings Phase 2).
         tickConstructionHiring(effectiveDays);
+        // Threat cull / pest job board expiry + monthly top-up (PR-2; hire lag is PR-3a).
+        tickCullJobBoard(effectiveDays);
       });
       measureTickStep("economy:annualUrbanKnowledge", () => {
         const urbanMobility = UrbanLaborIntake.updateAnnualState(getWorldContext(), context.rng);

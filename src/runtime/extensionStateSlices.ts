@@ -373,9 +373,27 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
     "militaryResourceLedgers",
     "tradeSecurityLedgers",
     "guildChapters",
-    "individualSkills"
+    "individualSkills",
+    // Threat cull hire board (docs/plan/player-threat-cull-jobs.md PR-2) — stricter than
+    // construction hire arrays, which remain unvalidated opaque fields.
+    "cullJobPostings",
+    "cullHireApplications",
+    "cullActiveContracts"
   ]) {
     assertOptionalArrayField(slice, field, "economy");
+  }
+  if (slice.cullCooldowns !== undefined) {
+    if (typeof slice.cullCooldowns !== "object" || slice.cullCooldowns === null || Array.isArray(slice.cullCooldowns)) {
+      throw new Error("Archive simulation.extensions.economy.cullCooldowns must be a record");
+    }
+    for (const [key, value] of Object.entries(slice.cullCooldowns as Record<string, unknown>)) {
+      if (!/^\d+$/.test(key)) {
+        throw new Error(`Archive simulation.extensions.economy.cullCooldowns has invalid key ${key}`);
+      }
+      if (typeof value !== "number" || !Number.isFinite(value)) {
+        throw new Error(`Archive simulation.extensions.economy.cullCooldowns.${key} must be a finite number`);
+      }
+    }
   }
   validateInnFacilities(slice.innFacilities, world);
   validateInnConstructionOrders(slice.innConstructionOrders, world);
