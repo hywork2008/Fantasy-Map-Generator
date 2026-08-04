@@ -51,7 +51,40 @@ export function expectedChildrenFromFertility(fertileYears: number, spouses: num
 }
 
 /**
+ * Realized fraction of continuous-pairing R_max when partners are not
+ * co-resident for whole centuries (travel, separate courts, timing miss).
+ * Used only for long-lived episodic pairing snapshots.
+ */
+export const EPISODIC_PAIRING_AVAILABILITY = 0.65;
+
+/**
+ * Years treated as active co-parenting after a birth (household "paired" flavor).
+ * Scales with interbirth / maturity so elf rear spans are decades, not human 15y only.
+ */
+export function rearingSpanYears(fertility: RaceFertility): number {
+  return Math.max(8, Math.min(80, fertility.interbirthYears * 0.35 + fertility.fertilityStart * 0.05));
+}
+
+/**
+ * Fertile years elapsed after first parenthood opportunity (clamped to race window).
+ */
+export function fertileYearsElapsed(age: number, firstParentAge: number, fertility: RaceFertility): number {
+  return Math.max(0, Math.min(age, fertility.fertilityEnd) - Math.max(firstParentAge, fertility.fertilityStart));
+}
+
+/**
+ * Expected children for episodic long-lived folk: progress through the fertile
+ * window × continuous expectation × availability (not always together).
+ * Spouse count does **not** multiply — partners are serial / situational.
+ */
+export function expectedChildrenEpisodic(age: number, firstParentAge: number, fertility: RaceFertility): number {
+  const years = fertileYearsElapsed(age, firstParentAge, fertility);
+  return expectedChildrenFromFertility(years, 1, fertility) * EPISODIC_PAIRING_AVAILABILITY;
+}
+
+/**
  * Social first-marriage age (gendered human-ish defaults), clamped to fertility start.
+ * For long-lived races this is "first co-parenting / household bond" age, not lifelong vows.
  */
 export function rollFirstMarriageAge(gender: "male" | "female", fertilityStart: number): number {
   const social = gender === "female" ? rand(21, 26) : rand(24, 29);

@@ -249,3 +249,18 @@ export function raceLateMarriageThresholds(raceId: number | undefined): {
     established: scaleHumanAgeToRace(28, profile)
   };
 }
+
+/**
+ * Lifespan at or above this uses **episodic pairing** for household snapshots:
+ * co-parenting bonds during rearing, not centuries of continuous marriage.
+ * Aligns with advanceAge.LONG_LIVED_LIFESPAN_MIN / mythic name threshold.
+ */
+export const EPISODIC_PAIRING_LIFESPAN_MIN = 150;
+
+/**
+ * True for long-lived races (elf, dwarf, giant, draconic, …): children and
+ * current spouses are independent; most of life is spent unpaired.
+ */
+export function raceUsesEpisodicPairing(raceId: number | undefined): boolean {
+  return resolveRaceAgeProfile(raceId).lifespan >= EPISODIC_PAIRING_LIFESPAN_MIN;
+}

@@ -225,16 +225,36 @@ Fertile windows for long-lived races are **front-loaded** (end well before typic
 
 ### 3.4 Using fertility in `generateFamily`
 
-Replace the human-only “1 child every 4 years × spouses” rule with:
+Two household models (see `raceUsesEpisodicPairing`, lifespan ≥ 150):
+
+**A. Continuous marriage (short-lived / human-scale)**
 
 ```
-fertileYears = clamp(age, fertilityStart, fertilityEnd) span after firstMarriageAge
-expectedBirthEvents ≈ fertileYears / interbirthYears  (× spouse scaling if polygyny)
-children ≈ sum over events of sampleLitter(litterMean, litterMax)
+if unmarried roll → spouses=0, children=0
+else:
+  fertileYears = clamp(age, fertilityStart, fertilityEnd) after firstMarriageAge
+  expected ≈ fertileYears / interbirthYears × spouses × litterMean
+  children ≈ noise(expected)
 ```
 
-- **First marriage age** still social (form / culture / role); clamp to ≥ `fertilityStart`.
-- **Polygyny / harem:** form-based spouse count remains; only *biological* rates come from race (of the birthing parent — usually the female partner’s race in heterosexual pairings; Amazones race needs an explicit rule: all-female polity may use external sires with Amazon mother fertility).
+**B. Episodic pairing (long-lived: elf, dwarf, giant, draconic, …)**
+
+Long-lived folk are **not** married for centuries by default.
+
+```
+never-parent roll → children=0 (independent of current bond)
+else:
+  firstParentAge = social first co-parenting age (≥ fertilityStart)
+  expected ≈ fertileYearsElapsed / interbirthYears × litterMean × availability(0.65)
+  children ≈ noise(expected)   // past partners may differ; no spouse multiplier
+
+current spouses = roll(currentlyPairedChance)   // independent of children
+  // higher while co-parenting / for dynastic roles; low otherwise
+```
+
+- **Children and current spouses are decoupled** — a parent may be unpaired at snapshot time.
+- **Availability** models “not always together at conception timing” (travel, separate courts).
+- **Polygyny / harem:** still only when currently paired and form allows; does not multiply lifetime episodic births.
 - **Cross-race couples (later):** use mother’s race for gestation/litter; optional hybrid penalties.
 
 ### 3.5 Tick-time births (future)

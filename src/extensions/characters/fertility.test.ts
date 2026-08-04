@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultRaces, DEFAULT_RACE_FERTILITY, getRaceFertility } from "../../data/races";
-import { expectedChildrenFromFertility, lifetimeExpectedBirths, sampleLitter } from "./fertility";
+import {
+  EPISODIC_PAIRING_AVAILABILITY,
+  expectedChildrenEpisodic,
+  expectedChildrenFromFertility,
+  lifetimeExpectedBirths,
+  rearingSpanYears,
+  sampleLitter
+} from "./fertility";
 
 describe("race fertility", () => {
   it("gives goblins more expected children than elves over the same married years", () => {
@@ -49,5 +56,14 @@ describe("race fertility", () => {
       expect(n).toBeGreaterThanOrEqual(1);
       expect(n).toBeLessThanOrEqual(5);
     }
+  });
+
+  it("applies availability discount for episodic long-lived child expectation", () => {
+    const races = createDefaultRaces();
+    const elf = getRaceFertility(races, races.find(r => r.key === "elf")!.i);
+    const fullWindow = expectedChildrenFromFertility(elf.fertilityEnd - elf.fertilityStart, 1, elf);
+    const episodic = expectedChildrenEpisodic(elf.fertilityEnd, elf.fertilityStart, elf);
+    expect(episodic).toBeCloseTo(fullWindow * EPISODIC_PAIRING_AVAILABILITY, 5);
+    expect(rearingSpanYears(elf)).toBeGreaterThan(20);
   });
 });

@@ -66,6 +66,8 @@ Socially (in fiction):
 
 Household child counts use **race fertility** (maturity age, interbirth spacing, litter size), not a single human “one child every four years” rule. Elves have sparse, late generations; goblins and arachnid folk breed faster and in larger clutches. See the race catalog and the design doc for numbers.
 
+**Long-lived pairing is episodic**, not lifelong continuous marriage: co-parenting bonds matter while raising young; most of a multi-century life is unpaired. Children may exist without a current spouse, and need not all share the same co-parent. Short-lived folk keep a more familiar continuous-household snapshot.
+
 ---
 
 ## For writers

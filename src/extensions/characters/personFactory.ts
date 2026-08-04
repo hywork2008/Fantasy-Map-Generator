@@ -1,5 +1,6 @@
 import { tryRollMythicPersonName } from "../../data/personNames";
 import { DEFAULT_RACE_KEY, getRaceById, HUMAN_RACE_ID, raceIdByKey } from "../../data/races";
+import type { RaceFertility } from "../../types/models";
 import { Names } from "../hostCore";
 import type { CharacterGenderMode } from "../hostTypes";
 import { gauss, P, rand } from "../hostUtils";
@@ -16,7 +17,9 @@ import type {
   Gender
 } from "./characterTypes";
 import {
+  expectedChildrenEpisodic,
   expectedChildrenFromFertility,
+  rearingSpanYears,
   resolveFertilityForRace,
   rollFirstMarriageAge,
   sampleLitter
@@ -26,6 +29,7 @@ import {
   isRaceMinor,
   maleShareForRace,
   raceLateMarriageThresholds,
+  raceUsesEpisodicPairing,
   rollDefaultAdultAge
 } from "./raceAge";
 import { rollCharacterSkills } from "./skillGeneration";
@@ -186,6 +190,109 @@ export function getUnmarriedChance(
   return permanentRate;
 }
 
+const EMPTY_FAMILY: CharacterFamily = {
+  spouses: 0,
+  children: 0,
+  grandchildren: 0,
+  greatGrandchildren: 0,
+  spouseIds: [],
+  childIds: []
+};
+
+/** Permanent childlessness (never parent) — separate from currently unpaired. */
+const NEVER_PARENT_RATE: Record<MarriageExpectation, number> = {
+  ordinary: 0.18,
+  elite: 0.1,
+  dynastic: 0.04
+};
+
+/**
+ * Chance a long-lived person is **currently** in a co-parenting / household bond.
+ * Default life state is unpaired; raising young and dynastic politics raise the rate.
+ */
+export function getEpisodicCurrentlyPairedChance(
+  age: number,
+  marriageExpectation: MarriageExpectation,
+  isReligiousRole: boolean,
+  formName: string | undefined,
+  children: number,
+  fertility: RaceFertility
+): number {
+  const isReligious = isReligiousRole || (formName !== undefined && RELIGIOUS_FORMS.has(formName));
+  if (isReligious) return 0.05;
+  if (age < fertility.fertilityStart) return 0;
+
+  let p = marriageExpectation === "dynastic" ? 0.32 : marriageExpectation === "elite" ? 0.12 : 0.08;
+
+  const rear = rearingSpanYears(fertility);
+  if (children > 0) {
+    if (age <= fertility.fertilityEnd + rear) p += 0.18;
+    else if (age <= fertility.fertilityEnd + rear * 2) p += 0.08;
+  }
+
+  // Far past childbearing + rear: mostly solo again (political dynasts still pair more often).
+  if (age > fertility.fertilityEnd + rear * 2) {
+    const lateCap = marriageExpectation === "dynastic" ? 0.22 : marriageExpectation === "elite" ? 0.08 : 0.06;
+    p = Math.min(p, lateCap);
+  }
+
+  return Math.min(0.55, p);
+}
+
+function rollFormSpouseCount(gender: Gender, formName: string | undefined): number {
+  let spouseBase = 1;
+  if (formName) {
+    if (["Horde", "Khaganate", "Khanate", "Empire"].includes(formName) && gender === "male") {
+      spouseBase += rand(2, 6); // Harem
+    } else if (["Emirate", "Caliphate", "Satrapy", "Beylik", "Sultanate"].includes(formName) && gender === "male") {
+      spouseBase += rand(0, 3); // Polygamy
+    }
+  }
+  return spouseBase;
+}
+
+function rollDescendants(
+  age: number,
+  children: number,
+  fertility: RaceFertility
+): Pick<CharacterFamily, "grandchildren" | "greatGrandchildren"> {
+  const grandStart = fertility.fertilityStart + Math.max(20, Math.round(fertility.interbirthYears * 0.5));
+  let grandchildren = 0;
+  if (age >= grandStart && children > 0) {
+    grandchildren = Math.round(
+      children * rand(1, 3) * ((age - grandStart) / Math.max(20, fertility.interbirthYears * 4))
+    );
+  }
+
+  const greatStart = grandStart + Math.max(20, Math.round(fertility.interbirthYears * 0.5));
+  let greatGrandchildren = 0;
+  if (age >= greatStart && grandchildren > 0) {
+    greatGrandchildren = Math.round(
+      grandchildren * rand(0, 2) * ((age - greatStart) / Math.max(15, fertility.interbirthYears * 3))
+    );
+  }
+
+  return { grandchildren, greatGrandchildren };
+}
+
+function rollChildCount(expected: number, fertility: RaceFertility): number {
+  let children = Math.round(expected * (0.55 + Math.random() * 0.9));
+  if (children > 0 && fertility.litterMean >= 1.5 && P(0.35)) {
+    children = Math.max(children, sampleLitter(fertility));
+  }
+  return Math.max(0, children);
+}
+
+/**
+ * Household snapshot at generation time.
+ *
+ * **Short-lived races:** continuous marriage model — unmarried ⇒ no household kids;
+ * child counts scale with years married × race fertility.
+ *
+ * **Long-lived races (episodic pairing):** most of life is unpaired. Children come from
+ * lifetime fertile progress × availability (not continuous cohabitation). Current spouses
+ * are independent: more likely while co-parenting / for dynastic roles, not for centuries.
+ */
 export function generateFamily(
   age: number,
   gender: Gender,
@@ -197,27 +304,22 @@ export function generateFamily(
 ): CharacterFamily {
   const fertility = resolveFertilityForRace(raceId);
   if (age < fertility.fertilityStart) {
-    return { spouses: 0, children: 0, grandchildren: 0, greatGrandchildren: 0, spouseIds: [], childIds: [] };
+    return { ...EMPTY_FAMILY };
   }
 
+  if (raceUsesEpisodicPairing(raceId)) {
+    return generateEpisodicFamily(age, gender, formName, marriageExpectation, isReligiousRole, fertility);
+  }
+
+  // ── Continuous marriage (human-scale / short-lived) ──────────────────────
   if (P(getUnmarriedChance(age, marriageExpectation, isReligiousRole, formName, raceId))) {
-    return { spouses: 0, children: 0, grandchildren: 0, greatGrandchildren: 0, spouseIds: [], childIds: [] };
+    return { ...EMPTY_FAMILY };
   }
 
-  let spouseBase = 1; // Monogamy default
-  if (formName) {
-    if (["Horde", "Khaganate", "Khanate", "Empire"].includes(formName) && gender === "male") {
-      spouseBase += rand(2, 6); // Harem
-    } else if (["Emirate", "Caliphate", "Satrapy", "Beylik", "Sultanate"].includes(formName) && gender === "male") {
-      spouseBase += rand(0, 3); // Polygamy
-    }
-  }
-
-  const spouses = spouseBase;
+  const spouses = rollFormSpouseCount(gender, formName);
   const firstMarriageAge = rollFirstMarriageAge(gender, fertility.fertilityStart);
   const yearsMarried = Math.max(0, age - firstMarriageAge);
 
-  // Fertile window is race-specific; polygyny still multiplies birth events.
   const windowYears = Math.max(
     0,
     Math.min(age, fertility.fertilityEnd) - Math.max(firstMarriageAge, fertility.fertilityStart)
@@ -225,30 +327,38 @@ export function generateFamily(
   const fertileYears = spouses === 1 ? Math.min(yearsMarried, windowYears) : yearsMarried;
 
   const expected = expectedChildrenFromFertility(fertileYears, spouses, fertility);
-  // Noise around expectation; for high litterMean races this still yields larger broods.
-  let children = Math.round(expected * (0.55 + Math.random() * 0.9));
-  // Ensure at least occasional multi-birth flavor when litterMean is high and years allow.
-  if (children > 0 && fertility.litterMean >= 1.5 && P(0.35)) {
-    children = Math.max(children, sampleLitter(fertility));
-  }
-  if (children < 0) children = 0;
+  const children = rollChildCount(expected, fertility);
+  const { grandchildren, greatGrandchildren } = rollDescendants(age, children, fertility);
 
-  const grandStart = fertility.fertilityStart + 20;
-  let grandchildren = 0;
-  if (age >= grandStart) {
-    grandchildren = Math.round(
-      children * rand(1, 3) * ((age - grandStart) / Math.max(20, fertility.interbirthYears * 4))
-    );
+  return { spouses, children, grandchildren, greatGrandchildren, spouseIds: [], childIds: [] };
+}
+
+function generateEpisodicFamily(
+  age: number,
+  gender: Gender,
+  formName: string | undefined,
+  marriageExpectation: MarriageExpectation,
+  isReligiousRole: boolean,
+  fertility: RaceFertility
+): CharacterFamily {
+  const isReligious = isReligiousRole || (formName !== undefined && RELIGIOUS_FORMS.has(formName));
+  const neverParentRate = isReligious ? 0.35 : NEVER_PARENT_RATE[marriageExpectation];
+
+  let children = 0;
+  if (!P(neverParentRate)) {
+    // First co-parenting opportunity (social), not lifelong marriage age.
+    const firstParentAge = rollFirstMarriageAge(gender, fertility.fertilityStart);
+    const expected = expectedChildrenEpisodic(age, firstParentAge, fertility);
+    children = rollChildCount(expected, fertility);
   }
 
-  const greatStart = fertility.fertilityStart + 40;
-  let greatGrandchildren = 0;
-  if (age >= greatStart) {
-    greatGrandchildren = Math.round(
-      grandchildren * rand(0, 2) * ((age - greatStart) / Math.max(15, fertility.interbirthYears * 3))
-    );
+  // Current household bond — independent of past children / partners.
+  let spouses = 0;
+  if (P(getEpisodicCurrentlyPairedChance(age, marriageExpectation, isReligiousRole, formName, children, fertility))) {
+    spouses = rollFormSpouseCount(gender, formName);
   }
 
+  const { grandchildren, greatGrandchildren } = rollDescendants(age, children, fertility);
   return { spouses, children, grandchildren, greatGrandchildren, spouseIds: [], childIds: [] };
 }
 
