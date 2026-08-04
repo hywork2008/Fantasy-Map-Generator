@@ -1,6 +1,6 @@
 # Wild oikoumene & frontier danger (Fantasy presets)
 
-- **Status**: Design + Phase 0–4 implementation  
+- **Status**: Design + Phase 0–5 implementation  
 - **Last updated**: 2026-08-04  
 - **Related**: [frontier-expansion.md](frontier-expansion.md), [danger-layer.md](danger-layer.md), [multi-race-geopolitics.md](../world/help/multi-race-geopolitics.md)
 
@@ -101,10 +101,13 @@ Markers / notes: keep rarity ≥ 3 only (unchanged).
 - [x] `simulation.wilderness` cull project state + archive normalize; Tools panel shows active hunts  
 - [x] Registered as `wilderness-ecology.tick` (politics phase, self-gates to Jan 1)
 
-### Phase 5 — Biome predators (non-monster)
+### Phase 5 — Biome predators (non-monster) ✅
 
-- Low-intensity danger from forest/mountain predators without full Monster markers.  
-- Feeds same `cells.danger` channel with small power.
+- [x] `biomePredators.ts`: forest / mountain (catalog tags) contribute low local danger  
+- [x] Soft 1-hop edge bleed; hard cap well below expand ban (no predator-only monster_domain)  
+- [x] Layered after monsters via `rebuildDangerField` (Threats.generate + annual wilderness ecology)  
+- [x] No Monster markers / notes for predators  
+- [x] darkFantasy intensity scale 1.25 vs highFantasy 1.0; governed land half pressure after states exist  
 
 ---
 

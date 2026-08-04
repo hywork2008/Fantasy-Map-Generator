@@ -5,7 +5,7 @@ import { useOptionsState } from "../store/optionsState";
 import type { Monster } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { rand } from "../utils";
-import { rebuildDangerFromMonsters } from "./dangerField";
+import { biomePredatorScaleForMode, rebuildDangerField } from "./dangerField";
 import { getThreatSpawnProfile } from "./threatProfiles";
 
 export const Threats = {
@@ -73,7 +73,13 @@ export const Threats = {
     }
 
     pack.monsters = monsters;
-    rebuildDangerFromMonsters(cells, monsters, profile.threatCalculation);
+    // Monsters + Phase 5 forest/mountain predators (no markers for the latter).
+    rebuildDangerField(cells, monsters, profile.threatCalculation, {
+      biomesData: worldContext.biomesData,
+      biomePredatorScale: biomePredatorScaleForMode(profile.mode),
+      // Generation runs before states; flag kept explicit for annual rebuilds.
+      reducePredatorsOnGovernedLand: true
+    });
   },
 
   appendCasualtyNotes(worldContext: WorldContext) {

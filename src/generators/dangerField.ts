@@ -1,15 +1,29 @@
 /**
- * Pure danger-field rebuild from monster influence radii.
- * Shared by Threats.generate and Phase 4 wilderness ecology (cull / rewild).
+ * Pure danger-field rebuild from monster influence radii (+ optional Phase 5
+ * biome predators). Shared by Threats.generate and wilderness ecology.
  */
 import type { Monster } from "../types/models";
+import type { BiomesData } from "../types/WorldState";
+import { applyBiomePredatorDanger } from "./biomePredators";
 
 export type ThreatCalculationMode = "additive" | "max" | "nonlinear";
 
 export interface DangerFieldCells {
   readonly i: ArrayLike<number>;
   readonly c: readonly (readonly number[])[];
+  readonly h?: ArrayLike<number>;
+  readonly biomeCode?: ArrayLike<number>;
+  readonly state?: ArrayLike<number>;
   danger: { [index: number]: number; fill(value: number): unknown; length: number };
+}
+
+export interface RebuildDangerFieldOptions {
+  /** When set with intensity &gt; 0, forest/mountain predator pressure is layered on. */
+  readonly biomesData?: BiomesData | null;
+  /** Scale for biome predators (0 = off). highFantasy 1, darkFantasy ~1.25. */
+  readonly biomePredatorScale?: number;
+  /** See biomePredators.applyBiomePredatorDanger. */
+  readonly reducePredatorsOnGovernedLand?: boolean;
 }
 
 /**
@@ -56,4 +70,43 @@ export function rebuildDangerFromMonsters(
       }
     }
   }
+}
+
+/**
+ * Full fantasy danger rebuild: monsters first, then low-intensity biome predators.
+ * Prefer this over calling monster rebuild alone on fantasy maps.
+ */
+export function rebuildDangerField(
+  cells: DangerFieldCells,
+  monsters: readonly Monster[],
+  threatCalculation: ThreatCalculationMode = "additive",
+  options: RebuildDangerFieldOptions = {}
+): void {
+  rebuildDangerFromMonsters(cells, monsters, threatCalculation);
+
+  const scale = options.biomePredatorScale ?? 0;
+  if (scale <= 0 || !cells.h) return;
+
+  applyBiomePredatorDanger(
+    {
+      i: cells.i,
+      c: cells.c,
+      h: cells.h,
+      biomeCode: cells.biomeCode,
+      state: cells.state,
+      danger: cells.danger
+    },
+    options.biomesData ?? null,
+    {
+      intensityScale: scale,
+      reduceOnGovernedLand: options.reducePredatorsOnGovernedLand
+    }
+  );
+}
+
+/** Intensity scale for Phase 5 predators from culture-set threat mood. */
+export function biomePredatorScaleForMode(mode: "highFantasy" | "darkFantasy" | "none" | string): number {
+  if (mode === "darkFantasy") return 1.25;
+  if (mode === "highFantasy") return 1;
+  return 0;
 }

@@ -1,10 +1,10 @@
 /**
- * Phase 4 wild oikoumene: hunt/cull projects + rewilding.
+ * Phase 4–5 wild oikoumene: hunt/cull projects, rewilding, and biome predators.
  * Spec: docs/plan/wild-oikoumene-frontier.md
  *
  * Invariants:
  * - Lowering danger never assigns `cells.state` (claiming stays separate).
- * - Danger is always rebuilt from living monsters after cull/recovery.
+ * - Danger is rebuilt from living monsters + forest/mountain predators.
  * - wildLand tags are refreshed after danger changes.
  */
 import {
@@ -19,8 +19,8 @@ import { useOptionsState } from "../store/optionsState";
 import type { Monster, State } from "../types/models";
 import type { RNGService } from "../utils/probabilityUtils";
 import { STATE_EXPAND_DANGER_BAN } from "./dangerExpandPolicy";
-import { rebuildDangerFromMonsters, type ThreatCalculationMode } from "./dangerField";
-import { getThreatSpawnProfile } from "./threatProfiles";
+import { biomePredatorScaleForMode, rebuildDangerField, type ThreatCalculationMode } from "./dangerField";
+import { getThreatSpawnProfile, resolveThreatCultureMode } from "./threatProfiles";
 import { assignWildLandTags, WILD_LAND_MARGIN_DANGER_MIN } from "./wildLandTags";
 
 const HUNT_RESERVE = 10;
@@ -177,11 +177,16 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
   world.pack.monsters = monsters.filter(monster => monster && monster.power > 0);
   pruneDeadMonsterMarkers(world);
 
-  // 4) Rebuild danger purely from living monsters (claiming land stays separate).
+  // 4) Rebuild danger from living monsters + biome predators (no annexation).
   if (!cells.danger || cells.danger.length !== cells.i.length) {
     cells.danger = new Uint8Array(cells.i.length);
   }
-  rebuildDangerFromMonsters(cells, world.pack.monsters, threatCalculation);
+  const culturesSet = useOptionsState.getState().culturesSet;
+  rebuildDangerField(cells, world.pack.monsters, threatCalculation, {
+    biomesData: world.biomesData,
+    biomePredatorScale: biomePredatorScaleForMode(resolveThreatCultureMode(culturesSet)),
+    reducePredatorsOnGovernedLand: true
+  });
   applyAmbientRewildCreep(cells, world);
   assignWildLandTags(cells);
 

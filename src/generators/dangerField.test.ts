@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { rebuildDangerFromMonsters } from "./dangerField";
+import { createDefaultBiomesData } from "../data/biomeCatalog";
+import { biomePredatorScaleForMode, rebuildDangerField, rebuildDangerFromMonsters } from "./dangerField";
 
 function createCells(count: number) {
   return {
@@ -38,5 +39,26 @@ describe("rebuildDangerFromMonsters", () => {
 
     rebuildDangerFromMonsters(cells, [], "max");
     expect(Array.from(cells.danger).every(value => value === 0)).toBe(true);
+  });
+
+  it("maps fantasy modes to predator intensity scales", () => {
+    expect(biomePredatorScaleForMode("highFantasy")).toBe(1);
+    expect(biomePredatorScaleForMode("darkFantasy")).toBe(1.25);
+    expect(biomePredatorScaleForMode("none")).toBe(0);
+  });
+
+  it("keeps forest predator texture after monster-only field would be empty", () => {
+    const biomesData = createDefaultBiomesData();
+    const forest = biomesData.codesByKey?.temperateDeciduousForest ?? 6;
+    const cells = {
+      i: Uint16Array.from([0, 1]),
+      c: [[1], [0]],
+      h: new Uint8Array([25, 25]),
+      biomeCode: Uint8Array.from([forest, forest]),
+      state: new Uint16Array(2),
+      danger: new Uint8Array(2)
+    };
+    rebuildDangerField(cells, [], "max", { biomesData, biomePredatorScale: 1 });
+    expect(cells.danger[0]).toBeGreaterThan(0);
   });
 });
