@@ -172,12 +172,20 @@ export interface WildernessEcologyState {
   cullProjects: Record<number, ThreatCullProject>;
   /** The annual guard prevents daily ticks from re-running hunt/rewild. */
   lastEvaluatedYear: number | null;
+  /**
+   * Temporary rural/pest pressure suppression by cell (0..1).
+   * Applied inside applyBiomePredatorDanger / rebuildDangerField.
+   * Decays on the annual wilderness tick (−0.15/year, floor 0).
+   * Spec: docs/plan/player-threat-cull-jobs.md PR-1.
+   */
+  pestSuppressionByCell?: Record<number, number>;
 }
 
 export function createEmptyWildernessEcologyState(): WildernessEcologyState {
   return {
     cullProjects: {},
-    lastEvaluatedYear: null
+    lastEvaluatedYear: null,
+    pestSuppressionByCell: {}
   };
 }
 

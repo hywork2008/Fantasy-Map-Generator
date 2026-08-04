@@ -3,6 +3,7 @@
 2026-08-04
 
 - docs/plan/high-fantasy-dungeons.md
+- docs/plan/player-threat-cull-jobs.md
 - docs/plan/wild-oikoumene-frontier.md
 
 2026-08-03

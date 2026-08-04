@@ -65,6 +65,23 @@ describe("biome predators (Phase 5)", () => {
     expect(owned.danger[0]).toBeGreaterThan(0);
   });
 
+  it("zeroes predator contribution when pest suppression is 1.0", () => {
+    const forest = biomesData.codesByKey?.temperateDeciduousForest ?? 6;
+    const cells = {
+      i: Uint16Array.from([0]),
+      c: [[] as number[]],
+      h: new Uint8Array([25]),
+      biomeCode: Uint8Array.from([forest]),
+      state: new Uint16Array([0]),
+      danger: new Uint8Array(1)
+    };
+    applyBiomePredatorDanger(cells, biomesData, {
+      intensityScale: 1,
+      pestSuppressionByCell: { 0: 1 }
+    });
+    expect(cells.danger[0]).toBe(0);
+  });
+
   it("layers predators on top of monster danger in rebuildDangerField", () => {
     const forest = biomesData.codesByKey?.temperateDeciduousForest ?? 6;
     const cells = {

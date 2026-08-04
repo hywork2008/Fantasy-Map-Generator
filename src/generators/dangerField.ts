@@ -24,6 +24,11 @@ export interface RebuildDangerFieldOptions {
   readonly biomePredatorScale?: number;
   /** See biomePredators.applyBiomePredatorDanger. */
   readonly reducePredatorsOnGovernedLand?: boolean;
+  /**
+   * Pest suppression 0..1 by cell; multiplies predator contribution only
+   * (docs/plan/player-threat-cull-jobs.md §5.5).
+   */
+  readonly pestSuppressionByCell?: Readonly<Record<number, number>> | null;
 }
 
 /**
@@ -99,7 +104,8 @@ export function rebuildDangerField(
     options.biomesData ?? null,
     {
       intensityScale: scale,
-      reduceOnGovernedLand: options.reducePredatorsOnGovernedLand
+      reduceOnGovernedLand: options.reducePredatorsOnGovernedLand,
+      pestSuppressionByCell: options.pestSuppressionByCell
     }
   );
 }

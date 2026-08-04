@@ -33,6 +33,12 @@ export interface BiomePredatorOptions {
    * (cleared / patrolled countryside). Generation-time maps have no states yet.
    */
   readonly reduceOnGovernedLand?: boolean;
+  /**
+   * Per-cell pest suppression 0..1 from player/anon cull contracts.
+   * Formula: predatorAdd = round(base * scale * (1 - clamp01(suppression))).
+   * Spec: docs/plan/player-threat-cull-jobs.md §5.5.
+   */
+  readonly pestSuppressionByCell?: Readonly<Record<number, number>> | null;
 }
 
 /**
@@ -96,7 +102,8 @@ export function applyBiomePredatorDanger(
     if (reduceGoverned && (cells.state?.[id] ?? 0) > 0) {
       base = Math.max(0, Math.round(base * 0.5));
     }
-    const value = Math.min(BIOME_PREDATOR_DANGER_CAP, Math.round(base * scale));
+    const suppression = clamp01(options.pestSuppressionByCell?.[id] ?? 0);
+    const value = Math.min(BIOME_PREDATOR_DANGER_CAP, Math.round(base * scale * (1 - suppression)));
     if (value <= 0) continue;
     local[id] = value;
     touched++;
@@ -129,4 +136,11 @@ function isLegacyForestCode(biomeCode: number | undefined): boolean {
   if (biomeCode === undefined) return false;
   // Historical Azgaar forest band when catalog tags are unavailable.
   return biomeCode >= 5 && biomeCode <= 9;
+}
+
+function clamp01(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  if (value <= 0) return 0;
+  if (value >= 1) return 1;
+  return value;
 }

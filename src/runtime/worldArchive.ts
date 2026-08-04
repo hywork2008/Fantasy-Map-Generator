@@ -767,6 +767,26 @@ function assertAndNormalizeWilderness(simulation: Record<string, unknown>): void
       throw new Error(`Archive simulation.wilderness.cullProjects.${rawCellId}.lastOutcome is invalid`);
     }
   }
+  // pestSuppressionByCell: optional sparse 0..1 map (player-threat-cull-jobs PR-1).
+  if (wilderness.pestSuppressionByCell === undefined) {
+    wilderness.pestSuppressionByCell = {};
+  } else if (!isRecord(wilderness.pestSuppressionByCell)) {
+    throw new Error("Archive simulation.wilderness.pestSuppressionByCell must be a record");
+  } else {
+    const cleaned: Record<number, number> = {};
+    for (const [rawCellId, rawValue] of Object.entries(wilderness.pestSuppressionByCell)) {
+      const cellId = Number(rawCellId);
+      if (!Number.isInteger(cellId) || cellId < 0 || String(cellId) !== rawCellId) {
+        throw new Error(`Archive simulation.wilderness.pestSuppressionByCell has invalid cell key ${rawCellId}`);
+      }
+      if (typeof rawValue !== "number" || !Number.isFinite(rawValue)) {
+        throw new Error(`Archive simulation.wilderness.pestSuppressionByCell.${rawCellId} is invalid`);
+      }
+      const clamped = Math.max(0, Math.min(1, rawValue));
+      if (clamped > 0) cleaned[cellId] = clamped;
+    }
+    wilderness.pestSuppressionByCell = cleaned;
+  }
 }
 
 function isUint8Array(value: unknown): value is Uint8Array {

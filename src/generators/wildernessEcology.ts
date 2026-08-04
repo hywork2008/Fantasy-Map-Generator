@@ -2,17 +2,15 @@
  * Phase 4–5 wild oikoumene: hunt/cull projects, rewilding, and biome predators.
  * Spec: docs/plan/wild-oikoumene-frontier.md
  *
+ * Geometry / cost / mid-year PC effects live in huntGeometry.ts + threatCullEffects.ts
+ * (docs/plan/player-threat-cull-jobs.md PR-1).
+ *
  * Invariants:
  * - Lowering danger never assigns `cells.state` (claiming stays separate).
  * - Danger is rebuilt from living monsters + forest/mountain predators.
  * - wildLand tags are refreshed after danger changes.
  */
-import {
-  createEmptyWildernessEcologyState,
-  type SimulationContext,
-  type ThreatCullProject,
-  type WildernessEcologyState
-} from "../context/simulationContext";
+import type { SimulationContext, ThreatCullProject, WildernessEcologyState } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import type { DataTopic } from "../runtime/worldRuntime";
 import { useOptionsState } from "../store/optionsState";
@@ -21,12 +19,21 @@ import type { RNGService } from "../utils/probabilityUtils";
 import { STATE_EXPAND_DANGER_BAN } from "./dangerExpandPolicy";
 import { biomePredatorScaleForMode, rebuildDangerField, type ThreatCalculationMode } from "./dangerField";
 import { dungeonsAsDangerSources } from "./dungeons-generator";
+import { collectStateBorderCells, MAX_HUNT_HOPS, minHopsToSet, scoreHuntCandidate } from "./huntGeometry";
+import {
+  annualHuntCostForRarity,
+  decayPestSuppression,
+  ensureWildernessState,
+  estimateLocalDangerDrop,
+  HUNT_RESERVE,
+  pruneDeadMonsterMarkers,
+  setupHuntCost,
+  yearsToClear
+} from "./threatCullEffects";
 import { getThreatSpawnProfile, resolveThreatCultureMode } from "./threatProfiles";
 import { assignWildLandTags, WILD_LAND_MARGIN_DANGER_MIN } from "./wildLandTags";
 
-const HUNT_RESERVE = 10;
 const MAX_CULL_PROJECTS_PER_STATE = 2;
-const MAX_HUNT_HOPS = 4;
 /** Fraction of basePower restored each year when not under active hunt. */
 const REWILD_POWER_RECOVERY = 0.08;
 /** Ambient residual danger creep on unclaimed margin cells (post-rebuild add). */
@@ -84,6 +91,10 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
   const cleared: number[] = [];
   const abandoned: number[] = [];
   const huntedMonsterIds = new Set<number>();
+  let markersOrMonstersChanged = false;
+
+  // 0) Decay pest suppression before rebuild.
+  decayPestSuppression(wilderness);
 
   // 1) Advance existing cull projects.
   for (const project of Object.values(wilderness.cullProjects)) {
@@ -105,7 +116,7 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
     state.treasury = Math.max(0, (state.treasury ?? 0) - cost);
     project.progressYears += 1;
     const beforeDanger = cells.danger?.[project.cellId] ?? 0;
-    const result = applyHuntProgress(project, world, monsters, rng);
+    const result = applyHuntProgress(project, monsters, rng);
     const afterLocal = estimateLocalDangerDrop(beforeDanger, result.powerReduced);
     project.dangerReduced += afterLocal;
 
@@ -113,10 +124,12 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
       project.lastOutcome = "cleared";
       cleared.push(project.cellId);
       delete wilderness.cullProjects[project.cellId];
+      markersOrMonstersChanged = true;
     } else {
       project.lastOutcome = "progress";
       progressed.push(project.cellId);
       if (project.monsterId !== null) huntedMonsterIds.add(project.monsterId);
+      if (result.powerReduced > 0) markersOrMonstersChanged = true;
     }
   }
 
@@ -145,13 +158,14 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
         dangerReduced: 0
       };
       // First funded year applies immediately so annual advance always shows progress.
-      const firstYear = applyHuntProgress(project, world, monsters, rng);
+      const firstYear = applyHuntProgress(project, monsters, rng);
       project.progressYears = 1;
       project.dangerReduced = estimateLocalDangerDrop(cells.danger?.[project.cellId] ?? 0, firstYear.powerReduced);
       if (firstYear.cleared) {
         project.lastOutcome = "cleared";
         cleared.push(project.cellId);
         started.push(project.cellId);
+        markersOrMonstersChanged = true;
         // Do not keep a cleared project in the sparse map.
       } else {
         project.lastOutcome = "progress";
@@ -160,6 +174,7 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
         progressed.push(target.cellId);
         active += 1;
         if (target.monsterId !== null) huntedMonsterIds.add(target.monsterId);
+        if (firstYear.powerReduced > 0) markersOrMonstersChanged = true;
       }
     }
   }
@@ -172,11 +187,14 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
     if (monster.power >= base) continue;
     const step = Math.max(1, Math.round(base * REWILD_POWER_RECOVERY));
     monster.power = Math.min(base, monster.power + step);
+    markersOrMonstersChanged = true;
   }
 
   // Drop dead monsters from the pack list and clean markers/notes.
+  const beforeMonsterCount = monsters.length;
   world.pack.monsters = monsters.filter(monster => monster && monster.power > 0);
-  pruneDeadMonsterMarkers(world);
+  if ((world.pack.monsters?.length ?? 0) !== beforeMonsterCount) markersOrMonstersChanged = true;
+  if (pruneDeadMonsterMarkers(world)) markersOrMonstersChanged = true;
 
   // 4) Rebuild danger from living monsters + dungeon bosses + biome predators (no annexation).
   if (!cells.danger || cells.danger.length !== cells.i.length) {
@@ -187,12 +205,14 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
   rebuildDangerField(cells, dangerSources, threatCalculation, {
     biomesData: world.biomesData,
     biomePredatorScale: biomePredatorScaleForMode(resolveThreatCultureMode(culturesSet)),
-    reducePredatorsOnGovernedLand: true
+    reducePredatorsOnGovernedLand: true,
+    pestSuppressionByCell: wilderness.pestSuppressionByCell
   });
   applyAmbientRewildCreep(cells, world);
   assignWildLandTags(cells);
 
   const topics: DataTopic[] = ["simulation.cells"];
+  if (markersOrMonstersChanged) topics.push("map.annotations");
   if (started.length || progressed.length || cleared.length || abandoned.length) {
     topics.push("simulation.states");
   }
@@ -205,12 +225,6 @@ function isFantasyThreatMap(world: WorldContext): boolean {
   if (getThreatSpawnProfile(culturesSet)) return true;
   // Also allow when monsters already exist (loaded fantasy map with unlocked culture set).
   return (world.pack.monsters?.length ?? 0) > 0;
-}
-
-function ensureWildernessState(simulation: SimulationContext): WildernessEcologyState {
-  if (!simulation.wilderness) simulation.wilderness = createEmptyWildernessEcologyState();
-  if (!simulation.wilderness.cullProjects) simulation.wilderness.cullProjects = {};
-  return simulation.wilderness;
 }
 
 function ensureMonsterBasePower(monsters: readonly Monster[]): void {
@@ -229,31 +243,14 @@ function countStateCulls(wilderness: WildernessEcologyState, stateId: number): n
   return Object.values(wilderness.cullProjects).filter(project => project.stateId === stateId).length;
 }
 
-function yearsToClear(rarity: number): number {
-  if (rarity >= 5) return 8;
-  if (rarity >= 4) return 5;
-  if (rarity >= 3) return 3;
-  if (rarity >= 2) return 2;
-  return 1;
-}
-
-function setupHuntCost(rarity: number): number {
-  if (rarity >= 5) return 40;
-  if (rarity >= 4) return 24;
-  if (rarity >= 3) return 14;
-  if (rarity >= 2) return 8;
-  return 5;
-}
-
 function annualHuntCost(project: ThreatCullProject, monsters: readonly Monster[]): number {
   const monster = project.monsterId === null ? null : monsters.find(entry => entry.i === project.monsterId);
   const rarity = monster?.rarity ?? 1;
-  return Math.max(3, Math.round(setupHuntCost(rarity) * 0.55));
+  return annualHuntCostForRarity(rarity);
 }
 
 function applyHuntProgress(
   project: ThreatCullProject,
-  _world: WorldContext,
   monsters: Monster[],
   rng: RNGService
 ): { cleared: boolean; powerReduced: number } {
@@ -286,10 +283,6 @@ function applyHuntProgress(
   return { cleared: false, powerReduced };
 }
 
-function estimateLocalDangerDrop(beforeDanger: number, powerReduced: number): number {
-  return Math.min(beforeDanger, powerReduced * 4);
-}
-
 type HuntTarget = { cellId: number; monsterId: number | null; rarity: number; score: number };
 
 function selectHuntTarget(
@@ -312,70 +305,18 @@ function selectHuntTarget(
     const hops = minHopsToSet(monster.cell, borderCells, cells, MAX_HUNT_HOPS);
     if (hops === null) continue;
     const danger = cells.danger?.[monster.cell] ?? 0;
-    // Prefer threats that block expansion (high danger) but still near the realm.
-    const score =
-      danger * 2 +
-      monster.rarity * 12 -
-      hops * 8 +
-      (danger >= STATE_EXPAND_DANGER_BAN ? 30 : danger >= WILD_LAND_MARGIN_DANGER_MIN ? 10 : 0) +
-      rng.rand() * 3;
+    const score = scoreHuntCandidate({
+      danger,
+      rarity: monster.rarity,
+      hops,
+      noise: rng.rand() * 3
+    });
     candidates.push({ cellId: monster.cell, monsterId: monster.i, rarity: monster.rarity, score });
   }
 
   if (!candidates.length) return null;
   candidates.sort((a, b) => b.score - a.score || a.cellId - b.cellId);
   return candidates[0];
-}
-
-function collectStateBorderCells(stateId: number, cells: WorldContext["pack"]["cells"]): number[] {
-  const borders: number[] = [];
-  for (let i = 0; i < cells.i.length; i++) {
-    if (cells.state[i] !== stateId || cells.h[i] < 20) continue;
-    const touchesWild = (cells.c[i] ?? []).some(
-      neighbor => cells.h[neighbor] >= 20 && (cells.state[neighbor] ?? 0) === 0
-    );
-    if (touchesWild) borders.push(i);
-  }
-  return borders;
-}
-
-function minHopsToSet(
-  start: number,
-  goals: readonly number[],
-  cells: WorldContext["pack"]["cells"],
-  maxHops: number
-): number | null {
-  const goalSet = new Set(goals);
-  if (goalSet.has(start)) return 0;
-  const queue = [{ cell: start, hops: 0 }];
-  const visited = new Set<number>([start]);
-  while (queue.length) {
-    const { cell, hops } = queue.shift()!;
-    if (hops >= maxHops) continue;
-    for (const neighbor of cells.c[cell] ?? []) {
-      if (visited.has(neighbor) || cells.h[neighbor] < 20) continue;
-      if (goalSet.has(neighbor)) return hops + 1;
-      visited.add(neighbor);
-      queue.push({ cell: neighbor, hops: hops + 1 });
-    }
-  }
-  return null;
-}
-
-function pruneDeadMonsterMarkers(world: WorldContext): void {
-  const pack = world.pack;
-  const livingCells = new Set((pack.monsters ?? []).filter(m => m.power > 0 && m.rarity >= 3).map(m => m.cell));
-  if (!pack.markers?.length) return;
-  const removedMarkerIds: number[] = [];
-  pack.markers = pack.markers.filter(marker => {
-    if (marker.type !== "monster") return true;
-    if (livingCells.has(marker.cell)) return true;
-    removedMarkerIds.push(marker.i);
-    return false;
-  });
-  if (!removedMarkerIds.length || !world.notes?.length) return;
-  const removed = new Set(removedMarkerIds.map(id => `marker${id}`));
-  world.notes = world.notes.filter(note => !removed.has(note.id));
 }
 
 /**
@@ -398,3 +339,5 @@ function applyAmbientRewildCreep(cells: WorldContext["pack"]["cells"], world: Wo
     cells.danger[i] = Math.min(STATE_EXPAND_DANGER_BAN - 1, danger + REWILD_AMBIENT_CREEP);
   }
 }
+
+export { ensureWildernessState } from "./threatCullEffects";
