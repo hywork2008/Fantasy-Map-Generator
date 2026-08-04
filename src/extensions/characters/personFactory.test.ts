@@ -11,6 +11,7 @@ import {
   getEpisodicCurrentlyPairedChance,
   getUnmarriedChance,
   resolvePersonGender,
+  resolveRaceIdForCulture,
   rollPeakAppearance
 } from "./personFactory";
 import { FEUDAL_MALE_SHARE, LONG_LIVED_MALE_SHARE, maleShareForLifespan, raceUsesEpisodicPairing } from "./raceAge";
@@ -221,6 +222,27 @@ describe("generateFamily episodic pairing (long-lived)", () => {
     const dynastic = getEpisodicCurrentlyPairedChance(200, "dynastic", false, undefined, 0, fert);
     expect(raising).toBeGreaterThan(alone);
     expect(dynastic).toBeGreaterThan(alone);
+  });
+});
+
+describe("resolveRaceIdForCulture Wildlands", () => {
+  afterEach(() => clearCharactersContext());
+
+  beforeEach(() => {
+    initCharactersContext({ worldContext } as unknown as ExtensionAPI);
+    const races = createDefaultRaces();
+    worldContext.pack = {
+      races,
+      cultures: [
+        { i: 0, name: "Wildlands", base: 1, shield: "round", race: 0 },
+        { i: 1, name: "Anor", base: 1, shield: "heater", race: 1 }
+      ]
+    } as unknown as PackedGraph;
+  });
+
+  it("maps Wildlands (race 0) to Human, not Unknown", () => {
+    expect(resolveRaceIdForCulture(0)).toBe(1);
+    expect(resolveRaceIdForCulture(1)).toBe(1);
   });
 });
 

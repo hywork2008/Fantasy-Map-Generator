@@ -32,6 +32,7 @@ import {
   settleBlacksmithingTechniques
 } from "./individualSkillMastery";
 import type { CharacterDomainSkill } from "./individualSkillTypes";
+import { resolveBurgCulture } from "./resolveBurgCulture";
 
 /**
  * Master/apprentice succession for GuildKnowledgeStock (docs/plan/knowledge-guild-system.md §5,
@@ -109,13 +110,6 @@ function cultureAllowsGuildCharacters(cultureId: number): boolean {
   const { pack } = getWorldContext();
   const raceId = resolveRaceIdForCulture(cultureId);
   return !isEnemyDedicatedRaceKey(pack.races?.[raceId]?.key);
-}
-
-function resolveBurgCulture(burg: Burg | undefined): number {
-  const { pack } = getWorldContext();
-  const cellCulture = burg?.cell !== undefined ? pack.cells?.culture?.[burg.cell] : undefined;
-  const stateCulture = burg?.state !== undefined ? pack.states?.[burg.state]?.culture : undefined;
-  return burg?.culture ?? cellCulture ?? stateCulture ?? 0;
 }
 
 export function findMaster(

@@ -8,6 +8,7 @@ import type { Burg } from "../../hostTypes";
 import { getMarkets, getWorldContext } from "../economyContext";
 import { rollBalancedEconomyGender } from "./economyCharacterGender";
 import type { Market } from "./marketTypes";
+import { resolveBurgCulture } from "./resolveBurgCulture";
 
 export const MARKET_MANAGER_ROLE_SOURCE = "economy";
 export const MARKET_MANAGER_ROLE_KIND = "marketManager";
@@ -75,10 +76,7 @@ function ensureRivalRole(character: Character, marketId: number): void {
 }
 
 function resolveManagerCulture(centerBurg: Burg | undefined): number {
-  const { pack } = getWorldContext();
-  const cellCulture = centerBurg?.cell !== undefined ? pack.cells?.culture?.[centerBurg.cell] : undefined;
-  const stateCulture = centerBurg?.state !== undefined ? pack.states?.[centerBurg.state]?.culture : undefined;
-  return centerBurg?.culture ?? cellCulture ?? stateCulture ?? 0;
+  return resolveBurgCulture(centerBurg);
 }
 
 /** Goblins are enemy-dedicated — no peaceful market managers. */

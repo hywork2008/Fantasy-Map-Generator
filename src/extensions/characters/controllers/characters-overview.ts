@@ -28,10 +28,22 @@ export function resolveCharacterRaceName(
   cultures?: readonly Pick<Culture, "i" | "race">[] | null
 ): string {
   const raceId = character.race ?? cultures?.[character.culture]?.race;
-  if (raceId === undefined || raceId === null) return "Unknown";
+  // Wildlands / catalog Unknown (0) is not a playable folk — display as Human.
+  if (raceId === undefined || raceId === null || raceId === 0) {
+    const human = races?.find(r => r.i === 1) ?? races?.[1];
+    return human?.name && !human.removed ? human.name : "Human";
+  }
   const race = races?.[raceId];
-  if (!race || race.removed) return "Unknown";
-  return race.name || "Unknown";
+  if (!race || race.removed) {
+    const human = races?.find(r => r.i === 1) ?? races?.[1];
+    return human?.name && !human.removed ? human.name : "Human";
+  }
+  // Catalog slot 0 is literally named "Unknown"
+  if (race.i === 0 || race.name === "Unknown") {
+    const human = races?.find(r => r.i === 1) ?? races?.[1];
+    return human?.name && !human.removed ? human.name : "Human";
+  }
+  return race.name || "Human";
 }
 
 export function filterAndSortCharacters(

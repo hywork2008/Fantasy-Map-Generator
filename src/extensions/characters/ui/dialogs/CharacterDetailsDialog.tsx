@@ -9,6 +9,7 @@ import { usePlayerCharacterState } from "../../../nobility/store/playerCharacter
 import { getFavorBand, getSolidarityBand, inferRoleClass } from "../../backstoryProfile";
 import { getApi, getCharacters, getWorldContext } from "../../charactersContext";
 import type { Character, CharacterRole, TitleHolding } from "../../characterTypes";
+import { resolveCharacterRaceName } from "../../controllers/characters-overview";
 import { formatFlavorHook } from "../../flavorHooks";
 import { getCharacterRoleLabel, getCharacterTitleLabel } from "../../utils/characterLabels";
 import { useCharactersUiState } from "../charactersUiState";
@@ -215,11 +216,8 @@ export const CharacterDetailsDialog: React.FC = () => {
   };
 
   const cultureName = cultures[character.culture]?.name ?? t("characters.unknown");
-  const raceId = character.race ?? cultures[character.culture]?.race;
-  const raceName =
-    (raceId !== undefined ? races[raceId]?.name : undefined) ??
-    (raceId !== undefined ? cultures[character.culture]?.name : undefined) ??
-    t("characters.unknown");
+  // Prefer shared resolver: Wildlands/Unknown (race 0) displays as Human, not catalog "Unknown".
+  const raceName = resolveCharacterRaceName(character, races, cultures);
   const looks = character.looks;
 
   const getAffinityText = (score: number) => {

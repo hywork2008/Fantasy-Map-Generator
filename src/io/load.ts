@@ -263,6 +263,11 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
       mapHeight: worldContext.graphHeight,
       initialSettlementPattern: normalizeInitialSettlementPattern(worldContext.options.initialSettlementPattern)
     });
+    // Wildlands merchants saved with race 0 (catalog Unknown) → Human for display/play.
+    legacyMutation(() => {
+      migrateUnknownCharacterRaces(worldContext.pack.characters, worldContext.pack.cultures as Culture[]);
+      return { result: undefined, topics: ["map.politics"] };
+    });
     callback?.();
     document.getElementById("coas")?.replaceChildren();
 
@@ -658,6 +663,7 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
     ? Uint16Array.from(data[44].split(","), Number)
     : new Uint16Array(worldContext.pack.cells.i.length);
   worldContext.pack.characters = data[45] ? JSON.parse(data[45]) : [];
+  migrateUnknownCharacterRaces(worldContext.pack.characters, worldContext.pack.cultures as Culture[]);
   restoreStrategicEconomyState(data[52]);
   restoreMineralResourceState(data[55]);
 
@@ -1334,4 +1340,24 @@ function migrateLoadedRaces(loaded: Race[] | undefined, cultures: Culture[]): Ra
   }
 
   return races;
+}
+
+/**
+ * Named characters created on Wildlands (culture 0) can store race id 0 (catalog "Unknown").
+ * Court generation already remaps that to Human; economy merchants did not — fix on load.
+ */
+function migrateUnknownCharacterRaces(
+  characters: Array<{ race?: number; culture?: number } | null | undefined> | undefined,
+  cultures: Culture[] | undefined
+): void {
+  if (!characters?.length) return;
+  for (const character of characters) {
+    if (!character) continue;
+    if (character.race !== undefined && character.race !== null && character.race !== UNKNOWN_RACE_ID) continue;
+    const cultureRace = character.culture !== undefined ? cultures?.[character.culture]?.race : undefined;
+    character.race =
+      cultureRace !== undefined && cultureRace !== null && cultureRace !== UNKNOWN_RACE_ID
+        ? cultureRace
+        : HUMAN_RACE_ID;
+  }
 }

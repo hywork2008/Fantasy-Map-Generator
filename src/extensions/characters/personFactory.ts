@@ -1,6 +1,6 @@
 import { tryRollMythicPersonName } from "../../data/personNames";
 import { resolveRaceIdWithBoundServitor, roleUsesBoundServitor } from "../../data/raceBoundServitors";
-import { DEFAULT_RACE_KEY, getRaceById, HUMAN_RACE_ID, raceIdByKey } from "../../data/races";
+import { DEFAULT_RACE_KEY, getRaceById, HUMAN_RACE_ID, raceIdByKey, UNKNOWN_RACE_ID } from "../../data/races";
 import type { RaceFertility } from "../../types/models";
 import { Names } from "../hostCore";
 import type { CharacterGenderMode } from "../hostTypes";
@@ -100,16 +100,25 @@ export interface CreatePersonOptions {
 }
 
 /**
- * Resolve pack.races id for a culture. Falls back to Human when races are missing (legacy maps).
+ * Resolve pack.races id for a culture.
+ * Wildlands / Unknown (race id 0) and missing races fall back to **Human** — named characters
+ * (courtiers, merchants) must not spawn as the catalog "Unknown" entry.
  */
 export function resolveRaceIdForCulture(cultureId: number): number {
   if (!hasCharactersContext()) return HUMAN_RACE_ID;
   try {
     const { pack } = getWorldContext();
     const culture = pack.cultures?.[cultureId];
-    if (culture?.race !== undefined && culture.race !== null) return culture.race;
-    if (pack.races?.length) return raceIdByKey(pack.races, culture?.raceKey ?? DEFAULT_RACE_KEY);
-    return HUMAN_RACE_ID;
+    const raw =
+      culture?.race !== undefined && culture.race !== null
+        ? culture.race
+        : pack.races?.length
+          ? raceIdByKey(pack.races, culture?.raceKey ?? DEFAULT_RACE_KEY)
+          : HUMAN_RACE_ID;
+    // id 0 is the Unknown catalog slot (Wildlands culture); never use for people.
+    if (raw === UNKNOWN_RACE_ID || raw === undefined || raw === null) return HUMAN_RACE_ID;
+    if (pack.races?.length && !pack.races[raw]) return HUMAN_RACE_ID;
+    return raw;
   } catch {
     return HUMAN_RACE_ID;
   }

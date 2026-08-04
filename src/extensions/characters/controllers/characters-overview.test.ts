@@ -81,6 +81,11 @@ describe("resolveCharacterRaceName", () => {
     const c = baseCharacter({ i: 1, name: "A", culture: 1 });
     expect(resolveCharacterRaceName(c, races, cultures)).toBe("Elf");
   });
+
+  it("maps catalog Unknown (race 0 / Wildlands) to Human for display", () => {
+    const c = baseCharacter({ i: 1, name: "Merchant", race: 0, culture: 0 });
+    expect(resolveCharacterRaceName(c, races, cultures)).toBe("Human");
+  });
 });
 
 describe("filterAndSortCharacters role class filter", () => {
