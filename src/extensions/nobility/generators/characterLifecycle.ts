@@ -28,11 +28,20 @@ import {
   resolvePersonCultureAndRace,
   selectCentralOffices
 } from "../../characters/raceRoster";
+import { filterOfficesForEnemyRace, isEnemyDedicatedRaceKey } from "../../characters/raceSkillBias";
 import { calculateCharacterTraits } from "../../characters/utils/personalityUtils";
 import type { Province, State } from "../../hostTypes";
 import { P, rand, TIME } from "../../hostUtils";
 import { CENTRAL_OFFICES, resolveProvinceLordTitle, resolveRulerTitle } from "../data/titleTable";
 import { getCurrentYear, getRulerId, getWorldContext, setRulerId } from "../nobilityContext";
+
+/** True when the state's culture race is enemy-dedicated (goblin warbands, etc.). */
+function stateIsEnemyDedicated(state: Pick<State, "culture">): boolean {
+  const { pack } = getWorldContext();
+  const culture = pack.cultures?.[state.culture];
+  const race = culture?.race !== undefined ? pack.races?.[culture.race] : undefined;
+  return isEnemyDedicatedRaceKey(race?.key);
+}
 
 function buildStateNameMap(states: { i: number; name?: string }[]): Record<number, string> {
   const map: Record<number, string> = {};
@@ -139,7 +148,11 @@ function generate(options: { randomSeed?: string | number } = {}): void {
     setRulerId(state, ruler.i);
 
     // Long-lived mono polities field thinner courts (scarce elders / heirs).
-    const offices = selectCentralOffices(CENTRAL_OFFICES, density);
+    // Goblin (enemy-dedicated) courts: martial offices only — no peaceful desks.
+    let offices = selectCentralOffices(CENTRAL_OFFICES, density);
+    if (stateIsEnemyDedicated(state)) {
+      offices = filterOfficesForEnemyRace(offices);
+    }
     for (const office of offices) {
       const religious = isReligiousForm(state, office.primarySkill);
       // Marshal / Minister of War are court-side martial careers → commander skill medians.
@@ -616,9 +629,12 @@ function processSuccessions(): void {
       livingStateChars.push(heir);
     }
 
-    const vacantOffices = CENTRAL_OFFICES.filter(
+    let vacantOffices = CENTRAL_OFFICES.filter(
       office => !livingStateChars.some(c => c.titles.some(t => t.title === office.title))
     ).map(o => ({ ...o }));
+    if (stateIsEnemyDedicated(state)) {
+      vacantOffices = filterOfficesForEnemyRace(vacantOffices);
+    }
 
     // If the current ruler is underage (below race maturity), ensure there's a Regent office
     if (currentRuler && isRaceMinor(currentRuler.age, currentRuler.race)) {

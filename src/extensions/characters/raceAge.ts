@@ -12,7 +12,8 @@ import {
   DEFAULT_RACE_LIFESPAN,
   getRaceById,
   getRaceFertility,
-  getRaceLifespan
+  getRaceLifespan,
+  RACE_DEFINITIONS
 } from "../../data/races";
 import { rand } from "../hostUtils";
 import { getWorldContext, hasCharactersContext } from "./charactersContext";
@@ -258,9 +259,23 @@ export function raceLateMarriageThresholds(raceId: number | undefined): {
 export const EPISODIC_PAIRING_LIFESPAN_MIN = 150;
 
 /**
- * True for long-lived races (elf, dwarf, giant, draconic, …): children and
- * current spouses are independent; most of life is spent unpaired.
+ * True for long-lived races with **episodic** households (elf, giant, draconic, …):
+ * children and current spouses are independent; most of life is unpaired.
+ * **Dwarves are excluded** — clan continuous monogamy despite long lifespan.
  */
 export function raceUsesEpisodicPairing(raceId: number | undefined): boolean {
-  return resolveRaceAgeProfile(raceId).lifespan >= EPISODIC_PAIRING_LIFESPAN_MIN;
+  if (resolveRaceAgeProfile(raceId).lifespan < EPISODIC_PAIRING_LIFESPAN_MIN) return false;
+  if (raceId === undefined) return true;
+  try {
+    if (hasCharactersContext()) {
+      const race = getRaceById(getWorldContext().pack.races, raceId);
+      if (race?.key === "dwarf") return false;
+    }
+  } catch {
+    // fall through to catalog
+  }
+  // Stable catalog ids match createDefaultRaces() order even without pack context.
+  const catalog = RACE_DEFINITIONS[raceId];
+  if (catalog?.key === "dwarf") return false;
+  return true;
 }

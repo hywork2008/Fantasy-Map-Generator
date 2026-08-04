@@ -213,6 +213,8 @@ export const RACE_DEFINITIONS: readonly RaceDefinition[] = [
   {
     key: "arachnid",
     name: "Arachnid",
+    // Spider-kin: nest-bound predators. Trap-and-eat ecology makes multi-folk
+    // co-residence unworkable — enemy-dedicated characters only (see raceSkillBias).
     lifespan: 60,
     maxLifespan: 100,
     looksBaseline: { stature: 40, build: 45, symmetry: 35, refinement: 40, vitality: 55, ornament: 70 },

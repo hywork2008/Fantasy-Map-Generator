@@ -66,6 +66,8 @@ All three are “normal,” depending on region:
 
 Cross-race **romance** remains deviant in polite society (see beauty/pairing help). Cross-race **politics and commerce** do not: envoys, merc companies, and guilds work across folk lines every day without “finding each other beautiful.”
 
+**Exceptions — not neighbors:** **Goblins** (raid ecology) and **Arachnids** (nest predators that trap and eat other sapients) are **enemy-dedicated**. They do not staff mixed courts, markets, or guilds. On the map they appear as mono threat cultures / lairs; coexistence means *containment and frontiers*, not shared cities. See [races-beauty-and-pairing.md](./races-beauty-and-pairing.md).
+
 ---
 
 ## Mono-racial ethnostates = “dangerous madmen”

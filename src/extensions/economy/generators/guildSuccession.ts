@@ -8,6 +8,7 @@ import type { Character, CharacterRole } from "../../characters/characterTypes";
 import { finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { createPerson, resolveRaceIdForCulture } from "../../characters/personFactory";
 import { rollApprenticeAge } from "../../characters/raceAge";
+import { isEnemyDedicatedRaceKey } from "../../characters/raceSkillBias";
 import type { Burg } from "../../hostTypes";
 import { P, rand } from "../../hostUtils";
 import {
@@ -103,6 +104,13 @@ function getNextCharacterId(characters: Character[]): number {
   return Math.max(0, ...characters.map(c => c.i), -1) + 1;
 }
 
+/** Enemy-dedicated races (goblins) have no peaceful craft guild masters. */
+function cultureAllowsGuildCharacters(cultureId: number): boolean {
+  const { pack } = getWorldContext();
+  const raceId = resolveRaceIdForCulture(cultureId);
+  return !isEnemyDedicatedRaceKey(pack.races?.[raceId]?.key);
+}
+
 function resolveBurgCulture(burg: Burg | undefined): number {
   const { pack } = getWorldContext();
   const cellCulture = burg?.cell !== undefined ? pack.cells?.culture?.[burg.cell] : undefined;
@@ -131,10 +139,12 @@ export function findApprentices(
   );
 }
 
-function createMaster(characters: Character[], burgId: number, domain: CraftKnowledgeDomain): Character {
+function createMaster(characters: Character[], burgId: number, domain: CraftKnowledgeDomain): Character | null {
   const { pack } = getWorldContext();
   const burg = pack.burgs[burgId] as Burg | undefined;
-  const character = createPerson(getNextCharacterId(characters), resolveBurgCulture(burg), {
+  const cultureId = resolveBurgCulture(burg);
+  if (!cultureAllowsGuildCharacters(cultureId)) return null;
+  const character = createPerson(getNextCharacterId(characters), cultureId, {
     // Engineering is retained as a broad technical trait and seeds the initial
     // blacksmithing record below; it is no longer the practical craft skill.
     primarySkill: "engineering",
@@ -339,7 +349,11 @@ function processGuildSuccession(
     master = findMaster(characters, burgId, domain);
   }
 
-  if (!master) master = createMaster(characters, burgId, domain);
+  if (!master) {
+    master = createMaster(characters, burgId, domain) ?? undefined;
+  }
+  // Enemy-dedicated burgs (goblin etc.) never run peaceful craft guilds.
+  if (!master) return;
 
   growApprentices(characters, master, burgId, domain, chance);
   maybeSpawnApprentice(characters, master, burgId, domain);

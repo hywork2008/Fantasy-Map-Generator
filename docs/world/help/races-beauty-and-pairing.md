@@ -66,7 +66,33 @@ Socially (in fiction):
 
 Household child counts use **race fertility** (maturity age, interbirth spacing, litter size), not a single human “one child every four years” rule. Elves have sparse, late generations; goblins and arachnid folk breed faster and in larger clutches. See the race catalog and the design doc for numbers.
 
-**Long-lived pairing is episodic**, not lifelong continuous marriage: co-parenting bonds matter while raising young; most of a multi-century life is unpaired. Children may exist without a current spouse, and need not all share the same co-parent. Short-lived folk keep a more familiar continuous-household snapshot.
+**Long-lived pairing is episodic**, not lifelong continuous marriage: co-parenting bonds matter while raising young; most of a multi-century life is unpaired. Children may exist without a current spouse, and need not all share the same co-parent. Short-lived folk keep a more familiar continuous-household snapshot. **Dwarves** are the exception among long-lived races: continuous monogamy (clan household culture).
+
+### Named-character skills (species tilt)
+
+Role and office still dominate, but race shifts medians (`raceSkillBias.ts`):
+
+- Long-lived folk: lower median **Martial** (few mass-army command opportunities); **wider skill σ** so rare masters appear more often.
+- **Elf**: Martial low, Learning/Artistry up, Prowess modestly up.
+- **Dwarf**: Engineering high; milder Martial penalty.
+- **Orc**: Prowess high; Martial ≈ human (war + fertility → field experience).
+- **Draconic**: highest Prowess, lowest Martial; pride depresses Diplomacy and Engineering.
+- **Goblin**: **enemy-dedicated** — mono warband courts (ruler / martial only); never mixed-court staff or peaceful merchants/guild masters.
+- **Arachnid**: **enemy-dedicated** nest/brood predators (same roster rules as goblins). Web-and-prey ecology: other folk are food or threats, not neighbors. Ambush (Intrigue / Prowess) over mass Martial; Diplomacy near-zero. Not a multi-folk city race.
+
+### Enemy-dedicated folk (goblin, arachnid)
+
+These species do **not** participate in mixed polities’ peaceful life:
+
+| | Goblin | Arachnid |
+| :--- | :--- | :--- |
+| Ecology | Raiding swarms, short-lived boom | Nest hunters; trap, wrap, consume |
+| Map presence | Mono cultures / frontier threat | Mono lair cultures / wild threat |
+| Named characters | Ruler + martial only | Same |
+| Mixed court | Never | Never |
+| Merchants / guilds | No | No |
+
+They can still form **mono** threat polities on fantasy maps (Kobold / Arago / Rakhnid cultures), but those courts are warbands or brood nests, not cosmopolitan states.
 
 ---
 

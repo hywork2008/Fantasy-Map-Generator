@@ -10,6 +10,7 @@ import { HUMAN_RACE_ID, UNKNOWN_RACE_ID } from "../../data/races";
 import type { Culture, Race, State, StateRacialComposition } from "../../types/models";
 import { P } from "../hostUtils";
 import { getWorldContext, hasCharactersContext } from "./charactersContext";
+import { isEnemyDedicatedRaceKey } from "./raceSkillBias";
 
 /** Weighted pick among positive weights keyed by id. */
 function pickWeightedId(weights: Record<number, number>): number {
@@ -108,6 +109,8 @@ export function sampleRaceIdForState(
   const weights: Record<number, number> = {};
   for (const race of races) {
     if (!race || race.removed || race.i === UNKNOWN_RACE_ID) continue;
+    // Goblins (etc.) never staff mixed multi-folk courts — enemy mono warbands only.
+    if (isEnemyDedicatedRaceKey(race.key)) continue;
     let w = raceCharacterDensity(race);
     if (race.i === majorityRace) w *= 2.8; // cultural majority in mixed realms
     // Amazones / female_only still appear but rarer as random officers outside majority

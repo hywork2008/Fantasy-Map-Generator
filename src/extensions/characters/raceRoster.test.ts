@@ -59,4 +59,32 @@ describe("sampleRaceIdForState", () => {
     expect(humanHits).toBeGreaterThan(20);
     expect(humanHits).toBeLessThan(80);
   });
+
+  it("never samples goblins or arachnids into mixed multi-folk courts", () => {
+    const races = createDefaultRaces();
+    const human = races.find(r => r.key === "human")!.i;
+    const goblin = races.find(r => r.key === "goblin")!.i;
+    const arachnid = races.find(r => r.key === "arachnid")!.i;
+    for (let i = 0; i < 100; i++) {
+      const id = sampleRaceIdForState(
+        { culture: 1, racialComposition: "mixed" },
+        { race: human, monoRacial: false },
+        races
+      );
+      expect(id).not.toBe(goblin);
+      expect(id).not.toBe(arachnid);
+    }
+  });
+
+  it("still allows goblin/arachnid mono polities to use their own race", () => {
+    const races = createDefaultRaces();
+    const goblin = races.find(r => r.key === "goblin")!.i;
+    const arachnid = races.find(r => r.key === "arachnid")!.i;
+    expect(
+      sampleRaceIdForState({ culture: 1, racialComposition: "mono" }, { race: goblin, monoRacial: true }, races)
+    ).toBe(goblin);
+    expect(
+      sampleRaceIdForState({ culture: 1, racialComposition: "mono" }, { race: arachnid, monoRacial: true }, races)
+    ).toBe(arachnid);
+  });
 });

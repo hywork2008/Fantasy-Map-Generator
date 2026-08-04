@@ -1,7 +1,8 @@
 import { applyCharacterBackstory, seedRelationsWithPeers } from "../../characters/backstoryProfile";
 import type { Character, CharacterRole } from "../../characters/characterTypes";
 import { finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
-import { createPerson } from "../../characters/personFactory";
+import { createPerson, resolveRaceIdForCulture } from "../../characters/personFactory";
+import { isEnemyDedicatedRaceKey } from "../../characters/raceSkillBias";
 import { simulationContext } from "../../hostCore";
 import type { Burg } from "../../hostTypes";
 import { getMarkets, getWorldContext } from "../economyContext";
@@ -80,12 +81,22 @@ function resolveManagerCulture(centerBurg: Burg | undefined): number {
   return centerBurg?.culture ?? cellCulture ?? stateCulture ?? 0;
 }
 
+/** Goblins are enemy-dedicated — no peaceful market managers. */
+function cultureAllowsMerchantCharacters(cultureId: number): boolean {
+  const { pack } = getWorldContext();
+  const raceId = resolveRaceIdForCulture(cultureId);
+  const race = pack.races?.[raceId];
+  return !isEnemyDedicatedRaceKey(race?.key);
+}
+
 function createMarketManager(market: Market): Character | null {
   const { pack } = getWorldContext();
   const centerBurg = pack.burgs[market.centerBurgId] as Burg | undefined;
   pack.characters ??= [];
   const characters = pack.characters;
-  const character = createPerson(getNextCharacterId(characters), resolveManagerCulture(centerBurg), {
+  const cultureId = resolveManagerCulture(centerBurg);
+  if (!cultureAllowsMerchantCharacters(cultureId)) return null;
+  const character = createPerson(getNextCharacterId(characters), cultureId, {
     primarySkill: "stewardship",
     roleClass: "merchant",
     homeStateId: centerBurg?.state ?? 0,
@@ -113,12 +124,14 @@ function createMarketManager(market: Market): Character | null {
   return character;
 }
 
-function createMarketRival(market: Market): Character {
+function createMarketRival(market: Market): Character | null {
   const { pack } = getWorldContext();
   const centerBurg = pack.burgs[market.centerBurgId] as Burg | undefined;
   pack.characters ??= [];
   const characters = pack.characters;
-  const character = createPerson(getNextCharacterId(characters), resolveManagerCulture(centerBurg), {
+  const cultureId = resolveManagerCulture(centerBurg);
+  if (!cultureAllowsMerchantCharacters(cultureId)) return null;
+  const character = createPerson(getNextCharacterId(characters), cultureId, {
     primarySkill: "stewardship",
     roleClass: "merchant",
     homeStateId: centerBurg?.state ?? 0,
@@ -183,7 +196,9 @@ export function syncMarketRivals(markets: Market[] = getMarkets()): void {
     }
 
     while (rivals.length < MARKET_RIVALS_PER_MARKET) {
-      rivals.push(createMarketRival(market));
+      const rival = createMarketRival(market);
+      if (!rival) break; // enemy-dedicated culture: no peaceful merchant rivals
+      rivals.push(rival);
     }
 
     market.rivalCharacterIds = rivals.map(rival => rival.i);

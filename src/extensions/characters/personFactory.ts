@@ -32,6 +32,7 @@ import {
   raceUsesEpisodicPairing,
   rollDefaultAdultAge
 } from "./raceAge";
+import { isEnemyDedicatedRaceKey, isEnemyDedicatedRole } from "./raceSkillBias";
 import { rollCharacterSkills } from "./skillGeneration";
 
 /**
@@ -379,7 +380,18 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   // Religious roles without an explicit class still get learning-oriented skill means.
   const skillRoleClass: CharacterRoleClass | undefined = roleClass ?? (isReligiousRole ? "religious" : undefined);
 
-  const race = raceOverride ?? resolveRaceIdForCulture(cultureId);
+  // Goblins (enemy-dedicated) only fill war roles; peaceful callers fall back to Human.
+  let race = raceOverride ?? resolveRaceIdForCulture(cultureId);
+  const peekRaceKey = (() => {
+    try {
+      return getRaceById(getWorldContext().pack.races, race)?.key;
+    } catch {
+      return undefined;
+    }
+  })();
+  if (isEnemyDedicatedRaceKey(peekRaceKey) && !isEnemyDedicatedRole(skillRoleClass, primarySkill)) {
+    race = HUMAN_RACE_ID;
+  }
   // Race policy (e.g. Amazones female_only) or feudal ~90% male default — see resolvePersonGender.
   const gender: Gender = resolvePersonGender(cultureId, genderOverride, race);
   // Ages scale with race maturity + lifespan (elves are not rolled as 28–65 year “adults”).
@@ -402,8 +414,20 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   const declineThreshold = skipAgePenalty ? Number.POSITIVE_INFINITY : DECLINE_AGE_THRESHOLD;
   const { looks, appearance } = rollLooksForRace(race, age, declineThreshold);
 
-  // Occupation / office-biased gaussians (not uniform 1–100) — see skillGeneration.ts.
-  const skills = rollCharacterSkills({ primarySkill, roleClass: skillRoleClass });
+  // Occupation / office / race-biased gaussians (not uniform 1–100) — see skillGeneration.ts.
+  const raceDef = (() => {
+    try {
+      return getRaceById(getWorldContext().pack.races, race);
+    } catch {
+      return undefined;
+    }
+  })();
+  const skills = rollCharacterSkills({
+    primarySkill,
+    roleClass: skillRoleClass,
+    raceKey: raceDef?.key,
+    lifespan: raceDef?.lifespan ?? raceLifespan
+  });
 
   // Physical decline for personal combat ability past peak age (human-scale races only).
   // Career soldiers / martial primaries use half the civilian rate (see advanceAge.ts).
