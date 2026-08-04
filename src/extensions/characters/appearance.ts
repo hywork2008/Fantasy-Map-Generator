@@ -181,7 +181,8 @@ export const CROSS_RACE_AESTHETIC_READABILITY: Readonly<Partial<Record<RaceKey, 
   amazones: {
     human: 0.4,
     elf: 0.35,
-    dark_elf: 0.3
+    dark_elf: 0.3,
+    orc: 0.4
   }
 };
 
