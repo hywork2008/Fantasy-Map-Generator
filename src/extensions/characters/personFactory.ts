@@ -1,3 +1,4 @@
+import { tryRollMythicPersonName } from "../../data/personNames";
 import { DEFAULT_RACE_KEY, getRaceById, HUMAN_RACE_ID, raceIdByKey } from "../../data/races";
 import { Names } from "../hostCore";
 import type { CharacterGenderMode } from "../hostTypes";
@@ -354,9 +355,28 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     }
   }
 
+  const personName = (() => {
+    try {
+      const { pack } = getWorldContext();
+      const culture = pack.cultures?.[cultureId];
+      const mythic = tryRollMythicPersonName({
+        culture,
+        raceId: race,
+        races: pack.races,
+        gender,
+        // Avoid 8× "Inanna": uniquify against living roster + names already rolled this batch.
+        existingCharacters: pack.characters
+      });
+      if (mythic) return mythic;
+    } catch {
+      // fall through to Markov culture name
+    }
+    return Names.getCulture(cultureId);
+  })();
+
   const character: Character = {
     i,
-    name: Names.getCulture(cultureId),
+    name: personName,
     age,
     gender,
     culture: cultureId,

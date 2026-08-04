@@ -57,6 +57,7 @@ import { ProvinceMergeDialog } from "./ProvinceMergeDialog";
 import { ProvinceNameEditorDialog } from "./ProvinceNameEditorDialog";
 import { ProvincesChartDialog } from "./ProvincesChartDialog";
 import { ProvincesEditorDialog } from "./ProvincesEditorDialog";
+import { RacePersonNamesDialog } from "./RacePersonNamesDialog";
 import { RegenerateConfirmDialog } from "./RegenerateConfirmDialog";
 import { RegenerateFeatureDialog } from "./RegenerateFeatureDialog";
 import { RegimentEditorDialog } from "./RegimentEditorDialog";
@@ -159,6 +160,7 @@ export const DialogsContainer: React.FC = () => {
           <ProvinceNameEditorDialog />
           <ProvincesChartDialog />
           <ProvincesEditorDialog />
+          <RacePersonNamesDialog />
           <RegenerateConfirmDialog />
           <RegenerateFeatureDialog />
           <RegimentEditorDialog />

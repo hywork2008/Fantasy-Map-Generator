@@ -6,6 +6,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { getHeightmapTemplateWeights, getInitialSettlementPatternPreset } from "../data";
+import { parseRacePersonNameMapping, resolveRacePersonNameMapping } from "../data/racePersonNameConfig";
 import { Cultures } from "../generators/cultures-generator";
 import { COA } from "../generators/emblem/generator";
 import { Names } from "../generators/names-generator";
@@ -566,6 +567,15 @@ export function applyStoredOptions(): void {
   if (stored("military")) worldContext.options.military = JSON.parse(stored("military")!);
   if (stored("gunpowderEraEnabled")) {
     worldContext.options.gunpowderEraEnabled = stored("gunpowderEraEnabled") === "true";
+  }
+  // Race → person-name spheres: always-persisted JSON (not a simple lock string).
+  if (stored("racePersonNameSpheres")) {
+    try {
+      const parsed = JSON.parse(stored("racePersonNameSpheres")!);
+      optionsStore.setOption("racePersonNameSpheres", resolveRacePersonNameMapping(parseRacePersonNameMapping(parsed)));
+    } catch {
+      // keep defaults when storage is corrupt
+    }
   }
 
   if (stored("tooltipSize")) changeTooltipSize(stored("tooltipSize")!);

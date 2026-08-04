@@ -7,6 +7,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { isForestBiome, isNomadicBiome, isWetlandBiome } from "../data/biomeCatalog";
+import { applyRacePersonNameSpheres } from "../data/racePersonNameConfig";
 import { createDefaultRaces, DEFAULT_RACE_KEY, HUMAN_RACE_ID, raceIdByKey, UNKNOWN_RACE_ID } from "../data/races";
 import { useOptionsState } from "../store/optionsState";
 import type { Culture, RaceKey } from "../types/models";
@@ -435,6 +436,8 @@ class CulturesModule {
         {
           name: "Quenian",
           base: 33,
+          // Person names: Greek mythic/ancient only (places stay Elven Markov)
+          personNameBase: 7,
           odd: 1,
           sort: (i: number) => (n(i) / bd(i, [6, 7, 8, 9], 10)) * t[i],
           shield: "gondor",
@@ -443,6 +446,8 @@ class CulturesModule {
         {
           name: "Eldar",
           base: 33,
+          // Distinct homeland sphere — Celtic mythic (not mixed with Quenian Greek)
+          personNameBase: 22,
           odd: 1,
           sort: (i: number) => (n(i) / bd(i, [6, 7, 8, 9], 10)) * t[i],
           shield: "noldor",
@@ -451,6 +456,7 @@ class CulturesModule {
         {
           name: "Trow",
           base: 34,
+          personNameBase: 23, // Mesopotamian
           odd: 0.9,
           sort: (i: number) => (n(i) / bd(i, [7, 8, 9, 12], 10)) * t[i],
           shield: "hessen",
@@ -459,6 +465,7 @@ class CulturesModule {
         {
           name: "Lothian",
           base: 34,
+          personNameBase: 42, // Levantine
           odd: 0.3,
           sort: (i: number) => (n(i) / bd(i, [7, 8, 9, 12], 10)) * t[i],
           shield: "wedged",
@@ -467,6 +474,7 @@ class CulturesModule {
         {
           name: "Dunirr",
           base: 35,
+          personNameBase: 6, // Nordic
           odd: 1,
           sort: (i: number) => n(i) + h[i],
           shield: "ironHills",
@@ -475,6 +483,7 @@ class CulturesModule {
         {
           name: "Khazadur",
           base: 35,
+          personNameBase: 0, // German heroic
           odd: 1,
           sort: (i: number) => n(i) + h[i],
           shield: "erebor",
@@ -507,6 +516,7 @@ class CulturesModule {
         {
           name: "Yotunn",
           base: 38,
+          personNameBase: 6, // Nordic giants
           odd: 0.7,
           sort: (i: number) => td(i, -10),
           shield: "pavise",
@@ -515,6 +525,7 @@ class CulturesModule {
         {
           name: "Rake",
           base: 39,
+          personNameBase: 11, // Chinese mythic
           odd: 0.7,
           sort: (i: number) => -s[i],
           shield: "fantasy2",
@@ -764,6 +775,7 @@ class CulturesModule {
         {
           name: "Eldar",
           base: 33,
+          personNameBase: 22, // Celtic mythic
           odd: 0.5,
           sort: (i: number) => (n(i) / bd(i, [6, 7, 8, 9], 10)) * t[i],
           shield: "fantasy5",
@@ -772,6 +784,7 @@ class CulturesModule {
         {
           name: "Trow",
           base: 34,
+          personNameBase: 23, // Mesopotamian
           odd: 0.8,
           sort: (i: number) => (n(i) / bd(i, [7, 8, 9, 12], 10)) * t[i],
           shield: "hessen",
@@ -780,6 +793,7 @@ class CulturesModule {
         {
           name: "Durinn",
           base: 35,
+          personNameBase: 6, // Nordic
           odd: 0.8,
           sort: (i: number) => n(i) + h[i],
           shield: "erebor",
@@ -804,6 +818,7 @@ class CulturesModule {
         {
           name: "Yotunn",
           base: 38,
+          personNameBase: 6,
           odd: 0.8,
           sort: (i: number) => td(i, -10),
           shield: "pavise",
@@ -812,6 +827,7 @@ class CulturesModule {
         {
           name: "Drake",
           base: 39,
+          personNameBase: 11, // Chinese
           odd: 0.9,
           sort: (i: number) => -s[i],
           shield: "fantasy2",
@@ -1126,7 +1142,11 @@ class CulturesModule {
     }
 
     const selectCultures = (culturesNumber: number): Culture[] => {
-      const defaultCultures = this.getDefault(culturesNumber);
+      // Stamp person-name spheres from Options → Race person names (per race).
+      const defaultCultures = applyRacePersonNameSpheres(
+        this.getDefault(culturesNumber),
+        useOptionsState.getState().racePersonNameSpheres
+      );
       const cultures: Culture[] = [];
 
       pack.cultures?.forEach(culture => {
@@ -1280,23 +1300,29 @@ class CulturesModule {
 
   add(center: number) {
     const { pack } = this.worldContext;
-    const defaultCultures = this.getDefault();
+    const defaultCultures = applyRacePersonNameSpheres(
+      this.getDefault(),
+      useOptionsState.getState().racePersonNameSpheres
+    );
     let culture: number, base: number, name: string;
 
     let raceKey: RaceKey | undefined;
     let race: number | undefined;
+    let personNameBase: number | undefined;
     if (pack.cultures.length < defaultCultures.length) {
       // add one of the default cultures
       culture = pack.cultures.length;
       base = defaultCultures[culture].base;
       name = defaultCultures[culture].name;
       raceKey = (defaultCultures[culture] as Culture).raceKey;
+      personNameBase = defaultCultures[culture].personNameBase;
     } else {
       // add random culture based on one of the current ones
       culture = rand(pack.cultures.length - 1);
       name = Names.getCulture(culture, 5, 8, "");
       base = pack.cultures[culture].base;
       race = pack.cultures[culture].race ?? HUMAN_RACE_ID;
+      personNameBase = pack.cultures[culture].personNameBase;
     }
 
     if (!pack.races?.length) pack.races = createDefaultRaces();
@@ -1313,6 +1339,7 @@ class CulturesModule {
       name,
       color,
       base,
+      ...(personNameBase !== undefined ? { personNameBase } : {}),
       center,
       i,
       expansionism: 1,

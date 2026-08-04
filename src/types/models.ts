@@ -252,6 +252,13 @@ export interface Culture {
   name: string;
   i: number;
   base: number;
+  /**
+   * Optional **person-name** cultural sphere (real-world name_base_id).
+   * Place names still use `base`. Long-lived races draw mythic/ancient CC0 names
+   * only from this sphere (or from a fantasy→sphere map when unset) so one
+   * homeland never mixes Greek + Norse + Japanese labels.
+   */
+  personNameBase?: number;
   shield: string;
   lock?: boolean;
   code?: string;

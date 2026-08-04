@@ -8,6 +8,7 @@ import { useGenerationProgressState } from "../../../../store/generationProgress
 import { useOptionsState } from "../../../../store/optionsState";
 import { isValidCanvasDimension, MIN_CANVAS_HEIGHT, MIN_CANVAS_WIDTH } from "../../../../utils/canvasSize";
 import { lock } from "../../../../utils/domUtils";
+import { openDialog } from "../../../dialogs/dialogService";
 import { IconButton } from "../../IconButton";
 import { LockIconButton } from "../../LockIconButton";
 import { SliderInput } from "../../SliderInput";
@@ -278,6 +279,22 @@ export const GenerationSettingsTab: React.FC = () => {
               </select>
             </td>
             <td></td>
+          </tr>
+
+          <tr data-tip="Assign person-name cultural spheres to races (e.g. Dark Elf → Mesopotamian). Opens a dialog so Generation stays short. Applies on the next map generation.">
+            <td>
+              <IconButton
+                data-tip="Open race person-name sphere mapping"
+                icon="icon-book"
+                onClick={() => openDialog("racePersonNames")}
+              />
+            </td>
+            <td>Race person names</td>
+            <td colSpan={2}>
+              <button type="button" className="button" onClick={() => openDialog("racePersonNames")}>
+                Configure…
+              </button>
+            </td>
           </tr>
 
           <tr data-tip="Determines how full the world is relative to its carrying capacity at the start. 100% means fully saturated, lower values allow for future demographic growth.">
