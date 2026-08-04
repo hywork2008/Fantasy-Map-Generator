@@ -378,6 +378,12 @@ export interface Character {
    */
   inventory?: Record<number, number>;
   /**
+   * Worn / wielded kit (distinct from bulk `inventory`).
+   * Seeded from estate/role at creation; equip/unequip is a later PR.
+   * See docs/plan/character-loadout-and-readiness.md.
+   */
+  loadout?: CharacterLoadout;
+  /**
    * Origin, commitment (zeal's direction), tastes, and optional bonds/hooks.
    * Populated by applyCharacterBackstory() after titles/roles/location are known.
    */
@@ -386,4 +392,42 @@ export interface Character {
   deathYear?: number;
   location?: number;
   pastTitles: TitleHolding[];
+}
+
+/** Quality band shared by attire and weapons (1 = rags / farm tool … 5 = royal / masterwork). */
+export type EquipmentQuality = 1 | 2 | 3 | 4 | 5;
+
+export type LoadoutSlotId = "body" | "weapon" | "accessory" | "mount";
+
+/**
+ * How an item entered a loadout slot.
+ * - seeded: world-gen / role seed (does not debit inventory)
+ * - equipped: taken from inventory units
+ * - editor: free GM override
+ * - gift / spoils: transfer sources (future)
+ */
+export type EquippedItemSource = "seeded" | "equipped" | "editor" | "gift" | "spoils";
+
+export interface EquippedItem {
+  /** Catalog good id (Garments, Arms, Silk, Jewelry, Horses, …). */
+  goodId: number;
+  quality: EquipmentQuality;
+  source: EquippedItemSource;
+  /** Optional short flavor key for UI (e.g. "court_attire", "soldier_arms"). English catalog. */
+  styleKey?: string;
+}
+
+/**
+ * What the character is wearing / wielding right now.
+ * Missing slots mean undressed / unarmed until seed or equip.
+ */
+export interface CharacterLoadout {
+  /** Clothing / attire (Garments, Cloth, Silk, Furs, …). */
+  body?: EquippedItem;
+  /** Primary personal weapon set (Arms). */
+  weapon?: EquippedItem;
+  /** Prestige accessory (Jewelry) — optional v1 seed for high estate. */
+  accessory?: EquippedItem;
+  /** Mount (Horses) — seed deferred to v1.1. */
+  mount?: EquippedItem;
 }

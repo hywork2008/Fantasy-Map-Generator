@@ -9,6 +9,12 @@
 import type { ExtensionAPI } from "../../types/extension-api";
 import { ck3Preset, dnd5ePreset } from "./abilityPresets";
 import type { AbilityPreset, Character } from "./characterTypes";
+import {
+  buildLoadoutGoodsCatalog,
+  FALLBACK_LOADOUT_GOOD_IDS,
+  type LoadoutGoodsCatalog,
+  type NamedGoodRef
+} from "./loadoutSeed";
 
 let _api: ExtensionAPI | null = null;
 
@@ -94,4 +100,44 @@ export function getAbilityPreset(id: string): AbilityPreset | undefined {
 
 export function listAbilityPresets(): AbilityPreset[] {
   return Array.from(_presets.values());
+}
+
+/**
+ * Resolve Garments/Arms/… good ids for loadout seeding without importing the economy module.
+ * Prefers live economy goods (pack mirror or simulation slice); falls back to default catalogue ids.
+ */
+export function resolveLoadoutGoodsCatalog(): LoadoutGoodsCatalog {
+  const candidates: NamedGoodRef[][] = [];
+
+  try {
+    const pack = getWorldContext().pack as { goods?: NamedGoodRef[] };
+    if (Array.isArray(pack.goods) && pack.goods.length > 0) candidates.push(pack.goods);
+  } catch {
+    // Context not ready in pure unit tests.
+  }
+
+  try {
+    const economyGoods = _api?.simulationContext?.extensions?.economy?.goods;
+    if (Array.isArray(economyGoods) && economyGoods.length > 0) {
+      candidates.push(economyGoods as NamedGoodRef[]);
+    }
+  } catch {
+    // Optional path.
+  }
+
+  for (const goods of candidates) {
+    const catalog = buildLoadoutGoodsCatalog(goods);
+    if (catalog) return catalog;
+  }
+  return { ...FALLBACK_LOADOUT_GOOD_IDS };
+}
+
+/** Culture.type fashion hint for loadout seed (Nomadic / Hunting → furs, etc.). */
+export function resolveCultureTypeForLoadout(cultureId: number): string | undefined {
+  try {
+    const culture = getWorldContext().pack.cultures?.[cultureId] as { type?: string } | undefined;
+    return typeof culture?.type === "string" ? culture.type : undefined;
+  } catch {
+    return undefined;
+  }
 }

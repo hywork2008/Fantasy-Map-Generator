@@ -6,7 +6,12 @@ import { isBoundServitorRaceKey } from "../../data/raceBoundServitors";
 import { getRaceById } from "../../data/races";
 import { P, rand } from "../hostUtils";
 import { attractiveness, isSameRace } from "./appearance";
-import { getWorldContext, hasCharactersContext } from "./charactersContext";
+import {
+  getWorldContext,
+  hasCharactersContext,
+  resolveCultureTypeForLoadout,
+  resolveLoadoutGoodsCatalog
+} from "./charactersContext";
 import type {
   Character,
   CharacterBackstory,
@@ -34,6 +39,7 @@ import {
   getFormPack,
   isSlaveryCommonForm
 } from "./cultureFormPacks";
+import { seedCharacterLoadout } from "./loadoutSeed";
 import { applyBackgroundSkillBias, syncCk3AbilityProfileSkills } from "./skillGeneration";
 
 // ---------------------------------------------------------------------------
@@ -1442,6 +1448,15 @@ export function applyCharacterBackstory(character: Character, options: ApplyBack
   const band = prestigeForStratum(origin.socialStratum);
   character.prestige = Math.round(character.prestige * 0.35 + band * 0.65);
   character.prestige = Math.max(1, Math.min(100, character.prestige));
+
+  // Household attire + martial kit (docs/plan/character-loadout-and-readiness.md EQ-1).
+  // Runs after origin/estate so dignity floors apply; does not mint inventory units.
+  seedCharacterLoadout(character, {
+    catalog: resolveLoadoutGoodsCatalog(),
+    roleClass,
+    cultureType: resolveCultureTypeForLoadout(character.culture),
+    onlyIfMissing: true
+  });
 }
 
 // ---------------------------------------------------------------------------

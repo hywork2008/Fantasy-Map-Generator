@@ -484,6 +484,11 @@ describe("applyCharacterBackstory", () => {
     expect(ruler.backstory!.commitment.primary.kind).toBeTruthy();
     expect(ruler.backstory!.tastes.length).toBeGreaterThanOrEqual(2);
     expect(ruler.birthStateId).toBe(1);
+    // EQ-1: household attire seed after origin is known
+    expect(ruler.loadout?.body).toBeDefined();
+    expect(ruler.loadout!.body!.quality).toBeGreaterThanOrEqual(3);
+    expect(ruler.loadout!.body!.source).toBe("seeded");
+    expect(ruler.inventory).toBeUndefined();
   });
 
   it("does not make cautious high-greed calculators like gambling (Turnorovo-type)", () => {

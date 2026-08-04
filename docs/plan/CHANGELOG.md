@@ -2,6 +2,7 @@
 
 2026-08-04
 
+- docs/plan/character-loadout-and-readiness.md
 - docs/plan/high-fantasy-dungeons.md
 - docs/plan/player-threat-cull-jobs.md
 - docs/plan/wild-oikoumene-frontier.md

@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Author** | Design draft (AI agent) |
 | **Date** | 2026-08-04 |
-| **Status** | Design approved — **PR-1 … PR-3b + PR-4 implemented** (board + hire + combat + PC panel; PR-3c domain bonus still deferred) |
+| **Status** | Design approved — **PR-1 … PR-3b + PR-4 implemented** (board + hire + combat + PC panel; **PR-3c superseded** by [character-loadout-and-readiness.md](./character-loadout-and-readiness.md) EQ-3/EQ-4) |
 | **Intended repo path** | `docs/plan/player-threat-cull-jobs.md` |
 | **Depends on** | Construction hire board (`constructionHire.ts`, urban-housing §hire board); wilderness ecology Phase 4–5 (`wildernessEcology.ts`, `biomePredators.ts`); characters skills + wealth; economy `martialIndividualMastery` / `individualSkills`; nobility PC panel |
 | **Related** | [wild-oikoumene-frontier.md](./wild-oikoumene-frontier.md) Phase 4–5; [urban-housing-system.md](./urban-housing-system.md) construction hire board; [individual-skill-mastery-system.md](./individual-skill-mastery-system.md) (plan; live code is `martialIndividualMastery.ts`); [high-fantasy-dungeons.md](./high-fantasy-dungeons.md) (explicit non-goal: dungeons); [knowledge-guild-system.md](./knowledge-guild-system.md) Phase 5 martial domains |
@@ -1093,12 +1093,11 @@ characterHasEmploymentCommitment(id):
 - **Dependencies:** PR-3a, PR-1
 - **Description:** Set `CULL_RESOLVE_ENABLED = true`; one combat per contract; **`domainBonus = 0`**; pay by ecology outcome only; injury orthogonal; `resolvePlayerCullEffect` topics; full-clear must include `map.annotations`; worked-example unit tests.
 
-### PR-3c — practiceCoverage + cullDomainBonus
+### PR-3c — practiceCoverage + cullDomainBonus — **SUPERSEDED**
 
-- **Title:** `feat(economy): cull practice credits and individualSkills domain bonus`
-- **Files:** `martialIndividualMastery` hook / cull practice credit; call `cullDomainBonus` in RESOLVE for named hunters
-- **Dependencies:** PR-3b
-- **Description:** Enable live swordsmanship/archery bonus; practiceCoverage consumption; still no base `skills.*` inflation.
+- **Superseded by:** [character-loadout-and-readiness.md](./character-loadout-and-readiness.md) (**EQ-3** combat domain+equipment bonuses, **EQ-4** cull practice credit), plus broader loadout seed/UI (EQ-1/2/5).
+- **Reason:** Domain bonus alone does not give adventurers prep (equipment, attire, editor templates) or fix the systemic “undressed commoners / undressed rulers” gap. Implement readiness plan instead of a domain-only PR.
+- **Original title (historical):** `feat(economy): cull practice credits and individualSkills domain bonus`
 
 ### PR-4 — PlayerCharacterPanel
 
@@ -1125,7 +1124,7 @@ characterHasEmploymentCommitment(id):
 
 ```text
 PR-1 → PR-2 → PR-3a → PR-3b → PR-4
-                      ↘ PR-3c
+                      ↘ (PR-3c → see character-loadout-and-readiness EQ-1…EQ-5)
               PR-3b → PR-5
 PR-4 → PR-6
 ```
