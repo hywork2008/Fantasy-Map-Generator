@@ -7,6 +7,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { isForestBiome, isNomadicBiome, isWetlandBiome } from "../data/biomeCatalog";
+import { defaultMonoRacialForRaceKey } from "../data/raceCivicStance";
 import { applyRacePersonNameSpheres } from "../data/racePersonNameConfig";
 import { createDefaultRaces, DEFAULT_RACE_KEY, HUMAN_RACE_ID, raceIdByKey, UNKNOWN_RACE_ID } from "../data/races";
 import { useOptionsState } from "../store/optionsState";
@@ -36,10 +37,12 @@ function assignCultureRaces(pack: PackedGraph, cultures: Culture[]): void {
       if (race && race.characterGender === undefined) race.characterGender = c.characterGender;
       delete c.characterGender;
     }
-    // Non-human cultures default to mono-racial purity polities (fantasy ethnostates).
-    // Human / unknown cultures stay mixed multi-folk societies unless explicitly flagged.
+    // Mono is the map default. Rare mixed polities only for human/elf/dwarf
+    // (diplomatic core). Enemy colonies & distant folk are always mono.
+    // See src/data/raceCivicStance.ts and multi-race-geopolitics.md.
     if (c.monoRacial === undefined) {
-      c.monoRacial = c.race !== undefined && c.race !== HUMAN_RACE_ID && c.race !== UNKNOWN_RACE_ID;
+      const raceKey = (races[c.race]?.key ?? key) as RaceKey;
+      c.monoRacial = defaultMonoRacialForRaceKey(raceKey, Math.random);
     }
   }
 }

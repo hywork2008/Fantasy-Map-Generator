@@ -6,6 +6,8 @@ import { enterFocus } from "../../controllers/focus-view";
 import { regeneratePopulationAndBurgs } from "../../controllers/population-editor";
 import { computeProvinceRows, sortProvinceRows } from "../../controllers/provinces-editor";
 import { computeStateRows } from "../../controllers/states-editor";
+import { estimatePolityAgeForRace, FOUNDING_COUPLES_DEFAULT, formatPolityAgeYears } from "../../data/polityAgeEstimate";
+import { HUMAN_RACE_ID } from "../../data/races";
 import { Burgs } from "../../generators/burgs-generator";
 import { legacyMutation, patchBurg } from "../../runtime/worldRuntime";
 import { tip } from "../../services/tooltipService";
@@ -68,6 +70,15 @@ export const StateEditorDialog: React.FC = () => {
       sortOrder: burgSort.sortOrder
     });
   }, [isOpen, stateId, burgSort, refreshTick]);
+
+  /** Demographic “how old could this realm be?” from race fertility + population. */
+  const polityAge = useMemo(() => {
+    void refreshTick;
+    if (!isOpen || stateRow == null || !stateRow.i) return null;
+    const culture = worldContext.pack?.cultures?.[stateRow.culture];
+    const raceId = culture?.race ?? HUMAN_RACE_ID;
+    return estimatePolityAgeForRace(stateRow.population, worldContext.pack?.races, raceId, FOUNDING_COUPLES_DEFAULT);
+  }, [isOpen, stateRow, refreshTick]);
 
   function handleSortProvinces(field: string): void {
     setProvinceSort(prev =>
@@ -191,6 +202,18 @@ export const StateEditorDialog: React.FC = () => {
                   <th scope="row">Culture</th>
                   <td>{stateRow.cultureName}</td>
                 </tr>
+                {polityAge && (
+                  <tr
+                    data-tip={
+                      polityAge.status === "ok"
+                        ? `${polityAge.note} Assumes closed birth growth (no migration/conquest absorption), full juvenile survival, and mono-race majority. Order-of-magnitude only.`
+                        : polityAge.note
+                    }
+                  >
+                    <th scope="row">Dominant race</th>
+                    <td>{polityAge.raceName}</td>
+                  </tr>
+                )}
                 <tr>
                   <th scope="row">Type</th>
                   <td>{stateRow.type}</td>
@@ -213,6 +236,36 @@ export const StateEditorDialog: React.FC = () => {
                   <th scope="row">Population</th>
                   <td>{si(stateRow.population)}</td>
                 </tr>
+                {polityAge && (
+                  <tr
+                    data-tip={
+                      polityAge.status === "ok"
+                        ? `Estimated years if the realm grew from ${FOUNDING_COUPLES_DEFAULT} fertile ${polityAge.raceName} couples (N₀=${polityAge.foundingPopulation}) under average lifetime births R_max≈${polityAge.rMax.toFixed(2)} and generation length T≈${Math.round(polityAge.generationYears)} years. Ignores war, famine, migration, and carrying capacity. Hover note: ${polityAge.note}`
+                        : polityAge.note
+                    }
+                  >
+                    <th scope="row">Est. polity age</th>
+                    <td>
+                      {polityAge.status === "ok" ? (
+                        <>
+                          {formatPolityAgeYears(polityAge.years)}
+                          {polityAge.generations !== null && (
+                            <span style={{ opacity: 0.75 }}>
+                              {" "}
+                              (≈ {polityAge.generations} gen. from {FOUNDING_COUPLES_DEFAULT} couples)
+                            </span>
+                          )}
+                        </>
+                      ) : polityAge.status === "too_small" ? (
+                        <>Recent founding ({formatPolityAgeYears(0)})</>
+                      ) : (
+                        <>
+                          — <span style={{ opacity: 0.8 }}>{polityAge.note}</span>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

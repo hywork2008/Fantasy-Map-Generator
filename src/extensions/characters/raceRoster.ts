@@ -1,11 +1,12 @@
 /**
  * Fantasy polity composition and race-scaled character rosters.
  *
- * - Mono-racial cultures → purity states (few long-lived folk = thin courts).
- * - Mixed polities → full courts with race sampling weighted by scarcity.
+ * - Mono is the map default (enemy colonies, distant folk, most diplomatic realms).
+ * - Rare mixed polities: human / elf / dwarf cosmopolitan courts only; staff from those three.
  *
  * Lore: docs/world/help/multi-race-geopolitics.md
  */
+import { canAppearInMixedCourt } from "../../data/raceCivicStance";
 import { HUMAN_RACE_ID, UNKNOWN_RACE_ID } from "../../data/races";
 import type { Culture, Race, State, StateRacialComposition } from "../../types/models";
 import { P } from "../hostUtils";
@@ -91,7 +92,8 @@ export function selectCentralOffices<T>(offices: readonly T[], density: number):
 
 /**
  * Sample a race id for a new court character.
- * Mono: always culture race. Mixed: weighted by scarcity, majority race boosted.
+ * Mono: always culture race.
+ * Mixed (rare): only diplomatic-core races (human / elf / dwarf); majority boosted.
  */
 export function sampleRaceIdForState(
   state: Pick<State, "culture" | "racialComposition">,
@@ -109,15 +111,17 @@ export function sampleRaceIdForState(
   const weights: Record<number, number> = {};
   for (const race of races) {
     if (!race || race.removed || race.i === UNKNOWN_RACE_ID) continue;
-    // Goblins (etc.) never staff mixed multi-folk courts — enemy mono warbands only.
+    // Enemy colonies never staff mixed courts.
     if (isEnemyDedicatedRaceKey(race.key)) continue;
+    // Distant folk and others stay out of rare cosmopolitan courts.
+    if (!canAppearInMixedCourt(race.key) && race.i !== majorityRace) continue;
+    // If majority is somehow non-diplomatic, still only seat diplomatic-core minorities.
+    if (!canAppearInMixedCourt(race.key)) continue;
     let w = raceCharacterDensity(race);
     if (race.i === majorityRace) w *= 2.8; // cultural majority in mixed realms
-    // Amazones / female_only still appear but rarer as random officers outside majority
-    if (race.characterGender === "female_only" && race.i !== majorityRace) w *= 0.35;
     weights[race.i] = Math.max(0.05, w);
   }
-  if (!Object.keys(weights).length) return HUMAN_RACE_ID;
+  if (!Object.keys(weights).length) return majorityRace > 0 ? majorityRace : HUMAN_RACE_ID;
   return pickWeightedId(weights);
 }
 

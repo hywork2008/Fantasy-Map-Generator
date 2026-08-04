@@ -286,10 +286,10 @@ export interface Culture {
    */
   raceKey?: RaceKey;
   /**
-   * Fantasy sets: when true, states of this culture are mono-racial purity polities
-   * (dangerous fringe in the multi-race balance setting). When false/omitted, states
-   * are multi-racial mixed societies with a cultural majority.
-   * See docs/world/help/multi-race-geopolitics.md.
+   * When true (default for most races), states of this culture are mono-racial.
+   * When false, rare multi-folk polities (human/elf/dwarf cosmopolitan only).
+   * Enemy colonies (orc/goblin/arachnid) and distant folk are always mono.
+   * See docs/world/help/multi-race-geopolitics.md and raceCivicStance.ts.
    */
   monoRacial?: boolean;
   /**

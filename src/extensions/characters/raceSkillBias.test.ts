@@ -52,10 +52,11 @@ describe("raceSkillBias", () => {
     expect(LONG_LIVED_SKILL_STDDEV).toBeGreaterThan(SKILL_STDDEV);
   });
 
-  it("marks goblin and arachnid as enemy-dedicated with war roles only", () => {
+  it("marks goblin, orc, and arachnid as enemy-colony with war roles only", () => {
     expect(isEnemyDedicatedRaceKey("goblin")).toBe(true);
+    expect(isEnemyDedicatedRaceKey("orc")).toBe(true);
     expect(isEnemyDedicatedRaceKey("arachnid")).toBe(true);
-    expect(ENEMY_DEDICATED_RACE_KEYS.has("orc")).toBe(false);
+    expect(ENEMY_DEDICATED_RACE_KEYS.has("dark_elf")).toBe(false);
     expect(isEnemyDedicatedRole("commander")).toBe(true);
     expect(isEnemyDedicatedRole("ruler")).toBe(true);
     expect(isEnemyDedicatedRole("merchant")).toBe(false);

@@ -2,14 +2,15 @@
  * Species-level skill medians and variance for named characters.
  *
  * Role / office / upbringing biases still stack on top (skillGeneration.ts).
+ * Civic stance (diplomatic / distant / enemy colony): `src/data/raceCivicStance.ts`.
+ *
  * Design notes:
- * - Long-lived folk: lower median Martial (few mass-army command opportunities);
- *   higher skill σ so century-scale outliers (masters) appear more often.
- * - Orcs: Prowess ≫ baseline, Martial near human — fertility + war culture ≈ field hours.
+ * - Long-lived folk: lower median Martial; wider skill σ for rare masters.
+ * - Orcs: enemy colonies; Prowess high, Martial ≈ human (field experience).
  * - Draconic: top Prowess, weak Martial; pride depresses Diplomacy / Engineering.
- * - Goblins: enemy-dedicated roster only (see raceRoster); warband-oriented means here.
- * - Arachnids: enemy-dedicated lair/brood nests — predatory, not multi-folk neighbors.
+ * - Goblin / orc / arachnid: enemy-colony roster (martial mono courts only).
  */
+import { isEnemyColonyRaceKey } from "../../data/raceCivicStance";
 import type { RaceKey } from "../../types/models";
 import type { CharacterRoleClass, CharacterSkills } from "./characterTypes";
 
@@ -28,14 +29,6 @@ export const RACE_SKILL_BIAS: Readonly<Record<string, RaceSkillMeanTable>> = {
     artistry: 4,
     geography: 2
   },
-  dark_elf: {
-    martial: -6,
-    prowess: 3,
-    intrigue: 6,
-    learning: 3,
-    diplomacy: -3,
-    artistry: 2
-  },
   // Clan households + craft; slightly less Martial penalty than elves (tunnel war).
   dwarf: {
     martial: -3,
@@ -44,17 +37,18 @@ export const RACE_SKILL_BIAS: Readonly<Record<string, RaceSkillMeanTable>> = {
     stewardship: 2,
     learning: 1
   },
-  // Field experience fills Martial to human thickness; body still leads.
+  // Enemy colony war-folk: field experience fills Martial to human thickness.
   orc: {
     martial: 0,
     prowess: 10,
     learning: -4,
-    diplomacy: -4,
+    diplomacy: -10,
     artistry: -4,
     engineering: -2,
-    intrigue: -2
+    intrigue: -2,
+    stewardship: -3
   },
-  // Enemy warbands / raiders — not court diplomats.
+  // Enemy colony raiders — not court diplomats.
   goblin: {
     martial: 2,
     prowess: 6,
@@ -65,14 +59,15 @@ export const RACE_SKILL_BIAS: Readonly<Record<string, RaceSkillMeanTable>> = {
     artistry: -4,
     engineering: -3
   },
+  // Distant: keep other folk at arm's length (not full enemy).
   giant: {
     martial: -8,
     prowess: 8,
     learning: -2,
-    diplomacy: -4,
+    diplomacy: -5,
     engineering: -3
   },
-  // Apex personal threat; poor mass command; pride at diplomacy & craft.
+  // Distant apex; pride at diplomacy & craft; poor mass command.
   draconic: {
     martial: -12,
     prowess: 14,
@@ -82,12 +77,24 @@ export const RACE_SKILL_BIAS: Readonly<Record<string, RaceSkillMeanTable>> = {
     intrigue: 2,
     artistry: 1
   },
+  // Distant matriarchal warrior culture — strong, not cosmopolitan.
   amazones: {
     martial: 2,
     prowess: 4,
-    learning: -1
+    learning: -1,
+    diplomacy: -3,
+    stewardship: 1
   },
-  // Lair predators: ambush / web craft, not diplomacy or mass drill with other folk.
+  // Distant underdark folk (not colony-enemy; keep distance).
+  dark_elf: {
+    martial: -6,
+    prowess: 3,
+    intrigue: 6,
+    learning: 3,
+    diplomacy: -4,
+    artistry: 2
+  },
+  // Enemy colony nest predators.
   arachnid: {
     martial: -4,
     prowess: 6,
@@ -96,7 +103,7 @@ export const RACE_SKILL_BIAS: Readonly<Record<string, RaceSkillMeanTable>> = {
     learning: -4,
     stewardship: -6,
     artistry: -4,
-    engineering: 2, // web architecture as "structure", not civil engineering
+    engineering: 2,
     geography: 3
   }
 };
@@ -124,20 +131,17 @@ export function skillStddevForRace(lifespan: number | undefined | null): number 
 }
 
 /**
- * Races that only appear as enemy / threat characters (not mixed-court staff,
- * merchants, or guildfolk). Shared machinery for goblin warbands and arachnid nests.
- *
- * Lore: goblins are incompatible raiders; arachnids are predatory nest-dwellers
- * that trap and consume prey — co-residence with other races is not viable.
+ * Enemy-colony races: goblin, orc, arachnid.
+ * Alias of civic stance for character-roster filters (no mixed court / merchants).
  */
-export const ENEMY_DEDICATED_RACE_KEYS: ReadonlySet<string> = new Set(["goblin", "arachnid"]);
+export const ENEMY_DEDICATED_RACE_KEYS: ReadonlySet<string> = new Set(["goblin", "orc", "arachnid"]);
 
 export function isEnemyDedicatedRaceKey(raceKey: string | undefined | null): boolean {
-  return !!raceKey && ENEMY_DEDICATED_RACE_KEYS.has(raceKey);
+  return isEnemyColonyRaceKey(raceKey);
 }
 
 /**
- * Roles allowed for enemy-dedicated races: nest/brood leaders and war command.
+ * Roles allowed for enemy-colony races: warband / nest leaders and war command.
  * Peaceful desks (merchant, religious, most central officers) are excluded.
  */
 export function isEnemyDedicatedRole(
@@ -149,7 +153,7 @@ export function isEnemyDedicatedRole(
   return false;
 }
 
-/** Keep only martial-primary offices for enemy mono courts (goblin / arachnid). */
+/** Keep only martial-primary offices for enemy-colony mono courts. */
 export function filterOfficesForEnemyRace<T extends { primarySkill?: string }>(offices: readonly T[]): T[] {
   return offices.filter(o => o.primarySkill === "martial");
 }
