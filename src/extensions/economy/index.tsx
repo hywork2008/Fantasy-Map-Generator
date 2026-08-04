@@ -112,6 +112,13 @@ import {
   registerVoyageIncome,
   Taxes
 } from "./generators/taxes-generator";
+import {
+  applyCharacterToCullJob,
+  cancelCullApplication,
+  clearCullHiringSession,
+  resignCullJob,
+  tickCullHiring
+} from "./generators/threatCullHire";
 import { clearCullHireState, rebuildCullJobPostings, tickCullJobBoard } from "./generators/threatCullJobPostings";
 import { TradeAnimation } from "./generators/trade-animation";
 import { TradeSecurity } from "./generators/tradeSecurity";
@@ -405,6 +412,9 @@ let _unregisterClearCommand: (() => void) | null = null;
 let _unregisterJobsApplyCommand: (() => void) | null = null;
 let _unregisterJobsResignCommand: (() => void) | null = null;
 let _unregisterJobsCancelCommand: (() => void) | null = null;
+let _unregisterJobsApplyCullCommand: (() => void) | null = null;
+let _unregisterJobsResignCullCommand: (() => void) | null = null;
+let _unregisterJobsCancelCullCommand: (() => void) | null = null;
 let _unregisterCommerceTradeCommand: (() => void) | null = null;
 let _unregisterTickSystem: (() => void) | null = null;
 
@@ -878,6 +888,50 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       return { changed: result.ok, result };
     }
   });
+  _unregisterJobsApplyCullCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "jobs.applyCull",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to apply for cull work");
+      }
+      const payload = value as { characterId?: number; postingId?: number } | undefined;
+      if (!payload?.characterId || !payload?.postingId) {
+        throw new Error("jobs.applyCull requires { characterId, postingId }");
+      }
+      const result = applyCharacterToCullJob({
+        characterId: payload.characterId,
+        postingId: payload.postingId
+      });
+      return { changed: result.ok, result };
+    }
+  });
+  _unregisterJobsResignCullCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "jobs.resignCull",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to resign cull work");
+      }
+      const payload = value as { characterId?: number } | undefined;
+      if (!payload?.characterId) throw new Error("jobs.resignCull requires { characterId }");
+      const result = resignCullJob(payload.characterId);
+      return { changed: result.ok, result };
+    }
+  });
+  _unregisterJobsCancelCullCommand = api.registerExtensionCommand({
+    extensionId: ECONOMY_EXTENSION_ID,
+    name: "jobs.cancelCullApplication",
+    execute: value => {
+      if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+        throw new Error("Economy must be enabled to cancel a cull application");
+      }
+      const payload = value as { characterId?: number } | undefined;
+      if (!payload?.characterId) throw new Error("jobs.cancelCullApplication requires { characterId }");
+      const result = cancelCullApplication(payload.characterId);
+      return { changed: result.ok, result };
+    }
+  });
   _unregisterCommerceTradeCommand = api.registerExtensionCommand({
     extensionId: ECONOMY_EXTENSION_ID,
     name: "commerce.trade",
@@ -917,6 +971,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       UrbanWater.clear();
       clearConstructionHireState();
       clearCullHireState();
+      clearCullHiringSession();
       clearUrbanPregnancy();
       MineralResources.clear();
       Minting.clear();
@@ -1938,8 +1993,10 @@ export function init(api: ExtensionAPI): void {
         tickUrbanPregnancy(effectiveDeltaYears);
         // Construction hire-board lag + slow anonymous fills (job postings Phase 2).
         tickConstructionHiring(effectiveDays);
-        // Threat cull / pest job board expiry + monthly top-up (PR-2; hire lag is PR-3a).
+        // Threat cull / pest job board expiry + monthly top-up (PR-2).
         tickCullJobBoard(effectiveDays);
+        // Cull hire lag / accept / mission countdown (PR-3a; resolve gated off until PR-3b).
+        tickCullHiring(effectiveDays);
       });
       measureTickStep("economy:annualUrbanKnowledge", () => {
         const urbanMobility = UrbanLaborIntake.updateAnnualState(getWorldContext(), context.rng);
@@ -2196,6 +2253,12 @@ export function cleanup(api: ExtensionAPI): void {
   _unregisterJobsResignCommand = null;
   _unregisterJobsCancelCommand?.();
   _unregisterJobsCancelCommand = null;
+  _unregisterJobsApplyCullCommand?.();
+  _unregisterJobsApplyCullCommand = null;
+  _unregisterJobsResignCullCommand?.();
+  _unregisterJobsResignCullCommand = null;
+  _unregisterJobsCancelCullCommand?.();
+  _unregisterJobsCancelCullCommand = null;
   _unregisterCommerceTradeCommand?.();
   _unregisterCommerceTradeCommand = null;
   _unregisterClearCommand?.();

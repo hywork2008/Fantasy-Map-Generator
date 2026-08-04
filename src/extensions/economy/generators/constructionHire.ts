@@ -9,6 +9,7 @@ import {
 } from "../economyContext";
 import type { ConstructionHireApplication, ConstructionHireRole, ConstructionNamedSeat } from "./constructionHireTypes";
 import { getConstructionJobPosting } from "./constructionJobPostings";
+import { characterHasEmploymentCommitment } from "./employmentCommitment";
 
 export type { ConstructionHireApplication, ConstructionHireRole, ConstructionNamedSeat } from "./constructionHireTypes";
 
@@ -126,17 +127,9 @@ export function applyCharacterToConstructionJob(args: {
   if (character.location !== args.burgId) {
     return { ok: false, message: "Character must be in this burg to apply." };
   }
-  if (characterHasConstructionJob(character)) {
-    return { ok: false, message: "Already employed in construction." };
-  }
-  const pending = getConstructionHireApplications().find(
-    app => app.characterId === args.characterId && app.daysRemaining > 0
-  );
-  if (pending) {
-    return {
-      ok: false,
-      message: `Already applying in burg ${pending.burgId} (${Math.ceil(pending.daysRemaining)}d left).`
-    };
+  // Construction xor cull (and block double construction seat/app) — K10.
+  if (characterHasEmploymentCommitment(args.characterId)) {
+    return { ok: false, message: "Already committed to employment (construction or hunt)." };
   }
 
   const posting = getConstructionJobPosting(args.burgId);

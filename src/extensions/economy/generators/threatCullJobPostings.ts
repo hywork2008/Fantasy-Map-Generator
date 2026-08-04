@@ -79,6 +79,8 @@ export function clearCullHireState(): void {
   setCullActiveContracts([]);
   setCullCooldowns({});
   daysSinceBoardRefresh = 0;
+  // Session hire counter lives in threatCullHire — reset via soft import avoidance:
+  // callers (economy clear / generate) also call clearCullHiringSession().
 }
 
 function nextPostingId(posts: readonly CullJobPosting[]): number {
