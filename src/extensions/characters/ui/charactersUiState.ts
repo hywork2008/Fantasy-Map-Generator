@@ -3,6 +3,14 @@ import type { CharacterRoleClass } from "../characterTypes";
 
 export type SortOrder = "asc" | "desc";
 export type CharactersTab = "overview" | "stats";
+/** Requested tab inside Character Details (consumed once when the dialog opens). */
+export type CharacterDetailsTabRequest =
+  | "skills"
+  | "personality"
+  | "loadout"
+  | "inventory"
+  | "backstory"
+  | "relationships";
 
 interface CharactersUiState {
   selectedCharacterId: number | null;
@@ -23,6 +31,11 @@ interface CharactersUiState {
    */
   filterRoleClass: CharacterRoleClass | null;
   activeTab: CharactersTab;
+  /**
+   * One-shot request to open Character Details on a specific inner tab (e.g. loadout from PC Prepare).
+   * Consumed by CharacterDetailsDialog; null when none pending.
+   */
+  pendingDetailsTab: CharacterDetailsTabRequest | null;
   /** Bumped whenever character data mutates in place (e.g. Advance Time aging). */
   refreshToken: number;
   setSelectedCharacterId: (id: number | null) => void;
@@ -38,6 +51,8 @@ interface CharactersUiState {
   setFilterStateId: (id: number | null) => void;
   setFilterRoleClass: (roleClass: CharacterRoleClass | null) => void;
   setActiveTab: (tab: CharactersTab) => void;
+  requestDetailsTab: (tab: CharacterDetailsTabRequest | null) => void;
+  consumePendingDetailsTab: () => CharacterDetailsTabRequest | null;
   bumpRefreshToken: () => void;
 }
 
@@ -51,6 +66,7 @@ export const useCharactersUiState = create<CharactersUiState>((set, get) => ({
   filterStateId: null,
   filterRoleClass: null,
   activeTab: "overview",
+  pendingDetailsTab: null,
   refreshToken: 0,
   setSelectedCharacterId: id => set({ selectedCharacterId: id }),
   openCharacterDetails: id =>
@@ -59,6 +75,12 @@ export const useCharactersUiState = create<CharactersUiState>((set, get) => ({
       detailsHistory: [id],
       detailsHistoryIndex: 0
     }),
+  requestDetailsTab: tab => set({ pendingDetailsTab: tab }),
+  consumePendingDetailsTab: () => {
+    const tab = get().pendingDetailsTab;
+    if (tab) set({ pendingDetailsTab: null });
+    return tab;
+  },
   pushCharacterDetails: id => {
     const { detailsHistory, detailsHistoryIndex, selectedCharacterId } = get();
     if (id === selectedCharacterId) return;

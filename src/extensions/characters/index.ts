@@ -2,6 +2,7 @@ import "./types"; // activate module augmentation for PackedGraph.characters
 
 import type { ExtensionAPI } from "../../types/extension-api";
 import { clearCharacters } from "./advanceAge";
+import { applyPrepTemplateLoadout, PREP_TEMPLATES, type PrepTemplateId } from "./adventurerTemplates";
 import { clearCharactersContext, getCharacters, initCharactersContext } from "./charactersContext";
 import type { CharacterLoadout, CharacterSkills, LoadoutSlotId } from "./characterTypes";
 import {
@@ -12,7 +13,7 @@ import {
   setSlotQuality,
   unequipSlot
 } from "./loadoutEquip";
-import type { NamedGoodRef } from "./loadoutSeed";
+import { buildLoadoutGoodsCatalog, FALLBACK_LOADOUT_GOOD_IDS, type NamedGoodRef } from "./loadoutSeed";
 import { BurgEditorCharactersTab } from "./ui/components/BurgEditorCharactersTab";
 import { CharacterDetailsDialog } from "./ui/dialogs/CharacterDetailsDialog";
 import { CharactersOverviewDialog } from "./ui/dialogs/CharactersOverviewDialog";
@@ -91,6 +92,19 @@ function isSetLoadoutEditorRequest(
   if (v.loadout !== null && (typeof v.loadout !== "object" || Array.isArray(v.loadout))) return false;
   if (v.replaceAll !== undefined && typeof v.replaceAll !== "boolean") return false;
   return true;
+}
+
+const PREP_TEMPLATE_IDS = new Set(PREP_TEMPLATES.map(t => t.id));
+
+function isApplyPrepTemplateRequest(value: unknown): value is { characterId: number; templateId: PrepTemplateId } {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v.characterId === "number" &&
+    Number.isInteger(v.characterId) &&
+    typeof v.templateId === "string" &&
+    PREP_TEMPLATE_IDS.has(v.templateId as PrepTemplateId)
+  );
 }
 
 export function init(api: ExtensionAPI): void {
@@ -187,11 +201,34 @@ export function init(api: ExtensionAPI): void {
     }
   });
 
+  const unregisterPrepTemplate = api.registerExtensionCommand({
+    extensionId: CHARACTERS_EXTENSION_ID,
+    name: "applyPrepTemplate",
+    topics: ["extension.characters"],
+    execute: value => {
+      if (!isApplyPrepTemplateRequest(value)) {
+        throw new Error("characters.applyPrepTemplate requires characterId and a known templateId");
+      }
+      const character = getCharacters().find(c => c.i === value.characterId);
+      if (!character) throw new Error(`characters.applyPrepTemplate: character ${value.characterId} not found`);
+      const goods = resolveGoodsCatalogForEquip(api);
+      const catalog = buildLoadoutGoodsCatalog(goods) ?? { ...FALLBACK_LOADOUT_GOOD_IDS };
+      const result = applyPrepTemplateLoadout(character, value.templateId, catalog);
+      if (!result.ok) throw new Error(result.message ?? "apply prep template failed");
+      if (result.changed) notifyLoadoutChanged(character.i);
+      return {
+        changed: result.changed,
+        result: { characterId: character.i, templateId: value.templateId, ok: true }
+      };
+    }
+  });
+
   _unregisterLoadoutCommands = () => {
     unregisterEquip();
     unregisterUnequip();
     unregisterSetQuality();
     unregisterSetLoadout();
+    unregisterPrepTemplate();
   };
   api.registerExtension(
     {

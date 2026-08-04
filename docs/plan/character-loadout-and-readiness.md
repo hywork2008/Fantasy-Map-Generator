@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Author** | Design draft (AI agent) |
 | **Date** | 2026-08-04 |
-| **Status** | Design proposal — supersedes **PR-3c** of [player-threat-cull-jobs.md](./player-threat-cull-jobs.md). **EQ-1–EQ-4 implemented** (schema/seed + equip UI + combat bonuses + cull practice). |
+| **Status** | Design proposal — supersedes **PR-3c** of [player-threat-cull-jobs.md](./player-threat-cull-jobs.md). **EQ-1–EQ-5 implemented** (through PC readiness + prep templates). |
 | **Intended repo path** | `docs/plan/character-loadout-and-readiness.md` |
 | **Depends on** | Characters extension (`Character`, `personFactory`, backstory estate/stratum); Economy goods + `Character.inventory` + market commerce; `individualSkills` / `martialIndividualMastery`; threat cull combat (`threatCullCombat.ts`); PC panel |
 | **Related** | [individual-skill-mastery-system.md](./individual-skill-mastery-system.md); [player-character-market-commerce.md](./player-character-market-commerce.md) §10 (consume/equip deferred); [player-threat-cull-jobs.md](./player-threat-cull-jobs.md) K5 / PR-3c; [characters/appearance-and-reproduction.md](./characters/appearance-and-reproduction.md) (phenotype only — not clothing); [goods-unit-scale.md](./goods-unit-scale.md) (Garments/Arms as `set`) |
@@ -439,10 +439,10 @@ No separate “fantasy clothing system.” Magic items stay out of v1; High Fant
 - **Dependencies:** EQ-3
 - **Description:** Success/fail practice gains with diminishing returns; still no base `skills.*` inflation; commander annual path untouched.
 
-### EQ-5 — PC readiness + adventurer templates
+### EQ-5 — PC readiness + adventurer templates — **DONE**
 
 - **Title:** `feat(nobility): PC readiness line and adventurer prep templates`
-- **Files:** `PlayerCharacterPanel.tsx`, optional template helper in characters, getters
+- **Files:** `characterReadiness.ts`, `adventurerTemplates.ts`, `prepTemplateSkills.ts`, `PlayerCharacterPanel.tsx`, `charactersUiState` pending tab, `characters.applyPrepTemplate` command
 - **Dependencies:** EQ-2, EQ-3
 - **Description:** Readiness summary; Prepare opens loadout; templates (peasant / militia / hireling / court); advisory tooltips only.
 
@@ -475,7 +475,7 @@ Threat-cull doc: mark PR-3c superseded; point to EQ-3/EQ-4.
 - [ ] Seeded items do not create false market supply.
 - [ ] Named cull combat uses domainBonus + equipmentBonus; anon unchanged.
 - [x] Successful cull can raise swordsmanship/archery proficiency without raising base martial/prowess.
-- [ ] PC panel shows readiness; Apply Hunt still available when undergeared.
+- [x] PC panel shows readiness; Apply Hunt still available when undergeared.
 - [ ] Character Details shows loadout in English; no Japanese UI strings.
 - [ ] No economy→nobility imports; loadout archive-safe (clamp/drop invalid).
 - [ ] Fantasy and non-fantasy maps both dress commoners and rulers (same code path).

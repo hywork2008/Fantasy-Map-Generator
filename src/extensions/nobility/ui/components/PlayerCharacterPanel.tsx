@@ -1,9 +1,11 @@
 import type React from "react";
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { PREP_TEMPLATES, type PrepTemplateId } from "../../../characters/adventurerTemplates";
 import { useCharactersUiState } from "../../../characters/ui/charactersUiState";
 import { openCharacterMarket } from "../../../economy/controllers/characterMarket";
 import { getCullCooldowns } from "../../../economy/economyContext";
+import { buildCharacterReadiness } from "../../../economy/generators/characterReadiness";
 import {
   getCharacterConstructionEmployment,
   getCharacterPendingConstructionApplication
@@ -29,6 +31,8 @@ import {
   spendDomainTreasury,
   toggleWarFootingForRuler
 } from "../../../economy/generators/fiscalAuthority";
+import { applyPrepTemplateSkills } from "../../../economy/generators/prepTemplateSkills";
+import { targetDifficulty } from "../../../economy/generators/threatCullCombat";
 import {
   getCharacterCullContract,
   getCharacterPendingCullApplication
@@ -49,6 +53,7 @@ import { usePlayerCharacterState } from "../../store/playerCharacterState";
 import "./playerCharacterPanel.css";
 
 const ECONOMY_EXTENSION_ID = "economy";
+const CHARACTERS_EXTENSION_ID = "characters";
 
 const PEST_HUNT_TIP = "Hinterland pests (local pressure; may not show on the danger map unless Rural threats is on).";
 
@@ -65,6 +70,7 @@ export const PlayerCharacterPanel: React.FC = () => {
   const isMoveMode = usePlayerCharacterState(state => state.isMoveMode);
   const pendingTravel = usePlayerCharacterState(state => state.pendingTravel);
   const openCharacterDetails = useCharactersUiState(state => state.openCharacterDetails);
+  const requestDetailsTab = useCharactersUiState(state => state.requestDetailsTab);
 
   // refreshToken is an intentional extra dep: characters mutate in place on ticks.
   // biome-ignore lint/correctness/useExhaustiveDependencies: see comment above
@@ -94,12 +100,32 @@ export const PlayerCharacterPanel: React.FC = () => {
     const onSimUpdated = () => {
       usePlayerCharacterState.getState().bumpRefreshToken();
     };
+    const onLoadoutOrInventory = (event: Event) => {
+      const detail = event instanceof CustomEvent ? event.detail : undefined;
+      if (!detail || typeof detail !== "object") return;
+      if ((detail as { characterId?: unknown }).characterId === playerCharacterId) {
+        usePlayerCharacterState.getState().bumpRefreshToken();
+      }
+    };
     document.addEventListener("fmg:simulation-updated", onSimUpdated);
-    return () => document.removeEventListener("fmg:simulation-updated", onSimUpdated);
-  }, []);
+    document.addEventListener("fmg:character-loadout-changed", onLoadoutOrInventory);
+    document.addEventListener("fmg:character-inventory-changed", onLoadoutOrInventory);
+    return () => {
+      document.removeEventListener("fmg:simulation-updated", onSimUpdated);
+      document.removeEventListener("fmg:character-loadout-changed", onLoadoutOrInventory);
+      document.removeEventListener("fmg:character-inventory-changed", onLoadoutOrInventory);
+    };
+  }, [playerCharacterId]);
 
   const handleOpenDetails = () => {
     if (playerCharacterId === null) return;
+    openCharacterDetails(playerCharacterId);
+    openDialog("characterDetails");
+  };
+
+  const handlePrepare = () => {
+    if (playerCharacterId === null) return;
+    requestDetailsTab("loadout");
     openCharacterDetails(playerCharacterId);
     openDialog("characterDetails");
   };
@@ -150,6 +176,24 @@ export const PlayerCharacterPanel: React.FC = () => {
           : 0
     };
   }, [playerCharacterId, refreshToken, summary?.location?.burgId]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refreshToken / loadout events recompute readiness
+  const readiness = useMemo(() => {
+    if (playerCharacterId === null) return null;
+    const { pack } = getWorldContext();
+    const character = pack.characters?.find(c => c.i === playerCharacterId);
+    if (!character) return null;
+    const compareTarget = workStatus?.openCullPosts?.[0]?.target ?? workStatus?.cullContract?.target ?? null;
+    return buildCharacterReadiness(character, { compareTarget });
+  }, [playerCharacterId, refreshToken, workStatus?.openCullPosts, workStatus?.cullContract?.target]);
+
+  const huntUndergearedAdvisory = useMemo(() => {
+    if (!readiness || !workStatus?.openCullPosts?.[0]) return null;
+    const target = workStatus.openCullPosts[0].target;
+    const difficulty = targetDifficulty(target);
+    if (readiness.combatScoreEstimate >= difficulty - 15) return null;
+    return `Undergunned for ${target.label} (est. ${Math.round(readiness.combatScoreEstimate)} vs difficulty ${Math.round(difficulty)}). Day laborers may still apply.`;
+  }, [readiness, workStatus?.openCullPosts]);
 
   const hasConstructionCommitment = Boolean(workStatus?.seat || workStatus?.pendingApp);
   const hasCullCommitment = Boolean(workStatus?.cullContract || workStatus?.cullPendingApp);
@@ -313,6 +357,40 @@ export const PlayerCharacterPanel: React.FC = () => {
   const handleTrade = () => {
     if (playerCharacterId === null) return;
     openCharacterMarket(playerCharacterId);
+  };
+
+  const handleApplyPrepTemplate = (templateId: PrepTemplateId) => {
+    if (playerCharacterId === null) return;
+    const { pack } = getWorldContext();
+    const character = pack.characters?.find(c => c.i === playerCharacterId);
+    if (!character || character.dead) {
+      tip("Cannot kit this character.", false, "error");
+      return;
+    }
+
+    try {
+      const result = getApi().dispatchExtensionCommand({
+        extensionId: CHARACTERS_EXTENSION_ID,
+        name: "applyPrepTemplate",
+        payload: { characterId: playerCharacterId, templateId }
+      });
+      if (!result) {
+        tip("Enable the Characters extension to apply prep kits.", false, "error");
+        return;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      tip(message, false, "error");
+      return;
+    }
+
+    if (getApi().isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
+      applyPrepTemplateSkills(character, templateId);
+    }
+
+    const def = PREP_TEMPLATES.find(t => t.id === templateId);
+    tip(`Applied prep kit: ${def?.label ?? templateId}.`, false, "success");
+    usePlayerCharacterState.getState().bumpRefreshToken();
   };
 
   const handleDrawHousehold = () => {
@@ -608,6 +686,17 @@ export const PlayerCharacterPanel: React.FC = () => {
             <dd title={summary.organization}>{summary.organization}</dd>
             <dt>Work</dt>
             <dd title={workTip}>{workLabel}</dd>
+            {readiness ? (
+              <>
+                <dt>Readiness</dt>
+                <dd
+                  title={[readiness.summaryLine, ...readiness.readinessTips].join("\n")}
+                  data-tip={[readiness.summaryLine, ...readiness.readinessTips].join(" · ")}
+                >
+                  {readiness.summaryLine}
+                </dd>
+              </>
+            ) : null}
           </dl>
         </div>
       )}
@@ -623,6 +712,36 @@ export const PlayerCharacterPanel: React.FC = () => {
         >
           Character Details
         </button>
+        <button
+          type="button"
+          className="pcp-action"
+          data-tip="Open the Loadout tab to equip garments and arms from inventory"
+          disabled={!summary}
+          onClick={handlePrepare}
+        >
+          Prepare…
+        </button>
+        <select
+          className="pcp-action"
+          aria-label="Apply adventurer prep template"
+          data-tip="Rearrange this character's kit and practice floors (does not spend wealth or mint goods)"
+          disabled={!summary}
+          defaultValue=""
+          onChange={event => {
+            const id = event.target.value as PrepTemplateId | "";
+            event.target.value = "";
+            if (id) handleApplyPrepTemplate(id);
+          }}
+        >
+          <option value="" disabled>
+            Prep kit…
+          </option>
+          {PREP_TEMPLATES.map(t => (
+            <option key={t.id} value={t.id} title={t.description}>
+              {t.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Multi-ledger PR-4: first form-gated spend hooks */}
@@ -926,7 +1045,7 @@ export const PlayerCharacterPanel: React.FC = () => {
                     workStatus.openCullPosts[0].target.kind === "biomePredator"
                       ? ` ${PEST_HUNT_TIP}`
                       : ""
-                  }`
+                  }${huntUndergearedAdvisory ? ` ${huntUndergearedAdvisory}` : ""}`
                 : "Apply for a hunt or pest-control contract in this burg when the board has openings"
             }
             disabled={!canApplyCull}
@@ -1001,7 +1120,7 @@ export const PlayerCharacterPanel: React.FC = () => {
                     workStatus.openCullPosts[0].target.kind === "biomePredator"
                       ? ` ${PEST_HUNT_TIP}`
                       : ""
-                  }`
+                  }${huntUndergearedAdvisory ? ` ${huntUndergearedAdvisory}` : ""}`
                 : "Apply for a hunt or pest-control contract in this burg when the board has openings"
             }
             disabled={!canApplyCull}

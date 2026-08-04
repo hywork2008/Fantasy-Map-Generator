@@ -160,12 +160,20 @@ export const CharacterDetailsDialog: React.FC = () => {
   const goBackCharacterDetails = useCharactersUiState(state => state.goBackCharacterDetails);
   const goForwardCharacterDetails = useCharactersUiState(state => state.goForwardCharacterDetails);
   const clearCharacterDetailsHistory = useCharactersUiState(state => state.clearCharacterDetailsHistory);
+  const consumePendingDetailsTab = useCharactersUiState(state => state.consumePendingDetailsTab);
   useCharactersUiState(state => state.refreshToken);
   const playerCharacterId = usePlayerCharacterState(state => state.playerCharacterId);
   const [activeTab, setActiveTab] = useState<CharacterDetailsTab>("skills");
   const [, setInventoryRevision] = useState(0);
   const [, setLoadoutRevision] = useState(0);
   const [equipError, setEquipError] = useState<string | null>(null);
+
+  // Honor one-shot tab requests (e.g. PC panel Prepare → Loadout).
+  useEffect(() => {
+    if (!isOpen) return;
+    const requested = consumePendingDetailsTab();
+    if (requested) setActiveTab(requested);
+  }, [isOpen, consumePendingDetailsTab]);
 
   useEffect(() => {
     const onInventoryChanged = (event: Event) => {
