@@ -350,12 +350,13 @@ export interface Race {
 
 1. **Legacy `appearance` cache:** **subject’s own race ideal** (“handsome among my people”). Favor uses real observer via `attractiveness(observer, subject)`.
 2. **Same race:** full Appearance judgment (phenotype × race beauty ideal).
-3. **Cross race:** not beautiful/ugly on home scale — primarily *odd / hard to read*; stature+build similarity allows limited “sturdy/slight like ours” partial reading (score capped ~50). Lore: `docs/world/help/races-beauty-and-pairing.md`.
-4. **Cross-race pairing:** socially **deviant**; dynastic marriage refuses (`cross_race_deviant`); romantic favor almost never seeds and stays low.
-5. **Amazones reproduction:** external sire stories allowed; **Amazon mother fertility** for brood math; court characters remain female-only via race policy.
-6. **Axis count:** six (stature, build, symmetry, refinement, vitality, ornament).
-7. **Litter sampling:** `gauss(litterMean, …)` clamped to `[1, litterMax]`.
-8. **Fertility priority:** **population simulation balance** over narrative “human-like spacing.” Long-lived R_max stays near replacement (§3.2–3.3). Sibling age gaps of ~100 years for elves are an accepted consequence.
+3. **Cross race (default):** not beautiful/ugly on home scale — primarily *odd / hard to read*; stature+build similarity allows limited “sturdy/slight like ours” partial reading (score capped ~50).
+4. **Cross race (readable pairs):** asymmetric `crossRaceAestheticReadability` matrix. Observer may partially apply **their own** ideal with **observer baseline** as typical (so Human→typical Elf scores ~60–75, not re-centered to 50). Kind `cross_race_aesthetic`; soft score cap below same-race legendary. Classic trope: fair folk look beautiful to humans. Matrix lives in `appearance.ts`.
+5. **Cross-race pairing:** socially **deviant** even when aesthetic pull is high; dynastic marriage refuses (`cross_race_deviant`); romantic favor almost never seeds and stays low.
+6. **Amazones reproduction:** external sire stories allowed; **Amazon mother fertility** for brood math; court characters remain female-only via race policy.
+7. **Axis count:** six (stature, build, symmetry, refinement, vitality, ornament).
+8. **Litter sampling:** `gauss(litterMean, …)` clamped to `[1, litterMax]`.
+9. **Fertility priority:** **population simulation balance** over narrative “human-like spacing.” Long-lived R_max stays near replacement (§3.2–3.3). Sibling age gaps of ~100 years for elves are an accepted consequence.
 
 ---
 

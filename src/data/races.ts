@@ -16,9 +16,10 @@
  * See `maleShareForLifespan` in src/extensions/characters/raceAge.ts.
  *
  * World rule (beauty & pairing): same-race judgment uses phenotype + race ideals;
- * cross-race looks are mostly "incomprehensible / odd", with limited grasp when
- * stature/build are similar. Cross-race pairing is socially deviant.
- * See docs/world/help/races-beauty-and-pairing.md.
+ * most cross-race looks are "incomprehensible / odd" (physique-only), but selected
+ * asymmetric pairs have aesthetic readability (e.g. Human→Elf: fair-folk beauty
+ * on the human scale). Cross-race pairing remains socially deviant.
+ * See docs/world/help/races-beauty-and-pairing.md and appearance.ts.
  */
 import type {
   AppearanceAxes,

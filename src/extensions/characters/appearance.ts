@@ -3,15 +3,19 @@
  *
  * World rule:
  * - Same race: judge looks against that race's beauty ideal → Appearance score.
- * - Other race: mostly "incomprehensible / odd"; stature+build similarity allows
- *   a limited grasp of physical impressiveness, never full aesthetic judgment.
+ * - Other race (default): mostly "incomprehensible / odd"; stature+build similarity
+ *   allows a limited grasp of physical impressiveness (cap ~50).
+ * - Selected asymmetric pairs (e.g. Human→Elf) have aesthetic *readability*:
+ *   the observer can partially apply their own beauty ideal on the observer's scale
+ *   (typical = observer race baseline). Classic trope: average elves look beautiful
+ *   to humans. Does not make cross-race pairing socially acceptable.
  * - Cross-race romantic pairing is socially deviant (see world help).
  *
  * Spec: docs/plan/characters/appearance-and-reproduction.md
  * Lore: docs/world/help/races-beauty-and-pairing.md
  */
 import { getRaceBeautyIdeal, getRaceById, getRaceLooksBaseline, HUMAN_RACE_ID } from "../../data/races";
-import type { AppearanceAxes, AppearanceAxisId, Race } from "../../types/models";
+import type { AppearanceAxes, AppearanceAxisId, Race, RaceKey } from "../../types/models";
 import { APPEARANCE_AXIS_IDS } from "../../types/models";
 import { gauss } from "../hostUtils";
 import { getWorldContext, hasCharactersContext } from "./charactersContext";
@@ -143,7 +147,85 @@ export function physiqueSimilarity(a: AppearanceAxes, b: AppearanceAxes): number
   return Math.max(0, Math.min(1, 1 - meanGap / 80));
 }
 
-export type AttractivenessKind = "same_race" | "cross_race_partial" | "cross_race_alien";
+/**
+ * Asymmetric cross-race aesthetic readability (0–1).
+ * 0 = cannot apply beauty ideal (alien / physique-only path).
+ * Values are intentional lore knobs, not derived from phenotype distance.
+ *
+ * Human→Elf is the classic “fair folk look beautiful to mortals” mischief:
+ * elf baseline scored on the human ideal+baseline scale lands well above 50.
+ * Reverse pairs are weaker (not symmetric court flattery).
+ */
+export const CROSS_RACE_AESTHETIC_READABILITY: Readonly<Partial<Record<RaceKey, Partial<Record<RaceKey, number>>>>> = {
+  human: {
+    elf: 0.8,
+    dark_elf: 0.58,
+    amazones: 0.42,
+    dwarf: 0.18,
+    wyrmkin: 0.12
+  },
+  elf: {
+    human: 0.32,
+    dark_elf: 0.55,
+    amazones: 0.28
+  },
+  dark_elf: {
+    human: 0.28,
+    elf: 0.55,
+    amazones: 0.25
+  },
+  dwarf: {
+    human: 0.22,
+    elf: 0.1
+  },
+  amazones: {
+    human: 0.4,
+    elf: 0.35,
+    dark_elf: 0.3
+  }
+};
+
+/** Soft cap so cross-race aesthetic never quite equals same-race legendary court ranking. */
+export const CROSS_RACE_AESTHETIC_SCORE_CAP_BASE = 82;
+export const CROSS_RACE_AESTHETIC_SCORE_CAP_PER_READABILITY = 10;
+
+/**
+ * How fully `observerRace` can apply their beauty ideal to `subjectRace` (0–1).
+ * Same race → 1. Unknown / unlisted pairs → 0.
+ */
+export function crossRaceAestheticReadability(
+  observerRaceId: number,
+  subjectRaceId: number,
+  races?: readonly Race[]
+): number {
+  if (observerRaceId === subjectRaceId) return 1;
+  const list = races ?? (hasCharactersContext() ? getWorldContext().pack.races : undefined);
+  const observer = getRaceById(list, observerRaceId);
+  const subject = getRaceById(list, subjectRaceId);
+  const observerKey = observer?.key;
+  const subjectKey = subject?.key;
+  if (!observerKey || !subjectKey) return 0;
+  const row = CROSS_RACE_AESTHETIC_READABILITY[observerKey];
+  const value = row?.[subjectKey];
+  if (value === undefined || value <= 0) return 0;
+  return Math.max(0, Math.min(1, value));
+}
+
+/** Physique-only alien score (1–50). Shared by unreadable cross-race path. */
+function physiqueOnlyCrossRaceScore(observerLooks: AppearanceAxes, subjectLooks: AppearanceAxes): number {
+  const sim = physiqueSimilarity(observerLooks, subjectLooks);
+  // Alien mid-low baseline (~28) + up to ~22 from similar stature/build → cap ~50
+  return Math.max(1, Math.min(50, Math.round(28 + sim * 22)));
+}
+
+function crossRaceAestheticReaction(score: number): string {
+  if (score >= 70) return "otherworldly beauty — almost too fine for our kind";
+  if (score >= 55) return "strangely fair — comely in a foreign way";
+  if (score <= 35) return "readable features, but not to our taste";
+  return "foreign features I can judge — neither of us, nor opaque";
+}
+
+export type AttractivenessKind = "same_race" | "cross_race_aesthetic" | "cross_race_partial" | "cross_race_alien";
 
 export interface AttractivenessResult {
   /** 1–100 romantic/aesthetic pull for this observer. */
@@ -151,7 +233,8 @@ export interface AttractivenessResult {
   kind: AttractivenessKind;
   /**
    * English short reaction for UI/tooltips (not localized yet).
-   * Cross-race leans on "odd / hard to read" rather than beautiful/ugly.
+   * Same-race uses folk beauty; readable cross-race uses otherworldly phrasing;
+   * unreadable cross-race leans on "odd / hard to read".
    */
   reaction: string;
 }
@@ -173,7 +256,8 @@ function ensureLooks(character: Pick<Character, "looks" | "appearance" | "race" 
 /**
  * Observer-relative attractiveness.
  * Same race → full ideal scoring (Appearance judgment).
- * Cross race → alien baseline with optional physique-similarity bump (never full beauty reading).
+ * Readable cross race → blend of physique floor + observer ideal on observer baseline scale.
+ * Unreadable cross race → alien baseline with optional physique-similarity bump (cap ~50).
  */
 export function attractiveness(
   observer: Pick<Character, "race" | "culture" | "looks" | "appearance">,
@@ -196,11 +280,30 @@ export function attractiveness(
     };
   }
 
-  // Cross-race: cannot apply own beauty ideal. Limited physique reading only.
   const observerLooks = ensureLooks(observer);
+  const readability = crossRaceAestheticReadability(observerRaceId, subjectRaceId, races);
+
+  // Asymmetric aesthetic reading: apply observer ideal with observer-typical centering.
+  if (readability > 0) {
+    const ideal = getRaceBeautyIdeal(races, observerRaceId);
+    const observerBaseline = getRaceLooksBaseline(races, observerRaceId);
+    const full = scoreLooksAgainstIdeal(subjectLooks, ideal, observerBaseline);
+    const physiqueScore = physiqueOnlyCrossRaceScore(observerLooks, subjectLooks);
+    const blended = Math.round(physiqueScore * (1 - readability) + full * readability);
+    const cap = Math.round(
+      CROSS_RACE_AESTHETIC_SCORE_CAP_BASE + readability * CROSS_RACE_AESTHETIC_SCORE_CAP_PER_READABILITY
+    );
+    const score = clampAppearanceScore(Math.min(cap, blended));
+    return {
+      score,
+      kind: "cross_race_aesthetic",
+      reaction: crossRaceAestheticReaction(score)
+    };
+  }
+
+  // Unreadable cross-race: physique only.
+  const score = physiqueOnlyCrossRaceScore(observerLooks, subjectLooks);
   const sim = physiqueSimilarity(observerLooks, subjectLooks);
-  // Alien mid-low baseline (~28) + up to ~22 from similar stature/build → cap ~50
-  const score = Math.max(1, Math.min(50, Math.round(28 + sim * 22)));
   if (sim >= 0.55) {
     return {
       score,

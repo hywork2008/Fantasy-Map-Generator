@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createDefaultRaces, HUMAN_RACE_ID } from "../../data/races";
+import { createDefaultRaces, HUMAN_RACE_ID, raceIdByKey } from "../../data/races";
 import { worldContext } from "../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../hostTypes";
 import {
   APPEARANCE_SCORE_CENTER,
   attractiveness,
+  crossRaceAestheticReadability,
   isSameRace,
   ownRaceAppearanceScore,
   physiqueSimilarity,
@@ -147,7 +148,7 @@ describe("appearance / attractiveness", () => {
     expect(ownRaceAppearanceScore(idealLooks, HUMAN_RACE_ID, createDefaultRaces())).toBeGreaterThanOrEqual(90);
   });
 
-  it("caps cross-race attractiveness and marks alien or partial", () => {
+  it("caps unreadable cross-race attractiveness and marks alien or partial", () => {
     const human = char({
       i: 1,
       race: 1,
@@ -164,7 +165,7 @@ describe("appearance / attractiveness", () => {
     expect(r.reaction.toLowerCase()).toMatch(/odd|strange|hard to read|sturdy|slight/);
   });
 
-  it("raises partial cross-race score when physique is similar", () => {
+  it("raises partial cross-race score when physique is similar (unreadable pair)", () => {
     const looks = { stature: 60, build: 60, symmetry: 50, refinement: 50, vitality: 55, ornament: 50 };
     const a = char({ i: 1, race: 1, looks: { ...looks } });
     const b = char({ i: 2, race: 6, looks: { ...looks } });
@@ -172,5 +173,73 @@ describe("appearance / attractiveness", () => {
     const r = attractiveness(a, b);
     expect(r.kind).toBe("cross_race_partial");
     expect(r.score).toBeGreaterThan(40);
+  });
+
+  it("exposes asymmetric aesthetic readability (Human→Elf high, reverse weaker, Orc zero)", () => {
+    const races = createDefaultRaces();
+    const human = raceIdByKey(races, "human");
+    const elf = raceIdByKey(races, "elf");
+    const orc = raceIdByKey(races, "orc");
+    const humanToElf = crossRaceAestheticReadability(human, elf, races);
+    const elfToHuman = crossRaceAestheticReadability(elf, human, races);
+    expect(humanToElf).toBeGreaterThan(0.7);
+    expect(elfToHuman).toBeGreaterThan(0);
+    expect(elfToHuman).toBeLessThan(humanToElf);
+    expect(crossRaceAestheticReadability(human, orc, races)).toBe(0);
+  });
+
+  it("lets humans find typical elves beautiful on the human scale (fantasy fair-folk trope)", () => {
+    const races = createDefaultRaces();
+    const humanId = raceIdByKey(races, "human");
+    const elfId = raceIdByKey(races, "elf");
+    const elfRace = races.find(r => r.key === "elf")!;
+    const human = char({
+      i: 1,
+      race: humanId,
+      looks: { stature: 50, build: 50, symmetry: 50, refinement: 50, vitality: 55, ornament: 45 }
+    });
+    const elf = char({
+      i: 2,
+      race: elfId,
+      looks: { ...elfRace.looksBaseline! }
+    });
+    // Own-race cache stays centered; mischief is observer-relative only.
+    expect(ownRaceAppearanceScore(elf.looks!, elfId, races)).toBe(APPEARANCE_SCORE_CENTER);
+    const r = attractiveness(human, elf);
+    expect(r.kind).toBe("cross_race_aesthetic");
+    expect(r.score).toBeGreaterThanOrEqual(60);
+    expect(r.score).toBeLessThanOrEqual(85);
+    expect(r.reaction.toLowerCase()).toMatch(/fair|beauty|otherworldly|foreign/);
+  });
+
+  it("does not make average orcs beautiful to humans", () => {
+    const races = createDefaultRaces();
+    const humanId = raceIdByKey(races, "human");
+    const orcId = raceIdByKey(races, "orc");
+    const orcRace = races.find(r => r.key === "orc")!;
+    const human = char({
+      i: 1,
+      race: humanId,
+      looks: { stature: 50, build: 50, symmetry: 50, refinement: 50, vitality: 55, ornament: 45 }
+    });
+    const orc = char({ i: 2, race: orcId, looks: { ...orcRace.looksBaseline! } });
+    const r = attractiveness(human, orc);
+    expect(r.kind).not.toBe("cross_race_aesthetic");
+    expect(r.score).toBeLessThan(50);
+  });
+
+  it("is asymmetric: Human→Elf scores higher than Elf→typical Human", () => {
+    const races = createDefaultRaces();
+    const humanId = raceIdByKey(races, "human");
+    const elfId = raceIdByKey(races, "elf");
+    const humanRace = races.find(r => r.key === "human")!;
+    const elfRace = races.find(r => r.key === "elf")!;
+    const human = char({ i: 1, race: humanId, looks: { ...humanRace.looksBaseline! } });
+    const elf = char({ i: 2, race: elfId, looks: { ...elfRace.looksBaseline! } });
+    const humanViewsElf = attractiveness(human, elf);
+    const elfViewsHuman = attractiveness(elf, human);
+    expect(humanViewsElf.kind).toBe("cross_race_aesthetic");
+    expect(elfViewsHuman.kind).toBe("cross_race_aesthetic");
+    expect(humanViewsElf.score).toBeGreaterThan(elfViewsHuman.score);
   });
 });
