@@ -1,12 +1,14 @@
 /**
- * Shared employment commitment check: construction seats/apps xor cull contracts/apps.
- * Spec: docs/plan/player-threat-cull-jobs.md K10 / PR-3a.
+ * Shared employment commitment check: construction seats/apps xor cull xor escort.
+ * Spec: docs/plan/player-threat-cull-jobs.md K10 / PR-3a; escort board same xor rule.
  */
 import {
   getConstructionHireApplications,
   getConstructionNamedSeats,
   getCullActiveContracts,
-  getCullHireApplications
+  getCullHireApplications,
+  getEscortActiveContracts,
+  getEscortHireApplications
 } from "../economyContext";
 
 /** Named construction seat or pending construction application. */
@@ -23,10 +25,21 @@ export function characterHasCullCommitment(characterId: number): boolean {
   return false;
 }
 
+/** Named escort contract or pending escort application. */
+export function characterHasEscortCommitment(characterId: number): boolean {
+  if (getEscortActiveContracts().some(c => c.characterId === characterId)) return true;
+  if (getEscortHireApplications().some(app => app.characterId === characterId)) return true;
+  return false;
+}
+
 /**
  * True when the character holds any named employment commitment
- * (construction or cull). Used to hard-block dual apply.
+ * (construction, cull, or escort). Used to hard-block dual apply.
  */
 export function characterHasEmploymentCommitment(characterId: number): boolean {
-  return characterHasConstructionCommitment(characterId) || characterHasCullCommitment(characterId);
+  return (
+    characterHasConstructionCommitment(characterId) ||
+    characterHasCullCommitment(characterId) ||
+    characterHasEscortCommitment(characterId)
+  );
 }

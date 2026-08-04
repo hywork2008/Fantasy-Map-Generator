@@ -15,6 +15,12 @@ import type { BurgMarketLedger } from "./generators/burgMarketLedgersTypes";
 import type { ConstructionOperation } from "./generators/constructionEmploymentTypes";
 import type { ConstructionHireApplication, ConstructionNamedSeat } from "./generators/constructionHireTypes";
 import type { CraftEmploymentRecord } from "./generators/craftEmployment";
+import type {
+  EscortActiveContract,
+  EscortCooldowns,
+  EscortHireApplication,
+  EscortJobPosting
+} from "./generators/escortHireTypes";
 import type { Good } from "./generators/goodsGeneratorTypes";
 import type { GuildChapter } from "./generators/guildChapterTypes";
 import type { CraftDomainEmploymentRecord, GuildKnowledgeStock } from "./generators/guildKnowledgeTypes";
@@ -1072,6 +1078,45 @@ export function setCullCooldowns(cooldowns: CullCooldowns): void {
     return;
   }
   getLegacyPackFields().cullCooldowns = cooldowns;
+}
+
+/** Escort (護衛) job board — all culture sets. */
+export function getEscortJobPostings(): EscortJobPosting[] {
+  return getSliceArray<EscortJobPosting>("escortJobPostings");
+}
+export function setEscortJobPostings(posts: readonly EscortJobPosting[]): void {
+  setSliceArray("escortJobPostings", posts);
+}
+
+export function getEscortHireApplications(): EscortHireApplication[] {
+  return getSliceArray<EscortHireApplication>("escortHireApplications");
+}
+export function setEscortHireApplications(apps: readonly EscortHireApplication[]): void {
+  setSliceArray("escortHireApplications", apps);
+}
+
+export function getEscortActiveContracts(): EscortActiveContract[] {
+  return getSliceArray<EscortActiveContract>("escortActiveContracts");
+}
+export function setEscortActiveContracts(contracts: readonly EscortActiveContract[]): void {
+  setSliceArray("escortActiveContracts", contracts);
+}
+
+export function getEscortCooldowns(): EscortCooldowns {
+  const slice = getEconomySlice();
+  const value = slice ? slice.escortCooldowns : getLegacyPackFields().escortCooldowns;
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as EscortCooldowns;
+  }
+  return {};
+}
+export function setEscortCooldowns(cooldowns: EscortCooldowns): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice.escortCooldowns = cooldowns;
+    return;
+  }
+  getLegacyPackFields().escortCooldowns = cooldowns;
 }
 
 /** Urban pregnancy pipeline stock (docs/plan/urban-housing-system.md PR-P1). */

@@ -4,13 +4,22 @@ import { useTranslation } from "react-i18next";
 import { PREP_TEMPLATES, type PrepTemplateId } from "../../../characters/adventurerTemplates";
 import { useCharactersUiState } from "../../../characters/ui/charactersUiState";
 import { openCharacterMarket } from "../../../economy/controllers/characterMarket";
-import { getCullCooldowns } from "../../../economy/economyContext";
+import { getCullCooldowns, getEscortCooldowns } from "../../../economy/economyContext";
 import { buildCharacterReadiness } from "../../../economy/generators/characterReadiness";
 import {
   getCharacterConstructionEmployment,
   getCharacterPendingConstructionApplication
 } from "../../../economy/generators/constructionHire";
 import { getConstructionJobPosting } from "../../../economy/generators/constructionJobPostings";
+import {
+  getCharacterEscortContract,
+  getCharacterPendingEscortApplication
+} from "../../../economy/generators/escortHire";
+import {
+  ESCORT_PLAYER_HIRE_LAG_DAYS,
+  getEscortJobPostingsForBurg,
+  getLiveEscortOpenSeats
+} from "../../../economy/generators/escortJobPostings";
 import {
   adjustDomainLevyForLord,
   cycleDomainPolicyForLord,
@@ -155,12 +164,25 @@ export const PlayerCharacterPanel: React.FC = () => {
     const pendingApp = getCharacterPendingConstructionApplication(playerCharacterId);
     const cullContract = getCharacterCullContract(playerCharacterId);
     const cullPendingApp = getCharacterPendingCullApplication(playerCharacterId);
+    const escortContract = getCharacterEscortContract(playerCharacterId);
+    const escortPendingApp = getCharacterPendingEscortApplication(playerCharacterId);
     const burgId = summary?.location?.burgId;
     const posting = burgId != null ? getConstructionJobPosting(burgId) : null;
     const cullPosts = burgId != null ? getCullJobPostingsForBurg(burgId) : [];
     const openCullPosts = cullPosts.filter(p => getLiveOpenSeats(p.i) > 0);
-    const cooldownUntil = getCullCooldowns()[String(playerCharacterId)];
-    const onInjuryCooldown = typeof cooldownUntil === "number" && getSimulationOrdinalDay() < cooldownUntil;
+    const escortPosts = burgId != null ? getEscortJobPostingsForBurg(burgId) : [];
+    const openEscortPosts = escortPosts.filter(p => getLiveEscortOpenSeats(p.i) > 0);
+    const cullCooldownUntil = getCullCooldowns()[String(playerCharacterId)];
+    const escortCooldownUntil = getEscortCooldowns()[String(playerCharacterId)];
+    const ordinal = getSimulationOrdinalDay();
+    const onCullInjuryCooldown = typeof cullCooldownUntil === "number" && ordinal < cullCooldownUntil;
+    const onEscortInjuryCooldown = typeof escortCooldownUntil === "number" && ordinal < escortCooldownUntil;
+    const onInjuryCooldown = onCullInjuryCooldown || onEscortInjuryCooldown;
+    const cooldownUntil = onCullInjuryCooldown
+      ? cullCooldownUntil
+      : onEscortInjuryCooldown
+        ? escortCooldownUntil
+        : undefined;
     return {
       seat,
       pendingApp,
@@ -169,11 +191,11 @@ export const PlayerCharacterPanel: React.FC = () => {
       cullContract,
       cullPendingApp,
       openCullPosts,
+      escortContract,
+      escortPendingApp,
+      openEscortPosts,
       onInjuryCooldown,
-      cooldownDaysLeft:
-        onInjuryCooldown && cooldownUntil != null
-          ? Math.max(0, Math.ceil(cooldownUntil - getSimulationOrdinalDay()))
-          : 0
+      cooldownDaysLeft: onInjuryCooldown && cooldownUntil != null ? Math.max(0, Math.ceil(cooldownUntil - ordinal)) : 0
     };
   }, [playerCharacterId, refreshToken, summary?.location?.burgId]);
 
@@ -197,8 +219,10 @@ export const PlayerCharacterPanel: React.FC = () => {
 
   const hasConstructionCommitment = Boolean(workStatus?.seat || workStatus?.pendingApp);
   const hasCullCommitment = Boolean(workStatus?.cullContract || workStatus?.cullPendingApp);
-  // Panel-only: on active hunt, block Move so the player does not leave burg mid-mission by accident.
-  const canMove = Boolean(summary?.location) && !pendingTravel && !workStatus?.cullContract;
+  const hasEscortCommitment = Boolean(workStatus?.escortContract || workStatus?.escortPendingApp);
+  // Panel-only: on active hunt/escort, block Move so the player does not leave mid-mission by accident.
+  const canMove =
+    Boolean(summary?.location) && !pendingTravel && !workStatus?.cullContract && !workStatus?.escortContract;
 
   const handleApplyConstruction = () => {
     if (playerCharacterId === null || workStatus?.burgId == null) return;
@@ -263,10 +287,56 @@ export const PlayerCharacterPanel: React.FC = () => {
     usePlayerCharacterState.getState().bumpRefreshToken();
   };
 
+  const handleApplyEscort = () => {
+    if (playerCharacterId === null || !workStatus?.openEscortPosts.length) return;
+    const postingId = workStatus.openEscortPosts[0].i;
+    const result = getApi().dispatchExtensionCommand({
+      extensionId: ECONOMY_EXTENSION_ID,
+      name: "jobs.applyEscort",
+      payload: { characterId: playerCharacterId, postingId }
+    });
+    const outcome = result?.result as { ok?: boolean; message?: string } | undefined;
+    if (outcome?.message) tip(outcome.message, false, outcome.ok ? "success" : "error");
+    else if (!result) tip("Enable the Economy extension to apply for escort work.", false, "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
+  const handleCancelEscortApplication = () => {
+    if (playerCharacterId === null) return;
+    const result = getApi().dispatchExtensionCommand({
+      extensionId: ECONOMY_EXTENSION_ID,
+      name: "jobs.cancelEscortApplication",
+      payload: { characterId: playerCharacterId }
+    });
+    const outcome = result?.result as { ok?: boolean; message?: string } | undefined;
+    if (outcome?.message) tip(outcome.message, false, outcome.ok ? "success" : "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
+  const handleResignEscort = () => {
+    if (playerCharacterId === null) return;
+    const result = getApi().dispatchExtensionCommand({
+      extensionId: ECONOMY_EXTENSION_ID,
+      name: "jobs.resignEscort",
+      payload: { characterId: playerCharacterId }
+    });
+    const outcome = result?.result as { ok?: boolean; message?: string } | undefined;
+    if (outcome?.message) tip(outcome.message, false, outcome.ok ? "success" : "error");
+    usePlayerCharacterState.getState().bumpRefreshToken();
+  };
+
   const pendingLabel =
     pendingTravel && pendingTravel.remainingDays > 0 ? `Travelling · ${pendingTravel.remainingDays}d left` : null;
 
   const workLabel = (() => {
+    if (workStatus?.escortContract) {
+      const c = workStatus.escortContract;
+      const days = Math.ceil(c.missionDaysRemaining);
+      return `Escort: ${c.label} · ${days}d left`;
+    }
+    if (workStatus?.escortPendingApp) {
+      return `Applying escort (${Math.ceil(workStatus.escortPendingApp.daysRemaining)}d)`;
+    }
     if (workStatus?.cullContract) {
       const c = workStatus.cullContract;
       const days = Math.ceil(c.missionDaysRemaining);
@@ -276,7 +346,7 @@ export const PlayerCharacterPanel: React.FC = () => {
       return `Applying hunt (${Math.ceil(workStatus.cullPendingApp.daysRemaining)}d)`;
     }
     if (workStatus?.onInjuryCooldown) {
-      return `Recovering from hunt (${workStatus.cooldownDaysLeft}d)`;
+      return `Recovering from injury (${workStatus.cooldownDaysLeft}d)`;
     }
     if (workStatus?.seat) {
       return `${workStatus.seat.role} @ burg ${workStatus.seat.burgId}`;
@@ -291,15 +361,29 @@ export const PlayerCharacterPanel: React.FC = () => {
     if (workStatus?.openCullPosts?.length) {
       parts.push(`${workStatus.openCullPosts.length} hunt`);
     }
+    if (workStatus?.openEscortPosts?.length) {
+      parts.push(`${workStatus.openEscortPosts.length} escort`);
+    }
     if (parts.length) return `${parts.join(" · ")} job(s) here`;
     return "No job openings here";
   })();
 
   const workTip = (() => {
+    if (workStatus?.escortContract) {
+      const c = workStatus.escortContract;
+      return `On escort: ${c.label} (fee ${c.fee}). Arrive at destination on success.`;
+    }
     if (workStatus?.cullContract) {
       const c = workStatus.cullContract;
       const pestNote = c.target.kind === "pest" || c.target.kind === "biomePredator" ? ` ${PEST_HUNT_TIP}` : "";
       return `On mission: ${c.target.label} (bounty ${c.bounty}).${pestNote}`;
+    }
+    if (workStatus?.openEscortPosts?.length) {
+      const labels = workStatus.openEscortPosts
+        .slice(0, 3)
+        .map(p => `${p.label} · fee ${p.fee} (${p.marketRate})`)
+        .join("; ");
+      return labels;
     }
     if (workStatus?.openCullPosts?.length) {
       const labels = workStatus.openCullPosts
@@ -325,6 +409,7 @@ export const PlayerCharacterPanel: React.FC = () => {
     !pendingTravel &&
     !hasConstructionCommitment &&
     !hasCullCommitment &&
+    !hasEscortCommitment &&
     !workStatus?.onInjuryCooldown &&
     (workStatus?.posting?.openSeats ?? 0) > 0;
 
@@ -333,13 +418,25 @@ export const PlayerCharacterPanel: React.FC = () => {
     !pendingTravel &&
     !hasConstructionCommitment &&
     !hasCullCommitment &&
+    !hasEscortCommitment &&
     !workStatus?.onInjuryCooldown &&
     (workStatus?.openCullPosts?.length ?? 0) > 0;
+
+  const canApplyEscort =
+    Boolean(summary?.location) &&
+    !pendingTravel &&
+    !hasConstructionCommitment &&
+    !hasCullCommitment &&
+    !hasEscortCommitment &&
+    !workStatus?.onInjuryCooldown &&
+    (workStatus?.openEscortPosts?.length ?? 0) > 0;
 
   const canResignConstruction = Boolean(workStatus?.seat);
   const canCancelApplication = Boolean(workStatus?.pendingApp);
   const canCancelCullApplication = Boolean(workStatus?.cullPendingApp);
   const canResignCull = Boolean(workStatus?.cullContract);
+  const canCancelEscortApplication = Boolean(workStatus?.escortPendingApp);
+  const canResignEscort = Boolean(workStatus?.escortContract);
   const canTrade = Boolean(summary?.location) && !pendingTravel && getApi().isExtensionEnabled(ECONOMY_EXTENSION_ID);
 
   const handleCancelApplication = () => {
@@ -1071,6 +1168,37 @@ export const PlayerCharacterPanel: React.FC = () => {
           >
             Resign Hunt
           </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={
+              workStatus?.openEscortPosts?.[0]
+                ? `Apply for the top escort contract (Economy). Decision in ${ESCORT_PLAYER_HIRE_LAG_DAYS} days. Fee ${workStatus.openEscortPosts[0].fee} (${workStatus.openEscortPosts[0].marketRate}). Protects trade or travelers; cannot combine with construction/hunt.`
+                : "Apply for an escort job in this burg when the board has openings (all culture sets)"
+            }
+            disabled={!canApplyEscort}
+            onClick={handleApplyEscort}
+          >
+            Apply Escort
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip="Withdraw a pending escort application"
+            disabled={!canCancelEscortApplication}
+            onClick={handleCancelEscortApplication}
+          >
+            Cancel Escort App
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip="Resign an active escort mission (forfeits escrow; no fee)"
+            disabled={!canResignEscort}
+            onClick={handleResignEscort}
+          >
+            Resign Escort
+          </button>
         </div>
       ) : (
         <div className="pcp-actions pcp-actions-world" role="toolbar" aria-label="Player character work">
@@ -1145,6 +1273,37 @@ export const PlayerCharacterPanel: React.FC = () => {
             onClick={handleResignCull}
           >
             Resign Hunt
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip={
+              workStatus?.openEscortPosts?.[0]
+                ? `Apply for the top escort contract (Economy). Decision in ${ESCORT_PLAYER_HIRE_LAG_DAYS} days. Fee ${workStatus.openEscortPosts[0].fee} (${workStatus.openEscortPosts[0].marketRate}). Protects trade or travelers; cannot combine with construction/hunt.`
+                : "Apply for an escort job in this burg when the board has openings (all culture sets)"
+            }
+            disabled={!canApplyEscort}
+            onClick={handleApplyEscort}
+          >
+            Apply Escort
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip="Withdraw a pending escort application"
+            disabled={!canCancelEscortApplication}
+            onClick={handleCancelEscortApplication}
+          >
+            Cancel Escort App
+          </button>
+          <button
+            type="button"
+            className="pcp-action"
+            data-tip="Resign an active escort mission (forfeits escrow; no fee)"
+            disabled={!canResignEscort}
+            onClick={handleResignEscort}
+          >
+            Resign Escort
           </button>
         </div>
       )}

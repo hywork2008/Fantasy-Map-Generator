@@ -129,7 +129,7 @@ export function applyCharacterToConstructionJob(args: {
   }
   // Construction xor cull (and block double construction seat/app) — K10.
   if (characterHasEmploymentCommitment(args.characterId)) {
-    return { ok: false, message: "Already committed to employment (construction or hunt)." };
+    return { ok: false, message: "Already committed to employment (construction, hunt, or escort)." };
   }
 
   const posting = getConstructionJobPosting(args.burgId);
