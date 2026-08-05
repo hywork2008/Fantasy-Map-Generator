@@ -6,6 +6,7 @@ import {
   ownRaceAppearanceScore,
   resolveCharacterRaceId
 } from "./appearance";
+import { diseaseDeathReason, diseaseDeathRiskFor } from "./characterHealth";
 import {
   getCharacters,
   getCurrentYear,
@@ -146,13 +147,16 @@ export function advanceCharacterAging(deltaYears: number): void {
 
     // Mortality: human-scale curve for short-lived races only.
     // Long-lived folk do not take the "past 50" spike (no human mid-life age penalty).
-    const mortalityRisk = skipAgePenalty ? 0.002 : 0.01 + (newAge > 50 ? 1.15 ** (newAge - 50) / 100 : 0);
-    const survivalProb = (1 - Math.min(0.99, mortalityRisk)) ** deltaYears;
+    const baseMortalityRisk = skipAgePenalty ? 0.002 : 0.01 + (newAge > 50 ? 1.15 ** (newAge - 50) / 100 : 0);
+    // Sickness (see characterHealth.ts) adds to, never replaces, the age curve above — a
+    // character with no active affliction contributes 0 here, so this is purely additive.
+    const mortalityRisk = Math.min(0.99, baseMortalityRisk + diseaseDeathRiskFor(character));
+    const survivalProb = (1 - mortalityRisk) ** deltaYears;
     if (Math.random() > survivalProb) {
       character.dead = true;
       character.deathYear = getCurrentYear();
 
-      let baseReason = "Deceased";
+      let baseReason = diseaseDeathReason(character) ?? "Deceased";
       if (character.titles.length > 0) {
         if (character.personality.sociability < 30 && P(0.005 * deltaYears)) {
           baseReason = "Assassinated";

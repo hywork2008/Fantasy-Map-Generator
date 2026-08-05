@@ -8,6 +8,7 @@ import { hasNobilityContext } from "../../../nobility/nobilityContext";
 import { usePlayerCharacterState } from "../../../nobility/store/playerCharacterState";
 import { attractiveness } from "../../appearance";
 import { getFavorBand, getSolidarityBand, inferRoleClass } from "../../backstoryProfile";
+import { getCharacterHealth, HEALTH_FULL } from "../../characterHealth";
 import { getApi, getCharacters, getWorldContext } from "../../charactersContext";
 import type { Character, CharacterRole, EquippedItem, LoadoutSlotId, TitleHolding } from "../../characterTypes";
 import { resolveCharacterRaceName } from "../../controllers/characters-overview";
@@ -401,6 +402,14 @@ export const CharacterDetailsDialog: React.FC = () => {
       : t("characters.deceased", { age: character.age })
     : t("characters.alive");
 
+  const healthValue = getCharacterHealth(character);
+  const sickStatusText = character.affliction
+    ? t("characters.sickStatus", {
+        disease: t(`characters.afflictionKind.${character.affliction.kind}`),
+        severity: t(`characters.afflictionSeverity.${character.affliction.severity}`)
+      })
+    : null;
+
   const downloadCSV = () => {
     if (!character) return;
 
@@ -412,6 +421,11 @@ export const CharacterDetailsDialog: React.FC = () => {
     rows.push(`${t("characters.age")}, ${character.age}`);
     rows.push(`${t("characters.gender")}, ${t(`characters.${character.gender}`)}`);
     rows.push(`${t("characters.status")}, ${statusText}`);
+    if (!character.dead) {
+      rows.push(
+        `${t("characters.health")}, ${healthValue}/${HEALTH_FULL}${sickStatusText ? ` (${sickStatusText})` : ""}`
+      );
+    }
     rows.push(`${t("characters.culture")}, ${cultureName}`);
     rows.push(`${t("characters.race")}, ${raceName}`);
     rows.push(`${t("characters.location")}, ${locationStr}`);
@@ -725,6 +739,19 @@ export const CharacterDetailsDialog: React.FC = () => {
                 )}
               </td>
             </tr>
+            {!character.dead && (
+              <tr>
+                <th style={{ padding: "4px 0" }} data-tip={t("characters.healthTip")}>
+                  {t("characters.health")}
+                </th>
+                <td>
+                  {healthValue}/{HEALTH_FULL}
+                  {sickStatusText && (
+                    <span style={{ color: "#ffa94d", fontSize: "0.85em", marginLeft: 6 }}>({sickStatusText})</span>
+                  )}
+                </td>
+              </tr>
+            )}
             <tr>
               <th style={{ padding: "4px 0" }}>{t("characters.culture")}</th>
               <td>{cultureName}</td>

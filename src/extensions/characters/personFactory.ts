@@ -7,6 +7,7 @@ import type { CharacterGenderMode } from "../hostTypes";
 import { gauss, P, rand } from "../hostUtils";
 import { DECLINE_AGE_THRESHOLD, prowessDeclineRateForCreation, raceIgnoresAgeDecline } from "./advanceAge";
 import { rollLooksForRace } from "./appearance";
+import { HEALTH_FULL } from "./characterHealth";
 import { getAbilityPreset, getWorldContext, hasCharactersContext } from "./charactersContext";
 import type {
   AbilityProfile,
@@ -546,7 +547,9 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
     personality,
     family: generateFamily(age, gender, formName, marriageExpectation, isReligiousRole, race),
     pastTitles: [],
-    state: homeStateId
+    state: homeStateId,
+    // New characters start in full health; characterHealth.ts's tick pass takes over from here.
+    health: HEALTH_FULL
   };
 
   character.abilityProfile = buildAbilityProfile(presetId, skills, personality);

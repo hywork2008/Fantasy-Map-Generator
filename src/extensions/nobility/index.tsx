@@ -2,6 +2,7 @@ import "./types"; // activate module augmentation for PackedGraph/State
 
 import type { ExtensionAPI } from "../../types/extension-api";
 import { advanceCharacterAging } from "../characters/advanceAge";
+import { advanceCharacterHealth } from "../characters/characterHealth";
 import { refreshCharactersOverviewIfOpen } from "../characters/controllers/characters-overview";
 import { CHARACTERS_EXTENSION_ID } from "../characters/index";
 import { seedMissingCharacterWealth } from "../economy/generators/characterStipends";
@@ -312,6 +313,9 @@ export function init(api: ExtensionAPI): void {
       const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
       const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
 
+      // Resolve sickness/health before aging so this same tick's mortality roll already
+      // sees any fresh affliction (see characterHealth.ts's diseaseDeathRiskFor()).
+      advanceCharacterHealth(effectiveDeltaYears);
       advanceCharacterAging(effectiveDeltaYears);
       Characters.processResignationsAndSuccessions(effectiveDeltaYears);
       // Phase D: greed/commitment-driven skimming and court bribes.

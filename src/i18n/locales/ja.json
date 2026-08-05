@@ -122,6 +122,22 @@
     "prestige": "名声",
     "wealth": "資産",
     "wealthTip": "個人が保有する資産です。国家の財務とは別に扱われます。",
+    "health": "健康",
+    "healthTip": "体調（0～100）。居住地の衛生状態の悪さ、加齢、罹患中の病気により低下し、健康で十分な世話を受けているときは回復します。",
+    "sickStatus": "罹患中 — {{disease}}（{{severity}}）",
+    "afflictionKind": {
+      "fever": "熱病",
+      "flux": "水腹",
+      "pox": "発疹病",
+      "plague": "疫病",
+      "wasting": "消耗病"
+    },
+    "afflictionSeverity": {
+      "mild": "軽度",
+      "moderate": "中度",
+      "severe": "重度",
+      "critical": "危篤"
+    },
     "location": "所在地",
     "zoomToLocation": "クリックして表示位置へズームします。",
     "family": "家族",

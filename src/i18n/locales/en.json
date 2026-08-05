@@ -122,6 +122,22 @@
     "prestige": "Prestige",
     "wealth": "Wealth",
     "wealthTip": "Personal wealth (held money), distinct from state treasury.",
+    "health": "Health",
+    "healthTip": "Physical condition (0–100). Declines from poor local sanitation, age, and active afflictions; recovers when healthy and well cared for.",
+    "sickStatus": "Sick — {{disease}} ({{severity}})",
+    "afflictionKind": {
+      "fever": "Fever",
+      "flux": "Flux",
+      "pox": "Pox",
+      "plague": "Plague",
+      "wasting": "Wasting sickness"
+    },
+    "afflictionSeverity": {
+      "mild": "Mild",
+      "moderate": "Moderate",
+      "severe": "Severe",
+      "critical": "Critical"
+    },
     "location": "Location",
     "zoomToLocation": "Click to zoom into view.",
     "family": "Family",

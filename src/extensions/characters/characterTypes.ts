@@ -299,6 +299,23 @@ export type CharacterRoleClass =
   | "religious"
   | "ordinary";
 
+/**
+ * Coarse illness severity band — mirrors the coarse-band convention used elsewhere
+ * (SolidarityBand, FavorBand). See docs/plan/characters/character-health-and-disease.md.
+ */
+export type AfflictionSeverity = "mild" | "moderate" | "severe" | "critical";
+
+/** Disease archetype id — catalog defined in characterHealth.ts's AFFLICTION_CATALOG. */
+export type AfflictionKind = "fever" | "flux" | "pox" | "plague" | "wasting";
+
+/** A character's current sickness. Absence on `Character.affliction` means healthy. */
+export interface CharacterAffliction {
+  kind: AfflictionKind;
+  severity: AfflictionSeverity;
+  /** Year the affliction was first contracted (flavor text / duration checks). */
+  sinceYear: number;
+}
+
 export interface Character {
   i: number;
   name: string;
@@ -392,6 +409,20 @@ export interface Character {
   deathYear?: number;
   location?: number;
   pastTitles: TitleHolding[];
+  /**
+   * 0–100 physical condition. 100 = full health. Declines from poor local sanitation
+   * exposure, age, and active afflictions; drifts back toward a sanitation-capped
+   * baseline when unafflicted. Distinct from `looks.vitality` (cosmetic decline) — this
+   * is the functional, mortality-relevant stat consumed by advanceCharacterAging()'s
+   * death roll. Optional so existing fixtures/saves need no migration; missing means
+   * "never simulated yet" — read via characterHealth.getCharacterHealth() (defaults to 100).
+   * See docs/plan/characters/character-health-and-disease.md.
+   */
+  health?: number;
+  /** Active sickness, if any. Absence = healthy (not necessarily health === 100). */
+  affliction?: CharacterAffliction;
+  /** Illnesses survived — optional flavor/prestige signal ("weathered the pox twice"). */
+  timesIllness?: number;
 }
 
 /** Quality band shared by attire and weapons (1 = rags / farm tool … 5 = royal / masterwork). */

@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-08-06
+
+- docs/plan/characters/character-health-and-disease.md
+
 2026-08-05
 
 - docs/simulation/ocean-currents.md
