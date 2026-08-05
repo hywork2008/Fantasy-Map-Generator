@@ -61,4 +61,27 @@ describe("rebuildDangerFromMonsters", () => {
     rebuildDangerField(cells, [], "max", { biomesData, biomePredatorScale: 1 });
     expect(cells.danger[0]).toBeGreaterThan(0);
   });
+
+  it("dark fantasy calamity (power 50 additive) exceeds settlement-zero danger across a wide ring", () => {
+    // Settlement zeros at danger ≥ 80 (expand ban). Additive peak is 200 at center.
+    const cells = createCells(1);
+    rebuildDangerFromMonsters(
+      cells,
+      [{ i: 0, cell: 0, name: "Calamity", rarity: 5, power: 50, basePower: 50, type: "Calamity" }],
+      "additive"
+    );
+    expect(cells.danger[0]).toBeGreaterThanOrEqual(80);
+    expect(cells.danger[0]).toBeGreaterThanOrEqual(200);
+  });
+
+  it("threatCalculation mode changes epicenter peak (max vs additive for a lone beast)", () => {
+    const additive = createCells(1);
+    const maxMode = createCells(1);
+    const monster = [{ i: 0, cell: 0, name: "Beast", rarity: 1, power: 5, basePower: 5, type: "Beast" }];
+    rebuildDangerFromMonsters(additive, monster, "additive");
+    rebuildDangerFromMonsters(maxMode, monster, "max");
+    // additive: remaining*4 = 20; max: remaining*5 = 25
+    expect(additive.danger[0]).toBe(20);
+    expect(maxMode.danger[0]).toBe(25);
+  });
 });

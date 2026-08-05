@@ -33,18 +33,17 @@ describe("settlement population WebGL projection", () => {
     useOptionsState.getState().setOption("populationColorScale", "capacity");
   });
 
-  it("retains a subdued polygon for suitable land with no settlement", () => {
+  it("omits zero-population land (fully transparent, no gray footprint)", () => {
     const polygons = buildPopulationPolygons(createWorld(0), null);
 
-    expect(polygons).toHaveLength(1);
-    expect(polygons[0]?.fillColor).toEqual([92, 88, 112, 40]);
+    expect(polygons).toHaveLength(0);
   });
 
   it("uses the normal population palette once a settlement exists", () => {
     const polygons = buildPopulationPolygons(createWorld(50), null);
 
     expect(polygons).toHaveLength(1);
-    expect(polygons[0]?.fillColor[3]).toBeGreaterThan(40);
+    expect(polygons[0]?.fillColor[3]).toBeGreaterThan(0);
   });
 
   it("capacity scale keeps low-occupancy cells lighter than near-full cells", () => {

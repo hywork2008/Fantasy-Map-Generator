@@ -5,8 +5,14 @@ import { useOptionsState } from "../store/optionsState";
 import type { Monster } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { rand } from "../utils";
+import { dangerSuitabilityMultiplier } from "./dangerExpandPolicy";
 import { biomePredatorScaleForMode, rebuildDangerField } from "./dangerField";
-import { getThreatSpawnProfile } from "./threatProfiles";
+import {
+  buildThreatBandsFromOptions,
+  getThreatSpawnProfile,
+  resolveThreatCalculation,
+  resolveThreatCultureMode
+} from "./threatProfiles";
 
 export const Threats = {
   generate(worldContext: WorldContext, _viewContext: ViewContext, _appServices: AppServices, _state: WorldState) {
@@ -17,9 +23,12 @@ export const Threats = {
     cells.danger = new Uint8Array(cells.i.length);
     pack.monsters = [];
 
-    const culturesSet = useOptionsState.getState().culturesSet;
+    const options = useOptionsState.getState();
+    const culturesSet = options.culturesSet;
     const profile = getThreatSpawnProfile(culturesSet);
-    if (!profile) return;
+    // Options-driven bands (Danger tab). Null when culture set is non-fantasy.
+    const bands = buildThreatBandsFromOptions(options, culturesSet);
+    if (!profile || !bands) return;
 
     const monsters: Monster[] = [];
     const validCells = Array.from(cells.i).filter(i => cells.h[i] >= 20); // land only
@@ -64,7 +73,7 @@ export const Threats = {
       }
     };
 
-    for (const band of profile.bands) {
+    for (const band of bands) {
       if (band.max <= 0 && band.min <= 0) continue;
       const hi = Math.max(band.min, band.max);
       const lo = Math.min(band.min, band.max);
@@ -73,10 +82,11 @@ export const Threats = {
     }
 
     pack.monsters = monsters;
+    const threatCalculation = resolveThreatCalculation(options);
     // Monsters + Phase 5 forest/mountain predators (no markers for the latter).
-    rebuildDangerField(cells, monsters, profile.threatCalculation, {
+    rebuildDangerField(cells, monsters, threatCalculation, {
       biomesData: worldContext.biomesData,
-      biomePredatorScale: biomePredatorScaleForMode(profile.mode),
+      biomePredatorScale: biomePredatorScaleForMode(resolveThreatCultureMode(culturesSet)),
       // Generation runs before states; flag kept explicit for annual rebuilds.
       reducePredatorsOnGovernedLand: true
     });
@@ -87,11 +97,10 @@ export const Threats = {
     const { cells, monsters } = pack;
     if (!monsters || !pack.markers || !worldContext.notes) return;
 
-    const populationRate = useOptionsState.getState().populationRate;
-    const initialPopulationSaturation = useOptionsState.getState().initialPopulationSaturation / 100;
-    const culturesSet = useOptionsState.getState().culturesSet;
-    const profile = getThreatSpawnProfile(culturesSet);
-    const threatCalculation = profile?.threatCalculation ?? useOptionsState.getState().threatCalculation;
+    const options = useOptionsState.getState();
+    const populationRate = options.populationRate;
+    const initialPopulationSaturation = options.initialPopulationSaturation / 100;
+    const threatCalculation = resolveThreatCalculation(options);
 
     // Calculate meanArea once for capacity formula
     let totalArea = 0;
@@ -136,9 +145,9 @@ export const Threats = {
           if (baseScore > 0) {
             const potential_s = Math.max(0, baseScore - (cells.h[cell] - 50) / 5);
 
-            // The danger multiplier in rankCells is: multiplier = Math.max(0, 1 - danger / 200)
-            // So the 's' lost to this danger is: potential_s * Math.min(1, dangerVal / 200)
-            const lost_s = potential_s * Math.min(1, dangerVal / 200);
+            // rankCells multiplies s by dangerSuitabilityMultiplier(danger).
+            // Lost share = 1 - mult (clamped), applied to potential_s.
+            const lost_s = potential_s * (1 - dangerSuitabilityMultiplier(dangerVal));
 
             const lostCapacity = (lost_s * cells.area[cell]) / meanArea;
             const lostPop = lostCapacity * initialPopulationSaturation * populationRate;

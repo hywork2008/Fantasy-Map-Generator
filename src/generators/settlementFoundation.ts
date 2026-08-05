@@ -6,6 +6,7 @@ import type {
   SettlementRegion
 } from "../types/settlementFoundation";
 import type { InitialSettlementPattern } from "../types/WorldState";
+import { dangerSuitabilityMultiplier } from "./dangerExpandPolicy";
 import { createInitialPopulationCohorts } from "./initialPopulationCohorts";
 
 type MutableNumberColumn = ArrayLike<number> & { [index: number]: number; fill(value: number): unknown };
@@ -174,7 +175,8 @@ function collectSites(
           climateScore *
           terrainScore *
           forestResourceScore *
-          Math.max(0.05, 1 - danger / 160) *
+          // Prefer safer land among residual-capacity cells (domains already s=0).
+          dangerSuitabilityMultiplier(danger) *
           (0.97 + random() * 0.06)
       };
       sites.push(site);
@@ -196,7 +198,7 @@ function collectSites(
         0.35 *
         Math.max(0.2, livability || 0.45) *
         terrainScore *
-        Math.max(0.05, 1 - danger / 160) *
+        dangerSuitabilityMultiplier(danger) *
         (0.97 + random() * 0.06)
     });
   }

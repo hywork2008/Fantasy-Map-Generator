@@ -51,6 +51,9 @@ export const DangerSettingsTab: React.FC = () => {
                 value={options.threatCalculation}
                 onChange={e => {
                   updateOptionAndLock("threatCalculation", e.target.value as "additive" | "max" | "nonlinear");
+                  // Rebuild danger paint from living monsters so the layer reflects the mode
+                  // immediately. Population capacity still requires a full map regenerate.
+                  document.dispatchEvent(new CustomEvent("react-change-threat-calculation"));
                 }}
               >
                 <option value="additive">Accumulative (Default)</option>

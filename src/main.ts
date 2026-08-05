@@ -28,6 +28,7 @@ import { applyStyleOnLoad } from "./controllers/style";
 import { Biomes } from "./generators/biomes";
 import { Burgs } from "./generators/burgs-generator";
 import { Cultures } from "./generators/cultures-generator";
+import { dangerSuitabilityMultiplier } from "./generators/dangerExpandPolicy";
 import { applyHistoricalWarScars } from "./generators/demography-simulator";
 import { Dungeons } from "./generators/dungeons-generator";
 import { Features } from "./generators/features";
@@ -1798,10 +1799,11 @@ export function rankCells() {
 
     packCells.s[i] = score / 5;
 
+    // Monster domains (danger ≥ SETTLEMENT_DANGER_ZERO / expand ban) zero capacity;
+    // softer rings scale linearly. See dangerSuitabilityMultiplier.
     const danger = packCells.danger ? packCells.danger[i] : 0;
     if (danger > 0) {
-      const multiplier = Math.max(0, 1 - danger / 200);
-      packCells.s[i] = Math.round(packCells.s[i] * multiplier);
+      packCells.s[i] = Math.round(packCells.s[i] * dangerSuitabilityMultiplier(danger));
     }
 
     packCells.capacity[i] = packCells.s[i] > 0 ? (packCells.s[i] * packCells.area[i]) / meanArea : 0;

@@ -900,7 +900,8 @@ export function buildPopulationPolygons(
     focusScope,
     "population",
     cellId => {
-      if (totalPop[cellId] <= 0) return [92, 88, 112, Math.round(maxOpacity * 255 * 0.22)];
+      // Zero population: fully transparent (no gray unsettled footprint).
+      if (totalPop[cellId] <= 0) return [0, 0, 0, 0];
       const bucket = getBucket(cellId);
       if (bucket <= 0) return [0, 0, 0, 0];
       const hexColor = interpolateYlOrRd(heatBucketToColorT(bucket));

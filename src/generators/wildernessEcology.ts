@@ -30,7 +30,11 @@ import {
   setupHuntCost,
   yearsToClear
 } from "./threatCullEffects";
-import { getThreatSpawnProfile, resolveThreatCultureMode } from "./threatProfiles";
+import {
+  getThreatSpawnProfile,
+  resolveThreatCalculation as resolveThreatCalculationFromOptions,
+  resolveThreatCultureMode
+} from "./threatProfiles";
 import { assignWildLandTags, WILD_LAND_MARGIN_DANGER_MIN } from "./wildLandTags";
 
 const MAX_CULL_PROJECTS_PER_STATE = 2;
@@ -234,9 +238,7 @@ function ensureMonsterBasePower(monsters: readonly Monster[]): void {
 }
 
 function resolveThreatCalculation(): ThreatCalculationMode {
-  const culturesSet = useOptionsState.getState().culturesSet;
-  const profile = getThreatSpawnProfile(culturesSet);
-  return profile?.threatCalculation ?? useOptionsState.getState().threatCalculation ?? "additive";
+  return resolveThreatCalculationFromOptions(useOptionsState.getState());
 }
 
 function countStateCulls(wilderness: WildernessEcologyState, stateId: number): number {

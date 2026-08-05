@@ -23,7 +23,10 @@ import { getBiomePredatorBaseDanger } from "./biomePredators";
 import { biomePredatorScaleForMode, rebuildDangerField, type ThreatCalculationMode } from "./dangerField";
 import { dungeonsAsDangerSources } from "./dungeons-generator";
 import { collectStateBorderCells, MAX_HUNT_HOPS, minHopsBetween, minHopsToSet } from "./huntGeometry";
-import { getThreatSpawnProfile, resolveThreatCultureMode } from "./threatProfiles";
+import {
+  resolveThreatCalculation as resolveThreatCalculationFromOptions,
+  resolveThreatCultureMode
+} from "./threatProfiles";
 import { assignWildLandTags } from "./wildLandTags";
 
 /** Match wildernessEcology / design: floor cash kept when funding hunts. */
@@ -169,9 +172,7 @@ export function decayPestSuppression(wilderness: WildernessEcologyState): boolea
 }
 
 function resolveThreatCalculation(): ThreatCalculationMode {
-  const culturesSet = useOptionsState.getState().culturesSet;
-  const profile = getThreatSpawnProfile(culturesSet);
-  return profile?.threatCalculation ?? useOptionsState.getState().threatCalculation ?? "additive";
+  return resolveThreatCalculationFromOptions(useOptionsState.getState());
 }
 
 /**

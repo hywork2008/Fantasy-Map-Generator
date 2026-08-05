@@ -21,14 +21,11 @@ export const PopulationRenderer: IRenderer = {
     const { cells, burgs } = pack;
 
     const renderingMode = useOptionsState.getState().populationRenderingMode;
-    const unsettledFootprint = getUnsettledFootprintPath(pack, focusScope);
 
     population.selectAll("*").remove();
     population.attr("mask", renderingMode === "contour" ? "url(#land)" : null);
 
-    if (renderingMode !== "choropleth" && unsettledFootprint) {
-      population.append("g").attr("id", "unsettledFootprint").html(unsettledFootprint).attr("opacity", 0.22);
-    }
+    // Zero-population land stays fully transparent (no gray "unsettled" fill).
 
     if (renderingMode === "original") {
       population.append("g").attr("id", "rural").attr("stroke", "#0000ff");
@@ -132,8 +129,8 @@ export const PopulationRenderer: IRenderer = {
           break;
         }
       }
-      // Keep unsettled footprint alone when nothing is populated enough to heat.
-      if (!hasHeat && !unsettledFootprint) return;
+      // Empty map: leave the layer fully transparent (no gray empty-land fill).
+      if (!hasHeat) return;
 
       // getBucket returns 0 (falsy) for non-heat cells so getIsolines never outlines ocean/empty
       // as a type. Heat bands are 1–10 (truthy). Never pass -1 — it is truthy and paints seas.
@@ -143,7 +140,7 @@ export const PopulationRenderer: IRenderer = {
         { fill: true }
       );
 
-      const bodyPaths: string[] = unsettledFootprint ? [unsettledFootprint] : [];
+      const bodyPaths: string[] = [];
       Object.entries(isolines).forEach(([index, { fill }]) => {
         const bucket = +index;
         if (!(bucket > 0)) return;
@@ -160,20 +157,6 @@ export const PopulationRenderer: IRenderer = {
     viewContext.population.selectAll("*").remove();
   }
 };
-
-/** A subdued footprint makes suitable but empty land legible in every SVG population mode. */
-function getUnsettledFootprintPath(
-  pack: Readonly<WorldContext>["pack"],
-  focusScope: FocusFields["focusScope"]
-): string {
-  const isolines = getIsolines(
-    getScopedGraph(pack, focusScope),
-    scopedGetType(focusScope, cellId => (pack.cells.h[cellId] >= 20 && pack.cells.pop[cellId] <= 0 ? 1 : null)),
-    { fill: true }
-  );
-  const unsettled = isolines["1"];
-  return getGappedFillPaths("unsettled", unsettled?.fill, undefined, "#5c5870", 1);
-}
 
 export function animatePopulationTurnOn(
   worldContext: Readonly<WorldContext>,

@@ -10,9 +10,9 @@ import { useOptionsState } from "../store/optionsState";
 import type { Burg, Dungeon, DungeonKind, Marker, Monster } from "../types/models";
 import type { PackedGraph, PackedGraphCells } from "../types/PackedGraph";
 import { rand } from "../utils";
-import { biomePredatorScaleForMode, rebuildDangerField, type ThreatCalculationMode } from "./dangerField";
+import { biomePredatorScaleForMode, rebuildDangerField } from "./dangerField";
 import { type DungeonSpawnProfile, getDungeonSpawnProfile, targetDungeonCount } from "./dungeonProfiles";
-import { getThreatSpawnProfile, resolveThreatCultureMode } from "./threatProfiles";
+import { resolveThreatCalculation, resolveThreatCultureMode } from "./threatProfiles";
 import { assignWildLandTags } from "./wildLandTags";
 
 const MIN_SEPARATION_HOPS = 3;
@@ -210,10 +210,9 @@ export function rebuildDungeonDanger(worldContext: WorldContext): void {
     cells.danger = new Uint8Array(cells.i.length);
   }
 
-  const culturesSet = useOptionsState.getState().culturesSet;
-  const threatProfile = getThreatSpawnProfile(culturesSet);
-  const threatCalculation: ThreatCalculationMode =
-    threatProfile?.threatCalculation ?? useOptionsState.getState().threatCalculation ?? "max";
+  const options = useOptionsState.getState();
+  const culturesSet = options.culturesSet;
+  const threatCalculation = resolveThreatCalculation(options);
   const mode = resolveThreatCultureMode(culturesSet);
   const monsters = [...(pack.monsters ?? []), ...dungeonsAsDangerSources(pack.dungeons)];
 
