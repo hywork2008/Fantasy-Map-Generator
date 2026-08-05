@@ -1167,6 +1167,79 @@ describe("advanceAlongPath seasonal ocean currents", () => {
 
     expect(noMonth.x).toBe(50);
   });
+
+  // Same two-cell pack, but with `cells.g` mapping cell 0 to grid cell 0, so
+  // getCurrentCostMultiplier can find real per-cell ocean-current data (docs/simulation/
+  // ocean-currents.md) instead of falling back to the seasonal bias above.
+  function makeFleetPackWithGridMapping(): PackedGraph {
+    return {
+      cells: {
+        p: [
+          [0, 0],
+          [100, 0]
+        ],
+        g: [0, 0]
+      }
+    } as unknown as PackedGraph;
+  }
+
+  function makeWorldContextWithCurrent(angleDeg: number, speed: number): WorldContext {
+    return {
+      grid: {
+        cells: {
+          currentAngle: new Uint16Array([angleDeg]),
+          currentSpeed: new Uint8Array([speed])
+        }
+      }
+    } as unknown as WorldContext;
+  }
+
+  it("real per-cell current data overrides the seasonal fallback: a strong eastward current still speeds up eastbound travel in a west-favoring month", () => {
+    const budget = 50;
+
+    // January: getCurrentDirection favors WEST, so the seasonal-only fallback above would slow
+    // this eastbound leg down. A strong real eastward current at the cell should win instead.
+    const withStrongCurrent = makeFleet();
+    advanceAlongPath(
+      makeFleetPackWithGridMapping(),
+      withStrongCurrent,
+      budget,
+      undefined,
+      1,
+      makeWorldContextWithCurrent(0, 255)
+    );
+
+    const calm = makeFleet();
+    advanceAlongPath(makeFleetPackWithGridMapping(), calm, budget, undefined, 1, makeWorldContextWithCurrent(0, 0));
+
+    expect(withStrongCurrent.x).toBeGreaterThan(calm.x);
+  });
+
+  it("real per-cell current data: traveling against a strong local current covers less distance than traveling with it", () => {
+    const budget = 50;
+
+    const withCurrent = makeFleet();
+    advanceAlongPath(
+      makeFleetPackWithGridMapping(),
+      withCurrent,
+      budget,
+      undefined,
+      7,
+      makeWorldContextWithCurrent(0, 255)
+    );
+
+    const against = makeFleet();
+    advanceAlongPath(
+      makeFleetPackWithGridMapping(),
+      against,
+      budget,
+      undefined,
+      7,
+      makeWorldContextWithCurrent(180, 255)
+    );
+
+    expect(withCurrent.x).toBeGreaterThan(against.x);
+  });
 });
 
 describe("regiment grade profiles and advanceAlongPath grade cost", () => {

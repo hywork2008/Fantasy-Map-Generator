@@ -86,14 +86,62 @@ export const OceanCurrentConstants = {
   /** Seed current speed (0-255 scale) assigned to every ocean cell before relaxation. */
   BASE_SPEED: 160,
 
-  /** Jacobi relaxation passes used to deflect current vectors around land and smooth the field. */
-  SMOOTHING_PASSES: 6,
+  /**
+   * Jacobi relaxation passes used to deflect current vectors around land and smooth the field.
+   * Needs to be at least PIN_DISTANCE-sized: information from the land-reflection/funneling steps
+   * spreads roughly one cell per pass through plain neighbor-averaging, so a wide strait's center
+   * only bends if there are enough passes for that influence to actually reach it.
+   */
+  SMOOTHING_PASSES: 60,
 
-  /** Weight a cell's own vector keeps (vs. the neighbor average) in each relaxation pass. */
-  SELF_WEIGHT: 1.5,
+  /**
+   * Weight a cell's own vector keeps (vs. the neighbor average) in each relaxation pass, for cells
+   * inside the near-shore influence zone (PIN_DISTANCE). Deliberately small: a large self-weight
+   * anchors every cell close to its seeded wind value pass after pass, which is what made the first
+   * version of this algorithm read as "wind bands with a thin coastal fringe" on real generated
+   * maps — reflection/funneling could only ever nudge a cell a little before its own inertia pulled
+   * it back, so bending never had room to accumulate over several cells. A small self-weight still
+   * damps oscillation (it's not literally 0) but lets the neighbor average dominate.
+   */
+  SELF_WEIGHT: 0.5,
 
-  /** Fraction of a vector's land-directed component cancelled per pass when it meets a coastline. */
+  /**
+   * Reflection strength when a vector's component points into a land neighbor: 1 = full mirror
+   * bounce (`v - 2(v·n)n`, preserving speed while redirecting tangential to the coast), 0 = no
+   * deflection at all. Unlike a plain clip (`v - (v·n)n`), a reflection injects a genuine
+   * perpendicular component, which is what lets flow curve around a headland over several passes
+   * instead of only losing speed head-on.
+   */
   DEFLECT_WEIGHT: 1,
+
+  /**
+   * Hop distance (BFS from any land/lake cell) beyond which an ocean cell is pinned to its seeded
+   * wind vector every pass instead of relaxing — a "free stream" far-field boundary condition,
+   * the same role the far-field value plays in a real potential-flow solve. Without a pin, nothing
+   * anchors the interior of a very large open ocean, and relaxation alone has no notion of "this is
+   * genuinely the open sea, not just water that hasn't been reached by land yet." Cells closer than
+   * this to any coast are the near-shore influence zone where reflection/funneling actually apply.
+   */
+  PIN_DISTANCE: 40,
+
+  /**
+   * BFS hop radius used to score how exposed (vs. enclosed) each ocean cell is — same
+   * blocked-neighbor-ratio technique as `FeatureModule.calculateEnclosure()` (`features.ts`), run
+   * on `grid` instead of `pack`. Feeds both the exit-funneling step and the final speed damping
+   * below, so bays and straits actually respond to their own shape instead of only to wind.
+   * Deliberately much smaller than PIN_DISTANCE: this scores fine-grained local "how surrounded is
+   * this exact spot," not how far bending is allowed to propagate.
+   */
+  EXPOSURE_BFS_RADIUS: 6,
+
+  /** Openness (0..1) below which a cell is considered enclosed enough to funnel toward its most open neighbor. */
+  FUNNEL_OPENNESS_THRESHOLD: 0.6,
+
+  /** Max blend weight toward the most-open neighbor's direction for a fully enclosed cell (openness 0). */
+  FUNNEL_STRENGTH: 0.6,
+
+  /** Speed multiplier floor applied at openness 0 (fully enclosed water nearly stalls); lerped to 1 at openness 1 (open ocean, unaffected). */
+  EXPOSURE_MIN_SPEED_FACTOR: 0.08,
 
   /** Passes used to advect latitude-baseline sea temperature along the resolved current field. */
   TEMP_ADVECTION_PASSES: 4,

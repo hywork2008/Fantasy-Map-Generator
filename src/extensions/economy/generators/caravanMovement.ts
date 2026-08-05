@@ -161,23 +161,54 @@ export class CaravanMovementModule {
 export const CaravanMovement = new CaravanMovementModule();
 
 /**
- * Seasonal wind/current speed multiplier for a sea leg from `fromPoint` to `toPoint`, reusing
- * the single global east/west seasonal reversal src/generators/regimentMovement.ts applies to
- * naval fleets (docs/simulation/seasons.md) rather than inventing a separate per-route model.
- * Unlike the fleet version's fixed 0.7/1.4 swing, magnitude is the user-configurable
- * `strength` (CaravanMovementSettings.seaCurrentStrength) and defaults to 0 (no effect) — trade
- * routes opt in per docs/plan discussion, they don't get an always-on penalty.
+ * A single-cell sample of the real per-cell ocean current field (docs/simulation/ocean-currents.md)
+ * at a sea leg's starting grid cell: direction in degrees plus a 0-255 speed.
+ */
+export interface OceanCurrentSample {
+  angleDeg: number;
+  speed: number;
+}
+
+/**
+ * Speed multiplier for a sea leg from `fromPoint` to `toPoint`. `strength` is the
+ * user-configurable `CaravanMovementSettings.seaCurrentStrength` and defaults to 0 (no effect) —
+ * trade routes opt in per docs/plan discussion, they don't get an always-on penalty; that gate is
+ * unchanged by which data source below actually drives the swing once opted in.
+ *
+ * When `current` is given (a real per-cell sample resolved by the caller via
+ * `pack.cells.g`/`grid.cells.currentAngle`/`currentSpeed`), the multiplier comes from projecting
+ * that current onto the leg's actual travel direction — a smooth 360° read instead of a single
+ * east/west sign. Falls back to the coarse global seasonal bias
+ * (`getCurrentDirection`, docs/simulation/seasons.md, the same one
+ * src/generators/regimentMovement.ts applies to naval fleets) whenever no per-cell sample is
+ * available, e.g. a route leg with no cell id or a map generated before this field existed.
  */
 export function getSeaConditionMultiplier(
   fromPoint: readonly [number, number],
   toPoint: readonly [number, number],
   month: number,
-  strength: number
+  strength: number,
+  current?: OceanCurrentSample | null
 ): number {
   if (strength === 0) return 1;
-  const dx = toPoint[0] - fromPoint[0];
-  if (dx === 0) return 1;
 
+  const dx = toPoint[0] - fromPoint[0];
+  const dy = toPoint[1] - fromPoint[1];
+
+  if (current && current.speed > 0) {
+    const edgeLength = Math.hypot(dx, dy);
+    if (edgeLength > 0) {
+      const angleRad = (current.angleDeg * Math.PI) / 180;
+      const currentVx = Math.cos(angleRad) * current.speed;
+      const currentVy = Math.sin(angleRad) * current.speed;
+      // Signed projection of the current onto the travel direction, normalized by the 0-255
+      // current-speed scale: +1 = fully with the current, -1 = fully against it.
+      const alignment = minmax((currentVx * dx + currentVy * dy) / edgeLength / 255, -1, 1);
+      return minmax(1 + alignment * strength, 0.1, 2);
+    }
+  }
+
+  if (dx === 0) return 1;
   const travelingEast = dx > 0;
   const currentFavorsEast = getCurrentDirection(month) === 1;
   const withCurrent = travelingEast === currentFavorsEast;

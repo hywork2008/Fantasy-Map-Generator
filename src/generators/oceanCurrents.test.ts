@@ -59,6 +59,74 @@ const LAKE: GridFeature = { i: 2, land: false, border: false, type: "lake" };
 const ISLAND: GridFeature = { i: 3, land: true, border: false, type: "island" };
 const FEATURES: GridFeature[] = [0 as unknown as GridFeature, OCEAN, LAKE, ISLAND];
 
+/**
+ * A bay cell ringed by 5 land cells with a single ocean exit, leading through a 3-cell
+ * fjord-like corridor (2 land walls flanking each corridor cell) before opening into a long run of
+ * genuinely open water. Tuned (see EXPOSURE_BFS_RADIUS = 6) so the bay's BFS openness lands around
+ * 0.5 while the open-water end reads a full 1.0 — enough separation to exercise both the
+ * exposure-based speed damping and exit-funneling steps deterministically. The open-water run is
+ * deliberately longer than PIN_DISTANCE (40) so its far end is a genuinely pinned "free stream"
+ * cell — without one, this whole fixture is a small closed pocket with no driving boundary
+ * condition, and the low-SELF_WEIGHT relaxation decays everything toward zero over many passes
+ * rather than settling near the seeded wind, which isn't representative of a real map (always
+ * connected to a large enough open ocean to have pinned cells somewhere).
+ */
+function buildBayFixture(): {
+  points: Point[];
+  neighbors: number[][];
+  heights: number[];
+  featureIds: number[];
+  bay: number;
+  far: number;
+} {
+  const points: Point[] = [];
+  const neighbors: number[][] = [];
+  const heights: number[] = [];
+  const featureIds: number[] = [];
+  let nextId = 0;
+
+  const push = (p: Point, land: boolean): number => {
+    points.push(p);
+    neighbors.push([]);
+    heights.push(land ? 30 : 5);
+    featureIds.push(land ? 3 : 1); // ISLAND : OCEAN
+    return nextId++;
+  };
+  const link = (a: number, b: number): void => {
+    neighbors[a].push(b);
+    neighbors[b].push(a);
+  };
+
+  const bay = push([0, 0], false);
+  const landAngles = [-150, -90, -30, 30, 90]; // degrees; leaves the +y (south) side open
+  for (const deg of landAngles) {
+    const rad = (deg * Math.PI) / 180;
+    link(bay, push([Math.cos(rad) * 10, Math.sin(rad) * 10], true));
+  }
+
+  let prev = bay;
+  let y = 10;
+  for (let i = 0; i < 3; i++) {
+    const corridorCell = push([0, y], false);
+    link(prev, corridorCell);
+    link(corridorCell, push([-8, y], true));
+    link(corridorCell, push([8, y], true));
+    prev = corridorCell;
+    y += 10;
+  }
+
+  let far = prev;
+  for (let i = 0; i < 45; i++) {
+    const openCell = push([0, y], false);
+    link(prev, openCell);
+    prev = openCell;
+    far = openCell;
+    y += 10;
+  }
+
+  return { points, neighbors, heights, featureIds, bay, far };
+}
+
 describe("OceanCurrents.generate", () => {
   it("leaves land and lake cells with zero current, mirroring temp into waterTemp", () => {
     const cells = generate({
@@ -162,6 +230,108 @@ describe("OceanCurrents.generate", () => {
 
     expect(cells.waterTemp[2]).toBeGreaterThan(0);
     expect(cells.waterTemp[2]).toBeLessThanOrEqual(30);
+  });
+
+  it("bends around a land corner instead of only losing speed head-on", () => {
+    // Tip cell 1 sits just southwest of a land corner (cell 0, to its northeast); its only
+    // other neighbor (cell 2) lies due south. Wind blows due east (angle 0), straight into the
+    // corner's exposed NE-facing side — a full mirror reflection off that 45°-angled boundary
+    // should redirect the flow toward the open south side rather than merely damping it in place.
+    const points: Point[] = [
+      [10, -10], // 0: land, NE of tip
+      [0, 0], // 1: tip (ocean)
+      [0, 10], // 2: ocean, south of tip
+      [0, 20] // 3: ocean, further south
+    ];
+    const neighbors = [
+      [1], // 0 land
+      [0, 2], // 1 tip
+      [1, 3], // 2
+      [2] // 3
+    ];
+    const heights = [30, 5, 5, 5];
+    const featureIds = [3, 1, 1, 1];
+    const temps = points.map(() => 15);
+
+    const cells = generate({
+      points,
+      neighbors,
+      heights,
+      featureIds,
+      features: FEATURES,
+      temps,
+      winds: [0, 0, 0, 0, 0, 0]
+    });
+
+    expect(cells.currentSpeed[1]).toBeGreaterThan(0);
+    // Contrast with the unobstructed-field test above, which stays under 20° with nothing to
+    // deflect off of: a real corner measurably rotates the current away from the raw wind angle.
+    expect(cells.currentAngle[1]).toBeGreaterThan(20);
+  });
+
+  it("propagates a headland's bend well beyond a single cell, unlike a small-radius-only scheme", () => {
+    // A 25-cell chain running away from a single land corner (same NE corner as the previous
+    // test), long enough that a fixed, small deflection radius (e.g. the old ~6-pass version of
+    // this algorithm) could never show any effect past its first few cells. PIN_DISTANCE (40)
+    // isn't reached within this chain, so every cell here is still in the free-relaxing influence
+    // zone — this test is specifically about how *far* that zone's bending reaches, not about the
+    // pinned far-field boundary (covered by the bay/funnel test above).
+    const N = 25;
+    const points: Point[] = [[10, -10]];
+    for (let i = 0; i < N; i++) points.push([0, i * 10]);
+    const neighbors: number[][] = [[1]];
+    for (let i = 0; i < N; i++) {
+      const self = i + 1;
+      const nb: number[] = [];
+      if (i === 0) nb.push(0);
+      if (i > 0) nb.push(self - 1);
+      if (i < N - 1) nb.push(self + 1);
+      neighbors.push(nb);
+    }
+    const heights = [30, ...Array(N).fill(5)];
+    const featureIds = [3, ...Array(N).fill(1)];
+    const temps = points.map(() => 15);
+
+    const cells = generate({
+      points,
+      neighbors,
+      heights,
+      featureIds,
+      features: FEATURES,
+      temps,
+      winds: [0, 0, 0, 0, 0, 0]
+    });
+
+    // 10 hops from the corner: still measurably bent away from the raw 0° wind angle.
+    expect(cells.currentAngle[10]).toBeGreaterThan(2);
+    // 20 hops from the corner: the bend has faded back out, close to the raw wind angle again —
+    // this isn't "bending reaches everywhere," it's a bounded, physically plausible falloff.
+    expect(cells.currentAngle[20]).toBeLessThan(2);
+  });
+
+  it("damps and funnels current inside an enclosed bay toward its one narrow exit", () => {
+    const { points, neighbors, heights, featureIds, bay, far } = buildBayFixture();
+    const temps = points.map(() => 15);
+
+    // Wind at 60° has a real southward component aligned with the corridor's north-south axis
+    // (unlike due-east, which is perpendicular to it and would legitimately drive ~no along-
+    // corridor flow at all — not a useful case for testing damping/funneling specifically).
+    const cells = generate({
+      points,
+      neighbors,
+      heights,
+      featureIds,
+      features: FEATURES,
+      temps,
+      winds: [60, 60, 60, 60, 60, 60]
+    });
+
+    // The bay (5 land neighbors, one narrow fjord-like exit) is far more enclosed than the pinned,
+    // genuinely open water at the far end of the chain, so its resolved speed should be a small
+    // fraction of the open water's — not just "somewhat less," which a naive land-adjacency check
+    // could also produce.
+    expect(cells.currentSpeed[bay]).toBeGreaterThan(0);
+    expect(cells.currentSpeed[bay]).toBeLessThan(cells.currentSpeed[far] * 0.5);
   });
 
   it("is deterministic for identical inputs", () => {
