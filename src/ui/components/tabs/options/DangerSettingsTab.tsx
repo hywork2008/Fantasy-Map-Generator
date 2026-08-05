@@ -34,7 +34,7 @@ export const DangerSettingsTab: React.FC = () => {
                 }}
               >
                 <option value="contour">Smooth Contours (blended)</option>
-                <option value="choropleth">Cell Heatmap (per-cell)</option>
+                <option value="choropleth">Cell Heatmap (per-cell, default)</option>
               </select>
             </td>
             <td></td>
@@ -56,9 +56,9 @@ export const DangerSettingsTab: React.FC = () => {
                   document.dispatchEvent(new CustomEvent("react-change-threat-calculation"));
                 }}
               >
-                <option value="additive">Accumulative (Default)</option>
+                <option value="additive">Accumulative</option>
                 <option value="max">Highest Overlap (Max)</option>
-                <option value="nonlinear">Steep Decay (Non-linear)</option>
+                <option value="nonlinear">Steep Decay (Non-linear, default)</option>
               </select>
             </td>
             <td></td>

@@ -253,7 +253,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   stateLabelsMode: "auto",
   resolveDepressionsSteps: 250,
   lakeElevationLimit: 20,
-  threatCalculation: "additive",
+  threatCalculation: "nonlinear",
   militaryHierarchy: "simple",
   gunpowderEraEnabled: false,
   initialPopulationSaturation: 60,
@@ -318,7 +318,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   populationRenderingMode: "choropleth",
   populationColorScale: "capacity",
   heightmapRenderingMode: "labeledContours",
-  dangerRenderingMode: "contour",
+  dangerRenderingMode: "choropleth",
   combatDeathsRenderingMode: "contour",
 
   setOption: (key, value) => {

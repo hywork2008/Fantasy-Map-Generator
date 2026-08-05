@@ -11,7 +11,7 @@ import {
 } from "./threatProfiles";
 
 const baseOptions = (): ThreatDangerOptions => ({
-  threatCalculation: "additive",
+  threatCalculation: "nonlinear",
   dangerRarity5Min: 1,
   dangerRarity5Max: 2,
   dangerRarity5Power: 50,
@@ -64,7 +64,7 @@ describe("threatProfiles", () => {
     expect(resolveThreatCalculation({ threatCalculation: "nonlinear" })).toBe("nonlinear");
     expect(resolveThreatCalculation({ threatCalculation: "max" })).toBe("max");
     expect(resolveThreatCalculation({ threatCalculation: "additive" })).toBe("additive");
-    expect(resolveThreatCalculation(null)).toBe("additive");
+    expect(resolveThreatCalculation(null)).toBe("nonlinear");
   });
 
   it("buildThreatBandsFromOptions uses Options spawn counts and power on darkFantasy", () => {
@@ -103,10 +103,10 @@ describe("threatProfiles", () => {
     expect(buildThreatBandsFromOptions(baseOptions(), "european")).toBeNull();
   });
 
-  it("highFantasy option defaults zero out rarity 4–5 and prefer max aggregation", () => {
+  it("highFantasy option defaults zero out rarity 4–5 and prefer steep-decay aggregation", () => {
     const defaults = getThreatOptionDefaults("highFantasy");
     expect(defaults).not.toBeNull();
-    expect(defaults!.threatCalculation).toBe("max");
+    expect(defaults!.threatCalculation).toBe("nonlinear");
     expect(defaults!.dangerRarity5Min).toBe(0);
     expect(defaults!.dangerRarity5Max).toBe(0);
     expect(defaults!.dangerRarity4Min).toBe(0);
@@ -115,10 +115,10 @@ describe("threatProfiles", () => {
     expect(defaults!.dangerRarity1Min).toBeGreaterThan(0);
   });
 
-  it("darkFantasy option defaults keep calamity ladder and additive aggregation", () => {
+  it("darkFantasy option defaults keep calamity ladder and steep-decay aggregation", () => {
     const defaults = getThreatOptionDefaults("darkFantasy");
     expect(defaults).not.toBeNull();
-    expect(defaults!.threatCalculation).toBe("additive");
+    expect(defaults!.threatCalculation).toBe("nonlinear");
     expect(defaults!.dangerRarity5Min).toBeGreaterThanOrEqual(1);
     expect(defaults!.dangerRarity5Power).toBe(50);
     expect(defaults!.dangerRarity4Power).toBe(30);

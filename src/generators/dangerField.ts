@@ -38,7 +38,7 @@ export interface RebuildDangerFieldOptions {
 export function rebuildDangerFromMonsters(
   cells: DangerFieldCells,
   monsters: readonly Monster[],
-  threatCalculation: ThreatCalculationMode = "additive"
+  threatCalculation: ThreatCalculationMode = "nonlinear"
 ): void {
   if (!cells.danger || cells.danger.length !== cells.i.length) {
     // Callers that own pack.cells should assign a new buffer first when unbound.
@@ -84,7 +84,7 @@ export function rebuildDangerFromMonsters(
 export function rebuildDangerField(
   cells: DangerFieldCells,
   monsters: readonly Monster[],
-  threatCalculation: ThreatCalculationMode = "additive",
+  threatCalculation: ThreatCalculationMode = "nonlinear",
   options: RebuildDangerFieldOptions = {}
 ): void {
   rebuildDangerFromMonsters(cells, monsters, threatCalculation);

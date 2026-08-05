@@ -57,7 +57,7 @@ export type ThreatDangerOptionPatch = Partial<ThreatDangerOptions>;
 /** High Fantasy frontier: local beasts, occasional greater threat; no calamities. */
 export const HIGH_FANTASY_THREAT_PROFILE: ThreatSpawnProfile = {
   mode: "highFantasy",
-  threatCalculation: "max",
+  threatCalculation: "nonlinear",
   bands: [
     { rarity: 3, min: 0, max: 2, power: 14, type: "Greater Monster" },
     { rarity: 2, min: 12, max: 24, power: 8, type: "Dire Beast" },
@@ -71,7 +71,7 @@ export const HIGH_FANTASY_THREAT_PROFILE: ThreatSpawnProfile = {
  */
 export const DARK_FANTASY_THREAT_PROFILE: ThreatSpawnProfile = {
   mode: "darkFantasy",
-  threatCalculation: "additive",
+  threatCalculation: "nonlinear",
   bands: [
     { rarity: 5, min: 1, max: 2, power: 50, type: "Calamity" },
     { rarity: 4, min: 2, max: 4, power: 30, type: "Arch-Beast" },
@@ -103,7 +103,7 @@ export function resolveThreatCalculation(
 ): ThreatCalculationMode {
   const mode = options?.threatCalculation;
   if (mode === "additive" || mode === "max" || mode === "nonlinear") return mode;
-  return "additive";
+  return "nonlinear";
 }
 
 /**
