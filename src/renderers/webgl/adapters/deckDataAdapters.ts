@@ -37,6 +37,7 @@ import { getColor, getColorScheme } from "../../../utils/colorUtils";
 import { type RelationKey, relations } from "../../../utils/diplomacyRelations";
 import { fractalizeCoastline, sampleCatmullRomPolyline, sampleCoastlineShape } from "../../coastline-fractal";
 import { isCellInScope, isGridCellInScope } from "../../core/focusScope";
+import { dangerBucketToMagmaT } from "../../dangerColorScale";
 import { buildPopulationColorMetrics, heatBucketToColorT } from "../../populationColorScale";
 import { getCachedBurgIconRaster } from "../burgIconRasterCache";
 import { getCachedEmblemIconUrl } from "../emblemIconCache";
@@ -707,7 +708,8 @@ export function buildDangerPolygons(
     cellId => {
       const bucket = getDangerBucket(cellId);
       if (bucket < 0) return [0, 0, 0, 0];
-      const hexColor = interpolateMagma((bucket + 1) / 10);
+      // Same Magma window as SVG Contours / Cell Heatmap (peak red, edges purple).
+      const hexColor = interpolateMagma(dangerBucketToMagmaT(bucket));
       return colorToRgba(hexColor, "#999999", maxOpacity);
     },
     cellId => (cells.danger[cellId] ?? 0) > 0

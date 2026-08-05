@@ -6,6 +6,7 @@ import { useOptionsState } from "../store/optionsState";
 import { getGappedFillPaths, getIsolines } from "../utils";
 import { getScopedGraph, isCellInScope, scopedGetType } from "./core/focusScope";
 import type { IRenderer } from "./core/IRenderer";
+import { dangerBucketToMagmaT, dangerIntensityToMagmaT } from "./dangerColorScale";
 
 export const DangerRenderer: IRenderer = {
   id: "danger",
@@ -51,8 +52,9 @@ export const DangerRenderer: IRenderer = {
       if (contours.length === 0) return;
 
       const maxValue = d3.max(contours, d => d.value) || 1;
-      // Dark fantasy danger colors: interpolator from dark purple to deep red
-      const color = d3.scaleSequential(d3.interpolateMagma).domain([0, maxValue * 1.5]);
+      // Same Magma window as Cell Heatmap: edges purple-gray, peaks deep red
+      // (domain * 1.5 keeps the peak near Magma t = 2/3, never pale yellow).
+      const color = d3.scaleSequential(t => d3.interpolateMagma(dangerIntensityToMagmaT(t))).domain([0, maxValue]);
       const geoPath = d3.geoPath();
 
       danger
@@ -93,7 +95,8 @@ export const DangerRenderer: IRenderer = {
       Object.entries(isolines).forEach(([index, { fill }]) => {
         const bucket = +index;
         if (bucket < 0) return;
-        const color = d3.interpolateMagma((bucket + 1) / 10);
+        // Align with Smooth Contours: weak = purple/gray, strong = red (not pale yellow).
+        const color = d3.interpolateMagma(dangerBucketToMagmaT(bucket));
         bodyPaths.push(getGappedFillPaths("danger", fill, undefined, color, bucket));
       });
 
