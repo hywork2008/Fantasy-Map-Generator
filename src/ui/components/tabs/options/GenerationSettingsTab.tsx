@@ -353,27 +353,15 @@ export const GenerationSettingsTab: React.FC = () => {
             <td>
               <LockIconButton id="oikoumeneLandShare" />
             </td>
-            <td>Oikoumene land share</td>
-            <td>
-              <input
-                type="range"
+            <td>Oikoumene land share %</td>
+            <td colSpan={2}>
+              <SliderInput
                 min="15"
                 max="85"
                 step="5"
-                value={Math.round(options.oikoumeneLandShare * 100)}
-                onChange={e => updateOptionAndLock("oikoumeneLandShare", Number(e.target.value) / 100)}
+                value={options.oikoumeneLandShare}
+                onChange={v => updateOptionAndLock("oikoumeneLandShare", Number(v))}
               />
-            </td>
-            <td>
-              <input
-                type="number"
-                min="15"
-                max="85"
-                step="5"
-                value={Math.round(options.oikoumeneLandShare * 100)}
-                onChange={e => updateOptionAndLock("oikoumeneLandShare", Number(e.target.value) / 100)}
-              />
-              %
             </td>
           </tr>
 
