@@ -50,13 +50,75 @@ function makeCoastPack(): PackedGraph {
   } as unknown as PackedGraph;
 }
 
-function makeGrid(): Grid {
+function makeGrid(cellCount = 6): Grid {
   return {
     cells: {
-      temp: new Int8Array([12, 12, 12, 12, 12, 12]),
-      prec: new Uint8Array([20, 20, 20, 20, 20, 20])
+      temp: new Int8Array(cellCount).fill(12),
+      prec: new Uint8Array(cellCount).fill(20)
     }
   } as unknown as Grid;
+}
+
+/**
+ * 8 land-coast cells (0-3 steep/bare, 4-7 flat/sedimented) paired with 8 water-coast
+ * cells, all part of a single connected landmass coastline. Used to verify segmentation
+ * splits at the local terrain shift instead of collapsing the whole coastline into one
+ * segment (which previously forced a uniform habitat over the entire landmass).
+ */
+function makeSplitTerrainCoastPack(): PackedGraph {
+  const landCount = 8;
+  const n = landCount * 2;
+  const h = new Uint8Array(n);
+  const t = new Int8Array(n);
+  const fl = new Uint16Array(n);
+  const r = new Uint16Array(n);
+  const f = new Uint16Array(n).fill(1);
+  const g = new Uint16Array(Array.from({ length: n }, (_, i) => i));
+  const enclosure = new Uint8Array(n);
+  const p: [number, number][] = [];
+  const c: number[][] = [];
+
+  for (let i = 0; i < landCount; i++) {
+    const steep = i < 4;
+    h[i] = steep ? 60 : 22; // steep vs mild slope relative to water
+    t[i] = 1;
+    if (!steep) {
+      fl[i] = 40;
+      r[i] = 1;
+    }
+    const waterId = landCount + i;
+    h[waterId] = 18;
+    t[waterId] = -1;
+    f[waterId] = 2;
+    p.push([i, 0]);
+  }
+  for (let i = 0; i < landCount; i++) p.push([i, 1]);
+
+  for (let i = 0; i < landCount; i++) {
+    const neighbors = [landCount + i];
+    if (i > 0) neighbors.push(i - 1);
+    if (i < landCount - 1) neighbors.push(i + 1);
+    c.push(neighbors);
+  }
+  for (let i = 0; i < landCount; i++) c.push([i]);
+
+  return {
+    cells: {
+      i: new Uint16Array(Array.from({ length: n }, (_, i) => i)),
+      h,
+      t,
+      c,
+      fl,
+      r,
+      f,
+      g,
+      enclosure,
+      p,
+      coastalHabitat: new Uint8Array(n),
+      nearshoreHabitat: new Uint8Array(n)
+    },
+    features: [0, { i: 1, type: "island", land: true }, { i: 2, type: "ocean", land: false }]
+  } as unknown as PackedGraph;
 }
 
 describe("coastalHabitatAssignment", () => {
@@ -76,6 +138,27 @@ describe("coastalHabitatAssignment", () => {
     // Water coast may get nearshore
     const near = [3, 4, 5].map(id => pack.cells.nearshoreHabitat[id] ?? 0);
     expect(near.every(v => v >= 0)).toBe(true);
+  });
+
+  it("splits a landmass's coastline at local terrain shifts instead of one uniform segment", () => {
+    const pack = makeSplitTerrainCoastPack();
+    const grid = makeGrid(16);
+    const sandy = getCoastalHabitatCode("sandyBeach");
+    const rocky = getCoastalHabitatCode("rockyIntertidal");
+
+    // "mediterranean" applies no global sandy-share balancing, isolating segmentation itself.
+    assignCoastalHabitats(pack, grid, { profile: "mediterranean", seed: 7 });
+
+    // Steep, bare cells away from the transition should read rocky...
+    expect(pack.cells.coastalHabitat[0]).toBe(rocky);
+    expect(pack.cells.coastalHabitat[1]).toBe(rocky);
+    // ...and mild, sedimented cells away from the transition should read sandy.
+    expect(pack.cells.coastalHabitat[6]).toBe(sandy);
+    expect(pack.cells.coastalHabitat[7]).toBe(sandy);
+
+    // The whole 8-cell coastline must not collapse into a single uniform habitat.
+    const codes = new Set(Array.from({ length: 8 }, (_, i) => pack.cells.coastalHabitat[i]));
+    expect(codes.size).toBeGreaterThan(1);
   });
 
   it("measures sandy beach share", () => {

@@ -62,16 +62,51 @@ function buildCoastCells(pack: PackedGraph, grid: Grid): CoastCell[] {
 }
 
 /**
- * Group land-coast cells into contiguous segments via BFS along land-coast neighbors.
+ * Group land-coast cells into contiguous segments via BFS along land-coast neighbors,
+ * stopping the walk wherever the local terrain classification changes.
+ *
+ * A plain connectivity BFS (no classification check) is not enough: land-coast cells
+ * around a single landmass are almost always all mutually connected, so an unconstrained
+ * BFS produces exactly one giant segment per landmass/island regardless of how its slope
+ * or sediment actually varies along the shore. `classifySegmentBase()` then has no choice
+ * but to average slope/sediment/enclosure over the *entire* coastline and collapse it to a
+ * single habitat, and `balanceSandyShare()` can only flip whole landmasses at a time — the
+ * observed symptom was most islands reading ~100% sandy or ~100% rocky with almost no
+ * in-between (see docs/plan/biomes.md's "区間の内部では同じハビタットを連続させ、短い遷移帯だけを
+ * 混在させる" — segments were meant to be sub-stretches of a coastline, not the whole thing).
+ *
+ * Fix: classify each cell from a small local window (itself + its immediate land-coast
+ * neighbors, via the same `classifySegmentBase()` formula) *before* grouping, then only
+ * merge adjacent cells that share that local classification. Segment boundaries now fall
+ * where the terrain genuinely shifts (steep/sedimented/sheltered changes), producing many
+ * shorter segments per landmass instead of one, while still keeping runs of similar terrain
+ * contiguous (no cell-by-cell checkerboarding) because the local window itself is smoothed
+ * over 1-hop neighbors.
  */
-function buildCoastSegments(pack: PackedGraph, coastCells: CoastCell[]): number[][] {
+function buildCoastSegments(
+  pack: PackedGraph,
+  coastCells: CoastCell[],
+  byId: Map<number, CoastCell>,
+  profile: BiomeRegionProfile
+): number[][] {
   const coastSet = new Set(coastCells.map(c => c.cellId));
+  const neighbors = pack.cells.c;
+
+  const localKey = new Map<number, CoastalHabitatKey>();
+  for (const cell of coastCells) {
+    const window = [cell.cellId];
+    for (const nb of neighbors[cell.cellId] ?? []) {
+      if (coastSet.has(nb)) window.push(nb);
+    }
+    localKey.set(cell.cellId, classifySegmentBase(window, byId, profile));
+  }
+
   const visited = new Set<number>();
   const segments: number[][] = [];
-  const neighbors = pack.cells.c;
 
   for (const start of coastSet) {
     if (visited.has(start)) continue;
+    const key = localKey.get(start)!;
     const segment: number[] = [];
     const queue = [start];
     visited.add(start);
@@ -80,6 +115,7 @@ function buildCoastSegments(pack: PackedGraph, coastCells: CoastCell[]): number[
       segment.push(id);
       for (const nb of neighbors[id] ?? []) {
         if (!coastSet.has(nb) || visited.has(nb)) continue;
+        if (localKey.get(nb) !== key) continue;
         visited.add(nb);
         queue.push(nb);
       }
@@ -249,7 +285,7 @@ export function assignCoastalHabitats(pack: PackedGraph, grid: Grid, options: Co
   }
 
   const byId = new Map(coastCells.map(c => [c.cellId, c]));
-  const segments = buildCoastSegments(pack, coastCells);
+  const segments = buildCoastSegments(pack, coastCells, byId, options.profile);
   const baseKeys = segments.map(seg => classifySegmentBase(seg, byId, options.profile));
   const lengths = segments.map(s => s.length);
 
