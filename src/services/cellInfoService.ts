@@ -35,19 +35,19 @@ export function updateCellInfo(point: [number, number], i: number, g: number): v
     river: cells.h[i] >= 20 && cells.r[i] ? getRiverInfo(cells.r[i]) : "no",
     state:
       cells.h[i] >= 20
-        ? cells.state[i]
+        ? cells.state?.[i]
           ? `${worldContext.pack.states[cells.state[i]].fullName} (${cells.state[i]})`
           : "neutral lands (0)"
         : "no",
-    province: cells.province[i]
+    province: cells.province?.[i]
       ? `${worldContext.pack.provinces[cells.province[i]].fullName} (${cells.province[i]})`
       : "no",
-    culture: cells.culture[i] ? `${worldContext.pack.cultures[cells.culture[i]].name} (${cells.culture[i]})` : "no",
-    religion: cells.religion[i]
+    culture: cells.culture?.[i] ? `${worldContext.pack.cultures[cells.culture[i]].name} (${cells.culture[i]})` : "no",
+    religion: cells.religion?.[i]
       ? `${worldContext.pack.religions[cells.religion[i]].name} (${cells.religion[i]})`
       : "no",
     population: getFriendlyPopulation(i),
-    burg: cells.burg[i] ? `${worldContext.pack.burgs[cells.burg[i]].name} (${cells.burg[i]})` : "no",
+    burg: cells.burg?.[i] ? `${worldContext.pack.burgs[cells.burg[i]].name} (${cells.burg[i]})` : "no",
     danger: cells.danger ? String(cells.danger[i]) : "n/a",
     feature: f ? `${worldContext.pack.features[f].group} (${f})` : "n/a",
     biome: worldContext.biomesData.name[cells.biomeCode[i]],
@@ -67,11 +67,13 @@ export function updateCellInfo(point: [number, number], i: number, g: number): v
  * mode instead of two independently-maintained implementations drifting apart.
  */
 export function getCellPoliticalSummary(cellId: number): string {
-  const stateId = worldContext.pack.cells.state[cellId];
+  // In map-creation mode (heightmap/template editing before states-generator has run),
+  // pack.cells.state/province may not be populated yet, so guard against undefined arrays.
+  const stateId = worldContext.pack.cells.state?.[cellId];
   if (!stateId) return "";
 
   const stateName = getStateName(stateId);
-  const provinceId = worldContext.pack.cells.province[cellId];
+  const provinceId = worldContext.pack.cells.province?.[cellId];
   if (!provinceId) return stateName;
   return `${getProvinceName(provinceId)}, ${stateName}`;
 }

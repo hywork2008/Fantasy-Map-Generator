@@ -270,14 +270,14 @@ function formatBorderTooltip(detail: WebglPickDetail): string {
   if (!cells) return detail.cellId === null ? "Border" : getCellPoliticalSummary(detail.cellId) || "Border";
 
   const [fromCell, toCell] = cells;
-  const fromStateId = worldContext.pack.cells.state[fromCell];
-  const toStateId = worldContext.pack.cells.state[toCell];
+  const fromStateId = worldContext.pack.cells.state?.[fromCell];
+  const toStateId = worldContext.pack.cells.state?.[toCell];
   if (fromStateId && toStateId && fromStateId !== toStateId) {
     return `State border: ${getStateName(fromStateId)} / ${getStateName(toStateId)}`;
   }
 
-  const fromProvinceId = worldContext.pack.cells.province[fromCell];
-  const toProvinceId = worldContext.pack.cells.province[toCell];
+  const fromProvinceId = worldContext.pack.cells.province?.[fromCell];
+  const toProvinceId = worldContext.pack.cells.province?.[toCell];
   if (fromProvinceId && toProvinceId && fromProvinceId !== toProvinceId) {
     return `Province border: ${getProvinceName(fromProvinceId)} / ${getProvinceName(toProvinceId)}`;
   }
@@ -343,13 +343,13 @@ function formatBiomeTooltip(cellId: number): string {
 }
 
 function formatCultureTooltip(cellId: number): string {
-  const cultureId = worldContext.pack.cells.culture[cellId];
+  const cultureId = worldContext.pack.cells.culture?.[cellId];
   const culture = worldContext.pack.cultures[cultureId];
   return culture?.name ? `Culture: ${culture.name}` : `Culture ${cultureId}`;
 }
 
 function formatReligionTooltip(cellId: number): string {
-  const religionId = worldContext.pack.cells.religion[cellId];
+  const religionId = worldContext.pack.cells.religion?.[cellId];
   const religion = worldContext.pack.religions[religionId];
   if (!religion) return `Religion ${religionId}`;
   const type = religion.type === "Cult" || religion.type === "Heresy" ? religion.type : `${religion.type} religion`;
