@@ -7,7 +7,9 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { isNomadicBiome } from "../data/biomeCatalog";
+import { applyInitialSettlementPattern } from "../generators/settlementPattern";
 import { runTimeSimulation } from "../generators/timeEngine";
+import { assignWildLandTags } from "../generators/wildLandTags";
 import { rankCells } from "../main";
 import {
   BordersRenderer,
@@ -283,6 +285,7 @@ function processFeatureRegeneration(
   } else if (button === "regenerateRivers") regenerateRivers();
   else if (button === "regeneratePopulation") recalculatePopulation();
   else if (button === "regenerateStates") regenerateStates();
+  else if (button === "regenerateSettlementPattern") regenerateSettlementPattern();
   else if (button === "regenerateProvinces") regenerateProvinces();
   else if (button === "regenerateBurgs") regenerateBurgs();
   else if (button === "regenerateEmblems") regenerateEmblems();
@@ -593,6 +596,111 @@ function recreateStates(): State[] | null {
   }
 
   return newStates;
+}
+
+/**
+ * Oikoumene land share (and other settlement-pattern options) only take effect
+ * through `applyInitialSettlementPattern`, which core generation runs exactly
+ * once, before burgs exist. `regenerateStates`/`regenerateBurgs` reuse the
+ * population footprint that call produced and cannot widen or shrink it, so
+ * changing the option after generation has no visible effect through them.
+ * This action re-derives the footprint from the current option and rebuilds
+ * everything seeded from it (burgs, routes, states, religions, provinces,
+ * military) — it intentionally cannot preserve locked burgs/states/provinces,
+ * since the land they sat on may no longer be part of the oikoumene.
+ */
+function regenerateSettlementPattern(): void {
+  const commit = legacyMutation(() => {
+    const pack = worldContext.pack;
+    const cells = pack.cells;
+    const optionsSnap = useOptionsState.getState();
+    const state = getWorldState();
+
+    // `worldContext.options.initialSettlementPattern` (and the other fields
+    // `prepareGenerationStage` copies) is only refreshed by a full Generate
+    // run. Every generator below branches on it directly, so a stale value
+    // here silently ignores whatever pattern the user currently has selected.
+    worldContext.options.initialSettlementPattern = optionsSnap.initialSettlementPattern;
+
+    const localSeed = generateSeed();
+    (Math as Record<"random", () => number>).random = Alea(localSeed);
+
+    const settlementPattern = applyInitialSettlementPattern(
+      cells,
+      optionsSnap.initialSettlementPattern,
+      optionsSnap.initialPopulationSaturation / 100,
+      Math.random,
+      { temperature: worldContext.grid.cells.temp, precipitation: worldContext.grid.cells.prec },
+      optionsSnap.statesNumber,
+      optionsSnap.oikoumeneLandShare
+    );
+    if (settlementPattern.plan) pack.settlementFoundation = settlementPattern.plan;
+    else delete pack.settlementFoundation;
+
+    // Burgs/states/provinces are all rebuilt from scratch below, so any note
+    // attached to one of them is about to point at an id that no longer exists.
+    worldContext.notes = worldContext.notes.filter(
+      (note: WorldNote) =>
+        !note.id.startsWith("burg") && !note.id.startsWith("state") && !note.id.startsWith("province")
+    );
+
+    GenerationPipeline.Burgs.generate(worldContext, viewContext, appServices, state);
+    GenerationPipeline.Routes.generate(worldContext, viewContext, appServices, state);
+    GenerationPipeline.States.generate(worldContext, viewContext, appServices, state);
+    GenerationPipeline.Burgs.shift();
+    GenerationPipeline.Routes.generate(worldContext, viewContext, appServices, state);
+    GenerationPipeline.Religions.generate(worldContext, viewContext, appServices, state);
+    GenerationPipeline.Burgs.specify(worldContext, viewContext, appServices, state);
+    GenerationPipeline.States.collectStatistics(state);
+    GenerationPipeline.States.defineStateForms(state);
+    assignWildLandTags(cells);
+    GenerationPipeline.Provinces.generate(worldContext, viewContext, appServices, state);
+    GenerationPipeline.Provinces.getPoles(state);
+    GenerationPipeline.Rivers.specify(worldContext, viewContext, appServices, state);
+    GenerationPipeline.Lakes.defineNames(state);
+    GenerationPipeline.Military.generate(worldContext, viewContext, appServices, state);
+
+    return {
+      result: true,
+      topics: ["map.politics", "map.settlements", "map.networks", "simulation.states", "simulation.burgs"]
+    };
+  });
+  if (!commit) return;
+
+  EditorBus.unfog("");
+
+  getElementsBySelector<HTMLElement>("[id^=burgCOA]").forEach(el => {
+    el.remove();
+  });
+  getElementsBySelector<HTMLElement>("[id^=stateCOA]").forEach(el => {
+    el.remove();
+  });
+  getElementsBySelector<HTMLElement>("[id^=provinceCOA]").forEach(el => {
+    el.remove();
+  });
+  view.emblems.selectAll("use").remove();
+
+  if (layerIsOn("togglePopulation")) PopulationRenderer.render(worldContext, viewContext, appServices);
+  layerIsOn("toggleStates") ? StatesRenderer.render(worldContext, viewContext, appServices) : toggleStates();
+  layerIsOn("toggleBorders") ? BordersRenderer.render(worldContext, viewContext, appServices) : toggleBorders();
+  if (layerIsOn("toggleProvinces")) ProvincesRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleRoutes")) RoutesRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleReligions")) ReligionsRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleEmblems")) EmblemsRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleBurgIcons")) BurgIconsRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleLabels")) BurgLabelsRenderer.render(worldContext, viewContext, appServices);
+  if (layerIsOn("toggleMilitary")) MilitaryRenderer.render(worldContext, viewContext, appServices);
+  drawStateLabels(worldContext, viewContext, appServices);
+
+  closeDialog("burgEditor");
+  closeDialog("regimentEditor");
+  closeDialog("battleScreen");
+
+  const openDialogs = dialogStore.getState().openDialogs;
+  if (openDialogs.has("burgsOverview")) useBurgsOverviewState.getState().refresh();
+  if (openDialogs.has("militaryOverview")) useMilitaryOverviewState.getState().refresh();
+  refreshAllEditors();
+  document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
 }
 
 function regenerateProvinces(): void {

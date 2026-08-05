@@ -28,7 +28,9 @@ export const Threats = {
     const profile = getThreatSpawnProfile(culturesSet);
     // Options-driven bands (Danger tab). Null when culture set is non-fantasy.
     const bands = buildThreatBandsFromOptions(options, culturesSet);
-    if (!profile || !bands) return;
+    // Danger master switch off: leave cells.danger at all-zero (no spawns, no
+    // field). dangerExpandPolicy's expand cost/ban then never triggers.
+    if (!options.dangerEnabled || !profile || !bands) return;
 
     const monsters: Monster[] = [];
     const validCells = Array.from(cells.i).filter(i => cells.h[i] >= 20); // land only

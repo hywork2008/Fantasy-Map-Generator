@@ -407,8 +407,8 @@ export const GenerationSettingsTab: React.FC = () => {
                 min="15"
                 max="85"
                 step="5"
-                value={options.oikoumeneLandShare}
-                onChange={v => updateOptionAndLock("oikoumeneLandShare", Number(v))}
+                value={Math.round(options.oikoumeneLandShare * 100)}
+                onChange={v => updateOptionAndLock("oikoumeneLandShare", Number(v) / 100)}
               />
             </td>
           </tr>

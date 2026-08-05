@@ -20,6 +20,22 @@ export const DangerSettingsTab: React.FC = () => {
       <p data-tip="Settings related to danger/threat generation">Danger settings:</p>
       <table>
         <tbody>
+          <tr data-tip="Master switch for monsters, dungeon bosses, and the danger field they paint. On by default for High/Dark Fantasy culture sets. When off, wilderness carries no danger cost — states and the oikoumene can settle/claim land without the 'wilderness stays wild' constraint.">
+            <td>
+              <LockIconButton id="dangerEnabled" />
+            </td>
+            <td>
+              <label htmlFor="dangerEnabled">Enable danger / threats</label>
+            </td>
+            <td colSpan={2}>
+              <input
+                id="dangerEnabled"
+                type="checkbox"
+                checked={options.dangerEnabled}
+                onChange={e => updateOptionAndLock("dangerEnabled", e.target.checked)}
+              />
+            </td>
+          </tr>
           <tr data-tip="Smooth Contours blend neighboring threats into a density field. Cell Heatmap paints each cell only from its own danger value (0–255); color matches the cell tooltip.">
             <td></td>
             <td>Danger rendering</td>

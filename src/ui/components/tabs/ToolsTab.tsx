@@ -252,6 +252,13 @@ const STATIC_REGENERATE_BUTTONS: StaticRegenerateButton[] = [
     eventName: "regenerateRoutes"
   },
   {
+    key: "settlementPattern",
+    label: "Settlement Pattern",
+    tooltip:
+      "Click to re-derive the settled footprint from the current settlement pattern / Oikoumene land share / population options and rebuild burgs, states, provinces, religions and military from it. Replaces all burgs and states — locked ones cannot be preserved.",
+    eventName: "regenerateSettlementPattern"
+  },
+  {
     key: "stateLabels",
     label: "State Labels",
     tooltip: "Click to update state labels placement",

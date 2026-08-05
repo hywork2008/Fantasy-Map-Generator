@@ -271,12 +271,16 @@ function changeCultureSet(): void {
     initialSettlementPattern: "marches",
     oikoumeneLandShare: 0.45,
     initialPopulationSaturation: 45,
+    // Danger is on by default for fantasy sets but stays user-toggleable
+    // (Danger tab checkbox) — a lock (below) protects an explicit choice.
+    dangerEnabled: true,
     ...(threatDefaults ?? {})
   });
   // Keep lock keys in sync with the new fantasy defaults when they were already locked.
   if (locked("initialSettlementPattern")) store("initialSettlementPattern", "marches");
   if (locked("oikoumeneLandShare")) store("oikoumeneLandShare", "0.45");
   if (locked("initialPopulationSaturation")) store("initialPopulationSaturation", "45");
+  if (locked("dangerEnabled")) store("dangerEnabled", "true");
   if (threatDefaults?.threatCalculation && locked("threatCalculation")) {
     store("threatCalculation", threatDefaults.threatCalculation);
   }

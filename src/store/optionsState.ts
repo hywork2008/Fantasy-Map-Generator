@@ -142,6 +142,16 @@ export interface OptionsState {
   diplomacyHistoryAttempts: number;
 
   // Danger settings
+  /**
+   * Master switch for the Danger/Threat system (monsters, dungeon bosses, the
+   * danger field they paint). Defaults on for High/Dark Fantasy culture sets
+   * (see changeCultureSet in controllers/options.ts) and off otherwise. When
+   * off, Threats.generate/Dungeons.generate leave cells.danger at all-zero,
+   * so dangerExpandPolicy's expand cost/ban and settlement suitability
+   * penalties never trigger — states and the oikoumene can fill land without
+   * the "wilderness stays wild" constraint (docs/plan/wild-oikoumene-frontier.md).
+   */
+  dangerEnabled: boolean;
   dangerRarity5Min: number;
   dangerRarity5Max: number;
   dangerRarity5Power: number;
@@ -310,6 +320,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   warFrequency: 1.0,
   diplomacyHistoryAttempts: 1,
 
+  dangerEnabled: false,
   dangerRarity5Min: 1,
   dangerRarity5Max: 2,
   dangerRarity5Power: 50,

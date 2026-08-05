@@ -37,14 +37,15 @@ export interface DungeonGenerateOptions {
 export const Dungeons = {
   /** Full initial placement (replaces pack.dungeons). */
   generate(worldContext: WorldContext, options: DungeonGenerateOptions = {}): Dungeon[] {
-    const culturesSet = useOptionsState.getState().culturesSet;
+    const { culturesSet, dangerEnabled } = useOptionsState.getState();
     const profile = getDungeonSpawnProfile(culturesSet);
     const pack = worldContext.pack;
     // Drop prior dungeon markers/notes if regenerating.
     clearDungeonMarkers(worldContext);
     pack.dungeons = [];
 
-    if (!profile) return [];
+    // Danger master switch off: no dungeon bosses, so no danger they'd contribute.
+    if (!dangerEnabled || !profile) return [];
 
     const landCount = countLandCells(pack.cells);
     const roll01 = options.random ? options.random() : Math.random();
@@ -69,9 +70,9 @@ export const Dungeons = {
    * Spontaneous append of a single dungeon (Phase 3). No-op at max capacity.
    */
   spawnOne(worldContext: WorldContext, options: DungeonGenerateOptions = {}): Dungeon | null {
-    const culturesSet = useOptionsState.getState().culturesSet;
+    const { culturesSet, dangerEnabled } = useOptionsState.getState();
     const profile = getDungeonSpawnProfile(culturesSet);
-    if (!profile) return null;
+    if (!dangerEnabled || !profile) return null;
 
     const pack = worldContext.pack;
     const existing = pack.dungeons ?? [];
