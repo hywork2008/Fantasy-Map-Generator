@@ -5,6 +5,7 @@
  * Organization:
  *   - HeightThreshold  : terrain height boundaries (water/land/highland/mountain)
  *   - TemperatureThreshold : climate temperature thresholds
+ *   - OceanCurrentConstants : ocean current generation parameters
  *   - RiverConstants   : river generation parameters
  *   - BiomeConstants   : biome classification thresholds
  *   - FeatureSizeRatio : ocean/sea/continent/island minimum size ratios
@@ -69,6 +70,40 @@ export const TemperatureThreshold = {
 
   /** Temperature at or below which wetland biome is impossible (too cold). */
   WETLAND_COLD_LIMIT: -2
+} as const;
+
+// ---------------------------------------------------------------------------
+// Ocean current generation constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Parameters for `OceanCurrents.generate()` (`src/generators/oceanCurrents.ts`), a rough
+ * stylized approximation of surface ocean circulation: wind-belt-driven seed vectors relaxed
+ * around landmasses, plus latitude-baseline water temperature advected along the result.
+ * See `docs/simulation/ocean-currents.md`.
+ */
+export const OceanCurrentConstants = {
+  /** Seed current speed (0-255 scale) assigned to every ocean cell before relaxation. */
+  BASE_SPEED: 160,
+
+  /** Jacobi relaxation passes used to deflect current vectors around land and smooth the field. */
+  SMOOTHING_PASSES: 6,
+
+  /** Weight a cell's own vector keeps (vs. the neighbor average) in each relaxation pass. */
+  SELF_WEIGHT: 1.5,
+
+  /** Fraction of a vector's land-directed component cancelled per pass when it meets a coastline. */
+  DEFLECT_WEIGHT: 1,
+
+  /** Passes used to advect latitude-baseline sea temperature along the resolved current field. */
+  TEMP_ADVECTION_PASSES: 4,
+
+  /** Blend weight toward the upstream cell's temperature at full current speed, per pass. */
+  TEMP_ADVECTION_WEIGHT: 0.35,
+
+  /** Water-temperature color scale bounds (°C) used by the WebGL current vector renderer. */
+  RENDER_TEMP_MIN: -2,
+  RENDER_TEMP_MAX: 30
 } as const;
 
 // ---------------------------------------------------------------------------

@@ -54,6 +54,7 @@ import {
   buildMarkerSymbols,
   buildMilitaryBoxPolygons,
   buildMilitaryRegimentSymbols,
+  buildOceanCurrentPaths,
   buildPopulationPolygons,
   buildPrecipitationSymbols,
   buildProvincePolygons,
@@ -324,7 +325,8 @@ export const WEBGL_LAYER_TOGGLES = new Set([
   "toggleFrontierForts",
   "toggleLabels",
   "toggleEnclosure",
-  "toggleSeaCurrents"
+  "toggleSeaCurrents",
+  "toggleOceanCurrents"
 ]);
 
 const EMBLEM_ICON_URL = `data:image/svg+xml,${encodeURIComponent(
@@ -786,6 +788,26 @@ export function buildDeckLayers(
         // attribute when `data` changes unless told otherwise, so without this the color attribute
         // would silently freeze on first paint even though a fresh closure is passed every frame.
         updateTriggers: { getFillColor: seaCurrentTimeSeconds },
+        pickable: false
+      })
+    );
+  }
+
+  if (activeLayers.toggleOceanCurrents) {
+    layers.push(
+      new PathLayer<DeckPath>({
+        id: "fmg-webgl-ocean-currents",
+        data: getCachedDeckData("path:oceanCurrents", signatures.byLayer.oceanCurrents, () =>
+          buildOceanCurrentPaths(worldContext, viewContext.focusScope)
+        ),
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getPath: datum => datum.path,
+        getColor: datum => datum.color,
+        getWidth: datum => datum.width,
+        widthUnits: "pixels",
+        widthMinPixels: 0.5,
+        widthMaxPixels: 3,
+        capRounded: true,
         pickable: false
       })
     );
@@ -1690,6 +1712,13 @@ function buildLayerSignatures(
     "toggleSeaCurrents",
     ["map.topology", "map.networks"],
     () => `${mapId}|${scope}|${geometry()}|${routesSignature(pack.routes)}`
+  );
+  setIfActive(
+    "oceanCurrents",
+    "toggleOceanCurrents",
+    ["map.topology", "map.physical"],
+    () =>
+      `${mapId}|${scope}|${gridGeometry()}|${numberListSignature(grid.cells?.currentAngle)}|${numberListSignature(grid.cells?.currentSpeed)}|${numberListSignature(grid.cells?.waterTemp)}`
   );
 
   // The coastline layer always renders (not toggle-gated), so its signature is always needed.

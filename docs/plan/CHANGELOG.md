@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-08-05
+
+- docs/simulation/ocean-currents.md
+
 2026-08-04
 
 - docs/plan/character-loadout-and-readiness.md

@@ -147,7 +147,7 @@ export const generateGrid = (seed: string, graphWidth: number, graphHeight: numb
     points,
     cellsX,
     cellsY,
-    cells: cells as GridCells, // generation pipeline adds h, t, f, temp, prec later
+    cells: cells as GridCells, // generation pipeline adds h, t, f, temp, prec, currentAngle, currentSpeed, waterTemp later
     vertices,
     seed,
     features: [] // populated by features generator

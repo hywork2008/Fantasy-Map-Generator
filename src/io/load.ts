@@ -16,6 +16,7 @@ import {
 } from "../data/races";
 import { Burgs } from "../generators/burgs-generator";
 import { Features } from "../generators/features";
+import { OceanCurrents } from "../generators/oceanCurrents";
 import { Routes } from "../generators/routes-generator";
 import { initSimulationClock } from "../generators/timeEngine";
 import { GridRenderer } from "../renderers";
@@ -601,6 +602,19 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
   // previous-world entries before restoring the legacy extension slots below.
   resetExtensionStateSlices(simulationContext);
   Features.markupPack();
+  // Not persisted in the positional save format: a pure deterministic function of already-restored
+  // grid.cells.h/f, grid.features, and options.winds/mapCoordinates, so it is cheaper and always
+  // consistent to recompute here rather than serialize three more per-cell arrays (see
+  // docs/simulation/ocean-currents.md).
+  OceanCurrents.generate(worldContext, viewContext, appServices, {
+    pack: worldContext.pack,
+    grid: worldContext.grid,
+    seed: worldContext.seed,
+    options: worldContext.options,
+    nameBases: worldContext.nameBases,
+    biomesData: worldContext.biomesData,
+    notes: worldContext.notes
+  });
   worldContext.pack.features = JSON.parse(data[12]);
   worldContext.pack.cultures = JSON.parse(data[13]);
   // [56] races — optional trailing slot; migrate legacy culture.characterGender onto races.

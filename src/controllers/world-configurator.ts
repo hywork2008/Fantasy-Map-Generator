@@ -48,7 +48,9 @@ export function updateClimateDuringStagedGeneration(): void {
 }
 
 function updateClimateData({ includeNames }: { includeNames: boolean }): void {
-  document.dispatchEvent(new CustomEvent("fmg:world-recalculate", { detail: { temps: true, prec: true } }));
+  document.dispatchEvent(
+    new CustomEvent("fmg:world-recalculate", { detail: { temps: true, prec: true, currents: true } })
+  );
   legacyMutation(() => {
     const state = getWorldState();
     const pack = worldContext.pack;

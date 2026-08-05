@@ -39,6 +39,7 @@ import { Lakes } from "./generators/lakes";
 import { Markers } from "./generators/markers-generator";
 import { Military } from "./generators/military-generator";
 import { Names } from "./generators/names-generator";
+import { OceanCurrents } from "./generators/oceanCurrents";
 import { Provinces } from "./generators/provinces-generator";
 import { Religions } from "./generators/religions-generator";
 import { Rivers } from "./generators/river-generator";
@@ -380,12 +381,13 @@ export async function initMain(drawMap: boolean = true): Promise<void> {
     regenerateMap((e as CustomEvent<{ seed?: string } | undefined>).detail);
   });
   document.addEventListener("fmg:world-recalculate", (e: Event) => {
-    const { coords, temps, prec, biomes } = (
-      e as CustomEvent<{ coords?: boolean; temps?: boolean; prec?: boolean; biomes?: boolean }>
+    const { coords, temps, prec, currents, biomes } = (
+      e as CustomEvent<{ coords?: boolean; temps?: boolean; prec?: boolean; currents?: boolean; biomes?: boolean }>
     ).detail;
     if (coords) calculateMapCoordinates();
     if (temps) calculateTemperatures();
     if (prec) generatePrecipitation();
+    if (currents) OceanCurrents.generate(worldContext, viewContext, appServices, getWorldState());
     if (biomes) {
       legacyMutation(() => {
         Biomes.define(getWorldState());
@@ -1071,6 +1073,7 @@ function getGenerationStages(): Array<() => Promise<void>> {
       calculateTemperatures();
       generatePrecipitation();
       const state = getWorldState();
+      OceanCurrents.generate(worldContext, viewContext, appServices, state);
       Rivers.generate(worldContext, viewContext, appServices, state);
       Biomes.define(state);
       Features.defineGroups();

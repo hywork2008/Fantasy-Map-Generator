@@ -202,6 +202,14 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     tooltip: "Military forces: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
   },
   {
+    id: "toggleOceanCurrents",
+    name: <>Ocean Currents</>,
+    shortcut: null,
+    tooltip:
+      "Ocean currents: simulated direction, speed and water temperature per sea cell (WebGL only). Click to toggle.",
+    sortKey: "Ocean Currents"
+  },
+  {
     id: "togglePopulation",
     name: (
       <>

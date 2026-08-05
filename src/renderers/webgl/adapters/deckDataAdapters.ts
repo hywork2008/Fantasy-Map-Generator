@@ -14,7 +14,7 @@ import type { AppServices } from "../../../context/appServices";
 import type { FocusScope, ViewContext } from "../../../context/viewContext";
 import type { WorldContext } from "../../../context/worldContext";
 import { getCoastalHabitatDefinition, getNearshoreHabitatDefinition } from "../../../data/coastalHabitatCatalog";
-import { HeightThreshold } from "../../../data/constants";
+import { HeightThreshold, OceanCurrentConstants } from "../../../data/constants";
 import { Rivers } from "../../../generators/river-generator";
 import { Routes } from "../../../generators/routes-generator";
 import { useOptionsState } from "../../../store/optionsState";
@@ -32,7 +32,7 @@ import type {
 } from "../../../types/models";
 import type { PackedGraphCells, PackedGraphVertices } from "../../../types/PackedGraph";
 import type { WebglPickKind } from "../../../types/webglPicking";
-import { clipPoly, getPortAnchorPosition, isWater } from "../../../utils";
+import { clipPoly, getPortAnchorPosition, isWater, lerp, minmax } from "../../../utils";
 import { getColor, getColorScheme } from "../../../utils/colorUtils";
 import { type RelationKey, relations } from "../../../utils/diplomacyRelations";
 import { fractalizeCoastline, sampleCatmullRomPolyline, sampleCoastlineShape } from "../../coastline-fractal";
@@ -615,6 +615,61 @@ export function buildTemperaturePolygons(
     const hexColor = interpolateSpectral(Math.max(0, Math.min(1, tNormalized)));
     return colorToRgba(hexColor, "#999999", opacity);
   });
+}
+
+/**
+ * One short line segment per open-ocean grid cell, pointing in `grid.cells.currentAngle` with
+ * length/width proportional to `grid.cells.currentSpeed` and color from `grid.cells.waterTemp`
+ * (same cold-blue -> warm-red scale as `buildTemperaturePolygons`, but scoped to a
+ * water-appropriate range so ocean temperature differences stay visible). Purely a visualization
+ * of data `OceanCurrents.generate()` already computed on `grid.cells` — see
+ * `docs/simulation/ocean-currents.md`.
+ */
+export function buildOceanCurrentPaths(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null
+): DeckPath[] {
+  const { grid } = worldContext;
+  const { cells, points, features, spacing } = grid;
+  const { currentAngle, currentSpeed, waterTemp } = cells;
+  if (!currentAngle || !currentSpeed || !waterTemp) return [];
+
+  const tMin = OceanCurrentConstants.RENDER_TEMP_MIN;
+  const tMax = OceanCurrentConstants.RENDER_TEMP_MAX;
+  const delta = tMax - tMin;
+  const minLength = spacing * 0.15;
+  const maxLength = spacing * 0.55;
+
+  const paths: DeckPath[] = [];
+  for (let cellId = 0; cellId < cells.i.length; cellId++) {
+    const speed = currentSpeed[cellId];
+    if (!speed) continue;
+    if (cells.h[cellId] >= 20 || features[cells.f[cellId]]?.type !== "ocean") continue;
+    if (!isGridCellInScope(focusScope, cellId)) continue;
+
+    const position = points[cellId];
+    if (!position) continue;
+
+    const speedNorm = minmax(speed / 255, 0, 1);
+    const length = lerp(minLength, maxLength, speedNorm);
+    const angleRad = (currentAngle[cellId] * Math.PI) / 180;
+    const [x, y] = position;
+    const end: DeckPosition = [x + Math.cos(angleRad) * length, y + Math.sin(angleRad) * length];
+
+    const tNormalized = 1 - (waterTemp[cellId] - tMin) / delta;
+    const hexColor = interpolateSpectral(minmax(tNormalized, 0, 1));
+
+    paths.push({
+      id: `ocean-current-${cellId}`,
+      path: [[x, y], end],
+      color: colorToRgba(hexColor, "#999999", 0.85),
+      width: lerp(0.5, 2.5, speedNorm),
+      kind: "oceanCurrent",
+      cellId
+    });
+  }
+
+  return paths;
 }
 
 /**

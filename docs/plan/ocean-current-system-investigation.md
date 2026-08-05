@@ -2,6 +2,11 @@
 
 `docs/plan/searoute-current-direction-visualization.md`（海流の向きを装飾的に可視化するWebGLレイヤー、実装済み）の実装後の会話から派生した調査ログ。実装は行っていない。将来「航海士が新航路を開拓する」といったゲーム機能を検討する際の前提知識としてまとめる。
 
+> **追記**: 本ドキュメント §4 で示唆した「`grid` セル単位で海流フィールド（向き・速さ）を持たせる」構想は
+> `docs/simulation/ocean-currents.md` で実装済み（`src/generators/oceanCurrents.ts`、`grid.cells.currentAngle`/
+> `currentSpeed`/`waterTemp`）。§4 の予測どおり `pack` ではなく `grid` を土台にしている。航路生成（3節）・
+> 航海士による新航路開拓・海流を考慮した移動コストへの統合は依然未実装のまま。
+
 ---
 
 ## 0. 発端

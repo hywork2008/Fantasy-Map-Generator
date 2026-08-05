@@ -957,6 +957,18 @@ export function toggleSeaCurrents(event?: MouseEvent): void {
   else turnButtonOn("toggleSeaCurrents");
 }
 
+/**
+ * WebGL-only ocean current vector field (direction/speed/water temperature per grid cell, see
+ * docs/simulation/ocean-currents.md). Distinct from the decorative toggleSeaCurrents animation
+ * above, which only replays flow along existing sea routes. Has no SVG counterpart, so outside
+ * webglHybrid mode this only flips the stored toggle state.
+ */
+export function toggleOceanCurrents(event?: MouseEvent): void {
+  if (toggleWebglManagedLayer("toggleOceanCurrents", "oceanCurrents", event)) return;
+  if (layerIsOn("toggleOceanCurrents")) turnButtonOff("toggleOceanCurrents");
+  else turnButtonOn("toggleOceanCurrents");
+}
+
 export function toggleMilitary(event?: MouseEvent): void {
   if (toggleWebglManagedLayer("toggleMilitary", "armies", event)) return;
   if (!layerIsOn("toggleMilitary")) {
@@ -1167,6 +1179,7 @@ const TOGGLE_REGISTRY: Record<string, (event?: MouseEvent) => void> = {
   toggleRivers,
   toggleRoutes,
   toggleSeaCurrents,
+  toggleOceanCurrents,
   toggleMilitary,
   toggleMarkers,
   toggleFrontierForts,

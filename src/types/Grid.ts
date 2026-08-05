@@ -9,6 +9,20 @@ export type GridCells = Cells & {
   f: TypedArray;
   temp: Int8Array;
   prec: TypedArray | number[];
+  /**
+   * Ocean current direction in degrees (0-359, standard math convention: 0 = +X axis,
+   * increasing clockwise in screen space). Populated by `OceanCurrents.generate()`; 0 for
+   * land and lake cells (see `docs/simulation/ocean-currents.md`).
+   */
+  currentAngle: Uint16Array;
+  /** Ocean current speed, normalized 0-255. 0 for land and lake cells. */
+  currentSpeed: Uint8Array;
+  /**
+   * Surface water temperature in degrees Celsius: the latitude-driven sea-level baseline
+   * (same value as `temp` for water cells) advected along the current field for ocean cells.
+   * Mirrors `temp` for land and lake cells, which carry no current.
+   */
+  waterTemp: Int8Array;
 };
 
 export interface Grid {

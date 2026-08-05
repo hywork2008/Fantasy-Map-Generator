@@ -33,6 +33,7 @@ import { WARN } from "../utils/debug";
 import { Features } from "./features";
 import { Ice } from "./ice";
 import { Markers } from "./markers-generator";
+import { OceanCurrents } from "./oceanCurrents";
 import { Provinces } from "./provinces-generator";
 import { Rivers } from "./river-generator";
 import { Routes } from "./routes-generator";
@@ -501,6 +502,15 @@ class Resampler {
     OceanLayers();
     calculateMapCoordinates();
     calculateTemperatures();
+    OceanCurrents.generate(this.worldContext, this.viewContext, this.appServices, {
+      pack: worldContext.pack,
+      grid: worldContext.grid,
+      seed,
+      options: worldContext.options,
+      nameBases,
+      biomesData,
+      notes: worldContext.notes
+    });
 
     reGraph();
     Features.markupPack();
