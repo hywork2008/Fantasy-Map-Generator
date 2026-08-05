@@ -387,7 +387,10 @@ export async function initMain(drawMap: boolean = true): Promise<void> {
     if (coords) calculateMapCoordinates();
     if (temps) calculateTemperatures();
     if (prec) generatePrecipitation();
-    if (currents) OceanCurrents.generate(worldContext, viewContext, appServices, getWorldState());
+    if (currents) {
+      OceanCurrents.generate(worldContext, viewContext, appServices, getWorldState());
+      Features.applyOceanCurrentEnclosure();
+    }
     if (biomes) {
       legacyMutation(() => {
         Biomes.define(getWorldState());
@@ -1074,6 +1077,10 @@ function getGenerationStages(): Array<() => Promise<void>> {
       generatePrecipitation();
       const state = getWorldState();
       OceanCurrents.generate(worldContext, viewContext, appServices, state);
+      // Options → Generation "Enclosure calculation" may prefer the current-speed-based score
+      // over the fixed-radius heuristic markupPack() already assigned; Rivers/Biomes/Features
+      // below read pack.cells.enclosure, so this must run before them.
+      Features.applyOceanCurrentEnclosure();
       Rivers.generate(worldContext, viewContext, appServices, state);
       Biomes.define(state);
       Features.defineGroups();

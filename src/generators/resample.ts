@@ -514,6 +514,9 @@ class Resampler {
 
     reGraph();
     Features.markupPack();
+    // OceanCurrents.generate() ran above, before pack existed; apply its enclosure overlay now
+    // that markupPack() has set the pack.cells.enclosure baseline (see docs/simulation/ocean-currents.md §6).
+    Features.applyOceanCurrentEnclosure();
     Ice.generate(this.worldContext, this.viewContext, this.appServices, {
       pack: worldContext.pack,
       grid: worldContext.grid,

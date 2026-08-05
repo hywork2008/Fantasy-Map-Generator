@@ -615,6 +615,11 @@ async function stageLegacyMapData(data: string[], _mapVersion: string): Promise<
     biomesData: worldContext.biomesData,
     notes: worldContext.notes
   });
+  // Options → Generation "Enclosure calculation" may prefer the current-speed-based score over
+  // Features.markupPack()'s fixed-radius baseline set above; must run before pack.features is
+  // overwritten with the saved data below, since it still needs the freshly-recomputed pack.features/
+  // pack.cells.f pairing to identify ocean-type cells (see docs/simulation/ocean-currents.md §6).
+  Features.applyOceanCurrentEnclosure();
   worldContext.pack.features = JSON.parse(data[12]);
   worldContext.pack.cultures = JSON.parse(data[13]);
   // [56] races — optional trailing slot; migrate legacy culture.characterGender onto races.

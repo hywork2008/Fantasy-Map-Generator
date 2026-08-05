@@ -6,7 +6,14 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { FeatureSizeRatio, HeightmapConstants, HeightThreshold, TemperatureThreshold } from "../data/constants";
+import {
+  FeatureSizeRatio,
+  HeightmapConstants,
+  HeightThreshold,
+  OceanCurrentConstants,
+  TemperatureThreshold
+} from "../data/constants";
+import { useOptionsState } from "../store/optionsState";
 import type { GridFeature, PackedGraphFeature } from "../types/models";
 import {
   clipPoly,
@@ -14,6 +21,7 @@ import {
   createTypedArray,
   distanceSquared,
   isWater,
+  minmax,
   rn,
   TYPED_ARRAY_MAX_VALUES,
   unique
@@ -359,6 +367,64 @@ class FeatureModule {
     }
 
     return enclosure;
+  }
+
+  /**
+   * Overrides `pack.cells.enclosure` for ocean-connected water cells using the resolved current
+   * speed from `OceanCurrentsModule` (`grid.cells.currentSpeed`) instead of the fixed-radius
+   * land-blocked-ratio heuristic in `calculateEnclosure()`. Current speed already reflects local
+   * coastline shape — reflection off headlands, exit-funneling out of bays/straits, and
+   * openness-based damping — propagated far deeper into wide straits/bays than a 6-hop BFS can
+   * reach on `pack` cells (which are also far sparser than `grid` cells in open water; see
+   * `OceanCurrentsModule`'s doc comment). That makes it a closer physical match for "how
+   * calm/sheltered is this water for mooring/shipbuilding" than the legacy heuristic.
+   *
+   * Lake cells are left on their `calculateEnclosure()` score: `OceanCurrentsModule` does not
+   * model lakes (no wind-driven current reaches them), so `grid.cells.currentSpeed` is always 0
+   * there — the lake's shoreline-shape score already fits, since a lake's interior really is
+   * uniformly calm.
+   *
+   * No-op if `OceanCurrents.generate()` has not run yet (`grid.cells.currentSpeed` missing) or
+   * the user has selected the legacy "Radius (shape only)" mode in Options → Generation. Callers:
+   * `main.ts`'s generation pipeline (right after `OceanCurrents.generate()`), the
+   * `fmg:world-recalculate` handler when `currents` is recalculated, and the Generation Settings
+   * "Enclosure calculation" select so switching modes updates the map without a full regenerate.
+   */
+  applyOceanCurrentEnclosure(): void {
+    if (useOptionsState.getState().enclosureCalculationMode !== "oceanCurrents") return;
+
+    const { pack, grid } = this.worldContext;
+    const { cells, features } = pack;
+    const currentSpeed = grid.cells.currentSpeed;
+    if (!currentSpeed) return;
+
+    const n = cells.i.length;
+    for (let cellId = 0; cellId < n; cellId++) {
+      if (!isWater(cellId, pack)) continue;
+
+      const feature = features[cells.f[cellId]];
+      if (feature?.type !== "ocean") continue;
+
+      const speed = currentSpeed[cells.g[cellId]] ?? 0;
+      const calmness = 1 - minmax(speed / OceanCurrentConstants.BASE_SPEED, 0, 1);
+      cells.enclosure[cellId] = Math.round(calmness * 100);
+    }
+  }
+
+  /**
+   * Recomputes `pack.cells.enclosure` from scratch for whichever Options → Generation
+   * "Enclosure calculation" mode is currently selected: the radius heuristic baseline, then the
+   * current-speed overlay if `applyOceanCurrentEnclosure()` applies. Unlike that method (called
+   * once, mid-pipeline, right after `OceanCurrents.generate()`, when `markupPack()` has already
+   * set the baseline), this is for re-deriving the whole field on demand — the live "Enclosure
+   * calculation" mode toggle (`react-change-enclosure-calculation`) so switching back to
+   * "Radius" restores the legacy values instead of leaving the last current-speed result in
+   * place.
+   */
+  recalculateEnclosure(): void {
+    const { pack } = this.worldContext;
+    pack.cells.enclosure = this.calculateEnclosure(pack.cells.i.length);
+    this.applyOceanCurrentEnclosure();
   }
 
   /**

@@ -445,6 +445,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
 
     const state = getWorldState();
     GenerationPipeline.OceanCurrents.generate(worldContext, viewContext, appServices, state);
+    GenerationPipeline.Features.applyOceanCurrentEnclosure();
     GenerationPipeline.Rivers.generate(worldContext, viewContext, appServices, state, erosionAllowed);
 
     if (!erosionAllowed) {
@@ -554,6 +555,7 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     reGraph();
     GenerationPipeline.Features.markupPack();
     GenerationPipeline.OceanCurrents.generate(worldContext, viewContext, appServices, getWorldState());
+    GenerationPipeline.Features.applyOceanCurrentEnclosure();
 
     if (erosionAllowed) {
       const worldState = getWorldState();

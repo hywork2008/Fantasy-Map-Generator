@@ -211,6 +211,32 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
+          <tr data-tip="How harbor/mooring calmness (pack.cells.enclosure) is scored for ocean-connected water. Ocean Currents reads the resolved current speed, which bends around headlands and funnels out of bays/straits over a wide reach. Radius is the legacy fixed 6-hop land-blocked-ratio heuristic. Lake water always uses Radius. Applies immediately, no regenerate needed.">
+            <td>
+              <LockIconButton id="enclosureCalculationMode" />
+            </td>
+            <td>
+              <label htmlFor="enclosureCalculationMode">Enclosure calculation</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="enclosureCalculationMode"
+                name="enclosureCalculationMode"
+                value={options.enclosureCalculationMode}
+                onChange={e => {
+                  options.setOptions({
+                    enclosureCalculationMode: e.target.value as typeof options.enclosureCalculationMode
+                  });
+                  lock("enclosureCalculationMode");
+                  document.dispatchEvent(new CustomEvent("react-change-enclosure-calculation"));
+                }}
+              >
+                <option value="oceanCurrents">Ocean Currents (default)</option>
+                <option value="radius">Radius (shape only)</option>
+              </select>
+            </td>
+          </tr>
+
           <tr>
             <th colSpan={4}>3. Cultures and settlements</th>
           </tr>

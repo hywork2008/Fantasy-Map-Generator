@@ -46,6 +46,15 @@ export interface OptionsState {
   lakeElevationLimit: number;
   threatCalculation: "additive" | "max" | "nonlinear";
   /**
+   * How pack.cells.enclosure (harbor/mooring calmness, 0 = open sea, 100 = fully sheltered) is
+   * scored for ocean-connected water cells. "oceanCurrents" reads the resolved ocean-current
+   * speed (grid.cells.currentSpeed, land-shape-responsive over a wide propagation reach);
+   * "radius" is the legacy fixed 6-hop land-blocked-ratio heuristic. Lake cells always use the
+   * radius heuristic (OceanCurrentsModule does not model lakes). See
+   * FeatureModule.applyOceanCurrentEnclosure() (features.ts).
+   */
+  enclosureCalculationMode: "oceanCurrents" | "radius";
+  /**
    * "simple" keeps the classic fixed field-army cap (MAX_FIELD_ARMIES in military-generator.ts).
    * "dynamic" opts into docs/plan/military-movement.md Phase 4: field armies can split off
    * ~150-troop detachments to react to a second simultaneous threat and merge back once it's
@@ -254,6 +263,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   resolveDepressionsSteps: 250,
   lakeElevationLimit: 20,
   threatCalculation: "nonlinear",
+  enclosureCalculationMode: "oceanCurrents",
   militaryHierarchy: "simple",
   gunpowderEraEnabled: false,
   initialPopulationSaturation: 60,

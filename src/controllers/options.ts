@@ -480,6 +480,7 @@ export function applyStoredOptions(): void {
     "initialSettlementPattern",
     "oikoumeneLandShare",
     "biomeRegionProfile",
+    "enclosureCalculationMode",
     "manors",
     "religionsNumber",
     "stateLabelsMode",
@@ -1009,6 +1010,22 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
       if (layerIsOn("toggleDanger")) {
         void import("../renderers").then(({ DangerRenderer }) => {
           DangerRenderer.render(worldContext, viewContext, appServices);
+        });
+      }
+      void import("./layers").then(({ scheduleWebglUpdate }) => scheduleWebglUpdate());
+    });
+  });
+
+  // Enclosure calculation mode: rebuild pack.cells.enclosure (harbor/mooring calmness) from the
+  // currently generated map so the Enclosure layer and any consumer reading it (e.g. sheltered-
+  // water river navigation) update without a full regenerate.
+  document.addEventListener("react-change-enclosure-calculation", () => {
+    if (!worldContext.pack?.cells?.i?.length) return;
+    void import("../generators/features").then(({ Features }) => {
+      Features.recalculateEnclosure();
+      if (layerIsOn("toggleEnclosure")) {
+        void import("../renderers").then(({ EnclosureRenderer }) => {
+          EnclosureRenderer.render(worldContext, viewContext, appServices);
         });
       }
       void import("./layers").then(({ scheduleWebglUpdate }) => scheduleWebglUpdate());

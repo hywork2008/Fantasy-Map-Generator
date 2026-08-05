@@ -280,23 +280,51 @@ leg that rides a strong current) is a distinct, separately-scoped follow-up.
 
 ---
 
-## 6. Enclosure: a byproduct of §2.2-2.4, not a change to `pack.cells.enclosure`
+## 6. Enclosure: `pack.cells.enclosure` can now be derived from resolved current speed
 
-`src/generators/features.ts` already computes `pack.cells.enclosure` (a 0-100 "how landlocked is
-this water cell" score, via the same BFS blocked-neighbor-ratio family of computation as §2.2's
-`computeOpenness()`), consumed today by `coastalHabitatAssignment.ts` (settlement suitability) and
-`riverNavigationGraph.ts` (sheltered-water threshold for river-mouth navigation). This
-implementation does **not** feed into or alter that array — `pack.cells.enclosure` runs later in
-the pipeline (`Features.markupPack()`, on `pack`, after `reGraph()`) and its existing consumers'
-calibrated thresholds are out of scope here.
+`src/generators/features.ts` already computed `pack.cells.enclosure` (a 0-100 "how landlocked/calm
+is this water cell" score — harbor/mooring/shipbuilding suitability), consumed by
+`coastalHabitatAssignment.ts` (settlement suitability) and `riverNavigationGraph.ts`
+(sheltered-water threshold for river-mouth navigation). Its original implementation,
+`calculateEnclosure()`, is a fixed 6-hop BFS blocked-neighbor-ratio heuristic on `pack` cells —
+the same technique as §2.2's `computeOpenness()`, but on the sparser, irregular `pack` graph and
+capped to a small radius, so it only sees local shoreline shape, not how far a current actually
+carries into a bay or strait.
 
-Instead, `computeOpenness()` (§2.2) is `oceanCurrents.ts`'s own internal, grid-resolution copy of
-that same idea, and §2.3-2.4 make sure it actually shows up in the output data: an enclosed bay or
-strait now reliably ends up with (a) a low `currentSpeed` (§2.4's damping) and (b) a direction
-aimed toward its own exit rather than a raw copy of the regional wind (§2.3's funneling). That
-combination is what makes `grid.cells.currentSpeed`/`currentAngle` usable as a standalone
-shelter/enclosure signal for any current or future consumer that wants one — distinct from, but
-consistent with, `pack.cells.enclosure`'s purely geometric score.
+`Options → Generation → "Enclosure calculation"` (`useOptionsState`'s
+`enclosureCalculationMode: "oceanCurrents" | "radius"`, default `"oceanCurrents"`) now lets
+`pack.cells.enclosure` for ocean-connected water instead read the *resolved* current speed this
+document describes — `FeatureModule.applyOceanCurrentEnclosure()`:
+
+- For every `pack` water cell belonging to an `"ocean"`-type feature, look up its current speed via
+  `grid.cells.currentSpeed[pack.cells.g[cellId]]` (the same `pack`→`grid` lookup §5 uses) and score
+  `enclosure = round((1 - min(speed / BASE_SPEED, 1)) * 100)`: a cell pinned to the undamped seeded
+  wind (§2.3's far-field boundary, `landDistance >= PIN_DISTANCE`) reads as fully open (0); a cell
+  damped to near-zero by low openness/heavy reflection cancellation (§2.3-2.4) reads as fully
+  enclosed (100). Because current speed already reflects headland deflection and exit-funneling
+  propagated across many relaxation passes (§2.3), this reaches far deeper into a real map's wide
+  straits and bays than the 6-hop radius heuristic ever could.
+- Lake cells are left on `calculateEnclosure()`'s score unconditionally — `OceanCurrentsModule`
+  does not model lakes (`classifyOceanCells()` excludes them; `currentSpeed` is always 0 there), so
+  there is no current-derived signal to prefer, and a lake's interior really is uniformly calm
+  regardless of shape.
+- No-ops if `grid.cells.currentSpeed` hasn't been populated yet or the user selected `"radius"`.
+
+`Features.recalculateEnclosure()` reruns `calculateEnclosure()` from scratch and then re-applies
+the overlay, so switching the mode live (via the `react-change-enclosure-calculation` event,
+`src/controllers/options.ts`) restores the legacy values cleanly instead of leaving a stale
+current-derived result in place after switching back to `"radius"`.
+
+**Pipeline order matters here**: `Features.markupPack()` (which sets the `calculateEnclosure()`
+baseline) runs in generation stage 1, before `OceanCurrents.generate()` (stage 2) has any current
+data to read. `main.ts` therefore calls `Features.applyOceanCurrentEnclosure()` immediately after
+`OceanCurrents.generate()` in stage 2 — before `Rivers.generate()`, `Biomes.define()`, and
+`Features.defineGroups()`, all of which are downstream `pack.cells.enclosure` consumers. The same
+call is repeated in the `fmg:world-recalculate` event handler when `currents` is recalculated.
+
+`pack.cells.enclosure` is not the only consumer of this document's data — §5 covers sea-route
+travel speed (fleet regiments and merchant caravans), which reads `grid.cells.currentAngle`/
+`currentSpeed` directly and is unaffected by which enclosure mode is selected.
 
 ---
 
@@ -322,6 +350,13 @@ and checks:
    damping, driven by a real free-stream reference rather than a fixture too small to have one).
 7. Temperature advects toward the upstream cell along the resolved current direction.
 8. Identical inputs produce identical output (no hidden randomness).
+
+`src/generators/features.test.ts` covers §6's `applyOceanCurrentEnclosure()`/
+`recalculateEnclosure()` against a small hand-built `pack`+`grid` fixture: open/fast current reads
+as low enclosure, calm current reads as high enclosure, lake cells stay on the radius score even
+when their mapped grid cell has current data, land cells stay at 0, both methods no-op under
+`"radius"` mode or missing `currentSpeed`, and `recalculateEnclosure()` restores the plain radius
+baseline when switching back from `"oceanCurrents"`.
 
 `src/generators/regimentMovement.test.ts`'s "advanceAlongPath seasonal ocean currents" describe
 block additionally checks that a strong real per-cell current overrides the seasonal fallback (an
