@@ -49,6 +49,13 @@ export function isEnemyColonyRaceKey(raceKey: string | undefined | null): boolea
   return !!raceKey && ENEMY_COLONY_RACE_KEYS.has(raceKey);
 }
 
+/** Culture sets where non-human races are first-class (mixed diplomatic-core courts, per-race lore, a dedicated Race column, etc.). */
+export const FANTASY_CULTURE_SETS: ReadonlySet<string> = new Set(["highFantasy", "darkFantasy"]);
+
+export function isFantasyCulturesSet(culturesSet: string | undefined | null): boolean {
+  return !!culturesSet && FANTASY_CULTURE_SETS.has(culturesSet);
+}
+
 /**
  * Chance a culture of this race is multi-folk (`monoRacial = false`).
  * Only diplomatic-core races can roll mixed; bound servitors and others always mono (or no polity).

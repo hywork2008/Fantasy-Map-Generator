@@ -7,7 +7,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { isForestBiome, isNomadicBiome, isWetlandBiome } from "../data/biomeCatalog";
-import { defaultMonoRacialForRaceKey } from "../data/raceCivicStance";
+import { defaultMonoRacialForRaceKey, isFantasyCulturesSet } from "../data/raceCivicStance";
 import { applyRacePersonNameSpheres } from "../data/racePersonNameConfig";
 import { createDefaultRaces, DEFAULT_RACE_KEY, HUMAN_RACE_ID, raceIdByKey, UNKNOWN_RACE_ID } from "../data/races";
 import { useOptionsState } from "../store/optionsState";
@@ -38,11 +38,14 @@ function assignCultureRaces(pack: PackedGraph, cultures: Culture[]): void {
       delete c.characterGender;
     }
     // Mono is the map default. Rare mixed polities only for human/elf/dwarf
-    // (diplomatic core). Enemy colonies & distant folk are always mono.
+    // (diplomatic core), and only on High/Dark Fantasy maps — other culture
+    // sets (European, World, Oriental, …) have no elf/dwarf lore, so their
+    // human cultures must never roll into a "mixed" court that could staff one.
     // See src/data/raceCivicStance.ts and multi-race-geopolitics.md.
     if (c.monoRacial === undefined) {
       const raceKey = (races[c.race]?.key ?? key) as RaceKey;
-      c.monoRacial = defaultMonoRacialForRaceKey(raceKey, Math.random);
+      const culturesSet = useOptionsState.getState().culturesSet;
+      c.monoRacial = isFantasyCulturesSet(culturesSet) ? defaultMonoRacialForRaceKey(raceKey, Math.random) : true;
     }
   }
 }

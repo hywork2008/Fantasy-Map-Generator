@@ -1,3 +1,4 @@
+import { FANTASY_CULTURE_SETS, isFantasyCulturesSet } from "../../../data/raceCivicStance";
 import type { Culture, Race, State } from "../../hostTypes";
 import { inferRoleClass } from "../backstoryProfile";
 import type { Character, CharacterRoleClass } from "../characterTypes";
@@ -5,11 +6,7 @@ import { useCharactersUiState } from "../ui/charactersUiState";
 import { getCharacterRoleLabel, getCharacterTitleLabel } from "../utils/characterLabels";
 
 /** Culture sets where non-human races are first-class and worth a dedicated Race column. */
-export const FANTASY_CULTURE_SETS = new Set(["highFantasy", "darkFantasy"]);
-
-export function isFantasyCulturesSet(culturesSet: string | undefined | null): boolean {
-  return !!culturesSet && FANTASY_CULTURE_SETS.has(culturesSet);
-}
+export { FANTASY_CULTURE_SETS, isFantasyCulturesSet };
 
 export interface CharacterRowData {
   c: Character;
