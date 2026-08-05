@@ -328,6 +328,13 @@ class FeatureModule {
    * shoreline hit land and the ratio climbs; open ocean keeps discovering new water cells, so
    * the ratio stays low. Land cells and oversized deep-ocean cells (see ENCLOSURE_AREA_LIMIT_RATIO)
    * are always 0. O(waterCells * radius * avgDegree).
+   *
+   * This is the legacy, mode-independent baseline — always computed first in `markupPack()`
+   * regardless of `enclosureCalculationMode`, and left completely untouched (including its known
+   * blind spot for large lakes, whose interior can fall outside the fixed BFS radius and read as
+   * if it were open ocean) so `"radius"` mode keeps behaving exactly as it always has, as a true
+   * point of comparison against `"oceanCurrents"` mode. The lake-specific fix lives in
+   * `applyOceanCurrentEnclosure()` below, which only runs under `"oceanCurrents"` mode.
    */
   private calculateEnclosure(packCellsNumber: number): Uint8Array {
     const { pack } = this.worldContext;
@@ -370,32 +377,50 @@ class FeatureModule {
   }
 
   /**
-   * Overrides `pack.cells.enclosure` for ocean-connected water cells using the resolved current
-   * speed from `OceanCurrentsModule` (`grid.cells.currentSpeed`) instead of the fixed-radius
-   * land-blocked-ratio heuristic in `calculateEnclosure()`. Current speed already reflects local
-   * coastline shape — reflection off headlands, exit-funneling out of bays/straits, and
-   * openness-based damping — propagated far deeper into wide straits/bays than a 6-hop BFS can
-   * reach on `pack` cells (which are also far sparser than `grid` cells in open water; see
-   * `OceanCurrentsModule`'s doc comment). That makes it a closer physical match for "how
-   * calm/sheltered is this water for mooring/shipbuilding" than the legacy heuristic.
+   * Overrides `pack.cells.enclosure` for ocean-connected water cells using resolved current data
+   * from `OceanCurrentsModule` instead of the fixed-radius land-blocked-ratio heuristic in
+   * `calculateEnclosure()`. Two modes share this method, differing only in *which* current-speed
+   * array they sample:
+   * - `"oceanCurrents"`: `grid.cells.currentSpeed`, the speed at the cell's own position. Land is
+   *   a real bounce-back obstacle in the LBM fluid solve (`src/generators/fluidSolver.ts`), so
+   *   this reflects coastline shape — but almost every cell touching land reads near-zero speed
+   *   regardless of whether the shore is a sheltered bay or an exposed open coastline (the
+   *   solve's no-slip boundary layer), so scores saturate toward 100 right at the shoreline.
+   * - `"oceanCurrentsAmbient"`: `grid.cells.ambientCurrentSpeed`, the same field smoothed across
+   *   nearby ocean cells (`OceanCurrentsModule.computeAmbientCurrentSpeed()`). Reflects the speed
+   *   a short distance offshore instead, distinguishing a genuinely enclosed bay (still slow a
+   *   few hops out) from an exposed coastline (picks up real open-water speed nearby) — the mode
+   *   intended for shoreline siting decisions such as harbor placement.
    *
-   * Lake cells are left on their `calculateEnclosure()` score: `OceanCurrentsModule` does not
-   * model lakes (no wind-driven current reaches them), so `grid.cells.currentSpeed` is always 0
-   * there — the lake's shoreline-shape score already fits, since a lake's interior really is
-   * uniformly calm.
+   * Both are a closer physical match for "how calm/sheltered is this water for mooring/
+   * shipbuilding" than the legacy heuristic, computed on the denser, uniform-density `grid`
+   * rather than the sparser, irregular `pack` graph (see `OceanCurrentsModule`'s doc comment).
    *
-   * No-op if `OceanCurrents.generate()` has not run yet (`grid.cells.currentSpeed` missing) or
-   * the user has selected the legacy "Radius (shape only)" mode in Options → Generation. Callers:
+   * Lake cells are always overridden to a full 100 (fully enclosed) here — deliberately *not* by
+   * changing the mode-independent `calculateEnclosure()` baseline itself, which must stay exactly
+   * as it's always behaved (including its known blind spot: a lake's interior can fall outside
+   * the fixed BFS radius and read as if it were open ocean) so `"radius"` mode remains a true,
+   * unmodified point of comparison against these modes. `OceanCurrentsModule` never models lake
+   * current at all (both `currentSpeed` and `ambientCurrentSpeed` are always 0 there), so there's
+   * no physical current data to derive a lake's calmness from the way ocean cells get it below —
+   * but there's also nothing physical for a lake cell's distance from its own shore to be a proxy
+   * *for* (no current, no wind-driven roughness), so a flat 100 is the physically-motivated
+   * score, the same way these modes already treat ocean cells' speed-derived calmness as more
+   * physically grounded than the legacy heuristic.
+   *
+   * No-op if `OceanCurrents.generate()` has not run yet (the relevant array missing) or the user
+   * has selected the legacy "Radius (shape only)" mode in Options → Generation. Callers:
    * `main.ts`'s generation pipeline (right after `OceanCurrents.generate()`), the
    * `fmg:world-recalculate` handler when `currents` is recalculated, and the Generation Settings
    * "Enclosure calculation" select so switching modes updates the map without a full regenerate.
    */
   applyOceanCurrentEnclosure(): void {
-    if (useOptionsState.getState().enclosureCalculationMode !== "oceanCurrents") return;
+    const mode = useOptionsState.getState().enclosureCalculationMode;
+    if (mode !== "oceanCurrents" && mode !== "oceanCurrentsAmbient") return;
 
     const { pack, grid } = this.worldContext;
     const { cells, features } = pack;
-    const currentSpeed = grid.cells.currentSpeed;
+    const currentSpeed = mode === "oceanCurrentsAmbient" ? grid.cells.ambientCurrentSpeed : grid.cells.currentSpeed;
     if (!currentSpeed) return;
 
     const n = cells.i.length;
@@ -403,6 +428,10 @@ class FeatureModule {
       if (!isWater(cellId, pack)) continue;
 
       const feature = features[cells.f[cellId]];
+      if (feature?.type === "lake") {
+        cells.enclosure[cellId] = 100;
+        continue;
+      }
       if (feature?.type !== "ocean") continue;
 
       const speed = currentSpeed[cells.g[cellId]] ?? 0;

@@ -388,7 +388,9 @@ export async function initMain(drawMap: boolean = true): Promise<void> {
     if (temps) calculateTemperatures();
     if (prec) generatePrecipitation();
     if (currents) {
-      OceanCurrents.generate(worldContext, viewContext, appServices, getWorldState());
+      // Live recompute (not a full generation): use the lower iteration tier for responsiveness
+      // (see FluidSolverConstants.ITERATIONS_LIVE_RECOMPUTE).
+      OceanCurrents.generate(worldContext, viewContext, appServices, getWorldState(), "live");
       Features.applyOceanCurrentEnclosure();
     }
     if (biomes) {

@@ -54,6 +54,7 @@ import {
   buildMarkerSymbols,
   buildMilitaryBoxPolygons,
   buildMilitaryRegimentSymbols,
+  buildOceanCurrentIntensityPolygons,
   buildOceanCurrentPaths,
   buildPopulationPolygons,
   buildPrecipitationSymbols,
@@ -794,23 +795,47 @@ export function buildDeckLayers(
   }
 
   if (activeLayers.toggleOceanCurrents) {
-    layers.push(
-      new PathLayer<DeckPath>({
-        id: "fmg-webgl-ocean-currents",
-        data: getCachedDeckData("path:oceanCurrents", signatures.byLayer.oceanCurrents, () =>
-          buildOceanCurrentPaths(worldContext, viewContext.focusScope)
-        ),
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-        getPath: datum => datum.path,
-        getColor: datum => datum.color,
-        getWidth: datum => datum.width,
-        widthUnits: "pixels",
-        widthMinPixels: 0.5,
-        widthMaxPixels: 3,
-        capRounded: true,
-        pickable: false
-      })
-    );
+    // Two visualizations of the same grid.cells.currentAngle/currentSpeed field — see
+    // OptionsState.oceanCurrentRenderMode's doc comment. "path" skips zero-speed cells (nothing
+    // to draw for a zero-length line), so "intensity" exists specifically to give calm regions
+    // full, gapless coverage instead of reading as an indistinguishable gap.
+    // Distinct ids per mode (not one shared id) — deck.gl matches layers across frames by id and
+    // reuses the previous instance's GPU/attribute state when the id is unchanged. Swapping the
+    // layer *class* (SolidPolygonLayer <-> PathLayer) under the same id corrupts that reused state
+    // (observed as "Cannot read properties of undefined (reading 'shaderInputs')"). Separate ids
+    // make mode switches a clean unmount-then-mount instead of an in-place type change.
+    if (useOptionsState.getState().oceanCurrentRenderMode === "intensity") {
+      layers.push(
+        new SolidPolygonLayer<DeckCellPolygon>({
+          id: "fmg-webgl-ocean-currents-intensity",
+          data: getCachedDeckData("polygon:oceanCurrentsIntensity", signatures.byLayer.oceanCurrents, () =>
+            buildOceanCurrentIntensityPolygons(worldContext, viewContext.focusScope)
+          ),
+          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+          getPolygon: datum => datum.polygon,
+          getFillColor: datum => datum.fillColor,
+          pickable: false
+        })
+      );
+    } else {
+      layers.push(
+        new PathLayer<DeckPath>({
+          id: "fmg-webgl-ocean-currents-path",
+          data: getCachedDeckData("path:oceanCurrents", signatures.byLayer.oceanCurrents, () =>
+            buildOceanCurrentPaths(worldContext, viewContext.focusScope)
+          ),
+          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+          getPath: datum => datum.path,
+          getColor: datum => datum.color,
+          getWidth: datum => datum.width,
+          widthUnits: "pixels",
+          widthMinPixels: 0.5,
+          widthMaxPixels: 3,
+          capRounded: true,
+          pickable: false
+        })
+      );
+    }
   }
 
   for (const layer of getExtensionWebglLayers(activeLayers)) {

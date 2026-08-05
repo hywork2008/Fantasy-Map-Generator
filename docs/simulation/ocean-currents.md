@@ -1,22 +1,30 @@
 # Ocean Currents: per-cell direction, speed, and water temperature
 
-Adds a rough, stylized ocean current field to the map: every open-ocean `grid` cell carries a
-current direction, a current speed, and a surface water temperature, computed from the existing
-wind belts and sea-level temperature settings, deflected around landmasses, and damped/funneled by
-how enclosed each cell's local coastline is. This document covers what was implemented, why it is
-built the way it is, and what it deliberately leaves out.
+Adds an ocean current field to the map: every open-ocean `grid` cell carries a current direction, a
+current speed, and a surface water temperature, computed from the existing wind belts and
+sea-level temperature settings and shaped by real landmass geometry via a genuine fluid solve. This
+document covers what was implemented, why it is built the way it is, and what it deliberately
+leaves out.
 
 Requested in `docs/plan/ocean-current-system-investigation.md` §4 ("future implications for a
-gameplay ocean-current feature") — this is that feature. It shipped in two revisions:
+gameplay ocean-current feature") — this is that feature. It shipped in three revisions:
 
 1. Wind-seeded, land-clipped, no shape-awareness beyond immediate land neighbors.
-2. Genuinely shape-responsive (§2 below): headland bends, bay/strait damping and funneling, and —
-   critically — bending that reaches far enough into a real strait/bay to actually be visible on a
-   generated map, not just in a hand-authored unit test a few cells wide. On a real map, revision 1
-   read as "wind bands with a thin coastal fringe": its land-reflection step only ever touched a
-   handful of cells nearest the coast, so anything more than ~6 cells offshore was pure,
-   undeflected wind — indistinguishable from having no land-awareness at all at map scale. §2.3
-   explains the fix (a much larger, wind-anchored influence zone) and why it was needed.
+2. Shape-responsive via a hand-tuned BFS relaxation/reflection/exit-funneling heuristic: headland
+   bends, bay/strait damping and funneling. Explicitly *not* a CFD solve — no mass-conservation
+   pressure projection, no explicit acceleration through narrow channels — and its far-field
+   behavior had a hard limit: any cell more than `PIN_DISTANCE` (40) hops from land was reset to
+   the raw seeded wind vector every relaxation pass, so a coastline's deflection could bend flow
+   locally but could never turn into a long, coherent current running *along* a coast the way real
+   boundary currents (Gulf Stream, Kuroshio) do — real currents that hit land don't dissipate
+   there, they redirect and keep flowing along the shore.
+3. **Current revision**: replaced the heuristic with a genuine D2Q9 Lattice Boltzmann fluid solve
+   (`src/generators/fluidSolver.ts`, §2 below). Land is a real bounce-back obstacle and there is no
+   far-field pin at all — every cell, however far from shore, is governed by the same
+   collision+streaming+forcing rule every iteration. Because a bounce-back boundary can never
+   absorb or destroy fluid, mass conservation forces a current blocked head-on by land to redirect
+   tangentially and keep flowing along the coast, instead of the old heuristic's "deflect near
+   shore, snap back to raw wind farther out" behavior.
 
 This is that feature, specifically so the field is usable for sea-route travel speed (§5) and as an
 enclosure/shelter signal (§6), not just a decorative wind overlay.
@@ -37,15 +45,23 @@ enclosure/shelter signal (§6), not just a decorative wind overlay.
   same substrate for the same reason; ocean currents follow the precedent. Anything that needs a
   value per `pack` cell looks it up via `pack.cells.g[i]`, exactly like existing `temp`/`prec`
   consumers do.
-- **A rough approximation, not a physical simulation.** Real ocean circulation involves Ekman
-  transport, Coriolis-driven gyres, and thermohaline circulation. This implementation models only
-  a first-order, stylized version: currents start out following the user's existing wind belts
-  (`options.winds`, the same 6 latitude-tier prevailing winds `generatePrecipitation()` already
-  uses and the WorldConfigurator globe widget already exposes), then get deflected, damped, and
-  funneled by local coastline shape (§2). It is not a CFD solve — there is no mass-conservation
-  pressure projection and no explicit acceleration through narrow channels — but it does now react
-  to *this map's* coastline, not only to latitude and wind, which is what makes it meaningful input
-  for sea-route speed and enclosure/shelter purposes rather than a purely decorative overlay.
+- **`grid` doubles as the fluid solver's raster.** A D2Q9 Lattice Boltzmann solve needs a regular
+  lattice, and `grid.cells` already *is* one: `src/utils/graphUtils.ts`'s `placePoints()` /
+  `getJitteredGrid()` lay points out in exact row-major `cellsX * cellsY` order (the same invariant
+  `generatePrecipitation()`'s row/column scans already depend on), so the solver's lattice index
+  `i` corresponds exactly to `grid.cells` index `i` — no separate lattice resolution or resampling
+  step is needed.
+- **A real fluid solve, not a heuristic — with disclosed simplifications.** Currents start out
+  following the user's existing wind belts (`options.winds`, the same 6 latitude-tier prevailing
+  winds `generatePrecipitation()` already uses and the WorldConfigurator globe widget already
+  exposes), applied as a standing body force to a D2Q9 Lattice Boltzmann solve (§2) with land/lake
+  as bounce-back obstacles. LBM recovers incompressible Navier-Stokes in the low-Mach limit — a
+  genuine numerical CFD method (Chen & Doolen 1998), not a heuristic. What's still simplified, and
+  disclosed as such: the solver's domain wraps periodically on both axes (a standard, well-behaved
+  LBM boundary treatment, not a physics shortcut); wind itself stays the flat, user-configurable
+  `options.winds` latitude belts rather than a simulated, heightmap-shaped wind field; lakes carry
+  no current (unchanged from previous revisions); and Coriolis-driven gyres / thermohaline
+  circulation remain out of scope.
 
 ---
 
@@ -55,9 +71,10 @@ enclosure/shelter signal (§6), not just a decorative wind overlay.
 | :--- | :--- | :--- |
 | `currentAngle` | `Uint16Array` | Current direction in degrees, `0-359` (standard math convention: `0` = +X axis, increasing clockwise in screen space). `0` for land and lake cells. |
 | `currentSpeed` | `Uint8Array` | Current speed, normalized `0-255`. `0` for land and lake cells. |
+| `ambientCurrentSpeed` | `Uint8Array` | `currentSpeed` smoothed across nearby ocean cells (§2.2 step 5) — reflects the speed a short distance offshore rather than the near-zero no-slip value almost every shoreline cell reads in `currentSpeed` itself. `0` for land and lake cells. Used by the `"oceanCurrentsAmbient"` enclosure mode (§6). |
 | `waterTemp` | `Int8Array` | Surface water temperature in °C. For ocean cells: the latitude-baseline sea temperature (`temp`) advected along the resolved current field. For land and lake cells: mirrors `temp` unchanged, so any consumer that wants "surface temperature everywhere" doesn't need to branch on cell type. |
 
-All three are required (non-optional) fields, following the same convention `temp`/`prec` already
+All four are required (non-optional) fields, following the same convention `temp`/`prec` already
 use: `generateGrid()` (`src/utils/graphUtils.ts`) creates the grid without them, and a cast bridges
 the gap until `OceanCurrents.generate()` runs later in the same pipeline stage.
 
@@ -69,107 +86,80 @@ Currents" WebGL layer already excludes lake crossings), and so is land.
 
 ## 2. Algorithm (`src/generators/oceanCurrents.ts`, `OceanCurrents.generate()`)
 
-Four passes over the ocean cells of `state.grid`, all pure/deterministic (no RNG):
+### 2.1 The solver (`src/generators/fluidSolver.ts`)
 
-### 2.1 Seed
+A generic, reusable D2Q9 Lattice Boltzmann Method (LBM) engine — deterministic (no RNG), with no
+knowledge of maps, heightmaps, or oceans, just lattice mechanics:
 
-Every ocean cell's initial vector is its latitude's prevailing wind (`options.winds[tier]`,
-tiered the same way `generatePrecipitation()` computes `windTier`), at a fixed base speed
-(`OceanCurrentConstants.BASE_SPEED`). This is the Ekman-transport-style approximation: surface
-currents start out following the wind that blows over them.
+- **Obstacles via bounce-back.** Every land/lake cell is a solid node: instead of colliding, its 9
+  particle-distribution values are reversed in place ("on-site" bounce-back — see Mohamad,
+  *Lattice Boltzmann Method*), so whatever arrived from a direction is sent straight back the way
+  it came by the streaming pass. This is the entire "land shape deflects current" mechanism — no
+  separate exposure/openness BFS heuristic is needed, mass conservation does the work: water can't
+  be destroyed by hitting a solid node, so a current blocked head-on has nowhere to go but
+  tangential to the obstacle, which is exactly how a long, coherent current running *along* a coast
+  emerges instead of dissipating at the point of impact.
+- **Forcing via a standing body force + linear drag.** The latitude-tier wind (`options.winds`) is
+  applied every iteration as a body force (Guo et al. 2002 forcing scheme), not a one-time seed —
+  this is what lets the solve organize coherent large-scale circulation instead of only perturbing
+  a fixed starting field. BGK viscosity only dissipates velocity *gradients*; a perfectly uniform,
+  unobstructed, uniformly-forced region has no gradient to dissipate, so without something else to
+  balance it, momentum would grow without bound instead of reaching a steady state (Newton's second
+  law with no friction). `FluidSolverConstants`/`OceanCurrentConstants.DRAG_COEFFICIENT` add a
+  linear drag term (subtracted from the effective force in proportion to each cell's own velocity)
+  — a standard, textbook closure for wind-driven flow (linear/Rayleigh bottom friction, as in
+  Stommel's classic wind-driven gyre model), not a simulation-specific hack. An unobstructed,
+  uniformly-forced cell settles at `WIND_FORCE_MAGNITUDE / DRAG_COEFFICIENT` (lattice units) —
+  see `OceanCurrentConstants.LATTICE_SPEED_REFERENCE`.
+- **No far-field pin.** Unlike the previous heuristic's `PIN_DISTANCE` mechanism, there is no
+  distance-based reset anywhere in this solve — every cell, however far from shore, runs the exact
+  same collision+streaming+forcing rule every iteration. `DRAG_COEFFICIENT` is the main lever on
+  how far a coastline's deflection can propagate along-shore before drag damps it back out: lower
+  drag lets a boundary current persist further from its point of origin (a corner/headland) at the
+  cost of needing more iterations to reach steady state. Tuned so a deflection is still clearly
+  present tens of cells from where it originated, not just within a handful of cells the way the
+  previous heuristic's pin effectively limited it to (see the "sustains along-shore... " test,
+  §7 below).
+- **Periodic boundaries.** The lattice wraps on both axes — standard, numerically well-behaved for
+  LBM, avoids open inflow/outflow edge cases. The map wraps for flow-solving purposes only; this
+  has no effect on anything else.
+- **Numerical stability.** `FluidSolverConstants.RELAXATION_TIME` (tau, the BGK relaxation time)
+  must stay above 0.5; `WIND_FORCE_MAGNITUDE`/`DRAG_COEFFICIENT` are tuned so the steady-state
+  speed (0.1 lattice units) stays comfortably below the lattice speed of sound (1/√3 ≈ 0.577),
+  keeping the solve in the low-Mach, near-incompressible regime the equilibrium distribution
+  assumes.
 
-### 2.2 Exposure (`computeOpenness()`)
+### 2.2 Wiring it up (`OceanCurrents.generate()`)
 
-Before relaxing the vector field, every ocean cell gets an **openness** score in `0..1`: 1 = open
-ocean, 0 = a fully enclosed dead end. This uses the exact same BFS blocked-neighbor-ratio technique
-as `FeatureModule.calculateEnclosure()` (`src/generators/features.ts`, which produces
-`pack.cells.enclosure`), run here on `grid.cells` instead of `pack.cells` so it can drive the
-relaxation and damping steps below: for every ocean cell, flood-fill outward through ocean-only
-neighbors up to `OceanCurrentConstants.EXPOSURE_BFS_RADIUS` hops, and track what fraction of
-neighbor lookups hit land. A narrow bay or strait runs out of open water to expand into quickly, so
-most lookups hit land and openness stays low; open ocean keeps discovering new water cells, so it
-stays close to 1.
+1. **Obstacle field**: every non-ocean cell (land or lake, from `classifyOceanCells()`) becomes a
+   solid lattice node.
+2. **Forcing field**: for every ocean cell, look up its latitude tier the same way
+   `generatePrecipitation()` does, and set the lattice force from `options.winds[tier]` at
+   `OceanCurrentConstants.WIND_FORCE_MAGNITUDE`.
+3. **Run**: `FluidSolver.run(lattice, iterations, RELAXATION_TIME, DRAG_COEFFICIENT)`, where
+   `iterations` is `FluidSolverConstants.ITERATIONS_FULL_GENERATION` (1500 — a full map generation,
+   Assist Mode resample, or map load, where letting a boundary current fully settle along the
+   entire length of a coastline matters more than latency) or `ITERATIONS_LIVE_RECOMPUTE` (400 — a
+   live in-editor recompute, heightmap Erase mode or `fmg:world-recalculate`, where responsiveness
+   matters more than full convergence; the field looks slightly less settled immediately after a
+   live edit than after a full generation, an acceptable trade-off for interactivity).
+4. **Sample back**: the lattice's resolved `ux`/`uy` (lattice units) are scaled by
+   `BASE_SPEED / LATTICE_SPEED_REFERENCE` into the app's existing `currentAngle`/`currentSpeed`
+   0-255-ish scale — the same scale the previous heuristic's `BASE_SPEED`-seeded vectors already
+   used, so nothing downstream (§5, §6) needs to change.
+5. **Derive `ambientCurrentSpeed`** (`computeAmbientCurrentSpeed()`): `currentSpeed` reads
+   near-zero on almost every cell touching land — a sheltered bay and an exposed straight
+   coastline look identical there, since it's the solve's no-slip boundary layer, not a measure of
+   actual shelter (see §6 for why this matters for enclosure scoring). `AMBIENT_SMOOTHING_PASSES`
+   (6, loosely matching `FeatureModule.ENCLOSURE_BFS_RADIUS`) passes of Laplacian smoothing —
+   each ocean cell replaced by the mean of itself and its ocean-only neighbors, land/lake blocking
+   the spread — let a cell "see" the speed a short distance offshore: still low deep inside a
+   genuinely enclosed pocket (whose neighbors are also slow), picked back up within a couple of
+   hops on an open coast (whose neighbors are fast). Cheap — O(passes × cells), a handful of full
+   sweeps over the grid, same shape as the temperature-advection loop below — rather than a
+   per-cell BFS restart mirroring `calculateEnclosure()`'s own cost.
 
-This is deliberately the same family of computation as `pack.cells.enclosure`, not a reuse of that
-exact array — `pack.cells.enclosure` is computed later in the pipeline (`Features.markupPack()`,
-after `reGraph()`), while ocean currents run on `grid` earlier and need their own grid-resolution
-copy. The two numbers should agree qualitatively (both score the same physical shelteredness) but
-are not required to match exactly cell-for-cell, since `grid` and `pack` sample the coastline at
-different resolutions.
-
-### 2.3 Relax (land deflection, exit-funneling, and smoothing)
-
-`OceanCurrentConstants.SMOOTHING_PASSES` Jacobi relaxation passes, split by
-`OceanCurrentConstants.PIN_DISTANCE` (hop distance to the nearest land/lake cell, from a single
-O(n) multi-source BFS, `computeLandDistance()`) into two regions:
-
-- **Pinned far field** (`landDistance >= PIN_DISTANCE`): every pass, the cell is hard-reset to its
-  seeded wind vector — a "free stream" boundary condition, the same role the far-field value plays
-  in a real potential-flow solve. Without this, a large open ocean has nothing stable to relax
-  toward: a Jacobi scheme with no anchor just averages itself toward whatever its boundary
-  conditions are, and if every cell is free to drift, deflection from one coastline can eventually
-  bleed all the way across an ocean to an unrelated coast on the far side, or the whole field can
-  decay toward a directionless remainder in a fully enclosed sea (see the corridor→bay funneling
-  scenario in §2.3's funneling paragraph below, which needs a pinned reference at the open end to
-  have something real to funnel from).
-- **Near-shore influence zone** (`landDistance < PIN_DISTANCE`): the cell actually relaxes, blending:
-  - its own current vector (`SELF_WEIGHT` — deliberately small; see below),
-  - its ocean neighbors' vectors (plain average, one part each), and
-  - a **mirror reflection** off every *land* neighbor its vector currently points into
-    (`DEFLECT_WEIGHT` — `v - 2·DEFLECT_WEIGHT·(v·n)·n`, where `n` is the unit direction toward that
-    land neighbor's cell center, applied only when `v·n > 0`). When a cell has several land
-    neighbors reflecting at once, their reflected vectors are *averaged*, not summed, before being
-    folded into the blend — mirror reflection preserves a vector's magnitude exactly, so averaging
-    keeps every term in the blend at the same scale as the field already has; summing multiple
-    simultaneous reflections would repeatedly re-inject that magnitude and let the field diverge
-    over many passes (this was a real bug during development: cells boxed in by several land
-    neighbors blew up to the 0-255 clamp ceiling before the fix).
-
-Reflection, not a plain clip (`v - (v·n)n`), is the key difference from the first version of this
-algorithm: a clip only *removes* the land-directed component, so a current can never develop a new
-perpendicular component from nothing — a uniform wind hitting a coastline dead-on just loses speed
-in place. A full mirror bounce *injects* a perpendicular component (the same way a ball bouncing off
-an angled wall turns), so wind striking an off-axis headland now visibly curves along the exposed
-side instead of only stalling (unit test `"bends around a land corner..."`, §7 below). A current
-still cannot spontaneously turn around a *symmetric* dead-on obstacle (e.g. wind blowing straight
-into a coastline with mirror-symmetric land on both sides) — that has no real-world analogue either;
-a ball bounced straight into a flat wall bounces straight back, it doesn't pick a side.
-
-**Why `SELF_WEIGHT` had to come down from the first version's 1.5 to 0.5, and `SMOOTHING_PASSES`
-had to go up from 6 to 60.** A large self-weight anchors every cell close to its own seeded wind
-value pass after pass, so reflection/funneling could only ever nudge it a little before its own
-inertia pulled it back — bending never had room to accumulate across several cells, which is exactly
-why the first version read as pure wind bands beyond the immediate coastline on a real generated
-map (see the "two revisions" note at the top of this document). A smaller self-weight lets the
-neighbor average actually dominate, so a headland's bend can propagate outward pass by pass (unit
-test `"propagates a headland's bend well beyond a single cell..."`, §7 below, shows this reaching
-~10 hops and fading back out by ~20). That propagation needs enough passes to physically reach that
-far — plain neighbor-averaging spreads roughly one cell of real influence per pass — hence
-`SMOOTHING_PASSES` scaling with `PIN_DISTANCE`.
-
-After reflection, an **exit-funneling** step handles cells whose openness is below
-`FUNNEL_OPENNESS_THRESHOLD`: their vector is blended, at a weight scaled by `FUNNEL_STRENGTH × (1 -
-openness)`, toward the direction of whichever ocean neighbor has the highest openness — i.e. toward
-the bay or strait's actual way out. The blend target's *magnitude* comes from the cell's own
-incoming vector for this pass (`Math.hypot(vx[i], vy[i])`), not from the post-reflection result:
-several land-neighbor reflections in a tight pocket can cancel each other into a near-zero
-remainder, and blending toward a near-zero target just stays near zero regardless of blend weight —
-using the incoming magnitude instead gives funneling something real to redirect. This is what makes
-a generated bay's current visibly aim toward its mouth rather than sit at a stalled, undefined
-angle or (worse) round down to a `Uint8Array` speed of exactly 0 (both were real symptoms hit during
-development before this fix).
-
-### 2.4 Damp (exposure-based speed floor)
-
-After relaxation, every ocean cell's speed is scaled by `lerp(EXPOSURE_MIN_SPEED_FACTOR, 1,
-openness)` — open ocean (openness 1) is unaffected, a fully enclosed cell (openness 0) is damped to
-`EXPOSURE_MIN_SPEED_FACTOR` of its relaxed speed. Direction is left untouched; only magnitude
-shrinks, so a dead-end bay reads as calm water rather than a discontinuity in the field. This is the
-step that makes `currentSpeed` a legitimate, standalone "how sheltered is this water" signal (§0),
-and is applied before advection (§2.5) so sluggish enclosed cells also mix heat more slowly,
-consistent with their reduced flow.
-
-### 2.5 Advect (water temperature)
+### 2.3 Advect (water temperature) — unchanged from the previous revision
 
 `OceanCurrentConstants.TEMP_ADVECTION_PASSES` passes that pull each ocean cell's temperature
 toward whichever neighbor is most "upstream" of its resolved current direction (found via dot
@@ -194,13 +184,16 @@ Ocean currents are a pure, deterministic function of already-generated data (`gr
 edited by the user. Every place that already recomputes `calculateTemperatures()` /
 `generatePrecipitation()` together now also calls `OceanCurrents.generate()`:
 
-| Call site | Trigger |
-| :--- | :--- |
-| `src/main.ts`, `getGenerationStages()` stage 2 | Full map generation |
-| `src/main.ts`, `fmg:world-recalculate` handler (new `currents` detail flag) | WorldConfigurator wind-belt clicks, temperature slider changes, latitude/longitude shifts, "Update world" button — all now also pass `currents: true` (`src/controllers/world-configurator.ts`'s `updateClimateData()`) |
-| `src/controllers/heightmapEditor.ts`, both heightmap-edit recompute paths | Heightmap Erase-mode edits |
-| `src/generators/resample.ts`, `Resampler.process()` | "Assist Mode" / resampling from another map |
-| `src/io/load.ts`, right after `Features.markupPack()` | Loading a saved `.fmg` map |
+| Call site | Trigger | Iteration tier |
+| :--- | :--- | :--- |
+| `src/main.ts`, `getGenerationStages()` stage 2 | Full map generation | `"full"` (default) |
+| `src/main.ts`, `fmg:world-recalculate` handler (new `currents` detail flag) | WorldConfigurator wind-belt clicks, temperature slider changes, latitude/longitude shifts, "Update world" button — all now also pass `currents: true` (`src/controllers/world-configurator.ts`'s `updateClimateData()`) | `"live"` |
+| `src/controllers/heightmapEditor.ts`, both heightmap-edit recompute paths | Heightmap Erase-mode edits | `"live"` |
+| `src/generators/resample.ts`, `Resampler.process()` | "Assist Mode" / resampling from another map | `"full"` (default) |
+| `src/io/load.ts`, right after `Features.markupPack()` | Loading a saved `.fmg` map | `"full"` (default) |
+
+`OceanCurrents.generate()`'s optional 5th parameter (`"full" | "live"`, default `"full"`) selects
+between `FluidSolverConstants.ITERATIONS_FULL_GENERATION`/`ITERATIONS_LIVE_RECOMPUTE` (§2.2).
 
 ### Why load.ts recomputes instead of restoring from the save file
 
@@ -223,12 +216,21 @@ layer — that older layer is purely decorative: it replays a flowing highlight 
 data of its own. `toggleOceanCurrents` ("Ocean Currents") visualizes the actual field this
 document describes, independent of trade routes.
 
-- `buildOceanCurrentPaths()` (`src/renderers/webgl/adapters/deckDataAdapters.ts`) emits one short
-  `DeckPath` line segment per open-ocean grid cell: oriented along `currentAngle`, length and width
-  scaled by `currentSpeed`, colored by `waterTemp` on a cold-blue → warm-red scale
-  (`OceanCurrentConstants.RENDER_TEMP_MIN/MAX` — a tighter, ocean-appropriate range than the
-  general `-50..50` air-temperature scale `toggleTemperature` uses, so ocean-to-ocean differences
-  stay visible).
+- Two visualizations, selected by `OptionsState.oceanCurrentRenderMode` (Options → Generation →
+  "Ocean current rendering," applies live, no regenerate needed):
+  - **`"path"` (default)**: `buildOceanCurrentPaths()` (`src/renderers/webgl/adapters/deckDataAdapters.ts`)
+    emits one short `DeckPath` line segment per open-ocean grid cell: oriented along
+    `currentAngle`, length and width scaled by `currentSpeed`, colored by `waterTemp` on a
+    cold-blue → warm-red scale (`OceanCurrentConstants.RENDER_TEMP_MIN/MAX` — a tighter,
+    ocean-appropriate range than the general `-50..50` air-temperature scale `toggleTemperature`
+    uses). Skips any cell reading exactly 0 speed (nothing to draw for a zero-length segment) — a
+    calm patch is visually indistinguishable from a gap in this mode.
+  - **`"intensity"`**: `buildOceanCurrentIntensityPolygons()` (same file) fills every open-ocean
+    grid cell's polygon by `currentSpeed` alone (`d3.interpolateBlues`, pale = calm, dark =
+    strong), with **no** speed-based skip — full, gapless coverage, so a calm region reads as a
+    clearly bounded shape rather than an absence of arrows. Added specifically because the "path"
+    mode's per-cell skip made it hard to visually confirm exactly where the resolved field reads
+    calm vs. rough (e.g. distinguishing a genuinely damped dead-end from a rendering gap).
 - Rendered via a bespoke block in `buildDeckLayers.ts` (same shape as the existing
   `toggleSeaCurrents` block) rather than through the generic `WEBGL_PATH_LAYERS` list, because that
   list's paths are styled from live SVG dash/paint extraction (`webglStyleExtractors.ts`) for
@@ -286,29 +288,53 @@ leg that rides a strong current) is a distinct, separately-scoped follow-up.
 is this water cell" score — harbor/mooring/shipbuilding suitability), consumed by
 `coastalHabitatAssignment.ts` (settlement suitability) and `riverNavigationGraph.ts`
 (sheltered-water threshold for river-mouth navigation). Its original implementation,
-`calculateEnclosure()`, is a fixed 6-hop BFS blocked-neighbor-ratio heuristic on `pack` cells —
-the same technique as §2.2's `computeOpenness()`, but on the sparser, irregular `pack` graph and
-capped to a small radius, so it only sees local shoreline shape, not how far a current actually
-carries into a bay or strait.
+`calculateEnclosure()`, is a fixed 6-hop BFS blocked-neighbor-ratio heuristic on `pack` cells,
+capped to a small radius, so it only sees local shoreline shape, not how far the resolved fluid
+solve (§2) actually finds a cell to be sheltered or exposed.
 
 `Options → Generation → "Enclosure calculation"` (`useOptionsState`'s
-`enclosureCalculationMode: "oceanCurrents" | "radius"`, default `"oceanCurrents"`) now lets
-`pack.cells.enclosure` for ocean-connected water instead read the *resolved* current speed this
-document describes — `FeatureModule.applyOceanCurrentEnclosure()`:
+`enclosureCalculationMode: "oceanCurrents" | "oceanCurrentsAmbient" | "radius"`, default
+`"oceanCurrents"`) now lets `pack.cells.enclosure` for ocean-connected water instead read the
+*resolved* current speed this document describes — `FeatureModule.applyOceanCurrentEnclosure()`:
 
-- For every `pack` water cell belonging to an `"ocean"`-type feature, look up its current speed via
-  `grid.cells.currentSpeed[pack.cells.g[cellId]]` (the same `pack`→`grid` lookup §5 uses) and score
-  `enclosure = round((1 - min(speed / BASE_SPEED, 1)) * 100)`: a cell pinned to the undamped seeded
-  wind (§2.3's far-field boundary, `landDistance >= PIN_DISTANCE`) reads as fully open (0); a cell
-  damped to near-zero by low openness/heavy reflection cancellation (§2.3-2.4) reads as fully
-  enclosed (100). Because current speed already reflects headland deflection and exit-funneling
-  propagated across many relaxation passes (§2.3), this reaches far deeper into a real map's wide
-  straits and bays than the 6-hop radius heuristic ever could.
-- Lake cells are left on `calculateEnclosure()`'s score unconditionally — `OceanCurrentsModule`
-  does not model lakes (`classifyOceanCells()` excludes them; `currentSpeed` is always 0 there), so
-  there is no current-derived signal to prefer, and a lake's interior really is uniformly calm
-  regardless of shape.
-- No-ops if `grid.cells.currentSpeed` hasn't been populated yet or the user selected `"radius"`.
+- Both current-based modes share the same scoring formula and only differ in which `grid.cells`
+  array they read `speed` from: for every `pack` water cell belonging to an `"ocean"`-type
+  feature, look up `speed` via `<array>[pack.cells.g[cellId]]` (the same `pack`→`grid` lookup §5
+  uses) and score `enclosure = round((1 - min(speed / BASE_SPEED, 1)) * 100)`.
+  - `"oceanCurrents"` reads `grid.cells.currentSpeed` — the speed at the cell's own position. A
+    cell near its unobstructed steady-state speed (open water, nothing nearby to bounce flow off
+    of) reads as fully open (0). But almost every cell touching land reads near-zero speed
+    regardless of whether that shore is a genuinely sheltered bay or an exposed open coastline —
+    the LBM solve's no-slip boundary layer, not a difference in real shelter — so this mode
+    saturates most coastal water toward 100 and gives little spread for siting decisions right at
+    the shoreline (e.g. harbor placement).
+  - `"oceanCurrentsAmbient"` reads `grid.cells.ambientCurrentSpeed` instead — `currentSpeed`
+    smoothed across nearby ocean cells (§2.2 step 5), so a coastal cell reflects the speed a short
+    distance offshore rather than the boundary-layer value at the shore itself. This is what
+    actually distinguishes a genuinely enclosed bay (still slow a few hops out — its neighbors are
+    also slow) from an exposed coastline (picks up real open-water speed within a couple of hops)
+    — the mode intended for shoreline siting decisions. Both modes are a closer physical match for
+    "how calm/sheltered is this water for mooring/shipbuilding" than the legacy heuristic; this
+    one additionally avoids the boundary-layer saturation problem above.
+- Lake cells are overridden to a flat, fully enclosed 100 under either current-based mode — not
+  derived from current data (`OceanCurrentsModule` never models lake current at all;
+  `classifyOceanCells()` excludes lakes, so both `currentSpeed` and `ambientCurrentSpeed` are
+  always 0 there), but not left on `calculateEnclosure()`'s shore-distance BFS-ratio score either.
+  That radius heuristic has a real blind spot for lakes: "no land found within
+  `ENCLOSURE_BFS_RADIUS` (6) hops" is a reasonable "this is genuinely open ocean" signal for ocean
+  cells (the open sea really does keep extending past any fixed radius), but a lake has no such
+  legitimate open-water endpoint at all — it's fully surrounded by land by definition. A lake's
+  interior more than 6 hops from its own shore used to read as if it were open ocean (enclosure
+  near 0), which only gets *worse* the bigger the lake is — the opposite of "landlocked,
+  current-free water is uniformly calm." Since there's no current physics for a lake cell's
+  distance from shore to be a proxy for in the first place, a flat 100 for every lake cell (not
+  just ones beyond the BFS radius) is the physically-motivated score under either current-based
+  mode. `calculateEnclosure()`'s own shore-distance BFS-ratio score is deliberately left
+  completely unmodified for lakes under `"radius"` mode, including this blind spot — that mode's
+  entire purpose is to stay the exact legacy heuristic, a genuine point of comparison against both
+  current-based modes' improvement, not to be silently patched for all three modes at once.
+- No-ops under `"radius"` mode, or if the relevant array (`currentSpeed`/`ambientCurrentSpeed`)
+  hasn't been populated yet.
 
 `Features.recalculateEnclosure()` reruns `calculateEnclosure()` from scratch and then re-applies
 the overlay, so switching the mode live (via the `react-change-enclosure-calculation` event,
@@ -334,29 +360,64 @@ travel speed (fleet regiments and merchant caravans), which reads `grid.cells.cu
 `frontierFortsGenerator.test.ts` pattern of mutating the shared `worldContext` singleton directly)
 and checks:
 
+Fixtures now build genuine `cellsX * cellsY` raster grids (row-major, matching production
+`grid.cells` layout — §2.1), not the arbitrary point/neighbor-list graphs earlier revisions used,
+since the LBM solver needs a real raster to operate on. Checks:
+
 1. Land and lake cells get zero current and `waterTemp` mirroring `temp`.
 2. An unobstructed field gives every ocean cell a positive speed close to the seeded wind
    direction.
-3. Cells directly blocked by land end up with lower speed than cells several ring-hops from any
-   coast.
-4. A current striking an off-axis land corner measurably bends away from the raw seeded wind angle
-   (§2.3's reflection), not just loses speed in place.
-5. That same bend propagates well past the corner's immediate neighbor — measurable ~10 hops away,
-   faded back out by ~20 — demonstrating the pinned-far-field/influence-zone split (§2.3) actually
-   lets bending accumulate over distance instead of stopping after a handful of cells.
-6. A cell enclosed by land on most sides, reachable only through a narrow multi-cell fjord, ends up
-   with speed well below (`< 50%` of) a cell at the far end of a run of open water long enough to
-   include genuinely pinned (`landDistance >= PIN_DISTANCE`) cells (§2.2's exposure feeding §2.4's
-   damping, driven by a real free-stream reference rather than a fixture too small to have one).
-7. Temperature advects toward the upstream cell along the resolved current direction.
-8. Identical inputs produce identical output (no hidden randomness).
+3. Cells directly adjacent to a coastline end up with lower speed than cells deep in open water,
+   several cells from any land in every direction — a no-slip boundary-layer effect at the solid
+   wall, a genuine consequence of the bounce-back boundary condition rather than a hand-tuned
+   damping heuristic.
+4. Temperature advects toward the upstream cell along the resolved current direction.
+5. **Sustains along-shore (tangential) flow across the length of a coastline**: with a straight
+   18-cell coastal segment and wind blowing mostly into it, the along-shore velocity component
+   sampled at several points spread across the segment's length stays within a bounded fraction of
+   the strongest sampled point — it does not collapse toward zero a few cells from where the
+   deflection originates, unlike the previous heuristic's `PIN_DISTANCE`-limited falloff. This is
+   the test that directly encodes the "current turns and keeps flowing along the coast, not just
+   near the point of impact" requirement (§0, §2.1).
+6. Identical inputs produce identical output (no hidden randomness).
+
+An "ambientCurrentSpeed (harbor-siting enclosure signal)" describe block covers §2.2 step 5: land
+and lake cells stay at zero, same as `currentSpeed`; a coastal cell's `ambientCurrentSpeed` reads
+higher than its raw `currentSpeed` and closer to nearby open-water speed (the boundary-layer
+bypass working); and, using a dead-end 1-cell-wide inlet fixture (land confined to a corner block
+so most of the map stays genuinely open — a fully enclosing land band around the whole domain
+would itself read as one large sheltered basin under periodic boundaries and defeat the test),
+`ambientCurrentSpeed` is higher at the inlet's mouth (one hop from open water) than at its dead end
+several hops deeper in — the core "distinguishes a genuinely enclosed pocket from an exposed
+coastline" property §6 relies on.
+
+`src/generators/fluidSolver.test.ts` tests the generic solver in isolation, independent of any
+ocean/map concept: a uniformly-forced open lattice converges to a steady velocity matching the
+`force / drag` prediction (and, in a companion test, keeps accelerating instead of settling when
+`drag` is omitted, demonstrating why the drag term is needed at all — §2.1); steady velocity scales
+up with a larger driving force; an obstacle node never receives a velocity (skipped by collision
+entirely); a wall with a single gap redirects upstream flow laterally toward the gap instead of
+just damping it head-on (the same "blocked flow goes tangential" mechanism §2.1 relies on, tested
+at the solver level); identical inputs are deterministic; and `run(lattice, 1, tau)` matches a
+single `step()` call exactly.
 
 `src/generators/features.test.ts` covers §6's `applyOceanCurrentEnclosure()`/
-`recalculateEnclosure()` against a small hand-built `pack`+`grid` fixture: open/fast current reads
-as low enclosure, calm current reads as high enclosure, lake cells stay on the radius score even
-when their mapped grid cell has current data, land cells stay at 0, both methods no-op under
-`"radius"` mode or missing `currentSpeed`, and `recalculateEnclosure()` restores the plain radius
-baseline when switching back from `"oceanCurrents"`.
+`recalculateEnclosure()` against a small hand-built `pack`+`grid` fixture: for `"oceanCurrents"`
+mode, open/fast current reads as low enclosure, calm current reads as high enclosure, lake cells
+are always overridden to 100 regardless of current data or the radius baseline, land cells stay at
+0, the method no-ops under `"radius"` mode or missing `currentSpeed`, and `recalculateEnclosure()`
+restores the plain radius baseline when switching back from `"oceanCurrents"`. A parallel
+`"oceanCurrentsAmbient"` mode block confirms the same shape of coverage but sourced from
+`ambientCurrentSpeed` instead — including a test that sets `currentSpeed` and `ambientCurrentSpeed`
+to opposite extremes to prove the mode actually switches which array it reads, not just that it
+produces *a* plausible-looking score — and a dedicated no-op test for `ambientCurrentSpeed` missing
+while `currentSpeed` is populated (the two arrays' presence is checked independently). A separate
+"lake enclosure by mode" block uses
+a longer chain fixture (a lake cell farther from its own shore than `ENCLOSURE_BFS_RADIUS`) to
+verify the two modes genuinely diverge: `"radius"` mode still reads that deep-interior cell as if
+it were open water (the unmodified legacy heuristic, kept as a real point of comparison), while
+`"oceanCurrents"` mode reads it — and every other lake cell, including ones right next to the
+shore — as fully enclosed.
 
 `src/generators/regimentMovement.test.ts`'s "advanceAlongPath seasonal ocean currents" describe
 block additionally checks that a strong real per-cell current overrides the seasonal fallback (an
@@ -371,14 +432,23 @@ purely perpendicular current has no effect, real data overrides a disagreeing se
 the function falls back to the seasonal bias both when no sample is given and when the sample is
 calm (`speed: 0`).
 
-Verified end-to-end in a live browser session (`webglHybrid` mode) after the revision-2 fix: on a
-generated map with 7,089 open-ocean grid cells, `OceanCurrents.generate()` took ~57ms (`TIME`
-console profiling) — negligible next to `generateEconomy`'s multi-second cost in the same pipeline
-run — and resolved speeds averaging 80.5 (down from an unfixed-revision-1-era 132.5 on a comparable
-map, i.e. genuinely more of the field is now damped by nearby coastline rather than sitting near
-`BASE_SPEED`), ranging 0-158, with roughly half of all open-ocean cells reading below 80 — a much
-larger damped fraction than revision 1's ~12%, consistent with bending/damping now reaching well
-past the immediate coastline instead of stopping after ~6 cells. The "Ocean Currents" layer toggled
-on/off from both `window.fmg.actions.toggleLayer()` and the real Layers-panel button with zero new
-console errors (the session's only console errors were pre-existing, unrelated economy-extension
-market-shortage logs).
+### Performance
+
+`fluidSolver.step()` originally allocated 9 fresh `Float32Array`s per iteration for streaming — at
+production grid sizes this GC pressure dominated the runtime. It now double-buffers into a
+persistent scratch buffer (keyed by lattice identity, swapped by reference each iteration) instead,
+and the collision loop's equilibrium/forcing math uses precomputed reciprocals instead of per-cell
+divisions. Measured on a synthetic 180×140 (25,200-cell) lattice with a landmass obstacle — the
+same order of magnitude as `grid.cells` at the default "10K cells" setting:
+
+| Iterations | Elapsed |
+| :--- | :--- |
+| 400 (`ITERATIONS_LIVE_RECOMPUTE`) | ~0.7s |
+| 1500 (`ITERATIONS_FULL_GENERATION`) | ~2.0s |
+
+This runs once per `OceanCurrents.generate()` call (§3's call-site table), not per frame. The
+"full" tier's ~2s is a real addition to full map generation time and should be re-measured against
+`docs/analytics/webgl-layer-benchmark-latest.json`-style profiling on the actual generation
+pipeline (not just this synthetic lattice) if generation time becomes a concern at the largest grid
+setting (~32,500 cells); `ITERATIONS_FULL_GENERATION`/`ITERATIONS_LIVE_RECOMPUTE` and the lattice
+resolution are the levers to reduce it further.

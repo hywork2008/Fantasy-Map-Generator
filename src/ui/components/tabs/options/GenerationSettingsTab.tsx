@@ -211,7 +211,7 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
-          <tr data-tip="How harbor/mooring calmness (pack.cells.enclosure) is scored for ocean-connected water. Ocean Currents reads the resolved current speed, which bends around headlands and funnels out of bays/straits over a wide reach. Radius is the legacy fixed 6-hop land-blocked-ratio heuristic. Lake water always uses Radius. Applies immediately, no regenerate needed.">
+          <tr data-tip="How harbor/mooring calmness (pack.cells.enclosure) is scored for ocean-connected water. Ocean Currents reads the resolved current speed at the shoreline itself — bends around headlands and funnels out of bays/straits, but almost every shore cell reads near-zero regardless of real shelter, so it saturates toward 100 close to the coast. Ocean Currents (Ambient) instead reads the current speed a short distance offshore, distinguishing a genuinely sheltered bay from an exposed open coastline — better for siting decisions like harbor placement. Both score every lake cell fully enclosed. Radius is the legacy fixed 6-hop land-blocked-ratio heuristic for all. Applies immediately, no regenerate needed.">
             <td>
               <LockIconButton id="enclosureCalculationMode" />
             </td>
@@ -232,7 +232,29 @@ export const GenerationSettingsTab: React.FC = () => {
                 }}
               >
                 <option value="oceanCurrents">Ocean Currents (default)</option>
+                <option value="oceanCurrentsAmbient">Ocean Currents (Ambient)</option>
                 <option value="radius">Radius (shape only)</option>
+              </select>
+            </td>
+          </tr>
+
+          <tr data-tip="How the Ocean Currents WebGL layer draws grid.cells.currentAngle/currentSpeed. Direction Lines draws a short arrow per cell, colored by water temperature — cells reading exactly 0 speed are skipped, so a calm patch looks like a gap. Intensity Shading instead fills every ocean cell by current speed alone (pale = calm, dark = strong), with full gapless coverage. Applies immediately, no regenerate needed.">
+            <td></td>
+            <td>
+              <label htmlFor="oceanCurrentRenderMode">Ocean current rendering</label>
+            </td>
+            <td colSpan={2}>
+              <select
+                id="oceanCurrentRenderMode"
+                name="oceanCurrentRenderMode"
+                value={options.oceanCurrentRenderMode}
+                onChange={e => {
+                  updateOption("oceanCurrentRenderMode", e.target.value as typeof options.oceanCurrentRenderMode);
+                  document.dispatchEvent(new CustomEvent("react-change-ocean-current-render-mode"));
+                }}
+              >
+                <option value="path">Direction Lines (default)</option>
+                <option value="intensity">Intensity Shading</option>
               </select>
             </td>
           </tr>

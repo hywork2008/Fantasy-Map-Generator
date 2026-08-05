@@ -444,7 +444,9 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     GenerationPipeline.Features.markupPack();
 
     const state = getWorldState();
-    GenerationPipeline.OceanCurrents.generate(worldContext, viewContext, appServices, state);
+    // Live in-editor recompute: use the lower iteration tier for responsiveness (see
+    // FluidSolverConstants.ITERATIONS_LIVE_RECOMPUTE).
+    GenerationPipeline.OceanCurrents.generate(worldContext, viewContext, appServices, state, "live");
     GenerationPipeline.Features.applyOceanCurrentEnclosure();
     GenerationPipeline.Rivers.generate(worldContext, viewContext, appServices, state, erosionAllowed);
 
@@ -554,7 +556,9 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
     generatePrecipitation();
     reGraph();
     GenerationPipeline.Features.markupPack();
-    GenerationPipeline.OceanCurrents.generate(worldContext, viewContext, appServices, getWorldState());
+    // Live in-editor recompute: use the lower iteration tier for responsiveness (see
+    // FluidSolverConstants.ITERATIONS_LIVE_RECOMPUTE).
+    GenerationPipeline.OceanCurrents.generate(worldContext, viewContext, appServices, getWorldState(), "live");
     GenerationPipeline.Features.applyOceanCurrentEnclosure();
 
     if (erosionAllowed) {

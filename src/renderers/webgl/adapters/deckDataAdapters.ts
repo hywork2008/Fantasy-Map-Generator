@@ -2,6 +2,7 @@ import type { Color } from "@deck.gl/core";
 import {
   forceCollide,
   forceSimulation,
+  interpolateBlues,
   interpolateMagma,
   interpolateRdYlGn,
   interpolateSpectral,
@@ -670,6 +671,51 @@ export function buildOceanCurrentPaths(
   }
 
   return paths;
+}
+
+/**
+ * Choropleth alternative to `buildOceanCurrentPaths()`: one polygon per open-ocean grid cell,
+ * shaded purely by `currentSpeed` (0 = calmest/palest, 255 = strongest/darkest) instead of drawn
+ * as a directional line segment.
+ *
+ * Deliberately gives every ocean cell a polygon, including ones reading exactly 0 — the line mode
+ * above skips zero-speed cells entirely (a zero-length segment has nothing to draw), which makes a
+ * calm patch visually indistinguishable from "no data here." Full, gapless coverage is the whole
+ * point of this mode: it exists so a continuous calm region (or a discontinuity between one) reads
+ * as a clearly bounded shape instead of a gap in an otherwise-arrow-covered map — useful for
+ * spotting patterns in the resolved field that a sparse arrow field can hide.
+ */
+export function buildOceanCurrentIntensityPolygons(
+  worldContext: Readonly<WorldContext>,
+  focusScope: FocusScope | null,
+  maxOpacity = 0.85
+): DeckCellPolygon[] {
+  const { grid } = worldContext;
+  const { cells, vertices, features } = grid;
+  const { currentSpeed } = cells;
+  if (!currentSpeed) return [];
+
+  const polygons: DeckCellPolygon[] = [];
+  for (let cellId = 0; cellId < cells.i.length; cellId++) {
+    if (cells.h[cellId] >= 20 || features[cells.f[cellId]]?.type !== "ocean") continue;
+    if (!isGridCellInScope(focusScope, cellId)) continue;
+
+    const polygon = getCellPolygon(cells, vertices, cellId);
+    if (!polygon) continue;
+
+    const speedNorm = minmax(currentSpeed[cellId] / 255, 0, 1);
+    const hexColor = interpolateBlues(speedNorm);
+
+    polygons.push({
+      id: `ocean-current-intensity-${cellId}`,
+      kind: "oceanCurrent",
+      cellId,
+      polygon,
+      fillColor: colorToRgba(hexColor, "#999999", maxOpacity)
+    });
+  }
+
+  return polygons;
 }
 
 /**
@@ -2186,9 +2232,12 @@ function buildCellPolygons(
   return polygons;
 }
 
+// Structural (not PackedGraph-specific) so this also works on `grid.cells`/`grid.vertices` —
+// both `PackedGraphCells`/`PackedGraphVertices` and the `Grid` graph's `Cells`/`Vertices`
+// (`src/types/voronoi.ts`) share this shape from the same underlying Voronoi computation.
 function getCellPolygon(
-  cells: Readonly<PackedGraphCells>,
-  vertices: Readonly<PackedGraphVertices>,
+  cells: Readonly<{ v: number[][] }>,
+  vertices: Readonly<{ p: readonly ([number, number] | undefined)[] }>,
   cellId: number
 ): DeckPosition[] | null {
   const polygon = (cells.v[cellId] ?? [])

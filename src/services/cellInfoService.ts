@@ -18,6 +18,7 @@ export function updateCellInfo(point: [number, number], i: number, g: number): v
   const pointY = String(rn(point[1]));
 
   const f = cells.f[i];
+  const isOceanCell = f > 0 && worldContext.pack.features[f]?.type === "ocean";
 
   useCellInfoState.getState().updateInfo({
     cell: String(i),
@@ -51,7 +52,11 @@ export function updateCellInfo(point: [number, number], i: number, g: number): v
     feature: f ? `${worldContext.pack.features[f].group} (${f})` : "n/a",
     biome: worldContext.biomesData.name[cells.biomeCode[i]],
     coastalHabitat: getCoastalHabitatDefinition(cells.coastalHabitat?.[i] ?? 0).label,
-    nearshoreHabitat: getNearshoreHabitatDefinition(cells.nearshoreHabitat?.[i] ?? 0).label
+    nearshoreHabitat: getNearshoreHabitatDefinition(cells.nearshoreHabitat?.[i] ?? 0).label,
+    currentDirection: isOceanCell ? `${worldContext.grid.cells.currentAngle?.[g] ?? 0}°` : "n/a",
+    currentSpeed: isOceanCell ? getCurrentSpeedLabel(worldContext.grid.cells.currentSpeed?.[g] ?? 0) : "n/a",
+    waterTemp: isOceanCell ? convertTemperature(worldContext.grid.cells.waterTemp?.[g] ?? 0) : "n/a",
+    enclosure: cells.h[i] < 20 && cells.enclosure ? `${cells.enclosure[i]}%` : "n/a"
   });
 
   tooltipExtensions.updateCellInfo?.(point, i, g);
@@ -138,6 +143,14 @@ export function getHeight(h: number, abs?: string): string {
 }
 export function getPrecipitation(prec: number): string {
   return `${prec * 100} mm`;
+}
+/**
+ * `grid.cells.currentSpeed` has no physical unit — it's an arbitrary 0-255 output scale from the
+ * LBM fluid solve (`docs/simulation/ocean-currents.md`) — so display it as a percentage of that
+ * scale rather than inventing a fake speed unit.
+ */
+export function getCurrentSpeedLabel(speed: number): string {
+  return `${rn((speed / 255) * 100)}%`;
 }
 export function getFriendlyPrecipitation(i: number): string {
   const prec = worldContext.grid.cells.prec[worldContext.pack.cells.g[i]];

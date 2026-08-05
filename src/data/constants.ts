@@ -6,6 +6,7 @@
  *   - HeightThreshold  : terrain height boundaries (water/land/highland/mountain)
  *   - TemperatureThreshold : climate temperature thresholds
  *   - OceanCurrentConstants : ocean current generation parameters
+ *   - FluidSolverConstants : generic D2Q9 Lattice Boltzmann solver tuning parameters
  *   - RiverConstants   : river generation parameters
  *   - BiomeConstants   : biome classification thresholds
  *   - FeatureSizeRatio : ocean/sea/continent/island minimum size ratios
@@ -77,71 +78,50 @@ export const TemperatureThreshold = {
 // ---------------------------------------------------------------------------
 
 /**
- * Parameters for `OceanCurrents.generate()` (`src/generators/oceanCurrents.ts`), a rough
- * stylized approximation of surface ocean circulation: wind-belt-driven seed vectors relaxed
- * around landmasses, plus latitude-baseline water temperature advected along the result.
+ * Parameters for `OceanCurrents.generate()` (`src/generators/oceanCurrents.ts`): a real D2Q9
+ * Lattice Boltzmann fluid solve (`src/generators/fluidSolver.ts`), driven by the latitude-tier
+ * prevailing winds (`options.winds`) as a standing body force and land/lake cells as bounce-back
+ * obstacles, plus latitude-baseline water temperature advected along the resolved current field.
  * See `docs/simulation/ocean-currents.md`.
  */
 export const OceanCurrentConstants = {
-  /** Seed current speed (0-255 scale) assigned to every ocean cell before relaxation. */
+  /** Reference current speed (0-255 scale): the output value a lattice velocity of `LATTICE_SPEED_REFERENCE` maps to. */
   BASE_SPEED: 160,
 
   /**
-   * Jacobi relaxation passes used to deflect current vectors around land and smooth the field.
-   * Needs to be at least PIN_DISTANCE-sized: information from the land-reflection/funneling steps
-   * spreads roughly one cell per pass through plain neighbor-averaging, so a wide strait's center
-   * only bends if there are enough passes for that influence to actually reach it.
+   * Body-force magnitude (lattice units) applied every LBM iteration, representing wind stress on
+   * the ocean surface. Kept small relative to the lattice speed of sound (1/√3 ≈ 0.577) so the
+   * resolved flow stays in the low-Mach, near-incompressible regime the equilibrium distribution
+   * assumes — too large a force here introduces compressibility artifacts and can destabilize the
+   * BGK collision. Paired with `DRAG_COEFFICIENT` below so the steady-state speed
+   * (`WIND_FORCE_MAGNITUDE / DRAG_COEFFICIENT`) stays a comfortable, empirically-verified-stable
+   * 0.1 lattice units.
    */
-  SMOOTHING_PASSES: 60,
+  WIND_FORCE_MAGNITUDE: 0.0003,
 
   /**
-   * Weight a cell's own vector keeps (vs. the neighbor average) in each relaxation pass, for cells
-   * inside the near-shore influence zone (PIN_DISTANCE). Deliberately small: a large self-weight
-   * anchors every cell close to its seeded wind value pass after pass, which is what made the first
-   * version of this algorithm read as "wind bands with a thin coastal fringe" on real generated
-   * maps — reflection/funneling could only ever nudge a cell a little before its own inertia pulled
-   * it back, so bending never had room to accumulate over several cells. A small self-weight still
-   * damps oscillation (it's not literally 0) but lets the neighbor average dominate.
+   * Linear drag coefficient (see `fluidSolver.ts`'s module doc comment) representing bottom/
+   * interfacial friction. Without it, a spatially uniform wind over open, unobstructed water has
+   * no velocity gradient for BGK viscosity to dissipate and would accelerate without bound instead
+   * of reaching a steady speed. At steady state an unobstructed cell settles at
+   * `WIND_FORCE_MAGNITUDE / DRAG_COEFFICIENT` (lattice units) — see `LATTICE_SPEED_REFERENCE`.
+   * Also the main lever on how far a coastline's deflection propagates along-shore before drag
+   * damps it out: lower drag lets a boundary current persist further from its point of origin
+   * (a corner/headland) at the cost of needing more iterations to reach steady state — empirically
+   * tuned (see `docs/simulation/ocean-currents.md`) so a deflection is still clearly present, not
+   * just noise, tens of cells from where it originated, rather than fading out within a handful of
+   * cells the way the previous heuristic's `PIN_DISTANCE` mechanism effectively did.
    */
-  SELF_WEIGHT: 0.5,
+  DRAG_COEFFICIENT: 0.003,
 
   /**
-   * Reflection strength when a vector's component points into a land neighbor: 1 = full mirror
-   * bounce (`v - 2(v·n)n`, preserving speed while redirecting tangential to the coast), 0 = no
-   * deflection at all. Unlike a plain clip (`v - (v·n)n`), a reflection injects a genuine
-   * perpendicular component, which is what lets flow curve around a headland over several passes
-   * instead of only losing speed head-on.
+   * Lattice velocity magnitude (lattice units) that maps to `BASE_SPEED` on the app's 0-255 output
+   * scale — the conversion factor between the solver's internal units and `currentSpeed`. Set to
+   * `WIND_FORCE_MAGNITUDE / DRAG_COEFFICIENT`, the theoretical steady-state speed of an
+   * unobstructed, uniformly-forced open-water cell, so open ocean with nothing to deflect off
+   * reads close to `BASE_SPEED` rather than saturating or bottoming out the 0-255 range.
    */
-  DEFLECT_WEIGHT: 1,
-
-  /**
-   * Hop distance (BFS from any land/lake cell) beyond which an ocean cell is pinned to its seeded
-   * wind vector every pass instead of relaxing — a "free stream" far-field boundary condition,
-   * the same role the far-field value plays in a real potential-flow solve. Without a pin, nothing
-   * anchors the interior of a very large open ocean, and relaxation alone has no notion of "this is
-   * genuinely the open sea, not just water that hasn't been reached by land yet." Cells closer than
-   * this to any coast are the near-shore influence zone where reflection/funneling actually apply.
-   */
-  PIN_DISTANCE: 40,
-
-  /**
-   * BFS hop radius used to score how exposed (vs. enclosed) each ocean cell is — same
-   * blocked-neighbor-ratio technique as `FeatureModule.calculateEnclosure()` (`features.ts`), run
-   * on `grid` instead of `pack`. Feeds both the exit-funneling step and the final speed damping
-   * below, so bays and straits actually respond to their own shape instead of only to wind.
-   * Deliberately much smaller than PIN_DISTANCE: this scores fine-grained local "how surrounded is
-   * this exact spot," not how far bending is allowed to propagate.
-   */
-  EXPOSURE_BFS_RADIUS: 6,
-
-  /** Openness (0..1) below which a cell is considered enclosed enough to funnel toward its most open neighbor. */
-  FUNNEL_OPENNESS_THRESHOLD: 0.6,
-
-  /** Max blend weight toward the most-open neighbor's direction for a fully enclosed cell (openness 0). */
-  FUNNEL_STRENGTH: 0.6,
-
-  /** Speed multiplier floor applied at openness 0 (fully enclosed water nearly stalls); lerped to 1 at openness 1 (open ocean, unaffected). */
-  EXPOSURE_MIN_SPEED_FACTOR: 0.08,
+  LATTICE_SPEED_REFERENCE: 0.1,
 
   /** Passes used to advect latitude-baseline sea temperature along the resolved current field. */
   TEMP_ADVECTION_PASSES: 4,
@@ -151,7 +131,55 @@ export const OceanCurrentConstants = {
 
   /** Water-temperature color scale bounds (°C) used by the WebGL current vector renderer. */
   RENDER_TEMP_MIN: -2,
-  RENDER_TEMP_MAX: 30
+  RENDER_TEMP_MAX: 30,
+
+  /**
+   * Passes used to derive `grid.cells.ambientCurrentSpeed` from `currentSpeed` by repeated
+   * neighbor-averaging (through ocean cells only, land/lake blocks the spread — see
+   * `OceanCurrentsModule.computeAmbientCurrentSpeed()`). `currentSpeed` itself reads near-zero
+   * on almost every cell touching land, regardless of whether that shore is a sheltered bay or
+   * an exposed open coastline — a structural no-slip boundary-layer effect of the LBM solve, not
+   * a meaningful difference in shelter. Averaging each cell toward its ocean-neighbor mean, a
+   * few passes deep, lets a cell "see" how fast the water gets a short distance offshore: still
+   * slow in a genuinely enclosed bay, picking up real open-water speed within a couple of hops on
+   * an exposed coast. Chosen to loosely match `FeatureModule.ENCLOSURE_BFS_RADIUS` (6) — the
+   * legacy heuristic's hop reach — while staying a cheap O(passes × cells) sweep over the whole
+   * grid rather than a per-cell BFS restart (see `docs/simulation/ocean-currents.md`).
+   */
+  AMBIENT_SMOOTHING_PASSES: 6
+} as const;
+
+/**
+ * Tuning parameters for the generic D2Q9 Lattice Boltzmann solver (`src/generators/fluidSolver.ts`).
+ * Not specific to ocean currents — any future caller of the solver (e.g. a heightmap-driven wind
+ * field, if ever picked back up) shares these.
+ */
+export const FluidSolverConstants = {
+  /**
+   * BGK single relaxation time (tau). Must stay strictly above 0.5 — the collision operator is
+   * unconditionally unstable at or below that (it corresponds to zero viscosity). Values further
+   * above 0.5 trade some flow "sharpness" for stability headroom; this is the conventional choice
+   * for a driven, dissipative flow rather than a value tuned for a specific Reynolds number.
+   */
+  RELAXATION_TIME: 0.7,
+
+  /**
+   * Iterations run for a full map-generation solve (Generate, Assist Mode resample, map load),
+   * where solve quality — specifically, giving a boundary current enough steps to propagate along
+   * the *entire* length of a coastline rather than just deflecting near the point of impact —
+   * matters more than latency. Empirically, 1500 iterations is where the ocean-current solve's
+   * steady state stops changing further at `DRAG_COEFFICIENT`'s timescale (see
+   * `docs/simulation/ocean-currents.md`).
+   */
+  ITERATIONS_FULL_GENERATION: 1500,
+
+  /**
+   * Iterations run for a live in-editor recompute (heightmap Erase mode, `fmg:world-recalculate`),
+   * where responsiveness matters more than full convergence. Lower than
+   * `ITERATIONS_FULL_GENERATION`; the field will look slightly less settled immediately after a
+   * live edit than after a full generation, which is an acceptable trade-off for interactivity.
+   */
+  ITERATIONS_LIVE_RECOMPUTE: 400
 } as const;
 
 // ---------------------------------------------------------------------------

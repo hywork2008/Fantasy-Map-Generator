@@ -1032,6 +1032,15 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
     });
   });
 
+  // Ocean current rendering mode: purely a WebGL visualization choice (direction lines vs.
+  // intensity-shaded cells) over already-computed grid.cells.currentAngle/currentSpeed — no data
+  // recompute needed, just a redraw. toggleOceanCurrents is WebGL-only (no SVG path), so this only
+  // needs to nudge the deck.gl canvas.
+  document.addEventListener("react-change-ocean-current-render-mode", () => {
+    if (!layerIsOn("toggleOceanCurrents")) return;
+    void import("./layers").then(({ scheduleWebglUpdate }) => scheduleWebglUpdate());
+  });
+
   document.addEventListener("react-change-combat-deaths-rendering-mode", () => {
     if (layerIsOn("toggleCombatDeaths")) {
       import("../renderers").then(({ CombatDeathsRenderer }) => {

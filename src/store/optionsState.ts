@@ -47,13 +47,37 @@ export interface OptionsState {
   threatCalculation: "additive" | "max" | "nonlinear";
   /**
    * How pack.cells.enclosure (harbor/mooring calmness, 0 = open sea, 100 = fully sheltered) is
-   * scored for ocean-connected water cells. "oceanCurrents" reads the resolved ocean-current
-   * speed (grid.cells.currentSpeed, land-shape-responsive over a wide propagation reach);
-   * "radius" is the legacy fixed 6-hop land-blocked-ratio heuristic. Lake cells always use the
-   * radius heuristic (OceanCurrentsModule does not model lakes). See
-   * FeatureModule.applyOceanCurrentEnclosure() (features.ts).
+   * scored for ocean-connected water cells. All three modes override every lake cell to fully
+   * enclosed (100) except "radius" — OceanCurrentsModule never models lake current, so there's
+   * no current-derived signal for a lake cell either mode-with-currents could use.
+   * - "oceanCurrents": reads the resolved current speed at the cell itself
+   *   (grid.cells.currentSpeed). Land-shape-responsive, but almost every cell touching land reads
+   *   near-zero speed regardless of whether the shore is a sheltered bay or an exposed open
+   *   coastline — a structural no-slip boundary-layer effect of the LBM solve — so this mode
+   *   saturates most coastal water toward 100 and gives little spread for siting decisions
+   *   right at the shoreline (e.g. harbor placement).
+   * - "oceanCurrentsAmbient": reads grid.cells.ambientCurrentSpeed instead — currentSpeed
+   *   smoothed across nearby ocean cells, so a coastal cell reflects the speed a short distance
+   *   offshore rather than the boundary-layer value at the shore itself. Distinguishes a
+   *   genuinely enclosed bay (still slow a few hops out) from an exposed coastline (picks up
+   *   real open-water speed within a couple of hops) — the mode intended for shoreline siting
+   *   decisions.
+   * - "radius": the legacy fixed 6-hop land-blocked-ratio heuristic, left completely unmodified
+   *   as a genuine point of comparison against both current-based modes.
+   * See FeatureModule.applyOceanCurrentEnclosure() (features.ts) and
+   * docs/simulation/ocean-currents.md §6.
    */
-  enclosureCalculationMode: "oceanCurrents" | "radius";
+  enclosureCalculationMode: "oceanCurrents" | "oceanCurrentsAmbient" | "radius";
+  /**
+   * How the "Ocean Currents" WebGL layer (toggleOceanCurrents) visualizes grid.cells.currentAngle/
+   * currentSpeed. "path" draws a short directional line segment per ocean cell, colored by
+   * waterTemp — skips any cell reading exactly 0 speed entirely (nothing to draw), so a calm patch
+   * is visually indistinguishable from a gap. "intensity" instead fills every ocean cell's polygon
+   * by currentSpeed alone (pale = calm, dark = strong), giving full, gapless coverage — useful for
+   * spotting continuous calm/rough regions a sparse arrow field can hide. See
+   * buildOceanCurrentPaths()/buildOceanCurrentIntensityPolygons() (deckDataAdapters.ts).
+   */
+  oceanCurrentRenderMode: "path" | "intensity";
   /**
    * "simple" keeps the classic fixed field-army cap (MAX_FIELD_ARMIES in military-generator.ts).
    * "dynamic" opts into docs/plan/military-movement.md Phase 4: field armies can split off
@@ -264,6 +288,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   lakeElevationLimit: 20,
   threatCalculation: "nonlinear",
   enclosureCalculationMode: "oceanCurrents",
+  oceanCurrentRenderMode: "path",
   militaryHierarchy: "simple",
   gunpowderEraEnabled: false,
   initialPopulationSaturation: 60,
