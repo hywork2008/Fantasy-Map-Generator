@@ -4,6 +4,15 @@
  *
  * Coastline is classified as contiguous segments. For the global profile,
  * sandy beaches target ~25–35% of coast length (plan).
+ *
+ * Classification reads from `grid.cells.ambientCurrentSpeed` (harbor-siting-grade current
+ * exposure, see `docs/simulation/ocean-currents.md` §6) rather than `pack.cells.enclosure`.
+ * The latter is a user-configurable display value (`useOptionsState.enclosureCalculationMode`)
+ * that defaults to a mode which saturates near 100 for almost every coastal cell (LBM no-slip
+ * boundary layer) — tying habitat classification to it made nearly all mild-slope coastline read
+ * as "enclosed" and get swallowed into `tidalFlat` before `sandyBeach` was ever considered. Using
+ * `ambientCurrentSpeed` directly keeps this module correct regardless of what the user has the
+ * enclosure display set to.
  */
 
 import { getCoastalHabitatCode, getNearshoreHabitatCode } from "../data/coastalHabitatCatalog";
@@ -26,9 +35,24 @@ interface CoastCell {
   cellId: number;
   /** Proxy for slope: land height minus mean adjacent water height. Higher = steeper rock. */
   slope: number;
-  riverSediment: number;
+  /**
+   * River-mouth sediment supply, spread along the coast by `diffuseSediment()` so cells near
+   * (not just exactly at) a river mouth get partial credit — see the module doc comment.
+   */
+  sedimentSupply: number;
   temperature: number;
-  enclosure: number;
+  /**
+   * Current/wave exposure, 0 (stagnant) .. 100 (fully exposed), derived from
+   * `grid.cells.ambientCurrentSpeed`. See the module doc comment for why this replaces
+   * `pack.cells.enclosure` here.
+   */
+  exposure: number;
+  /**
+   * How much faster the seabed deepens one hop further offshore than immediately offshore
+   * (`waterDepthTrend()`). Positive and large = fjord-like: water drops away sharply just past
+   * the shore even where the land side looks like a gentle beach slope.
+   */
+  depthDrop: number;
 }
 
 function meanAdjacentWaterHeight(pack: PackedGraph, cellId: number): number {
@@ -44,6 +68,69 @@ function meanAdjacentWaterHeight(pack: PackedGraph, cellId: number): number {
   return n ? sum / n : HeightThreshold.WATER_MAX_HEIGHT - 1;
 }
 
+/**
+ * Compares mean water depth one hop offshore against mean water depth two hops offshore.
+ * A large positive result means the seabed drops away sharply just past the immediate shore
+ * (a fjord/steep-shelf coast) — real beaches don't form there even if the land-side slope alone
+ * looks mild. Returns 0 when there isn't a second ring to compare against (e.g. a narrow strait).
+ */
+function waterDepthTrend(pack: PackedGraph, cellId: number): number {
+  const { h, c: neighbors } = pack.cells;
+  let nearDepth = 0;
+  let nearN = 0;
+  const nearWaterIds: number[] = [];
+  for (const nb of neighbors[cellId] ?? []) {
+    if (h[nb] < HeightThreshold.WATER_MAX_HEIGHT) {
+      nearDepth += HeightThreshold.WATER_MAX_HEIGHT - h[nb];
+      nearN++;
+      nearWaterIds.push(nb);
+    }
+  }
+  if (!nearN) return 0;
+
+  let farDepth = 0;
+  let farN = 0;
+  for (const wid of nearWaterIds) {
+    for (const nb2 of neighbors[wid] ?? []) {
+      if (nb2 === cellId || h[nb2] >= HeightThreshold.WATER_MAX_HEIGHT) continue;
+      farDepth += HeightThreshold.WATER_MAX_HEIGHT - h[nb2];
+      farN++;
+    }
+  }
+  if (!farN) return 0;
+
+  return farDepth / farN - nearDepth / nearN;
+}
+
+/**
+ * Spreads raw river-mouth sediment along the coast by repeatedly averaging each land-coast cell
+ * toward the mean of itself and its land-coast neighbors (same neighbor-averaging technique as
+ * `OceanCurrentsModule.computeAmbientCurrentSpeed()`, applied to coast-cell adjacency instead of
+ * open ocean). Without this, `cells.r[cellId]` gates sediment to the exact river-mouth cell only,
+ * so a cove a couple of cells down the shore from a river gets zero credit even though longshore
+ * drift would realistically carry sediment there. Fewer passes than the ocean-current smoothing
+ * (`OceanCurrentConstants.AMBIENT_SMOOTHING_PASSES`, 6) since a sediment plume shouldn't spread a
+ * whole coastline's length, just a short stretch either side of the mouth.
+ */
+function diffuseSediment(coastCells: CoastCell[], coastSet: Set<number>, neighbors: number[][]): Map<number, number> {
+  let current = new Map(coastCells.map(c => [c.cellId, c.sedimentSupply]));
+  for (let pass = 0; pass < BiomeConstants.COASTAL_SEDIMENT_DIFFUSION_PASSES; pass++) {
+    const next = new Map(current);
+    for (const [id] of current) {
+      let sum = current.get(id)!;
+      let count = 1;
+      for (const nb of neighbors[id] ?? []) {
+        if (!coastSet.has(nb)) continue;
+        sum += current.get(nb) ?? 0;
+        count++;
+      }
+      next.set(id, sum / count);
+    }
+    current = next;
+  }
+  return current;
+}
+
 function buildCoastCells(pack: PackedGraph, grid: Grid): CoastCell[] {
   const { cells } = pack;
   const out: CoastCell[] = [];
@@ -52,12 +139,21 @@ function buildCoastCells(pack: PackedGraph, grid: Grid): CoastCell[] {
     if (cells.h[cellId] < HeightThreshold.WATER_MAX_HEIGHT) continue;
     const waterH = meanAdjacentWaterHeight(pack, cellId);
     const slope = cells.h[cellId] - waterH;
-    const riverSediment = cells.r[cellId] ? Math.min(cells.fl[cellId] / 20, 8) : 0;
+    const sedimentSupply = cells.r[cellId] ? Math.min(cells.fl[cellId] / 20, 8) : 0;
     const g = cells.g[cellId];
     const temperature = grid.cells.temp[g] ?? 10;
-    const enclosure = cells.enclosure?.[cellId] ?? 0;
-    out.push({ cellId, slope, riverSediment, temperature, enclosure });
+    // ambientCurrentSpeed is preferred (de-saturated, see module doc comment); fall back to the
+    // raw currentSpeed, then a neutral mid-value, for older saves/fixtures without either array.
+    const speed = grid.cells.ambientCurrentSpeed?.[g] ?? grid.cells.currentSpeed?.[g];
+    const exposure = speed !== undefined ? (speed / 255) * 100 : 50;
+    const depthDrop = waterDepthTrend(pack, cellId);
+    out.push({ cellId, slope, sedimentSupply, temperature, exposure, depthDrop });
   }
+
+  const coastSet = new Set(out.map(c => c.cellId));
+  const diffused = diffuseSediment(out, coastSet, cells.c);
+  for (const cell of out) cell.sedimentSupply = diffused.get(cell.cellId) ?? cell.sedimentSupply;
+
   return out;
 }
 
@@ -133,31 +229,58 @@ function classifySegmentBase(
   let slopeSum = 0;
   let sedimentSum = 0;
   let tempSum = 0;
-  let enclosureSum = 0;
+  let exposureSum = 0;
+  let depthDropSum = 0;
   for (const id of segment) {
     const c = byId.get(id)!;
     slopeSum += c.slope;
-    sedimentSum += c.riverSediment;
+    sedimentSum += c.sedimentSupply;
     tempSum += c.temperature;
-    enclosureSum += c.enclosure;
+    exposureSum += c.exposure;
+    depthDropSum += c.depthDrop;
   }
   const n = segment.length || 1;
   const avgSlope = slopeSum / n;
   const avgSediment = sedimentSum / n;
   const avgTemp = tempSum / n;
-  const avgEnclosure = enclosureSum / n;
+  const avgExposure = exposureSum / n; // 0 stagnant .. 100 fully exposed
+  const avgDepthDrop = depthDropSum / n;
+  const {
+    COASTAL_EXPOSURE_CALM_THRESHOLD,
+    COASTAL_FJORD_DEPTH_DROP,
+    COASTAL_SEDIMENT_SANDY_MIN,
+    COASTAL_SEDIMENT_TIDAL_MIN
+  } = BiomeConstants;
 
-  // Steep rocky coasts / exposed
-  if (avgSlope >= 8 || (avgSlope >= 5 && avgSediment < 0.5)) return "rockyIntertidal";
-  // Very flat + river/bay → tidal flat
-  if (avgSlope <= 3 && (avgSediment >= 1.5 || avgEnclosure > 40)) return "tidalFlat";
-  // Mild slope + sediment → sandy
-  if (avgSlope <= 6 && avgSediment >= 0.3) return "sandyBeach";
+  // Steep terrain is rock regardless of waves/current — real cliffs don't need pounding surf.
+  if (avgSlope >= 8) return "rockyIntertidal";
+  // Fjord-like: land side looks mild but the seabed drops away sharply just offshore. No beach
+  // forms there even at a gentle land-side slope.
+  if (avgDepthDrop >= COASTAL_FJORD_DEPTH_DROP) return "rockyIntertidal";
+  // Moderate slope, real current/wave energy, nothing to hold sediment: scoured bare rock.
+  if (avgSlope >= 5 && avgExposure >= COASTAL_EXPOSURE_CALM_THRESHOLD && avgSediment < 0.5) return "rockyIntertidal";
+  // Very flat, stagnant, and heavily sedimented: with almost no current to sort it, fine
+  // sediment settles as mud rather than clean sand.
+  if (avgSlope <= 3 && avgExposure < COASTAL_EXPOSURE_CALM_THRESHOLD && avgSediment >= COASTAL_SEDIMENT_TIDAL_MIN) {
+    return "tidalFlat";
+  }
+  // Mild-to-moderate slope with either real current/wave action to sort sediment into sand, or a
+  // modest sediment supply on its own (a sheltered, lightly sedimented cove is still a beach, not
+  // a bare rock). Sediment is a bonus here, not a hard gate — most real-world beaches aren't at a
+  // river mouth, and `diffuseSediment()` already spreads river-mouth credit along nearby coast.
+  if (avgSlope <= 6 && (avgExposure >= COASTAL_EXPOSURE_CALM_THRESHOLD || avgSediment >= COASTAL_SEDIMENT_SANDY_MIN)) {
+    return "sandyBeach";
+  }
+  // Very flat, stagnant, and sediment-starved: no current to keep it a beach either way, settles
+  // as flat mud/estuary by default.
+  if (avgSlope <= 3) return "tidalFlat";
   // Profile biases
   if (profile === "tropicalRiverBasin" && avgTemp >= 18 && avgSlope <= 5) return "sandyBeach";
   if (profile === "mountainRealm" && avgSlope >= 4) return "rockyIntertidal";
   if (profile === "mediterranean" && avgSlope >= 4) return "rockyIntertidal";
-  // Default mid: mild rock or sand by noise later
+  // Default: lean sandy rather than rocky for whatever's left (moderate-slope, moderate-exposure
+  // coast) — matches sandy beach being a common, not rare, global outcome (docs/plan/biomes.md
+  // targets ~25-35% of coastline length).
   return avgSlope >= 5 ? "rockyIntertidal" : "sandyBeach";
 }
 

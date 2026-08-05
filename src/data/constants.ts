@@ -321,6 +321,47 @@ export const BiomeConstants = {
   /** Nearshore: maximum water depth proxy (height below sea) for habitat. */
   NEARSHORE_MAX_DEPTH_PROXY: 8,
 
+  /**
+   * Coastal habitat classification (`coastalHabitatAssignment.ts`): current/wave exposure
+   * (0-100, from `grid.cells.ambientCurrentSpeed`) below which a coastline is treated as
+   * stagnant — a `tidalFlat` candidate rather than `sandyBeach`, and at/above which there's
+   * enough current action to sort sediment into sand or scour bare rock if steep and
+   * sediment-starved.
+   */
+  COASTAL_EXPOSURE_CALM_THRESHOLD: 15,
+
+  /**
+   * Coastal habitat: offshore depth-drop (`waterDepthTrend()`, a `HeightThreshold`-based proxy
+   * comparing mean depth one hop vs. two hops offshore) above which a coastline is treated as
+   * fjord-like regardless of how mild its land-side slope looks — beaches don't form where the
+   * seabed drops away sharply just offshore.
+   */
+  COASTAL_FJORD_DEPTH_DROP: 10,
+
+  /**
+   * Coastal habitat: number of neighbor-averaging passes used to spread river-mouth sediment
+   * along the coastline (`diffuseSediment()`, a longshore-drift proxy), so cells near but not
+   * exactly at a river mouth get partial sediment credit. Shorter reach than ocean current's own
+   * `OceanCurrentConstants.AMBIENT_SMOOTHING_PASSES` (6) — a sediment plume shouldn't spread a
+   * whole coastline's length, just a short stretch either side of the mouth.
+   */
+  COASTAL_SEDIMENT_DIFFUSION_PASSES: 3,
+
+  /**
+   * Coastal habitat: minimum diffused sediment supply that lets a calm, mild-slope segment
+   * become `sandyBeach` even without enough current exposure on its own — a sheltered, sedimented
+   * cove is still a beach, not a scoured rock.
+   */
+  COASTAL_SEDIMENT_SANDY_MIN: 0.3,
+
+  /**
+   * Coastal habitat: diffused sediment supply above which a very flat, stagnant segment is
+   * treated as `tidalFlat` (mud/estuary) rather than `sandyBeach` — too much fine sediment
+   * relative to the near-zero current means nothing sorts it into clean sand, so it settles as
+   * mud instead.
+   */
+  COASTAL_SEDIMENT_TIDAL_MIN: 1.5,
+
   // ── Phase 5: cold steppe, tropical dry forest, boreal peatland ────────────
 
   /** Cold steppe: temperature band (°C). */

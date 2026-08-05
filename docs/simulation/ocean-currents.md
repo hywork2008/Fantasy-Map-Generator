@@ -286,11 +286,20 @@ leg that rides a strong current) is a distinct, separately-scoped follow-up.
 
 `src/generators/features.ts` already computed `pack.cells.enclosure` (a 0-100 "how landlocked/calm
 is this water cell" score — harbor/mooring/shipbuilding suitability), consumed by
-`coastalHabitatAssignment.ts` (settlement suitability) and `riverNavigationGraph.ts`
-(sheltered-water threshold for river-mouth navigation). Its original implementation,
-`calculateEnclosure()`, is a fixed 6-hop BFS blocked-neighbor-ratio heuristic on `pack` cells,
-capped to a small radius, so it only sees local shoreline shape, not how far the resolved fluid
-solve (§2) actually finds a cell to be sheltered or exposed.
+`riverNavigationGraph.ts` (sheltered-water threshold for river-mouth navigation). Its original
+implementation, `calculateEnclosure()`, is a fixed 6-hop BFS blocked-neighbor-ratio heuristic on
+`pack` cells, capped to a small radius, so it only sees local shoreline shape, not how far the
+resolved fluid solve (§2) actually finds a cell to be sheltered or exposed.
+
+`coastalHabitatAssignment.ts` (sandy/rocky/tidal-flat classification) deliberately does **not**
+read `pack.cells.enclosure` — it reads `grid.cells.ambientCurrentSpeed` directly as a "current
+exposure" signal instead. `pack.cells.enclosure` is a user-configurable display value
+(`enclosureCalculationMode` below) that defaults to a mode which saturates near 100 for almost
+every coastal cell; classifying coastal habitat against it made nearly all mild-slope coastline
+read as "enclosed" and get swallowed into `tidalFlat` before `sandyBeach` was ever considered,
+regardless of what the user has the enclosure display set to. See the doc comment atop
+`coastalHabitatAssignment.ts` for the full redesign (current exposure, offshore depth-drop/fjord
+detection, and longshore-drift sediment diffusion along the coast).
 
 `Options → Generation → "Enclosure calculation"` (`useOptionsState`'s
 `enclosureCalculationMode: "oceanCurrents" | "oceanCurrentsAmbient" | "radius"`, default
