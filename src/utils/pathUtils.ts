@@ -124,10 +124,13 @@ export const getIsolines = (
   const isChecked = (cellId: number) => checkedCells[cellId] === 1;
 
   for (const cellId of cells.i) {
-    if (isChecked(cellId) || !getType(cellId)) continue;
+    // Treat only null/undefined/false as "no type". Numeric 0 is a valid type
+    // (e.g. danger heat bucket 0); the old `!getType` check dropped those cells.
+    const rawType = getType(cellId);
+    if (isChecked(cellId) || rawType === null || rawType === undefined || rawType === false) continue;
     addToChecked(cellId);
 
-    const type = getType(cellId) as string | number;
+    const type = rawType as string | number;
     const ofSameType = (cellId: number) => getType(cellId) === type;
     const ofDifferentType = (cellId: number) => getType(cellId) !== type;
 

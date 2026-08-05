@@ -1,28 +1,33 @@
 /**
  * Shared Magma intensity mapping for the Danger layer.
  *
- * SVG Smooth Contours use:
- *   d3.scaleSequential(d3.interpolateMagma).domain([0, maxValue * 1.5])
- * so the densest peaks land near Magma t ≈ 2/3 (deep red / coral), while outer
- * rings stay dark purple–gray. Pale yellow at Magma t=1 is never reached.
+ * Two SVG modes:
+ * - **Smooth Contours** — KDE density field. Neighboring cells *do* influence the
+ *   painted value; color is not a 1:1 map of `cells.danger[i]`.
+ * - **Cell Heatmap** — one polygon per cell, color from `cells.danger[i]` only
+ *   (absolute 0–255 via dangerValueToMagmaT). Neighbors never influence the color.
  *
- * Cell Heatmap (SVG choropleth + WebGL) previously used Magma((bucket+1)/10),
- * which put the strongest threats at t=1 (almost white-yellow) and made the
- * palette read as inverted relative to Contours. Both paths must use this helper.
+ * Magma window: edges purple-gray, peak deep red (not pale yellow at t=1).
  */
 
 /** Magma t at the outer, lowest painted danger (dark purple / near-black). */
 export const DANGER_MAGMA_EDGE_T = 0.08;
 
 /**
- * Magma t at peak threat — matches contour domain stretch (max / (max * 1.5) = 2/3).
- * Deep red / coral, not pale yellow.
+ * Magma t at peak threat — deep red / coral, not pale yellow.
+ * Matches the Contours visual peak (historically domain stretch ≈ 2/3).
  */
 export const DANGER_MAGMA_PEAK_T = 2 / 3;
 
+/** `pack.cells.danger` is a Uint8 field; full scale is 0–255. */
+export const DANGER_VALUE_MAX = 255;
+
+/** Discrete heat bands for Cell Heatmap path merging (0 = weakest painted, 9 = strongest). */
+export const DANGER_HEAT_BUCKET_COUNT = 10;
+
 /**
  * Map normalized danger intensity in [0, 1] to a Magma interpolator parameter
- * aligned with SVG Smooth Contours (edges purple-gray, center red).
+ * (edges purple-gray, center red).
  */
 export function dangerIntensityToMagmaT(intensity01: number): number {
   const t = Number.isFinite(intensity01) ? Math.max(0, Math.min(1, intensity01)) : 0;
@@ -30,12 +35,33 @@ export function dangerIntensityToMagmaT(intensity01: number): number {
 }
 
 /**
- * Heat buckets used by choropleth / WebGL: 0 = weakest painted danger, 9 = strongest.
- * Maps onto the same Magma window as Contours.
+ * Absolute cell danger → Magma t. Same danger number always paints the same color
+ * (independent of other cells / map-wide max).
  */
-export function dangerBucketToMagmaT(bucket: number, bucketCount = 10): number {
+export function dangerValueToMagmaT(danger: number): number {
+  if (!(danger > 0) || !Number.isFinite(danger)) return DANGER_MAGMA_EDGE_T;
+  return dangerIntensityToMagmaT(Math.min(1, danger / DANGER_VALUE_MAX));
+}
+
+/**
+ * Absolute cell danger → discrete heat bucket for choropleth isolines.
+ * Returns -1 when danger ≤ 0 (unpainted).
+ *
+ * Buckets partition 1…255 evenly so neighbors only share a color when their own
+ * values fall in the same band — not because of spatial smoothing.
+ */
+export function dangerValueToBucket(danger: number, bucketCount: number = DANGER_HEAT_BUCKET_COUNT): number {
+  if (!(danger > 0) || !Number.isFinite(danger) || !(bucketCount > 0)) return -1;
+  const ratio = Math.min(1, danger / DANGER_VALUE_MAX);
+  return Math.min(bucketCount - 1, Math.floor(ratio * bucketCount));
+}
+
+/**
+ * Heat bucket 0…n-1 → Magma t (Cell Heatmap / WebGL path colors).
+ */
+export function dangerBucketToMagmaT(bucket: number, bucketCount: number = DANGER_HEAT_BUCKET_COUNT): number {
   if (!(bucketCount > 0)) return DANGER_MAGMA_EDGE_T;
-  // bucket 0 → weak (near edge), bucketCount-1 → peak red
-  const intensity = (bucket + 1) / bucketCount;
+  // Midpoint of the bucket band for a stable absolute color.
+  const intensity = (bucket + 0.5) / bucketCount;
   return dangerIntensityToMagmaT(intensity);
 }

@@ -37,7 +37,7 @@ import { getColor, getColorScheme } from "../../../utils/colorUtils";
 import { type RelationKey, relations } from "../../../utils/diplomacyRelations";
 import { fractalizeCoastline, sampleCatmullRomPolyline, sampleCoastlineShape } from "../../coastline-fractal";
 import { isCellInScope, isGridCellInScope } from "../../core/focusScope";
-import { dangerBucketToMagmaT } from "../../dangerColorScale";
+import { dangerValueToMagmaT } from "../../dangerColorScale";
 import { buildPopulationColorMetrics, heatBucketToColorT } from "../../populationColorScale";
 import { getCachedBurgIconRaster } from "../burgIconRasterCache";
 import { getCachedEmblemIconUrl } from "../emblemIconCache";
@@ -684,32 +684,15 @@ export function buildDangerPolygons(
   const { cells } = pack;
   if (!cells?.i || !cells.danger) return [];
 
-  let maxDanger = 0;
-  for (const i of cells.i) {
-    if (!isCellInScope(focusScope, i)) continue;
-    const d = cells.danger[i] as number;
-    if (d > maxDanger) maxDanger = d;
-  }
-
-  if (maxDanger === 0) return [];
-
-  const getDangerBucket = (cellId: number): number => {
-    const d = cells.danger[cellId] as number;
-    if (d <= 0) return -1;
-
-    const ratio = d / maxDanger;
-    return Math.min(9, Math.floor(ratio * 10));
-  };
-
+  // Per-cell absolute scale (0–255): color from this cell's danger only.
   return buildCellPolygons(
     worldContext,
     focusScope,
     "danger",
     cellId => {
-      const bucket = getDangerBucket(cellId);
-      if (bucket < 0) return [0, 0, 0, 0];
-      // Same Magma window as SVG Contours / Cell Heatmap (peak red, edges purple).
-      const hexColor = interpolateMagma(dangerBucketToMagmaT(bucket));
+      const d = cells.danger[cellId] as number;
+      if (!(d > 0)) return [0, 0, 0, 0];
+      const hexColor = interpolateMagma(dangerValueToMagmaT(d));
       return colorToRgba(hexColor, "#999999", maxOpacity);
     },
     cellId => (cells.danger[cellId] ?? 0) > 0

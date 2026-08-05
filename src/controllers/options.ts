@@ -994,6 +994,8 @@ export function initOptions(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: 
       import("../renderers").then(({ DangerRenderer }) => {
         DangerRenderer.render(worldContext, viewContext, appServices);
       });
+      // Hybrid mode hides #danger SVG; refresh the deck.gl cell layer too.
+      void import("./layers").then(({ scheduleWebglUpdate }) => scheduleWebglUpdate());
     }
   });
 

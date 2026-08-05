@@ -20,7 +20,7 @@ export const DangerSettingsTab: React.FC = () => {
       <p data-tip="Settings related to danger/threat generation">Danger settings:</p>
       <table>
         <tbody>
-          <tr data-tip="Select the danger layer visualization style">
+          <tr data-tip="Smooth Contours blend neighboring threats into a density field. Cell Heatmap paints each cell only from its own danger value (0–255); color matches the cell tooltip.">
             <td></td>
             <td>Danger rendering</td>
             <td>
@@ -33,8 +33,8 @@ export const DangerSettingsTab: React.FC = () => {
                   document.dispatchEvent(new CustomEvent("react-change-danger-rendering-mode"));
                 }}
               >
-                <option value="contour">Smooth Contours</option>
-                <option value="choropleth">Cell Heatmap</option>
+                <option value="contour">Smooth Contours (blended)</option>
+                <option value="choropleth">Cell Heatmap (per-cell)</option>
               </select>
             </td>
             <td></td>
