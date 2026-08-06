@@ -14,6 +14,8 @@
 
 **モデル詳細度トグル（Options → Generation）**: 「Phase 2以降は処理が重くなりうるため、簡素化モデル（または現行の古いモデル）をUIから選択可能にし、新モデルを既定にしたい」という要件を受け、新設オプション`ruralEcosystemDetail: "detailed" | "simplified"`（既定`"detailed"`）を`useOptionsState`に追加し、`GenerationSettingsTab.tsx`に`biomeRegionProfile`/`enclosureCalculationMode`と同型の`<select>`＋`LockIconButton`行として配置する設計とした（詳細は新設§11）。Phase 1の配分器自体はセル数に対して線形の軽い処理のため常時有効のままとし、トグルが実際に効くのはPhase 2で導入するfauna個体群ストック（コホート・繁殖・年齢選択性間引き、種×セルのスパース状態を持つ）以降の重い計算——`"simplified"`選択時はコホート更新をスキップし、Game/liveAnimalはPhase 1同等の「労働力充足率でゲートされた無上限レート」のまま据え置く（個体群上限なし＝実質的に旧モデルに近い挙動）。トグル自体の導入はPhase 2実装時に行う（本書更新時点ではまだ未実装）。
 
+**2026-08-06 Phase 2実装完了**: §8のPhase 2（fauna個体群ストックモデル・モデル詳細度トグル）を実装した。新規`src/extensions/economy/generators/faunaPopulation.ts`が、野生（Game）・家畜（liveAnimal 9種）双方に対し3コホート（young/breeding/old、**性別区分は省略**——§4.1が許容する簡略化）のスパース個体群ストック（`simulation.extensions.economy.faunaStock`、キー`cellId:speciesKey`）を持たせ、`ruralOccupationAllocation.ts`の`getHuntingGameOutput()`と`production-utils.ts`の`getRuralProductionContributions()`（liveAnimalタグ分岐を追加）の両方から、既存の「労働力/レートで決まる希望産出量」を`drawWildFaunaOfftake()`/`drawDomesticatedFaunaOfftake()`で在庫上限にキャップするよう変更した。`options.ruralEcosystemDetail`（`GenerationSettingsTab.tsx`に「6. Rural economy」節として追加、`main.ts`が生成時に`worldContext.options`へミラー）が`"simplified"`のときはこれらの関数が希望量をそのまま素通しする純粋なパススルーになり、在庫テーブルには一切触れない（§11.2の「トグルを切り替えただけでは数値が動かない」保証どおり）。年次コホート更新（繁殖・加齢遷移、ロジスティック増殖でキャリング容量にキャップ）は`updateAnnualFaunaCohorts()`が独自の年次ガード（`getFaunaPopulationLastSettledYear`、`updateAnnualAgriculture`とは別系統）付きで担い、`index.tsx`の`economy.tick`内で`DevelopmentPotential.updateAnnualAgriculture()`の直後に呼ぶ。非食用種（Cats/Horses/Camels/Elephants）の需要吸収キャップ（§4.5）は、四半期ごとに`recordQuarterlyNonFoodDemand()`が各Marketの在庫を前回四半期末スナップショットと比較し「純減少分＝消費量」を直近4件ローリングし、その平均×1.2倍を上限とする——四半期の食料台帳更新（`FoodProduction.generateQuarterlyLedger`）と同じサイクルに乗せた。**実装時に確定した簡略化点（設計からの逸脱、いずれも将来の精緻化余地として残す）**: (1) 家畜のキャリング容量は`husbandry.ts`（Phase 3）がまだ存在しないため、暫定的に「Phase 1時点の無制限フラットレート×24ヶ月分」を代理指標として使用——Phase 3実装時に牧草地/労働力ベースの値へ置き換える。(2) §4.5の需要吸収キャップは、本来は牧場ごとの按分配分を想定していたが、実装ではMarket単位の上限値をそのMarketに属する全セルへそのまま（按分せず）適用する簡略化とした——各セル単独ではMarket全体の上限まで到達しうる分だけ保守的（キャップが緩め）だが、Market単位の集計パスを1本追加する複雑さを避けた。(3) 種ごとの繁殖率/世代年数定数（`SPECIES_PROFILES`）は史料ベースではなく相対順序（Chicken>>Elephants等）のみを根拠にした仮置き——§9.3の既存placeholder方針を踏襲。狩猟/家畜の年齢選択性（§4.4）は文化タイプ（`Hunting`文化→選択的強）と`foodStressProductionMultiplier`（危機時→無差別寄り）から連続値で導出し、`applyCull()`が老齢優先ドローと比例ドローを線形ブレンドする。`agriculturalLandUse.ts`から`calculatePhysicalAreaHectares()`を抽出・エクスポートし、`calculateCultivableAreaHectares()`とwildHabitatArea計算の両方が同じ物理面積の起点を共有するようにした。新規単体テスト`faunaPopulation.test.ts`（36件）でキャリング容量・在庫の枯渇/据え置き・選択性の文化/危機依存・需要キャップ・年次コホート更新の据え置きガードと縮小時のダイオフ・トグルのパススルー保証を検証済み。既存`ruralOccupationAllocation.test.ts`の「Game出力は人口非依存」テストは、fauna在庫モデルが要求する`cells.area`/`distanceScale`フィクスチャを持たないため`ruralEcosystemDetail: "simplified"`を明示指定して労働力式のみを引き続き検証する形に変更した（Phase 1の意図どおりの回帰対象を維持）。既存テスト854件（economy拡張全体）は全てgreen、`tsc --noEmit`（テストファイル含む一時tsconfigでも確認）/`lint`/`madge --circular`/`npm run build`もすべてクリーン。牧畜（§5.4、Phase 3）・Grapes新設（§5.3、Phase 4）は引き続き未着手。
+
 ---
 
 ## 1. 目的
@@ -224,7 +226,7 @@ effectiveCarryingCapacity(cell, good) =
 | Phase | 内容 | 依存 |
 | :--- | :--- | :--- |
 | 1 ✅ | 農村労働配分器（§3）の導入。狩猟の自給枠（§5.1）＋漁業・ブドウ栽培（収穫段階のみ）を「労働力充足率でゲートされた連続レート」に変える（個体群/バイオマスストックはまだ導入しない＝現行の無限湧きレートに`workerFactor`／自給枠の頭数を掛けるだけ）。実装: `ruralOccupationAllocation.ts`（§0 2026-08-06 Phase 1実装完了を参照） | なし |
-| 2 | Fauna個体群ストック・繁殖・年齢選択性間引き（§4）。野生（Game）・家畜（liveAnimal）を別キャリング容量計算で導入。非食用家畜の需要キャップ（§4.5）。**このフェーズで新規モデル詳細度トグル（§11）を`Options → Generation`に導入し、`"detailed"`（既定）/`"simplified"`を切替可能にする**——コホート計算はここから初めて重くなるため | Phase 1 |
+| 2 ✅ | Fauna個体群ストック・繁殖・年齢選択性間引き（§4）。野生（Game）・家畜（liveAnimal）を別キャリング容量計算で導入。非食用家畜の需要キャップ（§4.5）。新規モデル詳細度トグル（§11）を`Options → Generation`に導入し、`"detailed"`（既定）/`"simplified"`を切替可能にした。実装: `faunaPopulation.ts`（§0 2026-08-06 Phase 2実装完了を参照）。家畜キャリング容量はhusbandry.ts（Phase 3）不在のため暫定プロキシ値 | Phase 1 |
 | 3 | 牧畜（`husbandry.ts`、§5.4）の面積・労働定数を確定し導入。家畜キャリング容量（§4.2）と接続 | Phase 1, 2 |
 | 4 | `Grapes`・`Raisins`の新規Good追加、ブドウ収穫段階の労働力ゲート（§5.3の収穫段階、農村労働配分器に統合）、Wineのレシピを`{ Grapes, Barrels }`へ切替。加工段階（Grapes→Raisins/Wine）は既存`production-generator.ts`の`runWorkerLoop`＋`craft`セクターに新規レシピを乗せるだけ（2026-08-06訂正、新規機構は発明しない）。Fish→保存食（`Stockfish`/`Preserved food`）は既に実装済みのため本フェーズでの作業なし | Phase 1 |
 | 5 | 3分岐・保存食配分の需要連動＋`durability`比例の再配分速度（§9.4） | Phase 4 |
@@ -246,16 +248,18 @@ effectiveCarryingCapacity(cell, good) =
 7. **決定（§10.3）**: 牧畜（`husbandry.ts`）の面積・労働定数は史料からの概算・類推を優先する。十分なデータが見つからない場合は仮置きせずPhase 3着手時に改めて相談する。
 8. **決定（§10.4）**: 加工労働力（燻製・塩蔵・乾燥・醸造）は新設セクターを起こさず、既存Burg雇用プールの`craft`セクターに紐付ける。醸造等のキャラクター熟練度依存は、生産量への厳密反映ではなくキャラクター背景・フレーバー接続に留める。
 9. **決定（§10.5）**: `Wine`のレシピに樽を追加する。樽は既存Good`Barrels`（`recipes: [{ Wood: 1 }]`、`woodworking`ギルド技能ドメイン、`Beer`等で消費実績あり）をそのまま再利用し、`Wine`のレシピは`{ Grapes: X, Barrels: Y }`に決定（新規Good不要）。「樽が成り立たない場合の`Grapes`+`Wood`直接レシピ」は将来の文化/時代別分岐用のフォールバックとして設計にのみ残す。
-10. **決定**: Phase 2以降の重い計算（fauna個体群コホート等）に備え、`Options → Generation`にモデル詳細度トグル（`ruralEcosystemDetail: "detailed" | "simplified"`、既定`"detailed"`）を新設する（§11）。導入はPhase 2実装時。
+10. **決定（実装済み）**: Phase 2以降の重い計算（fauna個体群コホート等）に備え、`Options → Generation`にモデル詳細度トグル（`ruralEcosystemDetail: "detailed" | "simplified"`、既定`"detailed"`）を新設した（§11）。
 
 ## 10. 新たに生じた未決定事項
 
 1. 害獣（獣害）のセル密度を表す指標が現状どこにも存在しない。§5.1の狩猟自給枠をこれで増減させる拡張は、その指標自体の設計をどこかのフェーズで別途行う必要がある（`threatCullHire.ts`/`cullPractice.ts`の脅威イベント頻度と関連付けるのが有力候補だが未検討）。
-2. §11のトグルの正式なオプションキー名・UIコピー・「新モデルは規定だが`"simplified"`固定ロード時にも既存セーブの`faunaStock`をどう扱うか」（切替時のマイグレーション）は、Phase 2実装時に詰める。
+2. ~~§11のトグルの正式なオプションキー名・UIコピー・既存セーブの`faunaStock`マイグレーション~~ → **解決（Phase 2実装済み）**: オプションキーは`ruralEcosystemDetail`、UIコピーは「Detailed (fauna population model)」/「Simplified (faster)」。マイグレーションは「不要」という当初設計どおり——`"simplified"`ロード中は`faunaStock`を単に触らず放置し、`"detailed"`へ戻したときに`ensureStock`が既存エントリをそのまま再利用する。
+3. Phase 3で`husbandry.ts`が実装されたら、`faunaPopulation.ts`の`getDomesticatedCarryingCapacity()`が使う暫定プロキシ（Phase 1フラットレート×24ヶ月）を実際の牧草地/労働力ベースの値に差し替える必要がある——差し替え時、既存セーブの`faunaStock`ドメスティック分がプロキシ値ベースで既に成長している可能性があり、新しい（恐らく異なる規模の）キャリング容量に対して急激な在庫スケーリング（`advanceCohortsOneYear`のダイオフ処理）が一度だけ発生しうる。急変が許容範囲か、緩和処理（複数年かけた段階的収束等）が要るかはPhase 3着手時に検討する。
+4. §4.5の需要吸収キャップは、設計では牧場ごとの按分配分を想定していたが、実装ではMarket単位の上限値を按分せず各セルへそのまま適用する簡略化とした（§0 2026-08-06 Phase 2実装完了参照）。Marketに属するセル数が多い場合、需要キャップの実効性が設計意図より緩くなる（各セルが独立にMarket全体の上限まで到達しうる）。Market単位の集計・按分パスを追加する価値があるかは、実際のプレイでの体感を見てから判断する。
 
 ---
 
-## 11. モデル詳細度トグル（`Options → Generation`）
+## 11. モデル詳細度トグル（`Options → Generation`）— ✅ 実装済み（Phase 2、§0 2026-08-06 Phase 2実装完了）
 
 Phase 2以降で導入するfauna個体群コホート計算（§4）は、疎とはいえ種×セル単位で繁殖・年齢遷移・間引きを年次更新する必要があり、Phase 1の農村労働配分器（セル数に対して線形の単純な四則演算）より明確に重い。ユーザー要望「新しく導入するモデルを簡素化したモデル(或いは現行の古いモデル)をUIのOptions → Generationで選択可能にしたい。新モデルがデフォルト」を受け、以下の設計とする。
 
@@ -281,5 +285,5 @@ Phase 2以降で導入するfauna個体群コホート計算（§4）は、疎�
 
 ### 11.3 実装への影響
 
-- fauna個体群の年次コホート更新関数（Phase 2で新設、想定`faunaPopulation.ts`の`updateAnnualFaunaCohorts()`相当）は、呼び出し側で`options.ruralEcosystemDetail === "detailed"`をガードとして早期リターンする、という単純な条件分岐で足りる。個体群ストック自体は`"simplified"`時も触らない（怠惰に放置）——次に`"detailed"`へ戻したときに初期化し直せば十分で、都度クリアするような特別な処理は不要という設計にする。
-- 本トグルの実装（コード変更）はPhase 2着手時に行う。本節時点ではまだ未実装。
+- fauna個体群の年次コホート更新関数（`faunaPopulation.ts`の`updateAnnualFaunaCohorts()`）は、関数の先頭で`getRuralEcosystemDetail() !== "detailed"`を早期リターンするだけの単純な条件分岐で実装した。個体群ストック自体は`"simplified"`時も触らない（怠惰に放置）——次に`"detailed"`へ戻したときに`ensureStock`が既存エントリをそのまま再利用する（都度クリアする特別処理は不要という設計どおり）。
+- 消費側（`drawWildFaunaOfftake()`/`drawDomesticatedFaunaOfftake()`）も同じガードを持ち、`"simplified"`時は呼び出し元が計算した「希望量」をそのまま返すパススルーとして働く——在庫テーブルの読み書きも一切発生しないため、トグルを切り替えただけでは既存の出力に何の影響も出ない。

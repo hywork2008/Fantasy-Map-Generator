@@ -99,6 +99,14 @@ export interface OptionsState {
   oikoumeneLandShare: number;
   /** Biome regional profile for auto-assignment masks (Phase 3). */
   biomeRegionProfile: BiomeRegionProfile;
+  /**
+   * Fauna population stock model detail level (docs/plan/biome-goods-producer-ecosystem.md §11).
+   * "detailed" (default) runs the annual fauna cohort/breeding/carrying-capacity model that gates
+   * Game and liveAnimal-tagged goods by a real per-cell headcount. "simplified" skips that model
+   * entirely and falls back to Phase 1's cheaper "labour/rate-gated, no population ceiling"
+   * formula — a performance escape hatch for large maps once cohort updates get expensive.
+   */
+  ruralEcosystemDetail: "detailed" | "simplified";
   demographicBirthRate: number;
   demographicChildMortalityRate: number;
   /** Display-only denomination: silver pieces represented by one gold piece. */
@@ -305,6 +313,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   initialSettlementPattern: "standard",
   oikoumeneLandShare: 0.45,
   biomeRegionProfile: "global",
+  ruralEcosystemDetail: "detailed",
   demographicBirthRate: 0.25,
   demographicChildMortalityRate: 0.2,
   goldToSilverRate: DEFAULT_GOLD_TO_SILVER_RATE,

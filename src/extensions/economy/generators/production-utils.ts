@@ -3,6 +3,7 @@ import { foodStressProductionMultiplier } from "../../hostCore";
 import { DEFAULT_CULTURE_TYPE, type Zone } from "../../hostTypes";
 import { getLatitude, getSeason, getSeasonalityStrength, rn, type Season } from "../../hostUtils";
 import { getGoodCellColumn, getSimulationMonth, getWorldContext } from "../economyContext";
+import { drawDomesticatedFaunaOfftake } from "./faunaPopulation";
 import { getDepletionFactor } from "./forestDepletion";
 import { type Good, Goods, isGoodEnabled } from "./goods-generator";
 import { isMineSuppliedGoodName } from "./mineralResources";
@@ -147,6 +148,10 @@ export function getRuralProductionContributions(
 
     let amount = population * production;
     if (good.name === "Wine") amount *= getViticultureWorkerFactor(cellId);
+    // Phase 2 fauna stock model (docs/plan/biome-goods-producer-ecosystem.md §4): caps the
+    // flat population-driven rate by the domesticated stock's actual harvestable headcount. A
+    // pass-through to `amount` unchanged when options.ruralEcosystemDetail === "simplified".
+    else if (good.tags.includes("liveAnimal")) amount = drawDomesticatedFaunaOfftake(cellId, good, amount);
     contributions.push({ goodId, amount: amount * getModifiers(good, cellId) });
   }
 

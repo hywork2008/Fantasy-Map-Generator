@@ -200,6 +200,7 @@ const options = {
   // Phase 0 compatibility baseline. Phase 1 makes this drive settlement placement.
   initialSettlementPattern: "standard" as const,
   biomeRegionProfile: "global" as const,
+  ruralEcosystemDetail: "detailed" as const,
   burgs: {
     groups: (safeParseJSON(localStorage.getItem("burg-groups") ?? "") as BurgGroup[] | null) || Burgs.getDefaultGroups()
   }
@@ -1033,6 +1034,7 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
   worldContext.options.conflictAutonomy = normalizeConflictAutonomy(useOptionsState.getState().conflictAutonomy);
   worldContext.options.initialSettlementPattern = useOptionsState.getState().initialSettlementPattern;
   worldContext.options.biomeRegionProfile = useOptionsState.getState().biomeRegionProfile;
+  worldContext.options.ruralEcosystemDetail = useOptionsState.getState().ruralEcosystemDetail;
 
   if (shouldRegenerateGrid(worldContext.grid, worldContext.seed, worldContext.graphWidth, worldContext.graphHeight)) {
     Object.keys(worldContext.grid).forEach(k => {

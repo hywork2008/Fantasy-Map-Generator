@@ -32,6 +32,7 @@ import {
   getViticultureRequiredWorkers,
   getViticultureWorkers
 } from "../economyContext";
+import { drawWildFaunaOfftake } from "./faunaPopulation";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { isGoodEnabled } from "./goods-generator";
 
@@ -246,10 +247,17 @@ export function allocateRuralOccupations(
 
 // ---- Consumption side: read the persisted allocation to gate Game/Fish/Wine (production-utils.ts) ----
 
-/** Game's monthly output, driven by hunter headcount instead of population (§5.1). Pre-modifier. */
+/**
+ * Game's monthly output, driven by hunter headcount instead of population (§5.1). Pre-modifier.
+ * `workers * GAME_YIELD_PER_HUNTER_PER_MONTH` is the "desired" labour-gated rate; Phase 2's fauna
+ * stock model (faunaPopulation.ts, docs/plan/biome-goods-producer-ecosystem.md §4) further caps it
+ * by the wild stock's actual harvestable headcount when `options.ruralEcosystemDetail ===
+ * "detailed"` (the default) — a pass-through to the labour-gated rate otherwise (§11.2).
+ */
 export function getHuntingGameOutput(cellId: number): number {
   const workers = getHuntingWorkers()[cellId] ?? 0;
-  return workers * GAME_YIELD_PER_HUNTER_PER_MONTH;
+  const desired = workers * GAME_YIELD_PER_HUNTER_PER_MONTH;
+  return drawWildFaunaOfftake(cellId, desired);
 }
 
 /** 0..1 labour-sufficiency ratio gating Fish's bonus-good output at `cellId` (the holder cell). */

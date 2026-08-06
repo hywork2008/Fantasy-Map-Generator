@@ -21,6 +21,7 @@ import type {
   EscortHireApplication,
   EscortJobPosting
 } from "./generators/escortHireTypes";
+import type { FaunaCohorts } from "./generators/faunaPopulationTypes";
 import type { Good } from "./generators/goodsGeneratorTypes";
 import type { GuildChapter } from "./generators/guildChapterTypes";
 import type { CraftDomainEmploymentRecord, GuildKnowledgeStock } from "./generators/guildKnowledgeTypes";
@@ -109,6 +110,7 @@ let _guildSuccessionLastSettledYearFallback: number | null = null;
 let _burgTreasuryLastSettledYearFallback: number | null = null;
 let _innFacilitiesLastSettledYearFallback: number | null = null;
 let _urbanWaterLastSettledYearFallback: number | null = null;
+let _faunaPopulationLastSettledYearFallback: number | null = null;
 let _stateAgriculturalProductivityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
 export function initEconomyContext(api: ExtensionAPI): void {
@@ -144,6 +146,7 @@ export function clearEconomyContext(): void {
   _burgTreasuryLastSettledYearFallback = null;
   _innFacilitiesLastSettledYearFallback = null;
   _urbanWaterLastSettledYearFallback = null;
+  _faunaPopulationLastSettledYearFallback = null;
   _stateAgriculturalProductivityFallback = new Float32Array();
 }
 
@@ -1083,6 +1086,29 @@ export function setUrbanWaterLastSettledYear(year: number): void {
   _urbanWaterLastSettledYearFallback = year;
 }
 
+/**
+ * Once-per-simulation-year guard for FaunaPopulation.updateAnnualFaunaCohorts()
+ * (docs/plan/biome-goods-producer-ecosystem.md §4, Phase 2). Independent of
+ * getSettlementDevelopmentLastEvaluatedYear so the (heavier, togglable) fauna cohort update can be
+ * skipped without disturbing agriculture's own annual cadence.
+ */
+export function getFaunaPopulationLastSettledYear(): number | null {
+  const slice = getEconomySlice();
+  if (slice) {
+    const value = slice.faunaPopulationLastSettledYear;
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return _faunaPopulationLastSettledYearFallback;
+}
+export function setFaunaPopulationLastSettledYear(year: number): void {
+  const slice = getEconomySlice();
+  if (slice) {
+    slice.faunaPopulationLastSettledYear = year;
+    return;
+  }
+  _faunaPopulationLastSettledYearFallback = year;
+}
+
 /** Pending construction hire applications (Phase 2 lag). */
 export function getConstructionHireApplications(): ConstructionHireApplication[] {
   return getSliceArray<ConstructionHireApplication>("constructionHireApplications");
@@ -1341,6 +1367,54 @@ export function getOrCreateLiveAnimalCatchTable(): Record<string, number> | null
   }
   const table: Record<string, number> = {};
   slice.liveAnimalCatchAccumulators = table;
+  return table;
+}
+
+/**
+ * Sparse "cellId:speciesKey" → {young,breeding,old} headcount, owned by the economy slice
+ * (docs/plan/biome-goods-producer-ecosystem.md §4, Phase 2). speciesKey is "Game" for the wild
+ * stock or a liveAnimal Good's name for domesticated stock. Returns null when the extension API /
+ * simulation context is not available (unit tests may treat this as "fauna model inactive").
+ */
+export function getOrCreateFaunaStockTable(): Record<string, FaunaCohorts> | null {
+  const slice = getEconomySlice();
+  if (!slice) return null;
+  const existing = slice.faunaStock;
+  if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+    return existing as Record<string, FaunaCohorts>;
+  }
+  const table: Record<string, FaunaCohorts> = {};
+  slice.faunaStock = table;
+  return table;
+}
+
+/**
+ * Sparse "marketId:goodId" → last up-to-4 quarterly consumed-stock samples, for non-food
+ * liveAnimal goods' demand-absorption carrying-capacity cap (§4.5). Paired with
+ * getOrCreateNonFoodFaunaDemandSnapshot(), which holds the stock level as of the last quarter
+ * boundary so the next quarter's sample can be derived as a stock delta.
+ */
+export function getOrCreateNonFoodFaunaDemandHistory(): Record<string, number[]> | null {
+  const slice = getEconomySlice();
+  if (!slice) return null;
+  const existing = slice.nonFoodFaunaDemandHistory;
+  if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+    return existing as Record<string, number[]>;
+  }
+  const table: Record<string, number[]> = {};
+  slice.nonFoodFaunaDemandHistory = table;
+  return table;
+}
+
+export function getOrCreateNonFoodFaunaDemandSnapshot(): Record<string, number> | null {
+  const slice = getEconomySlice();
+  if (!slice) return null;
+  const existing = slice.nonFoodFaunaDemandSnapshot;
+  if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+    return existing as Record<string, number>;
+  }
+  const table: Record<string, number> = {};
+  slice.nonFoodFaunaDemandSnapshot = table;
   return table;
 }
 

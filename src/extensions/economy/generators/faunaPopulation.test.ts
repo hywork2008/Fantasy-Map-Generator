@@ -1,0 +1,383 @@
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { simulationContext, worldContext } from "../../hostCore";
+import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
+import {
+  clearEconomyContext,
+  getOrCreateFaunaStockTable,
+  getOrCreateNonFoodFaunaDemandHistory,
+  getOrCreateNonFoodFaunaDemandSnapshot,
+  initEconomyContext,
+  setCultivatedArea,
+  setGoods,
+  setMarketCellColumn,
+  setMarkets
+} from "../economyContext";
+import {
+  clearFaunaPopulation,
+  DOMESTICATED_CAPACITY_MONTHS_PROXY,
+  drawDomesticatedFaunaOfftake,
+  drawWildFaunaOfftake,
+  getDomesticatedCarryingCapacity,
+  getDomesticatedCullSelectivity,
+  getRuralEcosystemDetail,
+  getWildCarryingCapacity,
+  getWildCullSelectivity,
+  recordQuarterlyNonFoodDemand,
+  updateAnnualFaunaCohorts,
+  WILD_GAME_DENSITY_PER_HECTARE,
+  WILD_SPECIES_KEY
+} from "./faunaPopulation";
+
+const CATTLE_GOOD = {
+  i: 1,
+  name: "Cattle",
+  value: 5,
+  tags: ["food", "liveAnimal"],
+  unit: "head",
+  icon: "icon",
+  color: "#fff",
+  chance: 4,
+  biomeOutputByTag: { grassland: 0.1 },
+  demandCoverage: {}
+};
+
+const CATS_GOOD = {
+  i: 2,
+  name: "Cats",
+  value: 3,
+  tags: ["liveAnimal", "pestControl"],
+  unit: "head",
+  icon: "icon",
+  color: "#fff",
+  chance: 0,
+  biomeOutputByTag: { arable: 0.005 },
+  demandCoverage: {}
+};
+
+function biomesData(tagsByCode: Record<number, string[]>) {
+  const maxCode = Math.max(...Object.keys(tagsByCode).map(Number));
+  const tags: string[][] = [];
+  for (let i = 0; i <= maxCode; i++) tags[i] = tagsByCode[i] ?? [];
+  return { tags, habitability: tags.map(() => 100) };
+}
+
+function forestCellWorld(): void {
+  worldContext.pack = {
+    cells: {
+      i: new Uint16Array([0]),
+      h: new Uint8Array([30]),
+      biomeCode: new Uint8Array([1]),
+      pop: new Float32Array([50]),
+      area: new Float32Array([100]), // 100 map-area units
+      culture: new Uint16Array([0]),
+      burg: new Uint16Array([0]),
+      state: new Uint16Array([0]),
+      c: [[]]
+    },
+    burgs: [],
+    cultures: [],
+    states: []
+  } as unknown as PackedGraph;
+  worldContext.distanceScale = 1; // physicalHectares = area * scale^2 * 100 = 100 * 1 * 100 = 10,000 ha
+  worldContext.biomesData = biomesData({ 1: ["forest"] }) as never;
+  setCultivatedArea(new Float32Array([0]));
+}
+
+describe("faunaPopulation", () => {
+  beforeEach(() => {
+    simulationContext.extensions = {};
+    initEconomyContext({ worldContext, simulationContext } as unknown as ExtensionAPI);
+  });
+
+  afterEach(() => {
+    clearEconomyContext();
+    simulationContext.extensions = {};
+  });
+
+  describe("getRuralEcosystemDetail", () => {
+    it("defaults to detailed when options.ruralEcosystemDetail is unset", () => {
+      worldContext.options = {} as typeof worldContext.options;
+      expect(getRuralEcosystemDetail()).toBe("detailed");
+    });
+
+    it("respects an explicit simplified setting", () => {
+      worldContext.options = { ruralEcosystemDetail: "simplified" } as typeof worldContext.options;
+      expect(getRuralEcosystemDetail()).toBe("simplified");
+    });
+  });
+
+  describe("getWildCarryingCapacity", () => {
+    it("is 0 for a non-forest cell", () => {
+      forestCellWorld();
+      worldContext.biomesData = biomesData({ 1: [] }) as never; // no forest tag
+      expect(getWildCarryingCapacity(0)).toBe(0);
+    });
+
+    it("scales with unclaimed (physicalArea - cultivatedArea) hectares", () => {
+      forestCellWorld();
+      // physicalArea = 10,000 ha, no cultivation yet -> full area is wild habitat.
+      expect(getWildCarryingCapacity(0)).toBeCloseTo(WILD_GAME_DENSITY_PER_HECTARE * 10000, 5);
+
+      setCultivatedArea(new Float32Array([4000])); // Grain claims 4,000 ha
+      expect(getWildCarryingCapacity(0)).toBeCloseTo(WILD_GAME_DENSITY_PER_HECTARE * 6000, 5);
+    });
+
+    it("never goes negative when cultivation exceeds physical area", () => {
+      forestCellWorld();
+      setCultivatedArea(new Float32Array([999999]));
+      expect(getWildCarryingCapacity(0)).toBe(0);
+    });
+  });
+
+  describe("drawWildFaunaOfftake", () => {
+    it("passes the desired amount through unchanged in simplified mode, without touching the stock table", () => {
+      forestCellWorld();
+      worldContext.options = { ruralEcosystemDetail: "simplified" } as typeof worldContext.options;
+
+      expect(drawWildFaunaOfftake(0, 42)).toBe(42);
+      expect(getOrCreateFaunaStockTable()).toEqual({});
+    });
+
+    it("caps offtake at the harvestable stock once demand exceeds what's actually out there", () => {
+      forestCellWorld();
+      worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
+
+      // First call seeds the stock at 60% of a very large capacity (10,000 ha of unclaimed
+      // forest) — comfortably above a modest desired amount, so it's granted in full.
+      const modestDesired = 5;
+      const granted = drawWildFaunaOfftake(0, modestDesired);
+      expect(granted).toBeCloseTo(modestDesired, 5);
+
+      // Now shrink the cell down to almost nothing by claiming nearly all its area as cropland,
+      // and reset the stock table so ensureStock re-seeds against the new tiny capacity.
+      clearFaunaPopulation();
+      setCultivatedArea(new Float32Array([9999.9995])); // leaves ~0.0005 ha wild
+      const tinyCapacity = getWildCarryingCapacity(0);
+      expect(tinyCapacity).toBeGreaterThan(0);
+      expect(tinyCapacity).toBeLessThan(1);
+
+      const hugeDesired = 1000;
+      const grantedFromTinyStock = drawWildFaunaOfftake(0, hugeDesired);
+      // Seeded stock = 60% of tinyCapacity, well under 1 — offtake can't exceed what exists.
+      expect(grantedFromTinyStock).toBeLessThan(1);
+      expect(grantedFromTinyStock).toBeGreaterThan(0);
+    });
+
+    it("draws down the persisted stock so a second identical draw within the same period yields less", () => {
+      forestCellWorld();
+      worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
+      setCultivatedArea(new Float32Array([9999])); // small habitat -> small, easily-exhausted stock
+
+      const capacity = getWildCarryingCapacity(0);
+      const initialStock = capacity * 0.6; // INITIAL_STOCK_FRACTION_OF_CAPACITY
+
+      const first = drawWildFaunaOfftake(0, initialStock); // draw (almost) everything
+      const second = drawWildFaunaOfftake(0, initialStock); // stock is now near-empty
+      expect(first).toBeGreaterThan(0);
+      expect(second).toBeLessThan(first);
+    });
+  });
+
+  describe("age-selective culling", () => {
+    it("weights wild selectivity toward selective for a Hunting culture at peacetime", () => {
+      forestCellWorld();
+      worldContext.pack.cultures = [{ i: 0, type: "Hunting" }] as never;
+      worldContext.pack.states = [{ i: 0, foodStress: 0 }] as never;
+      const huntingSelectivity = getWildCullSelectivity(0);
+
+      worldContext.pack.cultures = [{ i: 0, type: "Generic" }] as never;
+      const genericSelectivity = getWildCullSelectivity(0);
+
+      expect(huntingSelectivity).toBeGreaterThan(genericSelectivity);
+    });
+
+    it("pulls wild selectivity toward indiscriminate under food-stress crisis", () => {
+      forestCellWorld();
+      worldContext.pack.cultures = [{ i: 0, type: "Generic" }] as never;
+      worldContext.pack.states = [{ i: 0, foodStress: 0 }] as never;
+      const peacetime = getWildCullSelectivity(0);
+
+      worldContext.pack.states = [{ i: 0, foodStress: 1.5 }] as never; // max stress
+      const crisis = getWildCullSelectivity(0);
+
+      expect(crisis).toBeLessThan(peacetime);
+    });
+
+    it("defaults domesticated culling to selective, still pulled by crisis", () => {
+      forestCellWorld();
+      worldContext.pack.states = [{ i: 0, foodStress: 0 }] as never;
+      const peacetime = getDomesticatedCullSelectivity(0);
+      expect(peacetime).toBeGreaterThan(0.5);
+
+      worldContext.pack.states = [{ i: 0, foodStress: 1.5 }] as never;
+      const crisis = getDomesticatedCullSelectivity(0);
+      expect(crisis).toBeLessThan(peacetime);
+    });
+
+    it("draws from old-then-breeding-then-young preferentially when selectivity is high", () => {
+      forestCellWorld();
+      worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
+      worldContext.pack.cultures = [{ i: 0, type: "Hunting" }] as never; // high selectivity
+      worldContext.pack.states = [{ i: 0, foodStress: 0 }] as never;
+
+      const table = getOrCreateFaunaStockTable()!;
+      table[`0:${WILD_SPECIES_KEY}`] = { young: 10, breeding: 10, old: 10 };
+
+      drawWildFaunaOfftake(0, 8); // less than the 10 in `old` alone
+      const after = table[`0:${WILD_SPECIES_KEY}`];
+      // Highly selective (Hunting, peacetime): old should be drawn down the most.
+      expect(after.old).toBeLessThan(10);
+      expect(after.young).toBeCloseTo(10, 0); // young barely touched at high selectivity
+    });
+  });
+
+  describe("getDomesticatedCarryingCapacity", () => {
+    it("food species use the flat-rate x months proxy directly", () => {
+      const flatRate = 2;
+      expect(getDomesticatedCarryingCapacity(0, CATTLE_GOOD as never, flatRate)).toBeCloseTo(
+        flatRate * DOMESTICATED_CAPACITY_MONTHS_PROXY,
+        5
+      );
+    });
+
+    it("caps non-food species by the demand-absorption history once it exists", () => {
+      forestCellWorld();
+      setMarketCellColumn(new Uint16Array([1]));
+
+      const flatRate = 10; // rawCapacity = 10 * 24 = 240, comfortably above any demand cap below
+      const rawCapacity = flatRate * DOMESTICATED_CAPACITY_MONTHS_PROXY;
+      expect(getDomesticatedCarryingCapacity(0, CATS_GOOD as never, flatRate)).toBeCloseTo(rawCapacity, 5);
+
+      const historyTable = getOrCreateNonFoodFaunaDemandHistory()!;
+      historyTable[`1:${CATS_GOOD.i}`] = [1, 1, 1, 1]; // average 1 x 1.2 buffer = 1.2 cap
+      expect(getDomesticatedCarryingCapacity(0, CATS_GOOD as never, flatRate)).toBeCloseTo(1.2, 5);
+    });
+  });
+
+  describe("drawDomesticatedFaunaOfftake", () => {
+    it("passes desired amount through unchanged in simplified mode", () => {
+      worldContext.options = { ruralEcosystemDetail: "simplified" } as typeof worldContext.options;
+      expect(drawDomesticatedFaunaOfftake(0, CATTLE_GOOD as never, 7)).toBe(7);
+    });
+
+    it("grants the full desired amount when stock comfortably covers it (food species)", () => {
+      forestCellWorld();
+      worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
+      expect(drawDomesticatedFaunaOfftake(0, CATTLE_GOOD as never, 2)).toBeCloseTo(2, 5);
+    });
+  });
+
+  describe("recordQuarterlyNonFoodDemand", () => {
+    it("records net stock decrease as consumed, and 0 when stock merely piled up", () => {
+      worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
+      setGoods([CATS_GOOD] as never);
+      setMarkets([{ i: 1, goods: { [CATS_GOOD.i]: { stock: 10, price: 3 } } }] as never);
+
+      recordQuarterlyNonFoodDemand(); // first snapshot: no prior baseline, consumed = 0
+      let history = getOrCreateNonFoodFaunaDemandHistory()![`1:${CATS_GOOD.i}`];
+      expect(history).toEqual([0]);
+
+      setMarkets([{ i: 1, goods: { [CATS_GOOD.i]: { stock: 4, price: 3 } } }] as never); // sold 6
+      recordQuarterlyNonFoodDemand();
+      history = getOrCreateNonFoodFaunaDemandHistory()![`1:${CATS_GOOD.i}`];
+      expect(history).toEqual([0, 6]);
+
+      setMarkets([{ i: 1, goods: { [CATS_GOOD.i]: { stock: 9, price: 3 } } }] as never); // piled back up
+      recordQuarterlyNonFoodDemand();
+      history = getOrCreateNonFoodFaunaDemandHistory()![`1:${CATS_GOOD.i}`];
+      expect(history).toEqual([0, 6, 0]);
+    });
+
+    it("keeps only the last 4 quarterly samples", () => {
+      worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
+      setGoods([CATS_GOOD] as never);
+      let stock = 100;
+      for (let i = 0; i < 6; i++) {
+        stock -= 1;
+        setMarkets([{ i: 1, goods: { [CATS_GOOD.i]: { stock, price: 3 } } }] as never);
+        recordQuarterlyNonFoodDemand();
+      }
+      const history = getOrCreateNonFoodFaunaDemandHistory()![`1:${CATS_GOOD.i}`];
+      expect(history.length).toBe(4);
+    });
+
+    it("does nothing in simplified mode", () => {
+      worldContext.options = { ruralEcosystemDetail: "simplified" } as typeof worldContext.options;
+      setGoods([CATS_GOOD] as never);
+      setMarkets([{ i: 1, goods: { [CATS_GOOD.i]: { stock: 10, price: 3 } } }] as never);
+      recordQuarterlyNonFoodDemand();
+      expect(getOrCreateNonFoodFaunaDemandHistory()).toEqual({});
+    });
+  });
+
+  describe("updateAnnualFaunaCohorts", () => {
+    it("no-ops and returns false in simplified mode", () => {
+      forestCellWorld();
+      worldContext.options = { ruralEcosystemDetail: "simplified" } as typeof worldContext.options;
+      expect(updateAnnualFaunaCohorts()).toBe(false);
+      expect(getOrCreateFaunaStockTable()).toEqual({});
+    });
+
+    it("seeds stock for a fresh forest cell and grows breeding-cohort young the following year", () => {
+      forestCellWorld();
+      worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
+      // getSimulationYear() prefers simulationContext.currentYear over options.year once a live
+      // simulationContext is wired up (as it is here, for the fauna slice) — drive the guard
+      // through that, not options.year (see academyKnowledge.test.ts's contrasting worldContext-only pattern).
+      simulationContext.currentYear = 500;
+
+      expect(updateAnnualFaunaCohorts()).toBe(true); // seeds stock
+      const table = getOrCreateFaunaStockTable()!;
+      const seeded = table[`0:${WILD_SPECIES_KEY}`];
+      expect(seeded).toBeDefined();
+      expect(seeded.breeding).toBeGreaterThan(0);
+
+      // Same year again -> guarded, no change.
+      expect(updateAnnualFaunaCohorts()).toBe(false);
+
+      simulationContext.currentYear = 501;
+      expect(updateAnnualFaunaCohorts()).toBe(true);
+      const grown = table[`0:${WILD_SPECIES_KEY}`];
+      // Breeding cohort with room under capacity should have produced young.
+      expect(grown.young).toBeGreaterThan(0);
+    });
+
+    it("shrinks stock toward a newly-reduced carrying capacity instead of leaving it stranded above it", () => {
+      forestCellWorld();
+      worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
+      simulationContext.currentYear = 500;
+      updateAnnualFaunaCohorts();
+
+      const table = getOrCreateFaunaStockTable()!;
+      const key = `0:${WILD_SPECIES_KEY}`;
+      table[key] = { young: 1000, breeding: 1000, old: 1000 }; // far above any plausible capacity
+
+      setCultivatedArea(new Float32Array([9999])); // shrink habitat sharply
+      simulationContext.currentYear = 501;
+      updateAnnualFaunaCohorts();
+
+      const after = table[key];
+      const total = after.young + after.breeding + after.old;
+      const capacity = getWildCarryingCapacity(0);
+      expect(total).toBeLessThanOrEqual(capacity + 1e-6);
+    });
+  });
+
+  describe("clearFaunaPopulation", () => {
+    it("empties the stock, demand history, and demand snapshot tables", () => {
+      worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
+      const table = getOrCreateFaunaStockTable()!;
+      table["0:Game"] = { young: 1, breeding: 1, old: 1 };
+      const history = getOrCreateNonFoodFaunaDemandHistory()!;
+      history["1:2"] = [1, 2];
+      const snapshot = getOrCreateNonFoodFaunaDemandSnapshot()!;
+      snapshot["1:2"] = 5;
+
+      clearFaunaPopulation();
+
+      expect(getOrCreateFaunaStockTable()).toEqual({});
+      expect(getOrCreateNonFoodFaunaDemandHistory()).toEqual({});
+      expect(getOrCreateNonFoodFaunaDemandSnapshot()).toEqual({});
+    });
+  });
+});

@@ -72,6 +72,11 @@ import {
 } from "./generators/escortHire";
 import { clearEscortHireState, rebuildEscortJobPostings, tickEscortJobBoard } from "./generators/escortJobPostings";
 import { ExportStaging } from "./generators/exportStaging";
+import {
+  clearFaunaPopulation,
+  recordQuarterlyNonFoodDemand,
+  updateAnnualFaunaCohorts
+} from "./generators/faunaPopulation";
 import { resetEffectiveCapacities } from "./generators/foodImportNetwork";
 import { settleMonthlyFoodConsumption } from "./generators/foodLedgerConsumption";
 import { FoodProduction } from "./generators/foodProduction";
@@ -1052,6 +1057,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
       }
       clearForestDepletion();
       clearLiveAnimalCatchAccumulators();
+      clearFaunaPopulation();
       clearStrategicProcurementExpenses();
       clearTreasuryAllocationSnapshots();
       StrategicProcurement.clear();
@@ -1972,6 +1978,10 @@ export function init(api: ExtensionAPI): void {
         // Must run before the quarter's food ledger so annual demographic changes
         // alter cultivated area and farm labour without waiting an extra quarter.
         agricultureRefreshed = DevelopmentPotential.updateAnnualAgriculture();
+        // Fauna population cohort update (docs/plan/biome-goods-producer-ecosystem.md §4, Phase 2):
+        // its own once-per-year guard, independent of agriculture's — no-ops entirely when
+        // options.ruralEcosystemDetail === "simplified" (§11.3).
+        updateAnnualFaunaCohorts();
         // Only release this year's freshly recomputed migratableAdults surplus — running on a
         // tick where agriculture wasn't refreshed would re-read last year's (already-extracted) figures.
         // Options -> Simulation "Settlement growth" gate: "independent" keeps the classic
@@ -2008,6 +2018,8 @@ export function init(api: ExtensionAPI): void {
             // instead of only for the brief window right after one.
             ConstructionOperations.constrainEffectiveCapacity();
             UrbanLaborIntake.raidBanditFood(getWorldContext(), context.rng);
+            // Non-food liveAnimal demand-absorption history (§4.5) — one sample per quarter passed.
+            recordQuarterlyNonFoodDemand();
           }
         });
       }
@@ -2441,6 +2453,7 @@ export function cleanup(api: ExtensionAPI): void {
   clearTreasuryAllocationSnapshots();
   clearForestDepletion();
   clearLiveAnimalCatchAccumulators();
+  clearFaunaPopulation();
   resetEffectiveCapacities(getWorldContext().pack.burgs);
   StrategicProcurement.clear();
   clearBurgMarketLedgers();

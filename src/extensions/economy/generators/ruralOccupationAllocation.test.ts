@@ -172,6 +172,11 @@ describe("ruralOccupationAllocation", () => {
   });
 
   it("derives Game output from hunter headcount rather than population", () => {
+    // Phase 2's fauna stock model (faunaPopulation.ts) would otherwise cap this cell's Game
+    // output by wildHabitatArea, which needs cells.area/distanceScale this fixture doesn't set
+    // up — pin "simplified" so this test keeps exercising Phase 1's labour-only formula in
+    // isolation. Detailed-mode stock capping is covered by faunaPopulation.test.ts.
+    worldContext.options = { ruralEcosystemDetail: "simplified" } as typeof worldContext.options;
     worldContext.pack = {
       cells: {
         i: new Uint16Array([0]),

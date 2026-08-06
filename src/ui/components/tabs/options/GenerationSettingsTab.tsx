@@ -672,6 +672,34 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
             <td></td>
           </tr>
+
+          <tr>
+            <th colSpan={4}>6. Rural economy</th>
+          </tr>
+          <tr data-tip="Detail level of the fauna population model backing Game and livestock production (docs/plan/biome-goods-producer-ecosystem.md). Detailed runs an annual per-cell wildlife/livestock cohort model (breeding, aging, age-selective culling, carrying capacity) that caps output by an actual headcount instead of an unlimited rate. Simplified skips that model and keeps the cheaper labour/rate-gated formula with no population ceiling — a performance option for large maps. Apply on next map generation.">
+            <td>
+              <LockIconButton id="ruralEcosystemDetail" />
+            </td>
+            <th>
+              <label htmlFor="ruralEcosystemDetail">Fauna population model</label>
+            </th>
+            <td colSpan={2}>
+              <select
+                id="ruralEcosystemDetail"
+                name="ruralEcosystemDetail"
+                value={options.ruralEcosystemDetail}
+                onChange={e => {
+                  options.setOptions({
+                    ruralEcosystemDetail: e.target.value as typeof options.ruralEcosystemDetail
+                  });
+                  lock("ruralEcosystemDetail");
+                }}
+              >
+                <option value="detailed">Detailed (fauna population model)</option>
+                <option value="simplified">Simplified (faster)</option>
+              </select>
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>

@@ -172,15 +172,25 @@ function supportedPeople(cultivableHectares: number, yieldKgPerHa: number): numb
   );
 }
 
+/**
+ * Raw physical cell area in hectares, independent of habitability/biome/terrain suitability.
+ * Exported so faunaPopulation.ts's wildHabitatArea (docs/plan/biome-goods-producer-ecosystem.md
+ * §4.2) can subtract cultivatedArea from the same physical footprint calculateCultivableAreaHectares
+ * itself starts from, instead of re-deriving a slightly different figure.
+ */
+export function calculatePhysicalAreaHectares(world: Readonly<WorldContext>, cellId: number): number {
+  const cells = world.pack.cells;
+  if ((cells.h[cellId] ?? 0) < 20) return 0;
+  const rawArea = Math.max(0, cells.area?.[cellId] ?? 0);
+  return rawArea * Math.max(0, world.distanceScale || 1) ** 2 * 100;
+}
+
 function calculateCultivableAreaHectares(world: Readonly<WorldContext>, cellId: number): number {
   const cells = world.pack.cells;
-  const height = cells.h[cellId] ?? 0;
-  if (height < 20) return 0;
-
-  const rawArea = Math.max(0, cells.area[cellId] ?? 0);
-  const physicalHectares = rawArea * Math.max(0, world.distanceScale || 1) ** 2 * 100;
+  const physicalHectares = calculatePhysicalAreaHectares(world, cellId);
   if (physicalHectares <= 0) return 0;
 
+  const height = cells.h[cellId] ?? 0;
   const biomeCode = cells.biomeCode[cellId] ?? 0;
   const habitability = Math.max(0, world.biomesData.habitability[biomeCode] ?? 0);
   if (habitability <= 0) return 0;

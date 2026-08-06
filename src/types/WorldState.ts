@@ -97,6 +97,13 @@ export interface WorldOptions {
    */
   biomeRegionProfile?: BiomeRegionProfile;
   /**
+   * Fauna population stock model detail level (docs/plan/biome-goods-producer-ecosystem.md §11).
+   * "detailed" (default) runs the fauna cohort/carrying-capacity model (Phase 2+); "simplified"
+   * skips it and keeps Game/liveAnimal output on the cheaper Phase 1 uncapped-rate formula.
+   * Undefined preserves legacy maps as "detailed".
+   */
+  ruralEcosystemDetail?: "detailed" | "simplified";
+  /**
    * Sea-route topology selected for this map. Persisted so loading a saved map
    * does not replace a user-selected legacy network with the augmented one.
    */
