@@ -1267,6 +1267,25 @@ export function getOrCreateForestDepletionTable(): Record<number, number> | null
   return table;
 }
 
+/**
+ * Sparse "marketId:collectionBurgId:goodId" → banked-catch accumulator, owned by the
+ * economy slice. Used by liveAnimalCatch.ts to turn liveAnimal-tagged goods' continuous
+ * rural production rate into lumpy integer catches instead of a fractional trickle.
+ * Returns null when the extension API / simulation context is not available (unit tests
+ * may use a module fallback in liveAnimalCatch.ts).
+ */
+export function getOrCreateLiveAnimalCatchTable(): Record<string, number> | null {
+  const slice = getEconomySlice();
+  if (!slice) return null;
+  const existing = slice.liveAnimalCatchAccumulators;
+  if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+    return existing as Record<string, number>;
+  }
+  const table: Record<string, number> = {};
+  slice.liveAnimalCatchAccumulators = table;
+  return table;
+}
+
 export function getViewContext() {
   return getApi().viewContext;
 }

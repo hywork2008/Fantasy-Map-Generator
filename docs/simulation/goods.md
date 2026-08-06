@@ -12,6 +12,34 @@ GOODS_DATA の編集 UI（Goods Editor）が存在する。マップ生成時に
 
 `liveAnimal` は、生きたまま取引・輸送される Cattle、Horses、Elephants、Camels、Sheep、Goats、Pig、Chicken、Cats に付与する。捕獲後の肉・副産物として流通する Game や Whales、および人間を示す Slaves には付与しない。
 
+### 生産量の整数化（実装済み）
+
+`liveAnimal` タグ付き商品は、他の商品のように小数点以下の連続量として市場在庫に加算されない。実装は `generators/liveAnimalCatch.ts`（`rollLiveAnimalCatch`）で、`markets-generator.ts` の `addRuralOutput()` がこのタグを検出した際に介在する。
+
+アルゴリズムは「漏れバケツ」型の確率的丸め（Bresenham 型直線描画アルゴリズムの乱数版）:
+
+```text
+accumulator += expectedAmount              // その月分の連続レートを積み立てる
+guaranteed   = floor(max(accumulator, 0))  // 確実に得られる頭数
+remainder    = accumulator - guaranteed    // 端数（負債中は負値）
+bonus        = remainder > 0 && random() < remainder ? 1 : 0
+caught       = guaranteed + bonus
+accumulator -= caught
+```
+
+捕獲が起きるとアキュムレータが 0 付近（または負債側）まで下がるため、直後の数ヶ月は捕獲確率が低く保たれ、再び貯まるまで待つ「捕りすぎた後にしばらく減る」挙動になる。多数ヶ月で平均すると `expectedAmount`（従来の連続生産レート）に厳密収束する（renewal-reward theorem）ため、年間総生産量は変更前と同じで、月ごとの分布だけが変わる。
+
+アキュムレータは市場・集荷 Burg・商品ごと（`marketId:collectionBurgId:goodId`）に独立して保持し、`simulation.extensions.economy.liveAnimalCatchAccumulators` に永続化される（`economyContext.ts` の `getOrCreateLiveAnimalCatchTable()`）。Economy 拡張を disable/regenerate すると `clearLiveAnimalCatchAccumulators()` でクリアされる。
+
+### 卸取引・初期在庫の整数ロット化（実装済み）
+
+生産（上記）は整数化されても、**市場間の卸取引は元々どの商品も連続量で動く**ため、`unit: "head"` の商品（liveAnimal はすべて該当）でも卸取引を経由すると端数在庫が生まれ得た。具体的には:
+
+- `runGlobalTrade()`（`markets-generator.ts`）が算出する取引量 `units`
+- `ExportStaging.seedInheritedExportWarehouseIfNeeded()`（`exportStaging.ts`）が生成する「ゲーム開始時点で商人がすでに買い付け済みだったことにする」初期倉庫ロット
+
+のどちらも、既存の小売ロット制約 `getRetailLotSize()` / `floorToRetailLot()`（`goodsTradeLots.ts`。`unit` が `INDIVISIBLE_UNITS`＝`head`/`ship`/`cannon`/`slave` 等、または `cargo.handlingClass === "live"` の商品はロットサイズ 1）を、取引量が確定する箇所で通すことで整数化している。これにより「開始時点で在庫 0.4 匹」のようなケースは発生しなくなる。プレイヤー向け小売購入（Character Market）は元々この関数でロット制約済みだった。
+
 ## 建材・住居関連（実装済み）
 
 住居建設と文化別建材は [urban-housing-system.md](../plan/urban-housing-system.md) と [urban-construction-industry.md](../plan/urban-construction-industry.md) を参照。

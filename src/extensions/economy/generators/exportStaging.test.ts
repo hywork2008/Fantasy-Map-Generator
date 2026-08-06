@@ -11,6 +11,18 @@ import {
 import { ExportStaging } from "./exportStaging";
 import type { Market } from "./marketTypes";
 
+const HEAD_GOOD = {
+  i: 5,
+  name: "Cats",
+  value: 3,
+  tags: ["liveAnimal"],
+  unit: "head",
+  icon: "",
+  color: "",
+  distribution: "1",
+  recipes: []
+};
+
 describe("ExportStaging warehouse", () => {
   beforeEach(() => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
@@ -158,6 +170,22 @@ describe("ExportStaging warehouse", () => {
     ExportStaging.cancelLot(lot!.id);
     expect(market.marketTreasury!.tradeCapitalLocked).toBeCloseTo(0);
     expect(market.goods[0].stock).toBeCloseTo(50);
+  });
+
+  it("seedInheritedExportWarehouseIfNeeded() rounds indivisible-unit ('head') goods to a whole-unit lot", () => {
+    worldContext.pack.goods = [HEAD_GOOD];
+    const origin = getMarketById(1)!;
+    // maxByStock = 4 * INHERITED_STOCK_SHARE(0.35) = 1.4 — deliberately fractional and, since it's
+    // below the random destCount/lineCount pick's [2, 20) floor, always the binding constraint
+    // regardless of Math.random(), which stays unmocked here.
+    origin.goods[HEAD_GOOD.i] = { stock: 4, price: 3 };
+    origin.marketTreasury = { balance: 0, ruralGrainPayable: 0, tradeWorkingCapital: 1000, tradeCapitalLocked: 0 };
+
+    ExportStaging.seedInheritedExportWarehouseIfNeeded();
+
+    const lots = getExportStagingLots().filter(lot => lot.goodId === HEAD_GOOD.i);
+    expect(lots).toHaveLength(1);
+    expect(lots[0].units).toBe(1);
   });
 
   it("caps booking by available trade capital", () => {

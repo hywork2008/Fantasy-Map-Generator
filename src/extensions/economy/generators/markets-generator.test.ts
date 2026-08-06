@@ -159,6 +159,43 @@ describe("MarketsModule", () => {
       expect(market1.goods[0].stock).toBeLessThan(100);
     });
 
+    it("runGlobalTrade() should round liveAnimal ('head'-unit) goods to a whole-unit deal instead of fractioning them", () => {
+      const liveAnimalGood = {
+        ...getGoods()[0],
+        i: 998,
+        name: "Cats",
+        tags: ["liveAnimal"],
+        unit: "head"
+      };
+      worldContext.pack.goods = [...getGoods(), liveAnimalGood];
+
+      const market1: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#ff0000",
+        goods: { [liveAnimalGood.i]: { stock: 6.7, price: 5 } }
+      };
+      const market2: Market = {
+        i: 2,
+        centerBurgId: 2,
+        color: "#00ff00",
+        goods: { [liveAnimalGood.i]: { stock: 0, price: 20 } }
+      };
+      const burg1: Burg = { i: 1, x: 100, y: 100, population: 100, market: 1 } as unknown as Burg;
+      const burg2: Burg = { i: 2, x: 200, y: 100, population: 100, market: 2 } as unknown as Burg;
+      setMarkets([market1, market2]);
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, burg1, burg2];
+      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
+      marketsModule["marketById"] = [market1, market2];
+
+      marketsModule.runGlobalTrade();
+
+      const deal = getDeals().find(candidate => candidate.good === liveAnimalGood.i);
+      expect(deal).toBeDefined();
+      expect(Number.isInteger(deal!.units)).toBe(true);
+      expect(deal!.units).toBeGreaterThan(0);
+    });
+
     it("caches market routes until a market centre changes", () => {
       const market1: Market = {
         i: 1,
@@ -541,6 +578,40 @@ describe("MarketsModule", () => {
         { burgId: 2, marketId: 1, goods: { [good.i]: 5 } }
       ]);
       expect(validateRetailInventory()).toEqual([]);
+    });
+
+    it("collectRuralProduction() should convert liveAnimal-tagged goods to integer catches instead of a continuous trickle", async () => {
+      const { getRuralProductionContributions } = await import("./production-utils");
+      const liveAnimalGood = { ...getGoods()[0], i: 999, name: "Cats", tags: ["liveAnimal"] };
+
+      const market1: Market = { i: 1, centerBurgId: 1, color: "#ff0000", goods: {} };
+      setMarkets([market1]);
+      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
+      marketsModule["marketById"] = [market1, market1];
+      worldContext.pack.cells = {
+        i: [0],
+        market: Uint16Array.from([1])
+      } as unknown as PackedGraph["cells"];
+      vi.mocked(Goods.get).mockImplementation((id: number) => (id === liveAnimalGood.i ? liveAnimalGood : undefined));
+      vi.mocked(getRuralProductionContributions).mockReturnValue([{ goodId: liveAnimalGood.i, amount: 0.2 }]);
+
+      // Fixed at 0.999 so only the deterministic "guaranteed" branch of the accumulator (once
+      // the banked amount reaches 1) ever produces a catch — the fractional Bernoulli bonus never wins.
+      const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.999);
+
+      for (let i = 0; i < 4; i++) {
+        marketsModule.invalidateRuralProductionCache();
+        marketsModule.collectRuralProduction();
+        // 0.2/month banked but never reaches the 1-unit threshold -> no stock yet, not a fractional trickle.
+        expect(market1.goods[liveAnimalGood.i]?.stock ?? 0).toBe(0);
+      }
+
+      marketsModule.invalidateRuralProductionCache();
+      marketsModule.collectRuralProduction();
+      // 5th month: 0.2 * 5 = 1.0 banked -> one whole catch lands at once.
+      expect(market1.goods[liveAnimalGood.i].stock).toBe(1);
+
+      randomSpy.mockRestore();
     });
 
     it("getName() should prefer a custom name, fall back to the center burg, then to a generic label", () => {

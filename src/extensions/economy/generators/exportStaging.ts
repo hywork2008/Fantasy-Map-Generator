@@ -19,6 +19,7 @@ import {
   setNextExportStagingLotId
 } from "../economyContext";
 import { isGoodEnabled } from "./goods-generator";
+import { floorToRetailLot, getRetailLotSize } from "./goodsTradeLots";
 import type { ExportStagingLot } from "./marketTypes";
 import { MerchantTradeCapital } from "./merchantTradeCapital";
 
@@ -263,7 +264,12 @@ export class ExportStagingModule {
         const unitCost = Math.max(row.price || good.value, good.value * 0.5);
         const maxByStock = row.stock * INHERITED_STOCK_SHARE;
         const maxByCapital = (capitalBudget - spent) / unitCost;
-        const units = rn(Math.min(maxByStock, maxByCapital, 2 + Math.random() * 18), 2);
+        // Indivisible units ("head" livestock, ships, etc.) can't seed a fractional pre-start
+        // warehouse lot — a market can't start owning 0.4 of a live animal.
+        const units = floorToRetailLot(
+          Math.min(maxByStock, maxByCapital, 2 + Math.random() * 18),
+          getRetailLotSize(good)
+        );
         if (units < 0.1) continue;
 
         const lot = this.bookFromRetail({

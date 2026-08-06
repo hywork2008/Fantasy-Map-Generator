@@ -30,6 +30,8 @@ import { ExportStaging } from "./exportStaging";
 import { getDepletedCells } from "./forestDepletion";
 import type { DemandCategory, Good } from "./goods-generator";
 import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, GOODS_DATA, Goods, isGoodEnabled } from "./goods-generator";
+import { floorToRetailLot, getRetailLotSize } from "./goodsTradeLots";
+import { getLiveAnimalCatchKey, rollLiveAnimalCatch } from "./liveAnimalCatch";
 import {
   computeMarketGoodFlowBudget,
   TRADE_RESERVE_FACTOR as FLOW_TRADE_RESERVE_FACTOR,
@@ -582,9 +584,18 @@ export class MarketsModule {
     const market = this.marketById[marketId];
     const good = Goods.get(goodId);
     if (!market || !good || !isGoodEnabled(good)) return;
+
+    // Live creatures arrive as lumpy integer catches, not a continuous trickle — see
+    // liveAnimalCatch.ts. Banking `amount` below its 1-unit threshold most months is what
+    // produces the "catch one, then quiet for a while" pattern instead of a flat monthly gain.
+    const resolvedAmount = good.tags.includes("liveAnimal")
+      ? rollLiveAnimalCatch(getLiveAnimalCatchKey(marketId, collectionBurgId, goodId), amount)
+      : amount;
+    if (resolvedAmount <= 0) return;
+
     const marketGood = this.getMarketGood(market, good);
-    marketGood.stock = rn(marketGood.stock + amount, 2);
-    if (collectionBurgId) addWholesaleGoodStock(collectionBurgId, marketId, goodId, amount);
+    marketGood.stock = rn(marketGood.stock + resolvedAmount, 2);
+    if (collectionBurgId) addWholesaleGoodStock(collectionBurgId, marketId, goodId, resolvedAmount);
   }
 
   private addRuralGoodTotal(
@@ -1089,6 +1100,10 @@ export class MarketsModule {
           });
           units = Math.min(units, flowBudget.exportBudget);
         }
+        // Indivisible units ("head" livestock, ships, etc. — see INDIVISIBLE_UNITS in
+        // goodsTradeLots.ts) must not fraction across a caravan trip either: a market can't
+        // wholesale 0.4 of a live animal any more than a player can retail-buy one.
+        units = floorToRetailLot(units, getRetailLotSize(good));
         if (units < MIN_UNIT) continue;
 
         const landedCost = exporterGood.price + opportunity.transportCost + opportunity.exporterTaxPerUnit;

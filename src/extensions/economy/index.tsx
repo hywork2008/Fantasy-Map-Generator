@@ -92,6 +92,7 @@ import { GuildTreasury } from "./generators/guildTreasury";
 import { IndustrialTechInvestment } from "./generators/industrialTechInvestment";
 import { InnFacilities } from "./generators/innFacilities";
 import { InnStays } from "./generators/innStays";
+import { clearLiveAnimalCatchAccumulators } from "./generators/liveAnimalCatch";
 import { clearFlowDiagnostics } from "./generators/marketFlowDiagnostics";
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
 import { Markets } from "./generators/markets-generator";
@@ -1050,6 +1051,7 @@ function registerEconomyCommands(api: ExtensionAPI): void {
         setMarketCellColumn(new Uint16Array(world.pack.cells.i.length));
       }
       clearForestDepletion();
+      clearLiveAnimalCatchAccumulators();
       clearStrategicProcurementExpenses();
       clearTreasuryAllocationSnapshots();
       StrategicProcurement.clear();
@@ -2438,6 +2440,7 @@ export function cleanup(api: ExtensionAPI): void {
   clearStrategicProcurementExpenses();
   clearTreasuryAllocationSnapshots();
   clearForestDepletion();
+  clearLiveAnimalCatchAccumulators();
   resetEffectiveCapacities(getWorldContext().pack.burgs);
   StrategicProcurement.clear();
   clearBurgMarketLedgers();
