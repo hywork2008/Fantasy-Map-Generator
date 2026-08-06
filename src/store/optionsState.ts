@@ -297,7 +297,7 @@ export const useOptionsState = create<OptionsState>(set => ({
   resolveDepressionsSteps: 250,
   lakeElevationLimit: 20,
   threatCalculation: "nonlinear",
-  enclosureCalculationMode: "oceanCurrents",
+  enclosureCalculationMode: "oceanCurrentsAmbient",
   oceanCurrentRenderMode: "path",
   militaryHierarchy: "simple",
   gunpowderEraEnabled: false,
