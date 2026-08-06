@@ -283,18 +283,23 @@ export const GOODS_DATA: GoodData[] = [
     biomeOutputByTag: { forest: 0.05 }
   },
   {
+    // Phase 4 (docs/plan/biome-goods-producer-ecosystem.md §5.3): Wine is no longer directly
+    // biome-produced — it's brewed from harvested `Grapes` (+ `Barrels`) via the existing generic
+    // recipe/craft pipeline, same as Beer from Grain. viticulture.ts sizes Grapes' harvest instead.
     name: "Wine",
     warEconomyType: "luxury",
     tags: ["food", "luxury"],
     icon: "good-wine",
     color: "#963e48",
-    value: 5,
-    chance: 3,
-    distribution: 'biome(6) || biomeTag("scrub") || (biome(4) && random(50) && river())',
+    // Bumped from the pre-Phase-4 value of 5 — the minimum that still clears { Grapes: 2, Barrels: 1 }
+    // (cost 2*2 + 1*2 = 6) ingredient cost, chosen to minimize the ripple into Vinegar/Preserved
+    // food/Cheese, which all price off Wine's value transitively.
+    value: 6,
+    chance: 0,
+    recipes: [{ Grapes: 2, Barrels: 1 }],
     unit: "barrel",
     demandCoverage: { food: 0.5, luxury: 0.5 },
-    multipliers: { cultureType: { Highland: 1.2, Nomadic: 0.5 } },
-    biomeOutputByTag: { scrub: 0.12, arable: 0.04 }
+    multipliers: { cultureType: { Highland: 1.2, Nomadic: 0.5 } }
   },
   {
     name: "Olives",
@@ -1128,7 +1133,8 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["food", "preservative"],
     icon: "good-vinegar",
     color: "#9b111e",
-    value: 5,
+    // Bumped from 5 alongside Wine's Phase 4 value increase — { Wine: 1 } now costs 6.
+    value: 6,
     chance: 0,
     recipes: [{ Wine: 1 }, { Honey: 1 }],
     unit: "barrel",
@@ -1645,6 +1651,38 @@ export const GOODS_DATA: GoodData[] = [
     unit: "head",
     multipliers: { cultureType: { Nomadic: 1.6, Hunting: 1.3 } },
     biomeOutputByTag: { grassland: 0.02, nomadic: 0.02, scrub: 0.015, mountain: 0.01 }
+  },
+  {
+    // Phase 4 (§5.3): harvested via viticulture.ts's area/labour model (production-utils.ts special-
+    // cases "Grapes" the same way it already special-cases "Game" instead of the generic
+    // population x biomeOutputByTag loop) — no biomeOutputByTag here. `distribution`/`chance` are
+    // kept only for the cosmetic one-time per-cell "bonus good" placement (same condition Wine used
+    // to drive its own production with), purely a map-flavor label now.
+    name: "Grapes",
+    tags: ["food", "freshFood"],
+    icon: "good-unknown",
+    color: "#963e48",
+    value: 2,
+    chance: 3,
+    distribution: 'biome(6) || biomeTag("scrub") || (biome(4) && random(50) && river())',
+    unit: "basket",
+    demandCoverage: { food: 1 },
+    multipliers: { cultureType: { Highland: 1.2, Nomadic: 0.5 } }
+  },
+  {
+    // Dried grapes — a preserved good like Stockfish, produced by the existing generic recipe/craft
+    // pipeline (production-generator.ts's runWorkerLoop) with zero new processing-stage code.
+    name: "Raisins",
+    tags: ["food", "preservative"],
+    // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
+    icon: "good-unknown",
+    color: "#6b4423",
+    // { Grapes: 2 } costs 2*2 = 4 — value 5 keeps a modest margin instead of breaking even.
+    value: 5,
+    chance: 0,
+    recipes: [{ Grapes: 2 }],
+    unit: "bag",
+    demandCoverage: { food: 0.8 }
   }
 ];
 
@@ -1782,7 +1820,11 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   Ivory: tradeProfile(1, 1, 5, 3, 0, 5, 2),
   Coral: tradeProfile(1, 1, 4, 3, 0, 4, 2),
   Stockfish: tradeProfile(3, 3, 2, 1, 0, 4, 2),
-  "Spinning Wheel": tradeProfile(4, 4, 3, 1, 0, 4, 2)
+  "Spinning Wheel": tradeProfile(4, 4, 3, 1, 0, 4, 2),
+  // Fresh fruit spoils faster than Grain (durability/timeValueTrend below Grain's tradeProfile(4,4,1,-1,-1,2,3)).
+  Grapes: tradeProfile(4, 4, 1, -1, -2, 1, 3),
+  // Dried, shelf-stable — same profile class as Stockfish.
+  Raisins: tradeProfile(3, 3, 2, 1, 0, 4, 2)
 };
 
 export function getDefaultGoodTradeProfile(good: Pick<Good, "name" | "tags" | "unit" | "value">): GoodTradeProfile {
@@ -2090,6 +2132,60 @@ export function migrateLiveDogsGood(): boolean {
   if (!dogs) throw new Error("Dogs must be present in the shipped goods catalogue");
   dogs.i = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
   goods.push(dogs);
+  return true;
+}
+
+/**
+ * Adds Grapes to catalogues saved before Phase 4 (docs/plan/biome-goods-producer-ecosystem.md
+ * §5.3). Run before migrateRaisinsGood()/migrateWineRecipe() in the same pass — both need Grapes'
+ * id, already assigned to this save (not the shipped catalogue's default id), to build their recipes.
+ */
+export function migrateGrapesGood(): boolean {
+  const goods = getGoods();
+  if (goods.some(good => good.name === "Grapes")) return false;
+
+  const grapes = Goods.getDefaultGood("Grapes");
+  if (!grapes) throw new Error("Grapes must be present in the shipped goods catalogue");
+  grapes.i = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  goods.push(grapes);
+  return true;
+}
+
+/** Adds Raisins (`{ Grapes: 2 }` recipe) to catalogues saved before Phase 4. No-ops if Grapes
+ * hasn't been migrated into this save yet — call migrateGrapesGood() first in the same pass. */
+export function migrateRaisinsGood(): boolean {
+  const goods = getGoods();
+  if (goods.some(good => good.name === "Raisins")) return false;
+  const grapes = goods.find(good => good.name === "Grapes");
+  if (!grapes) return false;
+
+  const raisins = Goods.getDefaultGood("Raisins");
+  if (!raisins) throw new Error("Raisins must be present in the shipped goods catalogue");
+  raisins.i = goods.reduce((maxId, good) => Math.max(maxId, good.i), 0) + 1;
+  raisins.recipes = [{ [grapes.i]: 2 }]; // this save's actual Grapes id, not the shipped catalogue's
+  goods.push(raisins);
+  return true;
+}
+
+/**
+ * Upgrades a pre-Phase-4 Wine entry (population x biome-rate production) to the new
+ * `{ Grapes, Barrels }` recipe form, stripping the now-unused distribution/biomeOutputByTag
+ * fields. No-ops if Wine already has a recipe (already migrated) or Grapes hasn't been migrated
+ * into this save yet — call migrateGrapesGood() first in the same pass. Existing Market stock
+ * keeps accumulating under the same Good id; only the production mechanism changes.
+ */
+export function migrateWineRecipe(): boolean {
+  const goods = getGoods();
+  const wine = goods.find(good => good.name === "Wine");
+  if (!wine || wine.recipes) return false;
+  const grapes = goods.find(good => good.name === "Grapes");
+  const barrels = goods.find(good => good.name === "Barrels");
+  if (!grapes || !barrels) return false;
+
+  wine.recipes = [{ [grapes.i]: 2, [barrels.i]: 1 }];
+  wine.chance = 0;
+  delete wine.distribution;
+  delete wine.biomeOutputByTag;
   return true;
 }
 

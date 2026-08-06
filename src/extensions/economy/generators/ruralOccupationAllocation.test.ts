@@ -16,9 +16,9 @@ import {
   allocateRuralOccupations,
   GAME_YIELD_PER_HUNTER_PER_MONTH,
   getFishingWorkerFactor,
-  getHuntingGameOutput,
-  getViticultureWorkerFactor
+  getHuntingGameOutput
 } from "./ruralOccupationAllocation";
+import { getViticultureWorkerFactor } from "./viticulture";
 
 const FISH_GOOD = {
   i: 1,
@@ -32,16 +32,17 @@ const FISH_GOOD = {
   demandCoverage: {}
 };
 
-const WINE_GOOD = {
+// Phase 4: no biomeOutputByTag — viticulture.ts sizes Grapes' harvest from vineyard area/labour
+// instead of a flat population x rate (see viticulture.test.ts for that model's own coverage).
+const GRAPES_GOOD = {
   i: 2,
-  name: "Wine",
-  value: 5,
-  tags: ["food", "luxury"],
-  unit: "barrel",
+  name: "Grapes",
+  value: 2,
+  tags: ["food", "freshFood"],
+  unit: "basket",
   icon: "icon",
   color: "#fff",
   chance: 3,
-  biomeOutputByTag: { scrub: 0.12 },
   demandCoverage: {}
 };
 
@@ -95,29 +96,32 @@ describe("ruralOccupationAllocation", () => {
     expect(result.ruralReleasePressure[0]).toBeCloseTo(2, 5);
   });
 
-  it("gates Wine's continuous biome output by the assigned/required viticulture workerFactor", () => {
+  it("gates Grapes' harvest by the assigned/required viticulture workerFactor", () => {
     worldContext.pack = {
       cells: {
         i: new Uint16Array([0]),
         h: new Uint8Array([30]),
         biomeCode: new Uint8Array([1]),
-        pop: new Float32Array([100]),
+        pop: new Float32Array([140]),
+        area: new Float32Array([50]), // physicalHectares = 50 * 1^2 * 100 = 5,000 ha
         c: [[]]
       }
     } as unknown as PackedGraph;
+    worldContext.distanceScale = 1;
     worldContext.biomesData = biomesData({ 1: ["scrub"] }) as never;
-    setGoods([WINE_GOOD] as never);
+    setGoods([GRAPES_GOOD] as never);
     setGoodCellColumn(new Uint16Array([0]));
 
-    const migratableAdults = new Float32Array([50]);
+    const migratableAdults = new Float32Array([6]);
     const result = allocateRuralOccupations(worldContext, migratableAdults);
 
-    // rawOutput = 100 * 0.12 = 12; required = 12 * 10 = 120; only 50 of that is staffed.
-    expect(result.viticultureWorkers[0]).toBeCloseTo(50, 5);
-    expect(result.viticultureRequiredWorkers[0]).toBeCloseTo(120, 5);
+    // ceiling = 5,000 * terrainShare(0.9) * scrub(0.5) = 2,250 ha; desiredArea = min(2250, 140*0.5) = 70 ha;
+    // required = 70 * 20 / 140 = 10; only 6 of that is staffed.
+    expect(result.viticultureWorkers[0]).toBeCloseTo(6, 5);
+    expect(result.viticultureRequiredWorkers[0]).toBeCloseTo(10, 5);
     expect(result.ruralReleasePressure[0]).toBeCloseTo(0, 5);
     persist(result);
-    expect(getViticultureWorkerFactor(0)).toBeCloseTo(50 / 120, 5);
+    expect(getViticultureWorkerFactor(0)).toBeCloseTo(0.6, 5);
   });
 
   it("splits a water-held Fish slot's required workers across its land neighbors", () => {
@@ -147,26 +151,28 @@ describe("ruralOccupationAllocation", () => {
     expect(getFishingWorkerFactor(2)).toBeCloseTo(20 / 30, 5);
   });
 
-  it("prioritizes the higher-value occupation (Wine over Fish) when labour can't cover both", () => {
+  it("prioritizes the higher-value occupation (Grapes over Fish) when labour can't cover both", () => {
     worldContext.pack = {
       cells: {
         i: new Uint16Array([0, 1]),
         h: new Uint8Array([30, 10]),
         biomeCode: new Uint8Array([1, 0]),
-        pop: new Float32Array([100, 0]),
+        pop: new Float32Array([140, 0]),
+        area: new Float32Array([50, 10]),
         c: [[1], [0]]
       }
     } as unknown as PackedGraph;
+    worldContext.distanceScale = 1;
     worldContext.biomesData = biomesData({ 1: ["scrub"], 0: [] }) as never;
-    setGoods([FISH_GOOD, WINE_GOOD] as never);
+    setGoods([FISH_GOOD, GRAPES_GOOD] as never);
     setGoodCellColumn(new Uint16Array([0, 1])); // cell 1 (water) holds the Fish slot
 
-    const migratableAdults = new Float32Array([40, 0]);
+    const migratableAdults = new Float32Array([8, 0]);
     const result = allocateRuralOccupations(worldContext, migratableAdults);
 
-    // Viticulture (value 5) is offered first and consumes the entire budget before fishing
-    // (value 1) gets anything, even though both are eligible at cell 0.
-    expect(result.viticultureWorkers[0]).toBeCloseTo(40, 5);
+    // Viticulture (Grapes, value 2) is offered first and consumes the entire budget (required 10 > 8)
+    // before fishing (value 1) gets anything, even though both are eligible at cell 0.
+    expect(result.viticultureWorkers[0]).toBeCloseTo(8, 5);
     expect(result.fishingWorkers[1]).toBeCloseTo(0, 5);
     expect(result.ruralReleasePressure[0]).toBeCloseTo(0, 5);
   });

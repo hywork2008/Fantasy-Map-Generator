@@ -86,10 +86,13 @@ import {
   Goods,
   getDefaultGoodTradeProfile,
   isGoodEnabled,
+  migrateGrapesGood,
   migrateLegacyOreIngotGoods,
   migrateLiveAnimalTags,
   migrateLiveCatsGood,
-  migrateLiveDogsGood
+  migrateLiveDogsGood,
+  migrateRaisinsGood,
+  migrateWineRecipe
 } from "./generators/goods-generator";
 import { GuildChapters } from "./generators/guildChapters";
 import { GuildKnowledge } from "./generators/guildKnowledge";
@@ -1538,8 +1541,19 @@ export function init(api: ExtensionAPI): void {
         const migratedLegacyMetals = migrateLegacyOreIngotGoods();
         const migratedLiveCats = migrateLiveCatsGood();
         const migratedLiveDogs = migrateLiveDogsGood();
+        const migratedGrapes = migrateGrapesGood();
+        const migratedRaisins = migrateRaisinsGood();
+        const migratedWineRecipe = migrateWineRecipe();
         const migratedLiveAnimalTags = migrateLiveAnimalTags();
-        if (migratedLegacyMetals || migratedLiveCats || migratedLiveDogs || migratedLiveAnimalTags) {
+        if (
+          migratedLegacyMetals ||
+          migratedLiveCats ||
+          migratedLiveDogs ||
+          migratedGrapes ||
+          migratedRaisins ||
+          migratedWineRecipe ||
+          migratedLiveAnimalTags
+        ) {
           Goods.sync();
           Markets.initializeMarketPrices();
         }
@@ -1701,8 +1715,19 @@ export function init(api: ExtensionAPI): void {
     const migratedLegacyMetals = migrateLegacyOreIngotGoods();
     const migratedLiveCats = migrateLiveCatsGood();
     const migratedLiveDogs = migrateLiveDogsGood();
+    const migratedGrapes = migrateGrapesGood();
+    const migratedRaisins = migrateRaisinsGood();
+    const migratedWineRecipe = migrateWineRecipe();
     const migratedLiveAnimalTags = migrateLiveAnimalTags();
-    if (migratedLegacyMetals || migratedLiveCats || migratedLiveDogs || migratedLiveAnimalTags) {
+    if (
+      migratedLegacyMetals ||
+      migratedLiveCats ||
+      migratedLiveDogs ||
+      migratedGrapes ||
+      migratedRaisins ||
+      migratedWineRecipe ||
+      migratedLiveAnimalTags
+    ) {
       Goods.sync();
       Markets.initializeMarketPrices();
     }
@@ -2229,8 +2254,19 @@ export function init(api: ExtensionAPI): void {
     const migratedLegacyMetals = migrateLegacyOreIngotGoods();
     const migratedLiveCats = migrateLiveCatsGood();
     const migratedLiveDogs = migrateLiveDogsGood();
+    const migratedGrapes = migrateGrapesGood();
+    const migratedRaisins = migrateRaisinsGood();
+    const migratedWineRecipe = migrateWineRecipe();
     const migratedLiveAnimalTags = migrateLiveAnimalTags();
-    if (migratedLegacyMetals || migratedLiveCats || migratedLiveDogs || migratedLiveAnimalTags) {
+    if (
+      migratedLegacyMetals ||
+      migratedLiveCats ||
+      migratedLiveDogs ||
+      migratedGrapes ||
+      migratedRaisins ||
+      migratedWineRecipe ||
+      migratedLiveAnimalTags
+    ) {
       Goods.sync();
       Markets.initializeMarketPrices();
     }

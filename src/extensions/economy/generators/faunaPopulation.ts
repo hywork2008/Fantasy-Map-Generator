@@ -47,6 +47,7 @@ import { calculateBurgBuiltAreaHectares, calculatePhysicalAreaHectares } from ".
 import type { FaunaCohorts } from "./faunaPopulationTypes";
 import { type Good, isGoodEnabled } from "./goods-generator";
 import { getGrazedCarryingCapacity, getPastureAreaUsedHectares, isGrazedLivestockGood } from "./husbandry";
+import { getVineyardAreaUsedHectares } from "./viticulture";
 
 /** The species key used for Game's wild stock — Game itself carries no `liveAnimal` tag (§4.1). */
 export const WILD_SPECIES_KEY = "Game";
@@ -144,9 +145,9 @@ export function getRuralEcosystemDetail(): "detailed" | "simplified" {
 // ---- Carrying capacity (§4.2) ----
 
 /**
- * Wild (Game) carrying capacity for a forest cell: fixed density over whatever land farming and
- * husbandry (husbandry.ts's pastureAreaUsed, §5.4, Phase 3) haven't already claimed. Vineyard
- * (§5.3) area isn't tracked yet (Phase 4) — subtract it here too once it exists.
+ * Wild (Game) carrying capacity for a forest cell: fixed density over whatever land farming,
+ * husbandry (husbandry.ts's pastureAreaUsed, §5.4, Phase 3), and viticulture (viticulture.ts's
+ * vineyardAreaUsed, §5.3, Phase 4) haven't already claimed.
  */
 export function getWildCarryingCapacity(cellId: number): number {
   const world = getWorldContext();
@@ -161,7 +162,8 @@ export function getWildCarryingCapacity(cellId: number): number {
   const cultivated = getCultivatedArea()[cellId] ?? 0;
   const burgArea = calculateBurgBuiltAreaHectares(world, cellId);
   const pastureAreaUsed = getPastureAreaUsedHectares(cellId);
-  const wildHabitatArea = Math.max(0, physicalArea - cultivated - burgArea - pastureAreaUsed);
+  const vineyardAreaUsed = getVineyardAreaUsedHectares(cellId);
+  const wildHabitatArea = Math.max(0, physicalArea - cultivated - burgArea - pastureAreaUsed - vineyardAreaUsed);
   return WILD_GAME_DENSITY_PER_HECTARE * wildHabitatArea;
 }
 

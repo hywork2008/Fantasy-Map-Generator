@@ -2,13 +2,14 @@ import { sum } from "d3";
 import { foodStressProductionMultiplier } from "../../hostCore";
 import { DEFAULT_CULTURE_TYPE, type Zone } from "../../hostTypes";
 import { getLatitude, getSeason, getSeasonalityStrength, rn, type Season } from "../../hostUtils";
-import { getGoodCellColumn, getSimulationMonth, getWorldContext } from "../economyContext";
+import { getGoodCellColumn, getGoods, getSimulationMonth, getWorldContext } from "../economyContext";
 import { drawDomesticatedFaunaOfftake } from "./faunaPopulation";
 import { getDepletionFactor } from "./forestDepletion";
 import { type Good, Goods, isGoodEnabled } from "./goods-generator";
 import { getHusbandryWorkerFactor, isGrazedLivestockGood } from "./husbandry";
 import { isMineSuppliedGoodName } from "./mineralResources";
-import { getFishingWorkerFactor, getHuntingGameOutput, getViticultureWorkerFactor } from "./ruralOccupationAllocation";
+import { getFishingWorkerFactor, getHuntingGameOutput } from "./ruralOccupationAllocation";
+import { getGrapeHarvestOutput } from "./viticulture";
 
 export const BONUS_RURAL_PRODUCTION = 0.25;
 export const MAX_BONUS_PRODUCTION = 5;
@@ -148,8 +149,7 @@ export function getRuralProductionContributions(
     }
 
     let amount = population * production;
-    if (good.name === "Wine") amount *= getViticultureWorkerFactor(cellId);
-    else if (good.tags.includes("liveAnimal")) {
+    if (good.tags.includes("liveAnimal")) {
       // Husbandry (§5.4, Phase 3): grazed species (Cattle/Sheep/Goats/Horses/Camels) are gated by
       // herder labour the same way Wine is gated by viticulture labour, always-on regardless of
       // ruralEcosystemDetail (§11.2 — Phase 1's labour allocator is never toggled off). Pig/
@@ -162,6 +162,15 @@ export function getRuralProductionContributions(
       amount = drawDomesticatedFaunaOfftake(cellId, good, amount);
     }
     contributions.push({ goodId, amount: amount * getModifiers(good, cellId) });
+  }
+
+  // Grapes (§5.3, Phase 4): area/labour-gated harvest (viticulture.ts), not a population x
+  // biomeOutputByTag rate — it carries no biomeOutputByTag at all, so it never appears in
+  // `biomeProduction` above. Mirrors Game's special-casing but as its own top-level lookup.
+  const grapesGood = getGoods().find(good => good.name === "Grapes");
+  if (grapesGood && isGoodEnabled(grapesGood) && !isMineSuppliedGoodName(grapesGood.name)) {
+    const amount = getGrapeHarvestOutput(cellId);
+    if (amount > 0) contributions.push({ goodId: grapesGood.i, amount: amount * getModifiers(grapesGood, cellId) });
   }
 
   const bonusGoodId = getGoodCellColumn()[cellId];

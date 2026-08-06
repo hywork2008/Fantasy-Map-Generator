@@ -11,30 +11,29 @@
  * This module resolves that by claiming a single ordered slice of `migratableAdults` per cell:
  *   1. Grain (already done upstream, not repeated here)
  *   2. Hunting's fixed subsistence claim (§5.1) — small and non-competing, taken first
- *   3. Fishing and viticulture (§5.2, §5.3 harvest stage), competing for the remainder in a
- *      simple greedy pass ordered by unit value (mineOperations.ts's workerFactor pattern)
+ *   3. Fishing, viticulture, and husbandry (§5.2-§5.4 harvest stages), competing for the remainder
+ *      in a simple greedy pass ordered by unit value (mineOperations.ts's workerFactor pattern)
  *   4. Whatever is left becomes `ruralReleasePressure`, which ruralLaborRelease.ts consumes.
  *
- * Husbandry (§5.4, Phase 3) joins fishing/viticulture in step 3's greedy pass — husbandry.ts
- * aggregates required herders across every grazed-species good (Cattle/Sheep/Goats/Horses/Camels)
- * present in a cell's biome into one `HusbandryDemand` candidate.
+ * Husbandry (§5.4, Phase 3) and viticulture (§5.3, Phase 4) own their own area/labour demand
+ * calculations in husbandry.ts/viticulture.ts — `calculateHusbandryDemand`/`calculateViticultureDemand`
+ * aggregate a cell's requirement into one candidate each; this module only runs the greedy pass and
+ * persists the result. Fishing's bonus-good model (below) is the one candidate still computed inline.
  */
 
-import { resolveBiomeOutputRate } from "../../../data/biomeEconomy";
 import type { WorldContext } from "../../hostCore";
 import {
   getFishingRequiredWorkers,
   getFishingWorkers,
   getGoodCellColumn,
   getGoods,
-  getHuntingWorkers,
-  getViticultureRequiredWorkers,
-  getViticultureWorkers
+  getHuntingWorkers
 } from "../economyContext";
 import { drawWildFaunaOfftake } from "./faunaPopulation";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { isGoodEnabled } from "./goods-generator";
 import { calculateHusbandryDemand } from "./husbandry";
+import { calculateViticultureDemand } from "./viticulture";
 
 // ---- Placeholder constants (§9.3 — calibration TBD alongside the rest of this ecosystem) ----
 
@@ -62,13 +61,13 @@ export const HUNTER_SUBSISTENCE_SURPLUS_FACTOR = 1.5;
 export const GAME_YIELD_PER_HUNTER_PER_MONTH = (GROSS_FOOD_NEED * HUNTER_SUBSISTENCE_SURPLUS_FACTOR) / 12;
 
 /**
- * Workers needed to fully staff one unit/month of raw fishing or viticulture output potential
- * (the same "raw" rate production-utils.ts used to grant unconditionally). Mirrors
- * mineOperations.ts's getMineRequiredWorkers()/workerFactor pattern; standing in for the real
- * biomass/vineyard-area labour models that arrive in later phases.
+ * Workers needed to fully staff one unit/month of raw fishing bonus-good output potential (the
+ * same "raw" rate production-utils.ts used to grant unconditionally). Mirrors mineOperations.ts's
+ * getMineRequiredWorkers()/workerFactor pattern; fishing still lacks a real biomass-area labour
+ * model (§5.2 leaves catch-luck/stock modeling for a later phase). Viticulture's own equivalent
+ * constant (VINEYARD_LABOUR_DAYS_PER_HECTARE) moved to viticulture.ts with Phase 4's area model.
  */
 export const FISHING_WORKERS_PER_UNIT_OUTPUT = 6;
-export const VITICULTURE_WORKERS_PER_UNIT_OUTPUT = 10;
 
 /**
  * Local stand-ins for production-utils.ts's BONUS_RURAL_PRODUCTION/MAX_BONUS_PRODUCTION, kept as
@@ -188,7 +187,6 @@ export function allocateRuralOccupations(
 
   const goodsByName = new Map(getGoods().map(good => [good.name, good]));
   const fishGood = goodsByName.get("Fish");
-  const wineGood = goodsByName.get("Wine");
 
   const fishOffersByLandCell =
     fishGood && isGoodEnabled(fishGood) ? collectFishingOffers(world, fishGood.i, fishingRequiredWorkers) : new Map();
@@ -212,20 +210,14 @@ export function allocateRuralOccupations(
       holderId?: number;
     }[] = [];
 
-    if (wineGood && isGoodEnabled(wineGood)) {
-      const wineRate = resolveBiomeOutputRate(
-        biomeCode,
-        wineGood.biomeOutput,
-        wineGood.biomeOutputByTag,
-        world.biomesData
-      );
-      if (wineRate > 0) {
-        const rawOutput = Math.max(0, cells.pop[cellId] ?? 0) * wineRate;
-        const required = rawOutput * VITICULTURE_WORKERS_PER_UNIT_OUTPUT;
-        viticultureRequiredWorkers[cellId] = required;
-        if (required > 0) candidates.push({ kind: "viticulture", required, value: wineGood.value });
-      }
-    }
+    const viticultureDemand = calculateViticultureDemand(world, cellId);
+    viticultureRequiredWorkers[cellId] = viticultureDemand.requiredWorkers;
+    if (viticultureDemand.requiredWorkers > 0)
+      candidates.push({
+        kind: "viticulture",
+        required: viticultureDemand.requiredWorkers,
+        value: viticultureDemand.value
+      });
 
     for (const offer of fishOffersByLandCell.get(cellId) ?? []) {
       if (offer.share > 0)
@@ -265,9 +257,9 @@ export function allocateRuralOccupations(
   };
 }
 
-// ---- Consumption side: read the persisted allocation to gate Game/Fish/Wine (production-utils.ts) ----
-// Husbandry's own workerFactor getter lives in husbandry.ts (getHusbandryWorkerFactor) since that
-// module already needs it internally for getPastureAreaUsedHectares().
+// ---- Consumption side: read the persisted allocation to gate Game/Fish (production-utils.ts) ----
+// Husbandry's/viticulture's own workerFactor getters live in husbandry.ts (getHusbandryWorkerFactor)
+// and viticulture.ts (getViticultureWorkerFactor) since those modules already need them internally.
 
 /**
  * Game's monthly output, driven by hunter headcount instead of population (§5.1). Pre-modifier.
@@ -287,13 +279,5 @@ export function getFishingWorkerFactor(cellId: number): number {
   const required = getFishingRequiredWorkers()[cellId] ?? 0;
   if (required <= 0) return 0;
   const assigned = getFishingWorkers()[cellId] ?? 0;
-  return Math.min(1, assigned / required);
-}
-
-/** 0..1 labour-sufficiency ratio gating Wine's biome-continuous output at `cellId`. */
-export function getViticultureWorkerFactor(cellId: number): number {
-  const required = getViticultureRequiredWorkers()[cellId] ?? 0;
-  if (required <= 0) return 0;
-  const assigned = getViticultureWorkers()[cellId] ?? 0;
   return Math.min(1, assigned / required);
 }

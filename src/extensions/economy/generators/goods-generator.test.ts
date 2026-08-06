@@ -13,10 +13,13 @@ import {
 import {
   GoodsModule,
   isGoodEnabled,
+  migrateGrapesGood,
   migrateLegacyOreIngotGoods,
   migrateLiveAnimalTags,
   migrateLiveCatsGood,
-  migrateLiveDogsGood
+  migrateLiveDogsGood,
+  migrateRaisinsGood,
+  migrateWineRecipe
 } from "./goods-generator";
 import { getDefaultGoodsUnitFlavor } from "./goodsUnitFlavor";
 
@@ -253,6 +256,98 @@ describe("GoodsModule", () => {
     expect(migrateLiveDogsGood()).toBe(true);
     expect(getGoods().find(good => good.name === "Dogs")).toMatchObject({ i: 8, unit: "head" });
     expect(migrateLiveDogsGood()).toBe(false);
+  });
+
+  it("defines Grapes as a harvested good with no biomeOutputByTag (docs/plan/biome-goods-producer-ecosystem.md §5.3)", () => {
+    goodsModule.restoreDefaults();
+
+    const grapes = getGoods().find(good => good.name === "Grapes");
+    expect(grapes).toMatchObject({ unit: "basket", tags: expect.arrayContaining(["food", "freshFood"]) });
+    expect(grapes?.biomeOutputByTag).toBeUndefined();
+    expect(grapes?.biomeOutput).toBeUndefined();
+  });
+
+  it("defines Wine as a { Grapes, Barrels } recipe good, no longer directly biome-produced", () => {
+    goodsModule.restoreDefaults();
+
+    const wine = getGoods().find(good => good.name === "Wine");
+    const grapes = getGoods().find(good => good.name === "Grapes");
+    const barrels = getGoods().find(good => good.name === "Barrels");
+    expect(wine?.biomeOutputByTag).toBeUndefined();
+    expect(wine?.distribution).toBeUndefined();
+    expect(wine?.recipes).toEqual([{ [grapes!.i]: 2, [barrels!.i]: 1 }]);
+  });
+
+  it("adds Grapes once to catalogues saved before Phase 4", () => {
+    setGoods([{ i: 7, name: "Legacy good", tags: [], value: 1, unit: "unit", icon: "legacy", color: "#000000" }]);
+
+    expect(migrateGrapesGood()).toBe(true);
+    expect(getGoods().find(good => good.name === "Grapes")).toMatchObject({ i: 8, unit: "basket" });
+    expect(migrateGrapesGood()).toBe(false);
+  });
+
+  it("does not add Raisins until Grapes has been migrated into the save first", () => {
+    setGoods([{ i: 7, name: "Legacy good", tags: [], value: 1, unit: "unit", icon: "legacy", color: "#000000" }]);
+    expect(migrateRaisinsGood()).toBe(false);
+    expect(getGoods().find(good => good.name === "Raisins")).toBeUndefined();
+  });
+
+  it("adds Raisins once Grapes exists, recipe keyed by this save's actual Grapes id", () => {
+    setGoods([
+      { i: 7, name: "Legacy good", tags: [], value: 1, unit: "unit", icon: "legacy", color: "#000000" },
+      { i: 8, name: "Grapes", tags: ["food", "freshFood"], value: 2, unit: "basket", icon: "icon", color: "#fff" }
+    ]);
+
+    expect(migrateRaisinsGood()).toBe(true);
+    const raisins = getGoods().find(good => good.name === "Raisins");
+    expect(raisins).toMatchObject({ i: 9, unit: "bag", recipes: [{ 8: 2 }] });
+    expect(migrateRaisinsGood()).toBe(false);
+  });
+
+  it("does not upgrade Wine's recipe until Grapes and Barrels both exist in the save", () => {
+    setGoods([
+      {
+        i: 7,
+        name: "Wine",
+        tags: ["food", "luxury"],
+        value: 5,
+        unit: "barrel",
+        icon: "icon",
+        color: "#fff",
+        chance: 3,
+        distribution: 'biomeTag("scrub")',
+        biomeOutputByTag: { scrub: 0.12 }
+      }
+    ]);
+    expect(migrateWineRecipe()).toBe(false);
+    expect(getGoods()[0].recipes).toBeUndefined();
+    expect(getGoods()[0].distribution).toBeDefined(); // untouched — migration didn't partially apply
+  });
+
+  it("upgrades a pre-Phase-4 Wine entry to the { Grapes, Barrels } recipe using this save's actual ids", () => {
+    setGoods([
+      {
+        i: 7,
+        name: "Wine",
+        tags: ["food", "luxury"],
+        value: 5,
+        unit: "barrel",
+        icon: "icon",
+        color: "#fff",
+        chance: 3,
+        distribution: 'biomeTag("scrub")',
+        biomeOutputByTag: { scrub: 0.12 }
+      },
+      { i: 8, name: "Grapes", tags: ["food", "freshFood"], value: 2, unit: "basket", icon: "icon", color: "#fff" },
+      { i: 9, name: "Barrels", tags: ["naval", "storage"], value: 2, unit: "barrel", icon: "icon", color: "#fff" }
+    ]);
+
+    expect(migrateWineRecipe()).toBe(true);
+    const wine = getGoods().find(good => good.name === "Wine");
+    expect(wine).toMatchObject({ recipes: [{ 8: 2, 9: 1 }], chance: 0 });
+    expect(wine?.distribution).toBeUndefined();
+    expect(wine?.biomeOutputByTag).toBeUndefined();
+    expect(migrateWineRecipe()).toBe(false); // already has recipes now
   });
 
   it("backfills liveAnimal only for shipped living animals in old catalogues", () => {
